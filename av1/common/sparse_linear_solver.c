@@ -103,5 +103,100 @@ void free_sparse_mtx_elems(SPARSE_MTX *sm) {
   sm->n_elem = 0;
 }
 
+/*
+ * Calculate matrix and vector multiplication: A*b
+ *
+ * Input:
+ * sm: matrix A
+ * srcv: the vector b to be multiplied to
+ * dstl: the length of vectors
+ *
+ * Output:
+ * dstv: pointer to the resulting vector
+ */
+void mtx_vect_multi_right(SPARSE_MTX *sm, double *srcv, double *dstv,
+                          int dstl) {
+  memset(dstv, 0, sizeof(double) * dstl);
+  for (int i = 0; i < sm->n_elem; i++) {
+    dstv[sm->row_pos[i]] += srcv[sm->col_pos[i]] * sm->value[i];
+  }
+}
 
+/*
+ * Calculate inner product of two vectors
+ *
+ * Input:
+ * src1, scr2: the vectors to be multiplied
+ * src1l: length of the vectors
+ *
+ * Output:
+ * the inner product
+ */
+double vect_vect_multi(double *src1, int src1l, double *src2) {
+  double result = 0;
+  for (int i = 0; i < src1l; i++) {
+    result += src1[i] * src2[i];
+  }
+  return result;
+}
+
+/*
+ * Multiply each element in the matrix sm with a constant c
+ */
+void constant_multiply_sparse_matrix(SPARSE_MTX *sm, double c) {
+  for (int i = 0; i < sm->n_elem; i++) {
+    sm->value[i] *= c;
+  }
+}
+
+/*
+ * Solve for Ax = b when A is symmetric and positive definite
+ *
+ * Input:
+ * A: the sparse matrix
+ * b: the vector b
+ * bl: length of b
+ *
+ * Output:
+ * x: pointer to the solution vector
+ */
+void conjugate_gradient_sparse(SPARSE_MTX *A, double *b, int bl, double *x) {
+  double *r, *p, *Ap;
+  double alpha, beta, rtr, r_norm_2;
+
+  // initialize
+  r = aom_calloc(bl, sizeof(double));
+  p = aom_calloc(bl, sizeof(double));
+  Ap = aom_calloc(bl, sizeof(double));
+
+  int i;
+  for (i = 0; i < bl; i++) {
+    r[i] = b[i];
+    p[i] = r[i];
+    x[i] = 0;
+  }
+  r_norm_2 = vect_vect_multi(r, bl, r);
+  for (int k = 0; k < MAX_CG_SP_ITER; k++) {
+    rtr = r_norm_2;
+    mtx_vect_multi_right(A, p, Ap, bl);
+    alpha = rtr / vect_vect_multi(p, bl, Ap);
+    r_norm_2 = 0;
+    for (i = 0; i < bl; i++) {
+      x[i] += alpha * p[i];
+      r[i] -= alpha * Ap[i];
+      r_norm_2 += r[i] * r[i];
+    }
+    if (sqrt(r_norm_2) < 1e-2) {
+      break;
+    }
+    beta = r_norm_2 / rtr;
+    for (i = 0; i < bl; i++) {
+      p[i] = r[i] + beta * p[i];
+    }
+  }
+  // free
+  aom_free(r);
+  aom_free(p);
+  aom_free(Ap);
+}
 #endif  // CONFIG_OPFL
