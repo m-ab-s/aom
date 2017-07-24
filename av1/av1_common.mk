@@ -185,4 +185,11 @@ AV1_COMMON_SRCS-$(HAVE_SSSE3) += common/x86/highbd_convolve_2d_ssse3.c
 endif
 endif
 
+ifeq ($(CONFIG_OPFL),yes)
+AV1_COMMON_SRCS-yes += common/sparse_linear_solver.h
+AV1_COMMON_SRCS-yes += common/sparse_linear_solver.c
+AV1_COMMON_SRCS-yes += common/optical_flow_ref.h
+AV1_COMMON_SRCS-yes += common/optical_flow_ref.c
+endif
+
 $(eval $(call rtcd_h_template,av1_rtcd,av1/common/av1_rtcd_defs.pl))
