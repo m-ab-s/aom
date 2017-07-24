@@ -4371,9 +4371,15 @@ static void write_uncompressed_header(AV1_COMP *cpi,
 
 #if CONFIG_OPFL
   if (cm->show_frame == 0) {
-    cm->frame_offset = cm->current_video_frame + aom_rb_read_literal(rb, 4);
-  } else {
-    cm->frame_offset = cm->current_video_frame;
+    int arf_offset = AOMMIN(
+        15, cpi->twopass.gf_group.arf_src_offset[cpi->twopass.gf_group.index]);
+#if CONFIG_EXT_REFS
+    int brf_offset =
+        cpi->twopass.gf_group.brf_src_offset[cpi->twopass.gf_group.index];
+
+    arf_offset = AOMMIN(15, arf_offset + brf_offset);
+#endif
+    aom_wb_write_literal(wb, arf_offset, 4);
   }
 #endif
 
