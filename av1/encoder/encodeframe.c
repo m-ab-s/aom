@@ -5312,6 +5312,22 @@ static void encode_frame_internal(AV1_COMP *cpi) {
     }
 #endif
 
+#if CONFIG_OPFL
+    if (cm->show_frame == 0) {
+      int arf_offset = AOMMIN(
+          15,
+          cpi->twopass.gf_group.arf_src_offset[cpi->twopass.gf_group.index]);
+#if CONFIG_EXT_REFS
+      int brf_offset =
+          cpi->twopass.gf_group.brf_src_offset[cpi->twopass.gf_group.index];
+      arf_offset = AOMMIN(15, arf_offset + brf_offset);
+#endif
+      cm->frame_offset = cm->current_video_frame + arf_offset;
+    } else {
+      cm->frame_offset = cm->current_video_frame;
+    }
+#endif
+
     av1_setup_frame_boundary_info(cm);
 
     // If allowed, encoding tiles in parallel with one thread handling one tile.

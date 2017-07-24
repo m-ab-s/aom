@@ -346,6 +346,10 @@ typedef struct AV1Common {
   unsigned int frame_context_idx; /* Context to use/update */
   FRAME_COUNTS counts;
 
+#if CONFIG_OPFL
+  unsigned int frame_offset;
+#endif
+
   unsigned int current_video_frame;
   BITSTREAM_PROFILE profile;
 

@@ -4369,6 +4369,14 @@ static void write_uncompressed_header(AV1_COMP *cpi,
     }
   }
 
+#if CONFIG_OPFL
+  if (cm->show_frame == 0) {
+    cm->frame_offset = cm->current_video_frame + aom_rb_read_literal(rb, 4);
+  } else {
+    cm->frame_offset = cm->current_video_frame;
+  }
+#endif
+
 #if CONFIG_REFERENCE_BUFFER
   cm->refresh_mask = cm->frame_type == KEY_FRAME ? 0xFF : get_refresh_mask(cpi);
 #endif

@@ -4639,6 +4639,14 @@ static size_t read_uncompressed_header(AV1Decoder *pbi,
   cm->cur_frame->intra_only = cm->frame_type == KEY_FRAME || cm->intra_only;
 #endif
 
+#if CONFIG_OPFL
+  if (cm->show_frame == 0) {
+    cm->frame_offset = cm->current_video_frame + aom_rb_read_literal(rb, 4);
+  } else {
+    cm->frame_offset = cm->current_video_frame;
+  }
+#endif
+
 #if CONFIG_REFERENCE_BUFFER
   if (pbi->seq_params.frame_id_numbers_present_flag) {
     /* If bitmask is set, update reference frame id values and
