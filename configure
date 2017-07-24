@@ -244,6 +244,7 @@ HAVE_LIST="
     wxwidgets
 "
 EXPERIMENT_LIST="
+    opfl
     fp_mb_stats
     cdef
     var_tx
