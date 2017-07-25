@@ -249,4 +249,208 @@ void refine_motion_field(YV12_BUFFER_CONFIG *ref0, YV12_BUFFER_CONFIG *ref1,
   }
   return;
 }
+
+/*
+ * Update motion field at each iteration by solving linear equations directly.
+ *
+ * Input:
+ * ref0, ref1: reference frames
+ * mf_last: initial motion field
+ * level: current scale level, 0 = original, 1 = 0.5, 2 = 0.25, etc.
+ * dstpos: dst frame position
+ * scale: scale the laplacian multiplier to perform "annealing"
+ *
+ * Output:
+ * mf_new: pointer to calculated motion field
+ */
+double iterate_update_mv(YV12_BUFFER_CONFIG *ref0, YV12_BUFFER_CONFIG *ref1,
+                         DB_MV *mf_last, DB_MV *mf_new, int level,
+                         double dstpos, double scale) {
+  double *Ex, *Ey, *Et;
+  double a_squared = OF_A_SQUARED * scale;
+  double cost = 0;
+
+  //  uint8_t *y0 = ref0->y_buffer;
+  int width = ref0->y_width, height = ref0->y_height, stride = ref0->y_stride;
+  int mvstr = width + 2 * AVG_MF_BORDER;
+  DB_MV *mv_start = mf_last + AVG_MF_BORDER * mvstr + AVG_MF_BORDER;
+  DB_MV *mv_start_new = mf_new + AVG_MF_BORDER * mvstr + AVG_MF_BORDER;
+  int i, j;
+
+  // allocate buffers
+  Ex = aom_calloc(width * height, sizeof(double));
+  Ey = aom_calloc(width * height, sizeof(double));
+  Et = aom_calloc(width * height, sizeof(double));
+  YV12_BUFFER_CONFIG *buffer0 = aom_calloc(1, sizeof(YV12_BUFFER_CONFIG));
+  YV12_BUFFER_CONFIG *buffer1 = aom_calloc(1, sizeof(YV12_BUFFER_CONFIG));
+  aom_alloc_frame_buffer(buffer0, width, height, 1, 1, 0, AOM_BORDER_IN_PIXELS,
+                         0);
+  aom_alloc_frame_buffer(buffer1, width, height, 1, 1, 0, AOM_BORDER_IN_PIXELS,
+                         0);
+  int *row_pos = aom_calloc(width * height * 12, sizeof(int));
+  int *col_pos = aom_calloc(width * height * 12, sizeof(int));
+  double *values = aom_calloc(width * height * 12, sizeof(double));
+  double *mv_vec = aom_calloc(width * height * 2, sizeof(double));
+  double *b = aom_calloc(width * height * 2, sizeof(double));
+  double *last_mv_vec = mv_vec;
+
+  clock_t start, end;
+  start = clock();
+  // warp ref1 back to ref0 => buffer
+  if (level == 0)
+    warp_optical_flow_fwd(ref0, ref1, mv_start, mvstr, buffer0, dstpos);
+  else
+    warp_optical_flow_fwd_bilinear(ref0, ref1, mv_start, mvstr, buffer0,
+                                   dstpos);
+  if (level == 0)
+    warp_optical_flow_back(ref1, ref0, mv_start, mvstr, buffer1, 1 - dstpos);
+  else
+    warp_optical_flow_back_bilinear(ref1, ref0, mv_start, mvstr, buffer1,
+                                    1 - dstpos);
+  end = clock();
+  timesub += (double)(end - start) / CLOCKS_PER_SEC;
+
+  start = clock();
+  // Calculate partial derivatives
+  end = clock();
+  timeder += (double)(end - start) / CLOCKS_PER_SEC;
+
+  start = clock();
+  // construct and solve A*mv_vec = b
+  SPARSE_MTX A, M, F;
+  end = clock();
+  timeinit += (double)(end - start) / CLOCKS_PER_SEC;
+
+  start = clock();
+  // solve
+  conjugate_gradient_sparse(&A, b, 2 * width * height, mv_vec);
+  end = clock();
+  timesolve += (double)(end - start) / CLOCKS_PER_SEC;
+
+  // reshape motion field to 2D
+  cost = 0;
+  for (j = 0; j < width; j++) {
+    for (i = 0; i < height; i++) {
+      mv_start_new[i * mvstr + j].row = mv_vec[j * height + i];
+      cost += mv_vec[j * height + i] * mv_vec[j * height + i];
+    }
+  }
+  for (j = 0; j < width; j++) {
+    for (i = 0; i < height; i++) {
+      mv_start_new[i * mvstr + j].col = mv_vec[width * height + j * height + i];
+      cost += mv_vec[width * height + j * height + i] *
+              mv_vec[width * height + j * height + i];
+    }
+  }
+
+  // free buffers
+  aom_free(Et);
+  aom_free(Ex);
+  aom_free(Ey);
+  aom_free_frame_buffer(buffer0);
+  aom_free(buffer0);
+  aom_free_frame_buffer(buffer1);
+  aom_free(buffer1);
+  aom_free(row_pos);
+  aom_free(col_pos);
+  aom_free(values);
+  free_sparse_mtx_elems(&A);
+  free_sparse_mtx_elems(&F);
+  free_sparse_mtx_elems(&M);
+  aom_free(mv_vec);
+  aom_free(b);
+
+  cost = sqrt(cost);  // 2 norm
+  return cost;
+}
+
+/*
+ * Update motion field at each iteration by a fast iterative method.
+ *
+ * Input:
+ * ref0, ref1: reference frames
+ * mf_last: initial motion field
+ * level: current scale level, 0 = original, 1 = 0.5, 2 = 0.25, etc.
+ * dstpos: dst frame position
+ * scale: scale the laplacian multiplier to perform "annealing"
+ *
+ * Output:
+ * mf_new: pointer to calculated motion field
+ */
+double iterate_update_mv_fast(YV12_BUFFER_CONFIG *ref0,
+                              YV12_BUFFER_CONFIG *ref1, DB_MV *mf_last,
+                              DB_MV *mf_new, int level, double dstpos,
+                              double scale) {
+  double *Ex, *Ey, *Et;
+  double a_squared = OF_A_SQUARED * scale;
+  double cost = 0;
+
+  //  uint8_t *y0 = ref0->y_buffer;
+  int width = ref0->y_width, height = ref0->y_height, stride = ref0->y_stride;
+  int mvstr = width + 2 * AVG_MF_BORDER;
+  DB_MV *mv_start = mf_last + AVG_MF_BORDER * mvstr + AVG_MF_BORDER;
+  DB_MV *mv_start_new = mf_new + AVG_MF_BORDER * mvstr + AVG_MF_BORDER;
+  int i, j;
+
+  // allocate buffers
+  Ex = aom_calloc(width * height, sizeof(double));
+  Ey = aom_calloc(width * height, sizeof(double));
+  Et = aom_calloc(width * height, sizeof(double));
+  YV12_BUFFER_CONFIG *buffer0 = aom_calloc(1, sizeof(YV12_BUFFER_CONFIG));
+  YV12_BUFFER_CONFIG *buffer1 = aom_calloc(1, sizeof(YV12_BUFFER_CONFIG));
+  aom_alloc_frame_buffer(buffer0, width, height, 1, 1, 0, AOM_BORDER_IN_PIXELS,
+                         0);
+  aom_alloc_frame_buffer(buffer1, width, height, 1, 1, 0, AOM_BORDER_IN_PIXELS,
+                         0);
+
+  clock_t start, end;
+  start = clock();
+  // warp ref1 back to ref0 => buffer
+  if (level == 0)
+    warp_optical_flow_fwd(ref0, ref1, mv_start, mvstr, buffer0, dstpos);
+  else
+    warp_optical_flow_fwd_bilinear(ref0, ref1, mv_start, mvstr, buffer0,
+                                   dstpos);
+  if (level == 0)
+    warp_optical_flow_back(ref1, ref0, mv_start, mvstr, buffer1, 1 - dstpos);
+  else
+    warp_optical_flow_back_bilinear(ref1, ref0, mv_start, mvstr, buffer1,
+                                    1 - dstpos);
+  end = clock();
+  timesub += (double)(end - start) / CLOCKS_PER_SEC;
+
+  start = clock();
+  // Calculate partial derivatives
+  end = clock();
+  timeder += (double)(end - start) / CLOCKS_PER_SEC;
+
+  start = clock();
+  end = clock();
+  timesolve += (double)(end - start) / CLOCKS_PER_SEC;
+
+  // reshape motion field to 2D
+  cost = 0;
+  for (j = 0; j < width; j++) {
+    for (i = 0; i < height; i++) {
+      cost += mv_start_new[i * mvstr + j].row * mv_start_new[i * mvstr + j].row;
+    }
+  }
+  for (j = 0; j < width; j++) {
+    for (i = 0; i < height; i++) {
+      cost += mv_start_new[i * mvstr + j].col * mv_start_new[i * mvstr + j].col;
+    }
+  }
+
+  // free buffers
+  aom_free(Et);
+  aom_free(Ex);
+  aom_free(Ey);
+  aom_free_frame_buffer(buffer0);
+  aom_free(buffer0);
+  aom_free_frame_buffer(buffer1);
+  aom_free(buffer1);
+
+  cost = sqrt(cost);  // 2 norm
+  return cost;
+}
 #endif  // CONFIG_OPFL
