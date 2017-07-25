@@ -10,11 +10,11 @@
  */
 
 #include "av1/common/sparse_linear_solver.h"
+#include <float.h>
 #include "./aom_config.h"
+#include "aom_mem/aom_mem.h"
 #include "av1/common/alloccommon.h"
 #include "av1/common/onyxc_int.h"
-#include "aom_mem/aom_mem.h"
-#include <float.h>
 
 #if CONFIG_OPFL
 
