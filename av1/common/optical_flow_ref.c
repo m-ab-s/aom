@@ -193,4 +193,60 @@ void optical_flow_get_ref(YV12_BUFFER_CONFIG *ref0, YV12_BUFFER_CONFIG *ref1,
   fflush(stdout);
   return;
 }
+
+/*
+ * use optical flow method to calculate motion field of a specific level.
+ *
+ * Input:
+ * ref0, ref1: reference frames
+ * mf_last: initial motion field
+ * level: current scale level, 0 = original, 1 = 0.5, 2 = 0.25, etc.
+ * dstpos: dst frame position
+ *
+ * Output:
+ * mf_new: pointer to calculated motion field
+ */
+void refine_motion_field(YV12_BUFFER_CONFIG *ref0, YV12_BUFFER_CONFIG *ref1,
+                         DB_MV *mf_last, DB_MV *mf_new, int level,
+                         double dstpos) {
+  int count = 0;
+  double last_cost = DBL_MAX;
+  double new_cost = last_cost;
+  int width = ref0->y_width, height = ref0->y_height;
+  int mvstr = width + 2 * AVG_MF_BORDER;
+  double as_scale_factor = 1;  // annealing factor for laplacian multiplier
+  // iteratively warp and estimate motion field
+  while (count < MAX_ITER_OPTICAL_FLOW + 2 - level) {
+#if FAST_OPTICAL_FLOW
+    if (level == 2) {
+      new_cost = iterate_update_mv(ref0, ref1, mf_last, mf_new, level, dstpos,
+                                   as_scale_factor);
+    } else {
+      new_cost = iterate_update_mv_fast(ref0, ref1, mf_last, mf_new, level,
+                                        dstpos, as_scale_factor);
+    }
+#else
+    new_cost = iterate_update_mv(ref0, ref1, mf_last, mf_new, level, dstpos,
+                                 as_scale_factor);
+#endif
+    // prepare for the next iteration
+    DB_MV *mv_start = mf_last + AVG_MF_BORDER * mvstr + AVG_MF_BORDER;
+    DB_MV *mv_start_new = mf_new + AVG_MF_BORDER * mvstr + AVG_MF_BORDER;
+    for (int i = 0; i < height; i++) {
+      for (int j = 0; j < width; j++) {
+        mv_start[i * mvstr + j].row += mv_start_new[i * mvstr + j].row;
+        mv_start[i * mvstr + j].col += mv_start_new[i * mvstr + j].col;
+        mv_start_new[i * mvstr + j].row = mv_start[i * mvstr + j].row;
+        mv_start_new[i * mvstr + j].col = mv_start[i * mvstr + j].col;
+      }
+    }
+    if (new_cost >= last_cost) {
+      break;
+    }
+    last_cost = new_cost;
+    count++;
+    as_scale_factor *= OPFL_ANNEAL_FACTOR;
+  }
+  return;
+}
 #endif  // CONFIG_OPFL
