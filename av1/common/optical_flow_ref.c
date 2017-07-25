@@ -312,6 +312,7 @@ double iterate_update_mv(YV12_BUFFER_CONFIG *ref0, YV12_BUFFER_CONFIG *ref1,
 
   start = clock();
   // Calculate partial derivatives
+  opfl_get_derivatives(Ex, Ey, Et, buffer0, buffer1, dstpos);
   end = clock();
   timeder += (double)(end - start) / CLOCKS_PER_SEC;
 
@@ -421,6 +422,7 @@ double iterate_update_mv_fast(YV12_BUFFER_CONFIG *ref0,
 
   start = clock();
   // Calculate partial derivatives
+  opfl_get_derivatives(Ex, Ey, Et, buffer0, buffer1, dstpos);
   end = clock();
   timeder += (double)(end - start) / CLOCKS_PER_SEC;
 
@@ -452,5 +454,59 @@ double iterate_update_mv_fast(YV12_BUFFER_CONFIG *ref0,
 
   cost = sqrt(cost);  // 2 norm
   return cost;
+}
+
+void opfl_get_derivatives(double *Ex, double *Ey, double *Et,
+                          YV12_BUFFER_CONFIG *buffer0,
+                          YV12_BUFFER_CONFIG *buffer1, double dstpos) {
+  int lh = DERIVATIVE_FILTER_LENGTH;
+  int hleft = (lh - 1) / 2;
+  double filter[DERIVATIVE_FILTER_LENGTH] = {
+      -1.0 / 60, 9.0 / 60, -45.0 / 60, 0, 45.0 / 60, -9.0 / 60, 1.0 / 60};
+  int idx, i, j;
+  int width = buffer0->y_width;
+  int height = buffer0->y_height;
+  int stride = buffer0->y_stride;
+  // horizontal derivative filter
+  for (i = 0; i < height; i++) {
+    for (j = 0; j < width; j++) {
+      Ex[i * width + j] = 0;
+      for (int k = 0; k < lh; k++) {
+        idx = j + k - hleft;
+        if (idx < 0)
+          idx = 0;
+        else if (idx > width - 1)
+          idx = width - 1;
+        Ex[i * width + j] +=
+            filter[k] * (double)(buffer0->y_buffer[i * stride + idx]) *
+                (1 - dstpos) +
+            filter[k] * (double)(buffer1->y_buffer[i * stride + idx]) * dstpos;
+      }
+    }
+  }
+  // vertical derivative filter
+  for (i = 0; i < height; i++) {
+    for (j = 0; j < width; j++) {
+      Ey[i * width + j] = 0;
+      for (int k = 0; k < lh; k++) {
+        idx = i + k - hleft;
+        if (idx < 0)
+          idx = 0;
+        else if (idx > height - 1)
+          idx = height - 1;
+        Ey[i * width + j] +=
+            filter[k] * (double)(buffer0->y_buffer[idx * stride + j]) *
+                (1 - dstpos) +
+            filter[k] * (double)(buffer1->y_buffer[idx * stride + j]) * dstpos;
+      }
+    }
+  }
+  // time derivative
+  for (i = 0; i < height; i++) {
+    for (j = 0; j < width; j++) {
+      Et[i * width + j] = (double)(buffer1->y_buffer[i * stride + j]) -
+                          (double)(buffer0->y_buffer[i * stride + j]);
+    }
+  }
 }
 #endif  // CONFIG_OPFL

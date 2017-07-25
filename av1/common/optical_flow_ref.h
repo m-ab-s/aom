@@ -97,6 +97,9 @@ int ref_mode_filter_3x3(int *center, int stride, double dstpos);
 void upscale_mv_by_2(DB_MV *src, int srcw, int srch, int srcs, DB_MV *dst,
                      int dsts);
 int write_image_opfl(const YV12_BUFFER_CONFIG *const ref_buf, char *file_name);
+void opfl_get_derivatives(double *Ex, double *Ey, double *Et,
+                          YV12_BUFFER_CONFIG *buffer0,
+                          YV12_BUFFER_CONFIG *buffer1, double dstpos);
 
 #endif  // CONFIG_OPFL
 
