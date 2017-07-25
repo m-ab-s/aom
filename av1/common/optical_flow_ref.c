@@ -319,6 +319,206 @@ double iterate_update_mv(YV12_BUFFER_CONFIG *ref0, YV12_BUFFER_CONFIG *ref1,
   start = clock();
   // construct and solve A*mv_vec = b
   SPARSE_MTX A, M, F;
+  for (j = 0; j < width; j++) {
+    for (i = 0; i < height; i++) {
+      last_mv_vec[j * height + i] = mv_start[i * mvstr + j].row;
+    }
+  }
+  for (j = 0; j < width; j++) {
+    for (i = 0; i < height; i++) {
+      last_mv_vec[width * height + j * height + i] =
+          mv_start[i * mvstr + j].col;
+    }
+  }
+  // get laplacian filter matrix F; Currently using:
+  //    0,  1, 0
+  //    1, -4, 1
+  //    0,  1, 0
+  // M = [F 0; 0 F].
+  int c = 0;
+  for (j = 0; j < width; j++) {
+    for (i = 0; i < height; i++) {
+      int center = -4, up = 1, low = 1, left = 1, right = 1;
+      if (i == 0) {
+        center = center + up;
+        up = 0;
+      } else if (i == height - 1) {
+        center = center + low;
+        low = 0;
+      }
+      if (j == 0) {
+        center = center + left;
+        left = 0;
+      } else if (j == width - 1) {
+        center = center + right;
+        right = 0;
+      }
+
+      if (up) row_pos[c] = j * height + i;
+      col_pos[c] = j * height + i - 1;
+      values[c] = up;
+      c++;
+      if (left) row_pos[c] = j * height + i;
+      col_pos[c] = (j - 1) * height + i;
+      values[c] = left;
+      c++;
+      row_pos[c] = j * height + i;
+      col_pos[c] = j * height + i;
+      values[c] = center;
+      c++;
+      if (right) row_pos[c] = j * height + i;
+      col_pos[c] = (j + 1) * height + i;
+      values[c] = right;
+      c++;
+      if (low) row_pos[c] = j * height + i;
+      col_pos[c] = j * height + i + 1;
+      values[c] = low;
+      c++;
+    }
+  }
+  init_sparse_mtx(row_pos, col_pos, values, c, height * width, height * width,
+                  &F);
+  init_combine_sparse_mtx(&F, &F, &M, 0, 0, height * width, height * width,
+                          2 * height * width, 2 * height * width);
+  constant_multiply_sparse_matrix(&M, a_squared);
+  // construct A
+  int offset = height * width;
+  c = 0;
+  for (j = 0; j < width; j++) {
+    for (i = 0; i < height; i++) {
+      int center = -4, up = 1, low = 1, left = 1, right = 1;
+      if (i == 0) {
+        center = center + up;
+        up = 0;
+      } else if (i == height - 1) {
+        center = center + low;
+        low = 0;
+      }
+      if (j == 0) {
+        center = center + left;
+        left = 0;
+      } else if (j == width - 1) {
+        center = center + right;
+        right = 0;
+      }
+
+      if (up) {
+        row_pos[c] = j * height + i;
+        col_pos[c] = j * height + i - 1;
+        values[c] = -a_squared * (double)up;
+        c++;
+      }
+      if (left) {
+        row_pos[c] = j * height + i;
+        col_pos[c] = (j - 1) * height + i;
+        values[c] = -a_squared * (double)left;
+        c++;
+      }
+
+      row_pos[c] = j * height + i;
+      col_pos[c] = j * height + i;
+      values[c] =
+          Ex[i * width + j] * Ex[i * width + j] - a_squared * (double)center;
+      c++;
+
+      if (right) {
+        row_pos[c] = j * height + i;
+        col_pos[c] = (j + 1) * height + i;
+        values[c] = -a_squared * (double)right;
+        c++;
+      }
+      if (low) {
+        row_pos[c] = j * height + i;
+        col_pos[c] = j * height + i + 1;
+        values[c] = -a_squared * (double)low;
+        c++;
+      }
+    }
+  }
+  for (j = 0; j < width; j++) {
+    for (i = 0; i < height; i++) {
+      int center = -4, up = 1, low = 1, left = 1, right = 1;
+      if (i == 0) {
+        center = center + up;
+        up = 0;
+      } else if (i == height - 1) {
+        center = center + low;
+        low = 0;
+      }
+      if (j == 0) {
+        center = center + left;
+        left = 0;
+      } else if (j == width - 1) {
+        center = center + right;
+        right = 0;
+      }
+
+      if (up) {
+        row_pos[c] = offset + j * height + i;
+        col_pos[c] = offset + j * height + i - 1;
+        values[c] = -a_squared * (double)up;
+        c++;
+      }
+      if (left) {
+        row_pos[c] = offset + j * height + i;
+        col_pos[c] = offset + (j - 1) * height + i;
+        values[c] = -a_squared * (double)left;
+        c++;
+      }
+
+      row_pos[c] = offset + j * height + i;
+      col_pos[c] = offset + j * height + i;
+      values[c] =
+          Ey[i * width + j] * Ey[i * width + j] - a_squared * (double)center;
+      c++;
+
+      if (right) {
+        row_pos[c] = offset + j * height + i;
+        col_pos[c] = offset + (j + 1) * height + i;
+        values[c] = -a_squared * (double)right;
+        c++;
+      }
+      if (low) {
+        row_pos[c] = offset + j * height + i;
+        col_pos[c] = offset + j * height + i + 1;
+        values[c] = -a_squared * (double)low;
+        c++;
+      }
+    }
+  }
+  for (j = 0; j < width; j++) {
+    for (i = 0; i < height; i++) {
+      row_pos[c] = offset + j * height + i;
+      col_pos[c] = j * height + i;
+      values[c] = Ex[i * width + j] * Ey[i * width + j];
+      c++;
+    }
+  }
+  for (j = 0; j < width; j++) {
+    for (i = 0; i < height; i++) {
+      row_pos[c] = j * height + i;
+      col_pos[c] = offset + j * height + i;
+      values[c] = Ex[i * width + j] * Ey[i * width + j];
+      c++;
+    }
+  }
+  init_sparse_mtx(row_pos, col_pos, values, c, 2 * width * height,
+                  2 * width * height, &A);
+  // get b
+  mtx_vect_multi_right(&M, last_mv_vec, b, 2 * height * width);
+  for (j = 0; j < width; j++) {
+    for (i = 0; i < height; i++) {
+      b[j * height + i] =
+          b[j * height + i] - Et[i * width + j] * Ex[i * width + j];
+    }
+  }
+  for (j = 0; j < width; j++) {
+    for (i = 0; i < height; i++) {
+      b[j * height + i + height * width] =
+          b[j * height + i + height * width] -
+          Et[i * width + j] * Ey[i * width + j];
+    }
+  }
   end = clock();
   timeinit += (double)(end - start) / CLOCKS_PER_SEC;
 
