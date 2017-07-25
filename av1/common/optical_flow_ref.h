@@ -23,6 +23,7 @@ extern "C" {
 #if CONFIG_OPFL
 
 #define MAX_ITER_OPTICAL_FLOW 3
+#define MAX_ITER_FAST_OPFL 15  // this has to be an odd number for now.
 #define AVG_MF_BORDER 4
 #define MAX_MV_LENGTH_1D 160
 #define DERIVATIVE_FILTER_LENGTH 7

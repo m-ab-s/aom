@@ -626,7 +626,114 @@ double iterate_update_mv_fast(YV12_BUFFER_CONFIG *ref0,
   end = clock();
   timeder += (double)(end - start) / CLOCKS_PER_SEC;
 
+  // iterative solver
   start = clock();
+  DB_MV *tempmv;
+  DB_MV *bufmv = aom_calloc(height * mvstr, sizeof(DB_MV));
+  DB_MV *lp_last = aom_calloc(height * mvstr, sizeof(DB_MV));
+  double *denorm = aom_calloc(height * width, sizeof(double));
+  DB_MV avg;
+  // get the laplacian of initial motion field
+  int i0, i1, j0, j1;
+  for (i = 0; i < height; i++) {
+    for (j = 0; j < width; j++) {
+      bufmv[i * mvstr + j].row = 0;
+      bufmv[i * mvstr + j].col = 0;
+      lp_last[i * mvstr + j].row = 0;
+      lp_last[i * mvstr + j].col = 0;
+      if (i == 0) {
+        i0 = 0;
+        i1 = i + 1;
+      } else if (i == height - 1) {
+        i1 = height - 1;
+        i0 = i - 1;
+      } else {
+        i0 = i - 1;
+        i1 = i + 1;
+      }
+      if (j == 0) {
+        j0 = 0;
+        j1 = i + 1;
+      } else if (j == width - 1) {
+        j1 = width - 1;
+        j0 = j - 1;
+      } else {
+        j0 = j - 1;
+        j1 = j + 1;
+      }
+      lp_last[i * mvstr + j].row += 0.25 * mv_start[i0 * mvstr + j].row +
+                                    0.25 * mv_start[i1 * mvstr + j].row +
+                                    0.25 * mv_start[i * mvstr + j0].row +
+                                    0.25 * mv_start[i * mvstr + j1].row;
+      lp_last[i * mvstr + j].row -= mv_start[i * mvstr + j].row;
+      lp_last[i * mvstr + j].col += 0.25 * mv_start[i0 * mvstr + j].col +
+                                    0.25 * mv_start[i1 * mvstr + j].col +
+                                    0.25 * mv_start[i * mvstr + j0].col +
+                                    0.25 * mv_start[i * mvstr + j1].col;
+      lp_last[i * mvstr + j].col -= mv_start[i * mvstr + j].col;
+      denorm[i * width + j] = 16 * a_squared +
+                              Ex[i * width + j] * Ex[i * width + j] +
+                              Ey[i * width + j] * Ey[i * width + j];
+    }
+  }
+  // calculate the motion field
+  for (int k = 0; k < MAX_ITER_FAST_OPFL; k++) {
+    for (i = 0; i < height; i++) {
+      for (j = 0; j < width; j++) {
+        avg.row = 0;
+        avg.col = 0;
+        if (i == 0) {
+          i0 = 0;
+          i1 = i + 1;
+        } else if (i == height - 1) {
+          i1 = height - 1;
+          i0 = i - 1;
+        } else {
+          i0 = i - 1;
+          i1 = i + 1;
+        }
+        if (j == 0) {
+          j0 = 0;
+          j1 = i + 1;
+        } else if (j == width - 1) {
+          j1 = width - 1;
+          j0 = j - 1;
+        } else {
+          j0 = j - 1;
+          j1 = j + 1;
+        }
+        avg.row += 0.25 * bufmv[i0 * mvstr + j].row +
+                   0.25 * bufmv[i1 * mvstr + j].row +
+                   0.25 * bufmv[i * mvstr + j0].row +
+                   0.25 * bufmv[i * mvstr + j1].row;
+        avg.row += lp_last[i * mvstr + j].row;
+        avg.col += 0.25 * bufmv[i0 * mvstr + j].col +
+                   0.25 * bufmv[i1 * mvstr + j].col +
+                   0.25 * bufmv[i * mvstr + j0].col +
+                   0.25 * bufmv[i * mvstr + j1].col;
+        avg.col += lp_last[i * mvstr + j].col;
+        mv_start_new[i * mvstr + j].row =
+            avg.row - Ex[i * width + j] *
+                          (Ex[i * width + j] * avg.row +
+                           Ey[i * width + j] * avg.col + Et[i * width + j]) /
+                          denorm[i * width + j];
+        mv_start_new[i * mvstr + j].col =
+            avg.col - Ey[i * width + j] *
+                          (Ex[i * width + j] * avg.row +
+                           Ey[i * width + j] * avg.col + Et[i * width + j]) /
+                          denorm[i * width + j];
+      }
+    }
+    if (k < MAX_ITER_FAST_OPFL - 1) {
+      tempmv = bufmv;
+      bufmv = mv_start_new;
+      mv_start_new = tempmv;
+    }
+  }
+
+  aom_free(bufmv);
+  aom_free(lp_last);
+  aom_free(denorm);
   end = clock();
   timesolve += (double)(end - start) / CLOCKS_PER_SEC;
 
