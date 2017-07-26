@@ -30,7 +30,7 @@ extern "C" {
 #define OF_A_SQUARED 500
 #define USE_MEDIAN_FILTER 1
 #define OPTICAL_FLOW_DIFF_THRES 10.0  // Thres to detect pixel difference
-#define OPTICAL_FLOW_REF_THRES 0.1    // Thres to determine reference usage
+#define OPTICAL_FLOW_REF_THRES 0.3    // Thres to determine reference usage
 #define FAST_OPTICAL_FLOW 0           // Use fast iterative method
 #define OPFL_ANNEAL_FACTOR 1.0  // Annealing factor for laplacian multiplier
 

@@ -359,6 +359,7 @@ typedef struct AV1Common {
 
 #if CONFIG_OPFL
   unsigned int frame_offset;
+  YV12_BUFFER_CONFIG *opfl_ref_frame;
 #endif
 
   unsigned int current_video_frame;

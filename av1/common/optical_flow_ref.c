@@ -1647,4 +1647,59 @@ double iter_median_double(double *x, double *left, double *right, int length,
   else
     return iter_median_double(right, left, x, rl, mididx - ll - 1);
 }
+
+/*
+ * Do mode filter to the reference selections
+ */
+int ref_mode_filter_3x3(int *center, int stride, double dstpos) {
+  int ref_id_count[3] = {0};
+  for (int i = -1; i < 2; i++) {
+    for (int j = -1; j < 2; j++) {
+      assert(center[i * stride + j] >= 0);
+      ref_id_count[center[i * stride + j]]++;
+    }
+  }
+  if (ref_id_count[2] >= ref_id_count[1] &&
+      ref_id_count[2] >= ref_id_count[0]) {
+    return 2;
+  } else if (ref_id_count[1] == ref_id_count[0]) {
+    return ((dstpos <= 0.5) ? 0 : 1);
+  } else {
+    return ((ref_id_count[0] > ref_id_count[1]) ? 0 : 1);
+  }
+}
+
+/*
+ * Write YUV for debug purpose
+ */
+int write_image_opfl(const YV12_BUFFER_CONFIG *const ref_buf, char *file_name) {
+  int h;
+  FILE *f_ref = NULL;
+
+  if (ref_buf == NULL) {
+    printf("Frame data buffer is NULL.\n");
+    return AOM_CODEC_MEM_ERROR;
+  }
+  if ((f_ref = fopen(file_name, "ab")) == NULL) {
+    printf("Unable to open file %s to write.\n", file_name);
+    return AOM_CODEC_MEM_ERROR;
+  }
+  // --- Y ---
+  for (h = 0; h < ref_buf->y_height; ++h) {
+    fwrite(&ref_buf->y_buffer[h * ref_buf->y_stride], 1, ref_buf->y_width,
+           f_ref);
+  }
+  // --- U ---
+  for (h = 0; h < (ref_buf->uv_height); ++h) {
+    fwrite(&ref_buf->u_buffer[h * ref_buf->uv_stride], 1, ref_buf->uv_width,
+           f_ref);
+  }
+  // --- V ---
+  for (h = 0; h < (ref_buf->uv_height); ++h) {
+    fwrite(&ref_buf->v_buffer[h * ref_buf->uv_stride], 1, ref_buf->uv_width,
+           f_ref);
+  }
+  fclose(f_ref);
+  return AOM_CODEC_OK;
+}
 #endif  // CONFIG_OPFL
