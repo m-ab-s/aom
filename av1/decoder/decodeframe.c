@@ -85,6 +85,10 @@
 #include "av1/common/cfl.h"
 #endif
 
+#if CONFIG_OPFL
+#include "av1/common/mvref_common.h"
+#endif
+
 static struct aom_read_bit_buffer *init_read_bit_buffer(
     AV1Decoder *pbi, struct aom_read_bit_buffer *rb, const uint8_t *data,
     const uint8_t *data_end, uint8_t clear_data[MAX_AV1_HEADER_SIZE]);

@@ -271,7 +271,7 @@ double iterate_update_mv(YV12_BUFFER_CONFIG *ref0, YV12_BUFFER_CONFIG *ref1,
   double cost = 0;
 
   //  uint8_t *y0 = ref0->y_buffer;
-  int width = ref0->y_width, height = ref0->y_height, stride = ref0->y_stride;
+  int width = ref0->y_width, height = ref0->y_height;
   int mvstr = width + 2 * AVG_MF_BORDER;
   DB_MV *mv_start = mf_last + AVG_MF_BORDER * mvstr + AVG_MF_BORDER;
   DB_MV *mv_start_new = mf_new + AVG_MF_BORDER * mvstr + AVG_MF_BORDER;
@@ -587,7 +587,7 @@ double iterate_update_mv_fast(YV12_BUFFER_CONFIG *ref0,
   double cost = 0;
 
   //  uint8_t *y0 = ref0->y_buffer;
-  int width = ref0->y_width, height = ref0->y_height, stride = ref0->y_stride;
+  int width = ref0->y_width, height = ref0->y_height;
   int mvstr = width + 2 * AVG_MF_BORDER;
   DB_MV *mv_start = mf_last + AVG_MF_BORDER * mvstr + AVG_MF_BORDER;
   DB_MV *mv_start_new = mf_new + AVG_MF_BORDER * mvstr + AVG_MF_BORDER;
@@ -813,6 +813,168 @@ void opfl_get_derivatives(double *Ex, double *Ey, double *Et,
     for (j = 0; j < width; j++) {
       Et[i * width + j] = (double)(buffer1->y_buffer[i * stride + j]) -
                           (double)(buffer0->y_buffer[i * stride + j]);
+    }
+  }
+}
+
+/*
+ * Warp the Y component of src to dst according to the motion field
+ * Motion field points back from dst to src
+ *
+ * Input:
+ * src: frame to be warped
+ * ref: when src not available, use ref and assume 0 motion field
+ * mv_start: points to the motion field (to the start of frame, skips border)
+ * mvstr: motion field stride
+ * dstpos: distance from src to dst
+ *
+ * Output:
+ * dst: pointer to the warped frame
+ */
+void warp_optical_flow_back(YV12_BUFFER_CONFIG *src, YV12_BUFFER_CONFIG *ref,
+                            DB_MV *mf_start, int mvstr, YV12_BUFFER_CONFIG *dst,
+                            double dstpos) {
+  int width = src->y_width;
+  int height = src->y_height;
+  int stride = src->y_stride;
+  uint8_t *srcy = src->y_buffer;
+  uint8_t *dsty = dst->y_buffer;
+  uint8_t *refy = ref->y_buffer;
+
+  double ii, jj, di, dj;
+  int i0, j0;
+
+  for (int i = 0; i < height; i++) {
+    for (int j = 0; j < width; j++) {
+      ii = i + mf_start[i * mvstr + j].col * dstpos;
+      jj = j + mf_start[i * mvstr + j].row * dstpos;
+      i0 = floor(ii);
+      di = ii - i0;
+      j0 = floor(jj);
+      dj = jj - j0;
+      if (i0 < 0 || i0 > height - 1 || j0 < 0 || j0 > width - 1) {
+        dsty[i * stride + j] = refy[i * stride + j];
+        continue;
+      }
+      dsty[i * stride + j] =
+          get_sub_pel_y(srcy + i0 * stride + j0, stride, di, dj);
+    }
+  }
+}
+
+/*
+ * Warp the Y component of src to dst using bilinear method
+ * Motion field points back from dst to src
+ */
+void warp_optical_flow_back_bilinear(YV12_BUFFER_CONFIG *src,
+                                     YV12_BUFFER_CONFIG *ref, DB_MV *mf_start,
+                                     int mvstr, YV12_BUFFER_CONFIG *dst,
+                                     double dstpos) {
+  int width = src->y_width;
+  int height = src->y_height;
+  int stride = src->y_stride;
+  uint8_t *srcy = src->y_buffer;
+  uint8_t *dsty = dst->y_buffer;
+  uint8_t *refy = ref->y_buffer;
+
+  double ii, jj, di, dj, temp;
+  int i0, j0, i1, j1;
+
+  for (int i = 0; i < height; i++) {
+    for (int j = 0; j < width; j++) {
+      ii = i + mf_start[i * mvstr + j].col * dstpos;
+      jj = j + mf_start[i * mvstr + j].row * dstpos;
+      i0 = floor(ii);
+      di = 1 - ii + i0;
+      i1 = i0 + 1;
+      j0 = floor(jj);
+      dj = 1 - jj + j0;
+      j1 = j0 + 1;
+      if (i0 < 0 || i0 > height - 1 || j0 < 0 || j0 > width - 1) {
+        dsty[i * stride + j] = refy[i * stride + j];
+        continue;
+      }
+      temp = di * dj * (double)srcy[i0 * stride + j0] +
+             di * (1 - dj) * (double)srcy[i0 * stride + j1] +
+             (1 - di) * dj * (double)srcy[i1 * stride + j0] +
+             (1 - di) * (1 - dj) * (double)srcy[i1 * stride + j1];
+      dsty[i * stride + j] = (uint8_t)(temp + 0.5);
+    }
+  }
+}
+
+/*
+ * Warp the Y component of src to dst
+ * Motion field points forward from src to dst
+ */
+void warp_optical_flow_fwd(YV12_BUFFER_CONFIG *src, YV12_BUFFER_CONFIG *ref,
+                           DB_MV *mf_start, int mvstr, YV12_BUFFER_CONFIG *dst,
+                           double dstpos) {
+  int width = src->y_width;
+  int height = src->y_height;
+  int stride = src->y_stride;
+  uint8_t *srcy = src->y_buffer;
+  uint8_t *dsty = dst->y_buffer;
+  uint8_t *refy = ref->y_buffer;
+
+  double ii, jj, di, dj;
+  int i0, j0;
+
+  for (int i = 0; i < height; i++) {
+    for (int j = 0; j < width; j++) {
+      ii = i - mf_start[i * mvstr + j].col * dstpos;
+      jj = j - mf_start[i * mvstr + j].row * dstpos;
+      i0 = floor(ii);
+      di = ii - i0;
+      j0 = floor(jj);
+      dj = jj - j0;
+      if (i0 < 0 || i0 > height - 1 || j0 < 0 || j0 > width - 1) {
+        dsty[i * stride + j] = refy[i * stride + j];
+        continue;
+      }
+      dsty[i * stride + j] =
+          get_sub_pel_y(srcy + i0 * stride + j0, stride, di, dj);
+    }
+  }
+}
+
+/*
+ * Warp the Y component of src to dst using bilinear method
+ * Motion field points forward from src to dst
+ */
+void warp_optical_flow_fwd_bilinear(YV12_BUFFER_CONFIG *src,
+                                    YV12_BUFFER_CONFIG *ref, DB_MV *mf_start,
+                                    int mvstr, YV12_BUFFER_CONFIG *dst,
+                                    double dstpos) {
+  int width = src->y_width;
+  int height = src->y_height;
+  int stride = src->y_stride;
+  uint8_t *srcy = src->y_buffer;
+  uint8_t *dsty = dst->y_buffer;
+  uint8_t *refy = ref->y_buffer;
+
+  double ii, jj, di, dj, temp;
+  int i0, j0, i1, j1;
+
+  for (int i = 0; i < height; i++) {
+    for (int j = 0; j < width; j++) {
+      ii = i - mf_start[i * mvstr + j].col * dstpos;
+      jj = j - mf_start[i * mvstr + j].row * dstpos;
+      i0 = floor(ii);
+      di = 1 - ii + i0;
+      i1 = i0 + 1;
+      j0 = floor(jj);
+      dj = 1 - jj + j0;
+      j1 = j0 + 1;
+      if (i0 < 0 || i0 > height - 1 || j0 < 0 || j0 > width - 1) {
+        dsty[i * stride + j] = refy[i * stride + j];
+        continue;
+      }
+      temp = di * dj * (double)srcy[i0 * stride + j0] +
+             di * (1 - dj) * (double)srcy[i0 * stride + j1] +
+             (1 - di) * dj * (double)srcy[i1 * stride + j0] +
+             (1 - di) * (1 - dj) * (double)srcy[i1 * stride + j1];
+      dsty[i * stride + j] = (uint8_t)(temp + 0.5);
     }
   }
 }
