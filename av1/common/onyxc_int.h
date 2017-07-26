@@ -106,6 +106,17 @@ typedef struct {
 
 typedef struct {
   int ref_count;
+  int cur_frame_offset;
+  int lst_frame_offset;
+  int alt_frame_offset;
+  int gld_frame_offset;
+
+#if CONFIG_EXT_REFS
+  int lst2_frame_offset;
+  int lst3_frame_offset;
+  int bwd_frame_offset;
+#endif
+
   MV_REF *mvs;
   int mi_rows;
   int mi_cols;

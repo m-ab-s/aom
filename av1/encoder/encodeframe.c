@@ -5326,6 +5326,8 @@ static void encode_frame_internal(AV1_COMP *cpi) {
     } else {
       cm->frame_offset = cm->current_video_frame;
     }
+
+    av1_setup_frame_buf_refs(cm);
 #endif
 
     av1_setup_frame_boundary_info(cm);
