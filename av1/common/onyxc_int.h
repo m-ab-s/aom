@@ -98,11 +98,18 @@ typedef enum {
   REFRESH_FRAME_CONTEXT_BACKWARD,
 } REFRESH_FRAME_CONTEXT_MODE;
 
+#define MFMV_STACK_SIZE INTER_REFS_PER_FRAME
+
 typedef struct {
   int_mv mv[2];
   int_mv pred_mv[2];
   MV_REFERENCE_FRAME ref_frame[2];
 } MV_REF;
+
+typedef struct {
+  int_mv mfmv[INTER_REFS_PER_FRAME][MFMV_STACK_SIZE];
+  uint8_t skip[INTER_REFS_PER_FRAME];
+} TPL_MV_REF;
 
 typedef struct {
   int ref_count;
@@ -117,6 +124,7 @@ typedef struct {
   int bwd_frame_offset;
 #endif
 
+  TPL_MV_REF *tpl_mvs;
   MV_REF *mvs;
   int mi_rows;
   int mi_cols;

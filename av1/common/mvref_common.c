@@ -1033,6 +1033,849 @@ void av1_setup_frame_buf_refs(AV1_COMMON *cm) {
         cm->buffer_pool->frame_bufs[bwd_buf_idx].cur_frame_offset;
 #endif
 }
+
+void av1_setup_motion_field(AV1_COMMON *cm) {
+  int cur_frame_index = cm->cur_frame->cur_frame_offset;
+  int lst_frame_index = 0, alt_frame_index = 0, gld_frame_index = 0;
+#if CONFIG_EXT_REFS
+  int lst2_frame_index = 0, lst3_frame_index = 0, bwd_frame_index = 0;
+#endif
+  TPL_MV_REF *tpl_mvs_base = cm->cur_frame->tpl_mvs;
+
+  for (int ref_frame = 0; ref_frame < INTER_REFS_PER_FRAME; ++ref_frame) {
+    int size = (cm->mi_rows + 16) * cm->mi_stride;
+    for (int idx = 0; idx < size; ++idx) {
+      for (int i = 0; i < MFMV_STACK_SIZE; ++i)
+        tpl_mvs_base[idx].mfmv[ref_frame][i].as_int = INVALID_MV;
+      tpl_mvs_base[idx].skip[ref_frame] = 2;
+    }
+  }
+
+  int alt_buf_idx = cm->frame_refs[ALTREF_FRAME - LAST_FRAME].idx;
+  int lst_buf_idx = cm->frame_refs[LAST_FRAME - LAST_FRAME].idx;
+  int gld_buf_idx = cm->frame_refs[GOLDEN_FRAME - LAST_FRAME].idx;
+#if CONFIG_EXT_REFS
+  int lst2_buf_idx = cm->frame_refs[LAST2_FRAME - LAST_FRAME].idx;
+  int lst3_buf_idx = cm->frame_refs[LAST3_FRAME - LAST_FRAME].idx;
+  int bwd_buf_idx = cm->frame_refs[BWDREF_FRAME - LAST_FRAME].idx;
+#endif
+
+  if (alt_buf_idx >= 0)
+    alt_frame_index = cm->buffer_pool->frame_bufs[alt_buf_idx].cur_frame_offset;
+
+  if (lst_buf_idx >= 0)
+    lst_frame_index = cm->buffer_pool->frame_bufs[lst_buf_idx].cur_frame_offset;
+
+  if (gld_buf_idx >= 0)
+    gld_frame_index = cm->buffer_pool->frame_bufs[gld_buf_idx].cur_frame_offset;
+
+#if CONFIG_EXT_REFS
+  if (lst2_buf_idx >= 0)
+    lst2_frame_index =
+        cm->buffer_pool->frame_bufs[lst2_buf_idx].cur_frame_offset;
+
+  if (lst3_buf_idx >= 0)
+    lst3_frame_index =
+        cm->buffer_pool->frame_bufs[lst3_buf_idx].cur_frame_offset;
+
+  if (bwd_buf_idx >= 0)
+    bwd_frame_index = cm->buffer_pool->frame_bufs[bwd_buf_idx].cur_frame_offset;
+#endif
+
+  if (alt_frame_index < cur_frame_index) return;
+
+  // ======================
+  // Process last frame
+  // ======================
+  if (lst_buf_idx >= 0) {
+    MV_REF *mv_ref_base = cm->buffer_pool->frame_bufs[lst_buf_idx].mvs;
+    const int lst_frame_idx =
+        cm->buffer_pool->frame_bufs[lst_buf_idx].lst_frame_offset;
+    const int alt_frame_idx =
+        cm->buffer_pool->frame_bufs[lst_buf_idx].alt_frame_offset;
+    const int gld_frame_idx =
+        cm->buffer_pool->frame_bufs[lst_buf_idx].gld_frame_offset;
+#if CONFIG_EXT_REFS
+    const int lst2_frame_idx =
+        cm->buffer_pool->frame_bufs[lst_buf_idx].lst2_frame_offset;
+    const int lst3_frame_idx =
+        cm->buffer_pool->frame_bufs[lst_buf_idx].lst3_frame_offset;
+    const int bwd_frame_idx =
+        cm->buffer_pool->frame_bufs[lst_buf_idx].bwd_frame_offset;
+#endif
+
+    int alt_offset = AOMMAX(1, alt_frame_idx - lst_frame_index);
+    int lst_offset = AOMMAX(1, lst_frame_index - lst_frame_idx);
+    int gld_offset = AOMMAX(1, lst_frame_index - gld_frame_idx);
+    int cur_to_lst = cur_frame_index - lst_frame_index;
+    int cur_to_alt = alt_frame_index - cur_frame_index;
+    int cur_to_gld = cur_frame_index - gld_frame_index;
+
+#if CONFIG_EXT_REFS
+    int bwd_offset = AOMMAX(1, bwd_frame_idx - lst_frame_index);
+    int lst2_offset = AOMMAX(1, lst_frame_index - lst2_frame_idx);
+    int lst3_offset = AOMMAX(1, lst_frame_index - lst3_frame_idx);
+    int cur_to_lst2 = cur_frame_index - lst2_frame_index;
+    int cur_to_lst3 = cur_frame_index - lst3_frame_index;
+    int cur_to_bwd = bwd_frame_index - cur_frame_index;
+#endif
+
+    const int is_lst_overlay = (alt_frame_idx == gld_frame_index);
+
+    for (int blk_row = 0; blk_row < cm->mi_rows; ++blk_row) {
+      for (int blk_col = 0; blk_col < cm->mi_cols; ++blk_col) {
+        MV_REF *mv_ref = &mv_ref_base[blk_row * cm->mi_cols + blk_col];
+        MV fwd_mv = mv_ref->mv[0].as_mv;
+        MV bck_mv = mv_ref->mv[1].as_mv;
+        MV_REFERENCE_FRAME ref_frame[2] = {mv_ref->ref_frame[0],
+                                           mv_ref->ref_frame[1]};
+
+        // Derive  motion vectors toward last reference frame.
+        if (ref_frame[0] == LAST_FRAME) {
+          int16_t mv_y =
+              (int16_t)(fwd_mv.row * (double)cur_to_lst / lst_offset);
+          int16_t mv_x =
+              (int16_t)(fwd_mv.col * (double)cur_to_lst / lst_offset);
+
+          int mi_r = blk_row - (mv_y >> (3 + MI_SIZE_LOG2));
+          int mi_c = blk_col - (mv_x >> (3 + MI_SIZE_LOG2));
+          int_mv this_mv;
+
+          // Reverse motion vectors towards ARF frame
+          this_mv.as_mv.row = mv_y;
+          this_mv.as_mv.col = mv_x;
+
+          mi_r = AOMMIN(mi_r, cm->mi_rows);
+          mi_r = AOMMAX(mi_r, 0);
+          mi_c = AOMMIN(mi_c, cm->mi_cols);
+          mi_c = AOMMAX(mi_c, 0);
+
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .mfmv[LAST_FRAME - LAST_FRAME][0]
+              .as_int = this_mv.as_int;
+
+#if CONFIG_EXT_REFS
+          this_mv.as_mv.row =
+              (int16_t)(fwd_mv.row * (double)cur_to_lst2 / lst_offset);
+          this_mv.as_mv.col =
+              (int16_t)(fwd_mv.col * (double)cur_to_lst2 / lst_offset);
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .mfmv[LAST2_FRAME - LAST_FRAME][0]
+              .as_int = this_mv.as_int;
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .skip[LAST2_FRAME - LAST_FRAME] = mv_ref->skip;
+
+          this_mv.as_mv.row =
+              (int16_t)(fwd_mv.row * (double)cur_to_lst3 / lst_offset);
+          this_mv.as_mv.col =
+              (int16_t)(fwd_mv.col * (double)cur_to_lst3 / lst_offset);
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .mfmv[LAST3_FRAME - LAST_FRAME][0]
+              .as_int = this_mv.as_int;
+#endif
+        }
+
+#if CONFIG_EXT_REFS
+        if (ref_frame[0] == LAST2_FRAME) {
+          int16_t mv_y =
+              (int16_t)(fwd_mv.row * (double)cur_to_lst / lst2_offset);
+          int16_t mv_x =
+              (int16_t)(fwd_mv.col * (double)cur_to_lst / lst2_offset);
+
+          int mi_r = blk_row - (mv_y >> (3 + MI_SIZE_LOG2));
+          int mi_c = blk_col - (mv_x >> (3 + MI_SIZE_LOG2));
+          int_mv this_mv;
+
+          // Reverse motion vectors towards ARF frame
+          this_mv.as_mv.row = mv_y;
+          this_mv.as_mv.col = mv_x;
+
+          mi_r = AOMMIN(mi_r, cm->mi_rows);
+          mi_r = AOMMAX(mi_r, 0);
+          mi_c = AOMMIN(mi_c, cm->mi_cols);
+          mi_c = AOMMAX(mi_c, 0);
+
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .mfmv[LAST_FRAME - LAST_FRAME][0]
+              .as_int = this_mv.as_int;
+
+          this_mv.as_mv.row =
+              (int16_t)(fwd_mv.row * (double)cur_to_lst2 / lst2_offset);
+          this_mv.as_mv.col =
+              (int16_t)(fwd_mv.col * (double)cur_to_lst2 / lst2_offset);
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .mfmv[LAST2_FRAME - LAST_FRAME][0]
+              .as_int = this_mv.as_int;
+
+          this_mv.as_mv.row =
+              (int16_t)(fwd_mv.row * (double)cur_to_lst3 / lst2_offset);
+          this_mv.as_mv.col =
+              (int16_t)(fwd_mv.col * (double)cur_to_lst3 / lst2_offset);
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .mfmv[LAST3_FRAME - LAST_FRAME][0]
+              .as_int = this_mv.as_int;
+        }
+
+        if (ref_frame[0] == LAST3_FRAME) {
+          int16_t mv_y =
+              (int16_t)(fwd_mv.row * (double)cur_to_lst / lst3_offset);
+          int16_t mv_x =
+              (int16_t)(fwd_mv.col * (double)cur_to_lst / lst3_offset);
+
+          int mi_r = blk_row - (mv_y >> (3 + MI_SIZE_LOG2));
+          int mi_c = blk_col - (mv_x >> (3 + MI_SIZE_LOG2));
+          int_mv this_mv;
+
+          // Reverse motion vectors towards ARF frame
+          this_mv.as_mv.row = mv_y;
+          this_mv.as_mv.col = mv_x;
+
+          mi_r = AOMMIN(mi_r, cm->mi_rows);
+          mi_r = AOMMAX(mi_r, 0);
+          mi_c = AOMMIN(mi_c, cm->mi_cols);
+          mi_c = AOMMAX(mi_c, 0);
+
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .mfmv[LAST_FRAME - LAST_FRAME][0]
+              .as_int = this_mv.as_int;
+
+          this_mv.as_mv.row =
+              (int16_t)(fwd_mv.row * (double)cur_to_lst2 / lst3_offset);
+          this_mv.as_mv.col =
+              (int16_t)(fwd_mv.col * (double)cur_to_lst2 / lst3_offset);
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .mfmv[LAST2_FRAME - LAST_FRAME][0]
+              .as_int = this_mv.as_int;
+
+          this_mv.as_mv.row =
+              (int16_t)(fwd_mv.row * (double)cur_to_lst3 / lst3_offset);
+          this_mv.as_mv.col =
+              (int16_t)(fwd_mv.col * (double)cur_to_lst3 / lst3_offset);
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .mfmv[LAST3_FRAME - LAST_FRAME][0]
+              .as_int = this_mv.as_int;
+        }
+#endif
+
+        // Derive  motion vectors toward golden reference frame.
+        if (ref_frame[0] == GOLDEN_FRAME && !is_lst_overlay) {
+          int16_t mv_y =
+              (int16_t)(fwd_mv.row * (double)cur_to_lst / gld_offset);
+          int16_t mv_x =
+              (int16_t)(fwd_mv.col * (double)cur_to_lst / gld_offset);
+
+          int mi_r = blk_row - (mv_y >> (3 + MI_SIZE_LOG2));
+          int mi_c = blk_col - (mv_x >> (3 + MI_SIZE_LOG2));
+          int_mv this_mv;
+
+          // Reverse motion vectors towards ARF frame
+          this_mv.as_mv.row =
+              (int16_t)(fwd_mv.row * (double)cur_to_gld / gld_offset);
+          this_mv.as_mv.col =
+              (int16_t)(fwd_mv.col * (double)cur_to_gld / gld_offset);
+
+          mi_r = AOMMIN(mi_r, cm->mi_rows);
+          mi_r = AOMMAX(mi_r, 0);
+          mi_c = AOMMIN(mi_c, cm->mi_cols);
+          mi_c = AOMMAX(mi_c, 0);
+
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .mfmv[GOLDEN_FRAME - LAST_FRAME][0]
+              .as_int = this_mv.as_int;
+
+          this_mv.as_mv.row =
+              (int16_t)(fwd_mv.row * (double)cur_to_lst / gld_offset);
+          this_mv.as_mv.col =
+              (int16_t)(fwd_mv.col * (double)cur_to_lst / gld_offset);
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .mfmv[LAST_FRAME - LAST_FRAME][0]
+              .as_int = this_mv.as_int;
+
+#if CONFIG_EXT_REFS
+          this_mv.as_mv.row =
+              (int16_t)(fwd_mv.row * (double)cur_to_lst2 / gld_offset);
+          this_mv.as_mv.col =
+              (int16_t)(fwd_mv.col * (double)cur_to_lst2 / gld_offset);
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .mfmv[LAST2_FRAME - LAST_FRAME][0]
+              .as_int = this_mv.as_int;
+
+          this_mv.as_mv.row =
+              (int16_t)(fwd_mv.row * (double)cur_to_lst3 / gld_offset);
+          this_mv.as_mv.col =
+              (int16_t)(fwd_mv.col * (double)cur_to_lst3 / gld_offset);
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .mfmv[LAST3_FRAME - LAST_FRAME][0]
+              .as_int = this_mv.as_int;
+#endif
+        }
+
+        if (ref_frame[0] == ALTREF_FRAME && !is_lst_overlay) {
+          int16_t mv_y =
+              (int16_t)(fwd_mv.row * (double)cur_to_lst / alt_offset);
+          int16_t mv_x =
+              (int16_t)(fwd_mv.col * (double)cur_to_lst / alt_offset);
+
+          int mi_r = blk_row + (mv_y >> (3 + MI_SIZE_LOG2));
+          int mi_c = blk_col + (mv_x >> (3 + MI_SIZE_LOG2));
+          int_mv this_mv;
+
+          this_mv.as_mv.row =
+              (int16_t)(fwd_mv.row * (double)cur_to_alt / alt_offset);
+          this_mv.as_mv.col =
+              (int16_t)(fwd_mv.col * (double)cur_to_alt / alt_offset);
+
+          mi_r = AOMMIN(mi_r, cm->mi_rows);
+          mi_r = AOMMAX(mi_r, 0);
+          mi_c = AOMMIN(mi_c, cm->mi_cols);
+          mi_c = AOMMAX(mi_c, 0);
+
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .mfmv[ALTREF_FRAME - LAST_FRAME][0]
+              .as_int = this_mv.as_int;
+
+#if CONFIG_EXT_REFS
+          this_mv.as_mv.row =
+              (int16_t)(fwd_mv.row * (double)cur_to_bwd / alt_offset);
+          this_mv.as_mv.col =
+              (int16_t)(fwd_mv.col * (double)cur_to_bwd / alt_offset);
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .mfmv[BWDREF_FRAME - LAST_FRAME][0]
+              .as_int = this_mv.as_int;
+#endif
+        }
+
+        if (ref_frame[1] == ALTREF_FRAME && !is_lst_overlay) {
+          int16_t mv_y =
+              (int16_t)(bck_mv.row * (double)cur_to_lst / alt_offset);
+          int16_t mv_x =
+              (int16_t)(bck_mv.col * (double)cur_to_lst / alt_offset);
+
+          int mi_r = blk_row + (mv_y >> (3 + MI_SIZE_LOG2));
+          int mi_c = blk_col + (mv_x >> (3 + MI_SIZE_LOG2));
+          int_mv this_mv;
+
+          this_mv.as_mv.row =
+              (int16_t)(bck_mv.row * (double)cur_to_alt / alt_offset);
+          this_mv.as_mv.col =
+              (int16_t)(bck_mv.col * (double)cur_to_alt / alt_offset);
+
+          mi_r = AOMMIN(mi_r, cm->mi_rows);
+          mi_r = AOMMAX(mi_r, 0);
+          mi_c = AOMMIN(mi_c, cm->mi_cols);
+          mi_c = AOMMAX(mi_c, 0);
+
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .mfmv[ALTREF_FRAME - LAST_FRAME][0]
+              .as_int = this_mv.as_int;
+#if CONFIG_EXT_REFS
+          this_mv.as_mv.row =
+              (int16_t)(bck_mv.row * (double)cur_to_bwd / alt_offset);
+          this_mv.as_mv.col =
+              (int16_t)(bck_mv.col * (double)cur_to_bwd / alt_offset);
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .mfmv[BWDREF_FRAME - LAST_FRAME][0]
+              .as_int = this_mv.as_int;
+#endif
+        }
+      }
+    }
+  }
+
+  // =======================
+  // Process ARF frame
+  // =======================
+  if (alt_buf_idx >= 0) {
+    MV_REF *mv_ref_base = cm->buffer_pool->frame_bufs[alt_buf_idx].mvs;
+    const int lst_frame_idx =
+        cm->buffer_pool->frame_bufs[alt_buf_idx].lst_frame_offset;
+    const int gld_frame_idx =
+        cm->buffer_pool->frame_bufs[alt_buf_idx].gld_frame_offset;
+#if CONFIG_EXT_REFS
+    const int lst2_frame_idx =
+        cm->buffer_pool->frame_bufs[alt_buf_idx].lst2_frame_offset;
+    const int lst3_frame_idx =
+        cm->buffer_pool->frame_bufs[alt_buf_idx].lst3_frame_offset;
+    const int bwd_frame_idx =
+        cm->buffer_pool->frame_bufs[alt_buf_idx].bwd_frame_offset;
+#endif
+
+    int lst_offset = AOMMAX(1, alt_frame_index - lst_frame_idx);
+    int gld_offset = AOMMAX(1, alt_frame_index - gld_frame_idx);
+    int cur_to_alt = alt_frame_index - cur_frame_index;
+    int cur_to_lst = cur_frame_index - lst_frame_index;
+
+#if CONFIG_EXT_REFS
+    int bwd_offset = AOMMAX(1, alt_frame_index - bwd_frame_idx);
+    int lst2_offset = AOMMAX(1, alt_frame_index - lst2_frame_idx);
+    int lst3_offset = AOMMAX(1, alt_frame_index - lst3_frame_idx);
+    int cur_to_lst2 = cur_frame_index - lst2_frame_index;
+    int cur_to_lst3 = cur_frame_index - lst3_frame_index;
+    int cur_to_bwd = bwd_frame_index - cur_frame_index;
+#endif
+
+    for (int blk_row = 0; blk_row < cm->mi_rows; ++blk_row) {
+      for (int blk_col = 0; blk_col < cm->mi_cols; ++blk_col) {
+        MV_REF *mv_ref = &mv_ref_base[blk_row * cm->mi_cols + blk_col];
+        MV fwd_mv = mv_ref->mv[0].as_mv;
+        MV_REFERENCE_FRAME ref_frame[2] = {mv_ref->ref_frame[0],
+                                           mv_ref->ref_frame[1]};
+        if (ref_frame[0] == LAST_FRAME) {
+          int16_t mv_y =
+              (int16_t)(fwd_mv.row * (double)cur_to_alt / lst_offset);
+          int16_t mv_x =
+              (int16_t)(fwd_mv.col * (double)cur_to_alt / lst_offset);
+
+          int mi_r = blk_row + (mv_y >> (3 + MI_SIZE_LOG2));
+          int mi_c = blk_col + (mv_x >> (3 + MI_SIZE_LOG2));
+          int_mv this_mv;
+
+          // Reverse motion vectors towards ARF frame
+          this_mv.as_mv.row = -mv_y;
+          this_mv.as_mv.col = -mv_x;
+
+          mi_r = AOMMIN(mi_r, cm->mi_rows);
+          mi_r = AOMMAX(mi_r, 0);
+          mi_c = AOMMIN(mi_c, cm->mi_cols);
+          mi_c = AOMMAX(mi_c, 0);
+
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .mfmv[ALTREF_FRAME - LAST_FRAME][ALTREF_FRAME - LAST_FRAME]
+              .as_int = this_mv.as_int;
+
+          // Project the motion vector onto last reference frame
+          mv_y = (int16_t)(fwd_mv.row * (double)cur_to_lst / lst_offset);
+          mv_x = (int16_t)(fwd_mv.col * (double)cur_to_lst / lst_offset);
+
+          this_mv.as_mv.row = mv_y;
+          this_mv.as_mv.col = mv_x;
+
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .mfmv[LAST_FRAME - LAST_FRAME][ALTREF_FRAME - LAST_FRAME]
+              .as_int = this_mv.as_int;
+
+#if CONFIG_EXT_REFS
+          this_mv.as_mv.row =
+              -(int16_t)(fwd_mv.row * (double)cur_to_bwd / lst_offset);
+          this_mv.as_mv.col =
+              -(int16_t)(fwd_mv.col * (double)cur_to_bwd / lst_offset);
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .mfmv[BWDREF_FRAME - LAST_FRAME][ALTREF_FRAME - LAST_FRAME]
+              .as_int = this_mv.as_int;
+
+          this_mv.as_mv.row =
+              (int16_t)(fwd_mv.row * (double)cur_to_lst2 / lst_offset);
+          this_mv.as_mv.col =
+              (int16_t)(fwd_mv.col * (double)cur_to_lst2 / lst_offset);
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .mfmv[LAST2_FRAME - LAST_FRAME][ALTREF_FRAME - LAST_FRAME]
+              .as_int = this_mv.as_int;
+
+          this_mv.as_mv.row =
+              (int16_t)(fwd_mv.row * (double)cur_to_lst3 / lst_offset);
+          this_mv.as_mv.col =
+              (int16_t)(fwd_mv.col * (double)cur_to_lst3 / lst_offset);
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .mfmv[LAST3_FRAME - LAST_FRAME][ALTREF_FRAME - LAST_FRAME]
+              .as_int = this_mv.as_int;
+#endif
+        }
+
+#if CONFIG_EXT_REFS
+        if (ref_frame[0] == LAST2_FRAME) {
+          int16_t mv_y =
+              (int16_t)(fwd_mv.row * (double)cur_to_alt / lst2_offset);
+          int16_t mv_x =
+              (int16_t)(fwd_mv.col * (double)cur_to_alt / lst2_offset);
+
+          int mi_r = blk_row + (mv_y >> (3 + MI_SIZE_LOG2));
+          int mi_c = blk_col + (mv_x >> (3 + MI_SIZE_LOG2));
+          int_mv this_mv;
+
+          // Reverse motion vectors towards ARF frame
+          this_mv.as_mv.row = -mv_y;
+          this_mv.as_mv.col = -mv_x;
+
+          mi_r = AOMMIN(mi_r, cm->mi_rows);
+          mi_r = AOMMAX(mi_r, 0);
+          mi_c = AOMMIN(mi_c, cm->mi_cols);
+          mi_c = AOMMAX(mi_c, 0);
+
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .mfmv[ALTREF_FRAME - LAST_FRAME][ALTREF_FRAME - LAST_FRAME]
+              .as_int = this_mv.as_int;
+
+          // Project the motion vector onto last reference frame
+          mv_y = (int16_t)(fwd_mv.row * (double)cur_to_lst / lst2_offset);
+          mv_x = (int16_t)(fwd_mv.col * (double)cur_to_lst / lst2_offset);
+
+          this_mv.as_mv.row = mv_y;
+          this_mv.as_mv.col = mv_x;
+
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .mfmv[LAST_FRAME - LAST_FRAME][ALTREF_FRAME - LAST_FRAME]
+              .as_int = this_mv.as_int;
+
+          this_mv.as_mv.row =
+              -(int16_t)(fwd_mv.row * (double)cur_to_bwd / lst2_offset);
+          this_mv.as_mv.col =
+              -(int16_t)(fwd_mv.col * (double)cur_to_bwd / lst2_offset);
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .mfmv[BWDREF_FRAME - LAST_FRAME][ALTREF_FRAME - LAST_FRAME]
+              .as_int = this_mv.as_int;
+
+          this_mv.as_mv.row =
+              (int16_t)(fwd_mv.row * (double)cur_to_lst3 / lst2_offset);
+          this_mv.as_mv.col =
+              (int16_t)(fwd_mv.col * (double)cur_to_lst3 / lst2_offset);
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .mfmv[LAST3_FRAME - LAST_FRAME][ALTREF_FRAME - LAST_FRAME]
+              .as_int = this_mv.as_int;
+        }
+
+        if (ref_frame[0] == LAST3_FRAME) {
+          int16_t mv_y =
+              (int16_t)(fwd_mv.row * (double)cur_to_alt / lst3_offset);
+          int16_t mv_x =
+              (int16_t)(fwd_mv.col * (double)cur_to_alt / lst3_offset);
+
+          int mi_r = blk_row + (mv_y >> (3 + MI_SIZE_LOG2));
+          int mi_c = blk_col + (mv_x >> (3 + MI_SIZE_LOG2));
+          int_mv this_mv;
+
+          // Reverse motion vectors towards ARF frame
+          this_mv.as_mv.row = -mv_y;
+          this_mv.as_mv.col = -mv_x;
+
+          mi_r = AOMMIN(mi_r, cm->mi_rows);
+          mi_r = AOMMAX(mi_r, 0);
+          mi_c = AOMMIN(mi_c, cm->mi_cols);
+          mi_c = AOMMAX(mi_c, 0);
+
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .mfmv[ALTREF_FRAME - LAST_FRAME][ALTREF_FRAME - LAST_FRAME]
+              .as_int = this_mv.as_int;
+
+          // Project the motion vector onto last reference frame
+          mv_y = (int16_t)(fwd_mv.row * (double)cur_to_lst / lst3_offset);
+          mv_x = (int16_t)(fwd_mv.col * (double)cur_to_lst / lst3_offset);
+
+          this_mv.as_mv.row = mv_y;
+          this_mv.as_mv.col = mv_x;
+
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .mfmv[LAST_FRAME - LAST_FRAME][ALTREF_FRAME - LAST_FRAME]
+              .as_int = this_mv.as_int;
+
+          this_mv.as_mv.row =
+              -(int16_t)(fwd_mv.row * (double)cur_to_bwd / lst3_offset);
+          this_mv.as_mv.col =
+              -(int16_t)(fwd_mv.col * (double)cur_to_bwd / lst3_offset);
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .mfmv[BWDREF_FRAME - LAST_FRAME][ALTREF_FRAME - LAST_FRAME]
+              .as_int = this_mv.as_int;
+
+          this_mv.as_mv.row =
+              (int16_t)(fwd_mv.row * (double)cur_to_lst2 / lst3_offset);
+          this_mv.as_mv.col =
+              (int16_t)(fwd_mv.col * (double)cur_to_lst2 / lst3_offset);
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .mfmv[LAST2_FRAME - LAST_FRAME][ALTREF_FRAME - LAST_FRAME]
+              .as_int = this_mv.as_int;
+        }
+#endif
+
+        if (ref_frame[0] == GOLDEN_FRAME) {
+          int16_t mv_y =
+              (int16_t)(fwd_mv.row * (double)cur_to_alt / gld_offset);
+          int16_t mv_x =
+              (int16_t)(fwd_mv.col * (double)cur_to_alt / gld_offset);
+
+          int mi_r = blk_row + (mv_y >> (3 + MI_SIZE_LOG2));
+          int mi_c = blk_col + (mv_x >> (3 + MI_SIZE_LOG2));
+          int_mv this_mv;
+
+          // Reverse motion vectors towards ARF frame
+          this_mv.as_mv.row = -mv_y;
+          this_mv.as_mv.col = -mv_x;
+
+          mi_r = AOMMIN(mi_r, cm->mi_rows);
+          mi_r = AOMMAX(mi_r, 0);
+          mi_c = AOMMIN(mi_c, cm->mi_cols);
+          mi_c = AOMMAX(mi_c, 0);
+
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .mfmv[ALTREF_FRAME - LAST_FRAME][ALTREF_FRAME - LAST_FRAME]
+              .as_int = this_mv.as_int;
+
+          // Project the motion vector onto last reference frame
+          mv_y = (int16_t)(fwd_mv.row * (double)cur_to_lst / gld_offset);
+          mv_x = (int16_t)(fwd_mv.col * (double)cur_to_lst / gld_offset);
+
+          this_mv.as_mv.row = mv_y;
+          this_mv.as_mv.col = mv_x;
+
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .mfmv[LAST_FRAME - LAST_FRAME][ALTREF_FRAME - LAST_FRAME]
+              .as_int = this_mv.as_int;
+
+#if CONFIG_EXT_REFS
+          this_mv.as_mv.row =
+              -(int16_t)(fwd_mv.row * (double)cur_to_bwd / gld_offset);
+          this_mv.as_mv.col =
+              -(int16_t)(fwd_mv.col * (double)cur_to_bwd / gld_offset);
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .mfmv[BWDREF_FRAME - LAST_FRAME][ALTREF_FRAME - LAST_FRAME]
+              .as_int = this_mv.as_int;
+
+          this_mv.as_mv.row =
+              (int16_t)(fwd_mv.row * (double)cur_to_lst2 / gld_offset);
+          this_mv.as_mv.col =
+              (int16_t)(fwd_mv.col * (double)cur_to_lst2 / gld_offset);
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .mfmv[LAST2_FRAME - LAST_FRAME][ALTREF_FRAME - LAST_FRAME]
+              .as_int = this_mv.as_int;
+
+          this_mv.as_mv.row =
+              (int16_t)(fwd_mv.row * (double)cur_to_lst3 / gld_offset);
+          this_mv.as_mv.col =
+              (int16_t)(fwd_mv.col * (double)cur_to_lst3 / gld_offset);
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .mfmv[LAST3_FRAME - LAST_FRAME][ALTREF_FRAME - LAST_FRAME]
+              .as_int = this_mv.as_int;
+#endif
+        }
+      }
+    }
+  }
+
+  // ==========================================
+  // Process BWD reference frame
+  // ==========================================
+#if CONFIG_EXT_REFS
+  if (bwd_buf_idx >= 0) {
+    MV_REF *mv_ref_base = cm->buffer_pool->frame_bufs[bwd_buf_idx].mvs;
+    const int lst_frame_idx =
+        cm->buffer_pool->frame_bufs[bwd_buf_idx].lst_frame_offset;
+    const int gld_frame_idx =
+        cm->buffer_pool->frame_bufs[bwd_buf_idx].gld_frame_offset;
+    const int lst2_frame_idx =
+        cm->buffer_pool->frame_bufs[bwd_buf_idx].lst2_frame_offset;
+    const int lst3_frame_idx =
+        cm->buffer_pool->frame_bufs[bwd_buf_idx].lst3_frame_offset;
+    const int bwd_frame_idx =
+        cm->buffer_pool->frame_bufs[bwd_buf_idx].bwd_frame_offset;
+
+    int lst_offset = AOMMAX(1, bwd_frame_index - lst_frame_idx);
+    int gld_offset = AOMMAX(1, bwd_frame_index - gld_frame_idx);
+    int cur_to_alt = alt_frame_index - cur_frame_index;
+    int cur_to_lst = cur_frame_index - lst_frame_index;
+
+    int lst2_offset = AOMMAX(1, bwd_frame_index - lst2_frame_idx);
+    int lst3_offset = AOMMAX(1, bwd_frame_index - lst3_frame_idx);
+    int cur_to_lst2 = cur_frame_index - lst2_frame_index;
+    int cur_to_lst3 = cur_frame_index - lst3_frame_index;
+    int cur_to_bwd = bwd_frame_index - cur_frame_index;
+
+    for (int blk_row = 0; blk_row < cm->mi_rows; ++blk_row) {
+      for (int blk_col = 0; blk_col < cm->mi_cols; ++blk_col) {
+        MV_REF *mv_ref = &mv_ref_base[blk_row * cm->mi_cols + blk_col];
+        MV fwd_mv = mv_ref->mv[0].as_mv;
+        MV_REFERENCE_FRAME ref_frame[2] = {mv_ref->ref_frame[0],
+                                           mv_ref->ref_frame[1]};
+        if (ref_frame[0] == LAST_FRAME) {
+          int16_t mv_y =
+              (int16_t)(fwd_mv.row * (double)cur_to_bwd / lst_offset);
+          int16_t mv_x =
+              (int16_t)(fwd_mv.col * (double)cur_to_bwd / lst_offset);
+
+          int mi_r = blk_row + (mv_y >> (3 + MI_SIZE_LOG2));
+          int mi_c = blk_col + (mv_x >> (3 + MI_SIZE_LOG2));
+          int_mv this_mv;
+
+          // Reverse motion vectors towards ARF frame
+          this_mv.as_mv.row = -mv_y;
+          this_mv.as_mv.col = -mv_x;
+
+          mi_r = AOMMIN(mi_r, cm->mi_rows);
+          mi_r = AOMMAX(mi_r, 0);
+          mi_c = AOMMIN(mi_c, cm->mi_cols);
+          mi_c = AOMMAX(mi_c, 0);
+
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .mfmv[BWDREF_FRAME - LAST_FRAME][BWDREF_FRAME - LAST_FRAME]
+              .as_int = this_mv.as_int;
+
+          // Project the motion vector onto last reference frame
+          mv_y = (int16_t)(fwd_mv.row * (double)cur_to_lst / lst_offset);
+          mv_x = (int16_t)(fwd_mv.col * (double)cur_to_lst / lst_offset);
+
+          this_mv.as_mv.row = mv_y;
+          this_mv.as_mv.col = mv_x;
+
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .mfmv[LAST_FRAME - LAST_FRAME][BWDREF_FRAME - LAST_FRAME]
+              .as_int = this_mv.as_int;
+
+          this_mv.as_mv.row =
+              (int16_t)(fwd_mv.row * (double)cur_to_lst2 / lst_offset);
+          this_mv.as_mv.col =
+              (int16_t)(fwd_mv.col * (double)cur_to_lst2 / lst_offset);
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .mfmv[LAST2_FRAME - LAST_FRAME][BWDREF_FRAME - LAST_FRAME]
+              .as_int = this_mv.as_int;
+
+          this_mv.as_mv.row =
+              (int16_t)(fwd_mv.row * (double)cur_to_lst3 / lst_offset);
+          this_mv.as_mv.col =
+              (int16_t)(fwd_mv.col * (double)cur_to_lst3 / lst_offset);
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .mfmv[LAST3_FRAME - LAST_FRAME][BWDREF_FRAME - LAST_FRAME]
+              .as_int = this_mv.as_int;
+        }
+
+        if (ref_frame[0] == LAST2_FRAME) {
+          int16_t mv_y =
+              (int16_t)(fwd_mv.row * (double)cur_to_bwd / lst2_offset);
+          int16_t mv_x =
+              (int16_t)(fwd_mv.col * (double)cur_to_bwd / lst2_offset);
+
+          int mi_r = blk_row + (mv_y >> (3 + MI_SIZE_LOG2));
+          int mi_c = blk_col + (mv_x >> (3 + MI_SIZE_LOG2));
+          int_mv this_mv;
+
+          // Reverse motion vectors towards ARF frame
+          this_mv.as_mv.row = -mv_y;
+          this_mv.as_mv.col = -mv_x;
+
+          mi_r = AOMMIN(mi_r, cm->mi_rows);
+          mi_r = AOMMAX(mi_r, 0);
+          mi_c = AOMMIN(mi_c, cm->mi_cols);
+          mi_c = AOMMAX(mi_c, 0);
+
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .mfmv[BWDREF_FRAME - LAST_FRAME][BWDREF_FRAME - LAST_FRAME]
+              .as_int = this_mv.as_int;
+
+          // Project the motion vector onto last reference frame
+          mv_y = (int16_t)(fwd_mv.row * (double)cur_to_lst / lst2_offset);
+          mv_x = (int16_t)(fwd_mv.col * (double)cur_to_lst / lst2_offset);
+
+          this_mv.as_mv.row = mv_y;
+          this_mv.as_mv.col = mv_x;
+
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .mfmv[LAST_FRAME - LAST_FRAME][BWDREF_FRAME - LAST_FRAME]
+              .as_int = this_mv.as_int;
+
+          this_mv.as_mv.row =
+              (int16_t)(fwd_mv.row * (double)cur_to_lst3 / lst2_offset);
+          this_mv.as_mv.col =
+              (int16_t)(fwd_mv.col * (double)cur_to_lst3 / lst2_offset);
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .mfmv[LAST3_FRAME - LAST_FRAME][BWDREF_FRAME - LAST_FRAME]
+              .as_int = this_mv.as_int;
+        }
+
+        if (ref_frame[0] == LAST3_FRAME) {
+          int16_t mv_y =
+              (int16_t)(fwd_mv.row * (double)cur_to_bwd / lst3_offset);
+          int16_t mv_x =
+              (int16_t)(fwd_mv.col * (double)cur_to_bwd / lst3_offset);
+
+          int mi_r = blk_row + (mv_y >> (3 + MI_SIZE_LOG2));
+          int mi_c = blk_col + (mv_x >> (3 + MI_SIZE_LOG2));
+          int_mv this_mv;
+
+          // Reverse motion vectors towards ARF frame
+          this_mv.as_mv.row = -mv_y;
+          this_mv.as_mv.col = -mv_x;
+
+          mi_r = AOMMIN(mi_r, cm->mi_rows);
+          mi_r = AOMMAX(mi_r, 0);
+          mi_c = AOMMIN(mi_c, cm->mi_cols);
+          mi_c = AOMMAX(mi_c, 0);
+
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .mfmv[BWDREF_FRAME - LAST_FRAME][BWDREF_FRAME - LAST_FRAME]
+              .as_int = this_mv.as_int;
+
+          // Project the motion vector onto last reference frame
+          mv_y = (int16_t)(fwd_mv.row * (double)cur_to_lst / lst3_offset);
+          mv_x = (int16_t)(fwd_mv.col * (double)cur_to_lst / lst3_offset);
+
+          this_mv.as_mv.row = mv_y;
+          this_mv.as_mv.col = mv_x;
+
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .mfmv[LAST_FRAME - LAST_FRAME][BWDREF_FRAME - LAST_FRAME]
+              .as_int = this_mv.as_int;
+
+          this_mv.as_mv.row =
+              (int16_t)(fwd_mv.row * (double)cur_to_lst2 / lst3_offset);
+          this_mv.as_mv.col =
+              (int16_t)(fwd_mv.col * (double)cur_to_lst2 / lst3_offset);
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .mfmv[LAST2_FRAME - LAST_FRAME][BWDREF_FRAME - LAST_FRAME]
+              .as_int = this_mv.as_int;
+        }
+
+        if (ref_frame[0] == GOLDEN_FRAME) {
+          int16_t mv_y =
+              (int16_t)(fwd_mv.row * (double)cur_to_bwd / gld_offset);
+          int16_t mv_x =
+              (int16_t)(fwd_mv.col * (double)cur_to_bwd / gld_offset);
+
+          int mi_r = blk_row + (mv_y >> (3 + MI_SIZE_LOG2));
+          int mi_c = blk_col + (mv_x >> (3 + MI_SIZE_LOG2));
+          int_mv this_mv;
+
+          // Reverse motion vectors towards ARF frame
+          this_mv.as_mv.row = -mv_y;
+          this_mv.as_mv.col = -mv_x;
+
+          mi_r = AOMMIN(mi_r, cm->mi_rows);
+          mi_r = AOMMAX(mi_r, 0);
+          mi_c = AOMMIN(mi_c, cm->mi_cols);
+          mi_c = AOMMAX(mi_c, 0);
+
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .mfmv[BWDREF_FRAME - LAST_FRAME][BWDREF_FRAME - LAST_FRAME]
+              .as_int = this_mv.as_int;
+
+          // Project the motion vector onto last reference frame
+          mv_y = (int16_t)(fwd_mv.row * (double)cur_to_lst / gld_offset);
+          mv_x = (int16_t)(fwd_mv.col * (double)cur_to_lst / gld_offset);
+
+          this_mv.as_mv.row = mv_y;
+          this_mv.as_mv.col = mv_x;
+
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .mfmv[LAST_FRAME - LAST_FRAME][BWDREF_FRAME - LAST_FRAME]
+              .as_int = this_mv.as_int;
+
+          this_mv.as_mv.row =
+              (int16_t)(fwd_mv.row * (double)cur_to_lst2 / gld_offset);
+          this_mv.as_mv.col =
+              (int16_t)(fwd_mv.col * (double)cur_to_lst2 / gld_offset);
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .mfmv[LAST2_FRAME - LAST_FRAME][BWDREF_FRAME - LAST_FRAME]
+              .as_int = this_mv.as_int;
+
+          this_mv.as_mv.row =
+              (int16_t)(fwd_mv.row * (double)cur_to_lst3 / gld_offset);
+          this_mv.as_mv.col =
+              (int16_t)(fwd_mv.col * (double)cur_to_lst3 / gld_offset);
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .mfmv[LAST3_FRAME - LAST_FRAME][BWDREF_FRAME - LAST_FRAME]
+              .as_int = this_mv.as_int;
+        }
+      }
+    }
+  }
+#endif
+}
+
 #endif
 
 #if CONFIG_WARPED_MOTION
