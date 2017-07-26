@@ -1400,4 +1400,114 @@ void warp_optical_flow_diff_select(YV12_BUFFER_CONFIG *src0,
   aom_free(dstpel_y0);
   aom_free(dstpel_y1);
 }
+
+/*
+ * Subpel filter for y pixels. Round the motion field to 1/8 precision.
+ *
+ * Input:
+ * src: the source pixel at the integer location.
+ * stride: source stride
+ * di: subpel location in height
+ * dj: subpel location in width
+ *
+ * Output:
+ * interpolated pixel
+ */
+uint8_t get_sub_pel_y(uint8_t *src, int stride, double di, double dj) {
+  // TODO(bohan) use locally defined filter arrays for now
+  int yidx = di * 8 + 0.5;
+  int xidx = dj * 8 + 0.5;
+  yidx *= 2;
+  xidx *= 2;
+  if (yidx == 16) {
+    yidx = 0;
+    src += stride;
+  }
+  if (xidx == 16) {
+    xidx = 0;
+    src += 1;
+  }
+  assert(xidx <= 14 && xidx >= 0);
+  assert(yidx <= 14 && yidx >= 0);
+  int y[8];
+  for (int i = -3; i < 5; i++) {
+    y[i + 3] = 0;
+    for (int j = -3; j < 5; j++) {
+      y[i + 3] += src[i * stride + j] * optical_flow_warp_filter[xidx][j + 3];
+    }
+    y[i + 3] = (y[i + 3] + (1 << 6)) >> 7;
+  }
+  int x = 0;
+  for (int i = 0; i < 8; i++) {
+    x += y[i] * optical_flow_warp_filter[yidx][i];
+  }
+  x = (x + (1 << 6)) >> 7;
+  if (x > 255)
+    x = 255;
+  else if (x < 0)
+    x = 0;
+  return (uint8_t)x;
+}
+
+/*
+ * Subpel filter for u/v pixels. Round the motion field to 1/16 precision.
+ *
+ * Input:
+ * src: the source pixel at the integer location.
+ * stride: source stride
+ * di: subpel location in height
+ * dj: subpel location in width
+ *
+ * Output:
+ * interpolated pixel
+ */
+uint8_t get_sub_pel_uv(uint8_t *src, int stride, double di, double dj) {
+  // TODO(bohan) now only care for YUV 420
+  int yidx = di * 16 + 0.5;
+  int xidx = dj * 16 + 0.5;
+  if (yidx == 16) {
+    yidx = 0;
+    src += stride;
+  }
+  if (xidx == 16) {
+    xidx = 0;
+    src += 1;
+  }
+  assert(xidx <= 15 && xidx >= 0);
+  assert(yidx <= 15 && yidx >= 0);
+
+  int y[8];
+  for (int i = -3; i < 5; i++) {
+    y[i + 3] = 0;
+    for (int j = -3; j < 5; j++) {
+      y[i + 3] += src[i * stride + j] * optical_flow_warp_filter[xidx][j + 3];
+    }
+    y[i + 3] = (y[i + 3] + (1 << 6)) >> 7;
+  }
+  int x = 0;
+  for (int i = 0; i < 8; i++) {
+    x += y[i] * optical_flow_warp_filter[yidx][i];
+  }
+  x = (x + (1 << 6)) >> 7;
+  if (x > 255)
+    x = 255;
+  else if (x < 0)
+    x = 0;
+  return (uint8_t)x;
+}
+
+/*
+ * Blend function which calls the real blend methods.
+ * Kept as caller where we may make high level changes or pre-process
+ */
+void interp_optical_flow(YV12_BUFFER_CONFIG *ref0, YV12_BUFFER_CONFIG *ref1,
+                         DB_MV *mf, YV12_BUFFER_CONFIG *dst, double dst_pos) {
+  // blend here
+  int mvstr = dst->y_width + 2 * AVG_MF_BORDER;
+  DB_MV *mf_start = mf + AVG_MF_BORDER * mvstr + AVG_MF_BORDER;
+
+  warp_optical_flow(ref0, ref1, mf_start, mvstr, dst, dst_pos,
+                    OPFL_DIFF_SELECT);
+  return;
+}
 #endif  // CONFIG_OPFL
