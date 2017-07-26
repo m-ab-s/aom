@@ -31,6 +31,7 @@ extern "C" {
 #define OPTICAL_FLOW_DIFF_THRES 10.0  // Thres to detect pixel difference
 #define OPTICAL_FLOW_REF_THRES 0.1    // Thres to determine reference usage
 #define FAST_OPTICAL_FLOW 0           // Use fast iterative method
+#define OPFL_ANNEAL_FACTOR 1.0  // Annealing factor for laplacian multiplier
 
 typedef enum opfl_blend_method {
   OPFL_SIMPLE_BLEND = 0,
