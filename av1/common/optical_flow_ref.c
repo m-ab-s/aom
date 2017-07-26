@@ -1292,7 +1292,7 @@ void warp_optical_flow_diff_select(YV12_BUFFER_CONFIG *src0,
       } else if (totalused1 <
                  (totalused0 + totalused1) * OPTICAL_FLOW_REF_THRES) {
         refid[i * width + j] = 1;
-      } else  {
+      } else {
         refid[i * width + j] = ((dstpos <= 0.5) ? 0 : 1);
       }
     }
@@ -1509,5 +1509,142 @@ void interp_optical_flow(YV12_BUFFER_CONFIG *ref0, YV12_BUFFER_CONFIG *ref1,
   warp_optical_flow(ref0, ref1, mf_start, mvstr, dst, dst_pos,
                     OPFL_DIFF_SELECT);
   return;
+}
+
+/*
+ * Use the initial motion vectors to create the initial motion field.
+ * Currently, use the MVs of 4x4 to directly initialize the motion field
+ * of the frame downscaled by 4.
+ *
+ * Input:
+ * mv_left: motion vector points from ref0 to the current frame
+ * mv_right: motion vector points from the current frame to ref1
+ * width, height: frame width and height
+ * mfstr: stride of the motion field buffer
+ *
+ * Output:
+ * mf: pointer to the created motion field
+ */
+void create_motion_field(int_mv *mv_left, int_mv *mv_right, DB_MV *mf,
+                         int width, int height, int mfstr) {
+  // since the motion field is just used as initialization for now,
+  // just simply use the summation of the two
+  int stride = mfstr;
+  DB_MV *mf_start = mf + AVG_MF_BORDER * stride + AVG_MF_BORDER;
+  int idx;
+  for (int h = 0; h < height / 4; h++) {
+    for (int w = 0; w < width / 4; w++) {
+      // mv_left, mv_right are based on 4x4 block
+      idx = h * width / 4 + w;
+      mf[h * mfstr + w].row =
+          (double)(mv_left[idx].as_mv.row + mv_right[idx].as_mv.row) / 8.0;
+      mf[h * mfstr + w].col =
+          (double)(mv_left[idx].as_mv.col + mv_right[idx].as_mv.col) / 8.0;
+    }
+  }
+  // Pad the motion field border
+  pad_motion_field_border(mf_start, width / 4, height / 4, mfstr);
+  return;
+}
+
+/*
+ * Upscale the motion field by 2.
+ * Currently simply copy the nearest mv
+ *
+ * Input:
+ * src: the source motion field
+ * srcw, srch, srcs: source width, height, stride
+ * dsts: destination mf stride
+ *
+ * Output;
+ * dst: pointer to the upscaled mf buffer
+ */
+void upscale_mv_by_2(DB_MV *src, int srcw, int srch, int srcs, DB_MV *dst,
+                     int dsts) {
+  for (int i = 0; i < srch; i++) {
+    for (int j = 0; j < srcw; j++) {
+      for (int y = 0; y < 2; y++) {
+        for (int x = 0; x < 2; x++) {
+          dst[(i * 2 + y) * dsts + j * 2 + x].row = src[i * srcs + j].row * 2;
+          dst[(i * 2 + y) * dsts + j * 2 + x].col = src[i * srcs + j].col * 2;
+        }
+      }
+    }
+  }
+  pad_motion_field_border(dst, srcw * 2, srch * 2, dsts);
+}
+
+/*
+ * Pad the motion field border to prepare for median filter
+ */
+void pad_motion_field_border(DB_MV *mf_start, int width, int height,
+                             int stride) {
+  assert(stride == width + 2 * AVG_MF_BORDER);
+  // upper
+  for (int i = -AVG_MF_BORDER; i < 0; i++) {
+    memcpy(mf_start + i * stride, mf_start, sizeof(DB_MV) * width);
+  }
+  // lower
+  for (int i = height; i < height + AVG_MF_BORDER; i++) {
+    memcpy(mf_start + i * stride, mf_start + (height - 1) * stride,
+           sizeof(DB_MV) * width);
+  }
+  // left
+  for (int i = -AVG_MF_BORDER; i < height + AVG_MF_BORDER; i++) {
+    for (int j = -AVG_MF_BORDER; j < 0; j++) {
+      mf_start[i * stride + j] = mf_start[i * stride];
+    }
+  }
+  // right
+  for (int i = -AVG_MF_BORDER; i < height + AVG_MF_BORDER; i++) {
+    for (int j = width; j < width + AVG_MF_BORDER; j++) {
+      mf_start[i * stride + j] = mf_start[i * stride + width - 1];
+    }
+  }
+}
+
+/*
+ * Median filter the horizontal and vertical components of the motion field
+ */
+// TODO(bohan): can get rid of mv_r and mv_c, just use one temp buf
+DB_MV median_2D_MV_5x5(DB_MV *center, int mvstr, double *mv_r, double *mv_c,
+                       double *left, double *right) {
+  DB_MV medMV;
+  int c = 0;
+  for (int i = -2; i < 3; i++) {
+    for (int j = -2; j < 3; j++) {
+      mv_r[c] = center[i * mvstr + j].row;
+      mv_c[c] = center[i * mvstr + j].col;
+      c++;
+    }
+  }
+  medMV.row = iter_median_double(mv_r, left, right, 25, 12);
+  medMV.col = iter_median_double(mv_c, left, right, 25, 12);
+  return medMV;
+}
+
+/*
+ * Median filter double arrays iteratively
+ */
+double iter_median_double(double *x, double *left, double *right, int length,
+                          int mididx) {
+  int pivot = length / 2;
+  int ll = 0, rl = 0;
+  for (int i = 0; i < length; i++) {
+    if (i == pivot) continue;
+    if (x[i] <= x[pivot]) {
+      left[ll] = x[i];
+      ll++;
+    } else {
+      right[rl] = x[i];
+      rl++;
+    }
+  }
+  if (mididx == ll)
+    return x[pivot];
+  else if (mididx < ll)
+    return iter_median_double(left, x, right, ll, mididx);
+  else
+    return iter_median_double(right, left, x, rl, mididx - ll - 1);
 }
 #endif  // CONFIG_OPFL
