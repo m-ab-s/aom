@@ -1131,4 +1131,273 @@ void warp_optical_flow(YV12_BUFFER_CONFIG *src0, YV12_BUFFER_CONFIG *src1,
     }
   }
 }
+
+/*
+ * Interpolate references according to the motion field
+ * when the refs do not agree, use more advanced selection
+ *
+ * Input:
+ * src0, src1: the reference frames
+ * mf_start: the motion field start pointer
+ * mvstr: motion field stride
+ * dstpos: position of the interpolated frame
+ *
+ * Output:
+ * dst: pointer to the interpolated frame
+ */
+void warp_optical_flow_diff_select(YV12_BUFFER_CONFIG *src0,
+                                   YV12_BUFFER_CONFIG *src1, DB_MV *mf_start,
+                                   int mvstr, YV12_BUFFER_CONFIG *dst,
+                                   double dstpos) {
+  int width = src0->y_width;
+  int height = src0->y_height;
+  int stride = src0->y_stride;
+  int uvstride = src0->uv_stride;
+
+  uint8_t *src0y = src0->y_buffer;
+  uint8_t *src1y = src1->y_buffer;
+  uint8_t *dsty = dst->y_buffer;
+  uint8_t *src0u = src0->u_buffer;
+  uint8_t *src0v = src0->v_buffer;
+  uint8_t *src1u = src1->u_buffer;
+  uint8_t *src1v = src1->v_buffer;
+  uint8_t *dstu = dst->u_buffer;
+  uint8_t *dstv = dst->v_buffer;
+
+  double ii0, jj0, di0, dj0, di0uv, dj0uv;
+  double ii1, jj1, di1, dj1, di1uv, dj1uv;
+  int i0, j0;
+  int i1, j1;
+  double dstpel_y, dstpel_u, dstpel_v;
+  double pos;
+  int do_uv;
+
+  double *used0 = aom_calloc(height * width, sizeof(double));
+  double *used1 = aom_calloc(height * width, sizeof(double));
+  // refid: -1=unset; 0=ref0; 1=ref1; 2=both
+  int *refid = aom_calloc(height * width, sizeof(int));
+  int *refid_mode = aom_calloc(height * width, sizeof(int));
+  double *dstpel_y0 = aom_calloc(height * width, sizeof(double));
+  double *dstpel_y1 = aom_calloc(height * width, sizeof(double));
+
+  for (int i = 0; i < height; i++) {
+    for (int j = 0; j < width; j++) {
+      used0[i * width + j] = 0;
+      used1[i * width + j] = 0;
+      refid[i * width + j] = -1;
+    }
+  }
+  // first check all pixels to see if the refs agree
+  // also note down which pixels in refs are used for reference
+  for (int i = 0; i < height; i++) {
+    for (int j = 0; j < width; j++) {
+      pos = dstpos;
+      ii0 = i - mf_start[i * mvstr + j].col * dstpos;
+      jj0 = j - mf_start[i * mvstr + j].row * dstpos;
+      ii1 = i + mf_start[i * mvstr + j].col * dstpos;
+      jj1 = j + mf_start[i * mvstr + j].row * dstpos;
+      i0 = floor(ii0);
+      di0 = ii0 - i0;
+      j0 = floor(jj0);
+      dj0 = jj0 - j0;
+      i1 = floor(ii1);
+      di1 = ii1 - i1;
+      j1 = floor(jj1);
+      dj1 = jj1 - j1;
+
+      int inside0 = (i0 >= 0 && i0 < height - 1 && j0 >= 0 && j0 < width - 1);
+      int inside1 = (i1 >= 0 && i1 < height - 1 && j1 >= 0 && j1 < width - 1);
+      int use0 = inside0 == inside1 || inside0;
+      int use1 = inside0 == inside1 || inside1;
+      if (inside0 && !inside1)
+        pos = 0;
+      else if (inside1 && !inside0)
+        pos = 1;
+
+      dstpel_y0[i * width + j] =
+          (double)get_sub_pel_y(src0y + i0 * stride + j0, stride, di0, dj0);
+      dstpel_y1[i * width + j] =
+          (double)get_sub_pel_y(src1y + i1 * stride + j1, stride, di1, dj1);
+      // check if the refs are similar
+      if (inside0 && inside1) {
+        if (fabs(dstpel_y0[i * width + j] - dstpel_y1[i * width + j]) >
+            OPTICAL_FLOW_DIFF_THRES) {
+          continue;
+        }
+      }
+      if (inside0 || inside1) {
+        used0[(i0)*width + j0] += use0 * (1 - di0) * (1 - dj0);
+        used0[(i0 + 1) * width + j0] += use0 * (di0) * (1 - dj0);
+        used0[(i0)*width + j0 + 1] += use0 * (1 - di0) * (dj0);
+        used0[(i0 + 1) * width + j0 + 1] += use0 * (di0) * (dj0);
+        used1[(i1)*width + j1] += use1 * (1 - di1) * (1 - dj1);
+        used1[(i1 + 1) * width + j1] += use1 * (di1) * (1 - dj1);
+        used1[(i1)*width + j1 + 1] += use1 * (1 - di1) * (dj1);
+        used1[(i1 + 1) * width + j1 + 1] += use1 * (di1) * (dj1);
+      }  // ignore when both out of bound
+      if (use0 && use1)
+        refid[i * width + j] = 2;
+      else if (use0 && !use1)
+        refid[i * width + j] = 0;
+      else if (!use0 && use1)
+        refid[i * width + j] = 1;
+      else
+        assert(0);
+    }
+  }
+
+  // calculate how many time each pixel is referenced
+  double totalused0, totalused1;
+  for (int i = 0; i < height; i++) {
+    for (int j = 0; j < width; j++) {
+      if (refid[i * width + j] >= 0) continue;
+      totalused0 = 0;
+      totalused1 = 0;
+      pos = dstpos;
+      ii0 = i - mf_start[i * mvstr + j].col * dstpos;
+      jj0 = j - mf_start[i * mvstr + j].row * dstpos;
+      ii1 = i + mf_start[i * mvstr + j].col * dstpos;
+      jj1 = j + mf_start[i * mvstr + j].row * dstpos;
+      i0 = floor(ii0);
+      di0 = ii0 - i0;
+      j0 = floor(jj0);
+      dj0 = jj0 - j0;
+      i1 = floor(ii1);
+      di1 = ii1 - i1;
+      j1 = floor(jj1);
+      dj1 = jj1 - j1;
+
+      int inside0 = (i0 >= 0 && i0 < height - 1 && j0 >= 0 && j0 < width - 1);
+      int inside1 = (i1 >= 0 && i1 < height - 1 && j1 >= 0 && j1 < width - 1);
+      if (inside0 && !inside1)
+        pos = 0;
+      else if (inside1 && !inside0)
+        pos = 1;
+
+      assert(inside1 && inside0);
+
+      totalused0 += used0[(i0)*width + j0] * (1 - di0) * (1 - dj0);
+      totalused0 += used0[(i0 + 1) * width + j0] * (di0) * (1 - dj0);
+      totalused0 += used0[(i0)*width + j0 + 1] * (1 - di0) * (dj0);
+      totalused0 += used0[(i0 + 1) * width + j0 + 1] * (di0) * (dj0);
+      totalused1 += used1[(i1)*width + j1] * (1 - di1) * (1 - dj1);
+      totalused1 += used1[(i1 + 1) * width + j1] * (di1) * (1 - dj1);
+      totalused1 += used1[(i1)*width + j1 + 1] * (1 - di1) * (dj1);
+      totalused1 += used1[(i1 + 1) * width + j1 + 1] * (di1) * (dj1);
+
+      // if one ref pixel has been referenced by other pixels more than the
+      // other ref by a threshold, then decide there is occlusion
+      if (totalused0 < (totalused0 + totalused1) * OPTICAL_FLOW_REF_THRES) {
+        refid[i * width + j] = 0;
+      } else if (totalused1 <
+                 (totalused0 + totalused1) * OPTICAL_FLOW_REF_THRES) {
+        refid[i * width + j] = 1;
+      } else  {
+        refid[i * width + j] = ((dstpos <= 0.5) ? 0 : 1);
+      }
+    }
+  }
+
+  // All refs for each pixel have been decided now.
+  // Do mode filter to get rid of outliers
+  for (int i = 0; i < height; i++) {
+    for (int j = 0; j < width; j++) {
+      if (i == 0 || i == height - 1 || j == 0 || j == width - 1) {
+        refid_mode[i * width + j] = refid[i * width + j];
+        continue;
+      }
+      refid_mode[i * width + j] =
+          ref_mode_filter_3x3(refid + i * width + j, width, dstpos);
+    }
+  }
+
+  // blend according to the refs selected
+  for (int i = 0; i < height; i++) {
+    for (int j = 0; j < width; j++) {
+      int use0, use1;
+      pos = dstpos;
+      if (refid_mode[i * width + j] == 0) {
+        use0 = 1;
+        use1 = 0;
+        pos = 0;
+      } else if (refid_mode[i * width + j] == 1) {
+        use0 = 0;
+        use1 = 1;
+        pos = 1;
+      } else if (refid_mode[i * width + j] == 2) {
+        use0 = 1;
+        use1 = 1;
+      } else {
+        assert(0);
+      }
+      ii0 = i - mf_start[i * mvstr + j].col * dstpos;
+      jj0 = j - mf_start[i * mvstr + j].row * dstpos;
+      ii1 = i + mf_start[i * mvstr + j].col * dstpos;
+      jj1 = j + mf_start[i * mvstr + j].row * dstpos;
+      i0 = floor(ii0);
+      di0 = ii0 - i0;
+      j0 = floor(jj0);
+      dj0 = jj0 - j0;
+      i1 = floor(ii1);
+      di1 = ii1 - i1;
+      j1 = floor(jj1);
+      dj1 = jj1 - j1;
+
+      do_uv =
+          (i % 2 == 0) && (j % 2 == 0);  // TODO(bohan) only considering 420 now
+      if (do_uv) {
+        di0uv = di0 / 2 + 0.5 * ((i0 % 2 + 2) % 2);
+        dj0uv = dj0 / 2 + 0.5 * ((j0 % 2 + 2) % 2);
+        di1uv = di1 / 2 + 0.5 * ((i1 % 2 + 2) % 2);
+        dj1uv = dj1 / 2 + 0.5 * ((j1 % 2 + 2) % 2);
+      }
+
+      dstpel_y = 0;
+      dstpel_u = 0;
+      dstpel_v = 0;
+      if (use0) {
+        dstpel_y += dstpel_y0[i * width + j] * (1 - pos);
+        if (do_uv) {
+          dstpel_u +=
+              (double)get_sub_pel_uv(
+                  src0u + (int)floor(ii0 / 2) * uvstride + (int)floor(jj0 / 2),
+                  uvstride, di0uv, dj0uv) *
+              (1 - pos);
+          dstpel_v +=
+              (double)get_sub_pel_uv(
+                  src0v + (int)floor(ii0 / 2) * uvstride + (int)floor(jj0 / 2),
+                  uvstride, di0uv, dj0uv) *
+              (1 - pos);
+        }
+      }
+      if (use1) {
+        dstpel_y += dstpel_y1[i * width + j] * pos;
+        if (do_uv) {
+          dstpel_u +=
+              (double)get_sub_pel_uv(
+                  src1u + (int)floor(ii1 / 2) * uvstride + (int)floor(jj1 / 2),
+                  uvstride, di1uv, dj1uv) *
+              pos;
+          dstpel_v +=
+              (double)get_sub_pel_uv(
+                  src1v + (int)floor(ii1 / 2) * uvstride + (int)floor(jj1 / 2),
+                  uvstride, di1uv, dj1uv) *
+              pos;
+        }
+      }
+      dsty[i * stride + j] = dstpel_y + 0.5;
+      if (do_uv) {
+        dstu[i / 2 * uvstride + j / 2] = dstpel_u + 0.5;
+        dstv[i / 2 * uvstride + j / 2] = dstpel_v + 0.5;
+      }
+    }
+  }
+
+  aom_free(refid);
+  aom_free(refid_mode);
+  aom_free(used0);
+  aom_free(used1);
+  aom_free(dstpel_y0);
+  aom_free(dstpel_y1);
+}
 #endif  // CONFIG_OPFL
