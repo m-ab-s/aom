@@ -1189,6 +1189,7 @@ void warp_optical_flow_diff_select(YV12_BUFFER_CONFIG *src0,
   }
   // first check all pixels to see if the refs agree
   // also note down which pixels in refs are used for reference
+  int disagree_cnt = 0;
   for (int i = 0; i < height; i++) {
     for (int j = 0; j < width; j++) {
       pos = dstpos;
@@ -1222,6 +1223,7 @@ void warp_optical_flow_diff_select(YV12_BUFFER_CONFIG *src0,
       if (inside0 && inside1) {
         if (fabs(dstpel_y0[i * width + j] - dstpel_y1[i * width + j]) >
             OPTICAL_FLOW_DIFF_THRES) {
+          disagree_cnt++;
           continue;
         }
       }
@@ -1246,11 +1248,26 @@ void warp_optical_flow_diff_select(YV12_BUFFER_CONFIG *src0,
     }
   }
 
+  // Determine if we want to trust the motion field
+  int dis_ref_id;
+  if (disagree_cnt > width * height * OPTICAL_FLOW_TRUST_MV_THRES) {
+    // Do not trust
+    dis_ref_id = ((dstpos <= 0.5) ? 0 : 1);
+  } else {
+    dis_ref_id = 2;
+  }
+
   // calculate how many time each pixel is referenced
   double totalused0, totalused1;
   for (int i = 0; i < height; i++) {
     for (int j = 0; j < width; j++) {
-      if (refid[i * width + j] >= 0) continue;
+      if (dis_ref_id != 2) {
+        // since we do not trust the motion field, no need to select
+        refid[i * width + j] = dis_ref_id;
+        continue;
+      } else if (refid[i * width + j] >= 0)
+        continue;
+
       totalused0 = 0;
       totalused1 = 0;
       pos = dstpos;
@@ -1266,15 +1283,6 @@ void warp_optical_flow_diff_select(YV12_BUFFER_CONFIG *src0,
       di1 = ii1 - i1;
       j1 = floor(jj1);
       dj1 = jj1 - j1;
-
-      int inside0 = (i0 >= 0 && i0 < height - 1 && j0 >= 0 && j0 < width - 1);
-      int inside1 = (i1 >= 0 && i1 < height - 1 && j1 >= 0 && j1 < width - 1);
-      if (inside0 && !inside1)
-        pos = 0;
-      else if (inside1 && !inside0)
-        pos = 1;
-
-      assert(inside1 && inside0);
 
       totalused0 += used0[(i0)*width + j0] * (1 - di0) * (1 - dj0);
       totalused0 += used0[(i0 + 1) * width + j0] * (di0) * (1 - dj0);
@@ -1293,7 +1301,7 @@ void warp_optical_flow_diff_select(YV12_BUFFER_CONFIG *src0,
                  (totalused0 + totalused1) * OPTICAL_FLOW_REF_THRES) {
         refid[i * width + j] = 1;
       } else {
-        refid[i * width + j] = ((dstpos <= 0.5) ? 0 : 1);
+        refid[i * width + j] = dis_ref_id;
       }
     }
   }
