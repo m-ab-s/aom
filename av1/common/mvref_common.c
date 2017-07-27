@@ -1047,7 +1047,6 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
     for (int idx = 0; idx < size; ++idx) {
       for (int i = 0; i < MFMV_STACK_SIZE; ++i)
         tpl_mvs_base[idx].mfmv[ref_frame][i].as_int = INVALID_MV;
-      tpl_mvs_base[idx].skip[ref_frame] = 2;
     }
   }
 
@@ -1162,8 +1161,6 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
           tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
               .mfmv[LAST2_FRAME - LAST_FRAME][0]
               .as_int = this_mv.as_int;
-          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
-              .skip[LAST2_FRAME - LAST_FRAME] = mv_ref->skip;
 
           this_mv.as_mv.row =
               (int16_t)(fwd_mv.row * (double)cur_to_lst3 / lst_offset);
