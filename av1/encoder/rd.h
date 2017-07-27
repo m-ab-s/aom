@@ -43,8 +43,6 @@ extern "C" {
 #define MV_COST_WEIGHT 108
 #define MV_COST_WEIGHT_SUB 120
 
-#define INVALID_MV 0x80008000
-
 #if CONFIG_EXT_REFS
 #define MAX_REFS 15
 #else

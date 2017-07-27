@@ -5319,6 +5319,7 @@ void av1_decode_frame(AV1Decoder *pbi, const uint8_t *data,
 
 #if CONFIG_OPFL
   av1_setup_frame_buf_refs(cm);
+  av1_setup_motion_field(cm);
 #endif
 
   av1_setup_block_planes(xd, cm->subsampling_x, cm->subsampling_y);
