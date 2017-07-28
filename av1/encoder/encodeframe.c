@@ -36,6 +36,10 @@
 #include "av1/common/seg_common.h"
 #include "av1/common/tile_common.h"
 
+#if CONFIG_OPFL
+#include "av1/common/optical_flow_ref.h"
+#endif
+
 #include "av1/encoder/aq_complexity.h"
 #include "av1/encoder/aq_cyclicrefresh.h"
 #include "av1/encoder/aq_variance.h"
@@ -5329,6 +5333,16 @@ static void encode_frame_internal(AV1_COMP *cpi) {
 
     av1_setup_frame_buf_refs(cm);
     av1_setup_motion_field(cm);
+
+    // TODO(bohan): Should not allocate the buffer for every frame
+    cm->opfl_ref_frame = aom_calloc(1, sizeof(YV12_BUFFER_CONFIG));
+    aom_alloc_frame_buffer(cm->opfl_ref_frame, cm->width, cm->height,
+                           cm->subsampling_x, cm->subsampling_y,
+                           cm->use_highbitdepth, AOM_BORDER_IN_PIXELS, 0);
+    int opfl_ret = av1_get_opfl_ref(cm);
+    if (opfl_ret == 0) {
+      // TODO(bohan & jingning) successfully interpolated, prepare for encoding
+    }
 #endif
 
     av1_setup_frame_boundary_info(cm);
@@ -5341,6 +5355,12 @@ static void encode_frame_internal(AV1_COMP *cpi) {
       av1_encode_tiles_mt(cpi);
     else
       encode_tiles(cpi);
+
+#if CONFIG_OPFL
+    // TODO(bohan): Should not allocate the buffer for every frame
+    aom_free_frame_buffer(cm->opfl_ref_frame);
+    aom_free(cm->opfl_ref_frame);
+#endif
 
     aom_usec_timer_mark(&emr_timer);
     cpi->time_encode_sb_row += aom_usec_timer_elapsed(&emr_timer);

@@ -23,16 +23,17 @@ extern "C" {
 #if CONFIG_OPFL
 
 #define MAX_ITER_OPTICAL_FLOW 3
-#define MAX_ITER_FAST_OPFL 15  // this has to be an odd number for now.
-#define AVG_MF_BORDER 4
+#define MAX_OPFL_LEVEL 3
+#define MAX_ITER_FAST_OPFL 31  // this has to be an odd number for now.
+#define AVG_MF_BORDER 16
 #define MAX_MV_LENGTH_1D 160
 #define DERIVATIVE_FILTER_LENGTH 7
-#define OF_A_SQUARED 500
+#define OF_A_SQUARED 100
 #define USE_MEDIAN_FILTER 1
 #define OPTICAL_FLOW_DIFF_THRES 10.0  // Thres to detect pixel difference
 #define OPTICAL_FLOW_REF_THRES 0.3    // Thres to determine reference usage
-#define OPTICAL_FLOW_TRUST_MV_THRES 0.1  // Thres to trust motion field
-#define FAST_OPTICAL_FLOW 0           // Use fast iterative method
+#define OPTICAL_FLOW_TRUST_MV_THRES 0.3  // Thres to trust motion field
+#define FAST_OPTICAL_FLOW 0              // Use fast iterative method
 #define OPFL_ANNEAL_FACTOR 1.0  // Annealing factor for laplacian multiplier
 
 typedef enum opfl_blend_method {
@@ -48,10 +49,10 @@ typedef struct db_mv {
   double col;
 } DB_MV;
 
+int av1_get_opfl_ref(AV1_COMMON *cm);
 void optical_flow_get_ref(YV12_BUFFER_CONFIG *ref0, YV12_BUFFER_CONFIG *ref1,
                           int_mv *mv_left, int_mv *mv_right,
-                          YV12_BUFFER_CONFIG *dst, double dst_pos,
-                          char *filename);
+                          YV12_BUFFER_CONFIG *dst, double dst_pos);
 void refine_motion_field(YV12_BUFFER_CONFIG *ref0, YV12_BUFFER_CONFIG *ref1,
                          DB_MV *mf_last, DB_MV *mf_new, int level,
                          double dstpos);

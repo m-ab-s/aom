@@ -56,6 +56,10 @@
 #include "av1/common/thread_common.h"
 #include "av1/common/tile_common.h"
 
+#if CONFIG_OPFL
+#include "av1/common/optical_flow_ref.h"
+#endif
+
 #include "av1/decoder/decodeframe.h"
 #include "av1/decoder/decodemv.h"
 #include "av1/decoder/decoder.h"
@@ -84,10 +88,6 @@
 
 #if CONFIG_CFL
 #include "av1/common/cfl.h"
-#endif
-
-#if CONFIG_OPFL
-#include "av1/common/mvref_common.h"
 #endif
 
 static struct aom_read_bit_buffer *init_read_bit_buffer(
@@ -5325,7 +5325,7 @@ void av1_decode_frame(AV1Decoder *pbi, const uint8_t *data,
 #if CONFIG_OPFL
   av1_setup_frame_buf_refs(cm);
   av1_setup_motion_field(cm);
-#endif
+#endif  // CONFIG_OPFL
 
   av1_setup_block_planes(xd, cm->subsampling_x, cm->subsampling_y);
 
@@ -5366,6 +5366,18 @@ void av1_decode_frame(AV1Decoder *pbi, const uint8_t *data,
     av1_frameworker_unlock_stats(worker);
   }
 
+#if CONFIG_OPFL
+  // TODO(bohan): Should not allocate the buffer for every frame
+  cm->opfl_ref_frame = aom_calloc(1, sizeof(YV12_BUFFER_CONFIG));
+  aom_alloc_frame_buffer(cm->opfl_ref_frame, cm->width, cm->height,
+                         cm->subsampling_x, cm->subsampling_y,
+                         cm->use_highbitdepth, AOM_BORDER_IN_PIXELS, 0);
+  int opfl_ret = av1_get_opfl_ref(cm);
+  if (opfl_ret == 0) {
+    // TODO(jingning & bohan) successfully interpolated, prepare for decoding
+  }
+#endif
+
   av1_setup_frame_boundary_info(cm);
 
   if (pbi->max_threads > 1 && !CONFIG_CB4X4 &&
@@ -5390,6 +5402,12 @@ void av1_decode_frame(AV1Decoder *pbi, const uint8_t *data,
   } else {
     *p_data_end = decode_tiles(pbi, data + first_partition_size, data_end);
   }
+
+#if CONFIG_OPFL
+  // TODO(bohan): Should not allocate the buffer for every frame
+  aom_free_frame_buffer(cm->opfl_ref_frame);
+  aom_free(cm->opfl_ref_frame);
+#endif
 
 #if CONFIG_CDEF
   if (!cm->skip_loop_filter && !cm->all_lossless) {

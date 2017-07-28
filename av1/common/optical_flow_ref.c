@@ -14,6 +14,7 @@
 #include <math.h>
 #include <time.h>
 #include "./aom_config.h"
+#include "./aom_scale_rtcd.h"
 #include "aom_mem/aom_mem.h"
 #include "aom_scale/aom_scale.h"
 #include "av1/common/alloccommon.h"
@@ -33,6 +34,128 @@ static int optical_flow_warp_filter[16][8] = {
     {0, 0, -4, 18, 122, -10, 2, 0},  {0, 0, -2, 8, 126, -6, 2, 0}};
 
 /*
+ * interpolate the opfl reference frame.
+ *
+ * Input:
+ * cm: the av1_common pointer.
+ *     (cm->opfl_ref_frame should already been initialized)
+ *
+ * Output:
+ * 0: successfully interpolated
+ * -1: reference(s) not available
+ */
+int av1_get_opfl_ref(AV1_COMMON *cm) {
+  int left_idx = -1, left_offset = -1, right_idx = -1, right_offset = -1;
+  int cur_offset = cm->frame_offset;
+  double dst_pos = -1;
+
+  int alt_buf_idx = cm->frame_refs[ALTREF_FRAME - LAST_FRAME].idx;
+  int lst_buf_idx = cm->frame_refs[LAST_FRAME - LAST_FRAME].idx;
+  int gld_buf_idx = cm->frame_refs[GOLDEN_FRAME - LAST_FRAME].idx;
+
+#if CONFIG_EXT_REFS
+  int lst2_buf_idx = cm->frame_refs[LAST2_FRAME - LAST_FRAME].idx;
+  int lst3_buf_idx = cm->frame_refs[LAST3_FRAME - LAST_FRAME].idx;
+  int bwd_buf_idx = cm->frame_refs[BWDREF_FRAME - LAST_FRAME].idx;
+#endif
+
+  int this_offset;
+  if (alt_buf_idx >= 0) {
+    this_offset = cm->cur_frame->alt_frame_offset;
+    if (this_offset > cur_offset &&
+        (right_offset < 0 || this_offset < right_offset)) {
+      right_idx = alt_buf_idx;
+      right_offset = this_offset;
+    } else if (this_offset < cur_offset && this_offset > left_offset) {
+      left_idx = alt_buf_idx;
+      left_offset = this_offset;
+    }
+  }
+  if (lst_buf_idx >= 0) {
+    this_offset = cm->cur_frame->lst_frame_offset;
+    if (this_offset > cur_offset &&
+        (right_offset < 0 || this_offset < right_offset)) {
+      right_idx = lst_buf_idx;
+      right_offset = this_offset;
+    } else if (this_offset < cur_offset && this_offset > left_offset) {
+      left_idx = lst_buf_idx;
+      left_offset = this_offset;
+    }
+  }
+  if (gld_buf_idx >= 0) {
+    this_offset = cm->cur_frame->gld_frame_offset;
+    if (this_offset > cur_offset &&
+        (right_offset < 0 || this_offset < right_offset)) {
+      right_idx = gld_buf_idx;
+      right_offset = this_offset;
+    } else if (this_offset < cur_offset && this_offset > left_offset) {
+      left_idx = gld_buf_idx;
+      left_offset = this_offset;
+    }
+  }
+#if CONFIG_EXT_REFS
+  if (lst2_buf_idx >= 0) {
+    this_offset = cm->cur_frame->lst2_frame_offset;
+    if (this_offset > cur_offset &&
+        (right_offset < 0 || this_offset < right_offset)) {
+      right_idx = lst2_buf_idx;
+      right_offset = this_offset;
+    } else if (this_offset < cur_offset && this_offset > left_offset) {
+      left_idx = lst2_buf_idx;
+      left_offset = this_offset;
+    }
+  }
+  if (lst3_buf_idx >= 0) {
+    this_offset = cm->cur_frame->lst3_frame_offset;
+    if (this_offset > cur_offset &&
+        (right_offset < 0 || this_offset < right_offset)) {
+      right_idx = lst3_buf_idx;
+      right_offset = this_offset;
+    } else if (this_offset < cur_offset && this_offset > left_offset) {
+      left_idx = lst3_buf_idx;
+      left_offset = this_offset;
+    }
+  }
+  if (bwd_buf_idx >= 0) {
+    this_offset = cm->cur_frame->bwd_frame_offset;
+    if (this_offset > cur_offset &&
+        (right_offset < 0 || this_offset < right_offset)) {
+      right_idx = bwd_buf_idx;
+      right_offset = this_offset;
+    } else if (this_offset < cur_offset && this_offset > left_offset) {
+      left_idx = bwd_buf_idx;
+      left_offset = this_offset;
+    }
+  }
+#endif
+  YV12_BUFFER_CONFIG *dst;
+  dst = cm->opfl_ref_frame;
+  if (left_idx >= 0 && right_idx >= 0) {
+    YV12_BUFFER_CONFIG *left = &(cm->buffer_pool->frame_bufs[left_idx].buf);
+    YV12_BUFFER_CONFIG *right = &(cm->buffer_pool->frame_bufs[right_idx].buf);
+    dst_pos = ((double)(cur_offset - left_offset)) /
+              ((double)(right_offset - left_offset));
+    // TODO (bohan): set up initial motion field here.
+
+    optical_flow_get_ref(left, right, NULL, NULL, dst, dst_pos);
+    aom_yv12_extend_frame_borders_c(dst);
+
+    // TODO(bohan): dump the frames for now for debug
+    char filename[20] = "of_dump.yuv";
+    write_image_opfl(left, filename);
+    write_image_opfl(dst, filename);
+    write_image_opfl(right, filename);
+    char idxfilename[20] = "of_data.txt";
+    FILE *f_idx = fopen(idxfilename, "a");
+    fprintf(f_idx, "%d %d %d\n", left_offset, cur_offset, right_offset);
+    fclose(f_idx);
+    return 0;
+  } else {
+    return -1;
+  }
+}
+
+/*
  * Use optical flow method to interpolate a reference frame.
  *
  * Input:
@@ -41,15 +164,13 @@ static int optical_flow_warp_filter[16][8] = {
  * mv_right: motion field from ref1 to dst
  * dst_pos: the ratio of the dst frame position (e.g. if ref0 @ time 0,
  *          ref1 @ time 3, dst @ time 1, then dst_pos = 0.333)
- * filename: the yuv file for debug purpose. Use null if no need.
  *
  * Output:
  * dst: pointer to the interpolated frame buffer
  */
 void optical_flow_get_ref(YV12_BUFFER_CONFIG *ref0, YV12_BUFFER_CONFIG *ref1,
                           int_mv *mv_left, int_mv *mv_right,
-                          YV12_BUFFER_CONFIG *dst, double dst_pos,
-                          char *filename) {
+                          YV12_BUFFER_CONFIG *dst, double dst_pos) {
   int width, height;
   width = dst->y_width;
   height = dst->y_height;
@@ -73,16 +194,18 @@ void optical_flow_get_ref(YV12_BUFFER_CONFIG *ref0, YV12_BUFFER_CONFIG *ref1,
   }
 
   // initialize buffers
-  DB_MV *mf_last[3];
-  DB_MV *mf_new[3];
-  DB_MV *mf_med[3];  // for motion field after median filter
-  YV12_BUFFER_CONFIG *ref0_ds[3];
-  YV12_BUFFER_CONFIG *ref1_ds[3];
+  DB_MV *mf_last[MAX_OPFL_LEVEL];
+  DB_MV *mf_new[MAX_OPFL_LEVEL];
+  DB_MV *mf_med[MAX_OPFL_LEVEL];  // for motion field after median filter
+  YV12_BUFFER_CONFIG *ref0_ds[MAX_OPFL_LEVEL];
+  YV12_BUFFER_CONFIG *ref1_ds[MAX_OPFL_LEVEL];
   int wid = width, hgt = height;
   // allocate and downscale frames for each level
   ref0_ds[0] = ref0;
   ref1_ds[0] = ref1;
-  for (int l = 0; l < 3; l++) {
+  for (int l = 0; l < MAX_OPFL_LEVEL; l++) {
+    wid = width >> l;
+    hgt = height >> l;
     mf_last[l] = aom_calloc(
         (wid + 2 * AVG_MF_BORDER) * (hgt + 2 * AVG_MF_BORDER), sizeof(DB_MV));
     mf_new[l] = aom_calloc(
@@ -93,35 +216,27 @@ void optical_flow_get_ref(YV12_BUFFER_CONFIG *ref0, YV12_BUFFER_CONFIG *ref1,
       ref0_ds[l] = aom_calloc(1, sizeof(YV12_BUFFER_CONFIG));
       ref1_ds[l] = aom_calloc(1, sizeof(YV12_BUFFER_CONFIG));
       aom_alloc_frame_buffer(ref0_ds[l], wid, hgt, 1, 1, 0,
-                             AOM_BORDER_IN_PIXELS, 0);
+                             AOM_BORDER_IN_PIXELS, 1);
       aom_alloc_frame_buffer(ref1_ds[l], wid, hgt, 1, 1, 0,
-                             AOM_BORDER_IN_PIXELS, 0);
-    }
-    wid /= 2;
-    hgt /= 2;
-  }
-  uint8_t temp_buffer[256 * 8];
-  for (int i = 0; i < ref0->y_height; i++) {
-    for (int j = 0; j < ref0->y_width; j++) {
-      ref0_ds[0]->y_buffer[i * ref0->y_stride + j] =
-          ref0->y_buffer[i * ref0->y_stride + j];
-      ref1_ds[0]->y_buffer[i * ref0->y_stride + j] =
-          ref1->y_buffer[i * ref0->y_stride + j];
+                             AOM_BORDER_IN_PIXELS, 1);
     }
   }
-  for (int l = 1; l < 3; l++) {
+  // TODO(bohan): find out the necessary space for temp_buffer
+  uint8_t *temp_buffer = aom_calloc(width * 8, sizeof(uint8_t));
+  for (int l = 1; l < MAX_OPFL_LEVEL; l++) {
     aom_scale_frame(ref0_ds[l - 1], ref0_ds[l], temp_buffer, 8, 2, 1, 2, 1, 0);
     aom_scale_frame(ref1_ds[l - 1], ref1_ds[l], temp_buffer, 8, 2, 1, 2, 1, 0);
   }
 
   // create a single motion field (current method) in the w/4 h/4 scale level
-  create_motion_field(mv_left, mv_right, mf_last[2], width, height,
-                      width / 4 + 2 * AVG_MF_BORDER);
+  create_motion_field(mv_left, mv_right, mf_last[MAX_OPFL_LEVEL - 1], width,
+                      height,
+                      (width >> (MAX_OPFL_LEVEL - 1)) + 2 * AVG_MF_BORDER);
 
   // temporary buffers for MF median filtering
   double mv_r[25], mv_c[25], left[25], right[25];
   // estimate optical flow at each level
-  for (int l = 2; l >= 0; l--) {
+  for (int l = MAX_OPFL_LEVEL - 1; l >= 0; l--) {
     wid = width >> l;
     hgt = height >> l;
     int mvstr = wid + 2 * AVG_MF_BORDER;
@@ -159,16 +274,8 @@ void optical_flow_get_ref(YV12_BUFFER_CONFIG *ref0, YV12_BUFFER_CONFIG *ref1,
 
   // interpolate to get our reference frame
   interp_optical_flow(ref0, ref1, mf_med[0], dst, dst_pos);
-
-  // TODO(bohan): dump the frames for now for debug
-  if (filename) {
-    write_image_opfl(ref0, filename);
-    write_image_opfl(dst, filename);
-    write_image_opfl(ref1, filename);
-  }
-
   // free buffers
-  for (int l = 0; l < 3; l++) {
+  for (int l = 0; l < MAX_OPFL_LEVEL; l++) {
     aom_free(mf_last[l]);
     aom_free(mf_new[l]);
     aom_free(mf_med[l]);
@@ -185,6 +292,7 @@ void optical_flow_get_ref(YV12_BUFFER_CONFIG *ref0, YV12_BUFFER_CONFIG *ref1,
   if (allocr) {
     aom_free(mv_right);
   }
+  aom_free(temp_buffer);
 
   // TODO(bohan): output time usage for debug for now.
   printf("\n");
@@ -216,9 +324,9 @@ void refine_motion_field(YV12_BUFFER_CONFIG *ref0, YV12_BUFFER_CONFIG *ref1,
   int mvstr = width + 2 * AVG_MF_BORDER;
   double as_scale_factor = 1;  // annealing factor for laplacian multiplier
   // iteratively warp and estimate motion field
-  while (count < MAX_ITER_OPTICAL_FLOW + 2 - level) {
+  while (count < MAX_ITER_OPTICAL_FLOW) {
 #if FAST_OPTICAL_FLOW
-    if (level == 2) {
+    if (level == MAX_OPFL_LEVEL - 1) {
       new_cost = iterate_update_mv(ref0, ref1, mf_last, mf_new, level, dstpos,
                                    as_scale_factor);
     } else {
@@ -236,6 +344,14 @@ void refine_motion_field(YV12_BUFFER_CONFIG *ref0, YV12_BUFFER_CONFIG *ref1,
       for (int j = 0; j < width; j++) {
         mv_start[i * mvstr + j].row += mv_start_new[i * mvstr + j].row;
         mv_start[i * mvstr + j].col += mv_start_new[i * mvstr + j].col;
+        if (mv_start[i * mvstr + j].row > MAX_MV_LENGTH_1D)
+          mv_start[i * mvstr + j].row = MAX_MV_LENGTH_1D;
+        else if (mv_start[i * mvstr + j].row < -MAX_MV_LENGTH_1D)
+          mv_start[i * mvstr + j].row = -MAX_MV_LENGTH_1D;
+        if (mv_start[i * mvstr + j].col > MAX_MV_LENGTH_1D)
+          mv_start[i * mvstr + j].col = MAX_MV_LENGTH_1D;
+        else if (mv_start[i * mvstr + j].col < -MAX_MV_LENGTH_1D)
+          mv_start[i * mvstr + j].col = -MAX_MV_LENGTH_1D;
         mv_start_new[i * mvstr + j].row = mv_start[i * mvstr + j].row;
         mv_start_new[i * mvstr + j].col = mv_start[i * mvstr + j].col;
       }
@@ -671,7 +787,7 @@ double iterate_update_mv_fast(YV12_BUFFER_CONFIG *ref0,
                                     0.25 * mv_start[i * mvstr + j0].col +
                                     0.25 * mv_start[i * mvstr + j1].col;
       lp_last[i * mvstr + j].col -= mv_start[i * mvstr + j].col;
-      denorm[i * width + j] = 16 * a_squared +
+      denorm[i * width + j] = 4 * a_squared +
                               Ex[i * width + j] * Ex[i * width + j] +
                               Ey[i * width + j] * Ey[i * width + j];
     }
@@ -1537,6 +1653,7 @@ void create_motion_field(int_mv *mv_left, int_mv *mv_right, DB_MV *mf,
                          int width, int height, int mfstr) {
   // since the motion field is just used as initialization for now,
   // just simply use the summation of the two
+  // TODO(bohan): need to change the function to work for MAX_OPFL_LEVEL != 3
   int stride = mfstr;
   DB_MV *mf_start = mf + AVG_MF_BORDER * stride + AVG_MF_BORDER;
   int idx;
