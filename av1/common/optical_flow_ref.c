@@ -1544,9 +1544,9 @@ void create_motion_field(int_mv *mv_left, int_mv *mv_right, DB_MV *mf,
     for (int w = 0; w < width / 4; w++) {
       // mv_left, mv_right are based on 4x4 block
       idx = h * width / 4 + w;
-      mf[h * mfstr + w].row =
+      mf_start[h * mfstr + w].row =
           (double)(mv_left[idx].as_mv.row + mv_right[idx].as_mv.row) / 8.0;
-      mf[h * mfstr + w].col =
+      mf_start[h * mfstr + w].col =
           (double)(mv_left[idx].as_mv.col + mv_right[idx].as_mv.col) / 8.0;
     }
   }

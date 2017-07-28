@@ -163,6 +163,7 @@ void constant_multiply_sparse_matrix(SPARSE_MTX *sm, double c) {
 void conjugate_gradient_sparse(SPARSE_MTX *A, double *b, int bl, double *x) {
   double *r, *p, *Ap;
   double alpha, beta, rtr, r_norm_2;
+  double denormtemp;
 
   // initialize
   r = aom_calloc(bl, sizeof(double));
@@ -179,7 +180,9 @@ void conjugate_gradient_sparse(SPARSE_MTX *A, double *b, int bl, double *x) {
   for (int k = 0; k < MAX_CG_SP_ITER; k++) {
     rtr = r_norm_2;
     mtx_vect_multi_right(A, p, Ap, bl);
-    alpha = rtr / vect_vect_multi(p, bl, Ap);
+    denormtemp = vect_vect_multi(p, bl, Ap);
+    if (denormtemp < 1e-10) break;
+    alpha = rtr / denormtemp;
     r_norm_2 = 0;
     for (i = 0; i < bl; i++) {
       x[i] += alpha * p[i];
@@ -189,6 +192,7 @@ void conjugate_gradient_sparse(SPARSE_MTX *A, double *b, int bl, double *x) {
     if (sqrt(r_norm_2) < 1e-2) {
       break;
     }
+    if (rtr < 1e-10) break;
     beta = r_norm_2 / rtr;
     for (i = 0; i < bl; i++) {
       p[i] = r[i] + beta * p[i];
