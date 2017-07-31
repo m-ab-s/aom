@@ -46,6 +46,7 @@ static int optical_flow_warp_filter[16][8] = {
  */
 int av1_get_opfl_ref(AV1_COMMON *cm) {
   int left_idx = -1, left_offset = -1, right_idx = -1, right_offset = -1;
+  int left_chosen = NONE_FRAME, right_chosen = NONE_FRAME;
   int cur_offset = cm->frame_offset;
   double dst_pos = -1;
 
@@ -66,9 +67,11 @@ int av1_get_opfl_ref(AV1_COMMON *cm) {
         (right_offset < 0 || this_offset < right_offset)) {
       right_idx = alt_buf_idx;
       right_offset = this_offset;
+      right_chosen = ALTREF_FRAME;
     } else if (this_offset < cur_offset && this_offset > left_offset) {
       left_idx = alt_buf_idx;
       left_offset = this_offset;
+      left_chosen = ALTREF_FRAME;
     }
   }
   if (lst_buf_idx >= 0) {
@@ -77,9 +80,11 @@ int av1_get_opfl_ref(AV1_COMMON *cm) {
         (right_offset < 0 || this_offset < right_offset)) {
       right_idx = lst_buf_idx;
       right_offset = this_offset;
+      right_chosen = LAST_FRAME;
     } else if (this_offset < cur_offset && this_offset > left_offset) {
       left_idx = lst_buf_idx;
       left_offset = this_offset;
+      left_chosen = LAST_FRAME;
     }
   }
   if (gld_buf_idx >= 0) {
@@ -88,9 +93,11 @@ int av1_get_opfl_ref(AV1_COMMON *cm) {
         (right_offset < 0 || this_offset < right_offset)) {
       right_idx = gld_buf_idx;
       right_offset = this_offset;
+      right_chosen = GOLDEN_FRAME;
     } else if (this_offset < cur_offset && this_offset > left_offset) {
       left_idx = gld_buf_idx;
       left_offset = this_offset;
+      left_chosen = GOLDEN_FRAME;
     }
   }
 #if CONFIG_EXT_REFS
@@ -100,9 +107,11 @@ int av1_get_opfl_ref(AV1_COMMON *cm) {
         (right_offset < 0 || this_offset < right_offset)) {
       right_idx = lst2_buf_idx;
       right_offset = this_offset;
+      right_chosen = LAST2_FRAME;
     } else if (this_offset < cur_offset && this_offset > left_offset) {
       left_idx = lst2_buf_idx;
       left_offset = this_offset;
+      left_chosen = LAST2_FRAME;
     }
   }
   if (lst3_buf_idx >= 0) {
@@ -111,9 +120,11 @@ int av1_get_opfl_ref(AV1_COMMON *cm) {
         (right_offset < 0 || this_offset < right_offset)) {
       right_idx = lst3_buf_idx;
       right_offset = this_offset;
+      right_chosen = LAST3_FRAME;
     } else if (this_offset < cur_offset && this_offset > left_offset) {
       left_idx = lst3_buf_idx;
       left_offset = this_offset;
+      left_chosen = LAST3_FRAME;
     }
   }
   if (bwd_buf_idx >= 0) {
@@ -122,9 +133,11 @@ int av1_get_opfl_ref(AV1_COMMON *cm) {
         (right_offset < 0 || this_offset < right_offset)) {
       right_idx = bwd_buf_idx;
       right_offset = this_offset;
+      right_chosen = BWDREF_FRAME;
     } else if (this_offset < cur_offset && this_offset > left_offset) {
       left_idx = bwd_buf_idx;
       left_offset = this_offset;
+      left_chosen = BWDREF_FRAME;
     }
   }
 #endif
@@ -135,11 +148,43 @@ int av1_get_opfl_ref(AV1_COMMON *cm) {
     YV12_BUFFER_CONFIG *right = &(cm->buffer_pool->frame_bufs[right_idx].buf);
     dst_pos = ((double)(cur_offset - left_offset)) /
               ((double)(right_offset - left_offset));
-    // TODO (bohan): set up initial motion field here.
+    int_mv *left_mv = aom_calloc(cm->mi_cols * cm->mi_rows, sizeof(int_mv));
+    int_mv *right_mv = aom_calloc(cm->mi_cols * cm->mi_rows, sizeof(int_mv));
+    TPL_MV_REF *tpl_mvs_base = cm->cur_frame->tpl_mvs;
+    for (int i = 0; i < cm->mi_rows; i++) {
+      for (int j = 0; j < cm->mi_cols; j++) {
+        left_mv[i * cm->mi_cols + j].as_int = INVALID_MV;
+        right_mv[i * cm->mi_cols + j].as_int = INVALID_MV;
+        for (int k = 0; k < MFMV_STACK_SIZE; k++) {
+          if (tpl_mvs_base[i * cm->mi_stride + j]
+                  .mfmv[left_chosen - LAST_FRAME][k]
+                  .as_int != INVALID_MV) {
+            left_mv[i * cm->mi_cols + j].as_int =
+                tpl_mvs_base[i * cm->mi_stride + j]
+                    .mfmv[left_chosen - LAST_FRAME][k]
+                    .as_int;
+            break;
+          }
+        }
+        for (int k = 0; k < MFMV_STACK_SIZE; k++) {
+          if (tpl_mvs_base[i * cm->mi_stride + j]
+                  .mfmv[right_chosen - LAST_FRAME][k]
+                  .as_int != INVALID_MV) {
+            right_mv[i * cm->mi_cols + j].as_int =
+                tpl_mvs_base[i * cm->mi_stride + j]
+                    .mfmv[right_chosen - LAST_FRAME][k]
+                    .as_int;
+            break;
+          }
+        }
+      }
+    }
 
-    optical_flow_get_ref(left, right, NULL, NULL, dst, dst_pos);
+    optical_flow_get_ref(left, right, left_mv, right_mv, dst, dst_pos);
     aom_yv12_extend_frame_borders_c(dst);
 
+    aom_free(left_mv);
+    aom_free(right_mv);
     // TODO(bohan): dump the frames for now for debug
     char filename[20] = "of_dump.yuv";
     write_image_opfl(left, filename);
@@ -229,9 +274,9 @@ void optical_flow_get_ref(YV12_BUFFER_CONFIG *ref0, YV12_BUFFER_CONFIG *ref1,
   }
 
   // create a single motion field (current method) in the w/4 h/4 scale level
-  create_motion_field(mv_left, mv_right, mf_last[MAX_OPFL_LEVEL - 1], width,
-                      height,
-                      (width >> (MAX_OPFL_LEVEL - 1)) + 2 * AVG_MF_BORDER);
+  create_motion_field(
+      mv_left, mv_right, mf_last[MAX_OPFL_LEVEL - 1], width, height,
+      (width >> (MAX_OPFL_LEVEL - 1)) + 2 * AVG_MF_BORDER, dst_pos);
 
   // temporary buffers for MF median filtering
   double mv_r[25], mv_c[25], left[25], right[25];
@@ -437,13 +482,13 @@ double iterate_update_mv(YV12_BUFFER_CONFIG *ref0, YV12_BUFFER_CONFIG *ref1,
   SPARSE_MTX A, M, F;
   for (j = 0; j < width; j++) {
     for (i = 0; i < height; i++) {
-      last_mv_vec[j * height + i] = mv_start[i * mvstr + j].row;
+      last_mv_vec[j * height + i] = mv_start[i * mvstr + j].col;
     }
   }
   for (j = 0; j < width; j++) {
     for (i = 0; i < height; i++) {
       last_mv_vec[width * height + j * height + i] =
-          mv_start[i * mvstr + j].col;
+          mv_start[i * mvstr + j].row;
     }
   }
   // get laplacian filter matrix F; Currently using:
@@ -648,13 +693,13 @@ double iterate_update_mv(YV12_BUFFER_CONFIG *ref0, YV12_BUFFER_CONFIG *ref1,
   cost = 0;
   for (j = 0; j < width; j++) {
     for (i = 0; i < height; i++) {
-      mv_start_new[i * mvstr + j].row = mv_vec[j * height + i];
+      mv_start_new[i * mvstr + j].col = mv_vec[j * height + i];
       cost += mv_vec[j * height + i] * mv_vec[j * height + i];
     }
   }
   for (j = 0; j < width; j++) {
     for (i = 0; i < height; i++) {
-      mv_start_new[i * mvstr + j].col = mv_vec[width * height + j * height + i];
+      mv_start_new[i * mvstr + j].row = mv_vec[width * height + j * height + i];
       cost += mv_vec[width * height + j * height + i] *
               mv_vec[width * height + j * height + i];
     }
@@ -828,15 +873,15 @@ double iterate_update_mv_fast(YV12_BUFFER_CONFIG *ref0,
                    0.25 * bufmv[i * mvstr + j0].col +
                    0.25 * bufmv[i * mvstr + j1].col;
         avg.col += lp_last[i * mvstr + j].col;
-        mv_start_new[i * mvstr + j].row =
-            avg.row - Ex[i * width + j] *
-                          (Ex[i * width + j] * avg.row +
-                           Ey[i * width + j] * avg.col + Et[i * width + j]) /
-                          denorm[i * width + j];
         mv_start_new[i * mvstr + j].col =
-            avg.col - Ey[i * width + j] *
-                          (Ex[i * width + j] * avg.row +
-                           Ey[i * width + j] * avg.col + Et[i * width + j]) /
+            avg.col - Ex[i * width + j] *
+                          (Ex[i * width + j] * avg.col +
+                           Ey[i * width + j] * avg.row + Et[i * width + j]) /
+                          denorm[i * width + j];
+        mv_start_new[i * mvstr + j].row =
+            avg.row - Ey[i * width + j] *
+                          (Ex[i * width + j] * avg.col +
+                           Ey[i * width + j] * avg.row + Et[i * width + j]) /
                           denorm[i * width + j];
       }
     }
@@ -962,8 +1007,8 @@ void warp_optical_flow_back(YV12_BUFFER_CONFIG *src, YV12_BUFFER_CONFIG *ref,
 
   for (int i = 0; i < height; i++) {
     for (int j = 0; j < width; j++) {
-      ii = i + mf_start[i * mvstr + j].col * dstpos;
-      jj = j + mf_start[i * mvstr + j].row * dstpos;
+      ii = i + mf_start[i * mvstr + j].row * dstpos;
+      jj = j + mf_start[i * mvstr + j].col * dstpos;
       i0 = floor(ii);
       di = ii - i0;
       j0 = floor(jj);
@@ -998,8 +1043,8 @@ void warp_optical_flow_back_bilinear(YV12_BUFFER_CONFIG *src,
 
   for (int i = 0; i < height; i++) {
     for (int j = 0; j < width; j++) {
-      ii = i + mf_start[i * mvstr + j].col * dstpos;
-      jj = j + mf_start[i * mvstr + j].row * dstpos;
+      ii = i + mf_start[i * mvstr + j].row * dstpos;
+      jj = j + mf_start[i * mvstr + j].col * dstpos;
       i0 = floor(ii);
       di = 1 - ii + i0;
       i1 = i0 + 1;
@@ -1038,8 +1083,8 @@ void warp_optical_flow_fwd(YV12_BUFFER_CONFIG *src, YV12_BUFFER_CONFIG *ref,
 
   for (int i = 0; i < height; i++) {
     for (int j = 0; j < width; j++) {
-      ii = i - mf_start[i * mvstr + j].col * dstpos;
-      jj = j - mf_start[i * mvstr + j].row * dstpos;
+      ii = i - mf_start[i * mvstr + j].row * dstpos;
+      jj = j - mf_start[i * mvstr + j].col * dstpos;
       i0 = floor(ii);
       di = ii - i0;
       j0 = floor(jj);
@@ -1074,8 +1119,8 @@ void warp_optical_flow_fwd_bilinear(YV12_BUFFER_CONFIG *src,
 
   for (int i = 0; i < height; i++) {
     for (int j = 0; j < width; j++) {
-      ii = i - mf_start[i * mvstr + j].col * dstpos;
-      jj = j - mf_start[i * mvstr + j].row * dstpos;
+      ii = i - mf_start[i * mvstr + j].row * dstpos;
+      jj = j - mf_start[i * mvstr + j].col * dstpos;
       i0 = floor(ii);
       di = 1 - ii + i0;
       i1 = i0 + 1;
@@ -1144,10 +1189,10 @@ void warp_optical_flow(YV12_BUFFER_CONFIG *src0, YV12_BUFFER_CONFIG *src1,
   for (int i = 0; i < height; i++) {
     for (int j = 0; j < width; j++) {
       pos = dstpos;
-      ii0 = i - mf_start[i * mvstr + j].col * dstpos;
-      jj0 = j - mf_start[i * mvstr + j].row * dstpos;
-      ii1 = i + mf_start[i * mvstr + j].col * dstpos;
-      jj1 = j + mf_start[i * mvstr + j].row * dstpos;
+      ii0 = i - mf_start[i * mvstr + j].row * dstpos;
+      jj0 = j - mf_start[i * mvstr + j].col * dstpos;
+      ii1 = i + mf_start[i * mvstr + j].row * (1 - dstpos);
+      jj1 = j + mf_start[i * mvstr + j].col * (1 - dstpos);
       i0 = floor(ii0);
       di0 = ii0 - i0;
       j0 = floor(jj0);
@@ -1309,10 +1354,10 @@ void warp_optical_flow_diff_select(YV12_BUFFER_CONFIG *src0,
   for (int i = 0; i < height; i++) {
     for (int j = 0; j < width; j++) {
       pos = dstpos;
-      ii0 = i - mf_start[i * mvstr + j].col * dstpos;
-      jj0 = j - mf_start[i * mvstr + j].row * dstpos;
-      ii1 = i + mf_start[i * mvstr + j].col * dstpos;
-      jj1 = j + mf_start[i * mvstr + j].row * dstpos;
+      ii0 = i - mf_start[i * mvstr + j].row * dstpos;
+      jj0 = j - mf_start[i * mvstr + j].col * dstpos;
+      ii1 = i + mf_start[i * mvstr + j].row * (1 - dstpos);
+      jj1 = j + mf_start[i * mvstr + j].col * (1 - dstpos);
       i0 = floor(ii0);
       di0 = ii0 - i0;
       j0 = floor(jj0);
@@ -1387,10 +1432,10 @@ void warp_optical_flow_diff_select(YV12_BUFFER_CONFIG *src0,
       totalused0 = 0;
       totalused1 = 0;
       pos = dstpos;
-      ii0 = i - mf_start[i * mvstr + j].col * dstpos;
-      jj0 = j - mf_start[i * mvstr + j].row * dstpos;
-      ii1 = i + mf_start[i * mvstr + j].col * dstpos;
-      jj1 = j + mf_start[i * mvstr + j].row * dstpos;
+      ii0 = i - mf_start[i * mvstr + j].row * dstpos;
+      jj0 = j - mf_start[i * mvstr + j].col * dstpos;
+      ii1 = i + mf_start[i * mvstr + j].row * (1 - dstpos);
+      jj1 = j + mf_start[i * mvstr + j].col * (1 - dstpos);
       i0 = floor(ii0);
       di0 = ii0 - i0;
       j0 = floor(jj0);
@@ -1454,10 +1499,10 @@ void warp_optical_flow_diff_select(YV12_BUFFER_CONFIG *src0,
       } else {
         assert(0);
       }
-      ii0 = i - mf_start[i * mvstr + j].col * dstpos;
-      jj0 = j - mf_start[i * mvstr + j].row * dstpos;
-      ii1 = i + mf_start[i * mvstr + j].col * dstpos;
-      jj1 = j + mf_start[i * mvstr + j].row * dstpos;
+      ii0 = i - mf_start[i * mvstr + j].row * dstpos;
+      jj0 = j - mf_start[i * mvstr + j].col * dstpos;
+      ii1 = i + mf_start[i * mvstr + j].row * (1 - dstpos);
+      jj1 = j + mf_start[i * mvstr + j].col * (1 - dstpos);
       i0 = floor(ii0);
       di0 = ii0 - i0;
       j0 = floor(jj0);
@@ -1538,7 +1583,6 @@ void warp_optical_flow_diff_select(YV12_BUFFER_CONFIG *src0,
  * interpolated pixel
  */
 uint8_t get_sub_pel_y(uint8_t *src, int stride, double di, double dj) {
-  // TODO(bohan) use locally defined filter arrays for now
   int yidx = di * 8 + 0.5;
   int xidx = dj * 8 + 0.5;
   yidx *= 2;
@@ -1631,7 +1675,7 @@ void interp_optical_flow(YV12_BUFFER_CONFIG *ref0, YV12_BUFFER_CONFIG *ref1,
   DB_MV *mf_start = mf + AVG_MF_BORDER * mvstr + AVG_MF_BORDER;
 
   warp_optical_flow(ref0, ref1, mf_start, mvstr, dst, dst_pos,
-                    OPFL_DIFF_SELECT);
+                    OPFL_SIMPLE_BLEND);
   return;
 }
 
@@ -1641,7 +1685,7 @@ void interp_optical_flow(YV12_BUFFER_CONFIG *ref0, YV12_BUFFER_CONFIG *ref1,
  * of the frame downscaled by 4.
  *
  * Input:
- * mv_left: motion vector points from ref0 to the current frame
+ * mv_left: motion vector points from the current frame to ref0
  * mv_right: motion vector points from the current frame to ref1
  * width, height: frame width and height
  * mfstr: stride of the motion field buffer
@@ -1650,7 +1694,7 @@ void interp_optical_flow(YV12_BUFFER_CONFIG *ref0, YV12_BUFFER_CONFIG *ref1,
  * mf: pointer to the created motion field
  */
 void create_motion_field(int_mv *mv_left, int_mv *mv_right, DB_MV *mf,
-                         int width, int height, int mfstr) {
+                         int width, int height, int mfstr, double dstpos) {
   // since the motion field is just used as initialization for now,
   // just simply use the summation of the two
   // TODO(bohan): need to change the function to work for MAX_OPFL_LEVEL != 3
@@ -1661,10 +1705,28 @@ void create_motion_field(int_mv *mv_left, int_mv *mv_right, DB_MV *mf,
     for (int w = 0; w < width / 4; w++) {
       // mv_left, mv_right are based on 4x4 block
       idx = h * width / 4 + w;
-      mf_start[h * mfstr + w].row =
-          (double)(mv_left[idx].as_mv.row + mv_right[idx].as_mv.row) / 8.0;
-      mf_start[h * mfstr + w].col =
-          (double)(mv_left[idx].as_mv.col + mv_right[idx].as_mv.col) / 8.0;
+      if (mv_left[idx].as_int == INVALID_MV &&
+          mv_right[idx].as_int == INVALID_MV) {
+        mf_start[h * mfstr + w].row = 0;
+        mf_start[h * mfstr + w].col = 0;
+      } else if (mv_left[idx].as_int == INVALID_MV) {
+        mf_start[h * mfstr + w].row =
+            (double)(mv_right[idx].as_mv.row) / 8.0 / 4.0 / (1 - dstpos);
+        mf_start[h * mfstr + w].col =
+            (double)(mv_right[idx].as_mv.col) / 8.0 / 4.0 / (1 - dstpos);
+      } else if (mv_right[idx].as_int == INVALID_MV) {
+        mf_start[h * mfstr + w].row =
+            (double)(-mv_left[idx].as_mv.row) / 8.0 / 4.0 / dstpos;
+        mf_start[h * mfstr + w].col =
+            (double)(-mv_left[idx].as_mv.col) / 8.0 / 4.0 / dstpos;
+      } else {
+        mf_start[h * mfstr + w].row =
+            (double)(-mv_left[idx].as_mv.row + mv_right[idx].as_mv.row) / 8.0 /
+            4.0;
+        mf_start[h * mfstr + w].col =
+            (double)(-mv_left[idx].as_mv.col + mv_right[idx].as_mv.col) / 8.0 /
+            4.0;
+      }
     }
   }
   // Pad the motion field border

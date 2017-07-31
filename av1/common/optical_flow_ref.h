@@ -89,7 +89,7 @@ void warp_optical_flow_diff_select(YV12_BUFFER_CONFIG *src0,
 uint8_t get_sub_pel_y(uint8_t *src, int stride, double di, double dj);
 uint8_t get_sub_pel_uv(uint8_t *src, int stride, double di, double dj);
 void create_motion_field(int_mv *mv_left, int_mv *mv_right, DB_MV *mf,
-                         int width, int height, int mfstr);
+                         int width, int height, int mfstr, double dstpos);
 void pad_motion_field_border(DB_MV *mf_start, int width, int height,
                              int stride);
 DB_MV median_2D_MV_5x5(DB_MV *center, int mvstr, double *mv_r, double *mv_c,
