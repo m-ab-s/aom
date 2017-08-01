@@ -180,6 +180,9 @@ int av1_get_opfl_ref(AV1_COMMON *cm) {
       }
     }
 
+    opfl_fill_mv(left_mv, cm->mi_cols, cm->mi_rows);
+    opfl_fill_mv(right_mv, cm->mi_cols, cm->mi_rows);
+
     optical_flow_get_ref(left, right, left_mv, right_mv, dst, dst_pos);
     aom_yv12_extend_frame_borders_c(dst);
 
@@ -198,6 +201,60 @@ int av1_get_opfl_ref(AV1_COMMON *cm) {
   } else {
     return -1;
   }
+}
+
+void opfl_fill_mv(int_mv *pmv, int width, int height) {
+  int invalid_cnt = 0;
+  int_mv *tempmv = aom_calloc(width * height, sizeof(int_mv));
+  for (int i = 0; i < height; i++) {
+    for (int j = 0; j < width; j++) {
+      if (pmv[i * width + j].as_int == INVALID_MV) {
+        invalid_cnt++;
+      }
+      tempmv[i * width + j].as_int = INVALID_MV;
+    }
+  }
+  int_mv avg;
+  int avgcnt;
+  while (invalid_cnt > 0 && invalid_cnt != width * height) {
+    for (int i = 0; i < height; i++) {
+      for (int j = 0; j < width; j++) {
+        if (pmv[i * width + j].as_int == INVALID_MV) {
+          avgcnt = 0;
+          avg.as_int = 0;
+          for (int h = -1; h < 2; h++) {
+            for (int w = -1; w < 2; w++) {
+              if (i + h >= 0 && i + h < height && j + w >= 0 && j + w < width) {
+                if (pmv[(i + h) * width + j + w].as_int != INVALID_MV) {
+                  avg.as_mv.col += pmv[(i + h) * width + j + w].as_mv.col;
+                  avg.as_mv.row += pmv[(i + h) * width + j + w].as_mv.row;
+                  avgcnt++;
+                }
+              }
+            }
+          }
+          if (avgcnt != 0) {
+            tempmv[i * width + j].as_mv.col =
+                round((double)avg.as_mv.col / avgcnt);
+            tempmv[i * width + j].as_mv.row =
+                round((double)avg.as_mv.row / avgcnt);
+          }
+        }
+      }
+    }  // for every mv
+    invalid_cnt = 0;
+    for (int i = 0; i < height; i++) {
+      for (int j = 0; j < width; j++) {
+        if (pmv[i * width + j].as_int == INVALID_MV &&
+            tempmv[i * width + j].as_int != INVALID_MV) {
+          pmv[i * width + j].as_int = tempmv[i * width + j].as_int;
+        } else if (pmv[i * width + j].as_int == INVALID_MV) {
+          invalid_cnt++;
+        }
+      }
+    }
+  }
+  aom_free(tempmv);
 }
 
 /*
