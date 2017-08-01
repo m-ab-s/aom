@@ -37,6 +37,11 @@ extern "C" {
 #define FAST_OPTICAL_FLOW 0              // Use fast iterative method
 #define OPFL_ANNEAL_FACTOR 1.0  // Annealing factor for laplacian multiplier
 
+// MACROs for Debug
+#define REPLACE_LST2 1
+#define DUMP_OPFL 0
+#define OPFL_OUTPUT_TIME 0
+
 typedef enum opfl_blend_method {
   OPFL_SIMPLE_BLEND = 0,
   OPFL_NEAREST_SINGLE,

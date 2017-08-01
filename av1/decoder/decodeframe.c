@@ -5375,6 +5375,24 @@ void av1_decode_frame(AV1Decoder *pbi, const uint8_t *data,
   int opfl_ret = av1_get_opfl_ref(cm);
   if (opfl_ret == 0) {
     // TODO(jingning & bohan) successfully interpolated, prepare for decoding
+#if REPLACE_LST2
+    int lst2_buf_idx = cm->frame_refs[LAST2_FRAME - LAST_FRAME].idx;
+    uint8_t *temp;
+    if (lst2_buf_idx >= 0) {
+      temp = cm->buffer_pool->frame_bufs[lst2_buf_idx].buf.y_buffer;
+      cm->buffer_pool->frame_bufs[lst2_buf_idx].buf.y_buffer =
+          cm->opfl_ref_frame->y_buffer;
+      cm->opfl_ref_frame->y_buffer = temp;
+      temp = cm->buffer_pool->frame_bufs[lst2_buf_idx].buf.u_buffer;
+      cm->buffer_pool->frame_bufs[lst2_buf_idx].buf.u_buffer =
+          cm->opfl_ref_frame->u_buffer;
+      cm->opfl_ref_frame->u_buffer = temp;
+      temp = cm->buffer_pool->frame_bufs[lst2_buf_idx].buf.v_buffer;
+      cm->buffer_pool->frame_bufs[lst2_buf_idx].buf.v_buffer =
+          cm->opfl_ref_frame->v_buffer;
+      cm->opfl_ref_frame->v_buffer = temp;
+    }
+#endif
   }
 #endif
 
@@ -5405,6 +5423,26 @@ void av1_decode_frame(AV1Decoder *pbi, const uint8_t *data,
 
 #if CONFIG_OPFL
   // TODO(bohan): Should not allocate the buffer for every frame
+  if (opfl_ret == 0) {
+#if REPLACE_LST2
+    int lst2_buf_idx = cm->frame_refs[LAST2_FRAME - LAST_FRAME].idx;
+    uint8_t *temp;
+    if (lst2_buf_idx >= 0) {
+      temp = cm->buffer_pool->frame_bufs[lst2_buf_idx].buf.y_buffer;
+      cm->buffer_pool->frame_bufs[lst2_buf_idx].buf.y_buffer =
+          cm->opfl_ref_frame->y_buffer;
+      cm->opfl_ref_frame->y_buffer = temp;
+      temp = cm->buffer_pool->frame_bufs[lst2_buf_idx].buf.u_buffer;
+      cm->buffer_pool->frame_bufs[lst2_buf_idx].buf.u_buffer =
+          cm->opfl_ref_frame->u_buffer;
+      cm->opfl_ref_frame->u_buffer = temp;
+      temp = cm->buffer_pool->frame_bufs[lst2_buf_idx].buf.v_buffer;
+      cm->buffer_pool->frame_bufs[lst2_buf_idx].buf.v_buffer =
+          cm->opfl_ref_frame->v_buffer;
+      cm->opfl_ref_frame->v_buffer = temp;
+    }
+#endif
+  }
   aom_free_frame_buffer(cm->opfl_ref_frame);
   aom_free(cm->opfl_ref_frame);
 #endif

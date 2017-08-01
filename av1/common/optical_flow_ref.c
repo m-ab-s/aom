@@ -188,6 +188,8 @@ int av1_get_opfl_ref(AV1_COMMON *cm) {
 
     aom_free(left_mv);
     aom_free(right_mv);
+
+#if DUMP_OPFL
     // TODO(bohan): dump the frames for now for debug
     char filename[20] = "of_dump.yuv";
     write_image_opfl(left, filename);
@@ -197,6 +199,7 @@ int av1_get_opfl_ref(AV1_COMMON *cm) {
     FILE *f_idx = fopen(idxfilename, "a");
     fprintf(f_idx, "%d %d %d\n", left_offset, cur_offset, right_offset);
     fclose(f_idx);
+#endif
     return 0;
   } else {
     return -1;
@@ -409,11 +412,13 @@ void optical_flow_get_ref(YV12_BUFFER_CONFIG *ref0, YV12_BUFFER_CONFIG *ref1,
   aom_free(temp_buffer);
 #endif
 
+#if OPFL_OUTPUT_TIME
   // TODO(bohan): output time usage for debug for now.
   printf("\n");
   printf("der time: %.4f, sub time: %.4f, init time: %.4f, solve time: %.4f\n",
          timeder, timesub, timeinit, timesolve);
   fflush(stdout);
+#endif
   return;
 }
 
