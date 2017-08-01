@@ -50,6 +50,7 @@ typedef struct db_mv {
 } DB_MV;
 
 int av1_get_opfl_ref(AV1_COMMON *cm);
+void opfl_fill_mv(int_mv *pmv, int width, int height);
 void optical_flow_get_ref(YV12_BUFFER_CONFIG *ref0, YV12_BUFFER_CONFIG *ref1,
                           int_mv *mv_left, int_mv *mv_right,
                           YV12_BUFFER_CONFIG *dst, double dst_pos);
