@@ -314,6 +314,7 @@ void optical_flow_get_ref(YV12_BUFFER_CONFIG *ref0, YV12_BUFFER_CONFIG *ref1,
         (wid + 2 * AVG_MF_BORDER) * (hgt + 2 * AVG_MF_BORDER), sizeof(DB_MV));
     mf_med[l] = aom_calloc(
         (wid + 2 * AVG_MF_BORDER) * (hgt + 2 * AVG_MF_BORDER), sizeof(DB_MV));
+#if !USE_BLK_DERIVATIVE
     if (l != 0) {
       ref0_ds[l] = aom_calloc(1, sizeof(YV12_BUFFER_CONFIG));
       ref1_ds[l] = aom_calloc(1, sizeof(YV12_BUFFER_CONFIG));
@@ -322,13 +323,16 @@ void optical_flow_get_ref(YV12_BUFFER_CONFIG *ref0, YV12_BUFFER_CONFIG *ref1,
       aom_alloc_frame_buffer(ref1_ds[l], wid, hgt, 1, 1, 0,
                              AOM_BORDER_IN_PIXELS, 1);
     }
+#endif
   }
+#if !USE_BLK_DERIVATIVE
   // TODO(bohan): find out the necessary space for temp_buffer
   uint8_t *temp_buffer = aom_calloc(width * 8, sizeof(uint8_t));
   for (int l = 1; l < MAX_OPFL_LEVEL; l++) {
     aom_scale_frame(ref0_ds[l - 1], ref0_ds[l], temp_buffer, 8, 2, 1, 2, 1, 0);
     aom_scale_frame(ref1_ds[l - 1], ref1_ds[l], temp_buffer, 8, 2, 1, 2, 1, 0);
   }
+#endif
 
   // create a single motion field (current method) in the w/4 h/4 scale level
   create_motion_field(
@@ -343,8 +347,13 @@ void optical_flow_get_ref(YV12_BUFFER_CONFIG *ref0, YV12_BUFFER_CONFIG *ref1,
     hgt = height >> l;
     int mvstr = wid + 2 * AVG_MF_BORDER;
     // use optical flow to refine our motion field
+#if USE_BLK_DERIVATIVE
+    refine_motion_field(ref0_ds[0], ref1_ds[0], mf_last[l], mf_new[l], l,
+                        dst_pos, 0);
+#else
     refine_motion_field(ref0_ds[l], ref1_ds[l], mf_last[l], mf_new[l], l,
-                        dst_pos);
+                        dst_pos, 1);
+#endif
     DB_MV *mf_start_new = mf_new[l] + AVG_MF_BORDER * mvstr + AVG_MF_BORDER;
     DB_MV *mf_start_med = mf_med[l] + AVG_MF_BORDER * mvstr + AVG_MF_BORDER;
     // pad for median filter (may not need)
@@ -381,12 +390,14 @@ void optical_flow_get_ref(YV12_BUFFER_CONFIG *ref0, YV12_BUFFER_CONFIG *ref1,
     aom_free(mf_last[l]);
     aom_free(mf_new[l]);
     aom_free(mf_med[l]);
+#if !USE_BLK_DERIVATIVE
     if (l != 0) {
       aom_free_frame_buffer(ref0_ds[l]);
       aom_free_frame_buffer(ref1_ds[l]);
       aom_free(ref0_ds[l]);
       aom_free(ref1_ds[l]);
     }
+#endif
   }
   if (allocl) {
     aom_free(mv_left);
@@ -394,7 +405,9 @@ void optical_flow_get_ref(YV12_BUFFER_CONFIG *ref0, YV12_BUFFER_CONFIG *ref1,
   if (allocr) {
     aom_free(mv_right);
   }
+#if !USE_BLK_DERIVATIVE
   aom_free(temp_buffer);
+#endif
 
   // TODO(bohan): output time usage for debug for now.
   printf("\n");
@@ -418,11 +431,15 @@ void optical_flow_get_ref(YV12_BUFFER_CONFIG *ref0, YV12_BUFFER_CONFIG *ref1,
  */
 void refine_motion_field(YV12_BUFFER_CONFIG *ref0, YV12_BUFFER_CONFIG *ref1,
                          DB_MV *mf_last, DB_MV *mf_new, int level,
-                         double dstpos) {
+                         double dstpos, int usescale) {
   int count = 0;
   double last_cost = DBL_MAX;
   double new_cost = last_cost;
   int width = ref0->y_width, height = ref0->y_height;
+  if (!usescale) {
+    width = width >> level;
+    height = height >> level;
+  }
   int mvstr = width + 2 * AVG_MF_BORDER;
   double as_scale_factor = 1;  // annealing factor for laplacian multiplier
   // iteratively warp and estimate motion field
@@ -430,14 +447,14 @@ void refine_motion_field(YV12_BUFFER_CONFIG *ref0, YV12_BUFFER_CONFIG *ref1,
 #if FAST_OPTICAL_FLOW
     if (level == MAX_OPFL_LEVEL - 1) {
       new_cost = iterate_update_mv(ref0, ref1, mf_last, mf_new, level, dstpos,
-                                   as_scale_factor);
+                                   as_scale_factor, usescale);
     } else {
       new_cost = iterate_update_mv_fast(ref0, ref1, mf_last, mf_new, level,
-                                        dstpos, as_scale_factor);
+                                        dstpos, as_scale_factor, usescale);
     }
 #else
     new_cost = iterate_update_mv(ref0, ref1, mf_last, mf_new, level, dstpos,
-                                 as_scale_factor);
+                                 as_scale_factor, usescale);
 #endif
     // prepare for the next iteration
     DB_MV *mv_start = mf_last + AVG_MF_BORDER * mvstr + AVG_MF_BORDER;
@@ -483,13 +500,18 @@ void refine_motion_field(YV12_BUFFER_CONFIG *ref0, YV12_BUFFER_CONFIG *ref1,
  */
 double iterate_update_mv(YV12_BUFFER_CONFIG *ref0, YV12_BUFFER_CONFIG *ref1,
                          DB_MV *mf_last, DB_MV *mf_new, int level,
-                         double dstpos, double scale) {
+                         double dstpos, double as_scale, int usescale) {
   double *Ex, *Ey, *Et;
-  double a_squared = OF_A_SQUARED * scale;
+  double a_squared = OF_A_SQUARED * as_scale;
   double cost = 0;
 
   //  uint8_t *y0 = ref0->y_buffer;
+  int y_width = ref0->y_width, y_height = ref0->y_height;
   int width = ref0->y_width, height = ref0->y_height;
+  if (!usescale) {
+    width = width >> level;
+    height = height >> level;
+  }
   int mvstr = width + 2 * AVG_MF_BORDER;
   DB_MV *mv_start = mf_last + AVG_MF_BORDER * mvstr + AVG_MF_BORDER;
   DB_MV *mv_start_new = mf_new + AVG_MF_BORDER * mvstr + AVG_MF_BORDER;
@@ -501,10 +523,10 @@ double iterate_update_mv(YV12_BUFFER_CONFIG *ref0, YV12_BUFFER_CONFIG *ref1,
   Et = aom_calloc(width * height, sizeof(double));
   YV12_BUFFER_CONFIG *buffer0 = aom_calloc(1, sizeof(YV12_BUFFER_CONFIG));
   YV12_BUFFER_CONFIG *buffer1 = aom_calloc(1, sizeof(YV12_BUFFER_CONFIG));
-  aom_alloc_frame_buffer(buffer0, width, height, 1, 1, 0, AOM_BORDER_IN_PIXELS,
-                         0);
-  aom_alloc_frame_buffer(buffer1, width, height, 1, 1, 0, AOM_BORDER_IN_PIXELS,
-                         0);
+  aom_alloc_frame_buffer(buffer0, y_width, y_height, 1, 1, 0,
+                         AOM_BORDER_IN_PIXELS, 0);
+  aom_alloc_frame_buffer(buffer1, y_width, y_height, 1, 1, 0,
+                         AOM_BORDER_IN_PIXELS, 0);
   int *row_pos = aom_calloc(width * height * 12, sizeof(int));
   int *col_pos = aom_calloc(width * height * 12, sizeof(int));
   double *values = aom_calloc(width * height * 12, sizeof(double));
@@ -515,22 +537,24 @@ double iterate_update_mv(YV12_BUFFER_CONFIG *ref0, YV12_BUFFER_CONFIG *ref1,
   clock_t start, end;
   start = clock();
   // warp ref1 back to ref0 => buffer
-  if (level == 0)
-    warp_optical_flow_fwd(ref0, ref1, mv_start, mvstr, buffer0, dstpos);
+  if (level == 0 || !usescale)
+    warp_optical_flow_fwd(ref0, ref1, mv_start, mvstr, buffer0, dstpos, level,
+                          usescale);
   else
-    warp_optical_flow_fwd_bilinear(ref0, ref1, mv_start, mvstr, buffer0,
-                                   dstpos);
-  if (level == 0)
-    warp_optical_flow_back(ref1, ref0, mv_start, mvstr, buffer1, 1 - dstpos);
+    warp_optical_flow_fwd_bilinear(ref0, ref1, mv_start, mvstr, buffer0, dstpos,
+                                   level, usescale);
+  if (level == 0 || !usescale)
+    warp_optical_flow_back(ref1, ref0, mv_start, mvstr, buffer1, 1 - dstpos,
+                           level, usescale);
   else
     warp_optical_flow_back_bilinear(ref1, ref0, mv_start, mvstr, buffer1,
-                                    1 - dstpos);
+                                    1 - dstpos, level, usescale);
   end = clock();
   timesub += (double)(end - start) / CLOCKS_PER_SEC;
 
   start = clock();
   // Calculate partial derivatives
-  opfl_get_derivatives(Ex, Ey, Et, buffer0, buffer1, dstpos);
+  opfl_get_derivatives(Ex, Ey, Et, buffer0, buffer1, dstpos, level, usescale);
   end = clock();
   timeder += (double)(end - start) / CLOCKS_PER_SEC;
 
@@ -799,13 +823,18 @@ double iterate_update_mv(YV12_BUFFER_CONFIG *ref0, YV12_BUFFER_CONFIG *ref1,
 double iterate_update_mv_fast(YV12_BUFFER_CONFIG *ref0,
                               YV12_BUFFER_CONFIG *ref1, DB_MV *mf_last,
                               DB_MV *mf_new, int level, double dstpos,
-                              double scale) {
+                              double scale, int usescale) {
   double *Ex, *Ey, *Et;
   double a_squared = OF_A_SQUARED * scale;
   double cost = 0;
 
   //  uint8_t *y0 = ref0->y_buffer;
+  int y_width = ref0->y_width, y_height = ref0->y_height;
   int width = ref0->y_width, height = ref0->y_height;
+  if (!usescale) {
+    width = width >> level;
+    height = height >> level;
+  }
   int mvstr = width + 2 * AVG_MF_BORDER;
   DB_MV *mv_start = mf_last + AVG_MF_BORDER * mvstr + AVG_MF_BORDER;
   DB_MV *mv_start_new = mf_new + AVG_MF_BORDER * mvstr + AVG_MF_BORDER;
@@ -817,30 +846,32 @@ double iterate_update_mv_fast(YV12_BUFFER_CONFIG *ref0,
   Et = aom_calloc(width * height, sizeof(double));
   YV12_BUFFER_CONFIG *buffer0 = aom_calloc(1, sizeof(YV12_BUFFER_CONFIG));
   YV12_BUFFER_CONFIG *buffer1 = aom_calloc(1, sizeof(YV12_BUFFER_CONFIG));
-  aom_alloc_frame_buffer(buffer0, width, height, 1, 1, 0, AOM_BORDER_IN_PIXELS,
-                         0);
-  aom_alloc_frame_buffer(buffer1, width, height, 1, 1, 0, AOM_BORDER_IN_PIXELS,
-                         0);
+  aom_alloc_frame_buffer(buffer0, y_width, y_height, 1, 1, 0,
+                         AOM_BORDER_IN_PIXELS, 0);
+  aom_alloc_frame_buffer(buffer1, y_width, y_height, 1, 1, 0,
+                         AOM_BORDER_IN_PIXELS, 0);
 
   clock_t start, end;
   start = clock();
   // warp ref1 back to ref0 => buffer
-  if (level == 0)
-    warp_optical_flow_fwd(ref0, ref1, mv_start, mvstr, buffer0, dstpos);
+  if (level == 0 || !usescale)
+    warp_optical_flow_fwd(ref0, ref1, mv_start, mvstr, buffer0, dstpos, level,
+                          usescale);
   else
-    warp_optical_flow_fwd_bilinear(ref0, ref1, mv_start, mvstr, buffer0,
-                                   dstpos);
-  if (level == 0)
-    warp_optical_flow_back(ref1, ref0, mv_start, mvstr, buffer1, 1 - dstpos);
+    warp_optical_flow_fwd_bilinear(ref0, ref1, mv_start, mvstr, buffer0, dstpos,
+                                   level, usescale);
+  if (level == 0 || !usescale)
+    warp_optical_flow_back(ref1, ref0, mv_start, mvstr, buffer1, 1 - dstpos,
+                           level, usescale);
   else
     warp_optical_flow_back_bilinear(ref1, ref0, mv_start, mvstr, buffer1,
-                                    1 - dstpos);
+                                    1 - dstpos, level, usescale);
   end = clock();
   timesub += (double)(end - start) / CLOCKS_PER_SEC;
 
   start = clock();
   // Calculate partial derivatives
-  opfl_get_derivatives(Ex, Ey, Et, buffer0, buffer1, dstpos);
+  opfl_get_derivatives(Ex, Ey, Et, buffer0, buffer1, dstpos, level, usescale);
   end = clock();
   timeder += (double)(end - start) / CLOCKS_PER_SEC;
 
@@ -983,7 +1014,8 @@ double iterate_update_mv_fast(YV12_BUFFER_CONFIG *ref0,
 
 void opfl_get_derivatives(double *Ex, double *Ey, double *Et,
                           YV12_BUFFER_CONFIG *buffer0,
-                          YV12_BUFFER_CONFIG *buffer1, double dstpos) {
+                          YV12_BUFFER_CONFIG *buffer1, double dstpos, int level,
+                          int usescale) {
   int lh = DERIVATIVE_FILTER_LENGTH;
   int hleft = (lh - 1) / 2;
   double filter[DERIVATIVE_FILTER_LENGTH] = {
@@ -992,6 +1024,18 @@ void opfl_get_derivatives(double *Ex, double *Ey, double *Et,
   int width = buffer0->y_width;
   int height = buffer0->y_height;
   int stride = buffer0->y_stride;
+
+  double *tempEx, *tempEy, *tempEt;
+  double *oriEx = Ex, *oriEy = Ey, *oriEt = Et;
+  if (!usescale && level != 0) {
+    tempEx = aom_calloc(width * height, sizeof(double));
+    tempEy = aom_calloc(width * height, sizeof(double));
+    tempEt = aom_calloc(width * height, sizeof(double));
+    Ex = tempEx;
+    Ey = tempEy;
+    Et = tempEt;
+  }
+
   // horizontal derivative filter
   for (i = 0; i < height; i++) {
     for (j = 0; j < width; j++) {
@@ -1033,6 +1077,36 @@ void opfl_get_derivatives(double *Ex, double *Ey, double *Et,
                           (double)(buffer0->y_buffer[i * stride + j]);
     }
   }
+  if (!usescale && level != 0) {
+    Ex = oriEx;
+    Ey = oriEy;
+    Et = oriEt;
+    int s_width = width >> level, s_height = height >> level,
+        blk_w = 1 << level;
+    for (i = 0; i < s_height; i++) {
+      for (j = 0; j < s_width; j++) {
+        Ex[i * s_width + j] = 0;
+        Ey[i * s_width + j] = 0;
+        Et[i * s_width + j] = 0;
+        for (int h = 0; h < blk_w; h++) {
+          for (int w = 0; w < blk_w; w++) {
+            Ex[i * s_width + j] +=
+                tempEx[(i * blk_w + h) * width + j * blk_w + w];
+            Ey[i * s_width + j] +=
+                tempEy[(i * blk_w + h) * width + j * blk_w + w];
+            Et[i * s_width + j] +=
+                tempEt[(i * blk_w + h) * width + j * blk_w + w];
+          }
+        }
+        Ex[i * s_width + j] = Ex[i * s_width + j] / blk_w;
+        Ey[i * s_width + j] = Ey[i * s_width + j] / blk_w;
+        Et[i * s_width + j] = Et[i * s_width + j] / (blk_w * blk_w);
+      }
+    }
+    aom_free(tempEx);
+    aom_free(tempEy);
+    aom_free(tempEt);
+  }
 }
 
 /*
@@ -1051,7 +1125,7 @@ void opfl_get_derivatives(double *Ex, double *Ey, double *Et,
  */
 void warp_optical_flow_back(YV12_BUFFER_CONFIG *src, YV12_BUFFER_CONFIG *ref,
                             DB_MV *mf_start, int mvstr, YV12_BUFFER_CONFIG *dst,
-                            double dstpos) {
+                            double dstpos, int level, int usescale) {
   int width = src->y_width;
   int height = src->y_height;
   int stride = src->y_stride;
@@ -1059,13 +1133,18 @@ void warp_optical_flow_back(YV12_BUFFER_CONFIG *src, YV12_BUFFER_CONFIG *ref,
   uint8_t *dsty = dst->y_buffer;
   uint8_t *refy = ref->y_buffer;
 
+  int blk_w = 1;
+  if (!usescale) {
+    blk_w = blk_w << level;
+  }
+
   double ii, jj, di, dj;
   int i0, j0;
 
   for (int i = 0; i < height; i++) {
     for (int j = 0; j < width; j++) {
-      ii = i + mf_start[i * mvstr + j].row * dstpos;
-      jj = j + mf_start[i * mvstr + j].col * dstpos;
+      ii = i + mf_start[(i / blk_w) * mvstr + j / blk_w].row * blk_w * dstpos;
+      jj = j + mf_start[(i / blk_w) * mvstr + j / blk_w].col * blk_w * dstpos;
       i0 = floor(ii);
       di = ii - i0;
       j0 = floor(jj);
@@ -1087,7 +1166,7 @@ void warp_optical_flow_back(YV12_BUFFER_CONFIG *src, YV12_BUFFER_CONFIG *ref,
 void warp_optical_flow_back_bilinear(YV12_BUFFER_CONFIG *src,
                                      YV12_BUFFER_CONFIG *ref, DB_MV *mf_start,
                                      int mvstr, YV12_BUFFER_CONFIG *dst,
-                                     double dstpos) {
+                                     double dstpos, int level, int usescale) {
   int width = src->y_width;
   int height = src->y_height;
   int stride = src->y_stride;
@@ -1098,10 +1177,15 @@ void warp_optical_flow_back_bilinear(YV12_BUFFER_CONFIG *src,
   double ii, jj, di, dj, temp;
   int i0, j0, i1, j1;
 
+  int blk_w = 1;
+  if (!usescale) {
+    blk_w = blk_w << level;
+  }
+
   for (int i = 0; i < height; i++) {
     for (int j = 0; j < width; j++) {
-      ii = i + mf_start[i * mvstr + j].row * dstpos;
-      jj = j + mf_start[i * mvstr + j].col * dstpos;
+      ii = i + mf_start[(i / blk_w) * mvstr + j / blk_w].row * blk_w * dstpos;
+      jj = j + mf_start[(i / blk_w) * mvstr + j / blk_w].col * blk_w * dstpos;
       i0 = floor(ii);
       di = 1 - ii + i0;
       i1 = i0 + 1;
@@ -1127,7 +1211,7 @@ void warp_optical_flow_back_bilinear(YV12_BUFFER_CONFIG *src,
  */
 void warp_optical_flow_fwd(YV12_BUFFER_CONFIG *src, YV12_BUFFER_CONFIG *ref,
                            DB_MV *mf_start, int mvstr, YV12_BUFFER_CONFIG *dst,
-                           double dstpos) {
+                           double dstpos, int level, int usescale) {
   int width = src->y_width;
   int height = src->y_height;
   int stride = src->y_stride;
@@ -1138,10 +1222,15 @@ void warp_optical_flow_fwd(YV12_BUFFER_CONFIG *src, YV12_BUFFER_CONFIG *ref,
   double ii, jj, di, dj;
   int i0, j0;
 
+  int blk_w = 1;
+  if (!usescale) {
+    blk_w = blk_w << level;
+  }
+
   for (int i = 0; i < height; i++) {
     for (int j = 0; j < width; j++) {
-      ii = i - mf_start[i * mvstr + j].row * dstpos;
-      jj = j - mf_start[i * mvstr + j].col * dstpos;
+      ii = i - mf_start[(i / blk_w) * mvstr + j / blk_w].row * blk_w * dstpos;
+      jj = j - mf_start[(i / blk_w) * mvstr + j / blk_w].col * blk_w * dstpos;
       i0 = floor(ii);
       di = ii - i0;
       j0 = floor(jj);
@@ -1163,7 +1252,7 @@ void warp_optical_flow_fwd(YV12_BUFFER_CONFIG *src, YV12_BUFFER_CONFIG *ref,
 void warp_optical_flow_fwd_bilinear(YV12_BUFFER_CONFIG *src,
                                     YV12_BUFFER_CONFIG *ref, DB_MV *mf_start,
                                     int mvstr, YV12_BUFFER_CONFIG *dst,
-                                    double dstpos) {
+                                    double dstpos, int level, int usescale) {
   int width = src->y_width;
   int height = src->y_height;
   int stride = src->y_stride;
@@ -1174,10 +1263,15 @@ void warp_optical_flow_fwd_bilinear(YV12_BUFFER_CONFIG *src,
   double ii, jj, di, dj, temp;
   int i0, j0, i1, j1;
 
+  int blk_w = 1;
+  if (!usescale) {
+    blk_w = blk_w << level;
+  }
+
   for (int i = 0; i < height; i++) {
     for (int j = 0; j < width; j++) {
-      ii = i - mf_start[i * mvstr + j].row * dstpos;
-      jj = j - mf_start[i * mvstr + j].col * dstpos;
+      ii = i - mf_start[(i / blk_w) * mvstr + j / blk_w].row * blk_w * dstpos;
+      jj = j - mf_start[(i / blk_w) * mvstr + j / blk_w].col * blk_w * dstpos;
       i0 = floor(ii);
       di = 1 - ii + i0;
       i1 = i0 + 1;

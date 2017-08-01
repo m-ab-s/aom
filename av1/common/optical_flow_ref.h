@@ -30,6 +30,7 @@ extern "C" {
 #define DERIVATIVE_FILTER_LENGTH 7
 #define OF_A_SQUARED 100
 #define USE_MEDIAN_FILTER 1
+#define USE_BLK_DERIVATIVE 1
 #define OPTICAL_FLOW_DIFF_THRES 10.0  // Thres to detect pixel difference
 #define OPTICAL_FLOW_REF_THRES 0.3    // Thres to determine reference usage
 #define OPTICAL_FLOW_TRUST_MV_THRES 0.3  // Thres to trust motion field
@@ -56,30 +57,30 @@ void optical_flow_get_ref(YV12_BUFFER_CONFIG *ref0, YV12_BUFFER_CONFIG *ref1,
                           YV12_BUFFER_CONFIG *dst, double dst_pos);
 void refine_motion_field(YV12_BUFFER_CONFIG *ref0, YV12_BUFFER_CONFIG *ref1,
                          DB_MV *mf_last, DB_MV *mf_new, int level,
-                         double dstpos);
+                         double dstpos, int usescale);
 double iterate_update_mv(YV12_BUFFER_CONFIG *ref0, YV12_BUFFER_CONFIG *ref1,
                          DB_MV *mf_last, DB_MV *mf_new, int level,
-                         double dstpos, double scale);
+                         double dstpos, double scale, int usescale);
 double iterate_update_mv_fast(YV12_BUFFER_CONFIG *ref0,
                               YV12_BUFFER_CONFIG *ref1, DB_MV *mf_last,
                               DB_MV *mf_new, int level, double dstpos,
-                              double scale);
+                              double scale, int usescale);
 void interp_optical_flow(YV12_BUFFER_CONFIG *ref0, YV12_BUFFER_CONFIG *ref1,
                          DB_MV *mf, YV12_BUFFER_CONFIG *dst, double dst_pos);
 void warp_optical_flow_back(YV12_BUFFER_CONFIG *src, YV12_BUFFER_CONFIG *ref,
                             DB_MV *mf_start, int mvstr, YV12_BUFFER_CONFIG *dst,
-                            double dstpos);
+                            double dstpos, int level, int usescale);
 void warp_optical_flow_back_bilinear(YV12_BUFFER_CONFIG *src,
                                      YV12_BUFFER_CONFIG *ref, DB_MV *mf_start,
                                      int mvstr, YV12_BUFFER_CONFIG *dst,
-                                     double dstpos);
+                                     double dstpos, int level, int usescale);
 void warp_optical_flow_fwd(YV12_BUFFER_CONFIG *src, YV12_BUFFER_CONFIG *ref,
                            DB_MV *mf_start, int mvstr, YV12_BUFFER_CONFIG *dst,
-                           double dstpos);
+                           double dstpos, int level, int usescale);
 void warp_optical_flow_fwd_bilinear(YV12_BUFFER_CONFIG *src,
                                     YV12_BUFFER_CONFIG *ref, DB_MV *mf_start,
                                     int mvstr, YV12_BUFFER_CONFIG *dst,
-                                    double dstpos);
+                                    double dstpos, int level, int usescale);
 void warp_optical_flow(YV12_BUFFER_CONFIG *src0, YV12_BUFFER_CONFIG *src1,
                        DB_MV *mf_start, int mvstr, YV12_BUFFER_CONFIG *dst,
                        double dstpos, OPFL_BLEND_METHOD method);
@@ -103,7 +104,8 @@ void upscale_mv_by_2(DB_MV *src, int srcw, int srch, int srcs, DB_MV *dst,
 int write_image_opfl(const YV12_BUFFER_CONFIG *const ref_buf, char *file_name);
 void opfl_get_derivatives(double *Ex, double *Ey, double *Et,
                           YV12_BUFFER_CONFIG *buffer0,
-                          YV12_BUFFER_CONFIG *buffer1, double dstpos);
+                          YV12_BUFFER_CONFIG *buffer1, double dstpos, int level,
+                          int usescale);
 
 #endif  // CONFIG_OPFL
 
