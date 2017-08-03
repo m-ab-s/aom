@@ -545,6 +545,10 @@ typedef enum {
 #define COMP_INTER_CONTEXTS 5
 #define REF_CONTEXTS 5
 
+#if CONFIG_OPFL
+#define OPFL_CONTEXTS 3
+#endif
+
 #if CONFIG_EXT_COMP_REFS
 #define COMP_REF_TYPE_CONTEXTS 5
 #define UNI_COMP_REF_CONTEXTS 3

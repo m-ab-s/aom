@@ -38,7 +38,7 @@ extern "C" {
 #define OPFL_ANNEAL_FACTOR 1.0  // Annealing factor for laplacian multiplier
 
 // MACROs for Debug
-#define REPLACE_LST2 1
+#define REPLACE_LST2 0
 #define DUMP_OPFL 0
 #define OPFL_OUTPUT_TIME 0
 

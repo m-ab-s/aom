@@ -20,6 +20,28 @@
 extern "C" {
 #endif
 
+#if CONFIG_OPFL
+INLINE int get_opfl_ctx(const AV1_COMMON *cm, const MACROBLOCKD *xd) {
+  int ctx;
+  (void)cm;
+  const MB_MODE_INFO *const above_mbmi = xd->above_mbmi;
+  const MB_MODE_INFO *const left_mbmi = xd->left_mbmi;
+  const int has_above = xd->up_available;
+  const int has_left = xd->left_available;
+
+  if (has_above && has_left) {
+    ctx = (above_mbmi->ref_frame[0] == OPFL_FRAME) +
+          (left_mbmi->ref_frame[0] == OPFL_FRAME);
+  } else if (has_above || has_left) {
+    const MB_MODE_INFO *edge_mbmi = has_above ? above_mbmi : left_mbmi;
+    ctx = (edge_mbmi->ref_frame[0] == OPFL_FRAME) * 2;
+  } else {
+    ctx = 0;
+  }
+  return ctx;
+}
+#endif
+
 static INLINE int get_segment_id(const AV1_COMMON *const cm,
                                  const uint8_t *segment_ids, BLOCK_SIZE bsize,
                                  int mi_row, int mi_col) {

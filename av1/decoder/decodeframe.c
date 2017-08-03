@@ -224,6 +224,11 @@ static void read_frame_reference_mode_probs(AV1_COMMON *cm, aom_reader *r) {
   }
 #endif
 
+#if CONFIG_OPFL
+  for (i = 0; i < OPFL_CONTEXTS; ++i)
+    av1_diff_update_prob(r, &fc->opfl_prob[i], ACCT_STR);
+#endif
+
   if (cm->reference_mode != SINGLE_REFERENCE) {
 #if CONFIG_EXT_COMP_REFS
     for (i = 0; i < COMP_REF_TYPE_CONTEXTS; ++i)
@@ -5438,28 +5443,7 @@ void av1_decode_frame(AV1Decoder *pbi, const uint8_t *data,
 
 #if CONFIG_OPFL
   cm->opfl_ref_frame = cm->frame_refs[OPFL_FRAME - LAST_FRAME].buf;
-  int opfl_ret = av1_get_opfl_ref(cm);
-  if (opfl_ret == 0) {
-    // TODO(jingning & bohan) successfully interpolated, prepare for decoding
-#if REPLACE_LST2
-    int lst2_buf_idx = cm->frame_refs[LAST2_FRAME - LAST_FRAME].idx;
-    uint8_t *temp;
-    if (lst2_buf_idx >= 0) {
-      temp = cm->buffer_pool->frame_bufs[lst2_buf_idx].buf.y_buffer;
-      cm->buffer_pool->frame_bufs[lst2_buf_idx].buf.y_buffer =
-          cm->opfl_ref_frame->y_buffer;
-      cm->opfl_ref_frame->y_buffer = temp;
-      temp = cm->buffer_pool->frame_bufs[lst2_buf_idx].buf.u_buffer;
-      cm->buffer_pool->frame_bufs[lst2_buf_idx].buf.u_buffer =
-          cm->opfl_ref_frame->u_buffer;
-      cm->opfl_ref_frame->u_buffer = temp;
-      temp = cm->buffer_pool->frame_bufs[lst2_buf_idx].buf.v_buffer;
-      cm->buffer_pool->frame_bufs[lst2_buf_idx].buf.v_buffer =
-          cm->opfl_ref_frame->v_buffer;
-      cm->opfl_ref_frame->v_buffer = temp;
-    }
-#endif
-  }
+  cm->opfl_available = av1_get_opfl_ref(cm);
 #endif
 
   av1_setup_frame_boundary_info(cm);
@@ -5486,30 +5470,6 @@ void av1_decode_frame(AV1Decoder *pbi, const uint8_t *data,
   } else {
     *p_data_end = decode_tiles(pbi, data + first_partition_size, data_end);
   }
-
-#if CONFIG_OPFL
-  // TODO(bohan): Should not allocate the buffer for every frame
-  if (opfl_ret == 0) {
-#if REPLACE_LST2
-    int lst2_buf_idx = cm->frame_refs[LAST2_FRAME - LAST_FRAME].idx;
-    uint8_t *temp;
-    if (lst2_buf_idx >= 0) {
-      temp = cm->buffer_pool->frame_bufs[lst2_buf_idx].buf.y_buffer;
-      cm->buffer_pool->frame_bufs[lst2_buf_idx].buf.y_buffer =
-          cm->opfl_ref_frame->y_buffer;
-      cm->opfl_ref_frame->y_buffer = temp;
-      temp = cm->buffer_pool->frame_bufs[lst2_buf_idx].buf.u_buffer;
-      cm->buffer_pool->frame_bufs[lst2_buf_idx].buf.u_buffer =
-          cm->opfl_ref_frame->u_buffer;
-      cm->opfl_ref_frame->u_buffer = temp;
-      temp = cm->buffer_pool->frame_bufs[lst2_buf_idx].buf.v_buffer;
-      cm->buffer_pool->frame_bufs[lst2_buf_idx].buf.v_buffer =
-          cm->opfl_ref_frame->v_buffer;
-      cm->opfl_ref_frame->v_buffer = temp;
-    }
-#endif
-  }
-#endif
 
 #if CONFIG_CDEF
   if (!cm->skip_loop_filter && !cm->all_lossless) {

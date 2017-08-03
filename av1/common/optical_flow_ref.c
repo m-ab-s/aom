@@ -41,8 +41,8 @@ static int optical_flow_warp_filter[16][8] = {
  *     (cm->opfl_ref_frame should already been initialized)
  *
  * Output:
- * 0: successfully interpolated
- * -1: reference(s) not available
+ * 1: successfully interpolated
+ * 0: reference(s) not available
  */
 int av1_get_opfl_ref(AV1_COMMON *cm) {
   int left_idx = -1, left_offset = -1, right_idx = -1, right_offset = -1;
@@ -201,9 +201,9 @@ int av1_get_opfl_ref(AV1_COMMON *cm) {
     fprintf(f_idx, "%d %d %d\n", left_offset, cur_offset, right_offset);
     fclose(f_idx);
 #endif
-    return 0;
+    return 1;
   } else {
-    return -1;
+    return 0;
   }
 }
 

@@ -1835,7 +1835,18 @@ static void pack_inter_mode_mvs(AV1_COMP *cpi, const int mi_row,
 #endif  // CONFIG_FILTER_INTRA
   } else {
     int16_t mode_ctx;
+
+#if CONFIG_OPFL
+    if (cm->opfl_available) {
+      int opfl_ctx = get_opfl_ctx(cm, xd);
+      aom_write(w, mbmi->ref_frame[0] == OPFL_FRAME,
+                ec_ctx->opfl_prob[opfl_ctx]);
+    }
+
+    if (mbmi->ref_frame[0] != OPFL_FRAME) write_ref_frames(cm, xd, w);
+#else
     write_ref_frames(cm, xd, w);
+#endif
 
 #if CONFIG_EXT_INTER && CONFIG_COMPOUND_SINGLEREF
     if (!segfeature_active(seg, segment_id, SEG_LVL_REF_FRAME)) {
@@ -4692,6 +4703,12 @@ static uint32_t write_compressed_header(AV1_COMP *cpi, uint8_t *data) {
         }
       }
     }
+
+#if CONFIG_OPFL
+    for (i = 0; i < OPFL_CONTEXTS; ++i)
+      av1_cond_prob_diff_update(header_bc, &fc->opfl_prob[i],
+                                counts->opfl_count[i], probwt);
+#endif
 
     if (cm->reference_mode != SINGLE_REFERENCE) {
 #if CONFIG_EXT_COMP_REFS

@@ -1610,7 +1610,18 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td, int mi_row,
         const MV_REFERENCE_FRAME ref1 = mbmi->ref_frame[1];
 #endif  // CONFIG_EXT_REFS
 
-        if (cm->reference_mode == REFERENCE_MODE_SELECT) {
+#if CONFIG_OPFL
+        int opfl_ctx = get_opfl_ctx(cm, xd);
+        ++counts->opfl_count[opfl_ctx][mbmi->ref_frame[0] == OPFL_FRAME];
+#endif
+
+#if CONFIG_OPFL
+        if (cm->reference_mode == REFERENCE_MODE_SELECT &&
+            mbmi->ref_frame[0] != OPFL_FRAME)
+#else
+        if (cm->reference_mode == REFERENCE_MODE_SELECT)
+#endif
+        {
           if (has_second_ref(mbmi))
             // This flag is also updated for 4x4 blocks
             rdc->compound_ref_used_flag = 1;
@@ -1675,7 +1686,11 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td, int mi_row,
 #if CONFIG_EXT_COMP_REFS
           }
 #endif  // CONFIG_EXT_COMP_REFS
+#if CONFIG_OPFL
+        } else if (mbmi->ref_frame[0] != OPFL_FRAME) {
+#else
         } else {
+#endif
 #if CONFIG_EXT_REFS
           const int bit = (ref0 == ALTREF_FRAME || ref0 == BWDREF_FRAME);
 
@@ -5336,28 +5351,7 @@ static void encode_frame_internal(AV1_COMP *cpi) {
 
     // TODO(bohan): Should not allocate the buffer for every frame
     cm->opfl_ref_frame = cm->frame_refs[OPFL_FRAME - LAST_FRAME].buf;
-    int opfl_ret = av1_get_opfl_ref(cm);
-    if (opfl_ret == 0) {
-      // TODO(bohan & jingning) successfully interpolated, prepare for encoding
-#if REPLACE_LST2
-      int lst2_buf_idx = cm->frame_refs[LAST2_FRAME - LAST_FRAME].idx;
-      uint8_t *temp;
-      if (lst2_buf_idx >= 0) {
-        temp = cm->buffer_pool->frame_bufs[lst2_buf_idx].buf.y_buffer;
-        cm->buffer_pool->frame_bufs[lst2_buf_idx].buf.y_buffer =
-            cm->opfl_ref_frame->y_buffer;
-        cm->opfl_ref_frame->y_buffer = temp;
-        temp = cm->buffer_pool->frame_bufs[lst2_buf_idx].buf.u_buffer;
-        cm->buffer_pool->frame_bufs[lst2_buf_idx].buf.u_buffer =
-            cm->opfl_ref_frame->u_buffer;
-        cm->opfl_ref_frame->u_buffer = temp;
-        temp = cm->buffer_pool->frame_bufs[lst2_buf_idx].buf.v_buffer;
-        cm->buffer_pool->frame_bufs[lst2_buf_idx].buf.v_buffer =
-            cm->opfl_ref_frame->v_buffer;
-        cm->opfl_ref_frame->v_buffer = temp;
-      }
-#endif
-    }
+    cm->opfl_available = av1_get_opfl_ref(cm);
 #endif
 
     av1_setup_frame_boundary_info(cm);
@@ -5370,30 +5364,6 @@ static void encode_frame_internal(AV1_COMP *cpi) {
       av1_encode_tiles_mt(cpi);
     else
       encode_tiles(cpi);
-
-#if CONFIG_OPFL
-    // TODO(bohan): Should not allocate the buffer for every frame
-    if (opfl_ret == 0) {
-#if REPLACE_LST2
-      int lst2_buf_idx = cm->frame_refs[LAST2_FRAME - LAST_FRAME].idx;
-      uint8_t *temp;
-      if (lst2_buf_idx >= 0) {
-        temp = cm->buffer_pool->frame_bufs[lst2_buf_idx].buf.y_buffer;
-        cm->buffer_pool->frame_bufs[lst2_buf_idx].buf.y_buffer =
-            cm->opfl_ref_frame->y_buffer;
-        cm->opfl_ref_frame->y_buffer = temp;
-        temp = cm->buffer_pool->frame_bufs[lst2_buf_idx].buf.u_buffer;
-        cm->buffer_pool->frame_bufs[lst2_buf_idx].buf.u_buffer =
-            cm->opfl_ref_frame->u_buffer;
-        cm->opfl_ref_frame->u_buffer = temp;
-        temp = cm->buffer_pool->frame_bufs[lst2_buf_idx].buf.v_buffer;
-        cm->buffer_pool->frame_bufs[lst2_buf_idx].buf.v_buffer =
-            cm->opfl_ref_frame->v_buffer;
-        cm->opfl_ref_frame->v_buffer = temp;
-      }
-#endif
-    }
-#endif
 
     aom_usec_timer_mark(&emr_timer);
     cpi->time_encode_sb_row += aom_usec_timer_elapsed(&emr_timer);

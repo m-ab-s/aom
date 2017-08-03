@@ -1143,6 +1143,14 @@ static const aom_cdf_prob
     };
 #endif
 
+#if CONFIG_OPFL
+static const aom_prob default_opfl_prob[OPFL_CONTEXTS] = {
+    180,
+    120,
+    80,
+};
+#endif
+
 static const aom_prob default_comp_inter_p[COMP_INTER_CONTEXTS] = {
 #if !CONFIG_EXT_COMP_REFS
   216, 170, 131, 92, 42
@@ -5122,6 +5130,9 @@ static void init_mode_probs(FRAME_CONTEXT *fc) {
   av1_copy(fc->partition_prob, default_partition_probs);
   av1_copy(fc->intra_inter_prob, default_intra_inter_p);
   av1_copy(fc->comp_inter_prob, default_comp_inter_p);
+#if CONFIG_OPFL
+  av1_copy(fc->opfl_prob, default_opfl_prob);
+#endif
 #if CONFIG_NEW_MULTISYMBOL
   av1_copy(fc->comp_inter_cdf, default_comp_inter_cdf);
 #if CONFIG_PALETTE
@@ -5300,6 +5311,12 @@ void av1_adapt_inter_frame_probs(AV1_COMMON *cm) {
   for (i = 0; i < COMP_INTER_CONTEXTS; i++)
     fc->comp_inter_prob[i] = av1_mode_mv_merge_probs(pre_fc->comp_inter_prob[i],
                                                      counts->comp_inter[i]);
+
+#if CONFIG_OPFL
+  for (i = 0; i < OPFL_CONTEXTS; ++i)
+    fc->opfl_prob[i] =
+        av1_mode_mv_merge_probs(pre_fc->opfl_prob[i], counts->opfl_count[i]);
+#endif
 
 #if CONFIG_EXT_COMP_REFS
   for (i = 0; i < COMP_REF_TYPE_CONTEXTS; i++)

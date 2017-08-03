@@ -220,6 +220,7 @@ typedef struct AV1Common {
   int new_fb_idx;
 #if CONFIG_OPFL
   int opfl_fb_idx;
+  int opfl_available;
 #endif
 
   FRAME_TYPE last_frame_type; /* last frame's frame type for motion search.*/

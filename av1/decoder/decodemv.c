@@ -2239,7 +2239,24 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
 
   memset(ref_mvs, 0, sizeof(ref_mvs));
 
+#if CONFIG_OPFL
+  mbmi->ref_frame[0] = NONE_FRAME;
+  mbmi->ref_frame[1] = NONE_FRAME;
+  if (cm->opfl_available) {
+    int opfl_ctx = get_opfl_ctx(cm, xd);
+    if (aom_read(r, ec_ctx->opfl_prob[opfl_ctx], ACCR)) {
+      mbmi->ref_frame[0] = OPFL_FRAME;
+      if (xd->counts) ++xd->counts->opfl_count[opfl_ctx][1];
+    } else {
+      if (xd->counts) ++xd->counts->opfl_count[opfl_ctx][0];
+    }
+  }
+
+  if (mbmi->ref_frame[0] != OPFL_FRAME)
+    read_ref_frames(cm, xd, r, mbmi->segment_id, mbmi->ref_frame);
+#else
   read_ref_frames(cm, xd, r, mbmi->segment_id, mbmi->ref_frame);
+#endif
   is_compound = has_second_ref(mbmi);
 
 #if CONFIG_EXT_COMP_REFS

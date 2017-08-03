@@ -859,7 +859,13 @@ void av1_find_mv_refs(const AV1_COMMON *cm, const MACROBLOCKD *xd,
   zeromv[0].as_int = zeromv[1].as_int = 0;
 #endif  // CONFIG_GLOBAL_MOTION
 
-  if (ref_frame <= ALTREF_FRAME)
+#if CONFIG_OPFL
+  const MV_REFERENCE_FRAME single_ref_set = OPFL_FRAME;
+#else
+  const MV_REFERENCE_FRAME single_ref_set = ALTREF_FRAME;
+#endif
+
+  if (ref_frame <= single_ref_set)
     find_mv_refs_idx(cm, xd, mi, ref_frame, mv_ref_list, -1, mi_row, mi_col,
                      sync, data, mode_context, zeromv[0]);
 
@@ -883,10 +889,10 @@ void av1_find_mv_refs(const AV1_COMMON *cm, const MACROBLOCKD *xd,
   if (*ref_mv_count >= 2) {
     for (idx = 0; idx < AOMMIN(3, *ref_mv_count); ++idx) {
       if (ref_mv_stack[idx].this_mv.as_int != zeromv[0].as_int) all_zero = 0;
-      if (ref_frame > ALTREF_FRAME)
+      if (ref_frame > single_ref_set)
         if (ref_mv_stack[idx].comp_mv.as_int != zeromv[1].as_int) all_zero = 0;
     }
-  } else if (ref_frame <= ALTREF_FRAME) {
+  } else if (ref_frame <= single_ref_set) {
     for (idx = 0; idx < MAX_MV_REF_CANDIDATES; ++idx)
       if (mv_ref_list[idx].as_int != zeromv[0].as_int) all_zero = 0;
   }
