@@ -408,6 +408,9 @@ typedef struct AV1_COMP {
   int bwd_fb_idx;  // BWD_REF_FRAME
 #endif             // CONFIG_EXT_REFS
   int alt_fb_idx;
+#if CONFIG_OPFL
+  int opfl_fb_idx;
+#endif
 
   int last_show_frame_buf_idx;  // last show frame buffer index
 
@@ -723,6 +726,10 @@ static INLINE int get_ref_frame_map_idx(const AV1_COMP *cpi,
   else if (ref_frame == BWDREF_FRAME)
     return cpi->bwd_fb_idx;
 #endif  // CONFIG_EXT_REFS
+#if CONFIG_OPFL
+  else if (ref_frame == OPFL_FRAME)
+    return cpi->opfl_fb_idx;
+#endif
   else
     return cpi->alt_fb_idx;
 }

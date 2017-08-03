@@ -3146,6 +3146,41 @@ static void resize_context_buffers(AV1_COMMON *cm, int width, int height) {
   }
 }
 
+#if CONFIG_OPFL
+static void setup_opfl_frame_size(AV1_COMMON *cm) {
+  BufferPool *const pool = cm->buffer_pool;
+  lock_buffer_pool(pool);
+  if (aom_realloc_frame_buffer(
+          &cm->buffer_pool->frame_bufs[cm->opfl_fb_idx].buf, cm->width,
+          cm->height, cm->subsampling_x, cm->subsampling_y,
+#if CONFIG_HIGHBITDEPTH
+          cm->use_highbitdepth,
+#endif
+          AOM_BORDER_IN_PIXELS, cm->byte_alignment,
+          &pool->frame_bufs[cm->opfl_fb_idx].raw_frame_buffer, pool->get_fb_cb,
+          pool->cb_priv)) {
+    unlock_buffer_pool(pool);
+    aom_internal_error(&cm->error, AOM_CODEC_MEM_ERROR,
+                       "Failed to allocate frame buffer");
+  }
+  unlock_buffer_pool(pool);
+
+  pool->frame_bufs[cm->opfl_fb_idx].buf.subsampling_x = cm->subsampling_x;
+  pool->frame_bufs[cm->opfl_fb_idx].buf.subsampling_y = cm->subsampling_y;
+  pool->frame_bufs[cm->opfl_fb_idx].buf.bit_depth = (unsigned int)cm->bit_depth;
+  pool->frame_bufs[cm->opfl_fb_idx].buf.color_space = cm->color_space;
+#if CONFIG_COLORSPACE_HEADERS
+  pool->frame_bufs[cm->opfl_fb_idx].buf.transfer_function =
+      cm->transfer_function;
+  pool->frame_bufs[cm->opfl_fb_idx].buf.chroma_sample_position =
+      cm->chroma_sample_position;
+#endif
+  pool->frame_bufs[cm->opfl_fb_idx].buf.color_range = cm->color_range;
+  pool->frame_bufs[cm->opfl_fb_idx].buf.render_width = cm->render_width;
+  pool->frame_bufs[cm->opfl_fb_idx].buf.render_height = cm->render_height;
+}
+#endif
+
 static void setup_frame_size(AV1_COMMON *cm, struct aom_read_bit_buffer *rb) {
   int width, height;
   BufferPool *const pool = cm->buffer_pool;
@@ -4529,6 +4564,12 @@ static size_t read_uncompressed_header(AV1Decoder *pbi,
 #if CONFIG_TEMPMV_SIGNALING
     cm->use_prev_frame_mvs = 0;
 #endif
+
+#if CONFIG_OPFL
+    cm->opfl_fb_idx = get_free_fb(cm);
+    if (cm->opfl_fb_idx == INVALID_IDX) return AOM_CODEC_MEM_ERROR;
+    setup_opfl_frame_size(cm);
+#endif
   } else {
     cm->intra_only = cm->show_frame ? 0 : aom_rb_read_bit(rb);
 #if CONFIG_PALETTE || CONFIG_INTRABC
@@ -4582,7 +4623,11 @@ static size_t read_uncompressed_header(AV1Decoder *pbi,
       }
 #endif  // CONFIG_EXT_REFS
 
-      for (i = 0; i < INTER_REFS_PER_FRAME; ++i) {
+      int ref_frame_nums = INTER_REFS_PER_FRAME;
+#if CONFIG_OPFL
+      --ref_frame_nums;
+#endif
+      for (i = 0; i < ref_frame_nums; ++i) {
         const int ref = aom_rb_read_literal(rb, REF_FRAMES_LOG2);
         const int idx = cm->ref_frame_map[ref];
         RefBuffer *const ref_frame = &cm->frame_refs[i];
@@ -4607,6 +4652,13 @@ static size_t read_uncompressed_header(AV1Decoder *pbi,
         }
 #endif
       }
+
+#if CONFIG_OPFL
+      RefBuffer *const ref_frame = &cm->frame_refs[i];
+      cm->ref_frame_map[OPFL_MAP_INDEX] = cm->opfl_fb_idx;
+      ref_frame->idx = cm->opfl_fb_idx;
+      ref_frame->buf = &frame_bufs[cm->opfl_fb_idx].buf;
+#endif
 
 #if CONFIG_VAR_REFS
       check_valid_ref_frames(cm);
@@ -4681,6 +4733,22 @@ static size_t read_uncompressed_header(AV1Decoder *pbi,
   get_frame_new_buffer(cm)->render_width = cm->render_width;
   get_frame_new_buffer(cm)->render_height = cm->render_height;
 
+#if CONFIG_OPFL
+  pool->frame_bufs[cm->opfl_fb_idx].buf.subsampling_x = cm->subsampling_x;
+  pool->frame_bufs[cm->opfl_fb_idx].buf.subsampling_y = cm->subsampling_y;
+  pool->frame_bufs[cm->opfl_fb_idx].buf.bit_depth = (unsigned int)cm->bit_depth;
+  pool->frame_bufs[cm->opfl_fb_idx].buf.color_space = cm->color_space;
+#if CONFIG_COLORSPACE_HEADERS
+  pool->frame_bufs[cm->opfl_fb_idx].buf.transfer_function =
+      cm->transfer_function;
+  pool->frame_bufs[cm->opfl_fb_idx].buf.chroma_sample_position =
+      cm->chroma_sample_position;
+#endif
+  pool->frame_bufs[cm->opfl_fb_idx].buf.color_range = cm->color_range;
+  pool->frame_bufs[cm->opfl_fb_idx].buf.render_width = cm->render_width;
+  pool->frame_bufs[cm->opfl_fb_idx].buf.render_height = cm->render_height;
+#endif
+
   if (pbi->need_resync) {
     aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
                        "Keyframe / intra-only frame required to reset decoder"
@@ -4701,6 +4769,7 @@ static size_t read_uncompressed_header(AV1Decoder *pbi,
 
   // Generate next_ref_frame_map.
   lock_buffer_pool(pool);
+
   for (mask = pbi->refresh_frame_flags; mask; mask >>= 1) {
     if (mask & 1) {
       cm->next_ref_frame_map[ref_index] = cm->new_fb_idx;
@@ -4721,6 +4790,7 @@ static size_t read_uncompressed_header(AV1Decoder *pbi,
     if (cm->ref_frame_map[ref_index] >= 0)
       ++frame_bufs[cm->ref_frame_map[ref_index]].ref_count;
   }
+
   unlock_buffer_pool(pool);
   pbi->hold_ref_buf = 1;
 
@@ -5367,11 +5437,7 @@ void av1_decode_frame(AV1Decoder *pbi, const uint8_t *data,
   }
 
 #if CONFIG_OPFL
-  // TODO(bohan): Should not allocate the buffer for every frame
-  cm->opfl_ref_frame = aom_calloc(1, sizeof(YV12_BUFFER_CONFIG));
-  aom_alloc_frame_buffer(cm->opfl_ref_frame, cm->width, cm->height,
-                         cm->subsampling_x, cm->subsampling_y,
-                         cm->use_highbitdepth, AOM_BORDER_IN_PIXELS, 0);
+  cm->opfl_ref_frame = cm->frame_refs[OPFL_FRAME - LAST_FRAME].buf;
   int opfl_ret = av1_get_opfl_ref(cm);
   if (opfl_ret == 0) {
     // TODO(jingning & bohan) successfully interpolated, prepare for decoding
@@ -5443,8 +5509,6 @@ void av1_decode_frame(AV1Decoder *pbi, const uint8_t *data,
     }
 #endif
   }
-  aom_free_frame_buffer(cm->opfl_ref_frame);
-  aom_free(cm->opfl_ref_frame);
 #endif
 
 #if CONFIG_CDEF

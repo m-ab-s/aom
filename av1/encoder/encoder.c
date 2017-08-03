@@ -966,6 +966,11 @@ static void init_buffer_indices(AV1_COMP *cpi) {
   cpi->alt_fb_idx = LAST_REF_FRAMES + 2;
   for (fb_idx = 0; fb_idx < MAX_EXT_ARFS + 1; ++fb_idx)
     cpi->arf_map[fb_idx] = LAST_REF_FRAMES + 2 + fb_idx;
+
+#if CONFIG_OPFL
+  cpi->opfl_fb_idx = OPFL_MAP_INDEX;
+#endif
+
 #else
   cpi->lst_fb_idx = 0;
   cpi->gld_fb_idx = 1;
@@ -2961,6 +2966,23 @@ int av1_update_entropy(AV1_COMP *cpi, int update) {
   return 0;
 }
 
+#if CONFIG_OPFL
+static void setup_opfl_frame_size(AV1_COMP *cpi) {
+  AV1_COMMON *const cm = &cpi->common;
+
+  // Reset the frame pointers to the current frame size.
+  if (aom_realloc_frame_buffer(
+          &cm->buffer_pool->frame_bufs[cm->opfl_fb_idx].buf, cm->width,
+          cm->height, cm->subsampling_x, cm->subsampling_y,
+#if CONFIG_HIGHBITDEPTH
+          cm->use_highbitdepth,
+#endif
+          AOM_BORDER_IN_PIXELS, cm->byte_alignment, NULL, NULL, NULL))
+    aom_internal_error(&cm->error, AOM_CODEC_MEM_ERROR,
+                       "Failed to allocate frame buffer");
+}
+#endif
+
 #if defined(OUTPUT_YUV_DENOISED) || defined(OUTPUT_YUV_SKINMAP)
 // The denoiser buffer is allocated as a YUV 440 buffer. This function writes it
 // as YUV 420. We simply use the top-left pixels of the UV buffers, since we do
@@ -3261,6 +3283,12 @@ void av1_update_reference_frames(AV1_COMP *cpi) {
 #endif  // CONFIG_EXT_REFS
     ref_cnt_fb(pool->frame_bufs, &cm->ref_frame_map[cpi->alt_fb_idx],
                cm->new_fb_idx);
+#if CONFIG_OPFL
+    cm->opfl_fb_idx = get_free_fb(cm);
+    ref_cnt_fb(pool->frame_bufs, &cm->ref_frame_map[cpi->opfl_fb_idx],
+               cm->opfl_fb_idx);
+    setup_opfl_frame_size(cpi);
+#endif
   } else if (av1_preserve_existing_gf(cpi)) {
     // We have decided to preserve the previously existing golden frame as our
     // new ARF frame. However, in the short term in function
@@ -3864,8 +3892,9 @@ static void set_frame_size(AV1_COMP *cpi, int width, int height) {
   alloc_util_frame_buffers(cpi);  // TODO(afergs): Remove? Gets called anyways.
   init_motion_estimation(cpi);
 
-  for (ref_frame = LAST_FRAME; ref_frame <= ALTREF_FRAME; ++ref_frame) {
-    RefBuffer *const ref_buf = &cm->frame_refs[ref_frame - LAST_FRAME];
+  for (int idx = 0; idx < INTER_REFS_PER_FRAME; ++idx) {
+    ref_frame = idx + LAST_FRAME;
+    RefBuffer *const ref_buf = &cm->frame_refs[idx];
     const int buf_idx = get_ref_frame_buf_idx(cpi, ref_frame);
 
     ref_buf->idx = buf_idx;

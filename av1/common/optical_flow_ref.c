@@ -143,6 +143,7 @@ int av1_get_opfl_ref(AV1_COMMON *cm) {
 #endif
   YV12_BUFFER_CONFIG *dst;
   dst = cm->opfl_ref_frame;
+
   if (left_idx >= 0 && right_idx >= 0) {
     YV12_BUFFER_CONFIG *left = &(cm->buffer_pool->frame_bufs[left_idx].buf);
     YV12_BUFFER_CONFIG *right = &(cm->buffer_pool->frame_bufs[right_idx].buf);

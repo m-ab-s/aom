@@ -5335,10 +5335,7 @@ static void encode_frame_internal(AV1_COMP *cpi) {
     av1_setup_motion_field(cm);
 
     // TODO(bohan): Should not allocate the buffer for every frame
-    cm->opfl_ref_frame = aom_calloc(1, sizeof(YV12_BUFFER_CONFIG));
-    aom_alloc_frame_buffer(cm->opfl_ref_frame, cm->width, cm->height,
-                           cm->subsampling_x, cm->subsampling_y,
-                           cm->use_highbitdepth, AOM_BORDER_IN_PIXELS, 0);
+    cm->opfl_ref_frame = cm->frame_refs[OPFL_FRAME - LAST_FRAME].buf;
     int opfl_ret = av1_get_opfl_ref(cm);
     if (opfl_ret == 0) {
       // TODO(bohan & jingning) successfully interpolated, prepare for encoding
@@ -5396,8 +5393,6 @@ static void encode_frame_internal(AV1_COMP *cpi) {
       }
 #endif
     }
-    aom_free_frame_buffer(cm->opfl_ref_frame);
-    aom_free(cm->opfl_ref_frame);
 #endif
 
     aom_usec_timer_mark(&emr_timer);

@@ -4324,7 +4324,11 @@ static void write_uncompressed_header(AV1_COMP *cpi,
       }
 #endif  // CONFIG_EXT_REFS
 
-      for (int idx = 0; idx < INTER_REFS_PER_FRAME; ++idx) {
+      int ref_frame_nums = INTER_REFS_PER_FRAME;
+#if CONFIG_OPFL
+      --ref_frame_nums;
+#endif
+      for (int idx = 0; idx < ref_frame_nums; ++idx) {
         ref_frame = idx + LAST_FRAME;
         assert(get_ref_frame_map_idx(cpi, ref_frame) != INVALID_IDX);
         aom_wb_write_literal(wb, get_ref_frame_map_idx(cpi, ref_frame),

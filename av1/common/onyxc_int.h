@@ -45,7 +45,12 @@ extern "C" {
 #define CDEF_MAX_STRENGTHS 16
 
 #define REF_FRAMES_LOG2 3
+#if CONFIG_OPFL
+#define REF_FRAMES ((1 << REF_FRAMES_LOG2) + 1)
+#define OPFL_MAP_INDEX (1 << REF_FRAMES_LOG2)
+#else
 #define REF_FRAMES (1 << REF_FRAMES_LOG2)
+#endif
 
 // 4 scratch frames for the new frames to support a maximum of 4 cores decoding
 // in parallel, 3 for scaled references on the encoder.
@@ -213,6 +218,9 @@ typedef struct AV1Common {
   RefBuffer frame_refs[INTER_REFS_PER_FRAME];
 
   int new_fb_idx;
+#if CONFIG_OPFL
+  int opfl_fb_idx;
+#endif
 
   FRAME_TYPE last_frame_type; /* last frame's frame type for motion search.*/
   FRAME_TYPE frame_type;
