@@ -22,7 +22,8 @@
 #include "av1/common/sparse_linear_solver.h"
 
 #if CONFIG_OPFL
-double timeinit, timesub, timesolve, timeder;  // global timer for debug purpose
+// global timer for debug purpose
+double timeinit, timesub, timesolve, timeder, timemed, timetotal;
 static int optical_flow_warp_filter[16][8] = {
     {0, 0, 0, 128, 0, 0, 0, 0},      {0, 2, -6, 126, 8, -2, 0, 0},
     {0, 2, -10, 122, 18, -4, 0, 0},  {0, 2, -12, 116, 28, -8, 2, 0},
@@ -45,6 +46,14 @@ static int optical_flow_warp_filter[16][8] = {
  * 0: reference(s) not available
  */
 int av1_get_opfl_ref(AV1_COMMON *cm) {
+  clock_t start, end;
+  start = clock();
+  timeinit = 0;
+  timesolve = 0;
+  timesub = 0;
+  timeder = 0;
+  timemed = 0;
+
   int left_idx = -1, left_offset = -1, right_idx = -1, right_offset = -1;
   int left_chosen = NONE_FRAME, right_chosen = NONE_FRAME;
   int cur_offset = cm->frame_offset;
@@ -141,6 +150,8 @@ int av1_get_opfl_ref(AV1_COMMON *cm) {
     }
   }
 #endif
+  clock_t start1, end1;
+  start1 = clock();
   YV12_BUFFER_CONFIG *dst;
   dst = cm->opfl_ref_frame;
 
@@ -183,12 +194,26 @@ int av1_get_opfl_ref(AV1_COMMON *cm) {
 
     opfl_fill_mv(left_mv, cm->mi_cols, cm->mi_rows);
     opfl_fill_mv(right_mv, cm->mi_cols, cm->mi_rows);
+    end1 = clock();
+    timeinit += (double)(end1 - start1) / CLOCKS_PER_SEC;
 
     optical_flow_get_ref(left, right, left_mv, right_mv, dst, dst_pos);
     aom_yv12_extend_frame_borders_c(dst);
 
     aom_free(left_mv);
     aom_free(right_mv);
+
+    end = clock();
+    timetotal = (double)(end - start) / CLOCKS_PER_SEC;
+
+#if OPFL_OUTPUT_TIME
+    // TODO(bohan): output time usage for debug for now.
+    printf(
+        "\ninit time: %.4f, der time: %.4f, sub time: %.4f, median time: %.4f, "
+        "solve time: %.4f, totaltime: %.4f\n",
+        timeinit, timeder, timesub, timemed, timesolve, timetotal);
+    fflush(stdout);
+#endif
 
 #if DUMP_OPFL
     // TODO(bohan): dump the frames for now for debug
@@ -281,11 +306,8 @@ void optical_flow_get_ref(YV12_BUFFER_CONFIG *ref0, YV12_BUFFER_CONFIG *ref1,
   width = dst->y_width;
   height = dst->y_height;
 
-  timeinit = 0;
-  timesolve = 0;
-  timesub = 0;
-  timeder = 0;
-
+  clock_t starti, endi;
+  starti = clock();
   // Use zero MV if no MV is passed in
   int allocl = 0, allocr = 0;
   if (mv_left == NULL) {
@@ -338,6 +360,9 @@ void optical_flow_get_ref(YV12_BUFFER_CONFIG *ref0, YV12_BUFFER_CONFIG *ref1,
   }
 #endif
 
+  endi = clock();
+  timeinit += (double)(endi - starti) / CLOCKS_PER_SEC;
+
   // create a single motion field (current method) in the w/4 h/4 scale level
   create_motion_field(
       mv_left, mv_right, mf_last[MAX_OPFL_LEVEL - 1], width, height,
@@ -361,13 +386,17 @@ void optical_flow_get_ref(YV12_BUFFER_CONFIG *ref0, YV12_BUFFER_CONFIG *ref1,
     DB_MV *mf_start_new = mf_new[l] + AVG_MF_BORDER * mvstr + AVG_MF_BORDER;
     DB_MV *mf_start_med = mf_med[l] + AVG_MF_BORDER * mvstr + AVG_MF_BORDER;
     // pad for median filter (may not need)
+    clock_t startm, endm;
+
     pad_motion_field_border(mf_start_new, wid, hgt, mvstr);
+    startm = clock();
     DB_MV tempmv;
     for (int i = 0; i < hgt; i++) {
       for (int j = 0; j < wid; j++) {
         if (USE_MEDIAN_FILTER) {
           tempmv = median_2D_MV_5x5(mf_start_new + i * mvstr + j, mvstr, mv_r,
                                     mv_c, left, right);
+
           mf_start_med[i * mvstr + j].row = tempmv.row;
           mf_start_med[i * mvstr + j].col = tempmv.col;
         } else {
@@ -376,6 +405,8 @@ void optical_flow_get_ref(YV12_BUFFER_CONFIG *ref0, YV12_BUFFER_CONFIG *ref1,
         }
       }
     }
+    endm = clock();
+    timemed += (double)(endm - startm) / CLOCKS_PER_SEC;
     pad_motion_field_border(mf_start_med, wid, hgt, mvstr);
 
     if (l != 0) {
@@ -388,7 +419,11 @@ void optical_flow_get_ref(YV12_BUFFER_CONFIG *ref0, YV12_BUFFER_CONFIG *ref1,
   }
 
   // interpolate to get our reference frame
+  clock_t start, end;
+  start = clock();
   interp_optical_flow(ref0, ref1, mf_med[0], dst, dst_pos);
+  end = clock();
+  timesub += (double)(end - start) / CLOCKS_PER_SEC;
   // free buffers
   for (int l = 0; l < MAX_OPFL_LEVEL; l++) {
     aom_free(mf_last[l]);
@@ -411,14 +446,6 @@ void optical_flow_get_ref(YV12_BUFFER_CONFIG *ref0, YV12_BUFFER_CONFIG *ref1,
   }
 #if !USE_BLK_DERIVATIVE
   aom_free(temp_buffer);
-#endif
-
-#if OPFL_OUTPUT_TIME
-  // TODO(bohan): output time usage for debug for now.
-  printf("\n");
-  printf("der time: %.4f, sub time: %.4f, init time: %.4f, solve time: %.4f\n",
-         timeder, timesub, timeinit, timesolve);
-  fflush(stdout);
 #endif
   return;
 }
@@ -447,7 +474,8 @@ void refine_motion_field(YV12_BUFFER_CONFIG *ref0, YV12_BUFFER_CONFIG *ref1,
     height = height >> level;
   }
   int mvstr = width + 2 * AVG_MF_BORDER;
-  double as_scale_factor = 1;  // annealing factor for laplacian multiplier
+  double as_scale_factor =
+      1 << level;  // annealing factor for laplacian multiplier
   // iteratively warp and estimate motion field
   while (count < MAX_ITER_OPTICAL_FLOW) {
 #if FAST_OPTICAL_FLOW
@@ -533,6 +561,7 @@ double iterate_update_mv(YV12_BUFFER_CONFIG *ref0, YV12_BUFFER_CONFIG *ref1,
                          AOM_BORDER_IN_PIXELS, 0);
   aom_alloc_frame_buffer(buffer1, y_width, y_height, 1, 1, 0,
                          AOM_BORDER_IN_PIXELS, 0);
+
   int *row_pos = aom_calloc(width * height * 12, sizeof(int));
   int *col_pos = aom_calloc(width * height * 12, sizeof(int));
   double *values = aom_calloc(width * height * 12, sizeof(double));
@@ -555,6 +584,8 @@ double iterate_update_mv(YV12_BUFFER_CONFIG *ref0, YV12_BUFFER_CONFIG *ref1,
   else
     warp_optical_flow_back_bilinear(ref1, ref0, mv_start, mvstr, buffer1,
                                     1 - dstpos, level, usescale);
+  aom_yv12_extend_frame_borders_c(buffer0);
+  aom_yv12_extend_frame_borders_c(buffer1);
   end = clock();
   timesub += (double)(end - start) / CLOCKS_PER_SEC;
 
@@ -602,26 +633,34 @@ double iterate_update_mv(YV12_BUFFER_CONFIG *ref0, YV12_BUFFER_CONFIG *ref1,
         right = 0;
       }
 
-      if (up) row_pos[c] = j * height + i;
-      col_pos[c] = j * height + i - 1;
-      values[c] = up;
-      c++;
-      if (left) row_pos[c] = j * height + i;
-      col_pos[c] = (j - 1) * height + i;
-      values[c] = left;
-      c++;
+      if (up) {
+        row_pos[c] = j * height + i;
+        col_pos[c] = j * height + i - 1;
+        values[c] = up;
+        c++;
+      }
+      if (left) {
+        row_pos[c] = j * height + i;
+        col_pos[c] = (j - 1) * height + i;
+        values[c] = left;
+        c++;
+      }
       row_pos[c] = j * height + i;
       col_pos[c] = j * height + i;
       values[c] = center;
       c++;
-      if (right) row_pos[c] = j * height + i;
-      col_pos[c] = (j + 1) * height + i;
-      values[c] = right;
-      c++;
-      if (low) row_pos[c] = j * height + i;
-      col_pos[c] = j * height + i + 1;
-      values[c] = low;
-      c++;
+      if (right) {
+        row_pos[c] = j * height + i;
+        col_pos[c] = (j + 1) * height + i;
+        values[c] = right;
+        c++;
+      }
+      if (low) {
+        row_pos[c] = j * height + i;
+        col_pos[c] = j * height + i + 1;
+        values[c] = low;
+        c++;
+      }
     }
   }
   init_sparse_mtx(row_pos, col_pos, values, c, height * width, height * width,
@@ -829,9 +868,9 @@ double iterate_update_mv(YV12_BUFFER_CONFIG *ref0, YV12_BUFFER_CONFIG *ref1,
 double iterate_update_mv_fast(YV12_BUFFER_CONFIG *ref0,
                               YV12_BUFFER_CONFIG *ref1, DB_MV *mf_last,
                               DB_MV *mf_new, int level, double dstpos,
-                              double scale, int usescale) {
+                              double as_scale, int usescale) {
   double *Ex, *Ey, *Et;
-  double a_squared = OF_A_SQUARED * scale;
+  double a_squared = OF_A_SQUARED * as_scale;
   double cost = 0;
 
   //  uint8_t *y0 = ref0->y_buffer;
@@ -872,6 +911,9 @@ double iterate_update_mv_fast(YV12_BUFFER_CONFIG *ref0,
   else
     warp_optical_flow_back_bilinear(ref1, ref0, mv_start, mvstr, buffer1,
                                     1 - dstpos, level, usescale);
+
+  aom_yv12_extend_frame_borders_c(buffer0);
+  aom_yv12_extend_frame_borders_c(buffer1);
   end = clock();
   timesub += (double)(end - start) / CLOCKS_PER_SEC;
 
@@ -884,7 +926,10 @@ double iterate_update_mv_fast(YV12_BUFFER_CONFIG *ref0,
   // iterative solver
   start = clock();
   DB_MV *tempmv;
-  DB_MV *bufmv = aom_calloc(height * mvstr, sizeof(DB_MV));
+  DB_MV *bufmv_b =
+      aom_calloc((height + 2 * AVG_MF_BORDER) * (width + 2 * AVG_MF_BORDER),
+                 sizeof(DB_MV));
+  DB_MV *bufmv = bufmv_b + AVG_MF_BORDER * mvstr + AVG_MF_BORDER;
   DB_MV *lp_last = aom_calloc(height * mvstr, sizeof(DB_MV));
   double *denorm = aom_calloc(height * width, sizeof(double));
   DB_MV avg;
@@ -892,41 +937,23 @@ double iterate_update_mv_fast(YV12_BUFFER_CONFIG *ref0,
   int i0, i1, j0, j1;
   for (i = 0; i < height; i++) {
     for (j = 0; j < width; j++) {
+      i0 = i - 1;
+      i1 = i + 1;
+      j0 = j - 1;
+      j1 = j + 1;
       bufmv[i * mvstr + j].row = 0;
       bufmv[i * mvstr + j].col = 0;
-      lp_last[i * mvstr + j].row = 0;
-      lp_last[i * mvstr + j].col = 0;
-      if (i == 0) {
-        i0 = 0;
-        i1 = i + 1;
-      } else if (i == height - 1) {
-        i1 = height - 1;
-        i0 = i - 1;
-      } else {
-        i0 = i - 1;
-        i1 = i + 1;
-      }
-      if (j == 0) {
-        j0 = 0;
-        j1 = i + 1;
-      } else if (j == width - 1) {
-        j1 = width - 1;
-        j0 = j - 1;
-      } else {
-        j0 = j - 1;
-        j1 = j + 1;
-      }
-      lp_last[i * mvstr + j].row += 0.25 * mv_start[i0 * mvstr + j].row +
-                                    0.25 * mv_start[i1 * mvstr + j].row +
-                                    0.25 * mv_start[i * mvstr + j0].row +
-                                    0.25 * mv_start[i * mvstr + j1].row;
+      lp_last[i * mvstr + j].row = 0.25 * mv_start[i0 * mvstr + j].row +
+                                   0.25 * mv_start[i1 * mvstr + j].row +
+                                   0.25 * mv_start[i * mvstr + j0].row +
+                                   0.25 * mv_start[i * mvstr + j1].row;
       lp_last[i * mvstr + j].row -= mv_start[i * mvstr + j].row;
-      lp_last[i * mvstr + j].col += 0.25 * mv_start[i0 * mvstr + j].col +
-                                    0.25 * mv_start[i1 * mvstr + j].col +
-                                    0.25 * mv_start[i * mvstr + j0].col +
-                                    0.25 * mv_start[i * mvstr + j1].col;
+      lp_last[i * mvstr + j].col = 0.25 * mv_start[i0 * mvstr + j].col +
+                                   0.25 * mv_start[i1 * mvstr + j].col +
+                                   0.25 * mv_start[i * mvstr + j0].col +
+                                   0.25 * mv_start[i * mvstr + j1].col;
       lp_last[i * mvstr + j].col -= mv_start[i * mvstr + j].col;
-      denorm[i * width + j] = 4 * a_squared +
+      denorm[i * width + j] = 16 * a_squared +
                               Ex[i * width + j] * Ex[i * width + j] +
                               Ey[i * width + j] * Ey[i * width + j];
     }
@@ -935,37 +962,19 @@ double iterate_update_mv_fast(YV12_BUFFER_CONFIG *ref0,
   for (int k = 0; k < MAX_ITER_FAST_OPFL; k++) {
     for (i = 0; i < height; i++) {
       for (j = 0; j < width; j++) {
-        avg.row = 0;
-        avg.col = 0;
-        if (i == 0) {
-          i0 = 0;
-          i1 = i + 1;
-        } else if (i == height - 1) {
-          i1 = height - 1;
-          i0 = i - 1;
-        } else {
-          i0 = i - 1;
-          i1 = i + 1;
-        }
-        if (j == 0) {
-          j0 = 0;
-          j1 = i + 1;
-        } else if (j == width - 1) {
-          j1 = width - 1;
-          j0 = j - 1;
-        } else {
-          j0 = j - 1;
-          j1 = j + 1;
-        }
-        avg.row += 0.25 * bufmv[i0 * mvstr + j].row +
-                   0.25 * bufmv[i1 * mvstr + j].row +
-                   0.25 * bufmv[i * mvstr + j0].row +
-                   0.25 * bufmv[i * mvstr + j1].row;
+        i0 = i - 1;
+        i1 = i + 1;
+        j0 = j - 1;
+        j1 = j + 1;
+        avg.row = 0.25 * bufmv[i0 * mvstr + j].row +
+                  0.25 * bufmv[i1 * mvstr + j].row +
+                  0.25 * bufmv[i * mvstr + j0].row +
+                  0.25 * bufmv[i * mvstr + j1].row;
         avg.row += lp_last[i * mvstr + j].row;
-        avg.col += 0.25 * bufmv[i0 * mvstr + j].col +
-                   0.25 * bufmv[i1 * mvstr + j].col +
-                   0.25 * bufmv[i * mvstr + j0].col +
-                   0.25 * bufmv[i * mvstr + j1].col;
+        avg.col = 0.25 * bufmv[i0 * mvstr + j].col +
+                  0.25 * bufmv[i1 * mvstr + j].col +
+                  0.25 * bufmv[i * mvstr + j0].col +
+                  0.25 * bufmv[i * mvstr + j1].col;
         avg.col += lp_last[i * mvstr + j].col;
         mv_start_new[i * mvstr + j].col =
             avg.col - Ex[i * width + j] *
@@ -986,7 +995,7 @@ double iterate_update_mv_fast(YV12_BUFFER_CONFIG *ref0,
     }
   }
 
-  aom_free(bufmv);
+  aom_free(bufmv_b);
   aom_free(lp_last);
   aom_free(denorm);
   end = clock();
