@@ -368,6 +368,25 @@ void optical_flow_get_ref(YV12_BUFFER_CONFIG *ref0, YV12_BUFFER_CONFIG *ref1,
       mv_left, mv_right, mf_last[MAX_OPFL_LEVEL - 1], width, height,
       (width >> (MAX_OPFL_LEVEL - 1)) + 2 * AVG_MF_BORDER, dst_pos);
 
+#if DUMP_OPFL
+  char mvinitname[] = "of_mv_init.txt";
+  FILE * mvinitfid = fopen(mvinitname, "a");
+  int tempmvstr = width/4 + 2*AVG_MF_BORDER;
+  for (int i = 0; i < height/4; i++){
+    for (int j = 0; j < width/4; j++) {
+      fprintf(mvinitfid, "%.2f ", mf_last[MAX_OPFL_LEVEL - 1][(i+AVG_MF_BORDER)*tempmvstr+j+AVG_MF_BORDER].row);
+    }
+    fprintf(mvinitfid, "\n");
+  }
+  for (int i = 0; i < height/4; i++){
+    for (int j = 0; j < width/4; j++) {
+      fprintf(mvinitfid, "%.2f ", mf_last[MAX_OPFL_LEVEL - 1][(i+AVG_MF_BORDER)*tempmvstr+j+AVG_MF_BORDER].col);
+    }
+    fprintf(mvinitfid, "\n");
+  }
+  fclose(mvinitfid);
+#endif
+
   // temporary buffers for MF median filtering
   double mv_r[25], mv_c[25], left[25], right[25];
   // estimate optical flow at each level
@@ -417,6 +436,24 @@ void optical_flow_get_ref(YV12_BUFFER_CONFIG *ref0, YV12_BUFFER_CONFIG *ref1,
       upscale_mv_by_2(mf_start_med, wid, hgt, mvstr, mf_start_next, mvstr_next);
     }
   }
+#if DUMP_OPFL
+  char mvname[] = "of_mv.txt";
+  FILE * mvfid = fopen(mvname, "a");
+  int mvstr = width + 2*AVG_MF_BORDER;
+  for (int i = 0; i < height; i++){
+    for (int j = 0; j < width; j++) {
+      fprintf(mvfid, "%.2f ", mf_med[0][(i+AVG_MF_BORDER)*mvstr+j+AVG_MF_BORDER].row);
+    }
+    fprintf(mvfid, "\n");
+  }
+  for (int i = 0; i < height; i++){
+    for (int j = 0; j < width; j++) {
+      fprintf(mvfid, "%.2f ", mf_med[0][(i+AVG_MF_BORDER)*mvstr+j+AVG_MF_BORDER].col);
+    }
+    fprintf(mvfid, "\n");
+  }
+  fclose(mvfid);
+#endif
 
   // interpolate to get our reference frame
   clock_t start, end;

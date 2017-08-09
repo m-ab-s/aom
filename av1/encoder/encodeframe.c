@@ -5352,6 +5352,9 @@ static void encode_frame_internal(AV1_COMP *cpi) {
     // TODO(bohan): Should not allocate the buffer for every frame
     cm->opfl_ref_frame = cm->frame_refs[OPFL_FRAME - LAST_FRAME].buf;
     cm->opfl_available = av1_get_opfl_ref(cm);
+#if NO_BITSTREAM
+    cm->opfl_available = 0;
+#endif
 #endif
 
     av1_setup_frame_boundary_info(cm);
