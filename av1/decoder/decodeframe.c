@@ -5445,7 +5445,7 @@ void av1_decode_frame(AV1Decoder *pbi, const uint8_t *data,
   cm->opfl_ref_frame = cm->frame_refs[OPFL_FRAME - LAST_FRAME].buf;
   cm->opfl_available = av1_get_opfl_ref(cm);
 #if NO_BITSTREAM
-    cm->opfl_available = 0;
+  cm->opfl_available = 0;
 #endif
 #endif
 
