@@ -55,6 +55,24 @@ typedef struct db_mv {
   double col;
 } DB_MV;
 
+typedef struct opfl_buffer_struct {
+  DB_MV *init_mv_buf[MAX_OPFL_LEVEL]; // initialization of motion field
+  YV12_BUFFER_CONFIG *ref0_buf[MAX_OPFL_LEVEL];
+  YV12_BUFFER_CONFIG *ref1_buf[MAX_OPFL_LEVEL];
+  YV12_BUFFER_CONFIG *ref0_warped_buf[MAX_OPFL_LEVEL];
+  YV12_BUFFER_CONFIG *ref1_warped_buf[MAX_OPFL_LEVEL];
+  YV12_BUFFER_CONFIG *dst_buf;
+  int initialized;
+  double dst_pos;
+} OPFL_BUFFER_STRUCT;
+
+typedef struct opfl_block_info {
+  int starth;
+  int startw;
+  int blk_width;
+  int blk_height;
+};
+
 int av1_get_opfl_ref(AV1_COMMON *cm);
 void opfl_fill_mv(int_mv *pmv, int width, int height);
 void optical_flow_get_ref(YV12_BUFFER_CONFIG *ref0, YV12_BUFFER_CONFIG *ref1,

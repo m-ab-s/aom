@@ -286,6 +286,264 @@ void opfl_fill_mv(int_mv *pmv, int width, int height) {
   aom_free(tempmv);
 }
 
+void av1_opfl_set_buf(AV1_COMMON *cm, OPFL_BUFFER_STRUCT *buf_struct) {
+  int left_idx = -1, left_offset = -1, right_idx = -1, right_offset = -1;
+  int left_chosen = NONE_FRAME, right_chosen = NONE_FRAME;
+  int cur_offset = cm->frame_offset;
+  double dst_pos = -1;
+
+  int alt_buf_idx = cm->frame_refs[ALTREF_FRAME - LAST_FRAME].idx;
+  int lst_buf_idx = cm->frame_refs[LAST_FRAME - LAST_FRAME].idx;
+  int gld_buf_idx = cm->frame_refs[GOLDEN_FRAME - LAST_FRAME].idx;
+
+#if CONFIG_EXT_REFS
+  int lst2_buf_idx = cm->frame_refs[LAST2_FRAME - LAST_FRAME].idx;
+  int lst3_buf_idx = cm->frame_refs[LAST3_FRAME - LAST_FRAME].idx;
+  int bwd_buf_idx = cm->frame_refs[BWDREF_FRAME - LAST_FRAME].idx;
+#endif
+
+  int this_offset;
+  if (alt_buf_idx >= 0) {
+    this_offset = cm->cur_frame->alt_frame_offset;
+    if (this_offset > cur_offset &&
+        (right_offset < 0 || this_offset < right_offset)) {
+      right_idx = alt_buf_idx;
+      right_offset = this_offset;
+      right_chosen = ALTREF_FRAME;
+    } else if (this_offset < cur_offset && this_offset > left_offset) {
+      left_idx = alt_buf_idx;
+      left_offset = this_offset;
+      left_chosen = ALTREF_FRAME;
+    }
+  }
+  if (lst_buf_idx >= 0) {
+    this_offset = cm->cur_frame->lst_frame_offset;
+    if (this_offset > cur_offset &&
+        (right_offset < 0 || this_offset < right_offset)) {
+      right_idx = lst_buf_idx;
+      right_offset = this_offset;
+      right_chosen = LAST_FRAME;
+    } else if (this_offset < cur_offset && this_offset > left_offset) {
+      left_idx = lst_buf_idx;
+      left_offset = this_offset;
+      left_chosen = LAST_FRAME;
+    }
+  }
+  if (gld_buf_idx >= 0) {
+    this_offset = cm->cur_frame->gld_frame_offset;
+    if (this_offset > cur_offset &&
+        (right_offset < 0 || this_offset < right_offset)) {
+      right_idx = gld_buf_idx;
+      right_offset = this_offset;
+      right_chosen = GOLDEN_FRAME;
+    } else if (this_offset < cur_offset && this_offset > left_offset) {
+      left_idx = gld_buf_idx;
+      left_offset = this_offset;
+      left_chosen = GOLDEN_FRAME;
+    }
+  }
+#if CONFIG_EXT_REFS
+  if (lst2_buf_idx >= 0) {
+    this_offset = cm->cur_frame->lst2_frame_offset;
+    if (this_offset > cur_offset &&
+        (right_offset < 0 || this_offset < right_offset)) {
+      right_idx = lst2_buf_idx;
+      right_offset = this_offset;
+      right_chosen = LAST2_FRAME;
+    } else if (this_offset < cur_offset && this_offset > left_offset) {
+      left_idx = lst2_buf_idx;
+      left_offset = this_offset;
+      left_chosen = LAST2_FRAME;
+    }
+  }
+  if (lst3_buf_idx >= 0) {
+    this_offset = cm->cur_frame->lst3_frame_offset;
+    if (this_offset > cur_offset &&
+        (right_offset < 0 || this_offset < right_offset)) {
+      right_idx = lst3_buf_idx;
+      right_offset = this_offset;
+      right_chosen = LAST3_FRAME;
+    } else if (this_offset < cur_offset && this_offset > left_offset) {
+      left_idx = lst3_buf_idx;
+      left_offset = this_offset;
+      left_chosen = LAST3_FRAME;
+    }
+  }
+  if (bwd_buf_idx >= 0) {
+    this_offset = cm->cur_frame->bwd_frame_offset;
+    if (this_offset > cur_offset &&
+        (right_offset < 0 || this_offset < right_offset)) {
+      right_idx = bwd_buf_idx;
+      right_offset = this_offset;
+      right_chosen = BWDREF_FRAME;
+    } else if (this_offset < cur_offset && this_offset > left_offset) {
+      left_idx = bwd_buf_idx;
+      left_offset = this_offset;
+      left_chosen = BWDREF_FRAME;
+    }
+  }
+#endif
+
+  buf_struct->dst_buf = cm->opfl_ref_frame;
+
+  if (left_idx >= 0 && right_idx >= 0) {
+    YV12_BUFFER_CONFIG *left = &(cm->buffer_pool->frame_bufs[left_idx].buf);
+    YV12_BUFFER_CONFIG *right = &(cm->buffer_pool->frame_bufs[right_idx].buf);
+    dst_pos = ((double)(cur_offset - left_offset)) /
+              ((double)(right_offset - left_offset));
+    buf_struct->dst_pos = dst_pos;
+    int width = left->y_width, height = right->y_width;
+    int wid, hgt;
+
+    // set up reference picture buffers
+    buf_struct->ref0_buf[0] = left;
+    buf_struct->ref1_buf[0] = right;
+    for (int l = 0; l < MAX_OPFL_LEVEL; l++) {
+      wid = width >> l;
+      hgt = height >> l;
+      if (l == 0){
+        buf_struct->ref0_warped_buf[l] = aom_calloc(1, sizeof(YV12_BUFFER_CONFIG));
+        buf_struct->ref1_warped_buf[l] = aom_calloc(1, sizeof(YV12_BUFFER_CONFIG));
+        aom_alloc_frame_buffer(buf_struct->ref0_warped_buf[l], wid, hgt, 1, 1, 0,
+                               AOM_BORDER_IN_PIXELS, 1);
+        aom_alloc_frame_buffer(buf_struct->ref1_warped_buf[l], wid, hgt, 1, 1, 0,
+                               AOM_BORDER_IN_PIXELS, 1);
+      }
+#if !USE_BLK_DERIVATIVE
+      if (l != 0) {
+        buf_struct->ref0_buf[l] = aom_calloc(1, sizeof(YV12_BUFFER_CONFIG));
+        buf_struct->ref1_buf[l] = aom_calloc(1, sizeof(YV12_BUFFER_CONFIG));
+        aom_alloc_frame_buffer(buf_struct->ref0_buf[l], wid, hgt, 1, 1, 0,
+                               AOM_BORDER_IN_PIXELS, 1);
+        aom_alloc_frame_buffer(buf_struct->ref1_buf[l], wid, hgt, 1, 1, 0,
+                               AOM_BORDER_IN_PIXELS, 1);
+        buf_struct->ref0_warped_buf[l] = aom_calloc(1, sizeof(YV12_BUFFER_CONFIG));
+        buf_struct->ref1_warped_buf[l] = aom_calloc(1, sizeof(YV12_BUFFER_CONFIG));
+        aom_alloc_frame_buffer(buf_struct->ref0_warped_buf[l], wid, hgt, 1, 1, 0,
+                               AOM_BORDER_IN_PIXELS, 1);
+        aom_alloc_frame_buffer(buf_struct->ref1_warped_buf[l], wid, hgt, 1, 1, 0,
+                               AOM_BORDER_IN_PIXELS, 1);
+      }
+#endif
+    }
+#if !USE_BLK_DERIVATIVE
+    // TODO(bohan): find out the necessary space for temp_buffer
+    uint8_t *temp_buffer = aom_calloc(width * 8, sizeof(uint8_t));
+    for (int l = 1; l < MAX_OPFL_LEVEL; l++) {
+      aom_scale_frame(buf_struct->ref0_buf[l - 1], buf_struct->ref0_buf[l], temp_buffer, 8, 2, 1, 2, 1, 0);
+      aom_scale_frame(buf_struct->ref1_buf[l - 1], buf_struct->ref1_buf[l], temp_buffer, 8, 2, 1, 2, 1, 0);
+    }
+    aom_free(temp_buffer);
+#endif
+
+    // set up motion field buffers
+    for (int l = 0; l < MAX_OPFL_LEVEL; l++) {
+      if (USE_BLK_DERIVATIVE && l != 0) {
+        continue;
+      }
+      wid = width >> l;
+      hgt = height >> l;
+      buf_struct->init_mv_buf[l] = aom_calloc((wid+2*AVG_MF_BORDER)*(hgt+2*AVG_MF_BORDER), sizeof(DB_MV));
+    }
+
+    // set up initial motion filed
+    int_mv *left_mv = aom_calloc(cm->mi_cols * cm->mi_rows, sizeof(int_mv));
+    int_mv *right_mv = aom_calloc(cm->mi_cols * cm->mi_rows, sizeof(int_mv));
+    TPL_MV_REF *tpl_mvs_base = cm->cur_frame->tpl_mvs;
+    for (int i = 0; i < cm->mi_rows; i++) {
+      for (int j = 0; j < cm->mi_cols; j++) {
+        left_mv[i * cm->mi_cols + j].as_int = INVALID_MV;
+        right_mv[i * cm->mi_cols + j].as_int = INVALID_MV;
+        for (int k = 0; k < MFMV_STACK_SIZE; k++) {
+          if (tpl_mvs_base[i * cm->mi_stride + j]
+                  .mfmv[left_chosen - LAST_FRAME][k]
+                  .as_int != INVALID_MV) {
+            left_mv[i * cm->mi_cols + j].as_int =
+                tpl_mvs_base[i * cm->mi_stride + j]
+                    .mfmv[left_chosen - LAST_FRAME][k]
+                    .as_int;
+            break;
+          }
+        }
+        for (int k = 0; k < MFMV_STACK_SIZE; k++) {
+          if (tpl_mvs_base[i * cm->mi_stride + j]
+                  .mfmv[right_chosen - LAST_FRAME][k]
+                  .as_int != INVALID_MV) {
+            right_mv[i * cm->mi_cols + j].as_int =
+                tpl_mvs_base[i * cm->mi_stride + j]
+                    .mfmv[right_chosen - LAST_FRAME][k]
+                    .as_int;
+            break;
+          }
+        }
+      }
+    }
+    opfl_fill_mv(left_mv, cm->mi_cols, cm->mi_rows);
+    opfl_fill_mv(right_mv, cm->mi_cols, cm->mi_rows);
+    for (int l = 0; l < MAX_OPFL_LEVEL; l++) {
+      if (USE_BLK_DERIVATIVE && l != 0) {
+        continue;
+      }
+      wid = width >> l;
+      hgt = height >> l;
+      create_motion_field( left_mv, right_mv, buf_struct->init_mv_buf[l], width, height, wid, hgt, wid + 2 * AVG_MF_BORDER, dst_pos);
+    }
+    aom_free(left_mv);
+    aom_free(right_mv);
+
+    // calculate initial warped references for future use
+    for (int l = 0; l < MAX_OPFL_LEVEL; l++) {
+      if (USE_BLK_DERIVATIVE && l != 0) {
+        continue;
+      }
+      wid = width >> l;
+      hgt = height >> l;
+      int mvstr = wid + 2*AVG_MF_BORDER;
+      DB_MV * mv_start = buf_struct->init_mv_buf[l] + AVG_MF_BORDER * mvstr + AVG_MF_BORDER;
+      warp_optical_flow_fwd(buf_struct->ref0_buf[l], buf_struct->ref1_buf[l], mv_start, mvstr, buf_struct->ref0_warped_buf[0], dst_pos,
+                            l, !USE_BLK_DERIVATIVE);
+      warp_optical_flow_back(buf_struct->ref1_buf[l], buf_struct->ref0_buf[l], mv_start, mvstr, buf_struct->ref1_warped_buf[0], 1 - dst_pos,
+                             l, !USE_BLK_DERIVATIVE);
+    }
+
+    buf_struct->initialized = 1;
+  } else {
+    buf_struct->initialized = 0;
+  }
+}
+
+void av1_opfl_free_buf(AV1_COMMON *cm, OPFL_BUFFER_STRUCT *buf_struct) {
+  if (buf_struct->initialized != 1)
+    return;
+
+  for (int l = 0; l < MAX_OPFL_LEVEL; l++) {
+    if (l == 0){
+      aom_free_frame_buffer(buf_struct->ref0_warped_buf[l]);
+      aom_free_frame_buffer(buf_struct->ref1_warped_buf[l]);
+      aom_free(buf_struct->ref0_warped_buf[l]);
+      aom_free(buf_struct->ref1_warped_buf[l]);
+    }
+#if !USE_BLK_DERIVATIVE
+    if (l != 0) {
+      aom_free_frame_buffer(buf_struct->ref0_buf[l]);
+      aom_free_frame_buffer(buf_struct->ref1_buf[l]);
+      aom_free(buf_struct->ref0_buf[l]);
+      aom_free(buf_struct->ref1_buf[l]);
+      aom_free_frame_buffer(buf_struct->ref0_warped_buf[l]);
+      aom_free_frame_buffer(buf_struct->ref1_warped_buf[l]);
+      aom_free(buf_struct->ref0_warped_buf[l]);
+      aom_free(buf_struct->ref1_warped_buf[l]);
+    }
+#endif
+  }
+  for (int l = 0; l < MAX_OPFL_LEVEL; l++) {
+    if (USE_BLK_DERIVATIVE && l != 0) {
+      continue;
+    }
+    aom_free(buf_struct->init_mv_buf[l]);
+  }
+}
+
 /*
  * Use optical flow method to interpolate a reference frame.
  *
