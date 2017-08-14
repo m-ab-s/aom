@@ -38,9 +38,9 @@ extern "C" {
 #define OPFL_ANNEAL_FACTOR 1.0  // Annealing factor for laplacian multiplier
 
 // MACROs for Debug
-#define NO_BITSTREAM 0
-#define DUMP_OPFL 0
-#define OPFL_OUTPUT_TIME 0
+#define NO_BITSTREAM 1
+#define DUMP_OPFL 1
+#define OPFL_OUTPUT_TIME 1
 
 typedef enum opfl_blend_method {
   OPFL_SIMPLE_BLEND = 0,
@@ -64,6 +64,9 @@ typedef struct opfl_buffer_struct {
   YV12_BUFFER_CONFIG *dst_buf;
   int initialized;
   double dst_pos;
+  int left_offset;
+  int right_offset;
+  int cur_offset;
 } OPFL_BUFFER_STRUCT;
 
 typedef struct opfl_block_info {
@@ -71,42 +74,43 @@ typedef struct opfl_block_info {
   int startw;
   int blk_width;
   int blk_height;
-};
+} OPFL_BLK_INFO;
 
 int av1_get_opfl_ref(AV1_COMMON *cm);
+void av1_opfl_set_buf(AV1_COMMON *cm, OPFL_BUFFER_STRUCT *buf_struct);
+void av1_opfl_free_buf(OPFL_BUFFER_STRUCT *buf_struct);
 void opfl_fill_mv(int_mv *pmv, int width, int height);
-void optical_flow_get_ref(YV12_BUFFER_CONFIG *ref0, YV12_BUFFER_CONFIG *ref1,
-                          int_mv *mv_left, int_mv *mv_right,
-                          YV12_BUFFER_CONFIG *dst, double dst_pos);
-void refine_motion_field(YV12_BUFFER_CONFIG *ref0, YV12_BUFFER_CONFIG *ref1,
+void optical_flow_get_ref(OPFL_BUFFER_STRUCT *buf_struct, OPFL_BLK_INFO blk_info);
+void refine_motion_field(OPFL_BUFFER_STRUCT *buf_struct,
                          DB_MV *mf_last, DB_MV *mf_new, int level,
-                         double dstpos, int usescale);
-double iterate_update_mv(YV12_BUFFER_CONFIG *ref0, YV12_BUFFER_CONFIG *ref1,
+                         double dstpos, int usescale, OPFL_BLK_INFO blk_info);
+double iterate_update_mv(OPFL_BUFFER_STRUCT *buf_struct,
                          DB_MV *mf_last, DB_MV *mf_new, int level,
-                         double dstpos, double scale, int usescale);
+                         double dstpos, double as_scale, int usescale, OPFL_BLK_INFO blk_info);
 double iterate_update_mv_fast(YV12_BUFFER_CONFIG *ref0,
                               YV12_BUFFER_CONFIG *ref1, DB_MV *mf_last,
                               DB_MV *mf_new, int level, double dstpos,
                               double scale, int usescale);
 void interp_optical_flow(YV12_BUFFER_CONFIG *ref0, YV12_BUFFER_CONFIG *ref1,
-                         DB_MV *mf, YV12_BUFFER_CONFIG *dst, double dst_pos);
+                         DB_MV *mf, YV12_BUFFER_CONFIG *dst, double dst_pos, OPFL_BLK_INFO blk_info);
 void warp_optical_flow_back(YV12_BUFFER_CONFIG *src, YV12_BUFFER_CONFIG *ref,
                             DB_MV *mf_start, int mvstr, YV12_BUFFER_CONFIG *dst,
-                            double dstpos, int level, int usescale);
+                            double dstpos, int level, int usescale, OPFL_BLK_INFO blk_info);
 void warp_optical_flow_back_bilinear(YV12_BUFFER_CONFIG *src,
                                      YV12_BUFFER_CONFIG *ref, DB_MV *mf_start,
                                      int mvstr, YV12_BUFFER_CONFIG *dst,
-                                     double dstpos, int level, int usescale);
+                                     double dstpos, int level, int usescale, OPFL_BLK_INFO blk_info);
 void warp_optical_flow_fwd(YV12_BUFFER_CONFIG *src, YV12_BUFFER_CONFIG *ref,
                            DB_MV *mf_start, int mvstr, YV12_BUFFER_CONFIG *dst,
-                           double dstpos, int level, int usescale);
+                           double dstpos, int level, int usescale, OPFL_BLK_INFO blk_info);
 void warp_optical_flow_fwd_bilinear(YV12_BUFFER_CONFIG *src,
                                     YV12_BUFFER_CONFIG *ref, DB_MV *mf_start,
                                     int mvstr, YV12_BUFFER_CONFIG *dst,
-                                    double dstpos, int level, int usescale);
+                                    double dstpos, int level, int usescale, OPFL_BLK_INFO blk_info);
 void warp_optical_flow(YV12_BUFFER_CONFIG *src0, YV12_BUFFER_CONFIG *src1,
                        DB_MV *mf_start, int mvstr, YV12_BUFFER_CONFIG *dst,
-                       double dstpos, OPFL_BLEND_METHOD method);
+                       double dstpos, OPFL_BLEND_METHOD method,
+                       OPFL_BLK_INFO blk_info);
 void warp_optical_flow_diff_select(YV12_BUFFER_CONFIG *src0,
                                    YV12_BUFFER_CONFIG *src1, DB_MV *mf_start,
                                    int mvstr, YV12_BUFFER_CONFIG *dst,
@@ -128,8 +132,12 @@ void upscale_mv_by_2(DB_MV *src, int srcw, int srch, int srcs, DB_MV *dst,
 int write_image_opfl(const YV12_BUFFER_CONFIG *const ref_buf, char *file_name);
 void opfl_get_derivatives(double *Ex, double *Ey, double *Et,
                           YV12_BUFFER_CONFIG *buffer0,
-                          YV12_BUFFER_CONFIG *buffer1, double dstpos, int level,
-                          int usescale);
+                          YV12_BUFFER_CONFIG *buffer1,
+                          YV12_BUFFER_CONFIG *buffer_init0,
+                          YV12_BUFFER_CONFIG *buffer_init1,
+                          double dstpos, int level,
+                          int usescale,
+                          OPFL_BLK_INFO blk_info);
 
 #endif  // CONFIG_OPFL
 
