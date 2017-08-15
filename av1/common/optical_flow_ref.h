@@ -22,13 +22,13 @@ extern "C" {
 
 #if CONFIG_OPFL
 
-#define MAX_ITER_OPTICAL_FLOW 3
-#define MAX_OPFL_LEVEL 3
+#define MAX_ITER_OPTICAL_FLOW 1
+#define MAX_OPFL_LEVEL 1
 #define MAX_ITER_FAST_OPFL 31  // this has to be an odd number for now.
 #define AVG_MF_BORDER 16
 #define MAX_MV_LENGTH_1D 160
 #define DERIVATIVE_FILTER_LENGTH 7
-#define OF_A_SQUARED 100
+#define OF_A_SQUARED 25
 #define USE_MEDIAN_FILTER 1
 #define USE_BLK_DERIVATIVE 1
 #define OPTICAL_FLOW_DIFF_THRES 10.0  // Thres to detect pixel difference
@@ -38,9 +38,9 @@ extern "C" {
 #define OPFL_ANNEAL_FACTOR 1.0  // Annealing factor for laplacian multiplier
 
 // MACROs for Debug
-#define NO_BITSTREAM 1
-#define DUMP_OPFL 1
-#define OPFL_OUTPUT_TIME 1
+#define NO_BITSTREAM 0
+#define DUMP_OPFL 0
+#define OPFL_OUTPUT_TIME 0
 
 typedef enum opfl_blend_method {
   OPFL_SIMPLE_BLEND = 0,
@@ -74,6 +74,10 @@ typedef struct opfl_block_info {
   int startw;
   int blk_width;
   int blk_height;
+  int upbound;
+  int lowerbound;
+  int leftbound;
+  int rightbound;
 } OPFL_BLK_INFO;
 
 int av1_get_opfl_ref(AV1_COMMON *cm);

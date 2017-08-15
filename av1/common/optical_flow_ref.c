@@ -63,20 +63,63 @@ int av1_get_opfl_ref(AV1_COMMON *cm) {
   if (buf_struct->initialized == 1) {
     int width = buf_struct->ref0_buf[0]->y_width;
     int height = buf_struct->ref0_buf[0]->y_height;
-    int blkwidth = 352;
-    int blkheight = 288;
-    blk_info.blk_width = blkwidth;
-    blk_info.blk_height = blkheight;
+    int blkwidth = 16;
+    int blkheight = 16;
+
     for (int i = 0; i < height/blkheight; i++) {
       for (int j = 0; j < width/blkwidth; j++) {
         blk_info.starth = i*blkheight;
         blk_info.startw = j*blkwidth;
+        if (i == height/blkheight - 1) {
+          blk_info.blk_height = height - blk_info.starth +1;
+        } else {
+          blk_info.blk_height = blkheight;
+        }
+        if (j == width/blkwidth - 1) {
+          blk_info.blk_width = width - blk_info.startw +1;
+        } else {
+          blk_info.blk_width = blkwidth;
+        }
 
+        if (i == 0) {
+          blk_info.upbound = 1;
+          blk_info.lowerbound = 0;
+        } else if (i == height/blkheight - 1) {
+          blk_info.upbound = 0;
+          blk_info.lowerbound = 1;
+        } else {
+          blk_info.upbound = 0;
+          blk_info.lowerbound = 0;
+        }
+        if (j == 0) {
+          blk_info.leftbound = 1;
+          blk_info.rightbound = 0;
+        } else if (j == width/blkwidth - 1) {
+          blk_info.leftbound = 0;
+          blk_info.rightbound = 1;
+        } else {
+          blk_info.leftbound = 0;
+          blk_info.rightbound = 0;
+        }
         optical_flow_get_ref(buf_struct, blk_info);
       }
     }
 
     aom_yv12_extend_frame_borders_c(dst);
+
+#if DUMP_OPFL
+    // TODO(bohan): dump the frames for now for debug
+    char filename[20] = "of_dump.yuv";
+    write_image_opfl(buf_struct->ref0_buf[0], filename);
+    write_image_opfl(dst, filename);
+    write_image_opfl(buf_struct->ref1_buf[0], filename);
+    char idxfilename[20] = "of_data.txt";
+    FILE *f_idx = fopen(idxfilename, "a");
+    fprintf(f_idx, "%d %d %d\n", buf_struct->left_offset, buf_struct->cur_offset, buf_struct->right_offset);
+    fclose(f_idx);
+#endif
+
+
     av1_opfl_free_buf(buf_struct);
 
     clock_t endt = clock();
@@ -91,17 +134,7 @@ int av1_get_opfl_ref(AV1_COMMON *cm) {
     fflush(stdout);
 #endif
 
-#if DUMP_OPFL
-    // TODO(bohan): dump the frames for now for debug
-    char filename[20] = "of_dump.yuv";
-    write_image_opfl(buf_struct->ref0_buf[0], filename);
-    write_image_opfl(dst, filename);
-    write_image_opfl(buf_struct->ref1_buf[0], filename);
-    char idxfilename[20] = "of_data.txt";
-    FILE *f_idx = fopen(idxfilename, "a");
-    fprintf(f_idx, "%d %d %d\n", buf_struct->left_offset, buf_struct->cur_offset, buf_struct->right_offset);
-    fclose(f_idx);
-#endif
+
 //    exit(0);
     return 1;
   } else {
@@ -273,7 +306,7 @@ void av1_opfl_set_buf(AV1_COMMON *cm, OPFL_BUFFER_STRUCT *buf_struct) {
     buf_struct->cur_offset = cur_offset;
     buf_struct->right_offset = right_offset;
 
-    int width = left->y_width, height = right->y_width;
+    int width = left->y_width, height = left->y_height;
     int wid, hgt;
 
     // set up reference picture buffers
@@ -286,9 +319,9 @@ void av1_opfl_set_buf(AV1_COMMON *cm, OPFL_BUFFER_STRUCT *buf_struct) {
         buf_struct->ref0_warped_buf[l] = aom_calloc(1, sizeof(YV12_BUFFER_CONFIG));
         buf_struct->ref1_warped_buf[l] = aom_calloc(1, sizeof(YV12_BUFFER_CONFIG));
         aom_alloc_frame_buffer(buf_struct->ref0_warped_buf[l], wid, hgt, 1, 1, 0,
-                               AOM_BORDER_IN_PIXELS, 1);
+                               AOM_BORDER_IN_PIXELS, 0);
         aom_alloc_frame_buffer(buf_struct->ref1_warped_buf[l], wid, hgt, 1, 1, 0,
-                               AOM_BORDER_IN_PIXELS, 1);
+                               AOM_BORDER_IN_PIXELS, 0);
       }
 #if !USE_BLK_DERIVATIVE
       if (l != 0) {
@@ -572,7 +605,7 @@ void optical_flow_get_ref(OPFL_BUFFER_STRUCT *buf_struct, OPFL_BLK_INFO blk_info
   start = clock();
 //  printf("%.2f", mf_last[0][4].row);
 //  exit(0);
-  interp_optical_flow(buf_struct->ref0_buf[0], buf_struct->ref1_buf[0], mf_last[0], buf_struct->dst_buf, buf_struct->dst_pos, blk_info);
+  interp_optical_flow(buf_struct->ref0_buf[0], buf_struct->ref1_buf[0], mf_med[0], buf_struct->dst_buf, buf_struct->dst_pos, blk_info);
   end = clock();
   timesub += (double)(end - start) / CLOCKS_PER_SEC;
   // free buffers
@@ -682,6 +715,7 @@ double iterate_update_mv(OPFL_BUFFER_STRUCT *buf_struct,
 
   int y_width = blk_info.blk_width, y_height = blk_info.blk_height;
   int starth = blk_info.starth, startw = blk_info.startw;
+  int sh = starth >> level, sw = startw >> level;
   int width = y_width, height = y_height;
   width = width >> level;
   height = height >> level;
@@ -716,6 +750,15 @@ double iterate_update_mv(OPFL_BUFFER_STRUCT *buf_struct,
   double *mv_vec = aom_calloc(width * height * 2, sizeof(double));
   double *b = aom_calloc(width * height * 2, sizeof(double));
   double *last_mv_vec = mv_vec;
+
+  int imvstr = buf_struct->ref0_buf[0]->y_width;
+  imvstr = (imvstr>>level) + 2*AVG_MF_BORDER;
+  DB_MV *initmv = buf_struct->init_mv_buf[level];
+  initmv = initmv + (sh+AVG_MF_BORDER) * imvstr + sw+AVG_MF_BORDER;
+  int fheight = buf_struct->ref0_buf[0]->y_height;
+  int fwidth = buf_struct->ref0_buf[0]->y_width;
+  fheight = fheight >> level;
+  fwidth = fwidth >> level;
 
   clock_t starts = clock();
   if (level == 0 || !usescale)
@@ -753,6 +796,8 @@ double iterate_update_mv(OPFL_BUFFER_STRUCT *buf_struct,
           mv_start[i * mvstr + j].row;
     }
   }
+
+  double boundfactor = 1;
   // get laplacian filter matrix F; Currently using:
   //    0,  1, 0
   //    1, -4, 1
@@ -763,17 +808,29 @@ double iterate_update_mv(OPFL_BUFFER_STRUCT *buf_struct,
     for (i = 0; i < height; i++) {
       int center = -4, up = 1, low = 1, left = 1, right = 1;
       if (i == 0) {
-        center = center + up;
+        if (blk_info.upbound)
+          center = center + up;
+        else
+          center = center + boundfactor * up;
         up = 0;
       } else if (i == height - 1) {
-        center = center + low;
+        if (blk_info.lowerbound)
+          center = center + low;
+        else
+          center = center + boundfactor * low;
         low = 0;
       }
       if (j == 0) {
-        center = center + left;
+        if (blk_info.leftbound)
+          center = center + left;
+        else
+          center = center + boundfactor * left;
         left = 0;
       } else if (j == width - 1) {
-        center = center + right;
+        if (blk_info.rightbound)
+          center = center + right;
+        else
+          center = center + boundfactor * right;
         right = 0;
       }
 
@@ -812,24 +869,52 @@ double iterate_update_mv(OPFL_BUFFER_STRUCT *buf_struct,
   init_combine_sparse_mtx(&F, &F, &M, 0, 0, height * width, height * width,
                           2 * height * width, 2 * height * width);
   constant_multiply_sparse_matrix(&M, a_squared);
-  // construct A
+  // get b
+  mtx_vect_multi_right(&M, last_mv_vec, b, 2 * height * width);
+
+  // construct A and modify b
   int offset = height * width;
   c = 0;
   for (j = 0; j < width; j++) {
     for (i = 0; i < height; i++) {
       int center = -4, up = 1, low = 1, left = 1, right = 1;
+      double tempr = 0, tempc = 0;
       if (i == 0) {
-        center = center + up;
+        if (blk_info.upbound)
+          center = center + up;
+        else {
+          tempr += initmv[(i-1)*imvstr+j].row;
+          tempc += initmv[(i-1)*imvstr+j].col;
+          center = center + boundfactor * up;
+        }
         up = 0;
       } else if (i == height - 1) {
-        center = center + low;
+        if (blk_info.lowerbound)
+          center = center + low;
+        else {
+          tempr += initmv[(i+1)*imvstr+j].row;
+          tempc += initmv[(i+1)*imvstr+j].col;
+          center = center + boundfactor * low;
+        }
         low = 0;
       }
       if (j == 0) {
-        center = center + left;
+        if (blk_info.leftbound)
+          center = center + left;
+        else {
+          tempr += initmv[i*imvstr+j-1].row;
+          tempc += initmv[i*imvstr+j-1].col;
+          center = center + boundfactor * left;
+        }
         left = 0;
       } else if (j == width - 1) {
-        center = center + right;
+        if (blk_info.rightbound)
+          center = center + right;
+        else {
+          tempr += initmv[i*imvstr+j+1].row;
+          tempc += initmv[i*imvstr+j+1].col;
+          center = center + boundfactor * right;
+        }
         right = 0;
       }
 
@@ -864,23 +949,37 @@ double iterate_update_mv(OPFL_BUFFER_STRUCT *buf_struct,
         values[c] = -a_squared * (double)low;
         c++;
       }
+      b[j*height+i] += a_squared * tempc * (1-boundfactor);
+      b[j*height+i + width*height] += a_squared * tempr * (1-boundfactor);
     }
   }
   for (j = 0; j < width; j++) {
     for (i = 0; i < height; i++) {
       int center = -4, up = 1, low = 1, left = 1, right = 1;
       if (i == 0) {
-        center = center + up;
+        if (blk_info.upbound)
+          center = center + up;
+        else
+          center = center + boundfactor * up;
         up = 0;
       } else if (i == height - 1) {
-        center = center + low;
+        if (blk_info.lowerbound)
+          center = center + low;
+        else
+          center = center + boundfactor * low;
         low = 0;
       }
       if (j == 0) {
-        center = center + left;
+        if (blk_info.leftbound)
+          center = center + left;
+        else
+          center = center + boundfactor * left;
         left = 0;
       } else if (j == width - 1) {
-        center = center + right;
+        if (blk_info.rightbound)
+          center = center + right;
+        else
+          center = center + boundfactor * right;
         right = 0;
       }
 
@@ -935,8 +1034,8 @@ double iterate_update_mv(OPFL_BUFFER_STRUCT *buf_struct,
   }
   init_sparse_mtx(row_pos, col_pos, values, c, 2 * width * height,
                   2 * width * height, &A);
-  // get b
-  mtx_vect_multi_right(&M, last_mv_vec, b, 2 * height * width);
+
+  // adjust b
   for (j = 0; j < width; j++) {
     for (i = 0; i < height; i++) {
       b[j * height + i] =
@@ -1217,11 +1316,15 @@ void opfl_get_derivatives(double *Ex, double *Ey, double *Et,
       Ex[i * width + j] = 0;
       for (int k = 0; k < lh; k++) {
         idx = j + k - hleft;
-        if (idx < 0 || idx > width - 1) {
+        if ((idx < 0 && blk_info.leftbound != 1 )|| (idx > width - 1 && blk_info.rightbound !=1)) {
           Ex[i * width + j] +=
               filter[k] * (double)(buf0i[i * istride + idx]) * (1 - dstpos) +
               filter[k] * (double)(buf1i[i * istride + idx]) * dstpos;
         } else {
+          if (idx < 0)
+            idx = 0;
+          else if (idx > width-1)
+            idx = width-1;
           Ex[i * width + j] +=
               filter[k] * (double)(buffer0->y_buffer[i * stride + idx]) *
                   (1 - dstpos) +
@@ -1236,11 +1339,15 @@ void opfl_get_derivatives(double *Ex, double *Ey, double *Et,
       Ey[i * width + j] = 0;
       for (int k = 0; k < lh; k++) {
         idx = i + k - hleft;
-        if (idx < 0 || idx > height - 1) {
+        if ((idx < 0 && blk_info.upbound != 1) || (idx > height - 1 && blk_info.lowerbound != 1) ) {
           Ey[i * width + j] +=
               filter[k] * (double)(buf0i[idx * istride + j]) * (1 - dstpos) +
               filter[k] * (double)(buf1i[idx * istride + j]) * dstpos;
         } else {
+          if (idx < 0)
+            idx = 0;
+          else if (idx > height-1)
+            idx = height-1;
           Ey[i * width + j] +=
               filter[k] * (double)(buffer0->y_buffer[idx * stride + j]) *
                   (1 - dstpos) +
