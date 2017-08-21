@@ -48,6 +48,7 @@ extern "C" {
 #if CONFIG_OPFL
 #define REF_FRAMES ((1 << REF_FRAMES_LOG2) + 1)
 #define OPFL_MAP_INDEX (1 << REF_FRAMES_LOG2)
+typedef struct opfl_buffer_struct OPFL_BUFFER_STRUCT;
 #else
 #define REF_FRAMES (1 << REF_FRAMES_LOG2)
 #endif
@@ -377,6 +378,7 @@ typedef struct AV1Common {
 #if CONFIG_OPFL
   unsigned int frame_offset;
   YV12_BUFFER_CONFIG *opfl_ref_frame;
+  OPFL_BUFFER_STRUCT *opfl_buf_struct_ptr;
 #endif
 
   unsigned int current_video_frame;

@@ -22,25 +22,33 @@ extern "C" {
 
 #if CONFIG_OPFL
 
-#define MAX_ITER_OPTICAL_FLOW 1
-#define MAX_OPFL_LEVEL 1
-#define MAX_ITER_FAST_OPFL 31  // this has to be an odd number for now.
-#define AVG_MF_BORDER 16
+// Constant MACRO defs
+#define AVG_MF_BORDER 2
 #define MAX_MV_LENGTH_1D 160
 #define DERIVATIVE_FILTER_LENGTH 7
-#define OF_A_SQUARED 25
-#define USE_MEDIAN_FILTER 1
+
+// OPFL parameters
+#define MAX_OPFL_LEVEL 3            // levels in pyramid
+#define MAX_ITER_OPTICAL_FLOW 3     // for each level number of iteration
 #define USE_BLK_DERIVATIVE 1
-#define OPTICAL_FLOW_DIFF_THRES 10.0  // Thres to detect pixel difference
-#define OPTICAL_FLOW_REF_THRES 0.3    // Thres to determine reference usage
-#define OPTICAL_FLOW_TRUST_MV_THRES 0.3  // Thres to trust motion field
-#define FAST_OPTICAL_FLOW 0              // Use fast iterative method
-#define OPFL_ANNEAL_FACTOR 1.0  // Annealing factor for laplacian multiplier
+#define OF_A_SQUARED 25             // Laplacian parameter
+#define FAST_OPTICAL_FLOW 0         // Use fast iterative method
+#define MAX_ITER_FAST_OPFL 15       // this has to be an odd number for now.
+#define USE_MEDIAN_FILTER 1
+
+#define FRAME_LEVEL_OPFL 1
+#define OPFL_BLOCK_SIZE 16
 
 // MACROs for Debug
 #define NO_BITSTREAM 0
 #define DUMP_OPFL 0
 #define OPFL_OUTPUT_TIME 0
+
+// Experimental MACROs not used for now
+#define OPTICAL_FLOW_DIFF_THRES 10.0  // Thres to detect pixel difference
+#define OPTICAL_FLOW_REF_THRES 0.3    // Thres to determine reference usage
+#define OPTICAL_FLOW_TRUST_MV_THRES 0.3  // Thres to trust motion field
+#define OPFL_ANNEAL_FACTOR 1.0  // Annealing factor for laplacian multiplier
 
 typedef enum opfl_blend_method {
   OPFL_SIMPLE_BLEND = 0,
@@ -67,6 +75,15 @@ typedef struct opfl_buffer_struct {
   int left_offset;
   int right_offset;
   int cur_offset;
+  DB_MV *mf_last[MAX_OPFL_LEVEL];
+  DB_MV *mf_new[MAX_OPFL_LEVEL];
+  DB_MV *mf_med[MAX_OPFL_LEVEL];  // for motion field after median filter
+  double *Ex;
+  double *Ey;
+  double *Et;
+  YV12_BUFFER_CONFIG *buffer0[MAX_OPFL_LEVEL];
+  YV12_BUFFER_CONFIG *buffer1[MAX_OPFL_LEVEL];
+  int *done_flag;
 } OPFL_BUFFER_STRUCT;
 
 typedef struct opfl_block_info {
@@ -91,10 +108,9 @@ void refine_motion_field(OPFL_BUFFER_STRUCT *buf_struct,
 double iterate_update_mv(OPFL_BUFFER_STRUCT *buf_struct,
                          DB_MV *mf_last, DB_MV *mf_new, int level,
                          double dstpos, double as_scale, int usescale, OPFL_BLK_INFO blk_info);
-double iterate_update_mv_fast(YV12_BUFFER_CONFIG *ref0,
-                              YV12_BUFFER_CONFIG *ref1, DB_MV *mf_last,
-                              DB_MV *mf_new, int level, double dstpos,
-                              double scale, int usescale);
+double iterate_update_mv_fast(OPFL_BUFFER_STRUCT *buf_struct,
+                              DB_MV *mf_last, DB_MV *mf_new, int level,
+                              double dstpos, double as_scale, int usescale, OPFL_BLK_INFO blk_info);
 void interp_optical_flow(YV12_BUFFER_CONFIG *ref0, YV12_BUFFER_CONFIG *ref1,
                          DB_MV *mf, YV12_BUFFER_CONFIG *dst, double dst_pos, OPFL_BLK_INFO blk_info);
 void warp_optical_flow_back(YV12_BUFFER_CONFIG *src, YV12_BUFFER_CONFIG *ref,

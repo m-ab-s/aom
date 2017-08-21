@@ -24,6 +24,7 @@
 #if CONFIG_OPFL
 // global timer for debug purpose
 double timeinit, timesub, timesolve, timeder, timemed, timetotal;
+clock_t startt, endt;
 static int optical_flow_warp_filter[16][8] = {
     {0, 0, 0, 128, 0, 0, 0, 0},      {0, 2, -6, 126, 8, -2, 0, 0},
     {0, 2, -10, 122, 18, -4, 0, 0},  {0, 2, -12, 116, 28, -8, 2, 0},
@@ -35,7 +36,7 @@ static int optical_flow_warp_filter[16][8] = {
     {0, 0, -4, 18, 122, -10, 2, 0},  {0, 0, -2, 8, 126, -6, 2, 0}};
 
 /*
- * interpolate the opfl reference frame.
+ * interpolate the opfl reference frame. Should only be called by the encoder.
  *
  * Input:
  * cm: the av1_common pointer.
@@ -46,37 +47,35 @@ static int optical_flow_warp_filter[16][8] = {
  * 0: reference(s) not available
  */
 int av1_get_opfl_ref(AV1_COMMON *cm) {
-  timeinit = 0, timesub = 0, timesolve = 0, timeder = 0, timemed = 0, timetotal = 0;
-  clock_t startt = clock();
-  clock_t starti = clock();
-
   OPFL_BUFFER_STRUCT opfl_buf_struct;
   OPFL_BUFFER_STRUCT *buf_struct = &opfl_buf_struct;
   OPFL_BLK_INFO blk_info;
 
   av1_opfl_set_buf(cm, buf_struct);
 
-  YV12_BUFFER_CONFIG *dst = buf_struct->dst_buf;
-  clock_t endi = clock();
-  timeinit += (double)(endi - starti) / CLOCKS_PER_SEC;
-
   if (buf_struct->initialized == 1) {
     int width = buf_struct->ref0_buf[0]->y_width;
     int height = buf_struct->ref0_buf[0]->y_height;
-    int blkwidth = 16;
-    int blkheight = 16;
+
+#if FRAME_LEVEL_OPFL
+    int blkwidth = width;
+    int blkheight = height;
+#else
+    int blkwidth = OPFL_BLOCK_SIZE;
+    int blkheight = OPFL_BLOCK_SIZE;
+#endif
 
     for (int i = 0; i < height/blkheight; i++) {
       for (int j = 0; j < width/blkwidth; j++) {
         blk_info.starth = i*blkheight;
         blk_info.startw = j*blkwidth;
         if (i == height/blkheight - 1) {
-          blk_info.blk_height = height - blk_info.starth +1;
+          blk_info.blk_height = height - blk_info.starth;
         } else {
           blk_info.blk_height = blkheight;
         }
         if (j == width/blkwidth - 1) {
-          blk_info.blk_width = width - blk_info.startw +1;
+          blk_info.blk_width = width - blk_info.startw;
         } else {
           blk_info.blk_width = blkwidth;
         }
@@ -105,35 +104,8 @@ int av1_get_opfl_ref(AV1_COMMON *cm) {
       }
     }
 
-    aom_yv12_extend_frame_borders_c(dst);
-
-#if DUMP_OPFL
-    // TODO(bohan): dump the frames for now for debug
-    char filename[20] = "of_dump.yuv";
-    write_image_opfl(buf_struct->ref0_buf[0], filename);
-    write_image_opfl(dst, filename);
-    write_image_opfl(buf_struct->ref1_buf[0], filename);
-    char idxfilename[20] = "of_data.txt";
-    FILE *f_idx = fopen(idxfilename, "a");
-    fprintf(f_idx, "%d %d %d\n", buf_struct->left_offset, buf_struct->cur_offset, buf_struct->right_offset);
-    fclose(f_idx);
-#endif
-
-
+//    aom_yv12_extend_frame_borders_c(dst);
     av1_opfl_free_buf(buf_struct);
-
-    clock_t endt = clock();
-    timetotal += (double)(endt - startt) / CLOCKS_PER_SEC;
-
-#if OPFL_OUTPUT_TIME
-    // TODO(bohan): output time usage for debug for now.
-    printf(
-        "\ninit time: %.4f, der time: %.4f, sub time: %.4f, median time: %.4f, "
-        "solve time: %.4f, totaltime: %.4f\n",
-        timeinit, timeder, timesub, timemed, timesolve, timetotal);
-    fflush(stdout);
-#endif
-
 
 //    exit(0);
     return 1;
@@ -197,6 +169,9 @@ void opfl_fill_mv(int_mv *pmv, int width, int height) {
 }
 
 void av1_opfl_set_buf(AV1_COMMON *cm, OPFL_BUFFER_STRUCT *buf_struct) {
+//  timeinit = 0, timesub = 0, timesolve = 0, timeder = 0, timemed = 0, timetotal = 0;
+  startt = clock();
+  clock_t starti = clock();
   int left_idx = -1, left_offset = -1, right_idx = -1, right_offset = -1;
   int left_chosen = NONE_FRAME, right_chosen = NONE_FRAME;
   int cur_offset = cm->frame_offset;
@@ -434,7 +409,44 @@ void av1_opfl_set_buf(AV1_COMMON *cm, OPFL_BUFFER_STRUCT *buf_struct) {
       aom_yv12_extend_frame_borders_c(buf_struct->ref1_warped_buf[l]);
     }
 
+    int blkwid, blkhgt;
+#if FRAME_LEVEL_OPFL
+    blkwid = width;
+    blkhgt = height;
+#else
+    blkwid = OPFL_BLOCK_SIZE;
+    blkhgt = OPFL_BLOCK_SIZE;
+#endif
+    buf_struct->Ex = aom_calloc(width * height, sizeof(double));
+    buf_struct->Ey = aom_calloc(width * height, sizeof(double));
+    buf_struct->Et = aom_calloc(width * height, sizeof(double));
+    for (int l = 0; l < MAX_OPFL_LEVEL; l++) {
+      wid = blkwid >> l;
+      hgt = blkhgt >> l;
+      buf_struct->mf_last[l] = aom_calloc((wid+2*AVG_MF_BORDER)*(hgt+2*AVG_MF_BORDER), sizeof(DB_MV));
+      buf_struct->mf_new[l] = aom_calloc((wid+2*AVG_MF_BORDER)*(hgt+2*AVG_MF_BORDER), sizeof(DB_MV));
+      buf_struct->mf_med[l] = aom_calloc((wid+2*AVG_MF_BORDER)*(hgt+2*AVG_MF_BORDER), sizeof(DB_MV));
+
+      // allocate buffers
+      if (l!=0 && USE_BLK_DERIVATIVE)
+        continue;
+      buf_struct->buffer0[l] = aom_calloc(1, sizeof(YV12_BUFFER_CONFIG));
+      buf_struct->buffer1[l] = aom_calloc(1, sizeof(YV12_BUFFER_CONFIG));
+      aom_alloc_frame_buffer(buf_struct->buffer0[l], wid, hgt, 1, 1, 0,
+                             AOM_BORDER_IN_PIXELS, 0);
+      aom_alloc_frame_buffer(buf_struct->buffer1[l], wid, hgt, 1, 1, 0,
+                             AOM_BORDER_IN_PIXELS, 0);
+    }
+
+    int wblk, hblk;
+    wblk = (width+blkwid-1)/blkwid;
+    hblk = (height+blkhgt-1)/blkhgt;
+    buf_struct->done_flag = aom_calloc(wblk*hblk, sizeof(int));
+//    memset(buf_struct->done_flag, 0, wblk*hblk*sizeof(int));
+
     buf_struct->initialized = 1;
+    clock_t endi = clock();
+    timeinit += (double)(endi - starti) / CLOCKS_PER_SEC;
   } else {
     buf_struct->initialized = 0;
   }
@@ -467,6 +479,43 @@ void av1_opfl_free_buf(OPFL_BUFFER_STRUCT *buf_struct) {
   for (int l = 0; l < MAX_OPFL_LEVEL; l++) {
     aom_free(buf_struct->init_mv_buf[l]);
   }
+  aom_free(buf_struct->Ex);
+  aom_free(buf_struct->Ey);
+  aom_free(buf_struct->Et);
+  for (int l = 0; l < MAX_OPFL_LEVEL; l++) {
+    aom_free(buf_struct->mf_last[l]);
+    aom_free(buf_struct->mf_new[l]);
+    aom_free(buf_struct->mf_med[l]);
+
+    if (l!=0 && USE_BLK_DERIVATIVE)
+      continue;
+    aom_free_frame_buffer(buf_struct->buffer0[l]);
+    aom_free_frame_buffer(buf_struct->buffer1[l]);
+    aom_free(buf_struct->buffer0[l]);
+    aom_free(buf_struct->buffer1[l]);
+  }
+  aom_free(buf_struct->done_flag);
+  endt = clock();
+  timetotal += (double)(endt - startt) / CLOCKS_PER_SEC;
+#if OPFL_OUTPUT_TIME
+  // TODO(bohan): output time usage for debug for now.
+  printf(
+      "\ninit time: %.4f, der time: %.4f, sub time: %.4f, median time: %.4f, "
+      "solve time: %.4f, totaltime: %.4f\n",
+      timeinit, timeder, timesub, timemed, timesolve, timetotal);
+  fflush(stdout);
+#endif
+#if DUMP_OPFL
+  // TODO(bohan): dump the frames for now for debug
+  char filename[20] = "of_dump.yuv";
+  write_image_opfl(buf_struct->ref0_buf[0], filename);
+  write_image_opfl(buf_struct->dst_buf, filename);
+  write_image_opfl(buf_struct->ref1_buf[0], filename);
+  char idxfilename[20] = "of_data.txt";
+  FILE *f_idx = fopen(idxfilename, "a");
+  fprintf(f_idx, "%d %d %d\n", buf_struct->left_offset, buf_struct->cur_offset, buf_struct->right_offset);
+  fclose(f_idx);
+#endif
 }
 
 /*
@@ -489,44 +538,35 @@ void optical_flow_get_ref(OPFL_BUFFER_STRUCT *buf_struct, OPFL_BLK_INFO blk_info
   start_h = blk_info.starth;
   start_w = blk_info.startw;
 
-  clock_t starti = clock();
   // initialize buffers
-  DB_MV *mf_last[MAX_OPFL_LEVEL];
-  DB_MV *mf_new[MAX_OPFL_LEVEL];
-  DB_MV *mf_med[MAX_OPFL_LEVEL];  // for motion field after median filter
-  for (int l = 0; l < MAX_OPFL_LEVEL; l++) {
-    wid = width >> l;
-    hgt = height >> l;
-    mf_last[l] = aom_calloc((wid+2*AVG_MF_BORDER)*(hgt+2*AVG_MF_BORDER), sizeof(DB_MV));
-    mf_new[l] = aom_calloc((wid+2*AVG_MF_BORDER)*(hgt+2*AVG_MF_BORDER), sizeof(DB_MV));
-    mf_med[l] = aom_calloc((wid+2*AVG_MF_BORDER)*(hgt+2*AVG_MF_BORDER), sizeof(DB_MV));
-    if (l == MAX_OPFL_LEVEL - 1) {
-      int imvstr = buf_struct->ref0_buf[0]->y_width;
-      imvstr = (imvstr >> l) + 2 * AVG_MF_BORDER;
-      sh = start_h >> l;
-      sw = start_w >> l;
-      int str = wid + 2*AVG_MF_BORDER;
-      for (int i = 0; i < hgt; i++) {
-        for (int j = 0; j < wid; j++) {
-          mf_last[l][(i+AVG_MF_BORDER)*str+j+AVG_MF_BORDER] =
-              buf_struct->init_mv_buf[l][(i+sh+AVG_MF_BORDER)*imvstr+j+sw+AVG_MF_BORDER];
-        }
-      }
+  DB_MV **mf_last = buf_struct->mf_last;
+  DB_MV **mf_new = buf_struct->mf_new;
+  DB_MV **mf_med = buf_struct->mf_med;
+  int l = MAX_OPFL_LEVEL - 1;
+  wid = width >> l;
+  hgt = height >> l;
+  int imvstr = buf_struct->ref0_buf[0]->y_width;
+  imvstr = (imvstr >> l) + 2 * AVG_MF_BORDER;
+  sh = start_h >> l;
+  sw = start_w >> l;
+  int str = wid + 2*AVG_MF_BORDER;
+  for (int i = 0; i < hgt; i++) {
+    for (int j = 0; j < wid; j++) {
+      mf_last[l][(i+AVG_MF_BORDER)*str+j+AVG_MF_BORDER] =
+          buf_struct->init_mv_buf[l][(i+sh+AVG_MF_BORDER)*imvstr+j+sw+AVG_MF_BORDER];
     }
   }
-  clock_t endi = clock();
-  timeinit += (double)(endi - starti) / CLOCKS_PER_SEC;
 
   // temporary buffers for MF median filtering
   double mv_r[25], mv_c[25], left[25], right[25];
   // estimate optical flow at each level
-  for (int l = MAX_OPFL_LEVEL - 1; l >= 0; l--) {
+  for (l = MAX_OPFL_LEVEL - 1; l >= 0; l--) {
     wid = width >> l;
     hgt = height >> l;
     sh = start_h >> l;
     sw = start_w >> l;
     int mvstr = wid + 2 * AVG_MF_BORDER;
-    int imvstr = buf_struct->ref0_buf[0]->y_width;
+    imvstr = buf_struct->ref0_buf[0]->y_width;
     imvstr = (imvstr >> l) + 2 * AVG_MF_BORDER;
     // use optical flow to refine our motion field
 #if USE_BLK_DERIVATIVE
@@ -579,40 +619,128 @@ void optical_flow_get_ref(OPFL_BUFFER_STRUCT *buf_struct, OPFL_BLK_INFO blk_info
       upscale_mv_by_2(mf_start_med, wid, hgt, mvstr, mf_start_next, mvstr_next);
     }
   }
-//#if DUMP_OPFL
-//  char mvname[] = "of_mv.txt";
-//  FILE *mvfid = fopen(mvname, "a");
-//  int mvstr = width + 2 * AVG_MF_BORDER;
-//  for (int i = 0; i < height; i++) {
-//    for (int j = 0; j < width; j++) {
-//      fprintf(mvfid, "%.2f ",
-//              mf_med[0][(i + AVG_MF_BORDER) * mvstr + j + AVG_MF_BORDER].row);
-//    }
-//    fprintf(mvfid, "\n");
-//  }
-//  for (int i = 0; i < height; i++) {
-//    for (int j = 0; j < width; j++) {
-//      fprintf(mvfid, "%.2f ",
-//              mf_med[0][(i + AVG_MF_BORDER) * mvstr + j + AVG_MF_BORDER].col);
-//    }
-//    fprintf(mvfid, "\n");
-//  }
-//  fclose(mvfid);
-//#endif
 
   // interpolate to get our reference frame
   clock_t start, end;
   start = clock();
-//  printf("%.2f", mf_last[0][4].row);
-//  exit(0);
   interp_optical_flow(buf_struct->ref0_buf[0], buf_struct->ref1_buf[0], mf_med[0], buf_struct->dst_buf, buf_struct->dst_pos, blk_info);
   end = clock();
   timesub += (double)(end - start) / CLOCKS_PER_SEC;
-  // free buffers
-  for (int l = 0; l < MAX_OPFL_LEVEL; l++) {
-    aom_free(mf_last[l]);
-    aom_free(mf_new[l]);
-    aom_free(mf_med[l]);
+
+  // pad border if at border of frame
+  int fstr = buf_struct->dst_buf->y_stride;
+  int fstruv = buf_struct->dst_buf->uv_stride;
+  int border = buf_struct->dst_buf->border;
+  int fheight = buf_struct->dst_buf->y_height;
+  int fwidth = buf_struct->dst_buf->y_width;
+  uint8_t *ydst = buf_struct->dst_buf->y_buffer;
+  uint8_t *udst = buf_struct->dst_buf->u_buffer;
+  uint8_t *vdst = buf_struct->dst_buf->v_buffer;
+
+  if (blk_info.upbound) {
+    for (int i = -border; i < 0; i++) {
+      for (int j = start_w; j < start_w + width; j++) {
+        ydst[i*fstr+j] = ydst[j];
+      }
+    }
+    for (int i = -border/2; i < 0; i++) {
+      for (int j = start_w/2; j < start_w/2 + width/2; j++) {
+        udst[i*fstruv+j] = udst[j];
+        vdst[i*fstruv+j] = vdst[j];
+      }
+    }
+  }
+  if (blk_info.lowerbound) {
+    for (int i = fheight; i < fheight+border; i++) {
+      for (int j = start_w; j < start_w + width; j++) {
+        ydst[i*fstr+j] = ydst[(fheight-1)*fstr+j];
+      }
+    }
+    for (int i = fheight/2; i < fheight/2+border/2; i++) {
+      for (int j = start_w/2; j < start_w/2 + width/2; j++) {
+        udst[i*fstruv+j] = udst[(fheight/2-1)*fstruv+j];
+        vdst[i*fstruv+j] = vdst[(fheight/2-1)*fstruv+j];
+      }
+    }
+  }
+  if (blk_info.leftbound) {
+    for (int i = start_h; i < start_h+height; i++) {
+      for (int j = -border; j < 0; j++) {
+        ydst[i*fstr+j] = ydst[i*fstr];
+      }
+    }
+    for (int i = start_h/2; i < start_h/2+height/2; i++) {
+      for (int j = -border/2; j < 0; j++) {
+        udst[i*fstruv+j] = udst[j];
+        vdst[i*fstruv+j] = vdst[j];
+      }
+    }
+  }
+  if (blk_info.rightbound) {
+    for (int i = start_h; i < start_h+height; i++) {
+      for (int j = fwidth; j < fwidth+border; j++) {
+        ydst[i*fstr+j] = ydst[i*fstr+fwidth-1];
+      }
+    }
+    for (int i = start_h/2; i < start_h/2+height/2; i++) {
+      for (int j = fwidth/2; j < fwidth/2+border/2; j++) {
+        udst[i*fstruv+j] = udst[i*fstruv+fwidth/2-1];
+        vdst[i*fstruv+j] = vdst[i*fstruv+fwidth/2-1];
+      }
+    }
+  }
+
+  if (blk_info.upbound && blk_info.leftbound) {
+    for (int i = -border; i < 0; i++) {
+      for (int j = -border; j < 0; j++) {
+        ydst[i*fstr+j] = ydst[0];
+      }
+    }
+    for (int i = -border/2; i < 0; i++) {
+      for (int j = -border/2; j < 0; j++) {
+        udst[i*fstruv+j] = udst[0];
+        vdst[i*fstruv+j] = vdst[0];
+      }
+    }
+  }
+  if (blk_info.upbound && blk_info.rightbound) {
+    for (int i = -border; i < 0; i++) {
+      for (int j = fwidth; j < fwidth+border; j++) {
+        ydst[i*fstr+j] = ydst[fwidth-1];
+      }
+    }
+    for (int i = -border/2; i < 0; i++) {
+      for (int j = fwidth/2; j < fwidth/2+border/2; j++) {
+        udst[i*fstruv+j] = udst[fwidth/2-1];
+        vdst[i*fstruv+j] = vdst[fwidth/2-1];
+      }
+    }
+  }
+  if (blk_info.lowerbound && blk_info.leftbound) {
+    for (int i = fheight; i < fheight+border; i++) {
+      for (int j = -border; j < 0; j++) {
+        ydst[i*fstr+j] = ydst[(fheight-1)*fstr];
+      }
+    }
+    for (int i = fheight/2; i < fheight/2+border/2; i++) {
+      for (int j = -border/2; j < 0; j++) {
+        udst[i*fstruv+j] = udst[(fheight/2-1)*fstruv];
+        vdst[i*fstruv+j] = vdst[(fheight/2-1)*fstruv];
+      }
+    }
+  }
+  if (blk_info.lowerbound && blk_info.rightbound) {
+    for (int i = fheight; i < fheight+border; i++) {
+      for (int j = fwidth; j < fwidth+border; j++) {
+        ydst[i*fstr+j] = ydst[(fheight-1)*fstr+fwidth-1];
+      }
+    }
+    for (int i = fheight/2; i < fheight/2+border/2; i++) {
+      for (int j = fwidth/2; j < fwidth/2+border/2; j++) {
+        udst[i*fstruv+j] = udst[(fheight/2-1)*fstruv+fwidth/2-1];
+        vdst[i*fstruv+j] = vdst[(fheight/2-1)*fstruv+fwidth/2-1];
+      }
+    }
   }
   return;
 }
@@ -644,12 +772,12 @@ void refine_motion_field(OPFL_BUFFER_STRUCT *buf_struct,
   // iteratively warp and estimate motion field
   while (count < MAX_ITER_OPTICAL_FLOW) {
 #if FAST_OPTICAL_FLOW
-    if (level == MAX_OPFL_LEVEL - 1) {
-      new_cost = iterate_update_mv(ref0, ref1, mf_last, mf_new, level, dstpos,
-                                   as_scale_factor, usescale);
+    if (0) {
+      new_cost = iterate_update_mv(buf_struct, mf_last, mf_new, level, dstpos,
+                                   as_scale_factor, usescale, blk_info);
     } else {
-      new_cost = iterate_update_mv_fast(ref0, ref1, mf_last, mf_new, level,
-                                        dstpos, as_scale_factor, usescale);
+      new_cost = iterate_update_mv_fast(buf_struct, mf_last, mf_new, level, dstpos,
+                                        as_scale_factor, usescale, blk_info);
     }
 #else
     new_cost = iterate_update_mv(buf_struct, mf_last, mf_new, level, dstpos,
@@ -1107,167 +1235,174 @@ double iterate_update_mv(OPFL_BUFFER_STRUCT *buf_struct,
  * Output:
  * mf_new: pointer to calculated motion field
  */
-//double iterate_update_mv_fast(YV12_BUFFER_CONFIG *ref0,
-//                              YV12_BUFFER_CONFIG *ref1, DB_MV *mf_last,
-//                              DB_MV *mf_new, int level, double dstpos,
-//                              double as_scale, int usescale) {
-//  double *Ex, *Ey, *Et;
-//  double a_squared = OF_A_SQUARED * as_scale;
-//  double cost = 0;
-//
-//  //  uint8_t *y0 = ref0->y_buffer;
-//  int y_width = ref0->y_width, y_height = ref0->y_height;
-//  int width = ref0->y_width, height = ref0->y_height;
-//  if (!usescale) {
-//    width = width >> level;
-//    height = height >> level;
-//  }
-//  int mvstr = width + 2 * AVG_MF_BORDER;
-//  DB_MV *mv_start = mf_last + AVG_MF_BORDER * mvstr + AVG_MF_BORDER;
-//  DB_MV *mv_start_new = mf_new + AVG_MF_BORDER * mvstr + AVG_MF_BORDER;
-//  int i, j;
-//
-//  // allocate buffers
-//  Ex = aom_calloc(width * height, sizeof(double));
-//  Ey = aom_calloc(width * height, sizeof(double));
-//  Et = aom_calloc(width * height, sizeof(double));
-//  YV12_BUFFER_CONFIG *buffer0 = aom_calloc(1, sizeof(YV12_BUFFER_CONFIG));
-//  YV12_BUFFER_CONFIG *buffer1 = aom_calloc(1, sizeof(YV12_BUFFER_CONFIG));
-//  aom_alloc_frame_buffer(buffer0, y_width, y_height, 1, 1, 0,
-//                         AOM_BORDER_IN_PIXELS, 0);
-//  aom_alloc_frame_buffer(buffer1, y_width, y_height, 1, 1, 0,
-//                         AOM_BORDER_IN_PIXELS, 0);
-//
-//  clock_t start, end;
-//  start = clock();
-//  // warp ref1 back to ref0 => buffer
-//  if (level == 0 || !usescale)
-//    warp_optical_flow_fwd(ref0, ref1, mv_start, mvstr, buffer0, dstpos, level,
-//                          usescale);
-//  else
-//    warp_optical_flow_fwd_bilinear(ref0, ref1, mv_start, mvstr, buffer0, dstpos,
-//                                   level, usescale);
-//  if (level == 0 || !usescale)
-//    warp_optical_flow_back(ref1, ref0, mv_start, mvstr, buffer1, 1 - dstpos,
-//                           level, usescale);
-//  else
-//    warp_optical_flow_back_bilinear(ref1, ref0, mv_start, mvstr, buffer1,
-//                                    1 - dstpos, level, usescale);
-//
-//  aom_yv12_extend_frame_borders_c(buffer0);
-//  aom_yv12_extend_frame_borders_c(buffer1);
-//  end = clock();
-//  timesub += (double)(end - start) / CLOCKS_PER_SEC;
-//
-//  start = clock();
-//  // Calculate partial derivatives
-//  opfl_get_derivatives(Ex, Ey, Et, buffer0, buffer1, dstpos, level, usescale);
-//  end = clock();
-//  timeder += (double)(end - start) / CLOCKS_PER_SEC;
-//
-//  // iterative solver
-//  start = clock();
-//  DB_MV *tempmv;
-//  DB_MV *bufmv_b =
-//      aom_calloc((height + 2 * AVG_MF_BORDER) * (width + 2 * AVG_MF_BORDER),
-//                 sizeof(DB_MV));
-//  DB_MV *bufmv = bufmv_b + AVG_MF_BORDER * mvstr + AVG_MF_BORDER;
-//  DB_MV *lp_last = aom_calloc(height * mvstr, sizeof(DB_MV));
-//  double *denorm = aom_calloc(height * width, sizeof(double));
-//  DB_MV avg;
-//  // get the laplacian of initial motion field
-//  int i0, i1, j0, j1;
-//  for (i = 0; i < height; i++) {
-//    for (j = 0; j < width; j++) {
-//      i0 = i - 1;
-//      i1 = i + 1;
-//      j0 = j - 1;
-//      j1 = j + 1;
-//      bufmv[i * mvstr + j].row = 0;
-//      bufmv[i * mvstr + j].col = 0;
-//      lp_last[i * mvstr + j].row = 0.25 * mv_start[i0 * mvstr + j].row +
-//                                   0.25 * mv_start[i1 * mvstr + j].row +
-//                                   0.25 * mv_start[i * mvstr + j0].row +
-//                                   0.25 * mv_start[i * mvstr + j1].row;
-//      lp_last[i * mvstr + j].row -= mv_start[i * mvstr + j].row;
-//      lp_last[i * mvstr + j].col = 0.25 * mv_start[i0 * mvstr + j].col +
-//                                   0.25 * mv_start[i1 * mvstr + j].col +
-//                                   0.25 * mv_start[i * mvstr + j0].col +
-//                                   0.25 * mv_start[i * mvstr + j1].col;
-//      lp_last[i * mvstr + j].col -= mv_start[i * mvstr + j].col;
-//      denorm[i * width + j] = 16 * a_squared +
-//                              Ex[i * width + j] * Ex[i * width + j] +
-//                              Ey[i * width + j] * Ey[i * width + j];
-//    }
-//  }
-//  // calculate the motion field
-//  for (int k = 0; k < MAX_ITER_FAST_OPFL; k++) {
-//    for (i = 0; i < height; i++) {
-//      for (j = 0; j < width; j++) {
-//        i0 = i - 1;
-//        i1 = i + 1;
-//        j0 = j - 1;
-//        j1 = j + 1;
-//        avg.row = 0.25 * bufmv[i0 * mvstr + j].row +
-//                  0.25 * bufmv[i1 * mvstr + j].row +
-//                  0.25 * bufmv[i * mvstr + j0].row +
-//                  0.25 * bufmv[i * mvstr + j1].row;
-//        avg.row += lp_last[i * mvstr + j].row;
-//        avg.col = 0.25 * bufmv[i0 * mvstr + j].col +
-//                  0.25 * bufmv[i1 * mvstr + j].col +
-//                  0.25 * bufmv[i * mvstr + j0].col +
-//                  0.25 * bufmv[i * mvstr + j1].col;
-//        avg.col += lp_last[i * mvstr + j].col;
-//        mv_start_new[i * mvstr + j].col =
-//            avg.col - Ex[i * width + j] *
-//                          (Ex[i * width + j] * avg.col +
-//                           Ey[i * width + j] * avg.row + Et[i * width + j]) /
-//                          denorm[i * width + j];
-//        mv_start_new[i * mvstr + j].row =
-//            avg.row - Ey[i * width + j] *
-//                          (Ex[i * width + j] * avg.col +
-//                           Ey[i * width + j] * avg.row + Et[i * width + j]) /
-//                          denorm[i * width + j];
-//      }
-//    }
-//    if (k < MAX_ITER_FAST_OPFL - 1) {
-//      tempmv = bufmv;
-//      bufmv = mv_start_new;
-//      mv_start_new = tempmv;
-//    }
-//  }
-//
-//  aom_free(bufmv_b);
-//  aom_free(lp_last);
-//  aom_free(denorm);
-//  end = clock();
-//  timesolve += (double)(end - start) / CLOCKS_PER_SEC;
-//
-//  // reshape motion field to 2D
-//  cost = 0;
-//  for (j = 0; j < width; j++) {
-//    for (i = 0; i < height; i++) {
-//      cost += mv_start_new[i * mvstr + j].row * mv_start_new[i * mvstr + j].row;
-//    }
-//  }
-//  for (j = 0; j < width; j++) {
-//    for (i = 0; i < height; i++) {
-//      cost += mv_start_new[i * mvstr + j].col * mv_start_new[i * mvstr + j].col;
-//    }
-//  }
-//
-//  // free buffers
-//  aom_free(Et);
-//  aom_free(Ex);
-//  aom_free(Ey);
-//  aom_free_frame_buffer(buffer0);
-//  aom_free(buffer0);
-//  aom_free_frame_buffer(buffer1);
-//  aom_free(buffer1);
-//
-//  cost = sqrt(cost);  // 2 norm
-//  return cost;
-//}
+double iterate_update_mv_fast(OPFL_BUFFER_STRUCT *buf_struct,
+                              DB_MV *mf_last, DB_MV *mf_new, int level,
+                              double dstpos, double as_scale, int usescale, OPFL_BLK_INFO blk_info) {
+  double *Ex, *Ey, *Et;
+  double a_squared = OF_A_SQUARED * as_scale;
+  double cost = 0;
+
+  YV12_BUFFER_CONFIG *ref0, *ref1, *buf_init0, *buf_init1;
+  int l = level;
+  if (!usescale)
+    l = 0;
+  ref0 = buf_struct->ref0_buf[l];
+  ref1 = buf_struct->ref1_buf[l];
+  buf_init0 = buf_struct->ref0_warped_buf[l];
+  buf_init1 = buf_struct->ref1_warped_buf[l];
+
+  int y_width = blk_info.blk_width, y_height = blk_info.blk_height;
+  int starth = blk_info.starth, startw = blk_info.startw;
+  int sh = starth >> level, sw = startw >> level;
+  int width = y_width, height = y_height;
+  width = width >> level;
+  height = height >> level;
+  if (usescale) {
+    y_width = y_width >> level;
+    y_height = y_height >> level;
+    starth = starth >> level;
+    startw = startw >> level;
+  }
+  int mvstr = width + 2 * AVG_MF_BORDER;
+  DB_MV *mv_start = mf_last + AVG_MF_BORDER * mvstr + AVG_MF_BORDER;
+  DB_MV *mv_start_new = mf_new + AVG_MF_BORDER * mvstr + AVG_MF_BORDER;
+  int i, j;
+
+  // allocate buffers
+  Ex = buf_struct->Ex;
+  Ey = buf_struct->Ey;
+  Et = buf_struct->Et;
+  YV12_BUFFER_CONFIG *buffer0 = buf_struct->buffer0[usescale?level:0];
+  YV12_BUFFER_CONFIG *buffer1 = buf_struct->buffer1[usescale?level:0];
+
+  int imvstr = buf_struct->ref0_buf[0]->y_width;
+  imvstr = (imvstr>>level) + 2*AVG_MF_BORDER;
+  DB_MV *initmv = buf_struct->init_mv_buf[level];
+  initmv = initmv + (sh+AVG_MF_BORDER) * imvstr + sw+AVG_MF_BORDER;
+  int fheight = buf_struct->ref0_buf[0]->y_height;
+  int fwidth = buf_struct->ref0_buf[0]->y_width;
+  fheight = fheight >> level;
+  fwidth = fwidth >> level;
+
+  clock_t starts = clock();
+  if (level == 0 || !usescale)
+    warp_optical_flow_fwd(ref0, ref1, mv_start, mvstr, buffer0, dstpos, level,
+                          usescale, blk_info);
+  else
+    warp_optical_flow_fwd_bilinear(ref0, ref1, mv_start, mvstr, buffer0, dstpos,
+                                   level, usescale, blk_info);
+  if (level == 0 || !usescale)
+    warp_optical_flow_back(ref1, ref0, mv_start, mvstr, buffer1, 1 - dstpos,
+                           level, usescale, blk_info);
+  else
+    warp_optical_flow_back_bilinear(ref1, ref0, mv_start, mvstr, buffer1,
+                                    1 - dstpos, level, usescale, blk_info);
+  clock_t ends = clock();
+  timesub += (double)(ends - starts) / CLOCKS_PER_SEC;
+
+  clock_t startd = clock();
+  // Calculate partial derivatives
+  opfl_get_derivatives(Ex, Ey, Et, buffer0, buffer1, buf_init0, buf_init1, dstpos, level, usescale, blk_info);
+  clock_t endd = clock();
+  timeder += (double)(endd - startd) / CLOCKS_PER_SEC;
+
+  // iterative solver
+  starts = clock();
+  DB_MV *tempmv;
+  DB_MV *bufmv_b =
+      aom_calloc((height + 2 * AVG_MF_BORDER) * (width + 2 * AVG_MF_BORDER),
+                 sizeof(DB_MV));
+  DB_MV *bufmv = bufmv_b + AVG_MF_BORDER * mvstr + AVG_MF_BORDER;
+  DB_MV *lp_last = aom_calloc(height * mvstr, sizeof(DB_MV));
+  double *denorm = aom_calloc(height * width, sizeof(double));
+  DB_MV avg;
+  // get the laplacian of initial motion field
+  pad_motion_field_border(mv_start, width, height, mvstr);
+  int i0, i1, j0, j1;
+  for (i = 0; i < height; i++) {
+    i0 = i - 1;
+    i1 = i + 1;
+    for (j = 0; j < width; j++) {
+      j0 = j - 1;
+      j1 = j + 1;
+      bufmv[i * mvstr + j].row = 0;
+      bufmv[i * mvstr + j].col = 0;
+
+      lp_last[i * mvstr + j].row = 0.25 * mv_start[i0 * mvstr + j].row +
+                                   0.25 * mv_start[i1 * mvstr + j].row +
+                                   0.25 * mv_start[i * mvstr + j0].row +
+                                   0.25 * mv_start[i * mvstr + j1].row;
+      lp_last[i * mvstr + j].row -= mv_start[i * mvstr + j].row;
+      lp_last[i * mvstr + j].col = 0.25 * mv_start[i0 * mvstr + j].col +
+                                   0.25 * mv_start[i1 * mvstr + j].col +
+                                   0.25 * mv_start[i * mvstr + j0].col +
+                                   0.25 * mv_start[i * mvstr + j1].col;
+      lp_last[i * mvstr + j].col -= mv_start[i * mvstr + j].col;
+      denorm[i * width + j] = 16 * a_squared +
+                              Ex[i * width + j] * Ex[i * width + j] +
+                              Ey[i * width + j] * Ey[i * width + j];
+    }
+  }
+  // calculate the motion field
+  for (int k = 0; k < MAX_ITER_FAST_OPFL; k++) {
+    pad_motion_field_border(bufmv, width, height, mvstr);
+    for (i = 0; i < height; i++) {
+      i0 = i - 1;
+      i1 = i + 1;
+      for (j = 0; j < width; j++) {
+        j0 = j - 1;
+        j1 = j + 1;
+        avg.row = 0.25 * bufmv[i0 * mvstr + j].row +
+                  0.25 * bufmv[i1 * mvstr + j].row +
+                  0.25 * bufmv[i * mvstr + j0].row +
+                  0.25 * bufmv[i * mvstr + j1].row;
+        avg.row += lp_last[i * mvstr + j].row;
+        avg.col = 0.25 * bufmv[i0 * mvstr + j].col +
+                  0.25 * bufmv[i1 * mvstr + j].col +
+                  0.25 * bufmv[i * mvstr + j0].col +
+                  0.25 * bufmv[i * mvstr + j1].col;
+        avg.col += lp_last[i * mvstr + j].col;
+        mv_start_new[i * mvstr + j].col =
+            avg.col - Ex[i * width + j] *
+                          (Ex[i * width + j] * avg.col +
+                           Ey[i * width + j] * avg.row + Et[i * width + j]) /
+                          denorm[i * width + j];
+        mv_start_new[i * mvstr + j].row =
+            avg.row - Ey[i * width + j] *
+                          (Ex[i * width + j] * avg.col +
+                           Ey[i * width + j] * avg.row + Et[i * width + j]) /
+                          denorm[i * width + j];
+      }
+    }
+    if (k < MAX_ITER_FAST_OPFL - 1) {
+      tempmv = bufmv;
+      bufmv = mv_start_new;
+      mv_start_new = tempmv;
+    }
+  }
+
+  aom_free(bufmv_b);
+  aom_free(lp_last);
+  aom_free(denorm);
+  ends = clock();
+  timesolve += (double)(ends - starts) / CLOCKS_PER_SEC;
+
+  // reshape motion field to 2D
+  cost = 0;
+  for (j = 0; j < width; j++) {
+    for (i = 0; i < height; i++) {
+      cost += mv_start_new[i * mvstr + j].row * mv_start_new[i * mvstr + j].row;
+    }
+  }
+  for (j = 0; j < width; j++) {
+    for (i = 0; i < height; i++) {
+      cost += mv_start_new[i * mvstr + j].col * mv_start_new[i * mvstr + j].col;
+    }
+  }
+
+  cost = sqrt(cost);  // 2 norm
+  return cost;
+}
 
 void opfl_get_derivatives(double *Ex, double *Ey, double *Et,
                           YV12_BUFFER_CONFIG *buffer0,
@@ -1315,7 +1450,7 @@ void opfl_get_derivatives(double *Ex, double *Ey, double *Et,
     for (j = 0; j < width; j++) {
       Ex[i * width + j] = 0;
       for (int k = 0; k < lh; k++) {
-        idx = j + k - hleft;
+        idx = j + (k - hleft);
         if ((idx < 0 && blk_info.leftbound != 1 )|| (idx > width - 1 && blk_info.rightbound !=1)) {
           Ex[i * width + j] +=
               filter[k] * (double)(buf0i[i * istride + idx]) * (1 - dstpos) +
@@ -1338,7 +1473,7 @@ void opfl_get_derivatives(double *Ex, double *Ey, double *Et,
     for (j = 0; j < width; j++) {
       Ey[i * width + j] = 0;
       for (int k = 0; k < lh; k++) {
-        idx = i + k - hleft;
+        idx = i + (k - hleft);
         if ((idx < 0 && blk_info.upbound != 1) || (idx > height - 1 && blk_info.lowerbound != 1) ) {
           Ey[i * width + j] +=
               filter[k] * (double)(buf0i[idx * istride + j]) * (1 - dstpos) +
@@ -1384,9 +1519,9 @@ void opfl_get_derivatives(double *Ex, double *Ey, double *Et,
                 tempEt[(i * blk_w + h) * width + j * blk_w + w];
           }
         }
-        Ex[i * s_width + j] = Ex[i * s_width + j] / blk_w;
-        Ey[i * s_width + j] = Ey[i * s_width + j] / blk_w;
-        Et[i * s_width + j] = Et[i * s_width + j] / (blk_w * blk_w);
+        Ex[i * s_width + j] /= blk_w;
+        Ey[i * s_width + j] /= blk_w;
+        Et[i * s_width + j] /= (blk_w * blk_w);
       }
     }
     aom_free(tempEx);
