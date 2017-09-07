@@ -2028,7 +2028,7 @@ static void decode_token_and_recon_block(AV1Decoder *const pbi,
     int ref;
 #if CONFIG_OPFL
     assert(mbmi->ref_frame[1] != OPFL_FRAME);
-    if (mbmi->ref_frame[0] == OPFL_FRAME){
+    if (mbmi->ref_frame[0] == OPFL_FRAME) {
       int startblkh = (mi_row << 2);
       int startblkw = (mi_col << 2);
       int endblkh, endblkw;
@@ -2049,10 +2049,10 @@ static void decode_token_and_recon_block(AV1Decoder *const pbi,
       if (bsize < BLOCK_8X8) {
         // Offset the buffer pointer
         if (mi_row & 0x01) {
-          startblkh -= (1<<2);
+          startblkh -= (1 << 2);
         }
         if (mi_col & 0x01) {
-          startblkw -= (1<<2);
+          startblkw -= (1 << 2);
         }
       }
 #endif
@@ -2060,45 +2060,34 @@ static void decode_token_and_recon_block(AV1Decoder *const pbi,
       int width = cm->opfl_ref_frame->y_width;
       int height = cm->opfl_ref_frame->y_height;
 
-  #if FRAME_LEVEL_OPFL
+#if FRAME_LEVEL_OPFL
       blkheight = height;
       blkwidth = width;
-  #else
+#else
       blkheight = OPFL_BLOCK_SIZE;
       blkwidth = OPFL_BLOCK_SIZE;
-  #endif
-      int wblk = (width+blkwidth-1)/blkwidth;
+#endif
+      int wblk = (width + blkwidth - 1) / blkwidth;
 
-      startblkh = (startblkh/blkheight)*blkheight;
-      endblkh = ((endblkh+blkheight-1)/blkheight)*blkheight;
-      startblkw = (startblkw/blkwidth)*blkwidth;
-      endblkw = ((endblkw+blkwidth-1)/blkwidth)*blkwidth;
-      if (startblkh < 0)
-        startblkh = 0;
-      if (startblkw < 0)
-        startblkw = 0;
-      if (endblkw <= startblkw)
-        endblkw = startblkw + blkwidth;
-      if (endblkh <= startblkh)
-        endblkh = startblkh + blkheight;
+      startblkh = (startblkh / blkheight) * blkheight;
+      endblkh = ((endblkh + blkheight - 1) / blkheight) * blkheight;
+      startblkw = (startblkw / blkwidth) * blkwidth;
+      endblkw = ((endblkw + blkwidth - 1) / blkwidth) * blkwidth;
+      if (startblkh < 0) startblkh = 0;
+      if (startblkw < 0) startblkw = 0;
+      if (endblkw <= startblkw) endblkw = startblkw + blkwidth;
+      if (endblkh <= startblkh) endblkh = startblkh + blkheight;
 
-//      if (124 >= startblkw && 124 < endblkw && 184 >= startblkh && 184 < endblkh
-//          && cm->cur_frame->cur_frame_offset == 4) {
-//        printf("\n%d, %d, %d, %d, %d, %d, %d, %d\n", startblkh, endblkh,
-//               startblkw, endblkw, mbmi->mv[0].as_mv.row, mbmi->mv[0].as_mv.col,
-//               (int)floor(mvr), (int)floor(mvc));
-//        fflush(stdout);
-//      }
-
-      for (int i = startblkh; i < endblkh; i+=blkheight) {
-        for (int j = startblkw; j < endblkw; j+=blkwidth) {
+      for (int i = startblkh; i < endblkh; i += blkheight) {
+        for (int j = startblkw; j < endblkw; j += blkwidth) {
           if (i >= height) {
             continue;
           }
           if (j >= width) {
             continue;
           }
-          if (cm->opfl_buf_struct_ptr->done_flag[i/blkheight*wblk+j/blkwidth])
+          if (cm->opfl_buf_struct_ptr
+                  ->done_flag[i / blkheight * wblk + j / blkwidth])
             continue;
           blk_info.starth = i;
           blk_info.startw = j;
@@ -2118,16 +2107,13 @@ static void decode_token_and_recon_block(AV1Decoder *const pbi,
           blk_info.leftbound = 0;
           blk_info.rightbound = 0;
 
-          if (i == 0)
-            blk_info.upbound = 1;
-          if (i + blkheight >= height)
-            blk_info.lowerbound = 1;
-          if (j == 0)
-            blk_info.leftbound = 1;
-          if (j + blkwidth >= width)
-            blk_info.rightbound = 1;
+          if (i == 0) blk_info.upbound = 1;
+          if (i + blkheight >= height) blk_info.lowerbound = 1;
+          if (j == 0) blk_info.leftbound = 1;
+          if (j + blkwidth >= width) blk_info.rightbound = 1;
           optical_flow_get_ref(cm->opfl_buf_struct_ptr, blk_info);
-          cm->opfl_buf_struct_ptr->done_flag[i/blkheight*wblk+j/blkwidth] = 1;
+          cm->opfl_buf_struct_ptr
+              ->done_flag[i / blkheight * wblk + j / blkwidth] = 1;
         }
       }
     }
@@ -5556,21 +5542,6 @@ void av1_decode_frame(AV1Decoder *pbi, const uint8_t *data,
   cm->opfl_buf_struct_ptr = aom_calloc(1, sizeof(OPFL_BUFFER_STRUCT));
   av1_opfl_set_buf(cm, cm->opfl_buf_struct_ptr);
   cm->opfl_available = cm->opfl_buf_struct_ptr->initialized;
-//  if (cm->opfl_available) {
-//    for (int i = 0; i < cm->opfl_ref_frame->y_height; i++) {
-//      for (int j = 0; j < cm->opfl_ref_frame->y_width; j++) {
-//        int s = cm->opfl_ref_frame->y_stride;
-//        cm->opfl_ref_frame->y_buffer[i*s+j] = 0;
-//      }
-//    }
-//    for (int i = 0; i < cm->opfl_ref_frame->uv_height; i++) {
-//      for (int j = 0; j < cm->opfl_ref_frame->uv_width; j++) {
-//        int s = cm->opfl_ref_frame->uv_stride;
-//        cm->opfl_ref_frame->u_buffer[i*s+j] = 0;
-//        cm->opfl_ref_frame->v_buffer[i*s+j] = 0;
-//      }
-//    }
-//  }
 #endif
 #endif
 
