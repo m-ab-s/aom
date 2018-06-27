@@ -722,7 +722,7 @@ void refine_motion_field(OPFL_BUFFER_STRUCT *buf_struct, DB_MV *mf_last,
                                as_scale_factor, usescale, blk_info);
 #else
     new_cost = iterate_update_mv(buf_struct, mf_last, mf_new, level, dstpos,
-                                 as_scale_factor, usescale, blk_info);
+                                 as_scale_factor, usescale, blk_info, count);
 #endif
     // prepare for the next iteration
     DB_MV *mv_start = mf_last + AVG_MF_BORDER * mvstr + AVG_MF_BORDER;
@@ -743,9 +743,9 @@ void refine_motion_field(OPFL_BUFFER_STRUCT *buf_struct, DB_MV *mf_last,
         mv_start_new[i * mvstr + j].col = mv_start[i * mvstr + j].col;
       }
     }
-    if (new_cost >= last_cost) {
-      break;
-    }
+    // if (new_cost >= last_cost) {
+    //   break;
+    // }
     last_cost = new_cost;
     count++;
     as_scale_factor *= OPFL_ANNEAL_FACTOR;
@@ -770,8 +770,8 @@ void refine_motion_field(OPFL_BUFFER_STRUCT *buf_struct, DB_MV *mf_last,
  */
 double iterate_update_mv(OPFL_BUFFER_STRUCT *buf_struct, DB_MV *mf_last,
                          DB_MV *mf_new, int level, double dstpos,
-                         double as_scale, int usescale,
-                         OPFL_BLK_INFO blk_info) {
+                         double as_scale, int usescale, OPFL_BLK_INFO blk_info,
+                         int numWarpedRounds) {
   double *Ex, *Ey, *Et;
   double a_squared = OF_A_SQUARED * as_scale;
   double cost = 0;
@@ -815,6 +815,8 @@ double iterate_update_mv(OPFL_BUFFER_STRUCT *buf_struct, DB_MV *mf_last,
   double *mv_vec = aom_calloc(width * height * 2, sizeof(double));
   double *b = aom_calloc(width * height * 2, sizeof(double));
   double *last_mv_vec = mv_vec;
+  double *pixel_weight = aom_calloc(width * height, sizeof(double));
+  double *mv_weight = aom_calloc(width * height, sizeof(double));
 
   int imvstr = buf_struct->ref0_buf[0]->y_width;
   imvstr = (imvstr >> level) + 2 * AVG_MF_BORDER;
@@ -862,67 +864,109 @@ double iterate_update_mv(OPFL_BUFFER_STRUCT *buf_struct, DB_MV *mf_last,
           mv_start[i * mvstr + j].row;
     }
   }
-
-  double boundfactor = 1;
+  // check if pointing out of bound
+  double boundFactor = 0.01;
+  double pixExpFactor = 0.005;
+  double mvExpFactor = 0.05;
+  for (i = 0; i < height; i++) {
+    for (j = 0; j < width; j++) {
+      pixel_weight[i * width + j] = 1;
+      mv_weight[i * width + j] = 1;
+    }
+  }
+  double i0, i1, j0, j1;
+  for (i = 0; i < height; i++) {
+    for (j = 0; j < width; j++) {
+      i0 = (double)(i + starth) -
+           (1 - buf_struct->dst_pos) * mv_start[i * mvstr + j].row;
+      i1 = (double)(i + starth) +
+           (buf_struct->dst_pos) * mv_start[i * mvstr + j].row;
+      j0 = (double)(j + startw) -
+           (1 - buf_struct->dst_pos) * mv_start[i * mvstr + j].col;
+      j1 = (double)(j + startw) +
+           (buf_struct->dst_pos) * mv_start[i * mvstr + j].col;
+      int is_out = (i0 < 0 || i0 > fheight - 1 || i1 < 0 || i1 > fheight - 1 ||
+                    j0 < 0 || j0 > fwidth - 1 || j1 < 0 || j1 > fwidth - 1);
+      if (is_out) {
+        pixel_weight[i * width + j] = 0.001;
+        mv_weight[i * width + j] = boundFactor;
+      } else if (level > 2 && numWarpedRounds > 2) {
+        pixel_weight[i * width + j] =
+            exp(-pixExpFactor * Et[i * width + j] * Et[i * width + j]);
+        pixel_weight[i * width + j] = (pixel_weight[i * width + j] > 0.001)
+                                          ? pixel_weight[i * width + j]
+                                          : 0.001;
+        mv_weight[i * width + j] =
+            exp(-mvExpFactor * Et[i * width + j] * Et[i * width + j]);
+        mv_weight[i * width + j] = (mv_weight[i * width + j] > boundFactor)
+                                       ? mv_weight[i * width + j]
+                                       : boundFactor;
+      }
+    }
+  }
   // get laplacian filter matrix F; Currently using:
   //    0,  1, 0
   //    1, -4, 1
   //    0,  1, 0
   // M = [F 0; 0 F].
   int c = 0;
+  double center, up, low, left, right;
   for (j = 0; j < width; j++) {
     for (i = 0; i < height; i++) {
-      int center = -4, up = 1, low = 1, left = 1, right = 1;
+      up = 1;
+      low = 1;
+      left = 1;
+      right = 1;
       if (i == 0) {
-        if (blk_info.upbound)
-          center = center + up;
-        else
-          center = center + boundfactor * up;
         up = 0;
-      } else if (i == height - 1) {
-        if (blk_info.lowerbound)
-          center = center + low;
-        else
-          center = center + boundfactor * low;
+      } else {
+        up = mv_weight[(i - 1) * width + j];
+      }
+      if (i == height - 1) {
         low = 0;
+      } else {
+        low = mv_weight[(i + 1) * width + j];
       }
       if (j == 0) {
-        if (blk_info.leftbound)
-          center = center + left;
-        else
-          center = center + boundfactor * left;
         left = 0;
-      } else if (j == width - 1) {
-        if (blk_info.rightbound)
-          center = center + right;
-        else
-          center = center + boundfactor * right;
-        right = 0;
+      } else {
+        left = mv_weight[i * width + j - 1];
       }
-
-      if (up) {
+      if (j == width - 1) {
+        right = 0;
+      } else {
+        right = mv_weight[i * width + j + 1];
+      }
+      center = up + low + left + right;
+      center = -center;
+      // up
+      if (i != 0) {
         row_pos[c] = j * height + i;
         col_pos[c] = j * height + i - 1;
         values[c] = up;
         c++;
       }
-      if (left) {
+      // left
+      if (j != 0) {
         row_pos[c] = j * height + i;
         col_pos[c] = (j - 1) * height + i;
         values[c] = left;
         c++;
       }
+      // center
       row_pos[c] = j * height + i;
       col_pos[c] = j * height + i;
       values[c] = center;
       c++;
-      if (right) {
+      // right
+      if (j != width - 1) {
         row_pos[c] = j * height + i;
         col_pos[c] = (j + 1) * height + i;
         values[c] = right;
         c++;
       }
-      if (low) {
+      // low
+      if (i != height - 1) {
         row_pos[c] = j * height + i;
         col_pos[c] = j * height + i + 1;
         values[c] = low;
@@ -930,6 +974,7 @@ double iterate_update_mv(OPFL_BUFFER_STRUCT *buf_struct, DB_MV *mf_last,
       }
     }
   }
+
   init_sparse_mtx(row_pos, col_pos, values, c, height * width, height * width,
                   &F);
   init_combine_sparse_mtx(&F, &F, &M, 0, 0, height * width, height * width,
@@ -943,151 +988,145 @@ double iterate_update_mv(OPFL_BUFFER_STRUCT *buf_struct, DB_MV *mf_last,
   c = 0;
   for (j = 0; j < width; j++) {
     for (i = 0; i < height; i++) {
-      int center = -4, up = 1, low = 1, left = 1, right = 1;
-      double tempr = 0, tempc = 0;
+      up = 1;
+      low = 1;
+      left = 1;
+      right = 1;
       if (i == 0) {
-        if (blk_info.upbound)
-          center = center + up;
-        else {
-          tempr += initmv[(i - 1) * imvstr + j].row;
-          tempc += initmv[(i - 1) * imvstr + j].col;
-          center = center + boundfactor * up;
-        }
         up = 0;
-      } else if (i == height - 1) {
-        if (blk_info.lowerbound)
-          center = center + low;
-        else {
-          tempr += initmv[(i + 1) * imvstr + j].row;
-          tempc += initmv[(i + 1) * imvstr + j].col;
-          center = center + boundfactor * low;
-        }
+      } else {
+        up = mv_weight[(i - 1) * width + j];
+      }
+      if (i == height - 1) {
         low = 0;
+      } else {
+        low = mv_weight[(i + 1) * width + j];
       }
       if (j == 0) {
-        if (blk_info.leftbound)
-          center = center + left;
-        else {
-          tempr += initmv[i * imvstr + j - 1].row;
-          tempc += initmv[i * imvstr + j - 1].col;
-          center = center + boundfactor * left;
-        }
         left = 0;
-      } else if (j == width - 1) {
-        if (blk_info.rightbound)
-          center = center + right;
-        else {
-          tempr += initmv[i * imvstr + j + 1].row;
-          tempc += initmv[i * imvstr + j + 1].col;
-          center = center + boundfactor * right;
-        }
+      } else {
+        left = mv_weight[i * width + j - 1];
+      }
+      if (j == width - 1) {
         right = 0;
+      } else {
+        right = mv_weight[i * width + j + 1];
       }
 
-      if (up) {
+      center = up + low + left + right;
+      center = -center;
+
+      if (i != 0) {
         row_pos[c] = j * height + i;
         col_pos[c] = j * height + i - 1;
-        values[c] = -a_squared * (double)up;
+        values[c] = -a_squared * up;
         c++;
       }
-      if (left) {
+
+      if (j != 0) {
         row_pos[c] = j * height + i;
         col_pos[c] = (j - 1) * height + i;
-        values[c] = -a_squared * (double)left;
+        values[c] = -a_squared * left;
         c++;
       }
 
       row_pos[c] = j * height + i;
       col_pos[c] = j * height + i;
+      // if point out of frame, then derivatives not reliable, do not use
       values[c] =
-          Ex[i * width + j] * Ex[i * width + j] - a_squared * (double)center;
+          pixel_weight[i * width + j] * Ex[i * width + j] * Ex[i * width + j] -
+          a_squared * center;
       c++;
 
-      if (right) {
+      if (j != width - 1) {
         row_pos[c] = j * height + i;
         col_pos[c] = (j + 1) * height + i;
-        values[c] = -a_squared * (double)right;
+        values[c] = -a_squared * right;
         c++;
       }
-      if (low) {
+
+      if (i != height - 1) {
         row_pos[c] = j * height + i;
         col_pos[c] = j * height + i + 1;
-        values[c] = -a_squared * (double)low;
+        values[c] = -a_squared * low;
         c++;
       }
-      b[j * height + i] += a_squared * tempc * (1 - boundfactor);
-      b[j * height + i + width * height] +=
-          a_squared * tempr * (1 - boundfactor);
     }
   }
   for (j = 0; j < width; j++) {
     for (i = 0; i < height; i++) {
-      int center = -4, up = 1, low = 1, left = 1, right = 1;
+      up = 1;
+      low = 1;
+      left = 1;
+      right = 1;
       if (i == 0) {
-        if (blk_info.upbound)
-          center = center + up;
-        else
-          center = center + boundfactor * up;
         up = 0;
-      } else if (i == height - 1) {
-        if (blk_info.lowerbound)
-          center = center + low;
-        else
-          center = center + boundfactor * low;
+      } else {
+        up = mv_weight[(i - 1) * width + j];
+      }
+      if (i == height - 1) {
         low = 0;
+      } else {
+        low = mv_weight[(i + 1) * width + j];
       }
       if (j == 0) {
-        if (blk_info.leftbound)
-          center = center + left;
-        else
-          center = center + boundfactor * left;
         left = 0;
-      } else if (j == width - 1) {
-        if (blk_info.rightbound)
-          center = center + right;
-        else
-          center = center + boundfactor * right;
+      } else {
+        left = mv_weight[i * width + j - 1];
+      }
+      if (j == width - 1) {
         right = 0;
+      } else {
+        right = mv_weight[i * width + j + 1];
       }
 
-      if (up) {
+      center = up + low + left + right;
+      center = -center;
+
+      if (i != 0) {
         row_pos[c] = offset + j * height + i;
         col_pos[c] = offset + j * height + i - 1;
-        values[c] = -a_squared * (double)up;
+        values[c] = -a_squared * up;
         c++;
       }
-      if (left) {
+
+      if (j != 0) {
         row_pos[c] = offset + j * height + i;
         col_pos[c] = offset + (j - 1) * height + i;
-        values[c] = -a_squared * (double)left;
+        values[c] = -a_squared * left;
         c++;
       }
 
       row_pos[c] = offset + j * height + i;
       col_pos[c] = offset + j * height + i;
       values[c] =
-          Ey[i * width + j] * Ey[i * width + j] - a_squared * (double)center;
+          pixel_weight[i * width + j] * Ey[i * width + j] * Ey[i * width + j] -
+          a_squared * center;
       c++;
 
-      if (right) {
+      if (j != width - 1) {
         row_pos[c] = offset + j * height + i;
         col_pos[c] = offset + (j + 1) * height + i;
-        values[c] = -a_squared * (double)right;
+        values[c] = -a_squared * right;
         c++;
       }
-      if (low) {
+
+      if (i != height - 1) {
         row_pos[c] = offset + j * height + i;
         col_pos[c] = offset + j * height + i + 1;
-        values[c] = -a_squared * (double)low;
+        values[c] = -a_squared * low;
         c++;
       }
     }
   }
+
   for (j = 0; j < width; j++) {
     for (i = 0; i < height; i++) {
       row_pos[c] = offset + j * height + i;
       col_pos[c] = j * height + i;
-      values[c] = Ex[i * width + j] * Ey[i * width + j];
+
+      values[c] =
+          pixel_weight[i * width + j] * Ex[i * width + j] * Ey[i * width + j];
       c++;
     }
   }
@@ -1095,7 +1134,9 @@ double iterate_update_mv(OPFL_BUFFER_STRUCT *buf_struct, DB_MV *mf_last,
     for (i = 0; i < height; i++) {
       row_pos[c] = j * height + i;
       col_pos[c] = offset + j * height + i;
-      values[c] = Ex[i * width + j] * Ey[i * width + j];
+
+      values[c] =
+          pixel_weight[i * width + j] * Ex[i * width + j] * Ey[i * width + j];
       c++;
     }
   }
@@ -1105,15 +1146,12 @@ double iterate_update_mv(OPFL_BUFFER_STRUCT *buf_struct, DB_MV *mf_last,
   // adjust b
   for (j = 0; j < width; j++) {
     for (i = 0; i < height; i++) {
-      b[j * height + i] =
-          b[j * height + i] - Et[i * width + j] * Ex[i * width + j];
-    }
-  }
-  for (j = 0; j < width; j++) {
-    for (i = 0; i < height; i++) {
+      b[j * height + i] = b[j * height + i] - pixel_weight[i * width + j] *
+                                                  Et[i * width + j] *
+                                                  Ex[i * width + j];
       b[j * height + i + height * width] =
           b[j * height + i + height * width] -
-          Et[i * width + j] * Ey[i * width + j];
+          pixel_weight[i * width + j] * Et[i * width + j] * Ey[i * width + j];
     }
   }
   endi = clock();
@@ -1149,6 +1187,8 @@ double iterate_update_mv(OPFL_BUFFER_STRUCT *buf_struct, DB_MV *mf_last,
   free_sparse_mtx_elems(&M);
   aom_free(mv_vec);
   aom_free(b);
+  aom_free(pixel_weight);
+  aom_free(mv_weight);
 
   cost = sqrt(cost);  // 2 norm
   return cost;

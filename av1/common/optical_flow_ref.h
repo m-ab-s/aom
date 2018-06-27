@@ -36,7 +36,7 @@ extern "C" {
 #define MAX_ITER_FAST_OPFL 15  // this has to be an odd number for now.
 #define USE_MEDIAN_FILTER 1
 
-#define FRAME_LEVEL_OPFL 0
+#define FRAME_LEVEL_OPFL 1
 #define OPFL_BLOCK_SIZE 16
 
 // MACROs for Debug
@@ -109,7 +109,7 @@ void refine_motion_field(OPFL_BUFFER_STRUCT *buf_struct, DB_MV *mf_last,
                          OPFL_BLK_INFO blk_info);
 double iterate_update_mv(OPFL_BUFFER_STRUCT *buf_struct, DB_MV *mf_last,
                          DB_MV *mf_new, int level, double dstpos,
-                         double as_scale, int usescale, OPFL_BLK_INFO blk_info);
+                         double as_scale, int usescale, OPFL_BLK_INFO blk_info, int numWarpedRounds);
 double iterate_update_mv_fast(OPFL_BUFFER_STRUCT *buf_struct, DB_MV *mf_last,
                               DB_MV *mf_new, int level, double dstpos,
                               double as_scale, int usescale,
