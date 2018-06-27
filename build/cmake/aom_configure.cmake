@@ -210,6 +210,8 @@ else ()
   add_compiler_flag_if_supported("-D_FILE_OFFSET_BITS=64")
 endif ()
 
+append_exe_linker_flag("-no-pie")
+
 if ("${AOM_TARGET_SYSTEM}" MATCHES "Darwin\|Linux\|Windows")
   set(CONFIG_OS_SUPPORT 1)
 endif ()

@@ -76,6 +76,15 @@ set(AOM_AV1_COMMON_SOURCES
     "${AOM_ROOT}/av1/common/tile_common.c"
     "${AOM_ROOT}/av1/common/tile_common.h")
 
+if (CONFIG_OPFL)
+  set(AOM_AV1_COMMON_SOURCES
+      ${AOM_AV1_COMMON_SOURCES}
+      "${AOM_ROOT}/av1/common/sparse_linear_solver.h"
+      "${AOM_ROOT}/av1/common/sparse_linear_solver.c"
+      "${AOM_ROOT}/av1/common/optical_flow_ref.h"
+      "${AOM_ROOT}/av1/common/optical_flow_ref.c")
+endif ()
+
 set(AOM_AV1_DECODER_SOURCES
     "${AOM_ROOT}/av1/av1_dx_iface.c"
     "${AOM_ROOT}/av1/decoder/decodeframe.c"
