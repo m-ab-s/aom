@@ -109,7 +109,8 @@ void refine_motion_field(OPFL_BUFFER_STRUCT *buf_struct, DB_MV *mf_last,
                          OPFL_BLK_INFO blk_info);
 double iterate_update_mv(OPFL_BUFFER_STRUCT *buf_struct, DB_MV *mf_last,
                          DB_MV *mf_new, int level, double dstpos,
-                         double as_scale, int usescale, OPFL_BLK_INFO blk_info, int numWarpedRounds);
+                         double as_scale, int usescale, OPFL_BLK_INFO blk_info,
+                         int numWarpedRounds);
 double iterate_update_mv_fast(OPFL_BUFFER_STRUCT *buf_struct, DB_MV *mf_last,
                               DB_MV *mf_new, int level, double dstpos,
                               double as_scale, int usescale,
@@ -170,6 +171,9 @@ void extend_plane_opfl(uint8_t *const src, int src_stride, int width,
                        int extend_bottom, int extend_right);
 
 int write_image_opfl(const YV12_BUFFER_CONFIG *const ref_buf, char *file_name);
+
+int opfl_round_double_2_int(double x);
+int opfl_floor_double_2_int(double x);
 
 #endif  // CONFIG_OPFL
 

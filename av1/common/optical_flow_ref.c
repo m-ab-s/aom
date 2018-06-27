@@ -26,14 +26,15 @@
 double timeinit, timesub, timesolve, timeder, timemed, timetotal;
 clock_t startt, endt;
 static int optical_flow_warp_filter[16][8] = {
-    {0, 0, 0, 128, 0, 0, 0, 0},      {0, 2, -6, 126, 8, -2, 0, 0},
-    {0, 2, -10, 122, 18, -4, 0, 0},  {0, 2, -12, 116, 28, -8, 2, 0},
-    {0, 2, -14, 110, 38, -10, 2, 0}, {0, 2, -14, 102, 48, -12, 2, 0},
-    {0, 2, -16, 94, 58, -12, 2, 0},  {0, 2, -14, 84, 66, -12, 2, 0},
-    {0, 2, -14, 76, 76, -14, 2, 0},  {0, 2, -12, 66, 84, -14, 2, 0},
-    {0, 2, -12, 58, 94, -16, 2, 0},  {0, 2, -12, 48, 102, -14, 2, 0},
-    {0, 2, -10, 38, 110, -14, 2, 0}, {0, 2, -8, 28, 116, -12, 2, 0},
-    {0, 0, -4, 18, 122, -10, 2, 0},  {0, 0, -2, 8, 126, -6, 2, 0}};
+  { 0, 0, 0, 128, 0, 0, 0, 0 },      { 0, 2, -6, 126, 8, -2, 0, 0 },
+  { 0, 2, -10, 122, 18, -4, 0, 0 },  { 0, 2, -12, 116, 28, -8, 2, 0 },
+  { 0, 2, -14, 110, 38, -10, 2, 0 }, { 0, 2, -14, 102, 48, -12, 2, 0 },
+  { 0, 2, -16, 94, 58, -12, 2, 0 },  { 0, 2, -14, 84, 66, -12, 2, 0 },
+  { 0, 2, -14, 76, 76, -14, 2, 0 },  { 0, 2, -12, 66, 84, -14, 2, 0 },
+  { 0, 2, -12, 58, 94, -16, 2, 0 },  { 0, 2, -12, 48, 102, -14, 2, 0 },
+  { 0, 2, -10, 38, 110, -14, 2, 0 }, { 0, 2, -8, 28, 116, -12, 2, 0 },
+  { 0, 0, -4, 18, 122, -10, 2, 0 },  { 0, 0, -2, 8, 126, -6, 2, 0 }
+};
 
 /*
  * Interpolate the whole opfl reference frame.
@@ -148,9 +149,9 @@ void opfl_fill_mv(int_mv *pmv, int width, int height) {
           }
           if (avgcnt != 0) {
             tempmv[i * width + j].as_mv.col =
-                round((double)avg.as_mv.col / avgcnt);
+                opfl_round_double_2_int((double)avg.as_mv.col / avgcnt);
             tempmv[i * width + j].as_mv.row =
-                round((double)avg.as_mv.row / avgcnt);
+                opfl_round_double_2_int((double)avg.as_mv.row / avgcnt);
           }
         }
       }
@@ -1387,8 +1388,9 @@ void opfl_get_derivatives(double *Ex, double *Ey, double *Et,
                           int level, int usescale, OPFL_BLK_INFO blk_info) {
   int lh = DERIVATIVE_FILTER_LENGTH;
   int hleft = (lh - 1) / 2;
-  double filter[DERIVATIVE_FILTER_LENGTH] = {
-      -1.0 / 60, 9.0 / 60, -45.0 / 60, 0, 45.0 / 60, -9.0 / 60, 1.0 / 60};
+  double filter[DERIVATIVE_FILTER_LENGTH] = { -1.0 / 60, 9.0 / 60,  -45.0 / 60,
+                                              0,         45.0 / 60, -9.0 / 60,
+                                              1.0 / 60 };
   int idx, i, j;
   int width = blk_info.blk_width;
   int height = blk_info.blk_height;
@@ -1407,7 +1409,7 @@ void opfl_get_derivatives(double *Ex, double *Ey, double *Et,
   uint8_t *buf0i = buffer_init0->y_buffer + starth * istride + startw;
   uint8_t *buf1i = buffer_init1->y_buffer + starth * istride + startw;
 
-  double *tempEx, *tempEy, *tempEt;
+  double *tempEx = NULL, *tempEy = NULL, *tempEt = NULL;
   double *oriEx = Ex, *oriEy = Ey, *oriEt = Et;
   if (!usescale && level != 0) {
     tempEx = aom_calloc(width * height, sizeof(double));
@@ -1502,9 +1504,9 @@ void opfl_get_derivatives(double *Ex, double *Ey, double *Et,
         Et[i * s_width + j] /= (blk_w * blk_w);
       }
     }
-    aom_free(tempEx);
-    aom_free(tempEy);
-    aom_free(tempEt);
+    if (tempEx) aom_free(tempEx);
+    if (tempEy) aom_free(tempEy);
+    if (tempEt) aom_free(tempEt);
   }
 }
 
@@ -1546,9 +1548,9 @@ void warp_optical_flow_back(YV12_BUFFER_CONFIG *src, YV12_BUFFER_CONFIG *ref,
            mf_start[(i / blk_w) * mvstr + j / blk_w].row * blk_w * dstpos;
       jj = j + startw +
            mf_start[(i / blk_w) * mvstr + j / blk_w].col * blk_w * dstpos;
-      i0 = floor(ii);
+      i0 = opfl_floor_double_2_int(ii);
       di = ii - i0;
-      j0 = floor(jj);
+      j0 = opfl_floor_double_2_int(jj);
       dj = jj - j0;
       if (i0 < 0 || i0 > fheight - 1 || j0 < 0 || j0 > fwidth - 1) {
         dsty[i * dststride + j] = refy[(i + starth) * srcstride + j + startw];
@@ -1599,10 +1601,10 @@ void warp_optical_flow_back_bilinear(YV12_BUFFER_CONFIG *src,
            mf_start[(i / blk_w) * mvstr + j / blk_w].row * blk_w * dstpos;
       jj = j + startw +
            mf_start[(i / blk_w) * mvstr + j / blk_w].col * blk_w * dstpos;
-      i0 = floor(ii);
+      i0 = opfl_floor_double_2_int(ii);
       di = 1 - ii + i0;
       i1 = i0 + 1;
-      j0 = floor(jj);
+      j0 = opfl_floor_double_2_int(jj);
       dj = 1 - jj + j0;
       j1 = j0 + 1;
       if (i0 < 0 || i0 > fheight - 1 || j0 < 0 || j0 > fwidth - 1) {
@@ -1656,9 +1658,9 @@ void warp_optical_flow_fwd(YV12_BUFFER_CONFIG *src, YV12_BUFFER_CONFIG *ref,
            mf_start[(i / blk_w) * mvstr + j / blk_w].row * blk_w * dstpos;
       jj = j + startw -
            mf_start[(i / blk_w) * mvstr + j / blk_w].col * blk_w * dstpos;
-      i0 = floor(ii);
+      i0 = opfl_floor_double_2_int(ii);
       di = ii - i0;
-      j0 = floor(jj);
+      j0 = opfl_floor_double_2_int(jj);
       dj = jj - j0;
       if (i0 < 0 || i0 > fheight - 1 || j0 < 0 || j0 > fwidth - 1) {
         dsty[i * dststride + j] = refy[(i + starth) * srcstride + j + startw];
@@ -1711,10 +1713,10 @@ void warp_optical_flow_fwd_bilinear(YV12_BUFFER_CONFIG *src,
            mf_start[(i / blk_w) * mvstr + j / blk_w].row * blk_w * dstpos;
       jj = j + startw -
            mf_start[(i / blk_w) * mvstr + j / blk_w].col * blk_w * dstpos;
-      i0 = floor(ii);
+      i0 = opfl_floor_double_2_int(ii);
       di = 1 - ii + i0;
       i1 = i0 + 1;
-      j0 = floor(jj);
+      j0 = opfl_floor_double_2_int(jj);
       dj = 1 - jj + j0;
       j1 = j0 + 1;
       if (i0 < 0 || i0 > fheight - 1 || j0 < 0 || j0 > fwidth - 1) {
@@ -1772,8 +1774,8 @@ void warp_optical_flow(YV12_BUFFER_CONFIG *src0, YV12_BUFFER_CONFIG *src1,
   uint8_t *dstu = dst->u_buffer + starthuv * uvstride + startwuv;
   uint8_t *dstv = dst->v_buffer + starthuv * uvstride + startwuv;
 
-  double ii0, jj0, di0, dj0, di0uv, dj0uv;
-  double ii1, jj1, di1, dj1, di1uv, dj1uv;
+  double ii0, jj0, di0, dj0, di0uv = 0, dj0uv = 0;
+  double ii1, jj1, di1, dj1, di1uv = 0, dj1uv = 0;
   int i0, j0;
   int i1, j1;
   double dstpel_y, dstpel_u, dstpel_v;
@@ -1790,13 +1792,13 @@ void warp_optical_flow(YV12_BUFFER_CONFIG *src0, YV12_BUFFER_CONFIG *src1,
       jj0 = j - mf_start[i * mvstr + j].col * dstpos;
       ii1 = i + mf_start[i * mvstr + j].row * (1 - dstpos);
       jj1 = j + mf_start[i * mvstr + j].col * (1 - dstpos);
-      i0 = floor(ii0);
+      i0 = opfl_floor_double_2_int(ii0);
       di0 = ii0 - i0;
-      j0 = floor(jj0);
+      j0 = opfl_floor_double_2_int(jj0);
       dj0 = jj0 - j0;
-      i1 = floor(ii1);
+      i1 = opfl_floor_double_2_int(ii1);
       di1 = ii1 - i1;
-      j1 = floor(jj1);
+      j1 = opfl_floor_double_2_int(jj1);
       dj1 = jj1 - j1;
 
       do_uv = i % 2 == 0 && j % 2 == 0;  // TODO(bohan) only considering 420 now
@@ -1883,10 +1885,10 @@ void warp_optical_flow(YV12_BUFFER_CONFIG *src0, YV12_BUFFER_CONFIG *src1,
               pos;
         }
       }
-      dsty[i * stride + j] = dstpel_y + 0.5;
+      dsty[i * stride + j] = opfl_round_double_2_int(dstpel_y);
       if (do_uv) {
-        dstu[i / 2 * uvstride + j / 2] = dstpel_u + 0.5;
-        dstv[i / 2 * uvstride + j / 2] = dstpel_v + 0.5;
+        dstu[i / 2 * uvstride + j / 2] = opfl_round_double_2_int(dstpel_u);
+        dstv[i / 2 * uvstride + j / 2] = opfl_round_double_2_int(dstpel_v);
       }
     }
   }
@@ -1959,13 +1961,13 @@ void warp_optical_flow_diff_select(YV12_BUFFER_CONFIG *src0,
       jj0 = j - mf_start[i * mvstr + j].col * dstpos;
       ii1 = i + mf_start[i * mvstr + j].row * (1 - dstpos);
       jj1 = j + mf_start[i * mvstr + j].col * (1 - dstpos);
-      i0 = floor(ii0);
+      i0 = opfl_floor_double_2_int(ii0);
       di0 = ii0 - i0;
-      j0 = floor(jj0);
+      j0 = opfl_floor_double_2_int(jj0);
       dj0 = jj0 - j0;
-      i1 = floor(ii1);
+      i1 = opfl_floor_double_2_int(ii1);
       di1 = ii1 - i1;
-      j1 = floor(jj1);
+      j1 = opfl_floor_double_2_int(jj1);
       dj1 = jj1 - j1;
 
       int inside0 = (i0 >= 0 && i0 < height - 1 && j0 >= 0 && j0 < width - 1);
@@ -2037,13 +2039,13 @@ void warp_optical_flow_diff_select(YV12_BUFFER_CONFIG *src0,
       jj0 = j - mf_start[i * mvstr + j].col * dstpos;
       ii1 = i + mf_start[i * mvstr + j].row * (1 - dstpos);
       jj1 = j + mf_start[i * mvstr + j].col * (1 - dstpos);
-      i0 = floor(ii0);
+      i0 = opfl_floor_double_2_int(ii0);
       di0 = ii0 - i0;
-      j0 = floor(jj0);
+      j0 = opfl_floor_double_2_int(jj0);
       dj0 = jj0 - j0;
-      i1 = floor(ii1);
+      i1 = opfl_floor_double_2_int(ii1);
       di1 = ii1 - i1;
-      j1 = floor(jj1);
+      j1 = opfl_floor_double_2_int(jj1);
       dj1 = jj1 - j1;
 
       totalused0 += used0[(i0)*width + j0] * (1 - di0) * (1 - dj0);
@@ -2084,7 +2086,7 @@ void warp_optical_flow_diff_select(YV12_BUFFER_CONFIG *src0,
   // blend according to the refs selected
   for (int i = 0; i < height; i++) {
     for (int j = 0; j < width; j++) {
-      int use0, use1;
+      int use0 = -1, use1 = -1;
       pos = dstpos;
       if (refid_mode[i * width + j] == 0) {
         use0 = 1;
@@ -2104,13 +2106,13 @@ void warp_optical_flow_diff_select(YV12_BUFFER_CONFIG *src0,
       jj0 = j - mf_start[i * mvstr + j].col * dstpos;
       ii1 = i + mf_start[i * mvstr + j].row * (1 - dstpos);
       jj1 = j + mf_start[i * mvstr + j].col * (1 - dstpos);
-      i0 = floor(ii0);
+      i0 = opfl_floor_double_2_int(ii0);
       di0 = ii0 - i0;
-      j0 = floor(jj0);
+      j0 = opfl_floor_double_2_int(jj0);
       dj0 = jj0 - j0;
-      i1 = floor(ii1);
+      i1 = opfl_floor_double_2_int(ii1);
       di1 = ii1 - i1;
-      j1 = floor(jj1);
+      j1 = opfl_floor_double_2_int(jj1);
       dj1 = jj1 - j1;
 
       do_uv =
@@ -2155,10 +2157,10 @@ void warp_optical_flow_diff_select(YV12_BUFFER_CONFIG *src0,
               pos;
         }
       }
-      dsty[i * stride + j] = dstpel_y + 0.5;
+      dsty[i * stride + j] = opfl_round_double_2_int(dstpel_y);
       if (do_uv) {
-        dstu[i / 2 * uvstride + j / 2] = dstpel_u + 0.5;
-        dstv[i / 2 * uvstride + j / 2] = dstpel_v + 0.5;
+        dstu[i / 2 * uvstride + j / 2] = opfl_round_double_2_int(dstpel_u);
+        dstv[i / 2 * uvstride + j / 2] = opfl_round_double_2_int(dstpel_v);
       }
     }
   }
@@ -2184,8 +2186,8 @@ void warp_optical_flow_diff_select(YV12_BUFFER_CONFIG *src0,
  * interpolated pixel
  */
 uint8_t get_sub_pel_y(uint8_t *src, int stride, double di, double dj) {
-  int yidx = di * 8 + 0.5;
-  int xidx = dj * 8 + 0.5;
+  int yidx = opfl_round_double_2_int(di * 8);
+  int xidx = opfl_round_double_2_int(dj * 8);
   yidx *= 2;
   xidx *= 2;
   if (yidx == 16) {
@@ -2232,8 +2234,8 @@ uint8_t get_sub_pel_y(uint8_t *src, int stride, double di, double dj) {
  */
 uint8_t get_sub_pel_uv(uint8_t *src, int stride, double di, double dj) {
   // TODO(bohan) now only care about YUV 420
-  int yidx = di * 16 + 0.5;
-  int xidx = dj * 16 + 0.5;
+  int yidx = opfl_round_double_2_int(di * 16);
+  int xidx = opfl_round_double_2_int(dj * 16);
   if (yidx == 16) {
     yidx = 0;
     src += stride;
@@ -2429,7 +2431,7 @@ double iter_median_double(double *x, double *left, double *right, int length,
  * Do mode filter to the reference selections
  */
 int ref_mode_filter_3x3(int *center, int stride, double dstpos) {
-  int ref_id_count[3] = {0};
+  int ref_id_count[3] = { 0 };
   for (int i = -1; i < 2; i++) {
     for (int j = -1; j < 2; j++) {
       assert(center[i * stride + j] >= 0);
@@ -2521,6 +2523,21 @@ void extend_plane_opfl(uint8_t *const src, int src_stride, int width,
   for (i = 0; i < extend_bottom; ++i) {
     memcpy(dst_ptr2, src_ptr2, linesize);
     dst_ptr2 += src_stride;
+  }
+}
+
+int opfl_round_double_2_int(double x) {
+  if (x >= 0) {
+    return (int)(x + 0.5);
+  } else {
+    return (int)(x - 0.5);
+  }
+}
+int opfl_floor_double_2_int(double x) {
+  if (x >= 0) {
+    return (int)x;
+  } else {
+    return (int)x - 1;
   }
 }
 
