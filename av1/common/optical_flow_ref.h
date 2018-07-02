@@ -28,7 +28,7 @@ extern "C" {
 #define DERIVATIVE_FILTER_LENGTH 7
 
 // OPFL parameters
-#define MAX_OPFL_LEVEL 3         // levels in pyramid
+#define MAX_OPFL_LEVEL 3         // levels in pyramid, maximum 3
 #define MAX_ITER_OPTICAL_FLOW 3  // for each level number of iteration
 #define USE_BLK_DERIVATIVE 1
 #define OF_A_SQUARED 25        // Laplacian parameter

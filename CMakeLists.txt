@@ -213,8 +213,7 @@ endforeach ()
 # Application and application support targets.
 #
 add_library(aom_common_app_util OBJECT ${AOM_COMMON_APP_UTIL_SOURCES})
-
-
+add_c_flag_if_supported("-std=c11")
 if (CONFIG_AV1_DECODER)
   add_library(aom_decoder_app_util OBJECT ${AOM_DECODER_APP_UTIL_SOURCES})
   add_executable(aomdec

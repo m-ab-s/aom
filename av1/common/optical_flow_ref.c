@@ -616,8 +616,9 @@ void optical_flow_get_ref(OPFL_BUFFER_STRUCT *buf_struct,
           for (int h = -2; h < 3; h++) {
             for (int w = -2; w < 3; w++) {
               if (i + h < 0 || i + h >= hgt || j + w < 0 || j + w >= wid) {
-                mv_r[c] = initmv[(i + h) * imvstr + j + w].row;
-                mv_c[c] = initmv[(i + h) * imvstr + j + w].col;
+                // mv_r[c] = initmv[(i + h) * imvstr + j + w].row;
+                // mv_c[c] = initmv[(i + h) * imvstr + j + w].col;
+                continue;
               } else {
                 mv_r[c] = mf_start_new[(i + h) * mvstr + j + w].row;
                 mv_c[c] = mf_start_new[(i + h) * mvstr + j + w].col;
@@ -626,9 +627,9 @@ void optical_flow_get_ref(OPFL_BUFFER_STRUCT *buf_struct,
             }
           }
           mf_start_med[i * mvstr + j].row =
-              iter_median_double(mv_r, left, right, 25, 12);
+              iter_median_double(mv_r, left, right, c, c / 2);
           mf_start_med[i * mvstr + j].col =
-              iter_median_double(mv_c, left, right, 25, 12);
+              iter_median_double(mv_c, left, right, c, c / 2);
         } else {
           mf_start_med[i * mvstr + j].row = mf_start_new[i * mvstr + j].row;
           mf_start_med[i * mvstr + j].col = mf_start_new[i * mvstr + j].col;
@@ -868,7 +869,7 @@ double iterate_update_mv(OPFL_BUFFER_STRUCT *buf_struct, DB_MV *mf_last,
   // check if pointing out of bound
   double boundFactor = 0.01;
   double pixExpFactor = 0.005;
-  double mvExpFactor = 0.05;
+  double mvExpFactor = 0.008;
   for (i = 0; i < height; i++) {
     for (j = 0; j < width; j++) {
       pixel_weight[i * width + j] = 1;
@@ -891,7 +892,7 @@ double iterate_update_mv(OPFL_BUFFER_STRUCT *buf_struct, DB_MV *mf_last,
       if (is_out) {
         pixel_weight[i * width + j] = 0.001;
         mv_weight[i * width + j] = boundFactor;
-      } else if (level > 2 && numWarpedRounds > 2) {
+      } else if (level > 0 && numWarpedRounds > 0) {
         pixel_weight[i * width + j] =
             exp(-pixExpFactor * Et[i * width + j] * Et[i * width + j]);
         pixel_weight[i * width + j] = (pixel_weight[i * width + j] > 0.001)
@@ -939,7 +940,12 @@ double iterate_update_mv(OPFL_BUFFER_STRUCT *buf_struct, DB_MV *mf_last,
         right = mv_weight[i * width + j + 1];
       }
       center = up + low + left + right;
-      center = -center;
+      // normalize
+      up = (up / center) * 4;
+      low = (low / center) * 4;
+      left = (left / center) * 4;
+      right = (right / center) * 4;
+      center = -4;
       // up
       if (i != 0) {
         row_pos[c] = j * height + i;
@@ -1015,7 +1021,12 @@ double iterate_update_mv(OPFL_BUFFER_STRUCT *buf_struct, DB_MV *mf_last,
       }
 
       center = up + low + left + right;
-      center = -center;
+      // normalize
+      up = (up / center) * 4;
+      low = (low / center) * 4;
+      left = (left / center) * 4;
+      right = (right / center) * 4;
+      center = -4;
 
       if (i != 0) {
         row_pos[c] = j * height + i;
@@ -1082,7 +1093,12 @@ double iterate_update_mv(OPFL_BUFFER_STRUCT *buf_struct, DB_MV *mf_last,
       }
 
       center = up + low + left + right;
-      center = -center;
+      // normalize
+      up = (up / center) * 4;
+      low = (low / center) * 4;
+      left = (left / center) * 4;
+      right = (right / center) * 4;
+      center = -4;
 
       if (i != 0) {
         row_pos[c] = offset + j * height + i;
