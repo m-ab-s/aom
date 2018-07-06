@@ -150,6 +150,10 @@ void warp_optical_flow_diff_select(YV12_BUFFER_CONFIG *src0,
                                    YV12_BUFFER_CONFIG *src1, DB_MV *mf_start,
                                    int mvstr, YV12_BUFFER_CONFIG *dst,
                                    double dstpos);
+void warp_optical_flow_bilateral(YV12_BUFFER_CONFIG *src0,
+                                 YV12_BUFFER_CONFIG *src1, DB_MV *mf_start,
+                                 int mvstr, YV12_BUFFER_CONFIG *dst,
+                                 double dstpos);
 uint8_t get_sub_pel_y(uint8_t *src, int stride, double di, double dj);
 uint8_t get_sub_pel_uv(uint8_t *src, int stride, double di, double dj);
 
