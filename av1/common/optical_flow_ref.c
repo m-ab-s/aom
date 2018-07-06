@@ -117,60 +117,6 @@ int av1_get_opfl_ref(AV1_COMMON *cm) {
   }
 }
 
-void opfl_fill_mv(int_mv *pmv, int width, int height) {
-  int invalid_cnt = 0;
-  int_mv *tempmv = aom_calloc(width * height, sizeof(int_mv));
-  for (int i = 0; i < height; i++) {
-    for (int j = 0; j < width; j++) {
-      if (pmv[i * width + j].as_int == INVALID_MV) {
-        invalid_cnt++;
-      }
-      tempmv[i * width + j].as_int = INVALID_MV;
-    }
-  }
-  int_mv avg;
-  int avgcnt;
-  while (invalid_cnt > 0 && invalid_cnt != width * height) {
-    for (int i = 0; i < height; i++) {
-      for (int j = 0; j < width; j++) {
-        if (pmv[i * width + j].as_int == INVALID_MV) {
-          avgcnt = 0;
-          avg.as_int = 0;
-          for (int h = -1; h < 2; h++) {
-            for (int w = -1; w < 2; w++) {
-              if (i + h >= 0 && i + h < height && j + w >= 0 && j + w < width) {
-                if (pmv[(i + h) * width + j + w].as_int != INVALID_MV) {
-                  avg.as_mv.col += pmv[(i + h) * width + j + w].as_mv.col;
-                  avg.as_mv.row += pmv[(i + h) * width + j + w].as_mv.row;
-                  avgcnt++;
-                }
-              }
-            }
-          }
-          if (avgcnt != 0) {
-            tempmv[i * width + j].as_mv.col =
-                opfl_round_double_2_int((double)avg.as_mv.col / avgcnt);
-            tempmv[i * width + j].as_mv.row =
-                opfl_round_double_2_int((double)avg.as_mv.row / avgcnt);
-          }
-        }
-      }
-    }  // for every mv
-    invalid_cnt = 0;
-    for (int i = 0; i < height; i++) {
-      for (int j = 0; j < width; j++) {
-        if (pmv[i * width + j].as_int == INVALID_MV &&
-            tempmv[i * width + j].as_int != INVALID_MV) {
-          pmv[i * width + j].as_int = tempmv[i * width + j].as_int;
-        } else if (pmv[i * width + j].as_int == INVALID_MV) {
-          invalid_cnt++;
-        }
-      }
-    }
-  }
-  aom_free(tempmv);
-}
-
 /*
  * Initialize and set the buffer for optical flow estimation
  * TODO(bohan): part of this function (allocation) only needs to be run once
@@ -385,13 +331,16 @@ void av1_opfl_set_buf(AV1_COMMON *cm, OPFL_BUFFER_STRUCT *buf_struct) {
         }
       }
     }
-    opfl_fill_mv(left_mv, cm->mi_cols, cm->mi_rows);
-    opfl_fill_mv(right_mv, cm->mi_cols, cm->mi_rows);
+    // opfl_fill_mv(left_mv, cm->mi_cols, cm->mi_rows);
+    // opfl_fill_mv(right_mv, cm->mi_cols, cm->mi_rows);
     for (int l = 0; l < MAX_OPFL_LEVEL; l++) {
       wid = width >> l;
       hgt = height >> l;
       create_motion_field(left_mv, right_mv, buf_struct->init_mv_buf[l], width,
                           height, wid, hgt, wid + 2 * AVG_MF_BORDER, dst_pos);
+      fill_create_motion_field(left_mv, right_mv, buf_struct->init_mv_buf[l],
+                               width, height, wid, hgt,
+                               wid + 2 * AVG_MF_BORDER);
     }
     aom_free(left_mv);
     aom_free(right_mv);
@@ -745,9 +694,6 @@ void refine_motion_field(OPFL_BUFFER_STRUCT *buf_struct, DB_MV *mf_last,
         mv_start_new[i * mvstr + j].col = mv_start[i * mvstr + j].col;
       }
     }
-    // if (new_cost >= last_cost) {
-    //   break;
-    // }
     last_cost = new_cost;
     count++;
     as_scale_factor *= OPFL_ANNEAL_FACTOR;
@@ -2362,6 +2308,171 @@ void create_motion_field(int_mv *mv_left, int_mv *mv_right, DB_MV *mf,
   return;
 }
 
+/*
+ * Fill the initial motion field if there are holes
+ *
+ * Input:
+ * mv_left: motion vector points from the current frame to ref0
+ * mv_right: motion vector points from the current frame to ref1
+ * width, height: frame/block width and height
+ * mvwid, mvhgt: width and height of the mv at some pyramid scale
+ * mfstr: stride of the motion field buffer
+ * dstpos: relative location of the current block
+ *
+ * Output:
+ * mf: pointer to the created motion field
+ */
+void fill_create_motion_field(int_mv *mv_left, int_mv *mv_right, DB_MV *mf,
+                              int width, int height, int mvwid, int mvhgt,
+                              int mfstr) {
+  int stride = mfstr;
+  DB_MV *mf_start = mf + AVG_MF_BORDER * stride + AVG_MF_BORDER;
+  int idx;
+  int blksize = mvwid / (width / 4);
+  assert(blksize == mvhgt / (height / 4));
+
+  int invalid_cnt = 0;
+  DB_MV *tempmv = aom_calloc(mvwid * mvhgt, sizeof(DB_MV));
+  // isValid: 0: not valid; 1: already valid; -1:ready for next round
+  int *isValid = aom_calloc(height * width / 4 / 4, sizeof(int));
+  for (int i = 0; i < mvhgt; i++) {
+    for (int j = 0; j < mvwid; j++) {
+      tempmv[i * mvwid + j].col = mf_start[i * mfstr + j].col;
+      tempmv[i * mvwid + j].row = mf_start[i * mfstr + j].row;
+    }
+  }
+
+  for (int h = 0; h < height / 4; h++) {
+    for (int w = 0; w < width / 4; w++) {
+      idx = h * width / 4 + w;
+      if (mv_left[idx].as_int == INVALID_MV &&
+          mv_right[idx].as_int == INVALID_MV) {
+        invalid_cnt++;
+        isValid[idx] = 0;
+      } else {
+        isValid[idx] = 1;
+      }
+    }
+  }
+  DB_MV avg;
+  int avgcnt;
+  while (invalid_cnt > 0 && invalid_cnt != width * height / 4 / 4) {
+    for (int h = 0; h < height / 4; h++) {
+      for (int w = 0; w < width / 4; w++) {
+        idx = h * width / 4 + w;
+        if (isValid[idx] == 0) {
+          avgcnt = 0;
+          avg.col = 0;
+          avg.row = 0;
+          for (int i = -1; i < 2; i++) {
+            for (int j = -1; j < 2; j++) {
+              if (i + h >= 0 && i + h < height / 4 && j + w >= 0 &&
+                  j + w < width / 4) {
+                if (isValid[idx + i * width / 4 + j] > 0) {
+                  avg.col +=
+                      mf_start[(h + i) * blksize * mfstr + (j + w) * blksize]
+                          .col;
+                  avg.row +=
+                      mf_start[(h + i) * blksize * mfstr + (j + w) * blksize]
+                          .row;
+                  avgcnt++;
+                }
+              }
+            }
+          }
+          if (avgcnt != 0) {
+            for (int i = 0; i < blksize; i++) {
+              for (int j = 0; j < blksize; j++) {
+                tempmv[(h * blksize + i) * mvwid + w * blksize + j].row =
+                    avg.row / avgcnt;
+                tempmv[(h * blksize + i) * mvwid + w * blksize + j].col =
+                    avg.col / avgcnt;
+              }
+            }
+            isValid[idx] = -1;
+          }
+        }
+      }
+    }
+    invalid_cnt = 0;
+    for (int h = 0; h < height / 4; h++) {
+      for (int w = 0; w < width / 4; w++) {
+        idx = h * width / 4 + w;
+        if (isValid[idx] == 0) {
+          invalid_cnt++;
+        } else if (isValid[idx] < 0) {
+          isValid[idx] = 1;
+          for (int i = 0; i < blksize; i++) {
+            for (int j = 0; j < blksize; j++) {
+              mf_start[(h * blksize + i) * mfstr + w * blksize + j].row =
+                  tempmv[(h * blksize + i) * mvwid + w * blksize + j].row;
+              mf_start[(h * blksize + i) * mfstr + w * blksize + j].col =
+                  tempmv[(h * blksize + i) * mvwid + w * blksize + j].col;
+            }
+          }
+        }
+      }
+    }
+  }
+  aom_free(tempmv);
+  aom_free(isValid);
+  // Pad the motion field border
+  pad_motion_field_border(mf_start, mvwid, mvhgt, mfstr);
+}
+
+void opfl_fill_mv(int_mv *pmv, int width, int height) {
+  int invalid_cnt = 0;
+  int_mv *tempmv = aom_calloc(width * height, sizeof(int_mv));
+  for (int i = 0; i < height; i++) {
+    for (int j = 0; j < width; j++) {
+      if (pmv[i * width + j].as_int == INVALID_MV) {
+        invalid_cnt++;
+      }
+      tempmv[i * width + j].as_int = INVALID_MV;
+    }
+  }
+  int_mv avg;
+  int avgcnt;
+  while (invalid_cnt > 0 && invalid_cnt != width * height) {
+    for (int i = 0; i < height; i++) {
+      for (int j = 0; j < width; j++) {
+        if (pmv[i * width + j].as_int == INVALID_MV) {
+          avgcnt = 0;
+          avg.as_int = 0;
+          for (int h = -1; h < 2; h++) {
+            for (int w = -1; w < 2; w++) {
+              if (i + h >= 0 && i + h < height && j + w >= 0 && j + w < width) {
+                if (pmv[(i + h) * width + j + w].as_int != INVALID_MV) {
+                  avg.as_mv.col += pmv[(i + h) * width + j + w].as_mv.col;
+                  avg.as_mv.row += pmv[(i + h) * width + j + w].as_mv.row;
+                  avgcnt++;
+                }
+              }
+            }
+          }
+          if (avgcnt != 0) {
+            tempmv[i * width + j].as_mv.col =
+                opfl_round_double_2_int((double)avg.as_mv.col / avgcnt);
+            tempmv[i * width + j].as_mv.row =
+                opfl_round_double_2_int((double)avg.as_mv.row / avgcnt);
+          }
+        }
+      }
+    }  // for every mv
+    invalid_cnt = 0;
+    for (int i = 0; i < height; i++) {
+      for (int j = 0; j < width; j++) {
+        if (pmv[i * width + j].as_int == INVALID_MV &&
+            tempmv[i * width + j].as_int != INVALID_MV) {
+          pmv[i * width + j].as_int = tempmv[i * width + j].as_int;
+        } else if (pmv[i * width + j].as_int == INVALID_MV) {
+          invalid_cnt++;
+        }
+      }
+    }
+  }
+  aom_free(tempmv);
+}
 /*
  * Upscale the motion field by 2.
  * Currently simply copy the nearest mv

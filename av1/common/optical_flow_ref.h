@@ -155,6 +155,10 @@ void opfl_get_derivatives(double *Ex, double *Ey, double *Et,
                           YV12_BUFFER_CONFIG *buffer_init1, double dstpos,
                           int level, int usescale, OPFL_BLK_INFO blk_info);
 
+void opfl_fill_mv(int_mv *pmv, int width, int height);
+void fill_create_motion_field(int_mv *mv_left, int_mv *mv_right, DB_MV *mf,
+                              int width, int height, int mvwid, int mvhgt,
+                              int mfstr);
 void create_motion_field(int_mv *mv_left, int_mv *mv_right, DB_MV *mf,
                          int width, int height, int mvwid, int mvhgt, int mfstr,
                          double dstpos);
