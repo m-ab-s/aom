@@ -44,6 +44,9 @@ extern "C" {
 #define DUMP_OPFL 0
 #define OPFL_OUTPUT_TIME 0
 
+// Experimental MACROs
+#define OPFL_INIT_WT 1
+
 // Experimental MACROs not used for now
 #define OPTICAL_FLOW_DIFF_THRES 10.0     // Thres to detect pixel difference
 #define OPTICAL_FLOW_REF_THRES 0.3       // Thres to determine reference usage
@@ -65,6 +68,9 @@ typedef struct db_mv {
 
 typedef struct opfl_buffer_struct {
   DB_MV *init_mv_buf[MAX_OPFL_LEVEL];  // initialization of motion field
+#if OPFL_INIT_WT
+  double *init_mv_wts[MAX_OPFL_LEVEL];
+#endif
   YV12_BUFFER_CONFIG *ref0_buf[MAX_OPFL_LEVEL];
   YV12_BUFFER_CONFIG *ref1_buf[MAX_OPFL_LEVEL];
   YV12_BUFFER_CONFIG *ref0_warped_buf[MAX_OPFL_LEVEL];
@@ -100,7 +106,6 @@ typedef struct opfl_block_info {
 int av1_get_opfl_ref(AV1_COMMON *cm);
 void av1_opfl_set_buf(AV1_COMMON *cm, OPFL_BUFFER_STRUCT *buf_struct);
 void av1_opfl_free_buf(OPFL_BUFFER_STRUCT *buf_struct);
-void opfl_fill_mv(int_mv *pmv, int width, int height);
 
 void optical_flow_get_ref(OPFL_BUFFER_STRUCT *buf_struct,
                           OPFL_BLK_INFO blk_info);
@@ -160,6 +165,9 @@ void fill_create_motion_field(int_mv *mv_left, int_mv *mv_right, DB_MV *mf,
                               int width, int height, int mvwid, int mvhgt,
                               int mfstr);
 void create_motion_field(int_mv *mv_left, int_mv *mv_right, DB_MV *mf,
+#if OPFL_INIT_WT
+                         double *mv_wts,
+#endif
                          int width, int height, int mvwid, int mvhgt, int mfstr,
                          double dstpos);
 void pad_motion_field_border(DB_MV *mf_start, int width, int height,

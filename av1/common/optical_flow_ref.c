@@ -297,11 +297,17 @@ void av1_opfl_set_buf(AV1_COMMON *cm, OPFL_BUFFER_STRUCT *buf_struct) {
       hgt = height >> l;
       buf_struct->init_mv_buf[l] = aom_calloc(
           (wid + 2 * AVG_MF_BORDER) * (hgt + 2 * AVG_MF_BORDER), sizeof(DB_MV));
+#if OPFL_INIT_WT
+      buf_struct->init_mv_wts[l] =
+          aom_calloc((wid + 2 * AVG_MF_BORDER) * (hgt + 2 * AVG_MF_BORDER),
+                     sizeof(double));
+#endif
     }
 
     // set up initial motion filed
     int_mv *left_mv = aom_calloc(cm->mi_cols * cm->mi_rows, sizeof(int_mv));
     int_mv *right_mv = aom_calloc(cm->mi_cols * cm->mi_rows, sizeof(int_mv));
+
     TPL_MV_REF *tpl_mvs_base = cm->cur_frame->tpl_mvs;
     for (int i = 0; i < cm->mi_rows; i++) {
       for (int j = 0; j < cm->mi_cols; j++) {
@@ -336,8 +342,12 @@ void av1_opfl_set_buf(AV1_COMMON *cm, OPFL_BUFFER_STRUCT *buf_struct) {
     for (int l = 0; l < MAX_OPFL_LEVEL; l++) {
       wid = width >> l;
       hgt = height >> l;
-      create_motion_field(left_mv, right_mv, buf_struct->init_mv_buf[l], width,
-                          height, wid, hgt, wid + 2 * AVG_MF_BORDER, dst_pos);
+      create_motion_field(left_mv, right_mv, buf_struct->init_mv_buf[l],
+#if OPFL_INIT_WT
+                          buf_struct->init_mv_wts[l],
+#endif
+                          width, height, wid, hgt, wid + 2 * AVG_MF_BORDER,
+                          dst_pos);
       fill_create_motion_field(left_mv, right_mv, buf_struct->init_mv_buf[l],
                                width, height, wid, hgt,
                                wid + 2 * AVG_MF_BORDER);
@@ -457,6 +467,9 @@ void av1_opfl_free_buf(OPFL_BUFFER_STRUCT *buf_struct) {
   }
   for (int l = 0; l < MAX_OPFL_LEVEL; l++) {
     aom_free(buf_struct->init_mv_buf[l]);
+#if OPFL_INIT_WT
+    aom_free(buf_struct->init_mv_wts[l]);
+#endif
   }
   aom_free(buf_struct->Ex);
   aom_free(buf_struct->Ey);
@@ -770,6 +783,10 @@ double iterate_update_mv(OPFL_BUFFER_STRUCT *buf_struct, DB_MV *mf_last,
   imvstr = (imvstr >> level) + 2 * AVG_MF_BORDER;
   DB_MV *initmv = buf_struct->init_mv_buf[level];
   initmv = initmv + (sh + AVG_MF_BORDER) * imvstr + sw + AVG_MF_BORDER;
+#if OPFL_INIT_WT
+  double *init_wts = buf_struct->init_mv_wts[level];
+  init_wts = init_wts + (sh + AVG_MF_BORDER) * imvstr + sw + AVG_MF_BORDER;
+#endif
   int fheight = buf_struct->ref0_buf[0]->y_height;
   int fwidth = buf_struct->ref0_buf[0]->y_width;
   fheight = fheight >> level;
@@ -858,7 +875,7 @@ double iterate_update_mv(OPFL_BUFFER_STRUCT *buf_struct, DB_MV *mf_last,
   //    0,  1, 0
   // M = [F 0; 0 F].
   int c = 0;
-  double center, up, low, left, right;
+  double center, up, low, left, right, before;
   for (j = 0; j < width; j++) {
     for (i = 0; i < height; i++) {
       up = 1;
@@ -885,7 +902,12 @@ double iterate_update_mv(OPFL_BUFFER_STRUCT *buf_struct, DB_MV *mf_last,
       } else {
         right = mv_weight[i * width + j + 1];
       }
+#if OPFL_INIT_WT
+      before = init_wts[i * imvstr + j];
+      center = up + low + left + right + before;
+#else
       center = up + low + left + right;
+#endif
       // normalize
       up = (up / center) * 4;
       low = (low / center) * 4;
@@ -965,13 +987,24 @@ double iterate_update_mv(OPFL_BUFFER_STRUCT *buf_struct, DB_MV *mf_last,
       } else {
         right = mv_weight[i * width + j + 1];
       }
-
+#if OPFL_INIT_WT
+      before = init_wts[i * imvstr + j];
+      center = up + low + left + right + before;
+#else
       center = up + low + left + right;
+#endif
       // normalize
       up = (up / center) * 4;
       low = (low / center) * 4;
       left = (left / center) * 4;
       right = (right / center) * 4;
+#if OPFL_INIT_WT
+      // add the init mv factor to b
+      before = (before / center) * 4;
+      b[j * height + i] += a_squared * before * initmv[i * imvstr + j].col;
+      b[j * height + i + offset] +=
+          a_squared * before * initmv[i * imvstr + j].row;
+#endif
       center = -4;
 
       if (i != 0) {
@@ -1037,8 +1070,12 @@ double iterate_update_mv(OPFL_BUFFER_STRUCT *buf_struct, DB_MV *mf_last,
       } else {
         right = mv_weight[i * width + j + 1];
       }
-
+#if OPFL_INIT_WT
+      before = init_wts[i * imvstr + j];
+      center = up + low + left + right + before;
+#else
       center = up + low + left + right;
+#endif
       // normalize
       up = (up / center) * 4;
       low = (low / center) * 4;
@@ -2260,6 +2297,9 @@ void interp_optical_flow(YV12_BUFFER_CONFIG *ref0, YV12_BUFFER_CONFIG *ref1,
  * mf: pointer to the created motion field
  */
 void create_motion_field(int_mv *mv_left, int_mv *mv_right, DB_MV *mf,
+#if OPFL_INIT_WT
+                         double *mv_wts,
+#endif
                          int width, int height, int mvwid, int mvhgt, int mfstr,
                          double dstpos) {
   // since the motion field is just used as initialization for now,
@@ -2272,7 +2312,10 @@ void create_motion_field(int_mv *mv_left, int_mv *mv_right, DB_MV *mf,
   assert(blksize == mvhgt / (height / 4));
   double tempr, tempc;
   double mvscale = 4 / blksize;
-
+#if OPFL_INIT_WT
+  double *wts_start = mv_wts + AVG_MF_BORDER * stride + AVG_MF_BORDER;
+  double tempWts;
+#endif
   for (int h = 0; h < height / 4; h++) {
     for (int w = 0; w < width / 4; w++) {
       // mv_left, mv_right are based on 4x4 block
@@ -2281,30 +2324,57 @@ void create_motion_field(int_mv *mv_left, int_mv *mv_right, DB_MV *mf,
           mv_right[idx].as_int == INVALID_MV) {
         tempr = 0;
         tempc = 0;
+#if OPFL_INIT_WT
+        tempWts = 0;
+#endif
       } else if (mv_left[idx].as_int == INVALID_MV) {
         tempr =
             (double)(mv_right[idx].as_mv.row) / 8.0 / mvscale / (1 - dstpos);
         tempc =
             (double)(mv_right[idx].as_mv.col) / 8.0 / mvscale / (1 - dstpos);
+#if OPFL_INIT_WT
+        tempWts = 0.02;
+#endif
       } else if (mv_right[idx].as_int == INVALID_MV) {
         tempr = (double)(-mv_left[idx].as_mv.row) / 8.0 / mvscale / dstpos;
         tempc = (double)(-mv_left[idx].as_mv.col) / 8.0 / mvscale / dstpos;
+#if OPFL_INIT_WT
+        tempWts = 0.02;
+#endif
       } else {
         tempr = (double)(-mv_left[idx].as_mv.row + mv_right[idx].as_mv.row) /
                 8.0 / mvscale;
         tempc = (double)(-mv_left[idx].as_mv.col + mv_right[idx].as_mv.col) /
                 8.0 / mvscale;
+#if OPFL_INIT_WT
+        tempWts = 0.02;
+#endif
       }
       for (int i = 0; i < blksize; i++) {
         for (int j = 0; j < blksize; j++) {
           mf_start[(h * blksize + i) * mfstr + w * blksize + j].row = tempr;
           mf_start[(h * blksize + i) * mfstr + w * blksize + j].col = tempc;
+#if OPFL_INIT_WT
+          double i0, i1, j0, j1;
+          i0 = (double)(i + h * blksize) - (1 - dstpos) * tempr;
+          i1 = (double)(i + h * blksize) + (dstpos)*tempr;
+          j0 = (double)(j + w * blksize) - (1 - dstpos) * tempc;
+          j1 = (double)(j + w * blksize) + (dstpos)*tempc;
+          int is_out =
+              (i0 < 0 || i0 > height - 1 || i1 < 0 || i1 > height - 1 ||
+               j0 < 0 || j0 > width - 1 || j1 < 0 || j1 > width - 1);
+          if (is_out) {
+            wts_start[(h * blksize + i) * mfstr + w * blksize + j] = 0;
+          } else {
+            wts_start[(h * blksize + i) * mfstr + w * blksize + j] = tempWts;
+          }
+#endif
         }
       }
     }
   }
   // Pad the motion field border
-  pad_motion_field_border(mf_start, mvwid, mvhgt, mfstr);
+  // pad_motion_field_border(mf_start, mvwid, mvhgt, mfstr);
   return;
 }
 
