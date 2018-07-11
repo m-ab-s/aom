@@ -11,7 +11,7 @@
 cmake_minimum_required(VERSION 3.5)
 
 set(REQUIRED_ARGS "AOM_ROOT" "AOM_CONFIG_DIR" "CMAKE_INSTALL_PREFIX"
-    "CMAKE_PROJECT_NAME" "CONFIG_MULTITHREAD" "HAVE_PTHREAD_H")
+                  "CMAKE_PROJECT_NAME" "CONFIG_MULTITHREAD" "HAVE_PTHREAD_H")
 
 foreach(arg ${REQUIRED_ARGS})
   if("${${arg}}" STREQUAL "")
@@ -43,13 +43,13 @@ file(APPEND "${pkgconfig_file}" "libdir=\${prefix}/lib\n")
 file(APPEND "${pkgconfig_file}" "includedir=\${prefix}/include\n\n")
 file(APPEND "${pkgconfig_file}" "Name: ${pkg_name}\n")
 file(APPEND "${pkgconfig_file}"
-            "Description: AV1 codec library v${aom_version}.\n")
+     "Description: AV1 codec library v${aom_version}.\n")
 file(APPEND "${pkgconfig_file}" "Version: ${package_version}\n")
 file(APPEND "${pkgconfig_file}" "Requires:\n")
 file(APPEND "${pkgconfig_file}" "Conflicts:\n")
 if(CONFIG_MULTITHREAD AND HAVE_PTHREAD_H)
   file(APPEND "${pkgconfig_file}"
-              "Libs: -L\${prefix}/lib -l${pkg_name} -lm -lpthread\n")
+       "Libs: -L\${prefix}/lib -l${pkg_name} -lm -lpthread\n")
   file(APPEND "${pkgconfig_file}" "Libs.private: -lm -lpthread\n")
 else()
   file(APPEND "${pkgconfig_file}" "Libs: -L\${prefix}/lib -l${pkg_name} -lm\n")

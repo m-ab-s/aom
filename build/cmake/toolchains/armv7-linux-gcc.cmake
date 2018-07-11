@@ -33,7 +33,7 @@ set(CMAKE_C_COMPILER_ARG1
 set(CMAKE_CXX_COMPILER_ARG1
     "-march=armv7-a -mfpu=neon ${AOM_EXTRA_TOOLCHAIN_FLAGS}")
 set(AOM_AS_FLAGS --defsym ARCHITECTURE=7 -march=armv7-a -mfpu=neon
-    ${AOM_EXTRA_TOOLCHAIN_FLAGS})
+                 ${AOM_EXTRA_TOOLCHAIN_FLAGS})
 set(CMAKE_SYSTEM_PROCESSOR "armv7")
 
 # No intrinsics flag required for armv7-linux-gcc.

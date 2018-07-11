@@ -28,7 +28,8 @@ function(setup_exports_target)
   set(aom_sym_file "${AOM_CONFIG_DIR}/libaom.${symbol_file_ext}")
 
   add_custom_target(generate_exports
-                    COMMAND ${CMAKE_COMMAND} -DAOM_ROOT="${AOM_ROOT}"
+                    COMMAND ${CMAKE_COMMAND}
+                            -DAOM_ROOT="${AOM_ROOT}"
                             -DAOM_CONFIG_DIR="${AOM_CONFIG_DIR}"
                             -DAOM_TARGET_SYSTEM=${AOM_TARGET_SYSTEM}
                             -DAOM_SYM_FILE="${aom_sym_file}" -DAOM_MSVC=${MSVC}
@@ -44,19 +45,22 @@ function(setup_exports_target)
   add_dependencies(aom generate_exports)
 
   if(APPLE)
-    set_property(TARGET aom APPEND_STRING
+    set_property(TARGET aom
+                 APPEND_STRING
                  PROPERTY LINK_FLAGS "-exported_symbols_list ${aom_sym_file}")
   elseif(WIN32)
     message(FATAL_ERROR "Windows DLL builds not supported yet.")
     if(NOT MSVC)
-      set_property(TARGET aom APPEND_STRING
+      set_property(TARGET aom
+                   APPEND_STRING
                    PROPERTY LINK_FLAGS "-Wl,--version-script ${aom_sym_file}")
     endif()
 
     # TODO(tomfinegan): Sort out the import lib situation and flags for MSVC.
 
   else()
-    set_property(TARGET aom APPEND_STRING
+    set_property(TARGET aom
+                 APPEND_STRING
                  PROPERTY LINK_FLAGS "-Wl,--version-script,${aom_sym_file}")
   endif()
 endfunction()

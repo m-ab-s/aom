@@ -18,12 +18,11 @@ set(AOM_BUILD_CMAKE_UTIL_CMAKE_ 1)
 # parameter.
 function(create_dummy_source_file basename extension out_file_path)
   set(dummy_source_file "${AOM_CONFIG_DIR}/${basename}_dummy.${extension}")
-  file(
-    WRITE
-      "${dummy_source_file}" "// Generated file. DO NOT EDIT!\n"
-      "// ${target_name} needs a ${extension} file to force link language, \n"
-      "// or to silence a harmless CMake warning: Ignore me.\n"
-      "void ${target_name}_dummy_function(void) {}\n")
+  file(WRITE "${dummy_source_file}"
+       "// Generated file. DO NOT EDIT!\n"
+       "// ${target_name} needs a ${extension} file to force link language, \n"
+       "// or to silence a harmless CMake warning: Ignore me.\n"
+       "void ${target_name}_dummy_function(void) {}\n")
   set(${out_file_path} ${dummy_source_file} PARENT_SCOPE)
 endfunction()
 
@@ -81,8 +80,7 @@ function(set_compiler_launcher launcher_flag launcher_name)
     set(CMAKE_CXX_COMPILER_LAUNCHER "${launcher_path}" PARENT_SCOPE)
     message("--- Using ${launcher_name} as compiler launcher.")
   else()
-    message(WARNING
-              "--- Cannot find ${launcher_name}, ${launcher_flag} ignored.")
+    message(
+      WARNING "--- Cannot find ${launcher_name}, ${launcher_flag} ignored.")
   endif()
 endfunction()
-

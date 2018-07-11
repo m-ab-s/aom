@@ -50,24 +50,24 @@ endforeach()
 
 # Detect target CPU.
 if(NOT AOM_TARGET_CPU)
-  if("${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "AMD64" OR
-     "${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "x86_64")
+  if("${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "AMD64"
+     OR "${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "x86_64")
     if(${CMAKE_SIZEOF_VOID_P} EQUAL 4)
       set(AOM_TARGET_CPU "x86")
     elseif(${CMAKE_SIZEOF_VOID_P} EQUAL 8)
       set(AOM_TARGET_CPU "x86_64")
     else()
-      message(FATAL_ERROR
-                "--- Unexpected pointer size (${CMAKE_SIZEOF_VOID_P}) for\n"
-                "      CMAKE_SYSTEM_NAME=${CMAKE_SYSTEM_NAME}\n"
-                "      CMAKE_SYSTEM_PROCESSOR=${CMAKE_SYSTEM_PROCESSOR}\n"
-                "      CMAKE_GENERATOR=${CMAKE_GENERATOR}\n")
+      message(
+        FATAL_ERROR "--- Unexpected pointer size (${CMAKE_SIZEOF_VOID_P}) for\n"
+                    "      CMAKE_SYSTEM_NAME=${CMAKE_SYSTEM_NAME}\n"
+                    "      CMAKE_SYSTEM_PROCESSOR=${CMAKE_SYSTEM_PROCESSOR}\n"
+                    "      CMAKE_GENERATOR=${CMAKE_GENERATOR}\n")
     endif()
-  elseif("${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "i386" OR
-         "${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "x86")
+  elseif("${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "i386"
+         OR "${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "x86")
     set(AOM_TARGET_CPU "x86")
-  elseif("${CMAKE_SYSTEM_PROCESSOR}" MATCHES "^arm" OR
-         "${CMAKE_SYSTEM_PROCESSOR}" MATCHES "^mips")
+  elseif("${CMAKE_SYSTEM_PROCESSOR}" MATCHES "^arm"
+         OR "${CMAKE_SYSTEM_PROCESSOR}" MATCHES "^mips")
     set(AOM_TARGET_CPU "${CMAKE_SYSTEM_PROCESSOR}")
   elseif("${CMAKE_SYSTEM_PROCESSOR}" MATCHES "aarch64")
     set(AOM_TARGET_CPU "arm64")
@@ -110,8 +110,8 @@ if(NOT MSVC)
     # TODO(tomfinegan): clang needs -pie in CMAKE_EXE_LINKER_FLAGS for this to
     # work.
     set(CMAKE_POSITION_INDEPENDENT_CODE ON)
-    if("${AOM_TARGET_SYSTEM}" STREQUAL "Linux" AND "${AOM_TARGET_CPU}" MATCHES
-       "^armv7")
+    if("${AOM_TARGET_SYSTEM}" STREQUAL "Linux"
+       AND "${AOM_TARGET_CPU}" MATCHES "^armv7")
       set(AOM_AS_FLAGS ${AOM_AS_FLAGS} --defsym PIC=1)
     else()
       set(AOM_AS_FLAGS ${AOM_AS_FLAGS} -DPIC)
@@ -122,10 +122,10 @@ else()
 endif()
 
 if(NOT "${AOM_SUPPORTED_CPU_TARGETS}" MATCHES "${AOM_TARGET_CPU}")
-  message(FATAL_ERROR
-            "No RTCD support for ${AOM_TARGET_CPU}. Create it, or "
-            "add -DAOM_TARGET_CPU=generic to your cmake command line for a "
-            "generic build of libaom and tools.")
+  message(
+    FATAL_ERROR "No RTCD support for ${AOM_TARGET_CPU}. Create it, or "
+                "add -DAOM_TARGET_CPU=generic to your cmake command line for a "
+                "generic build of libaom and tools.")
 endif()
 
 if("${AOM_TARGET_CPU}" STREQUAL "x86" OR "${AOM_TARGET_CPU}" STREQUAL "x86_64")
@@ -139,10 +139,11 @@ if("${AOM_TARGET_CPU}" STREQUAL "x86" OR "${AOM_TARGET_CPU}" STREQUAL "x86_64")
   endif()
 
   if(NOT AS_EXECUTABLE)
-    message(FATAL_ERROR
-              "Unable to find assembler. Install 'yasm' or 'nasm.' "
-              "To build without optimizations, add -DAOM_TARGET_CPU=generic to "
-              "your cmake command line.")
+    message(
+      FATAL_ERROR
+        "Unable to find assembler. Install 'yasm' or 'nasm.' "
+        "To build without optimizations, add -DAOM_TARGET_CPU=generic to "
+        "your cmake command line.")
   endif()
   get_asm_obj_format("objformat")
   set(AOM_AS_FLAGS -f ${objformat} ${AOM_AS_FLAGS})
@@ -161,8 +162,9 @@ elseif("${AOM_TARGET_CPU}" MATCHES "arm")
     endif()
   endif()
   if(NOT AS_EXECUTABLE)
-    message(FATAL_ERROR
-              "Unknown assembler for: ${AOM_TARGET_CPU}-${AOM_TARGET_SYSTEM}")
+    message(
+      FATAL_ERROR
+        "Unknown assembler for: ${AOM_TARGET_CPU}-${AOM_TARGET_SYSTEM}")
   endif()
 
   string(STRIP "${AOM_AS_FLAGS}" AOM_AS_FLAGS)
@@ -208,15 +210,12 @@ aom_check_source_compiles("unistd_check" "#include <unistd.h>" HAVE_UNISTD_H)
 
 if(NOT MSVC)
   aom_push_var(CMAKE_REQUIRED_LIBRARIES "m")
-  aom_check_c_compiles(
-    "fenv_check"
-    "#define _GNU_SOURCE
+  aom_check_c_compiles("fenv_check" "#define _GNU_SOURCE
                         #include <fenv.h>
                         void unused(void) {
                           (void)unused;
                           (void)feenableexcept(FE_DIVBYZERO | FE_INVALID);
-                        }"
-    HAVE_FEXCEPT)
+                        }" HAVE_FEXCEPT)
   aom_pop_var(CMAKE_REQUIRED_LIBRARIES)
 endif()
 
@@ -308,10 +307,10 @@ endif()
 # Generate aom_config templates.
 set(aom_config_asm_template "${AOM_CONFIG_DIR}/config/aom_config.asm.cmake")
 set(aom_config_h_template "${AOM_CONFIG_DIR}/config/aom_config.h.cmake")
-execute_process(COMMAND
-                  ${CMAKE_COMMAND} -DAOM_CONFIG_DIR=${AOM_CONFIG_DIR}
-                  -DAOM_ROOT=${AOM_ROOT} -P
-                  "${AOM_ROOT}/build/cmake/generate_aom_config_templates.cmake")
+execute_process(
+  COMMAND ${CMAKE_COMMAND}
+          -DAOM_CONFIG_DIR=${AOM_CONFIG_DIR} -DAOM_ROOT=${AOM_ROOT} -P
+          "${AOM_ROOT}/build/cmake/generate_aom_config_templates.cmake")
 
 # Generate aom_config.{asm,h}.
 configure_file("${aom_config_asm_template}"
@@ -338,14 +337,14 @@ configure_file("${AOM_CONFIG_DIR}/rtcd_config.cmake"
                "${AOM_CONFIG_DIR}/${AOM_TARGET_CPU}_rtcd_config.rtcd")
 
 set(AOM_RTCD_CONFIG_FILE_LIST "${AOM_ROOT}/aom_dsp/aom_dsp_rtcd_defs.pl"
-    "${AOM_ROOT}/aom_scale/aom_scale_rtcd.pl"
-    "${AOM_ROOT}/av1/common/av1_rtcd_defs.pl")
+                              "${AOM_ROOT}/aom_scale/aom_scale_rtcd.pl"
+                              "${AOM_ROOT}/av1/common/av1_rtcd_defs.pl")
 set(AOM_RTCD_HEADER_FILE_LIST "${AOM_CONFIG_DIR}/config/aom_dsp_rtcd.h"
-    "${AOM_CONFIG_DIR}/config/aom_scale_rtcd.h"
-    "${AOM_CONFIG_DIR}/config/av1_rtcd.h")
+                              "${AOM_CONFIG_DIR}/config/aom_scale_rtcd.h"
+                              "${AOM_CONFIG_DIR}/config/av1_rtcd.h")
 set(AOM_RTCD_SOURCE_FILE_LIST "${AOM_ROOT}/aom_dsp/aom_dsp_rtcd.c"
-    "${AOM_ROOT}/aom_scale/aom_scale_rtcd.c"
-    "${AOM_ROOT}/av1/common/av1_rtcd.c")
+                              "${AOM_ROOT}/aom_scale/aom_scale_rtcd.c"
+                              "${AOM_ROOT}/av1/common/av1_rtcd.c")
 set(AOM_RTCD_SYMBOL_LIST aom_dsp_rtcd aom_scale_rtcd av1_rtcd)
 list(LENGTH AOM_RTCD_SYMBOL_LIST AOM_RTCD_CUSTOM_COMMAND_COUNT)
 math(EXPR AOM_RTCD_CUSTOM_COMMAND_COUNT "${AOM_RTCD_CUSTOM_COMMAND_COUNT} - 1")
@@ -356,23 +355,26 @@ foreach(NUM RANGE ${AOM_RTCD_CUSTOM_COMMAND_COUNT})
   list(GET AOM_RTCD_SOURCE_FILE_LIST ${NUM} AOM_RTCD_SOURCE_FILE)
   list(GET AOM_RTCD_SYMBOL_LIST ${NUM} AOM_RTCD_SYMBOL)
   execute_process(
-    COMMAND ${PERL_EXECUTABLE} "${AOM_ROOT}/build/make/rtcd.pl"
-            --arch=${AOM_TARGET_CPU}
-            --sym=${AOM_RTCD_SYMBOL} ${AOM_RTCD_FLAGS}
-            --config=${AOM_CONFIG_DIR}/${AOM_TARGET_CPU}_rtcd_config.rtcd
-            ${AOM_RTCD_CONFIG_FILE}
+    COMMAND
+      ${PERL_EXECUTABLE} "${AOM_ROOT}/build/make/rtcd.pl"
+      --arch=${AOM_TARGET_CPU}
+      --sym=${AOM_RTCD_SYMBOL} ${AOM_RTCD_FLAGS}
+      --config=${AOM_CONFIG_DIR}/${AOM_TARGET_CPU}_rtcd_config.rtcd
+        ${AOM_RTCD_CONFIG_FILE}
     OUTPUT_FILE ${AOM_RTCD_HEADER_FILE})
 endforeach()
 
 # Generate aom_version.h.
-execute_process(COMMAND ${CMAKE_COMMAND} -DAOM_CONFIG_DIR=${AOM_CONFIG_DIR}
+execute_process(COMMAND ${CMAKE_COMMAND}
+                        -DAOM_CONFIG_DIR=${AOM_CONFIG_DIR}
                         -DAOM_ROOT=${AOM_ROOT}
                         -DGIT_EXECUTABLE=${GIT_EXECUTABLE}
                         -DPERL_EXECUTABLE=${PERL_EXECUTABLE} -P
                         "${AOM_ROOT}/build/cmake/version.cmake")
 
 if(NOT MSVC) # Generate aom.pc (pkg-config file).
-  execute_process(COMMAND ${CMAKE_COMMAND} -DAOM_CONFIG_DIR=${AOM_CONFIG_DIR}
+  execute_process(COMMAND ${CMAKE_COMMAND}
+                          -DAOM_CONFIG_DIR=${AOM_CONFIG_DIR}
                           -DAOM_ROOT=${AOM_ROOT}
                           -DCMAKE_INSTALL_PREFIX=${CMAKE_INSTALL_PREFIX}
                           -DCMAKE_PROJECT_NAME=${CMAKE_PROJECT_NAME}

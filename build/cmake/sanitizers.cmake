@@ -31,8 +31,8 @@ require_compiler_flag("-fno-omit-frame-pointer -fno-optimize-sibling-calls" YES)
 # Fix link errors due to missing rt compiler lib in 32-bit builds.
 # http://llvm.org/bugs/show_bug.cgi?id=17693
 if(CMAKE_C_COMPILER_ID MATCHES "Clang")
-  if(${CMAKE_SIZEOF_VOID_P} EQUAL 4 AND "${SANITIZE}" MATCHES
-     "integer|undefined")
+  if(${CMAKE_SIZEOF_VOID_P} EQUAL 4
+     AND "${SANITIZE}" MATCHES "integer|undefined")
     require_linker_flag("--rtlib=compiler-rt -lgcc_s")
   endif()
 endif()

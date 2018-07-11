@@ -17,10 +17,10 @@ set(AOM_EXPORTS_SOURCES "${AOM_ROOT}/aom/exports_com")
 
 if(CONFIG_AV1_DECODER)
   set(AOM_EXPORTS_SOURCES ${AOM_EXPORTS_SOURCES} "${AOM_ROOT}/aom/exports_dec"
-      "${AOM_ROOT}/av1/exports_dec")
+                          "${AOM_ROOT}/av1/exports_dec")
 endif()
 
 if(CONFIG_AV1_ENCODER)
   set(AOM_EXPORTS_SOURCES ${AOM_EXPORTS_SOURCES} "${AOM_ROOT}/aom/exports_enc"
-      "${AOM_ROOT}/av1/exports_enc")
+                          "${AOM_ROOT}/av1/exports_enc")
 endif()

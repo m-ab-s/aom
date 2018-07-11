@@ -10,8 +10,8 @@
 #
 cmake_minimum_required(VERSION 3.5)
 
-set(REQUIRED_ARGS "AOM_ROOT" "AOM_CONFIG_DIR" "AOM_TARGET_SYSTEM"
-    "AOM_SYM_FILE" "CONFIG_AV1_DECODER" "CONFIG_AV1_ENCODER")
+set(REQUIRED_ARGS "AOM_ROOT" "AOM_CONFIG_DIR" "AOM_TARGET_SYSTEM" "AOM_SYM_FILE"
+                  "CONFIG_AV1_DECODER" "CONFIG_AV1_ENCODER")
 
 foreach(arg ${REQUIRED_ARGS})
   if("${${arg}}" STREQUAL "")
@@ -26,7 +26,7 @@ if("${AOM_TARGET_SYSTEM}" STREQUAL "Darwin")
 elseif("${AOM_TARGET_SYSTEM}" MATCHES "Windows\|MSYS" AND AOM_MSVC)
   set(symbol_prefix "_")
   file(WRITE "${AOM_SYM_FILE}" "LIBRARY libaom INITINSTANCE TERMINSTANCE\n"
-             "DATA MULTIPLE NONSHARED\n" "EXPORTS\n")
+                               "DATA MULTIPLE NONSHARED\n" "EXPORTS\n")
 else()
   set(symbol_suffix ";")
 endif()
@@ -37,7 +37,7 @@ if("${AOM_TARGET_SYSTEM}" STREQUAL "Darwin")
   file(REMOVE "${aom_sym_file}")
 elseif("${AOM_TARGET_SYSTEM}" MATCHES "Windows\|MSYS")
   file(WRITE "${aom_sym_file}" "LIBRARY libaom INITINSTANCE TERMINSTANCE\n"
-             "DATA MULTIPLE NONSHARED\n" "EXPORTS\n")
+                               "DATA MULTIPLE NONSHARED\n" "EXPORTS\n")
 else()
   file(WRITE "${aom_sym_file}" "{ global:\n")
 endif()
