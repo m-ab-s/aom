@@ -23,7 +23,7 @@ extern "C" {
 #if CONFIG_OPFL
 
 // Constant MACRO defs
-#define AVG_MF_BORDER 2
+#define AVG_MF_BORDER 32
 #define MAX_MV_LENGTH_1D 160
 #define DERIVATIVE_FILTER_LENGTH 7
 
@@ -81,6 +81,7 @@ typedef struct opfl_buffer_struct {
   int left_offset;
   int right_offset;
   int cur_offset;
+  MV_REFERENCE_FRAME opfl_refs[2];
   DB_MV *mf_last[MAX_OPFL_LEVEL];
   DB_MV *mf_new[MAX_OPFL_LEVEL];
   DB_MV *mf_med[MAX_OPFL_LEVEL];  // for motion field after median filter

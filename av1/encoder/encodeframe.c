@@ -493,7 +493,7 @@ static void update_global_motion_used(PREDICTION_MODE mode, BLOCK_SIZE bsize,
 #if CONFIG_EXT_INTER
       || mode == ZERO_ZEROMV
 #endif
-      ) {
+  ) {
     const int num_4x4s =
         num_4x4_blocks_wide_lookup[bsize] * num_4x4_blocks_high_lookup[bsize];
     int ref;
@@ -746,7 +746,7 @@ static void update_state(const AV1_COMP *const cpi, ThreadData *td,
 #if CONFIG_GLOBAL_MOTION
           && !is_nontrans_global_motion(xd)
 #endif  // CONFIG_GLOBAL_MOTION
-              ) {
+      ) {
 #if CONFIG_DUAL_FILTER
         update_filter_type_count(td->counts, xd, mbmi);
 #else
@@ -905,7 +905,7 @@ static void update_state_supertx(const AV1_COMP *const cpi, ThreadData *td,
 #if CONFIG_GLOBAL_MOTION
         && !is_nontrans_global_motion(xd)
 #endif  // CONFIG_GLOBAL_MOTION
-            ) {
+    ) {
 #if CONFIG_DUAL_FILTER
       update_filter_type_count(td->counts, xd, mbmi);
 #else
@@ -1545,7 +1545,7 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td, int mi_row,
                          ,
                          int supertx_enabled
 #endif
-                         ) {
+) {
 #if CONFIG_DELTA_Q
   MACROBLOCK *x = &td->mb;
   MACROBLOCKD *const xd = &x->e_mbd;
@@ -1812,7 +1812,7 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td, int mi_row,
 #if CONFIG_MOTION_VAR || CONFIG_WARPED_MOTION
             && mbmi->motion_mode == SIMPLE_TRANSLATION
 #endif  // CONFIG_MOTION_VAR || CONFIG_WARPED_MOTION
-            ) {
+        ) {
           counts->compound_interinter[bsize][mbmi->interinter_compound_type]++;
         }
 #endif  // CONFIG_EXT_INTER
@@ -5113,9 +5113,9 @@ static void encode_frame_internal(AV1_COMP *cpi) {
     const double *params_this_motion;
     int inliers_by_motion[RANSAC_NUM_MOTIONS];
     WarpedMotionParams tmp_wm_params;
-    static const double kIdentityParams[MAX_PARAMDIM - 1] = {
-      0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0
-    };
+    static const double kIdentityParams[MAX_PARAMDIM - 1] = { 0.0, 0.0, 1.0,
+                                                              0.0, 0.0, 1.0,
+                                                              0.0, 0.0 };
     int num_refs_using_gm = 0;
 
     for (frame = LAST_FRAME; frame <= ALTREF_FRAME; ++frame) {
@@ -5351,6 +5351,7 @@ static void encode_frame_internal(AV1_COMP *cpi) {
 
     // TODO(bohan): Should not allocate the buffer for every frame
     cm->opfl_ref_frame = cm->frame_refs[OPFL_FRAME - LAST_FRAME].buf;
+    cm->opfl_buf_struct_ptr = aom_calloc(1, sizeof(OPFL_BUFFER_STRUCT));
     cm->opfl_available = av1_get_opfl_ref(cm);
 #if NO_BITSTREAM
     cm->opfl_available = 0;
@@ -5367,6 +5368,11 @@ static void encode_frame_internal(AV1_COMP *cpi) {
       av1_encode_tiles_mt(cpi);
     else
       encode_tiles(cpi);
+
+#if CONFIG_OPFL
+    av1_opfl_free_buf(cm->opfl_buf_struct_ptr);
+    aom_free(cm->opfl_buf_struct_ptr);
+#endif
 
     aom_usec_timer_mark(&emr_timer);
     cpi->time_encode_sb_row += aom_usec_timer_elapsed(&emr_timer);
@@ -5745,7 +5751,7 @@ static void sum_intra_stats(FRAME_COUNTS *counts, MACROBLOCKD *xd,
 #if CONFIG_PALETTE
         && mbmi->palette_mode_info.palette_size[0] == 0
 #endif  // CONFIG_PALETTE
-        ) {
+    ) {
       const int use_filter_intra_mode =
           mbmi->filter_intra_mode_info.use_filter_intra_mode[0];
       ++counts->filter_intra[0][use_filter_intra_mode];
@@ -5759,7 +5765,7 @@ static void sum_intra_stats(FRAME_COUNTS *counts, MACROBLOCKD *xd,
 #if CONFIG_PALETTE
         && mbmi->palette_mode_info.palette_size[1] == 0
 #endif  // CONFIG_PALETTE
-        ) {
+    ) {
       const int use_filter_intra_mode =
           mbmi->filter_intra_mode_info.use_filter_intra_mode[1];
       ++counts->filter_intra[1][use_filter_intra_mode];

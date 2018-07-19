@@ -1001,7 +1001,7 @@ static void dec_predict_b_extend(
 #if CONFIG_EXT_INTER && CONFIG_COMPOUND_SINGLEREF
       || is_inter_singleref_comp_mode(xd->mi[0]->mbmi.mode)
 #endif  // CONFIG_EXT_INTER && CONFIG_COMPOUND_SINGLEREF
-          )
+  )
     set_ref(cm, xd, 1, mi_row_pred, mi_col_pred);
   if (!bextend) mbmi->tx_size = max_txsize_lookup[bsize_top];
 
@@ -1787,6 +1787,12 @@ static void decode_mbmi_block(AV1Decoder *const pbi, MACROBLOCKD *const xd,
                          "Invalid block size.");
   }
 
+#if CONFIG_OPFL
+  // update the motion references for optical flow blocks
+  // calculate optical flow reference here
+  av1_dec_calc_opfl_ref(pbi, xd, mi_row, mi_col, x_mis, y_mis, bsize);
+#endif
+
 #if CONFIG_SUPERTX
   xd->mi[0]->mbmi.segment_id_supertx = MAX_SEGMENTS;
 #endif  // CONFIG_SUPERTX
@@ -2027,96 +2033,96 @@ static void decode_token_and_recon_block(AV1Decoder *const pbi,
   } else {
     int ref;
 #if CONFIG_OPFL
-    assert(mbmi->ref_frame[1] != OPFL_FRAME);
-    if (mbmi->ref_frame[0] == OPFL_FRAME) {
-      int startblkh = (mi_row << 2);
-      int startblkw = (mi_col << 2);
-      int endblkh, endblkw;
-      double mvr = mbmi->mv[0].as_mv.row;
-      double mvc = mbmi->mv[0].as_mv.col;
-      mvr = mvr / 8;
-      mvc = mvc / 8;
-      int blkwidth = (x_mis << 2);
-      int blkheight = (y_mis << 2);
+    // assert(mbmi->ref_frame[1] != OPFL_FRAME);
+//     if (mbmi->ref_frame[0] == OPFL_FRAME) {
+//       int startblkh = (mi_row << 2);
+//       int startblkw = (mi_col << 2);
+//       int endblkh, endblkw;
+//       double mvr = mbmi->mv[0].as_mv.row;
+//       double mvc = mbmi->mv[0].as_mv.col;
+//       mvr = mvr / 8;
+//       mvc = mvc / 8;
+//       int blkwidth = (x_mis << 2);
+//       int blkheight = (y_mis << 2);
 
-      OPFL_BLK_INFO blk_info;
-      endblkh = startblkh + (int)floor(mvr) + 8 + blkheight;
-      endblkw = startblkw + (int)floor(mvc) + 8 + blkwidth;
-      startblkh = startblkh + (int)floor(mvr) - 8;
-      startblkw = startblkw + (int)floor(mvc) - 8;
+//       OPFL_BLK_INFO blk_info;
+//       endblkh = startblkh + (int)floor(mvr) + 8 + blkheight;
+//       endblkw = startblkw + (int)floor(mvc) + 8 + blkwidth;
+//       startblkh = startblkh + (int)floor(mvr) - 8;
+//       startblkw = startblkw + (int)floor(mvc) - 8;
 
-#if CONFIG_CHROMA_SUB8X8
-      if (bsize < BLOCK_8X8) {
-        // Offset the buffer pointer
-        if (mi_row & 0x01) {
-          startblkh -= (1 << 2);
-        }
-        if (mi_col & 0x01) {
-          startblkw -= (1 << 2);
-        }
-      }
-#endif
+// #if CONFIG_CHROMA_SUB8X8
+//       if (bsize < BLOCK_8X8) {
+//         // Offset the buffer pointer
+//         if (mi_row & 0x01) {
+//           startblkh -= (1 << 2);
+//         }
+//         if (mi_col & 0x01) {
+//           startblkw -= (1 << 2);
+//         }
+//       }
+// #endif
 
-      int width = cm->opfl_ref_frame->y_width;
-      int height = cm->opfl_ref_frame->y_height;
+//       int width = cm->opfl_ref_frame->y_width;
+//       int height = cm->opfl_ref_frame->y_height;
 
-#if FRAME_LEVEL_OPFL
-      blkheight = height;
-      blkwidth = width;
-#else
-      blkheight = OPFL_BLOCK_SIZE;
-      blkwidth = OPFL_BLOCK_SIZE;
-#endif
-      int wblk = (width + blkwidth - 1) / blkwidth;
+// #if FRAME_LEVEL_OPFL
+//       blkheight = height;
+//       blkwidth = width;
+// #else
+//       blkheight = OPFL_BLOCK_SIZE;
+//       blkwidth = OPFL_BLOCK_SIZE;
+// #endif
+//       int wblk = (width + blkwidth - 1) / blkwidth;
 
-      startblkh = (startblkh / blkheight) * blkheight;
-      endblkh = ((endblkh + blkheight - 1) / blkheight) * blkheight;
-      startblkw = (startblkw / blkwidth) * blkwidth;
-      endblkw = ((endblkw + blkwidth - 1) / blkwidth) * blkwidth;
-      if (startblkh < 0) startblkh = 0;
-      if (startblkw < 0) startblkw = 0;
-      if (endblkw <= startblkw) endblkw = startblkw + blkwidth;
-      if (endblkh <= startblkh) endblkh = startblkh + blkheight;
+//       startblkh = (startblkh / blkheight) * blkheight;
+//       endblkh = ((endblkh + blkheight - 1) / blkheight) * blkheight;
+//       startblkw = (startblkw / blkwidth) * blkwidth;
+//       endblkw = ((endblkw + blkwidth - 1) / blkwidth) * blkwidth;
+//       if (startblkh < 0) startblkh = 0;
+//       if (startblkw < 0) startblkw = 0;
+//       if (endblkw <= startblkw) endblkw = startblkw + blkwidth;
+//       if (endblkh <= startblkh) endblkh = startblkh + blkheight;
 
-      for (int i = startblkh; i < endblkh; i += blkheight) {
-        for (int j = startblkw; j < endblkw; j += blkwidth) {
-          if (i >= height) {
-            continue;
-          }
-          if (j >= width) {
-            continue;
-          }
-          if (cm->opfl_buf_struct_ptr
-                  ->done_flag[i / blkheight * wblk + j / blkwidth])
-            continue;
-          blk_info.starth = i;
-          blk_info.startw = j;
-          if (i + blkheight > height) {
-            blk_info.blk_height = height - blk_info.starth;
-          } else {
-            blk_info.blk_height = blkheight;
-          }
-          if (j + blkwidth > width) {
-            blk_info.blk_width = width - blk_info.startw;
-          } else {
-            blk_info.blk_width = blkwidth;
-          }
+//       for (int i = startblkh; i < endblkh; i += blkheight) {
+//         for (int j = startblkw; j < endblkw; j += blkwidth) {
+//           if (i >= height) {
+//             continue;
+//           }
+//           if (j >= width) {
+//             continue;
+//           }
+//           if (cm->opfl_buf_struct_ptr
+//                   ->done_flag[i / blkheight * wblk + j / blkwidth])
+//             continue;
+//           blk_info.starth = i;
+//           blk_info.startw = j;
+//           if (i + blkheight > height) {
+//             blk_info.blk_height = height - blk_info.starth;
+//           } else {
+//             blk_info.blk_height = blkheight;
+//           }
+//           if (j + blkwidth > width) {
+//             blk_info.blk_width = width - blk_info.startw;
+//           } else {
+//             blk_info.blk_width = blkwidth;
+//           }
 
-          blk_info.upbound = 0;
-          blk_info.lowerbound = 0;
-          blk_info.leftbound = 0;
-          blk_info.rightbound = 0;
+//           blk_info.upbound = 0;
+//           blk_info.lowerbound = 0;
+//           blk_info.leftbound = 0;
+//           blk_info.rightbound = 0;
 
-          if (i == 0) blk_info.upbound = 1;
-          if (i + blkheight >= height) blk_info.lowerbound = 1;
-          if (j == 0) blk_info.leftbound = 1;
-          if (j + blkwidth >= width) blk_info.rightbound = 1;
-          optical_flow_get_ref(cm->opfl_buf_struct_ptr, blk_info);
-          cm->opfl_buf_struct_ptr
-              ->done_flag[i / blkheight * wblk + j / blkwidth] = 1;
-        }
-      }
-    }
+//           if (i == 0) blk_info.upbound = 1;
+//           if (i + blkheight >= height) blk_info.lowerbound = 1;
+//           if (j == 0) blk_info.leftbound = 1;
+//           if (j + blkwidth >= width) blk_info.rightbound = 1;
+//           optical_flow_get_ref(cm->opfl_buf_struct_ptr, blk_info);
+//           cm->opfl_buf_struct_ptr
+//               ->done_flag[i / blkheight * wblk + j / blkwidth] = 1;
+//         }
+//       }
+//     }
 #endif
 
 #if CONFIG_EXT_INTER && CONFIG_COMPOUND_SINGLEREF
@@ -4557,7 +4563,7 @@ static size_t read_uncompressed_header(AV1Decoder *pbi,
       int frame_id_length = pbi->seq_params.frame_id_length_minus7 + 7;
       int display_frame_id = aom_rb_read_literal(rb, frame_id_length);
       /* Compare display_frame_id with ref_frame_id and check valid for
-      * referencing */
+       * referencing */
       if (display_frame_id != cm->ref_frame_id[existing_frame_idx] ||
           cm->valid_for_referencing[existing_frame_idx] == 0)
         aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
@@ -4741,7 +4747,7 @@ static size_t read_uncompressed_header(AV1Decoder *pbi,
                 (1 << frame_id_length)) %
                (1 << frame_id_length));
           /* Compare values derived from delta_frame_id_minus1 and
-          * refresh_frame_flags. Also, check valid for referencing */
+           * refresh_frame_flags. Also, check valid for referencing */
           if (ref_frame_id != cm->ref_frame_id[ref] ||
               cm->valid_for_referencing[ref] == 0)
             aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
@@ -5537,11 +5543,11 @@ void av1_decode_frame(AV1Decoder *pbi, const uint8_t *data,
   cm->opfl_ref_frame = cm->frame_refs[OPFL_FRAME - LAST_FRAME].buf;
 #if NO_BITSTREAM
   cm->opfl_available = 0;
-  av1_get_opfl_ref(cm);
 #else
   cm->opfl_buf_struct_ptr = aom_calloc(1, sizeof(OPFL_BUFFER_STRUCT));
   av1_opfl_set_buf(cm, cm->opfl_buf_struct_ptr);
   cm->opfl_available = cm->opfl_buf_struct_ptr->initialized;
+  // cm->opfl_available = av1_get_opfl_ref(cm);
 #endif
 #endif
 

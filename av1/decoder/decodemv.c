@@ -25,6 +25,9 @@
 #if CONFIG_WARPED_MOTION
 #include "av1/common/warped_motion.h"
 #endif  // CONFIG_WARPED_MOTION
+#if CONFIG_OPFL
+#include "av1/common/optical_flow_ref.h"
+#endif
 
 #include "av1/decoder/decodeframe.h"
 #include "av1/decoder/decodemv.h"
@@ -808,8 +811,9 @@ static void read_palette_mode_info(AV1_COMMON *const cm, MACROBLOCKD *const xd,
       palette_y_mode_ctx +=
           (left_mi->mbmi.palette_mode_info.palette_size[0] > 0);
     }
-    if (aom_read(r, av1_default_palette_y_mode_prob[bsize - BLOCK_8X8]
-                                                   [palette_y_mode_ctx],
+    if (aom_read(r,
+                 av1_default_palette_y_mode_prob[bsize - BLOCK_8X8]
+                                                [palette_y_mode_ctx],
                  ACCT_STR)) {
       pmi->palette_size[0] =
 #if CONFIG_NEW_MULTISYMBOL
@@ -877,7 +881,7 @@ static void read_filter_intra_mode_info(AV1_COMMON *const cm,
 #if CONFIG_PALETTE
       && mbmi->palette_mode_info.palette_size[0] == 0
 #endif  // CONFIG_PALETTE
-      ) {
+  ) {
     filter_intra_mode_info->use_filter_intra_mode[0] =
         aom_read(r, cm->fc->filter_intra_probs[0], ACCT_STR);
     if (filter_intra_mode_info->use_filter_intra_mode[0]) {
@@ -904,7 +908,7 @@ static void read_filter_intra_mode_info(AV1_COMMON *const cm,
 #if CONFIG_PALETTE
       && mbmi->palette_mode_info.palette_size[1] == 0
 #endif  // CONFIG_PALETTE
-      ) {
+  ) {
     filter_intra_mode_info->use_filter_intra_mode[1] =
         aom_read(r, cm->fc->filter_intra_probs[1], ACCT_STR);
     if (filter_intra_mode_info->use_filter_intra_mode[1]) {
@@ -1544,7 +1548,7 @@ static void read_ref_frames(AV1_COMMON *const cm, MACROBLOCKD *const xd,
         bit_bwd = READ_REF_BIT(comp_bwdref_p);
       else
         bit_bwd = ALTREF_IS_VALID(cm);
-#else  // !CONFIG_VAR_REFS
+#else   // !CONFIG_VAR_REFS
       const int bit_bwd = READ_REF_BIT(comp_bwdref_p);
 #endif  // CONFIG_VAR_REFS
       if (counts) ++counts->comp_bwdref[ctx_bwd][0][bit_bwd];
@@ -1557,7 +1561,7 @@ static void read_ref_frames(AV1_COMMON *const cm, MACROBLOCKD *const xd,
           bit1_bwd = READ_REF_BIT(comp_bwdref_p1);
         else
           bit1_bwd = ALTREF2_IS_VALID(cm);
-#else  // !CONFIG_VAR_REFS
+#else   // !CONFIG_VAR_REFS
         const int bit1_bwd = READ_REF_BIT(comp_bwdref_p1);
 #endif  // CONFIG_VAR_REFS
         if (counts) ++counts->comp_bwdref[ctx1_bwd][1][bit1_bwd];
@@ -1602,7 +1606,7 @@ static void read_ref_frames(AV1_COMMON *const cm, MACROBLOCKD *const xd,
           bit1 = READ_REF_BIT(single_ref_p2);
         else
           bit1 = ALTREF_IS_VALID(cm);
-#else  // !CONFIG_VAR_REFS
+#else   // !CONFIG_VAR_REFS
         const int bit1 = READ_REF_BIT(single_ref_p2);
 #endif  // CONFIG_VAR_REFS
         if (counts) ++counts->single_ref[ctx1][1][bit1];
@@ -1615,7 +1619,7 @@ static void read_ref_frames(AV1_COMMON *const cm, MACROBLOCKD *const xd,
             bit5 = READ_REF_BIT(single_ref_p6);
           else
             bit5 = ALTREF2_IS_VALID(cm);
-#else  // !CONFIG_VAR_REFS
+#else   // !CONFIG_VAR_REFS
           const int bit5 = READ_REF_BIT(single_ref_p6);
 #endif  // CONFIG_VAR_REFS
           if (counts) ++counts->single_ref[ctx5][5][bit5];
@@ -1623,7 +1627,7 @@ static void read_ref_frames(AV1_COMMON *const cm, MACROBLOCKD *const xd,
         } else {
           ref_frame[0] = ALTREF_FRAME;
         }
-#else  // !CONFIG_ALTREF2
+#else   // !CONFIG_ALTREF2
         ref_frame[0] = bit1 ? ALTREF_FRAME : BWDREF_FRAME;
 #endif  // CONFIG_ALTREF2
       } else {
@@ -1635,7 +1639,7 @@ static void read_ref_frames(AV1_COMMON *const cm, MACROBLOCKD *const xd,
           bit2 = READ_REF_BIT(single_ref_p3);
         else
           bit2 = L3_OR_G(cm);
-#else  // !CONFIG_VAR_REFS
+#else   // !CONFIG_VAR_REFS
         const int bit2 = READ_REF_BIT(single_ref_p3);
 #endif  // CONFIG_VAR_REFS
         if (counts) ++counts->single_ref[ctx2][2][bit2];
@@ -1648,7 +1652,7 @@ static void read_ref_frames(AV1_COMMON *const cm, MACROBLOCKD *const xd,
             bit4 = READ_REF_BIT(single_ref_p5);
           else
             bit4 = GOLDEN_IS_VALID(cm);
-#else  // !CONFIG_VAR_REFS
+#else   // !CONFIG_VAR_REFS
           const int bit4 = READ_REF_BIT(single_ref_p5);
 #endif  // CONFIG_VAR_REFS
           if (counts) ++counts->single_ref[ctx4][4][bit4];
@@ -1662,7 +1666,7 @@ static void read_ref_frames(AV1_COMMON *const cm, MACROBLOCKD *const xd,
             bit3 = READ_REF_BIT(single_ref_p4);
           else
             bit3 = LAST2_IS_VALID(cm);
-#else  // !CONFIG_VAR_REFS
+#else   // !CONFIG_VAR_REFS
           const int bit3 = READ_REF_BIT(single_ref_p4);
 #endif  // CONFIG_VAR_REFS
           if (counts) ++counts->single_ref[ctx3][3][bit3];
@@ -2362,7 +2366,7 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
           mbmi->mode == SR_NEW_NEWMV ||
 #endif  // CONFIG_COMPOUND_SINGLEREF
           have_nearmv_in_inter_mode(mbmi->mode))
-#else  // !CONFIG_EXT_INTER
+#else   // !CONFIG_EXT_INTER
       if (mbmi->mode == NEARMV || mbmi->mode == NEWMV)
 #endif  // CONFIG_EXT_INTER
         read_drl_idx(ec_ctx, xd, mbmi, r);
@@ -2419,7 +2423,7 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
                  || mbmi->mode == SR_NEAREST_NEARMV
 // || mbmi->mode == SR_NEAREST_NEWMV
 #endif  // CONFIG_COMPOUND_SINGLEREF
-                 ) {
+      ) {
         nearestmv[0] = xd->ref_mv_stack[ref_frame_type][0].this_mv;
         lower_mv_precision(&nearestmv[0].as_mv, allow_hp);
       } else if (mbmi->mode == NEW_NEARESTMV) {
@@ -2768,7 +2772,7 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
 #if CONFIG_MOTION_VAR || CONFIG_WARPED_MOTION
       && mbmi->motion_mode == SIMPLE_TRANSLATION
 #endif  // CONFIG_MOTION_VAR || CONFIG_WARPED_MOTION
-      ) {
+  ) {
     if (is_any_masked_compound_used(bsize)) {
 #if CONFIG_COMPOUND_SEGMENT || CONFIG_WEDGE
       if (cm->allow_masked_compound) {
@@ -2976,3 +2980,105 @@ void av1_read_mode_info(AV1Decoder *const pbi, MACROBLOCKD *xd,
     }
   }
 }
+
+#if CONFIG_OPFL
+void av1_dec_calc_opfl_ref(AV1Decoder *const pbi, MACROBLOCKD *xd, int mi_row,
+                           int mi_col, int x_mis, int y_mis, BLOCK_SIZE bsize) {
+  AV1_COMMON *const cm = &pbi->common;
+  MODE_INFO *const mi = xd->mi[0];
+
+  if (!frame_is_intra_only(cm)) {
+    if (mi->mbmi.ref_frame[0] == OPFL_FRAME) {
+      // if(0) {
+      int startblkh = (mi_row << 2);
+      int startblkw = (mi_col << 2);
+      int endblkh, endblkw;
+      double mvr = mi->mbmi.mv[0].as_mv.row;
+      double mvc = mi->mbmi.mv[0].as_mv.col;
+      mvr = mvr / 8;
+      mvc = mvc / 8;
+      int blkwidth = (x_mis << 2);
+      int blkheight = (y_mis << 2);
+
+      OPFL_BLK_INFO blk_info;
+      endblkh = startblkh + (int)floor(mvr) + 8 + blkheight;
+      endblkw = startblkw + (int)floor(mvc) + 8 + blkwidth;
+      startblkh = startblkh + (int)floor(mvr) - 8;
+      startblkw = startblkw + (int)floor(mvc) - 8;
+
+#if CONFIG_CHROMA_SUB8X8
+      if (bsize < BLOCK_8X8) {
+        // Offset the buffer pointer
+        if (mi_row & 0x01) {
+          startblkh -= (1 << 2);
+        }
+        if (mi_col & 0x01) {
+          startblkw -= (1 << 2);
+        }
+      }
+#endif
+
+      int width = cm->opfl_ref_frame->y_width;
+      int height = cm->opfl_ref_frame->y_height;
+
+#if FRAME_LEVEL_OPFL
+      blkheight = height;
+      blkwidth = width;
+#else
+      blkheight = OPFL_BLOCK_SIZE;
+      blkwidth = OPFL_BLOCK_SIZE;
+#endif
+      int wblk = (width + blkwidth - 1) / blkwidth;
+
+      startblkh = (startblkh / blkheight) * blkheight;
+      endblkh = ((endblkh + blkheight - 1) / blkheight) * blkheight;
+      startblkw = (startblkw / blkwidth) * blkwidth;
+      endblkw = ((endblkw + blkwidth - 1) / blkwidth) * blkwidth;
+      if (startblkh < 0) startblkh = 0;
+      if (startblkw < 0) startblkw = 0;
+      if (endblkw <= startblkw) endblkw = startblkw + blkwidth;
+      if (endblkh <= startblkh) endblkh = startblkh + blkheight;
+
+      for (int i = startblkh; i < endblkh; i += blkheight) {
+        for (int j = startblkw; j < endblkw; j += blkwidth) {
+          if (i >= height) {
+            continue;
+          }
+          if (j >= width) {
+            continue;
+          }
+          if (cm->opfl_buf_struct_ptr
+                  ->done_flag[i / blkheight * wblk + j / blkwidth])
+            continue;
+          blk_info.starth = i;
+          blk_info.startw = j;
+          if (i + blkheight > height) {
+            blk_info.blk_height = height - blk_info.starth;
+          } else {
+            blk_info.blk_height = blkheight;
+          }
+          if (j + blkwidth > width) {
+            blk_info.blk_width = width - blk_info.startw;
+          } else {
+            blk_info.blk_width = blkwidth;
+          }
+
+          blk_info.upbound = 0;
+          blk_info.lowerbound = 0;
+          blk_info.leftbound = 0;
+          blk_info.rightbound = 0;
+
+          if (i == 0) blk_info.upbound = 1;
+          if (i + blkheight >= height) blk_info.lowerbound = 1;
+          if (j == 0) blk_info.leftbound = 1;
+          if (j + blkwidth >= width) blk_info.rightbound = 1;
+          optical_flow_get_ref(cm->opfl_buf_struct_ptr, blk_info);
+          cm->opfl_buf_struct_ptr
+              ->done_flag[i / blkheight * wblk + j / blkwidth] = 1;
+        }
+      }
+
+    }  // if reference is OPFL_FRAME
+  }    // if not intra frame
+}
+#endif

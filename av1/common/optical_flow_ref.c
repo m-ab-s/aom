@@ -49,8 +49,7 @@ static int optical_flow_warp_filter[16][8] = {
  * 0: reference(s) not available
  */
 int av1_get_opfl_ref(AV1_COMMON *cm) {
-  OPFL_BUFFER_STRUCT opfl_buf_struct;
-  OPFL_BUFFER_STRUCT *buf_struct = &opfl_buf_struct;
+  OPFL_BUFFER_STRUCT *buf_struct = cm->opfl_buf_struct_ptr;
   OPFL_BLK_INFO blk_info;
 
   av1_opfl_set_buf(cm, buf_struct);
@@ -110,7 +109,7 @@ int av1_get_opfl_ref(AV1_COMMON *cm) {
       }
     }
 
-    av1_opfl_free_buf(buf_struct);
+    // av1_opfl_free_buf(buf_struct);
     return 1;
   } else {
     return 0;
@@ -230,6 +229,8 @@ void av1_opfl_set_buf(AV1_COMMON *cm, OPFL_BUFFER_STRUCT *buf_struct) {
   buf_struct->dst_buf = cm->opfl_ref_frame;
 
   if (left_idx >= 0 && right_idx >= 0) {
+    buf_struct->opfl_refs[0] = left_chosen;
+    buf_struct->opfl_refs[1] = right_chosen;
     YV12_BUFFER_CONFIG *left = &(cm->buffer_pool->frame_bufs[left_idx].buf);
     YV12_BUFFER_CONFIG *right = &(cm->buffer_pool->frame_bufs[right_idx].buf);
     dst_pos = ((double)(cur_offset - left_offset)) /
@@ -855,7 +856,7 @@ double iterate_update_mv(OPFL_BUFFER_STRUCT *buf_struct, DB_MV *mf_last,
       if (is_out) {
         pixel_weight[i * width + j] = 0.001;
         mv_weight[i * width + j] = boundFactor;
-      } else if (level > 0 && numWarpedRounds > 0) {
+      } else if (level > 2 && numWarpedRounds > 2) {
         pixel_weight[i * width + j] =
             exp(-pixExpFactor * Et[i * width + j] * Et[i * width + j]);
         pixel_weight[i * width + j] = (pixel_weight[i * width + j] > 0.001)
@@ -2558,13 +2559,13 @@ void create_motion_field(int_mv *mv_left, int_mv *mv_right, DB_MV *mf,
         tempc =
             (double)(mv_right[idx].as_mv.col) / 8.0 / mvscale / (1 - dstpos);
 #if OPFL_INIT_WT
-        tempWts = 0.02;
+        tempWts = 0.0;
 #endif
       } else if (mv_right[idx].as_int == INVALID_MV) {
         tempr = (double)(-mv_left[idx].as_mv.row) / 8.0 / mvscale / dstpos;
         tempc = (double)(-mv_left[idx].as_mv.col) / 8.0 / mvscale / dstpos;
 #if OPFL_INIT_WT
-        tempWts = 0.02;
+        tempWts = 0.0;
 #endif
       } else {
         tempr = (double)(-mv_left[idx].as_mv.row + mv_right[idx].as_mv.row) /
@@ -2572,7 +2573,7 @@ void create_motion_field(int_mv *mv_left, int_mv *mv_right, DB_MV *mf,
         tempc = (double)(-mv_left[idx].as_mv.col + mv_right[idx].as_mv.col) /
                 8.0 / mvscale;
 #if OPFL_INIT_WT
-        tempWts = 0.02;
+        tempWts = 0.0;
 #endif
       }
       for (int i = 0; i < blksize; i++) {

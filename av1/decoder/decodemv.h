@@ -28,6 +28,11 @@ void av1_read_mode_info(AV1Decoder *const pbi, MACROBLOCKD *xd,
                         int mi_row, int mi_col, aom_reader *r, int x_mis,
                         int y_mis);
 
+#if CONFIG_OPFL
+void av1_dec_calc_opfl_ref(AV1Decoder *const pbi, MACROBLOCKD *xd, int mi_row,
+                           int mi_col, int x_mis, int y_mis, BLOCK_SIZE bsize);
+#endif
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif

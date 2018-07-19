@@ -13,8 +13,14 @@
 #if CONFIG_WARPED_MOTION
 #include "av1/common/warped_motion.h"
 #endif  // CONFIG_WARPED_MOTION
+#if CONFIG_OPFL
+#include "av1/common/optical_flow_ref.h"
+#endif
 
 static uint8_t add_ref_mv_candidate(
+#if CONFIG_OPFL
+    const AV1_COMMON *cm, int mi_row_cand, int mi_col_cand,
+#endif
     const MODE_INFO *const candidate_mi, const MB_MODE_INFO *const candidate,
     const MV_REFERENCE_FRAME rf[2], uint8_t *refmv_count,
     CANDIDATE_MV *ref_mv_stack, const int use_hp, int len, int block, int col) {
@@ -25,62 +31,232 @@ static uint8_t add_ref_mv_candidate(
 #else
   const int unify_bsize = 0;
 #endif
-
   if (rf[1] == NONE_FRAME) {
     // single reference frame
-    for (ref = 0; ref < 2; ++ref) {
-      if (candidate->ref_frame[ref] == rf[0]) {
-        int_mv this_refmv = get_sub_block_mv(candidate_mi, ref, col, block);
-        lower_mv_precision(&this_refmv.as_mv, use_hp);
+#if CONFIG_OPFL
+    if (rf[0] == OPFL_FRAME && candidate->ref_frame[1] != NONE_FRAME &&
+        candidate->ref_frame[0] == cm->opfl_buf_struct_ptr->opfl_refs[0] &&
+        candidate->ref_frame[1] == cm->opfl_buf_struct_ptr->opfl_refs[1] &&
+        cm->opfl_available && candidate_mi->mbmi.sb_type >= BLOCK_8X8) {
+      // if this block is predicting from opfl ref,
+      // look out for compound mode blocks with the same refereces
+      int_mv refmv0 = get_sub_block_mv(candidate_mi, 0, col, block);
+      int_mv refmv1 = get_sub_block_mv(candidate_mi, 1, col, block);
+      int_mv predmv0 = get_sub_block_pred_mv(candidate_mi, 0, col, block);
+      int_mv predmv1 = get_sub_block_pred_mv(candidate_mi, 1, col, block);
+      double dstpos = cm->opfl_buf_struct_ptr->dst_pos;
+      int_mv this_refmv, pred_mv_opfl;
+      this_refmv.as_mv.row =
+          opfl_round_double_2_int((1 - dstpos) * ((double)refmv0.as_mv.row) +
+                                  dstpos * ((double)refmv1.as_mv.row));
+      this_refmv.as_mv.col =
+          opfl_round_double_2_int((1 - dstpos) * ((double)refmv0.as_mv.col) +
+                                  dstpos * ((double)refmv1.as_mv.col));
+      pred_mv_opfl.as_mv.row =
+          opfl_round_double_2_int((1 - dstpos) * ((double)predmv0.as_mv.row) +
+                                  dstpos * ((double)predmv1.as_mv.row));
+      pred_mv_opfl.as_mv.col =
+          opfl_round_double_2_int((1 - dstpos) * ((double)predmv0.as_mv.col) +
+                                  dstpos * ((double)predmv1.as_mv.col));
 
-        for (index = 0; index < *refmv_count; ++index)
-          if (ref_mv_stack[index].this_mv.as_int == this_refmv.as_int) break;
+      lower_mv_precision(&this_refmv.as_mv, use_hp);
+      lower_mv_precision(&pred_mv_opfl.as_mv, use_hp);
 
-        if (index < *refmv_count) ref_mv_stack[index].weight += 2 * len;
+      for (index = 0; index < *refmv_count; ++index)
+        if (ref_mv_stack[index].this_mv.as_int == this_refmv.as_int) break;
 
-        // Add a new item to the list.
-        if (index == *refmv_count) {
-          ref_mv_stack[index].this_mv = this_refmv;
-          ref_mv_stack[index].pred_diff[0] = av1_get_pred_diff_ctx(
-              get_sub_block_pred_mv(candidate_mi, ref, col, block), this_refmv);
-          ref_mv_stack[index].weight = 2 * len;
-          ++(*refmv_count);
+      if (index < *refmv_count) ref_mv_stack[index].weight += 2 * len;
+      // Add a new item to the list.
+      if (index == *refmv_count && index < MAX_REF_MV_STACK_SIZE) {
+        ref_mv_stack[index].this_mv = this_refmv;
+        ref_mv_stack[index].pred_diff[0] =
+            av1_get_pred_diff_ctx(pred_mv_opfl, this_refmv);
+        ref_mv_stack[index].weight = 2 * len;
+        ++(*refmv_count);
 
-          if (candidate->mode == NEWMV) ++newmv_count;
+        if (candidate->mode == NEWMV) ++newmv_count;
+      }
+    } else if (candidate->ref_frame[0] == OPFL_FRAME &&
+               candidate->ref_frame[1] == NONE_FRAME &&
+               (cm->opfl_buf_struct_ptr->opfl_refs[0] == rf[0] ||
+                cm->opfl_buf_struct_ptr->opfl_refs[1] == rf[0]) &&
+               cm->opfl_available && candidate_mi->mbmi.sb_type >= BLOCK_8X8) {
+      // look out for opfl blocks with the same refs
+      int_mv this_refmv;
+      int_mv ref_mv_correct = get_sub_block_mv(candidate_mi, 0, col, block);
+
+      int16_t row_offset =
+          opfl_round_double_2_int(((double)(ref_mv_correct.as_mv.row)) / 8.0);
+      int16_t col_offset =
+          opfl_round_double_2_int(((double)(ref_mv_correct.as_mv.col)) / 8.0);
+      if (row_offset > AVG_MF_BORDER)
+        row_offset = AVG_MF_BORDER;
+      else if (row_offset < -AVG_MF_BORDER)
+        row_offset = -AVG_MF_BORDER;
+      if (col_offset > AVG_MF_BORDER)
+        col_offset = AVG_MF_BORDER;
+      else if (col_offset < -AVG_MF_BORDER)
+        col_offset = -AVG_MF_BORDER;
+
+      double dstpos = cm->opfl_buf_struct_ptr->dst_pos;
+      int mf_stride = cm->width + 2 * AVG_MF_BORDER;
+
+      DB_MV *opfl_mv = cm->opfl_buf_struct_ptr->mf_med[0] +
+                       AVG_MF_BORDER * mf_stride + AVG_MF_BORDER +
+                       mi_row_cand * 4 * mf_stride + mi_col_cand * 4;
+      DB_MV *cur_opfl_mv;
+      double avg_r = 0, avg_c = 0;
+      for (int hh = 1; hh <= 2; hh++) {
+        for (int ww = 1; ww <= 2; ww++) {
+          cur_opfl_mv = opfl_mv + (row_offset + hh) * mf_stride;
+          cur_opfl_mv = cur_opfl_mv + col_offset + ww;
+          avg_r += cur_opfl_mv->row;
+          avg_c += cur_opfl_mv->col;
         }
+      }
+      avg_r /= 4;
+      avg_c /= 4;
 
-        if (candidate_mi->mbmi.sb_type < BLOCK_8X8 && block >= 0 &&
-            !unify_bsize) {
-          int alt_block = 3 - block;
-          this_refmv = get_sub_block_mv(candidate_mi, ref, col, alt_block);
+      if (cm->opfl_buf_struct_ptr->opfl_refs[0] == rf[0]) {
+        this_refmv.as_mv.row = opfl_round_double_2_int(-dstpos * 8.0 * avg_r);
+        this_refmv.as_mv.row += ref_mv_correct.as_mv.row;
+        this_refmv.as_mv.col = opfl_round_double_2_int(-dstpos * 8.0 * avg_c);
+        this_refmv.as_mv.col += ref_mv_correct.as_mv.col;
+      } else {
+        this_refmv.as_mv.row =
+            opfl_round_double_2_int((1 - dstpos) * 8.0 * avg_r);
+        this_refmv.as_mv.row += ref_mv_correct.as_mv.row;
+        this_refmv.as_mv.col =
+            opfl_round_double_2_int((1 - dstpos) * 8.0 * avg_c);
+        this_refmv.as_mv.col += ref_mv_correct.as_mv.col;
+      }
+
+      lower_mv_precision(&this_refmv.as_mv, use_hp);
+
+      for (index = 0; index < *refmv_count; ++index)
+        if (ref_mv_stack[index].this_mv.as_int == this_refmv.as_int) break;
+
+      if (index < *refmv_count) ref_mv_stack[index].weight += 2 * len;
+      // Add a new item to the list.
+      if (index == *refmv_count && index < MAX_REF_MV_STACK_SIZE) {
+        ref_mv_stack[index].this_mv = this_refmv;
+        ref_mv_stack[index].pred_diff[0] = av1_get_pred_diff_ctx(
+            get_sub_block_pred_mv(candidate_mi, 0, col, block), ref_mv_correct);
+        ref_mv_stack[index].weight = 2 * len;
+        ++(*refmv_count);
+
+        if (candidate->mode == NEWMV) ++newmv_count;
+      }
+    } else {
+#endif
+      for (ref = 0; ref < 2; ++ref) {
+        if (candidate->ref_frame[ref] == rf[0]) {
+          int_mv this_refmv = get_sub_block_mv(candidate_mi, ref, col, block);
           lower_mv_precision(&this_refmv.as_mv, use_hp);
 
           for (index = 0; index < *refmv_count; ++index)
             if (ref_mv_stack[index].this_mv.as_int == this_refmv.as_int) break;
 
-          if (index < *refmv_count) ref_mv_stack[index].weight += len;
+          if (index < *refmv_count) ref_mv_stack[index].weight += 2 * len;
 
           // Add a new item to the list.
-          if (index == *refmv_count) {
+          if (index == *refmv_count && index < MAX_REF_MV_STACK_SIZE) {
             ref_mv_stack[index].this_mv = this_refmv;
             ref_mv_stack[index].pred_diff[0] = av1_get_pred_diff_ctx(
-                get_sub_block_pred_mv(candidate_mi, ref, col, alt_block),
+                get_sub_block_pred_mv(candidate_mi, ref, col, block),
                 this_refmv);
-            ref_mv_stack[index].weight = len;
+            ref_mv_stack[index].weight = 2 * len;
             ++(*refmv_count);
 
             if (candidate->mode == NEWMV) ++newmv_count;
           }
+
+          if (candidate_mi->mbmi.sb_type < BLOCK_8X8 && block >= 0 &&
+              !unify_bsize) {
+            int alt_block = 3 - block;
+            this_refmv = get_sub_block_mv(candidate_mi, ref, col, alt_block);
+            lower_mv_precision(&this_refmv.as_mv, use_hp);
+
+            for (index = 0; index < *refmv_count; ++index)
+              if (ref_mv_stack[index].this_mv.as_int == this_refmv.as_int)
+                break;
+
+            if (index < *refmv_count) ref_mv_stack[index].weight += len;
+
+            // Add a new item to the list.
+            if (index == *refmv_count && index < MAX_REF_MV_STACK_SIZE) {
+              ref_mv_stack[index].this_mv = this_refmv;
+              ref_mv_stack[index].pred_diff[0] = av1_get_pred_diff_ctx(
+                  get_sub_block_pred_mv(candidate_mi, ref, col, alt_block),
+                  this_refmv);
+              ref_mv_stack[index].weight = len;
+              ++(*refmv_count);
+
+              if (candidate->mode == NEWMV) ++newmv_count;
+            }
+          }
         }
       }
+#if CONFIG_OPFL
     }
+#endif
   } else {
     // compound reference frame
-    if (candidate->ref_frame[0] == rf[0] && candidate->ref_frame[1] == rf[1]) {
+#if CONFIG_OPFL
+    if (candidate->ref_frame[0] == OPFL_FRAME &&
+        candidate->ref_frame[1] == NONE_FRAME &&
+        cm->opfl_buf_struct_ptr->opfl_refs[0] == rf[0] &&
+        cm->opfl_buf_struct_ptr->opfl_refs[1] == rf[1] && cm->opfl_available &&
+        candidate_mi->mbmi.sb_type >= BLOCK_8X8) {
+      // for compound mode blocks, opfl neighbors could also help
+      // look out for opfl blocks with the same refs
       int_mv this_refmv[2];
+      int_mv ref_mv_correct = get_sub_block_mv(candidate_mi, 0, col, block);
+
+      int16_t row_offset =
+          opfl_round_double_2_int(((double)(ref_mv_correct.as_mv.row)) / 8.0);
+      int16_t col_offset =
+          opfl_round_double_2_int(((double)(ref_mv_correct.as_mv.col)) / 8.0);
+      if (row_offset > AVG_MF_BORDER)
+        row_offset = AVG_MF_BORDER;
+      else if (row_offset < -AVG_MF_BORDER)
+        row_offset = -AVG_MF_BORDER;
+      if (col_offset > AVG_MF_BORDER)
+        col_offset = AVG_MF_BORDER;
+      else if (col_offset < -AVG_MF_BORDER)
+        col_offset = -AVG_MF_BORDER;
+
+      double dstpos = cm->opfl_buf_struct_ptr->dst_pos;
+      int mf_stride = cm->width + 2 * AVG_MF_BORDER;
+
+      DB_MV *opfl_mv = cm->opfl_buf_struct_ptr->mf_med[0] +
+                       AVG_MF_BORDER * mf_stride + AVG_MF_BORDER +
+                       mi_row_cand * 4 * mf_stride + mi_col_cand * 4;
+      DB_MV *cur_opfl_mv;
+      double avg_r = 0, avg_c = 0;
+      for (int hh = 1; hh <= 2; hh++) {
+        for (int ww = 1; ww <= 2; ww++) {
+          cur_opfl_mv = opfl_mv + (row_offset + hh) * mf_stride;
+          cur_opfl_mv = cur_opfl_mv + col_offset + ww;
+          avg_r += cur_opfl_mv->row;
+          avg_c += cur_opfl_mv->col;
+        }
+      }
+      avg_r /= 4;
+      avg_c /= 4;
+
+      this_refmv[0].as_mv.row = opfl_round_double_2_int(-dstpos * 8.0 * avg_r);
+      this_refmv[0].as_mv.row += ref_mv_correct.as_mv.row;
+      this_refmv[0].as_mv.col = opfl_round_double_2_int(-dstpos * 8.0 * avg_c);
+      this_refmv[0].as_mv.col += ref_mv_correct.as_mv.col;
+      this_refmv[1].as_mv.row =
+          opfl_round_double_2_int((1 - dstpos) * 8.0 * avg_r);
+      this_refmv[1].as_mv.row += ref_mv_correct.as_mv.row;
+      this_refmv[1].as_mv.col =
+          opfl_round_double_2_int((1 - dstpos) * 8.0 * avg_c);
+      this_refmv[1].as_mv.col += ref_mv_correct.as_mv.col;
 
       for (ref = 0; ref < 2; ++ref) {
-        this_refmv[ref] = get_sub_block_mv(candidate_mi, ref, col, block);
         lower_mv_precision(&this_refmv[ref].as_mv, use_hp);
       }
 
@@ -92,13 +268,15 @@ static uint8_t add_ref_mv_candidate(
       if (index < *refmv_count) ref_mv_stack[index].weight += 2 * len;
 
       // Add a new item to the list.
-      if (index == *refmv_count) {
+      if (index == *refmv_count && index < MAX_REF_MV_STACK_SIZE) {
         ref_mv_stack[index].this_mv = this_refmv[0];
         ref_mv_stack[index].comp_mv = this_refmv[1];
+
         ref_mv_stack[index].pred_diff[0] = av1_get_pred_diff_ctx(
-            get_sub_block_pred_mv(candidate_mi, 0, col, block), this_refmv[0]);
+            get_sub_block_pred_mv(candidate_mi, 0, col, block), ref_mv_correct);
         ref_mv_stack[index].pred_diff[1] = av1_get_pred_diff_ctx(
-            get_sub_block_pred_mv(candidate_mi, 1, col, block), this_refmv[1]);
+            get_sub_block_pred_mv(candidate_mi, 0, col, block), ref_mv_correct);
+
         ref_mv_stack[index].weight = 2 * len;
         ++(*refmv_count);
 
@@ -109,45 +287,86 @@ static uint8_t add_ref_mv_candidate(
 #endif  // CONFIG_EXT_INTER
           ++newmv_count;
       }
+    } else {
+#endif
+      if (candidate->ref_frame[0] == rf[0] &&
+          candidate->ref_frame[1] == rf[1]) {
+        int_mv this_refmv[2];
 
-      if (candidate_mi->mbmi.sb_type < BLOCK_8X8 && block >= 0 &&
-          !unify_bsize) {
-        int alt_block = 3 - block;
-        this_refmv[0] = get_sub_block_mv(candidate_mi, 0, col, alt_block);
-        this_refmv[1] = get_sub_block_mv(candidate_mi, 1, col, alt_block);
-
-        for (ref = 0; ref < 2; ++ref)
+        for (ref = 0; ref < 2; ++ref) {
+          this_refmv[ref] = get_sub_block_mv(candidate_mi, ref, col, block);
           lower_mv_precision(&this_refmv[ref].as_mv, use_hp);
+        }
 
         for (index = 0; index < *refmv_count; ++index)
-          if (ref_mv_stack[index].this_mv.as_int == this_refmv[0].as_int &&
-              ref_mv_stack[index].comp_mv.as_int == this_refmv[1].as_int)
+          if ((ref_mv_stack[index].this_mv.as_int == this_refmv[0].as_int) &&
+              (ref_mv_stack[index].comp_mv.as_int == this_refmv[1].as_int))
             break;
 
-        if (index < *refmv_count) ref_mv_stack[index].weight += len;
+        if (index < *refmv_count) ref_mv_stack[index].weight += 2 * len;
 
         // Add a new item to the list.
-        if (index == *refmv_count) {
+        if (index == *refmv_count && index < MAX_REF_MV_STACK_SIZE) {
           ref_mv_stack[index].this_mv = this_refmv[0];
           ref_mv_stack[index].comp_mv = this_refmv[1];
           ref_mv_stack[index].pred_diff[0] = av1_get_pred_diff_ctx(
               get_sub_block_pred_mv(candidate_mi, 0, col, block),
               this_refmv[0]);
-          ref_mv_stack[index].pred_diff[0] = av1_get_pred_diff_ctx(
+          ref_mv_stack[index].pred_diff[1] = av1_get_pred_diff_ctx(
               get_sub_block_pred_mv(candidate_mi, 1, col, block),
               this_refmv[1]);
-          ref_mv_stack[index].weight = len;
+          ref_mv_stack[index].weight = 2 * len;
           ++(*refmv_count);
 
 #if CONFIG_EXT_INTER
           if (candidate->mode == NEW_NEWMV)
 #else
-          if (candidate->mode == NEWMV)
+        if (candidate->mode == NEWMV)
 #endif  // CONFIG_EXT_INTER
             ++newmv_count;
         }
+
+        if (candidate_mi->mbmi.sb_type < BLOCK_8X8 && block >= 0 &&
+            !unify_bsize) {
+          int alt_block = 3 - block;
+          this_refmv[0] = get_sub_block_mv(candidate_mi, 0, col, alt_block);
+          this_refmv[1] = get_sub_block_mv(candidate_mi, 1, col, alt_block);
+
+          for (ref = 0; ref < 2; ++ref)
+            lower_mv_precision(&this_refmv[ref].as_mv, use_hp);
+
+          for (index = 0; index < *refmv_count; ++index)
+            if (ref_mv_stack[index].this_mv.as_int == this_refmv[0].as_int &&
+                ref_mv_stack[index].comp_mv.as_int == this_refmv[1].as_int)
+              break;
+
+          if (index < *refmv_count) ref_mv_stack[index].weight += len;
+
+          // Add a new item to the list.
+          if (index == *refmv_count && index < MAX_REF_MV_STACK_SIZE) {
+            ref_mv_stack[index].this_mv = this_refmv[0];
+            ref_mv_stack[index].comp_mv = this_refmv[1];
+            ref_mv_stack[index].pred_diff[0] = av1_get_pred_diff_ctx(
+                get_sub_block_pred_mv(candidate_mi, 0, col, alt_block),
+                this_refmv[0]);
+            ref_mv_stack[index].pred_diff[1] = av1_get_pred_diff_ctx(
+                get_sub_block_pred_mv(candidate_mi, 1, col, alt_block),
+                this_refmv[1]);
+            ref_mv_stack[index].weight = len;
+            ++(*refmv_count);
+
+#if CONFIG_EXT_INTER
+            if (candidate->mode == NEW_NEWMV)
+#else
+          if (candidate->mode == NEWMV)
+#endif  // CONFIG_EXT_INTER
+              ++newmv_count;
+          }
+        }
       }
+#if CONFIG_OPFL
     }
+#endif
   }
   return newmv_count;
 }
@@ -186,6 +405,9 @@ static uint8_t scan_row_mbmi(const AV1_COMMON *cm, const MACROBLOCKD *xd,
       int len = AOMMIN(xd->n8_w, mi_size_wide[candidate->sb_type]);
       if (use_step_16) len = AOMMAX(mi_size_wide[BLOCK_16X16], len);
       newmv_count += add_ref_mv_candidate(
+#if CONFIG_OPFL
+          cm, mi_row + mi_pos.row, mi_col + mi_pos.col,
+#endif
           candidate_mi, candidate, rf, refmv_count, ref_mv_stack,
           cm->allow_high_precision_mv, len, block, mi_pos.col);
       i += len;
@@ -233,6 +455,9 @@ static uint8_t scan_col_mbmi(const AV1_COMMON *cm, const MACROBLOCKD *xd,
       int len = AOMMIN(xd->n8_h, mi_size_high[candidate->sb_type]);
       if (use_step_16) len = AOMMAX(mi_size_high[BLOCK_16X16], len);
       newmv_count += add_ref_mv_candidate(
+#if CONFIG_OPFL
+          cm, mi_row + mi_pos.row, mi_col + mi_pos.col,
+#endif
           candidate_mi, candidate, rf, refmv_count, ref_mv_stack,
           cm->allow_high_precision_mv, len, block, mi_pos.col);
       i += len;
@@ -267,6 +492,9 @@ static uint8_t scan_blk_mbmi(const AV1_COMMON *cm, const MACROBLOCKD *xd,
     const int len = mi_size_wide[BLOCK_8X8];
 
     newmv_count += add_ref_mv_candidate(
+#if CONFIG_OPFL
+        cm, mi_row + mi_pos.row, mi_col + mi_pos.col,
+#endif
         candidate_mi, candidate, rf, refmv_count, ref_mv_stack,
         cm->allow_high_precision_mv, len, block, mi_pos.col);
   }  // Analyze a single 8x8 block motion information.
@@ -1132,8 +1360,8 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
         MV_REF *mv_ref = &mv_ref_base[blk_row * cm->mi_cols + blk_col];
         MV fwd_mv = mv_ref->mv[0].as_mv;
         MV bck_mv = mv_ref->mv[1].as_mv;
-        MV_REFERENCE_FRAME ref_frame[2] = {mv_ref->ref_frame[0],
-                                           mv_ref->ref_frame[1]};
+        MV_REFERENCE_FRAME ref_frame[2] = { mv_ref->ref_frame[0],
+                                            mv_ref->ref_frame[1] };
 
         // Derive  motion vectors toward last reference frame.
         if (ref_frame[0] == LAST_FRAME) {
@@ -1421,8 +1649,8 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
       for (int blk_col = 0; blk_col < cm->mi_cols; ++blk_col) {
         MV_REF *mv_ref = &mv_ref_base[blk_row * cm->mi_cols + blk_col];
         MV fwd_mv = mv_ref->mv[0].as_mv;
-        MV_REFERENCE_FRAME ref_frame[2] = {mv_ref->ref_frame[0],
-                                           mv_ref->ref_frame[1]};
+        MV_REFERENCE_FRAME ref_frame[2] = { mv_ref->ref_frame[0],
+                                            mv_ref->ref_frame[1] };
         if (ref_frame[0] == LAST_FRAME) {
           int16_t mv_y =
               (int16_t)(fwd_mv.row * (double)cur_to_alt / lst_offset);
@@ -1684,8 +1912,8 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
       for (int blk_col = 0; blk_col < cm->mi_cols; ++blk_col) {
         MV_REF *mv_ref = &mv_ref_base[blk_row * cm->mi_cols + blk_col];
         MV fwd_mv = mv_ref->mv[0].as_mv;
-        MV_REFERENCE_FRAME ref_frame[2] = {mv_ref->ref_frame[0],
-                                           mv_ref->ref_frame[1]};
+        MV_REFERENCE_FRAME ref_frame[2] = { mv_ref->ref_frame[0],
+                                            mv_ref->ref_frame[1] };
         if (ref_frame[0] == LAST_FRAME) {
           int16_t mv_y =
               (int16_t)(fwd_mv.row * (double)cur_to_bwd / lst_offset);
