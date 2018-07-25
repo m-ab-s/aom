@@ -783,6 +783,28 @@ static void sum_intra_stats(const AV1_COMMON *const cm, FRAME_COUNTS *counts,
       }
     }
   }
+#if CONFIG_ADAPT_FILTER_INTRA
+  if (av1_adapt_filter_intra_allowed(cm, mbmi)) {
+    const int use_adapt_filter_intra_mode =
+        mbmi->adapt_filter_intra_mode_info.use_adapt_filter_intra;
+#if CONFIG_ENTROPY_STATS
+    ++counts->adapt_filter_intra[mbmi->sb_type][use_adapt_filter_intra_mode];
+    if (use_adapt_filter_intra_mode) {
+      ++counts->adapt_filter_intra_mode[mbmi->adapt_filter_intra_mode_info
+                                            .adapt_filter_intra_mode];
+    }
+#endif  // CONFIG_ENTROPY_STATS
+    if (allow_update_cdf) {
+      update_cdf(fc->adapt_filter_intra_cdfs[mbmi->sb_type],
+                 use_adapt_filter_intra_mode, 2);
+      if (use_adapt_filter_intra_mode) {
+        update_cdf(fc->adapt_filter_intra_mode_cdf,
+                   mbmi->adapt_filter_intra_mode_info.adapt_filter_intra_mode,
+                   USED_ADAPT_FILTER_INTRA_MODES);
+      }
+    }
+  }
+#endif  // CONFIG_ADAPT_FILTER_INTRA
   if (av1_is_directional_mode(mbmi->mode) && av1_use_angle_delta(bsize)) {
 #if CONFIG_ENTROPY_STATS
     ++counts->angle_delta[mbmi->mode - V_PRED]

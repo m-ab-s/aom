@@ -496,6 +496,48 @@ typedef enum ATTRIBUTE_PACKED {
   FILTER_INTRA_MODES,
 } FILTER_INTRA_MODE;
 
+// ADAPT_FILTER_INTRA experiment introduces a new group of intra
+// prediction modes similar to FILTER_INTRA. Key difference
+// is that the new modes adaptively fit the filter weights for
+// each transform unit instead of using predefined filter weights
+// obtained by offline training. A training region is selected
+// within the set of already reconstructed pixels and a least-squares
+// problem is solved to obtain the adaptive filter weights both in
+// the encoder and decoder.
+//
+// Provides roughly 1.1% gain on top of FILTER_INTRA. When
+// ADAPT_FILTER_INTRA is turned on, the gain from FILTER_INTRA
+// drops to below 0.2%.
+#if CONFIG_ADAPT_FILTER_INTRA
+// Different ADAPT_FILTER_INTRA modes fit different filters
+// (either 3 tap or 4 tap). All of them use some subset of
+// the 5 neighbor pixels of the one currently being predicted.
+// We enumerate neighbor pixels in the clockwise order:
+// -------------
+// | 2 | 3 | 4 |
+// -------------
+// | 1 |cur|   |
+// -------------
+// | 0 |   |   |
+// -------------
+// For example, ADAPT_FILTER_1_2_3 fits a 3 tap filter that
+// uses neighbor pixels with numbers 1,2,3 for prediction.
+// ADAPT_FILTER_0_1_2_3_4_LEFT fits a corresponding 4 tap
+// filter, but uses only left context of the block for
+// training, according to the postfix "_LEFT".
+typedef enum {
+  ADAPT_FILTER_1_2_3,
+  ADAPT_FILTER_0_1_3,
+  ADAPT_FILTER_1_3_4,
+  ADAPT_FILTER_0_1_2_3_4_LEFT,
+  ADAPT_FILTER_1_2_3_4_TOP,
+  ADAPT_FILTER_0_2_3,
+  ADAPT_FILTER_1_2_4,
+  ADAPT_FILTER_INTRA_MODES,
+} ADAPT_FILTER_INTRA_MODE;
+#define USED_ADAPT_FILTER_INTRA_MODES 7
+#endif  // CONFIG_ADAPT_FILTER_INTRA
+
 #define DIRECTIONAL_MODES 8
 #define MAX_ANGLE_DELTA 3
 #define ANGLE_STEP 3

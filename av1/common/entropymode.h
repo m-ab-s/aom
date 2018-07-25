@@ -130,6 +130,11 @@ typedef struct frame_contexts {
   struct segmentation_probs seg;
   aom_cdf_prob filter_intra_cdfs[BLOCK_SIZES_ALL][CDF_SIZE(2)];
   aom_cdf_prob filter_intra_mode_cdf[CDF_SIZE(FILTER_INTRA_MODES)];
+#if CONFIG_ADAPT_FILTER_INTRA
+  aom_cdf_prob adapt_filter_intra_cdfs[BLOCK_SIZES_ALL][CDF_SIZE(2)];
+  aom_cdf_prob
+      adapt_filter_intra_mode_cdf[CDF_SIZE(USED_ADAPT_FILTER_INTRA_MODES)];
+#endif  // CONFIG_ADAPT_FILTER_INTRA
   aom_cdf_prob switchable_restore_cdf[CDF_SIZE(RESTORE_SWITCHABLE_TYPES)];
   aom_cdf_prob wiener_restore_cdf[CDF_SIZE(2)];
   aom_cdf_prob sgrproj_restore_cdf[CDF_SIZE(2)];

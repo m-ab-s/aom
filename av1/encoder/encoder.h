@@ -392,6 +392,10 @@ typedef struct FRAME_COUNTS {
                            [TX_TYPES];
   unsigned int filter_intra_mode[FILTER_INTRA_MODES];
   unsigned int filter_intra[BLOCK_SIZES_ALL][2];
+#if CONFIG_ADAPT_FILTER_INTRA
+  unsigned int adapt_filter_intra_mode[USED_ADAPT_FILTER_INTRA_MODES];
+  unsigned int adapt_filter_intra[BLOCK_SIZES_ALL][2];
+#endif  // CONFIG_ADAPT_FILTER_INTRA
   unsigned int switchable_restore[RESTORE_SWITCHABLE_TYPES];
   unsigned int wiener_restore[2];
   unsigned int sgrproj_restore[2];

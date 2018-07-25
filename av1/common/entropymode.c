@@ -828,6 +828,30 @@ static const aom_cdf_prob default_filter_intra_cdfs[BLOCK_SIZES_ALL][CDF_SIZE(
             { AOM_CDF2(20229) }, { AOM_CDF2(18101) }, { AOM_CDF2(16384) },
             { AOM_CDF2(16384) } };
 
+#if CONFIG_ADAPT_FILTER_INTRA
+static const aom_cdf_prob default_adapt_filter_intra_mode_cdf[CDF_SIZE(
+    USED_ADAPT_FILTER_INTRA_MODES)] =
+#if USED_ADAPT_FILTER_INTRA_MODES == 3
+    { AOM_CDF3(10922, 10922) };
+#elif USED_ADAPT_FILTER_INTRA_MODES == 5
+    { AOM_CDF5(6553, 13106, 19659, 26212) };
+#elif USED_ADAPT_FILTER_INTRA_MODES == 7
+    { AOM_CDF7(4681, 9362, 14043, 18724, 23405, 28086) };
+#endif
+
+static const aom_cdf_prob
+    default_adapt_filter_intra_cdfs[BLOCK_SIZES_ALL][CDF_SIZE(2)] = {
+      { AOM_CDF2(16384) }, { AOM_CDF2(16384) }, { AOM_CDF2(16384) },
+      { AOM_CDF2(16384) }, { AOM_CDF2(16384) }, { AOM_CDF2(16384) },
+      { AOM_CDF2(16384) }, { AOM_CDF2(16384) }, { AOM_CDF2(16384) },
+      { AOM_CDF2(16384) }, { AOM_CDF2(16384) }, { AOM_CDF2(16384) },
+      { AOM_CDF2(16384) }, { AOM_CDF2(16384) }, { AOM_CDF2(16384) },
+      { AOM_CDF2(16384) }, { AOM_CDF2(16384) }, { AOM_CDF2(16384) },
+      { AOM_CDF2(16384) }, { AOM_CDF2(16384) }, { AOM_CDF2(16384) },
+      { AOM_CDF2(16384) }
+    };
+#endif  // CONFIG_ADAPT_FILTER_INTRA
+
 static const aom_cdf_prob default_switchable_restore_cdf[CDF_SIZE(
     RESTORE_SWITCHABLE_TYPES)] = { AOM_CDF3(9413, 22581) };
 
@@ -1010,6 +1034,11 @@ static void init_mode_probs(FRAME_CONTEXT *fc) {
   av1_copy(fc->seg.tree_cdf, default_seg_tree_cdf);
   av1_copy(fc->filter_intra_cdfs, default_filter_intra_cdfs);
   av1_copy(fc->filter_intra_mode_cdf, default_filter_intra_mode_cdf);
+#if CONFIG_ADAPT_FILTER_INTRA
+  av1_copy(fc->adapt_filter_intra_cdfs, default_adapt_filter_intra_cdfs);
+  av1_copy(fc->adapt_filter_intra_mode_cdf,
+           default_adapt_filter_intra_mode_cdf);
+#endif
   av1_copy(fc->switchable_restore_cdf, default_switchable_restore_cdf);
   av1_copy(fc->wiener_restore_cdf, default_wiener_restore_cdf);
   av1_copy(fc->sgrproj_restore_cdf, default_sgrproj_restore_cdf);

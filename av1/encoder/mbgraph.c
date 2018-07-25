@@ -145,10 +145,13 @@ static int find_best_16x16_intra(AV1_COMP *cpi, PREDICTION_MODE *pbest_mode) {
     unsigned int err;
 
     xd->mi[0]->mode = mode;
-    av1_predict_intra_block(cm, xd, 16, 16, TX_16X16, mode, 0, 0,
-                            FILTER_INTRA_MODES, x->plane[0].src.buf,
-                            x->plane[0].src.stride, xd->plane[0].dst.buf,
-                            xd->plane[0].dst.stride, 0, 0, 0);
+    av1_predict_intra_block(
+        cm, xd, 16, 16, TX_16X16, mode, 0, 0, FILTER_INTRA_MODES,
+#if CONFIG_ADAPT_FILTER_INTRA
+        ADAPT_FILTER_INTRA_MODES,
+#endif
+        x->plane[0].src.buf, x->plane[0].src.stride, xd->plane[0].dst.buf,
+        xd->plane[0].dst.stride, 0, 0, 0);
     err = aom_sad16x16(x->plane[0].src.buf, x->plane[0].src.stride,
                        xd->plane[0].dst.buf, xd->plane[0].dst.stride);
 

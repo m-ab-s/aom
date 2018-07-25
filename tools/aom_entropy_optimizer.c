@@ -612,6 +612,22 @@ int main(int argc, const char **argv) {
                      "static const aom_cdf_prob "
                      "default_filter_intra_cdfs[BLOCK_SIZES_ALL][CDF_SIZE(2)]");
 
+#if CONFIG_ADAPT_FILTER_INTRA
+  /* adapt_filter_intra experiment */
+  cts_each_dim[0] = USED_ADAPT_FILTER_INTRA_MODES;
+  optimize_cdf_table(&fc.adapt_filter_intra_mode[0], probsfile, 1, cts_each_dim,
+                     "static const aom_cdf_prob "
+                     "default_adapt_filter_intra_mode_cdf[CDF_SIZE(USED_ADAPT_"
+                     "FILTER_INTRA_MODES)]");
+
+  cts_each_dim[0] = BLOCK_SIZES_ALL;
+  cts_each_dim[1] = 2;
+  optimize_cdf_table(
+      &fc.adapt_filter_intra[0][0], probsfile, 2, cts_each_dim,
+      "static const aom_cdf_prob "
+      "default_adapt_filter_intra_cdfs[BLOCK_SIZES_ALL][CDF_SIZE(2)]");
+#endif  // CONFIG_ADAPT_FILTER_INTRA
+
   /* restoration type */
   cts_each_dim[0] = RESTORE_SWITCHABLE_TYPES;
   optimize_cdf_table(&fc.switchable_restore[0], probsfile, 1, cts_each_dim,

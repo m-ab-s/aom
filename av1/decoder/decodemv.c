@@ -599,6 +599,28 @@ static void read_filter_intra_mode_info(const AV1_COMMON *const cm,
   }
 }
 
+#if CONFIG_ADAPT_FILTER_INTRA
+static void read_adapt_filter_intra_mode_info(const AV1_COMMON *const cm,
+                                              MACROBLOCKD *const xd,
+                                              aom_reader *r) {
+  MB_MODE_INFO *const mbmi = xd->mi[0];
+  ADAPT_FILTER_INTRA_MODE_INFO *adapt_filter_intra_mode_info =
+      &mbmi->adapt_filter_intra_mode_info;
+
+  if (av1_adapt_filter_intra_allowed(cm, mbmi)) {
+    adapt_filter_intra_mode_info->use_adapt_filter_intra = aom_read_symbol(
+        r, xd->tile_ctx->adapt_filter_intra_cdfs[mbmi->sb_type], 2, ACCT_STR);
+    if (adapt_filter_intra_mode_info->use_adapt_filter_intra) {
+      adapt_filter_intra_mode_info->adapt_filter_intra_mode =
+          aom_read_symbol(r, xd->tile_ctx->adapt_filter_intra_mode_cdf,
+                          USED_ADAPT_FILTER_INTRA_MODES, ACCT_STR);
+    }
+  } else {
+    adapt_filter_intra_mode_info->use_adapt_filter_intra = 0;
+  }
+}
+#endif  // CONFIG_ADAPT_FILTER_INTRA
+
 void av1_read_tx_type(const AV1_COMMON *const cm, MACROBLOCKD *xd, int blk_row,
                       int blk_col, TX_SIZE tx_size, aom_reader *r) {
   MB_MODE_INFO *mbmi = xd->mi[0];
@@ -633,11 +655,17 @@ void av1_read_tx_type(const AV1_COMMON *const cm, MACROBLOCKD *xd, int blk_row,
           r, ec_ctx->inter_ext_tx_cdf[eset][square_tx_size],
           av1_num_ext_tx_set[tx_set_type], ACCT_STR)];
     } else {
-      const PREDICTION_MODE intra_mode =
+      PREDICTION_MODE intra_mode =
           mbmi->filter_intra_mode_info.use_filter_intra
               ? fimode_to_intradir[mbmi->filter_intra_mode_info
                                        .filter_intra_mode]
               : mbmi->mode;
+#if CONFIG_ADAPT_FILTER_INTRA
+      if (mbmi->adapt_filter_intra_mode_info.use_adapt_filter_intra) {
+        intra_mode = afimode_to_intradir[mbmi->adapt_filter_intra_mode_info
+                                             .adapt_filter_intra_mode];
+      }
+#endif  // CONFIG_ADAPT_FILTER_INTRA
       *tx_type = av1_ext_tx_inv[tx_set_type][aom_read_symbol(
           r, ec_ctx->intra_ext_tx_cdf[eset][square_tx_size][intra_mode],
           av1_num_ext_tx_set[tx_set_type], ACCT_STR)];
@@ -775,6 +803,9 @@ static void read_intra_frame_mode_info(AV1_COMMON *const cm,
   mbmi->palette_mode_info.palette_size[0] = 0;
   mbmi->palette_mode_info.palette_size[1] = 0;
   mbmi->filter_intra_mode_info.use_filter_intra = 0;
+#if CONFIG_ADAPT_FILTER_INTRA
+  mbmi->adapt_filter_intra_mode_info.use_adapt_filter_intra = 0;
+#endif
 
   xd->above_txfm_context = cm->above_txfm_context[xd->tile.tile_row] + mi_col;
   xd->left_txfm_context =
@@ -818,6 +849,9 @@ static void read_intra_frame_mode_info(AV1_COMMON *const cm,
     read_palette_mode_info(cm, xd, mi_row, mi_col, r);
 
   read_filter_intra_mode_info(cm, xd, r);
+#if CONFIG_ADAPT_FILTER_INTRA
+  read_adapt_filter_intra_mode_info(cm, xd, r);
+#endif
 }
 
 static int read_mv_component(aom_reader *r, nmv_component *mvcomp,
@@ -1084,6 +1118,9 @@ static void read_intra_block_mode_info(AV1_COMMON *const cm, const int mi_row,
     read_palette_mode_info(cm, xd, mi_row, mi_col, r);
 
   read_filter_intra_mode_info(cm, xd, r);
+#if CONFIG_ADAPT_FILTER_INTRA
+  mbmi->adapt_filter_intra_mode_info.use_adapt_filter_intra = 0;
+#endif
 }
 
 static INLINE int is_mv_valid(const MV *mv) {
@@ -1377,6 +1414,9 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
       mbmi->angle_delta[PLANE_TYPE_Y] = 0;
       mbmi->angle_delta[PLANE_TYPE_UV] = 0;
       mbmi->filter_intra_mode_info.use_filter_intra = 0;
+#if CONFIG_ADAPT_FILTER_INTRA
+      mbmi->adapt_filter_intra_mode_info.use_adapt_filter_intra = 0;
+#endif
       if (is_interintra_wedge_used(bsize)) {
         mbmi->use_wedge_interintra = aom_read_symbol(
             r, ec_ctx->wedge_interintra_cdf[bsize], 2, ACCT_STR);

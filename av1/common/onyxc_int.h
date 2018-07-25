@@ -209,6 +209,9 @@ typedef struct SequenceHeader {
   int still_picture;               // Video is a single frame still picture
   int reduced_still_picture_hdr;   // Use reduced header for still picture
   int enable_filter_intra;         // enables/disables filterintra
+#if CONFIG_ADAPT_FILTER_INTRA
+  int enable_adapt_filter_intra;   // enables/disables adaptive filter intra
+#endif
   int enable_intra_edge_filter;    // enables/disables corner/edge/upsampling
   int enable_interintra_compound;  // enables/disables interintra_compound
   int enable_masked_compound;      // enables/disables masked compound

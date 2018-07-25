@@ -1001,6 +1001,9 @@ static void init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
   seq->enable_masked_compound = 1;
   seq->enable_intra_edge_filter = 1;
   seq->enable_filter_intra = 1;
+#if CONFIG_ADAPT_FILTER_INTRA
+  seq->enable_adapt_filter_intra = 1;
+#endif
 
   set_bitstream_level_tier(seq, cm, oxcf);
 

@@ -31,6 +31,9 @@ void av1_predict_intra_block(const AV1_COMMON *cm, const MACROBLOCKD *xd,
                              PREDICTION_MODE mode, int angle_delta,
                              int use_palette,
                              FILTER_INTRA_MODE filter_intra_mode,
+#if CONFIG_ADAPT_FILTER_INTRA
+                             ADAPT_FILTER_INTRA_MODE adapt_filter_intra_mode,
+#endif
                              const uint8_t *ref, int ref_stride, uint8_t *dst,
                              int dst_stride, int aoff, int loff, int plane);
 
@@ -73,6 +76,24 @@ static INLINE int av1_filter_intra_allowed(const AV1_COMMON *const cm,
          mbmi->palette_mode_info.palette_size[0] == 0 &&
          av1_filter_intra_allowed_bsize(cm, mbmi->sb_type);
 }
+
+#if CONFIG_ADAPT_FILTER_INTRA
+static INLINE int av1_adapt_filter_intra_allowed_bsize(
+    const AV1_COMMON *const cm, BLOCK_SIZE bs) {
+  if (!cm->seq_params.enable_adapt_filter_intra || bs == BLOCK_INVALID)
+    return 0;
+
+  return block_size_wide[bs] <= 128 && block_size_high[bs] <= 128;
+}
+
+static INLINE int av1_adapt_filter_intra_allowed(const AV1_COMMON *const cm,
+                                                 const MB_MODE_INFO *mbmi) {
+  return mbmi->mode == DC_PRED &&
+         mbmi->palette_mode_info.palette_size[0] == 0 &&
+         mbmi->filter_intra_mode_info.use_filter_intra == 0 &&
+         av1_adapt_filter_intra_allowed_bsize(cm, mbmi->sb_type);
+}
+#endif  // CONFIG_ADAPT_FILTER_INTRA
 
 extern const int8_t av1_filter_intra_taps[FILTER_INTRA_MODES][8][8];
 

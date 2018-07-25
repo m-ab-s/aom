@@ -709,6 +709,12 @@ static int get_tx_type_cost(const AV1_COMMON *cm, const MACROBLOCK *x,
         if (mbmi->filter_intra_mode_info.use_filter_intra)
           intra_dir = fimode_to_intradir[mbmi->filter_intra_mode_info
                                              .filter_intra_mode];
+#if CONFIG_ADAPT_FILTER_INTRA
+        else if (mbmi->adapt_filter_intra_mode_info.use_adapt_filter_intra) {
+          intra_dir = afimode_to_intradir[mbmi->adapt_filter_intra_mode_info
+                                              .adapt_filter_intra_mode];
+        }
+#endif  // CONFIG_ADAPT_FILTER_INTRA
         else
           intra_dir = mbmi->mode;
         return x->intra_tx_type_costs[ext_tx_set][square_tx_size][intra_dir]
@@ -1875,6 +1881,12 @@ static void update_tx_type_count(const AV1_COMMON *cm, MACROBLOCKD *xd,
         if (mbmi->filter_intra_mode_info.use_filter_intra)
           intra_dir = fimode_to_intradir[mbmi->filter_intra_mode_info
                                              .filter_intra_mode];
+#if CONFIG_ADAPT_FILTER_INTRA
+        else if (mbmi->adapt_filter_intra_mode_info.use_adapt_filter_intra) {
+          intra_dir = afimode_to_intradir[mbmi->adapt_filter_intra_mode_info
+                                              .adapt_filter_intra_mode];
+        }
+#endif  // CONFIG_ADAPT_FILTER_INTRA
         else
           intra_dir = mbmi->mode;
 #if CONFIG_ENTROPY_STATS

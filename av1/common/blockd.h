@@ -174,6 +174,17 @@ static const PREDICTION_MODE fimode_to_intradir[FILTER_INTRA_MODES] = {
   DC_PRED, V_PRED, H_PRED, D157_PRED, DC_PRED
 };
 
+#if CONFIG_ADAPT_FILTER_INTRA
+typedef struct {
+  uint8_t use_adapt_filter_intra;
+  ADAPT_FILTER_INTRA_MODE adapt_filter_intra_mode;
+} ADAPT_FILTER_INTRA_MODE_INFO;
+
+static const PREDICTION_MODE afimode_to_intradir[ADAPT_FILTER_INTRA_MODES] = {
+  D135_PRED, D203_PRED, D67_PRED, D203_PRED, D67_PRED, D203_PRED, D67_PRED
+};
+#endif  // CONFIG_ADAPT_FILTER_INTRA
+
 #if CONFIG_RD_DEBUG
 #define TXB_COEFF_COST_MAP_SIZE (MAX_MIB_SIZE)
 #endif
@@ -236,6 +247,10 @@ typedef struct MB_MODE_INFO {
   TX_TYPE txk_type[TXK_TYPE_BUF_LEN];
 
   FILTER_INTRA_MODE_INFO filter_intra_mode_info;
+
+#if CONFIG_ADAPT_FILTER_INTRA
+  ADAPT_FILTER_INTRA_MODE_INFO adapt_filter_intra_mode_info;
+#endif
 
   // The actual prediction angle is the base angle + (angle_delta * step).
   int8_t angle_delta[PLANE_TYPES];

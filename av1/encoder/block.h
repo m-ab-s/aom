@@ -307,6 +307,10 @@ struct macroblock {
   int y_mode_costs[INTRA_MODES][INTRA_MODES][INTRA_MODES];
   int filter_intra_cost[BLOCK_SIZES_ALL][2];
   int filter_intra_mode_cost[FILTER_INTRA_MODES];
+#if CONFIG_ADAPT_FILTER_INTRA
+  int adapt_filter_intra_cost[BLOCK_SIZES_ALL][2];
+  int adapt_filter_intra_mode_cost[USED_ADAPT_FILTER_INTRA_MODES];
+#endif  // CONFIG_ADAPT_FILTER_INTRA
   int switchable_interp_costs[SWITCHABLE_FILTER_CONTEXTS][SWITCHABLE_FILTERS];
   int partition_cost[PARTITION_CONTEXTS][EXT_PARTITION_TYPES];
   int palette_y_size_cost[PALATTE_BSIZE_CTXS][PALETTE_SIZES];
