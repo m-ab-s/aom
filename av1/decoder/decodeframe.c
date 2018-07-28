@@ -3138,6 +3138,8 @@ void av1_read_film_grain_params(AV1_COMMON *cm,
 
   if (!cm->seq_params.monochrome)
     pars->chroma_scaling_from_luma = aom_rb_read_bit(rb);
+  else
+    pars->chroma_scaling_from_luma = 0;
 
   if (cm->seq_params.monochrome || pars->chroma_scaling_from_luma ||
       ((cm->subsampling_x == 1) && (cm->subsampling_y == 1) &&
