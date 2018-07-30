@@ -576,6 +576,132 @@ static int add_col_ref_mv(const AV1_COMMON *cm,
 
   if (!is_inside(&xd->tile, mi_col, mi_row, cm->mi_rows, cm, &mi_pos))
     return coll_blk_count;
+
+#if OPFL_TPL
+  TPL_MV_REF *cur_tpl_mvs = cm->cur_frame->tpl_mvs +
+                            (mi_row + blk_row) * cm->mi_stride + mi_col +
+                            blk_col;
+  MV_REFERENCE_FRAME rf[2];
+  av1_set_ref_frame(rf, ref_frame);
+  if (rf[1] == NONE_FRAME) {
+#if OPFL_MV_PRED
+    if (rf[0] == OPFL_FRAME && cm->opfl_available) {
+      // if this block is predicting from opfl ref,
+      // look out for compound mode blocks with the same refereces
+      int_mv opfl_refmv[2];
+      int_mv this_refmv;
+      MV_REFERENCE_FRAME rf_opfl[2];
+      double dstpos = cm->opfl_buf_struct_ptr->dst_pos;
+
+      rf_opfl[0] = cm->opfl_buf_struct_ptr->opfl_refs[0];
+      rf_opfl[1] = cm->opfl_buf_struct_ptr->opfl_refs[1];
+      opfl_refmv[0].as_int = INVALID_MV;
+      opfl_refmv[1].as_int = INVALID_MV;
+      for (ref = 0; ref < 2; ++ref) {
+        for (int k = 0; k < MFMV_STACK_SIZE; k++) {
+          if (cur_tpl_mvs->mfmv[rf_opfl[ref] - LAST_FRAME][k].as_int !=
+              INVALID_MV) {
+            opfl_refmv[ref] = cur_tpl_mvs->mfmv[rf_opfl[ref] - LAST_FRAME][k];
+            break;
+          }
+        }
+      }
+      if (opfl_refmv[0].as_int == INVALID_MV ||
+          opfl_refmv[1].as_int == INVALID_MV)
+        return coll_blk_count;
+
+      this_refmv.as_mv.row = opfl_round_double_2_int(
+          (1 - dstpos) * ((double)opfl_refmv[0].as_mv.row) +
+          dstpos * ((double)opfl_refmv[1].as_mv.row));
+      this_refmv.as_mv.col = opfl_round_double_2_int(
+          (1 - dstpos) * ((double)opfl_refmv[0].as_mv.col) +
+          dstpos * ((double)opfl_refmv[1].as_mv.col));
+
+      lower_mv_precision(&this_refmv.as_mv, cm->allow_high_precision_mv);
+
+      // Add a new item to the list.
+      for (idx = 0; idx < *refmv_count; ++idx)
+        if (this_refmv.as_int == ref_mv_stack[idx].this_mv.as_int) break;
+
+      if (idx < *refmv_count) ref_mv_stack[idx].weight += 2 * weight_unit;
+
+      if (idx == *refmv_count && *refmv_count < MAX_REF_MV_STACK_SIZE) {
+        ref_mv_stack[idx].this_mv.as_int = this_refmv.as_int;
+        ref_mv_stack[idx].pred_diff[0] = 2;
+        ref_mv_stack[idx].weight = 2 * weight_unit;
+        ++(*refmv_count);
+      }
+      ++coll_blk_count;
+    } else {
+#endif
+      int_mv this_refmv;
+      this_refmv.as_int = INVALID_MV;
+      for (int k = 0; k < MFMV_STACK_SIZE; k++) {
+        if (cur_tpl_mvs->mfmv[rf[0] - LAST_FRAME][k].as_int != INVALID_MV) {
+          this_refmv = cur_tpl_mvs->mfmv[rf[0] - LAST_FRAME][k];
+          break;
+        }
+      }
+      if (this_refmv.as_int == INVALID_MV) return coll_blk_count;
+
+      lower_mv_precision(&this_refmv.as_mv, cm->allow_high_precision_mv);
+
+      // if (abs(this_refmv.as_mv.row) >= 16 || abs(this_refmv.as_mv.col) >= 16)
+      //   mode_context[ref_frame] |= (1 << ZEROMV_OFFSET);
+
+      for (idx = 0; idx < *refmv_count; ++idx)
+        if (this_refmv.as_int == ref_mv_stack[idx].this_mv.as_int) break;
+
+      if (idx < *refmv_count) ref_mv_stack[idx].weight += 2 * weight_unit;
+
+      if (idx == *refmv_count && *refmv_count < MAX_REF_MV_STACK_SIZE) {
+        ref_mv_stack[idx].this_mv.as_int = this_refmv.as_int;
+        ref_mv_stack[idx].pred_diff[0] = 2;
+        ref_mv_stack[idx].weight = 2 * weight_unit;
+        ++(*refmv_count);
+      }
+      ++coll_blk_count;
+#if OPFL_MV_PRED
+    }
+#endif
+  } else {
+    int_mv this_refmv[2];
+    this_refmv[0].as_int = INVALID_MV;
+    this_refmv[1].as_int = INVALID_MV;
+    for (ref = 0; ref < 2; ++ref) {
+      for (int k = 0; k < MFMV_STACK_SIZE; k++) {
+        if (cur_tpl_mvs->mfmv[rf[ref] - LAST_FRAME][k].as_int != INVALID_MV) {
+          this_refmv[ref] = cur_tpl_mvs->mfmv[rf[ref] - LAST_FRAME][k];
+          break;
+        }
+      }
+    }
+    if (this_refmv[0].as_int == INVALID_MV ||
+        this_refmv[1].as_int == INVALID_MV)
+      return coll_blk_count;
+
+    lower_mv_precision(&this_refmv[0].as_mv, cm->allow_high_precision_mv);
+    lower_mv_precision(&this_refmv[1].as_mv, cm->allow_high_precision_mv);
+
+    for (idx = 0; idx < *refmv_count; ++idx)
+      if ((ref_mv_stack[idx].this_mv.as_int == this_refmv[0].as_int) &&
+          (ref_mv_stack[idx].comp_mv.as_int == this_refmv[1].as_int))
+        break;
+
+    if (idx < *refmv_count) ref_mv_stack[idx].weight += 2 * weight_unit;
+
+    // Add a new item to the list.
+    if (idx == *refmv_count && idx < MAX_REF_MV_STACK_SIZE) {
+      ref_mv_stack[idx].this_mv = this_refmv[0];
+      ref_mv_stack[idx].comp_mv = this_refmv[1];
+      ref_mv_stack[idx].pred_diff[0] = 2;
+      ref_mv_stack[idx].pred_diff[1] = 2;
+      ref_mv_stack[idx].weight = 2 * weight_unit;
+      ++(*refmv_count);
+    }
+    ++coll_blk_count;
+  }
+#else
   for (ref = 0; ref < 2; ++ref) {
     if (prev_frame_mvs->ref_frame[ref] == ref_frame) {
       int_mv this_refmv = prev_frame_mvs->mv[ref];
@@ -600,7 +726,7 @@ static int add_col_ref_mv(const AV1_COMMON *cm,
       ++coll_blk_count;
     }
   }
-
+#endif
   return coll_blk_count;
 }
 
@@ -651,11 +777,13 @@ static void setup_ref_mv_list(const AV1_COMMON *cm, const MACROBLOCKD *xd,
 
   for (idx = 0; idx < nearest_refmv_count; ++idx)
     ref_mv_stack[idx].weight += REF_CAT_LEVEL;
+#if !OPFL_TPL
 #if CONFIG_TEMPMV_SIGNALING
   if (cm->use_prev_frame_mvs && rf[1] == NONE_FRAME) {
 #else
   if (prev_frame_mvs_base && cm->show_frame && cm->last_show_frame &&
       rf[1] == NONE_FRAME) {
+#endif
 #endif
     int blk_row, blk_col;
     int coll_blk_count = 0;
@@ -664,7 +792,7 @@ static void setup_ref_mv_list(const AV1_COMMON *cm, const MACROBLOCKD *xd,
                             ? mi_size_wide[BLOCK_8X8]
                             : mi_size_wide[BLOCK_16X16];
 #else
-    const int mi_step = mi_size_wide[BLOCK_16X16];
+  const int mi_step = mi_size_wide[BLOCK_16X16];
 #endif
 
 #if CONFIG_TPL_MV
@@ -695,10 +823,11 @@ static void setup_ref_mv_list(const AV1_COMMON *cm, const MACROBLOCKD *xd,
 #endif
 
     if (coll_blk_count == 0) mode_context[ref_frame] |= (1 << ZEROMV_OFFSET);
+#if !OPFL_TPL
   } else {
     mode_context[ref_frame] |= (1 << ZEROMV_OFFSET);
   }
-
+#endif
   // Scan the second outer area.
   scan_blk_mbmi(cm, xd, mi_row, mi_col, block, rf, -1, -1, ref_mv_stack,
                 refmv_count);
@@ -1367,7 +1496,18 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
         MV bck_mv = mv_ref->mv[1].as_mv;
         MV_REFERENCE_FRAME ref_frame[2] = { mv_ref->ref_frame[0],
                                             mv_ref->ref_frame[1] };
-
+        int this_opfl = 0;
+#if OPFL_TPL_NEIGHBOR
+        if (ref_frame[0] == OPFL_FRAME && ref_frame[1] == NONE_FRAME) {
+          fwd_mv = mv_ref->opfl_ref_mvs[0].as_mv;
+          bck_mv = mv_ref->opfl_ref_mvs[1].as_mv;
+          ref_frame[0] = mv_ref->opfl_ref_frame[0];
+          ref_frame[1] = mv_ref->opfl_ref_frame[1];
+          this_opfl = 1;
+        }
+#endif
+        int tpl_ind = 0;
+        if (this_opfl) tpl_ind = OPFL_FRAME - LAST_FRAME;
         // Derive  motion vectors toward last reference frame.
         if (ref_frame[0] == LAST_FRAME) {
           int16_t mv_y =
@@ -1389,7 +1529,7 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
           mi_c = AOMMAX(mi_c, 0);
 
           tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
-              .mfmv[LAST_FRAME - LAST_FRAME][0]
+              .mfmv[LAST_FRAME - LAST_FRAME][tpl_ind]
               .as_int = this_mv.as_int;
 
 #if CONFIG_EXT_REFS
@@ -1398,7 +1538,7 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
           this_mv.as_mv.col =
               (int16_t)(fwd_mv.col * (double)cur_to_lst2 / lst_offset);
           tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
-              .mfmv[LAST2_FRAME - LAST_FRAME][0]
+              .mfmv[LAST2_FRAME - LAST_FRAME][tpl_ind]
               .as_int = this_mv.as_int;
 
           this_mv.as_mv.row =
@@ -1406,7 +1546,7 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
           this_mv.as_mv.col =
               (int16_t)(fwd_mv.col * (double)cur_to_lst3 / lst_offset);
           tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
-              .mfmv[LAST3_FRAME - LAST_FRAME][0]
+              .mfmv[LAST3_FRAME - LAST_FRAME][tpl_ind]
               .as_int = this_mv.as_int;
 #endif
         }
@@ -1432,7 +1572,7 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
           mi_c = AOMMAX(mi_c, 0);
 
           tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
-              .mfmv[LAST_FRAME - LAST_FRAME][0]
+              .mfmv[LAST_FRAME - LAST_FRAME][tpl_ind]
               .as_int = this_mv.as_int;
 
           this_mv.as_mv.row =
@@ -1440,7 +1580,7 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
           this_mv.as_mv.col =
               (int16_t)(fwd_mv.col * (double)cur_to_lst2 / lst2_offset);
           tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
-              .mfmv[LAST2_FRAME - LAST_FRAME][0]
+              .mfmv[LAST2_FRAME - LAST_FRAME][tpl_ind]
               .as_int = this_mv.as_int;
 
           this_mv.as_mv.row =
@@ -1448,7 +1588,7 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
           this_mv.as_mv.col =
               (int16_t)(fwd_mv.col * (double)cur_to_lst3 / lst2_offset);
           tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
-              .mfmv[LAST3_FRAME - LAST_FRAME][0]
+              .mfmv[LAST3_FRAME - LAST_FRAME][tpl_ind]
               .as_int = this_mv.as_int;
         }
 
@@ -1472,7 +1612,7 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
           mi_c = AOMMAX(mi_c, 0);
 
           tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
-              .mfmv[LAST_FRAME - LAST_FRAME][0]
+              .mfmv[LAST_FRAME - LAST_FRAME][tpl_ind]
               .as_int = this_mv.as_int;
 
           this_mv.as_mv.row =
@@ -1480,7 +1620,7 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
           this_mv.as_mv.col =
               (int16_t)(fwd_mv.col * (double)cur_to_lst2 / lst3_offset);
           tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
-              .mfmv[LAST2_FRAME - LAST_FRAME][0]
+              .mfmv[LAST2_FRAME - LAST_FRAME][tpl_ind]
               .as_int = this_mv.as_int;
 
           this_mv.as_mv.row =
@@ -1488,7 +1628,7 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
           this_mv.as_mv.col =
               (int16_t)(fwd_mv.col * (double)cur_to_lst3 / lst3_offset);
           tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
-              .mfmv[LAST3_FRAME - LAST_FRAME][0]
+              .mfmv[LAST3_FRAME - LAST_FRAME][tpl_ind]
               .as_int = this_mv.as_int;
         }
 #endif
@@ -1516,7 +1656,7 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
           mi_c = AOMMAX(mi_c, 0);
 
           tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
-              .mfmv[GOLDEN_FRAME - LAST_FRAME][0]
+              .mfmv[GOLDEN_FRAME - LAST_FRAME][tpl_ind]
               .as_int = this_mv.as_int;
 
           this_mv.as_mv.row =
@@ -1524,7 +1664,7 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
           this_mv.as_mv.col =
               (int16_t)(fwd_mv.col * (double)cur_to_lst / gld_offset);
           tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
-              .mfmv[LAST_FRAME - LAST_FRAME][0]
+              .mfmv[LAST_FRAME - LAST_FRAME][tpl_ind]
               .as_int = this_mv.as_int;
 
 #if CONFIG_EXT_REFS
@@ -1533,7 +1673,7 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
           this_mv.as_mv.col =
               (int16_t)(fwd_mv.col * (double)cur_to_lst2 / gld_offset);
           tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
-              .mfmv[LAST2_FRAME - LAST_FRAME][0]
+              .mfmv[LAST2_FRAME - LAST_FRAME][tpl_ind]
               .as_int = this_mv.as_int;
 
           this_mv.as_mv.row =
@@ -1541,7 +1681,7 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
           this_mv.as_mv.col =
               (int16_t)(fwd_mv.col * (double)cur_to_lst3 / gld_offset);
           tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
-              .mfmv[LAST3_FRAME - LAST_FRAME][0]
+              .mfmv[LAST3_FRAME - LAST_FRAME][tpl_ind]
               .as_int = this_mv.as_int;
 #endif
         }
@@ -1567,7 +1707,7 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
           mi_c = AOMMAX(mi_c, 0);
 
           tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
-              .mfmv[ALTREF_FRAME - LAST_FRAME][0]
+              .mfmv[ALTREF_FRAME - LAST_FRAME][tpl_ind]
               .as_int = this_mv.as_int;
 
 #if CONFIG_EXT_REFS
@@ -1576,7 +1716,7 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
           this_mv.as_mv.col =
               (int16_t)(fwd_mv.col * (double)cur_to_bwd / alt_offset);
           tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
-              .mfmv[BWDREF_FRAME - LAST_FRAME][0]
+              .mfmv[BWDREF_FRAME - LAST_FRAME][tpl_ind]
               .as_int = this_mv.as_int;
 #endif
         }
@@ -1602,7 +1742,7 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
           mi_c = AOMMAX(mi_c, 0);
 
           tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
-              .mfmv[ALTREF_FRAME - LAST_FRAME][0]
+              .mfmv[ALTREF_FRAME - LAST_FRAME][tpl_ind]
               .as_int = this_mv.as_int;
 #if CONFIG_EXT_REFS
           this_mv.as_mv.row =
@@ -1610,7 +1750,7 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
           this_mv.as_mv.col =
               (int16_t)(bck_mv.col * (double)cur_to_bwd / alt_offset);
           tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
-              .mfmv[BWDREF_FRAME - LAST_FRAME][0]
+              .mfmv[BWDREF_FRAME - LAST_FRAME][tpl_ind]
               .as_int = this_mv.as_int;
 #endif
         }
@@ -1656,6 +1796,19 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
         MV fwd_mv = mv_ref->mv[0].as_mv;
         MV_REFERENCE_FRAME ref_frame[2] = { mv_ref->ref_frame[0],
                                             mv_ref->ref_frame[1] };
+
+        int this_opfl = 0;
+#if OPFL_TPL_NEIGHBOR
+        if (ref_frame[0] == OPFL_FRAME && ref_frame[1] == NONE_FRAME) {
+          fwd_mv = mv_ref->opfl_ref_mvs[0].as_mv;
+          ref_frame[0] = mv_ref->opfl_ref_frame[0];
+          ref_frame[1] = mv_ref->opfl_ref_frame[1];
+          this_opfl = 1;
+        }
+#endif
+        int tpl_ind = ALTREF_FRAME - LAST_FRAME;
+        if (this_opfl) tpl_ind = OPFL_FRAME - LAST_FRAME;
+
         if (ref_frame[0] == LAST_FRAME) {
           int16_t mv_y =
               (int16_t)(fwd_mv.row * (double)cur_to_alt / lst_offset);
@@ -1676,7 +1829,7 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
           mi_c = AOMMAX(mi_c, 0);
 
           tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
-              .mfmv[ALTREF_FRAME - LAST_FRAME][ALTREF_FRAME - LAST_FRAME]
+              .mfmv[ALTREF_FRAME - LAST_FRAME][tpl_ind]
               .as_int = this_mv.as_int;
 
           // Project the motion vector onto last reference frame
@@ -1687,7 +1840,7 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
           this_mv.as_mv.col = mv_x;
 
           tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
-              .mfmv[LAST_FRAME - LAST_FRAME][ALTREF_FRAME - LAST_FRAME]
+              .mfmv[LAST_FRAME - LAST_FRAME][tpl_ind]
               .as_int = this_mv.as_int;
 
 #if CONFIG_EXT_REFS
@@ -1696,7 +1849,7 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
           this_mv.as_mv.col =
               -(int16_t)(fwd_mv.col * (double)cur_to_bwd / lst_offset);
           tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
-              .mfmv[BWDREF_FRAME - LAST_FRAME][ALTREF_FRAME - LAST_FRAME]
+              .mfmv[BWDREF_FRAME - LAST_FRAME][tpl_ind]
               .as_int = this_mv.as_int;
 
           this_mv.as_mv.row =
@@ -1704,7 +1857,7 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
           this_mv.as_mv.col =
               (int16_t)(fwd_mv.col * (double)cur_to_lst2 / lst_offset);
           tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
-              .mfmv[LAST2_FRAME - LAST_FRAME][ALTREF_FRAME - LAST_FRAME]
+              .mfmv[LAST2_FRAME - LAST_FRAME][tpl_ind]
               .as_int = this_mv.as_int;
 
           this_mv.as_mv.row =
@@ -1712,7 +1865,7 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
           this_mv.as_mv.col =
               (int16_t)(fwd_mv.col * (double)cur_to_lst3 / lst_offset);
           tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
-              .mfmv[LAST3_FRAME - LAST_FRAME][ALTREF_FRAME - LAST_FRAME]
+              .mfmv[LAST3_FRAME - LAST_FRAME][tpl_ind]
               .as_int = this_mv.as_int;
 #endif
         }
@@ -1738,7 +1891,7 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
           mi_c = AOMMAX(mi_c, 0);
 
           tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
-              .mfmv[ALTREF_FRAME - LAST_FRAME][ALTREF_FRAME - LAST_FRAME]
+              .mfmv[ALTREF_FRAME - LAST_FRAME][tpl_ind]
               .as_int = this_mv.as_int;
 
           // Project the motion vector onto last reference frame
@@ -1749,7 +1902,7 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
           this_mv.as_mv.col = mv_x;
 
           tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
-              .mfmv[LAST_FRAME - LAST_FRAME][ALTREF_FRAME - LAST_FRAME]
+              .mfmv[LAST_FRAME - LAST_FRAME][tpl_ind]
               .as_int = this_mv.as_int;
 
           this_mv.as_mv.row =
@@ -1757,7 +1910,7 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
           this_mv.as_mv.col =
               -(int16_t)(fwd_mv.col * (double)cur_to_bwd / lst2_offset);
           tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
-              .mfmv[BWDREF_FRAME - LAST_FRAME][ALTREF_FRAME - LAST_FRAME]
+              .mfmv[BWDREF_FRAME - LAST_FRAME][tpl_ind]
               .as_int = this_mv.as_int;
 
           this_mv.as_mv.row =
@@ -1765,7 +1918,7 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
           this_mv.as_mv.col =
               (int16_t)(fwd_mv.col * (double)cur_to_lst3 / lst2_offset);
           tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
-              .mfmv[LAST3_FRAME - LAST_FRAME][ALTREF_FRAME - LAST_FRAME]
+              .mfmv[LAST3_FRAME - LAST_FRAME][tpl_ind]
               .as_int = this_mv.as_int;
         }
 
@@ -1789,7 +1942,7 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
           mi_c = AOMMAX(mi_c, 0);
 
           tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
-              .mfmv[ALTREF_FRAME - LAST_FRAME][ALTREF_FRAME - LAST_FRAME]
+              .mfmv[ALTREF_FRAME - LAST_FRAME][tpl_ind]
               .as_int = this_mv.as_int;
 
           // Project the motion vector onto last reference frame
@@ -1800,7 +1953,7 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
           this_mv.as_mv.col = mv_x;
 
           tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
-              .mfmv[LAST_FRAME - LAST_FRAME][ALTREF_FRAME - LAST_FRAME]
+              .mfmv[LAST_FRAME - LAST_FRAME][tpl_ind]
               .as_int = this_mv.as_int;
 
           this_mv.as_mv.row =
@@ -1808,7 +1961,7 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
           this_mv.as_mv.col =
               -(int16_t)(fwd_mv.col * (double)cur_to_bwd / lst3_offset);
           tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
-              .mfmv[BWDREF_FRAME - LAST_FRAME][ALTREF_FRAME - LAST_FRAME]
+              .mfmv[BWDREF_FRAME - LAST_FRAME][tpl_ind]
               .as_int = this_mv.as_int;
 
           this_mv.as_mv.row =
@@ -1816,7 +1969,7 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
           this_mv.as_mv.col =
               (int16_t)(fwd_mv.col * (double)cur_to_lst2 / lst3_offset);
           tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
-              .mfmv[LAST2_FRAME - LAST_FRAME][ALTREF_FRAME - LAST_FRAME]
+              .mfmv[LAST2_FRAME - LAST_FRAME][tpl_ind]
               .as_int = this_mv.as_int;
         }
 #endif
@@ -1841,7 +1994,7 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
           mi_c = AOMMAX(mi_c, 0);
 
           tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
-              .mfmv[ALTREF_FRAME - LAST_FRAME][ALTREF_FRAME - LAST_FRAME]
+              .mfmv[ALTREF_FRAME - LAST_FRAME][tpl_ind]
               .as_int = this_mv.as_int;
 
           // Project the motion vector onto last reference frame
@@ -1852,7 +2005,7 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
           this_mv.as_mv.col = mv_x;
 
           tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
-              .mfmv[LAST_FRAME - LAST_FRAME][ALTREF_FRAME - LAST_FRAME]
+              .mfmv[LAST_FRAME - LAST_FRAME][tpl_ind]
               .as_int = this_mv.as_int;
 
 #if CONFIG_EXT_REFS
@@ -1861,7 +2014,7 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
           this_mv.as_mv.col =
               -(int16_t)(fwd_mv.col * (double)cur_to_bwd / gld_offset);
           tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
-              .mfmv[BWDREF_FRAME - LAST_FRAME][ALTREF_FRAME - LAST_FRAME]
+              .mfmv[BWDREF_FRAME - LAST_FRAME][tpl_ind]
               .as_int = this_mv.as_int;
 
           this_mv.as_mv.row =
@@ -1869,7 +2022,7 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
           this_mv.as_mv.col =
               (int16_t)(fwd_mv.col * (double)cur_to_lst2 / gld_offset);
           tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
-              .mfmv[LAST2_FRAME - LAST_FRAME][ALTREF_FRAME - LAST_FRAME]
+              .mfmv[LAST2_FRAME - LAST_FRAME][tpl_ind]
               .as_int = this_mv.as_int;
 
           this_mv.as_mv.row =
@@ -1877,7 +2030,7 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
           this_mv.as_mv.col =
               (int16_t)(fwd_mv.col * (double)cur_to_lst3 / gld_offset);
           tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
-              .mfmv[LAST3_FRAME - LAST_FRAME][ALTREF_FRAME - LAST_FRAME]
+              .mfmv[LAST3_FRAME - LAST_FRAME][tpl_ind]
               .as_int = this_mv.as_int;
 #endif
         }
@@ -1919,6 +2072,20 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
         MV fwd_mv = mv_ref->mv[0].as_mv;
         MV_REFERENCE_FRAME ref_frame[2] = { mv_ref->ref_frame[0],
                                             mv_ref->ref_frame[1] };
+        int this_opfl = 0;
+#if OPFL_TPL_NEIGHBOR
+        if (ref_frame[0] == OPFL_FRAME && ref_frame[1] == NONE_FRAME) {
+          fwd_mv = mv_ref->opfl_ref_mvs[0].as_mv;
+          ref_frame[0] = mv_ref->opfl_ref_frame[0];
+          ref_frame[1] = mv_ref->opfl_ref_frame[1];
+          this_opfl = 1;
+        }
+#endif
+        int tpl_ind = BWDREF_FRAME - LAST_FRAME;
+        if (this_opfl) {
+          tpl_ind = OPFL_FRAME - LAST_FRAME;
+        }
+
         if (ref_frame[0] == LAST_FRAME) {
           int16_t mv_y =
               (int16_t)(fwd_mv.row * (double)cur_to_bwd / lst_offset);
@@ -1939,7 +2106,7 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
           mi_c = AOMMAX(mi_c, 0);
 
           tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
-              .mfmv[BWDREF_FRAME - LAST_FRAME][BWDREF_FRAME - LAST_FRAME]
+              .mfmv[BWDREF_FRAME - LAST_FRAME][tpl_ind]
               .as_int = this_mv.as_int;
 
           // Project the motion vector onto last reference frame
@@ -1950,7 +2117,7 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
           this_mv.as_mv.col = mv_x;
 
           tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
-              .mfmv[LAST_FRAME - LAST_FRAME][BWDREF_FRAME - LAST_FRAME]
+              .mfmv[LAST_FRAME - LAST_FRAME][tpl_ind]
               .as_int = this_mv.as_int;
 
           this_mv.as_mv.row =
@@ -1958,7 +2125,7 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
           this_mv.as_mv.col =
               (int16_t)(fwd_mv.col * (double)cur_to_lst2 / lst_offset);
           tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
-              .mfmv[LAST2_FRAME - LAST_FRAME][BWDREF_FRAME - LAST_FRAME]
+              .mfmv[LAST2_FRAME - LAST_FRAME][tpl_ind]
               .as_int = this_mv.as_int;
 
           this_mv.as_mv.row =
@@ -1966,7 +2133,7 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
           this_mv.as_mv.col =
               (int16_t)(fwd_mv.col * (double)cur_to_lst3 / lst_offset);
           tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
-              .mfmv[LAST3_FRAME - LAST_FRAME][BWDREF_FRAME - LAST_FRAME]
+              .mfmv[LAST3_FRAME - LAST_FRAME][tpl_ind]
               .as_int = this_mv.as_int;
         }
 
@@ -1990,7 +2157,7 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
           mi_c = AOMMAX(mi_c, 0);
 
           tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
-              .mfmv[BWDREF_FRAME - LAST_FRAME][BWDREF_FRAME - LAST_FRAME]
+              .mfmv[BWDREF_FRAME - LAST_FRAME][tpl_ind]
               .as_int = this_mv.as_int;
 
           // Project the motion vector onto last reference frame
@@ -2001,7 +2168,7 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
           this_mv.as_mv.col = mv_x;
 
           tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
-              .mfmv[LAST_FRAME - LAST_FRAME][BWDREF_FRAME - LAST_FRAME]
+              .mfmv[LAST_FRAME - LAST_FRAME][tpl_ind]
               .as_int = this_mv.as_int;
 
           this_mv.as_mv.row =
@@ -2009,7 +2176,7 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
           this_mv.as_mv.col =
               (int16_t)(fwd_mv.col * (double)cur_to_lst3 / lst2_offset);
           tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
-              .mfmv[LAST3_FRAME - LAST_FRAME][BWDREF_FRAME - LAST_FRAME]
+              .mfmv[LAST3_FRAME - LAST_FRAME][tpl_ind]
               .as_int = this_mv.as_int;
         }
 
@@ -2033,7 +2200,7 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
           mi_c = AOMMAX(mi_c, 0);
 
           tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
-              .mfmv[BWDREF_FRAME - LAST_FRAME][BWDREF_FRAME - LAST_FRAME]
+              .mfmv[BWDREF_FRAME - LAST_FRAME][tpl_ind]
               .as_int = this_mv.as_int;
 
           // Project the motion vector onto last reference frame
@@ -2044,7 +2211,7 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
           this_mv.as_mv.col = mv_x;
 
           tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
-              .mfmv[LAST_FRAME - LAST_FRAME][BWDREF_FRAME - LAST_FRAME]
+              .mfmv[LAST_FRAME - LAST_FRAME][tpl_ind]
               .as_int = this_mv.as_int;
 
           this_mv.as_mv.row =
@@ -2052,7 +2219,7 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
           this_mv.as_mv.col =
               (int16_t)(fwd_mv.col * (double)cur_to_lst2 / lst3_offset);
           tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
-              .mfmv[LAST2_FRAME - LAST_FRAME][BWDREF_FRAME - LAST_FRAME]
+              .mfmv[LAST2_FRAME - LAST_FRAME][tpl_ind]
               .as_int = this_mv.as_int;
         }
 
@@ -2076,7 +2243,7 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
           mi_c = AOMMAX(mi_c, 0);
 
           tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
-              .mfmv[BWDREF_FRAME - LAST_FRAME][BWDREF_FRAME - LAST_FRAME]
+              .mfmv[BWDREF_FRAME - LAST_FRAME][tpl_ind]
               .as_int = this_mv.as_int;
 
           // Project the motion vector onto last reference frame
@@ -2087,7 +2254,7 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
           this_mv.as_mv.col = mv_x;
 
           tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
-              .mfmv[LAST_FRAME - LAST_FRAME][BWDREF_FRAME - LAST_FRAME]
+              .mfmv[LAST_FRAME - LAST_FRAME][tpl_ind]
               .as_int = this_mv.as_int;
 
           this_mv.as_mv.row =
@@ -2095,7 +2262,7 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
           this_mv.as_mv.col =
               (int16_t)(fwd_mv.col * (double)cur_to_lst2 / gld_offset);
           tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
-              .mfmv[LAST2_FRAME - LAST_FRAME][BWDREF_FRAME - LAST_FRAME]
+              .mfmv[LAST2_FRAME - LAST_FRAME][tpl_ind]
               .as_int = this_mv.as_int;
 
           this_mv.as_mv.row =
@@ -2103,7 +2270,7 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
           this_mv.as_mv.col =
               (int16_t)(fwd_mv.col * (double)cur_to_lst3 / gld_offset);
           tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
-              .mfmv[LAST3_FRAME - LAST_FRAME][BWDREF_FRAME - LAST_FRAME]
+              .mfmv[LAST3_FRAME - LAST_FRAME][tpl_ind]
               .as_int = this_mv.as_int;
         }
       }

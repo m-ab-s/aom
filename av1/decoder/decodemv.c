@@ -3096,6 +3096,7 @@ void av1_update_opfl_info(AV1Decoder *const pbi, MACROBLOCKD *xd, int mi_row,
           opfl_round_double_2_int(((double)(mi->mbmi.mv[0].as_mv.row)) / 8.0);
       int16_t col_offset_raw =
           opfl_round_double_2_int(((double)(mi->mbmi.mv[0].as_mv.col)) / 8.0);
+
       int16_t row_offset;
       int16_t col_offset;
 
@@ -3111,14 +3112,16 @@ void av1_update_opfl_info(AV1Decoder *const pbi, MACROBLOCKD *xd, int mi_row,
         for (w = 0; w < x_mis; ++w) {
           row_offset = row_offset_raw;
           col_offset = col_offset_raw;
-          if (row_offset + h * 4 + mi_row * 4 >= cm->height)
-            row_offset = AVG_MF_BORDER;
-          else if (row_offset + mi_row * 4 + h * 4 < 0)
-            row_offset = -AVG_MF_BORDER;
-          if (col_offset + w * 4 + mi_col * 4 >= cm->width)
-            col_offset = AVG_MF_BORDER;
-          else if (col_offset + mi_col * 4 + w * 4 < 0)
-            col_offset = -AVG_MF_BORDER;
+
+          if (row_offset + y_mis * 4 + mi_row * 4 > cm->height)
+            row_offset = cm->height - y_mis * 4 - mi_row * 4;
+          else if (row_offset + mi_row * 4 < 0)
+            row_offset = -mi_row * 4;
+
+          if (col_offset + x_mis * 4 + mi_col * 4 > cm->width)
+            col_offset = cm->width - x_mis * 4 - mi_col * 4;
+          else if (col_offset + mi_col * 4 < 0)
+            col_offset = -mi_col * 4;
 
           avg_r = 0;
           avg_c = 0;

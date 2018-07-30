@@ -47,6 +47,8 @@ extern "C" {
 // Experimental MACROs
 #define OPFL_INIT_WT 1
 #define OPFL_MV_PRED 1
+#define OPFL_TPL 1
+#define OPFL_TPL_NEIGHBOR 1
 
 // Experimental MACROs not used for now
 #define OPTICAL_FLOW_DIFF_THRES 10.0     // Thres to detect pixel difference
