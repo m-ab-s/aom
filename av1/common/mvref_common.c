@@ -18,7 +18,7 @@
 #endif
 
 static uint8_t add_ref_mv_candidate(
-#if CONFIG_OPFL
+#if OPFL_MV_PRED
     const AV1_COMMON *cm, int mi_row_cand, int mi_col_cand,
 #endif
     const MODE_INFO *const candidate_mi, const MB_MODE_INFO *const candidate,
@@ -33,7 +33,7 @@ static uint8_t add_ref_mv_candidate(
 #endif
   if (rf[1] == NONE_FRAME) {
     // single reference frame
-#if CONFIG_OPFL
+#if OPFL_MV_PRED
     if (rf[0] == OPFL_FRAME && candidate->ref_frame[1] != NONE_FRAME &&
         candidate->ref_frame[0] == cm->opfl_buf_struct_ptr->opfl_refs[0] &&
         candidate->ref_frame[1] == cm->opfl_buf_struct_ptr->opfl_refs[1] &&
@@ -89,14 +89,17 @@ static uint8_t add_ref_mv_candidate(
           opfl_round_double_2_int(((double)(ref_mv_correct.as_mv.row)) / 8.0);
       int16_t col_offset =
           opfl_round_double_2_int(((double)(ref_mv_correct.as_mv.col)) / 8.0);
-      if (row_offset > AVG_MF_BORDER)
-        row_offset = AVG_MF_BORDER;
-      else if (row_offset < -AVG_MF_BORDER)
-        row_offset = -AVG_MF_BORDER;
-      if (col_offset > AVG_MF_BORDER)
-        col_offset = AVG_MF_BORDER;
-      else if (col_offset < -AVG_MF_BORDER)
-        col_offset = -AVG_MF_BORDER;
+
+      if (row_offset + mi_row_cand * 4 + 4 > cm->height) {
+        row_offset = cm->height - mi_row_cand * 4 - 4;
+      } else if (row_offset + mi_row_cand * 4 < 0) {
+        row_offset = -mi_row_cand * 4;
+      }
+      if (col_offset + mi_col_cand * 4 + 4 > cm->width) {
+        col_offset = cm->width - mi_col_cand * 4 - 4;
+      } else if (col_offset + mi_col_cand * 4 < 0) {
+        col_offset = -mi_col_cand * 4;
+      }
 
       double dstpos = cm->opfl_buf_struct_ptr->dst_pos;
       int mf_stride = cm->width + 2 * AVG_MF_BORDER;
@@ -197,12 +200,12 @@ static uint8_t add_ref_mv_candidate(
           }
         }
       }
-#if CONFIG_OPFL
+#if OPFL_MV_PRED
     }
 #endif
   } else {
     // compound reference frame
-#if CONFIG_OPFL
+#if OPFL_MV_PRED
     if (candidate->ref_frame[0] == OPFL_FRAME &&
         candidate->ref_frame[1] == NONE_FRAME &&
         cm->opfl_buf_struct_ptr->opfl_refs[0] == rf[0] &&
@@ -217,14 +220,16 @@ static uint8_t add_ref_mv_candidate(
           opfl_round_double_2_int(((double)(ref_mv_correct.as_mv.row)) / 8.0);
       int16_t col_offset =
           opfl_round_double_2_int(((double)(ref_mv_correct.as_mv.col)) / 8.0);
-      if (row_offset > AVG_MF_BORDER)
-        row_offset = AVG_MF_BORDER;
-      else if (row_offset < -AVG_MF_BORDER)
-        row_offset = -AVG_MF_BORDER;
-      if (col_offset > AVG_MF_BORDER)
-        col_offset = AVG_MF_BORDER;
-      else if (col_offset < -AVG_MF_BORDER)
-        col_offset = -AVG_MF_BORDER;
+
+      if (row_offset + mi_row_cand * 4 + 4 > cm->height)
+        row_offset = cm->height - mi_row_cand * 4 - 4;
+      else if (row_offset + mi_row_cand * 4 < 0)
+        row_offset = -mi_row_cand * 4;
+
+      if (col_offset + mi_col_cand * 4 + 4 > cm->width)
+        col_offset = cm->width - mi_col_cand * 4 - 4;
+      else if (col_offset + mi_col_cand * 4 < 0)
+        col_offset = -mi_col_cand * 4;
 
       double dstpos = cm->opfl_buf_struct_ptr->dst_pos;
       int mf_stride = cm->width + 2 * AVG_MF_BORDER;
@@ -364,7 +369,7 @@ static uint8_t add_ref_mv_candidate(
           }
         }
       }
-#if CONFIG_OPFL
+#if OPFL_MV_PRED
     }
 #endif
   }
@@ -405,7 +410,7 @@ static uint8_t scan_row_mbmi(const AV1_COMMON *cm, const MACROBLOCKD *xd,
       int len = AOMMIN(xd->n8_w, mi_size_wide[candidate->sb_type]);
       if (use_step_16) len = AOMMAX(mi_size_wide[BLOCK_16X16], len);
       newmv_count += add_ref_mv_candidate(
-#if CONFIG_OPFL
+#if OPFL_MV_PRED
           cm, mi_row + mi_pos.row, mi_col + mi_pos.col,
 #endif
           candidate_mi, candidate, rf, refmv_count, ref_mv_stack,
@@ -455,7 +460,7 @@ static uint8_t scan_col_mbmi(const AV1_COMMON *cm, const MACROBLOCKD *xd,
       int len = AOMMIN(xd->n8_h, mi_size_high[candidate->sb_type]);
       if (use_step_16) len = AOMMAX(mi_size_high[BLOCK_16X16], len);
       newmv_count += add_ref_mv_candidate(
-#if CONFIG_OPFL
+#if OPFL_MV_PRED
           cm, mi_row + mi_pos.row, mi_col + mi_pos.col,
 #endif
           candidate_mi, candidate, rf, refmv_count, ref_mv_stack,
@@ -492,7 +497,7 @@ static uint8_t scan_blk_mbmi(const AV1_COMMON *cm, const MACROBLOCKD *xd,
     const int len = mi_size_wide[BLOCK_8X8];
 
     newmv_count += add_ref_mv_candidate(
-#if CONFIG_OPFL
+#if OPFL_MV_PRED
         cm, mi_row + mi_pos.row, mi_col + mi_pos.col,
 #endif
         candidate_mi, candidate, rf, refmv_count, ref_mv_stack,

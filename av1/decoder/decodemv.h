@@ -31,6 +31,8 @@ void av1_read_mode_info(AV1Decoder *const pbi, MACROBLOCKD *xd,
 #if CONFIG_OPFL
 void av1_dec_calc_opfl_ref(AV1Decoder *const pbi, MACROBLOCKD *xd, int mi_row,
                            int mi_col, int x_mis, int y_mis, BLOCK_SIZE bsize);
+void av1_update_opfl_info(AV1Decoder *const pbi, MACROBLOCKD *xd, int mi_row,
+                          int mi_col, int x_mis, int y_mis);
 #endif
 
 #ifdef __cplusplus

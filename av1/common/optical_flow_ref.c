@@ -314,6 +314,7 @@ void av1_opfl_set_buf(AV1_COMMON *cm, OPFL_BUFFER_STRUCT *buf_struct) {
       for (int j = 0; j < cm->mi_cols; j++) {
         left_mv[i * cm->mi_cols + j].as_int = INVALID_MV;
         right_mv[i * cm->mi_cols + j].as_int = INVALID_MV;
+
         for (int k = 0; k < MFMV_STACK_SIZE; k++) {
           if (tpl_mvs_base[i * cm->mi_stride + j]
                   .mfmv[left_chosen - LAST_FRAME][k]
@@ -608,6 +609,8 @@ void optical_flow_get_ref(OPFL_BUFFER_STRUCT *buf_struct,
       DB_MV *mf_start_next =
           mf_last[l - 1] + AVG_MF_BORDER * mvstr_next + AVG_MF_BORDER;
       upscale_mv_by_2(mf_start_med, wid, hgt, mvstr, mf_start_next, mvstr_next);
+    } else {
+      pad_motion_field_border(mf_start_med, wid, hgt, mvstr);
     }
   }
 
@@ -2503,8 +2506,8 @@ void interp_optical_flow(YV12_BUFFER_CONFIG *ref0, YV12_BUFFER_CONFIG *ref1,
   int mvstr = blk_info.blk_width + 2 * AVG_MF_BORDER;
   DB_MV *mf_start = mf + AVG_MF_BORDER * mvstr + AVG_MF_BORDER;
 
-  warp_optical_flow(ref0, ref1, mf_start, mvstr, dst, dst_pos, OPFL_DIFF_SELECT,
-                    blk_info);
+  warp_optical_flow(ref0, ref1, mf_start, mvstr, dst, dst_pos,
+                    OPFL_BLEND_METHOD_USED, blk_info);
   return;
 }
 

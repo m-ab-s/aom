@@ -686,6 +686,71 @@ static void update_state(const AV1_COMP *const cpi, ThreadData *td,
            sizeof(uint8_t) * ctx->num_4x4_blk);
 #endif
 
+#if CONFIG_OPFL
+  if (mi->mbmi.ref_frame[0] == OPFL_FRAME) {
+    // if using OPFL_FRAME as reference, save mvs as compound
+    int16_t row_offset_raw =
+        opfl_round_double_2_int(((double)(mi->mbmi.mv[0].as_mv.row)) / 8.0);
+    int16_t col_offset_raw =
+        opfl_round_double_2_int(((double)(mi->mbmi.mv[0].as_mv.col)) / 8.0);
+    int16_t row_offset;
+    int16_t col_offset;
+
+    double dstpos = cm->opfl_buf_struct_ptr->dst_pos;
+    int mf_stride = cm->width + 2 * AVG_MF_BORDER;
+    DB_MV *opfl_mv = cm->opfl_buf_struct_ptr->mf_med[0] +
+                     AVG_MF_BORDER * mf_stride + AVG_MF_BORDER +
+                     mi_row * 4 * mf_stride + mi_col * 4;
+    DB_MV *cur_opfl_mv;
+    double avg_r = 0, avg_c = 0;
+    for (h = 0; h < y_mis; ++h) {
+      MV_REF *const frame_mv = frame_mvs + h * cm->mi_cols;
+      for (w = 0; w < x_mis; ++w) {
+        row_offset = row_offset_raw;
+        col_offset = col_offset_raw;
+        if (row_offset + h * 4 + mi_row * 4 >= cm->height)
+          row_offset = AVG_MF_BORDER;
+        else if (row_offset + mi_row * 4 + h * 4 < 0)
+          row_offset = -AVG_MF_BORDER;
+        if (col_offset + w * 4 + mi_col * 4 >= cm->width)
+          col_offset = AVG_MF_BORDER;
+        else if (col_offset + mi_col * 4 + w * 4 < 0)
+          col_offset = -AVG_MF_BORDER;
+
+        avg_r = 0;
+        avg_c = 0;
+        MV_REF *const mv = frame_mv + w;
+        mv->opfl_ref_frame[0] = cm->opfl_buf_struct_ptr->opfl_refs[0];
+        mv->opfl_ref_frame[1] = cm->opfl_buf_struct_ptr->opfl_refs[1];
+        for (int hh = 1; hh <= 2; hh++) {
+          for (int ww = 1; ww <= 2; ww++) {
+            cur_opfl_mv = opfl_mv + (row_offset + h * 4 + hh) * mf_stride;
+            cur_opfl_mv = cur_opfl_mv + col_offset + w * 4 + ww;
+            avg_r += cur_opfl_mv->row;
+            avg_c += cur_opfl_mv->col;
+          }
+        }
+        avg_r /= 4;
+        avg_c /= 4;
+
+        mv->opfl_ref_mvs[0].as_mv.row =
+            opfl_round_double_2_int(-dstpos * 8.0 * avg_r);
+        mv->opfl_ref_mvs[0].as_mv.row += mi->mbmi.mv[0].as_mv.row;
+        mv->opfl_ref_mvs[0].as_mv.col =
+            opfl_round_double_2_int(-dstpos * 8.0 * avg_c);
+        mv->opfl_ref_mvs[0].as_mv.col += mi->mbmi.mv[0].as_mv.col;
+
+        mv->opfl_ref_mvs[1].as_mv.row =
+            opfl_round_double_2_int((1 - dstpos) * 8.0 * avg_r);
+        mv->opfl_ref_mvs[1].as_mv.row += mi->mbmi.mv[0].as_mv.row;
+        mv->opfl_ref_mvs[1].as_mv.col =
+            opfl_round_double_2_int((1 - dstpos) * 8.0 * avg_c);
+        mv->opfl_ref_mvs[1].as_mv.col += mi->mbmi.mv[0].as_mv.col;
+      }
+    }
+  }
+#endif
+
   if (dry_run) return;
 
 #if CONFIG_INTERNAL_STATS

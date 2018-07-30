@@ -110,6 +110,10 @@ typedef struct {
   int_mv mv[2];
   int_mv pred_mv[2];
   MV_REFERENCE_FRAME ref_frame[2];
+#if CONFIG_OPFL
+  MV_REFERENCE_FRAME opfl_ref_frame[2];
+  int_mv opfl_ref_mvs[2];
+#endif
 } MV_REF;
 
 typedef struct {

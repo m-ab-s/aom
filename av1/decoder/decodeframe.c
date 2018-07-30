@@ -1791,6 +1791,7 @@ static void decode_mbmi_block(AV1Decoder *const pbi, MACROBLOCKD *const xd,
   // update the motion references for optical flow blocks
   // calculate optical flow reference here
   av1_dec_calc_opfl_ref(pbi, xd, mi_row, mi_col, x_mis, y_mis, bsize);
+  av1_update_opfl_info(pbi, xd, mi_row, mi_col, x_mis, y_mis);
 #endif
 
 #if CONFIG_SUPERTX

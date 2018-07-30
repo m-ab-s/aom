@@ -46,6 +46,7 @@ extern "C" {
 
 // Experimental MACROs
 #define OPFL_INIT_WT 1
+#define OPFL_MV_PRED 1
 
 // Experimental MACROs not used for now
 #define OPTICAL_FLOW_DIFF_THRES 10.0     // Thres to detect pixel difference
@@ -59,6 +60,8 @@ typedef enum opfl_blend_method {
   OPFL_DIFF_SINGLE,
   OPFL_DIFF_SELECT,
 } OPFL_BLEND_METHOD;
+
+#define OPFL_BLEND_METHOD_USED OPFL_SIMPLE_BLEND
 
 // motion field struct with double precision
 typedef struct db_mv {
