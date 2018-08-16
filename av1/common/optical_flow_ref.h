@@ -111,10 +111,26 @@ typedef struct opfl_block_info {
 
 int av1_get_opfl_ref(AV1_COMMON *cm);
 void av1_opfl_set_buf(AV1_COMMON *cm, OPFL_BUFFER_STRUCT *buf_struct);
+void av1_optical_flow_get_ref(OPFL_BUFFER_STRUCT *buf_struct,
+                              OPFL_BLK_INFO blk_info);
+
+void av1_opfl_alloc_buf(AV1_COMMON *cm, OPFL_BUFFER_STRUCT *buf_struct);
 void av1_opfl_free_buf(OPFL_BUFFER_STRUCT *buf_struct);
 
-void optical_flow_get_ref(OPFL_BUFFER_STRUCT *buf_struct,
-                          OPFL_BLK_INFO blk_info);
+int get_num_MV_between_refs(AV1_COMMON *cm, int left_idx, int left_offset,
+                            int right_idx, int right_offset);
+void opfl_select_best_ref_pairs(AV1_COMMON *cm, int *left_idx, int *left_offset,
+                                int *left_chosen, int *right_idx,
+                                int *right_offset, int *right_chosen,
+                                int left_most_idx, int right_most_idx);
+void opfl_get_closest_refs(AV1_COMMON *cm, int *left_idx_ptr,
+                           int *left_offset_ptr, int *left_chosen_ptr,
+                           int *right_idx_ptr, int *right_offset_ptr,
+                           int *right_chosen_ptr);
+void opfl_set_init_motion(AV1_COMMON *cm, OPFL_BUFFER_STRUCT *buf_struct,
+                          int left_idx, int right_idx, int left_offset,
+                          int right_offset, int_mv *left_mv, int_mv *right_mv);
+
 void refine_motion_field(OPFL_BUFFER_STRUCT *buf_struct, DB_MV *mf_last,
                          DB_MV *mf_new, int level, double dstpos, int usescale,
                          OPFL_BLK_INFO blk_info);

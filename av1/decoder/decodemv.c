@@ -3072,7 +3072,7 @@ void av1_dec_calc_opfl_ref(AV1Decoder *const pbi, MACROBLOCKD *xd, int mi_row,
           if (i + blkheight >= height) blk_info.lowerbound = 1;
           if (j == 0) blk_info.leftbound = 1;
           if (j + blkwidth >= width) blk_info.rightbound = 1;
-          optical_flow_get_ref(cm->opfl_buf_struct_ptr, blk_info);
+          av1_optical_flow_get_ref(cm->opfl_buf_struct_ptr, blk_info);
           cm->opfl_buf_struct_ptr
               ->done_flag[i / blkheight * wblk + j / blkwidth] = 1;
         }
