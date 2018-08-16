@@ -53,6 +53,7 @@ extern "C" {
 #define OPFL_EXP_INIT 1
 #define OPFL_DERIVE_INIT_MV 1
 #define OPFL_CHECK_INIT_MV 1
+#define OPFL_INIT_MOTION_SEARCH 1
 
 #define OPFL_EXP_DERV 0
 
@@ -220,6 +221,10 @@ void opfl_fill_mv(int_mv *pmv, int width, int height);
 void fill_create_motion_field(int_mv *mv_left, int_mv *mv_right, DB_MV *mf,
                               int width, int height, int mvwid, int mvhgt,
                               int mfstr);
+void opfl_init_motion_search(int_mv *mv_left, int_mv *mv_right, DB_MV *mf,
+                             int width, int height, int mvwid, int mvhgt,
+                             int mfstr, double dstpos, OPFL_BLK_INFO *blk_info,
+                             uint8_t *y0, uint8_t *y1, int srcstr);
 void create_motion_field(int_mv *mv_left, int_mv *mv_right, DB_MV *mf,
 #if OPFL_INIT_WT
                          double *mv_wts,

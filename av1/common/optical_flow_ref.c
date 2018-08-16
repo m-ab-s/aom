@@ -317,6 +317,13 @@ void av1_opfl_set_buf(AV1_COMMON *cm, OPFL_BUFFER_STRUCT *buf_struct) {
     // fill in possible "holes" in the initialization
     fill_create_motion_field(left_mv, right_mv, buf_struct->init_mv_buf[l],
                              width, height, wid, hgt, wid + 2 * AVG_MF_BORDER);
+#if OPFL_INIT_MOTION_SEARCH
+    opfl_init_motion_search(
+        left_mv, right_mv, buf_struct->init_mv_buf[l], width, height, wid, hgt,
+        wid + 2 * AVG_MF_BORDER, dst_pos, &blk_info,
+        buf_struct->ref0_buf[0]->y_buffer, buf_struct->ref1_buf[0]->y_buffer,
+        buf_struct->ref0_buf[0]->y_stride);
+#endif
 
 #if DUMP_OPFL
     if (l == 0) {
@@ -3965,6 +3972,214 @@ void fill_create_motion_field(int_mv *mv_left, int_mv *mv_right, DB_MV *mf,
     }
   }
   aom_free(tempmv);
+  aom_free(isValid);
+  // Pad the motion field border
+  pad_motion_field_border(mf_start, mvwid, mvhgt, mfstr);
+}
+
+int opfl_get_blk_warp_SAD(uint8_t *y0, uint8_t *y1, int srcstride, int blksize,
+                          int starth, int startw, DB_MV mv, double dstpos,
+                          int width, int height) {
+  int dist = 0;
+  int lpix, rpix;
+  int yl, xl, yr, xr;
+  double dil, djl, dir, djr;
+
+  yl = opfl_floor_double_2_int(-mv.row * dstpos);
+  xl = opfl_floor_double_2_int(-mv.col * dstpos);
+  yr = opfl_floor_double_2_int(mv.row * (1 - dstpos));
+  xr = opfl_floor_double_2_int(mv.col * (1 - dstpos));
+
+  dil = -mv.row * dstpos - yl;
+  djl = -mv.col * dstpos - xl;
+  dir = mv.row * (1 - dstpos) - yr;
+  djr = mv.col * (1 - dstpos) - xr;
+
+  // if (starth + yl < 0) {
+  //   yl = -starth;
+  // } else if (starth + yl >= height) {
+  //   yl = height - starth;
+  // }
+  // if (startw + xl < 0) {
+  //   xl = -startw;
+  // } else if (startw + xl >= width) {
+  //   xl = width - startw;
+  // }
+  // if (starth + yr < 0) {
+  //   yr = -starth;
+  // } else if (starth + yr >= height) {
+  //   yr = height - starth;
+  // }
+  // if (startw + xr < 0) {
+  //   xr = -startw;
+  // } else if (startw + xr >= width) {
+  //   xr = width - startw;
+  // }
+
+  for (int i = 0; i < blksize; i++) {
+    for (int j = 0; j < blksize; j++) {
+      uint8_t *tmpsrc;
+      tmpsrc = y0 + (starth + i + yl) * srcstride + (startw + j + xl);
+      lpix = get_sub_pel_y(tmpsrc, srcstride, dil, djl);
+      tmpsrc = y1 + (starth + i + yr) * srcstride + (startw + j + xr);
+      rpix = get_sub_pel_y(tmpsrc, srcstride, dir, djr);
+      dist += abs(lpix - rpix);
+    }
+  }
+  return dist;
+}
+
+DB_MV bi_direction_motion_search(uint8_t *y0, uint8_t *y1, int srcstr,
+                                 int starth, int startw, DB_MV init_mv,
+                                 double dstpos, int width, int height) {
+  DB_MV mv_res = init_mv;
+  int step = 0;
+  int curDist = opfl_get_blk_warp_SAD(y0, y1, srcstr, 16, starth, startw,
+                                      mv_res, dstpos, width, height);
+  int nextDist, tempDist;
+  DB_MV next_mv, temp_mv;
+  double stepsize = 8;
+  while (step <= 24) {
+    nextDist = curDist;
+    next_mv = mv_res;
+    // try upper
+    temp_mv.row = mv_res.row - stepsize;
+    temp_mv.col = mv_res.col;
+    tempDist = opfl_get_blk_warp_SAD(y0, y1, srcstr, 16, starth, startw,
+                                     temp_mv, dstpos, width, height);
+    if (tempDist < nextDist) {
+      nextDist = tempDist;
+      next_mv = temp_mv;
+    }
+    // try lower
+    temp_mv.row = mv_res.row + stepsize;
+    temp_mv.col = mv_res.col;
+    tempDist = opfl_get_blk_warp_SAD(y0, y1, srcstr, 16, starth, startw,
+                                     temp_mv, dstpos, width, height);
+    if (tempDist < nextDist) {
+      nextDist = tempDist;
+      next_mv = temp_mv;
+    }
+    // try left
+    temp_mv.row = mv_res.row;
+    temp_mv.col = mv_res.col - stepsize;
+    tempDist = opfl_get_blk_warp_SAD(y0, y1, srcstr, 16, starth, startw,
+                                     temp_mv, dstpos, width, height);
+    if (tempDist < nextDist) {
+      nextDist = tempDist;
+      next_mv = temp_mv;
+    }
+    // try right
+    temp_mv.row = mv_res.row;
+    temp_mv.col = mv_res.col + stepsize;
+    tempDist = opfl_get_blk_warp_SAD(y0, y1, srcstr, 16, starth, startw,
+                                     temp_mv, dstpos, width, height);
+    if (tempDist < nextDist) {
+      nextDist = tempDist;
+      next_mv = temp_mv;
+    }
+    if (curDist > nextDist) {
+      curDist = nextDist;
+      mv_res = next_mv;
+    }
+    step++;
+    if (step % 4 == 0) stepsize /= 2;
+  }
+
+  return mv_res;
+}
+
+/*
+ * Do a motion search to update the motions
+ *
+ * Input:
+ * mv_left: motion vector points from the current frame to ref0
+ * mv_right: motion vector points from the current frame to ref1
+ * width, height: frame/block width and height
+ * mvwid, mvhgt: width and height of the mv at some pyramid scale
+ * mfstr: stride of the motion field buffer
+ * y0, y1: two reference frames at level 0 pointed to the start
+ *         of current block/frame
+ * srcstr: the stride of y0 and y1
+ *
+ * Output:
+ * mf: pointer to the created motion field
+ */
+void opfl_init_motion_search(int_mv *mv_left, int_mv *mv_right, DB_MV *mf,
+                             int width, int height, int mvwid, int mvhgt,
+                             int mfstr, double dstpos, OPFL_BLK_INFO *blk_info,
+                             uint8_t *y0, uint8_t *y1, int srcstr) {
+  int stride = mfstr;
+  DB_MV *mf_start = mf + AVG_MF_BORDER * stride + AVG_MF_BORDER;
+  int idx;
+
+  int invalid_cnt = 0;
+  // isValid = 0: not valid; 1: valid.
+  int *isValid = aom_calloc(height * width / 4 / 4, sizeof(int));
+
+  for (int h = 0; h < height / 4; h++) {
+    for (int w = 0; w < width / 4; w++) {
+      idx = h * width / 4 + w;
+      if (mv_left[idx].as_int == INVALID_MV &&
+          mv_right[idx].as_int == INVALID_MV) {
+        isValid[idx] = 0;
+      } else {
+        isValid[idx] = 1;
+      }
+    }
+  }
+  DB_MV avg_mv, search_mv;
+  int starth, startw;
+  // Do motion search for every 16x16 blocks if too many invalid mvs
+  for (int hb = 0; hb < height / 16; hb++) {
+    for (int wb = 0; wb < width / 16; wb++) {
+      // get how many invalid mvs are there in this 16x16 block
+      invalid_cnt = 0;
+      for (int h = 0; h < 16 / 4; h++) {
+        for (int w = 0; w < 16 / 4; w++) {
+          if (isValid[(hb * 4 + h) * width / 4 + wb * 4 + w]) continue;
+          invalid_cnt++;
+        }
+      }
+      if (invalid_cnt < 16) continue;
+
+      // first get the avg mv as the initial mv
+      avg_mv.row = 0;
+      avg_mv.col = 0;
+      int mvwid_16 = 16 * mvwid / width;
+      int mvhgt_16 = 16 * mvhgt / height;
+      for (int h = 0; h < mvhgt_16; h++) {
+        for (int w = 0; w < mvwid_16; w++) {
+          avg_mv.row +=
+              mf_start[(hb * mvhgt_16 + h) * mfstr + wb * mvwid_16 + w].row;
+          avg_mv.col +=
+              mf_start[(hb * mvhgt_16 + h) * mfstr + wb * mvwid_16 + w].col;
+        }
+      }
+      avg_mv.row /= (mvwid_16 * mvhgt_16);
+      avg_mv.col /= (mvwid_16 * mvhgt_16);
+      avg_mv.row *= (height / mvhgt);
+      avg_mv.col *= (width / mvwid);
+
+      // printf("\n(%.2f, %.2f): ", avg_mv.row, avg_mv.col);
+
+      starth = blk_info->starth + hb * 16;
+      startw = blk_info->startw + wb * 16;
+      search_mv = bi_direction_motion_search(y0, y1, srcstr, starth, startw,
+                                             avg_mv, dstpos, width, height);
+      // printf(" %d %d ", starth, startw);
+      // printf(" (%.2f, %.2f): ", search_mv.row, search_mv.col);
+      for (int h = 0; h < mvhgt_16; h++) {
+        for (int w = 0; w < mvwid_16; w++) {
+          mf_start[(hb * mvhgt_16 + h) * mfstr + wb * mvwid_16 + w].row =
+              search_mv.row / (height / mvhgt);
+          mf_start[(hb * mvhgt_16 + h) * mfstr + wb * mvwid_16 + w].col =
+              search_mv.col / (width / mvwid);
+        }
+      }
+    }
+  }
+
   aom_free(isValid);
   // Pad the motion field border
   pad_motion_field_border(mf_start, mvwid, mvhgt, mfstr);
