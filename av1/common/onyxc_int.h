@@ -113,6 +113,8 @@ typedef struct {
 #if CONFIG_OPFL
   MV_REFERENCE_FRAME opfl_ref_frame[2];
   int_mv opfl_ref_mvs[2];
+  double opfl_mf_row[16];
+  double opfl_mf_col[16];
 #endif
 } MV_REF;
 

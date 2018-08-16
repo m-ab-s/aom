@@ -753,6 +753,19 @@ static void update_state(const AV1_COMP *const cpi, ThreadData *td,
         mv->opfl_ref_mvs[1].as_mv.col =
             opfl_round_double_2_int((1 - dstpos) * 8.0 * avg_c);
         mv->opfl_ref_mvs[1].as_mv.col += mi->mbmi.mv[0].as_mv.col;
+
+        double norm = cm->opfl_buf_struct_ptr->right_offset -
+                      cm->opfl_buf_struct_ptr->left_offset;
+        for (int hh = 0; hh < 4; hh++) {
+          for (int ww = 0; ww < 4; ww++) {
+            cur_opfl_mv = opfl_mv + (row_offset + h * 4 + hh) * mf_stride;
+            cur_opfl_mv = cur_opfl_mv + col_offset + w * 4 + ww;
+            mv->opfl_mf_row[hh * 4 + ww] = cur_opfl_mv->row;
+            mv->opfl_mf_row[hh * 4 + ww] /= norm;
+            mv->opfl_mf_col[hh * 4 + ww] = cur_opfl_mv->col;
+            mv->opfl_mf_col[hh * 4 + ww] /= norm;
+          }
+        }
       }
     }
   }
