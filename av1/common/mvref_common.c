@@ -90,19 +90,22 @@ static uint8_t add_ref_mv_candidate(
       int16_t col_offset =
           opfl_round_double_2_int(((double)(ref_mv_correct.as_mv.col)) / 8.0);
 
-      if (row_offset + mi_row_cand * 4 + 4 > cm->height) {
-        row_offset = cm->height - mi_row_cand * 4 - 4;
+      int y_width = cm->opfl_buf_struct_ptr->ref0_buf[0]->y_width;
+      int y_height = cm->opfl_buf_struct_ptr->ref0_buf[0]->y_height;
+
+      if (row_offset + mi_row_cand * 4 + 4 > y_height) {
+        row_offset = y_height - mi_row_cand * 4 - 4;
       } else if (row_offset + mi_row_cand * 4 < 0) {
         row_offset = -mi_row_cand * 4;
       }
-      if (col_offset + mi_col_cand * 4 + 4 > cm->width) {
-        col_offset = cm->width - mi_col_cand * 4 - 4;
+      if (col_offset + mi_col_cand * 4 + 4 > y_width) {
+        col_offset = y_width - mi_col_cand * 4 - 4;
       } else if (col_offset + mi_col_cand * 4 < 0) {
         col_offset = -mi_col_cand * 4;
       }
 
       double dstpos = cm->opfl_buf_struct_ptr->dst_pos;
-      int mf_stride = cm->width + 2 * AVG_MF_BORDER;
+      int mf_stride = y_width + 2 * AVG_MF_BORDER;
 
       DB_MV *opfl_mv = cm->opfl_buf_struct_ptr->mf_med[0] +
                        AVG_MF_BORDER * mf_stride + AVG_MF_BORDER +
@@ -221,18 +224,21 @@ static uint8_t add_ref_mv_candidate(
       int16_t col_offset =
           opfl_round_double_2_int(((double)(ref_mv_correct.as_mv.col)) / 8.0);
 
-      if (row_offset + mi_row_cand * 4 + 4 > cm->height)
-        row_offset = cm->height - mi_row_cand * 4 - 4;
+      int y_width = cm->opfl_buf_struct_ptr->ref0_buf[0]->y_width;
+      int y_height = cm->opfl_buf_struct_ptr->ref0_buf[0]->y_height;
+
+      if (row_offset + mi_row_cand * 4 + 4 > y_height)
+        row_offset = y_height - mi_row_cand * 4 - 4;
       else if (row_offset + mi_row_cand * 4 < 0)
         row_offset = -mi_row_cand * 4;
 
-      if (col_offset + mi_col_cand * 4 + 4 > cm->width)
-        col_offset = cm->width - mi_col_cand * 4 - 4;
+      if (col_offset + mi_col_cand * 4 + 4 > y_width)
+        col_offset = y_width - mi_col_cand * 4 - 4;
       else if (col_offset + mi_col_cand * 4 < 0)
         col_offset = -mi_col_cand * 4;
 
       double dstpos = cm->opfl_buf_struct_ptr->dst_pos;
-      int mf_stride = cm->width + 2 * AVG_MF_BORDER;
+      int mf_stride = y_width + 2 * AVG_MF_BORDER;
 
       DB_MV *opfl_mv = cm->opfl_buf_struct_ptr->mf_med[0] +
                        AVG_MF_BORDER * mf_stride + AVG_MF_BORDER +

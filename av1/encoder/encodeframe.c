@@ -686,6 +686,8 @@ static void update_state(const AV1_COMP *const cpi, ThreadData *td,
            sizeof(uint8_t) * ctx->num_4x4_blk);
 #endif
 
+  if (dry_run) return;
+
 #if CONFIG_OPFL
   if (mi->mbmi.ref_frame[0] == OPFL_FRAME) {
     // if using OPFL_FRAME as reference, save mvs as compound
@@ -696,8 +698,11 @@ static void update_state(const AV1_COMP *const cpi, ThreadData *td,
     int16_t row_offset;
     int16_t col_offset;
 
+    int y_width = cm->opfl_buf_struct_ptr->ref0_buf[0]->y_width;
+    int y_height = cm->opfl_buf_struct_ptr->ref0_buf[0]->y_height;
     double dstpos = cm->opfl_buf_struct_ptr->dst_pos;
-    int mf_stride = cm->width + 2 * AVG_MF_BORDER;
+    int mf_stride = y_width + 2 * AVG_MF_BORDER;
+
     DB_MV *opfl_mv = cm->opfl_buf_struct_ptr->mf_med[0] +
                      AVG_MF_BORDER * mf_stride + AVG_MF_BORDER +
                      mi_row * 4 * mf_stride + mi_col * 4;
@@ -709,13 +714,13 @@ static void update_state(const AV1_COMP *const cpi, ThreadData *td,
         row_offset = row_offset_raw;
         col_offset = col_offset_raw;
 
-        if (row_offset + y_mis * 4 + mi_row * 4 > cm->height)
-          row_offset = cm->height - y_mis * 4 - mi_row * 4;
+        if (row_offset + y_mis * 4 + mi_row * 4 > y_height)
+          row_offset = y_height - y_mis * 4 - mi_row * 4;
         else if (row_offset + mi_row * 4 < 0)
           row_offset = -mi_row * 4;
 
-        if (col_offset + x_mis * 4 + mi_col * 4 > cm->width)
-          col_offset = cm->width - x_mis * 4 - mi_col * 4;
+        if (col_offset + x_mis * 4 + mi_col * 4 > y_width)
+          col_offset = y_width - x_mis * 4 - mi_col * 4;
         else if (col_offset + mi_col * 4 < 0)
           col_offset = -mi_col * 4;
 
@@ -752,8 +757,6 @@ static void update_state(const AV1_COMP *const cpi, ThreadData *td,
     }
   }
 #endif
-
-  if (dry_run) return;
 
 #if CONFIG_INTERNAL_STATS
   {
