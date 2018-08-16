@@ -1431,10 +1431,14 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
   for (int ref_frame = 0; ref_frame < INTER_REFS_PER_FRAME; ++ref_frame) {
     int size = (cm->mi_rows + 16) * cm->mi_stride;
     for (int idx = 0; idx < size; ++idx) {
-      for (int i = 0; i < MFMV_STACK_SIZE; ++i)
+      for (int i = 0; i < MFMV_STACK_SIZE; ++i) {
         tpl_mvs_base[idx].mfmv[ref_frame][i].as_int = INVALID_MV;
+        tpl_mvs_base[idx].ref_dist[ref_frame][i] = -1;
+        tpl_mvs_base[idx].is_cross[ref_frame][i] = 0;
+      }
     }
   }
+  int is_cross_temp, ref_dist_temp;
 
   int alt_buf_idx = cm->frame_refs[ALTREF_FRAME - LAST_FRAME].idx;
   int lst_buf_idx = cm->frame_refs[LAST_FRAME - LAST_FRAME].idx;
@@ -1533,6 +1537,11 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
           int16_t mv_x =
               (int16_t)(fwd_mv.col * (double)cur_to_lst / lst_offset);
 
+          is_cross_temp = (((lst_frame_index - cur_frame_index) *
+                            (lst_frame_idx - cur_frame_index)) < 0);
+          ref_dist_temp = AOMMIN(abs(lst_frame_index - cur_frame_index),
+                                 abs(lst_frame_idx - cur_frame_index));
+
           int mi_r = blk_row - (mv_y >> (3 + MI_SIZE_LOG2));
           int mi_c = blk_col - (mv_x >> (3 + MI_SIZE_LOG2));
           int_mv this_mv;
@@ -1549,6 +1558,10 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
           tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
               .mfmv[LAST_FRAME - LAST_FRAME][tpl_ind]
               .as_int = this_mv.as_int;
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .is_cross[LAST_FRAME - LAST_FRAME][tpl_ind] = is_cross_temp;
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .ref_dist[LAST_FRAME - LAST_FRAME][tpl_ind] = ref_dist_temp;
 
 #if CONFIG_EXT_REFS
           this_mv.as_mv.row =
@@ -1559,6 +1572,11 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
               .mfmv[LAST2_FRAME - LAST_FRAME][tpl_ind]
               .as_int = this_mv.as_int;
 
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .is_cross[LAST2_FRAME - LAST_FRAME][tpl_ind] = is_cross_temp;
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .ref_dist[LAST2_FRAME - LAST_FRAME][tpl_ind] = ref_dist_temp;
+
           this_mv.as_mv.row =
               (int16_t)(fwd_mv.row * (double)cur_to_lst3 / lst_offset);
           this_mv.as_mv.col =
@@ -1566,6 +1584,11 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
           tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
               .mfmv[LAST3_FRAME - LAST_FRAME][tpl_ind]
               .as_int = this_mv.as_int;
+
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .is_cross[LAST3_FRAME - LAST_FRAME][tpl_ind] = is_cross_temp;
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .ref_dist[LAST3_FRAME - LAST_FRAME][tpl_ind] = ref_dist_temp;
 #endif
         }
 
@@ -1576,6 +1599,11 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
           int16_t mv_x =
               (int16_t)(fwd_mv.col * (double)cur_to_lst / lst2_offset);
 
+          is_cross_temp = (((lst_frame_index - cur_frame_index) *
+                            (lst2_frame_idx - cur_frame_index)) < 0);
+          ref_dist_temp = AOMMIN(abs(lst_frame_index - cur_frame_index),
+                                 abs(lst2_frame_idx - cur_frame_index));
+
           int mi_r = blk_row - (mv_y >> (3 + MI_SIZE_LOG2));
           int mi_c = blk_col - (mv_x >> (3 + MI_SIZE_LOG2));
           int_mv this_mv;
@@ -1592,6 +1620,10 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
           tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
               .mfmv[LAST_FRAME - LAST_FRAME][tpl_ind]
               .as_int = this_mv.as_int;
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .is_cross[LAST_FRAME - LAST_FRAME][tpl_ind] = is_cross_temp;
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .ref_dist[LAST_FRAME - LAST_FRAME][tpl_ind] = ref_dist_temp;
 
           this_mv.as_mv.row =
               (int16_t)(fwd_mv.row * (double)cur_to_lst2 / lst2_offset);
@@ -1600,6 +1632,10 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
           tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
               .mfmv[LAST2_FRAME - LAST_FRAME][tpl_ind]
               .as_int = this_mv.as_int;
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .is_cross[LAST2_FRAME - LAST_FRAME][tpl_ind] = is_cross_temp;
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .ref_dist[LAST2_FRAME - LAST_FRAME][tpl_ind] = ref_dist_temp;
 
           this_mv.as_mv.row =
               (int16_t)(fwd_mv.row * (double)cur_to_lst3 / lst2_offset);
@@ -1608,6 +1644,10 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
           tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
               .mfmv[LAST3_FRAME - LAST_FRAME][tpl_ind]
               .as_int = this_mv.as_int;
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .is_cross[LAST3_FRAME - LAST_FRAME][tpl_ind] = is_cross_temp;
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .ref_dist[LAST3_FRAME - LAST_FRAME][tpl_ind] = ref_dist_temp;
         }
 
         if (ref_frame[0] == LAST3_FRAME) {
@@ -1615,6 +1655,11 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
               (int16_t)(fwd_mv.row * (double)cur_to_lst / lst3_offset);
           int16_t mv_x =
               (int16_t)(fwd_mv.col * (double)cur_to_lst / lst3_offset);
+
+          is_cross_temp = (((lst_frame_index - cur_frame_index) *
+                            (lst3_frame_idx - cur_frame_index)) < 0);
+          ref_dist_temp = AOMMIN(abs(lst_frame_index - cur_frame_index),
+                                 abs(lst3_frame_idx - cur_frame_index));
 
           int mi_r = blk_row - (mv_y >> (3 + MI_SIZE_LOG2));
           int mi_c = blk_col - (mv_x >> (3 + MI_SIZE_LOG2));
@@ -1632,6 +1677,10 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
           tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
               .mfmv[LAST_FRAME - LAST_FRAME][tpl_ind]
               .as_int = this_mv.as_int;
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .is_cross[LAST_FRAME - LAST_FRAME][tpl_ind] = is_cross_temp;
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .ref_dist[LAST_FRAME - LAST_FRAME][tpl_ind] = ref_dist_temp;
 
           this_mv.as_mv.row =
               (int16_t)(fwd_mv.row * (double)cur_to_lst2 / lst3_offset);
@@ -1640,6 +1689,10 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
           tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
               .mfmv[LAST2_FRAME - LAST_FRAME][tpl_ind]
               .as_int = this_mv.as_int;
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .is_cross[LAST2_FRAME - LAST_FRAME][tpl_ind] = is_cross_temp;
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .ref_dist[LAST2_FRAME - LAST_FRAME][tpl_ind] = ref_dist_temp;
 
           this_mv.as_mv.row =
               (int16_t)(fwd_mv.row * (double)cur_to_lst3 / lst3_offset);
@@ -1648,6 +1701,10 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
           tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
               .mfmv[LAST3_FRAME - LAST_FRAME][tpl_ind]
               .as_int = this_mv.as_int;
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .is_cross[LAST3_FRAME - LAST_FRAME][tpl_ind] = is_cross_temp;
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .ref_dist[LAST3_FRAME - LAST_FRAME][tpl_ind] = ref_dist_temp;
         }
 #endif
 
@@ -1657,6 +1714,11 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
               (int16_t)(fwd_mv.row * (double)cur_to_lst / gld_offset);
           int16_t mv_x =
               (int16_t)(fwd_mv.col * (double)cur_to_lst / gld_offset);
+
+          is_cross_temp = (((lst_frame_index - cur_frame_index) *
+                            (gld_frame_idx - cur_frame_index)) < 0);
+          ref_dist_temp = AOMMIN(abs(lst_frame_index - cur_frame_index),
+                                 abs(gld_frame_idx - cur_frame_index));
 
           int mi_r = blk_row - (mv_y >> (3 + MI_SIZE_LOG2));
           int mi_c = blk_col - (mv_x >> (3 + MI_SIZE_LOG2));
@@ -1677,6 +1739,11 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
               .mfmv[GOLDEN_FRAME - LAST_FRAME][tpl_ind]
               .as_int = this_mv.as_int;
 
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .is_cross[GOLDEN_FRAME - LAST_FRAME][tpl_ind] = is_cross_temp;
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .ref_dist[GOLDEN_FRAME - LAST_FRAME][tpl_ind] = ref_dist_temp;
+
           this_mv.as_mv.row =
               (int16_t)(fwd_mv.row * (double)cur_to_lst / gld_offset);
           this_mv.as_mv.col =
@@ -1684,6 +1751,11 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
           tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
               .mfmv[LAST_FRAME - LAST_FRAME][tpl_ind]
               .as_int = this_mv.as_int;
+
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .is_cross[LAST_FRAME - LAST_FRAME][tpl_ind] = is_cross_temp;
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .ref_dist[LAST_FRAME - LAST_FRAME][tpl_ind] = ref_dist_temp;
 
 #if CONFIG_EXT_REFS
           this_mv.as_mv.row =
@@ -1694,6 +1766,11 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
               .mfmv[LAST2_FRAME - LAST_FRAME][tpl_ind]
               .as_int = this_mv.as_int;
 
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .is_cross[LAST2_FRAME - LAST_FRAME][tpl_ind] = is_cross_temp;
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .ref_dist[LAST2_FRAME - LAST_FRAME][tpl_ind] = ref_dist_temp;
+
           this_mv.as_mv.row =
               (int16_t)(fwd_mv.row * (double)cur_to_lst3 / gld_offset);
           this_mv.as_mv.col =
@@ -1701,6 +1778,11 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
           tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
               .mfmv[LAST3_FRAME - LAST_FRAME][tpl_ind]
               .as_int = this_mv.as_int;
+
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .is_cross[LAST3_FRAME - LAST_FRAME][tpl_ind] = is_cross_temp;
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .ref_dist[LAST3_FRAME - LAST_FRAME][tpl_ind] = ref_dist_temp;
 #endif
         }
 
@@ -1709,6 +1791,11 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
               (int16_t)(fwd_mv.row * (double)cur_to_lst / alt_offset);
           int16_t mv_x =
               (int16_t)(fwd_mv.col * (double)cur_to_lst / alt_offset);
+
+          is_cross_temp = (((lst_frame_index - cur_frame_index) *
+                            (alt_frame_idx - cur_frame_index)) < 0);
+          ref_dist_temp = AOMMIN(abs(lst_frame_index - cur_frame_index),
+                                 abs(alt_frame_idx - cur_frame_index));
 
           int mi_r = blk_row + (mv_y >> (3 + MI_SIZE_LOG2));
           int mi_c = blk_col + (mv_x >> (3 + MI_SIZE_LOG2));
@@ -1728,6 +1815,11 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
               .mfmv[ALTREF_FRAME - LAST_FRAME][tpl_ind]
               .as_int = this_mv.as_int;
 
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .is_cross[ALTREF_FRAME - LAST_FRAME][tpl_ind] = is_cross_temp;
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .ref_dist[ALTREF_FRAME - LAST_FRAME][tpl_ind] = ref_dist_temp;
+
 #if CONFIG_EXT_REFS
           this_mv.as_mv.row =
               (int16_t)(fwd_mv.row * (double)cur_to_bwd / alt_offset);
@@ -1736,6 +1828,11 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
           tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
               .mfmv[BWDREF_FRAME - LAST_FRAME][tpl_ind]
               .as_int = this_mv.as_int;
+
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .is_cross[BWDREF_FRAME - LAST_FRAME][tpl_ind] = is_cross_temp;
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .ref_dist[BWDREF_FRAME - LAST_FRAME][tpl_ind] = ref_dist_temp;
 #endif
         }
 
@@ -1744,6 +1841,11 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
               (int16_t)(bck_mv.row * (double)cur_to_lst / alt_offset);
           int16_t mv_x =
               (int16_t)(bck_mv.col * (double)cur_to_lst / alt_offset);
+
+          is_cross_temp = (((lst_frame_index - cur_frame_index) *
+                            (alt_frame_idx - cur_frame_index)) < 0);
+          ref_dist_temp = AOMMIN(abs(lst_frame_index - cur_frame_index),
+                                 abs(alt_frame_idx - cur_frame_index));
 
           int mi_r = blk_row + (mv_y >> (3 + MI_SIZE_LOG2));
           int mi_c = blk_col + (mv_x >> (3 + MI_SIZE_LOG2));
@@ -1762,6 +1864,12 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
           tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
               .mfmv[ALTREF_FRAME - LAST_FRAME][tpl_ind]
               .as_int = this_mv.as_int;
+
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .is_cross[ALTREF_FRAME - LAST_FRAME][tpl_ind] = is_cross_temp;
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .ref_dist[ALTREF_FRAME - LAST_FRAME][tpl_ind] = ref_dist_temp;
+
 #if CONFIG_EXT_REFS
           this_mv.as_mv.row =
               (int16_t)(bck_mv.row * (double)cur_to_bwd / alt_offset);
@@ -1770,6 +1878,11 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
           tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
               .mfmv[BWDREF_FRAME - LAST_FRAME][tpl_ind]
               .as_int = this_mv.as_int;
+
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .is_cross[BWDREF_FRAME - LAST_FRAME][tpl_ind] = is_cross_temp;
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .ref_dist[BWDREF_FRAME - LAST_FRAME][tpl_ind] = ref_dist_temp;
 #endif
         }
       }
@@ -1833,6 +1946,11 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
           int16_t mv_x =
               (int16_t)(fwd_mv.col * (double)cur_to_alt / lst_offset);
 
+          is_cross_temp = (((alt_frame_index - cur_frame_index) *
+                            (lst_frame_idx - cur_frame_index)) < 0);
+          ref_dist_temp = AOMMIN(abs(alt_frame_index - cur_frame_index),
+                                 abs(lst_frame_idx - cur_frame_index));
+
           int mi_r = blk_row + (mv_y >> (3 + MI_SIZE_LOG2));
           int mi_c = blk_col + (mv_x >> (3 + MI_SIZE_LOG2));
           int_mv this_mv;
@@ -1849,6 +1967,11 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
           tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
               .mfmv[ALTREF_FRAME - LAST_FRAME][tpl_ind]
               .as_int = this_mv.as_int;
+
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .is_cross[ALTREF_FRAME - LAST_FRAME][tpl_ind] = is_cross_temp;
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .ref_dist[ALTREF_FRAME - LAST_FRAME][tpl_ind] = ref_dist_temp;
 
           // Project the motion vector onto last reference frame
           mv_y = (int16_t)(fwd_mv.row * (double)cur_to_lst / lst_offset);
@@ -1861,6 +1984,11 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
               .mfmv[LAST_FRAME - LAST_FRAME][tpl_ind]
               .as_int = this_mv.as_int;
 
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .is_cross[LAST_FRAME - LAST_FRAME][tpl_ind] = is_cross_temp;
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .ref_dist[LAST_FRAME - LAST_FRAME][tpl_ind] = ref_dist_temp;
+
 #if CONFIG_EXT_REFS
           this_mv.as_mv.row =
               -(int16_t)(fwd_mv.row * (double)cur_to_bwd / lst_offset);
@@ -1870,6 +1998,11 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
               .mfmv[BWDREF_FRAME - LAST_FRAME][tpl_ind]
               .as_int = this_mv.as_int;
 
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .is_cross[BWDREF_FRAME - LAST_FRAME][tpl_ind] = is_cross_temp;
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .ref_dist[BWDREF_FRAME - LAST_FRAME][tpl_ind] = ref_dist_temp;
+
           this_mv.as_mv.row =
               (int16_t)(fwd_mv.row * (double)cur_to_lst2 / lst_offset);
           this_mv.as_mv.col =
@@ -1878,6 +2011,11 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
               .mfmv[LAST2_FRAME - LAST_FRAME][tpl_ind]
               .as_int = this_mv.as_int;
 
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .is_cross[LAST2_FRAME - LAST_FRAME][tpl_ind] = is_cross_temp;
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .ref_dist[LAST2_FRAME - LAST_FRAME][tpl_ind] = ref_dist_temp;
+
           this_mv.as_mv.row =
               (int16_t)(fwd_mv.row * (double)cur_to_lst3 / lst_offset);
           this_mv.as_mv.col =
@@ -1885,6 +2023,11 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
           tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
               .mfmv[LAST3_FRAME - LAST_FRAME][tpl_ind]
               .as_int = this_mv.as_int;
+
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .is_cross[LAST3_FRAME - LAST_FRAME][tpl_ind] = is_cross_temp;
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .ref_dist[LAST3_FRAME - LAST_FRAME][tpl_ind] = ref_dist_temp;
 #endif
         }
 
@@ -1894,6 +2037,11 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
               (int16_t)(fwd_mv.row * (double)cur_to_alt / lst2_offset);
           int16_t mv_x =
               (int16_t)(fwd_mv.col * (double)cur_to_alt / lst2_offset);
+
+          is_cross_temp = (((alt_frame_index - cur_frame_index) *
+                            (lst2_frame_idx - cur_frame_index)) < 0);
+          ref_dist_temp = AOMMIN(abs(alt_frame_index - cur_frame_index),
+                                 abs(lst2_frame_idx - cur_frame_index));
 
           int mi_r = blk_row + (mv_y >> (3 + MI_SIZE_LOG2));
           int mi_c = blk_col + (mv_x >> (3 + MI_SIZE_LOG2));
@@ -1911,6 +2059,11 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
           tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
               .mfmv[ALTREF_FRAME - LAST_FRAME][tpl_ind]
               .as_int = this_mv.as_int;
+
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .is_cross[ALTREF_FRAME - LAST_FRAME][tpl_ind] = is_cross_temp;
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .ref_dist[ALTREF_FRAME - LAST_FRAME][tpl_ind] = ref_dist_temp;
 
           // Project the motion vector onto last reference frame
           mv_y = (int16_t)(fwd_mv.row * (double)cur_to_lst / lst2_offset);
@@ -1923,6 +2076,11 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
               .mfmv[LAST_FRAME - LAST_FRAME][tpl_ind]
               .as_int = this_mv.as_int;
 
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .is_cross[LAST_FRAME - LAST_FRAME][tpl_ind] = is_cross_temp;
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .ref_dist[LAST_FRAME - LAST_FRAME][tpl_ind] = ref_dist_temp;
+
           this_mv.as_mv.row =
               -(int16_t)(fwd_mv.row * (double)cur_to_bwd / lst2_offset);
           this_mv.as_mv.col =
@@ -1931,6 +2089,11 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
               .mfmv[BWDREF_FRAME - LAST_FRAME][tpl_ind]
               .as_int = this_mv.as_int;
 
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .is_cross[BWDREF_FRAME - LAST_FRAME][tpl_ind] = is_cross_temp;
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .ref_dist[BWDREF_FRAME - LAST_FRAME][tpl_ind] = ref_dist_temp;
+
           this_mv.as_mv.row =
               (int16_t)(fwd_mv.row * (double)cur_to_lst3 / lst2_offset);
           this_mv.as_mv.col =
@@ -1938,6 +2101,11 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
           tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
               .mfmv[LAST3_FRAME - LAST_FRAME][tpl_ind]
               .as_int = this_mv.as_int;
+
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .is_cross[LAST3_FRAME - LAST_FRAME][tpl_ind] = is_cross_temp;
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .ref_dist[LAST3_FRAME - LAST_FRAME][tpl_ind] = ref_dist_temp;
         }
 
         if (ref_frame[0] == LAST3_FRAME) {
@@ -1945,6 +2113,11 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
               (int16_t)(fwd_mv.row * (double)cur_to_alt / lst3_offset);
           int16_t mv_x =
               (int16_t)(fwd_mv.col * (double)cur_to_alt / lst3_offset);
+
+          is_cross_temp = (((alt_frame_index - cur_frame_index) *
+                            (lst3_frame_idx - cur_frame_index)) < 0);
+          ref_dist_temp = AOMMIN(abs(alt_frame_index - cur_frame_index),
+                                 abs(lst3_frame_idx - cur_frame_index));
 
           int mi_r = blk_row + (mv_y >> (3 + MI_SIZE_LOG2));
           int mi_c = blk_col + (mv_x >> (3 + MI_SIZE_LOG2));
@@ -1962,6 +2135,11 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
           tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
               .mfmv[ALTREF_FRAME - LAST_FRAME][tpl_ind]
               .as_int = this_mv.as_int;
+
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .is_cross[ALTREF_FRAME - LAST_FRAME][tpl_ind] = is_cross_temp;
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .ref_dist[ALTREF_FRAME - LAST_FRAME][tpl_ind] = ref_dist_temp;
 
           // Project the motion vector onto last reference frame
           mv_y = (int16_t)(fwd_mv.row * (double)cur_to_lst / lst3_offset);
@@ -1974,6 +2152,11 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
               .mfmv[LAST_FRAME - LAST_FRAME][tpl_ind]
               .as_int = this_mv.as_int;
 
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .is_cross[LAST_FRAME - LAST_FRAME][tpl_ind] = is_cross_temp;
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .ref_dist[LAST_FRAME - LAST_FRAME][tpl_ind] = ref_dist_temp;
+
           this_mv.as_mv.row =
               -(int16_t)(fwd_mv.row * (double)cur_to_bwd / lst3_offset);
           this_mv.as_mv.col =
@@ -1982,6 +2165,11 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
               .mfmv[BWDREF_FRAME - LAST_FRAME][tpl_ind]
               .as_int = this_mv.as_int;
 
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .is_cross[BWDREF_FRAME - LAST_FRAME][tpl_ind] = is_cross_temp;
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .ref_dist[BWDREF_FRAME - LAST_FRAME][tpl_ind] = ref_dist_temp;
+
           this_mv.as_mv.row =
               (int16_t)(fwd_mv.row * (double)cur_to_lst2 / lst3_offset);
           this_mv.as_mv.col =
@@ -1989,6 +2177,11 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
           tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
               .mfmv[LAST2_FRAME - LAST_FRAME][tpl_ind]
               .as_int = this_mv.as_int;
+
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .is_cross[LAST2_FRAME - LAST_FRAME][tpl_ind] = is_cross_temp;
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .ref_dist[LAST2_FRAME - LAST_FRAME][tpl_ind] = ref_dist_temp;
         }
 #endif
 
@@ -1997,6 +2190,11 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
               (int16_t)(fwd_mv.row * (double)cur_to_alt / gld_offset);
           int16_t mv_x =
               (int16_t)(fwd_mv.col * (double)cur_to_alt / gld_offset);
+
+          is_cross_temp = (((alt_frame_index - cur_frame_index) *
+                            (gld_frame_idx - cur_frame_index)) < 0);
+          ref_dist_temp = AOMMIN(abs(alt_frame_index - cur_frame_index),
+                                 abs(gld_frame_idx - cur_frame_index));
 
           int mi_r = blk_row + (mv_y >> (3 + MI_SIZE_LOG2));
           int mi_c = blk_col + (mv_x >> (3 + MI_SIZE_LOG2));
@@ -2015,6 +2213,11 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
               .mfmv[ALTREF_FRAME - LAST_FRAME][tpl_ind]
               .as_int = this_mv.as_int;
 
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .is_cross[ALTREF_FRAME - LAST_FRAME][tpl_ind] = is_cross_temp;
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .ref_dist[ALTREF_FRAME - LAST_FRAME][tpl_ind] = ref_dist_temp;
+
           // Project the motion vector onto last reference frame
           mv_y = (int16_t)(fwd_mv.row * (double)cur_to_lst / gld_offset);
           mv_x = (int16_t)(fwd_mv.col * (double)cur_to_lst / gld_offset);
@@ -2026,6 +2229,11 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
               .mfmv[LAST_FRAME - LAST_FRAME][tpl_ind]
               .as_int = this_mv.as_int;
 
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .is_cross[LAST_FRAME - LAST_FRAME][tpl_ind] = is_cross_temp;
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .ref_dist[LAST_FRAME - LAST_FRAME][tpl_ind] = ref_dist_temp;
+
 #if CONFIG_EXT_REFS
           this_mv.as_mv.row =
               -(int16_t)(fwd_mv.row * (double)cur_to_bwd / gld_offset);
@@ -2035,6 +2243,11 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
               .mfmv[BWDREF_FRAME - LAST_FRAME][tpl_ind]
               .as_int = this_mv.as_int;
 
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .is_cross[BWDREF_FRAME - LAST_FRAME][tpl_ind] = is_cross_temp;
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .ref_dist[BWDREF_FRAME - LAST_FRAME][tpl_ind] = ref_dist_temp;
+
           this_mv.as_mv.row =
               (int16_t)(fwd_mv.row * (double)cur_to_lst2 / gld_offset);
           this_mv.as_mv.col =
@@ -2043,6 +2256,11 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
               .mfmv[LAST2_FRAME - LAST_FRAME][tpl_ind]
               .as_int = this_mv.as_int;
 
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .is_cross[LAST2_FRAME - LAST_FRAME][tpl_ind] = is_cross_temp;
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .ref_dist[LAST2_FRAME - LAST_FRAME][tpl_ind] = ref_dist_temp;
+
           this_mv.as_mv.row =
               (int16_t)(fwd_mv.row * (double)cur_to_lst3 / gld_offset);
           this_mv.as_mv.col =
@@ -2050,6 +2268,11 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
           tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
               .mfmv[LAST3_FRAME - LAST_FRAME][tpl_ind]
               .as_int = this_mv.as_int;
+
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .is_cross[LAST3_FRAME - LAST_FRAME][tpl_ind] = is_cross_temp;
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .ref_dist[LAST3_FRAME - LAST_FRAME][tpl_ind] = ref_dist_temp;
 #endif
         }
       }
@@ -2110,6 +2333,11 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
           int16_t mv_x =
               (int16_t)(fwd_mv.col * (double)cur_to_bwd / lst_offset);
 
+          is_cross_temp = (((bwd_frame_index - cur_frame_index) *
+                            (lst_frame_idx - cur_frame_index)) < 0);
+          ref_dist_temp = AOMMIN(abs(bwd_frame_index - cur_frame_index),
+                                 abs(lst_frame_idx - cur_frame_index));
+
           int mi_r = blk_row + (mv_y >> (3 + MI_SIZE_LOG2));
           int mi_c = blk_col + (mv_x >> (3 + MI_SIZE_LOG2));
           int_mv this_mv;
@@ -2126,6 +2354,11 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
           tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
               .mfmv[BWDREF_FRAME - LAST_FRAME][tpl_ind]
               .as_int = this_mv.as_int;
+
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .is_cross[BWDREF_FRAME - LAST_FRAME][tpl_ind] = is_cross_temp;
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .ref_dist[BWDREF_FRAME - LAST_FRAME][tpl_ind] = ref_dist_temp;
 
           // Project the motion vector onto last reference frame
           mv_y = (int16_t)(fwd_mv.row * (double)cur_to_lst / lst_offset);
@@ -2138,6 +2371,11 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
               .mfmv[LAST_FRAME - LAST_FRAME][tpl_ind]
               .as_int = this_mv.as_int;
 
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .is_cross[LAST_FRAME - LAST_FRAME][tpl_ind] = is_cross_temp;
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .ref_dist[LAST_FRAME - LAST_FRAME][tpl_ind] = ref_dist_temp;
+
           this_mv.as_mv.row =
               (int16_t)(fwd_mv.row * (double)cur_to_lst2 / lst_offset);
           this_mv.as_mv.col =
@@ -2146,6 +2384,11 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
               .mfmv[LAST2_FRAME - LAST_FRAME][tpl_ind]
               .as_int = this_mv.as_int;
 
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .is_cross[LAST2_FRAME - LAST_FRAME][tpl_ind] = is_cross_temp;
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .ref_dist[LAST2_FRAME - LAST_FRAME][tpl_ind] = ref_dist_temp;
+
           this_mv.as_mv.row =
               (int16_t)(fwd_mv.row * (double)cur_to_lst3 / lst_offset);
           this_mv.as_mv.col =
@@ -2153,6 +2396,11 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
           tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
               .mfmv[LAST3_FRAME - LAST_FRAME][tpl_ind]
               .as_int = this_mv.as_int;
+
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .is_cross[LAST3_FRAME - LAST_FRAME][tpl_ind] = is_cross_temp;
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .ref_dist[LAST3_FRAME - LAST_FRAME][tpl_ind] = ref_dist_temp;
         }
 
         if (ref_frame[0] == LAST2_FRAME) {
@@ -2160,6 +2408,11 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
               (int16_t)(fwd_mv.row * (double)cur_to_bwd / lst2_offset);
           int16_t mv_x =
               (int16_t)(fwd_mv.col * (double)cur_to_bwd / lst2_offset);
+
+          is_cross_temp = (((bwd_frame_index - cur_frame_index) *
+                            (lst2_frame_idx - cur_frame_index)) < 0);
+          ref_dist_temp = AOMMIN(abs(bwd_frame_index - cur_frame_index),
+                                 abs(lst2_frame_idx - cur_frame_index));
 
           int mi_r = blk_row + (mv_y >> (3 + MI_SIZE_LOG2));
           int mi_c = blk_col + (mv_x >> (3 + MI_SIZE_LOG2));
@@ -2178,6 +2431,11 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
               .mfmv[BWDREF_FRAME - LAST_FRAME][tpl_ind]
               .as_int = this_mv.as_int;
 
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .is_cross[BWDREF_FRAME - LAST_FRAME][tpl_ind] = is_cross_temp;
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .ref_dist[BWDREF_FRAME - LAST_FRAME][tpl_ind] = ref_dist_temp;
+
           // Project the motion vector onto last reference frame
           mv_y = (int16_t)(fwd_mv.row * (double)cur_to_lst / lst2_offset);
           mv_x = (int16_t)(fwd_mv.col * (double)cur_to_lst / lst2_offset);
@@ -2189,6 +2447,11 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
               .mfmv[LAST_FRAME - LAST_FRAME][tpl_ind]
               .as_int = this_mv.as_int;
 
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .is_cross[LAST_FRAME - LAST_FRAME][tpl_ind] = is_cross_temp;
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .ref_dist[LAST_FRAME - LAST_FRAME][tpl_ind] = ref_dist_temp;
+
           this_mv.as_mv.row =
               (int16_t)(fwd_mv.row * (double)cur_to_lst3 / lst2_offset);
           this_mv.as_mv.col =
@@ -2196,9 +2459,19 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
           tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
               .mfmv[LAST3_FRAME - LAST_FRAME][tpl_ind]
               .as_int = this_mv.as_int;
+
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .is_cross[LAST3_FRAME - LAST_FRAME][tpl_ind] = is_cross_temp;
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .ref_dist[LAST3_FRAME - LAST_FRAME][tpl_ind] = ref_dist_temp;
         }
 
         if (ref_frame[0] == LAST3_FRAME) {
+          is_cross_temp = (((bwd_frame_index - cur_frame_index) *
+                            (lst3_frame_idx - cur_frame_index)) < 0);
+          ref_dist_temp = AOMMIN(abs(bwd_frame_index - cur_frame_index),
+                                 abs(lst3_frame_idx - cur_frame_index));
+
           int16_t mv_y =
               (int16_t)(fwd_mv.row * (double)cur_to_bwd / lst3_offset);
           int16_t mv_x =
@@ -2221,6 +2494,11 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
               .mfmv[BWDREF_FRAME - LAST_FRAME][tpl_ind]
               .as_int = this_mv.as_int;
 
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .is_cross[BWDREF_FRAME - LAST_FRAME][tpl_ind] = is_cross_temp;
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .ref_dist[BWDREF_FRAME - LAST_FRAME][tpl_ind] = ref_dist_temp;
+
           // Project the motion vector onto last reference frame
           mv_y = (int16_t)(fwd_mv.row * (double)cur_to_lst / lst3_offset);
           mv_x = (int16_t)(fwd_mv.col * (double)cur_to_lst / lst3_offset);
@@ -2232,6 +2510,11 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
               .mfmv[LAST_FRAME - LAST_FRAME][tpl_ind]
               .as_int = this_mv.as_int;
 
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .is_cross[LAST_FRAME - LAST_FRAME][tpl_ind] = is_cross_temp;
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .ref_dist[LAST_FRAME - LAST_FRAME][tpl_ind] = ref_dist_temp;
+
           this_mv.as_mv.row =
               (int16_t)(fwd_mv.row * (double)cur_to_lst2 / lst3_offset);
           this_mv.as_mv.col =
@@ -2239,9 +2522,19 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
           tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
               .mfmv[LAST2_FRAME - LAST_FRAME][tpl_ind]
               .as_int = this_mv.as_int;
+
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .is_cross[LAST2_FRAME - LAST_FRAME][tpl_ind] = is_cross_temp;
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .ref_dist[LAST2_FRAME - LAST_FRAME][tpl_ind] = ref_dist_temp;
         }
 
         if (ref_frame[0] == GOLDEN_FRAME) {
+          is_cross_temp = (((bwd_frame_index - cur_frame_index) *
+                            (gld_frame_idx - cur_frame_index)) < 0);
+          ref_dist_temp = AOMMIN(abs(bwd_frame_index - cur_frame_index),
+                                 abs(gld_frame_idx - cur_frame_index));
+
           int16_t mv_y =
               (int16_t)(fwd_mv.row * (double)cur_to_bwd / gld_offset);
           int16_t mv_x =
@@ -2264,6 +2557,11 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
               .mfmv[BWDREF_FRAME - LAST_FRAME][tpl_ind]
               .as_int = this_mv.as_int;
 
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .is_cross[BWDREF_FRAME - LAST_FRAME][tpl_ind] = is_cross_temp;
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .ref_dist[BWDREF_FRAME - LAST_FRAME][tpl_ind] = ref_dist_temp;
+
           // Project the motion vector onto last reference frame
           mv_y = (int16_t)(fwd_mv.row * (double)cur_to_lst / gld_offset);
           mv_x = (int16_t)(fwd_mv.col * (double)cur_to_lst / gld_offset);
@@ -2275,6 +2573,11 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
               .mfmv[LAST_FRAME - LAST_FRAME][tpl_ind]
               .as_int = this_mv.as_int;
 
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .is_cross[LAST_FRAME - LAST_FRAME][tpl_ind] = is_cross_temp;
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .ref_dist[LAST_FRAME - LAST_FRAME][tpl_ind] = ref_dist_temp;
+
           this_mv.as_mv.row =
               (int16_t)(fwd_mv.row * (double)cur_to_lst2 / gld_offset);
           this_mv.as_mv.col =
@@ -2283,6 +2586,11 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
               .mfmv[LAST2_FRAME - LAST_FRAME][tpl_ind]
               .as_int = this_mv.as_int;
 
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .is_cross[LAST2_FRAME - LAST_FRAME][tpl_ind] = is_cross_temp;
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .ref_dist[LAST2_FRAME - LAST_FRAME][tpl_ind] = ref_dist_temp;
+
           this_mv.as_mv.row =
               (int16_t)(fwd_mv.row * (double)cur_to_lst3 / gld_offset);
           this_mv.as_mv.col =
@@ -2290,6 +2598,11 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
           tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
               .mfmv[LAST3_FRAME - LAST_FRAME][tpl_ind]
               .as_int = this_mv.as_int;
+
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .is_cross[LAST3_FRAME - LAST_FRAME][tpl_ind] = is_cross_temp;
+          tpl_mvs_base[mi_r * cm->mi_stride + mi_c]
+              .ref_dist[LAST3_FRAME - LAST_FRAME][tpl_ind] = ref_dist_temp;
         }
       }
     }

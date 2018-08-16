@@ -391,6 +391,9 @@ void av1_optical_flow_get_ref(OPFL_BUFFER_STRUCT *buf_struct,
   start_h = blk_info.starth;
   start_w = blk_info.startw;
 
+  // temporary buffers for MF median filtering
+  double mv_r[25], mv_c[25], left[25], right[25];
+
   // initialize buffers
   DB_MV **mf_last = buf_struct->mf_last;
   DB_MV **mf_new = buf_struct->mf_new;
@@ -403,6 +406,7 @@ void av1_optical_flow_get_ref(OPFL_BUFFER_STRUCT *buf_struct,
   sh = start_h >> l;
   sw = start_w >> l;
   int str = wid + 2 * AVG_MF_BORDER;
+
   for (int i = 0; i < hgt; i++) {
     for (int j = 0; j < wid; j++) {
       mf_last[l][(i + AVG_MF_BORDER) * str + j + AVG_MF_BORDER] =
@@ -411,8 +415,6 @@ void av1_optical_flow_get_ref(OPFL_BUFFER_STRUCT *buf_struct,
     }
   }
 
-  // temporary buffers for MF median filtering
-  double mv_r[25], mv_c[25], left[25], right[25];
   // estimate optical flow at each level
   for (l = MAX_OPFL_LEVEL - 1; l >= 0; l--) {
     wid = width >> l;

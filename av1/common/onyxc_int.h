@@ -118,6 +118,8 @@ typedef struct {
 
 typedef struct {
   int_mv mfmv[INTER_REFS_PER_FRAME][MFMV_STACK_SIZE];
+  int ref_dist[INTER_REFS_PER_FRAME][MFMV_STACK_SIZE];
+  int is_cross[INTER_REFS_PER_FRAME][MFMV_STACK_SIZE];
   uint8_t skip[INTER_REFS_PER_FRAME];
 } TPL_MV_REF;
 
