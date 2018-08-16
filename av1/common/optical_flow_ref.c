@@ -206,9 +206,43 @@ void av1_opfl_set_buf(AV1_COMMON *cm, OPFL_BUFFER_STRUCT *buf_struct) {
   // get the motion field between the two selected refs
   opfl_set_init_motion(cm, buf_struct, left_idx, right_idx, left_offset,
                        right_offset, left_mv, right_mv);
-#if OPFL_SELECT_INIT_MV
+#if OPFL_DERIVE_INIT_MV
   opfl_derive_init_mv(cm, buf_struct, left_idx, right_idx, left_offset,
                       right_offset, left_mv, right_mv);
+#endif
+#if OPFL_CHECK_INIT_MV
+  // copy the mvs from the nearest refs to a temp buffer
+  for (int i = 0; i < cm->mi_rows; i++) {
+    for (int j = 0; j < cm->mi_cols; j++) {
+      left_most_mv[i * cm->mi_cols + j].as_int =
+          left_mv[i * cm->mi_cols + j].as_int;
+      right_most_mv[i * cm->mi_cols + j].as_int =
+          right_mv[i * cm->mi_cols + j].as_int;
+      if (left_mv[i * cm->mi_cols + j].as_int != INVALID_MV &&
+          right_mv[i * cm->mi_cols + j].as_int != INVALID_MV) {
+        is_first_valid[i * cm->mi_cols + j] = 1;
+      } else {
+        is_first_valid[i * cm->mi_cols + j] = 0;
+      }
+    }
+  }
+  // fill the holes of the mvs for comparison later
+  opfl_fill_mv(left_most_mv, cm->mi_cols, cm->mi_rows);
+  opfl_fill_mv(right_most_mv, cm->mi_cols, cm->mi_rows);
+
+  // now for the other candidate pairs, find there associated motion vectors
+  for (int k = 0; k < 3; k++) {
+    if (left_idxs[k] < 0 || right_idxs[k] < 0) break;
+    opfl_set_init_motion(cm, buf_struct, left_idxs[k], right_idxs[k],
+                         left_offsets[k], right_offsets[k], left_temp_mv,
+                         right_temp_mv);
+    // for each block, see if the new temp mv is better
+    // than what we already have
+    opfl_update_init_motion(cm, buf_struct, left_most_mv, right_most_mv,
+                            left_offset, right_offset, left_temp_mv,
+                            right_temp_mv, left_offsets[k], right_offsets[k],
+                            is_first_valid, left_mv, right_mv);
+  }
 #endif
 
   aom_free(left_most_mv);
@@ -1472,6 +1506,110 @@ void opfl_derive_init_mv(AV1_COMMON *cm, OPFL_BUFFER_STRUCT *buf_struct,
   aom_free(mv_to_right);
 }
 
+int opfl_get_4x4_warp_dist(AV1_COMMON *cm, OPFL_BUFFER_STRUCT *buf_struct,
+                           int starth, int startw, int_mv left_mv,
+                           int_mv right_mv) {
+  int dist = 0;
+  YV12_BUFFER_CONFIG *r0 = buf_struct->ref0_buf[0];
+  YV12_BUFFER_CONFIG *r1 = buf_struct->ref1_buf[0];
+  uint8_t *src_y0 = r0->y_buffer;
+  uint8_t *src_y1 = r1->y_buffer;
+  int srcstride = r0->y_stride;
+  int lpix, rpix;
+  int yl, xl, yr, xr;
+  double dil, djl, dir, djr;
+
+  int width = r0->y_width;
+  int height = r0->y_height;
+
+  yl = opfl_floor_double_2_int((double)left_mv.as_mv.row / 8.0);
+  xl = opfl_floor_double_2_int((double)left_mv.as_mv.col / 8.0);
+  yr = opfl_floor_double_2_int((double)right_mv.as_mv.row / 8.0);
+  xr = opfl_floor_double_2_int((double)right_mv.as_mv.col / 8.0);
+
+  dil = (double)left_mv.as_mv.row / 8.0 - yl;
+  djl = (double)left_mv.as_mv.col / 8.0 - xl;
+  dir = (double)right_mv.as_mv.row / 8.0 - yr;
+  djr = (double)right_mv.as_mv.col / 8.0 - xr;
+
+  if (starth + yl < 0) {
+    yl = -starth;
+  } else if (starth + yl >= height) {
+    yl = height - starth;
+  }
+  if (startw + xl < 0) {
+    xl = -startw;
+  } else if (startw + xl >= width) {
+    xl = width - startw;
+  }
+  if (starth + yr < 0) {
+    yr = -starth;
+  } else if (starth + yr >= height) {
+    yr = height - starth;
+  }
+  if (startw + xr < 0) {
+    xr = -startw;
+  } else if (startw + xr >= width) {
+    xr = width - startw;
+  }
+
+  for (int i = 0; i < 4; i++) {
+    for (int j = 0; j < 4; j++) {
+      uint8_t *tmpsrc;
+      tmpsrc = src_y0 + (starth + i + yl) * srcstride + (startw + j + xl);
+      lpix = get_sub_pel_y(tmpsrc, srcstride, dil, djl);
+      tmpsrc = src_y1 + (starth + i + yr) * srcstride + (startw + j + xr);
+      rpix = get_sub_pel_y(tmpsrc, srcstride, dir, djr);
+      dist += (lpix - rpix) * (lpix - rpix);
+    }
+  }
+  return dist;
+}
+
+void opfl_update_init_motion(AV1_COMMON *cm, OPFL_BUFFER_STRUCT *buf_struct,
+                             int_mv *left_mv, int_mv *right_mv, int left_offset,
+                             int right_offset, int_mv *left_cand_mv,
+                             int_mv *right_cand_mv, int left_cand_offset,
+                             int right_cand_offset, int *is_first_valid,
+                             int_mv *left_final_mv, int_mv *right_final_mv) {
+  int cur_offset = buf_struct->cur_offset;
+  int_mv temp_left_mv, temp_right_mv;
+  int dist_ori, dist_new;
+  double left_ratio, right_ratio;
+  left_ratio = ((double)(cur_offset - left_offset)) /
+               ((double)(cur_offset - left_cand_offset));
+  right_ratio = ((double)(-cur_offset + right_offset)) /
+                ((double)(-cur_offset + right_cand_offset));
+  for (int i = 0; i < cm->mi_rows; i++) {
+    for (int j = 0; j < cm->mi_cols; j++) {
+      if (is_first_valid[i * cm->mi_cols + j] > 0) continue;
+      if (left_cand_mv[i * cm->mi_cols + j].as_int == INVALID_MV ||
+          right_cand_mv[i * cm->mi_cols + j].as_int == INVALID_MV) {
+        continue;
+      }
+      dist_ori = opfl_get_4x4_warp_dist(cm, buf_struct, i * 4, j * 4,
+                                        left_mv[i * cm->mi_cols + j],
+                                        right_mv[i * cm->mi_cols + j]);
+
+      temp_left_mv.as_mv.row = opfl_round_double_2_int(
+          left_cand_mv[i * cm->mi_cols + j].as_mv.row * left_ratio);
+      temp_left_mv.as_mv.col = opfl_round_double_2_int(
+          left_cand_mv[i * cm->mi_cols + j].as_mv.col * left_ratio);
+      temp_right_mv.as_mv.row = opfl_round_double_2_int(
+          right_cand_mv[i * cm->mi_cols + j].as_mv.row * right_ratio);
+      temp_right_mv.as_mv.col = opfl_round_double_2_int(
+          right_cand_mv[i * cm->mi_cols + j].as_mv.col * right_ratio);
+      dist_new = opfl_get_4x4_warp_dist(cm, buf_struct, i * 4, j * 4,
+                                        temp_left_mv, temp_right_mv);
+      if (dist_ori > dist_new) {
+        left_mv[i * cm->mi_cols + j].as_int = temp_left_mv.as_int;
+        right_mv[i * cm->mi_cols + j].as_int = temp_right_mv.as_int;
+        left_final_mv[i * cm->mi_cols + j].as_int = temp_left_mv.as_int;
+        right_final_mv[i * cm->mi_cols + j].as_int = temp_right_mv.as_int;
+      }
+    }
+  }
+}
 /*
  * use optical flow method to calculate motion field of a specific level.
  *

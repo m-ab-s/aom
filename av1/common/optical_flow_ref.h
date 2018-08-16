@@ -51,7 +51,8 @@ extern "C" {
 #define OPFL_TPL_NEIGHBOR 1
 
 #define OPFL_EXP_INIT 1
-#define OPFL_SELECT_INIT_MV 1
+#define OPFL_DERIVE_INIT_MV 1
+#define OPFL_CHECK_INIT_MV 1
 
 #define MAX_NUM_REF_PAIR 9
 
@@ -140,6 +141,12 @@ void opfl_find_init_motion(AV1_COMMON *cm, int left_idx, int right_idx,
 void opfl_derive_init_mv(AV1_COMMON *cm, OPFL_BUFFER_STRUCT *buf_struct,
                          int left_idx, int right_idx, int left_offset,
                          int right_offset, int_mv *left_mv, int_mv *right_mv);
+void opfl_update_init_motion(AV1_COMMON *cm, OPFL_BUFFER_STRUCT *buf_struct,
+                             int_mv *left_mv, int_mv *right_mv, int left_offset,
+                             int right_offset, int_mv *left_cand_mv,
+                             int_mv *right_cand_mv, int left_cand_offset,
+                             int right_cand_offset, int *is_first_valid,
+                             int_mv *left_final_mv, int_mv *right_final_mv);
 
 void refine_motion_field(OPFL_BUFFER_STRUCT *buf_struct, DB_MV *mf_last,
                          DB_MV *mf_new, int level, double dstpos, int usescale,
