@@ -54,6 +54,8 @@ extern "C" {
 #define OPFL_DERIVE_INIT_MV 1
 #define OPFL_CHECK_INIT_MV 1
 
+#define OPFL_EXP_DERV 0
+
 #define MAX_NUM_REF_PAIR 9
 
 // Experimental MACROs not used for now
@@ -99,6 +101,12 @@ typedef struct opfl_buffer_struct {
   double *Ex;
   double *Ey;
   double *Et;
+  double *ori_Ex0_buf[MAX_OPFL_LEVEL];
+  double *ori_Ey0_buf[MAX_OPFL_LEVEL];
+  double *ori_Et0_buf[MAX_OPFL_LEVEL];
+  double *ori_Ex1_buf[MAX_OPFL_LEVEL];
+  double *ori_Ey1_buf[MAX_OPFL_LEVEL];
+  double *ori_Et1_buf[MAX_OPFL_LEVEL];
   YV12_BUFFER_CONFIG *buffer0[MAX_OPFL_LEVEL];
   YV12_BUFFER_CONFIG *buffer1[MAX_OPFL_LEVEL];
   int *done_flag;
@@ -202,6 +210,11 @@ void opfl_get_derivatives(double *Ex, double *Ey, double *Et,
                           YV12_BUFFER_CONFIG *buffer_init0,
                           YV12_BUFFER_CONFIG *buffer_init1, double dstpos,
                           int level, int usescale, OPFL_BLK_INFO blk_info);
+
+void opfl_get_derivatives_nowarp(double *Ex, double *Ey,
+                                 OPFL_BUFFER_STRUCT *buf_struct, DB_MV *mf,
+                                 double dstpos, int level,
+                                 OPFL_BLK_INFO blk_info);
 
 void opfl_fill_mv(int_mv *pmv, int width, int height);
 void fill_create_motion_field(int_mv *mv_left, int_mv *mv_right, DB_MV *mf,

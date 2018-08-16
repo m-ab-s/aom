@@ -183,6 +183,27 @@ void av1_opfl_set_buf(AV1_COMMON *cm, OPFL_BUFFER_STRUCT *buf_struct) {
   blk_info.lowerbound = 1;
   blk_info.leftbound = 1;
   blk_info.rightbound = 1;
+  for (int l = 0; l < MAX_OPFL_LEVEL; l++) {
+#if USE_BLK_DERIVATIVE
+    opfl_get_derivatives(buf_struct->ori_Ex0_buf[l], buf_struct->ori_Ey0_buf[l],
+                         buf_struct->ori_Et0_buf[l], buf_struct->ref0_buf[0],
+                         buf_struct->ref0_buf[0], buf_struct->ref0_buf[0],
+                         buf_struct->ref0_buf[0], dst_pos, l, 0, blk_info);
+    opfl_get_derivatives(buf_struct->ori_Ex1_buf[l], buf_struct->ori_Ey1_buf[l],
+                         buf_struct->ori_Et1_buf[l], buf_struct->ref1_buf[0],
+                         buf_struct->ref1_buf[0], buf_struct->ref1_buf[0],
+                         buf_struct->ref1_buf[0], dst_pos, l, 0, blk_info);
+#else
+    opfl_get_derivatives(buf_struct->ori_Ex0_buf[l], buf_struct->ori_Ey0_buf[l],
+                         buf_struct->ori_Et0_buf[l], buf_struct->ref0_buf[l],
+                         buf_struct->ref0_buf[l], buf_struct->ref0_buf[l],
+                         buf_struct->ref0_buf[l], dst_pos, l, 1, blk_info);
+    opfl_get_derivatives(buf_struct->ori_Ex1_buf[l], buf_struct->ori_Ey1_buf[l],
+                         buf_struct->ori_Et1_buf[l], buf_struct->ref1_buf[l],
+                         buf_struct->ref1_buf[l], buf_struct->ref1_buf[l],
+                         buf_struct->ref1_buf[l], dst_pos, l, 1, blk_info);
+#endif
+  }
 
   // set up initial motion filed
   int_mv *left_mv = aom_calloc(cm->mi_cols * cm->mi_rows, sizeof(int_mv));
@@ -628,6 +649,19 @@ void av1_opfl_alloc_buf(AV1_COMMON *cm, OPFL_BUFFER_STRUCT *buf_struct) {
   buf_struct->Ex = aom_calloc(width * height, sizeof(double));
   buf_struct->Ey = aom_calloc(width * height, sizeof(double));
   buf_struct->Et = aom_calloc(width * height, sizeof(double));
+  // initial derivative in the refs
+  for (int l = 0; l < MAX_OPFL_LEVEL; l++) {
+    wid = width >> l;
+    hgt = height >> l;
+
+    buf_struct->ori_Ex0_buf[l] = aom_calloc(wid * hgt, sizeof(double));
+    buf_struct->ori_Ey0_buf[l] = aom_calloc(wid * hgt, sizeof(double));
+    buf_struct->ori_Et0_buf[l] = aom_calloc(wid * hgt, sizeof(double));
+
+    buf_struct->ori_Ex1_buf[l] = aom_calloc(wid * hgt, sizeof(double));
+    buf_struct->ori_Ey1_buf[l] = aom_calloc(wid * hgt, sizeof(double));
+    buf_struct->ori_Et1_buf[l] = aom_calloc(wid * hgt, sizeof(double));
+  }
 }
 
 /*
@@ -669,6 +703,14 @@ void av1_opfl_free_buf(OPFL_BUFFER_STRUCT *buf_struct) {
     aom_free(buf_struct->mf_last[l]);
     aom_free(buf_struct->mf_new[l]);
     aom_free(buf_struct->mf_med[l]);
+
+    aom_free(buf_struct->ori_Ex0_buf[l]);
+    aom_free(buf_struct->ori_Ey0_buf[l]);
+    aom_free(buf_struct->ori_Et0_buf[l]);
+
+    aom_free(buf_struct->ori_Ex1_buf[l]);
+    aom_free(buf_struct->ori_Ey1_buf[l]);
+    aom_free(buf_struct->ori_Et1_buf[l]);
 
     if (l != 0 && USE_BLK_DERIVATIVE) continue;
     aom_free_frame_buffer(buf_struct->buffer0[l]);
@@ -1675,6 +1717,51 @@ void refine_motion_field(OPFL_BUFFER_STRUCT *buf_struct, DB_MV *mf_last,
   return;
 }
 
+double get_opfl_cost(double *Ex, double *Ey, double *Et, DB_MV *mv_start,
+                     int width, int height, int mfstr, int i, int j) {
+  double u = mv_start[i * mfstr + j].col;
+  double v = mv_start[i * mfstr + j].row;
+  double cost, temp;
+  int check_y[4] = { -1, -1, 1, 1 };
+  int check_x[4] = { -1, 1, -1, 1 };
+  cost = Ex[i * width + j] * u + Ey[i * width + j] * v + Et[i * width + j];
+  cost = cost * cost;
+  temp = 0;
+  temp += 4 * mv_start[i * mfstr + j].col;
+  for (int k = 0; k < 4; k++) {
+    int curi = i + check_y[k];
+    int curj = j + check_x[k];
+    if (curi < 0)
+      curi = 0;
+    else if (curi >= height)
+      curi = height - 1;
+    if (curj < 0)
+      curj = 0;
+    else if (curj >= width)
+      curj = width - 1;
+    temp -= mv_start[curi * mfstr + curj].col;
+  }
+  cost += temp * temp * OF_A_SQUARED / 4.0;
+  temp = 0;
+  temp += 4 * mv_start[i * mfstr + j].row;
+  for (int k = 0; k < 4; k++) {
+    int curi = i + check_y[k];
+    int curj = j + check_x[k];
+    if (curi < 0)
+      curi = 0;
+    else if (curi >= height)
+      curi = height - 1;
+    if (curj < 0)
+      curj = 0;
+    else if (curj >= width)
+      curj = width - 1;
+    temp -= mv_start[curi * mfstr + curj].row;
+  }
+  cost += temp * temp * OF_A_SQUARED / 4.0;
+
+  return cost;
+}
+
 /*
  * Update motion field at each iteration by solving linear equations directly.
  *
@@ -1773,6 +1860,12 @@ double iterate_update_mv(OPFL_BUFFER_STRUCT *buf_struct, DB_MV *mf_last,
   // Calculate partial derivatives
   opfl_get_derivatives(Ex, Ey, Et, buffer0, buffer1, buf_init0, buf_init1,
                        dstpos, level, usescale, blk_info);
+#if OPFL_EXP_DERV
+  // if (numWarpedRounds == 0)
+  opfl_get_derivatives_nowarp(Ex, Ey, buf_struct, mf_last, dstpos, level,
+                              blk_info);
+#endif
+
   clock_t endd = clock();
   timeder += (double)(endd - startd) / CLOCKS_PER_SEC;
 
@@ -2467,6 +2560,207 @@ void opfl_get_derivatives(double *Ex, double *Ey, double *Et,
     if (tempEx) aom_free(tempEx);
     if (tempEy) aom_free(tempEy);
     if (tempEt) aom_free(tempEt);
+  }
+}
+
+void opfl_get_derivatives_nowarp(double *Ex, double *Ey,
+                                 OPFL_BUFFER_STRUCT *buf_struct, DB_MV *mf,
+                                 double dstpos, int level,
+                                 OPFL_BLK_INFO blk_info) {
+  int i, j, h, w;
+  int width = blk_info.blk_width;
+  int height = blk_info.blk_height;
+  int starth = blk_info.starth;
+  int startw = blk_info.startw;
+
+  width = width >> level;
+  height = height >> level;
+  starth = starth >> level;
+  startw = startw >> level;
+
+  int f_width = buf_struct->ref0_buf[0]->y_width;
+  int f_height = buf_struct->ref0_buf[0]->y_height;
+  f_width = f_width >> level;
+  f_height = f_height >> level;
+  int mf_stride = f_width + 2 * AVG_MF_BORDER;
+
+  DB_MV *mf_start = mf + AVG_MF_BORDER * mf_stride + AVG_MF_BORDER;
+  mf_start = mf_start + starth * mf_stride + startw;
+
+  double *ori_Ex0_start =
+      buf_struct->ori_Ex0_buf[level] + starth * f_width + startw;
+  double *ori_Ex1_start =
+      buf_struct->ori_Ex1_buf[level] + starth * f_width + startw;
+  double *ori_Ey0_start =
+      buf_struct->ori_Ey0_buf[level] + starth * f_width + startw;
+  double *ori_Ey1_start =
+      buf_struct->ori_Ey1_buf[level] + starth * f_width + startw;
+
+  int mv_r, mv_c, y_loc, x_loc;
+  double di, dj;
+  // calculate Ex, Ey
+  for (i = 0; i < height; i++) {
+    for (j = 0; j < width; j++) {
+      // printf("%.2f ", Ex[i*width+j]);
+      Ex[i * width + j] = 0;
+      Ey[i * width + j] = 0;
+      // from left ref
+      mv_r = opfl_floor_double_2_int(-dstpos * mf_start[i * mf_stride + j].row);
+      mv_c = opfl_floor_double_2_int(-dstpos * mf_start[i * mf_stride + j].col);
+      di = -dstpos * mf_start[i * mf_stride + j].row - mv_r;
+      dj = -dstpos * mf_start[i * mf_stride + j].col - mv_c;
+
+      int yidx = opfl_round_double_2_int(di * 8);
+      int xidx = opfl_round_double_2_int(dj * 8);
+      yidx *= 2;
+      xidx *= 2;
+      if (yidx == 16) {
+        yidx = 0;
+        mv_c += 1;
+      }
+      if (xidx == 16) {
+        xidx = 0;
+        mv_r += 1;
+      }
+      assert(xidx <= 14 && xidx >= 0);
+      assert(yidx <= 14 && yidx >= 0);
+
+      // Ex0
+      double x;
+      double y[8];
+      for (h = -3; h < 5; h++) {
+        y[h + 3] = 0;
+        for (w = -3; w < 5; w++) {
+          y_loc = i + mv_r + h;
+          x_loc = j + mv_c + w;
+          if (y_loc + starth < 0) {
+            y_loc = -starth;
+          } else if (y_loc + starth >= f_height) {
+            y_loc = f_height - starth - 1;
+          }
+          if (x_loc + startw < 0) {
+            x_loc = -startw;
+          } else if (x_loc + startw >= f_width) {
+            x_loc = f_width - startw - 1;
+          }
+          y[h + 3] += ori_Ex0_start[y_loc * f_width + x_loc] *
+                      optical_flow_warp_filter[xidx][w + 3];
+        }
+        y[h + 3] /= (double)(1 << 7);
+      }
+      x = 0;
+      for (h = 0; h < 8; h++) {
+        x += y[h] * optical_flow_warp_filter[yidx][h];
+      }
+      x /= (double)(1 << 7);
+      Ex[i * width + j] += (1 - dstpos) * x;
+      // Ey0
+      for (h = -3; h < 5; h++) {
+        y[h + 3] = 0;
+        for (w = -3; w < 5; w++) {
+          y_loc = i + mv_r + h;
+          x_loc = j + mv_c + w;
+          if (y_loc + starth < 0) {
+            y_loc = -starth;
+          } else if (y_loc + starth >= f_height) {
+            y_loc = f_height - starth - 1;
+          }
+          if (x_loc + startw < 0) {
+            x_loc = -startw;
+          } else if (x_loc + startw >= f_width) {
+            x_loc = f_width - startw - 1;
+          }
+          y[h + 3] += ori_Ey0_start[y_loc * f_width + x_loc] *
+                      optical_flow_warp_filter[xidx][w + 3];
+        }
+        y[h + 3] /= (double)(1 << 7);
+      }
+      x = 0;
+      for (h = 0; h < 8; h++) {
+        x += y[h] * optical_flow_warp_filter[yidx][h];
+      }
+      x /= (double)(1 << 7);
+      Ey[i * width + j] += (1 - dstpos) * x;
+
+      // from right ref
+      mv_r = opfl_floor_double_2_int((1 - dstpos) *
+                                     mf_start[i * mf_stride + j].row);
+      mv_c = opfl_floor_double_2_int((1 - dstpos) *
+                                     mf_start[i * mf_stride + j].col);
+      di = (1 - dstpos) * mf_start[i * mf_stride + j].row - mv_r;
+      dj = (1 - dstpos) * mf_start[i * mf_stride + j].col - mv_c;
+      yidx = opfl_round_double_2_int(di * 8);
+      xidx = opfl_round_double_2_int(dj * 8);
+      yidx *= 2;
+      xidx *= 2;
+      if (yidx == 16) {
+        yidx = 0;
+        mv_c += 1;
+      }
+      if (xidx == 16) {
+        xidx = 0;
+        mv_r += 1;
+      }
+      assert(xidx <= 14 && xidx >= 0);
+      assert(yidx <= 14 && yidx >= 0);
+
+      // Ex1
+      for (h = -3; h < 5; h++) {
+        y[h + 3] = 0;
+        for (w = -3; w < 5; w++) {
+          y_loc = i + mv_r + h;
+          x_loc = j + mv_c + w;
+          if (y_loc + starth < 0) {
+            y_loc = -starth;
+          } else if (y_loc + starth >= f_height) {
+            y_loc = f_height - starth - 1;
+          }
+          if (x_loc + startw < 0) {
+            x_loc = -startw;
+          } else if (x_loc + startw >= f_width) {
+            x_loc = f_width - startw - 1;
+          }
+          y[h + 3] += ori_Ex1_start[y_loc * f_width + x_loc] *
+                      optical_flow_warp_filter[xidx][w + 3];
+        }
+        y[h + 3] /= (double)(1 << 7);
+      }
+      x = 0;
+      for (h = 0; h < 8; h++) {
+        x += y[h] * optical_flow_warp_filter[yidx][h];
+      }
+      x /= (double)(1 << 7);
+      Ex[i * width + j] += dstpos * x;
+      // Ey1
+      for (h = -3; h < 5; h++) {
+        y[h + 3] = 0;
+        for (w = -3; w < 5; w++) {
+          y_loc = i + mv_r + h;
+          x_loc = j + mv_c + w;
+          if (y_loc + starth < 0) {
+            y_loc = -starth;
+          } else if (y_loc + starth >= f_height) {
+            y_loc = f_height - starth - 1;
+          }
+          if (x_loc + startw < 0) {
+            x_loc = -startw;
+          } else if (x_loc + startw >= f_width) {
+            x_loc = f_width - startw - 1;
+          }
+          y[h + 3] += ori_Ey1_start[y_loc * f_width + x_loc] *
+                      optical_flow_warp_filter[xidx][w + 3];
+        }
+        y[h + 3] /= (double)(1 << 7);
+      }
+      x = 0;
+      for (h = 0; h < 8; h++) {
+        x += y[h] * optical_flow_warp_filter[yidx][h];
+      }
+      x /= (double)(1 << 7);
+      Ey[i * width + j] += dstpos * x;
+
+      // printf("%.2f \n", Ex[i*width+j]);
+    }
   }
 }
 
