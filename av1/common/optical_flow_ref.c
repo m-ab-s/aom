@@ -196,9 +196,26 @@ void av1_opfl_set_buf(AV1_COMMON *cm, OPFL_BUFFER_STRUCT *buf_struct) {
   }
 
 #if OPFL_EXP_INIT
+  // temp mv buffers
+  int_mv *left_most_mv = aom_calloc(cm->mi_cols * cm->mi_rows, sizeof(int_mv));
+  int_mv *right_most_mv = aom_calloc(cm->mi_cols * cm->mi_rows, sizeof(int_mv));
+  int_mv *left_temp_mv = aom_calloc(cm->mi_cols * cm->mi_rows, sizeof(int_mv));
+  int_mv *right_temp_mv = aom_calloc(cm->mi_cols * cm->mi_rows, sizeof(int_mv));
+  int *is_first_valid = aom_calloc(cm->mi_cols * cm->mi_rows, sizeof(int));
+
   // get the motion field between the two selected refs
   opfl_set_init_motion(cm, buf_struct, left_idx, right_idx, left_offset,
                        right_offset, left_mv, right_mv);
+#if OPFL_SELECT_INIT_MV
+  opfl_derive_init_mv(cm, buf_struct, left_idx, right_idx, left_offset,
+                      right_offset, left_mv, right_mv);
+#endif
+
+  aom_free(left_most_mv);
+  aom_free(right_most_mv);
+  aom_free(left_temp_mv);
+  aom_free(right_temp_mv);
+  aom_free(is_first_valid);
 #else
   // use all available initialization of motion field
   TPL_MV_REF *tpl_mvs_base = cm->cur_frame->tpl_mvs;
@@ -1193,6 +1210,268 @@ void opfl_set_init_motion(AV1_COMMON *cm, OPFL_BUFFER_STRUCT *buf_struct,
     }
   }
 }
+
+/*
+ * This function finds the motion vectors between left_idx and right_idx,
+ * and forms the motions pointing from left to right
+ * unlike opfl_set_init_motion, this function does not scale and set
+ * motion vectors according to dst_pos.
+ */
+void opfl_find_init_motion(AV1_COMMON *cm, int left_idx, int right_idx,
+                           int left_offset, int right_offset, int_mv *left_mv) {
+  for (int i = 0; i < cm->mi_rows; i++) {
+    for (int j = 0; j < cm->mi_cols; j++) {
+      left_mv[i * cm->mi_cols + j].as_int = INVALID_MV;
+    }
+  }
+  // process right to left mv
+  MV_REF *mv_ref_base = cm->buffer_pool->frame_bufs[right_idx].mvs;
+  int lst_frame_idx = cm->buffer_pool->frame_bufs[right_idx].lst_frame_offset;
+  int alt_frame_idx = cm->buffer_pool->frame_bufs[right_idx].alt_frame_offset;
+  int gld_frame_idx = cm->buffer_pool->frame_bufs[right_idx].gld_frame_offset;
+#if CONFIG_EXT_REFS
+  int lst2_frame_idx = cm->buffer_pool->frame_bufs[right_idx].lst2_frame_offset;
+  int lst3_frame_idx = cm->buffer_pool->frame_bufs[right_idx].lst3_frame_offset;
+  int bwd_frame_idx = cm->buffer_pool->frame_bufs[right_idx].bwd_frame_offset;
+#endif
+  for (int i = 0; i < cm->mi_rows; i++) {
+    for (int j = 0; j < cm->mi_cols; j++) {
+      MV_REF *mv_ref = &mv_ref_base[i * cm->mi_cols + j];
+      MV this_mvs[2] = { mv_ref->mv[0].as_mv, mv_ref->mv[1].as_mv };
+      MV_REFERENCE_FRAME ref_frame[2] = { mv_ref->ref_frame[0],
+                                          mv_ref->ref_frame[1] };
+
+      if (ref_frame[0] == OPFL_FRAME && ref_frame[1] == NONE_FRAME) {
+        this_mvs[0] = mv_ref->opfl_ref_mvs[0].as_mv;
+        this_mvs[1] = mv_ref->opfl_ref_mvs[1].as_mv;
+        ref_frame[0] = mv_ref->opfl_ref_frame[0];
+        ref_frame[1] = mv_ref->opfl_ref_frame[1];
+      }
+
+      for (int r = 0; r < 2; r++) {
+        int ref_offset;
+        switch (ref_frame[r]) {
+          case LAST_FRAME: ref_offset = lst_frame_idx; break;
+          case ALTREF_FRAME: ref_offset = alt_frame_idx; break;
+          case GOLDEN_FRAME: ref_offset = gld_frame_idx; break;
+#if CONFIG_EXT_REFS
+          case LAST2_FRAME: ref_offset = lst2_frame_idx; break;
+          case LAST3_FRAME: ref_offset = lst3_frame_idx; break;
+          case BWDREF_FRAME: ref_offset = bwd_frame_idx; break;
+#endif
+          default: ref_offset = -1;
+        }
+        // only initialize with the same refs!
+        if (ref_offset == left_offset) {
+          // calculate mv to right
+          int_mv temp_mv;
+          temp_mv.as_mv.row = -this_mvs[r].row;
+          temp_mv.as_mv.col = -this_mvs[r].col;
+          int mi_r = i - (temp_mv.as_mv.row >> (3 + MI_SIZE_LOG2));
+          int mi_c = j - (temp_mv.as_mv.col >> (3 + MI_SIZE_LOG2));
+          if (mi_r < 0 || mi_r >= cm->mi_rows || mi_c < 0 ||
+              mi_c >= cm->mi_cols)
+            continue;
+          left_mv[mi_r * cm->mi_cols + mi_c].as_int = temp_mv.as_int;
+        }
+      }
+    }
+  }
+  // process left to right mv
+  mv_ref_base = cm->buffer_pool->frame_bufs[left_idx].mvs;
+  lst_frame_idx = cm->buffer_pool->frame_bufs[left_idx].lst_frame_offset;
+  alt_frame_idx = cm->buffer_pool->frame_bufs[left_idx].alt_frame_offset;
+  gld_frame_idx = cm->buffer_pool->frame_bufs[left_idx].gld_frame_offset;
+#if CONFIG_EXT_REFS
+  lst2_frame_idx = cm->buffer_pool->frame_bufs[left_idx].lst2_frame_offset;
+  lst3_frame_idx = cm->buffer_pool->frame_bufs[left_idx].lst3_frame_offset;
+  bwd_frame_idx = cm->buffer_pool->frame_bufs[left_idx].bwd_frame_offset;
+#endif
+  for (int i = 0; i < cm->mi_rows; i++) {
+    for (int j = 0; j < cm->mi_cols; j++) {
+      MV_REF *mv_ref = &mv_ref_base[i * cm->mi_cols + j];
+
+      MV this_mvs[2] = { mv_ref->mv[0].as_mv, mv_ref->mv[1].as_mv };
+      MV_REFERENCE_FRAME ref_frame[2] = { mv_ref->ref_frame[0],
+                                          mv_ref->ref_frame[1] };
+      if (ref_frame[0] == OPFL_FRAME && ref_frame[1] == NONE_FRAME) {
+        this_mvs[0] = mv_ref->opfl_ref_mvs[0].as_mv;
+        this_mvs[1] = mv_ref->opfl_ref_mvs[1].as_mv;
+        ref_frame[0] = mv_ref->opfl_ref_frame[0];
+        ref_frame[1] = mv_ref->opfl_ref_frame[1];
+      }
+
+      for (int r = 0; r < 2; r++) {
+        int ref_offset;
+        switch (ref_frame[r]) {
+          case LAST_FRAME: ref_offset = lst_frame_idx; break;
+          case ALTREF_FRAME: ref_offset = alt_frame_idx; break;
+          case GOLDEN_FRAME: ref_offset = gld_frame_idx; break;
+#if CONFIG_EXT_REFS
+          case LAST2_FRAME: ref_offset = lst2_frame_idx; break;
+          case LAST3_FRAME: ref_offset = lst3_frame_idx; break;
+          case BWDREF_FRAME: ref_offset = bwd_frame_idx; break;
+#endif
+          default: ref_offset = -1;
+        }
+        if (ref_offset == right_offset) {
+          // calculate mv to right
+          int_mv temp_mv;
+          temp_mv.as_mv.row = this_mvs[r].row;
+          temp_mv.as_mv.col = this_mvs[r].col;
+          left_mv[i * cm->mi_cols + j].as_int = temp_mv.as_int;
+        }
+      }
+    }
+  }
+}
+/*
+ * This function derives initialization motion vector, for example:
+ * assume we want mvs between ref1 and ref2, but there exist mvscale
+ * mv1 pointing from ref1 to ref3, and mv2 pointing from ref3 to ref2,
+ * then the derived mv = mv1 + mv2
+ */
+void opfl_derive_init_mv(AV1_COMMON *cm, OPFL_BUFFER_STRUCT *buf_struct,
+                         int left_idx, int right_idx, int left_offset,
+                         int right_offset, int_mv *left_mv, int_mv *right_mv) {
+  int alt_buf_idx = cm->frame_refs[ALTREF_FRAME - LAST_FRAME].idx;
+  int lst_buf_idx = cm->frame_refs[LAST_FRAME - LAST_FRAME].idx;
+  int gld_buf_idx = cm->frame_refs[GOLDEN_FRAME - LAST_FRAME].idx;
+
+#if CONFIG_EXT_REFS
+  int lst2_buf_idx = cm->frame_refs[LAST2_FRAME - LAST_FRAME].idx;
+  int lst3_buf_idx = cm->frame_refs[LAST3_FRAME - LAST_FRAME].idx;
+  int bwd_buf_idx = cm->frame_refs[BWDREF_FRAME - LAST_FRAME].idx;
+#endif
+
+  double dstpos = buf_struct->dst_pos;
+
+  // find candidate refs to try
+  int cand_idx[6];
+  int cand_offset[6];
+  int c = 0;
+  if (alt_buf_idx != left_idx && alt_buf_idx != right_idx && alt_buf_idx >= 0) {
+    int skip = 0;
+    for (int k = 0; k < c; k++) {
+      if (cand_idx[k] == alt_buf_idx) skip = 1;
+    }
+    if (skip == 0) {
+      cand_idx[c] = alt_buf_idx;
+      cand_offset[c] = cm->cur_frame->alt_frame_offset;
+      c++;
+    }
+  }
+  if (lst_buf_idx != left_idx && lst_buf_idx != right_idx && lst_buf_idx >= 0) {
+    int skip = 0;
+    for (int k = 0; k < c; k++) {
+      if (cand_idx[k] == lst_buf_idx) skip = 1;
+    }
+    if (skip == 0) {
+      cand_idx[c] = lst_buf_idx;
+      cand_offset[c] = cm->cur_frame->lst_frame_offset;
+      c++;
+    }
+  }
+  if (gld_buf_idx != left_idx && gld_buf_idx != right_idx && gld_buf_idx >= 0) {
+    int skip = 0;
+    for (int k = 0; k < c; k++) {
+      if (cand_idx[k] == gld_buf_idx) skip = 1;
+    }
+    if (skip == 0) {
+      cand_idx[c] = gld_buf_idx;
+      cand_offset[c] = cm->cur_frame->gld_frame_offset;
+      c++;
+    }
+  }
+#if CONFIG_EXT_REFS
+  if (lst2_buf_idx != left_idx && lst2_buf_idx != right_idx &&
+      lst2_buf_idx >= 0) {
+    int skip = 0;
+    for (int k = 0; k < c; k++) {
+      if (cand_idx[k] == lst2_buf_idx) skip = 1;
+    }
+    if (skip == 0) {
+      cand_idx[c] = lst2_buf_idx;
+      cand_offset[c] = cm->cur_frame->lst2_frame_offset;
+      c++;
+    }
+  }
+  if (lst3_buf_idx != left_idx && lst3_buf_idx != right_idx &&
+      lst3_buf_idx >= 0) {
+    int skip = 0;
+    for (int k = 0; k < c; k++) {
+      if (cand_idx[k] == lst3_buf_idx) skip = 1;
+    }
+    if (skip == 0) {
+      cand_idx[c] = lst3_buf_idx;
+      cand_offset[c] = cm->cur_frame->lst3_frame_offset;
+      c++;
+    }
+  }
+  if (bwd_buf_idx != left_idx && bwd_buf_idx != right_idx && bwd_buf_idx >= 0) {
+    int skip = 0;
+    for (int k = 0; k < c; k++) {
+      if (cand_idx[k] == bwd_buf_idx) skip = 1;
+    }
+    if (skip == 0) {
+      cand_idx[c] = bwd_buf_idx;
+      cand_offset[c] = cm->cur_frame->bwd_frame_offset;
+      c++;
+    }
+  }
+#endif
+  for (; c < 6; c++) {
+    cand_idx[c] = -1;
+  }
+
+  int_mv *mv_to_left = aom_calloc(cm->mi_cols * cm->mi_rows, sizeof(int_mv));
+  int_mv *mv_to_right = aom_calloc(cm->mi_cols * cm->mi_rows, sizeof(int_mv));
+  int_mv cur_mv, temp_mv;
+  for (c = 0; c < 6; c++) {
+    if (cand_idx[c] < 0) break;
+    opfl_find_init_motion(cm, cand_idx[c], left_idx, cand_offset[c],
+                          left_offset, mv_to_left);
+    opfl_find_init_motion(cm, cand_idx[c], right_idx, cand_offset[c],
+                          right_offset, mv_to_right);
+    for (int i = 0; i < cm->mi_rows; i++) {
+      for (int j = 0; j < cm->mi_cols; j++) {
+        if (mv_to_left[i * cm->mi_cols + j].as_int == INVALID_MV ||
+            mv_to_right[i * cm->mi_cols + j].as_int == INVALID_MV)
+          continue;
+        // cur_mv points from left to right
+        cur_mv.as_mv.row = mv_to_right[i * cm->mi_cols + j].as_mv.row -
+                           mv_to_left[i * cm->mi_cols + j].as_mv.row;
+        cur_mv.as_mv.col = mv_to_right[i * cm->mi_cols + j].as_mv.col -
+                           mv_to_left[i * cm->mi_cols + j].as_mv.col;
+        temp_mv.as_mv.row = opfl_round_double_2_int(-dstpos * cur_mv.as_mv.row);
+        temp_mv.as_mv.col = opfl_round_double_2_int(-dstpos * cur_mv.as_mv.col);
+        int mi_r = i + opfl_round_double_2_int(
+                           (mv_to_left[i * cm->mi_cols + j].as_mv.row -
+                            temp_mv.as_mv.row) /
+                           (8.0 * 4.0));
+        int mi_c = j + opfl_round_double_2_int(
+                           (mv_to_left[i * cm->mi_cols + j].as_mv.col -
+                            temp_mv.as_mv.col) /
+                           (8.0 * 4.0));
+        if (mi_r < 0 || mi_r >= cm->mi_rows || mi_c < 0 || mi_c >= cm->mi_cols)
+          continue;
+        if (left_mv[mi_r * cm->mi_cols + mi_c].as_int == INVALID_MV ||
+            right_mv[mi_r * cm->mi_cols + mi_c].as_int == INVALID_MV) {
+          left_mv[mi_r * cm->mi_cols + mi_c].as_int = temp_mv.as_int;
+          // calculate mv to right
+          temp_mv.as_mv.row =
+              opfl_round_double_2_int((1 - dstpos) * cur_mv.as_mv.row);
+          temp_mv.as_mv.col =
+              opfl_round_double_2_int((1 - dstpos) * cur_mv.as_mv.col);
+          right_mv[mi_r * cm->mi_cols + mi_c].as_int = temp_mv.as_int;
+        }
+      }
+    }
+  }
+  aom_free(mv_to_left);
+  aom_free(mv_to_right);
+}
+
 /*
  * use optical flow method to calculate motion field of a specific level.
  *
