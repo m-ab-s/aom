@@ -50,6 +50,10 @@ extern "C" {
 #define OPFL_TPL 1
 #define OPFL_TPL_NEIGHBOR 1
 
+#define OPFL_EXP_INIT 1
+
+#define MAX_NUM_REF_PAIR 9
+
 // Experimental MACROs not used for now
 #define OPTICAL_FLOW_DIFF_THRES 10.0     // Thres to detect pixel difference
 #define OPTICAL_FLOW_REF_THRES 0.3       // Thres to determine reference usage

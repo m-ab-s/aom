@@ -133,6 +133,15 @@ void av1_opfl_set_buf(AV1_COMMON *cm, OPFL_BUFFER_STRUCT *buf_struct) {
   opfl_get_closest_refs(cm, &left_idx, &left_offset, &left_chosen, &right_idx,
                         &right_offset, &right_chosen);
 
+  // check all other available bi-direcional ref pairs
+  // sorted by distance between refs
+  int left_idxs[MAX_NUM_REF_PAIR], left_offsets[MAX_NUM_REF_PAIR],
+      left_chosens[MAX_NUM_REF_PAIR], right_idxs[MAX_NUM_REF_PAIR],
+      right_offsets[MAX_NUM_REF_PAIR], right_chosens[MAX_NUM_REF_PAIR];
+  opfl_select_best_ref_pairs(cm, left_idxs, left_offsets, left_chosens,
+                             right_idxs, right_offsets, right_chosens, left_idx,
+                             right_idx);
+
   // if no available refs on both sides, don't do optical flow
   // TODO(bohanli): this should only happen for key frame and altref (?)
   //                If we disable it manually, mismatch happens (why?)
@@ -186,6 +195,11 @@ void av1_opfl_set_buf(AV1_COMMON *cm, OPFL_BUFFER_STRUCT *buf_struct) {
     }
   }
 
+#if OPFL_EXP_INIT
+  // get the motion field between the two selected refs
+  opfl_set_init_motion(cm, buf_struct, left_idx, right_idx, left_offset,
+                       right_offset, left_mv, right_mv);
+#else
   // use all available initialization of motion field
   TPL_MV_REF *tpl_mvs_base = cm->cur_frame->tpl_mvs;
   for (int i = 0; i < cm->mi_rows; i++) {
@@ -214,6 +228,7 @@ void av1_opfl_set_buf(AV1_COMMON *cm, OPFL_BUFFER_STRUCT *buf_struct) {
       }
     }
   }
+#endif
 
   // copy the initialized motions to each level
   for (int l = 0; l < MAX_OPFL_LEVEL; l++) {
@@ -633,6 +648,405 @@ void av1_opfl_free_buf(OPFL_BUFFER_STRUCT *buf_struct) {
 #endif
 }
 
+/*
+ * get how many motion vector initializations exist between two refs
+ */
+int get_num_MV_between_refs(AV1_COMMON *cm, int left_idx, int left_offset,
+                            int right_idx, int right_offset) {
+  int totalNum = 0;
+  // process left ref
+  MV_REF *mv_ref_base = cm->buffer_pool->frame_bufs[left_idx].mvs;
+  int lst_frame_idx = cm->buffer_pool->frame_bufs[left_idx].lst_frame_offset;
+  int alt_frame_idx = cm->buffer_pool->frame_bufs[left_idx].alt_frame_offset;
+  int gld_frame_idx = cm->buffer_pool->frame_bufs[left_idx].gld_frame_offset;
+#if CONFIG_EXT_REFS
+  int lst2_frame_idx = cm->buffer_pool->frame_bufs[left_idx].lst2_frame_offset;
+  int lst3_frame_idx = cm->buffer_pool->frame_bufs[left_idx].lst3_frame_offset;
+  int bwd_frame_idx = cm->buffer_pool->frame_bufs[left_idx].bwd_frame_offset;
+#endif
+  for (int i = 0; i < cm->mi_rows; i++) {
+    for (int j = 0; j < cm->mi_cols; j++) {
+      MV_REF *mv_ref = &mv_ref_base[i * cm->mi_cols + j];
+      MV_REFERENCE_FRAME ref_frame[2] = { mv_ref->ref_frame[0],
+                                          mv_ref->ref_frame[1] };
+      if (ref_frame[0] == OPFL_FRAME && ref_frame[1] == NONE_FRAME) {
+        ref_frame[0] = mv_ref->opfl_ref_frame[0];
+        ref_frame[1] = mv_ref->opfl_ref_frame[1];
+      }
+
+      for (int r = 0; r < 2; r++) {
+        int ref_offset;
+        switch (ref_frame[r]) {
+          // case LAST_FRAME: ref_offset = lst_frame_idx; break;
+          case ALTREF_FRAME:
+            ref_offset = alt_frame_idx;
+            break;
+            // case GOLDEN_FRAME: ref_offset = gld_frame_idx; break;
+#if CONFIG_EXT_REFS
+          // case LAST2_FRAME: ref_offset = lst2_frame_idx; break;
+          // case LAST3_FRAME: ref_offset = lst3_frame_idx; break;
+          case BWDREF_FRAME: ref_offset = bwd_frame_idx; break;
+#endif
+          default: ref_offset = -2;
+        }
+        if (ref_offset == right_offset && ref_offset >= 0) {
+          totalNum++;
+        }
+      }
+    }
+  }
+  // process right ref
+  mv_ref_base = cm->buffer_pool->frame_bufs[right_idx].mvs;
+  lst_frame_idx = cm->buffer_pool->frame_bufs[right_idx].lst_frame_offset;
+  alt_frame_idx = cm->buffer_pool->frame_bufs[right_idx].alt_frame_offset;
+  gld_frame_idx = cm->buffer_pool->frame_bufs[right_idx].gld_frame_offset;
+#if CONFIG_EXT_REFS
+  lst2_frame_idx = cm->buffer_pool->frame_bufs[right_idx].lst2_frame_offset;
+  lst3_frame_idx = cm->buffer_pool->frame_bufs[right_idx].lst3_frame_offset;
+  bwd_frame_idx = cm->buffer_pool->frame_bufs[right_idx].bwd_frame_offset;
+#endif
+  for (int i = 0; i < cm->mi_rows; i++) {
+    for (int j = 0; j < cm->mi_cols; j++) {
+      MV_REF *mv_ref = &mv_ref_base[i * cm->mi_cols + j];
+      MV_REFERENCE_FRAME ref_frame[2] = { mv_ref->ref_frame[0],
+                                          mv_ref->ref_frame[1] };
+
+      if (ref_frame[0] == OPFL_FRAME && ref_frame[1] == NONE_FRAME) {
+        ref_frame[0] = mv_ref->opfl_ref_frame[0];
+        ref_frame[1] = mv_ref->opfl_ref_frame[1];
+      }
+
+      for (int r = 0; r < 2; r++) {
+        int ref_offset;
+        switch (ref_frame[r]) {
+          case LAST_FRAME: ref_offset = lst_frame_idx; break;
+          // case ALTREF_FRAME: ref_offset = alt_frame_idx; break;
+          case GOLDEN_FRAME: ref_offset = gld_frame_idx; break;
+#if CONFIG_EXT_REFS
+          case LAST2_FRAME: ref_offset = lst2_frame_idx; break;
+          case LAST3_FRAME:
+            ref_offset = lst3_frame_idx;
+            break;
+            // case BWDREF_FRAME: ref_offset = bwd_frame_idx; break;
+#endif
+          default: ref_offset = -2;
+        }
+        // only initialize with the same refs!
+        if (ref_offset == left_offset && ref_offset >= 0) {
+          // calculate mv to right
+          totalNum++;
+        }
+      }
+    }
+  }
+  return totalNum;
+}
+/*
+ * find and sort the best ref pairs by distance
+ */
+void opfl_select_best_ref_pairs(AV1_COMMON *cm, int *left_idx, int *left_offset,
+                                int *left_chosen, int *right_idx,
+                                int *right_offset, int *right_chosen,
+                                int left_most_idx, int right_most_idx) {
+  int cur_offset = cm->frame_offset;
+
+  int alt_buf_idx = cm->frame_refs[ALTREF_FRAME - LAST_FRAME].idx;
+  int lst_buf_idx = cm->frame_refs[LAST_FRAME - LAST_FRAME].idx;
+  int gld_buf_idx = cm->frame_refs[GOLDEN_FRAME - LAST_FRAME].idx;
+
+#if CONFIG_EXT_REFS
+  int lst2_buf_idx = cm->frame_refs[LAST2_FRAME - LAST_FRAME].idx;
+  int lst3_buf_idx = cm->frame_refs[LAST3_FRAME - LAST_FRAME].idx;
+  int bwd_buf_idx = cm->frame_refs[BWDREF_FRAME - LAST_FRAME].idx;
+#endif
+
+  int left_cand_idx[INTER_REFS_PER_FRAME],
+      left_cand_offset[INTER_REFS_PER_FRAME];
+  int right_cand_idx[INTER_REFS_PER_FRAME],
+      right_cand_offset[INTER_REFS_PER_FRAME];
+  for (int k = 0; k < INTER_REFS_PER_FRAME; k++) {
+    left_cand_idx[k] = -1;
+    right_cand_idx[k] = -1;
+  }
+  int numMV_cand[INTER_REFS_PER_FRAME][INTER_REFS_PER_FRAME];
+
+  int this_offset;
+  if (alt_buf_idx >= 0) {
+    this_offset = cm->cur_frame->alt_frame_offset;
+    if (this_offset > cur_offset) {
+      right_cand_idx[ALTREF_FRAME - LAST_FRAME] = alt_buf_idx;
+      right_cand_offset[ALTREF_FRAME - LAST_FRAME] = this_offset;
+    } else if (this_offset < cur_offset) {
+      left_cand_idx[ALTREF_FRAME - LAST_FRAME] = alt_buf_idx;
+      left_cand_offset[ALTREF_FRAME - LAST_FRAME] = this_offset;
+    }
+  }
+  if (lst_buf_idx >= 0) {
+    this_offset = cm->cur_frame->lst_frame_offset;
+    if (this_offset > cur_offset) {
+      right_cand_idx[LAST_FRAME - LAST_FRAME] = lst_buf_idx;
+      right_cand_offset[LAST_FRAME - LAST_FRAME] = this_offset;
+    } else if (this_offset < cur_offset) {
+      left_cand_idx[LAST_FRAME - LAST_FRAME] = lst_buf_idx;
+      left_cand_offset[LAST_FRAME - LAST_FRAME] = this_offset;
+    }
+  }
+  if (gld_buf_idx >= 0) {
+    this_offset = cm->cur_frame->gld_frame_offset;
+    if (this_offset > cur_offset) {
+      right_cand_idx[GOLDEN_FRAME - LAST_FRAME] = gld_buf_idx;
+      right_cand_offset[GOLDEN_FRAME - LAST_FRAME] = this_offset;
+    } else if (this_offset < cur_offset) {
+      left_cand_idx[GOLDEN_FRAME - LAST_FRAME] = gld_buf_idx;
+      left_cand_offset[GOLDEN_FRAME - LAST_FRAME] = this_offset;
+    }
+  }
+#if CONFIG_EXT_REFS
+  if (lst2_buf_idx >= 0) {
+    this_offset = cm->cur_frame->lst2_frame_offset;
+    if (this_offset > cur_offset) {
+      right_cand_idx[LAST2_FRAME - LAST_FRAME] = lst2_buf_idx;
+      right_cand_offset[LAST2_FRAME - LAST_FRAME] = this_offset;
+    } else if (this_offset < cur_offset) {
+      left_cand_idx[LAST2_FRAME - LAST_FRAME] = lst2_buf_idx;
+      left_cand_offset[LAST2_FRAME - LAST_FRAME] = this_offset;
+    }
+  }
+  if (lst3_buf_idx >= 0) {
+    this_offset = cm->cur_frame->lst3_frame_offset;
+    if (this_offset > cur_offset) {
+      right_cand_idx[LAST3_FRAME - LAST_FRAME] = lst3_buf_idx;
+      right_cand_offset[LAST3_FRAME - LAST_FRAME] = this_offset;
+    } else if (this_offset < cur_offset) {
+      left_cand_idx[LAST3_FRAME - LAST_FRAME] = lst3_buf_idx;
+      left_cand_offset[LAST3_FRAME - LAST_FRAME] = this_offset;
+    }
+  }
+  if (bwd_buf_idx >= 0) {
+    this_offset = cm->cur_frame->bwd_frame_offset;
+    if (this_offset > cur_offset) {
+      right_cand_idx[BWDREF_FRAME - LAST_FRAME] = bwd_buf_idx;
+      right_cand_offset[BWDREF_FRAME - LAST_FRAME] = this_offset;
+    } else if (this_offset < cur_offset) {
+      left_cand_idx[BWDREF_FRAME - LAST_FRAME] = bwd_buf_idx;
+      left_cand_offset[BWDREF_FRAME - LAST_FRAME] = this_offset;
+    }
+  }
+#endif
+  // got all candidates, now calculate the number of mvs available
+  // for each pair
+  for (int ll = LAST_FRAME - LAST_FRAME; ll < OPFL_FRAME - LAST_FRAME; ll++) {
+    for (int rr = LAST_FRAME - LAST_FRAME; rr < OPFL_FRAME - LAST_FRAME; rr++) {
+      numMV_cand[ll][rr] = 0;
+      if (ll == rr) continue;
+      if (left_cand_idx[ll] < 0 || right_cand_idx[rr] < 0) continue;
+      if (left_cand_idx[ll] == left_most_idx &&
+          right_cand_idx[rr] == right_most_idx)
+        continue;
+      numMV_cand[ll][rr] =
+          get_num_MV_between_refs(cm, left_cand_idx[ll], left_cand_offset[ll],
+                                  right_cand_idx[rr], right_cand_offset[rr]);
+    }
+  }
+  // find the ones with most available mvs
+  int max_num_MV[MAX_NUM_REF_PAIR];
+  for (int k = 0; k < MAX_NUM_REF_PAIR; k++) {
+    max_num_MV[k] = 0;
+  }
+  for (int k = 0; k < MAX_NUM_REF_PAIR; k++) {
+    left_idx[k] = -1;
+    right_idx[k] = -1;
+    for (int ll = LAST_FRAME - LAST_FRAME; ll < OPFL_FRAME - LAST_FRAME; ll++) {
+      for (int rr = LAST_FRAME - LAST_FRAME; rr < OPFL_FRAME - LAST_FRAME;
+           rr++) {
+        if (numMV_cand[ll][rr] == 0) continue;
+        int skip = 0;
+        for (int kk = 0; kk < k; kk++) {
+          if (left_cand_idx[ll] == left_idx[kk] &&
+              right_cand_idx[rr] == right_idx[kk]) {
+            skip = 1;
+            break;
+          }
+        }
+        if (skip > 0) continue;
+        if (numMV_cand[ll][rr] > max_num_MV[k]) {
+          max_num_MV[k] = numMV_cand[ll][rr];
+          left_idx[k] = left_cand_idx[ll];
+          left_offset[k] = left_cand_offset[ll];
+          left_chosen[k] = ll + LAST_FRAME;
+          right_idx[k] = right_cand_idx[rr];
+          right_offset[k] = right_cand_offset[rr];
+          right_chosen[k] = rr + LAST_FRAME;
+        }
+      }
+    }
+    // if (left_idx[k] < 0)
+    // break;
+  }
+  int total_dist[MAX_NUM_REF_PAIR];
+  for (int k = 0; k < MAX_NUM_REF_PAIR; k++) {
+    if (left_idx[k] >= 0)
+      total_dist[k] = -left_offset[k] + right_offset[k];
+    else
+      total_dist[k] = -1;
+  }
+  // bubble sort by distance to cur_frame (prefer shorter)
+  for (int i = 1; i < MAX_NUM_REF_PAIR; i++) {
+    if (total_dist[i] < 0) break;
+    for (int j = i - 1; j >= 0; j--) {
+      if (total_dist[j + 1] < total_dist[j]) {
+        // swap j+1 and j
+        int temp;
+        temp = left_idx[j];
+        left_idx[j] = left_idx[j + 1];
+        left_idx[j + 1] = temp;
+        temp = left_offset[j];
+        left_offset[j] = left_offset[j + 1];
+        left_offset[j + 1] = temp;
+        temp = left_chosen[j];
+        left_chosen[j] = left_chosen[j + 1];
+        left_chosen[j + 1] = temp;
+        temp = right_idx[j];
+        right_idx[j] = right_idx[j + 1];
+        right_idx[j + 1] = temp;
+        temp = right_offset[j];
+        right_offset[j] = right_offset[j + 1];
+        right_offset[j + 1] = temp;
+        temp = right_chosen[j];
+        right_chosen[j] = right_chosen[j + 1];
+        right_chosen[j + 1] = temp;
+        temp = total_dist[j];
+        total_dist[j] = total_dist[j + 1];
+        total_dist[j + 1] = temp;
+        temp = max_num_MV[j];
+        max_num_MV[j] = max_num_MV[j + 1];
+        max_num_MV[j + 1] = temp;
+      } else {
+        break;
+      }
+    }
+  }
+  // fix when ref_frames are pointing to the same idx
+  // TODO(bohan): any other possiblities?
+  for (int i = 0; i < MAX_NUM_REF_PAIR; i++) {
+    if (left_idx[i] < 0) continue;
+    if (right_chosen[i] == BWDREF_FRAME && bwd_buf_idx == alt_buf_idx) {
+      right_chosen[i] = ALTREF_FRAME;
+    }
+    // if (left_chosen[i] == LAST_FRAME && lst_buf_idx == gld_buf_idx) {
+    //   left_chosen[i] = GOLDEN_FRAME;
+    // }
+  }
+}
+/*
+ * find the closest two-sided refs
+ */
+void opfl_get_closest_refs(AV1_COMMON *cm, int *left_idx_ptr,
+                           int *left_offset_ptr, int *left_chosen_ptr,
+                           int *right_idx_ptr, int *right_offset_ptr,
+                           int *right_chosen_ptr) {
+  int left_idx = -1, left_offset = -1, right_idx = -1, right_offset = -1;
+  int left_chosen = NONE_FRAME, right_chosen = NONE_FRAME;
+
+  int alt_buf_idx = cm->frame_refs[ALTREF_FRAME - LAST_FRAME].idx;
+  int lst_buf_idx = cm->frame_refs[LAST_FRAME - LAST_FRAME].idx;
+  int gld_buf_idx = cm->frame_refs[GOLDEN_FRAME - LAST_FRAME].idx;
+
+#if CONFIG_EXT_REFS
+  int lst2_buf_idx = cm->frame_refs[LAST2_FRAME - LAST_FRAME].idx;
+  int lst3_buf_idx = cm->frame_refs[LAST3_FRAME - LAST_FRAME].idx;
+  int bwd_buf_idx = cm->frame_refs[BWDREF_FRAME - LAST_FRAME].idx;
+#endif
+
+  int cur_offset = cm->frame_offset;
+  int this_offset;
+  if (alt_buf_idx >= 0) {
+    this_offset = cm->cur_frame->alt_frame_offset;
+    if (this_offset > cur_offset &&
+        (right_offset < 0 || this_offset < right_offset)) {
+      right_idx = alt_buf_idx;
+      right_offset = this_offset;
+      right_chosen = ALTREF_FRAME;
+    } else if (this_offset < cur_offset && this_offset > left_offset) {
+      left_idx = alt_buf_idx;
+      left_offset = this_offset;
+      left_chosen = ALTREF_FRAME;
+    }
+  }
+  if (lst_buf_idx >= 0) {
+    this_offset = cm->cur_frame->lst_frame_offset;
+    if (this_offset > cur_offset &&
+        (right_offset < 0 || this_offset < right_offset)) {
+      right_idx = lst_buf_idx;
+      right_offset = this_offset;
+      right_chosen = LAST_FRAME;
+    } else if (this_offset < cur_offset && this_offset > left_offset) {
+      left_idx = lst_buf_idx;
+      left_offset = this_offset;
+      left_chosen = LAST_FRAME;
+    }
+  }
+  if (gld_buf_idx >= 0) {
+    this_offset = cm->cur_frame->gld_frame_offset;
+    if (this_offset > cur_offset &&
+        (right_offset < 0 || this_offset < right_offset)) {
+      right_idx = gld_buf_idx;
+      right_offset = this_offset;
+      right_chosen = GOLDEN_FRAME;
+    } else if (this_offset < cur_offset && this_offset > left_offset) {
+      left_idx = gld_buf_idx;
+      left_offset = this_offset;
+      left_chosen = GOLDEN_FRAME;
+    }
+  }
+#if CONFIG_EXT_REFS
+  if (lst2_buf_idx >= 0) {
+    this_offset = cm->cur_frame->lst2_frame_offset;
+    if (this_offset > cur_offset &&
+        (right_offset < 0 || this_offset < right_offset)) {
+      right_idx = lst2_buf_idx;
+      right_offset = this_offset;
+      right_chosen = LAST2_FRAME;
+    } else if (this_offset < cur_offset && this_offset > left_offset) {
+      left_idx = lst2_buf_idx;
+      left_offset = this_offset;
+      left_chosen = LAST2_FRAME;
+    }
+  }
+  if (lst3_buf_idx >= 0) {
+    this_offset = cm->cur_frame->lst3_frame_offset;
+    if (this_offset > cur_offset &&
+        (right_offset < 0 || this_offset < right_offset)) {
+      right_idx = lst3_buf_idx;
+      right_offset = this_offset;
+      right_chosen = LAST3_FRAME;
+    } else if (this_offset < cur_offset && this_offset > left_offset) {
+      left_idx = lst3_buf_idx;
+      left_offset = this_offset;
+      left_chosen = LAST3_FRAME;
+    }
+  }
+  if (bwd_buf_idx >= 0) {
+    this_offset = cm->cur_frame->bwd_frame_offset;
+    if (this_offset > cur_offset &&
+        (right_offset < 0 || this_offset < right_offset)) {
+      right_idx = bwd_buf_idx;
+      right_offset = this_offset;
+      right_chosen = BWDREF_FRAME;
+    } else if (this_offset < cur_offset && this_offset > left_offset) {
+      left_idx = bwd_buf_idx;
+      left_offset = this_offset;
+      left_chosen = BWDREF_FRAME;
+    }
+  }
+#endif
+  *left_offset_ptr = left_offset;
+  *left_chosen_ptr = left_chosen;
+  *left_idx_ptr = left_idx;
+  *right_offset_ptr = right_offset;
+  *right_chosen_ptr = right_chosen;
+  *right_idx_ptr = right_idx;
+}
 /*
  * find the existing initialization motion vectors between any two reference
  * frames

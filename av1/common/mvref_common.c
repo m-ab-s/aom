@@ -1384,27 +1384,39 @@ void av1_setup_frame_buf_refs(AV1_COMMON *cm) {
   if (alt_buf_idx >= 0)
     cm->cur_frame->alt_frame_offset =
         cm->buffer_pool->frame_bufs[alt_buf_idx].cur_frame_offset;
+  else
+    cm->cur_frame->alt_frame_offset = -1;
 
   if (lst_buf_idx >= 0)
     cm->cur_frame->lst_frame_offset =
         cm->buffer_pool->frame_bufs[lst_buf_idx].cur_frame_offset;
+  else
+    cm->cur_frame->lst_frame_offset = -1;
 
   if (gld_buf_idx >= 0)
     cm->cur_frame->gld_frame_offset =
         cm->buffer_pool->frame_bufs[gld_buf_idx].cur_frame_offset;
+  else
+    cm->cur_frame->gld_frame_offset = -1;
 
 #if CONFIG_EXT_REFS
   if (lst2_buf_idx >= 0)
     cm->cur_frame->lst2_frame_offset =
         cm->buffer_pool->frame_bufs[lst2_buf_idx].cur_frame_offset;
+  else
+    cm->cur_frame->lst2_frame_offset = -1;
 
   if (lst3_buf_idx >= 0)
     cm->cur_frame->lst3_frame_offset =
         cm->buffer_pool->frame_bufs[lst3_buf_idx].cur_frame_offset;
+  else
+    cm->cur_frame->lst3_frame_offset = -1;
 
   if (bwd_buf_idx >= 0)
     cm->cur_frame->bwd_frame_offset =
         cm->buffer_pool->frame_bufs[bwd_buf_idx].cur_frame_offset;
+  else
+    cm->cur_frame->bwd_frame_offset = -1;
 #endif
 }
 
