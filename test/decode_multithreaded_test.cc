@@ -134,21 +134,25 @@ class AV1DecodeMultiThreadedTest
 // and multi thread. Ensure that the MD5 of the output in both cases
 // is identical. If so, the test passes.
 TEST_P(AV1DecodeMultiThreadedTest, MD5Match) {
+#if CONFIG_MULTITHREAD
   cfg_.large_scale_tile = 0;
   single_thread_dec_->Control(AV1_SET_TILE_MODE, 0);
   for (int i = 0; i < kNumMultiThreadDecoders; ++i)
     multi_thread_dec_[i]->Control(AV1_SET_TILE_MODE, 0);
   DoTest();
+#endif
 }
 
 class AV1DecodeMultiThreadedTestLarge : public AV1DecodeMultiThreadedTest {};
 
 TEST_P(AV1DecodeMultiThreadedTestLarge, MD5Match) {
+#if CONFIG_MULTITHREAD
   cfg_.large_scale_tile = 0;
   single_thread_dec_->Control(AV1_SET_TILE_MODE, 0);
   for (int i = 0; i < kNumMultiThreadDecoders; ++i)
     multi_thread_dec_[i]->Control(AV1_SET_TILE_MODE, 0);
   DoTest();
+#endif
 }
 
 // TODO(ranjit): More tests have to be added using pre-generated MD5.
@@ -163,12 +167,14 @@ AV1_INSTANTIATE_TEST_CASE(AV1DecodeMultiThreadedTestLarge,
 class AV1DecodeMultiThreadedLSTestLarge
     : public AV1DecodeMultiThreadedTestLarge {};
 
-TEST_P(AV1DecodeMultiThreadedLSTestLarge, DISABLED_MD5Match) {
+TEST_P(AV1DecodeMultiThreadedLSTestLarge, MD5Match) {
+#if CONFIG_MULTITHREAD
   cfg_.large_scale_tile = 1;
   single_thread_dec_->Control(AV1_SET_TILE_MODE, 1);
   for (int i = 0; i < kNumMultiThreadDecoders; ++i)
     multi_thread_dec_[i]->Control(AV1_SET_TILE_MODE, 1);
   DoTest();
+#endif
 }
 
 AV1_INSTANTIATE_TEST_CASE(AV1DecodeMultiThreadedLSTestLarge,

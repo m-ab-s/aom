@@ -18,6 +18,12 @@ if(NOT EMSCRIPTEN)
   endif()
 endif()
 
+if(NOT AOM_TARGET_CPU)
+  set(AOM_TARGET_CPU generic)
+  message("Forcing generic build for normative branch; set AOM_TARGET_CPU to "
+          "the target CPU type to allow for an optimized build.")
+endif()
+
 option(ENABLE_CCACHE "Enable ccache support." OFF)
 option(ENABLE_DECODE_PERF_TESTS "Enables decoder performance tests" OFF)
 option(ENABLE_DISTCC "Enable distcc support." OFF)

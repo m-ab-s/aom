@@ -160,17 +160,21 @@ class AVxEncoderThreadTest
 };
 
 TEST_P(AVxEncoderThreadTest, EncoderResultTest) {
+#if CONFIG_MULTITHREAD
   cfg_.large_scale_tile = 0;
   decoder_->Control(AV1_SET_TILE_MODE, 0);
   DoTest();
+#endif
 }
 
 class AVxEncoderThreadTestLarge : public AVxEncoderThreadTest {};
 
 TEST_P(AVxEncoderThreadTestLarge, EncoderResultTest) {
+#if CONFIG_MULTITHREAD
   cfg_.large_scale_tile = 0;
   decoder_->Control(AV1_SET_TILE_MODE, 0);
   DoTest();
+#endif
 }
 
 // For AV1, only test speed 0 to 3.
