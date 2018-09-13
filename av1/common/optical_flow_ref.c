@@ -1853,14 +1853,15 @@ double iterate_update_mv(OPFL_BUFFER_STRUCT *buf_struct, DB_MV *mf_last,
   YV12_BUFFER_CONFIG *buffer1 = buf_struct->buffer1[usescale ? level : 0];
 
   // TODO(bohan): these buffers can also be moved to the buf_struct
-  int *row_pos = aom_calloc(width * height * 12, sizeof(int));
-  int *col_pos = aom_calloc(width * height * 12, sizeof(int));
-  double *values = aom_calloc(width * height * 12, sizeof(double));
+  int *row_pos = aom_calloc(width * height * 28, sizeof(int));
+  int *col_pos = aom_calloc(width * height * 28, sizeof(int));
+  double *values = aom_calloc(width * height * 28, sizeof(double));
   double *mv_vec = aom_calloc(width * height * 2, sizeof(double));
   double *b = aom_calloc(width * height * 2, sizeof(double));
-  double *last_mv_vec = mv_vec;
+  double *b_temp = aom_calloc(width * height * 2, sizeof(double));
   double *pixel_weight = aom_calloc(width * height, sizeof(double));
   double *mv_weight = aom_calloc(width * height, sizeof(double));
+  double *mv_center_wt = aom_calloc(width * height, sizeof(double));
 
   int imvstr = buf_struct->ref0_buf[0]->y_width;
   imvstr = (imvstr >> level) + 2 * AVG_MF_BORDER;
@@ -1906,18 +1907,7 @@ double iterate_update_mv(OPFL_BUFFER_STRUCT *buf_struct, DB_MV *mf_last,
 
   clock_t starti = clock(), endi;
   // construct and solve A*mv_vec = b
-  SPARSE_MTX A, M, F;
-  for (j = 0; j < width; j++) {
-    for (i = 0; i < height; i++) {
-      last_mv_vec[j * height + i] = mv_start[i * mvstr + j].col;
-    }
-  }
-  for (j = 0; j < width; j++) {
-    for (i = 0; i < height; i++) {
-      last_mv_vec[width * height + j * height + i] =
-          mv_start[i * mvstr + j].row;
-    }
-  }
+  SPARSE_MTX A, L, LtL;
   // check if pointing out of bound
   double boundFactor = 0.01;
   double pixExpFactor = 0.005;
@@ -1958,295 +1948,275 @@ double iterate_update_mv(OPFL_BUFFER_STRUCT *buf_struct, DB_MV *mf_last,
       }
     }
   }
-  // get laplacian filter matrix F; Currently using:
-  //    0,  1, 0
-  //    1, -4, 1
-  //    0,  1, 0
-  // M = [F 0; 0 F].
-  int c = 0;
-  double center, up, low, left, right, before;
+
+  int c;
+  // Build A and b in linear equation Ax = b
+  int offset = height * width;
+  int checki, checkj;
+  double blkbound_wt = 0.0;
+  // the location idx for neighboring pixels, k < 4 are the 4 direct neighbors
+  int check_locs_y[12] = { 0, 0, -1, 1, -1, -1, 1, 1, 0, 0, -2, 2 };
+  int check_locs_x[12] = { -1, 1, 0, 0, -1, 1, -1, 1, -2, 2, 0, 0 };
+  int useModifyLap = numWarpedRounds >= 0;
+  int useThres1 = 1;
+  double wtThres = 0.2;
+
+  // calculate center weight for laplacian (spatial term), and also the b term
+  // part for it
   for (j = 0; j < width; j++) {
     for (i = 0; i < height; i++) {
-      up = 1;
-      low = 1;
-      left = 1;
-      right = 1;
-      if (i == 0) {
-        up = 0;
-      } else {
-        up = mv_weight[(i - 1) * width + j];
-      }
-      if (i == height - 1) {
-        low = 0;
-      } else {
-        low = mv_weight[(i + 1) * width + j];
-      }
-      if (j == 0) {
-        left = 0;
-      } else {
-        left = mv_weight[i * width + j - 1];
-      }
-      if (j == width - 1) {
-        right = 0;
-      } else {
-        right = mv_weight[i * width + j + 1];
+      int curidx = j * height + i;
+      b_temp[curidx] = 0;
+      b_temp[curidx + offset] = 0;
+      mv_center_wt[i * width + j] = 0;
+      for (int k = 0; k < 4; k++) {
+        checki = i + check_locs_y[k];
+        checkj = j + check_locs_x[k];
+        if (checki < 0 || checki >= height || checkj < 0 || checkj >= width) {
+          // if at block bound, but not frame bound, use init mv with
+          // blkbound_wt
+          if (checki + sh >= 0 && checki + sh < fheight && checkj + sw >= 0 &&
+              checkj + sw < fwidth) {
+            mv_center_wt[i * width + j] += blkbound_wt;
+            b_temp[curidx] +=
+                blkbound_wt * initmv[(checki)*imvstr + checkj].col;
+            b_temp[curidx + offset] +=
+                blkbound_wt * initmv[(checki)*imvstr + checkj].row;
+          }
+        } else {
+          double cur_wt = mv_weight[checki * width + checkj];
+          if (cur_wt > mv_weight[i * width + j] && useModifyLap) cur_wt = 1;
+          if (cur_wt > wtThres && useThres1) cur_wt = 1;
+          mv_center_wt[i * width + j] += cur_wt;
+        }
       }
 #if OPFL_INIT_WT
-      before = init_wts[i * imvstr + j];
-      center = up + low + left + right + before;
-#else
-      center = up + low + left + right;
+      mv_center_wt[i * width + j] += init_wts[(i)*imvstr + j];
+      b_temp[curidx] += init_wts[(i)*imvstr + j] * initmv[(i)*imvstr + j].col;
+      b_temp[curidx + offset] +=
+          init_wts[(i)*imvstr + j] * initmv[(i)*imvstr + j].row;
 #endif
-      // normalize
-      up = (up / center) * 4;
-      low = (low / center) * 4;
-      left = (left / center) * 4;
-      right = (right / center) * 4;
-      center = -4;
-      // up
-      if (i != 0) {
-        row_pos[c] = j * height + i;
-        col_pos[c] = j * height + i - 1;
-        values[c] = up;
-        c++;
-      }
-      // left
-      if (j != 0) {
-        row_pos[c] = j * height + i;
-        col_pos[c] = (j - 1) * height + i;
-        values[c] = left;
-        c++;
-      }
-      // center
-      row_pos[c] = j * height + i;
-      col_pos[c] = j * height + i;
-      values[c] = center;
-      c++;
-      // right
-      if (j != width - 1) {
-        row_pos[c] = j * height + i;
-        col_pos[c] = (j + 1) * height + i;
-        values[c] = right;
-        c++;
-      }
-      // low
-      if (i != height - 1) {
-        row_pos[c] = j * height + i;
-        col_pos[c] = j * height + i + 1;
-        values[c] = low;
-        c++;
-      }
+      mv_center_wt[i * width + j] *= -1;
     }
   }
-
-  init_sparse_mtx(row_pos, col_pos, values, c, height * width, height * width,
-                  &F);
-  init_combine_sparse_mtx(&F, &F, &M, 0, 0, height * width, height * width,
-                          2 * height * width, 2 * height * width);
-  constant_multiply_sparse_matrix(&M, a_squared);
-  // get b
-  mtx_vect_multi_right(&M, last_mv_vec, b, 2 * height * width);
-
-  // construct A and modify b
-  int offset = height * width;
+  // get Laplacian filter matrix L
   c = 0;
   for (j = 0; j < width; j++) {
     for (i = 0; i < height; i++) {
-      up = 1;
-      low = 1;
-      left = 1;
-      right = 1;
-      if (i == 0) {
-        up = 0;
-      } else {
-        up = mv_weight[(i - 1) * width + j];
-      }
-      if (i == height - 1) {
-        low = 0;
-      } else {
-        low = mv_weight[(i + 1) * width + j];
-      }
-      if (j == 0) {
-        left = 0;
-      } else {
-        left = mv_weight[i * width + j - 1];
-      }
-      if (j == width - 1) {
-        right = 0;
-      } else {
-        right = mv_weight[i * width + j + 1];
-      }
-#if OPFL_INIT_WT
-      before = init_wts[i * imvstr + j];
-      center = up + low + left + right + before;
-#else
-      center = up + low + left + right;
-#endif
-      // normalize
-      up = (up / center) * 4;
-      low = (low / center) * 4;
-      left = (left / center) * 4;
-      right = (right / center) * 4;
-#if OPFL_INIT_WT
-      // add the init mv factor to b
-      before = (before / center) * 4;
-      b[j * height + i] += a_squared * before * initmv[i * imvstr + j].col;
-      b[j * height + i + offset] +=
-          a_squared * before * initmv[i * imvstr + j].row;
-#endif
-      center = -4;
-
-      if (i != 0) {
-        row_pos[c] = j * height + i;
-        col_pos[c] = j * height + i - 1;
-        values[c] = -a_squared * up;
-        c++;
-      }
-
-      if (j != 0) {
-        row_pos[c] = j * height + i;
-        col_pos[c] = (j - 1) * height + i;
-        values[c] = -a_squared * left;
-        c++;
-      }
-
-      row_pos[c] = j * height + i;
-      col_pos[c] = j * height + i;
-      // if point out of frame, then derivatives not reliable, do not use
-      values[c] =
-          pixel_weight[i * width + j] * Ex[i * width + j] * Ex[i * width + j] -
-          a_squared * center;
+      int curidx = j * height + i;
+      // center
+      row_pos[c] = curidx;
+      col_pos[c] = curidx;
+      values[c] = mv_center_wt[i * width + j];
       c++;
-
-      if (j != width - 1) {
-        row_pos[c] = j * height + i;
-        col_pos[c] = (j + 1) * height + i;
-        values[c] = -a_squared * right;
-        c++;
-      }
-
-      if (i != height - 1) {
-        row_pos[c] = j * height + i;
-        col_pos[c] = j * height + i + 1;
-        values[c] = -a_squared * low;
-        c++;
-      }
-    }
-  }
-  for (j = 0; j < width; j++) {
-    for (i = 0; i < height; i++) {
-      up = 1;
-      low = 1;
-      left = 1;
-      right = 1;
-      if (i == 0) {
-        up = 0;
-      } else {
-        up = mv_weight[(i - 1) * width + j];
-      }
-      if (i == height - 1) {
-        low = 0;
-      } else {
-        low = mv_weight[(i + 1) * width + j];
-      }
-      if (j == 0) {
-        left = 0;
-      } else {
-        left = mv_weight[i * width + j - 1];
-      }
-      if (j == width - 1) {
-        right = 0;
-      } else {
-        right = mv_weight[i * width + j + 1];
-      }
-#if OPFL_INIT_WT
-      before = init_wts[i * imvstr + j];
-      center = up + low + left + right + before;
-#else
-      center = up + low + left + right;
-#endif
-      // normalize
-      up = (up / center) * 4;
-      low = (low / center) * 4;
-      left = (left / center) * 4;
-      right = (right / center) * 4;
-      center = -4;
-
-      if (i != 0) {
-        row_pos[c] = offset + j * height + i;
-        col_pos[c] = offset + j * height + i - 1;
-        values[c] = -a_squared * up;
-        c++;
-      }
-
-      if (j != 0) {
-        row_pos[c] = offset + j * height + i;
-        col_pos[c] = offset + (j - 1) * height + i;
-        values[c] = -a_squared * left;
-        c++;
-      }
-
-      row_pos[c] = offset + j * height + i;
-      col_pos[c] = offset + j * height + i;
-      values[c] =
-          pixel_weight[i * width + j] * Ey[i * width + j] * Ey[i * width + j] -
-          a_squared * center;
+      row_pos[c] = curidx + offset;
+      col_pos[c] = curidx + offset;
+      values[c] = mv_center_wt[i * width + j];
       c++;
+      // 4 direct neighbors
+      for (int k = 0; k < 4; k++) {
+        double cur_wt;
+        checki = i + check_locs_y[k];
+        checkj = j + check_locs_x[k];
+        if (checki < 0 || checki >= height || checkj < 0 || checkj >= width)
+          continue;
 
-      if (j != width - 1) {
-        row_pos[c] = offset + j * height + i;
-        col_pos[c] = offset + (j + 1) * height + i;
-        values[c] = -a_squared * right;
+        cur_wt = mv_weight[checki * width + checkj];
+        if (cur_wt > mv_weight[i * width + j] && useModifyLap) cur_wt = 1;
+        if (cur_wt > wtThres && useThres1) cur_wt = 1;
+
+        int nextidx = checkj * height + checki;
+        row_pos[c] = curidx;
+        col_pos[c] = nextidx;
+        values[c] = cur_wt;
+        c++;
+        row_pos[c] = curidx + offset;
+        col_pos[c] = nextidx + offset;
+        values[c] = cur_wt;
         c++;
       }
-
-      if (i != height - 1) {
-        row_pos[c] = offset + j * height + i;
-        col_pos[c] = offset + j * height + i + 1;
-        values[c] = -a_squared * low;
-        c++;
-      }
-    }
-  }
-
-  for (j = 0; j < width; j++) {
-    for (i = 0; i < height; i++) {
-      row_pos[c] = offset + j * height + i;
-      col_pos[c] = j * height + i;
-
-      values[c] =
-          pixel_weight[i * width + j] * Ex[i * width + j] * Ey[i * width + j];
-      c++;
-    }
-  }
-  for (j = 0; j < width; j++) {
-    for (i = 0; i < height; i++) {
-      row_pos[c] = j * height + i;
-      col_pos[c] = offset + j * height + i;
-
-      values[c] =
-          pixel_weight[i * width + j] * Ex[i * width + j] * Ey[i * width + j];
-      c++;
     }
   }
   init_sparse_mtx(row_pos, col_pos, values, c, 2 * width * height,
-                  2 * width * height, &A);
-
-  // adjust b
+                  2 * width * height, &L);
+  // get part of b from init_mv and boundary
+  mtx_vect_multi_left(&L, b_temp, b, 2 * width * height);
+  free_sparse_mtx_elems(&L);
+  // build LtL and vectorize mv_last
+  c = 0;
+  // use the mv_vec buffer temporarily
+  double *mv_last_vec = mv_vec;
   for (j = 0; j < width; j++) {
     for (i = 0; i < height; i++) {
-      b[j * height + i] = b[j * height + i] - pixel_weight[i * width + j] *
-                                                  Et[i * width + j] *
-                                                  Ex[i * width + j];
-      b[j * height + i + height * width] =
-          b[j * height + i + height * width] -
-          pixel_weight[i * width + j] * Et[i * width + j] * Ey[i * width + j];
+      int curidx = j * height + i;
+      double center_wt =
+          mv_center_wt[i * width + j] * mv_center_wt[i * width + j];
+      mv_last_vec[curidx] = mv_start[i * mvstr + j].col;
+      mv_last_vec[curidx + offset] = mv_start[i * mvstr + j].row;
+      // 4 direct neighbors
+      for (int k = 0; k < 4; k++) {
+        double cur_wt, reverse_wt;
+        checki = i + check_locs_y[k];
+        checkj = j + check_locs_x[k];
+        if (checki < 0 || checki >= height || checkj < 0 || checkj >= width)
+          continue;
+
+        cur_wt = mv_weight[checki * width + checkj];
+        if (cur_wt > mv_weight[i * width + j] && useModifyLap) cur_wt = 1;
+        if (cur_wt > wtThres && useThres1) cur_wt = 1;
+
+        reverse_wt = mv_weight[i * width + j];
+        if (reverse_wt > mv_weight[checki * width + checkj] && useModifyLap)
+          reverse_wt = 1;
+        if (reverse_wt > wtThres && useThres1) reverse_wt = 1;
+
+        int nextidx = checkj * height + checki;
+        row_pos[c] = curidx;
+        col_pos[c] = nextidx;
+        values[c] = cur_wt * mv_center_wt[i * width + j] +
+                    reverse_wt * mv_center_wt[checki * width + checkj];
+        c++;
+        row_pos[c] = curidx + offset;
+        col_pos[c] = nextidx + offset;
+        values[c] = cur_wt * mv_center_wt[i * width + j] +
+                    reverse_wt * mv_center_wt[checki * width + checkj];
+        c++;
+        center_wt += reverse_wt * reverse_wt;
+      }
+      // center
+      row_pos[c] = curidx;
+      col_pos[c] = curidx;
+      values[c] = center_wt;
+      c++;
+      row_pos[c] = curidx + offset;
+      col_pos[c] = curidx + offset;
+      values[c] = center_wt;
+      c++;
+      // diag corners
+      for (int k = 4; k < 8; k++) {
+        checki = i + check_locs_y[k];
+        checkj = j + check_locs_x[k];
+        if (checki < 0 || checki >= height || checkj < 0 || checkj >= width)
+          continue;
+
+        double cur_wt1 = mv_weight[checki * width + checkj],
+               cur_wt2 = mv_weight[checki * width + checkj],
+               reverse_wt1 = mv_weight[i * width + j],
+               reverse_wt2 = mv_weight[i * width + j];
+
+        if (cur_wt1 > mv_weight[i * width + checkj] && useModifyLap)
+          cur_wt1 = 1;
+        if (cur_wt1 > wtThres && useThres1) cur_wt1 = 1;
+        if (reverse_wt1 > mv_weight[i * width + checkj] && useModifyLap)
+          reverse_wt1 = 1;
+        if (reverse_wt1 > wtThres && useThres1) reverse_wt1 = 1;
+        if (cur_wt2 > mv_weight[checki * width + j] && useModifyLap)
+          cur_wt2 = 1;
+        if (cur_wt2 > wtThres && useThres1) cur_wt2 = 1;
+        if (reverse_wt2 > mv_weight[checki * width + j] && useModifyLap)
+          reverse_wt2 = 1;
+        if (reverse_wt2 > wtThres && useThres1) reverse_wt2 = 1;
+
+        int nextidx = checkj * height + checki;
+        row_pos[c] = curidx;
+        col_pos[c] = nextidx;
+        values[c] = cur_wt1 * reverse_wt1 + cur_wt2 * reverse_wt2;
+        c++;
+        row_pos[c] = curidx + offset;
+        col_pos[c] = nextidx + offset;
+        values[c] = cur_wt1 * reverse_wt1 + cur_wt2 * reverse_wt2;
+        c++;
+      }
+      // 4 direction with dist of 2
+      for (int k = 8; k < 12; k++) {
+        checki = i + check_locs_y[k];
+        checkj = j + check_locs_x[k];
+        int midi = i + check_locs_y[k] / 2;
+        int midj = j + check_locs_x[k] / 2;
+        if (checki < 0 || checki >= height || checkj < 0 || checkj >= width)
+          continue;
+
+        double cur_wt = mv_weight[checki * width + checkj],
+               reverse_wt = mv_weight[i * width + j];
+
+        if (cur_wt > mv_weight[midi * width + midj] && useModifyLap) cur_wt = 1;
+        if (cur_wt > wtThres && useThres1) cur_wt = 1;
+        if (reverse_wt > mv_weight[midi * width + midj] && useModifyLap)
+          reverse_wt = 1;
+        if (reverse_wt > wtThres && useThres1) reverse_wt = 1;
+
+        int nextidx = checkj * height + checki;
+        row_pos[c] = curidx;
+        col_pos[c] = nextidx;
+        values[c] = cur_wt * reverse_wt;
+        c++;
+        row_pos[c] = curidx + offset;
+        col_pos[c] = nextidx + offset;
+        values[c] = cur_wt * reverse_wt;
+        c++;
+      }
     }
   }
+  init_sparse_mtx(row_pos, col_pos, values, c, 2 * width * height,
+                  2 * width * height, &LtL);
+  // get part of b from last iteration
+  mtx_vect_multi_right(&LtL, mv_last_vec, b_temp, 2 * width * height);
+  free_sparse_mtx_elems(&LtL);
+
+  // build the final A on top of LtL
+  // modify diagonal elements
+  for (int k = 0; k < c; k++) {
+    values[k] *= a_squared;
+    if (row_pos[k] != col_pos[k]) continue;
+    int curidx = row_pos[k];
+    if (curidx < offset) {
+      i = curidx % height;
+      j = curidx / height;
+      values[k] +=
+          pixel_weight[i * width + j] * Ex[i * width + j] * Ex[i * width + j] +
+          0.00001;
+    } else {
+      curidx -= offset;
+      i = curidx % height;
+      j = curidx / height;
+      values[k] +=
+          pixel_weight[i * width + j] * Ey[i * width + j] * Ey[i * width + j] +
+          0.00001;
+    }
+  }
+  // add cross terms to A and modify b with ExEt / EyEt
+  for (j = 0; j < width; j++) {
+    for (i = 0; i < height; i++) {
+      int curidx = j * height + i;
+      // modify b
+      b[curidx] = -a_squared * (b[curidx] + b_temp[curidx]);
+      b[curidx] -=
+          pixel_weight[i * width + j] * Ex[i * width + j] * Et[i * width + j];
+      b[curidx + offset] =
+          -a_squared * (b[curidx + offset] + b_temp[curidx + offset]);
+      b[curidx + offset] -=
+          pixel_weight[i * width + j] * Ey[i * width + j] * Et[i * width + j];
+      // add cross terms to A
+      row_pos[c] = curidx;
+      col_pos[c] = curidx + offset;
+      values[c] =
+          pixel_weight[i * width + j] * Ex[i * width + j] * Ey[i * width + j];
+      c++;
+      row_pos[c] = curidx + offset;
+      col_pos[c] = curidx;
+      values[c] =
+          pixel_weight[i * width + j] * Ex[i * width + j] * Ey[i * width + j];
+      c++;
+    }
+  }
+  // construct sparse mtx A
+  init_sparse_mtx(row_pos, col_pos, values, c, 2 * width * height,
+                  2 * width * height, &A);
   endi = clock();
   timeinit += (double)(endi - starti) / CLOCKS_PER_SEC;
 
   starts = clock();
+  // solve Ax = b
   conjugate_gradient_sparse(&A, b, 2 * width * height, mv_vec);
   ends = clock();
   timesolve += (double)(ends - starts) / CLOCKS_PER_SEC;
@@ -2272,12 +2242,12 @@ double iterate_update_mv(OPFL_BUFFER_STRUCT *buf_struct, DB_MV *mf_last,
   aom_free(col_pos);
   aom_free(values);
   free_sparse_mtx_elems(&A);
-  free_sparse_mtx_elems(&F);
-  free_sparse_mtx_elems(&M);
   aom_free(mv_vec);
   aom_free(b);
+  aom_free(b_temp);
   aom_free(pixel_weight);
   aom_free(mv_weight);
+  aom_free(mv_center_wt);
 
   cost = sqrt(cost);  // 2 norm
   return cost;
