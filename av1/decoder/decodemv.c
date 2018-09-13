@@ -2093,7 +2093,9 @@ static INLINE int assign_mv(AV1_COMMON *cm, MACROBLOCKD *xd,
       break;
     }
 #endif  // CONFIG_EXT_INTER
-    default: { return 0; }
+    default: {
+      return 0;
+    }
   }
   return ret;
 }
@@ -2248,7 +2250,7 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
   mbmi->ref_frame[1] = NONE_FRAME;
   if (cm->opfl_available) {
     int opfl_ctx = get_opfl_ctx(cm, xd);
-    if (aom_read(r, ec_ctx->opfl_prob[opfl_ctx], ACCR)) {
+    if (aom_read(r, ec_ctx->opfl_prob[opfl_ctx], ACCT_STR)) {
       mbmi->ref_frame[0] = OPFL_FRAME;
       if (xd->counts) ++xd->counts->opfl_count[opfl_ctx][1];
     } else {
@@ -2989,23 +2991,12 @@ void av1_dec_calc_opfl_ref(AV1Decoder *const pbi, MACROBLOCKD *xd, int mi_row,
 
   if (!frame_is_intra_only(cm)) {
     if (mi->mbmi.ref_frame[0] == OPFL_FRAME) {
-      // if(0) {
-      int startblkh = (mi_row << 2);
-      int startblkw = (mi_col << 2);
-      int endblkh, endblkw;
-      double mvr = mi->mbmi.mv[0].as_mv.row;
-      double mvc = mi->mbmi.mv[0].as_mv.col;
-      mvr = mvr / 8;
-      mvc = mvc / 8;
       int blkwidth = (x_mis << 2);
       int blkheight = (y_mis << 2);
-
-      OPFL_BLK_INFO blk_info;
-      endblkh = startblkh + (int)floor(mvr) + 8 + blkheight;
-      endblkw = startblkw + (int)floor(mvc) + 8 + blkwidth;
-      startblkh = startblkh + (int)floor(mvr) - 8;
-      startblkw = startblkw + (int)floor(mvc) - 8;
-
+      int startblkh = (mi_row << 2);
+      int startblkw = (mi_col << 2);
+      int endblkh = startblkh + blkheight;
+      int endblkw = startblkw + blkwidth;
 #if CONFIG_CHROMA_SUB8X8
       if (bsize < BLOCK_8X8) {
         // Offset the buffer pointer
@@ -3017,6 +3008,17 @@ void av1_dec_calc_opfl_ref(AV1Decoder *const pbi, MACROBLOCKD *xd, int mi_row,
         }
       }
 #endif
+
+      double mvr = mi->mbmi.mv[0].as_mv.row;
+      double mvc = mi->mbmi.mv[0].as_mv.col;
+      mvr = mvr / 8;
+      mvc = mvc / 8;
+
+      OPFL_BLK_INFO blk_info;
+      endblkh += opfl_ceil_double_2_int(mvr);
+      endblkw += opfl_ceil_double_2_int(mvc);
+      startblkh += opfl_floor_double_2_int(mvr);
+      startblkw += opfl_floor_double_2_int(mvc);
 
       int width = cm->opfl_ref_frame->y_width;
       int height = cm->opfl_ref_frame->y_height;
@@ -3030,12 +3032,26 @@ void av1_dec_calc_opfl_ref(AV1Decoder *const pbi, MACROBLOCKD *xd, int mi_row,
 #endif
       int wblk = (width + blkwidth - 1) / blkwidth;
 
+      // extend more for the subpixel interpolation
+      startblkh -= 8;
+      startblkw -= 8;
+      endblkh += 8;
+      endblkw += 8;
+
+      if (startblkh < 0) startblkh = 0;
+      if (startblkw < 0) startblkw = 0;
+      if (startblkh > height - 1) startblkh = height - 1;
+      if (startblkw > width - 1) startblkw = width - 1;
+      if (endblkh < 0) endblkh = 0;
+      if (endblkw < 0) endblkw = 0;
+      if (endblkh > height) endblkh = height;
+      if (endblkw > width) endblkw = width;
+
       startblkh = (startblkh / blkheight) * blkheight;
       endblkh = ((endblkh + blkheight - 1) / blkheight) * blkheight;
       startblkw = (startblkw / blkwidth) * blkwidth;
       endblkw = ((endblkw + blkwidth - 1) / blkwidth) * blkwidth;
-      if (startblkh < 0) startblkh = 0;
-      if (startblkw < 0) startblkw = 0;
+
       if (endblkw <= startblkw) endblkw = startblkw + blkwidth;
       if (endblkh <= startblkh) endblkh = startblkh + blkheight;
 
@@ -3102,28 +3118,28 @@ void av1_update_opfl_info(AV1Decoder *const pbi, MACROBLOCKD *xd, int mi_row,
       int y_width = cm->opfl_buf_struct_ptr->ref0_buf[0]->y_width;
       int y_height = cm->opfl_buf_struct_ptr->ref0_buf[0]->y_height;
       double dstpos = cm->opfl_buf_struct_ptr->dst_pos;
-      int mf_stride = y_width + 2 * AVG_MF_BORDER;
+      int mf_stride = cm->opfl_buf_struct_ptr->mf_frame_stride;
 
-      DB_MV *opfl_mv = cm->opfl_buf_struct_ptr->mf_med[0] +
-                       AVG_MF_BORDER * mf_stride + AVG_MF_BORDER +
+      DB_MV *opfl_mv = cm->opfl_buf_struct_ptr->mf_frame_start +
                        mi_row * 4 * mf_stride + mi_col * 4;
       DB_MV *cur_opfl_mv;
       double avg_r = 0, avg_c = 0;
+
       for (h = 0; h < y_mis; ++h) {
         MV_REF *const frame_mv = frame_mvs + h * cm->mi_cols;
         for (w = 0; w < x_mis; ++w) {
           row_offset = row_offset_raw;
           col_offset = col_offset_raw;
 
-          if (row_offset + y_mis * 4 + mi_row * 4 > y_height)
-            row_offset = y_height - y_mis * 4 - mi_row * 4;
-          else if (row_offset + mi_row * 4 < 0)
-            row_offset = -mi_row * 4;
+          if (row_offset + h * 4 + mi_row * 4 + 4 > y_height)
+            row_offset = y_height - h * 4 - mi_row * 4 - 4;
+          else if (row_offset + h * 4 + mi_row * 4 < 0)
+            row_offset = -mi_row * 4 - h * 4;
 
-          if (col_offset + x_mis * 4 + mi_col * 4 > y_width)
-            col_offset = y_width - x_mis * 4 - mi_col * 4;
-          else if (col_offset + mi_col * 4 < 0)
-            col_offset = -mi_col * 4;
+          if (col_offset + w * 4 + mi_col * 4 + 4 > y_width)
+            col_offset = y_width - w * 4 - mi_col * 4 - 4;
+          else if (col_offset + w * 4 + mi_col * 4 < 0)
+            col_offset = -mi_col * 4 - w * 4;
 
           avg_r = 0;
           avg_c = 0;

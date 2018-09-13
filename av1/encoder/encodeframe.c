@@ -701,10 +701,9 @@ static void update_state(const AV1_COMP *const cpi, ThreadData *td,
     int y_width = cm->opfl_buf_struct_ptr->ref0_buf[0]->y_width;
     int y_height = cm->opfl_buf_struct_ptr->ref0_buf[0]->y_height;
     double dstpos = cm->opfl_buf_struct_ptr->dst_pos;
-    int mf_stride = y_width + 2 * AVG_MF_BORDER;
+    int mf_stride = cm->opfl_buf_struct_ptr->mf_frame_stride;
 
-    DB_MV *opfl_mv = cm->opfl_buf_struct_ptr->mf_med[0] +
-                     AVG_MF_BORDER * mf_stride + AVG_MF_BORDER +
+    DB_MV *opfl_mv = cm->opfl_buf_struct_ptr->mf_frame_start +
                      mi_row * 4 * mf_stride + mi_col * 4;
     DB_MV *cur_opfl_mv;
     double avg_r = 0, avg_c = 0;
@@ -714,15 +713,15 @@ static void update_state(const AV1_COMP *const cpi, ThreadData *td,
         row_offset = row_offset_raw;
         col_offset = col_offset_raw;
 
-        if (row_offset + y_mis * 4 + mi_row * 4 > y_height)
-          row_offset = y_height - y_mis * 4 - mi_row * 4;
-        else if (row_offset + mi_row * 4 < 0)
-          row_offset = -mi_row * 4;
+        if (row_offset + h * 4 + mi_row * 4 + 4 > y_height)
+          row_offset = y_height - h * 4 - mi_row * 4 - 4;
+        else if (row_offset + h * 4 + mi_row * 4 < 0)
+          row_offset = -mi_row * 4 - h * 4;
 
-        if (col_offset + x_mis * 4 + mi_col * 4 > y_width)
-          col_offset = y_width - x_mis * 4 - mi_col * 4;
-        else if (col_offset + mi_col * 4 < 0)
-          col_offset = -mi_col * 4;
+        if (col_offset + w * 4 + mi_col * 4 + 4 > y_width)
+          col_offset = y_width - w * 4 - mi_col * 4 - 4;
+        else if (col_offset + w * 4 + mi_col * 4 < 0)
+          col_offset = -mi_col * 4 - w * 4;
 
         avg_r = 0;
         avg_c = 0;

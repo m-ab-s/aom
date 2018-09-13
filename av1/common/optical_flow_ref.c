@@ -429,12 +429,15 @@ void av1_optical_flow_get_ref(OPFL_BUFFER_STRUCT *buf_struct,
   int l = MAX_OPFL_LEVEL - 1;
   wid = width >> l;
   hgt = height >> l;
+  // the mv stride for init mv is based on the frame buffer width
   int imvstr = buf_struct->ref0_buf[0]->y_width;
   imvstr = (imvstr >> l) + 2 * AVG_MF_BORDER;
   sh = start_h >> l;
   sw = start_w >> l;
+  // mv stride here is based on block width at each level
   int str = wid + 2 * AVG_MF_BORDER;
 
+  // initialize with init mvs
   for (int i = 0; i < hgt; i++) {
     for (int j = 0; j < wid; j++) {
       mf_last[l][(i + AVG_MF_BORDER) * str + j + AVG_MF_BORDER] =
@@ -546,6 +549,20 @@ void av1_optical_flow_get_ref(OPFL_BUFFER_STRUCT *buf_struct,
                     bottomb / 2, rightb / 2);
   extend_plane_opfl(vdst, fstruv, fwidth / 2, fheight / 2, topb / 2, leftb / 2,
                     bottomb / 2, rightb / 2);
+
+  // copy the final motion field to the frame level motion field buffer
+  int mvstr = width + 2 * AVG_MF_BORDER;
+  DB_MV *mf_start_med = mf_med[0] + AVG_MF_BORDER * mvstr + AVG_MF_BORDER;
+  int f_mvstr = buf_struct->mf_frame_stride;
+  DB_MV *mf_frame_start = buf_struct->mf_frame_start;
+  for (int i = 0; i < height; i++) {
+    for (int j = 0; j < width; j++) {
+      mf_frame_start[(i + start_h) * f_mvstr + j + start_w] =
+          mf_start_med[i * mvstr + j];
+    }
+  }
+  // if at frame boundary, extend the mf buffer
+  opfl_extend_frame_mf(buf_struct, blk_info);
   return;
 }
 
@@ -615,6 +632,15 @@ void av1_opfl_alloc_buf(AV1_COMMON *cm, OPFL_BUFFER_STRUCT *buf_struct) {
         (wid + 2 * AVG_MF_BORDER) * (hgt + 2 * AVG_MF_BORDER), sizeof(double));
 #endif
   }
+
+  // allocate frame level motion buffer
+  buf_struct->mf_frame = aom_calloc(
+      (width + 2 * OPFL_MF_FRAME_BORDER) * (height + 2 * OPFL_MF_FRAME_BORDER),
+      sizeof(DB_MV));
+  buf_struct->mf_frame_stride = width + 2 * OPFL_MF_FRAME_BORDER;
+  buf_struct->mf_frame_start =
+      buf_struct->mf_frame +
+      OPFL_MF_FRAME_BORDER * buf_struct->mf_frame_stride + OPFL_MF_FRAME_BORDER;
 
   // allocate motion field buffer for each pyramid level
   int blkwid, blkhgt;
@@ -703,6 +729,8 @@ void av1_opfl_free_buf(OPFL_BUFFER_STRUCT *buf_struct) {
     aom_free(buf_struct->init_mv_wts[l]);
 #endif
   }
+  aom_free(buf_struct->mf_frame);
+  buf_struct->mf_frame_start = NULL;
   aom_free(buf_struct->Ex);
   aom_free(buf_struct->Ey);
   aom_free(buf_struct->Et);
@@ -1903,14 +1931,14 @@ double iterate_update_mv(OPFL_BUFFER_STRUCT *buf_struct, DB_MV *mf_last,
   double i0, i1, j0, j1;
   for (i = 0; i < height; i++) {
     for (j = 0; j < width; j++) {
-      i0 = (double)(i + starth) -
-           (1 - buf_struct->dst_pos) * mv_start[i * mvstr + j].row;
-      i1 = (double)(i + starth) +
+      i0 = (double)(i + sh) -
            (buf_struct->dst_pos) * mv_start[i * mvstr + j].row;
-      j0 = (double)(j + startw) -
-           (1 - buf_struct->dst_pos) * mv_start[i * mvstr + j].col;
-      j1 = (double)(j + startw) +
+      i1 = (double)(i + sh) +
+           (1 - buf_struct->dst_pos) * mv_start[i * mvstr + j].row;
+      j0 = (double)(j + sw) -
            (buf_struct->dst_pos) * mv_start[i * mvstr + j].col;
+      j1 = (double)(j + sw) +
+           (1 - buf_struct->dst_pos) * mv_start[i * mvstr + j].col;
       int is_out = (i0 < 0 || i0 > fheight - 1 || i1 < 0 || i1 > fheight - 1 ||
                     j0 < 0 || j0 > fwidth - 1 || j1 < 0 || j1 > fwidth - 1);
       if (is_out) {
@@ -3013,7 +3041,8 @@ void warp_optical_flow(YV12_BUFFER_CONFIG *src0, YV12_BUFFER_CONFIG *src1,
                        OPFL_BLK_INFO blk_info) {
   if (method == OPFL_DIFF_SELECT) {
     // warp_optical_flow_diff_select(src0, src1, mf_start, mvstr, dst, dstpos);
-    warp_optical_flow_bilateral(src0, src1, mf_start, mvstr, dst, dstpos);
+    warp_optical_flow_bilateral(src0, src1, mf_start, mvstr, dst, dstpos,
+                                blk_info);
     return;
   }
   int fwidth = dst->y_width, fheight = dst->y_height;
@@ -3090,10 +3119,54 @@ void warp_optical_flow(YV12_BUFFER_CONFIG *src0, YV12_BUFFER_CONFIG *src1,
 
       // calculate subpel Y refs
       if (use0) {
+        if (i0 + starth < 0) {
+          i0 = -starth;
+          di0 = 0;
+          ii0 = i0;
+          di0uv = 0;
+        } else if (i0 + starth > fheight - 1) {
+          i0 = fheight - 1 - starth;
+          di0 = 0;
+          ii0 = i0;
+          di0uv = 0;
+        }
+        if (j0 + startw < 0) {
+          j0 = -startw;
+          dj0 = 0;
+          jj0 = j0;
+          dj0uv = 0;
+        } else if (j0 + startw > fwidth - 1) {
+          j0 = fwidth - 1 - startw;
+          dj0 = 0;
+          jj0 = j0;
+          dj0uv = 0;
+        }
         dstpel_y0 =
             (double)get_sub_pel_y(src0y + i0 * stride + j0, stride, di0, dj0);
       }
       if (use1) {
+        if (i1 + starth < 0) {
+          i1 = -starth;
+          di1 = 0;
+          ii1 = i1;
+          di1uv = 0;
+        } else if (i1 + starth > fheight - 1) {
+          i1 = fheight - 1 - starth;
+          di1 = 0;
+          ii1 = i1;
+          di1uv = 0;
+        }
+        if (j1 + startw < 0) {
+          j1 = -startw;
+          dj1 = 0;
+          jj1 = j1;
+          dj1uv = 0;
+        } else if (j1 + startw > fwidth - 1) {
+          j1 = fwidth - 1 - startw;
+          dj1 = 0;
+          jj1 = j1;
+          dj1uv = 0;
+        }
         dstpel_y1 =
             (double)get_sub_pel_y(src1y + i1 * stride + j1, stride, di1, dj1);
       }
@@ -3452,21 +3525,26 @@ void warp_optical_flow_diff_select(YV12_BUFFER_CONFIG *src0,
 void warp_optical_flow_bilateral(YV12_BUFFER_CONFIG *src0,
                                  YV12_BUFFER_CONFIG *src1, DB_MV *mf_start,
                                  int mvstr, YV12_BUFFER_CONFIG *dst,
-                                 double dstpos) {
-  int width = src0->y_width;
-  int height = src0->y_height;
+                                 double dstpos, OPFL_BLK_INFO blk_info) {
+  int fwidth = dst->y_width, fheight = dst->y_height;
+  int width = blk_info.blk_width;
+  int height = blk_info.blk_height;
+  int starth = blk_info.starth;
+  int startw = blk_info.startw;
+  int starthuv = starth >> 1;
+  int startwuv = startw >> 1;
   int stride = src0->y_stride;
   int uvstride = src0->uv_stride;
 
-  uint8_t *src0y = src0->y_buffer;
-  uint8_t *src1y = src1->y_buffer;
-  uint8_t *dsty = dst->y_buffer;
-  uint8_t *src0u = src0->u_buffer;
-  uint8_t *src0v = src0->v_buffer;
-  uint8_t *src1u = src1->u_buffer;
-  uint8_t *src1v = src1->v_buffer;
-  uint8_t *dstu = dst->u_buffer;
-  uint8_t *dstv = dst->v_buffer;
+  uint8_t *src0y = src0->y_buffer + starth * stride + startw;
+  uint8_t *src1y = src1->y_buffer + starth * stride + startw;
+  uint8_t *dsty = dst->y_buffer + starth * stride + startw;
+  uint8_t *src0u = src0->u_buffer + starthuv * uvstride + startwuv;
+  uint8_t *src0v = src0->v_buffer + starthuv * uvstride + startwuv;
+  uint8_t *src1u = src1->u_buffer + starthuv * uvstride + startwuv;
+  uint8_t *src1v = src1->v_buffer + starthuv * uvstride + startwuv;
+  uint8_t *dstu = dst->u_buffer + starthuv * uvstride + startwuv;
+  uint8_t *dstv = dst->v_buffer + starthuv * uvstride + startwuv;
 
   double ii0, jj0, di0, dj0, di0uv, dj0uv;
   double ii1, jj1, di1, dj1, di1uv, dj1uv;
@@ -3497,6 +3575,24 @@ void warp_optical_flow_bilateral(YV12_BUFFER_CONFIG *src0,
       jj0 = j - mf_start[i * mvstr + j].col * dstpos;
       ii1 = i + mf_start[i * mvstr + j].row * (1 - dstpos);
       jj1 = j + mf_start[i * mvstr + j].col * (1 - dstpos);
+
+      if (ii0 + starth < 0)
+        ii0 = -starth;
+      else if (ii0 + starth >= fheight)
+        ii0 = fheight - starth - 1;
+      if (jj0 + startw < 0)
+        jj0 = -startw;
+      else if (jj0 + startw >= fwidth)
+        jj0 = fwidth - startw - 1;
+      if (ii1 + starth < 0)
+        ii1 = -starth;
+      else if (ii1 + starth >= fheight)
+        ii1 = fheight - starth - 1;
+      if (jj1 + startw < 0)
+        jj1 = -startw;
+      else if (jj1 + startw >= fwidth)
+        jj1 = fwidth - startw - 1;
+
       i0 = opfl_floor_double_2_int(ii0);
       di0 = ii0 - i0;
       j0 = opfl_floor_double_2_int(jj0);
@@ -3508,11 +3604,6 @@ void warp_optical_flow_bilateral(YV12_BUFFER_CONFIG *src0,
 
       int inside0 = (i0 >= 0 && i0 < height - 1 && j0 >= 0 && j0 < width - 1);
       int inside1 = (i1 >= 0 && i1 < height - 1 && j1 >= 0 && j1 < width - 1);
-
-      dstpel_y0[i * width + j] =
-          (double)get_sub_pel_y(src0y + i0 * stride + j0, stride, di0, dj0);
-      dstpel_y1[i * width + j] =
-          (double)get_sub_pel_y(src1y + i1 * stride + j1, stride, di1, dj1);
 
       if (inside0) {
         used0[(i0)*width + j0] += (1 - di0) * (1 - dj0);
@@ -3526,6 +3617,11 @@ void warp_optical_flow_bilateral(YV12_BUFFER_CONFIG *src0,
         used1[(i1)*width + j1 + 1] += (1 - di1) * (dj1);
         used1[(i1 + 1) * width + j1 + 1] += (di1) * (dj1);
       }  // ignore when both out of bound
+
+      dstpel_y0[i * width + j] =
+          (double)get_sub_pel_y(src0y + i0 * stride + j0, stride, di0, dj0);
+      dstpel_y1[i * width + j] =
+          (double)get_sub_pel_y(src1y + i1 * stride + j1, stride, di1, dj1);
     }
   }
 
@@ -3540,6 +3636,24 @@ void warp_optical_flow_bilateral(YV12_BUFFER_CONFIG *src0,
       jj0 = j - mf_start[i * mvstr + j].col * dstpos;
       ii1 = i + mf_start[i * mvstr + j].row * (1 - dstpos);
       jj1 = j + mf_start[i * mvstr + j].col * (1 - dstpos);
+
+      if (ii0 + starth < 0)
+        ii0 = -starth;
+      else if (ii0 + starth >= fheight)
+        ii0 = fheight - starth - 1;
+      if (jj0 + startw < 0)
+        jj0 = -startw;
+      else if (jj0 + startw >= fwidth)
+        jj0 = fwidth - startw - 1;
+      if (ii1 + starth < 0)
+        ii1 = -starth;
+      else if (ii1 + starth >= fheight)
+        ii1 = fheight - starth - 1;
+      if (jj1 + startw < 0)
+        jj1 = -startw;
+      else if (jj1 + startw >= fwidth)
+        jj1 = fwidth - startw - 1;
+
       i0 = opfl_floor_double_2_int(ii0);
       di0 = ii0 - i0;
       j0 = opfl_floor_double_2_int(jj0);
@@ -3552,15 +3666,18 @@ void warp_optical_flow_bilateral(YV12_BUFFER_CONFIG *src0,
       int inside0 = (i0 >= 0 && i0 < height - 1 && j0 >= 0 && j0 < width - 1);
       int inside1 = (i1 >= 0 && i1 < height - 1 && j1 >= 0 && j1 < width - 1);
 
-      totalused0 += used0[(i0)*width + j0] * (1 - di0) * (1 - dj0);
-      totalused0 += used0[(i0 + 1) * width + j0] * (di0) * (1 - dj0);
-      totalused0 += used0[(i0)*width + j0 + 1] * (1 - di0) * (dj0);
-      totalused0 += used0[(i0 + 1) * width + j0 + 1] * (di0) * (dj0);
-      totalused1 += used1[(i1)*width + j1] * (1 - di1) * (1 - dj1);
-      totalused1 += used1[(i1 + 1) * width + j1] * (di1) * (1 - dj1);
-      totalused1 += used1[(i1)*width + j1 + 1] * (1 - di1) * (dj1);
-      totalused1 += used1[(i1 + 1) * width + j1 + 1] * (di1) * (dj1);
-
+      if (inside0) {
+        totalused0 += used0[(i0)*width + j0] * (1 - di0) * (1 - dj0);
+        totalused0 += used0[(i0 + 1) * width + j0] * (di0) * (1 - dj0);
+        totalused0 += used0[(i0)*width + j0 + 1] * (1 - di0) * (dj0);
+        totalused0 += used0[(i0 + 1) * width + j0 + 1] * (di0) * (dj0);
+      }
+      if (inside1) {
+        totalused1 += used1[(i1)*width + j1] * (1 - di1) * (1 - dj1);
+        totalused1 += used1[(i1 + 1) * width + j1] * (di1) * (1 - dj1);
+        totalused1 += used1[(i1)*width + j1 + 1] * (1 - di1) * (dj1);
+        totalused1 += used1[(i1 + 1) * width + j1 + 1] * (di1) * (dj1);
+      }
       // if referenced more, weight should be lower
       // if refs agrees better, weights should be closer to each other
       double diffWts = (dstpel_y0[i * width + j] - dstpel_y1[i * width + j]);
@@ -3594,6 +3711,24 @@ void warp_optical_flow_bilateral(YV12_BUFFER_CONFIG *src0,
       jj0 = j - mf_start[i * mvstr + j].col * dstpos;
       ii1 = i + mf_start[i * mvstr + j].row * (1 - dstpos);
       jj1 = j + mf_start[i * mvstr + j].col * (1 - dstpos);
+
+      if (ii0 + starth < 0)
+        ii0 = -starth;
+      else if (ii0 + starth >= fheight)
+        ii0 = fheight - starth - 1;
+      if (jj0 + startw < 0)
+        jj0 = -startw;
+      else if (jj0 + startw >= fwidth)
+        jj0 = fwidth - startw - 1;
+      if (ii1 + starth < 0)
+        ii1 = -starth;
+      else if (ii1 + starth >= fheight)
+        ii1 = fheight - starth - 1;
+      if (jj1 + startw < 0)
+        jj1 = -startw;
+      else if (jj1 + startw >= fwidth)
+        jj1 = fwidth - startw - 1;
+
       i0 = opfl_floor_double_2_int(ii0);
       di0 = ii0 - i0;
       j0 = opfl_floor_double_2_int(jj0);
@@ -4432,5 +4567,86 @@ int opfl_floor_double_2_int(double x) {
     return (int)x - 1;
   }
 }
+int opfl_ceil_double_2_int(double x) {
+  if (x >= 0) {
+    return -opfl_floor_double_2_int(-x);
+  } else {
+    return (int)x;
+  }
+}
 
+void opfl_extend_frame_mf(OPFL_BUFFER_STRUCT *buf_struct,
+                          OPFL_BLK_INFO blk_info) {
+  DB_MV *mf_start = buf_struct->mf_frame_start;
+  int str = buf_struct->mf_frame_stride;
+  int starth = blk_info.starth, startw = blk_info.startw;
+  int height = blk_info.blk_height, width = blk_info.blk_width;
+  int endh = starth + height, endw = startw + width;
+  int f_height = buf_struct->ref0_buf[0]->y_height;
+  int f_width = buf_struct->ref0_buf[0]->y_width;
+  // upper bound
+  if (blk_info.upbound && starth == 0) {
+    for (int i = -OPFL_MF_FRAME_BORDER; i < 0; i++) {
+      for (int j = startw; j < endw; j++) {
+        mf_start[i * str + j] = mf_start[j];
+      }
+    }
+  }
+  // lower bound
+  if (blk_info.lowerbound && endh == f_height) {
+    for (int i = endh; i < endh + OPFL_MF_FRAME_BORDER; i++) {
+      for (int j = startw; j < endw; j++) {
+        mf_start[i * str + j] = mf_start[(endh - 1) * str + j];
+      }
+    }
+  }
+  // left bound
+  if (blk_info.leftbound && startw == 0) {
+    for (int i = starth; i < endh; i++) {
+      for (int j = -OPFL_MF_FRAME_BORDER; j < 0; j++) {
+        mf_start[i * str + j] = mf_start[i * str];
+      }
+    }
+  }
+  // right bound
+  if (blk_info.rightbound && endw == f_width) {
+    for (int i = starth; i < endh; i++) {
+      for (int j = endw; j < endw + OPFL_MF_FRAME_BORDER; j++) {
+        mf_start[i * str + j] = mf_start[i * str + endw - 1];
+      }
+    }
+  }
+  // check corners
+  if (blk_info.upbound && blk_info.leftbound && starth == 0 && startw == 0) {
+    for (int i = -OPFL_MF_FRAME_BORDER; i < 0; i++) {
+      for (int j = -OPFL_MF_FRAME_BORDER; j < 0; j++) {
+        mf_start[i * str + j] = mf_start[0];
+      }
+    }
+  }
+  if (blk_info.upbound && blk_info.rightbound && starth == 0 &&
+      endw == f_width) {
+    for (int i = -OPFL_MF_FRAME_BORDER; i < 0; i++) {
+      for (int j = endw; j < endw + OPFL_MF_FRAME_BORDER; j++) {
+        mf_start[i * str + j] = mf_start[endw - 1];
+      }
+    }
+  }
+  if (blk_info.lowerbound && blk_info.leftbound && endh == f_height &&
+      startw == 0) {
+    for (int i = endh; i < endh + OPFL_MF_FRAME_BORDER; i++) {
+      for (int j = -OPFL_MF_FRAME_BORDER; j < 0; j++) {
+        mf_start[i * str + j] = mf_start[(endh - 1) * str];
+      }
+    }
+  }
+  if (blk_info.lowerbound && blk_info.rightbound && endh == f_height &&
+      endw == f_width) {
+    for (int i = endh; i < endh + OPFL_MF_FRAME_BORDER; i++) {
+      for (int j = endw; j < endw + OPFL_MF_FRAME_BORDER; j++) {
+        mf_start[i * str + j] = mf_start[(endh - 1) * str + endw - 1];
+      }
+    }
+  }
+}
 #endif  // CONFIG_OPFL

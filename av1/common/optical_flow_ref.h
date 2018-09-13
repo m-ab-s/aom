@@ -99,6 +99,9 @@ typedef struct opfl_buffer_struct {
   DB_MV *mf_last[MAX_OPFL_LEVEL];
   DB_MV *mf_new[MAX_OPFL_LEVEL];
   DB_MV *mf_med[MAX_OPFL_LEVEL];  // for motion field after median filter
+  DB_MV *mf_frame;                // motion field buffer for the whole frame
+  DB_MV *mf_frame_start;          // points to the start of motion field buffer
+  int mf_frame_stride;
   double *Ex;
   double *Ey;
   double *Et;
@@ -201,7 +204,7 @@ void warp_optical_flow_diff_select(YV12_BUFFER_CONFIG *src0,
 void warp_optical_flow_bilateral(YV12_BUFFER_CONFIG *src0,
                                  YV12_BUFFER_CONFIG *src1, DB_MV *mf_start,
                                  int mvstr, YV12_BUFFER_CONFIG *dst,
-                                 double dstpos);
+                                 double dstpos, OPFL_BLK_INFO blk_info);
 uint8_t get_sub_pel_y(uint8_t *src, int stride, double di, double dj);
 uint8_t get_sub_pel_uv(uint8_t *src, int stride, double di, double dj);
 
@@ -247,7 +250,10 @@ int write_image_opfl(const YV12_BUFFER_CONFIG *const ref_buf, char *file_name);
 
 int opfl_round_double_2_int(double x);
 int opfl_floor_double_2_int(double x);
+int opfl_ceil_double_2_int(double x);
 
+void opfl_extend_frame_mf(OPFL_BUFFER_STRUCT *buf_struct,
+                          OPFL_BLK_INFO blk_info);
 #endif  // CONFIG_OPFL
 
 #ifdef __cplusplus

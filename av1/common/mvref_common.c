@@ -105,10 +105,9 @@ static uint8_t add_ref_mv_candidate(
       }
 
       double dstpos = cm->opfl_buf_struct_ptr->dst_pos;
-      int mf_stride = y_width + 2 * AVG_MF_BORDER;
+      int mf_stride = cm->opfl_buf_struct_ptr->mf_frame_stride;
 
-      DB_MV *opfl_mv = cm->opfl_buf_struct_ptr->mf_med[0] +
-                       AVG_MF_BORDER * mf_stride + AVG_MF_BORDER +
+      DB_MV *opfl_mv = cm->opfl_buf_struct_ptr->mf_frame_start +
                        mi_row_cand * 4 * mf_stride + mi_col_cand * 4;
       DB_MV *cur_opfl_mv;
       double avg_r = 0, avg_c = 0;
@@ -238,10 +237,9 @@ static uint8_t add_ref_mv_candidate(
         col_offset = -mi_col_cand * 4;
 
       double dstpos = cm->opfl_buf_struct_ptr->dst_pos;
-      int mf_stride = y_width + 2 * AVG_MF_BORDER;
+      int mf_stride = cm->opfl_buf_struct_ptr->mf_frame_stride;
 
-      DB_MV *opfl_mv = cm->opfl_buf_struct_ptr->mf_med[0] +
-                       AVG_MF_BORDER * mf_stride + AVG_MF_BORDER +
+      DB_MV *opfl_mv = cm->opfl_buf_struct_ptr->mf_frame_start +
                        mi_row_cand * 4 * mf_stride + mi_col_cand * 4;
       DB_MV *cur_opfl_mv;
       double avg_r = 0, avg_c = 0;
