@@ -23,7 +23,8 @@ extern "C" {
 #if CONFIG_OPFL
 
 // Constant MACRO defs
-#define AVG_MF_BORDER 32
+#define AVG_MF_BORDER 4
+#define OPFL_MF_FRAME_BORDER 32
 #define MAX_MV_LENGTH_1D 160
 #define DERIVATIVE_FILTER_LENGTH 7
 
@@ -49,11 +50,13 @@ extern "C" {
 #define OPFL_MV_PRED 1
 #define OPFL_TPL 1
 #define OPFL_TPL_NEIGHBOR 1
+#define OPFL_BOUND_HANDLING 1
+#define OPFL_CONF_WTS 1
 
 #define OPFL_EXP_INIT 1
 #define OPFL_DERIVE_INIT_MV 1
-#define OPFL_CHECK_INIT_MV 1
-#define OPFL_INIT_MOTION_SEARCH 1
+#define OPFL_CHECK_INIT_MV 0
+#define OPFL_INIT_MOTION_SEARCH 0
 
 #define OPFL_EXP_DERV 0
 
@@ -73,7 +76,6 @@ typedef enum opfl_blend_method {
 } OPFL_BLEND_METHOD;
 
 #define OPFL_BLEND_METHOD_USED OPFL_SIMPLE_BLEND
-
 // motion field struct with double precision
 typedef struct db_mv {
   double row;

@@ -1211,12 +1211,14 @@ void opfl_set_init_motion(AV1_COMMON *cm, OPFL_BUFFER_STRUCT *buf_struct,
       MV this_mvs[2] = { mv_ref->mv[0].as_mv, mv_ref->mv[1].as_mv };
       MV_REFERENCE_FRAME ref_frame[2] = { mv_ref->ref_frame[0],
                                           mv_ref->ref_frame[1] };
+#if OPFL_TPL
       if (ref_frame[0] == OPFL_FRAME && ref_frame[1] == NONE_FRAME) {
         this_mvs[0] = mv_ref->opfl_ref_mvs[0].as_mv;
         this_mvs[1] = mv_ref->opfl_ref_mvs[1].as_mv;
         ref_frame[0] = mv_ref->opfl_ref_frame[0];
         ref_frame[1] = mv_ref->opfl_ref_frame[1];
       }
+#endif
 
       for (int r = 0; r < 2; r++) {
         if (ref_frame[r] == NONE_FRAME || ref_frame[r] == OPFL_FRAME) continue;
@@ -1353,14 +1355,14 @@ void opfl_find_init_motion(AV1_COMMON *cm, int left_idx, int right_idx,
       MV this_mvs[2] = { mv_ref->mv[0].as_mv, mv_ref->mv[1].as_mv };
       MV_REFERENCE_FRAME ref_frame[2] = { mv_ref->ref_frame[0],
                                           mv_ref->ref_frame[1] };
-
+#if OPFL_TPL
       if (ref_frame[0] == OPFL_FRAME && ref_frame[1] == NONE_FRAME) {
         this_mvs[0] = mv_ref->opfl_ref_mvs[0].as_mv;
         this_mvs[1] = mv_ref->opfl_ref_mvs[1].as_mv;
         ref_frame[0] = mv_ref->opfl_ref_frame[0];
         ref_frame[1] = mv_ref->opfl_ref_frame[1];
       }
-
+#endif
       for (int r = 0; r < 2; r++) {
         int ref_offset;
         switch (ref_frame[r]) {
@@ -1407,13 +1409,14 @@ void opfl_find_init_motion(AV1_COMMON *cm, int left_idx, int right_idx,
       MV this_mvs[2] = { mv_ref->mv[0].as_mv, mv_ref->mv[1].as_mv };
       MV_REFERENCE_FRAME ref_frame[2] = { mv_ref->ref_frame[0],
                                           mv_ref->ref_frame[1] };
+#if OPFL_TPL
       if (ref_frame[0] == OPFL_FRAME && ref_frame[1] == NONE_FRAME) {
         this_mvs[0] = mv_ref->opfl_ref_mvs[0].as_mv;
         this_mvs[1] = mv_ref->opfl_ref_mvs[1].as_mv;
         ref_frame[0] = mv_ref->opfl_ref_frame[0];
         ref_frame[1] = mv_ref->opfl_ref_frame[1];
       }
-
+#endif
       for (int r = 0; r < 2; r++) {
         int ref_offset;
         switch (ref_frame[r]) {
@@ -1845,7 +1848,7 @@ double iterate_update_mv(OPFL_BUFFER_STRUCT *buf_struct, DB_MV *mf_last,
   DB_MV *mv_start_new = mf_new + AVG_MF_BORDER * mvstr + AVG_MF_BORDER;
   int i, j;
 
-  // allocate buffers
+  // allocate temp buffers
   Ex = buf_struct->Ex;
   Ey = buf_struct->Ey;
   Et = buf_struct->Et;
@@ -1910,8 +1913,8 @@ double iterate_update_mv(OPFL_BUFFER_STRUCT *buf_struct, DB_MV *mf_last,
   SPARSE_MTX A, L, LtL;
   // check if pointing out of bound
   double boundFactor = 0.01;
-  double pixExpFactor = 0.005;
-  double mvExpFactor = 0.008;
+  double pixExpFactor = 0.001;
+  double mvExpFactor = 0.001;
   for (i = 0; i < height; i++) {
     for (j = 0; j < width; j++) {
       pixel_weight[i * width + j] = 1;
@@ -1931,20 +1934,31 @@ double iterate_update_mv(OPFL_BUFFER_STRUCT *buf_struct, DB_MV *mf_last,
            (1 - buf_struct->dst_pos) * mv_start[i * mvstr + j].col;
       int is_out = (i0 < 0 || i0 > fheight - 1 || i1 < 0 || i1 > fheight - 1 ||
                     j0 < 0 || j0 > fwidth - 1 || j1 < 0 || j1 > fwidth - 1);
-      if (is_out) {
-        pixel_weight[i * width + j] = 0.001;
+      if (is_out && OPFL_BOUND_HANDLING) {
+        pixel_weight[i * width + j] = boundFactor * boundFactor;
         mv_weight[i * width + j] = boundFactor;
-      } else if (level > 2 && numWarpedRounds > 2) {
-        pixel_weight[i * width + j] =
-            exp(-pixExpFactor * Et[i * width + j] * Et[i * width + j]);
-        pixel_weight[i * width + j] = (pixel_weight[i * width + j] > 0.001)
-                                          ? pixel_weight[i * width + j]
-                                          : 0.001;
-        mv_weight[i * width + j] =
-            exp(-mvExpFactor * Et[i * width + j] * Et[i * width + j]);
+      } else if (level >= 0 && numWarpedRounds >= 0 && OPFL_CONF_WTS) {
+        double avg = 0;
+        double minDiff = 1000;
+        double curWt;
+        double count = 0;
+        for (int ii = -2; ii <= 2; ii++) {
+          for (int jj = -2; jj <= 2; jj++) {
+            if (i + ii < 0 || i + ii >= height || j + jj < 0 || j + jj >= width)
+              continue;
+            count += 1;
+            curWt =
+                Et[(i + ii) * width + j + jj] * Et[(i + ii) * width + j + jj];
+            avg = avg * (count - 1) / count + curWt / count;
+            if (curWt > minDiff) minDiff = curWt;
+          }
+        }
+        mv_weight[i * width + j] = exp(-mvExpFactor * avg);
         mv_weight[i * width + j] = (mv_weight[i * width + j] > boundFactor)
                                        ? mv_weight[i * width + j]
                                        : boundFactor;
+        pixel_weight[i * width + j] =
+            mv_weight[i * width + j] * mv_weight[i * width + j];
       }
     }
   }
@@ -3652,17 +3666,19 @@ void warp_optical_flow_bilateral(YV12_BUFFER_CONFIG *src0,
       // if refs agrees better, weights should be closer to each other
       double diffWts = (dstpel_y0[i * width + j] - dstpel_y1[i * width + j]);
       diffWts = 0.1 * diffWts * diffWts;
-      if (diffWts > 2) diffWts = 2;
+      if (diffWts > 50) diffWts = 50;
+      if (diffWts < 10) diffWts = 0;
       if (inside0 == 0 && inside1 == 0) {
         ref0wts[i * width + j] = 1 - pos;
         ref1wts[i * width + j] = pos;
       } else {
         if (inside0)
-          ref0wts[i * width + j] = exp(-diffWts * totalused0);
+          ref0wts[i * width + j] =
+              exp(-0.01 * diffWts * totalused0) * (1 - dstpos);
         else
           ref0wts[i * width + j] = 0;
         if (inside1)
-          ref1wts[i * width + j] = exp(-diffWts * totalused1);
+          ref1wts[i * width + j] = exp(-0.01 * diffWts * totalused1) * dstpos;
         else
           ref1wts[i * width + j] = 0;
       }
