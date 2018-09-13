@@ -40,10 +40,15 @@ void init_combine_sparse_mtx(SPARSE_MTX *sm1, SPARSE_MTX *sm2, SPARSE_MTX *sm,
 void free_sparse_mtx_elems(SPARSE_MTX *sm);
 
 void mtx_vect_multi_right(SPARSE_MTX *sm, double *srcv, double *dstv, int dstl);
+void mtx_vect_multi_left(SPARSE_MTX *sm, double *srcv, double *dstv, int dstl);
 double vect_vect_multi(double *src1, int src1l, double *src2);
 void constant_multiply_sparse_matrix(SPARSE_MTX *sm, double c);
+void get_symmetric_part_sparse_matrix(SPARSE_MTX *sm);
 
 void conjugate_gradient_sparse(SPARSE_MTX *A, double *b, int bl, double *x);
+void bi_conjugate_gradient_sparse(SPARSE_MTX *A, double *b, int bl, double *x);
+void jacobi_sparse(SPARSE_MTX *A, double *b, int bl, double *x);
+void steepest_descent_sparse(SPARSE_MTX *A, double *b, int bl, double *x);
 
 #endif  // CONFIG_OPFL
 
