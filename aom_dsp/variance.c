@@ -55,24 +55,6 @@ uint32_t aom_get_mb_ss_c(const int16_t *a) {
   return sum;
 }
 
-uint32_t aom_variance_halfpixvar16x16_h_c(const uint8_t *a, int a_stride,
-                                          const uint8_t *b, int b_stride,
-                                          uint32_t *sse) {
-  return aom_sub_pixel_variance16x16_c(a, a_stride, 4, 0, b, b_stride, sse);
-}
-
-uint32_t aom_variance_halfpixvar16x16_v_c(const uint8_t *a, int a_stride,
-                                          const uint8_t *b, int b_stride,
-                                          uint32_t *sse) {
-  return aom_sub_pixel_variance16x16_c(a, a_stride, 0, 4, b, b_stride, sse);
-}
-
-uint32_t aom_variance_halfpixvar16x16_hv_c(const uint8_t *a, int a_stride,
-                                           const uint8_t *b, int b_stride,
-                                           uint32_t *sse) {
-  return aom_sub_pixel_variance16x16_c(a, a_stride, 4, 4, b, b_stride, sse);
-}
-
 static void variance(const uint8_t *a, int a_stride, const uint8_t *b,
                      int b_stride, int w, int h, uint32_t *sse, int *sum) {
   int i, j;
@@ -386,10 +368,7 @@ void aom_upsampled_pred_c(MACROBLOCKD *xd, const AV1_COMMON *const cm,
     }
   }
 
-  const InterpFilterParams *filter =
-      (subpel_search == 1)
-          ? av1_get_4tap_interp_filter_params(EIGHTTAP_REGULAR)
-          : av1_get_interp_filter_params_with_block_size(EIGHTTAP_REGULAR, 8);
+  const InterpFilterParams *filter = av1_get_filter(subpel_search);
 
   if (!subpel_x_q3 && !subpel_y_q3) {
     for (int i = 0; i < height; i++) {
@@ -400,13 +379,13 @@ void aom_upsampled_pred_c(MACROBLOCKD *xd, const AV1_COMMON *const cm,
   } else if (!subpel_y_q3) {
     const int16_t *const kernel =
         av1_get_interp_filter_subpel_kernel(filter, subpel_x_q3 << 1);
-    aom_convolve8_horiz(ref, ref_stride, comp_pred, width, kernel, 16, NULL, -1,
-                        width, height);
+    aom_convolve8_horiz_c(ref, ref_stride, comp_pred, width, kernel, 16, NULL,
+                          -1, width, height);
   } else if (!subpel_x_q3) {
     const int16_t *const kernel =
         av1_get_interp_filter_subpel_kernel(filter, subpel_y_q3 << 1);
-    aom_convolve8_vert(ref, ref_stride, comp_pred, width, NULL, -1, kernel, 16,
-                       width, height);
+    aom_convolve8_vert_c(ref, ref_stride, comp_pred, width, NULL, -1, kernel,
+                         16, width, height);
   } else {
     DECLARE_ALIGNED(16, uint8_t,
                     temp[((MAX_SB_SIZE * 2 + 16) + 16) * MAX_SB_SIZE]);
@@ -417,12 +396,12 @@ void aom_upsampled_pred_c(MACROBLOCKD *xd, const AV1_COMMON *const cm,
     const int intermediate_height =
         (((height - 1) * 8 + subpel_y_q3) >> 3) + filter->taps;
     assert(intermediate_height <= (MAX_SB_SIZE * 2 + 16) + 16);
-    aom_convolve8_horiz(ref - ref_stride * ((filter->taps >> 1) - 1),
-                        ref_stride, temp, MAX_SB_SIZE, kernel_x, 16, NULL, -1,
-                        width, intermediate_height);
-    aom_convolve8_vert(temp + MAX_SB_SIZE * ((filter->taps >> 1) - 1),
-                       MAX_SB_SIZE, comp_pred, width, NULL, -1, kernel_y, 16,
-                       width, height);
+    aom_convolve8_horiz_c(ref - ref_stride * ((filter->taps >> 1) - 1),
+                          ref_stride, temp, MAX_SB_SIZE, kernel_x, 16, NULL, -1,
+                          width, intermediate_height);
+    aom_convolve8_vert_c(temp + MAX_SB_SIZE * ((filter->taps >> 1) - 1),
+                         MAX_SB_SIZE, comp_pred, width, NULL, -1, kernel_y, 16,
+                         width, height);
   }
 }
 
@@ -473,8 +452,9 @@ void aom_jnt_comp_avg_upsampled_pred_c(
   const int fwd_offset = jcp_param->fwd_offset;
   const int bck_offset = jcp_param->bck_offset;
 
-  aom_upsampled_pred(xd, cm, mi_row, mi_col, mv, comp_pred, width, height,
-                     subpel_x_q3, subpel_y_q3, ref, ref_stride, subpel_search);
+  aom_upsampled_pred_c(xd, cm, mi_row, mi_col, mv, comp_pred, width, height,
+                       subpel_x_q3, subpel_y_q3, ref, ref_stride,
+                       subpel_search);
 
   for (i = 0; i < height; i++) {
     for (j = 0; j < width; j++) {
@@ -976,10 +956,7 @@ void aom_highbd_upsampled_pred_c(MACROBLOCKD *xd,
     }
   }
 
-  const InterpFilterParams *filter =
-      (subpel_search == 1)
-          ? av1_get_4tap_interp_filter_params(EIGHTTAP_REGULAR)
-          : av1_get_interp_filter_params_with_block_size(EIGHTTAP_REGULAR, 8);
+  const InterpFilterParams *filter = av1_get_filter(subpel_search);
 
   if (!subpel_x_q3 && !subpel_y_q3) {
     const uint16_t *ref = CONVERT_TO_SHORTPTR(ref8);
@@ -1110,23 +1087,23 @@ void aom_comp_mask_pred_c(uint8_t *comp_pred, const uint8_t *pred, int width,
   }
 }
 
-void aom_comp_mask_upsampled_pred(MACROBLOCKD *xd, const AV1_COMMON *const cm,
-                                  int mi_row, int mi_col, const MV *const mv,
-                                  uint8_t *comp_pred, const uint8_t *pred,
-                                  int width, int height, int subpel_x_q3,
-                                  int subpel_y_q3, const uint8_t *ref,
-                                  int ref_stride, const uint8_t *mask,
-                                  int mask_stride, int invert_mask,
-                                  int subpel_search) {
+void aom_comp_mask_upsampled_pred_c(MACROBLOCKD *xd, const AV1_COMMON *const cm,
+                                    int mi_row, int mi_col, const MV *const mv,
+                                    uint8_t *comp_pred, const uint8_t *pred,
+                                    int width, int height, int subpel_x_q3,
+                                    int subpel_y_q3, const uint8_t *ref,
+                                    int ref_stride, const uint8_t *mask,
+                                    int mask_stride, int invert_mask,
+                                    int subpel_search) {
   if (subpel_x_q3 | subpel_y_q3) {
-    aom_upsampled_pred(xd, cm, mi_row, mi_col, mv, comp_pred, width, height,
-                       subpel_x_q3, subpel_y_q3, ref, ref_stride,
-                       subpel_search);
+    aom_upsampled_pred_c(xd, cm, mi_row, mi_col, mv, comp_pred, width, height,
+                         subpel_x_q3, subpel_y_q3, ref, ref_stride,
+                         subpel_search);
     ref = comp_pred;
     ref_stride = width;
   }
-  aom_comp_mask_pred(comp_pred, pred, width, height, ref, ref_stride, mask,
-                     mask_stride, invert_mask);
+  aom_comp_mask_pred_c(comp_pred, pred, width, height, ref, ref_stride, mask,
+                       mask_stride, invert_mask);
 }
 
 #define MASK_SUBPIX_VAR(W, H)                                                  \

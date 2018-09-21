@@ -180,9 +180,6 @@ static const arg_def_t use_webm =
     ARG_DEF(NULL, "webm", 0, "Output WebM (default when WebM IO is enabled)");
 static const arg_def_t use_ivf = ARG_DEF(NULL, "ivf", 0, "Output IVF");
 static const arg_def_t use_obu = ARG_DEF(NULL, "obu", 0, "Output OBU");
-static const arg_def_t out_part =
-    ARG_DEF("P", "output-partitions", 0,
-            "Makes encoder output partitions. Requires IVF output!");
 static const arg_def_t q_hist_n =
     ARG_DEF(NULL, "q-hist", 1, "Show quantizer histogram (n-buckets)");
 static const arg_def_t rate_hist_n =
@@ -203,6 +200,12 @@ static const arg_def_t bitdeptharg = ARG_DEF_ENUM(
     bitdepth_enum);
 static const arg_def_t inbitdeptharg =
     ARG_DEF(NULL, "input-bit-depth", 1, "Bit depth of input");
+
+static const arg_def_t input_chroma_subsampling_x = ARG_DEF(
+    NULL, "input-chroma-subsampling-x", 1, "chroma subsampling x value.");
+static const arg_def_t input_chroma_subsampling_y = ARG_DEF(
+    NULL, "input-chroma-subsampling-y", 1, "chroma subsampling y value.");
+
 static const arg_def_t *main_args[] = { &help,
 #if CONFIG_FILEOPTIONS
                                         &use_cfg,
@@ -222,7 +225,6 @@ static const arg_def_t *main_args[] = { &help,
                                         &use_webm,
                                         &use_ivf,
                                         &use_obu,
-                                        &out_part,
                                         &q_hist_n,
                                         &rate_hist_n,
                                         &disable_warnings,
@@ -411,17 +413,13 @@ static const arg_def_t max_intra_rate_pct =
 #if CONFIG_AV1_ENCODER
 static const arg_def_t cpu_used_av1 =
     ARG_DEF(NULL, "cpu-used", 1, "CPU Used (0..8)");
-static const arg_def_t single_tile_decoding =
-    ARG_DEF(NULL, "single-tile-decoding", 1,
-            "Single tile decoding (0: off (default), 1: on)");
 static const arg_def_t rowmtarg =
     ARG_DEF(NULL, "row-mt", 1,
             "Enable row based multi-threading (0: off (default), 1: on)");
 static const arg_def_t tile_cols =
     ARG_DEF(NULL, "tile-columns", 1, "Number of tile columns to use, log2");
 static const arg_def_t tile_rows =
-    ARG_DEF(NULL, "tile-rows", 1,
-            "Number of tile rows to use, log2 (set to 0 while threads > 1)");
+    ARG_DEF(NULL, "tile-rows", 1, "Number of tile rows to use, log2");
 static const arg_def_t tile_width =
     ARG_DEF(NULL, "tile-width", 1, "Tile widths (comma separated)");
 static const arg_def_t tile_height =
@@ -623,7 +621,6 @@ static const arg_def_t *av1_args[] = { &cpu_used_av1,
                                        &auto_altref,
                                        &sharpness,
                                        &static_thresh,
-                                       &single_tile_decoding,
                                        &rowmtarg,
                                        &tile_cols,
                                        &tile_rows,
@@ -671,6 +668,8 @@ static const arg_def_t *av1_args[] = { &cpu_used_av1,
                                        &enable_ref_frame_mvs,
                                        &bitdeptharg,
                                        &inbitdeptharg,
+                                       &input_chroma_subsampling_x,
+                                       &input_chroma_subsampling_y,
                                        &sframe_dist,
                                        &sframe_mode,
                                        &save_as_annexb,
@@ -679,7 +678,6 @@ static const int av1_arg_ctrl_map[] = { AOME_SET_CPUUSED,
                                         AOME_SET_ENABLEAUTOALTREF,
                                         AOME_SET_SHARPNESS,
                                         AOME_SET_STATIC_THRESHOLD,
-                                        AV1E_SET_SINGLE_TILE_DECODING,
                                         AV1E_SET_ROW_MT,
                                         AV1E_SET_TILE_COLUMNS,
                                         AV1E_SET_TILE_ROWS,
@@ -831,6 +829,8 @@ struct stream_state {
   struct aom_image *img;
   aom_codec_ctx_t decoder;
   int mismatch_seen;
+  unsigned int chroma_subsampling_x;
+  unsigned int chroma_subsampling_y;
 };
 
 static void validate_positive_rational(const char *msg,
@@ -845,14 +845,17 @@ static void validate_positive_rational(const char *msg,
   if (!rat->den) die("Error: %s has zero denominator\n", msg);
 }
 
-static void parse_global_config(struct AvxEncoderConfig *global, int *argc,
+/* Parses global config arguments into the AvxEncoderConfig. Note that
+ * argv is modified and overwrites all parsed arguments.
+ */
+static void parse_global_config(struct AvxEncoderConfig *global, int argc,
                                 char ***argv) {
   char **argi, **argj;
   struct arg arg;
   const int num_encoder = get_aom_encoder_count();
   char **argv_local = (char **)*argv;
 #if CONFIG_FILEOPTIONS
-  int argc_local = *argc;
+  int argc_local = argc;
 #endif
   if (num_encoder < 1) die("Error: no valid encoder available\n");
 
@@ -861,6 +864,7 @@ static void parse_global_config(struct AvxEncoderConfig *global, int *argc,
   global->codec = get_aom_encoder_by_index(num_encoder - 1);
   global->passes = 0;
   global->color_type = I420;
+  global->csp = AOM_CSP_UNKNOWN;
 
 #if CONFIG_FILEOPTIONS
   const char *cfg = NULL;
@@ -900,6 +904,10 @@ static void parse_global_config(struct AvxEncoderConfig *global, int *argc,
 
       if (global->pass < 1 || global->pass > 2)
         die("Error: Invalid pass selected (%d)\n", global->pass);
+    } else if (arg_match(&arg, &input_chroma_sample_position, argi)) {
+      global->csp = arg_parse_enum(&arg);
+      /* Flag is used by later code as well, preserve it. */
+      argj++;
     } else if (arg_match(&arg, &usage, argi))
       global->usage = arg_parse_uint(&arg);
     else if (arg_match(&arg, &good_dl, argi))
@@ -928,9 +936,7 @@ static void parse_global_config(struct AvxEncoderConfig *global, int *argc,
       global->framerate = arg_parse_rational(&arg);
       validate_positive_rational(arg.name, &global->framerate);
       global->have_framerate = 1;
-    } else if (arg_match(&arg, &out_part, argi))
-      global->out_part = 1;
-    else if (arg_match(&arg, &debugmode, argi))
+    } else if (arg_match(&arg, &debugmode, argi))
       global->debug = 1;
     else if (arg_match(&arg, &q_hist_n, argi))
       global->show_q_hist_buckets = arg_parse_uint(&arg);
@@ -965,7 +971,8 @@ static void parse_global_config(struct AvxEncoderConfig *global, int *argc,
   }
 }
 
-static void open_input_file(struct AvxInputContext *input) {
+static void open_input_file(struct AvxInputContext *input,
+                            aom_chroma_sample_position_t csp) {
   /* Parse certain options from the input file, if possible */
   input->file = strcmp(input->filename, "-") ? fopen(input->filename, "rb")
                                              : set_binary_mode(stdin);
@@ -991,7 +998,7 @@ static void open_input_file(struct AvxInputContext *input) {
   input->detect.position = 0;
 
   if (input->detect.buf_read == 4 && file_is_y4m(input->detect.buf)) {
-    if (y4m_input_open(&input->y4m, input->file, input->detect.buf, 4,
+    if (y4m_input_open(&input->y4m, input->file, input->detect.buf, 4, csp,
                        input->only_i420) >= 0) {
       input->file_type = FILE_TYPE_Y4M;
       input->width = input->y4m.pic_w;
@@ -1180,6 +1187,10 @@ static int parse_stream_params(struct AvxEncoderConfig *global,
       config->cfg.g_bit_depth = arg_parse_enum_or_int(&arg);
     } else if (arg_match(&arg, &inbitdeptharg, argi)) {
       config->cfg.g_input_bit_depth = arg_parse_uint(&arg);
+    } else if (arg_match(&arg, &input_chroma_subsampling_x, argi)) {
+      stream->chroma_subsampling_x = arg_parse_uint(&arg);
+    } else if (arg_match(&arg, &input_chroma_subsampling_y, argi)) {
+      stream->chroma_subsampling_y = arg_parse_uint(&arg);
 #if CONFIG_WEBM_IO
     } else if (arg_match(&arg, &stereo_mode, argi)) {
       config->stereo_fmt = arg_parse_enum_or_int(&arg);
@@ -1461,8 +1472,9 @@ static void open_output_file(struct stream_state *stream,
 #if CONFIG_WEBM_IO
   if (stream->config.write_webm) {
     stream->webm_ctx.stream = stream->file;
-    write_webm_file_header(&stream->webm_ctx, cfg, stream->config.stereo_fmt,
-                           global->codec->fourcc, pixel_aspect_ratio);
+    write_webm_file_header(&stream->webm_ctx, &stream->encoder, cfg,
+                           stream->config.stereo_fmt, global->codec->fourcc,
+                           pixel_aspect_ratio);
   }
 #else
   (void)pixel_aspect_ratio;
@@ -1537,7 +1549,6 @@ static void initialize_encoder(struct stream_state *stream,
   int flags = 0;
 
   flags |= global->show_psnr ? AOM_CODEC_USE_PSNR : 0;
-  flags |= global->out_part ? AOM_CODEC_USE_OUTPUT_PARTITION : 0;
   flags |= stream->config.use_16bit_internal ? AOM_CODEC_USE_HIGHBITDEPTH : 0;
 
   /* Construct Encoder Context */
@@ -1912,7 +1923,7 @@ int main(int argc, const char **argv_) {
    * codec.
    */
   argv = argv_dup(argc - 1, argv_ + 1);
-  parse_global_config(&global, &argc, &argv);
+  parse_global_config(&global, argc, &argv);
 
 #if CONFIG_FILEOPTIONS
   if (argc < 2) usage_exit();
@@ -1968,7 +1979,7 @@ int main(int argc, const char **argv_) {
     int64_t average_rate = -1;
     int64_t lagged_count = 0;
 
-    open_input_file(&input);
+    open_input_file(&input, global.csp);
 
     /* If the input file doesn't specify its w/h (raw files), try to get
      * the data from the first stream's configuration.
@@ -2049,16 +2060,24 @@ int main(int argc, const char **argv_) {
                         input.fmt == AOM_IMG_FMT_I42016)) {
               stream->config.cfg.g_profile = 0;
               profile_updated = 1;
+            } else if (input.bit_depth == 12 &&
+                       input.file_type == FILE_TYPE_Y4M) {
+              // Note that here the input file values for chroma subsampling
+              // are used instead of those from the command line.
+              aom_codec_control(&stream->encoder, AV1E_SET_CHROMA_SUBSAMPLING_X,
+                                input.y4m.dst_c_dec_h >> 1);
+              aom_codec_control(&stream->encoder, AV1E_SET_CHROMA_SUBSAMPLING_Y,
+                                input.y4m.dst_c_dec_v >> 1);
+            } else if (input.bit_depth == 12 &&
+                       input.file_type == FILE_TYPE_RAW) {
+              aom_codec_control(&stream->encoder, AV1E_SET_CHROMA_SUBSAMPLING_X,
+                                stream->chroma_subsampling_x);
+              aom_codec_control(&stream->encoder, AV1E_SET_CHROMA_SUBSAMPLING_Y,
+                                stream->chroma_subsampling_y);
             }
             break;
           default: break;
         }
-      }
-      /* Automatically set the codec bit depth to match the input bit depth.
-       * Upgrade the profile if required. */
-      if (stream->config.cfg.g_input_bit_depth >
-          (unsigned int)stream->config.cfg.g_bit_depth) {
-        stream->config.cfg.g_bit_depth = stream->config.cfg.g_input_bit_depth;
       }
       if (stream->config.cfg.g_bit_depth > 10) {
         switch (stream->config.cfg.g_profile) {
@@ -2144,10 +2163,11 @@ int main(int argc, const char **argv_) {
     }
 
     FOREACH_STREAM(stream, streams) { setup_pass(stream, &global, pass); }
+    FOREACH_STREAM(stream, streams) { initialize_encoder(stream, &global); }
     FOREACH_STREAM(stream, streams) {
       open_output_file(stream, &global, &input.pixel_aspect_ratio);
     }
-    FOREACH_STREAM(stream, streams) { initialize_encoder(stream, &global); }
+
     if (strcmp(global.codec->name, "av1") == 0 ||
         strcmp(global.codec->name, "av1") == 0) {
       // Check to see if at least one stream uses 16 bit internal.

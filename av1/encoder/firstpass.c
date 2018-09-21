@@ -54,7 +54,7 @@
 #define FIRST_PASS_Q 10.0
 #define GF_MAX_BOOST 90.0
 #define INTRA_MODE_PENALTY 1024
-#define KF_MIN_FRAME_BOOST 96.0
+#define KF_MIN_FRAME_BOOST 80.0
 #define KF_MAX_FRAME_BOOST 128.0
 #define MIN_ARF_GF_BOOST 240
 #define MIN_DECAY_FACTOR 0.01
@@ -64,6 +64,7 @@
 #define DEFAULT_GRP_WEIGHT 1.0
 #define RC_FACTOR_MIN 0.75
 #define RC_FACTOR_MAX 1.75
+#define MIN_FWD_KF_INTERVAL 8
 
 #define NCOUNT_INTRA_THRESH 8192
 #define NCOUNT_INTRA_FACTOR 3
@@ -1584,6 +1585,12 @@ void check_frame_params(GF_GROUP *const gf_group, int gf_interval,
             gf_group->arf_src_offset[i], gf_group->arf_pos_in_gf[i],
             gf_group->arf_update_idx[i], gf_group->pyramid_level[i]);
   }
+
+  fprintf(fid, "number of nodes in each level: \n");
+  for (int i = 0; i < MAX_PYRAMID_LVL; ++i) {
+    fprintf(fid, "lvl %d: %d ", i, gf_group->pyramid_lvl_nodes[i]);
+  }
+  fprintf(fid, "\n");
   fclose(fid);
 }
 #endif  // CHCEK_GF_PARAMETER
@@ -1611,7 +1618,8 @@ static void set_multi_layer_params(GF_GROUP *const gf_group, int l, int r,
       gf_group->arf_src_offset[*frame_ind] = 0;
       gf_group->arf_pos_in_gf[*frame_ind] = 0;
       gf_group->arf_update_idx[*frame_ind] = arf_ind;
-      gf_group->pyramid_level[*frame_ind] = level;
+      gf_group->pyramid_level[*frame_ind] = 0;
+      ++gf_group->pyramid_lvl_nodes[0];
       ++(*frame_ind);
     }
   } else {
@@ -1623,6 +1631,7 @@ static void set_multi_layer_params(GF_GROUP *const gf_group, int l, int r,
     gf_group->arf_pos_in_gf[*frame_ind] = 0;
     gf_group->arf_update_idx[*frame_ind] = 1;  // mark all internal ARF 1
     gf_group->pyramid_level[*frame_ind] = level;
+    ++gf_group->pyramid_lvl_nodes[level];
     ++(*frame_ind);
 
     // set parameters for frames displayed before this frame
@@ -1654,6 +1663,10 @@ static int construct_multi_layer_gf_structure(GF_GROUP *const gf_group,
   int frame_index = 0;
   gf_group->pyramid_height = get_pyramid_height(gf_interval);
 
+  assert(gf_group->pyramid_height <= MAX_PYRAMID_LVL);
+
+  av1_zero_array(gf_group->pyramid_lvl_nodes, MAX_PYRAMID_LVL);
+
   // At the beginning of each GF group it will be a key or overlay frame,
   gf_group->update_type[frame_index] = OVERLAY_UPDATE;
   gf_group->arf_src_offset[frame_index] = 0;
@@ -1682,7 +1695,8 @@ void define_customized_gf_group_structure(AV1_COMP *cpi) {
   GF_GROUP *const gf_group = &twopass->gf_group;
   const int key_frame = cpi->common.frame_type == KEY_FRAME;
 
-  assert(rc->baseline_gf_interval >= 4 && rc->baseline_gf_interval <= 16);
+  assert(rc->baseline_gf_interval >= 4 &&
+         rc->baseline_gf_interval <= MAX_PYRAMID_SIZE);
 
   const int gf_update_frames =
       construct_multi_layer_gf_structure(gf_group, rc->baseline_gf_interval);
@@ -1883,7 +1897,8 @@ static void define_gf_group_structure(AV1_COMP *cpi) {
 
 #if USE_SYMM_MULTI_LAYER
   const int valid_customized_gf_length =
-      rc->baseline_gf_interval >= 4 && rc->baseline_gf_interval <= 16;
+      rc->baseline_gf_interval >= 4 &&
+      rc->baseline_gf_interval <= MAX_PYRAMID_SIZE;
   // used the new structure only if extra_arf is allowed
   if (valid_customized_gf_length && rc->source_alt_ref_pending &&
       cpi->extra_arf_allowed > 0) {
@@ -2112,6 +2127,26 @@ static void define_gf_group_structure(AV1_COMP *cpi) {
   gf_group->brf_src_offset[frame_index] = 0;
 }
 
+#if USE_SYMM_MULTI_LAYER
+// TODO(debargha): Temporarily disable the allocation startegy that
+// uses the macros below, since it seems to cause a slowdown.
+// INvestigate and either re-enable or remove.
+#define NEW_MULTI_LVL_BOOST_VBR_ALLOC 0
+
+#if NEW_MULTI_LVL_BOOST_VBR_ALLOC
+#define LEAF_REDUCTION_FACTOR 0.75f
+#define LVL_3_BOOST_FACTOR 0.8f
+#define LVL_2_BOOST_FACTOR 0.3f
+
+static float_t lvl_budget_factor[MAX_PYRAMID_LVL][MAX_PYRAMID_LVL - 1] = {
+  { 0, 0, 0 },
+  { 1, 0, 0 },
+  { LVL_3_BOOST_FACTOR, 0, 0 },  // Leaking budget works better
+  { LVL_3_BOOST_FACTOR, (1 - LVL_3_BOOST_FACTOR) * LVL_2_BOOST_FACTOR,
+    (1 - LVL_3_BOOST_FACTOR) * (1 - LVL_2_BOOST_FACTOR) }
+};
+#endif  // NEW_MULTI_LVL_BOOST_VBR_ALLOC
+#endif  // USE_SYMM_MULTI_LAYER
 static void allocate_gf_group_bits(AV1_COMP *cpi, int64_t gf_group_bits,
                                    double group_error, int gf_arf_bits) {
   RATE_CONTROL *const rc = &cpi->rc;
@@ -2198,20 +2233,45 @@ static void allocate_gf_group_bits(AV1_COMP *cpi, int64_t gf_group_bits,
       // BIPRED_UPDATE frames need to be further adjusted.
       gf_group->bit_allocation[frame_index] = target_frame_size;
 #if USE_SYMM_MULTI_LAYER
-    } else if (cpi->new_bwdref_update_rule == 1 &&
+    } else if (cpi->new_bwdref_update_rule &&
                gf_group->update_type[frame_index] == INTNL_OVERLAY_UPDATE) {
+      assert(gf_group->pyramid_height <= MAX_PYRAMID_LVL &&
+             gf_group->pyramid_height >= 0 &&
+             "non-valid height for a pyramid structure");
+
       int arf_pos = gf_group->arf_pos_in_gf[frame_index];
       gf_group->bit_allocation[frame_index] = 0;
 
-      // Tried boosting up the allocated bits on backward reference frame
-      // by (target_frame_size >> 2) as in the original setting. However it
-      // does not bring gains for pyramid structure with GF length = 16.
       gf_group->bit_allocation[arf_pos] = target_frame_size;
-#endif
+#if MULTI_LVL_BOOST_VBR_CQ
+      const int this_lvl = gf_group->pyramid_level[arf_pos];
+      const int dist2top = gf_group->pyramid_height - 1 - this_lvl;
+#if NEW_MULTI_LVL_BOOST_VBR_ALLOC
+      const float_t budget =
+          LEAF_REDUCTION_FACTOR * gf_group->pyramid_lvl_nodes[0];
+      const float_t lvl_boost =
+          budget * lvl_budget_factor[gf_group->pyramid_height - 1][dist2top] /
+          gf_group->pyramid_lvl_nodes[this_lvl];
+      gf_group->bit_allocation[arf_pos] += (int)(target_frame_size * lvl_boost);
+#else
+      gf_group->bit_allocation[arf_pos] += (target_frame_size >> dist2top);
+#endif  // NEW_MULTI_LVL_BOOST_VBR_ALLOC
+#endif  // MULTI_LVL_BOOST_VBR_CQ
+#endif  // USE_SYMM_MULTI_LAYER
     } else {
       assert(gf_group->update_type[frame_index] == LF_UPDATE ||
              gf_group->update_type[frame_index] == INTNL_OVERLAY_UPDATE);
       gf_group->bit_allocation[frame_index] = target_frame_size;
+#if MULTI_LVL_BOOST_VBR_CQ
+      if (cpi->new_bwdref_update_rule) {
+#if NEW_MULTI_LVL_BOOST_VBR_ALLOC
+        gf_group->bit_allocation[frame_index] -=
+            (int)(target_frame_size * LEAF_REDUCTION_FACTOR);
+#else
+        gf_group->bit_allocation[frame_index] -= (target_frame_size >> 1);
+#endif  // NEW_MULTI_LVL_BOOST_VBR_ALLOC
+      }
+#endif  // MULTI_LVL_BOOST_VBR_CQ
     }
 
     ++frame_index;
@@ -2452,15 +2512,37 @@ static void define_gf_group(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame) {
   assert(num_mbs > 0);
   if (i) avg_sr_coded_error /= i;
 
+  if (non_zero_stdev_count) avg_raw_err_stdev /= non_zero_stdev_count;
+
+  // Disable extra altrefs and backward refs for "still" gf group:
+  //   zero_motion_accumulator: minimum percentage of (0,0) motion;
+  //   avg_sr_coded_error:      average of the SSE per pixel of each frame;
+  //   avg_raw_err_stdev:       average of the standard deviation of (0,0)
+  //                            motion error per block of each frame.
+  const int disable_bwd_extarf =
+      (zero_motion_accumulator > MIN_ZERO_MOTION &&
+       avg_sr_coded_error / num_mbs < MAX_SR_CODED_ERROR &&
+       avg_raw_err_stdev < MAX_RAW_ERR_VAR);
+
+  if (disable_bwd_extarf) cpi->extra_arf_allowed = 0;
+
 #define REDUCE_GF_LENGTH_THRESH 4
 #define REDUCE_GF_LENGTH_TO_KEY_THRESH 9
 #define REDUCE_GF_LENGTH_BY 1
   int alt_offset = 0;
 #if REDUCE_LAST_GF_LENGTH
+  // TODO(weitinglin): The length reduction stretagy is tweaking using AOM_Q
+  // mode, and hurting the performance of VBR mode. We need to investigate how
+  // to adjust GF length for other modes.
+
+  int allow_gf_length_reduction =
+      cpi->oxcf.rc_mode == AOM_Q || cpi->extra_arf_allowed == 0;
+
   // We are going to have an alt ref, but we don't have do adjustment for
   // lossless mode
-  if (allow_alt_ref && (i < cpi->oxcf.lag_in_frames) &&
-      (i >= rc->min_gf_interval) && !is_lossless_requested(&cpi->oxcf)) {
+  if (allow_alt_ref && allow_gf_length_reduction &&
+      (i < cpi->oxcf.lag_in_frames) && (i >= rc->min_gf_interval) &&
+      !is_lossless_requested(&cpi->oxcf)) {
     // adjust length of this gf group if one of the following condition met
     // 1: only one overlay frame left and this gf is too long
     // 2: next gf group is too short to have arf compared to the current gf
@@ -2503,14 +2585,27 @@ static void define_gf_group(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame) {
   }
 
   // Set the interval until the next gf.
-  if (cpi->oxcf.fwd_kf_enabled) {
-    // Ensure the gf group before the next keyframe will contain an altref
-    if ((rc->frames_to_key - i < rc->min_gf_interval) &&
-        (rc->frames_to_key != i)) {
-      rc->baseline_gf_interval = AOMMIN(rc->frames_to_key - rc->min_gf_interval,
-                                        rc->static_scene_max_gf_interval);
-    } else {
+  // If forward keyframes are enabled, ensure the final gf group obeys the
+  // MIN_FWD_KF_INTERVAL.
+  if (cpi->oxcf.fwd_kf_enabled &&
+      ((twopass->stats_in - i + rc->frames_to_key) < twopass->stats_in_end)) {
+    if (i == rc->frames_to_key) {
       rc->baseline_gf_interval = i;
+      // if the last gf group will be smaller than MIN_FWD_KF_INTERVAL
+    } else if ((rc->frames_to_key - i <
+                AOMMAX(MIN_FWD_KF_INTERVAL, rc->min_gf_interval)) &&
+               (rc->frames_to_key != i)) {
+      // if possible, merge the last two gf groups
+      if (rc->frames_to_key <= MAX_PYRAMID_SIZE) {
+        rc->baseline_gf_interval = rc->frames_to_key;
+        // if merging the last two gf groups creates a group that is too long,
+        // split them and force the last gf group to be the MIN_FWD_KF_INTERVAL
+      } else {
+        rc->baseline_gf_interval = rc->frames_to_key - MIN_FWD_KF_INTERVAL;
+      }
+    } else {
+      rc->baseline_gf_interval =
+          i - (is_key_frame || rc->source_alt_ref_pending);
     }
   } else {
     rc->baseline_gf_interval = i - (is_key_frame || rc->source_alt_ref_pending);
@@ -2527,20 +2622,6 @@ static void define_gf_group(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame) {
     }
   }
 #endif
-
-  if (non_zero_stdev_count) avg_raw_err_stdev /= non_zero_stdev_count;
-
-  // Disable extra altrefs and backward refs for "still" gf group:
-  //   zero_motion_accumulator: minimum percentage of (0,0) motion;
-  //   avg_sr_coded_error:      average of the SSE per pixel of each frame;
-  //   avg_raw_err_stdev:       average of the standard deviation of (0,0)
-  //                            motion error per block of each frame.
-  const int disable_bwd_extarf =
-      (zero_motion_accumulator > MIN_ZERO_MOTION &&
-       avg_sr_coded_error / num_mbs < MAX_SR_CODED_ERROR &&
-       avg_raw_err_stdev < MAX_RAW_ERR_VAR);
-
-  if (disable_bwd_extarf) cpi->extra_arf_allowed = 0;
 
   if (!cpi->extra_arf_allowed) {
     cpi->num_extra_arfs = 0;
@@ -2912,8 +2993,11 @@ static void find_next_key_frame(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame) {
   // how many bits to spend on it.
   decay_accumulator = 1.0;
   boost_score = 0.0;
-  const double kf_max_boost = AOMMIN(
-      AOMMAX(rc->frames_to_key * 2.0, KF_MIN_FRAME_BOOST), KF_MAX_FRAME_BOOST);
+  const double kf_max_boost =
+      cpi->oxcf.rc_mode == AOM_Q
+          ? AOMMIN(AOMMAX(rc->frames_to_key * 2.0, KF_MIN_FRAME_BOOST),
+                   KF_MAX_FRAME_BOOST)
+          : KF_MAX_FRAME_BOOST;
   for (i = 0; i < (rc->frames_to_key - 1); ++i) {
     if (EOF == input_stats(twopass, &next_frame)) break;
 

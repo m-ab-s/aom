@@ -122,12 +122,19 @@ list(APPEND AOM_SOURCES
             "${AOM_ROOT}/aom/src/aom_image.c"
             "${AOM_ROOT}/aom/src/aom_integer.c")
 
-list(APPEND AOM_COMMON_APP_UTIL_SOURCES "${AOM_ROOT}/common/args.c"
-            "${AOM_ROOT}/common/args.h" "${AOM_ROOT}/common/md5_utils.c"
+list(APPEND AOM_COMMON_APP_UTIL_SOURCES
+            "${AOM_ROOT}/common/args.c"
+            "${AOM_ROOT}/common/args.h"
+            "${AOM_ROOT}/common/av1_config.c"
+            "${AOM_ROOT}/common/av1_config.h"
+            "${AOM_ROOT}/common/md5_utils.c"
             "${AOM_ROOT}/common/md5_utils.h"
             "${AOM_ROOT}/common/tools_common.c"
             "${AOM_ROOT}/common/tools_common.h"
-            "${AOM_ROOT}/common/video_common.h" "${AOM_ROOT}/common/y4menc.c"
+            "${AOM_ROOT}/common/video_common.h"
+            "${AOM_ROOT}/common/rawenc.c"
+            "${AOM_ROOT}/common/rawenc.h"
+            "${AOM_ROOT}/common/y4menc.c"
             "${AOM_ROOT}/common/y4menc.h")
 
 list(APPEND AOM_DECODER_APP_UTIL_SOURCES "${AOM_ROOT}/common/ivfdec.c"
@@ -216,7 +223,10 @@ add_rtcd_build_step("${AOM_ROOT}/av1/common/av1_rtcd_defs.pl"
 add_library(aom_rtcd OBJECT ${AOM_RTCD_SOURCES})
 add_dependencies(aom_rtcd aom_version)
 
-add_library(aom_encoder_stats OBJECT ${AOM_ENCODER_STATS_SOURCES})
+if(ENABLE_EXAMPLES)
+  add_library(aom_encoder_stats OBJECT ${AOM_ENCODER_STATS_SOURCES})
+  set(AOM_LIB_TARGETS ${AOM_LIB_TARGETS} aom_encoder_stats)
+endif()
 add_library(aom ${AOM_SOURCES} $<TARGET_OBJECTS:aom_rtcd>)
 
 if(NOT MSVC AND NOT APPLE)
@@ -224,8 +234,7 @@ if(NOT MSVC AND NOT APPLE)
 endif()
 
 # List of object and static library targets.
-set(AOM_LIB_TARGETS ${AOM_LIB_TARGETS} aom_rtcd aom_encoder_stats aom_mem
-    aom_scale aom)
+set(AOM_LIB_TARGETS ${AOM_LIB_TARGETS} aom_rtcd aom_mem aom_scale aom)
 
 # Setup dependencies.
 setup_aom_dsp_targets()
@@ -307,6 +316,8 @@ if(CONFIG_AV1_DECODER AND ENABLE_EXAMPLES)
       add_preproc_definition(_POSIX_SOURCE)
       append_link_flag_to_target("inspect" "-s TOTAL_MEMORY=402653184")
       append_link_flag_to_target("inspect" "-s MODULARIZE=1")
+      append_link_flag_to_target(
+        "inspect" "-s \'EXTRA_EXPORTED_RUNTIME_METHODS=[\"UTF8ToString\"]\'")
       append_link_flag_to_target("inspect"
                                  "-s EXPORT_NAME=\"\'DecoderModule\'\"")
       append_link_flag_to_target("inspect" "--memory-init-file 0")

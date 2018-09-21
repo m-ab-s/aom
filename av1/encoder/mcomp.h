@@ -9,8 +9,8 @@
  * PATENTS file, you can obtain it at www.aomedia.org/license/patent.
  */
 
-#ifndef AV1_ENCODER_MCOMP_H_
-#define AV1_ENCODER_MCOMP_H_
+#ifndef AOM_AV1_ENCODER_MCOMP_H_
+#define AOM_AV1_ENCODER_MCOMP_H_
 
 #include "av1/encoder/block.h"
 #include "aom_dsp/variance.h"
@@ -134,11 +134,11 @@ int av1_full_pixel_search(const struct AV1_COMP *cpi, MACROBLOCK *x,
                           int *cost_list, const MV *ref_mv, int var_max, int rd,
                           int x_pos, int y_pos, int intra);
 
-int av1_obmc_full_pixel_diamond(const struct AV1_COMP *cpi, MACROBLOCK *x,
-                                MV *mvp_full, int step_param, int sadpb,
-                                int further_steps, int do_refine,
-                                const aom_variance_fn_ptr_t *fn_ptr,
-                                const MV *ref_mv, MV *dst_mv, int is_second);
+int av1_obmc_full_pixel_search(const struct AV1_COMP *cpi, MACROBLOCK *x,
+                               MV *mvp_full, int step_param, int sadpb,
+                               int further_steps, int do_refine,
+                               const aom_variance_fn_ptr_t *fn_ptr,
+                               const MV *ref_mv, MV *dst_mv, int is_second);
 int av1_find_best_obmc_sub_pixel_tree_up(
     MACROBLOCK *x, const AV1_COMMON *const cm, int mi_row, int mi_col,
     MV *bestmv, const MV *ref_mv, int allow_hp, int error_per_bit,
@@ -158,4 +158,4 @@ unsigned int av1_refine_warped_mv(const struct AV1_COMP *cpi,
 }  // extern "C"
 #endif
 
-#endif  // AV1_ENCODER_MCOMP_H_
+#endif  // AOM_AV1_ENCODER_MCOMP_H_

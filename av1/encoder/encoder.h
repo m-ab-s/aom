@@ -9,8 +9,8 @@
  * PATENTS file, you can obtain it at www.aomedia.org/license/patent.
  */
 
-#ifndef AV1_ENCODER_ENCODER_H_
-#define AV1_ENCODER_ENCODER_H_
+#ifndef AOM_AV1_ENCODER_ENCODER_H_
+#define AOM_AV1_ENCODER_ENCODER_H_
 
 #include <stdio.h>
 
@@ -309,6 +309,9 @@ typedef struct AV1EncoderConfig {
   float noise_level;
   int noise_block_size;
 #endif
+
+  unsigned int chroma_subsampling_x;
+  unsigned int chroma_subsampling_y;
 } AV1EncoderConfig;
 
 static INLINE int is_lossless_requested(const AV1EncoderConfig *cfg) {
@@ -413,7 +416,10 @@ typedef struct {
   double a;
   double b;
   double dist_mean;
-  int bracket_idx;
+  double ld_mean;
+  double sse_mean;
+  double sse_sse_mean;
+  double sse_ld_mean;
   int num;
   double dist_sum;
   double ld_sum;
@@ -455,6 +461,12 @@ typedef struct TileDataEnc {
 #endif
 } TileDataEnc;
 
+typedef struct {
+  TOKENEXTRA *start;
+  TOKENEXTRA *stop;
+  unsigned int count;
+} TOKENLIST;
+
 typedef struct RD_COUNTS {
   int64_t comp_pred_diff[REFERENCE_MODES];
   // Stores number of 4x4 blocks using global motion per reference frame.
@@ -469,11 +481,14 @@ typedef struct ThreadData {
   FRAME_COUNTS *counts;
   PC_TREE *pc_tree;
   PC_TREE *pc_root[MAX_MIB_SIZE_LOG2 - MIN_MIB_SIZE_LOG2 + 1];
+  uint32_t *hash_value_buffer[2][2];
   int32_t *wsrc_buf;
   int32_t *mask_buf;
   uint8_t *above_pred_buf;
   uint8_t *left_pred_buf;
   PALETTE_BUFFER *palette_buffer;
+  CONV_BUF_TYPE *tmp_conv_dst;
+  uint8_t *tmp_obmc_bufs[2];
   int intrabc_used_this_tile;
 } ThreadData;
 
@@ -695,6 +710,7 @@ typedef struct AV1_COMP {
 
   TOKENEXTRA *tile_tok[MAX_TILE_ROWS][MAX_TILE_COLS];
   unsigned int tok_count[MAX_TILE_ROWS][MAX_TILE_COLS];
+  TOKENLIST *tplist[MAX_TILE_ROWS][MAX_TILE_COLS];
 
   TileBufferEnc tile_buffers[MAX_TILE_ROWS][MAX_TILE_COLS];
 
@@ -879,6 +895,22 @@ static INLINE unsigned int allocated_tokens(TileInfo tile, int sb_size_log2,
   return get_token_alloc(tile_mb_rows, tile_mb_cols, sb_size_log2, num_planes);
 }
 
+static INLINE void get_start_tok(AV1_COMP *cpi, int tile_row, int tile_col,
+                                 int mi_row, TOKENEXTRA **tok, int sb_size_log2,
+                                 int num_planes) {
+  AV1_COMMON *const cm = &cpi->common;
+  const int tile_cols = cm->tile_cols;
+  TileDataEnc *this_tile = &cpi->tile_data[tile_row * tile_cols + tile_col];
+  const TileInfo *const tile_info = &this_tile->tile_info;
+
+  const int tile_mb_cols =
+      (tile_info->mi_col_end - tile_info->mi_col_start + 2) >> 2;
+  const int tile_mb_row = (mi_row - tile_info->mi_row_start + 2) >> 2;
+
+  *tok = cpi->tile_tok[tile_row][tile_col] +
+         get_token_alloc(tile_mb_row, tile_mb_cols, sb_size_log2, num_planes);
+}
+
 void av1_apply_encoding_flags(AV1_COMP *cpi, aom_enc_frame_flags_t flags);
 
 #define ALT_MIN_LAG 3
@@ -939,8 +971,19 @@ static INLINE int encode_show_existing_frame(const AV1_COMMON *cm) {
          (!cm->error_resilient_mode || cm->frame_type == KEY_FRAME);
 }
 
+// Returns a Sequence Header OBU stored in an aom_fixed_buf_t, or NULL upon
+// failure. When a non-NULL aom_fixed_buf_t pointer is returned by this
+// function, the memory must be freed by the caller. Both the buf member of the
+// aom_fixed_buf_t, and the aom_fixed_buf_t pointer itself must be freed. Memory
+// returned must be freed via call to free().
+//
+// Note: The OBU returned is in Low Overhead Bitstream Format. Specifically,
+// the obu_has_size_field bit is set, and the buffer contains the obu_size
+// field.
+aom_fixed_buf_t *av1_get_global_headers(AV1_COMP *cpi);
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif
 
-#endif  // AV1_ENCODER_ENCODER_H_
+#endif  // AOM_AV1_ENCODER_ENCODER_H_

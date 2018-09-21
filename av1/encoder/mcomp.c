@@ -1897,7 +1897,7 @@ static int full_pixel_exhaustive(const AV1_COMP *const cpi, MACROBLOCK *x,
   int baseline_interval_divisor;
 
   // Keep track of number of exhaustive calls (this frame in this thread).
-  ++(*x->ex_search_count_ptr);
+  if (x->ex_search_count_ptr != NULL) ++(*x->ex_search_count_ptr);
 
   // Trap illegal values for interval and range for this function.
   if ((range < MIN_RANGE) || (range > MAX_RANGE) || (interval < MIN_INTERVAL) ||
@@ -2117,13 +2117,16 @@ int av1_refining_search_8p_c(MACROBLOCK *x, int error_per_bit, int search_range,
 #define MIN_EX_SEARCH_LIMIT 128
 static int is_exhaustive_allowed(const AV1_COMP *const cpi, MACROBLOCK *x) {
   const SPEED_FEATURES *const sf = &cpi->sf;
-  const int max_ex =
-      AOMMAX(MIN_EX_SEARCH_LIMIT,
-             (*x->m_search_count_ptr * sf->max_exaustive_pct) / 100);
-
-  return sf->allow_exhaustive_searches &&
-         (sf->exhaustive_searches_thresh < INT_MAX) &&
-         (*x->ex_search_count_ptr <= max_ex) && !cpi->rc.is_src_frame_alt_ref;
+  int is_allowed = sf->allow_exhaustive_searches &&
+                   (sf->exhaustive_searches_thresh < INT_MAX) &&
+                   !cpi->rc.is_src_frame_alt_ref;
+  if (x->m_search_count_ptr != NULL && x->ex_search_count_ptr != NULL) {
+    const int max_ex =
+        AOMMAX(MIN_EX_SEARCH_LIMIT,
+               (*x->m_search_count_ptr * sf->max_exaustive_pct) / 100);
+    is_allowed = *x->ex_search_count_ptr <= max_ex && is_allowed;
+  }
+  return is_allowed;
 }
 
 int av1_full_pixel_search(const AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
@@ -2144,7 +2147,7 @@ int av1_full_pixel_search(const AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
   }
 
   // Keep track of number of searches (this frame in this thread).
-  ++(*x->m_search_count_ptr);
+  if (x->m_search_count_ptr != NULL) ++(*x->m_search_count_ptr);
 
   switch (method) {
     case FAST_DIAMOND:
@@ -2247,7 +2250,7 @@ int av1_full_pixel_search(const AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
 
         av1_get_block_hash_value(
             what, what_stride, block_width, &hash_value1, &hash_value2,
-            x->e_mbd.cur_buf->flags & YV12_FLAG_HIGHBITDEPTH);
+            x->e_mbd.cur_buf->flags & YV12_FLAG_HIGHBITDEPTH, x);
 
         const int count = av1_hash_table_count(ref_frame_hash, hash_value1);
         // for intra, at lest one matching can be found, itself.
@@ -2702,11 +2705,12 @@ int obmc_diamond_search_sad(const MACROBLOCK *x, const search_site_config *cfg,
   return best_sad;
 }
 
-int av1_obmc_full_pixel_diamond(const AV1_COMP *cpi, MACROBLOCK *x,
-                                MV *mvp_full, int step_param, int sadpb,
-                                int further_steps, int do_refine,
-                                const aom_variance_fn_ptr_t *fn_ptr,
-                                const MV *ref_mv, MV *dst_mv, int is_second) {
+static int obmc_full_pixel_diamond(const AV1_COMP *cpi, MACROBLOCK *x,
+                                   MV *mvp_full, int step_param, int sadpb,
+                                   int further_steps, int do_refine,
+                                   const aom_variance_fn_ptr_t *fn_ptr,
+                                   const MV *ref_mv, MV *dst_mv,
+                                   int is_second) {
   const int32_t *wsrc = x->wsrc_buf;
   const int32_t *mask = x->mask_buf;
   MV temp_mv;
@@ -2761,6 +2765,31 @@ int av1_obmc_full_pixel_diamond(const AV1_COMP *cpi, MACROBLOCK *x,
     }
   }
   return bestsme;
+}
+
+int av1_obmc_full_pixel_search(const AV1_COMP *cpi, MACROBLOCK *x, MV *mvp_full,
+                               int step_param, int sadpb, int further_steps,
+                               int do_refine,
+                               const aom_variance_fn_ptr_t *fn_ptr,
+                               const MV *ref_mv, MV *dst_mv, int is_second) {
+  if (cpi->sf.obmc_full_pixel_search_level == 0) {
+    return obmc_full_pixel_diamond(cpi, x, mvp_full, step_param, sadpb,
+                                   further_steps, do_refine, fn_ptr, ref_mv,
+                                   dst_mv, is_second);
+  } else {
+    const int32_t *wsrc = x->wsrc_buf;
+    const int32_t *mask = x->mask_buf;
+    const int search_range = 8;
+    *dst_mv = *mvp_full;
+    clamp_mv(dst_mv, x->mv_limits.col_min, x->mv_limits.col_max,
+             x->mv_limits.row_min, x->mv_limits.row_max);
+    int thissme = obmc_refining_search_sad(
+        x, wsrc, mask, dst_mv, sadpb, search_range, fn_ptr, ref_mv, is_second);
+    if (thissme < INT_MAX)
+      thissme = get_obmc_mvpred_var(x, wsrc, mask, dst_mv, ref_mv, fn_ptr, 1,
+                                    is_second);
+    return thissme;
+  }
 }
 
 // Note(yunqingwang): The following 2 functions are only used in the motion

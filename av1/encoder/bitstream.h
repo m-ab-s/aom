@@ -9,8 +9,8 @@
  * PATENTS file, you can obtain it at www.aomedia.org/license/patent.
  */
 
-#ifndef AV1_ENCODER_BITSTREAM_H_
-#define AV1_ENCODER_BITSTREAM_H_
+#ifndef AOM_AV1_ENCODER_BITSTREAM_H_
+#define AOM_AV1_ENCODER_BITSTREAM_H_
 
 #ifdef __cplusplus
 extern "C" {
@@ -20,8 +20,13 @@ extern "C" {
 
 struct aom_write_bit_buffer;
 
-void write_sequence_header(AV1_COMP *cpi, struct aom_write_bit_buffer *wb);
+// Writes only the OBU Sequence Header payload, and returns the size of the
+// payload written to 'dst'. This function does not write the OBU header, the
+// optional extension, or the OBU size to 'dst'.
+uint32_t write_sequence_header_obu(AV1_COMP *cpi, uint8_t *const dst);
 
+// Writes the OBU header byte, and the OBU header extension byte when
+// 'obu_extension' is non-zero. Returns number of bytes written to 'dst'.
 uint32_t write_obu_header(OBU_TYPE obu_type, int obu_extension,
                           uint8_t *const dst);
 
@@ -43,4 +48,4 @@ void av1_write_tx_type(const AV1_COMMON *const cm, const MACROBLOCKD *xd,
 }  // extern "C"
 #endif
 
-#endif  // AV1_ENCODER_BITSTREAM_H_
+#endif  // AOM_AV1_ENCODER_BITSTREAM_H_

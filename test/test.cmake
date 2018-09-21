@@ -26,6 +26,7 @@ list(APPEND AOM_UNIT_TEST_WRAPPER_SOURCES "${AOM_GEN_SRC_DIR}/usage_exit.c"
 list(APPEND AOM_UNIT_TEST_COMMON_SOURCES
             "${AOM_ROOT}/test/acm_random.h"
             "${AOM_ROOT}/test/aom_integer_test.cc"
+            "${AOM_ROOT}/test/av1_config_test.cc"
             "${AOM_ROOT}/test/blockd_test.cc"
             "${AOM_ROOT}/test/clear_system_state.h"
             "${AOM_ROOT}/test/codec_factory.h"
@@ -106,6 +107,7 @@ if(NOT BUILD_SHARED_LIBS)
 
   if(CONFIG_AV1_DECODER AND CONFIG_AV1_ENCODER)
     list(APPEND AOM_UNIT_TEST_COMMON_SOURCES
+                "${AOM_ROOT}/test/av1_encoder_parms_get_to_decoder.cc"
                 "${AOM_ROOT}/test/av1_ext_tile_test.cc"
                 "${AOM_ROOT}/test/binary_codes_test.cc"
                 "${AOM_ROOT}/test/boolcoder_test.cc"

@@ -501,6 +501,11 @@ static void dealloc_compressor_data(AV1_COMP *cpi) {
   aom_free(cpi->td.mb.wsrc_buf);
   cpi->td.mb.wsrc_buf = NULL;
 
+  for (int i = 0; i < 2; i++)
+    for (int j = 0; j < 2; j++) {
+      aom_free(cpi->td.mb.hash_value_buffer[i][j]);
+      cpi->td.mb.hash_value_buffer[i][j] = NULL;
+    }
   aom_free(cpi->td.mb.mask_buf);
   cpi->td.mb.mask_buf = NULL;
 
@@ -522,9 +527,17 @@ static void dealloc_compressor_data(AV1_COMP *cpi) {
   aom_free(cpi->tile_tok[0][0]);
   cpi->tile_tok[0][0] = 0;
 
+  aom_free(cpi->tplist[0][0]);
+  cpi->tplist[0][0] = NULL;
+
   av1_free_pc_tree(&cpi->td, num_planes);
 
   aom_free(cpi->td.mb.palette_buffer);
+
+  aom_free(cpi->td.mb.tmp_conv_dst);
+  for (int j = 0; j < 2; ++j) {
+    aom_free(cpi->td.mb.tmp_obmc_bufs[j]);
+  }
 
 #if CONFIG_DENOISE
   if (cpi->denoise_and_model) {
@@ -780,6 +793,10 @@ static void alloc_compressor_data(AV1_COMP *cpi) {
 
   av1_alloc_context_buffers(cm, cm->width, cm->height);
 
+  int mi_rows_aligned_to_sb =
+      ALIGN_POWER_OF_TWO(cm->mi_rows, cm->seq_params.mib_size_log2);
+  int sb_rows = mi_rows_aligned_to_sb >> cm->seq_params.mib_size_log2;
+
   av1_alloc_txb_buf(cpi);
 
   alloc_context_buffers_ext(cpi);
@@ -792,6 +809,11 @@ static void alloc_compressor_data(AV1_COMP *cpi) {
     CHECK_MEM_ERROR(cm, cpi->tile_tok[0][0],
                     aom_calloc(tokens, sizeof(*cpi->tile_tok[0][0])));
   }
+  aom_free(cpi->tplist[0][0]);
+
+  CHECK_MEM_ERROR(cm, cpi->tplist[0][0],
+                  aom_calloc(sb_rows * MAX_TILE_ROWS * MAX_TILE_COLS,
+                             sizeof(*cpi->tplist[0][0])));
 
   av1_setup_pc_tree(&cpi->common, &cpi->td);
 }
@@ -1063,6 +1085,32 @@ static void init_config(struct AV1_COMP *cpi, AV1EncoderConfig *oxcf) {
   } else {
     cm->op_params[0].initial_display_delay =
         10;  // Default value (not signaled)
+  }
+
+  if (cm->seq_params.monochrome) {
+    cm->seq_params.subsampling_x = 1;
+    cm->seq_params.subsampling_y = 1;
+  } else if (cm->seq_params.color_primaries == AOM_CICP_CP_BT_709 &&
+             cm->seq_params.transfer_characteristics == AOM_CICP_TC_SRGB &&
+             cm->seq_params.matrix_coefficients == AOM_CICP_MC_IDENTITY) {
+    cm->seq_params.subsampling_x = 0;
+    cm->seq_params.subsampling_y = 0;
+  } else {
+    if (cm->seq_params.profile == 0) {
+      cm->seq_params.subsampling_x = 1;
+      cm->seq_params.subsampling_y = 1;
+    } else if (cm->seq_params.profile == 1) {
+      cm->seq_params.subsampling_x = 0;
+      cm->seq_params.subsampling_y = 0;
+    } else {
+      if (cm->seq_params.bit_depth == AOM_BITS_12) {
+        cm->seq_params.subsampling_x = oxcf->chroma_subsampling_x;
+        cm->seq_params.subsampling_y = oxcf->chroma_subsampling_y;
+      } else {
+        cm->seq_params.subsampling_x = 1;
+        cm->seq_params.subsampling_y = 0;
+      }
+    }
   }
 
   cm->width = oxcf->width;
@@ -2349,6 +2397,22 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
     CHECK_MEM_ERROR(cm, x->palette_buffer,
                     aom_memalign(16, sizeof(*x->palette_buffer)));
   }
+
+  if (x->tmp_conv_dst == NULL) {
+    CHECK_MEM_ERROR(
+        cm, x->tmp_conv_dst,
+        aom_memalign(32, MAX_SB_SIZE * MAX_SB_SIZE * sizeof(*x->tmp_conv_dst)));
+    x->e_mbd.tmp_conv_dst = x->tmp_conv_dst;
+  }
+  for (int i = 0; i < 2; ++i) {
+    if (x->tmp_obmc_bufs[i] == NULL) {
+      CHECK_MEM_ERROR(cm, x->tmp_obmc_bufs[i],
+                      aom_memalign(16, 2 * MAX_MB_PLANE * MAX_SB_SQUARE *
+                                           sizeof(*x->tmp_obmc_bufs[i])));
+      x->e_mbd.tmp_obmc_bufs[i] = x->tmp_obmc_bufs[i];
+    }
+  }
+
   av1_reset_segment_features(cm);
   set_high_precision_mv(cpi, 1, 0);
 
@@ -2366,11 +2430,7 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
   rc->worst_quality = cpi->oxcf.worst_allowed_q;
   rc->best_quality = cpi->oxcf.best_allowed_q;
 
-  if (!oxcf->large_scale_tile)
-    cm->interp_filter = cpi->sf.default_interp_filter;
-  else
-    cm->interp_filter = EIGHTTAP_REGULAR;
-
+  cm->interp_filter = oxcf->large_scale_tile ? EIGHTTAP_REGULAR : SWITCHABLE;
   cm->switchable_motion_mode = 1;
 
   if (cpi->oxcf.render_width > 0 && cpi->oxcf.render_height > 0) {
@@ -2586,6 +2646,15 @@ AV1_COMP *av1_create_compressor(AV1EncoderConfig *oxcf,
   CHECK_MEM_ERROR(cm, cpi->td.mb.wsrc_buf,
                   (int32_t *)aom_memalign(
                       16, MAX_SB_SQUARE * sizeof(*cpi->td.mb.wsrc_buf)));
+
+  for (int x = 0; x < 2; x++)
+    for (int y = 0; y < 2; y++)
+      CHECK_MEM_ERROR(
+          cm, cpi->td.mb.hash_value_buffer[x][y],
+          (uint32_t *)aom_malloc(AOM_BUFFER_SIZE_FOR_BLOCK_HASH *
+                                 sizeof(*cpi->td.mb.hash_value_buffer[0][0])));
+
+  cpi->td.mb.g_crc_initialized = 0;
 
   CHECK_MEM_ERROR(cm, cpi->td.mb.mask_buf,
                   (int32_t *)aom_memalign(
@@ -2912,9 +2981,19 @@ void av1_remove_compressor(AV1_COMP *cpi) {
     // Deallocate allocated thread data.
     if (t < cpi->num_workers - 1) {
       aom_free(thread_data->td->palette_buffer);
+      aom_free(thread_data->td->tmp_conv_dst);
+      for (int j = 0; j < 2; ++j) {
+        aom_free(thread_data->td->tmp_obmc_bufs[j]);
+      }
       aom_free(thread_data->td->above_pred_buf);
       aom_free(thread_data->td->left_pred_buf);
       aom_free(thread_data->td->wsrc_buf);
+      for (int x = 0; x < 2; x++) {
+        for (int y = 0; y < 2; y++) {
+          aom_free(thread_data->td->hash_value_buffer[x][y]);
+          thread_data->td->hash_value_buffer[x][y] = NULL;
+        }
+      }
       aom_free(thread_data->td->mask_buf);
       aom_free(thread_data->td->counts);
       av1_free_pc_tree(thread_data->td, num_planes);
@@ -3303,13 +3382,13 @@ static INLINE void rshift_bwd_ref_frames(AV1_COMP *cpi) {
                                       EXTREF_FRAME - 1 };
 
   for (int i = 2; i > 0; --i) {
-    cpi->ref_fb_idx[ordered_bwd[i]] = cpi->ref_fb_idx[ordered_bwd[i - 1]];
-
     // [0] is allocated to the current coded frame, i.e. bwdref
     memcpy(
         cpi->interp_filter_selected[ordered_bwd[i] + LAST_FRAME],
         cpi->interp_filter_selected[ordered_bwd[i - 1] + LAST_FRAME],
         sizeof(cpi->interp_filter_selected[ordered_bwd[i - 1] + LAST_FRAME]));
+
+    cpi->ref_fb_idx[ordered_bwd[i]] = cpi->ref_fb_idx[ordered_bwd[i - 1]];
   }
 }
 
@@ -3323,13 +3402,13 @@ static INLINE void lshift_bwd_ref_frames(AV1_COMP *cpi) {
                                       EXTREF_FRAME - 1 };
 
   for (int i = 0; i < 2; ++i) {
-    cpi->ref_fb_idx[ordered_bwd[i]] = cpi->ref_fb_idx[ordered_bwd[i + 1]];
-
     // [0] is allocated to the current coded frame, i.e. bwdref
     memcpy(
         cpi->interp_filter_selected[ordered_bwd[i] + LAST_FRAME],
         cpi->interp_filter_selected[ordered_bwd[i + 1] + LAST_FRAME],
         sizeof(cpi->interp_filter_selected[ordered_bwd[i + 1] + LAST_FRAME]));
+
+    cpi->ref_fb_idx[ordered_bwd[i]] = cpi->ref_fb_idx[ordered_bwd[i + 1]];
   }
 }
 #endif  // USE_SYMM_MULTI_LAYER
@@ -3689,7 +3768,7 @@ static void set_size_independent_vars(AV1_COMP *cpi) {
   av1_set_speed_features_framesize_independent(cpi);
   av1_set_rd_speed_thresholds(cpi);
   av1_set_rd_speed_thresholds_sub8x8(cpi);
-  cpi->common.interp_filter = cpi->sf.default_interp_filter;
+  cpi->common.interp_filter = SWITCHABLE;
   cpi->common.switchable_motion_mode = 1;
 }
 
@@ -3749,7 +3828,8 @@ static void set_restoration_unit_size(int width, int height, int sx, int sy,
   rst[2].restoration_unit_size = rst[1].restoration_unit_size;
 }
 
-static void init_ref_frame_bufs(AV1_COMMON *cm) {
+static void init_ref_frame_bufs(AV1_COMP *cpi) {
+  AV1_COMMON *const cm = &cpi->common;
   int i;
   BufferPool *const pool = cm->buffer_pool;
   cm->new_fb_idx = INVALID_IDX;
@@ -3759,7 +3839,7 @@ static void init_ref_frame_bufs(AV1_COMMON *cm) {
   }
   if (cm->seq_params.force_screen_content_tools) {
     for (i = 0; i < FRAME_BUFFERS; ++i) {
-      av1_hash_table_init(&pool->frame_bufs[i].hash_table);
+      av1_hash_table_init(&pool->frame_bufs[i].hash_table, &cpi->td.mb);
     }
   }
 }
@@ -3777,7 +3857,7 @@ static void check_initial_width(AV1_COMP *cpi, int use_highbitdepth,
     seq_params->use_highbitdepth = use_highbitdepth;
 
     alloc_raw_frame_buffers(cpi);
-    init_ref_frame_bufs(cm);
+    init_ref_frame_bufs(cpi);
     alloc_util_frame_buffers(cpi);
 
     init_motion_estimation(cpi);  // TODO(agrange) This can be removed.
@@ -4150,16 +4230,16 @@ static void loopfilter_frame(AV1_COMP *cpi, AV1_COMMON *cm) {
   }
 
   if (lf->filter_level[0] || lf->filter_level[1]) {
-#if LOOP_FILTER_BITMASK
-    av1_loop_filter_frame(cm->frame_to_show, cm, xd, 0, num_planes, 0);
-#else
     if (cpi->num_workers > 1)
       av1_loop_filter_frame_mt(cm->frame_to_show, cm, xd, 0, num_planes, 0,
                                cpi->workers, cpi->num_workers,
                                &cpi->lf_row_sync);
     else
-      av1_loop_filter_frame(cm->frame_to_show, cm, xd, 0, num_planes, 0);
+      av1_loop_filter_frame(cm->frame_to_show, cm, xd,
+#if LOOP_FILTER_BITMASK
+                            0,
 #endif
+                            0, num_planes, 0);
   }
 
   if (!no_restoration)
@@ -4518,8 +4598,8 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
         rc->projected_frame_size < rc->max_frame_bandwidth)
       loop = 0;
 
-    if (recode_loop_test_global_motion(cpi)) {
-      loop = 1;
+    if (!cpi->sf.gm_disable_recode) {
+      if (recode_loop_test_global_motion(cpi)) loop = 1;
     }
 
     if (loop) {
@@ -4645,47 +4725,6 @@ static void set_ext_overrides(AV1_COMP *cpi) {
   // when forward reference keyframes are enabled.
   cpi->common.error_resilient_mode =
       cpi->ext_use_error_resilient && cpi->common.frame_type != KEY_FRAME;
-}
-
-static int setup_interp_filter_search_mask(AV1_COMP *cpi) {
-  InterpFilter ifilter;
-  int ref_total[REF_FRAMES] = { 0 };
-  MV_REFERENCE_FRAME ref;
-  int mask = 0;
-  int arf_idx = ALTREF_FRAME;
-
-  if (cpi->common.last_frame_type == KEY_FRAME || cpi->refresh_alt_ref_frame ||
-      cpi->refresh_alt2_ref_frame)
-    return mask;
-
-  for (ref = LAST_FRAME; ref <= ALTREF_FRAME; ++ref)
-    for (ifilter = EIGHTTAP_REGULAR; ifilter < SWITCHABLE_FILTERS; ++ifilter)
-      ref_total[ref] += cpi->interp_filter_selected[ref][ifilter];
-
-  for (ifilter = EIGHTTAP_REGULAR; ifilter < SWITCHABLE_FILTERS; ++ifilter) {
-    if ((ref_total[LAST_FRAME] &&
-         cpi->interp_filter_selected[LAST_FRAME][ifilter] == 0) &&
-        (ref_total[LAST2_FRAME] == 0 ||
-         cpi->interp_filter_selected[LAST2_FRAME][ifilter] * 50 <
-             ref_total[LAST2_FRAME]) &&
-        (ref_total[LAST3_FRAME] == 0 ||
-         cpi->interp_filter_selected[LAST3_FRAME][ifilter] * 50 <
-             ref_total[LAST3_FRAME]) &&
-        (ref_total[GOLDEN_FRAME] == 0 ||
-         cpi->interp_filter_selected[GOLDEN_FRAME][ifilter] * 50 <
-             ref_total[GOLDEN_FRAME]) &&
-        (ref_total[BWDREF_FRAME] == 0 ||
-         cpi->interp_filter_selected[BWDREF_FRAME][ifilter] * 50 <
-             ref_total[BWDREF_FRAME]) &&
-        (ref_total[ALTREF2_FRAME] == 0 ||
-         cpi->interp_filter_selected[ALTREF2_FRAME][ifilter] * 50 <
-             ref_total[ALTREF2_FRAME]) &&
-        (ref_total[ALTREF_FRAME] == 0 ||
-         cpi->interp_filter_selected[arf_idx][ifilter] * 50 <
-             ref_total[ALTREF_FRAME]))
-      mask |= 1 << ifilter;
-  }
-  return mask;
 }
 
 #define DUMP_RECON_FRAMES 0
@@ -4914,9 +4953,6 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size, uint8_t *dest,
 
   // Set default state for segment based loop filter update flags.
   cm->lf.mode_ref_delta_update = 0;
-
-  if (cpi->oxcf.pass == 2 && cpi->sf.adaptive_interp_filter_search)
-    cpi->sf.interp_filter_search_mask = setup_interp_filter_search_mask(cpi);
 
   // Set various flags etc to special state if it is a key frame.
   if (frame_is_intra_only(cm) || frame_is_sframe(cm)) {
@@ -5677,7 +5713,7 @@ static int is_integer_mv(AV1_COMP *cpi, const YV12_BUFFER_CONFIG *cur_picture,
       av1_get_block_hash_value(
           cur_picture->y_buffer + y_pos * stride_cur + x_pos, stride_cur,
           block_size, &hash_value_1, &hash_value_2,
-          (cur_picture->flags & YV12_FLAG_HIGHBITDEPTH));
+          (cur_picture->flags & YV12_FLAG_HIGHBITDEPTH), &cpi->td.mb);
       // Hashing does not work for highbitdepth currently.
       // TODO(Roger): Make it work for highbitdepth.
       if (av1_use_hash_me(&cpi->common)) {
@@ -6354,4 +6390,51 @@ int64_t timebase_units_to_ticks(const aom_rational_t *timebase, int64_t n) {
 int64_t ticks_to_timebase_units(const aom_rational_t *timebase, int64_t n) {
   const int64_t round = TICKS_PER_SEC * timebase->num / 2 - 1;
   return (n * timebase->den + round) / timebase->num / TICKS_PER_SEC;
+}
+
+aom_fixed_buf_t *av1_get_global_headers(AV1_COMP *cpi) {
+  if (!cpi) return NULL;
+
+  uint8_t header_buf[512] = { 0 };
+  const uint32_t sequence_header_size =
+      write_sequence_header_obu(cpi, &header_buf[0]);
+  assert(sequence_header_size <= sizeof(header_buf));
+  if (sequence_header_size == 0) return NULL;
+
+  const size_t obu_header_size = 1;
+  const size_t size_field_size = aom_uleb_size_in_bytes(sequence_header_size);
+  const size_t payload_offset = obu_header_size + size_field_size;
+
+  if (payload_offset + sequence_header_size > sizeof(header_buf)) return NULL;
+  memmove(&header_buf[payload_offset], &header_buf[0], sequence_header_size);
+
+  if (write_obu_header(OBU_SEQUENCE_HEADER, 0, &header_buf[0]) !=
+      obu_header_size) {
+    return NULL;
+  }
+
+  size_t coded_size_field_size = 0;
+  if (aom_uleb_encode(sequence_header_size, size_field_size,
+                      &header_buf[obu_header_size],
+                      &coded_size_field_size) != 0) {
+    return NULL;
+  }
+  assert(coded_size_field_size == size_field_size);
+
+  aom_fixed_buf_t *global_headers =
+      (aom_fixed_buf_t *)malloc(sizeof(*global_headers));
+  if (!global_headers) return NULL;
+
+  const size_t global_header_buf_size =
+      obu_header_size + size_field_size + sequence_header_size;
+
+  global_headers->buf = malloc(global_header_buf_size);
+  if (!global_headers->buf) {
+    free(global_headers);
+    return NULL;
+  }
+
+  memcpy(global_headers->buf, &header_buf[0], global_header_buf_size);
+  global_headers->sz = global_header_buf_size;
+  return global_headers;
 }
