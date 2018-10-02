@@ -3643,6 +3643,28 @@ static void show_existing_frame_reset(AV1Decoder *const pbi,
   *cm->fc = cm->frame_contexts[existing_frame_idx];
 }
 
+static INLINE void reset_frame_buffers(AV1_COMMON *cm) {
+  RefCntBuffer *const frame_bufs = cm->buffer_pool->frame_bufs;
+  int i;
+
+  memset(&cm->ref_frame_map, -1, sizeof(cm->ref_frame_map));
+  memset(&cm->next_ref_frame_map, -1, sizeof(cm->next_ref_frame_map));
+
+  lock_buffer_pool(cm->buffer_pool);
+  for (i = 0; i < FRAME_BUFFERS; ++i) {
+    if (i != cm->new_fb_idx) {
+      frame_bufs[i].ref_count = 0;
+      cm->buffer_pool->release_fb_cb(cm->buffer_pool->cb_priv,
+                                     &frame_bufs[i].raw_frame_buffer);
+    } else {
+      assert(frame_bufs[i].ref_count == 1);
+    }
+    frame_bufs[i].cur_frame_offset = 0;
+    av1_zero(frame_bufs[i].ref_frame_offset);
+  }
+  unlock_buffer_pool(cm->buffer_pool);
+}
+
 static int read_uncompressed_header(AV1Decoder *pbi,
                                     struct aom_read_bit_buffer *rb) {
   AV1_COMMON *const cm = &pbi->common;
@@ -3721,6 +3743,18 @@ static int read_uncompressed_header(AV1Decoder *pbi,
     }
 
     cm->frame_type = (FRAME_TYPE)aom_rb_read_literal(rb, 2);  // 2 bits
+    if (pbi->sequence_header_changed) {
+      if (pbi->common.frame_type == KEY_FRAME) {
+        // This is the start of a new coded video sequence.
+        pbi->sequence_header_changed = 0;
+        pbi->decoding_first_frame = 1;
+        reset_frame_buffers(&pbi->common);
+      } else {
+        aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
+                           "Sequence header has changed without a keyframe.");
+      }
+    }
+
     cm->show_frame = aom_rb_read_bit(rb);
     if (cm->seq_params.still_picture &&
         (cm->frame_type != KEY_FRAME || !cm->show_frame)) {
