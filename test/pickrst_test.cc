@@ -9,6 +9,8 @@
  * PATENTS file, you can obtain it at www.aomedia.org/license/patent.
  */
 
+#include <tuple>
+
 #include "third_party/googletest/src/googletest/include/gtest/gtest.h"
 
 #include "test/register_state_check.h"
@@ -36,8 +38,7 @@ typedef int64_t (*lowbd_pixel_proj_error_func)(
 // 8 bit
 ////////////////////////////////////////////////////////////////////////////////
 
-typedef ::testing::tuple<const lowbd_pixel_proj_error_func>
-    PixelProjErrorTestParam;
+typedef std::tuple<const lowbd_pixel_proj_error_func> PixelProjErrorTestParam;
 
 class PixelProjErrorTest
     : public ::testing::TestWithParam<PixelProjErrorTestParam> {
@@ -201,8 +202,7 @@ typedef int64_t (*highbd_pixel_proj_error_func)(
 // High bit-depth
 ////////////////////////////////////////////////////////////////////////////////
 
-typedef ::testing::tuple<const highbd_pixel_proj_error_func>
-    PixelProjErrorTestParam;
+typedef std::tuple<const highbd_pixel_proj_error_func> PixelProjErrorTestParam;
 
 class PixelProjHighbdErrorTest
     : public ::testing::TestWithParam<PixelProjErrorTestParam> {

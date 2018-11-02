@@ -10,6 +10,7 @@
  */
 
 #include <string.h>
+#include <tuple>
 
 #include "third_party/googletest/src/googletest/include/gtest/gtest.h"
 
@@ -46,7 +47,7 @@ struct ConvolveFunctions {
   int use_highbd_;  // 0 if high bitdepth not used, else the actual bit depth.
 };
 
-typedef ::testing::tuple<int, int, const ConvolveFunctions *> ConvolveParam;
+typedef std::tuple<int, int, const ConvolveFunctions *> ConvolveParam;
 
 #define ALL_SIZES_64(convolve_fn)                                         \
   make_tuple(4, 4, &convolve_fn), make_tuple(8, 4, &convolve_fn),         \
@@ -707,7 +708,7 @@ TEST_P(ConvolveTest, DISABLED_Speed) {
          UUT_->use_highbd_, elapsed_time);
 }
 
-using ::testing::make_tuple;
+using std::make_tuple;
 
 #define WRAP(func, bd)                                                       \
   static void wrap_##func##_##bd(                                            \
