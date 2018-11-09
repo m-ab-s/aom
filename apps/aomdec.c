@@ -468,7 +468,7 @@ static int main_loop(int argc, const char **argv_) {
   int opt_i420 = 0;
   int opt_raw = 0;
   aom_codec_dec_cfg_t cfg = { 0, 0, 0, CONFIG_LOWBITDEPTH, { 1 } };
-  unsigned int output_bit_depth = 0;
+  unsigned int fixed_output_bit_depth = 0;
   unsigned int tile_mode = 0;
   unsigned int is_annexb = 0;
   int tile_row = -1;
@@ -577,7 +577,7 @@ static int main_loop(int argc, const char **argv_) {
     } else if (arg_match(&arg, &continuearg, argi)) {
       keep_going = 1;
     } else if (arg_match(&arg, &outbitdeptharg, argi)) {
-      output_bit_depth = arg_parse_uint(&arg);
+      fixed_output_bit_depth = arg_parse_uint(&arg);
     } else if (arg_match(&arg, &tilem, argi)) {
       tile_mode = arg_parse_int(&arg);
     } else if (arg_match(&arg, &isannexb, argi)) {
@@ -880,8 +880,11 @@ static int main_loop(int argc, const char **argv_) {
           }
         }
         // Default to codec bit depth if output bit depth not set
-        if (!output_bit_depth && single_file && !do_md5) {
+        unsigned int output_bit_depth;
+        if (!fixed_output_bit_depth && single_file && !do_md5) {
           output_bit_depth = img->bit_depth;
+        } else {
+          output_bit_depth = fixed_output_bit_depth;
         }
         // Shift up or down if necessary
         if (output_bit_depth != 0) {
