@@ -164,9 +164,7 @@ typedef struct AV1Decoder {
   uint32_t coded_tile_data_size;
   unsigned int ext_tile_debug;  // for ext-tile software debug & testing
   EXTERNAL_REFERENCES ext_refs;
-  size_t tile_list_size;
-  uint8_t *tile_list_output;
-  size_t buffer_sz;
+  YV12_BUFFER_CONFIG tile_list_outbuf;
 } AV1Decoder;
 
 int av1_receive_compressed_data(struct AV1Decoder *pbi, size_t size,
