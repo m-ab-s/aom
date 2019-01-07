@@ -494,7 +494,7 @@ void aom_upsampled_pred_sse2(MACROBLOCKD *xd, const struct AV1Common *const cm,
     const int ref_num = 0;
     const int is_intrabc = is_intrabc_block(mi);
     const struct scale_factors *const sf =
-        is_intrabc ? &cm->sf_identity : &xd->block_refs[ref_num]->sf;
+        is_intrabc ? &cm->sf_identity : xd->block_ref_scale_factors[ref_num];
     const int is_scaled = av1_is_scaled(sf);
 
     if (is_scaled) {
@@ -644,14 +644,6 @@ void aom_upsampled_pred_sse2(MACROBLOCKD *xd, const struct AV1Common *const cm,
     int intermediate_height =
         (((height - 1) * 8 + subpel_y_q3) >> 3) + filter_taps;
     assert(intermediate_height <= (MAX_SB_SIZE * 2 + 16) + 16);
-    // TODO(Deepa): Remove the memset below when we have
-    // 4 tap simd for sse2 and ssse3.
-    if (subpel_search <= USE_4_TAPS) {
-      memset(temp_start_vert - 3 * MAX_SB_SIZE, 0, width);
-      memset(temp_start_vert - 2 * MAX_SB_SIZE, 0, width);
-      memset(temp_start_vert + (height + 2) * MAX_SB_SIZE, 0, width);
-      memset(temp_start_vert + (height + 3) * MAX_SB_SIZE, 0, width);
-    }
     aom_convolve8_horiz(ref_start, ref_stride, temp_start_horiz, MAX_SB_SIZE,
                         kernel_x, 16, NULL, -1, width, intermediate_height);
     aom_convolve8_vert(temp_start_vert, MAX_SB_SIZE, comp_pred, width, NULL, -1,

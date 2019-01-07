@@ -12,6 +12,8 @@
 #ifndef AOM_AV1_COMMON_TXB_COMMON_H_
 #define AOM_AV1_COMMON_TXB_COMMON_H_
 
+#include "av1/common/onyxc_int.h"
+
 extern const int16_t k_eob_group_start[12];
 extern const int16_t k_eob_offset_bits[12];
 
@@ -270,12 +272,10 @@ static AOM_FORCE_INLINE int get_nz_map_ctx_from_stats(
       const int row = coeff_idx >> bwl;
       const int col = coeff_idx - (row << bwl);
       return ctx + nz_map_ctx_offset_1d[col];
-      break;
     }
     case TX_CLASS_VERT: {
       const int row = coeff_idx >> bwl;
       return ctx + nz_map_ctx_offset_1d[row];
-      break;
     }
     default: break;
   }
@@ -418,7 +418,5 @@ static INLINE void get_txb_ctx(const BLOCK_SIZE plane_bsize,
   }
 #undef MAX_TX_SIZE_UNIT
 }
-
-void av1_init_lv_map(AV1_COMMON *cm);
 
 #endif  // AOM_AV1_COMMON_TXB_COMMON_H_

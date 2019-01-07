@@ -32,7 +32,7 @@ static const int delta_lf_id_lut[MAX_MB_PLANE][2] = {
   { 0, 1 }, { 2, 2 }, { 3, 3 }
 };
 
-typedef enum EDGE_DIR { VERT_EDGE = 0, HORZ_EDGE = 1, NUM_EDGE_DIRS } EDGE_DIR;
+enum { VERT_EDGE = 0, HORZ_EDGE = 1, NUM_EDGE_DIRS } UENUM1BYTE(EDGE_DIR);
 
 static const int mode_lf_lut[] = {
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  // INTRA_MODES
@@ -40,7 +40,6 @@ static const int mode_lf_lut[] = {
   1, 1, 1, 1, 1, 1, 0, 1  // INTER_COMPOUND_MODES (GLOBAL_GLOBALMV == 0)
 };
 
-#if LOOP_FILTER_BITMASK
 // 256 bit masks (64x64 / 4x4) for left transform size for Y plane.
 // We use 4 uint64_t to represent the 256 bit.
 // Each 1 represents a position where we should apply a loop filter
@@ -406,6 +405,7 @@ const FilterMask above_mask_univariant_reordered[67] = {
       0x0000000000000000ULL } },  // block size 64X16, TX_64X16
 };
 
+#if LOOP_FILTER_BITMASK
 LoopFilterMask *get_loop_filter_mask(const AV1_COMMON *const cm, int mi_row,
                                      int mi_col) {
   assert(cm->lf.lfm != NULL);
@@ -456,9 +456,9 @@ uint8_t get_filter_level(const AV1_COMMON *cm, const loop_filter_info_n *lfi_n,
                          const int dir_idx, int plane,
                          const MB_MODE_INFO *mbmi) {
   const int segment_id = mbmi->segment_id;
-  if (cm->delta_lf_present_flag) {
+  if (cm->delta_q_info.delta_lf_present_flag) {
     int delta_lf;
-    if (cm->delta_lf_multi) {
+    if (cm->delta_q_info.delta_lf_multi) {
       const int delta_lf_idx = delta_lf_id_lut[plane][dir_idx];
       delta_lf = mbmi->delta_lf[delta_lf_idx];
     } else {
@@ -535,6 +535,9 @@ void av1_loop_filter_frame_init(AV1_COMMON *cm, int plane_start,
   filt_lvl_r[1] = cm->lf.filter_level_u;
   filt_lvl_r[2] = cm->lf.filter_level_v;
 
+  assert(plane_start >= AOM_PLANE_Y);
+  assert(plane_end <= MAX_MB_PLANE);
+
   for (plane = plane_start; plane < plane_end; plane++) {
     if (plane == 0 && !filt_lvl[0] && !filt_lvl_r[0])
       break;
@@ -546,7 +549,6 @@ void av1_loop_filter_frame_init(AV1_COMMON *cm, int plane_start,
     for (seg_id = 0; seg_id < MAX_SEGMENTS; seg_id++) {
       for (int dir = 0; dir < 2; ++dir) {
         int lvl_seg = (dir == 0) ? filt_lvl[plane] : filt_lvl_r[plane];
-        assert(plane >= 0 && plane <= 2);
         const int seg_lf_feature_id = seg_lvl_lf_lut[plane][dir];
         if (segfeature_active(seg, seg_id, seg_lf_feature_id)) {
           const int data = get_segdata(&cm->seg, seg_id, seg_lf_feature_id);
@@ -1319,12 +1321,16 @@ static void filter_selectively_horiz(uint8_t *s, int pitch, int plane,
   int count;
   const int step = 1 << subsampling;
   const unsigned int two_block_mask = subsampling ? 5 : 3;
+  int offset = 0;
 
   for (mask = mask_16x16 | mask_8x8 | mask_4x4; mask; mask >>= step * count) {
     const loop_filter_thresh *lfi = lfi_n->lfthr + *lfl;
-    // Next block's thresholds.
-    const loop_filter_thresh *lfin = lfi_n->lfthr + *(lfl + step);
-    (void)lfin;
+    // Next block's thresholds, when it is within current 64x64 block.
+    // If it is out of bound, its mask is zero, and it points to current edge's
+    // filter parameters, instead of next edge's.
+    int next_edge = step;
+    if (offset + next_edge >= MI_SIZE_64X64) next_edge = 0;
+    const loop_filter_thresh *lfin = lfi_n->lfthr + *(lfl + next_edge);
 
     count = 1;
     if (mask & 1) {
@@ -1385,6 +1391,7 @@ static void filter_selectively_horiz(uint8_t *s, int pitch, int plane,
     mask_16x16 >>= step * count;
     mask_8x8 >>= step * count;
     mask_4x4 >>= step * count;
+    offset += step * count;
   }
 }
 
@@ -1396,12 +1403,16 @@ static void highbd_filter_selectively_horiz(
   int count;
   const int step = 1 << subsampling;
   const unsigned int two_block_mask = subsampling ? 5 : 3;
+  int offset = 0;
 
   for (mask = mask_16x16 | mask_8x8 | mask_4x4; mask; mask >>= step * count) {
     const loop_filter_thresh *lfi = lfi_n->lfthr + *lfl;
-    // Next block's thresholds.
-    const loop_filter_thresh *lfin = lfi_n->lfthr + *(lfl + step);
-    (void)lfin;
+    // Next block's thresholds, when it is within current 64x64 block.
+    // If it is out of bound, its mask is zero, and it points to current edge's
+    // filter parameters, instead of next edge's.
+    int next_edge = step;
+    if (offset + next_edge >= MI_SIZE_64X64) next_edge = 0;
+    const loop_filter_thresh *lfin = lfi_n->lfthr + *(lfl + next_edge);
 
     count = 1;
     if (mask & 1) {
@@ -1415,9 +1426,9 @@ static void highbd_filter_selectively_horiz(
                                                lfi->hev_thr, lfin->mblim,
                                                lfin->lim, lfin->hev_thr, bd);
           } else {
-            aom_highbd_lpf_horizontal_14_dual_c(s, pitch, lfi->mblim, lfi->lim,
-                                                lfi->hev_thr, lfin->mblim,
-                                                lfin->lim, lfin->hev_thr, bd);
+            aom_highbd_lpf_horizontal_14_dual(s, pitch, lfi->mblim, lfi->lim,
+                                              lfi->hev_thr, lfin->mblim,
+                                              lfin->lim, lfin->hev_thr, bd);
           }
           count = 2;
         } else {
@@ -1461,6 +1472,7 @@ static void highbd_filter_selectively_horiz(
     mask_16x16 >>= step * count;
     mask_8x8 >>= step * count;
     mask_4x4 >>= step * count;
+    offset += step * count;
   }
 }
 
