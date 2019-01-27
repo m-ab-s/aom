@@ -5299,6 +5299,7 @@ static void iidentity32_sse4_1(__m128i *in, __m128i *out, int bit, int do_cols,
     highbd_clamp_epi32_sse4_1(v, out, &clamp_lo, &clamp_hi, 32);
   }
 }
+
 static const transform_1d_sse4_1
     highbd_txfm_all_1d_zeros_w8_arr[TX_SIZES][ITX_TYPES_1D][4] = {
       {

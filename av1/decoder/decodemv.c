@@ -649,9 +649,27 @@ void av1_read_tx_type(const AV1_COMMON *const cm, MACROBLOCKD *xd, int blk_row,
     const TX_SIZE square_tx_size = txsize_sqr_map[tx_size];
     FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
     if (inter_block) {
-      *tx_type = av1_ext_tx_inv[tx_set_type][aom_read_symbol(
-          r, ec_ctx->inter_ext_tx_cdf[eset][square_tx_size],
-          av1_num_ext_tx_set[tx_set_type], ACCT_STR)];
+#if CONFIG_DATA_DRIVEN_TX
+      if (tx_set_type == EXT_TX_SET_ALL16_DDTX) {
+        if (aom_read_symbol(r, ec_ctx->use_ddtx_inter_cdf[square_tx_size], 2,
+                            ACCT_STR)) {
+          *tx_type =
+              DDTX1_DDTX1 +
+              aom_read_symbol(r, ec_ctx->ddtx_type_inter_cdf[square_tx_size],
+                              DDTX_TYPES_INTER, ACCT_STR);
+        } else {
+          *tx_type = av1_ext_tx_inv[tx_set_type][aom_read_symbol(
+              r, ec_ctx->inter_ext_tx_cdf[eset][square_tx_size],
+              av1_num_ext_tx_set[tx_set_type], ACCT_STR)];
+        }
+      } else {
+#endif
+        *tx_type = av1_ext_tx_inv[tx_set_type][aom_read_symbol(
+            r, ec_ctx->inter_ext_tx_cdf[eset][square_tx_size],
+            av1_num_ext_tx_set[tx_set_type], ACCT_STR)];
+#if CONFIG_DATA_DRIVEN_TX
+      }
+#endif
     } else {
       PREDICTION_MODE intra_mode =
           mbmi->filter_intra_mode_info.use_filter_intra

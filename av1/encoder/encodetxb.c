@@ -716,8 +716,25 @@ static int get_tx_type_cost(const AV1_COMMON *cm, const MACROBLOCK *x,
     const int ext_tx_set =
         get_ext_tx_set(tx_size, is_inter, cm->reduced_tx_set_used);
     if (is_inter) {
+#if CONFIG_DATA_DRIVEN_TX
+      const TxSetType tx_set_type =
+          av1_get_ext_tx_set_type(tx_size, is_inter, cm->reduced_tx_set_used);
+      if (tx_set_type == EXT_TX_SET_ALL16_DDTX) {
+        int use_ddtx_cost =
+            x->use_ddtx_inter_costs[square_tx_size][tx_type >= DDTX1_DDTX1];
+        int tx_type_cost =
+            tx_type >= DDTX1_DDTX1
+                ? x->ddtx_type_inter_costs[square_tx_size]
+                                          [tx_type - DDTX1_DDTX1]
+                : x->inter_tx_type_costs[ext_tx_set][square_tx_size][tx_type];
+        return use_ddtx_cost + tx_type_cost;
+      } else {
+        return x->inter_tx_type_costs[ext_tx_set][square_tx_size][tx_type];
+      }
+#else
       if (ext_tx_set > 0)
         return x->inter_tx_type_costs[ext_tx_set][square_tx_size][tx_type];
+#endif
     } else {
       if (ext_tx_set > 0) {
         PREDICTION_MODE intra_dir;
@@ -1911,13 +1928,45 @@ static void update_tx_type_count(const AV1_COMMON *cm, MACROBLOCKD *xd,
           av1_get_ext_tx_set_type(tx_size, is_inter, cm->reduced_tx_set_used);
       if (is_inter) {
         if (allow_update_cdf) {
-          update_cdf(fc->inter_ext_tx_cdf[eset][txsize_sqr_map[tx_size]],
-                     av1_ext_tx_ind[tx_set_type][tx_type],
-                     av1_num_ext_tx_set[tx_set_type]);
+#if CONFIG_DATA_DRIVEN_TX
+          if (tx_set_type == EXT_TX_SET_ALL16_DDTX) {
+            update_cdf(fc->use_ddtx_inter_cdf[txsize_sqr_map[tx_size]],
+                       tx_type >= DDTX1_DDTX1, 2);
+            if (tx_type >= DDTX1_DDTX1) {
+              update_cdf(fc->ddtx_type_inter_cdf[txsize_sqr_map[tx_size]],
+                         tx_type - DDTX1_DDTX1, DDTX_TYPES_INTER);
+            } else {
+              update_cdf(fc->inter_ext_tx_cdf[eset][txsize_sqr_map[tx_size]],
+                         av1_ext_tx_ind[tx_set_type][tx_type],
+                         av1_num_ext_tx_set[tx_set_type]);
+            }
+          } else {
+#endif
+            update_cdf(fc->inter_ext_tx_cdf[eset][txsize_sqr_map[tx_size]],
+                       av1_ext_tx_ind[tx_set_type][tx_type],
+                       av1_num_ext_tx_set[tx_set_type]);
+#if CONFIG_DATA_DRIVEN_TX
+          }
+#endif
         }
 #if CONFIG_ENTROPY_STATS
-        ++counts->inter_ext_tx[eset][txsize_sqr_map[tx_size]]
-                              [av1_ext_tx_ind[tx_set_type][tx_type]];
+#if CONFIG_DATA_DRIVEN_TX
+        if (tx_set_type == EXT_TX_SET_ALL16_DDTX) {
+          ++counts->use_ddtx_inter[txsize_sqr_map[tx_size]]
+                                  [tx_type >= DDTX1_DDTX1];
+          if (tx_type >= DDTX1_DDTX1)
+            ++counts->ddtx_type_inter[txsize_sqr_map[tx_size]]
+                                     [tx_type - DDTX1_DDTX1];
+          else
+            ++counts->inter_ext_tx[eset][txsize_sqr_map[tx_size]]
+                                  [av1_ext_tx_ind[tx_set_type][tx_type]];
+        } else {
+#endif
+          ++counts->inter_ext_tx[eset][txsize_sqr_map[tx_size]]
+                                [av1_ext_tx_ind[tx_set_type][tx_type]];
+#if CONFIG_DATA_DRIVEN_TX
+        }
+#endif
 #endif  // CONFIG_ENTROPY_STATS
       } else {
         PREDICTION_MODE intra_dir;

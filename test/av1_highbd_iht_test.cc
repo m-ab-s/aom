@@ -30,7 +30,6 @@ using ::testing::tuple;
 
 typedef void (*HbdHtFunc)(const int16_t *input, int32_t *output, int stride,
                           TX_TYPE tx_type, int bd);
-
 typedef void (*IHbdHtFunc)(const int32_t *coeff, uint16_t *output, int stride,
                            TX_TYPE tx_type, int bd);
 
@@ -215,7 +214,11 @@ void AV1HighbdInvTxfm2d::RunAV1InvTxfm2dTest(TX_TYPE tx_type_, TX_SIZE tx_size_,
   txfm_param.lossless = 0;
   txfm_param.bd = bit_depth_;
   txfm_param.is_hbd = 1;
+#if CONFIG_DATA_DRIVEN_TX
+  txfm_param.tx_set_type = EXT_TX_SET_ALL16_DDTX;
+#else
   txfm_param.tx_set_type = EXT_TX_SET_ALL16;
+#endif
 
   for (int cnt = 0; cnt < randTimes; ++cnt) {
     for (int r = 0; r < BLK_WIDTH; ++r) {
