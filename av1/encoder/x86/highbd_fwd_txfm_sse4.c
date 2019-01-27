@@ -213,7 +213,14 @@ static void idtx4x4_sse4_1(__m128i *in, __m128i *out, int bit, int col_num) {
   out[3] = _mm_unpackhi_epi64(v[1], v[3]);
 }
 void av1_fwd_txfm2d_4x4_sse4_1(const int16_t *input, int32_t *coeff,
-                               int input_stride, TX_TYPE tx_type, int bd) {
+                               int input_stride, TX_TYPE tx_type,
+#if CONFIG_DATA_DRIVEN_TX
+                               int is_inter,
+#endif
+                               int bd) {
+#if CONFIG_DATA_DRIVEN_TX
+  (void)is_inter;
+#endif
   __m128i in[4];
   const int8_t *shift = fwd_txfm_shift_ls[TX_4X4];
   const int txw_idx = get_txw_idx(TX_4X4);
@@ -842,7 +849,14 @@ static void idtx32x8_sse4_1(__m128i *in, __m128i *out, int bit, int col_num) {
   }
 }
 void av1_fwd_txfm2d_8x8_sse4_1(const int16_t *input, int32_t *coeff, int stride,
-                               TX_TYPE tx_type, int bd) {
+                               TX_TYPE tx_type,
+#if CONFIG_DATA_DRIVEN_TX
+                               int is_inter,
+#endif
+                               int bd) {
+#if CONFIG_DATA_DRIVEN_TX
+  (void)is_inter;
+#endif
   __m128i in[16], out[16];
   const int8_t *shift = fwd_txfm_shift_ls[TX_8X8];
   const int txw_idx = get_txw_idx(TX_8X8);
@@ -1748,7 +1762,14 @@ static void idtx16x16_sse4_1(__m128i *in, __m128i *out, int bit, int col_num) {
   }
 }
 void av1_fwd_txfm2d_16x16_sse4_1(const int16_t *input, int32_t *coeff,
-                                 int stride, TX_TYPE tx_type, int bd) {
+                                 int stride, TX_TYPE tx_type,
+#if CONFIG_DATA_DRIVEN_TX
+                                 int is_inter,
+#endif
+                                 int bd) {
+#if CONFIG_DATA_DRIVEN_TX
+  (void)is_inter;
+#endif
   __m128i in[64], out[64];
   const int8_t *shift = fwd_txfm_shift_ls[TX_16X16];
   const int txw_idx = get_txw_idx(TX_16X16);
@@ -2116,7 +2137,14 @@ static const fwd_transform_1d_sse4_1 row_highbd_txfm8x32_arr[TX_TYPES] = {
 };
 
 void av1_fwd_txfm2d_16x8_sse4_1(const int16_t *input, int32_t *coeff,
-                                int stride, TX_TYPE tx_type, int bd) {
+                                int stride, TX_TYPE tx_type,
+#if CONFIG_DATA_DRIVEN_TX
+                                int is_inter,
+#endif
+                                int bd) {
+#if CONFIG_DATA_DRIVEN_TX
+  (void)is_inter;
+#endif
   __m128i in[32], out[32];
   const int8_t *shift = fwd_txfm_shift_ls[TX_16X8];
   const int txw_idx = get_txw_idx(TX_16X8);
@@ -2151,7 +2179,14 @@ void av1_fwd_txfm2d_16x8_sse4_1(const int16_t *input, int32_t *coeff,
 }
 
 void av1_fwd_txfm2d_8x16_sse4_1(const int16_t *input, int32_t *coeff,
-                                int stride, TX_TYPE tx_type, int bd) {
+                                int stride, TX_TYPE tx_type,
+#if CONFIG_DATA_DRIVEN_TX
+                                int is_inter,
+#endif
+                                int bd) {
+#if CONFIG_DATA_DRIVEN_TX
+  (void)is_inter;
+#endif
   __m128i in[32], out[32];
   const int8_t *shift = fwd_txfm_shift_ls[TX_8X16];
   const int txw_idx = get_txw_idx(TX_8X16);
@@ -2179,7 +2214,14 @@ void av1_fwd_txfm2d_8x16_sse4_1(const int16_t *input, int32_t *coeff,
 }
 
 void av1_fwd_txfm2d_4x16_sse4_1(const int16_t *input, int32_t *coeff,
-                                int stride, TX_TYPE tx_type, int bd) {
+                                int stride, TX_TYPE tx_type,
+#if CONFIG_DATA_DRIVEN_TX
+                                int is_inter,
+#endif
+                                int bd) {
+#if CONFIG_DATA_DRIVEN_TX
+  (void)is_inter;
+#endif
   __m128i in[16];
   __m128i *outcoeff128 = (__m128i *)coeff;
   const int8_t *shift = fwd_txfm_shift_ls[TX_4X16];
@@ -2208,7 +2250,14 @@ void av1_fwd_txfm2d_4x16_sse4_1(const int16_t *input, int32_t *coeff,
 }
 
 void av1_fwd_txfm2d_16x4_sse4_1(const int16_t *input, int32_t *coeff,
-                                int stride, TX_TYPE tx_type, int bd) {
+                                int stride, TX_TYPE tx_type,
+#if CONFIG_DATA_DRIVEN_TX
+                                int is_inter,
+#endif
+                                int bd) {
+#if CONFIG_DATA_DRIVEN_TX
+  (void)is_inter;
+#endif
   __m128i in[16];
   __m128i *outcoeff128 = (__m128i *)coeff;
   const int8_t *shift = fwd_txfm_shift_ls[TX_16X4];
@@ -2239,7 +2288,14 @@ void av1_fwd_txfm2d_16x4_sse4_1(const int16_t *input, int32_t *coeff,
 }
 
 void av1_fwd_txfm2d_16x32_sse4_1(const int16_t *input, int32_t *coeff,
-                                 int stride, TX_TYPE tx_type, int bd) {
+                                 int stride, TX_TYPE tx_type,
+#if CONFIG_DATA_DRIVEN_TX
+                                 int is_inter,
+#endif
+                                 int bd) {
+#if CONFIG_DATA_DRIVEN_TX
+  (void)is_inter;
+#endif
   __m128i in[128];
   __m128i *outcoef128 = (__m128i *)coeff;
   const int8_t *shift = fwd_txfm_shift_ls[TX_16X32];
@@ -2270,7 +2326,14 @@ void av1_fwd_txfm2d_16x32_sse4_1(const int16_t *input, int32_t *coeff,
 }
 
 void av1_fwd_txfm2d_32x64_sse4_1(const int16_t *input, int32_t *coeff,
-                                 int stride, TX_TYPE tx_type, int bd) {
+                                 int stride, TX_TYPE tx_type,
+#if CONFIG_DATA_DRIVEN_TX
+                                 int is_inter,
+#endif
+                                 int bd) {
+#if CONFIG_DATA_DRIVEN_TX
+  (void)is_inter;
+#endif
   (void)tx_type;
   __m128i in[512];
   __m128i *outcoef128 = (__m128i *)coeff;
@@ -2305,7 +2368,14 @@ void av1_fwd_txfm2d_32x64_sse4_1(const int16_t *input, int32_t *coeff,
 }
 
 void av1_fwd_txfm2d_64x32_sse4_1(const int16_t *input, int32_t *coeff,
-                                 int stride, TX_TYPE tx_type, int bd) {
+                                 int stride, TX_TYPE tx_type,
+#if CONFIG_DATA_DRIVEN_TX
+                                 int is_inter,
+#endif
+                                 int bd) {
+#if CONFIG_DATA_DRIVEN_TX
+  (void)is_inter;
+#endif
   (void)tx_type;
   __m128i in[512];
   __m128i *outcoef128 = (__m128i *)coeff;
@@ -2350,7 +2420,14 @@ void av1_fwd_txfm2d_64x32_sse4_1(const int16_t *input, int32_t *coeff,
 }
 
 void av1_fwd_txfm2d_32x16_sse4_1(const int16_t *input, int32_t *coeff,
-                                 int stride, TX_TYPE tx_type, int bd) {
+                                 int stride, TX_TYPE tx_type,
+#if CONFIG_DATA_DRIVEN_TX
+                                 int is_inter,
+#endif
+                                 int bd) {
+#if CONFIG_DATA_DRIVEN_TX
+  (void)is_inter;
+#endif
   __m128i in[128];
   __m128i *outcoef128 = (__m128i *)coeff;
   const int8_t *shift = fwd_txfm_shift_ls[TX_32X16];
@@ -2379,7 +2456,14 @@ void av1_fwd_txfm2d_32x16_sse4_1(const int16_t *input, int32_t *coeff,
 }
 
 void av1_fwd_txfm2d_8x32_sse4_1(const int16_t *input, int32_t *coeff,
-                                int stride, TX_TYPE tx_type, int bd) {
+                                int stride, TX_TYPE tx_type,
+#if CONFIG_DATA_DRIVEN_TX
+                                int is_inter,
+#endif
+                                int bd) {
+#if CONFIG_DATA_DRIVEN_TX
+  (void)is_inter;
+#endif
   __m128i in[64];
   __m128i *outcoef128 = (__m128i *)coeff;
   const int8_t *shift = fwd_txfm_shift_ls[TX_8X32];
@@ -2414,7 +2498,14 @@ void av1_fwd_txfm2d_8x32_sse4_1(const int16_t *input, int32_t *coeff,
 }
 
 void av1_fwd_txfm2d_32x8_sse4_1(const int16_t *input, int32_t *coeff,
-                                int stride, TX_TYPE tx_type, int bd) {
+                                int stride, TX_TYPE tx_type,
+#if CONFIG_DATA_DRIVEN_TX
+                                int is_inter,
+#endif
+                                int bd) {
+#if CONFIG_DATA_DRIVEN_TX
+  (void)is_inter;
+#endif
   __m128i in[64];
   __m128i *outcoef128 = (__m128i *)coeff;
   const int8_t *shift = fwd_txfm_shift_ls[TX_32X8];
@@ -2447,7 +2538,14 @@ void av1_fwd_txfm2d_32x8_sse4_1(const int16_t *input, int32_t *coeff,
 }
 
 void av1_fwd_txfm2d_4x8_sse4_1(const int16_t *input, int32_t *coeff, int stride,
-                               TX_TYPE tx_type, int bd) {
+                               TX_TYPE tx_type,
+#if CONFIG_DATA_DRIVEN_TX
+                               int is_inter,
+#endif
+                               int bd) {
+#if CONFIG_DATA_DRIVEN_TX
+  (void)is_inter;
+#endif
   __m128i in[8];
   __m128i *outcoeff128 = (__m128i *)coeff;
   const int8_t *shift = fwd_txfm_shift_ls[TX_4X8];
@@ -2477,7 +2575,14 @@ void av1_fwd_txfm2d_4x8_sse4_1(const int16_t *input, int32_t *coeff, int stride,
 }
 
 void av1_fwd_txfm2d_8x4_sse4_1(const int16_t *input, int32_t *coeff, int stride,
-                               TX_TYPE tx_type, int bd) {
+                               TX_TYPE tx_type,
+#if CONFIG_DATA_DRIVEN_TX
+                               int is_inter,
+#endif
+                               int bd) {
+#if CONFIG_DATA_DRIVEN_TX
+  (void)is_inter;
+#endif
   __m128i in[8];
   __m128i *outcoeff128 = (__m128i *)coeff;
   const int8_t *shift = fwd_txfm_shift_ls[TX_8X4];
@@ -2507,7 +2612,14 @@ void av1_fwd_txfm2d_8x4_sse4_1(const int16_t *input, int32_t *coeff, int stride,
 }
 
 void av1_fwd_txfm2d_16x64_sse4_1(const int16_t *input, int32_t *coeff,
-                                 int stride, TX_TYPE tx_type, int bd) {
+                                 int stride, TX_TYPE tx_type,
+#if CONFIG_DATA_DRIVEN_TX
+                                 int is_inter,
+#endif
+                                 int bd) {
+#if CONFIG_DATA_DRIVEN_TX
+  (void)is_inter;
+#endif
   __m128i in[256];
   __m128i *outcoeff128 = (__m128i *)coeff;
   const int8_t *shift = fwd_txfm_shift_ls[TX_16X64];
@@ -2549,7 +2661,14 @@ void av1_fwd_txfm2d_16x64_sse4_1(const int16_t *input, int32_t *coeff,
 }
 
 void av1_fwd_txfm2d_64x16_sse4_1(const int16_t *input, int32_t *coeff,
-                                 int stride, TX_TYPE tx_type, int bd) {
+                                 int stride, TX_TYPE tx_type,
+#if CONFIG_DATA_DRIVEN_TX
+                                 int is_inter,
+#endif
+                                 int bd) {
+#if CONFIG_DATA_DRIVEN_TX
+  (void)is_inter;
+#endif
   __m128i in[256];
   __m128i *outcoeff128 = (__m128i *)coeff;
   const int8_t *shift = fwd_txfm_shift_ls[TX_64X16];

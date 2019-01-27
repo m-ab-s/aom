@@ -173,6 +173,9 @@ void av1_xform_quant(const AV1_COMMON *cm, MACROBLOCK *x, int plane, int block,
 
   txfm_param.bd = xd->bd;
   txfm_param.is_hbd = is_cur_buf_hbd(xd);
+#if CONFIG_DATA_DRIVEN_TX
+  txfm_param.is_inter = is_inter_block(mbmi);
+#endif
 
   av1_fwd_txfm(src_diff, coeff, diff_stride, &txfm_param);
 

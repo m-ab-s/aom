@@ -107,8 +107,13 @@ static INLINE uint16_t highbd_clip_pixel_add(uint16_t dest, tran_high_t trans,
 typedef void (*TxfmFunc)(const int32_t *input, int32_t *output, int8_t cos_bit,
                          const int8_t *stage_range);
 
+#if CONFIG_DATA_DRIVEN_TX
+typedef void (*FwdTxfm2dFunc)(const int16_t *input, int32_t *output, int stride,
+                              TX_TYPE tx_type, int is_inter, int bd);
+#else
 typedef void (*FwdTxfm2dFunc)(const int16_t *input, int32_t *output, int stride,
                               TX_TYPE tx_type, int bd);
+#endif
 
 enum {
   TXFM_TYPE_DCT4,

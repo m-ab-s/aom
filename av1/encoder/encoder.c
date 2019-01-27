@@ -284,8 +284,13 @@ void analyze_hor_freq(const AV1_COMP *cpi, double *energy) {
     const int16_t *src16 = (const int16_t *)CONVERT_TO_SHORTPTR(buf->y_buffer);
     for (int i = 0; i < height - 4; i += 4) {
       for (int j = 0; j < width - 16; j += 16) {
+#if CONFIG_DATA_DRIVEN_TX
+        av1_fwd_txfm2d_16x4(src16 + i * buf->y_stride + j, coeff, buf->y_stride,
+                            H_DCT, 1, bd);
+#else
         av1_fwd_txfm2d_16x4(src16 + i * buf->y_stride + j, coeff, buf->y_stride,
                             H_DCT, bd);
+#endif
         for (int k = 1; k < 16; ++k) {
           const uint64_t this_energy =
               ((int64_t)coeff[k] * coeff[k]) +
@@ -306,7 +311,11 @@ void analyze_hor_freq(const AV1_COMP *cpi, double *energy) {
           for (int jj = 0; jj < 16; ++jj)
             src16[ii * 16 + jj] =
                 buf->y_buffer[(i + ii) * buf->y_stride + (j + jj)];
+#if CONFIG_DATA_DRIVEN_TX
+        av1_fwd_txfm2d_16x4(src16, coeff, 16, H_DCT, 1, bd);
+#else
         av1_fwd_txfm2d_16x4(src16, coeff, 16, H_DCT, bd);
+#endif
         for (int k = 1; k < 16; ++k) {
           const uint64_t this_energy =
               ((int64_t)coeff[k] * coeff[k]) +

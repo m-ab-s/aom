@@ -72,13 +72,17 @@ static const int av1_ext_tx_set_idx_to_type[2][AOMMAX(EXT_TX_SETS_INTRA,
   {
       // Intra
       EXT_TX_SET_DCTONLY,
+#if CONFIG_DATA_DRIVEN_TX && USE_DDTX_INTRA
+      EXT_TX_SET_DTT4_IDTX_1DDCT_DDTX,
+#else
       EXT_TX_SET_DTT4_IDTX_1DDCT,
+#endif
       EXT_TX_SET_DTT4_IDTX,
   },
   {
       // Inter
       EXT_TX_SET_DCTONLY,
-#if CONFIG_DATA_DRIVEN_TX
+#if CONFIG_DATA_DRIVEN_TX && USE_DDTX_INTER
       EXT_TX_SET_ALL16_DDTX,
 #else
       EXT_TX_SET_ALL16,
@@ -216,6 +220,7 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, MACROBLOCK *x,
     }
   }
 #if CONFIG_DATA_DRIVEN_TX
+#if USE_DDTX_INTER
   for (i = TX_4X4; i < EXT_TX_SIZES; ++i) {
     av1_cost_tokens_from_cdf(x->ddtx_type_inter_costs[i],
                              fc->ddtx_type_inter_cdf[i], NULL);
@@ -224,6 +229,17 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, MACROBLOCK *x,
     av1_cost_tokens_from_cdf(x->use_ddtx_inter_costs[s],
                              fc->use_ddtx_inter_cdf[s], NULL);
   }
+#endif
+#if USE_DDTX_INTRA
+  for (i = TX_4X4; i < EXT_TX_SIZES; ++i) {
+    av1_cost_tokens_from_cdf(x->ddtx_type_intra_costs[i],
+                             fc->ddtx_type_intra_cdf[i], NULL);
+  }
+  for (int s = 0; s < EXT_TX_SIZES; ++s) {
+    av1_cost_tokens_from_cdf(x->use_ddtx_intra_costs[s],
+                             fc->use_ddtx_intra_cdf[s], NULL);
+  }
+#endif
 #endif
   for (i = 0; i < DIRECTIONAL_MODES; ++i) {
     av1_cost_tokens_from_cdf(x->angle_delta_cost[i], fc->angle_delta_cdf[i],

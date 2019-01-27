@@ -1814,7 +1814,7 @@ static uint16_t prune_tx_2D(MACROBLOCK *x, BLOCK_SIZE bsize, TX_SIZE tx_size,
     FLIPADST_DCT, FLIPADST_ADST, FLIPADST_FLIPADST, V_FLIPADST,
     H_DCT,        H_ADST,        H_FLIPADST,        IDTX
   };
-#if CONFIG_DATA_DRIVEN_TX
+#if CONFIG_DATA_DRIVEN_TX && USE_DDTX_INTER
   if (tx_set_type != EXT_TX_SET_ALL16_DDTX &&
 #else
   if (tx_set_type != EXT_TX_SET_ALL16 &&
@@ -1862,7 +1862,7 @@ static uint16_t prune_tx_2D(MACROBLOCK *x, BLOCK_SIZE bsize, TX_SIZE tx_size,
 
   const int prune_aggr_table[2][2] = { { 6, 4 }, { 10, 7 } };
   int pruning_aggressiveness = 1;
-#if CONFIG_DATA_DRIVEN_TX
+#if CONFIG_DATA_DRIVEN_TX && USE_DDTX_INTER
   if (tx_set_type == EXT_TX_SET_ALL16_DDTX) {
 #else
   if (tx_set_type == EXT_TX_SET_ALL16) {
@@ -3752,7 +3752,7 @@ static void choose_tx_size_type_from_rd(const AV1_COMP *const cpi,
     depth = MAX_TX_DEPTH;
   }
 
-#if CONFIG_DATA_DRIVEN_TX
+#if CONFIG_DATA_DRIVEN_TX && USE_DDTX_INTER
   prune_tx(cpi, bs, x, xd, EXT_TX_SET_ALL16_DDTX);
 #else
   prune_tx(cpi, bs, x, xd, EXT_TX_SET_ALL16);
@@ -5865,6 +5865,9 @@ static int predict_skip_flag(MACROBLOCK *x, BLOCK_SIZE bsize, int64_t *dist,
   param.bd = xd->bd;
   param.is_hbd = is_cur_buf_hbd(xd);
   param.lossless = 0;
+#if CONFIG_DATA_DRIVEN_TX
+  param.is_inter = is_inter_block(xd->mi[0]);
+#endif
   param.tx_set_type = av1_get_ext_tx_set_type(
       param.tx_size, is_inter_block(xd->mi[0]), reduced_tx_set);
   const int bd_idx = (xd->bd == 8) ? 0 : ((xd->bd == 10) ? 1 : 2);

@@ -676,12 +676,11 @@ void av1_fdct32_new(const int32_t *input, int32_t *output, int8_t cos_bit,
 #if CONFIG_DATA_DRIVEN_TX
 void av1_fddt4(const int32_t *input, int32_t *output, int8_t cos_bit,
                const int8_t *side_info) {
-  // Currently side_info is not used. It is included so that the function
-  // has the same signature as other 1D transforms. In later
-  // implementations, it will be used to carry inter/intra block information
-  (void)side_info;
+  // The argument side_info is included in a way that the function has the same
+  // signature as other 1D transforms. Here, it is used to carry inter/intra
+  // block information
   int32_t s[4] = { 0 };
-  const int32_t *ddt = ddt4_arr(cos_bit);
+  const int32_t *ddt = ddt4_arr(side_info[0], cos_bit);
   for (int i = 0; i < 4; i++)
     for (int j = 0; j < 4; j++) s[j] += ddt[j * 4 + i] * input[i];
 
@@ -690,9 +689,8 @@ void av1_fddt4(const int32_t *input, int32_t *output, int8_t cos_bit,
 
 void av1_fddt8(const int32_t *input, int32_t *output, int8_t cos_bit,
                const int8_t *side_info) {
-  (void)side_info;
   int32_t s[8] = { 0 };
-  const int32_t *ddt = ddt8_arr(cos_bit);
+  const int32_t *ddt = ddt8_arr(side_info[0], cos_bit);
   for (int i = 0; i < 8; i++)
     for (int j = 0; j < 8; j++) s[j] += ddt[j * 8 + i] * input[i];
 

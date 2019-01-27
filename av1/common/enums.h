@@ -269,6 +269,11 @@ enum {
   TX_TYPES,
 } UENUM1BYTE(TX_TYPE);
 
+#if CONFIG_DATA_DRIVEN_TX
+#define USE_DDTX_INTER 1
+#define USE_DDTX_INTRA 1
+#endif
+
 enum {
   REG_REG,
   REG_SMOOTH,
@@ -288,11 +293,17 @@ enum {
   EXT_TX_SET_DCT_IDTX,
   // Discrete Trig transforms w/o flip (4) + Identity (1)
   EXT_TX_SET_DTT4_IDTX,
+#if CONFIG_DATA_DRIVEN_TX && USE_DDTX_INTRA
+  // Discrete Trig transforms w/o flip (4) + Identity (1) + 1D Hor/vert DCT (2)
+  //  + DCT w/ 1 DDTX (2) + DDTX1_DDTX1 (1)
+  EXT_TX_SET_DTT4_IDTX_1DDCT_DDTX,
+#else
   // Discrete Trig transforms w/o flip (4) + Identity (1) + 1D Hor/vert DCT (2)
   EXT_TX_SET_DTT4_IDTX_1DDCT,
+#endif
   // Discrete Trig transforms w/ flip (9) + Identity (1) + 1D Hor/Ver DCT (2)
   EXT_TX_SET_DTT9_IDTX_1DDCT,
-#if CONFIG_DATA_DRIVEN_TX
+#if CONFIG_DATA_DRIVEN_TX && USE_DDTX_INTER
   // Discrete Trig transforms w/ flip (9) + Identity (1) + 1D Hor/Ver (6)
   //  + DCT w/ 2 DDTXs (4) + 2 DDTXs (4)
   EXT_TX_SET_ALL16_DDTX,
@@ -306,6 +317,7 @@ enum {
 #if CONFIG_DATA_DRIVEN_TX
 #define TX_TYPES_NODDTX 16
 #define DDTX_TYPES_INTER 8
+#define DDTX_TYPES_INTRA 3
 #define IS_2D_TRANSFORM(tx_type) (tx_type < IDTX || tx_type > H_FLIPADST)
 #else
 #define IS_2D_TRANSFORM(tx_type) (tx_type < IDTX)

@@ -840,7 +840,7 @@ void av1_write_tx_type(const AV1_COMMON *const cm, const MACROBLOCKD *xd,
     assert(eset > 0);
     assert(av1_ext_tx_used[tx_set_type][tx_type]);
     if (is_inter) {
-#if CONFIG_DATA_DRIVEN_TX
+#if CONFIG_DATA_DRIVEN_TX && USE_DDTX_INTER
       if (tx_set_type == EXT_TX_SET_ALL16_DDTX) {
         aom_write_symbol(w, tx_type >= DDTX1_DDTX1,
                          ec_ctx->use_ddtx_inter_cdf[square_tx_size], 2);
@@ -858,7 +858,7 @@ void av1_write_tx_type(const AV1_COMMON *const cm, const MACROBLOCKD *xd,
         aom_write_symbol(w, av1_ext_tx_ind[tx_set_type][tx_type],
                          ec_ctx->inter_ext_tx_cdf[eset][square_tx_size],
                          av1_num_ext_tx_set[tx_set_type]);
-#if CONFIG_DATA_DRIVEN_TX
+#if CONFIG_DATA_DRIVEN_TX && USE_DDTX_INTER
       }
 #endif
     } else {
@@ -874,10 +874,29 @@ void av1_write_tx_type(const AV1_COMMON *const cm, const MACROBLOCKD *xd,
 #endif  // CONFIG_ADAPT_FILTER_INTRA
       else
         intra_dir = mbmi->mode;
-      aom_write_symbol(
-          w, av1_ext_tx_ind[tx_set_type][tx_type],
-          ec_ctx->intra_ext_tx_cdf[eset][square_tx_size][intra_dir],
-          av1_num_ext_tx_set[tx_set_type]);
+#if CONFIG_DATA_DRIVEN_TX && USE_DDTX_INTRA
+      if (tx_set_type == EXT_TX_SET_DTT4_IDTX_1DDCT_DDTX) {
+        aom_write_symbol(w, tx_type >= DDTX1_DDTX1,
+                         ec_ctx->use_ddtx_intra_cdf[square_tx_size], 2);
+        if (tx_type >= DDTX1_DDTX1) {
+          aom_write_symbol(w, tx_type - DDTX1_DDTX1,
+                           ec_ctx->ddtx_type_intra_cdf[square_tx_size],
+                           DDTX_TYPES_INTRA);
+        } else {
+          aom_write_symbol(
+              w, av1_ext_tx_ind[tx_set_type][tx_type],
+              ec_ctx->intra_ext_tx_cdf[eset][square_tx_size][intra_dir],
+              av1_num_ext_tx_set[tx_set_type]);
+        }
+      } else {
+#endif
+        aom_write_symbol(
+            w, av1_ext_tx_ind[tx_set_type][tx_type],
+            ec_ctx->intra_ext_tx_cdf[eset][square_tx_size][intra_dir],
+            av1_num_ext_tx_set[tx_set_type]);
+#if CONFIG_DATA_DRIVEN_TX && USE_DDTX_INTRA
+      }
+#endif
     }
   }
 }

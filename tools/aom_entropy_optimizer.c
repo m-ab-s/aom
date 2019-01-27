@@ -333,6 +333,7 @@ int main(int argc, const char **argv) {
 
 #if CONFIG_DATA_DRIVEN_TX
   /* ddt_type */
+#if USE_DDTX_INTER
   cts_each_dim[0] = EXT_TX_SIZES;
   cts_each_dim[1] = 2;
   optimize_cdf_table(
@@ -346,6 +347,22 @@ int main(int argc, const char **argv) {
                      "static const aom_cdf_prob\n"
                      "default_ddtx_type_inter[EXT_TX_SIZES]"
                      "[CDF_SIZE(DDTX_TYPES_INTER)]");
+#endif
+#if USE_DDTX_INTRA
+  cts_each_dim[0] = EXT_TX_SIZES;
+  cts_each_dim[1] = 2;
+  optimize_cdf_table(
+      &fc.use_ddtx_intra[0][0], probsfile, 2, cts_each_dim,
+      "static const aom-cdf_prob default_use_ddtx_intra[EXT_TX_SIZES]"
+      "[CDF_SIZE(2)]");
+
+  cts_each_dim[0] = EXT_TX_SIZES;
+  cts_each_dim[1] = DDTX_TYPES_INTRA;
+  optimize_cdf_table(&fc.ddtx_type_intra[0][0], probsfile, 2, cts_each_dim,
+                     "static const aom_cdf_prob\n"
+                     "default_ddtx_type_intra[EXT_TX_SIZES]"
+                     "[CDF_SIZE(DDTX_TYPES_INTRA)]");
+#endif
 #endif
 
   /* tx type */
