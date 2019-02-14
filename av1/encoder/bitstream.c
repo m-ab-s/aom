@@ -1191,9 +1191,9 @@ static void pack_inter_mode_mvs(AV1_COMP *cpi, const int mi_row,
                mbmi->interinter_comp.type == COMPOUND_DIFFWTD);
 
         if (is_interinter_compound_used(COMPOUND_WEDGE, bsize))
-          aom_write_symbol(w, mbmi->interinter_comp.type - 1,
+          aom_write_symbol(w, mbmi->interinter_comp.type - COMPOUND_WEDGE,
                            ec_ctx->compound_type_cdf[bsize],
-                           COMPOUND_TYPES - 1);
+                           MASKED_COMPOUND_TYPES);
 
         if (mbmi->interinter_comp.type == COMPOUND_WEDGE) {
           assert(is_interinter_compound_used(COMPOUND_WEDGE, bsize));
@@ -1317,7 +1317,7 @@ static void enc_dump_logs(AV1_COMP *cpi, int mi_row, int mi_col) {
       }
 
       const int16_t mode_ctx =
-          is_comp_ref ? mbmi_ext->compound_mode_context[mbmi->ref_frame[0]]
+          is_comp_ref ? 0
                       : av1_mode_context_analyzer(mbmi_ext->mode_context,
                                                   mbmi->ref_frame);
 
@@ -2899,24 +2899,25 @@ static void write_uncompressed_header_obu(AV1_COMP *cpi,
   int frame_size_override_flag = 0;
 
   if (seq_params->reduced_still_picture_hdr) {
-    assert(cm->width == seq_params->max_frame_width &&
-           cm->height == seq_params->max_frame_height);
+    assert(cm->superres_upscaled_width == seq_params->max_frame_width &&
+           cm->superres_upscaled_height == seq_params->max_frame_height);
   } else {
     if (seq_params->frame_id_numbers_present_flag) {
       int frame_id_len = seq_params->frame_id_length;
       aom_wb_write_literal(wb, cm->current_frame_id, frame_id_len);
     }
 
-    if (cm->width > seq_params->max_frame_width ||
-        cm->height > seq_params->max_frame_height) {
+    if (cm->superres_upscaled_width > seq_params->max_frame_width ||
+        cm->superres_upscaled_height > seq_params->max_frame_height) {
       aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
                          "Frame dimensions are larger than the maximum values");
     }
 
     frame_size_override_flag =
-        frame_is_sframe(cm) ? 1
-                            : (cm->width != seq_params->max_frame_width ||
-                               cm->height != seq_params->max_frame_height);
+        frame_is_sframe(cm)
+            ? 1
+            : (cm->superres_upscaled_width != seq_params->max_frame_width ||
+               cm->superres_upscaled_height != seq_params->max_frame_height);
     if (!frame_is_sframe(cm)) aom_wb_write_bit(wb, frame_size_override_flag);
 
     if (seq_params->order_hint_info.enable_order_hint)

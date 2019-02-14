@@ -336,7 +336,7 @@ static unsigned int setup_center_error(
     int *mvcost[2], unsigned int *sse1, int *distortion) {
   unsigned int besterr;
   if (second_pred != NULL) {
-    if (xd->cur_buf->flags & YV12_FLAG_HIGHBITDEPTH) {
+    if (is_cur_buf_hbd(xd)) {
       DECLARE_ALIGNED(16, uint16_t, comp_pred16[MAX_SB_SQUARE]);
       uint8_t *comp_pred = CONVERT_TO_BYTEPTR(comp_pred16);
       if (mask) {
@@ -641,7 +641,7 @@ static int upsampled_pref_error(MACROBLOCKD *xd, const AV1_COMMON *const cm,
                                 int mask_stride, int invert_mask, int w, int h,
                                 unsigned int *sse, int subpel_search) {
   unsigned int besterr;
-  if (xd->cur_buf->flags & YV12_FLAG_HIGHBITDEPTH) {
+  if (is_cur_buf_hbd(xd)) {
     DECLARE_ALIGNED(16, uint16_t, pred16[MAX_SB_SQUARE]);
     uint8_t *pred8 = CONVERT_TO_BYTEPTR(pred16);
     if (second_pred != NULL) {
@@ -899,7 +899,8 @@ unsigned int av1_compute_motion_cost(const AV1_COMP *cpi, MACROBLOCK *const x,
   unsigned int mse;
   unsigned int sse;
 
-  av1_build_inter_predictors_sby(cm, xd, mi_row, mi_col, NULL, bsize);
+  av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize,
+                                AOM_PLANE_Y, AOM_PLANE_Y);
   mse = vfp->vf(dst, dst_stride, src, src_stride, &sse);
   mse += mv_err_cost(this_mv, &ref_mv.as_mv, x->nmv_vec_cost, x->mv_cost_stack,
                      x->errorperbit);
@@ -1797,11 +1798,11 @@ static int full_pixel_diamond(const AV1_COMP *const cpi, MACROBLOCK *x,
                               MV *mvp_full, int step_param, int sadpb,
                               int further_steps, int do_refine, int *cost_list,
                               const aom_variance_fn_ptr_t *fn_ptr,
-                              const MV *ref_mv) {
+                              const MV *ref_mv, const search_site_config *cfg) {
   MV temp_mv;
   int thissme, n, num00 = 0;
-  int bestsme = cpi->diamond_search_sad(x, &cpi->ss_cfg, mvp_full, &temp_mv,
-                                        step_param, sadpb, &n, fn_ptr, ref_mv);
+  int bestsme = cpi->diamond_search_sad(x, cfg, mvp_full, &temp_mv, step_param,
+                                        sadpb, &n, fn_ptr, ref_mv);
   if (bestsme < INT_MAX)
     bestsme = av1_get_mvpred_var(x, &temp_mv, ref_mv, fn_ptr, 1);
   x->best_mv.as_mv = temp_mv;
@@ -1816,9 +1817,9 @@ static int full_pixel_diamond(const AV1_COMP *const cpi, MACROBLOCK *x,
     if (num00) {
       num00--;
     } else {
-      thissme = cpi->diamond_search_sad(x, &cpi->ss_cfg, mvp_full, &temp_mv,
-                                        step_param + n, sadpb, &num00, fn_ptr,
-                                        ref_mv);
+      thissme =
+          cpi->diamond_search_sad(x, cfg, mvp_full, &temp_mv, step_param + n,
+                                  sadpb, &num00, fn_ptr, ref_mv);
       if (thissme < INT_MAX)
         thissme = av1_get_mvpred_var(x, &temp_mv, ref_mv, fn_ptr, 1);
 
@@ -2098,7 +2099,8 @@ int av1_full_pixel_search(const AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
                           MV *mvp_full, int step_param, int method,
                           int run_mesh_search, int error_per_bit,
                           int *cost_list, const MV *ref_mv, int var_max, int rd,
-                          int x_pos, int y_pos, int intra) {
+                          int x_pos, int y_pos, int intra,
+                          const search_site_config *cfg) {
   const SPEED_FEATURES *const sf = &cpi->sf;
   const aom_variance_fn_ptr_t *fn_ptr = &cpi->fn_ptr[bsize];
   int var = 0;
@@ -2138,7 +2140,7 @@ int av1_full_pixel_search(const AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
     case NSTEP:
       var = full_pixel_diamond(cpi, x, mvp_full, step_param, error_per_bit,
                                MAX_MVSEARCH_STEPS - 1 - step_param, 1,
-                               cost_list, fn_ptr, ref_mv);
+                               cost_list, fn_ptr, ref_mv, cfg);
 
       // Should we allow a follow on exhaustive search?
       if (is_exhaustive_allowed(cpi, x)) {
@@ -2213,9 +2215,8 @@ int av1_full_pixel_search(const AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
                   : av1_get_ref_frame_hash_map(&cpi->common,
                                                x->e_mbd.mi[0]->ref_frame[0]);
 
-        av1_get_block_hash_value(
-            what, what_stride, block_width, &hash_value1, &hash_value2,
-            x->e_mbd.cur_buf->flags & YV12_FLAG_HIGHBITDEPTH, x);
+        av1_get_block_hash_value(what, what_stride, block_width, &hash_value1,
+                                 &hash_value2, is_cur_buf_hbd(&x->e_mbd), x);
 
         const int count = av1_hash_table_count(ref_frame_hash, hash_value1);
         // for intra, at lest one matching can be found, itself.
@@ -2334,7 +2335,7 @@ static int upsampled_obmc_pref_error(
   unsigned int besterr;
 
   DECLARE_ALIGNED(16, uint8_t, pred[2 * MAX_SB_SQUARE]);
-  if (xd->cur_buf->flags & YV12_FLAG_HIGHBITDEPTH) {
+  if (is_cur_buf_hbd(xd)) {
     uint8_t *pred8 = CONVERT_TO_BYTEPTR(pred);
     aom_highbd_upsampled_pred(xd, cm, mi_row, mi_col, mv, pred8, w, h,
                               subpel_x_q3, subpel_y_q3, y, y_stride, xd->bd,
@@ -2676,14 +2677,15 @@ static int obmc_full_pixel_diamond(const AV1_COMP *cpi, MACROBLOCK *x,
                                    MV *mvp_full, int step_param, int sadpb,
                                    int further_steps, int do_refine,
                                    const aom_variance_fn_ptr_t *fn_ptr,
-                                   const MV *ref_mv, MV *dst_mv,
-                                   int is_second) {
+                                   const MV *ref_mv, MV *dst_mv, int is_second,
+                                   const search_site_config *cfg) {
+  (void)cpi;  // to silence compiler warning
   const int32_t *wsrc = x->wsrc_buf;
   const int32_t *mask = x->mask_buf;
   MV temp_mv;
   int thissme, n, num00 = 0;
   int bestsme =
-      obmc_diamond_search_sad(x, &cpi->ss_cfg, wsrc, mask, mvp_full, &temp_mv,
+      obmc_diamond_search_sad(x, cfg, wsrc, mask, mvp_full, &temp_mv,
                               step_param, sadpb, &n, fn_ptr, ref_mv, is_second);
   if (bestsme < INT_MAX)
     bestsme = get_obmc_mvpred_var(x, wsrc, mask, &temp_mv, ref_mv, fn_ptr, 1,
@@ -2700,9 +2702,9 @@ static int obmc_full_pixel_diamond(const AV1_COMP *cpi, MACROBLOCK *x,
     if (num00) {
       num00--;
     } else {
-      thissme = obmc_diamond_search_sad(x, &cpi->ss_cfg, wsrc, mask, mvp_full,
-                                        &temp_mv, step_param + n, sadpb, &num00,
-                                        fn_ptr, ref_mv, is_second);
+      thissme = obmc_diamond_search_sad(x, cfg, wsrc, mask, mvp_full, &temp_mv,
+                                        step_param + n, sadpb, &num00, fn_ptr,
+                                        ref_mv, is_second);
       if (thissme < INT_MAX)
         thissme = get_obmc_mvpred_var(x, wsrc, mask, &temp_mv, ref_mv, fn_ptr,
                                       1, is_second);
@@ -2738,11 +2740,12 @@ int av1_obmc_full_pixel_search(const AV1_COMP *cpi, MACROBLOCK *x, MV *mvp_full,
                                int step_param, int sadpb, int further_steps,
                                int do_refine,
                                const aom_variance_fn_ptr_t *fn_ptr,
-                               const MV *ref_mv, MV *dst_mv, int is_second) {
+                               const MV *ref_mv, MV *dst_mv, int is_second,
+                               const search_site_config *cfg) {
   if (cpi->sf.obmc_full_pixel_search_level == 0) {
     return obmc_full_pixel_diamond(cpi, x, mvp_full, step_param, sadpb,
                                    further_steps, do_refine, fn_ptr, ref_mv,
-                                   dst_mv, is_second);
+                                   dst_mv, is_second, cfg);
   } else {
     const int32_t *wsrc = x->wsrc_buf;
     const int32_t *mask = x->mask_buf;

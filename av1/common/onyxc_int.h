@@ -382,7 +382,6 @@ typedef struct AV1Common {
   int show_frame;
   int showable_frame;  // frame can be used as show existing frame in future
   int show_existing_frame;
-  int reset_decoder_state;
 
   uint8_t disable_cdf_update;
   int allow_high_precision_mv;
@@ -436,6 +435,7 @@ typedef struct AV1Common {
   int qm_v;
   int min_qmlevel;
   int max_qmlevel;
+  int use_quant_b_adapt;
 
   /* We allocate a MB_MODE_INFO struct for each macroblock, together with
      an extra row on top and column on the left to simplify prediction. */
@@ -505,7 +505,6 @@ typedef struct AV1Common {
   int primary_ref_frame;
 
   int error_resilient_mode;
-  int force_primary_ref_none;
 
   int tile_cols, tile_rows;
 
@@ -632,6 +631,22 @@ static INLINE int get_free_fb(AV1_COMMON *cm) {
 
   unlock_buffer_pool(cm->buffer_pool);
   return i;
+}
+
+static INLINE RefCntBuffer *assign_cur_frame_new_fb(AV1_COMMON *const cm) {
+  // Release the previously-used frame-buffer
+  if (cm->cur_frame != NULL) {
+    --cm->cur_frame->ref_count;
+    cm->cur_frame = NULL;
+  }
+
+  // Assign a new framebuffer
+  const int new_fb_idx = get_free_fb(cm);
+  if (new_fb_idx == INVALID_IDX) return NULL;
+
+  cm->cur_frame = &cm->buffer_pool->frame_bufs[new_fb_idx];
+  cm->cur_frame->buf.buf_8bit_valid = 0;
+  return cm->cur_frame;
 }
 
 // Modify 'lhs_ptr' to reference the buffer at 'rhs_ptr', and update the ref

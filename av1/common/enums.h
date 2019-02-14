@@ -207,7 +207,7 @@ enum {
 #define TX_PAD_HOR 4
 // Pad 6 extra rows (2 on top and 4 on bottom) to remove vertical availability
 // check.
-#define TX_PAD_TOP 2
+#define TX_PAD_TOP 0
 #define TX_PAD_BOTTOM 4
 #define TX_PAD_VER (TX_PAD_TOP + TX_PAD_BOTTOM)
 // Pad 16 extra bytes to avoid reading overflow in SIMD optimization.
@@ -455,9 +455,11 @@ enum {
 
 enum {
   COMPOUND_AVERAGE,
+  COMPOUND_DISTWTD,
   COMPOUND_WEDGE,
   COMPOUND_DIFFWTD,
   COMPOUND_TYPES,
+  MASKED_COMPOUND_TYPES = 2,
 } UENUM1BYTE(COMPOUND_TYPE);
 
 enum {

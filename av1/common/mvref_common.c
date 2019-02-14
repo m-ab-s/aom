@@ -821,7 +821,7 @@ void av1_find_mv_refs(const AV1_COMMON *cm, const MACROBLOCKD *xd,
   MV_REFERENCE_FRAME rf[2];
   av1_set_ref_frame(rf, ref_frame);
 
-  if (ref_frame < REF_FRAMES) {
+  if (global_mvs != NULL && ref_frame < REF_FRAMES) {
     if (ref_frame != INTRA_FRAME) {
       global_mvs[ref_frame] = gm_get_motion_vector(
           &cm->global_motion[ref_frame], cm->allow_high_precision_mv, bsize,
@@ -936,8 +936,6 @@ static int motion_field_projection(AV1_COMMON *cm,
                                    MV_REFERENCE_FRAME start_frame, int dir) {
   TPL_MV_REF *tpl_mvs_base = cm->tpl_mvs;
   int ref_offset[REF_FRAMES] = { 0 };
-
-  (void)dir;
 
   const RefCntBuffer *const start_frame_buf =
       get_ref_frame_buf(cm, start_frame);
@@ -1071,8 +1069,7 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
       ref_stamp >= 0)
     if (motion_field_projection(cm, ALTREF_FRAME, 0)) --ref_stamp;
 
-  if (ref_stamp >= 0 && ref_buf[LAST2_FRAME - LAST_FRAME] != NULL)
-    if (motion_field_projection(cm, LAST2_FRAME, 2)) --ref_stamp;
+  if (ref_stamp >= 0) motion_field_projection(cm, LAST2_FRAME, 2);
 }
 
 static INLINE void record_samples(MB_MODE_INFO *mbmi, int *pts, int *pts_inref,
@@ -1354,15 +1351,15 @@ typedef struct {
   int sort_idx;       // index based on the offset to be used for sorting
 } REF_FRAME_INFO;
 
+// Compares the sort_idx fields. If they are equal, then compares the map_idx
+// fields to break the tie. This ensures a stable sort.
 static int compare_ref_frame_info(const void *arg_a, const void *arg_b) {
   const REF_FRAME_INFO *info_a = (REF_FRAME_INFO *)arg_a;
   const REF_FRAME_INFO *info_b = (REF_FRAME_INFO *)arg_b;
 
-  if (info_a->sort_idx < info_b->sort_idx) return -1;
-  if (info_a->sort_idx > info_b->sort_idx) return 1;
-  return (info_a->map_idx < info_b->map_idx)
-             ? -1
-             : ((info_a->map_idx > info_b->map_idx) ? 1 : 0);
+  const int sort_idx_diff = info_a->sort_idx - info_b->sort_idx;
+  if (sort_idx_diff != 0) return sort_idx_diff;
+  return info_a->map_idx - info_b->map_idx;
 }
 
 static void set_ref_frame_info(AV1_COMMON *const cm, int frame_idx,

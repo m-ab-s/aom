@@ -191,7 +191,9 @@ enum {
   // Always use a fixed size partition
   FIXED_PARTITION,
 
-  REFERENCE_PARTITION
+  REFERENCE_PARTITION,
+
+  VAR_BASED_PARTITION
 } UENUM1BYTE(PARTITION_SEARCH_TYPE);
 
 enum {
@@ -358,7 +360,7 @@ typedef struct SPEED_FEATURES {
   BLOCK_SIZE always_this_block_size;
 
   // Drop less likely to be picked reference frames in the RD search.
-  // Has four levels for now: 0, 1, 2 and 3, where higher levels prune more
+  // Has five levels for now: 0, 1, 2, 3 and 4, where higher levels prune more
   // aggressively than lower ones. (0 means no pruning).
   int selective_ref_frame;
 
@@ -402,6 +404,12 @@ typedef struct SPEED_FEATURES {
   // Sets min and max partition sizes for this superblock based on the
   // same superblock in last encoded frame, and the left and above neighbor.
   AUTO_MIN_MAX_MODE auto_min_max_partition_size;
+
+  // Sets min and max square partition levels for this superblock based on
+  // motion vector and prediction error distribution produced from 16x16
+  // simple motion search
+  int auto_min_max_partition_based_on_simple_motion;
+
   // Ensures the rd based auto partition search will always
   // go down at least to the specified level.
   BLOCK_SIZE rd_auto_partition_min_limit;
@@ -445,8 +453,6 @@ typedef struct SPEED_FEATURES {
 
   // Adaptive prediction mode search
   int adaptive_mode_search;
-
-  int cb_partition_search;
 
   int alt_ref_search_fp;
 
@@ -560,8 +566,11 @@ typedef struct SPEED_FEATURES {
   // Calculate RD cost before doing optimize_b, and skip if the cost is large.
   int optimize_b_precheck;
 
-  // Use model rd instead of transform search in dist_wtd_comp
-  int dist_wtd_comp_fast_tx_search;
+  // Use two-loop compound search
+  int two_loop_comp_search;
+
+  // Use model rd instead of transform search in second loop of compound search
+  int second_loop_comp_fast_tx_search;
 
   // Decide when and how to use joint_comp.
   DIST_WTD_COMP_FLAG use_dist_wtd_comp_flag;
@@ -605,14 +614,16 @@ typedef struct SPEED_FEATURES {
   // Prune intra mode candidates based on source block gradient stats.
   int intra_angle_estimation;
 
-  // Performs full pixel motion search before none_partition to decide if we
-  // want to split directly without trying other partition types.
-  int full_pixel_motion_search_based_split;
-
   // Skip obmc or warped motion mode when neighborhood motion field is
   // identical
   int skip_obmc_in_uniform_mv_field;
   int skip_wm_in_uniform_mv_field;
+
+  // Enable/disable ME for interinter wedge search.
+  int disable_interinter_wedge_newmv_search;
+
+  // Enable/disable smooth inter-intra mode
+  int disable_smooth_interintra;
 
   // skip sharp_filter evaluation based on regular and smooth filter rd for
   // dual_filter=0 case
@@ -636,6 +647,10 @@ typedef struct SPEED_FEATURES {
   // PARTITION_HORZ and PARTITION_VERT.
   int simple_motion_search_prune_rect;
 
+  // Perform simple motion search before none_partition to decide if we
+  // want to split directly without trying other partition types.
+  int simple_motion_search_split_only;
+
   int cb_pred_filter_search;
 
   // adaptive interp_filter search to allow skip of certain filter types.
@@ -643,12 +658,30 @@ typedef struct SPEED_FEATURES {
 
   // mask for skip evaluation of certain interp_filter type.
   INTERP_FILTER_MASK interp_filter_search_mask;
+
+  // Enable/disable interintra wedge search.
+  int disable_wedge_interintra_search;
+
+  // Flag used to control the extent of coeff R-D optimization
+  int perform_coeff_opt;
+
+  // This flag controls the use of non-RD mode decision.
+  int use_nonrd_pick_mode;
+
+  // prune wedge and compound segment approximate rd evaluation based on
+  // compound average modeled rd
+  int prune_comp_type_by_model_rd;
+
+  // Enable/disable smooth intra modes.
+  int disable_smooth_intra;
 } SPEED_FEATURES;
 
 struct AV1_COMP;
 
-void av1_set_speed_features_framesize_independent(struct AV1_COMP *cpi);
-void av1_set_speed_features_framesize_dependent(struct AV1_COMP *cpi);
+void av1_set_speed_features_framesize_independent(struct AV1_COMP *cpi,
+                                                  int speed);
+void av1_set_speed_features_framesize_dependent(struct AV1_COMP *cpi,
+                                                int speed);
 
 #ifdef __cplusplus
 }  // extern "C"
