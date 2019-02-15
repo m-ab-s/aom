@@ -1323,6 +1323,8 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
           const size_t length_field_size = aom_uleb_size_in_bytes(frame_size);
           if (ctx->pending_cx_data) {
             const size_t move_offset = length_field_size;
+            // Add this checking to silence static analysis warning.
+            assert(cx_data != NULL);
             memmove(cx_data + move_offset, cx_data, frame_size);
           }
           if (write_uleb_obu_size(0, (uint32_t)frame_size, cx_data) !=
