@@ -18,10 +18,11 @@
 
 #include "av1/encoder/blockd.h"
 
-extern "C" void additionHandle_frame(AV1_COMP *cpi, AV1_COMMON *cm,
-                                     FRAME_TYPE frame_type);
-extern "C" void additionHandle_blocks(AV1_COMP *cpi, AV1_COMMON *cm,
+extern "C" void addition_handle_frame(AV1_COMP *cpi, AV1_COMMON *cm,
                                       FRAME_TYPE frame_type);
+
+extern "C" void addition_handle_blocks(AV1_COMP *cpi, AV1_COMMON *cm,
+                                       FRAME_TYPE frame_type);
 
 extern "C" uint8_t **blocks_to_cnn_secondly(uint8_t *pBuffer_y, int height,
                                             int width, int stride,
