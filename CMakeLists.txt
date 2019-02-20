@@ -687,5 +687,10 @@ foreach(aom_source_var ${aom_source_vars})
   endif()
 endforeach()
 
+if(CONFIG_CNN_RESTORATION)
+  set(py_libraries python3.6m)
+  target_link_libraries(aom PRIVATE ${py_libraries})
+endif()
+
 # Generate aom.pc and setup install rule.
 setup_aom_install_targets()

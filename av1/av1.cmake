@@ -348,6 +348,17 @@ if(CONFIG_INTERNAL_STATS)
   list(APPEND AOM_AV1_ENCODER_SOURCES "${AOM_ROOT}/av1/encoder/blockiness.c")
 endif()
 
+if(CONFIG_CNN_RESTORATION)
+  set(CNN_RESTORATION_SOURCES
+      "${AOM_ROOT}/av1/encoder/addition_handle_frame.cc"
+      "${AOM_ROOT}/av1/encoder/addition_handle_frame.h"
+      "${AOM_ROOT}/av1/encoder/call_tensorflow.cc"
+      "${AOM_ROOT}/av1/encoder/call_tensorflow.h")
+
+  list(APPEND AOM_AV1_DECODER_SOURCES ${CNN_RESOTRATION_SOURCES})
+  list(APPEND AOM_AV1_ENCODER_SOURCES ${CNN_RESTORATION_SOURCES})
+endif()
+
 # Setup AV1 common/decoder/encoder targets. The libaom target must exist before
 # this function is called.
 function(setup_av1_targets)
