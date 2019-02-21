@@ -9,10 +9,11 @@
  * PATENTS file, you can obtain it at www.aomedia.org/license/patent.
  */
 
-#include "additionHandle_Frame.h"
-#include <iostream>
+#include <stdint.h>
 
-using namespace std;
+#include "av1/common/blockd.h"
+
+#include "av1/encoder/additionHandle_Frame.h"
 
 extern uint8_t **callTensorflow(uint8_t *ppp, int height, int width, int stride,
                                 FRAME_TYPE frame_type);
