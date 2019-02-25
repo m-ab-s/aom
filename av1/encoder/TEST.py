@@ -17,8 +17,8 @@ import os, time
 import VDSR25
 import UTILS
 
-I_MODEL_PATH = r"/usr/local/google/home/logangw/AV1_CNN_in-loop_filter/MODELS/qp52/VDSR25_qp52_I_set2K+2299_true"  #364
-B_MODEL_PATH = r"/usr/local/google/home/logangw/AV1_CNN_in-loop_filter/MODELS/qp52/VDSR25_qp52_B_set2299_noclip"  #252
+I_MODEL_PATH = r"/usr/local/google/home/logangw/aom-iteration/aom/av1/models/intra_frame_model"  #364
+B_MODEL_PATH = r"/usr/local/google/home/logangw/aom-iteration/aom/av1/models/inter_frame_model"  #252
 
 def prepare_test_data(fileOrDir):
     original_ycbcr = []
@@ -37,7 +37,6 @@ def prepare_test_data(fileOrDir):
 def test_all_ckpt(modelPath, fileOrDir, flags):
     tf.reset_default_graph()
     tf.logging.warning(modelPath)
-    #tf.logging.warning(os.getcwd())
 
     tem = [f for f in os.listdir(modelPath) if 'data' in f]
     ckptFiles = sorted([r.split('.data')[0] for r in tem])
@@ -46,7 +45,6 @@ def test_all_ckpt(modelPath, fileOrDir, flags):
     config.gpu_options.allow_growth = True
     with tf.Session(config=config) as sess:
         input_tensor = tf.placeholder(tf.float32, shape=(1, None, None, 1))
-
         shared_model = tf.make_template('shared_model', VDSR25.model25)
         output_tensor, weights = shared_model(input_tensor)
         output_tensor = tf.clip_by_value(output_tensor, 0., 1.)
@@ -55,14 +53,12 @@ def test_all_ckpt(modelPath, fileOrDir, flags):
         sess.run(tf.global_variables_initializer())
 
         original_ycbcr, gt_y, fileName_list = prepare_test_data(fileOrDir)
-
         for ckpt in ckptFiles:
             epoch = int(ckpt.split('_')[-1].split('.')[0])
-            #tf.logging.warning("epoch: %d\t"%epoch)
 
             tf.logging.warning("epoch:%d\t" % epoch)
             saver = tf.train.Saver(tf.global_variables())
-            saver.restore(sess,os.path.join(modelPath,ckpt))
+            saver.restore(sess,os.path.join(modelPath, ckpt))
             total_imgs = len(fileName_list)
             for i in range(total_imgs):
                 imgY = original_ycbcr[i][0]

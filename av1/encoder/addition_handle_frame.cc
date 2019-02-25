@@ -16,17 +16,6 @@
 #include "av1/encoder/addition_handle_frame.h"
 #include "av1/encoder/call_tensorflow.h"
 
-extern uint8_t **callTensorflow(uint8_t *ppp, int height, int width, int stride,
-                                FRAME_TYPE frame_type);
-extern uint8_t **blockCallTensorflow(uint8_t *ppp, int cur_buf_height,
-                                     int cur_buf_width, int stride,
-                                     FRAME_TYPE frame_type);
-extern uint16_t **callTensorflow_hbd(uint16_t *ppp, int height, int width,
-                                     int stride, FRAME_TYPE frame_type);
-extern uint16_t **blockCallTensorflow_hbd(uint16_t *ppp, int cur_buf_height,
-                                          int cur_buf_width, int stride,
-                                          FRAME_TYPE frame_type);
-
 /*Feed full frame image into the network*/
 void addition_handle_frame(AV1_COMMON *cm, FRAME_TYPE frame_type) {
   YV12_BUFFER_CONFIG *pcPicYuvRec = &cm->cur_frame->buf;
@@ -117,8 +106,8 @@ void addition_handle_blocks(AV1_COMMON *cm, FRAME_TYPE frame_type) {
             buf[i] = new uint8_t[cur_buf_width];
           }
 
-          buf = block_call_tensorflow(
-              py + x * buf_width + stride * buf_height * y, cur_buf_height,
+          block_call_tensorflow(
+              buf, py + x * buf_width + stride * buf_height * y, cur_buf_height,
               cur_buf_width, stride, frame_type);
 
           bkuPy = bkuPyTemp;
@@ -220,8 +209,8 @@ uint8_t **blocks_to_cnn_secondly(uint8_t *pBuffer_y, int height, int width,
           for (int i = 0; i < cur_buf_height; i++) {
             buf[i] = new uint8_t[cur_buf_width];
           }
-          buf = block_call_tensorflow(
-              pBuffer_y + x * buf_width + stride * buf_height * y,
+          block_call_tensorflow(
+              buf, pBuffer_y + x * buf_width + stride * buf_height * y,
               cur_buf_height, cur_buf_width, stride, frame_type);
 
           for (int i = 0; i < cur_buf_height; i++) {

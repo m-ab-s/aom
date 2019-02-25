@@ -233,9 +233,9 @@ uint16_t **call_tensorflow_hbd(uint16_t *ppp, int height, int width, int stride,
   return rePic;
 }
 
-uint8_t **block_call_tensorflow(uint8_t *ppp, int cur_buf_height,
-                                int cur_buf_width, int stride,
-                                FRAME_TYPE frame_type) {
+void block_call_tensorflow(uint8_t **buf, uint8_t *ppp, int cur_buf_height,
+                           int cur_buf_width, int stride,
+                           FRAME_TYPE frame_type) {
   Py_SetPath(
       L"/usr/local/google/home/logangw/aom-iteration/aom/av1/encoder:"
       "/usr/lib:"
@@ -252,7 +252,7 @@ uint8_t **block_call_tensorflow(uint8_t *ppp, int cur_buf_height,
 
   if (!Py_IsInitialized()) {
     printf("Python init failed!\n");
-    return NULL;
+    return;
   }
   pModule = PyImport_ImportModule("TEST");
 
@@ -260,21 +260,21 @@ uint8_t **block_call_tensorflow(uint8_t *ppp, int cur_buf_height,
   if (!pModule) {
     printf("don't load Pmodule\n");
     Py_Finalize();
-    return NULL;
+    return;
   }
 
   pFuncI = PyObject_GetAttrString(pModule, "entranceI");
   if (!pFuncI) {
     printf("don't get I function!");
     Py_Finalize();
-    return NULL;
+    return;
   }
 
   pFuncB = PyObject_GetAttrString(pModule, "entranceB");
   if (!pFuncB) {
     printf("don't get B function!");
     Py_Finalize();
-    return NULL;
+    return;
   }
   PyObject *list = PyList_New(cur_buf_height);
   pArgs = PyTuple_New(1);
@@ -297,26 +297,12 @@ uint8_t **block_call_tensorflow(uint8_t *ppp, int cur_buf_height,
     presult = PyEval_CallObject(pFuncB, pArgs);
   }
 
-  uint8_t **rePic = new uint8_t *[cur_buf_height];
-  for (int i = 0; i < cur_buf_height; i++) {
-    rePic[i] = new uint8_t[cur_buf_width];
-  }
-  uint8_t s;
-
-  // FILE *fp = fopen("CPython.yuv", "wb");
   for (int i = 0; i < cur_buf_height; i++) {
     for (int j = 0; j < cur_buf_width; j++) {
-      // PyList_GetItem(PyList_GetItem(presult, i), j) mean presult(i,j)
-      PyArg_Parse(PyList_GetItem(PyList_GetItem(presult, i), j), "i", &s);
-      rePic[i][j] = s;
-      // unsigned char uc = (unsigned char)s;
-      // fwrite(&uc, 1, 1, fp);
+      PyArg_Parse(PyList_GetItem(PyList_GetItem(presult, i), j), "i",
+                  &buf[i][j]);
     }
   }
-  // fclose(fp);
-
-  // Py_Finalize();
-  return rePic;
 }
 
 uint16_t **block_call_tensorflow_hbd(uint16_t *ppp, int cur_buf_height,
