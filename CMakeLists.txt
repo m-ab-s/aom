@@ -694,3 +694,6 @@ endif()
 
 # Generate aom.pc and setup install rule.
 setup_aom_install_targets()
+
+# Add AOM_ROOT for call_tensorflow.cc to know its path.
+add_definitions(-DAOM_ROOT="${AOM_ROOT}")

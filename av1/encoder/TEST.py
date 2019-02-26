@@ -17,8 +17,8 @@ import os, time
 import VDSR25
 import UTILS
 
-I_MODEL_PATH = r"/usr/local/google/home/logangw/aom-iteration/aom/av1/models/intra_frame_model"  #364
-B_MODEL_PATH = r"/usr/local/google/home/logangw/aom-iteration/aom/av1/models/inter_frame_model"  #252
+I_MODEL_PATH = r"/av1/models/intra_frame_model"  #364
+B_MODEL_PATH = r"/av1/models/inter_frame_model"  #252
 
 def prepare_test_data(fileOrDir):
     original_ycbcr = []
@@ -71,14 +71,13 @@ def test_all_ckpt(modelPath, fileOrDir, flags):
                 return out
 
 
-def entranceI(inp):
+def entranceI(AOM_ROOT, inp):
     tf.logging.warning("python, in I")
-    #print(inp)
-    i = test_all_ckpt(I_MODEL_PATH, inp, 0)
+    i = test_all_ckpt(AOM_ROOT + I_MODEL_PATH, inp, 0)
     return i
 
 
-def entranceB(inp):
+def entranceB(AOM_ROOT, inp):
     tf.logging.warning("python, in B")
-    b = test_all_ckpt(B_MODEL_PATH, inp, 1)
+    b = test_all_ckpt(AOM_ROOT + B_MODEL_PATH, inp, 1)
     return b
