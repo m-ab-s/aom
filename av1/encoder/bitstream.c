@@ -3095,12 +3095,14 @@ static void write_uncompressed_header_obu(AV1_COMP *cpi,
 
   if (cm->all_lossless) {
     assert(!av1_superres_scaled(cm));
+#if !CONFIG_CNN_RESTORATION
   } else {
     if (!cm->coded_lossless) {
       encode_loopfilter(cm, wb);
       encode_cdef(cm, wb);
     }
     encode_restoration_mode(cm, wb);
+#endif
   }
 
   // Write TX mode

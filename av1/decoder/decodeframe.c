@@ -5393,6 +5393,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
     cm->rst_info[1].frame_restoration_type = RESTORE_NONE;
     cm->rst_info[2].frame_restoration_type = RESTORE_NONE;
   }
+#if !CONFIG_CNN_RESTORATION
   setup_loopfilter(cm, rb);
 
   if (!cm->coded_lossless && seq_params->enable_cdef) {
@@ -5401,6 +5402,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
   if (!cm->all_lossless && seq_params->enable_restoration) {
     decode_restoration_mode(cm, rb);
   }
+#endif
 
   cm->tx_mode = read_tx_mode(cm, rb);
   current_frame->reference_mode = read_frame_reference_mode(cm, rb);
