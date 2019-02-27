@@ -121,10 +121,12 @@ static void set_planes_to_neutral_grey(const SequenceHeader *const seq_params,
   }
 }
 
+#if !CONFIG_CNN_RESTORATION
 static void loop_restoration_read_sb_coeffs(const AV1_COMMON *const cm,
                                             MACROBLOCKD *xd,
                                             aom_reader *const r, int plane,
                                             int runit_idx);
+#endif  // !CONFIG_CNN_RESTORATION
 
 static void setup_compound_reference_mode(AV1_COMMON *cm) {
   cm->comp_fwd_ref[0] = LAST_FRAME;
@@ -1760,6 +1762,7 @@ static void decode_partition(AV1Decoder *const pbi, ThreadData *const td,
   };
 
   if (parse_decode_flag & 1) {
+#if !CONFIG_CNN_RESTORATION
     const int num_planes = av1_num_planes(cm);
     for (int plane = 0; plane < num_planes; ++plane) {
       int rcol0, rcol1, rrow0, rrow1;
@@ -1774,6 +1777,7 @@ static void decode_partition(AV1Decoder *const pbi, ThreadData *const td,
         }
       }
     }
+#endif  // !CONFIG_CNN_RESTORATION
 
     partition = (bsize < BLOCK_8X8) ? PARTITION_NONE
                                     : read_partition(xd, mi_row, mi_col, reader,
@@ -1955,6 +1959,7 @@ static void setup_segmentation(AV1_COMMON *const cm,
   segfeatures_copy(&cm->cur_frame->seg, seg);
 }
 
+#if !CONFIG_CNN_RESTORATION
 static void decode_restoration_mode(AV1_COMMON *cm,
                                     struct aom_read_bit_buffer *rb) {
   assert(!cm->all_lossless);
@@ -2216,6 +2221,7 @@ static void setup_cdef(AV1_COMMON *cm, struct aom_read_bit_buffer *rb) {
         num_planes > 1 ? aom_rb_read_literal(rb, CDEF_STRENGTH_BITS) : 0;
   }
 }
+#endif  // !CONFIG_CNN_RESTORATION
 
 static INLINE int read_delta_q(struct aom_read_bit_buffer *rb) {
   return aom_rb_read_bit(rb) ? aom_rb_read_inv_signed_literal(rb, 6) : 0;
@@ -5311,11 +5317,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 
   generate_next_ref_frame_map(pbi);
 
-  if (!cm->allow_intrabc) {
-#if CONFIG_CNN_RESTORATION
-    addition_handle_blocks(cm, cm->cur_frame->frame_type);
-#endif  // CONFIG_CNN_RESTORATION
-  } else {
+  if (cm->allow_intrabc) {
     // Set parameters corresponding to no filtering.
     struct loopfilter *lf = &cm->lf;
     lf->filter_level[0] = 0;
@@ -5603,6 +5605,9 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
   }
 
   if (!cm->allow_intrabc && !cm->single_tile_decoding) {
+#if CONFIG_CNN_RESTORATION
+    addition_handle_blocks(cm, cm->cur_frame->frame_type);
+#else
     if (cm->lf.filter_level[0] || cm->lf.filter_level[1]) {
       if (pbi->num_workers > 1) {
         av1_loop_filter_frame_mt(
@@ -5670,6 +5675,7 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
         }
       }
     }
+#endif  // CONFIG_CNN_RESTORATION
   }
 #if LOOP_FILTER_BITMASK
   av1_zero_array(cm->lf.lfm, cm->lf.lfm_num);

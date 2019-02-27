@@ -60,11 +60,13 @@ static INLINE void write_uniform(aom_writer *w, int n, int v) {
   }
 }
 
+#if !CONFIG_CNN_RESTORATION
 static void loop_restoration_write_sb_coeffs(const AV1_COMMON *const cm,
                                              MACROBLOCKD *xd,
                                              const RestorationUnitInfo *rui,
                                              aom_writer *const w, int plane,
                                              FRAME_COUNTS *counts);
+#endif  // !CONFIG_CNN_RESTORATION
 
 static void write_intra_y_mode_kf(FRAME_CONTEXT *frame_ctx,
                                   const MB_MODE_INFO *mi,
@@ -1616,6 +1618,7 @@ static void write_modes_sb(AV1_COMP *const cpi, const TileInfo *const tile,
 
   if (mi_row >= cm->mi_rows || mi_col >= cm->mi_cols) return;
 
+#if !CONFIG_CNN_RESTORATION
   const int num_planes = av1_num_planes(cm);
   for (int plane = 0; plane < num_planes; ++plane) {
     int rcol0, rcol1, rrow0, rrow1;
@@ -1633,6 +1636,7 @@ static void write_modes_sb(AV1_COMP *const cpi, const TileInfo *const tile,
       }
     }
   }
+#endif  // !CONFIG_CNN_RESTORATION
 
   write_partition(cm, xd, hbs, mi_row, mi_col, partition, bsize, w);
   switch (partition) {
@@ -1739,6 +1743,7 @@ static void write_modes(AV1_COMP *const cpi, const TileInfo *const tile,
   }
 }
 
+#if !CONFIG_CNN_RESTORATION
 static void encode_restoration_mode(AV1_COMMON *cm,
                                     struct aom_write_bit_buffer *wb) {
   assert(!cm->all_lossless);
@@ -2010,6 +2015,7 @@ static void encode_cdef(const AV1_COMMON *cm, struct aom_write_bit_buffer *wb) {
                            CDEF_STRENGTH_BITS);
   }
 }
+#endif  // !CONFIG_CNN_RESTORATION
 
 static void write_delta_q(struct aom_write_bit_buffer *wb, int delta_q) {
   if (delta_q != 0) {
