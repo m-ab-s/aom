@@ -222,7 +222,7 @@ uint8_t **blocks_to_cnn_secondly(uint8_t *pBuffer_y, int height, int width,
           for (int i = 0; i < cur_buf_height; i++) {
             delete[] buf[i];
           }
-          delete buf;
+          delete[] buf;
         }
       }
     }

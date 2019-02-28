@@ -4292,6 +4292,7 @@ void av1_setup_frame_size(AV1_COMP *cpi) {
   setup_frame_size_from_params(cpi, &rsz);
 }
 
+#if !CONFIG_CNN_RESTORATION
 static void superres_post_encode(AV1_COMP *cpi) {
   AV1_COMMON *cm = &cpi->common;
   const int num_planes = av1_num_planes(cm);
@@ -4417,6 +4418,7 @@ static void loopfilter_frame(AV1_COMP *cpi, AV1_COMMON *cm) {
     cm->rst_info[2].frame_restoration_type = RESTORE_NONE;
   }
 }
+#endif  // !CONFIG_CNN_RESTORATION
 
 static int get_refresh_frame_flags(const AV1_COMP *const cpi) {
   const AV1_COMMON *const cm = &cpi->common;

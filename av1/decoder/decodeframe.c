@@ -5464,6 +5464,7 @@ BITSTREAM_PROFILE av1_read_profile(struct aom_read_bit_buffer *rb) {
   return (BITSTREAM_PROFILE)profile;
 }
 
+#if !CONFIG_CNN_RESTORATION
 static void superres_post_decode(AV1Decoder *pbi) {
   AV1_COMMON *const cm = &pbi->common;
   BufferPool *const pool = cm->buffer_pool;
@@ -5475,6 +5476,7 @@ static void superres_post_decode(AV1Decoder *pbi) {
   av1_superres_upscale(cm, pool);
   unlock_buffer_pool(pool);
 }
+#endif  // !CONFIG_CNN_RESTORATION
 
 uint32_t av1_decode_frame_headers_and_setup(AV1Decoder *pbi,
                                             struct aom_read_bit_buffer *rb,

@@ -31,7 +31,8 @@
 uint8_t **call_tensorflow(uint8_t *ppp, int height, int width, int stride,
                           FRAME_TYPE frame_type) {
   Py_SetPath(
-      L"/usr/local/google/home/logangw/aom/av1/encoder:"
+      AOM_ROOT
+      L"/av1/encoder:"
       "/usr/lib:"
       "/usr/lib/python3.6:"
       "/usr/lib/python3.6/site-packages:"
@@ -136,7 +137,8 @@ uint8_t **call_tensorflow(uint8_t *ppp, int height, int width, int stride,
 uint16_t **call_tensorflow_hbd(uint16_t *ppp, int height, int width, int stride,
                                FRAME_TYPE frame_type) {
   Py_SetPath(
-      L"/usr/local/google/home/logangw/aom/av1/encoder:"
+      AOM_ROOT
+      L"/av1/encoder:"
       "/usr/lib:"
       "/usr/lib/python3.6:"
       "/usr/lib/python3.6/site-packages:"
@@ -313,7 +315,8 @@ uint16_t **block_call_tensorflow_hbd(uint16_t *ppp, int cur_buf_height,
                                      int cur_buf_width, int stride,
                                      FRAME_TYPE frame_type) {
   Py_SetPath(
-      L"/usr/local/google/home/logangw/aom/av1/encoder:"
+      AOM_ROOT
+      L"/av1/encoder:"
       "/usr/lib:"
       "/usr/lib/python3.6:"
       "/usr/lib/python3.6/site-packages:"
