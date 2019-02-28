@@ -11,7 +11,7 @@
 import numpy as np
 import tensorflow as tf
 import math, os, random
-from PIL import Image
+import PIL
 
 PATCH_SIZE = (35, 35)
 BATCH_SIZE = 64
@@ -97,7 +97,7 @@ def getYdata(path, size):
     with open(path, 'rb') as fp:
         fp.seek(0, 0)
         Yt = fp.read()
-        tem = Image.frombytes('L', [w, h], Yt)
+        tem = PIL.Image.frombytes('L', [w, h], Yt)
 
         Yt = np.asarray(tem, dtype='float32')
 
@@ -189,7 +189,7 @@ def save_images(inputY, inputCbCr, size, image_path):
 
     new_output = new_output.astype('uint8')
 
-    img = Image.fromarray(new_output, mode='YCbCr')
+    img = PIL.Image.fromarray(new_output, mode='YCbCr')
     img = img.convert('RGB')
     img.save(image_path)
 
@@ -199,8 +199,8 @@ def get_image_batch(train_list,offset,batch_size):
     gt_list = []
     inputcbcr_list = []
     for pair in target_list:
-        input_img = Image.open(pair[0])
-        gt_img = Image.open(pair[1])
+        input_img = PIL.Image.open(pair[0])
+        gt_img = PIL.Image.open(pair[1])
 
         #crop images to the disired size.
         input_img, gt_img = crop(input_img, gt_img, PATCH_SIZE[0], PATCH_SIZE[1], "Image")
@@ -231,7 +231,7 @@ def save_test_img(inputY, inputCbCr, path):
     inputCbCr = inputCbCr.astype('uint8')
 
     output_concat = np.concatenate((inputY, inputCbCr), axis=2)
-    img = Image.fromarray(output_concat, mode='YCbCr')
+    img = PIL.Image.fromarray(output_concat, mode='YCbCr')
     img = img.convert('RGB')
     img.save(path)
 
