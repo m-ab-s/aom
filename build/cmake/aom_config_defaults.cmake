@@ -137,7 +137,7 @@ set_aom_config_var(CONFIG_COLLECT_COMPONENT_TIMING 0 NUMBER
                    "Collect encoding component timing information.")
 
 # AV2 experiment flags
-set_aom_config_var(CONFIG_ADAPT_FILTER_INTRA 0 NUMBER "AV1 experiment flag.")
+set_aom_config_var(CONFIG_ADAPT_FILTER_INTRA 0 NUMBER "AV2 experiment flag.")
 
 # To run the CNN_RESTORATION experiment, please follow the steps below to
 # correctly install the necessary local Python setup. 1. Using the shell,
@@ -146,7 +146,7 @@ set_aom_config_var(CONFIG_ADAPT_FILTER_INTRA 0 NUMBER "AV1 experiment flag.")
 # `python3.6 -m pip install <MODULE_NAME> --user`. 3. Compile cmake with the
 # flag -DCONFIG_CNN_RESTORATION=1.
 set_aom_config_var(CONFIG_CNN_RESTORATION 0 NUMBER
-                   "CNN Restoration experiment flag")
+                   "AV2 CNN Restoration experiment flag")
 
 #
 # Variables in this section control optional features of the build system.
