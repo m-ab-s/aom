@@ -20,6 +20,8 @@
 void addition_handle_frame(AV1_COMMON *cm, FRAME_TYPE frame_type) {
   YV12_BUFFER_CONFIG *pcPicYuvRec = &cm->cur_frame->buf;
 
+  init_python();
+
   if (!cm->seq_params.use_highbitdepth) {
     uint8_t *py = pcPicYuvRec->y_buffer;
     uint8_t *bkuPy = py;
@@ -68,6 +70,7 @@ void addition_handle_frame(AV1_COMMON *cm, FRAME_TYPE frame_type) {
       bkuPy += stride;
     }
   }
+  finish_python();
 }
 
 /*Split into 1000x1000 blocks into the network*/
@@ -83,6 +86,8 @@ void addition_handle_blocks(AV1_COMMON *cm, FRAME_TYPE frame_type) {
   int stride = pcPicYuvRec->y_stride;
   int cur_buf_width;
   int cur_buf_height;
+
+  init_python();
 
   if (!cm->seq_params.use_highbitdepth) {
     uint8_t *py = pcPicYuvRec->y_buffer;
@@ -165,6 +170,7 @@ void addition_handle_blocks(AV1_COMMON *cm, FRAME_TYPE frame_type) {
       }
     }
   }
+  finish_python();
 }
 
 /*frame_type determines what kind of network blocks need to be fed into, not

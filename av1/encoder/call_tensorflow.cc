@@ -28,23 +28,51 @@
 
 */
 
+int init_python() {
+  if (!Py_IsInitialized()) {
+    const char *mypath = AOM_ROOT
+        "/av1/encoder:"
+        "/usr/lib:"
+        "/usr/lib/python3.6:"
+        "/usr/lib/python3.6/site-packages:"
+        "/usr/lib/python3.6/lib-dynload";
+    wchar_t *wcsmypath = (wchar_t *)malloc(sizeof(wchar_t) * 1024);
+    mbstowcs(wcsmypath, mypath, strlen(mypath));
+    Py_SetPath(wcsmypath);
+    free(wcsmypath);
+    /*
+    Py_SetPath(
+        AOM_ROOT
+        L"/av1/encoder:"
+        "/usr/lib:"
+        "/usr/lib/python3.6:"
+        "/usr/lib/python3.6/site-packages:"
+        "/usr/lib/python3.6/lib-dynload");
+        */
+
+    Py_Initialize();
+
+    if (!Py_IsInitialized()) {
+      printf("Python init failed!\n");
+      return -1;
+    }
+  }
+  return 0;
+}
+
+int finish_python() {
+  if (Py_IsInitialized()) {
+    return Py_FinalizeEx();
+  }
+  return 0;
+}
+
 uint8_t **call_tensorflow(uint8_t *ppp, int height, int width, int stride,
                           FRAME_TYPE frame_type) {
-  Py_SetPath(
-      AOM_ROOT
-      L"/av1/encoder:"
-      "/usr/lib:"
-      "/usr/lib/python3.6:"
-      "/usr/lib/python3.6/site-packages:"
-      "/usr/lib/python3.6/lib-dynload");
-
   PyObject *pModule = NULL;
   PyObject *pFuncI = NULL;
   PyObject *pFuncB = NULL;
   PyObject *pArgs = NULL;
-
-  // 初始化python环境
-  Py_Initialize();
 
   if (!Py_IsInitialized()) {
     printf("Python init failed!\n");
@@ -129,28 +157,15 @@ uint8_t **call_tensorflow(uint8_t *ppp, int height, int width, int stride,
     }
   }
   // fclose(fp);
-
-  // Py_Finalize();
   return rePic;
 }
 
 uint16_t **call_tensorflow_hbd(uint16_t *ppp, int height, int width, int stride,
                                FRAME_TYPE frame_type) {
-  Py_SetPath(
-      AOM_ROOT
-      L"/av1/encoder:"
-      "/usr/lib:"
-      "/usr/lib/python3.6:"
-      "/usr/lib/python3.6/site-packages:"
-      "/usr/lib/python3.6/lib-dynload");
-
   PyObject *pModule = NULL;
   PyObject *pFuncI = NULL;
   PyObject *pFuncB = NULL;
   PyObject *pArgs = NULL;
-
-  // 初始化python环境
-  Py_Initialize();
 
   if (!Py_IsInitialized()) {
     printf("Python init failed!\n");
@@ -238,20 +253,10 @@ uint16_t **call_tensorflow_hbd(uint16_t *ppp, int height, int width, int stride,
 void block_call_tensorflow(uint8_t **buf, uint8_t *ppp, int cur_buf_height,
                            int cur_buf_width, int stride,
                            FRAME_TYPE frame_type) {
-  Py_SetPath(
-      AOM_ROOT
-      L"/av1/encoder:"
-      "/usr/lib:"
-      "/usr/lib/python3.6:"
-      "/usr/lib/python3.6/site-packages:"
-      "/usr/lib/python3.6/lib-dynload");
-
   PyObject *pModule = NULL;
   PyObject *pFuncI = NULL;
   PyObject *pFuncB = NULL;
   PyObject *pArgs = NULL;
-
-  Py_Initialize();
 
   if (!Py_IsInitialized()) {
     printf("Python init failed!\n");
@@ -309,25 +314,16 @@ void block_call_tensorflow(uint8_t **buf, uint8_t *ppp, int cur_buf_height,
                   &buf[i][j]);
     }
   }
+  // Py_Finalize();//关闭python解释器
 }
 
 uint16_t **block_call_tensorflow_hbd(uint16_t *ppp, int cur_buf_height,
                                      int cur_buf_width, int stride,
                                      FRAME_TYPE frame_type) {
-  Py_SetPath(
-      AOM_ROOT
-      L"/av1/encoder:"
-      "/usr/lib:"
-      "/usr/lib/python3.6:"
-      "/usr/lib/python3.6/site-packages:"
-      "/usr/lib/python3.6/lib-dynload");
-
   PyObject *pModule = NULL;
   PyObject *pFuncI = NULL;
   PyObject *pFuncB = NULL;
   PyObject *pArgs = NULL;
-
-  Py_Initialize();
 
   if (!Py_IsInitialized()) {
     printf("Python init failed!\n");

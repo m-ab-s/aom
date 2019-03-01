@@ -16,6 +16,8 @@
 #ifndef CALL_TENSORFLOW
 #define CALL_TENSORFLOW
 
+int init_python();
+int finish_python();
 uint8_t **call_tensorflow(uint8_t *ppp, int height, int width, int stride,
                           FRAME_TYPE frame_type);
 void block_call_tensorflow(uint8_t **buf, uint8_t *ppp, int cur_buf_height,
