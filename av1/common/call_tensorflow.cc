@@ -31,7 +31,7 @@
 int init_python() {
   if (!Py_IsInitialized()) {
     const char *mypath = AOM_ROOT
-        "/av1/encoder:"
+        "/av1/common:"
         "/usr/lib:"
         "/usr/lib/python3.6:"
         "/usr/lib/python3.6/site-packages:"
@@ -43,7 +43,7 @@ int init_python() {
     /*
     Py_SetPath(
         AOM_ROOT
-        L"/av1/encoder:"
+        L"/av1/common:"
         "/usr/lib:"
         "/usr/lib/python3.6:"
         "/usr/lib/python3.6/site-packages:"

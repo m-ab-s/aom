@@ -75,7 +75,7 @@
 #include "av1/encoder/var_based_part.h"
 
 #if CONFIG_CNN_RESTORATION
-#include "av1/encoder/addition_handle_frame.h"
+#include "av1/common/addition_handle_frame.h"
 #endif  // CONFIG_CNN_RESTORATION
 
 #define DEFAULT_EXPLICIT_ORDER_HINT_BITS 7

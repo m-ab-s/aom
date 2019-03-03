@@ -63,7 +63,7 @@
 #include "av1/decoder/detokenize.h"
 
 #if CONFIG_CNN_RESTORATION
-#include "av1/encoder/addition_handle_frame.h"
+#include "av1/common/addition_handle_frame.h"
 #endif  // CONFIG_CNN_RESTORATION
 
 #define ACCT_STR __func__

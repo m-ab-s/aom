@@ -13,8 +13,8 @@
 
 #include "av1/common/blockd.h"
 
-#include "av1/encoder/addition_handle_frame.h"
-#include "av1/encoder/call_tensorflow.h"
+#include "av1/common/addition_handle_frame.h"
+#include "av1/common/call_tensorflow.h"
 
 /*Feed full frame image into the network*/
 void addition_handle_frame(AV1_COMMON *cm, FRAME_TYPE frame_type) {
