@@ -4009,8 +4009,13 @@ static void setup_frame_size_from_params(AV1_COMP *cpi, size_params_type *rsz) {
 }
 
 static void setup_frame_size(AV1_COMP *cpi) {
+  AV1_COMMON *cm = &cpi->common;
+  // Reset superres params from previous frame.
+  cm->superres_scale_denominator = SCALE_NUMERATOR;
   size_params_type rsz = av1_calculate_next_size_params(cpi);
   setup_frame_size_from_params(cpi, &rsz);
+
+  assert(is_min_tile_width_satisfied(cm));
 }
 
 static void superres_post_encode(AV1_COMP *cpi) {

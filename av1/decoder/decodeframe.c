@@ -2968,7 +2968,7 @@ static const uint8_t *decode_tiles_mt(AV1Decoder *pbi, const uint8_t *data,
     }
   }
 
-    // get tile size in tile group
+  // get tile size in tile group
 #if EXT_TILE_DEBUG
   if (cm->large_scale_tile)
     raw_data_end = get_ls_tile_buffers(pbi, data, data_end, tile_buffers);
@@ -4181,6 +4181,11 @@ static int read_uncompressed_header(AV1Decoder *pbi,
   }
 
   read_tile_info(pbi, rb);
+  if (!is_min_tile_width_satisfied(cm)) {
+    aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
+                       "Minimum tile width requirement not satisfied");
+  }
+
   setup_quantization(cm, rb);
   xd->bd = (int)cm->bit_depth;
 
