@@ -215,6 +215,21 @@ endif()
 # List of object and static library targets.
 set(AOM_LIB_TARGETS ${AOM_LIB_TARGETS} aom_rtcd aom_mem aom_scale aom)
 
+if(CONFIG_STATIC_TENSORFLOW)
+  include_directories(
+    "${TENSORFLOW_INCLUDE_DIR}"
+    "${TENSORFLOW_INCLUDE_DIR}/tensorflow/contrib/makefile/gen/host_obj"
+    "${TENSORFLOW_INCLUDE_DIR}/tensorflow/contrib/makefile/downloads"
+    "${TENSORFLOW_INCLUDE_DIR}/tensorflow/contrib/makefile/downloads/absl"
+    "${TENSORFLOW_INCLUDE_DIR}/tensorflow/contrib/makefile/downloads/eigen"
+    "${TENSORFLOW_INCLUDE_DIR}/tensorflow/contrib/makefile/downloads/gemmlowp"
+    "${TENSORFLOW_INCLUDE_DIR}/tensorflow/contrib/makefile/downloads/nsync/public"
+    "${TENSORFLOW_INCLUDE_DIR}/tensorflow/contrib/makefile/gen/proto"
+    "${TENSORFLOW_INCLUDE_DIR}/tensorflow/contrib/makefile/gen/proto_text"
+    "${TENSORFLOW_INCLUDE_DIR}/tensorflow/contrib/makefile/gen/protobuf-host/include"
+    )
+endif()
+
 # Setup dependencies.
 setup_aom_dsp_targets()
 setup_aom_mem_targets()
@@ -444,6 +459,16 @@ endif()
 
 foreach(aom_app ${AOM_APP_TARGETS})
   target_link_libraries(${aom_app} ${AOM_LIB_LINK_TYPE} aom)
+  if(CONFIG_STATIC_TENSORFLOW)
+    target_link_libraries(
+      ${aom_app} PRIVATE -Wl,--whole-archive
+      "${TENSORFLOW_INCLUDE_DIR}/tensorflow/contrib/makefile/gen/lib/libtensorflow-core.a"
+      -Wl,--no-whole-archive
+      "${TENSORFLOW_INCLUDE_DIR}/tensorflow/contrib/makefile/gen/protobuf/lib/libprotobuf.a"
+      "${TENSORFLOW_INCLUDE_DIR}/tensorflow/contrib/makefile/gen/protobuf/lib/libprotoc.a"
+      "${TENSORFLOW_INCLUDE_DIR}/tensorflow/contrib/makefile/downloads/nsync/builds/default.linux.c++11/libnsync.a"
+      "${CMAKE_DL_LIBS}")
+  endif()
 endforeach()
 
 if(ENABLE_EXAMPLES OR ENABLE_TESTS OR ENABLE_TOOLS)

@@ -356,8 +356,7 @@ if(CONFIG_CNN_RESTORATION)
       "${AOM_ROOT}/av1/common/call_tensorflow.cc"
       "${AOM_ROOT}/av1/common/call_tensorflow.h")
 
-  list(APPEND AOM_AV1_DECODER_SOURCES ${CNN_RESOTRATION_SOURCES})
-  list(APPEND AOM_AV1_ENCODER_SOURCES ${CNN_RESTORATION_SOURCES})
+  list(APPEND AOM_AV1_COMMON_SOURCES ${CNN_RESTORATION_SOURCES})
 endif()
 
 # Setup AV1 common/decoder/encoder targets. The libaom target must exist before
