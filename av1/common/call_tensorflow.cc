@@ -251,8 +251,8 @@ uint16_t **call_tensorflow_hbd(uint16_t *ppp, int height, int width, int stride,
 }
 
 void block_call_tensorflow(uint8_t **buf, uint8_t *ppp, int cur_buf_height,
-                           int cur_buf_width, int stride,
-                           FRAME_TYPE frame_type) {
+                           int cur_buf_width, int stride, FRAME_TYPE frame_type,
+                           int q_index) {
   PyObject *pModule = NULL;
   PyObject *pFuncI = NULL;
   PyObject *pFuncB = NULL;
@@ -285,7 +285,7 @@ void block_call_tensorflow(uint8_t **buf, uint8_t *ppp, int cur_buf_height,
     return;
   }
   PyObject *list = PyList_New(cur_buf_height);
-  pArgs = PyTuple_New(2);
+  pArgs = PyTuple_New(3);
 
   PyTuple_SetItem(pArgs, 0, PyUnicode_FromString(AOM_ROOT));
 
@@ -301,6 +301,9 @@ void block_call_tensorflow(uint8_t **buf, uint8_t *ppp, int cur_buf_height,
     // PyList_Append(list, lists[i]);
   }
   PyTuple_SetItem(pArgs, 1, list);
+
+  PyTuple_SetItem(pArgs, 2, Py_BuildValue("i", q_index));
+
   PyObject *presult = NULL;
   if (frame_type == KEY_FRAME) {
     presult = PyEval_CallObject(pFuncI, pArgs);

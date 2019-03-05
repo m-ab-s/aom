@@ -11,9 +11,8 @@
 
 #include <stdint.h>
 
-#include "av1/common/blockd.h"
-
 #include "av1/common/addition_handle_frame.h"
+#include "av1/common/blockd.h"
 #include "av1/common/call_tensorflow.h"
 
 /*Feed full frame image into the network*/
@@ -113,7 +112,7 @@ void addition_handle_blocks(AV1_COMMON *cm, FRAME_TYPE frame_type) {
 
           block_call_tensorflow(
               buf, py + x * buf_width + stride * buf_height * y, cur_buf_height,
-              cur_buf_width, stride, frame_type);
+              cur_buf_width, stride, frame_type, cm->base_qindex);
 
           bkuPy = bkuPyTemp;
           // FILE *ff = fopen("end.yuv", "wb");
@@ -217,7 +216,7 @@ uint8_t **blocks_to_cnn_secondly(uint8_t *pBuffer_y, int height, int width,
           }
           block_call_tensorflow(
               buf, pBuffer_y + x * buf_width + stride * buf_height * y,
-              cur_buf_height, cur_buf_width, stride, frame_type);
+              cur_buf_height, cur_buf_width, stride, frame_type, 0);
 
           for (int i = 0; i < cur_buf_height; i++) {
             for (int j = 0; j < cur_buf_width; j++) {
