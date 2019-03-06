@@ -4301,7 +4301,6 @@ void av1_setup_frame_size(AV1_COMP *cpi) {
   setup_frame_size_from_params(cpi, &rsz);
 }
 
-#if !CONFIG_CNN_RESTORATION
 static void superres_post_encode(AV1_COMP *cpi) {
   AV1_COMMON *cm = &cpi->common;
   const int num_planes = av1_num_planes(cm);
@@ -4349,10 +4348,20 @@ static void loopfilter_frame(AV1_COMP *cpi, AV1_COMMON *cm) {
                  cm->coded_lossless && cm->all_lossless));
 
   const int use_loopfilter = !cm->coded_lossless && !cm->large_scale_tile;
+
+#if CONFIG_CNN_RESTORATION
+  const int use_cnn = av1_use_cnn(cm);
+  const int use_cdef = cm->seq_params.enable_cdef && !cm->coded_lossless &&
+                       !cm->large_scale_tile && !use_cnn;
+  const int use_restoration = cm->seq_params.enable_restoration &&
+                              !cm->all_lossless && !cm->large_scale_tile &&
+                              !use_cnn;
+#else
   const int use_cdef = cm->seq_params.enable_cdef && !cm->coded_lossless &&
                        !cm->large_scale_tile;
   const int use_restoration = cm->seq_params.enable_restoration &&
                               !cm->all_lossless && !cm->large_scale_tile;
+#endif  // CONFIG_CNN_RESTORATION
 
   struct loopfilter *lf = &cm->lf;
 
@@ -4426,8 +4435,13 @@ static void loopfilter_frame(AV1_COMP *cpi, AV1_COMMON *cm) {
     cm->rst_info[1].frame_restoration_type = RESTORE_NONE;
     cm->rst_info[2].frame_restoration_type = RESTORE_NONE;
   }
+
+#if CONFIG_CNN_RESTORATION
+  if (use_cnn) {
+    addition_handle_blocks(cm, cm->current_frame.frame_type);
+  }
+#endif  // CONFIG_CNN_RESTORATION
 }
-#endif  // !CONFIG_CNN_RESTORATION
 
 static int get_refresh_frame_flags(const AV1_COMP *const cpi) {
   const AV1_COMMON *const cm = &cpi->common;
@@ -5342,11 +5356,7 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size, uint8_t *dest,
 
   // Pick the loop filter level for the frame.
   if (!cm->allow_intrabc) {
-#if CONFIG_CNN_RESTORATION
-    addition_handle_blocks(cm, cm->cur_frame->frame_type);
-#else
     loopfilter_frame(cpi, cm);
-#endif  // CONFIG_CNN_RESTORATION
   } else {
     cm->lf.filter_level[0] = 0;
     cm->lf.filter_level[1] = 0;

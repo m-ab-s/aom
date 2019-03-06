@@ -16,10 +16,18 @@
 
 #include "av1/common/blockd.h"
 #include "av1/common/onyxc_int.h"
+#include "av1/common/resize.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+// Minimum base_qindex needed to run CNN_RESTORATION.
+#define MIN_CNN_Q_INDEX 100
+
+static INLINE int av1_use_cnn(const AV1_COMMON *cm) {
+  return (cm->base_qindex > MIN_CNN_Q_INDEX) && !av1_superres_scaled(cm);
+}
 
 void addition_handle_frame(AV1_COMMON *cm, FRAME_TYPE frame_type);
 
