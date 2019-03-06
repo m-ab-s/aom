@@ -61,9 +61,9 @@ int init_python() {
 }
 
 int finish_python() {
-  if (Py_IsInitialized()) {
-    return Py_FinalizeEx();
-  }
+  // if (Py_IsInitialized()) {
+  //   return Py_FinalizeEx();
+  // }
   return 0;
 }
 
@@ -310,7 +310,7 @@ void block_call_tensorflow(uint8_t **buf, uint8_t *ppp, int cur_buf_height,
 
   for (int i = 0; i < cur_buf_height; i++) {
     for (int j = 0; j < cur_buf_width; j++) {
-      PyArg_Parse(PyList_GetItem(PyList_GetItem(presult, i), j), "i",
+      PyArg_Parse(PyList_GetItem(PyList_GetItem(presult, i), j), "B",
                   &buf[i][j]);
     }
   }
