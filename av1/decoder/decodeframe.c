@@ -1760,20 +1760,27 @@ static void decode_partition(AV1Decoder *const pbi, ThreadData *const td,
   };
 
   if (parse_decode_flag & 1) {
-    const int num_planes = av1_num_planes(cm);
-    for (int plane = 0; plane < num_planes; ++plane) {
-      int rcol0, rcol1, rrow0, rrow1;
-      if (av1_loop_restoration_corners_in_sb(cm, plane, mi_row, mi_col, bsize,
-                                             &rcol0, &rcol1, &rrow0, &rrow1)) {
-        const int rstride = cm->rst_info[plane].horz_units_per_tile;
-        for (int rrow = rrow0; rrow < rrow1; ++rrow) {
-          for (int rcol = rcol0; rcol < rcol1; ++rcol) {
-            const int runit_idx = rcol + rrow * rstride;
-            loop_restoration_read_sb_coeffs(cm, xd, reader, plane, runit_idx);
+#if CONFIG_CNN_RESTORATION
+    if (!av1_use_cnn(cm)) {
+#endif  // CONFIG_CNN_RESTORATION
+      const int num_planes = av1_num_planes(cm);
+      for (int plane = 0; plane < num_planes; ++plane) {
+        int rcol0, rcol1, rrow0, rrow1;
+        if (av1_loop_restoration_corners_in_sb(cm, plane, mi_row, mi_col, bsize,
+                                               &rcol0, &rcol1, &rrow0,
+                                               &rrow1)) {
+          const int rstride = cm->rst_info[plane].horz_units_per_tile;
+          for (int rrow = rrow0; rrow < rrow1; ++rrow) {
+            for (int rcol = rcol0; rcol < rcol1; ++rcol) {
+              const int runit_idx = rcol + rrow * rstride;
+              loop_restoration_read_sb_coeffs(cm, xd, reader, plane, runit_idx);
+            }
           }
         }
       }
+#if CONFIG_CNN_RESTORATION
     }
+#endif  // CONFIG_CNN_RESTORATION
 
     partition = (bsize < BLOCK_8X8) ? PARTITION_NONE
                                     : read_partition(xd, mi_row, mi_col, reader,
@@ -5391,13 +5398,19 @@ static int read_uncompressed_header(AV1Decoder *pbi,
   }
 
   setup_loopfilter(cm, rb);
+#if CONFIG_CNN_RESTORATION
+  if (!av1_use_cnn(cm)) {
+#endif  // CONFIG_CNN_RESTORATION
 
-  if (!cm->coded_lossless && seq_params->enable_cdef) {
-    setup_cdef(cm, rb);
+    if (!cm->coded_lossless && seq_params->enable_cdef) {
+      setup_cdef(cm, rb);
+    }
+    if (!cm->all_lossless && seq_params->enable_restoration) {
+      decode_restoration_mode(cm, rb);
+    }
+#if CONFIG_CNN_RESTORATION
   }
-  if (!cm->all_lossless && seq_params->enable_restoration) {
-    decode_restoration_mode(cm, rb);
-  }
+#endif  // CONFIG_CNN_RESTORATION
 
   cm->tx_mode = read_tx_mode(cm, rb);
   current_frame->reference_mode = read_frame_reference_mode(cm, rb);
