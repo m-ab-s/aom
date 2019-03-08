@@ -29,8 +29,9 @@ struct CNN_LAYER_CONFIG {
   int out_channels;
   int skip_width;
   int skip_height;
-  float *weights;  // array of length filter_width x filter_height x in_channels
-                   // x out_channels
+  float *weights;  // array of length filter_height x filter_width x in_channels
+                   // x out_channels where the inner-most scan is out_channels
+                   // and the outer most scan is filter_height.
   float *bias;     // array of length out_channels
 };
 

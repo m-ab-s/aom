@@ -23,23 +23,22 @@ void av1_cnn_convolve_c(const float **input, int in_width, int in_height,
                         float **output, int out_stride) {
   assert(layer_config->filter_height & 1);
   assert(layer_config->filter_width & 1);
+  const int cstep = layer_config->in_channels * layer_config->out_channels;
+
   const int filter_height_half = layer_config->filter_height >> 1;
   const int filter_width_half = layer_config->filter_width >> 1;
-  const int filter_height_end =
-      -filter_height_half + layer_config->filter_height;
-  const int filter_width_end = -filter_width_half + layer_config->filter_width;
   for (int i = 0; i < layer_config->out_channels; ++i) {
     for (int h = 0, u = 0; h < in_height; h += layer_config->skip_height, ++u) {
       for (int w = 0, v = 0; w < in_width; w += layer_config->skip_width, ++v) {
         float sum = layer_config->bias[i];
-        int n = i * layer_config->filter_height * layer_config->filter_width *
-                layer_config->in_channels;
         for (int k = 0; k < layer_config->in_channels; ++k) {
-          for (int l = -filter_height_half; l < filter_height_end; ++l) {
-            const int ii = CLAMPINDEX(h + l, in_height);
-            for (int m = -filter_width_half; m < filter_width_end; ++m) {
-              const int jj = CLAMPINDEX(w + m, in_width);
-              sum += layer_config->weights[n++] * input[k][ii * in_stride + jj];
+          int off = k * layer_config->out_channels + i;
+          for (int l = 0; l < layer_config->filter_height; ++l) {
+            const int ii = CLAMPINDEX(h + l - filter_height_half, in_height);
+            for (int m = 0; m < layer_config->filter_width; ++m) {
+              const int jj = CLAMPINDEX(w + m - filter_width_half, in_width);
+              sum += layer_config->weights[off] * input[k][ii * in_stride + jj];
+              off += cstep;
             }
           }
         }
