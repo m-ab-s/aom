@@ -14,6 +14,7 @@
 
 #include "aom_dsp/aom_dsp_common.h"
 #include "av1/common/cnn.h"
+#include "av1/common/onyxc_int.h"
 
 #define RELU(a) ((a) < 0 ? 0 : (a))
 #define CLAMPINDEX(a, hi) ((a) < 0 ? 0 : ((a) >= (hi) ? ((hi)-1) : (a)))
@@ -130,6 +131,94 @@ void av1_cnn_predict_c(const float *input, int in_width, int in_height,
                        &cnn_config->layer_config[layer], buf2, o_stride);
       // free for last layer
       if (layer == cnn_config->num_layers - 1) aom_free((void *)buf1[0]);
+    }
+  }
+}
+
+void av1_restore_cnn(uint8_t *dgd, int width, int height, int stride,
+                     const CNN_CONFIG *cnn_config) {
+  float *input = (float *)aom_malloc(width * height * sizeof(*input));
+  float *output = (float *)aom_malloc(width * height * sizeof(*output));
+  const int in_stride = width;
+  const int out_stride = width;
+  for (int i = 0; i < height; ++i)
+    for (int j = 0; j < width; ++j)
+      input[i * in_stride + j] = (float)dgd[i * stride + j];
+
+  av1_cnn_predict(input, width, height, in_stride, cnn_config, output,
+                  out_stride);
+
+  for (int i = 0; i < height; ++i)
+    for (int j = 0; j < width; ++j)
+      dgd[i * stride + j] = clip_pixel((int)(output[i * out_stride + j] + 0.5));
+
+  aom_free(input);
+  aom_free(output);
+}
+
+void av1_restore_cnn_highbd(uint16_t *dgd, int width, int height, int stride,
+                            const CNN_CONFIG *cnn_config, int bit_depth) {
+  float *input = (float *)aom_malloc(width * height * sizeof(*input));
+  float *output = (float *)aom_malloc(width * height * sizeof(*output));
+  const int in_stride = width;
+  const int out_stride = width;
+  for (int i = 0; i < height; ++i)
+    for (int j = 0; j < width; ++j)
+      input[i * in_stride + j] = (float)dgd[i * stride + j];
+
+  av1_cnn_predict(input, width, height, in_stride, cnn_config, output,
+                  out_stride);
+
+  for (int i = 0; i < height; ++i)
+    for (int j = 0; j < width; ++j)
+      dgd[i * stride + j] =
+          clip_pixel_highbd((int)(output[i * out_stride + j] + 0.5), bit_depth);
+
+  aom_free(input);
+  aom_free(output);
+}
+
+void av1_restore_cnn_plane(AV1_COMMON *cm, const CNN_CONFIG *cnn_config,
+                           int plane) {
+  YV12_BUFFER_CONFIG *buf = &cm->cur_frame->buf;
+  if (cm->seq_params.use_highbitdepth) {
+    switch (plane) {
+      case AOM_PLANE_Y:
+        av1_restore_cnn_highbd(CONVERT_TO_SHORTPTR(buf->y_buffer),
+                               buf->y_crop_width, buf->y_crop_height,
+                               buf->y_stride, cnn_config,
+                               cm->seq_params.bit_depth);
+        break;
+      case AOM_PLANE_U:
+        av1_restore_cnn_highbd(CONVERT_TO_SHORTPTR(buf->u_buffer),
+                               buf->uv_crop_width, buf->uv_crop_height,
+                               buf->uv_stride, cnn_config,
+                               cm->seq_params.bit_depth);
+        break;
+      case AOM_PLANE_V:
+        av1_restore_cnn_highbd(CONVERT_TO_SHORTPTR(buf->v_buffer),
+                               buf->uv_crop_width, buf->uv_crop_height,
+                               buf->uv_stride, cnn_config,
+                               cm->seq_params.bit_depth);
+        break;
+      default: assert(0 && "Invalid plane index");
+    }
+  } else {
+    assert(cm->seq_params.bit_depth == 8);
+    switch (plane) {
+      case AOM_PLANE_Y:
+        av1_restore_cnn(buf->y_buffer, buf->y_crop_width, buf->y_crop_height,
+                        buf->y_stride, cnn_config);
+        break;
+      case AOM_PLANE_U:
+        av1_restore_cnn(buf->u_buffer, buf->uv_crop_width, buf->uv_crop_height,
+                        buf->uv_stride, cnn_config);
+        break;
+      case AOM_PLANE_V:
+        av1_restore_cnn(buf->v_buffer, buf->uv_crop_width, buf->uv_crop_height,
+                        buf->uv_stride, cnn_config);
+        break;
+      default: assert(0 && "Invalid plane index");
     }
   }
 }

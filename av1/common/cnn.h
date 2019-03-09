@@ -18,6 +18,8 @@ extern "C" {
 
 #include "config/av1_rtcd.h"
 
+struct AV1Common;
+
 #define CNN_MAX_HIDDEN_LAYERS 25
 #define CNN_MAX_LAYERS (CNN_MAX_HIDDEN_LAYERS + 1)
 #define CNN_MAX_CHANNELS 64
@@ -39,6 +41,13 @@ struct CNN_CONFIG {
   int num_layers;
   CNN_LAYER_CONFIG layer_config[CNN_MAX_LAYERS];
 };
+
+void av1_restore_cnn(uint8_t *dgd, int width, int height, int stride,
+                     const CNN_CONFIG *cnn_config);
+void av1_restore_cnn_highbd(uint16_t *dgd, int width, int height, int stride,
+                            const CNN_CONFIG *cnn_config, int bit_depth);
+void av1_restore_cnn_plane(struct AV1Common *cm, const CNN_CONFIG *cnn_config,
+                           int plane);
 
 #ifdef __cplusplus
 }  // extern "C"
