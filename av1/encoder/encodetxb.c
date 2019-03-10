@@ -762,6 +762,9 @@ static int get_tx_type_cost(const AV1_COMMON *cm, const MACROBLOCK *x,
                   : x->intra_tx_type_costs[ext_tx_set][square_tx_size]
                                           [intra_dir][tx_type];
           return use_ddtx_cost + tx_type_cost;
+        } else {
+          return x->intra_tx_type_costs[ext_tx_set][square_tx_size][intra_dir]
+                                       [tx_type];
         }
 #else
         return x->intra_tx_type_costs[ext_tx_set][square_tx_size][intra_dir]

@@ -353,7 +353,7 @@ int main(int argc, const char **argv) {
   cts_each_dim[1] = 2;
   optimize_cdf_table(
       &fc.use_ddtx_intra[0][0], probsfile, 2, cts_each_dim,
-      "static const aom-cdf_prob default_use_ddtx_intra[EXT_TX_SIZES]"
+      "static const aom_cdf_prob default_use_ddtx_intra[EXT_TX_SIZES]"
       "[CDF_SIZE(2)]");
 
   cts_each_dim[0] = EXT_TX_SIZES;
