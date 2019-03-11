@@ -24,6 +24,13 @@ struct AV1Common;
 #define CNN_MAX_LAYERS (CNN_MAX_HIDDEN_LAYERS + 1)
 #define CNN_MAX_CHANNELS 64
 
+enum {
+  PADDING_SAME_ZERO,       // tensorflow's SAME padding with pixels outside
+                           // the image area assumed to be 0 (default)
+  PADDING_SAME_REPLICATE,  // tensorflow's SAME padding with pixels outside
+                           // the image area replicated from closest edge
+} UENUM1BYTE(PADDING_TYPE);
+
 struct CNN_LAYER_CONFIG {
   int in_channels;
   int filter_width;
@@ -35,6 +42,7 @@ struct CNN_LAYER_CONFIG {
                    // x out_channels where the inner-most scan is out_channels
                    // and the outer most scan is filter_height.
   float *bias;     // array of length out_channels
+  PADDING_TYPE pad;  // padding type
 };
 
 struct CNN_CONFIG {

@@ -28,24 +28,61 @@ void av1_cnn_convolve_c(const float **input, int in_width, int in_height,
 
   const int filter_height_half = layer_config->filter_height >> 1;
   const int filter_width_half = layer_config->filter_width >> 1;
-  for (int i = 0; i < layer_config->out_channels; ++i) {
-    for (int h = 0, u = 0; h < in_height; h += layer_config->skip_height, ++u) {
-      for (int w = 0, v = 0; w < in_width; w += layer_config->skip_width, ++v) {
-        float sum = layer_config->bias[i];
-        for (int k = 0; k < layer_config->in_channels; ++k) {
-          int off = k * layer_config->out_channels + i;
-          for (int l = 0; l < layer_config->filter_height; ++l) {
-            const int ii = CLAMPINDEX(h + l - filter_height_half, in_height);
-            for (int m = 0; m < layer_config->filter_width; ++m) {
-              const int jj = CLAMPINDEX(w + m - filter_width_half, in_width);
-              sum += layer_config->weights[off] * input[k][ii * in_stride + jj];
-              off += cstep;
+
+  switch (layer_config->pad) {
+    case PADDING_SAME_ZERO:
+      for (int i = 0; i < layer_config->out_channels; ++i) {
+        for (int h = 0, u = 0; h < in_height;
+             h += layer_config->skip_height, ++u) {
+          for (int w = 0, v = 0; w < in_width;
+               w += layer_config->skip_width, ++v) {
+            float sum = layer_config->bias[i];
+            for (int k = 0; k < layer_config->in_channels; ++k) {
+              int off = k * layer_config->out_channels + i;
+              for (int l = 0; l < layer_config->filter_height; ++l) {
+                const int ii = h + l - filter_height_half;
+                for (int m = 0; m < layer_config->filter_width;
+                     ++m, off += cstep) {
+                  const int jj = w + m - filter_width_half;
+                  if (ii < 0 || ii >= in_height || jj < 0 || jj >= in_width)
+                    continue;
+                  sum += layer_config->weights[off] *
+                         input[k][ii * in_stride + jj];
+                }
+              }
             }
+            output[i][u * out_stride + v] = RELU(sum);
           }
         }
-        output[i][u * out_stride + v] = RELU(sum);
       }
-    }
+      break;
+    case PADDING_SAME_REPLICATE:
+      for (int i = 0; i < layer_config->out_channels; ++i) {
+        for (int h = 0, u = 0; h < in_height;
+             h += layer_config->skip_height, ++u) {
+          for (int w = 0, v = 0; w < in_width;
+               w += layer_config->skip_width, ++v) {
+            float sum = layer_config->bias[i];
+            for (int k = 0; k < layer_config->in_channels; ++k) {
+              int off = k * layer_config->out_channels + i;
+              for (int l = 0; l < layer_config->filter_height; ++l) {
+                const int ii =
+                    CLAMPINDEX(h + l - filter_height_half, in_height);
+                for (int m = 0; m < layer_config->filter_width; ++m) {
+                  const int jj =
+                      CLAMPINDEX(w + m - filter_width_half, in_width);
+                  sum += layer_config->weights[off] *
+                         input[k][ii * in_stride + jj];
+                  off += cstep;
+                }
+              }
+            }
+            output[i][u * out_stride + v] = RELU(sum);
+          }
+        }
+      }
+      break;
+    default: assert(0 && "Unknown padding type");
   }
 }
 
