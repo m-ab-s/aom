@@ -178,16 +178,26 @@ void av1_restore_cnn(uint8_t *dgd, int width, int height, int stride,
   float *output = (float *)aom_malloc(width * height * sizeof(*output));
   const int in_stride = width;
   const int out_stride = width;
+  const float max_val = 255.0;
   for (int i = 0; i < height; ++i)
     for (int j = 0; j < width; ++j)
-      input[i * in_stride + j] = (float)dgd[i * stride + j];
+      input[i * in_stride + j] = (float)dgd[i * stride + j] / max_val;
 
   av1_cnn_predict(input, width, height, in_stride, cnn_config, output,
                   out_stride);
 
-  for (int i = 0; i < height; ++i)
-    for (int j = 0; j < width; ++j)
-      dgd[i * stride + j] = clip_pixel((int)(output[i * out_stride + j] + 0.5));
+  if (cnn_config->is_residue) {
+    for (int i = 0; i < height; ++i)
+      for (int j = 0; j < width; ++j) {
+        const int residue = (int)(output[i * out_stride + j] * max_val + 0.5);
+        dgd[i * stride + j] = clip_pixel(dgd[i * stride + j] + residue);
+      }
+  } else {
+    for (int i = 0; i < height; ++i)
+      for (int j = 0; j < width; ++j)
+        dgd[i * stride + j] =
+            clip_pixel((int)(output[i * out_stride + j] * max_val + 0.5));
+  }
 
   aom_free(input);
   aom_free(output);
@@ -199,17 +209,28 @@ void av1_restore_cnn_highbd(uint16_t *dgd, int width, int height, int stride,
   float *output = (float *)aom_malloc(width * height * sizeof(*output));
   const int in_stride = width;
   const int out_stride = width;
+  const float max_val = (float)((1 << bit_depth) - 1);
+
   for (int i = 0; i < height; ++i)
     for (int j = 0; j < width; ++j)
-      input[i * in_stride + j] = (float)dgd[i * stride + j];
+      input[i * in_stride + j] = (float)dgd[i * stride + j] / max_val;
 
   av1_cnn_predict(input, width, height, in_stride, cnn_config, output,
                   out_stride);
 
-  for (int i = 0; i < height; ++i)
-    for (int j = 0; j < width; ++j)
-      dgd[i * stride + j] =
-          clip_pixel_highbd((int)(output[i * out_stride + j] + 0.5), bit_depth);
+  if (cnn_config->is_residue) {
+    for (int i = 0; i < height; ++i)
+      for (int j = 0; j < width; ++j) {
+        const int residue = (int)(output[i * out_stride + j] * max_val + 0.5);
+        dgd[i * stride + j] +=
+            clip_pixel_highbd(dgd[i * stride + j] + residue, bit_depth);
+      }
+  } else {
+    for (int i = 0; i < height; ++i)
+      for (int j = 0; j < width; ++j)
+        dgd[i * stride + j] = clip_pixel_highbd(
+            (int)(output[i * out_stride + j] * max_val + 0.5), bit_depth);
+  }
 
   aom_free(input);
   aom_free(output);

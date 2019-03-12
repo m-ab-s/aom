@@ -46,7 +46,8 @@ struct CNN_LAYER_CONFIG {
 };
 
 struct CNN_CONFIG {
-  int num_layers;
+  int num_layers;  // number of CNN layers ( = number of hidden layers + 1)
+  int is_residue;  // whether the output activation is a residue
   CNN_LAYER_CONFIG layer_config[CNN_MAX_LAYERS];
 };
 
