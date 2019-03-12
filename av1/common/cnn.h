@@ -16,6 +16,8 @@
 extern "C" {
 #endif
 
+#include <math.h>
+
 #include "config/av1_rtcd.h"
 
 struct AV1Common;
@@ -31,6 +33,8 @@ enum {
                            // the image area replicated from closest edge
 } UENUM1BYTE(PADDING_TYPE);
 
+enum { NONE, RELU, SOFTSIGN } UENUM1BYTE(ACTIVATION);
+
 struct CNN_LAYER_CONFIG {
   int in_channels;
   int filter_width;
@@ -42,7 +46,8 @@ struct CNN_LAYER_CONFIG {
                    // x out_channels where the inner-most scan is out_channels
                    // and the outer most scan is filter_height.
   float *bias;     // array of length out_channels
-  PADDING_TYPE pad;  // padding type
+  PADDING_TYPE pad;       // padding type
+  ACTIVATION activation;  // the activation function to use after convolution
 };
 
 struct CNN_CONFIG {
@@ -57,6 +62,12 @@ void av1_restore_cnn_highbd(uint16_t *dgd, int width, int height, int stride,
                             const CNN_CONFIG *cnn_config, int bit_depth);
 void av1_restore_cnn_plane(struct AV1Common *cm, const CNN_CONFIG *cnn_config,
                            int plane);
+
+static INLINE float softsign(float x) { return x / (fabsf(x) + 1); }
+
+static INLINE float relu(float x) { return (x < 0) ? 0 : x; }
+
+static INLINE float identity(float x) { return x; }
 
 #ifdef __cplusplus
 }  // extern "C"

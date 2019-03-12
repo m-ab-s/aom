@@ -16,7 +16,6 @@
 #include "av1/common/cnn.h"
 #include "av1/common/onyxc_int.h"
 
-#define RELU(a) ((a) < 0 ? 0 : (a))
 #define CLAMPINDEX(a, hi) ((a) < 0 ? 0 : ((a) >= (hi) ? ((hi)-1) : (a)))
 
 void av1_cnn_convolve_c(const float **input, int in_width, int in_height,
@@ -28,6 +27,12 @@ void av1_cnn_convolve_c(const float **input, int in_width, int in_height,
 
   const int filter_height_half = layer_config->filter_height >> 1;
   const int filter_width_half = layer_config->filter_width >> 1;
+
+  float (*activation)(float) = identity;
+  switch (layer_config->activation) {
+    case RELU: activation = relu; break;
+    case SOFTSIGN: activation = softsign; break;
+  }
 
   switch (layer_config->pad) {
     case PADDING_SAME_ZERO:
@@ -51,7 +56,7 @@ void av1_cnn_convolve_c(const float **input, int in_width, int in_height,
                 }
               }
             }
-            output[i][u * out_stride + v] = RELU(sum);
+            output[i][u * out_stride + v] = activation(sum);
           }
         }
       }
@@ -77,7 +82,7 @@ void av1_cnn_convolve_c(const float **input, int in_width, int in_height,
                 }
               }
             }
-            output[i][u * out_stride + v] = RELU(sum);
+            output[i][u * out_stride + v] = activation(sum);
           }
         }
       }
