@@ -403,7 +403,8 @@ void av1_cnn_predict_c(const float *input, int in_width, int in_height,
   for (int layer = 0; layer < cnn_config->num_layers; ++layer) {
     if (layer == 0) {  // First layer
       assert(cnn_config->layer_config[layer].in_channels == 1);
-      assign_tensor(&tensor1, &input, 1, in_width, in_height, in_stride);
+      assign_tensor(&tensor1, (const float **)&input, 1, in_width, in_height,
+                    in_stride);
       if (cnn_config->num_layers == 1) {  // single layer case
         assert(cnn_config->layer_config[layer].out_channels == 1);
         assign_tensor(&tensor2, (const float **)&output, 1, in_width, in_height,
