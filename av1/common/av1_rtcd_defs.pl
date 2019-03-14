@@ -391,7 +391,7 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
 # CNN functions
 
 add_proto qw/void av1_cnn_predict/, " const float *input, int in_width, int in_height, int in_stride, const CNN_CONFIG *cnn_config, float *output, int out_stride";
-add_proto qw/void av1_cnn_convolve/, " const float **input, int in_width, int in_height, int in_stride, const CNN_LAYER_CONFIG *layer_config, float **output, int out_stride";
+add_proto qw/void av1_cnn_convolve/, " const float **input, int in_width, int in_height, int in_stride, const CNN_LAYER_CONFIG *layer_config, const float **skip_buf, int skip_stride, float **output, int out_stride";
 
 # Deringing Functions
 

@@ -49,6 +49,10 @@ struct CNN_LAYER_CONFIG {
   float *bias;     // array of length out_channels
   PADDING_TYPE pad;       // padding type
   ACTIVATION activation;  // the activation function to use after convolution
+  int input_copy;  // copy the input tensor to the current layer and store for
+                   // future use as a skip addition layer
+  int output_add;  // add previously stored tensor to the output tensor of the
+                   // current layer
 };
 
 struct CNN_CONFIG {

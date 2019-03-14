@@ -18,9 +18,85 @@
 
 #define CLAMPINDEX(a, hi) ((a) < 0 ? 0 : ((a) >= (hi) ? ((hi)-1) : (a)))
 
+typedef struct {
+  int allocsize;
+  int channels;
+  int width, height, stride;
+  float *buf[CNN_MAX_CHANNELS];
+} TENSOR;
+
+static void init_tensor(TENSOR *tensor) { memset(tensor, 0, sizeof(*tensor)); }
+
+static void realloc_tensor(TENSOR *tensor, int channels, int width,
+                           int height) {
+  const int newallocsize = channels * width * height;
+  if (tensor->allocsize < newallocsize) {
+    aom_free(tensor->buf[0]);
+    tensor->buf[0] =
+        (float *)aom_malloc(sizeof(*tensor->buf[0]) * newallocsize);
+    tensor->allocsize = newallocsize;
+  }
+  tensor->width = width;
+  tensor->height = height;
+  tensor->stride = width;
+  tensor->channels = channels;
+  for (int c = 1; c < channels; ++c)
+    tensor->buf[c] = &tensor->buf[0][c * width * height];
+}
+
+static void copy_tensor(TENSOR *src, TENSOR *dst) {
+  assert(src->width == dst->width);
+  assert(src->height == dst->height);
+  if (src->stride == dst->width && dst->stride == dst->width) {
+    memcpy(dst->buf[0], src->buf[0],
+           sizeof(*dst->buf[0]) * dst->width * dst->height * dst->channels);
+  } else {
+    for (int c = 0; c < dst->channels; ++c) {
+      for (int r = 0; r < dst->height; ++r) {
+        memcpy(&dst->buf[c][r * dst->stride], &src->buf[c][r * src->stride],
+               dst->width * sizeof(*dst->buf[c]));
+      }
+    }
+  }
+}
+
+static void assign_tensor(TENSOR *tensor, const float *buf[CNN_MAX_CHANNELS],
+                          int channels, int width, int height, int stride) {
+  tensor->allocsize = 0;
+  tensor->channels = channels;
+  tensor->width = width;
+  tensor->height = height;
+  tensor->stride = stride;
+  if (buf) {
+    for (int c = 0; c < channels; ++c) tensor->buf[c] = (float *)buf[c];
+  } else {
+    for (int c = 0; c < channels; ++c) tensor->buf[c] = NULL;
+  }
+}
+
+static void swap_tensor(TENSOR *t1, TENSOR *t2) {
+  TENSOR t = *t1;
+  *t1 = *t2;
+  *t2 = t;
+}
+
+static void free_tensor(TENSOR *tensor) {
+  if (tensor->allocsize) {
+    aom_free(tensor->buf[0]);
+    tensor->buf[0] = NULL;
+    tensor->allocsize = 0;
+  }
+}
+
+int check_tensor_equal_size(TENSOR *t1, TENSOR *t2) {
+  return (t1->channels == t2->channels && t1->width == t2->width &&
+          t1->height == t2->height);
+}
+
 void av1_cnn_convolve_c(const float **input, int in_width, int in_height,
                         int in_stride, const CNN_LAYER_CONFIG *layer_config,
-                        float **output, int out_stride) {
+                        const float **skip_buf, int skip_stride, float **output,
+                        int out_stride) {
   assert(layer_config->filter_height & 1);
   assert(layer_config->filter_width & 1);
   const int cstep = layer_config->in_channels * layer_config->out_channels;
@@ -42,6 +118,8 @@ void av1_cnn_convolve_c(const float **input, int in_width, int in_height,
           for (int w = 0, v = 0; w < in_width;
                w += layer_config->skip_width, ++v) {
             float sum = layer_config->bias[i];
+            if (layer_config->output_add)
+              sum += skip_buf[i][u * skip_stride + v];
             for (int k = 0; k < layer_config->in_channels; ++k) {
               int off = k * layer_config->out_channels + i;
               for (int l = 0; l < layer_config->filter_height; ++l) {
@@ -68,6 +146,8 @@ void av1_cnn_convolve_c(const float **input, int in_width, int in_height,
           for (int w = 0, v = 0; w < in_width;
                w += layer_config->skip_width, ++v) {
             float sum = layer_config->bias[i];
+            if (layer_config->output_add)
+              sum += skip_buf[i][u * skip_stride + v];
             for (int k = 0; k < layer_config->in_channels; ++k) {
               int off = k * layer_config->out_channels + i;
               for (int l = 0; l < layer_config->filter_height; ++l) {
@@ -98,6 +178,8 @@ void av1_cnn_convolve_c(const float **input, int in_width, int in_height,
                in_width - layer_config->filter_width + filter_width_half + 1;
                w += layer_config->skip_width, ++v) {
             float sum = layer_config->bias[i];
+            if (layer_config->output_add)
+              sum += skip_buf[i][u * skip_stride + v];
             for (int k = 0; k < layer_config->in_channels; ++k) {
               int off = k * layer_config->out_channels + i;
               for (int l = 0; l < layer_config->filter_height; ++l) {
@@ -162,80 +244,84 @@ static void find_cnn_output_size(int in_width, int in_height,
 void av1_cnn_predict_c(const float *input, int in_width, int in_height,
                        int in_stride, const CNN_CONFIG *cnn_config,
                        float *output, int out_stride) {
-  const float *buf1[CNN_MAX_CHANNELS] = { 0 };
-  float *buf2[CNN_MAX_CHANNELS] = { 0 };
-  int allocsize1 = 0, allocsize2 = 0;
-  int i_width, i_height, i_stride;
-  int o_width = 0, o_height = 0, o_stride;
+  TENSOR tensor1 = { 0 };
+  TENSOR tensor2 = { 0 };
+  TENSOR skip_tensor = { 0 };
+
+  int i_width, i_height;
+  int o_width = 0, o_height = 0;
+
+  init_tensor(&tensor1);
+  init_tensor(&tensor2);
+  init_tensor(&skip_tensor);
 
   for (int layer = 0; layer < cnn_config->num_layers; ++layer) {
     if (layer == 0) {  // First layer
-      buf1[0] = input;
       assert(cnn_config->layer_config[layer].in_channels == 1);
+      assign_tensor(&tensor1, &input, 1, in_width, in_height, in_stride);
       if (cnn_config->num_layers == 1) {  // single layer case
         assert(cnn_config->layer_config[layer].out_channels == 1);
-        o_stride = out_stride;
-        buf2[0] = output;
+        assign_tensor(&tensor2, (const float **)&output, 1, in_width, in_height,
+                      out_stride);
       } else {  // more than one layer case
         find_layer_output_size(in_width, in_height,
                                &cnn_config->layer_config[layer], &o_width,
                                &o_height);
-        o_stride = o_width;
-        allocsize2 =
-            o_width * o_height * cnn_config->layer_config[layer].out_channels;
-        buf2[0] = (float *)aom_malloc(allocsize2 * sizeof(*buf2[0]));
-        for (int c = 1; c < cnn_config->layer_config[layer].out_channels; ++c)
-          buf2[c] = &buf2[0][c * o_width * o_height];
+        realloc_tensor(&tensor2, cnn_config->layer_config[layer].out_channels,
+                       o_width, o_height);
       }
-      av1_cnn_convolve(buf1, in_width, in_height, in_stride,
-                       &cnn_config->layer_config[layer], buf2, o_stride);
-      buf1[0] = NULL;
-      if (buf2[0] == output) buf2[0] = NULL;
+      if (cnn_config->layer_config[layer].input_copy) {
+        realloc_tensor(&skip_tensor,
+                       cnn_config->layer_config[layer].in_channels, in_width,
+                       in_height);
+        copy_tensor(&tensor1, &skip_tensor);
+      }
+      assert(IMPLIES(cnn_config->layer_config[layer].output_add,
+                     check_tensor_equal_size(&skip_tensor, &tensor2)));
+      av1_cnn_convolve((const float **)tensor1.buf, tensor1.width,
+                       tensor1.height, tensor1.stride,
+                       &cnn_config->layer_config[layer],
+                       (const float **)skip_tensor.buf, skip_tensor.stride,
+                       tensor2.buf, tensor2.stride);
     } else {  // Non-first layer
       assert(cnn_config->layer_config[layer].in_channels ==
              cnn_config->layer_config[layer - 1].out_channels);
 
-      // Swap the buf1 and buf2 and also the corresponding allocsizes.
-      float *tmp_buf1 = (float *)buf1[0];
-      memcpy(buf1, buf2,
-             sizeof(*buf1) * cnn_config->layer_config[layer - 1].out_channels);
-      buf2[0] = tmp_buf1;
-      int tmpallocsize = allocsize1;
-      allocsize1 = allocsize2;
-      allocsize2 = tmpallocsize;
+      // Swap tensor1 and tensor2
+      swap_tensor(&tensor1, &tensor2);
 
       i_width = o_width;
       i_height = o_height;
-      i_stride = o_stride;
+      if (cnn_config->layer_config[layer].input_copy) {
+        realloc_tensor(&skip_tensor,
+                       cnn_config->layer_config[layer].in_channels, i_width,
+                       i_height);
+        copy_tensor(&tensor1, &skip_tensor);
+      }
+      find_layer_output_size(i_width, i_height,
+                             &cnn_config->layer_config[layer], &o_width,
+                             &o_height);
       if (layer < cnn_config->num_layers - 1) {  // Non-last layer
-        find_layer_output_size(i_width, i_height,
-                               &cnn_config->layer_config[layer], &o_width,
-                               &o_height);
-        o_stride = o_width;
-        const int newallocsize =
-            o_width * o_height * cnn_config->layer_config[layer].out_channels;
-        // free and reallocate if the previous allocsize is smaller than
-        // needed
-        if (allocsize2 < newallocsize) {
-          aom_free(buf2[0]);
-          buf2[0] = (float *)aom_malloc(newallocsize * sizeof(*buf2[0]));
-          allocsize2 = newallocsize;
-        }
-        for (int c = 1; c < cnn_config->layer_config[layer].out_channels; ++c)
-          buf2[c] = &buf2[0][c * o_width * o_height];
+        realloc_tensor(&tensor2, cnn_config->layer_config[layer].out_channels,
+                       o_width, o_height);
       } else {  // Last layer
         assert(cnn_config->layer_config[layer].out_channels == 1);
-        o_stride = out_stride;
-        aom_free(buf2[0]);
-        allocsize2 = 0;
-        buf2[0] = output;
+        free_tensor(&tensor2);
+        assign_tensor(&tensor2, (const float **)&output, 1, o_width, o_height,
+                      out_stride);
       }
-      av1_cnn_convolve(buf1, i_width, i_height, i_stride,
-                       &cnn_config->layer_config[layer], buf2, o_stride);
+      assert(IMPLIES(cnn_config->layer_config[layer].output_add,
+                     check_tensor_equal_size(&skip_tensor, &tensor2)));
+      av1_cnn_convolve((const float **)tensor1.buf, tensor1.width,
+                       tensor1.height, tensor1.stride,
+                       &cnn_config->layer_config[layer],
+                       (const float **)skip_tensor.buf, skip_tensor.stride,
+                       tensor2.buf, tensor2.stride);
       // free for last layer
-      if (layer == cnn_config->num_layers - 1) aom_free((void *)buf1[0]);
+      if (layer == cnn_config->num_layers - 1) free_tensor(&tensor1);
     }
   }
+  free_tensor(&skip_tensor);
 }
 
 void av1_restore_cnn(uint8_t *dgd, int width, int height, int stride,
