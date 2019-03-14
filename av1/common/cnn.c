@@ -111,7 +111,7 @@ void av1_cnn_convolve_c(const float **input, int in_width, int in_height,
                 }
               }
             }
-            output[i][u * out_stride + v] = RELU(sum);
+            output[i][u * out_stride + v] = activation(sum);
           }
         }
       }
