@@ -18,6 +18,14 @@
 
 #define CLAMPINDEX(a, hi) ((a) < 0 ? 0 : ((a) >= (hi) ? ((hi)-1) : (a)))
 
+typedef float (*activation_fn)(float);
+
+static float softsign(float x) { return x / (fabsf(x) + 1); }
+
+static float relu(float x) { return (x < 0) ? 0 : x; }
+
+static float identity(float x) { return x; }
+
 typedef struct {
   int allocsize;
   int channels;
@@ -149,6 +157,15 @@ static void find_cnn_output_size(int in_width, int in_height,
   *out_height = i_height;
 }
 
+activation_fn get_activation(ACTIVATION layer_activation) {
+  switch (layer_activation) {
+    case NONE: return identity;
+    case RELU: return relu;
+    case SOFTSIGN: return softsign;
+    default: assert(0 && "Unknown padding type"); return NULL;
+  }
+}
+
 void av1_cnn_convolve_c(const float **input, int in_width, int in_height,
                         int in_stride, const CNN_LAYER_CONFIG *layer_config,
                         const float **skip_buf, int skip_stride, float **output,
@@ -160,11 +177,7 @@ void av1_cnn_convolve_c(const float **input, int in_width, int in_height,
   const int filter_height_half = layer_config->filter_height >> 1;
   const int filter_width_half = layer_config->filter_width >> 1;
 
-  float (*activation)(float) = identity;
-  switch (layer_config->activation) {
-    case RELU: activation = relu; break;
-    case SOFTSIGN: activation = softsign; break;
-  }
+  activation_fn activation = get_activation(layer_config->activation);
   switch (layer_config->pad) {
     case PADDING_SAME_ZERO:
       for (int i = 0; i < layer_config->out_channels; ++i) {
@@ -269,11 +282,7 @@ void av1_cnn_deconvolve_c(const float **input, int in_width, int in_height,
   const int filter_height_half = layer_config->filter_height >> 1;
   const int filter_width_half = layer_config->filter_width >> 1;
 
-  float (*activation)(float) = identity;
-  switch (layer_config->activation) {
-    case RELU: activation = relu; break;
-    case SOFTSIGN: activation = softsign; break;
-  }
+  activation_fn activation = get_activation(layer_config->activation);
   int out_width, out_height;
   find_layer_output_size(in_width, in_height, layer_config, &out_width,
                          &out_height);
