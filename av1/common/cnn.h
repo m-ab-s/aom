@@ -37,6 +37,11 @@ enum {
 enum { NONE, RELU, SOFTSIGN } UENUM1BYTE(ACTIVATION);
 
 struct CNN_LAYER_CONFIG {
+  int deconvolve;  // whether this is a deconvolution layer.
+                   // 0: If skip_width or skip_height are > 1, then we
+                   // reduce resolution
+                   // 1: If skip_width or skip_height are > 1, then we
+                   // increase resolution
   int in_channels;
   int filter_width;
   int filter_height;
