@@ -27,11 +27,19 @@ typedef struct {
 
 static void init_tensor(TENSOR *tensor) { memset(tensor, 0, sizeof(*tensor)); }
 
+static void free_tensor(TENSOR *tensor) {
+  if (tensor->allocsize) {
+    aom_free(tensor->buf[0]);
+    tensor->buf[0] = NULL;
+    tensor->allocsize = 0;
+  }
+}
+
 static void realloc_tensor(TENSOR *tensor, int channels, int width,
                            int height) {
   const int newallocsize = channels * width * height;
   if (tensor->allocsize < newallocsize) {
-    aom_free(tensor->buf[0]);
+    free_tensor(tensor);
     tensor->buf[0] =
         (float *)aom_malloc(sizeof(*tensor->buf[0]) * newallocsize);
     tensor->allocsize = newallocsize;
@@ -78,14 +86,6 @@ static void swap_tensor(TENSOR *t1, TENSOR *t2) {
   TENSOR t = *t1;
   *t1 = *t2;
   *t2 = t;
-}
-
-static void free_tensor(TENSOR *tensor) {
-  if (tensor->allocsize) {
-    aom_free(tensor->buf[0]);
-    tensor->buf[0] = NULL;
-    tensor->allocsize = 0;
-  }
 }
 
 int check_tensor_equal_size(TENSOR *t1, TENSOR *t2) {
