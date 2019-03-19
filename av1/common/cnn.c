@@ -141,9 +141,9 @@ static void find_layer_output_size(int in_width, int in_height,
   }
 }
 
-static void find_cnn_output_size(int in_width, int in_height,
-                                 const CNN_CONFIG *cnn_config, int *out_width,
-                                 int *out_height) {
+void av1_find_cnn_output_size(int in_width, int in_height,
+                              const CNN_CONFIG *cnn_config, int *out_width,
+                              int *out_height) {
   int i_width = in_width + cnn_config->ext_width * 2;
   int i_height = in_height + cnn_config->ext_height * 2;
   for (int i = 0; i < cnn_config->num_layers; ++i) {
@@ -474,7 +474,7 @@ void av1_restore_cnn(uint8_t *dgd, int width, int height, int stride,
                      const CNN_CONFIG *cnn_config) {
   const float max_val = 255.0;
   int out_width, out_height;
-  find_cnn_output_size(width, height, cnn_config, &out_width, &out_height);
+  av1_find_cnn_output_size(width, height, cnn_config, &out_width, &out_height);
   assert(out_width == width);
   assert(out_height == height);
 
@@ -538,7 +538,7 @@ void av1_restore_cnn_highbd(uint16_t *dgd, int width, int height, int stride,
                             const CNN_CONFIG *cnn_config, int bit_depth) {
   const float max_val = (float)((1 << bit_depth) - 1);
   int out_width, out_height;
-  find_cnn_output_size(width, height, cnn_config, &out_width, &out_height);
+  av1_find_cnn_output_size(width, height, cnn_config, &out_width, &out_height);
   assert(out_width == width);
   assert(out_height == height);
 

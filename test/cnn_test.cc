@@ -19,7 +19,7 @@
 #include "config/av1_rtcd.h"
 
 #define SQR(x) ((x) * (x))
-#define FLOAT_TOL 1E-5
+#define FLOAT_TOL 1E-6
 #define INT_TOL 0
 
 namespace {
@@ -28,24 +28,30 @@ class CNNTest : public ::testing::Test {
  protected:
   static void RunCNNTest(int image_width, int image_height, float *input,
                          float *expected, CNN_CONFIG cnn_config, int in_stride,
-                         int out_stride, double tolerance, int use_rounding) {
-    const int image_size = image_width * image_height;
-    float *output = (float *)aom_malloc(sizeof(*output) * image_size);
+                         double tolerance, int use_rounding) {
+    int out_width, out_height;
+    av1_find_cnn_output_size(image_width, image_height, &cnn_config, &out_width,
+                             &out_height);
+    const int out_size = out_width * out_height;
+    float *output = (float *)aom_malloc(sizeof(*output) * out_size);
+    const int out_stride = out_width;
 
     av1_cnn_predict(input, image_width, image_height, in_stride, &cnn_config,
                     output, out_stride);
 
     if (use_rounding) {
-      for (int i = 0; i < image_size; ++i) {
+      for (int i = 0; i < out_size; ++i) {
         output[i] = roundf(output[i]);
       }
     }
 
     double mse = 0;
-    for (int i = 0; i < image_size; ++i) {
-      EXPECT_LE(fabsf(expected[i] - output[i]), 1);
+    for (int i = 0; i < out_size; ++i) {
+      EXPECT_LE(fabsf(expected[i] - output[i]), 1)
+          << i << ": " << expected[i] << "/" << output[i] << std::endl;
       mse += SQR(expected[i] - output[i]);
     }
+    mse /= out_size;
     EXPECT_LE(mse, tolerance);
 
     aom_free(output);
@@ -76,22 +82,27 @@ TEST_F(CNNTest, TestNonActivationSingleLayerSingleKernel) {
   int image_width = 8;
   int image_height = 8;
   float input[] = {
-    199, 194, 246, 118, 167, 208, 91,  101, 62,  102, 200, 14,  180,
-    191, 85,  37,  3,   35,  87,  37,  230, 109, 17,  43,  121, 145,
-    23,  147, 105, 41,  41,  121, 196, 202, 230, 25,  205, 122, 132,
-    67,  190, 134, 40,  5,   159, 35,  130, 204, 112, 193, 135, 124,
-    143, 246, 110, 207, 218, 14,  49,  42,  97,  96,  214, 115,
+    166, 125, 167, 37,  25,  16,  104, 136, 163, 37,  89,  162, 164,
+    177, 108, 182, 46,  119, 64,  144, 100, 33,  157, 113, 183, 129,
+    121, 42,  177, 221, 241, 150, 9,   70,  0,   96,  189, 208, 205,
+    48,  117, 142, 202, 39,  35,  152, 100, 41,  225, 65,  213, 147,
+    201, 18,  18,  191, 153, 23,  109, 134, 158, 12,  99,  120,
   };
-  float expected[] = {
-    365, 588, 554, 469, 542, 542, 368, 186, 377, 691, 627, 697, 802,
-    695, 491, 198, 299, 474, 379, 629, 658, 547, 360, 201, 454, 610,
-    479, 643, 613, 490, 376, 234, 653, 693, 608, 504, 537, 520, 570,
-    374, 671, 863, 528, 614, 620, 718, 648, 517, 548, 567, 431, 513,
-    534, 765, 821, 517, 420, 409, 334, 358, 499, 505, 654, 351,
+  float expected_same[] = {
+    1182, 2221, 827,  1890, 2635, 3076, 2994, 1266, 451,  3041, 2935,
+    3128, 2427, 2040, 2463, 1491, 1578, 3932, 3122, 2774, 3169, 5148,
+    5426, 2396, 941,  867,  1973, 2382, 3967, 5163, 3118, 1953, 1504,
+    3536, 3523, 4372, 2400, 3542, 2882, 1897, 2148, 3290, 2486, 3594,
+    4152, 3589, 1686, 2171, 912,  3931, 1896, 4044, 2188, 1767, 2998,
+    1382, -667, 2881, 1009, 2496, -16,  1847, 1442, -902,
   };
-  float weights[] = { 0.508f, 0.367f, 0.93f,  0.546f, 0.882f,
-                      0.476f, 0.24f,  0.713f, 0.516f };
-  float bias[] = { 0.529f };
+  float expected_valid[] = {
+    3041, 2935, 3128, 2427, 2040, 2463, 3932, 3122, 2774, 3169, 5148, 5426,
+    867,  1973, 2382, 3967, 5163, 3118, 3536, 3523, 4372, 2400, 3542, 2882,
+    3290, 2486, 3594, 4152, 3589, 1686, 3931, 1896, 4044, 2188, 1767, 2998,
+  };
+  float weights[] = { 7, -3, 5, -1, -3, 6, 8, 5, 3 };
+  float bias[] = { 4 };
 
   CNN_CONFIG cnn_config = { .num_layers = 1,
                             .is_residue = 0,
@@ -114,8 +125,14 @@ TEST_F(CNNTest, TestNonActivationSingleLayerSingleKernel) {
                                 .output_add = 0,
                             } } };
 
-  RunCNNTest(image_width, image_height, input, expected, cnn_config,
-             image_width, image_width, INT_TOL, 1);
+  RunCNNTest(image_width, image_height, input, expected_same, cnn_config,
+             image_width, INT_TOL, 1);
+
+  // Change padding to valid
+  cnn_config.layer_config[0].pad = PADDING_VALID;
+
+  RunCNNTest(image_width, image_height, input, expected_valid, cnn_config,
+             image_width, INT_TOL, 1);
 }
 
 TEST_F(CNNTest, TestRELUMultiLayerMultiKernel) {
@@ -208,7 +225,7 @@ TEST_F(CNNTest, TestRELUMultiLayerMultiKernel) {
   AssignLayerWeightsBiases(&cnn_config, weights, bias);
 
   RunCNNTest(image_width, image_height, input, expected, cnn_config,
-             image_width, image_width, INT_TOL, 0);
+             image_width, INT_TOL, 1);
 }
 
 TEST_F(CNNTest, TestSoftsignMultiLayerMultiKernel) {
@@ -321,5 +338,5 @@ TEST_F(CNNTest, TestSoftsignMultiLayerMultiKernel) {
   AssignLayerWeightsBiases(&cnn_config, weights, bias);
 
   RunCNNTest(image_width, image_height, input, expected, cnn_config,
-             image_width, image_width, FLOAT_TOL, 0);
+             image_width, FLOAT_TOL, 0);
 }
