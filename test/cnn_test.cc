@@ -135,6 +135,66 @@ TEST_F(CNNTest, TestNonActivationSingleLayerSingleKernel) {
              image_width, INT_TOL, 1);
 }
 
+TEST_F(CNNTest, TestDeconvolveNonActivationSingleLayerSingleKernel) {
+  int image_width = 4;
+  int image_height = 4;
+  float input[] = {
+    160, 80, 118, 226, 117, 171, 134, 77, 120, 117, 76, 137, 175, 187, 56, 137,
+  };
+  float expected_same[] = {
+    -475, -475,  -235,  -547, -349,  -1017, -673,  -221, 1784, 162,  1897,
+    930,  1196,  887,   1820, -134,  -666,  -1436, -988, -866, -793, -575,
+    -914, -1202, 1547,  602,  1835,  427,   1611,  15,   1716, 733,  -589,
+    -826, -922,  -1003, -833, -1135, -828,  -517,  1950, 730,  1741, 1003,
+    503,  169,   1886,  553,  -760,  -1284, -1030, -839, -549, -705, -832,
+    -817, 1055,  -146,  2002, -444,  1276,  111,   1107, -406,
+  };
+  float expected_valid[] = {
+    -315, 1125, 965,   -235,  329,   431,  379,   997,  1587,  -1125,
+    -635, -475, -475,  -235,  -547,  -349, -1017, -673, -221,  5,
+    91,   1784, 162,   1897,  930,   1196, 887,   1820, -134,  750,
+    -143, -666, -1436, -988,  -866,  -793, -575,  -914, -1202, -447,
+    -1,   1547, 602,   1835,  427,   1611, 15,    1716, 733,   -295,
+    -241, -589, -826,  -922,  -1003, -833, -1135, -828, -517,  -149,
+    -105, 1950, 730,   1741,  1003,  503,  169,   1886, 553,   5,
+    -455, -760, -1284, -1030, -839,  -549, -705,  -832, -817,  -269,
+    355,  1055, -146,  2002,  -444,  1276, 111,   1107, -406,  690,
+    355,  -345, -496,  -719,  -818,  -481, -1,    -381, -680,  -269,
+  };
+  float weights[] = { -2, 7, 7, -5, -4, -3, -1, 0, 2, 6, -3, 5, 2, -2, -5, -2 };
+  float bias[] = { 5 };
+
+  CNN_CONFIG cnn_config = { .num_layers = 1,
+                            .is_residue = 0,
+                            .ext_width = 0,
+                            .ext_height = 0,
+                            .strict_bounds = 0,
+                            { {
+                                .deconvolve = 1,
+                                .in_channels = 1,
+                                .filter_width = 4,
+                                .filter_height = 4,
+                                .out_channels = 1,
+                                .skip_width = 2,
+                                .skip_height = 2,
+                                .weights = weights,
+                                .bias = bias,
+                                .pad = PADDING_SAME_ZERO,
+                                .activation = NONE,
+                                .input_copy = 0,
+                                .output_add = 0,
+                            } } };
+
+  RunCNNTest(image_width, image_height, input, expected_same, cnn_config,
+             image_width, INT_TOL, 1);
+
+  // Change padding to valid
+  cnn_config.layer_config[0].pad = PADDING_VALID;
+
+  RunCNNTest(image_width, image_height, input, expected_valid, cnn_config,
+             image_width, INT_TOL, 1);
+}
+
 TEST_F(CNNTest, TestRELUMultiLayerMultiKernel) {
   int image_width = 8;
   int image_height = 8;

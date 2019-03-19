@@ -173,7 +173,6 @@ void av1_cnn_convolve_c(const float **input, int in_width, int in_height,
   assert(!layer_config->deconvolve);
 
   const int cstep = layer_config->in_channels * layer_config->out_channels;
-
   const int filter_height_half = layer_config->filter_height >> 1;
   const int filter_width_half = layer_config->filter_width >> 1;
 
@@ -278,7 +277,6 @@ void av1_cnn_deconvolve_c(const float **input, int in_width, int in_height,
   assert(layer_config->deconvolve);
 
   const int cstep = layer_config->in_channels * layer_config->out_channels;
-
   const int filter_height_half = layer_config->filter_height >> 1;
   const int filter_width_half = layer_config->filter_width >> 1;
 
@@ -297,10 +295,10 @@ void av1_cnn_deconvolve_c(const float **input, int in_width, int in_height,
             for (int k = 0; k < layer_config->in_channels; ++k) {
               int off = k * layer_config->out_channels + i;
               for (int l = 0; l < layer_config->filter_height; ++l) {
-                const int h = u + l - filter_height_half;
+                const int h = u - l + filter_height_half - 1;
                 for (int m = 0; m < layer_config->filter_width;
                      ++m, off += cstep) {
-                  const int w = v + m - filter_width_half;
+                  const int w = v - m + filter_width_half - 1;
                   if ((h % layer_config->skip_height) != 0 ||
                       (w % layer_config->skip_width) != 0)
                     continue;
@@ -328,10 +326,10 @@ void av1_cnn_deconvolve_c(const float **input, int in_width, int in_height,
             for (int k = 0; k < layer_config->in_channels; ++k) {
               int off = k * layer_config->out_channels + i;
               for (int l = 0; l < layer_config->filter_height; ++l) {
-                const int h = u + l - filter_height_half;
+                const int h = u - l + filter_height_half - 1;
                 for (int m = 0; m < layer_config->filter_width;
                      ++m, off += cstep) {
-                  const int w = v + m - filter_width_half;
+                  const int w = v - m + filter_width_half - 1;
                   if ((h % layer_config->skip_height) != 0 ||
                       (w % layer_config->skip_width) != 0)
                     continue;
@@ -361,10 +359,10 @@ void av1_cnn_deconvolve_c(const float **input, int in_width, int in_height,
             for (int k = 0; k < layer_config->in_channels; ++k) {
               int off = k * layer_config->out_channels + i;
               for (int l = 0; l < layer_config->filter_height; ++l) {
-                const int h = u + l - layer_config->filter_height + 1;
+                const int h = u - l;
                 for (int m = 0; m < layer_config->filter_width;
                      ++m, off += cstep) {
-                  const int w = v + m - layer_config->filter_width + 1;
+                  const int w = v - m;
                   if ((h % layer_config->skip_height) != 0 ||
                       (w % layer_config->skip_width) != 0)
                     continue;
