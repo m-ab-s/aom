@@ -123,7 +123,7 @@ if(NOT BUILD_SHARED_LIBS)
                 "${AOM_ROOT}/test/segment_binarization_sync.cc"
                 "${AOM_ROOT}/test/superframe_test.cc"
                 "${AOM_ROOT}/test/tile_independence_test.cc")
-    if(CONFIG_STATIC_TENSORFLOW)
+    if(CONFIG_TENSORFLOW)
       list(APPEND AOM_UNIT_TEST_COMMON_SOURCES
                   "${AOM_ROOT}/test/tensorflow_link_test.cc")
     endif()
@@ -286,7 +286,7 @@ function(setup_aom_test_targets)
                  $<TARGET_OBJECTS:test_aom_common>)
   list(APPEND AOM_APP_TARGETS test_libaom)
 
-  if(CONFIG_STATIC_TENSORFLOW)
+  if(CONFIG_TENSORFLOW)
     target_link_libraries(
       test_libaom PRIVATE -Wl,--whole-archive
       "${TENSORFLOW_INCLUDE_DIR}/tensorflow/contrib/makefile/gen/lib/libtensorflow-core.a"
@@ -319,7 +319,7 @@ function(setup_aom_test_targets)
                      $<TARGET_OBJECTS:aom_common_app_util>)
       target_link_libraries(test_intra_pred_speed ${AOM_LIB_LINK_TYPE} aom
                             aom_gtest)
-      if(CONFIG_STATIC_TENSORFLOW)
+      if(CONFIG_TENSORFLOW)
         target_link_libraries(
           test_intra_pred_speed PRIVATE -Wl,--whole-archive
           "${TENSORFLOW_INCLUDE_DIR}/tensorflow/contrib/makefile/gen/lib/libtensorflow-core.a"

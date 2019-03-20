@@ -152,9 +152,7 @@ set_aom_config_var(CONFIG_CNN_RESTORATION 0 NUMBER
 # To include Tensorflow, make sure to build tensorflow locally using
 # tensorflow/contrib/makefile/build_all_linux.sh and then providing the correct
 # path to tensorflow root via TENSORFLOW_INCLUDE_DIR.
-set_aom_config_var(CONFIG_STATIC_TENSORFLOW 0 NUMBER "AV2 experiment flag.")
-set_aom_config_var(TENSORFLOW_INCLUDE_DIR "" PATH
-                   "Path to local static build of tensorflow")
+set_aom_config_var(CONFIG_TENSORFLOW 0 NUMBER "AV2 experiment flag.")
 
 #
 # Variables in this section control optional features of the build system.

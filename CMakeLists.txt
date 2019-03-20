@@ -215,7 +215,11 @@ endif()
 # List of object and static library targets.
 set(AOM_LIB_TARGETS ${AOM_LIB_TARGETS} aom_rtcd aom_mem aom_scale aom)
 
-if(CONFIG_STATIC_TENSORFLOW)
+if(CONFIG_TENSORFLOW)
+  if(NOT IS_DIRECTORY "${TENSORFLOW_INCLUDE_DIR}")
+    message(FATAL_ERROR
+              "TENSORFLOW_INCLUDE_DIR does not refer to an existing directory")
+  endif()
   include_directories(
     "${TENSORFLOW_INCLUDE_DIR}"
     "${TENSORFLOW_INCLUDE_DIR}/tensorflow/contrib/makefile/gen/host_obj"
@@ -459,7 +463,7 @@ endif()
 
 foreach(aom_app ${AOM_APP_TARGETS})
   target_link_libraries(${aom_app} ${AOM_LIB_LINK_TYPE} aom)
-  if(CONFIG_STATIC_TENSORFLOW)
+  if(CONFIG_TENSORFLOW)
     target_link_libraries(
       ${aom_app} PRIVATE -Wl,--whole-archive
       "${TENSORFLOW_INCLUDE_DIR}/tensorflow/contrib/makefile/gen/lib/libtensorflow-core.a"
