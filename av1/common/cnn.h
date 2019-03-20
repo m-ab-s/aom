@@ -36,6 +36,12 @@ enum {
 
 enum { NONE, RELU, SOFTSIGN } UENUM1BYTE(ACTIVATION);
 
+// Types of combining skip layers with output of current layer:
+// SKIP_NONE: no skip handling
+// SKIP_ADD: Add previously stored skip tensor to output of layer
+// SKIP_CAT: Concatenate previously stored skip tensor to output of layer
+enum { SKIP_NONE, SKIP_ADD, SKIP_CAT } UENUM1BYTE(SKIP_COMBINE);
+
 struct CNN_LAYER_CONFIG {
   int deconvolve;  // whether this is a deconvolution layer.
                    // 0: If skip_width or skip_height are > 1, then we
@@ -55,9 +61,8 @@ struct CNN_LAYER_CONFIG {
   PADDING_TYPE pad;       // padding type
   ACTIVATION activation;  // the activation function to use after convolution
   int input_copy;  // copy the input tensor to the current layer and store for
-                   // future use as a skip addition layer
-  int output_add;  // add previously stored tensor to the output tensor of the
-                   // current layer
+                   // future use as a skip addition/concatenation layer
+  SKIP_COMBINE skip_combine;
 };
 
 struct CNN_CONFIG {

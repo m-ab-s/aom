@@ -122,7 +122,7 @@ TEST_F(CNNTest, TestNonActivationSingleLayerSingleKernel) {
                                 .pad = PADDING_SAME_ZERO,
                                 .activation = NONE,
                                 .input_copy = 0,
-                                .output_add = 0,
+                                .skip_combine = SKIP_NONE,
                             } } };
 
   RunCNNTest(image_width, image_height, input, expected_same, cnn_config,
@@ -182,7 +182,7 @@ TEST_F(CNNTest, TestDeconvolveNonActivationSingleLayerSingleKernel) {
                                 .pad = PADDING_SAME_ZERO,
                                 .activation = NONE,
                                 .input_copy = 0,
-                                .output_add = 0,
+                                .skip_combine = SKIP_NONE,
                             } } };
 
   RunCNNTest(image_width, image_height, input, expected_same, cnn_config,
@@ -246,7 +246,7 @@ TEST_F(CNNTest, TestRELUMultiLayerMultiKernel) {
                                     .pad = PADDING_SAME_ZERO,
                                     .activation = RELU,
                                     .input_copy = 0,
-                                    .output_add = 0,
+                                    .skip_combine = SKIP_NONE,
                                 },
                                 {
                                     .deconvolve = 0,
@@ -261,7 +261,7 @@ TEST_F(CNNTest, TestRELUMultiLayerMultiKernel) {
                                     .pad = PADDING_SAME_ZERO,
                                     .activation = RELU,
                                     .input_copy = 0,
-                                    .output_add = 0,
+                                    .skip_combine = SKIP_NONE,
                                 },
                                 {
                                     .deconvolve = 0,
@@ -276,7 +276,7 @@ TEST_F(CNNTest, TestRELUMultiLayerMultiKernel) {
                                     .pad = PADDING_SAME_ZERO,
                                     .activation = RELU,
                                     .input_copy = 0,
-                                    .output_add = 0,
+                                    .skip_combine = SKIP_NONE,
                                 },
                             } };
 
@@ -359,7 +359,7 @@ TEST_F(CNNTest, TestSoftsignMultiLayerMultiKernel) {
                                     .pad = PADDING_SAME_ZERO,
                                     .activation = SOFTSIGN,
                                     .input_copy = 0,
-                                    .output_add = 0,
+                                    .skip_combine = SKIP_NONE,
                                 },
                                 {
                                     .deconvolve = 0,
@@ -374,7 +374,7 @@ TEST_F(CNNTest, TestSoftsignMultiLayerMultiKernel) {
                                     .pad = PADDING_SAME_ZERO,
                                     .activation = SOFTSIGN,
                                     .input_copy = 0,
-                                    .output_add = 0,
+                                    .skip_combine = SKIP_NONE,
                                 },
                                 {
                                     .deconvolve = 0,
@@ -389,7 +389,7 @@ TEST_F(CNNTest, TestSoftsignMultiLayerMultiKernel) {
                                     .pad = PADDING_SAME_ZERO,
                                     .activation = SOFTSIGN,
                                     .input_copy = 0,
-                                    .output_add = 0,
+                                    .skip_combine = SKIP_NONE,
                                 },
                             } };
 
