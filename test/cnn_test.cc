@@ -36,8 +36,8 @@ class CNNTest : public ::testing::Test {
     float *output = (float *)aom_malloc(sizeof(*output) * out_size);
     const int out_stride = out_width;
 
-    av1_cnn_predict(input, image_width, image_height, in_stride, &cnn_config,
-                    output, out_stride);
+    av1_cnn_predict((const float **)&input, image_width, image_height,
+                    in_stride, &cnn_config, &output, out_stride);
 
     if (use_rounding) {
       for (int i = 0; i < out_size; ++i) {
