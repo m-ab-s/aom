@@ -34,7 +34,7 @@ enum {
   PADDING_VALID            // tensorflow's VALID padding
 } UENUM1BYTE(PADDING_TYPE);
 
-enum { NONE, RELU, SOFTSIGN, MAXPOOL } UENUM1BYTE(ACTIVATION);
+enum { NONE, RELU, SOFTSIGN } UENUM1BYTE(ACTIVATION);
 
 // Types of combining skip layers with output of current layer:
 // SKIP_NONE: no skip handling
@@ -54,6 +54,8 @@ struct CNN_LAYER_CONFIG {
   int out_channels;
   int skip_width;
   int skip_height;
+  int maxpool;     // whether to use maxpool or not (only effective when
+                   // skip width or skip_height are > 1)
   float *weights;  // array of length filter_height x filter_width x in_channels
                    // x out_channels where the inner-most scan is out_channels
                    // and the outer most scan is filter_height.

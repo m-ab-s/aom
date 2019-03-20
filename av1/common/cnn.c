@@ -193,7 +193,6 @@ activation_fn get_activation(ACTIVATION layer_activation) {
     case NONE: return identity;
     case RELU: return relu;
     case SOFTSIGN: return softsign;
-    case MAXPOOL: return identity;
     default: assert(0 && "Unknown padding type"); return NULL;
   }
 }
@@ -209,7 +208,7 @@ void av1_cnn_convolve_c(const float **input, int in_width, int in_height,
   const int filter_width_half = layer_config->filter_width >> 1;
 
   activation_fn activation = get_activation(layer_config->activation);
-  if (layer_config->activation == MAXPOOL &&
+  if (layer_config->maxpool &&
       (layer_config->skip_height > 1 || layer_config->skip_width > 1)) {
     switch (layer_config->pad) {
       case PADDING_SAME_ZERO:
