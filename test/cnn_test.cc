@@ -408,3 +408,331 @@ TEST_F(CNNTest, TestSoftsignMultiLayerMultiKernel) {
   RunCNNTest(image_width, image_height, input, expected, cnn_config,
              image_width, FLOAT_TOL, 0);
 }
+
+TEST_F(CNNTest, TestSingleLayerEvenStrideEvenDimImage) {
+  int image_width = 4;
+  int image_height = 4;
+  int stride = 2;
+  float input[] = {
+    -4, 4, -2, 8, -5, 9, 4, -2, 8, 7, 8, 4, -1, -5, 2, 6,
+  };
+  float expected_horizontal[] = {
+    57, -42, 20, 14, -85, -52, -23, -60,
+  };
+  float expected_vertical[] = {
+    13, 20, -81, 14, 7, -23, -21, -60,
+  };
+  float expected_ver_hor[] = {
+    20,
+    14,
+    -23,
+    -60,
+  };
+  float weights[] = {
+    -4, 2, -3, -5, -4, -2, -2, 5, -1,
+  };
+  float bias[] = { -2 };
+
+  CNN_CONFIG cnn_config = { .num_layers = 1,
+                            .is_residue = 0,
+                            .ext_width = 0,
+                            .ext_height = 0,
+                            .strict_bounds = 0,
+                            {
+                                {
+                                    .deconvolve = 0,
+                                    .in_channels = 1,
+                                    .filter_width = 3,
+                                    .filter_height = 3,
+                                    .out_channels = 1,
+                                    .skip_width = stride,
+                                    .skip_height = 1,
+                                    .maxpool = 0,
+                                    .weights = weights,
+                                    .bias = bias,
+                                    .pad = PADDING_SAME_ZERO,
+                                    .activation = NONE,
+                                    .input_copy = 0,
+                                    .skip_combine = SKIP_NONE,
+                                },
+                            } };
+
+  RunCNNTest(image_width, image_height, input, expected_horizontal, cnn_config,
+             image_width, INT_TOL, 0);
+
+  cnn_config.layer_config[0].skip_width = 1;
+  cnn_config.layer_config[0].skip_height = stride;
+
+  RunCNNTest(image_width, image_height, input, expected_vertical, cnn_config,
+             image_width, INT_TOL, 0);
+
+  cnn_config.layer_config[0].skip_width = stride;
+  cnn_config.layer_config[0].skip_height = stride;
+
+  RunCNNTest(image_width, image_height, input, expected_ver_hor, cnn_config,
+             image_width, INT_TOL, 0);
+}
+
+TEST_F(CNNTest, TestSingleLayerEvenStrideOddDimImage) {
+  int image_width = 5;
+  int image_height = 5;
+  int stride = 2;
+  float input[] = {
+    8, 9, 0,  5, 9,  7,  -4, 7, 0, 1, 2, 9,  6,
+    9, 4, -5, 8, -2, -1, 2,  5, 3, 6, 8, -5,
+  };
+  float expected_horizontal[] = {
+    1, -27, -59, -27, 6, 42, -136, -42, -50, 54, -15, -43, 2, -109, -5,
+  };
+  float expected_vertical[] = {
+    1, -99, -27, -16, -59, -136, -39, -42, -142, -50, 2, -45, -109, -31, -5,
+  };
+  float expected_ver_hor[] = {
+    1, -27, -59, -136, -42, -50, 2, -109, -5,
+  };
+  float weights[] = {
+    -5, -1, 4, -4, -5, -3, 6, 7, -5,
+  };
+  float bias[] = { -1 };
+
+  CNN_CONFIG cnn_config = { .num_layers = 1,
+                            .is_residue = 0,
+                            .ext_width = 0,
+                            .ext_height = 0,
+                            .strict_bounds = 0,
+                            {
+                                {
+                                    .deconvolve = 0,
+                                    .in_channels = 1,
+                                    .filter_width = 3,
+                                    .filter_height = 3,
+                                    .out_channels = 1,
+                                    .skip_width = stride,
+                                    .skip_height = 1,
+                                    .maxpool = 0,
+                                    .weights = weights,
+                                    .bias = bias,
+                                    .pad = PADDING_SAME_ZERO,
+                                    .activation = NONE,
+                                    .input_copy = 0,
+                                    .skip_combine = SKIP_NONE,
+                                },
+                            } };
+
+  RunCNNTest(image_width, image_height, input, expected_horizontal, cnn_config,
+             image_width, INT_TOL, 0);
+
+  cnn_config.layer_config[0].skip_width = 1;
+  cnn_config.layer_config[0].skip_height = stride;
+
+  RunCNNTest(image_width, image_height, input, expected_vertical, cnn_config,
+             image_width, INT_TOL, 0);
+
+  cnn_config.layer_config[0].skip_width = stride;
+  cnn_config.layer_config[0].skip_height = stride;
+
+  RunCNNTest(image_width, image_height, input, expected_ver_hor, cnn_config,
+             image_width, INT_TOL, 0);
+}
+
+TEST_F(CNNTest, TestSingleLayerOddStrideEvenDimImage) {
+  int image_width = 8;
+  int image_height = 8;
+  int stride = 3;
+  float input[] = {
+    1, 3, 1,  -3, 1,  8,  7,  -1, 4,  2,  -1, -2, 0,  -4, -5, -3,
+    5, 0, -3, -1, -1, -3, 0,  7,  -4, 1,  8,  2,  1,  0,  1,  6,
+    5, 1, 2,  8,  0,  0,  -2, 2,  -1, -3, -1, 8,  6,  6,  -3, 4,
+    5, 9, 9,  2,  -3, -4, 2,  7,  1,  6,  0,  -4, -5, 1,  1,  3,
+  };
+  float expected_horizontal[] = {
+    22, -28, -49, 46,  86, -20, -53, -11, 18, -31, 12,  23,
+    38, -16, 1,   -15, 0,  25,  -39, 36,  32, 104, -56, 22,
+  };
+  float expected_vertical[] = {
+    19,  46, -15, -20, 86, 67,  -31, -20, 26,  38, -44, 2,
+    -16, 40, 44,  1,   44, 104, 30,  -16, -56, 17, 36,  22,
+  };
+  float expected_ver_hor[] = {
+    46, 86, -20, 38, -16, 1, 104, -56, 22,
+  };
+  float weights[] = {
+    0, 2, 7, -3, 5, -5, 5, -2, -3,
+  };
+  float bias[] = { -4 };
+
+  CNN_CONFIG cnn_config = { .num_layers = 1,
+                            .is_residue = 0,
+                            .ext_width = 0,
+                            .ext_height = 0,
+                            .strict_bounds = 0,
+                            {
+                                {
+                                    .deconvolve = 0,
+                                    .in_channels = 1,
+                                    .filter_width = 3,
+                                    .filter_height = 3,
+                                    .out_channels = 1,
+                                    .skip_width = stride,
+                                    .skip_height = 1,
+                                    .maxpool = 0,
+                                    .weights = weights,
+                                    .bias = bias,
+                                    .pad = PADDING_SAME_ZERO,
+                                    .activation = NONE,
+                                    .input_copy = 0,
+                                    .skip_combine = SKIP_NONE,
+                                },
+                            } };
+
+  RunCNNTest(image_width, image_height, input, expected_horizontal, cnn_config,
+             image_width, INT_TOL, 0);
+
+  cnn_config.layer_config[0].skip_width = 1;
+  cnn_config.layer_config[0].skip_height = stride;
+
+  RunCNNTest(image_width, image_height, input, expected_vertical, cnn_config,
+             image_width, INT_TOL, 0);
+
+  cnn_config.layer_config[0].skip_width = stride;
+  cnn_config.layer_config[0].skip_height = stride;
+
+  RunCNNTest(image_width, image_height, input, expected_ver_hor, cnn_config,
+             image_width, INT_TOL, 0);
+}
+
+TEST_F(CNNTest, TestSingleLayerOddStrideOddDimImage) {
+  int image_width = 7;
+  int image_height = 7;
+  int stride = 3;
+  float input[] = {
+    -5, -3, -1, 1, 4,  4, 6,  4,  0,  0,  3,  2, -5, 3, -5, 2, 7,
+    8,  -4, 7,  5, 9,  2, -5, -3, -2, -2, -5, 9, 8,  7, 9,  7, -1,
+    -3, 9,  1,  4, -3, 1, -2, 9,  5,  8,  -1, 4, 2,  7, 9,
+  };
+  float expected_horizontal[] = {
+    -2, 4,  -39, -14, -2,  5,  19,  -37, 7,   -102, 14,
+    57, -3, 26,  -37, -72, 35, -65, 50,  -12, 2,
+  };
+  float expected_vertical[] = {
+    -2,  9, -4, 4,  28,  43, -39, -102, -53, -7, 14,
+    -16, 8, 57, 50, -19, 79, -12, 50,   -3,  2,
+  };
+  float expected_ver_hor[] = {
+    -2, 4, -39, -102, 14, 57, 50, -12, 2,
+  };
+  float weights[] = {
+    2, 3, -3, 3, -5, 6, 3, -3, -3,
+  };
+  float bias[] = { 3 };
+
+  CNN_CONFIG cnn_config = { .num_layers = 1,
+                            .is_residue = 0,
+                            .ext_width = 0,
+                            .ext_height = 0,
+                            .strict_bounds = 0,
+                            {
+                                {
+                                    .deconvolve = 0,
+                                    .in_channels = 1,
+                                    .filter_width = 3,
+                                    .filter_height = 3,
+                                    .out_channels = 1,
+                                    .skip_width = stride,
+                                    .skip_height = 1,
+                                    .maxpool = 0,
+                                    .weights = weights,
+                                    .bias = bias,
+                                    .pad = PADDING_SAME_ZERO,
+                                    .activation = NONE,
+                                    .input_copy = 0,
+                                    .skip_combine = SKIP_NONE,
+                                },
+                            } };
+
+  RunCNNTest(image_width, image_height, input, expected_horizontal, cnn_config,
+             image_width, INT_TOL, 0);
+
+  cnn_config.layer_config[0].skip_width = 1;
+  cnn_config.layer_config[0].skip_height = stride;
+
+  RunCNNTest(image_width, image_height, input, expected_vertical, cnn_config,
+             image_width, INT_TOL, 0);
+
+  cnn_config.layer_config[0].skip_width = stride;
+  cnn_config.layer_config[0].skip_height = stride;
+
+  RunCNNTest(image_width, image_height, input, expected_ver_hor, cnn_config,
+             image_width, INT_TOL, 0);
+}
+
+TEST_F(CNNTest, TestValidPadding) {
+  int image_width = 8;
+  int image_height = 8;
+  int stride = 2;
+  float input[] = {
+    -4, 9,  8,  0,  4,  5, -1, -4, 6,  9,  -5, 9,  6,  6, 7, 2,
+    -1, 0,  -2, -5, 8,  0, 2,  7,  4,  2,  1,  7,  6,  1, 1, 3,
+    3,  -1, -1, 7,  -2, 8, 4,  1,  -4, 4,  -1, -3, 5,  3, 5, -2,
+    -5, 8,  3,  -1, 3,  0, 2,  5,  -5, -3, 8,  6,  -3, 9, 7, 0,
+  };
+
+  float expected_hor_stride[] = {
+    11, 50, 68, -1, -88, 65, 29, 37, 16, -2, 2, 48, -33, -29, 6, -56, 50, -29,
+  };
+
+  float expected_ver_stride[] = {
+    11, 63, 50, 0, 68, 25, 29, -15, 37, -10, 16, 36, -33, 45, -29, 60, 6, 27,
+  };
+
+  float expected_hor_ver_stride[] = {
+    11, 50, 68, 29, 37, 16, -33, -29, 6,
+  };
+
+  float weights[] = {
+    5, -3, 2, 2, 3, 1, 4, -3, -4,
+  };
+
+  float bias[] = {
+    4,
+  };
+
+  CNN_CONFIG cnn_config = { .num_layers = 1,
+                            .is_residue = 0,
+                            .ext_width = 0,
+                            .ext_height = 0,
+                            .strict_bounds = 0,
+                            {
+                                {
+                                    .deconvolve = 0,
+                                    .in_channels = 1,
+                                    .filter_width = 3,
+                                    .filter_height = 3,
+                                    .out_channels = 1,
+                                    .skip_width = stride,
+                                    .skip_height = 1,
+                                    .maxpool = 0,
+                                    .weights = weights,
+                                    .bias = bias,
+                                    .pad = PADDING_VALID,
+                                    .activation = NONE,
+                                    .input_copy = 0,
+                                    .skip_combine = SKIP_NONE,
+                                },
+                            } };
+
+  RunCNNTest(image_width, image_height, input, expected_hor_stride, cnn_config,
+             image_width, INT_TOL, 0);
+
+  cnn_config.layer_config[0].skip_width = 1;
+  cnn_config.layer_config[0].skip_height = stride;
+
+  RunCNNTest(image_width, image_height, input, expected_ver_stride, cnn_config,
+             image_width, INT_TOL, 0);
+
+  cnn_config.layer_config[0].skip_width = stride;
+  cnn_config.layer_config[0].skip_height = stride;
+
+  RunCNNTest(image_width, image_height, input, expected_hor_ver_stride,
+             cnn_config, image_width, INT_TOL, 0);
+}
