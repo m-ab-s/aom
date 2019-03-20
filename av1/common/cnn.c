@@ -193,6 +193,7 @@ activation_fn get_activation(ACTIVATION layer_activation) {
     case NONE: return identity;
     case RELU: return relu;
     case SOFTSIGN: return softsign;
+    case MAXPOOL: return identity;
     default: assert(0 && "Unknown padding type"); return NULL;
   }
 }
@@ -208,96 +209,231 @@ void av1_cnn_convolve_c(const float **input, int in_width, int in_height,
   const int filter_width_half = layer_config->filter_width >> 1;
 
   activation_fn activation = get_activation(layer_config->activation);
-  switch (layer_config->pad) {
-    case PADDING_SAME_ZERO:
-      for (int i = 0; i < layer_config->out_channels; ++i) {
-        for (int h = 0, u = 0; h < in_height;
-             h += layer_config->skip_height, ++u) {
-          for (int w = 0, v = 0; w < in_width;
-               w += layer_config->skip_width, ++v) {
-            float sum = layer_config->bias[i];
-            if (layer_config->skip_combine == SKIP_ADD)
-              sum += skip_buf[i][u * skip_stride + v];
-            for (int k = 0; k < layer_config->in_channels; ++k) {
-              int off = k * layer_config->out_channels + i;
-              for (int l = 0; l < layer_config->filter_height; ++l) {
-                const int ii = h + l - filter_height_half;
-                for (int m = 0; m < layer_config->filter_width;
-                     ++m, off += cstep) {
-                  const int jj = w + m - filter_width_half;
-                  if (ii < 0 || ii >= in_height || jj < 0 || jj >= in_width)
-                    continue;
-                  sum += layer_config->weights[off] *
-                         input[k][ii * in_stride + jj];
+  if (layer_config->activation == MAXPOOL &&
+      (layer_config->skip_height > 1 || layer_config->skip_width > 1)) {
+    switch (layer_config->pad) {
+      case PADDING_SAME_ZERO:
+        for (int i = 0; i < layer_config->out_channels; ++i) {
+          for (int h = 0, u = 0; h < in_height;
+               h += layer_config->skip_height, ++u) {
+            for (int w = 0, v = 0; w < in_width;
+                 w += layer_config->skip_width, ++v) {
+              for (int hh = h;
+                   hh < AOMMIN(in_height, h + layer_config->skip_height);
+                   ++hh) {
+                for (int ww = w;
+                     ww < AOMMIN(in_width, w + layer_config->skip_width);
+                     ++ww) {
+                  float sum = layer_config->bias[i];
+                  if (layer_config->skip_combine == SKIP_ADD)
+                    sum += skip_buf[i][u * skip_stride + v];
+                  for (int k = 0; k < layer_config->in_channels; ++k) {
+                    int off = k * layer_config->out_channels + i;
+                    for (int l = 0; l < layer_config->filter_height; ++l) {
+                      const int ii = hh + l - filter_height_half;
+                      for (int m = 0; m < layer_config->filter_width;
+                           ++m, off += cstep) {
+                        const int jj = ww + m - filter_width_half;
+                        if (ii < 0 || ii >= in_height || jj < 0 ||
+                            jj >= in_width)
+                          continue;
+                        sum += layer_config->weights[off] *
+                               input[k][ii * in_stride + jj];
+                      }
+                    }
+                  }
+                  const float a = activation(sum);
+                  if (h == hh && w == ww)
+                    output[i][u * out_stride + v] = a;
+                  else
+                    output[i][u * out_stride + v] =
+                        AOMMAX(output[i][u * out_stride + v], a);
                 }
               }
             }
-            output[i][u * out_stride + v] = activation(sum);
           }
         }
-      }
-      break;
-    case PADDING_SAME_REPLICATE:
-      for (int i = 0; i < layer_config->out_channels; ++i) {
-        for (int h = 0, u = 0; h < in_height;
-             h += layer_config->skip_height, ++u) {
-          for (int w = 0, v = 0; w < in_width;
-               w += layer_config->skip_width, ++v) {
-            float sum = layer_config->bias[i];
-            if (layer_config->skip_combine == SKIP_ADD)
-              sum += skip_buf[i][u * skip_stride + v];
-            for (int k = 0; k < layer_config->in_channels; ++k) {
-              int off = k * layer_config->out_channels + i;
-              for (int l = 0; l < layer_config->filter_height; ++l) {
-                const int ii =
-                    CLAMPINDEX(h + l - filter_height_half, in_height);
-                for (int m = 0; m < layer_config->filter_width;
-                     ++m, off += cstep) {
-                  const int jj =
-                      CLAMPINDEX(w + m - filter_width_half, in_width);
-                  assert(ii >= 0 && ii < in_height && jj >= 0 && jj < in_width);
-                  sum += layer_config->weights[off] *
-                         input[k][ii * in_stride + jj];
+        break;
+      case PADDING_SAME_REPLICATE:
+        for (int i = 0; i < layer_config->out_channels; ++i) {
+          for (int h = 0, u = 0; h < in_height;
+               h += layer_config->skip_height, ++u) {
+            for (int w = 0, v = 0; w < in_width;
+                 w += layer_config->skip_width, ++v) {
+              for (int hh = h;
+                   hh < AOMMIN(in_height, h + layer_config->skip_height);
+                   ++hh) {
+                for (int ww = w;
+                     ww < AOMMIN(in_width, w + layer_config->skip_width);
+                     ++ww) {
+                  float sum = layer_config->bias[i];
+                  if (layer_config->skip_combine == SKIP_ADD)
+                    sum += skip_buf[i][u * skip_stride + v];
+                  for (int k = 0; k < layer_config->in_channels; ++k) {
+                    int off = k * layer_config->out_channels + i;
+                    for (int l = 0; l < layer_config->filter_height; ++l) {
+                      const int ii =
+                          CLAMPINDEX(hh + l - filter_height_half, in_height);
+                      for (int m = 0; m < layer_config->filter_width;
+                           ++m, off += cstep) {
+                        const int jj =
+                            CLAMPINDEX(ww + m - filter_width_half, in_width);
+                        assert(ii >= 0 && ii < in_height && jj >= 0 &&
+                               jj < in_width);
+                        sum += layer_config->weights[off] *
+                               input[k][ii * in_stride + jj];
+                      }
+                    }
+                  }
+                  const float a = activation(sum);
+                  if (h == hh && w == ww)
+                    output[i][u * out_stride + v] = a;
+                  else
+                    output[i][u * out_stride + v] =
+                        AOMMAX(output[i][u * out_stride + v], a);
                 }
               }
             }
-            output[i][u * out_stride + v] = activation(sum);
           }
         }
-      }
-      break;
-    case PADDING_VALID:
-      for (int i = 0; i < layer_config->out_channels; ++i) {
-        for (int h = filter_height_half, u = 0;
-             h <
-             in_height - layer_config->filter_height + filter_height_half + 1;
-             h += layer_config->skip_height, ++u) {
-          for (int w = filter_width_half, v = 0;
-               w <
-               in_width - layer_config->filter_width + filter_width_half + 1;
-               w += layer_config->skip_width, ++v) {
-            float sum = layer_config->bias[i];
-            if (layer_config->skip_combine == SKIP_ADD)
-              sum += skip_buf[i][u * skip_stride + v];
-            for (int k = 0; k < layer_config->in_channels; ++k) {
-              int off = k * layer_config->out_channels + i;
-              for (int l = 0; l < layer_config->filter_height; ++l) {
-                const int ii = h + l - filter_height_half;
-                for (int m = 0; m < layer_config->filter_width;
-                     ++m, off += cstep) {
-                  const int jj = w + m - filter_width_half;
-                  assert(ii >= 0 && ii < in_height && jj >= 0 && jj < in_width);
-                  sum += layer_config->weights[off] *
-                         input[k][ii * in_stride + jj];
+        break;
+      case PADDING_VALID:
+        for (int i = 0; i < layer_config->out_channels; ++i) {
+          for (int h = 0, u = 0;
+               h < in_height - layer_config->filter_height + 1;
+               h += layer_config->skip_height, ++u) {
+            for (int w = 0, v = 0;
+                 w < in_width - layer_config->filter_width + 1;
+                 w += layer_config->skip_width, ++v) {
+              for (int hh = h;
+                   hh < AOMMIN(in_height, h + layer_config->skip_height);
+                   ++hh) {
+                for (int ww = w;
+                     ww < AOMMIN(in_width, w + layer_config->skip_width);
+                     ++ww) {
+                  float sum = layer_config->bias[i];
+                  if (layer_config->skip_combine == SKIP_ADD)
+                    sum += skip_buf[i][u * skip_stride + v];
+                  for (int k = 0; k < layer_config->in_channels; ++k) {
+                    int off = k * layer_config->out_channels + i;
+                    for (int l = 0; l < layer_config->filter_height; ++l) {
+                      const int ii = hh + l;
+                      for (int m = 0; m < layer_config->filter_width;
+                           ++m, off += cstep) {
+                        const int jj = ww + m;
+                        assert(ii >= 0 && ii < in_height && jj >= 0 &&
+                               jj < in_width);
+                        sum += layer_config->weights[off] *
+                               input[k][ii * in_stride + jj];
+                      }
+                    }
+                  }
+                  const float a = activation(sum);
+                  if (h == hh && w == ww)
+                    output[i][u * out_stride + v] = a;
+                  else
+                    output[i][u * out_stride + v] =
+                        AOMMAX(output[i][u * out_stride + v], a);
                 }
               }
             }
-            output[i][u * out_stride + v] = activation(sum);
           }
         }
-      }
-      break;
-    default: assert(0 && "Unknown padding type");
+        break;
+      default: assert(0 && "Unknown padding type");
+    }
+  } else {
+    switch (layer_config->pad) {
+      case PADDING_SAME_ZERO:
+        for (int i = 0; i < layer_config->out_channels; ++i) {
+          for (int h = 0, u = 0; h < in_height;
+               h += layer_config->skip_height, ++u) {
+            for (int w = 0, v = 0; w < in_width;
+                 w += layer_config->skip_width, ++v) {
+              float sum = layer_config->bias[i];
+              if (layer_config->skip_combine == SKIP_ADD)
+                sum += skip_buf[i][u * skip_stride + v];
+              for (int k = 0; k < layer_config->in_channels; ++k) {
+                int off = k * layer_config->out_channels + i;
+                for (int l = 0; l < layer_config->filter_height; ++l) {
+                  const int ii = h + l - filter_height_half;
+                  for (int m = 0; m < layer_config->filter_width;
+                       ++m, off += cstep) {
+                    const int jj = w + m - filter_width_half;
+                    if (ii < 0 || ii >= in_height || jj < 0 || jj >= in_width)
+                      continue;
+                    sum += layer_config->weights[off] *
+                           input[k][ii * in_stride + jj];
+                  }
+                }
+              }
+              output[i][u * out_stride + v] = activation(sum);
+            }
+          }
+        }
+        break;
+      case PADDING_SAME_REPLICATE:
+        for (int i = 0; i < layer_config->out_channels; ++i) {
+          for (int h = 0, u = 0; h < in_height;
+               h += layer_config->skip_height, ++u) {
+            for (int w = 0, v = 0; w < in_width;
+                 w += layer_config->skip_width, ++v) {
+              float sum = layer_config->bias[i];
+              if (layer_config->skip_combine == SKIP_ADD)
+                sum += skip_buf[i][u * skip_stride + v];
+              for (int k = 0; k < layer_config->in_channels; ++k) {
+                int off = k * layer_config->out_channels + i;
+                for (int l = 0; l < layer_config->filter_height; ++l) {
+                  const int ii =
+                      CLAMPINDEX(h + l - filter_height_half, in_height);
+                  for (int m = 0; m < layer_config->filter_width;
+                       ++m, off += cstep) {
+                    const int jj =
+                        CLAMPINDEX(w + m - filter_width_half, in_width);
+                    assert(ii >= 0 && ii < in_height && jj >= 0 &&
+                           jj < in_width);
+                    sum += layer_config->weights[off] *
+                           input[k][ii * in_stride + jj];
+                  }
+                }
+              }
+              output[i][u * out_stride + v] = activation(sum);
+            }
+          }
+        }
+        break;
+      case PADDING_VALID:
+        for (int i = 0; i < layer_config->out_channels; ++i) {
+          for (int h = 0, u = 0;
+               h < in_height - layer_config->filter_height + 1;
+               h += layer_config->skip_height, ++u) {
+            for (int w = 0, v = 0;
+                 w < in_width - layer_config->filter_width + 1;
+                 w += layer_config->skip_width, ++v) {
+              float sum = layer_config->bias[i];
+              if (layer_config->skip_combine == SKIP_ADD)
+                sum += skip_buf[i][u * skip_stride + v];
+              for (int k = 0; k < layer_config->in_channels; ++k) {
+                int off = k * layer_config->out_channels + i;
+                for (int l = 0; l < layer_config->filter_height; ++l) {
+                  const int ii = h + l;
+                  for (int m = 0; m < layer_config->filter_width;
+                       ++m, off += cstep) {
+                    const int jj = w + m;
+                    assert(ii >= 0 && ii < in_height && jj >= 0 &&
+                           jj < in_width);
+                    sum += layer_config->weights[off] *
+                           input[k][ii * in_stride + jj];
+                  }
+                }
+              }
+              output[i][u * out_stride + v] = activation(sum);
+            }
+          }
+        }
+        break;
+      default: assert(0 && "Unknown padding type");
+    }
   }
 }
 

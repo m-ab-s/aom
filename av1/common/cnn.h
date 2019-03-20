@@ -34,7 +34,7 @@ enum {
   PADDING_VALID            // tensorflow's VALID padding
 } UENUM1BYTE(PADDING_TYPE);
 
-enum { NONE, RELU, SOFTSIGN } UENUM1BYTE(ACTIVATION);
+enum { NONE, RELU, SOFTSIGN, MAXPOOL } UENUM1BYTE(ACTIVATION);
 
 // Types of combining skip layers with output of current layer:
 // SKIP_NONE: no skip handling
