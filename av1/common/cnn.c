@@ -197,6 +197,13 @@ activation_fn get_activation(ACTIVATION layer_activation) {
   }
 }
 
+static int get_start_shift(int width, int filt_width, int stride) {
+  const int mod = (width % stride);
+  const int filt_off = (filt_width - 1) / 2;
+  const int dif = (mod ? mod - 1 : stride - 1);
+  return AOMMIN((dif + (filt_width % 2)) / 2, filt_off);
+}
+
 void av1_cnn_convolve_c(const float **input, int in_width, int in_height,
                         int in_stride, const CNN_LAYER_CONFIG *layer_config,
                         const float **skip_buf, int skip_stride, float **output,
@@ -345,9 +352,13 @@ void av1_cnn_convolve_c(const float **input, int in_width, int in_height,
     switch (layer_config->pad) {
       case PADDING_SAME_ZERO:
         for (int i = 0; i < layer_config->out_channels; ++i) {
-          for (int h = (in_height - 1) % layer_config->skip_height, u = 0;
+          for (int h = get_start_shift(in_height, layer_config->filter_height,
+                                       layer_config->skip_height),
+                   u = 0;
                h < in_height; h += layer_config->skip_height, ++u) {
-            for (int w = (in_width - 1) % layer_config->skip_width, v = 0;
+            for (int w = get_start_shift(in_width, layer_config->filter_width,
+                                         layer_config->skip_width),
+                     v = 0;
                  w < in_width; w += layer_config->skip_width, ++v) {
               float sum = layer_config->bias[i];
               if (layer_config->skip_combine == SKIP_ADD)
@@ -355,10 +366,12 @@ void av1_cnn_convolve_c(const float **input, int in_width, int in_height,
               for (int k = 0; k < layer_config->in_channels; ++k) {
                 int off = k * layer_config->out_channels + i;
                 for (int l = 0; l < layer_config->filter_height; ++l) {
-                  const int ii = h + l - filter_height_half;
+                  const int ii = h + l - filter_height_half +
+                                 (layer_config->filter_height - 1) % 2;
                   for (int m = 0; m < layer_config->filter_width;
                        ++m, off += cstep) {
-                    const int jj = w + m - filter_width_half;
+                    const int jj = w + m - filter_width_half +
+                                   (layer_config->filter_width - 1) % 2;
                     if (ii < 0 || ii >= in_height || jj < 0 || jj >= in_width)
                       continue;
                     sum += layer_config->weights[off] *
@@ -373,9 +386,13 @@ void av1_cnn_convolve_c(const float **input, int in_width, int in_height,
         break;
       case PADDING_SAME_REPLICATE:
         for (int i = 0; i < layer_config->out_channels; ++i) {
-          for (int h = (in_height - 1) % layer_config->skip_height, u = 0;
+          for (int h = get_start_shift(in_height, layer_config->filter_height,
+                                       layer_config->skip_height),
+                   u = 0;
                h < in_height; h += layer_config->skip_height, ++u) {
-            for (int w = (in_width - 1) % layer_config->skip_width, v = 0;
+            for (int w = get_start_shift(in_width, layer_config->filter_width,
+                                         layer_config->skip_width),
+                     v = 0;
                  w < in_width; w += layer_config->skip_width, ++v) {
               float sum = layer_config->bias[i];
               if (layer_config->skip_combine == SKIP_ADD)
@@ -384,11 +401,15 @@ void av1_cnn_convolve_c(const float **input, int in_width, int in_height,
                 int off = k * layer_config->out_channels + i;
                 for (int l = 0; l < layer_config->filter_height; ++l) {
                   const int ii =
-                      CLAMPINDEX(h + l - filter_height_half, in_height);
+                      CLAMPINDEX(h + l - filter_height_half +
+                                     (layer_config->filter_height - 1) % 2,
+                                 in_height);
                   for (int m = 0; m < layer_config->filter_width;
                        ++m, off += cstep) {
                     const int jj =
-                        CLAMPINDEX(w + m - filter_width_half, in_width);
+                        CLAMPINDEX(w + m - filter_width_half +
+                                       (layer_config->filter_width - 1) % 2,
+                                   in_width);
                     assert(ii >= 0 && ii < in_height && jj >= 0 &&
                            jj < in_width);
                     sum += layer_config->weights[off] *
