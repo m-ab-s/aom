@@ -22,9 +22,9 @@ extern "C" {
 
 struct AV1Common;
 
-#define CNN_MAX_HIDDEN_LAYERS 25
+#define CNN_MAX_HIDDEN_LAYERS 64
 #define CNN_MAX_LAYERS (CNN_MAX_HIDDEN_LAYERS + 1)
-#define CNN_MAX_CHANNELS 64
+#define CNN_MAX_CHANNELS 256
 #define CNN_MAX_BRANCHES 4
 
 enum {

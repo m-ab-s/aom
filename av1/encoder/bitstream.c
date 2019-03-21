@@ -26,7 +26,7 @@
 #endif  // CONFIG_BITSTREAM_DEBUG
 
 #if CONFIG_CNN_RESTORATION
-#include "av1/common/addition_handle_frame.h"
+#include "av1/common/cnn_wrapper.h"
 #endif  // CONFIG_CNN_RESTORATION
 
 #include "av1/common/cdef.h"

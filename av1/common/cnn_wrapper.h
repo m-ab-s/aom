@@ -9,12 +9,9 @@
  * PATENTS file, you can obtain it at www.aomedia.org/license/patent.
  */
 
-#ifndef ADDITIONHANDLE_FRAME
-#define ADDITIONHANDLE_FRAME
+#ifndef AOM_AV1_CNN_WRAPPER_H_
+#define AOM_AV1_CNN_WRAPPER_H_
 
-#include <stdint.h>
-
-#include "av1/common/blockd.h"
 #include "av1/common/onyxc_int.h"
 #include "av1/common/resize.h"
 
@@ -29,14 +26,11 @@ static INLINE int av1_use_cnn(const AV1_COMMON *cm) {
   return (cm->base_qindex > MIN_CNN_Q_INDEX) && !av1_superres_scaled(cm);
 }
 
-void addition_handle_frame(AV1_COMMON *cm, FRAME_TYPE frame_type);
+// Wrap a call to av1_restore_cnn_plane that
+// restores AOM_PLANE_Y using the model provided by trial_model.h.
+void av1_restore_cnn_plane_Y_wrapper(AV1_COMMON *cm);
 
-void addition_handle_blocks(AV1_COMMON *cm, FRAME_TYPE frame_type);
-
-uint8_t **blocks_to_cnn_secondly(uint8_t *pBuffer_y, int height, int width,
-                                 int stride, FRAME_TYPE frame_type);
 #ifdef __cplusplus
-}  // extern "C"
+}
 #endif
-
-#endif  // ADDITIONHANDLE_FRAME
+#endif  // AOM_AV1_CNN_WRAPPER_H_

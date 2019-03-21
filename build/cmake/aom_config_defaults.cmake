@@ -140,12 +140,6 @@ set_aom_config_var(CONFIG_COLLECT_COMPONENT_TIMING 0 NUMBER
 set_aom_config_var(CONFIG_ADAPT_FILTER_INTRA 0 NUMBER "AV2 experiment flag.")
 set_aom_config_var(CONFIG_DATA_DRIVEN_TX 0 NUMBER "AV2 experiment flag.")
 
-# To run the CNN_RESTORATION experiment, please follow the steps below to
-# correctly install the necessary local Python setup. 1. Using the shell,
-# install python3-pip and python3.6-dev to your machine. 2. Using the shell,
-# install the modules numpy, Pillow, and tensorflow using the command:
-# `python3.6 -m pip install <MODULE_NAME> --user`. 3. Compile cmake with the
-# flag -DCONFIG_CNN_RESTORATION=1.
 set_aom_config_var(CONFIG_CNN_RESTORATION 0 NUMBER
                    "AV2 CNN Restoration experiment flag")
 

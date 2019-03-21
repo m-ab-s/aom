@@ -478,7 +478,8 @@ void av1_cnn_deconvolve_c(const float **input, int in_width, int in_height,
 
   const int cstep = layer_config->in_channels * layer_config->out_channels;
 
-  int out_width, out_height;
+  int out_width = 0;
+  int out_height = 0;
   find_layer_output_size(in_width, in_height, layer_config, &out_width,
                          &out_height);
   switch (layer_config->pad) {
@@ -729,7 +730,8 @@ void av1_cnn_predict_c(const float **input, int in_width, int in_height,
 void av1_restore_cnn(uint8_t *dgd, int width, int height, int stride,
                      const CNN_CONFIG *cnn_config) {
   const float max_val = 255.0;
-  int out_width, out_height;
+  int out_width = 0;
+  int out_height = 0;
   av1_find_cnn_output_size(width, height, cnn_config, &out_width, &out_height);
   assert(out_width == width);
   assert(out_height == height);
@@ -793,7 +795,8 @@ void av1_restore_cnn(uint8_t *dgd, int width, int height, int stride,
 void av1_restore_cnn_highbd(uint16_t *dgd, int width, int height, int stride,
                             const CNN_CONFIG *cnn_config, int bit_depth) {
   const float max_val = (float)((1 << bit_depth) - 1);
-  int out_width, out_height;
+  int out_width = 0;
+  int out_height = 0;
   av1_find_cnn_output_size(width, height, cnn_config, &out_width, &out_height);
   assert(out_width == width);
   assert(out_height == height);

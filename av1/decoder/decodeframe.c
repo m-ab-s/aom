@@ -63,7 +63,7 @@
 #include "av1/decoder/detokenize.h"
 
 #if CONFIG_CNN_RESTORATION
-#include "av1/common/addition_handle_frame.h"
+#include "av1/common/cnn_wrapper.h"
 #endif  // CONFIG_CNN_RESTORATION
 
 #define ACCT_STR __func__
@@ -5630,7 +5630,7 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
 
 #if CONFIG_CNN_RESTORATION
     if (av1_use_cnn(cm)) {
-      addition_handle_blocks(cm, cm->cur_frame->frame_type);
+      av1_restore_cnn_plane_Y_wrapper(cm);
     } else {
 #endif  // CONFIG_CNN_RESTORATION
 
@@ -5688,6 +5688,7 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
 #if CONFIG_CNN_RESTORATION
   }
 #endif  // CONFIG_CNN_RESTORATION
+
 #if LOOP_FILTER_BITMASK
   av1_zero_array(cm->lf.lfm, cm->lf.lfm_num);
 #endif
