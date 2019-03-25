@@ -634,3 +634,63 @@ TEST_F(CNNTest, TestLargeKernelsAndStrides) {
   RunCNNTest(image_width, image_height, input_11x10, expected_11x10, cnn_config,
              image_width, INT_TOL, 0);
 }
+
+TEST_F(CNNTest, TestSoftsignSingleLayer) {
+  int image_width = 4;
+  int image_height = 4;
+  int filter_height = 3;
+  int filter_width = 3;
+  float input[] = {
+    -0.5220f, 0.8410f,  -0.8990f, -0.0090f, 0.6710f, -0.9470f,
+    -0.8240f, -0.0870f, 0.5380f,  0.4750f,  0.570f,  -0.3760f,
+    -0.6960f, -0.5940f, -0.3830f, 0.080f,
+  };
+  float expected_same[] = {
+    0.1880f,  -0.6570f, -0.1870f, -0.5220f, -0.0870f, 0.0740f,
+    -0.7030f, -0.3150f, -0.3510f, -0.5150f, 0.2170f,  0.450f,
+    -0.3020f, -0.560f,  -0.550f,  -0.5490f,
+  };
+  float expected_valid[] = {
+    0.0740f,
+    -0.7030f,
+    -0.5150f,
+    0.2170f,
+  };
+  float weights[] = {
+    -0.8370f, 0.4270f,  0.5890f, 0.8820f, 0.310f,
+    0.7770f,  -0.0110f, 0.4870f, 0.3410f,
+  };
+  float bias[] = {
+    -0.2650f,
+  };
+
+  CNN_CONFIG cnn_config = { .num_layers = 1,
+                            .is_residue = 0,
+                            .ext_width = 0,
+                            .ext_height = 0,
+                            .strict_bounds = 0,
+                            { {
+                                .deconvolve = 0,
+                                .in_channels = 1,
+                                .filter_width = filter_width,
+                                .filter_height = filter_height,
+                                .out_channels = 1,
+                                .skip_width = 1,
+                                .skip_height = 1,
+                                .maxpool = 0,
+                                .weights = weights,
+                                .bias = bias,
+                                .pad = PADDING_SAME_ZERO,
+                                .activation = SOFTSIGN,
+                                .input_copy = 0,
+                                .skip_combine = SKIP_NONE,
+                            } } };
+
+  RunCNNTest(image_width, image_height, input, expected_same, cnn_config,
+             image_width, FLOAT_TOL, 0);
+
+  cnn_config.layer_config[0].pad = PADDING_VALID;
+
+  RunCNNTest(image_width, image_height, input, expected_valid, cnn_config,
+             image_width, FLOAT_TOL, 0);
+}
