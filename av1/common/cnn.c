@@ -608,8 +608,14 @@ void av1_cnn_predict_c(const float **input, int in_width, int in_height,
         copy_tensor(&tensor1, 0, &skip_tensor);
       }
     } else {  // Non-first layer
-      assert(cnn_config->layer_config[layer].in_channels ==
-             cnn_config->layer_config[layer - 1].out_channels);
+      if (cnn_config->layer_config[layer - 1].skip_combine == SKIP_CAT) {
+        assert(cnn_config->layer_config[layer].in_channels ==
+               cnn_config->layer_config[layer - 1].out_channels +
+                   skip_tensor.channels);
+      } else {
+        assert(cnn_config->layer_config[layer].in_channels ==
+               cnn_config->layer_config[layer - 1].out_channels);
+      }
 
       // Swap tensor1 and tensor2
       swap_tensor(&tensor1, &tensor2);
