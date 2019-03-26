@@ -197,7 +197,7 @@ activation_fn get_activation(ACTIVATION layer_activation) {
   }
 }
 
-static int get_start_shift(int width, int filt_width, int stride) {
+static int get_start_shift_convolve(int width, int filt_width, int stride) {
   const int mod = (width % stride);
   const int filt_off = (filt_width - 1) / 2;
   const int dif = (mod ? mod - 1 : stride - 1);
@@ -352,12 +352,14 @@ void av1_cnn_convolve_c(const float **input, int in_width, int in_height,
     switch (layer_config->pad) {
       case PADDING_SAME_ZERO:
         for (int i = 0; i < layer_config->out_channels; ++i) {
-          for (int h = get_start_shift(in_height, layer_config->filter_height,
-                                       layer_config->skip_height),
+          for (int h = get_start_shift_convolve(in_height,
+                                                layer_config->filter_height,
+                                                layer_config->skip_height),
                    u = 0;
                h < in_height; h += layer_config->skip_height, ++u) {
-            for (int w = get_start_shift(in_width, layer_config->filter_width,
-                                         layer_config->skip_width),
+            for (int w = get_start_shift_convolve(in_width,
+                                                  layer_config->filter_width,
+                                                  layer_config->skip_width),
                      v = 0;
                  w < in_width; w += layer_config->skip_width, ++v) {
               float sum = layer_config->bias[i];
@@ -386,12 +388,14 @@ void av1_cnn_convolve_c(const float **input, int in_width, int in_height,
         break;
       case PADDING_SAME_REPLICATE:
         for (int i = 0; i < layer_config->out_channels; ++i) {
-          for (int h = get_start_shift(in_height, layer_config->filter_height,
-                                       layer_config->skip_height),
+          for (int h = get_start_shift_convolve(in_height,
+                                                layer_config->filter_height,
+                                                layer_config->skip_height),
                    u = 0;
                h < in_height; h += layer_config->skip_height, ++u) {
-            for (int w = get_start_shift(in_width, layer_config->filter_width,
-                                         layer_config->skip_width),
+            for (int w = get_start_shift_convolve(in_width,
+                                                  layer_config->filter_width,
+                                                  layer_config->skip_width),
                      v = 0;
                  w < in_width; w += layer_config->skip_width, ++v) {
               float sum = layer_config->bias[i];
@@ -457,6 +461,11 @@ void av1_cnn_convolve_c(const float **input, int in_width, int in_height,
   }
 }
 
+static int get_start_shift_deconvolve(int filt_width, int stride) {
+  const int dif = AOMMAX(filt_width - stride, 0);
+  return dif / 2;
+}
+
 void av1_cnn_deconvolve_c(const float **input, int in_width, int in_height,
                           int in_stride, const CNN_LAYER_CONFIG *layer_config,
                           const float **skip_buf, int skip_stride,
@@ -464,8 +473,6 @@ void av1_cnn_deconvolve_c(const float **input, int in_width, int in_height,
   assert(layer_config->deconvolve);
 
   const int cstep = layer_config->in_channels * layer_config->out_channels;
-  const int filter_height_half = layer_config->filter_height >> 1;
-  const int filter_width_half = layer_config->filter_width >> 1;
 
   activation_fn activation = get_activation(layer_config->activation);
   int out_width, out_height;
@@ -482,10 +489,16 @@ void av1_cnn_deconvolve_c(const float **input, int in_width, int in_height,
             for (int k = 0; k < layer_config->in_channels; ++k) {
               int off = k * layer_config->out_channels + i;
               for (int l = 0; l < layer_config->filter_height; ++l) {
-                const int h = u - l + filter_height_half - 1;
+                const int h =
+                    u - l +
+                    get_start_shift_deconvolve(layer_config->filter_height,
+                                               layer_config->skip_height);
                 for (int m = 0; m < layer_config->filter_width;
                      ++m, off += cstep) {
-                  const int w = v - m + filter_width_half - 1;
+                  const int w =
+                      v - m +
+                      get_start_shift_deconvolve(layer_config->filter_width,
+                                                 layer_config->skip_width);
                   if ((h % layer_config->skip_height) != 0 ||
                       (w % layer_config->skip_width) != 0)
                     continue;
@@ -513,10 +526,16 @@ void av1_cnn_deconvolve_c(const float **input, int in_width, int in_height,
             for (int k = 0; k < layer_config->in_channels; ++k) {
               int off = k * layer_config->out_channels + i;
               for (int l = 0; l < layer_config->filter_height; ++l) {
-                const int h = u - l + filter_height_half - 1;
+                const int h =
+                    u - l +
+                    get_start_shift_deconvolve(layer_config->filter_height,
+                                               layer_config->skip_height);
                 for (int m = 0; m < layer_config->filter_width;
                      ++m, off += cstep) {
-                  const int w = v - m + filter_width_half - 1;
+                  const int w =
+                      v - m +
+                      get_start_shift_deconvolve(layer_config->filter_width,
+                                                 layer_config->skip_width);
                   if ((h % layer_config->skip_height) != 0 ||
                       (w % layer_config->skip_width) != 0)
                     continue;
