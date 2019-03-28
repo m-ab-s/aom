@@ -19,8 +19,13 @@
 #include "config/av1_rtcd.h"
 
 #define SQR(x) ((x) * (x))
-#define FLOAT_TOL 1E-6
-#define INT_TOL 0
+
+// Best possible pixelwise guarenteed preicison given each float has at most
+// 3 specified decimals.
+#define PIXELWISE_FLOAT_TOL 1E-2
+
+#define MSE_FLOAT_TOL 1E-6
+#define MSE_INT_TOL 0
 
 namespace {
 
@@ -28,7 +33,7 @@ class CNNTest : public ::testing::Test {
  protected:
   static void RunCNNTest(int image_width, int image_height, float *input,
                          float *expected, CNN_CONFIG cnn_config, int in_stride,
-                         double tolerance, int use_rounding) {
+                         double tolerance) {
     int out_width, out_height;
     av1_find_cnn_output_size(image_width, image_height, &cnn_config, &out_width,
                              &out_height);
@@ -39,15 +44,9 @@ class CNNTest : public ::testing::Test {
     av1_cnn_predict((const float **)&input, image_width, image_height,
                     in_stride, &cnn_config, &output, out_stride);
 
-    if (use_rounding) {
-      for (int i = 0; i < out_size; ++i) {
-        output[i] = roundf(output[i]);
-      }
-    }
-
     double mse = 0;
     for (int i = 0; i < out_size; ++i) {
-      EXPECT_LE(fabsf(expected[i] - output[i]), 1)
+      EXPECT_NEAR(expected[i], output[i], PIXELWISE_FLOAT_TOL)
           << i << ": " << expected[i] << "/" << output[i] << std::endl;
       mse += SQR(expected[i] - output[i]);
     }
@@ -85,82 +84,103 @@ TEST_F(CNNTest, TestMultilayerConvolution) {
   int filter_width = 4;
 
   float input[] = {
-    2,  -1, -4, 0,  0,  -4, -4, -5, 3,  -1, 3,  1,  2,  2,  0,  0,  0,  -2, 3,
-    4,  -3, -1, -1, 3,  3,  1,  -3, -3, 3,  4,  3,  0,  -4, 0,  4,  -2, -1, -2,
-    0,  -5, 3,  -1, -2, -2, 0,  -3, -2, -4, 2,  -2, -1, 3,  -2, -3, 3,  2,  -4,
-    -3, 4,  -3, -4, -4, -3, -1, -1, 3,  -1, 0,  -2, -4, 2,  3,  0,  1,  4,  3,
-    1,  1,  2,  -1, -2, -5, 1,  -5, 1,  0,  -5, -5, -2, -3, -1, -1, -3, 1,  -4,
-    -5, -1, 4,  3,  -1, -1, 2,  -1, -3, 3,  -5, 3,  -4, -5, -5, -5, -3, 2,  0,
-    -2, -2, 2,  3,  2,  1,  2,  -4, -1, -1, 2,  -5, 3,  -5, 0,  -4, 1,  3,  -3,
-    3,  -4, -4, -4, 2,  0,  4,  4,  4,  -1, 1,  -4, -2, 0,  -2, -4, -2, 2,  0,
-    -3, 3,  -1, -4, -4, 1,  3,  -3, -3, -2, -3, -5, -4, -1, -3, -4, -3, -4, 4,
-    2,  3,  2,  -4, 3,  0,  -1, -4, 0,  -1, 2,  -1, 3,  1,  -1, -5, -3, -2, 3,
-    3,  4,  -2, -3, 3,  -1, -4, -5, 4,  -4, 1,  1,  4,  2,  -2, -3, -4, -1, 1,
-    -4, 2,  -5, 0,  -5, 1,  4,  -3, -5, -4, 1,  2,  4,  -5, 4,  1,  3,  2,  3,
-    -3, 1,  -5, 2,  -3, 2,  -1, 4,  0,  -2, 1,  -2, 4,  -2, -3, 0,  2,  -1, -1,
-    3,  -5, 0,  3,  0,  -4, 3,  -5, 3,
+    -3, 1,  -3, 2,  -2, -2, 2,  -2, 1,  -2, -3, 1,  2,  2,  2,  -2, 0,  1,  -1,
+    -3, -1, -1, 1,  0,  -3, 1,  0,  -1, 1,  0,  0,  -3, -3, -3, 0,  2,  1,  -1,
+    2,  0,  1,  -3, -1, 2,  2,  1,  -2, 0,  -1, 0,  -2, -2, -1, 1,  0,  0,  0,
+    -2, -2, -2, 1,  1,  -2, 1,  1,  -2, -2, 1,  -2, -1, -2, -3, 2,  -3, -1, 1,
+    0,  -2, -2, -2, 1,  -2, -2, -1, -1, 2,  2,  2,  -1, 1,  -3, -3, 0,  2,  0,
+    2,  1,  -3, -3, 1,  2,  2,  1,  -2, -3, 0,  -3, 0,  -3, -2, 0,  1,  1,  0,
+    -3, 2,  -1, 2,  1,  0,  1,  -2, 1,  -1, -1, 2,  0,  -2, -3, 1,  1,  -2, -1,
+    -3, -3, -1, 0,  -3, -2, 0,  0,  1,  0,  -3, -2, -1, 1,  0,  2,  1,  0,  -3,
+    -2, -3, -3, -1, 0,  -2, 2,  -1, -3, 0,  -1, -1, 2,  0,  -3, -2, -1, 0,  0,
+    1,  -2, 1,  2,  1,  2,  2,  -3, 2,  -1, 0,  0,  -1, 0,  2,  2,  -1, 2,  -2,
+    1,  1,  -3, -3, 1,  -1, -1, -2, 2,  -2, -2, 2,  -1, -3, 2,  -3, 1,  -1, -1,
+    -3, 1,  -1, 1,  0,  -3, -3, 1,  -3, -3, 0,  2,  2,  -2, -1, 2,  0,  2,  1,
+    -1, -3, 0,  0,  -1, -1, 1,  0,  2,  0,  -3, 2,  1,  0,  1,  -3, 2,  -3, -3,
+    -1, -3, -3, 2,  0,  2,  -2, 1,  -1,
   };
 
   float weights[] = {
-    3,  -5, 2,  4,  2,  4,  3,  -3, 3,  1,  0,  1,  3,  2,  1,  4,  -1, 3,  2,
-    3,  1,  4,  1,  2,  -1, 3,  0,  4,  3,  4,  -2, -3, 2,  -3, -5, 4,  1,  2,
-    -1, 4,  -4, -3, -4, -5, 2,  3,  4,  2,  -4, -2, 2,  4,  -1, 0,  -4, 3,  1,
-    -3, -5, 1,  2,  -1, -4, -1, -2, -1, -3, 2,  -3, -1, -1, -5, 4,  1,  3,  1,
-    4,  4,  4,  3,  3,  0,  3,  -1, -4, -1, 4,  1,  -2, 1,  -5, 1,  -5, 3,  1,
-    2,  -2, 3,  -4, -4, -2, 4,  -4, 2,  4,  -3, -5, -5, -3, -2, -5, 2,  0,  3,
-    -5, -3, 1,  -4, -2, 0,  -5, 2,  4,  0,  -2, -1, -4, 3,  0,  3,  2,  1,  1,
-    3,  -4, -1, -2, -5, -4, -4, -1, -4, -1, 3,  -4, 3,  -3, -5, -4, -5, 3,  -1,
-    -1, 0,  2,  0,  -1, -1, -3, 4,  -2, -4, -3, -4, -3, -5, 1,  0,  -3, -3, -3,
-    -5, 3,  3,  -2, 2,  -3, 4,  1,  -2, -2, -2, -2, -4, 4,  -2, 1,  3,  -5, -5,
-    4,  -3, -5, -1, -4, 3,  3,  -5, 3,  -3, -2, -1, -5, 2,  -5, 1,  -5, 1,  2,
-    4,  -3, 4,  -5, -5, -5, -4, 0,  1,  4,  3,  3,  1,  4,  -2, 1,  2,  0,  0,
-    2,  2,  3,  -2, -2, -3, 4,  -1, 4,  -4, -5, 2,  -5, 2,  -4, 4,  -1, -5, -4,
-    -1, 0,  3,  2,  -4, 4,  -2, 1,  2,  2,  -2, 3,  -5, 2,  -2, -2, -4, -1, -1,
-    -4, -3, 1,  -3, -5, 4,  -5, -4, 1,  -2, -3, 1,  3,  1,  4,  -4, 2,  1,  3,
-    0,  2,  3,  -3, 4,  2,  4,  -5, 3,  3,  -4, 1,  -1, 3,  1,
+    -2, 2,  -2, 2,  -1, -3, 2,  2,  0,  0,  -3, -1, -2, -3, 1,  -1, 0,  0,  0,
+    2,  -2, 2,  -2, -3, 1,  1,  1,  -3, -1, 0,  1,  2,  -2, 0,  -1, -3, -1, -2,
+    2,  -3, -3, 1,  -2, -3, 0,  2,  1,  -3, -3, -1, -3, -2, -1, -3, -1, -3, -2,
+    -1, -3, -1, -2, -2, -3, 2,  0,  -3, 0,  -3, -3, 1,  -3, -1, 0,  -1, 1,  1,
+    -1, 1,  -2, 0,  2,  0,  -3, 1,  -1, -1, 2,  0,  1,  -3, -3, 1,  2,  -3, -3,
+    1,  -3, 2,  0,  -3, 1,  2,  2,  -2, -1, -2, 1,  1,  0,  -2, -2, 1,  2,  -1,
+    -3, 1,  -2, 2,  -3, -2, -3, 2,  1,  0,  -2, 0,  1,  -3, 2,  -2, -2, 0,  2,
+    -3, 2,  0,  0,  1,  -2, 1,  1,  -2, -1, -2, 1,  -2, 0,  -2, -2, 0,  -1, -1,
+    -3, -3, -3, 1,  -3, -2, 2,  -1, 2,  0,  2,  -2, 2,  -2, 1,  -3, -3, -1, 0,
+    2,  2,  1,  -1, -3, -1, -3, 2,  1,  -2, 0,  -3, -1, -3, -1, 2,  1,  0,  2,
+    -1, 1,  0,  1,  2,  -1, -2, 2,  1,  -3, -1, -3, 0,  1,  -2, 0,  -2, -3, 0,
+    -2, 2,  2,  0,  0,  2,  -3, 2,  -3, -2, 1,  2,  -3, -3, -1, -3, 0,  -3, -3,
+    -2, -2, -2, 0,  0,  1,  0,  0,  -1, 0,  0,  -3, 0,  -3, -1, -2, 1,  -2, -1,
+    2,  -2, 0,  0,  1,  0,  -2, -1, 0,  -3, 1,  0,  -1, -3, 1,  -1, 1,  -1, -3,
+    1,  0,  1,  1,  -1, 2,  2,  0,  0,  1,  -3, 2,  -2, -2, -3, -2, -1, -2, 2,
+    0,  2,  -2, -3, -1, -3, 2,  2,  -1, 2,  2,  -1, 0,  -3, 1,
   };
 
   float bias[] = {
-    2, -1, 4, 2, -3, -1, 4,
+    1, -1, 0, 1, 1, 1, -2,
   };
 
   float expected_same[] = {
-    2412,   -1353,  -36855, -13267, -1353,  -7223,  -28091, -10749, -1390,
-    14674,  8070,   -7313,  5838,   18967,  19163,  12784,  -5344,  -7332,
-    15894,  6061,   7721,   8502,   -4010,  -312,   31069,  45410,  15857,
-    34720,  35293,  38747,  22561,  7262,   -11152, -11603, 4140,   -27075,
-    -37735, -26126, -30887, 3408,   776,    4609,   7914,   20675,  15715,
-    2733,   -5979,  2130,   31779,  30184,  -13805, 6444,   -1153,  -12613,
-    14648,  -4999,  -4238,  -19152, -18056, 15026,  9023,   -7714,  15410,
-    8405,   -1379,  -12796, 8300,   25404,  8627,   12156,  3264,   -9059,
-    -13648, 34210,  24965,  7790,   -992,   11812,  18209,  4691,   -9101,
-    -3233,  -15160, -23722, -38272, -32806, -41914, -22635, -6012,  19254,
-    -20767, -22402, -10091, -17617, -28073, -16045, 2587,   7860,   -21220,
-    -14177, 10389,  -4491,  248,    19575,  15685,  -1359,  -17640, -3632,
-    -13841, -49222, -32822, -26854, 5381,   4693,   -8310,  9519,   3587,
-    -16949, -24650, -27537, -26269, -29909, -30116, -45298, -36634, -45915,
-    -18383, -6127,  24443,  24706,  4035,   23397,  22435,  -15255, 11452,
-    -5270,  -27475, -260,   -42195, -7682,  -37525, -22571, -12201, -33152,
-    5887,   17927,  40896,  13472,  26607,  10167,  -46,    -25187, -29185,
-    -18555, 16337,  -16873, -18328, -19878, -32956, -10003, -17438, 5109,
-    -29156, -63238, -20460, -27501, -20033, -22191, -336,   21400,  4625,
-    14473,  27766,  13775,  30088,  -4718,  206,    -15532, -46812, -7503,
-    -22897, 9217,   -24039, -28894, -2080,  -13868, 20672,  17776,  9825,
-    -13053, 13383,  4378,   -58379, -49322, -41920, -38439, -31943, -46785,
-    -18418, -8618,  -11034, -18459, -12504, -16734, 13054,  14207,  12332,
-    -4743,  -25130, -15763, -10218, -29675, -38421, -16386, -12881, -32016,
-    -12225, -24790, -30425, 8730,   24811,  173,    17422,  -450,   -3268,
-    11600,  -36617, -33881, -17016, -14122, -24865, -731,   -1673,  -22517,
-    10455,  -12649, -7425,  -16148, -7160,  -3403,  -943,   663,    -28774,
-    -10435, -35024, -4955,  -14204, -42191, -12220, -5036,  -14723, 3055,
-    -6123,  -11845, 20722,  -13351,
+    -1125, 2926,  6406,  631,   -1244, 97,    -1454, 2526,  1065,  3292,  3464,
+    2553,  -330,  532,   1038,  1182,  -402,  3758,  3392,  9854,  4365,  1408,
+    4736,  3134,  3838,  2409,  3221,  4350,  6750,  4045,  815,   1188,  2959,
+    9802,  9590,  4572,  5740,  4253,  1701,  7974,  7012,  6854,  7093,  3907,
+    4539,  3886,  4267,  3505,  465,   7824,  9219,  10026, 7968,  957,   2295,
+    5594,  10811, 9641,  5950,  10043, 8783,  3132,  1421,  1110,  4108,  13929,
+    10660, -84,   -61,   3932,  -180,  6811,  13393, 15147, 15640, 9337,  6961,
+    3808,  1604,  1398,  1047,  6739,  10144, 6517,  4698,  2678,  7389,  2595,
+    5248,  12075, 11272, 13951, 8820,  1090,  2199,  2206,  2788,  12116, 6683,
+    2612,  -291,  3183,  9414,  12316, 14524, 12333, 13208, 7832,  4664,  4657,
+    3534,  1298,  -666,  4250,  7707,  9103,  5760,  688,   9571,  15782, 14203,
+    14878, 17339, 14684, 8690,  5671,  875,   1429,  1531,  6173,  2984,  5558,
+    2996,  7928,  6733,  16117, 15262, 12757, 7980,  3923,  4795,  5973,  2051,
+    455,   -1922, 1816,  5906,  3321,  10908, 10910, 7377,  12204, 12809, 11195,
+    7451,  6666,  74,    -1645, -35,   -391,  3813,  7324,  892,   1656,  6095,
+    12193, 14648, 12156, 14663, 10251, 10325, 7821,  3925,  323,   697,   442,
+    1324,  4669,  7002,  5485,  5171,  5086,  10582, 11053, 9709,  11353, 8543,
+    5256,  2873,  235,   -628,  1496,  1878,  -867,  3420,  6865,  5937,  10182,
+    13277, 10069, 10789, 5998,  624,   -2082, 4417,  1258,  -1080, -819,  -1430,
+    1033,  5220,  6335,  8471,  8980,  11908, 14430, 12584, 8404,  1576,  -803,
+    985,   1481,  1367,  -193,  873,   3684,  2288,  6676,  9477,  11155, 9602,
+    9707,  10507, 4739,  3174,  -575,  -178,  3002,  1710,  423,   -477,  554,
+    3088,  2029,  5113,  5000,  3771,  6090,  5365,  1185,  2855,  399,   -312,
+    -1577, 176,   955,
+  };
+
+  float expected_replicate[] = {
+    13768, 13528, 12999, 6906,  4618,  4043,  2611,  9955,  6685,  4776,  2753,
+    1036,  3063,  4544,  5183,  7349,  12451, 12501, 9131,  12753, 8908,  4058,
+    6299,  7542,  7115,  3307,  3360,  3543,  9754,  7808,  5991,  9019,  14320,
+    14919, 12492, 6871,  7373,  3336,  2085,  10604, 9377,  6882,  5009,  3103,
+    6220,  6278,  7588,  10196, 11045, 11563, 11842, 11911, 8279,  2030,  1858,
+    6368,  12123, 9909,  6347,  10345, 9365,  4038,  1673,  3051,  16492, 16649,
+    12276, 408,   -301,  4122,  -654,  7864,  14038, 15279, 15315, 9744,  8243,
+    5298,  746,   380,   9824,  9124,  10895, 6640,  4712,  2669,  6980,  2759,
+    5385,  12345, 11336, 13129, 8600,  2370,  3682,  5219,  12407, 13123, 6784,
+    2612,  -291,  3183,  9414,  12316, 14524, 12333, 13397, 7543,  3916,  4153,
+    4477,  4314,  7983,  8418,  9163,  9103,  5760,  688,   9571,  15782, 14203,
+    14878, 17718, 14570, 7940,  6642,  5094,  7133,  9964,  10219, 3224,  5558,
+    2996,  7928,  6733,  16117, 15262, 12757, 7958,  4401,  5187,  5476,  5529,
+    6055,  2206,  3909,  6015,  3321,  10908, 10910, 7377,  12204, 12809, 11195,
+    6967,  6840,  481,   -1600, 274,   1,     10373, 8514,  1123,  2117,  6758,
+    12736, 16223, 13585, 15988, 11771, 10600, 7918,  4156,  2840,  3111,  3287,
+    6359,  7652,  8813,  6530,  6967,  7789,  13671, 13990, 13247, 13241, 9836,
+    5251,  3024,  2313,  1834,  4187,  2637,  -1312, 2139,  7378,  7665,  11933,
+    15591, 15314, 15678, 9531,  2820,  -1516, 3400,  1314,  22,    363,   -2896,
+    -898,  5906,  7308,  10650, 12975, 16978, 20370, 18817, 12381, 4118,  -861,
+    -137,  236,   1802,  1632,  -350,  2334,  3400,  8680,  14064, 18216, 18675,
+    21765, 22871, 11491, 4937,  -1555, -11,   1669,  2392,  3265,  -5254, -217,
+    5001,  8063,  13444, 18884, 19706, 22794, 21064, 9545,  6689,  -7,    289,
+    -2021, 504,   2347,
   };
 
   float expected_valid[] = {
-    -14177, 10389, -4491,  248,    19575,  15685,  -1359,
-    9519,   3587,  -16949, -24650, -27537, -26269, -29909,
-    23397,  22435, -15255, 11452,  -5270,  -27475, -260,
-    13472,  26607, 10167,  -46,    -25187, -29185, -18555,
+    2612,  -291,  3183,  9414,  12316, 14524, 12333, 9103,  5760,  688,
+    9571,  15782, 14203, 14878, 5558,  2996,  7928,  6733,  16117, 15262,
+    12757, 3321,  10908, 10910, 7377,  12204, 12809, 11195,
   };
 
   CNN_CONFIG cnn_config = { .num_layers = 3,
@@ -224,14 +244,21 @@ TEST_F(CNNTest, TestMultilayerConvolution) {
   AssignLayerWeightsBiases(&cnn_config, weights, bias);
 
   RunCNNTest(image_width, image_height, input, expected_same, cnn_config,
-             image_width, INT_TOL, 1);
+             image_width, MSE_INT_TOL);
+
+  for (int i = 0; i < cnn_config.num_layers; ++i) {
+    cnn_config.layer_config[i].pad = PADDING_SAME_REPLICATE;
+  }
+
+  RunCNNTest(image_width, image_height, input, expected_replicate, cnn_config,
+             image_width, MSE_INT_TOL);
 
   for (int i = 0; i < cnn_config.num_layers; ++i) {
     cnn_config.layer_config[i].pad = PADDING_VALID;
   }
 
   RunCNNTest(image_width, image_height, input, expected_valid, cnn_config,
-             image_width, INT_TOL, 1);
+             image_width, MSE_INT_TOL);
 }
 
 TEST_F(CNNTest, TestRELUSingleLayer) {
@@ -240,24 +267,30 @@ TEST_F(CNNTest, TestRELUSingleLayer) {
   int filter_height = 5;
   int filter_width = 4;
   float input[] = {
-    2,  -5, 4,  -2, 1, 1,  -3, 0,  2,  -4, -4, -5, 4,  0, 3,  4,
-    0,  -4, -1, -5, 4, -2, -3, 3,  -5, 1,  -2, -4, 1,  2, 0,  4,
-    1,  0,  4,  -4, 2, 4,  -3, 4,  -2, 3,  4,  -3, -4, 4, -2, 4,
-    -3, 3,  -3, 4,  2, -3, 2,  -2, -5, -3, 2,  3,  0,  2, 0,  0,
+    0, -2, -3, 1,  -1, 2,  -2, 1,  -3, -1, 0,  1,  -2, -3, -2, -2,
+    1, -3, 2,  -3, -1, -1, 2,  0,  -2, -3, 0,  -2, -3, 1,  -1, -1,
+    2, -2, 0,  -2, -3, -3, 1,  1,  -1, 1,  0,  1,  -3, 0,  2,  2,
+    0, -3, 1,  -3, 2,  -2, 1,  -1, -1, -2, -3, -2, -1, -3, -2, -1,
   };
   float expected_same[] = {
-    67, 0,  63, 0,  54, 0,  0, 0,  33, 36, 77, 0, 50, 0,  0,  52,
-    11, 63, 71, 0,  43, 0,  0, 18, 0,  0,  89, 0, 22, 5,  0,  31,
-    0,  0,  0,  40, 0,  17, 0, 14, 0,  0,  0,  3, 0,  0,  0,  6,
-    0,  58, 0,  0,  39, 0,  0, 13, 24, 0,  0,  6, 16, 11, 22, 0,
+    9,  0,  1,  1,  0,  3,  0,  19, 0,  12, 10, 0,  0,  0,  5, 0,
+    0,  18, 21, 7,  19, 4,  3,  0,  0,  9,  16, 0,  11, 16, 0, 11,
+    12, 2,  0,  11, 0,  16, 6,  0,  8,  22, 13, 10, 12, 0,  0, 0,
+    0,  1,  2,  12, 29, 6,  10, 0,  13, 0,  0,  5,  8,  10, 0, 0,
+  };
+  float expected_replicate[] = {
+    18, 17, 12, 2,  0,  0,  5,  11, 0,  17, 22, 6,  0,  0,  17, 0,
+    0,  18, 21, 7,  19, 4,  3,  5,  3,  9,  16, 0,  11, 16, 0,  3,
+    3,  2,  0,  11, 0,  16, 6,  0,  17, 22, 13, 10, 12, 0,  0,  0,
+    0,  4,  1,  10, 30, 7,  10, 0,  23, 8,  0,  13, 15, 19, 8,  10,
   };
   float expected_valid[] = {
-    63, 71, 0, 43, 0, 0, 89, 0, 22, 5, 0, 0, 40, 0, 17, 0, 0, 3, 0, 0,
+    18, 21, 7, 19, 4, 9, 16, 0, 11, 16, 2, 0, 11, 0, 16, 22, 13, 10, 12, 0,
   };
   float weights[] = {
-    -4, -1, 4, 1, -3, 0, -3, -4, 2, 3, -5, 1, -5, -1, -5, 1, -1, 3, -3, -5,
+    -2, -3, 1, 2, 2, -2, -3, 0, -3, 2, 2, -3, -3, -2, 0, 1, 2, 0, -1, -1,
   };
-  float bias[] = { 1 };
+  float bias[] = { -3 };
 
   CNN_CONFIG cnn_config = { .num_layers = 1,
                             .is_residue = 0,
@@ -281,14 +314,18 @@ TEST_F(CNNTest, TestRELUSingleLayer) {
                                 .skip_combine = SKIP_NONE,
                             } } };
 
-  // Run multilayer same_zero test
   RunCNNTest(image_width, image_height, input, expected_same, cnn_config,
-             image_width, INT_TOL, 1);
+             image_width, MSE_INT_TOL);
+
+  cnn_config.layer_config[0].pad = PADDING_SAME_REPLICATE;
+
+  RunCNNTest(image_width, image_height, input, expected_replicate, cnn_config,
+             image_width, MSE_INT_TOL);
 
   cnn_config.layer_config[0].pad = PADDING_VALID;
 
   RunCNNTest(image_width, image_height, input, expected_valid, cnn_config,
-             image_width, INT_TOL, 1);
+             image_width, MSE_INT_TOL);
 }
 
 TEST_F(CNNTest, TestVaryingStridesVaryingDimImages) {
@@ -354,7 +391,7 @@ TEST_F(CNNTest, TestVaryingStridesVaryingDimImages) {
   };
 
   RunCNNTest(image_width, image_height, input, expected_1, cnn_config,
-             image_width, INT_TOL, 0);
+             image_width, MSE_INT_TOL);
 
   cnn_config.layer_config[0].skip_width = 6;
   cnn_config.layer_config[0].skip_height = 7;
@@ -363,7 +400,7 @@ TEST_F(CNNTest, TestVaryingStridesVaryingDimImages) {
     21, -50, 41, 20, 72, 127, -21, 103, 62, -37, 83, -3,
   };
   RunCNNTest(image_width, image_height, input, expected_2, cnn_config,
-             image_width, INT_TOL, 0);
+             image_width, MSE_INT_TOL);
 
   cnn_config.layer_config[0].skip_width = 3;
   cnn_config.layer_config[0].skip_height = 10;
@@ -373,7 +410,7 @@ TEST_F(CNNTest, TestVaryingStridesVaryingDimImages) {
     -41, 15,  -44, 40, -62, 63, 38,  27,  47,
   };
   RunCNNTest(image_width, image_height, input, expected_3, cnn_config,
-             image_width, INT_TOL, 0);
+             image_width, MSE_INT_TOL);
 
   cnn_config.layer_config[0].skip_width = 10;
   cnn_config.layer_config[0].skip_height = 3;
@@ -383,7 +420,7 @@ TEST_F(CNNTest, TestVaryingStridesVaryingDimImages) {
   };
 
   RunCNNTest(image_width, image_height, input, expected_4, cnn_config,
-             image_width, INT_TOL, 0);
+             image_width, MSE_INT_TOL);
 }
 
 TEST_F(CNNTest, TestMaxPool) {
@@ -434,7 +471,7 @@ TEST_F(CNNTest, TestMaxPool) {
                             } };
 
   RunCNNTest(image_width, image_height, input, expected, cnn_config,
-             image_width, INT_TOL, 0);
+             image_width, MSE_INT_TOL);
 }
 
 TEST_F(CNNTest, TestDeconvolveNonActivationSingleLayerSingleKernel) {
@@ -508,13 +545,13 @@ TEST_F(CNNTest, TestDeconvolveNonActivationSingleLayerSingleKernel) {
                             } } };
 
   RunCNNTest(image_width, image_height, input, expected_1_same, cnn_config,
-             image_width, INT_TOL, 1);
+             image_width, MSE_INT_TOL);
 
   // Change padding to valid
   cnn_config.layer_config[0].pad = PADDING_VALID;
 
   RunCNNTest(image_width, image_height, input, expected_1_valid, cnn_config,
-             image_width, INT_TOL, 1);
+             image_width, MSE_INT_TOL);
 
   float expected_12_same[] = {
     15,  -12,  6,    36,   -9,   -528, 377,  -184, 513,  558,  -12,  24,
@@ -559,12 +596,12 @@ TEST_F(CNNTest, TestDeconvolveNonActivationSingleLayerSingleKernel) {
   cnn_config.layer_config[0].pad = PADDING_SAME_ZERO;
 
   RunCNNTest(image_width, image_height, input, expected_12_same, cnn_config,
-             image_width, INT_TOL, 1);
+             image_width, MSE_INT_TOL);
 
   // Change padding to valid
   cnn_config.layer_config[0].pad = PADDING_VALID;
   RunCNNTest(image_width, image_height, input, expected_12_valid, cnn_config,
-             image_width, INT_TOL, 1);
+             image_width, MSE_INT_TOL);
 
   cnn_config.layer_config[0].filter_width = 4;
   cnn_config.layer_config[0].filter_height = 3;
@@ -631,12 +668,12 @@ TEST_F(CNNTest, TestDeconvolveNonActivationSingleLayerSingleKernel) {
   cnn_config.layer_config[0].pad = PADDING_SAME_ZERO;
 
   RunCNNTest(image_width, image_height, input, expected_2_same, cnn_config,
-             image_width, INT_TOL, 1);
+             image_width, MSE_INT_TOL);
 
   cnn_config.layer_config[0].pad = PADDING_VALID;
 
   RunCNNTest(image_width, image_height, input, expected_2_valid, cnn_config,
-             image_width, INT_TOL, 1);
+             image_width, MSE_INT_TOL);
 
   cnn_config.layer_config[0].skip_width = 2;
   cnn_config.layer_config[0].skip_height = 5;
@@ -700,12 +737,12 @@ TEST_F(CNNTest, TestDeconvolveNonActivationSingleLayerSingleKernel) {
   cnn_config.layer_config[0].pad = PADDING_SAME_ZERO;
 
   RunCNNTest(image_width, image_height, input, expected_21_same, cnn_config,
-             image_width, INT_TOL, 1);
+             image_width, MSE_INT_TOL);
 
   cnn_config.layer_config[0].pad = PADDING_VALID;
 
   RunCNNTest(image_width, image_height, input, expected_21_valid, cnn_config,
-             image_width, INT_TOL, 1);
+             image_width, MSE_INT_TOL);
 }
 
 TEST_F(CNNTest, TestLargeKernelsAndStrides) {
@@ -778,7 +815,7 @@ TEST_F(CNNTest, TestLargeKernelsAndStrides) {
   int image_width = 11;
 
   RunCNNTest(image_width, image_height, input_10x11, expected_10x11, cnn_config,
-             image_width, INT_TOL, 0);
+             image_width, MSE_INT_TOL);
 
   float input_11x10[] = {
     -2, -2, 3,  -5, -1, -3, 1,  3,  2,  1,  1,  -5, 4,  1,  3,  -5, 3,  -3, -5,
@@ -842,36 +879,60 @@ TEST_F(CNNTest, TestLargeKernelsAndStrides) {
   image_width = 10;
 
   RunCNNTest(image_width, image_height, input_11x10, expected_11x10, cnn_config,
-             image_width, INT_TOL, 0);
+             image_width, MSE_INT_TOL);
 }
 
 TEST_F(CNNTest, TestSoftsignSingleLayer) {
-  int image_width = 4;
-  int image_height = 4;
-  int filter_height = 3;
-  int filter_width = 3;
+  int image_width = 8;
+  int image_height = 8;
+  int filter_height = 5;
+  int filter_width = 4;
   float input[] = {
-    -0.5220f, 0.8410f,  -0.8990f, -0.0090f, 0.6710f, -0.9470f,
-    -0.8240f, -0.0870f, 0.5380f,  0.4750f,  0.570f,  -0.3760f,
-    -0.6960f, -0.5940f, -0.3830f, 0.080f,
+    -0.5220f, 0.8410f,  -0.8990f, -0.0090f, 0.6710f,  -0.9470f, -0.8240f,
+    -0.0870f, 0.5380f,  0.4750f,  0.570f,   -0.3760f, -0.6960f, -0.5940f,
+    -0.3830f, 0.080f,   -0.0980f, -0.4940f, -0.4030f, 0.9460f,  -0.6020f,
+    0.4220f,  0.6190f,  0.6640f,  -0.9210f, -0.1470f, -0.2480f, -0.1120f,
+    -0.580f,  -0.0650f, 0.3330f,  0.9860f,  -0.7430f, 0.7610f,  0.4840f,
+    0.1030f,  0.9570f,  0.6120f,  -0.5240f, -0.1220f, -0.5850f, -0.270f,
+    0.7840f,  -0.9790f, 0.7290f,  -0.30f,   -0.6460f, 0.0780f,  0.4750f,
+    -0.0510f, 0.4550f,  0.3850f,  -0.7230f, 0.4460f,  -0.6260f, -0.810f,
+    0.8720f,  -0.2120f, -0.580f,  -0.9510f, -0.8430f, -0.1340f, -0.0850f,
+    0.9190f,
   };
   float expected_same[] = {
-    0.1880f,  -0.6570f, -0.1870f, -0.5220f, -0.0870f, 0.0740f,
-    -0.7030f, -0.3150f, -0.3510f, -0.5150f, 0.2170f,  0.450f,
-    -0.3020f, -0.560f,  -0.550f,  -0.5490f,
+    0.430f,   0.660f,  0.5510f,  -0.610f,  0.450f,  -0.1610f, 0.0520f,  0.3240f,
+    0.6820f,  0.3820f, 0.6360f,  0.7480f,  0.3080f, 0.090f,   0.3910f,  0.1730f,
+    0.340f,   0.6660f, -0.4990f, 0.4280f,  0.1540f, 0.120f,   0.4670f,  0.6150f,
+    -0.3880f, 0.7590f, 0.4190f,  0.7350f,  0.5310f, -0.5160f, -0.1760f, 0.6790f,
+    -0.6780f, 0.5470f, 0.5750f,  -0.6420f, 0.7210f, -0.4620f, 0.5430f,  0.770f,
+    -0.1990f, 0.3950f, 0.7860f,  -0.4380f, 0.7540f, 0.2640f,  -0.6430f, 0.4510f,
+    -0.1260f, 0.1590f, -0.2110f, -0.0560f, 0.6570f, 0.680f,   0.5870f,  0.4720f,
+    0.4040f,  0.3630f, 0.670f,   0.2360f,  0.410f,  0.6980f,  -0.5350f, 0.3940f,
+  };
+  float expected_replicate[] = {
+    0.540f,   0.7230f,  -0.3530f, -0.2130f, 0.7440f,  -0.4470f, -0.6260f,
+    -0.2050f, 0.7230f,  0.4630f,  0.5920f,  0.7440f,  0.6080f,  0.3130f,
+    -0.5670f, -0.4720f, 0.5480f,  0.6660f,  -0.4990f, 0.4280f,  0.1540f,
+    0.120f,   0.3390f,  0.6090f,  0.4160f,  0.7590f,  0.4190f,  0.7350f,
+    0.5310f,  -0.5160f, -0.490f,  0.4450f,  -0.610f,  0.5470f,  0.5750f,
+    -0.6420f, 0.7210f,  -0.4620f, 0.3150f,  0.7370f,  -0.5820f, 0.3950f,
+    0.7860f,  -0.4380f, 0.7540f,  0.2640f,  -0.7430f, -0.5340f, -0.6270f,
+    0.4430f,  0.4730f,  0.4570f,  0.7450f,  0.630f,   0.2620f,  0.3140f,
+    -0.1840f, 0.1810f,  0.7210f,  0.2760f,  0.6430f,  0.6720f,  -0.4390f,
+    0.2040f,
   };
   float expected_valid[] = {
-    0.0740f,
-    -0.7030f,
-    -0.5150f,
-    0.2170f,
+    0.6660f,  -0.4990f, 0.4280f,  0.1540f,  0.120f,  0.7590f,  0.4190f,
+    0.7350f,  0.5310f,  -0.5160f, 0.5470f,  0.5750f, -0.6420f, 0.7210f,
+    -0.4620f, 0.3950f,  0.7860f,  -0.4380f, 0.7540f, 0.2640f,
   };
   float weights[] = {
-    -0.8370f, 0.4270f,  0.5890f, 0.8820f, 0.310f,
-    0.7770f,  -0.0110f, 0.4870f, 0.3410f,
+    0.6210f,  0.3710f,  -0.2770f, -0.7230f, -0.2450f, 0.6770f,  0.3080f,
+    -0.9880f, -0.080f,  0.7190f,  -0.6760f, -0.0170f, -0.8970f, 0.8260f,
+    0.7390f,  -0.4550f, -0.4260f, -0.6330f, 0.0880f,  -0.9390f,
   };
   float bias[] = {
-    -0.2650f,
+    0.750f,
   };
 
   CNN_CONFIG cnn_config = { .num_layers = 1,
@@ -897,12 +958,17 @@ TEST_F(CNNTest, TestSoftsignSingleLayer) {
                             } } };
 
   RunCNNTest(image_width, image_height, input, expected_same, cnn_config,
-             image_width, FLOAT_TOL, 0);
+             image_width, MSE_FLOAT_TOL);
+
+  cnn_config.layer_config[0].pad = PADDING_SAME_REPLICATE;
+
+  RunCNNTest(image_width, image_height, input, expected_replicate, cnn_config,
+             image_width, MSE_FLOAT_TOL);
 
   cnn_config.layer_config[0].pad = PADDING_VALID;
 
   RunCNNTest(image_width, image_height, input, expected_valid, cnn_config,
-             image_width, FLOAT_TOL, 0);
+             image_width, MSE_FLOAT_TOL);
 }
 
 TEST_F(CNNTest, TestSkipTensorAdd) {
@@ -1014,7 +1080,7 @@ TEST_F(CNNTest, TestSkipTensorAdd) {
   AssignLayerWeightsBiases(&cnn_config, weights, bias);
 
   RunCNNTest(image_width, image_height, input, expected, cnn_config,
-             image_width, FLOAT_TOL, 0);
+             image_width, MSE_INT_TOL);
 }
 
 TEST_F(CNNTest, TestSkipTensorConcatenation) {
@@ -1127,5 +1193,5 @@ TEST_F(CNNTest, TestSkipTensorConcatenation) {
   AssignLayerWeightsBiases(&cnn_config, weights, bias);
 
   RunCNNTest(image_width, image_height, input, expected, cnn_config,
-             image_width, FLOAT_TOL, 0);
+             image_width, MSE_INT_TOL);
 }
