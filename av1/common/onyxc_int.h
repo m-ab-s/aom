@@ -574,6 +574,9 @@ typedef struct AV1Common {
 #endif
   const cfg_options_t *options;
   int is_decoding;
+#if CONFIG_CNN_RESTORATION
+  int use_cnn;
+#endif  // CONFIG_CNN_RESTORATION
 } AV1_COMMON;
 
 // TODO(hkuang): Don't need to lock the whole pool after implementing atomic

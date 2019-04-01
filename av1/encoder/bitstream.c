@@ -1658,7 +1658,7 @@ static void write_modes_sb(AV1_COMP *const cpi, const TileInfo *const tile,
   if (mi_row >= cm->mi_rows || mi_col >= cm->mi_cols) return;
 
 #if CONFIG_CNN_RESTORATION
-  if (!av1_use_cnn(cm)) {
+  if (!cm->use_cnn) {
 #endif  // CONFIG_CNN_RESTORATION
     const int num_planes = av1_num_planes(cm);
     for (int plane = 0; plane < num_planes; ++plane) {
@@ -1983,6 +1983,14 @@ static void loop_restoration_write_sb_coeffs(const AV1_COMMON *const cm,
     }
   }
 }
+
+#if CONFIG_CNN_RESTORATION
+static void encode_cnn(AV1_COMMON *cm, struct aom_write_bit_buffer *wb) {
+  if (av1_use_cnn(cm)) {
+    aom_wb_write_bit(wb, cm->use_cnn);
+  }
+}
+#endif  // CONFIG_CNN_RESTORATION
 
 static void encode_loopfilter(AV1_COMMON *cm, struct aom_write_bit_buffer *wb) {
   assert(!cm->coded_lossless);
@@ -3147,7 +3155,8 @@ static void write_uncompressed_header_obu(AV1_COMP *cpi,
     if (!cm->coded_lossless) {
       encode_loopfilter(cm, wb);
     }
-    if (!av1_use_cnn(cm)) {
+    encode_cnn(cm, wb);
+    if (!cm->use_cnn) {
       if (!cm->coded_lossless) {
         encode_cdef(cm, wb);
       }

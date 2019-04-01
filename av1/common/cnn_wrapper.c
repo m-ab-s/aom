@@ -13,6 +13,7 @@
 #include <stdio.h>
 
 #include "av1/common/cnn.h"
+#include "av1/common/cnn_wrapper.h"
 #include "av1/common/onyxc_int.h"
 
 #include "av1/models/intra_frame_model/qp22.h"
@@ -21,11 +22,10 @@
 #include "av1/models/intra_frame_model/qp53.h"
 #include "av1/models/intra_frame_model/qp63.h"
 
-void av1_restore_cnn_plane_Y_wrapper(AV1_COMMON *cm) {
+static void av1_restore_cnn_plane_Y_wrapper(AV1_COMMON *cm, int plane) {
   // TODO(logangw): Add infrastructure to choose models.
-  int plane = AOM_PLANE_Y;
   int qindex = cm->base_qindex;
-  if (qindex <= 100) {
+  if (qindex <= MIN_CNN_Q_INDEX) {
     return;
   } else if (qindex < 128) {
     av1_restore_cnn_plane(cm, &model22, plane);
@@ -38,4 +38,13 @@ void av1_restore_cnn_plane_Y_wrapper(AV1_COMMON *cm) {
   } else {
     av1_restore_cnn_plane(cm, &model63, plane);
   }
+}
+
+void av1_encode_restore_cnn(AV1_COMMON *cm) {
+  // TODO(logangw): Add mechanism to restore AOM_PLANE_U and AOM_PLANE_V.
+  av1_restore_cnn_plane_Y_wrapper(cm, AOM_PLANE_Y);
+}
+
+void av1_decode_restore_cnn(AV1_COMMON *cm) {
+  av1_restore_cnn_plane_Y_wrapper(cm, AOM_PLANE_Y);
 }

@@ -19,16 +19,16 @@
 extern "C" {
 #endif
 
-// Minimum base_qindex needed to run CNN_RESTORATION.
+// Minimum base_qindex needed to run cnn.
 #define MIN_CNN_Q_INDEX 100
 
 static INLINE int av1_use_cnn(const AV1_COMMON *cm) {
-  return (cm->base_qindex > MIN_CNN_Q_INDEX) && !av1_superres_scaled(cm);
+  return ((cm->base_qindex > MIN_CNN_Q_INDEX) && !av1_superres_scaled(cm));
 }
 
-// Wrap a call to av1_restore_cnn_plane that
-// restores AOM_PLANE_Y using the model provided by trial_model.h.
-void av1_restore_cnn_plane_Y_wrapper(AV1_COMMON *cm);
+void av1_encode_restore_cnn(AV1_COMMON *cm);
+
+void av1_decode_restore_cnn(AV1_COMMON *cm);
 
 #ifdef __cplusplus
 }
