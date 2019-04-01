@@ -123,11 +123,11 @@ static void concat_tensor(const TENSOR *src, TENSOR *dst) {
   copy_tensor(src, dst_channels, dst);
 }
 
-static INLINE int check_tensor_equal_dims(TENSOR *t1, TENSOR *t2) {
+int check_tensor_equal_dims(TENSOR *t1, TENSOR *t2) {
   return (t1->width == t2->width && t1->height == t2->height);
 }
 
-static INLINE int check_tensor_equal_size(TENSOR *t1, TENSOR *t2) {
+int check_tensor_equal_size(TENSOR *t1, TENSOR *t2) {
   return (t1->channels == t2->channels && t1->width == t2->width &&
           t1->height == t2->height);
 }
@@ -231,7 +231,7 @@ void av1_cnn_convolve_c(const float **input, int in_width, int in_height,
                      ww < AOMMIN(in_width, w + layer_config->skip_width);
                      ++ww) {
                   float sum = layer_config->bias[i];
-                  if (layer_config->skip_combine == SKIP_ADD)
+                  if (layer_config->branch_combine_type == BRANCH_ADD)
                     sum += skip_buf[i][u * skip_stride + v];
                   for (int k = 0; k < layer_config->in_channels; ++k) {
                     int off = k * layer_config->out_channels + i;
@@ -273,7 +273,7 @@ void av1_cnn_convolve_c(const float **input, int in_width, int in_height,
                      ww < AOMMIN(in_width, w + layer_config->skip_width);
                      ++ww) {
                   float sum = layer_config->bias[i];
-                  if (layer_config->skip_combine == SKIP_ADD)
+                  if (layer_config->branch_combine_type == BRANCH_ADD)
                     sum += skip_buf[i][u * skip_stride + v];
                   for (int k = 0; k < layer_config->in_channels; ++k) {
                     int off = k * layer_config->out_channels + i;
@@ -318,7 +318,7 @@ void av1_cnn_convolve_c(const float **input, int in_width, int in_height,
                      ww < AOMMIN(in_width, w + layer_config->skip_width);
                      ++ww) {
                   float sum = layer_config->bias[i];
-                  if (layer_config->skip_combine == SKIP_ADD)
+                  if (layer_config->branch_combine_type == BRANCH_ADD)
                     sum += skip_buf[i][u * skip_stride + v];
                   for (int k = 0; k < layer_config->in_channels; ++k) {
                     int off = k * layer_config->out_channels + i;
@@ -363,7 +363,7 @@ void av1_cnn_convolve_c(const float **input, int in_width, int in_height,
                      v = 0;
                  w < in_width; w += layer_config->skip_width, ++v) {
               float sum = layer_config->bias[i];
-              if (layer_config->skip_combine == SKIP_ADD)
+              if (layer_config->branch_combine_type == BRANCH_ADD)
                 sum += skip_buf[i][u * skip_stride + v];
               for (int k = 0; k < layer_config->in_channels; ++k) {
                 int off = k * layer_config->out_channels + i;
@@ -399,7 +399,7 @@ void av1_cnn_convolve_c(const float **input, int in_width, int in_height,
                      v = 0;
                  w < in_width; w += layer_config->skip_width, ++v) {
               float sum = layer_config->bias[i];
-              if (layer_config->skip_combine == SKIP_ADD)
+              if (layer_config->branch_combine_type == BRANCH_ADD)
                 sum += skip_buf[i][u * skip_stride + v];
               for (int k = 0; k < layer_config->in_channels; ++k) {
                 int off = k * layer_config->out_channels + i;
@@ -435,7 +435,7 @@ void av1_cnn_convolve_c(const float **input, int in_width, int in_height,
                  w < in_width - layer_config->filter_width + 1;
                  w += layer_config->skip_width, ++v) {
               float sum = layer_config->bias[i];
-              if (layer_config->skip_combine == SKIP_ADD)
+              if (layer_config->branch_combine_type == BRANCH_ADD)
                 sum += skip_buf[i][u * skip_stride + v];
               for (int k = 0; k < layer_config->in_channels; ++k) {
                 int off = k * layer_config->out_channels + i;
@@ -484,7 +484,7 @@ void av1_cnn_deconvolve_c(const float **input, int in_width, int in_height,
         for (int u = 0; u < out_height; ++u) {
           for (int v = 0; v < out_width; ++v) {
             float sum = layer_config->bias[i];
-            if (layer_config->skip_combine == SKIP_ADD)
+            if (layer_config->branch_combine_type == BRANCH_ADD)
               sum += skip_buf[i][u * skip_stride + v];
             for (int k = 0; k < layer_config->in_channels; ++k) {
               int off = k * layer_config->out_channels + i;
@@ -521,7 +521,7 @@ void av1_cnn_deconvolve_c(const float **input, int in_width, int in_height,
         for (int u = 0; u < out_height; ++u) {
           for (int v = 0; v < out_width; ++v) {
             float sum = layer_config->bias[i];
-            if (layer_config->skip_combine == SKIP_ADD)
+            if (layer_config->branch_combine_type == BRANCH_ADD)
               sum += skip_buf[i][u * skip_stride + v];
             for (int k = 0; k < layer_config->in_channels; ++k) {
               int off = k * layer_config->out_channels + i;
@@ -560,7 +560,7 @@ void av1_cnn_deconvolve_c(const float **input, int in_width, int in_height,
         for (int u = 0; u < out_height; ++u) {
           for (int v = 0; v < out_width; ++v) {
             float sum = layer_config->bias[i];
-            if (layer_config->skip_combine == SKIP_ADD)
+            if (layer_config->branch_combine_type == BRANCH_ADD)
               sum += skip_buf[i][u * skip_stride + v];
             for (int k = 0; k < layer_config->in_channels; ++k) {
               int off = k * layer_config->out_channels + i;
@@ -593,99 +593,123 @@ void av1_cnn_deconvolve_c(const float **input, int in_width, int in_height,
 void av1_cnn_predict_c(const float **input, int in_width, int in_height,
                        int in_stride, const CNN_CONFIG *cnn_config,
                        float **output, int out_stride) {
-  TENSOR tensor1 = { 0 };
-  TENSOR tensor2 = { 0 };
-  TENSOR skip_tensor = { 0 };
+  TENSOR tensor1[CNN_MAX_BRANCHES] = { 0 };
+  TENSOR tensor2[CNN_MAX_BRANCHES] = { 0 };
 
   int i_width, i_height;
   int o_width = 0, o_height = 0;
-
-  init_tensor(&tensor1);
-  init_tensor(&tensor2);
-  init_tensor(&skip_tensor);
+  for (int b = 0; b < CNN_MAX_BRANCHES; ++b) {
+    init_tensor(&tensor1[b]);
+    init_tensor(&tensor2[b]);
+  }
 
   for (int layer = 0; layer < cnn_config->num_layers; ++layer) {
-    if (layer == 0) {  // First layer
-      assign_tensor(&tensor1, input,
+    const int branch = cnn_config->layer_config[layer].branch;
+    if (layer == 0) {       // First layer
+      assert(branch == 0);  // First layer must be primary branch
+      assign_tensor(&tensor1[branch], input,
                     cnn_config->layer_config[layer].in_channels, in_width,
                     in_height, in_stride);
       if (cnn_config->num_layers == 1) {  // single layer case
-        assign_tensor(&tensor2, (const float **)output,
+        assign_tensor(&tensor2[branch], (const float **)output,
                       cnn_config->layer_config[layer].out_channels, in_width,
                       in_height, out_stride);
       } else {  // more than one layer case
         find_layer_output_size(in_width, in_height,
                                &cnn_config->layer_config[layer], &o_width,
                                &o_height);
-        realloc_tensor(&tensor2, cnn_config->layer_config[layer].out_channels,
-                       o_width, o_height);
+        realloc_tensor(&tensor2[branch],
+                       cnn_config->layer_config[layer].out_channels, o_width,
+                       o_height);
       }
-      if (cnn_config->layer_config[layer].input_copy) {
-        realloc_tensor(&skip_tensor,
-                       cnn_config->layer_config[layer].in_channels, in_width,
-                       in_height);
-        copy_tensor(&tensor1, 0, &skip_tensor);
+      if (cnn_config->layer_config[layer].input_to_branch != branch) {
+        // Copy input tensor to output tensor of branch
+        realloc_tensor(
+            &tensor2[cnn_config->layer_config[layer].input_to_branch],
+            cnn_config->layer_config[layer].in_channels, in_width, in_height);
+        copy_tensor(&tensor1[branch], 0,
+                    &tensor2[cnn_config->layer_config[layer].input_to_branch]);
       }
     } else {  // Non-first layer
-      if (cnn_config->layer_config[layer - 1].skip_combine == SKIP_CAT) {
-        assert(cnn_config->layer_config[layer].in_channels ==
-               cnn_config->layer_config[layer - 1].out_channels +
-                   skip_tensor.channels);
-      } else {
-        assert(cnn_config->layer_config[layer].in_channels ==
-               cnn_config->layer_config[layer - 1].out_channels);
-      }
-
       // Swap tensor1 and tensor2
-      swap_tensor(&tensor1, &tensor2);
+      swap_tensor(&tensor1[branch], &tensor2[branch]);
 
       i_width = o_width;
       i_height = o_height;
-      if (cnn_config->layer_config[layer].input_copy) {
-        realloc_tensor(&skip_tensor,
-                       cnn_config->layer_config[layer].in_channels, i_width,
-                       i_height);
-        copy_tensor(&tensor1, 0, &skip_tensor);
+      if (cnn_config->layer_config[layer].input_to_branch) {
+        realloc_tensor(
+            &tensor2[cnn_config->layer_config[layer].input_to_branch],
+            cnn_config->layer_config[layer].in_channels, i_width, i_height);
+        copy_tensor(&tensor1[branch], 0,
+                    &tensor2[cnn_config->layer_config[layer].input_to_branch]);
       }
       find_layer_output_size(i_width, i_height,
                              &cnn_config->layer_config[layer], &o_width,
                              &o_height);
       if (layer < cnn_config->num_layers - 1) {  // Non-last layer
-        realloc_tensor(&tensor2, cnn_config->layer_config[layer].out_channels,
-                       o_width, o_height);
-      } else {  // Last layer
-        free_tensor(&tensor2);
-        assign_tensor(&tensor2, (const float **)output,
+        realloc_tensor(&tensor2[branch],
+                       cnn_config->layer_config[layer].out_channels, o_width,
+                       o_height);
+      } else {                // Last layer
+        assert(branch == 0);  // Last layer must be primary branch
+        free_tensor(&tensor2[branch]);
+        assign_tensor(&tensor2[branch], (const float **)output,
                       cnn_config->layer_config[layer].out_channels, o_width,
                       o_height, out_stride);
       }
     }
-    assert(IMPLIES(cnn_config->layer_config[layer].skip_combine == SKIP_ADD,
-                   check_tensor_equal_size(&skip_tensor, &tensor2)));
-    assert(IMPLIES(cnn_config->layer_config[layer].skip_combine == SKIP_CAT,
-                   check_tensor_equal_dims(&skip_tensor, &tensor2)));
+    // If we are combining branches make sure that the branch to combine
+    // is different from the current branch.
+    assert(IMPLIES(
+        cnn_config->layer_config[layer].branch_combine_type != BRANCH_NOC,
+        branch != cnn_config->layer_config[layer].branch_to_combine));
+    assert(IMPLIES(
+        cnn_config->layer_config[layer].branch_combine_type == BRANCH_ADD,
+        check_tensor_equal_size(
+            &tensor2[cnn_config->layer_config[layer].branch_to_combine],
+            &tensor2[branch])));
+    assert(IMPLIES(
+        cnn_config->layer_config[layer].branch_combine_type == BRANCH_CAT,
+        check_tensor_equal_dims(
+            &tensor2[cnn_config->layer_config[layer].branch_to_combine],
+            &tensor2[branch])));
 
-    assert(tensor1.channels == cnn_config->layer_config[layer].in_channels);
-    assert(tensor2.channels == cnn_config->layer_config[layer].out_channels);
+    // Check consistency of input and output channels
+    assert(tensor1[branch].channels ==
+           cnn_config->layer_config[layer].in_channels);
+    assert(tensor2[branch].channels ==
+           cnn_config->layer_config[layer].out_channels);
+
     if (!cnn_config->layer_config[layer].deconvolve) {
-      av1_cnn_convolve((const float **)tensor1.buf, tensor1.width,
-                       tensor1.height, tensor1.stride,
-                       &cnn_config->layer_config[layer],
-                       (const float **)skip_tensor.buf, skip_tensor.stride,
-                       tensor2.buf, tensor2.stride);
+      av1_cnn_convolve(
+          (const float **)tensor1[branch].buf, tensor1[branch].width,
+          tensor1[branch].height, tensor1[branch].stride,
+          &cnn_config->layer_config[layer],
+          (const float **)
+              tensor2[cnn_config->layer_config[layer].branch_to_combine]
+                  .buf,
+          tensor2[cnn_config->layer_config[layer].branch_to_combine].stride,
+          tensor2[branch].buf, tensor2[branch].stride);
     } else {
-      av1_cnn_deconvolve((const float **)tensor1.buf, tensor1.width,
-                         tensor1.height, tensor1.stride,
-                         &cnn_config->layer_config[layer],
-                         (const float **)skip_tensor.buf, skip_tensor.stride,
-                         tensor2.buf, tensor2.stride);
+      av1_cnn_deconvolve(
+          (const float **)tensor1[branch].buf, tensor1[branch].width,
+          tensor1[branch].height, tensor1[branch].stride,
+          &cnn_config->layer_config[layer],
+          (const float **)
+              tensor2[cnn_config->layer_config[layer].branch_to_combine]
+                  .buf,
+          tensor2[cnn_config->layer_config[layer].branch_to_combine].stride,
+          tensor2[branch].buf, tensor2[branch].stride);
     }
-    if (cnn_config->layer_config[layer].skip_combine == SKIP_CAT) {
-      concat_tensor(&skip_tensor, &tensor2);
+    if (cnn_config->layer_config[layer].branch_combine_type == BRANCH_CAT) {
+      concat_tensor(&tensor2[cnn_config->layer_config[layer].branch_to_combine],
+                    &tensor2[branch]);
     }
   }
-  free_tensor(&tensor1);
-  free_tensor(&skip_tensor);
+  for (int b = 0; b < CNN_MAX_BRANCHES; ++b) {
+    free_tensor(&tensor1[b]);
+    free_tensor(&tensor2[b]);
+  }
 }
 
 void av1_restore_cnn(uint8_t *dgd, int width, int height, int stride,

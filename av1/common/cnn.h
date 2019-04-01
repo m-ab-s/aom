@@ -25,6 +25,7 @@ struct AV1Common;
 #define CNN_MAX_HIDDEN_LAYERS 25
 #define CNN_MAX_LAYERS (CNN_MAX_HIDDEN_LAYERS + 1)
 #define CNN_MAX_CHANNELS 64
+#define CNN_MAX_BRANCHES 4
 
 enum {
   PADDING_SAME_ZERO,       // tensorflow's SAME padding with pixels outside
@@ -36,13 +37,15 @@ enum {
 
 enum { NONE, RELU, SOFTSIGN } UENUM1BYTE(ACTIVATION);
 
-// Types of combining skip layers with output of current layer:
-// SKIP_NONE: no skip handling
-// SKIP_ADD: Add previously stored skip tensor to output of layer
-// SKIP_CAT: Concatenate previously stored skip tensor to output of layer
-enum { SKIP_NONE, SKIP_ADD, SKIP_CAT } UENUM1BYTE(SKIP_COMBINE);
+// Types of combining branches with output of current layer:
+// BRANCH_NOC: no branch combining
+// BRANCH_ADD: Add previously stored branch tensor to output of layer
+// BRANCH_CAT: Concatenate branch tensor to output of layer
+enum { BRANCH_NOC, BRANCH_ADD, BRANCH_CAT } UENUM1BYTE(BRANCH_COMBINE);
 
 struct CNN_LAYER_CONFIG {
+  int branch;      // branch index in [0, CNN_MAX_BRANCHES - 1], where
+                   // 0 refers to the primary branch.
   int deconvolve;  // whether this is a deconvolution layer.
                    // 0: If skip_width or skip_height are > 1, then we
                    // reduce resolution
@@ -62,9 +65,13 @@ struct CNN_LAYER_CONFIG {
   float *bias;     // array of length out_channels
   PADDING_TYPE pad;       // padding type
   ACTIVATION activation;  // the activation function to use after convolution
-  int input_copy;  // copy the input tensor to the current layer and store for
-                   // future use as a skip addition/concatenation layer
-  SKIP_COMBINE skip_combine;
+  int input_to_branch;  // copy the input tensor to the current layer and store
+                        // for future use as secondary branch with the given
+                        // number. The branch number can be [1, CNN_MAX_BRANCHES
+                        // - 1].
+  BRANCH_COMBINE branch_combine_type;
+  int branch_to_combine;  // index of the branch to combine with if
+                          // branch_combine_type != BRANCH_NOC
 };
 
 struct CNN_CONFIG {

@@ -190,6 +190,7 @@ TEST_F(CNNTest, TestMultilayerConvolution) {
                             .strict_bounds = 0,
                             {
                                 {
+                                    .branch = 0,
                                     .deconvolve = 0,
                                     .in_channels = 1,
                                     .filter_width = filter_width,
@@ -202,10 +203,12 @@ TEST_F(CNNTest, TestMultilayerConvolution) {
                                     .bias = nullptr,
                                     .pad = PADDING_SAME_ZERO,
                                     .activation = NONE,
-                                    .input_copy = 0,
-                                    .skip_combine = SKIP_NONE,
+                                    .input_to_branch = 0,
+                                    .branch_combine_type = BRANCH_NOC,
+                                    .branch_to_combine = 0,
                                 },
                                 {
+                                    .branch = 0,
                                     .deconvolve = 0,
                                     .in_channels = 3,
                                     .filter_width = filter_width,
@@ -218,10 +221,12 @@ TEST_F(CNNTest, TestMultilayerConvolution) {
                                     .bias = nullptr,
                                     .pad = PADDING_SAME_ZERO,
                                     .activation = NONE,
-                                    .input_copy = 0,
-                                    .skip_combine = SKIP_NONE,
+                                    .input_to_branch = 0,
+                                    .branch_combine_type = BRANCH_NOC,
+                                    .branch_to_combine = 0,
                                 },
                                 {
+                                    .branch = 0,
                                     .deconvolve = 0,
                                     .in_channels = 3,
                                     .filter_width = filter_width,
@@ -234,8 +239,9 @@ TEST_F(CNNTest, TestMultilayerConvolution) {
                                     .bias = nullptr,
                                     .pad = PADDING_SAME_ZERO,
                                     .activation = NONE,
-                                    .input_copy = 0,
-                                    .skip_combine = SKIP_NONE,
+                                    .input_to_branch = 0,
+                                    .branch_combine_type = BRANCH_NOC,
+                                    .branch_to_combine = 0,
                                 },
                             } };
 
@@ -298,6 +304,7 @@ TEST_F(CNNTest, TestRELUSingleLayer) {
                             .ext_height = 0,
                             .strict_bounds = 0,
                             { {
+                                .branch = 0,
                                 .deconvolve = 0,
                                 .in_channels = 1,
                                 .filter_width = filter_width,
@@ -310,8 +317,9 @@ TEST_F(CNNTest, TestRELUSingleLayer) {
                                 .bias = bias,
                                 .pad = PADDING_SAME_ZERO,
                                 .activation = RELU,
-                                .input_copy = 0,
-                                .skip_combine = SKIP_NONE,
+                                .input_to_branch = 0,
+                                .branch_combine_type = BRANCH_NOC,
+                                .branch_to_combine = 0,
                             } } };
 
   RunCNNTest(image_width, image_height, input, expected_same, cnn_config,
@@ -343,6 +351,7 @@ TEST_F(CNNTest, TestVaryingStridesVaryingDimImages) {
                             .strict_bounds = 0,
                             {
                                 {
+                                    .branch = 0,
                                     .deconvolve = 0,
                                     .in_channels = 1,
                                     .filter_width = 4,
@@ -355,8 +364,9 @@ TEST_F(CNNTest, TestVaryingStridesVaryingDimImages) {
                                     .bias = bias,
                                     .pad = PADDING_SAME_ZERO,
                                     .activation = NONE,
-                                    .input_copy = 0,
-                                    .skip_combine = SKIP_NONE,
+                                    .input_to_branch = 0,
+                                    .branch_combine_type = BRANCH_NOC,
+                                    .branch_to_combine = 0,
                                 },
                             } };
 
@@ -453,6 +463,7 @@ TEST_F(CNNTest, TestMaxPool) {
                             .strict_bounds = 0,
                             {
                                 {
+                                    .branch = 0,
                                     .deconvolve = 0,
                                     .in_channels = 1,
                                     .filter_width = 3,
@@ -465,8 +476,9 @@ TEST_F(CNNTest, TestMaxPool) {
                                     .bias = bias,
                                     .pad = PADDING_SAME_ZERO,
                                     .activation = NONE,
-                                    .input_copy = 0,
-                                    .skip_combine = SKIP_NONE,
+                                    .input_to_branch = 0,
+                                    .branch_combine_type = BRANCH_NOC,
+                                    .branch_to_combine = 0,
                                 },
                             } };
 
@@ -528,6 +540,7 @@ TEST_F(CNNTest, TestDeconvolveNonActivationSingleLayerSingleKernel) {
                             .ext_height = 0,
                             .strict_bounds = 0,
                             { {
+                                .branch = 0,
                                 .deconvolve = 1,
                                 .in_channels = 1,
                                 .filter_width = 5,
@@ -540,8 +553,9 @@ TEST_F(CNNTest, TestDeconvolveNonActivationSingleLayerSingleKernel) {
                                 .bias = bias_1,
                                 .pad = PADDING_SAME_ZERO,
                                 .activation = NONE,
-                                .input_copy = 0,
-                                .skip_combine = SKIP_NONE,
+                                .input_to_branch = 0,
+                                .branch_combine_type = BRANCH_NOC,
+                                .branch_to_combine = 0,
                             } } };
 
   RunCNNTest(image_width, image_height, input, expected_1_same, cnn_config,
@@ -795,6 +809,7 @@ TEST_F(CNNTest, TestLargeKernelsAndStrides) {
                             .ext_height = 0,
                             .strict_bounds = 0,
                             { {
+                                .branch = 0,
                                 .deconvolve = 0,
                                 .in_channels = 1,
                                 .filter_width = 23,
@@ -807,8 +822,9 @@ TEST_F(CNNTest, TestLargeKernelsAndStrides) {
                                 .bias = bias_10x11,
                                 .pad = PADDING_SAME_ZERO,
                                 .activation = NONE,
-                                .input_copy = 0,
-                                .skip_combine = SKIP_NONE,
+                                .input_to_branch = 0,
+                                .branch_combine_type = BRANCH_NOC,
+                                .branch_to_combine = 0,
                             } } };
 
   int image_height = 10;
@@ -941,6 +957,7 @@ TEST_F(CNNTest, TestSoftsignSingleLayer) {
                             .ext_height = 0,
                             .strict_bounds = 0,
                             { {
+                                .branch = 0,
                                 .deconvolve = 0,
                                 .in_channels = 1,
                                 .filter_width = filter_width,
@@ -953,8 +970,9 @@ TEST_F(CNNTest, TestSoftsignSingleLayer) {
                                 .bias = bias,
                                 .pad = PADDING_SAME_ZERO,
                                 .activation = SOFTSIGN,
-                                .input_copy = 0,
-                                .skip_combine = SKIP_NONE,
+                                .input_to_branch = 0,
+                                .branch_combine_type = BRANCH_NOC,
+                                .branch_to_combine = 0,
                             } } };
 
   RunCNNTest(image_width, image_height, input, expected_same, cnn_config,
@@ -1011,6 +1029,7 @@ TEST_F(CNNTest, TestSkipTensorAdd) {
                             .ext_height = 0,
                             .strict_bounds = 0,
                             { {
+                                  .branch = 0,
                                   .deconvolve = 0,
                                   .in_channels = 1,
                                   .filter_width = filter_width,
@@ -1023,10 +1042,12 @@ TEST_F(CNNTest, TestSkipTensorAdd) {
                                   .bias = bias,
                                   .pad = PADDING_SAME_ZERO,
                                   .activation = NONE,
-                                  .input_copy = 0,
-                                  .skip_combine = SKIP_NONE,
+                                  .input_to_branch = 0,
+                                  .branch_combine_type = BRANCH_NOC,
+                                  .branch_to_combine = 0,
                               },
                               {
+                                  .branch = 0,
                                   .deconvolve = 0,
                                   .in_channels = channels,
                                   .filter_width = filter_width,
@@ -1039,10 +1060,12 @@ TEST_F(CNNTest, TestSkipTensorAdd) {
                                   .bias = nullptr,
                                   .pad = PADDING_SAME_ZERO,
                                   .activation = NONE,
-                                  .input_copy = 1,
-                                  .skip_combine = SKIP_NONE,
+                                  .input_to_branch = 1,
+                                  .branch_combine_type = BRANCH_NOC,
+                                  .branch_to_combine = 0,
                               },
                               {
+                                  .branch = 0,
                                   .deconvolve = 0,
                                   .in_channels = channels,
                                   .filter_width = filter_width,
@@ -1055,10 +1078,12 @@ TEST_F(CNNTest, TestSkipTensorAdd) {
                                   .bias = nullptr,
                                   .pad = PADDING_SAME_ZERO,
                                   .activation = NONE,
-                                  .input_copy = 0,
-                                  .skip_combine = SKIP_ADD,
+                                  .input_to_branch = 0,
+                                  .branch_combine_type = BRANCH_ADD,
+                                  .branch_to_combine = 1,
                               },
                               {
+                                  .branch = 0,
                                   .deconvolve = 0,
                                   .in_channels = channels,
                                   .filter_width = filter_width,
@@ -1071,8 +1096,9 @@ TEST_F(CNNTest, TestSkipTensorAdd) {
                                   .bias = nullptr,
                                   .pad = PADDING_SAME_ZERO,
                                   .activation = NONE,
-                                  .input_copy = 0,
-                                  .skip_combine = SKIP_NONE,
+                                  .input_to_branch = 0,
+                                  .branch_combine_type = BRANCH_NOC,
+                                  .branch_to_combine = 0,
                               } } };
 
   // Weights and biases need to be specified separately because
@@ -1124,6 +1150,7 @@ TEST_F(CNNTest, TestSkipTensorConcatenation) {
                             .ext_height = 0,
                             .strict_bounds = 0,
                             { {
+                                  .branch = 0,
                                   .deconvolve = 0,
                                   .in_channels = 1,
                                   .filter_width = filter_width,
@@ -1136,10 +1163,12 @@ TEST_F(CNNTest, TestSkipTensorConcatenation) {
                                   .bias = bias,
                                   .pad = PADDING_SAME_ZERO,
                                   .activation = NONE,
-                                  .input_copy = 0,
-                                  .skip_combine = SKIP_NONE,
+                                  .input_to_branch = 0,
+                                  .branch_combine_type = BRANCH_NOC,
+                                  .branch_to_combine = 0,
                               },
                               {
+                                  .branch = 0,
                                   .deconvolve = 0,
                                   .in_channels = channels,
                                   .filter_width = filter_width,
@@ -1152,10 +1181,12 @@ TEST_F(CNNTest, TestSkipTensorConcatenation) {
                                   .bias = nullptr,
                                   .pad = PADDING_SAME_ZERO,
                                   .activation = NONE,
-                                  .input_copy = 1,
-                                  .skip_combine = SKIP_NONE,
+                                  .input_to_branch = 1,
+                                  .branch_combine_type = BRANCH_NOC,
+                                  .branch_to_combine = 0,
                               },
                               {
+                                  .branch = 0,
                                   .deconvolve = 0,
                                   .in_channels = channels,
                                   .filter_width = filter_width,
@@ -1168,10 +1199,12 @@ TEST_F(CNNTest, TestSkipTensorConcatenation) {
                                   .bias = nullptr,
                                   .pad = PADDING_SAME_ZERO,
                                   .activation = NONE,
-                                  .input_copy = 0,
-                                  .skip_combine = SKIP_CAT,
+                                  .input_to_branch = 0,
+                                  .branch_combine_type = BRANCH_CAT,
+                                  .branch_to_combine = 1,
                               },
                               {
+                                  .branch = 0,
                                   .deconvolve = 0,
                                   .in_channels = channels + channels,
                                   .filter_width = filter_width,
@@ -1184,8 +1217,9 @@ TEST_F(CNNTest, TestSkipTensorConcatenation) {
                                   .bias = nullptr,
                                   .pad = PADDING_SAME_ZERO,
                                   .activation = NONE,
-                                  .input_copy = 0,
-                                  .skip_combine = SKIP_NONE,
+                                  .input_to_branch = 0,
+                                  .branch_combine_type = BRANCH_NOC,
+                                  .branch_to_combine = 0,
                               } } };
 
   // Weights and biases need to be specified separately because
