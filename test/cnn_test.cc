@@ -203,9 +203,9 @@ TEST_F(CNNTest, TestMultilayerConvolution) {
                                     .bias = nullptr,
                                     .pad = PADDING_SAME_ZERO,
                                     .activation = NONE,
-                                    .input_to_branch = 0,
+                                    .input_to_branches = 0,
                                     .branch_combine_type = BRANCH_NOC,
-                                    .branch_to_combine = 0,
+                                    .branches_to_combine = 0,
                                 },
                                 {
                                     .branch = 0,
@@ -221,9 +221,9 @@ TEST_F(CNNTest, TestMultilayerConvolution) {
                                     .bias = nullptr,
                                     .pad = PADDING_SAME_ZERO,
                                     .activation = NONE,
-                                    .input_to_branch = 0,
+                                    .input_to_branches = 0,
                                     .branch_combine_type = BRANCH_NOC,
-                                    .branch_to_combine = 0,
+                                    .branches_to_combine = 0,
                                 },
                                 {
                                     .branch = 0,
@@ -239,9 +239,9 @@ TEST_F(CNNTest, TestMultilayerConvolution) {
                                     .bias = nullptr,
                                     .pad = PADDING_SAME_ZERO,
                                     .activation = NONE,
-                                    .input_to_branch = 0,
+                                    .input_to_branches = 0,
                                     .branch_combine_type = BRANCH_NOC,
-                                    .branch_to_combine = 0,
+                                    .branches_to_combine = 0,
                                 },
                             } };
 
@@ -317,9 +317,9 @@ TEST_F(CNNTest, TestRELUSingleLayer) {
                                 .bias = bias,
                                 .pad = PADDING_SAME_ZERO,
                                 .activation = RELU,
-                                .input_to_branch = 0,
+                                .input_to_branches = 0,
                                 .branch_combine_type = BRANCH_NOC,
-                                .branch_to_combine = 0,
+                                .branches_to_combine = 0,
                             } } };
 
   RunCNNTest(image_width, image_height, input, expected_same, cnn_config,
@@ -364,9 +364,9 @@ TEST_F(CNNTest, TestVaryingStridesVaryingDimImages) {
                                     .bias = bias,
                                     .pad = PADDING_SAME_ZERO,
                                     .activation = NONE,
-                                    .input_to_branch = 0,
+                                    .input_to_branches = 0,
                                     .branch_combine_type = BRANCH_NOC,
-                                    .branch_to_combine = 0,
+                                    .branches_to_combine = 0,
                                 },
                             } };
 
@@ -476,9 +476,9 @@ TEST_F(CNNTest, TestMaxPool) {
                                     .bias = bias,
                                     .pad = PADDING_SAME_ZERO,
                                     .activation = NONE,
-                                    .input_to_branch = 0,
+                                    .input_to_branches = 0,
                                     .branch_combine_type = BRANCH_NOC,
-                                    .branch_to_combine = 0,
+                                    .branches_to_combine = 0,
                                 },
                             } };
 
@@ -553,9 +553,9 @@ TEST_F(CNNTest, TestDeconvolveNonActivationSingleLayerSingleKernel) {
                                 .bias = bias_1,
                                 .pad = PADDING_SAME_ZERO,
                                 .activation = NONE,
-                                .input_to_branch = 0,
+                                .input_to_branches = 0,
                                 .branch_combine_type = BRANCH_NOC,
-                                .branch_to_combine = 0,
+                                .branches_to_combine = 0,
                             } } };
 
   RunCNNTest(image_width, image_height, input, expected_1_same, cnn_config,
@@ -822,9 +822,9 @@ TEST_F(CNNTest, TestLargeKernelsAndStrides) {
                                 .bias = bias_10x11,
                                 .pad = PADDING_SAME_ZERO,
                                 .activation = NONE,
-                                .input_to_branch = 0,
+                                .input_to_branches = 0,
                                 .branch_combine_type = BRANCH_NOC,
-                                .branch_to_combine = 0,
+                                .branches_to_combine = 0,
                             } } };
 
   int image_height = 10;
@@ -970,9 +970,9 @@ TEST_F(CNNTest, TestSoftsignSingleLayer) {
                                 .bias = bias,
                                 .pad = PADDING_SAME_ZERO,
                                 .activation = SOFTSIGN,
-                                .input_to_branch = 0,
+                                .input_to_branches = 0,
                                 .branch_combine_type = BRANCH_NOC,
-                                .branch_to_combine = 0,
+                                .branches_to_combine = 0,
                             } } };
 
   RunCNNTest(image_width, image_height, input, expected_same, cnn_config,
@@ -1042,9 +1042,9 @@ TEST_F(CNNTest, TestSkipTensorAdd) {
                                   .bias = bias,
                                   .pad = PADDING_SAME_ZERO,
                                   .activation = NONE,
-                                  .input_to_branch = 0,
+                                  .input_to_branches = 0,
                                   .branch_combine_type = BRANCH_NOC,
-                                  .branch_to_combine = 0,
+                                  .branches_to_combine = 0,
                               },
                               {
                                   .branch = 0,
@@ -1060,9 +1060,9 @@ TEST_F(CNNTest, TestSkipTensorAdd) {
                                   .bias = nullptr,
                                   .pad = PADDING_SAME_ZERO,
                                   .activation = NONE,
-                                  .input_to_branch = 1,
+                                  .input_to_branches = 0x02,
                                   .branch_combine_type = BRANCH_NOC,
-                                  .branch_to_combine = 0,
+                                  .branches_to_combine = 0,
                               },
                               {
                                   .branch = 0,
@@ -1078,9 +1078,9 @@ TEST_F(CNNTest, TestSkipTensorAdd) {
                                   .bias = nullptr,
                                   .pad = PADDING_SAME_ZERO,
                                   .activation = NONE,
-                                  .input_to_branch = 0,
+                                  .input_to_branches = 0,
                                   .branch_combine_type = BRANCH_ADD,
-                                  .branch_to_combine = 1,
+                                  .branches_to_combine = 0x02,
                               },
                               {
                                   .branch = 0,
@@ -1096,9 +1096,9 @@ TEST_F(CNNTest, TestSkipTensorAdd) {
                                   .bias = nullptr,
                                   .pad = PADDING_SAME_ZERO,
                                   .activation = NONE,
-                                  .input_to_branch = 0,
+                                  .input_to_branches = 0,
                                   .branch_combine_type = BRANCH_NOC,
-                                  .branch_to_combine = 0,
+                                  .branches_to_combine = 0,
                               } } };
 
   // Weights and biases need to be specified separately because
@@ -1163,9 +1163,9 @@ TEST_F(CNNTest, TestSkipTensorConcatenation) {
                                   .bias = bias,
                                   .pad = PADDING_SAME_ZERO,
                                   .activation = NONE,
-                                  .input_to_branch = 0,
+                                  .input_to_branches = 0,
                                   .branch_combine_type = BRANCH_NOC,
-                                  .branch_to_combine = 0,
+                                  .branches_to_combine = 0,
                               },
                               {
                                   .branch = 0,
@@ -1181,9 +1181,9 @@ TEST_F(CNNTest, TestSkipTensorConcatenation) {
                                   .bias = nullptr,
                                   .pad = PADDING_SAME_ZERO,
                                   .activation = NONE,
-                                  .input_to_branch = 1,
+                                  .input_to_branches = 0x02,
                                   .branch_combine_type = BRANCH_NOC,
-                                  .branch_to_combine = 0,
+                                  .branches_to_combine = 0,
                               },
                               {
                                   .branch = 0,
@@ -1199,9 +1199,9 @@ TEST_F(CNNTest, TestSkipTensorConcatenation) {
                                   .bias = nullptr,
                                   .pad = PADDING_SAME_ZERO,
                                   .activation = NONE,
-                                  .input_to_branch = 0,
+                                  .input_to_branches = 0,
                                   .branch_combine_type = BRANCH_CAT,
-                                  .branch_to_combine = 1,
+                                  .branches_to_combine = 0x02,
                               },
                               {
                                   .branch = 0,
@@ -1217,9 +1217,9 @@ TEST_F(CNNTest, TestSkipTensorConcatenation) {
                                   .bias = nullptr,
                                   .pad = PADDING_SAME_ZERO,
                                   .activation = NONE,
-                                  .input_to_branch = 0,
+                                  .input_to_branches = 0,
                                   .branch_combine_type = BRANCH_NOC,
-                                  .branch_to_combine = 0,
+                                  .branches_to_combine = 0,
                               } } };
 
   // Weights and biases need to be specified separately because
