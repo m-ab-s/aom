@@ -766,6 +766,9 @@ typedef struct AV1_COMP {
 
   YV12_BUFFER_CONFIG last_frame_uf;
   YV12_BUFFER_CONFIG trial_frame_rst;
+#if CONFIG_CNN_RESTORATION
+  YV12_BUFFER_CONFIG cnn_buffer;
+#endif  // CONFIG_CNN_RESTORATION
 
   // Ambient reconstruction err target for force key frames
   int64_t ambient_err;
