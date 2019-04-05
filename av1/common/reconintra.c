@@ -1015,9 +1015,9 @@ static int intra_edge_filter_strength(int bs0, int bs1, int delta, int type) {
 void av1_filter_intra_edge_c(uint8_t *p, int sz, int strength) {
   if (!strength) return;
 
-  const int kernel[INTRA_EDGE_FILT][INTRA_EDGE_TAPS] = {
-    { 0, 4, 8, 4, 0 }, { 0, 5, 6, 5, 0 }, { 2, 4, 4, 4, 2 }
-  };
+  const int kernel[INTRA_EDGE_FILT][INTRA_EDGE_TAPS] = { { 0, 4, 8, 4, 0 },
+                                                         { 0, 5, 6, 5, 0 },
+                                                         { 2, 4, 4, 4, 2 } };
   const int filt = strength - 1;
   uint8_t edge[129];
 
@@ -1048,9 +1048,9 @@ static void filter_intra_edge_corner(uint8_t *p_above, uint8_t *p_left) {
 void av1_filter_intra_edge_high_c(uint16_t *p, int sz, int strength) {
   if (!strength) return;
 
-  const int kernel[INTRA_EDGE_FILT][INTRA_EDGE_TAPS] = {
-    { 0, 4, 8, 4, 0 }, { 0, 5, 6, 5, 0 }, { 2, 4, 4, 4, 2 }
-  };
+  const int kernel[INTRA_EDGE_FILT][INTRA_EDGE_TAPS] = { { 0, 4, 8, 4, 0 },
+                                                         { 0, 5, 6, 5, 0 },
+                                                         { 2, 4, 4, 4, 2 } };
   const int filt = strength - 1;
   uint16_t edge[129];
 
@@ -1393,8 +1393,9 @@ static const int adapt_filter_intra_num_taps[ADAPT_FILTER_INTRA_MODES] = {
 static const int adapt_filter_intra_use_top_right[ADAPT_FILTER_INTRA_MODES] = {
   0, 0, 1, 0, 1, 0, 1
 };
-static const int adapt_filter_intra_use_bottom_left[ADAPT_FILTER_INTRA_MODES] =
-    { 0, 1, 0, 1, 0, 1, 0 };
+static const int
+    adapt_filter_intra_use_bottom_left[ADAPT_FILTER_INTRA_MODES] = { 0, 1, 0, 1,
+                                                                     0, 1, 0 };
 
 // Some modes use only left/top context of the block for training:
 static const int adapt_filter_intra_top_allowed[ADAPT_FILTER_INTRA_MODES] = {
