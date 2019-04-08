@@ -37,6 +37,20 @@ enum {
 
 // enum { NONE, RELU, SOFTSIGN } UENUM1BYTE(ACTIVATION);
 
+// Times when input tensor may be copied to branches given in input_to_branches.
+// COPY_NONE: doesn't copy any tensor.
+// COPY_INPUT: copies the input tensor to branches.
+// COPY_OUTPUT: copies the convolved tensor to branches.
+// COPY_COMBINED: copies the combined (after convolving and branch combining)
+//   tensor. If no combinations happen at this layer, then this option
+//   has the same effect as COPY_OUTPUT.
+enum {
+  COPY_NONE,
+  COPY_INPUT,
+  COPY_OUTPUT,
+  COPY_COMBINED
+} UENUM1BYTE(COPY_TYPE);
+
 // Types of combining branches with output of current layer:
 // BRANCH_NOC: no branch combining
 // BRANCH_ADD: Add previously stored branch tensor to output of layer
@@ -65,7 +79,10 @@ struct CNN_LAYER_CONFIG {
   float *bias;     // array of length out_channels
   PADDING_TYPE pad;       // padding type
   ACTIVATION activation;  // the activation function to use after convolution
-  int input_to_branches;  // If nonzero, copy the input tensor to the current
+  COPY_TYPE branch_copy_mode;
+  // Within the layer, input a copy of active tensor to branches given in
+  // input_to_branches.
+  int input_to_branches;  // If nonzero, copy the active tensor to the current
                           // layer and store for future use in branches
                           // specified in the field as a binary mask. For
                           // example, if input_to_branch = 0x06, it means the
