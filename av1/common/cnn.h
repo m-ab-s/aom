@@ -113,12 +113,13 @@ struct CNN_CONFIG {
 void av1_find_cnn_output_size(int in_width, int in_height,
                               const CNN_CONFIG *cnn_config, int *out_width,
                               int *out_height);
-void av1_restore_cnn(uint8_t *dgd, int width, int height, int stride,
-                     const CNN_CONFIG *cnn_config);
-void av1_restore_cnn_highbd(uint16_t *dgd, int width, int height, int stride,
-                            const CNN_CONFIG *cnn_config, int bit_depth);
+
 void av1_restore_cnn_plane(struct AV1Common *cm, const CNN_CONFIG *cnn_config,
                            int plane);
+void av1_restore_cnn_plane_part(struct AV1Common *cm,
+                                const CNN_CONFIG *cnn_config, int plane,
+                                int start_x, int start_y, int width,
+                                int height);
 
 #ifdef __cplusplus
 }  // extern "C"

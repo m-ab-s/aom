@@ -741,8 +741,8 @@ void av1_cnn_predict_c(const float **input, int in_width, int in_height,
   }
 }
 
-void av1_restore_cnn(uint8_t *dgd, int width, int height, int stride,
-                     const CNN_CONFIG *cnn_config) {
+static void av1_restore_cnn(uint8_t *dgd, int width, int height, int stride,
+                            const CNN_CONFIG *cnn_config) {
   const float max_val = 255.0;
   int out_width = 0;
   int out_height = 0;
@@ -806,8 +806,9 @@ void av1_restore_cnn(uint8_t *dgd, int width, int height, int stride,
   aom_free(output);
 }
 
-void av1_restore_cnn_highbd(uint16_t *dgd, int width, int height, int stride,
-                            const CNN_CONFIG *cnn_config, int bit_depth) {
+static void av1_restore_cnn_highbd(uint16_t *dgd, int width, int height,
+                                   int stride, const CNN_CONFIG *cnn_config,
+                                   int bit_depth) {
   const float max_val = (float)((1 << bit_depth) - 1);
   int out_width = 0;
   int out_height = 0;
@@ -870,6 +871,69 @@ void av1_restore_cnn_highbd(uint16_t *dgd, int width, int height, int stride,
 
   aom_free(input_);
   aom_free(output);
+}
+
+void av1_restore_cnn_plane_part(AV1_COMMON *cm, const CNN_CONFIG *cnn_config,
+                                int plane, int start_x, int start_y, int width,
+                                int height) {
+  YV12_BUFFER_CONFIG *buf = &cm->cur_frame->buf;
+
+  assert(start_x >= 0 && start_x + width <= buf->y_crop_width);
+  assert(start_y >= 0 && start_y + height <= buf->y_crop_height);
+
+  int offset = 0, part_width = 0, part_height = 0;
+  switch (plane) {
+    case AOM_PLANE_Y:
+      part_width = width;
+      part_height = height;
+      offset = start_y * buf->y_stride + start_x;
+      break;
+    case AOM_PLANE_U:
+    case AOM_PLANE_V:
+      part_width = width >> buf->subsampling_x;
+      part_height = height >> buf->subsampling_y;
+      offset = (start_y >> buf->subsampling_y) * buf->uv_stride +
+               (start_x >> buf->subsampling_x);
+      break;
+    default: assert(0 && "Invalid plane index");
+  }
+  if (cm->seq_params.use_highbitdepth) {
+    switch (plane) {
+      case AOM_PLANE_Y:
+        av1_restore_cnn_highbd(CONVERT_TO_SHORTPTR(buf->y_buffer + offset),
+                               part_width, part_height, buf->y_stride,
+                               cnn_config, cm->seq_params.bit_depth);
+        break;
+      case AOM_PLANE_U:
+        av1_restore_cnn_highbd(CONVERT_TO_SHORTPTR(buf->u_buffer + offset),
+                               part_width, part_height, buf->uv_stride,
+                               cnn_config, cm->seq_params.bit_depth);
+        break;
+      case AOM_PLANE_V:
+        av1_restore_cnn_highbd(CONVERT_TO_SHORTPTR(buf->v_buffer + offset),
+                               part_width, part_height, buf->uv_stride,
+                               cnn_config, cm->seq_params.bit_depth);
+        break;
+      default: assert(0 && "Invalid plane index");
+    }
+  } else {
+    assert(cm->seq_params.bit_depth == 8);
+    switch (plane) {
+      case AOM_PLANE_Y:
+        av1_restore_cnn(buf->y_buffer + offset, part_width, part_height,
+                        buf->y_stride, cnn_config);
+        break;
+      case AOM_PLANE_U:
+        av1_restore_cnn(buf->u_buffer + offset, part_width, part_height,
+                        buf->uv_stride, cnn_config);
+        break;
+      case AOM_PLANE_V:
+        av1_restore_cnn(buf->v_buffer + offset, part_width, part_height,
+                        buf->uv_stride, cnn_config);
+        break;
+      default: assert(0 && "Invalid plane index");
+    }
+  }
 }
 
 void av1_restore_cnn_plane(AV1_COMMON *cm, const CNN_CONFIG *cnn_config,
