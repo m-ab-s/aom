@@ -110,10 +110,29 @@ struct CNN_CONFIG {
   CNN_LAYER_CONFIG layer_config[CNN_MAX_LAYERS];
 };
 
+// Function to return size of output
 void av1_find_cnn_output_size(int in_width, int in_height,
                               const CNN_CONFIG *cnn_config, int *out_width,
                               int *out_height);
 
+// Prediction functions from input image buffer
+void av1_cnn_predict_img(uint8_t *dgd, int width, int height, int stride,
+                         const CNN_CONFIG *cnn_config, float **output,
+                         int out_stride);
+void av1_cnn_predict_img_highbd(uint16_t *dgd, int width, int height,
+                                int stride, const CNN_CONFIG *cnn_config,
+                                int bit_depth, float **output, int out_stride);
+
+// Restoration functions from input image buffer
+// These internally call av1_cnn_predict_img() / av1_cnn_predict_img_highbd().
+void av1_restore_cnn_img(uint8_t *dgd, int width, int height, int stride,
+                         const CNN_CONFIG *cnn_config);
+void av1_restore_cnn_img_highbd(uint16_t *dgd, int width, int height,
+                                int stride, const CNN_CONFIG *cnn_config,
+                                int bit_depth);
+
+// Restoration functions that work on current frame buffer in AV1_COMMON
+// directly for convenience.
 void av1_restore_cnn_plane(struct AV1Common *cm, const CNN_CONFIG *cnn_config,
                            int plane);
 void av1_restore_cnn_plane_part(struct AV1Common *cm,
