@@ -34,26 +34,37 @@ class CNNTest : public ::testing::Test {
   static void RunCNNTest(int image_width, int image_height, float *input,
                          float *expected, CNN_CONFIG cnn_config, int in_stride,
                          double tolerance) {
-    int out_width, out_height;
+    int out_width, out_height, out_channels;
     av1_find_cnn_output_size(image_width, image_height, &cnn_config, &out_width,
-                             &out_height);
+                             &out_height, &out_channels);
+
     const int out_size = out_width * out_height;
-    float *output = (float *)aom_malloc(sizeof(*output) * out_size);
     const int out_stride = out_width;
 
+    float *output_ =
+        (float *)aom_malloc(sizeof(*output_) * out_size * out_channels);
+    float *output[CNN_MAX_CHANNELS] = { nullptr };
+    for (int channel = 0; channel < out_channels; ++channel) {
+      output[channel] = output_ + (channel * out_size);
+    }
+
     av1_cnn_predict((const float **)&input, image_width, image_height,
-                    in_stride, &cnn_config, &output, out_stride);
+                    in_stride, &cnn_config, output, out_stride);
 
     double mse = 0;
-    for (int i = 0; i < out_size; ++i) {
-      EXPECT_NEAR(expected[i], output[i], PIXELWISE_FLOAT_TOL)
-          << i << ": " << expected[i] << "/" << output[i] << std::endl;
-      mse += SQR(expected[i] - output[i]);
+    for (int channel = 0; channel < out_channels; ++channel) {
+      for (int i = 0; i < out_size; ++i) {
+        int index = channel * out_size + i;
+        EXPECT_NEAR(expected[index], output[channel][i], PIXELWISE_FLOAT_TOL)
+            << index << ": " << expected[index] << "/" << output[channel][i]
+            << std::endl;
+        mse += SQR(expected[index] - output[channel][i]);
+      }
     }
-    mse /= out_size;
+    mse /= (out_size * out_channels);
     EXPECT_LE(mse, tolerance);
 
-    aom_free(output);
+    aom_free(output_);
   }
 
   static void AssignLayerWeightsBiases(CNN_CONFIG *cnn_config, float *weights,
@@ -1697,4 +1708,98 @@ TEST_F(CNNTest, TestSplittingTensors) {
 
   RunCNNTest(image_width, image_height, input, expected, cnn_config,
              image_width, MSE_INT_TOL);
+}
+
+TEST_F(CNNTest, TestOutputChannelsCount) {
+  int filter_width = 1;
+  int filter_height = 1;
+
+  int image_width = 2;
+  int image_height = 2;
+
+  float input[] = { 0, 0, 0, 0 };
+
+  float weights[] = { 0, 0, 0, 0, 0, 0, 0, 0 };
+
+  float bias[] = { 0, 0, 0, 0, 0, 0 };
+
+  float expected[] = {
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  };
+
+  CNN_CONFIG cnn_config = { .num_layers = 3,
+                            .is_residue = 0,
+                            .ext_width = 0,
+                            .ext_height = 0,
+                            .strict_bounds = 0,
+                            {
+                                {
+                                    .branch = 0,
+                                    .deconvolve = 0,
+                                    .in_channels = 1,
+                                    .filter_width = filter_width,
+                                    .filter_height = filter_height,
+                                    .out_channels = 2,
+                                    .skip_width = 1,
+                                    .skip_height = 1,
+                                    .maxpool = 0,
+                                    .weights = weights,
+                                    .bias = bias,
+                                    .pad = PADDING_SAME_ZERO,
+                                    .activation = NONE,
+                                    .branch_copy_mode = COPY_INPUT,
+                                    .input_to_branches = 0x06,
+                                    .channels_to_copy = 0,
+                                    .branch_combine_type = BRANCH_NOC,
+                                    .branches_to_combine = 0x00,
+                                },
+                                {
+                                    .branch = 2,
+                                    .deconvolve = 0,
+                                    .in_channels = 1,
+                                    .filter_width = filter_width,
+                                    .filter_height = filter_height,
+                                    .out_channels = 2,
+                                    .skip_width = 1,
+                                    .skip_height = 1,
+                                    .maxpool = 0,
+                                    .weights = weights,
+                                    .bias = bias,
+                                    .pad = PADDING_SAME_ZERO,
+                                    .activation = NONE,
+                                    .branch_copy_mode = COPY_NONE,
+                                    .input_to_branches = 0x00,
+                                    .channels_to_copy = 0,
+                                    .branch_combine_type = BRANCH_CAT,
+                                    .branches_to_combine = 0x03,
+                                },
+                                {
+                                    .branch = 0,
+                                    .deconvolve = 0,
+                                    .in_channels = 2,
+                                    .filter_width = filter_width,
+                                    .filter_height = filter_height,
+                                    .out_channels = 2,
+                                    .skip_width = 1,
+                                    .skip_height = 1,
+                                    .maxpool = 0,
+                                    .weights = weights,
+                                    .bias = bias,
+                                    .pad = PADDING_SAME_ZERO,
+                                    .activation = NONE,
+                                    .branch_copy_mode = COPY_NONE,
+                                    .input_to_branches = 0x00,
+                                    .channels_to_copy = 0,
+                                    .branch_combine_type = BRANCH_CAT,
+                                    .branches_to_combine = 0x04,
+                                },
+                            } };
+
+  // Weights and biases need to be specified separately because
+  // of the offset.
+  AssignLayerWeightsBiases(&cnn_config, weights, bias);
+
+  RunCNNTest(image_width, image_height, input, expected, cnn_config,
+             image_width, MSE_FLOAT_TOL);
 }

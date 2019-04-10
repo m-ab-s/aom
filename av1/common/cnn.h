@@ -114,7 +114,7 @@ struct CNN_CONFIG {
 // Function to return size of output
 void av1_find_cnn_output_size(int in_width, int in_height,
                               const CNN_CONFIG *cnn_config, int *out_width,
-                              int *out_height);
+                              int *out_height, int *out_channels);
 
 // Prediction functions from set of input image buffers
 void av1_cnn_predict_img(uint8_t **dgd, int width, int height, int stride,

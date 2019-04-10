@@ -174,20 +174,53 @@ static void find_layer_output_size(int in_width, int in_height,
   }
 }
 
+void find_cnn_out_channels(const CNN_LAYER_CONFIG *layer_config,
+                           int channels_per_branch[]) {
+  int branch = layer_config->branch;
+  for (int b = 0; b < CNN_MAX_BRANCHES; ++b) {
+    if ((layer_config->input_to_branches & (1 << b)) && b != branch) {
+      if (layer_config->branch_copy_mode == COPY_INPUT) {
+        channels_per_branch[b] = layer_config->in_channels;
+      } else if (layer_config->branch_copy_mode == COPY_OUTPUT) {
+        channels_per_branch[b] = layer_config->out_channels;
+      } else if (layer_config->branch_copy_mode == COPY_COMBINED) {
+        channels_per_branch[b] = layer_config->out_channels;
+        for (int c = 0; c < CNN_MAX_BRANCHES; ++c) {
+          if ((layer_config->branches_to_combine & (1 << c)) && c != branch) {
+            assert(channels_per_branch[c] > 0);
+            channels_per_branch[b] += channels_per_branch[c];
+          }
+        }
+      }
+    }
+  }
+  channels_per_branch[branch] = layer_config->out_channels;
+  for (int c = 0; c < CNN_MAX_BRANCHES; ++c) {
+    if ((layer_config->branches_to_combine & (1 << c)) && c != branch) {
+      assert(channels_per_branch[c] > 0);
+      channels_per_branch[branch] += channels_per_branch[c];
+    }
+  }
+}
+
 void av1_find_cnn_output_size(int in_width, int in_height,
                               const CNN_CONFIG *cnn_config, int *out_width,
-                              int *out_height) {
+                              int *out_height, int *out_channels) {
   int i_width = in_width + cnn_config->ext_width * 2;
   int i_height = in_height + cnn_config->ext_height * 2;
+  int channels_per_branch[CNN_MAX_BRANCHES] = { 0 };
   for (int i = 0; i < cnn_config->num_layers; ++i) {
     int o_width = 0, o_height = 0;
     find_layer_output_size(i_width, i_height, &cnn_config->layer_config[i],
                            &o_width, &o_height);
     i_width = o_width;
     i_height = o_height;
+
+    find_cnn_out_channels(&cnn_config->layer_config[i], channels_per_branch);
   }
   *out_width = i_width;
   *out_height = i_height;
+  *out_channels = channels_per_branch[0];
 }
 
 activation_fn get_activation(ACTIVATION layer_activation) {
@@ -726,6 +759,7 @@ void av1_cnn_predict_c(const float **input, int in_width, int in_height,
                (1 << b)) &&
               b != branch) {
             assert(check_tensor_equal_dims(&tensor2[b], &tensor2[branch]));
+            assert(tensor2[b].channels > 0);
             concat_tensor(&tensor2[b], &tensor2[branch]);
           }
         }
@@ -767,7 +801,9 @@ void av1_cnn_predict_img(uint8_t **dgd, int width, int height, int stride,
   const float max_val = 255.0;
   int out_width = 0;
   int out_height = 0;
-  av1_find_cnn_output_size(width, height, cnn_config, &out_width, &out_height);
+  int out_channels = 0;
+  av1_find_cnn_output_size(width, height, cnn_config, &out_width, &out_height,
+                           &out_channels);
 
   int in_width = width + 2 * cnn_config->ext_width;
   int in_height = height + 2 * cnn_config->ext_height;
@@ -811,6 +847,7 @@ void av1_cnn_predict_img(uint8_t **dgd, int width, int height, int stride,
   }
   av1_cnn_predict((const float **)inputs, in_width, in_height, in_stride,
                   cnn_config, output, out_stride);
+
   aom_free(input_);
 }
 
@@ -822,7 +859,9 @@ void av1_cnn_predict_img_highbd(uint16_t **dgd, int width, int height,
   const float max_val = (float)((1 << bit_depth) - 1);
   int out_width = 0;
   int out_height = 0;
-  av1_find_cnn_output_size(width, height, cnn_config, &out_width, &out_height);
+  int out_channels = 0;
+  av1_find_cnn_output_size(width, height, cnn_config, &out_width, &out_height,
+                           &out_channels);
 
   int in_width = width + 2 * cnn_config->ext_width;
   int in_height = height + 2 * cnn_config->ext_height;
@@ -874,9 +913,13 @@ void av1_restore_cnn_img(uint8_t *dgd, int width, int height, int stride,
   const float max_val = 255;
   int out_width = 0;
   int out_height = 0;
-  av1_find_cnn_output_size(width, height, cnn_config, &out_width, &out_height);
+  int out_channels = 0;
+  av1_find_cnn_output_size(width, height, cnn_config, &out_width, &out_height,
+                           &out_channels);
   assert(out_width == width);
   assert(out_height == height);
+  // For restoration, we only want one channel outputted.
+  assert(out_channels == 1);
 
   const int out_stride = width;
   float *output = (float *)aom_malloc(width * height * sizeof(*output));
@@ -904,9 +947,13 @@ void av1_restore_cnn_img_highbd(uint16_t *dgd, int width, int height,
   const float max_val = (float)((1 << bit_depth) - 1);
   int out_width = 0;
   int out_height = 0;
-  av1_find_cnn_output_size(width, height, cnn_config, &out_width, &out_height);
+  int out_channels = 0;
+  av1_find_cnn_output_size(width, height, cnn_config, &out_width, &out_height,
+                           &out_channels);
   assert(out_width == width);
   assert(out_height == height);
+  // For restoration, we only want one channel outputted.
+  assert(out_channels == 1);
 
   float *output = (float *)aom_malloc(width * height * sizeof(*output));
   const int out_stride = width;
