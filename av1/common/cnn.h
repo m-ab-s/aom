@@ -79,9 +79,8 @@ struct CNN_LAYER_CONFIG {
   float *bias;     // array of length out_channels
   PADDING_TYPE pad;       // padding type
   ACTIVATION activation;  // the activation function to use after convolution
-  COPY_TYPE branch_copy_mode;
-  // Within the layer, input a copy of active tensor to branches given in
-  // input_to_branches.
+  COPY_TYPE branch_copy_mode;  // Within the layer, input a copy of active
+                               // tensor to branches given in input_to_branches.
   int input_to_branches;  // If nonzero, copy the active tensor to the current
                           // layer and store for future use in branches
                           // specified in the field as a binary mask. For
@@ -90,6 +89,8 @@ struct CNN_LAYER_CONFIG {
                           // branches 1 and 2 (where 0 represents the primary
                           // branch). One restriction is that the mask
                           // cannot indicate copying to the current branch.
+  int channels_to_copy;   // If greater than 0, only copies the channels up
+                          // to the given index.
   BRANCH_COMBINE branch_combine_type;
   int branches_to_combine;  // mask of branches to combine with output of
                             // current layer, if

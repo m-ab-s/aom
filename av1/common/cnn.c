@@ -233,7 +233,9 @@ static void copy_active_tensor_to_branches(const TENSOR *layer_active_tensor,
       // Copy layer's active tensor to output tensor of branch b if set in
       // mask. The output becomes the input of the first layer of the branch
       // because the layer of the branch is not the first layer.
-      int copy_channels = layer_active_tensor->channels;
+      int copy_channels = layer_config->channels_to_copy > 0
+                              ? layer_config->channels_to_copy
+                              : layer_active_tensor->channels;
       realloc_tensor(&branch_output[b], copy_channels,
                      layer_active_tensor->width, layer_active_tensor->height);
       copy_tensor(layer_active_tensor, copy_channels, 0, &branch_output[b]);
