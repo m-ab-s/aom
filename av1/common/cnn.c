@@ -60,15 +60,17 @@ static void realloc_tensor(TENSOR *tensor, int channels, int width,
     tensor->buf[c] = &tensor->buf[0][c * width * height];
 }
 
-static void copy_tensor(const TENSOR *src, int dst_offset, TENSOR *dst) {
+static void copy_tensor(const TENSOR *src, int copy_channels, int dst_offset,
+                        TENSOR *dst) {
   assert(src->width == dst->width);
   assert(src->height == dst->height);
+  assert(copy_channels <= src->channels);
   if (src->stride == dst->width && dst->stride == dst->width) {
     memcpy(dst->buf[dst_offset], src->buf[0],
            sizeof(*dst->buf[dst_offset]) * src->width * src->height *
-               src->channels);
+               copy_channels);
   } else {
-    for (int c = 0; c < src->channels; ++c) {
+    for (int c = 0; c < copy_channels; ++c) {
       for (int r = 0; r < dst->height; ++r) {
         memcpy(&dst->buf[dst_offset + c][r * dst->stride],
                &src->buf[c][r * src->stride],
@@ -112,7 +114,7 @@ static void concat_tensor(const TENSOR *src, TENSOR *dst) {
     init_tensor(&t);
     // allocate new buffers and copy first the dst channels
     realloc_tensor(&t, channels, dst->width, dst->height);
-    copy_tensor(dst, 0, &t);
+    copy_tensor(dst, dst->channels, 0, &t);
     // Swap the tensors and free the old buffers
     swap_tensor(dst, &t);
     free_tensor(&t);
@@ -120,7 +122,7 @@ static void concat_tensor(const TENSOR *src, TENSOR *dst) {
   for (int c = 1; c < channels; ++c)
     dst->buf[c] = &dst->buf[0][c * dst->width * dst->height];
   // Copy the channels in src after the first dst_channels channels.
-  copy_tensor(src, dst_channels, dst);
+  copy_tensor(src, src->channels, dst_channels, dst);
 }
 
 int check_tensor_equal_dims(TENSOR *t1, TENSOR *t2) {
@@ -225,17 +227,16 @@ void av1_cnn_activate_c(float **output, int channels, int width, int height,
 
 static void copy_active_tensor_to_branches(const TENSOR *layer_active_tensor,
                                            const CNN_LAYER_CONFIG *layer_config,
-                                           int branch, int in_width,
-                                           int in_height,
-                                           TENSOR branch_output[]) {
+                                           int branch, TENSOR branch_output[]) {
   for (int b = 0; b < CNN_MAX_BRANCHES; ++b) {
     if ((layer_config->input_to_branches & (1 << b)) && b != branch) {
       // Copy layer's active tensor to output tensor of branch b if set in
       // mask. The output becomes the input of the first layer of the branch
       // because the layer of the branch is not the first layer.
-      realloc_tensor(&branch_output[b], layer_config->in_channels, in_width,
-                     in_height);
-      copy_tensor(layer_active_tensor, 0, &branch_output[b]);
+      int copy_channels = layer_active_tensor->channels;
+      realloc_tensor(&branch_output[b], copy_channels,
+                     layer_active_tensor->width, layer_active_tensor->height);
+      copy_tensor(layer_active_tensor, copy_channels, 0, &branch_output[b]);
     }
   }
 }
@@ -667,9 +668,8 @@ void av1_cnn_predict_c(const float **input, int in_width, int in_height,
           (1 << branch))));
 
     if (cnn_config->layer_config[layer].branch_copy_mode == COPY_INPUT) {
-      copy_active_tensor_to_branches(&tensor1[branch],
-                                     &cnn_config->layer_config[layer], branch,
-                                     in_width, in_height, tensor2);
+      copy_active_tensor_to_branches(
+          &tensor1[branch], &cnn_config->layer_config[layer], branch, tensor2);
     }
     // Check consistency of input and output channels
     assert(tensor1[branch].channels ==
@@ -692,9 +692,8 @@ void av1_cnn_predict_c(const float **input, int in_width, int in_height,
     }
 
     if (cnn_config->layer_config[layer].branch_copy_mode == COPY_OUTPUT) {
-      copy_active_tensor_to_branches(&tensor1[branch],
-                                     &cnn_config->layer_config[layer], branch,
-                                     in_width, in_height, tensor2);
+      copy_active_tensor_to_branches(
+          &tensor2[branch], &cnn_config->layer_config[layer], branch, tensor2);
     }
 
     // Add tensors from other branches if needed
@@ -729,9 +728,8 @@ void av1_cnn_predict_c(const float **input, int in_width, int in_height,
     }
 
     if (cnn_config->layer_config[layer].branch_copy_mode == COPY_COMBINED) {
-      copy_active_tensor_to_branches(&tensor1[branch],
-                                     &cnn_config->layer_config[layer], branch,
-                                     in_width, in_height, tensor2);
+      copy_active_tensor_to_branches(
+          &tensor2[branch], &cnn_config->layer_config[layer], branch, tensor2);
     }
   }
 
