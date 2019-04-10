@@ -115,11 +115,11 @@ void av1_find_cnn_output_size(int in_width, int in_height,
                               const CNN_CONFIG *cnn_config, int *out_width,
                               int *out_height);
 
-// Prediction functions from input image buffer
-void av1_cnn_predict_img(uint8_t *dgd, int width, int height, int stride,
+// Prediction functions from set of input image buffers
+void av1_cnn_predict_img(uint8_t **dgd, int width, int height, int stride,
                          const CNN_CONFIG *cnn_config, float **output,
                          int out_stride);
-void av1_cnn_predict_img_highbd(uint16_t *dgd, int width, int height,
+void av1_cnn_predict_img_highbd(uint16_t **dgd, int width, int height,
                                 int stride, const CNN_CONFIG *cnn_config,
                                 int bit_depth, float **output, int out_stride);
 
