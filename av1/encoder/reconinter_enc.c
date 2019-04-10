@@ -501,6 +501,7 @@ void av1_build_inter_predictors_for_planes_single_buf(
   for (plane = plane_from; plane <= plane_to; ++plane) {
     const BLOCK_SIZE plane_bsize = get_plane_block_size(
         bsize, xd->plane[plane].subsampling_x, xd->plane[plane].subsampling_y);
+    assert(plane_bsize < BLOCK_SIZES_ALL);
     const int bw = block_size_wide[plane_bsize];
     const int bh = block_size_high[plane_bsize];
     build_inter_predictors_single_buf(xd, plane, bw, bh, 0, 0, bw, bh, mi_x,
@@ -598,6 +599,7 @@ void av1_build_wedge_inter_predictor_from_buf(MACROBLOCKD *xd, BLOCK_SIZE bsize,
   for (plane = plane_from; plane <= plane_to; ++plane) {
     const BLOCK_SIZE plane_bsize = get_plane_block_size(
         bsize, xd->plane[plane].subsampling_x, xd->plane[plane].subsampling_y);
+    assert(plane_bsize < BLOCK_SIZES_ALL);
     const int bw = block_size_wide[plane_bsize];
     const int bh = block_size_high[plane_bsize];
     build_wedge_inter_predictor_from_buf(

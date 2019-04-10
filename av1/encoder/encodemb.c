@@ -88,6 +88,7 @@ void av1_subtract_plane(MACROBLOCK *x, BLOCK_SIZE bsize, int plane) {
   const struct macroblockd_plane *const pd = &x->e_mbd.plane[plane];
   const BLOCK_SIZE plane_bsize =
       get_plane_block_size(bsize, pd->subsampling_x, pd->subsampling_y);
+  assert(plane_bsize < BLOCK_SIZES_ALL);
   const int bw = block_size_wide[plane_bsize];
   const int bh = block_size_high[plane_bsize];
   const MACROBLOCKD *xd = &x->e_mbd;

@@ -1106,6 +1106,7 @@ void av1_build_intra_predictors_for_interintra(const AV1_COMMON *cm,
   assert(xd->mi[0]->angle_delta[PLANE_TYPE_UV] == 0);
   assert(xd->mi[0]->filter_intra_mode_info.use_filter_intra == 0);
   assert(xd->mi[0]->use_intrabc == 0);
+  assert(plane_bsize < BLOCK_SIZES_ALL);
 
   av1_predict_intra_block(
       cm, xd, pd->width, pd->height, max_txsize_rect_lookup[plane_bsize], mode,

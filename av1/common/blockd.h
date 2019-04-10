@@ -839,6 +839,7 @@ static INLINE BLOCK_SIZE get_plane_block_size(BLOCK_SIZE bsize,
 
 static INLINE int av1_get_txb_size_index(BLOCK_SIZE bsize, int blk_row,
                                          int blk_col) {
+  assert(bsize < BLOCK_SIZES_ALL);
   TX_SIZE txs = max_txsize_rect_lookup[bsize];
   for (int level = 0; level < MAX_VARTX_DEPTH - 1; ++level)
     txs = sub_tx_size_map[txs];
@@ -854,6 +855,7 @@ static INLINE int av1_get_txb_size_index(BLOCK_SIZE bsize, int blk_row,
 
 static INLINE int av1_get_txk_type_index(BLOCK_SIZE bsize, int blk_row,
                                          int blk_col) {
+  assert(bsize < BLOCK_SIZES_ALL);
   TX_SIZE txs = max_txsize_rect_lookup[bsize];
   for (int level = 0; level < MAX_VARTX_DEPTH; ++level)
     txs = sub_tx_size_map[txs];
@@ -1048,12 +1050,14 @@ static INLINE int is_interintra_pred(const MB_MODE_INFO *mbmi) {
 static INLINE int get_vartx_max_txsize(const MACROBLOCKD *xd, BLOCK_SIZE bsize,
                                        int plane) {
   if (xd->lossless[xd->mi[0]->segment_id]) return TX_4X4;
+  assert(bsize < BLOCK_SIZES_ALL);
   const TX_SIZE max_txsize = max_txsize_rect_lookup[bsize];
   if (plane == 0) return max_txsize;            // luma
   return av1_get_adjusted_tx_size(max_txsize);  // chroma
 }
 
 static INLINE int is_motion_variation_allowed_bsize(BLOCK_SIZE bsize) {
+  assert(bsize < BLOCK_SIZES_ALL);
   return AOMMIN(block_size_wide[bsize], block_size_high[bsize]) >= 8;
 }
 

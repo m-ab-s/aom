@@ -433,6 +433,7 @@ static INLINE void get_txb_ctx(const BLOCK_SIZE plane_bsize,
     }
   } else {
     const int ctx_base = get_entropy_context(tx_size, a, l);
+    assert(plane_bsize < BLOCK_SIZES_ALL);
     const int ctx_offset = (num_pels_log2_lookup[plane_bsize] >
                             num_pels_log2_lookup[txsize_to_bsize[tx_size]])
                                ? 10

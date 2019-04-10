@@ -88,6 +88,7 @@ static void count_segs_sb(const AV1_COMMON *cm, MACROBLOCKD *xd,
                           unsigned (*temporal_predictor_count)[2],
                           unsigned *t_unpred_seg_counts, int mi_row, int mi_col,
                           BLOCK_SIZE bsize) {
+  assert(bsize < BLOCK_SIZES_ALL);
   const int mis = cm->mi_stride;
   const int bs = mi_size_wide[bsize], hbs = bs / 2;
   PARTITION_TYPE partition;
