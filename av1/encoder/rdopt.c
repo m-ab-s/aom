@@ -2181,6 +2181,7 @@ static INLINE int64_t pixel_diff_dist(const MACROBLOCK *x, int plane,
   const MACROBLOCKD *xd = &x->e_mbd;
   get_txb_dimensions(xd, plane, plane_bsize, blk_row, blk_col, tx_bsize, NULL,
                      NULL, &visible_cols, &visible_rows);
+  assert(visible_cols * visible_rows > 0);
   const int diff_stride = block_size_wide[plane_bsize];
   const int16_t *diff = x->plane[plane].src_diff;
 #if CONFIG_DIST_8X8
@@ -2201,8 +2202,13 @@ static INLINE int64_t pixel_diff_dist(const MACROBLOCK *x, int plane,
   diff += ((blk_row * diff_stride + blk_col) << tx_size_wide_log2[0]);
   uint64_t sse =
       aom_sum_squares_2d_i16(diff, diff_stride, visible_cols, visible_rows);
-  if (block_mse_q8 != NULL)
-    *block_mse_q8 = (unsigned int)((256 * sse) / (visible_cols * visible_rows));
+  if (block_mse_q8 != NULL) {
+    if (visible_cols > 0 && visible_rows > 0)
+      *block_mse_q8 =
+          (unsigned int)((256 * sse) / (visible_cols * visible_rows));
+    else
+      *block_mse_q8 = UINT_MAX;
+  }
   return sse;
 }
 

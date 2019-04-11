@@ -718,11 +718,29 @@ void av1_cnn_predict_c(const float **input, int in_width, int in_height,
 
     // Concatenate tensors
     if (cnn_config->layer_config[layer].branch_combine_type == BRANCH_CAT) {
-      for (int b = 0; b < CNN_MAX_BRANCHES; ++b) {
-        if ((cnn_config->layer_config[layer].branches_to_combine & (1 << b)) &&
-            b != branch) {
-          assert(check_tensor_equal_dims(&tensor2[b], &tensor2[branch]));
-          concat_tensor(&tensor2[b], &tensor2[branch]);
+      if (layer < cnn_config->num_layers - 1) {  // Non-last layer
+        for (int b = 0; b < CNN_MAX_BRANCHES; ++b) {
+          if ((cnn_config->layer_config[layer].branches_to_combine &
+               (1 << b)) &&
+              b != branch) {
+            assert(check_tensor_equal_dims(&tensor2[b], &tensor2[branch]));
+            concat_tensor(&tensor2[b], &tensor2[branch]);
+          }
+        }
+      } else {  // Last layer
+        for (int b = 0; b < CNN_MAX_BRANCHES; ++b) {
+          if ((cnn_config->layer_config[layer].branches_to_combine &
+               (1 << b)) &&
+              b != branch) {
+            assert(check_tensor_equal_dims(&tensor2[b], &tensor2[branch]));
+            const int existing_channels = tensor2[branch].channels;
+            // Needed only to assign the new channel buffers
+            assign_tensor(&tensor2[branch], (const float **)output,
+                          existing_channels + tensor2[b].channels, o_width,
+                          o_height, out_stride);
+            copy_tensor(&tensor2[b], tensor2[b].channels, existing_channels,
+                        &tensor2[branch]);
+          }
         }
       }
     }

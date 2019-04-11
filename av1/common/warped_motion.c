@@ -575,6 +575,8 @@ static int64_t highbd_warp_error(
                         WARP_ERROR_BLOCK, subsampling_x, subsampling_y, bd,
                         &conv_params);
 
+      assert(warp_w - 1 + (warp_h - 1) * stride <
+             WARP_ERROR_BLOCK * WARP_ERROR_BLOCK);
       gm_sumerr += highbd_frame_error(
           tmp, WARP_ERROR_BLOCK, CONVERT_TO_SHORTPTR(dst8) + j + i * p_stride,
           warp_w, warp_h, p_stride, bd);

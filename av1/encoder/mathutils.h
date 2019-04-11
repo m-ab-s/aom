@@ -73,6 +73,7 @@ static INLINE int least_squares(int n, double *A, int rows, int stride,
   }
   AtA = scratch;
   Atb = scratch + n * n;
+  assert(A);
 
   for (i = 0; i < n; ++i) {
     for (j = i; j < n; ++j) {

@@ -50,6 +50,7 @@ static INLINE int av1_is_valid_scale(const struct scale_factors *sf) {
 }
 
 static INLINE int av1_is_scaled(const struct scale_factors *sf) {
+  assert(sf);
   return av1_is_valid_scale(sf) &&
          (sf->x_scale_fp != REF_NO_SCALE || sf->y_scale_fp != REF_NO_SCALE);
 }

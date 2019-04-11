@@ -81,16 +81,16 @@ TEST(av1_inv_txfm1d, InvAccuracyCheck) {
     const int tx_size_pix = txfm_size_ls[tx_size];
     const TxfmFunc inv_txfm_func = inv_txfm_func_ls[tx_size][0];
 
-    int32_t input[64];
+    int32_t input[64] = { 0 };
     random_matrix(input, tx_size_pix, &rnd);
 
     // 64x64 transform assumes last 32 values are zero.
     memset(input + 32, 0, 32 * sizeof(input[0]));
 
-    int32_t ref_output[64];
+    int32_t ref_output[64] = { 0 };
     reference_idct_1d_int(input, ref_output, tx_size_pix);
 
-    int32_t output[64];
+    int32_t output[64] = { 0 };
     inv_txfm_func(input, output, cos_bit, range_bit);
 
     for (int i = 0; i < tx_size_pix; ++i) {

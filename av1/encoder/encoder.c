@@ -4472,7 +4472,6 @@ static void loopfilter_frame(AV1_COMP *cpi, AV1_COMMON *cm) {
     res_error = aom_get_sse_plane(cpi->source, &cm->cur_frame->buf, plane,
                                   cm->seq_params.use_highbitdepth);
     if (cnn_error < res_error && cnn_error < dgd_error) {
-      int num_planes = av1_num_planes(cm);
       cm->use_cnn = 1;
       aom_yv12_copy_y(&cpi->cnn_buffer, &cm->cur_frame->buf);
       if (num_planes > 1)

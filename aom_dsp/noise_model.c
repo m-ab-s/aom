@@ -214,6 +214,7 @@ static void set_chroma_coefficient_fallback_soln(aom_equation_system_t *eqns) {
 
 int aom_noise_strength_lut_init(aom_noise_strength_lut_t *lut, int num_points) {
   if (!lut) return 0;
+  lut->num_points = 0;
   lut->points = (double(*)[2])aom_malloc(num_points * sizeof(*lut->points));
   if (!lut->points) return 0;
   lut->num_points = num_points;
@@ -429,6 +430,7 @@ int aom_flat_block_finder_init(aom_flat_block_finder_t *block_finder,
   if (!equation_system_init(&eqns, kLowPolyNumParams)) {
     fprintf(stderr, "Failed to init equation system for block_size=%d\n",
             block_size);
+    memset(block_finder, 0, sizeof(*block_finder));
     return 0;
   }
 
@@ -1146,6 +1148,7 @@ int aom_noise_model_get_grain_parameters(aom_noise_model_t *const noise_model,
 
   // Convert the scaling functions to 8 bit values
   aom_noise_strength_lut_t scaling_points[3];
+  memset(scaling_points, 0, sizeof(scaling_points));
   aom_noise_strength_solver_fit_piecewise(
       &noise_model->combined_state[0].strength_solver, 14, scaling_points + 0);
   aom_noise_strength_solver_fit_piecewise(
