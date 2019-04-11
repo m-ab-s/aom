@@ -524,6 +524,27 @@ static int get_start_shift_deconvolve(int filt_width, int stride) {
   return dif / 2;
 }
 
+void av1_cnn_batchnorm_c(float **image, int channels, int width, int height,
+                         int stride, const float *gamma, const float *beta,
+                         const float *mean, const float *std) {
+  assert(gamma && beta && beta && std && "batchnorm has null parameter!");
+  for (int ch = 0; ch < channels; ch++) {
+    const float ch_gamma = gamma[ch];
+    const float ch_beta = beta[ch];
+    const float ch_mean = mean[ch];
+    const float ch_std = std[ch];
+    float *image_row = image[ch];
+
+    for (int row = 0; row < height; row++) {
+      for (int col = 0; col < width; col++) {
+        image_row[col] =
+            ch_gamma * (image_row[col] - ch_mean) / ch_std + ch_beta;
+      }
+      image_row += stride;
+    }
+  }
+}
+
 void av1_cnn_deconvolve_c(const float **input, int in_width, int in_height,
                           int in_stride, const CNN_LAYER_CONFIG *layer_config,
                           float **output, int out_stride) {
@@ -750,6 +771,16 @@ void av1_cnn_predict_c(const float **input, int in_width, int in_height,
                        tensor2[branch].width, tensor2[branch].height,
                        tensor2[branch].stride,
                        cnn_config->layer_config[layer].activation);
+
+    if (cnn_config->layer_config[layer].bn_params.bn_gamma) {
+      av1_cnn_batchnorm(tensor2[branch].buf, tensor2[branch].channels,
+                        tensor2[branch].width, tensor2[branch].height,
+                        tensor2[branch].stride,
+                        cnn_config->layer_config[layer].bn_params.bn_gamma,
+                        cnn_config->layer_config[layer].bn_params.bn_beta,
+                        cnn_config->layer_config[layer].bn_params.bn_mean,
+                        cnn_config->layer_config[layer].bn_params.bn_std);
+    }
 
     // Concatenate tensors
     if (cnn_config->layer_config[layer].branch_combine_type == BRANCH_CAT) {

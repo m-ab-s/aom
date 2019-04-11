@@ -49515,6 +49515,7 @@ const CNN_CONFIG model63 = { .num_layers = 50,
                                      .channels_to_copy = 0,
                                      .branch_combine_type = BRANCH_NOC,
                                      .branches_to_combine = 0x00,
+                                     .bn_params = { 0 },
                                  },
                                  {
                                      // layer_1
@@ -49536,6 +49537,7 @@ const CNN_CONFIG model63 = { .num_layers = 50,
                                      .channels_to_copy = 0,
                                      .branch_combine_type = BRANCH_NOC,
                                      .branches_to_combine = 0x00,
+                                     .bn_params = { 0 },
                                  },
                                  {
                                      // layer_2
@@ -49557,6 +49559,7 @@ const CNN_CONFIG model63 = { .num_layers = 50,
                                      .channels_to_copy = 0,
                                      .branch_combine_type = BRANCH_NOC,
                                      .branches_to_combine = 0x00,
+                                     .bn_params = { 0 },
                                  },
                                  {
                                      // layer_3
@@ -49578,6 +49581,7 @@ const CNN_CONFIG model63 = { .num_layers = 50,
                                      .channels_to_copy = 0,
                                      .branch_combine_type = BRANCH_ADD,
                                      .branches_to_combine = 0x02,
+                                     .bn_params = { 0 },
                                  },
                                  {
                                      // layer_4
@@ -49599,6 +49603,7 @@ const CNN_CONFIG model63 = { .num_layers = 50,
                                      .channels_to_copy = 0,
                                      .branch_combine_type = BRANCH_NOC,
                                      .branches_to_combine = 0x00,
+                                     .bn_params = { 0 },
                                  },
                                  {
                                      // layer_5
@@ -49620,6 +49625,7 @@ const CNN_CONFIG model63 = { .num_layers = 50,
                                      .channels_to_copy = 0,
                                      .branch_combine_type = BRANCH_NOC,
                                      .branches_to_combine = 0x00,
+                                     .bn_params = { 0 },
                                  },
                                  {
                                      // layer_6
@@ -49641,6 +49647,7 @@ const CNN_CONFIG model63 = { .num_layers = 50,
                                      .channels_to_copy = 0,
                                      .branch_combine_type = BRANCH_ADD,
                                      .branches_to_combine = 0x02,
+                                     .bn_params = { 0 },
                                  },
                                  {
                                      // layer_7
@@ -49662,6 +49669,7 @@ const CNN_CONFIG model63 = { .num_layers = 50,
                                      .channels_to_copy = 0,
                                      .branch_combine_type = BRANCH_NOC,
                                      .branches_to_combine = 0x00,
+                                     .bn_params = { 0 },
                                  },
                                  {
                                      // layer_8
@@ -49683,6 +49691,7 @@ const CNN_CONFIG model63 = { .num_layers = 50,
                                      .channels_to_copy = 0,
                                      .branch_combine_type = BRANCH_NOC,
                                      .branches_to_combine = 0x00,
+                                     .bn_params = { 0 },
                                  },
                                  {
                                      // layer_9
@@ -49704,6 +49713,7 @@ const CNN_CONFIG model63 = { .num_layers = 50,
                                      .channels_to_copy = 0,
                                      .branch_combine_type = BRANCH_ADD,
                                      .branches_to_combine = 0x02,
+                                     .bn_params = { 0 },
                                  },
                                  {
                                      // layer_10
@@ -49725,6 +49735,7 @@ const CNN_CONFIG model63 = { .num_layers = 50,
                                      .channels_to_copy = 0,
                                      .branch_combine_type = BRANCH_NOC,
                                      .branches_to_combine = 0x00,
+                                     .bn_params = { 0 },
                                  },
                                  {
                                      // layer_11
@@ -49746,6 +49757,7 @@ const CNN_CONFIG model63 = { .num_layers = 50,
                                      .channels_to_copy = 0,
                                      .branch_combine_type = BRANCH_NOC,
                                      .branches_to_combine = 0x00,
+                                     .bn_params = { 0 },
                                  },
                                  {
                                      // layer_12
@@ -49767,6 +49779,7 @@ const CNN_CONFIG model63 = { .num_layers = 50,
                                      .channels_to_copy = 0,
                                      .branch_combine_type = BRANCH_ADD,
                                      .branches_to_combine = 0x02,
+                                     .bn_params = { 0 },
                                  },
                                  {
                                      // layer_13
@@ -49788,6 +49801,7 @@ const CNN_CONFIG model63 = { .num_layers = 50,
                                      .channels_to_copy = 0,
                                      .branch_combine_type = BRANCH_NOC,
                                      .branches_to_combine = 0x00,
+                                     .bn_params = { 0 },
                                  },
                                  {
                                      // layer_14
@@ -49809,6 +49823,7 @@ const CNN_CONFIG model63 = { .num_layers = 50,
                                      .channels_to_copy = 0,
                                      .branch_combine_type = BRANCH_NOC,
                                      .branches_to_combine = 0x00,
+                                     .bn_params = { 0 },
                                  },
                                  {
                                      // layer_15
@@ -49830,6 +49845,7 @@ const CNN_CONFIG model63 = { .num_layers = 50,
                                      .channels_to_copy = 0,
                                      .branch_combine_type = BRANCH_ADD,
                                      .branches_to_combine = 0x02,
+                                     .bn_params = { 0 },
                                  },
                                  {
                                      // layer_16
@@ -49851,6 +49867,7 @@ const CNN_CONFIG model63 = { .num_layers = 50,
                                      .channels_to_copy = 0,
                                      .branch_combine_type = BRANCH_NOC,
                                      .branches_to_combine = 0x00,
+                                     .bn_params = { 0 },
                                  },
                                  {
                                      // layer_17
@@ -49872,6 +49889,7 @@ const CNN_CONFIG model63 = { .num_layers = 50,
                                      .channels_to_copy = 0,
                                      .branch_combine_type = BRANCH_NOC,
                                      .branches_to_combine = 0x00,
+                                     .bn_params = { 0 },
                                  },
                                  {
                                      // layer_18
@@ -49893,6 +49911,7 @@ const CNN_CONFIG model63 = { .num_layers = 50,
                                      .channels_to_copy = 0,
                                      .branch_combine_type = BRANCH_ADD,
                                      .branches_to_combine = 0x02,
+                                     .bn_params = { 0 },
                                  },
                                  {
                                      // layer_19
@@ -49914,6 +49933,7 @@ const CNN_CONFIG model63 = { .num_layers = 50,
                                      .channels_to_copy = 0,
                                      .branch_combine_type = BRANCH_NOC,
                                      .branches_to_combine = 0x00,
+                                     .bn_params = { 0 },
                                  },
                                  {
                                      // layer_20
@@ -49935,6 +49955,7 @@ const CNN_CONFIG model63 = { .num_layers = 50,
                                      .channels_to_copy = 0,
                                      .branch_combine_type = BRANCH_NOC,
                                      .branches_to_combine = 0x00,
+                                     .bn_params = { 0 },
                                  },
                                  {
                                      // layer_21
@@ -49956,6 +49977,7 @@ const CNN_CONFIG model63 = { .num_layers = 50,
                                      .channels_to_copy = 0,
                                      .branch_combine_type = BRANCH_ADD,
                                      .branches_to_combine = 0x02,
+                                     .bn_params = { 0 },
                                  },
                                  {
                                      // layer_22
@@ -49977,6 +49999,7 @@ const CNN_CONFIG model63 = { .num_layers = 50,
                                      .channels_to_copy = 0,
                                      .branch_combine_type = BRANCH_NOC,
                                      .branches_to_combine = 0x00,
+                                     .bn_params = { 0 },
                                  },
                                  {
                                      // layer_23
@@ -49998,6 +50021,7 @@ const CNN_CONFIG model63 = { .num_layers = 50,
                                      .channels_to_copy = 0,
                                      .branch_combine_type = BRANCH_NOC,
                                      .branches_to_combine = 0x00,
+                                     .bn_params = { 0 },
                                  },
                                  {
                                      // layer_24
@@ -50019,6 +50043,7 @@ const CNN_CONFIG model63 = { .num_layers = 50,
                                      .channels_to_copy = 0,
                                      .branch_combine_type = BRANCH_ADD,
                                      .branches_to_combine = 0x02,
+                                     .bn_params = { 0 },
                                  },
                                  {
                                      // layer_25
@@ -50040,6 +50065,7 @@ const CNN_CONFIG model63 = { .num_layers = 50,
                                      .channels_to_copy = 0,
                                      .branch_combine_type = BRANCH_NOC,
                                      .branches_to_combine = 0x00,
+                                     .bn_params = { 0 },
                                  },
                                  {
                                      // layer_26
@@ -50061,6 +50087,7 @@ const CNN_CONFIG model63 = { .num_layers = 50,
                                      .channels_to_copy = 0,
                                      .branch_combine_type = BRANCH_NOC,
                                      .branches_to_combine = 0x00,
+                                     .bn_params = { 0 },
                                  },
                                  {
                                      // layer_27
@@ -50082,6 +50109,7 @@ const CNN_CONFIG model63 = { .num_layers = 50,
                                      .channels_to_copy = 0,
                                      .branch_combine_type = BRANCH_ADD,
                                      .branches_to_combine = 0x02,
+                                     .bn_params = { 0 },
                                  },
                                  {
                                      // layer_28
@@ -50103,6 +50131,7 @@ const CNN_CONFIG model63 = { .num_layers = 50,
                                      .channels_to_copy = 0,
                                      .branch_combine_type = BRANCH_NOC,
                                      .branches_to_combine = 0x00,
+                                     .bn_params = { 0 },
                                  },
                                  {
                                      // layer_29
@@ -50124,6 +50153,7 @@ const CNN_CONFIG model63 = { .num_layers = 50,
                                      .channels_to_copy = 0,
                                      .branch_combine_type = BRANCH_NOC,
                                      .branches_to_combine = 0x00,
+                                     .bn_params = { 0 },
                                  },
                                  {
                                      // layer_30
@@ -50145,6 +50175,7 @@ const CNN_CONFIG model63 = { .num_layers = 50,
                                      .channels_to_copy = 0,
                                      .branch_combine_type = BRANCH_ADD,
                                      .branches_to_combine = 0x02,
+                                     .bn_params = { 0 },
                                  },
                                  {
                                      // layer_31
@@ -50166,6 +50197,7 @@ const CNN_CONFIG model63 = { .num_layers = 50,
                                      .channels_to_copy = 0,
                                      .branch_combine_type = BRANCH_NOC,
                                      .branches_to_combine = 0x00,
+                                     .bn_params = { 0 },
                                  },
                                  {
                                      // layer_32
@@ -50187,6 +50219,7 @@ const CNN_CONFIG model63 = { .num_layers = 50,
                                      .channels_to_copy = 0,
                                      .branch_combine_type = BRANCH_NOC,
                                      .branches_to_combine = 0x00,
+                                     .bn_params = { 0 },
                                  },
                                  {
                                      // layer_33
@@ -50208,6 +50241,7 @@ const CNN_CONFIG model63 = { .num_layers = 50,
                                      .channels_to_copy = 0,
                                      .branch_combine_type = BRANCH_ADD,
                                      .branches_to_combine = 0x02,
+                                     .bn_params = { 0 },
                                  },
                                  {
                                      // layer_34
@@ -50229,6 +50263,7 @@ const CNN_CONFIG model63 = { .num_layers = 50,
                                      .channels_to_copy = 0,
                                      .branch_combine_type = BRANCH_NOC,
                                      .branches_to_combine = 0x00,
+                                     .bn_params = { 0 },
                                  },
                                  {
                                      // layer_35
@@ -50250,6 +50285,7 @@ const CNN_CONFIG model63 = { .num_layers = 50,
                                      .channels_to_copy = 0,
                                      .branch_combine_type = BRANCH_NOC,
                                      .branches_to_combine = 0x00,
+                                     .bn_params = { 0 },
                                  },
                                  {
                                      // layer_36
@@ -50271,6 +50307,7 @@ const CNN_CONFIG model63 = { .num_layers = 50,
                                      .channels_to_copy = 0,
                                      .branch_combine_type = BRANCH_ADD,
                                      .branches_to_combine = 0x02,
+                                     .bn_params = { 0 },
                                  },
                                  {
                                      // layer_37
@@ -50292,6 +50329,7 @@ const CNN_CONFIG model63 = { .num_layers = 50,
                                      .channels_to_copy = 0,
                                      .branch_combine_type = BRANCH_NOC,
                                      .branches_to_combine = 0x00,
+                                     .bn_params = { 0 },
                                  },
                                  {
                                      // layer_38
@@ -50313,6 +50351,7 @@ const CNN_CONFIG model63 = { .num_layers = 50,
                                      .channels_to_copy = 0,
                                      .branch_combine_type = BRANCH_NOC,
                                      .branches_to_combine = 0x00,
+                                     .bn_params = { 0 },
                                  },
                                  {
                                      // layer_39
@@ -50334,6 +50373,7 @@ const CNN_CONFIG model63 = { .num_layers = 50,
                                      .channels_to_copy = 0,
                                      .branch_combine_type = BRANCH_ADD,
                                      .branches_to_combine = 0x02,
+                                     .bn_params = { 0 },
                                  },
                                  {
                                      // layer_40
@@ -50355,6 +50395,7 @@ const CNN_CONFIG model63 = { .num_layers = 50,
                                      .channels_to_copy = 0,
                                      .branch_combine_type = BRANCH_NOC,
                                      .branches_to_combine = 0x00,
+                                     .bn_params = { 0 },
                                  },
                                  {
                                      // layer_41
@@ -50376,6 +50417,7 @@ const CNN_CONFIG model63 = { .num_layers = 50,
                                      .channels_to_copy = 0,
                                      .branch_combine_type = BRANCH_NOC,
                                      .branches_to_combine = 0x00,
+                                     .bn_params = { 0 },
                                  },
                                  {
                                      // layer_42
@@ -50397,6 +50439,7 @@ const CNN_CONFIG model63 = { .num_layers = 50,
                                      .channels_to_copy = 0,
                                      .branch_combine_type = BRANCH_ADD,
                                      .branches_to_combine = 0x02,
+                                     .bn_params = { 0 },
                                  },
                                  {
                                      // layer_43
@@ -50418,6 +50461,7 @@ const CNN_CONFIG model63 = { .num_layers = 50,
                                      .channels_to_copy = 0,
                                      .branch_combine_type = BRANCH_NOC,
                                      .branches_to_combine = 0x00,
+                                     .bn_params = { 0 },
                                  },
                                  {
                                      // layer_44
@@ -50439,6 +50483,7 @@ const CNN_CONFIG model63 = { .num_layers = 50,
                                      .channels_to_copy = 0,
                                      .branch_combine_type = BRANCH_NOC,
                                      .branches_to_combine = 0x00,
+                                     .bn_params = { 0 },
                                  },
                                  {
                                      // layer_45
@@ -50460,6 +50505,7 @@ const CNN_CONFIG model63 = { .num_layers = 50,
                                      .channels_to_copy = 0,
                                      .branch_combine_type = BRANCH_ADD,
                                      .branches_to_combine = 0x02,
+                                     .bn_params = { 0 },
                                  },
                                  {
                                      // layer_46
@@ -50481,6 +50527,7 @@ const CNN_CONFIG model63 = { .num_layers = 50,
                                      .channels_to_copy = 0,
                                      .branch_combine_type = BRANCH_NOC,
                                      .branches_to_combine = 0x00,
+                                     .bn_params = { 0 },
                                  },
                                  {
                                      // layer_47
@@ -50502,6 +50549,7 @@ const CNN_CONFIG model63 = { .num_layers = 50,
                                      .channels_to_copy = 0,
                                      .branch_combine_type = BRANCH_NOC,
                                      .branches_to_combine = 0x00,
+                                     .bn_params = { 0 },
                                  },
                                  {
                                      // layer_48
@@ -50523,6 +50571,7 @@ const CNN_CONFIG model63 = { .num_layers = 50,
                                      .channels_to_copy = 0,
                                      .branch_combine_type = BRANCH_ADD,
                                      .branches_to_combine = 0x02,
+                                     .bn_params = { 0 },
                                  },
                                  {
                                      // layer_49
@@ -50544,6 +50593,7 @@ const CNN_CONFIG model63 = { .num_layers = 50,
                                      .channels_to_copy = 0,
                                      .branch_combine_type = BRANCH_NOC,
                                      .branches_to_combine = 0x00,
+                                     .bn_params = { 0 },
                                  },
                              } };
 

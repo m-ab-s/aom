@@ -57,6 +57,20 @@ enum {
 // BRANCH_CAT: Concatenate branch tensor to output of layer
 enum { BRANCH_NOC, BRANCH_ADD, BRANCH_CAT } UENUM1BYTE(BRANCH_COMBINE);
 
+struct BATCHNORM_PARAMS {
+  float *bn_gamma, *bn_beta, *bn_mean,
+      *bn_std;  // The parameters used to scale each channel in batch
+                // normalization. The processing in done on a per-channel basis.
+                // e.g. bn_mean[c] is the mean for all pixels in channel c. This
+                // is always applied after activation. The output is given by
+                // out[c,i,j] = norm[c,i,j] * bn_gamma[c] + bn_beta[c] where
+                // norm[c,i,j] = (in[c,i,j] - bn_mean[c]) / bn_std[c]
+                // here we assume that the effect of variance_epsilon is already
+                // taken into account when bn_std is calculated. The pointers
+                // needs to be either all zero or all valid. If all zero, then
+                // batchnorm is disabled, else batchnorm is applied.
+};
+
 struct CNN_LAYER_CONFIG {
   int branch;      // branch index in [0, CNN_MAX_BRANCHES - 1], where
                    // 0 refers to the primary branch.
@@ -98,6 +112,8 @@ struct CNN_LAYER_CONFIG {
                             // For example, if branches_to_combine = 0x0A,
                             // it means that braches 1 and 3 are combined
                             // with the current branch.
+  struct BATCHNORM_PARAMS bn_params;  // A struct that contains the parameters
+                                      // used for batch normalization.
 };
 
 struct CNN_CONFIG {
