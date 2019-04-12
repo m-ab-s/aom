@@ -443,6 +443,7 @@ int aom_flat_block_finder_init(aom_flat_block_finder_t *block_finder,
     aom_free(AtA_inv);
     aom_free(A);
     equation_system_free(&eqns);
+    memset(block_finder, 0, sizeof(*block_finder));
     return 0;
   }
 
