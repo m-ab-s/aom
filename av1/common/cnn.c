@@ -232,7 +232,8 @@ activation_fn get_activation(ACTIVATION layer_activation) {
   }
 }
 
-static int get_start_shift_convolve(int width, int filt_width, int stride) {
+static INLINE int get_start_shift_convolve(int width, int filt_width,
+                                           int stride) {
   const int mod = (width % stride);
   const int filt_off = (filt_width - 1) / 2;
   const int dif = (mod ? mod - 1 : stride - 1);
@@ -413,75 +414,101 @@ void av1_cnn_convolve_c(const float **input, int in_width, int in_height,
       default: assert(0 && "Unknown padding type");
     }
   } else {
+    // Results in element-wise matrix multiplication.
+    if (layer_config->filter_height == 1 && layer_config->filter_width == 1) {
+      const int start_h = get_start_shift_convolve(
+          in_height, layer_config->filter_height, layer_config->skip_height);
+      const int start_w = get_start_shift_convolve(
+          in_width, layer_config->filter_width, layer_config->skip_width);
+      for (int i = 0; i < layer_config->out_channels; ++i) {
+        for (int h = start_h, u = 0; h < in_height;
+             h += layer_config->skip_height, ++u) {
+          const int in_h = h * in_stride;
+          const int out_h = u * out_stride;
+          for (int w = start_w, out_index = out_h; w < in_width;
+               w += layer_config->skip_width, ++out_index) {
+            float sum = layer_config->bias[i];
+            for (int k = 0; k < layer_config->in_channels; ++k) {
+              sum += layer_config->weights[k * layer_config->out_channels + i] *
+                     input[k][in_h + w];
+            }
+            output[i][out_index] = sum;
+          }
+        }
+      }
+      return;
+    }
+    const int ii_shift =
+        ((layer_config->filter_height - 1) % 2) - filter_height_half;
+    const int jj_shift =
+        ((layer_config->filter_width - 1) % 2) - filter_width_half;
+    // h and w are shifted to an offset coordinate system to reduce in-loop
+    // computation.
+    const int start_h =
+        (get_start_shift_convolve(in_height, layer_config->filter_height,
+                                  layer_config->skip_height) +
+         ii_shift);
+    const int start_w =
+        (get_start_shift_convolve(in_width, layer_config->filter_width,
+                                  layer_config->skip_width) +
+         jj_shift);
+    const int end_h = (in_height + ii_shift);
+    const int end_w = (in_width + jj_shift);
     switch (layer_config->pad) {
       case PADDING_SAME_ZERO:
         for (int i = 0; i < layer_config->out_channels; ++i) {
-          for (int h = get_start_shift_convolve(in_height,
-                                                layer_config->filter_height,
-                                                layer_config->skip_height),
-                   u = 0;
-               h < in_height; h += layer_config->skip_height, ++u) {
-            for (int w = get_start_shift_convolve(in_width,
-                                                  layer_config->filter_width,
-                                                  layer_config->skip_width),
-                     v = 0;
-                 w < in_width; w += layer_config->skip_width, ++v) {
+          for (int h = start_h, u = 0; h < end_h;
+               h += layer_config->skip_height, ++u) {
+            const int out_h = u * out_stride;
+            const int upper_ii_index = layer_config->filter_height + h;
+            for (int w = start_w, out_index = out_h; w < end_w;
+                 w += layer_config->skip_width, ++out_index) {
+              const int upper_jj_index = layer_config->filter_width + w;
               float sum = layer_config->bias[i];
               for (int k = 0; k < layer_config->in_channels; ++k) {
                 int off = k * layer_config->out_channels + i;
-                for (int l = 0; l < layer_config->filter_height; ++l) {
-                  const int ii = h + l - filter_height_half +
-                                 (layer_config->filter_height - 1) % 2;
-                  for (int m = 0; m < layer_config->filter_width;
-                       ++m, off += cstep) {
-                    const int jj = w + m - filter_width_half +
-                                   (layer_config->filter_width - 1) % 2;
-                    if (ii < 0 || ii >= in_height || jj < 0 || jj >= in_width)
-                      continue;
-                    sum += layer_config->weights[off] *
-                           input[k][ii * in_stride + jj];
+                for (int ii = h; ii < upper_ii_index; ++ii) {
+                  for (int jj = w; jj < upper_jj_index; ++jj) {
+                    // TODO(logangw): Remove if statement, cut about 6% of
+                    //   instruction calls.
+                    if (ii >= 0 && ii < in_height && jj >= 0 && jj < in_width) {
+                      sum += layer_config->weights[off] *
+                             input[k][ii * in_stride + jj];
+                    }
+                    off += cstep;
                   }
                 }
               }
-              output[i][u * out_stride + v] = sum;
+              output[i][out_index] = sum;
             }
           }
         }
         break;
       case PADDING_SAME_REPLICATE:
         for (int i = 0; i < layer_config->out_channels; ++i) {
-          for (int h = get_start_shift_convolve(in_height,
-                                                layer_config->filter_height,
-                                                layer_config->skip_height),
-                   u = 0;
-               h < in_height; h += layer_config->skip_height, ++u) {
-            for (int w = get_start_shift_convolve(in_width,
-                                                  layer_config->filter_width,
-                                                  layer_config->skip_width),
-                     v = 0;
-                 w < in_width; w += layer_config->skip_width, ++v) {
+          for (int h = start_h, u = 0; h < end_h;
+               h += layer_config->skip_height, ++u) {
+            const int out_h = u * out_stride;
+            const int upper_ii_index = layer_config->filter_height + h;
+            for (int w = start_w, out_index = out_h; w < end_w;
+                 w += layer_config->skip_width, ++out_index) {
+              const int upper_jj_index = layer_config->filter_width + w;
               float sum = layer_config->bias[i];
               for (int k = 0; k < layer_config->in_channels; ++k) {
                 int off = k * layer_config->out_channels + i;
-                for (int l = 0; l < layer_config->filter_height; ++l) {
-                  const int ii =
-                      CLAMPINDEX(h + l - filter_height_half +
-                                     (layer_config->filter_height - 1) % 2,
-                                 in_height);
-                  for (int m = 0; m < layer_config->filter_width;
-                       ++m, off += cstep) {
-                    const int jj =
-                        CLAMPINDEX(w + m - filter_width_half +
-                                       (layer_config->filter_width - 1) % 2,
-                                   in_width);
-                    assert(ii >= 0 && ii < in_height && jj >= 0 &&
-                           jj < in_width);
+                for (int ii = h; ii < upper_ii_index; ++ii) {
+                  const int clamped_ii = CLAMPINDEX(ii, in_height);
+                  for (int jj = w; jj < upper_jj_index; ++jj) {
+                    const int clamped_jj = CLAMPINDEX(jj, in_width);
+                    assert(clamped_ii >= 0 && clamped_ii < in_height &&
+                           clamped_jj >= 0 && clamped_jj < in_width);
                     sum += layer_config->weights[off] *
-                           input[k][ii * in_stride + jj];
+                           input[k][clamped_ii * in_stride + clamped_jj];
+                    off += cstep;
                   }
                 }
               }
-              output[i][u * out_stride + v] = sum;
+              output[i][out_index] = sum;
             }
           }
         }
@@ -491,25 +518,26 @@ void av1_cnn_convolve_c(const float **input, int in_width, int in_height,
           for (int h = 0, u = 0;
                h < in_height - layer_config->filter_height + 1;
                h += layer_config->skip_height, ++u) {
-            for (int w = 0, v = 0;
+            const int out_h = u * out_stride;
+            const int upper_ii_index = layer_config->filter_height + h;
+            for (int w = 0, out_index = out_h;
                  w < in_width - layer_config->filter_width + 1;
-                 w += layer_config->skip_width, ++v) {
+                 w += layer_config->skip_width, ++out_index) {
+              const int upper_jj_index = layer_config->filter_width + w;
               float sum = layer_config->bias[i];
               for (int k = 0; k < layer_config->in_channels; ++k) {
                 int off = k * layer_config->out_channels + i;
-                for (int l = 0; l < layer_config->filter_height; ++l) {
-                  const int ii = h + l;
-                  for (int m = 0; m < layer_config->filter_width;
-                       ++m, off += cstep) {
-                    const int jj = w + m;
+                for (int ii = h; ii < upper_ii_index; ++ii) {
+                  for (int jj = w; jj < upper_jj_index; ++jj) {
                     assert(ii >= 0 && ii < in_height && jj >= 0 &&
                            jj < in_width);
                     sum += layer_config->weights[off] *
                            input[k][ii * in_stride + jj];
+                    off += cstep;
                   }
                 }
               }
-              output[i][u * out_stride + v] = sum;
+              output[i][out_index] = sum;
             }
           }
         }
@@ -519,7 +547,7 @@ void av1_cnn_convolve_c(const float **input, int in_width, int in_height,
   }
 }
 
-static int get_start_shift_deconvolve(int filt_width, int stride) {
+static INLINE int get_start_shift_deconvolve(int filt_width, int stride) {
   const int dif = AOMMAX(filt_width - stride, 0);
   return dif / 2;
 }
