@@ -66,9 +66,10 @@ static void copy_tensor(const TENSOR *src, int copy_channels, int dst_offset,
   assert(src->height == dst->height);
   assert(copy_channels <= src->channels);
   if (src->stride == dst->width && dst->stride == dst->width) {
-    memcpy(dst->buf[dst_offset], src->buf[0],
-           sizeof(*dst->buf[dst_offset]) * src->width * src->height *
-               copy_channels);
+    for (int c = 0; c < copy_channels; ++c) {
+      memcpy(dst->buf[dst_offset + c], src->buf[c],
+             sizeof(*dst->buf[0]) * src->width * src->height);
+    }
   } else {
     for (int c = 0; c < copy_channels; ++c) {
       for (int r = 0; r < dst->height; ++r) {
