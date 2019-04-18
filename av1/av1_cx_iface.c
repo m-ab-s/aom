@@ -72,6 +72,7 @@ struct av1_extracfg {
   int enable_dual_filter;
   AQ_MODE aq_mode;
   DELTAQ_MODE deltaq_mode;
+  int deltalf_mode;
   unsigned int frame_periodic_boost;
   aom_bit_depth_t bit_depth;
   aom_tune_content content;
@@ -92,26 +93,34 @@ struct av1_extracfg {
   unsigned int motion_vector_unit_test;
   unsigned int cdf_update_mode;
   int enable_rect_partitions;    // enable rectangular partitions for sequence
+  int enable_ab_partitions;      // enable AB partitions for sequence
+  int enable_1to4_partitions;    // enable 1:4 and 4:1 partitions for sequence
+  int min_partition_size;        // min partition size [4,8,16,32,64,128]
+  int max_partition_size;        // max partition size [4,8,16,32,64,128]
   int enable_intra_edge_filter;  // enable intra-edge filter for sequence
   int enable_order_hint;         // enable order hint for sequence
   int enable_tx64;               // enable 64-pt transform usage for sequence
+  int tx_size_search_method;     // set transform block size search method
+  int enable_flip_idtx;          // enable flip and identity transform types
   int enable_dist_wtd_comp;      // enable dist wtd compound for sequence
   int max_reference_frames;      // maximum number of references per frame
-  int enable_ref_frame_mvs;      // sequence level
-  int allow_ref_frame_mvs;       // frame level
-  int enable_masked_comp;        // enable masked compound for sequence
-  int enable_interintra_comp;    // enable interintra compound for sequence
-  int enable_smooth_interintra;  // enable smooth interintra mode usage
-  int enable_diff_wtd_comp;      // enable diff-wtd compound usage
-  int enable_interinter_wedge;   // enable interinter-wedge compound usage
-  int enable_interintra_wedge;   // enable interintra-wedge compound usage
-  int enable_global_motion;      // enable global motion usage for sequence
-  int enable_warped_motion;      // sequence level
-  int allow_warped_motion;       // frame level
-  int enable_filter_intra;       // enable filter intra for sequence
-  int enable_smooth_intra;       // enable smooth intra modes for sequence
-  int enable_paeth_intra;        // enable Paeth intra mode for sequence
-  int enable_cfl_intra;          // enable CFL uv intra mode for sequence
+  int enable_reduced_reference_set;  // enable reduced set of references
+  int enable_ref_frame_mvs;          // sequence level
+  int allow_ref_frame_mvs;           // frame level
+  int enable_masked_comp;            // enable masked compound for sequence
+  int enable_onesided_comp;          // enable one sided compound for sequence
+  int enable_interintra_comp;        // enable interintra compound for sequence
+  int enable_smooth_interintra;      // enable smooth interintra mode usage
+  int enable_diff_wtd_comp;          // enable diff-wtd compound usage
+  int enable_interinter_wedge;       // enable interinter-wedge compound usage
+  int enable_interintra_wedge;       // enable interintra-wedge compound usage
+  int enable_global_motion;          // enable global motion usage for sequence
+  int enable_warped_motion;          // sequence level
+  int allow_warped_motion;           // frame level
+  int enable_filter_intra;           // enable filter intra for sequence
+  int enable_smooth_intra;           // enable smooth intra modes for sequence
+  int enable_paeth_intra;            // enable Paeth intra mode for sequence
+  int enable_cfl_intra;              // enable CFL uv intra mode for sequence
   int enable_superres;
   int enable_palette;
   int enable_intrabc;
@@ -128,6 +137,10 @@ struct av1_extracfg {
   int use_inter_dct_only;
   int use_intra_default_tx_only;
   int quant_b_adapt;
+  AV1_LEVEL target_seq_level_idx[MAX_NUM_OPERATING_POINTS];
+  // Bit mask to specify which tier each of the 32 possible operating points
+  // conforms to.
+  unsigned int tier_mask;
   COST_UPDATE_TYPE coeff_cost_upd_freq;
   COST_UPDATE_TYPE mode_cost_upd_freq;
 };
@@ -157,7 +170,7 @@ static struct av1_extracfg default_extra_cfg = {
   !CONFIG_SHARP_SETTINGS,  // enable_cdef
   1,                       // enable_restoration
   1,                       // enable_obmc
-  0,                       // disable_trellis_quant
+  3,                       // disable_trellis_quant
   0,                       // enable_qm
   DEFAULT_QM_Y,            // qm_y
   DEFAULT_QM_U,            // qm_u
@@ -174,6 +187,7 @@ static struct av1_extracfg default_extra_cfg = {
   1,                            // enable dual filter
   NO_AQ,                        // aq_mode
   NO_DELTA_Q,                   // deltaq_mode
+  0,                            // delta lf mode
   0,                            // frame_periodic_delta_q
   AOM_BITS_8,                   // Bit depth
   AOM_CONTENT_DEFAULT,          // content
@@ -193,14 +207,22 @@ static struct av1_extracfg default_extra_cfg = {
   0,                            // motion_vector_unit_test
   1,                            // CDF update mode
   1,                            // enable rectangular partitions
+  1,                            // enable ab shape partitions
+  1,                            // enable 1:4 and 4:1 partitions
+  4,                            // min_partition_size
+  128,                          // max_partition_size
   1,                            // enable intra edge filter
   1,                            // frame order hint
   1,                            // enable 64-pt transform usage
+  0,                            // transform block size search method
+  1,                            // enable flip and identity transform
   1,                            // dist-wtd compound
   7,                            // max_reference_frames
+  0,                            // enable_reduced_reference_set
   1,                            // enable_ref_frame_mvs sequence level
   1,                            // allow ref_frame_mvs frame level
   1,                            // enable masked compound at sequence level
+  1,                            // enable one sided compound at sequence level
   1,                            // enable interintra compound at sequence level
   1,                            // enable smooth interintra mode
   1,                            // enable difference-weighted compound
@@ -215,19 +237,24 @@ static struct av1_extracfg default_extra_cfg = {
   1,                            // enable CFL uv intra mode usage for sequence
   1,                            // superres
   1,                            // enable palette
-  1,                            // enable intrabc
+  !CONFIG_SHARP_SETTINGS,       // enable intrabc
   1,                            // enable angle delta
 #if CONFIG_DENOISE
   0,   // noise_level
   32,  // noise_block_size
 #endif
-  0,            // chroma_subsampling_x
-  0,            // chroma_subsampling_y
-  0,            // reduced_tx_type_set
-  0,            // use_intra_dct_only
-  0,            // use_inter_dct_only
-  0,            // use_intra_default_tx_only
-  0,            // quant_b_adapt
+  0,  // chroma_subsampling_x
+  0,  // chroma_subsampling_y
+  0,  // reduced_tx_type_set
+  0,  // use_intra_dct_only
+  0,  // use_inter_dct_only
+  0,  // use_intra_default_tx_only
+  0,  // quant_b_adapt
+  {
+      31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 31,
+      31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 31,
+  },            // target_seq_level_idx
+  0,            // tier_mask
   COST_UPD_SB,  // coeff_cost_upd_freq
   COST_UPD_SB,  // mode_cost_upd_freq
 };
@@ -236,6 +263,9 @@ struct aom_codec_alg_priv {
   aom_codec_priv_t base;
   aom_codec_enc_cfg_t cfg;
   struct av1_extracfg extra_cfg;
+  aom_rational64_t timestamp_ratio;
+  aom_codec_pts_t pts_offset;
+  unsigned char pts_offset_initialized;
   AV1EncoderConfig oxcf;
   AV1_COMP *cpi;
   unsigned char *cx_data;
@@ -252,6 +282,23 @@ struct aom_codec_alg_priv {
   // BufferPool that holds all reference frames.
   BufferPool *buffer_pool;
 };
+
+static INLINE int gcd(int64_t a, int b) {
+  int remainder;  // remainder
+  while (b > 0) {
+    remainder = (int)(a % b);
+    a = b;
+    b = remainder;
+  }
+
+  return (int)a;
+}
+
+static INLINE void reduce_ratio(aom_rational64_t *ratio) {
+  const int denom = gcd(ratio->num, ratio->den);
+  ratio->num /= denom;
+  ratio->den /= denom;
+}
 
 static aom_codec_err_t update_error_state(
     aom_codec_alg_priv_t *ctx, const struct aom_internal_error_info *error) {
@@ -299,7 +346,8 @@ static aom_codec_err_t validate_config(aom_codec_alg_priv_t *ctx,
   RANGE_CHECK_HI(cfg, rc_min_quantizer, cfg->rc_max_quantizer);
   RANGE_CHECK_BOOL(extra_cfg, lossless);
   RANGE_CHECK_HI(extra_cfg, aq_mode, AQ_MODE_COUNT - 1);
-  RANGE_CHECK_HI(extra_cfg, deltaq_mode, DELTAQ_MODE_COUNT - 1);
+  RANGE_CHECK_HI(extra_cfg, deltaq_mode, DELTA_Q_MODE_COUNT - 1);
+  RANGE_CHECK_HI(extra_cfg, deltalf_mode, 1);
   RANGE_CHECK_HI(extra_cfg, frame_periodic_boost, 1);
   RANGE_CHECK_HI(cfg, g_usage, 1);
   RANGE_CHECK_HI(cfg, g_threads, MAX_NUM_THREADS);
@@ -317,7 +365,7 @@ static aom_codec_err_t validate_config(aom_codec_alg_priv_t *ctx,
     RANGE_CHECK(extra_cfg, max_gf_interval, MAX(2, extra_cfg->min_gf_interval),
                 (MAX_LAG_BUFFERS - 1));
   }
-  RANGE_CHECK(extra_cfg, gf_max_pyr_height, 1, 4);
+  RANGE_CHECK_HI(extra_cfg, gf_max_pyr_height, 4);
 
   RANGE_CHECK_HI(cfg, rc_resize_mode, RESIZE_MODES - 1);
   RANGE_CHECK(cfg, rc_resize_denominator, SCALE_NUMERATOR,
@@ -435,12 +483,24 @@ static aom_codec_err_t validate_config(aom_codec_alg_priv_t *ctx,
   }
 
   RANGE_CHECK(extra_cfg, max_reference_frames, 3, 7);
+  RANGE_CHECK(extra_cfg, enable_reduced_reference_set, 0, 1);
   RANGE_CHECK_HI(extra_cfg, chroma_subsampling_x, 1);
   RANGE_CHECK_HI(extra_cfg, chroma_subsampling_y, 1);
 
-  RANGE_CHECK_HI(extra_cfg, disable_trellis_quant, 2);
+  RANGE_CHECK_HI(extra_cfg, disable_trellis_quant, 3);
   RANGE_CHECK(extra_cfg, coeff_cost_upd_freq, 0, 2);
   RANGE_CHECK(extra_cfg, mode_cost_upd_freq, 0, 2);
+
+  RANGE_CHECK(extra_cfg, min_partition_size, 4, 128);
+  RANGE_CHECK(extra_cfg, max_partition_size, 4, 128);
+  RANGE_CHECK_HI(extra_cfg, min_partition_size, extra_cfg->max_partition_size);
+
+  RANGE_CHECK(extra_cfg, tx_size_search_method, 0, 2);
+
+  for (int i = 0; i < MAX_NUM_OPERATING_POINTS; ++i) {
+    if (!is_valid_seq_level_idx(extra_cfg->target_seq_level_idx[i]))
+      ERROR("Target sequence level index is invalid");
+  }
 
   return AOM_CODEC_OK;
 }
@@ -646,9 +706,6 @@ static aom_codec_err_t set_encoder_config(
     }
   }
 
-  oxcf->enable_tpl_model =
-      extra_cfg->enable_tpl_model && (oxcf->superres_mode == SUPERRES_NONE);
-
   oxcf->maximum_buffer_size_ms = is_vbr ? 240000 : cfg->rc_buf_sz;
   oxcf->starting_buffer_level_ms = is_vbr ? 60000 : cfg->rc_buf_initial_sz;
   oxcf->optimal_buffer_level_ms = is_vbr ? 60000 : cfg->rc_buf_optimal_sz;
@@ -673,10 +730,6 @@ static aom_codec_err_t set_encoder_config(
   oxcf->sharpness = extra_cfg->sharpness;
 
   oxcf->two_pass_stats_in = cfg->rc_twopass_stats_in;
-
-#if CONFIG_FP_MB_STATS
-  oxcf->firstpass_mb_stats_in = cfg->rc_firstpass_mb_stats_in;
-#endif
 
   oxcf->color_primaries = extra_cfg->color_primaries;
   oxcf->transfer_characteristics = extra_cfg->transfer_characteristics;
@@ -732,13 +785,21 @@ static aom_codec_err_t set_encoder_config(
   oxcf->full_still_picture_hdr = cfg->full_still_picture_hdr;
   oxcf->enable_dual_filter = extra_cfg->enable_dual_filter;
   oxcf->enable_rect_partitions = extra_cfg->enable_rect_partitions;
+  oxcf->enable_ab_partitions = extra_cfg->enable_ab_partitions;
+  oxcf->enable_1to4_partitions = extra_cfg->enable_1to4_partitions;
+  oxcf->min_partition_size = extra_cfg->min_partition_size;
+  oxcf->max_partition_size = extra_cfg->max_partition_size;
   oxcf->enable_intra_edge_filter = extra_cfg->enable_intra_edge_filter;
   oxcf->enable_tx64 = extra_cfg->enable_tx64;
+  oxcf->tx_size_search_method = extra_cfg->tx_size_search_method;
+  oxcf->enable_flip_idtx = extra_cfg->enable_flip_idtx;
   oxcf->enable_order_hint = extra_cfg->enable_order_hint;
   oxcf->enable_dist_wtd_comp =
       extra_cfg->enable_dist_wtd_comp & extra_cfg->enable_order_hint;
   oxcf->max_reference_frames = extra_cfg->max_reference_frames;
+  oxcf->enable_reduced_reference_set = extra_cfg->enable_reduced_reference_set;
   oxcf->enable_masked_comp = extra_cfg->enable_masked_comp;
+  oxcf->enable_onesided_comp = extra_cfg->enable_onesided_comp;
   oxcf->enable_diff_wtd_comp =
       extra_cfg->enable_masked_comp & extra_cfg->enable_diff_wtd_comp;
   oxcf->enable_interinter_wedge =
@@ -792,8 +853,23 @@ static aom_codec_err_t set_encoder_config(
     oxcf->timing_info_present = 0;
   }
 
+  oxcf->enable_tpl_model =
+      extra_cfg->enable_tpl_model && (oxcf->superres_mode == SUPERRES_NONE);
+
   oxcf->aq_mode = extra_cfg->aq_mode;
   oxcf->deltaq_mode = extra_cfg->deltaq_mode;
+  // Turn on tpl model for deltaq_mode == DELTA_Q_OBJECTIVE and no
+  // superres. If superres is being used on the other hand, turn
+  // delta_q off.
+  if (oxcf->deltaq_mode == DELTA_Q_OBJECTIVE) {
+    if (oxcf->superres_mode == SUPERRES_NONE)
+      oxcf->enable_tpl_model = 1;
+    else
+      oxcf->deltaq_mode = NO_DELTA_Q;
+  }
+
+  oxcf->deltalf_mode =
+      (oxcf->deltaq_mode != NO_DELTA_Q) && extra_cfg->deltalf_mode;
 
   oxcf->save_as_annexb = cfg->save_as_annexb;
 
@@ -805,6 +881,9 @@ static aom_codec_err_t set_encoder_config(
   oxcf->border_in_pixels = (oxcf->resize_mode || oxcf->superres_mode)
                                ? AOM_BORDER_IN_PIXELS
                                : AOM_ENC_NO_SCALE_BORDER;
+  memcpy(oxcf->target_seq_level_idx, extra_cfg->target_seq_level_idx,
+         sizeof(oxcf->target_seq_level_idx));
+  oxcf->tier_mask = extra_cfg->tier_mask;
   return AOM_CODEC_OK;
 }
 
@@ -1107,6 +1186,35 @@ static aom_codec_err_t ctrl_set_enable_rect_partitions(
   return update_extra_cfg(ctx, &extra_cfg);
 }
 
+static aom_codec_err_t ctrl_set_enable_ab_partitions(aom_codec_alg_priv_t *ctx,
+                                                     va_list args) {
+  struct av1_extracfg extra_cfg = ctx->extra_cfg;
+  extra_cfg.enable_ab_partitions = CAST(AV1E_SET_ENABLE_AB_PARTITIONS, args);
+  return update_extra_cfg(ctx, &extra_cfg);
+}
+
+static aom_codec_err_t ctrl_set_enable_1to4_partitions(
+    aom_codec_alg_priv_t *ctx, va_list args) {
+  struct av1_extracfg extra_cfg = ctx->extra_cfg;
+  extra_cfg.enable_1to4_partitions =
+      CAST(AV1E_SET_ENABLE_1TO4_PARTITIONS, args);
+  return update_extra_cfg(ctx, &extra_cfg);
+}
+
+static aom_codec_err_t ctrl_set_min_partition_size(aom_codec_alg_priv_t *ctx,
+                                                   va_list args) {
+  struct av1_extracfg extra_cfg = ctx->extra_cfg;
+  extra_cfg.min_partition_size = CAST(AV1E_SET_MIN_PARTITION_SIZE, args);
+  return update_extra_cfg(ctx, &extra_cfg);
+}
+
+static aom_codec_err_t ctrl_set_max_partition_size(aom_codec_alg_priv_t *ctx,
+                                                   va_list args) {
+  struct av1_extracfg extra_cfg = ctx->extra_cfg;
+  extra_cfg.max_partition_size = CAST(AV1E_SET_MAX_PARTITION_SIZE, args);
+  return update_extra_cfg(ctx, &extra_cfg);
+}
+
 static aom_codec_err_t ctrl_set_enable_intra_edge_filter(
     aom_codec_alg_priv_t *ctx, va_list args) {
   struct av1_extracfg extra_cfg = ctx->extra_cfg;
@@ -1129,6 +1237,20 @@ static aom_codec_err_t ctrl_set_enable_tx64(aom_codec_alg_priv_t *ctx,
   return update_extra_cfg(ctx, &extra_cfg);
 }
 
+static aom_codec_err_t ctrl_set_tx_size_search_method(aom_codec_alg_priv_t *ctx,
+                                                      va_list args) {
+  struct av1_extracfg extra_cfg = ctx->extra_cfg;
+  extra_cfg.tx_size_search_method = CAST(AV1E_SET_TX_SIZE_SEARCH_METHOD, args);
+  return update_extra_cfg(ctx, &extra_cfg);
+}
+
+static aom_codec_err_t ctrl_set_enable_flip_idtx(aom_codec_alg_priv_t *ctx,
+                                                 va_list args) {
+  struct av1_extracfg extra_cfg = ctx->extra_cfg;
+  extra_cfg.enable_flip_idtx = CAST(AV1E_SET_ENABLE_FLIP_IDTX, args);
+  return update_extra_cfg(ctx, &extra_cfg);
+}
+
 static aom_codec_err_t ctrl_set_enable_dist_wtd_comp(aom_codec_alg_priv_t *ctx,
                                                      va_list args) {
   struct av1_extracfg extra_cfg = ctx->extra_cfg;
@@ -1140,6 +1262,14 @@ static aom_codec_err_t ctrl_set_max_reference_frames(aom_codec_alg_priv_t *ctx,
                                                      va_list args) {
   struct av1_extracfg extra_cfg = ctx->extra_cfg;
   extra_cfg.max_reference_frames = CAST(AV1E_SET_MAX_REFERENCE_FRAMES, args);
+  return update_extra_cfg(ctx, &extra_cfg);
+}
+
+static aom_codec_err_t ctrl_set_enable_reduced_reference_set(
+    aom_codec_alg_priv_t *ctx, va_list args) {
+  struct av1_extracfg extra_cfg = ctx->extra_cfg;
+  extra_cfg.enable_reduced_reference_set =
+      CAST(AV1E_SET_REDUCED_REFERENCE_SET, args);
   return update_extra_cfg(ctx, &extra_cfg);
 }
 
@@ -1161,6 +1291,13 @@ static aom_codec_err_t ctrl_set_enable_masked_comp(aom_codec_alg_priv_t *ctx,
                                                    va_list args) {
   struct av1_extracfg extra_cfg = ctx->extra_cfg;
   extra_cfg.enable_masked_comp = CAST(AV1E_SET_ENABLE_MASKED_COMP, args);
+  return update_extra_cfg(ctx, &extra_cfg);
+}
+
+static aom_codec_err_t ctrl_set_enable_onesided_comp(aom_codec_alg_priv_t *ctx,
+                                                     va_list args) {
+  struct av1_extracfg extra_cfg = ctx->extra_cfg;
+  extra_cfg.enable_onesided_comp = CAST(AV1E_SET_ENABLE_ONESIDED_COMP, args);
   return update_extra_cfg(ctx, &extra_cfg);
 }
 
@@ -1405,6 +1542,13 @@ static aom_codec_err_t ctrl_set_deltaq_mode(aom_codec_alg_priv_t *ctx,
   return update_extra_cfg(ctx, &extra_cfg);
 }
 
+static aom_codec_err_t ctrl_set_deltalf_mode(aom_codec_alg_priv_t *ctx,
+                                             va_list args) {
+  struct av1_extracfg extra_cfg = ctx->extra_cfg;
+  extra_cfg.deltalf_mode = CAST(AV1E_SET_DELTALF_MODE, args);
+  return update_extra_cfg(ctx, &extra_cfg);
+}
+
 static aom_codec_err_t ctrl_set_min_gf_interval(aom_codec_alg_priv_t *ctx,
                                                 va_list args) {
   struct av1_extracfg extra_cfg = ctx->extra_cfg;
@@ -1441,6 +1585,26 @@ static aom_codec_err_t ctrl_enable_motion_vector_unit_test(
   return update_extra_cfg(ctx, &extra_cfg);
 }
 
+static aom_codec_err_t ctrl_set_target_seq_level_idx(aom_codec_alg_priv_t *ctx,
+                                                     va_list args) {
+  struct av1_extracfg extra_cfg = ctx->extra_cfg;
+  const int val = CAST(AV1E_SET_TARGET_SEQ_LEVEL_IDX, args);
+  const int level = val % 100;
+  const int operating_point_idx = val / 100;
+  if (operating_point_idx >= 0 &&
+      operating_point_idx < MAX_NUM_OPERATING_POINTS) {
+    extra_cfg.target_seq_level_idx[operating_point_idx] = (AV1_LEVEL)level;
+  }
+  return update_extra_cfg(ctx, &extra_cfg);
+}
+
+static aom_codec_err_t ctrl_set_tier_mask(aom_codec_alg_priv_t *ctx,
+                                          va_list args) {
+  struct av1_extracfg extra_cfg = ctx->extra_cfg;
+  extra_cfg.tier_mask = CAST(AV1E_SET_TIER_MASK, args);
+  return update_extra_cfg(ctx, &extra_cfg);
+}
+
 static aom_codec_err_t encoder_init(aom_codec_ctx_t *ctx,
                                     aom_codec_priv_enc_mr_cfg_t *data) {
   aom_codec_err_t res = AOM_CODEC_OK;
@@ -1474,6 +1638,11 @@ static aom_codec_err_t encoder_init(aom_codec_ctx_t *ctx,
     res = validate_config(priv, &priv->cfg, &priv->extra_cfg);
 
     if (res == AOM_CODEC_OK) {
+      priv->timestamp_ratio.den = priv->cfg.g_timebase.den;
+      priv->timestamp_ratio.num =
+          (int64_t)priv->cfg.g_timebase.num * TICKS_PER_SEC;
+      reduce_ratio(&priv->timestamp_ratio);
+
       set_encoder_config(&priv->oxcf, &priv->cfg, &priv->extra_cfg);
       priv->oxcf.use_highbitdepth =
           (ctx->init_flags & AOM_CODEC_USE_HIGHBITDEPTH) ? 1 : 0;
@@ -1521,7 +1690,8 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
   const size_t kMinCompressedSize = 8192;
   volatile aom_codec_err_t res = AOM_CODEC_OK;
   AV1_COMP *const cpi = ctx->cpi;
-  const aom_rational_t *const timebase = &ctx->cfg.g_timebase;
+  const aom_rational64_t *const timestamp_ratio = &ctx->timestamp_ratio;
+  volatile aom_codec_pts_t ptsvol = pts;
 
   if (cpi == NULL) return AOM_CODEC_INVALID_PARAM;
 
@@ -1547,6 +1717,12 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
     ctx->oxcf.mode = GOOD;
     av1_change_config(ctx->cpi, &ctx->oxcf);
   }
+
+  if (!ctx->pts_offset_initialized) {
+    ctx->pts_offset = ptsvol;
+    ctx->pts_offset_initialized = 1;
+  }
+  ptsvol -= ctx->pts_offset;
 
   aom_codec_pkt_list_init(&ctx->pkt_list);
 
@@ -1578,9 +1754,9 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
   }
 
   if (res == AOM_CODEC_OK) {
-    int64_t dst_time_stamp = timebase_units_to_ticks(timebase, pts);
+    int64_t dst_time_stamp = timebase_units_to_ticks(timestamp_ratio, ptsvol);
     int64_t dst_end_time_stamp =
-        timebase_units_to_ticks(timebase, pts + duration);
+        timebase_units_to_ticks(timestamp_ratio, ptsvol + duration);
 
     // Set up internal flags
     if (ctx->base.init_flags & AOM_CODEC_USE_PSNR) cpi->b_calculate_psnr = 1;
@@ -1629,7 +1805,7 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
            !is_frame_visible &&
            -1 != av1_get_compressed_data(cpi, &lib_flags, &frame_size, cx_data,
                                          &dst_time_stamp, &dst_end_time_stamp,
-                                         !img, timebase)) {
+                                         !img, timestamp_ratio)) {
       cpi->seq_params_locked = 1;
       if (frame_size) {
         if (ctx->pending_cx_data == 0) ctx->pending_cx_data = cx_data;
@@ -1649,8 +1825,8 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
                     frame_size);
           }
           const uint32_t obu_header_offset = 0;
-          obu_header_size = write_obu_header(
-              OBU_TEMPORAL_DELIMITER, 0,
+          obu_header_size = av1_write_obu_header(
+              cpi, OBU_TEMPORAL_DELIMITER, 0,
               (uint8_t *)(ctx->pending_cx_data + obu_header_offset));
 
           // OBUs are preceded/succeeded by an unsigned leb128 coded integer.
@@ -1724,7 +1900,9 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
       pkt.data.frame.partition_id = -1;
       pkt.data.frame.vis_frame_size = frame_size;
 
-      pkt.data.frame.pts = ticks_to_timebase_units(timebase, dst_time_stamp);
+      pkt.data.frame.pts =
+          ticks_to_timebase_units(timestamp_ratio, dst_time_stamp) +
+          ctx->pts_offset;
       pkt.data.frame.flags = get_frame_pkt_flags(cpi, lib_flags);
       if (has_fwd_keyframe) {
         // If one of the invisible frames in the packet is a keyframe, set
@@ -1732,7 +1910,7 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
         pkt.data.frame.flags |= AOM_FRAME_IS_DELAYED_RANDOM_ACCESS_POINT;
       }
       pkt.data.frame.duration = (uint32_t)ticks_to_timebase_units(
-          timebase, dst_end_time_stamp - dst_time_stamp);
+          timestamp_ratio, dst_end_time_stamp - dst_time_stamp);
 
       aom_codec_pkt_list_add(&ctx->pkt_list.head, &pkt);
 
@@ -2011,6 +2189,13 @@ static aom_codec_err_t ctrl_set_chroma_subsampling_y(aom_codec_alg_priv_t *ctx,
   return update_extra_cfg(ctx, &extra_cfg);
 }
 
+static aom_codec_err_t ctrl_get_seq_level_idx(aom_codec_alg_priv_t *ctx,
+                                              va_list args) {
+  int *const arg = va_arg(args, int *);
+  if (arg == NULL) return AOM_CODEC_INVALID_PARAM;
+  return av1_get_seq_level_idx(ctx->cpi, arg);
+}
+
 static aom_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {
   { AV1_COPY_REFERENCE, ctrl_copy_reference },
   { AOME_USE_REFERENCE, ctrl_use_reference },
@@ -2060,15 +2245,23 @@ static aom_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {
   { AV1E_SET_ERROR_RESILIENT_MODE, ctrl_set_error_resilient_mode },
   { AV1E_SET_S_FRAME_MODE, ctrl_set_s_frame_mode },
   { AV1E_SET_ENABLE_RECT_PARTITIONS, ctrl_set_enable_rect_partitions },
+  { AV1E_SET_ENABLE_AB_PARTITIONS, ctrl_set_enable_ab_partitions },
+  { AV1E_SET_ENABLE_1TO4_PARTITIONS, ctrl_set_enable_1to4_partitions },
+  { AV1E_SET_MIN_PARTITION_SIZE, ctrl_set_min_partition_size },
+  { AV1E_SET_MAX_PARTITION_SIZE, ctrl_set_max_partition_size },
   { AV1E_SET_ENABLE_DUAL_FILTER, ctrl_set_enable_dual_filter },
   { AV1E_SET_ENABLE_INTRA_EDGE_FILTER, ctrl_set_enable_intra_edge_filter },
   { AV1E_SET_ENABLE_ORDER_HINT, ctrl_set_enable_order_hint },
   { AV1E_SET_ENABLE_TX64, ctrl_set_enable_tx64 },
+  { AV1E_SET_TX_SIZE_SEARCH_METHOD, ctrl_set_tx_size_search_method },
+  { AV1E_SET_ENABLE_FLIP_IDTX, ctrl_set_enable_flip_idtx },
   { AV1E_SET_ENABLE_DIST_WTD_COMP, ctrl_set_enable_dist_wtd_comp },
   { AV1E_SET_MAX_REFERENCE_FRAMES, ctrl_set_max_reference_frames },
+  { AV1E_SET_REDUCED_REFERENCE_SET, ctrl_set_enable_reduced_reference_set },
   { AV1E_SET_ENABLE_REF_FRAME_MVS, ctrl_set_enable_ref_frame_mvs },
   { AV1E_SET_ALLOW_REF_FRAME_MVS, ctrl_set_allow_ref_frame_mvs },
   { AV1E_SET_ENABLE_MASKED_COMP, ctrl_set_enable_masked_comp },
+  { AV1E_SET_ENABLE_ONESIDED_COMP, ctrl_set_enable_onesided_comp },
   { AV1E_SET_ENABLE_INTERINTRA_COMP, ctrl_set_enable_interintra_comp },
   { AV1E_SET_ENABLE_SMOOTH_INTERINTRA, ctrl_set_enable_smooth_interintra },
   { AV1E_SET_ENABLE_DIFF_WTD_COMP, ctrl_set_enable_diff_wtd_comp },
@@ -2094,6 +2287,7 @@ static aom_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {
   { AV1E_SET_COEFF_COST_UPD_FREQ, ctrl_set_coeff_cost_upd_freq },
   { AV1E_SET_MODE_COST_UPD_FREQ, ctrl_set_mode_cost_upd_freq },
   { AV1E_SET_DELTAQ_MODE, ctrl_set_deltaq_mode },
+  { AV1E_SET_DELTALF_MODE, ctrl_set_deltalf_mode },
   { AV1E_SET_FRAME_PERIODIC_BOOST, ctrl_set_frame_periodic_boost },
   { AV1E_SET_TUNE_CONTENT, ctrl_set_tune_content },
   { AV1E_SET_CDF_UPDATE_MODE, ctrl_set_cdf_update_mode },
@@ -2116,6 +2310,8 @@ static aom_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {
   { AV1E_SET_DENOISE_BLOCK_SIZE, ctrl_set_denoise_block_size },
 #endif  // CONFIG_FILM_GRAIN
   { AV1E_ENABLE_MOTION_VECTOR_UNIT_TEST, ctrl_enable_motion_vector_unit_test },
+  { AV1E_SET_TARGET_SEQ_LEVEL_IDX, ctrl_set_target_seq_level_idx },
+  { AV1E_SET_TIER_MASK, ctrl_set_tier_mask },
 
   // Getters
   { AOME_GET_LAST_QUANTIZER, ctrl_get_quantizer },
@@ -2126,6 +2322,7 @@ static aom_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {
   { AV1_COPY_NEW_FRAME_IMAGE, ctrl_copy_new_frame_image },
   { AV1E_SET_CHROMA_SUBSAMPLING_X, ctrl_set_chroma_subsampling_x },
   { AV1E_SET_CHROMA_SUBSAMPLING_Y, ctrl_set_chroma_subsampling_y },
+  { AV1E_GET_SEQ_LEVEL_IDX, ctrl_get_seq_level_idx },
   { -1, NULL },
 };
 

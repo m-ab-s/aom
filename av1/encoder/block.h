@@ -75,12 +75,10 @@ typedef struct {
 
 typedef struct {
   // TODO(angiebird): Reduce the buffer size according to sb_type
-  tran_low_t *tcoeff[MAX_MB_PLANE];
-  uint16_t *eobs[MAX_MB_PLANE];
-  uint8_t *txb_skip_ctx[MAX_MB_PLANE];
-  int *dc_sign_ctx[MAX_MB_PLANE];
   CANDIDATE_MV ref_mv_stack[MODE_CTX_REF_FRAMES][MAX_REF_MV_STACK_SIZE];
+  uint16_t weight[MODE_CTX_REF_FRAMES][MAX_REF_MV_STACK_SIZE];
   int_mv global_mvs[REF_FRAMES];
+  int cb_offset;
   int16_t mode_context[MODE_CTX_REF_FRAMES];
   uint8_t ref_mv_count[MODE_CTX_REF_FRAMES];
 } MB_MODE_INFO_EXT;
@@ -155,7 +153,7 @@ typedef struct {
 
 // Region size for mode decision sampling in the first pass of partition
 // search(two_pass_partition_search speed feature), in units of mi size(4).
-// Used by the mode_pruning_based_on_two_pass_partition_search speed feature.
+// Used by the mode pruning in two_pass_partition_search feature.
 #define FIRST_PARTITION_PASS_SAMPLE_REGION 8
 #define FIRST_PARTITION_PASS_SAMPLE_REGION_LOG2 3
 #define FIRST_PARTITION_PASS_STATS_TABLES                     \
@@ -176,6 +174,8 @@ typedef struct {
   uint8_t ref0_counts[REF_FRAMES];  // Counters for ref_frame[0].
   uint8_t ref1_counts[REF_FRAMES];  // Counters for ref_frame[1].
   int sample_counts;                // Number of samples collected.
+  uint8_t interintra_motion_mode_count[REF_FRAMES];  // Counter for interintra
+                                                     // motion mode
 } FIRST_PARTITION_PASS_STATS;
 
 #define MAX_INTERP_FILTER_STATS 64
@@ -276,6 +276,7 @@ struct macroblock {
 
   unsigned int max_mv_context[REF_FRAMES];
   unsigned int source_variance;
+  unsigned int simple_motion_pred_sse;
   unsigned int pred_sse[REF_FRAMES];
   int pred_mv_sad[REF_FRAMES];
 
@@ -414,6 +415,11 @@ struct macroblock {
   // Store the fractional best motion vector during sub/Qpel-pixel motion search
   int_mv fractional_best_mv[3];
 
+  // Ref frames that are selected by square partition blocks within a super-
+  // block, in MI resolution. They can be used to prune ref frames for
+  // rectangular blocks.
+  int picked_ref_frames_mask[32 * 32];
+
   // use default transform and skip transform type search for intra modes
   int use_default_intra_tx_type;
   // use default transform and skip transform type search for inter modes
@@ -441,6 +447,8 @@ struct macroblock {
   // [Saved stat index]
   COMP_RD_STATS comp_rd_stats[MAX_COMP_RD_STATS];
   int comp_rd_stats_idx;
+
+  CB_COEFF_BUFFER *cb_coef_buff;
 };
 
 static INLINE int is_rect_tx_allowed_bsize(BLOCK_SIZE bsize) {

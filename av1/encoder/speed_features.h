@@ -120,11 +120,6 @@ enum {
 } UENUM1BYTE(TX_SIZE_SEARCH_METHOD);
 
 enum {
-  NOT_IN_USE = 0,
-  RELAXED_NEIGHBORING_MIN_MAX = 1
-} UENUM1BYTE(AUTO_MIN_MAX_MODE);
-
-enum {
   // Try the full image with different values.
   LPF_PICK_FROM_FULL_IMAGE,
   // Try a small portion of the image with different values.
@@ -203,6 +198,13 @@ enum {
   FULL_PEL
 } UENUM1BYTE(SUBPEL_FORCE_STOP);
 
+enum {
+  NOT_IN_USE,
+  DIRECT_PRED,
+  RELAXED_PRED,
+  ADAPT_PRED
+} UENUM1BYTE(MAX_PART_PRED_MODE);
+
 typedef struct MV_SPEED_FEATURES {
   // Motion search method (Diamond, NSTEP, Hex, Big Diamond, Square, etc).
   SEARCH_METHODS search_method;
@@ -250,9 +252,10 @@ enum {
 } UENUM1BYTE(GM_ERRORADV_TYPE);
 
 enum {
-  NO_TRELLIS_OPT,         // No trellis optimization
-  FULL_TRELLIS_OPT,       // Trellis optimization in all stages
-  FINAL_PASS_TRELLIS_OPT  // Trellis optimization in only the final encode pass
+  NO_TRELLIS_OPT,          // No trellis optimization
+  FULL_TRELLIS_OPT,        // Trellis optimization in all stages
+  FINAL_PASS_TRELLIS_OPT,  // Trellis optimization in only the final encode pass
+  NO_ESTIMATE_YRD_TRELLIS_OPT  // Disable trellis in estimate_yrd_for_sb
 } UENUM1BYTE(TRELLIS_OPT_TYPE);
 
 enum {
@@ -351,11 +354,6 @@ typedef struct SPEED_FEATURES {
   // 1: use model based rd breakout
   int model_based_post_interp_filter_breakout;
 
-  // Model based breakout in motion_mode_rd
-  // 0: no breakout
-  // 1: use model based rd breakout
-  int model_based_motion_mode_rd_breakout;
-
   // Used if partition_search_type = FIXED_SIZE_PARTITION
   BLOCK_SIZE always_this_block_size;
 
@@ -372,20 +370,30 @@ typedef struct SPEED_FEATURES {
   // Use a ML model to prune horz and vert partitions
   int ml_prune_rect_partition;
 
+  // Disable/Enable interintra motion mode based on stats collected during
+  // first_partition_search_pass
+  int use_first_partition_pass_interintra_stats;
+
   // Use a ML model to prune horz_a, horz_b, vert_a and vert_b partitions.
   int ml_prune_ab_partition;
 
   // Use a ML model to prune horz4 and vert4 partitions.
   int ml_prune_4_partition;
 
+  // Use a ML model to adaptively terminate partition search after trying
+  // PARTITION_SPLIT. Can take values 0 - 2, 0 meaning not being enabled, and
+  // 1 - 2 increasing aggressiveness in order.
+  int ml_early_term_after_part_split_level;
+
   int fast_cdef_search;
 
-  // 2-pass coding block partition search
+  // 2-pass coding block partition search, and also use the mode decisions made
+  // in the initial partition search to prune mode candidates, e.g. ref frames.
   int two_pass_partition_search;
 
-  // Use the mode decisions made in the initial partition search to prune mode
-  // candidates, e.g. ref frames.
-  int mode_pruning_based_on_two_pass_partition_search;
+  // Terminate early in firstpass of two_pass partition search for faster
+  // firstpass.
+  int firstpass_simple_motion_search_early_term;
 
   // Skip rectangular partition test when partition type none gives better
   // rd than partition type split. Can take values 0 - 2, 0 referring to no
@@ -396,19 +404,16 @@ typedef struct SPEED_FEATURES {
   BLOCK_SIZE use_square_partition_only_threshold;
 
   // Prune reference frames for rectangular partitions.
+  // 0 implies no pruning
+  // 1 implies prune for extended partition
+  // 2 implies prune horiz, vert and extended partition
   int prune_ref_frame_for_rect_partitions;
-
-  // Prune ref/mode choices for partitions.
-  int prune_ref_mode_for_partitions;
-
-  // Sets min and max partition sizes for this superblock based on the
-  // same superblock in last encoded frame, and the left and above neighbor.
-  AUTO_MIN_MAX_MODE auto_min_max_partition_size;
 
   // Sets min and max square partition levels for this superblock based on
   // motion vector and prediction error distribution produced from 16x16
   // simple motion search
-  int auto_min_max_partition_based_on_simple_motion;
+  MAX_PART_PRED_MODE auto_max_partition_based_on_simple_motion;
+  int auto_min_partition_based_on_simple_motion;
 
   // Ensures the rd based auto partition search will always
   // go down at least to the specified level.
@@ -422,11 +427,6 @@ typedef struct SPEED_FEATURES {
   // Whether or not we allow partitions one smaller or one greater than the last
   // frame's partitioning. Only used if use_lastframe_partitioning is set.
   int adjust_partitioning_from_last_frame;
-
-  // Disables sub 8x8 blocksizes in different scenarios: Choices are to disable
-  // it always, to allow it for only Last frame and Intra, disable it for all
-  // inter modes or to enable it always.
-  int disable_split_mask;
 
   // TODO(jingning): combine the related motion search speed features
   // This allows us to use motion search at other sizes as a starting
@@ -582,7 +582,7 @@ typedef struct SPEED_FEATURES {
 
   // 2-pass inter mode model estimation where the preliminary pass skips
   // transform search and uses a model to estimate rd, while the final pass
-  // computes the full transform search. two types of models are supported:
+  // computes the full transform search. Two types of models are supported:
   // 0: not used
   // 1: used with online dynamic rd model
   // 2: used with static rd model
@@ -648,8 +648,15 @@ typedef struct SPEED_FEATURES {
   int simple_motion_search_prune_rect;
 
   // Perform simple motion search before none_partition to decide if we
-  // want to split directly without trying other partition types.
-  int simple_motion_search_split_only;
+  // want to remove all partitions other than PARTITION_SPLIT. If set to 0, this
+  // model is disabled. If set to 1, the model attempts to perform
+  // PARTITION_SPLIT only. If set to 2, the model also attempts to prune
+  // PARTITION_SPLIT.
+  int simple_motion_search_split;
+
+  // Use features from simple_motion_search to terminate prediction block
+  // partition after PARTITION_NONE
+  int simple_motion_search_early_term_none;
 
   int cb_pred_filter_search;
 
@@ -659,11 +666,23 @@ typedef struct SPEED_FEATURES {
   // mask for skip evaluation of certain interp_filter type.
   INTERP_FILTER_MASK interp_filter_search_mask;
 
+  // Flag used to control the ref_best_rd based gating for chroma
+  int perform_best_rd_based_gating_for_chroma;
+
   // Enable/disable interintra wedge search.
   int disable_wedge_interintra_search;
 
+  // Disable loop restoration for Chroma plane
+  int disable_loop_restoration_chroma;
+
+  // Reduce the wiener filter win size for luma
+  int reduce_wiener_window_size;
+
   // Flag used to control the extent of coeff R-D optimization
   int perform_coeff_opt;
+
+  // Flag used to control the speed of the eob selection in trellis.
+  int trellis_eob_fast;
 
   // This flag controls the use of non-RD mode decision.
   int use_nonrd_pick_mode;
@@ -674,6 +693,24 @@ typedef struct SPEED_FEATURES {
 
   // Enable/disable smooth intra modes.
   int disable_smooth_intra;
+
+  // use reduced ref set for real-time mode
+  int use_real_time_ref_set;
+
+  // Perform a full TX search on some modes while using the
+  // inter-mode RD model for others. Only enabled when
+  // inter_mode_rd_model_estimation != 0
+  int inter_mode_rd_model_estimation_adaptive;
+
+  // Use very reduced set of inter mode checks and fast non-rd mode cost
+  // estimation Only enabled when use_nonrd_pick_mode is != 0
+  int use_fast_nonrd_pick_mode;
+
+  // Reuse inter prediction in fast non-rd mode.
+  int reuse_inter_pred_nonrd;
+
+  // Perform croase ME before calculating variance in variance-based partition
+  int estimate_motion_for_var_based_partition;
 } SPEED_FEATURES;
 
 struct AV1_COMP;
