@@ -440,44 +440,48 @@ void av1_cnn_convolve_c(const float **input, int in_width, int in_height,
       return;
     }
     const int ii_shift =
-        ((layer_config->filter_height - 1) % 2) - filter_height_half;
+        filter_height_half - (layer_config->filter_height - 1) % 2;
     const int jj_shift =
-        ((layer_config->filter_width - 1) % 2) - filter_width_half;
-    // h and w are shifted to an offset coordinate system to reduce in-loop
-    // computation.
-    const int start_h =
-        (get_start_shift_convolve(in_height, layer_config->filter_height,
-                                  layer_config->skip_height) +
-         ii_shift);
-    const int start_w =
-        (get_start_shift_convolve(in_width, layer_config->filter_width,
-                                  layer_config->skip_width) +
-         jj_shift);
-    const int end_h = (in_height + ii_shift);
-    const int end_w = (in_width + jj_shift);
+        filter_width_half - (layer_config->filter_width - 1) % 2;
     switch (layer_config->pad) {
-      case PADDING_SAME_ZERO:
+      case PADDING_SAME_ZERO: {
+        const int start_h = get_start_shift_convolve(
+            in_height, layer_config->filter_height, layer_config->skip_height);
+        const int start_w = get_start_shift_convolve(
+            in_width, layer_config->filter_width, layer_config->skip_width);
+        const int end_ii_shift = filter_height_half + 1;
+        const int end_jj_shift = filter_width_half + 1;
+        // bottom_filter_margin is used to determine cstep for bottom pixel
+        // convolutions.
+        const int top_filter_margin = layer_config->filter_width * ii_shift;
+        const int right_filter_margin = end_jj_shift - in_width;
         for (int i = 0; i < layer_config->out_channels; ++i) {
-          for (int h = start_h, u = 0; h < end_h;
+          for (int h = start_h, u = 0; h < in_height;
                h += layer_config->skip_height, ++u) {
             const int out_h = u * out_stride;
-            const int upper_ii_index = layer_config->filter_height + h;
-            for (int w = start_w, out_index = out_h; w < end_w;
+            const int top_cstep =
+                AOMMAX(0, top_filter_margin - h * layer_config->filter_width) *
+                    cstep +
+                i;
+            const int start_ii = AOMMAX(0, h - ii_shift);
+            const int end_ii = AOMMIN(in_height, h + end_ii_shift);
+            for (int w = start_w, out_index = out_h; w < in_width;
                  w += layer_config->skip_width, ++out_index) {
-              const int upper_jj_index = layer_config->filter_width + w;
+              const int left_cstep = AOMMAX(0, jj_shift - w) * cstep;
+              const int right_cstep =
+                  AOMMAX(0, right_filter_margin + w) * cstep;
+              const int start_jj = AOMMAX(0, w - jj_shift);
+              const int end_jj = AOMMIN(in_width, w + end_jj_shift);
               float sum = layer_config->bias[i];
               for (int k = 0; k < layer_config->in_channels; ++k) {
-                int off = k * layer_config->out_channels + i;
-                for (int ii = h; ii < upper_ii_index; ++ii) {
-                  for (int jj = w; jj < upper_jj_index; ++jj) {
-                    // TODO(logangw): Remove if statement, cut about 6% of
-                    //   instruction calls.
-                    if (ii >= 0 && ii < in_height && jj >= 0 && jj < in_width) {
-                      sum += layer_config->weights[off] *
-                             input[k][ii * in_stride + jj];
-                    }
-                    off += cstep;
+                int off = k * layer_config->out_channels + top_cstep;
+                for (int ii = start_ii; ii < end_ii; ++ii) {
+                  off += left_cstep;
+                  for (int jj = start_jj; jj < end_jj; ++jj, off += cstep) {
+                    sum += layer_config->weights[off] *
+                           input[k][ii * in_stride + jj];
                   }
+                  off += right_cstep;
                 }
               }
               output[i][out_index] = sum;
@@ -485,7 +489,20 @@ void av1_cnn_convolve_c(const float **input, int in_width, int in_height,
           }
         }
         break;
-      case PADDING_SAME_REPLICATE:
+      }
+      case PADDING_SAME_REPLICATE: {
+        // h and w are shifted to an offset coordinate system to reduce in-loop
+        // computation.
+        const int start_h =
+            get_start_shift_convolve(in_height, layer_config->filter_height,
+                                     layer_config->skip_height) -
+            ii_shift;
+        const int start_w =
+            get_start_shift_convolve(in_width, layer_config->filter_width,
+                                     layer_config->skip_width) -
+            jj_shift;
+        const int end_h = in_height - ii_shift;
+        const int end_w = in_width - jj_shift;
         for (int i = 0; i < layer_config->out_channels; ++i) {
           for (int h = start_h, u = 0; h < end_h;
                h += layer_config->skip_height, ++u) {
@@ -514,7 +531,8 @@ void av1_cnn_convolve_c(const float **input, int in_width, int in_height,
           }
         }
         break;
-      case PADDING_VALID:
+      }
+      case PADDING_VALID: {
         for (int i = 0; i < layer_config->out_channels; ++i) {
           for (int h = 0, u = 0;
                h < in_height - layer_config->filter_height + 1;
@@ -543,6 +561,7 @@ void av1_cnn_convolve_c(const float **input, int in_width, int in_height,
           }
         }
         break;
+      }
       default: assert(0 && "Unknown padding type");
     }
   }
