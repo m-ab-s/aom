@@ -323,6 +323,7 @@ if __name__ == "__main__":
       ("input_to_branches", "0x00"),
       ("channels_to_copy", 0),
       ("branch_combine_type", "BRANCH_NOC"),
-      ("branches_to_combine", "0x00")))
+      ("branches_to_combine", "0x00"),
+      ("bn_params", "{}")))
 
   app.run(main=main, argv=[sys.argv[0]] + unparsed)
