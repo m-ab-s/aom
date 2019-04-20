@@ -32,15 +32,15 @@ static void av1_restore_cnn_plane_Y_wrapper(
   } else if (qindex < 68) {
     av1_restore_cnn_plane(cm, &intra_model_12, plane, thread_data);
   } else if (qindex < 108) {
-    av1_restore_cnn_plane(cm, &intra_model_22, plane, thread_data);
+    av1_restore_cnn_plane(cm, &intra_frame_model_qp22, plane, thread_data);
   } else if (qindex < 148) {
-    av1_restore_cnn_plane(cm, &intra_model_32, plane, thread_data);
+    av1_restore_cnn_plane(cm, &intra_frame_model_qp32, plane, thread_data);
   } else if (qindex < 192) {
-    av1_restore_cnn_plane(cm, &intra_model_43, plane, thread_data);
+    av1_restore_cnn_plane(cm, &intra_frame_model_qp43, plane, thread_data);
   } else if (qindex < 232) {
-    av1_restore_cnn_plane(cm, &intra_model_53, plane, thread_data);
+    av1_restore_cnn_plane(cm, &intra_frame_model_qp53, plane, thread_data);
   } else {
-    av1_restore_cnn_plane(cm, &intra_model_63, plane, thread_data);
+    av1_restore_cnn_plane(cm, &intra_frame_model_qp63, plane, thread_data);
   }
 }
 

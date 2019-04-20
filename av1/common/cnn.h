@@ -40,18 +40,18 @@ enum {
 // enum { NONE, RELU, SOFTSIGN } UENUM1BYTE(ACTIVATION);
 
 // Times when input tensor may be copied to branches given in input_to_branches.
-// COPY_NONE: doesn't copy any tensor.
-// COPY_INPUT: copies the input tensor to branches.
-// COPY_OUTPUT: copies the convolved tensor to branches.
-// COPY_COMBINED: copies the combined (after convolving and branch combining)
+// BRANCH_NO_COPY: doesn't copy any tensor.
+// BRANCH_INPUT: copies the input tensor to branches.
+// BRANCH_OUTPUT: copies the convolved tensor to branches.
+// BRANCH_COMBINED: copies the combined (after convolving and branch combining)
 //   tensor. If no combinations happen at this layer, then this option
 //   has the same effect as COPY_OUTPUT.
 enum {
-  COPY_NONE,
-  COPY_INPUT,
-  COPY_OUTPUT,
-  COPY_COMBINED
-} UENUM1BYTE(COPY_TYPE);
+  BRANCH_NO_COPY,
+  BRANCH_INPUT,
+  BRANCH_OUTPUT,
+  BRANCH_COMBINED
+} UENUM1BYTE(BRANCH_COPY);
 
 // Types of combining branches with output of current layer:
 // BRANCH_NOC: no branch combining
@@ -59,7 +59,7 @@ enum {
 // BRANCH_CAT: Concatenate branch tensor to output of layer
 enum { BRANCH_NOC, BRANCH_ADD, BRANCH_CAT } UENUM1BYTE(BRANCH_COMBINE);
 
-struct BATCHNORM_PARAMS {
+struct CNN_BATCHNORM_PARAMS {
   float *bn_gamma, *bn_beta, *bn_mean,
       *bn_std;  // The parameters used to scale each channel in batch
                 // normalization. The processing in done on a per-channel basis.
@@ -73,14 +73,28 @@ struct BATCHNORM_PARAMS {
                 // batchnorm is disabled, else batchnorm is applied.
 };
 
+struct CNN_BRANCH_CONFIG {
+  int input_to_branches;  // If nonzero, copy the active tensor to the current
+  // layer and store for future use in branches
+  // specified in the field as a binary mask. For
+  // example, if input_to_branch = 0x06, it means the
+  // input tensor to the current branch is copied to
+  // branches 1 and 2 (where 0 represents the primary
+  // branch). One restriction is that the mask
+  // cannot indicate copying to the current branch.
+  // If greater than 0, only copies the channels up
+  // to the given index.
+  int channels_to_copy;  // Within the layer, input a copy of active
+  // tensor to branches given in input_to_branches.
+  int branches_to_combine;  // mask of branches to combine with output of
+  // current layer, if
+  // branch_combine_type != BRANCH_NOC
+  // For example, if branches_to_combine = 0x0A,
+  // it means that braches 1 and 3 are combined
+  // with the current branch.
+};
+
 struct CNN_LAYER_CONFIG {
-  int branch;      // branch index in [0, CNN_MAX_BRANCHES - 1], where
-                   // 0 refers to the primary branch.
-  int deconvolve;  // whether this is a deconvolution layer.
-                   // 0: If skip_width or skip_height are > 1, then we
-                   // reduce resolution
-                   // 1: If skip_width or skip_height are > 1, then we
-                   // increase resolution
   int in_channels;
   int filter_width;
   int filter_height;
@@ -95,27 +109,19 @@ struct CNN_LAYER_CONFIG {
   float *bias;     // array of length out_channels
   PADDING_TYPE pad;       // padding type
   ACTIVATION activation;  // the activation function to use after convolution
-  COPY_TYPE branch_copy_mode;  // Within the layer, input a copy of active
-                               // tensor to branches given in input_to_branches.
-  int input_to_branches;  // If nonzero, copy the active tensor to the current
-                          // layer and store for future use in branches
-                          // specified in the field as a binary mask. For
-                          // example, if input_to_branch = 0x06, it means the
-                          // input tensor to the current branch is copied to
-                          // branches 1 and 2 (where 0 represents the primary
-                          // branch). One restriction is that the mask
-                          // cannot indicate copying to the current branch.
-  int channels_to_copy;   // If greater than 0, only copies the channels up
-                          // to the given index.
+  int deconvolve;         // whether this is a deconvolution layer.
+                          // 0: If skip_width or skip_height are > 1, then we
+                          // reduce resolution
+                          // 1: If skip_width or skip_height are > 1, then we
+                          // increase resolution
+  int branch;             // branch index in [0, CNN_MAX_BRANCHES - 1], where
+                          // 0 refers to the primary branch.
+  BRANCH_COPY branch_copy_type;
   BRANCH_COMBINE branch_combine_type;
-  int branches_to_combine;  // mask of branches to combine with output of
-                            // current layer, if
-                            // branch_combine_type != BRANCH_NOC
-                            // For example, if branches_to_combine = 0x0A,
-                            // it means that braches 1 and 3 are combined
-                            // with the current branch.
-  struct BATCHNORM_PARAMS bn_params;  // A struct that contains the parameters
-                                      // used for batch normalization.
+  struct CNN_BRANCH_CONFIG branch_config;
+  struct CNN_BATCHNORM_PARAMS
+      bn_params;  // A struct that contains the parameters
+                  // used for batch normalization.
 };
 
 struct CNN_CONFIG {

@@ -43,6 +43,8 @@ struct CNN_LAYER_CONFIG;
 typedef struct CNN_LAYER_CONFIG CNN_LAYER_CONFIG;
 struct CNN_THREAD_DATA;
 typedef struct CNN_THREAD_DATA CNN_THREAD_DATA;
+struct CNN_BRANCH_CONFIG;
+typedef struct CNN_BRANCH_CONFIG CNN_BRANCH_CONFIG;
 
 /* Function pointers return by CfL functions */
 typedef void (*cfl_subsample_lbd_fn)(const uint8_t *input, int input_stride,

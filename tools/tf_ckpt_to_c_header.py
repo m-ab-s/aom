@@ -63,16 +63,54 @@ import copy
 import re
 import sys
 
+from tf_ckpt_to_c_header_struct_parser import StructNode
+
 from tensorflow import logging
 from tensorflow.python import pywrap_tensorflow
 from tensorflow.python.platform import app
 
 FLAGS = None
+BRANCH_CONFIG_ORDER = StructNode((
+    ("input_to_branches", "0x00"),
+    ("copy_to_branches", 0),
+    ("branches_to_combine", "0x00")), name="branch_config")
+BATCHNORM_PARAMS_ORDER = StructNode((
+    ("bn_gamma", None),
+    ("bn_beta", None),
+    ("bn_mean", None),
+    ("bn_std", None)), name="batchnorm_params")
+LAYER_CONFIG_ORDER = StructNode((
+    ("in_channels", -1),
+    ("filter_width", -1),
+    ("filter_height", -1),
+    ("out_channels", -1),
+    ("skip_width", 1),
+    ("skip_height", 1),
+    ("maxpool", 0),
+    ("weights", ""),
+    ("bias", ""),
+    ("pad", "PADDING_SAME_ZERO"),
+    ("activation", "NONE"),
+    ("deconvolve", 0),
+    ("branch", 0),
+    ("branch_copy_type", "BRANCH_NO_COPY"),
+    ("branch_combine_type", "BRANCH_NOC"),
+    ("branch_config", BRANCH_CONFIG_ORDER),
+    ("bn_params", BATCHNORM_PARAMS_ORDER)))
 CNN_CONFIG_ORDER = {}
-LAYER_CONFIG_ORDER = {}
 BIT_ALIGNMENT = 32
+WEIGHT_STRING = "w"
+BIAS_STRING = "b"
 
 logging.set_verbosity("INFO")
+
+
+def _get_weight_tensor_from_prefix(tensor_prefix):
+  return tensor_prefix + WEIGHT_STRING
+
+
+def _get_bias_tensor_from_prefix(tensor_prefix):
+  return tensor_prefix + BIAS_STRING
 
 
 def _generate_layer_index_tensor_name_map(input_reader, var_regex):
@@ -82,8 +120,10 @@ def _generate_layer_index_tensor_name_map(input_reader, var_regex):
   for k, _ in input_reader.get_variable_to_shape_map().iteritems():
     match = re.match(var_regex, k)
     if match:
-      var_indices = tuple(int(x) for x in match.group(1).split("_")[:-1])
       # Value is the prefix of the layer variables.
+      var_indices = tuple(int(x) for x in match.group(1).split("_")[:-1])
+      # Ignore the (b|w) decorator since we cannot control the order they
+      # are read.
       layer_index_tensor_name_map[var_indices] = k[:-1]
   return layer_index_tensor_name_map
 
@@ -106,16 +146,18 @@ def _build_layer_config(shape, layer, num_layers):
   layer_config["in_channels"] = shape[2]
   layer_config["out_channels"] = shape[3]
   if FLAGS.architecture == "WDSR" and 0 < layer and layer < num_layers - 1:
+    branch_config = copy.deepcopy(BRANCH_CONFIG_ORDER)
     # If layer belongs to a residual block.
     if (layer % 3) == 1:
       # Input residual block layer.
       layer_config["activation"] = "RELU"
-      layer_config["branch_copy_mode"] = "COPY_INPUT"
-      layer_config["input_to_branches"] = "0x02"
+      layer_config["branch_copy_type"] = "BRANCH_INPUT"
+      branch_config["input_to_branches"] = "0x02"
     elif (layer % 3) == 0:
       # Output residual block layer.
       layer_config["branch_combine_type"] = "BRANCH_ADD"
-      layer_config["branches_to_combine"] = "0x02"
+      branch_config["branches_to_combine"] = "0x02"
+    layer_config["branch_config"] = branch_config
   elif FLAGS.architecture == "VDSR" and layer < num_layers - 1:
     layer_config["activation"] = "RELU"
   return layer_config
@@ -137,12 +179,16 @@ def _extract_layer_variables(input_reader):
   # By the end of this process, every layer should have weights and biases.
   for _, tensor_name in sorted(layer_index_tensor_name_map.iteritems()):
     cnn_config["layer_config"][layer] = _build_layer_config(
-        input_reader.get_variable_to_shape_map()[tensor_name + "w"], layer,
+        input_reader.get_variable_to_shape_map()[
+            _get_weight_tensor_from_prefix(tensor_name)],
+        layer,
         num_layers)
     weights[layer] = _format_tensor(
-        input_reader.get_tensor(tensor_name + "w"), layer)
+        input_reader.get_tensor(_get_weight_tensor_from_prefix(tensor_name)),
+        layer)
     biases[layer] = _format_tensor(
-        input_reader.get_tensor(tensor_name + "b"), layer)
+        input_reader.get_tensor(_get_bias_tensor_from_prefix(tensor_name)),
+        layer)
     layer += 1
   return cnn_config, weights, biases
 
@@ -167,7 +213,7 @@ def _print_header(header_guard, output_file):
   output_file.write("\n#include \"av1/common/cnn.h\"\n")
 
 
-def _print_cnn_config(cnn_config, weights, biases, output_file):
+def _print_weights_biases(layers, weights, biases, output_file):
   """Write the contents of the cnn to the header file.
 
   Each variable has static const prepended to them to ensure they remain
@@ -194,7 +240,7 @@ def _print_cnn_config(cnn_config, weights, biases, output_file):
   output_file.write("\nstatic const int %s_trained_qp = %d;\n" %
                     (FLAGS.config_name, FLAGS.trained_qp))
   if FLAGS.enable_aligned_declaration:
-    for layer in range(cnn_config["num_layers"]):
+    for layer in range(layers):
       output_file.write("\nDECLARE_ALIGNED(%d, static float, " \
                         "%s_weight_%d[]) = %s;\n" %
                         (BIT_ALIGNMENT, FLAGS.config_name, layer,
@@ -204,34 +250,17 @@ def _print_cnn_config(cnn_config, weights, biases, output_file):
                         (BIT_ALIGNMENT, FLAGS.config_name, layer,
                          biases[layer]))
   else:
-    for layer in range(cnn_config["num_layers"]):
+    for layer in range(layers):
       output_file.write("\nstatic float %s_weight_%d[] = %s;\n" %
                         (FLAGS.config_name, layer, weights[layer]))
       output_file.write("\nstatic float %s_bias_%d[] = %s;\n" %
                         (FLAGS.config_name, layer, biases[layer]))
 
+
+def _print_cnn_config(cnn_config, output_file):
   output_file.write("\nconst CNN_CONFIG %s = {" % FLAGS.config_name)
-  if FLAGS.enable_explicit_field_names:
-    for key in CNN_CONFIG_ORDER:
-      if key is not "layer_config":
-        output_file.write("\n  .%s = %s," % (key, cnn_config[key]))
-    output_file.write("\n  .layer_config = {")
-    for layer_num, layer in enumerate(cnn_config["layer_config"]):
-      output_file.write("\n    { // layer_%d" % layer_num)
-      for key in LAYER_CONFIG_ORDER:
-        output_file.write("\n  .%s = %s," % (key, layer[key]))
-      output_file.write("\n    },")
-  else:
-    for key in CNN_CONFIG_ORDER:
-      if key is not "layer_config":
-        output_file.write("\n  %s," % cnn_config[key])
-    output_file.write("\n  {")
-    for layer_num, layer in enumerate(cnn_config["layer_config"]):
-      output_file.write("\n    { // layer_%d" % layer_num)
-      for key in LAYER_CONFIG_ORDER:
-        output_file.write("\n  %s, \t// %s" % (layer[key], key))
-      output_file.write("\n    },")
-  output_file.write("\n  }")
+  cnn_config.write_fields_to_output(output_file,
+                                    FLAGS.enable_explicit_field_names)
   output_file.write("\n};\n")
 
 
@@ -256,7 +285,9 @@ def generate_header_file():
 
   with open(FLAGS.output_path, "w+") as output_file:
     _print_header(FLAGS.header_guard, output_file)
-    _print_cnn_config(cnn_config, weights, biases, output_file)
+    _print_weights_biases(cnn_config["num_layers"], weights, biases,
+                          output_file)
+    _print_cnn_config(cnn_config, output_file)
     _print_footer(FLAGS.header_guard, output_file)
 
     output_file.close()
@@ -293,7 +324,7 @@ if __name__ == "__main__":
   parser.add_argument(
       "--var_regex",
       type=str,
-      default=r"conv_(([0-9][0-9]*_)*)(w|b)",
+      default=r".*conv_(([0-9][0-9]*_)*)(w|b)",
       help="Regex to match tensor names against in the model ckpt.")
   parser.add_argument(
       "--trained_qp",
@@ -345,31 +376,14 @@ if __name__ == "__main__":
 
   # The order of these fields must reflect the order of the structs in
   # ${AOM_ROOT}/av1/common/cnn.h.
-  CNN_CONFIG_ORDER = collections.OrderedDict((
+
+  CNN_CONFIG_ORDER = StructNode((
       ("num_layers", 0),
       ("is_residue", FLAGS.is_residue),
       ("ext_width", FLAGS.ext_width),
       ("ext_height", FLAGS.ext_height),
-      ("strict_bounds", FLAGS.strict_bounds)))
-  LAYER_CONFIG_ORDER = collections.OrderedDict((
-      ("branch", 0),
-      ("deconvolve", 0),
-      ("in_channels", -1),
-      ("filter_width", -1),
-      ("filter_height", -1),
-      ("out_channels", -1),
-      ("skip_width", 1),
-      ("skip_height", 1),
-      ("maxpool", 0),
-      ("weights", ""),
-      ("bias", ""),
-      ("pad", "PADDING_SAME_ZERO"),
-      ("activation", "NONE"),
-      ("branch_copy_mode", "COPY_NONE"),
-      ("input_to_branches", "0x00"),
-      ("channels_to_copy", 0),
-      ("branch_combine_type", "BRANCH_NOC"),
-      ("branches_to_combine", "0x00"),
-      ("bn_params", "{}")))
+      ("strict_bounds", FLAGS.strict_bounds),
+      ("layer_config", [])
+  ))
 
   app.run(main=main, argv=[sys.argv[0]] + unparsed)
