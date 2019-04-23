@@ -3602,10 +3602,10 @@ static void show_existing_frame_reset(AV1Decoder *const pbi,
        in order to have been selected.
     */
     int refresh_frame_flags = pbi->refresh_frame_flags;
-    int display_frame_id = cm->ref_frame_id[existing_frame_idx];
+    cm->current_frame_id = cm->ref_frame_id[existing_frame_idx];
     for (int i = 0; i < REF_FRAMES; i++) {
       if ((refresh_frame_flags >> i) & 1) {
-        cm->ref_frame_id[i] = display_frame_id;
+        cm->ref_frame_id[i] = cm->current_frame_id;
         cm->valid_for_referencing[i] = 1;
       }
     }
