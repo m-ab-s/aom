@@ -1999,6 +1999,8 @@ static void loop_restoration_write_sb_coeffs(const AV1_COMMON *const cm,
 static void encode_cnn(AV1_COMMON *cm, struct aom_write_bit_buffer *wb) {
   if (av1_use_cnn(cm)) {
     aom_wb_write_bit(wb, cm->use_cnn);
+  } else {
+    assert(!cm->use_cnn);
   }
 }
 #endif  // CONFIG_CNN_RESTORATION
@@ -3154,12 +3156,12 @@ static void write_uncompressed_header_obu(AV1_COMP *cpi,
 #if CONFIG_CNN_RESTORATION
     if (!cm->coded_lossless) {
       encode_loopfilter(cm, wb);
-    }
-    encode_cnn(cm, wb);
-    if (!cm->use_cnn) {
-      if (!cm->coded_lossless) {
+      encode_cnn(cm, wb);
+      if (!cm->use_cnn) {
         encode_cdef(cm, wb);
       }
+    }
+    if (!cm->use_cnn) {
       encode_restoration_mode(cm, wb);
     }
 #else

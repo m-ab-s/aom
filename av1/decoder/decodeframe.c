@@ -5439,7 +5439,8 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 
   setup_loopfilter(cm, rb);
 #if CONFIG_CNN_RESTORATION
-  decode_cnn(cm, rb);
+  cm->use_cnn = 0;
+  if (!cm->coded_lossless) decode_cnn(cm, rb);
   if (!cm->use_cnn) {
 #endif  // CONFIG_CNN_RESTORATION
     if (!cm->coded_lossless && seq_params->enable_cdef) {
@@ -5449,6 +5450,13 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       decode_restoration_mode(cm, rb);
     }
 #if CONFIG_CNN_RESTORATION
+  } else {
+    cm->cdef_info.cdef_bits = 0;
+    cm->cdef_info.cdef_strengths[0] = 0;
+    cm->cdef_info.cdef_uv_strengths[0] = 0;
+    cm->rst_info[0].frame_restoration_type = RESTORE_NONE;
+    cm->rst_info[1].frame_restoration_type = RESTORE_NONE;
+    cm->rst_info[2].frame_restoration_type = RESTORE_NONE;
   }
 #endif  // CONFIG_CNN_RESTORATION
 
