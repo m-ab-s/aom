@@ -28,15 +28,15 @@ static void av1_restore_cnn_plane_Y_wrapper(AV1_COMMON *cm, int plane) {
   if (qindex <= MIN_CNN_Q_INDEX) {
     return;
   } else if (qindex < 108) {
-    av1_restore_cnn_plane(cm, &model22, plane);
+    av1_restore_cnn_plane(cm, &model_22, plane);
   } else if (qindex < 148) {
-    av1_restore_cnn_plane(cm, &model32, plane);
+    av1_restore_cnn_plane(cm, &model_32, plane);
   } else if (qindex < 192) {
-    av1_restore_cnn_plane(cm, &model43, plane);
+    av1_restore_cnn_plane(cm, &model_43, plane);
   } else if (qindex < 232) {
-    av1_restore_cnn_plane(cm, &model53, plane);
+    av1_restore_cnn_plane(cm, &model_53, plane);
   } else {
-    av1_restore_cnn_plane(cm, &model63, plane);
+    av1_restore_cnn_plane(cm, &model_63, plane);
   }
 }
 
