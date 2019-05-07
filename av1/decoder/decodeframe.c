@@ -5678,7 +5678,7 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
 
 #if CONFIG_CNN_RESTORATION
     if (cm->use_cnn) {
-      av1_decode_restore_cnn(cm);
+      av1_decode_restore_cnn(cm, pbi->tile_workers, pbi->num_workers);
     } else {
 #endif  // CONFIG_CNN_RESTORATION
 

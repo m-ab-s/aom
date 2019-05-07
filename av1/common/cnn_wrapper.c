@@ -23,31 +23,36 @@
 #include "av1/models/intra_frame_model/qp53.h"
 #include "av1/models/intra_frame_model/qp63.h"
 
-static void av1_restore_cnn_plane_Y_wrapper(AV1_COMMON *cm, int plane) {
+static void av1_restore_cnn_plane_Y_wrapper(
+    AV1_COMMON *cm, int plane, const CNN_THREAD_DATA *thread_data) {
   // TODO(logangw): Add infrastructure to choose models.
   int qindex = cm->base_qindex;
   if (qindex <= MIN_CNN_Q_INDEX) {
     return;
   } else if (qindex < 68) {
-    av1_restore_cnn_plane(cm, &intra_model_12, plane);
+    av1_restore_cnn_plane(cm, &intra_model_12, plane, thread_data);
   } else if (qindex < 108) {
-    av1_restore_cnn_plane(cm, &intra_model_22, plane);
+    av1_restore_cnn_plane(cm, &intra_model_22, plane, thread_data);
   } else if (qindex < 148) {
-    av1_restore_cnn_plane(cm, &intra_model_32, plane);
+    av1_restore_cnn_plane(cm, &intra_model_32, plane, thread_data);
   } else if (qindex < 192) {
-    av1_restore_cnn_plane(cm, &intra_model_43, plane);
+    av1_restore_cnn_plane(cm, &intra_model_43, plane, thread_data);
   } else if (qindex < 232) {
-    av1_restore_cnn_plane(cm, &intra_model_53, plane);
+    av1_restore_cnn_plane(cm, &intra_model_53, plane, thread_data);
   } else {
-    av1_restore_cnn_plane(cm, &intra_model_63, plane);
+    av1_restore_cnn_plane(cm, &intra_model_63, plane, thread_data);
   }
 }
 
-void av1_encode_restore_cnn(AV1_COMMON *cm) {
+void av1_encode_restore_cnn(AV1_COMMON *cm, AVxWorker *workers,
+                            int num_workers) {
   // TODO(logangw): Add mechanism to restore AOM_PLANE_U and AOM_PLANE_V.
-  av1_restore_cnn_plane_Y_wrapper(cm, AOM_PLANE_Y);
+  const CNN_THREAD_DATA thread_data = { num_workers, workers };
+  av1_restore_cnn_plane_Y_wrapper(cm, AOM_PLANE_Y, &thread_data);
 }
 
-void av1_decode_restore_cnn(AV1_COMMON *cm) {
-  av1_restore_cnn_plane_Y_wrapper(cm, AOM_PLANE_Y);
+void av1_decode_restore_cnn(AV1_COMMON *cm, AVxWorker *workers,
+                            int num_workers) {
+  const CNN_THREAD_DATA thread_data = { num_workers, workers };
+  av1_restore_cnn_plane_Y_wrapper(cm, AOM_PLANE_Y, &thread_data);
 }

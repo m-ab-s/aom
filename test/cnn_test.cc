@@ -32,10 +32,10 @@ namespace {
 class CNNTest : public ::testing::Test {
  protected:
   static void RunCNNTest(int image_width, int image_height, float *input,
-                         float *expected, CNN_CONFIG cnn_config, int in_stride,
-                         double tolerance) {
+                         float *expected, CNN_CONFIG *cnn_config, int in_stride,
+                         CNN_THREAD_DATA *thread_data, double tolerance) {
     int out_width, out_height, out_channels;
-    av1_find_cnn_output_size(image_width, image_height, &cnn_config, &out_width,
+    av1_find_cnn_output_size(image_width, image_height, cnn_config, &out_width,
                              &out_height, &out_channels);
 
     const int out_size = out_width * out_height;
@@ -49,7 +49,7 @@ class CNNTest : public ::testing::Test {
     }
 
     av1_cnn_predict((const float **)&input, image_width, image_height,
-                    in_stride, &cnn_config, output, out_stride);
+                    in_stride, cnn_config, thread_data, output, out_stride);
 
     double mse = 0;
     for (int channel = 0; channel < out_channels; ++channel) {
@@ -269,22 +269,24 @@ TEST_F(CNNTest, TestMultilayerConvolution) {
   // of the offset.
   AssignLayerWeightsBiases(&cnn_config, weights, bias);
 
-  RunCNNTest(image_width, image_height, input, expected_same, cnn_config,
-             image_width, MSE_INT_TOL);
+  CNN_THREAD_DATA thread_data = { 1, NULL };
+
+  RunCNNTest(image_width, image_height, input, expected_same, &cnn_config,
+             image_width, &thread_data, MSE_INT_TOL);
 
   for (int i = 0; i < cnn_config.num_layers; ++i) {
     cnn_config.layer_config[i].pad = PADDING_SAME_REPLICATE;
   }
 
-  RunCNNTest(image_width, image_height, input, expected_replicate, cnn_config,
-             image_width, MSE_INT_TOL);
+  RunCNNTest(image_width, image_height, input, expected_replicate, &cnn_config,
+             image_width, &thread_data, MSE_INT_TOL);
 
   for (int i = 0; i < cnn_config.num_layers; ++i) {
     cnn_config.layer_config[i].pad = PADDING_VALID;
   }
 
-  RunCNNTest(image_width, image_height, input, expected_valid, cnn_config,
-             image_width, MSE_INT_TOL);
+  RunCNNTest(image_width, image_height, input, expected_valid, &cnn_config,
+             image_width, &thread_data, MSE_INT_TOL);
 }
 
 TEST_F(CNNTest, TestRELUSingleLayer) {
@@ -345,18 +347,20 @@ TEST_F(CNNTest, TestRELUSingleLayer) {
                                 .bn_params = {},
                             } } };
 
-  RunCNNTest(image_width, image_height, input, expected_same, cnn_config,
-             image_width, MSE_INT_TOL);
+  CNN_THREAD_DATA thread_data = { 1, NULL };
+
+  RunCNNTest(image_width, image_height, input, expected_same, &cnn_config,
+             image_width, &thread_data, MSE_INT_TOL);
 
   cnn_config.layer_config[0].pad = PADDING_SAME_REPLICATE;
 
-  RunCNNTest(image_width, image_height, input, expected_replicate, cnn_config,
-             image_width, MSE_INT_TOL);
+  RunCNNTest(image_width, image_height, input, expected_replicate, &cnn_config,
+             image_width, &thread_data, MSE_INT_TOL);
 
   cnn_config.layer_config[0].pad = PADDING_VALID;
 
-  RunCNNTest(image_width, image_height, input, expected_valid, cnn_config,
-             image_width, MSE_INT_TOL);
+  RunCNNTest(image_width, image_height, input, expected_valid, &cnn_config,
+             image_width, &thread_data, MSE_INT_TOL);
 }
 
 TEST_F(CNNTest, TestVaryingStridesVaryingDimImages) {
@@ -426,8 +430,10 @@ TEST_F(CNNTest, TestVaryingStridesVaryingDimImages) {
     41, -26, 5, 76, 13, 83, -21, 53, -54, -14, 21, 121,
   };
 
-  RunCNNTest(image_width, image_height, input, expected_1, cnn_config,
-             image_width, MSE_INT_TOL);
+  CNN_THREAD_DATA thread_data = { 1, NULL };
+
+  RunCNNTest(image_width, image_height, input, expected_1, &cnn_config,
+             image_width, &thread_data, MSE_INT_TOL);
 
   cnn_config.layer_config[0].skip_width = 6;
   cnn_config.layer_config[0].skip_height = 7;
@@ -435,8 +441,8 @@ TEST_F(CNNTest, TestVaryingStridesVaryingDimImages) {
   float expected_2[] = {
     21, -50, 41, 20, 72, 127, -21, 103, 62, -37, 83, -3,
   };
-  RunCNNTest(image_width, image_height, input, expected_2, cnn_config,
-             image_width, MSE_INT_TOL);
+  RunCNNTest(image_width, image_height, input, expected_2, &cnn_config,
+             image_width, &thread_data, MSE_INT_TOL);
 
   cnn_config.layer_config[0].skip_width = 3;
   cnn_config.layer_config[0].skip_height = 10;
@@ -445,8 +451,8 @@ TEST_F(CNNTest, TestVaryingStridesVaryingDimImages) {
     -26, -21, -35, 69, 49,  4,  -51, -43, -56,
     -41, 15,  -44, 40, -62, 63, 38,  27,  47,
   };
-  RunCNNTest(image_width, image_height, input, expected_3, cnn_config,
-             image_width, MSE_INT_TOL);
+  RunCNNTest(image_width, image_height, input, expected_3, &cnn_config,
+             image_width, &thread_data, MSE_INT_TOL);
 
   cnn_config.layer_config[0].skip_width = 10;
   cnn_config.layer_config[0].skip_height = 3;
@@ -455,8 +461,8 @@ TEST_F(CNNTest, TestVaryingStridesVaryingDimImages) {
     21, 49, 28, 87, 50, 40, 102, 81, 58, 85, 51, 66, 36, 19, -37, -45,
   };
 
-  RunCNNTest(image_width, image_height, input, expected_4, cnn_config,
-             image_width, MSE_INT_TOL);
+  RunCNNTest(image_width, image_height, input, expected_4, &cnn_config,
+             image_width, &thread_data, MSE_INT_TOL);
 }
 
 TEST_F(CNNTest, TestMaxPool) {
@@ -509,8 +515,10 @@ TEST_F(CNNTest, TestMaxPool) {
                                 .bn_params = {},
                             } } };
 
-  RunCNNTest(image_width, image_height, input, expected, cnn_config,
-             image_width, MSE_INT_TOL);
+  CNN_THREAD_DATA thread_data = { 1, NULL };
+
+  RunCNNTest(image_width, image_height, input, expected, &cnn_config,
+             image_width, &thread_data, MSE_INT_TOL);
 }
 
 TEST_F(CNNTest, TestDeconvolveNonActivationSingleLayerSingleKernel) {
@@ -588,14 +596,16 @@ TEST_F(CNNTest, TestDeconvolveNonActivationSingleLayerSingleKernel) {
                                 .bn_params = {},
                             } } };
 
-  RunCNNTest(image_width, image_height, input, expected_1_same, cnn_config,
-             image_width, MSE_INT_TOL);
+  CNN_THREAD_DATA thread_data = { 1, NULL };
+
+  RunCNNTest(image_width, image_height, input, expected_1_same, &cnn_config,
+             image_width, &thread_data, MSE_INT_TOL);
 
   // Change padding to valid
   cnn_config.layer_config[0].pad = PADDING_VALID;
 
-  RunCNNTest(image_width, image_height, input, expected_1_valid, cnn_config,
-             image_width, MSE_INT_TOL);
+  RunCNNTest(image_width, image_height, input, expected_1_valid, &cnn_config,
+             image_width, &thread_data, MSE_INT_TOL);
 
   float expected_12_same[] = {
     15,  -12,  6,    36,   -9,   -528, 377,  -184, 513,  558,  -12,  24,
@@ -639,13 +649,13 @@ TEST_F(CNNTest, TestDeconvolveNonActivationSingleLayerSingleKernel) {
   // Set padding to same
   cnn_config.layer_config[0].pad = PADDING_SAME_ZERO;
 
-  RunCNNTest(image_width, image_height, input, expected_12_same, cnn_config,
-             image_width, MSE_INT_TOL);
+  RunCNNTest(image_width, image_height, input, expected_12_same, &cnn_config,
+             image_width, &thread_data, MSE_INT_TOL);
 
   // Change padding to valid
   cnn_config.layer_config[0].pad = PADDING_VALID;
-  RunCNNTest(image_width, image_height, input, expected_12_valid, cnn_config,
-             image_width, MSE_INT_TOL);
+  RunCNNTest(image_width, image_height, input, expected_12_valid, &cnn_config,
+             image_width, &thread_data, MSE_INT_TOL);
 
   cnn_config.layer_config[0].filter_width = 4;
   cnn_config.layer_config[0].filter_height = 3;
@@ -711,13 +721,13 @@ TEST_F(CNNTest, TestDeconvolveNonActivationSingleLayerSingleKernel) {
   // Set padding to same
   cnn_config.layer_config[0].pad = PADDING_SAME_ZERO;
 
-  RunCNNTest(image_width, image_height, input, expected_2_same, cnn_config,
-             image_width, MSE_INT_TOL);
+  RunCNNTest(image_width, image_height, input, expected_2_same, &cnn_config,
+             image_width, &thread_data, MSE_INT_TOL);
 
   cnn_config.layer_config[0].pad = PADDING_VALID;
 
-  RunCNNTest(image_width, image_height, input, expected_2_valid, cnn_config,
-             image_width, MSE_INT_TOL);
+  RunCNNTest(image_width, image_height, input, expected_2_valid, &cnn_config,
+             image_width, &thread_data, MSE_INT_TOL);
 
   cnn_config.layer_config[0].skip_width = 2;
   cnn_config.layer_config[0].skip_height = 5;
@@ -780,13 +790,13 @@ TEST_F(CNNTest, TestDeconvolveNonActivationSingleLayerSingleKernel) {
 
   cnn_config.layer_config[0].pad = PADDING_SAME_ZERO;
 
-  RunCNNTest(image_width, image_height, input, expected_21_same, cnn_config,
-             image_width, MSE_INT_TOL);
+  RunCNNTest(image_width, image_height, input, expected_21_same, &cnn_config,
+             image_width, &thread_data, MSE_INT_TOL);
 
   cnn_config.layer_config[0].pad = PADDING_VALID;
 
-  RunCNNTest(image_width, image_height, input, expected_21_valid, cnn_config,
-             image_width, MSE_INT_TOL);
+  RunCNNTest(image_width, image_height, input, expected_21_valid, &cnn_config,
+             image_width, &thread_data, MSE_INT_TOL);
 }
 
 TEST_F(CNNTest, TestLargeKernelsAndStrides) {
@@ -863,8 +873,10 @@ TEST_F(CNNTest, TestLargeKernelsAndStrides) {
   int image_height = 10;
   int image_width = 11;
 
-  RunCNNTest(image_width, image_height, input_10x11, expected_10x11, cnn_config,
-             image_width, MSE_INT_TOL);
+  CNN_THREAD_DATA thread_data = { 1, NULL };
+
+  RunCNNTest(image_width, image_height, input_10x11, expected_10x11,
+             &cnn_config, image_width, &thread_data, MSE_INT_TOL);
 
   float input_11x10[] = {
     -2, -2, 3,  -5, -1, -3, 1,  3,  2,  1,  1,  -5, 4,  1,  3,  -5, 3,  -3, -5,
@@ -927,8 +939,8 @@ TEST_F(CNNTest, TestLargeKernelsAndStrides) {
   image_height = 11;
   image_width = 10;
 
-  RunCNNTest(image_width, image_height, input_11x10, expected_11x10, cnn_config,
-             image_width, MSE_INT_TOL);
+  RunCNNTest(image_width, image_height, input_11x10, expected_11x10,
+             &cnn_config, image_width, &thread_data, MSE_INT_TOL);
 }
 
 TEST_F(CNNTest, TestSoftsignSingleLayer) {
@@ -1011,18 +1023,20 @@ TEST_F(CNNTest, TestSoftsignSingleLayer) {
                                 .bn_params = {},
                             } } };
 
-  RunCNNTest(image_width, image_height, input, expected_same, cnn_config,
-             image_width, MSE_FLOAT_TOL);
+  CNN_THREAD_DATA thread_data = { 1, NULL };
+
+  RunCNNTest(image_width, image_height, input, expected_same, &cnn_config,
+             image_width, &thread_data, MSE_FLOAT_TOL);
 
   cnn_config.layer_config[0].pad = PADDING_SAME_REPLICATE;
 
-  RunCNNTest(image_width, image_height, input, expected_replicate, cnn_config,
-             image_width, MSE_FLOAT_TOL);
+  RunCNNTest(image_width, image_height, input, expected_replicate, &cnn_config,
+             image_width, &thread_data, MSE_FLOAT_TOL);
 
   cnn_config.layer_config[0].pad = PADDING_VALID;
 
-  RunCNNTest(image_width, image_height, input, expected_valid, cnn_config,
-             image_width, MSE_FLOAT_TOL);
+  RunCNNTest(image_width, image_height, input, expected_valid, &cnn_config,
+             image_width, &thread_data, MSE_FLOAT_TOL);
 }
 
 TEST_F(CNNTest, TestBranchTensorAdd) {
@@ -1193,8 +1207,10 @@ TEST_F(CNNTest, TestBranchTensorAdd) {
   // of the offset.
   AssignLayerWeightsBiases(&cnn_config, weights, bias);
 
-  RunCNNTest(image_width, image_height, input, expected, cnn_config,
-             image_width, MSE_INT_TOL);
+  CNN_THREAD_DATA thread_data = { 1, NULL };
+
+  RunCNNTest(image_width, image_height, input, expected, &cnn_config,
+             image_width, &thread_data, MSE_INT_TOL);
 }
 
 TEST_F(CNNTest, TestBranchTensorConcatenation) {
@@ -1365,8 +1381,10 @@ TEST_F(CNNTest, TestBranchTensorConcatenation) {
   // of the offset.
   AssignLayerWeightsBiases(&cnn_config, weights, bias);
 
-  RunCNNTest(image_width, image_height, input, expected, cnn_config,
-             image_width, MSE_INT_TOL);
+  CNN_THREAD_DATA thread_data = { 1, NULL };
+
+  RunCNNTest(image_width, image_height, input, expected, &cnn_config,
+             image_width, &thread_data, MSE_INT_TOL);
 }
 
 // TODO(logangw): Add test to test all combinations of branch_copy_mode.
@@ -1630,8 +1648,10 @@ TEST_F(CNNTest, TestBranchCombinations) {
   // of the offset.
   AssignLayerWeightsBiases(&cnn_config, weights, bias);
 
-  RunCNNTest(image_width, image_height, input, expected, cnn_config,
-             image_width, MSE_INT_TOL);
+  CNN_THREAD_DATA thread_data = { 1, NULL };
+
+  RunCNNTest(image_width, image_height, input, expected, &cnn_config,
+             image_width, &thread_data, MSE_INT_TOL);
 }
 
 TEST_F(CNNTest, TestSplittingTensors) {
@@ -1738,8 +1758,10 @@ TEST_F(CNNTest, TestSplittingTensors) {
   // of the offset.
   AssignLayerWeightsBiases(&cnn_config, weights, bias);
 
-  RunCNNTest(image_width, image_height, input, expected, cnn_config,
-             image_width, MSE_INT_TOL);
+  CNN_THREAD_DATA thread_data = { 1, NULL };
+
+  RunCNNTest(image_width, image_height, input, expected, &cnn_config,
+             image_width, &thread_data, MSE_INT_TOL);
 }
 
 TEST_F(CNNTest, TestOutputChannelsCount) {
@@ -1835,8 +1857,10 @@ TEST_F(CNNTest, TestOutputChannelsCount) {
   // of the offset.
   AssignLayerWeightsBiases(&cnn_config, weights, bias);
 
-  RunCNNTest(image_width, image_height, input, expected, cnn_config,
-             image_width, MSE_FLOAT_TOL);
+  CNN_THREAD_DATA thread_data = { 1, NULL };
+
+  RunCNNTest(image_width, image_height, input, expected, &cnn_config,
+             image_width, &thread_data, MSE_FLOAT_TOL);
 }
 
 TEST_F(CNNTest, TestBatchNorm) {
@@ -2064,6 +2088,90 @@ TEST_F(CNNTest, TestBatchNorm) {
     },
   };
 
-  RunCNNTest(image_width, image_height, input, expected, cnn_config,
-             image_width, MSE_FLOAT_TOL);
+  CNN_THREAD_DATA thread_data = { 1, NULL };
+
+  RunCNNTest(image_width, image_height, input, expected, &cnn_config,
+             image_width, &thread_data, MSE_FLOAT_TOL);
+}
+
+TEST_F(CNNTest, TestMultithreading) {
+  int image_height = 2;
+  int image_width = 2;
+  int filter_height = 3;
+  int filter_width = 3;
+
+  float input[] = {
+    -2,
+    4,
+    1,
+    0,
+  };
+
+  float weights[] = {
+    -4, 2, -2, 0,  -4, 4, -3, -3, -3, -1, 1,  0,  -5, -3, 0, -5, 0, 0,
+    -1, 0, 2,  -5, 0,  1, 4,  2,  1,  0,  -2, -1, -5, -3, 2, -2, 1, -5,
+  };
+
+  float bias[] = {
+    -4,
+    -3,
+    -2,
+    3,
+  };
+
+  float expected[] = {
+    2, 10, -8, -17, -24, 5, -15, 6, -5, -5, 7, -10, 4, 13, 9, -14,
+  };
+
+  CNN_CONFIG cnn_config = {
+    .num_layers = 1,
+    .is_residue = 0,
+    .ext_width = 0,
+    .ext_height = 0,
+    .strict_bounds = 0,
+    {
+        {
+            .branch = 0,
+            .deconvolve = 0,
+            .in_channels = 1,
+            .filter_width = filter_width,
+            .filter_height = filter_height,
+            .out_channels = 4,
+            .skip_width = 1,
+            .skip_height = 1,
+            .maxpool = 0,
+            .weights = weights,
+            .bias = bias,
+            .pad = PADDING_SAME_ZERO,
+            .activation = NONE,
+            .branch_copy_mode = COPY_NONE,
+            .input_to_branches = 0x00,
+            .channels_to_copy = 0,
+            .branch_combine_type = BRANCH_NOC,
+            .branches_to_combine = 0x00,
+            .bn_params = {},
+        },
+    },
+  };
+
+  CNN_THREAD_DATA thread_data = { 1, NULL };
+
+  RunCNNTest(image_width, image_height, input, expected, &cnn_config,
+             image_width, &thread_data, MSE_FLOAT_TOL);
+
+  const AVxWorkerInterface *const winterface = aom_get_worker_interface();
+  AVxWorker workers[4];
+
+  for (int i = 0; i < 4; ++i) {
+    winterface->init(&workers[i]);
+  }
+
+  thread_data = { 4, workers };
+
+  RunCNNTest(image_width, image_height, input, expected, &cnn_config,
+             image_width, &thread_data, MSE_FLOAT_TOL);
+
+  for (int i = 0; i < 4; ++i) {
+    winterface->end(&workers[i]);
+  }
 }

@@ -26,9 +26,11 @@ static INLINE int av1_use_cnn(const AV1_COMMON *cm) {
   return ((cm->base_qindex > MIN_CNN_Q_INDEX) && !av1_superres_scaled(cm));
 }
 
-void av1_encode_restore_cnn(AV1_COMMON *cm);
+void av1_encode_restore_cnn(AV1_COMMON *cm, AVxWorker *workers,
+                            int num_workers);
 
-void av1_decode_restore_cnn(AV1_COMMON *cm);
+void av1_decode_restore_cnn(AV1_COMMON *cm, AVxWorker *workers,
+                            int num_workers);
 
 #ifdef __cplusplus
 }

@@ -18,6 +18,18 @@
 
 #define CLAMPINDEX(a, hi) ((a) < 0 ? 0 : ((a) >= (hi) ? ((hi)-1) : (a)))
 
+typedef struct {
+  const float **input;
+  int in_width;
+  int in_height;
+  int in_stride;
+  const CNN_LAYER_CONFIG *layer_config;
+  float **output;
+  int out_stride;
+  int start_idx;
+  int th_step;
+} CONVOLVE_OPS;
+
 typedef float (*activation_fn)(float);
 
 static float softsign(float x) { return x / (float)(fabsf(x) + 1.0); }
@@ -278,14 +290,60 @@ static void copy_active_tensor_to_branches(const TENSOR *layer_active_tensor,
   }
 }
 
+static int convolve_layer(void *arg1, void *arg2) {
+  const CONVOLVE_OPS *convolve_ops = arg1;
+  (void)arg2;
+  av1_cnn_convolve(
+      convolve_ops->input, convolve_ops->in_width, convolve_ops->in_height,
+      convolve_ops->in_stride, convolve_ops->layer_config, convolve_ops->output,
+      convolve_ops->out_stride, convolve_ops->start_idx, convolve_ops->th_step);
+  return 0;
+}
+
+static void convolve_layer_mt(const float **input, int in_width, int in_height,
+                              int in_stride,
+                              const CNN_LAYER_CONFIG *layer_config,
+                              const CNN_THREAD_DATA *thread_data,
+                              float **output, int out_stride) {
+  const AVxWorkerInterface *const winterface = aom_get_worker_interface();
+  const int num_workers = thread_data->num_workers;
+
+  CONVOLVE_OPS convolve_ops[CNN_MAX_THREADS];
+  for (int th = 0; th < AOMMIN(num_workers, CNN_MAX_THREADS); ++th) {
+    AVxWorker *const worker = &(thread_data->workers[th]);
+    winterface->reset(worker);
+
+    CONVOLVE_OPS convolve_op = { input,      in_width,     in_height,
+                                 in_stride,  layer_config, output,
+                                 out_stride, th,           num_workers };
+    convolve_ops[th] = convolve_op;
+    worker->hook = convolve_layer;
+    worker->data1 = &(convolve_ops[th]);
+    worker->data2 = NULL;
+
+    // Start convolving.
+    if (th == num_workers - 1) {
+      winterface->execute(worker);
+    } else {
+      winterface->launch(worker);
+    }
+  }
+
+  // Wait until all workers have finished.
+  for (int th = 0; th < AOMMIN(num_workers, CNN_MAX_THREADS); ++th) {
+    winterface->sync(&thread_data->workers[th]);
+  }
+}
+
 void av1_cnn_convolve_c(const float **input, int in_width, int in_height,
                         int in_stride, const CNN_LAYER_CONFIG *layer_config,
-                        float **output, int out_stride) {
+                        float **output, int out_stride, int start_idx,
+                        int step) {
   assert(!layer_config->deconvolve);
-
   const int cstep = layer_config->in_channels * layer_config->out_channels;
   const int filter_height_half = layer_config->filter_height >> 1;
   const int filter_width_half = layer_config->filter_width >> 1;
+  const int channel_step = AOMMAX(step, 1);
 
   if (layer_config->maxpool &&
       (layer_config->skip_height > 1 || layer_config->skip_width > 1)) {
@@ -419,15 +477,19 @@ void av1_cnn_convolve_c(const float **input, int in_width, int in_height,
     if (layer_config->filter_height == 1 && layer_config->filter_width == 1) {
       const int start_h = get_start_shift_convolve(
           in_height, layer_config->filter_height, layer_config->skip_height);
-      const int start_w = get_start_shift_convolve(
-          in_width, layer_config->filter_width, layer_config->skip_width);
+      const int start_w =
+          get_start_shift_convolve(in_width, layer_config->filter_width,
+                                   layer_config->skip_width) +
+          start_idx * layer_config->skip_width;
+      const int out_w_step = AOMMAX(step, 1);
+      const int in_w_step = layer_config->skip_width * out_w_step;
       for (int i = 0; i < layer_config->out_channels; ++i) {
         for (int h = start_h, u = 0; h < in_height;
              h += layer_config->skip_height, ++u) {
           const int in_h = h * in_stride;
-          const int out_h = u * out_stride;
+          const int out_h = u * out_stride + start_idx;
           for (int w = start_w, out_index = out_h; w < in_width;
-               w += layer_config->skip_width, ++out_index) {
+               w += in_w_step, out_index += out_w_step) {
             float sum = layer_config->bias[i];
             for (int k = 0; k < layer_config->in_channels; ++k) {
               sum += layer_config->weights[k * layer_config->out_channels + i] *
@@ -451,11 +513,13 @@ void av1_cnn_convolve_c(const float **input, int in_width, int in_height,
             in_width, layer_config->filter_width, layer_config->skip_width);
         const int end_ii_shift = filter_height_half + 1;
         const int end_jj_shift = filter_width_half + 1;
-        // bottom_filter_margin is used to determine cstep for bottom pixel
-        // convolutions.
+        // *_filter_margin stores the number of pixels along a dimension in the
+        // intersection of the complement of the image in the extended image
+        // and the filter.
         const int top_filter_margin = layer_config->filter_width * ii_shift;
         const int right_filter_margin = end_jj_shift - in_width;
-        for (int i = 0; i < layer_config->out_channels; ++i) {
+        for (int i = start_idx; i < layer_config->out_channels;
+             i += channel_step) {
           for (int h = start_h, u = 0; h < in_height;
                h += layer_config->skip_height, ++u) {
             const int out_h = u * out_stride;
@@ -503,7 +567,8 @@ void av1_cnn_convolve_c(const float **input, int in_width, int in_height,
             jj_shift;
         const int end_h = in_height - ii_shift;
         const int end_w = in_width - jj_shift;
-        for (int i = 0; i < layer_config->out_channels; ++i) {
+        for (int i = start_idx; i < layer_config->out_channels;
+             i += channel_step) {
           for (int h = start_h, u = 0; h < end_h;
                h += layer_config->skip_height, ++u) {
             const int out_h = u * out_stride;
@@ -533,7 +598,8 @@ void av1_cnn_convolve_c(const float **input, int in_width, int in_height,
         break;
       }
       case PADDING_VALID: {
-        for (int i = 0; i < layer_config->out_channels; ++i) {
+        for (int i = start_idx; i < layer_config->out_channels;
+             i += channel_step) {
           for (int h = 0, u = 0;
                h < in_height - layer_config->filter_height + 1;
                h += layer_config->skip_height, ++u) {
@@ -712,7 +778,8 @@ void av1_cnn_deconvolve_c(const float **input, int in_width, int in_height,
 
 void av1_cnn_predict_c(const float **input, int in_width, int in_height,
                        int in_stride, const CNN_CONFIG *cnn_config,
-                       float **output, int out_stride) {
+                       const CNN_THREAD_DATA *thread_data, float **output,
+                       int out_stride) {
   TENSOR tensor1[CNN_MAX_BRANCHES] = { 0 };
   TENSOR tensor2[CNN_MAX_BRANCHES] = { 0 };
 
@@ -783,10 +850,19 @@ void av1_cnn_predict_c(const float **input, int in_width, int in_height,
 
     // Convolve/Deconvolve
     if (!cnn_config->layer_config[layer].deconvolve) {
-      av1_cnn_convolve((const float **)tensor1[branch].buf,
-                       tensor1[branch].width, tensor1[branch].height,
-                       tensor1[branch].stride, &cnn_config->layer_config[layer],
-                       tensor2[branch].buf, tensor2[branch].stride);
+      if (thread_data->num_workers > 1) {
+        convolve_layer_mt((const float **)tensor1[branch].buf,
+                          tensor1[branch].width, tensor1[branch].height,
+                          tensor1[branch].stride,
+                          &cnn_config->layer_config[layer], thread_data,
+                          tensor2[branch].buf, tensor2[branch].stride);
+      } else {
+        av1_cnn_convolve((const float **)tensor1[branch].buf,
+                         tensor1[branch].width, tensor1[branch].height,
+                         tensor1[branch].stride,
+                         &cnn_config->layer_config[layer], tensor2[branch].buf,
+                         tensor2[branch].stride, 0, 1);
+      }
     } else {
       av1_cnn_deconvolve((const float **)tensor1[branch].buf,
                          tensor1[branch].width, tensor1[branch].height,
@@ -875,7 +951,8 @@ void av1_cnn_predict_c(const float **input, int in_width, int in_height,
 // Assume output already has proper allocation
 // Assume input image buffers all have same resolution and strides
 void av1_cnn_predict_img(uint8_t **dgd, int width, int height, int stride,
-                         const CNN_CONFIG *cnn_config, float **output,
+                         const CNN_CONFIG *cnn_config,
+                         const CNN_THREAD_DATA *thread_data, float **output,
                          int out_stride) {
   const float max_val = 255.0;
   int out_width = 0;
@@ -925,7 +1002,7 @@ void av1_cnn_predict_img(uint8_t **dgd, int width, int height, int stride,
     }
   }
   av1_cnn_predict((const float **)inputs, in_width, in_height, in_stride,
-                  cnn_config, output, out_stride);
+                  cnn_config, thread_data, output, out_stride);
 
   aom_free(input_);
 }
@@ -934,6 +1011,7 @@ void av1_cnn_predict_img(uint8_t **dgd, int width, int height, int stride,
 // Assume input image buffers all have same resolution and strides
 void av1_cnn_predict_img_highbd(uint16_t **dgd, int width, int height,
                                 int stride, const CNN_CONFIG *cnn_config,
+                                const CNN_THREAD_DATA *thread_data,
                                 int bit_depth, float **output, int out_stride) {
   const float max_val = (float)((1 << bit_depth) - 1);
   int out_width = 0;
@@ -983,12 +1061,13 @@ void av1_cnn_predict_img_highbd(uint16_t **dgd, int width, int height,
     }
   }
   av1_cnn_predict((const float **)inputs, width, height, in_stride, cnn_config,
-                  output, out_stride);
+                  thread_data, output, out_stride);
   aom_free(input_);
 }
 
 void av1_restore_cnn_img(uint8_t *dgd, int width, int height, int stride,
-                         const CNN_CONFIG *cnn_config) {
+                         const CNN_CONFIG *cnn_config,
+                         const CNN_THREAD_DATA *thread_data) {
   const float max_val = 255;
   int out_width = 0;
   int out_height = 0;
@@ -1002,8 +1081,8 @@ void av1_restore_cnn_img(uint8_t *dgd, int width, int height, int stride,
 
   const int out_stride = width;
   float *output = (float *)aom_malloc(width * height * sizeof(*output));
-  av1_cnn_predict_img(&dgd, width, height, stride, cnn_config, &output,
-                      out_stride);
+  av1_cnn_predict_img(&dgd, width, height, stride, cnn_config, thread_data,
+                      &output, out_stride);
 
   if (cnn_config->is_residue) {
     for (int i = 0; i < height; ++i)
@@ -1022,6 +1101,7 @@ void av1_restore_cnn_img(uint8_t *dgd, int width, int height, int stride,
 
 void av1_restore_cnn_img_highbd(uint16_t *dgd, int width, int height,
                                 int stride, const CNN_CONFIG *cnn_config,
+                                const CNN_THREAD_DATA *thread_data,
                                 int bit_depth) {
   const float max_val = (float)((1 << bit_depth) - 1);
   int out_width = 0;
@@ -1036,8 +1116,8 @@ void av1_restore_cnn_img_highbd(uint16_t *dgd, int width, int height,
 
   float *output = (float *)aom_malloc(width * height * sizeof(*output));
   const int out_stride = width;
-  av1_cnn_predict_img_highbd(&dgd, width, height, stride, cnn_config, bit_depth,
-                             &output, out_stride);
+  av1_cnn_predict_img_highbd(&dgd, width, height, stride, cnn_config,
+                             thread_data, bit_depth, &output, out_stride);
 
   if (cnn_config->is_residue) {
     for (int i = 0; i < height; ++i)
@@ -1056,7 +1136,8 @@ void av1_restore_cnn_img_highbd(uint16_t *dgd, int width, int height,
 }
 
 void av1_restore_cnn_plane_part(AV1_COMMON *cm, const CNN_CONFIG *cnn_config,
-                                int plane, int start_x, int start_y, int width,
+                                const CNN_THREAD_DATA *thread_data, int plane,
+                                int start_x, int start_y, int width,
                                 int height) {
   YV12_BUFFER_CONFIG *buf = &cm->cur_frame->buf;
 
@@ -1084,17 +1165,20 @@ void av1_restore_cnn_plane_part(AV1_COMMON *cm, const CNN_CONFIG *cnn_config,
       case AOM_PLANE_Y:
         av1_restore_cnn_img_highbd(CONVERT_TO_SHORTPTR(buf->y_buffer + offset),
                                    part_width, part_height, buf->y_stride,
-                                   cnn_config, cm->seq_params.bit_depth);
+                                   cnn_config, thread_data,
+                                   cm->seq_params.bit_depth);
         break;
       case AOM_PLANE_U:
         av1_restore_cnn_img_highbd(CONVERT_TO_SHORTPTR(buf->u_buffer + offset),
                                    part_width, part_height, buf->uv_stride,
-                                   cnn_config, cm->seq_params.bit_depth);
+                                   cnn_config, thread_data,
+                                   cm->seq_params.bit_depth);
         break;
       case AOM_PLANE_V:
         av1_restore_cnn_img_highbd(CONVERT_TO_SHORTPTR(buf->v_buffer + offset),
                                    part_width, part_height, buf->uv_stride,
-                                   cnn_config, cm->seq_params.bit_depth);
+                                   cnn_config, thread_data,
+                                   cm->seq_params.bit_depth);
         break;
       default: assert(0 && "Invalid plane index");
     }
@@ -1103,15 +1187,15 @@ void av1_restore_cnn_plane_part(AV1_COMMON *cm, const CNN_CONFIG *cnn_config,
     switch (plane) {
       case AOM_PLANE_Y:
         av1_restore_cnn_img(buf->y_buffer + offset, part_width, part_height,
-                            buf->y_stride, cnn_config);
+                            buf->y_stride, cnn_config, thread_data);
         break;
       case AOM_PLANE_U:
         av1_restore_cnn_img(buf->u_buffer + offset, part_width, part_height,
-                            buf->uv_stride, cnn_config);
+                            buf->uv_stride, cnn_config, thread_data);
         break;
       case AOM_PLANE_V:
         av1_restore_cnn_img(buf->v_buffer + offset, part_width, part_height,
-                            buf->uv_stride, cnn_config);
+                            buf->uv_stride, cnn_config, thread_data);
         break;
       default: assert(0 && "Invalid plane index");
     }
@@ -1119,26 +1203,26 @@ void av1_restore_cnn_plane_part(AV1_COMMON *cm, const CNN_CONFIG *cnn_config,
 }
 
 void av1_restore_cnn_plane(AV1_COMMON *cm, const CNN_CONFIG *cnn_config,
-                           int plane) {
+                           int plane, const CNN_THREAD_DATA *thread_data) {
   YV12_BUFFER_CONFIG *buf = &cm->cur_frame->buf;
   if (cm->seq_params.use_highbitdepth) {
     switch (plane) {
       case AOM_PLANE_Y:
         av1_restore_cnn_img_highbd(CONVERT_TO_SHORTPTR(buf->y_buffer),
                                    buf->y_crop_width, buf->y_crop_height,
-                                   buf->y_stride, cnn_config,
+                                   buf->y_stride, cnn_config, thread_data,
                                    cm->seq_params.bit_depth);
         break;
       case AOM_PLANE_U:
         av1_restore_cnn_img_highbd(CONVERT_TO_SHORTPTR(buf->u_buffer),
                                    buf->uv_crop_width, buf->uv_crop_height,
-                                   buf->uv_stride, cnn_config,
+                                   buf->uv_stride, cnn_config, thread_data,
                                    cm->seq_params.bit_depth);
         break;
       case AOM_PLANE_V:
         av1_restore_cnn_img_highbd(CONVERT_TO_SHORTPTR(buf->v_buffer),
                                    buf->uv_crop_width, buf->uv_crop_height,
-                                   buf->uv_stride, cnn_config,
+                                   buf->uv_stride, cnn_config, thread_data,
                                    cm->seq_params.bit_depth);
         break;
       default: assert(0 && "Invalid plane index");
@@ -1148,15 +1232,18 @@ void av1_restore_cnn_plane(AV1_COMMON *cm, const CNN_CONFIG *cnn_config,
     switch (plane) {
       case AOM_PLANE_Y:
         av1_restore_cnn_img(buf->y_buffer, buf->y_crop_width,
-                            buf->y_crop_height, buf->y_stride, cnn_config);
+                            buf->y_crop_height, buf->y_stride, cnn_config,
+                            thread_data);
         break;
       case AOM_PLANE_U:
         av1_restore_cnn_img(buf->u_buffer, buf->uv_crop_width,
-                            buf->uv_crop_height, buf->uv_stride, cnn_config);
+                            buf->uv_crop_height, buf->uv_stride, cnn_config,
+                            thread_data);
         break;
       case AOM_PLANE_V:
         av1_restore_cnn_img(buf->v_buffer, buf->uv_crop_width,
-                            buf->uv_crop_height, buf->uv_stride, cnn_config);
+                            buf->uv_crop_height, buf->uv_stride, cnn_config,
+                            thread_data);
         break;
       default: assert(0 && "Invalid plane index");
     }

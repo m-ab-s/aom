@@ -4155,7 +4155,7 @@ static void loopfilter_frame(AV1_COMP *cpi, AV1_COMMON *cm) {
     dgd_error = aom_get_sse_plane(cpi->source, &cm->cur_frame->buf, plane,
                                   cm->seq_params.use_highbitdepth);
 
-    av1_encode_restore_cnn(cm);
+    av1_encode_restore_cnn(cm, cpi->workers, cpi->num_workers);
 
     // Find the error of the plane from source after applying cnn.
     cnn_error = aom_get_sse_plane(cpi->source, &cm->cur_frame->buf, plane,

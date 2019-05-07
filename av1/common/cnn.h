@@ -18,6 +18,7 @@ extern "C" {
 
 #include <math.h>
 
+#include "aom_util/aom_thread.h"
 #include "config/av1_rtcd.h"
 
 struct AV1Common;
@@ -26,6 +27,7 @@ struct AV1Common;
 #define CNN_MAX_LAYERS (CNN_MAX_HIDDEN_LAYERS + 1)
 #define CNN_MAX_CHANNELS 256
 #define CNN_MAX_BRANCHES 4
+#define CNN_MAX_THREADS 32
 
 enum {
   PADDING_SAME_ZERO,       // tensorflow's SAME padding with pixels outside
@@ -127,6 +129,11 @@ struct CNN_CONFIG {
   CNN_LAYER_CONFIG layer_config[CNN_MAX_LAYERS];
 };
 
+struct CNN_THREAD_DATA {
+  int num_workers;
+  AVxWorker *workers;
+};
+
 // Function to return size of output
 void av1_find_cnn_output_size(int in_width, int in_height,
                               const CNN_CONFIG *cnn_config, int *out_width,
@@ -134,26 +141,31 @@ void av1_find_cnn_output_size(int in_width, int in_height,
 
 // Prediction functions from set of input image buffers
 void av1_cnn_predict_img(uint8_t **dgd, int width, int height, int stride,
-                         const CNN_CONFIG *cnn_config, float **output,
+                         const CNN_CONFIG *cnn_config,
+                         const CNN_THREAD_DATA *thread_data, float **output,
                          int out_stride);
 void av1_cnn_predict_img_highbd(uint16_t **dgd, int width, int height,
                                 int stride, const CNN_CONFIG *cnn_config,
+                                const CNN_THREAD_DATA *thread_data,
                                 int bit_depth, float **output, int out_stride);
 
 // Restoration functions from input image buffer
 // These internally call av1_cnn_predict_img() / av1_cnn_predict_img_highbd().
 void av1_restore_cnn_img(uint8_t *dgd, int width, int height, int stride,
-                         const CNN_CONFIG *cnn_config);
+                         const CNN_CONFIG *cnn_config,
+                         const CNN_THREAD_DATA *thread_data);
 void av1_restore_cnn_img_highbd(uint16_t *dgd, int width, int height,
                                 int stride, const CNN_CONFIG *cnn_config,
+                                const CNN_THREAD_DATA *thread_data,
                                 int bit_depth);
 
 // Restoration functions that work on current frame buffer in AV1_COMMON
 // directly for convenience.
 void av1_restore_cnn_plane(struct AV1Common *cm, const CNN_CONFIG *cnn_config,
-                           int plane);
+                           int plane, const CNN_THREAD_DATA *thread_data);
 void av1_restore_cnn_plane_part(struct AV1Common *cm,
-                                const CNN_CONFIG *cnn_config, int plane,
+                                const CNN_CONFIG *cnn_config,
+                                const CNN_THREAD_DATA *thread_data, int plane,
                                 int start_x, int start_y, int width,
                                 int height);
 
