@@ -9,12 +9,15 @@
  * PATENTS file, you can obtain it at www.aomedia.org/license/patent.
  */
 
-#ifndef AV1_MODELS_INTRA_FRAME_MODEL_QP22_H_
-#define AV1_MODELS_INTRA_FRAME_MODEL_QP22_H_
+#ifndef AV1_MODELS_INTRA_FRAME_MODEL_22_H_
+#define AV1_MODELS_INTRA_FRAME_MODEL_22_H_
 
+#include "aom_ports/mem.h"
 #include "av1/common/cnn.h"
 
-static float model_22_weight_0[] = {
+static const int intra_model_22_trained_qp = 22;
+
+DECLARE_ALIGNED(32, static float, intra_model_22_weight_0[]) = {
   0.063343f,  -0.021504f, -0.095324f, 0.028581f,  -0.025980f, -0.004179f,
   0.078403f,  -0.106808f, -0.120007f, -0.110618f, 0.011426f,  -0.103445f,
   -0.064899f, -0.020959f, -0.075168f, -0.055262f, -0.014217f, -0.008809f,
@@ -65,7 +68,7 @@ static float model_22_weight_0[] = {
   0.123956f,  -0.092394f, -0.000759f, -0.100636f, 0.045967f,  -0.072010f,
 };
 
-static float model_22_bias_0[] = {
+DECLARE_ALIGNED(32, static float, intra_model_22_bias_0[]) = {
   0.001286f, -0.007591f, 0.009804f,  0.006202f,  -0.012380f, -0.000959f,
   0.003687f, -0.005238f, -0.007543f, 0.012327f,  -0.004736f, 0.012758f,
   0.004778f, -0.002007f, 0.008715f,  -0.008664f, 0.010157f,  -0.008939f,
@@ -74,7 +77,7 @@ static float model_22_bias_0[] = {
   0.005383f, 0.006970f,
 };
 
-static float model_22_weight_1[] = {
+DECLARE_ALIGNED(32, static float, intra_model_22_weight_1[]) = {
   -0.103898f, 0.149520f,  0.109039f,  -0.000000f, -0.015354f, -0.047193f,
   -0.072027f, -0.172803f, -0.000571f, 0.004121f,  -0.035453f, 0.098485f,
   -0.095093f, -0.104434f, -0.016167f, -0.062561f, 0.030890f,  0.063730f,
@@ -1101,7 +1104,7 @@ static float model_22_weight_1[] = {
   0.068065f,  0.064169f,  0.164925f,  0.068974f,  0.002401f,  0.136333f,
 };
 
-static float model_22_bias_1[] = {
+DECLARE_ALIGNED(32, static float, intra_model_22_bias_1[]) = {
   -0.000706f, -0.001742f, 0.003762f,  -0.000000f, 0.005389f,  0.018670f,
   0.002747f,  -0.004770f, 0.000168f,  0.009681f,  0.002379f,  -0.000592f,
   0.008947f,  0.000988f,  0.000703f,  0.004651f,  0.011798f,  -0.005087f,
@@ -1136,7 +1139,7 @@ static float model_22_bias_1[] = {
   -0.000989f, -0.003361f, 0.000401f,  0.000921f,  0.001416f,  0.000428f,
 };
 
-static float model_22_weight_2[] = {
+DECLARE_ALIGNED(32, static float, intra_model_22_weight_2[]) = {
   0.024805f,  0.142506f,  -0.028706f, 0.025835f,  0.050927f,  0.147941f,
   -0.108508f, 0.031463f,  0.070591f,  -0.120317f, -0.093355f, 0.156271f,
   -0.132855f, 0.102985f,  -0.030330f, 0.115607f,  0.150766f,  -0.014282f,
@@ -1939,7 +1942,7 @@ static float model_22_weight_2[] = {
   0.022446f,  -0.084250f, 0.144736f,  -0.109882f, -0.063418f, -0.068178f,
 };
 
-static float model_22_bias_2[] = {
+DECLARE_ALIGNED(32, static float, intra_model_22_bias_2[]) = {
   0.004957f,  -0.000810f, 0.005424f,  0.000832f,  0.000280f,
   0.000637f,  0.001170f,  -0.004188f, 0.002915f,  -0.001712f,
   -0.003500f, -0.002941f, 0.003175f,  0.003815f,  0.001457f,
@@ -1947,7 +1950,7 @@ static float model_22_bias_2[] = {
   -0.000231f, -0.000546f, -0.001530f, -0.001413f, 0.009310f,
 };
 
-static float model_22_weight_3[] = {
+DECLARE_ALIGNED(32, static float, intra_model_22_weight_3[]) = {
   -0.031201f, -0.053421f, -0.039271f, -0.041214f, -0.087695f, 0.002418f,
   0.002203f,  -0.047389f, -0.013283f, -0.037280f, -0.054989f, -0.012802f,
   0.082630f,  0.001818f,  0.041982f,  -0.008418f, 0.024563f,  -0.002253f,
@@ -3150,7 +3153,7 @@ static float model_22_weight_3[] = {
   0.055710f,  -0.039049f, 0.008766f,  0.032041f,  -0.053652f, 0.009909f,
 };
 
-static float model_22_bias_3[] = {
+DECLARE_ALIGNED(32, static float, intra_model_22_bias_3[]) = {
   0.002213f, -0.004608f, 0.011121f,  0.003849f,  -0.009625f, -0.000281f,
   0.001363f, -0.003520f, -0.006324f, 0.001542f,  -0.003201f, 0.010671f,
   0.007988f, -0.003486f, 0.002838f,  -0.005306f, 0.010686f,  0.002388f,
@@ -3159,7 +3162,7 @@ static float model_22_bias_3[] = {
   0.004812f, 0.006198f,
 };
 
-static float model_22_weight_4[] = {
+DECLARE_ALIGNED(32, static float, intra_model_22_weight_4[]) = {
   0.002846f,  -0.005970f, -0.188763f, 0.159342f,  0.086740f,  0.153033f,
   0.118265f,  -0.024216f, -0.029751f, 0.045441f,  -0.070316f, 0.116482f,
   -0.047046f, 0.126992f,  0.041520f,  -0.096281f, 0.060710f,  0.078204f,
@@ -4186,7 +4189,7 @@ static float model_22_weight_4[] = {
   0.024129f,  -0.126608f, -0.082736f, -0.038029f, -0.124780f, -0.084928f,
 };
 
-static float model_22_bias_4[] = {
+DECLARE_ALIGNED(32, static float, intra_model_22_bias_4[]) = {
   0.001344f,  0.003501f,  0.001923f,  0.002871f,  0.005665f,  0.006477f,
   -0.016214f, 0.004560f,  0.007564f,  0.001361f,  -0.000200f, 0.003344f,
   0.002616f,  0.006108f,  0.001733f,  0.005109f,  -0.010754f, 0.004829f,
@@ -4221,7 +4224,7 @@ static float model_22_bias_4[] = {
   0.001444f,  -0.001043f, 0.003795f,  0.008208f,  0.008666f,  0.002043f,
 };
 
-static float model_22_weight_5[] = {
+DECLARE_ALIGNED(32, static float, intra_model_22_weight_5[]) = {
   -0.113932f, -0.021931f, 0.056398f,  0.063256f,  0.039067f,  -0.062964f,
   0.059306f,  -0.108208f, -0.072323f, -0.123023f, 0.013045f,  0.063434f,
   0.120482f,  -0.093020f, -0.022398f, -0.135226f, 0.066245f,  -0.073024f,
@@ -5024,7 +5027,7 @@ static float model_22_weight_5[] = {
   0.198691f,  0.059735f,  -0.109360f, -0.140872f, 0.032593f,  -0.023773f,
 };
 
-static float model_22_bias_5[] = {
+DECLARE_ALIGNED(32, static float, intra_model_22_bias_5[]) = {
   -0.001626f, 0.004244f,  0.000771f,  -0.000791f, 0.003940f,
   -0.005199f, 0.007718f,  -0.004715f, -0.002902f, -0.002137f,
   0.003489f,  -0.008997f, -0.012392f, 0.003009f,  0.002324f,
@@ -5032,7 +5035,7 @@ static float model_22_bias_5[] = {
   0.005011f,  0.007952f,  0.001758f,  0.003330f,  -0.002118f,
 };
 
-static float model_22_weight_6[] = {
+DECLARE_ALIGNED(32, static float, intra_model_22_weight_6[]) = {
   -0.044272f, 0.068473f,  0.026317f,  0.009311f,  -0.133080f, 0.014958f,
   0.064802f,  0.047960f,  0.005834f,  -0.022135f, 0.124263f,  0.074657f,
   -0.047540f, 0.083691f,  -0.034745f, -0.032294f, -0.039875f, -0.024067f,
@@ -6235,7 +6238,7 @@ static float model_22_weight_6[] = {
   0.020841f,  0.091730f,  0.056412f,  0.005827f,  -0.006497f, 0.056048f,
 };
 
-static float model_22_bias_6[] = {
+DECLARE_ALIGNED(32, static float, intra_model_22_bias_6[]) = {
   -0.006406f, -0.001574f, 0.003540f,  0.001353f,  -0.009991f, 0.002119f,
   0.000188f,  0.001348f,  0.000847f,  0.001094f,  -0.004565f, -0.001986f,
   -0.000526f, 0.003865f,  0.000520f,  0.002945f,  0.002924f,  0.001561f,
@@ -6244,7 +6247,7 @@ static float model_22_bias_6[] = {
   -0.003776f, 0.002119f,
 };
 
-static float model_22_weight_7[] = {
+DECLARE_ALIGNED(32, static float, intra_model_22_weight_7[]) = {
   0.158340f,  0.016591f,  0.030764f,  0.068676f,  0.070111f,  0.091403f,
   0.070552f,  -0.116911f, -0.005958f, 0.140486f,  0.000000f,  0.003566f,
   0.081091f,  0.000000f,  -0.089815f, -0.092706f, 0.008696f,  -0.009815f,
@@ -7271,7 +7274,7 @@ static float model_22_weight_7[] = {
   0.112592f,  -0.015082f, -0.002196f, -0.127245f, 0.016473f,  0.066221f,
 };
 
-static float model_22_bias_7[] = {
+DECLARE_ALIGNED(32, static float, intra_model_22_bias_7[]) = {
   -0.001876f, -0.002437f, -0.001968f, 0.005208f,  -0.010590f, 0.008318f,
   0.016862f,  -0.011996f, 0.004734f,  -0.009375f, -0.000000f, 0.002875f,
   0.008934f,  -0.000000f, 0.011574f,  0.004967f,  -0.007227f, 0.014908f,
@@ -7306,7 +7309,7 @@ static float model_22_bias_7[] = {
   0.001464f,  -0.007030f, -0.000638f, 0.010246f,  0.002762f,  0.013880f,
 };
 
-static float model_22_weight_8[] = {
+DECLARE_ALIGNED(32, static float, intra_model_22_weight_8[]) = {
   -0.089145f, 0.087616f,  -0.113561f, 0.031967f,  -0.037818f, 0.118438f,
   -0.116459f, 0.017677f,  -0.006797f, 0.102926f,  -0.053231f, -0.117951f,
   -0.023688f, -0.014057f, 0.145580f,  -0.066588f, -0.058865f, 0.036061f,
@@ -8109,7 +8112,7 @@ static float model_22_weight_8[] = {
   -0.007271f, -0.034193f, -0.128525f, 0.117728f,  -0.034084f, -0.104950f,
 };
 
-static float model_22_bias_8[] = {
+DECLARE_ALIGNED(32, static float, intra_model_22_bias_8[]) = {
   0.002385f,  0.001363f,  0.007805f,  0.002458f,  0.002703f,
   0.003630f,  -0.001331f, -0.003270f, -0.003459f, 0.005830f,
   0.001340f,  -0.000205f, 0.004687f,  0.001861f,  0.005489f,
@@ -8117,7 +8120,7 @@ static float model_22_bias_8[] = {
   0.009342f,  -0.001173f, -0.003176f, 0.013489f,  0.001939f,
 };
 
-static float model_22_weight_9[] = {
+DECLARE_ALIGNED(32, static float, intra_model_22_weight_9[]) = {
   0.064776f,  0.027449f,  -0.045434f, 0.025673f,  -0.051079f, 0.088203f,
   -0.013524f, 0.074869f,  0.010170f,  -0.082450f, -0.069850f, 0.031205f,
   -0.036008f, 0.044737f,  0.105927f,  0.067834f,  0.005806f,  0.061741f,
@@ -9320,7 +9323,7 @@ static float model_22_weight_9[] = {
   0.043262f,  0.015093f,  0.085437f,  -0.075435f, 0.040061f,  0.037125f,
 };
 
-static float model_22_bias_9[] = {
+DECLARE_ALIGNED(32, static float, intra_model_22_bias_9[]) = {
   -0.004929f, 0.002415f,  0.000201f,  -0.001180f, -0.006962f, 0.000213f,
   -0.001530f, -0.000676f, 0.003442f,  -0.001771f, -0.001203f, -0.000835f,
   0.001795f,  0.003626f,  -0.000611f, 0.000589f,  0.000673f,  0.004793f,
@@ -9329,7 +9332,7 @@ static float model_22_bias_9[] = {
   -0.002947f, -0.000998f,
 };
 
-static float model_22_weight_10[] = {
+DECLARE_ALIGNED(32, static float, intra_model_22_weight_10[]) = {
   -0.092742f, -0.095176f, 0.020166f,  0.000000f,  -0.118058f, -0.117189f,
   -0.068445f, -0.007257f, 0.049356f,  -0.019707f, -0.127304f, 0.124072f,
   0.030855f,  -0.162654f, -0.007360f, 0.016695f,  -0.023180f, -0.060471f,
@@ -10356,7 +10359,7 @@ static float model_22_weight_10[] = {
   -0.181495f, 0.125281f,  -0.019983f, 0.074308f,  -0.141053f, 0.105830f,
 };
 
-static float model_22_bias_10[] = {
+DECLARE_ALIGNED(32, static float, intra_model_22_bias_10[]) = {
   0.011837f,  0.004596f,  -0.007316f, -0.000000f, 0.007513f,  0.003662f,
   -0.012367f, 0.002066f,  -0.008759f, 0.004972f,  0.002246f,  0.002288f,
   -0.001997f, 0.008193f,  0.000791f,  -0.000854f, -0.005364f, 0.011875f,
@@ -10391,7 +10394,7 @@ static float model_22_bias_10[] = {
   0.003482f,  0.005302f,  -0.005696f, 0.007696f,  0.006511f,  -0.002318f,
 };
 
-static float model_22_weight_11[] = {
+DECLARE_ALIGNED(32, static float, intra_model_22_weight_11[]) = {
   0.136925f,  0.033569f,  -0.081086f, -0.028774f, -0.095871f, 0.010093f,
   -0.102366f, 0.106364f,  0.106842f,  -0.074175f, -0.138677f, 0.144720f,
   0.134300f,  0.145367f,  0.088596f,  0.157084f,  -0.001359f, -0.034935f,
@@ -11194,7 +11197,7 @@ static float model_22_weight_11[] = {
   -0.000657f, -0.063568f, 0.000009f,  0.149403f,  0.130581f,  -0.106410f,
 };
 
-static float model_22_bias_11[] = {
+DECLARE_ALIGNED(32, static float, intra_model_22_bias_11[]) = {
   0.002765f,  -0.006185f, -0.003066f, 0.000655f,  0.002786f,
   0.001770f,  -0.010528f, -0.002118f, 0.003915f,  0.001428f,
   0.001159f,  -0.000890f, 0.001239f,  -0.000984f, -0.003655f,
@@ -11202,7 +11205,7 @@ static float model_22_bias_11[] = {
   0.002581f,  -0.009489f, -0.005242f, 0.002368f,  0.000528f,
 };
 
-static float model_22_weight_12[] = {
+DECLARE_ALIGNED(32, static float, intra_model_22_weight_12[]) = {
   0.014033f,  -0.030565f, 0.054321f,  0.013531f,  -0.025522f, -0.032228f,
   -0.042820f, 0.047526f,  -0.070783f, -0.105683f, 0.006069f,  -0.054213f,
   -0.138835f, 0.060868f,  0.004199f,  0.040944f,  -0.020749f, -0.075758f,
@@ -12405,7 +12408,7 @@ static float model_22_weight_12[] = {
   -0.058939f, -0.011181f, 0.048768f,  0.039355f,  0.123210f,  0.016851f,
 };
 
-static float model_22_bias_12[] = {
+DECLARE_ALIGNED(32, static float, intra_model_22_bias_12[]) = {
   0.004350f,  0.003574f,  0.006045f,  0.002531f,  0.001412f,  -0.002009f,
   0.001897f,  0.000671f,  -0.000247f, 0.001387f,  0.002729f,  0.002373f,
   0.002155f,  0.000983f,  -0.001215f, 0.002383f,  0.005721f,  0.004024f,
@@ -12414,7 +12417,7 @@ static float model_22_bias_12[] = {
   -0.000703f, 0.000427f,
 };
 
-static float model_22_weight_13[] = {
+DECLARE_ALIGNED(32, static float, intra_model_22_weight_13[]) = {
   -0.056827f, -0.118131f, -0.058485f, -0.003745f, 0.081027f,  -0.120479f,
   0.103284f,  -0.140942f, -0.120167f, -0.159023f, -0.016051f, -0.009204f,
   0.155881f,  -0.133608f, -0.037649f, -0.066733f, 0.027527f,  0.083977f,
@@ -13441,7 +13444,7 @@ static float model_22_weight_13[] = {
   0.032184f,  0.038566f,  -0.064546f, -0.082917f, 0.000000f,  0.066288f,
 };
 
-static float model_22_bias_13[] = {
+DECLARE_ALIGNED(32, static float, intra_model_22_bias_13[]) = {
   -0.000506f, 0.000232f,  0.007390f,  0.012300f,  0.000530f,  0.002925f,
   0.001239f,  0.001857f,  0.007868f,  -0.006508f, 0.009910f,  -0.002852f,
   -0.003275f, -0.004241f, -0.021035f, -0.009751f, -0.003371f, 0.002969f,
@@ -13476,7 +13479,7 @@ static float model_22_bias_13[] = {
   0.001407f,  0.000105f,  0.006879f,  0.003669f,  -0.000000f, 0.000047f,
 };
 
-static float model_22_weight_14[] = {
+DECLARE_ALIGNED(32, static float, intra_model_22_weight_14[]) = {
   0.013341f,  -0.083712f, 0.003571f,  -0.025449f, 0.070539f,  -0.158655f,
   0.151779f,  0.038304f,  -0.206778f, 0.109507f,  -0.001201f, -0.139326f,
   -0.070223f, 0.047984f,  0.167057f,  0.069486f,  -0.223371f, 0.040024f,
@@ -14279,7 +14282,7 @@ static float model_22_weight_14[] = {
   -0.045937f, 0.090878f,  0.092938f,  -0.055544f, -0.043409f, -0.040713f,
 };
 
-static float model_22_bias_14[] = {
+DECLARE_ALIGNED(32, static float, intra_model_22_bias_14[]) = {
   0.005729f,  0.001803f,  0.001595f,  -0.001716f, -0.000504f,
   -0.003150f, -0.015687f, -0.002567f, -0.003712f, 0.003807f,
   0.000594f,  0.002474f,  0.001156f,  0.004892f,  0.004189f,
@@ -14287,7 +14290,7 @@ static float model_22_bias_14[] = {
   -0.000906f, -0.001373f, 0.003451f,  0.000744f,  0.002145f,
 };
 
-static float model_22_weight_15[] = {
+DECLARE_ALIGNED(32, static float, intra_model_22_weight_15[]) = {
   0.053517f,  0.035891f,  0.007931f,  -0.049557f, -0.086004f, 0.059620f,
   -0.011503f, -0.039129f, -0.003027f, -0.068986f, 0.041363f,  -0.002245f,
   0.018585f,  -0.021703f, -0.009443f, -0.069405f, -0.032579f, -0.083019f,
@@ -15490,7 +15493,7 @@ static float model_22_weight_15[] = {
   -0.029175f, 0.211651f,  0.026018f,  0.045071f,  0.078404f,  0.041502f,
 };
 
-static float model_22_bias_15[] = {
+DECLARE_ALIGNED(32, static float, intra_model_22_bias_15[]) = {
   -0.004671f, 0.006698f,  0.003030f,  -0.000008f, 0.000785f,  0.001368f,
   -0.001167f, -0.000664f, 0.002559f,  0.003843f,  0.006092f,  -0.000594f,
   -0.006279f, -0.001378f, 0.001608f,  0.000366f,  -0.002734f, 0.003592f,
@@ -15499,7 +15502,7 @@ static float model_22_bias_15[] = {
   -0.004363f, 0.001633f,
 };
 
-static float model_22_weight_16[] = {
+DECLARE_ALIGNED(32, static float, intra_model_22_weight_16[]) = {
   -0.137709f, 0.139877f,  0.003432f,  0.080700f,  -0.115097f, -0.113655f,
   0.105086f,  -0.025868f, -0.075025f, 0.000000f,  -0.063584f, -0.172932f,
   -0.084349f, 0.082878f,  0.008533f,  -0.115761f, 0.037779f,  -0.058334f,
@@ -16526,7 +16529,7 @@ static float model_22_weight_16[] = {
   0.118455f,  -0.109046f, 0.069222f,  -0.037752f, -0.057753f, -0.162675f,
 };
 
-static float model_22_bias_16[] = {
+DECLARE_ALIGNED(32, static float, intra_model_22_bias_16[]) = {
   -0.011008f, -0.005479f, -0.000467f, 0.009758f,  -0.004254f, -0.001950f,
   0.011630f,  0.011884f,  0.007670f,  -0.000000f, 0.011402f,  0.004914f,
   0.002396f,  0.002902f,  -0.004365f, 0.003914f,  -0.005512f, -0.003412f,
@@ -16561,7 +16564,7 @@ static float model_22_bias_16[] = {
   -0.004380f, -0.003479f, 0.008955f,  0.002296f,  -0.001983f, 0.012557f,
 };
 
-static float model_22_weight_17[] = {
+DECLARE_ALIGNED(32, static float, intra_model_22_weight_17[]) = {
   0.097124f,  -0.007145f, 0.011771f,  0.027211f,  -0.020176f, -0.123906f,
   0.071181f,  0.007787f,  0.042343f,  -0.054441f, -0.055584f, -0.088754f,
   0.027557f,  -0.026914f, -0.043648f, 0.006060f,  -0.097969f, 0.045382f,
@@ -17364,7 +17367,7 @@ static float model_22_weight_17[] = {
   0.094882f,  -0.109153f, -0.035713f, 0.092805f,  0.015479f,  -0.027098f,
 };
 
-static float model_22_bias_17[] = {
+DECLARE_ALIGNED(32, static float, intra_model_22_bias_17[]) = {
   -0.000308f, -0.003343f, -0.000887f, -0.000987f, -0.001745f,
   0.002982f,  0.005534f,  0.002960f,  -0.011217f, 0.000628f,
   -0.004789f, 0.007178f,  0.006728f,  -0.008226f, 0.006664f,
@@ -17372,7 +17375,7 @@ static float model_22_bias_17[] = {
   0.001234f,  0.002269f,  -0.001356f, 0.003738f,  -0.000962f,
 };
 
-static float model_22_weight_18[] = {
+DECLARE_ALIGNED(32, static float, intra_model_22_weight_18[]) = {
   -0.075180f, -0.019843f, -0.082832f, 0.026524f,  -0.077463f, -0.071075f,
   0.004584f,  -0.035071f, -0.041645f, 0.036107f,  -0.054551f, 0.068484f,
   -0.099113f, -0.023990f, -0.081741f, 0.073626f,  -0.030499f, -0.031235f,
@@ -18575,7 +18578,7 @@ static float model_22_weight_18[] = {
   0.035656f,  0.049820f,  0.028556f,  0.010417f,  0.088489f,  0.019045f,
 };
 
-static float model_22_bias_18[] = {
+DECLARE_ALIGNED(32, static float, intra_model_22_bias_18[]) = {
   -0.004917f, -0.003020f, 0.002199f,  -0.003137f, 0.002112f,  0.000963f,
   -0.002926f, -0.000564f, 0.005457f,  0.001424f,  -0.000390f, 0.000279f,
   0.001698f,  0.001370f,  -0.000101f, -0.002494f, 0.003059f,  0.006250f,
@@ -18584,7 +18587,7 @@ static float model_22_bias_18[] = {
   0.002763f,  0.004433f,
 };
 
-static float model_22_weight_19[] = {
+DECLARE_ALIGNED(32, static float, intra_model_22_weight_19[]) = {
   -0.043262f, -0.106038f, 0.148937f,  0.075274f,  -0.089683f, -0.094770f,
   -0.001280f, 0.030288f,  0.060514f,  0.007120f,  0.127256f,  -0.064115f,
   0.022993f,  -0.076943f, 0.144043f,  -0.151943f, 0.006154f,  0.093800f,
@@ -19611,7 +19614,7 @@ static float model_22_weight_19[] = {
   -0.063025f, 0.017402f,  -0.041385f, -0.041085f, -0.033303f, -0.000000f,
 };
 
-static float model_22_bias_19[] = {
+DECLARE_ALIGNED(32, static float, intra_model_22_bias_19[]) = {
   0.003955f,  0.008945f,  0.005509f,  -0.001157f, 0.009104f,  -0.007303f,
   -0.009439f, 0.002174f,  -0.002003f, -0.015598f, -0.009209f, -0.001592f,
   -0.011631f, 0.008088f,  0.010306f,  0.008362f,  0.005379f,  0.004722f,
@@ -19646,7 +19649,7 @@ static float model_22_bias_19[] = {
   0.003184f,  0.016186f,  0.022695f,  0.008848f,  -0.000953f, -0.000000f,
 };
 
-static float model_22_weight_20[] = {
+DECLARE_ALIGNED(32, static float, intra_model_22_weight_20[]) = {
   -0.038748f, -0.151613f, 0.157409f,  -0.097250f, 0.114108f,  -0.043538f,
   -0.077425f, 0.087679f,  0.135565f,  0.095496f,  0.075417f,  0.018965f,
   -0.090013f, 0.000265f,  0.105265f,  0.037324f,  0.147996f,  0.037033f,
@@ -20449,7 +20452,7 @@ static float model_22_weight_20[] = {
   0.000000f,  0.000000f,  0.000000f,  0.000000f,  -0.000000f, 0.000000f,
 };
 
-static float model_22_bias_20[] = {
+DECLARE_ALIGNED(32, static float, intra_model_22_bias_20[]) = {
   0.003885f,  0.004607f,  -0.000994f, -0.005087f, -0.000890f,
   -0.005267f, 0.012203f,  -0.005278f, -0.003672f, -0.005540f,
   -0.005322f, 0.003265f,  0.003423f,  -0.003773f, -0.001618f,
@@ -20457,7 +20460,7 @@ static float model_22_bias_20[] = {
   -0.002680f, -0.000118f, 0.010131f,  0.002279f,  0.005443f,
 };
 
-static float model_22_weight_21[] = {
+DECLARE_ALIGNED(32, static float, intra_model_22_weight_21[]) = {
   -0.025377f, 0.021215f,  -0.015309f, 0.088938f,  0.056136f,  -0.073922f,
   -0.073125f, 0.100694f,  -0.029161f, -0.074686f, -0.058446f, 0.073730f,
   0.049773f,  -0.051889f, -0.062978f, -0.125296f, 0.041777f,  -0.042348f,
@@ -21660,7 +21663,7 @@ static float model_22_weight_21[] = {
   -0.054151f, -0.116506f, -0.019623f, -0.013181f, -0.004876f, 0.067968f,
 };
 
-static float model_22_bias_21[] = {
+DECLARE_ALIGNED(32, static float, intra_model_22_bias_21[]) = {
   0.001688f, -0.002485f, 0.001940f,  0.001147f,  -0.002072f, 0.002331f,
   0.004524f, -0.002357f, 0.001217f,  -0.016370f, -0.000952f, 0.005183f,
   0.002262f, 0.001147f,  0.000082f,  -0.001552f, 0.004204f,  -0.001584f,
@@ -21669,7 +21672,7 @@ static float model_22_bias_21[] = {
   0.000465f, 0.002217f,
 };
 
-static float model_22_weight_22[] = {
+DECLARE_ALIGNED(32, static float, intra_model_22_weight_22[]) = {
   -0.066977f, 0.113313f,  -0.074861f, 0.026916f,  -0.119664f, 0.029282f,
   -0.055413f, 0.086653f,  0.088823f,  0.068088f,  -0.028037f, 0.153126f,
   0.000835f,  0.139270f,  -0.127642f, 0.128089f,  -0.114765f, 0.135710f,
@@ -22696,7 +22699,7 @@ static float model_22_weight_22[] = {
   -0.145713f, 0.132129f,  0.099181f,  0.041468f,  0.108294f,  -0.000000f,
 };
 
-static float model_22_bias_22[] = {
+DECLARE_ALIGNED(32, static float, intra_model_22_bias_22[]) = {
   0.002807f,  0.013034f,  0.002457f,  -0.010966f, 0.003642f,  -0.004609f,
   0.010419f,  -0.000500f, 0.001636f,  -0.003232f, -0.011086f, -0.001130f,
   -0.001133f, -0.003394f, 0.011548f,  0.000879f,  0.006752f,  -0.002013f,
@@ -22731,7 +22734,7 @@ static float model_22_bias_22[] = {
   0.000339f,  0.009160f,  0.003305f,  -0.015084f, 0.000423f,  -0.000000f,
 };
 
-static float model_22_weight_23[] = {
+DECLARE_ALIGNED(32, static float, intra_model_22_weight_23[]) = {
   0.003371f,  -0.062631f, -0.045994f, 0.124399f,  -0.158509f, -0.107438f,
   -0.053557f, -0.037845f, 0.031340f,  -0.094893f, -0.011803f, 0.104393f,
   -0.012985f, 0.035169f,  0.053333f,  0.042214f,  -0.100649f, -0.039400f,
@@ -23534,7 +23537,7 @@ static float model_22_weight_23[] = {
   0.000000f,  -0.000000f, 0.000000f,  -0.000000f, -0.000000f, 0.000000f,
 };
 
-static float model_22_bias_23[] = {
+DECLARE_ALIGNED(32, static float, intra_model_22_bias_23[]) = {
   0.001208f,  0.004469f,  0.001739f,  -0.000943f, -0.002323f,
   0.002987f,  -0.003592f, 0.002371f,  -0.004896f, 0.000917f,
   0.007129f,  0.000374f,  0.008729f,  0.009472f,  -0.008377f,
@@ -23542,7 +23545,7 @@ static float model_22_bias_23[] = {
   0.000064f,  -0.002945f, -0.002469f, 0.003455f,  -0.003841f,
 };
 
-static float model_22_weight_24[] = {
+DECLARE_ALIGNED(32, static float, intra_model_22_weight_24[]) = {
   0.002744f,  -0.043123f, -0.084593f, 0.090324f,  -0.112886f, 0.042728f,
   0.047604f,  0.084123f,  0.052981f,  0.031590f,  0.075299f,  0.011535f,
   -0.077113f, 0.044501f,  -0.024700f, -0.015629f, -0.026320f, -0.008450f,
@@ -24745,7 +24748,7 @@ static float model_22_weight_24[] = {
   -0.039595f, 0.003832f,  0.080516f,  0.015557f,  -0.024838f, 0.019027f,
 };
 
-static float model_22_bias_24[] = {
+DECLARE_ALIGNED(32, static float, intra_model_22_bias_24[]) = {
   0.005032f,  0.002408f,  0.001837f,  -0.001567f, -0.001900f, 0.001834f,
   0.003024f,  -0.000818f, -0.002729f, -0.000751f, -0.000622f, -0.004993f,
   0.002611f,  0.000460f,  -0.000637f, 0.000067f,  -0.004528f, -0.006993f,
@@ -24754,7 +24757,7 @@ static float model_22_bias_24[] = {
   0.007462f,  -0.000312f,
 };
 
-static float model_22_weight_25[] = {
+DECLARE_ALIGNED(32, static float, intra_model_22_weight_25[]) = {
   -0.077506f, -0.006997f, -0.089616f, -0.085214f, 0.061535f,  0.062915f,
   0.040684f,  0.031458f,  -0.041721f, -0.051556f, -0.055543f, 0.080571f,
   -0.041048f, -0.035375f, 0.053742f,  -0.012299f, -0.023870f, -0.049069f,
@@ -24805,588 +24808,590 @@ static float model_22_weight_25[] = {
   0.115168f,  0.036615f,  0.074493f,  -0.017090f, -0.023554f, 0.042494f,
 };
 
-static float model_22_bias_25[] = {
+DECLARE_ALIGNED(32, static float, intra_model_22_bias_25[]) = {
   -0.000032f,
 };
 
-const CNN_CONFIG model_22 = { 26,
-                              1,
-                              0,
-                              0,
-                              0,
-                              {
-                                  {
-                                      // layer_0
-                                      0,                  // branch
-                                      0,                  // deconvolve
-                                      1,                  // in_channels
-                                      3,                  // filter_width
-                                      3,                  // filter_height
-                                      32,                 // out_channels
-                                      1,                  // skip_width
-                                      1,                  // skip_height
-                                      0,                  // maxpool
-                                      model_22_weight_0,  // weights
-                                      model_22_bias_0,    // bias
-                                      PADDING_SAME_ZERO,  // pad
-                                      NONE,               // activation
-                                      COPY_NONE,          // branch_copy_mode
-                                      0x00,               // input_to_branches
-                                      0,                  // channels_to_copy
-                                      BRANCH_NOC,         // branch_combine_type
-                                      0x00,               // branches_to_combine
-                                      {},                 // bn_params
-                                  },
-                                  {
-                                      // layer_1
-                                      0,                  // branch
-                                      0,                  // deconvolve
-                                      32,                 // in_channels
-                                      1,                  // filter_width
-                                      1,                  // filter_height
-                                      192,                // out_channels
-                                      1,                  // skip_width
-                                      1,                  // skip_height
-                                      0,                  // maxpool
-                                      model_22_weight_1,  // weights
-                                      model_22_bias_1,    // bias
-                                      PADDING_SAME_ZERO,  // pad
-                                      RELU,               // activation
-                                      COPY_INPUT,         // branch_copy_mode
-                                      0x02,               // input_to_branches
-                                      0,                  // channels_to_copy
-                                      BRANCH_NOC,         // branch_combine_type
-                                      0x00,               // branches_to_combine
-                                      {},                 // bn_params
-                                  },
-                                  {
-                                      // layer_2
-                                      0,                  // branch
-                                      0,                  // deconvolve
-                                      192,                // in_channels
-                                      1,                  // filter_width
-                                      1,                  // filter_height
-                                      25,                 // out_channels
-                                      1,                  // skip_width
-                                      1,                  // skip_height
-                                      0,                  // maxpool
-                                      model_22_weight_2,  // weights
-                                      model_22_bias_2,    // bias
-                                      PADDING_SAME_ZERO,  // pad
-                                      NONE,               // activation
-                                      COPY_NONE,          // branch_copy_mode
-                                      0x00,               // input_to_branches
-                                      0,                  // channels_to_copy
-                                      BRANCH_NOC,         // branch_combine_type
-                                      0x00,               // branches_to_combine
-                                      {},                 // bn_params
-                                  },
-                                  {
-                                      // layer_3
-                                      0,                  // branch
-                                      0,                  // deconvolve
-                                      25,                 // in_channels
-                                      3,                  // filter_width
-                                      3,                  // filter_height
-                                      32,                 // out_channels
-                                      1,                  // skip_width
-                                      1,                  // skip_height
-                                      0,                  // maxpool
-                                      model_22_weight_3,  // weights
-                                      model_22_bias_3,    // bias
-                                      PADDING_SAME_ZERO,  // pad
-                                      NONE,               // activation
-                                      COPY_NONE,          // branch_copy_mode
-                                      0x00,               // input_to_branches
-                                      0,                  // channels_to_copy
-                                      BRANCH_ADD,         // branch_combine_type
-                                      0x02,               // branches_to_combine
-                                      {},                 // bn_params
-                                  },
-                                  {
-                                      // layer_4
-                                      0,                  // branch
-                                      0,                  // deconvolve
-                                      32,                 // in_channels
-                                      1,                  // filter_width
-                                      1,                  // filter_height
-                                      192,                // out_channels
-                                      1,                  // skip_width
-                                      1,                  // skip_height
-                                      0,                  // maxpool
-                                      model_22_weight_4,  // weights
-                                      model_22_bias_4,    // bias
-                                      PADDING_SAME_ZERO,  // pad
-                                      RELU,               // activation
-                                      COPY_INPUT,         // branch_copy_mode
-                                      0x02,               // input_to_branches
-                                      0,                  // channels_to_copy
-                                      BRANCH_NOC,         // branch_combine_type
-                                      0x00,               // branches_to_combine
-                                      {},                 // bn_params
-                                  },
-                                  {
-                                      // layer_5
-                                      0,                  // branch
-                                      0,                  // deconvolve
-                                      192,                // in_channels
-                                      1,                  // filter_width
-                                      1,                  // filter_height
-                                      25,                 // out_channels
-                                      1,                  // skip_width
-                                      1,                  // skip_height
-                                      0,                  // maxpool
-                                      model_22_weight_5,  // weights
-                                      model_22_bias_5,    // bias
-                                      PADDING_SAME_ZERO,  // pad
-                                      NONE,               // activation
-                                      COPY_NONE,          // branch_copy_mode
-                                      0x00,               // input_to_branches
-                                      0,                  // channels_to_copy
-                                      BRANCH_NOC,         // branch_combine_type
-                                      0x00,               // branches_to_combine
-                                      {},                 // bn_params
-                                  },
-                                  {
-                                      // layer_6
-                                      0,                  // branch
-                                      0,                  // deconvolve
-                                      25,                 // in_channels
-                                      3,                  // filter_width
-                                      3,                  // filter_height
-                                      32,                 // out_channels
-                                      1,                  // skip_width
-                                      1,                  // skip_height
-                                      0,                  // maxpool
-                                      model_22_weight_6,  // weights
-                                      model_22_bias_6,    // bias
-                                      PADDING_SAME_ZERO,  // pad
-                                      NONE,               // activation
-                                      COPY_NONE,          // branch_copy_mode
-                                      0x00,               // input_to_branches
-                                      0,                  // channels_to_copy
-                                      BRANCH_ADD,         // branch_combine_type
-                                      0x02,               // branches_to_combine
-                                      {},                 // bn_params
-                                  },
-                                  {
-                                      // layer_7
-                                      0,                  // branch
-                                      0,                  // deconvolve
-                                      32,                 // in_channels
-                                      1,                  // filter_width
-                                      1,                  // filter_height
-                                      192,                // out_channels
-                                      1,                  // skip_width
-                                      1,                  // skip_height
-                                      0,                  // maxpool
-                                      model_22_weight_7,  // weights
-                                      model_22_bias_7,    // bias
-                                      PADDING_SAME_ZERO,  // pad
-                                      RELU,               // activation
-                                      COPY_INPUT,         // branch_copy_mode
-                                      0x02,               // input_to_branches
-                                      0,                  // channels_to_copy
-                                      BRANCH_NOC,         // branch_combine_type
-                                      0x00,               // branches_to_combine
-                                      {},                 // bn_params
-                                  },
-                                  {
-                                      // layer_8
-                                      0,                  // branch
-                                      0,                  // deconvolve
-                                      192,                // in_channels
-                                      1,                  // filter_width
-                                      1,                  // filter_height
-                                      25,                 // out_channels
-                                      1,                  // skip_width
-                                      1,                  // skip_height
-                                      0,                  // maxpool
-                                      model_22_weight_8,  // weights
-                                      model_22_bias_8,    // bias
-                                      PADDING_SAME_ZERO,  // pad
-                                      NONE,               // activation
-                                      COPY_NONE,          // branch_copy_mode
-                                      0x00,               // input_to_branches
-                                      0,                  // channels_to_copy
-                                      BRANCH_NOC,         // branch_combine_type
-                                      0x00,               // branches_to_combine
-                                      {},                 // bn_params
-                                  },
-                                  {
-                                      // layer_9
-                                      0,                  // branch
-                                      0,                  // deconvolve
-                                      25,                 // in_channels
-                                      3,                  // filter_width
-                                      3,                  // filter_height
-                                      32,                 // out_channels
-                                      1,                  // skip_width
-                                      1,                  // skip_height
-                                      0,                  // maxpool
-                                      model_22_weight_9,  // weights
-                                      model_22_bias_9,    // bias
-                                      PADDING_SAME_ZERO,  // pad
-                                      NONE,               // activation
-                                      COPY_NONE,          // branch_copy_mode
-                                      0x00,               // input_to_branches
-                                      0,                  // channels_to_copy
-                                      BRANCH_ADD,         // branch_combine_type
-                                      0x02,               // branches_to_combine
-                                      {},                 // bn_params
-                                  },
-                                  {
-                                      // layer_10
-                                      0,                   // branch
-                                      0,                   // deconvolve
-                                      32,                  // in_channels
-                                      1,                   // filter_width
-                                      1,                   // filter_height
-                                      192,                 // out_channels
-                                      1,                   // skip_width
-                                      1,                   // skip_height
-                                      0,                   // maxpool
-                                      model_22_weight_10,  // weights
-                                      model_22_bias_10,    // bias
-                                      PADDING_SAME_ZERO,   // pad
-                                      RELU,                // activation
-                                      COPY_INPUT,          // branch_copy_mode
-                                      0x02,                // input_to_branches
-                                      0,                   // channels_to_copy
-                                      BRANCH_NOC,  // branch_combine_type
-                                      0x00,        // branches_to_combine
-                                      {},          // bn_params
-                                  },
-                                  {
-                                      // layer_11
-                                      0,                   // branch
-                                      0,                   // deconvolve
-                                      192,                 // in_channels
-                                      1,                   // filter_width
-                                      1,                   // filter_height
-                                      25,                  // out_channels
-                                      1,                   // skip_width
-                                      1,                   // skip_height
-                                      0,                   // maxpool
-                                      model_22_weight_11,  // weights
-                                      model_22_bias_11,    // bias
-                                      PADDING_SAME_ZERO,   // pad
-                                      NONE,                // activation
-                                      COPY_NONE,           // branch_copy_mode
-                                      0x00,                // input_to_branches
-                                      0,                   // channels_to_copy
-                                      BRANCH_NOC,  // branch_combine_type
-                                      0x00,        // branches_to_combine
-                                      {},          // bn_params
-                                  },
-                                  {
-                                      // layer_12
-                                      0,                   // branch
-                                      0,                   // deconvolve
-                                      25,                  // in_channels
-                                      3,                   // filter_width
-                                      3,                   // filter_height
-                                      32,                  // out_channels
-                                      1,                   // skip_width
-                                      1,                   // skip_height
-                                      0,                   // maxpool
-                                      model_22_weight_12,  // weights
-                                      model_22_bias_12,    // bias
-                                      PADDING_SAME_ZERO,   // pad
-                                      NONE,                // activation
-                                      COPY_NONE,           // branch_copy_mode
-                                      0x00,                // input_to_branches
-                                      0,                   // channels_to_copy
-                                      BRANCH_ADD,  // branch_combine_type
-                                      0x02,        // branches_to_combine
-                                      {},          // bn_params
-                                  },
-                                  {
-                                      // layer_13
-                                      0,                   // branch
-                                      0,                   // deconvolve
-                                      32,                  // in_channels
-                                      1,                   // filter_width
-                                      1,                   // filter_height
-                                      192,                 // out_channels
-                                      1,                   // skip_width
-                                      1,                   // skip_height
-                                      0,                   // maxpool
-                                      model_22_weight_13,  // weights
-                                      model_22_bias_13,    // bias
-                                      PADDING_SAME_ZERO,   // pad
-                                      RELU,                // activation
-                                      COPY_INPUT,          // branch_copy_mode
-                                      0x02,                // input_to_branches
-                                      0,                   // channels_to_copy
-                                      BRANCH_NOC,  // branch_combine_type
-                                      0x00,        // branches_to_combine
-                                      {},          // bn_params
-                                  },
-                                  {
-                                      // layer_14
-                                      0,                   // branch
-                                      0,                   // deconvolve
-                                      192,                 // in_channels
-                                      1,                   // filter_width
-                                      1,                   // filter_height
-                                      25,                  // out_channels
-                                      1,                   // skip_width
-                                      1,                   // skip_height
-                                      0,                   // maxpool
-                                      model_22_weight_14,  // weights
-                                      model_22_bias_14,    // bias
-                                      PADDING_SAME_ZERO,   // pad
-                                      NONE,                // activation
-                                      COPY_NONE,           // branch_copy_mode
-                                      0x00,                // input_to_branches
-                                      0,                   // channels_to_copy
-                                      BRANCH_NOC,  // branch_combine_type
-                                      0x00,        // branches_to_combine
-                                      {},          // bn_params
-                                  },
-                                  {
-                                      // layer_15
-                                      0,                   // branch
-                                      0,                   // deconvolve
-                                      25,                  // in_channels
-                                      3,                   // filter_width
-                                      3,                   // filter_height
-                                      32,                  // out_channels
-                                      1,                   // skip_width
-                                      1,                   // skip_height
-                                      0,                   // maxpool
-                                      model_22_weight_15,  // weights
-                                      model_22_bias_15,    // bias
-                                      PADDING_SAME_ZERO,   // pad
-                                      NONE,                // activation
-                                      COPY_NONE,           // branch_copy_mode
-                                      0x00,                // input_to_branches
-                                      0,                   // channels_to_copy
-                                      BRANCH_ADD,  // branch_combine_type
-                                      0x02,        // branches_to_combine
-                                      {},          // bn_params
-                                  },
-                                  {
-                                      // layer_16
-                                      0,                   // branch
-                                      0,                   // deconvolve
-                                      32,                  // in_channels
-                                      1,                   // filter_width
-                                      1,                   // filter_height
-                                      192,                 // out_channels
-                                      1,                   // skip_width
-                                      1,                   // skip_height
-                                      0,                   // maxpool
-                                      model_22_weight_16,  // weights
-                                      model_22_bias_16,    // bias
-                                      PADDING_SAME_ZERO,   // pad
-                                      RELU,                // activation
-                                      COPY_INPUT,          // branch_copy_mode
-                                      0x02,                // input_to_branches
-                                      0,                   // channels_to_copy
-                                      BRANCH_NOC,  // branch_combine_type
-                                      0x00,        // branches_to_combine
-                                      {},          // bn_params
-                                  },
-                                  {
-                                      // layer_17
-                                      0,                   // branch
-                                      0,                   // deconvolve
-                                      192,                 // in_channels
-                                      1,                   // filter_width
-                                      1,                   // filter_height
-                                      25,                  // out_channels
-                                      1,                   // skip_width
-                                      1,                   // skip_height
-                                      0,                   // maxpool
-                                      model_22_weight_17,  // weights
-                                      model_22_bias_17,    // bias
-                                      PADDING_SAME_ZERO,   // pad
-                                      NONE,                // activation
-                                      COPY_NONE,           // branch_copy_mode
-                                      0x00,                // input_to_branches
-                                      0,                   // channels_to_copy
-                                      BRANCH_NOC,  // branch_combine_type
-                                      0x00,        // branches_to_combine
-                                      {},          // bn_params
-                                  },
-                                  {
-                                      // layer_18
-                                      0,                   // branch
-                                      0,                   // deconvolve
-                                      25,                  // in_channels
-                                      3,                   // filter_width
-                                      3,                   // filter_height
-                                      32,                  // out_channels
-                                      1,                   // skip_width
-                                      1,                   // skip_height
-                                      0,                   // maxpool
-                                      model_22_weight_18,  // weights
-                                      model_22_bias_18,    // bias
-                                      PADDING_SAME_ZERO,   // pad
-                                      NONE,                // activation
-                                      COPY_NONE,           // branch_copy_mode
-                                      0x00,                // input_to_branches
-                                      0,                   // channels_to_copy
-                                      BRANCH_ADD,  // branch_combine_type
-                                      0x02,        // branches_to_combine
-                                      {},          // bn_params
-                                  },
-                                  {
-                                      // layer_19
-                                      0,                   // branch
-                                      0,                   // deconvolve
-                                      32,                  // in_channels
-                                      1,                   // filter_width
-                                      1,                   // filter_height
-                                      192,                 // out_channels
-                                      1,                   // skip_width
-                                      1,                   // skip_height
-                                      0,                   // maxpool
-                                      model_22_weight_19,  // weights
-                                      model_22_bias_19,    // bias
-                                      PADDING_SAME_ZERO,   // pad
-                                      RELU,                // activation
-                                      COPY_INPUT,          // branch_copy_mode
-                                      0x02,                // input_to_branches
-                                      0,                   // channels_to_copy
-                                      BRANCH_NOC,  // branch_combine_type
-                                      0x00,        // branches_to_combine
-                                      {},          // bn_params
-                                  },
-                                  {
-                                      // layer_20
-                                      0,                   // branch
-                                      0,                   // deconvolve
-                                      192,                 // in_channels
-                                      1,                   // filter_width
-                                      1,                   // filter_height
-                                      25,                  // out_channels
-                                      1,                   // skip_width
-                                      1,                   // skip_height
-                                      0,                   // maxpool
-                                      model_22_weight_20,  // weights
-                                      model_22_bias_20,    // bias
-                                      PADDING_SAME_ZERO,   // pad
-                                      NONE,                // activation
-                                      COPY_NONE,           // branch_copy_mode
-                                      0x00,                // input_to_branches
-                                      0,                   // channels_to_copy
-                                      BRANCH_NOC,  // branch_combine_type
-                                      0x00,        // branches_to_combine
-                                      {},          // bn_params
-                                  },
-                                  {
-                                      // layer_21
-                                      0,                   // branch
-                                      0,                   // deconvolve
-                                      25,                  // in_channels
-                                      3,                   // filter_width
-                                      3,                   // filter_height
-                                      32,                  // out_channels
-                                      1,                   // skip_width
-                                      1,                   // skip_height
-                                      0,                   // maxpool
-                                      model_22_weight_21,  // weights
-                                      model_22_bias_21,    // bias
-                                      PADDING_SAME_ZERO,   // pad
-                                      NONE,                // activation
-                                      COPY_NONE,           // branch_copy_mode
-                                      0x00,                // input_to_branches
-                                      0,                   // channels_to_copy
-                                      BRANCH_ADD,  // branch_combine_type
-                                      0x02,        // branches_to_combine
-                                      {},          // bn_params
-                                  },
-                                  {
-                                      // layer_22
-                                      0,                   // branch
-                                      0,                   // deconvolve
-                                      32,                  // in_channels
-                                      1,                   // filter_width
-                                      1,                   // filter_height
-                                      192,                 // out_channels
-                                      1,                   // skip_width
-                                      1,                   // skip_height
-                                      0,                   // maxpool
-                                      model_22_weight_22,  // weights
-                                      model_22_bias_22,    // bias
-                                      PADDING_SAME_ZERO,   // pad
-                                      RELU,                // activation
-                                      COPY_INPUT,          // branch_copy_mode
-                                      0x02,                // input_to_branches
-                                      0,                   // channels_to_copy
-                                      BRANCH_NOC,  // branch_combine_type
-                                      0x00,        // branches_to_combine
-                                      {},          // bn_params
-                                  },
-                                  {
-                                      // layer_23
-                                      0,                   // branch
-                                      0,                   // deconvolve
-                                      192,                 // in_channels
-                                      1,                   // filter_width
-                                      1,                   // filter_height
-                                      25,                  // out_channels
-                                      1,                   // skip_width
-                                      1,                   // skip_height
-                                      0,                   // maxpool
-                                      model_22_weight_23,  // weights
-                                      model_22_bias_23,    // bias
-                                      PADDING_SAME_ZERO,   // pad
-                                      NONE,                // activation
-                                      COPY_NONE,           // branch_copy_mode
-                                      0x00,                // input_to_branches
-                                      0,                   // channels_to_copy
-                                      BRANCH_NOC,  // branch_combine_type
-                                      0x00,        // branches_to_combine
-                                      {},          // bn_params
-                                  },
-                                  {
-                                      // layer_24
-                                      0,                   // branch
-                                      0,                   // deconvolve
-                                      25,                  // in_channels
-                                      3,                   // filter_width
-                                      3,                   // filter_height
-                                      32,                  // out_channels
-                                      1,                   // skip_width
-                                      1,                   // skip_height
-                                      0,                   // maxpool
-                                      model_22_weight_24,  // weights
-                                      model_22_bias_24,    // bias
-                                      PADDING_SAME_ZERO,   // pad
-                                      NONE,                // activation
-                                      COPY_NONE,           // branch_copy_mode
-                                      0x00,                // input_to_branches
-                                      0,                   // channels_to_copy
-                                      BRANCH_ADD,  // branch_combine_type
-                                      0x02,        // branches_to_combine
-                                      {},          // bn_params
-                                  },
-                                  {
-                                      // layer_25
-                                      0,                   // branch
-                                      0,                   // deconvolve
-                                      32,                  // in_channels
-                                      3,                   // filter_width
-                                      3,                   // filter_height
-                                      1,                   // out_channels
-                                      1,                   // skip_width
-                                      1,                   // skip_height
-                                      0,                   // maxpool
-                                      model_22_weight_25,  // weights
-                                      model_22_bias_25,    // bias
-                                      PADDING_SAME_ZERO,   // pad
-                                      NONE,                // activation
-                                      COPY_NONE,           // branch_copy_mode
-                                      0x00,                // input_to_branches
-                                      0,                   // channels_to_copy
-                                      BRANCH_NOC,  // branch_combine_type
-                                      0x00,        // branches_to_combine
-                                      {},          // bn_params
-                                  },
-                              } };
+const CNN_CONFIG intra_model_22 = {
+  26,
+  1,
+  0,
+  0,
+  0,
+  {
+      {
+          // layer_0
+          0,                        // branch
+          0,                        // deconvolve
+          1,                        // in_channels
+          3,                        // filter_width
+          3,                        // filter_height
+          32,                       // out_channels
+          1,                        // skip_width
+          1,                        // skip_height
+          0,                        // maxpool
+          intra_model_22_weight_0,  // weights
+          intra_model_22_bias_0,    // bias
+          PADDING_SAME_ZERO,        // pad
+          NONE,                     // activation
+          COPY_NONE,                // branch_copy_mode
+          0x00,                     // input_to_branches
+          0,                        // channels_to_copy
+          BRANCH_NOC,               // branch_combine_type
+          0x00,                     // branches_to_combine
+          {},                       // bn_params
+      },
+      {
+          // layer_1
+          0,                        // branch
+          0,                        // deconvolve
+          32,                       // in_channels
+          1,                        // filter_width
+          1,                        // filter_height
+          192,                      // out_channels
+          1,                        // skip_width
+          1,                        // skip_height
+          0,                        // maxpool
+          intra_model_22_weight_1,  // weights
+          intra_model_22_bias_1,    // bias
+          PADDING_SAME_ZERO,        // pad
+          RELU,                     // activation
+          COPY_INPUT,               // branch_copy_mode
+          0x02,                     // input_to_branches
+          0,                        // channels_to_copy
+          BRANCH_NOC,               // branch_combine_type
+          0x00,                     // branches_to_combine
+          {},                       // bn_params
+      },
+      {
+          // layer_2
+          0,                        // branch
+          0,                        // deconvolve
+          192,                      // in_channels
+          1,                        // filter_width
+          1,                        // filter_height
+          25,                       // out_channels
+          1,                        // skip_width
+          1,                        // skip_height
+          0,                        // maxpool
+          intra_model_22_weight_2,  // weights
+          intra_model_22_bias_2,    // bias
+          PADDING_SAME_ZERO,        // pad
+          NONE,                     // activation
+          COPY_NONE,                // branch_copy_mode
+          0x00,                     // input_to_branches
+          0,                        // channels_to_copy
+          BRANCH_NOC,               // branch_combine_type
+          0x00,                     // branches_to_combine
+          {},                       // bn_params
+      },
+      {
+          // layer_3
+          0,                        // branch
+          0,                        // deconvolve
+          25,                       // in_channels
+          3,                        // filter_width
+          3,                        // filter_height
+          32,                       // out_channels
+          1,                        // skip_width
+          1,                        // skip_height
+          0,                        // maxpool
+          intra_model_22_weight_3,  // weights
+          intra_model_22_bias_3,    // bias
+          PADDING_SAME_ZERO,        // pad
+          NONE,                     // activation
+          COPY_NONE,                // branch_copy_mode
+          0x00,                     // input_to_branches
+          0,                        // channels_to_copy
+          BRANCH_ADD,               // branch_combine_type
+          0x02,                     // branches_to_combine
+          {},                       // bn_params
+      },
+      {
+          // layer_4
+          0,                        // branch
+          0,                        // deconvolve
+          32,                       // in_channels
+          1,                        // filter_width
+          1,                        // filter_height
+          192,                      // out_channels
+          1,                        // skip_width
+          1,                        // skip_height
+          0,                        // maxpool
+          intra_model_22_weight_4,  // weights
+          intra_model_22_bias_4,    // bias
+          PADDING_SAME_ZERO,        // pad
+          RELU,                     // activation
+          COPY_INPUT,               // branch_copy_mode
+          0x02,                     // input_to_branches
+          0,                        // channels_to_copy
+          BRANCH_NOC,               // branch_combine_type
+          0x00,                     // branches_to_combine
+          {},                       // bn_params
+      },
+      {
+          // layer_5
+          0,                        // branch
+          0,                        // deconvolve
+          192,                      // in_channels
+          1,                        // filter_width
+          1,                        // filter_height
+          25,                       // out_channels
+          1,                        // skip_width
+          1,                        // skip_height
+          0,                        // maxpool
+          intra_model_22_weight_5,  // weights
+          intra_model_22_bias_5,    // bias
+          PADDING_SAME_ZERO,        // pad
+          NONE,                     // activation
+          COPY_NONE,                // branch_copy_mode
+          0x00,                     // input_to_branches
+          0,                        // channels_to_copy
+          BRANCH_NOC,               // branch_combine_type
+          0x00,                     // branches_to_combine
+          {},                       // bn_params
+      },
+      {
+          // layer_6
+          0,                        // branch
+          0,                        // deconvolve
+          25,                       // in_channels
+          3,                        // filter_width
+          3,                        // filter_height
+          32,                       // out_channels
+          1,                        // skip_width
+          1,                        // skip_height
+          0,                        // maxpool
+          intra_model_22_weight_6,  // weights
+          intra_model_22_bias_6,    // bias
+          PADDING_SAME_ZERO,        // pad
+          NONE,                     // activation
+          COPY_NONE,                // branch_copy_mode
+          0x00,                     // input_to_branches
+          0,                        // channels_to_copy
+          BRANCH_ADD,               // branch_combine_type
+          0x02,                     // branches_to_combine
+          {},                       // bn_params
+      },
+      {
+          // layer_7
+          0,                        // branch
+          0,                        // deconvolve
+          32,                       // in_channels
+          1,                        // filter_width
+          1,                        // filter_height
+          192,                      // out_channels
+          1,                        // skip_width
+          1,                        // skip_height
+          0,                        // maxpool
+          intra_model_22_weight_7,  // weights
+          intra_model_22_bias_7,    // bias
+          PADDING_SAME_ZERO,        // pad
+          RELU,                     // activation
+          COPY_INPUT,               // branch_copy_mode
+          0x02,                     // input_to_branches
+          0,                        // channels_to_copy
+          BRANCH_NOC,               // branch_combine_type
+          0x00,                     // branches_to_combine
+          {},                       // bn_params
+      },
+      {
+          // layer_8
+          0,                        // branch
+          0,                        // deconvolve
+          192,                      // in_channels
+          1,                        // filter_width
+          1,                        // filter_height
+          25,                       // out_channels
+          1,                        // skip_width
+          1,                        // skip_height
+          0,                        // maxpool
+          intra_model_22_weight_8,  // weights
+          intra_model_22_bias_8,    // bias
+          PADDING_SAME_ZERO,        // pad
+          NONE,                     // activation
+          COPY_NONE,                // branch_copy_mode
+          0x00,                     // input_to_branches
+          0,                        // channels_to_copy
+          BRANCH_NOC,               // branch_combine_type
+          0x00,                     // branches_to_combine
+          {},                       // bn_params
+      },
+      {
+          // layer_9
+          0,                        // branch
+          0,                        // deconvolve
+          25,                       // in_channels
+          3,                        // filter_width
+          3,                        // filter_height
+          32,                       // out_channels
+          1,                        // skip_width
+          1,                        // skip_height
+          0,                        // maxpool
+          intra_model_22_weight_9,  // weights
+          intra_model_22_bias_9,    // bias
+          PADDING_SAME_ZERO,        // pad
+          NONE,                     // activation
+          COPY_NONE,                // branch_copy_mode
+          0x00,                     // input_to_branches
+          0,                        // channels_to_copy
+          BRANCH_ADD,               // branch_combine_type
+          0x02,                     // branches_to_combine
+          {},                       // bn_params
+      },
+      {
+          // layer_10
+          0,                         // branch
+          0,                         // deconvolve
+          32,                        // in_channels
+          1,                         // filter_width
+          1,                         // filter_height
+          192,                       // out_channels
+          1,                         // skip_width
+          1,                         // skip_height
+          0,                         // maxpool
+          intra_model_22_weight_10,  // weights
+          intra_model_22_bias_10,    // bias
+          PADDING_SAME_ZERO,         // pad
+          RELU,                      // activation
+          COPY_INPUT,                // branch_copy_mode
+          0x02,                      // input_to_branches
+          0,                         // channels_to_copy
+          BRANCH_NOC,                // branch_combine_type
+          0x00,                      // branches_to_combine
+          {},                        // bn_params
+      },
+      {
+          // layer_11
+          0,                         // branch
+          0,                         // deconvolve
+          192,                       // in_channels
+          1,                         // filter_width
+          1,                         // filter_height
+          25,                        // out_channels
+          1,                         // skip_width
+          1,                         // skip_height
+          0,                         // maxpool
+          intra_model_22_weight_11,  // weights
+          intra_model_22_bias_11,    // bias
+          PADDING_SAME_ZERO,         // pad
+          NONE,                      // activation
+          COPY_NONE,                 // branch_copy_mode
+          0x00,                      // input_to_branches
+          0,                         // channels_to_copy
+          BRANCH_NOC,                // branch_combine_type
+          0x00,                      // branches_to_combine
+          {},                        // bn_params
+      },
+      {
+          // layer_12
+          0,                         // branch
+          0,                         // deconvolve
+          25,                        // in_channels
+          3,                         // filter_width
+          3,                         // filter_height
+          32,                        // out_channels
+          1,                         // skip_width
+          1,                         // skip_height
+          0,                         // maxpool
+          intra_model_22_weight_12,  // weights
+          intra_model_22_bias_12,    // bias
+          PADDING_SAME_ZERO,         // pad
+          NONE,                      // activation
+          COPY_NONE,                 // branch_copy_mode
+          0x00,                      // input_to_branches
+          0,                         // channels_to_copy
+          BRANCH_ADD,                // branch_combine_type
+          0x02,                      // branches_to_combine
+          {},                        // bn_params
+      },
+      {
+          // layer_13
+          0,                         // branch
+          0,                         // deconvolve
+          32,                        // in_channels
+          1,                         // filter_width
+          1,                         // filter_height
+          192,                       // out_channels
+          1,                         // skip_width
+          1,                         // skip_height
+          0,                         // maxpool
+          intra_model_22_weight_13,  // weights
+          intra_model_22_bias_13,    // bias
+          PADDING_SAME_ZERO,         // pad
+          RELU,                      // activation
+          COPY_INPUT,                // branch_copy_mode
+          0x02,                      // input_to_branches
+          0,                         // channels_to_copy
+          BRANCH_NOC,                // branch_combine_type
+          0x00,                      // branches_to_combine
+          {},                        // bn_params
+      },
+      {
+          // layer_14
+          0,                         // branch
+          0,                         // deconvolve
+          192,                       // in_channels
+          1,                         // filter_width
+          1,                         // filter_height
+          25,                        // out_channels
+          1,                         // skip_width
+          1,                         // skip_height
+          0,                         // maxpool
+          intra_model_22_weight_14,  // weights
+          intra_model_22_bias_14,    // bias
+          PADDING_SAME_ZERO,         // pad
+          NONE,                      // activation
+          COPY_NONE,                 // branch_copy_mode
+          0x00,                      // input_to_branches
+          0,                         // channels_to_copy
+          BRANCH_NOC,                // branch_combine_type
+          0x00,                      // branches_to_combine
+          {},                        // bn_params
+      },
+      {
+          // layer_15
+          0,                         // branch
+          0,                         // deconvolve
+          25,                        // in_channels
+          3,                         // filter_width
+          3,                         // filter_height
+          32,                        // out_channels
+          1,                         // skip_width
+          1,                         // skip_height
+          0,                         // maxpool
+          intra_model_22_weight_15,  // weights
+          intra_model_22_bias_15,    // bias
+          PADDING_SAME_ZERO,         // pad
+          NONE,                      // activation
+          COPY_NONE,                 // branch_copy_mode
+          0x00,                      // input_to_branches
+          0,                         // channels_to_copy
+          BRANCH_ADD,                // branch_combine_type
+          0x02,                      // branches_to_combine
+          {},                        // bn_params
+      },
+      {
+          // layer_16
+          0,                         // branch
+          0,                         // deconvolve
+          32,                        // in_channels
+          1,                         // filter_width
+          1,                         // filter_height
+          192,                       // out_channels
+          1,                         // skip_width
+          1,                         // skip_height
+          0,                         // maxpool
+          intra_model_22_weight_16,  // weights
+          intra_model_22_bias_16,    // bias
+          PADDING_SAME_ZERO,         // pad
+          RELU,                      // activation
+          COPY_INPUT,                // branch_copy_mode
+          0x02,                      // input_to_branches
+          0,                         // channels_to_copy
+          BRANCH_NOC,                // branch_combine_type
+          0x00,                      // branches_to_combine
+          {},                        // bn_params
+      },
+      {
+          // layer_17
+          0,                         // branch
+          0,                         // deconvolve
+          192,                       // in_channels
+          1,                         // filter_width
+          1,                         // filter_height
+          25,                        // out_channels
+          1,                         // skip_width
+          1,                         // skip_height
+          0,                         // maxpool
+          intra_model_22_weight_17,  // weights
+          intra_model_22_bias_17,    // bias
+          PADDING_SAME_ZERO,         // pad
+          NONE,                      // activation
+          COPY_NONE,                 // branch_copy_mode
+          0x00,                      // input_to_branches
+          0,                         // channels_to_copy
+          BRANCH_NOC,                // branch_combine_type
+          0x00,                      // branches_to_combine
+          {},                        // bn_params
+      },
+      {
+          // layer_18
+          0,                         // branch
+          0,                         // deconvolve
+          25,                        // in_channels
+          3,                         // filter_width
+          3,                         // filter_height
+          32,                        // out_channels
+          1,                         // skip_width
+          1,                         // skip_height
+          0,                         // maxpool
+          intra_model_22_weight_18,  // weights
+          intra_model_22_bias_18,    // bias
+          PADDING_SAME_ZERO,         // pad
+          NONE,                      // activation
+          COPY_NONE,                 // branch_copy_mode
+          0x00,                      // input_to_branches
+          0,                         // channels_to_copy
+          BRANCH_ADD,                // branch_combine_type
+          0x02,                      // branches_to_combine
+          {},                        // bn_params
+      },
+      {
+          // layer_19
+          0,                         // branch
+          0,                         // deconvolve
+          32,                        // in_channels
+          1,                         // filter_width
+          1,                         // filter_height
+          192,                       // out_channels
+          1,                         // skip_width
+          1,                         // skip_height
+          0,                         // maxpool
+          intra_model_22_weight_19,  // weights
+          intra_model_22_bias_19,    // bias
+          PADDING_SAME_ZERO,         // pad
+          RELU,                      // activation
+          COPY_INPUT,                // branch_copy_mode
+          0x02,                      // input_to_branches
+          0,                         // channels_to_copy
+          BRANCH_NOC,                // branch_combine_type
+          0x00,                      // branches_to_combine
+          {},                        // bn_params
+      },
+      {
+          // layer_20
+          0,                         // branch
+          0,                         // deconvolve
+          192,                       // in_channels
+          1,                         // filter_width
+          1,                         // filter_height
+          25,                        // out_channels
+          1,                         // skip_width
+          1,                         // skip_height
+          0,                         // maxpool
+          intra_model_22_weight_20,  // weights
+          intra_model_22_bias_20,    // bias
+          PADDING_SAME_ZERO,         // pad
+          NONE,                      // activation
+          COPY_NONE,                 // branch_copy_mode
+          0x00,                      // input_to_branches
+          0,                         // channels_to_copy
+          BRANCH_NOC,                // branch_combine_type
+          0x00,                      // branches_to_combine
+          {},                        // bn_params
+      },
+      {
+          // layer_21
+          0,                         // branch
+          0,                         // deconvolve
+          25,                        // in_channels
+          3,                         // filter_width
+          3,                         // filter_height
+          32,                        // out_channels
+          1,                         // skip_width
+          1,                         // skip_height
+          0,                         // maxpool
+          intra_model_22_weight_21,  // weights
+          intra_model_22_bias_21,    // bias
+          PADDING_SAME_ZERO,         // pad
+          NONE,                      // activation
+          COPY_NONE,                 // branch_copy_mode
+          0x00,                      // input_to_branches
+          0,                         // channels_to_copy
+          BRANCH_ADD,                // branch_combine_type
+          0x02,                      // branches_to_combine
+          {},                        // bn_params
+      },
+      {
+          // layer_22
+          0,                         // branch
+          0,                         // deconvolve
+          32,                        // in_channels
+          1,                         // filter_width
+          1,                         // filter_height
+          192,                       // out_channels
+          1,                         // skip_width
+          1,                         // skip_height
+          0,                         // maxpool
+          intra_model_22_weight_22,  // weights
+          intra_model_22_bias_22,    // bias
+          PADDING_SAME_ZERO,         // pad
+          RELU,                      // activation
+          COPY_INPUT,                // branch_copy_mode
+          0x02,                      // input_to_branches
+          0,                         // channels_to_copy
+          BRANCH_NOC,                // branch_combine_type
+          0x00,                      // branches_to_combine
+          {},                        // bn_params
+      },
+      {
+          // layer_23
+          0,                         // branch
+          0,                         // deconvolve
+          192,                       // in_channels
+          1,                         // filter_width
+          1,                         // filter_height
+          25,                        // out_channels
+          1,                         // skip_width
+          1,                         // skip_height
+          0,                         // maxpool
+          intra_model_22_weight_23,  // weights
+          intra_model_22_bias_23,    // bias
+          PADDING_SAME_ZERO,         // pad
+          NONE,                      // activation
+          COPY_NONE,                 // branch_copy_mode
+          0x00,                      // input_to_branches
+          0,                         // channels_to_copy
+          BRANCH_NOC,                // branch_combine_type
+          0x00,                      // branches_to_combine
+          {},                        // bn_params
+      },
+      {
+          // layer_24
+          0,                         // branch
+          0,                         // deconvolve
+          25,                        // in_channels
+          3,                         // filter_width
+          3,                         // filter_height
+          32,                        // out_channels
+          1,                         // skip_width
+          1,                         // skip_height
+          0,                         // maxpool
+          intra_model_22_weight_24,  // weights
+          intra_model_22_bias_24,    // bias
+          PADDING_SAME_ZERO,         // pad
+          NONE,                      // activation
+          COPY_NONE,                 // branch_copy_mode
+          0x00,                      // input_to_branches
+          0,                         // channels_to_copy
+          BRANCH_ADD,                // branch_combine_type
+          0x02,                      // branches_to_combine
+          {},                        // bn_params
+      },
+      {
+          // layer_25
+          0,                         // branch
+          0,                         // deconvolve
+          32,                        // in_channels
+          3,                         // filter_width
+          3,                         // filter_height
+          1,                         // out_channels
+          1,                         // skip_width
+          1,                         // skip_height
+          0,                         // maxpool
+          intra_model_22_weight_25,  // weights
+          intra_model_22_bias_25,    // bias
+          PADDING_SAME_ZERO,         // pad
+          NONE,                      // activation
+          COPY_NONE,                 // branch_copy_mode
+          0x00,                      // input_to_branches
+          0,                         // channels_to_copy
+          BRANCH_NOC,                // branch_combine_type
+          0x00,                      // branches_to_combine
+          {},                        // bn_params
+      },
+  }
+};
 
-#endif  // AV1_MODELS_INTRA_FRAME_MODEL_QP22_H_
+#endif  // AV1_MODELS_INTRA_FRAME_MODEL_22_H_

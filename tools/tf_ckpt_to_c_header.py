@@ -70,6 +70,7 @@ from tensorflow.python.platform import app
 FLAGS = None
 CNN_CONFIG_ORDER = {}
 LAYER_CONFIG_ORDER = {}
+BIT_ALIGNMENT = 32
 
 logging.set_verbosity("INFO")
 
@@ -161,6 +162,8 @@ def _print_header(header_guard, output_file):
 """)
   output_file.write("\n#ifndef %s" % header_guard)
   output_file.write("\n#define %s\n" % header_guard)
+  if FLAGS.enable_aligned_declaration:
+    output_file.write("\n#include \"aom_ports/mem.h\"")
   output_file.write("\n#include \"av1/common/cnn.h\"\n")
 
 
@@ -190,11 +193,22 @@ def _print_cnn_config(cnn_config, weights, biases, output_file):
   """
   output_file.write("\nstatic const int %s_trained_qp = %d;\n" %
                     (FLAGS.config_name, FLAGS.trained_qp))
-  for layer in range(cnn_config["num_layers"]):
-    output_file.write("\nstatic float %s_weight_%d[] = %s;\n" %
-                      (FLAGS.config_name, layer, weights[layer]))
-    output_file.write("\nstatic float %s_bias_%d[] = %s;\n" %
-                      (FLAGS.config_name, layer, biases[layer]))
+  if FLAGS.enable_aligned_declaration:
+    for layer in range(cnn_config["num_layers"]):
+      output_file.write("\nDECLARE_ALIGNED(%d, static float, " \
+                        "%s_weight_%d[]) = %s;\n" %
+                        (BIT_ALIGNMENT, FLAGS.config_name, layer,
+                         weights[layer]))
+      output_file.write("\nDECLARE_ALIGNED(%d, static float, " \
+                        "%s_bias_%d[]) = %s;\n" %
+                        (BIT_ALIGNMENT, FLAGS.config_name, layer,
+                         biases[layer]))
+  else:
+    for layer in range(cnn_config["num_layers"]):
+      output_file.write("\nstatic float %s_weight_%d[] = %s;\n" %
+                        (FLAGS.config_name, layer, weights[layer]))
+      output_file.write("\nstatic float %s_bias_%d[] = %s;\n" %
+                        (FLAGS.config_name, layer, biases[layer]))
 
   output_file.write("\nconst CNN_CONFIG %s = {" % FLAGS.config_name)
   if FLAGS.enable_explicit_field_names:
@@ -311,6 +325,11 @@ if __name__ == "__main__":
       default=False,
       action="store_true",
       help="Whether to print field names along side values in cnn config.")
+  parser.add_argument(
+      "--enable_aligned_declaration",
+      default=False,
+      action="store_true",
+      help="Whether to align weights and biases in memory.")
   parser.add_argument(
       "--architecture",
       default=None,
