@@ -21,6 +21,8 @@ Usage: tf_ckpt_to_c_header.py [-h] [--input_path INPUT_PATH]
                               [--ext_height EXT_HEIGHT]
                               [--strict_bounds STRICT_BOUNDS]
                               [--enable_explicit_field_names]
+                              [--enable_aligned_declaration]
+                              [--architecture {VDSR|WDSR}]
 
 Optional Arguments:
   -h, --help            show this help message and exit
@@ -50,6 +52,11 @@ Optional Arguments:
   --enable_explicit_field_names
                         Whether to print field names along side values in cnn
                         config.
+  --enable_aligned_declaration
+                        Whether to align all the weights and biases in memory
+                        along multiples of four.
+  --architecture {VDSR|WDSR}
+                        Kind of architecture the network uses.
 
 Example Invocation:
 $ python tf_ckpt_to_c_header.py --input_path="./model.ckpt" --output_path=
@@ -125,6 +132,9 @@ def _generate_layer_index_tensor_name_map(input_reader, var_regex):
       # Ignore the (b|w) decorator since we cannot control the order they
       # are read.
       layer_index_tensor_name_map[var_indices] = k[:-1]
+  logging.info("Gathered {0} variables: {1}".format(
+      len(layer_index_tensor_name_map),
+      [value for _, value in layer_index_tensor_name_map.iteritems()]))
   return layer_index_tensor_name_map
 
 
@@ -324,7 +334,7 @@ if __name__ == "__main__":
   parser.add_argument(
       "--var_regex",
       type=str,
-      default=r".*conv_(([0-9][0-9]*_)*)(w|b)",
+      default=r".*conv_(([0-9][0-9]*_)*)(w|b)$",
       help="Regex to match tensor names against in the model ckpt.")
   parser.add_argument(
       "--trained_qp",
@@ -360,7 +370,8 @@ if __name__ == "__main__":
       "--enable_aligned_declaration",
       default=False,
       action="store_true",
-      help="Whether to align weights and biases in memory.")
+      help="Whether to align weights and biases in memory along addresses "
+           "that are multiples of four.")
   parser.add_argument(
       "--architecture",
       default=None,
