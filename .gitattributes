@@ -16,3 +16,4 @@
 *.pjt        -crlf
 *.vcp        -crlf
 *.inf        -crlf
+/av1/models/intra_frame_model/*.h -diff
