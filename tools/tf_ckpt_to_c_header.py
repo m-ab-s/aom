@@ -344,7 +344,7 @@ if __name__ == "__main__":
   parser.add_argument(
       "--is_residue",
       type=int,
-      default=0,
+      default=1,
       help="Whether we are predicting an image or the residue of an image.")
   parser.add_argument(
       "--ext_width",

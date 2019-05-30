@@ -24814,7 +24814,7 @@ DECLARE_ALIGNED(32, static float, intra_frame_model_qp43_bias_25[]) = {
 
 const CNN_CONFIG intra_frame_model_qp43 = {
   26,
-  0,
+  1,
   0,
   0,
   0,
