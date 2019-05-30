@@ -299,7 +299,7 @@ static int convolve_layer(void *arg1, void *arg2) {
       convolve_ops->input, convolve_ops->in_width, convolve_ops->in_height,
       convolve_ops->in_stride, convolve_ops->layer_config, convolve_ops->output,
       convolve_ops->out_stride, convolve_ops->start_idx, convolve_ops->th_step);
-  return 0;
+  return 1;
 }
 
 static void convolve_layer_mt(const float **input, int in_width, int in_height,
@@ -312,7 +312,7 @@ static void convolve_layer_mt(const float **input, int in_width, int in_height,
 
   CONVOLVE_OPS convolve_ops[CNN_MAX_THREADS];
   for (int th = 0; th < AOMMIN(num_workers, CNN_MAX_THREADS); ++th) {
-    AVxWorker *const worker = &(thread_data->workers[th]);
+    AVxWorker *const worker = &thread_data->workers[th];
     winterface->reset(worker);
 
     CONVOLVE_OPS convolve_op = { input,      in_width,     in_height,
