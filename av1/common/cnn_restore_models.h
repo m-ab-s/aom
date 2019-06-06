@@ -9,35 +9,32 @@
  * PATENTS file, you can obtain it at www.aomedia.org/license/patent.
  */
 
-#ifndef AOM_AV1_COMMON_CNN_WRAPPER_H_
-#define AOM_AV1_COMMON_CNN_WRAPPER_H_
+#ifndef AOM_AV1_COMMON_CNN_RESTORE_MODELS_H_
+#define AOM_AV1_COMMON_CNN_RESTORE_MODELS_H_
 
-#if CONFIG_LOOP_RESTORE_CNN
-#include "av1/common/cnn_restore_models.h"
-//  CONFIG_LOOP_RESTORE_CNN
+#include "av1/common/cnn.h"
 #include "av1/common/onyxc_int.h"
 #include "av1/common/resize.h"
+
+#include "av1/models/intra_frame_model/qp22.h"
+#include "av1/models/intra_frame_model/qp32.h"
+#include "av1/models/intra_frame_model/qp43.h"
+#include "av1/models/intra_frame_model/qp53.h"
+#include "av1/models/intra_frame_model/qp63.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#if !CONFIG_LOOP_RESTORE_CNN
 // Minimum base_qindex needed to run cnn.
 #define MIN_CNN_Q_INDEX 100
 
 static INLINE int av1_use_cnn(const AV1_COMMON *cm) {
   return ((cm->base_qindex > MIN_CNN_Q_INDEX) && !av1_superres_scaled(cm));
 }
-#endif  // !CONFIG_LOOP_RESTORE_CNN
-
-void av1_encode_restore_cnn(AV1_COMMON *cm, AVxWorker *workers,
-                            int num_workers);
-
-void av1_decode_restore_cnn(AV1_COMMON *cm, AVxWorker *workers,
-                            int num_workers);
 
 #ifdef __cplusplus
 }
 #endif
-#endif  // AOM_AV1_COMMON_CNN_WRAPPER_H_
+
+#endif  // AOM_AV1_COMMON_CNN_RESTORE_MODELS_H_
