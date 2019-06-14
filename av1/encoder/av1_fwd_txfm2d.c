@@ -31,8 +31,8 @@ static INLINE TxfmFunc fwd_txfm_type_to_func(TXFM_TYPE txfm_type) {
     case TXFM_TYPE_ADST8: return av1_fadst8_new;
     case TXFM_TYPE_ADST16: return av1_fadst16_new;
 #if CONFIG_MODE_DEP_TX
-    case TXFM_TYPE_DDTX4: return av1_fddt4;
-    case TXFM_TYPE_DDTX8: return av1_fddt8;
+    case TXFM_TYPE_MDTX4: return av1_fmdt4;
+    case TXFM_TYPE_MDTX8: return av1_fmdt8;
 #endif
     case TXFM_TYPE_IDENTITY4: return av1_fidentity4_c;
     case TXFM_TYPE_IDENTITY8: return av1_fidentity8_c;
@@ -87,11 +87,11 @@ static INLINE void fwd_txfm2d_c(const int16_t *input, int32_t *output,
   const TxfmFunc txfm_func_col = fwd_txfm_type_to_func(cfg->txfm_type_col);
   const TxfmFunc txfm_func_row = fwd_txfm_type_to_func(cfg->txfm_type_row);
 #if CONFIG_MODE_DEP_TX
-  // For DDTX, the stage_range argument is not required. Instead, we pass
+  // For MDTX, the stage_range argument is not required. Instead, we pass
   // is_inter here.
-  if (txfm_func_col == av1_fddt4 || txfm_func_col == av1_fddt8)
+  if (txfm_func_col == av1_fmdt4 || txfm_func_col == av1_fmdt8)
     stage_range_col[0] = is_inter;
-  if (txfm_func_row == av1_fddt4 || txfm_func_row == av1_fddt8)
+  if (txfm_func_row == av1_fmdt4 || txfm_func_row == av1_fmdt8)
     stage_range_row[0] = is_inter;
 #endif
 

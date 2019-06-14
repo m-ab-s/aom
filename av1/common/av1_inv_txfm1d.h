@@ -15,7 +15,7 @@
 #include "av1/common/av1_txfm.h"
 
 #if CONFIG_MODE_DEP_TX
-#include "av1/common/ddtx_coefficients.h"
+#include "av1/common/mdtx_bases.h"
 #endif
 
 #ifdef __cplusplus
@@ -34,9 +34,9 @@ static INLINE void clamp_buf(int32_t *buf, int32_t size, int8_t bit) {
 }
 
 #if CONFIG_MODE_DEP_TX
-void av1_iddt4(const int32_t *input, int32_t *output, int8_t cos_bit,
+void av1_imdt4(const int32_t *input, int32_t *output, int8_t cos_bit,
                const int8_t *side_info);
-void av1_iddt8(const int32_t *input, int32_t *output, int8_t cos_bit,
+void av1_imdt8(const int32_t *input, int32_t *output, int8_t cos_bit,
                const int8_t *side_info);
 #endif
 void av1_idct4_new(const int32_t *input, int32_t *output, int8_t cos_bit,

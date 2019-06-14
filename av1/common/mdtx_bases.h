@@ -9,8 +9,8 @@
  * PATENTS file, you can obtain it at www.aomedia.org/license/patent.
  */
 
-#ifndef GFT_COEFFICIENTS_H_
-#define GFT_COEFFICIENTS_H_
+#ifndef MDTX_BASES_H_
+#define MDTX_BASES_H_
 
 #ifdef __cplusplus
 extern "C" {
@@ -158,19 +158,19 @@ static const int32_t klt8_intra[7][64] = {
     67560,  -115121, 136054,  -119571, 96747,  -76607,  50092,  -18879 },
 };
 
-static const int ddt_bit_min = 10;
-static const int ddt_bit_max = 16;
+static const int mdt_bit_min = 10;
+static const int mdt_bit_max = 16;
 
-static INLINE const int32_t *ddt4_arr(int is_inter, int n) {
-  return is_inter ? klt4_inter[n - ddt_bit_min] : klt4_intra[n - ddt_bit_min];
+static INLINE const int32_t *mdt4_arr(int is_inter, int n) {
+  return is_inter ? klt4_inter[n - mdt_bit_min] : klt4_intra[n - mdt_bit_min];
 }
 
-static INLINE const int32_t *ddt8_arr(int is_inter, int n) {
-  return is_inter ? klt8_inter[n - ddt_bit_min] : klt8_intra[n - ddt_bit_min];
+static INLINE const int32_t *mdt8_arr(int is_inter, int n) {
+  return is_inter ? klt8_inter[n - mdt_bit_min] : klt8_intra[n - mdt_bit_min];
 }
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif  // GFT_COEFFICIENTS_H_
+#endif  // MDTX_BASES_H_

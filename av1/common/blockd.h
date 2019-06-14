@@ -683,18 +683,18 @@ static const int av1_num_ext_tx_set[EXT_TX_SET_TYPES] = {
 
 #if CONFIG_MODE_DEP_TX
 // av1_num_ext_tx_set is used to indicate the number of symbols in
-// inter_ext_tx_cdf, so we use 16 even when DDTXs are used
+// inter_ext_tx_cdf, so we use 16 even when MDTXs are used
 static const int av1_ext_tx_used[EXT_TX_SET_TYPES][TX_TYPES] = {
   { 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
   { 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
   { 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
-#if USE_DDTX_INTRA
+#if USE_MDTX_INTRA
   { 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0 },
 #else
   { 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
 #endif
   { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
-#if USE_DDTX_INTER
+#if USE_MDTX_INTER
   { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 },
 #else
   { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0 },
@@ -731,15 +731,15 @@ static INLINE TxSetType av1_get_ext_tx_set_type(TX_SIZE tx_size, int is_inter,
   const TX_SIZE tx_size_sqr = txsize_sqr_map[tx_size];
   if (is_inter) {
     return (tx_size_sqr == TX_16X16 ? EXT_TX_SET_DTT9_IDTX_1DDCT
-#if CONFIG_MODE_DEP_TX && USE_DDTX_INTER
-                                    : EXT_TX_SET_ALL16_DDTX);
+#if CONFIG_MODE_DEP_TX && USE_MDTX_INTER
+                                    : EXT_TX_SET_ALL16_MDTX);
 #else
                                     : EXT_TX_SET_ALL16);
 #endif
   } else {
     return (tx_size_sqr == TX_16X16 ? EXT_TX_SET_DTT4_IDTX
-#if CONFIG_MODE_DEP_TX && USE_DDTX_INTRA
-                                    : EXT_TX_SET_DTT4_IDTX_1DDCT_DDTX);
+#if CONFIG_MODE_DEP_TX && USE_MDTX_INTRA
+                                    : EXT_TX_SET_DTT4_IDTX_1DDCT_MDTX);
 #else
                                     : EXT_TX_SET_DTT4_IDTX_1DDCT);
 #endif

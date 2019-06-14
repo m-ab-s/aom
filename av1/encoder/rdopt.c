@@ -1818,8 +1818,8 @@ static uint16_t prune_tx_2D(MACROBLOCK *x, BLOCK_SIZE bsize, TX_SIZE tx_size,
     FLIPADST_DCT, FLIPADST_ADST, FLIPADST_FLIPADST, V_FLIPADST,
     H_DCT,        H_ADST,        H_FLIPADST,        IDTX
   };
-#if CONFIG_MODE_DEP_TX && USE_DDTX_INTER
-  if (tx_set_type != EXT_TX_SET_ALL16_DDTX &&
+#if CONFIG_MODE_DEP_TX && USE_MDTX_INTER
+  if (tx_set_type != EXT_TX_SET_ALL16_MDTX &&
 #else
   if (tx_set_type != EXT_TX_SET_ALL16 &&
 #endif
@@ -1866,8 +1866,8 @@ static uint16_t prune_tx_2D(MACROBLOCK *x, BLOCK_SIZE bsize, TX_SIZE tx_size,
 
   const int prune_aggr_table[2][2] = { { 6, 4 }, { 10, 7 } };
   int pruning_aggressiveness = 1;
-#if CONFIG_MODE_DEP_TX && USE_DDTX_INTER
-  if (tx_set_type == EXT_TX_SET_ALL16_DDTX) {
+#if CONFIG_MODE_DEP_TX && USE_MDTX_INTER
+  if (tx_set_type == EXT_TX_SET_ALL16_MDTX) {
 #else
   if (tx_set_type == EXT_TX_SET_ALL16) {
 #endif
@@ -3275,8 +3275,8 @@ static int64_t search_txk_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
 
   for (TX_TYPE tx_type = txk_start; tx_type <= txk_end; ++tx_type) {
 #if CONFIG_MODE_DEP_TX
-    if ((tx_type < DDTX1_DDTX1 && !(allowed_tx_mask & (1 << tx_type))) ||
-        (tx_type >= DDTX1_DDTX1 && !av1_ext_tx_used[tx_set_type][tx_type]))
+    if ((tx_type < MDTX1_MDTX1 && !(allowed_tx_mask & (1 << tx_type))) ||
+        (tx_type >= MDTX1_MDTX1 && !av1_ext_tx_used[tx_set_type][tx_type]))
       continue;
 #else
     if (!(allowed_tx_mask & (1 << tx_type))) continue;
@@ -3794,8 +3794,8 @@ static void choose_tx_size_type_from_rd(const AV1_COMP *const cpi,
     init_depth = MAX_TX_DEPTH;
   }
 
-#if CONFIG_MODE_DEP_TX && USE_DDTX_INTER
-  prune_tx(cpi, bs, x, xd, EXT_TX_SET_ALL16_DDTX);
+#if CONFIG_MODE_DEP_TX && USE_MDTX_INTER
+  prune_tx(cpi, bs, x, xd, EXT_TX_SET_ALL16_MDTX);
 #else
   prune_tx(cpi, bs, x, xd, EXT_TX_SET_ALL16);
 #endif

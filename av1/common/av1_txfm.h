@@ -131,8 +131,8 @@ enum {
   TXFM_TYPE_IDENTITY16,
   TXFM_TYPE_IDENTITY32,
 #if CONFIG_MODE_DEP_TX
-  TXFM_TYPE_DDTX4,
-  TXFM_TYPE_DDTX8,
+  TXFM_TYPE_MDTX4,
+  TXFM_TYPE_MDTX8,
 #endif
   TXFM_TYPES,
   TXFM_TYPE_INVALID,
@@ -168,9 +168,9 @@ static INLINE void get_flip_cfg(TX_TYPE tx_type, int *ud_flip, int *lr_flip) {
     case V_ADST:
     case H_ADST:
 #if CONFIG_MODE_DEP_TX
-    case DDTX1_DCT:
-    case DCT_DDTX1:
-    case DDTX1_DDTX1:
+    case MDTX1_DCT:
+    case DCT_MDTX1:
+    case MDTX1_MDTX1:
 #endif
       *ud_flip = 0;
       *lr_flip = 0;
@@ -179,8 +179,8 @@ static INLINE void get_flip_cfg(TX_TYPE tx_type, int *ud_flip, int *lr_flip) {
     case FLIPADST_ADST:
     case V_FLIPADST:
 #if CONFIG_MODE_DEP_TX
-    case DDTX2_DCT:
-    case DDTX2_DDTX1:
+    case MDTX2_DCT:
+    case MDTX2_MDTX1:
 #endif
       *ud_flip = 1;
       *lr_flip = 0;
@@ -189,15 +189,15 @@ static INLINE void get_flip_cfg(TX_TYPE tx_type, int *ud_flip, int *lr_flip) {
     case ADST_FLIPADST:
     case H_FLIPADST:
 #if CONFIG_MODE_DEP_TX
-    case DCT_DDTX2:
-    case DDTX1_DDTX2:
+    case DCT_MDTX2:
+    case MDTX1_MDTX2:
 #endif
       *ud_flip = 0;
       *lr_flip = 1;
       break;
     case FLIPADST_FLIPADST:
 #if CONFIG_MODE_DEP_TX
-    case DDTX2_DDTX2:
+    case MDTX2_MDTX2:
 #endif
       *ud_flip = 1;
       *lr_flip = 1;

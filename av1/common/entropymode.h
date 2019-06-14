@@ -161,18 +161,18 @@ typedef struct frame_contexts {
   aom_cdf_prob delta_lf_multi_cdf[FRAME_LF_COUNT][CDF_SIZE(DELTA_LF_PROBS + 1)];
   aom_cdf_prob delta_lf_cdf[CDF_SIZE(DELTA_LF_PROBS + 1)];
 #if CONFIG_MODE_DEP_TX
-#if USE_DDTX_INTER
-  aom_cdf_prob ddtx_type_inter_cdf[EXT_TX_SIZES][CDF_SIZE(DDTX_TYPES_INTER)];
-  aom_cdf_prob use_ddtx_inter_cdf[EXT_TX_SIZES][CDF_SIZE(2)];
+#if USE_MDTX_INTER
+  aom_cdf_prob mdtx_type_inter_cdf[EXT_TX_SIZES][CDF_SIZE(MDTX_TYPES_INTER)];
+  aom_cdf_prob use_mdtx_inter_cdf[EXT_TX_SIZES][CDF_SIZE(2)];
 #endif
-#if USE_DDTX_INTRA
-  aom_cdf_prob ddtx_type_intra_cdf[EXT_TX_SIZES][CDF_SIZE(DDTX_TYPES_INTRA)];
-  aom_cdf_prob use_ddtx_intra_cdf[EXT_TX_SIZES][CDF_SIZE(2)];
+#if USE_MDTX_INTRA
+  aom_cdf_prob mdtx_type_intra_cdf[EXT_TX_SIZES][CDF_SIZE(MDTX_TYPES_INTRA)];
+  aom_cdf_prob use_mdtx_intra_cdf[EXT_TX_SIZES][CDF_SIZE(2)];
 #endif
   aom_cdf_prob intra_ext_tx_cdf[EXT_TX_SETS_INTRA][EXT_TX_SIZES][INTRA_MODES]
-                               [CDF_SIZE(TX_TYPES_NODDTX)];
+                               [CDF_SIZE(TX_TYPES_NOMDTX)];
   aom_cdf_prob inter_ext_tx_cdf[EXT_TX_SETS_INTER][EXT_TX_SIZES]
-                               [CDF_SIZE(TX_TYPES_NODDTX)];
+                               [CDF_SIZE(TX_TYPES_NOMDTX)];
 #else
   aom_cdf_prob intra_ext_tx_cdf[EXT_TX_SETS_INTRA][EXT_TX_SIZES][INTRA_MODES]
                                [CDF_SIZE(TX_TYPES)];
@@ -185,7 +185,7 @@ typedef struct frame_contexts {
 } FRAME_CONTEXT;
 
 #if CONFIG_MODE_DEP_TX
-static const int av1_ext_tx_ind[EXT_TX_SET_TYPES][TX_TYPES_NODDTX] = {
+static const int av1_ext_tx_ind[EXT_TX_SET_TYPES][TX_TYPES_NOMDTX] = {
 #else
 static const int av1_ext_tx_ind[EXT_TX_SET_TYPES][TX_TYPES] = {
 #endif
@@ -198,7 +198,7 @@ static const int av1_ext_tx_ind[EXT_TX_SET_TYPES][TX_TYPES] = {
 };
 
 #if CONFIG_MODE_DEP_TX
-static const int av1_ext_tx_inv[EXT_TX_SET_TYPES][TX_TYPES_NODDTX] = {
+static const int av1_ext_tx_inv[EXT_TX_SET_TYPES][TX_TYPES_NOMDTX] = {
 #else
 static const int av1_ext_tx_inv[EXT_TX_SET_TYPES][TX_TYPES] = {
 #endif

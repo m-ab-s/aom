@@ -224,8 +224,8 @@ enum {
   FLIPADST_1D,
   IDTX_1D,
 #if CONFIG_MODE_DEP_TX
-  DDTX1_1D,
-  DDTX2_1D,
+  MDTX1_1D,
+  MDTX2_1D,
 #endif
   TX_TYPES_1D,
 } UENUM1BYTE(TX_TYPE_1D);
@@ -248,21 +248,21 @@ enum {
   V_FLIPADST,         // FLIPADST in vertical, identity in horizontal
   H_FLIPADST,         // Identity in vertical, FLIPADST in horizontal
 #if CONFIG_MODE_DEP_TX
-  DDTX1_DDTX1,
-  DDTX1_DCT,
-  DCT_DDTX1,
-  DDTX2_DDTX2,
-  DDTX2_DCT,
-  DCT_DDTX2,
-  DDTX2_DDTX1,
-  DDTX1_DDTX2,
+  MDTX1_MDTX1,
+  MDTX1_DCT,
+  DCT_MDTX1,
+  MDTX2_MDTX2,
+  MDTX2_DCT,
+  DCT_MDTX2,
+  MDTX2_MDTX1,
+  MDTX1_MDTX2,
 #endif
   TX_TYPES,
 } UENUM1BYTE(TX_TYPE);
 
 #if CONFIG_MODE_DEP_TX
-#define USE_DDTX_INTER 1
-#define USE_DDTX_INTRA 1
+#define USE_MDTX_INTER 1
+#define USE_MDTX_INTRA 1
 #endif
 
 enum {
@@ -284,20 +284,20 @@ enum {
   EXT_TX_SET_DCT_IDTX,
   // Discrete Trig transforms w/o flip (4) + Identity (1)
   EXT_TX_SET_DTT4_IDTX,
-#if CONFIG_MODE_DEP_TX && USE_DDTX_INTRA
+#if CONFIG_MODE_DEP_TX && USE_MDTX_INTRA
   // Discrete Trig transforms w/o flip (4) + Identity (1) + 1D Hor/vert DCT (2)
-  //  + DCT w/ 1 DDTX (2) + DDTX1_DDTX1 (1)
-  EXT_TX_SET_DTT4_IDTX_1DDCT_DDTX,
+  //  + DCT w/ 1 MDTX (2) + MDTX1_MDTX1 (1)
+  EXT_TX_SET_DTT4_IDTX_1DDCT_MDTX,
 #else
   // Discrete Trig transforms w/o flip (4) + Identity (1) + 1D Hor/vert DCT (2)
   EXT_TX_SET_DTT4_IDTX_1DDCT,
 #endif
   // Discrete Trig transforms w/ flip (9) + Identity (1) + 1D Hor/Ver DCT (2)
   EXT_TX_SET_DTT9_IDTX_1DDCT,
-#if CONFIG_MODE_DEP_TX && USE_DDTX_INTER
+#if CONFIG_MODE_DEP_TX && USE_MDTX_INTER
   // Discrete Trig transforms w/ flip (9) + Identity (1) + 1D Hor/Ver (6)
-  //  + DCT w/ 2 DDTXs (4) + 2 DDTXs (4)
-  EXT_TX_SET_ALL16_DDTX,
+  //  + DCT w/ 2 MDTXs (4) + 2 MDTXs (4)
+  EXT_TX_SET_ALL16_MDTX,
 #else
   // Discrete Trig transforms w/ flip (9) + Identity (1) + 1D Hor/Ver (6)
   EXT_TX_SET_ALL16,
@@ -306,9 +306,9 @@ enum {
 } UENUM1BYTE(TxSetType);
 
 #if CONFIG_MODE_DEP_TX
-#define TX_TYPES_NODDTX 16
-#define DDTX_TYPES_INTER 8
-#define DDTX_TYPES_INTRA 3
+#define TX_TYPES_NOMDTX 16
+#define MDTX_TYPES_INTER 8
+#define MDTX_TYPES_INTRA 3
 #define IS_2D_TRANSFORM(tx_type) (tx_type < IDTX || tx_type > H_FLIPADST)
 #else
 #define IS_2D_TRANSFORM(tx_type) (tx_type < IDTX)

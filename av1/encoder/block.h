@@ -386,13 +386,13 @@ struct macroblock {
   int tx_size_cost[TX_SIZES - 1][TX_SIZE_CONTEXTS][TX_SIZES];
   int txfm_partition_cost[TXFM_PARTITION_CONTEXTS][2];
 #if CONFIG_MODE_DEP_TX
-  int ddtx_type_inter_costs[EXT_TX_SIZES][DDTX_TYPES_INTER];
-  int ddtx_type_intra_costs[EXT_TX_SIZES][DDTX_TYPES_INTRA];
-  int use_ddtx_inter_costs[EXT_TX_SIZES][2];
-  int use_ddtx_intra_costs[EXT_TX_SIZES][2];
-  int inter_tx_type_costs[EXT_TX_SETS_INTER][EXT_TX_SIZES][TX_TYPES_NODDTX];
+  int mdtx_type_inter_costs[EXT_TX_SIZES][MDTX_TYPES_INTER];
+  int mdtx_type_intra_costs[EXT_TX_SIZES][MDTX_TYPES_INTRA];
+  int use_mdtx_inter_costs[EXT_TX_SIZES][2];
+  int use_mdtx_intra_costs[EXT_TX_SIZES][2];
+  int inter_tx_type_costs[EXT_TX_SETS_INTER][EXT_TX_SIZES][TX_TYPES_NOMDTX];
   int intra_tx_type_costs[EXT_TX_SETS_INTRA][EXT_TX_SIZES][INTRA_MODES]
-                         [TX_TYPES_NODDTX];
+                         [TX_TYPES_NOMDTX];
 #else
   int inter_tx_type_costs[EXT_TX_SETS_INTER][EXT_TX_SIZES][TX_TYPES];
   int intra_tx_type_costs[EXT_TX_SETS_INTRA][EXT_TX_SIZES][INTRA_MODES]

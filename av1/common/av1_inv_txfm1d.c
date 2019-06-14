@@ -657,25 +657,25 @@ void av1_idct32_new(const int32_t *input, int32_t *output, int8_t cos_bit,
 }
 
 #if CONFIG_MODE_DEP_TX
-void av1_iddt4(const int32_t *input, int32_t *output, int8_t cos_bit,
+void av1_imdt4(const int32_t *input, int32_t *output, int8_t cos_bit,
                const int8_t *side_info) {
   // The argument side_info is included in a way that the function has the same
   // signature as other 1D transforms. Here, it is used to carry inter/intra
   // block information
   int32_t s[4] = { 0 };
-  const int32_t *ddt = ddt4_arr(side_info[0], cos_bit);
+  const int32_t *mdt = mdt4_arr(side_info[0], cos_bit);
   for (int i = 0; i < 4; i++)
-    for (int j = 0; j < 4; j++) s[j] += ddt[i * 4 + j] * input[i];
+    for (int j = 0; j < 4; j++) s[j] += mdt[i * 4 + j] * input[i];
 
   for (int i = 0; i < 4; i++) output[i] = round_shift(s[i], cos_bit + 1);
 }
 
-void av1_iddt8(const int32_t *input, int32_t *output, int8_t cos_bit,
+void av1_imdt8(const int32_t *input, int32_t *output, int8_t cos_bit,
                const int8_t *side_info) {
   int32_t s[8] = { 0 };
-  const int32_t *ddt = ddt8_arr(side_info[0], cos_bit);
+  const int32_t *mdt = mdt8_arr(side_info[0], cos_bit);
   for (int i = 0; i < 8; i++)
-    for (int j = 0; j < 8; j++) s[j] += ddt[i * 8 + j] * input[i];
+    for (int j = 0; j < 8; j++) s[j] += mdt[i * 8 + j] * input[i];
 
   for (int i = 0; i < 8; i++) output[i] = round_shift(s[i], cos_bit + 1);
 }

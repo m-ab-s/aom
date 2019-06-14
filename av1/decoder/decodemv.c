@@ -649,14 +649,14 @@ void av1_read_tx_type(const AV1_COMMON *const cm, MACROBLOCKD *xd, int blk_row,
     const TX_SIZE square_tx_size = txsize_sqr_map[tx_size];
     FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
     if (inter_block) {
-#if CONFIG_MODE_DEP_TX && USE_DDTX_INTER
-      if (tx_set_type == EXT_TX_SET_ALL16_DDTX) {
-        if (aom_read_symbol(r, ec_ctx->use_ddtx_inter_cdf[square_tx_size], 2,
+#if CONFIG_MODE_DEP_TX && USE_MDTX_INTER
+      if (tx_set_type == EXT_TX_SET_ALL16_MDTX) {
+        if (aom_read_symbol(r, ec_ctx->use_mdtx_inter_cdf[square_tx_size], 2,
                             ACCT_STR)) {
           *tx_type =
-              DDTX1_DDTX1 +
-              aom_read_symbol(r, ec_ctx->ddtx_type_inter_cdf[square_tx_size],
-                              DDTX_TYPES_INTER, ACCT_STR);
+              MDTX1_MDTX1 +
+              aom_read_symbol(r, ec_ctx->mdtx_type_inter_cdf[square_tx_size],
+                              MDTX_TYPES_INTER, ACCT_STR);
         } else {
           *tx_type = av1_ext_tx_inv[tx_set_type][aom_read_symbol(
               r, ec_ctx->inter_ext_tx_cdf[eset][square_tx_size],
@@ -667,7 +667,7 @@ void av1_read_tx_type(const AV1_COMMON *const cm, MACROBLOCKD *xd, int blk_row,
         *tx_type = av1_ext_tx_inv[tx_set_type][aom_read_symbol(
             r, ec_ctx->inter_ext_tx_cdf[eset][square_tx_size],
             av1_num_ext_tx_set[tx_set_type], ACCT_STR)];
-#if CONFIG_MODE_DEP_TX && USE_DDTX_INTER
+#if CONFIG_MODE_DEP_TX && USE_MDTX_INTER
       }
 #endif
     } else {
@@ -682,14 +682,14 @@ void av1_read_tx_type(const AV1_COMMON *const cm, MACROBLOCKD *xd, int blk_row,
                                              .adapt_filter_intra_mode];
       }
 #endif  // CONFIG_ADAPT_FILTER_INTRA
-#if CONFIG_MODE_DEP_TX && USE_DDTX_INTRA
-      if (tx_set_type == EXT_TX_SET_DTT4_IDTX_1DDCT_DDTX) {
-        if (aom_read_symbol(r, ec_ctx->use_ddtx_intra_cdf[square_tx_size], 2,
+#if CONFIG_MODE_DEP_TX && USE_MDTX_INTRA
+      if (tx_set_type == EXT_TX_SET_DTT4_IDTX_1DDCT_MDTX) {
+        if (aom_read_symbol(r, ec_ctx->use_mdtx_intra_cdf[square_tx_size], 2,
                             ACCT_STR)) {
           *tx_type =
-              DDTX1_DDTX1 +
-              aom_read_symbol(r, ec_ctx->ddtx_type_intra_cdf[square_tx_size],
-                              DDTX_TYPES_INTRA, ACCT_STR);
+              MDTX1_MDTX1 +
+              aom_read_symbol(r, ec_ctx->mdtx_type_intra_cdf[square_tx_size],
+                              MDTX_TYPES_INTRA, ACCT_STR);
         } else {
           *tx_type = av1_ext_tx_inv[tx_set_type][aom_read_symbol(
               r, ec_ctx->intra_ext_tx_cdf[eset][square_tx_size][intra_mode],
@@ -700,7 +700,7 @@ void av1_read_tx_type(const AV1_COMMON *const cm, MACROBLOCKD *xd, int blk_row,
         *tx_type = av1_ext_tx_inv[tx_set_type][aom_read_symbol(
             r, ec_ctx->intra_ext_tx_cdf[eset][square_tx_size][intra_mode],
             av1_num_ext_tx_set[tx_set_type], ACCT_STR)];
-#if CONFIG_MODE_DEP_TX && USE_DDTX_INTRA
+#if CONFIG_MODE_DEP_TX && USE_MDTX_INTRA
       }
 #endif
     }
