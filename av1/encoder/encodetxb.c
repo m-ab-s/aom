@@ -704,7 +704,7 @@ static int get_tx_type_cost(const AV1_COMMON *cm, const MACROBLOCK *x,
     const int ext_tx_set =
         get_ext_tx_set(tx_size, is_inter, cm->reduced_tx_set_used);
     if (is_inter) {
-#if CONFIG_DATA_DRIVEN_TX && USE_DDTX_INTER
+#if CONFIG_MODE_DEP_TX && USE_DDTX_INTER
       const TxSetType tx_set_type =
           av1_get_ext_tx_set_type(tx_size, is_inter, cm->reduced_tx_set_used);
       if (tx_set_type == EXT_TX_SET_ALL16_DDTX) {
@@ -737,7 +737,7 @@ static int get_tx_type_cost(const AV1_COMMON *cm, const MACROBLOCK *x,
 #endif  // CONFIG_ADAPT_FILTER_INTRA
         else
           intra_dir = mbmi->mode;
-#if CONFIG_DATA_DRIVEN_TX && USE_DDTX_INTRA
+#if CONFIG_MODE_DEP_TX && USE_DDTX_INTRA
         const TxSetType tx_set_type =
             av1_get_ext_tx_set_type(tx_size, is_inter, cm->reduced_tx_set_used);
         if (tx_set_type == EXT_TX_SET_DTT4_IDTX_1DDCT_DDTX) {
@@ -1975,7 +1975,7 @@ static void update_tx_type_count(const AV1_COMMON *cm, MACROBLOCKD *xd,
           av1_get_ext_tx_set_type(tx_size, is_inter, cm->reduced_tx_set_used);
       if (is_inter) {
         if (allow_update_cdf) {
-#if CONFIG_DATA_DRIVEN_TX && USE_DDTX_INTER
+#if CONFIG_MODE_DEP_TX && USE_DDTX_INTER
           if (tx_set_type == EXT_TX_SET_ALL16_DDTX) {
             update_cdf(fc->use_ddtx_inter_cdf[txsize_sqr_map[tx_size]],
                        tx_type >= DDTX1_DDTX1, 2);
@@ -1992,12 +1992,12 @@ static void update_tx_type_count(const AV1_COMMON *cm, MACROBLOCKD *xd,
             update_cdf(fc->inter_ext_tx_cdf[eset][txsize_sqr_map[tx_size]],
                        av1_ext_tx_ind[tx_set_type][tx_type],
                        av1_num_ext_tx_set[tx_set_type]);
-#if CONFIG_DATA_DRIVEN_TX && USE_DDTX_INTER
+#if CONFIG_MODE_DEP_TX && USE_DDTX_INTER
           }
 #endif
         }
 #if CONFIG_ENTROPY_STATS
-#if CONFIG_DATA_DRIVEN_TX && USE_DDTX_INTER
+#if CONFIG_MODE_DEP_TX && USE_DDTX_INTER
         if (tx_set_type == EXT_TX_SET_ALL16_DDTX) {
           ++counts->use_ddtx_inter[txsize_sqr_map[tx_size]]
                                   [tx_type >= DDTX1_DDTX1];
@@ -2011,7 +2011,7 @@ static void update_tx_type_count(const AV1_COMMON *cm, MACROBLOCKD *xd,
 #endif
           ++counts->inter_ext_tx[eset][txsize_sqr_map[tx_size]]
                                 [av1_ext_tx_ind[tx_set_type][tx_type]];
-#if CONFIG_DATA_DRIVEN_TX && USE_DDTX_INTER
+#if CONFIG_MODE_DEP_TX && USE_DDTX_INTER
         }
 #endif
 #endif  // CONFIG_ENTROPY_STATS
@@ -2029,7 +2029,7 @@ static void update_tx_type_count(const AV1_COMMON *cm, MACROBLOCKD *xd,
         else
           intra_dir = mbmi->mode;
 #if CONFIG_ENTROPY_STATS
-#if CONFIG_DATA_DRIVEN_TX && USE_DDTX_INTRA
+#if CONFIG_MODE_DEP_TX && USE_DDTX_INTRA
         if (tx_set_type == EXT_TX_SET_DTT4_IDTX_1DDCT_DDTX) {
           ++counts->use_ddtx_intra[txsize_sqr_map[tx_size]]
                                   [tx_type >= DDTX1_DDTX1];
@@ -2043,12 +2043,12 @@ static void update_tx_type_count(const AV1_COMMON *cm, MACROBLOCKD *xd,
 #endif
           ++counts->intra_ext_tx[eset][txsize_sqr_map[tx_size]][intra_dir]
                                 [av1_ext_tx_ind[tx_set_type][tx_type]];
-#if CONFIG_DATA_DRIVEN_TX && USE_DDTX_INTRA
+#if CONFIG_MODE_DEP_TX && USE_DDTX_INTRA
         }
 #endif
 #endif  // CONFIG_ENTROPY_STATS
         if (allow_update_cdf) {
-#if CONFIG_DATA_DRIVEN_TX && USE_DDTX_INTRA
+#if CONFIG_MODE_DEP_TX && USE_DDTX_INTRA
           if (tx_set_type == EXT_TX_SET_DTT4_IDTX_1DDCT_DDTX) {
             update_cdf(fc->use_ddtx_intra_cdf[txsize_sqr_map[tx_size]],
                        tx_type >= DDTX1_DDTX1, 2);
@@ -2067,7 +2067,7 @@ static void update_tx_type_count(const AV1_COMMON *cm, MACROBLOCKD *xd,
                 fc->intra_ext_tx_cdf[eset][txsize_sqr_map[tx_size]][intra_dir],
                 av1_ext_tx_ind[tx_set_type][tx_type],
                 av1_num_ext_tx_set[tx_set_type]);
-#if CONFIG_DATA_DRIVEN_TX && USE_DDTX_INTRA
+#if CONFIG_MODE_DEP_TX && USE_DDTX_INTRA
           }
 #endif
         }

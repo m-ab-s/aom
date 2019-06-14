@@ -1875,7 +1875,7 @@ static INLINE void lowbd_inv_txfm2d_add_universe_avx2(const int32_t *input,
                                                       int stride,
                                                       TX_TYPE tx_type,
                                                       TX_SIZE tx_size,
-#if CONFIG_DATA_DRIVEN_TX
+#if CONFIG_MODE_DEP_TX
                                                       int is_inter,
 #endif
                                                       int eob) {
@@ -1910,7 +1910,7 @@ static INLINE void lowbd_inv_txfm2d_add_universe_avx2(const int32_t *input,
       break;
     default:
       av1_lowbd_inv_txfm2d_add_ssse3(input, output, stride, tx_type, tx_size,
-#if CONFIG_DATA_DRIVEN_TX
+#if CONFIG_MODE_DEP_TX
                                      is_inter,
 #endif
                                      eob);
@@ -1920,7 +1920,7 @@ static INLINE void lowbd_inv_txfm2d_add_universe_avx2(const int32_t *input,
 
 void av1_lowbd_inv_txfm2d_add_avx2(const int32_t *input, uint8_t *output,
                                    int stride, TX_TYPE tx_type, TX_SIZE tx_size,
-#if CONFIG_DATA_DRIVEN_TX
+#if CONFIG_MODE_DEP_TX
                                    int is_inter,
 #endif
                                    int eob) {
@@ -1936,7 +1936,7 @@ void av1_lowbd_inv_txfm2d_add_avx2(const int32_t *input, uint8_t *output,
     case TX_8X32:
     case TX_32X8:
       av1_lowbd_inv_txfm2d_add_ssse3(input, output, stride, tx_type, tx_size,
-#if CONFIG_DATA_DRIVEN_TX
+#if CONFIG_MODE_DEP_TX
                                      is_inter,
 #endif
                                      eob);
@@ -1953,7 +1953,7 @@ void av1_lowbd_inv_txfm2d_add_avx2(const int32_t *input, uint8_t *output,
     default:
       lowbd_inv_txfm2d_add_universe_avx2(input, output, stride, tx_type,
                                          tx_size,
-#if CONFIG_DATA_DRIVEN_TX
+#if CONFIG_MODE_DEP_TX
                                          is_inter,
 #endif
                                          eob);
@@ -1967,7 +1967,7 @@ void av1_inv_txfm_add_avx2(const tran_low_t *dqcoeff, uint8_t *dst, int stride,
   if (!txfm_param->lossless) {
     av1_lowbd_inv_txfm2d_add_avx2(dqcoeff, dst, stride, tx_type,
                                   txfm_param->tx_size,
-#if CONFIG_DATA_DRIVEN_TX
+#if CONFIG_MODE_DEP_TX
                                   txfm_param->is_inter,
 #endif
                                   txfm_param->eob);

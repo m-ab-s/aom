@@ -331,7 +331,7 @@ int main(int argc, const char **argv) {
       "static const aom_cdf_prob default_partition_cdf[PARTITION_CONTEXTS]"
       "[CDF_SIZE(EXT_PARTITION_TYPES)]");
 
-#if CONFIG_DATA_DRIVEN_TX
+#if CONFIG_MODE_DEP_TX
   /* ddt_type */
 #if USE_DDTX_INTER
   cts_each_dim[0] = EXT_TX_SIZES;
@@ -369,7 +369,7 @@ int main(int argc, const char **argv) {
   cts_each_dim[0] = EXT_TX_SETS_INTRA;
   cts_each_dim[1] = EXT_TX_SIZES;
   cts_each_dim[2] = INTRA_MODES;
-#if CONFIG_DATA_DRIVEN_TX
+#if CONFIG_MODE_DEP_TX
   cts_each_dim[3] = TX_TYPES_NODDTX;
 #else
   cts_each_dim[3] = TX_TYPES;
@@ -383,7 +383,7 @@ int main(int argc, const char **argv) {
 
   cts_each_dim[0] = EXT_TX_SETS_INTER;
   cts_each_dim[1] = EXT_TX_SIZES;
-#if CONFIG_DATA_DRIVEN_TX
+#if CONFIG_MODE_DEP_TX
   cts_each_dim[2] = TX_TYPES_NODDTX;
 #else
   cts_each_dim[2] = TX_TYPES;

@@ -73,7 +73,7 @@ class AV1FwdTxfm2d : public ::testing::TestWithParam<AV1FwdTxfm2dParam> {
         ref_output_[ni] = 0;
       }
 
-#if CONFIG_DATA_DRIVEN_TX
+#if CONFIG_MODE_DEP_TX
       fwd_txfm_(input_, output_, tx_width_, tx_type_, 1, bd);
 #else
       fwd_txfm_(input_, output_, tx_width_, tx_type_, bd);
@@ -273,13 +273,13 @@ void AV1FwdTxfm2dMatchTest(TX_SIZE tx_size, lowbd_fwd_txfm_func target_func) {
         }
         param.tx_type = (TX_TYPE)tx_type;
         param.tx_size = (TX_SIZE)tx_size;
-#if CONFIG_DATA_DRIVEN_TX && USE_DDTX_INTER
+#if CONFIG_MODE_DEP_TX && USE_DDTX_INTER
         param.tx_set_type = EXT_TX_SET_ALL16_DDTX;
 #else
         param.tx_set_type = EXT_TX_SET_ALL16;
 #endif
         param.bd = bd;
-#if CONFIG_DATA_DRIVEN_TX
+#if CONFIG_MODE_DEP_TX
         ref_func(input, ref_output, input_stride, (TX_TYPE)tx_type, 1, bd);
 #else
         ref_func(input, ref_output, input_stride, (TX_TYPE)tx_type, bd);
@@ -331,7 +331,7 @@ void AV1FwdTxfm2dSpeedTest(TX_SIZE tx_size, lowbd_fwd_txfm_func target_func) {
 
         param.tx_type = (TX_TYPE)tx_type;
         param.tx_size = (TX_SIZE)tx_size;
-#if CONFIG_DATA_DRIVEN_TX && USE_DDTX_INTER
+#if CONFIG_MODE_DEP_TX && USE_DDTX_INTER
         param.tx_set_type = EXT_TX_SET_ALL16_DDTX;
 #else
         param.tx_set_type = EXT_TX_SET_ALL16;
@@ -342,7 +342,7 @@ void AV1FwdTxfm2dSpeedTest(TX_SIZE tx_size, lowbd_fwd_txfm_func target_func) {
 
         aom_usec_timer_start(&ref_timer);
         for (int i = 0; i < num_loops; ++i) {
-#if CONFIG_DATA_DRIVEN_TX
+#if CONFIG_MODE_DEP_TX
           ref_func(input, ref_output, input_stride, (TX_TYPE)tx_type, 1, bd);
 #else
           ref_func(input, ref_output, input_stride, (TX_TYPE)tx_type, bd);
@@ -478,14 +478,14 @@ void AV1HighbdFwdTxfm2dMatchTest(TX_SIZE tx_size,
           }
           param.tx_type = (TX_TYPE)tx_type;
           param.tx_size = (TX_SIZE)tx_size;
-#if CONFIG_DATA_DRIVEN_TX && USE_DDTX_INTER
+#if CONFIG_MODE_DEP_TX && USE_DDTX_INTER
           param.tx_set_type = EXT_TX_SET_ALL16_DDTX;
 #else
           param.tx_set_type = EXT_TX_SET_ALL16;
 #endif
           param.bd = bd;
 
-#if CONFIG_DATA_DRIVEN_TX
+#if CONFIG_MODE_DEP_TX
           ref_func(input, ref_output, input_stride, (TX_TYPE)tx_type, 1, bd);
 #else
           ref_func(input, ref_output, input_stride, (TX_TYPE)tx_type, bd);
@@ -540,7 +540,7 @@ void AV1HighbdFwdTxfm2dSpeedTest(TX_SIZE tx_size,
 
         param.tx_type = (TX_TYPE)tx_type;
         param.tx_size = (TX_SIZE)tx_size;
-#if CONFIG_DATA_DRIVEN_TX && USE_DDTX_INTER
+#if CONFIG_MODE_DEP_TX && USE_DDTX_INTER
         param.tx_set_type = EXT_TX_SET_ALL16_DDTX;
 #else
         param.tx_set_type = EXT_TX_SET_ALL16;
@@ -551,7 +551,7 @@ void AV1HighbdFwdTxfm2dSpeedTest(TX_SIZE tx_size,
 
         aom_usec_timer_start(&ref_timer);
         for (int i = 0; i < num_loops; ++i) {
-#if CONFIG_DATA_DRIVEN_TX
+#if CONFIG_MODE_DEP_TX
           ref_func(input, ref_output, input_stride, (TX_TYPE)tx_type, 1, bd);
 #else
           ref_func(input, ref_output, input_stride, (TX_TYPE)tx_type, bd);

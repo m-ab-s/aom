@@ -223,7 +223,7 @@ enum {
   ADST_1D,
   FLIPADST_1D,
   IDTX_1D,
-#if CONFIG_DATA_DRIVEN_TX
+#if CONFIG_MODE_DEP_TX
   DDTX1_1D,
   DDTX2_1D,
 #endif
@@ -247,7 +247,7 @@ enum {
   H_ADST,             // Identity in vertical, ADST in horizontal
   V_FLIPADST,         // FLIPADST in vertical, identity in horizontal
   H_FLIPADST,         // Identity in vertical, FLIPADST in horizontal
-#if CONFIG_DATA_DRIVEN_TX
+#if CONFIG_MODE_DEP_TX
   DDTX1_DDTX1,
   DDTX1_DCT,
   DCT_DDTX1,
@@ -260,7 +260,7 @@ enum {
   TX_TYPES,
 } UENUM1BYTE(TX_TYPE);
 
-#if CONFIG_DATA_DRIVEN_TX
+#if CONFIG_MODE_DEP_TX
 #define USE_DDTX_INTER 1
 #define USE_DDTX_INTRA 1
 #endif
@@ -284,7 +284,7 @@ enum {
   EXT_TX_SET_DCT_IDTX,
   // Discrete Trig transforms w/o flip (4) + Identity (1)
   EXT_TX_SET_DTT4_IDTX,
-#if CONFIG_DATA_DRIVEN_TX && USE_DDTX_INTRA
+#if CONFIG_MODE_DEP_TX && USE_DDTX_INTRA
   // Discrete Trig transforms w/o flip (4) + Identity (1) + 1D Hor/vert DCT (2)
   //  + DCT w/ 1 DDTX (2) + DDTX1_DDTX1 (1)
   EXT_TX_SET_DTT4_IDTX_1DDCT_DDTX,
@@ -294,7 +294,7 @@ enum {
 #endif
   // Discrete Trig transforms w/ flip (9) + Identity (1) + 1D Hor/Ver DCT (2)
   EXT_TX_SET_DTT9_IDTX_1DDCT,
-#if CONFIG_DATA_DRIVEN_TX && USE_DDTX_INTER
+#if CONFIG_MODE_DEP_TX && USE_DDTX_INTER
   // Discrete Trig transforms w/ flip (9) + Identity (1) + 1D Hor/Ver (6)
   //  + DCT w/ 2 DDTXs (4) + 2 DDTXs (4)
   EXT_TX_SET_ALL16_DDTX,
@@ -305,7 +305,7 @@ enum {
   EXT_TX_SET_TYPES
 } UENUM1BYTE(TxSetType);
 
-#if CONFIG_DATA_DRIVEN_TX
+#if CONFIG_MODE_DEP_TX
 #define TX_TYPES_NODDTX 16
 #define DDTX_TYPES_INTER 8
 #define DDTX_TYPES_INTRA 3

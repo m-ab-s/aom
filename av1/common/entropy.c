@@ -173,7 +173,7 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
   for (int i = 0; i < FRAME_LF_COUNT; i++) {
     RESET_CDF_COUNTER(fc->delta_lf_multi_cdf[i], DELTA_LF_PROBS + 1);
   }
-#if CONFIG_DATA_DRIVEN_TX
+#if CONFIG_MODE_DEP_TX
 #if USE_DDTX_INTER
   RESET_CDF_COUNTER_STRIDE(fc->ddtx_type_inter_cdf, 8,
                            CDF_SIZE(DDTX_TYPES_INTER));

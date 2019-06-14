@@ -28,7 +28,7 @@ namespace {
 using libaom_test::ACMRandom;
 using ::testing::tuple;
 
-#if CONFIG_DATA_DRIVEN_TX
+#if CONFIG_MODE_DEP_TX
 typedef void (*HbdHtFunc)(const int16_t *input, int32_t *output, int stride,
                           TX_TYPE tx_type, int is_inter, int bd);
 typedef void (*IHbdHtFunc)(const int32_t *coeff, uint16_t *output, int stride,
@@ -130,7 +130,7 @@ void AV1HighbdInvHTNxN::RunBitexactCheck() {
       output_[j] = output_ref_[j];
     }
 
-#if CONFIG_DATA_DRIVEN_TX
+#if CONFIG_MODE_DEP_TX
     txfm_ref_(input_, coeffs_, stride, tx_type_, 1, bit_depth_);
     inv_txfm_ref_(coeffs_, output_ref_, stride, tx_type_, 1, bit_depth_);
     ASM_REGISTER_STATE_CHECK(
@@ -228,7 +228,7 @@ void AV1HighbdInvTxfm2d::RunAV1InvTxfm2dTest(TX_TYPE tx_type_, TX_SIZE tx_size_,
   txfm_param.lossless = 0;
   txfm_param.bd = bit_depth_;
   txfm_param.is_hbd = 1;
-#if CONFIG_DATA_DRIVEN_TX && USE_DDTX_INTER
+#if CONFIG_MODE_DEP_TX && USE_DDTX_INTER
   txfm_param.tx_set_type = EXT_TX_SET_ALL16_DDTX;
 #else
   txfm_param.tx_set_type = EXT_TX_SET_ALL16;
@@ -243,7 +243,7 @@ void AV1HighbdInvTxfm2d::RunAV1InvTxfm2dTest(TX_TYPE tx_type_, TX_SIZE tx_size_,
         ref_output[r * stride + c] = output[r * stride + c];
       }
     }
-#if CONFIG_DATA_DRIVEN_TX
+#if CONFIG_MODE_DEP_TX
     fwd_func_(input, inv_input, stride, tx_type_, 1, bit_depth_);
 #else
     fwd_func_(input, inv_input, stride, tx_type_, bit_depth_);

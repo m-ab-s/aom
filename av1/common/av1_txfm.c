@@ -86,7 +86,7 @@ void av1_round_shift_array_c(int32_t *arr, int size, int bit) {
   }
 }
 
-#if CONFIG_DATA_DRIVEN_TX
+#if CONFIG_MODE_DEP_TX
 const TXFM_TYPE av1_txfm_type_ls[5][TX_TYPES_1D] = {
   { TXFM_TYPE_DCT4, TXFM_TYPE_ADST4, TXFM_TYPE_ADST4, TXFM_TYPE_IDENTITY4,
     TXFM_TYPE_DDTX4, TXFM_TYPE_DDTX4 },
@@ -123,7 +123,7 @@ const int8_t av1_txfm_stage_num_list[TXFM_TYPES] = {
   1,   // TXFM_TYPE_IDENTITY8
   1,   // TXFM_TYPE_IDENTITY16
   1,   // TXFM_TYPE_IDENTITY32
-#if CONFIG_DATA_DRIVEN_TX
+#if CONFIG_MODE_DEP_TX
   1,  // TXFM_TYPE_DDTX4
   1,  // TXFM_TYPE_DDTX8
 #endif

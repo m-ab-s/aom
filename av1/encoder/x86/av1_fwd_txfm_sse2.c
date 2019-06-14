@@ -2126,11 +2126,11 @@ static const transform_1d_sse2 row_txfm8x32_arr[TX_TYPES] = {
 
 void av1_lowbd_fwd_txfm2d_4x4_sse2(const int16_t *input, int32_t *output,
                                    int stride, TX_TYPE tx_type,
-#if CONFIG_DATA_DRIVEN_TX
+#if CONFIG_MODE_DEP_TX
                                    int is_inter,
 #endif
                                    int bd) {
-#if CONFIG_DATA_DRIVEN_TX
+#if CONFIG_MODE_DEP_TX
   (void)is_inter;
 #endif
   (void)bd;
@@ -2171,11 +2171,11 @@ void av1_lowbd_fwd_txfm2d_4x4_sse2(const int16_t *input, int32_t *output,
 
 void av1_lowbd_fwd_txfm2d_4x8_sse2(const int16_t *input, int32_t *output,
                                    int stride, TX_TYPE tx_type,
-#if CONFIG_DATA_DRIVEN_TX
+#if CONFIG_MODE_DEP_TX
                                    int is_inter,
 #endif
                                    int bd) {
-#if CONFIG_DATA_DRIVEN_TX
+#if CONFIG_MODE_DEP_TX
   (void)is_inter;
 #endif
   (void)stride;
@@ -2217,11 +2217,11 @@ void av1_lowbd_fwd_txfm2d_4x8_sse2(const int16_t *input, int32_t *output,
 
 void av1_lowbd_fwd_txfm2d_4x16_sse2(const int16_t *input, int32_t *output,
                                     int stride, TX_TYPE tx_type,
-#if CONFIG_DATA_DRIVEN_TX
+#if CONFIG_MODE_DEP_TX
                                     int is_inter,
 #endif
                                     int bd) {
-#if CONFIG_DATA_DRIVEN_TX
+#if CONFIG_MODE_DEP_TX
   (void)is_inter;
 #endif
   (void)bd;
@@ -2266,11 +2266,11 @@ void av1_lowbd_fwd_txfm2d_4x16_sse2(const int16_t *input, int32_t *output,
 
 void av1_lowbd_fwd_txfm2d_8x4_sse2(const int16_t *input, int32_t *output,
                                    int stride, TX_TYPE tx_type,
-#if CONFIG_DATA_DRIVEN_TX
+#if CONFIG_MODE_DEP_TX
                                    int is_inter,
 #endif
                                    int bd) {
-#if CONFIG_DATA_DRIVEN_TX
+#if CONFIG_MODE_DEP_TX
   (void)is_inter;
 #endif
   (void)bd;
@@ -2310,11 +2310,11 @@ void av1_lowbd_fwd_txfm2d_8x4_sse2(const int16_t *input, int32_t *output,
 
 void av1_lowbd_fwd_txfm2d_8x8_sse2(const int16_t *input, int32_t *output,
                                    int stride, TX_TYPE tx_type,
-#if CONFIG_DATA_DRIVEN_TX
+#if CONFIG_MODE_DEP_TX
                                    int is_inter,
 #endif
                                    int bd) {
-#if CONFIG_DATA_DRIVEN_TX
+#if CONFIG_MODE_DEP_TX
   (void)is_inter;
 #endif
   (void)bd;
@@ -2354,11 +2354,11 @@ void av1_lowbd_fwd_txfm2d_8x8_sse2(const int16_t *input, int32_t *output,
 
 void av1_lowbd_fwd_txfm2d_8x16_sse2(const int16_t *input, int32_t *output,
                                     int stride, TX_TYPE tx_type,
-#if CONFIG_DATA_DRIVEN_TX
+#if CONFIG_MODE_DEP_TX
                                     int is_inter,
 #endif
                                     int bd) {
-#if CONFIG_DATA_DRIVEN_TX
+#if CONFIG_MODE_DEP_TX
   (void)is_inter;
 #endif
   (void)bd;
@@ -2403,11 +2403,11 @@ void av1_lowbd_fwd_txfm2d_8x16_sse2(const int16_t *input, int32_t *output,
 
 void av1_lowbd_fwd_txfm2d_8x32_sse2(const int16_t *input, int32_t *output,
                                     int stride, TX_TYPE tx_type,
-#if CONFIG_DATA_DRIVEN_TX
+#if CONFIG_MODE_DEP_TX
                                     int is_inter,
 #endif
                                     int bd) {
-#if CONFIG_DATA_DRIVEN_TX
+#if CONFIG_MODE_DEP_TX
   (void)is_inter;
 #endif
   (void)bd;
@@ -2454,11 +2454,11 @@ void av1_lowbd_fwd_txfm2d_8x32_sse2(const int16_t *input, int32_t *output,
 
 void av1_lowbd_fwd_txfm2d_16x4_sse2(const int16_t *input, int32_t *output,
                                     int stride, TX_TYPE tx_type,
-#if CONFIG_DATA_DRIVEN_TX
+#if CONFIG_MODE_DEP_TX
                                     int is_inter,
 #endif
                                     int bd) {
-#if CONFIG_DATA_DRIVEN_TX
+#if CONFIG_MODE_DEP_TX
   (void)is_inter;
 #endif
   (void)bd;
@@ -2504,11 +2504,11 @@ void av1_lowbd_fwd_txfm2d_16x4_sse2(const int16_t *input, int32_t *output,
 
 void av1_lowbd_fwd_txfm2d_16x8_sse2(const int16_t *input, int32_t *output,
                                     int stride, TX_TYPE tx_type,
-#if CONFIG_DATA_DRIVEN_TX
+#if CONFIG_MODE_DEP_TX
                                     int is_inter,
 #endif
                                     int bd) {
-#if CONFIG_DATA_DRIVEN_TX
+#if CONFIG_MODE_DEP_TX
   (void)is_inter;
 #endif
   (void)bd;
@@ -2554,11 +2554,11 @@ void av1_lowbd_fwd_txfm2d_16x8_sse2(const int16_t *input, int32_t *output,
 
 void av1_lowbd_fwd_txfm2d_16x16_sse2(const int16_t *input, int32_t *output,
                                      int stride, TX_TYPE tx_type,
-#if CONFIG_DATA_DRIVEN_TX
+#if CONFIG_MODE_DEP_TX
                                      int is_inter,
 #endif
                                      int bd) {
-#if CONFIG_DATA_DRIVEN_TX
+#if CONFIG_MODE_DEP_TX
   (void)is_inter;
 #endif
   (void)bd;
@@ -2608,11 +2608,11 @@ void av1_lowbd_fwd_txfm2d_16x16_sse2(const int16_t *input, int32_t *output,
 
 void av1_lowbd_fwd_txfm2d_16x32_sse2(const int16_t *input, int32_t *output,
                                      int stride, TX_TYPE tx_type,
-#if CONFIG_DATA_DRIVEN_TX
+#if CONFIG_MODE_DEP_TX
                                      int is_inter,
 #endif
                                      int bd) {
-#if CONFIG_DATA_DRIVEN_TX
+#if CONFIG_MODE_DEP_TX
   (void)is_inter;
 #endif
   (void)bd;
@@ -2664,7 +2664,7 @@ void av1_lowbd_fwd_txfm2d_16x32_sse2(const int16_t *input, int32_t *output,
                                           width, 8);
     }
   } else {
-#if CONFIG_DATA_DRIVEN_TX
+#if CONFIG_MODE_DEP_TX
     av1_fwd_txfm2d_16x32_c(input, output, stride, tx_type, 1, bd);
 #else
     av1_fwd_txfm2d_16x32_c(input, output, stride, tx_type, bd);
@@ -2674,11 +2674,11 @@ void av1_lowbd_fwd_txfm2d_16x32_sse2(const int16_t *input, int32_t *output,
 
 void av1_lowbd_fwd_txfm2d_32x8_sse2(const int16_t *input, int32_t *output,
                                     int stride, TX_TYPE tx_type,
-#if CONFIG_DATA_DRIVEN_TX
+#if CONFIG_MODE_DEP_TX
                                     int is_inter,
 #endif
                                     int bd) {
-#if CONFIG_DATA_DRIVEN_TX
+#if CONFIG_MODE_DEP_TX
   (void)is_inter;
 #endif
   (void)bd;
@@ -2733,7 +2733,7 @@ void av1_lowbd_fwd_txfm2d_32x8_sse2(const int16_t *input, int32_t *output,
                                      width, height);
     }
   } else {
-#if CONFIG_DATA_DRIVEN_TX
+#if CONFIG_MODE_DEP_TX
     av1_fwd_txfm2d_32x16_c(input, output, stride, tx_type, 1, bd);
 #else
     av1_fwd_txfm2d_32x16_c(input, output, stride, tx_type, bd);
@@ -2743,11 +2743,11 @@ void av1_lowbd_fwd_txfm2d_32x8_sse2(const int16_t *input, int32_t *output,
 
 void av1_lowbd_fwd_txfm2d_32x16_sse2(const int16_t *input, int32_t *output,
                                      int stride, TX_TYPE tx_type,
-#if CONFIG_DATA_DRIVEN_TX
+#if CONFIG_MODE_DEP_TX
                                      int is_inter,
 #endif
                                      int bd) {
-#if CONFIG_DATA_DRIVEN_TX
+#if CONFIG_MODE_DEP_TX
   (void)is_inter;
 #endif
   (void)bd;
@@ -2803,7 +2803,7 @@ void av1_lowbd_fwd_txfm2d_32x16_sse2(const int16_t *input, int32_t *output,
                                           width, 8);
     }
   } else {
-#if CONFIG_DATA_DRIVEN_TX
+#if CONFIG_MODE_DEP_TX
     av1_fwd_txfm2d_32x16_c(input, output, stride, tx_type, 1, bd);
 #else
     av1_fwd_txfm2d_32x16_c(input, output, stride, tx_type, bd);
@@ -2813,11 +2813,11 @@ void av1_lowbd_fwd_txfm2d_32x16_sse2(const int16_t *input, int32_t *output,
 
 void av1_lowbd_fwd_txfm2d_32x32_sse2(const int16_t *input, int32_t *output,
                                      int stride, TX_TYPE tx_type,
-#if CONFIG_DATA_DRIVEN_TX
+#if CONFIG_MODE_DEP_TX
                                      int is_inter,
 #endif
                                      int bd) {
-#if CONFIG_DATA_DRIVEN_TX
+#if CONFIG_MODE_DEP_TX
   (void)is_inter;
 #endif
   (void)bd;
@@ -2874,7 +2874,7 @@ void av1_lowbd_fwd_txfm2d_32x32_sse2(const int16_t *input, int32_t *output,
                                      width, 8);
     }
   } else {
-#if CONFIG_DATA_DRIVEN_TX
+#if CONFIG_MODE_DEP_TX
     av1_fwd_txfm2d_32x32_c(input, output, stride, tx_type, 1, bd);
 #else
     av1_fwd_txfm2d_32x32_c(input, output, stride, tx_type, bd);
@@ -2884,11 +2884,11 @@ void av1_lowbd_fwd_txfm2d_32x32_sse2(const int16_t *input, int32_t *output,
 
 void av1_lowbd_fwd_txfm2d_64x16_sse2(const int16_t *input, int32_t *output,
                                      int stride, TX_TYPE tx_type,
-#if CONFIG_DATA_DRIVEN_TX
+#if CONFIG_MODE_DEP_TX
                                      int is_inter,
 #endif
                                      int bd) {
-#if CONFIG_DATA_DRIVEN_TX
+#if CONFIG_MODE_DEP_TX
   (void)is_inter;
 #endif
   (void)bd;
@@ -2933,11 +2933,11 @@ void av1_lowbd_fwd_txfm2d_64x16_sse2(const int16_t *input, int32_t *output,
 
 void av1_lowbd_fwd_txfm2d_16x64_sse2(const int16_t *input, int32_t *output,
                                      int stride, TX_TYPE tx_type,
-#if CONFIG_DATA_DRIVEN_TX
+#if CONFIG_MODE_DEP_TX
                                      int is_inter,
 #endif
                                      int bd) {
-#if CONFIG_DATA_DRIVEN_TX
+#if CONFIG_MODE_DEP_TX
   (void)is_inter;
 #endif
   (void)bd;
@@ -3012,7 +3012,7 @@ void av1_lowbd_fwd_txfm_sse2(const int16_t *src_diff, tran_low_t *coeff,
       (txfm_param->lossless && txfm_param->tx_size == TX_4X4))
     av1_lowbd_fwd_txfm_c(src_diff, coeff, diff_stride, txfm_param);
   else
-#if CONFIG_DATA_DRIVEN_TX
+#if CONFIG_MODE_DEP_TX
     fwd_txfm2d_func(src_diff, coeff, diff_stride, txfm_param->tx_type,
                     txfm_param->is_inter, txfm_param->bd);
 #else

@@ -483,7 +483,7 @@ typedef struct FRAME_COUNTS {
   unsigned int delta_lf_multi[FRAME_LF_COUNT][DELTA_LF_PROBS][2];
   unsigned int delta_lf[DELTA_LF_PROBS][2];
 
-#if CONFIG_DATA_DRIVEN_TX
+#if CONFIG_MODE_DEP_TX
 #if USE_DDTX_INTER
   unsigned int use_ddtx_inter[EXT_TX_SIZES][2];
   unsigned int ddtx_type_inter[EXT_TX_SIZES][DDTX_TYPES_INTER];

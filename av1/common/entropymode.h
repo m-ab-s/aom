@@ -160,7 +160,7 @@ typedef struct frame_contexts {
   aom_cdf_prob delta_q_cdf[CDF_SIZE(DELTA_Q_PROBS + 1)];
   aom_cdf_prob delta_lf_multi_cdf[FRAME_LF_COUNT][CDF_SIZE(DELTA_LF_PROBS + 1)];
   aom_cdf_prob delta_lf_cdf[CDF_SIZE(DELTA_LF_PROBS + 1)];
-#if CONFIG_DATA_DRIVEN_TX
+#if CONFIG_MODE_DEP_TX
 #if USE_DDTX_INTER
   aom_cdf_prob ddtx_type_inter_cdf[EXT_TX_SIZES][CDF_SIZE(DDTX_TYPES_INTER)];
   aom_cdf_prob use_ddtx_inter_cdf[EXT_TX_SIZES][CDF_SIZE(2)];
@@ -184,7 +184,7 @@ typedef struct frame_contexts {
   int initialized;
 } FRAME_CONTEXT;
 
-#if CONFIG_DATA_DRIVEN_TX
+#if CONFIG_MODE_DEP_TX
 static const int av1_ext_tx_ind[EXT_TX_SET_TYPES][TX_TYPES_NODDTX] = {
 #else
 static const int av1_ext_tx_ind[EXT_TX_SET_TYPES][TX_TYPES] = {
@@ -197,7 +197,7 @@ static const int av1_ext_tx_ind[EXT_TX_SET_TYPES][TX_TYPES] = {
   { 7, 8, 9, 12, 10, 11, 13, 14, 15, 0, 1, 2, 3, 4, 5, 6 },
 };
 
-#if CONFIG_DATA_DRIVEN_TX
+#if CONFIG_MODE_DEP_TX
 static const int av1_ext_tx_inv[EXT_TX_SET_TYPES][TX_TYPES_NODDTX] = {
 #else
 static const int av1_ext_tx_inv[EXT_TX_SET_TYPES][TX_TYPES] = {

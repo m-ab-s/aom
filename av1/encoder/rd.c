@@ -72,7 +72,7 @@ static const int av1_ext_tx_set_idx_to_type[2][AOMMAX(EXT_TX_SETS_INTRA,
   {
       // Intra
       EXT_TX_SET_DCTONLY,
-#if CONFIG_DATA_DRIVEN_TX && USE_DDTX_INTRA
+#if CONFIG_MODE_DEP_TX && USE_DDTX_INTRA
       EXT_TX_SET_DTT4_IDTX_1DDCT_DDTX,
 #else
       EXT_TX_SET_DTT4_IDTX_1DDCT,
@@ -82,7 +82,7 @@ static const int av1_ext_tx_set_idx_to_type[2][AOMMAX(EXT_TX_SETS_INTRA,
   {
       // Inter
       EXT_TX_SET_DCTONLY,
-#if CONFIG_DATA_DRIVEN_TX && USE_DDTX_INTER
+#if CONFIG_MODE_DEP_TX && USE_DDTX_INTER
       EXT_TX_SET_ALL16_DDTX,
 #else
       EXT_TX_SET_ALL16,
@@ -219,7 +219,7 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, MACROBLOCK *x,
       }
     }
   }
-#if CONFIG_DATA_DRIVEN_TX
+#if CONFIG_MODE_DEP_TX
 #if USE_DDTX_INTER
   for (i = TX_4X4; i < EXT_TX_SIZES; ++i) {
     av1_cost_tokens_from_cdf(x->ddtx_type_inter_costs[i],

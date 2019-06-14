@@ -385,7 +385,7 @@ struct macroblock {
   int cfl_cost[CFL_JOINT_SIGNS][CFL_PRED_PLANES][CFL_ALPHABET_SIZE];
   int tx_size_cost[TX_SIZES - 1][TX_SIZE_CONTEXTS][TX_SIZES];
   int txfm_partition_cost[TXFM_PARTITION_CONTEXTS][2];
-#if CONFIG_DATA_DRIVEN_TX
+#if CONFIG_MODE_DEP_TX
   int ddtx_type_inter_costs[EXT_TX_SIZES][DDTX_TYPES_INTER];
   int ddtx_type_intra_costs[EXT_TX_SIZES][DDTX_TYPES_INTRA];
   int use_ddtx_inter_costs[EXT_TX_SIZES][2];

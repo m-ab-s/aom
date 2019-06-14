@@ -147,11 +147,11 @@ static INLINE void fwd_txfm2d_64x64_sse4_1(const int16_t *input,
 
 void av1_fwd_txfm2d_32x32_sse4_1(const int16_t *input, int32_t *output,
                                  int stride, TX_TYPE tx_type,
-#if CONFIG_DATA_DRIVEN_TX
+#if CONFIG_MODE_DEP_TX
                                  int is_inter,
 #endif
                                  int bd) {
-#if CONFIG_DATA_DRIVEN_TX
+#if CONFIG_MODE_DEP_TX
   (void)is_inter;
 #endif
   DECLARE_ALIGNED(16, int32_t, txfm_buf[1024]);
@@ -163,11 +163,11 @@ void av1_fwd_txfm2d_32x32_sse4_1(const int16_t *input, int32_t *output,
 
 void av1_fwd_txfm2d_64x64_sse4_1(const int16_t *input, int32_t *output,
                                  int stride, TX_TYPE tx_type,
-#if CONFIG_DATA_DRIVEN_TX
+#if CONFIG_MODE_DEP_TX
                                  int is_inter,
 #endif
                                  int bd) {
-#if CONFIG_DATA_DRIVEN_TX
+#if CONFIG_MODE_DEP_TX
   (void)is_inter;
 #endif
   DECLARE_ALIGNED(16, int32_t, txfm_buf[4096]);
@@ -202,11 +202,11 @@ static INLINE void transpose_32_4x4x2(int stride, const __m128i *inputA,
 
 static void lowbd_fwd_txfm2d_64x64_sse4_1(const int16_t *input, int32_t *output,
                                           int stride, TX_TYPE tx_type,
-#if CONFIG_DATA_DRIVEN_TX
+#if CONFIG_MODE_DEP_TX
                                           int is_inter,
 #endif
                                           int bd) {
-#if CONFIG_DATA_DRIVEN_TX
+#if CONFIG_MODE_DEP_TX
   (void)is_inter;
 #endif
   (void)bd;
@@ -257,11 +257,11 @@ static void lowbd_fwd_txfm2d_64x64_sse4_1(const int16_t *input, int32_t *output,
 
 static void lowbd_fwd_txfm2d_64x32_sse4_1(const int16_t *input, int32_t *output,
                                           int stride, TX_TYPE tx_type,
-#if CONFIG_DATA_DRIVEN_TX
+#if CONFIG_MODE_DEP_TX
                                           int is_inter,
 #endif
                                           int bd) {
-#if CONFIG_DATA_DRIVEN_TX
+#if CONFIG_MODE_DEP_TX
   (void)is_inter;
 #endif
   (void)bd;
@@ -311,11 +311,11 @@ static void lowbd_fwd_txfm2d_64x32_sse4_1(const int16_t *input, int32_t *output,
 
 static void lowbd_fwd_txfm2d_32x64_sse4_1(const int16_t *input, int32_t *output,
                                           int stride, TX_TYPE tx_type,
-#if CONFIG_DATA_DRIVEN_TX
+#if CONFIG_MODE_DEP_TX
                                           int is_inter,
 #endif
                                           int bd) {
-#if CONFIG_DATA_DRIVEN_TX
+#if CONFIG_MODE_DEP_TX
   (void)is_inter;
 #endif
   (void)bd;
@@ -390,7 +390,7 @@ static FwdTxfm2dFunc fwd_txfm2d_func_ls[TX_SIZES_ALL] = {
 void av1_lowbd_fwd_txfm_sse4_1(const int16_t *src_diff, tran_low_t *coeff,
                                int diff_stride, TxfmParam *txfm_param) {
   FwdTxfm2dFunc fwd_txfm2d_func = fwd_txfm2d_func_ls[txfm_param->tx_size];
-#if CONFIG_DATA_DRIVEN_TX
+#if CONFIG_MODE_DEP_TX
   (void)fwd_txfm2d_func;  // this is added to silence a warning
   av1_lowbd_fwd_txfm_c(src_diff, coeff, diff_stride, txfm_param);
 #else

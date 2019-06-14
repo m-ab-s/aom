@@ -109,7 +109,7 @@ static INLINE uint16_t highbd_clip_pixel_add(uint16_t dest, tran_high_t trans,
 typedef void (*TxfmFunc)(const int32_t *input, int32_t *output, int8_t cos_bit,
                          const int8_t *stage_range);
 
-#if CONFIG_DATA_DRIVEN_TX
+#if CONFIG_MODE_DEP_TX
 typedef void (*FwdTxfm2dFunc)(const int16_t *input, int32_t *output, int stride,
                               TX_TYPE tx_type, int is_inter, int bd);
 #else
@@ -130,7 +130,7 @@ enum {
   TXFM_TYPE_IDENTITY8,
   TXFM_TYPE_IDENTITY16,
   TXFM_TYPE_IDENTITY32,
-#if CONFIG_DATA_DRIVEN_TX
+#if CONFIG_MODE_DEP_TX
   TXFM_TYPE_DDTX4,
   TXFM_TYPE_DDTX8,
 #endif
@@ -167,7 +167,7 @@ static INLINE void get_flip_cfg(TX_TYPE tx_type, int *ud_flip, int *lr_flip) {
     case H_DCT:
     case V_ADST:
     case H_ADST:
-#if CONFIG_DATA_DRIVEN_TX
+#if CONFIG_MODE_DEP_TX
     case DDTX1_DCT:
     case DCT_DDTX1:
     case DDTX1_DDTX1:
@@ -178,7 +178,7 @@ static INLINE void get_flip_cfg(TX_TYPE tx_type, int *ud_flip, int *lr_flip) {
     case FLIPADST_DCT:
     case FLIPADST_ADST:
     case V_FLIPADST:
-#if CONFIG_DATA_DRIVEN_TX
+#if CONFIG_MODE_DEP_TX
     case DDTX2_DCT:
     case DDTX2_DDTX1:
 #endif
@@ -188,7 +188,7 @@ static INLINE void get_flip_cfg(TX_TYPE tx_type, int *ud_flip, int *lr_flip) {
     case DCT_FLIPADST:
     case ADST_FLIPADST:
     case H_FLIPADST:
-#if CONFIG_DATA_DRIVEN_TX
+#if CONFIG_MODE_DEP_TX
     case DCT_DDTX2:
     case DDTX1_DDTX2:
 #endif
@@ -196,7 +196,7 @@ static INLINE void get_flip_cfg(TX_TYPE tx_type, int *ud_flip, int *lr_flip) {
       *lr_flip = 1;
       break;
     case FLIPADST_FLIPADST:
-#if CONFIG_DATA_DRIVEN_TX
+#if CONFIG_MODE_DEP_TX
     case DDTX2_DDTX2:
 #endif
       *ud_flip = 1;
@@ -253,7 +253,7 @@ void av1_range_check_buf(int32_t stage, const int32_t *input,
                          const int32_t *buf, int32_t size, int8_t bit);
 #define MAX_TXWH_IDX 5
 
-#if CONFIG_DATA_DRIVEN_TX
+#if CONFIG_MODE_DEP_TX
 #define USE_KLT 1
 #define USE_GFT 0
 #define USE_LGT 0

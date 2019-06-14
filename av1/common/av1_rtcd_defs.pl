@@ -145,7 +145,7 @@ specialize qw/av1_highbd_inv_txfm_add_16x4 sse4_1/;
 add_proto qw/void av1_highbd_iwht4x4_1_add/, "const tran_low_t *input, uint8_t *dest, int dest_stride, int bd";
 add_proto qw/void av1_highbd_iwht4x4_16_add/, "const tran_low_t *input, uint8_t *dest, int dest_stride, int bd";
 
-if (aom_config("CONFIG_DATA_DRIVEN_TX") eq "yes") {
+if (aom_config("CONFIG_MODE_DEP_TX") eq "yes") {
   add_proto qw/void av1_inv_txfm2d_add_4x8/, "const int32_t *input, uint16_t *output, int stride, TX_TYPE tx_type, int is_inter, int bd";
   add_proto qw/void av1_inv_txfm2d_add_8x4/, "const int32_t *input, uint16_t *output, int stride, TX_TYPE tx_type, int is_inter, int bd";
   add_proto qw/void av1_inv_txfm2d_add_8x16/, "const int32_t *input, uint16_t *output, int stride, TX_TYPE tx_type, int is_inter, int bd";
@@ -243,7 +243,7 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
   add_proto qw/void av1_fwht4x4/, "const int16_t *input, tran_low_t *output, int stride";
 
   #fwd txfm
-  if (aom_config("CONFIG_DATA_DRIVEN_TX") eq "yes") {
+  if (aom_config("CONFIG_MODE_DEP_TX") eq "yes") {
     add_proto qw/void av1_lowbd_fwd_txfm/, "const int16_t *src_diff, tran_low_t *coeff, int diff_stride, TxfmParam *txfm_param";
     specialize qw/av1_lowbd_fwd_txfm sse2 sse4_1 avx2/;
 
