@@ -30,9 +30,9 @@ using ::testing::tuple;
 
 #if CONFIG_MODE_DEP_TX
 typedef void (*HbdHtFunc)(const int16_t *input, int32_t *output, int stride,
-                          TX_TYPE tx_type, int is_inter, int bd);
+                          TX_TYPE tx_type, PREDICTION_MODE mode, int bd);
 typedef void (*IHbdHtFunc)(const int32_t *coeff, uint16_t *output, int stride,
-                           TX_TYPE tx_type, int is_inter, int bd);
+                           TX_TYPE tx_type, PREDICTION_MODE mode, int bd);
 #else
 typedef void (*HbdHtFunc)(const int16_t *input, int32_t *output, int stride,
                           TX_TYPE tx_type, int bd);
@@ -131,10 +131,10 @@ void AV1HighbdInvHTNxN::RunBitexactCheck() {
     }
 
 #if CONFIG_MODE_DEP_TX
-    txfm_ref_(input_, coeffs_, stride, tx_type_, 1, bit_depth_);
-    inv_txfm_ref_(coeffs_, output_ref_, stride, tx_type_, 1, bit_depth_);
+    txfm_ref_(input_, coeffs_, stride, tx_type_, 0, bit_depth_);
+    inv_txfm_ref_(coeffs_, output_ref_, stride, tx_type_, 0, bit_depth_);
     ASM_REGISTER_STATE_CHECK(
-        inv_txfm_(coeffs_, output_, stride, tx_type_, 1, bit_depth_));
+        inv_txfm_(coeffs_, output_, stride, tx_type_, 0, bit_depth_));
 #else
     txfm_ref_(input_, coeffs_, stride, tx_type_, bit_depth_);
     inv_txfm_ref_(coeffs_, output_ref_, stride, tx_type_, bit_depth_);
@@ -244,7 +244,7 @@ void AV1HighbdInvTxfm2d::RunAV1InvTxfm2dTest(TX_TYPE tx_type_, TX_SIZE tx_size_,
       }
     }
 #if CONFIG_MODE_DEP_TX
-    fwd_func_(input, inv_input, stride, tx_type_, 1, bit_depth_);
+    fwd_func_(input, inv_input, stride, tx_type_, 0, bit_depth_);
 #else
     fwd_func_(input, inv_input, stride, tx_type_, bit_depth_);
 #endif

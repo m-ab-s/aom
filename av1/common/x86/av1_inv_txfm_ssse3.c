@@ -2441,11 +2441,11 @@ static void lowbd_inv_txfm2d_add_4x4_ssse3(const int32_t *input,
                                            uint8_t *output, int stride,
                                            TX_TYPE tx_type, TX_SIZE tx_size_,
 #if CONFIG_MODE_DEP_TX
-                                           int is_inter,
+                                           PREDICTION_MODE mode,
 #endif
                                            int eob) {
 #if CONFIG_MODE_DEP_TX
-  (void)is_inter;
+  (void)mode;
 #endif
   (void)tx_size_;
   (void)eob;
@@ -2719,11 +2719,11 @@ static void lowbd_inv_txfm2d_add_4x8_ssse3(const int32_t *input,
                                            uint8_t *output, int stride,
                                            TX_TYPE tx_type, TX_SIZE tx_size_,
 #if CONFIG_MODE_DEP_TX
-                                           int is_inter,
+                                           PREDICTION_MODE mode,
 #endif
                                            int eob) {
 #if CONFIG_MODE_DEP_TX
-  (void)is_inter;
+  (void)mode;
 #endif
   (void)tx_size_;
   (void)eob;
@@ -2765,11 +2765,11 @@ static void lowbd_inv_txfm2d_add_8x4_ssse3(const int32_t *input,
                                            uint8_t *output, int stride,
                                            TX_TYPE tx_type, TX_SIZE tx_size_,
 #if CONFIG_MODE_DEP_TX
-                                           int is_inter,
+                                           PREDICTION_MODE mode,
 #endif
                                            int eob) {
 #if CONFIG_MODE_DEP_TX
-  (void)is_inter;
+  (void)mode;
 #endif
   (void)tx_size_;
   (void)eob;
@@ -2811,11 +2811,11 @@ static void lowbd_inv_txfm2d_add_4x16_ssse3(const int32_t *input,
                                             uint8_t *output, int stride,
                                             TX_TYPE tx_type, TX_SIZE tx_size_,
 #if CONFIG_MODE_DEP_TX
-                                            int is_inter,
+                                            PREDICTION_MODE mode,
 #endif
                                             int eob) {
 #if CONFIG_MODE_DEP_TX
-  (void)is_inter;
+  (void)mode;
 #endif
   (void)tx_size_;
   (void)eob;
@@ -2877,11 +2877,11 @@ static void lowbd_inv_txfm2d_add_16x4_ssse3(const int32_t *input,
                                             uint8_t *output, int stride,
                                             TX_TYPE tx_type, TX_SIZE tx_size_,
 #if CONFIG_MODE_DEP_TX
-                                            int is_inter,
+                                            PREDICTION_MODE mode,
 #endif
                                             int eob) {
 #if CONFIG_MODE_DEP_TX
-  (void)is_inter;
+  (void)mode;
 #endif
   (void)tx_size_;
   (void)eob;
@@ -2948,42 +2948,42 @@ void av1_lowbd_inv_txfm2d_add_ssse3(const int32_t *input, uint8_t *output,
                                     int stride, TX_TYPE tx_type,
                                     TX_SIZE tx_size,
 #if CONFIG_MODE_DEP_TX
-                                    int is_inter,
+                                    PREDICTION_MODE mode,
 #endif
                                     int eob) {
   switch (tx_size) {
     case TX_4X4:
       lowbd_inv_txfm2d_add_4x4_ssse3(input, output, stride, tx_type, tx_size,
 #if CONFIG_MODE_DEP_TX
-                                     is_inter,
+                                     mode,
 #endif
                                      eob);
       break;
     case TX_4X8:
       lowbd_inv_txfm2d_add_4x8_ssse3(input, output, stride, tx_type, tx_size,
 #if CONFIG_MODE_DEP_TX
-                                     is_inter,
+                                     mode,
 #endif
                                      eob);
       break;
     case TX_8X4:
       lowbd_inv_txfm2d_add_8x4_ssse3(input, output, stride, tx_type, tx_size,
 #if CONFIG_MODE_DEP_TX
-                                     is_inter,
+                                     mode,
 #endif
                                      eob);
       break;
     case TX_4X16:
       lowbd_inv_txfm2d_add_4x16_ssse3(input, output, stride, tx_type, tx_size,
 #if CONFIG_MODE_DEP_TX
-                                      is_inter,
+                                      mode,
 #endif
                                       eob);
       break;
     case TX_16X4:
       lowbd_inv_txfm2d_add_16x4_ssse3(input, output, stride, tx_type, tx_size,
 #if CONFIG_MODE_DEP_TX
-                                      is_inter,
+                                      mode,
 #endif
                                       eob);
       break;
@@ -3001,7 +3001,7 @@ void av1_inv_txfm_add_ssse3(const tran_low_t *dqcoeff, uint8_t *dst, int stride,
     av1_lowbd_inv_txfm2d_add_ssse3(dqcoeff, dst, stride, tx_type,
                                    txfm_param->tx_size,
 #if CONFIG_MODE_DEP_TX
-                                   txfm_param->is_inter,
+                                   txfm_param->mode,
 #endif
                                    txfm_param->eob);
 

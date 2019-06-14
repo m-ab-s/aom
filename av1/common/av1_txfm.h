@@ -111,7 +111,7 @@ typedef void (*TxfmFunc)(const int32_t *input, int32_t *output, int8_t cos_bit,
 
 #if CONFIG_MODE_DEP_TX
 typedef void (*FwdTxfm2dFunc)(const int16_t *input, int32_t *output, int stride,
-                              TX_TYPE tx_type, int is_inter, int bd);
+                              TX_TYPE tx_type, PREDICTION_MODE mode, int bd);
 #else
 typedef void (*FwdTxfm2dFunc)(const int16_t *input, int32_t *output, int stride,
                               TX_TYPE tx_type, int bd);

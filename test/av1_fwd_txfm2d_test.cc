@@ -74,7 +74,7 @@ class AV1FwdTxfm2d : public ::testing::TestWithParam<AV1FwdTxfm2dParam> {
       }
 
 #if CONFIG_MODE_DEP_TX
-      fwd_txfm_(input_, output_, tx_width_, tx_type_, 1, bd);
+      fwd_txfm_(input_, output_, tx_width_, tx_type_, 0, bd);
 #else
       fwd_txfm_(input_, output_, tx_width_, tx_type_, bd);
 #endif
@@ -280,7 +280,7 @@ void AV1FwdTxfm2dMatchTest(TX_SIZE tx_size, lowbd_fwd_txfm_func target_func) {
 #endif
         param.bd = bd;
 #if CONFIG_MODE_DEP_TX
-        ref_func(input, ref_output, input_stride, (TX_TYPE)tx_type, 1, bd);
+        ref_func(input, ref_output, input_stride, (TX_TYPE)tx_type, 0, bd);
 #else
         ref_func(input, ref_output, input_stride, (TX_TYPE)tx_type, bd);
 #endif
@@ -343,7 +343,7 @@ void AV1FwdTxfm2dSpeedTest(TX_SIZE tx_size, lowbd_fwd_txfm_func target_func) {
         aom_usec_timer_start(&ref_timer);
         for (int i = 0; i < num_loops; ++i) {
 #if CONFIG_MODE_DEP_TX
-          ref_func(input, ref_output, input_stride, (TX_TYPE)tx_type, 1, bd);
+          ref_func(input, ref_output, input_stride, (TX_TYPE)tx_type, 0, bd);
 #else
           ref_func(input, ref_output, input_stride, (TX_TYPE)tx_type, bd);
 #endif
@@ -486,7 +486,7 @@ void AV1HighbdFwdTxfm2dMatchTest(TX_SIZE tx_size,
           param.bd = bd;
 
 #if CONFIG_MODE_DEP_TX
-          ref_func(input, ref_output, input_stride, (TX_TYPE)tx_type, 1, bd);
+          ref_func(input, ref_output, input_stride, (TX_TYPE)tx_type, 0, bd);
 #else
           ref_func(input, ref_output, input_stride, (TX_TYPE)tx_type, bd);
 #endif
@@ -552,7 +552,7 @@ void AV1HighbdFwdTxfm2dSpeedTest(TX_SIZE tx_size,
         aom_usec_timer_start(&ref_timer);
         for (int i = 0; i < num_loops; ++i) {
 #if CONFIG_MODE_DEP_TX
-          ref_func(input, ref_output, input_stride, (TX_TYPE)tx_type, 1, bd);
+          ref_func(input, ref_output, input_stride, (TX_TYPE)tx_type, 0, bd);
 #else
           ref_func(input, ref_output, input_stride, (TX_TYPE)tx_type, bd);
 #endif

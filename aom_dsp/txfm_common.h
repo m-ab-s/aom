@@ -33,7 +33,7 @@ typedef struct txfm_param {
   int is_hbd;
   TxSetType tx_set_type;
 #if CONFIG_MODE_DEP_TX
-  int is_inter;
+  PREDICTION_MODE mode;
 #endif
   // for inverse transforms only
   int eob;

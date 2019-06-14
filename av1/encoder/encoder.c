@@ -262,7 +262,7 @@ void analyze_hor_freq(const AV1_COMP *cpi, double *energy) {
       for (int j = 0; j < width - 16; j += 16) {
 #if CONFIG_MODE_DEP_TX
         av1_fwd_txfm2d_16x4(src16 + i * buf->y_stride + j, coeff, buf->y_stride,
-                            H_DCT, 1, bd);
+                            H_DCT, 0, bd);
 #else
         av1_fwd_txfm2d_16x4(src16 + i * buf->y_stride + j, coeff, buf->y_stride,
                             H_DCT, bd);
@@ -288,7 +288,7 @@ void analyze_hor_freq(const AV1_COMP *cpi, double *energy) {
             src16[ii * 16 + jj] =
                 buf->y_buffer[(i + ii) * buf->y_stride + (j + jj)];
 #if CONFIG_MODE_DEP_TX
-        av1_fwd_txfm2d_16x4(src16, coeff, 16, H_DCT, 1, bd);
+        av1_fwd_txfm2d_16x4(src16, coeff, 16, H_DCT, 0, bd);
 #else
         av1_fwd_txfm2d_16x4(src16, coeff, 16, H_DCT, bd);
 #endif

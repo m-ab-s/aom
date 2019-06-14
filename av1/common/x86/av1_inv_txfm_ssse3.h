@@ -226,7 +226,7 @@ void av1_lowbd_inv_txfm2d_add_ssse3(const int32_t *input, uint8_t *output,
                                     int stride, TX_TYPE tx_type,
                                     TX_SIZE tx_size,
 #if CONFIG_MODE_DEP_TX
-                                    int is_inter,
+                                    PREDICTION_MODE mode,
 #endif
                                     int eob);
 #ifdef __cplusplus

@@ -1577,11 +1577,11 @@ static const transform_1d_avx2 row_txfm16x16_arr[TX_TYPES] = {
 static void lowbd_fwd_txfm2d_16x16_avx2(const int16_t *input, int32_t *output,
                                         int stride, TX_TYPE tx_type,
 #if CONFIG_MODE_DEP_TX
-                                        int is_inter,
+                                        PREDICTION_MODE mode,
 #endif
                                         int bd) {
 #if CONFIG_MODE_DEP_TX
-  (void)is_inter;
+  (void)mode;
 #endif
   (void)bd;
   const TX_SIZE tx_size = TX_16X16;
@@ -1625,11 +1625,11 @@ static void lowbd_fwd_txfm2d_16x16_avx2(const int16_t *input, int32_t *output,
 static void lowbd_fwd_txfm2d_32x32_avx2(const int16_t *input, int32_t *output,
                                         int stride, TX_TYPE tx_type,
 #if CONFIG_MODE_DEP_TX
-                                        int is_inter,
+                                        PREDICTION_MODE mode,
 #endif
                                         int bd) {
 #if CONFIG_MODE_DEP_TX
-  (void)is_inter;
+  (void)mode;
 #endif
   (void)bd;
   const TX_SIZE tx_size = TX_32X32;
@@ -1683,11 +1683,11 @@ static void lowbd_fwd_txfm2d_32x32_avx2(const int16_t *input, int32_t *output,
 static void lowbd_fwd_txfm2d_64x64_avx2(const int16_t *input, int32_t *output,
                                         int stride, TX_TYPE tx_type,
 #if CONFIG_MODE_DEP_TX
-                                        int is_inter,
+                                        PREDICTION_MODE mode,
 #endif
                                         int bd) {
 #if CONFIG_MODE_DEP_TX
-  (void)is_inter;
+  (void)mode;
 #endif
   (void)bd;
   (void)tx_type;
@@ -1740,11 +1740,11 @@ static void lowbd_fwd_txfm2d_64x64_avx2(const int16_t *input, int32_t *output,
 static void lowbd_fwd_txfm2d_16x32_avx2(const int16_t *input, int32_t *output,
                                         int stride, TX_TYPE tx_type,
 #if CONFIG_MODE_DEP_TX
-                                        int is_inter,
+                                        PREDICTION_MODE mode,
 #endif
                                         int bd) {
 #if CONFIG_MODE_DEP_TX
-  (void)is_inter;
+  (void)mode;
 #endif
   (void)bd;
   const TX_SIZE tx_size = TX_16X32;
@@ -1792,11 +1792,11 @@ static void lowbd_fwd_txfm2d_16x32_avx2(const int16_t *input, int32_t *output,
 static void lowbd_fwd_txfm2d_32x16_avx2(const int16_t *input, int32_t *output,
                                         int stride, TX_TYPE tx_type,
 #if CONFIG_MODE_DEP_TX
-                                        int is_inter,
+                                        PREDICTION_MODE mode,
 #endif
                                         int bd) {
 #if CONFIG_MODE_DEP_TX
-  (void)is_inter;
+  (void)mode;
 #endif
   (void)bd;
   __m256i buf0[32], buf1[64];
@@ -1845,11 +1845,11 @@ static void lowbd_fwd_txfm2d_32x16_avx2(const int16_t *input, int32_t *output,
 static void lowbd_fwd_txfm2d_64x32_avx2(const int16_t *input, int32_t *output,
                                         int stride, TX_TYPE tx_type,
 #if CONFIG_MODE_DEP_TX
-                                        int is_inter,
+                                        PREDICTION_MODE mode,
 #endif
                                         int bd) {
 #if CONFIG_MODE_DEP_TX
-  (void)is_inter;
+  (void)mode;
 #endif
   (void)bd;
   const TX_SIZE tx_size = TX_64X32;
@@ -1900,11 +1900,11 @@ static void lowbd_fwd_txfm2d_64x32_avx2(const int16_t *input, int32_t *output,
 static void lowbd_fwd_txfm2d_32x64_avx2(const int16_t *input, int32_t *output,
                                         int stride, TX_TYPE tx_type,
 #if CONFIG_MODE_DEP_TX
-                                        int is_inter,
+                                        PREDICTION_MODE mode,
 #endif
                                         int bd) {
 #if CONFIG_MODE_DEP_TX
-  (void)is_inter;
+  (void)mode;
 #endif
   (void)bd;
   (void)tx_type;
@@ -1957,11 +1957,11 @@ static void lowbd_fwd_txfm2d_32x64_avx2(const int16_t *input, int32_t *output,
 static void lowbd_fwd_txfm2d_16x64_avx2(const int16_t *input, int32_t *output,
                                         int stride, TX_TYPE tx_type,
 #if CONFIG_MODE_DEP_TX
-                                        int is_inter,
+                                        PREDICTION_MODE mode,
 #endif
                                         int bd) {
 #if CONFIG_MODE_DEP_TX
-  (void)is_inter;
+  (void)mode;
 #endif
   (void)bd;
   (void)tx_type;
@@ -2008,11 +2008,11 @@ static void lowbd_fwd_txfm2d_16x64_avx2(const int16_t *input, int32_t *output,
 static void lowbd_fwd_txfm2d_64x16_avx2(const int16_t *input, int32_t *output,
                                         int stride, TX_TYPE tx_type,
 #if CONFIG_MODE_DEP_TX
-                                        int is_inter,
+                                        PREDICTION_MODE mode,
 #endif
                                         int bd) {
 #if CONFIG_MODE_DEP_TX
-  (void)is_inter;
+  (void)mode;
 #endif
   (void)bd;
   (void)tx_type;
@@ -2753,11 +2753,11 @@ static const transform_1d_sse2 row_txfm16x8_arr[TX_TYPES] = {
 static void lowbd_fwd_txfm2d_8x16_avx2(const int16_t *input, int32_t *output,
                                        int stride, TX_TYPE tx_type,
 #if CONFIG_MODE_DEP_TX
-                                       int is_inter,
+                                       PREDICTION_MODE mode,
 #endif
                                        int bd) {
 #if CONFIG_MODE_DEP_TX
-  (void)is_inter;
+  (void)mode;
 #endif
   (void)bd;
   __m128i buf0[16], buf1[16];
@@ -2805,11 +2805,11 @@ static void lowbd_fwd_txfm2d_8x16_avx2(const int16_t *input, int32_t *output,
 static void lowbd_fwd_txfm2d_16x8_avx2(const int16_t *input, int32_t *output,
                                        int stride, TX_TYPE tx_type,
 #if CONFIG_MODE_DEP_TX
-                                       int is_inter,
+                                       PREDICTION_MODE mode,
 #endif
                                        int bd) {
 #if CONFIG_MODE_DEP_TX
-  (void)is_inter;
+  (void)mode;
 #endif
   (void)bd;
   __m128i buf0[16], buf1[16];
@@ -2887,7 +2887,7 @@ void av1_lowbd_fwd_txfm_avx2(const int16_t *src_diff, tran_low_t *coeff,
   } else {
 #if CONFIG_MODE_DEP_TX
     fwd_txfm2d_func(src_diff, coeff, diff_stride, txfm_param->tx_type,
-                    txfm_param->is_inter, txfm_param->bd);
+                    txfm_param->mode, txfm_param->bd);
 #else
     fwd_txfm2d_func(src_diff, coeff, diff_stride, txfm_param->tx_type,
                     txfm_param->bd);
