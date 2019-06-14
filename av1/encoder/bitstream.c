@@ -849,11 +849,12 @@ void av1_write_tx_type(const AV1_COMMON *const cm, const MACROBLOCKD *xd,
     assert(av1_ext_tx_used[tx_set_type][tx_type]);
     if (is_inter) {
 #if CONFIG_MODE_DEP_TX && USE_MDTX_INTER
-      if (tx_set_type == EXT_TX_SET_ALL16_MDTX) {
-        aom_write_symbol(w, tx_type >= MDTX1_MDTX1,
-                         ec_ctx->use_mdtx_inter_cdf[square_tx_size], 2);
-        if (tx_type >= MDTX1_MDTX1) {
-          aom_write_symbol(w, tx_type - MDTX1_MDTX1,
+      if (tx_set_type == EXT_TX_SET_ALL16_MDTX8) {
+        int is_mdtx = tx_type >= MDTX_INTER_1 && tx_type <= MDTX_INTER_8;
+        aom_write_symbol(w, is_mdtx, ec_ctx->use_mdtx_inter_cdf[square_tx_size],
+                         2);
+        if (is_mdtx) {
+          aom_write_symbol(w, tx_type - MDTX_INTER_1,
                            ec_ctx->mdtx_type_inter_cdf[square_tx_size],
                            MDTX_TYPES_INTER);
         } else {
@@ -883,11 +884,12 @@ void av1_write_tx_type(const AV1_COMMON *const cm, const MACROBLOCKD *xd,
       else
         intra_dir = mbmi->mode;
 #if CONFIG_MODE_DEP_TX && USE_MDTX_INTRA
-      if (tx_set_type == EXT_TX_SET_DTT4_IDTX_1DDCT_MDTX) {
-        aom_write_symbol(w, tx_type >= MDTX1_MDTX1,
-                         ec_ctx->use_mdtx_intra_cdf[square_tx_size], 2);
-        if (tx_type >= MDTX1_MDTX1) {
-          aom_write_symbol(w, tx_type - MDTX1_MDTX1,
+      if (tx_set_type == EXT_TX_SET_DTT4_IDTX_1DDCT_MDTX3) {
+        int is_mdtx = tx_type >= MDTX_INTRA_1 && tx_type <= MDTX_INTRA_3;
+        aom_write_symbol(w, is_mdtx, ec_ctx->use_mdtx_intra_cdf[square_tx_size],
+                         2);
+        if (is_mdtx) {
+          aom_write_symbol(w, tx_type - MDTX_INTRA_1,
                            ec_ctx->mdtx_type_intra_cdf[square_tx_size],
                            MDTX_TYPES_INTRA);
         } else {

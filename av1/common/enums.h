@@ -230,6 +230,14 @@ enum {
   TX_TYPES_1D,
 } UENUM1BYTE(TX_TYPE_1D);
 
+#if CONFIG_MODE_DEP_TX
+#define USE_MDTX_INTER 1
+#define USE_MDTX_INTRA 1
+#define TX_TYPES_NOMDTX 16
+#define MDTX_TYPES_INTER 8
+#define MDTX_TYPES_INTRA 3
+#endif
+
 enum {
   DCT_DCT,            // DCT in both horizontal and vertical
   ADST_DCT,           // ADST in vertical, DCT in horizontal
@@ -248,22 +256,26 @@ enum {
   V_FLIPADST,         // FLIPADST in vertical, identity in horizontal
   H_FLIPADST,         // Identity in vertical, FLIPADST in horizontal
 #if CONFIG_MODE_DEP_TX
-  MDTX1_MDTX1,
-  MDTX1_DCT,
-  DCT_MDTX1,
-  MDTX2_MDTX2,
-  MDTX2_DCT,
-  DCT_MDTX2,
-  MDTX2_MDTX1,
-  MDTX1_MDTX2,
+#if USE_MDTX_INTRA
+  // 3 mode-dependent tx for intra
+  MDTX_INTRA_1,
+  MDTX_INTRA_2,
+  MDTX_INTRA_3,
+#endif
+#if USE_MDTX_INTER
+  // 8 mode-dependent tx for inter
+  MDTX_INTER_1,
+  MDTX_INTER_2,
+  MDTX_INTER_3,
+  MDTX_INTER_4,
+  MDTX_INTER_5,
+  MDTX_INTER_6,
+  MDTX_INTER_7,
+  MDTX_INTER_8,
+#endif
 #endif
   TX_TYPES,
 } UENUM1BYTE(TX_TYPE);
-
-#if CONFIG_MODE_DEP_TX
-#define USE_MDTX_INTER 1
-#define USE_MDTX_INTRA 1
-#endif
 
 enum {
   REG_REG,
@@ -287,7 +299,7 @@ enum {
 #if CONFIG_MODE_DEP_TX && USE_MDTX_INTRA
   // Discrete Trig transforms w/o flip (4) + Identity (1) + 1D Hor/vert DCT (2)
   //  + DCT w/ 1 MDTX (2) + MDTX1_MDTX1 (1)
-  EXT_TX_SET_DTT4_IDTX_1DDCT_MDTX,
+  EXT_TX_SET_DTT4_IDTX_1DDCT_MDTX3,
 #else
   // Discrete Trig transforms w/o flip (4) + Identity (1) + 1D Hor/vert DCT (2)
   EXT_TX_SET_DTT4_IDTX_1DDCT,
@@ -297,7 +309,7 @@ enum {
 #if CONFIG_MODE_DEP_TX && USE_MDTX_INTER
   // Discrete Trig transforms w/ flip (9) + Identity (1) + 1D Hor/Ver (6)
   //  + DCT w/ 2 MDTXs (4) + 2 MDTXs (4)
-  EXT_TX_SET_ALL16_MDTX,
+  EXT_TX_SET_ALL16_MDTX8,
 #else
   // Discrete Trig transforms w/ flip (9) + Identity (1) + 1D Hor/Ver (6)
   EXT_TX_SET_ALL16,
@@ -306,9 +318,6 @@ enum {
 } UENUM1BYTE(TxSetType);
 
 #if CONFIG_MODE_DEP_TX
-#define TX_TYPES_NOMDTX 16
-#define MDTX_TYPES_INTER 8
-#define MDTX_TYPES_INTRA 3
 #define IS_2D_TRANSFORM(tx_type) (tx_type < IDTX || tx_type > H_FLIPADST)
 #else
 #define IS_2D_TRANSFORM(tx_type) (tx_type < IDTX)

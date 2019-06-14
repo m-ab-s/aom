@@ -650,11 +650,11 @@ void av1_read_tx_type(const AV1_COMMON *const cm, MACROBLOCKD *xd, int blk_row,
     FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
     if (inter_block) {
 #if CONFIG_MODE_DEP_TX && USE_MDTX_INTER
-      if (tx_set_type == EXT_TX_SET_ALL16_MDTX) {
+      if (tx_set_type == EXT_TX_SET_ALL16_MDTX8) {
         if (aom_read_symbol(r, ec_ctx->use_mdtx_inter_cdf[square_tx_size], 2,
                             ACCT_STR)) {
           *tx_type =
-              MDTX1_MDTX1 +
+              MDTX_INTER_1 +
               aom_read_symbol(r, ec_ctx->mdtx_type_inter_cdf[square_tx_size],
                               MDTX_TYPES_INTER, ACCT_STR);
         } else {
@@ -683,11 +683,11 @@ void av1_read_tx_type(const AV1_COMMON *const cm, MACROBLOCKD *xd, int blk_row,
       }
 #endif  // CONFIG_ADAPT_FILTER_INTRA
 #if CONFIG_MODE_DEP_TX && USE_MDTX_INTRA
-      if (tx_set_type == EXT_TX_SET_DTT4_IDTX_1DDCT_MDTX) {
+      if (tx_set_type == EXT_TX_SET_DTT4_IDTX_1DDCT_MDTX3) {
         if (aom_read_symbol(r, ec_ctx->use_mdtx_intra_cdf[square_tx_size], 2,
                             ACCT_STR)) {
           *tx_type =
-              MDTX1_MDTX1 +
+              MDTX_INTRA_1 +
               aom_read_symbol(r, ec_ctx->mdtx_type_intra_cdf[square_tx_size],
                               MDTX_TYPES_INTRA, ACCT_STR);
         } else {

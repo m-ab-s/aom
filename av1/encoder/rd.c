@@ -73,7 +73,7 @@ static const int av1_ext_tx_set_idx_to_type[2][AOMMAX(EXT_TX_SETS_INTRA,
       // Intra
       EXT_TX_SET_DCTONLY,
 #if CONFIG_MODE_DEP_TX && USE_MDTX_INTRA
-      EXT_TX_SET_DTT4_IDTX_1DDCT_MDTX,
+      EXT_TX_SET_DTT4_IDTX_1DDCT_MDTX3,
 #else
       EXT_TX_SET_DTT4_IDTX_1DDCT,
 #endif
@@ -83,7 +83,7 @@ static const int av1_ext_tx_set_idx_to_type[2][AOMMAX(EXT_TX_SETS_INTRA,
       // Inter
       EXT_TX_SET_DCTONLY,
 #if CONFIG_MODE_DEP_TX && USE_MDTX_INTER
-      EXT_TX_SET_ALL16_MDTX,
+      EXT_TX_SET_ALL16_MDTX8,
 #else
       EXT_TX_SET_ALL16,
 #endif

@@ -99,7 +99,7 @@ static INLINE bool IsTxSizeTypeValid(TX_SIZE tx_size, TX_TYPE tx_type) {
     tx_set_type = EXT_TX_SET_DCT_IDTX;
   } else {
 #if CONFIG_MODE_DEP_TX && USE_MDTX_INTER
-    tx_set_type = EXT_TX_SET_ALL16_MDTX;
+    tx_set_type = EXT_TX_SET_ALL16_MDTX8;
 #else
     tx_set_type = EXT_TX_SET_ALL16;
 #endif
