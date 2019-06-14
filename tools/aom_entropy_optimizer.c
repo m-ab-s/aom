@@ -350,17 +350,19 @@ int main(int argc, const char **argv) {
 #endif
 #if USE_MDTX_INTRA
   cts_each_dim[0] = EXT_TX_SIZES;
-  cts_each_dim[1] = 2;
+  cts_each_dim[1] = INTRA_MODES;
+  cts_each_dim[2] = 2;
   optimize_cdf_table(
-      &fc.use_mdtx_intra[0][0], probsfile, 2, cts_each_dim,
+      &fc.use_mdtx_intra[0][0][0], probsfile, 3, cts_each_dim,
       "static const aom_cdf_prob default_use_mdtx_intra[EXT_TX_SIZES]"
-      "[CDF_SIZE(2)]");
+      "[INTRA_MODES][CDF_SIZE(2)]");
 
   cts_each_dim[0] = EXT_TX_SIZES;
-  cts_each_dim[1] = MDTX_TYPES_INTRA;
-  optimize_cdf_table(&fc.mdtx_type_intra[0][0], probsfile, 2, cts_each_dim,
+  cts_each_dim[1] = INTRA_MODES;
+  cts_each_dim[2] = MDTX_TYPES_INTRA;
+  optimize_cdf_table(&fc.mdtx_type_intra[0][0][0], probsfile, 3, cts_each_dim,
                      "static const aom_cdf_prob\n"
-                     "default_mdtx_type_intra[EXT_TX_SIZES]"
+                     "default_mdtx_type_intra[EXT_TX_SIZES][INTRA_MODES]"
                      "[CDF_SIZE(MDTX_TYPES_INTRA)]");
 #endif
 #endif

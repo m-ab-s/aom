@@ -166,8 +166,9 @@ typedef struct frame_contexts {
   aom_cdf_prob use_mdtx_inter_cdf[EXT_TX_SIZES][CDF_SIZE(2)];
 #endif
 #if USE_MDTX_INTRA
-  aom_cdf_prob mdtx_type_intra_cdf[EXT_TX_SIZES][CDF_SIZE(MDTX_TYPES_INTRA)];
-  aom_cdf_prob use_mdtx_intra_cdf[EXT_TX_SIZES][CDF_SIZE(2)];
+  aom_cdf_prob mdtx_type_intra_cdf[EXT_TX_SIZES][INTRA_MODES]
+                                  [CDF_SIZE(MDTX_TYPES_INTRA)];
+  aom_cdf_prob use_mdtx_intra_cdf[EXT_TX_SIZES][INTRA_MODES][CDF_SIZE(2)];
 #endif
   aom_cdf_prob intra_ext_tx_cdf[EXT_TX_SETS_INTRA][EXT_TX_SIZES][INTRA_MODES]
                                [CDF_SIZE(TX_TYPES_NOMDTX)];

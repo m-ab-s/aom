@@ -232,12 +232,16 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, MACROBLOCK *x,
 #endif
 #if USE_MDTX_INTRA
   for (i = TX_4X4; i < EXT_TX_SIZES; ++i) {
-    av1_cost_tokens_from_cdf(x->mdtx_type_intra_costs[i],
-                             fc->mdtx_type_intra_cdf[i], NULL);
+    for (j = 0; j < INTRA_MODES; ++j) {
+      av1_cost_tokens_from_cdf(x->mdtx_type_intra_costs[i][j],
+                               fc->mdtx_type_intra_cdf[i][j], NULL);
+    }
   }
   for (int s = 0; s < EXT_TX_SIZES; ++s) {
-    av1_cost_tokens_from_cdf(x->use_mdtx_intra_costs[s],
-                             fc->use_mdtx_intra_cdf[s], NULL);
+    for (j = 0; j < INTRA_MODES; ++j) {
+      av1_cost_tokens_from_cdf(x->use_mdtx_intra_costs[s][j],
+                               fc->use_mdtx_intra_cdf[s][j], NULL);
+    }
   }
 #endif
 #endif

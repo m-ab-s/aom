@@ -431,24 +431,137 @@ static const aom_cdf_prob default_use_mdtx_inter_cdf[EXT_TX_SIZES]
                                                       { AOM_CDF2(16384) },
                                                       { AOM_CDF2(16384) },
                                                     };
-#endif
+#endif  // USE_MDTX_INTER
 #if USE_MDTX_INTRA
 static const aom_cdf_prob
-    default_mdtx_type_intra_cdf[EXT_TX_SIZES][CDF_SIZE(MDTX_TYPES_INTRA)] = {
-      { AOM_CDF3(10923, 21845) },
-      { AOM_CDF3(10923, 21845) },
-      { AOM_CDF3(10923, 21845) },
-      { AOM_CDF3(10923, 21845) },
-    };
+    default_mdtx_type_intra_cdf[EXT_TX_SIZES][INTRA_MODES]
+                               [CDF_SIZE(MDTX_TYPES_INTRA)] = {
+                                 {
+                                     { AOM_CDF3(10923, 21845) },
+                                     { AOM_CDF3(10923, 21845) },
+                                     { AOM_CDF3(10923, 21845) },
+                                     { AOM_CDF3(10923, 21845) },
+                                     { AOM_CDF3(10923, 21845) },
+                                     { AOM_CDF3(10923, 21845) },
+                                     { AOM_CDF3(10923, 21845) },
+                                     { AOM_CDF3(10923, 21845) },
+                                     { AOM_CDF3(10923, 21845) },
+                                     { AOM_CDF3(10923, 21845) },
+                                     { AOM_CDF3(10923, 21845) },
+                                     { AOM_CDF3(10923, 21845) },
+                                     { AOM_CDF3(10923, 21845) },
+                                 },
+                                 {
+                                     { AOM_CDF3(10923, 21845) },
+                                     { AOM_CDF3(10923, 21845) },
+                                     { AOM_CDF3(10923, 21845) },
+                                     { AOM_CDF3(10923, 21845) },
+                                     { AOM_CDF3(10923, 21845) },
+                                     { AOM_CDF3(10923, 21845) },
+                                     { AOM_CDF3(10923, 21845) },
+                                     { AOM_CDF3(10923, 21845) },
+                                     { AOM_CDF3(10923, 21845) },
+                                     { AOM_CDF3(10923, 21845) },
+                                     { AOM_CDF3(10923, 21845) },
+                                     { AOM_CDF3(10923, 21845) },
+                                     { AOM_CDF3(10923, 21845) },
+                                 },
+                                 {
+                                     { AOM_CDF3(10923, 21845) },
+                                     { AOM_CDF3(10923, 21845) },
+                                     { AOM_CDF3(10923, 21845) },
+                                     { AOM_CDF3(10923, 21845) },
+                                     { AOM_CDF3(10923, 21845) },
+                                     { AOM_CDF3(10923, 21845) },
+                                     { AOM_CDF3(10923, 21845) },
+                                     { AOM_CDF3(10923, 21845) },
+                                     { AOM_CDF3(10923, 21845) },
+                                     { AOM_CDF3(10923, 21845) },
+                                     { AOM_CDF3(10923, 21845) },
+                                     { AOM_CDF3(10923, 21845) },
+                                     { AOM_CDF3(10923, 21845) },
+                                 },
+                                 {
+                                     { AOM_CDF3(10923, 21845) },
+                                     { AOM_CDF3(10923, 21845) },
+                                     { AOM_CDF3(10923, 21845) },
+                                     { AOM_CDF3(10923, 21845) },
+                                     { AOM_CDF3(10923, 21845) },
+                                     { AOM_CDF3(10923, 21845) },
+                                     { AOM_CDF3(10923, 21845) },
+                                     { AOM_CDF3(10923, 21845) },
+                                     { AOM_CDF3(10923, 21845) },
+                                     { AOM_CDF3(10923, 21845) },
+                                     { AOM_CDF3(10923, 21845) },
+                                     { AOM_CDF3(10923, 21845) },
+                                     { AOM_CDF3(10923, 21845) },
+                                 },
+                               };
 
-static const aom_cdf_prob default_use_mdtx_intra_cdf[EXT_TX_SIZES]
+static const aom_cdf_prob default_use_mdtx_intra_cdf[EXT_TX_SIZES][INTRA_MODES]
                                                     [CDF_SIZE(2)] = {
-                                                      { AOM_CDF2(16384) },
-                                                      { AOM_CDF2(16384) },
-                                                      { AOM_CDF2(16384) },
-                                                      { AOM_CDF2(16384) },
+                                                      {
+                                                          { AOM_CDF2(16384) },
+                                                          { AOM_CDF2(16384) },
+                                                          { AOM_CDF2(16384) },
+                                                          { AOM_CDF2(16384) },
+                                                          { AOM_CDF2(16384) },
+                                                          { AOM_CDF2(16384) },
+                                                          { AOM_CDF2(16384) },
+                                                          { AOM_CDF2(16384) },
+                                                          { AOM_CDF2(16384) },
+                                                          { AOM_CDF2(16384) },
+                                                          { AOM_CDF2(16384) },
+                                                          { AOM_CDF2(16384) },
+                                                          { AOM_CDF2(16384) },
+                                                      },
+                                                      {
+                                                          { AOM_CDF2(16384) },
+                                                          { AOM_CDF2(16384) },
+                                                          { AOM_CDF2(16384) },
+                                                          { AOM_CDF2(16384) },
+                                                          { AOM_CDF2(16384) },
+                                                          { AOM_CDF2(16384) },
+                                                          { AOM_CDF2(16384) },
+                                                          { AOM_CDF2(16384) },
+                                                          { AOM_CDF2(16384) },
+                                                          { AOM_CDF2(16384) },
+                                                          { AOM_CDF2(16384) },
+                                                          { AOM_CDF2(16384) },
+                                                          { AOM_CDF2(16384) },
+                                                      },
+                                                      {
+                                                          { AOM_CDF2(16384) },
+                                                          { AOM_CDF2(16384) },
+                                                          { AOM_CDF2(16384) },
+                                                          { AOM_CDF2(16384) },
+                                                          { AOM_CDF2(16384) },
+                                                          { AOM_CDF2(16384) },
+                                                          { AOM_CDF2(16384) },
+                                                          { AOM_CDF2(16384) },
+                                                          { AOM_CDF2(16384) },
+                                                          { AOM_CDF2(16384) },
+                                                          { AOM_CDF2(16384) },
+                                                          { AOM_CDF2(16384) },
+                                                          { AOM_CDF2(16384) },
+                                                      },
+                                                      {
+                                                          { AOM_CDF2(16384) },
+                                                          { AOM_CDF2(16384) },
+                                                          { AOM_CDF2(16384) },
+                                                          { AOM_CDF2(16384) },
+                                                          { AOM_CDF2(16384) },
+                                                          { AOM_CDF2(16384) },
+                                                          { AOM_CDF2(16384) },
+                                                          { AOM_CDF2(16384) },
+                                                          { AOM_CDF2(16384) },
+                                                          { AOM_CDF2(16384) },
+                                                          { AOM_CDF2(16384) },
+                                                          { AOM_CDF2(16384) },
+                                                          { AOM_CDF2(16384) },
+                                                      }
                                                     };
-#endif
+#endif  // USE_MDTX_INTRA
 #endif
 
 static const aom_cdf_prob default_cfl_sign_cdf[CDF_SIZE(CFL_JOINT_SIGNS)] = {

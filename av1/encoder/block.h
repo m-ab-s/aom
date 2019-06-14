@@ -391,8 +391,8 @@ struct macroblock {
   int mdtx_type_inter_costs[EXT_TX_SIZES][MDTX_TYPES_INTER];
 #endif
 #if USE_MDTX_INTRA
-  int use_mdtx_intra_costs[EXT_TX_SIZES][2];
-  int mdtx_type_intra_costs[EXT_TX_SIZES][MDTX_TYPES_INTRA];
+  int use_mdtx_intra_costs[EXT_TX_SIZES][INTRA_MODES][2];
+  int mdtx_type_intra_costs[EXT_TX_SIZES][INTRA_MODES][MDTX_TYPES_INTRA];
 #endif
   int inter_tx_type_costs[EXT_TX_SETS_INTER][EXT_TX_SIZES][TX_TYPES_NOMDTX];
   int intra_tx_type_costs[EXT_TX_SETS_INTRA][EXT_TX_SIZES][INTRA_MODES]

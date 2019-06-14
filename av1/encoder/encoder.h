@@ -489,8 +489,8 @@ typedef struct FRAME_COUNTS {
   unsigned int mdtx_type_inter[EXT_TX_SIZES][MDTX_TYPES_INTER];
 #endif
 #if USE_MDTX_INTRA
-  unsigned int use_mdtx_intra[EXT_TX_SIZES][2];
-  unsigned int mdtx_type_intra[EXT_TX_SIZES][MDTX_TYPES_INTRA];
+  unsigned int use_mdtx_intra[EXT_TX_SIZES][INTRA_MODES][2];
+  unsigned int mdtx_type_intra[EXT_TX_SIZES][INTRA_MODES][MDTX_TYPES_INTRA];
 #endif
   unsigned int inter_ext_tx[EXT_TX_SETS_INTER][EXT_TX_SIZES][TX_TYPES_NOMDTX];
   unsigned int intra_ext_tx[EXT_TX_SETS_INTRA][EXT_TX_SIZES][INTRA_MODES]

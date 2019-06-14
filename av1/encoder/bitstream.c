@@ -886,12 +886,14 @@ void av1_write_tx_type(const AV1_COMMON *const cm, const MACROBLOCKD *xd,
 #if CONFIG_MODE_DEP_TX && USE_MDTX_INTRA
       if (tx_set_type == EXT_TX_SET_DTT4_IDTX_1DDCT_MDTX3) {
         int is_mdtx = tx_type >= MDTX_INTRA_1 && tx_type <= MDTX_INTRA_3;
-        aom_write_symbol(w, is_mdtx, ec_ctx->use_mdtx_intra_cdf[square_tx_size],
+        aom_write_symbol(w, is_mdtx,
+                         ec_ctx->use_mdtx_intra_cdf[square_tx_size][intra_dir],
                          2);
         if (is_mdtx) {
-          aom_write_symbol(w, tx_type - MDTX_INTRA_1,
-                           ec_ctx->mdtx_type_intra_cdf[square_tx_size],
-                           MDTX_TYPES_INTRA);
+          aom_write_symbol(
+              w, tx_type - MDTX_INTRA_1,
+              ec_ctx->mdtx_type_intra_cdf[square_tx_size][intra_dir],
+              MDTX_TYPES_INTRA);
         } else {
           aom_write_symbol(
               w, av1_ext_tx_ind[tx_set_type][tx_type],
