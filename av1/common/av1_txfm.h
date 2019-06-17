@@ -253,12 +253,6 @@ void av1_range_check_buf(int32_t stage, const int32_t *input,
                          const int32_t *buf, int32_t size, int8_t bit);
 #define MAX_TXWH_IDX 5
 
-#if CONFIG_MODE_DEP_TX
-#define USE_KLT 1
-#define USE_GFT 0
-#define USE_LGT 0
-#endif
-
 #ifdef __cplusplus
 }
 #endif  // __cplusplus
