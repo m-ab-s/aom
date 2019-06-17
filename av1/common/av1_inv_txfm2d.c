@@ -288,7 +288,7 @@ static INLINE void inv_txfm2d_add_c(const int32_t *input, uint16_t *output,
   // is_inter here.
   if (txfm_func_col == av1_iddt4 || txfm_func_col == av1_iddt8)
     stage_range_col[0] = is_inter;
-  if (txfm_func_row == av1_iddt4 || txfm_func_col == av1_iddt8)
+  if (txfm_func_row == av1_iddt4 || txfm_func_row == av1_iddt8)
     stage_range_row[0] = is_inter;
 #endif
 

@@ -91,7 +91,7 @@ static INLINE void fwd_txfm2d_c(const int16_t *input, int32_t *output,
   // is_inter here.
   if (txfm_func_col == av1_fddt4 || txfm_func_col == av1_fddt8)
     stage_range_col[0] = is_inter;
-  if (txfm_func_row == av1_fddt4 || txfm_func_col == av1_fddt8)
+  if (txfm_func_row == av1_fddt4 || txfm_func_row == av1_fddt8)
     stage_range_row[0] = is_inter;
 #endif
 
