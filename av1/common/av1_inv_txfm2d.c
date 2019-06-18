@@ -285,11 +285,11 @@ static INLINE void inv_txfm2d_add_c(const int32_t *input, uint16_t *output,
   const TxfmFunc txfm_func_row = inv_txfm_type_to_func(cfg->txfm_type_row);
 #if CONFIG_MODE_DEP_TX
   // For MDTX, the stage_range argument is not required. Instead, we pass
-  // is_inter here.
+  // the prediction mode as side information to 1D transform functions.
   if (txfm_func_col == av1_imdt4 || txfm_func_col == av1_imdt8)
-    stage_range_col[0] = is_inter_mode(mode);
+    stage_range_col[0] = (int)mode;
   if (txfm_func_row == av1_imdt4 || txfm_func_row == av1_imdt8)
-    stage_range_row[0] = is_inter_mode(mode);
+    stage_range_row[0] = (int)mode;
 #endif
 
   // txfm_buf's length is  txfm_size_row * txfm_size_col + 2 *

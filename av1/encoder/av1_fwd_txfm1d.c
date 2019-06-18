@@ -677,8 +677,8 @@ void av1_fdct32_new(const int32_t *input, int32_t *output, int8_t cos_bit,
 void av1_fmdt4(const int32_t *input, int32_t *output, int8_t cos_bit,
                const int8_t *side_info) {
   // The argument side_info is included in a way that the function has the same
-  // signature as other 1D transforms. Here, it is used to carry inter/intra
-  // block information
+  // signature as other 1D transforms. Here, it is used to carry side
+  // information such as prediction mode
   int32_t s[4] = { 0 };
   const int32_t *mdt = mdt4_arr(side_info[0], cos_bit);
   for (int i = 0; i < 4; i++)
