@@ -74,9 +74,9 @@
 #include "av1/encoder/reconinter_enc.h"
 #include "av1/encoder/var_based_part.h"
 
-#if CONFIG_CNN_RESTORATION
+#if CONFIG_CNN_RESTORATION && !CONFIG_LOOP_RESTORE_CNN
 #include "av1/common/cnn_wrapper.h"
-#endif  // CONFIG_CNN_RESTORATION
+#endif  // CONFIG_CNN_RESTORATION && !CONFIG_LOOP_RESTORE_CNN
 
 #define DEFAULT_EXPLICIT_ORDER_HINT_BITS 7
 
@@ -582,9 +582,9 @@ static void dealloc_compressor_data(AV1_COMP *cpi) {
   av1_free_context_buffers(cm);
 
   aom_free_frame_buffer(&cpi->last_frame_uf);
-#if CONFIG_CNN_RESTORATION
+#if CONFIG_CNN_RESTORATION && !CONFIG_LOOP_RESTORE_CNN
   aom_free_frame_buffer(&cpi->cnn_buffer);
-#endif  // CONFIG_CNN_RESTORATION
+#endif  // CONFIG_CNN_RESTORATION && !CONFIG_LOOP_RESTORE_CNN
   av1_free_restoration_buffers(cm);
   aom_free_frame_buffer(&cpi->trial_frame_rst);
   aom_free_frame_buffer(&cpi->scaled_source);
@@ -833,14 +833,14 @@ static void alloc_util_frame_buffers(AV1_COMP *cpi) {
     aom_internal_error(&cm->error, AOM_CODEC_MEM_ERROR,
                        "Failed to allocate last frame buffer");
 
-#if CONFIG_CNN_RESTORATION
+#if CONFIG_CNN_RESTORATION && !CONFIG_LOOP_RESTORE_CNN
   if (aom_realloc_frame_buffer(
           &cpi->cnn_buffer, cm->width, cm->height, seq_params->subsampling_x,
           seq_params->subsampling_y, seq_params->use_highbitdepth,
           cpi->oxcf.border_in_pixels, cm->byte_alignment, NULL, NULL, NULL))
     aom_internal_error(&cm->error, AOM_CODEC_MEM_ERROR,
                        "Failed to allocate CNN frame buffer");
-#endif  // CONFIG_CNN_RESTORATION
+#endif  // CONFIG_CNN_RESTORATION && !CONFIG_LOOP_RESTORE_CNN
 
   if (aom_realloc_frame_buffer(
           &cpi->trial_frame_rst, cm->superres_upscaled_width,
@@ -4141,7 +4141,7 @@ static void loopfilter_frame(AV1_COMP *cpi, AV1_COMMON *cm) {
   end_timing(cpi, loop_filter_time);
 #endif
 
-#if CONFIG_CNN_RESTORATION
+#if CONFIG_CNN_RESTORATION && !CONFIG_LOOP_RESTORE_CNN
   cm->use_cnn = 0;
   if (av1_use_cnn(cm)) {
     int64_t dgd_error = INT64_MAX;
@@ -4186,7 +4186,7 @@ static void loopfilter_frame(AV1_COMP *cpi, AV1_COMMON *cm) {
   }
 #else
   cdef_restoration_frame(cpi, cm, xd, use_cdef, use_restoration);
-#endif  // CONFIG_CNN_RESTORATION
+#endif  // CONFIG_CNN_RESTORATION && !CONFIG_LOOP_RESTORE_CNN
 }
 
 static void fix_interp_filter(InterpFilter *const interp_filter,
@@ -5118,9 +5118,9 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
     cm->rst_info[0].frame_restoration_type = RESTORE_NONE;
     cm->rst_info[1].frame_restoration_type = RESTORE_NONE;
     cm->rst_info[2].frame_restoration_type = RESTORE_NONE;
-#if CONFIG_CNN_RESTORATION
+#if CONFIG_CNN_RESTORATION && !CONFIG_LOOP_RESTORE_CNN
     cm->use_cnn = 0;
-#endif  // CONFIG_CNN_RESTORATION
+#endif  // CONFIG_CNN_RESTORATION && !CONFIG_LOOP_RESTORE_CNN
   }
 
   // TODO(debargha): Fix mv search range on encoder side

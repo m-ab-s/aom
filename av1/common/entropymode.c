@@ -1014,14 +1014,24 @@ static const aom_cdf_prob
     };
 #endif  // CONFIG_ADAPT_FILTER_INTRA
 
+#if CONFIG_LOOP_RESTORE_CNN
+static const aom_cdf_prob default_switchable_restore_cdf[CDF_SIZE(
+    RESTORE_SWITCHABLE_TYPES)] = { AOM_CDF4(6000, 14000, 22500) };
+#else
 static const aom_cdf_prob default_switchable_restore_cdf[CDF_SIZE(
     RESTORE_SWITCHABLE_TYPES)] = { AOM_CDF3(9413, 22581) };
+#endif  // CONFIG_LOOP_RESTORE_CNN
 
 static const aom_cdf_prob default_wiener_restore_cdf[CDF_SIZE(2)] = { AOM_CDF2(
     11570) };
 
 static const aom_cdf_prob default_sgrproj_restore_cdf[CDF_SIZE(2)] = { AOM_CDF2(
     16855) };
+
+#if CONFIG_LOOP_RESTORE_CNN
+static const aom_cdf_prob default_cnn_restore_cdf[CDF_SIZE(2)] = { AOM_CDF2(
+    20000) };
+#endif  // CONFIG_LOOP_RESTORE_CNN
 
 static const aom_cdf_prob default_delta_q_cdf[CDF_SIZE(DELTA_Q_PROBS + 1)] = {
   AOM_CDF4(28160, 32120, 32677)
@@ -1204,6 +1214,9 @@ static void init_mode_probs(FRAME_CONTEXT *fc) {
   av1_copy(fc->switchable_restore_cdf, default_switchable_restore_cdf);
   av1_copy(fc->wiener_restore_cdf, default_wiener_restore_cdf);
   av1_copy(fc->sgrproj_restore_cdf, default_sgrproj_restore_cdf);
+#if CONFIG_LOOP_RESTORE_CNN
+  av1_copy(fc->cnn_restore_cdf, default_cnn_restore_cdf);
+#endif  // CONFIG_LOOP_RESTORE_CNN
   av1_copy(fc->y_mode_cdf, default_if_y_mode_cdf);
   av1_copy(fc->uv_mode_cdf, default_uv_mode_cdf);
   av1_copy(fc->switchable_interp_cdf, default_switchable_interp_cdf);

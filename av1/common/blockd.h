@@ -446,6 +446,13 @@ typedef struct {
   int xqd[2];
 } SgrprojInfo;
 
+#if CONFIG_LOOP_RESTORE_CNN
+typedef struct {
+  FRAME_TYPE frame_type;
+  int base_qindex;
+} CNNInfo;
+#endif  // CONFIG_LOOP_RESTORE_CNN
+
 #if CONFIG_DEBUG
 #define CFL_SUB8X8_VAL_MI_SIZE (4)
 #define CFL_SUB8X8_VAL_MI_SQUARE \

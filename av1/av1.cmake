@@ -357,7 +357,7 @@ if(CONFIG_INTERNAL_STATS)
   list(APPEND AOM_AV1_ENCODER_SOURCES "${AOM_ROOT}/av1/encoder/blockiness.c")
 endif()
 
-if(CONFIG_CNN_RESTORATION)
+if(CONFIG_CNN_RESTORATION OR CONFIG_LOOP_RESTORE_CNN)
   list(APPEND AOM_AV1_COMMON_SOURCES "${AOM_ROOT}/av1/common/cnn_wrapper.c"
               "${AOM_ROOT}/av1/common/cnn_wrapper.h")
 endif()

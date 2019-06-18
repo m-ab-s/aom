@@ -255,6 +255,9 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, MACROBLOCK *x,
                            NULL);
   av1_cost_tokens_from_cdf(x->sgrproj_restore_cost, fc->sgrproj_restore_cdf,
                            NULL);
+#if CONFIG_LOOP_RESTORE_CNN
+  av1_cost_tokens_from_cdf(x->cnn_restore_cost, fc->cnn_restore_cdf, NULL);
+#endif  // CONFIG_LOOP_RESTORE_CNN
   av1_cost_tokens_from_cdf(x->intrabc_cost, fc->intrabc_cdf, NULL);
 
   if (!frame_is_intra_only(cm)) {

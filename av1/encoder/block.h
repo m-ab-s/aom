@@ -406,6 +406,9 @@ struct macroblock {
   int switchable_restore_cost[RESTORE_SWITCHABLE_TYPES];
   int wiener_restore_cost[2];
   int sgrproj_restore_cost[2];
+#if CONFIG_LOOP_RESTORE_CNN
+  int cnn_restore_cost[2];
+#endif  // CONFIG_LOOP_RESTORE_CNN
   int intrabc_cost[2];
 
   // Used to store sub partition's choices.

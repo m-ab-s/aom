@@ -509,6 +509,9 @@ typedef struct FRAME_COUNTS {
   unsigned int switchable_restore[RESTORE_SWITCHABLE_TYPES];
   unsigned int wiener_restore[2];
   unsigned int sgrproj_restore[2];
+#if CONFIG_LOOP_RESTORE_CNN
+  unsigned int cnn_restore[2];
+#endif  // CONFIG_LOOP_RESTORE_CNN
 #endif  // CONFIG_ENTROPY_STATS
 
   unsigned int switchable_interp[SWITCHABLE_FILTER_CONTEXTS]

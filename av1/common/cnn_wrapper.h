@@ -32,6 +32,9 @@ void av1_encode_restore_cnn(AV1_COMMON *cm, AVxWorker *workers,
 void av1_decode_restore_cnn(AV1_COMMON *cm, AVxWorker *workers,
                             int num_workers);
 
+const CNN_CONFIG *av1_get_cnn_config_from_qindex(int qindex,
+                                                 FRAME_TYPE frame_type);
+
 #ifdef __cplusplus
 }
 #endif

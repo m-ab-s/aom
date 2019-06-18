@@ -188,6 +188,9 @@ typedef struct {
   RestorationType restoration_type;
   WienerInfo wiener_info;
   SgrprojInfo sgrproj_info;
+#if CONFIG_LOOP_RESTORE_CNN
+  CNNInfo cnn_info;
+#endif  // CONFIG_LOOP_RESTORE_CNN
 } RestorationUnitInfo;
 
 // A restoration line buffer needs space for two lines plus a horizontal filter
@@ -269,6 +272,8 @@ typedef struct FilterFrameCtxt {
   uint8_t *data8, *dst8;
   int data_stride, dst_stride;
   AV1PixelRect tile_rect;
+  int base_qindex;
+  FRAME_TYPE frame_type;
 } FilterFrameCtxt;
 
 typedef struct AV1LrStruct {

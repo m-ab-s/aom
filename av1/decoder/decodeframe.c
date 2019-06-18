@@ -62,9 +62,9 @@
 #include "av1/decoder/decodetxb.h"
 #include "av1/decoder/detokenize.h"
 
-#if CONFIG_CNN_RESTORATION
+#if CONFIG_CNN_RESTORATION && !CONFIG_LOOP_RESTORE_CNN
 #include "av1/common/cnn_wrapper.h"
-#endif  // CONFIG_CNN_RESTORATION
+#endif  // CONFIG_CNN_RESTORATION && !CONFIG_LOOP_RESTORE_CNN
 
 #define ACCT_STR __func__
 
@@ -1761,9 +1761,9 @@ static void decode_partition(AV1Decoder *const pbi, ThreadData *const td,
                                                      parse_decode_block };
 
   if (parse_decode_flag & 1) {
-#if CONFIG_CNN_RESTORATION
+#if CONFIG_CNN_RESTORATION && !CONFIG_LOOP_RESTORE_CNN
     if (!cm->use_cnn) {
-#endif  // CONFIG_CNN_RESTORATION
+#endif  // CONFIG_CNN_RESTORATION && !CONFIG_LOOP_RESTORE_CNN
       const int num_planes = av1_num_planes(cm);
       for (int plane = 0; plane < num_planes; ++plane) {
         int rcol0, rcol1, rrow0, rrow1;
@@ -1779,9 +1779,9 @@ static void decode_partition(AV1Decoder *const pbi, ThreadData *const td,
           }
         }
       }
-#if CONFIG_CNN_RESTORATION
+#if CONFIG_CNN_RESTORATION && !CONFIG_LOOP_RESTORE_CNN
     }
-#endif  // CONFIG_CNN_RESTORATION
+#endif  // CONFIG_CNN_RESTORATION && !CONFIG_LOOP_RESTORE_CNN
 
     partition = (bsize < BLOCK_8X8) ? PARTITION_NONE
                                     : read_partition(xd, mi_row, mi_col, reader,
@@ -1968,7 +1968,7 @@ static void setup_segmentation(AV1_COMMON *const cm,
   segfeatures_copy(&cm->cur_frame->seg, seg);
 }
 
-#if CONFIG_CNN_RESTORATION
+#if CONFIG_CNN_RESTORATION && !CONFIG_LOOP_RESTORE_CNN
 static void decode_cnn(AV1_COMMON *cm, struct aom_read_bit_buffer *rb) {
   if (av1_use_cnn(cm)) {
     cm->use_cnn = aom_rb_read_bit(rb);
@@ -1976,7 +1976,7 @@ static void decode_cnn(AV1_COMMON *cm, struct aom_read_bit_buffer *rb) {
     cm->use_cnn = 0;
   }
 }
-#endif  // CONFIG_CNN_RESTORATION
+#endif  // CONFIG_CNN_RESTORATION && !CONFIG_LOOP_RESTORE_CNN
 
 static void decode_restoration_mode(AV1_COMMON *cm,
                                     struct aom_read_bit_buffer *rb) {
@@ -1990,8 +1990,17 @@ static void decode_restoration_mode(AV1_COMMON *cm,
       rsi->frame_restoration_type =
           aom_rb_read_bit(rb) ? RESTORE_SGRPROJ : RESTORE_WIENER;
     } else {
+#if CONFIG_LOOP_RESTORE_CNN
+      if (aom_rb_read_bit(rb)) {
+        rsi->frame_restoration_type = RESTORE_SWITCHABLE;
+      } else {
+        rsi->frame_restoration_type =
+            aom_rb_read_bit(rb) ? RESTORE_CNN : RESTORE_NONE;
+      }
+#else
       rsi->frame_restoration_type =
           aom_rb_read_bit(rb) ? RESTORE_SWITCHABLE : RESTORE_NONE;
+#endif  // CONFIG_LOOP_RESTORE_CNN
     }
     if (rsi->frame_restoration_type != RESTORE_NONE) {
       all_none = 0;
@@ -2154,6 +2163,9 @@ static void loop_restoration_read_sb_coeffs(const AV1_COMMON *const cm,
       case RESTORE_SGRPROJ:
         read_sgrproj_filter(&rui->sgrproj_info, sgrproj_info, r);
         break;
+#if CONFIG_LOOP_RESTORE_CNN
+      case RESTORE_CNN: break;
+#endif  // CONFIG_LOOP_RESTORE_CNN
       default: assert(rui->restoration_type == RESTORE_NONE); break;
     }
   } else if (rsi->frame_restoration_type == RESTORE_WIENER) {
@@ -2171,6 +2183,15 @@ static void loop_restoration_read_sb_coeffs(const AV1_COMMON *const cm,
       rui->restoration_type = RESTORE_NONE;
     }
   }
+#if CONFIG_LOOP_RESTORE_CNN
+  else if (rsi->frame_restoration_type == RESTORE_CNN) {
+    if (aom_read_symbol(r, xd->tile_ctx->cnn_restore_cdf, 2, ACCT_STR)) {
+      rui->restoration_type = RESTORE_CNN;
+    } else {
+      rui->restoration_type = RESTORE_NONE;
+    }
+  }
+#endif  // CONFIG_LOOP_RESTORE_CNN
 }
 
 static void setup_loopfilter(AV1_COMMON *cm, struct aom_read_bit_buffer *rb) {
@@ -5438,18 +5459,18 @@ static int read_uncompressed_header(AV1Decoder *pbi,
   }
 
   setup_loopfilter(cm, rb);
-#if CONFIG_CNN_RESTORATION
+#if CONFIG_CNN_RESTORATION && !CONFIG_LOOP_RESTORE_CNN
   cm->use_cnn = 0;
   if (!cm->coded_lossless) decode_cnn(cm, rb);
   if (!cm->use_cnn) {
-#endif  // CONFIG_CNN_RESTORATION
+#endif  // CONFIG_CNN_RESTORATION && !CONFIG_LOOP_RESTORE_CNN
     if (!cm->coded_lossless && seq_params->enable_cdef) {
       setup_cdef(cm, rb);
     }
     if (!cm->all_lossless && seq_params->enable_restoration) {
       decode_restoration_mode(cm, rb);
     }
-#if CONFIG_CNN_RESTORATION
+#if CONFIG_CNN_RESTORATION && !CONFIG_LOOP_RESTORE_CNN
   } else {
     cm->cdef_info.cdef_bits = 0;
     cm->cdef_info.cdef_strengths[0] = 0;
@@ -5458,7 +5479,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
     cm->rst_info[1].frame_restoration_type = RESTORE_NONE;
     cm->rst_info[2].frame_restoration_type = RESTORE_NONE;
   }
-#endif  // CONFIG_CNN_RESTORATION
+#endif  // CONFIG_CNN_RESTORATION && !CONFIG_LOOP_RESTORE_CNN
 
   cm->tx_mode = read_tx_mode(cm, rb);
   current_frame->reference_mode = read_frame_reference_mode(cm, rb);
@@ -5676,11 +5697,11 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
       }
     }
 
-#if CONFIG_CNN_RESTORATION
+#if CONFIG_CNN_RESTORATION && !CONFIG_LOOP_RESTORE_CNN
     if (cm->use_cnn) {
       av1_decode_restore_cnn(cm, pbi->tile_workers, pbi->num_workers);
     } else {
-#endif  // CONFIG_CNN_RESTORATION
+#endif  // CONFIG_CNN_RESTORATION && !CONFIG_LOOP_RESTORE_CNN
 
       const int do_loop_restoration =
           cm->rst_info[0].frame_restoration_type != RESTORE_NONE ||
@@ -5733,9 +5754,9 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
         }
       }
     }
-#if CONFIG_CNN_RESTORATION
+#if CONFIG_CNN_RESTORATION && !CONFIG_LOOP_RESTORE_CNN
   }
-#endif  // CONFIG_CNN_RESTORATION
+#endif  // CONFIG_CNN_RESTORATION && !CONFIG_LOOP_RESTORE_CNN
 
 #if LOOP_FILTER_BITMASK
   av1_zero_array(cm->lf.lfm, cm->lf.lfm_num);

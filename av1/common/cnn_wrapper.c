@@ -22,22 +22,30 @@
 #include "av1/models/intra_frame_model/qp53.h"
 #include "av1/models/intra_frame_model/qp63.h"
 
-static void av1_restore_cnn_plane_Y_wrapper(
-    AV1_COMMON *cm, int plane, const CNN_THREAD_DATA *thread_data) {
-  // TODO(logangw): Add infrastructure to choose models.
-  int qindex = cm->base_qindex;
+const CNN_CONFIG *av1_get_cnn_config_from_qindex(int qindex,
+                                                 FRAME_TYPE frame_type) {
+  (void)frame_type;
   if (qindex <= MIN_CNN_Q_INDEX) {
-    return;
+    return NULL;
   } else if (qindex < 108) {
-    av1_restore_cnn_plane(cm, &intra_frame_model_qp22, plane, thread_data);
+    return &intra_frame_model_qp22;
   } else if (qindex < 148) {
-    av1_restore_cnn_plane(cm, &intra_frame_model_qp32, plane, thread_data);
+    return &intra_frame_model_qp32;
   } else if (qindex < 192) {
-    av1_restore_cnn_plane(cm, &intra_frame_model_qp43, plane, thread_data);
+    return &intra_frame_model_qp43;
   } else if (qindex < 232) {
-    av1_restore_cnn_plane(cm, &intra_frame_model_qp53, plane, thread_data);
+    return &intra_frame_model_qp53;
   } else {
-    av1_restore_cnn_plane(cm, &intra_frame_model_qp63, plane, thread_data);
+    return &intra_frame_model_qp63;
+  }
+}
+
+static void restore_cnn_plane_wrapper(AV1_COMMON *cm, int plane,
+                                      const CNN_THREAD_DATA *thread_data) {
+  const CNN_CONFIG *config = av1_get_cnn_config_from_qindex(
+      cm->base_qindex, cm->current_frame.frame_type);
+  if (config) {
+    av1_restore_cnn_plane(cm, config, plane, thread_data);
   }
 }
 
@@ -45,11 +53,11 @@ void av1_encode_restore_cnn(AV1_COMMON *cm, AVxWorker *workers,
                             int num_workers) {
   // TODO(logangw): Add mechanism to restore AOM_PLANE_U and AOM_PLANE_V.
   const CNN_THREAD_DATA thread_data = { num_workers, workers };
-  av1_restore_cnn_plane_Y_wrapper(cm, AOM_PLANE_Y, &thread_data);
+  restore_cnn_plane_wrapper(cm, AOM_PLANE_Y, &thread_data);
 }
 
 void av1_decode_restore_cnn(AV1_COMMON *cm, AVxWorker *workers,
                             int num_workers) {
   const CNN_THREAD_DATA thread_data = { num_workers, workers };
-  av1_restore_cnn_plane_Y_wrapper(cm, AOM_PLANE_Y, &thread_data);
+  restore_cnn_plane_wrapper(cm, AOM_PLANE_Y, &thread_data);
 }
