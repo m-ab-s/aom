@@ -194,68 +194,68 @@ TEST_F(CNNTest, TestMultilayerConvolution) {
     12757, 3321,  10908, 10910, 7377,  12204, 12809, 11195,
   };
 
-  CNN_CONFIG cnn_config = { .num_layers = 3,
-                            .is_residue = 0,
-                            .ext_width = 0,
-                            .ext_height = 0,
-                            .strict_bounds = 0,
+  CNN_CONFIG cnn_config = { 3,  // num_layers
+                            0,  // is_residue
+                            0,  // ext_width
+                            0,  // ext_height
+                            0,  // strict_bounds
                             {
                                 {
-                                    .in_channels = 1,
-                                    .filter_width = filter_width,
-                                    .filter_height = filter_height,
-                                    .out_channels = 3,
-                                    .skip_width = 1,
-                                    .skip_height = 1,
-                                    .maxpool = 0,
-                                    .weights = nullptr,
-                                    .bias = nullptr,
-                                    .pad = PADDING_SAME_ZERO,
-                                    .activation = NONE,
-                                    .deconvolve = 0,
-                                    .branch = 0,
-                                    .branch_copy_type = BRANCH_NO_COPY,
-                                    .branch_combine_type = BRANCH_NOC,
-                                    .branch_config = {},
-                                    .bn_params = {},
+                                    1,                  // in_channels
+                                    filter_width,       // filter_width
+                                    filter_height,      // filter_height
+                                    3,                  // out_channels
+                                    1,                  // skip_width
+                                    1,                  // skip_height
+                                    0,                  // maxpool
+                                    nullptr,            // weights
+                                    nullptr,            // bias
+                                    PADDING_SAME_ZERO,  // pad
+                                    NONE,               // activation
+                                    0,                  // deconvolve
+                                    0,                  // branch
+                                    BRANCH_NO_COPY,     // branch_copy_type
+                                    BRANCH_NOC,         // branch_combine_type
+                                    {},                 // branch_config
+                                    {},                 // bn_params
                                 },
                                 {
-                                    .in_channels = 3,
-                                    .filter_width = filter_width,
-                                    .filter_height = filter_height,
-                                    .out_channels = 3,
-                                    .skip_width = 1,
-                                    .skip_height = 1,
-                                    .maxpool = 0,
-                                    .weights = nullptr,
-                                    .bias = nullptr,
-                                    .pad = PADDING_SAME_ZERO,
-                                    .activation = NONE,
-                                    .deconvolve = 0,
-                                    .branch = 0,
-                                    .branch_copy_type = BRANCH_NO_COPY,
-                                    .branch_combine_type = BRANCH_NOC,
-                                    .branch_config = {},
-                                    .bn_params = {},
+                                    3,                  // in_channels
+                                    filter_width,       // filter_width
+                                    filter_height,      // filter_height
+                                    3,                  // out_channels
+                                    1,                  // skip_width
+                                    1,                  // skip_height
+                                    0,                  // maxpool
+                                    nullptr,            // weights
+                                    nullptr,            // bias
+                                    PADDING_SAME_ZERO,  // pad
+                                    NONE,               // activation
+                                    0,                  // deconvolve
+                                    0,                  // branch
+                                    BRANCH_NO_COPY,     // branch_copy_type
+                                    BRANCH_NOC,         // branch_combine_type
+                                    {},                 // branch_config
+                                    {},                 // bn_params
                                 },
                                 {
-                                    .in_channels = 3,
-                                    .filter_width = filter_width,
-                                    .filter_height = filter_height,
-                                    .out_channels = 1,
-                                    .skip_width = 1,
-                                    .skip_height = 1,
-                                    .maxpool = 0,
-                                    .weights = nullptr,
-                                    .bias = nullptr,
-                                    .pad = PADDING_SAME_ZERO,
-                                    .activation = NONE,
-                                    .deconvolve = 0,
-                                    .branch = 0,
-                                    .branch_copy_type = BRANCH_NO_COPY,
-                                    .branch_combine_type = BRANCH_NOC,
-                                    .branch_config = {},
-                                    .bn_params = {},
+                                    3,                  // in_channels
+                                    filter_width,       // filter_width
+                                    filter_height,      // filter_height
+                                    1,                  // out_channels
+                                    1,                  // skip_width
+                                    1,                  // skip_height
+                                    0,                  // maxpool
+                                    nullptr,            // weights
+                                    nullptr,            // bias
+                                    PADDING_SAME_ZERO,  // pad
+                                    NONE,               // activation
+                                    0,                  // deconvolve
+                                    0,                  // branch
+                                    BRANCH_NO_COPY,     // branch_copy_type
+                                    BRANCH_NOC,         // branch_combine_type
+                                    {},                 // branch_config
+                                    {},                 // bn_params
                                 },
                             } };
 
@@ -314,29 +314,29 @@ TEST_F(CNNTest, TestRELUSingleLayer) {
   };
   float bias[] = { -3 };
 
-  CNN_CONFIG cnn_config = { .num_layers = 1,
-                            .is_residue = 0,
-                            .ext_width = 0,
-                            .ext_height = 0,
-                            .strict_bounds = 0,
+  CNN_CONFIG cnn_config = { 1,  // num_layers
+                            0,  // is_residue
+                            0,  // ext_width
+                            0,  // ext_height
+                            0,  // strict_bounds
                             { {
-                                .in_channels = 1,
-                                .filter_width = filter_width,
-                                .filter_height = filter_height,
-                                .out_channels = 1,
-                                .skip_width = 1,
-                                .skip_height = 1,
-                                .maxpool = 0,
-                                .weights = weights,
-                                .bias = bias,
-                                .pad = PADDING_SAME_ZERO,
-                                .activation = RELU,
-                                .deconvolve = 0,
-                                .branch = 0,
-                                .branch_copy_type = BRANCH_NO_COPY,
-                                .branch_combine_type = BRANCH_NOC,
-                                .branch_config = {},
-                                .bn_params = {},
+                                1,                  // in_channels
+                                filter_width,       // filter_width
+                                filter_height,      // filter_height
+                                1,                  // out_channels
+                                1,                  // skip_width
+                                1,                  // skip_height
+                                0,                  // maxpool
+                                weights,            // weights
+                                bias,               // bias
+                                PADDING_SAME_ZERO,  // pad
+                                RELU,               // activation
+                                0,                  // deconvolve
+                                0,                  // branch
+                                BRANCH_NO_COPY,     // branch_copy_type
+                                BRANCH_NOC,         // branch_combine_type
+                                {},                 // branch_config
+                                {},                 // bn_params
                             } } };
 
   CNN_THREAD_DATA thread_data = { 1, NULL };
@@ -363,30 +363,30 @@ TEST_F(CNNTest, TestVaryingStridesVaryingDimImages) {
   };
   float bias[] = { 2 };
 
-  CNN_CONFIG cnn_config = { .num_layers = 1,
-                            .is_residue = 0,
-                            .ext_width = 0,
-                            .ext_height = 0,
-                            .strict_bounds = 0,
+  CNN_CONFIG cnn_config = { 1,  // num_layers
+                            0,  // is_residue
+                            0,  // ext_width
+                            0,  // ext_height
+                            0,  // strict_bounds
                             {
                                 {
-                                    .in_channels = 1,
-                                    .filter_width = 4,
-                                    .filter_height = 11,
-                                    .out_channels = 1,
-                                    .skip_width = 7,
-                                    .skip_height = 6,
-                                    .maxpool = 0,
-                                    .weights = weights,
-                                    .bias = bias,
-                                    .pad = PADDING_SAME_ZERO,
-                                    .activation = NONE,
-                                    .deconvolve = 0,
-                                    .branch = 0,
-                                    .branch_copy_type = BRANCH_NO_COPY,
-                                    .branch_combine_type = BRANCH_NOC,
-                                    .branch_config = {},
-                                    .bn_params = {},
+                                    1,                  // in_channels
+                                    4,                  // filter_width
+                                    11,                 // filter_height
+                                    1,                  // out_channels
+                                    7,                  // skip_width
+                                    6,                  // skip_height
+                                    0,                  // maxpool
+                                    weights,            // weights
+                                    bias,               // bias
+                                    PADDING_SAME_ZERO,  // pad
+                                    NONE,               // activation
+                                    0,                  // deconvolve
+                                    0,                  // branch
+                                    BRANCH_NO_COPY,     // branch_copy_type
+                                    BRANCH_NOC,         // branch_combine_type
+                                    {},                 // branch_config
+                                    {},                 // bn_params
                                 },
                             } };
 
@@ -478,29 +478,29 @@ TEST_F(CNNTest, TestMaxPool) {
     -3,
   };
 
-  CNN_CONFIG cnn_config = { .num_layers = 1,
-                            .is_residue = 0,
-                            .ext_width = 0,
-                            .ext_height = 0,
-                            .strict_bounds = 0,
+  CNN_CONFIG cnn_config = { 1,  // num_layers
+                            0,  // is_residue
+                            0,  // ext_width
+                            0,  // ext_height
+                            0,  // strict_bounds
                             { {
-                                .in_channels = 1,
-                                .filter_width = 3,
-                                .filter_height = 3,
-                                .out_channels = 1,
-                                .skip_width = stride,
-                                .skip_height = stride,
-                                .maxpool = 1,
-                                .weights = weights,
-                                .bias = bias,
-                                .pad = PADDING_SAME_ZERO,
-                                .activation = NONE,
-                                .deconvolve = 0,
-                                .branch = 0,
-                                .branch_copy_type = BRANCH_NO_COPY,
-                                .branch_combine_type = BRANCH_NOC,
-                                .branch_config = {},
-                                .bn_params = {},
+                                1,                  // in_channels
+                                3,                  // filter_width
+                                3,                  // filter_height
+                                1,                  // out_channels
+                                stride,             // skip_width
+                                stride,             // skip_height
+                                1,                  // maxpool
+                                weights,            // weights
+                                bias,               // bias
+                                PADDING_SAME_ZERO,  // pad
+                                NONE,               // activation
+                                0,                  // deconvolve
+                                0,                  // branch
+                                BRANCH_NO_COPY,     // branch_copy_type
+                                BRANCH_NOC,         // branch_combine_type
+                                {},                 // branch_config
+                                {},                 // bn_params
                             } } };
 
   CNN_THREAD_DATA thread_data = { 1, NULL };
@@ -557,29 +557,29 @@ TEST_F(CNNTest, TestDeconvolveNonActivationSingleLayerSingleKernel) {
   float weights_1[] = { -3, 2, -1, 3, 3, 1, 1, -3, -2, -4 };
   float bias_1[] = { -3 };
 
-  CNN_CONFIG cnn_config = { .num_layers = 1,
-                            .is_residue = 0,
-                            .ext_width = 0,
-                            .ext_height = 0,
-                            .strict_bounds = 0,
+  CNN_CONFIG cnn_config = { 1,  // num_layers
+                            0,  // is_residue
+                            0,  // ext_width
+                            0,  // ext_height
+                            0,  // strict_bounds
                             { {
-                                .in_channels = 1,
-                                .filter_width = 5,
-                                .filter_height = 2,
-                                .out_channels = 1,
-                                .skip_width = 2,
-                                .skip_height = 3,
-                                .maxpool = 0,
-                                .weights = weights_1,
-                                .bias = bias_1,
-                                .pad = PADDING_SAME_ZERO,
-                                .activation = NONE,
-                                .deconvolve = 1,
-                                .branch = 0,
-                                .branch_copy_type = BRANCH_NO_COPY,
-                                .branch_combine_type = BRANCH_NOC,
-                                .branch_config = {},
-                                .bn_params = {},
+                                1,                  // in_channels
+                                5,                  // filter_width
+                                2,                  // filter_height
+                                1,                  // out_channels
+                                2,                  // skip_width
+                                3,                  // skip_height
+                                0,                  // maxpool
+                                weights_1,          // weights
+                                bias_1,             // bias
+                                PADDING_SAME_ZERO,  // pad
+                                NONE,               // activation
+                                1,                  // deconvolve
+                                0,                  // branch
+                                BRANCH_NO_COPY,     // branch_copy_type
+                                BRANCH_NOC,         // branch_combine_type
+                                {},                 // branch_config
+                                {},                 // bn_params
                             } } };
 
   CNN_THREAD_DATA thread_data = { 1, NULL };
@@ -829,29 +829,29 @@ TEST_F(CNNTest, TestLargeKernelsAndStrides) {
     118,
   };
 
-  CNN_CONFIG cnn_config = { .num_layers = 1,
-                            .is_residue = 0,
-                            .ext_width = 0,
-                            .ext_height = 0,
-                            .strict_bounds = 0,
+  CNN_CONFIG cnn_config = { 1,  // num_layers
+                            0,  // is_residue
+                            0,  // ext_width
+                            0,  // ext_height
+                            0,  // strict_bounds
                             { {
-                                .in_channels = 1,
-                                .filter_width = 23,
-                                .filter_height = 20,
-                                .out_channels = 1,
-                                .skip_width = 15,
-                                .skip_height = 20,
-                                .maxpool = 0,
-                                .weights = weights_10x11,
-                                .bias = bias_10x11,
-                                .pad = PADDING_SAME_ZERO,
-                                .activation = NONE,
-                                .deconvolve = 0,
-                                .branch = 0,
-                                .branch_copy_type = BRANCH_NO_COPY,
-                                .branch_combine_type = BRANCH_NOC,
-                                .branch_config = {},
-                                .bn_params = {},
+                                1,                  // in_channels
+                                23,                 // filter_width
+                                20,                 // filter_height
+                                1,                  // out_channels
+                                15,                 // skip_width
+                                20,                 // skip_height
+                                0,                  // maxpool
+                                weights_10x11,      // weights
+                                bias_10x11,         // bias
+                                PADDING_SAME_ZERO,  // pad
+                                NONE,               // activation
+                                0,                  // deconvolve
+                                0,                  // branch
+                                BRANCH_NO_COPY,     // branch_copy_type
+                                BRANCH_NOC,         // branch_combine_type
+                                {},                 // branch_config
+                                {},                 // bn_params
                             } } };
 
   int image_height = 10;
@@ -980,29 +980,29 @@ TEST_F(CNNTest, TestSoftsignSingleLayer) {
     0.750f,
   };
 
-  CNN_CONFIG cnn_config = { .num_layers = 1,
-                            .is_residue = 0,
-                            .ext_width = 0,
-                            .ext_height = 0,
-                            .strict_bounds = 0,
+  CNN_CONFIG cnn_config = { 1,  // num_layers
+                            0,  // is_residue
+                            0,  // ext_width
+                            0,  // ext_height
+                            0,  // strict_bounds
                             { {
-                                .in_channels = 1,
-                                .filter_width = filter_width,
-                                .filter_height = filter_height,
-                                .out_channels = 1,
-                                .skip_width = 1,
-                                .skip_height = 1,
-                                .maxpool = 0,
-                                .weights = weights,
-                                .bias = bias,
-                                .pad = PADDING_SAME_ZERO,
-                                .activation = SOFTSIGN,
-                                .deconvolve = 0,
-                                .branch = 0,
-                                .branch_copy_type = BRANCH_NO_COPY,
-                                .branch_combine_type = BRANCH_NOC,
-                                .branch_config = {},
-                                .bn_params = {},
+                                1,                  // in_channels
+                                filter_width,       // filter_width
+                                filter_height,      // filter_height
+                                1,                  // out_channels
+                                1,                  // skip_width
+                                1,                  // skip_height
+                                0,                  // maxpool
+                                weights,            // weights
+                                bias,               // bias
+                                PADDING_SAME_ZERO,  // pad
+                                SOFTSIGN,           // activation
+                                0,                  // deconvolve
+                                0,                  // branch
+                                BRANCH_NO_COPY,     // branch_copy_type
+                                BRANCH_NOC,         // branch_combine_type
+                                {},                 // branch_config
+                                {},                 // bn_params
                             } } };
 
   CNN_THREAD_DATA thread_data = { 1, NULL };
@@ -1053,132 +1053,132 @@ TEST_F(CNNTest, TestBranchTensorAdd) {
 
   int channels = 2;
 
-  CNN_CONFIG cnn_config = { .num_layers = 6,
-                            .is_residue = 0,
-                            .ext_width = 0,
-                            .ext_height = 0,
-                            .strict_bounds = 0,
+  CNN_CONFIG cnn_config = { 6,  // num_layers
+                            0,  // is_residue
+                            0,  // ext_width
+                            0,  // ext_height
+                            0,  // strict_bounds
                             { {
-                                  .in_channels = 1,
-                                  .filter_width = filter_width,
-                                  .filter_height = filter_height,
-                                  .out_channels = channels,
-                                  .skip_width = 1,
-                                  .skip_height = 1,
-                                  .maxpool = 0,
-                                  .weights = weights,
-                                  .bias = bias,
-                                  .pad = PADDING_SAME_ZERO,
-                                  .activation = NONE,
-                                  .deconvolve = 0,
-                                  .branch = 0,
-                                  .branch_copy_type = BRANCH_NO_COPY,
-                                  .branch_combine_type = BRANCH_NOC,
-                                  .branch_config = {},
-                                  .bn_params = {},
+                                  1,    // in_channels
+                                  filter_width,         // filter_width
+                                  filter_height,        // filter_height
+                                  channels,     // out_channels
+                                  1,    // skip_width
+                                  1,    // skip_height
+                                  0,    // maxpool
+                                  weights,      // weights
+                                  bias,         // bias
+                                  PADDING_SAME_ZERO,    // pad
+                                  NONE,         // activation
+                                  0,    // deconvolve
+                                  0,    // branch
+                                  BRANCH_NO_COPY,       // branch_copy_type
+                                  BRANCH_NOC,   // branch_combine_type
+                                  {},   // branch_config
+                                  {},   // bn_params
                               },
                               {
-                                  .in_channels = channels,
-                                  .filter_width = filter_width,
-                                  .filter_height = filter_height,
-                                  .out_channels = channels,
-                                  .skip_width = 1,
-                                  .skip_height = 1,
-                                  .maxpool = 0,
-                                  .weights = nullptr,
-                                  .bias = nullptr,
-                                  .pad = PADDING_SAME_ZERO,
-                                  .activation = NONE,
-                                  .deconvolve = 0,
-                                  .branch = 0,
-                                  .branch_copy_type = BRANCH_INPUT,
-                                  .branch_combine_type = BRANCH_NOC,
+                                  channels,     // in_channels
+                                  filter_width,         // filter_width
+                                  filter_height,        // filter_height
+                                  channels,     // out_channels
+                                  1,    // skip_width
+                                  1,    // skip_height
+                                  0,    // maxpool
+                                  nullptr,      // weights
+                                  nullptr,      // bias
+                                  PADDING_SAME_ZERO,    // pad
+                                  NONE,         // activation
+                                  0,    // deconvolve
+                                  0,    // branch
+                                  BRANCH_INPUT,         // branch_copy_type
+                                  BRANCH_NOC,   // branch_combine_type
                                   .branch_config = {
-                                  .input_to_branches = 0x02,
-                                  .channels_to_copy = 0,
-                                  .branches_to_combine = 0x00,
+                                  0x02,         // input_to_branches
+                                  0,    // channels_to_copy
+                                  0x00,         // branches_to_combine
                                 },
-                                  .bn_params = {},
+                                  {},   // bn_params
                               },
                               {
-                                  .in_channels = channels,
-                                  .filter_width = filter_width,
-                                  .filter_height = filter_height,
-                                  .out_channels = channels,
-                                  .skip_width = 1,
-                                  .skip_height = 1,
-                                  .maxpool = 0,
-                                  .weights = nullptr,
-                                  .bias = nullptr,
-                                  .pad = PADDING_SAME_ZERO,
-                                  .activation = NONE,
-                                  .deconvolve = 0,
-                                  .branch = 1,
-                                  .branch_copy_type = BRANCH_NO_COPY,
-                                  .branch_combine_type = BRANCH_NOC,
-                                  .branch_config = {},
-                                  .bn_params = {},
+                                  channels,     // in_channels
+                                  filter_width,         // filter_width
+                                  filter_height,        // filter_height
+                                  channels,     // out_channels
+                                  1,    // skip_width
+                                  1,    // skip_height
+                                  0,    // maxpool
+                                  nullptr,      // weights
+                                  nullptr,      // bias
+                                  PADDING_SAME_ZERO,    // pad
+                                  NONE,         // activation
+                                  0,    // deconvolve
+                                  1,    // branch
+                                  BRANCH_NO_COPY,       // branch_copy_type
+                                  BRANCH_NOC,   // branch_combine_type
+                                  {},   // branch_config
+                                  {},   // bn_params
                               },
                               {
-                                  .in_channels = channels,
-                                  .filter_width = filter_width,
-                                  .filter_height = filter_height,
-                                  .out_channels = channels,
-                                  .skip_width = 1,
-                                  .skip_height = 1,
-                                  .maxpool = 0,
-                                  .weights = nullptr,
-                                  .bias = nullptr,
-                                  .pad = PADDING_SAME_ZERO,
-                                  .activation = NONE,
-                                  .deconvolve = 0,
-                                  .branch = 1,
-                                  .branch_copy_type = BRANCH_NO_COPY,
-                                  .branch_combine_type = BRANCH_NOC,
-                                  .branch_config = {},
-                                  .bn_params = {},
+                                  channels,     // in_channels
+                                  filter_width,         // filter_width
+                                  filter_height,        // filter_height
+                                  channels,     // out_channels
+                                  1,    // skip_width
+                                  1,    // skip_height
+                                  0,    // maxpool
+                                  nullptr,      // weights
+                                  nullptr,      // bias
+                                  PADDING_SAME_ZERO,    // pad
+                                  NONE,         // activation
+                                  0,    // deconvolve
+                                  1,    // branch
+                                  BRANCH_NO_COPY,       // branch_copy_type
+                                  BRANCH_NOC,   // branch_combine_type
+                                  {},   // branch_config
+                                  {},   // bn_params
                               },
                               {
-                                  .in_channels = channels,
-                                  .filter_width = filter_width,
-                                  .filter_height = filter_height,
-                                  .out_channels = channels,
-                                  .skip_width = 1,
-                                  .skip_height = 1,
-                                  .maxpool = 0,
-                                  .weights = nullptr,
-                                  .bias = nullptr,
-                                  .pad = PADDING_SAME_ZERO,
-                                  .activation = NONE,
-                                  .deconvolve = 0,
-                                  .branch = 0,
-                                  .branch_copy_type = BRANCH_NO_COPY,
-                                  .branch_combine_type = BRANCH_ADD,
+                                  channels,     // in_channels
+                                  filter_width,         // filter_width
+                                  filter_height,        // filter_height
+                                  channels,     // out_channels
+                                  1,    // skip_width
+                                  1,    // skip_height
+                                  0,    // maxpool
+                                  nullptr,      // weights
+                                  nullptr,      // bias
+                                  PADDING_SAME_ZERO,    // pad
+                                  NONE,         // activation
+                                  0,    // deconvolve
+                                  0,    // branch
+                                  BRANCH_NO_COPY,       // branch_copy_type
+                                  BRANCH_ADD,   // branch_combine_type
                                   .branch_config = {
-                                  .input_to_branches = 0x00,
-                                  .channels_to_copy = 0,
-                                  .branches_to_combine = 0x02,
+                                  0x00,         // input_to_branches
+                                  0,    // channels_to_copy
+                                  0x02,         // branches_to_combine
                                 },
-                                  .bn_params = {},
+                                  {},   // bn_params
                               },
                               {
-                                  .in_channels = channels,
-                                  .filter_width = filter_width,
-                                  .filter_height = filter_height,
-                                  .out_channels = 1,
-                                  .skip_width = 1,
-                                  .skip_height = 1,
-                                  .maxpool = 0,
-                                  .weights = nullptr,
-                                  .bias = nullptr,
-                                  .pad = PADDING_SAME_ZERO,
-                                  .activation = NONE,
-                                  .deconvolve = 0,
-                                  .branch = 0,
-                                  .branch_copy_type = BRANCH_NO_COPY,
-                                  .branch_combine_type = BRANCH_NOC,
-                                  .branch_config = {},
-                                  .bn_params = {},
+                                  channels,     // in_channels
+                                  filter_width,         // filter_width
+                                  filter_height,        // filter_height
+                                  1,    // out_channels
+                                  1,    // skip_width
+                                  1,    // skip_height
+                                  0,    // maxpool
+                                  nullptr,      // weights
+                                  nullptr,      // bias
+                                  PADDING_SAME_ZERO,    // pad
+                                  NONE,         // activation
+                                  0,    // deconvolve
+                                  0,    // branch
+                                  BRANCH_NO_COPY,       // branch_copy_type
+                                  BRANCH_NOC,   // branch_combine_type
+                                  {},   // branch_config
+                                  {},   // bn_params
                               } } };
 
   // Weights and biases need to be specified separately because
@@ -1223,132 +1223,132 @@ TEST_F(CNNTest, TestBranchTensorConcatenation) {
 
   int channels = 2;
 
-  CNN_CONFIG cnn_config = { .num_layers = 6,
-                            .is_residue = 0,
-                            .ext_width = 0,
-                            .ext_height = 0,
-                            .strict_bounds = 0,
+  CNN_CONFIG cnn_config = { 6,  // num_layers
+                            0,  // is_residue
+                            0,  // ext_width
+                            0,  // ext_height
+                            0,  // strict_bounds
                             { {
-                                  .in_channels = 1,
-                                  .filter_width = filter_width,
-                                  .filter_height = filter_height,
-                                  .out_channels = channels,
-                                  .skip_width = 1,
-                                  .skip_height = 1,
-                                  .maxpool = 0,
-                                  .weights = weights,
-                                  .bias = bias,
-                                  .pad = PADDING_SAME_ZERO,
-                                  .activation = NONE,
-                                  .deconvolve = 0,
-                                  .branch = 0,
-                                  .branch_copy_type = BRANCH_NO_COPY,
-                                  .branch_combine_type = BRANCH_NOC,
-                                  .branch_config = {},
-                                  .bn_params = {},
+                                  1,    // in_channels
+                                  filter_width,         // filter_width
+                                  filter_height,        // filter_height
+                                  channels,     // out_channels
+                                  1,    // skip_width
+                                  1,    // skip_height
+                                  0,    // maxpool
+                                  weights,      // weights
+                                  bias,         // bias
+                                  PADDING_SAME_ZERO,    // pad
+                                  NONE,         // activation
+                                  0,    // deconvolve
+                                  0,    // branch
+                                  BRANCH_NO_COPY,       // branch_copy_type
+                                  BRANCH_NOC,   // branch_combine_type
+                                  {},   // branch_config
+                                  {},   // bn_params
                               },
                               {
-                                  .in_channels = channels,
-                                  .filter_width = filter_width,
-                                  .filter_height = filter_height,
-                                  .out_channels = channels,
-                                  .skip_width = 1,
-                                  .skip_height = 1,
-                                  .maxpool = 0,
-                                  .weights = nullptr,
-                                  .bias = nullptr,
-                                  .pad = PADDING_SAME_ZERO,
-                                  .activation = NONE,
-                                  .deconvolve = 0,
-                                  .branch = 0,
-                                  .branch_copy_type = BRANCH_INPUT,
-                                  .branch_combine_type = BRANCH_NOC,
+                                  channels,     // in_channels
+                                  filter_width,         // filter_width
+                                  filter_height,        // filter_height
+                                  channels,     // out_channels
+                                  1,    // skip_width
+                                  1,    // skip_height
+                                  0,    // maxpool
+                                  nullptr,      // weights
+                                  nullptr,      // bias
+                                  PADDING_SAME_ZERO,    // pad
+                                  NONE,         // activation
+                                  0,    // deconvolve
+                                  0,    // branch
+                                  BRANCH_INPUT,         // branch_copy_type
+                                  BRANCH_NOC,   // branch_combine_type
                                   .branch_config = {
-                                  .input_to_branches = 0x02,
-                                  .channels_to_copy = 0,
-                                  .branches_to_combine = 0x00,
+                                  0x02,         // input_to_branches
+                                  0,    // channels_to_copy
+                                  0x00,         // branches_to_combine
                                 },
-                                  .bn_params = {},
+                                  {},   // bn_params
                               },
                               {
-                                  .in_channels = channels,
-                                  .filter_width = filter_width,
-                                  .filter_height = filter_height,
-                                  .out_channels = channels,
-                                  .skip_width = 1,
-                                  .skip_height = 1,
-                                  .maxpool = 0,
-                                  .weights = nullptr,
-                                  .bias = nullptr,
-                                  .pad = PADDING_SAME_ZERO,
-                                  .activation = NONE,
-                                  .deconvolve = 0,
-                                  .branch = 1,
-                                  .branch_copy_type = BRANCH_NO_COPY,
-                                  .branch_combine_type = BRANCH_NOC,
-                                  .branch_config = {},
-                                  .bn_params = {},
+                                  channels,     // in_channels
+                                  filter_width,         // filter_width
+                                  filter_height,        // filter_height
+                                  channels,     // out_channels
+                                  1,    // skip_width
+                                  1,    // skip_height
+                                  0,    // maxpool
+                                  nullptr,      // weights
+                                  nullptr,      // bias
+                                  PADDING_SAME_ZERO,    // pad
+                                  NONE,         // activation
+                                  0,    // deconvolve
+                                  1,    // branch
+                                  BRANCH_NO_COPY,       // branch_copy_type
+                                  BRANCH_NOC,   // branch_combine_type
+                                  {},   // branch_config
+                                  {},   // bn_params
                               },
                               {
-                                  .in_channels = channels,
-                                  .filter_width = filter_width,
-                                  .filter_height = filter_height,
-                                  .out_channels = channels,
-                                  .skip_width = 1,
-                                  .skip_height = 1,
-                                  .maxpool = 0,
-                                  .weights = nullptr,
-                                  .bias = nullptr,
-                                  .pad = PADDING_SAME_ZERO,
-                                  .activation = NONE,
-                                  .deconvolve = 0,
-                                  .branch = 1,
-                                  .branch_copy_type = BRANCH_NO_COPY,
-                                  .branch_combine_type = BRANCH_NOC,
-                                  .branch_config = {},
-                                  .bn_params = {},
+                                  channels,     // in_channels
+                                  filter_width,         // filter_width
+                                  filter_height,        // filter_height
+                                  channels,     // out_channels
+                                  1,    // skip_width
+                                  1,    // skip_height
+                                  0,    // maxpool
+                                  nullptr,      // weights
+                                  nullptr,      // bias
+                                  PADDING_SAME_ZERO,    // pad
+                                  NONE,         // activation
+                                  0,    // deconvolve
+                                  1,    // branch
+                                  BRANCH_NO_COPY,       // branch_copy_type
+                                  BRANCH_NOC,   // branch_combine_type
+                                  {},   // branch_config
+                                  {},   // bn_params
                               },
                               {
-                                  .in_channels = channels,
-                                  .filter_width = filter_width,
-                                  .filter_height = filter_height,
-                                  .out_channels = channels,
-                                  .skip_width = 1,
-                                  .skip_height = 1,
-                                  .maxpool = 0,
-                                  .weights = nullptr,
-                                  .bias = nullptr,
-                                  .pad = PADDING_SAME_ZERO,
-                                  .activation = NONE,
-                                  .deconvolve = 0,
-                                  .branch = 0,
-                                  .branch_copy_type = BRANCH_NO_COPY,
-                                  .branch_combine_type = BRANCH_CAT,
+                                  channels,     // in_channels
+                                  filter_width,         // filter_width
+                                  filter_height,        // filter_height
+                                  channels,     // out_channels
+                                  1,    // skip_width
+                                  1,    // skip_height
+                                  0,    // maxpool
+                                  nullptr,      // weights
+                                  nullptr,      // bias
+                                  PADDING_SAME_ZERO,    // pad
+                                  NONE,         // activation
+                                  0,    // deconvolve
+                                  0,    // branch
+                                  BRANCH_NO_COPY,       // branch_copy_type
+                                  BRANCH_CAT,   // branch_combine_type
                                   .branch_config = {
-                                  .input_to_branches = 0x00,
-                                  .channels_to_copy = 0,
-                                  .branches_to_combine = 0x02,
+                                  0x00,         // input_to_branches
+                                  0,    // channels_to_copy
+                                  0x02,         // branches_to_combine
                                 },
-                                  .bn_params = {},
+                                  {},   // bn_params
                               },
                               {
-                                  .in_channels = channels + channels,
-                                  .filter_width = filter_width,
-                                  .filter_height = filter_height,
-                                  .out_channels = 1,
-                                  .skip_width = 1,
-                                  .skip_height = 1,
-                                  .maxpool = 0,
-                                  .weights = nullptr,
-                                  .bias = nullptr,
-                                  .pad = PADDING_SAME_ZERO,
-                                  .activation = NONE,
-                                  .deconvolve = 0,
-                                  .branch = 0,
-                                  .branch_copy_type = BRANCH_NO_COPY,
-                                  .branch_combine_type = BRANCH_NOC,
-                                  .branch_config = {},
-                                  .bn_params = {},
+                                  channels + channels,  // in_channels
+                                  filter_width,         // filter_width
+                                  filter_height,        // filter_height
+                                  1,    // out_channels
+                                  1,    // skip_width
+                                  1,    // skip_height
+                                  0,    // maxpool
+                                  nullptr,      // weights
+                                  nullptr,      // bias
+                                  PADDING_SAME_ZERO,    // pad
+                                  NONE,         // activation
+                                  0,    // deconvolve
+                                  0,    // branch
+                                  BRANCH_NO_COPY,       // branch_copy_type
+                                  BRANCH_NOC,   // branch_combine_type
+                                  {},   // branch_config
+                                  {},   // bn_params
                               } } };
 
   // Weights and biases need to be specified separately because
@@ -1400,221 +1400,221 @@ TEST_F(CNNTest, TestBranchCombinations) {
 
   int channels = 2;
 
-  CNN_CONFIG cnn_config = { .num_layers = 10,
-                            .is_residue = 0,
-                            .ext_width = 0,
-                            .ext_height = 0,
-                            .strict_bounds = 0,
+  CNN_CONFIG cnn_config = { 10,         // num_layers
+                            0,  // is_residue
+                            0,  // ext_width
+                            0,  // ext_height
+                            0,  // strict_bounds
                             {
                                 {
-                                    .in_channels = 1,
-                                    .filter_width = filter_width,
-                                    .filter_height = filter_height,
-                                    .out_channels = channels,
-                                    .skip_width = 1,
-                                    .skip_height = 1,
-                                    .maxpool = 0,
-                                    .weights = weights,
-                                    .bias = bias,
-                                    .pad = PADDING_SAME_ZERO,
-                                    .activation = NONE,
-                                    .deconvolve = 0,
-                                    .branch = 0,
-                                    .branch_copy_type = BRANCH_NO_COPY,
-                                    .branch_combine_type = BRANCH_NOC,
-                                    .branch_config = {},
-                                    .bn_params = {},
+                                    1,  // in_channels
+                                    filter_width,       // filter_width
+                                    filter_height,      // filter_height
+                                    channels,   // out_channels
+                                    1,  // skip_width
+                                    1,  // skip_height
+                                    0,  // maxpool
+                                    weights,    // weights
+                                    bias,       // bias
+                                    PADDING_SAME_ZERO,  // pad
+                                    NONE,       // activation
+                                    0,  // deconvolve
+                                    0,  // branch
+                                    BRANCH_NO_COPY,     // branch_copy_type
+                                    BRANCH_NOC,         // branch_combine_type
+                                    {},         // branch_config
+                                    {},         // bn_params
                                 },
                                 {
-                                    .in_channels = channels,
-                                    .filter_width = filter_width,
-                                    .filter_height = filter_height,
-                                    .out_channels = channels,
-                                    .skip_width = 1,
-                                    .skip_height = 1,
-                                    .maxpool = 0,
-                                    .weights = nullptr,
-                                    .bias = nullptr,
-                                    .pad = PADDING_SAME_ZERO,
-                                    .activation = NONE,
-                                    .deconvolve = 0,
-                                    .branch = 0,
-                                    .branch_copy_type = BRANCH_INPUT,
-                                    .branch_combine_type = BRANCH_NOC,
+                                    channels,   // in_channels
+                                    filter_width,       // filter_width
+                                    filter_height,      // filter_height
+                                    channels,   // out_channels
+                                    1,  // skip_width
+                                    1,  // skip_height
+                                    0,  // maxpool
+                                    nullptr,    // weights
+                                    nullptr,    // bias
+                                    PADDING_SAME_ZERO,  // pad
+                                    NONE,       // activation
+                                    0,  // deconvolve
+                                    0,  // branch
+                                    BRANCH_INPUT,       // branch_copy_type
+                                    BRANCH_NOC,         // branch_combine_type
                                     .branch_config = {
-                                    .input_to_branches = 0x06,
-                                    .channels_to_copy = 0,
-                                    .branches_to_combine = 0x00,
+                                    0x06,       // input_to_branches
+                                    0,  // channels_to_copy
+                                    0x00,       // branches_to_combine
                                   },
-                                    .bn_params = {},
+                                    {},         // bn_params
                                 },
                                 {
-                                    .in_channels = channels,
-                                    .filter_width = filter_width,
-                                    .filter_height = filter_height,
-                                    .out_channels = channels,
-                                    .skip_width = 1,
-                                    .skip_height = 1,
-                                    .maxpool = 0,
-                                    .weights = nullptr,
-                                    .bias = nullptr,
-                                    .pad = PADDING_SAME_ZERO,
-                                    .activation = NONE,
-                                    .deconvolve = 0,
-                                    .branch = 2,
-                                    .branch_copy_type = BRANCH_OUTPUT,
-                                    .branch_combine_type = BRANCH_NOC,
+                                    channels,   // in_channels
+                                    filter_width,       // filter_width
+                                    filter_height,      // filter_height
+                                    channels,   // out_channels
+                                    1,  // skip_width
+                                    1,  // skip_height
+                                    0,  // maxpool
+                                    nullptr,    // weights
+                                    nullptr,    // bias
+                                    PADDING_SAME_ZERO,  // pad
+                                    NONE,       // activation
+                                    0,  // deconvolve
+                                    2,  // branch
+                                    BRANCH_OUTPUT,      // branch_copy_type
+                                    BRANCH_NOC,         // branch_combine_type
                                     .branch_config = {
-                                    .input_to_branches = 0x08,
-                                    .channels_to_copy = 0,
-                                    .branches_to_combine = 0x00,
+                                    0x08,       // input_to_branches
+                                    0,  // channels_to_copy
+                                    0x00,       // branches_to_combine
                                   },
-                                    .bn_params = {},
+                                    {},         // bn_params
                                 },
                                 {
-                                    .in_channels = channels,
-                                    .filter_width = filter_width,
-                                    .filter_height = filter_height,
-                                    .out_channels = channels,
-                                    .skip_width = 1,
-                                    .skip_height = 1,
-                                    .maxpool = 0,
-                                    .weights = nullptr,
-                                    .bias = nullptr,
-                                    .pad = PADDING_SAME_ZERO,
-                                    .activation = NONE,
-                                    .deconvolve = 0,
-                                    .branch = 3,
-                                    .branch_copy_type = BRANCH_NO_COPY,
-                                    .branch_combine_type = BRANCH_NOC,
-                                    .branch_config = {},
-                                    .bn_params = {},
+                                    channels,   // in_channels
+                                    filter_width,       // filter_width
+                                    filter_height,      // filter_height
+                                    channels,   // out_channels
+                                    1,  // skip_width
+                                    1,  // skip_height
+                                    0,  // maxpool
+                                    nullptr,    // weights
+                                    nullptr,    // bias
+                                    PADDING_SAME_ZERO,  // pad
+                                    NONE,       // activation
+                                    0,  // deconvolve
+                                    3,  // branch
+                                    BRANCH_NO_COPY,     // branch_copy_type
+                                    BRANCH_NOC,         // branch_combine_type
+                                    {},         // branch_config
+                                    {},         // bn_params
                                 },
                                 {
-                                    .in_channels = channels,
-                                    .filter_width = filter_width,
-                                    .filter_height = filter_height,
-                                    .out_channels = channels,
-                                    .skip_width = 1,
-                                    .skip_height = 1,
-                                    .maxpool = 0,
-                                    .weights = nullptr,
-                                    .bias = nullptr,
-                                    .pad = PADDING_SAME_ZERO,
-                                    .activation = NONE,
-                                    .deconvolve = 0,
-                                    .branch = 2,
-                                    .branch_copy_type = BRANCH_NO_COPY,
-                                    .branch_combine_type = BRANCH_ADD,
+                                    channels,   // in_channels
+                                    filter_width,       // filter_width
+                                    filter_height,      // filter_height
+                                    channels,   // out_channels
+                                    1,  // skip_width
+                                    1,  // skip_height
+                                    0,  // maxpool
+                                    nullptr,    // weights
+                                    nullptr,    // bias
+                                    PADDING_SAME_ZERO,  // pad
+                                    NONE,       // activation
+                                    0,  // deconvolve
+                                    2,  // branch
+                                    BRANCH_NO_COPY,     // branch_copy_type
+                                    BRANCH_ADD,         // branch_combine_type
                                     .branch_config = {
-                                    .input_to_branches = 0x00,
-                                    .channels_to_copy = 0,
-                                    .branches_to_combine = 0x08,
+                                    0x00,       // input_to_branches
+                                    0,  // channels_to_copy
+                                    0x08,       // branches_to_combine
                                   },
-                                    .bn_params = {},
+                                    {},         // bn_params
                                 },
                                 {
-                                    .in_channels = channels,
-                                    .filter_width = filter_width,
-                                    .filter_height = filter_height,
-                                    .out_channels = channels,
-                                    .skip_width = 1,
-                                    .skip_height = 1,
-                                    .maxpool = 0,
-                                    .weights = nullptr,
-                                    .bias = nullptr,
-                                    .pad = PADDING_SAME_ZERO,
-                                    .activation = NONE,
-                                    .deconvolve = 0,
-                                    .branch = 2,
-                                    .branch_copy_type = BRANCH_NO_COPY,
-                                    .branch_combine_type = BRANCH_NOC,
-                                    .branch_config = {},
-                                    .bn_params = {},
+                                    channels,   // in_channels
+                                    filter_width,       // filter_width
+                                    filter_height,      // filter_height
+                                    channels,   // out_channels
+                                    1,  // skip_width
+                                    1,  // skip_height
+                                    0,  // maxpool
+                                    nullptr,    // weights
+                                    nullptr,    // bias
+                                    PADDING_SAME_ZERO,  // pad
+                                    NONE,       // activation
+                                    0,  // deconvolve
+                                    2,  // branch
+                                    BRANCH_NO_COPY,     // branch_copy_type
+                                    BRANCH_NOC,         // branch_combine_type
+                                    {},         // branch_config
+                                    {},         // bn_params
                                 },
                                 {
-                                    .in_channels = channels,
-                                    .filter_width = filter_width,
-                                    .filter_height = filter_height,
-                                    .out_channels = channels,
-                                    .skip_width = 1,
-                                    .skip_height = 1,
-                                    .maxpool = 0,
-                                    .weights = nullptr,
-                                    .bias = nullptr,
-                                    .pad = PADDING_SAME_ZERO,
-                                    .activation = NONE,
-                                    .deconvolve = 0,
-                                    .branch = 1,
-                                    .branch_copy_type = BRANCH_NO_COPY,
-                                    .branch_combine_type = BRANCH_NOC,
-                                    .branch_config = {},
-                                    .bn_params = {},
+                                    channels,   // in_channels
+                                    filter_width,       // filter_width
+                                    filter_height,      // filter_height
+                                    channels,   // out_channels
+                                    1,  // skip_width
+                                    1,  // skip_height
+                                    0,  // maxpool
+                                    nullptr,    // weights
+                                    nullptr,    // bias
+                                    PADDING_SAME_ZERO,  // pad
+                                    NONE,       // activation
+                                    0,  // deconvolve
+                                    1,  // branch
+                                    BRANCH_NO_COPY,     // branch_copy_type
+                                    BRANCH_NOC,         // branch_combine_type
+                                    {},         // branch_config
+                                    {},         // bn_params
                                 },
                                 {
-                                    .in_channels = channels,
-                                    .filter_width = filter_width,
-                                    .filter_height = filter_height,
-                                    .out_channels = channels,
-                                    .skip_width = 1,
-                                    .skip_height = 1,
-                                    .maxpool = 0,
-                                    .weights = nullptr,
-                                    .bias = nullptr,
-                                    .pad = PADDING_SAME_ZERO,
-                                    .activation = NONE,
-                                    .deconvolve = 0,
-                                    .branch = 1,
-                                    .branch_copy_type = BRANCH_NO_COPY,
-                                    .branch_combine_type = BRANCH_ADD,
+                                    channels,   // in_channels
+                                    filter_width,       // filter_width
+                                    filter_height,      // filter_height
+                                    channels,   // out_channels
+                                    1,  // skip_width
+                                    1,  // skip_height
+                                    0,  // maxpool
+                                    nullptr,    // weights
+                                    nullptr,    // bias
+                                    PADDING_SAME_ZERO,  // pad
+                                    NONE,       // activation
+                                    0,  // deconvolve
+                                    1,  // branch
+                                    BRANCH_NO_COPY,     // branch_copy_type
+                                    BRANCH_ADD,         // branch_combine_type
                                     .branch_config = {
-                                    .input_to_branches = 0x00,
-                                    .channels_to_copy = 0,
-                                    .branches_to_combine = 0x0C,
+                                    0x00,       // input_to_branches
+                                    0,  // channels_to_copy
+                                    0x0C,       // branches_to_combine
                                   },
-                                    .bn_params = {},
+                                    {},         // bn_params
                                 },
                                 {
-                                    .in_channels = channels,
-                                    .filter_width = filter_width,
-                                    .filter_height = filter_height,
-                                    .out_channels = channels,
-                                    .skip_width = 1,
-                                    .skip_height = 1,
-                                    .maxpool = 0,
-                                    .weights = nullptr,
-                                    .bias = nullptr,
-                                    .pad = PADDING_SAME_ZERO,
-                                    .activation = NONE,
-                                    .deconvolve = 0,
-                                    .branch = 0,
-                                    .branch_copy_type = BRANCH_NO_COPY,
-                                    .branch_combine_type = BRANCH_ADD,
+                                    channels,   // in_channels
+                                    filter_width,       // filter_width
+                                    filter_height,      // filter_height
+                                    channels,   // out_channels
+                                    1,  // skip_width
+                                    1,  // skip_height
+                                    0,  // maxpool
+                                    nullptr,    // weights
+                                    nullptr,    // bias
+                                    PADDING_SAME_ZERO,  // pad
+                                    NONE,       // activation
+                                    0,  // deconvolve
+                                    0,  // branch
+                                    BRANCH_NO_COPY,     // branch_copy_type
+                                    BRANCH_ADD,         // branch_combine_type
                                     .branch_config = {
-                                    .input_to_branches = 0x00,
-                                    .channels_to_copy = 0,
-                                    .branches_to_combine = 0x02,
+                                    0x00,       // input_to_branches
+                                    0,  // channels_to_copy
+                                    0x02,       // branches_to_combine
                                   },
-                                    .bn_params = {},
+                                    {},         // bn_params
                                 },
                                 {
-                                    .in_channels = channels,
-                                    .filter_width = filter_width,
-                                    .filter_height = filter_height,
-                                    .out_channels = 1,
-                                    .skip_width = 1,
-                                    .skip_height = 1,
-                                    .maxpool = 0,
-                                    .weights = nullptr,
-                                    .bias = nullptr,
-                                    .pad = PADDING_SAME_ZERO,
-                                    .activation = NONE,
-                                    .deconvolve = 0,
-                                    .branch = 0,
-                                    .branch_copy_type = BRANCH_NO_COPY,
-                                    .branch_combine_type = BRANCH_NOC,
-                                    .branch_config = {},
-                                    .bn_params = {},
+                                    channels,   // in_channels
+                                    filter_width,       // filter_width
+                                    filter_height,      // filter_height
+                                    1,  // out_channels
+                                    1,  // skip_width
+                                    1,  // skip_height
+                                    0,  // maxpool
+                                    nullptr,    // weights
+                                    nullptr,    // bias
+                                    PADDING_SAME_ZERO,  // pad
+                                    NONE,       // activation
+                                    0,  // deconvolve
+                                    0,  // branch
+                                    BRANCH_NO_COPY,     // branch_copy_type
+                                    BRANCH_NOC,         // branch_combine_type
+                                    {},         // branch_config
+                                    {},         // bn_params
                                 },
                             } };
 
@@ -1657,76 +1657,76 @@ TEST_F(CNNTest, TestSplittingTensors) {
     -658, -1821, 98,   -668, -1798, 30,   887,   -971,
   };
 
-  CNN_CONFIG cnn_config = { .num_layers = 3,
-                            .is_residue = 0,
-                            .ext_width = 0,
-                            .ext_height = 0,
-                            .strict_bounds = 0,
+  CNN_CONFIG cnn_config = { 3,  // num_layers
+                            0,  // is_residue
+                            0,  // ext_width
+                            0,  // ext_height
+                            0,  // strict_bounds
                             {
                                 {
-                                    .in_channels = 1,
-                                    .filter_width = filter_width,
-                                    .filter_height = filter_height,
-                                    .out_channels = 4,
-                                    .skip_width = 1,
-                                    .skip_height = 1,
-                                    .maxpool = 0,
-                                    .weights = nullptr,
-                                    .bias = nullptr,
-                                    .pad = PADDING_SAME_ZERO,
-                                    .activation = NONE,
-                                    .deconvolve = 0,
-                                    .branch = 0,
-                                    .branch_copy_type = BRANCH_OUTPUT,
-                                    .branch_combine_type = BRANCH_NOC,
+                                    1,  // in_channels
+                                    filter_width,       // filter_width
+                                    filter_height,      // filter_height
+                                    4,  // out_channels
+                                    1,  // skip_width
+                                    1,  // skip_height
+                                    0,  // maxpool
+                                    nullptr,    // weights
+                                    nullptr,    // bias
+                                    PADDING_SAME_ZERO,  // pad
+                                    NONE,       // activation
+                                    0,  // deconvolve
+                                    0,  // branch
+                                    BRANCH_OUTPUT,      // branch_copy_type
+                                    BRANCH_NOC,         // branch_combine_type
                                     .branch_config = {
-                                    .input_to_branches = 0x02,
-                                    .channels_to_copy = 2,
-                                    .branches_to_combine = 0x00,
+                                    0x02,       // input_to_branches
+                                    2,  // channels_to_copy
+                                    0x00,       // branches_to_combine
                                   },
-                                    .bn_params = {},
+                                    {},         // bn_params
                                 },
                                 {
-                                    .in_channels = 4,
-                                    .filter_width = filter_width,
-                                    .filter_height = filter_height,
-                                    .out_channels = 2,
-                                    .skip_width = 1,
-                                    .skip_height = 1,
-                                    .maxpool = 0,
-                                    .weights = nullptr,
-                                    .bias = nullptr,
-                                    .pad = PADDING_SAME_ZERO,
-                                    .activation = NONE,
-                                    .deconvolve = 0,
-                                    .branch = 0,
-                                    .branch_copy_type = BRANCH_NO_COPY,
-                                    .branch_combine_type = BRANCH_CAT,
+                                    4,  // in_channels
+                                    filter_width,       // filter_width
+                                    filter_height,      // filter_height
+                                    2,  // out_channels
+                                    1,  // skip_width
+                                    1,  // skip_height
+                                    0,  // maxpool
+                                    nullptr,    // weights
+                                    nullptr,    // bias
+                                    PADDING_SAME_ZERO,  // pad
+                                    NONE,       // activation
+                                    0,  // deconvolve
+                                    0,  // branch
+                                    BRANCH_NO_COPY,     // branch_copy_type
+                                    BRANCH_CAT,         // branch_combine_type
                                     .branch_config = {
-                                    .input_to_branches = 0x00,
-                                    .channels_to_copy = 0,
-                                    .branches_to_combine = 0x02,
+                                    0x00,       // input_to_branches
+                                    0,  // channels_to_copy
+                                    0x02,       // branches_to_combine
                                   },
-                                    .bn_params = {},
+                                    {},         // bn_params
                                 },
                                 {
-                                    .in_channels = 4,
-                                    .filter_width = filter_width,
-                                    .filter_height = filter_height,
-                                    .out_channels = 1,
-                                    .skip_width = 1,
-                                    .skip_height = 1,
-                                    .maxpool = 0,
-                                    .weights = nullptr,
-                                    .bias = nullptr,
-                                    .pad = PADDING_SAME_ZERO,
-                                    .activation = NONE,
-                                    .deconvolve = 0,
-                                    .branch = 0,
-                                    .branch_copy_type = BRANCH_NO_COPY,
-                                    .branch_combine_type = BRANCH_NOC,
-                                    .branch_config = {},
-                                    .bn_params = {},
+                                    4,  // in_channels
+                                    filter_width,       // filter_width
+                                    filter_height,      // filter_height
+                                    1,  // out_channels
+                                    1,  // skip_width
+                                    1,  // skip_height
+                                    0,  // maxpool
+                                    nullptr,    // weights
+                                    nullptr,    // bias
+                                    PADDING_SAME_ZERO,  // pad
+                                    NONE,       // activation
+                                    0,  // deconvolve
+                                    0,  // branch
+                                    BRANCH_NO_COPY,     // branch_copy_type
+                                    BRANCH_NOC,         // branch_combine_type
+                                    {},         // branch_config
+                                    {},         // bn_params
                                 },
                             } };
 
@@ -1758,80 +1758,80 @@ TEST_F(CNNTest, TestOutputChannelsCount) {
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
   };
 
-  CNN_CONFIG cnn_config = { .num_layers = 3,
-                            .is_residue = 0,
-                            .ext_width = 0,
-                            .ext_height = 0,
-                            .strict_bounds = 0,
+  CNN_CONFIG cnn_config = { 3,  // num_layers
+                            0,  // is_residue
+                            0,  // ext_width
+                            0,  // ext_height
+                            0,  // strict_bounds
                             {
                                 {
-                                    .in_channels = 1,
-                                    .filter_width = filter_width,
-                                    .filter_height = filter_height,
-                                    .out_channels = 2,
-                                    .skip_width = 1,
-                                    .skip_height = 1,
-                                    .maxpool = 0,
-                                    .weights = weights,
-                                    .bias = bias,
-                                    .pad = PADDING_SAME_ZERO,
-                                    .activation = NONE,
-                                    .deconvolve = 0,
-                                    .branch = 0,
-                                    .branch_copy_type = BRANCH_INPUT,
-                                    .branch_combine_type = BRANCH_NOC,
+                                    1,  // in_channels
+                                    filter_width,       // filter_width
+                                    filter_height,      // filter_height
+                                    2,  // out_channels
+                                    1,  // skip_width
+                                    1,  // skip_height
+                                    0,  // maxpool
+                                    weights,    // weights
+                                    bias,       // bias
+                                    PADDING_SAME_ZERO,  // pad
+                                    NONE,       // activation
+                                    0,  // deconvolve
+                                    0,  // branch
+                                    BRANCH_INPUT,       // branch_copy_type
+                                    BRANCH_NOC,         // branch_combine_type
                                     .branch_config = {
-                                    .input_to_branches = 0x06,
-                                    .channels_to_copy = 0,
-                                    .branches_to_combine = 0x00,
+                                    0x06,       // input_to_branches
+                                    0,  // channels_to_copy
+                                    0x00,       // branches_to_combine
                                   },
-                                    .bn_params = {},
+                                    {},         // bn_params
                                 },
                                 {
-                                    .in_channels = 1,
-                                    .filter_width = filter_width,
-                                    .filter_height = filter_height,
-                                    .out_channels = 2,
-                                    .skip_width = 1,
-                                    .skip_height = 1,
-                                    .maxpool = 0,
-                                    .weights = weights,
-                                    .bias = bias,
-                                    .pad = PADDING_SAME_ZERO,
-                                    .activation = NONE,
-                                    .deconvolve = 0,
-                                    .branch = 2,
-                                    .branch_copy_type = BRANCH_NO_COPY,
-                                    .branch_combine_type = BRANCH_CAT,
+                                    1,  // in_channels
+                                    filter_width,       // filter_width
+                                    filter_height,      // filter_height
+                                    2,  // out_channels
+                                    1,  // skip_width
+                                    1,  // skip_height
+                                    0,  // maxpool
+                                    weights,    // weights
+                                    bias,       // bias
+                                    PADDING_SAME_ZERO,  // pad
+                                    NONE,       // activation
+                                    0,  // deconvolve
+                                    2,  // branch
+                                    BRANCH_NO_COPY,     // branch_copy_type
+                                    BRANCH_CAT,         // branch_combine_type
                                     .branch_config = {
-                                    .input_to_branches = 0x00,
-                                    .channels_to_copy = 0,
-                                    .branches_to_combine = 0x03,
+                                    0x00,       // input_to_branches
+                                    0,  // channels_to_copy
+                                    0x03,       // branches_to_combine
                                   },
-                                    .bn_params = {},
+                                    {},         // bn_params
                                 },
                                 {
-                                    .in_channels = 2,
-                                    .filter_width = filter_width,
-                                    .filter_height = filter_height,
-                                    .out_channels = 2,
-                                    .skip_width = 1,
-                                    .skip_height = 1,
-                                    .maxpool = 0,
-                                    .weights = weights,
-                                    .bias = bias,
-                                    .pad = PADDING_SAME_ZERO,
-                                    .activation = NONE,
-                                    .deconvolve = 0,
-                                    .branch = 0,
-                                    .branch_copy_type = BRANCH_NO_COPY,
-                                    .branch_combine_type = BRANCH_CAT,
+                                    2,  // in_channels
+                                    filter_width,       // filter_width
+                                    filter_height,      // filter_height
+                                    2,  // out_channels
+                                    1,  // skip_width
+                                    1,  // skip_height
+                                    0,  // maxpool
+                                    weights,    // weights
+                                    bias,       // bias
+                                    PADDING_SAME_ZERO,  // pad
+                                    NONE,       // activation
+                                    0,  // deconvolve
+                                    0,  // branch
+                                    BRANCH_NO_COPY,     // branch_copy_type
+                                    BRANCH_CAT,         // branch_combine_type
                                     .branch_config = {
-                                    .input_to_branches = 0x00,
-                                    .channels_to_copy = 0,
-                                    .branches_to_combine = 0x04,
+                                    0x00,       // input_to_branches
+                                    0,  // channels_to_copy
+                                    0x04,       // branches_to_combine
                                   },
-                                    .bn_params = {},
+                                    {},         // bn_params
                                 },
                             } };
 
@@ -2033,37 +2033,37 @@ TEST_F(CNNTest, TestBatchNorm) {
   float bn_std[] = { 0.311986f, 0.189737f, 0.247104f };
 
   CNN_BATCHNORM_PARAMS bn_params = {
-    .bn_gamma = bn_gamma,
-    .bn_beta = bn_beta,
-    .bn_mean = bn_mean,
-    .bn_std = bn_std,
+    bn_gamma,  // bn_gamma
+    bn_beta,   // bn_beta
+    bn_mean,   // bn_mean
+    bn_std,    // bn_std
   };
 
   CNN_CONFIG cnn_config = {
-    .num_layers = 1,
-    .is_residue = 0,
-    .ext_width = 0,
-    .ext_height = 0,
-    .strict_bounds = 0,
+    1,  // num_layers
+    0,  // is_residue
+    0,  // ext_width
+    0,  // ext_height
+    0,  // strict_bounds
     {
         {
-            .in_channels = 1,
-            .filter_width = filter_width,
-            .filter_height = filter_height,
-            .out_channels = 3,
-            .skip_width = 7,
-            .skip_height = 7,
-            .maxpool = 0,
-            .weights = kernel,
-            .bias = bias,
-            .pad = PADDING_VALID,
-            .activation = RELU,
-            .deconvolve = 0,
-            .branch = 0,
-            .branch_copy_type = BRANCH_NO_COPY,
-            .branch_combine_type = BRANCH_NOC,
-            .branch_config = {},
-            .bn_params = bn_params,
+            1,               // in_channels
+            filter_width,    // filter_width
+            filter_height,   // filter_height
+            3,               // out_channels
+            7,               // skip_width
+            7,               // skip_height
+            0,               // maxpool
+            kernel,          // weights
+            bias,            // bias
+            PADDING_VALID,   // pad
+            RELU,            // activation
+            0,               // deconvolve
+            0,               // branch
+            BRANCH_NO_COPY,  // branch_copy_type
+            BRANCH_NOC,      // branch_combine_type
+            {},              // branch_config
+            bn_params,       // bn_params
         },
     },
   };
@@ -2104,30 +2104,30 @@ TEST_F(CNNTest, TestMultithreading) {
   };
 
   CNN_CONFIG cnn_config = {
-    .num_layers = 1,
-    .is_residue = 0,
-    .ext_width = 0,
-    .ext_height = 0,
-    .strict_bounds = 0,
+    1,  // num_layers
+    0,  // is_residue
+    0,  // ext_width
+    0,  // ext_height
+    0,  // strict_bounds
     {
         {
-            .in_channels = 1,
-            .filter_width = filter_width,
-            .filter_height = filter_height,
-            .out_channels = 4,
-            .skip_width = 1,
-            .skip_height = 1,
-            .maxpool = 0,
-            .weights = weights,
-            .bias = bias,
-            .pad = PADDING_SAME_ZERO,
-            .activation = NONE,
-            .deconvolve = 0,
-            .branch = 0,
-            .branch_copy_type = BRANCH_NO_COPY,
-            .branch_combine_type = BRANCH_NOC,
-            .branch_config = {},
-            .bn_params = {},
+            1,                  // in_channels
+            filter_width,       // filter_width
+            filter_height,      // filter_height
+            4,                  // out_channels
+            1,                  // skip_width
+            1,                  // skip_height
+            0,                  // maxpool
+            weights,            // weights
+            bias,               // bias
+            PADDING_SAME_ZERO,  // pad
+            NONE,               // activation
+            0,                  // deconvolve
+            0,                  // branch
+            BRANCH_NO_COPY,     // branch_copy_type
+            BRANCH_NOC,         // branch_combine_type
+            {},                 // branch_config
+            {},                 // bn_params
         },
     },
   };
