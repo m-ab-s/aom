@@ -264,14 +264,14 @@ enum {
 #endif
 #if USE_MDTX_INTER
   // 8 mode-dependent tx for inter
-  MDTX_INTER_1,
-  MDTX_INTER_2,
-  MDTX_INTER_3,
-  MDTX_INTER_4,
-  MDTX_INTER_5,
-  MDTX_INTER_6,
-  MDTX_INTER_7,
-  MDTX_INTER_8,
+  MDTX_INTER_1,  // MDTX in both horizontal and vertical
+  MDTX_INTER_2,  // MDTX in vertical, DCT in horizontal
+  MDTX_INTER_3,  // DCT in vertical, MDTX in horizontal
+  MDTX_INTER_4,  // flipped MDTX in both horizontal and vertical
+  MDTX_INTER_5,  // flipped MDTX in vertical, DCT in horizontal
+  MDTX_INTER_6,  // DCT in vertical, flipped MDTX in horizontal
+  MDTX_INTER_7,  // flipped MDTX in vertical, MDTX in horizontal
+  MDTX_INTER_8,  // MDTX in vertical, flipped MDTX in horizontal
 #endif
 #endif
   TX_TYPES,
