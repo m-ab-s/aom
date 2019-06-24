@@ -662,22 +662,24 @@ void av1_imdt4(const int32_t *input, int32_t *output, int8_t cos_bit,
   // The argument side_info is included in a way that the function has the same
   // signature as other 1D transforms. Here, it is used to carry side
   // information such as prediction mode
+  (void)cos_bit;
   int32_t s[4] = { 0 };
-  const int32_t *mdt = mdt4_arr(side_info[0], cos_bit);
+  const int32_t *mdt = mdt_arr(side_info[0], 0);
   for (int i = 0; i < 4; i++)
     for (int j = 0; j < 4; j++) s[j] += mdt[i * 4 + j] * input[i];
 
-  for (int i = 0; i < 4; i++) output[i] = round_shift(s[i], cos_bit + 1);
+  for (int i = 0; i < 4; i++) output[i] = round_shift(s[i], 11);
 }
 
 void av1_imdt8(const int32_t *input, int32_t *output, int8_t cos_bit,
                const int8_t *side_info) {
+  (void)cos_bit;
   int32_t s[8] = { 0 };
-  const int32_t *mdt = mdt8_arr(side_info[0], cos_bit);
+  const int32_t *mdt = mdt_arr(side_info[0], 1);
   for (int i = 0; i < 8; i++)
     for (int j = 0; j < 8; j++) s[j] += mdt[i * 8 + j] * input[i];
 
-  for (int i = 0; i < 8; i++) output[i] = round_shift(s[i], cos_bit + 1);
+  for (int i = 0; i < 8; i++) output[i] = round_shift(s[i], 11);
 }
 #endif  // CONFIG_MODE_DEP_TX
 
