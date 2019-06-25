@@ -225,7 +225,6 @@ enum {
   IDTX_1D,
 #if CONFIG_MODE_DEP_TX
   MDTX1_1D,
-  MDTX2_1D,
 #endif
   TX_TYPES_1D,
 } UENUM1BYTE(TX_TYPE_1D);
@@ -258,9 +257,9 @@ enum {
 #if CONFIG_MODE_DEP_TX
 #if USE_MDTX_INTRA
   // 3 mode-dependent tx for intra
-  MDTX_INTRA_1,
-  MDTX_INTRA_2,
-  MDTX_INTRA_3,
+  MDTX_INTRA_1,  // MDTX in both horizontal and vertical
+  MDTX_INTRA_2,  // MDTX in vertical, DCT in horizontal
+  MDTX_INTRA_3,  // DCT in vertical, MDTX in horizontal
 #endif
 #if USE_MDTX_INTER
   // 8 mode-dependent tx for inter

@@ -1553,10 +1553,10 @@ static int prune_one_for_sby(const AV1_COMP *cpi, BLOCK_SIZE bsize,
 // ext_tx_used_inter is changed
 #if CONFIG_MODE_DEP_TX
 static const int ext_tx_used_inter_1D[EXT_TX_SETS_INTER][TX_TYPES_1D] = {
-  { 1, 0, 0, 0, 0, 0 },
-  { 1, 1, 1, 1, 1, 1 },
-  { 1, 1, 1, 1, 0, 0 },
-  { 1, 0, 0, 1, 0, 0 },
+  { 1, 0, 0, 0, 0 },
+  { 1, 1, 1, 1, 1 },
+  { 1, 1, 1, 1, 0 },
+  { 1, 0, 0, 1, 0 },
 };
 #else
 static const int ext_tx_used_inter_1D[EXT_TX_SETS_INTER][TX_TYPES_1D] = {
