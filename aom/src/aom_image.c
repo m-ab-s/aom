@@ -118,8 +118,8 @@ static aom_image_t *img_alloc_helper(
   const unsigned int h = align_image_dimension(d_h, ycs, size_align);
   assert(d_h <= h);
 
-  uint64_t s = (fmt & AOM_IMG_FMT_PLANAR) ? w : (uint64_t)bps * w / bit_depth;
-  s = s + 2 * border;
+  uint64_t s = (uint64_t)w + 2 * border;
+  s = (fmt & AOM_IMG_FMT_PLANAR) ? s : s * bps / bit_depth;
   s = s * bit_depth / 8;
   s = (s + stride_align - 1) & ~((uint64_t)stride_align - 1);
   if (s > INT_MAX) goto fail;
