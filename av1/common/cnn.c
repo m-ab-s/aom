@@ -1236,7 +1236,8 @@ void av1_restore_cnn_img_highbd(uint16_t *dgd, int width, int height,
   aom_free(output);
 }
 
-void av1_restore_cnn_plane_part(AV1_COMMON *cm, const CNN_CONFIG *cnn_config,
+void av1_restore_cnn_plane_part(const AV1_COMMON *cm,
+                                const CNN_CONFIG *cnn_config,
                                 const CNN_THREAD_DATA *thread_data, int plane,
                                 int start_x, int start_y, int width,
                                 int height) {
@@ -1303,7 +1304,7 @@ void av1_restore_cnn_plane_part(AV1_COMMON *cm, const CNN_CONFIG *cnn_config,
   }
 }
 
-void av1_restore_cnn_plane(AV1_COMMON *cm, const CNN_CONFIG *cnn_config,
+void av1_restore_cnn_plane(const AV1_COMMON *cm, const CNN_CONFIG *cnn_config,
                            int plane, const CNN_THREAD_DATA *thread_data) {
   YV12_BUFFER_CONFIG *buf = &cm->cur_frame->buf;
   if (cm->seq_params.use_highbitdepth) {

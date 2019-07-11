@@ -192,9 +192,10 @@ void av1_restore_cnn_img_highbd(uint16_t *dgd, int width, int height,
 
 // Restoration functions that work on current frame buffer in AV1_COMMON
 // directly for convenience.
-void av1_restore_cnn_plane(struct AV1Common *cm, const CNN_CONFIG *cnn_config,
-                           int plane, const CNN_THREAD_DATA *thread_data);
-void av1_restore_cnn_plane_part(struct AV1Common *cm,
+void av1_restore_cnn_plane(const struct AV1Common *cm,
+                           const CNN_CONFIG *cnn_config, int plane,
+                           const CNN_THREAD_DATA *thread_data);
+void av1_restore_cnn_plane_part(const struct AV1Common *cm,
                                 const CNN_CONFIG *cnn_config,
                                 const CNN_THREAD_DATA *thread_data, int plane,
                                 int start_x, int start_y, int width,

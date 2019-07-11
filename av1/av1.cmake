@@ -362,11 +362,6 @@ if(CONFIG_CNN_RESTORATION)
               "${AOM_ROOT}/av1/common/cnn_wrapper.h")
 endif()
 
-if(CONFIG_LOOP_RESTORE_CNN)
-  list(APPEND AOM_AV1_COMMON_SOURCES
-              "${AOM_ROOT}/av1/common/cnn_restore_models.h")
-endif()
-
 # Setup AV1 common/decoder/encoder targets. The libaom target must exist before
 # this function is called.
 function(setup_av1_targets)

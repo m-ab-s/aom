@@ -24,7 +24,13 @@
 #include "aom_ports/mem.h"
 #include "aom_ports/system_state.h"
 #if CONFIG_LOOP_RESTORE_CNN
-#include "av1/common/cnn_restore_models.h"
+#include "av1/common/cnn.h"
+#include "av1/common/cnn_wrapper.h"
+#include "av1/models/intra_frame_model/qp22.h"
+#include "av1/models/intra_frame_model/qp32.h"
+#include "av1/models/intra_frame_model/qp43.h"
+#include "av1/models/intra_frame_model/qp53.h"
+#include "av1/models/intra_frame_model/qp63.h"
 #endif  // CONFIG_LOOP_RESTORE_CNN
 #include "av1/common/onyxc_int.h"
 #include "av1/common/quant_common.h"
@@ -1300,16 +1306,15 @@ static void search_norestore(const RestorationTileLimits *limits,
 }
 
 #if CONFIG_LOOP_RESTORE_CNN
-static void search_cnn(const RestorationTileLimits *limits,
-                       const AV1PixelRect *tile_rect, int rest_unit_idx,
-                       void *priv, int32_t *tmpbuf,
-                       RestorationLineBuffers *rlbs) {
+void search_cnn(const RestorationTileLimits *limits,
+                const AV1PixelRect *tile_rect, int rest_unit_idx, void *priv,
+                int32_t *tmpbuf, RestorationLineBuffers *rlbs) {
   (void)tile_rect;
   (void)tmpbuf;
   (void)rlbs;
   RestSearchCtxt *rsc = (RestSearchCtxt *)priv;
   RestUnitSearchInfo *rusi = &rsc->rusi[rest_unit_idx];
-  AV1_COMMON *cm = rsc->cm;
+  const AV1_COMMON *cm = rsc->cm;
 
   const int highbd = rsc->cm->seq_params.use_highbitdepth;
   rusi->sse[RESTORE_NONE] = sse_restoration_unit(
