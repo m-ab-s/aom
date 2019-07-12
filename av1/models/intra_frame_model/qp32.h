@@ -12509,6 +12509,7 @@ const CNN_CONFIG intra_frame_model_qp32 = {
               NULL,
               NULL,
           },
+          -1,  // output_num
       },
       {
           // layer_1
@@ -12540,6 +12541,7 @@ const CNN_CONFIG intra_frame_model_qp32 = {
               NULL,
               NULL,
           },
+          -1,  // output_num
       },
       {
           // layer_2
@@ -12571,6 +12573,7 @@ const CNN_CONFIG intra_frame_model_qp32 = {
               NULL,
               NULL,
           },
+          -1,  // output_num
       },
       {
           // layer_3
@@ -12602,6 +12605,7 @@ const CNN_CONFIG intra_frame_model_qp32 = {
               NULL,
               NULL,
           },
+          -1,  // output_num
       },
       {
           // layer_4
@@ -12633,6 +12637,7 @@ const CNN_CONFIG intra_frame_model_qp32 = {
               NULL,
               NULL,
           },
+          -1,  // output_num
       },
       {
           // layer_5
@@ -12664,6 +12669,7 @@ const CNN_CONFIG intra_frame_model_qp32 = {
               NULL,
               NULL,
           },
+          -1,  // output_num
       },
       {
           // layer_6
@@ -12695,6 +12701,7 @@ const CNN_CONFIG intra_frame_model_qp32 = {
               NULL,
               NULL,
           },
+          -1,  // output_num
       },
       {
           // layer_7
@@ -12726,6 +12733,7 @@ const CNN_CONFIG intra_frame_model_qp32 = {
               NULL,
               NULL,
           },
+          -1,  // output_num
       },
       {
           // layer_8
@@ -12757,6 +12765,7 @@ const CNN_CONFIG intra_frame_model_qp32 = {
               NULL,
               NULL,
           },
+          -1,  // output_num
       },
       {
           // layer_9
@@ -12788,6 +12797,7 @@ const CNN_CONFIG intra_frame_model_qp32 = {
               NULL,
               NULL,
           },
+          -1,  // output_num
       },
       {
           // layer_10
@@ -12819,6 +12829,7 @@ const CNN_CONFIG intra_frame_model_qp32 = {
               NULL,
               NULL,
           },
+          -1,  // output_num
       },
       {
           // layer_11
@@ -12850,6 +12861,7 @@ const CNN_CONFIG intra_frame_model_qp32 = {
               NULL,
               NULL,
           },
+          -1,  // output_num
       },
       {
           // layer_12
@@ -12881,6 +12893,7 @@ const CNN_CONFIG intra_frame_model_qp32 = {
               NULL,
               NULL,
           },
+          -1,  // output_num
       },
       {
           // layer_13
@@ -12912,6 +12925,7 @@ const CNN_CONFIG intra_frame_model_qp32 = {
               NULL,
               NULL,
           },
+          0,  // output_num
       },
   }
 };

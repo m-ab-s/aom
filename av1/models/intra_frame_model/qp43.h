@@ -24849,6 +24849,7 @@ const CNN_CONFIG intra_frame_model_qp43 = {
               NULL,
               NULL,
           },
+          -1,
       },
       {
           // layer_1
@@ -24880,6 +24881,7 @@ const CNN_CONFIG intra_frame_model_qp43 = {
               NULL,
               NULL,
           },
+          -1,
       },
       {
           // layer_2
@@ -24911,6 +24913,7 @@ const CNN_CONFIG intra_frame_model_qp43 = {
               NULL,
               NULL,
           },
+          -1,
       },
       {
           // layer_3
@@ -24942,6 +24945,7 @@ const CNN_CONFIG intra_frame_model_qp43 = {
               NULL,
               NULL,
           },
+          -1,
       },
       {
           // layer_4
@@ -24973,6 +24977,7 @@ const CNN_CONFIG intra_frame_model_qp43 = {
               NULL,
               NULL,
           },
+          -1,
       },
       {
           // layer_5
@@ -25004,6 +25009,7 @@ const CNN_CONFIG intra_frame_model_qp43 = {
               NULL,
               NULL,
           },
+          -1,
       },
       {
           // layer_6
@@ -25035,6 +25041,7 @@ const CNN_CONFIG intra_frame_model_qp43 = {
               NULL,
               NULL,
           },
+          -1,
       },
       {
           // layer_7
@@ -25066,6 +25073,7 @@ const CNN_CONFIG intra_frame_model_qp43 = {
               NULL,
               NULL,
           },
+          -1,
       },
       {
           // layer_8
@@ -25097,6 +25105,7 @@ const CNN_CONFIG intra_frame_model_qp43 = {
               NULL,
               NULL,
           },
+          -1,
       },
       {
           // layer_9
@@ -25128,6 +25137,7 @@ const CNN_CONFIG intra_frame_model_qp43 = {
               NULL,
               NULL,
           },
+          -1,
       },
       {
           // layer_10
@@ -25159,6 +25169,7 @@ const CNN_CONFIG intra_frame_model_qp43 = {
               NULL,
               NULL,
           },
+          -1,
       },
       {
           // layer_11
@@ -25190,6 +25201,7 @@ const CNN_CONFIG intra_frame_model_qp43 = {
               NULL,
               NULL,
           },
+          -1,
       },
       {
           // layer_12
@@ -25221,6 +25233,7 @@ const CNN_CONFIG intra_frame_model_qp43 = {
               NULL,
               NULL,
           },
+          -1,
       },
       {
           // layer_13
@@ -25252,6 +25265,7 @@ const CNN_CONFIG intra_frame_model_qp43 = {
               NULL,
               NULL,
           },
+          -1,
       },
       {
           // layer_14
@@ -25283,6 +25297,7 @@ const CNN_CONFIG intra_frame_model_qp43 = {
               NULL,
               NULL,
           },
+          -1,
       },
       {
           // layer_15
@@ -25314,6 +25329,7 @@ const CNN_CONFIG intra_frame_model_qp43 = {
               NULL,
               NULL,
           },
+          -1,
       },
       {
           // layer_16
@@ -25345,6 +25361,7 @@ const CNN_CONFIG intra_frame_model_qp43 = {
               NULL,
               NULL,
           },
+          -1,
       },
       {
           // layer_17
@@ -25376,6 +25393,7 @@ const CNN_CONFIG intra_frame_model_qp43 = {
               NULL,
               NULL,
           },
+          -1,
       },
       {
           // layer_18
@@ -25407,6 +25425,7 @@ const CNN_CONFIG intra_frame_model_qp43 = {
               NULL,
               NULL,
           },
+          -1,
       },
       {
           // layer_19
@@ -25438,6 +25457,7 @@ const CNN_CONFIG intra_frame_model_qp43 = {
               NULL,
               NULL,
           },
+          -1,
       },
       {
           // layer_20
@@ -25469,6 +25489,7 @@ const CNN_CONFIG intra_frame_model_qp43 = {
               NULL,
               NULL,
           },
+          -1,
       },
       {
           // layer_21
@@ -25500,6 +25521,7 @@ const CNN_CONFIG intra_frame_model_qp43 = {
               NULL,
               NULL,
           },
+          -1,
       },
       {
           // layer_22
@@ -25531,6 +25553,7 @@ const CNN_CONFIG intra_frame_model_qp43 = {
               NULL,
               NULL,
           },
+          -1,
       },
       {
           // layer_23
@@ -25562,6 +25585,7 @@ const CNN_CONFIG intra_frame_model_qp43 = {
               NULL,
               NULL,
           },
+          -1,
       },
       {
           // layer_24
@@ -25593,6 +25617,7 @@ const CNN_CONFIG intra_frame_model_qp43 = {
               NULL,
               NULL,
           },
+          -1,
       },
       {
           // layer_25
@@ -25624,6 +25649,7 @@ const CNN_CONFIG intra_frame_model_qp43 = {
               NULL,
               NULL,
           },
+          0,
       },
   }
 };
