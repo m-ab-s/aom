@@ -141,7 +141,9 @@ set_aom_config_var(CONFIG_MODE_DEP_TX 0 NUMBER "AV2 experiment flag.")
 set_aom_config_var(CONFIG_CNN_RESTORATION 0 NUMBER
                    "AV2 CNN Restoration experiment flag")
 set_aom_config_var(CONFIG_LOOP_RESTORE_CNN 0 NUMBER
-                   "AV2 CNN Restoration experiment flag")
+                   "AV2 CNN in Loop Restoration experiment flag")
+set_aom_config_var(CONFIG_FLEX_PARTITION 0 NUMBER
+                   "AV2 Flexible partition experiment flag")
 
 # To include Tensorflow, make sure to build tensorflow locally using
 # tensorflow/contrib/makefile/build_all_linux.sh and then providing the correct

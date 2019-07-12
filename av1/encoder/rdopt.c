@@ -1375,13 +1375,24 @@ static void get_energy_distribution_fine(const AV1_COMP *cpi, BLOCK_SIZE bsize,
   const int bh = block_size_high[bsize];
   unsigned int esq[16] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
-  if (bsize < BLOCK_16X16 || (bsize >= BLOCK_4X16 && bsize <= BLOCK_32X8)) {
+  if (bsize < BLOCK_16X16 || (bsize >= BLOCK_4X16 && bsize <= BLOCK_32X8)
+#if CONFIG_FLEX_PARTITION
+      || (bsize >= BLOCK_4X32 && bsize <= BLOCK_64X4)
+#endif  // CONFIG_FLEX_PARTITION
+  ) {
     // Special cases: calculate 'esq' values manually, as we don't have 'vf'
     // functions for the 16 (very small) sub-blocks of this block.
-    const int w_shift = (bw == 4) ? 0 : (bw == 8) ? 1 : (bw == 16) ? 2 : 3;
-    const int h_shift = (bh == 4) ? 0 : (bh == 8) ? 1 : (bh == 16) ? 2 : 3;
+    const int w_shift =
+        (bw == 4) ? 0 : (bw == 8) ? 1 : (bw == 16) ? 2 : (bw == 32) ? 3 : 4;
+    const int h_shift =
+        (bh == 4) ? 0 : (bh == 8) ? 1 : (bh == 16) ? 2 : (bh == 32) ? 3 : 4;
+#if CONFIG_FLEX_PARTITION
+    assert(bw <= 64);
+    assert(bh <= 64);
+#else
     assert(bw <= 32);
     assert(bh <= 32);
+#endif  // CONFIG_FLEX_PARTITION
     assert(((bw - 1) >> w_shift) + (((bh - 1) >> h_shift) << 2) == 15);
     if (cpi->common.seq_params.use_highbitdepth) {
       const uint16_t *src16 = CONVERT_TO_SHORTPTR(src);
