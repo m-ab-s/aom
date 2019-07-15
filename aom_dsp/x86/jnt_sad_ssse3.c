@@ -235,4 +235,12 @@ dist_wtd_sadMxN_sse2(8, 32)
 dist_wtd_sadMxN_sse2(32, 8)
 dist_wtd_sadMxN_sse2(16, 64)
 dist_wtd_sadMxN_sse2(64, 16)
+#if CONFIG_FLEX_PARTITION
+dist_wtd_sadMxN_sse2(4, 32)
+dist_wtd_sadMxN_sse2(32, 4)
+dist_wtd_sadMxN_sse2(8, 64)
+dist_wtd_sadMxN_sse2(64, 8)
+dist_wtd_sadMxN_sse2(4, 64)
+dist_wtd_sadMxN_sse2(64, 4)
+#endif  // CONFIG_FLEX_PARTITION
     /* clang-format on */

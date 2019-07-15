@@ -159,6 +159,21 @@ sadMxNx4D(16, 64);
 sadMxN(64, 16);
 sadMxNx4D(64, 16);
 
+#if CONFIG_FLEX_PARTITION
+sadMxN(4, 32);
+sadMxNx4D(4, 32);
+sadMxN(32, 4);
+sadMxNx4D(32, 4);
+sadMxN(8, 64);
+sadMxNx4D(8, 64);
+sadMxN(64, 8);
+sadMxNx4D(64, 8);
+sadMxN(4, 64);
+sadMxNx4D(4, 64);
+sadMxN(64, 4);
+sadMxNx4D(64, 4);
+#endif  // CONFIG_FLEX_PARTITION
+
 static INLINE unsigned int highbd_sad(const uint8_t *a8, int a_stride,
                                       const uint8_t *b8, int b_stride,
                                       int width, int height) {
@@ -305,3 +320,18 @@ highbd_sadMxN(16, 64);
 highbd_sadMxNx4D(16, 64);
 highbd_sadMxN(64, 16);
 highbd_sadMxNx4D(64, 16);
+
+#if CONFIG_FLEX_PARTITION
+highbd_sadMxN(4, 32);
+highbd_sadMxNx4D(4, 32);
+highbd_sadMxN(32, 4);
+highbd_sadMxNx4D(32, 4);
+highbd_sadMxN(8, 64);
+highbd_sadMxNx4D(8, 64);
+highbd_sadMxN(64, 8);
+highbd_sadMxNx4D(64, 8);
+highbd_sadMxN(4, 64);
+highbd_sadMxNx4D(4, 64);
+highbd_sadMxN(64, 4);
+highbd_sadMxNx4D(64, 4);
+#endif  // CONFIG_FLEX_PARTITION
