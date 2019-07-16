@@ -37,6 +37,8 @@ extern "C" {
 
 #define MAX_DIFFWTD_MASK_BITS 1
 
+#define INTERINTRA_WEDGE_SIGN 0
+
 // DIFFWTD_MASK_TYPES should not surpass 1 << MAX_DIFFWTD_MASK_BITS
 enum {
   DIFFWTD_38 = 0,
@@ -210,8 +212,8 @@ typedef struct RD_STATS {
 // sent together in functions related to interinter compound modes
 typedef struct {
   uint8_t *seg_mask;
-  int wedge_index;
-  int wedge_sign;
+  int8_t wedge_index;
+  int8_t wedge_sign;
   DIFFWTD_MASK_TYPE mask_type;
   COMPOUND_TYPE type;
 } INTERINTER_COMPOUND_DATA;
@@ -220,43 +222,23 @@ typedef struct {
 #define TXK_TYPE_BUF_LEN 64
 // This structure now relates to 4x4 block regions.
 typedef struct MB_MODE_INFO {
-  PALETTE_MODE_INFO palette_mode_info;
-  WarpedMotionParams wm_params;
   // interinter members
   INTERINTER_COMPOUND_DATA interinter_comp;
-  FILTER_INTRA_MODE_INFO filter_intra_mode_info;
-#if CONFIG_ADAPT_FILTER_INTRA
-  ADAPT_FILTER_INTRA_MODE_INFO adapt_filter_intra_mode_info;
-#endif
+  WarpedMotionParams wm_params;
   int_mv mv[2];
-  // Only for INTER blocks
-  InterpFilters interp_filters;
-  // TODO(debargha): Consolidate these flags
-  int interintra_wedge_index;
-  int interintra_wedge_sign;
-  int overlappable_neighbors[2];
   int current_qindex;
-  int delta_lf_from_base;
-  int delta_lf[FRAME_LF_COUNT];
+  // Only for INTER blocks
+  int_interpfilters interp_filters;
+  // TODO(debargha): Consolidate these flags
 #if CONFIG_RD_DEBUG
   RD_STATS rd_stats;
   int mi_row;
   int mi_col;
 #endif
-  int num_proj_ref;
-
-  // Index of the alpha Cb and alpha Cr combination
-  int cfl_alpha_idx;
-  // Joint sign of alpha Cb and alpha Cr
-  int cfl_alpha_signs;
-
-  // Indicate if masked compound is used(1) or not(0).
-  int comp_group_idx;
-  // If comp_group_idx=0, indicate if dist_wtd_comp(0) or avg_comp(1) is used.
-  int compound_idx;
 #if CONFIG_INSPECTION
   int16_t tx_skip[TXK_TYPE_BUF_LEN];
 #endif
+  PALETTE_MODE_INFO palette_mode_info;
   // Common for both INTER and INTRA blocks
   BLOCK_SIZE sb_type;
   PREDICTION_MODE mode;
@@ -264,23 +246,40 @@ typedef struct MB_MODE_INFO {
   UV_PREDICTION_MODE uv_mode;
   // interintra members
   INTERINTRA_MODE interintra_mode;
+#if CONFIG_ADAPT_FILTER_INTRA
+  ADAPT_FILTER_INTRA_MODE_INFO adapt_filter_intra_mode_info;
+#endif
   MOTION_MODE motion_mode;
   PARTITION_TYPE partition;
   TX_TYPE txk_type[TXK_TYPE_BUF_LEN];
   MV_REFERENCE_FRAME ref_frame[2];
-  int8_t use_wedge_interintra;
+  FILTER_INTRA_MODE_INFO filter_intra_mode_info;
   int8_t skip;
-  int8_t skip_mode;
   uint8_t inter_tx_size[INTER_TX_SIZE_BUF_LEN];
   TX_SIZE tx_size;
-  int8_t segment_id;
-  int8_t seg_id_predicted;  // valid only when temporal_update is enabled
-  uint8_t use_intrabc;
+  int8_t delta_lf_from_base;
+  int8_t delta_lf[FRAME_LF_COUNT];
+  int8_t interintra_wedge_index;
   // The actual prediction angle is the base angle + (angle_delta * step).
   int8_t angle_delta[PLANE_TYPES];
   /* deringing gain *per-superblock* */
-  int8_t cdef_strength;
-  uint8_t ref_mv_idx;
+  // Joint sign of alpha Cb and alpha Cr
+  int8_t cfl_alpha_signs;
+  // Index of the alpha Cb and alpha Cr combination
+  uint8_t cfl_alpha_idx;
+  uint8_t num_proj_ref;
+  uint8_t overlappable_neighbors[2];
+  // If comp_group_idx=0, indicate if dist_wtd_comp(0) or avg_comp(1) is used.
+  uint8_t compound_idx;
+  uint8_t use_wedge_interintra : 1;
+  uint8_t segment_id : 3;
+  uint8_t seg_id_predicted : 1;  // valid only when temporal_update is enabled
+  uint8_t skip_mode : 1;
+  uint8_t use_intrabc : 1;
+  uint8_t ref_mv_idx : 2;
+  // Indicate if masked compound is used(1) or not(0).
+  uint8_t comp_group_idx : 1;
+  int8_t cdef_strength : 4;
 } MB_MODE_INFO;
 
 static INLINE int is_intrabc_block(const MB_MODE_INFO *mbmi) {
@@ -425,12 +424,6 @@ typedef struct macroblockd_plane {
 
   qm_val_t *seg_iqmatrix[MAX_SEGMENTS][TX_SIZES_ALL];
   qm_val_t *seg_qmatrix[MAX_SEGMENTS][TX_SIZES_ALL];
-
-  // the 'dequantizers' below are not literal dequantizer values.
-  // They're used by encoder RDO to generate ad-hoc lambda values.
-  // They use a hardwired Q3 coeff shift and do not necessarily match
-  // the TX scale in use.
-  const int16_t *dequant_Q3;
 } MACROBLOCKD_PLANE;
 
 #define BLOCK_OFFSET(x, i) \
@@ -582,7 +575,7 @@ typedef struct macroblockd {
   // filtering level) and code the delta between previous superblock's delta
   // lf and current delta lf. It is equivalent to the delta between previous
   // superblock's actual lf and current lf.
-  int delta_lf_from_base;
+  int8_t delta_lf_from_base;
   // For this experiment, we have four frame filter levels for different plane
   // and direction. So, to support the per superblock update, we need to add
   // a few more params as below.
@@ -596,7 +589,7 @@ typedef struct macroblockd {
   // SEG_LVL_ALT_LF_Y_H = 2;
   // SEG_LVL_ALT_LF_U   = 3;
   // SEG_LVL_ALT_LF_V   = 4;
-  int delta_lf[FRAME_LF_COUNT];
+  int8_t delta_lf[FRAME_LF_COUNT];
   int cdef_preset[4];
 
   DECLARE_ALIGNED(16, uint8_t, seg_mask[2 * MAX_SB_SQUARE]);
@@ -736,6 +729,22 @@ static const int av1_ext_tx_used[EXT_TX_SET_TYPES][TX_TYPES] = {
 };
 #endif
 
+static const uint16_t av1_reduced_intra_tx_used_flag[INTRA_MODES] = {
+  0x080F,  // DC_PRED:       0000 1000 0000 1111
+  0x040F,  // V_PRED:        0000 0100 0000 1111
+  0x080F,  // H_PRED:        0000 1000 0000 1111
+  0x020F,  // D45_PRED:      0000 0010 0000 1111
+  0x080F,  // D135_PRED:     0000 1000 0000 1111
+  0x040F,  // D113_PRED:     0000 0100 0000 1111
+  0x080F,  // D157_PRED:     0000 1000 0000 1111
+  0x080F,  // D203_PRED:     0000 1000 0000 1111
+  0x040F,  // D67_PRED:      0000 0100 0000 1111
+  0x080F,  // SMOOTH_PRED:   0000 1000 0000 1111
+  0x040F,  // SMOOTH_V_PRED: 0000 0100 0000 1111
+  0x080F,  // SMOOTH_H_PRED: 0000 1000 0000 1111
+  0x0C0E,  // PAETH_PRED:    0000 1100 0000 1110
+};
+
 static const uint16_t av1_ext_tx_used_flag[EXT_TX_SET_TYPES] = {
   0x0001,  // 0000 0000 0000 0001
   0x0201,  // 0000 0010 0000 0001
@@ -807,7 +816,6 @@ static INLINE TX_SIZE tx_size_from_tx_mode(BLOCK_SIZE bsize, TX_MODE tx_mode) {
     return largest_tx_size;
 }
 
-extern const int16_t dr_intra_derivative[90];
 static const uint8_t mode_to_angle_map[] = {
   0, 90, 180, 45, 135, 113, 157, 203, 67, 0, 0, 0, 0,
 };
@@ -1143,6 +1151,7 @@ static INLINE int is_neighbor_overlappable(const MB_MODE_INFO *mbmi) {
 
 static INLINE int av1_allow_palette(int allow_screen_content_tools,
                                     BLOCK_SIZE sb_type) {
+  assert(sb_type < BLOCK_SIZES_ALL);
   return allow_screen_content_tools && block_size_wide[sb_type] <= 64 &&
          block_size_high[sb_type] <= 64 && sb_type >= BLOCK_8X8;
 }
@@ -1234,6 +1243,10 @@ static INLINE int av1_get_max_eob(TX_SIZE tx_size) {
     return 512;
   }
   return tx_size_2d[tx_size];
+}
+
+static INLINE int av1_pixels_to_mi(int pixels) {
+  return ALIGN_POWER_OF_TWO(pixels, 3) >> MI_SIZE_LOG2;
 }
 
 #ifdef __cplusplus

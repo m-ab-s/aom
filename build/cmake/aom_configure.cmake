@@ -176,7 +176,7 @@ if(CONFIG_GPROF)
   require_compiler_flag("-pg" YES)
 endif()
 
-if("${AOM_TARGET_SYSTEM}" MATCHES "Darwin\|Linux\|Windows")
+if("${AOM_TARGET_SYSTEM}" MATCHES "Darwin\|Linux\|Windows\|Android")
   set(CONFIG_OS_SUPPORT 1)
 endif()
 
@@ -273,6 +273,9 @@ else()
     # providing higher stack limit than usual.
     add_c_flag_if_supported("-Wstack-usage=170000")
     add_cxx_flag_if_supported("-Wstack-usage=270000")
+  elseif(CONFIG_RD_DEBUG) # Another case where higher stack usage is expected.
+    add_c_flag_if_supported("-Wstack-usage=110000")
+    add_cxx_flag_if_supported("-Wstack-usage=240000")
   else()
     add_c_flag_if_supported("-Wstack-usage=100000")
     add_cxx_flag_if_supported("-Wstack-usage=240000")

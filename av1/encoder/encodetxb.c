@@ -23,6 +23,7 @@
 #include "av1/encoder/rdopt.h"
 #include "av1/encoder/tokenize.h"
 
+#if CONFIG_HTB_TRELLIS
 static int hbt_needs_init = 1;
 static CRC32C crc_calculator;
 static const int HBT_EOB = 16;            // also the length in opt_qcoeff
@@ -41,6 +42,7 @@ typedef struct OptTxbQcoeff {
 } OptTxbQcoeff;
 
 OptTxbQcoeff *hbt_hash_table;
+#endif  // CONFIG_HTB_TRELLIS
 
 typedef struct LevelDownStats {
   int update;
@@ -59,6 +61,15 @@ typedef struct LevelDownStats {
   int64_t dist_diff;
   int new_eob;
 } LevelDownStats;
+
+static INLINE int get_dqv(const int16_t *dequant, int coeff_idx,
+                          const qm_val_t *iqmatrix) {
+  int dqv = dequant[!!coeff_idx];
+  if (iqmatrix != NULL)
+    dqv =
+        ((iqmatrix[coeff_idx] * dqv) + (1 << (AOM_QM_BITS - 1))) >> AOM_QM_BITS;
+  return dqv;
+}
 
 void av1_alloc_txb_buf(AV1_COMP *cpi) {
   AV1_COMMON *cm = &cpi->common;
@@ -140,7 +151,7 @@ static INLINE int get_eob_pos_token(const int eob, int *const extra) {
     t = eob_to_pos_large[e];
   }
 
-  *extra = eob - k_eob_group_start[t];
+  *extra = eob - av1_eob_group_start[t];
 
   return t;
 }
@@ -223,9 +234,9 @@ void av1_update_eob_context(int eob, TX_SIZE tx_size, TX_CLASS tx_class,
       break;
   }
 
-  if (k_eob_offset_bits[eob_pt] > 0) {
+  if (av1_eob_offset_bits[eob_pt] > 0) {
     int eob_ctx = eob_pt - 3;
-    int eob_shift = k_eob_offset_bits[eob_pt] - 1;
+    int eob_shift = av1_eob_offset_bits[eob_pt] - 1;
     int bit = (eob_extra & (1 << eob_shift)) ? 1 : 0;
 #if CONFIG_ENTROPY_STATS
     counts->eob_extra[cdf_idx][txs_ctx][plane][eob_pt][bit]++;
@@ -243,12 +254,12 @@ static int get_eob_cost(int eob, const LV_MAP_EOB_COST *txb_eob_costs,
   const int eob_multi_ctx = (tx_class == TX_CLASS_2D) ? 0 : 1;
   eob_cost = txb_eob_costs->eob_cost[eob_multi_ctx][eob_pt - 1];
 
-  if (k_eob_offset_bits[eob_pt] > 0) {
+  if (av1_eob_offset_bits[eob_pt] > 0) {
     const int eob_ctx = eob_pt - 3;
-    const int eob_shift = k_eob_offset_bits[eob_pt] - 1;
+    const int eob_shift = av1_eob_offset_bits[eob_pt] - 1;
     const int bit = (eob_extra & (1 << eob_shift)) ? 1 : 0;
     eob_cost += txb_costs->eob_extra_cost[eob_ctx][bit];
-    const int offset_bits = k_eob_offset_bits[eob_pt];
+    const int offset_bits = av1_eob_offset_bits[eob_pt];
     if (offset_bits > 1) eob_cost += av1_cost_literal(offset_bits - 1);
   }
   return eob_cost;
@@ -553,7 +564,7 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCKD *xd,
       break;
   }
 
-  const int eob_offset_bits = k_eob_offset_bits[eob_pt];
+  const int eob_offset_bits = av1_eob_offset_bits[eob_pt];
   if (eob_offset_bits > 0) {
     const int eob_ctx = eob_pt - 3;
     int eob_shift = eob_offset_bits - 1;
@@ -1055,6 +1066,7 @@ static int optimize_txb(TxbInfo *txb_info, const LV_MAP_COEFF_COST *txb_costs,
   return update;
 }
 
+#if CONFIG_HTB_TRELLIS
 static void hbt_init() {
   hbt_hash_table =
       aom_malloc(sizeof(OptTxbQcoeff) * HBT_TABLE_SIZE * HBT_ARRAY_LENGTH);
@@ -1324,6 +1336,7 @@ static int hbt_create_hashes(TxbInfo *txb_info,
   return hbt_search_match(hbt_ctx_hash, hbt_qc_hash, txb_info, txb_costs,
                           txb_eob_costs, p, block, fast_mode, rate_cost);
 }
+#endif  // CONFIG_HTB_TRELLIS
 
 static AOM_FORCE_INLINE int get_two_coeff_cost_simple(
     int ci, tran_low_t abs_qc, int coeff_ctx,
@@ -1417,8 +1430,9 @@ static INLINE void update_coeff_general(
     TX_CLASS tx_class, int bwl, int height, int64_t rdmult, int shift,
     int dc_sign_ctx, const int16_t *dequant, const int16_t *scan,
     const LV_MAP_COEFF_COST *txb_costs, const tran_low_t *tcoeff,
-    tran_low_t *qcoeff, tran_low_t *dqcoeff, uint8_t *levels) {
-  const int dqv = dequant[si != 0];
+    tran_low_t *qcoeff, tran_low_t *dqcoeff, uint8_t *levels,
+    const qm_val_t *iqmatrix) {
+  const int dqv = get_dqv(dequant, scan[si], iqmatrix);
   const int ci = scan[si];
   const tran_low_t qc = qcoeff[ci];
   const int is_last = si == (eob - 1);
@@ -1474,8 +1488,8 @@ static AOM_FORCE_INLINE void update_coeff_simple(
     int bwl, int64_t rdmult, int shift, const int16_t *dequant,
     const int16_t *scan, const LV_MAP_COEFF_COST *txb_costs,
     const tran_low_t *tcoeff, tran_low_t *qcoeff, tran_low_t *dqcoeff,
-    uint8_t *levels) {
-  const int dqv = dequant[1];
+    uint8_t *levels, const qm_val_t *iqmatrix) {
+  const int dqv = get_dqv(dequant, scan[si], iqmatrix);
   (void)eob;
   // this simple version assumes the coeff's scan_idx is not DC (scan_idx != 0)
   // and not the last (scan_idx != eob - 1)
@@ -1555,8 +1569,9 @@ static AOM_FORCE_INLINE void update_coeff_eob(
     int dc_sign_ctx, int64_t rdmult, int shift, const int16_t *dequant,
     const int16_t *scan, const LV_MAP_EOB_COST *txb_eob_costs,
     const LV_MAP_COEFF_COST *txb_costs, const tran_low_t *tcoeff,
-    tran_low_t *qcoeff, tran_low_t *dqcoeff, uint8_t *levels, int sharpness) {
-  const int dqv = dequant[si != 0];
+    tran_low_t *qcoeff, tran_low_t *dqcoeff, uint8_t *levels, int sharpness,
+    const qm_val_t *iqmatrix) {
+  const int dqv = get_dqv(dequant, scan[si], iqmatrix);
   assert(si != *eob - 1);
   const int ci = scan[si];
   const tran_low_t qc = qcoeff[ci];
@@ -1693,9 +1708,17 @@ int av1_optimize_txb_new(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
   const int shift = av1_get_tx_scale(tx_size);
   int eob = p->eobs[block];
   const int16_t *dequant = p->dequant_QTX;
+  const TX_SIZE qm_tx_size = av1_get_adjusted_tx_size(tx_size);
+  const qm_val_t *iqmatrix =
+      IS_2D_TRANSFORM(tx_type)
+          ? pd->seg_iqmatrix[xd->mi[0]->segment_id][qm_tx_size]
+          : cpi->common.giqmatrix[NUM_QM_LEVELS - 1][0][qm_tx_size];
   tran_low_t *qcoeff = BLOCK_OFFSET(p->qcoeff, block);
   tran_low_t *dqcoeff = BLOCK_OFFSET(pd->dqcoeff, block);
   const tran_low_t *tcoeff = BLOCK_OFFSET(p->coeff, block);
+
+  // This function is not called if eob = 0.
+  assert(eob > 0);
 
   if (fast_mode) {
     update_coeff_eob_fast(&eob, shift, dequant, scan, tcoeff, qcoeff, dqcoeff);
@@ -1721,15 +1744,16 @@ int av1_optimize_txb_new(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
   const LV_MAP_EOB_COST *txb_eob_costs =
       &x->eob_costs[eob_multi_size][plane_type];
 
-  const int rshift = (sharpness +
-                      (cpi->oxcf.aq_mode == VARIANCE_AQ && mbmi->segment_id < 4
-                           ? 7 - mbmi->segment_id
-                           : 2) +
-                      (cpi->oxcf.aq_mode != VARIANCE_AQ &&
-                               cpi->oxcf.deltaq_mode == DELTA_Q_PERCEPTUAL &&
-                               x->sb_energy_level < 0
-                           ? (3 - x->sb_energy_level)
-                           : 0));
+  const int rshift =
+      (sharpness +
+       (cpi->oxcf.aq_mode == VARIANCE_AQ && mbmi->segment_id < 4
+            ? 7 - mbmi->segment_id
+            : 2) +
+       (cpi->oxcf.aq_mode != VARIANCE_AQ &&
+                cpi->oxcf.deltaq_mode == DELTA_Q_PERCEPTUAL &&
+                cm->delta_q_info.delta_q_present_flag && x->sb_energy_level < 0
+            ? (3 - x->sb_energy_level)
+            : 0));
   const int64_t rdmult =
       (((int64_t)x->rdmult *
         (plane_rd_mult[is_inter][plane_type] << (2 * (xd->bd - 8)))) +
@@ -1760,7 +1784,7 @@ int av1_optimize_txb_new(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
     update_coeff_general(&accu_rate, &accu_dist, si, eob, tx_size, tx_class,
                          bwl, height, rdmult, shift, txb_ctx->dc_sign_ctx,
                          dequant, scan, txb_costs, tcoeff, qcoeff, dqcoeff,
-                         levels);
+                         levels, iqmatrix);
     --si;
   } else {
     assert(abs_qc == 1);
@@ -1783,7 +1807,7 @@ int av1_optimize_txb_new(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
                        tx_size, tx_class_literal, bwl, height,             \
                        txb_ctx->dc_sign_ctx, rdmult, shift, dequant, scan, \
                        txb_eob_costs, txb_costs, tcoeff, qcoeff, dqcoeff,  \
-                       levels, sharpness);                                 \
+                       levels, sharpness, iqmatrix);                       \
     }                                                                      \
     break;
   switch (tx_class) {
@@ -1804,7 +1828,7 @@ int av1_optimize_txb_new(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
     for (; si >= 1; --si) {                                                    \
       update_coeff_simple(&accu_rate, si, eob, tx_size, tx_class_literal, bwl, \
                           rdmult, shift, dequant, scan, txb_costs, tcoeff,     \
-                          qcoeff, dqcoeff, levels);                            \
+                          qcoeff, dqcoeff, levels, iqmatrix);                  \
     }                                                                          \
     break;
   switch (tx_class) {
@@ -1822,7 +1846,7 @@ int av1_optimize_txb_new(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
     update_coeff_general(&accu_rate, &dummy_dist, si, eob, tx_size, tx_class,
                          bwl, height, rdmult, shift, txb_ctx->dc_sign_ctx,
                          dequant, scan, txb_costs, tcoeff, qcoeff, dqcoeff,
-                         levels);
+                         levels, iqmatrix);
   }
 
   const int tx_type_cost = get_tx_type_cost(cm, x, xd, plane, tx_size, tx_type);
@@ -1890,6 +1914,7 @@ int av1_optimize_txb(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
     scan_order, txb_ctx, rdmult,  iqmatrix, tx_type_cost,
   };
 
+#if CONFIG_HTB_TRELLIS
   // Hash based trellis (hbt) speed feature: avoid expensive optimize_txb calls
   // by storing the coefficient deltas in a hash table.
   // Currently disabled in speedfeatures.c
@@ -1897,7 +1922,9 @@ int av1_optimize_txb(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
     return hbt_create_hashes(&txb_info, txb_costs, &txb_eob_costs, p, block,
                              fast_mode, rate_cost);
   }
-
+#else
+  (void)fast_mode;
+#endif  // CONFIG_HTB_TRELLIS
   av1_txb_init_levels(qcoeff, width, height, levels);
 
   const int update =
@@ -1951,9 +1978,10 @@ void av1_update_txb_context_b(int plane, int block, int blk_row, int blk_col,
                    blk_row);
 }
 
-static void update_tx_type_count(const AV1_COMMON *cm, MACROBLOCKD *xd,
-                                 int blk_row, int blk_col, int plane,
-                                 TX_SIZE tx_size, FRAME_COUNTS *counts,
+static void update_tx_type_count(const AV1_COMP *cpi, const AV1_COMMON *cm,
+                                 MACROBLOCKD *xd, int blk_row, int blk_col,
+                                 int plane, TX_SIZE tx_size,
+                                 FRAME_COUNTS *counts,
                                  uint8_t allow_update_cdf) {
   MB_MODE_INFO *mbmi = xd->mi[0];
   int is_inter = is_inter_block(mbmi);
@@ -1964,8 +1992,23 @@ static void update_tx_type_count(const AV1_COMMON *cm, MACROBLOCKD *xd,
 
   // Only y plane's tx_type is updated
   if (plane > 0) return;
-  TX_TYPE tx_type = av1_get_tx_type(PLANE_TYPE_Y, xd, blk_row, blk_col, tx_size,
-                                    cm->reduced_tx_set_used);
+  const TX_TYPE tx_type = av1_get_tx_type(PLANE_TYPE_Y, xd, blk_row, blk_col,
+                                          tx_size, cm->reduced_tx_set_used);
+  if (is_inter) {
+    if (cpi->oxcf.use_inter_dct_only) {
+      assert(tx_type == DCT_DCT);
+    }
+  } else {
+    if (cpi->oxcf.use_intra_dct_only) {
+      assert(tx_type == DCT_DCT);
+    } else if (cpi->oxcf.use_intra_default_tx_only) {
+      const TX_TYPE default_type = get_default_tx_type(
+          PLANE_TYPE_Y, xd, tx_size, cpi->is_screen_content_type);
+      (void)default_type;
+      assert(tx_type == default_type);
+    }
+  }
+
   if (get_ext_tx_types(tx_size, is_inter, cm->reduced_tx_set_used) > 1 &&
       cm->base_qindex > 0 && !mbmi->skip &&
       !segfeature_active(&cm->seg, mbmi->segment_id, SEG_LVL_SKIP)) {
@@ -2137,8 +2180,8 @@ void av1_update_and_record_txb_context(int plane, int block, int blk_row,
   uint8_t levels_buf[TX_PAD_2D];
   uint8_t *const levels = set_levels(levels_buf, width);
   av1_txb_init_levels(tcoeff, width, height, levels);
-  update_tx_type_count(cm, xd, blk_row, blk_col, plane, tx_size, td->counts,
-                       allow_update_cdf);
+  update_tx_type_count(cpi, cm, xd, blk_row, blk_col, plane, tx_size,
+                       td->counts, allow_update_cdf);
 
   const PLANE_TYPE plane_type = pd->plane_type;
   const TX_TYPE tx_type = av1_get_tx_type(plane_type, xd, blk_row, blk_col,

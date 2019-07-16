@@ -194,6 +194,7 @@ if(CONFIG_AV1_ENCODER)
               "${AOM_ROOT}/aom_dsp/x86/highbd_variance_sse2.c"
               "${AOM_ROOT}/aom_dsp/x86/quantize_sse2.c"
               "${AOM_ROOT}/aom_dsp/x86/adaptive_quantize_sse2.c"
+              "${AOM_ROOT}/aom_dsp/x86/highbd_adaptive_quantize_sse2.c"
               "${AOM_ROOT}/aom_dsp/x86/quantize_x86.h"
               "${AOM_ROOT}/aom_dsp/x86/sum_squares_sse2.c"
               "${AOM_ROOT}/aom_dsp/x86/variance_sse2.c")
@@ -207,6 +208,7 @@ if(CONFIG_AV1_ENCODER)
               "${AOM_ROOT}/aom_dsp/x86/subtract_avx2.c"
               "${AOM_ROOT}/aom_dsp/x86/highbd_quantize_intrin_avx2.c"
               "${AOM_ROOT}/aom_dsp/x86/adaptive_quantize_avx2.c"
+              "${AOM_ROOT}/aom_dsp/x86/highbd_adaptive_quantize_avx2.c"
               "${AOM_ROOT}/aom_dsp/x86/sad4d_avx2.c"
               "${AOM_ROOT}/aom_dsp/x86/sad_avx2.c"
               "${AOM_ROOT}/aom_dsp/x86/sad_highbd_avx2.c"
@@ -241,7 +243,9 @@ if(CONFIG_AV1_ENCODER)
   list(APPEND AOM_DSP_ENCODER_INTRIN_NEON "${AOM_ROOT}/aom_dsp/arm/sad4d_neon.c"
               "${AOM_ROOT}/aom_dsp/arm/sad_neon.c"
               "${AOM_ROOT}/aom_dsp/arm/subpel_variance_neon.c"
-              "${AOM_ROOT}/aom_dsp/arm/variance_neon.c")
+              "${AOM_ROOT}/aom_dsp/arm/variance_neon.c"
+              "${AOM_ROOT}/aom_dsp/arm/hadamard_neon.c"
+              "${AOM_ROOT}/aom_dsp/arm/avg_neon.c")
 
   list(APPEND AOM_DSP_ENCODER_INTRIN_MSA "${AOM_ROOT}/aom_dsp/mips/sad_msa.c"
               "${AOM_ROOT}/aom_dsp/mips/subtract_msa.c"

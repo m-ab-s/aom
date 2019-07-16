@@ -131,6 +131,12 @@ enum {
 } UENUM1BYTE(LPF_PICK_METHOD);
 
 enum {
+  CDEF_FULL_SEARCH,
+  CDEF_FAST_SEARCH,  // Search among a subset of all possible filters.
+  CDEF_PICK_FROM_Q   // Estimate filter strength based on quantizer.
+} UENUM1BYTE(CDEF_PICK_METHOD);
+
+enum {
   // Terminate search early based on distortion so far compared to
   // qp step, distortion in the neighborhood of the frame, etc.
   FLAG_EARLY_TERMINATE = 1 << 0,
@@ -151,21 +157,20 @@ enum {
 
 enum {
   NO_PRUNE = 0,
-  // eliminates one tx type in vertical and horizontal direction
-  PRUNE_ONE = 1,
-  // eliminates two tx types in each direction
-  PRUNE_TWO = 2,
   // adaptively prunes the least perspective tx types out of all 16
   // (tuned to provide negligible quality loss)
-  PRUNE_2D_ACCURATE = 3,
+  PRUNE_2D_ACCURATE = 1,
   // similar, but applies much more aggressive pruning to get better speed-up
-  PRUNE_2D_FAST = 4,
+  PRUNE_2D_FAST = 2,
 } UENUM1BYTE(TX_TYPE_PRUNE_MODE);
 
 typedef struct {
   TX_TYPE_PRUNE_MODE prune_mode;
   int fast_intra_tx_type_search;
   int fast_inter_tx_type_search;
+
+  // prune two least frequently chosen transforms for each intra mode
+  int use_reduced_intra_txset;
 
   // Use a skip flag prediction model to detect blocks with skip = 1 early
   // and avoid doing full TX type search for such blocks.
@@ -370,10 +375,6 @@ typedef struct SPEED_FEATURES {
   // Use a ML model to prune horz and vert partitions
   int ml_prune_rect_partition;
 
-  // Disable/Enable interintra motion mode based on stats collected during
-  // first_partition_search_pass
-  int use_first_partition_pass_interintra_stats;
-
   // Use a ML model to prune horz_a, horz_b, vert_a and vert_b partitions.
   int ml_prune_ab_partition;
 
@@ -384,16 +385,6 @@ typedef struct SPEED_FEATURES {
   // PARTITION_SPLIT. Can take values 0 - 2, 0 meaning not being enabled, and
   // 1 - 2 increasing aggressiveness in order.
   int ml_early_term_after_part_split_level;
-
-  int fast_cdef_search;
-
-  // 2-pass coding block partition search, and also use the mode decisions made
-  // in the initial partition search to prune mode candidates, e.g. ref frames.
-  int two_pass_partition_search;
-
-  // Terminate early in firstpass of two_pass partition search for faster
-  // firstpass.
-  int firstpass_simple_motion_search_early_term;
 
   // Skip rectangular partition test when partition type none gives better
   // rd than partition type split. Can take values 0 - 2, 0 referring to no
@@ -445,12 +436,6 @@ typedef struct SPEED_FEATURES {
   // Pattern to be used for any exhaustive mesh searches.
   MESH_PATTERN mesh_patterns[MAX_MESH_STEP];
 
-  // Allows sub 8x8 modes to use the prediction filter that was determined
-  // best for 8x8 mode. If set to 0 we always re check all the filters for
-  // sizes less than 8x8, 1 means we check all filter modes if no 8x8 filter
-  // was selected, and 2 means we use 8 tap if no 8x8 filter mode was selected.
-  int adaptive_pred_interp_filter;
-
   // Adaptive prediction mode search
   int adaptive_mode_search;
 
@@ -485,6 +470,9 @@ typedef struct SPEED_FEATURES {
 
   // This feature controls how the loop filter level is determined.
   LPF_PICK_METHOD lpf_pick;
+
+  // Control how the CDEF strength is determined.
+  CDEF_PICK_METHOD cdef_pick_method;
 
   // This feature controls whether we do the expensive context update and
   // calculation in the rd coefficient costing loop.
@@ -569,9 +557,6 @@ typedef struct SPEED_FEATURES {
   // Use two-loop compound search
   int two_loop_comp_search;
 
-  // Use model rd instead of transform search in second loop of compound search
-  int second_loop_comp_fast_tx_search;
-
   // Decide when and how to use joint_comp.
   DIST_WTD_COMP_FLAG use_dist_wtd_comp_flag;
 
@@ -591,8 +576,9 @@ typedef struct SPEED_FEATURES {
   // Skip some ref frames in compound motion search by single motion search
   // result. Has three levels for now: 0 referring to no skipping, and 1 - 3
   // increasing aggressiveness of skipping in order.
-  // Note: The search order might affect the result. It is better to search same
-  // single inter mode as a group.
+  // Note: The search order might affect the result. It assumes that the single
+  // reference modes are searched before compound modes. It is better to search
+  // same single inter mode as a group.
   int prune_comp_search_by_single_result;
 
   // Skip certain motion modes (OBMC, warped, interintra) for single reference
@@ -638,6 +624,9 @@ typedef struct SPEED_FEATURES {
   // Values are 0 (not used) , 1 - 3 with progressively increasing
   // aggressiveness
   int prune_motion_mode_level;
+
+  // prune sgr ep using binary search like mechanism
+  int enable_sgr_ep_pruning;
 
   // Gate warp evaluation for motions of type IDENTITY,
   // TRANSLATION and AFFINE(based on number of warp neighbors)
@@ -703,14 +692,34 @@ typedef struct SPEED_FEATURES {
   int inter_mode_rd_model_estimation_adaptive;
 
   // Use very reduced set of inter mode checks and fast non-rd mode cost
-  // estimation Only enabled when use_nonrd_pick_mode is != 0
+  // estimation. Only enabled when use_nonrd_pick_mode is != 0
   int use_fast_nonrd_pick_mode;
 
   // Reuse inter prediction in fast non-rd mode.
   int reuse_inter_pred_nonrd;
 
-  // Perform croase ME before calculating variance in variance-based partition
+  // Perform coarse ME before calculating variance in variance-based partition
   int estimate_motion_for_var_based_partition;
+
+  // Instead of performing a full MV search, do a simple translation first
+  // and only perform a full MV search on the motion vectors that performed
+  // well.
+  int prune_mode_search_simple_translation;
+
+  // Use compound reference for non-RD mode.
+  int use_comp_ref_nonrd;
+
+  // check intra prediction for non-RD mode.
+  int check_intra_pred_nonrd;
+
+  // Only search compound modes with at least one "good" reference frame.
+  // A reference frame is good if, after looking at its performance among
+  // the single reference modes, it is one of the two best performers.
+  int prune_compound_using_single_ref;
+
+  // Use CNN with luma pixels on source frame on each of the 64x64 subblock to
+  // perform split/no_split decision on intra-frames.
+  int intra_cnn_split;
 } SPEED_FEATURES;
 
 struct AV1_COMP;

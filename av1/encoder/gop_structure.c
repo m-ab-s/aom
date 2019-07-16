@@ -27,7 +27,8 @@
 
 // Set parameters for frames between 'start' and 'end' (excluding both).
 static void set_multi_layer_params(GF_GROUP *const gf_group, int start, int end,
-                                   int *frame_ind, int arf_ind, int level) {
+                                   int *frame_ind, int arf_ind, int level,
+                                   int layer_depth) {
   assert(level >= MIN_PYRAMID_LVL);
   const int num_frames_to_process = end - start - 1;
   assert(num_frames_to_process >= 0);
@@ -44,6 +45,7 @@ static void set_multi_layer_params(GF_GROUP *const gf_group, int start, int end,
       gf_group->arf_update_idx[*frame_ind] = arf_ind;
       gf_group->frame_disp_idx[*frame_ind] = start;
       gf_group->pyramid_level[*frame_ind] = MIN_PYRAMID_LVL;
+      gf_group->layer_depth[*frame_ind] = MAX_ARF_LAYERS;
       ++gf_group->pyramid_lvl_nodes[MIN_PYRAMID_LVL];
       ++(*frame_ind);
     }
@@ -58,11 +60,13 @@ static void set_multi_layer_params(GF_GROUP *const gf_group, int start, int end,
     gf_group->arf_update_idx[*frame_ind] = 1;  // mark all internal ARF 1
     gf_group->frame_disp_idx[*frame_ind] = m;
     gf_group->pyramid_level[*frame_ind] = level;
+    gf_group->layer_depth[*frame_ind] = layer_depth;
     ++gf_group->pyramid_lvl_nodes[level];
     ++(*frame_ind);
 
     // Frames displayed before this internal ARF.
-    set_multi_layer_params(gf_group, start, m, frame_ind, 1, level - 1);
+    set_multi_layer_params(gf_group, start, m, frame_ind, 1, level - 1,
+                           layer_depth + 1);
 
     // Overlay for internal ARF.
     gf_group->update_type[*frame_ind] = INTNL_OVERLAY_UPDATE;
@@ -71,10 +75,12 @@ static void set_multi_layer_params(GF_GROUP *const gf_group, int start, int end,
     gf_group->arf_update_idx[*frame_ind] = 1;
     gf_group->frame_disp_idx[*frame_ind] = m;
     gf_group->pyramid_level[*frame_ind] = MIN_PYRAMID_LVL;
+    gf_group->layer_depth[*frame_ind] = layer_depth;
     ++(*frame_ind);
 
     // Frames displayed after this internal ARF.
-    set_multi_layer_params(gf_group, m, end, frame_ind, arf_ind, level - 1);
+    set_multi_layer_params(gf_group, m, end, frame_ind, arf_ind, level - 1,
+                           layer_depth + 1);
   }
 }
 
@@ -90,11 +96,14 @@ static int construct_multi_layer_gf_structure(
   assert(first_frame_update_type == KF_UPDATE ||
          first_frame_update_type == OVERLAY_UPDATE ||
          first_frame_update_type == GF_UPDATE);
+
   gf_group->update_type[frame_index] = first_frame_update_type;
   gf_group->arf_src_offset[frame_index] = 0;
   gf_group->arf_pos_in_gf[frame_index] = 0;
   gf_group->arf_update_idx[frame_index] = 0;
   gf_group->pyramid_level[frame_index] = MIN_PYRAMID_LVL;
+  gf_group->layer_depth[frame_index] =
+      first_frame_update_type == OVERLAY_UPDATE ? MAX_ARF_LAYERS + 1 : 0;
   ++frame_index;
 
   // ALTREF.
@@ -106,6 +115,7 @@ static int construct_multi_layer_gf_structure(
     gf_group->arf_update_idx[frame_index] = 0;
     gf_group->frame_disp_idx[frame_index] = gf_interval;
     gf_group->pyramid_level[frame_index] = gf_group->pyramid_height;
+    gf_group->layer_depth[frame_index] = 1;
     ++frame_index;
   }
 
@@ -113,8 +123,8 @@ static int construct_multi_layer_gf_structure(
   const int next_height =
       use_altref ? gf_group->pyramid_height - 1 : gf_group->pyramid_height;
   assert(next_height >= MIN_PYRAMID_LVL);
-  set_multi_layer_params(gf_group, 0, gf_interval, &frame_index, 0,
-                         next_height);
+  set_multi_layer_params(gf_group, 0, gf_interval, &frame_index, 0, next_height,
+                         use_altref + 1);
   return frame_index;
 }
 
@@ -129,7 +139,7 @@ void check_frame_params(GF_GROUP *const gf_group, int gf_interval) {
   FILE *fid = fopen("GF_PARAMS.txt", "a");
 
   fprintf(fid, "\ngf_interval = {%d}\n", gf_interval);
-  for (int i = 0; i <= gf_group->size; ++i) {
+  for (int i = 0; i < gf_group->size; ++i) {
     fprintf(fid, "#%2d : %s %d %d %d %d\n", i,
             update_type_strings[gf_group->update_type[i]],
             gf_group->arf_src_offset[i], gf_group->arf_pos_in_gf[i],
@@ -176,7 +186,7 @@ static INLINE void reset_ref_frame_idx(int *ref_idx, int reset_value) {
 }
 
 static INLINE void set_ref_frame_disp_idx(GF_GROUP *const gf_group) {
-  for (int i = 0; i <= gf_group->size; ++i) {
+  for (int i = 0; i < gf_group->size; ++i) {
     for (int ref = 0; ref < INTER_REFS_PER_FRAME + 1; ++ref) {
       int ref_gop_idx = gf_group->ref_frame_gop_idx[i][ref];
       if (ref_gop_idx == -1) {
@@ -191,7 +201,7 @@ static INLINE void set_ref_frame_disp_idx(GF_GROUP *const gf_group) {
 
 static void set_gop_ref_frame_map(GF_GROUP *const gf_group) {
   // Initialize the reference slots as all -1.
-  for (int frame_idx = 0; frame_idx <= gf_group->size; ++frame_idx)
+  for (int frame_idx = 0; frame_idx < gf_group->size; ++frame_idx)
     reset_ref_frame_idx(gf_group->ref_frame_gop_idx[frame_idx], -1);
 
   // Set the map for frames in the current gop
@@ -302,8 +312,7 @@ static void set_gop_ref_frame_map(GF_GROUP *const gf_group) {
 void av1_gop_setup_structure(AV1_COMP *cpi,
                              const EncodeFrameParams *const frame_params) {
   RATE_CONTROL *const rc = &cpi->rc;
-  TWO_PASS *const twopass = &cpi->twopass;
-  GF_GROUP *const gf_group = &twopass->gf_group;
+  GF_GROUP *const gf_group = &cpi->gf_group;
   const int key_frame = (frame_params->frame_type == KEY_FRAME);
   const FRAME_UPDATE_TYPE first_frame_update_type =
       key_frame ? KF_UPDATE
@@ -311,14 +320,6 @@ void av1_gop_setup_structure(AV1_COMP *cpi,
   gf_group->size = construct_multi_layer_gf_structure(
       gf_group, rc->baseline_gf_interval, get_pyramid_height(cpi),
       first_frame_update_type);
-
-  // We need to configure the frame at the end of the sequence + 1 that
-  // will be the start frame for the next group. Otherwise prior to the
-  // call to av1_get_second_pass_params(), the data will be undefined.
-  gf_group->update_type[gf_group->size] =
-      (rc->source_alt_ref_pending) ? OVERLAY_UPDATE : GF_UPDATE;
-  gf_group->arf_update_idx[gf_group->size] = 0;
-  gf_group->arf_pos_in_gf[gf_group->size] = 0;
 
   set_gop_ref_frame_map(gf_group);
 

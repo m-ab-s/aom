@@ -183,8 +183,7 @@ typedef struct BufferPool {
 } BufferPool;
 
 typedef struct {
-  int cdef_pri_damping;
-  int cdef_sec_damping;
+  int cdef_damping;
   int nb_cdef_strengths;
   int cdef_strengths[CDEF_MAX_STRENGTHS];
   int cdef_uv_strengths[CDEF_MAX_STRENGTHS];
@@ -377,7 +376,7 @@ typedef struct AV1Common {
   int allow_warped_motion;
 
   // MBs, mb_rows/cols is in 16-pixel units; mi_rows/cols is in
-  // MB_MODE_INFO (8-pixel) units.
+  // MB_MODE_INFO (4-pixel) units.
   int MBs;
   int mb_rows, mi_rows;
   int mb_cols, mi_cols;
@@ -425,25 +424,21 @@ typedef struct AV1Common {
   /* We allocate a MB_MODE_INFO struct for each macroblock, together with
      an extra row on top and column on the left to simplify prediction. */
   int mi_alloc_size;
-  MB_MODE_INFO *mip; /* Base of allocated array */
   MB_MODE_INFO *mi;  /* Corresponds to upper left visible macroblock */
 
   // TODO(agrange): Move prev_mi into encoder structure.
-  // prev_mip and prev_mi will only be allocated in encoder.
-  MB_MODE_INFO *prev_mip; /* MB_MODE_INFO array 'mip' from last decoded frame */
-  MB_MODE_INFO *prev_mi;  /* 'mi' from last frame (points into prev_mip) */
+  // prev_mi will only be allocated in encoder.
+  MB_MODE_INFO *prev_mi;  /* 'mi' from last frame */
 
   // Separate mi functions between encoder and decoder.
   int (*alloc_mi)(struct AV1Common *cm, int mi_size);
   void (*free_mi)(struct AV1Common *cm);
   void (*setup_mi)(struct AV1Common *cm);
 
-  // Grid of pointers to 8x8 MB_MODE_INFO structs.  Any 8x8 not in the visible
+  // Grid of pointers to 4x4 MB_MODE_INFO structs. Any 4x4 not in the visible
   // area will be NULL.
   MB_MODE_INFO **mi_grid_base;
-  MB_MODE_INFO **mi_grid_visible;
   MB_MODE_INFO **prev_mi_grid_base;
-  MB_MODE_INFO **prev_mi_grid_visible;
 
   // Whether to use previous frames' motion vectors for prediction.
   int allow_ref_frame_mvs;
@@ -1291,7 +1286,7 @@ static INLINE PARTITION_TYPE get_partition(const AV1_COMMON *const cm,
   if (mi_row >= cm->mi_rows || mi_col >= cm->mi_cols) return PARTITION_INVALID;
 
   const int offset = mi_row * cm->mi_stride + mi_col;
-  MB_MODE_INFO **mi = cm->mi_grid_visible + offset;
+  MB_MODE_INFO **mi = cm->mi_grid_base + offset;
   const BLOCK_SIZE subsize = mi[0]->sb_type;
 
   if (subsize == bsize) return PARTITION_NONE;

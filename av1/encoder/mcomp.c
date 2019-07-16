@@ -59,21 +59,6 @@ void av1_set_mv_search_range(MvLimits *mv_limits, const MV *mv) {
   if (mv_limits->row_max > row_max) mv_limits->row_max = row_max;
 }
 
-static void set_subpel_mv_search_range(const MvLimits *mv_limits, int *col_min,
-                                       int *col_max, int *row_min, int *row_max,
-                                       const MV *ref_mv) {
-  const int max_mv = MAX_FULL_PEL_VAL * 8;
-  const int minc = AOMMAX(mv_limits->col_min * 8, ref_mv->col - max_mv);
-  const int maxc = AOMMIN(mv_limits->col_max * 8, ref_mv->col + max_mv);
-  const int minr = AOMMAX(mv_limits->row_min * 8, ref_mv->row - max_mv);
-  const int maxr = AOMMIN(mv_limits->row_max * 8, ref_mv->row + max_mv);
-
-  *col_min = AOMMAX(MV_LOW + 1, minc);
-  *col_max = AOMMIN(MV_UPP - 1, maxc);
-  *row_min = AOMMAX(MV_LOW + 1, minr);
-  *row_max = AOMMIN(MV_UPP - 1, maxr);
-}
-
 int av1_init_search_range(int size) {
   int sr = 0;
   // Minimum search size no matter what the passed in value.
@@ -960,10 +945,10 @@ unsigned int av1_refine_warped_mv(const AV1_COMP *cpi, MACROBLOCK *const x,
         memcpy(pts_inref, pts_inref0, total_samples * 2 * sizeof(*pts_inref0));
         if (total_samples > 1)
           mbmi->num_proj_ref =
-              selectSamples(&this_mv, pts, pts_inref, total_samples, bsize);
+              av1_selectSamples(&this_mv, pts, pts_inref, total_samples, bsize);
 
-        if (!find_projection(mbmi->num_proj_ref, pts, pts_inref, bsize, *tr,
-                             *tc, &mbmi->wm_params, mi_row, mi_col)) {
+        if (!av1_find_projection(mbmi->num_proj_ref, pts, pts_inref, bsize, *tr,
+                                 *tc, &mbmi->wm_params, mi_row, mi_col)) {
           thismse =
               av1_compute_motion_cost(cpi, x, bsize, mi_row, mi_col, &this_mv);
 
@@ -2440,8 +2425,9 @@ int av1_full_pixel_search(const AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
 
         Iterator iterator =
             av1_hash_get_first_iterator(ref_frame_hash, hash_value1);
-        for (int i = 0; i < count; i++, iterator_increment(&iterator)) {
-          block_hash ref_block_hash = *(block_hash *)(iterator_get(&iterator));
+        for (int i = 0; i < count; i++, aom_iterator_increment(&iterator)) {
+          block_hash ref_block_hash =
+              *(block_hash *)(aom_iterator_get(&iterator));
           if (hash_value2 == ref_block_hash.hash_value2) {
             // For intra, make sure the prediction is from valid area.
             if (intra) {

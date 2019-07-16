@@ -438,23 +438,14 @@ INSTANTIATE_TEST_CASE_P(AVX2, AV1LbdInvTxfm2d,
 
 // TODO(yunqing): Re-enable this unit test for NEON version after the functions
 // are fixed.
-// #if HAVE_NEON
-//
-// #if CONFIG_MODE_DEP_TX
-// extern "C" void av1_lowbd_inv_txfm2d_add_neon(const int32_t *input,
-//                                               uint8_t *output, int stride,
-//                                               TX_TYPE tx_type,
-//                                               TX_SIZE tx_size,
-//                                               PREDICTION_MODE mode,
-//                                               int eob);
-// #else
-// extern "C" void av1_lowbd_inv_txfm2d_add_neon(const int32_t *input,
-//                                               uint8_t *output, int stride,
-//                                               TX_TYPE tx_type,
-//                                               TX_SIZE tx_size, int eob);
-// #endif
-// INSTANTIATE_TEST_CASE_P(NEON, AV1LbdInvTxfm2d,
-//                         ::testing::Values(av1_lowbd_inv_txfm2d_add_neon));
-// #endif  // HAVE_NEON
+#if HAVE_NEON
+extern "C" void av1_lowbd_inv_txfm2d_add_neon(const int32_t *input,
+                                              uint8_t *output, int stride,
+                                              TX_TYPE tx_type, TX_SIZE tx_size,
+                                              int eob);
+
+INSTANTIATE_TEST_CASE_P(NEON, AV1LbdInvTxfm2d,
+                        ::testing::Values(av1_lowbd_inv_txfm2d_add_neon));
+#endif  // HAVE_NEON
 
 }  // namespace

@@ -15,8 +15,9 @@
 
 #include "third_party/googletest/src/googletest/include/gtest/gtest.h"
 
-#include "av1/common/cnn.h"
 #include "config/av1_rtcd.h"
+
+#include "av1/common/cnn.h"
 
 #define SQR(x) ((x) * (x))
 
@@ -2371,91 +2372,92 @@ TEST_F(CNNTest, TestMultiOutput) {
   const float *expected[] = { expected_0, expected_1, expected_2, expected_3 };
 
   CNN_CONFIG cnn_config = {
-    4,
-    0,
-    0,
-    0,
-    0,
+    4,  // num_layers
+    0,  // is_residue
+    0,  // ext_width
+    0,  // ext_height
+    0,  // strict_bounds
     {
+        // layer_config
         {
-            image_ch,
-            filter_dim,
-            filter_dim,
-            num_filters,
-            stride,
-            stride,
-            0,
-            weights_1,
-            bias,
-            PADDING_SAME_ZERO,
-            NONE,
-            0,
-            0,
-            BRANCH_OUTPUT,
-            BRANCH_NOC,
-            { 2, 0, 0 },
-            {},
-            0,
+            image_ch,           // in_channels
+            filter_dim,         // filter_width
+            filter_dim,         // filter_height
+            num_filters,        // out_channels
+            stride,             // skip_width
+            stride,             // skip_height
+            0,                  // max_pool
+            weights_1,          // weights
+            bias,               // bias
+            PADDING_SAME_ZERO,  // pad
+            NONE,               // activation
+            0,                  // deconvolve
+            0,                  // branch
+            BRANCH_OUTPUT,      // branch_copy_type
+            BRANCH_NOC,         // branch_combine_type
+            { 2, 0, 0 },        // branch_config
+            {},                 // bn_params
+            0,                  // output_num
         },
         {
-            num_filters,
-            filter_dim,
-            filter_dim,
-            num_filters,
-            stride,
-            stride,
-            0,
-            weights_2,
-            bias,
-            PADDING_SAME_ZERO,
-            RELU,
-            0,
-            0,
-            BRANCH_NO_COPY,
-            BRANCH_NOC,
-            {},
-            {},
-            1,
+            num_filters,        // in_channels
+            filter_dim,         // filter_width
+            filter_dim,         // filter_height
+            num_filters,        // out_channels
+            stride,             // skip_width
+            stride,             // skip_height
+            0,                  // max_pool
+            weights_2,          // weights
+            bias,               // bias
+            PADDING_SAME_ZERO,  // pad
+            RELU,               // activation
+            0,                  // deconvolve
+            0,                  // branch
+            BRANCH_NO_COPY,     // branch_copy_type
+            BRANCH_NOC,         // branch_combine_type
+            {},                 // branch_config
+            {},                 // bn_params
+            1,                  // output_num
         },
         {
-            num_filters,
-            filter_dim,
-            filter_dim,
-            num_filters,
-            stride,
-            stride,
-            0,
-            weights_3,
-            bias,
-            PADDING_SAME_ZERO,
-            RELU,
-            0,
-            0,
-            BRANCH_NO_COPY,
-            BRANCH_NOC,
-            {},
-            {},
-            2,
+            num_filters,        // in_channels
+            filter_dim,         // filter_width
+            filter_dim,         // filter_height
+            num_filters,        // out_channels
+            stride,             // skip_width
+            stride,             // skip_height
+            0,                  // max_pool
+            weights_3,          // weights
+            bias,               // bias
+            PADDING_SAME_ZERO,  // pad
+            RELU,               // activation
+            0,                  // deconvolve
+            0,                  // branch
+            BRANCH_NO_COPY,     // branch_copy_type
+            BRANCH_NOC,         // branch_combine_type
+            {},                 // branch_config
+            {},                 // bn_params
+            2,                  // output_num
         },
         {
-            num_filters,
-            2 * filter_dim,
-            2 * filter_dim,
-            num_filters,
-            2 * stride,
-            2 * stride,
-            0,
-            weights_4,
-            bias,
-            PADDING_VALID,
-            RELU,
-            0,
-            1,
-            BRANCH_NO_COPY,
-            BRANCH_CAT,
-            { 0, 0, 1 },
-            {},
-            3,
+            num_filters,     // in_channels
+            2 * filter_dim,  // filter_width
+            2 * filter_dim,  // filter_height
+            num_filters,     // out_channels
+            2 * stride,      // skip_width
+            2 * stride,      // skip_height
+            0,               // max_pool
+            weights_4,       // weights
+            bias,            // bias
+            PADDING_VALID,   // pad
+            RELU,            // activation
+            0,               // deconvolve
+            1,               // branch
+            BRANCH_NO_COPY,  // branch_copy_type
+            BRANCH_CAT,      // branch_combine_type
+            { 0, 0, 1 },     // branch_config
+            {},              // bn_params
+            3,               // output_num
         },
     },
   };

@@ -56,11 +56,11 @@ static void read_cdef(AV1_COMMON *cm, aom_reader *r, MACROBLOCKD *const xd,
   const int index = cm->seq_params.sb_size == BLOCK_128X128
                         ? !!(mi_col & mask) + 2 * !!(mi_row & mask)
                         : 0;
-  cm->mi_grid_visible[(mi_row & m) * cm->mi_stride + (mi_col & m)]
-      ->cdef_strength = xd->cdef_preset[index] =
-      xd->cdef_preset[index] == -1 && !mbmi->skip
-          ? aom_read_literal(r, cm->cdef_info.cdef_bits, ACCT_STR)
-          : xd->cdef_preset[index];
+  cm->mi_grid_base[(mi_row & m) * cm->mi_stride + (mi_col & m)]->cdef_strength =
+      xd->cdef_preset[index] =
+          xd->cdef_preset[index] == -1 && !mbmi->skip
+              ? aom_read_literal(r, cm->cdef_info.cdef_bits, ACCT_STR)
+              : xd->cdef_preset[index];
 }
 
 static int read_delta_qindex(AV1_COMMON *cm, const MACROBLOCKD *xd,
@@ -129,20 +129,20 @@ static UV_PREDICTION_MODE read_intra_mode_uv(FRAME_CONTEXT *ec_ctx,
   return uv_mode;
 }
 
-static int read_cfl_alphas(FRAME_CONTEXT *const ec_ctx, aom_reader *r,
-                           int *signs_out) {
-  const int joint_sign =
+static uint8_t read_cfl_alphas(FRAME_CONTEXT *const ec_ctx, aom_reader *r,
+                               int8_t *signs_out) {
+  const int8_t joint_sign =
       aom_read_symbol(r, ec_ctx->cfl_sign_cdf, CFL_JOINT_SIGNS, "cfl:signs");
-  int idx = 0;
+  uint8_t idx = 0;
   // Magnitudes are only coded for nonzero values
   if (CFL_SIGN_U(joint_sign) != CFL_SIGN_ZERO) {
     aom_cdf_prob *cdf_u = ec_ctx->cfl_alpha_cdf[CFL_CONTEXT_U(joint_sign)];
-    idx = aom_read_symbol(r, cdf_u, CFL_ALPHABET_SIZE, "cfl:alpha_u")
+    idx = (uint8_t)aom_read_symbol(r, cdf_u, CFL_ALPHABET_SIZE, "cfl:alpha_u")
           << CFL_ALPHABET_SIZE_LOG2;
   }
   if (CFL_SIGN_V(joint_sign) != CFL_SIGN_ZERO) {
     aom_cdf_prob *cdf_v = ec_ctx->cfl_alpha_cdf[CFL_CONTEXT_V(joint_sign)];
-    idx += aom_read_symbol(r, cdf_v, CFL_ALPHABET_SIZE, "cfl:alpha_v");
+    idx += (uint8_t)aom_read_symbol(r, cdf_v, CFL_ALPHABET_SIZE, "cfl:alpha_v");
   }
   *signs_out = joint_sign;
   return idx;
@@ -1105,8 +1105,8 @@ static INLINE void read_mb_interp_filter(AV1_COMMON *const cm,
       }
     }
     // The index system works as: (0, 1) -> (vertical, horizontal) filter types
-    mbmi->interp_filters =
-        av1_make_interp_filters(ref0_filter[0], ref0_filter[1]);
+    mbmi->interp_filters.as_filters.x_filter = ref0_filter[1];
+    mbmi->interp_filters.as_filters.y_filter = ref0_filter[0];
   }
 }
 
@@ -1455,9 +1455,8 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
         mbmi->use_wedge_interintra = aom_read_symbol(
             r, ec_ctx->wedge_interintra_cdf[bsize], 2, ACCT_STR);
         if (mbmi->use_wedge_interintra) {
-          mbmi->interintra_wedge_index =
-              aom_read_symbol(r, ec_ctx->wedge_idx_cdf[bsize], 16, ACCT_STR);
-          mbmi->interintra_wedge_sign = 0;
+          mbmi->interintra_wedge_index = (int8_t)aom_read_symbol(
+              r, ec_ctx->wedge_idx_cdf[bsize], 16, ACCT_STR);
         }
       }
     }
@@ -1471,7 +1470,8 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
   mbmi->motion_mode = SIMPLE_TRANSLATION;
   if (is_motion_variation_allowed_bsize(mbmi->sb_type) && !mbmi->skip_mode &&
       !has_second_ref(mbmi))
-    mbmi->num_proj_ref = findSamples(cm, xd, mi_row, mi_col, pts, pts_inref);
+    mbmi->num_proj_ref =
+        av1_findSamples(cm, xd, mi_row, mi_col, pts, pts_inref);
   av1_count_overlappable_neighbors(cm, xd, mi_row, mi_col);
 
   if (mbmi->ref_frame[1] != INTRA_FRAME)
@@ -1489,14 +1489,14 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
 
     if (masked_compound_used) {
       const int ctx_comp_group_idx = get_comp_group_idx_context(xd);
-      mbmi->comp_group_idx = aom_read_symbol(
+      mbmi->comp_group_idx = (uint8_t)aom_read_symbol(
           r, ec_ctx->comp_group_idx_cdf[ctx_comp_group_idx], 2, ACCT_STR);
     }
 
     if (mbmi->comp_group_idx == 0) {
       if (cm->seq_params.order_hint_info.enable_dist_wtd_comp) {
         const int comp_index_ctx = get_comp_index_context(cm, xd);
-        mbmi->compound_idx = aom_read_symbol(
+        mbmi->compound_idx = (uint8_t)aom_read_symbol(
             r, ec_ctx->compound_index_cdf[comp_index_ctx], 2, ACCT_STR);
         mbmi->interinter_comp.type =
             mbmi->compound_idx ? COMPOUND_AVERAGE : COMPOUND_DISTWTD;
@@ -1522,9 +1522,9 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
 
       if (mbmi->interinter_comp.type == COMPOUND_WEDGE) {
         assert(is_interinter_compound_used(COMPOUND_WEDGE, bsize));
-        mbmi->interinter_comp.wedge_index =
-            aom_read_symbol(r, ec_ctx->wedge_idx_cdf[bsize], 16, ACCT_STR);
-        mbmi->interinter_comp.wedge_sign = aom_read_bit(r, ACCT_STR);
+        mbmi->interinter_comp.wedge_index = (int8_t)aom_read_symbol(
+            r, ec_ctx->wedge_idx_cdf[bsize], 16, ACCT_STR);
+        mbmi->interinter_comp.wedge_sign = (int8_t)aom_read_bit(r, ACCT_STR);
       } else {
         assert(mbmi->interinter_comp.type == COMPOUND_DIFFWTD);
         mbmi->interinter_comp.mask_type =
@@ -1540,12 +1540,12 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
     mbmi->wm_params.invalid = 0;
 
     if (mbmi->num_proj_ref > 1)
-      mbmi->num_proj_ref = selectSamples(&mbmi->mv[0].as_mv, pts, pts_inref,
-                                         mbmi->num_proj_ref, bsize);
+      mbmi->num_proj_ref = av1_selectSamples(&mbmi->mv[0].as_mv, pts, pts_inref,
+                                             mbmi->num_proj_ref, bsize);
 
-    if (find_projection(mbmi->num_proj_ref, pts, pts_inref, bsize,
-                        mbmi->mv[0].as_mv.row, mbmi->mv[0].as_mv.col,
-                        &mbmi->wm_params, mi_row, mi_col)) {
+    if (av1_find_projection(mbmi->num_proj_ref, pts, pts_inref, bsize,
+                            mbmi->mv[0].as_mv.row, mbmi->mv[0].as_mv.col,
+                            &mbmi->wm_params, mi_row, mi_col)) {
 #if WARPED_MOTION_DEBUG
       printf("Warning: unexpected warped model from aomenc\n");
 #endif
@@ -1629,9 +1629,11 @@ void av1_read_mode_info(AV1Decoder *const pbi, MACROBLOCKD *xd, int mi_row,
 
   if (frame_is_intra_only(cm)) {
     read_intra_frame_mode_info(cm, xd, mi_row, mi_col, r);
-    intra_copy_frame_mvs(cm, mi_row, mi_col, x_mis, y_mis);
+    if (pbi->common.seq_params.order_hint_info.enable_ref_frame_mvs)
+      intra_copy_frame_mvs(cm, mi_row, mi_col, x_mis, y_mis);
   } else {
     read_inter_frame_mode_info(pbi, xd, mi_row, mi_col, r);
-    av1_copy_frame_mvs(cm, mi, mi_row, mi_col, x_mis, y_mis);
+    if (pbi->common.seq_params.order_hint_info.enable_ref_frame_mvs)
+      av1_copy_frame_mvs(cm, mi, mi_row, mi_col, x_mis, y_mis);
   }
 }
