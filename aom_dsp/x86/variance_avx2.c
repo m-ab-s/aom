@@ -199,6 +199,12 @@ AOM_VAR_NO_LOOP_AVX2(32, 64, 11, 2048);
 AOM_VAR_NO_LOOP_AVX2(64, 16, 10, 1024);
 AOM_VAR_NO_LOOP_AVX2(64, 32, 11, 2048);
 
+#if CONFIG_FLEX_PARTITION
+AOM_VAR_NO_LOOP_AVX2(32, 4, 7, 512);
+AOM_VAR_NO_LOOP_AVX2(64, 4, 8, 512);
+AOM_VAR_NO_LOOP_AVX2(64, 8, 9, 512);
+#endif  // CONFIG_FLEX_PARTITION
+
 #define AOM_VAR_LOOP_AVX2(bw, bh, bits, uh)                                   \
   unsigned int aom_variance##bw##x##bh##_avx2(                                \
       const uint8_t *src, int src_stride, const uint8_t *ref, int ref_stride, \
@@ -273,9 +279,16 @@ AOM_SUB_PIXEL_VAR_AVX2(128, 64, 32, 7, 6);
 AOM_SUB_PIXEL_VAR_AVX2(64, 128, 32, 6, 7);
 AOM_SUB_PIXEL_VAR_AVX2(64, 64, 32, 6, 6);
 AOM_SUB_PIXEL_VAR_AVX2(64, 32, 32, 6, 5);
+AOM_SUB_PIXEL_VAR_AVX2(64, 16, 32, 6, 4);
 AOM_SUB_PIXEL_VAR_AVX2(32, 64, 32, 5, 6);
 AOM_SUB_PIXEL_VAR_AVX2(32, 32, 32, 5, 5);
 AOM_SUB_PIXEL_VAR_AVX2(32, 16, 32, 5, 4);
+AOM_SUB_PIXEL_VAR_AVX2(32, 8, 32, 5, 3);
+#if CONFIG_FLEX_PARTITION
+AOM_SUB_PIXEL_VAR_AVX2(64, 8, 32, 6, 3);
+AOM_SUB_PIXEL_VAR_AVX2(64, 4, 32, 6, 2);
+AOM_SUB_PIXEL_VAR_AVX2(32, 4, 32, 5, 2);
+#endif  // CONFIG_FLEX_PARTITION
 
 #define AOM_SUB_PIXEL_AVG_VAR_AVX2(w, h, wf, wlog2, hlog2)                \
   unsigned int aom_sub_pixel_avg_variance##w##x##h##_avx2(                \
@@ -314,9 +327,16 @@ AOM_SUB_PIXEL_AVG_VAR_AVX2(128, 64, 32, 7, 6);
 AOM_SUB_PIXEL_AVG_VAR_AVX2(64, 128, 32, 6, 7);
 AOM_SUB_PIXEL_AVG_VAR_AVX2(64, 64, 32, 6, 6);
 AOM_SUB_PIXEL_AVG_VAR_AVX2(64, 32, 32, 6, 5);
+AOM_SUB_PIXEL_AVG_VAR_AVX2(64, 16, 32, 6, 4);
 AOM_SUB_PIXEL_AVG_VAR_AVX2(32, 64, 32, 5, 6);
 AOM_SUB_PIXEL_AVG_VAR_AVX2(32, 32, 32, 5, 5);
 AOM_SUB_PIXEL_AVG_VAR_AVX2(32, 16, 32, 5, 4);
+AOM_SUB_PIXEL_AVG_VAR_AVX2(32, 8, 32, 5, 3);
+#if CONFIG_FLEX_PARTITION
+AOM_SUB_PIXEL_AVG_VAR_AVX2(64, 8, 32, 6, 3);
+AOM_SUB_PIXEL_AVG_VAR_AVX2(64, 4, 32, 6, 2);
+AOM_SUB_PIXEL_AVG_VAR_AVX2(32, 4, 32, 5, 2);
+#endif  // CONFIG_FLEX_PARTITION
 
 static INLINE __m256i mm256_loadu2(const uint8_t *p0, const uint8_t *p1) {
   const __m256i d =

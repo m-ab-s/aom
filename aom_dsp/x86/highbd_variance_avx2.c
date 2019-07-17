@@ -131,10 +131,13 @@ VAR_FN(16, 16, 16, 8);
 VAR_FN(16, 8, 8, 7);
 VAR_FN(8, 16, 8, 7);
 VAR_FN(8, 8, 8, 6);
-VAR_FN(16, 4, 16, 6);
 VAR_FN(8, 32, 8, 8);
 VAR_FN(32, 8, 8, 8);
 VAR_FN(16, 64, 16, 10);
 VAR_FN(64, 16, 16, 10);
+#if CONFIG_FLEX_PARTITION
+VAR_FN(64, 8, 8, 9);
+VAR_FN(8, 64, 8, 9);
+#endif  // CONFIG_FLEX_PARTITION
 
 #undef VAR_FN
