@@ -280,6 +280,9 @@ typedef struct MB_MODE_INFO {
   // Indicate if masked compound is used(1) or not(0).
   uint8_t comp_group_idx : 1;
   int8_t cdef_strength : 4;
+#if CONFIG_INTRA_ENTROPY
+  uint64_t gradient_hist[8];
+#endif  // CONFIG_INTRA_ENTROPY
 } MB_MODE_INFO;
 
 static INLINE int is_intrabc_block(const MB_MODE_INFO *mbmi) {
@@ -1248,6 +1251,13 @@ static INLINE int av1_get_max_eob(TX_SIZE tx_size) {
 static INLINE int av1_pixels_to_mi(int pixels) {
   return ALIGN_POWER_OF_TWO(pixels, 3) >> MI_SIZE_LOG2;
 }
+
+#if CONFIG_INTRA_ENTROPY
+void av1_get_gradient_hist(const uint8_t *src, int src_stride, int rows,
+                           int cols, uint64_t *hist);
+void av1_get_highbd_gradient_hist(const uint8_t *src8, int src_stride, int rows,
+                                  int cols, uint64_t *hist);
+#endif  // CONFIG_INTRA_ENTROPY
 
 #ifdef __cplusplus
 }  // extern "C"

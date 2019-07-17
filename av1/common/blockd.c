@@ -107,3 +107,78 @@ void av1_setup_block_planes(MACROBLOCKD *xd, int ss_x, int ss_y,
     xd->plane[i].subsampling_y = 1;
   }
 }
+
+#if CONFIG_INTRA_ENTROPY
+// Indices are sign, integer, and fractional part of the gradient value
+static const uint8_t gradient_to_angle_bin[2][7][16] = {
+  {
+      { 6, 6, 6, 6, 7, 7, 7, 7, 7, 7, 7, 7, 0, 0, 0, 0 },
+      { 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1 },
+      { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 },
+      { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 },
+      { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 },
+      { 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2 },
+      { 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2 },
+  },
+  {
+      { 6, 6, 6, 6, 5, 5, 5, 5, 5, 5, 5, 5, 4, 4, 4, 4 },
+      { 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 3, 3, 3, 3, 3, 3 },
+      { 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3 },
+      { 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3 },
+      { 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3 },
+      { 3, 3, 3, 3, 3, 3, 3, 2, 2, 2, 2, 2, 2, 2, 2, 2 },
+      { 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2 },
+  },
+};
+
+void av1_get_gradient_hist(const uint8_t *src, int src_stride, int rows,
+                           int cols, uint64_t *hist) {
+  src += src_stride;
+  for (int r = 1; r < rows; ++r) {
+    for (int c = 1; c < cols; ++c) {
+      int dx = src[c] - src[c - 1];
+      int dy = src[c] - src[c - src_stride];
+      int index;
+      const int temp = dx * dx + dy * dy;
+      if (dy == 0) {
+        index = 2;
+      } else {
+        const int sn = (dx > 0) ^ (dy > 0);
+        dx = abs(dx);
+        dy = abs(dy);
+        const int remd = (dx % dy) * 16 / dy;
+        const int quot = dx / dy;
+        index = gradient_to_angle_bin[sn][AOMMIN(quot, 6)][AOMMIN(remd, 15)];
+      }
+      hist[index] += temp;
+    }
+    src += src_stride;
+  }
+}
+
+void av1_get_highbd_gradient_hist(const uint8_t *src8, int src_stride, int rows,
+                                  int cols, uint64_t *hist) {
+  uint16_t *src = CONVERT_TO_SHORTPTR(src8);
+  src += src_stride;
+  for (int r = 1; r < rows; ++r) {
+    for (int c = 1; c < cols; ++c) {
+      int dx = src[c] - src[c - 1];
+      int dy = src[c] - src[c - src_stride];
+      int index;
+      const int temp = dx * dx + dy * dy;
+      if (dy == 0) {
+        index = 2;
+      } else {
+        const int sn = (dx > 0) ^ (dy > 0);
+        dx = abs(dx);
+        dy = abs(dy);
+        const int remd = (dx % dy) * 16 / dy;
+        const int quot = dx / dy;
+        index = gradient_to_angle_bin[sn][AOMMIN(quot, 6)][AOMMIN(remd, 15)];
+      }
+      hist[index] += temp;
+    }
+    src += src_stride;
+  }
+}
+#endif  // CONFIG_INTRA_ENTROPY

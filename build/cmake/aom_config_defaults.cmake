@@ -140,6 +140,8 @@ set_aom_config_var(CONFIG_LOOP_RESTORE_CNN 0 NUMBER
                    "AV2 CNN in Loop Restoration experiment flag")
 set_aom_config_var(CONFIG_FLEX_PARTITION 0 NUMBER
                    "AV2 Flexible partition experiment flag")
+set_aom_config_var(CONFIG_INTRA_ENTROPY 0 NUMBER
+                   "AV2 intra mode entropy coding experiment flag")
 
 # To include Tensorflow, make sure to build tensorflow locally using
 # tensorflow/contrib/makefile/build_all_linux.sh and then providing the correct
