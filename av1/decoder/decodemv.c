@@ -36,6 +36,15 @@ static PREDICTION_MODE read_intra_mode(aom_reader *r, aom_cdf_prob *cdf) {
   return (PREDICTION_MODE)aom_read_symbol(r, cdf, INTRA_MODES, ACCT_STR);
 }
 
+#if CONFIG_INTRA_ENTROPY
+// For neural network
+static PREDICTION_MODE read_intra_mode_nn(aom_reader *r, aom_cdf_prob *cdf,
+                                          NN_CONFIG_EM *nn_model) {
+  return (PREDICTION_MODE)aom_read_symbol_nn(r, cdf, nn_model, INTRA_MODES,
+                                             ACCT_STR);
+}
+#endif  // CONFIG_INTRA_ENTROPY
+
 static void read_cdef(AV1_COMMON *cm, aom_reader *r, MACROBLOCKD *const xd,
                       int mi_col, int mi_row) {
   MB_MODE_INFO *const mbmi = xd->mi[0];
@@ -815,6 +824,9 @@ static void read_intra_frame_mode_info(AV1_COMMON *const cm,
   MB_MODE_INFO *const mbmi = xd->mi[0];
   const MB_MODE_INFO *above_mi = xd->above_mbmi;
   const MB_MODE_INFO *left_mi = xd->left_mbmi;
+#if CONFIG_INTRA_ENTROPY
+  const MB_MODE_INFO *aboveleft_mi = xd->aboveleft_mbmi;
+#endif  // CONFIG_INTRA_ENTROPY
   const BLOCK_SIZE bsize = mbmi->sb_type;
   struct segmentation *const seg = &cm->seg;
 
@@ -854,7 +866,17 @@ static void read_intra_frame_mode_info(AV1_COMMON *const cm,
     if (is_intrabc_block(mbmi)) return;
   }
 
+#if CONFIG_INTRA_ENTROPY
+  float features[54], scores[INTRA_MODES];
+  av1_get_intra_block_feature(features, above_mi, left_mi, aboveleft_mi);
+  av1_nn_predict_em(features, &(ec_ctx->av1_intra_y_mode), scores);
+  av1_nn_softmax_em(scores, scores, INTRA_MODES);
+  aom_cdf_prob cdf[CDF_SIZE(INTRA_MODES)] = { 0 };
+  av1_pdf2cdf(scores, cdf, INTRA_MODES);
+  mbmi->mode = read_intra_mode_nn(r, cdf, &(ec_ctx->av1_intra_y_mode));
+#else
   mbmi->mode = read_intra_mode(r, get_y_mode_cdf(ec_ctx, above_mi, left_mi));
+#endif  // CONFIG_INTRA_ENTROPY
 
   const int use_angle_delta = av1_use_angle_delta(bsize);
   mbmi->angle_delta[PLANE_TYPE_Y] =

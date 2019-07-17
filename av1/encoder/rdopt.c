@@ -1650,13 +1650,8 @@ static uint16_t prune_tx_2D(MACROBLOCK *x, BLOCK_SIZE bsize, TX_SIZE tx_size,
 #endif
       tx_set_type != EXT_TX_SET_DTT9_IDTX_1DDCT)
     return 0;
-#if CONFIG_NN_V2
-  NN_CONFIG_V2 *nn_config_hor = av1_tx_type_nnconfig_map_hor[tx_size];
-  NN_CONFIG_V2 *nn_config_ver = av1_tx_type_nnconfig_map_ver[tx_size];
-#else
   const NN_CONFIG *nn_config_hor = av1_tx_type_nnconfig_map_hor[tx_size];
   const NN_CONFIG *nn_config_ver = av1_tx_type_nnconfig_map_ver[tx_size];
-#endif
   if (!nn_config_hor || !nn_config_ver) return 0;  // Model not established yet.
 
   aom_clear_system_state();
@@ -1680,13 +1675,8 @@ static uint16_t prune_tx_2D(MACROBLOCK *x, BLOCK_SIZE bsize, TX_SIZE tx_size,
                                   &hfeatures[hfeatures_num - 1],
                                   &vfeatures[vfeatures_num - 1]);
   aom_clear_system_state();
-#if CONFIG_NN_V2
-  av1_nn_predict_v2(hfeatures, nn_config_hor, 0, hscores);
-  av1_nn_predict_v2(vfeatures, nn_config_ver, 0, vscores);
-#else
   av1_nn_predict(hfeatures, nn_config_hor, 1, hscores);
   av1_nn_predict(vfeatures, nn_config_ver, 1, vscores);
-#endif
   aom_clear_system_state();
 
   for (int i = 0; i < 4; i++) {
@@ -4879,11 +4869,24 @@ static int64_t rd_pick_intra_sby_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
       try_palette ? x->palette_buffer->best_palette_color_map : NULL;
   const MB_MODE_INFO *above_mi = xd->above_mbmi;
   const MB_MODE_INFO *left_mi = xd->left_mbmi;
+#if CONFIG_INTRA_ENTROPY
+  const MB_MODE_INFO *aboveleft_mi = xd->aboveleft_mbmi;
+  float features[54], scores[INTRA_MODES];
+  av1_get_intra_block_feature(features, above_mi, left_mi, aboveleft_mi);
+  av1_nn_predict_em(features, &(xd->tile_ctx->av1_intra_y_mode), scores);
+  av1_nn_softmax_em(scores, scores, INTRA_MODES);
+  aom_cdf_prob cdf[CDF_SIZE(INTRA_MODES)] = { 0 };
+  av1_pdf2cdf(scores, cdf, INTRA_MODES);
+  int cost[INTRA_MODES];
+  av1_cost_tokens_from_cdf(cost, cdf, NULL);
+  bmode_costs = cost;
+#else
   const PREDICTION_MODE A = av1_above_block_mode(above_mi);
   const PREDICTION_MODE L = av1_left_block_mode(left_mi);
   const int above_ctx = intra_mode_context[A];
   const int left_ctx = intra_mode_context[L];
   bmode_costs = x->y_mode_costs[above_ctx][left_ctx];
+#endif  // CONFIG_INTRA_ENTROPY
 
   mbmi->angle_delta[PLANE_TYPE_Y] = 0;
   if (cpi->sf.intra_angle_estimation) {

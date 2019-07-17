@@ -32,6 +32,9 @@
 #define ACCT_STR_PARAM
 #define ACCT_STR_ARG(s)
 #endif
+#if CONFIG_INTRA_ENTROPY
+#include "av1/common/entropymode.h"
+#endif  // CONFIG_INTRA_ENTROPY
 
 #define aom_read(r, prob, ACCT_STR_NAME) \
   aom_read_(r, prob ACCT_STR_ARG(ACCT_STR_NAME))
@@ -45,6 +48,10 @@
   aom_read_cdf_(r, cdf, nsymbs ACCT_STR_ARG(ACCT_STR_NAME))
 #define aom_read_symbol(r, cdf, nsymbs, ACCT_STR_NAME) \
   aom_read_symbol_(r, cdf, nsymbs ACCT_STR_ARG(ACCT_STR_NAME))
+#if CONFIG_INTRA_ENTROPY
+#define aom_read_symbol_nn(r, cdf, nn_model, nsymbs, ACCT_STR_NAME) \
+  aom_read_symbol_nn_(r, cdf, nn_model, nsymbs ACCT_STR_ARG(ACCT_STR_NAME))
+#endif  // CONFIG_INTRA_ENTROPY
 
 #ifdef __cplusplus
 extern "C" {
@@ -148,6 +155,20 @@ static INLINE int aom_read_symbol_(aom_reader *r, aom_cdf_prob *cdf,
   if (r->allow_update_cdf) update_cdf(cdf, ret, nsymbs);
   return ret;
 }
+
+#if CONFIG_INTRA_ENTROPY
+static INLINE int aom_read_symbol_nn_(aom_reader *r, aom_cdf_prob *cdf,
+                                      NN_CONFIG_EM *nn_model,
+                                      int nsymbs ACCT_STR_PARAM) {
+  int ret;
+  ret = aom_read_cdf(r, cdf, nsymbs, ACCT_STR_NAME);
+  if (r->allow_update_cdf) {
+    av1_nn_backprop_em(nn_model, ret);
+    av1_nn_update_em(nn_model, nn_model->lr);
+  }
+  return ret;
+}
+#endif  // CONFIG_INTRA_ENTROPY
 
 #ifdef __cplusplus
 }  // extern "C"

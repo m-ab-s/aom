@@ -862,9 +862,12 @@ static void update_palette_cdf(MACROBLOCKD *xd, const MB_MODE_INFO *const mbmi,
 static void sum_intra_stats(const AV1_COMMON *const cm, FRAME_COUNTS *counts,
                             MACROBLOCKD *xd, const MB_MODE_INFO *const mbmi,
                             const MB_MODE_INFO *above_mi,
-                            const MB_MODE_INFO *left_mi, const int intraonly,
-                            const int mi_row, const int mi_col,
-                            uint8_t allow_update_cdf) {
+                            const MB_MODE_INFO *left_mi,
+#if CONFIG_INTRA_ENTROPY
+                            const MB_MODE_INFO *aboveleft_mi,
+#endif  // CONFIG_INTRA_ENTROPY
+                            const int intraonly, const int mi_row,
+                            const int mi_col, uint8_t allow_update_cdf) {
   FRAME_CONTEXT *fc = xd->tile_ctx;
   const PREDICTION_MODE y_mode = mbmi->mode;
   const UV_PREDICTION_MODE uv_mode = mbmi->uv_mode;
@@ -879,8 +882,18 @@ static void sum_intra_stats(const AV1_COMMON *const cm, FRAME_COUNTS *counts,
     const int left_ctx = intra_mode_context[left];
     ++counts->kf_y_mode[above_ctx][left_ctx][y_mode];
 #endif  // CONFIG_ENTROPY_STATS
-    if (allow_update_cdf)
+    if (allow_update_cdf) {
+#if CONFIG_INTRA_ENTROPY
+      float features[54], scores[INTRA_MODES];
+      NN_CONFIG_EM *nn_model = &(fc->av1_intra_y_mode);
+      av1_get_intra_block_feature(features, above_mi, left_mi, aboveleft_mi);
+      av1_nn_predict_em(features, nn_model, scores);
+      av1_nn_backprop_em(nn_model, y_mode);
+      av1_nn_update_em(nn_model, nn_model->lr);
+#else
       update_cdf(get_y_mode_cdf(fc, above_mi, left_mi), y_mode, INTRA_MODES);
+#endif  // CONFIG_INTRA_ENTROPY
+    }
   } else {
 #if CONFIG_ENTROPY_STATS
     ++counts->y_mode[size_group_lookup[bsize]][y_mode];
@@ -1089,6 +1102,9 @@ static void update_stats(const AV1_COMMON *const cm, TileDataEnc *tile_data,
 
   if (!is_inter_block(mbmi)) {
     sum_intra_stats(cm, td->counts, xd, mbmi, xd->above_mbmi, xd->left_mbmi,
+#if CONFIG_INTRA_ENTROPY
+                    xd->aboveleft_mbmi,
+#endif  // CONFIG_INTRA_ENTROPY
                     frame_is_intra_only(cm), mi_row, mi_col,
                     tile_data->allow_update_cdf);
   }

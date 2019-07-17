@@ -28,6 +28,177 @@ PREDICTION_MODE av1_above_block_mode(const MB_MODE_INFO *above_mi) {
   return above_mi->mode;
 }
 
+#if CONFIG_INTRA_ENTROPY
+const uint64_t *av1_block_mode(const MB_MODE_INFO *mi, PREDICTION_MODE *mode,
+                               int8_t *angle_delta, int *qindex,
+                               BLOCK_SIZE *sb_type, TX_SIZE *tx_size) {
+  if (!mi) {
+    *mode = 255;
+    *angle_delta = 0;
+    *qindex = 0;
+    *sb_type = 255;
+    *tx_size = 255;
+    return NULL;
+  } else {
+    assert(!is_inter_block(mi) || is_intrabc_block(mi));
+    *mode = mi->mode;
+    *angle_delta = mi->angle_delta[PLANE_TYPE_Y];
+    *qindex = mi->current_qindex;
+    *sb_type = mi->sb_type;
+    *tx_size = mi->tx_size;
+    return mi->gradient_hist;
+  }
+}
+
+void av1_get_intra_block_feature(float *features, const MB_MODE_INFO *above_mi,
+                                 const MB_MODE_INFO *left_mi,
+                                 const MB_MODE_INFO *aboveleft_mi) {
+  PREDICTION_MODE above, left, aboveleft;
+  int8_t above_angle, left_angle, al_angle;
+  int above_q, left_q, al_q;
+  BLOCK_SIZE above_sb, left_sb, al_sb;
+  TX_SIZE above_txs, left_txs, al_txs;
+  const uint64_t *above_hist = av1_block_mode(above_mi, &above, &above_angle,
+                                              &above_q, &above_sb, &above_txs);
+  const uint64_t *left_hist =
+      av1_block_mode(left_mi, &left, &left_angle, &left_q, &left_sb, &left_txs);
+  const uint64_t *al_hist = av1_block_mode(aboveleft_mi, &aboveleft, &al_angle,
+                                           &al_q, &al_sb, &al_txs);
+
+  float hist_total[3] = { 0.f, 0.f, 0.f };
+  int pt = 0;
+
+#if INTRA_MODEL > 0
+  if (above_hist) {
+    for (int i = 0; i < 8; ++i) {
+      hist_total[0] += (float)above_hist[i];
+    }
+  }
+  if (hist_total[0] > 0.1f) {
+    for (int i = 0; i < 8; ++i) {
+      features[pt++] = (float)above_hist[i] / hist_total[0];
+    }
+  } else {
+    // deal with all 0 case
+    for (int i = 0; i < 8; ++i) {
+      features[pt++] = 0.125f;
+    }
+  }
+
+  if (left_hist) {
+    for (int i = 0; i < 8; ++i) {
+      hist_total[1] += (float)left_hist[i];
+    }
+  }
+  if (hist_total[1] > 0.1f) {
+    for (int i = 0; i < 8; ++i) {
+      features[pt++] = (float)left_hist[i] / hist_total[1];
+    }
+  } else {
+    for (int i = 0; i < 8; ++i) {
+      features[pt++] = 0.125f;
+    }
+  }
+
+  if (al_hist) {
+    for (int i = 0; i < 8; ++i) {
+      hist_total[2] += (float)al_hist[i];
+    }
+  }
+  if (hist_total[2] > 0.1f) {
+    for (int i = 0; i < 8; ++i) {
+      features[pt++] = (float)al_hist[i] / hist_total[2];
+    }
+  } else {
+    for (int i = 0; i < 8; ++i) {
+      features[pt++] = 0.125f;
+    }
+  }
+#endif  // INTRA_MODEL
+#if INTRA_MODEL == 2
+  for (int i = 0; i < 5; ++i) {
+    features[pt++] =
+        (above < INTRA_MODES && intra_mode_context[above] == i) ? 1.0f : 0.0f;
+  }
+  for (int i = 0; i < 5; ++i) {
+    features[pt++] =
+        (left < INTRA_MODES && intra_mode_context[left] == i) ? 1.0f : 0.0f;
+  }
+  for (int i = 0; i < 5; ++i) {
+    features[pt++] =
+        (aboveleft < INTRA_MODES && intra_mode_context[aboveleft] == i) ? 1.0f
+                                                                        : 0.0f;
+  }
+#endif  // INTRA_MODEL
+#if INTRA_MODEL == 0
+  for (int i = 0; i < INTRA_MODES; ++i) {
+    features[pt++] = (above == i) ? 1.0f : 0.0f;
+  }
+  features[pt++] = (float)above_angle / 3.f;
+  if (above_sb == 255) {
+    features[pt++] = 0.0f;
+    features[pt++] = 0.0f;
+  } else {
+    features[pt++] = mi_size_wide_log2[above_sb] / 5.f;
+    features[pt++] = mi_size_high_log2[above_sb] / 5.f;
+  }
+  if (above_txs == 255) {
+    features[pt++] = 0.0f;
+    features[pt++] = 0.0f;
+  } else {
+    features[pt++] = tx_size_wide_log2[above_txs] / 6.f;
+    features[pt++] = tx_size_high_log2[above_txs] / 6.f;
+  }
+
+  for (int i = 0; i < INTRA_MODES; ++i) {
+    features[pt++] = (left == i) ? 1.0f : 0.0f;
+  }
+  features[pt++] = (float)left_angle / 3.f;
+  if (left_sb == 255) {
+    features[pt++] = 0.0f;
+    features[pt++] = 0.0f;
+  } else {
+    features[pt++] = mi_size_wide_log2[left_sb] / 5.f;
+    features[pt++] = mi_size_high_log2[left_sb] / 5.f;
+  }
+  if (left_txs == 255) {
+    features[pt++] = 0.0f;
+    features[pt++] = 0.0f;
+  } else {
+    features[pt++] = tx_size_wide_log2[left_txs] / 6.f;
+    features[pt++] = tx_size_high_log2[left_txs] / 6.f;
+  }
+
+  for (int i = 0; i < INTRA_MODES; ++i) {
+    features[pt++] = (aboveleft == i) ? 1.0f : 0.0f;
+  }
+  features[pt++] = (float)al_angle / 3.f;
+  if (al_sb == 255) {
+    features[pt++] = 0.0f;
+    features[pt++] = 0.0f;
+  } else {
+    features[pt++] = mi_size_wide_log2[al_sb] / 5.f;
+    features[pt++] = mi_size_high_log2[al_sb] / 5.f;
+  }
+  if (al_txs == 255) {
+    features[pt++] = 0.0f;
+    features[pt++] = 0.0f;
+  } else {
+    features[pt++] = tx_size_wide_log2[al_txs] / 6.f;
+    features[pt++] = tx_size_high_log2[al_txs] / 6.f;
+  }
+#endif  // INTRA_MODEL
+}
+
+void av1_pdf2cdf(const float *pdf, aom_cdf_prob *cdf, int nsymbs) {
+  float pre = 1.f;
+  for (int i = 0; i < nsymbs; ++i) {
+    pre -= pdf[i];
+    cdf[i] = (aom_cdf_prob)(pre * CDF_PROB_TOP);
+  }
+}
+#endif  // CONFIG_INTRA_ENTROPY
+
 void av1_set_contexts(const MACROBLOCKD *xd, struct macroblockd_plane *pd,
                       int plane, BLOCK_SIZE plane_bsize, TX_SIZE tx_size,
                       int has_eob, int aoff, int loff) {

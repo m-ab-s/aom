@@ -74,11 +74,77 @@ static void write_intra_y_mode_kf(FRAME_CONTEXT *frame_ctx,
                                   const MB_MODE_INFO *mi,
                                   const MB_MODE_INFO *above_mi,
                                   const MB_MODE_INFO *left_mi,
+#if CONFIG_INTRA_ENTROPY
+                                  const MB_MODE_INFO *aboveleft_mi,
+#endif  // CONFIG_INTRA_ENTROPY
                                   PREDICTION_MODE mode, aom_writer *w) {
   assert(!is_intrabc_block(mi));
   (void)mi;
+
+#if CONFIG_INTRA_ENTROPY
+  float features[54], scores[INTRA_MODES];
+  av1_get_intra_block_feature(features, above_mi, left_mi, aboveleft_mi);
+  av1_nn_predict_em(features, &(frame_ctx->av1_intra_y_mode), scores);
+  av1_nn_softmax_em(scores, scores, INTRA_MODES);
+  aom_cdf_prob cdf[CDF_SIZE(INTRA_MODES)] = { 0 };
+  av1_pdf2cdf(scores, cdf, INTRA_MODES);
+  aom_write_symbol_nn(w, mode, cdf, &(frame_ctx->av1_intra_y_mode),
+                      INTRA_MODES);
+#else
   aom_write_symbol(w, mode, get_y_mode_cdf(frame_ctx, above_mi, left_mi),
                    INTRA_MODES);
+#endif  // CONFIG_INTRA_ENTROPY
+
+  // write data into file
+#if 0
+  PREDICTION_MODE above, left, aboveleft;
+  int8_t above_angle, left_angle, al_angle;
+  int above_q, left_q, al_q;
+  BLOCK_SIZE above_sb, left_sb, al_sb;
+  TX_SIZE above_txs, left_txs, al_txs;
+  const uint64_t *above_hist = av1_block_mode(above_mi, &above, &above_angle,
+                                              &above_q, &above_sb, &above_txs);
+  const uint64_t *left_hist =
+      av1_block_mode(left_mi, &left, &left_angle, &left_q, &left_sb, &left_txs);
+  const uint64_t *al_hist = av1_block_mode(aboveleft_mi, &aboveleft, &al_angle,
+                                           &al_q, &al_sb, &al_txs);
+  FILE *fp = fopen("intra_data.csv", "a");
+  if (fp) {
+    fprintf(fp,
+            "%d,"
+            "%d,%d,%d,"
+            "%d,%d,%d,"
+            "%d,%d,%d,"
+            "%d,%d,%d,"
+            "%d,%d,%d,",
+            mode, above, left, aboveleft, above_angle, left_angle, al_angle,
+            above_q, left_q, al_q, above_sb, left_sb, al_sb, above_txs,
+            left_txs, al_txs);
+    if (above_hist) {
+      for (int i = 0; i < 8; ++i) {
+        fprintf(fp, "%" PRIu64 ",", above_hist[i]);
+      }
+    } else {
+      fprintf(fp, "%d,%d,%d,%d,%d,%d,%d,%d,", 0, 0, 0, 0, 0, 0, 0, 0);
+    }
+    if (left_hist) {
+      for (int i = 0; i < 8; ++i) {
+        fprintf(fp, "%" PRIu64 ",", left_hist[i]);
+      }
+    } else {
+      fprintf(fp, "%d,%d,%d,%d,%d,%d,%d,%d,", 0, 0, 0, 0, 0, 0, 0, 0);
+    }
+    if (al_hist) {
+      for (int i = 0; i < 8; ++i) {
+        fprintf(fp, "%" PRIu64 ",", al_hist[i]);
+      }
+    } else {
+      fprintf(fp, "%d,%d,%d,%d,%d,%d,%d,%d,", 0, 0, 0, 0, 0, 0, 0, 0);
+    }
+    fprintf(fp, "\n");
+    fclose(fp);
+  }
+#endif
 }
 
 static void write_inter_mode(aom_writer *w, PREDICTION_MODE mode,
@@ -1089,7 +1155,14 @@ static void write_intra_prediction_modes(AV1_COMP *cpi, const int mi_row,
   if (is_keyframe) {
     const MB_MODE_INFO *const above_mi = xd->above_mbmi;
     const MB_MODE_INFO *const left_mi = xd->left_mbmi;
-    write_intra_y_mode_kf(ec_ctx, mbmi, above_mi, left_mi, mode, w);
+#if CONFIG_INTRA_ENTROPY
+    const MB_MODE_INFO *const aboveleft_mi = xd->aboveleft_mbmi;
+#endif  // CONFIG_INTRA_ENTROPY
+    write_intra_y_mode_kf(ec_ctx, mbmi, above_mi, left_mi,
+#if CONFIG_INTRA_ENTROPY
+                          aboveleft_mi,
+#endif  // CONFIG_INTRA_ENTROPY
+                          mode, w);
   } else {
     write_intra_y_mode_nonkf(ec_ctx, bsize, mode, w);
   }

@@ -58,6 +58,64 @@ extern "C" {
 
 #define KF_MODE_CONTEXTS 5
 
+#if CONFIG_INTRA_ENTROPY
+#define INTRA_MODEL 2  // 0: mode+size; 1: hist; 2: hist+mode
+enum { ACTN_NONE, ACTN_RELU, ACTN_SOFTSIGN, ACTN_SIGMOID } UENUM1BYTE(ACTN);
+enum { SOFTMAX_CROSS_ENTROPY_LOSS } UENUM1BYTE(LOSS_F);
+struct NN_CONFIG_EM;
+typedef struct NN_CONFIG_EM NN_CONFIG_EM;
+struct FC_LAYER_EM;
+typedef struct FC_LAYER_EM FC_LAYER_EM;
+
+#define NN_MAX_HIDDEN_LAYERS 10
+#define NN_MAX_NODES_PER_LAYER 128
+
+// Fully-connectedly layer configuration
+struct FC_LAYER_EM {
+  int num_inputs;   // Number of input nodes, i.e. features.
+  int num_outputs;  // Number of output nodes.
+
+  float *weights;   // Weight parameters.
+  float *bias;      // Bias parameters.
+  ACTN activation;  // Activation function.
+
+  float *output;  // The output array.
+  float *dY;      // Gradient of outputs
+  float *dW;      // Gradient of weights.
+  float *db;      // Gradient of bias
+};
+
+// NN configure structure for entropy mode
+struct NN_CONFIG_EM {
+  float lr;               // learning rate
+  int counter;            // Counter for the input in one batch
+  int num_hidden_layers;  // Number of hidden layers, max = 10.
+  float *feature;         // Input feature
+  FC_LAYER_EM layer[NN_MAX_HIDDEN_LAYERS + 1];  // The layer array
+  int num_logits;                               // Number of output nodes.
+  float *logits;  // Raw prediction (same as output of final layer)
+  LOSS_F loss;    // Loss function
+};
+
+// Calculate prediction based on the given input features and neural net config.
+// Assume there are no more than NN_MAX_NODES_PER_LAYER nodes in each hidden
+// layer.
+void av1_nn_predict_em(const float *features, NN_CONFIG_EM *nn_config,
+                       float *output);
+
+// Back propagation on the given NN model.
+void av1_nn_backprop_em(NN_CONFIG_EM *nn_config, const int label);
+
+// Update the weights via gradient descent.
+// mu: learning rate, usually chosen from 0.01~0.001.
+void av1_nn_update_em(NN_CONFIG_EM *nn_config, float mu);
+
+// Applies the softmax normalization function to the input
+// to get a valid probability distribution in the output:
+// output[i] = exp(input[i]) / sum_{k \in [0,n)}(exp(input[k]))
+void av1_nn_softmax_em(const float *input, float *output, int n);
+#endif  // CONFIG_INTRA_ENTROPY
+
 struct AV1Common;
 
 typedef struct {
@@ -158,6 +216,54 @@ typedef struct frame_contexts {
   */
   aom_cdf_prob kf_y_cdf[KF_MODE_CONTEXTS][KF_MODE_CONTEXTS]
                        [CDF_SIZE(INTRA_MODES)];
+#if CONFIG_INTRA_ENTROPY
+#if INTRA_MODEL == 0
+  float intra_y_mode_layer0_weights[54 * 16];
+  float intra_y_mode_layer0_bias[16];
+  float intra_y_mode_layer1_weights[16 * 13];
+  float intra_y_mode_layer1_bias[13];
+  float intra_y_mode_in[54];
+  float intra_y_mode_layer0_out[16];
+  float intra_y_mode_layer0_dout[16];
+  float intra_y_mode_layer0_dW[54 * 16];
+  float intra_y_mode_layer0_db[16];
+  float intra_y_mode_layer1_out[13];
+  float intra_y_mode_layer1_dout[13];
+  float intra_y_mode_layer1_dW[16 * 13];
+  float intra_y_mode_layer1_db[13];
+  NN_CONFIG_EM av1_intra_y_mode;
+#elif INTRA_MODEL == 1
+  float intra_y_mode_layer0_weights[24 * 16];
+  float intra_y_mode_layer0_bias[16];
+  float intra_y_mode_layer1_weights[16 * 13];
+  float intra_y_mode_layer1_bias[13];
+  float intra_y_mode_in[24];
+  float intra_y_mode_layer0_out[16];
+  float intra_y_mode_layer0_dout[16];
+  float intra_y_mode_layer0_dW[24 * 16];
+  float intra_y_mode_layer0_db[16];
+  float intra_y_mode_layer1_out[13];
+  float intra_y_mode_layer1_dout[13];
+  float intra_y_mode_layer1_dW[16 * 13];
+  float intra_y_mode_layer1_db[13];
+  NN_CONFIG_EM av1_intra_y_mode;
+#else
+  float intra_y_mode_layer0_weights[39 * 16];
+  float intra_y_mode_layer0_bias[16];
+  float intra_y_mode_layer1_weights[16 * 13];
+  float intra_y_mode_layer1_bias[13];
+  float intra_y_mode_in[39];
+  float intra_y_mode_layer0_out[16];
+  float intra_y_mode_layer0_dout[16];
+  float intra_y_mode_layer0_dW[39 * 16];
+  float intra_y_mode_layer0_db[16];
+  float intra_y_mode_layer1_out[13];
+  float intra_y_mode_layer1_dout[13];
+  float intra_y_mode_layer1_dW[16 * 13];
+  float intra_y_mode_layer1_db[13];
+  NN_CONFIG_EM av1_intra_y_mode;
+#endif  // INTRA_MODEL
+#endif  // CONFIG_INTRA_ENTROPY
 
   aom_cdf_prob angle_delta_cdf[DIRECTIONAL_MODES]
                               [CDF_SIZE(2 * MAX_ANGLE_DELTA + 1)];

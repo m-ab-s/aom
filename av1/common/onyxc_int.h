@@ -881,6 +881,13 @@ static INLINE void set_mi_row_col(MACROBLOCKD *xd, const TileInfo *const tile,
   } else {
     xd->left_mbmi = NULL;
   }
+#if CONFIG_INTRA_ENTROPY
+  if (xd->left_available && xd->up_available) {
+    xd->aboveleft_mbmi = xd->mi[-xd->mi_stride-1];
+  } else {
+    xd->aboveleft_mbmi = NULL;
+  }
+#endif  // CONFIG_INTRA_ENTROPY
 
   const int chroma_ref =
       is_chroma_reference_helper(mi_row, mi_col, bw, bh, ss_x, ss_y);

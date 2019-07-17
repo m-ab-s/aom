@@ -362,6 +362,18 @@ PREDICTION_MODE av1_left_block_mode(const MB_MODE_INFO *left_mi);
 
 PREDICTION_MODE av1_above_block_mode(const MB_MODE_INFO *above_mi);
 
+#if CONFIG_INTRA_ENTROPY
+const uint64_t *av1_block_mode(const MB_MODE_INFO *mi, PREDICTION_MODE *mode,
+                               int8_t *angle_delta, int *qindex,
+                               BLOCK_SIZE *sb_type, TX_SIZE *tx_size);
+
+void av1_get_intra_block_feature(float *feature, const MB_MODE_INFO *above_mi,
+                                 const MB_MODE_INFO *left_mi,
+                                 const MB_MODE_INFO *aboveleft_mi);
+
+void av1_pdf2cdf(const float *pdf, aom_cdf_prob *cdf, int nsymbs);
+#endif  // CONFIG_INTRA_ENTROPY
+
 static INLINE int is_global_mv_block(const MB_MODE_INFO *const mbmi,
                                      TransformationType type) {
   const PREDICTION_MODE mode = mbmi->mode;
@@ -515,6 +527,9 @@ typedef struct macroblockd {
   MB_MODE_INFO **mi;
   MB_MODE_INFO *left_mbmi;
   MB_MODE_INFO *above_mbmi;
+#if CONFIG_INTRA_ENTROPY
+  MB_MODE_INFO *aboveleft_mbmi;
+#endif  // CONFIG_INTRA_ENTROPY
   MB_MODE_INFO *chroma_left_mbmi;
   MB_MODE_INFO *chroma_above_mbmi;
 
