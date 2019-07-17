@@ -1713,7 +1713,11 @@ static uint16_t prune_tx_2D(MACROBLOCK *x, BLOCK_SIZE bsize, TX_SIZE tx_size,
       prune_bitmask |= (1 << tx_type_table_2D[i]);
   }
 
+#if CONFIG_MODE_DEP_TX
+  sort_probability(scores_2D, tx_type_table_2D, TX_TYPES_NOMDTX);
+#else
   sort_probability(scores_2D, tx_type_table_2D, TX_TYPES);
+#endif
   memcpy(txk_map, tx_type_table_2D, sizeof(tx_type_table_2D));
 
   return prune_bitmask;
@@ -3037,8 +3041,27 @@ static int64_t search_txk_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
   // if txk_allowed = TX_TYPES, >1 tx types are allowed, else, if txk_allowed <
   // TX_TYPES, only that specific tx type is allowed.
   TX_TYPE txk_allowed = TX_TYPES;
+#if CONFIG_MODE_DEP_TX
+  int txk_map[TX_TYPES_NOMDTX] = {
+#else
   int txk_map[TX_TYPES] = {
-    0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15
+#endif
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15
   };
 
   if ((!is_inter && x->use_default_intra_tx_type) ||
@@ -3148,16 +3171,21 @@ static int64_t search_txk_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
   // TODO(any): Experiment with variance and mean based thresholds
   perform_block_coeff_opt = (block_mse_q8 <= cpi->coeff_opt_dist_threshold);
 
+#if CONFIG_MODE_DEP_TX
+  assert(IMPLIES(txk_allowed < TX_TYPES_NOMDTX,
+                 allowed_tx_mask == 1 << txk_allowed));
+#else
   assert(IMPLIES(txk_allowed < TX_TYPES, allowed_tx_mask == 1 << txk_allowed));
+#endif
 
   for (int idx = 0; idx < TX_TYPES; ++idx) {
-    const TX_TYPE tx_type = (TX_TYPE)txk_map[idx];
-
 #if CONFIG_MODE_DEP_TX
+    const TX_TYPE tx_type = idx < 16 ? (TX_TYPE)txk_map[idx] : (TX_TYPE)idx;
     if ((tx_type <= H_FLIPADST && !(allowed_tx_mask & (1 << tx_type))) ||
         (tx_type > H_FLIPADST && !av1_ext_tx_used[tx_set_type][tx_type]))
       continue;
 #else
+    const TX_TYPE tx_type = (TX_TYPE)txk_map[idx];
     if (!(allowed_tx_mask & (1 << tx_type))) continue;
 #endif
 
