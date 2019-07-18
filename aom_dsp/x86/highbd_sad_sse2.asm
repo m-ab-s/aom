@@ -454,3 +454,9 @@ HIGH_SAD4XN  4 ; highbd_sad4x4_sse2
 HIGH_SAD4XN 16, 1 ; highbd_sad4x16_avg_sse2
 HIGH_SAD4XN  8, 1 ; highbd_sad4x8_avg_sse2
 HIGH_SAD4XN  4, 1 ; highbd_sad4x4_avg_sse2
+%if CONFIG_FLEX_PARTITION
+HIGH_SAD4XN 32 ; highbd_sad4x32_sse2
+HIGH_SAD4XN 64 ; highbd_sad4x64_sse2
+HIGH_SAD4XN 32, 1 ; highbd_sad4x32_avg_sse2
+HIGH_SAD4XN 64, 1 ; highbd_sad4x64_avg_sse2
+%endif

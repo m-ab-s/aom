@@ -76,14 +76,32 @@
     return res;                                                               \
   }
 
+#if CONFIG_FLEX_PARTITION
 #define FSAD64  \
   FSAD64_H(64); \
-  FSAD64_H(32);
+  FSAD64_H(32); \
+  FSAD64_H(16); \
+  FSAD64_H(8);  \
+  FSAD64_H(4);
 
 #define FSAD32  \
   FSAD32_H(64); \
   FSAD32_H(32); \
-  FSAD32_H(16);
+  FSAD32_H(16); \
+  FSAD32_H(8);  \
+  FSAD32_H(4);
+#else
+#define FSAD64  \
+  FSAD64_H(64); \
+  FSAD64_H(32); \
+  FSAD64_H(16);
+
+#define FSAD32  \
+  FSAD32_H(64); \
+  FSAD32_H(32); \
+  FSAD32_H(16); \
+  FSAD32_H(8);
+#endif  // CONFIG_FLEX_PARTITION
 
 /* clang-format off */
 FSAD64
@@ -169,14 +187,32 @@ FSAD32
     return res;                                                               \
   }
 
+#if CONFIG_FLEX_PARTITION
 #define FSADAVG64  \
   FSADAVG64_H(64); \
-  FSADAVG64_H(32);
+  FSADAVG64_H(32); \
+  FSADAVG64_H(16); \
+  FSADAVG64_H(8);  \
+  FSADAVG64_H(4);
 
 #define FSADAVG32  \
   FSADAVG32_H(64); \
   FSADAVG32_H(32); \
-  FSADAVG32_H(16);
+  FSADAVG32_H(16); \
+  FSADAVG32_H(8);  \
+  FSADAVG32_H(4);
+#else
+#define FSADAVG64  \
+  FSADAVG64_H(64); \
+  FSADAVG64_H(32); \
+  FSADAVG64_H(16);
+
+#define FSADAVG32  \
+  FSADAVG32_H(64); \
+  FSADAVG32_H(32); \
+  FSADAVG32_H(16); \
+  FSADAVG32_H(8);
+#endif  // CONFIG_FLEX_PARTITION
 
 /* clang-format off */
 FSADAVG64
