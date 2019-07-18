@@ -1282,6 +1282,29 @@ static INLINE TX_SIZE get_tx_size(int width, int height) {
 }
 
 #if CONFIG_NEW_TX_PARTITION
+#if CONFIG_NEW_TX_PARTITION_EXT
+static const int new_tx_partition_used[TX_SIZES_ALL][TX_PARTITION_TYPES] = {
+  { 1, 0, 0, 0 },  // 4x4 transform
+  { 1, 1, 1, 1 },  // 8x8 transform
+  { 1, 1, 1, 1 },  // 16x16 transform
+  { 1, 1, 1, 1 },  // 32x32 transform
+  { 1, 1, 1, 1 },  // 64x64 transform
+  { 1, 0, 1, 0 },  // 4x8 transform
+  { 1, 0, 0, 1 },  // 8x4 transform
+  { 1, 1, 1, 1 },  // 8x16 transform
+  { 1, 1, 1, 1 },  // 16x8 transform
+  { 1, 1, 1, 1 },  // 16x32 transform
+  { 1, 1, 1, 1 },  // 32x16 transform
+  { 1, 1, 1, 1 },  // 32x64 transform
+  { 1, 1, 1, 1 },  // 64x32 transform
+  { 1, 0, 1, 0 },  // 4x16 transform
+  { 1, 0, 0, 1 },  // 16x4 transform
+  { 1, 1, 1, 0 },  // 8x32 transform
+  { 1, 1, 0, 1 },  // 32x8 transform
+  { 1, 1, 1, 0 },  // 16x64 transform
+  { 1, 1, 0, 1 },  // 64x16 transform
+};
+#else
 static const int new_tx_partition_used[TX_SIZES_ALL][TX_PARTITION_TYPES] = {
   { 1, 0 },  // 4x4 transform
   { 1, 1 },  // 8x8 transform
@@ -1303,6 +1326,7 @@ static const int new_tx_partition_used[TX_SIZES_ALL][TX_PARTITION_TYPES] = {
   { 1, 1 },  // 16x64 transform
   { 1, 1 },  // 64x16 transform
 };
+#endif  // CONFIG_NEW_TX_PARTITION
 
 #define MAX_TX_PARTITIONS 4
 typedef struct {
@@ -1321,11 +1345,22 @@ static const TX_PARTITION_BIT_SHIFT
       {
           { { 0 }, { 0 }, 1 },                    // TX_PARTITION_NONE
           { { 1, 1, 1, 1 }, { 1, 1, 1, 1 }, 4 },  // TX_PARTITION_SPLIT
+#if CONFIG_NEW_TX_PARTITION_EXT
+          { { 1, 1 }, { 0, 0 }, 2 },  // TX_PARTITION_HORZ
+          { { 0, 0 }, { 1, 1 }, 2 },  // TX_PARTITION_VERT
+#endif                                // CONFIG_NEW_TX_PARTITION_EXT
       },
       // Rectangular
       {
-          { { 0 }, { 0 }, 1 },        // TX_PARTITION_NONE
+          { { 0 }, { 0 }, 1 },  // TX_PARTITION_NONE
+#if CONFIG_NEW_TX_PARTITION_EXT
+          { { 1, 1, 1, 1 }, { 1, 1, 1, 1 }, 4 },  // TX_PARTITION_SPLIT
+          { { 1, 1 }, { 0, 0 }, 2 },              // TX_PARTITION_HORZ
+          { { 0, 0 }, { 1, 1 }, 2 },              // TX_PARTITION_VERT
+
+#else
           { { 0, 0 }, { 1, 1 }, 2 },  // TX_PARTITION_SPLIT
+#endif  // CONFIG_NEW_TX_PARTITION_EXT
       },
     };
 
@@ -1339,6 +1374,10 @@ static INLINE int get_tx_partition_sizes(TX_PARTITION_TYPE partition,
       partition_shift_bits[is_rect_tx(max_tx_size)][partition];
   const int n_partitions = subtx_shift.n_partitions;
   for (int i = 0; i < n_partitions; i++) {
+#if CONFIG_NEW_TX_PARTITION_EXT
+    sub_txw = txw >> subtx_shift.cols[i];
+    sub_txh = txh >> subtx_shift.rows[i];
+#else
     if (n_partitions == 2 && txw < txh) {
       // The partitions for rectangular sizes were setup assuming txh < txw,
       // swap them here if this is not the case.
@@ -1348,6 +1387,7 @@ static INLINE int get_tx_partition_sizes(TX_PARTITION_TYPE partition,
       sub_txw = txw >> subtx_shift.cols[i];
       sub_txh = txh >> subtx_shift.rows[i];
     }
+#endif  // CONFIG_NEW_TX_PARTITION_EXT
     sub_txs[i] = get_tx_size(sub_txw, sub_txh);
   }
   return n_partitions;

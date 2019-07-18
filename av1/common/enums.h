@@ -228,7 +228,7 @@ enum {
 } UENUM1BYTE(TX_SIZE);
 
 #if CONFIG_NEW_TX_PARTITION
-//  Transform partition types.
+//  Baseline transform partition types
 //
 //  Square:
 //  NONE           SPLIT
@@ -246,9 +246,29 @@ enum {
 //  |              |      +       +       +
 //  |              |      |       |       |
 //  +--------------+      +-------+-------+
+//
+//  Extended transform partition types (square and rect are the same)
+//
+//  NONE           SPLIT
+//  +-------+      +---+---+
+//  |       |      |   |   |
+//  |       |      +---+---+
+//  |       |      |   |   |
+//  +-------+      +---+---+
+//
+//  HORZ                 VERT
+//  +-------+      +---+---+
+//  |       |      |   |   |
+//  +-------+      |   |   |
+//  |       |      |   |   |
+//  +-------+      +---+---+
 enum {
   TX_PARTITION_NONE,
   TX_PARTITION_SPLIT,
+#if CONFIG_NEW_TX_PARTITION_EXT
+  TX_PARTITION_HORZ,
+  TX_PARTITION_VERT,
+#endif  // CONFIG_NEW_TX_PARTITION_EXT
   TX_PARTITION_TYPES,
 } UENUM1BYTE(TX_PARTITION_TYPE);
 #endif  // CONFIG_FLEXIBLE_TX
