@@ -4247,9 +4247,18 @@ static void avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
   AVERAGE_CDF(ctx_left->comp_ref_cdf, ctx_tr->comp_ref_cdf, 2);
   AVERAGE_CDF(ctx_left->comp_bwdref_cdf, ctx_tr->comp_bwdref_cdf, 2);
 #if CONFIG_NEW_TX_PARTITION
+#if CONFIG_NEW_TX_PARTITION_EXT
+  // Square blocks
+  AVERAGE_CDF(ctx_left->txfm_partition_cdf[0], ctx_tr->txfm_partition_cdf[0],
+              TX_PARTITION_TYPES);
+  // Rectangular blocks
+  AVERAGE_CDF(ctx_left->txfm_partition_cdf[1], ctx_tr->txfm_partition_cdf[1],
+              TX_PARTITION_TYPES);
+#else   // CONFIG_NEW_TX_PARTITION_EXT
   AVERAGE_CDF(ctx_left->txfm_partition_cdf, ctx_tr->txfm_partition_cdf,
               TX_PARTITION_TYPES);
-#else
+#endif  // CONFIG_NEW_TX_PARTITION_EXT
+#else   // CONFIG_NEW_TX_PARTITION
   AVERAGE_CDF(ctx_left->txfm_partition_cdf, ctx_tr->txfm_partition_cdf, 2);
 #endif  // CONFIG_NEW_TX_PARTITION
   AVERAGE_CDF(ctx_left->compound_index_cdf, ctx_tr->compound_index_cdf, 2);
@@ -5601,6 +5610,7 @@ static void update_txfm_count(MACROBLOCK *x, MACROBLOCKD *xd,
   assert(tx_size > TX_4X4);
 #if CONFIG_NEW_TX_PARTITION
   (void)depth;
+  (void)counts;
   TX_SIZE sub_txs[MAX_TX_PARTITIONS] = { 0 };
   get_tx_partition_sizes(mbmi->partition_type[txb_size_index], tx_size,
                          sub_txs);
@@ -5612,14 +5622,23 @@ static void update_txfm_count(MACROBLOCK *x, MACROBLOCKD *xd,
   if (mbmi->partition_type[txb_size_index] != TX_PARTITION_NONE)
     ++x->txb_split_count;
 
+#if CONFIG_NEW_TX_PARTITION_EXT
+  const int is_rect = is_rect_tx(tx_size);
+#if CONFIG_ENTROPY_STATS
+  ++counts->txfm_partition[is_rect][ctx][mbmi->partition_type[txb_size_index]];
+#endif  // CONFIG_ENTROPY_STATS
+  if (allow_update_cdf)
+    update_cdf(xd->tile_ctx->txfm_partition_cdf[is_rect][ctx],
+               mbmi->partition_type[txb_size_index], TX_PARTITION_TYPES);
+#else  // CONFIG_NEW_TX_PARTITION_EXT
 #if CONFIG_ENTROPY_STATS
   ++counts->txfm_partition[ctx][mbmi->partition_type[txb_size_index]];
-#else
-  (void)counts;
-#endif
+#endif  // CONFIG_ENTROPY_STATS
   if (allow_update_cdf)
     update_cdf(xd->tile_ctx->txfm_partition_cdf[ctx],
                mbmi->partition_type[txb_size_index], TX_PARTITION_TYPES);
+#endif  // CONFIG_NEW_TX_PARTITION_EXT
+
   mbmi->tx_size = this_size;
   txfm_partition_update(xd->above_txfm_context + blk_col,
                         xd->left_txfm_context + blk_row, this_size, tx_size);

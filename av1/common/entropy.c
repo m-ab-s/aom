@@ -131,8 +131,15 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
   RESET_CDF_COUNTER(fc->comp_ref_cdf, 2);
   RESET_CDF_COUNTER(fc->comp_bwdref_cdf, 2);
 #if CONFIG_NEW_TX_PARTITION
+#if CONFIG_NEW_TX_PARTITION_EXT
+  // Square blocks
+  RESET_CDF_COUNTER(fc->txfm_partition_cdf[0], TX_PARTITION_TYPES);
+  // Rectangular blocks
+  RESET_CDF_COUNTER(fc->txfm_partition_cdf[1], TX_PARTITION_TYPES);
+#else   // CONFIG_NEW_TX_PARTITION_EXT
   RESET_CDF_COUNTER(fc->txfm_partition_cdf, TX_PARTITION_TYPES);
-#else
+#endif  // CONFIG_NEW_TX_PARTITION_EXT
+#else   // CONFIG_NEW_TX_PARTITION
   RESET_CDF_COUNTER(fc->txfm_partition_cdf, 2);
 #endif  // CONFIG_NEW_TX_PARTITION
   RESET_CDF_COUNTER(fc->compound_index_cdf, 2);

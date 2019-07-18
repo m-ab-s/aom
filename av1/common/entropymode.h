@@ -144,11 +144,16 @@ typedef struct frame_contexts {
   aom_cdf_prob comp_ref_cdf[REF_CONTEXTS][FWD_REFS - 1][CDF_SIZE(2)];
   aom_cdf_prob comp_bwdref_cdf[REF_CONTEXTS][BWD_REFS - 1][CDF_SIZE(2)];
 #if CONFIG_NEW_TX_PARTITION
+#if CONFIG_NEW_TX_PARTITION_EXT
+  aom_cdf_prob txfm_partition_cdf[2][TXFM_PARTITION_CONTEXTS]
+                                 [CDF_SIZE(TX_PARTITION_TYPES)];
+#else   // CONFIG_NEW_TX_PARTITION_EXT
   aom_cdf_prob txfm_partition_cdf[TXFM_PARTITION_CONTEXTS]
                                  [CDF_SIZE(TX_PARTITION_TYPES)];
-#else
+#endif  // CONFIG_NEW_TX_PARTITION_EXT
+#else   // CONFIG_NEW_TX_PARTITION
   aom_cdf_prob txfm_partition_cdf[TXFM_PARTITION_CONTEXTS][CDF_SIZE(2)];
-#endif
+#endif  // CONFIG_NEW_TX_PARTITION
   aom_cdf_prob compound_index_cdf[COMP_INDEX_CONTEXTS][CDF_SIZE(2)];
   aom_cdf_prob comp_group_idx_cdf[COMP_GROUP_IDX_CONTEXTS][CDF_SIZE(2)];
   aom_cdf_prob skip_mode_cdfs[SKIP_CONTEXTS][CDF_SIZE(2)];
