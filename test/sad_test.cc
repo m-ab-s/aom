@@ -1829,9 +1829,9 @@ const SadMxNParam avx2_tests[] = {
   make_tuple(16, 4, &aom_highbd_sad16x4_avx2, 10),
   make_tuple(16, 4, &aom_highbd_sad16x4_avx2, 12),
 #if CONFIG_FLEX_PARTITION
-  make_tuple(64, 8, &aom_sad64x8_avg_avx2, -1),
-  make_tuple(64, 4, &aom_sad64x4_avg_avx2, -1),
-  make_tuple(32, 4, &aom_sad32x4_avg_avx2, -1),
+  make_tuple(64, 8, &aom_sad64x8_avx2, -1),
+  make_tuple(64, 4, &aom_sad64x4_avx2, -1),
+  make_tuple(32, 4, &aom_sad32x4_avx2, -1),
   make_tuple(64, 8, &aom_highbd_sad64x8_avx2, 8),
   make_tuple(64, 8, &aom_highbd_sad64x8_avx2, 10),
   make_tuple(64, 8, &aom_highbd_sad64x8_avx2, 12),
