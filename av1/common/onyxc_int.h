@@ -1284,25 +1284,25 @@ static INLINE TX_SIZE get_tx_size(int width, int height) {
 #if CONFIG_NEW_TX_PARTITION
 #if CONFIG_NEW_TX_PARTITION_EXT
 static const int new_tx_partition_used[TX_SIZES_ALL][TX_PARTITION_TYPES] = {
-  { 1, 0, 0, 0 },  // 4x4 transform
-  { 1, 1, 1, 1 },  // 8x8 transform
-  { 1, 1, 1, 1 },  // 16x16 transform
-  { 1, 1, 1, 1 },  // 32x32 transform
-  { 1, 1, 1, 1 },  // 64x64 transform
-  { 1, 0, 1, 0 },  // 4x8 transform
-  { 1, 0, 0, 1 },  // 8x4 transform
-  { 1, 1, 1, 1 },  // 8x16 transform
-  { 1, 1, 1, 1 },  // 16x8 transform
-  { 1, 1, 1, 1 },  // 16x32 transform
-  { 1, 1, 1, 1 },  // 32x16 transform
-  { 1, 1, 1, 1 },  // 32x64 transform
-  { 1, 1, 1, 1 },  // 64x32 transform
-  { 1, 0, 1, 0 },  // 4x16 transform
-  { 1, 0, 0, 1 },  // 16x4 transform
-  { 1, 1, 1, 0 },  // 8x32 transform
-  { 1, 1, 0, 1 },  // 32x8 transform
-  { 1, 1, 1, 0 },  // 16x64 transform
-  { 1, 1, 0, 1 },  // 64x16 transform
+  { 1, 0, 0, 0, 0, 0 },  // 4x4 transform
+  { 1, 1, 1, 1, 0, 0 },  // 8x8 transform
+  { 1, 1, 1, 1, 1, 1 },  // 16x16 transform
+  { 1, 1, 1, 1, 1, 1 },  // 32x32 transform
+  { 1, 1, 1, 1, 1, 1 },  // 64x64 transform
+  { 1, 0, 1, 0, 0, 0 },  // 4x8 transform
+  { 1, 0, 0, 1, 0, 0 },  // 8x4 transform
+  { 1, 1, 1, 1, 1, 0 },  // 8x16 transform
+  { 1, 1, 1, 1, 0, 1 },  // 16x8 transform
+  { 1, 1, 1, 1, 1, 0 },  // 16x32 transform
+  { 1, 1, 1, 1, 0, 1 },  // 32x16 transform
+  { 1, 1, 1, 1, 1, 0 },  // 32x64 transform
+  { 1, 1, 1, 1, 0, 1 },  // 64x32 transform
+  { 1, 0, 1, 0, 1, 0 },  // 4x16 transform
+  { 1, 0, 0, 1, 0, 1 },  // 16x4 transform
+  { 1, 1, 1, 0, 1, 0 },  // 8x32 transform
+  { 1, 1, 0, 1, 0, 1 },  // 32x8 transform
+  { 1, 1, 1, 0, 1, 0 },  // 16x64 transform
+  { 1, 1, 0, 1, 0, 1 },  // 64x16 transform
 };
 #else
 static const int new_tx_partition_used[TX_SIZES_ALL][TX_PARTITION_TYPES] = {
@@ -1346,9 +1346,11 @@ static const TX_PARTITION_BIT_SHIFT
           { { 0 }, { 0 }, 1 },                    // TX_PARTITION_NONE
           { { 1, 1, 1, 1 }, { 1, 1, 1, 1 }, 4 },  // TX_PARTITION_SPLIT
 #if CONFIG_NEW_TX_PARTITION_EXT
-          { { 1, 1 }, { 0, 0 }, 2 },  // TX_PARTITION_HORZ
-          { { 0, 0 }, { 1, 1 }, 2 },  // TX_PARTITION_VERT
-#endif                                // CONFIG_NEW_TX_PARTITION_EXT
+          { { 1, 1 }, { 0, 0 }, 2 },              // TX_PARTITION_HORZ
+          { { 0, 0 }, { 1, 1 }, 2 },              // TX_PARTITION_VERT
+          { { 2, 2, 2, 2 }, { 0, 0, 0, 0 }, 4 },  // TX_PARTITION_HORZ4
+          { { 0, 0, 0, 0 }, { 2, 2, 2, 2 }, 4 },  // TX_PARTITION_VERT4
+#endif                                            // CONFIG_NEW_TX_PARTITION_EXT
       },
       // Rectangular
       {
@@ -1357,6 +1359,8 @@ static const TX_PARTITION_BIT_SHIFT
           { { 1, 1, 1, 1 }, { 1, 1, 1, 1 }, 4 },  // TX_PARTITION_SPLIT
           { { 1, 1 }, { 0, 0 }, 2 },              // TX_PARTITION_HORZ
           { { 0, 0 }, { 1, 1 }, 2 },              // TX_PARTITION_VERT
+          { { 2, 2, 2, 2 }, { 0, 0, 0, 0 }, 4 },  // TX_PARTITION_HORZ4
+          { { 0, 0, 0, 0 }, { 2, 2, 2, 2 }, 4 },  // TX_PARTITION_VERT4
 
 #else
           { { 0, 0 }, { 1, 1 }, 2 },  // TX_PARTITION_SPLIT

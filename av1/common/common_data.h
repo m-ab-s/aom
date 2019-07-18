@@ -247,16 +247,16 @@ static const TX_SIZE smallest_sub_tx_size_map[TX_SIZES_ALL] = {
   TX_4X4,    // TX_8X4
   TX_4X4,    // TX_8X16
   TX_4X4,    // TX_16X8
-  TX_8X8,    // TX_16X32
-  TX_8X8,    // TX_32X16
-  TX_16X16,  // TX_32X64
-  TX_16X16,  // TX_64X32
+  TX_4X8,    // TX_16X32
+  TX_8X4,    // TX_32X16
+  TX_8X16,   // TX_32X64
+  TX_16X8,   // TX_64X32
   TX_4X4,    // TX_4X16
   TX_4X4,    // TX_16X4
-  TX_4X8,    // TX_8X32 //
+  TX_4X8,    // TX_8X32
   TX_8X4,    // TX_32X8
-  TX_8X16,   // TX_16X64
-  TX_16X8,   // TX_64X16
+  TX_4X16,   // TX_16X64
+  TX_16X4,   // TX_64X16
 #if CONFIG_FLEX_PARTITION
   TX_4X8,   // TX_4X32
   TX_8X4,   // TX_32X4
