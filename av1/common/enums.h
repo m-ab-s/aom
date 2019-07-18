@@ -133,7 +133,7 @@ typedef enum ATTRIBUTE_PACKED {
 // 4X4, 8X8, 16X16, 32X32, 64X64, 128X128
 #define SQR_BLOCK_SIZES 6
 
-//  Partition types.  R: Recursive
+//  Block partition types.  R: Recursive
 //
 //  NONE          HORZ          VERT          SPLIT
 //  +-------+     +-------+     +---+---+     +---+---+
@@ -209,6 +209,32 @@ enum {
   TX_SIZES_LARGEST = TX_64X64,
   TX_INVALID = 255  // Invalid transform size
 } UENUM1BYTE(TX_SIZE);
+
+#if CONFIG_NEW_TX_PARTITION
+//  Transform partition types.
+//
+//  Square:
+//  NONE           SPLIT
+//  +-------+      +---+---+
+//  |       |      |   |   |
+//  |       |      +---+---+
+//  |       |      |   |   |
+//  +-------+      +---+---+
+//
+//
+//  Rectangular:
+//  NONE                  SPLIT
+//  +--------------+      +-------+-------+
+//  |              |      |       |       |
+//  |              |      +       +       +
+//  |              |      |       |       |
+//  +--------------+      +-------+-------+
+enum {
+  TX_PARTITION_NONE,
+  TX_PARTITION_SPLIT,
+  TX_PARTITION_TYPES,
+} UENUM1BYTE(TX_PARTITION_TYPE);
+#endif  // CONFIG_FLEXIBLE_TX
 
 #define TX_SIZE_LUMA_MIN (TX_4X4)
 /* We don't need to code a transform size unless the allowed size is at least

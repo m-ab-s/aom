@@ -1258,6 +1258,39 @@ static void set_inter_tx_size(MB_MODE_INFO *mbmi, int stride_log2,
   }
 }
 
+#if CONFIG_NEW_TX_PARTITION
+static void read_tx_partition(MACROBLOCKD *xd, MB_MODE_INFO *mbmi,
+                              TX_SIZE max_tx_size, int blk_row, int blk_col,
+                              aom_reader *r) {
+  const int bsize = mbmi->sb_type;
+  const int max_blocks_high = max_block_high(xd, bsize, 0);
+  const int max_blocks_wide = max_block_wide(xd, bsize, 0);
+  if (blk_row >= max_blocks_high || blk_col >= max_blocks_wide) return;
+  const TX_SIZE txs = sub_tx_size_map[max_txsize_rect_lookup[bsize]];
+  const int tx_w_log2 = tx_size_wide_log2[txs] - MI_SIZE_LOG2;
+  const int tx_h_log2 = tx_size_high_log2[txs] - MI_SIZE_LOG2;
+  const int bw_log2 = mi_size_wide_log2[bsize];
+  const int stride_log2 = bw_log2 - tx_w_log2;
+  FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
+  const int ctx = txfm_partition_context(xd->above_txfm_context + blk_col,
+                                         xd->left_txfm_context + blk_row,
+                                         mbmi->sb_type, max_tx_size);
+  const TX_PARTITION_TYPE partition = aom_read_symbol(
+      r, ec_ctx->txfm_partition_cdf[ctx], TX_PARTITION_TYPES, ACCT_STR);
+  switch (partition) {
+    case TX_PARTITION_NONE: mbmi->tx_size = max_tx_size; break;
+    case TX_PARTITION_SPLIT:
+      mbmi->tx_size = sub_tx_size_map[max_tx_size];
+      break;
+    default: assert(0);
+  }
+  set_inter_tx_size(mbmi, stride_log2, tx_w_log2, tx_h_log2, txs, max_tx_size,
+                    mbmi->tx_size, blk_row, blk_col);
+  txfm_partition_update(xd->above_txfm_context + blk_col,
+                        xd->left_txfm_context + blk_row, mbmi->tx_size,
+                        max_tx_size);
+}
+#else
 static void read_tx_size_vartx(MACROBLOCKD *xd, MB_MODE_INFO *mbmi,
                                TX_SIZE tx_size, int depth,
 #if CONFIG_LPF_MASK
@@ -1347,6 +1380,7 @@ static void read_tx_size_vartx(MACROBLOCKD *xd, MB_MODE_INFO *mbmi,
 #endif
   }
 }
+#endif  // CONFIG_NEW_TX_PARTITION
 
 static TX_SIZE read_selected_tx_size(MACROBLOCKD *xd, aom_reader *r) {
   // TODO(debargha): Clean up the logic here. This function should only
@@ -1405,11 +1439,15 @@ static void parse_decode_block(AV1Decoder *const pbi, ThreadData *const td,
 
     for (int idy = 0; idy < height; idy += bh)
       for (int idx = 0; idx < width; idx += bw)
+#if CONFIG_NEW_TX_PARTITION
+        read_tx_partition(xd, mbmi, max_tx_size, idy, idx, r);
+#else
         read_tx_size_vartx(xd, mbmi, max_tx_size, 0,
 #if CONFIG_LPF_MASK
                            cm, mi_row, mi_col, 1,
 #endif
                            idy, idx, r);
+#endif  // CONFIG_NEW_TX_PARTITION
   } else {
     mbmi->tx_size = read_tx_size(cm, xd, inter_block_tx, !mbmi->skip, r);
     if (inter_block_tx)

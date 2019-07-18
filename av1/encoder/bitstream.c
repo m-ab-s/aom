@@ -144,6 +144,28 @@ static void write_inter_compound_mode(MACROBLOCKD *xd, aom_writer *w,
                    INTER_COMPOUND_MODES);
 }
 
+#if CONFIG_NEW_TX_PARTITION
+static void write_tx_partition(MACROBLOCKD *xd, const MB_MODE_INFO *mbmi,
+                               TX_SIZE max_tx_size, int blk_row, int blk_col,
+                               aom_writer *w) {
+  const int bsize = mbmi->sb_type;
+  const int txb_size_index = av1_get_txb_size_index(bsize, blk_row, blk_col);
+  const TX_SIZE tx_size = mbmi->inter_tx_size[txb_size_index];
+  const int ctx = txfm_partition_context(xd->above_txfm_context + blk_col,
+                                         xd->left_txfm_context + blk_row,
+                                         mbmi->sb_type, max_tx_size);
+  const int max_blocks_high = max_block_high(xd, mbmi->sb_type, 0);
+  const int max_blocks_wide = max_block_wide(xd, mbmi->sb_type, 0);
+  if (blk_row >= max_blocks_high || blk_col >= max_blocks_wide) return;
+  FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
+  const TX_PARTITION_TYPE partition =
+      tx_size != max_tx_size ? TX_PARTITION_SPLIT : TX_PARTITION_NONE;
+  aom_write_symbol(w, partition, ec_ctx->txfm_partition_cdf[ctx],
+                   TX_PARTITION_TYPES);
+  txfm_partition_update(xd->above_txfm_context + blk_col,
+                        xd->left_txfm_context + blk_row, tx_size, max_tx_size);
+}
+#else
 static void write_tx_size_vartx(MACROBLOCKD *xd, const MB_MODE_INFO *mbmi,
                                 TX_SIZE tx_size, int depth, int blk_row,
                                 int blk_col, aom_writer *w) {
@@ -194,6 +216,7 @@ static void write_tx_size_vartx(MACROBLOCKD *xd, const MB_MODE_INFO *mbmi,
       }
   }
 }
+#endif  // CONFIG_NEW_TX_PARTITION
 
 static void write_selected_tx_size(const MACROBLOCKD *xd, aom_writer *w) {
   const MB_MODE_INFO *const mbmi = xd->mi[0];
@@ -1581,7 +1604,11 @@ static void write_modes_b(AV1_COMP *cpi, const TileInfo *const tile,
       const int height = block_size_high[bsize] >> tx_size_high_log2[0];
       for (int idy = 0; idy < height; idy += txbh) {
         for (int idx = 0; idx < width; idx += txbw) {
+#if CONFIG_NEW_TX_PARTITION
+          write_tx_partition(xd, mbmi, max_tx_size, idy, idx, w);
+#else
           write_tx_size_vartx(xd, mbmi, max_tx_size, 0, idy, idx, w);
+#endif  // CONFIG_NEW_TX_PARTITION
         }
       }
     } else {

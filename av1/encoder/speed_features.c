@@ -685,8 +685,14 @@ void av1_set_speed_features_framesize_independent(AV1_COMP *cpi, int speed) {
   // TODO(sarahparker) Pair this with a speed setting once experiments are done
   sf->trellis_eob_fast = 0;
   sf->tx_size_search_method = cpi->oxcf.tx_size_search_method;
+#if CONFIG_NEW_TX_PARTITION
+  // Limit recursion depth for new tx partition search
+  sf->inter_tx_size_search_init_depth_sqr = 1;
+  sf->inter_tx_size_search_init_depth_rect = 1;
+#else
   sf->inter_tx_size_search_init_depth_sqr = 0;
   sf->inter_tx_size_search_init_depth_rect = 0;
+#endif  // CONFIG_NEW_TX_PARTITION
   sf->intra_tx_size_search_init_depth_rect = 0;
   sf->intra_tx_size_search_init_depth_sqr = 0;
   sf->tx_size_search_lgr_block = 0;
