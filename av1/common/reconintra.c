@@ -125,23 +125,41 @@ static uint8_t has_tr_32x8[8] = {
 static uint8_t has_tr_16x64[2] = { 255, 127 };
 static uint8_t has_tr_64x16[2] = { 3, 1 };
 
+#if CONFIG_FLEX_PARTITION
+static uint8_t has_tr_4x32[16] = {
+  255, 255, 255, 255, 255, 127, 255, 127,
+  255, 255, 255, 127, 255, 127, 255, 127,
+};
+static uint8_t has_tr_32x4[16] = { 15, 0, 0, 0, 5, 0, 0, 0,
+                                   7,  0, 0, 0, 5, 0, 0, 0 };
+static uint8_t has_tr_4x64[8] = {
+  255, 255, 255, 255, 255, 255, 255, 127,
+};
+static uint8_t has_tr_64x4[8] = { 3, 0, 0, 0, 1, 0, 0, 0 };
+static uint8_t has_tr_8x64[4] = {
+  255,
+  255,
+  255,
+  127,
+};
+static uint8_t has_tr_64x8[4] = {
+  3,
+  0,
+  1,
+  0,
+};
+#endif  // CONFIG_FLEX_PARTITION
+
 static const uint8_t *const has_tr_tables[BLOCK_SIZES_ALL] = {
-  // 4X4
-  has_tr_4x4,
-  // 4X8,       8X4,            8X8
-  has_tr_4x8, has_tr_8x4, has_tr_8x8,
-  // 8X16,      16X8,           16X16
-  has_tr_8x16, has_tr_16x8, has_tr_16x16,
-  // 16X32,     32X16,          32X32
-  has_tr_16x32, has_tr_32x16, has_tr_32x32,
-  // 32X64,     64X32,          64X64
-  has_tr_32x64, has_tr_64x32, has_tr_64x64,
-  // 64x128,    128x64,         128x128
-  has_tr_64x128, has_tr_128x64, has_tr_128x128,
-  // 4x16,      16x4,            8x32
-  has_tr_4x16, has_tr_16x4, has_tr_8x32,
-  // 32x8,      16x64,           64x16
-  has_tr_32x8, has_tr_16x64, has_tr_64x16
+  has_tr_4x4,     has_tr_4x8,   has_tr_8x4,   has_tr_8x8,    has_tr_8x16,
+  has_tr_16x8,    has_tr_16x16, has_tr_16x32, has_tr_32x16,  has_tr_32x32,
+  has_tr_32x64,   has_tr_64x32, has_tr_64x64, has_tr_64x128, has_tr_128x64,
+  has_tr_128x128, has_tr_4x16,  has_tr_16x4,  has_tr_8x32,   has_tr_32x8,
+  has_tr_16x64,   has_tr_64x16,
+#if CONFIG_FLEX_PARTITION
+  has_tr_4x32,    has_tr_32x4,  has_tr_8x64,  has_tr_64x8,   has_tr_4x64,
+  has_tr_64x4
+#endif  // CONFIG_FLEX_PARTITION
 };
 
 static uint8_t has_tr_vert_8x8[32] = {
@@ -164,18 +182,22 @@ static uint8_t has_tr_vert_64x64[1] = { 3 };
 // There are tables for each of the square sizes. Vertical rectangles (like
 // BLOCK_16X32) use their respective "non-vert" table
 static const uint8_t *const has_tr_vert_tables[BLOCK_SIZES] = {
-  // 4X4
-  NULL,
-  // 4X8,      8X4,         8X8
-  has_tr_4x8, NULL, has_tr_vert_8x8,
-  // 8X16,     16X8,        16X16
-  has_tr_8x16, NULL, has_tr_vert_16x16,
-  // 16X32,    32X16,       32X32
-  has_tr_16x32, NULL, has_tr_vert_32x32,
-  // 32X64,    64X32,       64X64
-  has_tr_32x64, NULL, has_tr_vert_64x64,
-  // 64x128,   128x64,      128x128
-  has_tr_64x128, NULL, has_tr_128x128
+  NULL,               // 4X4
+  has_tr_4x8,         // 4X8
+  NULL,               // 8X4
+  has_tr_vert_8x8,    // 8X8
+  has_tr_8x16,        // 8X16
+  NULL,               // 16X8
+  has_tr_vert_16x16,  // 16X16
+  has_tr_16x32,       // 16X32
+  NULL,               // 32X16
+  has_tr_vert_32x32,  // 32X32
+  has_tr_32x64,       // 32X64
+  NULL,               // 64X32
+  has_tr_vert_64x64,  // 64X64
+  has_tr_64x128,      // 64X128
+  NULL,               // 128X64
+  has_tr_128x128,     // 128X128
 };
 
 static const uint8_t *get_has_tr_table(PARTITION_TYPE partition,
@@ -309,24 +331,38 @@ static uint8_t has_bl_32x8[8] = {
 };
 static uint8_t has_bl_16x64[2] = { 0, 0 };
 static uint8_t has_bl_64x16[2] = { 42, 42 };
+#if CONFIG_FLEX_PARTITION
+static uint8_t has_bl_4x32[16] = { 0, 0, 1, 0, 0, 0, 0, 0,
+                                   0, 0, 1, 0, 0, 0, 0, 0 };
+static uint8_t has_bl_32x4[16] = {
+  238, 238, 238, 78, 238, 238, 238, 14, 238, 238, 238, 78, 238, 238, 238, 14,
+};
+static uint8_t has_bl_4x64[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
+static uint8_t has_bl_64x4[8] = { 170, 170, 170, 42, 170, 170, 170, 42 };
+static uint8_t has_bl_8x64[4] = {
+  0,
+  0,
+  0,
+  0,
+};
+static uint8_t has_bl_64x8[4] = {
+  170,
+  42,
+  170,
+  42,
+};
+#endif  // CONFIG_FLEX_PARTITION
 
 static const uint8_t *const has_bl_tables[BLOCK_SIZES_ALL] = {
-  // 4X4
-  has_bl_4x4,
-  // 4X8,         8X4,         8X8
-  has_bl_4x8, has_bl_8x4, has_bl_8x8,
-  // 8X16,        16X8,        16X16
-  has_bl_8x16, has_bl_16x8, has_bl_16x16,
-  // 16X32,       32X16,       32X32
-  has_bl_16x32, has_bl_32x16, has_bl_32x32,
-  // 32X64,       64X32,       64X64
-  has_bl_32x64, has_bl_64x32, has_bl_64x64,
-  // 64x128,      128x64,      128x128
-  has_bl_64x128, has_bl_128x64, has_bl_128x128,
-  // 4x16,        16x4,        8x32
-  has_bl_4x16, has_bl_16x4, has_bl_8x32,
-  // 32x8,        16x64,       64x16
-  has_bl_32x8, has_bl_16x64, has_bl_64x16
+  has_bl_4x4,     has_bl_4x8,   has_bl_8x4,   has_bl_8x8,    has_bl_8x16,
+  has_bl_16x8,    has_bl_16x16, has_bl_16x32, has_bl_32x16,  has_bl_32x32,
+  has_bl_32x64,   has_bl_64x32, has_bl_64x64, has_bl_64x128, has_bl_128x64,
+  has_bl_128x128, has_bl_4x16,  has_bl_16x4,  has_bl_8x32,   has_bl_32x8,
+  has_bl_16x64,   has_bl_64x16,
+#if CONFIG_FLEX_PARTITION
+  has_bl_4x32,    has_bl_32x4,  has_bl_8x64,  has_bl_64x8,   has_bl_4x64,
+  has_bl_64x4,
+#endif  // CONFIG_FLEX_PARTITION
 };
 
 static uint8_t has_bl_vert_8x8[32] = {
@@ -349,18 +385,22 @@ static uint8_t has_bl_vert_64x64[1] = { 2 };
 // There are tables for each of the square sizes. Vertical rectangles (like
 // BLOCK_16X32) use their respective "non-vert" table
 static const uint8_t *const has_bl_vert_tables[BLOCK_SIZES] = {
-  // 4X4
-  NULL,
-  // 4X8,     8X4,         8X8
-  has_bl_4x8, NULL, has_bl_vert_8x8,
-  // 8X16,    16X8,        16X16
-  has_bl_8x16, NULL, has_bl_vert_16x16,
-  // 16X32,   32X16,       32X32
-  has_bl_16x32, NULL, has_bl_vert_32x32,
-  // 32X64,   64X32,       64X64
-  has_bl_32x64, NULL, has_bl_vert_64x64,
-  // 64x128,  128x64,      128x128
-  has_bl_64x128, NULL, has_bl_128x128
+  NULL,               // 4X4
+  has_bl_4x8,         // 4X8
+  NULL,               // 8X4
+  has_bl_vert_8x8,    // 8X8
+  has_bl_8x16,        // 8X16
+  NULL,               // 16X8
+  has_bl_vert_16x16,  // 16X16
+  has_bl_16x32,       // 16X32
+  NULL,               // 32X16
+  has_bl_vert_32x32,  // 32X32
+  has_bl_32x64,       // 32X64
+  NULL,               // 64X32
+  has_bl_vert_64x64,  // 64X64
+  has_bl_64x128,      // 64X128
+  NULL,               // 128X64
+  has_bl_128x128,     // 128X128
 };
 
 static const uint8_t *get_has_bl_table(PARTITION_TYPE partition,

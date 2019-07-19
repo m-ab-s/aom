@@ -3752,14 +3752,23 @@ static const uint32_t skip_pred_threshold[3][BLOCK_SIZES_ALL] = {
   {
       64, 64, 64, 70, 60, 60, 68, 68, 68, 68, 68,
       68, 68, 68, 68, 68, 64, 64, 70, 70, 68, 68,
+#if CONFIG_FLEX_PARTITION
+      60, 60, 68, 68, 68, 68,
+#endif  // CONFIG_FLEX_PARTITION
   },
   {
       88, 88, 88, 86, 87, 87, 68, 68, 68, 68, 68,
       68, 68, 68, 68, 68, 88, 88, 86, 86, 68, 68,
+#if CONFIG_FLEX_PARTITION
+      87, 87, 68, 68, 68, 68,
+#endif  // CONFIG_FLEX_PARTITION
   },
   {
       90, 93, 93, 90, 93, 93, 74, 74, 74, 74, 74,
       74, 74, 74, 74, 74, 90, 90, 90, 90, 74, 74,
+#if CONFIG_FLEX_PARTITION
+      93, 93, 74, 74, 74, 74,
+#endif  // CONFIG_FLEX_PARTITION
   },
 };
 
@@ -3768,10 +3777,36 @@ static const uint32_t skip_pred_threshold[3][BLOCK_SIZES_ALL] = {
 // if (tx_size_high[max_tx_size] > 16 || tx_size_wide[max_tx_size] > 16)
 //   max_tx_size = AOMMIN(max_txsize_lookup[bsize], TX_16X16);
 static const TX_SIZE max_predict_sf_tx_size[BLOCK_SIZES_ALL] = {
-  TX_4X4,   TX_4X8,   TX_8X4,   TX_8X8,   TX_8X16,  TX_16X8,
-  TX_16X16, TX_16X16, TX_16X16, TX_16X16, TX_16X16, TX_16X16,
-  TX_16X16, TX_16X16, TX_16X16, TX_16X16, TX_4X16,  TX_16X4,
-  TX_8X8,   TX_8X8,   TX_16X16, TX_16X16,
+  TX_4X4,
+  TX_4X8,
+  TX_8X4,
+  TX_8X8,
+  TX_8X16,
+  TX_16X8,
+  TX_16X16,
+  TX_16X16,
+  TX_16X16,
+  TX_16X16,
+  TX_16X16,
+  TX_16X16,
+  TX_16X16,
+  TX_16X16,
+  TX_16X16,
+  TX_16X16,
+  TX_4X16,
+  TX_16X4,
+  TX_8X8,
+  TX_8X8,
+  TX_16X16,
+  TX_16X16,
+#if CONFIG_FLEX_PARTITION
+  TX_4X16,
+  TX_16X4,
+  TX_8X32,
+  TX_32X8,
+  TX_4X16,
+  TX_16X4,
+#endif  // CONFIG_FLEX_PARTITION
 };
 
 // Uses simple features on top of DCT coefficients to quickly predict
@@ -5810,6 +5845,15 @@ static const RD_RECORD_IDX_NODE *rd_record_tree[BLOCK_SIZES_ALL] = {
   rd_record_tree_4_1,      // BLOCK_32X8
   rd_record_tree_1_4,      // BLOCK_16X64
   rd_record_tree_4_1,      // BLOCK_64X16
+#if CONFIG_FLEX_PARTITION
+  // TODO(debargha): Fix these
+  NULL,  // BLOCK_4X32
+  NULL,  // BLOCK_32X4
+  NULL,  // BLOCK_8X64
+  NULL,  // BLOCK_64X8
+  NULL,  // BLOCK_4X64
+  NULL,  // BLOCK_64X4
+#endif   // CONFIG_FLEX_PARTITION
 };
 
 static const int rd_record_tree_size[BLOCK_SIZES_ALL] = {
@@ -5835,6 +5879,15 @@ static const int rd_record_tree_size[BLOCK_SIZES_ALL] = {
   sizeof(rd_record_tree_4_1) / sizeof(RD_RECORD_IDX_NODE),      // BLOCK_32X8
   sizeof(rd_record_tree_1_4) / sizeof(RD_RECORD_IDX_NODE),      // BLOCK_16X64
   sizeof(rd_record_tree_4_1) / sizeof(RD_RECORD_IDX_NODE),      // BLOCK_64X16
+#if CONFIG_FLEX_PARTITION
+  // TODO(debargha): Fix these
+  0,    // BLOCK_4X32
+  0,    // BLOCK_32X4
+  0,    // BLOCK_8X64
+  0,    // BLOCK_64X8
+  0,    // BLOCK_4X64
+  0,    // BLOCK_64X4
+#endif  // CONFIG_FLEX_PARTITION
 };
 
 static INLINE void init_rd_record_tree(TXB_RD_INFO_NODE *tree,
@@ -7551,22 +7604,36 @@ static int8_t estimate_wedge_sign(const AV1_COMP *cpi, const MACROBLOCK *x,
                                   int stride0, const uint8_t *pred1,
                                   int stride1) {
   static const BLOCK_SIZE split_qtr[BLOCK_SIZES_ALL] = {
-    //                            4X4
-    BLOCK_INVALID,
-    // 4X8,        8X4,           8X8
-    BLOCK_INVALID, BLOCK_INVALID, BLOCK_4X4,
-    // 8X16,       16X8,          16X16
-    BLOCK_4X8, BLOCK_8X4, BLOCK_8X8,
-    // 16X32,      32X16,         32X32
-    BLOCK_8X16, BLOCK_16X8, BLOCK_16X16,
-    // 32X64,      64X32,         64X64
-    BLOCK_16X32, BLOCK_32X16, BLOCK_32X32,
-    // 64x128,     128x64,        128x128
-    BLOCK_32X64, BLOCK_64X32, BLOCK_64X64,
-    // 4X16,       16X4,          8X32
-    BLOCK_INVALID, BLOCK_INVALID, BLOCK_4X16,
-    // 32X8,       16X64,         64X16
-    BLOCK_16X4, BLOCK_8X32, BLOCK_32X8
+    BLOCK_INVALID,  // 4X4
+    BLOCK_INVALID,  // 4X8
+    BLOCK_INVALID,  // 8X4
+    BLOCK_4X4,      // 8X8
+    BLOCK_4X8,      // 8X16
+    BLOCK_8X4,      // 16X8
+    BLOCK_8X8,      // 16X16
+    BLOCK_8X16,     // 16X32
+    BLOCK_16X8,     // 32X16
+    BLOCK_16X16,    // 32X32
+    BLOCK_16X32,    // 32X64
+    BLOCK_32X16,    // 64X32
+    BLOCK_32X32,    // 64X64
+    BLOCK_32X64,    // 64X128
+    BLOCK_64X32,    // 128X64
+    BLOCK_64X64,    // 128X128
+    BLOCK_INVALID,  // 4X16
+    BLOCK_INVALID,  // 16X4
+    BLOCK_4X16,     // 8X32
+    BLOCK_16X4,     // 32X8
+    BLOCK_8X32,     // 16X64
+    BLOCK_32X8,     // 64X16
+#if CONFIG_FLEX_PARTITION
+    BLOCK_INVALID,  // 32X4
+    BLOCK_INVALID,  // 4X32
+    BLOCK_32X4,     // 64X8
+    BLOCK_4X32,     // 8X64
+    BLOCK_INVALID,  // 4X64
+    BLOCK_INVALID,  // 64X4
+#endif              // CONFIG_FLEX_PARTITION
   };
   const struct macroblock_plane *const p = &x->plane[0];
   const uint8_t *src = p->src.buf;

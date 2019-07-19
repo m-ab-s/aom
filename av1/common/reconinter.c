@@ -156,6 +156,14 @@ DECLARE_ALIGNED(16, static uint8_t,
   { 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0, 1, },
   { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },  // not used
   { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },  // not used
+#if CONFIG_FLEX_PARTITION
+  { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },  // not used
+  { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },  // not used
+  { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },  // not used
+  { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },  // not used
+  { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },  // not used
+  { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },  // not used
+#endif  // CONFIG_FLEX_PARTITION
 };
 /* clang-format on */
 #else
@@ -240,6 +248,14 @@ const wedge_params_type av1_wedge_params_lookup[BLOCK_SIZES_ALL] = {
     wedge_masks[BLOCK_32X8] },
   { 0, NULL, NULL, NULL },
   { 0, NULL, NULL, NULL },
+#if CONFIG_FLEX_PARTITION
+  { 0, NULL, NULL, NULL },
+  { 0, NULL, NULL, NULL },
+  { 0, NULL, NULL, NULL },
+  { 0, NULL, NULL, NULL },
+  { 0, NULL, NULL, NULL },
+  { 0, NULL, NULL, NULL },
+#endif  // CONFIG_FLEX_PARTITION
 };
 
 static const uint8_t *get_wedge_mask_inplace(int wedge_index, int neg,
@@ -991,7 +1007,10 @@ static const uint8_t ii_weights1d[MAX_SB_SIZE] = {
 static uint8_t ii_size_scales[BLOCK_SIZES_ALL] = {
     32, 16, 16, 16, 8, 8, 8, 4,
     4,  4,  2,  2,  2, 1, 1, 1,
-    8,  8,  4,  4,  2, 2
+    8,  8,  4,  4,  2, 2,
+#if CONFIG_FLEX_PARTITION
+    8,  8,  4,  4,  8, 8,
+#endif  // CONFIG_FLEX_PARTITION
 };
 /* clang-format on */
 
