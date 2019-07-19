@@ -5037,7 +5037,10 @@ static int super_block_uvrd(const AV1_COMP *const cpi, MACROBLOCK *x,
 
   if (x->skip_chroma_rd) return is_cost_valid;
 
-  bsize = scale_chroma_bsize(bsize, pd->subsampling_x, pd->subsampling_y);
+  const int mi_row = -xd->mb_to_top_edge >> (3 + MI_SIZE_LOG2);
+  const int mi_col = -xd->mb_to_left_edge >> (3 + MI_SIZE_LOG2);
+  bsize = scale_chroma_bsize(bsize, pd->subsampling_x, pd->subsampling_y,
+                             mi_row, mi_col);
 
   if (is_inter && is_cost_valid) {
     for (plane = 1; plane < MAX_MB_PLANE; ++plane)
@@ -6663,8 +6666,9 @@ static void choose_intra_uv_mode(const AV1_COMP *const cpi, MACROBLOCK *const x,
   xd->cfl.is_chroma_reference =
       is_chroma_reference(mi_row, mi_col, bsize, cm->seq_params.subsampling_x,
                           cm->seq_params.subsampling_y);
-  bsize = scale_chroma_bsize(bsize, xd->plane[AOM_PLANE_U].subsampling_x,
-                             xd->plane[AOM_PLANE_U].subsampling_y);
+  bsize =
+      scale_chroma_bsize(bsize, xd->plane[AOM_PLANE_U].subsampling_x,
+                         xd->plane[AOM_PLANE_U].subsampling_y, mi_row, mi_col);
   // Only store reconstructed luma when there's chroma RDO. When there's no
   // chroma RDO, the reconstructed luma will be stored in encode_superblock().
   xd->cfl.store_y = store_cfl_required_rdo(cm, x);

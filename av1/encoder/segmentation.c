@@ -135,6 +135,19 @@ static void count_segs_sb(const AV1_COMMON *cm, MACROBLOCKD *xd,
       CSEGS(hbs, hbs, 0, hbs);
       CSEGS(hbs, hbs, hbs, hbs);
       break;
+#if CONFIG_3WAY_PARTITIONS
+    case PARTITION_HORZ_3:
+      CSEGS(bs, qbs, 0, 0);
+      CSEGS(bs, hbs, qbs, 0);
+      if (mi_row + 3 * qbs < cm->mi_rows) CSEGS(bs, qbs, 3 * qbs, 0);
+      break;
+
+    case PARTITION_VERT_3:
+      CSEGS(qbs, bs, 0, 0);
+      CSEGS(hbs, bs, 0, qbs);
+      if (mi_col + 3 * qbs < cm->mi_cols) CSEGS(qbs, bs, 0, 3 * qbs);
+      break;
+#else
     case PARTITION_HORZ_4:
       CSEGS(bs, qbs, 0, 0);
       CSEGS(bs, qbs, qbs, 0);
@@ -148,6 +161,7 @@ static void count_segs_sb(const AV1_COMMON *cm, MACROBLOCKD *xd,
       CSEGS(qbs, bs, 0, 2 * qbs);
       if (mi_col + 3 * qbs < cm->mi_cols) CSEGS(qbs, bs, 0, 3 * qbs);
       break;
+#endif  // CONFIG_3WAY_PARTITIONS
 
     case PARTITION_SPLIT: {
       const BLOCK_SIZE subsize = get_partition_subsize(bsize, PARTITION_SPLIT);

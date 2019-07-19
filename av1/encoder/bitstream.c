@@ -1443,6 +1443,7 @@ static void write_mbmi_b(AV1_COMP *cpi, aom_writer *w, int mi_row, int mi_col) {
 }
 
 static void write_inter_txb_coeff(AV1_COMMON *const cm, MACROBLOCK *const x,
+                                  int mi_row, int mi_col,
                                   MB_MODE_INFO *const mbmi, aom_writer *w,
                                   const TOKENEXTRA **tok,
                                   const TOKENEXTRA *const tok_end,
@@ -1452,8 +1453,8 @@ static void write_inter_txb_coeff(AV1_COMMON *const cm, MACROBLOCK *const x,
   const struct macroblockd_plane *const pd = &xd->plane[plane];
   const BLOCK_SIZE bsize = mbmi->sb_type;
   assert(bsize < BLOCK_SIZES_ALL);
-  const BLOCK_SIZE bsizec =
-      scale_chroma_bsize(bsize, pd->subsampling_x, pd->subsampling_y);
+  const BLOCK_SIZE bsizec = scale_chroma_bsize(
+      bsize, pd->subsampling_x, pd->subsampling_y, mi_row, mi_col);
 
   const BLOCK_SIZE plane_bsize =
       get_plane_block_size(bsizec, pd->subsampling_x, pd->subsampling_y);
@@ -1535,8 +1536,8 @@ static void write_tokens_b(AV1_COMP *cpi, aom_writer *w, const TOKENEXTRA **tok,
                                    pd->subsampling_y)) {
             continue;
           }
-          write_inter_txb_coeff(cm, x, mbmi, w, tok, tok_end, &token_stats, row,
-                                col, &block[plane], plane);
+          write_inter_txb_coeff(cm, x, mi_row, mi_col, mbmi, w, tok, tok_end,
+                                &token_stats, row, col, &block[plane], plane);
         }
       }
     }
@@ -1671,7 +1672,6 @@ static void write_modes_sb(AV1_COMP *const cpi, const TileInfo *const tile,
   assert(bsize < BLOCK_SIZES_ALL);
   const int hbs = mi_size_wide[bsize] / 2;
   const int quarter_step = mi_size_wide[bsize] / 4;
-  int i;
   const PARTITION_TYPE partition = get_partition(cm, mi_row, mi_col, bsize);
   const BLOCK_SIZE subsize = get_partition_subsize(bsize, partition);
 #if CONFIG_RECURSIVE_ABPART
@@ -1773,8 +1773,26 @@ static void write_modes_sb(AV1_COMP *const cpi, const TileInfo *const tile,
       write_modes_b(cpi, tile, w, tok, tok_end, mi_row + hbs, mi_col + hbs);
 #endif  // CONFIG_RECURSIVE_ABPART
       break;
+#if CONFIG_3WAY_PARTITIONS
+    case PARTITION_HORZ_3:
+      write_modes_b(cpi, tile, w, tok, tok_end, mi_row, mi_col);
+      if (mi_row + quarter_step >= cm->mi_rows) break;
+      write_modes_b(cpi, tile, w, tok, tok_end, mi_row + quarter_step, mi_col);
+      if (mi_row + 3 * quarter_step >= cm->mi_rows) break;
+      write_modes_b(cpi, tile, w, tok, tok_end, mi_row + 3 * quarter_step,
+                    mi_col);
+      break;
+    case PARTITION_VERT_3:
+      write_modes_b(cpi, tile, w, tok, tok_end, mi_row, mi_col);
+      if (mi_col + quarter_step >= cm->mi_cols) break;
+      write_modes_b(cpi, tile, w, tok, tok_end, mi_row, mi_col + quarter_step);
+      if (mi_col + 3 * quarter_step >= cm->mi_cols) break;
+      write_modes_b(cpi, tile, w, tok, tok_end, mi_row,
+                    mi_col + 3 * quarter_step);
+      break;
+#else
     case PARTITION_HORZ_4:
-      for (i = 0; i < 4; ++i) {
+      for (int i = 0; i < 4; ++i) {
         int this_mi_row = mi_row + i * quarter_step;
         if (i > 0 && this_mi_row >= cm->mi_rows) break;
 
@@ -1782,14 +1800,15 @@ static void write_modes_sb(AV1_COMP *const cpi, const TileInfo *const tile,
       }
       break;
     case PARTITION_VERT_4:
-      for (i = 0; i < 4; ++i) {
+      for (int i = 0; i < 4; ++i) {
         int this_mi_col = mi_col + i * quarter_step;
         if (i > 0 && this_mi_col >= cm->mi_cols) break;
 
         write_modes_b(cpi, tile, w, tok, tok_end, mi_row, this_mi_col);
       }
       break;
-    default: assert(0);
+#endif  // CONFIG_3WAY_PARTITIONS
+    default: assert(0); break;
   }
 
   // update partition context

@@ -739,6 +739,14 @@ enum aome_enc_control_id {
    */
   AV1E_SET_ENABLE_AB_PARTITIONS,
 
+  /*!\brief Codec control function to enable/disable 3-way partitions.
+   *
+   * This will enable or disable usage of 3-way partitions. The default
+   * value is 1.
+   *
+   */
+  AV1E_SET_ENABLE_1TO3_PARTITIONS,
+
   /*!\brief Codec control function to enable/disable 1:4 and 4:1 partitions.
    *
    * This will enable or disable usage of 1:4 and 4:1 partitions. The default
@@ -1325,6 +1333,9 @@ AOM_CTRL_USE_TYPE(AV1E_SET_ENABLE_RECT_PARTITIONS, int)
 
 AOM_CTRL_USE_TYPE(AV1E_SET_ENABLE_AB_PARTITIONS, int)
 #define AOM_CTRL_AV1E_SET_ENABLE_AB_PARTITIONS
+
+AOM_CTRL_USE_TYPE(AV1E_SET_ENABLE_1TO3_PARTITIONS, int)
+#define AOM_CTRL_AV1E_SET_ENABLE_1TO3_PARTITIONS
 
 AOM_CTRL_USE_TYPE(AV1E_SET_ENABLE_1TO4_PARTITIONS, int)
 #define AOM_CTRL_AV1E_SET_ENABLE_1TO4_PARTITIONS

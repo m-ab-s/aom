@@ -832,6 +832,23 @@ static INLINE void set_plane_n4(MACROBLOCKD *const xd, int bw, int bh,
   }
 }
 
+static INLINE int is_chroma_reference_helper(int mi_row, int mi_col, int bw,
+                                             int bh, int subsampling_x,
+                                             int subsampling_y) {
+#if CONFIG_3WAY_PARTITIONS
+  const int is_2nd_16x16_horz3_subpartition =
+      (mi_row & 0x01) && (bw == 4) && (bh == 2) && subsampling_y;
+  const int is_2nd_16x16_vert3_subpartition =
+      (mi_col & 0x01) && (bw == 2) && (bh == 4) && subsampling_x;
+  if (is_2nd_16x16_horz3_subpartition || is_2nd_16x16_vert3_subpartition) {
+    return 0;
+  }
+#endif  // CONFIG_3WAY_PARTITIONS
+
+  return ((mi_row & 0x01) || !(bh & 0x01) || !subsampling_y) &&
+      ((mi_col & 0x01) || !(bw & 0x01) || !subsampling_x);
+}
+
 static INLINE void set_mi_row_col(MACROBLOCKD *xd, const TileInfo *const tile,
                                   int mi_row, int bh, int mi_col, int bw,
                                   int mi_rows, int mi_cols) {
@@ -865,8 +882,8 @@ static INLINE void set_mi_row_col(MACROBLOCKD *xd, const TileInfo *const tile,
     xd->left_mbmi = NULL;
   }
 
-  const int chroma_ref = ((mi_row & 0x01) || !(bh & 0x01) || !ss_y) &&
-                         ((mi_col & 0x01) || !(bw & 0x01) || !ss_x);
+  const int chroma_ref =
+      is_chroma_reference_helper(mi_row, mi_col, bw, bh, ss_x, ss_y);
   if (chroma_ref) {
     // To help calculate the "above" and "left" chroma blocks, note that the
     // current block may cover multiple luma blocks (eg, if partitioned into
@@ -892,10 +909,17 @@ static INLINE void set_mi_row_col(MACROBLOCKD *xd, const TileInfo *const tile,
   xd->n4_w = bw;
   xd->is_sec_rect = 0;
   if (xd->n4_w < xd->n4_h) {
+#if CONFIG_3WAY_PARTITIONS
+    // For PARTITION_VERT_3, it would be (0, 1, 1), because 2nd subpartition has
+    // ratio 1:2, so not enough top-right pixels are available.
+    // For other partitions, it would be (0, 1).
+    if (mi_col & (xd->n4_h - 1)) xd->is_sec_rect = 1;
+#else
     // Only mark is_sec_rect as 1 for the last block.
     // For PARTITION_VERT_4, it would be (0, 0, 0, 1);
     // For other partitions, it would be (0, 1).
     if (!((mi_col + xd->n4_w) & (xd->n4_h - 1))) xd->is_sec_rect = 1;
+#endif  // CONFIG_3WAY_PARTITIONS
   }
 
   if (xd->n4_w > xd->n4_h)
@@ -930,18 +954,34 @@ static INLINE int is_chroma_reference(int mi_row, int mi_col, BLOCK_SIZE bsize,
   assert(bsize < BLOCK_SIZES_ALL);
   const int bw = mi_size_wide[bsize];
   const int bh = mi_size_high[bsize];
-  int ref_pos = ((mi_row & 0x01) || !(bh & 0x01) || !subsampling_y) &&
-                ((mi_col & 0x01) || !(bw & 0x01) || !subsampling_x);
-  return ref_pos;
+  return is_chroma_reference_helper(mi_row, mi_col, bw, bh, subsampling_x,
+      subsampling_y);
 }
 
 static INLINE BLOCK_SIZE scale_chroma_bsize(BLOCK_SIZE bsize, int subsampling_x,
-                                            int subsampling_y) {
+                                            int subsampling_y,
+                                            int mi_row, int mi_col) {
   assert(subsampling_x >= 0 && subsampling_x < 2);
   assert(subsampling_y >= 0 && subsampling_y < 2);
+#if CONFIG_3WAY_PARTITIONS
+  const int bw = mi_size_wide[bsize];
+  const int bh = mi_size_high[bsize];
+  const int is_3rd_horz3_16x16_partition =
+    (mi_row & 1) && (bw == 4) && (bh == 1);
+  const int is_3rd_vert3_16x16_partition =
+    (mi_col & 1) && (bw == 1) && (bh == 4);
+  const int is_3way_part =
+    is_3rd_horz3_16x16_partition || is_3rd_vert3_16x16_partition;
+#else
+  (void)mi_row;
+  (void)mi_col;
+  const int is_3way_part = 0;
+#endif  // CONFIG_3WAY_PARTITIONS
+
   BLOCK_SIZE bs = bsize;
   switch (bsize) {
     case BLOCK_4X4:
+      assert(!is_3way_part);
       if (subsampling_x == 1 && subsampling_y == 1)
         bs = BLOCK_8X8;
       else if (subsampling_x == 1)
@@ -950,6 +990,7 @@ static INLINE BLOCK_SIZE scale_chroma_bsize(BLOCK_SIZE bsize, int subsampling_x,
         bs = BLOCK_4X8;
       break;
     case BLOCK_4X8:
+      assert(!is_3way_part);
       if (subsampling_x == 1 && subsampling_y == 1)
         bs = BLOCK_8X8;
       else if (subsampling_x == 1)
@@ -958,6 +999,7 @@ static INLINE BLOCK_SIZE scale_chroma_bsize(BLOCK_SIZE bsize, int subsampling_x,
         bs = BLOCK_4X8;
       break;
     case BLOCK_8X4:
+      assert(!is_3way_part);
       if (subsampling_x == 1 && subsampling_y == 1)
         bs = BLOCK_8X8;
       else if (subsampling_x == 1)
@@ -967,19 +1009,19 @@ static INLINE BLOCK_SIZE scale_chroma_bsize(BLOCK_SIZE bsize, int subsampling_x,
       break;
     case BLOCK_4X16:
       if (subsampling_x == 1 && subsampling_y == 1)
-        bs = BLOCK_8X16;
+        bs = is_3way_part ? BLOCK_16X16 : BLOCK_8X16;
       else if (subsampling_x == 1)
-        bs = BLOCK_8X16;
+        bs = is_3way_part ? BLOCK_16X16 : BLOCK_8X16;
       else if (subsampling_y == 1)
         bs = BLOCK_4X16;
       break;
     case BLOCK_16X4:
       if (subsampling_x == 1 && subsampling_y == 1)
-        bs = BLOCK_16X8;
+        bs = is_3way_part ? BLOCK_16X16 : BLOCK_16X8;
       else if (subsampling_x == 1)
         bs = BLOCK_16X4;
       else if (subsampling_y == 1)
-        bs = BLOCK_16X8;
+        bs = is_3way_part ? BLOCK_16X16 : BLOCK_16X8;
       break;
     default: break;
   }
@@ -1002,7 +1044,11 @@ static INLINE void partition_gather_horz_alike(aom_cdf_prob *out,
   out[0] -= cdf_element_prob(in, PARTITION_HORZ_A);
   out[0] -= cdf_element_prob(in, PARTITION_HORZ_B);
   out[0] -= cdf_element_prob(in, PARTITION_VERT_A);
+#if CONFIG_3WAY_PARTITIONS
+  if (bsize != BLOCK_128X128) out[0] -= cdf_element_prob(in, PARTITION_HORZ_3);
+#else
   if (bsize != BLOCK_128X128) out[0] -= cdf_element_prob(in, PARTITION_HORZ_4);
+#endif  // CONFIG_3WAY_PARTITIONS
   out[0] = AOM_ICDF(out[0]);
   out[1] = AOM_ICDF(CDF_PROB_TOP);
 }
@@ -1017,7 +1063,11 @@ static INLINE void partition_gather_vert_alike(aom_cdf_prob *out,
   out[0] -= cdf_element_prob(in, PARTITION_HORZ_A);
   out[0] -= cdf_element_prob(in, PARTITION_VERT_A);
   out[0] -= cdf_element_prob(in, PARTITION_VERT_B);
+#if CONFIG_3WAY_PARTITIONS
+  if (bsize != BLOCK_128X128) out[0] -= cdf_element_prob(in, PARTITION_VERT_3);
+#else
   if (bsize != BLOCK_128X128) out[0] -= cdf_element_prob(in, PARTITION_VERT_4);
+#endif  // CONFIG_3WAY_PARTITIONS
   out[0] = AOM_ICDF(out[0]);
   out[1] = AOM_ICDF(CDF_PROB_TOP);
 }
@@ -1028,7 +1078,10 @@ static INLINE void update_ext_partition_context(MACROBLOCKD *xd, int mi_row,
                                                 PARTITION_TYPE partition) {
   if (bsize >= BLOCK_8X8) {
     const int hbs = mi_size_wide[bsize] / 2;
-    BLOCK_SIZE bsize2 = get_partition_subsize(bsize, PARTITION_SPLIT);
+#if CONFIG_3WAY_PARTITIONS
+    const int quarter_step = hbs / 2;
+#endif  // CONFIG_3WAY_PARTITIONS
+    const BLOCK_SIZE bsize2 = get_partition_subsize(bsize, PARTITION_SPLIT);
     switch (partition) {
       case PARTITION_SPLIT:
         if (bsize != BLOCK_8X8) break;
@@ -1036,10 +1089,33 @@ static INLINE void update_ext_partition_context(MACROBLOCKD *xd, int mi_row,
       case PARTITION_NONE:
       case PARTITION_HORZ:
       case PARTITION_VERT:
+        update_partition_context(xd, mi_row, mi_col, subsize, bsize);
+        break;
+#if CONFIG_3WAY_PARTITIONS
+      case PARTITION_HORZ_3: {
+        const BLOCK_SIZE bsize3 = get_partition_subsize(bsize, PARTITION_HORZ);
+        update_partition_context(xd, mi_row, mi_col, subsize, subsize);
+        update_partition_context(xd, mi_row + quarter_step, mi_col, bsize3,
+                                 bsize3);
+        update_partition_context(xd, mi_row + 3 * quarter_step, mi_col, subsize,
+                                 subsize);
+        break;
+      }
+      case PARTITION_VERT_3: {
+        const BLOCK_SIZE bsize3 = get_partition_subsize(bsize, PARTITION_VERT);
+        update_partition_context(xd, mi_row, mi_col, subsize, subsize);
+        update_partition_context(xd, mi_row, mi_col + quarter_step, bsize3,
+                                 bsize3);
+        update_partition_context(xd, mi_row, mi_col + 3 * quarter_step, subsize,
+                                 subsize);
+        break;
+      }
+#else
       case PARTITION_HORZ_4:
       case PARTITION_VERT_4:
         update_partition_context(xd, mi_row, mi_col, subsize, bsize);
         break;
+#endif  // CONFIG_3WAY_PARTITIONS
       case PARTITION_HORZ_A:
         update_partition_context(xd, mi_row, mi_col, bsize2, subsize);
         update_partition_context(xd, mi_row + hbs, mi_col, subsize, subsize);
@@ -1312,10 +1388,16 @@ static INLINE PARTITION_TYPE get_partition(const AV1_COMMON *const cm,
     const MB_MODE_INFO *const mbmi_below = mi[bhigh / 2 * cm->mi_stride];
 
     if (sswide == bwide) {
-      // Smaller height but same width. Is PARTITION_HORZ_4, PARTITION_HORZ or
-      // PARTITION_HORZ_B. To distinguish the latter two, check if the lower
-      // half was split.
-      if (sshigh * 4 == bhigh) return PARTITION_HORZ_4;
+      // Smaller height but same width. Is PARTITION_HORZ_3 / PARTITION_HORZ_4,
+      // PARTITION_HORZ or PARTITION_HORZ_B. To distinguish the latter two,
+      // check if the lower half was split.
+      if (sshigh * 4 == bhigh) {
+#if CONFIG_3WAY_PARTITIONS
+        return PARTITION_HORZ_3;
+#else
+        return PARTITION_HORZ_4;
+#endif  // CONFIG_3WAY_PARTITIONS
+      }
       assert(sshigh * 2 == bhigh);
 
       if (mbmi_below->sb_type == subsize)
@@ -1323,10 +1405,16 @@ static INLINE PARTITION_TYPE get_partition(const AV1_COMMON *const cm,
       else
         return PARTITION_HORZ_B;
     } else if (sshigh == bhigh) {
-      // Smaller width but same height. Is PARTITION_VERT_4, PARTITION_VERT or
-      // PARTITION_VERT_B. To distinguish the latter two, check if the right
-      // half was split.
-      if (sswide * 4 == bwide) return PARTITION_VERT_4;
+      // Smaller width but same height. Is PARTITION_VERT_3 / PARTITION_VERT_4,
+      // PARTITION_VERT or PARTITION_VERT_B. To distinguish the latter two,
+      // check if the right half was split.
+      if (sswide * 4 == bwide) {
+#if CONFIG_3WAY_PARTITIONS
+        return PARTITION_VERT_3;
+#else
+        return PARTITION_VERT_4;
+#endif  // CONFIG_3WAY_PARTITIONS
+      }
       assert(sswide * 2 == bhigh);
 
       if (mbmi_right->sb_type == subsize)

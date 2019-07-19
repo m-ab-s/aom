@@ -1174,8 +1174,13 @@ void av1_ml_prune_4_partition(const AV1_COMP *const cpi, MACROBLOCK *const x,
   unsigned int horz_4_source_var[4] = { 0 };
   unsigned int vert_4_source_var[4] = { 0 };
   {
+#if CONFIG_3WAY_PARTITIONS
+    BLOCK_SIZE horz_4_bs = get_partition_subsize(bsize, PARTITION_HORZ_3);
+    BLOCK_SIZE vert_4_bs = get_partition_subsize(bsize, PARTITION_VERT_3);
+#else
     BLOCK_SIZE horz_4_bs = get_partition_subsize(bsize, PARTITION_HORZ_4);
     BLOCK_SIZE vert_4_bs = get_partition_subsize(bsize, PARTITION_VERT_4);
+#endif  // CONFIG_3WAY_PARTITIONS
     av1_setup_src_planes(x, cpi->source, mi_row, mi_col,
                          av1_num_planes(&cpi->common), bsize);
     const int src_stride = x->plane[0].src.stride;

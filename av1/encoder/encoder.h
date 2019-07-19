@@ -360,7 +360,11 @@ typedef struct AV1EncoderConfig {
   const cfg_options_t *cfg;
   int enable_rect_partitions;
   int enable_ab_partitions;
+#if CONFIG_3WAY_PARTITIONS
+  int enable_1to3_partitions;
+#else
   int enable_1to4_partitions;
+#endif  // CONFIG_3WAY_PARTITIONS
   int min_partition_size;
   int max_partition_size;
   int enable_intra_edge_filter;

@@ -212,8 +212,8 @@ void av1_tokenize_sb_vartx(const AV1_COMP *cpi, ThreadData *td, TOKENEXTRA **t,
       continue;
     }
     const struct macroblockd_plane *const pd = &xd->plane[plane];
-    const BLOCK_SIZE bsizec =
-        scale_chroma_bsize(bsize, pd->subsampling_x, pd->subsampling_y);
+    const BLOCK_SIZE bsizec = scale_chroma_bsize(
+        bsize, pd->subsampling_x, pd->subsampling_y, mi_row, mi_col);
     const BLOCK_SIZE plane_bsize =
         get_plane_block_size(bsizec, pd->subsampling_x, pd->subsampling_y);
     assert(plane_bsize < BLOCK_SIZES_ALL);

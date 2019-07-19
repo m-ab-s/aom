@@ -100,10 +100,20 @@ static void alloc_tree_contexts(AV1_COMMON *cm, PC_TREE *tree, int num_pix,
   alloc_mode_context(cm, num_pix / 4, &tree->verticalb[1], shared_bufs);
   alloc_mode_context(cm, num_pix / 4, &tree->verticalb[2], shared_bufs);
 
+#if CONFIG_3WAY_PARTITIONS
+  alloc_mode_context(cm, num_pix / 4, &tree->horizontal3[0], shared_bufs);
+  alloc_mode_context(cm, num_pix / 2, &tree->horizontal3[1], shared_bufs);
+  alloc_mode_context(cm, num_pix / 4, &tree->horizontal3[2], shared_bufs);
+
+  alloc_mode_context(cm, num_pix / 4, &tree->vertical3[0], shared_bufs);
+  alloc_mode_context(cm, num_pix / 2, &tree->vertical3[1], shared_bufs);
+  alloc_mode_context(cm, num_pix / 4, &tree->vertical3[2], shared_bufs);
+#else
   for (int i = 0; i < 4; ++i) {
     alloc_mode_context(cm, num_pix / 4, &tree->horizontal4[i], shared_bufs);
     alloc_mode_context(cm, num_pix / 4, &tree->vertical4[i], shared_bufs);
   }
+#endif  // CONFIG_3WAY_PARTITIONS
 }
 
 static void free_tree_contexts(PC_TREE *tree, const int num_planes) {
@@ -114,10 +124,17 @@ static void free_tree_contexts(PC_TREE *tree, const int num_planes) {
     free_mode_context(&tree->verticala[i], num_planes);
     free_mode_context(&tree->verticalb[i], num_planes);
   }
+#if CONFIG_3WAY_PARTITIONS
+  for (i = 0; i < 3; ++i) {
+    free_mode_context(&tree->horizontal3[i], num_planes);
+    free_mode_context(&tree->vertical3[i], num_planes);
+  }
+#else
   for (i = 0; i < 4; ++i) {
     free_mode_context(&tree->horizontal4[i], num_planes);
     free_mode_context(&tree->vertical4[i], num_planes);
   }
+#endif  // CONFIG_3WAY_PARTITIONS
   free_mode_context(&tree->none, num_planes);
   free_mode_context(&tree->horizontal[0], num_planes);
   free_mode_context(&tree->horizontal[1], num_planes);

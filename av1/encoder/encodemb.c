@@ -493,7 +493,7 @@ void av1_encode_sb(const struct AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
       continue;
 
     const BLOCK_SIZE bsizec =
-        scale_chroma_bsize(bsize, subsampling_x, subsampling_y);
+        scale_chroma_bsize(bsize, subsampling_x, subsampling_y, mi_row, mi_col);
 
     // TODO(jingning): Clean this up.
     const struct macroblockd_plane *const pd = &xd->plane[plane];

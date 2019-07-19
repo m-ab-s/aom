@@ -682,7 +682,8 @@ static INLINE void dec_build_inter_predictors(const AV1_COMMON *cm,
     // block size
     const int b4_w = block_size_wide[bsize] >> ss_x;
     const int b4_h = block_size_high[bsize] >> ss_y;
-    const BLOCK_SIZE plane_bsize = scale_chroma_bsize(bsize, ss_x, ss_y);
+    const BLOCK_SIZE plane_bsize = scale_chroma_bsize(
+        bsize, ss_x, ss_y, mi_y >> MI_SIZE_LOG2, mi_x >> MI_SIZE_LOG2);
     const int b8_w = block_size_wide[plane_bsize] >> ss_x;
     const int b8_h = block_size_high[plane_bsize] >> ss_y;
     assert(!is_compound);
@@ -1196,8 +1197,8 @@ static void decode_token_recon_block(AV1Decoder *const pbi,
             if (!is_chroma_reference(mi_row, mi_col, bsize, pd->subsampling_x,
                                      pd->subsampling_y))
               continue;
-            const BLOCK_SIZE bsizec =
-                scale_chroma_bsize(bsize, pd->subsampling_x, pd->subsampling_y);
+            const BLOCK_SIZE bsizec = scale_chroma_bsize(
+                bsize, pd->subsampling_x, pd->subsampling_y, mi_row, mi_col);
             const BLOCK_SIZE plane_bsize = get_plane_block_size(
                 bsizec, pd->subsampling_x, pd->subsampling_y);
 
@@ -1580,9 +1581,7 @@ static void decode_partition(AV1Decoder *const pbi, ThreadData *const td,
   const int bw = mi_size_wide[bsize];
   const int hbs = bw >> 1;
   PARTITION_TYPE partition;
-  BLOCK_SIZE subsize;
   const int quarter_step = bw / 4;
-  BLOCK_SIZE bsize2 = get_partition_subsize(bsize, PARTITION_SPLIT);
   const int has_rows = (mi_row + hbs) < cm->mi_rows;
   const int has_cols = (mi_col + hbs) < cm->mi_cols;
 
@@ -1625,7 +1624,7 @@ static void decode_partition(AV1Decoder *const pbi, ThreadData *const td,
   } else {
     partition = get_partition(cm, mi_row, mi_col, bsize);
   }
-  subsize = get_partition_subsize(bsize, partition);
+  const BLOCK_SIZE subsize = get_partition_subsize(bsize, partition);
   if (subsize == BLOCK_INVALID) {
     aom_internal_error(xd->error_info, AOM_CODEC_CORRUPT_FRAME,
                        "Partition is invalid for block size %dx%d",
@@ -1650,6 +1649,8 @@ static void decode_partition(AV1Decoder *const pbi, ThreadData *const td,
 #define DEC_PARTITION(db_r, db_c, db_subsize)                        \
   decode_partition(pbi, td, DEC_BLOCK_STX_ARG(db_r), (db_c), reader, \
                    (db_subsize), parse_decode_flag)
+
+  const BLOCK_SIZE bsize2 = get_partition_subsize(bsize, PARTITION_SPLIT);
 
   switch (partition) {
     case PARTITION_NONE: DEC_BLOCK(mi_row, mi_col, subsize); break;
@@ -1705,6 +1706,32 @@ static void decode_partition(AV1Decoder *const pbi, ThreadData *const td,
       DEC_BLOCK(mi_row + hbs, mi_col + hbs, bsize2);
 #endif  // CONFIG_RECURSIVE_ABPART
       break;
+#if CONFIG_3WAY_PARTITIONS
+    case PARTITION_HORZ_3: {
+      const BLOCK_SIZE bsize3 = get_partition_subsize(bsize, PARTITION_HORZ);
+      int this_mi_row = mi_row;
+      DEC_BLOCK(this_mi_row, mi_col, subsize);
+      this_mi_row += quarter_step;
+      if (this_mi_row >= cm->mi_rows) break;
+      DEC_BLOCK(this_mi_row, mi_col, bsize3);
+      this_mi_row += 2 * quarter_step;
+      if (this_mi_row >= cm->mi_rows) break;
+      DEC_BLOCK(this_mi_row, mi_col, subsize);
+      break;
+    }
+    case PARTITION_VERT_3: {
+      const BLOCK_SIZE bsize3 = get_partition_subsize(bsize, PARTITION_VERT);
+      int this_mi_col = mi_col;
+      DEC_BLOCK(mi_row, this_mi_col, subsize);
+      this_mi_col += quarter_step;
+      if (this_mi_col >= cm->mi_cols) break;
+      DEC_BLOCK(mi_row, this_mi_col, bsize3);
+      this_mi_col += 2 * quarter_step;
+      if (this_mi_col >= cm->mi_cols) break;
+      DEC_BLOCK(mi_row, this_mi_col, subsize);
+      break;
+    }
+#else
     case PARTITION_HORZ_4:
       for (int i = 0; i < 4; ++i) {
         int this_mi_row = mi_row + i * quarter_step;
@@ -1719,6 +1746,7 @@ static void decode_partition(AV1Decoder *const pbi, ThreadData *const td,
         DEC_BLOCK(mi_row, this_mi_col, subsize);
       }
       break;
+#endif  // CONFIG_3WAY_PARTITIONS
     default: assert(0 && "Invalid partition type");
   }
 

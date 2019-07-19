@@ -328,7 +328,9 @@ static void set_offsets_without_segment_id(const AV1_COMP *const cpi,
   set_plane_n4(xd, mi_width, mi_height, num_planes);
 
   // Set up distance of MB to edge of frame in 1/8th pel units.
+#if !CONFIG_3WAY_PARTITIONS
   assert(!(mi_col & (mi_width - 1)) && !(mi_row & (mi_height - 1)));
+#endif  // !CONFIG_3WAY_PARTITIONS
   set_mi_row_col(xd, tile, mi_row, mi_height, mi_col, mi_width, cm->mi_rows,
                  cm->mi_cols);
 
@@ -1626,8 +1628,7 @@ static void encode_sb(const AV1_COMP *const cpi, ThreadData *td,
   const PARTITION_TYPE partition = pc_tree->partitioning;
   const BLOCK_SIZE subsize = get_partition_subsize(bsize, partition);
   int quarter_step = mi_size_wide[bsize] / 4;
-  int i;
-  BLOCK_SIZE bsize2 = get_partition_subsize(bsize, PARTITION_SPLIT);
+  const BLOCK_SIZE bsize2 = get_partition_subsize(bsize, PARTITION_SPLIT);
 
   if (mi_row >= cm->mi_rows || mi_col >= cm->mi_cols) return;
 
@@ -1713,8 +1714,34 @@ static void encode_sb(const AV1_COMP *const cpi, ThreadData *td,
       encode_b(cpi, tile_data, td, tp, mi_row + hbs, mi_col + hbs, dry_run,
                bsize2, partition, &pc_tree->verticalb[2], rate);
       break;
+#if CONFIG_3WAY_PARTITIONS
+    case PARTITION_HORZ_3: {
+      const BLOCK_SIZE bsize3 = get_partition_subsize(bsize, PARTITION_HORZ);
+      encode_b(cpi, tile_data, td, tp, mi_row, mi_col, dry_run, subsize,
+               partition, &pc_tree->horizontal3[0], rate);
+      if (mi_row + quarter_step >= cm->mi_rows) break;
+      encode_b(cpi, tile_data, td, tp, mi_row + quarter_step, mi_col, dry_run,
+               bsize3, partition, &pc_tree->horizontal3[1], rate);
+      if (mi_row + 3 * quarter_step >= cm->mi_rows) break;
+      encode_b(cpi, tile_data, td, tp, mi_row + 3 * quarter_step, mi_col,
+               dry_run, subsize, partition, &pc_tree->horizontal3[2], rate);
+      break;
+    }
+    case PARTITION_VERT_3: {
+      const BLOCK_SIZE bsize3 = get_partition_subsize(bsize, PARTITION_VERT);
+      encode_b(cpi, tile_data, td, tp, mi_row, mi_col, dry_run, subsize,
+               partition, &pc_tree->vertical3[0], rate);
+      if (mi_col + quarter_step >= cm->mi_cols) break;
+      encode_b(cpi, tile_data, td, tp, mi_row, mi_col + quarter_step, dry_run,
+               bsize3, partition, &pc_tree->vertical3[1], rate);
+      if (mi_col + 3 * quarter_step >= cm->mi_cols) break;
+      encode_b(cpi, tile_data, td, tp, mi_row, mi_col + 3 * quarter_step,
+               dry_run, subsize, partition, &pc_tree->vertical3[2], rate);
+      break;
+    }
+#else
     case PARTITION_HORZ_4:
-      for (i = 0; i < 4; ++i) {
+      for (int i = 0; i < 4; ++i) {
         int this_mi_row = mi_row + i * quarter_step;
         if (i > 0 && this_mi_row >= cm->mi_rows) break;
 
@@ -1723,7 +1750,7 @@ static void encode_sb(const AV1_COMP *const cpi, ThreadData *td,
       }
       break;
     case PARTITION_VERT_4:
-      for (i = 0; i < 4; ++i) {
+      for (int i = 0; i < 4; ++i) {
         int this_mi_col = mi_col + i * quarter_step;
         if (i > 0 && this_mi_col >= cm->mi_cols) break;
 
@@ -1731,6 +1758,7 @@ static void encode_sb(const AV1_COMP *const cpi, ThreadData *td,
                  partition, &pc_tree->vertical4[i], rate);
       }
       break;
+#endif  // CONFIG_3WAY_PARTITIONS
     default: assert(0 && "Invalid partition type."); break;
   }
 
@@ -1962,8 +1990,13 @@ static void rd_use_partition(AV1_COMP *cpi, ThreadData *td,
     case PARTITION_VERT_B:
     case PARTITION_HORZ_A:
     case PARTITION_HORZ_B:
+#if CONFIG_3WAY_PARTITIONS
+    case PARTITION_HORZ_3:
+    case PARTITION_VERT_3:
+#else
     case PARTITION_HORZ_4:
     case PARTITION_VERT_4:
+#endif  // CONFIG_3WAY_PARTITIONS
       assert(0 && "Cannot handle extended partition types");
     default: assert(0); break;
   }
@@ -2155,8 +2188,13 @@ static void nonrd_use_partition(AV1_COMP *cpi, ThreadData *td,
     case PARTITION_VERT_B:
     case PARTITION_HORZ_A:
     case PARTITION_HORZ_B:
+#if CONFIG_3WAY_PARTITIONS
+    case PARTITION_HORZ_3:
+    case PARTITION_VERT_3:
+#else
     case PARTITION_HORZ_4:
     case PARTITION_VERT_4:
+#endif  // CONFIG_3WAY_PARTITIONS
       assert(0 && "Cannot handle extended partition types");
     default: assert(0); break;
   }
@@ -3280,6 +3318,181 @@ BEGIN_PARTITION_SEARCH:
     restore_context(x, &x_ctx, mi_row, mi_col, bsize, num_planes);
   }
 
+#if CONFIG_3WAY_PARTITIONS
+  // partition3_allowed is 1 if we can use a PARTITION_HORZ_3 or
+  // PARTITION_VERT_3 for this block. This is almost the same as
+  // ext_partition_allowed, except that we don't allow 128x32 or 32x128
+  // blocks, so we require that bsize is not BLOCK_128X128.
+  int partition3_allowed = cpi->oxcf.enable_1to3_partitions &&
+                           ext_partition_allowed && bsize != BLOCK_128X128;
+
+  int partition_horz3_allowed =
+      partition3_allowed && partition_horz_allowed &&
+      get_plane_block_size(get_partition_subsize(bsize, PARTITION_HORZ_3), xss,
+                           yss) != BLOCK_INVALID;
+  int partition_vert3_allowed =
+      partition3_allowed && partition_vert_allowed &&
+      get_plane_block_size(get_partition_subsize(bsize, PARTITION_VERT_3), xss,
+                           yss) != BLOCK_INVALID;
+  if (cpi->sf.prune_ext_partition_types_search_level == 2) {
+    partition_horz3_allowed &= (pc_tree->partitioning == PARTITION_HORZ ||
+                                pc_tree->partitioning == PARTITION_HORZ_A ||
+                                pc_tree->partitioning == PARTITION_HORZ_B ||
+                                pc_tree->partitioning == PARTITION_SPLIT ||
+                                pc_tree->partitioning == PARTITION_NONE);
+    partition_vert3_allowed &= (pc_tree->partitioning == PARTITION_VERT ||
+                                pc_tree->partitioning == PARTITION_VERT_A ||
+                                pc_tree->partitioning == PARTITION_VERT_B ||
+                                pc_tree->partitioning == PARTITION_SPLIT ||
+                                pc_tree->partitioning == PARTITION_NONE);
+  }
+
+  partition3_allowed &= (partition_horz3_allowed || partition_vert3_allowed);
+
+  // TODO(urvang): Rename speed feature, and change behavior / make it work.
+  // currently, it's a hack (still dividing into 4 subparts to get score).
+  if (cpi->sf.ml_prune_4_partition && partition3_allowed &&
+      partition_horz_allowed && partition_vert_allowed) {
+    av1_ml_prune_4_partition(cpi, x, bsize, pc_tree->partitioning,
+                             best_rdc.rdcost, horz_rd, vert_rd, split_rd,
+                             &partition_horz3_allowed, &partition_vert3_allowed,
+                             pb_source_variance, mi_row, mi_col);
+  }
+
+#if CONFIG_DIST_8X8
+  if (x->using_dist_8x8) {
+    if (block_size_high[bsize] <= 16 || block_size_wide[bsize] <= 16) {
+      partition_horz3_allowed = 0;
+      partition_vert3_allowed = 0;
+    }
+  }
+#endif
+
+  if (blksize < (min_partition_size << 2)) {
+    partition_horz3_allowed = 0;
+    partition_vert3_allowed = 0;
+  }
+
+  // PARTITION_HORZ_3
+  assert(IMPLIES(!cpi->oxcf.enable_rect_partitions, !partition_horz3_allowed));
+  if (!terminate_partition_search && partition_horz3_allowed && has_rows &&
+      (do_rectangular_split || active_h_edge(cpi, mi_row, mi_step)) &&
+      !is_gt_max_sq_part) {
+    av1_init_rd_stats(&sum_rdc);
+    const int quarter_step = mi_size_high[bsize] / 4;
+    PICK_MODE_CONTEXT *ctx_prev = ctx_none;
+
+    subsize = get_partition_subsize(bsize, PARTITION_HORZ_3);
+    sum_rdc.rate = partition_cost[PARTITION_HORZ_3];
+    sum_rdc.rdcost = RDCOST(x->rdmult, sum_rdc.rate, 0);
+
+#if CONFIG_COLLECT_PARTITION_STATS
+    if (best_rdc.rdcost - sum_rdc.rdcost >= 0) {
+      partition_attempts[PARTITION_HORZ_3] += 1;
+      aom_usec_timer_start(&partition_timer);
+      partition_timer_on = 1;
+    }
+#endif
+    const BLOCK_SIZE bsize3 = get_partition_subsize(bsize, PARTITION_HORZ);
+    const int step_multipliers[3] = { 0, 1, 2 };
+    const BLOCK_SIZE subblock_sizes[3] = { subsize, bsize3, subsize };
+    int this_mi_row = mi_row;
+    for (int i = 0; i < 3; ++i) {
+      this_mi_row += quarter_step * step_multipliers[i];
+
+      if (i > 0 && this_mi_row >= cm->mi_rows) break;
+
+      PICK_MODE_CONTEXT *ctx_this = &pc_tree->horizontal3[i];
+
+      ctx_this->rd_mode_is_ready = 0;
+      if (!rd_try_subblock(cpi, td, tile_data, tp, (i == 2), this_mi_row,
+                           mi_col, subblock_sizes[i], best_rdc, &sum_rdc,
+                           PARTITION_HORZ_3, ctx_prev, ctx_this)) {
+        av1_invalid_rd_stats(&sum_rdc);
+        break;
+      }
+
+      ctx_prev = ctx_this;
+    }
+
+    av1_rd_cost_update(x->rdmult, &sum_rdc);
+    if (sum_rdc.rdcost < best_rdc.rdcost) {
+      best_rdc = sum_rdc;
+      found_best_partition = true;
+      pc_tree->partitioning = PARTITION_HORZ_3;
+    }
+
+#if CONFIG_COLLECT_PARTITION_STATS
+    if (partition_timer_on) {
+      aom_usec_timer_mark(&partition_timer);
+      int64_t time = aom_usec_timer_elapsed(&partition_timer);
+      partition_times[PARTITION_HORZ_3] += time;
+      partition_timer_on = 0;
+    }
+#endif
+    restore_context(x, &x_ctx, mi_row, mi_col, bsize, num_planes);
+  }
+
+  // PARTITION_VERT_3
+  assert(IMPLIES(!cpi->oxcf.enable_rect_partitions, !partition_vert3_allowed));
+  if (!terminate_partition_search && partition_vert3_allowed && has_cols &&
+      (do_rectangular_split || active_v_edge(cpi, mi_row, mi_step)) &&
+      !is_gt_max_sq_part) {
+    av1_init_rd_stats(&sum_rdc);
+    const int quarter_step = mi_size_wide[bsize] / 4;
+    PICK_MODE_CONTEXT *ctx_prev = ctx_none;
+
+    subsize = get_partition_subsize(bsize, PARTITION_VERT_3);
+    sum_rdc.rate = partition_cost[PARTITION_VERT_3];
+    sum_rdc.rdcost = RDCOST(x->rdmult, sum_rdc.rate, 0);
+
+#if CONFIG_COLLECT_PARTITION_STATS
+    if (best_rdc.rdcost - sum_rdc.rdcost >= 0) {
+      partition_attempts[PARTITION_VERT_3] += 1;
+      aom_usec_timer_start(&partition_timer);
+      partition_timer_on = 1;
+    }
+#endif
+
+    const BLOCK_SIZE bsize3 = get_partition_subsize(bsize, PARTITION_VERT);
+    const int step_multipliers[3] = { 0, 1, 2 };
+    const BLOCK_SIZE subblock_sizes[3] = { subsize, bsize3, subsize };
+    int this_mi_col = mi_col;
+    for (int i = 0; i < 3; ++i) {
+      this_mi_col += quarter_step * step_multipliers[i];
+
+      if (i > 0 && this_mi_col >= cm->mi_cols) break;
+
+      PICK_MODE_CONTEXT *ctx_this = &pc_tree->vertical3[i];
+
+      ctx_this->rd_mode_is_ready = 0;
+      if (!rd_try_subblock(cpi, td, tile_data, tp, (i == 2), mi_row,
+                           this_mi_col, subblock_sizes[i], best_rdc, &sum_rdc,
+                           PARTITION_VERT_3, ctx_prev, ctx_this)) {
+        av1_invalid_rd_stats(&sum_rdc);
+        break;
+      }
+
+      ctx_prev = ctx_this;
+    }
+
+    av1_rd_cost_update(x->rdmult, &sum_rdc);
+    if (sum_rdc.rdcost < best_rdc.rdcost) {
+      best_rdc = sum_rdc;
+      found_best_partition = true;
+      pc_tree->partitioning = PARTITION_VERT_3;
+    }
+#if CONFIG_COLLECT_PARTITION_STATS
+    if (partition_timer_on) {
+      aom_usec_timer_mark(&partition_timer);
+      int64_t time = aom_usec_timer_elapsed(&partition_timer);
+      partition_times[PARTITION_VERT_3] += time;
+      partition_timer_on = 0;
+    }
+#endif
+    restore_context(x, &x_ctx, mi_row, mi_col, bsize, num_planes);
+  }
+#else
   // partition4_allowed is 1 if we can use a PARTITION_HORZ_4 or
   // PARTITION_VERT_4 for this block. This is almost the same as
   // ext_partition_allowed, except that we don't allow 128x32 or 32x128
@@ -3440,6 +3653,7 @@ BEGIN_PARTITION_SEARCH:
 #endif
     restore_context(x, &x_ctx, mi_row, mi_col, bsize, num_planes);
   }
+#endif  // CONFIG_3WAY_PARTITIONS
 
   if (bsize == cm->seq_params.sb_size && !found_best_partition) {
     // Did not find a valid partition, go back and search again, with less

@@ -516,23 +516,29 @@ add_proto qw/void av1_highbd_dist_wtd_convolve_2d_copy/, "const uint16_t *src, i
   add_proto qw/void av1_highbd_convolve_2d_scale/, "const uint16_t *src, int src_stride, uint16_t *dst, int dst_stride, int w, int h, const InterpFilterParams *filter_params_x, const InterpFilterParams *filter_params_y, const int subpel_x_qn, const int x_step_qn, const int subpel_y_qn, const int y_step_qn, ConvolveParams *conv_params, int bd";
 
   specialize qw/av1_convolve_2d_sr sse2 avx2 neon/;
-  specialize qw/av1_convolve_2d_copy_sr sse2 avx2 neon/;
+  if (aom_config("CONFIG_3WAY_PARTITIONS") eq "") {
+    specialize qw/av1_convolve_2d_copy_sr sse2 avx2 neon/;
+  } # CONFIG_3WAY_PARTITIONS
   specialize qw/av1_convolve_x_sr sse2 avx2 neon/;
   specialize qw/av1_convolve_y_sr sse2 avx2 neon/;
   specialize qw/av1_convolve_2d_scale sse4_1/;
   specialize qw/av1_dist_wtd_convolve_2d sse2 ssse3 avx2 neon/;
-  specialize qw/av1_dist_wtd_convolve_2d_copy sse2 avx2 neon/;
-  specialize qw/av1_dist_wtd_convolve_x sse2 avx2 neon/;
-  specialize qw/av1_dist_wtd_convolve_y sse2 avx2 neon/;
-  specialize qw/av1_highbd_convolve_2d_copy_sr sse2 avx2/;
+  if (aom_config("CONFIG_3WAY_PARTITIONS") eq "") {
+    specialize qw/av1_dist_wtd_convolve_2d_copy sse2 avx2 neon/;
+    specialize qw/av1_dist_wtd_convolve_x sse2 avx2 neon/;
+    specialize qw/av1_dist_wtd_convolve_y sse2 avx2 neon/;
+    specialize qw/av1_highbd_convolve_2d_copy_sr sse2 avx2/;
+  } # CONFIG_3WAY_PARTITIONS
   specialize qw/av1_highbd_convolve_2d_sr ssse3 avx2/;
   specialize qw/av1_highbd_convolve_x_sr ssse3 avx2/;
   specialize qw/av1_highbd_convolve_y_sr ssse3 avx2/;
   specialize qw/av1_highbd_convolve_2d_scale sse4_1/;
-  specialize qw/av1_highbd_dist_wtd_convolve_2d sse4_1 avx2/;
-  specialize qw/av1_highbd_dist_wtd_convolve_x sse4_1 avx2/;
-  specialize qw/av1_highbd_dist_wtd_convolve_y sse4_1 avx2/;
-  specialize qw/av1_highbd_dist_wtd_convolve_2d_copy sse4_1 avx2/;
+  if (aom_config("CONFIG_3WAY_PARTITIONS") eq "") {
+    specialize qw/av1_highbd_dist_wtd_convolve_2d sse4_1 avx2/;
+    specialize qw/av1_highbd_dist_wtd_convolve_x sse4_1 avx2/;
+    specialize qw/av1_highbd_dist_wtd_convolve_y sse4_1 avx2/;
+    specialize qw/av1_highbd_dist_wtd_convolve_2d_copy sse4_1 avx2/;
+  } # CONFIG_3WAY_PARTITIONS
 
 # INTRA_EDGE functions
 add_proto qw/void av1_filter_intra_edge/, "uint8_t *p, int sz, int strength";

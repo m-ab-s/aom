@@ -444,10 +444,17 @@ static const arg_def_t enable_rect_partitions =
 static const arg_def_t enable_ab_partitions =
     ARG_DEF(NULL, "enable-ab-partitions", 1,
             "Enable ab partitions (0: false, 1: true (default))");
+#if CONFIG_3WAY_PARTITIONS
+static const arg_def_t enable_1to3_partitions =
+    ARG_DEF(NULL, "enable-1to3-partitions", 1,
+            "Enable 3-way partitions "
+            "(0: false, 1: true (default))");
+#else
 static const arg_def_t enable_1to4_partitions =
     ARG_DEF(NULL, "enable-1to4-partitions", 1,
             "Enable 1:4 and 4:1 partitions "
             "(0: false, 1: true (default))");
+#endif  // CONFIG_3WAY_PARTITIONS
 static const arg_def_t min_partition_size =
     ARG_DEF(NULL, "min-partition-size", 4,
             "Set min partition size "
@@ -808,7 +815,12 @@ static const arg_def_t *av1_args[] = { &cpu_used_av1,
                                        &enable_restoration,
                                        &enable_rect_partitions,
                                        &enable_ab_partitions,
+#if CONFIG_3WAY_PARTITIONS
+
+                                       &enable_1to3_partitions,
+#else
                                        &enable_1to4_partitions,
+#endif  // CONFIG_3WAY_PARTITIONS
                                        &min_partition_size,
                                        &max_partition_size,
                                        &enable_dual_filter,
@@ -910,7 +922,11 @@ static const int av1_arg_ctrl_map[] = { AOME_SET_CPUUSED,
                                         AV1E_SET_ENABLE_RESTORATION,
                                         AV1E_SET_ENABLE_RECT_PARTITIONS,
                                         AV1E_SET_ENABLE_AB_PARTITIONS,
+#if CONFIG_3WAY_PARTITIONS
+                                        AV1E_SET_ENABLE_1TO3_PARTITIONS,
+#else
                                         AV1E_SET_ENABLE_1TO4_PARTITIONS,
+#endif  // CONFIG_3WAY_PARTITIONS
                                         AV1E_SET_MIN_PARTITION_SIZE,
                                         AV1E_SET_MAX_PARTITION_SIZE,
                                         AV1E_SET_ENABLE_DUAL_FILTER,
