@@ -25,4 +25,7 @@ macro(fix_experiment_configs)
     change_config_and_warn(CONFIG_DIST_8X8 0 CONFIG_MULTITHREAD)
   endif()
 
+  if(CONFIG_LPF_MASK AND CONFIG_FLEX_PARTITION)
+    change_config_and_warn(CONFIG_LPF_MASK 0 CONFIG_FLEX_PARTITION)
+  endif()
 endmacro()
