@@ -1353,7 +1353,16 @@ static const int
       { 9, 9, 5, 3, 8, 5, 4 },         // TX_8X32
       { 16, 20, 13, 18, 16, 13, 20 },  // TX_32X8
       { 9, 9, 9, 9, 9, 9, 9 },         // TX_16X64
-      { 33, 33, 33, 33, 33, 33, 33 }   // TX_64X16
+      { 33, 33, 33, 33, 33, 33, 33 },  // TX_64X16
+#if CONFIG_FLEX_PARTITION
+      // TODO(huisu): Correct these
+      { 9, 5, 6, 7, 4, 7, 7 },         // TX_4X32
+      { 6, 9, 5, 11, 10, 10, 9 },      // TX_32X4
+      { 12, 9, 6, 5, 11, 11, 7 },      // TX_8X64
+      { 19, 14, 19, 15, 14, 13, 13 },  // TX_64X8
+      { 9, 9, 5, 3, 8, 5, 4 },         // TX_4X64
+      { 16, 20, 13, 18, 16, 13, 20 },  // TX_64X4
+#endif                                 // CONFIG_FLEX_PARTITION
     };
 static const int
     adapt_filter_intra_thickness_ver[TX_SIZES_ALL][ADAPT_FILTER_INTRA_MODES] = {
@@ -1375,7 +1384,16 @@ static const int
       { 13, 13, 19, 15, 13, 15, 17 },  // TX_8X32
       { 5, 4, 6, 6, 3, 9, 9 },         // TX_32X8
       { 33, 33, 33, 33, 33, 33, 33 },  // TX_16X64
-      { 9, 9, 9, 9, 9, 9, 9 }          // TX_64X16
+      { 9, 9, 9, 9, 9, 9, 9 },         // TX_64X16
+#if CONFIG_FLEX_PARTITION
+      // TODO(huisu): Correct these
+      { 11, 5, 11, 8, 7, 8, 8 },       // TX_4X32
+      { 9, 5, 9, 7, 5, 8, 3 },         // TX_32X4
+      { 14, 15, 20, 19, 14, 14, 13 },  // TX_8X64
+      { 5, 7, 8, 9, 5, 12, 11 },       // TX_64X8
+      { 13, 13, 19, 15, 13, 15, 17 },  // TX_4X64
+      { 5, 4, 6, 6, 3, 9, 9 },         // TX_64X4
+#endif                                 // CONFIG_FLEX_PARTITION
     };
 static const int adapt_filter_intra_top_right_offset
     [TX_SIZES_ALL][ADAPT_FILTER_INTRA_MODES] = {
@@ -1397,7 +1415,16 @@ static const int adapt_filter_intra_top_right_offset
       { -1, -4, 5, -2, 2, -4, 7 },     // TX_8X32
       { -2, 2, 15, -4, 19, -1, 17 },   // TX_32X8
       { 0, 0, 9, 0, 9, 0, 9 },         // TX_16X64
-      { 0, 0, 33, 0, 33, 0, 33 }       // TX_64X16
+      { 0, 0, 33, 0, 33, 0, 33 },      // TX_64X16
+#if CONFIG_FLEX_PARTITION
+      // TODO(huisu): Correct these
+      { -1, 0, 8, -4, 3, 2, 5 },       // TX_4X32
+      { 0, 0, 8, -3, 7, 0, 11 },       // TX_32X4
+      { 0, -2, 10, -2, 6, -4, 7 },     // TX_8X64
+      { -1, -4, 20, -3, 16, -3, 15 },  // TX_64X8
+      { -1, -4, 5, -2, 2, -4, 7 },     // TX_4X64
+      { -2, 2, 15, -4, 19, -1, 17 },   // TX_64X4
+#endif                                 // CONFIG_FLEX_PARTITION
     };
 static const int adapt_filter_intra_bottom_left_offset
     [TX_SIZES_ALL][ADAPT_FILTER_INTRA_MODES] = {
@@ -1419,7 +1446,16 @@ static const int adapt_filter_intra_bottom_left_offset
       { -1, 18, -3, 13, 1, 14, 1 },    // TX_8X32
       { -2, 5, 0, 4, -2, 5, -1 },      // TX_32X8
       { 0, 33, 0, 33, 0, 33, 0 },      // TX_16X64
-      { 0, 9, 0, 9, 0, 9, 0 }          // TX_64X16
+      { 0, 9, 0, 9, 0, 9, 0 },         // TX_64X16
+#if CONFIG_FLEX_PARTITION
+      // TODO(huisu): Correct these
+      { -4, 10, -2, 7, -1, 9, 0 },    // TX_4X32
+      { -1, 5, -3, 4, 2, 7, 4 },      // TX_32X4
+      { -4, 16, 1, 13, -3, 15, -1 },  // TX_8X64
+      { -3, 8, 1, 7, -1, 9, -1 },     // TX_64X8
+      { -1, 18, -3, 13, 1, 14, 1 },   // TX_4X64
+      { -2, 5, 0, 4, -2, 5, -1 },     // TX_64X4
+#endif                                // CONFIG_FLEX_PARTITION
     };
 
 // Specify the number of taps each mode is using (only 3 and 4 are currently

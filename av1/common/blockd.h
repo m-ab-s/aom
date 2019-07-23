@@ -1001,6 +1001,12 @@ static INLINE TX_SIZE av1_get_adjusted_tx_size(TX_SIZE tx_size) {
     case TX_32X64: return TX_32X32;
     case TX_64X16: return TX_32X16;
     case TX_16X64: return TX_16X32;
+#if CONFIG_FLEX_PARTITION
+    case TX_64X8: return TX_32X8;
+    case TX_8X64: return TX_8X32;
+    case TX_64X4: return TX_32X4;
+    case TX_4X64: return TX_4X32;
+#endif  // CONFIG_FLEX_PARTITION
     default: return tx_size;
   }
 }
