@@ -177,25 +177,33 @@ typedef char PARTITION_CONTEXT;
 
 // block transform size
 enum {
-  TX_4X4,             // 4x4 transform
-  TX_8X8,             // 8x8 transform
-  TX_16X16,           // 16x16 transform
-  TX_32X32,           // 32x32 transform
-  TX_64X64,           // 64x64 transform
-  TX_4X8,             // 4x8 transform
-  TX_8X4,             // 8x4 transform
-  TX_8X16,            // 8x16 transform
-  TX_16X8,            // 16x8 transform
-  TX_16X32,           // 16x32 transform
-  TX_32X16,           // 32x16 transform
-  TX_32X64,           // 32x64 transform
-  TX_64X32,           // 64x32 transform
-  TX_4X16,            // 4x16 transform
-  TX_16X4,            // 16x4 transform
-  TX_8X32,            // 8x32 transform
-  TX_32X8,            // 32x8 transform
-  TX_16X64,           // 16x64 transform
-  TX_64X16,           // 64x16 transform
+  TX_4X4,    // 4x4 transform
+  TX_8X8,    // 8x8 transform
+  TX_16X16,  // 16x16 transform
+  TX_32X32,  // 32x32 transform
+  TX_64X64,  // 64x64 transform
+  TX_4X8,    // 4x8 transform
+  TX_8X4,    // 8x4 transform
+  TX_8X16,   // 8x16 transform
+  TX_16X8,   // 16x8 transform
+  TX_16X32,  // 16x32 transform
+  TX_32X16,  // 32x16 transform
+  TX_32X64,  // 32x64 transform
+  TX_64X32,  // 64x32 transform
+  TX_4X16,   // 4x16 transform
+  TX_16X4,   // 16x4 transform
+  TX_8X32,   // 8x32 transform
+  TX_32X8,   // 32x8 transform
+  TX_16X64,  // 16x64 transform
+  TX_64X16,  // 64x16 transform
+#if CONFIG_FLEX_PARTITION
+  TX_4X32,            // 4x32 transform
+  TX_32X4,            // 32x4 transform
+  TX_8X64,            // 8x64 transform
+  TX_64X8,            // 64x8 transform
+  TX_4X64,            // 4x64 transform
+  TX_64X4,            // 64x4 transform
+#endif                // CONFIG_FLEX_PARTITION
   TX_SIZES_ALL,       // Includes rectangular transforms
   TX_SIZES = TX_4X8,  // Does NOT include rectangular transforms
   TX_SIZES_LARGEST = TX_64X64,

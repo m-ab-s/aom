@@ -431,7 +431,7 @@ const int8_t av1_nz_map_ctx_offset_32x8[256] = {
   21, 21, 21, 21, 21, 21, 21, 21, 21,
 };
 
-const int8_t *av1_nz_map_ctx_offset[19] = {
+const int8_t *av1_nz_map_ctx_offset[TX_SIZES_ALL] = {
   av1_nz_map_ctx_offset_4x4,    // TX_4x4
   av1_nz_map_ctx_offset_8x8,    // TX_8x8
   av1_nz_map_ctx_offset_16x16,  // TX_16x16
