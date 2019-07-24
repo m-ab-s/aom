@@ -5336,16 +5336,7 @@ static void encode_superblock(const AV1_COMP *const cpi, TileDataEnc *tile_data,
 
 #if CONFIG_INTRA_ENTROPY
     if (frame_is_intra_only(cm)) {
-      const int dst_stride = xd->plane[0].dst.stride;
-      const uint8_t *dst = xd->plane[0].dst.buf;
-      const int rows = block_size_high[bsize];
-      const int cols = block_size_wide[bsize];
-      if (is_cur_buf_hbd(xd)) {
-        av1_get_highbd_gradient_hist(dst, dst_stride, rows, cols,
-                                     mbmi->gradient_hist);
-      } else {
-        av1_get_gradient_hist(dst, dst_stride, rows, cols, mbmi->gradient_hist);
-      }
+      av1_get_gradient_hist(xd, mbmi, bsize);
     }
 #endif  // CONFIG_INTRA_ENTROPY
   } else {

@@ -1253,10 +1253,8 @@ static INLINE int av1_pixels_to_mi(int pixels) {
 }
 
 #if CONFIG_INTRA_ENTROPY
-void av1_get_gradient_hist(const uint8_t *src, int src_stride, int rows,
-                           int cols, uint64_t *hist);
-void av1_get_highbd_gradient_hist(const uint8_t *src8, int src_stride, int rows,
-                                  int cols, uint64_t *hist);
+void av1_get_gradient_hist(const MACROBLOCKD *const xd,
+                           MB_MODE_INFO *const mbmi, BLOCK_SIZE bsize);
 #endif  // CONFIG_INTRA_ENTROPY
 
 #ifdef __cplusplus

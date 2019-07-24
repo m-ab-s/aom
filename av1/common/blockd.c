@@ -131,8 +131,8 @@ static const uint8_t gradient_to_angle_bin[2][7][16] = {
   },
 };
 
-void av1_get_gradient_hist(const uint8_t *src, int src_stride, int rows,
-                           int cols, uint64_t *hist) {
+static void get_gradient_hist(const uint8_t *src, int src_stride, int rows,
+                              int cols, uint64_t *hist) {
   src += src_stride;
   for (int r = 1; r < rows; ++r) {
     for (int c = 1; c < cols; ++c) {
@@ -156,8 +156,8 @@ void av1_get_gradient_hist(const uint8_t *src, int src_stride, int rows,
   }
 }
 
-void av1_get_highbd_gradient_hist(const uint8_t *src8, int src_stride, int rows,
-                                  int cols, uint64_t *hist) {
+static void get_highbd_gradient_hist(const uint8_t *src8, int src_stride,
+                                     int rows, int cols, uint64_t *hist) {
   uint16_t *src = CONVERT_TO_SHORTPTR(src8);
   src += src_stride;
   for (int r = 1; r < rows; ++r) {
@@ -179,6 +179,20 @@ void av1_get_highbd_gradient_hist(const uint8_t *src8, int src_stride, int rows,
       hist[index] += temp;
     }
     src += src_stride;
+  }
+}
+
+void av1_get_gradient_hist(const MACROBLOCKD *const xd,
+                           MB_MODE_INFO *const mbmi, BLOCK_SIZE bsize) {
+  const int dst_stride = xd->plane[0].dst.stride;
+  const uint8_t *dst = xd->plane[0].dst.buf;
+  const int rows = block_size_high[bsize];
+  const int cols = block_size_wide[bsize];
+  av1_zero(mbmi->gradient_hist);
+  if (is_cur_buf_hbd(xd)) {
+    get_highbd_gradient_hist(dst, dst_stride, rows, cols, mbmi->gradient_hist);
+  } else {
+    get_gradient_hist(dst, dst_stride, rows, cols, mbmi->gradient_hist);
   }
 }
 #endif  // CONFIG_INTRA_ENTROPY
