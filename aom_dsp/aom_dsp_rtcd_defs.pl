@@ -70,6 +70,10 @@ foreach $w (@tx_dims) {
   foreach $h (@tx_dims) {
     push @tx_sizes, [$w, $h] if ($w >=4 && $h >=4 && ($w == 2*$h || $h == 2*$w));
     push @tx_sizes, [$w, $h] if ($w >=4 && $h >=4 && ($w == 4*$h || $h == 4*$w));
+    if (aom_config("CONFIG_FLEX_PARTITION") eq "yes") {
+      push @tx_sizes, [$w, $h] if ($w >=4 && $h >=4 && ($w == 8*$h || $h == 8*$w));
+      push @tx_sizes, [$w, $h] if ($w >=4 && $h >=4 && ($w == 16*$h || $h == 16*$w));
+    }
   }
 }
 
