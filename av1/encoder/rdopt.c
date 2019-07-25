@@ -1585,6 +1585,20 @@ static const float *prune_2D_adaptive_thresholds[] = {
   NULL,
   // TX_64X16
   NULL,
+#if CONFIG_FLEX_PARTITION
+  // TX_4X32
+  NULL,
+  // TX_32X4
+  NULL,
+  // TX_8X64
+  NULL,
+  // TX_64X8
+  NULL,
+  // TX_4X64
+  NULL,
+  // TX_64X4
+  NULL,
+#endif  // CONFIG_FLEX_PARTITION
 };
 
 // Probablities are sorted in descending order.
