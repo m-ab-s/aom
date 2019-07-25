@@ -323,6 +323,86 @@ static void highbd_fwd_txfm_64x64(const int16_t *src_diff, tran_low_t *coeff,
 #endif
 }
 
+#if CONFIG_FLEX_PARTITION
+static void highbd_fwd_txfm_4x32(const int16_t *src_diff, tran_low_t *coeff,
+                                 int diff_stride, TxfmParam *txfm_param) {
+  assert(txfm_param->tx_type == DCT_DCT);
+  int32_t *dst_coeff = (int32_t *)coeff;
+  const int bd = txfm_param->bd;
+#if CONFIG_MODE_DEP_TX
+  av1_fwd_txfm2d_4x32(src_diff, dst_coeff, diff_stride, DCT_DCT,
+                      txfm_param->mode, bd);
+#else
+  av1_fwd_txfm2d_4x32(src_diff, dst_coeff, diff_stride, DCT_DCT, bd);
+#endif
+}
+
+static void highbd_fwd_txfm_32x4(const int16_t *src_diff, tran_low_t *coeff,
+                                 int diff_stride, TxfmParam *txfm_param) {
+  assert(txfm_param->tx_type == DCT_DCT);
+  int32_t *dst_coeff = (int32_t *)coeff;
+  const int bd = txfm_param->bd;
+#if CONFIG_MODE_DEP_TX
+  av1_fwd_txfm2d_32x4(src_diff, dst_coeff, diff_stride, DCT_DCT,
+                      txfm_param->mode, bd);
+#else
+  av1_fwd_txfm2d_32x4(src_diff, dst_coeff, diff_stride, DCT_DCT, bd);
+#endif
+}
+
+static void highbd_fwd_txfm_8x64(const int16_t *src_diff, tran_low_t *coeff,
+                                 int diff_stride, TxfmParam *txfm_param) {
+  assert(txfm_param->tx_type == DCT_DCT);
+  int32_t *dst_coeff = (int32_t *)coeff;
+  const int bd = txfm_param->bd;
+#if CONFIG_MODE_DEP_TX
+  av1_fwd_txfm2d_8x64(src_diff, dst_coeff, diff_stride, DCT_DCT,
+                      txfm_param->mode, bd);
+#else
+  av1_fwd_txfm2d_8x64(src_diff, dst_coeff, diff_stride, DCT_DCT, bd);
+#endif
+}
+
+static void highbd_fwd_txfm_64x8(const int16_t *src_diff, tran_low_t *coeff,
+                                 int diff_stride, TxfmParam *txfm_param) {
+  assert(txfm_param->tx_type == DCT_DCT);
+  int32_t *dst_coeff = (int32_t *)coeff;
+  const int bd = txfm_param->bd;
+#if CONFIG_MODE_DEP_TX
+  av1_fwd_txfm2d_64x8(src_diff, dst_coeff, diff_stride, DCT_DCT,
+                      txfm_param->mode, bd);
+#else
+  av1_fwd_txfm2d_64x8(src_diff, dst_coeff, diff_stride, DCT_DCT, bd);
+#endif
+}
+
+static void highbd_fwd_txfm_4x64(const int16_t *src_diff, tran_low_t *coeff,
+                                 int diff_stride, TxfmParam *txfm_param) {
+  assert(txfm_param->tx_type == DCT_DCT);
+  int32_t *dst_coeff = (int32_t *)coeff;
+  const int bd = txfm_param->bd;
+#if CONFIG_MODE_DEP_TX
+  av1_fwd_txfm2d_4x64(src_diff, dst_coeff, diff_stride, DCT_DCT,
+                      txfm_param->mode, bd);
+#else
+  av1_fwd_txfm2d_4x64(src_diff, dst_coeff, diff_stride, DCT_DCT, bd);
+#endif
+}
+
+static void highbd_fwd_txfm_64x4(const int16_t *src_diff, tran_low_t *coeff,
+                                 int diff_stride, TxfmParam *txfm_param) {
+  assert(txfm_param->tx_type == DCT_DCT);
+  int32_t *dst_coeff = (int32_t *)coeff;
+  const int bd = txfm_param->bd;
+#if CONFIG_MODE_DEP_TX
+  av1_fwd_txfm2d_64x4(src_diff, dst_coeff, diff_stride, DCT_DCT,
+                      txfm_param->mode, bd);
+#else
+  av1_fwd_txfm2d_64x4(src_diff, dst_coeff, diff_stride, DCT_DCT, bd);
+#endif
+}
+#endif  // CONFIG_FLEX_PARTITION
+
 void av1_fwd_txfm(const int16_t *src_diff, tran_low_t *coeff, int diff_stride,
                   TxfmParam *txfm_param) {
 #if CONFIG_MODE_DEP_TX
@@ -402,6 +482,27 @@ void av1_highbd_fwd_txfm(const int16_t *src_diff, tran_low_t *coeff,
     case TX_32X8:
       highbd_fwd_txfm_32x8(src_diff, coeff, diff_stride, txfm_param);
       break;
+#if CONFIG_FLEX_PARTITION
+      // TODO(debargha): Turn on when transforms are implemented
+    case TX_4X32:
+      highbd_fwd_txfm_4x32(src_diff, coeff, diff_stride, txfm_param);
+      break;
+    case TX_32X4:
+      highbd_fwd_txfm_32x4(src_diff, coeff, diff_stride, txfm_param);
+      break;
+    case TX_8X64:
+      highbd_fwd_txfm_8x64(src_diff, coeff, diff_stride, txfm_param);
+      break;
+    case TX_64X8:
+      highbd_fwd_txfm_64x8(src_diff, coeff, diff_stride, txfm_param);
+      break;
+    case TX_4X64:
+      highbd_fwd_txfm_4x64(src_diff, coeff, diff_stride, txfm_param);
+      break;
+    case TX_64X4:
+      highbd_fwd_txfm_64x4(src_diff, coeff, diff_stride, txfm_param);
+      break;
+#endif  // CONFIG_FLEX_PARTITION
     default: assert(0); break;
   }
 }
