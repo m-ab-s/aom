@@ -684,6 +684,11 @@ static void pick_sb_modes(AV1_COMP *const cpi, TileDataEnc *tile_data,
     x->edge_strength_y = ei.y;
   }
 
+  // Default initialization of the threshold for R-D optimization of
+  // coefficients for mode decision
+  x->coeff_opt_dist_threshold =
+      get_rd_opt_coeff_thresh(cpi->coeff_opt_dist_threshold, 0, 0);
+
   // Save rdmult before it might be changed, so it can be restored later.
   const int orig_rdmult = x->rdmult;
   setup_block_rdmult(cpi, x, mi_row, mi_col, bsize, aq_mode, mbmi);
@@ -3007,7 +3012,7 @@ BEGIN_PARTITION_SEARCH:
   assert(IMPLIES(!cpi->oxcf.enable_rect_partitions, !do_rectangular_split));
 
   const int ext_partition_allowed =
-      do_rectangular_split && bsize > BLOCK_8X8 && partition_none_allowed;
+      do_rectangular_split && bsize > BLOCK_8X8 && has_rows && has_cols;
 
   // The standard AB partitions are allowed whenever ext-partition-types are
   // allowed
@@ -3516,8 +3521,8 @@ static int get_rdmult_delta(AV1_COMP *cpi, BLOCK_SIZE bsize, int analysis_type,
   AV1_COMMON *const cm = &cpi->common;
   assert(IMPLIES(cpi->gf_group.size > 0,
                  cpi->gf_group.index < cpi->gf_group.size));
-  const int tpl_idx = cpi->gf_group.frame_disp_idx[cpi->gf_group.index];
-  TplDepFrame *tpl_frame = &cpi->tpl_stats[tpl_idx];
+  const int tpl_idx = cpi->gf_group.index;
+  TplDepFrame *tpl_frame = &cpi->tpl_frame[tpl_idx];
   TplDepStats *tpl_stats = tpl_frame->tpl_stats_ptr;
   int tpl_stride = tpl_frame->stride;
   int64_t intra_cost = 0;
@@ -3593,8 +3598,8 @@ static int get_q_for_deltaq_objective(AV1_COMP *const cpi, BLOCK_SIZE bsize,
   AV1_COMMON *const cm = &cpi->common;
   assert(IMPLIES(cpi->gf_group.size > 0,
                  cpi->gf_group.index < cpi->gf_group.size));
-  const int tpl_idx = cpi->gf_group.frame_disp_idx[cpi->gf_group.index];
-  TplDepFrame *tpl_frame = &cpi->tpl_stats[tpl_idx];
+  const int tpl_idx = cpi->gf_group.index;
+  TplDepFrame *tpl_frame = &cpi->tpl_frame[tpl_idx];
   TplDepStats *tpl_stats = tpl_frame->tpl_stats_ptr;
   int tpl_stride = tpl_frame->stride;
   int64_t intra_cost = 0;
@@ -4440,6 +4445,24 @@ static int get_max_allowed_ref_frames(const AV1_COMP *cpi) {
                 cpi->oxcf.max_reference_frames);
 }
 
+// Set the relative distance of a reference frame w.r.t. current frame
+static void set_rel_frame_dist(AV1_COMP *cpi) {
+  const AV1_COMMON *const cm = &cpi->common;
+  const SPEED_FEATURES *const sf = &cpi->sf;
+  const OrderHintInfo *const order_hint_info = &cm->seq_params.order_hint_info;
+  MV_REFERENCE_FRAME ref_frame;
+  for (ref_frame = LAST_FRAME; ref_frame <= ALTREF_FRAME; ++ref_frame) {
+    cpi->ref_relative_dist[ref_frame - LAST_FRAME] = 0;
+    if (sf->alt_ref_search_fp) {
+      int dist = av1_encoder_get_relative_dist(
+          order_hint_info,
+          cm->cur_frame->ref_display_order_hint[ref_frame - LAST_FRAME],
+          cm->current_frame.display_order_hint);
+      cpi->ref_relative_dist[ref_frame - LAST_FRAME] = dist;
+    }
+  }
+}
+
 // Enforce the number of references for each arbitrary frame based on user
 // options and speed.
 static void enforce_max_ref_frames(AV1_COMP *cpi) {
@@ -4490,9 +4513,10 @@ static INLINE int av1_refs_are_one_sided(const AV1_COMMON *cm) {
     const RefCntBuffer *const buf = get_ref_frame_buf(cm, ref);
     if (buf == NULL) continue;
 
-    const int ref_order_hint = buf->order_hint;
-    if (get_relative_dist(&cm->seq_params.order_hint_info, ref_order_hint,
-                          (int)cm->current_frame.order_hint) > 0) {
+    const int ref_display_order_hint = buf->display_order_hint;
+    if (av1_encoder_get_relative_dist(
+            &cm->seq_params.order_hint_info, ref_display_order_hint,
+            (int)cm->current_frame.display_order_hint) > 0) {
       one_sided_refs = 0;  // bwd reference
       break;
     }
@@ -5021,6 +5045,7 @@ void av1_encode_frame(AV1_COMP *cpi) {
 
   av1_setup_frame_buf_refs(cm);
   enforce_max_ref_frames(cpi);
+  set_rel_frame_dist(cpi);
   av1_setup_frame_sign_bias(cm);
 
 #if CHECK_PRECOMPUTED_REF_FRAME_MAP

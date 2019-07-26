@@ -776,7 +776,55 @@ void av1_assign_q_and_bounds_q_mode(AV1_COMP *cpi) {
   rc->avg_frame_qindex[INTER_FRAME] = avg_frame_qindex;
 }
 
-#define FRAME_OVERHEAD_BITS 200
+static void define_gf_group_pass0(AV1_COMP *cpi,
+                                  const EncodeFrameParams *const frame_params) {
+  RATE_CONTROL *const rc = &cpi->rc;
+  GF_GROUP *const gf_group = &cpi->gf_group;
+  int target;
+
+  if (cpi->oxcf.aq_mode == CYCLIC_REFRESH_AQ)
+    av1_cyclic_refresh_set_golden_update(cpi);
+  else
+    rc->baseline_gf_interval = MAX_GF_INTERVAL;
+
+  if (rc->baseline_gf_interval > rc->frames_to_key)
+    rc->baseline_gf_interval = rc->frames_to_key;
+
+  rc->gfu_boost = DEFAULT_GF_BOOST;
+  rc->constrained_gf_group =
+      (rc->baseline_gf_interval >= rc->frames_to_key) ? 1 : 0;
+  const int use_alt_ref =
+      is_altref_enabled(cpi) &&
+      (rc->baseline_gf_interval < cpi->oxcf.lag_in_frames) &&
+      !(cpi->lookahead->sz < rc->baseline_gf_interval - 1) &&
+      (cpi->oxcf.gf_max_pyr_height > MIN_PYRAMID_LVL);
+  rc->source_alt_ref_pending = use_alt_ref;
+
+  // Set up the structure of this Group-Of-Pictures (same as GF_GROUP)
+  av1_gop_setup_structure(cpi, frame_params);
+
+  if (cpi->oxcf.rc_mode == AOM_Q) av1_assign_q_and_bounds_q_mode(cpi);
+
+  // Allocate bits to each of the frames in the GF group.
+  // TODO(sarahparker) Extend this to work with pyramid structure.
+  for (int cur_index = 0; cur_index < gf_group->size; ++cur_index) {
+    const FRAME_UPDATE_TYPE cur_update_type = gf_group->update_type[cur_index];
+    if (cpi->oxcf.rc_mode == AOM_CBR) {
+      if (cur_update_type == KEY_FRAME) {
+        target = av1_calc_iframe_target_size_one_pass_cbr(cpi);
+      } else {
+        target = av1_calc_pframe_target_size_one_pass_cbr(cpi, cur_update_type);
+      }
+    } else {
+      if (cur_update_type == KEY_FRAME) {
+        target = av1_calc_iframe_target_size_one_pass_vbr(cpi);
+      } else {
+        target = av1_calc_pframe_target_size_one_pass_vbr(cpi, cur_update_type);
+      }
+    }
+    gf_group->bit_allocation[cur_index] = target;
+  }
+}
 
 // Analyse and define a gf/arf group.
 static void define_gf_group(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
@@ -832,6 +880,11 @@ static void define_gf_group(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
 
   aom_clear_system_state();
   av1_zero(next_frame);
+
+  if (oxcf->pass == 0) {
+    define_gf_group_pass0(cpi, frame_params);
+    return;
+  }
 
   // Load stats for the current frame.
   mod_frame_err = calculate_modified_err(cpi, twopass, oxcf, this_frame);
@@ -1080,13 +1133,9 @@ static void define_gf_group(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
     rc->gfu_boost =
         calc_arf_boost(cpi, alt_offset, (i - 1), (i - 1), &f_boost, &b_boost);
     rc->source_alt_ref_pending = 1;
-
-    // do not replace ARFs with overlay frames, and keep it as GOLDEN_REF
-    cpi->preserve_arf_as_gld = 1;
   } else {
     rc->gfu_boost = AOMMAX((int)boost_score, MIN_ARF_GF_BOOST);
     rc->source_alt_ref_pending = 0;
-    cpi->preserve_arf_as_gld = 0;
   }
 
   // Set the interval until the next gf.
@@ -1260,7 +1309,8 @@ static int test_candidate_kf(TWO_PASS *twopass,
   // Does the frame satisfy the primary criteria of a key frame?
   // See above for an explanation of the test criteria.
   // If so, then examine how well it predicts subsequent frames.
-  if ((this_frame->pcnt_second_ref < second_ref_usage_thresh) &&
+  if (frame_count_so_far >= 3 &&
+      (this_frame->pcnt_second_ref < second_ref_usage_thresh) &&
       (next_frame->pcnt_second_ref < second_ref_usage_thresh) &&
       ((this_frame->pcnt_inter < VERY_LOW_INTER_THRESH) ||
        ((pcnt_intra > MIN_INTRA_LEVEL) &&
@@ -1341,6 +1391,8 @@ static void find_next_key_frame(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame) {
   RATE_CONTROL *const rc = &cpi->rc;
   TWO_PASS *const twopass = &cpi->twopass;
   GF_GROUP *const gf_group = &cpi->gf_group;
+  AV1_COMMON *const cm = &cpi->common;
+  CurrentFrame *const current_frame = &cm->current_frame;
   const AV1EncoderConfig *const oxcf = &cpi->oxcf;
   const FIRSTPASS_STATS first_frame = *this_frame;
   FIRSTPASS_STATS next_frame;
@@ -1361,6 +1413,15 @@ static void find_next_key_frame(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame) {
 
   rc->frames_to_key = 1;
 
+  if (cpi->oxcf.pass == 0) {
+    rc->this_key_frame_forced =
+        current_frame->frame_number != 0 && rc->frames_to_key == 0;
+    rc->frames_to_key = cpi->oxcf.key_freq;
+    rc->kf_boost = DEFAULT_KF_BOOST;
+    rc->source_alt_ref_active = 0;
+    gf_group->update_type[0] = KF_UPDATE;
+    return;
+  }
   int i, j;
   const FIRSTPASS_STATS *const start_position = twopass->stats_in;
   int kf_bits = 0;
@@ -1675,6 +1736,11 @@ static void setup_target_rate(AV1_COMP *cpi) {
   GF_GROUP *const gf_group = &cpi->gf_group;
 
   int target_rate = gf_group->bit_allocation[gf_group->index];
+
+  if (cpi->oxcf.pass == 0) {
+    av1_rc_set_frame_target(cpi, target_rate, cpi->common.width,
+                            cpi->common.height);
+  }
 
   rc->base_frame_target = target_rate;
 }

@@ -55,8 +55,14 @@ static unsigned int tx_domain_dist_thresholds[MAX_TX_DOMAIN_EVAL_SPEED + 1] = {
 // Threshold values to be used for disabling coeff RD-optimization
 // based on block MSE
 // TODO(any): Experiment the threshold logic based on variance metric
-static unsigned int coeff_opt_dist_thresholds[5] = { UINT_MAX, 442413, 162754,
-                                                     22026, 22026 };
+// Index 0 corresponds to the modes where winner mode processing is not
+// applicable (Eg : IntraBc). Index 1 corresponds to the mode evaluation and is
+// applicable when enable_winner_mode_for_coeff_opt speed feature is ON
+static unsigned int coeff_opt_dist_thresholds[5][2] = { { UINT_MAX, UINT_MAX },
+                                                        { 442413, 36314 },
+                                                        { 162754, 36314 },
+                                                        { 22026, 22026 },
+                                                        { 22026, 22026 } };
 // scaling values to be used for gating wedge/compound segment based on best
 // approximate rd
 static int comp_type_rd_threshold_mul[3] = { 1, 11, 12 };
@@ -284,7 +290,6 @@ static void set_good_speed_features_framesize_independent(
     sf->disable_filter_search_var_thresh = 100;
     sf->comp_inter_joint_search_thresh = BLOCK_SIZES_ALL;
 
-    sf->partition_search_breakout_rate_thr = 80;
     sf->allow_partition_search_skip = 1;
     sf->disable_wedge_search_var_thresh = 100;
     sf->disable_wedge_search_edge_thresh = 0;
@@ -325,9 +330,13 @@ static void set_good_speed_features_framesize_independent(
     sf->prune_comp_type_by_model_rd = boosted ? 0 : 1;
     sf->disable_smooth_intra =
         !frame_is_intra_only(&cpi->common) || (cpi->rc.frames_to_key != 1);
+    // TODO(any): Experiment on the dependency of this speed feature with
+    // use_intra_txb_hash, use_inter_txb_hash and use_mb_rd_hash speed features
+    sf->enable_winner_mode_for_coeff_opt = 1;
   }
 
   if (speed >= 4) {
+    sf->selective_ref_frame = 4;
     sf->use_intra_txb_hash = 0;
     sf->tx_type_search.fast_intra_tx_type_search = 1;
     sf->disable_loop_restoration_chroma =
@@ -350,20 +359,27 @@ static void set_good_speed_features_framesize_independent(
     sf->intra_uv_mode_mask[TX_32X32] = UV_INTRA_DC_H_V_CFL;
     sf->intra_y_mode_mask[TX_16X16] = INTRA_DC_H_V;
     sf->intra_uv_mode_mask[TX_16X16] = UV_INTRA_DC_H_V_CFL;
-    sf->tx_size_search_method = USE_LARGESTALL;
-    sf->mv.search_method = BIGDIA;
+
     sf->mv.subpel_search_method = SUBPEL_TREE_PRUNED_MORE;
-    sf->adaptive_rd_thresh = 4;
-    sf->mode_search_skip_flags =
-        (cm->current_frame.frame_type == KEY_FRAME)
-            ? 0
-            : FLAG_SKIP_INTRA_DIRMISMATCH | FLAG_SKIP_INTRA_BESTINTER |
-                  FLAG_SKIP_COMP_BESTINTRA | FLAG_SKIP_INTRA_LOWVAR |
-                  FLAG_EARLY_TERMINATE;
-    sf->disable_filter_search_var_thresh = 200;
-    sf->use_fast_coef_costing = 1;
-    sf->partition_search_breakout_rate_thr = 300;
-    sf->use_transform_domain_distortion = 2;
+
+    // TODO(any): The following features have no impact on quality and speed,
+    // and are disabled.
+    // sf->disable_filter_search_var_thresh = 200;
+    // sf->use_fast_coef_costing = 1;
+    // sf->partition_search_breakout_rate_thr = 300;
+
+    // TODO(any): The following features give really bad quality/speed trade
+    // off. Needs to be re-worked.
+    // sf->tx_size_search_method = USE_LARGESTALL;
+    // sf->mv.search_method = BIGDIA;
+    // sf->adaptive_rd_thresh = 4;
+    // sf->mode_search_skip_flags =
+    //     (cm->current_frame.frame_type == KEY_FRAME)
+    //     ? 0
+    //     : FLAG_SKIP_INTRA_DIRMISMATCH | FLAG_SKIP_INTRA_BESTINTER |
+    //     FLAG_SKIP_COMP_BESTINTRA | FLAG_SKIP_INTRA_LOWVAR |
+    //     FLAG_EARLY_TERMINATE;
+    // sf->use_transform_domain_distortion = 2;
   }
 
   if (speed >= 6) {
@@ -605,6 +621,12 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
     sf->mv.subpel_search_method = SUBPEL_TREE_PRUNED_MORE;
     sf->tx_size_search_method = USE_FAST_RD;
     sf->estimate_motion_for_var_based_partition = 0;
+// TODO(kyslov) Enable when better model is available
+// It gives +5% speedup and 11% overall BDRate degradation
+// So, can not enable now until better CurvFit is there
+#if 0
+    sf->use_modeled_non_rd_cost = 1;
+#endif
   }
 }
 
@@ -779,6 +801,7 @@ void av1_set_speed_features_framesize_independent(AV1_COMP *cpi, int speed) {
   sf->prune_warp_using_wmtype = 0;
   sf->disable_wedge_interintra_search = 0;
   sf->perform_coeff_opt = 0;
+  sf->enable_winner_mode_for_coeff_opt = 0;
   sf->prune_comp_type_by_model_rd = 0;
   sf->disable_smooth_intra = 0;
   sf->perform_best_rd_based_gating_for_chroma = 0;
@@ -867,8 +890,9 @@ void av1_set_speed_features_framesize_independent(AV1_COMP *cpi, int speed) {
 
   // assert ensures that coeff_opt_dist_thresholds is accessed correctly
   assert(cpi->sf.perform_coeff_opt >= 0 && cpi->sf.perform_coeff_opt < 5);
-  cpi->coeff_opt_dist_threshold =
-      coeff_opt_dist_thresholds[cpi->sf.perform_coeff_opt];
+  memcpy(cpi->coeff_opt_dist_threshold,
+         coeff_opt_dist_thresholds[cpi->sf.perform_coeff_opt],
+         sizeof(cpi->coeff_opt_dist_threshold));
 
 #if CONFIG_DIST_8X8
   if (sf->use_transform_domain_distortion > 0) cpi->oxcf.using_dist_8x8 = 0;

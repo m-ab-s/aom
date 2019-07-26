@@ -157,7 +157,7 @@ enum {
   SS_CFG_TOTAL = 2
 } UENUM1BYTE(SS_CFG_OFFSET);
 
-#define MAX_LENGTH_TPL_FRAME_STATS 27
+#define MAX_LENGTH_TPL_FRAME_STATS (27 + 9)
 
 typedef struct TplDepStats {
   int64_t intra_cost;
@@ -175,6 +175,8 @@ typedef struct TplDepStats {
 typedef struct TplDepFrame {
   uint8_t is_valid;
   TplDepStats *tpl_stats_ptr;
+  const YV12_BUFFER_CONFIG *gf_picture;
+  int ref_map_index[REF_FRAMES];
   int stride;
   int width;
   int height;
@@ -246,6 +248,7 @@ typedef struct AV1EncoderConfig {
   int worst_allowed_q;
   int best_allowed_q;
   int cq_level;
+  int enable_chroma_deltaq;
   AQ_MODE aq_mode;  // Adaptive Quantization mode
   DELTAQ_MODE deltaq_mode;
   int deltalf_mode;
@@ -742,6 +745,15 @@ static INLINE char const *get_component_name(int index) {
 // The maximum number of internal ARFs except ALTREF_FRAME
 #define MAX_INTERNAL_ARFS (REF_FRAMES - BWDREF_FRAME - 1)
 
+typedef struct {
+  int arf_stack[FRAME_BUFFERS];
+  int arf_stack_size;
+  int lst_stack[FRAME_BUFFERS];
+  int lst_stack_size;
+  int gld_stack[FRAME_BUFFERS];
+  int gld_stack_size;
+} RefBufferStack;
+
 typedef struct AV1_COMP {
   QUANTS quants;
   ThreadData td;
@@ -764,7 +776,8 @@ typedef struct AV1_COMP {
   YV12_BUFFER_CONFIG *unscaled_last_source;
   YV12_BUFFER_CONFIG scaled_last_source;
 
-  TplDepFrame tpl_stats[MAX_LENGTH_TPL_FRAME_STATS];
+  TplDepFrame tpl_stats_buffer[MAX_LENGTH_TPL_FRAME_STATS];
+  TplDepFrame *tpl_frame;
 
   // For a still frame, this flag is set to 1 to skip partition search.
   int partition_search_skippable_frame;
@@ -889,6 +902,9 @@ typedef struct AV1_COMP {
 
   GF_GROUP gf_group;
 
+  // To control the reference frame buffer and selection.
+  RefBufferStack ref_buffer_stack;
+
   YV12_BUFFER_CONFIG alt_ref_buffer;
 
   YV12_BUFFER_CONFIG source_kf_buffer;
@@ -1000,7 +1016,10 @@ typedef struct AV1_COMP {
 
   // Factor to control R-D optimization of coeffs based on block
   // mse.
-  unsigned int coeff_opt_dist_threshold;
+  // Index 0 corresponds to the modes where winner mode processing is not
+  // applicable (Eg : IntraBc). Index 1 corresponds to the mode evaluation and
+  // is applicable when enable_winner_mode_for_coeff_opt speed feature is ON
+  unsigned int coeff_opt_dist_threshold[2];
 
   AV1LfSync lf_row_sync;
   AV1LrSync lr_row_sync;
@@ -1013,7 +1032,6 @@ typedef struct AV1_COMP {
   // Stores the default value of skip flag depending on chroma format
   // Set as 1 for monochrome and 3 for other color formats
   int default_interp_skip_flags;
-  int preserve_arf_as_gld;
   MultiThreadHandle multi_thread_ctxt;
   void (*row_mt_sync_read_ptr)(AV1RowMTSync *const, int, int);
   void (*row_mt_sync_write_ptr)(AV1RowMTSync *const, int, int, const int);
@@ -1045,6 +1063,9 @@ typedef struct AV1_COMP {
 
   // whether any no-zero delta_q was actually used
   int deltaq_used;
+
+  // Indicates the true relative distance of ref frame w.r.t. current frame
+  int8_t ref_relative_dist[INTER_REFS_PER_FRAME];
 
   double *ssim_rdmult_scaling_factors;
 
@@ -1154,6 +1175,37 @@ int av1_convert_sect5obus_to_annexb(uint8_t *buffer, size_t *input_size);
 void av1_alloc_compound_type_rd_buffers(AV1_COMMON *const cm,
                                         CompoundTypeRdBuffers *const bufs);
 void av1_release_compound_type_rd_buffers(CompoundTypeRdBuffers *const bufs);
+
+// TODO(jingning): Move these functions as primitive members for the new cpi
+// class.
+static INLINE void stack_push(int *stack, int *stack_size, int item) {
+  for (int i = *stack_size - 1; i >= 0; --i) stack[i + 1] = stack[i];
+  stack[0] = item;
+  ++*stack_size;
+}
+
+static INLINE int stack_pop(int *stack, int *stack_size) {
+  if (*stack_size <= 0) return -1;
+
+  int item = stack[0];
+  for (int i = 0; i < *stack_size; ++i) stack[i] = stack[i + 1];
+  --*stack_size;
+
+  return item;
+}
+
+static INLINE int stack_pop_end(int *stack, int *stack_size) {
+  int item = stack[*stack_size - 1];
+  stack[*stack_size - 1] = -1;
+  --*stack_size;
+
+  return item;
+}
+
+static INLINE void stack_reset(int *stack, int *stack_size) {
+  for (int i = 0; i < *stack_size; ++i) stack[i] = INVALID_IDX;
+  *stack_size = 0;
+}
 
 // av1 uses 10,000,000 ticks/second as time stamp
 #define TICKS_PER_SEC 10000000LL

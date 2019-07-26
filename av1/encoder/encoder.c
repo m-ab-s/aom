@@ -399,8 +399,6 @@ static void enc_setup_mi(AV1_COMMON *cm) {
   // Clear left border column
   for (i = 0; i < mi_rows_sb_aligned; ++i)
     memset(&cm->prev_mi[i * cm->mi_stride], 0, sizeof(*cm->prev_mi));
-  cm->mi_grid_base = cm->mi_grid_base;
-  cm->prev_mi_grid_base = cm->prev_mi_grid_base;
 
   memset(cm->mi_grid_base, 0,
          cm->mi_stride * mi_rows_sb_aligned * sizeof(*cm->mi_grid_base));
@@ -445,8 +443,6 @@ static void swap_mi_and_prev_mi(AV1_COMMON *cm) {
   // Update the upper left visible macroblock ptrs.
   cm->prev_mi_grid_base = cm->mi_grid_base;
   cm->mi_grid_base = temp_base;
-  cm->mi_grid_base = cm->mi_grid_base;
-  cm->prev_mi_grid_base = cm->prev_mi_grid_base;
 }
 
 void av1_initialize_enc(void) {
@@ -3115,16 +3111,18 @@ AV1_COMP *av1_create_compressor(AV1EncoderConfig *oxcf,
     int mi_cols = ALIGN_POWER_OF_TWO(cm->mi_cols, MAX_MIB_SIZE_LOG2);
     int mi_rows = ALIGN_POWER_OF_TWO(cm->mi_rows, MAX_MIB_SIZE_LOG2);
 
-    CHECK_MEM_ERROR(cm, cpi->tpl_stats[frame].tpl_stats_ptr,
-                    aom_calloc(mi_rows * mi_cols,
-                               sizeof(*cpi->tpl_stats[frame].tpl_stats_ptr)));
-    cpi->tpl_stats[frame].is_valid = 0;
-    cpi->tpl_stats[frame].width = mi_cols;
-    cpi->tpl_stats[frame].height = mi_rows;
-    cpi->tpl_stats[frame].stride = mi_cols;
-    cpi->tpl_stats[frame].mi_rows = cm->mi_rows;
-    cpi->tpl_stats[frame].mi_cols = cm->mi_cols;
+    CHECK_MEM_ERROR(
+        cm, cpi->tpl_stats_buffer[frame].tpl_stats_ptr,
+        aom_calloc(mi_rows * mi_cols,
+                   sizeof(*cpi->tpl_stats_buffer[frame].tpl_stats_ptr)));
+    cpi->tpl_stats_buffer[frame].is_valid = 0;
+    cpi->tpl_stats_buffer[frame].width = mi_cols;
+    cpi->tpl_stats_buffer[frame].height = mi_rows;
+    cpi->tpl_stats_buffer[frame].stride = mi_cols;
+    cpi->tpl_stats_buffer[frame].mi_rows = cm->mi_rows;
+    cpi->tpl_stats_buffer[frame].mi_cols = cm->mi_cols;
   }
+  cpi->tpl_frame = &cpi->tpl_stats_buffer[REF_FRAMES + 1];
 
 #if CONFIG_COLLECT_PARTITION_STATS == 2
   av1_zero(cpi->partition_stats);
@@ -3504,8 +3502,8 @@ void av1_remove_compressor(AV1_COMP *cpi) {
   }
 
   for (int frame = 0; frame < MAX_LENGTH_TPL_FRAME_STATS; ++frame) {
-    aom_free(cpi->tpl_stats[frame].tpl_stats_ptr);
-    cpi->tpl_stats[frame].is_valid = 0;
+    aom_free(cpi->tpl_stats_buffer[frame].tpl_stats_ptr);
+    cpi->tpl_stats_buffer[frame].is_valid = 0;
   }
 
   for (t = cpi->num_workers - 1; t >= 0; --t) {
@@ -3783,14 +3781,10 @@ static void scale_references(AV1_COMP *cpi) {
   AV1_COMMON *cm = &cpi->common;
   const int num_planes = av1_num_planes(cm);
   MV_REFERENCE_FRAME ref_frame;
-  const AOM_REFFRAME ref_mask[INTER_REFS_PER_FRAME] = {
-    AOM_LAST_FLAG, AOM_LAST2_FLAG, AOM_LAST3_FLAG, AOM_GOLD_FLAG,
-    AOM_BWD_FLAG,  AOM_ALT2_FLAG,  AOM_ALT_FLAG
-  };
 
   for (ref_frame = LAST_FRAME; ref_frame <= ALTREF_FRAME; ++ref_frame) {
     // Need to convert from AOM_REFFRAME to index into ref_mask (subtract 1).
-    if (cpi->ref_frame_flags & ref_mask[ref_frame - 1]) {
+    if (cpi->ref_frame_flags & av1_ref_frame_flag_list[ref_frame]) {
       BufferPool *const pool = cm->buffer_pool;
       const YV12_BUFFER_CONFIG *const ref =
           get_ref_frame_yv12_buf(cm, ref_frame);
@@ -4008,8 +4002,9 @@ static void process_tpl_stats_frame(AV1_COMP *cpi) {
   AV1_COMMON *const cm = &cpi->common;
 
   assert(IMPLIES(gf_group->size > 0, gf_group->index < gf_group->size));
-  const int tpl_idx = gf_group->frame_disp_idx[gf_group->index];
-  TplDepFrame *tpl_frame = &cpi->tpl_stats[tpl_idx];
+
+  const int tpl_idx = gf_group->index;
+  TplDepFrame *tpl_frame = &cpi->tpl_frame[tpl_idx];
   TplDepStats *tpl_stats = tpl_frame->tpl_stats_ptr;
 
   if (tpl_frame->is_valid) {
@@ -5960,9 +5955,11 @@ int av1_encode(AV1_COMP *const cpi, uint8_t *const dest,
 
   if (cm->show_existing_frame) {
     current_frame->order_hint = cm->cur_frame->order_hint;
+    current_frame->display_order_hint = cm->cur_frame->display_order_hint;
   } else {
     current_frame->order_hint =
         current_frame->frame_number + frame_params->order_offset;
+    current_frame->display_order_hint = current_frame->order_hint;
     current_frame->order_hint %=
         (1 << (cm->seq_params.order_hint_info.order_hint_bits_minus_1 + 1));
   }

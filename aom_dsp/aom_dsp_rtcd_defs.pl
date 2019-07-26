@@ -914,12 +914,12 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
   specialize qw/aom_highbd_sad4x8x4d     sse2/;
   specialize qw/aom_highbd_sad4x4x4d     sse2/;
 
-  specialize qw/aom_highbd_sad4x16x4d  sse2/;
-  specialize qw/aom_highbd_sad16x4x4d  sse2/;
-  specialize qw/aom_highbd_sad8x32x4d  sse2/;
-  specialize qw/aom_highbd_sad32x8x4d  sse2/;
-  specialize qw/aom_highbd_sad16x64x4d sse2/;
-  specialize qw/aom_highbd_sad64x16x4d sse2/;
+  specialize qw/aom_highbd_sad4x16x4d         sse2/;
+  specialize qw/aom_highbd_sad16x4x4d    avx2 sse2/;
+  specialize qw/aom_highbd_sad8x32x4d         sse2/;
+  specialize qw/aom_highbd_sad32x8x4d    avx2 sse2/;
+  specialize qw/aom_highbd_sad16x64x4d   avx2 sse2/;
+  specialize qw/aom_highbd_sad64x16x4d   avx2 sse2/;
 
   if (aom_config("CONFIG_FLEX_PARTITION") eq "yes") {
     specialize qw/aom_highbd_sad4x32x4d  sse2/;
@@ -943,12 +943,10 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
   specialize qw/aom_minmax_8x8 sse2/;
 
   add_proto qw/void aom_int_pro_row/, "int16_t *hbuf, const uint8_t *ref, const int ref_stride, const int height";
-  # TODO(kyslov@) bring back SSE2 by extending it to 128 block size
-  #specialize qw/aom_int_pro_row sse2/;
+  specialize qw/aom_int_pro_row sse2/;
 
   add_proto qw/int16_t aom_int_pro_col/, "const uint8_t *ref, const int width";
-  # TODO(kyslov@) bring back SSE2 by extending it to 128 block size
-  #specialize qw/aom_int_pro_col sse2/;
+  specialize qw/aom_int_pro_col sse2/;
 
   add_proto qw/int aom_vector_var/, "const int16_t *ref, const int16_t *src, const int bwl";
   # TODO(kyslov@) bring back SSE2 by extending it to 128 block size

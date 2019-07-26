@@ -133,8 +133,11 @@ specialize qw/av1_highbd_convolve8_vert/, "$sse2_x86_64";
 add_proto qw/void av1_inv_txfm_add/, "const tran_low_t *dqcoeff, uint8_t *dst, int stride, const TxfmParam *txfm_param";
 specialize qw/av1_inv_txfm_add ssse3 avx2 neon/;
 
+# TODO(yunqing): disabled sse4_1 and avx2 optimizations that caused test vector mismatch,
+# including av1_highbd_inv_txfm_add_wxh_sse4_1 and av1_highbd_inv_txfm2d_add_universe_sse4_1/avx2.
 add_proto qw/void av1_highbd_inv_txfm_add/, "const tran_low_t *input, uint8_t *dest, int stride, const TxfmParam *txfm_param";
-specialize qw/av1_highbd_inv_txfm_add sse4_1 avx2/;
+#specialize qw/av1_highbd_inv_txfm_add sse4_1 avx2/;
+
 add_proto qw/void av1_highbd_inv_txfm_add_4x4/,  "const tran_low_t *input, uint8_t *dest, int stride, const TxfmParam *txfm_param";
 specialize qw/av1_highbd_inv_txfm_add_4x4 sse4_1/;
 add_proto qw/void av1_highbd_inv_txfm_add_8x8/,  "const tran_low_t *input, uint8_t *dest, int stride, const TxfmParam *txfm_param";
@@ -249,7 +252,7 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
   # the transform coefficients are held in 32-bit
   # values, so the assembler code for  av1_block_error can no longer be used.
   add_proto qw/int64_t av1_block_error/, "const tran_low_t *coeff, const tran_low_t *dqcoeff, intptr_t block_size, int64_t *ssz";
-  specialize qw/av1_block_error avx2 neon/;
+  specialize qw/av1_block_error sse2 avx2 neon/;
 
   add_proto qw/void av1_quantize_fp/, "const tran_low_t *coeff_ptr, intptr_t n_coeffs, const int16_t *zbin_ptr, const int16_t *round_ptr, const int16_t *quant_ptr, const int16_t *quant_shift_ptr, tran_low_t *qcoeff_ptr, tran_low_t *dqcoeff_ptr, const int16_t *dequant_ptr, uint16_t *eob_ptr, const int16_t *scan, const int16_t *iscan";
   specialize qw/av1_quantize_fp sse2 avx2 neon/;

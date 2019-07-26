@@ -109,6 +109,7 @@ const ObmcSadTest::ParamType sse4_functions[] = {
   TestFuncs(aom_obmc_sad8x32_c, aom_obmc_sad8x32_sse4_1),
   TestFuncs(aom_obmc_sad16x4_c, aom_obmc_sad16x4_sse4_1),
   TestFuncs(aom_obmc_sad4x16_c, aom_obmc_sad4x16_sse4_1),
+
 #if CONFIG_FLEX_PARTITION
   TestFuncs(aom_obmc_sad64x8_c, aom_obmc_sad64x8_sse4_1),
   TestFuncs(aom_obmc_sad8x64_c, aom_obmc_sad8x64_sse4_1),
@@ -148,6 +149,7 @@ const ObmcSadTest::ParamType avx2_functions[] = {
   TestFuncs(aom_obmc_sad8x32_c, aom_obmc_sad8x32_avx2),
   TestFuncs(aom_obmc_sad16x4_c, aom_obmc_sad16x4_avx2),
   TestFuncs(aom_obmc_sad4x16_c, aom_obmc_sad4x16_avx2),
+
 #if CONFIG_FLEX_PARTITION
   TestFuncs(aom_obmc_sad64x8_c, aom_obmc_sad64x8_avx2),
   TestFuncs(aom_obmc_sad8x64_c, aom_obmc_sad8x64_avx2),
@@ -242,6 +244,7 @@ ObmcSadHBDTest::ParamType sse4_functions_hbd[] = {
   TestFuncs(aom_highbd_obmc_sad8x32_c, aom_highbd_obmc_sad8x32_sse4_1),
   TestFuncs(aom_highbd_obmc_sad16x4_c, aom_highbd_obmc_sad16x4_sse4_1),
   TestFuncs(aom_highbd_obmc_sad4x16_c, aom_highbd_obmc_sad4x16_sse4_1),
+
 #if CONFIG_FLEX_PARTITION
   TestFuncs(aom_highbd_obmc_sad64x8_c, aom_highbd_obmc_sad64x8_sse4_1),
   TestFuncs(aom_highbd_obmc_sad8x64_c, aom_highbd_obmc_sad8x64_sse4_1),
@@ -281,6 +284,7 @@ ObmcSadHBDTest::ParamType avx2_functions_hbd[] = {
   TestFuncs(aom_highbd_obmc_sad8x32_c, aom_highbd_obmc_sad8x32_avx2),
   TestFuncs(aom_highbd_obmc_sad16x4_c, aom_highbd_obmc_sad16x4_avx2),
   TestFuncs(aom_highbd_obmc_sad4x16_c, aom_highbd_obmc_sad4x16_avx2),
+
 #if CONFIG_FLEX_PARTITION
   TestFuncs(aom_highbd_obmc_sad64x8_c, aom_highbd_obmc_sad64x8_avx2),
   TestFuncs(aom_highbd_obmc_sad8x64_c, aom_highbd_obmc_sad8x64_avx2),

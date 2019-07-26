@@ -256,6 +256,7 @@ struct macroblock {
   unsigned int simple_motion_pred_sse;
   unsigned int pred_sse[REF_FRAMES];
   int pred_mv_sad[REF_FRAMES];
+  int best_pred_mv_sad;
 
   int nmv_vec_cost[MV_JOINTS];
   int *nmvcost[2];
@@ -430,6 +431,10 @@ struct macroblock {
   int comp_rd_stats_idx;
 
   CB_COEFF_BUFFER *cb_coef_buff;
+
+  // Threshold used to decide the applicability of R-D optimization of
+  // quantized coeffs
+  uint32_t coeff_opt_dist_threshold;
 
 #if !CONFIG_REALTIME_ONLY
   int quad_tree_idx;
