@@ -1668,24 +1668,42 @@ static void decode_partition(AV1Decoder *const pbi, ThreadData *const td,
       DEC_PARTITION(mi_row + hbs, mi_col + hbs, subsize);
       break;
     case PARTITION_HORZ_A:
+#if CONFIG_RECURSIVE_ABPART
+      DEC_PARTITION(mi_row, mi_col, bsize2);
+      DEC_PARTITION(mi_row, mi_col + hbs, bsize2);
+#else
       DEC_BLOCK(mi_row, mi_col, bsize2);
       DEC_BLOCK(mi_row, mi_col + hbs, bsize2);
+#endif  // CONFIG_RECURSIVE_ABPART
       DEC_BLOCK(mi_row + hbs, mi_col, subsize);
       break;
-    case PARTITION_HORZ_B:
-      DEC_BLOCK(mi_row, mi_col, subsize);
+    case PARTITION_HORZ_B: DEC_BLOCK(mi_row, mi_col, subsize);
+#if CONFIG_RECURSIVE_ABPART
+      DEC_PARTITION(mi_row + hbs, mi_col, bsize2);
+      DEC_PARTITION(mi_row + hbs, mi_col + hbs, bsize2);
+#else
       DEC_BLOCK(mi_row + hbs, mi_col, bsize2);
       DEC_BLOCK(mi_row + hbs, mi_col + hbs, bsize2);
+#endif  // CONFIG_RECURSIVE_ABPART
       break;
     case PARTITION_VERT_A:
+#if CONFIG_RECURSIVE_ABPART
+      DEC_PARTITION(mi_row, mi_col, bsize2);
+      DEC_PARTITION(mi_row + hbs, mi_col, bsize2);
+#else
       DEC_BLOCK(mi_row, mi_col, bsize2);
       DEC_BLOCK(mi_row + hbs, mi_col, bsize2);
+#endif  // CONFIG_RECURSIVE_ABPART
       DEC_BLOCK(mi_row, mi_col + hbs, subsize);
       break;
-    case PARTITION_VERT_B:
-      DEC_BLOCK(mi_row, mi_col, subsize);
+    case PARTITION_VERT_B: DEC_BLOCK(mi_row, mi_col, subsize);
+#if CONFIG_RECURSIVE_ABPART
+      DEC_PARTITION(mi_row, mi_col + hbs, bsize2);
+      DEC_PARTITION(mi_row + hbs, mi_col + hbs, bsize2);
+#else
       DEC_BLOCK(mi_row, mi_col + hbs, bsize2);
       DEC_BLOCK(mi_row + hbs, mi_col + hbs, bsize2);
+#endif  // CONFIG_RECURSIVE_ABPART
       break;
     case PARTITION_HORZ_4:
       for (int i = 0; i < 4; ++i) {
