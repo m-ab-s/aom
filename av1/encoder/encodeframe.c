@@ -5362,6 +5362,7 @@ static void encode_superblock(const AV1_COMP *const cpi, TileDataEnc *tile_data,
 #if CONFIG_INTRA_ENTROPY
     if (frame_is_intra_only(cm)) {
       av1_get_gradient_hist(xd, mbmi, bsize);
+      av1_get_recon_var(xd, mbmi, bsize);
     }
 #endif  // CONFIG_INTRA_ENTROPY
   } else {

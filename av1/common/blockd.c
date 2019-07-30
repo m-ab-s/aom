@@ -131,13 +131,13 @@ static const uint8_t gradient_to_angle_bin[2][7][16] = {
   },
 };
 
-static void get_gradient_hist(const uint8_t *src, int src_stride, int rows,
+static void get_gradient_hist(const uint8_t *dst, int stride, int rows,
                               int cols, uint64_t *hist) {
-  src += src_stride;
+  dst += stride;
   for (int r = 1; r < rows; ++r) {
     for (int c = 1; c < cols; ++c) {
-      int dx = src[c] - src[c - 1];
-      int dy = src[c] - src[c - src_stride];
+      int dx = dst[c] - dst[c - 1];
+      int dy = dst[c] - dst[c - stride];
       int index;
       const int temp = dx * dx + dy * dy;
       if (dy == 0) {
@@ -152,18 +152,18 @@ static void get_gradient_hist(const uint8_t *src, int src_stride, int rows,
       }
       hist[index] += temp;
     }
-    src += src_stride;
+    dst += stride;
   }
 }
 
-static void get_highbd_gradient_hist(const uint8_t *src8, int src_stride,
-                                     int rows, int cols, uint64_t *hist) {
-  uint16_t *src = CONVERT_TO_SHORTPTR(src8);
-  src += src_stride;
+static void get_highbd_gradient_hist(const uint8_t *dst8, int stride, int rows,
+                                     int cols, uint64_t *hist) {
+  uint16_t *dst = CONVERT_TO_SHORTPTR(dst8);
+  dst += stride;
   for (int r = 1; r < rows; ++r) {
     for (int c = 1; c < cols; ++c) {
-      int dx = src[c] - src[c - 1];
-      int dy = src[c] - src[c - src_stride];
+      int dx = dst[c] - dst[c - 1];
+      int dy = dst[c] - dst[c - stride];
       int index;
       const int temp = dx * dx + dy * dy;
       if (dy == 0) {
@@ -178,7 +178,7 @@ static void get_highbd_gradient_hist(const uint8_t *src8, int src_stride,
       }
       hist[index] += temp;
     }
-    src += src_stride;
+    dst += stride;
   }
 }
 
@@ -193,6 +193,52 @@ void av1_get_gradient_hist(const MACROBLOCKD *const xd,
     get_highbd_gradient_hist(dst, dst_stride, rows, cols, mbmi->gradient_hist);
   } else {
     get_gradient_hist(dst, dst_stride, rows, cols, mbmi->gradient_hist);
+  }
+}
+
+static int64_t variance(const uint8_t *dst, int stride, int w, int h) {
+  int64_t sum = 0;
+  int64_t sum_square = 0;
+  for (int i = 0; i < h; ++i) {
+    for (int j = 0; j < w; ++j) {
+      const int v = dst[j];
+      sum += v;
+      sum_square += v * v;
+    }
+    dst += stride;
+  }
+  const int n = w * h;
+  const int64_t var = (n * sum_square - sum * sum) / n / n;
+  return var < 0 ? 0 : var;
+}
+
+static int64_t highbd_variance(const uint8_t *dst8, int stride, int w, int h) {
+  const uint16_t *dst = CONVERT_TO_SHORTPTR(dst8);
+  int64_t sum = 0;
+  int64_t sum_square = 0;
+  for (int i = 0; i < h; ++i) {
+    for (int j = 0; j < w; ++j) {
+      const int v = dst[j];
+      sum += v;
+      sum_square += v * v;
+    }
+    dst += stride;
+  }
+  const int n = w * h;
+  const int64_t var = (n * sum_square - sum * sum) / n / n;
+  return var < 0 ? 0 : var;
+}
+
+void av1_get_recon_var(const MACROBLOCKD *const xd, MB_MODE_INFO *const mbmi,
+                       BLOCK_SIZE bsize) {
+  const int dst_stride = xd->plane[0].dst.stride;
+  const uint8_t *dst = xd->plane[0].dst.buf;
+  const int rows = block_size_high[bsize];
+  const int cols = block_size_wide[bsize];
+  if (is_cur_buf_hbd(xd)) {
+    mbmi->recon_var = highbd_variance(dst, dst_stride, cols, rows);
+  } else {
+    mbmi->recon_var = variance(dst, dst_stride, cols, rows);
   }
 }
 #endif  // CONFIG_INTRA_ENTROPY
