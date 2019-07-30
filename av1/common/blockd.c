@@ -188,11 +188,18 @@ void av1_get_gradient_hist(const MACROBLOCKD *const xd,
   const uint8_t *dst = xd->plane[0].dst.buf;
   const int rows = block_size_high[bsize];
   const int cols = block_size_wide[bsize];
+  const int block_rows =
+      xd->mb_to_bottom_edge >= 0 ? rows : (xd->mb_to_bottom_edge >> 3) + rows;
+  const int block_cols =
+      xd->mb_to_right_edge >= 0 ? cols : (xd->mb_to_right_edge >> 3) + cols;
+
   av1_zero(mbmi->gradient_hist);
   if (is_cur_buf_hbd(xd)) {
-    get_highbd_gradient_hist(dst, dst_stride, rows, cols, mbmi->gradient_hist);
+    get_highbd_gradient_hist(dst, dst_stride, block_rows, block_cols,
+                             mbmi->gradient_hist);
   } else {
-    get_gradient_hist(dst, dst_stride, rows, cols, mbmi->gradient_hist);
+    get_gradient_hist(dst, dst_stride, block_rows, block_cols,
+                      mbmi->gradient_hist);
   }
 }
 
@@ -235,10 +242,14 @@ void av1_get_recon_var(const MACROBLOCKD *const xd, MB_MODE_INFO *const mbmi,
   const uint8_t *dst = xd->plane[0].dst.buf;
   const int rows = block_size_high[bsize];
   const int cols = block_size_wide[bsize];
+  const int block_rows =
+      xd->mb_to_bottom_edge >= 0 ? rows : (xd->mb_to_bottom_edge >> 3) + rows;
+  const int block_cols =
+      xd->mb_to_right_edge >= 0 ? cols : (xd->mb_to_right_edge >> 3) + cols;
   if (is_cur_buf_hbd(xd)) {
-    mbmi->recon_var = highbd_variance(dst, dst_stride, cols, rows);
+    mbmi->recon_var = highbd_variance(dst, dst_stride, block_cols, block_rows);
   } else {
-    mbmi->recon_var = variance(dst, dst_stride, cols, rows);
+    mbmi->recon_var = variance(dst, dst_stride, block_cols, block_rows);
   }
 }
 #endif  // CONFIG_INTRA_ENTROPY
