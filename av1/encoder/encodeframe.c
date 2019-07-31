@@ -5358,13 +5358,6 @@ static void encode_superblock(const AV1_COMP *const cpi, TileDataEnc *tile_data,
 
     av1_update_txb_context(cpi, td, dry_run, bsize, rate, mi_row, mi_col,
                            tile_data->allow_update_cdf);
-
-#if CONFIG_INTRA_ENTROPY
-    if (frame_is_intra_only(cm)) {
-      av1_get_gradient_hist(xd, mbmi, bsize);
-      av1_get_recon_var(xd, mbmi, bsize);
-    }
-#endif  // CONFIG_INTRA_ENTROPY
   } else {
     int ref;
     const int is_compound = has_second_ref(mbmi);
@@ -5409,6 +5402,13 @@ static void encode_superblock(const AV1_COMP *const cpi, TileDataEnc *tile_data,
     av1_tokenize_sb_vartx(cpi, td, t, dry_run, mi_row, mi_col, bsize, rate,
                           tile_data->allow_update_cdf);
   }
+
+#if CONFIG_INTRA_ENTROPY
+  if (frame_is_intra_only(cm)) {
+    av1_get_gradient_hist(xd, mbmi, bsize);
+    av1_get_recon_var(xd, mbmi, bsize);
+  }
+#endif  // CONFIG_INTRA_ENTROPY
 
   if (!dry_run) {
     if (av1_allow_intrabc(cm) && is_intrabc_block(mbmi)) td->intrabc_used = 1;

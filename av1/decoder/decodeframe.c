@@ -1167,13 +1167,6 @@ static void decode_token_recon_block(AV1Decoder *const pbi,
         }
       }
     }
-
-#if CONFIG_INTRA_ENTROPY
-    if (frame_is_intra_only(cm)) {
-      av1_get_gradient_hist(xd, mbmi, bsize);
-      av1_get_recon_var(xd, mbmi, bsize);
-    }
-#endif  // CONFIG_INTRA_ENTROPY
   } else {
     td->predict_inter_block_visit(cm, xd, mi_row, mi_col, bsize);
     // Reconstruction
@@ -1239,6 +1232,13 @@ static void decode_token_recon_block(AV1Decoder *const pbi,
     }
     td->cfl_store_inter_block_visit(cm, xd);
   }
+
+#if CONFIG_INTRA_ENTROPY
+  if (frame_is_intra_only(cm)) {
+    av1_get_gradient_hist(xd, mbmi, bsize);
+    av1_get_recon_var(xd, mbmi, bsize);
+  }
+#endif  // CONFIG_INTRA_ENTROPY
 
   av1_visit_palette(pbi, xd, mi_row, mi_col, r, bsize,
                     set_color_index_map_offset);
