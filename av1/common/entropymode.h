@@ -59,8 +59,8 @@ extern "C" {
 #define KF_MODE_CONTEXTS 5
 
 #if CONFIG_INTRA_ENTROPY
-#define INTRA_MODEL 2  // 0: mode+size; 1: hist; 2: hist+mode
-enum { ACTN_NONE, ACTN_RELU, ACTN_SOFTSIGN, ACTN_SIGMOID } UENUM1BYTE(ACTN);
+#define INTRA_MODEL 0  // 0: hist+var+mode; 1: hist; 2: hist+mode
+enum { ACTN_NONE, ACTN_RELU, ACTN_SIGMOID } UENUM1BYTE(ACTN);
 enum { SOFTMAX_CROSS_ENTROPY_LOSS } UENUM1BYTE(LOSS_F);
 struct NN_CONFIG_EM;
 typedef struct NN_CONFIG_EM NN_CONFIG_EM;
@@ -92,6 +92,7 @@ struct NN_CONFIG_EM {
   float feature[EM_MAX_NODES];            // Input feature
   FC_LAYER_EM layer[EM_MAX_HLAYERS + 1];  // The layer array
   int num_logits;                         // Number of output nodes.
+  float output[EM_MAX_NODES];             // Output
   LOSS_F loss;                            // Loss function
 };
 
@@ -105,7 +106,7 @@ void av1_nn_predict_em(const float *features, NN_CONFIG_EM *nn_config,
 void av1_nn_backprop_em(NN_CONFIG_EM *nn_config, const int label);
 
 // Update the weights via gradient descent.
-// mu: learning rate, usually chosen from 0.01~0.001.
+// mu: learning rate, usually chosen from 0.01~0.0001.
 void av1_nn_update_em(NN_CONFIG_EM *nn_config, float mu);
 
 // Applies the softmax normalization function to the input

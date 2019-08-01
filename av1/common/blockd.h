@@ -364,8 +364,7 @@ PREDICTION_MODE av1_above_block_mode(const MB_MODE_INFO *above_mi);
 
 #if CONFIG_INTRA_ENTROPY
 const uint64_t *av1_block_mode(const MB_MODE_INFO *mi, PREDICTION_MODE *mode,
-                               int8_t *angle_delta, int *qindex,
-                               BLOCK_SIZE *sb_type, TX_SIZE *tx_size);
+                               int64_t *recon_var);
 
 void av1_get_intra_block_feature(float *feature, const MB_MODE_INFO *above_mi,
                                  const MB_MODE_INFO *left_mi,

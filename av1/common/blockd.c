@@ -30,22 +30,15 @@ PREDICTION_MODE av1_above_block_mode(const MB_MODE_INFO *above_mi) {
 
 #if CONFIG_INTRA_ENTROPY
 const uint64_t *av1_block_mode(const MB_MODE_INFO *mi, PREDICTION_MODE *mode,
-                               int8_t *angle_delta, int *qindex,
-                               BLOCK_SIZE *sb_type, TX_SIZE *tx_size) {
+                               int64_t *recon_var) {
   if (!mi) {
     *mode = 255;
-    *angle_delta = 0;
-    *qindex = 0;
-    *sb_type = 255;
-    *tx_size = 255;
+    *recon_var = 0;
     return NULL;
   } else {
     assert(!is_inter_block(mi) || is_intrabc_block(mi));
     *mode = mi->mode;
-    *angle_delta = mi->angle_delta[PLANE_TYPE_Y];
-    *qindex = mi->current_qindex;
-    *sb_type = mi->sb_type;
-    *tx_size = mi->tx_size;
+    *recon_var = mi->recon_var;
     return mi->gradient_hist;
   }
 }
@@ -54,21 +47,14 @@ void av1_get_intra_block_feature(float *features, const MB_MODE_INFO *above_mi,
                                  const MB_MODE_INFO *left_mi,
                                  const MB_MODE_INFO *aboveleft_mi) {
   PREDICTION_MODE above, left, aboveleft;
-  int8_t above_angle, left_angle, al_angle;
-  int above_q, left_q, al_q;
-  BLOCK_SIZE above_sb, left_sb, al_sb;
-  TX_SIZE above_txs, left_txs, al_txs;
-  const uint64_t *above_hist = av1_block_mode(above_mi, &above, &above_angle,
-                                              &above_q, &above_sb, &above_txs);
-  const uint64_t *left_hist =
-      av1_block_mode(left_mi, &left, &left_angle, &left_q, &left_sb, &left_txs);
-  const uint64_t *al_hist = av1_block_mode(aboveleft_mi, &aboveleft, &al_angle,
-                                           &al_q, &al_sb, &al_txs);
+  int64_t above_var, left_var, ab_var;
+  const uint64_t *above_hist = av1_block_mode(above_mi, &above, &above_var);
+  const uint64_t *left_hist = av1_block_mode(left_mi, &left, &left_var);
+  const uint64_t *al_hist = av1_block_mode(aboveleft_mi, &aboveleft, &ab_var);
 
   float hist_total[3] = { 0.f, 0.f, 0.f };
   int pt = 0;
 
-#if INTRA_MODEL > 0
   if (above_hist) {
     for (int i = 0; i < 8; ++i) {
       hist_total[0] += (float)above_hist[i];
@@ -114,8 +100,12 @@ void av1_get_intra_block_feature(float *features, const MB_MODE_INFO *above_mi,
       features[pt++] = 0.125f;
     }
   }
+#if INTRA_MODEL == 0
+  features[pt++] = above_var / 12534.f;
+  features[pt++] = left_var / 12534.f;
+  features[pt++] = ab_var / 12534.f;
 #endif  // INTRA_MODEL
-#if INTRA_MODEL == 2
+#if INTRA_MODEL != 1
   for (int i = 0; i < 5; ++i) {
     features[pt++] =
         (above < INTRA_MODES && intra_mode_context[above] == i) ? 1.0f : 0.0f;
@@ -128,64 +118,6 @@ void av1_get_intra_block_feature(float *features, const MB_MODE_INFO *above_mi,
     features[pt++] =
         (aboveleft < INTRA_MODES && intra_mode_context[aboveleft] == i) ? 1.0f
                                                                         : 0.0f;
-  }
-#endif  // INTRA_MODEL
-#if INTRA_MODEL == 0
-  for (int i = 0; i < INTRA_MODES; ++i) {
-    features[pt++] = (above == i) ? 1.0f : 0.0f;
-  }
-  features[pt++] = (float)above_angle / 3.f;
-  if (above_sb == 255) {
-    features[pt++] = 0.0f;
-    features[pt++] = 0.0f;
-  } else {
-    features[pt++] = mi_size_wide_log2[above_sb] / 5.f;
-    features[pt++] = mi_size_high_log2[above_sb] / 5.f;
-  }
-  if (above_txs == 255) {
-    features[pt++] = 0.0f;
-    features[pt++] = 0.0f;
-  } else {
-    features[pt++] = tx_size_wide_log2[above_txs] / 6.f;
-    features[pt++] = tx_size_high_log2[above_txs] / 6.f;
-  }
-
-  for (int i = 0; i < INTRA_MODES; ++i) {
-    features[pt++] = (left == i) ? 1.0f : 0.0f;
-  }
-  features[pt++] = (float)left_angle / 3.f;
-  if (left_sb == 255) {
-    features[pt++] = 0.0f;
-    features[pt++] = 0.0f;
-  } else {
-    features[pt++] = mi_size_wide_log2[left_sb] / 5.f;
-    features[pt++] = mi_size_high_log2[left_sb] / 5.f;
-  }
-  if (left_txs == 255) {
-    features[pt++] = 0.0f;
-    features[pt++] = 0.0f;
-  } else {
-    features[pt++] = tx_size_wide_log2[left_txs] / 6.f;
-    features[pt++] = tx_size_high_log2[left_txs] / 6.f;
-  }
-
-  for (int i = 0; i < INTRA_MODES; ++i) {
-    features[pt++] = (aboveleft == i) ? 1.0f : 0.0f;
-  }
-  features[pt++] = (float)al_angle / 3.f;
-  if (al_sb == 255) {
-    features[pt++] = 0.0f;
-    features[pt++] = 0.0f;
-  } else {
-    features[pt++] = mi_size_wide_log2[al_sb] / 5.f;
-    features[pt++] = mi_size_high_log2[al_sb] / 5.f;
-  }
-  if (al_txs == 255) {
-    features[pt++] = 0.0f;
-    features[pt++] = 0.0f;
-  } else {
-    features[pt++] = tx_size_wide_log2[al_txs] / 6.f;
-    features[pt++] = tx_size_high_log2[al_txs] / 6.f;
   }
 #endif  // INTRA_MODEL
 }

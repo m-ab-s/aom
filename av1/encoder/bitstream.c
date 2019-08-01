@@ -85,7 +85,6 @@ static void write_intra_y_mode_kf(FRAME_CONTEXT *frame_ctx,
   float features[54], scores[INTRA_MODES];
   av1_get_intra_block_feature(features, above_mi, left_mi, aboveleft_mi);
   av1_nn_predict_em(features, &(frame_ctx->av1_intra_y_mode), scores);
-  av1_nn_softmax_em(scores, scores, INTRA_MODES);
   aom_cdf_prob cdf[CDF_SIZE(INTRA_MODES)] = { 0 };
   av1_pdf2cdf(scores, cdf, INTRA_MODES);
   aom_write_symbol_nn(w, mode, cdf, &(frame_ctx->av1_intra_y_mode),
@@ -98,16 +97,10 @@ static void write_intra_y_mode_kf(FRAME_CONTEXT *frame_ctx,
   // write data into file
 #if 0
   PREDICTION_MODE above, left, aboveleft;
-  int8_t above_angle, left_angle, al_angle;
-  int above_q, left_q, al_q;
-  BLOCK_SIZE above_sb, left_sb, al_sb;
-  TX_SIZE above_txs, left_txs, al_txs;
-  const uint64_t *above_hist = av1_block_mode(above_mi, &above, &above_angle,
-                                              &above_q, &above_sb, &above_txs);
-  const uint64_t *left_hist =
-      av1_block_mode(left_mi, &left, &left_angle, &left_q, &left_sb, &left_txs);
-  const uint64_t *al_hist = av1_block_mode(aboveleft_mi, &aboveleft, &al_angle,
-                                           &al_q, &al_sb, &al_txs);
+  int64_t above_var, left_var, ab_var;
+  const uint64_t *above_hist = av1_block_mode(above_mi, &above, &above_var);
+  const uint64_t *left_hist = av1_block_mode(left_mi, &left, &left_var);
+  const uint64_t *al_hist = av1_block_mode(aboveleft_mi, &aboveleft, &ab_var);
   FILE *fp = fopen("intra_data.csv", "a");
   if (fp) {
     fprintf(fp,
@@ -141,6 +134,9 @@ static void write_intra_y_mode_kf(FRAME_CONTEXT *frame_ctx,
     } else {
       fprintf(fp, "%d,%d,%d,%d,%d,%d,%d,%d,", 0, 0, 0, 0, 0, 0, 0, 0);
     }
+    fprintf(fp, "%" PRId64 ",", above_var);
+    fprintf(fp, "%" PRId64 ",", left_var);
+    fprintf(fp, "%" PRId64 ",", ab_var);
     fprintf(fp, "\n");
     fclose(fp);
   }
