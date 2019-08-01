@@ -210,43 +210,22 @@ static INLINE FRAME_UPDATE_TYPE get_frame_update_type(const AV1_COMP *cpi) {
   return gf_group->update_type[gf_group->index];
 }
 
-// Get ARF update index for the current frame.
-// Returns 1 for internal ARF, and 0 otherwise (including top-level ARF).
-static INLINE int get_arf_update_idx(const GF_GROUP *const gf_group) {
-  if (gf_group->index == gf_group->size) {
-    // Special case: happens at the start of a video, or at the start of next GF
-    // group, or at the end of the key-frame group. So, not marked in
-    // gf_group->arf_update_idx array, but can implicitly inferred be a
-    // top-level ARF.
-    return 0;
-  }
-  // General case.
-  return (gf_group->arf_update_idx[gf_group->index] > 0);
-}
-
 // Note: the parameters related to OVERLAY_UPDATE will be taken care of in
 // av1_get_second_pass_params().
 static void check_show_existing_frame(AV1_COMP *const cpi,
                                       EncodeFrameParams *const frame_params) {
   const GF_GROUP *const gf_group = &cpi->gf_group;
   assert(gf_group->index <= gf_group->size);
+  (void)gf_group;
   AV1_COMMON *const cm = &cpi->common;
   if (cm->show_existing_frame == 1) {
     frame_params->show_existing_frame = 0;
   } else {
     const FRAME_UPDATE_TYPE frame_update_type = get_frame_update_type(cpi);
-    const int which_arf = get_arf_update_idx(gf_group);
-    const int is_fwd_kf = is_show_existing_fwd_kf(cpi);
-    if (((frame_update_type == OVERLAY_UPDATE ||
-          frame_update_type == INTNL_OVERLAY_UPDATE) &&
-         cpi->is_arf_filter_off[which_arf]) ||
-        is_fwd_kf) {
+    if (frame_update_type == INTNL_OVERLAY_UPDATE) {
       frame_params->show_existing_frame = 1;
       frame_params->existing_fb_idx_to_show =
-          (frame_update_type == OVERLAY_UPDATE ||
-           frame_update_type == KEY_FRAME)
-              ? get_ref_frame_map_idx(cm, ALTREF_FRAME)
-              : get_ref_frame_map_idx(cm, BWDREF_FRAME);
+          get_ref_frame_map_idx(cm, BWDREF_FRAME);
 
     } else {
       frame_params->show_existing_frame = 0;
@@ -556,8 +535,6 @@ static struct lookahead_entry *setup_arf_or_arf2(
     // When arf_src_index == rc->frames_to_key, it indicates a fwd_kf
     if (!arf2 && arf_src_index == rc->frames_to_key) {
       // Skip temporal filtering and mark as intra_only if we have a fwd_kf
-      const int which_arf = get_arf_update_idx(&cpi->gf_group);
-      cpi->is_arf_filter_off[which_arf] = 1;
       cpi->no_show_kf = 1;
     } else {
 #if !CONFIG_REALTIME_ONLY
