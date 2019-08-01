@@ -67,34 +67,32 @@ typedef struct NN_CONFIG_EM NN_CONFIG_EM;
 struct FC_LAYER_EM;
 typedef struct FC_LAYER_EM FC_LAYER_EM;
 
-#define NN_MAX_HIDDEN_LAYERS 10
-#define NN_MAX_NODES_PER_LAYER 128
+#define EM_MAX_HLAYERS 1
+#define EM_MAX_NODES 128
 
 // Fully-connectedly layer configuration
 struct FC_LAYER_EM {
   int num_inputs;   // Number of input nodes, i.e. features.
   int num_outputs;  // Number of output nodes.
 
-  float *weights;   // Weight parameters.
-  float *bias;      // Bias parameters.
-  ACTN activation;  // Activation function.
+  float weights[EM_MAX_NODES * EM_MAX_NODES];  // Weight parameters.
+  float bias[EM_MAX_NODES];                    // Bias parameters.
+  ACTN activation;                             // Activation function.
 
-  float *output;  // The output array.
-  float *dY;      // Gradient of outputs
-  float *dW;      // Gradient of weights.
-  float *db;      // Gradient of bias
+  float output[EM_MAX_NODES];             // The output array.
+  float dY[EM_MAX_NODES];                 // Gradient of outputs
+  float dW[EM_MAX_NODES * EM_MAX_NODES];  // Gradient of weights.
+  float db[EM_MAX_NODES];                 // Gradient of bias
 };
 
 // NN configure structure for entropy mode
 struct NN_CONFIG_EM {
-  float lr;               // learning rate
-  int counter;            // Counter for the input in one batch
-  int num_hidden_layers;  // Number of hidden layers, max = 10.
-  float *feature;         // Input feature
-  FC_LAYER_EM layer[NN_MAX_HIDDEN_LAYERS + 1];  // The layer array
-  int num_logits;                               // Number of output nodes.
-  float *logits;  // Raw prediction (same as output of final layer)
-  LOSS_F loss;    // Loss function
+  float lr;                               // learning rate
+  int num_hidden_layers;                  // Number of hidden layers, max = 10.
+  float feature[EM_MAX_NODES];            // Input feature
+  FC_LAYER_EM layer[EM_MAX_HLAYERS + 1];  // The layer array
+  int num_logits;                         // Number of output nodes.
+  LOSS_F loss;                            // Loss function
 };
 
 // Calculate prediction based on the given input features and neural net config.
@@ -217,52 +215,7 @@ typedef struct frame_contexts {
   aom_cdf_prob kf_y_cdf[KF_MODE_CONTEXTS][KF_MODE_CONTEXTS]
                        [CDF_SIZE(INTRA_MODES)];
 #if CONFIG_INTRA_ENTROPY
-#if INTRA_MODEL == 0
-  float intra_y_mode_layer0_weights[54 * 16];
-  float intra_y_mode_layer0_bias[16];
-  float intra_y_mode_layer1_weights[16 * 13];
-  float intra_y_mode_layer1_bias[13];
-  float intra_y_mode_in[54];
-  float intra_y_mode_layer0_out[16];
-  float intra_y_mode_layer0_dout[16];
-  float intra_y_mode_layer0_dW[54 * 16];
-  float intra_y_mode_layer0_db[16];
-  float intra_y_mode_layer1_out[13];
-  float intra_y_mode_layer1_dout[13];
-  float intra_y_mode_layer1_dW[16 * 13];
-  float intra_y_mode_layer1_db[13];
   NN_CONFIG_EM av1_intra_y_mode;
-#elif INTRA_MODEL == 1
-  float intra_y_mode_layer0_weights[24 * 16];
-  float intra_y_mode_layer0_bias[16];
-  float intra_y_mode_layer1_weights[16 * 13];
-  float intra_y_mode_layer1_bias[13];
-  float intra_y_mode_in[24];
-  float intra_y_mode_layer0_out[16];
-  float intra_y_mode_layer0_dout[16];
-  float intra_y_mode_layer0_dW[24 * 16];
-  float intra_y_mode_layer0_db[16];
-  float intra_y_mode_layer1_out[13];
-  float intra_y_mode_layer1_dout[13];
-  float intra_y_mode_layer1_dW[16 * 13];
-  float intra_y_mode_layer1_db[13];
-  NN_CONFIG_EM av1_intra_y_mode;
-#else
-  float intra_y_mode_layer0_weights[39 * 16];
-  float intra_y_mode_layer0_bias[16];
-  float intra_y_mode_layer1_weights[16 * 13];
-  float intra_y_mode_layer1_bias[13];
-  float intra_y_mode_in[39];
-  float intra_y_mode_layer0_out[16];
-  float intra_y_mode_layer0_dout[16];
-  float intra_y_mode_layer0_dW[39 * 16];
-  float intra_y_mode_layer0_db[16];
-  float intra_y_mode_layer1_out[13];
-  float intra_y_mode_layer1_dout[13];
-  float intra_y_mode_layer1_dW[16 * 13];
-  float intra_y_mode_layer1_db[13];
-  NN_CONFIG_EM av1_intra_y_mode;
-#endif  // INTRA_MODEL
 #endif  // CONFIG_INTRA_ENTROPY
 
   aom_cdf_prob angle_delta_cdf[DIRECTIONAL_MODES]

@@ -43,7 +43,7 @@ static float *nn_sigmoid(const float *input, FC_LAYER_EM *layer) {
 static float *nn_fc_forward(const float *input, FC_LAYER_EM *layer) {
   const float *weights = layer->weights;
   const float *bias = layer->bias;
-  assert(layer->num_outputs < NN_MAX_NODES_PER_LAYER);
+  assert(layer->num_outputs < EM_MAX_NODES);
   // fc
   for (int node = 0; node < layer->num_outputs; ++node) {
     float val = bias[node];
@@ -70,7 +70,7 @@ void av1_nn_predict_em(const float *feature, NN_CONFIG_EM *nn_config,
                        float *output) {
   const float *input_nodes = feature;
   const int num_layers = nn_config->num_hidden_layers;
-  assert(num_layers <= NN_MAX_HIDDEN_LAYERS);
+  assert(num_layers <= EM_MAX_HLAYERS);
   // Copy the input feature to the buffer
   memcpy(nn_config->feature, feature,
          sizeof(*feature) * nn_config->layer[0].num_inputs);
@@ -125,7 +125,7 @@ static void nn_softmax_cross_entropy_loss_back(float *dX_out,
 // Backprop in one fc layer, used in function av1_nn_backprop
 static void nn_fc_backward(const float *X, float *dX_out, FC_LAYER_EM *layer) {
   // backprop on activation
-  float dY_fc[NN_MAX_NODES_PER_LAYER] = { 0 };  // dY for fc
+  float dY_fc[EM_MAX_NODES] = { 0 };  // dY for fc
   switch (layer->activation) {
     case ACTN_NONE:  // no activation, dY_fc <-- dY
       memcpy(dY_fc, layer->dY, sizeof(*(layer->dY)) * layer->num_outputs);
@@ -168,7 +168,7 @@ void av1_nn_backprop_em(NN_CONFIG_EM *nn_config, const int label) {
   switch (nn_config->loss) {
     case SOFTMAX_CROSS_ENTROPY_LOSS:
       nn_softmax_cross_entropy_loss_back(nn_config->layer[num_layers].dY,
-                                         nn_config->logits,
+                                         nn_config->layer[num_layers].output,
                                          nn_config->num_logits, label);
       break;
   }
@@ -182,26 +182,23 @@ void av1_nn_backprop_em(NN_CONFIG_EM *nn_config, const int label) {
 
   nn_fc_backward(nn_config->feature, NULL,
                  layer_ptr);  // first layer (no dX for feature)
-  ++nn_config->counter;       // increment the counter
 }
 
 void av1_nn_update_em(NN_CONFIG_EM *nn_config, float mu) {
   const int num_layers = nn_config->num_hidden_layers;
 
   // Update the weights
-  mu /= nn_config->counter;
   for (int i = 0; i <= num_layers; ++i) {
-    FC_LAYER_EM layer = nn_config->layer[i];
-    for (int j = 0; j < layer.num_inputs * layer.num_outputs; ++j) {
-      layer.weights[j] -= mu * layer.dW[j];
-      layer.dW[j] = 0.f;
+    FC_LAYER_EM *layer = nn_config->layer + i;
+    for (int j = 0; j < layer->num_inputs * layer->num_outputs; ++j) {
+      layer->weights[j] -= mu * layer->dW[j];
+      layer->dW[j] = 0.f;
     }
-    for (int j = 0; j < layer.num_outputs; ++j) {
-      layer.bias[j] -= mu * layer.db[j];
-      layer.db[j] = 0.f;
+    for (int j = 0; j < layer->num_outputs; ++j) {
+      layer->bias[j] -= mu * layer->db[j];
+      layer->db[j] = 0.f;
     }
   }
-  nn_config->counter = 0;  // reset the counter after update
 }
 
 void av1_nn_softmax_em(const float *input, float *output, int n) {
@@ -278,7 +275,7 @@ static const aom_cdf_prob
 
 #if CONFIG_INTRA_ENTROPY
 #if INTRA_MODEL == 0
-static const float intra_y_mode_layer0_weights[54 * 16] = {
+static const float intra_y_mode_layer0_weights[EM_MAX_NODES * EM_MAX_NODES] = {
   -1.34472859f, -2.52086377f, -1.21907496f, -2.62442231f, -1.36456108f,
   -1.85076857f, -1.75697982f, -2.70074654f, -2.01186728f, -1.47276330f,
   -1.49210894f, -1.52696955f, -0.47444168f, 0.08867505f,  0.09964295f,
@@ -453,13 +450,13 @@ static const float intra_y_mode_layer0_weights[54 * 16] = {
   -0.31514063f, -0.41444403f, -0.31378534f, -0.47528484f, -0.02176441f,
   -0.03218719f, 0.33739656f,  0.75564718f,  0.38218117f,
 };
-static const float intra_y_mode_layer0_bias[16] = {
+static const float intra_y_mode_layer0_bias[EM_MAX_NODES] = {
   -1.27912414f, -1.19608593f, -0.19420378f, -0.5512073f,
   -0.24851941f, 0.14598425f,  -0.12179026f, -0.61660045f,
   -0.59693199f, 0.45176387f,  -0.93660569f, -1.32011855f,
   -0.17164111f, -1.5121603f,  0.00649928f,  0.70085567f,
 };
-static const float intra_y_mode_layer1_weights[16 * 13] = {
+static const float intra_y_mode_layer1_weights[EM_MAX_NODES * EM_MAX_NODES] = {
   -0.93713713f, -0.72247851f, -0.57512850f, 0.25330722f,  -0.16792443f,
   -0.04453408f, -0.19614846f, -0.17332828f, 0.37497330f,  -0.04715424f,
   0.20458439f,  -0.32846570f, -0.07908146f, -0.48761493f, -0.00628603f,
@@ -503,13 +500,13 @@ static const float intra_y_mode_layer1_weights[16 * 13] = {
   -1.67840254f, 0.01323134f,  0.58225554f,  -1.98118329f, -0.12075335f,
   0.13517460f,  -0.89205056f, -0.76957655f,
 };
-static const float intra_y_mode_layer1_bias[13] = {
+static const float intra_y_mode_layer1_bias[EM_MAX_NODES] = {
   1.31302679f,  -0.3246313f,  0.05108973f,  -2.22623181f, -2.21044469f,
   -2.52802825f, -2.3516593f,  -2.23695111f, -1.82459486f, -0.04331255f,
   -1.1163044f,  -1.14004064f, 1.02122474f,
 };
 #elif INTRA_MODEL == 1
-static const float intra_y_mode_layer0_weights[24 * 16] = {
+static const float intra_y_mode_layer0_weights[EM_MAX_NODES * EM_MAX_NODES] = {
   3.25421119f,  0.83241528f,  -0.34194693f, 1.06626964f,  1.70176160f,
   1.08237302f,  0.21909708f,  1.49587238f,  0.28995937f,  -1.81523871f,
   -0.83506685f, -1.28771019f, -2.80867767f, -2.59195185f, 1.04452908f,
@@ -588,13 +585,13 @@ static const float intra_y_mode_layer0_weights[24 * 16] = {
   2.24783635f,  0.04764418f,  -0.13378850f, 0.25342330f,  0.24942495f,
   0.61018962f,  -0.38615897f, 0.32759959f,  -0.22135888f,
 };
-static const float intra_y_mode_layer0_bias[16] = {
+static const float intra_y_mode_layer0_bias[EM_MAX_NODES] = {
   -0.81747979f, -0.42135012f, -0.79227108f, -0.82322061f,
   -0.1560079f,  0.03117871f,  0.49010596f,  0.13116579f,
   -0.54993922f, -0.7149772f,  -0.23662245f, 0.03821357f,
   -0.40952027f, -0.46162742f, -0.74024546f, -0.03166655f,
 };
-static const float intra_y_mode_layer1_weights[16 * 13] = {
+static const float intra_y_mode_layer1_weights[EM_MAX_NODES * EM_MAX_NODES] = {
   -0.42374155f, 0.04469313f,  0.27568659f,  0.24399059f,  0.44666657f,
   0.54714739f,  -0.05765932f, 0.97564876f,  -0.08219855f, -0.05308634f,
   -0.29883644f, 0.07887050f,  0.67924124f,  0.10922588f,  0.03000334f,
@@ -638,13 +635,13 @@ static const float intra_y_mode_layer1_weights[16 * 13] = {
   -0.04736423f, 0.01011357f,  0.20518620f,  -1.01894653f, 0.67051882f,
   -0.51721150f, 0.83390629f,  0.31698337f,
 };
-static const float intra_y_mode_layer1_bias[13] = {
+static const float intra_y_mode_layer1_bias[EM_MAX_NODES] = {
   1.5879339f,   -1.31331193f, 1.76149082f,  -3.5566237f,  -1.46776271f,
   -1.81602716f, -0.97854549f, -1.72096097f, -2.21768355f, 0.14365752f,
   -1.13605404f, -0.56143326f, -0.10940339f,
 };
 #else
-static const float intra_y_mode_layer0_weights[39 * 16] = {
+static const float intra_y_mode_layer0_weights[EM_MAX_NODES * EM_MAX_NODES] = {
   -1.45904231f, -1.48105717f,  -1.21905005f, -0.99425846f, -0.72013646f,
   -1.56753266f, 0.46365318f,   -2.34078264f, -0.87981874f, -1.21731257f,
   0.07834810f,  -0.74270242f,  0.17536204f,  -0.72889155f, 0.21613096f,
@@ -771,13 +768,13 @@ static const float intra_y_mode_layer0_weights[39 * 16] = {
   0.76832980f,  0.31018534f,   0.14555162f,  1.28664815f,  0.26686695f,
   0.27992848f,  0.35287923f,   0.45072189f,  0.60338104f,
 };
-static const float intra_y_mode_layer0_bias[16] = {
+static const float intra_y_mode_layer0_bias[EM_MAX_NODES] = {
   -0.24560522f, -0.79116881f, -0.47544709f, -0.63300556f,
   0.42558470f,  -0.46104285f, 0.10670213f,  0.29043028f,
   -0.25997034f, 0.55744708f,  -0.15084648f, 0.92882532f,
   -0.22239538f, -0.24566145f, -0.30977240f, 0.00175375f,
 };
-static const float intra_y_mode_layer1_weights[16 * 13] = {
+static const float intra_y_mode_layer1_weights[EM_MAX_NODES * EM_MAX_NODES] = {
   -0.12866934f, -0.10941806f, 0.78816420f,  -0.01823271f, 0.13654146f,
   -0.19293427f, -0.10828722f, 0.45242783f,  0.17006442f,  0.08048618f,
   -0.14254619f, -0.15443747f, -0.62864536f, -1.85453272f, -0.08233352f,
@@ -821,7 +818,7 @@ static const float intra_y_mode_layer1_weights[16 * 13] = {
   0.32233241f,  0.50984049f,  0.29606858f,  0.77050823f,  0.96349055f,
   -0.10954856f, -0.27029502f, -0.25025713f,
 };
-static const float intra_y_mode_layer1_bias[13] = {
+static const float intra_y_mode_layer1_bias[EM_MAX_NODES] = {
   1.98832178f,  -1.24645507f, -0.02891726f, -1.95236504f, -0.97414410f,
   -1.25962698f, -0.82913953f, -1.60418522f, -1.47659051f, 0.55838144f,
   -0.90775734f, -0.47331291f, -0.62228924f,
@@ -1997,9 +1994,7 @@ static void init_mode_probs(FRAME_CONTEXT *fc) {
   av1_copy(fc->kf_y_cdf, default_kf_y_mode_cdf);
 #if CONFIG_INTRA_ENTROPY
   fc->av1_intra_y_mode.lr = 0.01f;
-  fc->av1_intra_y_mode.counter = 0;
   fc->av1_intra_y_mode.num_hidden_layers = 1;
-  fc->av1_intra_y_mode.feature = fc->intra_y_mode_in;
 #if INTRA_MODEL == 0
   fc->av1_intra_mode.layer[0].num_inputs = 54;
 #elif INTRA_MODEL == 1
@@ -2008,41 +2003,28 @@ static void init_mode_probs(FRAME_CONTEXT *fc) {
   fc->av1_intra_y_mode.layer[0].num_inputs = 39;
 #endif  // INTRA_MODEL
   fc->av1_intra_y_mode.layer[0].num_outputs = 16;
-  fc->av1_intra_y_mode.layer[0].weights = fc->intra_y_mode_layer0_weights;
-  fc->av1_intra_y_mode.layer[0].bias = fc->intra_y_mode_layer0_bias;
   fc->av1_intra_y_mode.layer[0].activation = ACTN_RELU;
-  fc->av1_intra_y_mode.layer[0].output = fc->intra_y_mode_layer0_out;
-  fc->av1_intra_y_mode.layer[0].dY = fc->intra_y_mode_layer0_dout;
-  fc->av1_intra_y_mode.layer[0].dW = fc->intra_y_mode_layer0_dW;
-  fc->av1_intra_y_mode.layer[0].db = fc->intra_y_mode_layer0_db;
   fc->av1_intra_y_mode.layer[1].num_inputs = 16;
   fc->av1_intra_y_mode.layer[1].num_outputs = 13;
-  fc->av1_intra_y_mode.layer[1].weights = fc->intra_y_mode_layer1_weights;
-  fc->av1_intra_y_mode.layer[1].bias = fc->intra_y_mode_layer1_bias;
   fc->av1_intra_y_mode.layer[1].activation = ACTN_NONE;
-  fc->av1_intra_y_mode.layer[1].output = fc->intra_y_mode_layer1_out;
-  fc->av1_intra_y_mode.layer[1].dY = fc->intra_y_mode_layer1_dout;
-  fc->av1_intra_y_mode.layer[1].dW = fc->intra_y_mode_layer1_dW;
-  fc->av1_intra_y_mode.layer[1].db = fc->intra_y_mode_layer1_db;
   fc->av1_intra_y_mode.num_logits = 13;
-  fc->av1_intra_y_mode.logits = fc->intra_y_mode_layer1_out;
   fc->av1_intra_y_mode.loss = SOFTMAX_CROSS_ENTROPY_LOSS;
-  av1_copy(fc->intra_y_mode_layer0_weights, intra_y_mode_layer0_weights);
-  av1_copy(fc->intra_y_mode_layer0_bias, intra_y_mode_layer0_bias);
-  av1_copy(fc->intra_y_mode_layer1_weights, intra_y_mode_layer1_weights);
-  av1_copy(fc->intra_y_mode_layer1_bias, intra_y_mode_layer1_bias);
-  float arr[1000] = { 0.f };
-  memcpy(fc->intra_y_mode_in, arr, sizeof(fc->intra_y_mode_in));
-  memcpy(fc->intra_y_mode_layer0_out, arr, sizeof(fc->intra_y_mode_layer0_out));
-  memcpy(fc->intra_y_mode_layer0_dout, arr,
-         sizeof(fc->intra_y_mode_layer0_dout));
-  memcpy(fc->intra_y_mode_layer0_dW, arr, sizeof(fc->intra_y_mode_layer0_dW));
-  memcpy(fc->intra_y_mode_layer0_db, arr, sizeof(fc->intra_y_mode_layer0_db));
-  memcpy(fc->intra_y_mode_layer1_out, arr, sizeof(fc->intra_y_mode_layer1_out));
-  memcpy(fc->intra_y_mode_layer1_dout, arr,
-         sizeof(fc->intra_y_mode_layer1_dout));
-  memcpy(fc->intra_y_mode_layer1_dW, arr, sizeof(fc->intra_y_mode_layer1_dW));
-  memcpy(fc->intra_y_mode_layer1_db, arr, sizeof(fc->intra_y_mode_layer1_db));
+  av1_copy(fc->av1_intra_y_mode.layer[0].weights, intra_y_mode_layer0_weights);
+  av1_copy(fc->av1_intra_y_mode.layer[0].bias, intra_y_mode_layer0_bias);
+  av1_copy(fc->av1_intra_y_mode.layer[1].weights, intra_y_mode_layer1_weights);
+  av1_copy(fc->av1_intra_y_mode.layer[1].bias, intra_y_mode_layer1_bias);
+  float arr[20000] = { 0.f };
+  av1_copy_array(fc->av1_intra_y_mode.feature, arr, EM_MAX_NODES);
+  av1_copy_array(fc->av1_intra_y_mode.layer[0].output, arr, EM_MAX_NODES);
+  av1_copy_array(fc->av1_intra_y_mode.layer[0].dY, arr, EM_MAX_NODES);
+  av1_copy_array(fc->av1_intra_y_mode.layer[0].dW, arr,
+                 EM_MAX_NODES * EM_MAX_NODES);
+  av1_copy_array(fc->av1_intra_y_mode.layer[0].db, arr, EM_MAX_NODES);
+  av1_copy_array(fc->av1_intra_y_mode.layer[1].output, arr, EM_MAX_NODES);
+  av1_copy_array(fc->av1_intra_y_mode.layer[1].dY, arr, EM_MAX_NODES);
+  av1_copy_array(fc->av1_intra_y_mode.layer[1].dW, arr,
+                 EM_MAX_NODES * EM_MAX_NODES);
+  av1_copy_array(fc->av1_intra_y_mode.layer[1].db, arr, EM_MAX_NODES);
 #endif  // CONFIG_INTRA_ENTROPY
   av1_copy(fc->angle_delta_cdf, default_angle_delta_cdf);
   av1_copy(fc->comp_inter_cdf, default_comp_inter_cdf);
