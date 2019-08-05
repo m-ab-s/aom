@@ -1098,6 +1098,9 @@ typedef struct AV1_COMP {
   // Indicates the true relative distance of ref frame w.r.t. current frame
   int8_t ref_relative_dist[INTER_REFS_PER_FRAME];
 
+  // TODO(sdeng): consider merge the following arrays.
+  double *tpl_rdmult_scaling_factors;
+  double *tpl_sb_rdmult_scaling_factors;
   double *ssim_rdmult_scaling_factors;
 
   // Whether writing to bitstream. It allows us to encode one frame multiple
