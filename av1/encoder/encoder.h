@@ -168,10 +168,6 @@ typedef struct TplDepStats {
   int64_t mc_dep_cost;
   int64_t mc_count;
   int64_t mc_saved;
-
-  int ref_frame_index;
-  int ref_disp_frame_index;
-  int_mv mv;
 } TplDepStats;
 
 typedef struct TplDepFrame {
