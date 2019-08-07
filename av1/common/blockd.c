@@ -38,8 +38,8 @@ const uint64_t *av1_block_mode(const MB_MODE_INFO *mi, PREDICTION_MODE *mode,
   } else {
     assert(!is_inter_block(mi) || is_intrabc_block(mi));
     *mode = mi->mode;
-    *recon_var = mi->recon_var;
-    return mi->gradient_hist;
+    *recon_var = mi->y_recon_var;
+    return mi->y_gradient_hist;
   }
 }
 
@@ -47,10 +47,10 @@ void av1_get_intra_block_feature(float *features, const MB_MODE_INFO *above_mi,
                                  const MB_MODE_INFO *left_mi,
                                  const MB_MODE_INFO *aboveleft_mi) {
   PREDICTION_MODE above, left, aboveleft;
-  int64_t above_var, left_var, ab_var;
+  int64_t above_var, left_var, al_var;
   const uint64_t *above_hist = av1_block_mode(above_mi, &above, &above_var);
   const uint64_t *left_hist = av1_block_mode(left_mi, &left, &left_var);
-  const uint64_t *al_hist = av1_block_mode(aboveleft_mi, &aboveleft, &ab_var);
+  const uint64_t *al_hist = av1_block_mode(aboveleft_mi, &aboveleft, &al_var);
 
   float hist_total[3] = { 0.f, 0.f, 0.f };
   int pt = 0;
@@ -103,7 +103,7 @@ void av1_get_intra_block_feature(float *features, const MB_MODE_INFO *above_mi,
 #if INTRA_MODEL == 0
   features[pt++] = above_var / 12534.f;
   features[pt++] = left_var / 12534.f;
-  features[pt++] = ab_var / 12534.f;
+  features[pt++] = al_var / 12534.f;
 #endif  // INTRA_MODEL
 #if INTRA_MODEL != 1
   for (int i = 0; i < 5; ++i) {
@@ -122,13 +122,71 @@ void av1_get_intra_block_feature(float *features, const MB_MODE_INFO *above_mi,
 #endif  // INTRA_MODEL
 }
 
-void av1_pdf2cdf(const float *pdf, aom_cdf_prob *cdf, int nsymbs) {
-  float pre = 1.f;
+void av1_pdf2cdf(float *pdf, aom_cdf_prob *cdf, int nsymbs) {
+  float pre = 1.f, thresh = 0.00001f, vsum = 1.f;
+  // Give the probability entries a lower bound, to avoid zero
   for (int i = 0; i < nsymbs; ++i) {
+    if (pdf[i] < thresh) {
+      vsum += (thresh - pdf[i]);
+      pdf[i] = thresh;
+    }
+  }
+  for (int i = 0; i < nsymbs; ++i) {
+    pdf[i] /= vsum;
     pre -= pdf[i];
     cdf[i] = (aom_cdf_prob)(pre * CDF_PROB_TOP);
   }
 }
+
+void av1_get_intra_uv_block_feature(float *feature, PREDICTION_MODE cur_y_mode,
+                                    const MB_MODE_INFO *above_mi,
+                                    const MB_MODE_INFO *left_mi) {
+  PREDICTION_MODE y_mode[2];
+  int64_t y_var[2];
+  const uint64_t *above_hist = av1_block_mode(above_mi, y_mode, y_var);
+  const uint64_t *left_hist = av1_block_mode(left_mi, y_mode + 1, y_var + 1);
+
+  float hist_total[2] = { 0.f, 0.f };
+  int pt = 0;
+
+  if (above_hist) {
+    for (int i = 0; i < 8; ++i) {
+      hist_total[0] += above_hist[i];
+    }
+  }
+  if (hist_total[0] > 0.1f) {
+    for (int i = 0; i < 8; ++i) {
+      feature[pt++] = above_hist[i] / hist_total[0];
+    }
+  } else {
+    // deal with all 0 case
+    for (int i = 0; i < 8; ++i) {
+      feature[pt++] = 0.125f;
+    }
+  }
+  if (left_hist) {
+    for (int i = 0; i < 8; ++i) {
+      hist_total[1] += left_hist[i];
+    }
+  }
+  if (hist_total[1] > 0.1f) {
+    for (int i = 0; i < 8; ++i) {
+      feature[pt++] = left_hist[i] / hist_total[1];
+    }
+  } else {
+    // deal with all 0 case
+    for (int i = 0; i < 8; ++i) {
+      feature[pt++] = 0.125f;
+    }
+  }
+
+  feature[pt++] = (float)y_var[0] / 12534.f;
+  feature[pt++] = (float)y_var[1] / 12534.f;
+  for (int i = 0; i < INTRA_MODES; ++i) {
+    feature[pt++] = (cur_y_mode == i) ? 1.0f : 0.0f;
+  }
+}
+
 #endif  // CONFIG_INTRA_ENTROPY
 
 void av1_set_contexts(const MACROBLOCKD *xd, struct macroblockd_plane *pd,
@@ -287,22 +345,22 @@ static void get_highbd_gradient_hist(const uint8_t *dst8, int stride, int rows,
 
 void av1_get_gradient_hist(const MACROBLOCKD *const xd,
                            MB_MODE_INFO *const mbmi, BLOCK_SIZE bsize) {
-  const int dst_stride = xd->plane[0].dst.stride;
-  const uint8_t *dst = xd->plane[0].dst.buf;
+  const int y_stride = xd->plane[0].dst.stride;
+  const uint8_t *y_dst = xd->plane[0].dst.buf;
   const int rows = block_size_high[bsize];
   const int cols = block_size_wide[bsize];
-  const int block_rows =
+  const int y_block_rows =
       xd->mb_to_bottom_edge >= 0 ? rows : (xd->mb_to_bottom_edge >> 3) + rows;
-  const int block_cols =
+  const int y_block_cols =
       xd->mb_to_right_edge >= 0 ? cols : (xd->mb_to_right_edge >> 3) + cols;
 
-  av1_zero(mbmi->gradient_hist);
+  av1_zero(mbmi->y_gradient_hist);
   if (is_cur_buf_hbd(xd)) {
-    get_highbd_gradient_hist(dst, dst_stride, block_rows, block_cols,
-                             mbmi->gradient_hist);
+    get_highbd_gradient_hist(y_dst, y_stride, y_block_rows, y_block_cols,
+                             mbmi->y_gradient_hist);
   } else {
-    get_gradient_hist(dst, dst_stride, block_rows, block_cols,
-                      mbmi->gradient_hist);
+    get_gradient_hist(y_dst, y_stride, y_block_rows, y_block_cols,
+                      mbmi->y_gradient_hist);
   }
 }
 
@@ -341,18 +399,20 @@ static int64_t highbd_variance(const uint8_t *dst8, int stride, int w, int h) {
 
 void av1_get_recon_var(const MACROBLOCKD *const xd, MB_MODE_INFO *const mbmi,
                        BLOCK_SIZE bsize) {
-  const int dst_stride = xd->plane[0].dst.stride;
-  const uint8_t *dst = xd->plane[0].dst.buf;
+  const int y_stride = xd->plane[0].dst.stride;
+  const uint8_t *y_dst = xd->plane[0].dst.buf;
   const int rows = block_size_high[bsize];
   const int cols = block_size_wide[bsize];
-  const int block_rows =
+  const int y_block_rows =
       xd->mb_to_bottom_edge >= 0 ? rows : (xd->mb_to_bottom_edge >> 3) + rows;
-  const int block_cols =
+  const int y_block_cols =
       xd->mb_to_right_edge >= 0 ? cols : (xd->mb_to_right_edge >> 3) + cols;
+
   if (is_cur_buf_hbd(xd)) {
-    mbmi->recon_var = highbd_variance(dst, dst_stride, block_cols, block_rows);
+    mbmi->y_recon_var =
+        highbd_variance(y_dst, y_stride, y_block_cols, y_block_rows);
   } else {
-    mbmi->recon_var = variance(dst, dst_stride, block_cols, block_rows);
+    mbmi->y_recon_var = variance(y_dst, y_stride, y_block_cols, y_block_rows);
   }
 }
 #endif  // CONFIG_INTRA_ENTROPY

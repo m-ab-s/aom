@@ -965,9 +965,18 @@ static void sum_intra_stats(const AV1_COMMON *const cm, FRAME_COUNTS *counts,
   ++counts->uv_mode[is_cfl_allowed(xd)][y_mode][uv_mode];
 #endif  // CONFIG_ENTROPY_STATS
   if (allow_update_cdf) {
+#if CONFIG_INTRA_ENTROPY
+    float features[54], scores[UV_INTRA_MODES];
+    NN_CONFIG_EM *nn_model = &(fc->av1_intra_uv_mode);
+    av1_get_intra_uv_block_feature(features, y_mode, above_mi, left_mi);
+    av1_nn_predict_em(features, nn_model, scores);
+    av1_nn_backprop_em(nn_model, uv_mode);
+    av1_nn_update_em(nn_model, nn_model->lr);
+#else
     const CFL_ALLOWED_TYPE cfl_allowed = is_cfl_allowed(xd);
     update_cdf(fc->uv_mode_cdf[cfl_allowed][y_mode], uv_mode,
                UV_INTRA_MODES - !cfl_allowed);
+#endif  // CONFIG_INTRA_ENTROPY
   }
   if (uv_mode == UV_CFL_PRED) {
     const int8_t joint_sign = mbmi->cfl_alpha_signs;

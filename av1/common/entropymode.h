@@ -217,6 +217,7 @@ typedef struct frame_contexts {
                        [CDF_SIZE(INTRA_MODES)];
 #if CONFIG_INTRA_ENTROPY
   NN_CONFIG_EM av1_intra_y_mode;
+  NN_CONFIG_EM av1_intra_uv_mode;
 #endif  // CONFIG_INTRA_ENTROPY
 
   aom_cdf_prob angle_delta_cdf[DIRECTIONAL_MODES]

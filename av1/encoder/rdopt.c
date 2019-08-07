@@ -6565,6 +6565,21 @@ static int64_t rd_pick_intra_sbuv_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
   assert(!is_inter_block(mbmi));
   MB_MODE_INFO best_mbmi = *mbmi;
   int64_t best_rd = INT64_MAX, this_rd;
+  const int *bmode_costs;
+
+#if CONFIG_INTRA_ENTROPY
+  float features[54], scores[UV_INTRA_MODES];
+  av1_get_intra_uv_block_feature(features, mbmi->mode, xd->above_mbmi,
+                                 xd->left_mbmi);
+  av1_nn_predict_em(features, &(xd->tile_ctx->av1_intra_uv_mode), scores);
+  aom_cdf_prob cdf[CDF_SIZE(UV_INTRA_MODES)] = { 0 };
+  av1_pdf2cdf(scores, cdf, UV_INTRA_MODES);
+  int cost[UV_INTRA_MODES];
+  av1_cost_tokens_from_cdf(cost, cdf, NULL);
+  bmode_costs = cost;
+#else
+  bmode_costs = x->intra_uv_mode_cost[is_cfl_allowed(xd)][mbmi->mode];
+#endif  // CONFIG_INTRA_ENTROPY
 
   for (int mode_idx = 0; mode_idx < UV_INTRA_MODES; ++mode_idx) {
     int this_rate;
@@ -6592,8 +6607,7 @@ static int64_t rd_pick_intra_sbuv_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
     mbmi->angle_delta[PLANE_TYPE_UV] = 0;
     if (is_directional_mode && av1_use_angle_delta(mbmi->sb_type) &&
         cpi->oxcf.enable_angle_delta) {
-      const int rate_overhead =
-          x->intra_uv_mode_cost[is_cfl_allowed(xd)][mbmi->mode][mode];
+      const int rate_overhead = bmode_costs[mode];
       if (!rd_pick_intra_angle_sbuv(cpi, x, bsize, rate_overhead, best_rd,
                                     &this_rate, &tokenonly_rd_stats))
         continue;
@@ -6602,9 +6616,7 @@ static int64_t rd_pick_intra_sbuv_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
         continue;
       }
     }
-    const int mode_cost =
-        x->intra_uv_mode_cost[is_cfl_allowed(xd)][mbmi->mode][mode] +
-        cfl_alpha_rate;
+    const int mode_cost = bmode_costs[mode] + cfl_alpha_rate;
     this_rate = tokenonly_rd_stats.rate +
                 intra_mode_info_cost_uv(cpi, x, mbmi, bsize, mode_cost);
     if (mode == UV_CFL_PRED) {
@@ -6631,11 +6643,9 @@ static int64_t rd_pick_intra_sbuv_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
       av1_allow_palette(cpi->common.allow_screen_content_tools, mbmi->sb_type);
   if (try_palette) {
     uint8_t *best_palette_color_map = x->palette_buffer->best_palette_color_map;
-    rd_pick_palette_intra_sbuv(
-        cpi, x,
-        x->intra_uv_mode_cost[is_cfl_allowed(xd)][mbmi->mode][UV_DC_PRED],
-        best_palette_color_map, &best_mbmi, &best_rd, rate, rate_tokenonly,
-        distortion, skippable);
+    rd_pick_palette_intra_sbuv(cpi, x, bmode_costs[UV_DC_PRED],
+                               best_palette_color_map, &best_mbmi, &best_rd,
+                               rate, rate_tokenonly, distortion, skippable);
   }
 
   *mbmi = best_mbmi;

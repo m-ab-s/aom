@@ -128,6 +128,15 @@ static int read_delta_lflevel(const AV1_COMMON *const cm, aom_reader *r,
   return reduced_delta_lflevel;
 }
 
+#if CONFIG_INTRA_ENTROPY
+// For neural network
+static UV_PREDICTION_MODE read_intra_mode_uv_nn(aom_reader *r,
+                                                aom_cdf_prob *cdf,
+                                                NN_CONFIG_EM *nn_model) {
+  return (UV_PREDICTION_MODE)aom_read_symbol_nn(r, cdf, nn_model,
+                                                UV_INTRA_MODES, ACCT_STR);
+}
+#else
 static UV_PREDICTION_MODE read_intra_mode_uv(FRAME_CONTEXT *ec_ctx,
                                              aom_reader *r,
                                              CFL_ALLOWED_TYPE cfl_allowed,
@@ -137,6 +146,7 @@ static UV_PREDICTION_MODE read_intra_mode_uv(FRAME_CONTEXT *ec_ctx,
                       UV_INTRA_MODES - !cfl_allowed, ACCT_STR);
   return uv_mode;
 }
+#endif  // CONFIG_INTRA_ENTROPY
 
 static uint8_t read_cfl_alphas(FRAME_CONTEXT *const ec_ctx, aom_reader *r,
                                int8_t *signs_out) {
@@ -867,10 +877,10 @@ static void read_intra_frame_mode_info(AV1_COMMON *const cm,
   }
 
 #if CONFIG_INTRA_ENTROPY
-  float features[54], scores[INTRA_MODES];
+  float features[54], scores[100];
   av1_get_intra_block_feature(features, above_mi, left_mi, aboveleft_mi);
   av1_nn_predict_em(features, &(ec_ctx->av1_intra_y_mode), scores);
-  aom_cdf_prob cdf[CDF_SIZE(INTRA_MODES)] = { 0 };
+  aom_cdf_prob cdf[100];
   av1_pdf2cdf(scores, cdf, INTRA_MODES);
   mbmi->mode = read_intra_mode_nn(r, cdf, &(ec_ctx->av1_intra_y_mode));
 #else
@@ -887,8 +897,15 @@ static void read_intra_frame_mode_info(AV1_COMMON *const cm,
       is_chroma_reference(mi_row, mi_col, bsize, xd->plane[1].subsampling_x,
                           xd->plane[1].subsampling_y)) {
     xd->cfl.is_chroma_reference = 1;
+#if CONFIG_INTRA_ENTROPY
+    av1_get_intra_uv_block_feature(features, mbmi->mode, above_mi, left_mi);
+    av1_nn_predict_em(features, &(ec_ctx->av1_intra_uv_mode), scores);
+    av1_pdf2cdf(scores, cdf, UV_INTRA_MODES);
+    mbmi->uv_mode = read_intra_mode_uv_nn(r, cdf, &(ec_ctx->av1_intra_uv_mode));
+#else
     mbmi->uv_mode =
         read_intra_mode_uv(ec_ctx, r, is_cfl_allowed(xd), mbmi->mode);
+#endif  // CONFIG_INTRA_ENTROPY
     if (mbmi->uv_mode == UV_CFL_PRED) {
       mbmi->cfl_alpha_idx = read_cfl_alphas(ec_ctx, r, &mbmi->cfl_alpha_signs);
     }
@@ -1154,8 +1171,18 @@ static void read_intra_block_mode_info(AV1_COMMON *const cm, const int mi_row,
                           xd->plane[1].subsampling_y);
   xd->cfl.is_chroma_reference = has_chroma;
   if (!cm->seq_params.monochrome && has_chroma) {
+#if CONFIG_INTRA_ENTROPY
+    float features[54], scores[UV_INTRA_MODES];
+    av1_get_intra_uv_block_feature(features, mbmi->mode, xd->above_mbmi,
+                                   xd->left_mbmi);
+    av1_nn_predict_em(features, &(ec_ctx->av1_intra_uv_mode), scores);
+    aom_cdf_prob cdf[CDF_SIZE(UV_INTRA_MODES)] = { 0 };
+    av1_pdf2cdf(scores, cdf, UV_INTRA_MODES);
+    mbmi->uv_mode = read_intra_mode_uv_nn(r, cdf, &(ec_ctx->av1_intra_uv_mode));
+#else
     mbmi->uv_mode =
         read_intra_mode_uv(ec_ctx, r, is_cfl_allowed(xd), mbmi->mode);
+#endif  // CONFIG_INTRA_ENTROPY
     if (mbmi->uv_mode == UV_CFL_PRED) {
       mbmi->cfl_alpha_idx =
           read_cfl_alphas(xd->tile_ctx, r, &mbmi->cfl_alpha_signs);
