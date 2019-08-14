@@ -585,8 +585,8 @@ int av1_calc_arf_boost(const TWO_PASS *twopass, const RATE_CONTROL *rc,
     }
   }
 
-  if (arf_boost < ((b_frames + f_frames) * 20))
-    arf_boost = ((b_frames + f_frames) * 20);
+  if (arf_boost < ((b_frames + f_frames) * 50))
+    arf_boost = ((b_frames + f_frames) * 50);
   arf_boost = AOMMAX(arf_boost, MIN_ARF_GF_BOOST);
 
   return arf_boost;
