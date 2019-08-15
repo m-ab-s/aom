@@ -837,11 +837,6 @@ static void init_gop_frames_for_tpl(
   for (gf_index = cur_frame_idx; gf_index <= gop_length; ++gf_index) {
     TplDepFrame *tpl_frame = &cpi->tpl_frame[gf_index];
     FRAME_UPDATE_TYPE frame_update_type = gf_group->update_type[gf_index];
-    if (gf_index == gf_group->size) {
-      frame_update_type = INTNL_OVERLAY_UPDATE;
-      gf_group->update_type[gf_index] = frame_update_type;
-      gf_group->q_val[gf_index] = gf_group->q_val[1];
-    }
 
     frame_params.show_frame = frame_update_type != ARF_UPDATE &&
                               frame_update_type != INTNL_ARF_UPDATE;
