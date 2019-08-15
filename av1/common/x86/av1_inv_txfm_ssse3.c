@@ -2366,7 +2366,7 @@ static INLINE void iidentity_row_8xn_ssse3(__m128i *out, const int32_t *input,
                                           (1 << (NewSqrt2Bits - shift - 1)));
   const __m128i one = _mm_set1_epi16(1);
   const __m128i scale_rounding = _mm_unpacklo_epi16(scale, rounding);
-  if (rect_type != 1 && rect_type != -1) {
+  if ((abs(rect_type) % 2) != 1) {
     for (int i = 0; i < height; ++i) {
       const __m128i src = load_32bit_to_16bit(input_row);
       input_row += stride;
@@ -2559,7 +2559,7 @@ static INLINE void lowbd_inv_txfm2d_add_no_identity_ssse3(
       load_buffer_32bit_to_16bit(input_row + j * 8, input_stride, buf0_cur, 8);
       transpose_16bit_8x8(buf0_cur, buf0_cur);
     }
-    if (rect_type == 1 || rect_type == -1) {
+    if ((abs(rect_type) % 2) == 1) {
       round_shift_ssse3(buf0, buf0, input_stride);  // rect special code
     }
     row_txfm(buf0, buf0, cos_bit_row);
@@ -2669,7 +2669,7 @@ static INLINE void lowbd_inv_txfm2d_add_v_identity_ssse3(
       load_buffer_32bit_to_16bit(input_row + j * 8, input_stride, buf0_cur, 8);
       transpose_16bit_8x8(buf0_cur, buf0_cur);
     }
-    if (rect_type == 1 || rect_type == -1) {
+    if ((abs(rect_type) % 2) == 1) {
       round_shift_ssse3(buf0, buf0, input_stride);  // rect special code
     }
     row_txfm(buf0, buf0, cos_bit_row);

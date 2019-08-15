@@ -197,6 +197,14 @@ static int max_error_ls[TX_SIZES_ALL] = {
   2,  // 32x8 transform
   3,  // 16x64 transform
   3,  // 64x16 transform
+#if CONFIG_FLEX_PARTITION
+  2,    // 4x32 transform
+  2,    // 4x32 transform
+  3,    // 8x64 transform
+  3,    // 64x8 transform
+  3,    // 4x64 transform
+  3,    // 64x4 transform
+#endif  // CONFIG_FLEX_PARTITION
 };
 
 static double avg_error_ls[TX_SIZES_ALL] = {
@@ -219,6 +227,14 @@ static double avg_error_ls[TX_SIZES_ALL] = {
   0.2,    // 32x8 transform
   0.38,   // 16x64 transform
   0.38,   // 64x16 transform
+#if CONFIG_FLEX_PARTITION
+  0.25,  // 4x32 transform
+  0.25,  // 4x32 transform
+  0.36,  // 8x64 transform
+  0.36,  // 64x8 transform
+  0.32,  // 4x64 transform
+  0.32,  // 64x4 transform
+#endif   // CONFIG_FLEX_PARTITION
 };
 
 vector<AV1InvTxfm2dParam> GetInvTxfm2dParamList() {
@@ -377,6 +393,12 @@ void AV1LbdInvTxfm2d::RunAV1InvTxfm2dTest(TxType tx_type, TxSize tx_size,
 
 TEST_P(AV1LbdInvTxfm2d, match) {
   for (int j = 0; j < (int)(TX_SIZES_ALL); ++j) {
+#if CONFIG_FLEX_PARTITION
+    // TODO(any): Once implemented enable these tests
+    if (j == TX_4X32 || j == TX_32X4 || j == TX_8X64 || j == TX_64X8 ||
+        j == TX_4X64 || j == TX_64X4)
+      continue;
+#endif  // CONFIG_FLEX_PARTITION
     for (int i = 0; i < (int)TX_TYPES; ++i) {
       if (libaom_test::IsTxSizeTypeValid(static_cast<TxSize>(j),
                                          static_cast<TxType>(i))) {
@@ -391,6 +413,12 @@ TEST_P(AV1LbdInvTxfm2d, gt_int16) {
                                   V_DCT,   H_DCT,    H_ADST,       H_FLIPADST };
   for (int j = 0; j < (int)(TX_SIZES_ALL); ++j) {
     const TxSize sz = static_cast<TxSize>(j);
+#if CONFIG_FLEX_PARTITION
+    // TODO(any): Once implemented enable these tests
+    if (j == TX_4X32 || j == TX_32X4 || j == TX_8X64 || j == TX_64X8 ||
+        j == TX_4X64 || j == TX_64X4)
+      continue;
+#endif  // CONFIG_FLEX_PARTITION
     for (uint8_t i = 0; i < sizeof(types) / sizeof(types[0]); ++i) {
       const TxType tp = types[i];
       if (libaom_test::IsTxSizeTypeValid(sz, tp)) {
@@ -402,6 +430,12 @@ TEST_P(AV1LbdInvTxfm2d, gt_int16) {
 
 TEST_P(AV1LbdInvTxfm2d, DISABLED_Speed) {
   for (int j = 1; j < (int)(TX_SIZES_ALL); ++j) {
+#if CONFIG_FLEX_PARTITION
+    // TODO(any): Once implemented enable these tests
+    if (j == TX_4X32 || j == TX_32X4 || j == TX_8X64 || j == TX_64X8 ||
+        j == TX_4X64 || j == TX_64X4)
+      continue;
+#endif  // CONFIG_FLEX_PARTITION
     for (int i = 0; i < (int)TX_TYPES; ++i) {
       if (libaom_test::IsTxSizeTypeValid(static_cast<TxSize>(j),
                                          static_cast<TxType>(i))) {

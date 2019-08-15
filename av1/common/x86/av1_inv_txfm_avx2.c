@@ -1935,6 +1935,14 @@ void av1_lowbd_inv_txfm2d_add_avx2(const int32_t *input, uint8_t *output,
     case TX_16X4:
     case TX_8X32:
     case TX_32X8:
+#if CONFIG_FLEX_PARTITION
+    case TX_4X32:
+    case TX_32X4:
+    case TX_8X64:
+    case TX_64X8:
+    case TX_4X64:
+    case TX_64X4:
+#endif  // CONFIG_FLEX_PARTITION
       av1_lowbd_inv_txfm2d_add_ssse3(input, output, stride, tx_type, tx_size,
 #if CONFIG_MODE_DEP_TX
                                      mode,

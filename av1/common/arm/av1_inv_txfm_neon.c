@@ -3627,7 +3627,7 @@ static INLINE void lowbd_inv_txfm2d_add_idtx_neon(const int32_t *input,
       input_1 += 8;
     }
     input += (txfm_size_col * 8);
-    if (abs(rect_type) == 1) {
+    if ((abs(rect_type) % 2) == 1) {
       int y = i * txfm_size_col;
       round_shift_for_rect(&a[y], &a[y], txfm_size_col);
     }
@@ -3691,7 +3691,7 @@ static INLINE void lowbd_inv_txfm2d_add_v_identity_neon(
       input_1 += 8;
     }
     input += (txfm_size_col * 8);
-    if (abs(rect_type) == 1) {
+    if ((abs(rect_type) % 2) == 1) {
       int y = i * txfm_size_col;
       round_shift_for_rect(&a[y], &a[y], txfm_size_col);
     }
@@ -3766,7 +3766,7 @@ static INLINE void lowbd_inv_txfm2d_add_h_identity_neon(
       input_1 += 8;
     }
     input += (txfm_size_col * 8);
-    if (abs(rect_type) == 1) {
+    if ((abs(rect_type) % 2) == 1) {
       int y = i * txfm_size_col;
       round_shift_for_rect(&a[y], &a[y], txfm_size_col);
     }
@@ -4161,7 +4161,7 @@ static INLINE void lowbd_inv_txfm2d_add_no_identity_neon(
       input_1 += 8;
     }
     input += (input_stride * 8);
-    if (abs(rect_type) == 1) {
+    if ((abs(rect_type) % 2) == 1) {
       int y = i * txfm_size_col;
       round_shift_for_rect(&a[y], &a[y], input_stride);
     }
