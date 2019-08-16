@@ -100,7 +100,7 @@ void av1_get_intra_block_feature(float *features, const MB_MODE_INFO *above_mi,
       features[pt++] = 0.125f;
     }
   }
-#if INTRA_MODEL == 0
+#if INTRA_MODEL <= 0
   features[pt++] = above_var / 12534.f;
   features[pt++] = left_var / 12534.f;
   features[pt++] = al_var / 12534.f;

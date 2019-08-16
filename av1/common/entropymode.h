@@ -59,7 +59,7 @@ extern "C" {
 #define KF_MODE_CONTEXTS 5
 
 #if CONFIG_INTRA_ENTROPY
-#define INTRA_MODEL 0  // 0: hist+var+mode; 1: hist; 2: hist+mode
+#define INTRA_MODEL -1  // -1:linear 0; 0:hist+var+mode; 1:hist; 2:hist+mode
 enum { ACTN_NONE, ACTN_RELU, ACTN_SIGMOID } UENUM1BYTE(ACTN);
 enum { SOFTMAX_CROSS_ENTROPY_LOSS } UENUM1BYTE(LOSS_F);
 struct NN_CONFIG_EM;
