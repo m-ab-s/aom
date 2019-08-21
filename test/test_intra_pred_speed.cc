@@ -94,6 +94,9 @@ static const char *const kTxSizeStrings[TX_SIZES_ALL] = {
   "4X4",  "8X8",  "16X16", "32X32", "64X64", "4X8",   "8X4",
   "8X16", "16X8", "16X32", "32X16", "32X64", "64X32", "4X16",
   "16X4", "8X32", "32X8",  "16X64", "64X16",
+#if CONFIG_FLEX_PARTITION
+  "4X32", "32X4", "8X64",  "64X8",  "4X64",  "64X4",
+#endif  // CONFIG_FLEX_PARTITION
 };
 
 void CheckMd5Signature(TX_SIZE tx_size, bool is_hbd,
@@ -394,6 +397,86 @@ static const char *const kSignatures[TX_SIZES_ALL][kNumAv1IntraFuncs] = {
       "c7253e10b45f7f67dfee3256c9b94825",
       "879792198071c7e0b50b9b5010d8c18f",
   },
+#if CONFIG_FLEX_PARTITION
+  {
+      // 4X32
+      "5fc2bd46cbc8cbe95ce7537e3e6bc343",
+      "717b3af5708c9d5980268241e754b476",
+      "418d3ad30789ba0eab5c578fb747b8d7",
+      "3a98462e7d96c84fdd28d3929bfcbce3",
+      "1a02bb49384964c8b9744233b6d06e99",
+      "65e09d6c672cc9b6bb3a89c888a00b96",
+      "5695ebc6633d14fbc6b66bd92ac03e82",
+      "89fda21cf4aa37904a7c7ad8493db0b5",
+      "55f2de72cd0e62d8977cef7224ae2f26",
+      "ef205a718927af5fd53fce6d9421a249",
+  },
+  {
+      // 32X4
+      "b43fa815263f16df1e12142a0e05da29",
+      "df278a089e05395d43f2c8344fbfa1eb",
+      "b43fa815263f16df1e12142a0e05da29",
+      "6e2a991fab6a26f44168121adf6047c1",
+      "cb91b23d2bb5416aa83dcd188f0936cf",
+      "0eab2d67ddd125792d036ee1dc1bd6ee",
+      "fdc0c38505730dc1d1e48bf83724b3ca",
+      "470227f929657fe0e49ae1f5e152b66b",
+      "2b12a195e6615fbb6887af67c5b651e2",
+      "d3b89deaf00104e33dc8fa8ef328450a",
+  },
+  {
+      // 8X64
+      "5ec48ddb21526078d89cf4d51dc09a64",
+      "4794dff583a67c7df26c6b34c18e35d2",
+      "ce1241ca91dfe8d76825a05f716f2ecb",
+      "4c741017cdff05f318a35bfcf8c0449b",
+      "b6f333114b204d381b672a2ae0f37eb5",
+      "ae12681099c048311375dfdf776786b9",
+      "3fe889cd2a4d14aa3f3c1c11a714d2db",
+      "3645fcd3d628383cfbb5f76c2ff627bb",
+      "a78dcd04a043dfb17f057a409d8ede10",
+      "796c917ab7dfc150bb31759e3574f921",
+  },
+  {
+      // 64X8
+      "cd9f2dc90cd3872e0a76a7291045ff15",
+      "4d74e0d94b4ca9610d6d19fa2ed7755e",
+      "cd9f2dc90cd3872e0a76a7291045ff15",
+      "e1f1219589eaa4f30d57ea6a7fa2596f",
+      "8b1cb4e8b1060e25814dcfbb18853cda",
+      "61ede8477129968c9329188bd3e5c948",
+      "316834955affc8731db3f7641aea62a0",
+      "9b00993aca3d03b548fa601cd2b2aa90",
+      "ff92038a37d4edd419a8eed78e6102b2",
+      "5648b2437bf05b675256e75e114941b9",
+  },
+  {
+      // 4X64
+      "b1ad7c5810340cdf4f93bf5fe6ac3e34",
+      "a10cdfdc9e7757b6846401fe490864cc",
+      "76e3331435530287ada471a116b2e329",
+      "357ae0864f38176e5d35944ad8983a43",
+      "b53956c43eff137b7f8e10d6dd040b98",
+      "e794f5820b720aaaa0ce8e486ebad74b",
+      "1ae6abab6b54645af178ec0a6007c4e5",
+      "734bbee64bd48eadd7a082b88776fd98",
+      "2ca1d70ebc2e026721bc8bd01a109417",
+      "381162c93fcd426cba1427a911dae9a9",
+  },
+  {
+      // 64X4
+      "abe5f4b3e436080d5075d08707195f97",
+      "67a939679384f93530c995a94b7ab154",
+      "abe5f4b3e436080d5075d08707195f97",
+      "f36e3e691c526bb552f086fcfabba946",
+      "fa89cdf2c9956919f31cf10091550fc1",
+      "1e99740c132a7625adde7ca5177a330d",
+      "1f59d830830c56ab84056bfa9cb0860c",
+      "88e9e0b8044908abad761390c0bfc531",
+      "abeb88c0fa4e2bf7d57975206b8251a4",
+      "656ede98703dc20a0e75fd8b757374e4",
+  },
+#endif  // CONFIG_FLEX_PARTITION
 };
 
 }  // namespace
@@ -433,6 +516,22 @@ INTRA_PRED_TEST(C_3, TX_4X16, aom_dc_predictor_4x16_c,
                 aom_h_predictor_4x16_c, aom_paeth_predictor_4x16_c,
                 aom_smooth_predictor_4x16_c, aom_smooth_v_predictor_4x16_c,
                 aom_smooth_h_predictor_4x16_c)
+
+#if CONFIG_FLEX_PARTITION
+INTRA_PRED_TEST(C_4, TX_4X32, aom_dc_predictor_4x32_c,
+                aom_dc_left_predictor_4x32_c, aom_dc_top_predictor_4x32_c,
+                aom_dc_128_predictor_4x32_c, aom_v_predictor_4x32_c,
+                aom_h_predictor_4x32_c, aom_paeth_predictor_4x32_c,
+                aom_smooth_predictor_4x32_c, aom_smooth_v_predictor_4x32_c,
+                aom_smooth_h_predictor_4x32_c)
+
+INTRA_PRED_TEST(C_5, TX_4X64, aom_dc_predictor_4x64_c,
+                aom_dc_left_predictor_4x64_c, aom_dc_top_predictor_4x64_c,
+                aom_dc_128_predictor_4x64_c, aom_v_predictor_4x64_c,
+                aom_h_predictor_4x64_c, aom_paeth_predictor_4x64_c,
+                aom_smooth_predictor_4x64_c, aom_smooth_v_predictor_4x64_c,
+                aom_smooth_h_predictor_4x64_c)
+#endif  // CONFIG_FLEX_PARTITION
 
 #if HAVE_SSE2
 INTRA_PRED_TEST(SSE2_1, TX_4X4, aom_dc_predictor_4x4_sse2,
@@ -513,6 +612,15 @@ INTRA_PRED_TEST(C_4, TX_8X32, aom_dc_predictor_8x32_c,
                 aom_h_predictor_8x32_c, aom_paeth_predictor_8x32_c,
                 aom_smooth_predictor_8x32_c, aom_smooth_v_predictor_8x32_c,
                 aom_smooth_h_predictor_8x32_c)
+
+#if CONFIG_FLEX_PARTITION
+INTRA_PRED_TEST(C_5, TX_8X64, aom_dc_predictor_8x64_c,
+                aom_dc_left_predictor_8x64_c, aom_dc_top_predictor_8x64_c,
+                aom_dc_128_predictor_8x64_c, aom_v_predictor_8x64_c,
+                aom_h_predictor_8x64_c, aom_paeth_predictor_8x64_c,
+                aom_smooth_predictor_8x64_c, aom_smooth_v_predictor_8x64_c,
+                aom_smooth_h_predictor_8x64_c)
+#endif  // CONFIG_FLEX_PARTITION
 
 #if HAVE_SSE2
 INTRA_PRED_TEST(SSE2_1, TX_8X8, aom_dc_predictor_8x8_sse2,
@@ -765,6 +873,15 @@ INTRA_PRED_TEST(C_4, TX_32X8, aom_dc_predictor_32x8_c,
                 aom_smooth_predictor_32x8_c, aom_smooth_v_predictor_32x8_c,
                 aom_smooth_h_predictor_32x8_c)
 
+#if CONFIG_FLEX_PARTITION
+INTRA_PRED_TEST(C_4, TX_32X4, aom_dc_predictor_32x4_c,
+                aom_dc_left_predictor_32x4_c, aom_dc_top_predictor_32x4_c,
+                aom_dc_128_predictor_32x4_c, aom_v_predictor_32x4_c,
+                aom_h_predictor_32x4_c, aom_paeth_predictor_32x4_c,
+                aom_smooth_predictor_32x4_c, aom_smooth_v_predictor_32x4_c,
+                aom_smooth_h_predictor_32x4_c)
+#endif  // CONFIG_FLEX_PARTITION
+
 #if HAVE_SSE2
 INTRA_PRED_TEST(SSE2_1, TX_32X32, aom_dc_predictor_32x32_sse2,
                 aom_dc_left_predictor_32x32_sse2,
@@ -866,6 +983,22 @@ INTRA_PRED_TEST(C_3, TX_64X16, aom_dc_predictor_64x16_c,
                 aom_h_predictor_64x16_c, aom_paeth_predictor_64x16_c,
                 aom_smooth_predictor_64x16_c, aom_smooth_v_predictor_64x16_c,
                 aom_smooth_h_predictor_64x16_c)
+
+#if CONFIG_FLEX_PARTITION
+INTRA_PRED_TEST(C_3, TX_64X8, aom_dc_predictor_64x8_c,
+                aom_dc_left_predictor_64x8_c, aom_dc_top_predictor_64x8_c,
+                aom_dc_128_predictor_64x8_c, aom_v_predictor_64x8_c,
+                aom_h_predictor_64x8_c, aom_paeth_predictor_64x8_c,
+                aom_smooth_predictor_64x8_c, aom_smooth_v_predictor_64x8_c,
+                aom_smooth_h_predictor_64x8_c)
+
+INTRA_PRED_TEST(C_3, TX_64X4, aom_dc_predictor_64x4_c,
+                aom_dc_left_predictor_64x4_c, aom_dc_top_predictor_64x4_c,
+                aom_dc_128_predictor_64x4_c, aom_v_predictor_64x4_c,
+                aom_h_predictor_64x4_c, aom_paeth_predictor_64x4_c,
+                aom_smooth_predictor_64x4_c, aom_smooth_v_predictor_64x4_c,
+                aom_smooth_h_predictor_64x4_c)
+#endif  // CONFIG_FLEX_PARTITION
 
 #if HAVE_SSE2
 INTRA_PRED_TEST(SSE2_4, TX_64X64, aom_dc_predictor_64x64_sse2,
@@ -1210,6 +1343,86 @@ static const char *const kHighbdSignatures[TX_SIZES_ALL][kNumAv1IntraFuncs] = {
       "42b8e4a97b7f8416c72a5148c031c0b1",
       "a38a2c5f79993dfae8530e9e25800893",
   },
+#if CONFIG_FLEX_PARTITION
+  {
+      // 4X32
+      "c1f205381dd47ee115861c8df74a8d2a",
+      "d308c629b42a56caa55e93bc2ff08edf",
+      "0484c9ed3e6fe75114af0223ca60b0b5",
+      "fea0399bb03d7cd70120bd560cd25f7e",
+      "1a90e01df720689d44f0e02363e29a6a",
+      "c57921532a454508b8396e982d67645c",
+      "f3efa10c9c8f6f5c613dd548a21eba92",
+      "2d8350d3ff9eb151d08c2f7ef5b77a42",
+      "c1b1559ce8a742a134ade2485495681b",
+      "253807b389f030adb0db0a58dc3e2219",
+  },
+  {
+      // 32X4
+      "542034f74460992a3832a085a5fa7d25",
+      "bcc87d9c4c8b3735d191b80f594301e1",
+      "78af1ea02b695466de6ced787674d866",
+      "b650485dac9bc7fa950c23a0c4d911ee",
+      "4b8932f334cd82f80cd1817d9bf77e0b",
+      "4c2d5d30d82966d7e4021743d482e75f",
+      "9a504184040639a8deb436050b787858",
+      "f7e001f9de5e21290740c47129b3a3e3",
+      "f06e26a10b01d5d055a5f7b2dd96cd6a",
+      "be5d8ae690f5e12bf0cdd0121dbc6c3c",
+  },
+  {
+      // 8X64
+      "80bf84825acf743d2652616c30b24d32",
+      "22ee32f73153ff733e171d1a452a59d3",
+      "55d6b331e94c22554ff8029d80296a17",
+      "9245c7da44f7dacfa174cb76eba91c38",
+      "9c021b9d2090c9ff6bace10358d7614f",
+      "ff553672ed45246008710fe207664c8a",
+      "8245747e70c63c642975c2d9863d3149",
+      "e61fa1dcca5746a733e64028f649a426",
+      "fb689879afd1b31bc17a3a6c8be6a564",
+      "adbb9800477e45a70b98d55181b1784f",
+  },
+  {
+      // 64X8
+      "10e88eb167e37a48eb35fd7da7b49d01",
+      "f4650467c1bf1b4ba2f2e40f43750b0c",
+      "94ea269ebc197c9ac2067b6ef155bf23",
+      "c1f64e228f33fcc03add69ac76ab71c7",
+      "a26b47387bee6b736c4c793c32f36707",
+      "b1e25d53395dd2865245baad8e09d080",
+      "a050068aa252d8f6403626dbbc563967",
+      "fe984530a619fe7a03006019e7ab9c3d",
+      "667153043b1bd30a55752e05a8954895",
+      "fdf532602fb459e6e8b203ff8f3c8937",
+  },
+  {
+      // 4X64
+      "eccb8c3bb21347c15476e5c95df1dca5",
+      "db5b2789a9721bf272315e61d05a5fa6",
+      "4f6862b525ebd927d313aa227f1e94a1",
+      "8a16ff84d8fcab14462fd27a40c9373a",
+      "759f6ca39945c4e0f3c77c985ab407dc",
+      "44c0d6683d17fd4ae8f877f0164715da",
+      "78caa4994daa63ee6bdd92737b2b3f52",
+      "62b1bd244e363a528af5455fe0893c53",
+      "6ecdf103ef4946a3ea4b2ed4eed34601",
+      "49e8603f6a245411ae5664088431e3be",
+  },
+  {
+      // 64X4
+      "94c22d8118c0271bc3b00d3f3dcd4300",
+      "9449b10f30f1e001ed86ce3fb6e90f0f",
+      "cbe689a5948a18890b773f60e6767f19",
+      "d9ea12ab2299ef331e3285bcac880617",
+      "79d110d646e65a15d08e385598043e64",
+      "c72945ce7b99d36883183f30de0601e5",
+      "d7c7a7d49f418a7db3e5ae44aac03385",
+      "eafe16d5686f2e050c9aa98291b5d3ea",
+      "50d2243d7094a8a8091f7bb0e45a6dd3",
+      "a25621808c86377cdddb630381f04f3d",
+  },
+#endif  // CONFIG_FLEX_PARTITION
 };
 
 }  // namespace
@@ -1249,6 +1462,24 @@ HIGHBD_INTRA_PRED_TEST(
     aom_highbd_h_predictor_4x16_c, aom_highbd_paeth_predictor_4x16_c,
     aom_highbd_smooth_predictor_4x16_c, aom_highbd_smooth_v_predictor_4x16_c,
     aom_highbd_smooth_h_predictor_4x16_c)
+
+#if CONFIG_FLEX_PARTITION
+HIGHBD_INTRA_PRED_TEST(
+    C_4, TX_4X32, aom_highbd_dc_predictor_4x32_c,
+    aom_highbd_dc_left_predictor_4x32_c, aom_highbd_dc_top_predictor_4x32_c,
+    aom_highbd_dc_128_predictor_4x32_c, aom_highbd_v_predictor_4x32_c,
+    aom_highbd_h_predictor_4x32_c, aom_highbd_paeth_predictor_4x32_c,
+    aom_highbd_smooth_predictor_4x32_c, aom_highbd_smooth_v_predictor_4x32_c,
+    aom_highbd_smooth_h_predictor_4x32_c)
+
+HIGHBD_INTRA_PRED_TEST(
+    C_5, TX_4X64, aom_highbd_dc_predictor_4x64_c,
+    aom_highbd_dc_left_predictor_4x64_c, aom_highbd_dc_top_predictor_4x64_c,
+    aom_highbd_dc_128_predictor_4x64_c, aom_highbd_v_predictor_4x64_c,
+    aom_highbd_h_predictor_4x64_c, aom_highbd_paeth_predictor_4x64_c,
+    aom_highbd_smooth_predictor_4x64_c, aom_highbd_smooth_v_predictor_4x64_c,
+    aom_highbd_smooth_h_predictor_4x64_c)
+#endif  // CONFIG_FLEX_PARTITION
 
 #if HAVE_SSE2
 HIGHBD_INTRA_PRED_TEST(SSE2_1, TX_4X4, aom_highbd_dc_predictor_4x4_sse2,
@@ -1300,6 +1531,16 @@ HIGHBD_INTRA_PRED_TEST(
     aom_highbd_h_predictor_8x32_c, aom_highbd_paeth_predictor_8x32_c,
     aom_highbd_smooth_predictor_8x32_c, aom_highbd_smooth_v_predictor_8x32_c,
     aom_highbd_smooth_h_predictor_8x32_c)
+
+#if CONFIG_FLEX_PARTITION
+HIGHBD_INTRA_PRED_TEST(
+    C_5, TX_8X64, aom_highbd_dc_predictor_8x64_c,
+    aom_highbd_dc_left_predictor_8x64_c, aom_highbd_dc_top_predictor_8x64_c,
+    aom_highbd_dc_128_predictor_8x64_c, aom_highbd_v_predictor_8x64_c,
+    aom_highbd_h_predictor_8x64_c, aom_highbd_paeth_predictor_8x64_c,
+    aom_highbd_smooth_predictor_8x64_c, aom_highbd_smooth_v_predictor_8x64_c,
+    aom_highbd_smooth_h_predictor_8x64_c)
+#endif  // CONFIG_FLEX_PARTITION
 
 #if HAVE_SSE2
 HIGHBD_INTRA_PRED_TEST(SSE2_1, TX_8X8, aom_highbd_dc_predictor_8x8_sse2,
@@ -1465,6 +1706,16 @@ HIGHBD_INTRA_PRED_TEST(
     aom_highbd_smooth_predictor_32x8_c, aom_highbd_smooth_v_predictor_32x8_c,
     aom_highbd_smooth_h_predictor_32x8_c)
 
+#if CONFIG_FLEX_PARTITION
+HIGHBD_INTRA_PRED_TEST(
+    C_5, TX_32X4, aom_highbd_dc_predictor_32x4_c,
+    aom_highbd_dc_left_predictor_32x4_c, aom_highbd_dc_top_predictor_32x4_c,
+    aom_highbd_dc_128_predictor_32x4_c, aom_highbd_v_predictor_32x4_c,
+    aom_highbd_h_predictor_32x4_c, aom_highbd_paeth_predictor_32x4_c,
+    aom_highbd_smooth_predictor_32x4_c, aom_highbd_smooth_v_predictor_32x4_c,
+    aom_highbd_smooth_h_predictor_32x4_c)
+#endif  // CONFIG_FLEX_PARTITION
+
 #if HAVE_SSE2
 HIGHBD_INTRA_PRED_TEST(SSE2_1, TX_32X32, aom_highbd_dc_predictor_32x32_sse2,
                        aom_highbd_dc_left_predictor_32x32_sse2,
@@ -1522,6 +1773,23 @@ HIGHBD_INTRA_PRED_TEST(
     aom_highbd_smooth_predictor_64x16_c, aom_highbd_smooth_v_predictor_64x16_c,
     aom_highbd_smooth_h_predictor_64x16_c)
 
+#if CONFIG_FLEX_PARTITION
+HIGHBD_INTRA_PRED_TEST(
+    C_4, TX_64X4, aom_highbd_dc_predictor_64x4_c,
+    aom_highbd_dc_left_predictor_64x4_c, aom_highbd_dc_top_predictor_64x4_c,
+    aom_highbd_dc_128_predictor_64x4_c, aom_highbd_v_predictor_64x4_c,
+    aom_highbd_h_predictor_64x4_c, aom_highbd_paeth_predictor_64x4_c,
+    aom_highbd_smooth_predictor_64x4_c, aom_highbd_smooth_v_predictor_64x4_c,
+    aom_highbd_smooth_h_predictor_64x4_c)
+
+HIGHBD_INTRA_PRED_TEST(
+    C_5, TX_64X8, aom_highbd_dc_predictor_64x8_c,
+    aom_highbd_dc_left_predictor_64x8_c, aom_highbd_dc_top_predictor_64x8_c,
+    aom_highbd_dc_128_predictor_64x8_c, aom_highbd_v_predictor_64x8_c,
+    aom_highbd_h_predictor_64x8_c, aom_highbd_paeth_predictor_64x8_c,
+    aom_highbd_smooth_predictor_64x8_c, aom_highbd_smooth_v_predictor_64x8_c,
+    aom_highbd_smooth_h_predictor_64x8_c)
+#endif  // CONFIG_FLEX_PARTITION
 // -----------------------------------------------------------------------------
 
 #include "test/test_libaom.cc"
