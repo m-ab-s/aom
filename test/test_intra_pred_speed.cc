@@ -546,6 +546,16 @@ INTRA_PRED_TEST(SSE2_3, TX_4X16, aom_dc_predictor_4x16_sse2,
                 aom_dc_left_predictor_4x16_sse2, aom_dc_top_predictor_4x16_sse2,
                 aom_dc_128_predictor_4x16_sse2, aom_v_predictor_4x16_sse2,
                 aom_h_predictor_4x16_sse2, NULL, NULL, NULL, NULL)
+#if CONFIG_FLEX_PARTITION
+INTRA_PRED_TEST(SSE2_4, TX_4X32, aom_dc_predictor_4x32_sse2,
+                aom_dc_left_predictor_4x32_sse2, aom_dc_top_predictor_4x32_sse2,
+                aom_dc_128_predictor_4x32_sse2, aom_v_predictor_4x32_sse2,
+                aom_h_predictor_4x32_sse2, NULL, NULL, NULL, NULL)
+INTRA_PRED_TEST(SSE2_5, TX_4X64, aom_dc_predictor_4x64_sse2,
+                aom_dc_left_predictor_4x64_sse2, aom_dc_top_predictor_4x64_sse2,
+                aom_dc_128_predictor_4x64_sse2, aom_v_predictor_4x64_sse2,
+                aom_h_predictor_4x64_sse2, NULL, NULL, NULL, NULL)
+#endif  // CONFIG_FLEX_PARTITION
 #endif  // HAVE_SSE2
 
 #if HAVE_SSSE3
@@ -639,6 +649,12 @@ INTRA_PRED_TEST(SSE2_4, TX_8X32, aom_dc_predictor_8x32_sse2,
                 aom_dc_left_predictor_8x32_sse2, aom_dc_top_predictor_8x32_sse2,
                 aom_dc_128_predictor_8x32_sse2, aom_v_predictor_8x32_sse2,
                 aom_h_predictor_8x32_sse2, NULL, NULL, NULL, NULL)
+#if CONFIG_FLEX_PARTITION
+INTRA_PRED_TEST(SSE2_5, TX_8X64, aom_dc_predictor_8x64_sse2,
+                aom_dc_left_predictor_8x64_sse2, aom_dc_top_predictor_8x64_sse2,
+                aom_dc_128_predictor_8x64_sse2, aom_v_predictor_8x64_sse2,
+                aom_h_predictor_8x64_sse2, NULL, NULL, NULL, NULL)
+#endif  // CONFIG_FLEX_PARTITION
 #endif  // HAVE_SSE2
 
 #if HAVE_SSSE3
@@ -902,6 +918,12 @@ INTRA_PRED_TEST(SSE2_4, TX_32X8, aom_dc_predictor_32x8_sse2,
                 aom_dc_left_predictor_32x8_sse2, aom_dc_top_predictor_32x8_sse2,
                 aom_dc_128_predictor_32x8_sse2, aom_v_predictor_32x8_sse2,
                 aom_h_predictor_32x8_sse2, NULL, NULL, NULL, NULL)
+#if CONFIG_FLEX_PARTITION
+INTRA_PRED_TEST(SSE2_5, TX_32X4, aom_dc_predictor_32x4_sse2,
+                aom_dc_left_predictor_32x4_sse2, aom_dc_top_predictor_32x4_sse2,
+                aom_dc_128_predictor_32x4_sse2, aom_v_predictor_32x4_sse2,
+                aom_h_predictor_32x4_sse2, NULL, NULL, NULL, NULL)
+#endif  // CONFIG_FLEX_PARTITION
 #endif  // HAVE_SSE2
 
 #if HAVE_SSSE3
@@ -1016,6 +1038,16 @@ INTRA_PRED_TEST(SSE2_6, TX_64X16, aom_dc_predictor_64x16_sse2,
                 aom_dc_top_predictor_64x16_sse2,
                 aom_dc_128_predictor_64x16_sse2, aom_v_predictor_64x16_sse2,
                 aom_h_predictor_64x16_sse2, NULL, NULL, NULL, NULL)
+#if CONFIG_FLEX_PARTITION
+INTRA_PRED_TEST(SSE2_5, TX_64X8, aom_dc_predictor_64x8_sse2,
+                aom_dc_left_predictor_64x8_sse2, aom_dc_top_predictor_64x8_sse2,
+                aom_dc_128_predictor_64x8_sse2, aom_v_predictor_64x8_sse2,
+                aom_h_predictor_64x8_sse2, NULL, NULL, NULL, NULL)
+INTRA_PRED_TEST(SSE2_6, TX_64X4, aom_dc_predictor_64x4_sse2,
+                aom_dc_left_predictor_64x4_sse2, aom_dc_top_predictor_64x4_sse2,
+                aom_dc_128_predictor_64x4_sse2, aom_v_predictor_64x4_sse2,
+                aom_h_predictor_64x4_sse2, NULL, NULL, NULL, NULL)
+#endif  // CONFIG_FLEX_PARTITION
 #endif
 
 #if HAVE_SSSE3
