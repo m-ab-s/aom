@@ -29,7 +29,7 @@ PREDICTION_MODE av1_above_block_mode(const MB_MODE_INFO *above_mi) {
 }
 
 #if CONFIG_INTRA_ENTROPY
-#if !USE_SMALL_MODEL
+#if !CONFIG_USE_SMALL_MODEL
 INLINE static void add_hist_features(const uint64_t *hist, float **features) {
   float total = 0.0f;
   if (hist) {
@@ -53,7 +53,7 @@ INLINE static void add_hist_features(const uint64_t *hist, float **features) {
   }
   *features += 8;
 }
-#endif  // !USE_SMALL_MODEL
+#endif  // !CONFIG_USE_SMALL_MODEL
 
 static void add_onehot(float **features, int num, int n) {
   float *feature_pt = *features;
@@ -66,11 +66,11 @@ void av1_get_intra_block_feature(float *features, const MB_MODE_INFO *above_mi,
                                  const MB_MODE_INFO *left_mi,
                                  const MB_MODE_INFO *aboveleft_mi) {
   const MB_MODE_INFO *mbmi_list[3] = { above_mi, left_mi, aboveleft_mi };
-  const int num_mbmi = USE_SMALL_MODEL ? 2 : 3;
+  const int num_mbmi = CONFIG_USE_SMALL_MODEL ? 2 : 3;
   for (int i = 0; i < num_mbmi; ++i) {
     const MB_MODE_INFO *mbmi = mbmi_list[i];
     const int data_available = mbmi != NULL;
-#if USE_SMALL_MODEL
+#if CONFIG_USE_SMALL_MODEL
     add_onehot(&features, INTRA_MODES, data_available ? mbmi->mode : -1);
 #else
     *(features++) = data_available;
@@ -199,49 +199,73 @@ void av1_setup_block_planes(MACROBLOCKD *xd, int ss_x, int ss_y,
   }
 }
 
-#if CONFIG_INTRA_ENTROPY && !USE_SMALL_MODEL
-// Indices are sign, integer, and fractional part of the gradient value
-static const uint8_t gradient_to_angle_bin[2][7][16] = {
-  {
-      { 6, 6, 6, 6, 7, 7, 7, 7, 7, 7, 7, 7, 0, 0, 0, 0 },
-      { 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1 },
-      { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 },
-      { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 },
-      { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 },
-      { 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2 },
-      { 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2 },
-  },
-  {
-      { 6, 6, 6, 6, 5, 5, 5, 5, 5, 5, 5, 5, 4, 4, 4, 4 },
-      { 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 3, 3, 3, 3, 3, 3 },
-      { 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3 },
-      { 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3 },
-      { 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3 },
-      { 3, 3, 3, 3, 3, 3, 3, 2, 2, 2, 2, 2, 2, 2, 2, 2 },
-      { 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2 },
-  },
+#if CONFIG_INTRA_ENTROPY && !CONFIG_USE_SMALL_MODEL
+static const int16_t cos_angle[8] = {
+  // 45 degrees
+  45,
+  // 22.5 degrees
+  59,
+  // 0 degrees
+  64,
+  // -22.5 degrees,
+  59,
+  // -45 degrees
+  45,
+  // -67.5 degrees
+  24,
+  // -90 degrees
+  0,
+  // 67.5 degrees
+  24,
 };
 
-static void get_gradient_hist(const uint8_t *dst, int stride, int rows,
-                              int cols, uint64_t *hist) {
+static const int16_t sin_angle[8] = {
+  // 45 degrees
+  45,
+  // 22.5 degrees
+  24,
+  // 0 degrees
+  0,
+  // -22.5 degrees,
+  -24,
+  // -45 degrees
+  -45,
+  // -67.5 degrees
+  -59,
+  // -90 degrees
+  64,
+  // 67.5 degrees
+  59,
+};
+
+static INLINE uint8_t get_angle_idx(int dx, int dy) {
+  int max_response = 0;
+  int max_angle = 0;
+  for (int angle_idx = 0; angle_idx < 8; angle_idx++) {
+    const int cos = cos_angle[angle_idx];
+    const int sin = sin_angle[angle_idx];
+    const int64_t dot_prod = cos * dx + sin * dy;
+    const int64_t response = labs(dot_prod);
+    if (response > max_response) {
+      max_response = response;
+      max_angle = angle_idx;
+    }
+  }
+
+  return max_angle;
+}
+
+void av1_get_gradient_hist_lbd_c(const uint8_t *dst, int stride, int rows,
+                                 int cols, uint64_t *hist) {
   dst += stride;
   for (int r = 1; r < rows; ++r) {
-    for (int c = 1; c < cols; ++c) {
-      int dx = dst[c] - dst[c - 1];
-      int dy = dst[c] - dst[c - stride];
-      int index;
-      const int temp = dx * dx + dy * dy;
-      if (dy == 0) {
-        index = 2;
-      } else {
-        const int sn = (dx > 0) ^ (dy > 0);
-        dx = abs(dx);
-        dy = abs(dy);
-        const int remd = (dx % dy) * 16 / dy;
-        const int quot = dx / dy;
-        index = gradient_to_angle_bin[sn][AOMMIN(quot, 6)][AOMMIN(remd, 15)];
-      }
-      hist[index] += temp;
+    int c;
+    for (c = 1; c < cols; c += 1) {
+      const int dx = dst[c] - dst[c - 1];
+      const int dy = dst[c] - dst[c - stride];
+      const int mag = dx * dx + dy * dy;
+      const uint8_t index = get_angle_idx(dx, dy);
+      hist[index] += mag;
     }
     dst += stride;
   }
@@ -253,21 +277,11 @@ static void get_highbd_gradient_hist(const uint8_t *dst8, int stride, int rows,
   dst += stride;
   for (int r = 1; r < rows; ++r) {
     for (int c = 1; c < cols; ++c) {
-      int dx = dst[c] - dst[c - 1];
-      int dy = dst[c] - dst[c - stride];
-      int index;
-      const int temp = dx * dx + dy * dy;
-      if (dy == 0) {
-        index = 2;
-      } else {
-        const int sn = (dx > 0) ^ (dy > 0);
-        dx = abs(dx);
-        dy = abs(dy);
-        const int remd = (dx % dy) * 16 / dy;
-        const int quot = dx / dy;
-        index = gradient_to_angle_bin[sn][AOMMIN(quot, 6)][AOMMIN(remd, 15)];
-      }
-      hist[index] += temp;
+      const int dx = dst[c] - dst[c - 1];
+      const int dy = dst[c] - dst[c - stride];
+      const int mag = dx * dx + dy * dy;
+      const uint8_t index = get_angle_idx(dx, dy);
+      hist[index] += mag;
     }
     dst += stride;
   }
@@ -289,8 +303,8 @@ void av1_get_gradient_hist(const MACROBLOCKD *const xd,
     get_highbd_gradient_hist(y_dst, y_stride, y_block_rows, y_block_cols,
                              mbmi->y_gradient_hist);
   } else {
-    get_gradient_hist(y_dst, y_stride, y_block_rows, y_block_cols,
-                      mbmi->y_gradient_hist);
+    av1_get_gradient_hist_lbd(y_dst, y_stride, y_block_rows, y_block_cols,
+                              mbmi->y_gradient_hist);
   }
 }
 
@@ -345,4 +359,4 @@ void av1_get_recon_var(const MACROBLOCKD *const xd, MB_MODE_INFO *const mbmi,
     mbmi->y_recon_var = variance(y_dst, y_stride, y_block_cols, y_block_rows);
   }
 }
-#endif  // CONFIG_INTRA_ENTROPY && !USE_SMALL_MODEL
+#endif  // CONFIG_INTRA_ENTROPY && !CONFIG_USE_SMALL_MODEL

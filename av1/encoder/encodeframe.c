@@ -5656,7 +5656,7 @@ static void encode_superblock(const AV1_COMP *const cpi, TileDataEnc *tile_data,
                           tile_data->allow_update_cdf);
   }
 
-#if CONFIG_INTRA_ENTROPY && !USE_SMALL_MODEL
+#if CONFIG_INTRA_ENTROPY && !CONFIG_USE_SMALL_MODEL
   if (frame_is_intra_only(cm)) {
     av1_get_gradient_hist(xd, mbmi, bsize);
     av1_get_recon_var(xd, mbmi, bsize);

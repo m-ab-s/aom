@@ -59,11 +59,10 @@ extern "C" {
 #define KF_MODE_CONTEXTS 5
 
 #if CONFIG_INTRA_ENTROPY
-#define USE_SMALL_MODEL 1
 enum { ACTN_NONE, ACTN_RELU, ACTN_SIGMOID } UENUM1BYTE(ACTN);
 enum { SOFTMAX_CROSS_ENTROPY_LOSS } UENUM1BYTE(LOSS_F);
 
-#if USE_SMALL_MODEL
+#if CONFIG_USE_SMALL_MODEL
 #define KF_Y_MODE_FEATURES 26
 #else
 #define KF_Y_MODE_FEATURES 72
@@ -112,10 +111,6 @@ void av1_nn_backprop_em(NN_CONFIG_EM *nn_config, const int label);
 // mu: learning rate, usually chosen from 0.01~0.0001.
 void av1_nn_update_em(NN_CONFIG_EM *nn_config, float mu);
 
-// Applies the softmax normalization function to the input
-// to get a valid probability distribution in the output:
-// output[i] = exp(input[i]) / sum_{k \in [0,n)}(exp(input[k]))
-void av1_nn_softmax_em(const float *input, float *output, int n);
 #endif  // CONFIG_INTRA_ENTROPY
 
 struct AV1Common;

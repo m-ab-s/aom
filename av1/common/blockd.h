@@ -280,10 +280,10 @@ typedef struct MB_MODE_INFO {
   // Indicate if masked compound is used(1) or not(0).
   uint8_t comp_group_idx : 1;
   int8_t cdef_strength : 4;
-#if CONFIG_INTRA_ENTROPY && !USE_SMALL_MODEL
+#if CONFIG_INTRA_ENTROPY && !CONFIG_USE_SMALL_MODEL
   uint64_t y_gradient_hist[8];
   int64_t y_recon_var;  // Variance of reconstructed Y values.
-#endif                  // CONFIG_INTRA_ENTROPY && !USE_SMALL_MODEL
+#endif                  // CONFIG_INTRA_ENTROPY && !CONFIG_USE_SMALL_MODEL
 } MB_MODE_INFO;
 
 static INLINE int is_intrabc_block(const MB_MODE_INFO *mbmi) {

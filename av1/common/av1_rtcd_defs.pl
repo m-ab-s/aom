@@ -24,6 +24,7 @@ print <<EOF
 #include "av1/common/av1_txfm.h"
 #include "av1/common/odintrin.h"
 #include "av1/common/restoration.h"
+#include "av1/common/entropymode.h"
 
 struct macroblockd;
 
@@ -35,6 +36,9 @@ struct search_site_config;
 struct yv12_buffer_config;
 struct NN_CONFIG;
 typedef struct NN_CONFIG NN_CONFIG;
+
+struct FC_LAYER_EM;
+typedef struct FC_LAYER_EM FC_LAYER_EM;
 
 struct CNN_CONFIG;
 typedef struct CNN_CONFIG CNN_CONFIG;
@@ -571,5 +575,18 @@ specialize qw/cfl_get_predict_lbd_fn ssse3 avx2 neon/;
 
 add_proto qw/cfl_predict_hbd_fn cfl_get_predict_hbd_fn/, "TX_SIZE tx_size";
 specialize qw/cfl_get_predict_hbd_fn ssse3 avx2 neon/;
+
+if (aom_config("CONFIG_INTRA_ENTROPY") eq "yes") {
+add_proto qw/void av1_nn_fc_forward/, "const float *input, FC_LAYER_EM *layer, float *output";
+specialize qw/av1_nn_fc_forward sse4_1/;
+
+add_proto qw/void av1_nn_softmax_em/, "const float *input, float *output, int n";
+specialize qw/av1_nn_softmax_em sse4_1/;
+
+if (aom_config("CONFIG_USE_SMALL_MODEL") ne "yes") {
+add_proto qw/void av1_get_gradient_hist_lbd/, "const uint8_t *dst, int stride, int rows, int cols, uint64_t *hist";
+specialize qw/av1_get_gradient_hist_lbd sse4_1/;
+}
+}
 
 1;
