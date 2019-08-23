@@ -285,9 +285,11 @@ static const aom_cdf_prob
 
 #if CONFIG_INTRA_ENTROPY
 #if INTRA_MODEL < 0
-float lr = 0.1f;
+const float intra_y_mode_lr = 0.1f;
+const float intra_uv_mode_lr = 0.1f;
 #else
-float lr = 0.01f;
+const float intra_y_mode_lr = 0.01f;
+const float intra_uv_mode_lr = 0.01f;
 #endif  // INTRA_MODEL
 
 #if INTRA_MODEL == -1
@@ -2348,7 +2350,7 @@ static void init_mode_probs(FRAME_CONTEXT *fc) {
 #if CONFIG_INTRA_ENTROPY
   float arr[20000] = { 0.f };
   // Intra Y mode model
-  fc->av1_intra_y_mode.lr = lr;
+  fc->av1_intra_y_mode.lr = intra_y_mode_lr;
 #if INTRA_MODEL < 0
   fc->av1_intra_y_mode.num_hidden_layers = 0;
   fc->av1_intra_y_mode.layer[0].num_inputs = 42;
@@ -2397,7 +2399,7 @@ static void init_mode_probs(FRAME_CONTEXT *fc) {
   av1_copy_array(fc->av1_intra_y_mode.layer[1].db, arr, EM_MAX_NODES);
 #endif  // INTRA_MODEL
   // Intra UV mode model
-  fc->av1_intra_uv_mode.lr = lr;
+  fc->av1_intra_uv_mode.lr = intra_uv_mode_lr;
 #if INTRA_MODEL < 0
   fc->av1_intra_uv_mode.num_hidden_layers = 0;
   fc->av1_intra_uv_mode.layer[0].num_inputs = 31;

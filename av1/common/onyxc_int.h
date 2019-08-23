@@ -910,12 +910,6 @@ static INLINE void set_mi_row_col(MACROBLOCKD *xd, const TileInfo *const tile,
     MB_MODE_INFO *chroma_left_mi =
         xd->chroma_left_available ? base_mi[ss_y * xd->mi_stride - 1] : NULL;
     xd->chroma_left_mbmi = chroma_left_mi;
-#if CONFIG_INTRA_ENTROPY
-    MB_MODE_INFO *chroma_aboveleft_mi =
-        (xd->chroma_up_available && xd->chroma_left_available)?
-            base_mi[-xd->mi_stride - 1] : NULL;
-    xd->chroma_aboveleft_mbmi = chroma_aboveleft_mi;
-#endif  // CONFIG_INTRA_ENTROPY
   }
 
   xd->n4_h = bh;

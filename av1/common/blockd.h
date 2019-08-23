@@ -375,6 +375,9 @@ void av1_get_intra_uv_block_feature(float *feature, PREDICTION_MODE cur_y_mode,
                                     const MB_MODE_INFO *left_mi);
 
 void av1_pdf2cdf(float *pdf, aom_cdf_prob *cdf, int nsymbs);
+
+void av1_nn_get_cdf(const float *features, aom_cdf_prob *cdf, int nsymbs,
+                    NN_CONFIG_EM *nn_model);
 #endif  // CONFIG_INTRA_ENTROPY
 
 static INLINE int is_global_mv_block(const MB_MODE_INFO *const mbmi,
@@ -532,7 +535,6 @@ typedef struct macroblockd {
   MB_MODE_INFO *above_mbmi;
 #if CONFIG_INTRA_ENTROPY
   MB_MODE_INFO *aboveleft_mbmi;
-  MB_MODE_INFO *chroma_aboveleft_mbmi;
 #endif  // CONFIG_INTRA_ENTROPY
   MB_MODE_INFO *chroma_left_mbmi;
   MB_MODE_INFO *chroma_above_mbmi;

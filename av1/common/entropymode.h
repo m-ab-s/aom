@@ -69,6 +69,7 @@ typedef struct FC_LAYER_EM FC_LAYER_EM;
 
 #define EM_MAX_HLAYERS 1
 #define EM_MAX_NODES 128
+#define EM_MAX_FEATURE_NODES 128
 
 // Fully-connectedly layer configuration
 struct FC_LAYER_EM {
@@ -85,7 +86,7 @@ struct FC_LAYER_EM {
   float db[EM_MAX_NODES];                 // Gradient of bias
 };
 
-// NN configure structure for entropy mode
+// NN configure structure for entropy mode (EM)
 struct NN_CONFIG_EM {
   float lr;                               // learning rate
   int num_hidden_layers;                  // Number of hidden layers, max = 10.

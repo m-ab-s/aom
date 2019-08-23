@@ -101,6 +101,7 @@ void av1_get_intra_block_feature(float *features, const MB_MODE_INFO *above_mi,
     }
   }
 #if INTRA_MODEL <= 0
+  // The max in block variance statistics is 12534.
   features[pt++] = above_var / 12534.f;
   features[pt++] = left_var / 12534.f;
   features[pt++] = al_var / 12534.f;
@@ -136,6 +137,13 @@ void av1_pdf2cdf(float *pdf, aom_cdf_prob *cdf, int nsymbs) {
     pre -= pdf[i];
     cdf[i] = (aom_cdf_prob)(pre * CDF_PROB_TOP);
   }
+}
+
+void av1_nn_get_cdf(const float *features, aom_cdf_prob *cdf, int nsymbs,
+                    NN_CONFIG_EM *nn_model) {
+  float scores[100];
+  av1_nn_predict_em(features, nn_model, scores);
+  av1_pdf2cdf(scores, cdf, nsymbs);
 }
 
 void av1_get_intra_uv_block_feature(float *feature, PREDICTION_MODE cur_y_mode,

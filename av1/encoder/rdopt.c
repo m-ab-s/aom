@@ -4871,11 +4871,10 @@ static int64_t rd_pick_intra_sby_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
   const MB_MODE_INFO *left_mi = xd->left_mbmi;
 #if CONFIG_INTRA_ENTROPY
   const MB_MODE_INFO *aboveleft_mi = xd->aboveleft_mbmi;
-  float features[54], scores[INTRA_MODES];
-  av1_get_intra_block_feature(features, above_mi, left_mi, aboveleft_mi);
-  av1_nn_predict_em(features, &(xd->tile_ctx->av1_intra_y_mode), scores);
+  float features[EM_MAX_FEATURE_NODES];
   aom_cdf_prob cdf[CDF_SIZE(INTRA_MODES)] = { 0 };
-  av1_pdf2cdf(scores, cdf, INTRA_MODES);
+  av1_get_intra_block_feature(features, above_mi, left_mi, aboveleft_mi);
+  av1_nn_get_cdf(features, cdf, INTRA_MODES, &(xd->tile_ctx->av1_intra_y_mode));
   int cost[INTRA_MODES];
   av1_cost_tokens_from_cdf(cost, cdf, NULL);
   bmode_costs = cost;
@@ -6568,12 +6567,12 @@ static int64_t rd_pick_intra_sbuv_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
   const int *bmode_costs;
 
 #if CONFIG_INTRA_ENTROPY
-  float features[54], scores[UV_INTRA_MODES];
+  float features[EM_MAX_FEATURE_NODES];
+  aom_cdf_prob cdf[CDF_SIZE(UV_INTRA_MODES)] = { 0 };
   av1_get_intra_uv_block_feature(features, mbmi->mode, xd->above_mbmi,
                                  xd->left_mbmi);
-  av1_nn_predict_em(features, &(xd->tile_ctx->av1_intra_uv_mode), scores);
-  aom_cdf_prob cdf[CDF_SIZE(UV_INTRA_MODES)] = { 0 };
-  av1_pdf2cdf(scores, cdf, UV_INTRA_MODES);
+  av1_nn_get_cdf(features, cdf, UV_INTRA_MODES,
+                 &(xd->tile_ctx->av1_intra_uv_mode));
   int cost[UV_INTRA_MODES];
   av1_cost_tokens_from_cdf(cost, cdf, NULL);
   bmode_costs = cost;

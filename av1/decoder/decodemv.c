@@ -877,11 +877,10 @@ static void read_intra_frame_mode_info(AV1_COMMON *const cm,
   }
 
 #if CONFIG_INTRA_ENTROPY
-  float features[54], scores[100];
+  float features[EM_MAX_FEATURE_NODES];
+  aom_cdf_prob cdf[CDF_SIZE(INTRA_MODES)] = { 0 };
   av1_get_intra_block_feature(features, above_mi, left_mi, aboveleft_mi);
-  av1_nn_predict_em(features, &(ec_ctx->av1_intra_y_mode), scores);
-  aom_cdf_prob cdf[100];
-  av1_pdf2cdf(scores, cdf, INTRA_MODES);
+  av1_nn_get_cdf(features, cdf, INTRA_MODES, &(ec_ctx->av1_intra_y_mode));
   mbmi->mode = read_intra_mode_nn(r, cdf, &(ec_ctx->av1_intra_y_mode));
 #else
   mbmi->mode = read_intra_mode(r, get_y_mode_cdf(ec_ctx, above_mi, left_mi));
@@ -899,8 +898,7 @@ static void read_intra_frame_mode_info(AV1_COMMON *const cm,
     xd->cfl.is_chroma_reference = 1;
 #if CONFIG_INTRA_ENTROPY
     av1_get_intra_uv_block_feature(features, mbmi->mode, above_mi, left_mi);
-    av1_nn_predict_em(features, &(ec_ctx->av1_intra_uv_mode), scores);
-    av1_pdf2cdf(scores, cdf, UV_INTRA_MODES);
+    av1_nn_get_cdf(features, cdf, UV_INTRA_MODES, &(ec_ctx->av1_intra_uv_mode));
     mbmi->uv_mode = read_intra_mode_uv_nn(r, cdf, &(ec_ctx->av1_intra_uv_mode));
 #else
     mbmi->uv_mode =
@@ -1172,12 +1170,11 @@ static void read_intra_block_mode_info(AV1_COMMON *const cm, const int mi_row,
   xd->cfl.is_chroma_reference = has_chroma;
   if (!cm->seq_params.monochrome && has_chroma) {
 #if CONFIG_INTRA_ENTROPY
-    float features[54], scores[UV_INTRA_MODES];
+    float features[EM_MAX_FEATURE_NODES];
+    aom_cdf_prob cdf[CDF_SIZE(UV_INTRA_MODES)] = { 0 };
     av1_get_intra_uv_block_feature(features, mbmi->mode, xd->above_mbmi,
                                    xd->left_mbmi);
-    av1_nn_predict_em(features, &(ec_ctx->av1_intra_uv_mode), scores);
-    aom_cdf_prob cdf[CDF_SIZE(UV_INTRA_MODES)] = { 0 };
-    av1_pdf2cdf(scores, cdf, UV_INTRA_MODES);
+    av1_nn_get_cdf(features, cdf, UV_INTRA_MODES, &(ec_ctx->av1_intra_uv_mode));
     mbmi->uv_mode = read_intra_mode_uv_nn(r, cdf, &(ec_ctx->av1_intra_uv_mode));
 #else
     mbmi->uv_mode =
