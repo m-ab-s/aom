@@ -23,8 +23,8 @@ typedef struct {
 } FwdKfTestParam;
 
 const FwdKfTestParam kTestParams[] = {
-  { 4, 37.2 },  { 6, 35.9 },  { 8, 35.8 },
-  { 12, 33.6 }, { 16, 33.5 }, { 18, 33.1 }
+  { 4, 37.3 },  { 6, 35.9 },  { 8, 35.8 },
+  { 12, 34.2 }, { 16, 34.3 }, { 18, 33.7 }
 };
 
 // Params: encoding mode and index into the kMaxKfDists array to control
