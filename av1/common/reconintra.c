@@ -1223,8 +1223,8 @@ void av1_upsample_intra_edge_high_c(uint16_t *p, int sz, int bd) {
 #define ADAPT_FILTER_INTRA_GET_SRC_VAL_4 src[(i - 1) * stride + j + 1]
 
 #define ADAPT_FILTER_INTRA_DEFINE_3_TAP_ACCUM_FUNC(func_name, tap1, tap2, \
-                                                   tap3)                  \
-  void func_name(const uint16_t *src, int stride, int w, int h,           \
+                                                   tap3, data_type)       \
+  void func_name(const data_type *src, int stride, int w, int h,          \
                  int64_t *dst_buf) {                                      \
     for (int i = 0; i < h; i++) {                                         \
       for (int j = 0; j < w; j++) {                                       \
@@ -1246,8 +1246,8 @@ void av1_upsample_intra_edge_high_c(uint16_t *p, int sz, int bd) {
   }
 
 #define ADAPT_FILTER_INTRA_DEFINE_4_TAP_ACCUM_FUNC(func_name, tap1, tap2, \
-                                                   tap3, tap4)            \
-  void func_name(const uint16_t *src, int stride, int w, int h,           \
+                                                   tap3, tap4, data_type) \
+  void func_name(const data_type *src, int stride, int w, int h,          \
                  int64_t *dst_buf) {                                      \
     for (int i = 0; i < h; i++) {                                         \
       for (int j = 0; j < w; j++) {                                       \
@@ -1274,59 +1274,64 @@ void av1_upsample_intra_edge_high_c(uint16_t *p, int sz, int bd) {
     }                                                                     \
   }
 
-#define ADAPT_FILTER_INTRA_DEFINE_PRED_FUNC_ROW_MAJOR(func_name,           \
-                                                      pred_expression)     \
-  void func_name(uint16_t *dst, int stride, TX_SIZE tx_size, double *filt, \
-                 const uint16_t *above, const uint16_t *left) {            \
-    int r, c;                                                              \
-    double buf[65][66];                                                    \
-    const int bw = tx_size_wide[tx_size];                                  \
-    const int bh = tx_size_high[tx_size];                                  \
-    for (r = 0; r < bh; ++r) buf[r + 1][0] = (double)left[r];              \
-    for (c = 0; c < bw + 1; ++c) buf[0][c] = (double)above[c - 1];         \
-    for (r = 0; r < bh + 1; ++r) buf[r][bw + 1] = (double)above[bw];       \
-    for (r = 1; r < bh + 1; ++r) {                                         \
-      for (c = 1; c < bw + 1; ++c) {                                       \
-        buf[r][c] = pred_expression;                                       \
-        dst[(r - 1) * stride + c - 1] =                                    \
-            (uint16_t)(AOMMIN(AOMMAX(buf[r][c], 0.001), 254.999) + 0.5);   \
-      }                                                                    \
-    }                                                                      \
+#define ADAPT_FILTER_INTRA_DEFINE_PRED_FUNC_ROW_MAJOR(                      \
+    func_name, pred_expression, data_type)                                  \
+  void func_name(data_type *dst, int stride, TX_SIZE tx_size, double *filt, \
+                 const data_type *above, const data_type *left) {           \
+    int r, c;                                                               \
+    double buf[65][66];                                                     \
+    const int bw = tx_size_wide[tx_size];                                   \
+    const int bh = tx_size_high[tx_size];                                   \
+    for (r = 0; r < bh; ++r) buf[r + 1][0] = (double)left[r];               \
+    for (c = 0; c < bw + 1; ++c) buf[0][c] = (double)above[c - 1];          \
+    for (r = 0; r < bh + 1; ++r) buf[r][bw + 1] = (double)above[bw];        \
+    for (r = 1; r < bh + 1; ++r) {                                          \
+      for (c = 1; c < bw + 1; ++c) {                                        \
+        buf[r][c] = (pred_expression);                                      \
+        dst[(r - 1) * stride + c - 1] =                                     \
+            (uint16_t)(AOMMIN(AOMMAX(buf[r][c], 0.001), 254.999) + 0.5);    \
+      }                                                                     \
+    }                                                                       \
   }
 
-#define ADAPT_FILTER_INTRA_DEFINE_PRED_FUNC_COL_MAJOR(func_name,           \
-                                                      pred_expression)     \
-  void func_name(uint16_t *dst, int stride, TX_SIZE tx_size, double *filt, \
-                 const uint16_t *above, const uint16_t *left) {            \
-    int r, c;                                                              \
-    double buf[66][65];                                                    \
-    const int bw = tx_size_wide[tx_size];                                  \
-    const int bh = tx_size_high[tx_size];                                  \
-    for (r = 0; r < bh; ++r) buf[r + 1][0] = (double)left[r];              \
-    for (c = 0; c < bw + 1; ++c) buf[0][c] = (double)above[c - 1];         \
-    for (c = 0; c < bw + 1; ++c) buf[bh + 1][c] = (double)left[bh];        \
-    for (c = 1; c < bw + 1; ++c) {                                         \
-      for (r = 1; r < bh + 1; ++r) {                                       \
-        buf[r][c] = pred_expression;                                       \
-        dst[(r - 1) * stride + c - 1] =                                    \
-            (uint16_t)(AOMMIN(AOMMAX(buf[r][c], 0.001), 254.999) + 0.5);   \
-      }                                                                    \
-    }                                                                      \
+#define ADAPT_FILTER_INTRA_DEFINE_PRED_FUNC_COL_MAJOR(                      \
+    func_name, pred_expression, data_type)                                  \
+  void func_name(data_type *dst, int stride, TX_SIZE tx_size, double *filt, \
+                 const data_type *above, const data_type *left) {           \
+    int r, c;                                                               \
+    double buf[66][65];                                                     \
+    const int bw = tx_size_wide[tx_size];                                   \
+    const int bh = tx_size_high[tx_size];                                   \
+    for (r = 0; r < bh; ++r) buf[r + 1][0] = (double)left[r];               \
+    for (c = 0; c < bw + 1; ++c) buf[0][c] = (double)above[c - 1];          \
+    for (c = 0; c < bw + 1; ++c) buf[bh + 1][c] = (double)left[bh];         \
+    for (c = 1; c < bw + 1; ++c) {                                          \
+      for (r = 1; r < bh + 1; ++r) {                                        \
+        buf[r][c] = (pred_expression);                                      \
+        dst[(r - 1) * stride + c - 1] =                                     \
+            (uint16_t)(AOMMIN(AOMMAX(buf[r][c], 0.001), 254.999) + 0.5);    \
+      }                                                                     \
+    }                                                                       \
   }
 
 // Set up functions for accumulating statistics necessary to adaptively fit
 // filter coefficients for the transform unit:
-typedef void (*adapt_filter_intra_accum_fn)(const uint16_t *src, int stride,
+typedef void (*adapt_filter_intra_accum_fn)(const uint8_t *src, int stride,
                                             int w, int h, int64_t *dst_buf);
-ADAPT_FILTER_INTRA_DEFINE_3_TAP_ACCUM_FUNC(adapt_filter_intra_accum_0, 1, 2, 3)
-ADAPT_FILTER_INTRA_DEFINE_3_TAP_ACCUM_FUNC(adapt_filter_intra_accum_1, 0, 1, 3)
-ADAPT_FILTER_INTRA_DEFINE_3_TAP_ACCUM_FUNC(adapt_filter_intra_accum_2, 1, 3, 4)
+ADAPT_FILTER_INTRA_DEFINE_3_TAP_ACCUM_FUNC(adapt_filter_intra_accum_0, 1, 2, 3,
+                                           uint8_t)
+ADAPT_FILTER_INTRA_DEFINE_3_TAP_ACCUM_FUNC(adapt_filter_intra_accum_1, 0, 1, 3,
+                                           uint8_t)
+ADAPT_FILTER_INTRA_DEFINE_3_TAP_ACCUM_FUNC(adapt_filter_intra_accum_2, 1, 3, 4,
+                                           uint8_t)
 ADAPT_FILTER_INTRA_DEFINE_4_TAP_ACCUM_FUNC(adapt_filter_intra_accum_3, 0, 1, 2,
-                                           3)
+                                           3, uint8_t)
 ADAPT_FILTER_INTRA_DEFINE_4_TAP_ACCUM_FUNC(adapt_filter_intra_accum_4, 1, 2, 3,
-                                           4)
-ADAPT_FILTER_INTRA_DEFINE_3_TAP_ACCUM_FUNC(adapt_filter_intra_accum_5, 0, 2, 3)
-ADAPT_FILTER_INTRA_DEFINE_3_TAP_ACCUM_FUNC(adapt_filter_intra_accum_6, 1, 2, 4)
+                                           4, uint8_t)
+ADAPT_FILTER_INTRA_DEFINE_3_TAP_ACCUM_FUNC(adapt_filter_intra_accum_5, 0, 2, 3,
+                                           uint8_t)
+ADAPT_FILTER_INTRA_DEFINE_3_TAP_ACCUM_FUNC(adapt_filter_intra_accum_6, 1, 2, 4,
+                                           uint8_t)
 static const adapt_filter_intra_accum_fn
     adapt_filter_intra_accum_fns[ADAPT_FILTER_INTRA_MODES] = {
       adapt_filter_intra_accum_0, adapt_filter_intra_accum_1,
@@ -1335,49 +1340,130 @@ static const adapt_filter_intra_accum_fn
       adapt_filter_intra_accum_6
     };
 
+typedef void (*adapt_filter_intra_accum_fn_hbd)(const uint16_t *src, int stride,
+                                                int w, int h, int64_t *dst_buf);
+ADAPT_FILTER_INTRA_DEFINE_3_TAP_ACCUM_FUNC(adapt_filter_intra_accum_0_hbd, 1, 2,
+                                           3, uint16_t)
+ADAPT_FILTER_INTRA_DEFINE_3_TAP_ACCUM_FUNC(adapt_filter_intra_accum_1_hbd, 0, 1,
+                                           3, uint16_t)
+ADAPT_FILTER_INTRA_DEFINE_3_TAP_ACCUM_FUNC(adapt_filter_intra_accum_2_hbd, 1, 3,
+                                           4, uint16_t)
+ADAPT_FILTER_INTRA_DEFINE_4_TAP_ACCUM_FUNC(adapt_filter_intra_accum_3_hbd, 0, 1,
+                                           2, 3, uint16_t)
+ADAPT_FILTER_INTRA_DEFINE_4_TAP_ACCUM_FUNC(adapt_filter_intra_accum_4_hbd, 1, 2,
+                                           3, 4, uint16_t)
+ADAPT_FILTER_INTRA_DEFINE_3_TAP_ACCUM_FUNC(adapt_filter_intra_accum_5_hbd, 0, 2,
+                                           3, uint16_t)
+ADAPT_FILTER_INTRA_DEFINE_3_TAP_ACCUM_FUNC(adapt_filter_intra_accum_6_hbd, 1, 2,
+                                           4, uint16_t)
+static const adapt_filter_intra_accum_fn_hbd
+    adapt_filter_intra_accum_fns_hbd[ADAPT_FILTER_INTRA_MODES] = {
+      adapt_filter_intra_accum_0_hbd, adapt_filter_intra_accum_1_hbd,
+      adapt_filter_intra_accum_2_hbd, adapt_filter_intra_accum_3_hbd,
+      adapt_filter_intra_accum_4_hbd, adapt_filter_intra_accum_5_hbd,
+      adapt_filter_intra_accum_6_hbd
+    };
+
 // Set up functions for performing prediction given the fit filter coefficients.
 // Whenever coefficent for the bottom-left pixel is non-zero, we are forced to
 // do the prediction in the column-major order.
-typedef void (*adapt_filter_intra_pred_fn)(uint16_t *dst, int stride,
+typedef void (*adapt_filter_intra_pred_fn)(uint8_t *dst, int stride,
                                            TX_SIZE tx_size, double *filt,
-                                           const uint16_t *above,
-                                           const uint16_t *left);
+                                           const uint8_t *above,
+                                           const uint8_t *left);
 ADAPT_FILTER_INTRA_DEFINE_PRED_FUNC_ROW_MAJOR(adapt_filter_intra_pred_0,
                                               (filt[0] * buf[r][c - 1] +
                                                filt[1] * buf[r - 1][c - 1] +
-                                               filt[2] * buf[r - 1][c]))
+                                               filt[2] * buf[r - 1][c]),
+                                              uint8_t)
+
 ADAPT_FILTER_INTRA_DEFINE_PRED_FUNC_COL_MAJOR(adapt_filter_intra_pred_1,
                                               (filt[0] * buf[r + 1][c - 1] +
                                                filt[1] * buf[r][c - 1] +
-                                               filt[2] * buf[r - 1][c]))
+                                               filt[2] * buf[r - 1][c]),
+                                              uint8_t)
 ADAPT_FILTER_INTRA_DEFINE_PRED_FUNC_ROW_MAJOR(adapt_filter_intra_pred_2,
                                               (filt[0] * buf[r][c - 1] +
                                                filt[1] * buf[r - 1][c] +
-                                               filt[2] * buf[r - 1][c + 1]))
+                                               filt[2] * buf[r - 1][c + 1]),
+                                              uint8_t)
 ADAPT_FILTER_INTRA_DEFINE_PRED_FUNC_COL_MAJOR(adapt_filter_intra_pred_3,
                                               (filt[0] * buf[r + 1][c - 1] +
                                                filt[1] * buf[r][c - 1] +
                                                filt[2] * buf[r - 1][c - 1] +
-                                               filt[3] * buf[r - 1][c]))
+                                               filt[3] * buf[r - 1][c]),
+                                              uint8_t)
 ADAPT_FILTER_INTRA_DEFINE_PRED_FUNC_ROW_MAJOR(adapt_filter_intra_pred_4,
                                               (filt[0] * buf[r][c - 1] +
                                                filt[1] * buf[r - 1][c - 1] +
                                                filt[2] * buf[r - 1][c] +
-                                               filt[3] * buf[r - 1][c + 1]))
+                                               filt[3] * buf[r - 1][c + 1]),
+                                              uint8_t)
 ADAPT_FILTER_INTRA_DEFINE_PRED_FUNC_COL_MAJOR(adapt_filter_intra_pred_5,
                                               (filt[0] * buf[r + 1][c - 1] +
                                                filt[1] * buf[r - 1][c - 1] +
-                                               filt[2] * buf[r - 1][c]))
+                                               filt[2] * buf[r - 1][c]),
+                                              uint8_t)
 ADAPT_FILTER_INTRA_DEFINE_PRED_FUNC_ROW_MAJOR(adapt_filter_intra_pred_6,
                                               (filt[0] * buf[r][c - 1] +
                                                filt[1] * buf[r - 1][c - 1] +
-                                               filt[2] * buf[r - 1][c + 1]))
+                                               filt[2] * buf[r - 1][c + 1]),
+                                              uint8_t)
 static const adapt_filter_intra_pred_fn
     adapt_filter_intra_pred_fns[ADAPT_FILTER_INTRA_MODES] = {
       adapt_filter_intra_pred_0, adapt_filter_intra_pred_1,
       adapt_filter_intra_pred_2, adapt_filter_intra_pred_3,
       adapt_filter_intra_pred_4, adapt_filter_intra_pred_5,
       adapt_filter_intra_pred_6
+    };
+
+typedef void (*adapt_filter_intra_pred_fn_hbd)(uint16_t *dst, int stride,
+                                               TX_SIZE tx_size, double *filt,
+                                               const uint16_t *above,
+                                               const uint16_t *left);
+ADAPT_FILTER_INTRA_DEFINE_PRED_FUNC_ROW_MAJOR(adapt_filter_intra_pred_0_hbd,
+                                              (filt[0] * buf[r][c - 1] +
+                                               filt[1] * buf[r - 1][c - 1] +
+                                               filt[2] * buf[r - 1][c]),
+                                              uint16_t)
+ADAPT_FILTER_INTRA_DEFINE_PRED_FUNC_COL_MAJOR(adapt_filter_intra_pred_1_hbd,
+                                              (filt[0] * buf[r + 1][c - 1] +
+                                               filt[1] * buf[r][c - 1] +
+                                               filt[2] * buf[r - 1][c]),
+                                              uint16_t)
+ADAPT_FILTER_INTRA_DEFINE_PRED_FUNC_ROW_MAJOR(adapt_filter_intra_pred_2_hbd,
+                                              (filt[0] * buf[r][c - 1] +
+                                               filt[1] * buf[r - 1][c] +
+                                               filt[2] * buf[r - 1][c + 1]),
+                                              uint16_t)
+ADAPT_FILTER_INTRA_DEFINE_PRED_FUNC_COL_MAJOR(adapt_filter_intra_pred_3_hbd,
+                                              (filt[0] * buf[r + 1][c - 1] +
+                                               filt[1] * buf[r][c - 1] +
+                                               filt[2] * buf[r - 1][c - 1] +
+                                               filt[3] * buf[r - 1][c]),
+                                              uint16_t)
+ADAPT_FILTER_INTRA_DEFINE_PRED_FUNC_ROW_MAJOR(adapt_filter_intra_pred_4_hbd,
+                                              (filt[0] * buf[r][c - 1] +
+                                               filt[1] * buf[r - 1][c - 1] +
+                                               filt[2] * buf[r - 1][c] +
+                                               filt[3] * buf[r - 1][c + 1]),
+                                              uint16_t)
+ADAPT_FILTER_INTRA_DEFINE_PRED_FUNC_COL_MAJOR(adapt_filter_intra_pred_5_hbd,
+                                              (filt[0] * buf[r + 1][c - 1] +
+                                               filt[1] * buf[r - 1][c - 1] +
+                                               filt[2] * buf[r - 1][c]),
+                                              uint16_t)
+ADAPT_FILTER_INTRA_DEFINE_PRED_FUNC_ROW_MAJOR(adapt_filter_intra_pred_6_hbd,
+                                              (filt[0] * buf[r][c - 1] +
+                                               filt[1] * buf[r - 1][c - 1] +
+                                               filt[2] * buf[r - 1][c + 1]),
+                                              uint16_t)
+static const adapt_filter_intra_pred_fn_hbd
+    adapt_filter_intra_pred_fns_hbd[ADAPT_FILTER_INTRA_MODES] = {
+      adapt_filter_intra_pred_0_hbd, adapt_filter_intra_pred_1_hbd,
+      adapt_filter_intra_pred_2_hbd, adapt_filter_intra_pred_3_hbd,
+      adapt_filter_intra_pred_4_hbd, adapt_filter_intra_pred_5_hbd,
+      adapt_filter_intra_pred_6_hbd
     };
 
 // Define the parameters that describe the shape of the region used to fit the
@@ -1536,6 +1622,63 @@ static const int adapt_filter_intra_left_allowed[ADAPT_FILTER_INTRA_MODES] = {
 static const int adapt_filter_intra_regularization_coef = 2;
 
 static void adapt_filter_intra_accumulate_stats(
+    const uint8_t *ref, int stride, TX_SIZE tx_size, int n_top_px,
+    int n_topright_px, int n_left_px, int n_bottomleft_px, int64_t *dst_stats,
+    int px_row, int px_col, int mode) {
+  const int txwpx = tx_size_wide[tx_size];
+  const int txhpx = tx_size_high[tx_size];
+  const int up_offs =
+      AOMMIN(adapt_filter_intra_thickness_ver[tx_size][mode], px_row) - 1;
+  const int left_offs =
+      AOMMIN(adapt_filter_intra_thickness_hor[tx_size][mode], px_col) - 1;
+  const int top_right_offs = adapt_filter_intra_top_right_offset[tx_size][mode];
+  const int bottom_left_offs =
+      adapt_filter_intra_bottom_left_offset[tx_size][mode];
+
+  const int w_adjust = adapt_filter_intra_use_top_right[mode] ? -1 : 0;
+  const int h_adjust = adapt_filter_intra_use_bottom_left[mode] ? -1 : 0;
+
+  const int top_width =
+      AOMMIN(n_top_px + n_topright_px, txwpx + top_right_offs);
+  const int left_height =
+      AOMMIN(n_left_px + n_bottomleft_px, txhpx + bottom_left_offs);
+  const adapt_filter_intra_accum_fn accum_fn =
+      adapt_filter_intra_accum_fns[mode];
+
+  if (adapt_filter_intra_top_allowed[mode] &&
+      adapt_filter_intra_left_allowed[mode]) {
+    if (n_top_px > 0 && n_left_px > 0) {
+      accum_fn(ref - up_offs * stride, stride, top_width + w_adjust,
+               up_offs + h_adjust, dst_stats);
+      accum_fn(ref - left_offs, stride, left_offs + w_adjust,
+               left_height + h_adjust, dst_stats);
+      accum_fn(ref - up_offs * stride - left_offs, stride, left_offs, up_offs,
+               dst_stats);
+    } else if (n_top_px > 0) {
+      accum_fn(ref - up_offs * stride + 1, stride, top_width - 1 + w_adjust,
+               up_offs + h_adjust, dst_stats);
+    } else if (n_left_px > 0) {
+      accum_fn(ref + stride - left_offs, stride, left_offs + w_adjust,
+               left_height - 1 + h_adjust, dst_stats);
+    }
+  } else if (adapt_filter_intra_top_allowed[mode]) {
+    const int extra_offs = (n_left_px > 0 || bottom_left_offs <= 0)
+                               ? AOMMIN(bottom_left_offs, px_col)
+                               : 0;
+    accum_fn(ref - up_offs * stride - (extra_offs - 1), stride,
+             top_width + extra_offs - 1 + w_adjust, up_offs + h_adjust,
+             dst_stats);
+  } else if (adapt_filter_intra_left_allowed[mode]) {
+    const int extra_offs = (n_top_px > 0 || top_right_offs <= 0)
+                               ? AOMMIN(top_right_offs, px_row)
+                               : 0;
+    accum_fn(ref - (extra_offs - 1) * stride - left_offs, stride,
+             left_offs + w_adjust, left_height + extra_offs - 1 + h_adjust,
+             dst_stats);
+  }
+}
+
+static void adapt_filter_intra_accumulate_stats_hbd(
     const uint16_t *ref, int stride, TX_SIZE tx_size, int n_top_px,
     int n_topright_px, int n_left_px, int n_bottomleft_px, int64_t *dst_stats,
     int px_row, int px_col, int mode) {
@@ -1557,41 +1700,38 @@ static void adapt_filter_intra_accumulate_stats(
   const int left_height =
       AOMMIN(n_left_px + n_bottomleft_px, txhpx + bottom_left_offs);
 
+  const adapt_filter_intra_accum_fn_hbd accum_fn =
+      adapt_filter_intra_accum_fns_hbd[mode];
   if (adapt_filter_intra_top_allowed[mode] &&
       adapt_filter_intra_left_allowed[mode]) {
     if (n_top_px > 0 && n_left_px > 0) {
-      adapt_filter_intra_accum_fns[mode](ref - up_offs * stride, stride,
-                                         top_width + w_adjust,
-                                         up_offs + h_adjust, dst_stats);
-      adapt_filter_intra_accum_fns[mode](ref - left_offs, stride,
-                                         left_offs + w_adjust,
-                                         left_height + h_adjust, dst_stats);
-      adapt_filter_intra_accum_fns[mode](ref - up_offs * stride - left_offs,
-                                         stride, left_offs, up_offs, dst_stats);
+      accum_fn(ref - up_offs * stride, stride, top_width + w_adjust,
+               up_offs + h_adjust, dst_stats);
+      accum_fn(ref - left_offs, stride, left_offs + w_adjust,
+               left_height + h_adjust, dst_stats);
+      accum_fn(ref - up_offs * stride - left_offs, stride, left_offs, up_offs,
+               dst_stats);
     } else if (n_top_px > 0) {
-      adapt_filter_intra_accum_fns[mode](ref - up_offs * stride + 1, stride,
-                                         top_width - 1 + w_adjust,
-                                         up_offs + h_adjust, dst_stats);
+      accum_fn(ref - up_offs * stride + 1, stride, top_width - 1 + w_adjust,
+               up_offs + h_adjust, dst_stats);
     } else if (n_left_px > 0) {
-      adapt_filter_intra_accum_fns[mode](ref + stride - left_offs, stride,
-                                         left_offs + w_adjust,
-                                         left_height - 1 + h_adjust, dst_stats);
+      accum_fn(ref + stride - left_offs, stride, left_offs + w_adjust,
+               left_height - 1 + h_adjust, dst_stats);
     }
   } else if (adapt_filter_intra_top_allowed[mode]) {
     const int extra_offs = (n_left_px > 0 || bottom_left_offs <= 0)
                                ? AOMMIN(bottom_left_offs, px_col)
                                : 0;
-    adapt_filter_intra_accum_fns[mode](
-        ref - up_offs * stride - (extra_offs - 1), stride,
-        top_width + extra_offs - 1 + w_adjust, up_offs + h_adjust, dst_stats);
+    accum_fn(ref - up_offs * stride - (extra_offs - 1), stride,
+             top_width + extra_offs - 1 + w_adjust, up_offs + h_adjust,
+             dst_stats);
   } else if (adapt_filter_intra_left_allowed[mode]) {
     const int extra_offs = (n_top_px > 0 || top_right_offs <= 0)
                                ? AOMMIN(top_right_offs, px_row)
                                : 0;
-    adapt_filter_intra_accum_fns[mode](
-        ref - (extra_offs - 1) * stride - left_offs, stride,
-        left_offs + w_adjust, left_height + extra_offs - 1 + h_adjust,
-        dst_stats);
+    accum_fn(ref - (extra_offs - 1) * stride - left_offs, stride,
+             left_offs + w_adjust, left_height + extra_offs - 1 + h_adjust,
+             dst_stats);
   }
 }
 
@@ -1679,10 +1819,10 @@ static void adapt_filter_intra_solve_4x4(const int64_t *coefs,
 }
 
 static void adapt_filter_intra_predictor(
-    uint16_t *dst, ptrdiff_t dst_stride, const uint16_t *ref,
+    uint8_t *dst, ptrdiff_t dst_stride, const uint8_t *ref,
     ptrdiff_t ref_stride, int n_top_px, int n_topright_px, int n_left_px,
-    int n_bottomleft_px, TX_SIZE tx_size, const uint16_t *above_row,
-    const uint16_t *left_col, int mode, int px_row, int px_col) {
+    int n_bottomleft_px, TX_SIZE tx_size, const uint8_t *above_row,
+    const uint8_t *left_col, int mode, int px_row, int px_col) {
   // Form a linear system of equations from the statistics collected over the
   // training region around the current transform unit:
   int64_t accumulated_stats[14] = { 0 };
@@ -1711,6 +1851,41 @@ static void adapt_filter_intra_predictor(
   // Finally, perform prediction using the fit filter coefficients:
   adapt_filter_intra_pred_fns[mode](dst, dst_stride, tx_size, adapt_filter,
                                     above_row, left_col);
+}
+
+static void adapt_filter_intra_predictor_hbd(
+    uint16_t *dst, ptrdiff_t dst_stride, const uint16_t *ref,
+    ptrdiff_t ref_stride, int n_top_px, int n_topright_px, int n_left_px,
+    int n_bottomleft_px, TX_SIZE tx_size, const uint16_t *above_row,
+    const uint16_t *left_col, int mode, int px_row, int px_col) {
+  // Form a linear system of equations from the statistics collected over the
+  // training region around the current transform unit:
+  int64_t accumulated_stats[14] = { 0 };
+  adapt_filter_intra_accumulate_stats_hbd(
+      ref, ref_stride, tx_size, n_top_px, n_topright_px, n_left_px,
+      n_bottomleft_px, accumulated_stats, px_row, px_col, mode);
+
+  // Apply regularization and solve the resulting system to get the adaptive
+  // filter coefficients:
+  double adapt_filter[4] = { 0 };
+  if (adapt_filter_intra_num_taps[mode] == 3) {
+    accumulated_stats[0] += adapt_filter_intra_regularization_coef;
+    accumulated_stats[2] += adapt_filter_intra_regularization_coef;
+    accumulated_stats[5] += adapt_filter_intra_regularization_coef;
+    adapt_filter_intra_solve_3x3(accumulated_stats, adapt_filter);
+  } else if (adapt_filter_intra_num_taps[mode] == 4) {
+    accumulated_stats[0] += adapt_filter_intra_regularization_coef;
+    accumulated_stats[2] += adapt_filter_intra_regularization_coef;
+    accumulated_stats[5] += adapt_filter_intra_regularization_coef;
+    accumulated_stats[9] += adapt_filter_intra_regularization_coef;
+    adapt_filter_intra_solve_4x4(accumulated_stats, adapt_filter);
+  } else {
+    assert(0);
+  }
+
+  // Finally, perform prediction using the fit filter coefficients:
+  adapt_filter_intra_pred_fns_hbd[mode](dst, dst_stride, tx_size, adapt_filter,
+                                        above_row, left_col);
 }
 #endif  // CONFIG_ADAPT_FILTER_INTRA
 
@@ -1865,10 +2040,10 @@ static void build_intra_predictors_high(
   if (use_adapt_filter_intra) {
     const int px_row = (-xd->mb_to_top_edge >> 3) + (row_off << MI_SIZE_LOG2);
     const int px_col = (-xd->mb_to_left_edge >> 3) + (col_off << MI_SIZE_LOG2);
-    adapt_filter_intra_predictor(dst, dst_stride, ref, ref_stride, n_top_px,
-                                 n_topright_px, n_left_px, n_bottomleft_px,
-                                 tx_size, above_row, left_col,
-                                 adapt_filter_intra_mode, px_row, px_col);
+    adapt_filter_intra_predictor_hbd(dst, dst_stride, ref, ref_stride, n_top_px,
+                                     n_topright_px, n_left_px, n_bottomleft_px,
+                                     tx_size, above_row, left_col,
+                                     adapt_filter_intra_mode, px_row, px_col);
     return;
   }
 #endif  // CONFIG_ADAPT_FILTER_INTRA
@@ -1925,14 +2100,16 @@ static void build_intra_predictors_high(
   }
 }
 
-static void build_intra_predictors(const MACROBLOCKD *xd, const uint8_t *ref,
-                                   int ref_stride, uint8_t *dst, int dst_stride,
-                                   PREDICTION_MODE mode, int angle_delta,
-                                   FILTER_INTRA_MODE filter_intra_mode,
-                                   TX_SIZE tx_size, int disable_edge_filter,
-                                   int n_top_px, int n_topright_px,
-                                   int n_left_px, int n_bottomleft_px,
-                                   int plane) {
+static void build_intra_predictors(
+    const MACROBLOCKD *xd, const uint8_t *ref, int ref_stride, uint8_t *dst,
+    int dst_stride, PREDICTION_MODE mode, int angle_delta,
+    FILTER_INTRA_MODE filter_intra_mode, TX_SIZE tx_size,
+    int disable_edge_filter, int n_top_px, int n_topright_px, int n_left_px,
+    int n_bottomleft_px,
+#if CONFIG_ADAPT_FILTER_INTRA
+    ADAPT_FILTER_INTRA_MODE adapt_filter_intra_mode, int col_off, int row_off,
+#endif
+    int plane) {
   int i;
   const uint8_t *above_ref = ref - ref_stride;
   const uint8_t *left_ref = ref - 1;
@@ -1967,6 +2144,11 @@ static void build_intra_predictors(const MACROBLOCKD *xd, const uint8_t *ref,
       need_above = 0, need_left = 1, need_above_left = 1;
   }
   if (use_filter_intra) need_left = need_above = need_above_left = 1;
+#if CONFIG_ADAPT_FILTER_INTRA
+  const int use_adapt_filter_intra =
+      adapt_filter_intra_mode != ADAPT_FILTER_INTRA_MODES;
+  if (use_adapt_filter_intra) need_left = need_above = need_above_left = 1;
+#endif  // CONFIG_ADAPT_FILTER_INTRA
 
   assert(n_top_px >= 0);
   assert(n_topright_px >= 0);
@@ -1991,6 +2173,9 @@ static void build_intra_predictors(const MACROBLOCKD *xd, const uint8_t *ref,
   if (need_left) {
     int need_bottom = !!(extend_modes[mode] & NEED_BOTTOMLEFT);
     if (use_filter_intra) need_bottom = 0;
+#if CONFIG_ADAPT_FILTER_INTRA
+    if (use_adapt_filter_intra) need_bottom = 1;
+#endif
     if (is_dr_mode) need_bottom = p_angle > 180;
     const int num_left_pixels_needed = txhpx + (need_bottom ? txwpx : 0);
     i = 0;
@@ -2016,6 +2201,9 @@ static void build_intra_predictors(const MACROBLOCKD *xd, const uint8_t *ref,
   if (need_above) {
     int need_right = !!(extend_modes[mode] & NEED_ABOVERIGHT);
     if (use_filter_intra) need_right = 0;
+#if CONFIG_ADAPT_FILTER_INTRA
+    if (use_adapt_filter_intra) need_right = 1;
+#endif
     if (is_dr_mode) need_right = p_angle < 90;
     const int num_top_pixels_needed = txwpx + (need_right ? txhpx : 0);
     if (n_top_px > 0) {
@@ -2055,6 +2243,18 @@ static void build_intra_predictors(const MACROBLOCKD *xd, const uint8_t *ref,
                                filter_intra_mode);
     return;
   }
+
+#if CONFIG_ADAPT_FILTER_INTRA
+  if (use_adapt_filter_intra) {
+    const int px_row = (-xd->mb_to_top_edge >> 3) + (row_off << MI_SIZE_LOG2);
+    const int px_col = (-xd->mb_to_left_edge >> 3) + (col_off << MI_SIZE_LOG2);
+    adapt_filter_intra_predictor(dst, dst_stride, ref, ref_stride, n_top_px,
+                                 n_topright_px, n_left_px, n_bottomleft_px,
+                                 tx_size, above_row, left_col,
+                                 adapt_filter_intra_mode, px_row, px_col);
+    return;
+  }
+#endif  // CONFIG_ADAPT_FILTER_INTRA
 
   if (is_dr_mode) {
     int upsample_above = 0;
@@ -2212,7 +2412,11 @@ void av1_predict_intra_block(const AV1_COMMON *cm, const MACROBLOCKD *xd,
                          have_top ? AOMMIN(txwpx, xr + txwpx) : 0,
                          have_top_right ? AOMMIN(txwpx, xr) : 0,
                          have_left ? AOMMIN(txhpx, yd + txhpx) : 0,
-                         have_bottom_left ? AOMMIN(txhpx, yd) : 0, plane);
+                         have_bottom_left ? AOMMIN(txhpx, yd) : 0,
+#if CONFIG_ADAPT_FILTER_INTRA
+                         adapt_filter_intra_mode, col_off, row_off,
+#endif
+                         plane);
 }
 
 void av1_predict_intra_block_facade(const AV1_COMMON *cm, MACROBLOCKD *xd,
