@@ -77,8 +77,13 @@ enum {
 
 typedef struct {
   aom_cdf_prob classes_cdf[CDF_SIZE(MV_CLASSES)];
+#if CONFIG_FLEX_MVRES
+  aom_cdf_prob class0_fp_cdf[CLASS0_SIZE][3][CDF_SIZE(2)];
+  aom_cdf_prob fp_cdf[3][CDF_SIZE(2)];
+#else
   aom_cdf_prob class0_fp_cdf[CLASS0_SIZE][CDF_SIZE(MV_FP_SIZE)];
   aom_cdf_prob fp_cdf[CDF_SIZE(MV_FP_SIZE)];
+#endif  // CONFIG_FLEX_MVRES
   aom_cdf_prob sign_cdf[CDF_SIZE(2)];
   aom_cdf_prob class0_hp_cdf[CDF_SIZE(2)];
   aom_cdf_prob hp_cdf[CDF_SIZE(2)];
@@ -93,8 +98,11 @@ typedef struct {
 
 enum {
   MV_SUBPEL_NONE = -1,
-  MV_SUBPEL_LOW_PRECISION = 0,
-  MV_SUBPEL_HIGH_PRECISION,
+#if CONFIG_FLEX_MVRES
+  MV_SUBPEL_HALF_PRECISION,
+#endif  // CONFIG_FLEX_MVRES
+  MV_SUBPEL_QTR_PRECISION,
+  MV_SUBPEL_EIGHTH_PRECISION,
 } SENUM1BYTE(MvSubpelPrecision);
 
 #ifdef __cplusplus

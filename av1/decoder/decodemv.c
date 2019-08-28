@@ -950,8 +950,19 @@ static int read_mv_component(aom_reader *r, nmv_component *mvcomp,
 
   if (use_subpel) {
     // Fractional part
+#if CONFIG_FLEX_MVRES
+    fr = aom_read_symbol(
+             r, class0 ? mvcomp->class0_fp_cdf[d][0] : mvcomp->fp_cdf[0], 2,
+             ACCT_STR)
+         << 1;
+    fr += aom_read_symbol(r,
+                          class0 ? mvcomp->class0_fp_cdf[d][1 + (fr >> 1)]
+                                 : mvcomp->fp_cdf[1 + (fr >> 1)],
+                          2, ACCT_STR);
+#else
     fr = aom_read_symbol(r, class0 ? mvcomp->class0_fp_cdf[d] : mvcomp->fp_cdf,
                          MV_FP_SIZE, ACCT_STR);
+#endif  // CONFIG_FLEX_MVRES
 
     // High precision part (if hp is not used, the default value of the hp is 1)
     hp = usehp ? aom_read_symbol(
@@ -976,11 +987,11 @@ static INLINE void read_mv(aom_reader *r, MV *mv, const MV *ref,
 
   if (mv_joint_vertical(joint_type))
     diff.row = read_mv_component(r, &ctx->comps[0], precision > MV_SUBPEL_NONE,
-                                 precision > MV_SUBPEL_LOW_PRECISION);
+                                 precision > MV_SUBPEL_QTR_PRECISION);
 
   if (mv_joint_horizontal(joint_type))
     diff.col = read_mv_component(r, &ctx->comps[1], precision > MV_SUBPEL_NONE,
-                                 precision > MV_SUBPEL_LOW_PRECISION);
+                                 precision > MV_SUBPEL_QTR_PRECISION);
 
   mv->row = ref->row + diff.row;
   mv->col = ref->col + diff.col;
@@ -1220,13 +1231,14 @@ static INLINE int assign_mv(AV1_COMMON *cm, MACROBLOCKD *xd,
   FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
   MB_MODE_INFO *mbmi = xd->mi[0];
   BLOCK_SIZE bsize = mbmi->sb_type;
-  if (cm->cur_frame_force_integer_mv) {
-    allow_hp = MV_SUBPEL_NONE;
-  }
+  const MvSubpelPrecision precision = cm->cur_frame_force_integer_mv
+                                          ? MV_SUBPEL_NONE
+                                          : MV_SUBPEL_QTR_PRECISION + allow_hp;
+
   switch (mode) {
     case NEWMV: {
       nmv_context *const nmvc = &ec_ctx->nmvc;
-      read_mv(r, &mv[0].as_mv, &ref_mv[0].as_mv, nmvc, allow_hp);
+      read_mv(r, &mv[0].as_mv, &ref_mv[0].as_mv, nmvc, precision);
       break;
     }
     case NEARESTMV: {
@@ -1249,7 +1261,7 @@ static INLINE int assign_mv(AV1_COMMON *cm, MACROBLOCKD *xd,
       assert(is_compound);
       for (int i = 0; i < 2; ++i) {
         nmv_context *const nmvc = &ec_ctx->nmvc;
-        read_mv(r, &mv[i].as_mv, &ref_mv[i].as_mv, nmvc, allow_hp);
+        read_mv(r, &mv[i].as_mv, &ref_mv[i].as_mv, nmvc, precision);
       }
       break;
     }
@@ -1267,7 +1279,7 @@ static INLINE int assign_mv(AV1_COMMON *cm, MACROBLOCKD *xd,
     }
     case NEW_NEARESTMV: {
       nmv_context *const nmvc = &ec_ctx->nmvc;
-      read_mv(r, &mv[0].as_mv, &ref_mv[0].as_mv, nmvc, allow_hp);
+      read_mv(r, &mv[0].as_mv, &ref_mv[0].as_mv, nmvc, precision);
       assert(is_compound);
       mv[1].as_int = nearest_mv[1].as_int;
       break;
@@ -1275,20 +1287,20 @@ static INLINE int assign_mv(AV1_COMMON *cm, MACROBLOCKD *xd,
     case NEAREST_NEWMV: {
       nmv_context *const nmvc = &ec_ctx->nmvc;
       mv[0].as_int = nearest_mv[0].as_int;
-      read_mv(r, &mv[1].as_mv, &ref_mv[1].as_mv, nmvc, allow_hp);
+      read_mv(r, &mv[1].as_mv, &ref_mv[1].as_mv, nmvc, precision);
       assert(is_compound);
       break;
     }
     case NEAR_NEWMV: {
       nmv_context *const nmvc = &ec_ctx->nmvc;
       mv[0].as_int = near_mv[0].as_int;
-      read_mv(r, &mv[1].as_mv, &ref_mv[1].as_mv, nmvc, allow_hp);
+      read_mv(r, &mv[1].as_mv, &ref_mv[1].as_mv, nmvc, precision);
       assert(is_compound);
       break;
     }
     case NEW_NEARMV: {
       nmv_context *const nmvc = &ec_ctx->nmvc;
-      read_mv(r, &mv[0].as_mv, &ref_mv[0].as_mv, nmvc, allow_hp);
+      read_mv(r, &mv[0].as_mv, &ref_mv[0].as_mv, nmvc, precision);
       assert(is_compound);
       mv[1].as_int = near_mv[1].as_int;
       break;

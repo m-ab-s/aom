@@ -66,14 +66,26 @@ static void encode_mv_component(aom_writer *w, int comp, nmv_component *mvcomp,
   }
   // Fractional bits
   if (precision > MV_SUBPEL_NONE) {
+#if CONFIG_FLEX_MVRES
+    aom_write_symbol(w, fr >> 1,
+                     mv_class == MV_CLASS_0 ? mvcomp->class0_fp_cdf[d][0]
+                                            : mvcomp->fp_cdf[0],
+                     2);
+    aom_write_symbol(w, fr & 1,
+                     mv_class == MV_CLASS_0
+                         ? mvcomp->class0_fp_cdf[d][1 + (fr >> 1)]
+                         : mvcomp->fp_cdf[1 + (fr >> 1)],
+                     2);
+#else
     aom_write_symbol(
         w, fr,
         mv_class == MV_CLASS_0 ? mvcomp->class0_fp_cdf[d] : mvcomp->fp_cdf,
         MV_FP_SIZE);
+#endif
   }
 
   // High precision bit
-  if (precision > MV_SUBPEL_LOW_PRECISION)
+  if (precision > MV_SUBPEL_QTR_PRECISION)
     aom_write_symbol(
         w, hp, mv_class == MV_CLASS_0 ? mvcomp->class0_hp_cdf : mvcomp->hp_cdf,
         2);
@@ -85,7 +97,11 @@ static void build_nmv_component_cost_table(int *mvcost,
   int i, v;
   int sign_cost[2], class_cost[MV_CLASSES], class0_cost[CLASS0_SIZE];
   int bits_cost[MV_OFFSET_BITS][2];
+#if CONFIG_FLEX_MVRES
+  int class0_fp_cost[CLASS0_SIZE][3][2], fp_cost[3][2];
+#else
   int class0_fp_cost[CLASS0_SIZE][MV_FP_SIZE], fp_cost[MV_FP_SIZE];
+#endif  // CONFIG_FLEX_MVRES
   int class0_hp_cost[2], hp_cost[2];
 
   av1_cost_tokens_from_cdf(sign_cost, mvcomp->sign_cdf, NULL);
@@ -95,11 +111,21 @@ static void build_nmv_component_cost_table(int *mvcost,
     av1_cost_tokens_from_cdf(bits_cost[i], mvcomp->bits_cdf[i], NULL);
   }
 
+#if CONFIG_FLEX_MVRES
+  for (i = 0; i < CLASS0_SIZE; ++i) {
+    for (int j = 0; j < 3; ++j)
+      av1_cost_tokens_from_cdf(class0_fp_cost[i][j],
+                               mvcomp->class0_fp_cdf[i][j], NULL);
+  }
+  for (int j = 0; j < 3; ++j)
+    av1_cost_tokens_from_cdf(fp_cost[j], mvcomp->fp_cdf[j], NULL);
+#else
   for (i = 0; i < CLASS0_SIZE; ++i)
     av1_cost_tokens_from_cdf(class0_fp_cost[i], mvcomp->class0_fp_cdf[i], NULL);
   av1_cost_tokens_from_cdf(fp_cost, mvcomp->fp_cdf, NULL);
+#endif  // CONFIG_FLEX_MVRES
 
-  if (precision > MV_SUBPEL_LOW_PRECISION) {
+  if (precision > MV_SUBPEL_QTR_PRECISION) {
     av1_cost_tokens_from_cdf(class0_hp_cost, mvcomp->class0_hp_cdf, NULL);
     av1_cost_tokens_from_cdf(hp_cost, mvcomp->hp_cdf, NULL);
   }
@@ -119,12 +145,21 @@ static void build_nmv_component_cost_table(int *mvcost,
       for (i = 0; i < b; ++i) cost += bits_cost[i][((d >> i) & 1)];
     }
     if (precision > MV_SUBPEL_NONE) {
+#if CONFIG_FLEX_MVRES
+      if (c == MV_CLASS_0) {
+        cost += class0_fp_cost[d][0][f >> 1] +
+                class0_fp_cost[d][1 + (f >> 1)][f & 1];
+      } else {
+        cost += fp_cost[0][f >> 1] + fp_cost[1 + (f >> 1)][f & 1];
+      }
+#else
       if (c == MV_CLASS_0) {
         cost += class0_fp_cost[d][f];
       } else {
         cost += fp_cost[f];
       }
-      if (precision > MV_SUBPEL_LOW_PRECISION) {
+#endif  // CONFIG_FLEX_MVRES
+      if (precision > MV_SUBPEL_QTR_PRECISION) {
         if (c == MV_CLASS_0) {
           cost += class0_hp_cost[e];
         } else {
@@ -141,15 +176,16 @@ void av1_encode_mv(AV1_COMP *cpi, aom_writer *w, const MV *mv, const MV *ref,
                    nmv_context *mvctx, int usehp) {
   const MV diff = { mv->row - ref->row, mv->col - ref->col };
   const MV_JOINT_TYPE j = av1_get_mv_joint(&diff);
-  if (cpi->common.cur_frame_force_integer_mv) {
-    usehp = MV_SUBPEL_NONE;
-  }
+  const MvSubpelPrecision precision = cpi->common.cur_frame_force_integer_mv
+                                          ? MV_SUBPEL_NONE
+                                          : MV_SUBPEL_QTR_PRECISION + usehp;
+
   aom_write_symbol(w, j, mvctx->joints_cdf, MV_JOINTS);
   if (mv_joint_vertical(j))
-    encode_mv_component(w, diff.row, &mvctx->comps[0], usehp);
+    encode_mv_component(w, diff.row, &mvctx->comps[0], precision);
 
   if (mv_joint_horizontal(j))
-    encode_mv_component(w, diff.col, &mvctx->comps[1], usehp);
+    encode_mv_component(w, diff.col, &mvctx->comps[1], precision);
 
   // If auto_mv_step_size is enabled then keep track of the largest
   // motion vector component used.
