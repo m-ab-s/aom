@@ -362,24 +362,6 @@ PREDICTION_MODE av1_left_block_mode(const MB_MODE_INFO *left_mi);
 
 PREDICTION_MODE av1_above_block_mode(const MB_MODE_INFO *above_mi);
 
-#if CONFIG_INTRA_ENTROPY
-const uint64_t *av1_block_mode(const MB_MODE_INFO *mi, PREDICTION_MODE *mode,
-                               int64_t *recon_var);
-
-void av1_get_intra_block_feature(float *feature, const MB_MODE_INFO *above_mi,
-                                 const MB_MODE_INFO *left_mi,
-                                 const MB_MODE_INFO *aboveleft_mi);
-
-void av1_get_intra_uv_block_feature(float *feature, PREDICTION_MODE cur_y_mode,
-                                    const MB_MODE_INFO *above_mi,
-                                    const MB_MODE_INFO *left_mi);
-
-void av1_pdf2cdf(float *pdf, aom_cdf_prob *cdf, int nsymbs);
-
-void av1_nn_get_cdf(const float *features, aom_cdf_prob *cdf, int nsymbs,
-                    NN_CONFIG_EM *nn_model);
-#endif  // CONFIG_INTRA_ENTROPY
-
 static INLINE int is_global_mv_block(const MB_MODE_INFO *const mbmi,
                                      TransformationType type) {
   const PREDICTION_MODE mode = mbmi->mode;
@@ -1288,6 +1270,21 @@ void av1_get_gradient_hist(const MACROBLOCKD *const xd,
 // Calculate variance of the reconstructed pixel values in current coding block.
 void av1_get_recon_var(const MACROBLOCKD *const xd, MB_MODE_INFO *const mbmi,
                        BLOCK_SIZE bsize);
+
+void av1_get_intra_block_feature(float *feature, const MB_MODE_INFO *above_mi,
+                                 const MB_MODE_INFO *left_mi,
+                                 const MB_MODE_INFO *aboveleft_mi);
+
+void av1_get_intra_uv_block_feature(float *features, PREDICTION_MODE cur_y_mode,
+                                    const MB_MODE_INFO *above_mi,
+                                    const MB_MODE_INFO *left_mi);
+
+void av1_pdf2icdf(float *pdf, aom_cdf_prob *cdf, int nsymbs);
+
+void av1_get_kf_y_mode_cdf_ml(const MACROBLOCKD *xd, aom_cdf_prob *cdf);
+
+void av1_get_uv_mode_cdf_ml(const MACROBLOCKD *xd, PREDICTION_MODE y_mode,
+                            aom_cdf_prob *cdf);
 #endif  // CONFIG_INTRA_ENTROPY
 
 #ifdef __cplusplus

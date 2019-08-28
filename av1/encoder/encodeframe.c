@@ -884,7 +884,7 @@ static void sum_intra_stats(const AV1_COMMON *const cm, FRAME_COUNTS *counts,
 #endif  // CONFIG_ENTROPY_STATS
     if (allow_update_cdf) {
 #if CONFIG_INTRA_ENTROPY
-      float features[54], scores[INTRA_MODES];
+      float features[KF_Y_MODE_FEATURES], scores[INTRA_MODES];
       NN_CONFIG_EM *nn_model = &(fc->av1_intra_y_mode);
       av1_get_intra_block_feature(features, above_mi, left_mi, aboveleft_mi);
       av1_nn_predict_em(features, nn_model, scores);
@@ -966,7 +966,7 @@ static void sum_intra_stats(const AV1_COMMON *const cm, FRAME_COUNTS *counts,
 #endif  // CONFIG_ENTROPY_STATS
   if (allow_update_cdf) {
 #if CONFIG_INTRA_ENTROPY
-    float features[54], scores[UV_INTRA_MODES];
+    float features[UV_INTRA_MODE_FEATURES], scores[UV_INTRA_MODES];
     NN_CONFIG_EM *nn_model = &(fc->av1_intra_uv_mode);
     av1_get_intra_uv_block_feature(features, y_mode, above_mi, left_mi);
     av1_nn_predict_em(features, nn_model, scores);

@@ -4867,18 +4867,15 @@ static int64_t rd_pick_intra_sby_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
       av1_allow_palette(cpi->common.allow_screen_content_tools, mbmi->sb_type);
   uint8_t *best_palette_color_map =
       try_palette ? x->palette_buffer->best_palette_color_map : NULL;
-  const MB_MODE_INFO *above_mi = xd->above_mbmi;
-  const MB_MODE_INFO *left_mi = xd->left_mbmi;
 #if CONFIG_INTRA_ENTROPY
-  const MB_MODE_INFO *aboveleft_mi = xd->aboveleft_mbmi;
-  float features[EM_MAX_FEATURE_NODES];
-  aom_cdf_prob cdf[CDF_SIZE(INTRA_MODES)] = { 0 };
-  av1_get_intra_block_feature(features, above_mi, left_mi, aboveleft_mi);
-  av1_nn_get_cdf(features, cdf, INTRA_MODES, &(xd->tile_ctx->av1_intra_y_mode));
+  aom_cdf_prob cdf[INTRA_MODES];
+  av1_get_kf_y_mode_cdf_ml(xd, cdf);
   int cost[INTRA_MODES];
   av1_cost_tokens_from_cdf(cost, cdf, NULL);
   bmode_costs = cost;
 #else
+  const MB_MODE_INFO *above_mi = xd->above_mbmi;
+  const MB_MODE_INFO *left_mi = xd->left_mbmi;
   const PREDICTION_MODE A = av1_above_block_mode(above_mi);
   const PREDICTION_MODE L = av1_left_block_mode(left_mi);
   const int above_ctx = intra_mode_context[A];
@@ -6567,12 +6564,8 @@ static int64_t rd_pick_intra_sbuv_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
   const int *bmode_costs;
 
 #if CONFIG_INTRA_ENTROPY
-  float features[EM_MAX_FEATURE_NODES];
-  aom_cdf_prob cdf[CDF_SIZE(UV_INTRA_MODES)] = { 0 };
-  av1_get_intra_uv_block_feature(features, mbmi->mode, xd->above_mbmi,
-                                 xd->left_mbmi);
-  av1_nn_get_cdf(features, cdf, UV_INTRA_MODES,
-                 &(xd->tile_ctx->av1_intra_uv_mode));
+  aom_cdf_prob cdf[UV_INTRA_MODES];
+  av1_get_uv_mode_cdf_ml(xd, mbmi->mode, cdf);
   int cost[UV_INTRA_MODES];
   av1_cost_tokens_from_cdf(cost, cdf, NULL);
   bmode_costs = cost;

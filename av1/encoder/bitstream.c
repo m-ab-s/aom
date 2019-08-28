@@ -70,69 +70,59 @@ static void loop_restoration_write_sb_coeffs(const AV1_COMMON *const cm,
                                              aom_writer *const w, int plane,
                                              FRAME_COUNTS *counts);
 
-static void write_intra_y_mode_kf(FRAME_CONTEXT *frame_ctx,
-                                  const MB_MODE_INFO *mi,
-                                  const MB_MODE_INFO *above_mi,
-                                  const MB_MODE_INFO *left_mi,
-#if CONFIG_INTRA_ENTROPY
-                                  const MB_MODE_INFO *aboveleft_mi,
-#endif  // CONFIG_INTRA_ENTROPY
-                                  PREDICTION_MODE mode, aom_writer *w) {
+static void write_intra_y_mode_kf(MACROBLOCKD *const xd,
+                                  FRAME_CONTEXT *frame_ctx,
+                                  const MB_MODE_INFO *mi, PREDICTION_MODE mode,
+                                  aom_writer *w) {
   assert(!is_intrabc_block(mi));
   (void)mi;
 
 #if CONFIG_INTRA_ENTROPY
-  float features[EM_MAX_FEATURE_NODES];
-  aom_cdf_prob cdf[CDF_SIZE(INTRA_MODES)] = { 0 };
-  av1_get_intra_block_feature(features, above_mi, left_mi, aboveleft_mi);
-  av1_nn_get_cdf(features, cdf, INTRA_MODES, &(frame_ctx->av1_intra_y_mode));
+  aom_cdf_prob cdf[INTRA_MODES];
+  av1_get_kf_y_mode_cdf_ml(xd, cdf);
   aom_write_symbol_nn(w, mode, cdf, &(frame_ctx->av1_intra_y_mode),
                       INTRA_MODES);
 #else
+  const MB_MODE_INFO *const above_mi = xd->above_mbmi;
+  const MB_MODE_INFO *const left_mi = xd->left_mbmi;
   aom_write_symbol(w, mode, get_y_mode_cdf(frame_ctx, above_mi, left_mi),
                    INTRA_MODES);
 #endif  // CONFIG_INTRA_ENTROPY
 
   // Write data into file for training data collection
 #if 0
-  PREDICTION_MODE above, left, aboveleft;
-  int64_t above_var, left_var, al_var;
-  const uint64_t *above_hist = av1_block_mode(above_mi, &above, &above_var);
-  const uint64_t *left_hist = av1_block_mode(left_mi, &left, &left_var);
-  const uint64_t *al_hist = av1_block_mode(aboveleft_mi, &aboveleft, &al_var);
-  FILE *fp = fopen("intra_data.csv", "a");
-  if (fp) {
-    fprintf(fp,
-            "%d,"
-            "%d,%d,%d,",
-            mode, above, left, aboveleft);
-    if (above_hist) {
-      for (int i = 0; i < 8; ++i) {
-        fprintf(fp, "%" PRIu64 ",", above_hist[i]);
+  do {
+    FILE *fp = fopen("if_y_mode_data.txt", "a");
+    if (!fp) break;
+
+    const int dc_q =
+        av1_dc_quant_QTX(xd->current_qindex, 0, xd->bd) >> (xd->bd - 8);
+    fprintf(fp, "%d,%d,%d,%d,",
+            mode,
+            block_size_wide[mi->sb_type],
+            block_size_high[mi->sb_type],
+            dc_q);
+
+    const MB_MODE_INFO *mbmi_list[3] = {
+        xd->above_mbmi, xd->left_mbmi, xd->aboveleft_mbmi
+    };
+
+    for (int i = 0; i < 3; ++i) {
+      const MB_MODE_INFO *mbmi = mbmi_list[i];
+      const int data_available = mbmi != NULL;
+      fprintf(fp, "%d,", data_available);
+      if (data_available) {
+        fprintf(fp, "%d,%d,",
+                mbmi->mode,
+                (int)AOMMIN(mbmi->y_recon_var, INT_MAX));
+        for (int j = 0; j < 8; ++j) {
+          fprintf(fp, "%d,", (int)AOMMIN(mbmi->y_gradient_hist[j], INT_MAX));
+        }
       }
-    } else {
-      fprintf(fp, "%d,%d,%d,%d,%d,%d,%d,%d,", 0, 0, 0, 0, 0, 0, 0, 0);
     }
-    if (left_hist) {
-      for (int i = 0; i < 8; ++i) {
-        fprintf(fp, "%" PRIu64 ",", left_hist[i]);
-      }
-    } else {
-      fprintf(fp, "%d,%d,%d,%d,%d,%d,%d,%d,", 0, 0, 0, 0, 0, 0, 0, 0);
-    }
-    if (al_hist) {
-      for (int i = 0; i < 8; ++i) {
-        fprintf(fp, "%" PRIu64 ",", al_hist[i]);
-      }
-    } else {
-      fprintf(fp, "%d,%d,%d,%d,%d,%d,%d,%d,", 0, 0, 0, 0, 0, 0, 0, 0);
-    }
-    fprintf(fp, "%" PRId64 ",", above_var);
-    fprintf(fp, "%" PRId64 ",", left_var);
-    fprintf(fp, "%" PRId64 ",", al_var);
     fprintf(fp, "\n");
     fclose(fp);
-  }
+  } while (0);
 #endif
 }
 
@@ -998,60 +988,64 @@ static void write_intra_y_mode_nonkf(FRAME_CONTEXT *frame_ctx, BLOCK_SIZE bsize,
                    INTRA_MODES);
 }
 
-static void write_intra_uv_mode(FRAME_CONTEXT *frame_ctx,
+static void write_intra_uv_mode(const MACROBLOCKD *xd, FRAME_CONTEXT *frame_ctx,
                                 UV_PREDICTION_MODE uv_mode,
                                 PREDICTION_MODE y_mode,
-#if CONFIG_INTRA_ENTROPY
-                                const MB_MODE_INFO *above_mi,
-                                const MB_MODE_INFO *left_mi,
-#else
-                                CFL_ALLOWED_TYPE cfl_allowed,
-#endif  // CONFIG_INTRA_ENTROPY
+                                CFL_ALLOWED_TYPE cfl_allowed, int is_keyframe,
                                 aom_writer *w) {
 #if CONFIG_INTRA_ENTROPY
-  float features[EM_MAX_FEATURE_NODES];
-  aom_cdf_prob cdf[CDF_SIZE(UV_INTRA_MODES)] = { 0 };
-  av1_get_intra_uv_block_feature(features, y_mode, above_mi, left_mi);
-  av1_nn_get_cdf(features, cdf, UV_INTRA_MODES,
-                 &(frame_ctx->av1_intra_uv_mode));
-  aom_write_symbol_nn(w, uv_mode, cdf, &(frame_ctx->av1_intra_uv_mode),
-                      UV_INTRA_MODES);
+  if (is_keyframe) {
+    aom_cdf_prob cdf[UV_INTRA_MODES];
+    av1_get_uv_mode_cdf_ml(xd, y_mode, cdf);
+    aom_write_symbol_nn(w, uv_mode, cdf, &(frame_ctx->av1_intra_uv_mode),
+                        UV_INTRA_MODES);
+  } else {
+    aom_write_symbol(w, uv_mode, frame_ctx->uv_mode_cdf[cfl_allowed][y_mode],
+                     UV_INTRA_MODES - !cfl_allowed);
+  }
 #else
+  (void)xd;
+  (void)is_keyframe;
   aom_write_symbol(w, uv_mode, frame_ctx->uv_mode_cdf[cfl_allowed][y_mode],
                    UV_INTRA_MODES - !cfl_allowed);
 #endif  // CONFIG_INTRA_ENTROPY
 
   // Write data into file for training data collection
 #if 0
-  PREDICTION_MODE y_mode1[2];
-  int64_t y_var[2];
-  const uint64_t *above_hist = av1_block_mode(above_mi, y_mode1, y_var);
-  const uint64_t *left_hist = av1_block_mode(left_mi, y_mode1 + 1, y_var + 1);
-  FILE *fp = fopen("intra_data.csv", "a");
-  if (fp) {
-    fprintf(fp,
-            "%d,"
-            "%d,%d,%d,",
-            uv_mode, y_mode, y_mode1[0], y_mode1[1]);
-    if (above_hist) {
-      for (int i = 0; i < 8; ++i) {
-        fprintf(fp, "%" PRIu64 ",", above_hist[i]);
+  do {
+    FILE *fp = fopen("uv_intra_mode_data.txt", "a");
+    if (!fp) break;
+
+    const int dc_q =
+        av1_dc_quant_QTX(xd->current_qindex, 0, xd->bd) >> (xd->bd - 8);
+    fprintf(fp, "%d,%d,%d,%d,%d,%d,",
+            uv_mode,
+            y_mode,
+            cfl_allowed,
+            block_size_wide[xd->mi[0]->sb_type],
+            block_size_high[xd->mi[0]->sb_type],
+            dc_q);
+
+    const MB_MODE_INFO *mbmi_list[3] = {
+        xd->above_mbmi, xd->left_mbmi, xd->aboveleft_mbmi
+    };
+
+    for (int i = 0; i < 3; ++i) {
+      const MB_MODE_INFO *mbmi = mbmi_list[i];
+      const int data_available = mbmi != NULL;
+      fprintf(fp, "%d,", data_available);
+      if (data_available) {
+        fprintf(fp, "%d,%d,",
+                mbmi->mode,
+                (int)AOMMIN(mbmi->y_recon_var, INT_MAX));
+        for (int j = 0; j < 8; ++j) {
+          fprintf(fp, "%d,", (int)AOMMIN(mbmi->y_gradient_hist[j], INT_MAX));
+        }
       }
-    } else {
-      fprintf(fp, "%d,%d,%d,%d,%d,%d,%d,%d,", 0, 0, 0, 0, 0, 0, 0, 0);
     }
-    fprintf(fp, "%" PRId64 ",", y_var[0]);
-    if (left_hist) {
-      for (int i = 0; i < 8; ++i) {
-        fprintf(fp, "%" PRIu64 ",", left_hist[i]);
-      }
-    } else {
-      fprintf(fp, "%d,%d,%d,%d,%d,%d,%d,%d,", 0, 0, 0, 0, 0, 0, 0, 0);
-    }
-    fprintf(fp, "%" PRId64 ",", y_var[1]);
     fprintf(fp, "\n");
     fclose(fp);
-  }
+  } while (0);
 #endif
 }
 
@@ -1191,16 +1185,7 @@ static void write_intra_prediction_modes(AV1_COMP *cpi, const int mi_row,
 
   // Y mode.
   if (is_keyframe) {
-    const MB_MODE_INFO *const above_mi = xd->above_mbmi;
-    const MB_MODE_INFO *const left_mi = xd->left_mbmi;
-#if CONFIG_INTRA_ENTROPY
-    const MB_MODE_INFO *const aboveleft_mi = xd->aboveleft_mbmi;
-#endif  // CONFIG_INTRA_ENTROPY
-    write_intra_y_mode_kf(ec_ctx, mbmi, above_mi, left_mi,
-#if CONFIG_INTRA_ENTROPY
-                          aboveleft_mi,
-#endif  // CONFIG_INTRA_ENTROPY
-                          mode, w);
+    write_intra_y_mode_kf(xd, ec_ctx, mbmi, mode, w);
   } else {
     write_intra_y_mode_nonkf(ec_ctx, bsize, mode, w);
   }
@@ -1217,13 +1202,8 @@ static void write_intra_prediction_modes(AV1_COMP *cpi, const int mi_row,
       is_chroma_reference(mi_row, mi_col, bsize, xd->plane[1].subsampling_x,
                           xd->plane[1].subsampling_y)) {
     const UV_PREDICTION_MODE uv_mode = mbmi->uv_mode;
-#if CONFIG_INTRA_ENTROPY
-    const MB_MODE_INFO *const above_mi = xd->above_mbmi;
-    const MB_MODE_INFO *const left_mi = xd->left_mbmi;
-    write_intra_uv_mode(ec_ctx, uv_mode, mode, above_mi, left_mi, w);
-#else
-    write_intra_uv_mode(ec_ctx, uv_mode, mode, is_cfl_allowed(xd), w);
-#endif  // CONFIG_INTRA_ENTROPY
+    write_intra_uv_mode(xd, ec_ctx, uv_mode, mode, is_cfl_allowed(xd),
+                        is_keyframe, w);
     if (uv_mode == UV_CFL_PRED)
       write_cfl_alphas(ec_ctx, mbmi->cfl_alpha_idx, mbmi->cfl_alpha_signs, w);
     if (use_angle_delta && av1_is_directional_mode(get_uv_mode(uv_mode))) {

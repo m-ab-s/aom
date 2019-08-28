@@ -2348,8 +2348,7 @@ static void init_mode_probs(FRAME_CONTEXT *fc) {
   av1_copy(fc->palette_uv_color_index_cdf, default_palette_uv_color_index_cdf);
   av1_copy(fc->kf_y_cdf, default_kf_y_mode_cdf);
 #if CONFIG_INTRA_ENTROPY
-  float arr[20000] = { 0.f };
-  // Intra Y mode model
+  av1_zero(fc->av1_intra_y_mode);
   fc->av1_intra_y_mode.lr = intra_y_mode_lr;
 #if INTRA_MODEL < 0
   fc->av1_intra_y_mode.num_hidden_layers = 0;
@@ -2360,12 +2359,6 @@ static void init_mode_probs(FRAME_CONTEXT *fc) {
   fc->av1_intra_y_mode.loss = SOFTMAX_CROSS_ENTROPY_LOSS;
   av1_copy(fc->av1_intra_y_mode.layer[0].weights, intra_y_mode_layer0_weights);
   av1_copy(fc->av1_intra_y_mode.layer[0].bias, intra_y_mode_layer0_bias);
-  av1_copy_array(fc->av1_intra_y_mode.feature, arr, EM_MAX_NODES);
-  av1_copy_array(fc->av1_intra_y_mode.layer[0].output, arr, EM_MAX_NODES);
-  av1_copy_array(fc->av1_intra_y_mode.layer[0].dY, arr, EM_MAX_NODES);
-  av1_copy_array(fc->av1_intra_y_mode.layer[0].dW, arr,
-                 EM_MAX_NODES * EM_MAX_NODES);
-  av1_copy_array(fc->av1_intra_y_mode.layer[0].db, arr, EM_MAX_NODES);
 #else
   fc->av1_intra_y_mode.num_hidden_layers = 1;
 #if INTRA_MODEL == 0
@@ -2386,19 +2379,9 @@ static void init_mode_probs(FRAME_CONTEXT *fc) {
   av1_copy(fc->av1_intra_y_mode.layer[0].bias, intra_y_mode_layer0_bias);
   av1_copy(fc->av1_intra_y_mode.layer[1].weights, intra_y_mode_layer1_weights);
   av1_copy(fc->av1_intra_y_mode.layer[1].bias, intra_y_mode_layer1_bias);
-  av1_copy_array(fc->av1_intra_y_mode.feature, arr, EM_MAX_NODES);
-  av1_copy_array(fc->av1_intra_y_mode.layer[0].output, arr, EM_MAX_NODES);
-  av1_copy_array(fc->av1_intra_y_mode.layer[0].dY, arr, EM_MAX_NODES);
-  av1_copy_array(fc->av1_intra_y_mode.layer[0].dW, arr,
-                 EM_MAX_NODES * EM_MAX_NODES);
-  av1_copy_array(fc->av1_intra_y_mode.layer[0].db, arr, EM_MAX_NODES);
-  av1_copy_array(fc->av1_intra_y_mode.layer[1].output, arr, EM_MAX_NODES);
-  av1_copy_array(fc->av1_intra_y_mode.layer[1].dY, arr, EM_MAX_NODES);
-  av1_copy_array(fc->av1_intra_y_mode.layer[1].dW, arr,
-                 EM_MAX_NODES * EM_MAX_NODES);
-  av1_copy_array(fc->av1_intra_y_mode.layer[1].db, arr, EM_MAX_NODES);
 #endif  // INTRA_MODEL
   // Intra UV mode model
+  av1_zero(fc->av1_intra_uv_mode);
   fc->av1_intra_uv_mode.lr = intra_uv_mode_lr;
 #if INTRA_MODEL < 0
   fc->av1_intra_uv_mode.num_hidden_layers = 0;
@@ -2410,12 +2393,6 @@ static void init_mode_probs(FRAME_CONTEXT *fc) {
   av1_copy(fc->av1_intra_uv_mode.layer[0].weights,
            intra_uv_mode_layer0_weights);
   av1_copy(fc->av1_intra_uv_mode.layer[0].bias, intra_uv_mode_layer0_bias);
-  av1_copy_array(fc->av1_intra_uv_mode.feature, arr, EM_MAX_NODES);
-  av1_copy_array(fc->av1_intra_uv_mode.layer[0].output, arr, EM_MAX_NODES);
-  av1_copy_array(fc->av1_intra_uv_mode.layer[0].dY, arr, EM_MAX_NODES);
-  av1_copy_array(fc->av1_intra_uv_mode.layer[0].dW, arr,
-                 EM_MAX_NODES * EM_MAX_NODES);
-  av1_copy_array(fc->av1_intra_uv_mode.layer[0].db, arr, EM_MAX_NODES);
 #else
   fc->av1_intra_uv_mode.num_hidden_layers = 1;
   fc->av1_intra_uv_mode.layer[0].num_inputs = 31;
@@ -2432,17 +2409,6 @@ static void init_mode_probs(FRAME_CONTEXT *fc) {
   av1_copy(fc->av1_intra_uv_mode.layer[1].weights,
            intra_uv_mode_layer1_weights);
   av1_copy(fc->av1_intra_uv_mode.layer[1].bias, intra_uv_mode_layer1_bias);
-  av1_copy_array(fc->av1_intra_uv_mode.feature, arr, EM_MAX_NODES);
-  av1_copy_array(fc->av1_intra_uv_mode.layer[0].output, arr, EM_MAX_NODES);
-  av1_copy_array(fc->av1_intra_uv_mode.layer[0].dY, arr, EM_MAX_NODES);
-  av1_copy_array(fc->av1_intra_uv_mode.layer[0].dW, arr,
-                 EM_MAX_NODES * EM_MAX_NODES);
-  av1_copy_array(fc->av1_intra_uv_mode.layer[0].db, arr, EM_MAX_NODES);
-  av1_copy_array(fc->av1_intra_uv_mode.layer[1].output, arr, EM_MAX_NODES);
-  av1_copy_array(fc->av1_intra_uv_mode.layer[1].dY, arr, EM_MAX_NODES);
-  av1_copy_array(fc->av1_intra_uv_mode.layer[1].dW, arr,
-                 EM_MAX_NODES * EM_MAX_NODES);
-  av1_copy_array(fc->av1_intra_uv_mode.layer[1].db, arr, EM_MAX_NODES);
 #endif  // INTRA_MODEL
 #endif  // CONFIG_INTRA_ENTROPY
   av1_copy(fc->angle_delta_cdf, default_angle_delta_cdf);

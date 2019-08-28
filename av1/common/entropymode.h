@@ -62,17 +62,16 @@ extern "C" {
 #define INTRA_MODEL -1  // -1:linear 0; 0:hist+var+mode; 1:hist; 2:hist+mode
 enum { ACTN_NONE, ACTN_RELU, ACTN_SIGMOID } UENUM1BYTE(ACTN);
 enum { SOFTMAX_CROSS_ENTROPY_LOSS } UENUM1BYTE(LOSS_F);
-struct NN_CONFIG_EM;
-typedef struct NN_CONFIG_EM NN_CONFIG_EM;
-struct FC_LAYER_EM;
-typedef struct FC_LAYER_EM FC_LAYER_EM;
+
+#define KF_Y_MODE_FEATURES 54
+#define UV_INTRA_MODE_FEATURES 54
 
 #define EM_MAX_HLAYERS 1
 #define EM_MAX_NODES 128
 #define EM_MAX_FEATURE_NODES 128
 
 // Fully-connectedly layer configuration
-struct FC_LAYER_EM {
+typedef struct FC_LAYER_EM {
   int num_inputs;   // Number of input nodes, i.e. features.
   int num_outputs;  // Number of output nodes.
 
@@ -84,10 +83,10 @@ struct FC_LAYER_EM {
   float dY[EM_MAX_NODES];                 // Gradient of outputs
   float dW[EM_MAX_NODES * EM_MAX_NODES];  // Gradient of weights.
   float db[EM_MAX_NODES];                 // Gradient of bias
-};
+} FC_LAYER_EM;
 
 // NN configure structure for entropy mode (EM)
-struct NN_CONFIG_EM {
+typedef struct NN_CONFIG_EM {
   float lr;                               // learning rate
   int num_hidden_layers;                  // Number of hidden layers, max = 10.
   float feature[EM_MAX_NODES];            // Input feature
@@ -95,7 +94,7 @@ struct NN_CONFIG_EM {
   int num_logits;                         // Number of output nodes.
   float output[EM_MAX_NODES];             // Output
   LOSS_F loss;                            // Loss function
-};
+} NN_CONFIG_EM;
 
 // Calculate prediction based on the given input features and neural net config.
 // Assume there are no more than NN_MAX_NODES_PER_LAYER nodes in each hidden

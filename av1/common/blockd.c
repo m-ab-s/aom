@@ -29,8 +29,9 @@ PREDICTION_MODE av1_above_block_mode(const MB_MODE_INFO *above_mi) {
 }
 
 #if CONFIG_INTRA_ENTROPY
-const uint64_t *av1_block_mode(const MB_MODE_INFO *mi, PREDICTION_MODE *mode,
-                               int64_t *recon_var) {
+INLINE static const uint64_t *fetch_block_info(const MB_MODE_INFO *mi,
+                                               PREDICTION_MODE *mode,
+                                               int64_t *recon_var) {
   if (!mi) {
     *mode = 255;
     *recon_var = 0;
@@ -43,158 +44,107 @@ const uint64_t *av1_block_mode(const MB_MODE_INFO *mi, PREDICTION_MODE *mode,
   }
 }
 
+INLINE static void add_hist_features(const uint64_t *hist, float **features) {
+  float total = 0.0f;
+  if (hist) {
+    for (int i = 0; i < 8; ++i) {
+      total += (float)hist[i];
+    }
+  }
+
+  float *feature_pt = *features;
+  if (total > 0.1f) {
+    for (int i = 0; i < 8; ++i) {
+      feature_pt[i] = (float)hist[i] / total;
+    }
+  } else {
+    for (int i = 0; i < 8; ++i) {
+      feature_pt[i] = 0.125f;
+    }
+  }
+  *features += 8;
+}
+
+INLINE static void add_mode_features(PREDICTION_MODE mode, float **features) {
+  float *feature_pt = *features;
+  memset(feature_pt, 0, 5 * sizeof(*feature_pt));
+  if (mode < INTRA_MODES) {
+    feature_pt[intra_mode_context[mode]] = 1.0f;
+  }
+  *features += 5;
+}
+
 void av1_get_intra_block_feature(float *features, const MB_MODE_INFO *above_mi,
                                  const MB_MODE_INFO *left_mi,
                                  const MB_MODE_INFO *aboveleft_mi) {
-  PREDICTION_MODE above, left, aboveleft;
+  PREDICTION_MODE above_mode, left_mode, aboveleft_mode;
   int64_t above_var, left_var, al_var;
-  const uint64_t *above_hist = av1_block_mode(above_mi, &above, &above_var);
-  const uint64_t *left_hist = av1_block_mode(left_mi, &left, &left_var);
-  const uint64_t *al_hist = av1_block_mode(aboveleft_mi, &aboveleft, &al_var);
+  const uint64_t *above_hist =
+      fetch_block_info(above_mi, &above_mode, &above_var);
+  const uint64_t *left_hist = fetch_block_info(left_mi, &left_mode, &left_var);
+  const uint64_t *al_hist =
+      fetch_block_info(aboveleft_mi, &aboveleft_mode, &al_var);
 
-  float hist_total[3] = { 0.f, 0.f, 0.f };
-  int pt = 0;
+  add_hist_features(above_hist, &features);
+  add_hist_features(left_hist, &features);
+  add_hist_features(al_hist, &features);
 
-  if (above_hist) {
-    for (int i = 0; i < 8; ++i) {
-      hist_total[0] += (float)above_hist[i];
-    }
-  }
-  if (hist_total[0] > 0.1f) {
-    for (int i = 0; i < 8; ++i) {
-      features[pt++] = (float)above_hist[i] / hist_total[0];
-    }
-  } else {
-    // deal with all 0 case
-    for (int i = 0; i < 8; ++i) {
-      features[pt++] = 0.125f;
-    }
-  }
-
-  if (left_hist) {
-    for (int i = 0; i < 8; ++i) {
-      hist_total[1] += (float)left_hist[i];
-    }
-  }
-  if (hist_total[1] > 0.1f) {
-    for (int i = 0; i < 8; ++i) {
-      features[pt++] = (float)left_hist[i] / hist_total[1];
-    }
-  } else {
-    for (int i = 0; i < 8; ++i) {
-      features[pt++] = 0.125f;
-    }
-  }
-
-  if (al_hist) {
-    for (int i = 0; i < 8; ++i) {
-      hist_total[2] += (float)al_hist[i];
-    }
-  }
-  if (hist_total[2] > 0.1f) {
-    for (int i = 0; i < 8; ++i) {
-      features[pt++] = (float)al_hist[i] / hist_total[2];
-    }
-  } else {
-    for (int i = 0; i < 8; ++i) {
-      features[pt++] = 0.125f;
-    }
-  }
 #if INTRA_MODEL <= 0
-  // The max in block variance statistics is 12534.
-  features[pt++] = above_var / 12534.f;
-  features[pt++] = left_var / 12534.f;
-  features[pt++] = al_var / 12534.f;
+  *(features++) = above_var / 12534.f;
+  *(features++) = left_var / 12534.f;
+  *(features++) = al_var / 12534.f;
 #endif  // INTRA_MODEL
+
 #if INTRA_MODEL != 1
-  for (int i = 0; i < 5; ++i) {
-    features[pt++] =
-        (above < INTRA_MODES && intra_mode_context[above] == i) ? 1.0f : 0.0f;
-  }
-  for (int i = 0; i < 5; ++i) {
-    features[pt++] =
-        (left < INTRA_MODES && intra_mode_context[left] == i) ? 1.0f : 0.0f;
-  }
-  for (int i = 0; i < 5; ++i) {
-    features[pt++] =
-        (aboveleft < INTRA_MODES && intra_mode_context[aboveleft] == i) ? 1.0f
-                                                                        : 0.0f;
-  }
+  add_mode_features(above_mode, &features);
+  add_mode_features(left_mode, &features);
+  add_mode_features(aboveleft_mode, &features);
 #endif  // INTRA_MODEL
 }
 
-void av1_pdf2cdf(float *pdf, aom_cdf_prob *cdf, int nsymbs) {
-  float pre = 1.f, thresh = 0.00001f, vsum = 1.f;
-  // Give the probability entries a lower bound, to avoid zero
-  for (int i = 0; i < nsymbs; ++i) {
-    if (pdf[i] < thresh) {
-      vsum += (thresh - pdf[i]);
-      pdf[i] = thresh;
-    }
+void av1_pdf2icdf(float *pdf, aom_cdf_prob *cdf, int nsymbs) {
+  float accu = 0.0f;  // AOM_ICDF
+  for (int i = 0; i < nsymbs - 1; ++i) {
+    accu += pdf[i];
+    cdf[i] = AOM_ICDF((aom_cdf_prob)(accu * CDF_PROB_TOP));
   }
-  for (int i = 0; i < nsymbs; ++i) {
-    pdf[i] /= vsum;
-    pre -= pdf[i];
-    cdf[i] = (aom_cdf_prob)(pre * CDF_PROB_TOP);
-  }
+  cdf[nsymbs - 1] = 0;
 }
 
-void av1_nn_get_cdf(const float *features, aom_cdf_prob *cdf, int nsymbs,
-                    NN_CONFIG_EM *nn_model) {
-  float scores[100];
-  av1_nn_predict_em(features, nn_model, scores);
-  av1_pdf2cdf(scores, cdf, nsymbs);
-}
-
-void av1_get_intra_uv_block_feature(float *feature, PREDICTION_MODE cur_y_mode,
+void av1_get_intra_uv_block_feature(float *features, PREDICTION_MODE cur_y_mode,
                                     const MB_MODE_INFO *above_mi,
                                     const MB_MODE_INFO *left_mi) {
   PREDICTION_MODE y_mode[2];
   int64_t y_var[2];
-  const uint64_t *above_hist = av1_block_mode(above_mi, y_mode, y_var);
-  const uint64_t *left_hist = av1_block_mode(left_mi, y_mode + 1, y_var + 1);
+  const uint64_t *above_hist = fetch_block_info(above_mi, y_mode, y_var);
+  const uint64_t *left_hist = fetch_block_info(left_mi, y_mode + 1, y_var + 1);
 
-  float hist_total[2] = { 0.f, 0.f };
-  int pt = 0;
+  add_hist_features(above_hist, &features);
+  add_hist_features(left_hist, &features);
 
-  if (above_hist) {
-    for (int i = 0; i < 8; ++i) {
-      hist_total[0] += above_hist[i];
-    }
-  }
-  if (hist_total[0] > 0.1f) {
-    for (int i = 0; i < 8; ++i) {
-      feature[pt++] = above_hist[i] / hist_total[0];
-    }
-  } else {
-    // deal with all 0 case
-    for (int i = 0; i < 8; ++i) {
-      feature[pt++] = 0.125f;
-    }
-  }
-  if (left_hist) {
-    for (int i = 0; i < 8; ++i) {
-      hist_total[1] += left_hist[i];
-    }
-  }
-  if (hist_total[1] > 0.1f) {
-    for (int i = 0; i < 8; ++i) {
-      feature[pt++] = left_hist[i] / hist_total[1];
-    }
-  } else {
-    // deal with all 0 case
-    for (int i = 0; i < 8; ++i) {
-      feature[pt++] = 0.125f;
-    }
-  }
+  *(features++) = (float)y_var[0] / 12534.f;
+  *(features++) = (float)y_var[1] / 12534.f;
 
-  feature[pt++] = (float)y_var[0] / 12534.f;
-  feature[pt++] = (float)y_var[1] / 12534.f;
-  for (int i = 0; i < INTRA_MODES; ++i) {
-    feature[pt++] = (cur_y_mode == i) ? 1.0f : 0.0f;
-  }
+  memset(features, 0, INTRA_MODES * sizeof(*features));
+  features[cur_y_mode] = 1.0f;
 }
 
+void av1_get_kf_y_mode_cdf_ml(const MACROBLOCKD *xd, aom_cdf_prob *cdf) {
+  float features[KF_Y_MODE_FEATURES], scores[INTRA_MODES];
+  av1_get_intra_block_feature(features, xd->above_mbmi, xd->left_mbmi,
+                              xd->aboveleft_mbmi);
+  av1_nn_predict_em(features, &(xd->tile_ctx->av1_intra_y_mode), scores);
+  av1_pdf2icdf(scores, cdf, INTRA_MODES);
+}
+
+void av1_get_uv_mode_cdf_ml(const MACROBLOCKD *xd, PREDICTION_MODE y_mode,
+                            aom_cdf_prob *cdf) {
+  float features[UV_INTRA_MODE_FEATURES], scores[UV_INTRA_MODES];
+  av1_get_intra_uv_block_feature(features, y_mode, xd->above_mbmi,
+                                 xd->left_mbmi);
+  av1_nn_predict_em(features, &(xd->tile_ctx->av1_intra_uv_mode), scores);
+  av1_pdf2icdf(scores, cdf, UV_INTRA_MODES);
+}
 #endif  // CONFIG_INTRA_ENTROPY
 
 void av1_set_contexts(const MACROBLOCKD *xd, struct macroblockd_plane *pd,
