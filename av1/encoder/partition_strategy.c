@@ -30,8 +30,9 @@
 
 #if !CONFIG_REALTIME_ONLY
 static void simple_motion_search_prune_part_features(
-    AV1_COMP *const cpi, MACROBLOCK *x, PC_TREE *pc_tree, int mi_row,
-    int mi_col, BLOCK_SIZE bsize, float *features, int features_to_get);
+    AV1_COMP *const cpi, MACROBLOCK *x, SIMPLE_MOTION_DATA_TREE *sms_tree,
+    int mi_row, int mi_col, BLOCK_SIZE bsize, float *features,
+    int features_to_get);
 #endif
 
 static INLINE int convert_bsize_to_idx(BLOCK_SIZE bsize) {
@@ -244,8 +245,8 @@ void av1_intra_mode_cnn_partition(const AV1_COMMON *const cm, MACROBLOCK *x,
 }
 
 void av1_simple_motion_search_based_split(
-    AV1_COMP *const cpi, MACROBLOCK *x, PC_TREE *pc_tree, int mi_row,
-    int mi_col, BLOCK_SIZE bsize, int *partition_none_allowed,
+    AV1_COMP *const cpi, MACROBLOCK *x, SIMPLE_MOTION_DATA_TREE *sms_tree,
+    int mi_row, int mi_col, BLOCK_SIZE bsize, int *partition_none_allowed,
     int *partition_horz_allowed, int *partition_vert_allowed,
     int *do_rectangular_split, int *do_square_split) {
   aom_clear_system_state();
@@ -278,7 +279,7 @@ void av1_simple_motion_search_based_split(
   }
 
   float features[FEATURE_SIZE_SMS_SPLIT] = { 0.0f };
-  simple_motion_search_prune_part_features(cpi, x, pc_tree, mi_row, mi_col,
+  simple_motion_search_prune_part_features(cpi, x, sms_tree, mi_row, mi_col,
                                            bsize, features,
                                            FEATURE_SMS_SPLIT_MODEL_FLAG);
   for (int idx = 0; idx < FEATURE_SIZE_SMS_SPLIT; idx++) {
@@ -306,12 +307,12 @@ void av1_simple_motion_search_based_split(
 // the refs and returns the ref with the smallest sse. Returns -1 if none of the
 // ref in the list is available. Also stores the best sse and var in best_sse,
 // best_var, respectively. If save_mv is 0, don't update mv_ref_fulls in
-// pc_tree. If save_mv is 1, update mv_ref_fulls under pc_tree and the
+// sms_tree. If save_mv is 1, update mv_ref_fulls under sms_tree and the
 // subtrees.
 static int simple_motion_search_get_best_ref(
-    AV1_COMP *const cpi, MACROBLOCK *x, PC_TREE *pc_tree, int mi_row,
-    int mi_col, BLOCK_SIZE bsize, const int *const refs, int num_refs,
-    int use_subpixel, int save_mv, unsigned int *best_sse,
+    AV1_COMP *const cpi, MACROBLOCK *x, SIMPLE_MOTION_DATA_TREE *sms_tree,
+    int mi_row, int mi_col, BLOCK_SIZE bsize, const int *const refs,
+    int num_refs, int use_subpixel, int save_mv, unsigned int *best_sse,
     unsigned int *best_var) {
   const AV1_COMMON *const cm = &cpi->common;
   int best_ref = -1;
@@ -327,7 +328,7 @@ static int simple_motion_search_get_best_ref(
   // Otherwise do loop through the reference frames and find the one with the
   // minimum SSE
   const MACROBLOCKD *xd = &x->e_mbd;
-  const MV *mv_ref_fulls = pc_tree->mv_ref_fulls;
+  const MV *mv_ref_fulls = sms_tree->mv_ref_fulls;
 
   const int num_planes = 1;
 
@@ -353,13 +354,13 @@ static int simple_motion_search_get_best_ref(
         const int new_mv_row = x->best_mv.as_mv.row / 8;
         const int new_mv_col = x->best_mv.as_mv.col / 8;
 
-        pc_tree->mv_ref_fulls[ref].row = new_mv_row;
-        pc_tree->mv_ref_fulls[ref].col = new_mv_col;
+        sms_tree->mv_ref_fulls[ref].row = new_mv_row;
+        sms_tree->mv_ref_fulls[ref].col = new_mv_col;
 
         if (bsize >= BLOCK_8X8) {
           for (int r_idx = 0; r_idx < 4; r_idx++) {
             // Propagate the new motion vectors to a lower level
-            PC_TREE *sub_tree = pc_tree->split[r_idx];
+            SIMPLE_MOTION_DATA_TREE *sub_tree = sms_tree->split[r_idx];
             sub_tree->mv_ref_fulls[ref].row = new_mv_row;
             sub_tree->mv_ref_fulls[ref].col = new_mv_col;
           }
@@ -372,10 +373,10 @@ static int simple_motion_search_get_best_ref(
 }
 
 // Collects features using simple_motion_search and store them in features. The
-// features are also cached in PC_TREE. By default, the features collected are
-// the sse and var from the subblocks flagged by features_to_get. Furthermore,
-// if features is not NULL, then 7 more features are appended to the end of
-// features:
+// features are also cached in SIMPLE_MOTION_DATA_TREE. By default, the features
+// collected are the sse and var from the subblocks flagged by features_to_get.
+// Furthermore, if features is not NULL, then 7 more features are appended to
+// the end of features:
 //  - log(1.0 + dc_q ** 2)
 //  - whether an above macroblock exists
 //  - width of above macroblock
@@ -384,8 +385,9 @@ static int simple_motion_search_get_best_ref(
 //  - width of left macroblock
 //  - height of left macroblock
 static void simple_motion_search_prune_part_features(
-    AV1_COMP *const cpi, MACROBLOCK *x, PC_TREE *pc_tree, int mi_row,
-    int mi_col, BLOCK_SIZE bsize, float *features, int features_to_get) {
+    AV1_COMP *const cpi, MACROBLOCK *x, SIMPLE_MOTION_DATA_TREE *sms_tree,
+    int mi_row, int mi_col, BLOCK_SIZE bsize, float *features,
+    int features_to_get) {
   const int w_mi = mi_size_wide[bsize];
   const int h_mi = mi_size_high[bsize];
   assert(mi_size_wide[bsize] == mi_size_high[bsize]);
@@ -399,12 +401,12 @@ static void simple_motion_search_prune_part_features(
   const int use_subpixel = 1;
 
   // Doing whole block first to update the mv
-  if (!pc_tree->sms_none_valid && features_to_get & FEATURE_SMS_NONE_FLAG) {
-    simple_motion_search_get_best_ref(cpi, x, pc_tree, mi_row, mi_col, bsize,
+  if (!sms_tree->sms_none_valid && features_to_get & FEATURE_SMS_NONE_FLAG) {
+    simple_motion_search_get_best_ref(cpi, x, sms_tree, mi_row, mi_col, bsize,
                                       ref_list, num_refs, use_subpixel, 1,
-                                      &pc_tree->sms_none_feat[0],
-                                      &pc_tree->sms_none_feat[1]);
-    pc_tree->sms_none_valid = 1;
+                                      &sms_tree->sms_none_feat[0],
+                                      &sms_tree->sms_none_feat[1]);
+    sms_tree->sms_none_valid = 1;
   }
 
   // Split subblocks
@@ -413,7 +415,7 @@ static void simple_motion_search_prune_part_features(
     for (int r_idx = 0; r_idx < 4; r_idx++) {
       const int sub_mi_col = mi_col + (r_idx & 1) * w_mi / 2;
       const int sub_mi_row = mi_row + (r_idx >> 1) * h_mi / 2;
-      PC_TREE *sub_tree = pc_tree->split[r_idx];
+      SIMPLE_MOTION_DATA_TREE *sub_tree = sms_tree->split[r_idx];
 
       if (!sub_tree->sms_none_valid) {
         simple_motion_search_get_best_ref(
@@ -426,7 +428,7 @@ static void simple_motion_search_prune_part_features(
   }
 
   // Rectangular subblocks
-  if (!pc_tree->sms_rect_valid && features_to_get & FEATURE_SMS_RECT_FLAG) {
+  if (!sms_tree->sms_rect_valid && features_to_get & FEATURE_SMS_RECT_FLAG) {
     // Horz subblock
     BLOCK_SIZE subsize = get_partition_subsize(bsize, PARTITION_HORZ);
     for (int r_idx = 0; r_idx < 2; r_idx++) {
@@ -434,9 +436,9 @@ static void simple_motion_search_prune_part_features(
       const int sub_mi_row = mi_row + r_idx * h_mi / 2;
 
       simple_motion_search_get_best_ref(
-          cpi, x, pc_tree, sub_mi_row, sub_mi_col, subsize, ref_list, num_refs,
-          use_subpixel, 0, &pc_tree->sms_rect_feat[2 * r_idx],
-          &pc_tree->sms_rect_feat[2 * r_idx + 1]);
+          cpi, x, sms_tree, sub_mi_row, sub_mi_col, subsize, ref_list, num_refs,
+          use_subpixel, 0, &sms_tree->sms_rect_feat[2 * r_idx],
+          &sms_tree->sms_rect_feat[2 * r_idx + 1]);
     }
 
     // Vert subblock
@@ -446,11 +448,11 @@ static void simple_motion_search_prune_part_features(
       const int sub_mi_row = mi_row + 0;
 
       simple_motion_search_get_best_ref(
-          cpi, x, pc_tree, sub_mi_row, sub_mi_col, subsize, ref_list, num_refs,
-          use_subpixel, 0, &pc_tree->sms_rect_feat[4 + 2 * r_idx],
-          &pc_tree->sms_rect_feat[4 + 2 * r_idx + 1]);
+          cpi, x, sms_tree, sub_mi_row, sub_mi_col, subsize, ref_list, num_refs,
+          use_subpixel, 0, &sms_tree->sms_rect_feat[4 + 2 * r_idx],
+          &sms_tree->sms_rect_feat[4 + 2 * r_idx + 1]);
     }
-    pc_tree->sms_rect_valid = 1;
+    sms_tree->sms_rect_valid = 1;
   }
 
   if (!features) return;
@@ -459,13 +461,13 @@ static void simple_motion_search_prune_part_features(
   int f_idx = 0;
   if (features_to_get & FEATURE_SMS_NONE_FLAG) {
     for (int sub_idx = 0; sub_idx < 2; sub_idx++) {
-      features[f_idx++] = logf(1.0f + pc_tree->sms_none_feat[sub_idx]);
+      features[f_idx++] = logf(1.0f + sms_tree->sms_none_feat[sub_idx]);
     }
   }
 
   if (features_to_get & FEATURE_SMS_SPLIT_FLAG) {
     for (int sub_idx = 0; sub_idx < 4; sub_idx++) {
-      PC_TREE *sub_tree = pc_tree->split[sub_idx];
+      SIMPLE_MOTION_DATA_TREE *sub_tree = sms_tree->split[sub_idx];
       features[f_idx++] = logf(1.0f + sub_tree->sms_none_feat[0]);
       features[f_idx++] = logf(1.0f + sub_tree->sms_none_feat[1]);
     }
@@ -473,9 +475,10 @@ static void simple_motion_search_prune_part_features(
 
   if (features_to_get & FEATURE_SMS_RECT_FLAG) {
     for (int sub_idx = 0; sub_idx < 8; sub_idx++) {
-      features[f_idx++] = logf(1.0f + pc_tree->sms_rect_feat[sub_idx]);
+      features[f_idx++] = logf(1.0f + sms_tree->sms_rect_feat[sub_idx]);
     }
   }
+  aom_clear_system_state();
 
   const MACROBLOCKD *xd = &x->e_mbd;
   set_offsets_for_motion_search(cpi, x, mi_row, mi_col, bsize);
@@ -498,8 +501,8 @@ static void simple_motion_search_prune_part_features(
 }
 
 void av1_simple_motion_search_prune_part(
-    AV1_COMP *const cpi, MACROBLOCK *x, PC_TREE *pc_tree, int mi_row,
-    int mi_col, BLOCK_SIZE bsize, int *partition_none_allowed,
+    AV1_COMP *const cpi, MACROBLOCK *x, SIMPLE_MOTION_DATA_TREE *sms_tree,
+    int mi_row, int mi_col, BLOCK_SIZE bsize, int *partition_none_allowed,
     int *partition_horz_allowed, int *partition_vert_allowed,
     int *do_square_split, int *do_rectangular_split, int *prune_horz,
     int *prune_vert) {
@@ -554,7 +557,7 @@ void av1_simple_motion_search_prune_part(
   }
 
   // Get features
-  simple_motion_search_prune_part_features(cpi, x, pc_tree, mi_row, mi_col,
+  simple_motion_search_prune_part_features(cpi, x, sms_tree, mi_row, mi_col,
                                            bsize, features,
                                            FEATURE_SMS_PRUNE_PART_FLAG);
   for (int f_idx = 0; f_idx < FEATURE_SIZE_SMS_PRUNE_PART; f_idx++) {
@@ -594,16 +597,14 @@ void av1_simple_motion_search_prune_part(
 //  - The frame is not intra only
 //  - The current bsize is > BLOCK_8X8
 //  - blk_row + blk_height/2 < total_rows and blk_col + blk_width/2 < total_cols
-void av1_simple_motion_search_early_term_none(AV1_COMP *const cpi,
-                                              MACROBLOCK *x, PC_TREE *pc_tree,
-                                              int mi_row, int mi_col,
-                                              BLOCK_SIZE bsize,
-                                              const RD_STATS *none_rdc,
-                                              int *early_terminate) {
+void av1_simple_motion_search_early_term_none(
+    AV1_COMP *const cpi, MACROBLOCK *x, SIMPLE_MOTION_DATA_TREE *sms_tree,
+    int mi_row, int mi_col, BLOCK_SIZE bsize, const RD_STATS *none_rdc,
+    int *early_terminate) {
   // TODO(chiyotsai@google.com): There are other features we can extract from
   // PARTITION_NONE. Play with this later.
   float features[FEATURE_SIZE_SMS_TERM_NONE] = { 0.0f };
-  simple_motion_search_prune_part_features(cpi, x, pc_tree, mi_row, mi_col,
+  simple_motion_search_prune_part_features(cpi, x, sms_tree, mi_row, mi_col,
                                            bsize, features,
                                            FEATURE_SMS_PRUNE_PART_FLAG);
   int f_idx = FEATURE_SIZE_SMS_PRUNE_PART;
@@ -806,23 +807,24 @@ BLOCK_SIZE av1_predict_max_partition(AV1_COMP *const cpi, MACROBLOCK *const x,
 }
 
 // Get the minimum partition block width and height(in log scale) under a
-// PC_TREE.
-static void get_min_bsize(const PC_TREE *pc_tree, int *min_bw, int *min_bh) {
-  if (!pc_tree) return;
+// SIMPLE_MOTION_DATA_TREE.
+static void get_min_bsize(const SIMPLE_MOTION_DATA_TREE *sms_tree, int *min_bw,
+                          int *min_bh) {
+  if (!sms_tree) return;
 
-  const BLOCK_SIZE bsize = pc_tree->block_size;
+  const BLOCK_SIZE bsize = sms_tree->block_size;
   if (bsize == BLOCK_4X4) {
     *min_bw = 0;
     *min_bh = 0;
     return;
   }
 
-  PARTITION_TYPE part_type = pc_tree->partitioning;
+  PARTITION_TYPE part_type = sms_tree->partitioning;
   if (part_type == PARTITION_INVALID) return;
 
   if (part_type == PARTITION_SPLIT) {
     for (int i = 0; i < 4; ++i) {
-      get_min_bsize(pc_tree->split[i], min_bw, min_bh);
+      get_min_bsize(sms_tree->split[i], min_bw, min_bh);
     }
   } else {
     if (part_type == PARTITION_HORZ_A || part_type == PARTITION_HORZ_B ||
@@ -846,9 +848,9 @@ static INLINE void add_rd_feature(int64_t rd, int64_t best_rd, float *features,
 
 #define FEATURES 31
 void av1_ml_early_term_after_split(AV1_COMP *const cpi, MACROBLOCK *const x,
-                                   PC_TREE *const pc_tree, BLOCK_SIZE bsize,
-                                   int64_t best_rd, int64_t part_none_rd,
-                                   int64_t part_split_rd,
+                                   SIMPLE_MOTION_DATA_TREE *const sms_tree,
+                                   BLOCK_SIZE bsize, int64_t best_rd,
+                                   int64_t part_none_rd, int64_t part_split_rd,
                                    int64_t *split_block_rd, int mi_row,
                                    int mi_col,
                                    int *const terminate_partition_search) {
@@ -905,26 +907,26 @@ void av1_ml_early_term_after_split(AV1_COMP *const cpi, MACROBLOCK *const x,
     add_rd_feature(split_block_rd[i], best_rd, features, &f_idx);
     int min_bw = MAX_SB_SIZE_LOG2;
     int min_bh = MAX_SB_SIZE_LOG2;
-    get_min_bsize(pc_tree->split[i], &min_bw, &min_bh);
+    get_min_bsize(sms_tree->split[i], &min_bw, &min_bh);
     features[f_idx++] = (float)min_bw;
     features[f_idx++] = (float)min_bh;
   }
 
-  simple_motion_search_prune_part_features(cpi, x, pc_tree, mi_row, mi_col,
+  simple_motion_search_prune_part_features(cpi, x, sms_tree, mi_row, mi_col,
                                            bsize, NULL,
                                            FEATURE_SMS_PRUNE_PART_FLAG);
 
-  features[f_idx++] = logf(1.0f + (float)pc_tree->sms_none_feat[1]);
+  features[f_idx++] = logf(1.0f + (float)sms_tree->sms_none_feat[1]);
 
-  features[f_idx++] = logf(1.0f + (float)pc_tree->split[0]->sms_none_feat[1]);
-  features[f_idx++] = logf(1.0f + (float)pc_tree->split[1]->sms_none_feat[1]);
-  features[f_idx++] = logf(1.0f + (float)pc_tree->split[2]->sms_none_feat[1]);
-  features[f_idx++] = logf(1.0f + (float)pc_tree->split[3]->sms_none_feat[1]);
+  features[f_idx++] = logf(1.0f + (float)sms_tree->split[0]->sms_none_feat[1]);
+  features[f_idx++] = logf(1.0f + (float)sms_tree->split[1]->sms_none_feat[1]);
+  features[f_idx++] = logf(1.0f + (float)sms_tree->split[2]->sms_none_feat[1]);
+  features[f_idx++] = logf(1.0f + (float)sms_tree->split[3]->sms_none_feat[1]);
 
-  features[f_idx++] = logf(1.0f + (float)pc_tree->sms_rect_feat[1]);
-  features[f_idx++] = logf(1.0f + (float)pc_tree->sms_rect_feat[3]);
-  features[f_idx++] = logf(1.0f + (float)pc_tree->sms_rect_feat[5]);
-  features[f_idx++] = logf(1.0f + (float)pc_tree->sms_rect_feat[7]);
+  features[f_idx++] = logf(1.0f + (float)sms_tree->sms_rect_feat[1]);
+  features[f_idx++] = logf(1.0f + (float)sms_tree->sms_rect_feat[3]);
+  features[f_idx++] = logf(1.0f + (float)sms_tree->sms_rect_feat[5]);
+  features[f_idx++] = logf(1.0f + (float)sms_tree->sms_rect_feat[7]);
 
   assert(f_idx == FEATURES);
 

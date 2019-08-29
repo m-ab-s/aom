@@ -330,8 +330,8 @@ void av1_first_pass(AV1_COMP *cpi, const int64_t ts_duration) {
   TileInfo tile;
   struct macroblock_plane *const p = x->plane;
   struct macroblockd_plane *const pd = xd->plane;
-  const PICK_MODE_CONTEXT *ctx =
-      &cpi->td.pc_root[MAX_MIB_SIZE_LOG2 - MIN_MIB_SIZE_LOG2]->none;
+  PICK_MODE_CONTEXT *ctx =
+      av1_alloc_pmc(cm, BLOCK_16X16, &cpi->td.shared_coeff_buf);
   int i;
 
   int recon_yoffset, src_yoffset, recon_uvoffset;
@@ -779,6 +779,7 @@ void av1_first_pass(AV1_COMP *cpi, const int64_t ts_duration) {
 
     aom_clear_system_state();
   }
+  av1_free_pmc(ctx, num_planes);
   const double raw_err_stdev =
       raw_motion_error_stdev(raw_motion_err_list, raw_motion_err_counts);
   aom_free(raw_motion_err_list);
