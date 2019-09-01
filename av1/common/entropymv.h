@@ -96,15 +96,6 @@ typedef struct {
   nmv_component comps[2];
 } nmv_context;
 
-enum {
-  MV_SUBPEL_NONE = -1,
-#if CONFIG_FLEX_MVRES
-  MV_SUBPEL_HALF_PRECISION,
-#endif  // CONFIG_FLEX_MVRES
-  MV_SUBPEL_QTR_PRECISION,
-  MV_SUBPEL_EIGHTH_PRECISION,
-} SENUM1BYTE(MvSubpelPrecision);
-
 #ifdef __cplusplus
 }  // extern "C"
 #endif

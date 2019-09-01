@@ -178,7 +178,7 @@ static int combined_motion_search(AV1_COMP *cpi, MACROBLOCK *x,
   if (rv && search_subpel) {
     SUBPEL_FORCE_STOP subpel_force_stop = cpi->sf.mv.subpel_force_stop;
     cpi->find_fractional_mv_step(
-        x, cm, mi_row, mi_col, &ref_mv, cpi->common.allow_high_precision_mv,
+        x, cm, mi_row, mi_col, &ref_mv, cpi->common.mv_precision,
         x->errorperbit, &cpi->fn_ptr[bsize], subpel_force_stop,
         cpi->sf.mv.subpel_iters_per_step, cond_cost_list(cpi, cost_list),
         x->nmv_vec_cost, x->mv_cost_stack, &dis, &x->pred_sse[ref], NULL, NULL,
@@ -233,7 +233,7 @@ static int search_new_mv(AV1_COMP *cpi, MACROBLOCK *x,
     frame_mv[NEWMV][ref_frame].as_mv.col >>= 3;
 
     cpi->find_fractional_mv_step(
-        x, cm, mi_row, mi_col, &ref_mv, cm->allow_high_precision_mv,
+        x, cm, mi_row, mi_col, &ref_mv, cpi->common.mv_precision,
         x->errorperbit, &cpi->fn_ptr[bsize], cpi->sf.mv.subpel_force_stop,
         cpi->sf.mv.subpel_iters_per_step, cond_cost_list(cpi, cost_list),
         x->nmv_vec_cost, x->mv_cost_stack, &dis, &x->pred_sse[ref_frame], NULL,
@@ -276,8 +276,8 @@ static INLINE void find_predictors(
                      mbmi_ext->ref_mv_stack, mbmi_ext->weight, NULL,
                      mbmi_ext->global_mvs, mi_row, mi_col,
                      mbmi_ext->mode_context);
-    av1_find_best_ref_mvs_from_stack(cm->allow_high_precision_mv, mbmi_ext,
-                                     ref_frame, &frame_mv[NEARESTMV][ref_frame],
+    av1_find_best_ref_mvs_from_stack(cm->mv_precision, mbmi_ext, ref_frame,
+                                     &frame_mv[NEARESTMV][ref_frame],
                                      &frame_mv[NEARMV][ref_frame], 0);
     // Early exit for golden frame if force_skip_low_temp_var is set.
     if (!av1_is_scaled(sf) && bsize >= BLOCK_8X8 &&

@@ -6930,11 +6930,11 @@ static void joint_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
       int dis; /* TODO: use dis in distortion calculation later. */
       unsigned int sse;
       bestsme = cpi->find_fractional_mv_step(
-          x, cm, mi_row, mi_col, &ref_mv[id].as_mv,
-          cpi->common.allow_high_precision_mv, x->errorperbit,
-          &cpi->fn_ptr[bsize], 0, cpi->sf.mv.subpel_iters_per_step, NULL,
-          x->nmv_vec_cost, x->mv_cost_stack, &dis, &sse, second_pred, mask,
-          mask_stride, id, pw, ph, cpi->sf.use_accurate_subpel_search, 1);
+          x, cm, mi_row, mi_col, &ref_mv[id].as_mv, cpi->common.mv_precision,
+          x->errorperbit, &cpi->fn_ptr[bsize], 0,
+          cpi->sf.mv.subpel_iters_per_step, NULL, x->nmv_vec_cost,
+          x->mv_cost_stack, &dis, &sse, second_pred, mask, mask_stride, id, pw,
+          ph, cpi->sf.use_accurate_subpel_search, 1);
     }
 
     // Restore the pointer to the first prediction buffer.
@@ -7311,7 +7311,7 @@ static void single_motion_search(const AV1_COMP *const cpi, MACROBLOCK *x,
           const int pw = block_size_wide[bsize];
           const int ph = block_size_high[bsize];
           best_mv_var = cpi->find_fractional_mv_step(
-              x, cm, mi_row, mi_col, &ref_mv, cm->allow_high_precision_mv,
+              x, cm, mi_row, mi_col, &ref_mv, cpi->common.mv_precision,
               x->errorperbit, &cpi->fn_ptr[bsize], cpi->sf.mv.subpel_force_stop,
               cpi->sf.mv.subpel_iters_per_step, cond_cost_list(cpi, cost_list),
               x->nmv_vec_cost, x->mv_cost_stack, &dis, &x->pred_sse[ref], NULL,
@@ -7335,7 +7335,7 @@ static void single_motion_search(const AV1_COMP *const cpi, MACROBLOCK *x,
                 x->best_mv.as_mv.col * 8 <= maxc &&
                 x->best_mv.as_mv.col * 8 >= minc) {
               this_var = cpi->find_fractional_mv_step(
-                  x, cm, mi_row, mi_col, &ref_mv, cm->allow_high_precision_mv,
+                  x, cm, mi_row, mi_col, &ref_mv, cpi->common.mv_precision,
                   x->errorperbit, &cpi->fn_ptr[bsize],
                   cpi->sf.mv.subpel_force_stop,
                   cpi->sf.mv.subpel_iters_per_step,
@@ -7348,7 +7348,7 @@ static void single_motion_search(const AV1_COMP *const cpi, MACROBLOCK *x,
           }
         } else {
           cpi->find_fractional_mv_step(
-              x, cm, mi_row, mi_col, &ref_mv, cm->allow_high_precision_mv,
+              x, cm, mi_row, mi_col, &ref_mv, cpi->common.mv_precision,
               x->errorperbit, &cpi->fn_ptr[bsize], cpi->sf.mv.subpel_force_stop,
               cpi->sf.mv.subpel_iters_per_step, cond_cost_list(cpi, cost_list),
               x->nmv_vec_cost, x->mv_cost_stack, &dis, &x->pred_sse[ref], NULL,
@@ -7357,11 +7357,10 @@ static void single_motion_search(const AV1_COMP *const cpi, MACROBLOCK *x,
         break;
       case OBMC_CAUSAL:
         av1_find_best_obmc_sub_pixel_tree_up(
-            x, cm, mi_row, mi_col, &x->best_mv.as_mv, &ref_mv,
-            cm->allow_high_precision_mv, x->errorperbit, &cpi->fn_ptr[bsize],
-            cpi->sf.mv.subpel_force_stop, cpi->sf.mv.subpel_iters_per_step,
-            x->nmv_vec_cost, x->mv_cost_stack, &dis, &x->pred_sse[ref], 0,
-            cpi->sf.use_accurate_subpel_search);
+            x, cm, mi_row, mi_col, &x->best_mv.as_mv, &ref_mv, cm->mv_precision,
+            x->errorperbit, &cpi->fn_ptr[bsize], cpi->sf.mv.subpel_force_stop,
+            cpi->sf.mv.subpel_iters_per_step, x->nmv_vec_cost, x->mv_cost_stack,
+            &dis, &x->pred_sse[ref], 0, cpi->sf.use_accurate_subpel_search);
         break;
       default: assert(0 && "Invalid motion mode!\n");
     }
@@ -7519,11 +7518,11 @@ static void compound_single_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
     int dis; /* TODO: use dis in distortion calculation later. */
     unsigned int sse;
     bestsme = cpi->find_fractional_mv_step(
-        x, cm, mi_row, mi_col, &ref_mv.as_mv,
-        cpi->common.allow_high_precision_mv, x->errorperbit,
-        &cpi->fn_ptr[bsize], 0, cpi->sf.mv.subpel_iters_per_step, NULL,
-        x->nmv_vec_cost, x->mv_cost_stack, &dis, &sse, second_pred, mask,
-        mask_stride, ref_idx, pw, ph, cpi->sf.use_accurate_subpel_search, 1);
+        x, cm, mi_row, mi_col, &ref_mv.as_mv, cpi->common.mv_precision,
+        x->errorperbit, &cpi->fn_ptr[bsize], 0,
+        cpi->sf.mv.subpel_iters_per_step, NULL, x->nmv_vec_cost,
+        x->mv_cost_stack, &dis, &sse, second_pred, mask, mask_stride, ref_idx,
+        pw, ph, cpi->sf.use_accurate_subpel_search, 1);
   }
 
   // Restore the pointer to the first unscaled prediction buffer.
@@ -8234,7 +8233,7 @@ static INLINE int clamp_and_check_mv(int_mv *out_mv, int_mv in_mv,
                                      const MACROBLOCK *x) {
   const MACROBLOCKD *const xd = &x->e_mbd;
   *out_mv = in_mv;
-  lower_mv_precision(&out_mv->as_mv, cm->allow_high_precision_mv,
+  lower_mv_precision(&out_mv->as_mv, cm->mv_precision,
                      cm->cur_frame_force_integer_mv);
   clamp_mv2(&out_mv->as_mv, xd);
   return !mv_check_bounds(&x->mv_limits, &out_mv->as_mv);
@@ -11039,8 +11038,8 @@ static int64_t rd_pick_intrabc_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x,
                    mbmi_ext->mode_context);
 
   int_mv nearestmv, nearmv;
-  av1_find_best_ref_mvs_from_stack(0, mbmi_ext, ref_frame, &nearestmv, &nearmv,
-                                   0);
+  av1_find_best_ref_mvs_from_stack(MV_SUBPEL_QTR_PRECISION, mbmi_ext, ref_frame,
+                                   &nearestmv, &nearmv, 0);
 
   if (nearestmv.as_int == INVALID_MV) {
     nearestmv.as_int = 0;
@@ -14089,7 +14088,7 @@ void av1_rd_pick_inter_mode_sb_seg_skip(const AV1_COMP *cpi,
   mbmi->ref_frame[1] = NONE_FRAME;
   mbmi->mv[0].as_int =
       gm_get_motion_vector(&cm->global_motion[mbmi->ref_frame[0]],
-                           cm->allow_high_precision_mv, bsize, mi_col, mi_row,
+                           cm->mv_precision, bsize, mi_col, mi_row,
                            cm->cur_frame_force_integer_mv)
           .as_int;
   mbmi->tx_size = max_txsize_lookup[bsize];

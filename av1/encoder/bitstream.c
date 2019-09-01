@@ -1258,7 +1258,6 @@ static void pack_inter_mode_mvs(AV1_COMP *cpi, const int mi_row,
   const PREDICTION_MODE mode = mbmi->mode;
   const int segment_id = mbmi->segment_id;
   const BLOCK_SIZE bsize = mbmi->sb_type;
-  const int allow_hp = cm->allow_high_precision_mv;
   const int is_inter = is_inter_block(mbmi);
   const int is_compound = has_second_ref(mbmi);
   int ref;
@@ -1311,16 +1310,18 @@ static void pack_inter_mode_mvs(AV1_COMP *cpi, const int mi_row,
         nmv_context *nmvc = &ec_ctx->nmvc;
         const int_mv ref_mv = av1_get_ref_mv(x, ref);
         av1_encode_mv(cpi, w, &mbmi->mv[ref].as_mv, &ref_mv.as_mv, nmvc,
-                      allow_hp);
+                      cm->mv_precision);
       }
     } else if (mode == NEAREST_NEWMV || mode == NEAR_NEWMV) {
       nmv_context *nmvc = &ec_ctx->nmvc;
       const int_mv ref_mv = av1_get_ref_mv(x, 1);
-      av1_encode_mv(cpi, w, &mbmi->mv[1].as_mv, &ref_mv.as_mv, nmvc, allow_hp);
+      av1_encode_mv(cpi, w, &mbmi->mv[1].as_mv, &ref_mv.as_mv, nmvc,
+                    cm->mv_precision);
     } else if (mode == NEW_NEARESTMV || mode == NEW_NEARMV) {
       nmv_context *nmvc = &ec_ctx->nmvc;
       const int_mv ref_mv = av1_get_ref_mv(x, 0);
-      av1_encode_mv(cpi, w, &mbmi->mv[0].as_mv, &ref_mv.as_mv, nmvc, allow_hp);
+      av1_encode_mv(cpi, w, &mbmi->mv[0].as_mv, &ref_mv.as_mv, nmvc,
+                    cm->mv_precision);
     }
 
     if (cpi->common.current_frame.reference_mode != COMPOUND_REFERENCE &&
@@ -2924,7 +2925,9 @@ static void write_sequence_header(const SequenceHeader *const seq_params,
 static void write_global_motion_params(const WarpedMotionParams *params,
                                        const WarpedMotionParams *ref_params,
                                        struct aom_write_bit_buffer *wb,
-                                       int allow_hp) {
+                                       MvSubpelPrecision precision) {
+  const int precision_reduce =
+      AOMMIN(1, MV_SUBPEL_EIGHTH_PRECISION - precision);
   const TransformationType type = params->wmtype;
 
   aom_wb_write_bit(wb, type != IDENTITY);
@@ -2959,10 +2962,10 @@ static void write_global_motion_params(const WarpedMotionParams *params,
 
   if (type >= TRANSLATION) {
     const int trans_bits = (type == TRANSLATION)
-                               ? GM_ABS_TRANS_ONLY_BITS - !allow_hp
+                               ? GM_ABS_TRANS_ONLY_BITS - precision_reduce
                                : GM_ABS_TRANS_BITS;
     const int trans_prec_diff = (type == TRANSLATION)
-                                    ? GM_TRANS_ONLY_PREC_DIFF + !allow_hp
+                                    ? GM_TRANS_ONLY_PREC_DIFF + precision_reduce
                                     : GM_TRANS_PREC_DIFF;
     aom_wb_write_signed_primitive_refsubexpfin(
         wb, (1 << trans_bits) + 1, SUBEXPFIN_K,
@@ -2984,7 +2987,7 @@ static void write_global_motion(AV1_COMP *cpi,
         cm->prev_frame ? &cm->prev_frame->global_motion[frame]
                        : &default_warp_params;
     write_global_motion_params(&cm->global_motion[frame], ref_params, wb,
-                               cm->allow_high_precision_mv);
+                               cm->mv_precision);
     // TODO(sarahparker, debargha): The logic in the commented out code below
     // does not work currently and causes mismatches when resize is on.
     // Fix it before turning the optimization back on.
@@ -2994,7 +2997,7 @@ static void write_global_motion(AV1_COMP *cpi,
         cpi->source->y_crop_height == ref_buf->y_crop_height) {
       write_global_motion_params(&cm->global_motion[frame],
                                  &cm->prev_frame->global_motion[frame], wb,
-                                 cm->allow_high_precision_mv);
+                                 cm->mv_precision);
     } else {
       assert(cm->global_motion[frame].wmtype == IDENTITY &&
              "Invalid warp type for frames of different resolutions");
@@ -3301,7 +3304,7 @@ static void write_uncompressed_header_obu(AV1_COMP *cpi,
       }
 
       if (!cm->cur_frame_force_integer_mv)
-        aom_wb_write_bit(wb, cm->allow_high_precision_mv);
+        aom_wb_write_bit(wb, cm->mv_precision > MV_SUBPEL_QTR_PRECISION);
       write_frame_interp_filter(cm->interp_filter, wb);
       aom_wb_write_bit(wb, cm->switchable_motion_mode);
       if (frame_might_allow_ref_frame_mvs(cm)) {

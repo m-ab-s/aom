@@ -57,10 +57,10 @@ static unsigned int do_16x16_motion_iteration(AV1_COMP *cpi, const MV *ref_mv,
     int distortion;
     unsigned int sse;
     cpi->find_fractional_mv_step(
-        x, &cpi->common, mb_row, mb_col, ref_mv,
-        cpi->common.allow_high_precision_mv, x->errorperbit, &v_fn_ptr, 0,
-        mv_sf->subpel_iters_per_step, cond_cost_list(cpi, cost_list), NULL,
-        NULL, &distortion, &sse, NULL, NULL, 0, 0, 0, 0, 0, 1);
+        x, &cpi->common, mb_row, mb_col, ref_mv, cpi->common.mv_precision,
+        x->errorperbit, &v_fn_ptr, 0, mv_sf->subpel_iters_per_step,
+        cond_cost_list(cpi, cost_list), NULL, NULL, &distortion, &sse, NULL,
+        NULL, 0, 0, 0, 0, 0, 1);
   }
 
   if (has_second_ref(xd->mi[0]))

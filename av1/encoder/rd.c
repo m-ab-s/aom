@@ -637,8 +637,8 @@ void av1_initialize_cost_tables(const AV1_COMMON *const cm, MACROBLOCK *x) {
   } else {
     av1_build_nmv_cost_table(
         x->nmv_vec_cost,
-        cm->allow_high_precision_mv ? x->nmvcost_hp : x->nmvcost, &cm->fc->nmvc,
-        MV_SUBPEL_QTR_PRECISION + cm->allow_high_precision_mv);
+        cm->mv_precision > MV_SUBPEL_QTR_PRECISION ? x->nmvcost_hp : x->nmvcost,
+        &cm->fc->nmvc, cm->mv_precision);
   }
 }
 

@@ -317,11 +317,16 @@ static void analyze_hor_freq(const AV1_COMP *cpi, double *energy) {
 static void set_high_precision_mv(AV1_COMP *cpi, int allow_high_precision_mv,
                                   int cur_frame_force_integer_mv) {
   MACROBLOCK *const mb = &cpi->td.mb;
-  cpi->common.allow_high_precision_mv =
-      allow_high_precision_mv && cur_frame_force_integer_mv == 0;
-  const int copy_hp =
-      cpi->common.allow_high_precision_mv && cur_frame_force_integer_mv == 0;
-  int *(*src)[2] = copy_hp ? &mb->nmvcost_hp : &mb->nmvcost;
+  // cpi->common.allow_high_precision_mv =
+  //     allow_high_precision_mv && cur_frame_force_integer_mv == 0;
+  cpi->common.mv_precision = cur_frame_force_integer_mv
+                                 ? MV_SUBPEL_NONE
+                                 : allow_high_precision_mv
+                                       ? MV_SUBPEL_EIGHTH_PRECISION
+                                       : MV_SUBPEL_QTR_PRECISION;
+  int *(*src)[2] = cpi->common.mv_precision > MV_SUBPEL_QTR_PRECISION
+                       ? &mb->nmvcost_hp
+                       : &mb->nmvcost;
   mb->mv_cost_stack = *src;
 }
 

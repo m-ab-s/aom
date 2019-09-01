@@ -4617,7 +4617,10 @@ static void encode_tiles(AV1_COMP *cpi) {
 
 #define GLOBAL_TRANS_TYPES_ENC 3  // highest motion model to search
 static int gm_get_params_cost(const WarpedMotionParams *gm,
-                              const WarpedMotionParams *ref_gm, int allow_hp) {
+                              const WarpedMotionParams *ref_gm,
+                              MvSubpelPrecision precision) {
+  const int precision_reduce =
+      AOMMIN(1, MV_SUBPEL_EIGHTH_PRECISION - precision);
   int params_cost = 0;
   int trans_bits, trans_prec_diff;
   switch (gm->wmtype) {
@@ -4645,10 +4648,10 @@ static int gm_get_params_cost(const WarpedMotionParams *gm,
       AOM_FALLTHROUGH_INTENDED;
     case TRANSLATION:
       trans_bits = (gm->wmtype == TRANSLATION)
-                       ? GM_ABS_TRANS_ONLY_BITS - !allow_hp
+                       ? GM_ABS_TRANS_ONLY_BITS - precision_reduce
                        : GM_ABS_TRANS_BITS;
       trans_prec_diff = (gm->wmtype == TRANSLATION)
-                            ? GM_TRANS_ONLY_PREC_DIFF + !allow_hp
+                            ? GM_TRANS_ONLY_PREC_DIFF + precision_reduce
                             : GM_TRANS_PREC_DIFF;
       params_cost += aom_count_signed_primitive_refsubexpfin(
           (1 << trans_bits) + 1, SUBEXPFIN_K,
@@ -5163,11 +5166,11 @@ static void encode_frame_internal(AV1_COMP *cpi) {
 
           if (cm->global_motion[frame].wmtype == TRANSLATION) {
             cm->global_motion[frame].wmmat[0] =
-                convert_to_trans_prec(cm->allow_high_precision_mv,
+                convert_to_trans_prec(cm->mv_precision,
                                       cm->global_motion[frame].wmmat[0]) *
                 GM_TRANS_ONLY_DECODE_FACTOR;
             cm->global_motion[frame].wmmat[1] =
-                convert_to_trans_prec(cm->allow_high_precision_mv,
+                convert_to_trans_prec(cm->mv_precision,
                                       cm->global_motion[frame].wmmat[1]) *
                 GM_TRANS_ONLY_DECODE_FACTOR;
           }
@@ -5187,7 +5190,7 @@ static void encode_frame_internal(AV1_COMP *cpi) {
           if (!av1_is_enough_erroradvantage(
                   (double)best_warp_error / ref_frame_error,
                   gm_get_params_cost(&cm->global_motion[frame], ref_params,
-                                     cm->allow_high_precision_mv),
+                                     cm->mv_precision),
                   cpi->sf.gm_erroradv_type)) {
             cm->global_motion[frame] = default_warp_params;
           }
@@ -5198,7 +5201,7 @@ static void encode_frame_internal(AV1_COMP *cpi) {
       if (cm->global_motion[frame].wmtype != IDENTITY) num_refs_using_gm++;
       cpi->gmparams_cost[frame] =
           gm_get_params_cost(&cm->global_motion[frame], ref_params,
-                             cm->allow_high_precision_mv) +
+                             cm->mv_precision) +
           cpi->gmtype_cost[cm->global_motion[frame].wmtype] -
           cpi->gmtype_cost[IDENTITY];
     }
