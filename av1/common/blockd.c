@@ -29,21 +29,7 @@ PREDICTION_MODE av1_above_block_mode(const MB_MODE_INFO *above_mi) {
 }
 
 #if CONFIG_INTRA_ENTROPY
-INLINE static const uint64_t *fetch_block_info(const MB_MODE_INFO *mi,
-                                               PREDICTION_MODE *mode,
-                                               int64_t *recon_var) {
-  if (!mi) {
-    *mode = 255;
-    *recon_var = 0;
-    return NULL;
-  } else {
-    assert(!is_inter_block(mi) || is_intrabc_block(mi));
-    *mode = mi->mode;
-    *recon_var = mi->y_recon_var;
-    return mi->y_gradient_hist;
-  }
-}
-
+#if !USE_SMALL_MODEL
 INLINE static void add_hist_features(const uint64_t *hist, float **features) {
   float total = 0.0f;
   if (hist) {
@@ -51,6 +37,9 @@ INLINE static void add_hist_features(const uint64_t *hist, float **features) {
       total += (float)hist[i];
     }
   }
+
+  (*features)[0] = logf(total + 1.0f);
+  ++*features;
 
   float *feature_pt = *features;
   if (total > 0.1f) {
@@ -64,42 +53,33 @@ INLINE static void add_hist_features(const uint64_t *hist, float **features) {
   }
   *features += 8;
 }
+#endif  // !USE_SMALL_MODEL
 
-INLINE static void add_mode_features(PREDICTION_MODE mode, float **features) {
+static void add_onehot(float **features, int num, int n) {
   float *feature_pt = *features;
-  memset(feature_pt, 0, 5 * sizeof(*feature_pt));
-  if (mode < INTRA_MODES) {
-    feature_pt[intra_mode_context[mode]] = 1.0f;
-  }
-  *features += 5;
+  memset(feature_pt, 0, sizeof(*feature_pt) * num);
+  if (n >= 0 && n < num) feature_pt[n] = 1.0f;
+  *features += num;
 }
 
 void av1_get_intra_block_feature(float *features, const MB_MODE_INFO *above_mi,
                                  const MB_MODE_INFO *left_mi,
                                  const MB_MODE_INFO *aboveleft_mi) {
-  PREDICTION_MODE above_mode, left_mode, aboveleft_mode;
-  int64_t above_var, left_var, al_var;
-  const uint64_t *above_hist =
-      fetch_block_info(above_mi, &above_mode, &above_var);
-  const uint64_t *left_hist = fetch_block_info(left_mi, &left_mode, &left_var);
-  const uint64_t *al_hist =
-      fetch_block_info(aboveleft_mi, &aboveleft_mode, &al_var);
-
-  add_hist_features(above_hist, &features);
-  add_hist_features(left_hist, &features);
-  add_hist_features(al_hist, &features);
-
-#if INTRA_MODEL <= 0
-  *(features++) = above_var / 12534.f;
-  *(features++) = left_var / 12534.f;
-  *(features++) = al_var / 12534.f;
-#endif  // INTRA_MODEL
-
-#if INTRA_MODEL != 1
-  add_mode_features(above_mode, &features);
-  add_mode_features(left_mode, &features);
-  add_mode_features(aboveleft_mode, &features);
-#endif  // INTRA_MODEL
+  const MB_MODE_INFO *mbmi_list[3] = { above_mi, left_mi, aboveleft_mi };
+  const int num_mbmi = USE_SMALL_MODEL ? 2 : 3;
+  for (int i = 0; i < num_mbmi; ++i) {
+    const MB_MODE_INFO *mbmi = mbmi_list[i];
+    const int data_available = mbmi != NULL;
+#if USE_SMALL_MODEL
+    add_onehot(&features, INTRA_MODES, data_available ? mbmi->mode : -1);
+#else
+    *(features++) = data_available;
+    add_onehot(&features, INTRA_MODES, data_available ? mbmi->mode : -1);
+    const float var = data_available ? (float)mbmi->y_recon_var : 0.0f;
+    *(features++) = logf(var + 1.0f);
+    add_hist_features(data_available ? mbmi->y_gradient_hist : NULL, &features);
+#endif
+  }
 }
 
 void av1_pdf2icdf(float *pdf, aom_cdf_prob *cdf, int nsymbs) {
@@ -112,21 +92,13 @@ void av1_pdf2icdf(float *pdf, aom_cdf_prob *cdf, int nsymbs) {
 }
 
 void av1_get_intra_uv_block_feature(float *features, PREDICTION_MODE cur_y_mode,
+                                    int is_cfl_allowed,
                                     const MB_MODE_INFO *above_mi,
                                     const MB_MODE_INFO *left_mi) {
-  PREDICTION_MODE y_mode[2];
-  int64_t y_var[2];
-  const uint64_t *above_hist = fetch_block_info(above_mi, y_mode, y_var);
-  const uint64_t *left_hist = fetch_block_info(left_mi, y_mode + 1, y_var + 1);
-
-  add_hist_features(above_hist, &features);
-  add_hist_features(left_hist, &features);
-
-  *(features++) = (float)y_var[0] / 12534.f;
-  *(features++) = (float)y_var[1] / 12534.f;
-
-  memset(features, 0, INTRA_MODES * sizeof(*features));
-  features[cur_y_mode] = 1.0f;
+  add_onehot(&features, INTRA_MODES, cur_y_mode);
+  *(features++) = (float)is_cfl_allowed;
+  (void)above_mi;
+  (void)left_mi;
 }
 
 void av1_get_kf_y_mode_cdf_ml(const MACROBLOCKD *xd, aom_cdf_prob *cdf) {
@@ -140,8 +112,8 @@ void av1_get_kf_y_mode_cdf_ml(const MACROBLOCKD *xd, aom_cdf_prob *cdf) {
 void av1_get_uv_mode_cdf_ml(const MACROBLOCKD *xd, PREDICTION_MODE y_mode,
                             aom_cdf_prob *cdf) {
   float features[UV_INTRA_MODE_FEATURES], scores[UV_INTRA_MODES];
-  av1_get_intra_uv_block_feature(features, y_mode, xd->above_mbmi,
-                                 xd->left_mbmi);
+  av1_get_intra_uv_block_feature(features, y_mode, is_cfl_allowed(xd),
+                                 xd->above_mbmi, xd->left_mbmi);
   av1_nn_predict_em(features, &(xd->tile_ctx->av1_intra_uv_mode), scores);
   av1_pdf2icdf(scores, cdf, UV_INTRA_MODES);
 }
@@ -227,7 +199,7 @@ void av1_setup_block_planes(MACROBLOCKD *xd, int ss_x, int ss_y,
   }
 }
 
-#if CONFIG_INTRA_ENTROPY
+#if CONFIG_INTRA_ENTROPY && !USE_SMALL_MODEL
 // Indices are sign, integer, and fractional part of the gradient value
 static const uint8_t gradient_to_angle_bin[2][7][16] = {
   {
@@ -373,4 +345,4 @@ void av1_get_recon_var(const MACROBLOCKD *const xd, MB_MODE_INFO *const mbmi,
     mbmi->y_recon_var = variance(y_dst, y_stride, y_block_cols, y_block_rows);
   }
 }
-#endif  // CONFIG_INTRA_ENTROPY
+#endif  // CONFIG_INTRA_ENTROPY && !USE_SMALL_MODEL

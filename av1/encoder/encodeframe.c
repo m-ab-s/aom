@@ -968,7 +968,8 @@ static void sum_intra_stats(const AV1_COMMON *const cm, FRAME_COUNTS *counts,
 #if CONFIG_INTRA_ENTROPY
     float features[UV_INTRA_MODE_FEATURES], scores[UV_INTRA_MODES];
     NN_CONFIG_EM *nn_model = &(fc->av1_intra_uv_mode);
-    av1_get_intra_uv_block_feature(features, y_mode, above_mi, left_mi);
+    av1_get_intra_uv_block_feature(features, y_mode, is_cfl_allowed(xd),
+                                   above_mi, left_mi);
     av1_nn_predict_em(features, nn_model, scores);
     av1_nn_backprop_em(nn_model, uv_mode);
     av1_nn_update_em(nn_model, nn_model->lr);
@@ -5655,7 +5656,7 @@ static void encode_superblock(const AV1_COMP *const cpi, TileDataEnc *tile_data,
                           tile_data->allow_update_cdf);
   }
 
-#if CONFIG_INTRA_ENTROPY
+#if CONFIG_INTRA_ENTROPY && !USE_SMALL_MODEL
   if (frame_is_intra_only(cm)) {
     av1_get_gradient_hist(xd, mbmi, bsize);
     av1_get_recon_var(xd, mbmi, bsize);

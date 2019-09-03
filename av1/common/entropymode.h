@@ -59,16 +59,19 @@ extern "C" {
 #define KF_MODE_CONTEXTS 5
 
 #if CONFIG_INTRA_ENTROPY
-#define INTRA_MODEL -1  // -1:linear 0; 0:hist+var+mode; 1:hist; 2:hist+mode
+#define USE_SMALL_MODEL 1
 enum { ACTN_NONE, ACTN_RELU, ACTN_SIGMOID } UENUM1BYTE(ACTN);
 enum { SOFTMAX_CROSS_ENTROPY_LOSS } UENUM1BYTE(LOSS_F);
 
-#define KF_Y_MODE_FEATURES 54
-#define UV_INTRA_MODE_FEATURES 54
+#if USE_SMALL_MODEL
+#define KF_Y_MODE_FEATURES 26
+#else
+#define KF_Y_MODE_FEATURES 72
+#endif
+#define UV_INTRA_MODE_FEATURES 14
 
 #define EM_MAX_HLAYERS 1
 #define EM_MAX_NODES 128
-#define EM_MAX_FEATURE_NODES 128
 
 // Fully-connectedly layer configuration
 typedef struct FC_LAYER_EM {

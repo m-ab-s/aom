@@ -280,10 +280,10 @@ typedef struct MB_MODE_INFO {
   // Indicate if masked compound is used(1) or not(0).
   uint8_t comp_group_idx : 1;
   int8_t cdef_strength : 4;
-#if CONFIG_INTRA_ENTROPY
+#if CONFIG_INTRA_ENTROPY && !USE_SMALL_MODEL
   uint64_t y_gradient_hist[8];
   int64_t y_recon_var;  // Variance of reconstructed Y values.
-#endif                  // CONFIG_INTRA_ENTROPY
+#endif                  // CONFIG_INTRA_ENTROPY && !USE_SMALL_MODEL
 } MB_MODE_INFO;
 
 static INLINE int is_intrabc_block(const MB_MODE_INFO *mbmi) {
@@ -1262,6 +1262,24 @@ static INLINE int av1_pixels_to_mi(int pixels) {
   return ALIGN_POWER_OF_TWO(pixels, 3) >> MI_SIZE_LOG2;
 }
 
+// Can we use CfL for the current block?
+static INLINE CFL_ALLOWED_TYPE is_cfl_allowed(const MACROBLOCKD *xd) {
+  const MB_MODE_INFO *mbmi = xd->mi[0];
+  const BLOCK_SIZE bsize = mbmi->sb_type;
+  assert(bsize < BLOCK_SIZES_ALL);
+  if (xd->lossless[mbmi->segment_id]) {
+    // In lossless, CfL is available when the partition size is equal to the
+    // transform size.
+    const int ssx = xd->plane[AOM_PLANE_U].subsampling_x;
+    const int ssy = xd->plane[AOM_PLANE_U].subsampling_y;
+    const int plane_bsize = get_plane_block_size(bsize, ssx, ssy);
+    return (CFL_ALLOWED_TYPE)(plane_bsize == BLOCK_4X4);
+  }
+  // Spec: CfL is available to luma partitions lesser than or equal to 32x32
+  return (CFL_ALLOWED_TYPE)(block_size_wide[bsize] <= 32 &&
+                            block_size_high[bsize] <= 32);
+}
+
 #if CONFIG_INTRA_ENTROPY
 // Calculate histogram of gradient orientations of the reconstructed pixel
 // values in current coding block.
@@ -1276,6 +1294,7 @@ void av1_get_intra_block_feature(float *feature, const MB_MODE_INFO *above_mi,
                                  const MB_MODE_INFO *aboveleft_mi);
 
 void av1_get_intra_uv_block_feature(float *features, PREDICTION_MODE cur_y_mode,
+                                    int is_cfl_allowed,
                                     const MB_MODE_INFO *above_mi,
                                     const MB_MODE_INFO *left_mi);
 

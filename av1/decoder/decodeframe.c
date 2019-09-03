@@ -1234,7 +1234,7 @@ static void decode_token_recon_block(AV1Decoder *const pbi,
     td->cfl_store_inter_block_visit(cm, xd);
   }
 
-#if CONFIG_INTRA_ENTROPY
+#if CONFIG_INTRA_ENTROPY && !USE_SMALL_MODEL
   if (frame_is_intra_only(cm)) {
     av1_get_gradient_hist(xd, mbmi, bsize);
     av1_get_recon_var(xd, mbmi, bsize);
