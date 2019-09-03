@@ -8233,8 +8233,7 @@ static INLINE int clamp_and_check_mv(int_mv *out_mv, int_mv in_mv,
                                      const MACROBLOCK *x) {
   const MACROBLOCKD *const xd = &x->e_mbd;
   *out_mv = in_mv;
-  lower_mv_precision(&out_mv->as_mv, cm->mv_precision,
-                     cm->cur_frame_force_integer_mv);
+  lower_mv_precision(&out_mv->as_mv, cm->mv_precision);
   clamp_mv2(&out_mv->as_mv, xd);
   return !mv_check_bounds(&x->mv_limits, &out_mv->as_mv);
 }
@@ -11039,7 +11038,7 @@ static int64_t rd_pick_intrabc_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x,
 
   int_mv nearestmv, nearmv;
   av1_find_best_ref_mvs_from_stack(MV_SUBPEL_QTR_PRECISION, mbmi_ext, ref_frame,
-                                   &nearestmv, &nearmv, 0);
+                                   &nearestmv, &nearmv);
 
   if (nearestmv.as_int == INVALID_MV) {
     nearestmv.as_int = 0;
@@ -14088,8 +14087,7 @@ void av1_rd_pick_inter_mode_sb_seg_skip(const AV1_COMP *cpi,
   mbmi->ref_frame[1] = NONE_FRAME;
   mbmi->mv[0].as_int =
       gm_get_motion_vector(&cm->global_motion[mbmi->ref_frame[0]],
-                           cm->mv_precision, bsize, mi_col, mi_row,
-                           cm->cur_frame_force_integer_mv)
+                           cm->mv_precision, bsize, mi_col, mi_row)
           .as_int;
   mbmi->tx_size = max_txsize_lookup[bsize];
   x->skip = 1;

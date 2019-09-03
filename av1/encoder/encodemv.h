@@ -37,8 +37,7 @@ int_mv av1_get_ref_mv_from_stack(int ref_idx,
 void av1_find_best_ref_mvs_from_stack(MvSubpelPrecision precision,
                                       const MB_MODE_INFO_EXT *mbmi_ext,
                                       MV_REFERENCE_FRAME ref_frame,
-                                      int_mv *nearest_mv, int_mv *near_mv,
-                                      int is_integer);
+                                      int_mv *nearest_mv, int_mv *near_mv);
 
 static INLINE MV_JOINT_TYPE av1_get_mv_joint(const MV *mv) {
   if (mv->row == 0) {

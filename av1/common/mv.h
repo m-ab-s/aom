@@ -40,12 +40,12 @@ typedef struct mv32 {
 } MV32;
 
 enum {
-  MV_SUBPEL_NONE = -1,
+  MV_SUBPEL_NONE = 0,
 #if CONFIG_FLEX_MVRES
-  MV_SUBPEL_HALF_PRECISION,
+  MV_SUBPEL_HALF_PRECISION = 1,
 #endif  // CONFIG_FLEX_MVRES
-  MV_SUBPEL_QTR_PRECISION,
-  MV_SUBPEL_EIGHTH_PRECISION,
+  MV_SUBPEL_QTR_PRECISION = 2,
+  MV_SUBPEL_EIGHTH_PRECISION = 3,
 } SENUM1BYTE(MvSubpelPrecision);
 
 // Bits of precision used for the model
@@ -185,27 +185,29 @@ static INLINE int convert_to_trans_prec(MvSubpelPrecision precision, int coor) {
     return ROUND_POWER_OF_TWO_SIGNED(coor, WARPEDMODEL_PREC_BITS - 2) * 2;
 }
 
-static INLINE void integer_mv_precision(MV *mv) {
-  int mod = (mv->row % 8);
+static INLINE void lower_mv_precision(MV *mv, MvSubpelPrecision precision) {
+  const int radix = (1 << (MV_SUBPEL_EIGHTH_PRECISION - precision));
+  if (radix == 1) return;
+  int mod = (mv->row % radix);
   if (mod != 0) {
     mv->row -= mod;
-    if (abs(mod) > 4) {
+    if (abs(mod) > radix / 2) {
       if (mod > 0) {
-        mv->row += 8;
+        mv->row += radix;
       } else {
-        mv->row -= 8;
+        mv->row -= radix;
       }
     }
   }
 
-  mod = (mv->col % 8);
+  mod = (mv->col % radix);
   if (mod != 0) {
     mv->col -= mod;
-    if (abs(mod) > 4) {
+    if (abs(mod) > radix / 2) {
       if (mod > 0) {
-        mv->col += 8;
+        mv->col += radix;
       } else {
-        mv->col -= 8;
+        mv->col -= radix;
       }
     }
   }
@@ -220,7 +222,7 @@ static INLINE void integer_mv_precision(MV *mv) {
 static INLINE int_mv gm_get_motion_vector(const WarpedMotionParams *gm,
                                           MvSubpelPrecision precision,
                                           BLOCK_SIZE bsize, int mi_col,
-                                          int mi_row, int is_integer) {
+                                          int mi_row) {
   int_mv res;
 
   if (gm->wmtype == IDENTITY) {
@@ -244,9 +246,7 @@ static INLINE int_mv gm_get_motion_vector(const WarpedMotionParams *gm,
     res.as_mv.col = gm->wmmat[1] >> GM_TRANS_ONLY_PREC_DIFF;
     assert(IMPLIES(1 & (res.as_mv.row | res.as_mv.col),
                    precision > MV_SUBPEL_QTR_PRECISION));
-    if (is_integer) {
-      integer_mv_precision(&res.as_mv);
-    }
+    lower_mv_precision(&res.as_mv, precision);
     return res;
   }
 
@@ -268,9 +268,7 @@ static INLINE int_mv gm_get_motion_vector(const WarpedMotionParams *gm,
   res.as_mv.row = ty;
   res.as_mv.col = tx;
 
-  if (is_integer) {
-    integer_mv_precision(&res.as_mv);
-  }
+  lower_mv_precision(&res.as_mv, precision);
   return res;
 }
 

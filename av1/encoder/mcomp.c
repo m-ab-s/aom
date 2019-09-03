@@ -391,7 +391,6 @@ int av1_find_best_sub_pixel_tree_pruned_evenmore(
                                src_address, src_stride, y, y_stride,
                                second_pred, mask, mask_stride, invert_mask, w,
                                h, offset, mvjcost, mvcost, sse1, distortion);
-  const int allow_hp = precision > MV_SUBPEL_QTR_PRECISION;
   (void)halfiters;
   (void)quarteriters;
   (void)eighthiters;
@@ -437,7 +436,7 @@ int av1_find_best_sub_pixel_tree_pruned_evenmore(
   tr = br;
   tc = bc;
 
-  if (allow_hp && forced_stop == 0) {
+  if (precision > MV_SUBPEL_QTR_PRECISION && forced_stop == 0) {
     hstep >>= 1;
     FIRST_LEVEL_CHECKS;
     if (eighthiters > 1) {
@@ -459,7 +458,6 @@ int av1_find_best_sub_pixel_tree_pruned_more(
     unsigned int *sse1, const uint8_t *second_pred, const uint8_t *mask,
     int mask_stride, int invert_mask, int w, int h,
     int use_accurate_subpel_search, const int do_reset_fractional_mv) {
-  const int allow_hp = precision > MV_SUBPEL_QTR_PRECISION;
   SETUP_SUBPEL_SEARCH;
   (void)use_accurate_subpel_search;
   (void)cm;
@@ -501,7 +499,7 @@ int av1_find_best_sub_pixel_tree_pruned_more(
     }
   }
 
-  if (allow_hp && forced_stop == 0) {
+  if (precision > MV_SUBPEL_QTR_PRECISION && forced_stop == 0) {
     tr = br;
     tc = bc;
     hstep >>= 1;
@@ -529,7 +527,6 @@ int av1_find_best_sub_pixel_tree_pruned(
     unsigned int *sse1, const uint8_t *second_pred, const uint8_t *mask,
     int mask_stride, int invert_mask, int w, int h,
     int use_accurate_subpel_search, const int do_reset_fractional_mv) {
-  const int allow_hp = precision > MV_SUBPEL_QTR_PRECISION;
   SETUP_SUBPEL_SEARCH;
   (void)use_accurate_subpel_search;
   (void)cm;
@@ -593,7 +590,7 @@ int av1_find_best_sub_pixel_tree_pruned(
     tc = bc;
   }
 
-  if (allow_hp && forced_stop == 0) {
+  if (precision > MV_SUBPEL_QTR_PRECISION && forced_stop == 0) {
     hstep >>= 1;
     FIRST_LEVEL_CHECKS;
     if (eighthiters > 1) {
@@ -718,7 +715,6 @@ int av1_find_best_sub_pixel_tree(
     unsigned int *sse1, const uint8_t *second_pred, const uint8_t *mask,
     int mask_stride, int invert_mask, int w, int h,
     int use_accurate_subpel_search, const int do_reset_fractional_mv) {
-  const int allow_hp = precision > MV_SUBPEL_QTR_PRECISION;
   const uint8_t *const src_address = x->plane[0].src.buf;
   const int src_stride = x->plane[0].src.stride;
   MACROBLOCKD *xd = &x->e_mbd;
@@ -744,8 +740,7 @@ int av1_find_best_sub_pixel_tree(
 
   set_subpel_mv_search_range(&x->mv_limits, &minc, &maxc, &minr, &maxr, ref_mv);
 
-  if (!allow_hp)
-    if (round == 3) round = 2;
+  round = AOMMIN(round, (int)precision);
 
   bestmv->row *= 8;
   bestmv->col *= 8;
@@ -2574,7 +2569,6 @@ int av1_find_best_obmc_sub_pixel_tree_up(
     int error_per_bit, const aom_variance_fn_ptr_t *vfp, int forced_stop,
     int iters_per_step, int *mvjcost, int *mvcost[2], int *distortion,
     unsigned int *sse1, int is_second, int use_accurate_subpel_search) {
-  const int allow_hp = precision > MV_SUBPEL_QTR_PRECISION;
   const int32_t *wsrc = x->wsrc_buf;
   const int32_t *mask = x->mask_buf;
   const int *const z = wsrc;
@@ -2613,8 +2607,7 @@ int av1_find_best_obmc_sub_pixel_tree_up(
   y_stride = pd->pre[is_second].stride;
   offset = bestmv->row * y_stride + bestmv->col;
 
-  if (!allow_hp)
-    if (round == 3) round = 2;
+  round = AOMMIN(round, (int)precision);
 
   bestmv->row *= 8;
   bestmv->col *= 8;
@@ -3026,7 +3019,7 @@ int av1_return_max_sub_pixel_mv(
   besterr = 0;
   // In the sub-pel motion search, if hp is not used, then the last bit of mv
   // has to be 0.
-  lower_mv_precision(bestmv, precision, 0);
+  lower_mv_precision(bestmv, precision);
   return besterr;
 }
 // Return the minimum MV.
@@ -3055,7 +3048,7 @@ int av1_return_min_sub_pixel_mv(
   besterr = 0;
   // In the sub-pel motion search, if hp is not used, then the last bit of mv
   // has to be 0.
-  lower_mv_precision(bestmv, precision, 0);
+  lower_mv_precision(bestmv, precision);
   return besterr;
 }
 

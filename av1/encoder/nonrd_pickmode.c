@@ -278,7 +278,7 @@ static INLINE void find_predictors(
                      mbmi_ext->mode_context);
     av1_find_best_ref_mvs_from_stack(cm->mv_precision, mbmi_ext, ref_frame,
                                      &frame_mv[NEARESTMV][ref_frame],
-                                     &frame_mv[NEARMV][ref_frame], 0);
+                                     &frame_mv[NEARMV][ref_frame]);
     // Early exit for golden frame if force_skip_low_temp_var is set.
     if (!av1_is_scaled(sf) && bsize >= BLOCK_8X8 &&
         !(force_skip_low_temp_var && ref_frame == GOLDEN_FRAME)) {

@@ -4619,8 +4619,12 @@ static void encode_tiles(AV1_COMP *cpi) {
 static int gm_get_params_cost(const WarpedMotionParams *gm,
                               const WarpedMotionParams *ref_gm,
                               MvSubpelPrecision precision) {
+#if CONFIG_FLEX_MVRES
+  const int precision_reduce = MV_SUBPEL_EIGHTH_PRECISION - precision;
+#else
   const int precision_reduce =
       AOMMIN(1, MV_SUBPEL_EIGHTH_PRECISION - precision);
+#endif  // CONFIG_FLEX_MVRES
   int params_cost = 0;
   int trans_bits, trans_prec_diff;
   switch (gm->wmtype) {

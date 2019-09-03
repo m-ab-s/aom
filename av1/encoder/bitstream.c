@@ -2926,8 +2926,12 @@ static void write_global_motion_params(const WarpedMotionParams *params,
                                        const WarpedMotionParams *ref_params,
                                        struct aom_write_bit_buffer *wb,
                                        MvSubpelPrecision precision) {
+#if CONFIG_FLEX_MVRES
+  const int precision_reduce = MV_SUBPEL_EIGHTH_PRECISION - precision;
+#else
   const int precision_reduce =
       AOMMIN(1, MV_SUBPEL_EIGHTH_PRECISION - precision);
+#endif  // CONFIG_FLEX_MVRES
   const TransformationType type = params->wmtype;
 
   aom_wb_write_bit(wb, type != IDENTITY);

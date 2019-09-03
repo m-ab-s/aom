@@ -4550,8 +4550,18 @@ static int read_global_motion_params(WarpedMotionParams *params,
                                      const WarpedMotionParams *ref_params,
                                      struct aom_read_bit_buffer *rb,
                                      MvSubpelPrecision precision) {
+#if CONFIG_FLEX_MVRES
+  const int precision_reduce = MV_SUBPEL_EIGHTH_PRECISION - precision;
+#else
+  // NOTE: there is a bit of an anomaly in AV1 that the translation-only
+  // global parameters are sent only at 1/4 or 1/8 pel resolution depending
+  // on whether the allow_high_precision_mv flag is 0 or 1, but the
+  // cur_frame_force_integer_mv is ignored. Hence the AOMMIN(1, ...)
+  // below, but in CONFIG_FLEX_MVRES we correct that so that translation-
+  // only global parameters are sent at the MV resolution of the frame.
   const int precision_reduce =
       AOMMIN(1, MV_SUBPEL_EIGHTH_PRECISION - precision);
+#endif  // CONFIG_FLEX_MVRES
   TransformationType type = aom_rb_read_bit(rb);
   if (type != IDENTITY) {
     if (aom_rb_read_bit(rb))
