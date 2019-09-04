@@ -424,7 +424,7 @@ int av1_find_best_sub_pixel_tree_pruned_evenmore(
     // Each subsequent iteration checks at least one point in common with
     // the last iteration could be 2 ( if diag selected) 1/4 pel
     // Note forced_stop: 0 - full, 1 - qtr only, 2 - half only
-    if (forced_stop != 2) {
+    if (precision >= MV_SUBPEL_QTR_PRECISION && forced_stop != 2) {
       hstep >>= 1;
       FIRST_LEVEL_CHECKS;
       if (quarteriters > 1) {
@@ -487,9 +487,8 @@ int av1_find_best_sub_pixel_tree_pruned_more(
 
   // Each subsequent iteration checks at least one point in common with
   // the last iteration could be 2 ( if diag selected) 1/4 pel
-
   // Note forced_stop: 0 - full, 1 - qtr only, 2 - half only
-  if (forced_stop != 2) {
+  if (precision >= MV_SUBPEL_QTR_PRECISION && forced_stop != 2) {
     tr = br;
     tc = bc;
     hstep >>= 1;
@@ -578,9 +577,8 @@ int av1_find_best_sub_pixel_tree_pruned(
 
   // Each subsequent iteration checks at least one point in common with
   // the last iteration could be 2 ( if diag selected) 1/4 pel
-
   // Note forced_stop: 0 - full, 1 - qtr only, 2 - half only
-  if (forced_stop != 2) {
+  if (precision >= MV_SUBPEL_QTR_PRECISION && forced_stop != 2) {
     hstep >>= 1;
     FIRST_LEVEL_CHECKS;
     if (quarteriters > 1) {
@@ -902,8 +900,10 @@ unsigned int av1_refine_warped_mv(const AV1_COMP *cpi, MACROBLOCK *const x,
   const AV1_COMMON *const cm = &cpi->common;
   MACROBLOCKD *xd = &x->e_mbd;
   MB_MODE_INFO *mbmi = xd->mi[0];
-  const MV neighbors[8] = { { 0, -1 }, { 1, 0 }, { 0, 1 }, { -1, 0 },
-                            { 0, -2 }, { 2, 0 }, { 0, 2 }, { -2, 0 } };
+  const MV neighbors[16] = { { 0, -1 }, { 1, 0 }, { 0, 1 }, { -1, 0 },
+                             { 0, -2 }, { 2, 0 }, { 0, 2 }, { -2, 0 },
+                             { 0, -4 }, { 4, 0 }, { 0, 4 }, { -4, 0 },
+                             { 0, -8 }, { 8, 0 }, { 0, 8 }, { -8, 0 } };
   const int_mv ref_mv = av1_get_ref_mv(x, 0);
   int16_t br = mbmi->mv[0].as_mv.row;
   int16_t bc = mbmi->mv[0].as_mv.col;
@@ -913,7 +913,7 @@ unsigned int av1_refine_warped_mv(const AV1_COMP *cpi, MACROBLOCK *const x,
   int best_num_proj_ref = mbmi->num_proj_ref;
   unsigned int bestmse;
   int minc, maxc, minr, maxr;
-  const int start = cm->mv_precision > MV_SUBPEL_QTR_PRECISION ? 0 : 4;
+  const int start = (MV_SUBPEL_EIGHTH_PRECISION - cm->mv_precision) * 4;
   int ite;
 
   set_subpel_mv_search_range(&x->mv_limits, &minc, &maxc, &minr, &maxr,
