@@ -65,8 +65,7 @@ typedef struct aom_rational64 {
 
 typedef struct {
   int nmv_vec_cost[MV_JOINTS];
-  int nmv_costs[2][MV_VALS];
-  int nmv_costs_hp[2][MV_VALS];
+  int nmv_costs[MV_SUBPEL_PRECISIONS][2][MV_VALS];
 
   FRAME_CONTEXT fc;
 } CODING_CONTEXT;
@@ -851,8 +850,7 @@ typedef struct AV1_COMP {
   int gmtype_cost[TRANS_TYPES];
   int gmparams_cost[REF_FRAMES];
 
-  int nmv_costs[2][MV_VALS];
-  int nmv_costs_hp[2][MV_VALS];
+  int nmv_costs[MV_SUBPEL_PRECISIONS][2][MV_VALS];
 
   int64_t last_time_stamp_seen;
   int64_t last_end_time_stamp_seen;

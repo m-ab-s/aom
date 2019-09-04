@@ -88,13 +88,6 @@ FRAME_COUNTS aggregate_fc;
 #define AM_SEGMENT_ID_INACTIVE 7
 #define AM_SEGMENT_ID_ACTIVE 0
 
-// Whether to use high precision mv for altref computation.
-#define ALTREF_HIGH_PRECISION_MV 1
-
-// Q threshold for high precision mv. Choose a very high value for now so that
-// HIGH_PRECISION is always chosen.
-#define HIGH_PRECISION_MV_QTHRESH 200
-
 // #define OUTPUT_YUV_REC
 #ifdef OUTPUT_YUV_SKINMAP
 FILE *yuv_skinmap_file = NULL;
@@ -245,6 +238,96 @@ int av1_get_active_map(AV1_COMP *cpi, unsigned char *new_map_16x16, int rows,
   }
 }
 
+#define SOBEL_EDGE_THRESH 1024
+#define MV_PREC_DET_BLK_SIZE_BITS 4
+#define MV_PREC_DET_BLK_SIZE (1 << MV_PREC_DET_BLK_SIZE_BITS)
+#define MV_PREC_DET_THRESH 0.20
+#define MV_PREC_DET_QTHRESH 128  // Q thresh for 1/8-pel in edge based method
+
+#define MV_HIPREC_QTHRESH 200  // Q thresh for 1/8-pel in q-based method
+
+// Q thresh for 1/8-pel in edge based method
+
+// Compute edge energy in the frame
+static MvSubpelPrecision determine_frame_mv_precision(const AV1_COMP *cpi,
+                                                      int q, int use_edges) {
+  (void)cpi;
+  if (!use_edges) {
+    return q < MV_HIPREC_QTHRESH ? MV_SUBPEL_EIGHTH_PRECISION
+                                 : MV_SUBPEL_QTR_PRECISION;
+  }
+  if (q < MV_PREC_DET_QTHRESH) return MV_SUBPEL_EIGHTH_PRECISION;
+  const YV12_BUFFER_CONFIG *buf = cpi->source;
+  const int bd = cpi->td.mb.e_mbd.bd;
+  const int width = buf->y_crop_width;
+  const int height = buf->y_crop_height;
+  const int stride = buf->y_stride;
+  int num_blks[2] = { 0, 0 };
+  if (buf->flags & YV12_FLAG_HIGHBITDEPTH) {
+    const uint16_t *src16 =
+        (const uint16_t *)CONVERT_TO_SHORTPTR(buf->y_buffer);
+    for (int i = 0; i < height - MV_PREC_DET_BLK_SIZE;
+         i += MV_PREC_DET_BLK_SIZE) {
+      for (int j = 0; j < width - MV_PREC_DET_BLK_SIZE;
+           j += MV_PREC_DET_BLK_SIZE) {
+        const uint16_t *src = src16 + i * stride + j;
+        int64_t gx = 0, gy = 0, g;
+        for (int y = 0; y < MV_PREC_DET_BLK_SIZE; ++y) {
+          for (int x = 0; x < MV_PREC_DET_BLK_SIZE; ++x) {
+            gx +=
+                abs(src[-stride + 1] - src[-stride - 1] +
+                    (src[1] - src[-1]) * 2 + src[stride + 1] - src[stride - 1]);
+            gy += abs(src[stride - 1] - src[-stride - 1] +
+                      (src[stride] - src[-stride]) * 2 + src[stride + 1] -
+                      src[-stride + 1]);
+            src++;
+          }
+          src += stride - MV_PREC_DET_BLK_SIZE;
+        }
+        g = gx * gx + gy * gy;
+        // Normalize to per pixel and bit-depth of 8
+        g = ROUND_POWER_OF_TWO(
+            g, 4 * MV_PREC_DET_BLK_SIZE_BITS + 4 + 2 * (bd - 8));
+        ++num_blks[g > SOBEL_EDGE_THRESH];
+      }
+    }
+  } else {
+    const uint8_t *src8 = buf->y_buffer;
+    for (int i = 0; i < height - MV_PREC_DET_BLK_SIZE;
+         i += MV_PREC_DET_BLK_SIZE) {
+      for (int j = 0; j < width - MV_PREC_DET_BLK_SIZE;
+           j += MV_PREC_DET_BLK_SIZE) {
+        const uint8_t *src = src8 + i * stride + j;
+        int64_t gx = 0, gy = 0, g;
+        for (int y = 0; y < MV_PREC_DET_BLK_SIZE; ++y) {
+          for (int x = 0; x < MV_PREC_DET_BLK_SIZE; ++x) {
+            gx +=
+                abs(src[-stride + 1] - src[-stride - 1] +
+                    (src[1] - src[-1]) * 2 + src[stride + 1] - src[stride - 1]);
+            gy += abs(src[stride - 1] - src[-stride - 1] +
+                      (src[stride] - src[-stride]) * 2 + src[stride + 1] -
+                      src[-stride + 1]);
+            src++;
+          }
+          src += stride - MV_PREC_DET_BLK_SIZE;
+        }
+        g = gx * gx + gy * gy;
+        // Normalize to per pixel and bit-depth of 8
+        g = ROUND_POWER_OF_TWO(
+            g, 4 * MV_PREC_DET_BLK_SIZE_BITS + 4 + 2 * (bd - 8));
+        ++num_blks[g > SOBEL_EDGE_THRESH];
+      }
+    }
+  }
+  double frac_edge_blks = (double)num_blks[1] / (num_blks[0] + num_blks[1]);
+  // printf("frac_edge_blks = %f, q = %d, ratio = %f\n",
+  //        frac_edge_blks, q, 100 * frac_edge_blks / q);
+  if (100 * frac_edge_blks / q >= MV_PREC_DET_THRESH)
+    return MV_SUBPEL_EIGHTH_PRECISION;
+  else
+    return MV_SUBPEL_QTR_PRECISION;
+}
+
 // Compute the horizontal frequency components' energy in a frame
 // by calculuating the 16x4 Horizontal DCT. This is to be used to
 // decide the superresolution parameters.
@@ -314,19 +397,12 @@ static void analyze_hor_freq(const AV1_COMP *cpi, double *energy) {
   }
 }
 
-static void set_high_precision_mv(AV1_COMP *cpi, int allow_high_precision_mv,
-                                  int cur_frame_force_integer_mv) {
+static void set_mv_precision(AV1_COMP *cpi, MvSubpelPrecision precision,
+                             int cur_frame_force_integer_mv) {
   MACROBLOCK *const mb = &cpi->td.mb;
-  // cpi->common.allow_high_precision_mv =
-  //     allow_high_precision_mv && cur_frame_force_integer_mv == 0;
-  cpi->common.mv_precision = cur_frame_force_integer_mv
-                                 ? MV_SUBPEL_NONE
-                                 : allow_high_precision_mv
-                                       ? MV_SUBPEL_EIGHTH_PRECISION
-                                       : MV_SUBPEL_QTR_PRECISION;
-  int *(*src)[2] = cpi->common.mv_precision > MV_SUBPEL_QTR_PRECISION
-                       ? &mb->nmvcost_hp
-                       : &mb->nmvcost;
+  cpi->common.mv_precision =
+      cur_frame_force_integer_mv ? MV_SUBPEL_NONE : precision;
+  int *(*src)[2] = &mb->nmvcost[cpi->common.mv_precision];
   mb->mv_cost_stack = *src;
 }
 
@@ -634,7 +710,6 @@ static void save_coding_context(AV1_COMP *cpi) {
   // quantizer value is adjusted between loop iterations.
   av1_copy(cc->nmv_vec_cost, cpi->td.mb.nmv_vec_cost);
   av1_copy(cc->nmv_costs, cpi->nmv_costs);
-  av1_copy(cc->nmv_costs_hp, cpi->nmv_costs_hp);
 
   cc->fc = *cm->fc;
 }
@@ -647,7 +722,6 @@ static void restore_coding_context(AV1_COMP *cpi) {
   // previous call to av1_save_coding_context.
   av1_copy(cpi->td.mb.nmv_vec_cost, cc->nmv_vec_cost);
   av1_copy(cpi->nmv_costs, cc->nmv_costs);
-  av1_copy(cpi->nmv_costs_hp, cc->nmv_costs_hp);
 
   *cm->fc = cc->fc;
 }
@@ -2869,7 +2943,7 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
   }
 
   av1_reset_segment_features(cm);
-  set_high_precision_mv(cpi, 1, 0);
+  set_mv_precision(cpi, MV_SUBPEL_EIGHTH_PRECISION, 0);
 
   set_rc_buffer_sizes(rc, &cpi->oxcf);
 
@@ -2987,7 +3061,6 @@ AV1_COMP *av1_create_compressor(AV1EncoderConfig *oxcf,
   realloc_segmentation_maps(cpi);
 
   memset(cpi->nmv_costs, 0, sizeof(cpi->nmv_costs));
-  memset(cpi->nmv_costs_hp, 0, sizeof(cpi->nmv_costs_hp));
 
   for (i = 0; i < (sizeof(cpi->mbgraph_stats) / sizeof(cpi->mbgraph_stats[0]));
        i++) {
@@ -3041,10 +3114,14 @@ AV1_COMP *av1_create_compressor(AV1EncoderConfig *oxcf,
 
   cpi->first_time_stamp_ever = INT64_MAX;
 
-  cpi->td.mb.nmvcost[0] = &cpi->nmv_costs[0][MV_MAX];
-  cpi->td.mb.nmvcost[1] = &cpi->nmv_costs[1][MV_MAX];
-  cpi->td.mb.nmvcost_hp[0] = &cpi->nmv_costs_hp[0][MV_MAX];
-  cpi->td.mb.nmvcost_hp[1] = &cpi->nmv_costs_hp[1][MV_MAX];
+  cpi->td.mb.nmvcost[0][0] = &cpi->nmv_costs[0][0][MV_MAX];
+  cpi->td.mb.nmvcost[0][1] = &cpi->nmv_costs[0][1][MV_MAX];
+  cpi->td.mb.nmvcost[1][0] = &cpi->nmv_costs[1][0][MV_MAX];
+  cpi->td.mb.nmvcost[1][1] = &cpi->nmv_costs[1][1][MV_MAX];
+  cpi->td.mb.nmvcost[2][0] = &cpi->nmv_costs[2][0][MV_MAX];
+  cpi->td.mb.nmvcost[2][1] = &cpi->nmv_costs[2][1][MV_MAX];
+  cpi->td.mb.nmvcost[3][0] = &cpi->nmv_costs[3][0][MV_MAX];
+  cpi->td.mb.nmvcost[3][1] = &cpi->nmv_costs[3][1][MV_MAX];
 
 #ifdef OUTPUT_YUV_SKINMAP
   yuv_skinmap_file = fopen("skinmap.yuv", "ab");
@@ -4083,8 +4160,12 @@ static void set_size_dependent_vars(AV1_COMP *cpi, int *q, int *bottom_index,
                                 top_index);
 
   if (!frame_is_intra_only(cm)) {
-    set_high_precision_mv(cpi, (*q) < HIGH_PRECISION_MV_QTHRESH,
-                          cpi->common.cur_frame_force_integer_mv);
+    MvSubpelPrecision precision =
+        cpi->common.cur_frame_force_integer_mv
+            ? MV_SUBPEL_NONE
+            : determine_frame_mv_precision(cpi, *q, CONFIG_FLEX_MVRES);
+    if (precision == MV_SUBPEL_NONE) cpi->common.cur_frame_force_integer_mv = 1;
+    set_mv_precision(cpi, precision, cpi->common.cur_frame_force_integer_mv);
   }
 
   // Configure experimental use of segmentation for enhanced coding of
@@ -6203,7 +6284,6 @@ int av1_get_compressed_data(AV1_COMP *cpi, unsigned int *frame_flags,
   struct aom_usec_timer cmptimer;
   aom_usec_timer_start(&cmptimer);
 #endif
-  set_high_precision_mv(cpi, ALTREF_HIGH_PRECISION_MV, 0);
 
   // Normal defaults
   cm->refresh_frame_context = oxcf->frame_parallel_decoding_mode

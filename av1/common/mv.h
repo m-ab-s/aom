@@ -46,6 +46,7 @@ enum {
 #endif  // CONFIG_FLEX_MVRES
   MV_SUBPEL_QTR_PRECISION = 2,
   MV_SUBPEL_EIGHTH_PRECISION = 3,
+  MV_SUBPEL_PRECISIONS,
 } SENUM1BYTE(MvSubpelPrecision);
 
 // Bits of precision used for the model

@@ -632,13 +632,11 @@ void av1_fill_coeff_costs(MACROBLOCK *x, FRAME_CONTEXT *fc,
 
 void av1_initialize_cost_tables(const AV1_COMMON *const cm, MACROBLOCK *x) {
   if (cm->cur_frame_force_integer_mv) {
-    av1_build_nmv_cost_table(x->nmv_vec_cost, x->nmvcost, &cm->fc->nmvc,
-                             MV_SUBPEL_NONE);
+    av1_build_nmv_cost_table(x->nmv_vec_cost, x->nmvcost[MV_SUBPEL_NONE],
+                             &cm->fc->nmvc, MV_SUBPEL_NONE);
   } else {
-    av1_build_nmv_cost_table(
-        x->nmv_vec_cost,
-        cm->mv_precision > MV_SUBPEL_QTR_PRECISION ? x->nmvcost_hp : x->nmvcost,
-        &cm->fc->nmvc, cm->mv_precision);
+    av1_build_nmv_cost_table(x->nmv_vec_cost, x->nmvcost[cm->mv_precision],
+                             &cm->fc->nmvc, cm->mv_precision);
   }
 }
 
