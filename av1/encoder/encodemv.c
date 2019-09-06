@@ -249,7 +249,13 @@ static void build_nmv_component_cost_table(int *mvcost,
 
 void av1_encode_mv(AV1_COMP *cpi, aom_writer *w, const MV *mv, const MV *ref,
                    nmv_context *mvctx, MvSubpelPrecision precision) {
+#if CONFIG_FLEX_MVRES
+  MV ref_ = *ref;
+  lower_mv_precision(&ref_, precision);
+  const MV diff = { mv->row - ref_.row, mv->col - ref_.col };
+#else
   const MV diff = { mv->row - ref->row, mv->col - ref->col };
+#endif  // CONFIG_FLEX_MVRES
   const MV_JOINT_TYPE j = av1_get_mv_joint(&diff);
 
   aom_write_symbol(w, j, mvctx->joints_cdf, MV_JOINTS);

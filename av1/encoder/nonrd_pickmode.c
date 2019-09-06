@@ -169,8 +169,9 @@ static int combined_motion_search(AV1_COMP *cpi, MACROBLOCK *x,
   mvp_full.row = tmp_mv->as_mv.row * 8;
   mvp_full.col = tmp_mv->as_mv.col * 8;
 
-  *rate_mv = av1_mv_bit_cost(&mvp_full, &ref_mv, x->nmv_vec_cost,
-                             x->mv_cost_stack, MV_COST_WEIGHT);
+  *rate_mv =
+      av1_mv_bit_cost(&mvp_full, &ref_mv, mi->mv_precision, x->nmv_vec_cost,
+                      x->nmvcost[mi->mv_precision], MV_COST_WEIGHT);
 
   // TODO(kyslov) Account for Rate Mode!
   rv = !(RDCOST(x->rdmult, (*rate_mv), 0) > best_rd_sofar);
@@ -178,14 +179,15 @@ static int combined_motion_search(AV1_COMP *cpi, MACROBLOCK *x,
   if (rv && search_subpel) {
     SUBPEL_FORCE_STOP subpel_force_stop = cpi->sf.mv.subpel_force_stop;
     cpi->find_fractional_mv_step(
-        x, cm, mi_row, mi_col, &ref_mv, cpi->common.mv_precision,
-        x->errorperbit, &cpi->fn_ptr[bsize], subpel_force_stop,
+        x, cm, mi_row, mi_col, &ref_mv, mi->mv_precision, x->errorperbit,
+        &cpi->fn_ptr[bsize], subpel_force_stop,
         cpi->sf.mv.subpel_iters_per_step, cond_cost_list(cpi, cost_list),
-        x->nmv_vec_cost, x->mv_cost_stack, &dis, &x->pred_sse[ref], NULL, NULL,
-        0, 0, 0, 0, 0, 1);
+        x->nmv_vec_cost, x->nmvcost[mi->mv_precision], &dis, &x->pred_sse[ref],
+        NULL, NULL, 0, 0, 0, 0, 0, 1);
     *tmp_mv = x->best_mv;
-    *rate_mv = av1_mv_bit_cost(&tmp_mv->as_mv, &ref_mv, x->nmv_vec_cost,
-                               x->mv_cost_stack, MV_COST_WEIGHT);
+    *rate_mv = av1_mv_bit_cost(&tmp_mv->as_mv, &ref_mv, mi->mv_precision,
+                               x->nmv_vec_cost, x->nmvcost[mi->mv_precision],
+                               MV_COST_WEIGHT);
   }
 
   if (scaled_ref_frame) {
@@ -226,18 +228,18 @@ static int search_new_mv(AV1_COMP *cpi, MACROBLOCK *x,
     x->best_mv.as_mv.col >>= 3;
     MV ref_mv = av1_get_ref_mv(x, 0).as_mv;
 
-    *rate_mv =
-        av1_mv_bit_cost(&frame_mv[NEWMV][ref_frame].as_mv, &ref_mv,
-                        x->nmv_vec_cost, x->mv_cost_stack, MV_COST_WEIGHT);
+    *rate_mv = av1_mv_bit_cost(&frame_mv[NEWMV][ref_frame].as_mv, &ref_mv,
+                               mi->mv_precision, x->nmv_vec_cost,
+                               x->nmvcost[mi->mv_precision], MV_COST_WEIGHT);
     frame_mv[NEWMV][ref_frame].as_mv.row >>= 3;
     frame_mv[NEWMV][ref_frame].as_mv.col >>= 3;
 
     cpi->find_fractional_mv_step(
-        x, cm, mi_row, mi_col, &ref_mv, cpi->common.mv_precision,
-        x->errorperbit, &cpi->fn_ptr[bsize], cpi->sf.mv.subpel_force_stop,
+        x, cm, mi_row, mi_col, &ref_mv, mi->mv_precision, x->errorperbit,
+        &cpi->fn_ptr[bsize], cpi->sf.mv.subpel_force_stop,
         cpi->sf.mv.subpel_iters_per_step, cond_cost_list(cpi, cost_list),
-        x->nmv_vec_cost, x->mv_cost_stack, &dis, &x->pred_sse[ref_frame], NULL,
-        NULL, 0, 0, 0, 0, 0, 1);
+        x->nmv_vec_cost, x->nmvcost[mi->mv_precision], &dis,
+        &x->pred_sse[ref_frame], NULL, NULL, 0, 0, 0, 0, 0, 1);
     frame_mv[NEWMV][ref_frame].as_int = x->best_mv.as_int;
   } else if (!combined_motion_search(cpi, x, bsize, mi_row, mi_col,
                                      &frame_mv[NEWMV][ref_frame], rate_mv,
@@ -1446,6 +1448,7 @@ void av1_fast_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
 
   mi->mode = best_pickmode.best_mode;
   mi->interp_filters = av1_broadcast_interp_filter(best_filter);
+  mi->mv_precision = cm->mv_precision;
   mi->tx_size = best_pickmode.best_tx_size;
   memset(mi->inter_tx_size, mi->tx_size, sizeof(mi->inter_tx_size));
   mi->ref_frame[0] = best_pickmode.best_ref_frame;

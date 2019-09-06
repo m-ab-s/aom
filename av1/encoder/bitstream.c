@@ -1290,18 +1290,18 @@ static void pack_inter_mode_mvs(AV1_COMP *cpi, const int mi_row,
         nmv_context *nmvc = &ec_ctx->nmvc;
         const int_mv ref_mv = av1_get_ref_mv(x, ref);
         av1_encode_mv(cpi, w, &mbmi->mv[ref].as_mv, &ref_mv.as_mv, nmvc,
-                      cm->mv_precision);
+                      mbmi->mv_precision);
       }
     } else if (mode == NEAREST_NEWMV || mode == NEAR_NEWMV) {
       nmv_context *nmvc = &ec_ctx->nmvc;
       const int_mv ref_mv = av1_get_ref_mv(x, 1);
       av1_encode_mv(cpi, w, &mbmi->mv[1].as_mv, &ref_mv.as_mv, nmvc,
-                    cm->mv_precision);
+                    mbmi->mv_precision);
     } else if (mode == NEW_NEARESTMV || mode == NEW_NEARMV) {
       nmv_context *nmvc = &ec_ctx->nmvc;
       const int_mv ref_mv = av1_get_ref_mv(x, 0);
       av1_encode_mv(cpi, w, &mbmi->mv[0].as_mv, &ref_mv.as_mv, nmvc,
-                    cm->mv_precision);
+                    mbmi->mv_precision);
     }
 
     if (cpi->common.current_frame.reference_mode != COMPOUND_REFERENCE &&
@@ -3287,8 +3287,13 @@ static void write_uncompressed_header_obu(AV1_COMP *cpi,
         write_frame_size(cm, frame_size_override_flag, wb);
       }
 
-      if (!cm->cur_frame_force_integer_mv)
+      if (!cm->cur_frame_force_integer_mv) {
+#if CONFIG_FLEX_MVRES
+        aom_wb_write_literal(wb, cm->mv_precision, 2);
+#else
         aom_wb_write_bit(wb, cm->mv_precision > MV_SUBPEL_QTR_PRECISION);
+#endif  // CONFIG_FLEX_MVRES
+      }
       write_frame_interp_filter(cm->interp_filter, wb);
       aom_wb_write_bit(wb, cm->switchable_motion_mode);
       if (frame_might_allow_ref_frame_mvs(cm)) {

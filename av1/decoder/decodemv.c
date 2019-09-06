@@ -740,6 +740,7 @@ static void read_intrabc_info(AV1_COMMON *const cm, MACROBLOCKD *const xd,
     mbmi->mode = DC_PRED;
     mbmi->uv_mode = UV_DC_PRED;
     mbmi->interp_filters = av1_broadcast_interp_filter(BILINEAR);
+    mbmi->mv_precision = MV_SUBPEL_NONE;
     mbmi->motion_mode = SIMPLE_TRANSLATION;
 
     int16_t inter_mode_ctx[MODE_CTX_REF_FRAMES];
@@ -750,9 +751,8 @@ static void read_intrabc_info(AV1_COMMON *const cm, MACROBLOCKD *const xd,
                      mi_row, mi_col, inter_mode_ctx);
 
     int_mv nearestmv, nearmv;
-
-    av1_find_best_ref_mvs(MV_SUBPEL_QTR_PRECISION, ref_mvs[INTRA_FRAME],
-                          &nearestmv, &nearmv);
+    av1_find_best_ref_mvs(cm->mv_precision, ref_mvs[INTRA_FRAME], &nearestmv,
+                          &nearmv);
     int_mv dv_ref = nearestmv.as_int == 0 ? nearmv : nearestmv;
     if (dv_ref.as_int == 0)
       av1_find_ref_dv(&dv_ref, &xd->tile, cm->seq_params.mib_size, mi_row,
@@ -972,8 +972,15 @@ static INLINE void read_mv(aom_reader *r, MV *mv, const MV *ref,
   if (mv_joint_horizontal(joint_type))
     diff.col = read_mv_component(r, &ctx->comps[1], precision);
 
+#if CONFIG_FLEX_MVRES
+  MV ref_ = *ref;
+  lower_mv_precision(&ref_, precision);
+  mv->row = ref_.row + diff.row;
+  mv->col = ref_.col + diff.col;
+#else
   mv->row = ref->row + diff.row;
   mv->col = ref->col + diff.col;
+#endif  // CONFIG_FLEX_MVRES
 }
 
 static REFERENCE_MODE read_block_reference_mode(AV1_COMMON *cm,
@@ -1373,6 +1380,7 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
   int mode_ctx = av1_mode_context_analyzer(inter_mode_ctx, mbmi->ref_frame);
   mbmi->ref_mv_idx = 0;
 
+  mbmi->mv_precision = cm->mv_precision;
   if (mbmi->skip_mode) {
     assert(is_compound);
     mbmi->mode = NEAREST_NEARESTMV;
@@ -1386,8 +1394,11 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
       else
         mbmi->mode = read_inter_mode(ec_ctx, r, mode_ctx);
       if (mbmi->mode == NEWMV || mbmi->mode == NEW_NEWMV ||
-          have_nearmv_in_inter_mode(mbmi->mode))
+          have_nearmv_in_inter_mode(mbmi->mode)) {
         read_drl_idx(ec_ctx, xd, mbmi, r);
+      }
+      if (have_newmv_in_inter_mode(mbmi->mode))
+        mbmi->mv_precision = cm->mv_precision;
     }
   }
 
@@ -1449,7 +1460,7 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
 
   int mv_corrupted_flag = !assign_mv(
       cm, xd, mbmi->mode, mbmi->ref_frame, mbmi->mv, ref_mv, nearestmv, nearmv,
-      mi_row, mi_col, is_compound, cm->mv_precision, r);
+      mi_row, mi_col, is_compound, mbmi->mv_precision, r);
   aom_merge_corrupted_flag(&xd->corrupted, mv_corrupted_flag);
 
   mbmi->use_wedge_interintra = 0;

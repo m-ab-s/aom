@@ -67,6 +67,7 @@ static uint32_t motion_estimation(AV1_COMP *cpi, MACROBLOCK *x,
                                   int mi_col) {
   AV1_COMMON *cm = &cpi->common;
   MACROBLOCKD *const xd = &x->e_mbd;
+  xd->mi[0]->mv_precision = cm->mv_precision;
   MV_SPEED_FEATURES *const mv_sf = &cpi->sf.mv;
   const SEARCH_METHODS search_method = NSTEP;
   int step_param;

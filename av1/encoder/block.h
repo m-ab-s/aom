@@ -261,7 +261,6 @@ struct macroblock {
   int nmv_vec_cost[MV_JOINTS];
   int nmv_costs[MV_SUBPEL_PRECISIONS][2][MV_VALS];
   int *nmvcost[MV_SUBPEL_PRECISIONS][2];
-  int **mv_cost_stack;
 
   int32_t *wsrc_buf;
   int32_t *mask_buf;
