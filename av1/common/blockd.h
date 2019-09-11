@@ -27,6 +27,11 @@
 #include "av1/common/seg_common.h"
 #include "av1/common/tile_common.h"
 
+#if CONFIG_INTRA_ENTROPY
+#include "av1/common/intra_entropy_models.h"
+#include "av1/common/nn_em.h"
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -1289,11 +1294,13 @@ void av1_get_gradient_hist(const MACROBLOCKD *const xd,
 void av1_get_recon_var(const MACROBLOCKD *const xd, MB_MODE_INFO *const mbmi,
                        BLOCK_SIZE bsize);
 
-void av1_get_intra_block_feature(float *feature, const MB_MODE_INFO *above_mi,
+void av1_get_intra_block_feature(int *sparse_features, float *dense_features,
+                                 const MB_MODE_INFO *above_mi,
                                  const MB_MODE_INFO *left_mi,
                                  const MB_MODE_INFO *aboveleft_mi);
 
-void av1_get_intra_uv_block_feature(float *features, PREDICTION_MODE cur_y_mode,
+void av1_get_intra_uv_block_feature(int *sparse_features, float *dense_features,
+                                    PREDICTION_MODE cur_y_mode,
                                     int is_cfl_allowed,
                                     const MB_MODE_INFO *above_mi,
                                     const MB_MODE_INFO *left_mi);

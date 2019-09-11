@@ -884,10 +884,11 @@ static void sum_intra_stats(const AV1_COMMON *const cm, FRAME_COUNTS *counts,
 #endif  // CONFIG_ENTROPY_STATS
     if (allow_update_cdf) {
 #if CONFIG_INTRA_ENTROPY
-      float features[KF_Y_MODE_FEATURES], scores[INTRA_MODES];
       NN_CONFIG_EM *nn_model = &(fc->av1_intra_y_mode);
-      av1_get_intra_block_feature(features, above_mi, left_mi, aboveleft_mi);
-      av1_nn_predict_em(features, nn_model, scores);
+      av1_get_intra_block_feature(nn_model->sparse_features,
+                                  nn_model->dense_features, above_mi, left_mi,
+                                  aboveleft_mi);
+      av1_nn_predict_em(nn_model);
       av1_nn_backprop_em(nn_model, y_mode);
       av1_nn_update_em(nn_model, nn_model->lr);
 #else
@@ -966,11 +967,11 @@ static void sum_intra_stats(const AV1_COMMON *const cm, FRAME_COUNTS *counts,
 #endif  // CONFIG_ENTROPY_STATS
   if (allow_update_cdf) {
 #if CONFIG_INTRA_ENTROPY
-    float features[UV_INTRA_MODE_FEATURES], scores[UV_INTRA_MODES];
     NN_CONFIG_EM *nn_model = &(fc->av1_intra_uv_mode);
-    av1_get_intra_uv_block_feature(features, y_mode, is_cfl_allowed(xd),
-                                   above_mi, left_mi);
-    av1_nn_predict_em(features, nn_model, scores);
+    av1_get_intra_uv_block_feature(nn_model->sparse_features,
+                                   nn_model->dense_features, y_mode,
+                                   is_cfl_allowed(xd), above_mi, left_mi);
+    av1_nn_predict_em(nn_model);
     av1_nn_backprop_em(nn_model, uv_mode);
     av1_nn_update_em(nn_model, nn_model->lr);
 #else

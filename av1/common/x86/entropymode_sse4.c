@@ -109,7 +109,7 @@ static void nn_sigmoid(float *input, int num_outputs) {
 
 // Note: We assume that output is padded to multiples of 4 to make storing
 // easier
-void av1_nn_fc_forward_sse4_1(const float *input, FC_LAYER_EM *layer,
+void av1_nn_fc_forward_sse4_1(FC_LAYER_EM *layer, const float *input,
                               float *output) {
   const float *weights = layer->weights;
   const float *bias = layer->bias;

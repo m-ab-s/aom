@@ -53,7 +53,6 @@ INLINE static void add_hist_features(const uint64_t *hist, float **features) {
   }
   *features += 8;
 }
-#endif  // !CONFIG_USE_SMALL_MODEL
 
 static void add_onehot(float **features, int num, int n) {
   float *feature_pt = *features;
@@ -62,7 +61,10 @@ static void add_onehot(float **features, int num, int n) {
   *features += num;
 }
 
-void av1_get_intra_block_feature(float *features, const MB_MODE_INFO *above_mi,
+#endif  // !CONFIG_USE_SMALL_MODEL
+
+void av1_get_intra_block_feature(int *sparse_features, float *dense_features,
+                                 const MB_MODE_INFO *above_mi,
                                  const MB_MODE_INFO *left_mi,
                                  const MB_MODE_INFO *aboveleft_mi) {
   const MB_MODE_INFO *mbmi_list[3] = { above_mi, left_mi, aboveleft_mi };
@@ -71,15 +73,21 @@ void av1_get_intra_block_feature(float *features, const MB_MODE_INFO *above_mi,
     const MB_MODE_INFO *mbmi = mbmi_list[i];
     const int data_available = mbmi != NULL;
 #if CONFIG_USE_SMALL_MODEL
-    add_onehot(&features, INTRA_MODES, data_available ? mbmi->mode : -1);
+    *(sparse_features++) = data_available ? mbmi->mode : INTRA_MODES;
 #else
-    *(features++) = data_available;
-    add_onehot(&features, INTRA_MODES, data_available ? mbmi->mode : -1);
+    *(dense_features++) = data_available;
+    add_onehot(&dense_features, INTRA_MODES, data_available ? mbmi->mode : -1);
     const float var = data_available ? (float)mbmi->y_recon_var : 0.0f;
-    *(features++) = logf(var + 1.0f);
-    add_hist_features(data_available ? mbmi->y_gradient_hist : NULL, &features);
+    *(dense_features++) = logf(var + 1.0f);
+    add_hist_features(data_available ? mbmi->y_gradient_hist : NULL,
+                      &dense_features);
 #endif
   }
+#if CONFIG_USE_SMALL_MODEL
+  (void)dense_features;
+#else
+  (void)sparse_features;
+#endif
 }
 
 void av1_pdf2icdf(float *pdf, aom_cdf_prob *cdf, int nsymbs) {
@@ -91,31 +99,35 @@ void av1_pdf2icdf(float *pdf, aom_cdf_prob *cdf, int nsymbs) {
   cdf[nsymbs - 1] = 0;
 }
 
-void av1_get_intra_uv_block_feature(float *features, PREDICTION_MODE cur_y_mode,
+void av1_get_intra_uv_block_feature(int *sparse_features, float *features,
+                                    PREDICTION_MODE cur_y_mode,
                                     int is_cfl_allowed,
                                     const MB_MODE_INFO *above_mi,
                                     const MB_MODE_INFO *left_mi) {
-  add_onehot(&features, INTRA_MODES, cur_y_mode);
-  *(features++) = (float)is_cfl_allowed;
+  *(sparse_features++) = cur_y_mode;
+  *(sparse_features++) = !is_cfl_allowed;
+  (void)features;
   (void)above_mi;
   (void)left_mi;
 }
 
 void av1_get_kf_y_mode_cdf_ml(const MACROBLOCKD *xd, aom_cdf_prob *cdf) {
-  float features[KF_Y_MODE_FEATURES], scores[INTRA_MODES];
-  av1_get_intra_block_feature(features, xd->above_mbmi, xd->left_mbmi,
-                              xd->aboveleft_mbmi);
-  av1_nn_predict_em(features, &(xd->tile_ctx->av1_intra_y_mode), scores);
-  av1_pdf2icdf(scores, cdf, INTRA_MODES);
+  NN_CONFIG_EM *nn_model = &(xd->tile_ctx->av1_intra_y_mode);
+  av1_get_intra_block_feature(nn_model->sparse_features,
+                              nn_model->dense_features, xd->above_mbmi,
+                              xd->left_mbmi, xd->aboveleft_mbmi);
+  av1_nn_predict_em(nn_model);
+  av1_pdf2icdf(nn_model->output, cdf, INTRA_MODES);
 }
 
 void av1_get_uv_mode_cdf_ml(const MACROBLOCKD *xd, PREDICTION_MODE y_mode,
                             aom_cdf_prob *cdf) {
-  float features[UV_INTRA_MODE_FEATURES], scores[UV_INTRA_MODES];
-  av1_get_intra_uv_block_feature(features, y_mode, is_cfl_allowed(xd),
-                                 xd->above_mbmi, xd->left_mbmi);
-  av1_nn_predict_em(features, &(xd->tile_ctx->av1_intra_uv_mode), scores);
-  av1_pdf2icdf(scores, cdf, UV_INTRA_MODES);
+  NN_CONFIG_EM *nn_model = &(xd->tile_ctx->av1_intra_uv_mode);
+  av1_get_intra_uv_block_feature(
+      nn_model->sparse_features, nn_model->dense_features, y_mode,
+      is_cfl_allowed(xd), xd->above_mbmi, xd->left_mbmi);
+  av1_nn_predict_em(nn_model);
+  av1_pdf2icdf(nn_model->output, cdf, UV_INTRA_MODES);
 }
 #endif  // CONFIG_INTRA_ENTROPY
 

@@ -66,6 +66,8 @@
 #define CONVERT_TO_SHORTPTR(x) ((uint16_t *)(((uintptr_t)(x)) << 1))
 #define CONVERT_TO_BYTEPTR(x) ((uint8_t *)(((uintptr_t)(x)) >> 1))
 
+#define ALIGN_MULTIPLE_OF_FOUR(val) (((val) + 3) & ~3)
+
 /*!\brief force enum to be unsigned 1 byte*/
 #define UENUM1BYTE(enumvar) \
   ;                         \
