@@ -1464,9 +1464,8 @@ static void update_stats(const AV1_COMMON *const cm, TileDataEnc *tile_data,
         update_inter_mode_stats(fc, counts, mode, mode_ctx, allow_update_cdf);
       }
 
-      int mode_allowed = (mbmi->mode == NEWMV);
-      mode_allowed |= (mbmi->mode == NEW_NEWMV);
-      if (mode_allowed) {
+      const int new_mv = mbmi->mode == NEWMV || mbmi->mode == NEW_NEWMV;
+      if (new_mv) {
         uint8_t ref_frame_type = av1_ref_frame_type(mbmi->ref_frame);
         int idx;
 
@@ -1497,6 +1496,14 @@ static void update_stats(const AV1_COMMON *const cm, TileDataEnc *tile_data,
 
             if (mbmi->ref_mv_idx == idx - 1) break;
           }
+        }
+      }
+
+      if (new_mv) {
+        for (int ref = 0; ref < 1 + has_second_ref(mbmi); ++ref) {
+          const int_mv ref_mv = av1_get_ref_mv(x, ref);
+          av1_update_mv_stats(&mbmi->mv[ref].as_mv, &ref_mv.as_mv, &fc->nmvc,
+                              cm->mv_precision);
         }
       }
     }
@@ -4287,6 +4294,19 @@ static void encode_sb_row(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
         AOM_FALLTHROUGH_INTENDED;
       case COST_UPD_SB:  // SB level
         av1_fill_mode_rates(cm, x, xd->tile_ctx);
+        break;
+      default: assert(0);
+    }
+
+    switch (cpi->oxcf.mv_cost_upd_freq) {
+      case COST_UPD_TILE:  // Tile level
+        if (mi_row != tile_info->mi_row_start) break;
+        AOM_FALLTHROUGH_INTENDED;
+      case COST_UPD_SBROW:  // SB row level in tile
+        if (mi_col != tile_info->mi_col_start) break;
+        AOM_FALLTHROUGH_INTENDED;
+      case COST_UPD_SB:  // SB level
+        av1_fill_mv_costs(xd->tile_ctx, cm, x);
         break;
       default: assert(0);
     }

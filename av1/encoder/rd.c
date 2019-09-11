@@ -630,13 +630,24 @@ void av1_fill_coeff_costs(MACROBLOCK *x, FRAME_CONTEXT *fc,
   }
 }
 
-void av1_initialize_cost_tables(const AV1_COMMON *const cm, MACROBLOCK *x) {
+void av1_fill_mv_costs(const FRAME_CONTEXT *fc, const AV1_COMMON *const cm,
+                       MACROBLOCK *x) {
+  x->nmvcost[0][0] = &x->nmv_costs[0][0][MV_MAX];
+  x->nmvcost[0][1] = &x->nmv_costs[0][1][MV_MAX];
+  x->nmvcost[1][0] = &x->nmv_costs[1][0][MV_MAX];
+  x->nmvcost[1][1] = &x->nmv_costs[1][1][MV_MAX];
+  x->nmvcost[2][0] = &x->nmv_costs[2][0][MV_MAX];
+  x->nmvcost[2][1] = &x->nmv_costs[2][1][MV_MAX];
+  x->nmvcost[3][0] = &x->nmv_costs[3][0][MV_MAX];
+  x->nmvcost[3][1] = &x->nmv_costs[3][1][MV_MAX];
   if (cm->cur_frame_force_integer_mv) {
     av1_build_nmv_cost_table(x->nmv_vec_cost, x->nmvcost[MV_SUBPEL_NONE],
-                             &cm->fc->nmvc, MV_SUBPEL_NONE);
+                             &fc->nmvc, MV_SUBPEL_NONE);
+    x->mv_cost_stack = (int **)&x->nmvcost[MV_SUBPEL_NONE];
   } else {
     av1_build_nmv_cost_table(x->nmv_vec_cost, x->nmvcost[cm->mv_precision],
-                             &cm->fc->nmvc, cm->mv_precision);
+                             &fc->nmvc, cm->mv_precision);
+    x->mv_cost_stack = (int **)&x->nmvcost[cm->mv_precision];
   }
 }
 
@@ -655,7 +666,7 @@ void av1_initialize_rd_consts(AV1_COMP *cpi) {
 
   if (!cpi->sf.use_nonrd_pick_mode || frame_is_intra_only(cm) ||
       (cm->current_frame.frame_number & 0x07) == 1)
-    av1_initialize_cost_tables(cm, x);
+    av1_fill_mv_costs(cm->fc, cm, x);
 
   if (frame_is_intra_only(cm) && cm->allow_screen_content_tools &&
       cpi->oxcf.pass != 1) {

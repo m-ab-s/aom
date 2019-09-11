@@ -399,11 +399,19 @@ static void analyze_hor_freq(const AV1_COMP *cpi, double *energy) {
 
 static void set_mv_precision(AV1_COMP *cpi, MvSubpelPrecision precision,
                              int cur_frame_force_integer_mv) {
-  MACROBLOCK *const mb = &cpi->td.mb;
+  MACROBLOCK *const x = &cpi->td.mb;
+  x->nmvcost[0][0] = &x->nmv_costs[0][0][MV_MAX];
+  x->nmvcost[0][1] = &x->nmv_costs[0][1][MV_MAX];
+  x->nmvcost[1][0] = &x->nmv_costs[1][0][MV_MAX];
+  x->nmvcost[1][1] = &x->nmv_costs[1][1][MV_MAX];
+  x->nmvcost[2][0] = &x->nmv_costs[2][0][MV_MAX];
+  x->nmvcost[2][1] = &x->nmv_costs[2][1][MV_MAX];
+  x->nmvcost[3][0] = &x->nmv_costs[3][0][MV_MAX];
+  x->nmvcost[3][1] = &x->nmv_costs[3][1][MV_MAX];
   cpi->common.mv_precision =
       cur_frame_force_integer_mv ? MV_SUBPEL_NONE : precision;
-  int *(*src)[2] = &mb->nmvcost[cpi->common.mv_precision];
-  mb->mv_cost_stack = *src;
+  int *(*src)[2] = &x->nmvcost[cpi->common.mv_precision];
+  x->mv_cost_stack = *src;
 }
 
 static BLOCK_SIZE select_sb_size(const AV1_COMP *const cpi) {
@@ -709,7 +717,7 @@ static void save_coding_context(AV1_COMP *cpi) {
   // intended for use in a re-code loop in av1_compress_frame where the
   // quantizer value is adjusted between loop iterations.
   av1_copy(cc->nmv_vec_cost, cpi->td.mb.nmv_vec_cost);
-  av1_copy(cc->nmv_costs, cpi->nmv_costs);
+  av1_copy(cc->nmv_costs, cpi->td.mb.nmv_costs);
 
   cc->fc = *cm->fc;
 }
@@ -721,7 +729,7 @@ static void restore_coding_context(AV1_COMP *cpi) {
   // Restore key state variables to the snapshot state stored in the
   // previous call to av1_save_coding_context.
   av1_copy(cpi->td.mb.nmv_vec_cost, cc->nmv_vec_cost);
-  av1_copy(cpi->nmv_costs, cc->nmv_costs);
+  av1_copy(cpi->td.mb.nmv_costs, cc->nmv_costs);
 
   *cm->fc = cc->fc;
 }
@@ -3060,8 +3068,6 @@ AV1_COMP *av1_create_compressor(AV1EncoderConfig *oxcf,
   cpi->last_show_frame_buf = NULL;
   realloc_segmentation_maps(cpi);
 
-  memset(cpi->nmv_costs, 0, sizeof(cpi->nmv_costs));
-
   for (i = 0; i < (sizeof(cpi->mbgraph_stats) / sizeof(cpi->mbgraph_stats[0]));
        i++) {
     CHECK_MEM_ERROR(
@@ -3113,15 +3119,6 @@ AV1_COMP *av1_create_compressor(AV1EncoderConfig *oxcf,
 #endif  // CONFIG_ENTROPY_STATS
 
   cpi->first_time_stamp_ever = INT64_MAX;
-
-  cpi->td.mb.nmvcost[0][0] = &cpi->nmv_costs[0][0][MV_MAX];
-  cpi->td.mb.nmvcost[0][1] = &cpi->nmv_costs[0][1][MV_MAX];
-  cpi->td.mb.nmvcost[1][0] = &cpi->nmv_costs[1][0][MV_MAX];
-  cpi->td.mb.nmvcost[1][1] = &cpi->nmv_costs[1][1][MV_MAX];
-  cpi->td.mb.nmvcost[2][0] = &cpi->nmv_costs[2][0][MV_MAX];
-  cpi->td.mb.nmvcost[2][1] = &cpi->nmv_costs[2][1][MV_MAX];
-  cpi->td.mb.nmvcost[3][0] = &cpi->nmv_costs[3][0][MV_MAX];
-  cpi->td.mb.nmvcost[3][1] = &cpi->nmv_costs[3][1][MV_MAX];
 
 #ifdef OUTPUT_YUV_SKINMAP
   yuv_skinmap_file = fopen("skinmap.yuv", "ab");

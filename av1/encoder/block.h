@@ -259,6 +259,7 @@ struct macroblock {
   int best_pred_mv_sad;
 
   int nmv_vec_cost[MV_JOINTS];
+  int nmv_costs[MV_SUBPEL_PRECISIONS][2][MV_VALS];
   int *nmvcost[MV_SUBPEL_PRECISIONS][2];
   int **mv_cost_stack;
 
