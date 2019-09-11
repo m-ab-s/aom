@@ -37,9 +37,6 @@ struct yv12_buffer_config;
 struct NN_CONFIG;
 typedef struct NN_CONFIG NN_CONFIG;
 
-struct FC_LAYER_EM;
-typedef struct FC_LAYER_EM FC_LAYER_EM;
-
 struct CNN_CONFIG;
 typedef struct CNN_CONFIG CNN_CONFIG;
 struct CNN_LAYER_CONFIG;

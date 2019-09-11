@@ -94,6 +94,12 @@ if(CONFIG_LPF_MASK)
   list(APPEND AOM_AV1_COMMON_SOURCES "${AOM_ROOT}/av1/common/loopfiltermask.c")
 endif()
 
+if(CONFIG_INTRA_ENTROPY)
+  list(APPEND AOM_AV1_COMMON_SOURCES
+              "${AOM_ROOT}/av1/common/intra_entropy_models.h"
+              "${AOM_ROOT}/av1/common/nn_em.h" "${AOM_ROOT}/av1/common/nn_em.c")
+endif()
+
 list(APPEND AOM_AV1_DECODER_SOURCES
             "${AOM_ROOT}/av1/av1_dx_iface.c"
             "${AOM_ROOT}/av1/decoder/decodeframe.c"
