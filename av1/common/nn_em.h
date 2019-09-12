@@ -22,57 +22,49 @@ enum { ACTN_NONE, ACTN_RELU, ACTN_SIGMOID } UENUM1BYTE(ACTN);
 enum { SOFTMAX_CROSS_ENTROPY_LOSS } UENUM1BYTE(LOSS_F);
 
 #define EM_MAX_HLAYERS (0)
-#define EM_MAX_NODES (128)
-#define EM_MAX_WEIGHT_SIZE (EM_MAX_NODES * EM_MAX_NODES)
 #define EM_MAX_SPARSE_FEATURES (2)
 
-// Fully-connectedly layer configuration
-// TODO(chiyotsai@google.com, huisu@google.com): Convert the arrays to pointers.
+// Fully-connectedly layer.
 typedef struct FC_LAYER_EM {
+  ACTN activation;  // Activation function.
   int num_inputs;   // Number of input nodes, i.e. features.
   int num_outputs;  // Number of output nodes.
-
-  float weights[EM_MAX_WEIGHT_SIZE];  // Weight parameters.
-  float bias[EM_MAX_NODES];           // Bias parameters.
-  ACTN activation;                    // Activation function.
-
-  float output[EM_MAX_NODES];    // The output array.
-  float dY[EM_MAX_NODES];        // Gradient of outputs
-  float dW[EM_MAX_WEIGHT_SIZE];  // Gradient of weights.
-  float db[EM_MAX_NODES];        // Gradient of bias
+  float *weights;   // Weight parameters.
+  float *bias;      // Bias parameters.
+  float *output;    // The output array.
+  float *dy;        // Gradient of outputs
+  float *dw;        // Gradient of weights.
+  float *db;        // Gradient of bias
 } FC_LAYER_EM;
 
+// Fully-connectedly input layer.
 typedef struct FC_INPUT_LAYER_EM {
-  int num_sparse_inputs;  // Number of input nodes, i.e. features.
-  int num_dense_inputs;   // Number of input nodes, i.e. features.
-  int num_outputs;        // Number of output nodes.
+  ACTN activation;
+  int num_sparse_inputs;
   int sparse_input_size[EM_MAX_SPARSE_FEATURES];
-
-  float sparse_weights[EM_MAX_SPARSE_FEATURES]
-                      [EM_MAX_WEIGHT_SIZE];  // Weight parameters.
-  float dense_weights[EM_MAX_WEIGHT_SIZE];   // Weight parameters.
-  float bias[EM_MAX_NODES];                  // Bias parameters.
-  ACTN activation;                           // Activation function.
-
-  float output[EM_MAX_NODES];  // The output array.
-  float dY[EM_MAX_NODES];      // Gradient of outputs
-  float dW_sparse[EM_MAX_SPARSE_FEATURES]
-                 [EM_MAX_WEIGHT_SIZE];  // Gradient of weights.
-  float dW_dense[EM_MAX_WEIGHT_SIZE];   // Gradient of weights.
-  float db[EM_MAX_NODES];               // Gradient of bias
+  int num_dense_inputs;
+  int num_outputs;
+  float *sparse_weights[EM_MAX_SPARSE_FEATURES];
+  float *dense_weights;
+  float *bias;
+  float *output;
+  float *dy;
+  float *db;
+  float *dw_dense;
+  float *dw_sparse[EM_MAX_SPARSE_FEATURES];
 } FC_INPUT_LAYER_EM;
 
 // NN configure structure for entropy mode (EM)
 typedef struct NN_CONFIG_EM {
   float lr;               // learning rate
   int num_hidden_layers;  // Number of hidden layers, max = 10.
-  int sparse_features[EM_MAX_SPARSE_FEATURES];  // Input feature
-  float dense_features[EM_MAX_NODES];
   FC_INPUT_LAYER_EM input_layer;
   FC_LAYER_EM layer[EM_MAX_HLAYERS];  // The layer array
   int num_logits;                     // Number of output nodes.
-  float output[EM_MAX_NODES];         // Output
   LOSS_F loss;                        // Loss function
+  float *output;
+  int *sparse_features;
+  float *dense_features;
 } NN_CONFIG_EM;
 
 // Calculate prediction based on the given input features and neural net config.

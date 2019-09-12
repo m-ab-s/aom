@@ -80,8 +80,7 @@ static void write_intra_y_mode_kf(MACROBLOCKD *const xd,
 #if CONFIG_INTRA_ENTROPY
   aom_cdf_prob cdf[INTRA_MODES];
   av1_get_kf_y_mode_cdf_ml(xd, cdf);
-  aom_write_symbol_nn(w, mode, cdf, &(frame_ctx->av1_intra_y_mode),
-                      INTRA_MODES);
+  aom_write_symbol_nn(w, mode, cdf, &(frame_ctx->intra_y_mode), INTRA_MODES);
 #else
   const MB_MODE_INFO *const above_mi = xd->above_mbmi;
   const MB_MODE_INFO *const left_mi = xd->left_mbmi;
@@ -997,7 +996,7 @@ static void write_intra_uv_mode(const MACROBLOCKD *xd, FRAME_CONTEXT *frame_ctx,
   if (is_keyframe) {
     aom_cdf_prob cdf[UV_INTRA_MODES];
     av1_get_uv_mode_cdf_ml(xd, y_mode, cdf);
-    aom_write_symbol_nn(w, uv_mode, cdf, &(frame_ctx->av1_intra_uv_mode),
+    aom_write_symbol_nn(w, uv_mode, cdf, &(frame_ctx->intra_uv_mode),
                         UV_INTRA_MODES);
   } else {
     aom_write_symbol(w, uv_mode, frame_ctx->uv_mode_cdf[cfl_allowed][y_mode],

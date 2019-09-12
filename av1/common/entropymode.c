@@ -21,11 +21,6 @@
 #include "av1/common/seg_common.h"
 #include "av1/common/txb_common.h"
 
-#if CONFIG_INTRA_ENTROPY
-#include "av1/common/intra_entropy_models.h"
-#include "av1/common/nn_em.h"
-#endif
-
 static const aom_cdf_prob
     default_kf_y_mode_cdf[KF_MODE_CONTEXTS][KF_MODE_CONTEXTS][CDF_SIZE(
         INTRA_MODES)] = {
@@ -1240,6 +1235,76 @@ int av1_get_palette_color_index_context(const uint8_t *color_map, int stride,
 #undef NUM_PALETTE_NEIGHBORS
 #undef MAX_COLOR_CONTEXT_HASH
 
+#if CONFIG_INTRA_ENTROPY
+static void init_entropy_models(FRAME_CONTEXT *const fc) {
+  // Intra Y mode model.
+  NN_CONFIG_EM *const intra_y_mode = &fc->intra_y_mode;
+  av1_zero(*intra_y_mode);
+  intra_y_mode->lr = intra_y_mode_lr;
+  intra_y_mode->num_hidden_layers = 0;
+  intra_y_mode->num_logits = INTRA_MODES;
+  intra_y_mode->loss = SOFTMAX_CROSS_ENTROPY_LOSS;
+  FC_INPUT_LAYER_EM *const intra_y_mode_input_layer =
+      &intra_y_mode->input_layer;
+  intra_y_mode_input_layer->num_sparse_inputs = EM_NUM_Y_SPARSE_FEATURES;
+  intra_y_mode_input_layer->num_dense_inputs = EM_NUM_Y_DENSE_FEATURES;
+  memcpy(intra_y_mode_input_layer->sparse_input_size, intra_y_sparse_feat_sizes,
+         sizeof(intra_y_sparse_feat_sizes));
+  intra_y_mode_input_layer->num_outputs = INTRA_MODES;
+  intra_y_mode_input_layer->activation = ACTN_NONE;
+  float *const intra_y_mode_sprse_weights[2] = {
+    fc->intra_y_mode_input_layer_sparse_0_weights,
+    fc->intra_y_mode_input_layer_sparse_1_weights,
+  };
+  for (int idx = 0; idx < intra_y_mode_input_layer->num_sparse_inputs; idx++) {
+    const int arr_size = intra_y_mode_input_layer->sparse_input_size[idx] *
+                         intra_y_mode_input_layer->num_outputs;
+    av1_copy_array(intra_y_mode_sprse_weights[idx],
+                   intra_y_mode_input_layer_sparse_weights[idx], arr_size);
+  }
+  if (intra_y_mode->input_layer.num_dense_inputs > 0) {
+    memcpy(fc->intra_y_mode_input_layer_dense_weights,
+           intra_y_mode_input_layer_dense_weights,
+           sizeof(intra_y_mode_input_layer_dense_weights));
+  }
+  memcpy(fc->intra_y_mode_input_layer_bias, intra_y_mode_input_layer_bias,
+         sizeof(intra_y_mode_input_layer_bias));
+
+  // Intra UV mode model.
+  NN_CONFIG_EM *intra_uv_mode = &fc->intra_uv_mode;
+  av1_zero(*intra_uv_mode);
+  intra_uv_mode->lr = intra_uv_mode_lr;
+  intra_uv_mode->num_hidden_layers = 0;
+  intra_uv_mode->num_logits = UV_INTRA_MODES;
+  intra_uv_mode->loss = SOFTMAX_CROSS_ENTROPY_LOSS;
+  FC_INPUT_LAYER_EM *const intra_uv_mode_input_layer =
+      &intra_uv_mode->input_layer;
+  intra_uv_mode_input_layer->num_sparse_inputs = EM_NUM_UV_SPARSE_FEATURES;
+  intra_uv_mode_input_layer->num_dense_inputs = 0;
+  memcpy(intra_uv_mode_input_layer->sparse_input_size,
+         intra_uv_sparse_feat_sizes, sizeof(intra_uv_sparse_feat_sizes));
+  intra_uv_mode_input_layer->num_outputs = UV_INTRA_MODES;
+  intra_uv_mode_input_layer->activation = ACTN_NONE;
+  float *const intra_uv_mode_sprse_weights[2] = {
+    fc->intra_uv_mode_input_layer_sparse_0_weights,
+    fc->intra_uv_mode_input_layer_sparse_1_weights,
+  };
+  for (int idx = 0; idx < intra_uv_mode_input_layer->num_sparse_inputs; idx++) {
+    const int arr_size = intra_uv_mode_input_layer->sparse_input_size[idx] *
+                         intra_uv_mode_input_layer->num_outputs;
+    av1_copy_array(intra_uv_mode_sprse_weights[idx],
+                   intra_uv_mode_input_layer_sparse_weights[idx], arr_size);
+  }
+  if (intra_uv_mode_input_layer->num_dense_inputs > 0) {
+    memcpy(fc->intra_y_mode_input_layer_dense_weights,
+           intra_uv_mode_input_layer_dense_weights,
+           sizeof(intra_uv_mode_input_layer_dense_weights));
+  }
+  memcpy(fc->intra_uv_mode_input_layer_bias, intra_uv_mode_input_layer_bias,
+         sizeof(intra_uv_mode_input_layer_bias));
+}
+#endif  // CONFIG_INTRA_ENTROPY
+
 static void init_mode_probs(FRAME_CONTEXT *fc) {
   av1_copy(fc->palette_y_size_cdf, default_palette_y_size_cdf);
   av1_copy(fc->palette_uv_size_cdf, default_palette_uv_size_cdf);
@@ -1247,59 +1312,7 @@ static void init_mode_probs(FRAME_CONTEXT *fc) {
   av1_copy(fc->palette_uv_color_index_cdf, default_palette_uv_color_index_cdf);
   av1_copy(fc->kf_y_cdf, default_kf_y_mode_cdf);
 #if CONFIG_INTRA_ENTROPY
-  NN_CONFIG_EM *intra_y_model = &fc->av1_intra_y_mode;
-  av1_zero(*intra_y_model);
-  intra_y_model->lr = intra_y_mode_lr;
-  intra_y_model->num_hidden_layers = 0;
-  intra_y_model->input_layer.num_sparse_inputs = EM_NUM_Y_SPARSE_FEATURES;
-  intra_y_model->input_layer.num_dense_inputs = EM_NUM_Y_DENSE_FEATURES;
-  memcpy(intra_y_model->input_layer.sparse_input_size,
-         intra_y_sparse_feat_sizes, sizeof(intra_y_sparse_feat_sizes));
-  intra_y_model->input_layer.num_outputs = INTRA_MODES;
-  intra_y_model->input_layer.activation = ACTN_NONE;
-  intra_y_model->num_logits = INTRA_MODES;
-  intra_y_model->loss = SOFTMAX_CROSS_ENTROPY_LOSS;
-  for (int sparse_idx = 0;
-       sparse_idx < intra_y_model->input_layer.num_sparse_inputs;
-       sparse_idx++) {
-    const int arr_size =
-        intra_y_model->input_layer.sparse_input_size[sparse_idx] *
-        intra_y_model->input_layer.num_outputs;
-    av1_copy_array(intra_y_model->input_layer.sparse_weights[sparse_idx],
-                   intra_y_mode_layer0_sparse_weights[sparse_idx], arr_size);
-  }
-  memcpy(intra_y_model->input_layer.dense_weights,
-         intra_y_mode_layer0_dense_weights,
-         sizeof(intra_y_mode_layer0_dense_weights));
-  memcpy(intra_y_model->input_layer.bias, intra_y_mode_layer0_bias,
-         sizeof(intra_y_mode_layer0_bias));
-
-  NN_CONFIG_EM *intra_uv_model = &fc->av1_intra_uv_mode;
-  av1_zero(*intra_uv_model);
-  intra_uv_model->lr = intra_uv_mode_lr;
-  intra_uv_model->num_hidden_layers = 0;
-  intra_uv_model->input_layer.num_sparse_inputs = EM_NUM_UV_SPARSE_FEATURES;
-  intra_uv_model->input_layer.num_dense_inputs = EM_NUM_Y_DENSE_FEATURES;
-  memcpy(intra_uv_model->input_layer.sparse_input_size,
-         intra_uv_sparse_feat_sizes, sizeof(intra_uv_sparse_feat_sizes));
-  intra_uv_model->input_layer.num_outputs = UV_INTRA_MODES;
-  intra_uv_model->input_layer.activation = ACTN_NONE;
-  intra_uv_model->num_logits = UV_INTRA_MODES;
-  intra_uv_model->loss = SOFTMAX_CROSS_ENTROPY_LOSS;
-  for (int sparse_idx = 0;
-       sparse_idx < intra_uv_model->input_layer.num_sparse_inputs;
-       sparse_idx++) {
-    const int arr_size =
-        intra_uv_model->input_layer.sparse_input_size[sparse_idx] *
-        intra_uv_model->input_layer.num_outputs;
-    av1_copy_array(intra_uv_model->input_layer.sparse_weights[sparse_idx],
-                   intra_uv_mode_layer0_sparse_weights[sparse_idx], arr_size);
-  }
-  memcpy(intra_uv_model->input_layer.dense_weights,
-         intra_uv_mode_layer0_dense_weights,
-         sizeof(intra_uv_mode_layer0_dense_weights));
-  memcpy(intra_uv_model->input_layer.bias, intra_uv_mode_layer0_bias,
-         sizeof(intra_uv_mode_layer0_bias));
+  init_entropy_models(fc);
 #endif  // CONFIG_INTRA_ENTROPY
   av1_copy(fc->angle_delta_cdf, default_angle_delta_cdf);
   av1_copy(fc->comp_inter_cdf, default_comp_inter_cdf);

@@ -4908,6 +4908,9 @@ static void finalize_encoded_frame(AV1_COMP *const cpi) {
     for (int tile_row = 0; tile_row < cm->tile_rows; tile_row++) {
       const int tile_idx = tile_row * cm->tile_cols + tile_col;
       cpi->tile_data[tile_idx].tctx = *cm->fc;
+#if CONFIG_INTRA_ENTROPY
+      av1_config_entropy_models(&cpi->tile_data[tile_idx].tctx);
+#endif  // CONFIG_INTRA_ENTROPY
     }
   }
 

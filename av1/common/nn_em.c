@@ -37,8 +37,6 @@ void av1_nn_fc_forward_c(FC_LAYER_EM *layer, const float *input,
                          float *output) {
   const float *weights = layer->weights;
   const float *bias = layer->bias;
-  assert(layer->num_outputs < EM_MAX_NODES);
-  // fc
   for (int node = 0; node < layer->num_outputs; ++node) {
     float val = bias[node];
     for (int i = 0; i < layer->num_inputs; ++i) val += weights[i] * input[i];
@@ -62,16 +60,13 @@ void av1_nn_input_forward(FC_INPUT_LAYER_EM *layer, const int *sparse_features,
   const int output_size = layer->num_outputs;
   const int has_sparse = layer->num_sparse_inputs > 0;
   const int has_dense = layer->num_dense_inputs > 0;
-  assert(output_size < EM_MAX_NODES);
-
   const float *bias = layer->bias;
   for (int out_idx = 0; out_idx < output_size; out_idx++) {
     output[out_idx] = bias[out_idx];
   }
 
-  // Handle sparse layer
   if (has_sparse) {
-    const float(*sparse_weights)[EM_MAX_WEIGHT_SIZE] = layer->sparse_weights;
+    float **sparse_weights = layer->sparse_weights;
     for (int sparse_idx = 0; sparse_idx < layer->num_sparse_inputs;
          sparse_idx++) {
       const float *weight_ptr = sparse_weights[sparse_idx] +
@@ -82,7 +77,6 @@ void av1_nn_input_forward(FC_INPUT_LAYER_EM *layer, const int *sparse_features,
     }
   }
 
-  // fc
   if (has_dense) {
     const float *dense_weights = layer->dense_weights;
     for (int node = 0; node < layer->num_outputs; ++node) {
@@ -178,26 +172,29 @@ static void nn_softmax_cross_entropy_loss_back(float *dX_out,
   }
 }
 
+// Assume there are no more than MAX_NODES nodes in each layer.
+#define MAX_NODES 128
+
 // Backprop in one fc layer, used in function av1_nn_backprop
 static void nn_fc_backward(const float *X, float *dX_out, FC_LAYER_EM *layer) {
   // backprop on activation
-  float dY_fc[EM_MAX_NODES] = { 0.0f };  // dY for fc
+  float dY_fc[MAX_NODES] = { 0.0f };  // dY for fc
   switch (layer->activation) {
     case ACTN_NONE:  // no activation, dY_fc <-- dY
-      av1_copy_array(dY_fc, layer->dY, layer->num_outputs);
+      av1_copy_array(dY_fc, layer->dy, layer->num_outputs);
       break;
     case ACTN_RELU:
-      nn_relu_back(dY_fc, layer->dY, layer->output, layer->num_outputs);
+      nn_relu_back(dY_fc, layer->dy, layer->output, layer->num_outputs);
       break;
     case ACTN_SIGMOID:
-      nn_sigmoid_back(dY_fc, layer->dY, layer->output, layer->num_outputs);
+      nn_sigmoid_back(dY_fc, layer->dy, layer->output, layer->num_outputs);
       break;
     default: assert(0 && "Unknown activation");  // Unknown activation
   }
 
   // backprop on fc
   // gradient of W, b
-  float *dW = layer->dW;
+  float *dW = layer->dw;
   float *db = layer->db;
   for (int j = 0; j < layer->num_outputs; ++j) {
     for (int i = 0; i < layer->num_inputs; ++i) dW[i] += dY_fc[j] * X[i];
@@ -228,19 +225,19 @@ static void nn_fc_input_backward(const int *sparse_features,
   const int has_dense = num_dense > 0;
 
   // backprop on activation
-  const float *dY_fc = NULL;
-  float dY_buffer[EM_MAX_NODES] = { 0.0f };  // dY for fc
+  const float *dy_fc = NULL;
+  float dy_buffer[MAX_NODES] = { 0.0f };  // dY for fc
   switch (layer->activation) {
     case ACTN_NONE:  // no activation, dY_fc <-- dY
-      dY_fc = layer->dY;
+      dy_fc = layer->dy;
       break;
     case ACTN_RELU:
-      nn_relu_back(dY_buffer, layer->dY, layer->output, layer->num_outputs);
-      dY_fc = dY_buffer;
+      nn_relu_back(dy_buffer, layer->dy, layer->output, layer->num_outputs);
+      dy_fc = dy_buffer;
       break;
     case ACTN_SIGMOID:
-      nn_sigmoid_back(dY_buffer, layer->dY, layer->output, layer->num_outputs);
-      dY_fc = dY_buffer;
+      nn_sigmoid_back(dy_buffer, layer->dy, layer->output, layer->num_outputs);
+      dy_fc = dy_buffer;
       break;
     default: assert(0 && "Unknown activation");  // Unknown activation
   }
@@ -248,29 +245,29 @@ static void nn_fc_input_backward(const int *sparse_features,
   // Handle bias
   float *db = layer->db;
   for (int j = 0; j < num_out; ++j) {
-    db[j] = dY_fc[j];
+    db[j] = dy_fc[j];
   }
 
   // Handle sparse
-  float(*dW_sparse)[EM_MAX_WEIGHT_SIZE] = layer->dW_sparse;
+  float **dw_sparse = layer->dw_sparse;
   if (has_sparse) {
     for (int s_idx = 0; s_idx < num_sparse; s_idx++) {
       const int non_zero_idx = sparse_features[s_idx];
 
       for (int j = 0; j < num_out; ++j) {
-        dW_sparse[s_idx][non_zero_idx * num_out + j] = dY_fc[j];
+        dw_sparse[s_idx][non_zero_idx * num_out + j] = dy_fc[j];
       }
     }
   }
 
   // Handle dense
-  float *dW_dense = layer->dW_dense;
   if (has_dense) {
+    float *dw_dense = layer->dw_dense;
     for (int j = 0; j < num_out; ++j) {
       for (int i = 0; i < num_dense; ++i) {
-        dW_dense[i] = dY_fc[j] * dense_features[i];
+        dw_dense[i] = dy_fc[j] * dense_features[i];
       }
-      dW_dense += num_dense;
+      dw_dense += num_dense;
     }
   }
 }
@@ -278,8 +275,8 @@ static void nn_fc_input_backward(const int *sparse_features,
 void av1_nn_backprop_em(NN_CONFIG_EM *nn_config, const int label) {
   // loss layer
   const int num_layers = nn_config->num_hidden_layers;
-  float *prev_dY = num_layers > 0 ? nn_config->layer[num_layers - 1].dY
-                                  : nn_config->input_layer.dY;
+  float *prev_dY = num_layers > 0 ? nn_config->layer[num_layers - 1].dy
+                                  : nn_config->input_layer.dy;
 
   switch (nn_config->loss) {
     case SOFTMAX_CROSS_ENTROPY_LOSS:
@@ -293,11 +290,11 @@ void av1_nn_backprop_em(NN_CONFIG_EM *nn_config, const int label) {
   float *prev_Y = nn_config->input_layer.output;
   for (int layer_idx = num_layers - 1; layer_idx >= 0; layer_idx++) {
     if (layer_idx == 0) {
-      prev_dY = nn_config->input_layer.dY;
-      prev_Y = nn_config->input_layer.dY;
+      prev_dY = nn_config->input_layer.dy;
+      prev_Y = nn_config->input_layer.dy;
     } else {
       FC_LAYER_EM *last_layer = &nn_config->layer[layer_idx - 1];
-      prev_dY = last_layer->dY;
+      prev_dY = last_layer->dy;
       prev_Y = last_layer->output;
     }
     nn_fc_backward(prev_Y, prev_dY, &nn_config->layer[layer_idx]);
@@ -323,9 +320,8 @@ static void update_input_layer(NN_CONFIG_EM *nn_config, float mu) {
 
   // Handle sparse
   if (has_sparse) {
-    float(*dW_sparse)[EM_MAX_WEIGHT_SIZE] = input_layer->dW_sparse;
-    float(*W_sparse)[EM_MAX_WEIGHT_SIZE] = input_layer->sparse_weights;
-
+    float **dw_sparse = input_layer->dw_sparse;
+    float **w_sparse = input_layer->sparse_weights;
     for (int s_idx = 0; s_idx < num_sparse; s_idx++) {
       const int non_zero_idx = nn_config->sparse_features[s_idx];
       const int sparse_size = input_layer->sparse_input_size[s_idx];
@@ -333,17 +329,17 @@ static void update_input_layer(NN_CONFIG_EM *nn_config, float mu) {
         continue;
       }
       for (int j = 0; j < num_out; j++) {
-        W_sparse[s_idx][non_zero_idx * num_out + j] -=
-            mu * dW_sparse[s_idx][non_zero_idx * num_out + j];
+        w_sparse[s_idx][non_zero_idx * num_out + j] -=
+            mu * dw_sparse[s_idx][non_zero_idx * num_out + j];
       }
     }
   }
 
   if (has_dense) {
-    float *dW_dense = input_layer->dW_dense;
-    float *W_dense = input_layer->dense_weights;
+    float *dw_dense = input_layer->dw_dense;
+    float *w_dense = input_layer->dense_weights;
     for (int j = 0; j < num_dense * num_out; ++j) {
-      W_dense[j] -= mu * dW_dense[j];
+      w_dense[j] -= mu * dw_dense[j];
     }
   }
 }
@@ -355,8 +351,8 @@ void av1_nn_update_em(NN_CONFIG_EM *nn_config, float mu) {
   for (int i = 0; i < num_layers; ++i) {
     FC_LAYER_EM *layer = nn_config->layer + i;
     for (int j = 0; j < layer->num_inputs * layer->num_outputs; ++j) {
-      layer->weights[j] -= mu * layer->dW[j];
-      layer->dW[j] = 0.f;
+      layer->weights[j] -= mu * layer->dw[j];
+      layer->dw[j] = 0.f;
     }
     for (int j = 0; j < layer->num_outputs; ++j) {
       layer->bias[j] -= mu * layer->db[j];

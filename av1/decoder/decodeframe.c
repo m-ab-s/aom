@@ -3166,6 +3166,9 @@ static const uint8_t *decode_tiles(AV1Decoder *pbi, const uint8_t *data,
 
       // Initialise the tile context from the frame context
       tile_data->tctx = *cm->fc;
+#if CONFIG_INTRA_ENTROPY
+      av1_config_entropy_models(&tile_data->tctx);
+#endif  // CONFIG_INTRA_ENTROPY
       td->xd.tile_ctx = &tile_data->tctx;
 
       // decode tile
@@ -3239,6 +3242,9 @@ static void tile_worker_hook_init(AV1Decoder *const pbi,
 
   // Initialise the tile context from the frame context
   tile_data->tctx = *cm->fc;
+#if CONFIG_INTRA_ENTROPY
+  av1_config_entropy_models(&tile_data->tctx);
+#endif  // CONFIG_INTRA_ENTROPY
   td->xd.tile_ctx = &tile_data->tctx;
 #if CONFIG_ACCOUNTING
   if (pbi->acct_enabled) {

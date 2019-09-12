@@ -884,7 +884,7 @@ static void sum_intra_stats(const AV1_COMMON *const cm, FRAME_COUNTS *counts,
 #endif  // CONFIG_ENTROPY_STATS
     if (allow_update_cdf) {
 #if CONFIG_INTRA_ENTROPY
-      NN_CONFIG_EM *nn_model = &(fc->av1_intra_y_mode);
+      NN_CONFIG_EM *nn_model = &(fc->intra_y_mode);
       av1_get_intra_block_feature(nn_model->sparse_features,
                                   nn_model->dense_features, above_mi, left_mi,
                                   aboveleft_mi);
@@ -967,7 +967,7 @@ static void sum_intra_stats(const AV1_COMMON *const cm, FRAME_COUNTS *counts,
 #endif  // CONFIG_ENTROPY_STATS
   if (allow_update_cdf) {
 #if CONFIG_INTRA_ENTROPY
-    NN_CONFIG_EM *nn_model = &(fc->av1_intra_uv_mode);
+    NN_CONFIG_EM *nn_model = &(fc->intra_uv_mode);
     av1_get_intra_uv_block_feature(nn_model->sparse_features,
                                    nn_model->dense_features, y_mode,
                                    is_cfl_allowed(xd), above_mi, left_mi);
@@ -4541,6 +4541,9 @@ void av1_init_tile_data(AV1_COMP *cpi) {
       tile_data->allow_update_cdf =
           tile_data->allow_update_cdf && !cm->disable_cdf_update;
       tile_data->tctx = *cm->fc;
+#if CONFIG_INTRA_ENTROPY
+      av1_config_entropy_models(&tile_data->tctx);
+#endif  // CONFIG_INTRA_ENTROPY
     }
   }
 }

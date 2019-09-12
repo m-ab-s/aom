@@ -19,6 +19,7 @@
 #include "aom_dsp/aom_filter.h"
 
 #if CONFIG_INTRA_ENTROPY
+#include "av1/common/intra_entropy_models.h"
 #include "av1/common/nn_em.h"
 #endif
 
@@ -68,6 +69,26 @@ typedef struct {
   const int16_t *scan;
   const int16_t *iscan;
 } SCAN_ORDER;
+
+#if CONFIG_INTRA_ENTROPY
+#define SPARSE_FEATURE_ARRAYS(model_name, idx, weights_size)           \
+  float model_name##_input_layer_sparse_##idx##_weights[weights_size]; \
+  float model_name##_input_layer_dw_sparse_##idx[weights_size];
+
+#define INPUT_LAYER_ARRAYS(model_name, dense_weights_size, output_size) \
+  float model_name##_input_layer_dense_weights[dense_weights_size];     \
+  float model_name##_input_layer_bias[output_size];                     \
+  float model_name##_input_layer_output[output_size];                   \
+  float model_name##_input_layer_dw_dense[dense_weights_size];          \
+  float model_name##_input_layer_db[output_size];                       \
+  float model_name##_input_layer_dy[output_size];
+
+#define MODEL_ARRAYS(model_name, sparse_input_size, dense_input_size, \
+                     output_size)                                     \
+  int model_name##_sparse_features[sparse_input_size];                \
+  float model_name##_dense_features[dense_input_size];                \
+  float model_name##_output[output_size];
+#endif  // CONFIG_INTRA_ENTROPY
 
 typedef struct frame_contexts {
   aom_cdf_prob txb_skip_cdf[TX_SIZES][TXB_SKIP_CONTEXTS][CDF_SIZE(2)];
@@ -163,8 +184,33 @@ typedef struct frame_contexts {
   aom_cdf_prob kf_y_cdf[KF_MODE_CONTEXTS][KF_MODE_CONTEXTS]
                        [CDF_SIZE(INTRA_MODES)];
 #if CONFIG_INTRA_ENTROPY
-  NN_CONFIG_EM av1_intra_y_mode;
-  NN_CONFIG_EM av1_intra_uv_mode;
+  SPARSE_FEATURE_ARRAYS(
+      intra_y_mode, 0,
+      EM_Y_SPARSE_FEAT_SIZE_0 *ALIGN_MULTIPLE_OF_FOUR(EM_Y_OUTPUT_SIZE));
+  SPARSE_FEATURE_ARRAYS(
+      intra_y_mode, 1,
+      EM_Y_SPARSE_FEAT_SIZE_1 *ALIGN_MULTIPLE_OF_FOUR(EM_Y_OUTPUT_SIZE));
+  INPUT_LAYER_ARRAYS(
+      intra_y_mode,
+      EM_NUM_Y_DENSE_FEATURES *ALIGN_MULTIPLE_OF_FOUR(EM_Y_OUTPUT_SIZE),
+      ALIGN_MULTIPLE_OF_FOUR(EM_Y_OUTPUT_SIZE));
+  MODEL_ARRAYS(intra_y_mode, EM_NUM_Y_SPARSE_FEATURES,
+               ALIGN_MULTIPLE_OF_FOUR(EM_NUM_Y_DENSE_FEATURES),
+               ALIGN_MULTIPLE_OF_FOUR(EM_Y_OUTPUT_SIZE));
+
+  SPARSE_FEATURE_ARRAYS(
+      intra_uv_mode, 0,
+      EM_UV_SPARSE_FEAT_SIZE_0 *ALIGN_MULTIPLE_OF_FOUR(EM_UV_OUTPUT_SIZE));
+  SPARSE_FEATURE_ARRAYS(
+      intra_uv_mode, 1,
+      EM_UV_SPARSE_FEAT_SIZE_1 *ALIGN_MULTIPLE_OF_FOUR(EM_UV_OUTPUT_SIZE));
+  INPUT_LAYER_ARRAYS(intra_uv_mode, 0,
+                     ALIGN_MULTIPLE_OF_FOUR(EM_Y_OUTPUT_SIZE));
+  MODEL_ARRAYS(intra_uv_mode, EM_NUM_UV_SPARSE_FEATURES, 0,
+               ALIGN_MULTIPLE_OF_FOUR(EM_UV_OUTPUT_SIZE));
+
+  NN_CONFIG_EM intra_y_mode;
+  NN_CONFIG_EM intra_uv_mode;
 #endif  // CONFIG_INTRA_ENTROPY
 
   aom_cdf_prob angle_delta_cdf[DIRECTIONAL_MODES]
@@ -249,6 +295,35 @@ static INLINE int av1_ceil_log2(int n) {
 int av1_get_palette_color_index_context(const uint8_t *color_map, int stride,
                                         int r, int c, int palette_size,
                                         uint8_t *color_order, int *color_idx);
+
+#if CONFIG_INTRA_ENTROPY
+#define SETUP_SPARSE_FEATURE_POINTERS(model, idx)     \
+  fc->model.input_layer.sparse_weights[idx] =         \
+      fc->model##_input_layer_sparse_##idx##_weights; \
+  fc->model.input_layer.dw_sparse[idx] =              \
+      fc->model##_input_layer_dw_sparse_##idx;
+
+#define SETUP_MODEL_POINTERS(model)                                            \
+  fc->model.input_layer.dense_weights = fc->model##_input_layer_dense_weights; \
+  fc->model.input_layer.bias = fc->model##_input_layer_bias;                   \
+  fc->model.input_layer.output = fc->model##_input_layer_output;               \
+  fc->model.input_layer.dy = fc->model##_input_layer_dy;                       \
+  fc->model.input_layer.db = fc->model##_input_layer_db;                       \
+  fc->model.input_layer.dw_dense = fc->model##_input_layer_dw_dense;           \
+  fc->model.sparse_features = fc->model##_sparse_features;                     \
+  fc->model.dense_features = fc->model##_dense_features;                       \
+  fc->model.output = fc->model##_output;
+
+static INLINE void av1_config_entropy_models(FRAME_CONTEXT *const fc) {
+  SETUP_SPARSE_FEATURE_POINTERS(intra_y_mode, 0);
+  SETUP_SPARSE_FEATURE_POINTERS(intra_y_mode, 1);
+  SETUP_MODEL_POINTERS(intra_y_mode);
+
+  SETUP_SPARSE_FEATURE_POINTERS(intra_uv_mode, 0);
+  SETUP_SPARSE_FEATURE_POINTERS(intra_uv_mode, 1);
+  SETUP_MODEL_POINTERS(intra_uv_mode);
+}
+#endif  // CONFIG_INTRA_ENTROPY
 
 #ifdef __cplusplus
 }  // extern "C"

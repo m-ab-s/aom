@@ -112,7 +112,7 @@ void av1_get_intra_uv_block_feature(int *sparse_features, float *features,
 }
 
 void av1_get_kf_y_mode_cdf_ml(const MACROBLOCKD *xd, aom_cdf_prob *cdf) {
-  NN_CONFIG_EM *nn_model = &(xd->tile_ctx->av1_intra_y_mode);
+  NN_CONFIG_EM *nn_model = &(xd->tile_ctx->intra_y_mode);
   av1_get_intra_block_feature(nn_model->sparse_features,
                               nn_model->dense_features, xd->above_mbmi,
                               xd->left_mbmi, xd->aboveleft_mbmi);
@@ -122,7 +122,7 @@ void av1_get_kf_y_mode_cdf_ml(const MACROBLOCKD *xd, aom_cdf_prob *cdf) {
 
 void av1_get_uv_mode_cdf_ml(const MACROBLOCKD *xd, PREDICTION_MODE y_mode,
                             aom_cdf_prob *cdf) {
-  NN_CONFIG_EM *nn_model = &(xd->tile_ctx->av1_intra_uv_mode);
+  NN_CONFIG_EM *nn_model = &(xd->tile_ctx->intra_uv_mode);
   av1_get_intra_uv_block_feature(
       nn_model->sparse_features, nn_model->dense_features, y_mode,
       is_cfl_allowed(xd), xd->above_mbmi, xd->left_mbmi);

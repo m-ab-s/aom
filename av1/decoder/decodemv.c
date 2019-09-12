@@ -857,7 +857,7 @@ static void read_intra_frame_mode_info(AV1_COMMON *const cm,
   aom_cdf_prob intra_mode_cdf[INTRA_MODES];
   av1_get_kf_y_mode_cdf_ml(xd, intra_mode_cdf);
   mbmi->mode = (PREDICTION_MODE)aom_read_symbol_nn(
-      r, intra_mode_cdf, &(ec_ctx->av1_intra_y_mode), INTRA_MODES, ACCT_STR);
+      r, intra_mode_cdf, &(ec_ctx->intra_y_mode), INTRA_MODES, ACCT_STR);
 #else
   mbmi->mode =
       read_intra_mode(r, get_y_mode_cdf(ec_ctx, xd->above_mbmi, xd->left_mbmi));
@@ -877,7 +877,7 @@ static void read_intra_frame_mode_info(AV1_COMMON *const cm,
     aom_cdf_prob uv_mode_cdf[UV_INTRA_MODES];
     av1_get_uv_mode_cdf_ml(xd, mbmi->mode, uv_mode_cdf);
     mbmi->uv_mode = (UV_PREDICTION_MODE)aom_read_symbol_nn(
-        r, uv_mode_cdf, &(ec_ctx->av1_intra_uv_mode), UV_INTRA_MODES, ACCT_STR);
+        r, uv_mode_cdf, &(ec_ctx->intra_uv_mode), UV_INTRA_MODES, ACCT_STR);
 #else
     mbmi->uv_mode =
         read_intra_mode_uv(ec_ctx, r, is_cfl_allowed(xd), mbmi->mode);
