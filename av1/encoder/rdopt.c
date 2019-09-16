@@ -8224,11 +8224,11 @@ static int skip_repeated_mv(const AV1_COMMON *const cm,
 }
 
 static INLINE int clamp_and_check_mv(int_mv *out_mv, int_mv in_mv,
+                                     const AV1_COMMON *cm,
                                      const MACROBLOCK *x) {
   const MACROBLOCKD *const xd = &x->e_mbd;
-  const MB_MODE_INFO *const mbmi = xd->mi[0];
   *out_mv = in_mv;
-  lower_mv_precision(&out_mv->as_mv, mbmi->mv_precision);
+  lower_mv_precision(&out_mv->as_mv, cm->mv_precision);
   clamp_mv2(&out_mv->as_mv, xd);
   return !mv_check_bounds(&x->mv_limits, &out_mv->as_mv);
 }
@@ -9547,6 +9547,35 @@ static int check_identical_obmc_mv_field(const AV1_COMMON *cm, MACROBLOCKD *xd,
   return mv_field_check_ctxt.mv_field_check_result;
 }
 
+#if CONFIG_FLEX_MVRES
+#ifndef NDEBUG
+static int check_mv_precision(const MB_MODE_INFO *const mbmi) {
+  const int is_comp_pred = mbmi->ref_frame[1] > INTRA_FRAME;
+  if (have_newmv_in_inter_mode(mbmi->mode)) {
+    if (mbmi->mode == NEWMV || mbmi->mode == NEW_NEWMV) {
+      for (int i = 0; i < is_comp_pred + 1; ++i) {
+        if ((mbmi->mv[i].as_mv.row &
+             ((1 << (MV_SUBPEL_EIGHTH_PRECISION - mbmi->mv_precision)) - 1)))
+          return 0;
+        if ((mbmi->mv[i].as_mv.col &
+             ((1 << (MV_SUBPEL_EIGHTH_PRECISION - mbmi->mv_precision)) - 1)))
+          return 0;
+      }
+    } else {
+      const int i = (mbmi->mode == NEAREST_NEWMV || mbmi->mode == NEAR_NEWMV);
+      if ((mbmi->mv[i].as_mv.row &
+           ((1 << (MV_SUBPEL_EIGHTH_PRECISION - mbmi->mv_precision)) - 1)))
+        return 0;
+      if ((mbmi->mv[i].as_mv.col &
+           ((1 << (MV_SUBPEL_EIGHTH_PRECISION - mbmi->mv_precision)) - 1)))
+        return 0;
+    }
+  }
+  return 1;
+}
+#endif  // NDEBUG
+#endif  // CONFIG_FLEX_MVRES
+
 // TODO(afergs): Refactor the MBMI references in here - there's four
 // TODO(afergs): Refactor optional args - add them to a struct or remove
 static int64_t motion_mode_rd(
@@ -9997,7 +10026,7 @@ static INLINE int build_cur_mv(int_mv *cur_mv, PREDICTION_MODE this_mode,
     if (single_mode == NEWMV) {
       cur_mv[i] = this_mv;
     } else {
-      ret &= clamp_and_check_mv(cur_mv + i, this_mv, x);
+      ret &= clamp_and_check_mv(cur_mv + i, this_mv, cm, x);
     }
   }
   return ret;
@@ -10668,6 +10697,20 @@ static int64_t handle_inter_mode(
                          (1 << COMPOUND_WEDGE) | (1 << COMPOUND_DIFFWTD)) -
                         mode_search_mask[0];
 
+#if CONFIG_FLEX_MVRES
+  // TODO(debargha): Do proper rd based decision for mv_precision.
+  // Currently use a variance based method to test the bitstream syntax.
+  if (have_newmv_in_inter_mode(this_mode) && cm->use_flex_mv_precision) {
+    mbmi->mv_precision = x->source_variance < 16
+                             ? MV_SUBPEL_HALF_PRECISION
+                             : x->source_variance < 64
+                                   ? MV_SUBPEL_QTR_PRECISION
+                                   : MV_SUBPEL_EIGHTH_PRECISION;
+    mbmi->mv_precision = AOMMIN(mbmi->mv_precision, cm->mv_precision);
+  } else {
+    mbmi->mv_precision = cm->mv_precision;
+  }
+#endif  // CONFIG_FLEX_MVRES
   // First, perform a simple translation search for each of the indices. If
   // an index performs well, it will be fully searched here.
   const int ref_set = get_drl_refmv_count(x, mbmi->ref_frame, this_mode);
@@ -10964,6 +11007,9 @@ static int64_t handle_inter_mode(
                                rd_stats_uv, disable_skip, mi_row, mi_col, args,
                                ref_best_rd, refs, &rate_mv, &orig_dst,
                                best_est_rd, do_tx_search, inter_modes_info);
+#if CONFIG_FLEX_MVRES
+      assert(check_mv_precision(mbmi));
+#endif  // CONFIG_FLEX_MVRES
 #if CONFIG_COLLECT_COMPONENT_TIMING
       end_timing(cpi, motion_mode_rd_time);
 #endif

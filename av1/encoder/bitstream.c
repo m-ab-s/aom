@@ -1215,6 +1215,17 @@ static void write_intra_prediction_modes(AV1_COMP *cpi, const int mi_row,
 #endif
 }
 
+#if CONFIG_FLEX_MVRES
+static void write_mv_precision(AV1_COMMON *const cm, MACROBLOCKD *const xd,
+                               aom_writer *w) {
+  const MB_MODE_INFO *const mbmi = xd->mi[0];
+  assert(mbmi->mv_precision <= cm->mv_precision);
+  aom_write_symbol(w, cm->mv_precision - mbmi->mv_precision,
+                   xd->tile_ctx->flex_mv_precision_cdf[cm->mv_precision - 1],
+                   cm->mv_precision + 1);
+}
+#endif  // CONFIG_FLEX_MVRES
+
 static void pack_inter_mode_mvs(AV1_COMP *cpi, const int mi_row,
                                 const int mi_col, aom_writer *w) {
   AV1_COMMON *const cm = &cpi->common;
@@ -1275,6 +1286,11 @@ static void pack_inter_mode_mvs(AV1_COMP *cpi, const int mi_row,
         assert(mbmi->ref_mv_idx == 0);
     }
 
+#if CONFIG_FLEX_MVRES
+    if (cm->use_flex_mv_precision && have_newmv_in_inter_mode(mode)) {
+      write_mv_precision(cm, xd, w);
+    }
+#endif  // CONFIG_FLEX_MVRES
     if (mode == NEWMV || mode == NEW_NEWMV) {
       for (ref = 0; ref < 1 + is_compound; ++ref) {
         nmv_context *nmvc = &ec_ctx->nmvc;
@@ -3280,8 +3296,13 @@ static void write_uncompressed_header_obu(AV1_COMP *cpi,
       if (!cm->cur_frame_force_integer_mv) {
 #if CONFIG_FLEX_MVRES
         aom_wb_write_literal(wb, cm->mv_precision, 2);
+        aom_wb_write_bit(wb, cm->use_flex_mv_precision);
 #else
         aom_wb_write_bit(wb, cm->mv_precision > MV_SUBPEL_QTR_PRECISION);
+#endif  // CONFIG_FLEX_MVRES
+#if CONFIG_FLEX_MVRES
+      } else {
+        assert(cm->use_flex_mv_precision == 0);
 #endif  // CONFIG_FLEX_MVRES
       }
       write_frame_interp_filter(cm->interp_filter, wb);

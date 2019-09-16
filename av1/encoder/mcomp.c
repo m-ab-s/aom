@@ -923,7 +923,6 @@ unsigned int av1_refine_warped_mv(const AV1_COMP *cpi, MACROBLOCK *const x,
                                   BLOCK_SIZE bsize, int mi_row, int mi_col,
                                   int *pts0, int *pts_inref0,
                                   int total_samples) {
-  const AV1_COMMON *const cm = &cpi->common;
   MACROBLOCKD *xd = &x->e_mbd;
   MB_MODE_INFO *mbmi = xd->mi[0];
   const MV neighbors[16] = { { 0, -1 }, { 1, 0 }, { 0, 1 }, { -1, 0 },
@@ -939,7 +938,7 @@ unsigned int av1_refine_warped_mv(const AV1_COMP *cpi, MACROBLOCK *const x,
   int best_num_proj_ref = mbmi->num_proj_ref;
   unsigned int bestmse;
   int minc, maxc, minr, maxr;
-  const int start = (MV_SUBPEL_EIGHTH_PRECISION - cm->mv_precision) * 4;
+  const int start = (MV_SUBPEL_EIGHTH_PRECISION - mbmi->mv_precision) * 4;
   int ite;
 
   set_subpel_mv_search_range(&x->mv_limits, &minc, &maxc, &minr, &maxr,

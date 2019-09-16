@@ -172,6 +172,11 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
                            CDF_SIZE(UV_INTRA_MODES));
   RESET_CDF_COUNTER(fc->uv_mode_cdf[1], UV_INTRA_MODES);
 #endif  // CONFIG_INTRA_ENTROPY
+#if CONFIG_FLEX_MVRES
+  for (int p = MV_SUBPEL_HALF_PRECISION; p <= MV_SUBPEL_EIGHTH_PRECISION; ++p) {
+    RESET_CDF_COUNTER(fc->flex_mv_precision_cdf[p - 1], p + 1);
+  }
+#endif  // CONFIG_FLEX_MVRES
   RESET_CDF_COUNTER(fc->angle_delta_cdf, 2 * MAX_ANGLE_DELTA + 1);
   RESET_CDF_COUNTER_STRIDE(fc->tx_size_cdf[0], MAX_TX_DEPTH,
                            CDF_SIZE(MAX_TX_DEPTH + 1));

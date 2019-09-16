@@ -368,15 +368,24 @@ static void set_offsets(const AV1_COMP *const cpi, const TileInfo *const tile,
   }
 }
 
-static void update_filter_type_count(uint8_t allow_update_cdf,
-                                     FRAME_COUNTS *counts,
+static void update_filter_type_count(FRAME_COUNTS *counts,
                                      const MACROBLOCKD *xd,
                                      const MB_MODE_INFO *mbmi) {
   int dir;
   for (dir = 0; dir < 2; ++dir) {
     const int ctx = av1_get_pred_context_switchable_interp(xd, dir);
     InterpFilter filter = av1_extract_interp_filter(mbmi->interp_filters, dir);
-    ++counts->switchable_interp[ctx][filter];
+    if (counts) ++counts->switchable_interp[ctx][filter];
+  }
+}
+
+static void update_filter_type_cdf(uint8_t allow_update_cdf,
+                                   const MACROBLOCKD *xd,
+                                   const MB_MODE_INFO *mbmi) {
+  int dir;
+  for (dir = 0; dir < 2; ++dir) {
+    const int ctx = av1_get_pred_context_switchable_interp(xd, dir);
+    InterpFilter filter = av1_extract_interp_filter(mbmi->interp_filters, dir);
     if (allow_update_cdf) {
       update_cdf(xd->tile_ctx->switchable_interp_cdf[ctx], filter,
                  SWITCHABLE_FILTERS);
@@ -416,8 +425,7 @@ static void reset_tx_size(MACROBLOCK *x, MB_MODE_INFO *mbmi,
   x->skip = 0;
 }
 
-static void update_state(const AV1_COMP *const cpi,
-                         const TileDataEnc *const tile_data, ThreadData *td,
+static void update_state(const AV1_COMP *const cpi, ThreadData *td,
                          const PICK_MODE_CONTEXT *const ctx, int mi_row,
                          int mi_col, BLOCK_SIZE bsize, RUN_TYPE dry_run) {
   int i, x_idx, y;
@@ -525,8 +533,7 @@ static void update_state(const AV1_COMP *const cpi,
     if (cm->interp_filter == SWITCHABLE &&
         mi_addr->motion_mode != WARPED_CAUSAL &&
         !is_nontrans_global_motion(xd, xd->mi[0])) {
-      update_filter_type_count(tile_data->allow_update_cdf, td->counts, xd,
-                               mi_addr);
+      update_filter_type_count(td->counts, xd, mi_addr);
     }
 
     rdc->comp_pred_diff[SINGLE_REFERENCE] += ctx->single_pred_diff;
@@ -1116,8 +1123,7 @@ static void update_stats(const AV1_COMMON *const cm, TileDataEnc *tile_data,
 #if CONFIG_INTRA_ENTROPY
                     xd->aboveleft_mbmi,
 #endif  // CONFIG_INTRA_ENTROPY
-                    frame_is_intra_only(cm), mi_row, mi_col,
-                    tile_data->allow_update_cdf);
+                    frame_is_intra_only(cm), mi_row, mi_col, allow_update_cdf);
   }
 
   if (av1_allow_intrabc(cm)) {
@@ -1446,6 +1452,12 @@ static void update_stats(const AV1_COMMON *const cm, TileDataEnc *tile_data,
       }
     }
 
+    if (inter_block && cm->interp_filter == SWITCHABLE &&
+        mbmi->motion_mode != WARPED_CAUSAL &&
+        !is_nontrans_global_motion(xd, xd->mi[0])) {
+      update_filter_type_cdf(allow_update_cdf, xd, mbmi);
+    }
+
     if (inter_block &&
         !segfeature_active(&cm->seg, mbmi->segment_id, SEG_LVL_SKIP)) {
       int16_t mode_ctx;
@@ -1499,8 +1511,23 @@ static void update_stats(const AV1_COMMON *const cm, TileDataEnc *tile_data,
         }
       }
 
-      if (new_mv) {
-        for (int ref = 0; ref < 1 + has_second_ref(mbmi); ++ref) {
+      if (have_newmv_in_inter_mode(mbmi->mode)) {
+#if CONFIG_FLEX_MVRES
+        if (allow_update_cdf && cm->use_flex_mv_precision) {
+          const int down = cm->mv_precision - mbmi->mv_precision;
+          update_cdf(fc->flex_mv_precision_cdf[cm->mv_precision - 1], down,
+                     cm->mv_precision + 1);
+        }
+#endif  // CONFIG_FLEX_MVRES
+        if (new_mv) {
+          for (int ref = 0; ref < 1 + has_second_ref(mbmi); ++ref) {
+            const int_mv ref_mv = av1_get_ref_mv(x, ref);
+            av1_update_mv_stats(&mbmi->mv[ref].as_mv, &ref_mv.as_mv, &fc->nmvc,
+                                cm->mv_precision);
+          }
+        } else {
+          const int ref =
+              (mbmi->mode == NEAREST_NEWMV || mbmi->mode == NEAR_NEWMV);
           const int_mv ref_mv = av1_get_ref_mv(x, ref);
           av1_update_mv_stats(&mbmi->mv[ref].as_mv, &ref_mv.as_mv, &fc->nmvc,
                               cm->mv_precision);
@@ -1610,7 +1637,7 @@ static void encode_b(const AV1_COMP *const cpi, TileDataEnc *tile_data,
   setup_block_rdmult(cpi, x, mi_row, mi_col, bsize, NO_AQ, NULL);
   MB_MODE_INFO *mbmi = xd->mi[0];
   mbmi->partition = partition;
-  update_state(cpi, tile_data, td, ctx, mi_row, mi_col, bsize, dry_run);
+  update_state(cpi, td, ctx, mi_row, mi_col, bsize, dry_run);
 
   if (!dry_run) {
     x->mbmi_ext->cb_offset = x->cb_offset;
@@ -1955,7 +1982,7 @@ static void rd_use_partition(AV1_COMP *cpi, ThreadData *td,
         RD_STATS tmp_rdc;
         const PICK_MODE_CONTEXT *const ctx_h = &pc_tree->horizontal[0];
         av1_init_rd_stats(&tmp_rdc);
-        update_state(cpi, tile_data, td, ctx_h, mi_row, mi_col, subsize, 1);
+        update_state(cpi, td, ctx_h, mi_row, mi_col, subsize, 1);
         encode_superblock(cpi, tile_data, td, tp, DRY_RUN_NORMAL, mi_row,
                           mi_col, subsize, NULL);
         pick_sb_modes(cpi, tile_data, x, mi_row + hbs, mi_col, &tmp_rdc,
@@ -1979,7 +2006,7 @@ static void rd_use_partition(AV1_COMP *cpi, ThreadData *td,
         RD_STATS tmp_rdc;
         const PICK_MODE_CONTEXT *const ctx_v = &pc_tree->vertical[0];
         av1_init_rd_stats(&tmp_rdc);
-        update_state(cpi, tile_data, td, ctx_v, mi_row, mi_col, subsize, 1);
+        update_state(cpi, td, ctx_v, mi_row, mi_col, subsize, 1);
         encode_superblock(cpi, tile_data, td, tp, DRY_RUN_NORMAL, mi_row,
                           mi_col, subsize, NULL);
         pick_sb_modes(cpi, tile_data, x, mi_row, mi_col + hbs, &tmp_rdc,
@@ -2343,7 +2370,7 @@ static int rd_try_subblock(AV1_COMP *const cpi, ThreadData *td,
   }
 
   if (!is_last) {
-    update_state(cpi, tile_data, td, this_ctx, mi_row, mi_col, subsize, 1);
+    update_state(cpi, td, this_ctx, mi_row, mi_col, subsize, 1);
     encode_superblock(cpi, tile_data, td, tp, DRY_RUN_NORMAL, mi_row, mi_col,
                       subsize, NULL);
   }
@@ -2933,7 +2960,7 @@ BEGIN_PARTITION_SEARCH:
       if (pmi->palette_size[0] == 0 && pmi->palette_size[1] == 0) {
         if (mbmi->uv_mode != UV_CFL_PRED) horz_ctx_is_ready = 1;
       }
-      update_state(cpi, tile_data, td, ctx_h, mi_row, mi_col, subsize, 1);
+      update_state(cpi, td, ctx_h, mi_row, mi_col, subsize, 1);
       encode_superblock(cpi, tile_data, td, tp, DRY_RUN_NORMAL, mi_row, mi_col,
                         subsize, NULL);
 
@@ -3019,8 +3046,7 @@ BEGIN_PARTITION_SEARCH:
       if (pmi->palette_size[0] == 0 && pmi->palette_size[1] == 0) {
         if (mbmi->uv_mode != UV_CFL_PRED) vert_ctx_is_ready = 1;
       }
-      update_state(cpi, tile_data, td, &pc_tree->vertical[0], mi_row, mi_col,
-                   subsize, 1);
+      update_state(cpi, td, &pc_tree->vertical[0], mi_row, mi_col, subsize, 1);
       encode_superblock(cpi, tile_data, td, tp, DRY_RUN_NORMAL, mi_row, mi_col,
                         subsize, NULL);
 
@@ -4156,6 +4182,11 @@ static void avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
   }
   AVERAGE_CDF(ctx_left->switchable_interp_cdf, ctx_tr->switchable_interp_cdf,
               SWITCHABLE_FILTERS);
+#if CONFIG_FLEX_MVRES
+  for (int p = 0; p < MV_SUBPEL_PRECISIONS - 1; ++p)
+    AVERAGE_CDF(ctx_left->flex_mv_precision_cdf[p],
+                ctx_tr->flex_mv_precision_cdf[p], p + 2);
+#endif  // CONFIG_FLEX_MVRES
   AVERAGE_CDF(ctx_left->angle_delta_cdf, ctx_tr->angle_delta_cdf,
               2 * MAX_ANGLE_DELTA + 1);
   AVG_CDF_STRIDE(ctx_left->tx_size_cdf[0], ctx_tr->tx_size_cdf[0], MAX_TX_DEPTH,

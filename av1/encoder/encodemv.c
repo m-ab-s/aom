@@ -253,6 +253,10 @@ void av1_encode_mv(AV1_COMP *cpi, aom_writer *w, const MV *mv, const MV *ref,
   MV ref_ = *ref;
   lower_mv_precision(&ref_, precision);
   const MV diff = { mv->row - ref_.row, mv->col - ref_.col };
+  assert((diff.row & ((1 << (MV_SUBPEL_EIGHTH_PRECISION - precision)) - 1)) ==
+         0);
+  assert((diff.col & ((1 << (MV_SUBPEL_EIGHTH_PRECISION - precision)) - 1)) ==
+         0);
 #else
   const MV diff = { mv->row - ref->row, mv->col - ref->col };
 #endif  // CONFIG_FLEX_MVRES

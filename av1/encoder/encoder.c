@@ -2974,6 +2974,9 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
 
   av1_reset_segment_features(cm);
   set_mv_precision(cpi, MV_SUBPEL_EIGHTH_PRECISION, 0);
+#if CONFIG_FLEX_MVRES
+  cm->use_flex_mv_precision = 0;
+#endif  // CONFIG_FLEX_MVRES
 
   set_rc_buffer_sizes(rc, &cpi->oxcf);
 
@@ -4183,8 +4186,10 @@ static void set_size_dependent_vars(AV1_COMP *cpi, int *q, int *bottom_index,
         cpi->common.cur_frame_force_integer_mv
             ? MV_SUBPEL_NONE
             : determine_frame_mv_precision(cpi, *q, 0);
-    if (precision == MV_SUBPEL_NONE) cm->cur_frame_force_integer_mv = 1;
     set_mv_precision(cpi, precision, cm->cur_frame_force_integer_mv);
+#if CONFIG_FLEX_MVRES
+    cpi->common.use_flex_mv_precision = 1;
+#endif  // CONFIG_FLEX_MVRES
   }
 
   // Configure experimental use of segmentation for enhanced coding of
