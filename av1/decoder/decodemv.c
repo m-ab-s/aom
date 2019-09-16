@@ -119,6 +119,7 @@ static int read_delta_lflevel(const AV1_COMMON *const cm, aom_reader *r,
   return reduced_delta_lflevel;
 }
 
+#if !CONFIG_INTRA_ENTROPY
 static UV_PREDICTION_MODE read_intra_mode_uv(FRAME_CONTEXT *ec_ctx,
                                              aom_reader *r,
                                              CFL_ALLOWED_TYPE cfl_allowed,
@@ -128,6 +129,7 @@ static UV_PREDICTION_MODE read_intra_mode_uv(FRAME_CONTEXT *ec_ctx,
                       UV_INTRA_MODES - !cfl_allowed, ACCT_STR);
   return uv_mode;
 }
+#endif  // !CONFIG_INTRA_ENTROPY
 
 static uint8_t read_cfl_alphas(FRAME_CONTEXT *const ec_ctx, aom_reader *r,
                                int8_t *signs_out) {
@@ -1166,8 +1168,15 @@ static void read_intra_block_mode_info(AV1_COMMON *const cm, const int mi_row,
                           xd->plane[1].subsampling_y);
   xd->cfl.is_chroma_reference = has_chroma;
   if (!cm->seq_params.monochrome && has_chroma) {
+#if CONFIG_INTRA_ENTROPY
+    aom_cdf_prob uv_mode_cdf[UV_INTRA_MODES];
+    av1_get_uv_mode_cdf_ml(xd, mbmi->mode, uv_mode_cdf);
+    mbmi->uv_mode = (UV_PREDICTION_MODE)aom_read_symbol_nn(
+        r, uv_mode_cdf, &(ec_ctx->intra_uv_mode), UV_INTRA_MODES, ACCT_STR);
+#else
     mbmi->uv_mode =
         read_intra_mode_uv(ec_ctx, r, is_cfl_allowed(xd), mbmi->mode);
+#endif  // CONFIG_INTRA_ENTROPY
     if (mbmi->uv_mode == UV_CFL_PRED) {
       mbmi->cfl_alpha_idx =
           read_cfl_alphas(xd->tile_ctx, r, &mbmi->cfl_alpha_signs);

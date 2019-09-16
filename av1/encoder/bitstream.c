@@ -989,22 +989,14 @@ static void write_intra_y_mode_nonkf(FRAME_CONTEXT *frame_ctx, BLOCK_SIZE bsize,
 
 static void write_intra_uv_mode(const MACROBLOCKD *xd, FRAME_CONTEXT *frame_ctx,
                                 UV_PREDICTION_MODE uv_mode,
-                                PREDICTION_MODE y_mode,
-                                CFL_ALLOWED_TYPE cfl_allowed, int is_keyframe,
-                                aom_writer *w) {
+                                PREDICTION_MODE y_mode, aom_writer *w) {
 #if CONFIG_INTRA_ENTROPY
-  if (is_keyframe) {
-    aom_cdf_prob cdf[UV_INTRA_MODES];
-    av1_get_uv_mode_cdf_ml(xd, y_mode, cdf);
-    aom_write_symbol_nn(w, uv_mode, cdf, &(frame_ctx->intra_uv_mode),
-                        UV_INTRA_MODES);
-  } else {
-    aom_write_symbol(w, uv_mode, frame_ctx->uv_mode_cdf[cfl_allowed][y_mode],
-                     UV_INTRA_MODES - !cfl_allowed);
-  }
+  aom_cdf_prob cdf[UV_INTRA_MODES];
+  av1_get_uv_mode_cdf_ml(xd, y_mode, cdf);
+  aom_write_symbol_nn(w, uv_mode, cdf, &(frame_ctx->intra_uv_mode),
+                      UV_INTRA_MODES);
 #else
-  (void)xd;
-  (void)is_keyframe;
+  const int cfl_allowed = is_cfl_allowed(xd);
   aom_write_symbol(w, uv_mode, frame_ctx->uv_mode_cdf[cfl_allowed][y_mode],
                    UV_INTRA_MODES - !cfl_allowed);
 #endif  // CONFIG_INTRA_ENTROPY
@@ -1201,8 +1193,7 @@ static void write_intra_prediction_modes(AV1_COMP *cpi, const int mi_row,
       is_chroma_reference(mi_row, mi_col, bsize, xd->plane[1].subsampling_x,
                           xd->plane[1].subsampling_y)) {
     const UV_PREDICTION_MODE uv_mode = mbmi->uv_mode;
-    write_intra_uv_mode(xd, ec_ctx, uv_mode, mode, is_cfl_allowed(xd),
-                        is_keyframe, w);
+    write_intra_uv_mode(xd, ec_ctx, uv_mode, mode, w);
     if (uv_mode == UV_CFL_PRED)
       write_cfl_alphas(ec_ctx, mbmi->cfl_alpha_idx, mbmi->cfl_alpha_signs, w);
     if (use_angle_delta && av1_is_directional_mode(get_uv_mode(uv_mode))) {

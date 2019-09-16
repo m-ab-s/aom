@@ -6424,7 +6424,7 @@ static int rd_pick_intra_angle_sbuv(const AV1_COMP *const cpi, MACROBLOCK *x,
 #define PLANE_SIGN_TO_JOINT_SIGN(plane, a, b) \
   (plane == CFL_PRED_U ? a * CFL_SIGNS + b - 1 : b * CFL_SIGNS + a - 1)
 static int cfl_rd_pick_alpha(MACROBLOCK *const x, const AV1_COMP *const cpi,
-                             TX_SIZE tx_size, int64_t best_rd) {
+                             int mode_cost, TX_SIZE tx_size, int64_t best_rd) {
   MACROBLOCKD *const xd = &x->e_mbd;
   MB_MODE_INFO *const mbmi = xd->mi[0];
 
@@ -6443,9 +6443,7 @@ static int cfl_rd_pick_alpha(MACROBLOCK *const x, const AV1_COMP *const cpi,
 #endif  // CONFIG_DEBUG
 
   xd->cfl.use_dc_pred_cache = 1;
-  const int64_t mode_rd =
-      RDCOST(x->rdmult,
-             x->intra_uv_mode_cost[CFL_ALLOWED][mbmi->mode][UV_CFL_PRED], 0);
+  const int64_t mode_rd = RDCOST(x->rdmult, mode_cost, 0);
   int64_t best_rd_uv[CFL_JOINT_SIGNS][CFL_PRED_PLANES];
   int best_c[CFL_JOINT_SIGNS][CFL_PRED_PLANES];
 #if CONFIG_DEBUG
@@ -6530,8 +6528,7 @@ static int cfl_rd_pick_alpha(MACROBLOCK *const x, const AV1_COMP *const cpi,
     best_rate_overhead = x->cfl_cost[best_joint_sign][CFL_PRED_U][u] +
                          x->cfl_cost[best_joint_sign][CFL_PRED_V][v];
 #if CONFIG_DEBUG
-    xd->cfl.rate = x->intra_uv_mode_cost[CFL_ALLOWED][mbmi->mode][UV_CFL_PRED] +
-                   best_rate_overhead +
+    xd->cfl.rate = mode_cost + best_rate_overhead +
                    best_rate_uv[best_joint_sign][CFL_PRED_U] +
                    best_rate_uv[best_joint_sign][CFL_PRED_V];
 #endif  // CONFIG_DEBUG
@@ -6593,7 +6590,8 @@ static int64_t rd_pick_intra_sbuv_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
       if (!is_cfl_allowed(xd) || !cpi->oxcf.enable_cfl_intra) continue;
       assert(!is_directional_mode);
       const TX_SIZE uv_tx_size = av1_get_tx_size(AOM_PLANE_U, xd);
-      cfl_alpha_rate = cfl_rd_pick_alpha(x, cpi, uv_tx_size, best_rd);
+      cfl_alpha_rate = cfl_rd_pick_alpha(x, cpi, bmode_costs[UV_CFL_PRED],
+                                         uv_tx_size, best_rd);
       if (cfl_alpha_rate == INT_MAX) continue;
     }
     mbmi->angle_delta[PLANE_TYPE_UV] = 0;
@@ -12528,8 +12526,16 @@ static int64_t handle_intra_mode(InterModeSearchState *search_state,
     rd_stats_y->rate -= tx_size_cost(cm, x, bsize, mbmi->tx_size);
   }
   if (num_planes > 1 && !x->skip_chroma_rd) {
+#if CONFIG_INTRA_ENTROPY
+    aom_cdf_prob cdf[UV_INTRA_MODES];
+    av1_get_uv_mode_cdf_ml(xd, mbmi->mode, cdf);
+    int cost[UV_INTRA_MODES];
+    av1_cost_tokens_from_cdf(cost, cdf, NULL);
+    const int uv_mode_cost = cost[mbmi->uv_mode];
+#else
     const int uv_mode_cost =
         x->intra_uv_mode_cost[is_cfl_allowed(xd)][mode][mbmi->uv_mode];
+#endif  // CONFIG_INTRA_ENTROPY
     rd_stats->rate +=
         rd_stats_uv->rate +
         intra_mode_info_cost_uv(cpi, x, mbmi, bsize, uv_mode_cost);
