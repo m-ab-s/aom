@@ -339,8 +339,10 @@ struct macroblock {
   int interintra_mode_cost[BLOCK_SIZE_GROUPS][INTERINTRA_MODES];
   int motion_mode_cost[BLOCK_SIZES_ALL][MOTION_MODES];
   int motion_mode_cost1[BLOCK_SIZES_ALL][2];
-  int intra_uv_mode_cost[CFL_ALLOWED_TYPES][INTRA_MODES][UV_INTRA_MODES];
+#if !CONFIG_INTRA_ENTROPY
   int y_mode_costs[INTRA_MODES][INTRA_MODES][INTRA_MODES];
+  int intra_uv_mode_cost[CFL_ALLOWED_TYPES][INTRA_MODES][UV_INTRA_MODES];
+#endif  // !CONFIG_INTRA_ENTROPY
   int filter_intra_cost[BLOCK_SIZES_ALL][2];
   int filter_intra_mode_cost[FILTER_INTRA_MODES];
 #if CONFIG_ADAPT_FILTER_INTRA

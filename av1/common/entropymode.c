@@ -21,6 +21,29 @@
 #include "av1/common/seg_common.h"
 #include "av1/common/txb_common.h"
 
+static const aom_cdf_prob default_angle_delta_cdf[DIRECTIONAL_MODES][CDF_SIZE(
+    2 * MAX_ANGLE_DELTA + 1)] = {
+  { AOM_CDF7(2180, 5032, 7567, 22776, 26989, 30217) },
+  { AOM_CDF7(2301, 5608, 8801, 23487, 26974, 30330) },
+  { AOM_CDF7(3780, 11018, 13699, 19354, 23083, 31286) },
+  { AOM_CDF7(4581, 11226, 15147, 17138, 21834, 28397) },
+  { AOM_CDF7(1737, 10927, 14509, 19588, 22745, 28823) },
+  { AOM_CDF7(2664, 10176, 12485, 17650, 21600, 30495) },
+  { AOM_CDF7(2240, 11096, 15453, 20341, 22561, 28917) },
+  { AOM_CDF7(3605, 10428, 12459, 17676, 21244, 30655) }
+};
+
+static const aom_cdf_prob default_if_y_mode_cdf[BLOCK_SIZE_GROUPS][CDF_SIZE(
+    INTRA_MODES)] = { { AOM_CDF13(22801, 23489, 24293, 24756, 25601, 26123,
+                                  26606, 27418, 27945, 29228, 29685, 30349) },
+                      { AOM_CDF13(18673, 19845, 22631, 23318, 23950, 24649,
+                                  25527, 27364, 28152, 29701, 29984, 30852) },
+                      { AOM_CDF13(19770, 20979, 23396, 23939, 24241, 24654,
+                                  25136, 27073, 27830, 29360, 29730, 30659) },
+                      { AOM_CDF13(20155, 21301, 22838, 23178, 23261, 23533,
+                                  23703, 24804, 25352, 26575, 27016, 28049) } };
+
+#if !CONFIG_INTRA_ENTROPY
 static const aom_cdf_prob
     default_kf_y_mode_cdf[KF_MODE_CONTEXTS][KF_MODE_CONTEXTS][CDF_SIZE(
         INTRA_MODES)] = {
@@ -75,28 +98,6 @@ static const aom_cdf_prob
         { AOM_CDF13(7618, 8288, 9859, 10509, 15386, 18657, 22903, 28776, 29180,
                     31355, 31802, 32593) } }
     };
-
-static const aom_cdf_prob default_angle_delta_cdf[DIRECTIONAL_MODES][CDF_SIZE(
-    2 * MAX_ANGLE_DELTA + 1)] = {
-  { AOM_CDF7(2180, 5032, 7567, 22776, 26989, 30217) },
-  { AOM_CDF7(2301, 5608, 8801, 23487, 26974, 30330) },
-  { AOM_CDF7(3780, 11018, 13699, 19354, 23083, 31286) },
-  { AOM_CDF7(4581, 11226, 15147, 17138, 21834, 28397) },
-  { AOM_CDF7(1737, 10927, 14509, 19588, 22745, 28823) },
-  { AOM_CDF7(2664, 10176, 12485, 17650, 21600, 30495) },
-  { AOM_CDF7(2240, 11096, 15453, 20341, 22561, 28917) },
-  { AOM_CDF7(3605, 10428, 12459, 17676, 21244, 30655) }
-};
-
-static const aom_cdf_prob default_if_y_mode_cdf[BLOCK_SIZE_GROUPS][CDF_SIZE(
-    INTRA_MODES)] = { { AOM_CDF13(22801, 23489, 24293, 24756, 25601, 26123,
-                                  26606, 27418, 27945, 29228, 29685, 30349) },
-                      { AOM_CDF13(18673, 19845, 22631, 23318, 23950, 24649,
-                                  25527, 27364, 28152, 29701, 29984, 30852) },
-                      { AOM_CDF13(19770, 20979, 23396, 23939, 24241, 24654,
-                                  25136, 27073, 27830, 29360, 29730, 30659) },
-                      { AOM_CDF13(20155, 21301, 22838, 23178, 23261, 23533,
-                                  23703, 24804, 25352, 26575, 27016, 28049) } };
 
 static const aom_cdf_prob
     default_uv_mode_cdf[CFL_ALLOWED_TYPES][INTRA_MODES][CDF_SIZE(
@@ -154,6 +155,7 @@ static const aom_cdf_prob
         { AOM_CDF14(3144, 5087, 7382, 7504, 7593, 7690, 7801, 8064, 8232, 9248,
                     9875, 10521, 29048) } }
     };
+#endif  // !CONFIG_INTRA_ENTROPY
 
 static const aom_cdf_prob default_partition_cdf[PARTITION_CONTEXTS][CDF_SIZE(
     EXT_PARTITION_TYPES)] = {
@@ -1310,9 +1312,11 @@ static void init_mode_probs(FRAME_CONTEXT *fc) {
   av1_copy(fc->palette_uv_size_cdf, default_palette_uv_size_cdf);
   av1_copy(fc->palette_y_color_index_cdf, default_palette_y_color_index_cdf);
   av1_copy(fc->palette_uv_color_index_cdf, default_palette_uv_color_index_cdf);
-  av1_copy(fc->kf_y_cdf, default_kf_y_mode_cdf);
 #if CONFIG_INTRA_ENTROPY
   init_entropy_models(fc);
+#else
+  av1_copy(fc->kf_y_cdf, default_kf_y_mode_cdf);
+  av1_copy(fc->uv_mode_cdf, default_uv_mode_cdf);
 #endif  // CONFIG_INTRA_ENTROPY
   av1_copy(fc->angle_delta_cdf, default_angle_delta_cdf);
   av1_copy(fc->comp_inter_cdf, default_comp_inter_cdf);
@@ -1354,7 +1358,6 @@ static void init_mode_probs(FRAME_CONTEXT *fc) {
   av1_copy(fc->cnn_restore_cdf, default_cnn_restore_cdf);
 #endif  // CONFIG_LOOP_RESTORE_CNN
   av1_copy(fc->y_mode_cdf, default_if_y_mode_cdf);
-  av1_copy(fc->uv_mode_cdf, default_uv_mode_cdf);
   av1_copy(fc->switchable_interp_cdf, default_switchable_interp_cdf);
   av1_copy(fc->partition_cdf, default_partition_cdf);
   av1_copy(fc->intra_ext_tx_cdf, default_intra_ext_tx_cdf);

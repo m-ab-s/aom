@@ -933,6 +933,7 @@ static INLINE void set_mi_row_col(MACROBLOCKD *xd, const TileInfo *const tile,
     if (mi_row & (xd->n4_w - 1)) xd->is_sec_rect = 1;
 }
 
+#if !CONFIG_INTRA_ENTROPY
 static INLINE aom_cdf_prob *get_y_mode_cdf(FRAME_CONTEXT *tile_ctx,
                                            const MB_MODE_INFO *above_mi,
                                            const MB_MODE_INFO *left_mi) {
@@ -942,6 +943,7 @@ static INLINE aom_cdf_prob *get_y_mode_cdf(FRAME_CONTEXT *tile_ctx,
   const int left_ctx = intra_mode_context[left];
   return tile_ctx->kf_y_cdf[above_ctx][left_ctx];
 }
+#endif  // !CONFIG_INTRA_ENTROPY
 
 static INLINE void update_partition_context(MACROBLOCKD *xd, int mi_row,
                                             int mi_col, BLOCK_SIZE subsize,

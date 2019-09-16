@@ -156,9 +156,6 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
   RESET_CDF_COUNTER(fc->cnn_restore_cdf, 2);
 #endif  // CONFIG_LOOP_RESTORE_CNN
   RESET_CDF_COUNTER(fc->y_mode_cdf, INTRA_MODES);
-  RESET_CDF_COUNTER_STRIDE(fc->uv_mode_cdf[0], UV_INTRA_MODES - 1,
-                           CDF_SIZE(UV_INTRA_MODES));
-  RESET_CDF_COUNTER(fc->uv_mode_cdf[1], UV_INTRA_MODES);
   for (int i = 0; i < PARTITION_CONTEXTS; i++) {
     if (i < 4) {
       RESET_CDF_COUNTER_STRIDE(fc->partition_cdf[i], 4, CDF_SIZE(10));
@@ -169,7 +166,12 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
     }
   }
   RESET_CDF_COUNTER(fc->switchable_interp_cdf, SWITCHABLE_FILTERS);
+#if !CONFIG_INTRA_ENTROPY
   RESET_CDF_COUNTER(fc->kf_y_cdf, INTRA_MODES);
+  RESET_CDF_COUNTER_STRIDE(fc->uv_mode_cdf[0], UV_INTRA_MODES - 1,
+                           CDF_SIZE(UV_INTRA_MODES));
+  RESET_CDF_COUNTER(fc->uv_mode_cdf[1], UV_INTRA_MODES);
+#endif  // CONFIG_INTRA_ENTROPY
   RESET_CDF_COUNTER(fc->angle_delta_cdf, 2 * MAX_ANGLE_DELTA + 1);
   RESET_CDF_COUNTER_STRIDE(fc->tx_size_cdf[0], MAX_TX_DEPTH,
                            CDF_SIZE(MAX_TX_DEPTH + 1));
