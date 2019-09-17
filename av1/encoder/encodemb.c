@@ -198,7 +198,7 @@ void av1_xform_quant(const AV1_COMMON *cm, MACROBLOCK *x, int plane, int block,
       (xform_quant_idx != AV1_XFORM_QUANT_FP) || (txfm_param.lossless);
   if (optimize_b_following) {
     p->txb_entropy_ctx[block] =
-        (uint8_t)av1_get_txb_entropy_context(qcoeff, scan_order, *eob);
+        (uint8_t)av1_get_txb_entropy_context(qcoeff, scan_order, tx_size, *eob);
   } else {
     p->txb_entropy_ctx[block] = 0;
   }

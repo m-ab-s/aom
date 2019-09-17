@@ -28,6 +28,11 @@ extern "C" {
 #define DC_SIGN_CTX_SHIFT 4
 #define DC_SIGN_CTX_MASK 3
 
+#if CONFIG_ENTROPY_CONTEXTS
+#define EOB_CTX_SHIFT 6
+#define EOB_CTX_MASK 7
+#endif  // CONFIG_ENTROPY_CONTEXTS
+
 typedef struct TxbInfo {
   tran_low_t *qcoeff;
   uint8_t *levels;  // absolute values and clamped to 255.
@@ -62,7 +67,8 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCKD *xd,
 void av1_write_coeffs_mb(const AV1_COMMON *const cm, MACROBLOCK *x, int mi_row,
                          int mi_col, aom_writer *w, BLOCK_SIZE bsize);
 int av1_get_txb_entropy_context(const tran_low_t *qcoeff,
-                                const SCAN_ORDER *scan_order, int eob);
+                                const SCAN_ORDER *scan_order, TX_SIZE tx_size,
+                                int eob);
 void av1_update_txb_context(const AV1_COMP *cpi, ThreadData *td,
                             RUN_TYPE dry_run, BLOCK_SIZE bsize, int *rate,
                             int mi_row, int mi_col, uint8_t allow_update_cdf);

@@ -90,11 +90,24 @@ typedef struct {
   float model_name##_output[output_size];
 #endif  // CONFIG_INTRA_ENTROPY
 
+#if CONFIG_ENTROPY_CONTEXTS
+#define EOB_CONTEXTS 8
+#endif  // CONFIG_ENTROPY_CONTEXTS
+
 typedef struct frame_contexts {
   aom_cdf_prob txb_skip_cdf[TX_SIZES][TXB_SKIP_CONTEXTS][CDF_SIZE(2)];
   aom_cdf_prob eob_extra_cdf[TX_SIZES][PLANE_TYPES][EOB_COEF_CONTEXTS]
                             [CDF_SIZE(2)];
   aom_cdf_prob dc_sign_cdf[PLANE_TYPES][DC_SIGN_CONTEXTS][CDF_SIZE(2)];
+#if CONFIG_ENTROPY_CONTEXTS
+  aom_cdf_prob eob_flag_cdf16[EOB_CONTEXTS][PLANE_TYPES][2][CDF_SIZE(5)];
+  aom_cdf_prob eob_flag_cdf32[EOB_CONTEXTS][PLANE_TYPES][2][CDF_SIZE(6)];
+  aom_cdf_prob eob_flag_cdf64[EOB_CONTEXTS][PLANE_TYPES][2][CDF_SIZE(7)];
+  aom_cdf_prob eob_flag_cdf128[EOB_CONTEXTS][PLANE_TYPES][2][CDF_SIZE(8)];
+  aom_cdf_prob eob_flag_cdf256[EOB_CONTEXTS][PLANE_TYPES][2][CDF_SIZE(9)];
+  aom_cdf_prob eob_flag_cdf512[EOB_CONTEXTS][PLANE_TYPES][2][CDF_SIZE(10)];
+  aom_cdf_prob eob_flag_cdf1024[EOB_CONTEXTS][PLANE_TYPES][2][CDF_SIZE(11)];
+#else
   aom_cdf_prob eob_flag_cdf16[PLANE_TYPES][2][CDF_SIZE(5)];
   aom_cdf_prob eob_flag_cdf32[PLANE_TYPES][2][CDF_SIZE(6)];
   aom_cdf_prob eob_flag_cdf64[PLANE_TYPES][2][CDF_SIZE(7)];
@@ -102,6 +115,7 @@ typedef struct frame_contexts {
   aom_cdf_prob eob_flag_cdf256[PLANE_TYPES][2][CDF_SIZE(9)];
   aom_cdf_prob eob_flag_cdf512[PLANE_TYPES][2][CDF_SIZE(10)];
   aom_cdf_prob eob_flag_cdf1024[PLANE_TYPES][2][CDF_SIZE(11)];
+#endif  // CONFIG_ENTROPY_CONTEXTS
   aom_cdf_prob coeff_base_eob_cdf[TX_SIZES][PLANE_TYPES][SIG_COEF_CONTEXTS_EOB]
                                  [CDF_SIZE(3)];
   aom_cdf_prob coeff_base_cdf[TX_SIZES][PLANE_TYPES][SIG_COEF_CONTEXTS]

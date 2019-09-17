@@ -50,7 +50,15 @@ extern "C" {
 
 #define COEFF_CONTEXT_BITS 3
 #define COEFF_CONTEXT_MASK ((1 << COEFF_CONTEXT_BITS) - 1)
+#define DC_SIGN_CONTEXT_BITS 2
+#define DC_SIGN_CONTEXT_MASK ((1 << DC_SIGN_CONTEXT_BITS) - 1)
 #define MAX_BASE_BR_RANGE (COEFF_BASE_RANGE + NUM_BASE_LEVELS + 1)
+
+#if CONFIG_ENTROPY_CONTEXTS
+#define EOB_CONTEXT_BITS 3
+#define EOB_CONTEXT_MASK ((1 << EOB_CONTEXT_BITS) - 1)
+#define EOB_CONTEXT_SHIFT (COEFF_CONTEXT_BITS + DC_SIGN_CONTEXT_BITS)
+#endif  // CONFIG_ENTROPY_CONTEXTS
 
 #define BASE_CONTEXT_POSITION_NUM 12
 
@@ -76,7 +84,7 @@ void av1_default_coef_probs(struct AV1Common *cm);
 
 struct frame_contexts;
 
-typedef char ENTROPY_CONTEXT;
+typedef uint8_t ENTROPY_CONTEXT;
 
 static INLINE int combine_entropy_contexts(ENTROPY_CONTEXT a,
                                            ENTROPY_CONTEXT b) {

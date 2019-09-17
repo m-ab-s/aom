@@ -453,10 +453,14 @@ static void pack_txb_tokens(aom_writer *w, AV1_COMMON *cm, MACROBLOCK *const x,
   if (tx_size == plane_tx_size || plane) {
     const tran_low_t *tcoeff = BLOCK_OFFSET(tcoeff_txb, block);
     const uint16_t eob = eob_txb[block];
-    const uint8_t *entropy_ctx = cb_coef_buff->entropy_ctx[plane] + txb_offset;
-    const TXB_CTX txb_ctx = { entropy_ctx[block] & TXB_SKIP_CTX_MASK,
-                              (entropy_ctx[block] >> DC_SIGN_CTX_SHIFT) &
-                                  DC_SIGN_CTX_MASK };
+    const uint16_t *entropy_ctx = cb_coef_buff->entropy_ctx[plane] + txb_offset;
+    const TXB_CTX txb_ctx = {
+      entropy_ctx[block] & TXB_SKIP_CTX_MASK,
+      (entropy_ctx[block] >> DC_SIGN_CTX_SHIFT) & DC_SIGN_CTX_MASK,
+#if CONFIG_ENTROPY_CONTEXTS
+      (entropy_ctx[block] >> EOB_CTX_SHIFT) & EOB_CTX_MASK,
+#endif  // CONFIG_ENTROPY_CONTEXTS
+    };
     av1_write_coeffs_txb(cm, xd, w, blk_row, blk_col, plane, tx_size, tcoeff,
                          eob, &txb_ctx);
 #if CONFIG_RD_DEBUG
@@ -487,11 +491,15 @@ static void pack_txb_tokens(aom_writer *w, AV1_COMMON *cm, MACROBLOCK *const x,
         if (offsetr >= max_blocks_high || offsetc >= max_blocks_wide) continue;
         const tran_low_t *tcoeff = BLOCK_OFFSET(tcoeff_txb, block);
         const uint16_t eob = eob_txb[block];
-        const uint8_t *entropy_ctx =
+        const uint16_t *entropy_ctx =
             cb_coef_buff->entropy_ctx[plane] + txb_offset;
-        const TXB_CTX txb_ctx = { entropy_ctx[block] & TXB_SKIP_CTX_MASK,
-                                  (entropy_ctx[block] >> DC_SIGN_CTX_SHIFT) &
-                                      DC_SIGN_CTX_MASK };
+        const TXB_CTX txb_ctx = {
+          entropy_ctx[block] & TXB_SKIP_CTX_MASK,
+          (entropy_ctx[block] >> DC_SIGN_CTX_SHIFT) & DC_SIGN_CTX_MASK,
+#if CONFIG_ENTROPY_CONTEXTS
+          (entropy_ctx[block] >> EOB_CTX_SHIFT) & EOB_CTX_MASK,
+#endif  // CONFIG_ENTROPY_CONTEXTS
+        };
         av1_write_coeffs_txb(cm, xd, w, offsetr, offsetc, plane, sub_tx, tcoeff,
                              eob, &txb_ctx);
         block += sub_step;

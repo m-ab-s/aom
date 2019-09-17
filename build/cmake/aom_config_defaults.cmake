@@ -158,6 +158,8 @@ set_aom_config_var(CONFIG_CTX_ADAPT_LOG_WEIGHT 0 NUMBER
                    "AV2 Laplace of Gaussian experiment flag")
 set_aom_config_var(CONFIG_MISC_CHANGES 0 NUMBER
                    "AV2 miscellaneous bitstream changes experiment flag")
+set_aom_config_var(CONFIG_ENTROPY_CONTEXTS 0 NUMBER
+                   "AV2 entropy coding contexts experiment flag")
 
 # To include Tensorflow, make sure to build tensorflow locally using
 # tensorflow/contrib/makefile/build_all_linux.sh and then providing the correct
