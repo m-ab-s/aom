@@ -296,6 +296,10 @@ typedef struct SequenceHeader {
 typedef struct {
   int frame_width;
   int frame_height;
+  int mi_rows;
+  int mi_cols;
+  int mb_rows;
+  int mb_cols;
   int num_mbs;
   aom_bit_depth_t bit_depth;
   int subsampling_x;
@@ -1733,6 +1737,20 @@ static INLINE int all_ref_frames_the_same(const AV1_COMMON *const cm) {
 static INLINE int get_mi_grid_idx(const AV1_COMMON *cm, int mi_row,
                                   int mi_col) {
   return mi_row * cm->mi_stride + mi_col;
+}
+
+static INLINE void init_frame_info(FRAME_INFO *frame_info,
+                                   AV1_COMMON *const cm) {
+  frame_info->frame_width = cm->width;
+  frame_info->frame_height = cm->height;
+  frame_info->mi_cols = cm->mi_cols;
+  frame_info->mi_rows = cm->mi_rows;
+  frame_info->mb_cols = cm->mb_cols;
+  frame_info->mb_rows = cm->mb_rows;
+  frame_info->num_mbs = cm->MBs;
+  frame_info->bit_depth = cm->seq_params.bit_depth;
+  frame_info->subsampling_x = cm->seq_params.subsampling_x;
+  frame_info->subsampling_y = cm->seq_params.subsampling_y;
 }
 
 #ifdef __cplusplus
