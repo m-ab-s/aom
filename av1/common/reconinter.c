@@ -30,6 +30,80 @@
 #define USE_PRECOMPUTED_WEDGE_MASK 1
 #define USE_PRECOMPUTED_WEDGE_SIGN 1
 
+#if CONFIG_CTX_ADAPT_LOG_WEIGHT
+#define LOG_K_SIZE 1
+#define LOG_WEIGHT_0 43
+#define LOG_WEIGHT_1 40
+#define DIFFLOG_THR 3
+static const double log_k[9] = { 0.1004,  -0.0234, 0.1004,  -0.0234, -0.3079,
+                                 -0.0234, 0.1004,  -0.0234, 0.1004 };
+
+double kernel_correlation(const CONV_BUF_TYPE *src, int stride, int h, int w,
+                          int cr, int cc, const double *kernel, int ws,
+                          ConvolveParams *conv_params) {
+  double crr = 0;
+  const int ks = 2 * ws + 1;
+  const int bd = 8;
+  const int offset_bits = bd + 2 * FILTER_BITS - conv_params->round_0;
+  const int round_offset = (1 << (offset_bits - conv_params->round_1)) +
+                           (1 << (offset_bits - conv_params->round_1 - 1));
+  const int round_bits =
+      2 * FILTER_BITS - conv_params->round_0 - conv_params->round_1;
+  const uint16_t max = (1 << round_bits);
+  const uint16_t min = round_offset;
+  for (int i = -ws; i <= ws; ++i) {
+    for (int j = -ws; j <= ws; ++j) {
+      int r = (cr + i < 0) ? 0 : (cr + i >= h) ? h - 1 : cr + i;
+      int c = (cc + j < 0) ? 0 : (cc + j >= w) ? w - 1 : cc + j;
+      double s = (src[r * stride + c] - min) / ((double)max);
+      crr += s * kernel[(i + 1) * ks + (j + 1)];
+    }
+  }
+  return crr;
+}
+
+double kernel_correlation_uint8(const uint8_t *src, int stride, int h, int w,
+                                int cr, int cc, const double *kernel, int ws) {
+  double crr = 0;
+  const int ks = 2 * ws + 1;
+  for (int i = -ws; i <= ws; ++i) {
+    for (int j = -ws; j <= ws; ++j) {
+      int r = (cr + i < 0) ? 0 : (cr + i >= h) ? h - 1 : cr + i;
+      int c = (cc + j < 0) ? 0 : (cc + j >= w) ? w - 1 : cc + j;
+      crr += src[r * stride + c] * kernel[(i + ws) * ks + (j + ws)];
+    }
+  }
+  return crr;
+}
+
+double *gen_correlation(const CONV_BUF_TYPE *src, int stride, int h, int w,
+                        const double *kernel, int ws,
+                        ConvolveParams *conv_params) {
+  double *R;
+  R = malloc(h * w * sizeof(*R));
+  for (int i = 0; i < h; ++i) {
+    for (int j = 0; j < w; ++j) {
+      R[i * w + j] =
+          kernel_correlation(src, stride, h, w, i, j, kernel, ws, conv_params);
+    }
+  }
+  return R;
+}
+
+double *gen_correlation_uint8(const uint8_t *src, int stride, int h, int w,
+                              const double *kernel, int ws) {
+  double *R;
+  R = malloc(h * w * sizeof(*R));
+  for (int i = 0; i < h; ++i) {
+    for (int j = 0; j < w; ++j) {
+      R[i * w + j] =
+          kernel_correlation_uint8(src, stride, h, w, i, j, kernel, ws);
+    }
+  }
+  return R;
+}
+#endif  // CONFIG_CTX_ADAPT_LOG_WEIGHT
+
 // This function will determine whether or not to create a warped
 // prediction.
 int av1_allow_warp(const MB_MODE_INFO *const mbmi,
@@ -296,6 +370,34 @@ static void diffwtd_mask_d16(uint8_t *mask, int which_inverse, int mask_base,
                              const CONV_BUF_TYPE *src0, int src0_stride,
                              const CONV_BUF_TYPE *src1, int src1_stride, int h,
                              int w, ConvolveParams *conv_params, int bd) {
+#if CONFIG_CTX_ADAPT_LOG_WEIGHT
+  (void)bd;
+  (void)mask_base;
+  double *R0 = NULL;
+  double *R1 = NULL;
+  int m;
+  const CONV_BUF_TYPE *pred0 = which_inverse ? src1 : src0;
+  const CONV_BUF_TYPE *pred1 = which_inverse ? src0 : src1;
+  int stride0 = which_inverse ? src1_stride : src0_stride;
+  int stride1 = which_inverse ? src0_stride : src1_stride;
+
+  R0 = gen_correlation(pred0, stride0, h, w, log_k, LOG_K_SIZE, conv_params);
+  R1 = gen_correlation(pred1, stride1, h, w, log_k, LOG_K_SIZE, conv_params);
+  int i, j;
+  for (i = 0; i < h; ++i) {
+    for (j = 0; j < w; ++j) {
+      double_t edge_diff = fabs(R0[i * w + j]) - fabs(R1[i * w + j]);
+      if (edge_diff < DIFFLOG_THR) {
+        m = LOG_WEIGHT_1;
+      } else {
+        m = LOG_WEIGHT_0;
+      }
+      mask[i * w + j] = which_inverse ? AOM_BLEND_A64_MAX_ALPHA - m : m;
+    }
+  }
+  free(R0);
+  free(R1);
+#else
   int round =
       2 * FILTER_BITS - conv_params->round_0 - conv_params->round_1 + (bd - 8);
   int i, j, m, diff;
@@ -307,6 +409,7 @@ static void diffwtd_mask_d16(uint8_t *mask, int which_inverse, int mask_base,
       mask[i * w + j] = which_inverse ? AOM_BLEND_A64_MAX_ALPHA - m : m;
     }
   }
+#endif  // CONFIG_CTX_ADAPT_LOG_WEIGHT
 }
 
 void av1_build_compound_diffwtd_mask_d16_c(
@@ -329,6 +432,32 @@ void av1_build_compound_diffwtd_mask_d16_c(
 static void diffwtd_mask(uint8_t *mask, int which_inverse, int mask_base,
                          const uint8_t *src0, int src0_stride,
                          const uint8_t *src1, int src1_stride, int h, int w) {
+#if CONFIG_CTX_ADAPT_LOG_WEIGHT
+  (void)mask_base;
+  double *R0 = NULL;
+  double *R1 = NULL;
+  int m;
+  const uint8_t *pred0 = which_inverse ? src1 : src0;
+  const uint8_t *pred1 = which_inverse ? src0 : src1;
+  int stride0 = which_inverse ? src1_stride : src0_stride;
+  int stride1 = which_inverse ? src0_stride : src1_stride;
+  R0 = gen_correlation_uint8(pred0, stride0, h, w, log_k, LOG_K_SIZE);
+  R1 = gen_correlation_uint8(pred1, stride1, h, w, log_k, LOG_K_SIZE);
+  for (int i = 0; i < h; ++i) {
+    for (int j = 0; j < w; ++j) {
+      // this one works better
+      double_t edge_diff = fabs(R0[i * w + j]) - fabs(R1[i * w + j]);
+      if (edge_diff < DIFFLOG_THR) {
+        m = LOG_WEIGHT_1;
+      } else {
+        m = LOG_WEIGHT_0;
+      }
+      mask[i * w + j] = which_inverse ? AOM_BLEND_A64_MAX_ALPHA - m : m;
+    }
+  }
+  free(R0);
+  free(R1);
+#else
   int i, j, m, diff;
   for (i = 0; i < h; ++i) {
     for (j = 0; j < w; ++j) {
@@ -338,6 +467,7 @@ static void diffwtd_mask(uint8_t *mask, int which_inverse, int mask_base,
       mask[i * w + j] = which_inverse ? AOM_BLEND_A64_MAX_ALPHA - m : m;
     }
   }
+#endif  // CONFIG_CTX_ADAPT_LOG_WEIGHT
 }
 
 void av1_build_compound_diffwtd_mask_c(uint8_t *mask,
@@ -634,9 +764,15 @@ void av1_make_masked_inter_predictor(
                            can_use_previous);
 
   if (!plane && comp_data->type == COMPOUND_DIFFWTD) {
+#if CONFIG_CTX_ADAPT_LOG_WEIGHT
+    av1_build_compound_diffwtd_mask_d16_c(
+        comp_data->seg_mask, comp_data->mask_type, org_dst, org_dst_stride,
+        tmp_buf16, tmp_buf_stride, h, w, conv_params, xd->bd);
+#else
     av1_build_compound_diffwtd_mask_d16(
         comp_data->seg_mask, comp_data->mask_type, org_dst, org_dst_stride,
         tmp_buf16, tmp_buf_stride, h, w, conv_params, xd->bd);
+#endif  // CONFIG_CTX_ADAPT_LOG_WEIGHT
   }
   build_masked_compound_no_round(dst, dst_stride, org_dst, org_dst_stride,
                                  tmp_buf16, tmp_buf_stride, comp_data,

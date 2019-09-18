@@ -557,6 +557,18 @@ static void build_wedge_inter_predictor_from_buf(
 
   if (is_compound && is_masked_compound_type(comp_data->type)) {
     if (!plane && comp_data->type == COMPOUND_DIFFWTD) {
+#if CONFIG_CTX_ADAPT_LOG_WEIGHT
+      if (is_hbd) {
+        av1_build_compound_diffwtd_mask_highbd_c(
+            comp_data->seg_mask, comp_data->mask_type,
+            CONVERT_TO_BYTEPTR(ext_dst0), ext_dst_stride0,
+            CONVERT_TO_BYTEPTR(ext_dst1), ext_dst_stride1, h, w, xd->bd);
+      } else {
+        av1_build_compound_diffwtd_mask_c(
+            comp_data->seg_mask, comp_data->mask_type, ext_dst0,
+            ext_dst_stride0, ext_dst1, ext_dst_stride1, h, w);
+      }
+#else
       if (is_hbd) {
         av1_build_compound_diffwtd_mask_highbd(
             comp_data->seg_mask, comp_data->mask_type,
@@ -567,6 +579,7 @@ static void build_wedge_inter_predictor_from_buf(
             comp_data->seg_mask, comp_data->mask_type, ext_dst0,
             ext_dst_stride0, ext_dst1, ext_dst_stride1, h, w);
       }
+#endif  // CONFIG_CTX_ADAPT_LOG_WEIGHT
     }
 
     if (is_hbd) {

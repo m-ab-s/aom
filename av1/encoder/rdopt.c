@@ -7882,6 +7882,15 @@ static int64_t pick_interinter_seg(const AV1_COMP *const cpi,
   uint8_t *tmp_mask[2] = { xd->seg_mask, seg_mask };
   // try each mask type and its inverse
   for (cur_mask_type = 0; cur_mask_type < DIFFWTD_MASK_TYPES; cur_mask_type++) {
+#if CONFIG_CTX_ADAPT_LOG_WEIGHT
+    if (hbd)
+      av1_build_compound_diffwtd_mask_highbd_c(
+          tmp_mask[cur_mask_type], cur_mask_type, CONVERT_TO_BYTEPTR(p0), bw,
+          CONVERT_TO_BYTEPTR(p1), bw, bh, bw, xd->bd);
+    else
+      av1_build_compound_diffwtd_mask_c(tmp_mask[cur_mask_type], cur_mask_type,
+                                        p0, bw, p1, bw, bh, bw);
+#else
     // build mask and inverse
     if (hbd)
       av1_build_compound_diffwtd_mask_highbd(
@@ -7890,7 +7899,7 @@ static int64_t pick_interinter_seg(const AV1_COMP *const cpi,
     else
       av1_build_compound_diffwtd_mask(tmp_mask[cur_mask_type], cur_mask_type,
                                       p0, bw, p1, bw, bh, bw);
-
+#endif  // CONFIG_CTX_ADAPT_LOG_WEIGHT
     // compute rd for mask
     uint64_t sse = av1_wedge_sse_from_residuals(residual1, diff10,
                                                 tmp_mask[cur_mask_type], N);
