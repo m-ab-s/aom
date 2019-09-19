@@ -3101,7 +3101,7 @@ static int64_t search_txk_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
   const uint16_t ext_tx_used_flag =
       cpi->sf.tx_type_search.use_reduced_intra_txset &&
 #if CONFIG_MODE_DEP_TX && USE_MDTX_INTRA
-              tx_set_type == EXT_TX_SET_DTT4_IDTX_1DDCT_MDTX3
+              tx_set_type == EXT_TX_SET_DTT4_IDTX_1DDCT_MDTX4
 #else
               tx_set_type == EXT_TX_SET_DTT4_IDTX_1DDCT
 #endif

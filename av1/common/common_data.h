@@ -203,6 +203,9 @@ static const TX_TYPE_1D vtx_tab[TX_TYPES] = {
 #if CONFIG_MODE_DEP_TX
 #if USE_MDTX_INTRA
   MDTX1_1D,    MDTX1_1D, DCT_1D,
+#if USE_NST_INTRA
+  MDTX1_1D,
+#endif
 #endif
 #if USE_MDTX_INTER
   MDTX1_1D,    MDTX1_1D, DCT_1D,      MDTX1_1D, MDTX1_1D,     DCT_1D,
@@ -218,6 +221,9 @@ static const TX_TYPE_1D htx_tab[TX_TYPES] = {
 #if CONFIG_MODE_DEP_TX
 #if USE_MDTX_INTRA
   MDTX1_1D, DCT_1D,      MDTX1_1D,
+#if USE_NST_INTRA
+  MDTX1_1D,
+#endif
 #endif
 #if USE_MDTX_INTER
   MDTX1_1D, DCT_1D,      MDTX1_1D,     MDTX1_1D,     DCT_1D,  MDTX1_1D,

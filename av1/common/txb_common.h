@@ -58,6 +58,9 @@ static const TX_CLASS tx_type_to_class[TX_TYPES] = {
   TX_CLASS_2D,  // MDTX_INTRA_1
   TX_CLASS_2D,  // MDTX_INTRA_2
   TX_CLASS_2D,  // MDTX_INTRA_3
+#if USE_NST_INTRA
+  TX_CLASS_2D,  // MDTX_INTRA_4
+#endif
 #endif
 #if USE_MDTX_INTER
   TX_CLASS_2D,  // MDTX_INTER_1

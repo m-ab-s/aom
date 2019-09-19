@@ -685,7 +685,7 @@ void av1_read_tx_type(const AV1_COMMON *const cm, MACROBLOCKD *xd, int blk_row,
       }
 #endif  // CONFIG_ADAPT_FILTER_INTRA
 #if CONFIG_MODE_DEP_TX && USE_MDTX_INTRA
-      if (tx_set_type == EXT_TX_SET_DTT4_IDTX_1DDCT_MDTX3) {
+      if (tx_set_type == EXT_TX_SET_DTT4_IDTX_1DDCT_MDTX4) {
         if (aom_read_symbol(
                 r, ec_ctx->use_mdtx_intra_cdf[square_tx_size][intra_mode], 2,
                 ACCT_STR)) {

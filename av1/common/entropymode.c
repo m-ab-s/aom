@@ -442,6 +442,68 @@ static const aom_cdf_prob default_use_mdtx_inter_cdf[EXT_TX_SIZES]
 static const aom_cdf_prob
     default_mdtx_type_intra_cdf[EXT_TX_SIZES][INTRA_MODES]
                                [CDF_SIZE(MDTX_TYPES_INTRA)] = {
+#if USE_NST_INTRA
+                                 {
+                                     { AOM_CDF4(8192, 16384, 24576) },
+                                     { AOM_CDF4(8192, 16384, 24576) },
+                                     { AOM_CDF4(8192, 16384, 24576) },
+                                     { AOM_CDF4(8192, 16384, 24576) },
+                                     { AOM_CDF4(8192, 16384, 24576) },
+                                     { AOM_CDF4(8192, 16384, 24576) },
+                                     { AOM_CDF4(8192, 16384, 24576) },
+                                     { AOM_CDF4(8192, 16384, 24576) },
+                                     { AOM_CDF4(8192, 16384, 24576) },
+                                     { AOM_CDF4(8192, 16384, 24576) },
+                                     { AOM_CDF4(8192, 16384, 24576) },
+                                     { AOM_CDF4(8192, 16384, 24576) },
+                                     { AOM_CDF4(8192, 16384, 24576) },
+                                 },
+                                 {
+                                     { AOM_CDF4(8192, 16384, 24576) },
+                                     { AOM_CDF4(8192, 16384, 24576) },
+                                     { AOM_CDF4(8192, 16384, 24576) },
+                                     { AOM_CDF4(8192, 16384, 24576) },
+                                     { AOM_CDF4(8192, 16384, 24576) },
+                                     { AOM_CDF4(8192, 16384, 24576) },
+                                     { AOM_CDF4(8192, 16384, 24576) },
+                                     { AOM_CDF4(8192, 16384, 24576) },
+                                     { AOM_CDF4(8192, 16384, 24576) },
+                                     { AOM_CDF4(8192, 16384, 24576) },
+                                     { AOM_CDF4(8192, 16384, 24576) },
+                                     { AOM_CDF4(8192, 16384, 24576) },
+                                     { AOM_CDF4(8192, 16384, 24576) },
+                                 },
+                                 {
+                                     { AOM_CDF4(8192, 16384, 24576) },
+                                     { AOM_CDF4(8192, 16384, 24576) },
+                                     { AOM_CDF4(8192, 16384, 24576) },
+                                     { AOM_CDF4(8192, 16384, 24576) },
+                                     { AOM_CDF4(8192, 16384, 24576) },
+                                     { AOM_CDF4(8192, 16384, 24576) },
+                                     { AOM_CDF4(8192, 16384, 24576) },
+                                     { AOM_CDF4(8192, 16384, 24576) },
+                                     { AOM_CDF4(8192, 16384, 24576) },
+                                     { AOM_CDF4(8192, 16384, 24576) },
+                                     { AOM_CDF4(8192, 16384, 24576) },
+                                     { AOM_CDF4(8192, 16384, 24576) },
+                                     { AOM_CDF4(8192, 16384, 24576) },
+                                 },
+                                 {
+                                     { AOM_CDF4(8192, 16384, 24576) },
+                                     { AOM_CDF4(8192, 16384, 24576) },
+                                     { AOM_CDF4(8192, 16384, 24576) },
+                                     { AOM_CDF4(8192, 16384, 24576) },
+                                     { AOM_CDF4(8192, 16384, 24576) },
+                                     { AOM_CDF4(8192, 16384, 24576) },
+                                     { AOM_CDF4(8192, 16384, 24576) },
+                                     { AOM_CDF4(8192, 16384, 24576) },
+                                     { AOM_CDF4(8192, 16384, 24576) },
+                                     { AOM_CDF4(8192, 16384, 24576) },
+                                     { AOM_CDF4(8192, 16384, 24576) },
+                                     { AOM_CDF4(8192, 16384, 24576) },
+                                     { AOM_CDF4(8192, 16384, 24576) },
+                                 },
+#else
                                  {
                                      { AOM_CDF3(10923, 21845) },
                                      { AOM_CDF3(10923, 21845) },
@@ -502,6 +564,7 @@ static const aom_cdf_prob
                                      { AOM_CDF3(10923, 21845) },
                                      { AOM_CDF3(10923, 21845) },
                                  },
+#endif
                                };
 
 static const aom_cdf_prob default_use_mdtx_intra_cdf[EXT_TX_SIZES][INTRA_MODES]
@@ -1384,7 +1447,7 @@ static void init_mode_probs(FRAME_CONTEXT *fc) {
   av1_copy(fc->mdtx_type_intra_cdf, default_mdtx_type_intra_cdf);
   av1_copy(fc->use_mdtx_intra_cdf, default_use_mdtx_intra_cdf);
 #endif
-#endif
+#endif  // CONFIG_MODE_DEP_TX
   av1_copy(fc->skip_mode_cdfs, default_skip_mode_cdfs);
   av1_copy(fc->skip_cdfs, default_skip_cdfs);
   av1_copy(fc->intra_inter_cdf, default_intra_inter_cdf);
