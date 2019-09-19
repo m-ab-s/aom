@@ -246,7 +246,7 @@ typedef struct frame_contexts {
                                [CDF_SIZE(TX_TYPES)];
   aom_cdf_prob inter_ext_tx_cdf[EXT_TX_SETS_INTER][EXT_TX_SIZES]
                                [CDF_SIZE(TX_TYPES)];
-#endif
+#endif  // CONFIG_MODE_DEP_TX
   aom_cdf_prob cfl_sign_cdf[CDF_SIZE(CFL_JOINT_SIGNS)];
   aom_cdf_prob cfl_alpha_cdf[CFL_ALPHA_CONTEXTS][CDF_SIZE(CFL_ALPHABET_SIZE)];
   int initialized;

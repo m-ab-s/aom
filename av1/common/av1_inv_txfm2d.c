@@ -225,6 +225,12 @@ void av1_get_inv_txfm_cfg(TX_TYPE tx_type, TX_SIZE tx_size,
   cfg->stage_num_row = av1_txfm_stage_num_list[cfg->txfm_type_row];
 #if CONFIG_MODE_DEP_TX
   cfg->mode = mode;
+#if USE_MDTX_INTRA && USE_NST_INTRA
+  if (use_nstx(tx_type, tx_size, mode))
+    cfg->nstx_mtx_ptr = nstx_arr(tx_size, mode);
+  else
+    cfg->nstx_mtx_ptr = NULL;
+#endif
 #endif
 }
 
@@ -274,10 +280,72 @@ void av1_gen_inv_stage_range(int8_t *stage_range_col, int8_t *stage_range_row,
   }
 }
 
+#if CONFIG_MODE_DEP_TX && USE_MDTX_INTRA && USE_NST_INTRA
+static INLINE void inv_nonsep_txfm2d_add(const int32_t *input, uint16_t *output,
+                                         const int stride, int32_t *txfm_buf,
+                                         const int32_t *nstx_mtx,
+                                         const TX_SIZE tx_size) {
+  int ud_flip = 0, lr_flip = 0;
+  const int tx_stride = tx_size_wide[tx_size] * tx_size_high[tx_size];
+
+  // column/row indices in pixel (p) or transform (t) domains
+  int cp, rp, ct, rt, kp, kt, l;
+  int txw = tx_size_wide[tx_size], txh = tx_size_high[tx_size];
+
+  // Values of input[l]: transform coefficients * 2^3
+  // Max possible bit depth: 19
+
+  // initialize txfm_buf
+  for (rt = 0; rt < txh; ++rt) {
+    for (ct = 0; ct < txw; ++ct) {
+      txfm_buf[rt * txw + ct] = 0;
+    }
+  }
+
+  // 2D transform
+  for (rp = 0; rp < txh; ++rp) {
+    for (cp = 0; cp < txw; ++cp) {
+      kt = idx_flip(txw, txh, rp, cp, ud_flip, lr_flip);
+      for (rt = 0; rt < txh; ++rt) {
+        for (ct = 0; ct < txw; ++ct) {
+          l = rt * txw + ct;
+          // Values of txfm_buf[kt] = residue value * 2*3 * 2^8 * 2^(-1)
+          //                        = residue value * 2^(8+2)
+          // Bit depth = 19 + 3 + bd - 1 = 29
+          // Max possible bit depth = 19 + 3 + 16 - 1 = 37
+          // However, the transform coefficients are supposed to come from
+          // residues, and those operations are the reversal of the previous
+          // forward transform. Thus, there should not be an overflow issue.
+          txfm_buf[rp * txw + cp] +=
+              round_shift(nstx_mtx[l * tx_stride + kt] * input[l], 1);
+        }
+      }
+    }
+  }
+
+  for (rt = 0; rt < txh; ++rt) {
+    for (ct = 0; ct < txw; ++ct) {
+      kp = rt * stride + ct;
+      kt = rt * txw + ct;
+      // Values of txfm_buf[kt] = residue value
+      txfm_buf[kt] = round_shift(txfm_buf[kt], 10);
+      output[kp] = highbd_clip_pixel_add(output[kp], txfm_buf[kt], 8);
+    }
+  }
+}
+#endif  // CONFIG_MODE_DEP_TX
+
 static INLINE void inv_txfm2d_add_c(const int32_t *input, uint16_t *output,
                                     int stride, TXFM_2D_FLIP_CFG *cfg,
                                     int32_t *txfm_buf, TX_SIZE tx_size,
                                     int bd) {
+#if CONFIG_MODE_DEP_TX && USE_MDTX_INTRA && USE_NST_INTRA
+  if (cfg->nstx_mtx_ptr) {
+    inv_nonsep_txfm2d_add(input, output, stride, txfm_buf, cfg->nstx_mtx_ptr,
+                          cfg->tx_size);
+    return;
+  }
+#endif
   // Note when assigning txfm_size_col, we use the txfm_size from the
   // row configuration and vice versa. This is intentionally done to
   // accurately perform rectangular transforms. When the transform is
@@ -317,6 +385,15 @@ static INLINE void inv_txfm2d_add_c(const int32_t *input, uint16_t *output,
   int32_t *buf = temp_out + buf_offset;
   int32_t *buf_ptr = buf;
   int c, r;
+
+  // Rows
+  for (r = 0; r < txfm_size_row; ++r) {
+    if (abs(rect_type) == 1) {
+      for (c = 0; c < txfm_size_col; ++c) {
+        temp_in[c] = round_shift((int64_t)input[c] * NewInvSqrt2, NewSqrt2Bits);
+      }
+    }
+  }
 
   // Rows
   for (r = 0; r < txfm_size_row; ++r) {

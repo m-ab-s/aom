@@ -789,6 +789,23 @@ static const uint16_t av1_ext_tx_used_flag[EXT_TX_SET_TYPES] = {
   0xFFFF,  // 1111 1111 1111 1111
 };
 
+#if CONFIG_MODE_DEP_TX && USE_MDTX_INTRA && USE_NST_INTRA
+static INLINE int use_nstx(TX_TYPE tx_type, TX_SIZE tx_size,
+                           PREDICTION_MODE mode) {
+  // TODO(kslu) change this to turn off mdtx for some modes
+  (void)mode;
+  if (tx_type != MDTX_INTRA_4) return 0;
+  int is_valid_nstx_size = tx_size == TX_4X4;
+#if USE_NST_8X8
+  is_valid_nstx_size |= tx_size == TX_8X8;
+#endif
+#if USE_NST_4X8_8X4
+  is_valid_nstx_size |= (tx_size == TX_4X8 || tx_size == TX_8X4);
+#endif
+  return is_valid_nstx_size;
+}
+#endif
+
 static INLINE TxSetType av1_get_ext_tx_set_type(TX_SIZE tx_size, int is_inter,
                                                 int use_reduced_set) {
   const TX_SIZE tx_size_sqr_up = txsize_sqr_up_map[tx_size];

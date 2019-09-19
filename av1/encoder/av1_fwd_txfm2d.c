@@ -58,9 +58,61 @@ void av1_gen_fwd_stage_range(int8_t *stage_range_col, int8_t *stage_range_row,
   }
 }
 
+#if CONFIG_MODE_DEP_TX && USE_MDTX_INTRA && USE_NST_INTRA
+static INLINE void fwd_nonsep_txfm2d(const int16_t *input, int32_t *output,
+                                     const int stride, int32_t *buf,
+                                     const int32_t *nstx_mtx,
+                                     const TX_SIZE tx_size) {
+  int ud_flip = 0, lr_flip = 0;
+  const int tx_stride = tx_size_wide[tx_size] * tx_size_high[tx_size];
+
+  // column/row indices in pixel (p) or transform (t) domains
+  int cp, rp, ct, rt, kp, kt, l;
+  int txw = tx_size_wide[tx_size], txh = tx_size_high[tx_size];
+
+  for (rt = 0; rt < txh; ++rt)
+    for (ct = 0; ct < txw; ++ct) buf[rt * txw + ct] = 0;
+
+  // 2D transform
+  for (rt = 0; rt < txh; ++rt) {
+    for (ct = 0; ct < txw; ++ct) {
+      l = rt * txw + ct;
+      for (rp = 0; rp < txh; ++rp) {
+        for (cp = 0; cp < txw; ++cp) {
+          kp = rp * stride + cp;
+          kt = idx_flip(txw, txh, rp, cp, ud_flip, lr_flip);
+          // Values of buf[l] are transform coefficients * 2^(8-1)
+          // Bit depth of buf[l] = 8 + 1 (nstx) + 9 (input) + 6 (64 coeffs) - 1
+          //                     = 23
+          // (8 for magnitude, and 1 for sign of tx. matrix's elements)
+          // Max possible bit depth = 9 + 9 + 6 - 1 = 23
+          buf[l] += round_shift(nstx_mtx[l * tx_stride + kt] * input[kp], 1);
+        }
+      }
+    }
+  }
+
+  for (ct = 0; ct < txw; ++ct) {
+    for (rt = 0; rt < txh; ++rt) {
+      l = rt * txw + ct;
+      // Values of output[l] are transform coefficients * 2^3
+      // Max possible bit depth = 8 + 15 - (8 - 4) = 19
+      output[l] = round_shift(buf[l], 4);
+    }
+  }
+}
+#endif  // CONFIG_MODE_DEP_TX
+
 static INLINE void fwd_txfm2d_c(const int16_t *input, int32_t *output,
                                 const int stride, const TXFM_2D_FLIP_CFG *cfg,
                                 int32_t *buf, int bd) {
+#if CONFIG_MODE_DEP_TX && USE_MDTX_INTRA && USE_NST_INTRA
+  if (cfg->nstx_mtx_ptr) {
+    fwd_nonsep_txfm2d(input, output, stride, buf, cfg->nstx_mtx_ptr,
+                      cfg->tx_size);
+    return;
+  }
+#endif
   int c, r;
   // Note when assigning txfm_size_col, we use the txfm_size from the
   // row configuration and vice versa. This is intentionally done to
@@ -728,8 +780,14 @@ void av1_get_fwd_txfm_cfg(TX_TYPE tx_type, TX_SIZE tx_size,
   cfg->txfm_type_row = av1_txfm_type_ls[txw_idx][tx_type_1d_row];
   cfg->stage_num_col = av1_txfm_stage_num_list[cfg->txfm_type_col];
   cfg->stage_num_row = av1_txfm_stage_num_list[cfg->txfm_type_row];
-  set_fwd_txfm_non_scale_range(cfg);
 #if CONFIG_MODE_DEP_TX
   cfg->mode = mode;
+#if USE_MDTX_INTRA && USE_NST_INTRA
+  if (use_nstx(tx_type, tx_size, mode))
+    cfg->nstx_mtx_ptr = nstx_arr(tx_size, mode);
+  else
+    cfg->nstx_mtx_ptr = NULL;
 #endif
+#endif
+  set_fwd_txfm_non_scale_range(cfg);
 }
