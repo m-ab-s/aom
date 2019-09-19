@@ -197,6 +197,9 @@ const int8_t av1_inv_cos_bit_row[MAX_TXWH_IDX]      // txw_idx
 static const int8_t iadst4_range[7] = { 0, 1, 0, 0, 0, 0, 0 };
 
 void av1_get_inv_txfm_cfg(TX_TYPE tx_type, TX_SIZE tx_size,
+#if CONFIG_MODE_DEP_TX
+                          PREDICTION_MODE mode,
+#endif
                           TXFM_2D_FLIP_CFG *cfg) {
   assert(cfg != NULL);
   cfg->tx_size = tx_size;
@@ -220,6 +223,9 @@ void av1_get_inv_txfm_cfg(TX_TYPE tx_type, TX_SIZE tx_size,
   }
   cfg->stage_num_col = av1_txfm_stage_num_list[cfg->txfm_type_col];
   cfg->stage_num_row = av1_txfm_stage_num_list[cfg->txfm_type_row];
+#if CONFIG_MODE_DEP_TX
+  cfg->mode = mode;
+#endif
 }
 
 void av1_gen_inv_stage_range(int8_t *stage_range_col, int8_t *stage_range_row,
@@ -271,9 +277,6 @@ void av1_gen_inv_stage_range(int8_t *stage_range_col, int8_t *stage_range_row,
 static INLINE void inv_txfm2d_add_c(const int32_t *input, uint16_t *output,
                                     int stride, TXFM_2D_FLIP_CFG *cfg,
                                     int32_t *txfm_buf, TX_SIZE tx_size,
-#if CONFIG_MODE_DEP_TX
-                                    PREDICTION_MODE mode,
-#endif
                                     int bd) {
   // Note when assigning txfm_size_col, we use the txfm_size from the
   // row configuration and vice versa. This is intentionally done to
@@ -300,9 +303,9 @@ static INLINE void inv_txfm2d_add_c(const int32_t *input, uint16_t *output,
   // For MDTX, the stage_range argument is not required. Instead, we pass
   // the prediction mode as side information to 1D transform functions.
   if (txfm_func_col == av1_imdt4 || txfm_func_col == av1_imdt8)
-    stage_range_col[0] = (int)mode;
+    stage_range_col[0] = (int)cfg->mode;
   if (txfm_func_row == av1_imdt4 || txfm_func_row == av1_imdt8)
-    stage_range_row[0] = (int)mode;
+    stage_range_row[0] = (int)cfg->mode;
 #endif
 
   // txfm_buf's length is  txfm_size_row * txfm_size_col + 2 *
@@ -371,14 +374,14 @@ static INLINE void inv_txfm2d_add_facade(const int32_t *input, uint16_t *output,
 #endif
                                          int bd) {
   TXFM_2D_FLIP_CFG cfg;
+#if CONFIG_MODE_DEP_TX
+  av1_get_inv_txfm_cfg(tx_type, tx_size, mode, &cfg);
+#else
   av1_get_inv_txfm_cfg(tx_type, tx_size, &cfg);
+#endif
   // Forward shift sum uses larger square size, to be consistent with what
   // av1_gen_inv_stage_range() does for inverse shifts.
-#if CONFIG_MODE_DEP_TX
-  inv_txfm2d_add_c(input, output, stride, &cfg, txfm_buf, tx_size, mode, bd);
-#else
   inv_txfm2d_add_c(input, output, stride, &cfg, txfm_buf, tx_size, bd);
-#endif
 }
 
 void av1_inv_txfm2d_add_4x8_c(const int32_t *input, uint16_t *output,

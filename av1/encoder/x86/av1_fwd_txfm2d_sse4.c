@@ -151,12 +151,13 @@ void av1_fwd_txfm2d_32x32_sse4_1(const int16_t *input, int32_t *output,
                                  PREDICTION_MODE mode,
 #endif
                                  int bd) {
-#if CONFIG_MODE_DEP_TX
-  (void)mode;
-#endif
   DECLARE_ALIGNED(16, int32_t, txfm_buf[1024]);
   TXFM_2D_FLIP_CFG cfg;
+#if CONFIG_MODE_DEP_TX
+  av1_get_fwd_txfm_cfg(tx_type, TX_32X32, mode, &cfg);
+#else
   av1_get_fwd_txfm_cfg(tx_type, TX_32X32, &cfg);
+#endif
   (void)bd;
   fwd_txfm2d_sse4_1(input, output, stride, &cfg, txfm_buf);
 }
@@ -167,12 +168,13 @@ void av1_fwd_txfm2d_64x64_sse4_1(const int16_t *input, int32_t *output,
                                  PREDICTION_MODE mode,
 #endif
                                  int bd) {
-#if CONFIG_MODE_DEP_TX
-  (void)mode;
-#endif
   DECLARE_ALIGNED(16, int32_t, txfm_buf[4096]);
   TXFM_2D_FLIP_CFG cfg;
+#if CONFIG_MODE_DEP_TX
+  av1_get_fwd_txfm_cfg(tx_type, TX_64X64, mode, &cfg);
+#else
   av1_get_fwd_txfm_cfg(tx_type, TX_64X64, &cfg);
+#endif
   (void)bd;
   fwd_txfm2d_64x64_sse4_1(input, output, stride, &cfg, txfm_buf);
 }

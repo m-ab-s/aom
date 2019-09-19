@@ -124,9 +124,9 @@ const int8_t av1_txfm_stage_num_list[TXFM_TYPES] = {
   1,   // TXFM_TYPE_IDENTITY16
   1,   // TXFM_TYPE_IDENTITY32
 #if CONFIG_MODE_DEP_TX
-  1,  // TXFM_TYPE_MDTX4
-  1,  // TXFM_TYPE_MDTX8
-  1,  // TXFM_TYPE_MDTX16
+  1,  // TXFM_TYPE_MDTX4 (not used)
+  1,  // TXFM_TYPE_MDTX8 (not used)
+  1,  // TXFM_TYPE_MDTX16 (not used)
 #endif
 };
 

@@ -43,7 +43,11 @@ class AV1FwdTxfm2d : public ::testing::TestWithParam<AV1FwdTxfm2dParam> {
     max_avg_error_ = GET_PARAM(3);
     count_ = 500;
     TXFM_2D_FLIP_CFG fwd_txfm_flip_cfg;
+#if CONFIG_MODE_DEP_TX
+    av1_get_fwd_txfm_cfg(tx_type_, tx_size_, 0, &fwd_txfm_flip_cfg);
+#else
     av1_get_fwd_txfm_cfg(tx_type_, tx_size_, &fwd_txfm_flip_cfg);
+#endif
     amplify_factor_ = libaom_test::get_amplification_factor(tx_type_, tx_size_);
     tx_width_ = tx_size_wide[fwd_txfm_flip_cfg.tx_size];
     tx_height_ = tx_size_high[fwd_txfm_flip_cfg.tx_size];
@@ -234,8 +238,13 @@ TEST(AV1FwdTxfm2d, CfgTest) {
           continue;
         }
         TXFM_2D_FLIP_CFG cfg;
+#if CONFIG_MODE_DEP_TX
+        av1_get_fwd_txfm_cfg(static_cast<TX_TYPE>(tx_type),
+                             static_cast<TX_SIZE>(tx_size), 0, &cfg);
+#else
         av1_get_fwd_txfm_cfg(static_cast<TX_TYPE>(tx_type),
                              static_cast<TX_SIZE>(tx_size), &cfg);
+#endif
         int8_t stage_range_col[MAX_TXFM_STAGE_NUM];
         int8_t stage_range_row[MAX_TXFM_STAGE_NUM];
         av1_gen_fwd_stage_range(stage_range_col, stage_range_row, &cfg, bd);

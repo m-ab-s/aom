@@ -695,8 +695,6 @@ static const int av1_num_ext_tx_set[EXT_TX_SET_TYPES] = {
 };
 
 #if CONFIG_MODE_DEP_TX
-// av1_num_ext_tx_set is used to indicate the number of symbols in
-// inter_ext_tx_cdf, so we use 16 even when MDTXs are used
 #if USE_MDTX_INTRA && USE_MDTX_INTER
 static const int av1_ext_tx_used[EXT_TX_SET_TYPES][TX_TYPES] = {
   { 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,

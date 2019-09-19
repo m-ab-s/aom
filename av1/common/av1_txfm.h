@@ -152,6 +152,9 @@ typedef struct TXFM_2D_FLIP_CFG {
   TXFM_TYPE txfm_type_row;
   int stage_num_col;
   int stage_num_row;
+#if CONFIG_MODE_DEP_TX
+  PREDICTION_MODE mode;
+#endif
 } TXFM_2D_FLIP_CFG;
 
 static INLINE void get_flip_cfg(TX_TYPE tx_type, int *ud_flip, int *lr_flip) {
@@ -253,8 +256,14 @@ void av1_gen_inv_stage_range(int8_t *stage_range_col, int8_t *stage_range_row,
                              int bd);
 
 void av1_get_fwd_txfm_cfg(TX_TYPE tx_type, TX_SIZE tx_size,
+#if CONFIG_MODE_DEP_TX
+                          PREDICTION_MODE mode,
+#endif
                           TXFM_2D_FLIP_CFG *cfg);
 void av1_get_inv_txfm_cfg(TX_TYPE tx_type, TX_SIZE tx_size,
+#if CONFIG_MODE_DEP_TX
+                          PREDICTION_MODE mode,
+#endif
                           TXFM_2D_FLIP_CFG *cfg);
 extern const TXFM_TYPE av1_txfm_type_ls[5][TX_TYPES_1D];
 extern const int8_t av1_txfm_stage_num_list[TXFM_TYPES];

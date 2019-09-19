@@ -272,8 +272,13 @@ TEST(AV1InvTxfm2d, CfgTest) {
           continue;
         }
         TXFM_2D_FLIP_CFG cfg;
+#if CONFIG_MODE_DEP_TX
+        av1_get_inv_txfm_cfg(static_cast<TxType>(tx_type),
+                             static_cast<TxSize>(tx_size), 0, &cfg);
+#else
         av1_get_inv_txfm_cfg(static_cast<TxType>(tx_type),
                              static_cast<TxSize>(tx_size), &cfg);
+#endif
         int8_t stage_range_col[MAX_TXFM_STAGE_NUM];
         int8_t stage_range_row[MAX_TXFM_STAGE_NUM];
         av1_gen_inv_stage_range(stage_range_col, stage_range_row, &cfg,
