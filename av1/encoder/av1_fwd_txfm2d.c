@@ -33,6 +33,7 @@ static INLINE TxfmFunc fwd_txfm_type_to_func(TXFM_TYPE txfm_type) {
 #if CONFIG_MODE_DEP_TX
     case TXFM_TYPE_MDTX4: return av1_fmdt4;
     case TXFM_TYPE_MDTX8: return av1_fmdt8;
+    case TXFM_TYPE_MDTX16: return av1_fmdt16;
 #endif
     case TXFM_TYPE_IDENTITY4: return av1_fidentity4_c;
     case TXFM_TYPE_IDENTITY8: return av1_fidentity8_c;
@@ -685,7 +686,7 @@ static const int8_t *fwd_txfm_range_mult2_list[TXFM_TYPES] = {
   fadst8_range_mult2, fadst16_range_mult2, fidtx4_range_mult2,
   fidtx8_range_mult2, fidtx16_range_mult2, fidtx32_range_mult2,
 #if CONFIG_MODE_DEP_TX
-  fadst4_range_mult2, fadst8_range_mult2,
+  fadst4_range_mult2, fadst8_range_mult2,  fadst16_range_mult2,
 #endif
 };
 

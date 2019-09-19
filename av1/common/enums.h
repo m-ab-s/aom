@@ -310,7 +310,7 @@ enum {
 #define TX_TYPES_NOMDTX 16
 #define MDTX_TYPES_INTER 8
 #define MDTX_TYPES_INTRA 3
-#endif
+#endif  // CONFIG_MODE_DEP_TX
 
 enum {
   DCT_DCT,            // DCT in both horizontal and vertical

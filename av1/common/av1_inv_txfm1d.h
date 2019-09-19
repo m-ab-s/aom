@@ -38,6 +38,8 @@ void av1_imdt4(const int32_t *input, int32_t *output, int8_t cos_bit,
                const int8_t *side_info);
 void av1_imdt8(const int32_t *input, int32_t *output, int8_t cos_bit,
                const int8_t *side_info);
+void av1_imdt16(const int32_t *input, int32_t *output, int8_t cos_bit,
+                const int8_t *side_info);
 #endif
 void av1_idct4_new(const int32_t *input, int32_t *output, int8_t cos_bit,
                    const int8_t *stage_range);

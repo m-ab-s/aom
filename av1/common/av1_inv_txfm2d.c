@@ -124,6 +124,7 @@ static INLINE TxfmFunc inv_txfm_type_to_func(TXFM_TYPE txfm_type) {
 #if CONFIG_MODE_DEP_TX
     case TXFM_TYPE_MDTX4: return av1_imdt4;
     case TXFM_TYPE_MDTX8: return av1_imdt8;
+    case TXFM_TYPE_MDTX16: return av1_imdt16;
 #endif
     case TXFM_TYPE_IDENTITY4: return av1_iidentity4_c;
     case TXFM_TYPE_IDENTITY8: return av1_iidentity8_c;

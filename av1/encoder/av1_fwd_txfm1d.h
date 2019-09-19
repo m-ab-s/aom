@@ -27,6 +27,8 @@ void av1_fmdt4(const int32_t *input, int32_t *output, int8_t cos_bit,
                const int8_t *side_info);
 void av1_fmdt8(const int32_t *input, int32_t *output, int8_t cos_bit,
                const int8_t *side_info);
+void av1_fmdt16(const int32_t *input, int32_t *output, int8_t cos_bit,
+                const int8_t *side_info);
 #endif
 void av1_fdct4_new(const int32_t *input, int32_t *output, int8_t cos_bit,
                    const int8_t *stage_range);
