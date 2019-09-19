@@ -255,7 +255,7 @@ list(APPEND AOM_AV1_COMMON_INTRIN_SSE4_1
             "${AOM_ROOT}/av1/common/x86/av1_convolve_scale_sse4.c"
             "${AOM_ROOT}/av1/common/x86/av1_txfm_sse4.c"
             "${AOM_ROOT}/av1/common/x86/av1_txfm_sse4.h"
-            "${AOM_ROOT}/av1/common/x86/entropymode_sse4.c"
+            "${AOM_ROOT}/av1/common/x86/nn_em_sse4.c"
             "${AOM_ROOT}/av1/common/x86/filterintra_sse4.c"
             "${AOM_ROOT}/av1/common/x86/grad_hist_sse4.c"
             "${AOM_ROOT}/av1/common/x86/highbd_convolve_2d_sse4.c"

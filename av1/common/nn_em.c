@@ -61,9 +61,8 @@ void av1_nn_input_forward(FC_INPUT_LAYER_EM *layer, const int *sparse_features,
   const int has_sparse = layer->num_sparse_inputs > 0;
   const int has_dense = layer->num_dense_inputs > 0;
   const float *bias = layer->bias;
-  for (int out_idx = 0; out_idx < output_size; out_idx++) {
-    output[out_idx] = bias[out_idx];
-  }
+
+  av1_copy_array(output, bias, output_size);
 
   if (has_sparse) {
     float **sparse_weights = layer->sparse_weights;
@@ -196,8 +195,11 @@ static void nn_fc_backward(const float *X, float *dX_out, FC_LAYER_EM *layer) {
   // gradient of W, b
   float *dW = layer->dw;
   float *db = layer->db;
+
   for (int j = 0; j < layer->num_outputs; ++j) {
-    for (int i = 0; i < layer->num_inputs; ++i) dW[i] += dY_fc[j] * X[i];
+    for (int i = 0; i < layer->num_inputs; ++i) {
+      dW[i] += dY_fc[j] * X[i];
+    }
     db[j] += dY_fc[j];
     dW += layer->num_inputs;
   }
@@ -245,17 +247,15 @@ static void nn_fc_input_backward(const int *sparse_features,
   // Handle bias
   float *db = layer->db;
   for (int j = 0; j < num_out; ++j) {
-    db[j] = dy_fc[j];
+    db[j] += dy_fc[j];
   }
-
   // Handle sparse
   float **dw_sparse = layer->dw_sparse;
   if (has_sparse) {
     for (int s_idx = 0; s_idx < num_sparse; s_idx++) {
       const int non_zero_idx = sparse_features[s_idx];
-
       for (int j = 0; j < num_out; ++j) {
-        dw_sparse[s_idx][non_zero_idx * num_out + j] = dy_fc[j];
+        dw_sparse[s_idx][non_zero_idx * num_out + j] += dy_fc[j];
       }
     }
   }
@@ -265,7 +265,7 @@ static void nn_fc_input_backward(const int *sparse_features,
     float *dw_dense = layer->dw_dense;
     for (int j = 0; j < num_out; ++j) {
       for (int i = 0; i < num_dense; ++i) {
-        dw_dense[i] = dy_fc[j] * dense_features[i];
+        dw_dense[i] += dy_fc[j] * dense_features[i];
       }
       dw_dense += num_dense;
     }
@@ -304,6 +304,12 @@ void av1_nn_backprop_em(NN_CONFIG_EM *nn_config, const int label) {
                        &nn_config->input_layer);
 }
 
+static INLINE void adapt(float *w, const float *dw, float mu, int n) {
+  for (int idx = 0; idx < n; idx++) {
+    w[idx] -= mu * dw[idx];
+  }
+}
+
 static void update_input_layer(NN_CONFIG_EM *nn_config, float mu) {
   FC_INPUT_LAYER_EM *input_layer = &nn_config->input_layer;
   const int num_sparse = input_layer->num_sparse_inputs;
@@ -314,9 +320,8 @@ static void update_input_layer(NN_CONFIG_EM *nn_config, float mu) {
 
   float *b = input_layer->bias;
   float *db = input_layer->db;
-  for (int j = 0; j < num_out; ++j) {
-    b[j] -= mu * db[j];
-  }
+  adapt(b, db, mu, num_out);
+  av1_zero_array(db, num_out);
 
   // Handle sparse
   if (has_sparse) {
@@ -328,19 +333,18 @@ static void update_input_layer(NN_CONFIG_EM *nn_config, float mu) {
       if (non_zero_idx == sparse_size - 1) {
         continue;
       }
-      for (int j = 0; j < num_out; j++) {
-        w_sparse[s_idx][non_zero_idx * num_out + j] -=
-            mu * dw_sparse[s_idx][non_zero_idx * num_out + j];
-      }
+      adapt(&w_sparse[s_idx][non_zero_idx * num_out],
+            &dw_sparse[s_idx][non_zero_idx * num_out], mu, num_out);
+      av1_zero_array(&dw_sparse[s_idx][non_zero_idx * num_out], num_out);
     }
   }
 
   if (has_dense) {
+    const int num_dense_weights = num_dense * num_out;
     float *dw_dense = input_layer->dw_dense;
     float *w_dense = input_layer->dense_weights;
-    for (int j = 0; j < num_dense * num_out; ++j) {
-      w_dense[j] -= mu * dw_dense[j];
-    }
+    adapt(w_dense, dw_dense, mu, num_dense_weights);
+    av1_zero_array(dw_dense, num_dense_weights);
   }
 }
 
@@ -350,14 +354,13 @@ void av1_nn_update_em(NN_CONFIG_EM *nn_config, float mu) {
   // Update the weights
   for (int i = 0; i < num_layers; ++i) {
     FC_LAYER_EM *layer = nn_config->layer + i;
-    for (int j = 0; j < layer->num_inputs * layer->num_outputs; ++j) {
-      layer->weights[j] -= mu * layer->dw[j];
-      layer->dw[j] = 0.f;
-    }
-    for (int j = 0; j < layer->num_outputs; ++j) {
-      layer->bias[j] -= mu * layer->db[j];
-      layer->db[j] = 0.f;
-    }
+    const int num_weights = layer->num_inputs * layer->num_outputs;
+    adapt(layer->weights, layer->dw, mu, num_weights);
+    av1_zero_array(layer->dw, num_weights);
+
+    const int num_out = layer->num_outputs;
+    adapt(layer->bias, layer->db, mu, num_out);
+    av1_zero_array(layer->db, num_out);
   }
 
   // Input layer
