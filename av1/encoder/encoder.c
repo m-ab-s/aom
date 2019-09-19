@@ -4188,7 +4188,7 @@ static void set_size_dependent_vars(AV1_COMP *cpi, int *q, int *bottom_index,
             : determine_frame_mv_precision(cpi, *q, 0);
     set_mv_precision(cpi, precision, cm->cur_frame_force_integer_mv);
 #if CONFIG_FLEX_MVRES
-    cpi->common.use_flex_mv_precision = 1;
+    cpi->common.use_flex_mv_precision = cm->mv_precision > MV_SUBPEL_NONE;
 #endif  // CONFIG_FLEX_MVRES
   }
 
