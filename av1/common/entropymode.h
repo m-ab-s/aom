@@ -197,7 +197,7 @@ typedef struct frame_contexts {
       intra_uv_mode, 1,
       EM_UV_SPARSE_FEAT_SIZE_1 *ALIGN_MULTIPLE_OF_FOUR(EM_UV_OUTPUT_SIZE));
   INPUT_LAYER_ARRAYS(intra_uv_mode, 0,
-                     ALIGN_MULTIPLE_OF_FOUR(EM_Y_OUTPUT_SIZE));
+                     ALIGN_MULTIPLE_OF_FOUR(EM_UV_OUTPUT_SIZE));
   MODEL_ARRAYS(intra_uv_mode, EM_NUM_UV_SPARSE_FEATURES, 0,
                ALIGN_MULTIPLE_OF_FOUR(EM_UV_OUTPUT_SIZE));
 
