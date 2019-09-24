@@ -148,6 +148,8 @@ set_aom_config_var(CONFIG_USE_SMALL_MODEL 1 NUMBER
                    "AV2 intra mode entropy coding experiment flag")
 set_aom_config_var(CONFIG_NEW_TX_PARTITION 0 NUMBER
                    "AV2 new transform partitions experiment flag")
+set_aom_config_var(CONFIG_NEW_TX_PARTITION_EXT 0 NUMBER
+                   "AV2 extended transform partitions experiment flag")
 set_aom_config_var(CONFIG_3WAY_PARTITIONS 0 NUMBER
                    "AV2 3-way partitions experiment flag")
 set_aom_config_var(CONFIG_FLEX_MVRES 0 NUMBER
