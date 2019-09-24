@@ -169,9 +169,18 @@ static int combined_motion_search(AV1_COMP *cpi, MACROBLOCK *x,
   mvp_full.row = tmp_mv->as_mv.row * 8;
   mvp_full.col = tmp_mv->as_mv.col * 8;
 
-  *rate_mv =
-      av1_mv_bit_cost(&mvp_full, &ref_mv, mi->mv_precision, x->nmv_vec_cost,
-                      x->nmvcost[mi->mv_precision], MV_COST_WEIGHT);
+#if CONFIG_FLEX_MVRES
+  const MvSubpelPrecision precision = get_mv_precision(mvp_full);
+#else
+  const MvSubpelPrecision precision = mi->mv_precision;
+#endif  // CONFIG_FLEX_MVRES
+
+  *rate_mv = av1_mv_bit_cost(
+      &mvp_full, &ref_mv, x->nmv_vec_cost, x->nmvcost[precision],
+#if CONFIG_FLEX_MVRES
+      0, cm->mv_precision, precision, x->flex_mv_precision_costs,
+#endif  // CONFIG_FLEX_MVRES
+      MV_COST_WEIGHT);
 
   // TODO(kyslov) Account for Rate Mode!
   rv = !(RDCOST(x->rdmult, (*rate_mv), 0) > best_rd_sofar);
@@ -185,9 +194,17 @@ static int combined_motion_search(AV1_COMP *cpi, MACROBLOCK *x,
         x->nmv_vec_cost, x->nmvcost[mi->mv_precision], &dis, &x->pred_sse[ref],
         NULL, NULL, 0, 0, 0, 0, 0, 1);
     *tmp_mv = x->best_mv;
-    *rate_mv = av1_mv_bit_cost(&tmp_mv->as_mv, &ref_mv, mi->mv_precision,
-                               x->nmv_vec_cost, x->nmvcost[mi->mv_precision],
-                               MV_COST_WEIGHT);
+#if CONFIG_FLEX_MVRES
+    const MvSubpelPrecision precision2 = get_mv_precision(tmp_mv->as_mv);
+#else
+    const MvSubpelPrecision precision2 = mi->mv_precision;
+#endif  // CONFIG_FLEX_MVRES
+    *rate_mv = av1_mv_bit_cost(
+        &tmp_mv->as_mv, &ref_mv, x->nmv_vec_cost, x->nmvcost[precision2],
+#if CONFIG_FLEX_MVRES
+        0, cm->mv_precision, precision2, x->flex_mv_precision_costs,
+#endif  // CONFIG_FLEX_MVRES
+        MV_COST_WEIGHT);
   }
 
   if (scaled_ref_frame) {
@@ -228,9 +245,19 @@ static int search_new_mv(AV1_COMP *cpi, MACROBLOCK *x,
     x->best_mv.as_mv.col >>= 3;
     MV ref_mv = av1_get_ref_mv(x, 0).as_mv;
 
+#if CONFIG_FLEX_MVRES
+    MvSubpelPrecision precision =
+        get_mv_precision(frame_mv[NEWMV][ref_frame].as_mv);
+#else
+    MvSubpelPrecision precision = mi->mv_precision;
+#endif  // CONFIG_FLEX_MVRES
     *rate_mv = av1_mv_bit_cost(&frame_mv[NEWMV][ref_frame].as_mv, &ref_mv,
-                               mi->mv_precision, x->nmv_vec_cost,
-                               x->nmvcost[mi->mv_precision], MV_COST_WEIGHT);
+                               x->nmv_vec_cost, x->nmvcost[precision],
+#if CONFIG_FLEX_MVRES
+                               0, cm->mv_precision, precision,
+                               x->flex_mv_precision_costs,
+#endif  // CONFIG_FLEX_MVRES
+                               MV_COST_WEIGHT);
     frame_mv[NEWMV][ref_frame].as_mv.row >>= 3;
     frame_mv[NEWMV][ref_frame].as_mv.col >>= 3;
 

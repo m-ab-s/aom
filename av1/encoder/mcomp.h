@@ -60,8 +60,14 @@ void av1_init3smotion_compensation(search_site_config *cfg, int stride);
 
 void av1_set_mv_search_range(MvLimits *mv_limits, const MV *mv);
 
-int av1_mv_bit_cost(const MV *mv, const MV *ref, MvSubpelPrecision precision,
-                    const int *mvjcost, int *mvcost[2], int weight);
+int av1_mv_bit_cost(const MV *mv, const MV *ref, const int *mvjcost,
+                    int *mvcost[2],
+#if CONFIG_FLEX_MVRES
+                    int no_flex_bits, MvSubpelPrecision frame_mv_precision,
+                    MvSubpelPrecision mv_precision,
+                    int (*flex_mv_precision_cost)[MV_SUBPEL_PRECISIONS],
+#endif  // CONFIG_FLEX_MVRES
+                    int weight);
 
 // Utility to compute variance + MV rate cost for a given MV
 int av1_get_mvpred_var(const MACROBLOCK *x, const MV *best_mv,
@@ -197,6 +203,19 @@ static INLINE void set_subpel_mv_search_range(const MvLimits *mv_limits,
   *row_min = AOMMAX(MV_LOW + 1, minr);
   *row_max = AOMMIN(MV_UPP - 1, maxr);
 }
+
+#if CONFIG_FLEX_MVRES
+static INLINE MvSubpelPrecision get_mv_precision(MV mv) {
+  if ((mv.row & 1) || (mv.col & 1)) return MV_SUBPEL_EIGHTH_PRECISION;
+  if ((mv.row & 3) || (mv.col & 3)) return MV_SUBPEL_QTR_PRECISION;
+  if ((mv.row & 7) || (mv.col & 7)) return MV_SUBPEL_HALF_PRECISION;
+  return MV_SUBPEL_NONE;
+}
+
+static INLINE MvSubpelPrecision get_mv_precision2(MV mv, MV mv2) {
+  return (MvSubpelPrecision)AOMMAX(get_mv_precision(mv), get_mv_precision(mv2));
+}
+#endif  // CONFIG_FLEX_MVRES
 
 #ifdef __cplusplus
 }  // extern "C"
