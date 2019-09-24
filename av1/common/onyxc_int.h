@@ -72,7 +72,7 @@ extern "C" {
 // multiplication.
 #define MAX_NUM_OPERATING_POINTS \
   MAX_NUM_TEMPORAL_LAYERS * MAX_NUM_SPATIAL_LAYERS
-/* clang-format on*/
+/* clang-format on */
 
 // TODO(jingning): Turning this on to set up transform coefficient
 // processing timer.
@@ -108,7 +108,6 @@ typedef struct {
   int_mv mv;
   MV_REFERENCE_FRAME ref_frame;
 } MV_REF;
-
 
 typedef struct RefCntBuffer {
   // For a RefCntBuffer, the following are reference-holding variables:
@@ -211,15 +210,15 @@ typedef struct {
 } DeltaQInfo;
 
 typedef struct {
-  int enable_order_hint;           // 0 - disable order hint, and related tools
-  int order_hint_bits_minus_1;     // dist_wtd_comp, ref_frame_mvs,
-                                   // frame_sign_bias
-                                   // if 0, enable_dist_wtd_comp and
-                                   // enable_ref_frame_mvs must be set as 0.
-  int enable_dist_wtd_comp;        // 0 - disable dist-wtd compound modes
-                                   // 1 - enable it
-  int enable_ref_frame_mvs;        // 0 - disable ref frame mvs
-                                   // 1 - enable it
+  int enable_order_hint;        // 0 - disable order hint, and related tools
+  int order_hint_bits_minus_1;  // dist_wtd_comp, ref_frame_mvs,
+                                // frame_sign_bias
+                                // if 0, enable_dist_wtd_comp and
+                                // enable_ref_frame_mvs must be set as 0.
+  int enable_dist_wtd_comp;     // 0 - disable dist-wtd compound modes
+                                // 1 - enable it
+  int enable_ref_frame_mvs;     // 0 - disable ref frame mvs
+                                // 1 - enable it
 } OrderHintInfo;
 
 // Sequence header structure.
@@ -250,7 +249,7 @@ typedef struct SequenceHeader {
                                        // 2 - adaptive
   uint8_t enable_filter_intra;         // enables/disables filterintra
 #if CONFIG_ADAPT_FILTER_INTRA
-  int enable_adapt_filter_intra;       // enables/disables adaptive filter intra
+  int enable_adapt_filter_intra;  // enables/disables adaptive filter intra
 #endif
   uint8_t enable_intra_edge_filter;    // enables/disables edge upsampling
   uint8_t enable_interintra_compound;  // enables/disables interintra_compound
@@ -286,18 +285,18 @@ typedef struct SequenceHeader {
   aom_transfer_characteristics_t transfer_characteristics;
   aom_matrix_coefficients_t matrix_coefficients;
   int color_range;
-  int subsampling_x;          // Chroma subsampling for x
-  int subsampling_y;          // Chroma subsampling for y
+  int subsampling_x;  // Chroma subsampling for x
+  int subsampling_y;  // Chroma subsampling for y
   aom_chroma_sample_position_t chroma_sample_position;
   uint8_t separate_uv_delta_q;
   uint8_t film_grain_params_present;
 } SequenceHeader;
 
 typedef struct {
-    int skip_mode_allowed;
-    int skip_mode_flag;
-    int ref_frame_idx_0;
-    int ref_frame_idx_1;
+  int skip_mode_allowed;
+  int skip_mode_flag;
+  int ref_frame_idx_0;
+  int ref_frame_idx_1;
 } SkipModeInfo;
 
 typedef struct {
@@ -435,11 +434,11 @@ typedef struct AV1Common {
   /* We allocate a MB_MODE_INFO struct for each macroblock, together with
      an extra row on top and column on the left to simplify prediction. */
   int mi_alloc_size;
-  MB_MODE_INFO *mi;  /* Corresponds to upper left visible macroblock */
+  MB_MODE_INFO *mi; /* Corresponds to upper left visible macroblock */
 
   // TODO(agrange): Move prev_mi into encoder structure.
   // prev_mi will only be allocated in encoder.
-  MB_MODE_INFO *prev_mi;  /* 'mi' from last frame */
+  MB_MODE_INFO *prev_mi; /* 'mi' from last frame */
 
   // Separate mi functions between encoder and decoder.
   int (*alloc_mi)(struct AV1Common *cm, int mi_size);
@@ -491,7 +490,7 @@ typedef struct AV1Common {
   MV_REFERENCE_FRAME comp_fwd_ref[FWD_REFS];
   MV_REFERENCE_FRAME comp_bwd_ref[BWD_REFS];
 
-  FRAME_CONTEXT *fc;              /* this frame entropy */
+  FRAME_CONTEXT *fc; /* this frame entropy */
   FRAME_CONTEXT *default_frame_context;
   int primary_ref_frame;
 
@@ -648,7 +647,7 @@ static INLINE RefCntBuffer *assign_cur_frame_new_fb(AV1_COMMON *const cm) {
 // Modify 'lhs_ptr' to reference the buffer at 'rhs_ptr', and update the ref
 // counts accordingly.
 static INLINE void assign_frame_buffer_p(RefCntBuffer **lhs_ptr,
-                                       RefCntBuffer *rhs_ptr) {
+                                         RefCntBuffer *rhs_ptr) {
   RefCntBuffer *const old_ptr = *lhs_ptr;
   if (old_ptr != NULL) {
     assert(old_ptr->ref_count > 0);
@@ -663,7 +662,7 @@ static INLINE void assign_frame_buffer_p(RefCntBuffer **lhs_ptr,
 
 static INLINE int frame_is_intra_only(const AV1_COMMON *const cm) {
   return cm->current_frame.frame_type == KEY_FRAME ||
-      cm->current_frame.frame_type == INTRA_ONLY_FRAME;
+         cm->current_frame.frame_type == INTRA_ONLY_FRAME;
 }
 
 static INLINE int frame_is_sframe(const AV1_COMMON *cm) {
@@ -710,9 +709,9 @@ static INLINE RefCntBuffer *get_primary_ref_frame_buf(
 // Returns 1 if this frame might allow mvs from some reference frame.
 static INLINE int frame_might_allow_ref_frame_mvs(const AV1_COMMON *cm) {
   return !cm->error_resilient_mode &&
-    cm->seq_params.order_hint_info.enable_ref_frame_mvs &&
-    cm->seq_params.order_hint_info.enable_order_hint &&
-    !frame_is_intra_only(cm);
+         cm->seq_params.order_hint_info.enable_ref_frame_mvs &&
+         cm->seq_params.order_hint_info.enable_order_hint &&
+         !frame_is_intra_only(cm);
 }
 
 // Returns 1 if this frame might use warped_motion
@@ -849,7 +848,7 @@ static INLINE int is_chroma_reference_helper(int mi_row, int mi_col, int bw,
 #endif  // CONFIG_3WAY_PARTITIONS
 
   return ((mi_row & 0x01) || !(bh & 0x01) || !subsampling_y) &&
-      ((mi_col & 0x01) || !(bw & 0x01) || !subsampling_x);
+         ((mi_col & 0x01) || !(bw & 0x01) || !subsampling_x);
 }
 
 static INLINE void set_mi_row_col(MACROBLOCKD *xd, const TileInfo *const tile,
@@ -886,7 +885,7 @@ static INLINE void set_mi_row_col(MACROBLOCKD *xd, const TileInfo *const tile,
   }
 #if CONFIG_INTRA_ENTROPY
   if (xd->left_available && xd->up_available) {
-    xd->aboveleft_mbmi = xd->mi[-xd->mi_stride-1];
+    xd->aboveleft_mbmi = xd->mi[-xd->mi_stride - 1];
   } else {
     xd->aboveleft_mbmi = NULL;
   }
@@ -967,23 +966,23 @@ static INLINE int is_chroma_reference(int mi_row, int mi_col, BLOCK_SIZE bsize,
   const int bw = mi_size_wide[bsize];
   const int bh = mi_size_high[bsize];
   return is_chroma_reference_helper(mi_row, mi_col, bw, bh, subsampling_x,
-      subsampling_y);
+                                    subsampling_y);
 }
 
 static INLINE BLOCK_SIZE scale_chroma_bsize(BLOCK_SIZE bsize, int subsampling_x,
-                                            int subsampling_y,
-                                            int mi_row, int mi_col) {
+                                            int subsampling_y, int mi_row,
+                                            int mi_col) {
   assert(subsampling_x >= 0 && subsampling_x < 2);
   assert(subsampling_y >= 0 && subsampling_y < 2);
 #if CONFIG_3WAY_PARTITIONS
   const int bw = mi_size_wide[bsize];
   const int bh = mi_size_high[bsize];
   const int is_3rd_horz3_16x16_partition =
-    (mi_row & 1) && (bw == 4) && (bh == 1);
+      (mi_row & 1) && (bw == 4) && (bh == 1);
   const int is_3rd_vert3_16x16_partition =
-    (mi_col & 1) && (bw == 1) && (bh == 4);
+      (mi_col & 1) && (bw == 1) && (bh == 4);
   const int is_3way_part =
-    is_3rd_horz3_16x16_partition || is_3rd_vert3_16x16_partition;
+      is_3rd_horz3_16x16_partition || is_3rd_vert3_16x16_partition;
 #else
   (void)mi_row;
   (void)mi_col;
@@ -1217,13 +1216,15 @@ static INLINE int max_intra_block_height(const MACROBLOCKD *xd,
   return ALIGN_POWER_OF_TWO(max_blocks_high, tx_size_high_log2[tx_size]);
 }
 
-static INLINE void av1_zero_above_context(AV1_COMMON *const cm, const MACROBLOCKD *xd,
-  int mi_col_start, int mi_col_end, const int tile_row) {
+static INLINE void av1_zero_above_context(AV1_COMMON *const cm,
+                                          const MACROBLOCKD *xd,
+                                          int mi_col_start, int mi_col_end,
+                                          const int tile_row) {
   const SequenceHeader *const seq_params = &cm->seq_params;
   const int num_planes = av1_num_planes(cm);
   const int width = mi_col_end - mi_col_start;
   const int aligned_width =
-    ALIGN_POWER_OF_TWO(width, seq_params->mib_size_log2);
+      ALIGN_POWER_OF_TWO(width, seq_params->mib_size_log2);
 
   const int offset_y = mi_col_start;
   const int width_y = aligned_width;
@@ -1244,8 +1245,7 @@ static INLINE void av1_zero_above_context(AV1_COMMON *const cm, const MACROBLOCK
   av1_zero_array(cm->above_seg_context[tile_row] + mi_col_start, aligned_width);
 
   memset(cm->above_txfm_context[tile_row] + mi_col_start,
-    tx_size_wide[TX_SIZES_LARGEST],
-    aligned_width * sizeof(TXFM_CONTEXT));
+         tx_size_wide[TX_SIZES_LARGEST], aligned_width * sizeof(TXFM_CONTEXT));
 }
 
 static INLINE void av1_zero_left_context(MACROBLOCKD *const xd) {
