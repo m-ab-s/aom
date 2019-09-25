@@ -5443,7 +5443,7 @@ static void select_tx_partition_type(
     ENTROPY_CONTEXT cur_tl[MAX_MIB_SIZE] = { 0 };
     TXFM_CONTEXT cur_tx_above[MAX_MIB_SIZE] = { 0 };
     TXFM_CONTEXT cur_tx_left[MAX_MIB_SIZE] = { 0 };
-    av1_get_entropy_contexts(plane_bsize, pd, cur_ta, cur_tl);
+    av1_get_entropy_contexts(blk_row, blk_col, plane_bsize, pd, cur_ta, cur_tl);
     memcpy(&cur_tx_above, tx_above, sizeof(TXFM_CONTEXT) * mi_width);
     memcpy(&cur_tx_left, tx_left, sizeof(TXFM_CONTEXT) * mi_height);
 

@@ -315,6 +315,34 @@ static void decode_reconstruct_tx(AV1_COMMON *cm, ThreadData *const td,
     *eob_total += eob_data->eob;
     set_cb_buffer_offsets(xd, tx_size, plane);
   } else {
+#if CONFIG_NEW_TX_PARTITION
+    TX_SIZE sub_txs[MAX_TX_PARTITIONS] = { 0 };
+    const int index = av1_get_txb_size_index(plane_bsize, blk_row, blk_col);
+    get_tx_partition_sizes(mbmi->partition_type[index], tx_size, sub_txs);
+    int cur_partition = 0;
+    int bsw = 0, bsh = 0;
+    for (int row = 0; row < tx_size_high_unit[tx_size]; row += bsh) {
+      for (int col = 0; col < tx_size_wide_unit[tx_size]; col += bsw) {
+        const TX_SIZE sub_tx = sub_txs[cur_partition];
+        bsw = tx_size_wide_unit[sub_tx];
+        bsh = tx_size_high_unit[sub_tx];
+        const int sub_step = bsw * bsh;
+        const int offsetr = blk_row + row;
+        const int offsetc = blk_col + col;
+        if (offsetr >= max_blocks_high || offsetc >= max_blocks_wide) continue;
+
+        td->read_coeffs_tx_inter_block_visit(cm, xd, r, plane, offsetr, offsetc,
+                                             sub_tx);
+        td->inverse_tx_inter_block_visit(cm, xd, r, plane, offsetr, offsetc,
+                                         sub_tx);
+        eob_info *eob_data = pd->eob_data + xd->txb_offset[plane];
+        *eob_total += eob_data->eob;
+        set_cb_buffer_offsets(xd, sub_tx, plane);
+        block += sub_step;
+        cur_partition++;
+      }
+    }
+#else
     const TX_SIZE sub_txs = sub_tx_size_map[tx_size];
     assert(IMPLIES(tx_size <= TX_4X4, sub_txs == tx_size));
     assert(IMPLIES(tx_size > TX_4X4, sub_txs < tx_size));
@@ -336,6 +364,7 @@ static void decode_reconstruct_tx(AV1_COMMON *cm, ThreadData *const td,
         block += sub_step;
       }
     }
+#endif  // CONFIG_NEW_TX_PARTITION
   }
 }
 

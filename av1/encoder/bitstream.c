@@ -437,17 +437,17 @@ static void pack_txb_tokens(aom_writer *w, AV1_COMMON *cm, MACROBLOCK *const x,
                                     pd->subsampling_x, pd->subsampling_y)
             : mbmi->inter_tx_size[av1_get_txb_size_index(plane_bsize, blk_row,
                                                          blk_col)];
+  const CB_COEFF_BUFFER *cb_coef_buff = x->cb_coef_buff;
+  const int txb_offset =
+      x->mbmi_ext->cb_offset / (TX_SIZE_W_MIN * TX_SIZE_H_MIN);
+  const tran_low_t *tcoeff_txb =
+      cb_coef_buff->tcoeff[plane] + x->mbmi_ext->cb_offset;
+  const uint16_t *eob_txb = cb_coef_buff->eobs[plane] + txb_offset;
+  const uint8_t *txb_skip_ctx_txb =
+      cb_coef_buff->txb_skip_ctx[plane] + txb_offset;
+  const int *dc_sign_ctx_txb = cb_coef_buff->dc_sign_ctx[plane] + txb_offset;
 
   if (tx_size == plane_tx_size || plane) {
-    const CB_COEFF_BUFFER *cb_coef_buff = x->cb_coef_buff;
-    const int txb_offset =
-        x->mbmi_ext->cb_offset / (TX_SIZE_W_MIN * TX_SIZE_H_MIN);
-    const tran_low_t *tcoeff_txb =
-        cb_coef_buff->tcoeff[plane] + x->mbmi_ext->cb_offset;
-    const uint16_t *eob_txb = cb_coef_buff->eobs[plane] + txb_offset;
-    const uint8_t *txb_skip_ctx_txb =
-        cb_coef_buff->txb_skip_ctx[plane] + txb_offset;
-    const int *dc_sign_ctx_txb = cb_coef_buff->dc_sign_ctx[plane] + txb_offset;
     const tran_low_t *tcoeff = BLOCK_OFFSET(tcoeff_txb, block);
     const uint16_t eob = eob_txb[block];
     TXB_CTX txb_ctx = { txb_skip_ctx_txb[block], dc_sign_ctx_txb[block] };
@@ -460,6 +460,36 @@ static void pack_txb_tokens(aom_writer *w, AV1_COMMON *cm, MACROBLOCK *const x,
     token_stats->cost += tmp_token_stats.cost;
 #endif
   } else {
+#if CONFIG_NEW_TX_PARTITION
+    (void)tp;
+    (void)tok_end;
+    (void)token_stats;
+    (void)bit_depth;
+    TX_SIZE sub_txs[MAX_TX_PARTITIONS] = { 0 };
+    const int index = av1_get_txb_size_index(plane_bsize, blk_row, blk_col);
+    get_tx_partition_sizes(mbmi->partition_type[index], tx_size, sub_txs);
+    int cur_partition = 0;
+    int bsw = 0, bsh = 0;
+    for (int r = 0; r < tx_size_high_unit[tx_size]; r += bsh) {
+      for (int c = 0; c < tx_size_wide_unit[tx_size]; c += bsw) {
+        const TX_SIZE sub_tx = sub_txs[cur_partition];
+        bsw = tx_size_wide_unit[sub_tx];
+        bsh = tx_size_high_unit[sub_tx];
+        const int sub_step = bsw * bsh;
+        const int offsetr = blk_row + r;
+        const int offsetc = blk_col + c;
+        if (offsetr >= max_blocks_high || offsetc >= max_blocks_wide) continue;
+        const tran_low_t *tcoeff = BLOCK_OFFSET(tcoeff_txb, block);
+        const uint16_t eob = eob_txb[block];
+        TXB_CTX txb_ctx = { txb_skip_ctx_txb[block], dc_sign_ctx_txb[block] };
+        av1_write_coeffs_txb(cm, xd, w, offsetr, offsetc, plane, sub_tx, tcoeff,
+                             eob, &txb_ctx);
+        block += sub_step;
+        cur_partition++;
+      }
+    }
+#else
+
     const TX_SIZE sub_txs = sub_tx_size_map[tx_size];
     const int bsw = tx_size_wide_unit[sub_txs];
     const int bsh = tx_size_high_unit[sub_txs];
@@ -478,6 +508,7 @@ static void pack_txb_tokens(aom_writer *w, AV1_COMMON *cm, MACROBLOCK *const x,
         block += step;
       }
     }
+#endif  // CONFIG_NEW_TX_PARTITION
   }
 }
 
