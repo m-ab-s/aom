@@ -18,6 +18,7 @@
 #include "aom_ports/mem.h"
 #include "aom_scale/yv12config.h"
 
+#include "av1/common/chroma.h"
 #include "av1/common/common_data.h"
 #include "av1/common/quant_common.h"
 #include "av1/common/entropy.h"

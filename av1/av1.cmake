@@ -33,6 +33,7 @@ list(APPEND AOM_AV1_COMMON_SOURCES
             "${AOM_ROOT}/av1/common/cdef_block.h"
             "${AOM_ROOT}/av1/common/cfl.c"
             "${AOM_ROOT}/av1/common/cfl.h"
+            "${AOM_ROOT}/av1/common/chroma.h"
             "${AOM_ROOT}/av1/common/cnn.c"
             "${AOM_ROOT}/av1/common/cnn.h"
             "${AOM_ROOT}/av1/common/common.h"
