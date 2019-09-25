@@ -92,9 +92,11 @@ INSTANTIATE_TEST_CASE_P(C, AV1SubtractBlockTest,
                         ::testing::Values(aom_subtract_block_c));
 
 #if HAVE_SSE2
+#if !CONFIG_3WAY_PARTITIONS
 INSTANTIATE_TEST_CASE_P(SSE2, AV1SubtractBlockTest,
                         ::testing::Values(aom_subtract_block_sse2));
-#endif
+#endif  // !CONFIG_3WAY_PARTITIONS
+#endif  // HAVE_SSE2
 #if HAVE_NEON
 INSTANTIATE_TEST_CASE_P(NEON, AV1SubtractBlockTest,
                         ::testing::Values(aom_subtract_block_neon));
@@ -207,7 +209,7 @@ void AV1HBDSubtractBlockTest::RunForSpeed() {
 TEST_P(AV1HBDSubtractBlockTest, DISABLED_Speed) { RunForSpeed(); }
 
 #if HAVE_SSE2
-
+#if !CONFIG_3WAY_PARTITIONS
 const Params kAV1HBDSubtractBlock_sse2[] = {
   make_tuple(4, 4, 12, &aom_highbd_subtract_block_sse2),
   make_tuple(4, 4, 12, &aom_highbd_subtract_block_c),
@@ -245,5 +247,6 @@ const Params kAV1HBDSubtractBlock_sse2[] = {
 
 INSTANTIATE_TEST_CASE_P(SSE2, AV1HBDSubtractBlockTest,
                         ::testing::ValuesIn(kAV1HBDSubtractBlock_sse2));
+#endif  // !CONFIG_3WAY_PARTITIONS
 #endif  // HAVE_SSE2
 }  // namespace
