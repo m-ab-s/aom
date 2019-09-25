@@ -698,6 +698,13 @@ static void write_ref_frames(const AV1_COMMON *cm, const MACROBLOCKD *xd,
       }
 
     } else {
+#if CONFIG_MISC_CHANGES
+      if (cm->only_one_ref_available) {
+        assert(mbmi->ref_frame[0] == LAST_FRAME);
+        return;
+      }
+#endif  // CONFIG_MISC_CHANGES
+
       const int bit0 = (mbmi->ref_frame[0] <= ALTREF_FRAME &&
                         mbmi->ref_frame[0] >= BWDREF_FRAME);
       WRITE_REF_BIT(bit0, single_ref_p1);
@@ -3512,7 +3519,11 @@ static void write_uncompressed_header_obu(AV1_COMP *cpi,
   else
     aom_wb_write_bit(wb, cm->tx_mode == TX_MODE_SELECT);
 
-  if (!frame_is_intra_only(cm)) {
+  int write_ref_mode = !frame_is_intra_only(cm);
+#if CONFIG_MISC_CHANGES
+  write_ref_mode = write_ref_mode && !cm->only_one_ref_available;
+#endif  // CONFIG_MISC_CHANGES
+  if (write_ref_mode) {
     const int use_hybrid_pred =
         current_frame->reference_mode == REFERENCE_MODE_SELECT;
 

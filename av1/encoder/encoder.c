@@ -6082,6 +6082,9 @@ int av1_encode(AV1_COMP *const cpi, uint8_t *const dest,
                const EncodeFrameParams *const frame_params,
                EncodeFrameResults *const frame_results) {
   AV1_COMMON *const cm = &cpi->common;
+#if CONFIG_MISC_CHANGES
+  cm->only_one_ref_available = all_ref_frames_the_same(cm);
+#endif  // CONFIG_MISC_CHANGES
   CurrentFrame *const current_frame = &cm->current_frame;
 
   cpi->unscaled_source = frame_input->source;

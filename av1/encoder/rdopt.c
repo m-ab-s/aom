@@ -7296,48 +7296,53 @@ static void estimate_ref_frame_costs(
     for (int i = LAST_FRAME; i <= ALTREF_FRAME; ++i)
       ref_costs_single[i] = base_cost;
 
-    const int ctx_p1 = av1_get_pred_context_single_ref_p1(xd);
-    const int ctx_p2 = av1_get_pred_context_single_ref_p2(xd);
-    const int ctx_p3 = av1_get_pred_context_single_ref_p3(xd);
-    const int ctx_p4 = av1_get_pred_context_single_ref_p4(xd);
-    const int ctx_p5 = av1_get_pred_context_single_ref_p5(xd);
-    const int ctx_p6 = av1_get_pred_context_single_ref_p6(xd);
+#if CONFIG_MISC_CHANGES
+    if (!cm->only_one_ref_available)
+#endif  // CONFIG_MISC_CHANGES
+    {
+      const int ctx_p1 = av1_get_pred_context_single_ref_p1(xd);
+      const int ctx_p2 = av1_get_pred_context_single_ref_p2(xd);
+      const int ctx_p3 = av1_get_pred_context_single_ref_p3(xd);
+      const int ctx_p4 = av1_get_pred_context_single_ref_p4(xd);
+      const int ctx_p5 = av1_get_pred_context_single_ref_p5(xd);
+      const int ctx_p6 = av1_get_pred_context_single_ref_p6(xd);
 
-    // Determine cost of a single ref frame, where frame types are represented
-    // by a tree:
-    // Level 0: add cost whether this ref is a forward or backward ref
-    ref_costs_single[LAST_FRAME] += x->single_ref_cost[ctx_p1][0][0];
-    ref_costs_single[LAST2_FRAME] += x->single_ref_cost[ctx_p1][0][0];
-    ref_costs_single[LAST3_FRAME] += x->single_ref_cost[ctx_p1][0][0];
-    ref_costs_single[GOLDEN_FRAME] += x->single_ref_cost[ctx_p1][0][0];
-    ref_costs_single[BWDREF_FRAME] += x->single_ref_cost[ctx_p1][0][1];
-    ref_costs_single[ALTREF2_FRAME] += x->single_ref_cost[ctx_p1][0][1];
-    ref_costs_single[ALTREF_FRAME] += x->single_ref_cost[ctx_p1][0][1];
+      // Determine cost of a single ref frame, where frame types are represented
+      // by a tree:
+      // Level 0: add cost whether this ref is a forward or backward ref
+      ref_costs_single[LAST_FRAME] += x->single_ref_cost[ctx_p1][0][0];
+      ref_costs_single[LAST2_FRAME] += x->single_ref_cost[ctx_p1][0][0];
+      ref_costs_single[LAST3_FRAME] += x->single_ref_cost[ctx_p1][0][0];
+      ref_costs_single[GOLDEN_FRAME] += x->single_ref_cost[ctx_p1][0][0];
+      ref_costs_single[BWDREF_FRAME] += x->single_ref_cost[ctx_p1][0][1];
+      ref_costs_single[ALTREF2_FRAME] += x->single_ref_cost[ctx_p1][0][1];
+      ref_costs_single[ALTREF_FRAME] += x->single_ref_cost[ctx_p1][0][1];
 
-    // Level 1: if this ref is forward ref,
-    // add cost whether it is last/last2 or last3/golden
-    ref_costs_single[LAST_FRAME] += x->single_ref_cost[ctx_p3][2][0];
-    ref_costs_single[LAST2_FRAME] += x->single_ref_cost[ctx_p3][2][0];
-    ref_costs_single[LAST3_FRAME] += x->single_ref_cost[ctx_p3][2][1];
-    ref_costs_single[GOLDEN_FRAME] += x->single_ref_cost[ctx_p3][2][1];
+      // Level 1: if this ref is forward ref,
+      // add cost whether it is last/last2 or last3/golden
+      ref_costs_single[LAST_FRAME] += x->single_ref_cost[ctx_p3][2][0];
+      ref_costs_single[LAST2_FRAME] += x->single_ref_cost[ctx_p3][2][0];
+      ref_costs_single[LAST3_FRAME] += x->single_ref_cost[ctx_p3][2][1];
+      ref_costs_single[GOLDEN_FRAME] += x->single_ref_cost[ctx_p3][2][1];
 
-    // Level 1: if this ref is backward ref
-    // then add cost whether this ref is altref or backward ref
-    ref_costs_single[BWDREF_FRAME] += x->single_ref_cost[ctx_p2][1][0];
-    ref_costs_single[ALTREF2_FRAME] += x->single_ref_cost[ctx_p2][1][0];
-    ref_costs_single[ALTREF_FRAME] += x->single_ref_cost[ctx_p2][1][1];
+      // Level 1: if this ref is backward ref
+      // then add cost whether this ref is altref or backward ref
+      ref_costs_single[BWDREF_FRAME] += x->single_ref_cost[ctx_p2][1][0];
+      ref_costs_single[ALTREF2_FRAME] += x->single_ref_cost[ctx_p2][1][0];
+      ref_costs_single[ALTREF_FRAME] += x->single_ref_cost[ctx_p2][1][1];
 
-    // Level 2: further add cost whether this ref is last or last2
-    ref_costs_single[LAST_FRAME] += x->single_ref_cost[ctx_p4][3][0];
-    ref_costs_single[LAST2_FRAME] += x->single_ref_cost[ctx_p4][3][1];
+      // Level 2: further add cost whether this ref is last or last2
+      ref_costs_single[LAST_FRAME] += x->single_ref_cost[ctx_p4][3][0];
+      ref_costs_single[LAST2_FRAME] += x->single_ref_cost[ctx_p4][3][1];
 
-    // Level 2: last3 or golden
-    ref_costs_single[LAST3_FRAME] += x->single_ref_cost[ctx_p5][4][0];
-    ref_costs_single[GOLDEN_FRAME] += x->single_ref_cost[ctx_p5][4][1];
+      // Level 2: last3 or golden
+      ref_costs_single[LAST3_FRAME] += x->single_ref_cost[ctx_p5][4][0];
+      ref_costs_single[GOLDEN_FRAME] += x->single_ref_cost[ctx_p5][4][1];
 
-    // Level 2: bwdref or altref2
-    ref_costs_single[BWDREF_FRAME] += x->single_ref_cost[ctx_p6][5][0];
-    ref_costs_single[ALTREF2_FRAME] += x->single_ref_cost[ctx_p6][5][1];
+      // Level 2: bwdref or altref2
+      ref_costs_single[BWDREF_FRAME] += x->single_ref_cost[ctx_p6][5][0];
+      ref_costs_single[ALTREF2_FRAME] += x->single_ref_cost[ctx_p6][5][1];
+    }
 
     if (cm->current_frame.reference_mode != SINGLE_REFERENCE) {
       // Similar to single ref, determine cost of compound ref frames.

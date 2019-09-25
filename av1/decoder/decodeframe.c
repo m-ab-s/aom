@@ -148,6 +148,9 @@ static TX_MODE read_tx_mode(AV1_COMMON *cm, struct aom_read_bit_buffer *rb) {
 
 static REFERENCE_MODE read_frame_reference_mode(
     const AV1_COMMON *cm, struct aom_read_bit_buffer *rb) {
+#if CONFIG_MISC_CHANGES
+  if (cm->only_one_ref_available) return SINGLE_REFERENCE;
+#endif  // CONFIG_MISC_CHANGES
   if (frame_is_intra_only(cm)) {
     return SINGLE_REFERENCE;
   } else {
@@ -5354,6 +5357,9 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 #endif  // CONFIG_CNN_RESTORATION && !CONFIG_LOOP_RESTORE_CNN
 
   cm->tx_mode = read_tx_mode(cm, rb);
+#if CONFIG_MISC_CHANGES
+  cm->only_one_ref_available = all_ref_frames_the_same(cm);
+#endif  // CONFIG_MISC_CHANGES
   current_frame->reference_mode = read_frame_reference_mode(cm, rb);
   if (current_frame->reference_mode != SINGLE_REFERENCE)
     setup_compound_reference_mode(cm);
