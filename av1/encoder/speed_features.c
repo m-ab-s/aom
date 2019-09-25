@@ -205,7 +205,12 @@ static void set_good_speed_features_framesize_independent(
   sf->prune_ext_partition_types_search_level = 1;
   sf->ml_prune_rect_partition = 1;
   sf->ml_prune_ab_partition = 1;
+#if CONFIG_3WAY_PARTITIONS
+  // This speed feature will need to be re-designed for 3-way partitions.
+  sf->ml_prune_4_partition = 0;
+#else
   sf->ml_prune_4_partition = 1;
+#endif  // CONFIG_3WAY_PARTITIONS
   sf->simple_motion_search_prune_rect = 1;
   sf->use_dist_wtd_comp_flag = DIST_WTD_COMP_SKIP_MV_SEARCH;
 #if CONFIG_NEW_TX_PARTITION
@@ -442,7 +447,12 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
   sf->prune_ext_partition_types_search_level = 1;
   sf->ml_prune_rect_partition = 1;
   sf->ml_prune_ab_partition = 1;
+#if CONFIG_3WAY_PARTITIONS
+  sf->ml_prune_4_partition = 0;
+#else
   sf->ml_prune_4_partition = 1;
+#endif  // CONFIG_3WAY_PARTITIONS
+
   sf->use_dist_wtd_comp_flag = DIST_WTD_COMP_SKIP_MV_SEARCH;
 #if CONFIG_NEW_TX_PARTITION
   sf->adaptive_txb_search_level = 0;
