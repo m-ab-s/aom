@@ -130,7 +130,11 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
   RESET_CDF_COUNTER(fc->uni_comp_ref_cdf, 2);
   RESET_CDF_COUNTER(fc->comp_ref_cdf, 2);
   RESET_CDF_COUNTER(fc->comp_bwdref_cdf, 2);
+#if CONFIG_NEW_TX_PARTITION
+  RESET_CDF_COUNTER(fc->txfm_partition_cdf, TX_PARTITION_TYPES);
+#else
   RESET_CDF_COUNTER(fc->txfm_partition_cdf, 2);
+#endif  // CONFIG_NEW_TX_PARTITION
   RESET_CDF_COUNTER(fc->compound_index_cdf, 2);
   RESET_CDF_COUNTER(fc->comp_group_idx_cdf, 2);
   RESET_CDF_COUNTER(fc->skip_mode_cdfs, 2);

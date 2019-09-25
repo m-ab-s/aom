@@ -1930,6 +1930,7 @@ static const NN_CONFIG av1_tx_split_nnconfig_16x64 = {
 };
 /******************************************************************************/
 
+#if !CONFIG_NEW_TX_PARTITION
 // Map block size to its corresponding neural net model for tx split prediction.
 static const NN_CONFIG *av1_tx_split_nnconfig_map[TX_SIZES_ALL] = {
   NULL,                          // TX_4X4,
@@ -1960,6 +1961,7 @@ static const NN_CONFIG *av1_tx_split_nnconfig_map[TX_SIZES_ALL] = {
   NULL,  // 64x4 transform
 #endif   // CONFIG_FLEX_PARTITION
 };
+#endif  // !CONFIG_NEW_TX_PARTITION
 
 #ifdef __cplusplus
 }  // extern "C"

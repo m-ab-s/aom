@@ -1304,13 +1304,14 @@ static void read_tx_partition(MACROBLOCKD *xd, MB_MODE_INFO *mbmi,
                                          mbmi->sb_type, max_tx_size);
   const TX_PARTITION_TYPE partition = aom_read_symbol(
       r, ec_ctx->txfm_partition_cdf[ctx], TX_PARTITION_TYPES, ACCT_STR);
-  switch (partition) {
-    case TX_PARTITION_NONE: mbmi->tx_size = max_tx_size; break;
-    case TX_PARTITION_SPLIT:
-      mbmi->tx_size = sub_tx_size_map[max_tx_size];
-      break;
-    default: assert(0);
-  }
+  TX_SIZE sub_txs[MAX_TX_PARTITIONS] = { 0 };
+  get_tx_partition_sizes(partition, max_tx_size, sub_txs);
+  // TODO(sarahparker) This assumes all of the tx sizes in the partition scheme
+  // are the same size. This will need to be adjusted to deal with the case
+  // where they can be different.
+  mbmi->tx_size = sub_txs[0];
+  const int index = av1_get_txb_size_index(bsize, blk_row, blk_col);
+  mbmi->partition_type[index] = partition;
   set_inter_tx_size(mbmi, stride_log2, tx_w_log2, tx_h_log2, txs, max_tx_size,
                     mbmi->tx_size, blk_row, blk_col);
   txfm_partition_update(xd->above_txfm_context + blk_col,

@@ -256,6 +256,9 @@ typedef struct MB_MODE_INFO {
 #if CONFIG_ADAPT_FILTER_INTRA
   ADAPT_FILTER_INTRA_MODE_INFO adapt_filter_intra_mode_info;
 #endif
+#if CONFIG_NEW_TX_PARTITION
+  TX_PARTITION_TYPE partition_type[INTER_TX_SIZE_BUF_LEN];
+#endif  // CONFIG_NEW_TX_PARTITION
   MOTION_MODE motion_mode;
   PARTITION_TYPE partition;
   TX_TYPE txk_type[TXK_TYPE_BUF_LEN];

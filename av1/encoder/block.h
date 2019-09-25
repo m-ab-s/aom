@@ -366,7 +366,11 @@ struct macroblock {
   // The rate associated with each alpha codeword
   int cfl_cost[CFL_JOINT_SIGNS][CFL_PRED_PLANES][CFL_ALPHABET_SIZE];
   int tx_size_cost[TX_SIZES - 1][TX_SIZE_CONTEXTS][TX_SIZES];
+#if CONFIG_NEW_TX_PARTITION
+  int txfm_partition_cost[TXFM_PARTITION_CONTEXTS][TX_PARTITION_TYPES];
+#else
   int txfm_partition_cost[TXFM_PARTITION_CONTEXTS][2];
+#endif  // CONFIG_NEW_TX_PARTITION
 #if CONFIG_MODE_DEP_TX
 #if USE_MDTX_INTER
   int use_mdtx_inter_costs[EXT_TX_SIZES][2];

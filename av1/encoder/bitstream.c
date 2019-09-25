@@ -202,8 +202,7 @@ static void write_tx_partition(MACROBLOCKD *xd, const MB_MODE_INFO *mbmi,
   const int max_blocks_wide = max_block_wide(xd, mbmi->sb_type, 0);
   if (blk_row >= max_blocks_high || blk_col >= max_blocks_wide) return;
   FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
-  const TX_PARTITION_TYPE partition =
-      tx_size != max_tx_size ? TX_PARTITION_SPLIT : TX_PARTITION_NONE;
+  const TX_PARTITION_TYPE partition = mbmi->partition_type[txb_size_index];
   aom_write_symbol(w, partition, ec_ctx->txfm_partition_cdf[ctx],
                    TX_PARTITION_TYPES);
   txfm_partition_update(xd->above_txfm_context + blk_col,
