@@ -156,6 +156,8 @@ set_aom_config_var(CONFIG_FLEX_MVRES 0 NUMBER
                    "AV2 Flexible MV resolution experiment flag")
 set_aom_config_var(CONFIG_CTX_ADAPT_LOG_WEIGHT 0 NUMBER
                    "AV2 Laplace of Gaussian experiment flag")
+set_aom_config_var(CONFIG_MISC_CHANGES 0 NUMBER
+                   "AV2 miscellaneous bitstream changes experiment flag")
 
 # To include Tensorflow, make sure to build tensorflow locally using
 # tensorflow/contrib/makefile/build_all_linux.sh and then providing the correct
