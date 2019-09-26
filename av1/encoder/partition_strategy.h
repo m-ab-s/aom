@@ -159,7 +159,7 @@ static INLINE void set_offsets_for_motion_search(const AV1_COMP *const cpi,
   x->mv_limits.row_max = (cm->mi_rows - mi_row) * MI_SIZE + AOM_INTERP_EXTEND;
   x->mv_limits.col_max = (cm->mi_cols - mi_col) * MI_SIZE + AOM_INTERP_EXTEND;
 
-  set_plane_n4(xd, mi_width, mi_height, num_planes);
+  set_plane_n4(xd, mi_row, mi_col, bsize, num_planes);
 
   // Set up distance of MB to edge of frame in 1/8th pel units.
   assert(!(mi_col & (mi_width - 1)) && !(mi_row & (mi_height - 1)));

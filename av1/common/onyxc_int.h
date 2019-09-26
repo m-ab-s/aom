@@ -798,20 +798,50 @@ static INLINE void av1_init_macroblockd(AV1_COMMON *cm, MACROBLOCKD *xd,
 }
 
 static INLINE void set_skip_context(MACROBLOCKD *xd, int mi_row, int mi_col,
-                                    const int num_planes) {
+                                    BLOCK_SIZE bsize, int num_planes) {
   int i;
   int row_offset = mi_row;
   int col_offset = mi_col;
   for (i = 0; i < num_planes; ++i) {
     struct macroblockd_plane *const pd = &xd->plane[i];
     // Offset the buffer pointer
-    const BLOCK_SIZE bsize = xd->mi[0]->sb_type;
+    // TODO(urvang): Refactor the spread-out logic for offsetting into a common
+    // function.
+#if CONFIG_3WAY_PARTITIONS
+    if (pd->subsampling_y && (mi_row & 0x01)) {
+      if (mi_size_wide[bsize] == 4 && mi_size_high[bsize] == 1) {
+        // Special case: 3rd horizontal sub-block of a 16x16 horz3 partition.
+        row_offset = mi_row - 3;
+      } else if (mi_size_high[bsize] == 1) {
+        row_offset = mi_row - 1;
+      } else if (mi_size_wide[bsize] == 4 && mi_size_high[bsize] == 2) {
+        // Special case: 2rd horizontal sub-block of a 16x16 horz3 partition.
+        row_offset = mi_row - 1;
+      }
+    }
+    if (pd->subsampling_x && (mi_col & 0x01)) {
+      if (mi_size_wide[bsize] == 1 && mi_size_high[bsize] == 4) {
+        // Special case: 3rd vertical sub-block of a 16x16 vert3 partition.
+        col_offset = mi_col - 3;
+      } else if (mi_size_wide[bsize] == 1) {
+        col_offset = mi_col - 1;
+      } else if (mi_size_wide[bsize] == 2 && mi_size_high[bsize] == 4) {
+        // Special case: 2nd vertical sub-block of a 16x16 vert3 partition.
+        col_offset = mi_col - 1;
+      }
+    }
+#else
     if (pd->subsampling_y && (mi_row & 0x01) && (mi_size_high[bsize] == 1))
       row_offset = mi_row - 1;
     if (pd->subsampling_x && (mi_col & 0x01) && (mi_size_wide[bsize] == 1))
       col_offset = mi_col - 1;
+#endif  // CONFIG_3WAY_PARTITIONS
+    assert(row_offset >= 0);
+    assert(col_offset >= 0);
     int above_idx = col_offset;
     int left_idx = row_offset & MAX_MIB_MASK;
+    assert(IMPLIES(pd->subsampling_x, above_idx % 2 == 0));
+    assert(IMPLIES(pd->subsampling_y, left_idx % 2 == 0));
     pd->above_context = &xd->above_context[i][above_idx >> pd->subsampling_x];
     pd->left_context = &xd->left_context[i][left_idx >> pd->subsampling_y];
   }
@@ -822,15 +852,16 @@ static INLINE int calc_mi_size(int len) {
   return ALIGN_POWER_OF_TWO(len, MAX_MIB_SIZE_LOG2);
 }
 
-static INLINE void set_plane_n4(MACROBLOCKD *const xd, int bw, int bh,
-                                const int num_planes) {
-  int i;
-  for (i = 0; i < num_planes; i++) {
-    xd->plane[i].width = (bw * MI_SIZE) >> xd->plane[i].subsampling_x;
-    xd->plane[i].height = (bh * MI_SIZE) >> xd->plane[i].subsampling_y;
-
-    xd->plane[i].width = AOMMAX(xd->plane[i].width, 4);
-    xd->plane[i].height = AOMMAX(xd->plane[i].height, 4);
+static INLINE void set_plane_n4(MACROBLOCKD *const xd, int mi_row, int mi_col,
+                                BLOCK_SIZE bsize, int num_planes) {
+  for (int i = 0; i < num_planes; i++) {
+    struct macroblockd_plane *const pd = &xd->plane[i];
+    bsize = scale_chroma_bsize(bsize, pd->subsampling_x, pd->subsampling_y,
+                               mi_row, mi_col);
+    pd->width = block_size_wide[bsize] >> pd->subsampling_x;
+    pd->height = block_size_high[bsize] >> pd->subsampling_y;
+    assert(pd->width >= 4);
+    assert(pd->height >= 4);
   }
 }
 
@@ -868,10 +899,37 @@ static INLINE void set_mi_row_col(MACROBLOCKD *xd, const TileInfo *const tile,
   xd->left_available = (mi_col > tile->mi_col_start);
   xd->chroma_up_available = xd->up_available;
   xd->chroma_left_available = xd->left_available;
+
+#if CONFIG_3WAY_PARTITIONS
+  if (ss_x && (mi_col & 0x01)) {
+    if (bw == 1 && bh == 4) {
+      // Special case: 3rd vertical sub-block of a 16x16 vert3 partition.
+      xd->chroma_left_available = (mi_col - 3) > tile->mi_col_start;
+    } else if (bw == 1) {
+      xd->chroma_left_available = (mi_col - 1) > tile->mi_col_start;
+    } else if (bw == 2 && bh == 4) {
+      // Special case: 2nd vertical sub-block of a 16x16 vert3 partition.
+      xd->chroma_left_available = (mi_col - 1) > tile->mi_col_start;
+    }
+  }
+  if (ss_y && (mi_row & 0x01)) {
+    if (bw == 4 && bh == 1) {
+      // Special case: 3rd horizontal sub-block of a 16x16 horz3 partition.
+      xd->chroma_up_available = (mi_row - 3) > tile->mi_row_start;
+    } else if (bh == 1) {
+      xd->chroma_up_available = (mi_row - 1) > tile->mi_row_start;
+    } else if (bw == 4 && bh == 2) {
+      // Special case: 2rd horizontal sub-block of a 16x16 horz3 partition.
+      xd->chroma_up_available = (mi_row - 1) > tile->mi_row_start;
+    }
+  }
+#else
   if (ss_x && bw < mi_size_wide[BLOCK_8X8])
     xd->chroma_left_available = (mi_col - 1) > tile->mi_col_start;
   if (ss_y && bh < mi_size_high[BLOCK_8X8])
     xd->chroma_up_available = (mi_row - 1) > tile->mi_row_start;
+#endif  // CONFIG_3WAY_PARTITIONS
+
   if (xd->up_available) {
     xd->above_mbmi = xd->mi[-xd->mi_stride];
   } else {
@@ -898,8 +956,17 @@ static INLINE void set_mi_row_col(MACROBLOCKD *xd, const TileInfo *const tile,
     // current block may cover multiple luma blocks (eg, if partitioned into
     // 4x4 luma blocks).
     // First, find the top-left-most luma block covered by this chroma block
+#if CONFIG_3WAY_PARTITIONS
+    const int row_offset = (bw == 4 && bh == 1) ? 3 : 1;
+    const int col_offset = (bw == 1 && bh == 4) ? 3 : 1;
+#else
+    const int row_offset = 1;
+    const int col_offset = 1;
+#endif  // CONFIG_3WAY_PARTITIONS
+    const int row_offset_chroma = row_offset * (mi_row & ss_y);
+    const int col_offset_chroma = col_offset * (mi_col & ss_x);
     MB_MODE_INFO **base_mi =
-        &xd->mi[-(mi_row & ss_y) * xd->mi_stride - (mi_col & ss_x)];
+        &xd->mi[-row_offset_chroma * xd->mi_stride - col_offset_chroma];
 
     // Then, we consider the luma region covered by the left or above 4x4 chroma
     // prediction. We want to point to the chroma reference block in that

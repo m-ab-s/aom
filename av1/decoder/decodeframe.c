@@ -367,8 +367,8 @@ static void set_offsets(AV1_COMMON *const cm, MACROBLOCKD *const xd,
     idx += cm->mi_stride;
   }
 
-  set_plane_n4(xd, bw, bh, num_planes);
-  set_skip_context(xd, mi_row, mi_col, num_planes);
+  set_plane_n4(xd, mi_row, mi_col, bsize, num_planes);
+  set_skip_context(xd, mi_row, mi_col, bsize, num_planes);
 
   // Distance of Mb to the various image edges. These are specified to 8th pel
   // as they are always compared to values that are in 1/8th pel units
@@ -656,16 +656,53 @@ static INLINE void dec_build_inter_predictors(const AV1_COMMON *cm,
   int sub8x8_inter = (block_size_wide[bsize] < 8 && ss_x) ||
                      (block_size_high[bsize] < 8 && ss_y);
 
+#if CONFIG_3WAY_PARTITIONS
+  if (sub8x8_inter && bw == 8 && bh == 8) {
+    // 3rd sub-block of a 16x16 VERT3 or HORZ3 partition.
+    sub8x8_inter = 0;
+  }
+#endif  // CONFIG_3WAY_PARTITIONS
+
   if (is_intrabc) sub8x8_inter = 0;
 
-  // For sub8x8 chroma blocks, we may be covering more than one luma block's
-  // worth of pixels. Thus (mi_x, mi_y) may not be the correct coordinates for
-  // the top-left corner of the prediction source - the correct top-left corner
-  // is at (pre_x, pre_y).
+    // For sub8x8 chroma blocks, we may be covering more than one luma block's
+    // worth of pixels. Thus (mi_x, mi_y) may not be the correct coordinates for
+    // the top-left corner of the prediction source - the correct top-left
+    // corner is at (pre_x, pre_y).
+#if CONFIG_3WAY_PARTITIONS
+  const int mi_row = -xd->mb_to_top_edge >> (3 + MI_SIZE_LOG2);
+  const int mi_col = -xd->mb_to_left_edge >> (3 + MI_SIZE_LOG2);
+  int row_start = 0;
+  if (ss_y && (mi_row & 0x01) && !build_for_obmc) {
+    if (mi_size_wide[bsize] == 4 && mi_size_high[bsize] == 1) {
+      // Special case: 3rd horizontal sub-block of a 16x16 horz3 partition.
+      row_start = -3;
+    } else if (mi_size_high[bsize] == 1) {
+      row_start = -1;
+    } else if (mi_size_wide[bsize] == 4 && mi_size_high[bsize] == 2) {
+      // Special case: 2rd horizontal sub-block of a 16x16 horz3 partition.
+      row_start = -1;
+    }
+  }
+  int col_start = 0;
+  if (ss_x && (mi_col & 0x01) && !build_for_obmc) {
+    if (mi_size_wide[bsize] == 1 && mi_size_high[bsize] == 4) {
+      // Special case: 3rd vertical sub-block of a 16x16 vert3 partition.
+      col_start = -3;
+    } else if (mi_size_wide[bsize] == 1) {
+      col_start = -1;
+    } else if (mi_size_wide[bsize] == 2 && mi_size_high[bsize] == 4) {
+      // Special case: 2nd vertical sub-block of a 16x16 vert3 partition.
+      col_start = -1;
+    }
+  }
+#else
   const int row_start =
       (block_size_high[bsize] == 4) && ss_y && !build_for_obmc ? -1 : 0;
   const int col_start =
       (block_size_wide[bsize] == 4) && ss_x && !build_for_obmc ? -1 : 0;
+#endif  // CONFIG_3WAY_PARTITIONS
+
   const int pre_x = (mi_x + MI_SIZE * col_start) >> ss_x;
   const int pre_y = (mi_y + MI_SIZE * row_start) >> ss_y;
 
@@ -1532,7 +1569,7 @@ static void set_offsets_for_pred_and_recon(AV1Decoder *const pbi,
   xd->cfl.mi_row = mi_row;
   xd->cfl.mi_col = mi_col;
 
-  set_plane_n4(xd, bw, bh, num_planes);
+  set_plane_n4(xd, mi_row, mi_col, bsize, num_planes);
 
   // Distance of Mb to the various image edges. These are specified to 8th pel
   // as they are always compared to values that are in 1/8th pel units

@@ -477,7 +477,7 @@ void av1_first_pass(AV1_COMP *cpi, const int64_t ts_duration) {
                      mb_col * mb_scale, mi_size_wide[bsize], cm->mi_rows,
                      cm->mi_cols);
 
-      set_plane_n4(xd, mi_size_wide[bsize], mi_size_high[bsize], num_planes);
+      set_plane_n4(xd, mb_row * mb_scale, mb_col * mb_scale, bsize, num_planes);
 
       // Do intra 16x16 prediction.
       xd->mi[0]->segment_id = 0;

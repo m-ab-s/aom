@@ -308,7 +308,7 @@ static void set_offsets_without_segment_id(const AV1_COMP *const cpi,
 
   set_mode_info_offsets(cpi, x, xd, mi_row, mi_col);
 
-  set_skip_context(xd, mi_row, mi_col, num_planes);
+  set_skip_context(xd, mi_row, mi_col, bsize, num_planes);
   xd->above_txfm_context = cm->above_txfm_context[tile->tile_row] + mi_col;
   xd->left_txfm_context =
       xd->left_txfm_context_buffer + (mi_row & MAX_MIB_MASK);
@@ -325,7 +325,7 @@ static void set_offsets_without_segment_id(const AV1_COMP *const cpi,
   x->mv_limits.row_max = (cm->mi_rows - mi_row) * MI_SIZE + AOM_INTERP_EXTEND;
   x->mv_limits.col_max = (cm->mi_cols - mi_col) * MI_SIZE + AOM_INTERP_EXTEND;
 
-  set_plane_n4(xd, mi_width, mi_height, num_planes);
+  set_plane_n4(xd, mi_row, mi_col, bsize, num_planes);
 
   // Set up distance of MB to edge of frame in 1/8th pel units.
 #if !CONFIG_3WAY_PARTITIONS
@@ -1632,6 +1632,7 @@ static void encode_b(const AV1_COMP *const cpi, TileDataEnc *tile_data,
   MACROBLOCK *const x = &td->mb;
   MACROBLOCKD *xd = &x->e_mbd;
 
+  assert(bsize == ctx->mic.sb_type);
   set_offsets_without_segment_id(cpi, tile, x, mi_row, mi_col, bsize);
   const int origin_mult = x->rdmult;
   setup_block_rdmult(cpi, x, mi_row, mi_col, bsize, NO_AQ, NULL);
