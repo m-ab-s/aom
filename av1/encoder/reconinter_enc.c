@@ -74,10 +74,10 @@ static INLINE void calc_subpel_params(
 
 // TODO(urvang): This function is very similar to dec_build_inter_predictors().
 // Should refactor common parts.
-static INLINE void build_inter_predictors(const AV1_COMMON *cm, MACROBLOCKD *xd,
-                                          int plane, const MB_MODE_INFO *mi,
-                                          int build_for_obmc, int bw, int bh,
-                                          int mi_x, int mi_y) {
+static void build_inter_predictors(const AV1_COMMON *cm, MACROBLOCKD *xd,
+                                   int plane, const MB_MODE_INFO *mi,
+                                   int build_for_obmc, int bw, int bh, int mi_x,
+                                   int mi_y) {
   struct macroblockd_plane *const pd = &xd->plane[plane];
   int is_compound = has_second_ref(mi);
   int ref;
@@ -181,14 +181,16 @@ static INLINE void build_inter_predictors(const AV1_COMMON *cm, MACROBLOCKD *xd,
 
         const MV mv = this_mbmi->mv[ref].as_mv;
 
+        const WarpTypesAllowed warp_types = {
+          is_global[ref], this_mbmi->motion_mode == WARPED_CAUSAL
+        };
+
         uint8_t *pre;
         SubpelParams subpel_params;
-        WarpTypesAllowed warp_types;
-        warp_types.global_warp_allowed = is_global[ref];
-        warp_types.local_warp_allowed = this_mbmi->motion_mode == WARPED_CAUSAL;
-
         calc_subpel_params(xd, sf, mv, plane, pre_x, pre_y, x, y, pre_buf, &pre,
                            &subpel_params, bw, bh);
+        int src_stride = pre_buf->stride;
+
         conv_params.do_average = ref;
         if (is_masked_compound_type(mi->interinter_comp.type)) {
           // masked compound type has its own average mechanism
@@ -196,8 +198,8 @@ static INLINE void build_inter_predictors(const AV1_COMMON *cm, MACROBLOCKD *xd,
         }
 
         av1_make_inter_predictor(
-            pre, pre_buf->stride, dst, dst_buf->stride, &subpel_params, sf,
-            b4_w, b4_h, &conv_params, this_mbmi->interp_filters, &warp_types,
+            pre, src_stride, dst, dst_buf->stride, &subpel_params, sf, b4_w,
+            b4_h, &conv_params, this_mbmi->interp_filters, &warp_types,
             (mi_x >> pd->subsampling_x) + x, (mi_y >> pd->subsampling_y) + y,
             plane, ref, mi, build_for_obmc, xd, cm->allow_warped_motion);
 
@@ -225,28 +227,28 @@ static INLINE void build_inter_predictors(const AV1_COMMON *cm, MACROBLOCKD *xd,
       struct buf_2d *const pre_buf = is_intrabc ? dst_buf : &pd->pre[ref];
       const MV mv = mi->mv[ref].as_mv;
 
+      const WarpTypesAllowed warp_types = { is_global[ref],
+                                            mi->motion_mode == WARPED_CAUSAL };
+
       uint8_t *pre;
       SubpelParams subpel_params;
       calc_subpel_params(xd, sf, mv, plane, pre_x, pre_y, 0, 0, pre_buf, &pre,
                          &subpel_params, bw, bh);
-
-      WarpTypesAllowed warp_types;
-      warp_types.global_warp_allowed = is_global[ref];
-      warp_types.local_warp_allowed = mi->motion_mode == WARPED_CAUSAL;
+      int src_stride = pre_buf->stride;
 
       if (ref && is_masked_compound_type(mi->interinter_comp.type)) {
         // masked compound type has its own average mechanism
         conv_params.do_average = 0;
         av1_make_masked_inter_predictor(
-            pre, pre_buf->stride, dst, dst_buf->stride, &subpel_params, sf, bw,
-            bh, &conv_params, mi->interp_filters, plane, &warp_types,
+            pre, src_stride, dst, dst_buf->stride, &subpel_params, sf, bw, bh,
+            &conv_params, mi->interp_filters, plane, &warp_types,
             mi_x >> pd->subsampling_x, mi_y >> pd->subsampling_y, ref, xd,
             cm->allow_warped_motion);
       } else {
         conv_params.do_average = ref;
         av1_make_inter_predictor(
-            pre, pre_buf->stride, dst, dst_buf->stride, &subpel_params, sf, bw,
-            bh, &conv_params, mi->interp_filters, &warp_types,
+            pre, src_stride, dst, dst_buf->stride, &subpel_params, sf, bw, bh,
+            &conv_params, mi->interp_filters, &warp_types,
             mi_x >> pd->subsampling_x, mi_y >> pd->subsampling_y, plane, ref,
             mi, build_for_obmc, xd, cm->allow_warped_motion);
       }

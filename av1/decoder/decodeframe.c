@@ -663,11 +663,36 @@ static INLINE void dec_calc_subpel_params(
   }
 }
 
-static INLINE void dec_build_inter_predictors(const AV1_COMMON *cm,
-                                              MACROBLOCKD *xd, int plane,
-                                              const MB_MODE_INFO *mi,
-                                              int build_for_obmc, int bw,
-                                              int bh, int mi_x, int mi_y) {
+static void dec_calc_subpel_params_and_extend(
+    MACROBLOCKD *xd, const struct scale_factors *const sf, const MV mv,
+    int plane, const MB_MODE_INFO *mi, int pre_x, int pre_y, int x, int y,
+    struct buf_2d *const pre_buf, int bw, int bh, int mi_x, int mi_y, int ref,
+    int is_intrabc, int build_for_obmc,
+    const WarpTypesAllowed *const warp_types, uint8_t **pre,
+    SubpelParams *subpel_params, int *src_stride) {
+  PadBlock block;
+  MV32 scaled_mv;
+  int subpel_x_mv, subpel_y_mv;
+  dec_calc_subpel_params(xd, sf, mv, plane, pre_x, pre_y, x, y, pre_buf,
+                         subpel_params, bw, bh, &block, mi_x, mi_y, &scaled_mv,
+                         &subpel_x_mv, &subpel_y_mv);
+  *pre = pre_buf->buf0 + block.y0 * pre_buf->stride + block.x0;
+  *src_stride = pre_buf->stride;
+  const int highbd = is_cur_buf_hbd(xd);
+  const int do_warp =
+      bw >= 8 && bh >= 8 &&
+      av1_allow_warp(mi, warp_types, &xd->global_motion[mi->ref_frame[ref]],
+                     build_for_obmc, sf, NULL) &&
+      (xd->cur_frame_force_integer_mv == 0);
+  extend_mc_border(sf, pre_buf, scaled_mv, block, subpel_x_mv, subpel_y_mv,
+                   do_warp, is_intrabc, highbd, xd->mc_buf[ref], pre,
+                   src_stride);
+}
+
+static void dec_build_inter_predictors(const AV1_COMMON *cm, MACROBLOCKD *xd,
+                                       int plane, const MB_MODE_INFO *mi,
+                                       int build_for_obmc, int bw, int bh,
+                                       int mi_x, int mi_y) {
   struct macroblockd_plane *const pd = &xd->plane[plane];
   int is_compound = has_second_ref(mi);
   int ref;
@@ -736,7 +761,6 @@ static INLINE void dec_build_inter_predictors(const AV1_COMMON *cm,
     const struct buf_2d orig_pred_buf[2] = { pd->pre[0], pd->pre[1] };
 
     int row = row_start;
-    int src_stride;
     for (int y = 0; y < b8_h; y += b4_h) {
       int col = col_start;
       for (int x = 0; x < b8_w; x += b4_w) {
@@ -772,25 +796,18 @@ static INLINE void dec_build_inter_predictors(const AV1_COMMON *cm,
 
         const MV mv = this_mbmi->mv[ref].as_mv;
 
-        uint8_t *pre;
-        SubpelParams subpel_params;
-        PadBlock block;
-        MV32 scaled_mv;
-        int subpel_x_mv, subpel_y_mv;
-        int highbd;
-        WarpTypesAllowed warp_types;
-        warp_types.global_warp_allowed = is_global[ref];
-        warp_types.local_warp_allowed = this_mbmi->motion_mode == WARPED_CAUSAL;
+        const WarpTypesAllowed warp_types = {
+          is_global[ref], this_mbmi->motion_mode == WARPED_CAUSAL
+        };
 
-        dec_calc_subpel_params(xd, sf, mv, plane, pre_x, pre_y, x, y, pre_buf,
-                               &subpel_params, bw, bh, &block, mi_x, mi_y,
-                               &scaled_mv, &subpel_x_mv, &subpel_y_mv);
-        pre = pre_buf->buf0 + block.y0 * pre_buf->stride + block.x0;
-        src_stride = pre_buf->stride;
-        highbd = is_cur_buf_hbd(xd);
-        extend_mc_border(sf, pre_buf, scaled_mv, block, subpel_x_mv,
-                         subpel_y_mv, 0, is_intrabc, highbd, xd->mc_buf[ref],
-                         &pre, &src_stride);
+        SubpelParams subpel_params;
+        uint8_t *pre;
+        int src_stride;
+        dec_calc_subpel_params_and_extend(
+            xd, sf, mv, plane, mi, pre_x, pre_y, x, y, pre_buf, bw, bh, mi_x,
+            mi_y, ref, is_intrabc, build_for_obmc, &warp_types, &pre,
+            &subpel_params, &src_stride);
+
         conv_params.do_average = ref;
         if (is_masked_compound_type(mi->interinter_comp.type)) {
           // masked compound type has its own average mechanism
@@ -813,72 +830,46 @@ static INLINE void dec_build_inter_predictors(const AV1_COMMON *cm,
   }
 
   {
-    struct buf_2d *const dst_buf = &pd->dst;
-    uint8_t *const dst = dst_buf->buf;
-    uint8_t *pre[2];
-    SubpelParams subpel_params[2];
-    int src_stride[2];
-    for (ref = 0; ref < 1 + is_compound; ++ref) {
-      const struct scale_factors *const sf =
-          is_intrabc ? &cm->sf_identity : xd->block_ref_scale_factors[ref];
-      struct buf_2d *const pre_buf = is_intrabc ? dst_buf : &pd->pre[ref];
-      const MV mv = mi->mv[ref].as_mv;
-      PadBlock block;
-      MV32 scaled_mv;
-      int subpel_x_mv, subpel_y_mv;
-      int highbd;
-
-      dec_calc_subpel_params(xd, sf, mv, plane, pre_x, pre_y, 0, 0, pre_buf,
-                             &subpel_params[ref], bw, bh, &block, mi_x, mi_y,
-                             &scaled_mv, &subpel_x_mv, &subpel_y_mv);
-      pre[ref] = pre_buf->buf0 + (int64_t)block.y0 * pre_buf->stride + block.x0;
-      src_stride[ref] = pre_buf->stride;
-      highbd = is_cur_buf_hbd(xd);
-
-      WarpTypesAllowed warp_types;
-      warp_types.global_warp_allowed = is_global[ref];
-      warp_types.local_warp_allowed = mi->motion_mode == WARPED_CAUSAL;
-      int do_warp = (bw >= 8 && bh >= 8 &&
-                     av1_allow_warp(mi, &warp_types,
-                                    &xd->global_motion[mi->ref_frame[ref]],
-                                    build_for_obmc, sf, NULL));
-      do_warp = (do_warp && xd->cur_frame_force_integer_mv == 0);
-
-      extend_mc_border(sf, pre_buf, scaled_mv, block, subpel_x_mv, subpel_y_mv,
-                       do_warp, is_intrabc, highbd, xd->mc_buf[ref], &pre[ref],
-                       &src_stride[ref]);
-    }
-
     ConvolveParams conv_params = get_conv_params_no_round(
         0, plane, xd->tmp_conv_dst, MAX_SB_SIZE, is_compound, xd->bd);
     av1_dist_wtd_comp_weight_assign(
         cm, mi, 0, &conv_params.fwd_offset, &conv_params.bck_offset,
         &conv_params.use_dist_wtd_comp_avg, is_compound);
 
+    struct buf_2d *const dst_buf = &pd->dst;
+    uint8_t *const dst = dst_buf->buf;
     for (ref = 0; ref < 1 + is_compound; ++ref) {
       const struct scale_factors *const sf =
           is_intrabc ? &cm->sf_identity : xd->block_ref_scale_factors[ref];
-      WarpTypesAllowed warp_types;
-      warp_types.global_warp_allowed = is_global[ref];
-      warp_types.local_warp_allowed = mi->motion_mode == WARPED_CAUSAL;
-      conv_params.do_average = ref;
-      if (is_masked_compound_type(mi->interinter_comp.type)) {
+      struct buf_2d *const pre_buf = is_intrabc ? dst_buf : &pd->pre[ref];
+      const MV mv = mi->mv[ref].as_mv;
+      const WarpTypesAllowed warp_types = { is_global[ref],
+                                            mi->motion_mode == WARPED_CAUSAL };
+
+      SubpelParams subpel_params;
+      uint8_t *pre;
+      int src_stride;
+      dec_calc_subpel_params_and_extend(xd, sf, mv, plane, mi, pre_x, pre_y, 0,
+                                        0, pre_buf, bw, bh, mi_x, mi_y, ref,
+                                        is_intrabc, build_for_obmc, &warp_types,
+                                        &pre, &subpel_params, &src_stride);
+
+      if (ref && is_masked_compound_type(mi->interinter_comp.type)) {
         // masked compound type has its own average mechanism
         conv_params.do_average = 0;
-      }
-
-      if (ref && is_masked_compound_type(mi->interinter_comp.type))
         av1_make_masked_inter_predictor(
-            pre[ref], src_stride[ref], dst, dst_buf->stride,
-            &subpel_params[ref], sf, bw, bh, &conv_params, mi->interp_filters,
-            plane, &warp_types, mi_x >> pd->subsampling_x,
-            mi_y >> pd->subsampling_y, ref, xd, cm->allow_warped_motion);
-      else
+            pre, src_stride, dst, dst_buf->stride, &subpel_params, sf, bw, bh,
+            &conv_params, mi->interp_filters, plane, &warp_types,
+            mi_x >> pd->subsampling_x, mi_y >> pd->subsampling_y, ref, xd,
+            cm->allow_warped_motion);
+      } else {
+        conv_params.do_average = ref;
         av1_make_inter_predictor(
-            pre[ref], src_stride[ref], dst, dst_buf->stride,
-            &subpel_params[ref], sf, bw, bh, &conv_params, mi->interp_filters,
-            &warp_types, mi_x >> pd->subsampling_x, mi_y >> pd->subsampling_y,
-            plane, ref, mi, build_for_obmc, xd, cm->allow_warped_motion);
+            pre, src_stride, dst, dst_buf->stride, &subpel_params, sf, bw, bh,
+            &conv_params, mi->interp_filters, &warp_types,
+            mi_x >> pd->subsampling_x, mi_y >> pd->subsampling_y, plane, ref,
+            mi, build_for_obmc, xd, cm->allow_warped_motion);
+      }
     }
   }
 }
