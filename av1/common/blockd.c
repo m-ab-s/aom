@@ -211,6 +211,38 @@ void av1_setup_block_planes(MACROBLOCKD *xd, int ss_x, int ss_y,
   }
 }
 
+void av1_get_unit_width_height_coeff(const MACROBLOCKD *const xd, int plane,
+                                     int mi_row, int mi_col,
+                                     BLOCK_SIZE plane_bsize, int row_plane,
+                                     int col_plane, int *unit_width,
+                                     int *unit_height) {
+  const int is_inter = is_inter_block(xd->mi[0]);
+  const int max_blocks_wide_plane =
+      is_inter ? block_size_wide[plane_bsize] >> tx_size_wide_log2[0]
+               : max_block_wide(xd, plane_bsize, plane);
+  const int max_blocks_high_plane =
+      is_inter ? block_size_high[plane_bsize] >> tx_size_high_log2[0]
+               : max_block_high(xd, plane_bsize, plane);
+
+  const struct macroblockd_plane *const pd = &xd->plane[plane];
+  const BLOCK_SIZE max_unit_bsize_plane = get_plane_block_size(
+      mi_row, mi_col, BLOCK_64X64, pd->subsampling_x, pd->subsampling_y);
+  int mu_blocks_wide_plane =
+      block_size_wide[max_unit_bsize_plane] >> tx_size_wide_log2[0];
+  int mu_blocks_high_plane =
+      block_size_high[max_unit_bsize_plane] >> tx_size_high_log2[0];
+  mu_blocks_wide_plane = AOMMIN(max_blocks_wide_plane, mu_blocks_wide_plane);
+  mu_blocks_high_plane = AOMMIN(max_blocks_high_plane, mu_blocks_high_plane);
+  assert(mu_blocks_wide_plane > 0);
+  assert(mu_blocks_high_plane > 0);
+
+  *unit_height =
+      AOMMIN(mu_blocks_high_plane + row_plane, max_blocks_high_plane);
+  *unit_width = AOMMIN(mu_blocks_wide_plane + col_plane, max_blocks_wide_plane);
+  assert(*unit_height > 0);
+  assert(*unit_width > 0);
+}
+
 #if CONFIG_INTRA_ENTROPY && !CONFIG_USE_SMALL_MODEL
 static const int16_t cos_angle[8] = {
   // 45 degrees

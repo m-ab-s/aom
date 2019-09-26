@@ -1359,6 +1359,14 @@ static INLINE CFL_ALLOWED_TYPE is_cfl_allowed(const MACROBLOCKD *xd) {
                             block_size_high[bsize] <= 32);
 }
 
+// Calculate unit width and height for processing coefficients this plane, to
+// ensure processing correct number of block rows and cols.
+void av1_get_unit_width_height_coeff(const MACROBLOCKD *const xd, int plane,
+                                     int mi_row, int mi_col,
+                                     BLOCK_SIZE plane_bsize, int row_plane,
+                                     int col_plane, int *unit_width,
+                                     int *unit_height);
+
 #if CONFIG_INTRA_ENTROPY
 // Calculate histogram of gradient orientations of the reconstructed pixel
 // values in current coding block.
