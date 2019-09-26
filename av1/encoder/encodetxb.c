@@ -683,13 +683,37 @@ void av1_write_coeffs_mb(const AV1_COMMON *const cm, MACROBLOCK *x, int mi_row,
         const int stepc = tx_size_wide_unit[tx_size];
         const int step = stepr * stepc;
 
-        const int unit_height = ROUND_POWER_OF_TWO(
-            AOMMIN(mu_blocks_high + row, max_blocks_high), pd->subsampling_y);
-        const int unit_width = ROUND_POWER_OF_TWO(
-            AOMMIN(mu_blocks_wide + col, max_blocks_wide), pd->subsampling_x);
-        for (int blk_row = row >> pd->subsampling_y; blk_row < unit_height;
-             blk_row += stepr) {
-          for (int blk_col = col >> pd->subsampling_x; blk_col < unit_width;
+        // Calculate different widths/heights for this plane, to ensure
+        // processing correct number of block rows and cols. This especially
+        // ensures correct processing for HORZ_3 and VERT_3 partition of 16x16
+        // blocks.
+        const BLOCK_SIZE plane_bsize = get_plane_block_size(
+            mi_row, mi_col, bsize, pd->subsampling_x, pd->subsampling_y);
+        const int max_blocks_wide_plane =
+            max_block_wide(xd, plane_bsize, plane);
+        const int max_blocks_high_plane =
+            max_block_high(xd, plane_bsize, plane);
+        const BLOCK_SIZE max_unit_bsize_plane = get_plane_block_size(
+            mi_row, mi_col, BLOCK_64X64, pd->subsampling_x, pd->subsampling_y);
+        int mu_blocks_wide_plane =
+            block_size_wide[max_unit_bsize_plane] >> tx_size_wide_log2[0];
+        int mu_blocks_high_plane =
+            block_size_high[max_unit_bsize_plane] >> tx_size_high_log2[0];
+        mu_blocks_wide_plane =
+            AOMMIN(max_blocks_wide_plane, mu_blocks_wide_plane);
+        mu_blocks_high_plane =
+            AOMMIN(max_blocks_high_plane, mu_blocks_high_plane);
+        assert(mu_blocks_wide_plane > 0);
+        assert(mu_blocks_high_plane > 0);
+        const int row_plane = row >> pd->subsampling_y;
+        const int col_plane = col >> pd->subsampling_x;
+
+        const int unit_height =
+            AOMMIN(mu_blocks_high_plane + row_plane, max_blocks_high_plane);
+        const int unit_width =
+            AOMMIN(mu_blocks_wide_plane + col_plane, max_blocks_wide_plane);
+        for (int blk_row = row_plane; blk_row < unit_height; blk_row += stepr) {
+          for (int blk_col = col_plane; blk_col < unit_width;
                blk_col += stepc) {
             write_coeffs_txb_wrap(cm, x, w, plane, block[plane], blk_row,
                                   blk_col, tx_size);
