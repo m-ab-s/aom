@@ -261,36 +261,12 @@ static INLINE void setup_pred_plane(struct buf_2d *dst, BLOCK_SIZE bsize,
                                     int stride, int mi_row, int mi_col,
                                     const struct scale_factors *scale,
                                     int subsampling_x, int subsampling_y) {
-  // Offset the buffer pointer
-#if CONFIG_3WAY_PARTITIONS
-  if (subsampling_y && (mi_row & 0x01)) {
-    if (mi_size_wide[bsize] == 4 && mi_size_high[bsize] == 1) {
-      // Special case: 3rd horizontal sub-block of a 16x16 horz3 partition.
-      mi_row -= 3;
-    } else if (mi_size_high[bsize] == 1) {
-      mi_row -= 1;
-    } else if (mi_size_wide[bsize] == 4 && mi_size_high[bsize] == 2) {
-      // Special case: 2rd horizontal sub-block of a 16x16 horz3 partition.
-      mi_row -= 1;
-    }
-  }
-  if (subsampling_x && (mi_col & 0x01)) {
-    if (mi_size_wide[bsize] == 1 && mi_size_high[bsize] == 4) {
-      // Special case: 3rd vertical sub-block of a 16x16 vert3 partition.
-      mi_col -= 3;
-    } else if (mi_size_wide[bsize] == 1) {
-      mi_col -= 1;
-    } else if (mi_size_wide[bsize] == 2 && mi_size_high[bsize] == 4) {
-      // Special case: 2nd vertical sub-block of a 16x16 vert3 partition.
-      mi_col -= 1;
-    }
-  }
-#else
-  if (subsampling_y && (mi_row & 0x01) && (mi_size_high[bsize] == 1))
-    mi_row -= 1;
-  if (subsampling_x && (mi_col & 0x01) && (mi_size_wide[bsize] == 1))
-    mi_col -= 1;
-#endif  // CONFIG_3WAY_PARTITIONS
+  int mi_row_offset, mi_col_offset;
+  get_mi_row_col_offsets(mi_row, mi_col, subsampling_x, subsampling_y,
+                         mi_size_wide[bsize], mi_size_high[bsize],
+                         &mi_row_offset, &mi_col_offset);
+  mi_row -= mi_row_offset;
+  mi_col -= mi_col_offset;
 
   const int x = (MI_SIZE * mi_col) >> subsampling_x;
   const int y = (MI_SIZE * mi_row) >> subsampling_y;

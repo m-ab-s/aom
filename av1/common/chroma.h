@@ -93,6 +93,51 @@ static INLINE BLOCK_SIZE scale_chroma_bsize(BLOCK_SIZE bsize, int subsampling_x,
   return bs;
 }
 
+// As some chroma blocks may cover more than one luma block and only the last
+// chroma block in such a case is a chroma reference, mi_row and mi_col need to
+// be offset for such cases. This function returns the two corresponding
+// offsets.
+// Note: The offsets returned should be *deducted* from mi_row / mi_col by the
+// callers.
+static INLINE void get_mi_row_col_offsets(int mi_row, int mi_col, int ss_x,
+                                          int ss_y, int bw, int bh,
+                                          int *mi_row_offset,
+                                          int *mi_col_offset) {
+  *mi_row_offset = 0;
+  *mi_col_offset = 0;
+#if CONFIG_3WAY_PARTITIONS
+  if (ss_x && (mi_col & 0x01)) {
+    if (bw == 1 && bh == 4) {
+      // Special case: 3rd vertical sub-block of a 16x16 vert3 partition.
+      *mi_col_offset = 3;
+    } else if (bw == 1) {
+      *mi_col_offset = 1;
+    } else if (bw == 2 && bh == 4) {
+      // Special case: 2nd vertical sub-block of a 16x16 vert3 partition.
+      *mi_col_offset = 1;
+    }
+  }
+  if (ss_y && (mi_row & 0x01)) {
+    if (bw == 4 && bh == 1) {
+      // Special case: 3rd horizontal sub-block of a 16x16 horz3 partition.
+      *mi_row_offset = 3;
+    } else if (bh == 1) {
+      *mi_row_offset = 1;
+    } else if (bw == 4 && bh == 2) {
+      // Special case: 2rd horizontal sub-block of a 16x16 horz3 partition.
+      *mi_row_offset = 1;
+    }
+  }
+#else
+  if (ss_x && (mi_col & 0x01) && bw == 1) {
+    *mi_col_offset = 1;
+  }
+  if (ss_y && (mi_row & 0x01) && bh == 1) {
+    *mi_row_offset = 1;
+  }
+#endif  // CONFIG_3WAY_PARTITIONS
+}
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif

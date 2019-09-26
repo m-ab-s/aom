@@ -799,47 +799,18 @@ static INLINE void av1_init_macroblockd(AV1_COMMON *cm, MACROBLOCKD *xd,
 
 static INLINE void set_skip_context(MACROBLOCKD *xd, int mi_row, int mi_col,
                                     BLOCK_SIZE bsize, int num_planes) {
-  int i;
-  int row_offset = mi_row;
-  int col_offset = mi_col;
-  for (i = 0; i < num_planes; ++i) {
+  for (int i = 0; i < num_planes; ++i) {
     struct macroblockd_plane *const pd = &xd->plane[i];
-    // Offset the buffer pointer
-    // TODO(urvang): Refactor the spread-out logic for offsetting into a common
-    // function.
-#if CONFIG_3WAY_PARTITIONS
-    if (pd->subsampling_y && (mi_row & 0x01)) {
-      if (mi_size_wide[bsize] == 4 && mi_size_high[bsize] == 1) {
-        // Special case: 3rd horizontal sub-block of a 16x16 horz3 partition.
-        row_offset = mi_row - 3;
-      } else if (mi_size_high[bsize] == 1) {
-        row_offset = mi_row - 1;
-      } else if (mi_size_wide[bsize] == 4 && mi_size_high[bsize] == 2) {
-        // Special case: 2rd horizontal sub-block of a 16x16 horz3 partition.
-        row_offset = mi_row - 1;
-      }
-    }
-    if (pd->subsampling_x && (mi_col & 0x01)) {
-      if (mi_size_wide[bsize] == 1 && mi_size_high[bsize] == 4) {
-        // Special case: 3rd vertical sub-block of a 16x16 vert3 partition.
-        col_offset = mi_col - 3;
-      } else if (mi_size_wide[bsize] == 1) {
-        col_offset = mi_col - 1;
-      } else if (mi_size_wide[bsize] == 2 && mi_size_high[bsize] == 4) {
-        // Special case: 2nd vertical sub-block of a 16x16 vert3 partition.
-        col_offset = mi_col - 1;
-      }
-    }
-#else
-    if (pd->subsampling_y && (mi_row & 0x01) && (mi_size_high[bsize] == 1))
-      row_offset = mi_row - 1;
-    if (pd->subsampling_x && (mi_col & 0x01) && (mi_size_wide[bsize] == 1))
-      col_offset = mi_col - 1;
-#endif  // CONFIG_3WAY_PARTITIONS
+    int mi_row_offset, mi_col_offset;
+    get_mi_row_col_offsets(mi_row, mi_col, pd->subsampling_x, pd->subsampling_y,
+                           mi_size_wide[bsize], mi_size_high[bsize],
+                           &mi_row_offset, &mi_col_offset);
+    const int row_offset = mi_row - mi_row_offset;
+    const int col_offset = mi_col - mi_col_offset;
     assert(row_offset >= 0);
     assert(col_offset >= 0);
-    int above_idx = col_offset;
-    int left_idx = row_offset & MAX_MIB_MASK;
+    const int above_idx = col_offset;
+    const int left_idx = row_offset & MAX_MIB_MASK;
     assert(IMPLIES(pd->subsampling_x, above_idx % 2 == 0));
     assert(IMPLIES(pd->subsampling_y, left_idx % 2 == 0));
     pd->above_context = &xd->above_context[i][above_idx >> pd->subsampling_x];
@@ -892,43 +863,15 @@ static INLINE void set_mi_row_col(MACROBLOCKD *xd, const TileInfo *const tile,
 
   // Are edges available for intra prediction?
   xd->up_available = (mi_row > tile->mi_row_start);
+  xd->left_available = (mi_col > tile->mi_col_start);
 
   const int ss_x = xd->plane[1].subsampling_x;
   const int ss_y = xd->plane[1].subsampling_y;
-
-  xd->left_available = (mi_col > tile->mi_col_start);
-  xd->chroma_up_available = xd->up_available;
-  xd->chroma_left_available = xd->left_available;
-
-#if CONFIG_3WAY_PARTITIONS
-  if (ss_x && (mi_col & 0x01)) {
-    if (bw == 1 && bh == 4) {
-      // Special case: 3rd vertical sub-block of a 16x16 vert3 partition.
-      xd->chroma_left_available = (mi_col - 3) > tile->mi_col_start;
-    } else if (bw == 1) {
-      xd->chroma_left_available = (mi_col - 1) > tile->mi_col_start;
-    } else if (bw == 2 && bh == 4) {
-      // Special case: 2nd vertical sub-block of a 16x16 vert3 partition.
-      xd->chroma_left_available = (mi_col - 1) > tile->mi_col_start;
-    }
-  }
-  if (ss_y && (mi_row & 0x01)) {
-    if (bw == 4 && bh == 1) {
-      // Special case: 3rd horizontal sub-block of a 16x16 horz3 partition.
-      xd->chroma_up_available = (mi_row - 3) > tile->mi_row_start;
-    } else if (bh == 1) {
-      xd->chroma_up_available = (mi_row - 1) > tile->mi_row_start;
-    } else if (bw == 4 && bh == 2) {
-      // Special case: 2rd horizontal sub-block of a 16x16 horz3 partition.
-      xd->chroma_up_available = (mi_row - 1) > tile->mi_row_start;
-    }
-  }
-#else
-  if (ss_x && bw < mi_size_wide[BLOCK_8X8])
-    xd->chroma_left_available = (mi_col - 1) > tile->mi_col_start;
-  if (ss_y && bh < mi_size_high[BLOCK_8X8])
-    xd->chroma_up_available = (mi_row - 1) > tile->mi_row_start;
-#endif  // CONFIG_3WAY_PARTITIONS
+  int mi_row_offset, mi_col_offset;
+  get_mi_row_col_offsets(mi_row, mi_col, ss_x, ss_y, bw, bh, &mi_row_offset,
+                         &mi_col_offset);
+  xd->chroma_left_available = (mi_col - mi_col_offset) > tile->mi_col_start;
+  xd->chroma_up_available = (mi_row - mi_row_offset) > tile->mi_row_start;
 
   if (xd->up_available) {
     xd->above_mbmi = xd->mi[-xd->mi_stride];
@@ -956,17 +899,8 @@ static INLINE void set_mi_row_col(MACROBLOCKD *xd, const TileInfo *const tile,
     // current block may cover multiple luma blocks (eg, if partitioned into
     // 4x4 luma blocks).
     // First, find the top-left-most luma block covered by this chroma block
-#if CONFIG_3WAY_PARTITIONS
-    const int row_offset = (bw == 4 && bh == 1) ? 3 : 1;
-    const int col_offset = (bw == 1 && bh == 4) ? 3 : 1;
-#else
-    const int row_offset = 1;
-    const int col_offset = 1;
-#endif  // CONFIG_3WAY_PARTITIONS
-    const int row_offset_chroma = row_offset * (mi_row & ss_y);
-    const int col_offset_chroma = col_offset * (mi_col & ss_x);
     MB_MODE_INFO **base_mi =
-        &xd->mi[-row_offset_chroma * xd->mi_stride - col_offset_chroma];
+        &xd->mi[-mi_row_offset * xd->mi_stride - mi_col_offset];
 
     // Then, we consider the luma region covered by the left or above 4x4 chroma
     // prediction. We want to point to the chroma reference block in that
