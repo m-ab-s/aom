@@ -1152,9 +1152,25 @@ static INLINE int get_vartx_max_txsize(const MACROBLOCKD *xd, BLOCK_SIZE bsize,
   return av1_get_adjusted_tx_size(max_txsize);  // chroma
 }
 
-static INLINE int is_motion_variation_allowed_bsize(BLOCK_SIZE bsize) {
+static INLINE int is_motion_variation_allowed_bsize(BLOCK_SIZE bsize,
+                                                    int mi_row, int mi_col) {
   assert(bsize < BLOCK_SIZES_ALL);
-  return AOMMIN(block_size_wide[bsize], block_size_high[bsize]) >= 8;
+  if (AOMMIN(block_size_wide[bsize], block_size_high[bsize]) < 8) {
+    return 0;
+  }
+#if CONFIG_3WAY_PARTITIONS
+  // TODO(urvang): Enable this special case, if we make OBMC work.
+  if ((mi_row & 0x01) || (mi_col & 0x01)) {
+    assert((block_size_wide[bsize] == 8 && block_size_high[bsize] == 16) ||
+           (block_size_wide[bsize] == 16 && block_size_high[bsize] == 8));
+    return 0;
+  }
+#else
+  assert(!(mi_row & 0x01) && !(mi_col & 0x01));
+  (void)mi_row;
+  (void)mi_col;
+#endif  // CONFIG_3WAY_PARTITIONS
+  return 1;
 }
 
 static INLINE int is_motion_variation_allowed_compound(
@@ -1180,7 +1196,9 @@ motion_mode_allowed(const WarpedMotionParams *gm_params, const MACROBLOCKD *xd,
     const TransformationType gm_type = gm_params[mbmi->ref_frame[0]].wmtype;
     if (is_global_mv_block(mbmi, gm_type)) return SIMPLE_TRANSLATION;
   }
-  if (is_motion_variation_allowed_bsize(mbmi->sb_type) &&
+  const int mi_row = -xd->mb_to_top_edge >> (3 + MI_SIZE_LOG2);
+  const int mi_col = -xd->mb_to_left_edge >> (3 + MI_SIZE_LOG2);
+  if (is_motion_variation_allowed_bsize(mbmi->sb_type, mi_row, mi_col) &&
       is_inter_mode(mbmi->mode) && mbmi->ref_frame[1] != INTRA_FRAME &&
       is_motion_variation_allowed_compound(mbmi)) {
     if (!check_num_overlappable_neighbors(mbmi)) return SIMPLE_TRANSLATION;

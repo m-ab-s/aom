@@ -913,7 +913,7 @@ void av1_count_overlappable_neighbors(const AV1_COMMON *cm, MACROBLOCKD *xd,
   mbmi->overlappable_neighbors[0] = 0;
   mbmi->overlappable_neighbors[1] = 0;
 
-  if (!is_motion_variation_allowed_bsize(mbmi->sb_type)) return;
+  if (!is_motion_variation_allowed_bsize(mbmi->sb_type, mi_row, mi_col)) return;
 
   foreach_overlappable_nb_above(cm, xd, mi_col, INT_MAX, increment_int_ptr,
                                 &mbmi->overlappable_neighbors[0]);
@@ -928,7 +928,7 @@ void av1_count_overlappable_neighbors(const AV1_COMMON *cm, MACROBLOCKD *xd,
 
 int av1_skip_u4x4_pred_in_obmc(int mi_row, int mi_col, BLOCK_SIZE bsize,
                                const struct macroblockd_plane *pd, int dir) {
-  assert(is_motion_variation_allowed_bsize(bsize));
+  assert(is_motion_variation_allowed_bsize(bsize, mi_row, mi_col));
 
   const BLOCK_SIZE bsize_plane = get_plane_block_size(
       mi_row, mi_col, bsize, pd->subsampling_x, pd->subsampling_y);
