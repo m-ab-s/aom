@@ -926,12 +926,12 @@ void av1_count_overlappable_neighbors(const AV1_COMMON *cm, MACROBLOCKD *xd,
 // left neighbor(s) (skip blending with the above side).
 #define DISABLE_CHROMA_U8X8_OBMC 0  // 0: one-sided obmc; 1: disable
 
-int av1_skip_u4x4_pred_in_obmc(BLOCK_SIZE bsize,
+int av1_skip_u4x4_pred_in_obmc(int mi_row, int mi_col, BLOCK_SIZE bsize,
                                const struct macroblockd_plane *pd, int dir) {
   assert(is_motion_variation_allowed_bsize(bsize));
 
-  const BLOCK_SIZE bsize_plane =
-      get_plane_block_size(bsize, pd->subsampling_x, pd->subsampling_y);
+  const BLOCK_SIZE bsize_plane = get_plane_block_size(
+      mi_row, mi_col, bsize, pd->subsampling_x, pd->subsampling_y);
   switch (bsize_plane) {
 #if DISABLE_CHROMA_U8X8_OBMC
     case BLOCK_4X4:
@@ -967,6 +967,8 @@ static INLINE void build_obmc_inter_pred_above(MACROBLOCKD *xd, int rel_mi_col,
   struct obmc_inter_pred_ctxt *ctxt = (struct obmc_inter_pred_ctxt *)fun_ctxt;
   const BLOCK_SIZE bsize = xd->mi[0]->sb_type;
   const int is_hbd = is_cur_buf_hbd(xd);
+  const int mi_row = -xd->mb_to_top_edge >> (3 + MI_SIZE_LOG2);
+  const int mi_col = -xd->mb_to_left_edge >> (3 + MI_SIZE_LOG2);
   const int overlap =
       AOMMIN(block_size_high[bsize], block_size_high[BLOCK_64X64]) >> 1;
 
@@ -976,7 +978,7 @@ static INLINE void build_obmc_inter_pred_above(MACROBLOCKD *xd, int rel_mi_col,
     const int bh = overlap >> pd->subsampling_y;
     const int plane_col = (rel_mi_col * MI_SIZE) >> pd->subsampling_x;
 
-    if (av1_skip_u4x4_pred_in_obmc(bsize, pd, 0)) continue;
+    if (av1_skip_u4x4_pred_in_obmc(mi_row, mi_col, bsize, pd, 0)) continue;
 
     const int dst_stride = pd->dst.stride;
     uint8_t *const dst = &pd->dst.buf[plane_col];
@@ -1004,6 +1006,8 @@ static INLINE void build_obmc_inter_pred_left(MACROBLOCKD *xd, int rel_mi_row,
   const int overlap =
       AOMMIN(block_size_wide[bsize], block_size_wide[BLOCK_64X64]) >> 1;
   const int is_hbd = is_cur_buf_hbd(xd);
+  const int mi_row = -xd->mb_to_top_edge >> (3 + MI_SIZE_LOG2);
+  const int mi_col = -xd->mb_to_left_edge >> (3 + MI_SIZE_LOG2);
 
   for (int plane = 0; plane < num_planes; ++plane) {
     const struct macroblockd_plane *pd = &xd->plane[plane];
@@ -1011,7 +1015,7 @@ static INLINE void build_obmc_inter_pred_left(MACROBLOCKD *xd, int rel_mi_row,
     const int bh = (left_mi_height * MI_SIZE) >> pd->subsampling_y;
     const int plane_row = (rel_mi_row * MI_SIZE) >> pd->subsampling_y;
 
-    if (av1_skip_u4x4_pred_in_obmc(bsize, pd, 1)) continue;
+    if (av1_skip_u4x4_pred_in_obmc(mi_row, mi_col, bsize, pd, 1)) continue;
 
     const int dst_stride = pd->dst.stride;
     uint8_t *const dst = &pd->dst.buf[plane_row * dst_stride];
@@ -1256,7 +1260,10 @@ void av1_build_intra_predictors_for_interintra(const AV1_COMMON *cm,
   struct macroblockd_plane *const pd = &xd->plane[plane];
   const int ssx = xd->plane[plane].subsampling_x;
   const int ssy = xd->plane[plane].subsampling_y;
-  BLOCK_SIZE plane_bsize = get_plane_block_size(bsize, ssx, ssy);
+  const int mi_row = -xd->mb_to_top_edge >> (3 + MI_SIZE_LOG2);
+  const int mi_col = -xd->mb_to_left_edge >> (3 + MI_SIZE_LOG2);
+  BLOCK_SIZE plane_bsize =
+      get_plane_block_size(mi_row, mi_col, bsize, ssx, ssy);
   PREDICTION_MODE mode = interintra_to_intra_mode[xd->mi[0]->interintra_mode];
   assert(xd->mi[0]->angle_delta[PLANE_TYPE_Y] == 0);
   assert(xd->mi[0]->angle_delta[PLANE_TYPE_UV] == 0);
@@ -1278,7 +1285,10 @@ void av1_combine_interintra(MACROBLOCKD *xd, BLOCK_SIZE bsize, int plane,
                             const uint8_t *intra_pred, int intra_stride) {
   const int ssx = xd->plane[plane].subsampling_x;
   const int ssy = xd->plane[plane].subsampling_y;
-  const BLOCK_SIZE plane_bsize = get_plane_block_size(bsize, ssx, ssy);
+  const int mi_row = -xd->mb_to_top_edge >> (3 + MI_SIZE_LOG2);
+  const int mi_col = -xd->mb_to_left_edge >> (3 + MI_SIZE_LOG2);
+  const BLOCK_SIZE plane_bsize =
+      get_plane_block_size(mi_row, mi_col, bsize, ssx, ssy);
   if (is_cur_buf_hbd(xd)) {
     combine_interintra_highbd(
         xd->mi[0]->interintra_mode, xd->mi[0]->use_wedge_interintra,

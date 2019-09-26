@@ -87,12 +87,14 @@ void av1_subtract_plane(MACROBLOCK *x, BLOCK_SIZE bsize, int plane) {
   struct macroblock_plane *const p = &x->plane[plane];
   const struct macroblockd_plane *const pd = &x->e_mbd.plane[plane];
   assert(bsize < BLOCK_SIZES_ALL);
-  const BLOCK_SIZE plane_bsize =
-      get_plane_block_size(bsize, pd->subsampling_x, pd->subsampling_y);
+  const MACROBLOCKD *xd = &x->e_mbd;
+  const int mi_row = -xd->mb_to_top_edge >> (3 + MI_SIZE_LOG2);
+  const int mi_col = -xd->mb_to_left_edge >> (3 + MI_SIZE_LOG2);
+  const BLOCK_SIZE plane_bsize = get_plane_block_size(
+      mi_row, mi_col, bsize, pd->subsampling_x, pd->subsampling_y);
   assert(plane_bsize < BLOCK_SIZES_ALL);
   const int bw = block_size_wide[plane_bsize];
   const int bh = block_size_high[plane_bsize];
-  const MACROBLOCKD *xd = &x->e_mbd;
 
   subtract_block(xd, bh, bw, p->src_diff, bw, p->src.buf, p->src.stride,
                  pd->dst.buf, pd->dst.stride);
@@ -318,8 +320,8 @@ static void encode_block_inter(int plane, int block, int blk_row, int blk_col,
   if (blk_row >= max_blocks_high || blk_col >= max_blocks_wide) return;
 
   const TX_SIZE plane_tx_size =
-      plane ? av1_get_max_uv_txsize(mbmi->sb_type, pd->subsampling_x,
-                                    pd->subsampling_y)
+      plane ? av1_get_max_uv_txsize(mi_row, mi_col, mbmi->sb_type,
+                                    pd->subsampling_x, pd->subsampling_y)
             : mbmi->inter_tx_size[av1_get_txb_size_index(plane_bsize, blk_row,
                                                          blk_col)];
   if (!plane) {
@@ -364,8 +366,11 @@ void av1_foreach_transformed_block_in_plane(
   // 4x4=0, 8x8=2, 16x16=4, 32x32=6, 64x64=8
   // transform size varies per plane, look it up in a common way.
   const TX_SIZE tx_size = av1_get_tx_size(plane, xd);
-  const BLOCK_SIZE plane_bsize =
-      get_plane_block_size(bsize, pd->subsampling_x, pd->subsampling_y);
+  const int mi_row = -xd->mb_to_top_edge >> (3 + MI_SIZE_LOG2);
+  const int mi_col = -xd->mb_to_left_edge >> (3 + MI_SIZE_LOG2);
+
+  const BLOCK_SIZE plane_bsize = get_plane_block_size(
+      mi_row, mi_col, bsize, pd->subsampling_x, pd->subsampling_y);
   const uint8_t txw_unit = tx_size_wide_unit[tx_size];
   const uint8_t txh_unit = tx_size_high_unit[tx_size];
   const int step = txw_unit * txh_unit;
@@ -379,8 +384,8 @@ void av1_foreach_transformed_block_in_plane(
 
   int blk_row, blk_col;
 
-  const BLOCK_SIZE max_unit_bsize =
-      get_plane_block_size(BLOCK_64X64, pd->subsampling_x, pd->subsampling_y);
+  const BLOCK_SIZE max_unit_bsize = get_plane_block_size(
+      mi_row, mi_col, BLOCK_64X64, pd->subsampling_x, pd->subsampling_y);
   int mu_blocks_wide = block_size_wide[max_unit_bsize] >> tx_size_wide_log2[0];
   int mu_blocks_high = block_size_high[max_unit_bsize] >> tx_size_high_log2[0];
   mu_blocks_wide = AOMMIN(max_blocks_wide, mu_blocks_wide);
@@ -497,8 +502,8 @@ void av1_encode_sb(const struct AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
 
     // TODO(jingning): Clean this up.
     const struct macroblockd_plane *const pd = &xd->plane[plane];
-    const BLOCK_SIZE plane_bsize =
-        get_plane_block_size(bsizec, pd->subsampling_x, pd->subsampling_y);
+    const BLOCK_SIZE plane_bsize = get_plane_block_size(
+        mi_row, mi_col, bsizec, pd->subsampling_x, pd->subsampling_y);
     assert(plane_bsize < BLOCK_SIZES_ALL);
     const int mi_width = block_size_wide[plane_bsize] >> tx_size_wide_log2[0];
     const int mi_height = block_size_high[plane_bsize] >> tx_size_high_log2[0];
@@ -510,15 +515,16 @@ void av1_encode_sb(const struct AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
     int idx, idy;
     int block = 0;
     int step = tx_size_wide_unit[max_tx_size] * tx_size_high_unit[max_tx_size];
-    av1_get_entropy_contexts(bsizec, pd, ctx.ta[plane], ctx.tl[plane]);
+    av1_get_entropy_contexts(mi_row, mi_col, bsizec, pd, ctx.ta[plane],
+                             ctx.tl[plane]);
 
     av1_subtract_plane(x, bsizec, plane);
 
     arg.ta = ctx.ta[plane];
     arg.tl = ctx.tl[plane];
 
-    const BLOCK_SIZE max_unit_bsize =
-        get_plane_block_size(BLOCK_64X64, pd->subsampling_x, pd->subsampling_y);
+    const BLOCK_SIZE max_unit_bsize = get_plane_block_size(
+        mi_row, mi_col, BLOCK_64X64, pd->subsampling_x, pd->subsampling_y);
     int mu_blocks_wide =
         block_size_wide[max_unit_bsize] >> tx_size_wide_log2[0];
     int mu_blocks_high =
@@ -658,7 +664,7 @@ void av1_encode_intra_block_plane(const struct AV1_COMP *cpi, MACROBLOCK *x,
 
   if (enable_optimize_b) {
     const struct macroblockd_plane *const pd = &xd->plane[plane];
-    av1_get_entropy_contexts(bsize, pd, ta, tl);
+    av1_get_entropy_contexts(mi_row, mi_col, bsize, pd, ta, tl);
   }
   av1_foreach_transformed_block_in_plane(
       xd, bsize, plane, encode_block_intra_and_set_context, &arg);

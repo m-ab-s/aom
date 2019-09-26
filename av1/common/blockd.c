@@ -172,8 +172,8 @@ void av1_reset_skip_context(MACROBLOCKD *xd, int mi_row, int mi_col,
   nplanes = 1 + (num_planes - 1) * chroma_ref;
   for (i = 0; i < nplanes; i++) {
     struct macroblockd_plane *const pd = &xd->plane[i];
-    const BLOCK_SIZE plane_bsize =
-        get_plane_block_size(bsize, pd->subsampling_x, pd->subsampling_y);
+    const BLOCK_SIZE plane_bsize = get_plane_block_size(
+        mi_row, mi_col, bsize, pd->subsampling_x, pd->subsampling_y);
     assert(plane_bsize < BLOCK_SIZES_ALL);
     const int txs_wide = block_size_wide[plane_bsize] >> tx_size_wide_log2[0];
     const int txs_high = block_size_high[plane_bsize] >> tx_size_high_log2[0];

@@ -1234,10 +1234,10 @@ void av1_store_bitmask_vartx(AV1_COMMON *cm, int mi_row, int mi_col,
   const TX_SIZE tx_size_y_vert = txsize_vert_map[tx_size];
   const TX_SIZE tx_size_y_horz = txsize_horz_map[tx_size];
   const TX_SIZE tx_size_uv_vert = txsize_vert_map[av1_get_max_uv_txsize(
-      mbmi->sb_type, cm->seq_params.subsampling_x,
+      mi_row, mi_col, mbmi->sb_type, cm->seq_params.subsampling_x,
       cm->seq_params.subsampling_y)];
   const TX_SIZE tx_size_uv_horz = txsize_horz_map[av1_get_max_uv_txsize(
-      mbmi->sb_type, cm->seq_params.subsampling_x,
+      mi_row, mi_col, mbmi->sb_type, cm->seq_params.subsampling_x,
       cm->seq_params.subsampling_y)];
   const int is_square_transform_size = tx_size <= TX_64X64;
   int mask_id = 0;
@@ -1306,10 +1306,10 @@ void av1_store_bitmask_univariant_tx(AV1_COMMON *cm, int mi_row, int mi_col,
   const TX_SIZE tx_size_y_vert = txsize_vert_map[mbmi->tx_size];
   const TX_SIZE tx_size_y_horz = txsize_horz_map[mbmi->tx_size];
   const TX_SIZE tx_size_uv_vert = txsize_vert_map[av1_get_max_uv_txsize(
-      mbmi->sb_type, cm->seq_params.subsampling_x,
+      mi_row, mi_col, mbmi->sb_type, cm->seq_params.subsampling_x,
       cm->seq_params.subsampling_y)];
   const TX_SIZE tx_size_uv_horz = txsize_horz_map[av1_get_max_uv_txsize(
-      mbmi->sb_type, cm->seq_params.subsampling_x,
+      mi_row, mi_col, mbmi->sb_type, cm->seq_params.subsampling_x,
       cm->seq_params.subsampling_y)];
   const int is_square_transform_size = mbmi->tx_size <= TX_64X64;
   int mask_id = 0;

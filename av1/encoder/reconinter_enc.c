@@ -320,6 +320,8 @@ static INLINE void build_prediction_by_above_pred(
   mi_y = ctxt->mi_row << MI_SIZE_LOG2;
 
   const BLOCK_SIZE bsize = xd->mi[0]->sb_type;
+  const int mi_row = -xd->mb_to_top_edge >> (3 + MI_SIZE_LOG2);
+  const int mi_col = -xd->mb_to_left_edge >> (3 + MI_SIZE_LOG2);
 
   for (int j = 0; j < num_planes; ++j) {
     const struct macroblockd_plane *pd = &xd->plane[j];
@@ -327,7 +329,7 @@ static INLINE void build_prediction_by_above_pred(
     int bh = clamp(block_size_high[bsize] >> (pd->subsampling_y + 1), 4,
                    block_size_high[BLOCK_64X64] >> (pd->subsampling_y + 1));
 
-    if (av1_skip_u4x4_pred_in_obmc(bsize, pd, 0)) continue;
+    if (av1_skip_u4x4_pred_in_obmc(mi_row, mi_col, bsize, pd, 0)) continue;
     build_inter_predictors(ctxt->cm, xd, j, &backup_mbmi, 1, bw, bh, mi_x,
                            mi_y);
   }
@@ -375,6 +377,8 @@ static INLINE void build_prediction_by_left_pred(
   mi_x = ctxt->mi_col << MI_SIZE_LOG2;
   mi_y = left_mi_row << MI_SIZE_LOG2;
   const BLOCK_SIZE bsize = xd->mi[0]->sb_type;
+  const int mi_row = -xd->mb_to_top_edge >> (3 + MI_SIZE_LOG2);
+  const int mi_col = -xd->mb_to_left_edge >> (3 + MI_SIZE_LOG2);
 
   for (int j = 0; j < num_planes; ++j) {
     const struct macroblockd_plane *pd = &xd->plane[j];
@@ -382,7 +386,7 @@ static INLINE void build_prediction_by_left_pred(
                    block_size_wide[BLOCK_64X64] >> (pd->subsampling_x + 1));
     int bh = (left_mi_height << MI_SIZE_LOG2) >> pd->subsampling_y;
 
-    if (av1_skip_u4x4_pred_in_obmc(bsize, pd, 1)) continue;
+    if (av1_skip_u4x4_pred_in_obmc(mi_row, mi_col, bsize, pd, 1)) continue;
     build_inter_predictors(ctxt->cm, xd, j, &backup_mbmi, 1, bw, bh, mi_x,
                            mi_y);
   }
@@ -502,7 +506,8 @@ void av1_build_inter_predictors_for_planes_single_buf(
   const int mi_y = mi_row * MI_SIZE;
   for (plane = plane_from; plane <= plane_to; ++plane) {
     const BLOCK_SIZE plane_bsize = get_plane_block_size(
-        bsize, xd->plane[plane].subsampling_x, xd->plane[plane].subsampling_y);
+        mi_row, mi_col, bsize, xd->plane[plane].subsampling_x,
+        xd->plane[plane].subsampling_y);
     assert(plane_bsize < BLOCK_SIZES_ALL);
     const int bw = block_size_wide[plane_bsize];
     const int bh = block_size_high[plane_bsize];
@@ -612,9 +617,12 @@ void av1_build_wedge_inter_predictor_from_buf(MACROBLOCKD *xd, BLOCK_SIZE bsize,
                                               int ext_dst_stride1[3]) {
   int plane;
   assert(bsize < BLOCK_SIZES_ALL);
+  const int mi_row = -xd->mb_to_top_edge >> (3 + MI_SIZE_LOG2);
+  const int mi_col = -xd->mb_to_left_edge >> (3 + MI_SIZE_LOG2);
   for (plane = plane_from; plane <= plane_to; ++plane) {
     const BLOCK_SIZE plane_bsize = get_plane_block_size(
-        bsize, xd->plane[plane].subsampling_x, xd->plane[plane].subsampling_y);
+        mi_row, mi_col, bsize, xd->plane[plane].subsampling_x,
+        xd->plane[plane].subsampling_y);
     assert(plane_bsize < BLOCK_SIZES_ALL);
     const int bw = block_size_wide[plane_bsize];
     const int bh = block_size_high[plane_bsize];

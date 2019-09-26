@@ -196,11 +196,11 @@ static TX_SIZE get_transform_size(const MACROBLOCKD *const xd,
   assert(mbmi != NULL);
   if (xd && xd->lossless[mbmi->segment_id]) return TX_4X4;
 
-  TX_SIZE tx_size =
-      (plane == AOM_PLANE_Y)
-          ? mbmi->tx_size
-          : av1_get_max_uv_txsize(mbmi->sb_type, plane_ptr->subsampling_x,
-                                  plane_ptr->subsampling_y);
+  TX_SIZE tx_size = (plane == AOM_PLANE_Y)
+                        ? mbmi->tx_size
+                        : av1_get_max_uv_txsize(mi_row, mi_col, mbmi->sb_type,
+                                                plane_ptr->subsampling_x,
+                                                plane_ptr->subsampling_y);
   assert(tx_size < TX_SIZES_ALL);
   if ((plane == AOM_PLANE_Y) && is_inter_block(mbmi) && !mbmi->skip) {
     const BLOCK_SIZE sb_type = mbmi->sb_type;
@@ -295,9 +295,9 @@ static TX_SIZE set_lpf_parameters(
               av1_get_filter_level(cm, &cm->lf_info, edge_dir, plane, mi_prev);
 
           const int pv_skip = mi_prev->skip && is_inter_block(mi_prev);
-          const BLOCK_SIZE bsize =
-              get_plane_block_size(mbmi->sb_type, plane_ptr->subsampling_x,
-                                   plane_ptr->subsampling_y);
+          const BLOCK_SIZE bsize = get_plane_block_size(
+              mi_row, mi_col, mbmi->sb_type, plane_ptr->subsampling_x,
+              plane_ptr->subsampling_y);
           assert(bsize < BLOCK_SIZES_ALL);
           const int prediction_masks = edge_dir == VERT_EDGE
                                            ? block_size_wide[bsize] - 1

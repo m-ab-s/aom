@@ -292,9 +292,11 @@ static void decode_reconstruct_tx(AV1_COMMON *cm, ThreadData *const td,
                                   TX_SIZE tx_size, int *eob_total) {
   MACROBLOCKD *const xd = &td->xd;
   const struct macroblockd_plane *const pd = &xd->plane[plane];
+  const int mi_row = -xd->mb_to_top_edge >> (3 + MI_SIZE_LOG2);
+  const int mi_col = -xd->mb_to_left_edge >> (3 + MI_SIZE_LOG2);
   const TX_SIZE plane_tx_size =
-      plane ? av1_get_max_uv_txsize(mbmi->sb_type, pd->subsampling_x,
-                                    pd->subsampling_y)
+      plane ? av1_get_max_uv_txsize(mi_row, mi_col, mbmi->sb_type,
+                                    pd->subsampling_x, pd->subsampling_y)
             : mbmi->inter_tx_size[av1_get_txb_size_index(plane_bsize, blk_row,
                                                          blk_col)];
   // Scale to match transform block unit.
@@ -909,6 +911,8 @@ static INLINE void dec_build_prediction_by_above_pred(
   const int above_mi_col = ctxt->mi_col + rel_mi_col;
   int mi_x, mi_y;
   MB_MODE_INFO backup_mbmi = *above_mbmi;
+  const int mi_row = -xd->mb_to_top_edge >> (3 + MI_SIZE_LOG2);
+  const int mi_col = -xd->mb_to_left_edge >> (3 + MI_SIZE_LOG2);
 
   av1_setup_build_prediction_by_above_pred(xd, rel_mi_col, above_mi_width,
                                            &backup_mbmi, ctxt, num_planes);
@@ -923,7 +927,7 @@ static INLINE void dec_build_prediction_by_above_pred(
     int bh = clamp(block_size_high[bsize] >> (pd->subsampling_y + 1), 4,
                    block_size_high[BLOCK_64X64] >> (pd->subsampling_y + 1));
 
-    if (av1_skip_u4x4_pred_in_obmc(bsize, pd, 0)) continue;
+    if (av1_skip_u4x4_pred_in_obmc(mi_row, mi_col, bsize, pd, 0)) continue;
     dec_build_inter_predictors(ctxt->cm, xd, j, &backup_mbmi, 1, bw, bh, mi_x,
                                mi_y);
   }
@@ -969,6 +973,8 @@ static INLINE void dec_build_prediction_by_left_pred(
   mi_x = ctxt->mi_col << MI_SIZE_LOG2;
   mi_y = left_mi_row << MI_SIZE_LOG2;
   const BLOCK_SIZE bsize = xd->mi[0]->sb_type;
+  const int mi_row = -xd->mb_to_top_edge >> (3 + MI_SIZE_LOG2);
+  const int mi_col = -xd->mb_to_left_edge >> (3 + MI_SIZE_LOG2);
 
   for (int j = 0; j < num_planes; ++j) {
     const struct macroblockd_plane *pd = &xd->plane[j];
@@ -976,7 +982,7 @@ static INLINE void dec_build_prediction_by_left_pred(
                    block_size_wide[BLOCK_64X64] >> (pd->subsampling_x + 1));
     int bh = (left_mi_height << MI_SIZE_LOG2) >> pd->subsampling_y;
 
-    if (av1_skip_u4x4_pred_in_obmc(bsize, pd, 1)) continue;
+    if (av1_skip_u4x4_pred_in_obmc(mi_row, mi_col, bsize, pd, 1)) continue;
     dec_build_inter_predictors(ctxt->cm, xd, j, &backup_mbmi, 1, bw, bh, mi_x,
                                mi_y);
   }
@@ -1125,7 +1131,8 @@ static void decode_token_recon_block(AV1Decoder *const pbi,
 
   if (!is_inter_block(mbmi)) {
     int row, col;
-    assert(bsize == get_plane_block_size(bsize, xd->plane[0].subsampling_x,
+    assert(bsize == get_plane_block_size(mi_row, mi_col, bsize,
+                                         xd->plane[0].subsampling_x,
                                          xd->plane[0].subsampling_y));
     const int max_blocks_wide = max_block_wide(xd, bsize, 0);
     const int max_blocks_high = max_block_high(xd, bsize, 0);
@@ -1180,7 +1187,8 @@ static void decode_token_recon_block(AV1Decoder *const pbi,
 
       const BLOCK_SIZE max_unit_bsize = BLOCK_64X64;
       assert(max_unit_bsize ==
-             get_plane_block_size(BLOCK_64X64, xd->plane[0].subsampling_x,
+             get_plane_block_size(mi_row, mi_col, BLOCK_64X64,
+                                  xd->plane[0].subsampling_x,
                                   xd->plane[0].subsampling_y));
       int mu_blocks_wide =
           block_size_wide[max_unit_bsize] >> tx_size_wide_log2[0];
@@ -1200,7 +1208,7 @@ static void decode_token_recon_block(AV1Decoder *const pbi,
             const BLOCK_SIZE bsizec = scale_chroma_bsize(
                 bsize, pd->subsampling_x, pd->subsampling_y, mi_row, mi_col);
             const BLOCK_SIZE plane_bsize = get_plane_block_size(
-                bsizec, pd->subsampling_x, pd->subsampling_y);
+                mi_row, mi_col, bsizec, pd->subsampling_x, pd->subsampling_y);
 
             const TX_SIZE max_tx_size =
                 get_vartx_max_txsize(xd, plane_bsize, plane);
@@ -1634,8 +1642,8 @@ static void decode_partition(AV1Decoder *const pbi, ThreadData *const td,
   // chroma planes, subsize must subsample to a valid block size.
   const struct macroblockd_plane *const pd_u = &xd->plane[1];
   assert(subsize < BLOCK_SIZES_ALL);
-  if (get_plane_block_size(subsize, pd_u->subsampling_x, pd_u->subsampling_y) ==
-      BLOCK_INVALID) {
+  if (get_plane_block_size(mi_row, mi_col, subsize, pd_u->subsampling_x,
+                           pd_u->subsampling_y) == BLOCK_INVALID) {
     aom_internal_error(xd->error_info, AOM_CODEC_CORRUPT_FRAME,
                        "Block size %dx%d invalid with this subsampling mode",
                        block_size_wide[subsize], block_size_high[subsize]);
