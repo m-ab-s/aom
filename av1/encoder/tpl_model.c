@@ -186,6 +186,8 @@ static void mode_estimation(AV1_COMP *cpi, MACROBLOCK *x, MACROBLOCKD *xd,
   xd->left_mbmi = NULL;
   xd->mi[0]->sb_type = bsize;
   xd->mi[0]->motion_mode = SIMPLE_TRANSLATION;
+  xd->up_available = mi_row > 0;
+  xd->left_available = mi_col > 0;
 
   const int qstep_cur_noise = 0;
 
