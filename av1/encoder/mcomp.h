@@ -113,7 +113,7 @@ typedef int(fractional_mv_step_fp)(
     const MV *ref_mv, MvSubpelPrecision precision, int error_per_bit,
     const aom_variance_fn_ptr_t *vfp,
     int forced_stop,  // 0 - full, 1 - qtr only, 2 - half only
-    int iters_per_step, int *cost_list, int *mvjcost, int *mvcost[2],
+    int iters_per_step, int *cost_list, int *mvjcost, int *(*mvcost)[2],
     int *distortion, unsigned int *sse1, const uint8_t *second_pred,
     const uint8_t *mask, int mask_stride, int invert_mask, int w, int h,
     int use_accurate_subpel_search, const int do_reset_fractional_mv);
@@ -158,7 +158,7 @@ int av1_find_best_obmc_sub_pixel_tree_up(
     MACROBLOCK *x, const AV1_COMMON *const cm, int mi_row, int mi_col,
     MV *bestmv, const MV *ref_mv, MvSubpelPrecision precision,
     int error_per_bit, const aom_variance_fn_ptr_t *vfp, int forced_stop,
-    int iters_per_step, int *mvjcost, int *mvcost[2], int *distortion,
+    int iters_per_step, int *mvjcost, int *(*mvcost)[2], int *distortion,
     unsigned int *sse1, int is_second, int use_accurate_subpel_search);
 
 unsigned int av1_compute_motion_cost(const struct AV1_COMP *cpi,

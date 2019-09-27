@@ -191,8 +191,8 @@ static int combined_motion_search(AV1_COMP *cpi, MACROBLOCK *x,
         x, cm, mi_row, mi_col, &ref_mv, mi->mv_precision, x->errorperbit,
         &cpi->fn_ptr[bsize], subpel_force_stop,
         cpi->sf.mv.subpel_iters_per_step, cond_cost_list(cpi, cost_list),
-        x->nmv_vec_cost, x->nmvcost[mi->mv_precision], &dis, &x->pred_sse[ref],
-        NULL, NULL, 0, 0, 0, 0, 0, 1);
+        x->nmv_vec_cost, x->nmvcost, &dis, &x->pred_sse[ref], NULL, NULL, 0, 0,
+        0, 0, 0, 1);
     *tmp_mv = x->best_mv;
 #if CONFIG_FLEX_MVRES
     const MvSubpelPrecision precision2 = get_mv_precision(tmp_mv->as_mv);
@@ -265,8 +265,8 @@ static int search_new_mv(AV1_COMP *cpi, MACROBLOCK *x,
         x, cm, mi_row, mi_col, &ref_mv, mi->mv_precision, x->errorperbit,
         &cpi->fn_ptr[bsize], cpi->sf.mv.subpel_force_stop,
         cpi->sf.mv.subpel_iters_per_step, cond_cost_list(cpi, cost_list),
-        x->nmv_vec_cost, x->nmvcost[mi->mv_precision], &dis,
-        &x->pred_sse[ref_frame], NULL, NULL, 0, 0, 0, 0, 0, 1);
+        x->nmv_vec_cost, x->nmvcost, &dis, &x->pred_sse[ref_frame], NULL, NULL,
+        0, 0, 0, 0, 0, 1);
     frame_mv[NEWMV][ref_frame].as_int = x->best_mv.as_int;
   } else if (!combined_motion_search(cpi, x, bsize, mi_row, mi_col,
                                      &frame_mv[NEWMV][ref_frame], rate_mv,

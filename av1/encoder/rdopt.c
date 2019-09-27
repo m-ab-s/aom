@@ -7141,9 +7141,9 @@ static void joint_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
       bestsme = cpi->find_fractional_mv_step(
           x, cm, mi_row, mi_col, &ref_mv[id].as_mv, mbmi->mv_precision,
           x->errorperbit, &cpi->fn_ptr[bsize], 0,
-          cpi->sf.mv.subpel_iters_per_step, NULL, x->nmv_vec_cost,
-          x->nmvcost[mbmi->mv_precision], &dis, &sse, second_pred, mask,
-          mask_stride, id, pw, ph, cpi->sf.use_accurate_subpel_search, 1);
+          cpi->sf.mv.subpel_iters_per_step, NULL, x->nmv_vec_cost, x->nmvcost,
+          &dis, &sse, second_pred, mask, mask_stride, id, pw, ph,
+          cpi->sf.use_accurate_subpel_search, 1);
     }
 
     // Restore the pointer to the first prediction buffer.
@@ -7533,9 +7533,8 @@ static void single_motion_search(const AV1_COMP *const cpi, MACROBLOCK *x,
               x, cm, mi_row, mi_col, &ref_mv, mbmi->mv_precision,
               x->errorperbit, &cpi->fn_ptr[bsize], cpi->sf.mv.subpel_force_stop,
               cpi->sf.mv.subpel_iters_per_step, cond_cost_list(cpi, cost_list),
-              x->nmv_vec_cost, x->nmvcost[mbmi->mv_precision], &dis,
-              &x->pred_sse[ref], NULL, NULL, 0, 0, pw, ph,
-              cpi->sf.use_accurate_subpel_search, 1);
+              x->nmv_vec_cost, x->nmvcost, &dis, &x->pred_sse[ref], NULL, NULL,
+              0, 0, pw, ph, cpi->sf.use_accurate_subpel_search, 1);
 
           if (try_second) {
             const int minc =
@@ -7559,9 +7558,9 @@ static void single_motion_search(const AV1_COMP *const cpi, MACROBLOCK *x,
                   x->errorperbit, &cpi->fn_ptr[bsize],
                   cpi->sf.mv.subpel_force_stop,
                   cpi->sf.mv.subpel_iters_per_step,
-                  cond_cost_list(cpi, cost_list), x->nmv_vec_cost,
-                  x->nmvcost[mbmi->mv_precision], &dis, &x->pred_sse[ref], NULL,
-                  NULL, 0, 0, pw, ph, cpi->sf.use_accurate_subpel_search, 0);
+                  cond_cost_list(cpi, cost_list), x->nmv_vec_cost, x->nmvcost,
+                  &dis, &x->pred_sse[ref], NULL, NULL, 0, 0, pw, ph,
+                  cpi->sf.use_accurate_subpel_search, 0);
               if (this_var < best_mv_var) best_mv = x->best_mv.as_mv;
               x->best_mv.as_mv = best_mv;
             }
@@ -7571,8 +7570,8 @@ static void single_motion_search(const AV1_COMP *const cpi, MACROBLOCK *x,
               x, cm, mi_row, mi_col, &ref_mv, mbmi->mv_precision,
               x->errorperbit, &cpi->fn_ptr[bsize], cpi->sf.mv.subpel_force_stop,
               cpi->sf.mv.subpel_iters_per_step, cond_cost_list(cpi, cost_list),
-              x->nmv_vec_cost, x->nmvcost[mbmi->mv_precision], &dis,
-              &x->pred_sse[ref], NULL, NULL, 0, 0, 0, 0, 0, 1);
+              x->nmv_vec_cost, x->nmvcost, &dis, &x->pred_sse[ref], NULL, NULL,
+              0, 0, 0, 0, 0, 1);
         }
         break;
       case OBMC_CAUSAL:
@@ -7580,8 +7579,8 @@ static void single_motion_search(const AV1_COMP *const cpi, MACROBLOCK *x,
             x, cm, mi_row, mi_col, &x->best_mv.as_mv, &ref_mv,
             mbmi->mv_precision, x->errorperbit, &cpi->fn_ptr[bsize],
             cpi->sf.mv.subpel_force_stop, cpi->sf.mv.subpel_iters_per_step,
-            x->nmv_vec_cost, x->nmvcost[mbmi->mv_precision], &dis,
-            &x->pred_sse[ref], 0, cpi->sf.use_accurate_subpel_search);
+            x->nmv_vec_cost, x->nmvcost, &dis, &x->pred_sse[ref], 0,
+            cpi->sf.use_accurate_subpel_search);
         break;
       default: assert(0 && "Invalid motion mode!\n");
     }
@@ -7750,9 +7749,9 @@ static void compound_single_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
     bestsme = cpi->find_fractional_mv_step(
         x, cm, mi_row, mi_col, &ref_mv.as_mv, mbmi->mv_precision,
         x->errorperbit, &cpi->fn_ptr[bsize], 0,
-        cpi->sf.mv.subpel_iters_per_step, NULL, x->nmv_vec_cost,
-        x->nmvcost[mbmi->mv_precision], &dis, &sse, second_pred, mask,
-        mask_stride, ref_idx, pw, ph, cpi->sf.use_accurate_subpel_search, 1);
+        cpi->sf.mv.subpel_iters_per_step, NULL, x->nmv_vec_cost, x->nmvcost,
+        &dis, &sse, second_pred, mask, mask_stride, ref_idx, pw, ph,
+        cpi->sf.use_accurate_subpel_search, 1);
   }
 
   // Restore the pointer to the first unscaled prediction buffer.
