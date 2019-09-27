@@ -222,6 +222,20 @@ void av1_make_masked_inter_predictor(
     int plane, const WarpTypesAllowed *warp_types, int p_col, int p_row,
     int ref, MACROBLOCKD *xd, int can_use_previous);
 
+typedef void (*CalcSubpelParamsFunc)(
+    MACROBLOCKD *xd, const struct scale_factors *const sf, const MV *const mv,
+    int plane, int pre_x, int pre_y, int x, int y, struct buf_2d *const pre_buf,
+    int bw, int bh, const WarpTypesAllowed *const warp_types, int ref,
+    const void *const args, uint8_t **pre, SubpelParams *subpel_params,
+    int *src_stride);
+
+void av1_build_inter_predictors(const AV1_COMMON *cm, MACROBLOCKD *xd,
+                                int plane, const MB_MODE_INFO *mi,
+                                int build_for_obmc, int bw, int bh, int mi_x,
+                                int mi_y,
+                                CalcSubpelParamsFunc calc_subpel_params_func,
+                                const void *const calc_subpel_params_func_args);
+
 // TODO(jkoleszar): yet another mv clamping function :-(
 static INLINE MV clamp_mv_to_umv_border_sb(const MACROBLOCKD *xd,
                                            const MV *src_mv, int bw, int bh,

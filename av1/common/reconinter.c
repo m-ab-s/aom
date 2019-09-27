@@ -172,6 +172,191 @@ void av1_make_inter_predictor(const uint8_t *src, int src_stride, uint8_t *dst,
   }
 }
 
+void av1_build_inter_predictors(
+    const AV1_COMMON *cm, MACROBLOCKD *xd, int plane, const MB_MODE_INFO *mi,
+    int build_for_obmc, int bw, int bh, int mi_x, int mi_y,
+    CalcSubpelParamsFunc calc_subpel_params_func,
+    const void *const calc_subpel_params_func_args) {
+  struct macroblockd_plane *const pd = &xd->plane[plane];
+  int is_compound = has_second_ref(mi);
+  int ref;
+  const int is_intrabc = is_intrabc_block(mi);
+  assert(IMPLIES(is_intrabc, !is_compound));
+  int is_global[2] = { 0, 0 };
+  for (ref = 0; ref < 1 + is_compound; ++ref) {
+    const WarpedMotionParams *const wm = &xd->global_motion[mi->ref_frame[ref]];
+    is_global[ref] = is_global_mv_block(mi, wm->wmtype);
+  }
+
+  const BLOCK_SIZE bsize = mi->sb_type;
+  const int ss_x = pd->subsampling_x;
+  const int ss_y = pd->subsampling_y;
+  int sub8x8_inter = (block_size_wide[bsize] < 8 && ss_x) ||
+                     (block_size_high[bsize] < 8 && ss_y);
+
+#if CONFIG_3WAY_PARTITIONS
+  if (sub8x8_inter && bw == 8 && bh == 8) {
+    // 3rd sub-block of a 16x16 VERT3 or HORZ3 partition.
+    sub8x8_inter = 0;
+  }
+#endif  // CONFIG_3WAY_PARTITIONS
+
+  if (is_intrabc) sub8x8_inter = 0;
+
+  // For sub8x8 chroma blocks, we may be covering more than one luma block's
+  // worth of pixels. Thus (mi_x, mi_y) may not be the correct coordinates for
+  // the top-left corner of the prediction source - the correct top-left
+  // corner is at (pre_x, pre_y).
+  int row_start = 0;
+  int col_start = 0;
+  if (!build_for_obmc) {
+    const int mi_row = -xd->mb_to_top_edge >> (3 + MI_SIZE_LOG2);
+    const int mi_col = -xd->mb_to_left_edge >> (3 + MI_SIZE_LOG2);
+    int mi_row_offset, mi_col_offset;
+    get_mi_row_col_offsets(mi_row, mi_col, ss_x, ss_y, mi_size_wide[bsize],
+                           mi_size_high[bsize], &mi_row_offset, &mi_col_offset);
+    row_start = -mi_row_offset;
+    col_start = -mi_col_offset;
+  }
+  const int pre_x = (mi_x + MI_SIZE * col_start) >> ss_x;
+  const int pre_y = (mi_y + MI_SIZE * row_start) >> ss_y;
+
+  sub8x8_inter = sub8x8_inter && !build_for_obmc;
+  if (sub8x8_inter) {
+    for (int row = row_start; row <= 0 && sub8x8_inter; ++row) {
+      for (int col = col_start; col <= 0; ++col) {
+        const MB_MODE_INFO *this_mbmi = xd->mi[row * xd->mi_stride + col];
+        if (!is_inter_block(this_mbmi)) sub8x8_inter = 0;
+        if (is_intrabc_block(this_mbmi)) sub8x8_inter = 0;
+      }
+    }
+  }
+
+  if (sub8x8_inter) {
+    // block size
+    const int b4_w = block_size_wide[bsize] >> ss_x;
+    const int b4_h = block_size_high[bsize] >> ss_y;
+    const BLOCK_SIZE plane_bsize = scale_chroma_bsize(
+        bsize, ss_x, ss_y, mi_y >> MI_SIZE_LOG2, mi_x >> MI_SIZE_LOG2);
+    const int b8_w = block_size_wide[plane_bsize] >> ss_x;
+    const int b8_h = block_size_high[plane_bsize] >> ss_y;
+    assert(!is_compound);
+
+    const struct buf_2d orig_pred_buf[2] = { pd->pre[0], pd->pre[1] };
+
+    int row = row_start;
+    for (int y = 0; y < b8_h; y += b4_h) {
+      int col = col_start;
+      for (int x = 0; x < b8_w; x += b4_w) {
+        MB_MODE_INFO *this_mbmi = xd->mi[row * xd->mi_stride + col];
+        is_compound = has_second_ref(this_mbmi);
+        int tmp_dst_stride = 8;
+        assert(bw < 8 || bh < 8);
+        ConvolveParams conv_params = get_conv_params_no_round(
+            0, plane, xd->tmp_conv_dst, tmp_dst_stride, is_compound, xd->bd);
+        conv_params.use_dist_wtd_comp_avg = 0;
+        struct buf_2d *const dst_buf = &pd->dst;
+        uint8_t *dst = dst_buf->buf + dst_buf->stride * y + x;
+
+        ref = 0;
+        const RefCntBuffer *ref_buf =
+            get_ref_frame_buf(cm, this_mbmi->ref_frame[ref]);
+        const struct scale_factors *ref_scale_factors =
+            get_ref_scale_factors_const(cm, this_mbmi->ref_frame[ref]);
+
+        pd->pre[ref].buf0 =
+            (plane == 1) ? ref_buf->buf.u_buffer : ref_buf->buf.v_buffer;
+        pd->pre[ref].buf =
+            pd->pre[ref].buf0 + scaled_buffer_offset(pre_x, pre_y,
+                                                     ref_buf->buf.uv_stride,
+                                                     ref_scale_factors);
+        pd->pre[ref].width = ref_buf->buf.uv_crop_width;
+        pd->pre[ref].height = ref_buf->buf.uv_crop_height;
+        pd->pre[ref].stride = ref_buf->buf.uv_stride;
+
+        const struct scale_factors *const sf =
+            is_intrabc ? &cm->sf_identity : ref_scale_factors;
+        struct buf_2d *const pre_buf = is_intrabc ? dst_buf : &pd->pre[ref];
+
+        const MV mv = this_mbmi->mv[ref].as_mv;
+
+        const WarpTypesAllowed warp_types = {
+          is_global[ref], this_mbmi->motion_mode == WARPED_CAUSAL
+        };
+
+        uint8_t *pre;
+        SubpelParams subpel_params;
+        int src_stride;
+        calc_subpel_params_func(xd, sf, &mv, plane, pre_x, pre_y, x, y, pre_buf,
+                                bw, bh, &warp_types, ref,
+                                calc_subpel_params_func_args, &pre,
+                                &subpel_params, &src_stride);
+
+        conv_params.do_average = ref;
+        if (is_masked_compound_type(mi->interinter_comp.type)) {
+          // masked compound type has its own average mechanism
+          conv_params.do_average = 0;
+        }
+
+        av1_make_inter_predictor(
+            pre, src_stride, dst, dst_buf->stride, &subpel_params, sf, b4_w,
+            b4_h, &conv_params, this_mbmi->interp_filters, &warp_types,
+            (mi_x >> pd->subsampling_x) + x, (mi_y >> pd->subsampling_y) + y,
+            plane, ref, mi, build_for_obmc, xd, cm->allow_warped_motion);
+
+        ++col;
+      }
+      ++row;
+    }
+
+    for (ref = 0; ref < 2; ++ref) pd->pre[ref] = orig_pred_buf[ref];
+    return;
+  }
+
+  {
+    ConvolveParams conv_params = get_conv_params_no_round(
+        0, plane, xd->tmp_conv_dst, MAX_SB_SIZE, is_compound, xd->bd);
+    av1_dist_wtd_comp_weight_assign(
+        cm, mi, 0, &conv_params.fwd_offset, &conv_params.bck_offset,
+        &conv_params.use_dist_wtd_comp_avg, is_compound);
+
+    struct buf_2d *const dst_buf = &pd->dst;
+    uint8_t *const dst = dst_buf->buf;
+    for (ref = 0; ref < 1 + is_compound; ++ref) {
+      const struct scale_factors *const sf =
+          is_intrabc ? &cm->sf_identity : xd->block_ref_scale_factors[ref];
+      struct buf_2d *const pre_buf = is_intrabc ? dst_buf : &pd->pre[ref];
+      const MV mv = mi->mv[ref].as_mv;
+      const WarpTypesAllowed warp_types = { is_global[ref],
+                                            mi->motion_mode == WARPED_CAUSAL };
+
+      uint8_t *pre;
+      SubpelParams subpel_params;
+      int src_stride;
+      calc_subpel_params_func(
+          xd, sf, &mv, plane, pre_x, pre_y, 0, 0, pre_buf, bw, bh, &warp_types,
+          ref, calc_subpel_params_func_args, &pre, &subpel_params, &src_stride);
+
+      if (ref && is_masked_compound_type(mi->interinter_comp.type)) {
+        // masked compound type has its own average mechanism
+        conv_params.do_average = 0;
+        av1_make_masked_inter_predictor(
+            pre, src_stride, dst, dst_buf->stride, &subpel_params, sf, bw, bh,
+            &conv_params, mi->interp_filters, plane, &warp_types,
+            mi_x >> pd->subsampling_x, mi_y >> pd->subsampling_y, ref, xd,
+            cm->allow_warped_motion);
+      } else {
+        conv_params.do_average = ref;
+        av1_make_inter_predictor(
+            pre, src_stride, dst, dst_buf->stride, &subpel_params, sf, bw, bh,
+            &conv_params, mi->interp_filters, &warp_types,
+            mi_x >> pd->subsampling_x, mi_y >> pd->subsampling_y, plane, ref,
+            mi, build_for_obmc, xd, cm->allow_warped_motion);
+      }
+    }
+  }
+}
+
 #if USE_PRECOMPUTED_WEDGE_MASK
 static const uint8_t wedge_master_oblique_odd[MASK_MASTER_SIZE] = {
   0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
