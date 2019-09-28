@@ -125,6 +125,18 @@ extern fractional_mv_step_fp av1_find_best_sub_pixel_tree_pruned_evenmore;
 extern fractional_mv_step_fp av1_return_max_sub_pixel_mv;
 extern fractional_mv_step_fp av1_return_min_sub_pixel_mv;
 
+#if CONFIG_FLEX_MVRES
+int av1_find_best_flex_sub_pixel_tree(
+    MACROBLOCK *x, const AV1_COMMON *const cm, int mi_row, int mi_col,
+    const MV *ref_mv, int error_per_bit, const aom_variance_fn_ptr_t *vfp,
+    int forced_stop,  // 0 - full, 1 - qtr only, 2 - half only
+    int iters_per_step, int *cost_list, int *mvjcost, int *(*mvcost)[2],
+    int (*flex_mv_costs)[MV_SUBPEL_PRECISIONS], int *distortion,
+    unsigned int *sse1, const uint8_t *second_pred, const uint8_t *mask,
+    int mask_stride, int invert_mask, int w, int h,
+    int use_accurate_subpel_search, const int do_reset_fractional_mv);
+#endif  // CONFIG_FLEX_MVRES
+
 typedef int (*av1_full_search_fn_t)(const MACROBLOCK *x, const MV *ref_mv,
                                     int sad_per_bit, int distance,
                                     const aom_variance_fn_ptr_t *fn_ptr,
