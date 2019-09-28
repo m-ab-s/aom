@@ -4231,8 +4231,8 @@ static void process_tpl_stats_frame(AV1_COMP *cpi) {
       for (int col = 0; col < mi_cols_sr; col += step) {
         TplDepStats *this_stats =
             &tpl_stats[av1_tpl_ptr_pos(cpi, row, col, tpl_stride)];
-        intra_cost_base += this_stats->intra_cost;
-        mc_dep_cost_base += this_stats->intra_cost + this_stats->mc_flow;
+        intra_cost_base += this_stats->recrf_dist;
+        mc_dep_cost_base += this_stats->recrf_dist + this_stats->mc_dep_delta;
         mc_count_base += this_stats->mc_count;
         mc_saved_base += this_stats->mc_saved;
       }
