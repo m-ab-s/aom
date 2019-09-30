@@ -2,7 +2,6 @@
 #include <stdbool.h>
 #include <assert.h>
 #include <smmintrin.h>
-#include <strings.h>
 
 #include "config/av1_rtcd.h"
 
