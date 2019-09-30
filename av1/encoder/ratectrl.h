@@ -159,6 +159,7 @@ typedef struct {
 
   // Total number of stats used only for kf_boost calculation.
   int num_stats_used_for_kf_boost;
+  int base_layer_qp;
 } RATE_CONTROL;
 
 struct AV1_COMP;
