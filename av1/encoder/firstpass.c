@@ -241,7 +241,8 @@ static void first_pass_motion_search(AV1_COMP *cpi, MACROBLOCK *x,
                                     &tmp_mv, step_param, x->sadperbit16, &num00,
                                     &v_fn_ptr, ref_mv);
   if (tmp_err < INT_MAX)
-    tmp_err = av1_get_mvpred_var(x, &tmp_mv, ref_mv, &v_fn_ptr, 1);
+    tmp_err =
+        av1_get_mvpred_var(&cpi->common, x, &tmp_mv, ref_mv, &v_fn_ptr, 1);
   if (tmp_err < INT_MAX - new_mv_mode_penalty) tmp_err += new_mv_mode_penalty;
 
   if (tmp_err < *best_motion_err) {
@@ -263,7 +264,8 @@ static void first_pass_motion_search(AV1_COMP *cpi, MACROBLOCK *x,
           x, &cpi->ss_cfg[SS_CFG_SRC], &ref_mv_full, &tmp_mv, step_param + n,
           x->sadperbit16, &num00, &v_fn_ptr, ref_mv);
       if (tmp_err < INT_MAX)
-        tmp_err = av1_get_mvpred_var(x, &tmp_mv, ref_mv, &v_fn_ptr, 1);
+        tmp_err =
+            av1_get_mvpred_var(&cpi->common, x, &tmp_mv, ref_mv, &v_fn_ptr, 1);
       if (tmp_err < INT_MAX - new_mv_mode_penalty)
         tmp_err += new_mv_mode_penalty;
 
@@ -357,6 +359,9 @@ void av1_first_pass(AV1_COMP *cpi, const int64_t ts_duration) {
   MV lastmv = kZeroMv;
   TWO_PASS *twopass = &cpi->twopass;
   int recon_y_stride, src_y_stride, recon_uv_stride, uv_mb_height;
+#if CONFIG_FLEX_MVRES
+  assert(cm->use_flex_mv_precision == 0);
+#endif  // CONFIG_FLEX_MVRES
 
   const YV12_BUFFER_CONFIG *const lst_yv12 =
       get_ref_frame_yv12_buf(cm, LAST_FRAME);

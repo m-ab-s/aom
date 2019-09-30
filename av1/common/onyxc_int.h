@@ -1540,6 +1540,14 @@ static INLINE int is_valid_seq_level_idx(AV1_LEVEL seq_level_idx) {
   return seq_level_idx < SEQ_LEVELS || seq_level_idx == SEQ_LEVEL_MAX;
 }
 
+#if CONFIG_FLEX_MVRES
+static INLINE int is_flex_mv_precision_active(const AV1_COMMON *const cm,
+                                              PREDICTION_MODE mode) {
+  return cm->mv_precision > MV_SUBPEL_NONE && cm->use_flex_mv_precision &&
+         have_newmv_in_inter_mode(mode);
+}
+#endif  // CONFIG_FLEX_MVRES
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif

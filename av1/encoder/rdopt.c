@@ -7104,11 +7104,11 @@ static void joint_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
                                        id, &ref_mv[id].as_mv, second_pred);
     if (bestsme < INT_MAX) {
       if (mask)
-        bestsme = av1_get_mvpred_mask_var(x, best_mv, &ref_mv[id].as_mv,
+        bestsme = av1_get_mvpred_mask_var(cm, x, best_mv, &ref_mv[id].as_mv,
                                           second_pred, mask, mask_stride, id,
                                           &cpi->fn_ptr[bsize], 1);
       else
-        bestsme = av1_get_mvpred_av_var(x, best_mv, &ref_mv[id].as_mv,
+        bestsme = av1_get_mvpred_av_var(cm, x, best_mv, &ref_mv[id].as_mv,
                                         second_pred, &cpi->fn_ptr[bsize], 1);
     }
 
@@ -7142,6 +7142,9 @@ static void joint_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
           x, cm, mi_row, mi_col, &ref_mv[id].as_mv, mbmi->mv_precision,
           x->errorperbit, &cpi->fn_ptr[bsize], 0,
           cpi->sf.mv.subpel_iters_per_step, NULL, x->nmv_vec_cost, x->nmvcost,
+#if CONFIG_FLEX_MVRES
+          x->flex_mv_precision_costs,
+#endif  // CONFIG_FLEX_MVRES
           &dis, &sse, second_pred, mask, mask_stride, id, pw, ph,
           cpi->sf.use_accurate_subpel_search, 1);
     }
@@ -7533,8 +7536,12 @@ static void single_motion_search(const AV1_COMP *const cpi, MACROBLOCK *x,
               x, cm, mi_row, mi_col, &ref_mv, mbmi->mv_precision,
               x->errorperbit, &cpi->fn_ptr[bsize], cpi->sf.mv.subpel_force_stop,
               cpi->sf.mv.subpel_iters_per_step, cond_cost_list(cpi, cost_list),
-              x->nmv_vec_cost, x->nmvcost, &dis, &x->pred_sse[ref], NULL, NULL,
-              0, 0, pw, ph, cpi->sf.use_accurate_subpel_search, 1);
+              x->nmv_vec_cost, x->nmvcost,
+#if CONFIG_FLEX_MVRES
+              x->flex_mv_precision_costs,
+#endif  // CONFIG_FLEX_MVRES
+              &dis, &x->pred_sse[ref], NULL, NULL, 0, 0, pw, ph,
+              cpi->sf.use_accurate_subpel_search, 1);
 
           if (try_second) {
             const int minc =
@@ -7559,6 +7566,9 @@ static void single_motion_search(const AV1_COMP *const cpi, MACROBLOCK *x,
                   cpi->sf.mv.subpel_force_stop,
                   cpi->sf.mv.subpel_iters_per_step,
                   cond_cost_list(cpi, cost_list), x->nmv_vec_cost, x->nmvcost,
+#if CONFIG_FLEX_MVRES
+                  x->flex_mv_precision_costs,
+#endif  // CONFIG_FLEX_MVRES
                   &dis, &x->pred_sse[ref], NULL, NULL, 0, 0, pw, ph,
                   cpi->sf.use_accurate_subpel_search, 0);
               if (this_var < best_mv_var) best_mv = x->best_mv.as_mv;
@@ -7570,8 +7580,11 @@ static void single_motion_search(const AV1_COMP *const cpi, MACROBLOCK *x,
               x, cm, mi_row, mi_col, &ref_mv, mbmi->mv_precision,
               x->errorperbit, &cpi->fn_ptr[bsize], cpi->sf.mv.subpel_force_stop,
               cpi->sf.mv.subpel_iters_per_step, cond_cost_list(cpi, cost_list),
-              x->nmv_vec_cost, x->nmvcost, &dis, &x->pred_sse[ref], NULL, NULL,
-              0, 0, 0, 0, 0, 1);
+              x->nmv_vec_cost, x->nmvcost,
+#if CONFIG_FLEX_MVRES
+              x->flex_mv_precision_costs,
+#endif  // CONFIG_FLEX_MVRES
+              &dis, &x->pred_sse[ref], NULL, NULL, 0, 0, 0, 0, 0, 1);
         }
         break;
       case OBMC_CAUSAL:
@@ -7579,8 +7592,11 @@ static void single_motion_search(const AV1_COMP *const cpi, MACROBLOCK *x,
             x, cm, mi_row, mi_col, &x->best_mv.as_mv, &ref_mv,
             mbmi->mv_precision, x->errorperbit, &cpi->fn_ptr[bsize],
             cpi->sf.mv.subpel_force_stop, cpi->sf.mv.subpel_iters_per_step,
-            x->nmv_vec_cost, x->nmvcost, &dis, &x->pred_sse[ref], 0,
-            cpi->sf.use_accurate_subpel_search);
+            x->nmv_vec_cost, x->nmvcost,
+#if CONFIG_FLEX_MVRES
+            x->flex_mv_precision_costs,
+#endif  // CONFIG_FLEX_MVRES
+            &dis, &x->pred_sse[ref], 0, cpi->sf.use_accurate_subpel_search);
         break;
       default: assert(0 && "Invalid motion mode!\n");
     }
@@ -7720,12 +7736,12 @@ static void compound_single_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
                                      ref_idx, &ref_mv.as_mv, second_pred);
   if (bestsme < INT_MAX) {
     if (mask)
-      bestsme =
-          av1_get_mvpred_mask_var(x, best_mv, &ref_mv.as_mv, second_pred, mask,
-                                  mask_stride, ref_idx, &cpi->fn_ptr[bsize], 1);
+      bestsme = av1_get_mvpred_mask_var(cm, x, best_mv, &ref_mv.as_mv,
+                                        second_pred, mask, mask_stride, ref_idx,
+                                        &cpi->fn_ptr[bsize], 1);
     else
-      bestsme = av1_get_mvpred_av_var(x, best_mv, &ref_mv.as_mv, second_pred,
-                                      &cpi->fn_ptr[bsize], 1);
+      bestsme = av1_get_mvpred_av_var(cm, x, best_mv, &ref_mv.as_mv,
+                                      second_pred, &cpi->fn_ptr[bsize], 1);
   }
 
   x->mv_limits = tmp_mv_limits;
@@ -7750,6 +7766,9 @@ static void compound_single_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
         x, cm, mi_row, mi_col, &ref_mv.as_mv, mbmi->mv_precision,
         x->errorperbit, &cpi->fn_ptr[bsize], 0,
         cpi->sf.mv.subpel_iters_per_step, NULL, x->nmv_vec_cost, x->nmvcost,
+#if CONFIG_FLEX_MVRES
+        x->flex_mv_precision_costs,
+#endif  // CONFIG_FLEX_MVRES
         &dis, &sse, second_pred, mask, mask_stride, ref_idx, pw, ph,
         cpi->sf.use_accurate_subpel_search, 1);
   }
