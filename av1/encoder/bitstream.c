@@ -449,14 +449,14 @@ static void pack_txb_tokens(aom_writer *w, AV1_COMMON *cm, MACROBLOCK *const x,
   const tran_low_t *tcoeff_txb =
       cb_coef_buff->tcoeff[plane] + x->mbmi_ext->cb_offset;
   const uint16_t *eob_txb = cb_coef_buff->eobs[plane] + txb_offset;
-  const uint8_t *txb_skip_ctx_txb =
-      cb_coef_buff->txb_skip_ctx[plane] + txb_offset;
-  const int *dc_sign_ctx_txb = cb_coef_buff->dc_sign_ctx[plane] + txb_offset;
 
   if (tx_size == plane_tx_size || plane) {
     const tran_low_t *tcoeff = BLOCK_OFFSET(tcoeff_txb, block);
     const uint16_t eob = eob_txb[block];
-    TXB_CTX txb_ctx = { txb_skip_ctx_txb[block], dc_sign_ctx_txb[block] };
+    const uint8_t *entropy_ctx = cb_coef_buff->entropy_ctx[plane] + txb_offset;
+    const TXB_CTX txb_ctx = { entropy_ctx[block] & TXB_SKIP_CTX_MASK,
+                              (entropy_ctx[block] >> DC_SIGN_CTX_SHIFT) &
+                                  DC_SIGN_CTX_MASK };
     av1_write_coeffs_txb(cm, xd, w, blk_row, blk_col, plane, tx_size, tcoeff,
                          eob, &txb_ctx);
 #if CONFIG_RD_DEBUG
@@ -487,7 +487,11 @@ static void pack_txb_tokens(aom_writer *w, AV1_COMMON *cm, MACROBLOCK *const x,
         if (offsetr >= max_blocks_high || offsetc >= max_blocks_wide) continue;
         const tran_low_t *tcoeff = BLOCK_OFFSET(tcoeff_txb, block);
         const uint16_t eob = eob_txb[block];
-        TXB_CTX txb_ctx = { txb_skip_ctx_txb[block], dc_sign_ctx_txb[block] };
+        const uint8_t *entropy_ctx =
+            cb_coef_buff->entropy_ctx[plane] + txb_offset;
+        const TXB_CTX txb_ctx = { entropy_ctx[block] & TXB_SKIP_CTX_MASK,
+                                  (entropy_ctx[block] >> DC_SIGN_CTX_SHIFT) &
+                                      DC_SIGN_CTX_MASK };
         av1_write_coeffs_txb(cm, xd, w, offsetr, offsetc, plane, sub_tx, tcoeff,
                              eob, &txb_ctx);
         block += sub_step;
