@@ -3407,23 +3407,23 @@ void av1_simple_motion_search(AV1_COMP *const cpi, MACROBLOCK *x, int mi_row,
       const int pw = block_size_wide[bsize];
       const int ph = block_size_high[bsize];
       cpi->find_fractional_mv_step(
-          x, cm, mi_row, mi_col, &ref_mv, mbmi->mv_precision, x->errorperbit,
+          x, cm, mi_row, mi_col, &ref_mv, cm->mv_precision, x->errorperbit,
           &cpi->fn_ptr[bsize], cpi->sf.mv.subpel_force_stop,
           cpi->sf.mv.subpel_iters_per_step, cond_cost_list(cpi, cost_list),
           x->nmv_vec_cost, x->nmvcost,
 #if CONFIG_FLEX_MVRES
-          x->flex_mv_precision_costs,
+          NULL,
 #endif  // CONFIG_FLEX_MVRES
           &not_used, &x->pred_sse[ref], NULL, NULL, 0, 0, pw, ph,
           cpi->sf.use_accurate_subpel_search, 1);
     } else {
       cpi->find_fractional_mv_step(
-          x, cm, mi_row, mi_col, &ref_mv, mbmi->mv_precision, x->errorperbit,
+          x, cm, mi_row, mi_col, &ref_mv, cm->mv_precision, x->errorperbit,
           &cpi->fn_ptr[bsize], cpi->sf.mv.subpel_force_stop,
           cpi->sf.mv.subpel_iters_per_step, cond_cost_list(cpi, cost_list),
           x->nmv_vec_cost, x->nmvcost,
 #if CONFIG_FLEX_MVRES
-          x->flex_mv_precision_costs,
+          NULL,
 #endif  // CONFIG_FLEX_MVRES
           &not_used, &x->pred_sse[ref], NULL, NULL, 0, 0, 0, 0, 0, 1);
     }
