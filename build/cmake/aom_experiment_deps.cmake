@@ -28,4 +28,9 @@ macro(fix_experiment_configs)
   if(CONFIG_LPF_MASK AND CONFIG_FLEX_PARTITION)
     change_config_and_warn(CONFIG_LPF_MASK 0 CONFIG_FLEX_PARTITION)
   endif()
+
+  if(CONFIG_NEW_TX_PARTITION_EXT)
+    change_config_and_warn(CONFIG_NEW_TX_PARTITION 1
+                           CONFIG_NEW_TX_PARTITION_EXT)
+  endif()
 endmacro()
