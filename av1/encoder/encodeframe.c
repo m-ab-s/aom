@@ -405,6 +405,16 @@ static void update_global_motion_used(PREDICTION_MODE mode, BLOCK_SIZE bsize,
   }
 }
 
+#if CONFIG_FLEX_MVRES
+static void update_reduced_mv_precision_used(const AV1_COMMON *const cm,
+                                             const MB_MODE_INFO *mbmi,
+                                             RD_COUNTS *rdc) {
+  if (!is_flex_mv_precision_active(cm, mbmi->mode)) return;
+  assert(av1_get_mbmi_mv_precision(cm, mbmi) == mbmi->mv_precision);
+  rdc->reduced_mv_precision_used[cm->mv_precision - mbmi->mv_precision]++;
+}
+#endif  // CONFIG_FLEX_MVRES
+
 static void reset_tx_size(MACROBLOCK *x, MB_MODE_INFO *mbmi,
                           const TX_MODE tx_mode) {
   MACROBLOCKD *const xd = &x->e_mbd;
@@ -528,6 +538,9 @@ static void update_state(const AV1_COMP *const cpi, ThreadData *td,
       // TODO(sarahparker): global motion stats need to be handled per-tile
       // to be compatible with tile-based threading.
       update_global_motion_used(mi_addr->mode, bsize, mi_addr, rdc);
+#if CONFIG_FLEX_MVRES
+      update_reduced_mv_precision_used(cm, mi_addr, rdc);
+#endif  // CONFIG_FLEX_MVRES
     }
 
     if (cm->interp_filter == SWITCHABLE &&
@@ -5222,6 +5235,9 @@ static void encode_frame_internal(AV1_COMP *cpi) {
 #endif
   av1_zero(rdc->global_motion_used);
   av1_zero(cpi->gmparams_cost);
+#if CONFIG_FLEX_MVRES
+  av1_zero(rdc->reduced_mv_precision_used);
+#endif  // CONFIG_FLEX_MVRES
   if (cpi->common.current_frame.frame_type == INTER_FRAME && cpi->source &&
       cpi->oxcf.enable_global_motion && !cpi->global_motion_search_done) {
     YV12_BUFFER_CONFIG *ref_buf[REF_FRAMES];

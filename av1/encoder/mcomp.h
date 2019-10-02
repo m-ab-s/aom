@@ -230,19 +230,6 @@ static INLINE void set_subpel_mv_search_range(const MvLimits *mv_limits,
   *row_max = AOMMIN(MV_UPP - 1, maxr);
 }
 
-#if CONFIG_FLEX_MVRES
-static INLINE MvSubpelPrecision get_mv_precision(const MV mv) {
-  if ((mv.row & 1) || (mv.col & 1)) return MV_SUBPEL_EIGHTH_PRECISION;
-  if ((mv.row & 3) || (mv.col & 3)) return MV_SUBPEL_QTR_PRECISION;
-  if ((mv.row & 7) || (mv.col & 7)) return MV_SUBPEL_HALF_PRECISION;
-  return MV_SUBPEL_NONE;
-}
-
-static INLINE MvSubpelPrecision get_mv_precision2(const MV mv, const MV mv2) {
-  return (MvSubpelPrecision)AOMMAX(get_mv_precision(mv), get_mv_precision(mv2));
-}
-#endif  // CONFIG_FLEX_MVRES
-
 #ifdef __cplusplus
 }  // extern "C"
 #endif

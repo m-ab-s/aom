@@ -4883,6 +4883,24 @@ static void fix_interp_filter(InterpFilter *const interp_filter,
   }
 }
 
+#if CONFIG_FLEX_MVRES
+static void fix_use_flex_mv_precision(AV1_COMP *const cpi) {
+  AV1_COMMON *const cm = &cpi->common;
+  if (!cm->use_flex_mv_precision) return;
+  RD_COUNTS *const rdc = &cpi->td.rd_counts;
+  int reduced_count = 0;
+  /*
+  printf("flex_mv_counts - %d %d %d %d\n",
+         rdc->reduced_mv_precision_used[0], rdc->reduced_mv_precision_used[1],
+         rdc->reduced_mv_precision_used[2], rdc->reduced_mv_precision_used[3]);
+         */
+  for (int i = 1; i < MV_SUBPEL_PRECISIONS; ++i)
+    reduced_count += rdc->reduced_mv_precision_used[i];
+  // Turn off use_flex_mv_flag if not used in the frame
+  if (reduced_count == 0) cm->use_flex_mv_precision = 0;
+}
+#endif  // CONFIG_FLEX_MVRES
+
 static void finalize_encoded_frame(AV1_COMP *const cpi) {
   AV1_COMMON *const cm = &cpi->common;
   CurrentFrame *const current_frame = &cm->current_frame;
@@ -4929,6 +4947,9 @@ static void finalize_encoded_frame(AV1_COMP *const cpi) {
   }
 
   fix_interp_filter(&cm->interp_filter, cpi->td.counts);
+#if CONFIG_FLEX_MVRES
+  fix_use_flex_mv_precision(cpi);
+#endif  // CONFIG_FLEX_MVRES
 }
 
 static int get_regulated_q_overshoot(AV1_COMP *const cpi, int q_low, int q_high,

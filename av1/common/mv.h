@@ -303,6 +303,19 @@ static INLINE void clamp_mv(MV *mv, int min_col, int max_col, int min_row,
   mv->row = clamp(mv->row, min_row, max_row);
 }
 
+#if CONFIG_FLEX_MVRES
+static INLINE MvSubpelPrecision get_mv_precision(const MV mv) {
+  if ((mv.row & 1) || (mv.col & 1)) return MV_SUBPEL_EIGHTH_PRECISION;
+  if ((mv.row & 3) || (mv.col & 3)) return MV_SUBPEL_QTR_PRECISION;
+  if ((mv.row & 7) || (mv.col & 7)) return MV_SUBPEL_HALF_PRECISION;
+  return MV_SUBPEL_NONE;
+}
+
+static INLINE MvSubpelPrecision get_mv_precision2(const MV mv, const MV mv2) {
+  return (MvSubpelPrecision)AOMMAX(get_mv_precision(mv), get_mv_precision(mv2));
+}
+#endif  // CONFIG_FLEX_MVRES
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif

@@ -8550,25 +8550,6 @@ static int check_mv_precision(const MB_MODE_INFO *const mbmi) {
   return 1;
 }
 #endif  // NDEBUG
-
-static MvSubpelPrecision get_mbmi_mv_precision(const AV1_COMMON *const cm,
-                                               MB_MODE_INFO *mbmi) {
-  if (have_newmv_in_inter_mode(mbmi->mode) && cm->use_flex_mv_precision) {
-    MvSubpelPrecision precision;
-    if (mbmi->mode == NEWMV) {
-      precision = get_mv_precision(mbmi->mv[0].as_mv);
-    } else if (mbmi->mode == NEW_NEWMV) {
-      precision = AOMMAX(get_mv_precision(mbmi->mv[0].as_mv),
-                         get_mv_precision(mbmi->mv[1].as_mv));
-    } else {
-      const int i = (mbmi->mode == NEAREST_NEWMV || mbmi->mode == NEAR_NEWMV);
-      precision = get_mv_precision(mbmi->mv[i].as_mv);
-    }
-    return (MvSubpelPrecision)AOMMIN(precision, cm->mv_precision);
-  } else {
-    return cm->mv_precision;
-  }
-}
 #endif  // CONFIG_FLEX_MVRES
 
 static int64_t handle_newmv(const AV1_COMP *const cpi, MACROBLOCK *const x,
@@ -10103,7 +10084,7 @@ static int64_t motion_mode_rd(
     }
 #if CONFIG_FLEX_MVRES
     if (is_flex_mv_precision_active(cm, mbmi->mode))
-      mbmi->mv_precision = get_mbmi_mv_precision(cm, mbmi);
+      mbmi->mv_precision = av1_get_mbmi_mv_precision(cm, mbmi);
     assert(check_mv_precision(mbmi));
 #endif  // CONFIG_FLEX_MVRES
 
@@ -11189,7 +11170,7 @@ static int64_t handle_inter_mode(
       }
 #if CONFIG_FLEX_MVRES
       if (is_flex_mv_precision_active(cm, mbmi->mode))
-        mbmi->mv_precision = get_mbmi_mv_precision(cm, mbmi);
+        mbmi->mv_precision = av1_get_mbmi_mv_precision(cm, mbmi);
       assert(check_mv_precision(mbmi));
 #endif  // CONFIG_FLEX_MVRES
       const int ref_mv_cost = cost_mv_ref(x, this_mode, mode_ctx);
@@ -11290,7 +11271,7 @@ static int64_t handle_inter_mode(
       }
 #if CONFIG_FLEX_MVRES
       if (is_flex_mv_precision_active(cm, mbmi->mode))
-        mbmi->mv_precision = get_mbmi_mv_precision(cm, mbmi);
+        mbmi->mv_precision = av1_get_mbmi_mv_precision(cm, mbmi);
       assert(check_mv_precision(mbmi));
 #endif  // CONFIG_FLEX_MVRES
 #if CONFIG_COLLECT_COMPONENT_TIMING

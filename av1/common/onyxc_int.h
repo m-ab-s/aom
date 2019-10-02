@@ -1550,6 +1550,24 @@ static INLINE int is_flex_mv_precision_active(const AV1_COMMON *const cm,
   return cm->mv_precision > MV_SUBPEL_NONE && cm->use_flex_mv_precision &&
          have_newmv_in_inter_mode(mode);
 }
+
+static INLINE MvSubpelPrecision av1_get_mbmi_mv_precision(
+    const AV1_COMMON *const cm, const MB_MODE_INFO *mbmi) {
+  if (is_flex_mv_precision_active(cm, mbmi->mode)) {
+    MvSubpelPrecision precision;
+    if (mbmi->mode == NEWMV) {
+      precision = get_mv_precision(mbmi->mv[0].as_mv);
+    } else if (mbmi->mode == NEW_NEWMV) {
+      precision = get_mv_precision2(mbmi->mv[0].as_mv, mbmi->mv[1].as_mv);
+    } else {
+      const int i = (mbmi->mode == NEAREST_NEWMV || mbmi->mode == NEAR_NEWMV);
+      precision = get_mv_precision(mbmi->mv[i].as_mv);
+    }
+    return (MvSubpelPrecision)AOMMIN(precision, cm->mv_precision);
+  } else {
+    return cm->mv_precision;
+  }
+}
 #endif  // CONFIG_FLEX_MVRES
 
 #ifdef __cplusplus
