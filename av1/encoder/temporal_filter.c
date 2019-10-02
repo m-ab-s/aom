@@ -936,7 +936,7 @@ static int temporal_filter_find_matching_mb_c(AV1_COMP *cpi,
       x->errorperbit, &cpi->fn_ptr[TF_BLOCK], 0, mv_sf->subpel_iters_per_step,
       cond_cost_list(cpi, cost_list), NULL, NULL,
 #if CONFIG_FLEX_MVRES
-      NULL,
+      0, NULL, MV_SUBPEL_NONE,
 #endif  // CONFIG_FLEX_MVRES
       &distortion, &sse, NULL, NULL, 0, 0, BW, BH, USE_8_TAPS, 1);
 
@@ -970,7 +970,7 @@ static int temporal_filter_find_matching_mb_c(AV1_COMP *cpi,
           mv_sf->subpel_iters_per_step, cond_cost_list(cpi, cost_list), NULL,
           NULL,
 #if CONFIG_FLEX_MVRES
-          NULL,
+          0, NULL, MV_SUBPEL_NONE,
 #endif  // CONFIG_FLEX_MVRES
           &distortion, &sse, NULL, NULL, 0, 0, SUB_BW, SUB_BH, USE_8_TAPS, 1);
 

@@ -352,6 +352,14 @@ static MvSubpelPrecision determine_frame_mv_precision(const AV1_COMP *cpi,
   return MV_SUBPEL_QTR_PRECISION;
 }
 
+#if CONFIG_FLEX_MVRES
+#define FLEX_MV_PRECISION_QTHRESH 256  // Reduce to turn off at low quality
+static int determine_flex_mv_precision(const AV1_COMP *cpi, int q) {
+  return (cpi->common.mv_precision > MV_SUBPEL_NONE && cpi->oxcf.pass != 1 &&
+          q <= FLEX_MV_PRECISION_QTHRESH);
+}
+#endif  // CONFIG_FLEX_MVRES
+
 // Compute the horizontal frequency components' energy in a frame
 // by calculuating the 16x4 Horizontal DCT. This is to be used to
 // decide the superresolution parameters.
@@ -4189,8 +4197,7 @@ static void set_size_dependent_vars(AV1_COMP *cpi, int *q, int *bottom_index,
             : determine_frame_mv_precision(cpi, *q, 0);
     set_mv_precision(cpi, precision, cm->cur_frame_force_integer_mv);
 #if CONFIG_FLEX_MVRES
-    cpi->common.use_flex_mv_precision =
-        cm->mv_precision > MV_SUBPEL_NONE && cpi->oxcf.pass != 1;
+    cpi->common.use_flex_mv_precision = determine_flex_mv_precision(cpi, *q);
 #endif  // CONFIG_FLEX_MVRES
   }
 
