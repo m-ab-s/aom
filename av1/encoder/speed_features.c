@@ -109,7 +109,11 @@ static void set_good_speed_feature_framesize_dependent(
     else
       sf->auto_max_partition_based_on_simple_motion = RELAXED_PRED;
   } else {
+#if CONFIG_3WAY_PARTITIONS
+    sf->use_square_partition_only_threshold = BLOCK_128X128;
+#else
     sf->use_square_partition_only_threshold = BLOCK_64X64;
+#endif  // CONFIG_3WAY_PARTITIONS
     sf->auto_max_partition_based_on_simple_motion = DIRECT_PRED;
   }
 
@@ -128,9 +132,17 @@ static void set_good_speed_feature_framesize_dependent(
     if (is_720p_or_larger) {
       sf->use_square_partition_only_threshold = BLOCK_128X128;
     } else if (is_480p_or_larger) {
+#if CONFIG_3WAY_PARTITIONS
+      sf->use_square_partition_only_threshold = BLOCK_128X128;
+#else
       sf->use_square_partition_only_threshold = BLOCK_64X64;
+#endif  // CONFIG_3WAY_PARTITIONS
     } else {
+#if CONFIG_3WAY_PARTITIONS
+      sf->use_square_partition_only_threshold = BLOCK_128X128;
+#else
       sf->use_square_partition_only_threshold = BLOCK_32X32;
+#endif  // CONFIG_3WAY_PARTITIONS
 
       sf->simple_motion_search_split = 1;
     }
@@ -147,11 +159,23 @@ static void set_good_speed_feature_framesize_dependent(
 
   if (speed >= 2) {
     if (is_720p_or_larger) {
+#if CONFIG_3WAY_PARTITIONS
+      sf->use_square_partition_only_threshold = BLOCK_128X128;
+#else
       sf->use_square_partition_only_threshold = BLOCK_64X64;
+#endif  // CONFIG_3WAY_PARTITIONS
     } else if (is_480p_or_larger) {
+#if CONFIG_3WAY_PARTITIONS
+      sf->use_square_partition_only_threshold = BLOCK_128X128;
+#else
       sf->use_square_partition_only_threshold = BLOCK_32X32;
+#endif  // CONFIG_3WAY_PARTITIONS
     } else {
+#if CONFIG_3WAY_PARTITIONS
+      sf->use_square_partition_only_threshold = BLOCK_128X128;
+#else
       sf->use_square_partition_only_threshold = BLOCK_32X32;
+#endif  // CONFIG_3WAY_PARTITIONS
     }
 
     if (is_720p_or_larger) {
@@ -285,7 +309,11 @@ static void set_good_speed_features_framesize_independent(
         (frame_is_intra_only(&cpi->common) || (cm->allow_screen_content_tools))
             ? 0
             : (boosted ? 1 : 2);
+#if CONFIG_3WAY_PARTITIONS
+    sf->intra_cnn_split = 0;
+#else
     sf->intra_cnn_split = (speed == 1);
+#endif  // CONFIG_3WAY_PARTITIONS
   }
 
   if (speed >= 2) {
