@@ -228,7 +228,11 @@ static void set_good_speed_features_framesize_independent(
   sf->reduce_inter_modes = 1;
   sf->prune_ext_partition_types_search_level = 1;
   sf->ml_prune_rect_partition = 1;
+#if CONFIG_RECURSIVE_ABPART
+  sf->ml_prune_ab_partition = 0;
+#else
   sf->ml_prune_ab_partition = 1;
+#endif  // CONFIG_RECURSIVE_ABPART
 #if CONFIG_3WAY_PARTITIONS
   // This speed feature will need to be re-designed for 3-way partitions.
   sf->ml_prune_4_partition = 0;

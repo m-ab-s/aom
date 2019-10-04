@@ -67,10 +67,21 @@ typedef struct PC_TREE {
   PICK_MODE_CONTEXT *none;
   PICK_MODE_CONTEXT *horizontal[2];
   PICK_MODE_CONTEXT *vertical[2];
+#if CONFIG_RECURSIVE_ABPART
+  struct PC_TREE *horza_split[2];
+  struct PC_TREE *horzb_split[2];
+  struct PC_TREE *verta_split[2];
+  struct PC_TREE *vertb_split[2];
+  PICK_MODE_CONTEXT *horza_rec;
+  PICK_MODE_CONTEXT *horzb_rec;
+  PICK_MODE_CONTEXT *verta_rec;
+  PICK_MODE_CONTEXT *vertb_rec;
+#else
   PICK_MODE_CONTEXT *horizontala[3];
   PICK_MODE_CONTEXT *horizontalb[3];
   PICK_MODE_CONTEXT *verticala[3];
   PICK_MODE_CONTEXT *verticalb[3];
+#endif  // CONFIG_RECURSIVE_ABPART
 #if CONFIG_3WAY_PARTITIONS
   PICK_MODE_CONTEXT *horizontal3[3];
   PICK_MODE_CONTEXT *vertical3[3];
