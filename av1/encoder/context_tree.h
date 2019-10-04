@@ -79,7 +79,7 @@ typedef struct PC_TREE {
   PICK_MODE_CONTEXT *vertical4[4];
 #endif  // CONFIG_3WAY_PARTITIONS
   struct PC_TREE *split[4];
-  int index;
+  int is_last_subblock;
 } PC_TREE;
 
 typedef struct SIMPLE_MOTION_DATA_TREE {
@@ -99,7 +99,7 @@ void av1_setup_shared_coeff_buffer(AV1_COMMON *cm,
                                    PC_TREE_SHARED_BUFFERS *shared_bufs);
 void av1_free_shared_coeff_buffer(PC_TREE_SHARED_BUFFERS *shared_bufs);
 
-PC_TREE *av1_alloc_pc_tree_node(BLOCK_SIZE bsize);
+PC_TREE *av1_alloc_pc_tree_node(BLOCK_SIZE bsize, int is_last);
 void av1_free_pc_tree_recursive(PC_TREE *tree, int num_planes, int keep_best,
                                 int keep_none);
 

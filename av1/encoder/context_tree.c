@@ -121,7 +121,7 @@ void av1_free_pmc(PICK_MODE_CONTEXT *ctx, int num_planes) {
   aom_free(ctx);
 }
 
-PC_TREE *av1_alloc_pc_tree_node(BLOCK_SIZE bsize) {
+PC_TREE *av1_alloc_pc_tree_node(BLOCK_SIZE bsize, int is_last) {
   PC_TREE *pc_tree = NULL;
   struct aom_internal_error_info error;
 
@@ -129,7 +129,7 @@ PC_TREE *av1_alloc_pc_tree_node(BLOCK_SIZE bsize) {
 
   pc_tree->partitioning = PARTITION_NONE;
   pc_tree->block_size = bsize;
-  pc_tree->index = 0;
+  pc_tree->is_last_subblock = is_last;
 
   pc_tree->none = NULL;
   for (int i = 0; i < 2; ++i) {
