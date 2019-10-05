@@ -15,7 +15,7 @@
 #include "aom_ports/mem.h"
 #include "av1/common/cnn.h"
 
-static const int intra_frame_model_qp53_trained_qp = 32;
+static const int intra_frame_model_qp53_trained_qp = 53;
 
 DECLARE_ALIGNED(32, static float, intra_frame_model_qp53_weight_0[]) = {
   -0.071640f, 0.059128f,  0.025697f,  -0.025629f, 0.080770f,  0.046492f,
