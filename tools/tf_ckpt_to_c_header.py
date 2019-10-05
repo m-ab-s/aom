@@ -103,7 +103,8 @@ LAYER_CONFIG_ORDER = StructNode((
     ("branch_copy_type", "BRANCH_NO_COPY"),
     ("branch_combine_type", "BRANCH_NOC"),
     ("branch_config", BRANCH_CONFIG_ORDER),
-    ("bn_params", BATCHNORM_PARAMS_ORDER)))
+    ("bn_params", BATCHNORM_PARAMS_ORDER),
+    ("output_num", -1)))
 CNN_CONFIG_ORDER = {}
 BIT_ALIGNMENT = 32
 WEIGHT_STRING = "w"
@@ -155,6 +156,11 @@ def _build_layer_config(shape, layer, num_layers):
   layer_config["filter_height"] = shape[1]
   layer_config["in_channels"] = shape[2]
   layer_config["out_channels"] = shape[3]
+
+  if layer == num_layers - 1:
+    # Other layers get default which is -1.
+    layer_config["output_num"] = 0
+
   if FLAGS.architecture == "WDSR" and 0 < layer and layer < num_layers - 1:
     branch_config = copy.deepcopy(BRANCH_CONFIG_ORDER)
     # If layer belongs to a residual block.
