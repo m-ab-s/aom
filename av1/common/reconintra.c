@@ -1224,6 +1224,12 @@ void av1_upsample_intra_edge_high_c(uint16_t *p, int sz, int bd) {
 }
 
 #if CONFIG_ADAPT_FILTER_INTRA
+#define MAX_H_THICK 4
+#define MIN_H_THICK 0
+#define MAX_V_THICK 4
+#define MIN_V_THICK 0
+#define CLIP_T(t, max, min) AOMMAX(AOMMIN((t), (max)), (min))
+
 #define ADAPT_FILTER_INTRA_GET_SRC_VAL_0 src[(i + 1) * stride + j - 1]
 #define ADAPT_FILTER_INTRA_GET_SRC_VAL_1 src[i * stride + j - 1]
 #define ADAPT_FILTER_INTRA_GET_SRC_VAL_2 src[(i - 1) * stride + j - 1]
@@ -1479,65 +1485,365 @@ static const adapt_filter_intra_pred_fn_hbd
 // adaptive filter intra mode)
 static const int
     adapt_filter_intra_thickness_hor[TX_SIZES_ALL][ADAPT_FILTER_INTRA_MODES] = {
-      { 2, 2, 5, 5, 6, 7, 6 },         // TX_4X4
-      { 9, 5, 6, 6, 2, 7, 8 },         // TX_8X8
-      { 12, 9, 9, 6, 10, 7, 6 },       // TX_16X16
-      { 16, 14, 13, 15, 19, 17, 16 },  // TX_32X32
-      { 33, 33, 33, 33, 33, 33, 33 },  // TX_64X64
-      { 3, 6, 6, 5, 1, 2, 6 },         // TX_4X8
-      { 3, 4, 9, 9, 2, 5, 7 },         // TX_8X4
-      { 9, 5, 6, 7, 4, 7, 7 },         // TX_8X16
-      { 6, 9, 5, 11, 10, 10, 9 },      // TX_16X8
-      { 12, 9, 6, 5, 11, 11, 7 },      // TX_16X32
-      { 19, 14, 19, 15, 14, 13, 13 },  // TX_32X16
-      { 17, 17, 17, 17, 17, 17, 17 },  // TX_32X64
-      { 33, 33, 33, 33, 33, 33, 33 },  // TX_64X32
-      { 2, 3, 6, 5, 4, 5, 7 },         // TX_4X16
-      { 11, 13, 6, 9, 11, 9, 6 },      // TX_16X4
-      { 9, 9, 5, 3, 8, 5, 4 },         // TX_8X32
-      { 16, 20, 13, 18, 16, 13, 20 },  // TX_32X8
-      { 9, 9, 9, 9, 9, 9, 9 },         // TX_16X64
-      { 33, 33, 33, 33, 33, 33, 33 },  // TX_64X16
+      { CLIP_T(2, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(2, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(5, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(5, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(6, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(7, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(6, MAX_H_THICK, MIN_H_THICK) },  // TX_4X4
+      { CLIP_T(9, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(5, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(6, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(6, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(2, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(7, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(8, MAX_H_THICK, MIN_H_THICK) },  // TX_8X8
+      { CLIP_T(12, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(9, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(9, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(6, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(10, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(7, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(6, MAX_H_THICK, MIN_H_THICK) },  // TX_16X16
+      { CLIP_T(16, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(14, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(13, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(15, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(19, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(17, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(16, MAX_H_THICK, MIN_H_THICK) },  // TX_32X32
+      { CLIP_T(33, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(33, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(33, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(33, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(33, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(33, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(33, MAX_H_THICK, MIN_H_THICK) },  // TX_64X64
+      { CLIP_T(3, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(6, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(6, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(5, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(1, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(2, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(6, MAX_H_THICK, MIN_H_THICK) },  // TX_4X8
+      { CLIP_T(3, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(4, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(9, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(9, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(2, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(5, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(7, MAX_H_THICK, MIN_H_THICK) },  // TX_8X4
+      { CLIP_T(9, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(5, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(6, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(7, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(4, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(7, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(7, MAX_H_THICK, MIN_H_THICK) },  // TX_8X16
+      { CLIP_T(6, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(9, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(5, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(11, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(10, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(10, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(9, MAX_H_THICK, MIN_H_THICK) },  // TX_16X8
+      { CLIP_T(12, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(9, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(6, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(5, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(11, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(11, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(7, MAX_H_THICK, MIN_H_THICK) },  // TX_16X32
+      { CLIP_T(19, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(14, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(19, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(15, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(14, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(13, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(13, MAX_H_THICK, MIN_H_THICK) },  // TX_32X16
+      { CLIP_T(17, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(17, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(17, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(17, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(17, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(17, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(17, MAX_H_THICK, MIN_H_THICK) },  // TX_32X64
+      { CLIP_T(33, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(33, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(33, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(33, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(33, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(33, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(33, MAX_H_THICK, MIN_H_THICK) },  // TX_64X32
+      { CLIP_T(2, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(3, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(6, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(5, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(4, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(5, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(7, MAX_H_THICK, MIN_H_THICK) },  // TX_4X16
+      { CLIP_T(11, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(13, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(6, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(9, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(11, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(9, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(6, MAX_H_THICK, MIN_H_THICK) },  // TX_16X4
+      { CLIP_T(9, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(9, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(5, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(3, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(8, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(5, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(4, MAX_H_THICK, MIN_H_THICK) },  // TX_8X32
+      { CLIP_T(16, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(20, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(13, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(18, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(16, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(13, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(20, MAX_H_THICK, MIN_H_THICK) },  // TX_32X8
+      { CLIP_T(9, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(9, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(9, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(9, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(9, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(9, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(9, MAX_H_THICK, MIN_H_THICK) },  // TX_16X64
+      { CLIP_T(33, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(33, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(33, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(33, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(33, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(33, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(33, MAX_H_THICK, MIN_H_THICK) },  // TX_64X16
 #if CONFIG_FLEX_PARTITION
       // TODO(huisu): Correct these
-      { 9, 5, 6, 7, 4, 7, 7 },         // TX_4X32
-      { 6, 9, 5, 11, 10, 10, 9 },      // TX_32X4
-      { 12, 9, 6, 5, 11, 11, 7 },      // TX_8X64
-      { 19, 14, 19, 15, 14, 13, 13 },  // TX_64X8
-      { 9, 9, 5, 3, 8, 5, 4 },         // TX_4X64
-      { 16, 20, 13, 18, 16, 13, 20 },  // TX_64X4
-#endif                                 // CONFIG_FLEX_PARTITION
+      { CLIP_T(9, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(5, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(6, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(7, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(4, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(7, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(7, MAX_H_THICK, MIN_H_THICK) },  // TX_4X32
+      { CLIP_T(6, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(9, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(5, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(11, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(10, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(10, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(9, MAX_H_THICK, MIN_H_THICK) },  // TX_32X4
+      { CLIP_T(12, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(9, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(6, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(5, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(11, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(11, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(7, MAX_H_THICK, MIN_H_THICK) },  // TX_8X64
+      { CLIP_T(19, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(14, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(19, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(15, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(14, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(13, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(13, MAX_H_THICK, MIN_H_THICK) },  // TX_64X8
+      { CLIP_T(9, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(9, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(5, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(3, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(8, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(5, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(4, MAX_H_THICK, MIN_H_THICK) },  // TX_4X64
+      { CLIP_T(16, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(20, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(13, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(18, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(16, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(13, MAX_H_THICK, MIN_H_THICK),
+        CLIP_T(20, MAX_H_THICK, MIN_H_THICK) },  // TX_64X4
+#endif                                           // CONFIG_FLEX_PARTITION
     };
 static const int
     adapt_filter_intra_thickness_ver[TX_SIZES_ALL][ADAPT_FILTER_INTRA_MODES] = {
-      { 4, 6, 2, 4, 5, 6, 6 },         // TX_4X4
-      { 3, 5, 6, 5, 8, 8, 9 },         // TX_8X8
-      { 11, 10, 12, 10, 6, 8, 9 },     // TX_16X16
-      { 13, 16, 13, 14, 13, 16, 13 },  // TX_32X32
-      { 33, 33, 33, 33, 33, 33, 33 },  // TX_64X64
-      { 5, 9, 3, 3, 9, 8, 8 },         // TX_4X8
-      { 3, 7, 2, 5, 5, 7, 6 },         // TX_8X4
-      { 11, 5, 11, 8, 7, 8, 8 },       // TX_8X16
-      { 9, 5, 9, 7, 5, 8, 3 },         // TX_16X8
-      { 14, 15, 20, 19, 14, 14, 13 },  // TX_16X32
-      { 5, 7, 8, 9, 5, 12, 11 },       // TX_32X16
-      { 33, 33, 33, 33, 33, 33, 33 },  // TX_32X64
-      { 17, 17, 17, 17, 17, 17, 17 },  // TX_64X32
-      { 7, 11, 9, 10, 11, 6, 6 },      // TX_4X16
-      { 2, 7, 5, 1, 4, 6, 7 },         // TX_16X4
-      { 13, 13, 19, 15, 13, 15, 17 },  // TX_8X32
-      { 5, 4, 6, 6, 3, 9, 9 },         // TX_32X8
-      { 33, 33, 33, 33, 33, 33, 33 },  // TX_16X64
-      { 9, 9, 9, 9, 9, 9, 9 },         // TX_64X16
+      { CLIP_T(4, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(6, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(2, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(4, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(5, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(6, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(6, MAX_V_THICK, MIN_V_THICK) },  // TX_4X4
+      { CLIP_T(3, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(5, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(6, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(5, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(8, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(8, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(9, MAX_V_THICK, MIN_V_THICK) },  // TX_8X8
+      { CLIP_T(11, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(10, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(12, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(10, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(6, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(8, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(9, MAX_V_THICK, MIN_V_THICK) },  // TX_16X16
+      { CLIP_T(13, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(16, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(13, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(14, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(13, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(16, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(13, MAX_V_THICK, MIN_V_THICK) },  // TX_32X32
+      { CLIP_T(33, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(33, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(33, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(33, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(33, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(33, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(33, MAX_V_THICK, MIN_V_THICK) },  // TX_64X64
+      { CLIP_T(5, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(9, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(3, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(3, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(9, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(8, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(8, MAX_V_THICK, MIN_V_THICK) },  // TX_4X8
+      { CLIP_T(3, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(7, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(2, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(5, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(5, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(7, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(6, MAX_V_THICK, MIN_V_THICK) },  // TX_8X4
+      { CLIP_T(11, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(5, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(11, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(8, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(7, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(8, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(8, MAX_V_THICK, MIN_V_THICK) },  // TX_8X16
+      { CLIP_T(9, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(5, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(9, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(7, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(5, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(8, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(3, MAX_V_THICK, MIN_V_THICK) },  // TX_16X8
+      { CLIP_T(14, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(15, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(20, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(19, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(14, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(14, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(13, MAX_V_THICK, MIN_V_THICK) },  // TX_16X32
+      { CLIP_T(5, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(7, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(8, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(9, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(5, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(12, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(11, MAX_V_THICK, MIN_V_THICK) },  // TX_32X16
+      { CLIP_T(33, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(33, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(33, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(33, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(33, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(33, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(33, MAX_V_THICK, MIN_V_THICK) },  // TX_32X64
+      { CLIP_T(17, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(17, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(17, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(17, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(17, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(17, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(17, MAX_V_THICK, MIN_V_THICK) },  // TX_64X32
+      { CLIP_T(7, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(11, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(9, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(10, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(11, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(6, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(6, MAX_V_THICK, MIN_V_THICK) },  // TX_4X16
+      { CLIP_T(2, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(7, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(5, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(1, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(4, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(6, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(7, MAX_V_THICK, MIN_V_THICK) },  // TX_16X4
+      { CLIP_T(13, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(13, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(19, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(15, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(13, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(15, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(17, MAX_V_THICK, MIN_V_THICK) },  // TX_8X32
+      { CLIP_T(5, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(4, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(6, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(6, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(3, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(9, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(9, MAX_V_THICK, MIN_V_THICK) },  // TX_32X8
+      { CLIP_T(33, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(33, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(33, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(33, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(33, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(33, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(33, MAX_V_THICK, MIN_V_THICK) },  // TX_16X64
+      { CLIP_T(9, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(9, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(9, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(9, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(9, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(9, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(9, MAX_V_THICK, MIN_V_THICK) },  // TX_64X16
 #if CONFIG_FLEX_PARTITION
       // TODO(huisu): Correct these
-      { 11, 5, 11, 8, 7, 8, 8 },       // TX_4X32
-      { 9, 5, 9, 7, 5, 8, 3 },         // TX_32X4
-      { 14, 15, 20, 19, 14, 14, 13 },  // TX_8X64
-      { 5, 7, 8, 9, 5, 12, 11 },       // TX_64X8
-      { 13, 13, 19, 15, 13, 15, 17 },  // TX_4X64
-      { 5, 4, 6, 6, 3, 9, 9 },         // TX_64X4
-#endif                                 // CONFIG_FLEX_PARTITION
+      { CLIP_T(11, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(5, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(11, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(8, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(7, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(8, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(8, MAX_V_THICK, MIN_V_THICK) },  // TX_4X32
+      { CLIP_T(9, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(5, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(9, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(7, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(5, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(8, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(3, MAX_V_THICK, MIN_V_THICK) },  // TX_32X4
+      { CLIP_T(14, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(15, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(20, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(19, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(14, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(14, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(13, MAX_V_THICK, MIN_V_THICK) },  // TX_8X64
+      { CLIP_T(5, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(7, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(8, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(9, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(5, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(12, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(11, MAX_V_THICK, MIN_V_THICK) },  // TX_64X8
+      { CLIP_T(13, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(13, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(19, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(15, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(13, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(15, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(17, MAX_V_THICK, MIN_V_THICK) },  // TX_4X64
+      { CLIP_T(5, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(4, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(6, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(6, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(3, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(9, MAX_V_THICK, MIN_V_THICK),
+        CLIP_T(9, MAX_V_THICK, MIN_V_THICK) },  // TX_64X4
+#endif                                          // CONFIG_FLEX_PARTITION
     };
 static const int adapt_filter_intra_top_right_offset
     [TX_SIZES_ALL][ADAPT_FILTER_INTRA_MODES] = {
