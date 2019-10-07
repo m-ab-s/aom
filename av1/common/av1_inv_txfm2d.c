@@ -16,6 +16,7 @@
 #include "av1/common/av1_txfm.h"
 #include "av1/common/av1_inv_txfm1d.h"
 #include "av1/common/av1_inv_txfm1d_cfg.h"
+#include "av1/common/resize.h"
 
 void av1_highbd_iwht4x4_16_add_c(const tran_low_t *input, uint8_t *dest8,
                                  int stride, int bd) {
@@ -611,6 +612,43 @@ void av1_inv_txfm2d_add_32x32_c(const int32_t *input, uint16_t *output,
 #endif
 }
 
+#if CONFIG_NEW_TX64X64
+void av1_inv_txfm2d_add_64x64_c(const int32_t *input, uint16_t *output,
+                                int stride, TX_TYPE tx_type,
+#if CONFIG_MODE_DEP_TX
+                                PREDICTION_MODE mode,
+#endif  // CONFIG_MODE_DEP_TX
+                                int bd) {
+  // Inverse 32x32 transform.
+  DECLARE_ALIGNED(32, int, txfm_buf[32 * 32 + 32 + 32]);
+
+  DECLARE_ALIGNED(32, uint16_t, output_32x32[32 * 32]);
+  memset(output_32x32, 0, 32 * 32 * sizeof(output_32x32[0]));
+  inv_txfm2d_add_facade(input, output_32x32, 32, txfm_buf, tx_type, TX_32X32,
+#if CONFIG_MODE_DEP_TX
+                        mode,
+#endif  // CONFIG_MODE_DEP_TX
+                        bd);
+
+  // Upsample to 64x64.
+  // TODO(urvang): Integerize and remove/reduce copies.
+  DECLARE_ALIGNED(32, double, input_dbl[32 * 32]);
+  for (int r = 0; r < 32; ++r) {
+    for (int c = 0; c < 32; ++c) {
+      input_dbl[r * 32 + c] = output_32x32[r * 32 + c];
+    }
+  }
+  DECLARE_ALIGNED(32, double, output_dbl[64 * 64]);
+  av1_upscale_plane_double_prec(input_dbl, 32, 32, 32, output_dbl, 64, 64, 64);
+  for (int r = 0; r < 64; ++r) {
+    for (int c = 0; c < 64; ++c) {
+      output[r * stride + c] = highbd_clip_pixel_add(
+          output[r * stride + c], (int32_t)round(output_dbl[r * 64 + c]), bd);
+    }
+  }
+}
+
+#else
 void av1_inv_txfm2d_add_64x64_c(const int32_t *input, uint16_t *output,
                                 int stride, TX_TYPE tx_type,
 #if CONFIG_MODE_DEP_TX
@@ -636,6 +674,9 @@ void av1_inv_txfm2d_add_64x64_c(const int32_t *input, uint16_t *output,
                         bd);
 #endif
 }
+#endif  // CONFIG_NEW_TX64X64
+
+// TODO(urvang): Convert rest of the 2D transforms with a 64 side.
 
 void av1_inv_txfm2d_add_64x32_c(const int32_t *input, uint16_t *output,
                                 int stride, TX_TYPE tx_type,

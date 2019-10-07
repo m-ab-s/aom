@@ -408,10 +408,15 @@ void av1_fwd_txfm(const int16_t *src_diff, tran_low_t *coeff, int diff_stride,
 #if CONFIG_MODE_DEP_TX
   av1_lowbd_fwd_txfm_c(src_diff, coeff, diff_stride, txfm_param);
 #else
-  if (txfm_param->bd == 8)
+  if (txfm_param->bd == 8) {
+#if CONFIG_NEW_TX64X64
+    av1_lowbd_fwd_txfm_c(src_diff, coeff, diff_stride, txfm_param);
+#else
     av1_lowbd_fwd_txfm(src_diff, coeff, diff_stride, txfm_param);
-  else
+#endif  // CONFIG_NEW_TX64X64
+  } else {
     av1_highbd_fwd_txfm(src_diff, coeff, diff_stride, txfm_param);
+  }
 #endif
 }
 

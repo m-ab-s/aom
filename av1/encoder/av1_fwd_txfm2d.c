@@ -410,6 +410,34 @@ void av1_fwd_txfm2d_32x32_c(const int16_t *input, int32_t *output, int stride,
   fwd_txfm2d_c(input, output, stride, &cfg, txfm_buf, bd);
 }
 
+#if CONFIG_NEW_TX64X64
+void av1_fwd_txfm2d_64x64_c(const int16_t *input, int32_t *output, int stride,
+                            TX_TYPE tx_type,
+#if CONFIG_MODE_DEP_TX
+                            PREDICTION_MODE mode,
+#endif  // CONFIG_MODE_DEP_TX
+                            int bd) {
+  // Downsample to 32x32
+  DECLARE_ALIGNED(16, int16_t, input_32[32 * 32]);
+  for (int r = 0; r < 32; ++r) {
+    for (int c = 0; c < 32; ++c) {
+      const int16_t *const in = &input[2 * r * stride + 2 * c];
+      input_32[r * 32 + c] = ROUND_POWER_OF_TWO_SIGNED(
+          in[0] + in[1] + in[stride] + in[stride + 1], 2);
+    }
+  }
+
+  // Initialize output to all-zero.
+  memset(output, 0, 64 * 64 * sizeof(*output));
+
+  // Perform 32x32 transform and output to the top-left quadrant.
+  av1_fwd_txfm2d_32x32(input_32, output, 32, tx_type,
+#if CONFIG_MODE_DEP_TX
+                       mode,
+#endif  //  CONFIG_MODE_DEP_TX
+                       bd);
+}
+#else
 void av1_fwd_txfm2d_64x64_c(const int16_t *input, int32_t *output, int stride,
                             TX_TYPE tx_type,
 #if CONFIG_MODE_DEP_TX
@@ -436,6 +464,9 @@ void av1_fwd_txfm2d_64x64_c(const int16_t *input, int32_t *output, int stride,
     memcpy(output + row * 32, output + row * 64, 32 * sizeof(*output));
   }
 }
+#endif  // CONFIG_NEW_TX64X64
+
+// TODO(urvang): Convert rest of the 2D transforms with a 64 side.
 
 void av1_fwd_txfm2d_32x64_c(const int16_t *input, int32_t *output, int stride,
                             TX_TYPE tx_type,
