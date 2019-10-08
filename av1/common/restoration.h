@@ -191,6 +191,9 @@ typedef struct {
 #if CONFIG_LOOP_RESTORE_CNN
   CNNInfo cnn_info;
 #endif  // CONFIG_LOOP_RESTORE_CNN
+#if CONFIG_WIENER_NONSEP
+  WienerNonsepInfo wiener_nonsep_info;
+#endif  // CONFIG_WIENER_NONSEP
 } RestorationUnitInfo;
 
 // A restoration line buffer needs space for two lines plus a horizontal filter

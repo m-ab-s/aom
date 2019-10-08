@@ -959,6 +959,69 @@ static void sgrproj_filter_stripe(const RestorationUnitInfo *rui,
   }
 }
 
+#if CONFIG_WIENER_NONSEP
+const int wiener_nsbits = 7;
+const int wiener_nswindow = 3;
+const int wiener_nsfilter[][3] = {
+  { 1, 0, 0 },   { -1, 0, 0 }, { 0, 1, 1 },  { 0, -1, 1 }, { 2, 0, 2 },
+  { -2, 0, 2 },  { 0, 2, 3 },  { 0, -2, 3 }, { 3, 0, 4 },  { -3, 0, 4 },
+  { 0, 3, 5 },   { 0, -3, 5 }, { 1, 1, 6 },  { 1, -1, 6 }, { -1, 1, 6 },
+  { -1, -1, 6 }, { 2, 2, 7 },  { 2, -2, 7 }, { -2, 2, 7 }, { -2, -2, 7 }
+};
+
+static void apply_wiener_nonsep(const uint8_t *dgd, int width, int height,
+                                int stride, const int16_t *filter, uint8_t *dst,
+                                int dst_stride, int32_t *buf) {
+  for (int i = 0; i < height; ++i) {
+    for (int j = 0; j < width; ++j) {
+      memcpy(dst + i * dst_stride, dgd + i * stride, sizeof(uint8_t) * width);
+    }
+  }
+
+  int w = wiener_nswindow;
+  if ((w << 1) < width && (w << 1) < height) {
+    int num_pixels = sizeof(wiener_nsfilter) / sizeof(wiener_nsfilter[0]);
+    int crop_width = (width - (w << 1));
+    int sz = crop_width * (height - (w << 1));
+    for (int i = 0; i < sz; ++i) {
+      buf[i] = 0;
+    }
+
+    for (int i = w; i < height - w; ++i) {
+      for (int j = w; j < width - w; ++j) {
+        for (int k = 0; k < num_pixels; ++k) {
+          buf[(i - w) * crop_width + (j - w)] +=
+              filter[wiener_nsfilter[k][2]] *
+              (dst[(i + wiener_nsfilter[k][0]) * width +
+                   (j + wiener_nsfilter[k][1])] -
+               dst[i * width + j]);
+        }
+        dst[i * width + j] =
+            clip_pixel(buf[(i - w) * crop_width + (j + w)] >> wiener_nsbits);
+      }
+    }
+  }
+}
+
+static void wiener_nsfilter_stripe(const RestorationUnitInfo *rui,
+                                   int stripe_width, int stripe_height,
+                                   int procunit_width, const uint8_t *src,
+                                   int src_stride, uint8_t *dst, int dst_stride,
+                                   int32_t *tmpbuf, int bit_depth) {
+  (void)bit_depth;
+  assert(bit_depth == 8);
+  assert(sizeof(wiener_nsfilter) / sizeof(wiener_nsfilter[0]) <=
+         WIENER_NONSEP_WIN);
+
+  for (int j = 0; j < stripe_width; j += procunit_width) {
+    int w = AOMMIN(procunit_width, stripe_width - j);
+    apply_wiener_nonsep(src + j, w, stripe_height, src_stride,
+                        rui->wiener_nonsep_info.nsfilter, dst + j, dst_stride,
+                        tmpbuf);
+  }
+}
+#endif  // CONFIG_WIENER_NONSEP
+
 #if CONFIG_LOOP_RESTORE_CNN
 static void restore_cnn_img(const uint8_t *dgd, int width, int height,
                             int stride, const CNN_CONFIG *cnn_config,

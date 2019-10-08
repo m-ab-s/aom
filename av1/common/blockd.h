@@ -448,6 +448,13 @@ typedef struct {
   DECLARE_ALIGNED(16, InterpKernel, hfilter);
 } WienerInfo;
 
+#if CONFIG_WIENER_NONSEP
+#define WIENER_NONSEP_WIN (16)
+typedef struct {
+  DECLARE_ALIGNED(16, int16_t, nsfilter[WIENER_NONSEP_WIN]);
+} WienerNonsepInfo;
+#endif  // CONFIG_WIENER_NONSEP
+
 typedef struct {
   int ep;
   int xqd[2];
