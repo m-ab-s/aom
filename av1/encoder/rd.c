@@ -707,18 +707,18 @@ void av1_fill_mv_costs(const FRAME_CONTEXT *fc, const AV1_COMMON *const cm,
                              &fc->nmvc, MV_SUBPEL_NONE);
   } else {
     av1_build_nmv_cost_table(x->nmv_vec_cost, x->nmvcost[MV_SUBPEL_NONE],
-                             &cm->fc->nmvc, MV_SUBPEL_NONE);
+                             &fc->nmvc, MV_SUBPEL_NONE);
 #if CONFIG_FLEX_MVRES
     av1_build_nmv_cost_table(x->nmv_vec_cost,
-                             x->nmvcost[MV_SUBPEL_HALF_PRECISION],
-                             &cm->fc->nmvc, MV_SUBPEL_HALF_PRECISION);
+                             x->nmvcost[MV_SUBPEL_HALF_PRECISION], &fc->nmvc,
+                             MV_SUBPEL_HALF_PRECISION);
 #endif  // CONFIG_FLEX_MVRES
     av1_build_nmv_cost_table(x->nmv_vec_cost,
-                             x->nmvcost[MV_SUBPEL_QTR_PRECISION], &cm->fc->nmvc,
+                             x->nmvcost[MV_SUBPEL_QTR_PRECISION], &fc->nmvc,
                              MV_SUBPEL_QTR_PRECISION);
     av1_build_nmv_cost_table(x->nmv_vec_cost,
-                             x->nmvcost[MV_SUBPEL_EIGHTH_PRECISION],
-                             &cm->fc->nmvc, MV_SUBPEL_EIGHTH_PRECISION);
+                             x->nmvcost[MV_SUBPEL_EIGHTH_PRECISION], &fc->nmvc,
+                             MV_SUBPEL_EIGHTH_PRECISION);
   }
 }
 
