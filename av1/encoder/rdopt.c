@@ -7115,7 +7115,7 @@ static void joint_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
     best_mv->row >>= 3;
 
     // Small-range full-pixel motion search.
-    bestsme = av1_refining_search_8p_c(x, sadpb, search_range,
+    bestsme = av1_refining_search_8p_c(cm, x, sadpb, search_range,
                                        &cpi->fn_ptr[bsize], mask, mask_stride,
                                        id, &ref_mv[id].as_mv, second_pred);
     if (bestsme < INT_MAX) {
@@ -7740,7 +7740,7 @@ static void compound_single_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
   best_mv->row >>= 3;
 
   // Small-range full-pixel motion search.
-  bestsme = av1_refining_search_8p_c(x, sadpb, search_range,
+  bestsme = av1_refining_search_8p_c(cm, x, sadpb, search_range,
                                      &cpi->fn_ptr[bsize], mask, mask_stride,
                                      ref_idx, &ref_mv.as_mv, second_pred);
   if (bestsme < INT_MAX) {
@@ -10082,11 +10082,6 @@ static int64_t motion_mode_rd(
           &tmp_rate2, orig_dst);
       if (ret < 0) continue;
     }
-#if CONFIG_FLEX_MVRES
-    if (is_flex_mv_precision_active(cm, mbmi->mode))
-      mbmi->mv_precision = av1_get_mbmi_mv_precision(cm, mbmi);
-    assert(check_mv_precision(mbmi));
-#endif  // CONFIG_FLEX_MVRES
 
     x->skip = 0;
     rd_stats->dist = 0;
@@ -10243,9 +10238,6 @@ static int64_t motion_mode_rd(
          sizeof(x->blk_skip[0]) * xd->n4_h * xd->n4_w);
   x->skip = best_xskip;
   *disable_skip = best_disable_skip;
-#if CONFIG_FLEX_MVRES
-  assert(check_mv_precision(mbmi));
-#endif  // CONFIG_FLEX_MVRES
 
   restore_dst_buf(xd, *orig_dst, num_planes);
   return 0;
@@ -11168,11 +11160,6 @@ static int64_t handle_inter_mode(
       for (i = 0; i < is_comp_pred + 1; ++i) {
         mbmi->mv[i].as_int = cur_mv[i].as_int;
       }
-#if CONFIG_FLEX_MVRES
-      if (is_flex_mv_precision_active(cm, mbmi->mode))
-        mbmi->mv_precision = av1_get_mbmi_mv_precision(cm, mbmi);
-      assert(check_mv_precision(mbmi));
-#endif  // CONFIG_FLEX_MVRES
       const int ref_mv_cost = cost_mv_ref(x, this_mode, mode_ctx);
 #if USE_DISCOUNT_NEWMV_TEST
       // We don't include the cost of the second reference here, because there
@@ -11269,11 +11256,6 @@ static int64_t handle_inter_mode(
           }
         }
       }
-#if CONFIG_FLEX_MVRES
-      if (is_flex_mv_precision_active(cm, mbmi->mode))
-        mbmi->mv_precision = av1_get_mbmi_mv_precision(cm, mbmi);
-      assert(check_mv_precision(mbmi));
-#endif  // CONFIG_FLEX_MVRES
 #if CONFIG_COLLECT_COMPONENT_TIMING
       end_timing(cpi, compound_type_rd_time);
 #endif
@@ -11322,9 +11304,6 @@ static int64_t handle_inter_mode(
                                       0, av1_num_planes(cm) - 1);
       }
 
-#if CONFIG_FLEX_MVRES
-      assert(check_mv_precision(mbmi));
-#endif  // CONFIG_FLEX_MVRES
 #if CONFIG_COLLECT_COMPONENT_TIMING
       start_timing(cpi, motion_mode_rd_time);
 #endif
@@ -11332,9 +11311,6 @@ static int64_t handle_inter_mode(
                                rd_stats_uv, disable_skip, mi_row, mi_col, args,
                                ref_best_rd, refs, &rate_mv, &orig_dst,
                                best_est_rd, do_tx_search, inter_modes_info);
-#if CONFIG_FLEX_MVRES
-      assert(check_mv_precision(mbmi));
-#endif  // CONFIG_FLEX_MVRES
 #if CONFIG_COLLECT_COMPONENT_TIMING
       end_timing(cpi, motion_mode_rd_time);
 #endif
@@ -13811,6 +13787,11 @@ void av1_rd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
 
   // macroblock modes
   *mbmi = search_state.best_mbmode;
+#if CONFIG_FLEX_MVRES
+  if (is_flex_mv_precision_active(cm, mbmi->mode))
+    mbmi->mv_precision = av1_get_mbmi_mv_precision(cm, mbmi);
+  assert(check_mv_precision(mbmi));
+#endif  // CONFIG_FLEX_MVRES
   x->skip |= search_state.best_skip2;
 
   // Note: this section is needed since the mode may have been forced to

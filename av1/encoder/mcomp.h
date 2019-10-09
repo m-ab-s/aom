@@ -104,8 +104,9 @@ struct SPEED_FEATURES;
 
 int av1_init_search_range(int size);
 
-int av1_refining_search_sad(struct macroblock *x, MV *ref_mv, int sad_per_bit,
-                            int distance, const aom_variance_fn_ptr_t *fn_ptr,
+int av1_refining_search_sad(const AV1_COMMON *const cm, struct macroblock *x,
+                            MV *ref_mv, int sad_per_bit, int distance,
+                            const aom_variance_fn_ptr_t *fn_ptr,
                             const MV *center_mv);
 
 unsigned int av1_int_pro_motion_estimation(const struct AV1_COMP *cpi,
@@ -152,11 +153,12 @@ typedef int (*av1_full_search_fn_t)(const MACROBLOCK *x, const MV *ref_mv,
                                     const MV *center_mv, MV *best_mv);
 
 typedef int (*av1_diamond_search_fn_t)(
-    MACROBLOCK *x, const search_site_config *cfg, MV *ref_mv, MV *best_mv,
-    int search_param, int sad_per_bit, int *num00,
+    const AV1_COMMON *const cm, MACROBLOCK *x, const search_site_config *cfg,
+    MV *ref_mv, MV *best_mv, int search_param, int sad_per_bit, int *num00,
     const aom_variance_fn_ptr_t *fn_ptr, const MV *center_mv);
 
-int av1_refining_search_8p_c(MACROBLOCK *x, int error_per_bit, int search_range,
+int av1_refining_search_8p_c(const AV1_COMMON *const cm, MACROBLOCK *x,
+                             int error_per_bit, int search_range,
                              const aom_variance_fn_ptr_t *fn_ptr,
                              const uint8_t *mask, int mask_stride,
                              int invert_mask, const MV *center_mv,

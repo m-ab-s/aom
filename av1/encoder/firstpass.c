@@ -237,9 +237,9 @@ static void first_pass_motion_search(AV1_COMP *cpi, MACROBLOCK *x,
   }
 
   // Center the initial step/diamond search on best mv.
-  tmp_err = cpi->diamond_search_sad(x, &cpi->ss_cfg[SS_CFG_SRC], &ref_mv_full,
-                                    &tmp_mv, step_param, x->sadperbit16, &num00,
-                                    &v_fn_ptr, ref_mv);
+  tmp_err = cpi->diamond_search_sad(&cpi->common, x, &cpi->ss_cfg[SS_CFG_SRC],
+                                    &ref_mv_full, &tmp_mv, step_param,
+                                    x->sadperbit16, &num00, &v_fn_ptr, ref_mv);
   if (tmp_err < INT_MAX)
     tmp_err =
         av1_get_mvpred_var(&cpi->common, x, &tmp_mv, ref_mv, &v_fn_ptr, 1);
@@ -261,8 +261,8 @@ static void first_pass_motion_search(AV1_COMP *cpi, MACROBLOCK *x,
       --num00;
     } else {
       tmp_err = cpi->diamond_search_sad(
-          x, &cpi->ss_cfg[SS_CFG_SRC], &ref_mv_full, &tmp_mv, step_param + n,
-          x->sadperbit16, &num00, &v_fn_ptr, ref_mv);
+          &cpi->common, x, &cpi->ss_cfg[SS_CFG_SRC], &ref_mv_full, &tmp_mv,
+          step_param + n, x->sadperbit16, &num00, &v_fn_ptr, ref_mv);
       if (tmp_err < INT_MAX)
         tmp_err =
             av1_get_mvpred_var(&cpi->common, x, &tmp_mv, ref_mv, &v_fn_ptr, 1);

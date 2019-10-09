@@ -356,6 +356,7 @@ static MvSubpelPrecision determine_frame_mv_precision(const AV1_COMP *cpi,
 #define FLEX_MV_PRECISION_QTHRESH 256  // Reduce to turn off at low quality
 static int determine_flex_mv_precision(const AV1_COMP *cpi, int q) {
   return (cpi->common.mv_precision > MV_SUBPEL_NONE && cpi->oxcf.pass != 1 &&
+          // cpi->gf_group.update_type[cpi->gf_group.index] != ARF_UPDATE &&
           q <= FLEX_MV_PRECISION_QTHRESH);
 }
 #endif  // CONFIG_FLEX_MVRES
@@ -4889,11 +4890,10 @@ static void fix_use_flex_mv_precision(AV1_COMP *const cpi) {
   if (!cm->use_flex_mv_precision) return;
   RD_COUNTS *const rdc = &cpi->td.rd_counts;
   int reduced_count = 0;
-  /*
-  printf("flex_mv_counts - %d %d %d %d\n",
+  printf("flex_mv_counts (ARF %d) - [%d %d %d %d]\n",
+         cpi->gf_group.update_type[cpi->gf_group.index] == ARF_UPDATE,
          rdc->reduced_mv_precision_used[0], rdc->reduced_mv_precision_used[1],
          rdc->reduced_mv_precision_used[2], rdc->reduced_mv_precision_used[3]);
-         */
   for (int i = 1; i < MV_SUBPEL_PRECISIONS; ++i)
     reduced_count += rdc->reduced_mv_precision_used[i];
   // Turn off use_flex_mv_flag if not used in the frame

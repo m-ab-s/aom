@@ -1273,6 +1273,7 @@ static void write_intra_prediction_modes(AV1_COMP *cpi, const int mi_row,
 static void write_mv_precision(AV1_COMMON *const cm, MACROBLOCKD *const xd,
                                aom_writer *w) {
   const MB_MODE_INFO *const mbmi = xd->mi[0];
+  assert(av1_get_mbmi_mv_precision(cm, mbmi) == mbmi->mv_precision);
   assert(mbmi->mv_precision <= cm->mv_precision);
   aom_write_symbol(w, cm->mv_precision - mbmi->mv_precision,
                    xd->tile_ctx->flex_mv_precision_cdf[cm->mv_precision - 1],

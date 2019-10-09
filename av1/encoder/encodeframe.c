@@ -1526,7 +1526,7 @@ static void update_stats(const AV1_COMMON *const cm, TileDataEnc *tile_data,
 
       if (have_newmv_in_inter_mode(mbmi->mode)) {
 #if CONFIG_FLEX_MVRES
-        if (allow_update_cdf && cm->use_flex_mv_precision) {
+        if (allow_update_cdf && is_flex_mv_precision_active(cm, mbmi->mode)) {
           const int down = cm->mv_precision - mbmi->mv_precision;
           update_cdf(fc->flex_mv_precision_cdf[cm->mv_precision - 1], down,
                      cm->mv_precision + 1);
