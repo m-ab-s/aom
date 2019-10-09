@@ -554,8 +554,8 @@ static void init_intra_predictors_internal(void) {
   p[TX_64X16] = aom_##type##_predictor_64x16; \
   p[TX_4X32] = aom_##type##_predictor_4x32;   \
   p[TX_32X4] = aom_##type##_predictor_32x4;   \
-  p[TX_8X32] = aom_##type##_predictor_8x64;   \
-  p[TX_32X8] = aom_##type##_predictor_64x8;   \
+  p[TX_8X64] = aom_##type##_predictor_8x64;   \
+  p[TX_64X8] = aom_##type##_predictor_64x8;   \
   p[TX_4X64] = aom_##type##_predictor_4x64;   \
   p[TX_64X4] = aom_##type##_predictor_64x4;
 #else
