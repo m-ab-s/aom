@@ -1531,19 +1531,22 @@ static void update_stats(const AV1_COMMON *const cm, TileDataEnc *tile_data,
           update_cdf(fc->flex_mv_precision_cdf[cm->mv_precision - 1], down,
                      cm->mv_precision + 1);
         }
+        assert(mbmi->mv_precision == av1_get_mbmi_mv_precision(cm, mbmi));
+#else
+        assert(mbmi->mv_precision == cm->mv_precision);
 #endif  // CONFIG_FLEX_MVRES
         if (new_mv) {
           for (int ref = 0; ref < 1 + has_second_ref(mbmi); ++ref) {
             const int_mv ref_mv = av1_get_ref_mv(x, ref);
             av1_update_mv_stats(&mbmi->mv[ref].as_mv, &ref_mv.as_mv, &fc->nmvc,
-                                cm->mv_precision);
+                                mbmi->mv_precision);
           }
         } else {
           const int ref =
               (mbmi->mode == NEAREST_NEWMV || mbmi->mode == NEAR_NEWMV);
           const int_mv ref_mv = av1_get_ref_mv(x, ref);
           av1_update_mv_stats(&mbmi->mv[ref].as_mv, &ref_mv.as_mv, &fc->nmvc,
-                              cm->mv_precision);
+                              mbmi->mv_precision);
         }
       }
     }
