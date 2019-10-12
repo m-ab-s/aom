@@ -19,7 +19,7 @@ static const nmv_context default_nmv_context = {
         { AOM_CDF11(28672, 30976, 31858, 32320, 32551, 32656, 32740, 32757,
                     32762, 32767) },  // class_cdf // fp
 #if CONFIG_FLEX_MVRES
-        { { { AOM_CDF2(16384) }, { AOM_CDF2(16384) }, { AOM_CDF2(16384) } },
+        { { { AOM_CDF2(19384) }, { AOM_CDF2(17384) }, { AOM_CDF2(16384) } },
           { { AOM_CDF2(16384) },
             { AOM_CDF2(16384) },
             { AOM_CDF2(16384) } } },  // class0_fp_cdf
@@ -51,7 +51,7 @@ static const nmv_context default_nmv_context = {
         { AOM_CDF11(28672, 30976, 31858, 32320, 32551, 32656, 32740, 32757,
                     32762, 32767) },  // class_cdf // fp
 #if CONFIG_FLEX_MVRES
-        { { { AOM_CDF2(16384) }, { AOM_CDF2(16384) }, { AOM_CDF2(16384) } },
+        { { { AOM_CDF2(19384) }, { AOM_CDF2(17384) }, { AOM_CDF2(16384) } },
           { { AOM_CDF2(16384) },
             { AOM_CDF2(16384) },
             { AOM_CDF2(16384) } } },  // class0_fp_cdf
