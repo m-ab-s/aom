@@ -749,17 +749,11 @@ INTRA_PRED_TEST(SSE2_2, TX_16X8, aom_dc_predictor_16x8_sse2,
                 aom_dc_left_predictor_16x8_sse2, aom_dc_top_predictor_16x8_sse2,
                 aom_dc_128_predictor_16x8_sse2, aom_v_predictor_16x8_sse2,
                 aom_h_predictor_16x8_sse2, NULL, NULL, NULL, NULL)
-#if CONFIG_3WAY_PARTITIONS
-INTRA_PRED_TEST(SSE2_3, TX_16X32, NULL, NULL, aom_dc_top_predictor_16x32_sse2,
-                aom_dc_128_predictor_16x32_sse2, NULL, NULL, NULL, NULL, NULL,
-                NULL)
-#else
 INTRA_PRED_TEST(SSE2_3, TX_16X32, aom_dc_predictor_16x32_sse2,
                 aom_dc_left_predictor_16x32_sse2,
                 aom_dc_top_predictor_16x32_sse2,
                 aom_dc_128_predictor_16x32_sse2, aom_v_predictor_16x32_sse2,
                 aom_h_predictor_16x32_sse2, NULL, NULL, NULL, NULL)
-#endif  // CONFIG_3WAY_PARTITIONS
 INTRA_PRED_TEST(SSE2_4, TX_16X64, aom_dc_predictor_16x64_sse2,
                 aom_dc_left_predictor_16x64_sse2,
                 aom_dc_top_predictor_16x64_sse2,
@@ -812,22 +806,12 @@ INTRA_PRED_TEST(SSSE3_5, TX_16X4, NULL, NULL, NULL, NULL, NULL, NULL,
 #endif  // HAVE_SSSE3
 
 #if HAVE_AVX2
-#if CONFIG_3WAY_PARTITIONS
-INTRA_PRED_TEST(AVX2_1, TX_16X16, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-                NULL, NULL, NULL)
-#else
 INTRA_PRED_TEST(AVX2_1, TX_16X16, NULL, NULL, NULL, NULL, NULL, NULL,
                 aom_paeth_predictor_16x16_avx2, NULL, NULL, NULL)
-#endif  // CONFIG_3WAY_PARTITIONS
 INTRA_PRED_TEST(AVX2_2, TX_16X8, NULL, NULL, NULL, NULL, NULL, NULL,
                 aom_paeth_predictor_16x8_avx2, NULL, NULL, NULL)
-#if CONFIG_3WAY_PARTITIONS
-INTRA_PRED_TEST(AVX2_3, TX_16X32, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-                NULL, NULL, NULL)
-#else
 INTRA_PRED_TEST(AVX2_3, TX_16X32, NULL, NULL, NULL, NULL, NULL, NULL,
                 aom_paeth_predictor_16x32_avx2, NULL, NULL, NULL)
-#endif  // CONFIG_3WAY_PARTITIONS
 INTRA_PRED_TEST(AVX2_4, TX_16X64, NULL, NULL, NULL, NULL, NULL, NULL,
                 aom_paeth_predictor_16x64_avx2, NULL, NULL, NULL)
 #endif  // HAVE_AVX2
