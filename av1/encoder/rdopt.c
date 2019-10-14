@@ -3685,6 +3685,66 @@ static INLINE int bsize_to_num_blk(BLOCK_SIZE bsize) {
   return num_blk;
 }
 
+#if CONFIG_NEW_TX_PARTITION
+static void choose_tx_size_type_from_rd(const AV1_COMP *const cpi,
+                                        MACROBLOCK *x, RD_STATS *rd_stats,
+                                        int64_t ref_best_rd, BLOCK_SIZE bs) {
+  av1_invalid_rd_stats(rd_stats);
+
+  const AV1_COMMON *const cm = &cpi->common;
+  MACROBLOCKD *const xd = &x->e_mbd;
+  MB_MODE_INFO *const mbmi = xd->mi[0];
+  const TX_SIZE max_tx_size = max_txsize_rect_lookup[bs];
+  const int tx_select = cm->tx_mode == TX_MODE_SELECT;
+  TX_SIZE chosen_tx_size = TX_4X4;
+  if (!tx_select) chosen_tx_size = tx_size_from_tx_mode(bs, cm->tx_mode);
+
+  TX_TYPE best_txk_type[TXK_TYPE_BUF_LEN];
+  uint8_t best_blk_skip[MAX_MIB_SIZE * MAX_MIB_SIZE];
+  TX_SIZE best_tx_size = max_tx_size;
+  int64_t best_rd = INT64_MAX;
+  const int n4 = bsize_to_num_blk(bs);
+  x->rd_model = FULL_TXFM_RD;
+  int64_t cur_rd = INT64_MAX;
+  for (TX_PARTITION_TYPE type = 0; type <= TX_PARTITION_TYPES_INTRA; ++type) {
+    // Skip any illegal partitions for this block size
+    if (!use_tx_partition(type, max_tx_size)) continue;
+    TX_SIZE sub_txs[MAX_TX_PARTITIONS] = { 0 };
+    get_tx_partition_sizes(type, max_tx_size, sub_txs);
+    TX_SIZE cur_tx_size = sub_txs[0];
+    if (!tx_select && cur_tx_size != chosen_tx_size) continue;
+#if CONFIG_DIST_8X8
+    if (x->using_dist_8x8) {
+      if (tx_size_wide[cur_tx_size] < 8 || tx_size_high[cur_tx_size] < 8)
+        continue;
+    }
+#endif
+    if (!cpi->oxcf.enable_tx64 && txsize_sqr_up_map[cur_tx_size] == TX_64X64)
+      continue;
+
+    RD_STATS this_rd_stats;
+    cur_rd = txfm_yrd(cpi, x, &this_rd_stats, ref_best_rd, bs, cur_tx_size,
+                      FTXS_NONE, 0);
+
+    if (cur_rd < best_rd) {
+      memcpy(best_txk_type, mbmi->txk_type,
+             sizeof(best_txk_type[0]) * TXK_TYPE_BUF_LEN);
+      memcpy(best_blk_skip, x->blk_skip, sizeof(best_blk_skip[0]) * n4);
+      best_tx_size = cur_tx_size;
+      best_rd = cur_rd;
+      *rd_stats = this_rd_stats;
+    }
+    if (cur_tx_size == TX_4X4) break;
+  }
+
+  if (rd_stats->rate != INT_MAX) {
+    mbmi->tx_size = best_tx_size;
+    memcpy(mbmi->txk_type, best_txk_type,
+           sizeof(best_txk_type[0]) * TXK_TYPE_BUF_LEN);
+    memcpy(x->blk_skip, best_blk_skip, sizeof(best_blk_skip[0]) * n4);
+  }
+}
+#else
 static int get_search_init_depth(int mi_width, int mi_height, int is_inter,
                                  const SPEED_FEATURES *sf) {
   if (sf->tx_size_search_method == USE_LARGESTALL) return MAX_VARTX_DEPTH;
@@ -3772,6 +3832,7 @@ static void choose_tx_size_type_from_rd(const AV1_COMP *const cpi,
     memcpy(x->blk_skip, best_blk_skip, sizeof(best_blk_skip[0]) * n4);
   }
 }
+#endif  // CONFIG_NEW_TX_PARTITION
 
 // origin_threshold * 128 / 100
 static const uint32_t skip_pred_threshold[3][BLOCK_SIZES_ALL] = {
