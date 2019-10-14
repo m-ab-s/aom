@@ -1556,12 +1556,13 @@ static INLINE MvSubpelPrecision av1_get_mbmi_mv_precision(
   if (is_flex_mv_precision_active(cm, mbmi->mode)) {
     MvSubpelPrecision precision;
     if (mbmi->mode == NEWMV) {
-      precision = get_mv_precision(mbmi->mv[0].as_mv);
+      precision = get_mv_precision(mbmi->mv[0].as_mv, cm->mv_precision);
     } else if (mbmi->mode == NEW_NEWMV) {
-      precision = get_mv_precision2(mbmi->mv[0].as_mv, mbmi->mv[1].as_mv);
+      precision = get_mv_precision2(mbmi->mv[0].as_mv, mbmi->mv[1].as_mv,
+                                    cm->mv_precision);
     } else {
       const int i = (mbmi->mode == NEAREST_NEWMV || mbmi->mode == NEAR_NEWMV);
-      precision = get_mv_precision(mbmi->mv[i].as_mv);
+      precision = get_mv_precision(mbmi->mv[i].as_mv, cm->mv_precision);
     }
     return (MvSubpelPrecision)AOMMIN(precision, cm->mv_precision);
   } else {

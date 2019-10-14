@@ -360,7 +360,8 @@ struct macroblock {
 #if CONFIG_FLEX_MVRES
   // costs are based on precision down from frame level mv precision
   int flex_mv_precision_costs[MV_SUBPEL_PRECISIONS - MV_SUBPEL_QTR_PRECISION]
-                             [MV_SUBPEL_PRECISIONS];
+                             [MV_SUBPEL_PRECISIONS -
+                              DISALLOW_ONE_DOWN_FLEX_MVRES];
 #endif  // CONFIG_FLEX_MVRES
   int partition_cost[PARTITION_CONTEXTS][EXT_PARTITION_TYPES];
   int palette_y_size_cost[PALATTE_BSIZE_CTXS][PALETTE_SIZES];

@@ -1527,7 +1527,11 @@ static void update_stats(const AV1_COMMON *const cm, TileDataEnc *tile_data,
       if (have_newmv_in_inter_mode(mbmi->mode)) {
 #if CONFIG_FLEX_MVRES
         if (allow_update_cdf && is_flex_mv_precision_active(cm, mbmi->mode)) {
-          const int down = cm->mv_precision - mbmi->mv_precision;
+          int down = cm->mv_precision - mbmi->mv_precision;
+#if DISALLOW_ONE_DOWN_FLEX_MVRES
+          assert(down != 1);
+          down -= (down > 0);
+#endif  // DISALLOW_ONE_DOWN_FLEX_MVRES
           update_cdf(fc->flex_mv_precision_cdf[cm->mv_precision -
                                                MV_SUBPEL_QTR_PRECISION],
                      down, cm->mv_precision + 1);
@@ -4317,7 +4321,7 @@ static void avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
   for (int p = MV_SUBPEL_QTR_PRECISION; p < MV_SUBPEL_PRECISIONS; ++p)
     AVERAGE_CDF(ctx_left->flex_mv_precision_cdf[p - MV_SUBPEL_QTR_PRECISION],
                 ctx_tr->flex_mv_precision_cdf[p - MV_SUBPEL_QTR_PRECISION],
-                p + 1);
+                p + 1 - DISALLOW_ONE_DOWN_FLEX_MVRES);
 #endif  // CONFIG_FLEX_MVRES
   AVERAGE_CDF(ctx_left->angle_delta_cdf, ctx_tr->angle_delta_cdf,
               2 * MAX_ANGLE_DELTA + 1);

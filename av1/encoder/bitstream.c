@@ -1275,11 +1275,16 @@ static void write_mv_precision(AV1_COMMON *const cm, MACROBLOCKD *const xd,
   const MB_MODE_INFO *const mbmi = xd->mi[0];
   assert(av1_get_mbmi_mv_precision(cm, mbmi) == mbmi->mv_precision);
   assert(mbmi->mv_precision <= cm->mv_precision);
+  int down = cm->mv_precision - mbmi->mv_precision;
+#if DISALLOW_ONE_DOWN_FLEX_MVRES
+  assert(down != 1);
+  down -= (down > 0);
+#endif  // DISALLOW_ONE_DOWN_FLEX_MVRES
   aom_write_symbol(
-      w, cm->mv_precision - mbmi->mv_precision,
+      w, down,
       xd->tile_ctx
           ->flex_mv_precision_cdf[cm->mv_precision - MV_SUBPEL_QTR_PRECISION],
-      cm->mv_precision + 1);
+      cm->mv_precision + 1 - DISALLOW_ONE_DOWN_FLEX_MVRES);
 }
 #endif  // CONFIG_FLEX_MVRES
 

@@ -7233,7 +7233,8 @@ static void joint_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
       int dis; /* TODO: use dis in distortion calculation later. */
       unsigned int sse;
 #if CONFIG_FLEX_MVRES
-      MvSubpelPrecision min_precision = get_mv_precision(cur_mv[1 - id].as_mv);
+      MvSubpelPrecision min_precision =
+          get_mv_precision(cur_mv[1 - id].as_mv, cm->mv_precision);
 #endif  // CONFIG_FLEX_MVRES
       bestsme = cpi->find_fractional_mv_step(
           x, cm, mi_row, mi_col, &ref_mv[id].as_mv, cm->mv_precision,

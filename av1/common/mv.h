@@ -49,6 +49,12 @@ enum {
   MV_SUBPEL_PRECISIONS,
 } SENUM1BYTE(MvSubpelPrecision);
 
+#if CONFIG_FLEX_MVRES
+#define DISALLOW_ONE_DOWN_FLEX_MVRES 1
+#else
+#define DISALLOW_ONE_DOWN_FLEX_MVRES 0
+#endif  // CONFIG_FLEX_MVRES
+
 // Bits of precision used for the model
 #define WARPEDMODEL_PREC_BITS 16
 #define WARPEDMODEL_ROW3HOMO_PREC_BITS 16
@@ -304,15 +310,29 @@ static INLINE void clamp_mv(MV *mv, int min_col, int max_col, int min_row,
 }
 
 #if CONFIG_FLEX_MVRES
-static INLINE MvSubpelPrecision get_mv_precision(const MV mv) {
-  if ((mv.row & 1) || (mv.col & 1)) return MV_SUBPEL_EIGHTH_PRECISION;
-  if ((mv.row & 3) || (mv.col & 3)) return MV_SUBPEL_QTR_PRECISION;
-  if ((mv.row & 7) || (mv.col & 7)) return MV_SUBPEL_HALF_PRECISION;
-  return MV_SUBPEL_NONE;
+static INLINE MvSubpelPrecision
+get_mv_precision(const MV mv, MvSubpelPrecision frame_precision) {
+  (void)frame_precision;
+  MvSubpelPrecision precision = MV_SUBPEL_NONE;
+  if ((mv.row & 1) || (mv.col & 1))
+    precision = MV_SUBPEL_EIGHTH_PRECISION;
+  else if ((mv.row & 3) || (mv.col & 3))
+    precision = MV_SUBPEL_QTR_PRECISION;
+  else if ((mv.row & 7) || (mv.col & 7))
+    precision = MV_SUBPEL_HALF_PRECISION;
+  else
+    precision = MV_SUBPEL_NONE;
+  assert(precision <= frame_precision);
+#if DISALLOW_ONE_DOWN_FLEX_MVRES
+  if (frame_precision - precision == 1) precision = frame_precision;
+#endif  // DISALLOW_ONE_DOWN_FLEX_MVRES
+  return precision;
 }
 
-static INLINE MvSubpelPrecision get_mv_precision2(const MV mv, const MV mv2) {
-  return (MvSubpelPrecision)AOMMAX(get_mv_precision(mv), get_mv_precision(mv2));
+static INLINE MvSubpelPrecision get_mv_precision2(
+    const MV mv, const MV mv2, MvSubpelPrecision frame_precision) {
+  return (MvSubpelPrecision)AOMMAX(get_mv_precision(mv, frame_precision),
+                                   get_mv_precision(mv2, frame_precision));
 }
 #endif  // CONFIG_FLEX_MVRES
 
