@@ -226,10 +226,10 @@ cglobal dc_predictor_16x16, 4, 5, 3, dst, stride, above, left, goffset
   punpcklqdq            m0, m0
   packuswb              m0, m0
 .loop:
-  mova    [dstq          ], m0
-  mova    [dstq+strideq  ], m0
-  mova    [dstq+strideq*2], m0
-  mova    [dstq+stride3q ], m0
+  movu    [dstq          ], m0
+  movu    [dstq+strideq  ], m0
+  movu    [dstq+strideq*2], m0
+  movu    [dstq+stride3q ], m0
   lea                 dstq, [dstq+strideq*4]
   dec              lines4d
   jnz .loop
@@ -285,10 +285,10 @@ cglobal dc_left_predictor_16x16, 4, 5, 3, dst, stride, above, left, goffset
   punpcklqdq            m0, m0
   packuswb              m0, m0
 .loop:
-  mova    [dstq          ], m0
-  mova    [dstq+strideq  ], m0
-  mova    [dstq+strideq*2], m0
-  mova    [dstq+stride3q ], m0
+  movu    [dstq          ], m0
+  movu    [dstq+strideq  ], m0
+  movu    [dstq+strideq*2], m0
+  movu    [dstq+stride3q ], m0
   lea                 dstq, [dstq+strideq*4]
   dec              lines4d
   jnz .loop
@@ -486,10 +486,10 @@ cglobal v_predictor_16x16, 3, 4, 1, dst, stride, above
   lea             stride3q, [strideq*3]
   mov              nlines4d, 4
 .loop:
-  mova    [dstq          ], m0
-  mova    [dstq+strideq  ], m0
-  mova    [dstq+strideq*2], m0
-  mova    [dstq+stride3q ], m0
+  movu    [dstq          ], m0
+  movu    [dstq+strideq  ], m0
+  movu    [dstq+strideq*2], m0
+  movu    [dstq+stride3q ], m0
   lea                 dstq, [dstq+strideq*4]
   dec             nlines4d
   jnz .loop
@@ -567,12 +567,12 @@ cglobal h_predictor_16x16, 2, 5, 3, dst, stride, line, left
   punpcklbw             m0, m0              ; l1 to l4 each repeated 4 times
   pshufd            m1, m0, 0x0             ; l1 repeated 16 times
   pshufd            m2, m0, 0x55            ; l2 repeated 16 times
-  mova    [dstq          ], m1
-  mova    [dstq+strideq  ], m2
+  movu    [dstq          ], m1
+  movu    [dstq+strideq  ], m2
   pshufd            m1, m0, 0xaa
   pshufd            m2, m0, 0xff
-  mova    [dstq+strideq*2], m1
-  mova    [dstq+stride3q ], m2
+  movu    [dstq+strideq*2], m1
+  movu    [dstq+stride3q ], m2
   inc                lineq
   lea                leftq, [leftq+4       ]
   lea                 dstq, [dstq+strideq*4]
