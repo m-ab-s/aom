@@ -668,9 +668,9 @@ static const aom_cdf_prob
 
 #if CONFIG_FLEX_MVRES
 static const aom_cdf_prob
-    default_flex_mv_precision_cdf[MV_SUBPEL_PRECISIONS - 1]
+    default_flex_mv_precision_cdf[MV_SUBPEL_PRECISIONS -
+                                  MV_SUBPEL_QTR_PRECISION]
                                  [CDF_SIZE(MV_SUBPEL_PRECISIONS)] = {
-                                   { AOM_CDF2(24000) },
                                    { AOM_CDF3(24000, 29000) },
                                    { AOM_CDF4(24000, 29000, 31000) },
                                  };

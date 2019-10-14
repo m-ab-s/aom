@@ -156,9 +156,10 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, MACROBLOCK *x,
                              fc->switchable_interp_cdf[i], NULL);
 
 #if CONFIG_FLEX_MVRES
-  for (i = MV_SUBPEL_HALF_PRECISION; i < MV_SUBPEL_PRECISIONS; ++i)
-    av1_cost_tokens_from_cdf(x->flex_mv_precision_costs[i - 1],
-                             fc->flex_mv_precision_cdf[i - 1], NULL);
+  for (i = MV_SUBPEL_QTR_PRECISION; i < MV_SUBPEL_PRECISIONS; ++i)
+    av1_cost_tokens_from_cdf(
+        x->flex_mv_precision_costs[i - MV_SUBPEL_QTR_PRECISION],
+        fc->flex_mv_precision_cdf[i - MV_SUBPEL_QTR_PRECISION], NULL);
 #endif  // CONFIG_FLEX_MVRES
 
   for (i = 0; i < PALATTE_BSIZE_CTXS; ++i) {

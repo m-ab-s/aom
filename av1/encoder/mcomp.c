@@ -92,8 +92,11 @@ int av1_mv_bit_cost_gen(const MV *mv, const MV *ref,
   const MV diff = { mv->row - ref_.row, mv->col - ref_.col };
   int cost = mv_cost(&diff, mvjcost, mvcost[precision]);
   // The flex mv cost needs to be added only once for compound
-  if (use_flex_mv && frame_precision > MV_SUBPEL_NONE && flex_mv_costs)
-    cost += flex_mv_costs[frame_precision - 1][frame_precision - precision];
+  if (use_flex_mv && flex_mv_costs) {
+    assert(frame_precision >= MV_SUBPEL_QTR_PRECISION);
+    cost += flex_mv_costs[frame_precision - MV_SUBPEL_QTR_PRECISION]
+                         [frame_precision - precision];
+  }
 #else
   const MV diff = { mv->row - ref->row, mv->col - ref->col };
   int cost = mv_cost(&diff, mvjcost, mvcost[frame_precision]);
@@ -120,8 +123,11 @@ int av1_mv_bit_cost_gen2(const MV *mv, const MV *ref,
   int cost = mv_cost(&diff[0], mvjcost, mvcost[precision]) +
              mv_cost(&diff[1], mvjcost, mvcost[precision]);
   // The flex mv cost needs to be added only once for compound
-  if (use_flex_mv && frame_precision > MV_SUBPEL_NONE && flex_mv_costs)
-    cost += flex_mv_costs[frame_precision - 1][frame_precision - precision];
+  if (use_flex_mv && flex_mv_costs) {
+    assert(frame_precision >= MV_SUBPEL_QTR_PRECISION);
+    cost += flex_mv_costs[frame_precision - MV_SUBPEL_QTR_PRECISION]
+                         [frame_precision - precision];
+  }
 #else
   const MV diff[2] = { { mv[0].row - ref[0].row, mv[0].col - ref[0].col },
                        { mv[1].row - ref[1].row, mv[1].col - ref[1].col } };
@@ -145,8 +151,11 @@ int av1_mv_bit_cost(const MV *mv, const MV *ref,
   const MV diff = { mv->row - ref_.row, mv->col - ref_.col };
   int cost = mv_cost(&diff, mvjcost, mvcost[precision]);
   // The flex mv cost needs to be added only once for compound
-  if (frame_precision > MV_SUBPEL_NONE && flex_mv_costs)
-    cost += flex_mv_costs[frame_precision - 1][frame_precision - precision];
+  if (flex_mv_costs) {
+    assert(frame_precision >= MV_SUBPEL_QTR_PRECISION);
+    cost += flex_mv_costs[frame_precision - MV_SUBPEL_QTR_PRECISION]
+                         [frame_precision - precision];
+  }
 #else
   const MV diff = { mv->row - ref->row, mv->col - ref->col };
   int cost = mv_cost(&diff, mvjcost, mvcost[frame_precision]);
@@ -201,8 +210,11 @@ static int mv_flex_err_cost(const MV *mv, const MV *ref,
     const MV diff = { mv->row - ref_.row, mv->col - ref_.col };
 
     int cost = mv_cost(&diff, mvjcost, mvcost[precision]);
-    if (frame_precision > MV_SUBPEL_NONE && flex_mv_costs)
-      cost += flex_mv_costs[frame_precision - 1][frame_precision - precision];
+    if (frame_precision > MV_SUBPEL_NONE && flex_mv_costs) {
+      assert(frame_precision >= MV_SUBPEL_QTR_PRECISION);
+      cost += flex_mv_costs[frame_precision - MV_SUBPEL_QTR_PRECISION]
+                           [frame_precision - precision];
+    }
     return (int)ROUND_POWER_OF_TWO_64((int64_t)cost * error_per_bit,
                                       RDDIV_BITS + AV1_PROB_COST_SHIFT -
                                           RD_EPB_SHIFT +

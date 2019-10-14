@@ -355,8 +355,8 @@ static MvSubpelPrecision determine_frame_mv_precision(const AV1_COMP *cpi,
 #if CONFIG_FLEX_MVRES
 #define FLEX_MV_PRECISION_QTHRESH 256  // Reduce to turn off at low quality
 static int determine_flex_mv_precision(const AV1_COMP *cpi, int q) {
-  return (cpi->common.mv_precision > MV_SUBPEL_NONE && cpi->oxcf.pass != 1 &&
-          q <= FLEX_MV_PRECISION_QTHRESH);
+  return (cpi->common.mv_precision >= MV_SUBPEL_QTR_PRECISION &&
+          cpi->oxcf.pass != 1 && q <= FLEX_MV_PRECISION_QTHRESH);
 }
 #endif  // CONFIG_FLEX_MVRES
 

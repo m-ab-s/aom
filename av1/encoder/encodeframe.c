@@ -1528,8 +1528,9 @@ static void update_stats(const AV1_COMMON *const cm, TileDataEnc *tile_data,
 #if CONFIG_FLEX_MVRES
         if (allow_update_cdf && is_flex_mv_precision_active(cm, mbmi->mode)) {
           const int down = cm->mv_precision - mbmi->mv_precision;
-          update_cdf(fc->flex_mv_precision_cdf[cm->mv_precision - 1], down,
-                     cm->mv_precision + 1);
+          update_cdf(fc->flex_mv_precision_cdf[cm->mv_precision -
+                                               MV_SUBPEL_QTR_PRECISION],
+                     down, cm->mv_precision + 1);
         }
         assert(mbmi->mv_precision == av1_get_mbmi_mv_precision(cm, mbmi));
 #else
@@ -4313,9 +4314,10 @@ static void avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
   AVERAGE_CDF(ctx_left->switchable_interp_cdf, ctx_tr->switchable_interp_cdf,
               SWITCHABLE_FILTERS);
 #if CONFIG_FLEX_MVRES
-  for (int p = 0; p < MV_SUBPEL_PRECISIONS - 1; ++p)
-    AVERAGE_CDF(ctx_left->flex_mv_precision_cdf[p],
-                ctx_tr->flex_mv_precision_cdf[p], p + 2);
+  for (int p = MV_SUBPEL_QTR_PRECISION; p < MV_SUBPEL_PRECISIONS; ++p)
+    AVERAGE_CDF(ctx_left->flex_mv_precision_cdf[p - MV_SUBPEL_QTR_PRECISION],
+                ctx_tr->flex_mv_precision_cdf[p - MV_SUBPEL_QTR_PRECISION],
+                p + 1);
 #endif  // CONFIG_FLEX_MVRES
   AVERAGE_CDF(ctx_left->angle_delta_cdf, ctx_tr->angle_delta_cdf,
               2 * MAX_ANGLE_DELTA + 1);

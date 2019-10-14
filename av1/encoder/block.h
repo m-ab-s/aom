@@ -359,7 +359,8 @@ struct macroblock {
   int switchable_interp_costs[SWITCHABLE_FILTER_CONTEXTS][SWITCHABLE_FILTERS];
 #if CONFIG_FLEX_MVRES
   // costs are based on precision down from frame level mv precision
-  int flex_mv_precision_costs[MV_SUBPEL_PRECISIONS - 1][MV_SUBPEL_PRECISIONS];
+  int flex_mv_precision_costs[MV_SUBPEL_PRECISIONS - MV_SUBPEL_QTR_PRECISION]
+                             [MV_SUBPEL_PRECISIONS];
 #endif  // CONFIG_FLEX_MVRES
   int partition_cost[PARTITION_CONTEXTS][EXT_PARTITION_TYPES];
   int palette_y_size_cost[PALATTE_BSIZE_CTXS][PALETTE_SIZES];

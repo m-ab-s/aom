@@ -5103,7 +5103,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       } else {
 #if CONFIG_FLEX_MVRES
         cm->mv_precision = (MvSubpelPrecision)aom_rb_read_literal(rb, 2);
-        if (cm->mv_precision > MV_SUBPEL_NONE)
+        if (cm->mv_precision >= MV_SUBPEL_QTR_PRECISION)
           cm->use_flex_mv_precision = aom_rb_read_bit(rb);
         else
           cm->use_flex_mv_precision = 0;
