@@ -4724,6 +4724,12 @@ static void avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
 #endif  // CONFIG_FLEX_MVRES
   AVERAGE_CDF(ctx_left->angle_delta_cdf, ctx_tr->angle_delta_cdf,
               2 * MAX_ANGLE_DELTA + 1);
+#if CONFIG_NEW_TX_PARTITION
+  AVERAGE_CDF(ctx_left->tx_size_cdf[0], ctx_tr->tx_size_cdf[0],
+              TX_PARTITION_TYPES_INTRA);
+  AVERAGE_CDF(ctx_left->tx_size_cdf[1], ctx_tr->tx_size_cdf[1],
+              TX_PARTITION_TYPES_INTRA);
+#else
   AVG_CDF_STRIDE(ctx_left->tx_size_cdf[0], ctx_tr->tx_size_cdf[0], MAX_TX_DEPTH,
                  CDF_SIZE(MAX_TX_DEPTH + 1));
   AVERAGE_CDF(ctx_left->tx_size_cdf[1], ctx_tr->tx_size_cdf[1],
@@ -4732,6 +4738,7 @@ static void avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
               MAX_TX_DEPTH + 1);
   AVERAGE_CDF(ctx_left->tx_size_cdf[3], ctx_tr->tx_size_cdf[3],
               MAX_TX_DEPTH + 1);
+#endif  // CONFIG_NEW_TX_PARTITION
   AVERAGE_CDF(ctx_left->delta_q_cdf, ctx_tr->delta_q_cdf, DELTA_Q_PROBS + 1);
   AVERAGE_CDF(ctx_left->delta_lf_cdf, ctx_tr->delta_lf_cdf, DELTA_LF_PROBS + 1);
   for (int i = 0; i < FRAME_LF_COUNT; i++) {
@@ -6337,10 +6344,20 @@ static void encode_superblock(const AV1_COMP *const cpi, TileDataEnc *tile_data,
         tx_partition_count_update(cm, x, bsize, mi_row, mi_col, td->counts,
                                   tile_data->allow_update_cdf);
       } else {
-        if (mbmi->tx_size != max_txsize_rect_lookup[bsize])
-          ++x->txb_split_count;
+        const TX_SIZE max_tx_size = max_txsize_rect_lookup[bsize];
+        if (mbmi->tx_size != max_tx_size) ++x->txb_split_count;
         if (block_signals_txsize(bsize)) {
           const int tx_size_ctx = get_tx_size_context(xd);
+#if CONFIG_NEW_TX_PARTITION
+          const int is_rect = is_rect_tx(max_tx_size);
+          if (tile_data->allow_update_cdf)
+            update_cdf(xd->tile_ctx->tx_size_cdf[is_rect][tx_size_ctx],
+                       mbmi->partition_type[0], TX_PARTITION_TYPES_INTRA);
+#if CONFIG_ENTROPY_STATS
+          ++td->counts
+                ->intra_tx_size[is_rect][tx_size_ctx][mbmi->partition_type[0]];
+#endif
+#else  // CONFIG_NEW_TX_PARTITION
           const int32_t tx_size_cat = bsize_to_tx_size_cat(bsize);
           const int depth = tx_size_to_depth(mbmi->tx_size, bsize);
           const int max_depths = bsize_to_max_depth(bsize);
@@ -6351,6 +6368,7 @@ static void encode_superblock(const AV1_COMP *const cpi, TileDataEnc *tile_data,
 #if CONFIG_ENTROPY_STATS
           ++td->counts->intra_tx_size[tx_size_cat][tx_size_ctx][depth];
 #endif
+#endif  // CONFIG_NEW_TX_PARTITION
         }
       }
       assert(IMPLIES(is_rect_tx(mbmi->tx_size), is_rect_tx_allowed(xd, mbmi)));

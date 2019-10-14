@@ -3538,11 +3538,20 @@ static int tx_size_cost(const AV1_COMMON *const cm, const MACROBLOCK *const x,
   assert(bsize == x->e_mbd.mi[0]->sb_type);
   if (cm->tx_mode != TX_MODE_SELECT || !block_signals_txsize(bsize)) return 0;
 
+  const MACROBLOCKD *const xd = &x->e_mbd;
+#if CONFIG_NEW_TX_PARTITION
+  (void)tx_size;
+  MB_MODE_INFO *const mbmi = xd->mi[0];
+  const TX_SIZE max_tx_size = max_txsize_rect_lookup[bsize];
+  const int is_rect = is_rect_tx(max_tx_size);
+  const int tx_size_ctx = get_tx_size_context(xd);
+  return x->tx_size_cost[is_rect][tx_size_ctx][mbmi->partition_type[0]];
+#else
   const int32_t tx_size_cat = bsize_to_tx_size_cat(bsize);
   const int depth = tx_size_to_depth(tx_size, bsize);
-  const MACROBLOCKD *const xd = &x->e_mbd;
   const int tx_size_ctx = get_tx_size_context(xd);
   return x->tx_size_cost[tx_size_cat][tx_size_ctx][depth];
+#endif  // CONFIG_NEW_TX_PARTITION
 }
 
 static int64_t txfm_yrd(const AV1_COMP *const cpi, MACROBLOCK *x,
@@ -3702,13 +3711,15 @@ static void choose_tx_size_type_from_rd(const AV1_COMP *const cpi,
   TX_TYPE best_txk_type[TXK_TYPE_BUF_LEN];
   uint8_t best_blk_skip[MAX_MIB_SIZE * MAX_MIB_SIZE];
   TX_SIZE best_tx_size = max_tx_size;
+  TX_PARTITION_TYPE best_partition_type = TX_PARTITION_NONE;
   int64_t best_rd = INT64_MAX;
   const int n4 = bsize_to_num_blk(bs);
   x->rd_model = FULL_TXFM_RD;
   int64_t cur_rd = INT64_MAX;
-  for (TX_PARTITION_TYPE type = 0; type <= TX_PARTITION_TYPES_INTRA; ++type) {
+  for (TX_PARTITION_TYPE type = 0; type < TX_PARTITION_TYPES_INTRA; ++type) {
     // Skip any illegal partitions for this block size
     if (!use_tx_partition(type, max_tx_size)) continue;
+    mbmi->partition_type[0] = type;
     TX_SIZE sub_txs[MAX_TX_PARTITIONS] = { 0 };
     get_tx_partition_sizes(type, max_tx_size, sub_txs);
     TX_SIZE cur_tx_size = sub_txs[0];
@@ -3731,6 +3742,7 @@ static void choose_tx_size_type_from_rd(const AV1_COMP *const cpi,
              sizeof(best_txk_type[0]) * TXK_TYPE_BUF_LEN);
       memcpy(best_blk_skip, x->blk_skip, sizeof(best_blk_skip[0]) * n4);
       best_tx_size = cur_tx_size;
+      best_partition_type = type;
       best_rd = cur_rd;
       *rd_stats = this_rd_stats;
     }
@@ -3739,6 +3751,7 @@ static void choose_tx_size_type_from_rd(const AV1_COMP *const cpi,
 
   if (rd_stats->rate != INT_MAX) {
     mbmi->tx_size = best_tx_size;
+    mbmi->partition_type[0] = best_partition_type;
     memcpy(mbmi->txk_type, best_txk_type,
            sizeof(best_txk_type[0]) * TXK_TYPE_BUF_LEN);
     memcpy(x->blk_skip, best_blk_skip, sizeof(best_blk_skip[0]) * n4);
@@ -4564,6 +4577,9 @@ static int rd_pick_filter_intra_sby(const AV1_COMP *const cpi, MACROBLOCK *x,
   int filter_intra_selected_flag = 0;
   FILTER_INTRA_MODE mode;
   TX_SIZE best_tx_size = TX_8X8;
+#if CONFIG_NEW_TX_PARTITION
+  TX_PARTITION_TYPE best_tx_partition = TX_PARTITION_NONE;
+#endif  // CONFIG_NEW_TX_PARTITION
   FILTER_INTRA_MODE_INFO filter_intra_mode_info;
   TX_TYPE best_txk_type[TXK_TYPE_BUF_LEN];
   (void)ctx;
@@ -4594,6 +4610,9 @@ static int rd_pick_filter_intra_sby(const AV1_COMP *const cpi, MACROBLOCK *x,
     if (this_rd < *best_rd) {
       *best_rd = this_rd;
       best_tx_size = mbmi->tx_size;
+#if CONFIG_NEW_TX_PARTITION
+      best_tx_partition = mbmi->partition_type[0];
+#endif  // CONFIG_NEW_TX_PARTITION
       filter_intra_mode_info = mbmi->filter_intra_mode_info;
       memcpy(best_txk_type, mbmi->txk_type,
              sizeof(best_txk_type[0]) * TXK_TYPE_BUF_LEN);
@@ -4610,6 +4629,9 @@ static int rd_pick_filter_intra_sby(const AV1_COMP *const cpi, MACROBLOCK *x,
   if (filter_intra_selected_flag) {
     mbmi->mode = DC_PRED;
     mbmi->tx_size = best_tx_size;
+#if CONFIG_NEW_TX_PARTITION
+    mbmi->partition_type[0] = best_tx_partition;
+#endif  // CONFIG_NEW_TX_PARTITION
     mbmi->filter_intra_mode_info = filter_intra_mode_info;
     memcpy(mbmi->txk_type, best_txk_type,
            sizeof(best_txk_type[0]) * TXK_TYPE_BUF_LEN);
@@ -4630,6 +4652,9 @@ static int rd_pick_adapt_filter_intra_sby(
   int adapt_filter_intra_selected_flag = 0;
   ADAPT_FILTER_INTRA_MODE mode;
   TX_SIZE best_tx_size = TX_8X8;
+#if CONFIG_NEW_TX_PARTITION
+  TX_PARTITION_TYPE best_tx_partition = TX_PARTITION_NONE;
+#endif  // CONFIG_NEW_TX_PARTITION
   ADAPT_FILTER_INTRA_MODE_INFO adapt_filter_intra_mode_info;
   TX_TYPE best_txk_type[TXK_TYPE_BUF_LEN];
   av1_zero(adapt_filter_intra_mode_info);
@@ -4652,6 +4677,9 @@ static int rd_pick_adapt_filter_intra_sby(
     if (this_rd < *best_rd) {
       *best_rd = this_rd;
       best_tx_size = mbmi->tx_size;
+#if CONFIG_NEW_TX_PARTITION
+      best_tx_partition = mbmi->partition_type[0];
+#endif  // CONFIG_NEW_TX_PARTITION
       adapt_filter_intra_mode_info = mbmi->adapt_filter_intra_mode_info;
       memcpy(best_txk_type, mbmi->txk_type,
              sizeof(best_txk_type[0]) * TXK_TYPE_BUF_LEN);
@@ -4668,6 +4696,9 @@ static int rd_pick_adapt_filter_intra_sby(
   if (adapt_filter_intra_selected_flag) {
     mbmi->mode = DC_PRED;
     mbmi->tx_size = best_tx_size;
+#if CONFIG_NEW_TX_PARTITION
+    mbmi->partition_type[0] = best_tx_partition;
+#endif  // CONFIG_NEW_TX_PARTITION
     mbmi->adapt_filter_intra_mode_info = adapt_filter_intra_mode_info;
     memcpy(mbmi->txk_type, best_txk_type,
            sizeof(best_txk_type[0]) * TXK_TYPE_BUF_LEN);
@@ -4684,8 +4715,12 @@ static int64_t calc_rd_given_intra_angle(
     const AV1_COMP *const cpi, MACROBLOCK *x, BLOCK_SIZE bsize, int mi_row,
     int mi_col, int mode_cost, int64_t best_rd_in, int8_t angle_delta,
     int max_angle_delta, int *rate, RD_STATS *rd_stats, int *best_angle_delta,
-    TX_SIZE *best_tx_size, int64_t *best_rd, int64_t *best_model_rd,
-    TX_TYPE *best_txk_type, uint8_t *best_blk_skip, int skip_model_rd) {
+    TX_SIZE *best_tx_size,
+#if CONFIG_NEW_TX_PARTITION
+    TX_PARTITION_TYPE *best_tx_partition,
+#endif  // CONFIG_NEW_TX_PARTITION
+    int64_t *best_rd, int64_t *best_model_rd, TX_TYPE *best_txk_type,
+    uint8_t *best_blk_skip, int skip_model_rd) {
   RD_STATS tokenonly_rd_stats;
   int64_t this_rd;
   MB_MODE_INFO *mbmi = x->e_mbd.mi[0];
@@ -4713,6 +4748,9 @@ static int64_t calc_rd_given_intra_angle(
     *best_rd = this_rd;
     *best_angle_delta = mbmi->angle_delta[PLANE_TYPE_Y];
     *best_tx_size = mbmi->tx_size;
+#if CONFIG_NEW_TX_PARTITION
+    *best_tx_partition = mbmi->partition_type[0];
+#endif  // CONFIG_NEW_TX_PARTITION
     *rate = this_rate;
     rd_stats->rate = tokenonly_rd_stats.rate;
     rd_stats->dist = tokenonly_rd_stats.dist;
@@ -4735,6 +4773,9 @@ static int64_t rd_pick_intra_angle_sby(const AV1_COMP *const cpi, MACROBLOCK *x,
   int best_angle_delta = 0;
   int64_t rd_cost[2 * (MAX_ANGLE_DELTA + 2)];
   TX_SIZE best_tx_size = mbmi->tx_size;
+#if CONFIG_NEW_TX_PARTITION
+  TX_PARTITION_TYPE best_tx_partition = mbmi->partition_type[0];
+#endif  // CONFIG_NEW_TX_PARTITION
   TX_TYPE best_txk_type[TXK_TYPE_BUF_LEN];
   uint8_t best_blk_skip[MAX_MIB_SIZE * MAX_MIB_SIZE];
 
@@ -4749,8 +4790,11 @@ static int64_t rd_pick_intra_angle_sby(const AV1_COMP *const cpi, MACROBLOCK *x,
       const int64_t this_rd = calc_rd_given_intra_angle(
           cpi, x, bsize, mi_row, mi_col, mode_cost, best_rd_in,
           (1 - 2 * i) * angle_delta, MAX_ANGLE_DELTA, rate, rd_stats,
-          &best_angle_delta, &best_tx_size, &best_rd, best_model_rd,
-          best_txk_type, best_blk_skip,
+          &best_angle_delta, &best_tx_size,
+#if CONFIG_NEW_TX_PARTITION
+          &best_tx_partition,
+#endif  // CONFIG_NEW_TX_PARTITION
+          &best_rd, best_model_rd, best_txk_type, best_blk_skip,
           (skip_model_rd_for_zero_deg & !angle_delta));
       rd_cost[2 * angle_delta + i] = this_rd;
       if (first_try && this_rd == INT64_MAX) return best_rd;
@@ -4774,14 +4818,20 @@ static int64_t rd_pick_intra_angle_sby(const AV1_COMP *const cpi, MACROBLOCK *x,
         calc_rd_given_intra_angle(
             cpi, x, bsize, mi_row, mi_col, mode_cost, best_rd,
             (1 - 2 * i) * angle_delta, MAX_ANGLE_DELTA, rate, rd_stats,
-            &best_angle_delta, &best_tx_size, &best_rd, best_model_rd,
-            best_txk_type, best_blk_skip, 0);
+            &best_angle_delta, &best_tx_size,
+#if CONFIG_NEW_TX_PARTITION
+            &best_tx_partition,
+#endif  // CONFIG_NEW_TX_PARTITION
+            &best_rd, best_model_rd, best_txk_type, best_blk_skip, 0);
       }
     }
   }
 
   if (rd_stats->rate != INT_MAX) {
     mbmi->tx_size = best_tx_size;
+#if CONFIG_NEW_TX_PARTITION
+    mbmi->partition_type[0] = best_tx_partition;
+#endif  // CONFIG_NEW_TX_PARTITION
     mbmi->angle_delta[PLANE_TYPE_Y] = best_angle_delta;
     memcpy(mbmi->txk_type, best_txk_type,
            sizeof(*best_txk_type) * TXK_TYPE_BUF_LEN);
@@ -12897,6 +12947,9 @@ static int64_t handle_intra_mode(InterModeSearchState *search_state,
       RD_STATS rd_stats_y_fi;
       int filter_intra_selected_flag = 0;
       TX_SIZE best_tx_size = mbmi->tx_size;
+#if CONFIG_NEW_TX_PARTITION
+      TX_SIZE best_tx_partition = mbmi->partition_type[0];
+#endif  // CONFIG_NEW_TX_PARTITION
       TX_TYPE best_txk_type[TXK_TYPE_BUF_LEN];
       memcpy(best_txk_type, mbmi->txk_type,
              sizeof(*best_txk_type) * TXK_TYPE_BUF_LEN);
@@ -12922,6 +12975,9 @@ static int64_t handle_intra_mode(InterModeSearchState *search_state,
         }
         if (this_rd_tmp < best_rd_so_far) {
           best_tx_size = mbmi->tx_size;
+#if CONFIG_NEW_TX_PARTITION
+          best_tx_partition = mbmi->partition_type[0];
+#endif  // CONFIG_NEW_TX_PARTITION
           memcpy(best_txk_type, mbmi->txk_type,
                  sizeof(*best_txk_type) * TXK_TYPE_BUF_LEN);
           memcpy(best_blk_skip, x->blk_skip,
@@ -12934,6 +12990,9 @@ static int64_t handle_intra_mode(InterModeSearchState *search_state,
       }
 
       mbmi->tx_size = best_tx_size;
+#if CONFIG_NEW_TX_PARTITION
+      mbmi->partition_type[0] = best_tx_partition;
+#endif  // CONFIG_NEW_TX_PARTITION
       memcpy(mbmi->txk_type, best_txk_type,
              sizeof(*best_txk_type) * TXK_TYPE_BUF_LEN);
       memcpy(x->blk_skip, best_blk_skip,

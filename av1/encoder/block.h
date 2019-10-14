@@ -389,14 +389,15 @@ struct macroblock {
   int palette_uv_mode_cost[PALETTE_UV_MODE_CONTEXTS][2];
   // The rate associated with each alpha codeword
   int cfl_cost[CFL_JOINT_SIGNS][CFL_PRED_PLANES][CFL_ALPHABET_SIZE];
-  int tx_size_cost[TX_SIZES - 1][TX_SIZE_CONTEXTS][TX_SIZES];
 #if CONFIG_NEW_TX_PARTITION
 #if CONFIG_NEW_TX_PARTITION_EXT
   int txfm_partition_cost[2][TXFM_PARTITION_CONTEXTS][TX_PARTITION_TYPES];
 #else   // CONFIG_NEW_TX_PARTITION_EXT
   int txfm_partition_cost[TXFM_PARTITION_CONTEXTS][TX_PARTITION_TYPES];
 #endif  // CONFIG_NEW_TX_PARTITION_EXT
+  int tx_size_cost[2][TX_SIZE_CONTEXTS][TX_PARTITION_TYPES_INTRA];
 #else   // CONFIG_NEW_TX_PARTITION
+  int tx_size_cost[TX_SIZES - 1][TX_SIZE_CONTEXTS][TX_SIZES];
   int txfm_partition_cost[TXFM_PARTITION_CONTEXTS][2];
 #endif  // CONFIG_NEW_TX_PARTITION
 #if CONFIG_MODE_DEP_TX

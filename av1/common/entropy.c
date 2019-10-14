@@ -206,11 +206,16 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
   }
 #endif  // CONFIG_FLEX_MVRES
   RESET_CDF_COUNTER(fc->angle_delta_cdf, 2 * MAX_ANGLE_DELTA + 1);
+#if CONFIG_NEW_TX_PARTITION
+  RESET_CDF_COUNTER(fc->tx_size_cdf[0], TX_PARTITION_TYPES_INTRA);
+  RESET_CDF_COUNTER(fc->tx_size_cdf[1], TX_PARTITION_TYPES_INTRA);
+#else
   RESET_CDF_COUNTER_STRIDE(fc->tx_size_cdf[0], MAX_TX_DEPTH,
                            CDF_SIZE(MAX_TX_DEPTH + 1));
   RESET_CDF_COUNTER(fc->tx_size_cdf[1], MAX_TX_DEPTH + 1);
   RESET_CDF_COUNTER(fc->tx_size_cdf[2], MAX_TX_DEPTH + 1);
   RESET_CDF_COUNTER(fc->tx_size_cdf[3], MAX_TX_DEPTH + 1);
+#endif  // CONFIG_NEW_TX_PARTITION
   RESET_CDF_COUNTER(fc->delta_q_cdf, DELTA_Q_PROBS + 1);
   RESET_CDF_COUNTER(fc->delta_lf_cdf, DELTA_LF_PROBS + 1);
   for (int i = 0; i < FRAME_LF_COUNT; i++) {

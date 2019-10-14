@@ -228,6 +228,22 @@ static void write_tx_partition(MACROBLOCKD *xd, const MB_MODE_INFO *mbmi,
   txfm_partition_update(xd->above_txfm_context + blk_col,
                         xd->left_txfm_context + blk_row, tx_size, max_tx_size);
 }
+
+static void write_tx_partition_intra(const MACROBLOCKD *xd, aom_writer *w,
+                                     TX_SIZE max_tx_size) {
+  const MB_MODE_INFO *const mbmi = xd->mi[0];
+  const BLOCK_SIZE bsize = mbmi->sb_type;
+  FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
+  if (block_signals_txsize(bsize)) {
+    const TX_PARTITION_TYPE partition = mbmi->partition_type[0];
+    const int tx_size_ctx = get_tx_size_context(xd);
+    const int is_rect = is_rect_tx(max_tx_size);
+    assert(!is_inter_block(mbmi));
+
+    aom_write_symbol(w, partition, ec_ctx->tx_size_cdf[is_rect][tx_size_ctx],
+                     TX_PARTITION_TYPES_INTRA);
+  }
+}
 #else
 static void write_tx_size_vartx(MACROBLOCKD *xd, const MB_MODE_INFO *mbmi,
                                 TX_SIZE tx_size, int depth, int blk_row,
@@ -279,7 +295,6 @@ static void write_tx_size_vartx(MACROBLOCKD *xd, const MB_MODE_INFO *mbmi,
       }
   }
 }
-#endif  // CONFIG_NEW_TX_PARTITION
 
 static void write_selected_tx_size(const MACROBLOCKD *xd, aom_writer *w) {
   const MB_MODE_INFO *const mbmi = xd->mi[0];
@@ -300,6 +315,7 @@ static void write_selected_tx_size(const MACROBLOCKD *xd, aom_writer *w) {
                      max_depths + 1);
   }
 }
+#endif  // CONFIG_NEW_TX_PARTITION
 
 static int write_skip(const AV1_COMMON *cm, const MACROBLOCKD *xd,
                       int segment_id, const MB_MODE_INFO *mi, aom_writer *w) {
@@ -1778,10 +1794,10 @@ static void write_modes_b(AV1_COMP *cpi, const TileInfo *const tile,
   const int is_inter_tx = is_inter_block(mbmi);
   const int skip = mbmi->skip;
   const int segment_id = mbmi->segment_id;
+  const TX_SIZE max_tx_size = get_vartx_max_txsize(xd, bsize, 0);
   if (cm->tx_mode == TX_MODE_SELECT && block_signals_txsize(bsize) &&
       !(is_inter_tx && skip) && !xd->lossless[segment_id]) {
     if (is_inter_tx) {  // This implies skip flag is 0.
-      const TX_SIZE max_tx_size = get_vartx_max_txsize(xd, bsize, 0);
       const int txbh = tx_size_high_unit[max_tx_size];
       const int txbw = tx_size_wide_unit[max_tx_size];
       const int width = block_size_wide[bsize] >> tx_size_wide_log2[0];
@@ -1796,7 +1812,11 @@ static void write_modes_b(AV1_COMP *cpi, const TileInfo *const tile,
         }
       }
     } else {
+#if CONFIG_NEW_TX_PARTITION
+      write_tx_partition_intra(xd, w, max_tx_size);
+#else
       write_selected_tx_size(xd, w);
+#endif
       set_txfm_ctxs(mbmi->tx_size, xd->n4_w, xd->n4_h, 0, xd);
     }
   } else {

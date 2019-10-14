@@ -1182,6 +1182,18 @@ static void read_tx_partition(MACROBLOCKD *xd, MB_MODE_INFO *mbmi,
                         xd->left_txfm_context + blk_row, mbmi->tx_size,
                         max_tx_size);
 }
+
+static TX_SIZE read_tx_partition_intra(MACROBLOCKD *xd, aom_reader *r,
+                                       TX_SIZE max_tx_size) {
+  const int ctx = get_tx_size_context(xd);
+  FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
+  const int is_rect = is_rect_tx(max_tx_size);
+  const TX_PARTITION_TYPE partition = aom_read_symbol(
+      r, ec_ctx->tx_size_cdf[is_rect][ctx], TX_PARTITION_TYPES_INTRA, ACCT_STR);
+  TX_SIZE sub_txs[MAX_TX_PARTITIONS] = { 0 };
+  get_tx_partition_sizes(partition, max_tx_size, sub_txs);
+  return sub_txs[0];
+}
 #else
 static void read_tx_size_vartx(MACROBLOCKD *xd, MB_MODE_INFO *mbmi,
                                TX_SIZE tx_size, int depth,
@@ -1272,7 +1284,6 @@ static void read_tx_size_vartx(MACROBLOCKD *xd, MB_MODE_INFO *mbmi,
 #endif
   }
 }
-#endif  // CONFIG_NEW_TX_PARTITION
 
 static TX_SIZE read_selected_tx_size(MACROBLOCKD *xd, aom_reader *r) {
   // TODO(debargha): Clean up the logic here. This function should only
@@ -1288,6 +1299,7 @@ static TX_SIZE read_selected_tx_size(MACROBLOCKD *xd, aom_reader *r) {
   const TX_SIZE tx_size = depth_to_tx_size(depth, bsize);
   return tx_size;
 }
+#endif  // CONFIG_NEW_TX_PARTITION
 
 static TX_SIZE read_tx_size(AV1_COMMON *cm, MACROBLOCKD *xd, int is_inter,
                             int allow_select_inter, aom_reader *r) {
@@ -1297,8 +1309,12 @@ static TX_SIZE read_tx_size(AV1_COMMON *cm, MACROBLOCKD *xd, int is_inter,
 
   if (block_signals_txsize(bsize)) {
     if ((!is_inter || allow_select_inter) && tx_mode == TX_MODE_SELECT) {
-      const TX_SIZE coded_tx_size = read_selected_tx_size(xd, r);
-      return coded_tx_size;
+#if CONFIG_NEW_TX_PARTITION
+      const TX_SIZE max_tx_size = max_txsize_rect_lookup[bsize];
+      return read_tx_partition_intra(xd, r, max_tx_size);
+#else
+      return read_selected_tx_size(xd, r);
+#endif  // CONFIG_NEW_TX_PARTITION
     } else {
       return tx_size_from_tx_mode(bsize, tx_mode);
     }

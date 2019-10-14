@@ -210,10 +210,21 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, MACROBLOCK *x,
       cost_u[u] += sign_cost[joint_sign];
   }
 
+#if CONFIG_NEW_TX_PARTITION
+  for (i = 0; i < TX_SIZE_CONTEXTS; ++i) {
+    // Square
+    av1_cost_tokens_from_cdf(x->tx_size_cost[0][i], fc->tx_size_cdf[0][i],
+                             NULL);
+    // Rectangular
+    av1_cost_tokens_from_cdf(x->tx_size_cost[1][i], fc->tx_size_cdf[1][i],
+                             NULL);
+  }
+#else
   for (i = 0; i < MAX_TX_CATS; ++i)
     for (j = 0; j < TX_SIZE_CONTEXTS; ++j)
       av1_cost_tokens_from_cdf(x->tx_size_cost[i][j], fc->tx_size_cdf[i][j],
                                NULL);
+#endif  // CONFIG_NEW_TX_PARTITION
 
   for (i = 0; i < TXFM_PARTITION_CONTEXTS; ++i) {
 #if CONFIG_NEW_TX_PARTITION_EXT

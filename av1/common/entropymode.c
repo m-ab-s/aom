@@ -1293,6 +1293,13 @@ static const aom_cdf_prob
       },
     };
 
+#if CONFIG_NEW_TX_PARTITION
+static const aom_cdf_prob default_tx_size_cdf[2][TX_SIZE_CONTEXTS][CDF_SIZE(
+    TX_PARTITION_TYPES_INTRA)] = {
+  { { AOM_CDF2(19968) }, { AOM_CDF2(19968) }, { AOM_CDF2(24320) } },
+  { { AOM_CDF2(12272) }, { AOM_CDF2(12272) }, { AOM_CDF2(18677) } },
+};
+#else
 static const aom_cdf_prob default_tx_size_cdf[MAX_TX_CATS][TX_SIZE_CONTEXTS]
                                              [CDF_SIZE(MAX_TX_DEPTH + 1)] = {
                                                { { AOM_CDF2(19968) },
@@ -1308,6 +1315,7 @@ static const aom_cdf_prob default_tx_size_cdf[MAX_TX_CATS][TX_SIZE_CONTEXTS]
                                                  { AOM_CDF3(5782, 11475) },
                                                  { AOM_CDF3(16803, 22759) } },
                                              };
+#endif
 
 #define MAX_COLOR_CONTEXT_HASH 8
 // Negative values are invalid
