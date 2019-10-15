@@ -1754,20 +1754,30 @@ static void decode_restoration_mode(AV1_COMMON *cm,
   for (int p = 0; p < num_planes; ++p) {
     RestorationInfo *rsi = &cm->rst_info[p];
     if (aom_rb_read_bit(rb)) {
-      rsi->frame_restoration_type =
-          aom_rb_read_bit(rb) ? RESTORE_SGRPROJ : RESTORE_WIENER;
+      if (aom_rb_read_bit(rb)) {
+#if CONFIG_LOOP_RESTORE_CNN && CONFIG_WIENER_NONSEP
+        rsi->frame_restoration_type =
+            aom_rb_read_bit(rb) ? RESTORE_SGRPROJ : RESTORE_WIENER_NONSEP;
+#else
+        rsi->frame_restoration_type = RESTORE_SGRPROJ;
+#endif  // CONFIG_LOOP_RESTORE_CNN && CONFIG_WIENER_NONSEP
+      } else {
+        rsi->frame_restoration_type = RESTORE_WIENER;
+      }
     } else {
-#if CONFIG_LOOP_RESTORE_CNN
       if (aom_rb_read_bit(rb)) {
         rsi->frame_restoration_type = RESTORE_SWITCHABLE;
       } else {
+#if CONFIG_LOOP_RESTORE_CNN
         rsi->frame_restoration_type =
             aom_rb_read_bit(rb) ? RESTORE_CNN : RESTORE_NONE;
-      }
+#elif CONFIG_WIENER_NONSEP
+        rsi->frame_restoration_type =
+            aom_rb_read_bit(rb) ? RESTORE_WIENER_NONSEP : RESTORE_NONE;
 #else
-      rsi->frame_restoration_type =
-          aom_rb_read_bit(rb) ? RESTORE_SWITCHABLE : RESTORE_NONE;
-#endif  // CONFIG_LOOP_RESTORE_CNN
+        rsi->frame_restoration_type = RESTORE_NONE;
+#endif  // CONFIG_LOOP_RESTORE_CNN || CONFIG_WIENER_NONSEP
+      }
     }
     if (rsi->frame_restoration_type != RESTORE_NONE) {
       all_none = 0;
@@ -1905,6 +1915,23 @@ static void read_sgrproj_filter(SgrprojInfo *sgrproj_info,
   memcpy(ref_sgrproj_info, sgrproj_info, sizeof(*sgrproj_info));
 }
 
+#if CONFIG_WIENER_NONSEP
+static void read_wiener_nsfilter(WienerNonsepInfo *wienerns_info,
+                                 WienerNonsepInfo *ref_wienerns_info,
+                                 aom_reader *rb) {
+  memset(wienerns_info->nsfilter, 0, sizeof(wienerns_info->nsfilter));
+  for (int i = 0; i < WIENERNS_NUM_COEFF; ++i) {
+    wienerns_info->nsfilter[i] = aom_read_primitive_refsubexpfin(
+        rb, (1 << wienerns_coeff_info[i][WIENERNS_BIT_ID]),
+        wienerns_coeff_info[i][WIENERNS_SUBEXP_K_ID],
+        ref_wienerns_info->nsfilter[i] -
+            wienerns_coeff_info[i][WIENERNS_MIN_ID],
+        ACCT_STR);
+  }
+  memcpy(ref_wienerns_info, wienerns_info, sizeof(*wienerns_info));
+}
+#endif  // CONFIG_WIENER_NONSEP
+
 static void loop_restoration_read_sb_coeffs(const AV1_COMMON *const cm,
                                             MACROBLOCKD *xd,
                                             aom_reader *const r, int plane,
@@ -1918,6 +1945,9 @@ static void loop_restoration_read_sb_coeffs(const AV1_COMMON *const cm,
   const int wiener_win = (plane > 0) ? WIENER_WIN_CHROMA : WIENER_WIN;
   WienerInfo *wiener_info = xd->wiener_info + plane;
   SgrprojInfo *sgrproj_info = xd->sgrproj_info + plane;
+#if CONFIG_WIENER_NONSEP
+  WienerNonsepInfo *wiener_nonsep_info = xd->wiener_nonsep_info + plane;
+#endif  // CONFIG_WIENER_NONSEP
 
   if (rsi->frame_restoration_type == RESTORE_SWITCHABLE) {
     rui->restoration_type =
@@ -1933,6 +1963,11 @@ static void loop_restoration_read_sb_coeffs(const AV1_COMMON *const cm,
 #if CONFIG_LOOP_RESTORE_CNN
       case RESTORE_CNN: break;
 #endif  // CONFIG_LOOP_RESTORE_CNN
+#if CONFIG_WIENER_NONSEP
+      case RESTORE_WIENER_NONSEP:
+        read_wiener_nsfilter(&rui->wiener_nonsep_info, wiener_nonsep_info, r);
+        break;
+#endif  // CONFIG_WIENER_NONSEP
       default: assert(rui->restoration_type == RESTORE_NONE); break;
     }
   } else if (rsi->frame_restoration_type == RESTORE_WIENER) {
@@ -1959,6 +1994,17 @@ static void loop_restoration_read_sb_coeffs(const AV1_COMMON *const cm,
     }
   }
 #endif  // CONFIG_LOOP_RESTORE_CNN
+#if CONFIG_WIENER_NONSEP
+  else if (rsi->frame_restoration_type == RESTORE_WIENER_NONSEP) {
+    if (aom_read_symbol(r, xd->tile_ctx->wiener_nonsep_restore_cdf, 2,
+                        ACCT_STR)) {
+      rui->restoration_type = RESTORE_WIENER_NONSEP;
+      read_wiener_nsfilter(&rui->wiener_nonsep_info, wiener_nonsep_info, r);
+    } else {
+      rui->restoration_type = RESTORE_NONE;
+    }
+  }
+#endif  // CONFIG_WIENER_NONSEP
 }
 
 static void setup_loopfilter(AV1_COMMON *cm, struct aom_read_bit_buffer *rb) {

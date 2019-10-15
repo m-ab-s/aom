@@ -533,6 +533,9 @@ typedef struct FRAME_COUNTS {
 #if CONFIG_LOOP_RESTORE_CNN
   unsigned int cnn_restore[2];
 #endif  // CONFIG_LOOP_RESTORE_CNN
+#if CONFIG_WIENER_NONSEP
+  unsigned int wiener_nonsep_restore[2];
+#endif  // CONFIG_WIENER_NONSEP
 #endif  // CONFIG_ENTROPY_STATS
 
   unsigned int switchable_interp[SWITCHABLE_FILTER_CONTEXTS]

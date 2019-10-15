@@ -16,6 +16,19 @@
 #include "av1/common/blockd.h"
 #include "av1/common/onyxc_int.h"
 
+#if CONFIG_WIENER_NONSEP
+const int wienerns_config[WIENERNS_NUM_PIXEL][3] = {
+  { 1, 0, 0 },   { -1, 0, 0 }, { 0, 1, 1 },  { 0, -1, 1 }, { 2, 0, 2 },
+  { -2, 0, 2 },  { 0, 2, 3 },  { 0, -2, 3 }, { 3, 0, 4 },  { -3, 0, 4 },
+  { 0, 3, 5 },   { 0, -3, 5 }, { 1, 1, 6 },  { 1, -1, 6 }, { -1, 1, 6 },
+  { -1, -1, 6 }, { 2, 2, 7 },  { 2, -2, 7 }, { -2, 2, 7 }, { -2, -2, 7 }
+};
+const int wienerns_coeff_info[WIENERNS_NUM_COEFF][3] = {
+  { 5, -12, 4 }, { 5, -4, 4 }, { 4, -10, 3 }, { 4, -13, 3 },
+  { 3, -3, 3 },  { 3, -2, 3 }, { 3, -6, 3 },  { 3, -3, 3 }
+};
+#endif  // CONFIG_WIENER_NONSEP
+
 PREDICTION_MODE av1_left_block_mode(const MB_MODE_INFO *left_mi) {
   if (!left_mi) return DC_PRED;
   assert(!is_inter_block(left_mi) || is_intrabc_block(left_mi));

@@ -408,6 +408,9 @@ struct macroblock {
 #if CONFIG_LOOP_RESTORE_CNN
   int cnn_restore_cost[2];
 #endif  // CONFIG_LOOP_RESTORE_CNN
+#if CONFIG_WIENER_NONSEP
+  int wiener_nonsep_restore_cost[2];
+#endif  // CONFIG_WIENER_NONSEP
   int intrabc_cost[2];
 
   // Used to store sub partition's choices.

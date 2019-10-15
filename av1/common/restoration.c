@@ -960,47 +960,35 @@ static void sgrproj_filter_stripe(const RestorationUnitInfo *rui,
 }
 
 #if CONFIG_WIENER_NONSEP
-const int wiener_nsbits = 7;
-const int wiener_nswindow = 3;
-const int wiener_nsfilter[][5] = {
-  { 1, 0, 0, 5, -12 },  { -1, 0, 0, 5, -12 }, { 0, 1, 1, 5, -4 },
-  { 0, -1, 1, 5, -4 },  { 2, 0, 2, 4, -10 },  { -2, 0, 2, 4, -10 },
-  { 0, 2, 3, 4, -13 },  { 0, -2, 3, 4, -13 }, { 3, 0, 4, 3, -3 },
-  { -3, 0, 4, 3, -3 },  { 0, 3, 5, 3, -2 },   { 0, -3, 5, 3, -2 },
-  { 1, 1, 6, 3, -6 },   { 1, -1, 6, 3, -6 },  { -1, 1, 6, 3, -6 },
-  { -1, -1, 6, 3, -6 }, { 2, 2, 7, 3, -3 },   { 2, -2, 7, 3, -3 },
-  { -2, 2, 7, 3, -3 },  { -2, -2, 7, 3, -3 }
-};
-
 static void apply_wiener_nonsep(const uint8_t *dgd, int width, int height,
                                 int stride, const int16_t *filter, uint8_t *dst,
                                 int dst_stride, int32_t *buf) {
   for (int i = 0; i < height; ++i) {
-    for (int j = 0; j < width; ++j) {
-      memcpy(dst + i * dst_stride, dgd + i * stride, sizeof(uint8_t) * width);
-    }
+    memcpy(dst + i * dst_stride, dgd + i * stride, sizeof(uint8_t) * width);
   }
 
-  int w = wiener_nswindow;
+  int w = WIENERNS_WINDOW;
   if ((w << 1) < width && (w << 1) < height) {
-    int num_pixels = sizeof(wiener_nsfilter) / sizeof(wiener_nsfilter[0]);
+    int num_pixel = WIENERNS_NUM_PIXEL;
     int crop_width = (width - (w << 1));
-    int sz = crop_width * (height - (w << 1));
-    for (int i = 0; i < sz; ++i) {
-      buf[i] = 0;
-    }
 
     for (int i = w; i < height - w; ++i) {
       for (int j = w; j < width - w; ++j) {
-        for (int k = 0; k < num_pixels; ++k) {
+        buf[(i - w) * crop_width + (j - w)] = 0;
+        for (int k = 0; k < num_pixel; ++k) {
           buf[(i - w) * crop_width + (j - w)] +=
-              filter[wiener_nsfilter[k][2]] *
-              (dst[(i + wiener_nsfilter[k][0]) * width +
-                   (j + wiener_nsfilter[k][1])] -
+              filter[wienerns_config[k][WIENERNS_COEFF_ID]] *
+              (dst[(i + wienerns_config[k][WIENERNS_ROW_ID]) * width +
+                   (j + wienerns_config[k][WIENERNS_COL_ID])] -
                dst[i * width + j]);
         }
-        dst[i * width + j] =
-            clip_pixel(buf[(i - w) * crop_width + (j + w)] >> wiener_nsbits);
+      }
+    }
+    // add to dst only after buf are all done
+    for (int i = w; i < height - w; ++i) {
+      for (int j = w; j < width - w; ++j) {
+        dst[i * width + j] += clip_pixel(buf[(i - w) * crop_width + (j - w)] /
+                                         WIENERNS_FILT_STEP);
       }
     }
   }
@@ -1013,8 +1001,6 @@ static void wiener_nsfilter_stripe(const RestorationUnitInfo *rui,
                                    int32_t *tmpbuf, int bit_depth) {
   (void)bit_depth;
   assert(bit_depth == 8);
-  assert(sizeof(wiener_nsfilter) / sizeof(wiener_nsfilter[0]) <=
-         WIENER_NONSEP_WIN);
 
   for (int j = 0; j < stripe_width; j += procunit_width) {
     int w = AOMMIN(procunit_width, stripe_width - j);
@@ -1173,7 +1159,16 @@ typedef void (*stripe_filter_fun)(const RestorationUnitInfo *rui,
                                   int src_stride, uint8_t *dst, int dst_stride,
                                   int32_t *tmpbuf, int bit_depth);
 
-#if CONFIG_LOOP_RESTORE_CNN
+#if CONFIG_LOOP_RESTORE_CNN && CONFIG_WIENER_NONSEP
+#define NUM_STRIPE_FILTERS 7
+
+static const stripe_filter_fun stripe_filters[NUM_STRIPE_FILTERS] = {
+  wiener_filter_stripe,        sgrproj_filter_stripe,
+  cnn_filter_stripe,           wiener_nsfilter_stripe,
+  wiener_filter_stripe_highbd, sgrproj_filter_stripe_highbd,
+  cnn_filter_stripe_highbd
+};  // CONFIG_LOOP_RESTORE_CNN && CONFIG_WIENER_NONSEP
+#elif CONFIG_LOOP_RESTORE_CNN
 #define NUM_STRIPE_FILTERS 6
 
 static const stripe_filter_fun stripe_filters[NUM_STRIPE_FILTERS] = {
@@ -1183,7 +1178,14 @@ static const stripe_filter_fun stripe_filters[NUM_STRIPE_FILTERS] = {
   wiener_filter_stripe_highbd,
   sgrproj_filter_stripe_highbd,
   cnn_filter_stripe_highbd
-};
+};  // CONFIG_LOOP_RESTORE_CNN && !CONFIG_WIENER_NONSEP
+#elif CONFIG_WIENER_NONSEP
+#define NUM_STRIPE_FILTERS 5
+
+static const stripe_filter_fun stripe_filters[NUM_STRIPE_FILTERS] = {
+  wiener_filter_stripe, sgrproj_filter_stripe, wiener_nsfilter_stripe,
+  wiener_filter_stripe_highbd, sgrproj_filter_stripe_highbd
+};  // !CONFIG_LOOP_RESTORE_CNN && CONFIG_WIENER_NONSEP
 #else
 #define NUM_STRIPE_FILTERS 4
 
@@ -1191,7 +1193,7 @@ static const stripe_filter_fun stripe_filters[NUM_STRIPE_FILTERS] = {
   wiener_filter_stripe, sgrproj_filter_stripe, wiener_filter_stripe_highbd,
   sgrproj_filter_stripe_highbd
 };
-#endif  // CONFIG_LOOP_RESTORE_CNN
+#endif
 
 // Filter one restoration unit
 void av1_loop_restoration_filter_unit(

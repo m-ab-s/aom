@@ -89,6 +89,9 @@ typedef struct {
   // The best coefficients for Wiener or Sgrproj restoration
   WienerInfo wiener;
   SgrprojInfo sgrproj;
+#if CONFIG_WIENER_NONSEP
+  WienerNonsepInfo wiener_nonsep;
+#endif  // CONFIG_WIENER_NONSEP
 
   // The sum of squared errors for this rtype.
   int64_t sse[RESTORE_SWITCHABLE_TYPES];
@@ -126,6 +129,9 @@ typedef struct {
   // tile in the frame.
   SgrprojInfo sgrproj;
   WienerInfo wiener;
+#if CONFIG_WIENER_NONSEP
+  WienerNonsepInfo wiener_nonsep;
+#endif  // CONFIG_WIENER_NONSEP
   AV1PixelRect tile_rect;
 } RestSearchCtxt;
 
@@ -1394,6 +1400,141 @@ static void search_cnn(const RestorationTileLimits *limits,
 }
 #endif  // CONFIG_LOOP_RESTORE_CNN
 
+#if CONFIG_WIENER_NONSEP
+static int count_wienerns_bits(WienerNonsepInfo *wienerns_info,
+                               WienerNonsepInfo *ref_wienerns_info) {
+  int bits = 0;
+  for (int i = 0; i < WIENERNS_NUM_COEFF; ++i) {
+    bits += aom_count_primitive_refsubexpfin(
+        (1 << wienerns_coeff_info[i][WIENERNS_BIT_ID]),
+        wienerns_coeff_info[i][WIENERNS_SUBEXP_K_ID],
+        ref_wienerns_info->nsfilter[i] -
+            wienerns_coeff_info[i][WIENERNS_MIN_ID],
+        wienerns_info->nsfilter[i] - wienerns_coeff_info[i][WIENERNS_MIN_ID]);
+  }
+  return bits;
+}
+
+static int16_t quantize(double x, int16_t ratio, int16_t minv, int16_t n) {
+  int scale_x = (int)round(x * ratio);
+  if (scale_x <= minv) return minv;
+  if (scale_x >= minv + n - 1) return minv + n - 1;
+  return scale_x;
+}
+
+// Compute WienerNonsepInfo.nsfilter return false if either X'X singular
+// TODO(jieruan): return false if error is worse as well
+static int compute_quantized_wienerns_filter(
+    const uint8_t *dgd, const uint8_t *src, int h_beg, int h_end, int v_beg,
+    int v_end, int dgd_stride, int src_stride,
+    WienerNonsepInfo *wiener_nonsep_info) {
+  int w = WIENERNS_WINDOW;
+  int crop_width = h_end - h_beg - 2 * w;
+  int crop_height = v_end - v_beg - 2 * w;
+  int num_feature = WIENERNS_NUM_COEFF;
+  int num_sample = crop_width * crop_height;
+  double *X = malloc(sizeof(*X) * num_feature * num_sample);
+  double A[WIENERNS_NUM_COEFF * WIENERNS_NUM_COEFF];
+  double b[WIENERNS_NUM_COEFF];
+  double x[WIENERNS_NUM_COEFF];
+  memset(A, 0, sizeof(A));
+  memset(b, 0, sizeof(b));
+  int res = 0;
+
+  if (X) {
+    memset(X, 0, sizeof(*X) * num_feature * num_sample);
+    for (int i = 0; i < crop_height; ++i) {
+      for (int j = 0; j < crop_width; ++j) {
+        for (int k = 0; k < WIENERNS_NUM_PIXEL; ++k) {
+          X[(i * crop_width + j) * num_feature +
+            wienerns_config[k][WIENERNS_COEFF_ID]] +=
+              (double)
+                  dgd[(v_beg + w + i + wienerns_config[k][WIENERNS_ROW_ID]) *
+                          dgd_stride +
+                      (h_beg + w + j + wienerns_config[k][WIENERNS_COL_ID])] -
+              dgd[(v_beg + w + i) * dgd_stride + (h_beg + w + j)];
+        }
+      }
+    }
+    for (int i = 0; i < num_feature; ++i) {
+      for (int j = 0; j <= i; ++j) {
+        for (int k = 0; k < num_sample; ++k) {
+          A[i * num_feature + j] +=
+              X[k * num_feature + i] * X[k * num_feature + j];
+        }
+        A[j * num_feature + i] = A[i * num_feature + j];
+      }
+      for (int k = 0; k < crop_height; ++k) {
+        for (int j = 0; j < crop_width; ++j) {
+          b[i] += X[(k * crop_width + j) * num_feature + i] *
+                  ((double)src[(v_beg + w + k) * src_stride + (h_beg + w + j)] -
+                   dgd[(v_beg + w + k) * dgd_stride + (h_beg + w + j)]);
+        }
+      }
+    }
+    res = linsolve(num_feature, A, num_feature, b, x);
+    if (res) {
+      for (int k = 0; k < num_feature; ++k) {
+        wiener_nonsep_info->nsfilter[k] = quantize(
+            x[k], WIENERNS_FILT_STEP, wienerns_coeff_info[k][WIENERNS_MIN_ID],
+            (1 << wienerns_coeff_info[k][WIENERNS_BIT_ID]));
+      }
+    }
+  }
+  free(X);
+  return res;
+}
+
+static void search_wiener_nonsep(const RestorationTileLimits *limits,
+                                 const AV1PixelRect *tile_rect,
+                                 int rest_unit_idx, void *priv, int32_t *tmpbuf,
+                                 RestorationLineBuffers *rlbs) {
+  (void)tmpbuf;
+  (void)rlbs;
+  RestSearchCtxt *rsc = (RestSearchCtxt *)priv;
+  RestUnitSearchInfo *rusi = &rsc->rusi[rest_unit_idx];
+
+  const MACROBLOCK *const x = rsc->x;
+  const int64_t bits_none = x->wiener_nonsep_restore_cost[0];
+  RestorationUnitInfo rui;
+  memset(&rui, 0, sizeof(rui));
+  rui.restoration_type = RESTORE_WIENER_NONSEP;
+
+  if (compute_quantized_wienerns_filter(
+          rsc->dgd_buffer, rsc->src_buffer, limits->h_start, limits->h_end,
+          limits->v_start, limits->v_end, rsc->dgd_stride, rsc->src_stride,
+          &rui.wiener_nonsep_info)) {
+    rusi->sse[RESTORE_WIENER_NONSEP] =
+        try_restoration_unit(rsc, limits, tile_rect, &rui);
+    rusi->wiener_nonsep = rui.wiener_nonsep_info;
+
+    const int64_t bits_wienerns =
+        x->wiener_nonsep_restore_cost[1] +
+        (count_wienerns_bits(&rusi->wiener_nonsep, &rsc->wiener_nonsep)
+         << AV1_PROB_COST_SHIFT);
+    double cost_none =
+        RDCOST_DBL(x->rdmult, bits_none >> 4, rusi->sse[RESTORE_NONE]);
+    double cost_wienerns = RDCOST_DBL(x->rdmult, bits_wienerns >> 4,
+                                      rusi->sse[RESTORE_WIENER_NONSEP]);
+    if (cost_wienerns < cost_none) {
+      rsc->wiener_nonsep = rusi->wiener_nonsep;
+      rsc->bits += bits_wienerns;
+      rsc->sse += rusi->sse[RESTORE_WIENER_NONSEP];
+      rusi->best_rtype[RESTORE_WIENER_NONSEP - 1] = RESTORE_WIENER_NONSEP;
+    } else {
+      rsc->bits += bits_none;
+      rsc->sse += rusi->sse[RESTORE_NONE];
+      rusi->best_rtype[RESTORE_WIENER_NONSEP - 1] = RESTORE_NONE;
+    }
+  } else {
+    rsc->bits += bits_none;
+    rsc->sse += rusi->sse[RESTORE_NONE];
+    rusi->best_rtype[RESTORE_WIENER_NONSEP - 1] = RESTORE_NONE;
+    rusi->sse[RESTORE_WIENER_NONSEP] = INT64_MAX;
+  }
+}
+#endif  // CONFIG_WIENER_NONSEP
+
 static void search_switchable(const RestorationTileLimits *limits,
                               const AV1PixelRect *tile_rect, int rest_unit_idx,
                               void *priv, int32_t *tmpbuf,
@@ -1439,6 +1580,12 @@ static void search_switchable(const RestorationTileLimits *limits,
       case RESTORE_SGRPROJ:
         coeff_pcost = count_sgrproj_bits(&rusi->sgrproj, &rsc->sgrproj);
         break;
+#if CONFIG_WIENER_NONSEP
+      case RESTORE_WIENER_NONSEP:
+        coeff_pcost =
+            count_wienerns_bits(&rusi->wiener_nonsep, &rsc->wiener_nonsep);
+        break;
+#endif  // CONFIG_WIENER_NONSEP
       default: assert(0); break;
     }
     const int64_t coeff_bits = coeff_pcost << AV1_PROB_COST_SHIFT;
@@ -1459,6 +1606,10 @@ static void search_switchable(const RestorationTileLimits *limits,
   rsc->bits += best_bits;
   if (best_rtype == RESTORE_WIENER) rsc->wiener = rusi->wiener;
   if (best_rtype == RESTORE_SGRPROJ) rsc->sgrproj = rusi->sgrproj;
+#if CONFIG_WIENER_NONSEP
+  if (best_rtype == RESTORE_WIENER_NONSEP)
+    rsc->wiener_nonsep = rusi->wiener_nonsep;
+#endif  // CONFIG_WIENER_NONSEP
 }
 
 static void copy_unit_info(RestorationType frame_rtype,
@@ -1466,10 +1617,14 @@ static void copy_unit_info(RestorationType frame_rtype,
                            RestorationUnitInfo *rui) {
   assert(frame_rtype > 0);
   rui->restoration_type = rusi->best_rtype[frame_rtype - 1];
-  if (rui->restoration_type == RESTORE_WIENER)
-    rui->wiener_info = rusi->wiener;
+  if (rui->restoration_type == RESTORE_WIENER) rui->wiener_info = rusi->wiener;
+#if CONFIG_WIENER_NONSEP
+  else if (rui->restoration_type == RESTORE_WIENER_NONSEP)
+    rui->wiener_nonsep_info = rusi->wiener_nonsep;
+#else  // CONFIG_WIENER_NONSEP
   else
     rui->sgrproj_info = rusi->sgrproj;
+#endif
 }
 
 static double search_rest_type(RestSearchCtxt *rsc, RestorationType rtype) {
@@ -1480,6 +1635,9 @@ static double search_rest_type(RestSearchCtxt *rsc, RestorationType rtype) {
 #if CONFIG_LOOP_RESTORE_CNN
     search_cnn,
 #endif  // CONFIG_LOOP_RESTORE_CNN
+#if CONFIG_WIENER_NONSEP
+    search_wiener_nonsep,
+#endif  // CONFIG_WIENER_NONSEP
     search_switchable
   };
 
