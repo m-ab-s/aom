@@ -972,11 +972,12 @@ static void apply_wiener_nonsep(const uint8_t *dgd, int width, int height,
     int num_pixel = WIENERNS_NUM_PIXEL;
     int crop_width = (width - (w << 1));
 
+    int32_t *tmpbuf = malloc(sizeof(tmpbuf) * height * width);
     for (int i = w; i < height - w; ++i) {
       for (int j = w; j < width - w; ++j) {
-        buf[(i - w) * crop_width + (j - w)] = 0;
+        tmpbuf[(i - w) * crop_width + (j - w)] = 0;
         for (int k = 0; k < num_pixel; ++k) {
-          buf[(i - w) * crop_width + (j - w)] +=
+          tmpbuf[(i - w) * crop_width + (j - w)] +=
               filter[wienerns_config[k][WIENERNS_COEFF_ID]] *
               (dst[(i + wienerns_config[k][WIENERNS_ROW_ID]) * width +
                    (j + wienerns_config[k][WIENERNS_COL_ID])] -
@@ -984,13 +985,14 @@ static void apply_wiener_nonsep(const uint8_t *dgd, int width, int height,
         }
       }
     }
-    // add to dst only after buf are all done
+    // add to dst only after tmpbuf are all done
     for (int i = w; i < height - w; ++i) {
       for (int j = w; j < width - w; ++j) {
-        dst[i * width + j] += clip_pixel(buf[(i - w) * crop_width + (j - w)] /
-                                         WIENERNS_FILT_STEP);
+        dst[i * width + j] += clip_pixel(
+            tmpbuf[(i - w) * crop_width + (j - w)] / WIENERNS_FILT_STEP);
       }
     }
+    free(tmpbuf);
   }
 }
 
@@ -1183,8 +1185,9 @@ static const stripe_filter_fun stripe_filters[NUM_STRIPE_FILTERS] = {
 #define NUM_STRIPE_FILTERS 5
 
 static const stripe_filter_fun stripe_filters[NUM_STRIPE_FILTERS] = {
-  wiener_filter_stripe, sgrproj_filter_stripe, wiener_nsfilter_stripe,
-  wiener_filter_stripe_highbd, sgrproj_filter_stripe_highbd
+  wiener_filter_stripe,         sgrproj_filter_stripe,
+  wiener_nsfilter_stripe,       wiener_filter_stripe_highbd,
+  sgrproj_filter_stripe_highbd, NULL
 };  // !CONFIG_LOOP_RESTORE_CNN && CONFIG_WIENER_NONSEP
 #else
 #define NUM_STRIPE_FILTERS 4

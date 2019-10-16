@@ -285,6 +285,10 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, MACROBLOCK *x,
 #if CONFIG_LOOP_RESTORE_CNN
   av1_cost_tokens_from_cdf(x->cnn_restore_cost, fc->cnn_restore_cdf, NULL);
 #endif  // CONFIG_LOOP_RESTORE_CNN
+#if CONFIG_WIENER_NONSEP
+  av1_cost_tokens_from_cdf(x->wiener_nonsep_restore_cost,
+                           fc->wiener_nonsep_restore_cdf, NULL);
+#endif  // CONFIG_WIENER_NONSEP
   av1_cost_tokens_from_cdf(x->intrabc_cost, fc->intrabc_cdf, NULL);
 
   if (!frame_is_intra_only(cm)) {

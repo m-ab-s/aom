@@ -1621,10 +1621,9 @@ static void copy_unit_info(RestorationType frame_rtype,
 #if CONFIG_WIENER_NONSEP
   else if (rui->restoration_type == RESTORE_WIENER_NONSEP)
     rui->wiener_nonsep_info = rusi->wiener_nonsep;
-#else  // CONFIG_WIENER_NONSEP
+#endif  // CONFIG_WIENER_NONSEP
   else
     rui->sgrproj_info = rusi->sgrproj;
-#endif
 }
 
 static double search_rest_type(RestSearchCtxt *rsc, RestorationType rtype) {
