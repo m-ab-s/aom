@@ -49,8 +49,11 @@ enum {
   MV_SUBPEL_PRECISIONS,
 } SENUM1BYTE(MvSubpelPrecision);
 
+// DISALLOW_ONE_DOWN_FLEX_MVRES 0 => allow all possible down precisions
+// DISALLOW_ONE_DOWN_FLEX_MVRES 1 => allow all possible down precisions except 1
+// DISALLOW_ONE_DOWN_FLEX_MVRES 2 => allow only 0 and 2 down precisions
 #if CONFIG_FLEX_MVRES
-#define DISALLOW_ONE_DOWN_FLEX_MVRES 1
+#define DISALLOW_ONE_DOWN_FLEX_MVRES 2  // Choose one of the above
 #else
 #define DISALLOW_ONE_DOWN_FLEX_MVRES 0
 #endif  // CONFIG_FLEX_MVRES
@@ -323,7 +326,9 @@ get_mv_precision(const MV mv, MvSubpelPrecision frame_precision) {
   else
     precision = MV_SUBPEL_NONE;
   assert(precision <= frame_precision);
-#if DISALLOW_ONE_DOWN_FLEX_MVRES
+#if DISALLOW_ONE_DOWN_FLEX_MVRES == 2
+  if ((frame_precision - precision) & 1) precision += 1;
+#elif DISALLOW_ONE_DOWN_FLEX_MVRES == 1
   if (frame_precision - precision == 1) precision = frame_precision;
 #endif  // DISALLOW_ONE_DOWN_FLEX_MVRES
   return precision;

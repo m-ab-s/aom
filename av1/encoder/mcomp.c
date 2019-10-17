@@ -94,7 +94,11 @@ int av1_mv_bit_cost_gen(
   // The flex mv cost needs to be added only once for compound
   if (use_flex_mv && flex_mv_costs) {
     assert(frame_precision >= MV_SUBPEL_QTR_PRECISION);
-#if DISALLOW_ONE_DOWN_FLEX_MVRES
+#if DISALLOW_ONE_DOWN_FLEX_MVRES == 2
+    assert(IMPLIES(frame_precision > precision,
+                   ((frame_precision - precision) & 1) == 0));
+    const int down = (frame_precision - precision) >> 1;
+#elif DISALLOW_ONE_DOWN_FLEX_MVRES == 1
     assert(
         IMPLIES(frame_precision > precision, frame_precision - precision > 1));
     const int down =
@@ -133,7 +137,11 @@ int av1_mv_bit_cost_gen2(
   // The flex mv cost needs to be added only once for compound
   if (use_flex_mv && flex_mv_costs) {
     assert(frame_precision >= MV_SUBPEL_QTR_PRECISION);
-#if DISALLOW_ONE_DOWN_FLEX_MVRES
+#if DISALLOW_ONE_DOWN_FLEX_MVRES == 2
+    assert(IMPLIES(frame_precision > precision,
+                   ((frame_precision - precision) & 1) == 0));
+    const int down = (frame_precision - precision) >> 1;
+#elif DISALLOW_ONE_DOWN_FLEX_MVRES == 1
     assert(
         IMPLIES(frame_precision > precision, frame_precision - precision > 1));
     const int down =
@@ -168,7 +176,11 @@ int av1_mv_bit_cost(
   // The flex mv cost needs to be added only once for compound
   if (flex_mv_costs) {
     assert(frame_precision >= MV_SUBPEL_QTR_PRECISION);
-#if DISALLOW_ONE_DOWN_FLEX_MVRES
+#if DISALLOW_ONE_DOWN_FLEX_MVRES == 2
+    assert(IMPLIES(frame_precision > precision,
+                   ((frame_precision - precision) & 1) == 0));
+    const int down = (frame_precision - precision) >> 1;
+#elif DISALLOW_ONE_DOWN_FLEX_MVRES == 1
     assert(
         IMPLIES(frame_precision > precision, frame_precision - precision > 1));
     const int down =
@@ -235,8 +247,11 @@ static int mv_flex_err_cost(
 
     int cost = mv_cost(&diff, mvjcost, mvcost[precision]);
     if (frame_precision >= MV_SUBPEL_QTR_PRECISION && flex_mv_costs) {
-#if DISALLOW_ONE_DOWN_FLEX_MVRES
-      assert(frame_precision >= MV_SUBPEL_QTR_PRECISION);
+#if DISALLOW_ONE_DOWN_FLEX_MVRES == 2
+      assert(IMPLIES(frame_precision > precision,
+                     ((frame_precision - precision) & 1) == 0));
+      const int down = (frame_precision - precision) >> 1;
+#elif DISALLOW_ONE_DOWN_FLEX_MVRES == 1
       assert(IMPLIES(frame_precision > precision,
                      frame_precision - precision > 1));
       const int down =

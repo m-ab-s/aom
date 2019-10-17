@@ -1363,13 +1363,27 @@ static void dec_dump_logs(AV1_COMMON *cm, MB_MODE_INFO *const mbmi, int mi_row,
 #if CONFIG_FLEX_MVRES
 MvSubpelPrecision read_mv_precision(AV1_COMMON *const cm, MACROBLOCKD *const xd,
                                     aom_reader *r) {
+  assert(cm->mv_precision >= MV_SUBPEL_QTR_PRECISION);
+#if DISALLOW_ONE_DOWN_FLEX_MVRES == 2
   int down = aom_read_symbol(
       r,
       xd->tile_ctx
           ->flex_mv_precision_cdf[cm->mv_precision - MV_SUBPEL_QTR_PRECISION],
-      cm->mv_precision + 1 - DISALLOW_ONE_DOWN_FLEX_MVRES, ACCT_STR);
-#if DISALLOW_ONE_DOWN_FLEX_MVRES
+      2, ACCT_STR);
+  down <<= 1;
+#elif DISALLOW_ONE_DOWN_FLEX_MVRES == 1
+  int down = aom_read_symbol(
+      r,
+      xd->tile_ctx
+          ->flex_mv_precision_cdf[cm->mv_precision - MV_SUBPEL_QTR_PRECISION],
+      cm->mv_precision, ACCT_STR);
   down += (down > 0);
+#else
+  int down = aom_read_symbol(
+      r,
+      xd->tile_ctx
+          ->flex_mv_precision_cdf[cm->mv_precision - MV_SUBPEL_QTR_PRECISION],
+      cm->mv_precision + 1, ACCT_STR);
 #endif  // DISALLOW_ONE_DOWN_FLEX_MVRES
   return (MvSubpelPrecision)(cm->mv_precision - down);
 }
