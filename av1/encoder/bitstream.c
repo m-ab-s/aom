@@ -3401,16 +3401,10 @@ static void write_uncompressed_header_obu(AV1_COMP *cpi,
       }
 
       if (!cm->cur_frame_force_integer_mv) {
-#if CONFIG_FLEX_MVRES
-        aom_wb_write_literal(wb, cm->mv_precision, 2);
-        if (cm->mv_precision >= MV_SUBPEL_QTR_PRECISION)
-          aom_wb_write_bit(wb, cm->use_flex_mv_precision);
-        else
-          assert(!cm->use_flex_mv_precision);
-#else
+        assert(cm->mv_precision >= MV_SUBPEL_QTR_PRECISION);
         aom_wb_write_bit(wb, cm->mv_precision > MV_SUBPEL_QTR_PRECISION);
-#endif  // CONFIG_FLEX_MVRES
 #if CONFIG_FLEX_MVRES
+        aom_wb_write_bit(wb, cm->use_flex_mv_precision);
       } else {
         assert(cm->use_flex_mv_precision == 0);
 #endif  // CONFIG_FLEX_MVRES
