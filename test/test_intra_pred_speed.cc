@@ -1554,37 +1554,24 @@ HIGHBD_INTRA_PRED_TEST(
 
 #if HAVE_SSE2
 
-#if CONFIG_3WAY_PARTITIONS
-HIGHBD_INTRA_PRED_TEST(SSE2_1, TX_8X8, NULL, NULL, NULL,
-                       aom_highbd_dc_128_predictor_8x8_sse2, NULL, NULL, NULL,
-                       NULL, NULL, NULL)
-#else
 HIGHBD_INTRA_PRED_TEST(SSE2_1, TX_8X8, aom_highbd_dc_predictor_8x8_sse2,
                        aom_highbd_dc_left_predictor_8x8_sse2,
                        aom_highbd_dc_top_predictor_8x8_sse2,
                        aom_highbd_dc_128_predictor_8x8_sse2,
                        aom_highbd_v_predictor_8x8_sse2,
                        aom_highbd_h_predictor_8x8_sse2, NULL, NULL, NULL, NULL)
-#endif  // CONFIG_3WAY_PARTITIONS
 HIGHBD_INTRA_PRED_TEST(SSE2_2, TX_8X4, aom_highbd_dc_predictor_8x4_sse2,
                        aom_highbd_dc_left_predictor_8x4_sse2,
                        aom_highbd_dc_top_predictor_8x4_sse2,
                        aom_highbd_dc_128_predictor_8x4_sse2,
                        aom_highbd_v_predictor_8x4_sse2,
                        aom_highbd_h_predictor_8x4_sse2, NULL, NULL, NULL, NULL)
-#if CONFIG_3WAY_PARTITIONS
-HIGHBD_INTRA_PRED_TEST(SSE2_3, TX_8X16, NULL, NULL,
-                       aom_highbd_dc_top_predictor_8x16_sse2,
-                       aom_highbd_dc_128_predictor_8x16_sse2, NULL, NULL, NULL,
-                       NULL, NULL, NULL)
-#else
 HIGHBD_INTRA_PRED_TEST(SSE2_3, TX_8X16, aom_highbd_dc_predictor_8x16_sse2,
                        aom_highbd_dc_left_predictor_8x16_sse2,
                        aom_highbd_dc_top_predictor_8x16_sse2,
                        aom_highbd_dc_128_predictor_8x16_sse2,
                        aom_highbd_v_predictor_8x16_sse2,
                        aom_highbd_h_predictor_8x16_sse2, NULL, NULL, NULL, NULL)
-#endif  // CONFIG_3WAY_PARTITIONS
 #endif
 
 #if HAVE_SSSE3
@@ -1637,7 +1624,8 @@ HIGHBD_INTRA_PRED_TEST(
 
 #if HAVE_SSE2
 #if CONFIG_3WAY_PARTITIONS
-HIGHBD_INTRA_PRED_TEST(SSE2_1, TX_16X16, NULL, NULL,
+HIGHBD_INTRA_PRED_TEST(SSE2_1, TX_16X16, NULL,
+                       aom_highbd_dc_left_predictor_16x16_sse2,
                        aom_highbd_dc_top_predictor_16x16_sse2,
                        aom_highbd_dc_128_predictor_16x16_sse2, NULL, NULL, NULL,
                        NULL, NULL, NULL)
@@ -1657,7 +1645,8 @@ HIGHBD_INTRA_PRED_TEST(SSE2_2, TX_16X8, aom_highbd_dc_predictor_16x8_sse2,
                        aom_highbd_v_predictor_16x8_sse2,
                        aom_highbd_h_predictor_16x8_sse2, NULL, NULL, NULL, NULL)
 #if CONFIG_3WAY_PARTITIONS
-HIGHBD_INTRA_PRED_TEST(SSE2_3, TX_16X32, NULL, NULL,
+HIGHBD_INTRA_PRED_TEST(SSE2_3, TX_16X32, NULL,
+                       aom_highbd_dc_left_predictor_16x32_sse2,
                        aom_highbd_dc_top_predictor_16x32_sse2,
                        aom_highbd_dc_128_predictor_16x32_sse2, NULL, NULL, NULL,
                        NULL, NULL, NULL)
