@@ -497,6 +497,9 @@ static struct lookahead_entry *setup_arf_frame(
 #if !CONFIG_REALTIME_ONLY
       if (oxcf->arnr_max_frames > 0) {
         // Produce the filtered ARF frame.
+        cm->current_frame.frame_type = INTER_FRAME;
+        FRAME_UPDATE_TYPE frame_update_type = get_frame_update_type(cpi);
+        av1_configure_buffer_updates(cpi, frame_params, frame_update_type, 0);
         *code_arf =
             av1_temporal_filter(cpi, arf_src_index, show_existing_alt_ref);
         if (*code_arf) {
@@ -1176,8 +1179,15 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
 
   if (!is_stat_generation_stage(cpi)) {
     frame_params.show_existing_frame =
+        (cpi->show_existing_alt_ref &&
+         gf_group->update_type[gf_group->index] == OVERLAY_UPDATE) ||
         gf_group->update_type[gf_group->index] == INTNL_OVERLAY_UPDATE;
     frame_params.show_existing_frame &= allow_show_existing(cpi, *frame_flags);
+
+    // Reset show_existing_alt_ref decision to 0 after it is used.
+    if (gf_group->update_type[gf_group->index] == OVERLAY_UPDATE) {
+      cpi->show_existing_alt_ref = 0;
+    }
   } else {
     frame_params.show_existing_frame = 0;
   }
@@ -1192,6 +1202,8 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
     int show_existing_alt_ref = 0;
     source = choose_frame_source(cpi, &code_arf, &flush, &last_source,
                                  &frame_params, &show_existing_alt_ref);
+    if (gf_group->update_type[gf_group->index] == ARF_UPDATE)
+      cpi->show_existing_alt_ref = show_existing_alt_ref;
   }
 
   if (source == NULL) {  // If no source was found, we can't encode a frame.

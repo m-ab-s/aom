@@ -314,6 +314,7 @@ static void set_good_speed_features_framesize_independent(
 #else
     sf->intra_cnn_split = (speed == 1);
 #endif  // CONFIG_EXT_PARTITIONS
+    sf->adaptive_overlay_encoding = 1;
   }
 
   if (speed >= 2) {
@@ -346,6 +347,8 @@ static void set_good_speed_features_framesize_independent(
     sf->adaptive_interp_filter_search = 1;
     sf->perform_coeff_opt = is_boosted_arf2_bwd_type ? 2 : 3;
     sf->model_based_prune_tx_search_level = 0;
+    // TODO(yunqing): need to test and turn it on for speed > 1.
+    sf->adaptive_overlay_encoding = 0;
   }
 
   if (speed >= 3) {
@@ -838,6 +841,8 @@ void av1_set_speed_features_framesize_independent(AV1_COMP *cpi, int speed) {
   sf->skip_obmc_in_uniform_mv_field = 0;
   sf->skip_wm_in_uniform_mv_field = 0;
   sf->adaptive_interp_filter_search = 0;
+  // TODO(yunqing): turn it on for speed 0 if there is gain.
+  sf->adaptive_overlay_encoding = 0;
 
   for (i = 0; i < TX_SIZES; i++) {
     sf->intra_y_mode_mask[i] = INTRA_ALL;
