@@ -4325,20 +4325,17 @@ static void avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
   AVERAGE_CDF(ctx_left->switchable_interp_cdf, ctx_tr->switchable_interp_cdf,
               SWITCHABLE_FILTERS);
 #if CONFIG_FLEX_MVRES
-#if DISALLOW_ONE_DOWN_FLEX_MVRES == 2
-  for (int p = MV_SUBPEL_QTR_PRECISION; p < MV_SUBPEL_PRECISIONS; ++p)
-    AVERAGE_CDF(ctx_left->flex_mv_precision_cdf[p - MV_SUBPEL_QTR_PRECISION],
-                ctx_tr->flex_mv_precision_cdf[p - MV_SUBPEL_QTR_PRECISION], 2);
-#elif DISALLOW_ONE_DOWN_FLEX_MVRES == 1
-  for (int p = MV_SUBPEL_QTR_PRECISION; p < MV_SUBPEL_PRECISIONS; ++p)
-    AVERAGE_CDF(ctx_left->flex_mv_precision_cdf[p - MV_SUBPEL_QTR_PRECISION],
-                ctx_tr->flex_mv_precision_cdf[p - MV_SUBPEL_QTR_PRECISION], p);
-#else
   for (int p = MV_SUBPEL_QTR_PRECISION; p < MV_SUBPEL_PRECISIONS; ++p)
     AVERAGE_CDF(ctx_left->flex_mv_precision_cdf[p - MV_SUBPEL_QTR_PRECISION],
                 ctx_tr->flex_mv_precision_cdf[p - MV_SUBPEL_QTR_PRECISION],
-                p + 1);
+#if DISALLOW_ONE_DOWN_FLEX_MVRES == 2
+                2
+#elif DISALLOW_ONE_DOWN_FLEX_MVRES == 1
+                p
+#else
+                p + 1
 #endif  // DISALLOW_ONE_DOWN_FLEX_MVRES
+    );
 #endif  // CONFIG_FLEX_MVRES
   AVERAGE_CDF(ctx_left->angle_delta_cdf, ctx_tr->angle_delta_cdf,
               2 * MAX_ANGLE_DELTA + 1);
