@@ -1423,17 +1423,6 @@ if (aom_config("CONFIG_3WAY_PARTITIONS") eq "") {
   add_proto qw/uint32_t aom_sub_pixel_avg_variance16x16/, "const uint8_t *src_ptr, int source_stride, int xoffset, int  yoffset, const uint8_t *ref_ptr, int ref_stride, uint32_t *sse, const uint8_t *second_pred";
   add_proto qw/uint32_t aom_sub_pixel_avg_variance16x8/, "const uint8_t *src_ptr, int source_stride, int xoffset, int  yoffset, const uint8_t *ref_ptr, int ref_stride, uint32_t *sse, const uint8_t *second_pred";
 
-  if (aom_config("CONFIG_3WAY_PARTITIONS") eq "") {
-    specialize qw/aom_sub_pixel_avg_variance64x64 avx2 msa sse2 ssse3/;
-    specialize qw/aom_sub_pixel_avg_variance64x32 msa sse2 ssse3/;
-    specialize qw/aom_sub_pixel_avg_variance32x64 msa sse2 ssse3/;
-    specialize qw/aom_sub_pixel_avg_variance32x32 avx2 msa sse2 ssse3/;
-    specialize qw/aom_sub_pixel_avg_variance32x16 msa sse2 ssse3/;
-    specialize qw/aom_sub_pixel_avg_variance16x32 msa sse2 ssse3/;
-    specialize qw/aom_sub_pixel_avg_variance16x16 msa sse2 ssse3/;
-    specialize qw/aom_sub_pixel_avg_variance16x8 msa sse2 ssse3/;
-  } # CONFIG_3WAY_PARTITIONS
-
   add_proto qw/uint32_t aom_sub_pixel_avg_variance8x16/, "const uint8_t *src_ptr, int source_stride, int xoffset, int  yoffset, const uint8_t *ref_ptr, int ref_stride, uint32_t *sse, const uint8_t *second_pred";
   specialize qw/aom_sub_pixel_avg_variance8x16 msa sse2 ssse3/;
 
