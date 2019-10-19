@@ -671,10 +671,7 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
   } # CONFIG_3WAY_PARTITIONS
 
   add_proto qw/void aom_highbd_subtract_block/, "int rows, int cols, int16_t *diff_ptr, ptrdiff_t diff_stride, const uint8_t *src_ptr, ptrdiff_t src_stride, const uint8_t *pred_ptr, ptrdiff_t pred_stride, int bd";
-  # sse2 has alignment issues with this experiment.
-  if (aom_config("CONFIG_3WAY_PARTITIONS") eq "") {
-    specialize qw/aom_highbd_subtract_block sse2/;
-  } # CONFIG_3WAY_PARTITIONS
+  specialize qw/aom_highbd_subtract_block sse2/;
 
   add_proto qw/int64_t/, "aom_sse", "const uint8_t *a, int a_stride, const uint8_t *b,int b_stride, int width, int height";
   specialize qw/aom_sse  sse4_1 avx2/;
