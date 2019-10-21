@@ -238,10 +238,14 @@ SAD32XN 4, 1 ; sad_32x4_avg_sse2
   pavgb                 m4, [second_predq+mmsize*3]
   lea         second_predq, [second_predq+mmsize*4]
 %endif
-  psadbw                m1, [srcq]
-  psadbw                m2, [srcq+src_strideq]
-  psadbw                m3, [srcq+src_strideq*2]
-  psadbw                m4, [srcq+src_stride3q]
+  movu                  m5, [srcq]
+  psadbw                m1, m5
+  movu                  m5, [srcq+src_strideq]
+  psadbw                m2, m5
+  movu                  m5, [srcq+src_strideq*2]
+  psadbw                m3, m5
+  movu                  m5, [srcq+src_stride3q]
+  psadbw                m4, m5
   paddd                 m1, m2
   paddd                 m3, m4
   lea                 refq, [refq+ref_strideq*4]

@@ -707,8 +707,9 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
   specialize qw/aom_sad32x64      avx2      msa sse2/;
   specialize qw/aom_sad32x32      avx2 neon msa sse2/;
   specialize qw/aom_sad32x16      avx2      msa sse2/;
+  specialize qw/aom_sad16x32                    sse2/;
   if (aom_config("CONFIG_3WAY_PARTITIONS") eq "") {
-    specialize qw/aom_sad16x32                msa sse2/;
+    specialize qw/aom_sad16x32                   msa/;
   } # CONFIG_3WAY_PARTITIONS
   specialize qw/aom_sad16x16           neon msa sse2/;
   specialize qw/aom_sad16x8            neon msa sse2/;
