@@ -171,14 +171,15 @@ static int combined_motion_search(AV1_COMP *cpi, MACROBLOCK *x,
 
 #if CONFIG_FLEX_MVRES
   const int use_flex_mv = is_flex_mv_precision_active(cm, NEWMV);
+  const int down_ctx = av1_get_mv_precision_down_context(cm, xd);
 #endif  // CONFIG_FLEX_MVRES
 
-  *rate_mv = av1_mv_bit_cost_gen(&mvp_full, &ref_mv, cm->mv_precision,
-                                 x->nmv_vec_cost, x->nmvcost,
+  *rate_mv = av1_mv_bit_cost_gen(
+      &mvp_full, &ref_mv, cm->mv_precision, x->nmv_vec_cost, x->nmvcost,
 #if CONFIG_FLEX_MVRES
-                                 use_flex_mv, x->flex_mv_precision_costs,
+      use_flex_mv, x->flex_mv_precision_costs[down_ctx],
 #endif  // CONFIG_FLEX_MVRES
-                                 MV_COST_WEIGHT);
+      MV_COST_WEIGHT);
 
   // TODO(kyslov) Account for Rate Mode!
   rv = !(RDCOST(x->rdmult, (*rate_mv), 0) > best_rd_sofar);
@@ -191,16 +192,16 @@ static int combined_motion_search(AV1_COMP *cpi, MACROBLOCK *x,
         cpi->sf.mv.subpel_iters_per_step, cond_cost_list(cpi, cost_list),
         x->nmv_vec_cost, x->nmvcost,
 #if CONFIG_FLEX_MVRES
-        use_flex_mv, x->flex_mv_precision_costs, MV_SUBPEL_NONE,
+        use_flex_mv, x->flex_mv_precision_costs[down_ctx], MV_SUBPEL_NONE,
 #endif  // CONFIG_FLEX_MVRES
         &dis, &x->pred_sse[ref], NULL, NULL, 0, 0, 0, 0, 0, 1);
     *tmp_mv = x->best_mv;
-    *rate_mv = av1_mv_bit_cost_gen(&tmp_mv->as_mv, &ref_mv, cm->mv_precision,
-                                   x->nmv_vec_cost, x->nmvcost,
+    *rate_mv = av1_mv_bit_cost_gen(
+        &tmp_mv->as_mv, &ref_mv, cm->mv_precision, x->nmv_vec_cost, x->nmvcost,
 #if CONFIG_FLEX_MVRES
-                                   use_flex_mv, x->flex_mv_precision_costs,
+        use_flex_mv, x->flex_mv_precision_costs[down_ctx],
 #endif  // CONFIG_FLEX_MVRES
-                                   MV_COST_WEIGHT);
+        MV_COST_WEIGHT);
   }
 
   if (scaled_ref_frame) {
@@ -243,12 +244,13 @@ static int search_new_mv(AV1_COMP *cpi, MACROBLOCK *x,
 
 #if CONFIG_FLEX_MVRES
     const int use_flex_mv = is_flex_mv_precision_active(cm, NEWMV);
+    const int down_ctx = av1_get_mv_precision_down_context(cm, xd);
 #endif  // CONFIG_FLEX_MVRES
     *rate_mv =
         av1_mv_bit_cost_gen(&frame_mv[NEWMV][ref_frame].as_mv, &ref_mv,
                             cm->mv_precision, x->nmv_vec_cost, x->nmvcost,
 #if CONFIG_FLEX_MVRES
-                            use_flex_mv, x->flex_mv_precision_costs,
+                            use_flex_mv, x->flex_mv_precision_costs[down_ctx],
 #endif  // CONFIG_FLEX_MVRES
                             MV_COST_WEIGHT);
     frame_mv[NEWMV][ref_frame].as_mv.row >>= 3;
@@ -260,7 +262,7 @@ static int search_new_mv(AV1_COMP *cpi, MACROBLOCK *x,
         cpi->sf.mv.subpel_iters_per_step, cond_cost_list(cpi, cost_list),
         x->nmv_vec_cost, x->nmvcost,
 #if CONFIG_FLEX_MVRES
-        use_flex_mv, x->flex_mv_precision_costs, MV_SUBPEL_NONE,
+        use_flex_mv, x->flex_mv_precision_costs[down_ctx], MV_SUBPEL_NONE,
 #endif  // CONFIG_FLEX_MVRES
         &dis, &x->pred_sse[ref_frame], NULL, NULL, 0, 0, 0, 0, 0, 1);
     frame_mv[NEWMV][ref_frame].as_int = x->best_mv.as_int;

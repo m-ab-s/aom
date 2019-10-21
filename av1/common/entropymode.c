@@ -668,28 +668,25 @@ static const aom_cdf_prob
 
 #if CONFIG_FLEX_MVRES
 #if DISALLOW_ONE_DOWN_FLEX_MVRES == 2
-static const aom_cdf_prob
-    default_flex_mv_precision_cdf[MV_SUBPEL_PRECISIONS -
-                                  MV_SUBPEL_QTR_PRECISION]
-                                 [CDF_SIZE(MV_SUBPEL_PRECISIONS - 2)] = {
-                                   { AOM_CDF2(30000) },
-                                   { AOM_CDF2(28000) },
+static const aom_cdf_prob default_flex_mv_precision_cdf
+    [MV_PREC_DOWN_CONTEXTS][MV_SUBPEL_PRECISIONS - MV_SUBPEL_QTR_PRECISION]
+    [CDF_SIZE(MV_SUBPEL_PRECISIONS - 2)] = {
+      { { AOM_CDF2(30000) }, { AOM_CDF2(28000) } },
+      { { AOM_CDF2(30000) }, { AOM_CDF2(28000) } },
 #elif DISALLOW_ONE_DOWN_FLEX_MVRES == 1
-static const aom_cdf_prob
-    default_flex_mv_precision_cdf[MV_SUBPEL_PRECISIONS -
-                                  MV_SUBPEL_QTR_PRECISION]
-                                 [CDF_SIZE(MV_SUBPEL_PRECISIONS - 1)] = {
-                                   { AOM_CDF2(30000) },
-                                   { AOM_CDF3(28000, 31000) },
+static const aom_cdf_prob default_flex_mv_precision_cdf
+    [MV_PREC_DOWN_CONTEXTS][MV_SUBPEL_PRECISIONS - MV_SUBPEL_QTR_PRECISION]
+    [CDF_SIZE(MV_SUBPEL_PRECISIONS - 1)] = {
+      { { AOM_CDF2(30000) }, { AOM_CDF3(28000, 31000) } },
+      { { AOM_CDF2(30000) }, { AOM_CDF3(28000, 31000) } },
 #else
-static const aom_cdf_prob
-    default_flex_mv_precision_cdf[MV_SUBPEL_PRECISIONS -
-                                  MV_SUBPEL_QTR_PRECISION]
-                                 [CDF_SIZE(MV_SUBPEL_PRECISIONS)] = {
-                                   { AOM_CDF3(24000, 29000) },
-                                   { AOM_CDF4(24000, 29000, 31000) },
+static const aom_cdf_prob default_flex_mv_precision_cdf
+    [MV_PREC_DOWN_CONTEXTS][MV_SUBPEL_PRECISIONS - MV_SUBPEL_QTR_PRECISION]
+    [CDF_SIZE(MV_SUBPEL_PRECISIONS)] = {
+      { { AOM_CDF3(24000, 29000) }, { AOM_CDF4(24000, 29000, 31000) } },
+      { { AOM_CDF4(24000, 29000) }, { AOM_CDF4(24000, 29000, 31000) } },
 #endif  // DISALLOW_ONE_DOWN_FLEX_MVRES
-                                 };
+    };
 #endif  // CONFIG_FLEX_MVRES
 
 static const aom_cdf_prob default_newmv_cdf[NEWMV_MODE_CONTEXTS][CDF_SIZE(

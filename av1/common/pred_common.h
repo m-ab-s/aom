@@ -172,6 +172,20 @@ static INLINE int av1_get_skip_context(const MACROBLOCKD *xd) {
   return above_skip + left_skip;
 }
 
+#if CONFIG_FLEX_MVRES
+static INLINE int av1_get_mv_precision_down_context(const AV1_COMMON *cm,
+                                                    const MACROBLOCKD *xd) {
+  const MB_MODE_INFO *const above_mi = xd->above_mbmi;
+  const MB_MODE_INFO *const left_mi = xd->left_mbmi;
+  const int above_down =
+      above_mi ? cm->mv_precision - above_mi->mv_precision : 0;
+  const int left_down = left_mi ? cm->mv_precision - left_mi->mv_precision : 0;
+  assert(above_down >= 0);
+  assert(left_down >= 0);
+  return (above_down + left_down > 0);
+}
+#endif  // CONFIG_FLEX_MVRES
+
 int av1_get_pred_context_switchable_interp(const MACROBLOCKD *xd, int dir);
 
 // Get a list of palette base colors that are used in the above and left blocks,

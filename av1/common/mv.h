@@ -54,6 +54,7 @@ enum {
 // DISALLOW_ONE_DOWN_FLEX_MVRES 2 => allow only 0 and 2 down precisions
 #if CONFIG_FLEX_MVRES
 #define DISALLOW_ONE_DOWN_FLEX_MVRES 2  // Choose one of the above
+#define MV_PREC_DOWN_CONTEXTS 2
 #else
 #define DISALLOW_ONE_DOWN_FLEX_MVRES 0
 #endif  // CONFIG_FLEX_MVRES

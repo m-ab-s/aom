@@ -24,6 +24,7 @@
 #include "av1/common/common.h"
 #include "av1/common/mvref_common.h"
 #include "av1/common/onyxc_int.h"
+#include "av1/common/pred_common.h"
 #include "av1/common/reconinter.h"
 
 #include "av1/encoder/encoder.h"
@@ -1173,8 +1174,9 @@ unsigned int av1_compute_motion_cost(const AV1_COMP *cpi, MACROBLOCK *const x,
   int(*flex_mv_costs)[MV_SUBPEL_PRECISIONS - DISALLOW_ONE_DOWN_FLEX_MVRES];
 #if CONFIG_FLEX_MVRES
   const MB_MODE_INFO *mbmi = xd->mi[0];
-  flex_mv_costs = x->flex_mv_precision_costs;
   const int use_flex_mv = is_flex_mv_precision_active(cm, mbmi->mode);
+  const int down_ctx = av1_get_mv_precision_down_context(cm, xd);
+  flex_mv_costs = x->flex_mv_precision_costs[down_ctx];
   mv_err_cost_fn *mv_err_cost =
       use_flex_mv ? mv_flex_err_cost : mv_base_err_cost;
 #else
@@ -1323,8 +1325,9 @@ static INLINE void calc_int_cost_list(const AV1_COMMON *cm, const MACROBLOCK *x,
 #if CONFIG_FLEX_MVRES
   const MACROBLOCKD *xd = &x->e_mbd;
   const MB_MODE_INFO *mbmi = xd->mi[0];
-  flex_mv_costs = x->flex_mv_precision_costs;
   const int use_flex_mv = is_flex_mv_precision_active(cm, mbmi->mode);
+  const int down_ctx = av1_get_mv_precision_down_context(cm, xd);
+  flex_mv_costs = x->flex_mv_precision_costs[down_ctx];
   mv_err_cost_fn *mv_err_cost =
       use_flex_mv ? mv_flex_err_cost : mv_base_err_cost;
 #else
@@ -1687,8 +1690,9 @@ int av1_get_mvpred_var(const AV1_COMMON *cm, const MACROBLOCK *x,
       *flex_mv_costs)[MV_SUBPEL_PRECISIONS - DISALLOW_ONE_DOWN_FLEX_MVRES];
 #if CONFIG_FLEX_MVRES
   const MB_MODE_INFO *mbmi = xd->mi[0];
-  flex_mv_costs = x->flex_mv_precision_costs;
   const int use_flex_mv = is_flex_mv_precision_active(cm, mbmi->mode);
+  const int down_ctx = av1_get_mv_precision_down_context(cm, xd);
+  flex_mv_costs = x->flex_mv_precision_costs[down_ctx];
   mv_err_cost_fn *mv_err_cost =
       use_flex_mv ? mv_flex_err_cost : mv_base_err_cost;
 #else
@@ -1717,8 +1721,9 @@ int av1_get_mvpred_av_var(const AV1_COMMON *cm, const MACROBLOCK *x,
       *flex_mv_costs)[MV_SUBPEL_PRECISIONS - DISALLOW_ONE_DOWN_FLEX_MVRES];
 #if CONFIG_FLEX_MVRES
   const MB_MODE_INFO *mbmi = xd->mi[0];
-  flex_mv_costs = x->flex_mv_precision_costs;
   const int use_flex_mv = is_flex_mv_precision_active(cm, mbmi->mode);
+  const int down_ctx = av1_get_mv_precision_down_context(cm, xd);
+  flex_mv_costs = x->flex_mv_precision_costs[down_ctx];
   mv_err_cost_fn *mv_err_cost =
       use_flex_mv ? mv_flex_err_cost : mv_base_err_cost;
 #else
@@ -1749,8 +1754,9 @@ int av1_get_mvpred_mask_var(const AV1_COMMON *cm, const MACROBLOCK *x,
       *flex_mv_costs)[MV_SUBPEL_PRECISIONS - DISALLOW_ONE_DOWN_FLEX_MVRES];
 #if CONFIG_FLEX_MVRES
   const MB_MODE_INFO *mbmi = xd->mi[0];
-  flex_mv_costs = x->flex_mv_precision_costs;
   const int use_flex_mv = is_flex_mv_precision_active(cm, mbmi->mode);
+  const int down_ctx = av1_get_mv_precision_down_context(cm, xd);
+  flex_mv_costs = x->flex_mv_precision_costs[down_ctx];
   mv_err_cost_fn *mv_err_cost =
       use_flex_mv ? mv_flex_err_cost : mv_base_err_cost;
 #else
@@ -3163,8 +3169,9 @@ static int get_obmc_mvpred_var(const AV1_COMMON *cm, const MACROBLOCK *x,
       *flex_mv_costs)[MV_SUBPEL_PRECISIONS - DISALLOW_ONE_DOWN_FLEX_MVRES];
 #if CONFIG_FLEX_MVRES
   const MB_MODE_INFO *mbmi = xd->mi[0];
-  flex_mv_costs = x->flex_mv_precision_costs;
   const int use_flex_mv = is_flex_mv_precision_active(cm, mbmi->mode);
+  const int down_ctx = av1_get_mv_precision_down_context(cm, xd);
+  flex_mv_costs = x->flex_mv_precision_costs[down_ctx];
   mv_err_cost_fn *mv_err_cost =
       use_flex_mv ? mv_flex_err_cost : mv_base_err_cost;
 #else

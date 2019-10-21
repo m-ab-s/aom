@@ -4892,8 +4892,9 @@ static void fix_use_flex_mv_precision(AV1_COMP *const cpi) {
   RD_COUNTS *const rdc = &cpi->td.rd_counts;
   int reduced_count = 0;
   /*
-  printf("flex_mv_counts (ARF %d) - [%d %d %d %d]\n",
+  printf("flex_mv_counts (ARF %d frame prec %d) - [%d %d %d %d]\n",
          cpi->gf_group.update_type[cpi->gf_group.index] == ARF_UPDATE,
+         cm->mv_precision,
          rdc->reduced_mv_precision_used[0], rdc->reduced_mv_precision_used[1],
          rdc->reduced_mv_precision_used[2], rdc->reduced_mv_precision_used[3]);
          */

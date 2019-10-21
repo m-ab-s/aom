@@ -188,15 +188,21 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
 #endif  // CONFIG_INTRA_ENTROPY
 #if CONFIG_FLEX_MVRES
   for (int p = MV_SUBPEL_QTR_PRECISION; p < MV_SUBPEL_PRECISIONS; ++p) {
-    RESET_CDF_COUNTER(fc->flex_mv_precision_cdf[p - MV_SUBPEL_QTR_PRECISION],
+    for (int j = 0; j < MV_PREC_DOWN_CONTEXTS; ++j) {
 #if DISALLOW_ONE_DOWN_FLEX_MVRES == 2
-                      2
+      RESET_CDF_COUNTER_STRIDE(
+          fc->flex_mv_precision_cdf[j][p - MV_SUBPEL_QTR_PRECISION], 2,
+          CDF_SIZE(2));
 #elif DISALLOW_ONE_DOWN_FLEX_MVRES == 1
-                      p
+      RESET_CDF_COUNTER_STRIDE(
+          fc->flex_mv_precision_cdf[j][p - MV_SUBPEL_QTR_PRECISION], p,
+          CDF_SIZE(MV_SUBPEL_PRECISIONS - 1));
 #else
-                      p + 1
+      RESET_CDF_COUNTER_STRIDE(
+          fc->flex_mv_precision_cdf[j][p - MV_SUBPEL_QTR_PRECISION], p + 1,
+          CDF_SIZE(MV_SUBPEL_PRECISIONS));
 #endif  // DISALLOW_ONE_DOWN_FLEX_MVRES
-    );
+    }
   }
 #endif  // CONFIG_FLEX_MVRES
   RESET_CDF_COUNTER(fc->angle_delta_cdf, 2 * MAX_ANGLE_DELTA + 1);

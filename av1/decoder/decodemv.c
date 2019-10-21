@@ -1364,25 +1364,26 @@ static void dec_dump_logs(AV1_COMMON *cm, MB_MODE_INFO *const mbmi, int mi_row,
 MvSubpelPrecision read_mv_precision(AV1_COMMON *const cm, MACROBLOCKD *const xd,
                                     aom_reader *r) {
   assert(cm->mv_precision >= MV_SUBPEL_QTR_PRECISION);
+  const int down_ctx = av1_get_mv_precision_down_context(cm, xd);
 #if DISALLOW_ONE_DOWN_FLEX_MVRES == 2
   int down = aom_read_symbol(
       r,
-      xd->tile_ctx
-          ->flex_mv_precision_cdf[cm->mv_precision - MV_SUBPEL_QTR_PRECISION],
+      xd->tile_ctx->flex_mv_precision_cdf[down_ctx][cm->mv_precision -
+                                                    MV_SUBPEL_QTR_PRECISION],
       2, ACCT_STR);
   down <<= 1;
 #elif DISALLOW_ONE_DOWN_FLEX_MVRES == 1
   int down = aom_read_symbol(
       r,
-      xd->tile_ctx
-          ->flex_mv_precision_cdf[cm->mv_precision - MV_SUBPEL_QTR_PRECISION],
+      xd->tile_ctx->flex_mv_precision_cdf[down_ctx][cm->mv_precision -
+                                                    MV_SUBPEL_QTR_PRECISION],
       cm->mv_precision, ACCT_STR);
   down += (down > 0);
 #else
   int down = aom_read_symbol(
       r,
-      xd->tile_ctx
-          ->flex_mv_precision_cdf[cm->mv_precision - MV_SUBPEL_QTR_PRECISION],
+      xd->tile_ctx->flex_mv_precision_cdf[down_ctx][cm->mv_precision -
+                                                    MV_SUBPEL_QTR_PRECISION],
       cm->mv_precision + 1, ACCT_STR);
 #endif  // DISALLOW_ONE_DOWN_FLEX_MVRES
   return (MvSubpelPrecision)(cm->mv_precision - down);
@@ -1418,7 +1419,6 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
   int mode_ctx = av1_mode_context_analyzer(inter_mode_ctx, mbmi->ref_frame);
   mbmi->ref_mv_idx = 0;
 
-  mbmi->mv_precision = cm->mv_precision;
   if (mbmi->skip_mode) {
     assert(is_compound);
     mbmi->mode = NEAREST_NEARESTMV;
@@ -1644,6 +1644,7 @@ static void read_inter_frame_mode_info(AV1Decoder *const pbi,
   mbmi->mv[0].as_int = 0;
   mbmi->mv[1].as_int = 0;
   mbmi->segment_id = read_inter_segment_id(cm, xd, mi_row, mi_col, 1, r);
+  mbmi->mv_precision = cm->mv_precision;
 
   mbmi->skip_mode = read_skip_mode(cm, xd, mbmi->segment_id, r);
 

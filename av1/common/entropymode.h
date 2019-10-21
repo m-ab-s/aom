@@ -237,15 +237,21 @@ typedef struct frame_contexts {
 #endif  // CONFIG_INTRA_ENTROPY
 
 #if CONFIG_FLEX_MVRES
-#if DISALLOW_ONE_DOWN_FLEX_MVRES
-  aom_cdf_prob flex_mv_precision_cdf[MV_SUBPEL_PRECISIONS -
-                                     MV_SUBPEL_QTR_PRECISION][CDF_SIZE(
-      MV_SUBPEL_PRECISIONS - DISALLOW_ONE_DOWN_FLEX_MVRES)];
+#if DISALLOW_ONE_DOWN_FLEX_MVRES == 2
+  aom_cdf_prob flex_mv_precision_cdf[MV_PREC_DOWN_CONTEXTS]
+                                    [MV_SUBPEL_PRECISIONS -
+                                     MV_SUBPEL_QTR_PRECISION][CDF_SIZE(2)];
+#elif DISALLOW_ONE_DOWN_FLEX_MVRES == 1
+  aom_cdf_prob
+      flex_mv_precision_cdf[MV_PREC_DOWN_CONTEXTS]
+                           [MV_SUBPEL_PRECISIONS - MV_SUBPEL_QTR_PRECISION]
+                           [CDF_SIZE(MV_SUBPEL_PRECISIONS - 1)];
 #else
   aom_cdf_prob
-      flex_mv_precision_cdf[MV_SUBPEL_PRECISIONS - MV_SUBPEL_QTR_PRECISION]
+      flex_mv_precision_cdf[MV_PREC_DOWN_CONTEXTS]
+                           [MV_SUBPEL_PRECISIONS - MV_SUBPEL_QTR_PRECISION]
                            [CDF_SIZE(MV_SUBPEL_PRECISIONS)];
-#endif  //
+#endif  // DISALLOW_ONE_DOWN_FLEX_MVRES
 #endif  // CONFIG_FLEX_MVRES
 
   aom_cdf_prob angle_delta_cdf[DIRECTIONAL_MODES]

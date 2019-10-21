@@ -1527,6 +1527,7 @@ static void update_stats(const AV1_COMMON *const cm, TileDataEnc *tile_data,
       if (have_newmv_in_inter_mode(mbmi->mode)) {
 #if CONFIG_FLEX_MVRES
         if (allow_update_cdf && is_flex_mv_precision_active(cm, mbmi->mode)) {
+          const int down_ctx = av1_get_mv_precision_down_context(cm, xd);
           int down = cm->mv_precision - mbmi->mv_precision;
 #if DISALLOW_ONE_DOWN_FLEX_MVRES == 2
           assert((down & 1) == 0);
@@ -1539,9 +1540,10 @@ static void update_stats(const AV1_COMMON *const cm, TileDataEnc *tile_data,
 #else
           const int nsymbs = cm->mv_precision + 1;
 #endif  // DISALLOW_ONE_DOWN_FLEX_MVRES
-          update_cdf(fc->flex_mv_precision_cdf[cm->mv_precision -
-                                               MV_SUBPEL_QTR_PRECISION],
-                     down, nsymbs);
+          update_cdf(
+              fc->flex_mv_precision_cdf[down_ctx][cm->mv_precision -
+                                                  MV_SUBPEL_QTR_PRECISION],
+              down, nsymbs);
         }
         assert(mbmi->mv_precision == av1_get_mbmi_mv_precision(cm, mbmi));
 #else
@@ -4325,17 +4327,26 @@ static void avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
   AVERAGE_CDF(ctx_left->switchable_interp_cdf, ctx_tr->switchable_interp_cdf,
               SWITCHABLE_FILTERS);
 #if CONFIG_FLEX_MVRES
-  for (int p = MV_SUBPEL_QTR_PRECISION; p < MV_SUBPEL_PRECISIONS; ++p)
-    AVERAGE_CDF(ctx_left->flex_mv_precision_cdf[p - MV_SUBPEL_QTR_PRECISION],
-                ctx_tr->flex_mv_precision_cdf[p - MV_SUBPEL_QTR_PRECISION],
+  for (int p = MV_SUBPEL_QTR_PRECISION; p < MV_SUBPEL_PRECISIONS; ++p) {
+    for (int j = 0; j < MV_PREC_DOWN_CONTEXTS; ++j) {
 #if DISALLOW_ONE_DOWN_FLEX_MVRES == 2
-                2
+      AVG_CDF_STRIDE(
+          ctx_left->flex_mv_precision_cdf[j][p - MV_SUBPEL_QTR_PRECISION],
+          ctx_tr->flex_mv_precision_cdf[j][p - MV_SUBPEL_QTR_PRECISION], 2,
+          CDF_SIZE(2));
 #elif DISALLOW_ONE_DOWN_FLEX_MVRES == 1
-                p
+      AVG_CDF_STRIDE(
+          ctx_left->flex_mv_precision_cdf[j][p - MV_SUBPEL_QTR_PRECISION],
+          ctx_tr->flex_mv_precision_cdf[j][p - MV_SUBPEL_QTR_PRECISION], p,
+          CDF_SIZE(MV_SUBPEL_PRECISIONS - 1));
 #else
-                p + 1
+      AVG_CDF_STRIDE(
+          ctx_left->flex_mv_precision_cdf[j][p - MV_SUBPEL_QTR_PRECISION],
+          ctx_tr->flex_mv_precision_cdf[j][p - MV_SUBPEL_QTR_PRECISION], p + 1,
+          CDF_SIZE(MV_SUBPEL_PRECISIONS));
 #endif  // DISALLOW_ONE_DOWN_FLEX_MVRES
-    );
+    }
+  }
 #endif  // CONFIG_FLEX_MVRES
   AVERAGE_CDF(ctx_left->angle_delta_cdf, ctx_tr->angle_delta_cdf,
               2 * MAX_ANGLE_DELTA + 1);
