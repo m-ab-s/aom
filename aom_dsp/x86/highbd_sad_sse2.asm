@@ -333,21 +333,25 @@ HIGH_SAD16XN 64, 1 ; highbd_sad_16x64_avg_sse2
   pavgw                 m4, [second_predq+mmsize*3]
   lea         second_predq, [second_predq+mmsize*4]
 %endif
-  mova                  m5, [srcq]
+  movu                  m5, [srcq]
   psubusw               m5, m1
-  psubusw               m1, [srcq]
+  movu                  m7, [srcq]
+  psubusw               m1, m7
   por                   m1, m5
-  mova                  m5, [srcq+src_strideq*2]
+  movu                  m5, [srcq+src_strideq*2]
   psubusw               m5, m2
-  psubusw               m2, [srcq+src_strideq*2]
+  movu                  m7, [srcq+src_strideq*2]
+  psubusw               m2, m7
   por                   m2, m5
-  mova                  m5, [srcq+src_strideq*4]
+  movu                  m5, [srcq+src_strideq*4]
   psubusw               m5, m3
-  psubusw               m3, [srcq+src_strideq*4]
+  movu                  m7, [srcq+src_strideq*4]
+  psubusw               m3, m7
   por                   m3, m5
-  mova                  m5, [srcq+src_stride3q*2]
+  movu                  m5, [srcq+src_stride3q*2]
   psubusw               m5, m4
-  psubusw               m4, [srcq+src_stride3q*2]
+  movu                  m7, [srcq+src_stride3q*2]
+  psubusw               m4, m7
   por                   m4, m5
   paddw                 m1, m2
   paddw                 m3, m4

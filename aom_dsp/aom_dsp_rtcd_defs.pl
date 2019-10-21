@@ -825,7 +825,7 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
     add_proto qw/unsigned int/, "aom_highbd_sad${w}x${h}", "const uint8_t *src_ptr, int src_stride, const uint8_t *ref_ptr, int ref_stride";
     add_proto qw/unsigned int/, "aom_highbd_sad${w}x${h}_avg", "const uint8_t *src_ptr, int src_stride, const uint8_t *ref_ptr, int ref_stride, const uint8_t *second_pred";
     if ($w != 128 && $h != 128 && $w != 4 &&
-     ((aom_config("CONFIG_3WAY_PARTITIONS") eq "") || (!($w == 8 && $h == 16) && !($w == 16 && $h == 32)))) {
+     ((aom_config("CONFIG_3WAY_PARTITIONS") eq "") || (!($w == 16 && $h == 32)))) {
      # 8x16 and 16x32 functions have an alignment issue with CONFIG_3WAY_PARTITIONS experiment. So disabled for now.
       specialize "aom_highbd_sad${w}x${h}", qw/sse2/;
       specialize "aom_highbd_sad${w}x${h}_avg", qw/sse2/;
