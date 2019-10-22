@@ -988,8 +988,9 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
   specialize qw/aom_highbd_sad32x64x4d   sse2 avx2/;
   specialize qw/aom_highbd_sad32x32x4d   sse2 avx2/;
   specialize qw/aom_highbd_sad32x16x4d   sse2 avx2/;
+  specialize qw/aom_highbd_sad16x32x4d        avx2/;
   if (aom_config("CONFIG_3WAY_PARTITIONS") eq "") {
-    specialize qw/aom_highbd_sad16x32x4d   sse2 avx2/;
+    specialize qw/aom_highbd_sad16x32x4d   sse2/;
   } # CONFIG_3WAY_PARTITIONS
   specialize qw/aom_highbd_sad16x16x4d   sse2 avx2/;
   specialize qw/aom_highbd_sad16x8x4d    sse2 avx2/;
