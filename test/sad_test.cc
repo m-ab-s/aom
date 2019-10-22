@@ -1551,9 +1551,7 @@ const SadMxNx4Param x4d_sse2_tests[] = {
   make_tuple(32, 64, &aom_sad32x64x4d_sse2, -1),
   make_tuple(32, 32, &aom_sad32x32x4d_sse2, -1),
   make_tuple(32, 16, &aom_sad32x16x4d_sse2, -1),
-#if !CONFIG_3WAY_PARTITIONS
   make_tuple(16, 32, &aom_sad16x32x4d_sse2, -1),
-#endif  // !CONFIG_3WAY_PARTITIONS
   make_tuple(16, 16, &aom_sad16x16x4d_sse2, -1),
   make_tuple(16, 8, &aom_sad16x8x4d_sse2, -1),
   make_tuple(8, 16, &aom_sad8x16x4d_sse2, -1),

@@ -118,7 +118,7 @@ SECTION .text
 ; PROCESS_16x2x4 first, off_{first,second}_{src,ref}, advance_at_end
 %macro PROCESS_16x2x4 5-6 0
   ; 1st 16 px
-  mova                  m0, [srcq +%2]
+  movu                  m0, [srcq +%2]
 %if %1 == 1
   movu                  m4, [ref1q+%3]
   movu                  m5, [ref2q+%3]
@@ -144,7 +144,7 @@ SECTION .text
 %endif
 
   ; 2nd 16 px
-  mova                  m0, [srcq +%4]
+  movu                  m0, [srcq +%4]
   movu                  m1, [ref1q+%5]
   movu                  m2, [ref2q+%5]
   movu                  m3, [ref3q+%5]
