@@ -4306,6 +4306,10 @@ static void avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
               RESTORE_SWITCHABLE_TYPES);
   AVERAGE_CDF(ctx_left->wiener_restore_cdf, ctx_tr->wiener_restore_cdf, 2);
   AVERAGE_CDF(ctx_left->sgrproj_restore_cdf, ctx_tr->sgrproj_restore_cdf, 2);
+#if CONFIG_WIENER_NONSEP
+  AVERAGE_CDF(ctx_left->wiener_nonsep_restore_cdf,
+              ctx_tr->wiener_nonsep_restore_cdf, 2);
+#endif  // CONFIG_WIENER_NONSEP
   AVERAGE_CDF(ctx_left->y_mode_cdf, ctx_tr->y_mode_cdf, INTRA_MODES);
 #if !CONFIG_INTRA_ENTROPY
   AVERAGE_CDF(ctx_left->kf_y_cdf, ctx_tr->kf_y_cdf, INTRA_MODES);

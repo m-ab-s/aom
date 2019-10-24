@@ -1222,7 +1222,7 @@ static const aom_cdf_prob
 
 #if CONFIG_LOOP_RESTORE_CNN && CONFIG_WIENER_NONSEP
 static const aom_cdf_prob default_switchable_restore_cdf[CDF_SIZE(
-    RESTORE_SWITCHABLE_TYPES)] = { AOM_CDF4(4000, 10000, 16000, 22500) };
+    RESTORE_SWITCHABLE_TYPES)] = { AOM_CDF5(4000, 10000, 16000, 22500) };
 #elif CONFIG_LOOP_RESTORE_CNN || CONFIG_WIENER_NONSEP
 static const aom_cdf_prob default_switchable_restore_cdf[CDF_SIZE(
     RESTORE_SWITCHABLE_TYPES)] = { AOM_CDF4(6000, 14000, 22500) };
@@ -1243,7 +1243,7 @@ static const aom_cdf_prob default_cnn_restore_cdf[CDF_SIZE(2)] = { AOM_CDF2(
 #endif  // CONFIG_LOOP_RESTORE_CNN
 #if CONFIG_WIENER_NONSEP
 static const aom_cdf_prob default_wiener_nonsep_restore_cdf[CDF_SIZE(2)] = {
-  AOM_CDF2(20000)
+  AOM_CDF2(11570)
 };
 #endif  // CONFIG_WIENER_NONSEP
 

@@ -257,6 +257,14 @@ static INLINE void set_default_wiener(WienerInfo *wiener_info) {
   wiener_info->vfilter[6] = wiener_info->hfilter[6] = WIENER_FILT_TAP0_MIDV;
 }
 
+#if CONFIG_WIENER_NONSEP
+static INLINE void set_default_wiener_nonsep(WienerNonsepInfo *wienerns_info) {
+  for (int i = 0; i < WIENERNS_NUM_COEFF; ++i) {
+    wienerns_info->nsfilter[i] = wienerns_coeff_info[i][WIENERNS_MIN_ID];
+  }
+}
+#endif  // CONFIG_WIENER_NONSEP
+
 typedef struct {
   int h_start, h_end, v_start, v_end;
 } RestorationTileLimits;

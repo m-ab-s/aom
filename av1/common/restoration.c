@@ -960,39 +960,23 @@ static void sgrproj_filter_stripe(const RestorationUnitInfo *rui,
 }
 
 #if CONFIG_WIENER_NONSEP
-static void apply_wiener_nonsep(const uint8_t *dgd, int width, int height,
-                                int stride, const int16_t *filter, uint8_t *dst,
-                                int dst_stride, int32_t *buf) {
+void apply_wiener_nonsep(const uint8_t *dgd, int width, int height, int stride,
+                         const int16_t *filter, uint8_t *dst, int dst_stride) {
   for (int i = 0; i < height; ++i) {
-    memcpy(dst + i * dst_stride, dgd + i * stride, sizeof(uint8_t) * width);
-  }
-
-  int w = WIENERNS_WINDOW;
-  if ((w << 1) < width && (w << 1) < height) {
-    int num_pixel = WIENERNS_NUM_PIXEL;
-    int crop_width = (width - (w << 1));
-
-    int32_t *tmpbuf = malloc(sizeof(tmpbuf) * height * width);
-    for (int i = w; i < height - w; ++i) {
-      for (int j = w; j < width - w; ++j) {
-        tmpbuf[(i - w) * crop_width + (j - w)] = 0;
-        for (int k = 0; k < num_pixel; ++k) {
-          tmpbuf[(i - w) * crop_width + (j - w)] +=
-              filter[wienerns_config[k][WIENERNS_COEFF_ID]] *
-              (dst[(i + wienerns_config[k][WIENERNS_ROW_ID]) * width +
-                   (j + wienerns_config[k][WIENERNS_COL_ID])] -
-               dst[i * width + j]);
-        }
+    for (int j = 0; j < width; ++j) {
+      int dgd_id = i * stride + j;
+      int dst_id = i * dst_stride + j;
+      double tmp = (double)dgd[dgd_id];
+      for (int k = 0; k < WIENERNS_NUM_PIXEL; ++k) {
+        int type = wienerns_config[k][WIENERNS_COEFF_ID];
+        int r = wienerns_config[k][WIENERNS_ROW_ID];
+        int c = wienerns_config[k][WIENERNS_COL_ID];
+        tmp += (double)filter[type] *
+               ((double)dgd[(i + r) * stride + (j + c)] - dgd[dgd_id]) /
+               WIENERNS_FILT_STEP;
       }
+      dst[dst_id] = clip_pixel((int)round(tmp));
     }
-    // add to dst only after tmpbuf are all done
-    for (int i = w; i < height - w; ++i) {
-      for (int j = w; j < width - w; ++j) {
-        dst[i * width + j] += clip_pixel(
-            tmpbuf[(i - w) * crop_width + (j - w)] / WIENERNS_FILT_STEP);
-      }
-    }
-    free(tmpbuf);
   }
 }
 
@@ -1001,14 +985,14 @@ static void wiener_nsfilter_stripe(const RestorationUnitInfo *rui,
                                    int procunit_width, const uint8_t *src,
                                    int src_stride, uint8_t *dst, int dst_stride,
                                    int32_t *tmpbuf, int bit_depth) {
+  (void)tmpbuf;
   (void)bit_depth;
   assert(bit_depth == 8);
 
   for (int j = 0; j < stripe_width; j += procunit_width) {
     int w = AOMMIN(procunit_width, stripe_width - j);
     apply_wiener_nonsep(src + j, w, stripe_height, src_stride,
-                        rui->wiener_nonsep_info.nsfilter, dst + j, dst_stride,
-                        tmpbuf);
+                        rui->wiener_nonsep_info.nsfilter, dst + j, dst_stride);
   }
 }
 #endif  // CONFIG_WIENER_NONSEP
@@ -1162,13 +1146,13 @@ typedef void (*stripe_filter_fun)(const RestorationUnitInfo *rui,
                                   int32_t *tmpbuf, int bit_depth);
 
 #if CONFIG_LOOP_RESTORE_CNN && CONFIG_WIENER_NONSEP
-#define NUM_STRIPE_FILTERS 7
+#define NUM_STRIPE_FILTERS 8
 
 static const stripe_filter_fun stripe_filters[NUM_STRIPE_FILTERS] = {
   wiener_filter_stripe,        sgrproj_filter_stripe,
   cnn_filter_stripe,           wiener_nsfilter_stripe,
   wiener_filter_stripe_highbd, sgrproj_filter_stripe_highbd,
-  cnn_filter_stripe_highbd
+  cnn_filter_stripe_highbd,    NULL
 };  // CONFIG_LOOP_RESTORE_CNN && CONFIG_WIENER_NONSEP
 #elif CONFIG_LOOP_RESTORE_CNN
 #define NUM_STRIPE_FILTERS 6
@@ -1182,7 +1166,7 @@ static const stripe_filter_fun stripe_filters[NUM_STRIPE_FILTERS] = {
   cnn_filter_stripe_highbd
 };  // CONFIG_LOOP_RESTORE_CNN && !CONFIG_WIENER_NONSEP
 #elif CONFIG_WIENER_NONSEP
-#define NUM_STRIPE_FILTERS 5
+#define NUM_STRIPE_FILTERS 6
 
 static const stripe_filter_fun stripe_filters[NUM_STRIPE_FILTERS] = {
   wiener_filter_stripe,         sgrproj_filter_stripe,

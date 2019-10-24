@@ -1757,7 +1757,7 @@ static void decode_restoration_mode(AV1_COMMON *cm,
       if (aom_rb_read_bit(rb)) {
 #if CONFIG_LOOP_RESTORE_CNN && CONFIG_WIENER_NONSEP
         rsi->frame_restoration_type =
-            aom_rb_read_bit(rb) ? RESTORE_SGRPROJ : RESTORE_WIENER_NONSEP;
+            aom_rb_read_bit(rb) ? RESTORE_WIENER_NONSEP : RESTORE_SGRPROJ;
 #else
         rsi->frame_restoration_type = RESTORE_SGRPROJ;
 #endif  // CONFIG_LOOP_RESTORE_CNN && CONFIG_WIENER_NONSEP
@@ -1921,12 +1921,14 @@ static void read_wiener_nsfilter(WienerNonsepInfo *wienerns_info,
                                  aom_reader *rb) {
   memset(wienerns_info->nsfilter, 0, sizeof(wienerns_info->nsfilter));
   for (int i = 0; i < WIENERNS_NUM_COEFF; ++i) {
-    wienerns_info->nsfilter[i] = aom_read_primitive_refsubexpfin(
-        rb, (1 << wienerns_coeff_info[i][WIENERNS_BIT_ID]),
-        wienerns_coeff_info[i][WIENERNS_SUBEXP_K_ID],
-        ref_wienerns_info->nsfilter[i] -
-            wienerns_coeff_info[i][WIENERNS_MIN_ID],
-        ACCT_STR);
+    wienerns_info->nsfilter[i] =
+        wienerns_coeff_info[i][WIENERNS_MIN_ID] +
+        aom_read_primitive_refsubexpfin(
+            rb, (1 << wienerns_coeff_info[i][WIENERNS_BIT_ID]),
+            wienerns_coeff_info[i][WIENERNS_SUBEXP_K_ID],
+            ref_wienerns_info->nsfilter[i] -
+                wienerns_coeff_info[i][WIENERNS_MIN_ID],
+            ACCT_STR);
   }
   memcpy(ref_wienerns_info, wienerns_info, sizeof(*wienerns_info));
 }
