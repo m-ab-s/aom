@@ -31,7 +31,14 @@ void av1_build_compound_diffwtd_mask_avx2(uint8_t *mask,
                                           const uint8_t *src0, int src0_stride,
                                           const uint8_t *src1, int src1_stride,
                                           int h, int w) {
+  // This function is not invoked if the experiment is on, but this is
+  // needed to ensure the code compiles. This function will need to be modified
+  // if the experiment becomes permanent.
+#if CONFIG_DIFFWTD_42
+  const int mb = (mask_type == DIFFWTD_42_INV) ? AOM_BLEND_A64_MAX_ALPHA : 0;
+#else
   const int mb = (mask_type == DIFFWTD_38_INV) ? AOM_BLEND_A64_MAX_ALPHA : 0;
+#endif  // CONFIG_DIFFWTD_42
   const __m256i y_mask_base = _mm256_set1_epi16(38 - mb);
   int i = 0;
   if (4 == w) {
@@ -504,8 +511,13 @@ void av1_build_compound_diffwtd_mask_d16_avx2(
   // there is a possibility of corner case bugs.
   assert(DIFF_FACTOR_LOG2 == 4);
   assert(AOM_BLEND_A64_MAX_ALPHA == 64);
-
+  // This function is not invoked if the experiment is on, but this is
+  // needed to ensure the code compiles.
+#if CONFIG_DIFFWTD_42
+  if (mask_type == DIFFWTD_42) {
+#else
   if (mask_type == DIFFWTD_38) {
+#endif  // CONFIG_DIFFWTD_42
     build_compound_diffwtd_mask_d16_avx2(mask, src0, src0_stride, src1,
                                          src1_stride, h, w, shift);
   } else {
@@ -522,7 +534,9 @@ void av1_build_compound_diffwtd_mask_highbd_avx2(
     av1_build_compound_diffwtd_mask_highbd_ssse3(
         mask, mask_type, src0, src0_stride, src1, src1_stride, h, w, bd);
   } else {
+#if !CONFIG_DIFFWTD_42
     assert(mask_type == DIFFWTD_38 || mask_type == DIFFWTD_38_INV);
+#endif  // !CONFIG_DIFFWTD_42
     assert(bd >= 8);
     assert((w % 16) == 0);
     const __m256i y0 = _mm256_setzero_si256();
@@ -533,7 +547,11 @@ void av1_build_compound_diffwtd_mask_highbd_avx2(
     const uint16_t *ssrc0 = CONVERT_TO_SHORTPTR(src0);
     const uint16_t *ssrc1 = CONVERT_TO_SHORTPTR(src1);
     if (bd == 8) {
+#if CONFIG_DIFFWTD_42
+      if (mask_type == DIFFWTD_42_INV) {
+#else
       if (mask_type == DIFFWTD_38_INV) {
+#endif  // CONFIG_DIFFWTD_42
         for (int i = 0; i < h; ++i) {
           for (int j = 0; j < w; j += 16) {
             __m256i s0 = _mm256_loadu_si256((const __m256i *)&ssrc0[j]);
@@ -575,7 +593,11 @@ void av1_build_compound_diffwtd_mask_highbd_avx2(
       }
     } else {
       const __m128i xshift = xx_set1_64_from_32i(bd - 8 + DIFF_FACTOR_LOG2);
+#if CONFIG_DIFFWTD_42
+      if (mask_type == DIFFWTD_42_INV) {
+#else
       if (mask_type == DIFFWTD_38_INV) {
+#endif  // CONFIG_DIFFWTD_42
         for (int i = 0; i < h; ++i) {
           for (int j = 0; j < w; j += 16) {
             __m256i s0 = _mm256_loadu_si256((const __m256i *)&ssrc0[j]);

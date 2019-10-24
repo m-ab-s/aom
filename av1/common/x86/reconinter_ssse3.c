@@ -28,7 +28,9 @@ void av1_build_compound_diffwtd_mask_highbd_ssse3(
   } else {
     assert(bd >= 8);
     assert((w % 8) == 0);
+#if !CONFIG_DIFFWTD_42
     assert(mask_type == DIFFWTD_38 || mask_type == DIFFWTD_38_INV);
+#endif  // !CONFIG_DIFFWTD_42
     const __m128i x0 = _mm_setzero_si128();
     const __m128i xAOM_BLEND_A64_MAX_ALPHA =
         _mm_set1_epi16(AOM_BLEND_A64_MAX_ALPHA);
@@ -37,7 +39,13 @@ void av1_build_compound_diffwtd_mask_highbd_ssse3(
     const uint16_t *ssrc0 = CONVERT_TO_SHORTPTR(src0);
     const uint16_t *ssrc1 = CONVERT_TO_SHORTPTR(src1);
     if (bd == 8) {
+      // This function is not invoked if the experiment is on, but this is
+      // needed to ensure the code compiles.
+#if CONFIG_DIFFWTD_42
+      if (mask_type == DIFFWTD_42_INV) {
+#else
       if (mask_type == DIFFWTD_38_INV) {
+#endif  // CONFIG_DIFFWTD_42
         for (int i = 0; i < h; ++i) {
           for (int j = 0; j < w; j += 8) {
             __m128i s0 = _mm_loadu_si128((const __m128i *)&ssrc0[j]);
@@ -75,7 +83,13 @@ void av1_build_compound_diffwtd_mask_highbd_ssse3(
       }
     } else {
       const __m128i xshift = xx_set1_64_from_32i(bd - 8 + DIFF_FACTOR_LOG2);
+      // This function is not invoked if the experiment is on, but this is
+      // needed to ensure the code compiles.
+#if CONFIG_DIFFWTD_42
+      if (mask_type == DIFFWTD_42_INV) {
+#else
       if (mask_type == DIFFWTD_38_INV) {
+#endif  // CONFIG_DIFFWTD_42
         for (int i = 0; i < h; ++i) {
           for (int j = 0; j < w; j += 8) {
             __m128i s0 = _mm_loadu_si128((const __m128i *)&ssrc0[j]);

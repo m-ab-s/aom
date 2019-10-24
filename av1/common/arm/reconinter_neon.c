@@ -26,7 +26,11 @@ void av1_build_compound_diffwtd_mask_d16_neon(
     ConvolveParams *conv_params, int bd) {
   assert(h >= 4);
   assert(w >= 4);
+#if CONFIG_DIFFWTD_42
+  assert((mask_type == DIFFWTD_42_INV) || (mask_type == DIFFWTD_42));
+#else
   assert((mask_type == DIFFWTD_38_INV) || (mask_type == DIFFWTD_38));
+#endif  // CONFIG_DIFFWTD_42
   const int round =
       2 * FILTER_BITS - conv_params->round_0 - conv_params->round_1 + (bd - 8);
   uint16x8_t diff_q, tmp0, tmp1;
@@ -35,7 +39,14 @@ void av1_build_compound_diffwtd_mask_d16_neon(
   const int16x8_t dup_round = vdupq_n_s16((int16_t)(-round));
   const uint8x8_t dup_38 = vdup_n_u8(38);
   const uint8x8_t dup_64 = vdup_n_u8(AOM_BLEND_A64_MAX_ALPHA);
+  // This function is not invoked if the experiment is on, but this is
+  // needed to ensure the code compiles. This function needs to be updated
+  // to properly compute diffwtd_42.
+#if CONFIG_DIFFWTD_42
+  if (mask_type == DIFFWTD_42) {
+#else
   if (mask_type == DIFFWTD_38) {
+#endif  // CONFIG_DIFFWTD_42
     diff_select = vdup_n_u8(255);
   } else {
     diff_select = vdup_n_u8(0);

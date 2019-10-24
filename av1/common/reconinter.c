@@ -104,6 +104,16 @@ double *gen_correlation_uint8(const uint8_t *src, int stride, int h, int w,
 }
 #endif  // CONFIG_CTX_ADAPT_LOG_WEIGHT
 
+#if CONFIG_DIFFWTD_42
+#define DIFFWTD_MASK_VAL 42
+#define NORMAL_MASK DIFFWTD_42
+#define INVERSE_MASK DIFFWTD_42_INV
+#else
+#define DIFFWTD_MASK_VAL 38
+#define NORMAL_MASK DIFFWTD_38
+#define INVERSE_MASK DIFFWTD_38_INV
+#endif  // CONFIG_DIFFWTD_42
+
 // This function will determine whether or not to create a warped
 // prediction.
 int av1_allow_warp(const MB_MODE_INFO *const mbmi,
@@ -602,13 +612,13 @@ void av1_build_compound_diffwtd_mask_d16_c(
     int src0_stride, const CONV_BUF_TYPE *src1, int src1_stride, int h, int w,
     ConvolveParams *conv_params, int bd) {
   switch (mask_type) {
-    case DIFFWTD_38:
-      diffwtd_mask_d16(mask, 0, 38, src0, src0_stride, src1, src1_stride, h, w,
-                       conv_params, bd);
+    case NORMAL_MASK:
+      diffwtd_mask_d16(mask, 0, DIFFWTD_MASK_VAL, src0, src0_stride, src1,
+                       src1_stride, h, w, conv_params, bd);
       break;
-    case DIFFWTD_38_INV:
-      diffwtd_mask_d16(mask, 1, 38, src0, src0_stride, src1, src1_stride, h, w,
-                       conv_params, bd);
+    case INVERSE_MASK:
+      diffwtd_mask_d16(mask, 1, DIFFWTD_MASK_VAL, src0, src0_stride, src1,
+                       src1_stride, h, w, conv_params, bd);
       break;
     default: assert(0);
   }
@@ -661,11 +671,13 @@ void av1_build_compound_diffwtd_mask_c(uint8_t *mask,
                                        const uint8_t *src1, int src1_stride,
                                        int h, int w) {
   switch (mask_type) {
-    case DIFFWTD_38:
-      diffwtd_mask(mask, 0, 38, src0, src0_stride, src1, src1_stride, h, w);
+    case NORMAL_MASK:
+      diffwtd_mask(mask, 0, DIFFWTD_MASK_VAL, src0, src0_stride, src1,
+                   src1_stride, h, w);
       break;
-    case DIFFWTD_38_INV:
-      diffwtd_mask(mask, 1, 38, src0, src0_stride, src1, src1_stride, h, w);
+    case INVERSE_MASK:
+      diffwtd_mask(mask, 1, DIFFWTD_MASK_VAL, src0, src0_stride, src1,
+                   src1_stride, h, w);
       break;
     default: assert(0);
   }
@@ -739,13 +751,15 @@ void av1_build_compound_diffwtd_mask_highbd_c(
     int src0_stride, const uint8_t *src1, int src1_stride, int h, int w,
     int bd) {
   switch (mask_type) {
-    case DIFFWTD_38:
-      diffwtd_mask_highbd(mask, 0, 38, CONVERT_TO_SHORTPTR(src0), src0_stride,
-                          CONVERT_TO_SHORTPTR(src1), src1_stride, h, w, bd);
+    case NORMAL_MASK:
+      diffwtd_mask_highbd(mask, 0, DIFFWTD_MASK_VAL, CONVERT_TO_SHORTPTR(src0),
+                          src0_stride, CONVERT_TO_SHORTPTR(src1), src1_stride,
+                          h, w, bd);
       break;
-    case DIFFWTD_38_INV:
-      diffwtd_mask_highbd(mask, 1, 38, CONVERT_TO_SHORTPTR(src0), src0_stride,
-                          CONVERT_TO_SHORTPTR(src1), src1_stride, h, w, bd);
+    case INVERSE_MASK:
+      diffwtd_mask_highbd(mask, 1, DIFFWTD_MASK_VAL, CONVERT_TO_SHORTPTR(src0),
+                          src0_stride, CONVERT_TO_SHORTPTR(src1), src1_stride,
+                          h, w, bd);
       break;
     default: assert(0);
   }
@@ -949,7 +963,7 @@ void av1_make_masked_inter_predictor(
                            can_use_previous);
 
   if (!plane && comp_data->type == COMPOUND_DIFFWTD) {
-#if CONFIG_CTX_ADAPT_LOG_WEIGHT
+#if CONFIG_CTX_ADAPT_LOG_WEIGHT || CONFIG_DIFFWTD_42
     av1_build_compound_diffwtd_mask_d16_c(
         comp_data->seg_mask, comp_data->mask_type, org_dst, org_dst_stride,
         tmp_buf16, tmp_buf_stride, h, w, conv_params, xd->bd);
@@ -957,7 +971,7 @@ void av1_make_masked_inter_predictor(
     av1_build_compound_diffwtd_mask_d16(
         comp_data->seg_mask, comp_data->mask_type, org_dst, org_dst_stride,
         tmp_buf16, tmp_buf_stride, h, w, conv_params, xd->bd);
-#endif  // CONFIG_CTX_ADAPT_LOG_WEIGHT
+#endif  // CONFIG_CTX_ADAPT_LOG_WEIGHT || CONFIG_DIFFWTD_42
   }
   build_masked_compound_no_round(dst, dst_stride, org_dst, org_dst_stride,
                                  tmp_buf16, tmp_buf_stride, comp_data,

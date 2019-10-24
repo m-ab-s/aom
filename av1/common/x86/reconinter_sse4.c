@@ -28,7 +28,13 @@ void av1_build_compound_diffwtd_mask_sse4_1(uint8_t *mask,
                                             const uint8_t *src0, int stride0,
                                             const uint8_t *src1, int stride1,
                                             int h, int w) {
+  // This function is not invoked if the experiment is on, but this is needed
+  // to ensure the code compiles.
+#if CONFIG_DIFFWTD_42
+  const int mb = (mask_type == DIFFWTD_42_INV) ? AOM_BLEND_A64_MAX_ALPHA : 0;
+#else
   const int mb = (mask_type == DIFFWTD_38_INV) ? AOM_BLEND_A64_MAX_ALPHA : 0;
+#endif  // CONFIG_DIFFWTD_42
   const __m128i mask_base = _mm_set1_epi16(38 - mb);
   int i = 0;
   if (4 == w) {
@@ -98,7 +104,13 @@ void av1_build_compound_diffwtd_mask_d16_sse4_1(
     uint8_t *mask, DIFFWTD_MASK_TYPE mask_type, const CONV_BUF_TYPE *src0,
     int src0_stride, const CONV_BUF_TYPE *src1, int src1_stride, int h, int w,
     ConvolveParams *conv_params, int bd) {
+  // This function is not invoked if the experiment is on, but this is needed
+  // to ensure the code compiles.
+#if CONFIG_DIFFWTD_42
+  const int which_inverse = (mask_type == DIFFWTD_42) ? 0 : 1;
+#else
   const int which_inverse = (mask_type == DIFFWTD_38) ? 0 : 1;
+#endif  // CONFIG_DIFFWTD_42
   const int mask_base = 38;
   int round =
       2 * FILTER_BITS - conv_params->round_0 - conv_params->round_1 + (bd - 8);

@@ -216,21 +216,38 @@ void BuildCompDiffwtdMaskTest::RunTest(buildcompdiffwtdmaskd_func test_impl,
 }
 
 TEST_P(BuildCompDiffwtdMaskTest, match) {
+#if CONFIG_DIFFWTD_42
+  RunTest(GET_PARAM(1), 0, DIFFWTD_42);
+  RunTest(GET_PARAM(1), 0, DIFFWTD_42_INV);
+#else
   RunTest(GET_PARAM(1), 0, DIFFWTD_38);
   RunTest(GET_PARAM(1), 0, DIFFWTD_38_INV);
+#endif  // CONFIG_DIFFWTD_42
 }
 TEST_P(BuildCompDiffwtdMaskTest, DISABLED_Speed) {
+#if CONFIG_DIFFWTD_42
+  RunTest(GET_PARAM(1), 1, DIFFWTD_42);
+  RunTest(GET_PARAM(1), 1, DIFFWTD_42_INV);
+#else
   RunTest(GET_PARAM(1), 1, DIFFWTD_38);
   RunTest(GET_PARAM(1), 1, DIFFWTD_38_INV);
+#endif  // CONFIG_DIFFWTD_42
 }
-#endif
+
+#endif  // HAVE_SSE4_1
+
 TEST_P(BuildCompDiffwtdMaskD16Test, CheckOutput) {
   RunCheckOutput(GET_PARAM(1));
 }
 
 TEST_P(BuildCompDiffwtdMaskD16Test, DISABLED_Speed) {
+#if CONFIG_DIFFWTD_42
+  RunSpeedTest(GET_PARAM(1), DIFFWTD_42);
+  RunSpeedTest(GET_PARAM(1), DIFFWTD_42_INV);
+#else
   RunSpeedTest(GET_PARAM(1), DIFFWTD_38);
   RunSpeedTest(GET_PARAM(1), DIFFWTD_38_INV);
+#endif  // CONFIG_DIFFWTD_42
 }
 
 #if HAVE_SSE4_1 && !CONFIG_CTX_ADAPT_LOG_WEIGHT
