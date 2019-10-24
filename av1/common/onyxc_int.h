@@ -583,7 +583,6 @@ typedef struct AV1Common {
   int64_t txcoeff_cost_timer;
   int64_t txcoeff_cost_count;
 #endif
-  const cfg_options_t *options;
   int is_decoding;
 #if CONFIG_CNN_RESTORATION
   int use_cnn;
