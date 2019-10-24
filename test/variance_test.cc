@@ -2389,14 +2389,14 @@ const SubpelVarianceParams kArraySubpelVariance_ssse3[] = {
   SubpelVarianceParams(5, 4, &aom_sub_pixel_variance32x16_ssse3, 0),
 #endif  // !CONFIG_3WAY_PARTITIONS
   SubpelVarianceParams(4, 5, &aom_sub_pixel_variance16x32_ssse3, 0),
-#if !CONFIG_3WAY_PARTITIONS
   SubpelVarianceParams(4, 4, &aom_sub_pixel_variance16x16_ssse3, 0),
   SubpelVarianceParams(4, 3, &aom_sub_pixel_variance16x8_ssse3, 0),
   SubpelVarianceParams(6, 4, &aom_sub_pixel_variance64x16_ssse3, 0),
   SubpelVarianceParams(4, 6, &aom_sub_pixel_variance16x64_ssse3, 0),
+#if !CONFIG_3WAY_PARTITIONS
   SubpelVarianceParams(5, 3, &aom_sub_pixel_variance32x8_ssse3, 0),
-  SubpelVarianceParams(4, 2, &aom_sub_pixel_variance16x4_ssse3, 0),
 #endif  // !CONFIG_3WAY_PARTITIONS
+  SubpelVarianceParams(4, 2, &aom_sub_pixel_variance16x4_ssse3, 0),
   SubpelVarianceParams(3, 4, &aom_sub_pixel_variance8x16_ssse3, 0),
   SubpelVarianceParams(3, 3, &aom_sub_pixel_variance8x8_ssse3, 0),
   SubpelVarianceParams(3, 2, &aom_sub_pixel_variance8x4_ssse3, 0),
@@ -2599,7 +2599,6 @@ const VarianceParams kArrayVariance_avx2[] = {
 INSTANTIATE_TEST_CASE_P(AVX2, AvxVarianceTest,
                         ::testing::ValuesIn(kArrayVariance_avx2));
 
-#if !CONFIG_3WAY_PARTITIONS
 const SubpelVarianceParams kArraySubpelVariance_avx2[] = {
   SubpelVarianceParams(7, 7, &aom_sub_pixel_variance128x128_avx2, 0),
   SubpelVarianceParams(7, 6, &aom_sub_pixel_variance128x64_avx2, 0),
@@ -2621,7 +2620,6 @@ const SubpelVarianceParams kArraySubpelVariance_avx2[] = {
 
 INSTANTIATE_TEST_CASE_P(AVX2, AvxSubpelVarianceTest,
                         ::testing::ValuesIn(kArraySubpelVariance_avx2));
-#endif  // !CONFIG_3WAY_PARTITIONS
 
 const SubpelAvgVarianceParams kArraySubpelAvgVariance_avx2[] = {
   SubpelAvgVarianceParams(7, 7, &aom_sub_pixel_avg_variance128x128_avx2, 0),
