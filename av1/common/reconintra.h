@@ -40,7 +40,10 @@ void av1_predict_intra_block(const AV1_COMMON *cm, const MACROBLOCKD *xd,
 
 // Mapping of interintra to intra mode for use in the intra component
 static const PREDICTION_MODE interintra_to_intra_mode[INTERINTRA_MODES] = {
-  DC_PRED, V_PRED, H_PRED, SMOOTH_PRED
+  DC_PRED, V_PRED, H_PRED, SMOOTH_PRED,
+#if CONFIG_ILLUM_MCOMP
+  DC_PRED
+#endif  // CONFIG_ILLUM_MCOMP
 };
 
 // Mapping of intra mode to the interintra mode

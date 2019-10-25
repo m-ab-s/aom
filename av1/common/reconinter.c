@@ -1385,6 +1385,9 @@ static void build_smooth_interintra_mask(uint8_t *mask, int stride,
       break;
 
     case II_DC_PRED:
+#if CONFIG_ILLUM_MCOMP
+    case II_ILLUM_MCOMP_PRED:
+#endif  // CONFIG_ILLUM_MCOMP
     default:
       for (i = 0; i < bh; ++i) {
         memset(mask, 32, bw * sizeof(mask[0]));

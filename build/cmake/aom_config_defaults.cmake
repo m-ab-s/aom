@@ -166,6 +166,8 @@ set_aom_config_var(CONFIG_NEW_TX64X64 0 NUMBER
                    "AV2 new 64-length transform experiment flag")
 set_aom_config_var(CONFIG_DIFFWTD_42 0 NUMBER
                    "AV2 diffwtd mask experiment flag")
+set_aom_config_var(CONFIG_ILLUM_MCOMP 0 NUMBER
+                   "AV2 illumination compensation motion estimation flag")
 
 # To include Tensorflow, make sure to build tensorflow locally using
 # tensorflow/contrib/makefile/build_all_linux.sh and then providing the correct
