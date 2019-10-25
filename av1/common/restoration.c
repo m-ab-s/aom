@@ -995,6 +995,46 @@ static void wiener_nsfilter_stripe(const RestorationUnitInfo *rui,
                         rui->wiener_nonsep_info.nsfilter, dst + j, dst_stride);
   }
 }
+
+void apply_wiener_nonsep_highbd(const uint8_t *dgd8, int width, int height,
+                                int stride, const int16_t *filter, uint8_t *dst,
+                                int dst_stride, int bit_depth) {
+  const uint16_t *dgd = CONVERT_TO_SHORTPTR(dgd8);
+  for (int i = 0; i < height; ++i) {
+    for (int j = 0; j < width; ++j) {
+      int dgd_id = i * stride + j;
+      int dst_id = i * dst_stride + j;
+      double tmp = (double)dgd[dgd_id];
+      for (int k = 0; k < WIENERNS_NUM_PIXEL; ++k) {
+        int type = wienerns_config[k][WIENERNS_COEFF_ID];
+        int r = wienerns_config[k][WIENERNS_ROW_ID];
+        int c = wienerns_config[k][WIENERNS_COL_ID];
+        tmp += (double)filter[type] *
+               ((double)dgd[(i + r) * stride + (j + c)] - dgd[dgd_id]) /
+               WIENERNS_FILT_STEP;
+      }
+      const uint16_t out = clip_pixel_highbd((int)round(tmp), bit_depth);
+      *CONVERT_TO_SHORTPTR(dst + dst_id) = out;
+    }
+  }
+}
+
+static void wiener_nsfilter_stripe_highbd(const RestorationUnitInfo *rui,
+                                          int stripe_width, int stripe_height,
+                                          int procunit_width,
+                                          const uint8_t *src, int src_stride,
+                                          uint8_t *dst, int dst_stride,
+                                          int32_t *tmpbuf, int bit_depth) {
+  (void)tmpbuf;
+  (void)bit_depth;
+
+  for (int j = 0; j < stripe_width; j += procunit_width) {
+    int w = AOMMIN(procunit_width, stripe_width - j);
+    apply_wiener_nonsep_highbd(src + j, w, stripe_height, src_stride,
+                               rui->wiener_nonsep_info.nsfilter, dst + j,
+                               dst_stride, bit_depth);
+  }
+}
 #endif  // CONFIG_WIENER_NONSEP
 
 #if CONFIG_LOOP_RESTORE_CNN
@@ -1152,7 +1192,7 @@ static const stripe_filter_fun stripe_filters[NUM_STRIPE_FILTERS] = {
   wiener_filter_stripe,        sgrproj_filter_stripe,
   cnn_filter_stripe,           wiener_nsfilter_stripe,
   wiener_filter_stripe_highbd, sgrproj_filter_stripe_highbd,
-  cnn_filter_stripe_highbd,    NULL
+  cnn_filter_stripe_highbd,    wiener_nsfilter_stripe_highbd
 };  // CONFIG_LOOP_RESTORE_CNN && CONFIG_WIENER_NONSEP
 #elif CONFIG_LOOP_RESTORE_CNN
 #define NUM_STRIPE_FILTERS 6
@@ -1171,7 +1211,7 @@ static const stripe_filter_fun stripe_filters[NUM_STRIPE_FILTERS] = {
 static const stripe_filter_fun stripe_filters[NUM_STRIPE_FILTERS] = {
   wiener_filter_stripe,         sgrproj_filter_stripe,
   wiener_nsfilter_stripe,       wiener_filter_stripe_highbd,
-  sgrproj_filter_stripe_highbd, NULL
+  sgrproj_filter_stripe_highbd, wiener_nsfilter_stripe_highbd
 };  // !CONFIG_LOOP_RESTORE_CNN && CONFIG_WIENER_NONSEP
 #else
 #define NUM_STRIPE_FILTERS 4

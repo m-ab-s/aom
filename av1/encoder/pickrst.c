@@ -1431,10 +1431,12 @@ static int16_t quantize(double x, int16_t ratio, int16_t minv, int16_t n) {
 static int compute_quantized_wienerns_filter(
     const uint8_t *dgd, const uint8_t *src, int h_beg, int h_end, int v_beg,
     int v_end, int dgd_stride, int src_stride,
-    WienerNonsepInfo *wiener_nonsep_info, int wienerns_win) {
+    WienerNonsepInfo *wiener_nonsep_info, int wienerns_win, int use_hbd) {
   assert(wienerns_win == WIENERNS_NUM_COEFF ||
          wienerns_win == WIENERNS_NUM_COEFF_CHROMA);
 
+  const uint16_t *src_hbd = CONVERT_TO_SHORTPTR(src);
+  const uint16_t *dgd_hbd = CONVERT_TO_SHORTPTR(dgd);
   double A[WIENERNS_NUM_COEFF * WIENERNS_NUM_COEFF];
   double b[WIENERNS_NUM_COEFF];
   double x[WIENERNS_NUM_COEFF];
@@ -1451,13 +1453,17 @@ static int compute_quantized_wienerns_filter(
         int type = wienerns_config[k][WIENERNS_COEFF_ID];
         int r = wienerns_config[k][WIENERNS_ROW_ID];
         int c = wienerns_config[k][WIENERNS_COL_ID];
-        buf[type] += (double)dgd[(i + r) * dgd_stride + (j + c)] - dgd[dgd_id];
+        buf[type] +=
+            use_hbd ? (double)dgd_hbd[(i + r) * dgd_stride + (j + c)] -
+                          dgd_hbd[dgd_id]
+                    : (double)dgd[(i + r) * dgd_stride + (j + c)] - dgd[dgd_id];
       }
       for (int k = 0; k < wienerns_win; ++k) {
         for (int l = 0; l <= k; ++l) {
           A[k * wienerns_win + l] += buf[k] * buf[l];
         }
-        b[k] += buf[k] * ((double)src[src_id] - dgd[dgd_id]);
+        b[k] += buf[k] * (use_hbd ? ((double)src_hbd[src_id] - dgd_hbd[dgd_id])
+                                  : ((double)src[src_id] - dgd[dgd_id]));
       }
     }
   }
@@ -1505,7 +1511,8 @@ static void search_wiener_nonsep(const RestorationTileLimits *limits,
   if (compute_quantized_wienerns_filter(
           rsc->dgd_buffer, rsc->src_buffer, limits->h_start, limits->h_end,
           limits->v_start, limits->v_end, rsc->dgd_stride, rsc->src_stride,
-          &rui.wiener_nonsep_info, wienerns_win)) {
+          &rui.wiener_nonsep_info, wienerns_win,
+          rsc->cm->seq_params.use_highbitdepth)) {
     rusi->sse[RESTORE_WIENER_NONSEP] =
         try_restoration_unit(rsc, limits, tile_rect, &rui);
     rusi->wiener_nonsep = rui.wiener_nonsep_info;
