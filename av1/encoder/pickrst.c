@@ -1404,10 +1404,13 @@ static void search_cnn(const RestorationTileLimits *limits,
 #endif  // CONFIG_LOOP_RESTORE_CNN
 
 #if CONFIG_WIENER_NONSEP
-static int count_wienerns_bits(WienerNonsepInfo *wienerns_info,
+static int count_wienerns_bits(int wienerns_win,
+                               WienerNonsepInfo *wienerns_info,
                                WienerNonsepInfo *ref_wienerns_info) {
+  assert(wienerns_win == WIENERNS_NUM_COEFF ||
+         wienerns_win == WIENERNS_NUM_COEFF_CHROMA);
   int bits = 0;
-  for (int i = 0; i < WIENERNS_NUM_COEFF; ++i) {
+  for (int i = 0; i < wienerns_win; ++i) {
     bits += aom_count_primitive_refsubexpfin(
         (1 << wienerns_coeff_info[i][WIENERNS_BIT_ID]),
         wienerns_coeff_info[i][WIENERNS_SUBEXP_K_ID],
@@ -1428,8 +1431,9 @@ static int16_t quantize(double x, int16_t ratio, int16_t minv, int16_t n) {
 static int compute_quantized_wienerns_filter(
     const uint8_t *dgd, const uint8_t *src, int h_beg, int h_end, int v_beg,
     int v_end, int dgd_stride, int src_stride,
-    WienerNonsepInfo *wiener_nonsep_info) {
-  int num_feature = WIENERNS_NUM_COEFF;
+    WienerNonsepInfo *wiener_nonsep_info, int wienerns_win) {
+  assert(wienerns_win == WIENERNS_NUM_COEFF ||
+         wienerns_win == WIENERNS_NUM_COEFF_CHROMA);
 
   double A[WIENERNS_NUM_COEFF * WIENERNS_NUM_COEFF];
   double b[WIENERNS_NUM_COEFF];
@@ -1449,24 +1453,27 @@ static int compute_quantized_wienerns_filter(
         int c = wienerns_config[k][WIENERNS_COL_ID];
         buf[type] += (double)dgd[(i + r) * dgd_stride + (j + c)] - dgd[dgd_id];
       }
-      for (int k = 0; k < num_feature; ++k) {
+      for (int k = 0; k < wienerns_win; ++k) {
         for (int l = 0; l <= k; ++l) {
-          A[k * num_feature + l] += buf[k] * buf[l];
+          A[k * wienerns_win + l] += buf[k] * buf[l];
         }
         b[k] += buf[k] * ((double)src[src_id] - dgd[dgd_id]);
       }
     }
   }
-  for (int k = 0; k < num_feature; ++k) {
-    for (int l = k + 1; l < num_feature; ++l) {
-      A[k * num_feature + l] = A[l * num_feature + k];
+  for (int k = 0; k < wienerns_win; ++k) {
+    for (int l = k + 1; l < wienerns_win; ++l) {
+      A[k * wienerns_win + l] = A[l * wienerns_win + k];
     }
   }
-  if (linsolve(num_feature, A, num_feature, b, x)) {
-    for (int k = 0; k < num_feature; ++k) {
+  if (linsolve(wienerns_win, A, wienerns_win, b, x)) {
+    for (int k = 0; k < wienerns_win; ++k) {
       wiener_nonsep_info->nsfilter[k] = quantize(
           x[k], WIENERNS_FILT_STEP, wienerns_coeff_info[k][WIENERNS_MIN_ID],
           (1 << wienerns_coeff_info[k][WIENERNS_BIT_ID]));
+    }
+    for (int k = wienerns_win; k < WIENERNS_NUM_COEFF; ++k) {
+      wiener_nonsep_info->nsfilter[k] = 0;
     }
     return 1;
   } else {
@@ -1483,6 +1490,12 @@ static void search_wiener_nonsep(const RestorationTileLimits *limits,
   RestSearchCtxt *rsc = (RestSearchCtxt *)priv;
   RestUnitSearchInfo *rusi = &rsc->rusi[rest_unit_idx];
 
+#if CONFIG_WIENER_NONSEP
+  const int wienerns_win = (rsc->plane == AOM_PLANE_Y)
+                               ? WIENERNS_NUM_COEFF
+                               : WIENERNS_NUM_COEFF_CHROMA;
+#endif  // CONFIG_WIENER_NONSEP
+
   const MACROBLOCK *const x = rsc->x;
   const int64_t bits_none = x->wiener_nonsep_restore_cost[0];
   RestorationUnitInfo rui;
@@ -1492,14 +1505,15 @@ static void search_wiener_nonsep(const RestorationTileLimits *limits,
   if (compute_quantized_wienerns_filter(
           rsc->dgd_buffer, rsc->src_buffer, limits->h_start, limits->h_end,
           limits->v_start, limits->v_end, rsc->dgd_stride, rsc->src_stride,
-          &rui.wiener_nonsep_info)) {
+          &rui.wiener_nonsep_info, wienerns_win)) {
     rusi->sse[RESTORE_WIENER_NONSEP] =
         try_restoration_unit(rsc, limits, tile_rect, &rui);
     rusi->wiener_nonsep = rui.wiener_nonsep_info;
 
     const int64_t bits_wienerns =
         x->wiener_nonsep_restore_cost[1] +
-        (count_wienerns_bits(&rusi->wiener_nonsep, &rsc->wiener_nonsep)
+        (count_wienerns_bits(wienerns_win, &rusi->wiener_nonsep,
+                             &rsc->wiener_nonsep)
          << AV1_PROB_COST_SHIFT);
     double cost_none =
         RDCOST_DBL(x->rdmult, bits_none >> 4, rusi->sse[RESTORE_NONE]);
@@ -1539,7 +1553,11 @@ static void search_switchable(const RestorationTileLimits *limits,
 
   const int wiener_win =
       (rsc->plane == AOM_PLANE_Y) ? WIENER_WIN : WIENER_WIN_CHROMA;
-
+#if CONFIG_WIENER_NONSEP
+  const int wienerns_win = (rsc->plane == AOM_PLANE_Y)
+                               ? WIENERNS_NUM_COEFF
+                               : WIENERNS_NUM_COEFF_CHROMA;
+#endif  // CONFIG_WIENER_NONSEP
   double best_cost = 0;
   int64_t best_bits = 0;
   RestorationType best_rtype = RESTORE_NONE;
@@ -1571,8 +1589,8 @@ static void search_switchable(const RestorationTileLimits *limits,
         break;
 #if CONFIG_WIENER_NONSEP
       case RESTORE_WIENER_NONSEP:
-        coeff_pcost =
-            count_wienerns_bits(&rusi->wiener_nonsep, &rsc->wiener_nonsep);
+        coeff_pcost = count_wienerns_bits(wienerns_win, &rusi->wiener_nonsep,
+                                          &rsc->wiener_nonsep);
         break;
 #endif  // CONFIG_WIENER_NONSEP
       default: assert(0); break;

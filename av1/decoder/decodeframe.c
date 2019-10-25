@@ -1916,11 +1916,14 @@ static void read_sgrproj_filter(SgrprojInfo *sgrproj_info,
 }
 
 #if CONFIG_WIENER_NONSEP
-static void read_wiener_nsfilter(WienerNonsepInfo *wienerns_info,
+static void read_wiener_nsfilter(int wienerns_win,
+                                 WienerNonsepInfo *wienerns_info,
                                  WienerNonsepInfo *ref_wienerns_info,
                                  aom_reader *rb) {
+  assert(wienerns_win == WIENERNS_NUM_COEFF ||
+         wienerns_win == WIENERNS_NUM_COEFF_CHROMA);
   memset(wienerns_info->nsfilter, 0, sizeof(wienerns_info->nsfilter));
-  for (int i = 0; i < WIENERNS_NUM_COEFF; ++i) {
+  for (int i = 0; i < wienerns_win; ++i) {
     wienerns_info->nsfilter[i] =
         wienerns_coeff_info[i][WIENERNS_MIN_ID] +
         aom_read_primitive_refsubexpfin(
@@ -1929,6 +1932,9 @@ static void read_wiener_nsfilter(WienerNonsepInfo *wienerns_info,
             ref_wienerns_info->nsfilter[i] -
                 wienerns_coeff_info[i][WIENERNS_MIN_ID],
             ACCT_STR);
+  }
+  for (int i = wienerns_win; i < WIENERNS_NUM_COEFF; ++i) {
+    wienerns_info->nsfilter[i] = 0;
   }
   memcpy(ref_wienerns_info, wienerns_info, sizeof(*wienerns_info));
 }
@@ -1945,6 +1951,10 @@ static void loop_restoration_read_sb_coeffs(const AV1_COMMON *const cm,
   assert(!cm->all_lossless);
 
   const int wiener_win = (plane > 0) ? WIENER_WIN_CHROMA : WIENER_WIN;
+#if CONFIG_WIENER_NONSEP
+  const int wienerns_win =
+      (plane > 0) ? WIENERNS_NUM_COEFF_CHROMA : WIENERNS_NUM_COEFF;
+#endif  // CONFIG_WIENER_NONSEP
   WienerInfo *wiener_info = xd->wiener_info + plane;
   SgrprojInfo *sgrproj_info = xd->sgrproj_info + plane;
 #if CONFIG_WIENER_NONSEP
@@ -1967,7 +1977,8 @@ static void loop_restoration_read_sb_coeffs(const AV1_COMMON *const cm,
 #endif  // CONFIG_LOOP_RESTORE_CNN
 #if CONFIG_WIENER_NONSEP
       case RESTORE_WIENER_NONSEP:
-        read_wiener_nsfilter(&rui->wiener_nonsep_info, wiener_nonsep_info, r);
+        read_wiener_nsfilter(wienerns_win, &rui->wiener_nonsep_info,
+                             wiener_nonsep_info, r);
         break;
 #endif  // CONFIG_WIENER_NONSEP
       default: assert(rui->restoration_type == RESTORE_NONE); break;
@@ -2001,7 +2012,8 @@ static void loop_restoration_read_sb_coeffs(const AV1_COMMON *const cm,
     if (aom_read_symbol(r, xd->tile_ctx->wiener_nonsep_restore_cdf, 2,
                         ACCT_STR)) {
       rui->restoration_type = RESTORE_WIENER_NONSEP;
-      read_wiener_nsfilter(&rui->wiener_nonsep_info, wiener_nonsep_info, r);
+      read_wiener_nsfilter(wienerns_win, &rui->wiener_nonsep_info,
+                           wiener_nonsep_info, r);
     } else {
       rui->restoration_type = RESTORE_NONE;
     }
