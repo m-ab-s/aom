@@ -4821,8 +4821,14 @@ static void loopfilter_frame(AV1_COMP *cpi, AV1_COMMON *cm) {
     int64_t cnn_error = INT64_MAX;
     int64_t res_error = INT64_MAX;
 
-    aom_yv12_copy_frame(&cm->cur_frame->buf, &cpi->last_frame_uf,
-                        av1_num_planes(cm));
+    // Note: aom_yv12_copy_frame does not have the same behavior
+    // aom_yv12_copy_y, aom_yv12_copy_u and aom_yv12_copy_v.
+    aom_yv12_copy_y(&cm->cur_frame->buf, &cpi->last_frame_uf);
+    if (num_planes > 1)
+      aom_yv12_copy_u(&cm->cur_frame->buf, &cpi->last_frame_uf);
+    if (num_planes > 2)
+      aom_yv12_copy_v(&cm->cur_frame->buf, &cpi->last_frame_uf);
+
     const int plane = AOM_PLANE_Y;
     // Find the error of the plane from source.
     dgd_error = aom_get_sse_plane(cpi->source, &cm->cur_frame->buf, plane,
@@ -4854,6 +4860,10 @@ static void loopfilter_frame(AV1_COMP *cpi, AV1_COMMON *cm) {
       // cdef-restoration instructions.
       cdef_restoration_frame(cpi, cm, xd, 0, 0);
     }
+    /*
+    printf("dgd = %"PRId64" cnn = %"PRId64" res = %"PRId64"\n",
+           dgd_error, cnn_error, res_error);
+    */
   } else {
     cdef_restoration_frame(cpi, cm, xd, use_restoration, use_cdef);
   }
