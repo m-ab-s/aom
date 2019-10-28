@@ -305,7 +305,7 @@ static AOM_FORCE_INLINE void filter4_sse2(__m128i *p1p0, __m128i *q1q0,
                                           __m128i *qs1qs0, __m128i *ps1ps0) {
   const __m128i t3t4 =
       _mm_set_epi8(3, 3, 3, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4, 4, 4);
-  const __m128i t80 = _mm_set1_epi8(0x80);
+  const __m128i t80 = _mm_set1_epi8((char)0x80);
   __m128i filter, filter2filter1, work;
   __m128i ps1ps0_work, qs1qs0_work;
   __m128i hev1;
@@ -477,7 +477,7 @@ static AOM_FORCE_INLINE void lpf_internal_14_sse2(
     __m128i fe, ff, work;
     abs_p1p0 = abs_diff(*q1p1, *q0p0);
     abs_q1q0 = _mm_srli_si128(abs_p1p0, 8);
-    fe = _mm_set1_epi8(0xfe);
+    fe = _mm_set1_epi8((char)0xfe);
     ff = _mm_cmpeq_epi8(abs_p1p0, abs_p1p0);
     abs_p0q0 = abs_diff(p1p0, q1q0);
     abs_p1q1 = _mm_srli_si128(abs_p0q0, 8);
@@ -808,7 +808,7 @@ static AOM_FORCE_INLINE void lpf_internal_6_sse2(
   *q1q0 = _mm_unpackhi_epi64(q0p0, q1p1);
 
   const __m128i one = _mm_set1_epi8(1);
-  const __m128i fe = _mm_set1_epi8(0xfe);
+  const __m128i fe = _mm_set1_epi8((char)0xfe);
   const __m128i ff = _mm_cmpeq_epi8(fe, fe);
   {
     // filter_mask and hev_mask
@@ -1011,7 +1011,7 @@ static AOM_FORCE_INLINE void lpf_internal_8_sse2(
     // otherwise - not
 
     const __m128i one = _mm_set1_epi8(1);
-    const __m128i fe = _mm_set1_epi8(0xfe);
+    const __m128i fe = _mm_set1_epi8((char)0xfe);
     const __m128i ff = _mm_cmpeq_epi8(fe, fe);
     __m128i abs_p1q1, abs_p0q0, abs_q1q0, abs_p1p0, work;
 

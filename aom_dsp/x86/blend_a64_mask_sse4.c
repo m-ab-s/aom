@@ -120,8 +120,8 @@ static void blend_a64_mask_sx_w4_sse4_1(
     uint8_t *dst, uint32_t dst_stride, const uint8_t *src0,
     uint32_t src0_stride, const uint8_t *src1, uint32_t src1_stride,
     const uint8_t *mask, uint32_t mask_stride, int w, int h) {
-  const __m128i v_zmask_b = _mm_set_epi8(0, 0xff, 0, 0xff, 0, 0xff, 0, 0xff, 0,
-                                         0xff, 0, 0xff, 0, 0xff, 0, 0xff);
+  const __m128i v_zmask_b =
+      _mm_set_epi8(0, -1, 0, -1, 0, -1, 0, -1, 0, -1, 0, -1, 0, -1, 0, -1);
   const __m128i v_maxval_w = _mm_set1_epi16(AOM_BLEND_A64_MAX_ALPHA);
 
   (void)w;
@@ -150,8 +150,8 @@ static void blend_a64_mask_sx_w8_sse4_1(
     uint8_t *dst, uint32_t dst_stride, const uint8_t *src0,
     uint32_t src0_stride, const uint8_t *src1, uint32_t src1_stride,
     const uint8_t *mask, uint32_t mask_stride, int w, int h) {
-  const __m128i v_zmask_b = _mm_set_epi8(0, 0xff, 0, 0xff, 0, 0xff, 0, 0xff, 0,
-                                         0xff, 0, 0xff, 0, 0xff, 0, 0xff);
+  const __m128i v_zmask_b =
+      _mm_set_epi8(0, -1, 0, -1, 0, -1, 0, -1, 0, -1, 0, -1, 0, -1, 0, -1);
   const __m128i v_maxval_w = _mm_set1_epi16(AOM_BLEND_A64_MAX_ALPHA);
 
   (void)w;
@@ -180,8 +180,8 @@ static void blend_a64_mask_sx_w16n_sse4_1(
     uint8_t *dst, uint32_t dst_stride, const uint8_t *src0,
     uint32_t src0_stride, const uint8_t *src1, uint32_t src1_stride,
     const uint8_t *mask, uint32_t mask_stride, int w, int h) {
-  const __m128i v_zmask_b = _mm_set_epi8(0, 0xff, 0, 0xff, 0, 0xff, 0, 0xff, 0,
-                                         0xff, 0, 0xff, 0, 0xff, 0, 0xff);
+  const __m128i v_zmask_b =
+    _mm_set_epi8(0, -1, 0, -1, 0, -1, 0, -1, 0, -1, 0, -1, 0, -1, 0, -1);
   const __m128i v_maxval_w = _mm_set1_epi16(AOM_BLEND_A64_MAX_ALPHA);
 
   do {
@@ -316,8 +316,8 @@ static void blend_a64_mask_sx_sy_w4_sse4_1(
     uint8_t *dst, uint32_t dst_stride, const uint8_t *src0,
     uint32_t src0_stride, const uint8_t *src1, uint32_t src1_stride,
     const uint8_t *mask, uint32_t mask_stride, int w, int h) {
-  const __m128i v_zmask_b = _mm_set_epi8(0, 0xff, 0, 0xff, 0, 0xff, 0, 0xff, 0,
-                                         0xff, 0, 0xff, 0, 0xff, 0, 0xff);
+  const __m128i v_zmask_b =
+    _mm_set_epi8(0, -1, 0, -1, 0, -1, 0, -1, 0, -1, 0, -1, 0, -1, 0, -1);
   const __m128i v_maxval_w = _mm_set1_epi16(AOM_BLEND_A64_MAX_ALPHA);
 
   (void)w;
@@ -351,8 +351,8 @@ static void blend_a64_mask_sx_sy_w8_sse4_1(
     uint8_t *dst, uint32_t dst_stride, const uint8_t *src0,
     uint32_t src0_stride, const uint8_t *src1, uint32_t src1_stride,
     const uint8_t *mask, uint32_t mask_stride, int w, int h) {
-  const __m128i v_zmask_b = _mm_set_epi8(0, 0xff, 0, 0xff, 0, 0xff, 0, 0xff, 0,
-                                         0xff, 0, 0xff, 0, 0xff, 0, 0xff);
+  const __m128i v_zmask_b =
+    _mm_set_epi8(0, -1, 0, -1, 0, -1, 0, -1, 0, -1, 0, -1, 0, -1, 0, -1);
   const __m128i v_maxval_w = _mm_set1_epi16(AOM_BLEND_A64_MAX_ALPHA);
 
   (void)w;
@@ -386,8 +386,8 @@ static void blend_a64_mask_sx_sy_w16n_sse4_1(
     uint8_t *dst, uint32_t dst_stride, const uint8_t *src0,
     uint32_t src0_stride, const uint8_t *src1, uint32_t src1_stride,
     const uint8_t *mask, uint32_t mask_stride, int w, int h) {
-  const __m128i v_zmask_b = _mm_set_epi8(0, 0xff, 0, 0xff, 0, 0xff, 0, 0xff, 0,
-                                         0xff, 0, 0xff, 0, 0xff, 0, 0xff);
+  const __m128i v_zmask_b =
+    _mm_set_epi8(0, -1, 0, -1, 0, -1, 0, -1, 0, -1, 0, -1, 0, -1, 0, -1);
   const __m128i v_maxval_w = _mm_set1_epi16(AOM_BLEND_A64_MAX_ALPHA);
 
   do {
@@ -568,8 +568,8 @@ static INLINE void blend_a64_mask_bn_sx_w4_sse4_1(
     uint16_t *dst, uint32_t dst_stride, const uint16_t *src0,
     uint32_t src0_stride, const uint16_t *src1, uint32_t src1_stride,
     const uint8_t *mask, uint32_t mask_stride, int h, blend_unit_fn blend) {
-  const __m128i v_zmask_b = _mm_set_epi8(0, 0xff, 0, 0xff, 0, 0xff, 0, 0xff, 0,
-                                         0xff, 0, 0xff, 0, 0xff, 0, 0xff);
+  const __m128i v_zmask_b =
+      _mm_set_epi8(0, -1, 0, -1, 0, -1, 0, -1, 0, -1, 0, -1, 0, -1, 0, -1);
   const __m128i v_maxval_w = _mm_set1_epi16(AOM_BLEND_A64_MAX_ALPHA);
 
   do {
@@ -615,8 +615,8 @@ static INLINE void blend_a64_mask_bn_sx_w8n_sse4_1(
     uint32_t src0_stride, const uint16_t *src1, uint32_t src1_stride,
     const uint8_t *mask, uint32_t mask_stride, int w, int h,
     blend_unit_fn blend) {
-  const __m128i v_zmask_b = _mm_set_epi8(0, 0xff, 0, 0xff, 0, 0xff, 0, 0xff, 0,
-                                         0xff, 0, 0xff, 0, 0xff, 0, 0xff);
+  const __m128i v_zmask_b =
+      _mm_set_epi8(0, -1, 0, -1, 0, -1, 0, -1, 0, -1, 0, -1, 0, -1, 0, -1);
   const __m128i v_maxval_w = _mm_set1_epi16(AOM_BLEND_A64_MAX_ALPHA);
 
   do {
@@ -760,8 +760,8 @@ static INLINE void blend_a64_mask_bn_sx_sy_w4_sse4_1(
     uint16_t *dst, uint32_t dst_stride, const uint16_t *src0,
     uint32_t src0_stride, const uint16_t *src1, uint32_t src1_stride,
     const uint8_t *mask, uint32_t mask_stride, int h, blend_unit_fn blend) {
-  const __m128i v_zmask_b = _mm_set_epi8(0, 0xff, 0, 0xff, 0, 0xff, 0, 0xff, 0,
-                                         0xff, 0, 0xff, 0, 0xff, 0, 0xff);
+  const __m128i v_zmask_b =
+      _mm_set_epi8(0, -1, 0, -1, 0, -1, 0, -1, 0, -1, 0, -1, 0, -1, 0, -1);
   const __m128i v_maxval_w = _mm_set1_epi16(AOM_BLEND_A64_MAX_ALPHA);
 
   do {
@@ -812,8 +812,8 @@ static INLINE void blend_a64_mask_bn_sx_sy_w8n_sse4_1(
     uint32_t src0_stride, const uint16_t *src1, uint32_t src1_stride,
     const uint8_t *mask, uint32_t mask_stride, int w, int h,
     blend_unit_fn blend) {
-  const __m128i v_zmask_b = _mm_set_epi8(0, 0xff, 0, 0xff, 0, 0xff, 0, 0xff, 0,
-                                         0xff, 0, 0xff, 0, 0xff, 0, 0xff);
+  const __m128i v_zmask_b =
+      _mm_set_epi8(0, -1, 0, -1, 0, -1, 0, -1, 0, -1, 0, -1, 0, -1, 0, -1);
   const __m128i v_maxval_w = _mm_set1_epi16(AOM_BLEND_A64_MAX_ALPHA);
 
   do {

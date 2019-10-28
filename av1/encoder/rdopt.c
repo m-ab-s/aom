@@ -582,9 +582,9 @@ static int64_t get_est_rd(BLOCK_SIZE bsize, int rdmult, int64_t sse,
 }
 
 #define DATA_BRACKETS 7
-static const int data_num_threshold[DATA_BRACKETS] = {
-  200, 400, 800, 1600, 3200, 6400, INT32_MAX
-};
+static const int data_num_threshold[DATA_BRACKETS] = { 200,      400,  800,
+                                                       1600,     3200, 6400,
+                                                       INT32_MAX };
 
 void av1_inter_mode_data_fit(int rdmult) {
   aom_clear_system_state();
@@ -4837,9 +4837,9 @@ static int find_tx_size_rd_records(MACROBLOCK *x, BLOCK_SIZE bsize, int mi_row,
             cur_hash_row += cur_tx_bw;
             cur_diff_row += diff_stride;
           }
-          const int hash = av1_get_crc32c_value(&x->mb_rd_record.crc_calculator,
-                                                (uint8_t *)hash_data,
-                                                2 * cur_tx_bw * cur_tx_bh);
+          const int hash = (int)av1_get_crc32c_value(
+              &x->mb_rd_record.crc_calculator, (uint8_t *)hash_data,
+              2 * cur_tx_bw * cur_tx_bh);
 
           // Find corresponding RD info based on the hash value.
           const int rd_record_idx =
@@ -4847,7 +4847,8 @@ static int find_tx_size_rd_records(MACROBLOCK *x, BLOCK_SIZE bsize, int mi_row,
               col_in_sb;
 
           int idx = find_tx_size_rd_info(
-              &rd_records_table[cur_tx_size - TX_8X8][rd_record_idx], hash);
+              &rd_records_table[cur_tx_size - TX_8X8][rd_record_idx],
+              (unsigned)hash);
           dst_rd_info[cur_rd_info_idx].rd_info_array =
               &rd_records_table[cur_tx_size - TX_8X8][rd_record_idx]
                    .tx_rd_info[idx];
@@ -9272,7 +9273,7 @@ static void set_params_rd_pick_inter_mode(
     if (sf->alt_ref_search_fp) {
       assert(cpi->ref_frame_flags & ref_frame_flag_list[ALTREF_FRAME]);
       mode_skip_mask[ALTREF_FRAME] = 0;
-      ref_frame_skip_mask[0] = ~(1 << ALTREF_FRAME);
+      ref_frame_skip_mask[0] = (uint16_t) ~(1 << ALTREF_FRAME);
       ref_frame_skip_mask[1] = SECOND_REF_FRAME_MASK;
     }
   }
@@ -9295,7 +9296,7 @@ static void set_params_rd_pick_inter_mode(
   }
 
   mode_skip_mask[INTRA_FRAME] |=
-      ~(sf->intra_y_mode_mask[max_txsize_lookup[bsize]]);
+      ~(unsigned)(sf->intra_y_mode_mask[max_txsize_lookup[bsize]]);
 
   if (cpi->sf.tx_type_search.fast_intra_tx_type_search)
     x->use_default_intra_tx_type = 1;

@@ -193,7 +193,8 @@ class DummyVideoSource : public VideoSource {
   void ReallocImage() {
     aom_img_free(img_);
     img_ = aom_img_alloc(NULL, format_, width_, height_, 32);
-    raw_sz_ = ((img_->w + 31) & ~31) * img_->h * img_->bps / 8;
+    raw_sz_ = (unsigned)(((unsigned)img_->w + 31) & (unsigned)~31) *
+              (unsigned)img_->h * (unsigned)img_->bps / 8;
   }
 
   aom_image_t *img_;

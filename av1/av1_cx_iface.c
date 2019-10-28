@@ -1177,8 +1177,9 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
     // TODO(jzern) the checks related to cpi's validity should be treated as a
     // failure condition, encoder setup is done fully in init() currently.
     if (res == AOM_CODEC_OK) {
-      size_t data_sz = ALIGN_POWER_OF_TWO(ctx->cfg.g_w, 5) *
-                       ALIGN_POWER_OF_TWO(ctx->cfg.g_h, 5) * get_image_bps(img);
+      size_t data_sz = ALIGN_POWER_OF_TWO((int)ctx->cfg.g_w, 5) *
+                       ALIGN_POWER_OF_TWO((int)ctx->cfg.g_h, 5) *
+                       get_image_bps(img);
       if (data_sz < kMinCompressedSize) data_sz = kMinCompressedSize;
       if (ctx->cx_data == NULL || ctx->cx_data_sz < data_sz) {
         ctx->cx_data_sz = data_sz;
