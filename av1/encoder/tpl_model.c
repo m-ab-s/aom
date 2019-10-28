@@ -67,7 +67,7 @@ static uint32_t motion_estimation(AV1_COMP *cpi, MACROBLOCK *x,
                                   int mi_col) {
   AV1_COMMON *cm = &cpi->common;
   MACROBLOCKD *const xd = &x->e_mbd;
-  xd->mi[0]->mv_precision = cm->mv_precision;
+  xd->mi[0]->max_mv_precision = cm->mv_precision;
   MV_SPEED_FEATURES *const mv_sf = &cpi->sf.mv;
   const SEARCH_METHODS search_method = NSTEP;
   int step_param;
@@ -108,7 +108,7 @@ static uint32_t motion_estimation(AV1_COMP *cpi, MACROBLOCK *x,
   const int pw = block_size_wide[bsize];
   const int ph = block_size_high[bsize];
   bestsme = cpi->find_fractional_mv_step(
-      x, cm, mi_row, mi_col, &best_ref_mv1, cpi->common.mv_precision,
+      x, cm, mi_row, mi_col, &best_ref_mv1, xd->mi[0]->max_mv_precision,
       x->errorperbit, &cpi->fn_ptr[bsize], 0, mv_sf->subpel_iters_per_step,
       cond_cost_list(cpi, cost_list), NULL, NULL,
 #if CONFIG_FLEX_MVRES

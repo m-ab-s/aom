@@ -30,6 +30,7 @@ static unsigned int do_16x16_motion_iteration(AV1_COMP *cpi, const MV *ref_mv,
   MACROBLOCKD *const xd = &x->e_mbd;
   const MV_SPEED_FEATURES *const mv_sf = &cpi->sf.mv;
   const aom_variance_fn_ptr_t v_fn_ptr = cpi->fn_ptr[BLOCK_16X16];
+  xd->mi[0]->max_mv_precision = cpi->common.mv_precision;
 
   const MvLimits tmp_mv_limits = x->mv_limits;
   MV ref_full;
@@ -57,7 +58,7 @@ static unsigned int do_16x16_motion_iteration(AV1_COMP *cpi, const MV *ref_mv,
     int distortion;
     unsigned int sse;
     cpi->find_fractional_mv_step(
-        x, &cpi->common, mb_row, mb_col, ref_mv, cpi->common.mv_precision,
+        x, &cpi->common, mb_row, mb_col, ref_mv, xd->mi[0]->max_mv_precision,
         x->errorperbit, &v_fn_ptr, 0, mv_sf->subpel_iters_per_step,
         cond_cost_list(cpi, cost_list), NULL, NULL,
 #if CONFIG_FLEX_MVRES

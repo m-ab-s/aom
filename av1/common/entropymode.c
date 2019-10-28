@@ -677,7 +677,7 @@ static const aom_cdf_prob default_flex_mv_precision_cdf
 static const aom_cdf_prob default_flex_mv_precision_cdf
     [MV_PREC_DOWN_CONTEXTS][MV_SUBPEL_PRECISIONS - MV_SUBPEL_QTR_PRECISION]
     [CDF_SIZE(MV_SUBPEL_PRECISIONS - 1)] = {
-      { { AOM_CDF2(30000) }, { AOM_CDF3(28000, 31000) } },
+      { { AOM_CDF2(31000) }, { AOM_CDF3(29000, 31500) } },
       { { AOM_CDF2(30000) }, { AOM_CDF3(28000, 31000) } },
 #else
 static const aom_cdf_prob default_flex_mv_precision_cdf

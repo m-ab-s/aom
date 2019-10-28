@@ -862,7 +862,6 @@ static int temporal_filter_find_matching_mb_c(AV1_COMP *cpi,
                                               uint8_t *frame_ptr_buf,
                                               int stride, int x_pos, int y_pos,
                                               MV *blk_mvs, int *blk_bestsme) {
-  const AV1_COMMON *cm = &cpi->common;
   MACROBLOCK *const x = &cpi->td.mb;
   MACROBLOCKD *const xd = &x->e_mbd;
   const MV_SPEED_FEATURES *const mv_sf = &cpi->sf.mv;
@@ -873,7 +872,7 @@ static int temporal_filter_find_matching_mb_c(AV1_COMP *cpi,
   unsigned int sse;
   int cost_list[5];
   MvLimits tmp_mv_limits = x->mv_limits;
-  xd->mi[0]->mv_precision = cm->mv_precision;
+  xd->mi[0]->max_mv_precision = MV_SUBPEL_EIGHTH_PRECISION;
 
   MV best_ref_mv1 = kZeroMv;
   MV best_ref_mv1_full; /* full-pixel value of best_ref_mv1 */
@@ -932,7 +931,7 @@ static int temporal_filter_find_matching_mb_c(AV1_COMP *cpi,
   // x->best_mv. mi_row and mi_col are only needed for "av1_is_scaled(sf)=1"
   // case.
   bestsme = cpi->find_fractional_mv_step(
-      x, &cpi->common, 0, 0, &best_ref_mv1, MV_SUBPEL_EIGHTH_PRECISION,
+      x, &cpi->common, 0, 0, &best_ref_mv1, xd->mi[0]->max_mv_precision,
       x->errorperbit, &cpi->fn_ptr[TF_BLOCK], 0, mv_sf->subpel_iters_per_step,
       cond_cost_list(cpi, cost_list), NULL, NULL,
 #if CONFIG_FLEX_MVRES

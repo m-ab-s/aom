@@ -315,8 +315,8 @@ static INLINE void clamp_mv(MV *mv, int min_col, int max_col, int min_row,
 
 #if CONFIG_FLEX_MVRES
 static INLINE MvSubpelPrecision
-get_mv_precision(const MV mv, MvSubpelPrecision frame_precision) {
-  (void)frame_precision;
+get_mv_precision(const MV mv, MvSubpelPrecision max_precision) {
+  (void)max_precision;
   MvSubpelPrecision precision = MV_SUBPEL_NONE;
   if ((mv.row & 1) || (mv.col & 1))
     precision = MV_SUBPEL_EIGHTH_PRECISION;
@@ -326,19 +326,19 @@ get_mv_precision(const MV mv, MvSubpelPrecision frame_precision) {
     precision = MV_SUBPEL_HALF_PRECISION;
   else
     precision = MV_SUBPEL_NONE;
-  assert(precision <= frame_precision);
+  assert(precision <= max_precision);
 #if DISALLOW_ONE_DOWN_FLEX_MVRES == 2
-  if ((frame_precision - precision) & 1) precision += 1;
+  if ((max_precision - precision) & 1) precision += 1;
 #elif DISALLOW_ONE_DOWN_FLEX_MVRES == 1
-  if (frame_precision - precision == 1) precision = frame_precision;
+  if (max_precision - precision == 1) precision = max_precision;
 #endif  // DISALLOW_ONE_DOWN_FLEX_MVRES
   return precision;
 }
 
-static INLINE MvSubpelPrecision get_mv_precision2(
-    const MV mv, const MV mv2, MvSubpelPrecision frame_precision) {
-  return (MvSubpelPrecision)AOMMAX(get_mv_precision(mv, frame_precision),
-                                   get_mv_precision(mv2, frame_precision));
+static INLINE MvSubpelPrecision
+get_mv_precision2(const MV mv, const MV mv2, MvSubpelPrecision max_precision) {
+  return (MvSubpelPrecision)AOMMAX(get_mv_precision(mv, max_precision),
+                                   get_mv_precision(mv2, max_precision));
 }
 #endif  // CONFIG_FLEX_MVRES
 

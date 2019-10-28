@@ -409,9 +409,10 @@ static void update_global_motion_used(PREDICTION_MODE mode, BLOCK_SIZE bsize,
 static void update_reduced_mv_precision_used(const AV1_COMMON *const cm,
                                              const MB_MODE_INFO *mbmi,
                                              RD_COUNTS *rdc) {
-  if (!is_flex_mv_precision_active(cm, mbmi->mode)) return;
+  if (!is_flex_mv_precision_active(cm, mbmi->mode, mbmi->max_mv_precision))
+    return;
   assert(av1_get_mbmi_mv_precision(cm, mbmi) == mbmi->mv_precision);
-  rdc->reduced_mv_precision_used[cm->mv_precision - mbmi->mv_precision]++;
+  rdc->reduced_mv_precision_used[mbmi->max_mv_precision - mbmi->mv_precision]++;
 }
 #endif  // CONFIG_FLEX_MVRES
 
@@ -1526,22 +1527,23 @@ static void update_stats(const AV1_COMMON *const cm, TileDataEnc *tile_data,
 
       if (have_newmv_in_inter_mode(mbmi->mode)) {
 #if CONFIG_FLEX_MVRES
-        if (allow_update_cdf && is_flex_mv_precision_active(cm, mbmi->mode)) {
+        if (allow_update_cdf && is_flex_mv_precision_active(
+                                    cm, mbmi->mode, mbmi->max_mv_precision)) {
           const int down_ctx = av1_get_mv_precision_down_context(cm, xd);
-          int down = cm->mv_precision - mbmi->mv_precision;
+          int down = mbmi->max_mv_precision - mbmi->mv_precision;
 #if DISALLOW_ONE_DOWN_FLEX_MVRES == 2
           assert((down & 1) == 0);
           const int nsymbs = 2;
           down >>= 1;
 #elif DISALLOW_ONE_DOWN_FLEX_MVRES == 1
           assert(down != 1);
-          const int nsymbs = cm->mv_precision;
+          const int nsymbs = mbmi->max_mv_precision;
           down -= (down > 0);
 #else
-          const int nsymbs = cm->mv_precision + 1;
+          const int nsymbs = mbmi->max_mv_precision + 1;
 #endif  // DISALLOW_ONE_DOWN_FLEX_MVRES
           update_cdf(
-              fc->flex_mv_precision_cdf[down_ctx][cm->mv_precision -
+              fc->flex_mv_precision_cdf[down_ctx][mbmi->max_mv_precision -
                                                   MV_SUBPEL_QTR_PRECISION],
               down, nsymbs);
         }

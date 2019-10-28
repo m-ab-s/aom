@@ -1545,29 +1545,39 @@ static INLINE int is_valid_seq_level_idx(AV1_LEVEL seq_level_idx) {
   return seq_level_idx < SEQ_LEVELS || seq_level_idx == SEQ_LEVEL_MAX;
 }
 
+static INLINE MvSubpelPrecision av1_get_mbmi_max_mv_precision(
+    const AV1_COMMON *const cm, const MB_MODE_INFO *mbmi) {
+  (void)mbmi;
+  // TODO(debargha): Change this to have a default max precision
+  // different from cm->mv_precision for every mode.
+  return cm->mv_precision;
+}
+
 #if CONFIG_FLEX_MVRES
-static INLINE int is_flex_mv_precision_active(const AV1_COMMON *const cm,
-                                              PREDICTION_MODE mode) {
-  return cm->mv_precision >= MV_SUBPEL_QTR_PRECISION &&
+static INLINE int is_flex_mv_precision_active(
+    const AV1_COMMON *const cm, PREDICTION_MODE mode,
+    MvSubpelPrecision max_mv_precision) {
+  return max_mv_precision >= MV_SUBPEL_QTR_PRECISION &&
          cm->use_flex_mv_precision && have_newmv_in_inter_mode(mode);
 }
 
 static INLINE MvSubpelPrecision av1_get_mbmi_mv_precision(
     const AV1_COMMON *const cm, const MB_MODE_INFO *mbmi) {
-  if (is_flex_mv_precision_active(cm, mbmi->mode)) {
+  assert(av1_get_mbmi_max_mv_precision(cm, mbmi) == mbmi->max_mv_precision);
+  if (is_flex_mv_precision_active(cm, mbmi->mode, mbmi->max_mv_precision)) {
     MvSubpelPrecision precision;
     if (mbmi->mode == NEWMV) {
-      precision = get_mv_precision(mbmi->mv[0].as_mv, cm->mv_precision);
+      precision = get_mv_precision(mbmi->mv[0].as_mv, mbmi->max_mv_precision);
     } else if (mbmi->mode == NEW_NEWMV) {
       precision = get_mv_precision2(mbmi->mv[0].as_mv, mbmi->mv[1].as_mv,
-                                    cm->mv_precision);
+                                    mbmi->max_mv_precision);
     } else {
       const int i = (mbmi->mode == NEAREST_NEWMV || mbmi->mode == NEAR_NEWMV);
-      precision = get_mv_precision(mbmi->mv[i].as_mv, cm->mv_precision);
+      precision = get_mv_precision(mbmi->mv[i].as_mv, mbmi->max_mv_precision);
     }
-    return (MvSubpelPrecision)AOMMIN(precision, cm->mv_precision);
+    return (MvSubpelPrecision)AOMMIN(precision, mbmi->max_mv_precision);
   } else {
-    return cm->mv_precision;
+    return mbmi->max_mv_precision;
   }
 }
 #endif  // CONFIG_FLEX_MVRES

@@ -1273,10 +1273,11 @@ static void write_intra_prediction_modes(AV1_COMP *cpi, const int mi_row,
 static void write_mv_precision(AV1_COMMON *const cm, MACROBLOCKD *const xd,
                                aom_writer *w) {
   const MB_MODE_INFO *const mbmi = xd->mi[0];
+  assert(av1_get_mbmi_max_mv_precision(cm, mbmi) == mbmi->max_mv_precision);
   assert(av1_get_mbmi_mv_precision(cm, mbmi) == mbmi->mv_precision);
-  assert(mbmi->mv_precision <= cm->mv_precision);
+  assert(mbmi->mv_precision <= mbmi->max_mv_precision);
   const int down_ctx = av1_get_mv_precision_down_context(cm, xd);
-  int down = cm->mv_precision - mbmi->mv_precision;
+  int down = mbmi->max_mv_precision - mbmi->mv_precision;
 #if DISALLOW_ONE_DOWN_FLEX_MVRES == 2
   assert((down & 1) == 0);
   down >>= 1;
@@ -1284,13 +1285,13 @@ static void write_mv_precision(AV1_COMMON *const cm, MACROBLOCKD *const xd,
 #elif DISALLOW_ONE_DOWN_FLEX_MVRES == 1
   assert(down != 1);
   down -= (down > 0);
-  int nsymbs = cm->mv_precision;
+  int nsymbs = mbmi->max_mv_precision;
 #else
-  int nsymbs = cm->mv_precision + 1;
+  int nsymbs = mbmi->max_mv_precision + 1;
 #endif  // DISALLOW_ONE_DOWN_FLEX_MVRES
   aom_write_symbol(
       w, down,
-      xd->tile_ctx->flex_mv_precision_cdf[down_ctx][cm->mv_precision -
+      xd->tile_ctx->flex_mv_precision_cdf[down_ctx][mbmi->max_mv_precision -
                                                     MV_SUBPEL_QTR_PRECISION],
       nsymbs);
 }
@@ -1357,7 +1358,7 @@ static void pack_inter_mode_mvs(AV1_COMP *cpi, const int mi_row,
     }
 
 #if CONFIG_FLEX_MVRES
-    if (is_flex_mv_precision_active(cm, mode)) {
+    if (is_flex_mv_precision_active(cm, mode, mbmi->max_mv_precision)) {
       write_mv_precision(cm, xd, w);
     }
 #endif  // CONFIG_FLEX_MVRES

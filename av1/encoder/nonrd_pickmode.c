@@ -170,12 +170,13 @@ static int combined_motion_search(AV1_COMP *cpi, MACROBLOCK *x,
   mvp_full.col = tmp_mv->as_mv.col * 8;
 
 #if CONFIG_FLEX_MVRES
-  const int use_flex_mv = is_flex_mv_precision_active(cm, NEWMV);
+  const int use_flex_mv =
+      is_flex_mv_precision_active(cm, NEWMV, cm->mv_precision);
   const int down_ctx = av1_get_mv_precision_down_context(cm, xd);
 #endif  // CONFIG_FLEX_MVRES
 
   *rate_mv = av1_mv_bit_cost_gen(
-      &mvp_full, &ref_mv, cm->mv_precision, x->nmv_vec_cost, x->nmvcost,
+      &mvp_full, &ref_mv, mi->max_mv_precision, x->nmv_vec_cost, x->nmvcost,
 #if CONFIG_FLEX_MVRES
       use_flex_mv, x->flex_mv_precision_costs[down_ctx],
 #endif  // CONFIG_FLEX_MVRES
@@ -187,7 +188,7 @@ static int combined_motion_search(AV1_COMP *cpi, MACROBLOCK *x,
   if (rv && search_subpel) {
     SUBPEL_FORCE_STOP subpel_force_stop = cpi->sf.mv.subpel_force_stop;
     cpi->find_fractional_mv_step(
-        x, cm, mi_row, mi_col, &ref_mv, cm->mv_precision, x->errorperbit,
+        x, cm, mi_row, mi_col, &ref_mv, mi->max_mv_precision, x->errorperbit,
         &cpi->fn_ptr[bsize], subpel_force_stop,
         cpi->sf.mv.subpel_iters_per_step, cond_cost_list(cpi, cost_list),
         x->nmv_vec_cost, x->nmvcost,
@@ -196,12 +197,13 @@ static int combined_motion_search(AV1_COMP *cpi, MACROBLOCK *x,
 #endif  // CONFIG_FLEX_MVRES
         &dis, &x->pred_sse[ref], NULL, NULL, 0, 0, 0, 0, 0, 1);
     *tmp_mv = x->best_mv;
-    *rate_mv = av1_mv_bit_cost_gen(
-        &tmp_mv->as_mv, &ref_mv, cm->mv_precision, x->nmv_vec_cost, x->nmvcost,
+    *rate_mv =
+        av1_mv_bit_cost_gen(&tmp_mv->as_mv, &ref_mv, mi->max_mv_precision,
+                            x->nmv_vec_cost, x->nmvcost,
 #if CONFIG_FLEX_MVRES
-        use_flex_mv, x->flex_mv_precision_costs[down_ctx],
+                            use_flex_mv, x->flex_mv_precision_costs[down_ctx],
 #endif  // CONFIG_FLEX_MVRES
-        MV_COST_WEIGHT);
+                            MV_COST_WEIGHT);
   }
 
   if (scaled_ref_frame) {
@@ -243,12 +245,13 @@ static int search_new_mv(AV1_COMP *cpi, MACROBLOCK *x,
     MV ref_mv = av1_get_ref_mv(x, 0).as_mv;
 
 #if CONFIG_FLEX_MVRES
-    const int use_flex_mv = is_flex_mv_precision_active(cm, NEWMV);
+    const int use_flex_mv =
+        is_flex_mv_precision_active(cm, NEWMV, cm->mv_precision);
     const int down_ctx = av1_get_mv_precision_down_context(cm, xd);
 #endif  // CONFIG_FLEX_MVRES
     *rate_mv =
         av1_mv_bit_cost_gen(&frame_mv[NEWMV][ref_frame].as_mv, &ref_mv,
-                            cm->mv_precision, x->nmv_vec_cost, x->nmvcost,
+                            mi->max_mv_precision, x->nmv_vec_cost, x->nmvcost,
 #if CONFIG_FLEX_MVRES
                             use_flex_mv, x->flex_mv_precision_costs[down_ctx],
 #endif  // CONFIG_FLEX_MVRES
@@ -257,7 +260,7 @@ static int search_new_mv(AV1_COMP *cpi, MACROBLOCK *x,
     frame_mv[NEWMV][ref_frame].as_mv.col >>= 3;
 
     cpi->find_fractional_mv_step(
-        x, cm, mi_row, mi_col, &ref_mv, cm->mv_precision, x->errorperbit,
+        x, cm, mi_row, mi_col, &ref_mv, mi->max_mv_precision, x->errorperbit,
         &cpi->fn_ptr[bsize], cpi->sf.mv.subpel_force_stop,
         cpi->sf.mv.subpel_iters_per_step, cond_cost_list(cpi, cost_list),
         x->nmv_vec_cost, x->nmvcost,
@@ -1473,6 +1476,7 @@ void av1_fast_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
 
   mi->mode = best_pickmode.best_mode;
   mi->interp_filters = av1_broadcast_interp_filter(best_filter);
+  mi->max_mv_precision = cm->mv_precision;
   mi->mv_precision = cm->mv_precision;
   mi->tx_size = best_pickmode.best_tx_size;
   memset(mi->inter_tx_size, mi->tx_size, sizeof(mi->inter_tx_size));

@@ -235,6 +235,7 @@ typedef struct MB_MODE_INFO {
   int current_qindex;
   // Only for INTER blocks
   int_interpfilters interp_filters;
+  MvSubpelPrecision max_mv_precision;
   MvSubpelPrecision mv_precision;
   // TODO(debargha): Consolidate these flags
 #if CONFIG_RD_DEBUG

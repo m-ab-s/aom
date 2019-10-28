@@ -228,7 +228,8 @@ static void first_pass_motion_search(AV1_COMP *cpi, MACROBLOCK *x,
   const int sr = get_search_range(cpi);
   step_param += sr;
   further_steps -= sr;
-  xd->mi[0]->mv_precision = cpi->common.mv_precision;
+  xd->mi[0]->max_mv_precision = cpi->common.mv_precision;
+  xd->mi[0]->mv_precision = xd->mi[0]->max_mv_precision;
 
   // Override the default variance function to use MSE.
   v_fn_ptr.vf = get_block_variance_fn(bsize);
