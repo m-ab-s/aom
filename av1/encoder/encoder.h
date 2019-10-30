@@ -446,6 +446,9 @@ typedef struct AV1EncoderConfig {
   double fixed_qp_offsets[FIXED_QP_OFFSET_COUNT];
   // min_cr / 100 is the target minimum compression ratio for each frame.
   unsigned int min_cr;
+#if CONFIG_FILEOPTIONS
+  const cfg_options_t *encoder_cfg;
+#endif
 } AV1EncoderConfig;
 
 static INLINE int is_lossless_requested(const AV1EncoderConfig *cfg) {
