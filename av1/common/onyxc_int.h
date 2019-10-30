@@ -164,6 +164,7 @@ typedef struct RefCntBuffer {
   int8_t mode_deltas[MAX_MODE_LF_DELTAS];
 
   FRAME_CONTEXT frame_context;
+  int base_qindex;
 } RefCntBuffer;
 
 typedef struct BufferPool {

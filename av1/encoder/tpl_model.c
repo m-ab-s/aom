@@ -515,6 +515,7 @@ static void mc_flow_dispenser(AV1_COMP *cpi, int frame_idx) {
   tpl_frame->is_valid = 1;
 
   cm->base_qindex = base_qindex;
+  cm->cur_frame->base_qindex = cm->base_qindex;
   av1_frame_init_quantizer(cpi);
 
   for (mi_row = 0; mi_row < cm->mi_rows; mi_row += mi_height) {
