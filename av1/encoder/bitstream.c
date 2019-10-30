@@ -1784,6 +1784,8 @@ static void write_modes_b(AV1_COMP *cpi, const TileInfo *const tile,
   if (!mbmi->skip) {
     write_tokens_b(cpi, w, tok, tok_end, mi_row, mi_col);
   }
+
+  av1_mark_block_as_coded(xd, mi_row, mi_col, bsize, cm->seq_params.sb_size);
 }
 
 static void write_partition(const AV1_COMMON *const cm,
@@ -2009,6 +2011,7 @@ static void write_modes(AV1_COMP *const cpi, const TileInfo *const tile,
 
     for (mi_col = mi_col_start; mi_col < mi_col_end;
          mi_col += cm->seq_params.mib_size) {
+      av1_reset_is_mi_coded_map(xd, cm->seq_params.mib_size);
       cpi->td.mb.cb_coef_buff = av1_get_cb_coeff_buffer(cpi, mi_row, mi_col);
       write_modes_sb(cpi, tile, w, &tok, tok_end, mi_row, mi_col,
                      cm->seq_params.sb_size);

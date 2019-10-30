@@ -562,6 +562,10 @@ typedef struct macroblockd {
   int mb_to_top_edge;
   int mb_to_bottom_edge;
 
+  /* An array for recording whether an mi(4x4) is coded. Reset at sb level */
+  uint8_t is_mi_coded[1024];
+  int is_mi_coded_stride;
+
   /* pointers to reference frame scale factors */
   const struct scale_factors *block_ref_scale_factors[2];
 
@@ -1397,6 +1401,12 @@ void av1_get_unit_width_height_coeff(const MACROBLOCKD *const xd, int plane,
                                      BLOCK_SIZE plane_bsize, int row_plane,
                                      int col_plane, int *unit_width,
                                      int *unit_height);
+
+void av1_reset_is_mi_coded_map(MACROBLOCKD *xd, int stride);
+void av1_mark_block_as_coded(MACROBLOCKD *xd, int mi_row, int mi_col,
+                             BLOCK_SIZE bsize, BLOCK_SIZE sb_size);
+void av1_mark_block_as_not_coded(MACROBLOCKD *xd, int mi_row, int mi_col,
+                                 BLOCK_SIZE bsize, BLOCK_SIZE sb_size);
 
 #if CONFIG_INTRA_ENTROPY
 // Calculate histogram of gradient orientations of the reconstructed pixel

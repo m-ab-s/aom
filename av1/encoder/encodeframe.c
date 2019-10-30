@@ -1579,7 +1579,7 @@ typedef struct {
 } RD_SEARCH_MACROBLOCK_CONTEXT;
 
 #if !CONFIG_REALTIME_ONLY
-static void restore_context(MACROBLOCK *x,
+static void restore_context(const AV1_COMMON *cm, MACROBLOCK *x,
                             const RD_SEARCH_MACROBLOCK_CONTEXT *ctx, int mi_row,
                             int mi_col, BLOCK_SIZE bsize,
                             const int num_planes) {
@@ -1613,6 +1613,9 @@ static void restore_context(MACROBLOCK *x,
          sizeof(*xd->above_txfm_context) * mi_width);
   memcpy(xd->left_txfm_context, ctx->tl,
          sizeof(*xd->left_txfm_context) * mi_height);
+
+  av1_mark_block_as_not_coded(xd, mi_row, mi_col, bsize,
+                              cm->seq_params.sb_size);
 }
 
 static void save_context(const MACROBLOCK *x, RD_SEARCH_MACROBLOCK_CONTEXT *ctx,
@@ -1998,7 +2001,7 @@ static void rd_use_partition(AV1_COMP *cpi, ThreadData *td,
         none_rdc.rdcost = RDCOST(x->rdmult, none_rdc.rate, none_rdc.dist);
       }
 
-      restore_context(x, &x_ctx, mi_row, mi_col, bsize, num_planes);
+      restore_context(cm, x, &x_ctx, mi_row, mi_col, bsize, num_planes);
       mib[0]->sb_type = bs_type;
       pc_tree->partitioning = partition;
     }
@@ -2124,7 +2127,7 @@ static void rd_use_partition(AV1_COMP *cpi, ThreadData *td,
     chosen_rdc.rate = 0;
     chosen_rdc.dist = 0;
 
-    restore_context(x, &x_ctx, mi_row, mi_col, bsize, num_planes);
+    restore_context(cm, x, &x_ctx, mi_row, mi_col, bsize, num_planes);
     pc_tree->partitioning = PARTITION_SPLIT;
 
     // Split partition.
@@ -2145,7 +2148,7 @@ static void rd_use_partition(AV1_COMP *cpi, ThreadData *td,
                     PARTITION_SPLIT, split_subsize, pc_tree->split[i]->none,
                     invalid_rdc, PICK_MODE_RD);
 
-      restore_context(x, &x_ctx, mi_row, mi_col, bsize, num_planes);
+      restore_context(cm, x, &x_ctx, mi_row, mi_col, bsize, num_planes);
       if (tmp_rdc.rate == INT_MAX || tmp_rdc.dist == INT64_MAX) {
         av1_invalid_rd_stats(&chosen_rdc);
         break;
@@ -2178,7 +2181,7 @@ static void rd_use_partition(AV1_COMP *cpi, ThreadData *td,
     chosen_rdc = none_rdc;
   }
 
-  restore_context(x, &x_ctx, mi_row, mi_col, bsize, num_planes);
+  restore_context(cm, x, &x_ctx, mi_row, mi_col, bsize, num_planes);
 
   // We must have chosen a partitioning and encoding or we'll fail later on.
   // No other opportunities for success.
@@ -2872,7 +2875,7 @@ BEGIN_PARTITION_SEARCH:
       }
     }
 
-    restore_context(x, &x_ctx, mi_row, mi_col, bsize, num_planes);
+    restore_context(cm, x, &x_ctx, mi_row, mi_col, bsize, num_planes);
   }
 
   // store estimated motion vector
@@ -2970,7 +2973,7 @@ BEGIN_PARTITION_SEARCH:
       }
     }
 
-    restore_context(x, &x_ctx, mi_row, mi_col, bsize, num_planes);
+    restore_context(cm, x, &x_ctx, mi_row, mi_col, bsize, num_planes);
   }  // if (do_split)
 
   if (cpi->sf.ml_early_term_after_part_split_level &&
@@ -3078,7 +3081,7 @@ BEGIN_PARTITION_SEARCH:
       }
     }
 
-    restore_context(x, &x_ctx, mi_row, mi_col, bsize, num_planes);
+    restore_context(cm, x, &x_ctx, mi_row, mi_col, bsize, num_planes);
   }
 
   // PARTITION_VERT
@@ -3164,7 +3167,7 @@ BEGIN_PARTITION_SEARCH:
       pc_tree->partitioning = PARTITION_VERT;
     }
 
-    restore_context(x, &x_ctx, mi_row, mi_col, bsize, num_planes);
+    restore_context(cm, x, &x_ctx, mi_row, mi_col, bsize, num_planes);
   }
 
   if (pb_source_variance == UINT_MAX) {
@@ -3336,7 +3339,7 @@ BEGIN_PARTITION_SEARCH:
       partition_timer_on = 0;
     }
 #endif
-    restore_context(x, &x_ctx, mi_row, mi_col, bsize, num_planes);
+    restore_context(cm, x, &x_ctx, mi_row, mi_col, bsize, num_planes);
   }
   // PARTITION_HORZ_B
   if (!terminate_partition_search && partition_horz_allowed &&
@@ -3382,7 +3385,7 @@ BEGIN_PARTITION_SEARCH:
       partition_timer_on = 0;
     }
 #endif
-    restore_context(x, &x_ctx, mi_row, mi_col, bsize, num_planes);
+    restore_context(cm, x, &x_ctx, mi_row, mi_col, bsize, num_planes);
   }
 
   // PARTITION_VERT_A
@@ -3428,7 +3431,7 @@ BEGIN_PARTITION_SEARCH:
       partition_timer_on = 0;
     }
 #endif
-    restore_context(x, &x_ctx, mi_row, mi_col, bsize, num_planes);
+    restore_context(cm, x, &x_ctx, mi_row, mi_col, bsize, num_planes);
   }
   // PARTITION_VERT_B
   if (!terminate_partition_search && partition_vert_allowed &&
@@ -3474,7 +3477,7 @@ BEGIN_PARTITION_SEARCH:
       partition_timer_on = 0;
     }
 #endif
-    restore_context(x, &x_ctx, mi_row, mi_col, bsize, num_planes);
+    restore_context(cm, x, &x_ctx, mi_row, mi_col, bsize, num_planes);
   }
 
 #if CONFIG_3WAY_PARTITIONS
@@ -3597,7 +3600,7 @@ BEGIN_PARTITION_SEARCH:
       partition_timer_on = 0;
     }
 #endif
-    restore_context(x, &x_ctx, mi_row, mi_col, bsize, num_planes);
+    restore_context(cm, x, &x_ctx, mi_row, mi_col, bsize, num_planes);
   }
 
   // PARTITION_VERT_3
@@ -3662,7 +3665,7 @@ BEGIN_PARTITION_SEARCH:
       partition_timer_on = 0;
     }
 #endif
-    restore_context(x, &x_ctx, mi_row, mi_col, bsize, num_planes);
+    restore_context(cm, x, &x_ctx, mi_row, mi_col, bsize, num_planes);
   }
 #else
   // partition4_allowed is 1 if we can use a PARTITION_HORZ_4 or
@@ -3775,7 +3778,7 @@ BEGIN_PARTITION_SEARCH:
       partition_timer_on = 0;
     }
 #endif
-    restore_context(x, &x_ctx, mi_row, mi_col, bsize, num_planes);
+    restore_context(cm, x, &x_ctx, mi_row, mi_col, bsize, num_planes);
   }
 
   // PARTITION_VERT_4
@@ -3833,7 +3836,7 @@ BEGIN_PARTITION_SEARCH:
       partition_timer_on = 0;
     }
 #endif
-    restore_context(x, &x_ctx, mi_row, mi_col, bsize, num_planes);
+    restore_context(cm, x, &x_ctx, mi_row, mi_col, bsize, num_planes);
   }
 #endif  // CONFIG_3WAY_PARTITIONS
 
@@ -4453,6 +4456,9 @@ static void encode_sb_row(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
        mi_col < tile_info->mi_col_end; mi_col += mib_size, sb_col_in_tile++) {
     (*(cpi->row_mt_sync_read_ptr))(&tile_data->row_mt_sync, sb_row,
                                    sb_col_in_tile);
+
+    av1_reset_is_mi_coded_map(xd, cm->seq_params.mib_size);
+
     if (tile_data->allow_update_cdf && (cpi->row_mt == 1) &&
         (tile_info->mi_row_start != mi_row)) {
       if ((tile_info->mi_col_start == mi_col)) {
@@ -6026,4 +6032,6 @@ static void encode_superblock(const AV1_COMP *const cpi, TileDataEnc *tile_data,
       is_cfl_allowed(xd)) {
     cfl_store_block(xd, mbmi->sb_type, mbmi->tx_size);
   }
+
+  av1_mark_block_as_coded(xd, mi_row, mi_col, bsize, cm->seq_params.sb_size);
 }

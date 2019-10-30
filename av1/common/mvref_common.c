@@ -272,45 +272,23 @@ static int has_top_right(const AV1_COMMON *cm, const MACROBLOCKD *xd,
   const int mask_row = mi_row & (sb_mi_size - 1);
   const int mask_col = mi_col & (sb_mi_size - 1);
 
+  // TODO(yuec): check the purpose of this condition
   if (bs > mi_size_wide[BLOCK_64X64]) return 0;
 
-  // In a split partition all apart from the bottom right has a top right
-  int has_tr = !((mask_row & bs) && (mask_col & bs));
+  const int tr_mask_row = mask_row - 1;
+  const int tr_mask_col = mask_col + xd->n4_w;
+  int has_tr;
 
-  // bs > 0 and bs is a power of 2
-  assert(bs > 0 && !(bs & (bs - 1)));
+  if (tr_mask_row < 0) {
+    // Later the tile boundary checker will figure out whether the top-right
+    // block is available.
+    has_tr = 1;
+  } else if (tr_mask_col >= sb_mi_size) {
+    has_tr = 0;
+  } else {
+    const int tr_offset = tr_mask_row * xd->is_mi_coded_stride + tr_mask_col;
 
-  // For each 4x4 group of blocks, when the bottom right is decoded the blocks
-  // to the right have not been decoded therefore the bottom right does
-  // not have a top right
-  while (bs < sb_mi_size) {
-    if (mask_col & bs) {
-      if ((mask_col & (2 * bs)) && (mask_row & (2 * bs))) {
-        has_tr = 0;
-        break;
-      }
-    } else {
-      break;
-    }
-    bs <<= 1;
-  }
-
-  // The left hand of two vertical rectangles always has a top right (as the
-  // block above will have been decoded)
-  if (xd->n4_w < xd->n4_h)
-    if (!xd->is_sec_rect) has_tr = 1;
-
-  // The bottom of two horizontal rectangles never has a top right (as the block
-  // to the right won't have been decoded)
-  if (xd->n4_w > xd->n4_h)
-    if (xd->is_sec_rect) has_tr = 0;
-
-  // The bottom left square of a Vertical A (in the old format) does
-  // not have a top right as it is decoded before the right hand
-  // rectangle of the partition
-  if (xd->mi[0]->partition == PARTITION_VERT_A) {
-    if (xd->n4_w == xd->n4_h)
-      if (mask_row & bs) has_tr = 0;
+    has_tr = xd->is_mi_coded[tr_offset];
   }
 
   return has_tr;
