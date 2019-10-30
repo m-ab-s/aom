@@ -1487,6 +1487,51 @@ static int compute_quantized_wienerns_filter(
   }
 }
 
+#define MAX(a, b) ((a) > (b) ? (a) : (b))
+#define MIN(a, b) ((a) > (b) ? (b) : (a))
+
+static int64_t finer_tile_search_wienerns(const RestSearchCtxt *rsc,
+                                          const RestorationTileLimits *limits,
+                                          const AV1PixelRect *tile_rect,
+                                          RestorationUnitInfo *rui, int w) {
+  int64_t best_err = try_restoration_unit(rsc, limits, tile_rect, rui);
+
+  int iter_step = 5;
+  int src_range = 3;
+  WienerNonsepInfo curr = rui->wiener_nonsep_info;
+  WienerNonsepInfo best = curr;
+  for (int s = 0; s < iter_step; ++s) {
+    int no_improv = 1;
+    for (int i = 0; i < w; ++i) {
+      for (int ci = MAX(curr.nsfilter[i] - src_range,
+                        wienerns_coeff_info[i][WIENERNS_MIN_ID]);
+           ci < MIN(curr.nsfilter[i] + src_range,
+                    wienerns_coeff_info[i][WIENERNS_MIN_ID] +
+                        (1 << wienerns_coeff_info[i][WIENERNS_BIT_ID]));
+           ++ci) {
+        if (ci == curr.nsfilter[i]) {
+          continue;
+        }
+        rui->wiener_nonsep_info.nsfilter[i] = ci;
+        int64_t err = try_restoration_unit(rsc, limits, tile_rect, rui);
+        if (err < best_err) {
+          no_improv = 0;
+          best_err = err;
+          best = rui->wiener_nonsep_info;
+        }
+      }
+      rui->wiener_nonsep_info.nsfilter[i] = curr.nsfilter[i];
+    }
+    if (no_improv) {
+      break;
+    }
+    rui->wiener_nonsep_info = best;
+    curr = rui->wiener_nonsep_info;
+  }
+  rui->wiener_nonsep_info = best;
+  return best_err;
+}
+
 static void search_wiener_nonsep(const RestorationTileLimits *limits,
                                  const AV1PixelRect *tile_rect,
                                  int rest_unit_idx, void *priv, int32_t *tmpbuf,
@@ -1513,9 +1558,12 @@ static void search_wiener_nonsep(const RestorationTileLimits *limits,
           limits->v_start, limits->v_end, rsc->dgd_stride, rsc->src_stride,
           &rui.wiener_nonsep_info, wienerns_win,
           rsc->cm->seq_params.use_highbitdepth)) {
+    aom_clear_system_state();
+
     rusi->sse[RESTORE_WIENER_NONSEP] =
-        try_restoration_unit(rsc, limits, tile_rect, &rui);
+        finer_tile_search_wienerns(rsc, limits, tile_rect, &rui, wienerns_win);
     rusi->wiener_nonsep = rui.wiener_nonsep_info;
+    assert(rusi->sse[RESTORE_WIENER_NONSEP] != INT64_MAX);
 
     const int64_t bits_wienerns =
         x->wiener_nonsep_restore_cost[1] +
