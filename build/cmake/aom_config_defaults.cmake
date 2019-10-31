@@ -133,7 +133,7 @@ set_aom_config_var(CONFIG_COLLECT_COMPONENT_TIMING 0 NUMBER
 # AV2 experiment flags
 set_aom_config_var(CONFIG_ADAPT_FILTER_INTRA 0 NUMBER "AV2 experiment flag.")
 set_aom_config_var(CONFIG_MODE_DEP_TX 0 NUMBER "AV2 experiment flag.")
-
+set_aom_config_var(CONFIG_DST7_16X16 0 NUMBER "AV2 DST7 16x16 experiment flag.")
 set_aom_config_var(CONFIG_CNN_RESTORATION 0 NUMBER
                    "AV2 CNN Restoration experiment flag")
 set_aom_config_var(CONFIG_LOOP_RESTORE_CNN 0 NUMBER

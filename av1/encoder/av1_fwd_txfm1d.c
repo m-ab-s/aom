@@ -886,6 +886,17 @@ void av1_fadst8_new(const int32_t *input, int32_t *output, int8_t cos_bit,
 
 void av1_fadst16_new(const int32_t *input, int32_t *output, int8_t cos_bit,
                      const int8_t *stage_range) {
+#if CONFIG_DST7_16X16
+  (void)cos_bit;
+  (void)stage_range;
+  for (int32_t i = 0; i < 16; i++) {
+    int32_t sum = 0;
+    for (int32_t j = 0; j < 16; j++) {
+      sum += input[j] * dst7_16x16[i][j];
+    }
+    output[i] = (sum + 64) >> 7;
+  }
+#else
   const int32_t size = 16;
   const int32_t *cospi;
 
@@ -1097,6 +1108,7 @@ void av1_fadst16_new(const int32_t *input, int32_t *output, int8_t cos_bit,
   bf1[14] = bf0[15];
   bf1[15] = bf0[0];
   av1_range_check_buf(stage, input, bf1, size, stage_range[stage]);
+#endif
 }
 
 void av1_fidentity4_c(const int32_t *input, int32_t *output, int8_t cos_bit,

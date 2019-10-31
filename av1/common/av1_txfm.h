@@ -33,6 +33,9 @@ extern "C" {
 
 extern const int32_t av1_cospi_arr_data[7][64];
 extern const int32_t av1_sinpi_arr_data[7][5];
+#if CONFIG_DST7_16X16
+extern const int32_t dst7_16x16[16][16];
+#endif
 
 #define MAX_TXFM_STAGE_NUM 12
 

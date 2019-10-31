@@ -863,6 +863,17 @@ void av1_iadst8_new(const int32_t *input, int32_t *output, int8_t cos_bit,
 void av1_iadst16_new(const int32_t *input, int32_t *output, int8_t cos_bit,
                      const int8_t *stage_range) {
   assert(output != input);
+#if CONFIG_DST7_16X16
+  (void)cos_bit;
+  (void)stage_range;
+  for (int32_t i = 0; i < 16; i++) {
+    int32_t sum = 0;
+    for (int32_t j = 0; j < 16; j++) {
+      sum += input[j] * dst7_16x16[j][i];
+    }
+    output[i] = (sum + 64) >> 7;
+  }
+#else
   const int32_t size = 16;
   const int32_t *cospi = cospi_arr(cos_bit);
 
@@ -1067,6 +1078,7 @@ void av1_iadst16_new(const int32_t *input, int32_t *output, int8_t cos_bit,
   bf1[13] = -bf0[13];
   bf1[14] = bf0[9];
   bf1[15] = -bf0[1];
+#endif
 }
 
 void av1_iidentity4_c(const int32_t *input, int32_t *output, int8_t cos_bit,
