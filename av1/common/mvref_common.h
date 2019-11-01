@@ -336,6 +336,21 @@ static INLINE int av1_is_dv_valid(const MV dv, const AV1_COMMON *cm,
   return 1;
 }
 
+#if CONFIG_FLEX_MVRES
+void av1_get_mv_refs_adj(CANDIDATE_MV ref_mv_stack_orig[MAX_REF_MV_STACK_SIZE],
+                         uint16_t weight_orig[MAX_REF_MV_STACK_SIZE],
+                         uint8_t ref_mv_count_orig, int is_compound,
+                         MvSubpelPrecision precision,
+                         CANDIDATE_MV ref_mv_stack_adj[MAX_REF_MV_STACK_SIZE],
+                         uint16_t weight_adj[MAX_REF_MV_STACK_SIZE],
+                         uint8_t *ref_mv_count_adj);
+int av1_get_ref_mv_idx_adj(
+    CANDIDATE_MV ref_mv_stack_orig[MAX_REF_MV_STACK_SIZE],
+    uint8_t ref_mv_count_orig, int ref_mv_idx_orig, int is_compound,
+    MvSubpelPrecision precision,
+    CANDIDATE_MV ref_mv_stack_adj[MAX_REF_MV_STACK_SIZE],
+    uint8_t ref_mv_count_adj);
+#endif  // CONFIG_FLEX_MVRES
 #ifdef __cplusplus
 }  // extern "C"
 #endif

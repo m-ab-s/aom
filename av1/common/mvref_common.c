@@ -1485,3 +1485,77 @@ void av1_set_frame_refs(AV1_COMMON *const cm, int *remapped_ref_idx,
     assert(ref_flag_list[i] == 1);
   }
 }
+
+#if CONFIG_FLEX_MVRES
+void av1_get_mv_refs_adj(CANDIDATE_MV ref_mv_stack_orig[MAX_REF_MV_STACK_SIZE],
+                         uint16_t weight_orig[MAX_REF_MV_STACK_SIZE],
+                         uint8_t ref_mv_count_orig, int is_compound,
+                         MvSubpelPrecision precision,
+                         CANDIDATE_MV ref_mv_stack_adj[MAX_REF_MV_STACK_SIZE],
+                         uint16_t weight_adj[MAX_REF_MV_STACK_SIZE],
+                         uint8_t *ref_mv_count_adj) {
+  ref_mv_stack_adj[0] = ref_mv_stack_orig[0];
+  lower_mv_precision(&ref_mv_stack_adj[0].this_mv.as_mv, precision);
+  if (is_compound) {
+    lower_mv_precision(&ref_mv_stack_adj[0].comp_mv.as_mv, precision);
+  }
+  *ref_mv_count_adj = 1;
+  weight_adj[0] = weight_orig[0];
+
+  for (int i = 1; i < ref_mv_count_orig; ++i) {
+    ref_mv_stack_adj[*ref_mv_count_adj] = ref_mv_stack_orig[i];
+    weight_adj[*ref_mv_count_adj] = weight_orig[i];
+    lower_mv_precision(&ref_mv_stack_adj[*ref_mv_count_adj].this_mv.as_mv,
+                       precision);
+    if (is_compound) {
+      lower_mv_precision(&ref_mv_stack_adj[*ref_mv_count_adj].comp_mv.as_mv,
+                         precision);
+    }
+    if (is_compound) {
+      if (ref_mv_stack_adj[*ref_mv_count_adj].this_mv.as_int !=
+              ref_mv_stack_adj[*ref_mv_count_adj - 1].this_mv.as_int ||
+          ref_mv_stack_adj[*ref_mv_count_adj].comp_mv.as_int !=
+              ref_mv_stack_adj[*ref_mv_count_adj - 1].comp_mv.as_int) {
+        ++(*ref_mv_count_adj);
+      } else {
+        weight_adj[*ref_mv_count_adj - 1] += weight_adj[*ref_mv_count_adj];
+      }
+    } else {
+      if (ref_mv_stack_adj[*ref_mv_count_adj].this_mv.as_int !=
+          ref_mv_stack_adj[*ref_mv_count_adj - 1].this_mv.as_int) {
+        ++(*ref_mv_count_adj);
+      } else {
+        weight_adj[*ref_mv_count_adj - 1] += weight_adj[*ref_mv_count_adj];
+      }
+    }
+  }
+}
+
+int av1_get_ref_mv_idx_adj(
+    CANDIDATE_MV ref_mv_stack_orig[MAX_REF_MV_STACK_SIZE],
+    uint8_t ref_mv_count_orig, int ref_mv_idx_orig, int is_compound,
+    MvSubpelPrecision precision,
+    CANDIDATE_MV ref_mv_stack_adj[MAX_REF_MV_STACK_SIZE],
+    uint8_t ref_mv_count_adj) {
+  (void)ref_mv_count_orig;
+  CANDIDATE_MV ref_mv;
+  assert(IMPLIES(ref_mv_count_orig > 0, ref_mv_idx_orig < ref_mv_count_orig));
+  if (ref_mv_count_orig == 0) return 0;
+  ref_mv = ref_mv_stack_orig[ref_mv_idx_orig];
+  lower_mv_precision(&ref_mv.this_mv.as_mv, precision);
+  if (is_compound) {
+    lower_mv_precision(&ref_mv.comp_mv.as_mv, precision);
+  }
+  for (int i = 0; i < ref_mv_count_adj; ++i) {
+    if (is_compound) {
+      if (ref_mv_stack_adj[i].this_mv.as_int == ref_mv.this_mv.as_int &&
+          ref_mv_stack_adj[i].comp_mv.as_int == ref_mv.comp_mv.as_int)
+        return i;
+    } else {
+      if (ref_mv_stack_adj[i].this_mv.as_int == ref_mv.this_mv.as_int) return i;
+    }
+  }
+  assert(0);
+  return -1;
+}
+#endif  // CONFIG_FLEX_MVRES

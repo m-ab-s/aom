@@ -293,6 +293,9 @@ typedef struct MB_MODE_INFO {
   uint8_t skip_mode : 1;
   uint8_t use_intrabc : 1;
   uint8_t ref_mv_idx : 2;
+#if CONFIG_FLEX_MVRES
+  uint8_t ref_mv_idx_adj : 2;
+#endif  // CONFIG_FLEX_MVRES
   // Indicate if masked compound is used(1) or not(0).
   uint8_t comp_group_idx : 1;
   int8_t cdef_strength : 4;
@@ -600,6 +603,11 @@ typedef struct macroblockd {
   uint8_t ref_mv_count[MODE_CTX_REF_FRAMES];
   CANDIDATE_MV ref_mv_stack[MODE_CTX_REF_FRAMES][MAX_REF_MV_STACK_SIZE];
   uint16_t weight[MODE_CTX_REF_FRAMES][MAX_REF_MV_STACK_SIZE];
+#if CONFIG_FLEX_MVRES
+  uint8_t ref_mv_count_adj;
+  CANDIDATE_MV ref_mv_stack_adj[MAX_REF_MV_STACK_SIZE];
+  uint16_t weight_adj[MAX_REF_MV_STACK_SIZE];
+#endif  // CONFIG_FLEX_MVRES
   uint8_t is_sec_rect;
 
   // Counts of each reference frame in the above and left neighboring blocks.

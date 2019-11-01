@@ -143,8 +143,10 @@ static void write_inter_mode(aom_writer *w, PREDICTION_MODE mode,
   }
 }
 
-static void write_drl_idx(FRAME_CONTEXT *ec_ctx, const MB_MODE_INFO *mbmi,
+static void write_drl_idx(FRAME_CONTEXT *ec_ctx, const AV1_COMMON *cm,
+                          const MB_MODE_INFO *mbmi,
                           const MB_MODE_INFO_EXT *mbmi_ext, aom_writer *w) {
+  (void)cm;
   uint8_t ref_frame_type = av1_ref_frame_type(mbmi->ref_frame);
 
   assert(mbmi->ref_mv_idx < 3);
@@ -152,10 +154,22 @@ static void write_drl_idx(FRAME_CONTEXT *ec_ctx, const MB_MODE_INFO *mbmi,
   const int new_mv = mbmi->mode == NEWMV || mbmi->mode == NEW_NEWMV;
   if (new_mv) {
     int idx;
+#if CONFIG_FLEX_MVRES
+    if (mbmi->mv_precision < cm->mv_precision) {
+      for (idx = 0; idx < 2; ++idx) {
+        if (mbmi_ext->ref_mv_count_adj > idx + 1) {
+          uint8_t drl_ctx = av1_drl_ctx(mbmi_ext->weight_adj, idx);
+          aom_write_symbol(w, mbmi->ref_mv_idx_adj != idx,
+                           ec_ctx->drl_cdf[drl_ctx], 2);
+          if (mbmi->ref_mv_idx_adj == idx) return;
+        }
+      }
+      return;
+    }
+#endif  // CONFIG_FLEX_MVRES
     for (idx = 0; idx < 2; ++idx) {
       if (mbmi_ext->ref_mv_count[ref_frame_type] > idx + 1) {
         uint8_t drl_ctx = av1_drl_ctx(mbmi_ext->weight[ref_frame_type], idx);
-
         aom_write_symbol(w, mbmi->ref_mv_idx != idx, ec_ctx->drl_cdf[drl_ctx],
                          2);
         if (mbmi->ref_mv_idx == idx) return;
@@ -1351,17 +1365,17 @@ static void pack_inter_mode_mvs(AV1_COMP *cpi, const int mi_row,
       else if (is_inter_singleref_mode(mode))
         write_inter_mode(w, mode, ec_ctx, mode_ctx);
 
+#if CONFIG_FLEX_MVRES
+      if (is_flex_mv_precision_active(cm, mode, mbmi->max_mv_precision)) {
+        write_mv_precision(cm, xd, w);
+      }
+#endif  // CONFIG_FLEX_MVRES
       if (mode == NEWMV || mode == NEW_NEWMV || have_nearmv_in_inter_mode(mode))
-        write_drl_idx(ec_ctx, mbmi, mbmi_ext, w);
+        write_drl_idx(ec_ctx, cm, mbmi, mbmi_ext, w);
       else
         assert(mbmi->ref_mv_idx == 0);
     }
 
-#if CONFIG_FLEX_MVRES
-    if (is_flex_mv_precision_active(cm, mode, mbmi->max_mv_precision)) {
-      write_mv_precision(cm, xd, w);
-    }
-#endif  // CONFIG_FLEX_MVRES
     if (mode == NEWMV || mode == NEW_NEWMV) {
       for (ref = 0; ref < 1 + is_compound; ++ref) {
         nmv_context *nmvc = &ec_ctx->nmvc;

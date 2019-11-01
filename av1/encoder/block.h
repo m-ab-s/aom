@@ -90,6 +90,11 @@ typedef struct {
   int cb_offset;
   int16_t mode_context[MODE_CTX_REF_FRAMES];
   uint8_t ref_mv_count[MODE_CTX_REF_FRAMES];
+#if CONFIG_FLEX_MVRES
+  CANDIDATE_MV ref_mv_stack_adj[MAX_REF_MV_STACK_SIZE];
+  uint16_t weight_adj[MAX_REF_MV_STACK_SIZE];
+  uint8_t ref_mv_count_adj;
+#endif  // CONFIG_FLEX_MVRES
 } MB_MODE_INFO_EXT;
 
 typedef struct {
