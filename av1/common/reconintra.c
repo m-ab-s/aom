@@ -133,158 +133,19 @@ static int has_top_right(const AV1_COMMON *cm, const MACROBLOCKD *xd,
   }
 }
 
-// Similar to the has_tr_* tables, but store if the bottom-left reference
-// pixels are available.
-static uint8_t has_bl_4x4[128] = {
-  84, 85, 85, 85, 16, 17, 17, 17, 84, 85, 85, 85, 0,  1,  1,  1,  84, 85, 85,
-  85, 16, 17, 17, 17, 84, 85, 85, 85, 0,  0,  1,  0,  84, 85, 85, 85, 16, 17,
-  17, 17, 84, 85, 85, 85, 0,  1,  1,  1,  84, 85, 85, 85, 16, 17, 17, 17, 84,
-  85, 85, 85, 0,  0,  0,  0,  84, 85, 85, 85, 16, 17, 17, 17, 84, 85, 85, 85,
-  0,  1,  1,  1,  84, 85, 85, 85, 16, 17, 17, 17, 84, 85, 85, 85, 0,  0,  1,
-  0,  84, 85, 85, 85, 16, 17, 17, 17, 84, 85, 85, 85, 0,  1,  1,  1,  84, 85,
-  85, 85, 16, 17, 17, 17, 84, 85, 85, 85, 0,  0,  0,  0,
-};
-static uint8_t has_bl_4x8[64] = {
-  16, 17, 17, 17, 0, 1, 1, 1, 16, 17, 17, 17, 0, 0, 1, 0,
-  16, 17, 17, 17, 0, 1, 1, 1, 16, 17, 17, 17, 0, 0, 0, 0,
-  16, 17, 17, 17, 0, 1, 1, 1, 16, 17, 17, 17, 0, 0, 1, 0,
-  16, 17, 17, 17, 0, 1, 1, 1, 16, 17, 17, 17, 0, 0, 0, 0,
-};
-static uint8_t has_bl_8x4[64] = {
-  254, 255, 84, 85, 254, 255, 16, 17, 254, 255, 84, 85, 254, 255, 0, 1,
-  254, 255, 84, 85, 254, 255, 16, 17, 254, 255, 84, 85, 254, 255, 0, 0,
-  254, 255, 84, 85, 254, 255, 16, 17, 254, 255, 84, 85, 254, 255, 0, 1,
-  254, 255, 84, 85, 254, 255, 16, 17, 254, 255, 84, 85, 254, 255, 0, 0,
-};
-static uint8_t has_bl_8x8[32] = {
-  84, 85, 16, 17, 84, 85, 0, 1, 84, 85, 16, 17, 84, 85, 0, 0,
-  84, 85, 16, 17, 84, 85, 0, 1, 84, 85, 16, 17, 84, 85, 0, 0,
-};
-static uint8_t has_bl_8x16[16] = {
-  16, 17, 0, 1, 16, 17, 0, 0, 16, 17, 0, 1, 16, 17, 0, 0,
-};
-static uint8_t has_bl_16x8[16] = {
-  254, 84, 254, 16, 254, 84, 254, 0, 254, 84, 254, 16, 254, 84, 254, 0,
-};
-static uint8_t has_bl_16x16[8] = {
-  84, 16, 84, 0, 84, 16, 84, 0,
-};
-static uint8_t has_bl_16x32[4] = { 16, 0, 16, 0 };
-static uint8_t has_bl_32x16[4] = { 78, 14, 78, 14 };
-static uint8_t has_bl_32x32[2] = { 4, 4 };
-static uint8_t has_bl_32x64[1] = { 0 };
-static uint8_t has_bl_64x32[1] = { 34 };
-static uint8_t has_bl_64x64[1] = { 0 };
-static uint8_t has_bl_64x128[1] = { 0 };
-static uint8_t has_bl_128x64[1] = { 0 };
-static uint8_t has_bl_128x128[1] = { 0 };
-static uint8_t has_bl_4x16[32] = {
-  0, 1, 1, 1, 0, 0, 1, 0, 0, 1, 1, 1, 0, 0, 0, 0,
-  0, 1, 1, 1, 0, 0, 1, 0, 0, 1, 1, 1, 0, 0, 0, 0,
-};
-static uint8_t has_bl_16x4[32] = {
-  254, 254, 254, 84, 254, 254, 254, 16, 254, 254, 254, 84, 254, 254, 254, 0,
-  254, 254, 254, 84, 254, 254, 254, 16, 254, 254, 254, 84, 254, 254, 254, 0,
-};
-static uint8_t has_bl_8x32[8] = {
-  0, 1, 0, 0, 0, 1, 0, 0,
-};
-static uint8_t has_bl_32x8[8] = {
-  238, 78, 238, 14, 238, 78, 238, 14,
-};
-static uint8_t has_bl_16x64[2] = { 0, 0 };
-static uint8_t has_bl_64x16[2] = { 42, 42 };
-#if CONFIG_FLEX_PARTITION
-static uint8_t has_bl_4x32[16] = { 0, 0, 1, 0, 0, 0, 0, 0,
-                                   0, 0, 1, 0, 0, 0, 0, 0 };
-static uint8_t has_bl_32x4[16] = {
-  238, 238, 238, 78, 238, 238, 238, 14, 238, 238, 238, 78, 238, 238, 238, 14,
-};
-static uint8_t has_bl_4x64[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
-static uint8_t has_bl_64x4[8] = { 170, 170, 170, 42, 170, 170, 170, 42 };
-static uint8_t has_bl_8x64[4] = {
-  0,
-  0,
-  0,
-  0,
-};
-static uint8_t has_bl_64x8[4] = {
-  170,
-  42,
-  170,
-  42,
-};
-#endif  // CONFIG_FLEX_PARTITION
-
-static const uint8_t *const has_bl_tables[BLOCK_SIZES_ALL] = {
-  has_bl_4x4,     has_bl_4x8,   has_bl_8x4,   has_bl_8x8,    has_bl_8x16,
-  has_bl_16x8,    has_bl_16x16, has_bl_16x32, has_bl_32x16,  has_bl_32x32,
-  has_bl_32x64,   has_bl_64x32, has_bl_64x64, has_bl_64x128, has_bl_128x64,
-  has_bl_128x128, has_bl_4x16,  has_bl_16x4,  has_bl_8x32,   has_bl_32x8,
-  has_bl_16x64,   has_bl_64x16,
-#if CONFIG_FLEX_PARTITION
-  has_bl_4x32,    has_bl_32x4,  has_bl_8x64,  has_bl_64x8,   has_bl_4x64,
-  has_bl_64x4,
-#endif  // CONFIG_FLEX_PARTITION
-};
-
-static uint8_t has_bl_vert_8x8[32] = {
-  254, 255, 16, 17, 254, 255, 0, 1, 254, 255, 16, 17, 254, 255, 0, 0,
-  254, 255, 16, 17, 254, 255, 0, 1, 254, 255, 16, 17, 254, 255, 0, 0,
-};
-static uint8_t has_bl_vert_16x16[8] = {
-  254, 16, 254, 0, 254, 16, 254, 0,
-};
-static uint8_t has_bl_vert_32x32[2] = { 14, 14 };
-static uint8_t has_bl_vert_64x64[1] = { 2 };
-
-// The _vert_* tables are like the ordinary tables above, but describe the
-// order we visit square blocks when doing a PARTITION_VERT_A or
-// PARTITION_VERT_B. This is the same order as normal except for on the last
-// split where we go vertically (TL, BL, TR, BR). We treat the rectangular block
-// as a pair of squares, which means that these tables work correctly for both
-// mixed vertical partition types.
-//
-// There are tables for each of the square sizes. Vertical rectangles (like
-// BLOCK_16X32) use their respective "non-vert" table
-static const uint8_t *const has_bl_vert_tables[BLOCK_SIZES] = {
-  NULL,               // 4X4
-  has_bl_4x8,         // 4X8
-  NULL,               // 8X4
-  has_bl_vert_8x8,    // 8X8
-  has_bl_8x16,        // 8X16
-  NULL,               // 16X8
-  has_bl_vert_16x16,  // 16X16
-  has_bl_16x32,       // 16X32
-  NULL,               // 32X16
-  has_bl_vert_32x32,  // 32X32
-  has_bl_32x64,       // 32X64
-  NULL,               // 64X32
-  has_bl_vert_64x64,  // 64X64
-  has_bl_64x128,      // 64X128
-  NULL,               // 128X64
-  has_bl_128x128,     // 128X128
-};
-
-static const uint8_t *get_has_bl_table(PARTITION_TYPE partition,
-                                       BLOCK_SIZE bsize) {
-  const uint8_t *ret = NULL;
-  // If this is a mixed vertical partition, look up bsize in orders_vert.
-  if (partition == PARTITION_VERT_A || partition == PARTITION_VERT_B) {
-    assert(bsize < BLOCK_SIZES);
-    ret = has_bl_vert_tables[bsize];
-  } else {
-    ret = has_bl_tables[bsize];
-  }
-  assert(ret);
-  return ret;
-}
-
-static int has_bottom_left(const AV1_COMMON *cm, BLOCK_SIZE bsize, int mi_row,
-                           int mi_col, int bottom_available, int left_available,
-                           PARTITION_TYPE partition, TX_SIZE txsz, int row_off,
-                           int col_off, int ss_x, int ss_y) {
+static int has_bottom_left(const AV1_COMMON *cm, const MACROBLOCKD *xd,
+                           BLOCK_SIZE bsize, int mi_row, int mi_col,
+                           int bottom_available, int left_available,
+                           TX_SIZE txsz, int row_off, int col_off, int ss_x,
+                           int ss_y, int px_to_bottom_edge, int *px_bottom_left,
+                           int is_bsize_altered_for_chroma) {
   if (!bottom_available || !left_available) return 0;
+
+  const int px_bl_common = AOMMIN(tx_size_high[txsz], px_to_bottom_edge);
+
+  if (px_bl_common <= 0) return 0;
+
+  *px_bottom_left = px_bl_common;
 
   // Special case for 128x* blocks, when col_off is half the block width.
   // This is needed because 128x* superblocks are divided into 64x* blocks in
@@ -315,55 +176,60 @@ static int has_bottom_left(const AV1_COMMON *cm, BLOCK_SIZE bsize, int mi_row,
     // All bottom-left pixels are in the left block, which is already available.
     if (row_off + bottom_left_count_unit < plane_bh_unit) return 1;
 
-    const int bw_in_mi_log2 = mi_size_wide_log2[bsize];
-    const int bh_in_mi_log2 = mi_size_high_log2[bsize];
+    // The general case: neither the leftmost column nor the bottom row. The
+    // bottom-left mi is in the same SB
     const int sb_mi_size = mi_size_high[cm->seq_params.sb_size];
-#if CONFIG_3WAY_PARTITIONS
-    const int is_2nd_horz3_partition =
-        (partition == PARTITION_HORZ_3) &&
-        (mi_size_wide[bsize] == 2 * mi_size_high[bsize]);
-    const int is_2nd_vert3_partition =
-        (partition == PARTITION_VERT_3) &&
-        (mi_size_high[bsize] == 2 * mi_size_wide[bsize]);
-    const int blk_row_in_sb =
-        is_2nd_horz3_partition
-            ? ROUND_POWER_OF_TWO(mi_row & (sb_mi_size - 1), bh_in_mi_log2)
-            : (mi_row & (sb_mi_size - 1)) >> bh_in_mi_log2;
-    const int blk_col_in_sb =
-        is_2nd_vert3_partition
-            ? ROUND_POWER_OF_TWO(mi_col & (sb_mi_size - 1), bw_in_mi_log2)
-            : (mi_col & (sb_mi_size - 1)) >> bw_in_mi_log2;
-#else
-    const int blk_row_in_sb = (mi_row & (sb_mi_size - 1)) >> bh_in_mi_log2;
-    const int blk_col_in_sb = (mi_col & (sb_mi_size - 1)) >> bw_in_mi_log2;
-#endif  // CONFIG_3WAY_PARTITIONS
+    const int mi_row_aligned =
+        is_bsize_altered_for_chroma
+            ? mi_row - (mi_row & (mi_size_high[bsize] - 1))
+            : mi_row;
+    const int mi_col_aligned =
+        is_bsize_altered_for_chroma
+            ? mi_col - (mi_col & (mi_size_wide[bsize] - 1))
+            : mi_col;
+    const int bl_mask_row =
+        (mi_row_aligned & (sb_mi_size - 1)) + mi_size_high[bsize];
+    const int bl_mask_col = (mi_col_aligned & (sb_mi_size - 1)) - 1;
 
-    // Leftmost column of superblock: so bottom-left pixels maybe in the left
-    // and/or bottom-left superblocks. But only the left superblock is
-    // available, so check if all required pixels fall in that superblock.
-    if (blk_col_in_sb == 0) {
-      const int blk_start_row_off = blk_row_in_sb
-                                        << (bh_in_mi_log2 + MI_SIZE_LOG2 -
-                                            tx_size_wide_log2[0]) >>
-                                    ss_y;
-      const int row_off_in_sb = blk_start_row_off + row_off;
-      const int sb_height_unit = sb_mi_size >> ss_y;
-      return row_off_in_sb + bottom_left_count_unit < sb_height_unit;
+    if (bl_mask_col < 0) {
+      const int plane_sb_height =
+          block_size_high[cm->seq_params.sb_size] >> ss_y;
+      const int plane_bottom_row =
+          (((mi_row_aligned & (sb_mi_size - 1)) << MI_SIZE_LOG2) +
+           block_size_high[bsize]) >>
+          ss_y;
+      *px_bottom_left =
+          AOMMIN(plane_sb_height - plane_bottom_row, px_bl_common);
+
+      return *px_bottom_left > 0;
+    } else if (bl_mask_row >= sb_mi_size) {
+      return 0;
+    } else {
+      const int bl_offset = bl_mask_row * xd->is_mi_coded_stride + bl_mask_col;
+      // As long as there is one bottom-left mi available, we determine bl is
+      // available
+      int has_bl = xd->is_mi_coded[bl_offset];
+
+      // Calculate px_bottom_left: how many bottom-left pixels are available. If
+      // it is less than tx_size_high[txsz], px_bottom_left will be used to
+      // determine the location of the last available pixel, which will be used
+      // for padding.
+      if (has_bl) {
+        int mi_bl = 0;
+        for (int i = 0; i < bottom_left_count_unit << ss_y; ++i) {
+          if ((bl_mask_row + i) >= sb_mi_size ||
+              !xd->is_mi_coded[bl_offset + i * xd->is_mi_coded_stride]) {
+            break;
+          } else {
+            mi_bl++;
+          }
+        }
+
+        *px_bottom_left = AOMMIN((mi_bl << MI_SIZE_LOG2) >> ss_y, px_bl_common);
+      }
+
+      return has_bl;
     }
-
-    // Bottom row of superblock (and not the leftmost column): so bottom-left
-    // pixels fall in the bottom superblock, which is not available yet.
-    if (((blk_row_in_sb + 1) << bh_in_mi_log2) >= sb_mi_size) return 0;
-
-    // General case (neither leftmost column nor bottom row): check if the
-    // bottom-left block is coded before the current block.
-    const int this_blk_index =
-        ((blk_row_in_sb + 0) << (MAX_MIB_SIZE_LOG2 - bw_in_mi_log2)) +
-        blk_col_in_sb + 0;
-    const int idx1 = this_blk_index / 8;
-    const int idx2 = this_blk_index % 8;
-    const uint8_t *has_bl_table = get_has_bl_table(partition, bsize);
-    return (has_bl_table[idx1] >> idx2) & 1;
   }
 }
 
@@ -2537,8 +2403,6 @@ void av1_predict_intra_block(const AV1_COMMON *cm, const MACROBLOCKD *xd,
       (yd > 0) &&
       (mi_row + ((row_off + txh) << pd->subsampling_y) < xd->tile.mi_row_end);
 
-  const PARTITION_TYPE partition = mbmi->partition;
-
   // force 4x4 chroma component block size.
   bsize = scale_chroma_bsize(bsize, pd->subsampling_x, pd->subsampling_y,
                              mi_row, mi_col);
@@ -2548,9 +2412,12 @@ void av1_predict_intra_block(const AV1_COMMON *cm, const MACROBLOCKD *xd,
       cm, xd, bsize, mi_row, mi_col, have_top, right_available, tx_size,
       row_off, col_off, pd->subsampling_x, pd->subsampling_y, xr, &px_top_right,
       bsize != mbmi->sb_type);
+
+  int px_bottom_left = 0;
   const int have_bottom_left = has_bottom_left(
-      cm, bsize, mi_row, mi_col, bottom_available, have_left, partition,
-      tx_size, row_off, col_off, pd->subsampling_x, pd->subsampling_y);
+      cm, xd, bsize, mi_row, mi_col, bottom_available, have_left, tx_size,
+      row_off, col_off, pd->subsampling_x, pd->subsampling_y, yd,
+      &px_bottom_left, bsize != mbmi->sb_type);
 
   const int disable_edge_filter = !cm->seq_params.enable_intra_edge_filter;
   if (is_cur_buf_hbd(xd)) {
@@ -2560,7 +2427,7 @@ void av1_predict_intra_block(const AV1_COMMON *cm, const MACROBLOCKD *xd,
                                 have_top ? AOMMIN(txwpx, xr + txwpx) : 0,
                                 have_top_right ? px_top_right : 0,
                                 have_left ? AOMMIN(txhpx, yd + txhpx) : 0,
-                                have_bottom_left ? AOMMIN(txhpx, yd) : 0,
+                                have_bottom_left ? px_bottom_left : 0,
 #if CONFIG_ADAPT_FILTER_INTRA
                                 adapt_filter_intra_mode, col_off, row_off,
 #endif
@@ -2574,7 +2441,7 @@ void av1_predict_intra_block(const AV1_COMMON *cm, const MACROBLOCKD *xd,
                          have_top ? AOMMIN(txwpx, xr + txwpx) : 0,
                          have_top_right ? px_top_right : 0,
                          have_left ? AOMMIN(txhpx, yd + txhpx) : 0,
-                         have_bottom_left ? AOMMIN(txhpx, yd) : 0,
+                         have_bottom_left ? px_bottom_left : 0,
 #if CONFIG_ADAPT_FILTER_INTRA
                          adapt_filter_intra_mode, col_off, row_off,
 #endif
