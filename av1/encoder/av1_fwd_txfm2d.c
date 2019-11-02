@@ -437,6 +437,117 @@ void av1_fwd_txfm2d_64x64_c(const int16_t *input, int32_t *output, int stride,
 #endif  //  CONFIG_MODE_DEP_TX
                        bd);
 }
+
+void av1_fwd_txfm2d_32x64_c(const int16_t *input, int32_t *output, int stride,
+                            TX_TYPE tx_type,
+#if CONFIG_MODE_DEP_TX
+                            PREDICTION_MODE mode,
+#endif  // CONFIG_MODE_DEP_TX
+                            int bd) {
+  // Downsample to 32x32
+  DECLARE_ALIGNED(16, int16_t, input_32[32 * 32]);
+  for (int r = 0; r < 32; ++r) {
+    for (int c = 0; c < 32; ++c) {
+      const int16_t *const in = &input[2 * r * stride + c];
+      const int32_t avg = ROUND_POWER_OF_TWO_SIGNED(in[0] + in[stride], 1);
+      input_32[r * 32 + c] =
+          round_shift((int64_t)avg * NewInvSqrt2, NewSqrt2Bits);
+    }
+  }
+
+  // Initialize output to all-zero.
+  memset(output, 0, 32 * 64 * sizeof(*output));
+
+  // Perform 32x32 transform and output to the top-left quadrant.
+  av1_fwd_txfm2d_32x32(input_32, output, 32, tx_type,
+#if CONFIG_MODE_DEP_TX
+                       mode,
+#endif  //  CONFIG_MODE_DEP_TX
+                       bd);
+}
+
+void av1_fwd_txfm2d_64x32_c(const int16_t *input, int32_t *output, int stride,
+                            TX_TYPE tx_type,
+#if CONFIG_MODE_DEP_TX
+                            PREDICTION_MODE mode,
+#endif  // CONFIG_MODE_DEP_TX
+                            int bd) {
+  // Downsample to 32x32
+  DECLARE_ALIGNED(16, int16_t, input_32[32 * 32]);
+  for (int r = 0; r < 32; ++r) {
+    for (int c = 0; c < 32; ++c) {
+      const int16_t *const in = &input[r * stride + 2 * c];
+      const int32_t avg = ROUND_POWER_OF_TWO_SIGNED(in[0] + in[1], 1);
+      input_32[r * 32 + c] =
+          round_shift((int64_t)avg * NewInvSqrt2, NewSqrt2Bits);
+    }
+  }
+
+  // Initialize output to all-zero.
+  memset(output, 0, 64 * 32 * sizeof(*output));
+
+  // Perform 32x32 transform and output to the top-left quadrant.
+  av1_fwd_txfm2d_32x32(input_32, output, 32, tx_type,
+#if CONFIG_MODE_DEP_TX
+                       mode,
+#endif  //  CONFIG_MODE_DEP_TX
+                       bd);
+}
+
+void av1_fwd_txfm2d_16x64_c(const int16_t *input, int32_t *output, int stride,
+                            TX_TYPE tx_type,
+#if CONFIG_MODE_DEP_TX
+                            PREDICTION_MODE mode,
+#endif  // CONFIG_MODE_DEP_TX
+                            int bd) {
+  // Downsample to 16x32
+  DECLARE_ALIGNED(16, int16_t, input_32[16 * 32]);
+  for (int r = 0; r < 32; ++r) {
+    for (int c = 0; c < 16; ++c) {
+      const int16_t *const in = &input[2 * r * stride + c];
+      const int32_t avg = ROUND_POWER_OF_TWO_SIGNED(in[0] + in[stride], 1);
+      input_32[r * 16 + c] = round_shift((int64_t)avg * NewSqrt2, NewSqrt2Bits);
+    }
+  }
+
+  // Initialize output to all-zero.
+  memset(output, 0, 16 * 64 * sizeof(*output));
+
+  // Perform 16x32 transform and output to the top-left quadrant.
+  av1_fwd_txfm2d_16x32(input_32, output, 16, tx_type,
+#if CONFIG_MODE_DEP_TX
+                       mode,
+#endif  //  CONFIG_MODE_DEP_TX
+                       bd);
+}
+
+void av1_fwd_txfm2d_64x16_c(const int16_t *input, int32_t *output, int stride,
+                            TX_TYPE tx_type,
+#if CONFIG_MODE_DEP_TX
+                            PREDICTION_MODE mode,
+#endif  // CONFIG_MODE_DEP_TX
+                            int bd) {
+  // Downsample to 32x16
+  DECLARE_ALIGNED(16, int16_t, input_32[32 * 16]);
+  for (int r = 0; r < 16; ++r) {
+    for (int c = 0; c < 32; ++c) {
+      const int16_t *const in = &input[r * stride + 2 * c];
+      const int32_t avg = ROUND_POWER_OF_TWO_SIGNED(in[0] + in[1], 1);
+      input_32[r * 32 + c] = round_shift((int64_t)avg * NewSqrt2, NewSqrt2Bits);
+    }
+  }
+
+  // Initialize output to all-zero.
+  memset(output, 0, 64 * 16 * sizeof(*output));
+
+  // Perform 32x16 transform and output to the top-left quadrant.
+  av1_fwd_txfm2d_32x16(input_32, output, 32, tx_type,
+#if CONFIG_MODE_DEP_TX
+                       mode,
+#endif  //  CONFIG_MODE_DEP_TX
+                       bd);
+}
+
 #else
 void av1_fwd_txfm2d_64x64_c(const int16_t *input, int32_t *output, int stride,
                             TX_TYPE tx_type,
@@ -464,9 +575,6 @@ void av1_fwd_txfm2d_64x64_c(const int16_t *input, int32_t *output, int stride,
     memcpy(output + row * 32, output + row * 64, 32 * sizeof(*output));
   }
 }
-#endif  // CONFIG_NEW_TX64X64
-
-// TODO(urvang): Convert rest of the 2D transforms with a 64 side.
 
 void av1_fwd_txfm2d_32x64_c(const int16_t *input, int32_t *output, int stride,
                             TX_TYPE tx_type,
@@ -554,6 +662,8 @@ void av1_fwd_txfm2d_64x16_c(const int16_t *input, int32_t *output, int stride,
     memcpy(output + row * 32, output + row * 64, 32 * sizeof(*output));
   }
 }
+
+#endif  // CONFIG_NEW_TX64X64
 
 #if CONFIG_FLEX_PARTITION
 void av1_fwd_txfm2d_4x32_c(const int16_t *input, int32_t *output, int stride,

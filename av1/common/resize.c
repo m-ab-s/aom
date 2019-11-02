@@ -599,7 +599,7 @@ static void resize_multistep(const uint8_t *const input, int length,
 
 static void upscale_multistep_double_prec(const double *const input, int length,
                                           double *output, int olength) {
-  assert(length < olength);
+  assert(length <= olength);
   interpolate_double_prec(input, length, output, olength);
 }
 
