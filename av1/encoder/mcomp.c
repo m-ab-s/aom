@@ -220,10 +220,10 @@ static int mv_base_err_cost(
     const MV diff = { mv->row - ref->row, mv->col - ref->col };
 #endif  // CONFIG_FLEX_MVRES
     const int cost = mv_cost(&diff, mvjcost, mvcost[max_precision]);
-    return (int)ROUND_POWER_OF_TWO_64(
-        (int64_t)cost * error_per_bit * MV_COST_WEIGHT,
-        RDDIV_BITS + AV1_PROB_COST_SHIFT - RD_EPB_SHIFT + 7 +
-            PIXEL_TRANSFORM_ERROR_SCALE);
+    return (int)ROUND_POWER_OF_TWO_64((int64_t)cost * error_per_bit,
+                                      RDDIV_BITS + AV1_PROB_COST_SHIFT -
+                                          RD_EPB_SHIFT +
+                                          PIXEL_TRANSFORM_ERROR_SCALE);
   }
   return 0;
 }
@@ -258,10 +258,10 @@ static int mv_flex_err_cost(
 #endif  // DISALLOW_ONE_DOWN_FLEX_MVRES
       cost += flex_mv_costs[max_precision - MV_SUBPEL_QTR_PRECISION][down];
     }
-    return (int)ROUND_POWER_OF_TWO_64(
-        (int64_t)cost * error_per_bit * MV_COST_WEIGHT,
-        RDDIV_BITS + AV1_PROB_COST_SHIFT - RD_EPB_SHIFT + 7 +
-            PIXEL_TRANSFORM_ERROR_SCALE);
+    return (int)ROUND_POWER_OF_TWO_64((int64_t)cost * error_per_bit,
+                                      RDDIV_BITS + AV1_PROB_COST_SHIFT -
+                                          RD_EPB_SHIFT +
+                                          PIXEL_TRANSFORM_ERROR_SCALE);
   }
   return 0;
 }
