@@ -1571,9 +1571,8 @@ int av1_temporal_filter(AV1_COMP *cpi, int distance,
                        &sigma, &frames_to_blur_backward,
                        &frames_to_blur_forward);
     start_frame = distance + frames_to_blur_forward;
+    cpi->common.showable_frame = (strength == 0 && frames_to_blur == 1);
   }
-
-  cpi->common.showable_frame = (strength == 0 && frames_to_blur == 1);
 
   // Setup frame pointers, NULL indicates frame not included in filter.
   for (frame = 0; frame < frames_to_blur; ++frame) {
