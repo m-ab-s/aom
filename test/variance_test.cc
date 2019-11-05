@@ -2119,7 +2119,6 @@ INSTANTIATE_TEST_CASE_P(AVX2, AvxHBDVarianceTest,
 #endif  // HAVE_AVX2
 
 const SubpelVarianceParams kArrayHBDSubpelVariance_sse2[] = {
-#if !CONFIG_3WAY_PARTITIONS
   SubpelVarianceParams(7, 7, &aom_highbd_12_sub_pixel_variance128x128_sse2, 12),
   SubpelVarianceParams(7, 6, &aom_highbd_12_sub_pixel_variance128x64_sse2, 12),
   SubpelVarianceParams(6, 7, &aom_highbd_12_sub_pixel_variance64x128_sse2, 12),
@@ -2131,6 +2130,7 @@ const SubpelVarianceParams kArrayHBDSubpelVariance_sse2[] = {
   SubpelVarianceParams(4, 5, &aom_highbd_12_sub_pixel_variance16x32_sse2, 12),
   SubpelVarianceParams(4, 4, &aom_highbd_12_sub_pixel_variance16x16_sse2, 12),
   SubpelVarianceParams(4, 3, &aom_highbd_12_sub_pixel_variance16x8_sse2, 12),
+#if !CONFIG_3WAY_PARTITIONS
   SubpelVarianceParams(3, 4, &aom_highbd_12_sub_pixel_variance8x16_sse2, 12),
 #endif  // !CONFIG_3WAY_PARTITIONS
   SubpelVarianceParams(3, 3, &aom_highbd_12_sub_pixel_variance8x8_sse2, 12),
