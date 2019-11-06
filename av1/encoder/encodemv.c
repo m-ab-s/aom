@@ -13,16 +13,13 @@
 
 #include "av1/common/common.h"
 #include "av1/common/entropymode.h"
+#include "av1/common/entropymv.h"
 
 #include "av1/encoder/cost.h"
 #include "av1/encoder/encodemv.h"
 
 #include "aom_dsp/aom_dsp_common.h"
 #include "aom_ports/bitops.h"
-
-static INLINE int mv_class_base(MV_CLASS_TYPE c) {
-  return c ? CLASS0_SIZE << (c + 2) : 0;
-}
 
 // If n != 0, returns the floor of log base 2 of n. If n == 0, returns 0.
 static INLINE uint8_t log_in_base_2(unsigned int n) {
@@ -38,8 +35,9 @@ static INLINE MV_CLASS_TYPE get_mv_class(int z, int *offset) {
   return c;
 }
 
-static void update_mv_component_stats(int comp, nmv_component *mvcomp,
+static void update_mv_component_stats(int comp, int ref, nmv_component *mvcomp,
                                       MvSubpelPrecision precision) {
+  (void)ref;
   assert(comp != 0);
   int offset;
   const int sign = comp < 0;
@@ -63,6 +61,9 @@ static void update_mv_component_stats(int comp, nmv_component *mvcomp,
     for (int i = 0; i < n; ++i)
       update_cdf(mvcomp->bits_cdf[i], (d >> i) & 1, 2);
   }
+#if CONFIG_COMPANDED_MV
+  precision = AOMMIN(get_companded_mv_precision(comp, ref), precision);
+#endif  // CONFIG_COMPANDED_MV
   // Fractional bits
   if (precision > MV_SUBPEL_NONE) {
 #if CONFIG_FLEX_MVRES
@@ -91,26 +92,26 @@ static void update_mv_component_stats(int comp, nmv_component *mvcomp,
 
 void av1_update_mv_stats(const MV *mv, const MV *ref, nmv_context *mvctx,
                          MvSubpelPrecision precision) {
-#if CONFIG_FLEX_MVRES
   MV ref_ = *ref;
+#if CONFIG_FLEX_MVRES
   lower_mv_precision(&ref_, precision);
-  const MV diff = { mv->row - ref_.row, mv->col - ref_.col };
-#else
-  const MV diff = { mv->row - ref->row, mv->col - ref->col };
 #endif  // CONFIG_FLEX_MVRES
+  const MV diff = { mv->row - ref_.row, mv->col - ref_.col };
   const MV_JOINT_TYPE j = av1_get_mv_joint(&diff);
 
   update_cdf(mvctx->joints_cdf, j, MV_JOINTS);
 
   if (mv_joint_vertical(j))
-    update_mv_component_stats(diff.row, &mvctx->comps[0], precision);
+    update_mv_component_stats(diff.row, ref_.row, &mvctx->comps[0], precision);
 
   if (mv_joint_horizontal(j))
-    update_mv_component_stats(diff.col, &mvctx->comps[1], precision);
+    update_mv_component_stats(diff.col, ref_.col, &mvctx->comps[1], precision);
 }
 
-static void encode_mv_component(aom_writer *w, int comp, nmv_component *mvcomp,
+static void encode_mv_component(aom_writer *w, int comp, int ref,
+                                nmv_component *mvcomp,
                                 MvSubpelPrecision precision) {
+  (void)ref;
   assert(comp != 0);
   int offset;
   const int sign = comp < 0;
@@ -135,6 +136,9 @@ static void encode_mv_component(aom_writer *w, int comp, nmv_component *mvcomp,
     for (i = 0; i < n; ++i)
       aom_write_symbol(w, (d >> i) & 1, mvcomp->bits_cdf[i], 2);
   }
+#if CONFIG_COMPANDED_MV
+  precision = AOMMIN(get_companded_mv_precision(comp, ref), precision);
+#endif  // CONFIG_COMPANDED_MV
   // Fractional bits
   if (precision > MV_SUBPEL_NONE) {
 #if CONFIG_FLEX_MVRES
@@ -249,25 +253,23 @@ static void build_nmv_component_cost_table(int *mvcost,
 
 void av1_encode_mv(AV1_COMP *cpi, aom_writer *w, const MV *mv, const MV *ref,
                    nmv_context *mvctx, MvSubpelPrecision precision) {
-#if CONFIG_FLEX_MVRES
   MV ref_ = *ref;
+#if CONFIG_FLEX_MVRES
   lower_mv_precision(&ref_, precision);
-  const MV diff = { mv->row - ref_.row, mv->col - ref_.col };
   assert((diff.row & ((1 << (MV_SUBPEL_EIGHTH_PRECISION - precision)) - 1)) ==
          0);
   assert((diff.col & ((1 << (MV_SUBPEL_EIGHTH_PRECISION - precision)) - 1)) ==
          0);
-#else
-  const MV diff = { mv->row - ref->row, mv->col - ref->col };
 #endif  // CONFIG_FLEX_MVRES
+  const MV diff = { mv->row - ref_.row, mv->col - ref_.col };
   const MV_JOINT_TYPE j = av1_get_mv_joint(&diff);
 
   aom_write_symbol(w, j, mvctx->joints_cdf, MV_JOINTS);
   if (mv_joint_vertical(j))
-    encode_mv_component(w, diff.row, &mvctx->comps[0], precision);
+    encode_mv_component(w, diff.row, ref_.row, &mvctx->comps[0], precision);
 
   if (mv_joint_horizontal(j))
-    encode_mv_component(w, diff.col, &mvctx->comps[1], precision);
+    encode_mv_component(w, diff.col, ref_.col, &mvctx->comps[1], precision);
 
   // If auto_mv_step_size is enabled then keep track of the largest
   // motion vector component used.
@@ -289,10 +291,12 @@ void av1_encode_dv(aom_writer *w, const MV *mv, const MV *ref,
 
   aom_write_symbol(w, j, mvctx->joints_cdf, MV_JOINTS);
   if (mv_joint_vertical(j))
-    encode_mv_component(w, diff.row, &mvctx->comps[0], MV_SUBPEL_NONE);
+    encode_mv_component(w, diff.row, ref->row, &mvctx->comps[0],
+                        MV_SUBPEL_NONE);
 
   if (mv_joint_horizontal(j))
-    encode_mv_component(w, diff.col, &mvctx->comps[1], MV_SUBPEL_NONE);
+    encode_mv_component(w, diff.col, ref->col, &mvctx->comps[1],
+                        MV_SUBPEL_NONE);
 }
 
 void av1_build_nmv_cost_table(int *mvjoint, int *mvcost[2],

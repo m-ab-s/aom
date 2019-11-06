@@ -59,6 +59,11 @@ enum {
 #define DISALLOW_ONE_DOWN_FLEX_MVRES 0
 #endif  // CONFIG_FLEX_MVRES
 
+#if CONFIG_COMPANDED_MV
+#define COMPANDED_INTMV_THRESH_QTR 96
+#define COMPANDED_INTMV_THRESH_HALF 256
+#endif  // CONFIG_COMPANDED_MV
+
 // Bits of precision used for the model
 #define WARPEDMODEL_PREC_BITS 16
 #define WARPEDMODEL_ROW3HOMO_PREC_BITS 16
@@ -312,6 +317,32 @@ static INLINE void clamp_mv(MV *mv, int min_col, int max_col, int min_row,
   mv->col = clamp(mv->col, min_col, max_col);
   mv->row = clamp(mv->row, min_row, max_row);
 }
+
+static INLINE MvSubpelPrecision get_mv_component_precision(int comp) {
+  if (comp & 1)
+    return MV_SUBPEL_EIGHTH_PRECISION;
+  else if (comp & 3)
+    return MV_SUBPEL_QTR_PRECISION;
+#if CONFIG_FLEX_MVRES
+  else if (comp & 7)
+    return MV_SUBPEL_HALF_PRECISION;
+#endif  // CONFIG_FLEX_MVRES
+  else
+    return MV_SUBPEL_NONE;
+}
+
+#if CONFIG_COMPANDED_MV
+static INLINE MvSubpelPrecision get_companded_mv_precision(int comp, int ref) {
+  const int sign = comp < 0;
+  const int comp1 = sign ? comp + 1 : comp - 1;
+  const int mv_mag = abs((comp1 / 8) + (ref / 8));
+#if CONFIG_FLEX_MVRES
+  if (mv_mag > COMPANDED_INTMV_THRESH_HALF) return MV_SUBPEL_HALF_PRECISION;
+#endif  // CONFIG_FLEX_MVRES
+  if (mv_mag > COMPANDED_INTMV_THRESH_QTR) return MV_SUBPEL_QTR_PRECISION;
+  return MV_SUBPEL_EIGHTH_PRECISION;
+}
+#endif  // CONFIG_COMPANDED_MV
 
 #if CONFIG_FLEX_MVRES
 static INLINE MvSubpelPrecision

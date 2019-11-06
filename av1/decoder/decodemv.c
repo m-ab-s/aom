@@ -926,25 +926,30 @@ static void read_intra_frame_mode_info(AV1_COMMON *const cm,
 #endif
 }
 
-static int read_mv_component(aom_reader *r, nmv_component *mvcomp,
+static int read_mv_component(aom_reader *r, int ref, nmv_component *mvcomp,
                              MvSubpelPrecision precision) {
+  (void)ref;
   int mag, d, fr, hp;
   const int sign = aom_read_symbol(r, mvcomp->sign_cdf, 2, ACCT_STR);
   const int mv_class =
       aom_read_symbol(r, mvcomp->classes_cdf, MV_CLASSES, ACCT_STR);
   const int class0 = mv_class == MV_CLASS_0;
 
+  mag = mv_class_base(mv_class);
   // Integer part
   if (class0) {
     d = aom_read_symbol(r, mvcomp->class0_cdf, CLASS0_SIZE, ACCT_STR);
-    mag = 0;
   } else {
     const int n = mv_class + CLASS0_BITS - 1;  // number of bits
     d = 0;
     for (int i = 0; i < n; ++i)
       d |= aom_read_symbol(r, mvcomp->bits_cdf[i], 2, ACCT_STR) << i;
-    mag = CLASS0_SIZE << (mv_class + 2);
   }
+  mag += (d << 3) + 1;
+#if CONFIG_COMPANDED_MV
+  precision =
+      AOMMIN(get_companded_mv_precision(sign ? -mag : mag, ref), precision);
+#endif  // CONFIG_COMPANDED_MV
 
   if (precision > MV_SUBPEL_NONE) {
     // Fractional part
@@ -976,7 +981,7 @@ static int read_mv_component(aom_reader *r, nmv_component *mvcomp,
   }
 
   // Result
-  mag += ((d << 3) | (fr << 1) | hp) + 1;
+  mag += ((fr << 1) | hp);
   return sign ? -mag : mag;
 }
 
@@ -987,10 +992,10 @@ static INLINE void read_mv(aom_reader *r, MV *mv, const MV *ref,
       (MV_JOINT_TYPE)aom_read_symbol(r, ctx->joints_cdf, MV_JOINTS, ACCT_STR);
 
   if (mv_joint_vertical(joint_type))
-    diff.row = read_mv_component(r, &ctx->comps[0], precision);
+    diff.row = read_mv_component(r, ref->row, &ctx->comps[0], precision);
 
   if (mv_joint_horizontal(joint_type))
-    diff.col = read_mv_component(r, &ctx->comps[1], precision);
+    diff.col = read_mv_component(r, ref->col, &ctx->comps[1], precision);
 
 #if CONFIG_FLEX_MVRES
   MV ref_ = *ref;

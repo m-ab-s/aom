@@ -96,6 +96,10 @@ typedef struct {
   nmv_component comps[2];
 } nmv_context;
 
+static INLINE int mv_class_base(MV_CLASS_TYPE c) {
+  return c ? CLASS0_SIZE << (c + 2) : 0;
+}
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif

@@ -8621,6 +8621,43 @@ static INLINE void clamp_mv_in_range(MACROBLOCK *const x, int_mv *mv,
   clamp_mv(&mv->as_mv, minc, maxc, minr, maxr);
 }
 
+#if CONFIG_COMPANDED_MV
+#ifndef NDEBUG
+static int check_mv_companding(const MV *mv, const MV *ref) {
+  MV ref_ = *ref;
+#if CONFIG_FLEX_MVRES
+  lower_mv_precision(&ref_, precision);
+#endif  // CONFIG_FLEX_MVRES
+  const MV diff = { mv->row - ref_.row, mv->col - ref_.col };
+  if (get_companded_mv_precision(diff.row, ref_.row) <
+      get_mv_component_precision(diff.row))
+    return 0;
+  if (get_companded_mv_precision(diff.col, ref_.col) <
+      get_mv_component_precision(diff.col))
+    return 0;
+  return 1;
+}
+
+static int check_mbmi_mv_companding(const MACROBLOCK *x,
+                                    const MB_MODE_INFO *const mbmi) {
+  const int is_comp_pred = mbmi->ref_frame[1] > INTRA_FRAME;
+  if (have_newmv_in_inter_mode(mbmi->mode)) {
+    if (mbmi->mode == NEWMV || mbmi->mode == NEW_NEWMV) {
+      for (int ref = 0; ref < 1 + is_comp_pred; ++ref) {
+        const int_mv ref_mv = av1_get_ref_mv(x, ref);
+        if (!check_mv_companding(&mbmi->mv[ref].as_mv, &ref_mv.as_mv)) return 0;
+      }
+    } else {
+      const int ref = (mbmi->mode == NEAREST_NEWMV || mbmi->mode == NEAR_NEWMV);
+      const int_mv ref_mv = av1_get_ref_mv(x, ref);
+      if (!check_mv_companding(&mbmi->mv[ref].as_mv, &ref_mv.as_mv)) return 0;
+    }
+  }
+  return 1;
+}
+#endif  // NDEBUG
+#endif  // CONFIG_COMPANDED_MV
+
 #if CONFIG_FLEX_MVRES
 #ifndef NDEBUG
 static int check_mv_precision(const MB_MODE_INFO *const mbmi) {
@@ -13879,6 +13916,10 @@ void av1_rd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
 
   // macroblock modes
   *mbmi = search_state.best_mbmode;
+
+#if CONFIG_COMPANDED_MV
+  assert(check_mbmi_mv_companding(x, mbmi));
+#endif  // CONFIG_COMPANDED_MV
 #if CONFIG_FLEX_MVRES
   if (is_flex_mv_precision_active(cm, mbmi->mode, mbmi->max_mv_precision)) {
     mbmi->mv_precision = av1_get_mbmi_mv_precision(cm, mbmi);
