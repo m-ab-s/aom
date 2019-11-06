@@ -263,6 +263,8 @@ void av1_encode_mv(AV1_COMP *cpi, aom_writer *w, const MV *mv, const MV *ref,
 #endif  // CONFIG_FLEX_MVRES
   const MV diff = { mv->row - ref_.row, mv->col - ref_.col };
   const MV_JOINT_TYPE j = av1_get_mv_joint(&diff);
+  // If the mv_diff is zero, then we should have used near or nearest instead.
+  assert(j != MV_JOINT_ZERO);
 
   aom_write_symbol(w, j, mvctx->joints_cdf, MV_JOINTS);
   if (mv_joint_vertical(j))
