@@ -1479,6 +1479,9 @@ void av1_build_intra_predictors_for_interintra(const AV1_COMMON *cm,
 #if CONFIG_ADAPT_FILTER_INTRA
       ADAPT_FILTER_INTRA_MODES,
 #endif
+#if CONFIG_DERIVED_INTRA_MODE
+      0,
+#endif  // CONFIG_DERIVED_INTRA_MODE
       ctx->plane[plane], ctx->stride[plane], dst, dst_stride, 0, 0, plane);
 }
 

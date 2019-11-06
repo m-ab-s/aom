@@ -172,6 +172,9 @@ static void mode_estimation(AV1_COMP *cpi, MACROBLOCK *x, MACROBLOCKD *xd,
 #if CONFIG_ADAPT_FILTER_INTRA
                             ADAPT_FILTER_INTRA_MODES,
 #endif  // CONFIG_ADAPT_FILTER_INTRA
+#if CONFIG_DERIVED_INTRA_MODE
+                            0,
+#endif  // CONFIG_DERIVED_INTRA_MODE
                             src, src_stride, dst, dst_stride, 0, 0, 0);
 
     if (use_satd) {
@@ -793,6 +796,9 @@ static void get_tpl_forward_stats(AV1_COMP *cpi, MACROBLOCK *x, MACROBLOCKD *xd,
 #if CONFIG_ADAPT_FILTER_INTRA
             ADAPT_FILTER_INTRA_MODES,
 #endif  // CONFIG_ADAPT_FILTER_INTRA
+#if CONFIG_DERIVED_INTRA_MODE
+            0,
+#endif  // CONFIG_DERIVED_INTRA_MODE
             src_buf, src_stride, dst_buf, dst_stride, 0, 0, 0);
 
         if (use_satd) {

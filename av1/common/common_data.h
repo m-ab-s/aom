@@ -624,9 +624,32 @@ static const struct {
 };
 /* clang-format on */
 
+#if CONFIG_DERIVED_INTRA_MODE
+static const int dr_mode_to_index[INTRA_MODES] = {
+  -1, 0, 1, 2, 3, 4, 5, 6, 7, -1, -1, -1, -1,
+};
+
+static const int dr_index_to_mode[DIRECTIONAL_MODES] = {
+  V_PRED,    H_PRED,    D45_PRED,  D135_PRED,
+  D113_PRED, D157_PRED, D203_PRED, D67_PRED,
+};
+
+static const int none_dr_mode_to_index[INTRA_MODES] = {
+  0, -1, -1, -1, -1, -1, -1, -1, -1, 1, 2, 3, 4,
+};
+
+static const int none_dr_index_to_mode[NONE_DIRECTIONAL_MODES] = {
+  DC_PRED, SMOOTH_PRED, SMOOTH_V_PRED, SMOOTH_H_PRED, PAETH_PRED
+};
+
+static const int intra_mode_context[INTRA_MODES] = {
+  0, 1, 3, 1, 2, 2, 2, 3, 1, 4, 4, 4, 5,
+};
+#else
 static const int intra_mode_context[INTRA_MODES] = {
   0, 1, 2, 3, 4, 4, 4, 4, 3, 0, 1, 2, 0,
 };
+#endif  // CONFIG_DERIVED_INTRA_MODE
 
 // Note: this is also used in unit tests. So whenever one changes the table,
 // the unit tests need to be changed accordingly.

@@ -34,6 +34,9 @@ void av1_predict_intra_block(const AV1_COMMON *cm, const MACROBLOCKD *xd,
 #if CONFIG_ADAPT_FILTER_INTRA
                              ADAPT_FILTER_INTRA_MODE adapt_filter_intra_mode,
 #endif
+#if CONFIG_DERIVED_INTRA_MODE
+                             int use_derived_intra_mode,
+#endif  // CONFIG_DERIVED_INTRA_MODE
                              const uint8_t *ref, int ref_stride, uint8_t *dst,
                              int dst_stride, int col_off, int row_off,
                              int plane);
@@ -53,10 +56,6 @@ static const INTERINTRA_MODE intra_to_interintra_mode[INTRA_MODES] = {
 };
 
 #define FILTER_INTRA_SCALE_BITS 4
-
-static INLINE int av1_is_directional_mode(PREDICTION_MODE mode) {
-  return mode >= V_PRED && mode <= D67_PRED;
-}
 
 static INLINE int av1_use_angle_delta(BLOCK_SIZE bsize) {
   return bsize >= BLOCK_8X8;
@@ -140,6 +139,17 @@ static const int16_t dr_intra_derivative[90] = {
 // If angle > 90 && angle < 180, dx = (int)(256 / t);
 // If angle > 180 && angle < 270, dx = 1;
 static INLINE int av1_get_dx(int angle) {
+#if CONFIG_DERIVED_INTRA_MODE
+  if ((angle > 0 && angle < 90) || (angle > 90 && angle < 180)) {
+    if (angle > 90) angle = 180 - angle;
+    int dx = dr_intra_derivative[angle];
+    if (!dx) dx = (int)round(64 / tan(angle * PI / 180));
+    return dx;
+  } else {
+    return 1;
+  }
+#endif  // CONFIG_DERIVED_INTRA_MODE
+
   if (angle > 0 && angle < 90) {
     return dr_intra_derivative[angle];
   } else if (angle > 90 && angle < 180) {
@@ -155,6 +165,21 @@ static INLINE int av1_get_dx(int angle) {
 // If angle > 90 && angle < 180, dy = (int)(256 * t);
 // If angle > 180 && angle < 270, dy = -((int)(256 * t));
 static INLINE int av1_get_dy(int angle) {
+#if CONFIG_DERIVED_INTRA_MODE
+  if ((angle > 90 && angle < 180) || (angle > 180 && angle < 270)) {
+    if (angle > 90 && angle < 180) {
+      angle = angle - 90;
+    } else {
+      angle = 270 - angle;
+    }
+    int dy = dr_intra_derivative[angle];
+    if (!dy) dy = (int)round(64 / tan(angle * PI / 180));
+    return dy;
+  } else {
+    return 1;
+  }
+#endif  // CONFIG_DERIVED_INTRA_MODE
+
   if (angle > 90 && angle < 180) {
     return dr_intra_derivative[angle - 90];
   } else if (angle > 180 && angle < 270) {

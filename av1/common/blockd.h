@@ -303,6 +303,10 @@ typedef struct MB_MODE_INFO {
   uint64_t y_gradient_hist[8];
   int64_t y_recon_var;  // Variance of reconstructed Y values.
 #endif                  // CONFIG_INTRA_ENTROPY && !CONFIG_USE_SMALL_MODEL
+#if CONFIG_DERIVED_INTRA_MODE
+  uint8_t use_derived_intra_mode;
+  uint8_t derived_angle;
+#endif  // CONFIG_DERIVED_INTRA_MODE
 } MB_MODE_INFO;
 
 static INLINE int is_intrabc_block(const MB_MODE_INFO *mbmi) {
@@ -1463,6 +1467,12 @@ void av1_get_kf_y_mode_cdf_ml(const MACROBLOCKD *xd, aom_cdf_prob *cdf);
 void av1_get_uv_mode_cdf_ml(const MACROBLOCKD *xd, PREDICTION_MODE y_mode,
                             aom_cdf_prob *cdf);
 #endif  // CONFIG_INTRA_ENTROPY
+
+#if CONFIG_DERIVED_INTRA_MODE
+int av1_enable_derived_intra_mode(const MACROBLOCKD *xd, int bsize);
+int av1_get_derived_intra_mode(const MACROBLOCKD *xd, int bsize,
+                               uint8_t *derived_angle);
+#endif  // CONFIG_DERIVED_INTRA_MODE
 
 #ifdef __cplusplus
 }  // extern "C"

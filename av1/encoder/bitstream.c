@@ -82,10 +82,40 @@ static void write_intra_y_mode_kf(MACROBLOCKD *const xd,
   av1_get_kf_y_mode_cdf_ml(xd, cdf);
   aom_write_symbol_nn(w, mode, cdf, &(frame_ctx->intra_y_mode), INTRA_MODES);
 #else
+#if CONFIG_DERIVED_INTRA_MODE
+  const int is_dr = av1_is_directional_mode(mode);
+  aom_write_symbol(
+      w, is_dr, get_kf_is_dr_mode_cdf(frame_ctx, xd->above_mbmi, xd->left_mbmi),
+      2);
+  if (is_dr) {
+    const MB_MODE_INFO *const mbmi = xd->mi[0];
+    if (av1_enable_derived_intra_mode(xd, mi->sb_type)) {
+      aom_write_symbol(
+          w, mi->use_derived_intra_mode,
+          get_derived_intra_mode_cdf(frame_ctx, xd->above_mbmi, xd->left_mbmi),
+          2);
+    } else {
+      assert(!mbmi->use_derived_intra_mode);
+    }
+    const int write_intra_mode = !mbmi->use_derived_intra_mode;
+    if (write_intra_mode) {
+      aom_write_symbol(
+          w, dr_mode_to_index[mode],
+          get_kf_dr_mode_cdf(frame_ctx, xd->above_mbmi, xd->left_mbmi),
+          DIRECTIONAL_MODES);
+    }
+  } else {
+    aom_write_symbol(
+        w, none_dr_mode_to_index[mode],
+        get_kf_none_dr_mode_cdf(frame_ctx, xd->above_mbmi, xd->left_mbmi),
+        NONE_DIRECTIONAL_MODES);
+  }
+#else
   const MB_MODE_INFO *const above_mi = xd->above_mbmi;
   const MB_MODE_INFO *const left_mi = xd->left_mbmi;
   aom_write_symbol(w, mode, get_y_mode_cdf(frame_ctx, above_mi, left_mi),
                    INTRA_MODES);
+#endif  // CONFIG_DERIVED_INTRA_MODE
 #endif  // CONFIG_INTRA_ENTROPY
 
   // Write data into file for training data collection
@@ -1274,7 +1304,11 @@ static void write_intra_prediction_modes(AV1_COMP *cpi, const int mi_row,
 
   // Y angle delta.
   const int use_angle_delta = av1_use_angle_delta(bsize);
-  if (use_angle_delta && av1_is_directional_mode(mode)) {
+  if (use_angle_delta &&
+#if CONFIG_DERIVED_INTRA_MODE
+      !mbmi->use_derived_intra_mode &&
+#endif  // CONFIG_DERIVED_INTRA_MODE
+      av1_is_directional_mode(mode)) {
     write_angle_delta(w, mbmi->angle_delta[PLANE_TYPE_Y],
                       ec_ctx->angle_delta_cdf[mode - V_PRED]);
   }

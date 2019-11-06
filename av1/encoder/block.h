@@ -352,8 +352,15 @@ struct macroblock {
   int motion_mode_cost[BLOCK_SIZES_ALL][MOTION_MODES];
   int motion_mode_cost1[BLOCK_SIZES_ALL][2];
 #if !CONFIG_INTRA_ENTROPY
-  int y_mode_costs[INTRA_MODES][INTRA_MODES][INTRA_MODES];
   int intra_uv_mode_cost[CFL_ALLOWED_TYPES][INTRA_MODES][UV_INTRA_MODES];
+#if CONFIG_DERIVED_INTRA_MODE
+  int kf_is_dr_mode_cost[KF_MODE_CONTEXTS][KF_MODE_CONTEXTS][2];
+  int kf_dr_mode_cost[KF_MODE_CONTEXTS][KF_MODE_CONTEXTS][DIRECTIONAL_MODES];
+  int kf_none_dr_mode_cost[KF_MODE_CONTEXTS][KF_MODE_CONTEXTS]
+                          [NONE_DIRECTIONAL_MODES];
+#else
+  int y_mode_costs[INTRA_MODES][INTRA_MODES][INTRA_MODES];
+#endif  // CONFIG_DERIVED_INTRA_MODE
 #endif  // !CONFIG_INTRA_ENTROPY
   int filter_intra_cost[BLOCK_SIZES_ALL][2];
   int filter_intra_mode_cost[FILTER_INTRA_MODES];
@@ -428,6 +435,9 @@ struct macroblock {
   int wiener_nonsep_restore_cost[2];
 #endif  // CONFIG_WIENER_NONSEP
   int intrabc_cost[2];
+#if CONFIG_DERIVED_INTRA_MODE
+  int derived_intra_mode_cost[3][2];
+#endif  // CONFIG_DERIVED_INTRA_MODE
 
   // Used to store sub partition's choices.
   MV pred_mv[REF_FRAMES];

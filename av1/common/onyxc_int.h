@@ -940,7 +940,42 @@ static INLINE void set_mi_row_col(MACROBLOCKD *xd, const TileInfo *const tile,
     if (mi_row & (xd->n4_w - 1)) xd->is_sec_rect = 1;
 }
 
+static INLINE int av1_is_directional_mode(PREDICTION_MODE mode) {
+  return mode >= V_PRED && mode <= D67_PRED;
+}
+
 #if !CONFIG_INTRA_ENTROPY
+#if CONFIG_DERIVED_INTRA_MODE
+static INLINE aom_cdf_prob *get_kf_is_dr_mode_cdf(FRAME_CONTEXT *tile_ctx,
+                                                  const MB_MODE_INFO *above_mi,
+                                                  const MB_MODE_INFO *left_mi) {
+  const PREDICTION_MODE above = av1_above_block_mode(above_mi);
+  const PREDICTION_MODE left = av1_left_block_mode(left_mi);
+  const int above_ctx = intra_mode_context[above];
+  const int left_ctx = intra_mode_context[left];
+  return tile_ctx->kf_is_dr_mode_cdf[above_ctx][left_ctx];
+}
+
+static INLINE aom_cdf_prob *get_kf_dr_mode_cdf(FRAME_CONTEXT *tile_ctx,
+                                               const MB_MODE_INFO *above_mi,
+                                               const MB_MODE_INFO *left_mi) {
+  const PREDICTION_MODE above = av1_above_block_mode(above_mi);
+  const PREDICTION_MODE left = av1_left_block_mode(left_mi);
+  const int above_ctx = intra_mode_context[above];
+  const int left_ctx = intra_mode_context[left];
+  return tile_ctx->kf_dr_mode_cdf[above_ctx][left_ctx];
+}
+
+static INLINE aom_cdf_prob *get_kf_none_dr_mode_cdf(
+    FRAME_CONTEXT *tile_ctx, const MB_MODE_INFO *above_mi,
+    const MB_MODE_INFO *left_mi) {
+  const PREDICTION_MODE above = av1_above_block_mode(above_mi);
+  const PREDICTION_MODE left = av1_left_block_mode(left_mi);
+  const int above_ctx = intra_mode_context[above];
+  const int left_ctx = intra_mode_context[left];
+  return tile_ctx->kf_none_dr_mode_cdf[above_ctx][left_ctx];
+}
+#else
 static INLINE aom_cdf_prob *get_y_mode_cdf(FRAME_CONTEXT *tile_ctx,
                                            const MB_MODE_INFO *above_mi,
                                            const MB_MODE_INFO *left_mi) {
@@ -950,7 +985,18 @@ static INLINE aom_cdf_prob *get_y_mode_cdf(FRAME_CONTEXT *tile_ctx,
   const int left_ctx = intra_mode_context[left];
   return tile_ctx->kf_y_cdf[above_ctx][left_ctx];
 }
+#endif  // CONFIG_DERIVED_INTRA_MODE
 #endif  // !CONFIG_INTRA_ENTROPY
+
+#if CONFIG_DERIVED_INTRA_MODE
+static INLINE aom_cdf_prob *get_derived_intra_mode_cdf(
+    FRAME_CONTEXT *tile_ctx, const MB_MODE_INFO *above_mi,
+    const MB_MODE_INFO *left_mi) {
+  const int above = above_mi && above_mi->use_derived_intra_mode;
+  const int left = left_mi && left_mi->use_derived_intra_mode;
+  return tile_ctx->derived_intra_mode_cdf[above + left];
+}
+#endif  // CONFIG_DERIVED_INTRA_MODE
 
 static INLINE void update_partition_context(MACROBLOCKD *xd, int mi_row,
                                             int mi_col, BLOCK_SIZE subsize,

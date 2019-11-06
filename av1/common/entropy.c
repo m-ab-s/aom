@@ -181,10 +181,16 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
   }
   RESET_CDF_COUNTER(fc->switchable_interp_cdf, SWITCHABLE_FILTERS);
 #if !CONFIG_INTRA_ENTROPY
-  RESET_CDF_COUNTER(fc->kf_y_cdf, INTRA_MODES);
   RESET_CDF_COUNTER_STRIDE(fc->uv_mode_cdf[0], UV_INTRA_MODES - 1,
                            CDF_SIZE(UV_INTRA_MODES));
   RESET_CDF_COUNTER(fc->uv_mode_cdf[1], UV_INTRA_MODES);
+#if CONFIG_DERIVED_INTRA_MODE
+  RESET_CDF_COUNTER(fc->kf_is_dr_mode_cdf, 2);
+  RESET_CDF_COUNTER(fc->kf_dr_mode_cdf, DIRECTIONAL_MODES);
+  RESET_CDF_COUNTER(fc->kf_none_dr_mode_cdf, INTRA_MODES - DIRECTIONAL_MODES);
+#else
+  RESET_CDF_COUNTER(fc->kf_y_cdf, INTRA_MODES);
+#endif  // CONFIG_DERIVED_INTRA_MODE
 #endif  // CONFIG_INTRA_ENTROPY
 #if CONFIG_FLEX_MVRES
   for (int p = MV_SUBPEL_QTR_PRECISION; p < MV_SUBPEL_PRECISIONS; ++p) {

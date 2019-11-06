@@ -114,18 +114,41 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, MACROBLOCK *x,
   }
 
 #if !CONFIG_INTRA_ENTROPY
-  for (i = 0; i < KF_MODE_CONTEXTS; ++i) {
-    for (j = 0; j < KF_MODE_CONTEXTS; ++j) {
-      av1_cost_tokens_from_cdf(x->y_mode_costs[i][j], fc->kf_y_cdf[i][j], NULL);
-    }
-  }
-
   for (i = 0; i < CFL_ALLOWED_TYPES; ++i) {
     for (j = 0; j < INTRA_MODES; ++j) {
       av1_cost_tokens_from_cdf(x->intra_uv_mode_cost[i][j],
                                fc->uv_mode_cdf[i][j], NULL);
     }
   }
+
+#if CONFIG_DERIVED_INTRA_MODE
+  for (i = 0; i < KF_MODE_CONTEXTS; ++i) {
+    for (j = 0; j < KF_MODE_CONTEXTS; ++j) {
+      av1_cost_tokens_from_cdf(x->kf_is_dr_mode_cost[i][j],
+                               fc->kf_is_dr_mode_cdf[i][j], NULL);
+    }
+  }
+
+  for (i = 0; i < KF_MODE_CONTEXTS; ++i) {
+    for (j = 0; j < KF_MODE_CONTEXTS; ++j) {
+      av1_cost_tokens_from_cdf(x->kf_dr_mode_cost[i][j],
+                               fc->kf_dr_mode_cdf[i][j], NULL);
+    }
+  }
+
+  for (i = 0; i < KF_MODE_CONTEXTS; ++i) {
+    for (j = 0; j < KF_MODE_CONTEXTS; ++j) {
+      av1_cost_tokens_from_cdf(x->kf_none_dr_mode_cost[i][j],
+                               fc->kf_none_dr_mode_cdf[i][j], NULL);
+    }
+  }
+#else
+  for (i = 0; i < KF_MODE_CONTEXTS; ++i) {
+    for (j = 0; j < KF_MODE_CONTEXTS; ++j) {
+      av1_cost_tokens_from_cdf(x->y_mode_costs[i][j], fc->kf_y_cdf[i][j], NULL);
+    }
+  }
+#endif  // CONFIG_DERIVED_INTRA_MODE
 #endif  // !CONFIG_INTRA_ENTROPY
 
   for (i = 0; i < BLOCK_SIZE_GROUPS; ++i) {
@@ -303,6 +326,12 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, MACROBLOCK *x,
                            fc->wiener_nonsep_restore_cdf, NULL);
 #endif  // CONFIG_WIENER_NONSEP
   av1_cost_tokens_from_cdf(x->intrabc_cost, fc->intrabc_cdf, NULL);
+#if CONFIG_DERIVED_INTRA_MODE
+  for (i = 0; i < 3; ++i) {
+    av1_cost_tokens_from_cdf(x->derived_intra_mode_cost[i],
+                             fc->derived_intra_mode_cdf[i], NULL);
+  }
+#endif  // CONFIG_DERIVED_INTRA_MODE
 
   if (!frame_is_intra_only(cm)) {
     for (i = 0; i < COMP_INTER_CONTEXTS; ++i) {

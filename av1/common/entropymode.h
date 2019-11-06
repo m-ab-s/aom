@@ -61,7 +61,12 @@ extern "C" {
 // 4096(BLOCK_64X64)                        -> 6
 #define PALATTE_BSIZE_CTXS 7
 
+#if CONFIG_DERIVED_INTRA_MODE
+#define KF_MODE_CONTEXTS 6
+#define KF_IS_DR_MODE_CONTEXTS 3
+#else
 #define KF_MODE_CONTEXTS 5
+#endif
 
 struct AV1Common;
 
@@ -226,12 +231,21 @@ typedef struct frame_contexts {
   NN_CONFIG_EM intra_y_mode;
   NN_CONFIG_EM intra_uv_mode;
 #else
+#if CONFIG_DERIVED_INTRA_MODE
+  aom_cdf_prob kf_is_dr_mode_cdf[KF_MODE_CONTEXTS][KF_MODE_CONTEXTS]
+                                [CDF_SIZE(2)];
+  aom_cdf_prob kf_dr_mode_cdf[KF_MODE_CONTEXTS][KF_MODE_CONTEXTS]
+                             [CDF_SIZE(DIRECTIONAL_MODES)];
+  aom_cdf_prob kf_none_dr_mode_cdf[KF_MODE_CONTEXTS][KF_MODE_CONTEXTS]
+                                  [CDF_SIZE(NONE_DIRECTIONAL_MODES)];
+#else
   /* kf_y_cdf is discarded after use, so does not require persistent storage.
        However, we keep it with the other CDFs in this struct since it needs to
        be copied to each tile to support parallelism just like the others.
    */
   aom_cdf_prob kf_y_cdf[KF_MODE_CONTEXTS][KF_MODE_CONTEXTS]
                        [CDF_SIZE(INTRA_MODES)];
+#endif  // CONFIG_DERIVED_INTRA_MODE
   aom_cdf_prob uv_mode_cdf[CFL_ALLOWED_TYPES][INTRA_MODES]
                           [CDF_SIZE(UV_INTRA_MODES)];
 #endif  // CONFIG_INTRA_ENTROPY
@@ -289,6 +303,9 @@ typedef struct frame_contexts {
 #endif  // CONFIG_MODE_DEP_TX
   aom_cdf_prob cfl_sign_cdf[CDF_SIZE(CFL_JOINT_SIGNS)];
   aom_cdf_prob cfl_alpha_cdf[CFL_ALPHA_CONTEXTS][CDF_SIZE(CFL_ALPHABET_SIZE)];
+#if CONFIG_DERIVED_INTRA_MODE
+  aom_cdf_prob derived_intra_mode_cdf[3][CDF_SIZE(2)];
+#endif  // CONFIG_DERIVED_INTRA_MODE
   int initialized;
 } FRAME_CONTEXT;
 

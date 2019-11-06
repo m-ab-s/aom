@@ -729,6 +729,10 @@ static void pick_sb_modes(AV1_COMP *const cpi, TileDataEnc *tile_data,
   set_error_per_bit(x, x->rdmult);
   av1_rd_cost_update(x->rdmult, &best_rd);
 
+#if CONFIG_DERIVED_INTRA_MODE
+  mbmi->use_derived_intra_mode = 0;
+#endif  // CONFIG_DERIVED_INTRA_MODE
+
   // Find best coding mode & reconstruct the MB so it is available
   // as a predictor for MBs that follow in the SB
   if (frame_is_intra_only(cm)) {
@@ -923,15 +927,40 @@ static void sum_intra_stats(const AV1_COMMON *const cm, FRAME_COUNTS *counts,
       av1_nn_backprop_em(nn_model, y_mode);
       av1_nn_update_em(nn_model, nn_model->lr);
 #else
+#if CONFIG_DERIVED_INTRA_MODE
+      const int is_dr_mode = av1_is_directional_mode(y_mode);
+      update_cdf(get_kf_is_dr_mode_cdf(fc, above_mi, left_mi), is_dr_mode, 2);
+      if (is_dr_mode) {
+        int update_intra_mode;
+        if (av1_enable_derived_intra_mode(xd, bsize)) {
+          update_intra_mode = !mbmi->use_derived_intra_mode;
+          if (allow_update_cdf) {
+            update_cdf(get_derived_intra_mode_cdf(fc, above_mi, left_mi),
+                       mbmi->use_derived_intra_mode, 2);
+          }
+        } else {
+          update_intra_mode = 1;
+        }
+        if (update_intra_mode) {
+          update_cdf(get_kf_dr_mode_cdf(fc, above_mi, left_mi),
+                     dr_mode_to_index[y_mode], DIRECTIONAL_MODES);
+        }
+      } else {
+        update_cdf(get_kf_none_dr_mode_cdf(fc, above_mi, left_mi),
+                   none_dr_mode_to_index[y_mode], NONE_DIRECTIONAL_MODES);
+      }
+#else
       update_cdf(get_y_mode_cdf(fc, above_mi, left_mi), y_mode, INTRA_MODES);
+#endif  // CONFIG_DERIVED_INTRA_MODE
 #endif  // CONFIG_INTRA_ENTROPY
     }
   } else {
 #if CONFIG_ENTROPY_STATS
     ++counts->y_mode[size_group_lookup[bsize]][y_mode];
 #endif  // CONFIG_ENTROPY_STATS
-    if (allow_update_cdf)
+    if (allow_update_cdf) {
       update_cdf(fc->y_mode_cdf[size_group_lookup[bsize]], y_mode, INTRA_MODES);
+    }
   }
 
   if (av1_filter_intra_allowed(cm, mbmi)) {
@@ -982,9 +1011,14 @@ static void sum_intra_stats(const AV1_COMMON *const cm, FRAME_COUNTS *counts,
                          [mbmi->angle_delta[PLANE_TYPE_Y] + MAX_ANGLE_DELTA];
 #endif
     if (allow_update_cdf) {
-      update_cdf(fc->angle_delta_cdf[mbmi->mode - V_PRED],
-                 mbmi->angle_delta[PLANE_TYPE_Y] + MAX_ANGLE_DELTA,
-                 2 * MAX_ANGLE_DELTA + 1);
+#if CONFIG_DERIVED_INTRA_MODE
+      if (!mbmi->use_derived_intra_mode)
+#endif  // CONFIG_DERIVED_INTRA_MODE
+      {
+        update_cdf(fc->angle_delta_cdf[mbmi->mode - V_PRED],
+                   mbmi->angle_delta[PLANE_TYPE_Y] + MAX_ANGLE_DELTA,
+                   2 * MAX_ANGLE_DELTA + 1);
+      }
     }
   }
 
@@ -4665,6 +4699,10 @@ static void avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
   avg_nmv(&ctx_left->nmvc, &ctx_tr->nmvc, wt_left, wt_tr);
   avg_nmv(&ctx_left->ndvc, &ctx_tr->ndvc, wt_left, wt_tr);
   AVERAGE_CDF(ctx_left->intrabc_cdf, ctx_tr->intrabc_cdf, 2);
+#if CONFIG_DERIVED_INTRA_MODE
+  AVERAGE_CDF(ctx_left->derived_intra_mode_cdf, ctx_tr->derived_intra_mode_cdf,
+              2);
+#endif  // CONFIG_DERIVED_INTRA_MODE
   AVERAGE_CDF(ctx_left->seg.tree_cdf, ctx_tr->seg.tree_cdf, MAX_SEGMENTS);
   AVERAGE_CDF(ctx_left->seg.pred_cdf, ctx_tr->seg.pred_cdf, 2);
   AVERAGE_CDF(ctx_left->seg.spatial_pred_seg_cdf,
@@ -4682,10 +4720,18 @@ static void avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
 #endif  // CONFIG_WIENER_NONSEP
   AVERAGE_CDF(ctx_left->y_mode_cdf, ctx_tr->y_mode_cdf, INTRA_MODES);
 #if !CONFIG_INTRA_ENTROPY
-  AVERAGE_CDF(ctx_left->kf_y_cdf, ctx_tr->kf_y_cdf, INTRA_MODES);
   AVG_CDF_STRIDE(ctx_left->uv_mode_cdf[0], ctx_tr->uv_mode_cdf[0],
                  UV_INTRA_MODES - 1, CDF_SIZE(UV_INTRA_MODES));
   AVERAGE_CDF(ctx_left->uv_mode_cdf[1], ctx_tr->uv_mode_cdf[1], UV_INTRA_MODES);
+#if CONFIG_DERIVED_INTRA_MODE
+  AVERAGE_CDF(ctx_left->kf_is_dr_mode_cdf, ctx_tr->kf_is_dr_mode_cdf, 2);
+  AVERAGE_CDF(ctx_left->kf_dr_mode_cdf, ctx_tr->kf_dr_mode_cdf,
+              DIRECTIONAL_MODES);
+  AVERAGE_CDF(ctx_left->kf_none_dr_mode_cdf, ctx_tr->kf_none_dr_mode_cdf,
+              NONE_DIRECTIONAL_MODES);
+#else
+  AVERAGE_CDF(ctx_left->kf_y_cdf, ctx_tr->kf_y_cdf, INTRA_MODES);
+#endif  // CONFIG_DERIVED_INTRA_MODE
 #endif  // !CONFIG_INTRA_ENTROPY
   for (int i = 0; i < PARTITION_CONTEXTS; i++) {
     if (i < 4) {
@@ -6248,6 +6294,17 @@ static void encode_superblock(const AV1_COMP *const cpi, TileDataEnc *tile_data,
   const int is_inter = is_inter_block(mbmi);
 
   if (!is_inter) {
+#if CONFIG_DERIVED_INTRA_MODE
+    if (mbmi->use_derived_intra_mode) {
+      uint8_t derived_angle;
+      const int derived_mode =
+          av1_get_derived_intra_mode(xd, bsize, &derived_angle);
+      assert(mbmi->mode == derived_mode &&
+             mbmi->derived_angle == derived_angle);
+      (void)derived_angle;
+      (void)derived_mode;
+    }
+#endif  // CONFIG_DERIVED_INTRA_MODE
     xd->cfl.is_chroma_reference =
         is_chroma_reference(mi_row, mi_col, bsize, cm->seq_params.subsampling_x,
                             cm->seq_params.subsampling_y);

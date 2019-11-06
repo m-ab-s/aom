@@ -154,6 +154,9 @@ static int find_best_16x16_intra(AV1_COMP *cpi, PREDICTION_MODE *pbest_mode) {
 #if CONFIG_ADAPT_FILTER_INTRA
         ADAPT_FILTER_INTRA_MODES,
 #endif
+#if CONFIG_DERIVED_INTRA_MODE
+        0,
+#endif  // CONFIG_DERIVED_INTRA_MODE
         x->plane[0].src.buf, x->plane[0].src.stride, xd->plane[0].dst.buf,
         xd->plane[0].dst.stride, 0, 0, 0);
     err = aom_sad16x16(x->plane[0].src.buf, x->plane[0].src.stride,
