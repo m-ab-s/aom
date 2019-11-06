@@ -179,8 +179,7 @@ typedef struct SB_FIRST_PASS_STATS {
 
 static void encode_superblock(const AV1_COMP *const cpi, TileDataEnc *tile_data,
                               ThreadData *td, TOKENEXTRA **t, RUN_TYPE dry_run,
-                              int mi_row, int mi_col, BLOCK_SIZE bsize,
-                              int *rate);
+                              BLOCK_SIZE bsize, int *rate);
 #if !CONFIG_REALTIME_ONLY
 static bool rd_pick_partition(
     AV1_COMP *const cpi, ThreadData *td, TileDataEnc *tile_data,
@@ -831,8 +830,7 @@ static void pick_sb_modes(AV1_COMP *const cpi, TileDataEnc *tile_data,
 #if CONFIG_COLLECT_COMPONENT_TIMING
     start_timing(cpi, av1_rd_pick_intra_mode_sb_time);
 #endif
-    av1_rd_pick_intra_mode_sb(cpi, x, mi_row, mi_col, rd_cost, bsize, ctx,
-                              best_rd.rdcost);
+    av1_rd_pick_intra_mode_sb(cpi, x, rd_cost, bsize, ctx, best_rd.rdcost);
 #if CONFIG_COLLECT_COMPONENT_TIMING
     end_timing(cpi, av1_rd_pick_intra_mode_sb_time);
 #endif
@@ -849,18 +847,17 @@ static void pick_sb_modes(AV1_COMP *const cpi, TileDataEnc *tile_data,
       switch (pick_mode_type) {
 #if !CONFIG_REALTIME_ONLY
         case PICK_MODE_RD:
-          av1_rd_pick_inter_mode_sb(cpi, tile_data, x, mi_row, mi_col, rd_cost,
-                                    bsize, ctx, best_rd.rdcost);
+          av1_rd_pick_inter_mode_sb(cpi, tile_data, x, rd_cost, bsize, ctx,
+                                    best_rd.rdcost);
           break;
 #endif
         case PICK_MODE_NONRD:
-          av1_nonrd_pick_inter_mode_sb(cpi, tile_data, x, mi_row, mi_col,
-                                       rd_cost, bsize, ctx, best_rd.rdcost);
+          av1_nonrd_pick_inter_mode_sb(cpi, tile_data, x, rd_cost, bsize, ctx,
+                                       best_rd.rdcost);
           break;
         case PICK_MODE_FAST_NONRD:
-          av1_fast_nonrd_pick_inter_mode_sb(cpi, tile_data, x, mi_row, mi_col,
-                                            rd_cost, bsize, ctx,
-                                            best_rd.rdcost);
+          av1_fast_nonrd_pick_inter_mode_sb(cpi, tile_data, x, rd_cost, bsize,
+                                            ctx, best_rd.rdcost);
           break;
         default: assert(0 && "Unknown pick mode type.");
       }
@@ -1922,8 +1919,7 @@ static void encode_b(const AV1_COMP *const cpi, TileDataEnc *tile_data,
            (1 << num_pels_log2_lookup[cpi->common.seq_params.sb_size]));
   }
 
-  encode_superblock(cpi, tile_data, td, tp, dry_run, mi_row, mi_col, bsize,
-                    rate);
+  encode_superblock(cpi, tile_data, td, tp, dry_run, bsize, rate);
 
   if (!dry_run) {
     x->cb_offset += block_size_wide[bsize] * block_size_high[bsize];
@@ -2477,8 +2473,8 @@ static void rd_use_partition(AV1_COMP *cpi, ThreadData *td,
 #else
         const PICK_MODE_CONTEXT *const ctx_h = pc_tree->horizontal[0];
         update_state(cpi, td, ctx_h, mi_row, mi_col, subsize, 1);
-        encode_superblock(cpi, tile_data, td, tp, DRY_RUN_NORMAL, mi_row,
-                          mi_col, subsize, NULL);
+        encode_superblock(cpi, tile_data, td, tp, DRY_RUN_NORMAL, subsize,
+                          NULL);
         pick_sb_modes(cpi, tile_data, x, mi_row + hbs, mi_col, &tmp_rdc,
                       PARTITION_HORZ, subsize, pc_tree->horizontal[1],
                       invalid_rdc, PICK_MODE_RD);
@@ -2524,8 +2520,8 @@ static void rd_use_partition(AV1_COMP *cpi, ThreadData *td,
 #else
         const PICK_MODE_CONTEXT *const ctx_v = pc_tree->vertical[0];
         update_state(cpi, td, ctx_v, mi_row, mi_col, subsize, 1);
-        encode_superblock(cpi, tile_data, td, tp, DRY_RUN_NORMAL, mi_row,
-                          mi_col, subsize, NULL);
+        encode_superblock(cpi, tile_data, td, tp, DRY_RUN_NORMAL, subsize,
+                          NULL);
         pick_sb_modes(cpi, tile_data, x, mi_row, mi_col + hbs, &tmp_rdc,
                       PARTITION_VERT, subsize,
                       pc_tree->vertical[bsize > BLOCK_8X8], invalid_rdc,
@@ -3023,8 +3019,7 @@ static int rd_try_subblock(AV1_COMP *const cpi, ThreadData *td,
 
   if (!is_last) {
     update_state(cpi, td, this_ctx, mi_row, mi_col, subsize, 1);
-    encode_superblock(cpi, tile_data, td, tp, DRY_RUN_NORMAL, mi_row, mi_col,
-                      subsize, NULL);
+    encode_superblock(cpi, tile_data, td, tp, DRY_RUN_NORMAL, subsize, NULL);
   }
 
   x->rdmult = orig_mult;
@@ -3098,8 +3093,7 @@ static int rd_try_subblock_new(AV1_COMP *const cpi, ThreadData *td,
 
   if (!rdo_data->is_last_subblock && !rdo_data->is_splittable) {
     update_state(cpi, td, rdo_data->ctx, mi_row, mi_col, bsize, 1);
-    encode_superblock(cpi, tile_data, td, tp, DRY_RUN_NORMAL, mi_row, mi_col,
-                      bsize, NULL);
+    encode_superblock(cpi, tile_data, td, tp, DRY_RUN_NORMAL, bsize, NULL);
   }
 
   x->rdmult = orig_mult;
@@ -3836,8 +3830,7 @@ BEGIN_PARTITION_SEARCH:
         if (mbmi->uv_mode != UV_CFL_PRED) horz_ctx_is_ready = 1;
       }
       update_state(cpi, td, ctx_h, mi_row, mi_col, subsize, 1);
-      encode_superblock(cpi, tile_data, td, tp, DRY_RUN_NORMAL, mi_row, mi_col,
-                        subsize, NULL);
+      encode_superblock(cpi, tile_data, td, tp, DRY_RUN_NORMAL, subsize, NULL);
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 
       if (cpi->sf.adaptive_motion_search) load_pred_mv(x, ctx_h);
@@ -3953,9 +3946,9 @@ BEGIN_PARTITION_SEARCH:
         if (mbmi->uv_mode != UV_CFL_PRED) vert_ctx_is_ready = 1;
       }
       update_state(cpi, td, pc_tree->vertical[0], mi_row, mi_col, subsize, 1);
-      encode_superblock(cpi, tile_data, td, tp, DRY_RUN_NORMAL, mi_row, mi_col,
-                        subsize, NULL);
+      encode_superblock(cpi, tile_data, td, tp, DRY_RUN_NORMAL, subsize, NULL);
 #endif  // !CONFIG_EXT_RECUR_PARTITIONS
+
       if (cpi->sf.adaptive_motion_search) load_pred_mv(x, ctx_none);
 
       av1_rd_stats_subtraction(x->rdmult, &best_rdc, &sum_rdc,
@@ -7417,8 +7410,7 @@ static void tx_partition_set_contexts(const AV1_COMMON *const cm,
 
 static void encode_superblock(const AV1_COMP *const cpi, TileDataEnc *tile_data,
                               ThreadData *td, TOKENEXTRA **t, RUN_TYPE dry_run,
-                              int mi_row, int mi_col, BLOCK_SIZE bsize,
-                              int *rate) {
+                              BLOCK_SIZE bsize, int *rate) {
   const AV1_COMMON *const cm = &cpi->common;
   const int num_planes = av1_num_planes(cm);
   MACROBLOCK *const x = &td->mb;
@@ -7431,6 +7423,8 @@ static void encode_superblock(const AV1_COMP *const cpi, TileDataEnc *tile_data,
   const int mi_width = mi_size_wide[bsize];
   const int mi_height = mi_size_high[bsize];
   const int is_inter = is_inter_block(mbmi);
+  const int mi_row = xd->mi_row;
+  const int mi_col = xd->mi_col;
 
   if (!is_inter) {
 #if CONFIG_DERIVED_INTRA_MODE
@@ -7501,7 +7495,7 @@ static void encode_superblock(const AV1_COMP *const cpi, TileDataEnc *tile_data,
                                   av1_num_planes(cm) - 1);
     if (mbmi->motion_mode == OBMC_CAUSAL) {
       assert(cpi->oxcf.enable_obmc == 1);
-      av1_build_obmc_inter_predictors_sb(cm, xd, mi_row, mi_col);
+      av1_build_obmc_inter_predictors_sb(cm, xd);
     }
 
 #if CONFIG_MISMATCH_DEBUG
