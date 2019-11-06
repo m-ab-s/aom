@@ -2372,7 +2372,6 @@ INSTANTIATE_TEST_CASE_P(SSE2, AvxHBDSubpelAvgVarianceTest,
 
 #if HAVE_SSSE3
 const SubpelVarianceParams kArraySubpelVariance_ssse3[] = {
-#if !CONFIG_3WAY_PARTITIONS
   SubpelVarianceParams(7, 7, &aom_sub_pixel_variance128x128_ssse3, 0),
   SubpelVarianceParams(7, 6, &aom_sub_pixel_variance128x64_ssse3, 0),
   SubpelVarianceParams(6, 7, &aom_sub_pixel_variance64x128_ssse3, 0),
@@ -2381,22 +2380,18 @@ const SubpelVarianceParams kArraySubpelVariance_ssse3[] = {
   SubpelVarianceParams(5, 6, &aom_sub_pixel_variance32x64_ssse3, 0),
   SubpelVarianceParams(5, 5, &aom_sub_pixel_variance32x32_ssse3, 0),
   SubpelVarianceParams(5, 4, &aom_sub_pixel_variance32x16_ssse3, 0),
-#endif  // !CONFIG_3WAY_PARTITIONS
   SubpelVarianceParams(4, 5, &aom_sub_pixel_variance16x32_ssse3, 0),
   SubpelVarianceParams(4, 4, &aom_sub_pixel_variance16x16_ssse3, 0),
   SubpelVarianceParams(4, 3, &aom_sub_pixel_variance16x8_ssse3, 0),
   SubpelVarianceParams(6, 4, &aom_sub_pixel_variance64x16_ssse3, 0),
   SubpelVarianceParams(4, 6, &aom_sub_pixel_variance16x64_ssse3, 0),
-#if !CONFIG_3WAY_PARTITIONS
   SubpelVarianceParams(5, 3, &aom_sub_pixel_variance32x8_ssse3, 0),
-#endif  // !CONFIG_3WAY_PARTITIONS
   SubpelVarianceParams(4, 2, &aom_sub_pixel_variance16x4_ssse3, 0),
   SubpelVarianceParams(3, 4, &aom_sub_pixel_variance8x16_ssse3, 0),
   SubpelVarianceParams(3, 3, &aom_sub_pixel_variance8x8_ssse3, 0),
   SubpelVarianceParams(3, 2, &aom_sub_pixel_variance8x4_ssse3, 0),
   SubpelVarianceParams(2, 3, &aom_sub_pixel_variance4x8_ssse3, 0),
   SubpelVarianceParams(2, 2, &aom_sub_pixel_variance4x4_ssse3, 0),
-
   SubpelVarianceParams(3, 5, &aom_sub_pixel_variance8x32_ssse3, 0),
   SubpelVarianceParams(2, 4, &aom_sub_pixel_variance4x16_ssse3, 0)
 #if CONFIG_FLEX_PARTITION
