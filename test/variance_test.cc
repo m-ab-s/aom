@@ -2269,10 +2269,8 @@ const SubpelAvgVarianceParams kArrayHBDSubpelAvgVariance_sse2[] = {
                           8),
   SubpelAvgVarianceParams(5, 4, &aom_highbd_8_sub_pixel_avg_variance32x16_sse2,
                           8),
-#if !CONFIG_3WAY_PARTITIONS
   SubpelAvgVarianceParams(4, 5, &aom_highbd_8_sub_pixel_avg_variance16x32_sse2,
                           8),
-#endif  // !CONFIG_3WAY_PARTITIONS
   SubpelAvgVarianceParams(4, 4, &aom_highbd_8_sub_pixel_avg_variance16x16_sse2,
                           8),
   SubpelAvgVarianceParams(4, 3, &aom_highbd_8_sub_pixel_avg_variance16x8_sse2,
