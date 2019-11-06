@@ -1454,9 +1454,11 @@ static int compute_quantized_wienerns_filter(
         int r = wienerns_config[k][WIENERNS_ROW_ID];
         int c = wienerns_config[k][WIENERNS_COL_ID];
         buf[type] +=
-            use_hbd ? (double)dgd_hbd[(i + r) * dgd_stride + (j + c)] -
-                          dgd_hbd[dgd_id]
-                    : (double)dgd[(i + r) * dgd_stride + (j + c)] - dgd[dgd_id];
+            use_hbd
+                ? clip_base((double)dgd_hbd[(i + r) * dgd_stride + (j + c)] -
+                            dgd_hbd[dgd_id])
+                : clip_base((double)dgd[(i + r) * dgd_stride + (j + c)] -
+                            dgd[dgd_id]);
       }
       for (int k = 0; k < wienerns_win; ++k) {
         for (int l = 0; l <= k; ++l) {
@@ -1541,11 +1543,9 @@ static void search_wiener_nonsep(const RestorationTileLimits *limits,
   RestSearchCtxt *rsc = (RestSearchCtxt *)priv;
   RestUnitSearchInfo *rusi = &rsc->rusi[rest_unit_idx];
 
-#if CONFIG_WIENER_NONSEP
   const int wienerns_win = (rsc->plane == AOM_PLANE_Y)
                                ? WIENERNS_NUM_COEFF
                                : WIENERNS_NUM_COEFF_CHROMA;
-#endif  // CONFIG_WIENER_NONSEP
 
   const MACROBLOCK *const x = rsc->x;
   const int64_t bits_none = x->wiener_nonsep_restore_cost[0];

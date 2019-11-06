@@ -263,6 +263,7 @@ static INLINE void set_default_wiener_nonsep(WienerNonsepInfo *wienerns_info) {
     wienerns_info->nsfilter[i] = wienerns_coeff_info[i][WIENERNS_MIN_ID];
   }
 }
+static INLINE double clip_base(double x) { return x; }
 #endif  // CONFIG_WIENER_NONSEP
 
 typedef struct {

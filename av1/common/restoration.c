@@ -971,9 +971,10 @@ void apply_wiener_nonsep(const uint8_t *dgd, int width, int height, int stride,
         int type = wienerns_config[k][WIENERNS_COEFF_ID];
         int r = wienerns_config[k][WIENERNS_ROW_ID];
         int c = wienerns_config[k][WIENERNS_COL_ID];
-        tmp += (double)filter[type] *
-               ((double)dgd[(i + r) * stride + (j + c)] - dgd[dgd_id]) /
-               WIENERNS_FILT_STEP;
+        tmp +=
+            (double)filter[type] *
+            clip_base((double)dgd[(i + r) * stride + (j + c)] - dgd[dgd_id]) /
+            WIENERNS_FILT_STEP;
       }
       dst[dst_id] = clip_pixel((int)round(tmp));
     }
@@ -1009,9 +1010,10 @@ void apply_wiener_nonsep_highbd(const uint8_t *dgd8, int width, int height,
         int type = wienerns_config[k][WIENERNS_COEFF_ID];
         int r = wienerns_config[k][WIENERNS_ROW_ID];
         int c = wienerns_config[k][WIENERNS_COL_ID];
-        tmp += (double)filter[type] *
-               ((double)dgd[(i + r) * stride + (j + c)] - dgd[dgd_id]) /
-               WIENERNS_FILT_STEP;
+        tmp +=
+            (double)filter[type] *
+            clip_base((double)dgd[(i + r) * stride + (j + c)] - dgd[dgd_id]) /
+            WIENERNS_FILT_STEP;
       }
       const uint16_t out = clip_pixel_highbd((int)round(tmp), bit_depth);
       *CONVERT_TO_SHORTPTR(dst + dst_id) = out;
