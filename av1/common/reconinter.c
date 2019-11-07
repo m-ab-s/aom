@@ -204,12 +204,12 @@ void av1_build_inter_predictors(
   int sub8x8_inter = (block_size_wide[bsize] < 8 && ss_x) ||
                      (block_size_high[bsize] < 8 && ss_y);
 
-#if CONFIG_3WAY_PARTITIONS
+#if CONFIG_EXT_PARTITIONS
   if (sub8x8_inter && bw == 8 && bh == 8) {
     // 3rd sub-block of a 16x16 VERT3 or HORZ3 partition.
     sub8x8_inter = 0;
   }
-#endif  // CONFIG_3WAY_PARTITIONS
+#endif  // CONFIG_EXT_PARTITIONS
 
   if (is_intrabc) sub8x8_inter = 0;
 

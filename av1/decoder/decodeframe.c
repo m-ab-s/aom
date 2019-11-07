@@ -1558,44 +1558,44 @@ static void decode_partition(AV1Decoder *const pbi, ThreadData *const td,
       DEC_PARTITION(mi_row + hbs, mi_col + hbs, subsize);
       break;
     case PARTITION_HORZ_A:
-#if CONFIG_RECURSIVE_ABPART
+#if CONFIG_EXT_PARTITIONS
       DEC_PARTITION(mi_row, mi_col, bsize2);
       DEC_PARTITION(mi_row, mi_col + hbs, bsize2);
 #else
       DEC_BLOCK(mi_row, mi_col, bsize2);
       DEC_BLOCK(mi_row, mi_col + hbs, bsize2);
-#endif  // CONFIG_RECURSIVE_ABPART
+#endif  // CONFIG_EXT_PARTITIONS
       DEC_BLOCK(mi_row + hbs, mi_col, subsize);
       break;
     case PARTITION_HORZ_B: DEC_BLOCK(mi_row, mi_col, subsize);
-#if CONFIG_RECURSIVE_ABPART
+#if CONFIG_EXT_PARTITIONS
       DEC_PARTITION(mi_row + hbs, mi_col, bsize2);
       DEC_PARTITION(mi_row + hbs, mi_col + hbs, bsize2);
 #else
       DEC_BLOCK(mi_row + hbs, mi_col, bsize2);
       DEC_BLOCK(mi_row + hbs, mi_col + hbs, bsize2);
-#endif  // CONFIG_RECURSIVE_ABPART
+#endif  // CONFIG_EXT_PARTITIONS
       break;
     case PARTITION_VERT_A:
-#if CONFIG_RECURSIVE_ABPART
+#if CONFIG_EXT_PARTITIONS
       DEC_PARTITION(mi_row, mi_col, bsize2);
       DEC_PARTITION(mi_row + hbs, mi_col, bsize2);
 #else
       DEC_BLOCK(mi_row, mi_col, bsize2);
       DEC_BLOCK(mi_row + hbs, mi_col, bsize2);
-#endif  // CONFIG_RECURSIVE_ABPART
+#endif  // CONFIG_EXT_PARTITIONS
       DEC_BLOCK(mi_row, mi_col + hbs, subsize);
       break;
     case PARTITION_VERT_B: DEC_BLOCK(mi_row, mi_col, subsize);
-#if CONFIG_RECURSIVE_ABPART
+#if CONFIG_EXT_PARTITIONS
       DEC_PARTITION(mi_row, mi_col + hbs, bsize2);
       DEC_PARTITION(mi_row + hbs, mi_col + hbs, bsize2);
 #else
       DEC_BLOCK(mi_row, mi_col + hbs, bsize2);
       DEC_BLOCK(mi_row + hbs, mi_col + hbs, bsize2);
-#endif  // CONFIG_RECURSIVE_ABPART
+#endif  // CONFIG_EXT_PARTITIONS
       break;
-#if CONFIG_3WAY_PARTITIONS
+#if CONFIG_EXT_PARTITIONS
     case PARTITION_HORZ_3: {
       const BLOCK_SIZE bsize3 = get_partition_subsize(bsize, PARTITION_HORZ);
       int this_mi_row = mi_row;
@@ -1635,7 +1635,7 @@ static void decode_partition(AV1Decoder *const pbi, ThreadData *const td,
         DEC_BLOCK(mi_row, this_mi_col, subsize);
       }
       break;
-#endif  // CONFIG_3WAY_PARTITIONS
+#endif  // CONFIG_EXT_PARTITIONS
     default: assert(0 && "Invalid partition type");
   }
 

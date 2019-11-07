@@ -802,7 +802,7 @@ INTRA_PRED_TEST(DSPR2, TX_16X16, aom_dc_predictor_16x16_dspr2, NULL, NULL, NULL,
 #endif  // HAVE_DSPR2
 
 #if HAVE_NEON
-#if CONFIG_3WAY_PARTITIONS
+#if CONFIG_EXT_PARTITIONS
 INTRA_PRED_TEST(NEON, TX_16X16, NULL, NULL, aom_dc_top_predictor_16x16_neon,
                 aom_dc_128_predictor_16x16_neon, NULL, NULL, NULL, NULL, NULL,
                 NULL)
@@ -812,7 +812,7 @@ INTRA_PRED_TEST(NEON, TX_16X16, aom_dc_predictor_16x16_neon,
                 aom_dc_top_predictor_16x16_neon,
                 aom_dc_128_predictor_16x16_neon, aom_v_predictor_16x16_neon,
                 aom_h_predictor_16x16_neon, NULL, NULL, NULL, NULL)
-#endif  // CONFIG_3WAY_PARTITIONS
+#endif  // CONFIG_EXT_PARTITIONS
 #endif  // HAVE_NEON
 
 #if HAVE_MSA

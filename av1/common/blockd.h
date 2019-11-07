@@ -1207,7 +1207,7 @@ static INLINE int is_motion_variation_allowed_bsize(BLOCK_SIZE bsize,
   if (AOMMIN(block_size_wide[bsize], block_size_high[bsize]) < 8) {
     return 0;
   }
-#if CONFIG_3WAY_PARTITIONS
+#if CONFIG_EXT_PARTITIONS
   // TODO(urvang): Enable this special case, if we make OBMC work.
   if ((mi_row & 0x01) || (mi_col & 0x01)) {
     assert((block_size_wide[bsize] == 8 && block_size_high[bsize] == 16) ||
@@ -1218,7 +1218,7 @@ static INLINE int is_motion_variation_allowed_bsize(BLOCK_SIZE bsize,
   assert(!(mi_row & 0x01) && !(mi_col & 0x01));
   (void)mi_row;
   (void)mi_col;
-#endif  // CONFIG_3WAY_PARTITIONS
+#endif  // CONFIG_EXT_PARTITIONS
   return 1;
 }
 

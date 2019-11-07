@@ -109,11 +109,11 @@ static void set_good_speed_feature_framesize_dependent(
     else
       sf->auto_max_partition_based_on_simple_motion = RELAXED_PRED;
   } else {
-#if CONFIG_3WAY_PARTITIONS
+#if CONFIG_EXT_PARTITIONS
     sf->use_square_partition_only_threshold = BLOCK_128X128;
 #else
     sf->use_square_partition_only_threshold = BLOCK_64X64;
-#endif  // CONFIG_3WAY_PARTITIONS
+#endif  // CONFIG_EXT_PARTITIONS
     sf->auto_max_partition_based_on_simple_motion = DIRECT_PRED;
   }
 
@@ -132,17 +132,17 @@ static void set_good_speed_feature_framesize_dependent(
     if (is_720p_or_larger) {
       sf->use_square_partition_only_threshold = BLOCK_128X128;
     } else if (is_480p_or_larger) {
-#if CONFIG_3WAY_PARTITIONS
+#if CONFIG_EXT_PARTITIONS
       sf->use_square_partition_only_threshold = BLOCK_128X128;
 #else
       sf->use_square_partition_only_threshold = BLOCK_64X64;
-#endif  // CONFIG_3WAY_PARTITIONS
+#endif  // CONFIG_EXT_PARTITIONS
     } else {
-#if CONFIG_3WAY_PARTITIONS
+#if CONFIG_EXT_PARTITIONS
       sf->use_square_partition_only_threshold = BLOCK_128X128;
 #else
       sf->use_square_partition_only_threshold = BLOCK_32X32;
-#endif  // CONFIG_3WAY_PARTITIONS
+#endif  // CONFIG_EXT_PARTITIONS
 
       sf->simple_motion_search_split = 1;
     }
@@ -159,23 +159,23 @@ static void set_good_speed_feature_framesize_dependent(
 
   if (speed >= 2) {
     if (is_720p_or_larger) {
-#if CONFIG_3WAY_PARTITIONS
+#if CONFIG_EXT_PARTITIONS
       sf->use_square_partition_only_threshold = BLOCK_128X128;
 #else
       sf->use_square_partition_only_threshold = BLOCK_64X64;
-#endif  // CONFIG_3WAY_PARTITIONS
+#endif  // CONFIG_EXT_PARTITIONS
     } else if (is_480p_or_larger) {
-#if CONFIG_3WAY_PARTITIONS
+#if CONFIG_EXT_PARTITIONS
       sf->use_square_partition_only_threshold = BLOCK_128X128;
 #else
       sf->use_square_partition_only_threshold = BLOCK_32X32;
-#endif  // CONFIG_3WAY_PARTITIONS
+#endif  // CONFIG_EXT_PARTITIONS
     } else {
-#if CONFIG_3WAY_PARTITIONS
+#if CONFIG_EXT_PARTITIONS
       sf->use_square_partition_only_threshold = BLOCK_128X128;
 #else
       sf->use_square_partition_only_threshold = BLOCK_32X32;
-#endif  // CONFIG_3WAY_PARTITIONS
+#endif  // CONFIG_EXT_PARTITIONS
     }
 
     if (is_720p_or_larger) {
@@ -228,17 +228,14 @@ static void set_good_speed_features_framesize_independent(
   sf->reduce_inter_modes = 1;
   sf->prune_ext_partition_types_search_level = 1;
   sf->ml_prune_rect_partition = 1;
-#if CONFIG_RECURSIVE_ABPART
+#if CONFIG_EXT_PARTITIONS
   sf->ml_prune_ab_partition = 0;
-#else
-  sf->ml_prune_ab_partition = 1;
-#endif  // CONFIG_RECURSIVE_ABPART
-#if CONFIG_3WAY_PARTITIONS
   // This speed feature will need to be re-designed for 3-way partitions.
   sf->ml_prune_4_partition = 0;
 #else
+  sf->ml_prune_ab_partition = 1;
   sf->ml_prune_4_partition = 1;
-#endif  // CONFIG_3WAY_PARTITIONS
+#endif  // CONFIG_EXT_PARTITIONS
   sf->simple_motion_search_prune_rect = 1;
   sf->use_dist_wtd_comp_flag = DIST_WTD_COMP_SKIP_MV_SEARCH;
 #if CONFIG_NEW_TX_PARTITION
@@ -313,11 +310,11 @@ static void set_good_speed_features_framesize_independent(
         (frame_is_intra_only(&cpi->common) || (cm->allow_screen_content_tools))
             ? 0
             : (boosted ? 1 : 2);
-#if CONFIG_3WAY_PARTITIONS
+#if CONFIG_EXT_PARTITIONS
     sf->intra_cnn_split = 0;
 #else
     sf->intra_cnn_split = (speed == 1);
-#endif  // CONFIG_3WAY_PARTITIONS
+#endif  // CONFIG_EXT_PARTITIONS
   }
 
   if (speed >= 2) {
@@ -479,11 +476,11 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
   sf->prune_ext_partition_types_search_level = 1;
   sf->ml_prune_rect_partition = 1;
   sf->ml_prune_ab_partition = 1;
-#if CONFIG_3WAY_PARTITIONS
+#if CONFIG_EXT_PARTITIONS
   sf->ml_prune_4_partition = 0;
 #else
   sf->ml_prune_4_partition = 1;
-#endif  // CONFIG_3WAY_PARTITIONS
+#endif  // CONFIG_EXT_PARTITIONS
 
   sf->use_dist_wtd_comp_flag = DIST_WTD_COMP_SKIP_MV_SEARCH;
 #if CONFIG_NEW_TX_PARTITION
