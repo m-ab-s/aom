@@ -974,7 +974,7 @@ void apply_wiener_nonsep(const uint8_t *dgd, int width, int height, int stride,
         tmp +=
             (double)filter[type] *
             clip_base((double)dgd[(i + r) * stride + (j + c)] - dgd[dgd_id]) /
-            WIENERNS_FILT_STEP;
+            wienerns_coeff_info[type][WIENERNS_STEP_ID];
       }
       dst[dst_id] = clip_pixel((int)round(tmp));
     }
@@ -1013,7 +1013,7 @@ void apply_wiener_nonsep_highbd(const uint8_t *dgd8, int width, int height,
         tmp +=
             (double)filter[type] *
             clip_base((double)dgd[(i + r) * stride + (j + c)] - dgd[dgd_id]) /
-            WIENERNS_FILT_STEP;
+            wienerns_coeff_info[type][WIENERNS_STEP_ID];
       }
       const uint16_t out = clip_pixel_highbd((int)round(tmp), bit_depth);
       *CONVERT_TO_SHORTPTR(dst + dst_id) = out;

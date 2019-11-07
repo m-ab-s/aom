@@ -458,23 +458,21 @@ typedef struct {
 } WienerInfo;
 
 #if CONFIG_WIENER_NONSEP
-#define WIENERNS_NUM_COEFF 8
-#define WIENERNS_NUM_PIXEL 20
-#define WIENERNS_NUM_COEFF_CHROMA 6
-#define WIENERNS_FILT_BITS 7
-#define WIENERNS_FILT_STEP (1 << WIENERNS_FILT_BITS)
-#define WIENERNS_WINDOW 3
+#define WIENERNS_NUM_COEFF 12
+#define WIENERNS_NUM_PIXEL 24
+#define WIENERNS_NUM_COEFF_CHROMA 8
 #define WIENERNS_ROW_ID 0
 #define WIENERNS_COL_ID 1
 #define WIENERNS_COEFF_ID 2
 #define WIENERNS_BIT_ID 0
 #define WIENERNS_MIN_ID 1
 #define WIENERNS_SUBEXP_K_ID 2
+#define WIENERNS_STEP_ID 3
 typedef struct {
   DECLARE_ALIGNED(16, int16_t, nsfilter[WIENERNS_NUM_COEFF]);
 } WienerNonsepInfo;
 extern const int wienerns_config[WIENERNS_NUM_PIXEL][3];
-extern const int wienerns_coeff_info[WIENERNS_NUM_COEFF][3];
+extern const int wienerns_coeff_info[WIENERNS_NUM_COEFF][4];
 #endif  // CONFIG_WIENER_NONSEP
 
 typedef struct {

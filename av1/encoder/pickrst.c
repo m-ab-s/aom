@@ -1476,9 +1476,10 @@ static int compute_quantized_wienerns_filter(
   }
   if (linsolve(wienerns_win, A, wienerns_win, b, x)) {
     for (int k = 0; k < wienerns_win; ++k) {
-      wiener_nonsep_info->nsfilter[k] = quantize(
-          x[k], WIENERNS_FILT_STEP, wienerns_coeff_info[k][WIENERNS_MIN_ID],
-          (1 << wienerns_coeff_info[k][WIENERNS_BIT_ID]));
+      wiener_nonsep_info->nsfilter[k] =
+          quantize(x[k], wienerns_coeff_info[k][WIENERNS_STEP_ID],
+                   wienerns_coeff_info[k][WIENERNS_MIN_ID],
+                   (1 << wienerns_coeff_info[k][WIENERNS_BIT_ID]));
     }
     for (int k = wienerns_win; k < WIENERNS_NUM_COEFF; ++k) {
       wiener_nonsep_info->nsfilter[k] = 0;
