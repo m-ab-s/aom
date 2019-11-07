@@ -760,34 +760,20 @@ INTRA_PRED_TEST(SSE2_5, TX_16X4, aom_dc_predictor_16x4_sse2,
 #endif  // HAVE_SSE2
 
 #if HAVE_SSSE3
-#if CONFIG_3WAY_PARTITIONS
-INTRA_PRED_TEST(SSSE3_1, TX_16X16, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-                aom_smooth_predictor_16x16_ssse3,
-                aom_smooth_v_predictor_16x16_ssse3,
-                aom_smooth_h_predictor_16x16_ssse3)
-#else
 INTRA_PRED_TEST(SSSE3_1, TX_16X16, NULL, NULL, NULL, NULL, NULL, NULL,
                 aom_paeth_predictor_16x16_ssse3,
                 aom_smooth_predictor_16x16_ssse3,
                 aom_smooth_v_predictor_16x16_ssse3,
                 aom_smooth_h_predictor_16x16_ssse3)
-#endif  // CONFIG_3WAY_PARTITIONS
 INTRA_PRED_TEST(SSSE3_2, TX_16X8, NULL, NULL, NULL, NULL, NULL, NULL,
                 aom_paeth_predictor_16x8_ssse3, aom_smooth_predictor_16x8_ssse3,
                 aom_smooth_v_predictor_16x8_ssse3,
                 aom_smooth_h_predictor_16x8_ssse3)
-#if CONFIG_3WAY_PARTITIONS
-INTRA_PRED_TEST(SSSE3_3, TX_16X32, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-                aom_smooth_predictor_16x32_ssse3,
-                aom_smooth_v_predictor_16x32_ssse3,
-                aom_smooth_h_predictor_16x32_ssse3)
-#else
 INTRA_PRED_TEST(SSSE3_3, TX_16X32, NULL, NULL, NULL, NULL, NULL, NULL,
                 aom_paeth_predictor_16x32_ssse3,
                 aom_smooth_predictor_16x32_ssse3,
                 aom_smooth_v_predictor_16x32_ssse3,
                 aom_smooth_h_predictor_16x32_ssse3)
-#endif  // CONFIG_3WAY_PARTITIONS
 INTRA_PRED_TEST(SSSE3_4, TX_16X64, NULL, NULL, NULL, NULL, NULL, NULL,
                 aom_paeth_predictor_16x64_ssse3,
                 aom_smooth_predictor_16x64_ssse3,

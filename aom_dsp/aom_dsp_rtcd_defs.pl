@@ -206,12 +206,8 @@ specialize qw/aom_paeth_predictor_8x16 ssse3/;
 specialize qw/aom_paeth_predictor_8x32 ssse3/;
 specialize qw/aom_paeth_predictor_16x4 ssse3/;
 specialize qw/aom_paeth_predictor_16x8 ssse3 avx2/;
-specialize qw/aom_paeth_predictor_16x16 avx2/;
-specialize qw/aom_paeth_predictor_16x32 avx2/;
-if (aom_config("CONFIG_3WAY_PARTITIONS") eq "") {
-  specialize qw/aom_paeth_predictor_16x16 ssse3/;
-  specialize qw/aom_paeth_predictor_16x32 ssse3/;
-} # CONFIG_3WAY_PARTITIONS
+specialize qw/aom_paeth_predictor_16x16 ssse3 avx2/;
+specialize qw/aom_paeth_predictor_16x32 ssse3 avx2/;
 specialize qw/aom_paeth_predictor_16x64 ssse3 avx2/;
 specialize qw/aom_paeth_predictor_32x8 ssse3/;
 specialize qw/aom_paeth_predictor_32x16 ssse3 avx2/;
@@ -221,10 +217,6 @@ specialize qw/aom_paeth_predictor_64x32 ssse3 avx2/;
 specialize qw/aom_paeth_predictor_64x64 ssse3 avx2/;
 specialize qw/aom_paeth_predictor_64x16 ssse3 avx2/;
 specialize qw/aom_paeth_predictor_16x8 ssse3/;
-if (aom_config("CONFIG_3WAY_PARTITIONS") eq "") {
-  specialize qw/aom_paeth_predictor_16x16 ssse3/;
-  specialize qw/aom_paeth_predictor_16x32 ssse3/;
-} # CONFIG_3WAY_PARTITIONS
 specialize qw/aom_paeth_predictor_32x16 ssse3/;
 specialize qw/aom_paeth_predictor_32x32 ssse3/;
 specialize qw/aom_smooth_predictor_4x4 ssse3/;
