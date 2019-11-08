@@ -83,6 +83,15 @@ static INLINE uint16_t clip_pixel_highbd(int val, int bd) {
   }
 }
 
+static INLINE int16_t clip_pixel_signed(int val, int bd) {
+  switch (bd) {
+    case 8:
+    default: return (int16_t)clamp(val, -255, 255);
+    case 10: return (int16_t)clamp(val, -1023, 1023);
+    case 12: return (int16_t)clamp(val, -4095, 4095);
+  }
+}
+
 // The result of this branchless code is equivalent to (value < 0 ? 0 : value)
 // or max(0, value) and might be faster in some cases.
 // Care should be taken since the behavior of right shifting signed type

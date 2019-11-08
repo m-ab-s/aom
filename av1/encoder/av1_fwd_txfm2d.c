@@ -20,6 +20,13 @@
 #include "av1/encoder/av1_fwd_txfm1d.h"
 #include "av1/encoder/av1_fwd_txfm1d_cfg.h"
 
+#if CONFIG_NEW_TX64X64
+#define USE_SIMPLE_DOWNSCALE 0
+#if USE_SIMPLE_DOWNSCALE == 0
+#include "av1/common/resize.h"
+#endif  // USE_SIMPLE_DOWNSCALE == 0
+#endif  // CONFIG_NEW_TX64X64
+
 static INLINE TxfmFunc fwd_txfm_type_to_func(TXFM_TYPE txfm_type) {
   switch (txfm_type) {
     case TXFM_TYPE_DCT4: return av1_fdct4_new;
@@ -419,6 +426,7 @@ void av1_fwd_txfm2d_64x64_c(const int16_t *input, int32_t *output, int stride,
                             int bd) {
   // Downsample to 32x32
   DECLARE_ALIGNED(16, int16_t, input_32[32 * 32]);
+#if USE_SIMPLE_DOWNSCALE
   for (int r = 0; r < 32; ++r) {
     for (int c = 0; c < 32; ++c) {
       const int16_t *const in = &input[2 * r * stride + 2 * c];
@@ -426,6 +434,9 @@ void av1_fwd_txfm2d_64x64_c(const int16_t *input, int32_t *output, int stride,
           in[0] + in[1] + in[stride] + in[stride + 1], 2);
     }
   }
+#else
+  av1_signed_down2(input, 64, 64, stride, input_32, 32, 1, 1, bd);
+#endif  // USE_SIMPLE_DOWNSCALE
 
   // Initialize output to all-zero.
   memset(output, 0, 64 * 64 * sizeof(*output));
@@ -446,14 +457,17 @@ void av1_fwd_txfm2d_32x64_c(const int16_t *input, int32_t *output, int stride,
                             int bd) {
   // Downsample to 32x32
   DECLARE_ALIGNED(16, int16_t, input_32[32 * 32]);
+#if USE_SIMPLE_DOWNSCALE
   for (int r = 0; r < 32; ++r) {
     for (int c = 0; c < 32; ++c) {
       const int16_t *const in = &input[2 * r * stride + c];
       const int32_t avg = ROUND_POWER_OF_TWO_SIGNED(in[0] + in[stride], 1);
-      input_32[r * 32 + c] =
-          round_shift((int64_t)avg * NewInvSqrt2, NewSqrt2Bits);
+      input_32[r * 32 + c] = avg;
     }
   }
+#else
+  av1_signed_down2(input, 64, 32, stride, input_32, 32, 1, 0, bd);
+#endif  // USE_SIMPLE_DOWNSCALE
 
   // Initialize output to all-zero.
   memset(output, 0, 32 * 64 * sizeof(*output));
@@ -464,6 +478,12 @@ void av1_fwd_txfm2d_32x64_c(const int16_t *input, int32_t *output, int stride,
                        mode,
 #endif  //  CONFIG_MODE_DEP_TX
                        bd);
+  for (int r = 0; r < 32; ++r) {
+    for (int c = 0; c < 32; ++c) {
+      output[r * 32 + c] =
+          round_shift((int64_t)output[r * 32 + c] * NewInvSqrt2, NewSqrt2Bits);
+    }
+  }
 }
 
 void av1_fwd_txfm2d_64x32_c(const int16_t *input, int32_t *output, int stride,
@@ -474,14 +494,17 @@ void av1_fwd_txfm2d_64x32_c(const int16_t *input, int32_t *output, int stride,
                             int bd) {
   // Downsample to 32x32
   DECLARE_ALIGNED(16, int16_t, input_32[32 * 32]);
+#if USE_SIMPLE_DOWNSCALE
   for (int r = 0; r < 32; ++r) {
     for (int c = 0; c < 32; ++c) {
       const int16_t *const in = &input[r * stride + 2 * c];
       const int32_t avg = ROUND_POWER_OF_TWO_SIGNED(in[0] + in[1], 1);
-      input_32[r * 32 + c] =
-          round_shift((int64_t)avg * NewInvSqrt2, NewSqrt2Bits);
+      input_32[r * 32 + c] = avg;
     }
   }
+#else
+  av1_signed_down2(input, 32, 64, stride, input_32, 32, 0, 1, bd);
+#endif  // USE_SIMPLE_DOWNSCALE
 
   // Initialize output to all-zero.
   memset(output, 0, 64 * 32 * sizeof(*output));
@@ -492,6 +515,12 @@ void av1_fwd_txfm2d_64x32_c(const int16_t *input, int32_t *output, int stride,
                        mode,
 #endif  //  CONFIG_MODE_DEP_TX
                        bd);
+  for (int r = 0; r < 32; ++r) {
+    for (int c = 0; c < 32; ++c) {
+      output[r * 32 + c] =
+          round_shift((int64_t)output[r * 32 + c] * NewInvSqrt2, NewSqrt2Bits);
+    }
+  }
 }
 
 void av1_fwd_txfm2d_16x64_c(const int16_t *input, int32_t *output, int stride,
@@ -502,13 +531,17 @@ void av1_fwd_txfm2d_16x64_c(const int16_t *input, int32_t *output, int stride,
                             int bd) {
   // Downsample to 16x32
   DECLARE_ALIGNED(16, int16_t, input_32[16 * 32]);
+#if USE_SIMPLE_DOWNSCALE
   for (int r = 0; r < 32; ++r) {
     for (int c = 0; c < 16; ++c) {
       const int16_t *const in = &input[2 * r * stride + c];
       const int32_t avg = ROUND_POWER_OF_TWO_SIGNED(in[0] + in[stride], 1);
-      input_32[r * 16 + c] = round_shift((int64_t)avg * NewSqrt2, NewSqrt2Bits);
+      input_32[r * 16 + c] = avg;
     }
   }
+#else
+  av1_signed_down2(input, 64, 16, stride, input_32, 16, 1, 0, bd);
+#endif  // USE_SIMPLE_DOWNSCALE
 
   // Initialize output to all-zero.
   memset(output, 0, 16 * 64 * sizeof(*output));
@@ -519,6 +552,12 @@ void av1_fwd_txfm2d_16x64_c(const int16_t *input, int32_t *output, int stride,
                        mode,
 #endif  //  CONFIG_MODE_DEP_TX
                        bd);
+  for (int r = 0; r < 32; ++r) {
+    for (int c = 0; c < 16; ++c) {
+      output[r * 16 + c] =
+          round_shift((int64_t)output[r * 16 + c] * NewSqrt2, NewSqrt2Bits);
+    }
+  }
 }
 
 void av1_fwd_txfm2d_64x16_c(const int16_t *input, int32_t *output, int stride,
@@ -529,13 +568,17 @@ void av1_fwd_txfm2d_64x16_c(const int16_t *input, int32_t *output, int stride,
                             int bd) {
   // Downsample to 32x16
   DECLARE_ALIGNED(16, int16_t, input_32[32 * 16]);
+#if USE_SIMPLE_DOWNSCALE
   for (int r = 0; r < 16; ++r) {
     for (int c = 0; c < 32; ++c) {
       const int16_t *const in = &input[r * stride + 2 * c];
       const int32_t avg = ROUND_POWER_OF_TWO_SIGNED(in[0] + in[1], 1);
-      input_32[r * 32 + c] = round_shift((int64_t)avg * NewSqrt2, NewSqrt2Bits);
+      input_32[r * 32 + c] = avg;
     }
   }
+#else
+  av1_signed_down2(input, 16, 64, stride, input_32, 32, 0, 1, bd);
+#endif  // USE_SIMPLE_DOWNSCALE
 
   // Initialize output to all-zero.
   memset(output, 0, 64 * 16 * sizeof(*output));
@@ -546,6 +589,12 @@ void av1_fwd_txfm2d_64x16_c(const int16_t *input, int32_t *output, int stride,
                        mode,
 #endif  //  CONFIG_MODE_DEP_TX
                        bd);
+  for (int r = 0; r < 16; ++r) {
+    for (int c = 0; c < 32; ++c) {
+      output[r * 32 + c] =
+          round_shift((int64_t)output[r * 32 + c] * NewSqrt2, NewSqrt2Bits);
+    }
+  }
 }
 
 #else

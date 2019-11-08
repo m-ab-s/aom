@@ -1435,3 +1435,227 @@ void av1_superres_upscale(AV1_COMMON *cm, BufferPool *const pool) {
   // Free the copy buffer
   aom_free_frame_buffer(&copy_buffer);
 }
+
+#if CONFIG_NEW_TX64X64
+static void down2_symeven_signed(const int16_t *const input, int length,
+                                 int16_t *output, const int16_t *filter,
+                                 int filter_length, int bd) {
+  assert((length & 1) == 0);
+  assert((filter_length & 1) == 0);
+  const int filter_len_half = filter_length >> 1;
+  int i, j;
+  int16_t *optr = output;
+  int l1 = filter_len_half;
+  int l2 = (length - filter_len_half);
+  l1 += (l1 & 1);
+  l2 += (l2 & 1);
+  if (l1 > l2) {
+    // Short input length.
+    for (i = 0; i < length; i += 2) {
+      int32_t sum = 0;
+      for (j = 0; j < filter_len_half; ++j) {
+        sum +=
+            (input[AOMMAX(0, i - j)] + input[AOMMIN(i + 1 + j, length - 1)]) *
+            filter[j + filter_len_half];
+      }
+      sum = ROUND_POWER_OF_TWO_SIGNED(sum, FILTER_BITS);
+      *optr++ = clip_pixel_signed(sum, bd);
+    }
+  } else {
+    // Initial part.
+    for (i = 0; i < l1; i += 2) {
+      int32_t sum = 0;
+      for (j = 0; j < filter_len_half; ++j) {
+        sum += (input[AOMMAX(0, i - j)] + input[i + 1 + j]) *
+               filter[j + filter_len_half];
+      }
+      sum = ROUND_POWER_OF_TWO_SIGNED(sum, FILTER_BITS);
+      *optr++ = clip_pixel_signed(sum, bd);
+    }
+    // Middle part.
+    for (; i < l2; i += 2) {
+      int32_t sum = 0;
+      for (j = 0; j < filter_len_half; ++j) {
+        sum += (input[i - j] + input[i + 1 + j]) * filter[j + filter_len_half];
+      }
+      sum = ROUND_POWER_OF_TWO_SIGNED(sum, FILTER_BITS);
+      *optr++ = clip_pixel_signed(sum, bd);
+    }
+    // End part.
+    for (; i < length; i += 2) {
+      int32_t sum = 0;
+      for (j = 0; j < filter_len_half; ++j) {
+        sum += (input[i - j] + input[AOMMIN(i + 1 + j, length - 1)]) *
+               filter[j + filter_len_half];
+      }
+      sum = ROUND_POWER_OF_TWO_SIGNED(sum, FILTER_BITS);
+      *optr++ = clip_pixel_signed(sum, bd);
+    }
+  }
+}
+
+// Note the filter below is for 3/4 offset interpolation. The 1/4 offset
+// is derived from that by flipping.
+static void up2_symeven_signed(const int16_t *const input, int length,
+                               int16_t *output, const int16_t *filter,
+                               int filter_length, int bd) {
+  assert((filter_length & 1) == 0);
+  const int filter_len_half = filter_length >> 1;
+  int16_t *optr = output;
+  for (int i = 0; i < length; ++i) {
+    int32_t sum = 0;
+    for (int j = 0; j < filter_length; ++j) {
+      const int k = AOMMAX(AOMMIN(i - filter_len_half + j, length - 1), 0);
+      sum += input[k] * filter[j];
+    }
+    sum = ROUND_POWER_OF_TWO_SIGNED(sum, FILTER_BITS);
+    *optr++ = clip_pixel_signed(sum, bd);
+
+    sum = 0;
+    for (int j = 0; j < filter_length; ++j) {
+      const int k = AOMMAX(AOMMIN(i - filter_len_half + 1 + j, length - 1), 0);
+      sum += input[k] * filter[filter_length - 1 - j];
+    }
+    sum = ROUND_POWER_OF_TWO_SIGNED(sum, FILTER_BITS);
+    *optr++ = clip_pixel_signed(sum, bd);
+  }
+}
+
+static void signed_fill_col_to_arr(int16_t *img, int stride, int len,
+                                   int16_t *arr) {
+  int i;
+  int16_t *iptr = img;
+  int16_t *aptr = arr;
+  for (i = 0; i < len; ++i, iptr += stride) {
+    *aptr++ = *iptr;
+  }
+}
+
+static void signed_fill_arr_to_col(int16_t *img, int stride, int len,
+                                   int16_t *arr) {
+  int i;
+  int16_t *iptr = img;
+  int16_t *aptr = arr;
+  for (i = 0; i < len; ++i, iptr += stride) {
+    *iptr = *aptr++;
+  }
+}
+
+// Note tmp buffer otmp must be at least the length of the input
+static void signed_down2_multistep(const int16_t *const input, int length,
+                                   int16_t *output, int steps, int16_t *otmp,
+                                   int bd) {
+  const int16_t filter[SUBPEL_TAPS] = { -1, 0, 19, 46, 46, 19, 0, -1 };
+  const int filter_len = SUBPEL_TAPS;
+
+  assert((length & ((1 << steps) - 1)) == 0);
+  if (steps == 0) {
+    memcpy(output, input, sizeof(output[0]) * length);
+    return;
+  }
+  int16_t *out = NULL;
+  int filteredlength = length;
+  assert(otmp != NULL);
+  int16_t *otmp2 = otmp + (length >> 1);
+  for (int s = 0; s < steps; ++s) {
+    const int proj_filteredlength = (filteredlength >> 1);
+    const int16_t *const in = (s == 0 ? input : out);
+    if (s == steps - 1)
+      out = output;
+    else
+      out = (s & 1 ? otmp2 : otmp);
+    down2_symeven_signed(in, filteredlength, out, filter, filter_len, bd);
+    filteredlength = proj_filteredlength;
+  }
+  assert(filteredlength == (length >> steps));
+}
+
+// Note tmp buffer otmp must be at least the length of the output
+static void signed_up2_multistep(const int16_t *const input, int length,
+                                 int16_t *output, int steps, int16_t *otmp,
+                                 int bd) {
+  const int16_t filter[SUBPEL_TAPS] = { -2, 6, -13, 38, 113, -19, 7, -2 };
+  const int filter_len = SUBPEL_TAPS;
+
+  if (steps == 0) {
+    memcpy(output, input, sizeof(output[0]) * length);
+    return;
+  }
+  const int olength = length << steps;
+  int16_t *out = NULL;
+  int filteredlength = length;
+  assert(otmp != NULL);
+  int16_t *otmp2 = otmp + (olength >> 1);
+  for (int s = 0; s < steps; ++s) {
+    const int proj_filteredlength = (filteredlength << 1);
+    const int16_t *const in = (s == 0 ? input : out);
+    if (s == steps - 1)
+      out = output;
+    else
+      out = (s & 1 ? otmp2 : otmp);
+    up2_symeven_signed(in, filteredlength, out, filter, filter_len, bd);
+    filteredlength = proj_filteredlength;
+  }
+  assert(filteredlength == (length << steps));
+}
+
+void av1_signed_down2(const int16_t *const input, int height, int width,
+                      int in_stride, int16_t *output, int out_stride,
+                      int stepsh, int stepsw, int bd) {
+  const int width2 = width >> stepsw;
+  const int height2 = height >> stepsh;
+  int i;
+  int16_t *intbuf = (int16_t *)aom_malloc(sizeof(int16_t) * width2 * height);
+  int16_t *tmpbuf =
+      (int16_t *)aom_malloc(sizeof(int16_t) * AOMMAX(width, height));
+  int16_t *arrbuf = (int16_t *)aom_malloc(sizeof(int16_t) * height);
+  int16_t *arrbuf2 = (int16_t *)aom_malloc(sizeof(int16_t) * height2);
+  if (intbuf == NULL || tmpbuf == NULL || arrbuf == NULL || arrbuf2 == NULL)
+    goto Error;
+  for (i = 0; i < height; ++i) {
+    signed_down2_multistep(input + in_stride * i, width, intbuf + width2 * i,
+                           stepsw, tmpbuf, bd);
+  }
+  for (i = 0; i < width2; ++i) {
+    signed_fill_col_to_arr(intbuf + i, width2, height, arrbuf);
+    signed_down2_multistep(arrbuf, height, arrbuf2, stepsh, tmpbuf, bd);
+    signed_fill_arr_to_col(output + i, out_stride, height2, arrbuf2);
+  }
+
+Error:
+  aom_free(intbuf);
+  aom_free(tmpbuf);
+  aom_free(arrbuf);
+  aom_free(arrbuf2);
+}
+
+void av1_signed_up2(const int16_t *const input, int height, int width,
+                    int in_stride, int16_t *output, int out_stride, int stepsh,
+                    int stepsw, int bd) {
+  const int width2 = width << stepsw;
+  const int height2 = height << stepsh;
+  int i;
+  int16_t *intbuf = (int16_t *)aom_malloc(sizeof(int16_t) * width2 * height);
+  int16_t *tmpbuf =
+      (int16_t *)aom_malloc(sizeof(int16_t) * AOMMAX(width, height));
+  int16_t *arrbuf = (int16_t *)aom_malloc(sizeof(int16_t) * height);
+  int16_t *arrbuf2 = (int16_t *)aom_malloc(sizeof(int16_t) * height2);
+  if (intbuf == NULL || tmpbuf == NULL || arrbuf == NULL || arrbuf2 == NULL)
+    goto Error;
+  for (i = 0; i < height; ++i) {
+    signed_up2_multistep(input + in_stride * i, width, intbuf + width2 * i,
+                         stepsw, tmpbuf, bd);
+  }
+  for (i = 0; i < width2; ++i) {
+    signed_fill_col_to_arr(intbuf + i, width2, height, arrbuf);
+    signed_up2_multistep(arrbuf, height, arrbuf2, stepsh, tmpbuf, bd);
+    signed_fill_arr_to_col(output + i, out_stride, height2, arrbuf2);
+  }
+
+Error:
+  aom_free(intbuf);
+  aom_free(tmpbuf);
+  aom_free(arrbuf);
+  aom_free(arrbuf2);
+}
+#endif  // CONFIG_NEW_TX64X64
