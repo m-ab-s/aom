@@ -204,7 +204,7 @@ enum aome_enc_control_id {
    * Return value uses the 0..63 scale as used by the rc_*_quantizer config
    * parameters.
    */
-  AOME_GET_LAST_QUANTIZER_64,
+  AOME_GET_LAST_QUANTIZER_64 = 20,
 
   /*!\brief Codec control function to set the max no of frames to create arf.
    */
@@ -237,7 +237,7 @@ enum aome_enc_control_id {
    * For example, to allocate no more than 4.5 frames worth of bitrate
    * to a keyframe, set this to 450.
    */
-  AOME_SET_MAX_INTRA_BITRATE_PCT,
+  AOME_SET_MAX_INTRA_BITRATE_PCT = 26,
 
   /*!\brief Codec control function to set number of spatial layers.
    */
@@ -286,7 +286,7 @@ enum aome_enc_control_id {
    * value that is equal to 1 indicates that row based multi-threading is
    * enabled.
    */
-  AV1E_SET_ROW_MT,
+  AV1E_SET_ROW_MT = 32,
 
   /*!\brief Codec control function to set number of tile columns.
    *
@@ -369,7 +369,7 @@ enum aome_enc_control_id {
    *
    * By default, encoder operates with AQ_Mode 0(adaptive quantization off).
    */
-  AV1E_SET_AQ_MODE,
+  AV1E_SET_AQ_MODE = 40,
 
   /*!\brief Codec control function to enable/disable periodic Q boost.
    *
@@ -481,7 +481,7 @@ enum aome_enc_control_id {
    *                     2 = COLOCATED
    *                     3 = RESERVED
    */
-  AV1E_SET_CHROMA_SAMPLE_POSITION,
+  AV1E_SET_CHROMA_SAMPLE_POSITION = 48,
 
   /*!\brief Codec control function to set minimum interval between GF/ARF frames
    *
@@ -541,7 +541,7 @@ enum aome_enc_control_id {
    *
    * Experiment: EXT_PARTITION
    */
-  AV1E_SET_SUPERBLOCK_SIZE,
+  AV1E_SET_SUPERBLOCK_SIZE = 56,
 
   /*!\brief Codec control function to enable automatic set and use
    * bwd-pred frames.
@@ -621,7 +621,7 @@ enum aome_enc_control_id {
    *
    * Experiment: AOM_QM
    */
-  AV1E_SET_QM_MIN,
+  AV1E_SET_QM_MIN = 64,
 
   /*!\brief Codec control function to set the max quant matrix flatness.
    *
@@ -721,7 +721,7 @@ enum aome_enc_control_id {
    *
    * Experiment: ANS
    */
-  AV1E_SET_ANS_WINDOW_SIZE_LOG2,
+  AV1E_SET_ANS_WINDOW_SIZE_LOG2 = 72,
 
   /*!\brief Codec control function to enable/disable rectangular partitions.
    *
@@ -803,7 +803,7 @@ enum aome_enc_control_id {
    * direction. The default value is 1.
    *
    */
-  AV1E_SET_ENABLE_TX64,
+  AV1E_SET_ENABLE_TX64 = 80,
 
   /*!\brief Codec control function to turn on / off flip and identity
    * transforms.
@@ -877,7 +877,7 @@ enum aome_enc_control_id {
    * modes. The default value is 1.
    *
    */
-  AV1E_SET_ENABLE_MASKED_COMP,
+  AV1E_SET_ENABLE_MASKED_COMP = 88,
 
   /*!\brief Codec control function to turn on / off one sided compound usage
    * for a sequence.
@@ -947,7 +947,7 @@ enum aome_enc_control_id {
    * This will enable or disable usage of warped motion. The default value is 1.
    *
    */
-  AV1E_SET_ENABLE_WARPED_MOTION,
+  AV1E_SET_ENABLE_WARPED_MOTION = 96,
 
   /*!\brief Codec control function to turn on / off warped motion usage
    * at frame level.
@@ -999,7 +999,7 @@ enum aome_enc_control_id {
   AV1E_SET_ENABLE_SUPERRES,
 
   /*!\brief Codec control function to turn on/off palette mode */
-  AV1E_SET_ENABLE_PALETTE,
+  AV1E_SET_ENABLE_PALETTE = 104,
 
   /*!\brief Codec control function to turn on/off intra block copy mode */
   AV1E_SET_ENABLE_INTRABC,
@@ -1054,7 +1054,7 @@ enum aome_enc_control_id {
    * \note Valid ranges: 0..11, default is "0". 0 = UNKNOWN,
    * 1..16 = different test vectors for grain
    */
-  AV1E_SET_FILM_GRAIN_TEST_VECTOR,
+  AV1E_SET_FILM_GRAIN_TEST_VECTOR = 112,
 
   /*!\brief Codec control function to set the path to the film grain parameters
    */
@@ -1079,7 +1079,7 @@ enum aome_enc_control_id {
   AV1E_SET_INTRA_DCT_ONLY,
 
   /*!\brief Control to use dct only for inter modes */
-  AV1E_SET_INTER_DCT_ONLY,
+  AV1E_SET_INTER_DCT_ONLY = 120,
 
   /*!\brief Control to use default tx type only for intra modes */
   AV1E_SET_INTRA_DEFAULT_TX_ONLY,
@@ -1104,7 +1104,7 @@ enum aome_enc_control_id {
    * 1: Update at SB row level in tile
    * 2: Update at tile level
    */
-  AV1E_SET_COEFF_COST_UPD_FREQ,
+  AV1E_SET_COEFF_COST_UPD_FREQ = 140,
 
   /*!\brief Control to set frequency of the cost updates for mode
    * Possible values are:
@@ -1121,6 +1121,8 @@ enum aome_enc_control_id {
    * 2: Update at tile level
    */
   AV1E_SET_MV_COST_UPD_FREQ,
+
+  /* Need a gap in enum values to avoud conflict with 128, 129, 130 */
 
   /*!\brief Control to set bit mask that specifies which tier each of the 32
    * possible operating points conforms to.
