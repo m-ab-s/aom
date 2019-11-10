@@ -2100,9 +2100,7 @@ const VarianceParams kArrayHBDVariance_avx2[] = {
   VarianceParams(5, 4, &aom_highbd_10_variance32x16_avx2, 10),
   VarianceParams(5, 3, &aom_highbd_10_variance32x8_avx2, 10),
   VarianceParams(4, 6, &aom_highbd_10_variance16x64_avx2, 10),
-#if !CONFIG_EXT_PARTITIONS
   VarianceParams(4, 5, &aom_highbd_10_variance16x32_avx2, 10),
-#endif  // !CONFIG_EXT_PARTITIONS
   VarianceParams(4, 4, &aom_highbd_10_variance16x16_avx2, 10),
   VarianceParams(4, 3, &aom_highbd_10_variance16x8_avx2, 10),
   VarianceParams(3, 5, &aom_highbd_10_variance8x32_avx2, 10),
