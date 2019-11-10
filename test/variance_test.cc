@@ -2566,9 +2566,7 @@ const VarianceParams kArrayVariance_avx2[] = {
   VarianceParams(5, 4, &aom_variance32x16_avx2),
   VarianceParams(5, 3, &aom_variance32x8_avx2),
   VarianceParams(4, 6, &aom_variance16x64_avx2),
-#if !CONFIG_EXT_PARTITIONS
   VarianceParams(4, 5, &aom_variance16x32_avx2),
-#endif  // !CONFIG_EXT_PARTITIONS
   VarianceParams(4, 4, &aom_variance16x16_avx2),
   VarianceParams(4, 3, &aom_variance16x8_avx2),
   VarianceParams(4, 2, &aom_variance16x4_avx2)

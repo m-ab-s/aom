@@ -1183,8 +1183,9 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
   specialize qw/aom_variance32x64     sse2 avx2 neon msa/;
   specialize qw/aom_variance32x32     sse2 avx2 neon msa/;
   specialize qw/aom_variance32x16     sse2 avx2      msa/;
+  specialize qw/aom_variance16x32     avx2/;
   if (aom_config("CONFIG_EXT_PARTITIONS") eq "") {
-    specialize qw/aom_variance16x32     sse2 avx2      msa/;
+    specialize qw/aom_variance16x32     sse2      msa/;
   } # CONFIG_EXT_PARTITIONS
   specialize qw/aom_variance16x16     sse2 avx2 neon msa/;
   specialize qw/aom_variance16x8      sse2 avx2 neon msa/;
