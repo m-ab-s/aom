@@ -285,7 +285,7 @@ void av1_gen_inv_stage_range(int8_t *stage_range_col, int8_t *stage_range_row,
 static INLINE void inv_nonsep_txfm2d_add(const int32_t *input, uint16_t *output,
                                          const int stride, int32_t *txfm_buf,
                                          const int32_t *nstx_mtx,
-                                         const TX_SIZE tx_size) {
+                                         const TX_SIZE tx_size, int bd) {
   int ud_flip = 0, lr_flip = 0;
   const int tx_stride = tx_size_wide[tx_size] * tx_size_high[tx_size];
 
@@ -330,10 +330,65 @@ static INLINE void inv_nonsep_txfm2d_add(const int32_t *input, uint16_t *output,
       kt = rt * txw + ct;
       // Values of txfm_buf[kt] = residue value
       txfm_buf[kt] = round_shift(txfm_buf[kt], 10);
-      output[kp] = highbd_clip_pixel_add(output[kp], txfm_buf[kt], 8);
+      output[kp] = highbd_clip_pixel_add(output[kp], txfm_buf[kt], bd);
     }
   }
 }
+
+#if CONFIG_NEW_TX64X64
+static INLINE void inv_nonsep_txfm2d(const int32_t *input, uint16_t *output,
+                                     const int stride, int32_t *txfm_buf,
+                                     const int32_t *nstx_mtx,
+                                     const TX_SIZE tx_size, int bd) {
+  int ud_flip = 0, lr_flip = 0;
+  const int tx_stride = tx_size_wide[tx_size] * tx_size_high[tx_size];
+
+  // column/row indices in pixel (p) or transform (t) domains
+  int cp, rp, ct, rt, kp, kt, l;
+  int txw = tx_size_wide[tx_size], txh = tx_size_high[tx_size];
+
+  // Values of input[l]: transform coefficients * 2^3
+  // Max possible bit depth: 19
+
+  // initialize txfm_buf
+  for (rt = 0; rt < txh; ++rt) {
+    for (ct = 0; ct < txw; ++ct) {
+      txfm_buf[rt * txw + ct] = 0;
+    }
+  }
+
+  // 2D transform
+  for (rp = 0; rp < txh; ++rp) {
+    for (cp = 0; cp < txw; ++cp) {
+      kt = idx_flip(txw, txh, rp, cp, ud_flip, lr_flip);
+      for (rt = 0; rt < txh; ++rt) {
+        for (ct = 0; ct < txw; ++ct) {
+          l = rt * txw + ct;
+          // Values of txfm_buf[kt] = residue value * 2*3 * 2^8 * 2^(-1)
+          //                        = residue value * 2^(8+2)
+          // Bit depth = 19 + 3 + bd - 1 = 29
+          // Max possible bit depth = 19 + 3 + 16 - 1 = 37
+          // However, the transform coefficients are supposed to come from
+          // residues, and those operations are the reversal of the previous
+          // forward transform. Thus, there should not be an overflow issue.
+          txfm_buf[rp * txw + cp] +=
+              round_shift(nstx_mtx[l * tx_stride + kt] * input[l], 1);
+        }
+      }
+    }
+  }
+
+  for (rt = 0; rt < txh; ++rt) {
+    for (ct = 0; ct < txw; ++ct) {
+      kp = rt * stride + ct;
+      kt = rt * txw + ct;
+      // Values of txfm_buf[kt] = residue value
+      txfm_buf[kt] = round_shift(txfm_buf[kt], 10);
+      output[kp] = clip_pixel_signed(txfm_buf[kt], bd);
+    }
+  }
+}
+#endif  // CONFIG_NEW_TX64X64
 #endif  // CONFIG_MODE_DEP_TX
 
 static INLINE void inv_txfm2d_add_c(const int32_t *input, uint16_t *output,
@@ -343,7 +398,7 @@ static INLINE void inv_txfm2d_add_c(const int32_t *input, uint16_t *output,
 #if CONFIG_MODE_DEP_TX && USE_MDTX_INTRA && USE_NST_INTRA
   if (cfg->nstx_mtx_ptr) {
     inv_nonsep_txfm2d_add(input, output, stride, txfm_buf, cfg->nstx_mtx_ptr,
-                          cfg->tx_size);
+                          cfg->tx_size, bd);
     return;
   }
 #endif
@@ -461,6 +516,132 @@ static INLINE void inv_txfm2d_add_facade(const int32_t *input, uint16_t *output,
   // av1_gen_inv_stage_range() does for inverse shifts.
   inv_txfm2d_add_c(input, output, stride, &cfg, txfm_buf, tx_size, bd);
 }
+
+#if CONFIG_NEW_TX64X64
+static INLINE void inv_txfm2d_c(const int32_t *input, int16_t *output,
+                                int stride, TXFM_2D_FLIP_CFG *cfg,
+                                int32_t *txfm_buf, TX_SIZE tx_size, int bd) {
+#if CONFIG_MODE_DEP_TX && USE_MDTX_INTRA && USE_NST_INTRA
+  if (cfg->nstx_mtx_ptr) {
+    inv_nonsep_txfm2d(input, output, stride, txfm_buf, cfg->nstx_mtx_ptr,
+                      cfg->tx_size, bd);
+    return;
+  }
+#endif
+  // Note when assigning txfm_size_col, we use the txfm_size from the
+  // row configuration and vice versa. This is intentionally done to
+  // accurately perform rectangular transforms. When the transform is
+  // rectangular, the number of columns will be the same as the
+  // txfm_size stored in the row cfg struct. It will make no difference
+  // for square transforms.
+  const int txfm_size_col = tx_size_wide[cfg->tx_size];
+  const int txfm_size_row = tx_size_high[cfg->tx_size];
+  // Take the shift from the larger dimension in the rectangular case.
+  const int8_t *shift = cfg->shift;
+  const int rect_type = get_rect_tx_log_ratio(txfm_size_col, txfm_size_row);
+  int8_t stage_range_row[MAX_TXFM_STAGE_NUM];
+  int8_t stage_range_col[MAX_TXFM_STAGE_NUM];
+  assert(cfg->stage_num_row <= MAX_TXFM_STAGE_NUM);
+  assert(cfg->stage_num_col <= MAX_TXFM_STAGE_NUM);
+  av1_gen_inv_stage_range(stage_range_col, stage_range_row, cfg, tx_size, bd);
+
+  const int8_t cos_bit_col = cfg->cos_bit_col;
+  const int8_t cos_bit_row = cfg->cos_bit_row;
+  const TxfmFunc txfm_func_col = inv_txfm_type_to_func(cfg->txfm_type_col);
+  const TxfmFunc txfm_func_row = inv_txfm_type_to_func(cfg->txfm_type_row);
+#if CONFIG_MODE_DEP_TX
+  // For MDTX, the stage_range argument is not required. Instead, we pass
+  // the prediction mode as side information to 1D transform functions.
+  if (txfm_func_col == av1_imdt4 || txfm_func_col == av1_imdt8)
+    stage_range_col[0] = (int)cfg->mode;
+  if (txfm_func_row == av1_imdt4 || txfm_func_row == av1_imdt8)
+    stage_range_row[0] = (int)cfg->mode;
+#endif
+
+  // txfm_buf's length is  txfm_size_row * txfm_size_col + 2 *
+  // AOMMAX(txfm_size_row, txfm_size_col)
+  // it is used for intermediate data buffering
+  const int buf_offset = AOMMAX(txfm_size_row, txfm_size_col);
+  int32_t *temp_in = txfm_buf;
+  int32_t *temp_out = temp_in + buf_offset;
+  int32_t *buf = temp_out + buf_offset;
+  int32_t *buf_ptr = buf;
+  int c, r;
+
+  // Rows
+  for (r = 0; r < txfm_size_row; ++r) {
+    if (abs(rect_type) == 1) {
+      for (c = 0; c < txfm_size_col; ++c) {
+        temp_in[c] = round_shift((int64_t)input[c] * NewInvSqrt2, NewSqrt2Bits);
+      }
+    }
+  }
+
+  // Rows
+  for (r = 0; r < txfm_size_row; ++r) {
+    if ((abs(rect_type) % 2) == 1) {
+      for (c = 0; c < txfm_size_col; ++c) {
+        temp_in[c] = round_shift((int64_t)input[c] * NewInvSqrt2, NewSqrt2Bits);
+      }
+      clamp_buf(temp_in, txfm_size_col, bd + 8);
+      txfm_func_row(temp_in, buf_ptr, cos_bit_row, stage_range_row);
+    } else {
+      for (c = 0; c < txfm_size_col; ++c) {
+        temp_in[c] = input[c];
+      }
+      clamp_buf(temp_in, txfm_size_col, bd + 8);
+      txfm_func_row(temp_in, buf_ptr, cos_bit_row, stage_range_row);
+    }
+    av1_round_shift_array(buf_ptr, txfm_size_col, -shift[0]);
+    input += txfm_size_col;
+    buf_ptr += txfm_size_col;
+  }
+
+  // Columns
+  for (c = 0; c < txfm_size_col; ++c) {
+    if (cfg->lr_flip == 0) {
+      for (r = 0; r < txfm_size_row; ++r)
+        temp_in[r] = buf[r * txfm_size_col + c];
+    } else {
+      // flip left right
+      for (r = 0; r < txfm_size_row; ++r)
+        temp_in[r] = buf[r * txfm_size_col + (txfm_size_col - c - 1)];
+    }
+    clamp_buf(temp_in, txfm_size_row, AOMMAX(bd + 6, 16));
+    txfm_func_col(temp_in, temp_out, cos_bit_col, stage_range_col);
+    av1_round_shift_array(temp_out, txfm_size_row, -shift[1]);
+    if (cfg->ud_flip == 0) {
+      for (r = 0; r < txfm_size_row; ++r) {
+        output[r * stride + c] = clip_pixel_signed(temp_out[r], bd);
+      }
+    } else {
+      // flip upside down
+      for (r = 0; r < txfm_size_row; ++r) {
+        output[r * stride + c] =
+            clip_pixel_signed(temp_out[txfm_size_row - r - 1], bd);
+      }
+    }
+  }
+}
+
+static INLINE void inv_txfm2d_facade(const int32_t *input, int16_t *output,
+                                     int stride, int32_t *txfm_buf,
+                                     TX_TYPE tx_type, TX_SIZE tx_size,
+#if CONFIG_MODE_DEP_TX
+                                     PREDICTION_MODE mode,
+#endif
+                                     int bd) {
+  TXFM_2D_FLIP_CFG cfg;
+#if CONFIG_MODE_DEP_TX
+  av1_get_inv_txfm_cfg(tx_type, tx_size, mode, &cfg);
+#else
+  av1_get_inv_txfm_cfg(tx_type, tx_size, &cfg);
+#endif
+  // Forward shift sum uses larger square size, to be consistent with what
+  // av1_gen_inv_stage_range() does for inverse shifts.
+  inv_txfm2d_c(input, output, stride, &cfg, txfm_buf, tx_size, bd);
+}
+#endif  // CONFIG_NEW_TX64X64
 
 void av1_inv_txfm2d_add_4x8_c(const int32_t *input, uint16_t *output,
                               int stride, TX_TYPE tx_type,
@@ -622,27 +803,20 @@ void av1_inv_txfm2d_add_64x64_c(const int32_t *input, uint16_t *output,
   // Inverse 32x32 transform.
   DECLARE_ALIGNED(32, int, txfm_buf[32 * 32 + 32 + 32]);
 
-  DECLARE_ALIGNED(32, uint16_t, output_32x32[32 * 32]);
+  DECLARE_ALIGNED(32, int16_t, output_32x32[32 * 32]);
   memset(output_32x32, 0, 32 * 32 * sizeof(output_32x32[0]));
-  inv_txfm2d_add_facade(input, output_32x32, 32, txfm_buf, tx_type, TX_32X32,
+  inv_txfm2d_facade(input, output_32x32, 32, txfm_buf, tx_type, TX_32X32,
 #if CONFIG_MODE_DEP_TX
-                        mode,
+                    mode,
 #endif  // CONFIG_MODE_DEP_TX
-                        bd);
+                    bd);
 
   // Upsample to 64x64.
-  // TODO(urvang): Integerize and remove/reduce copies.
-  DECLARE_ALIGNED(32, double, input_dbl[32 * 32]);
-  for (int r = 0; r < 32; ++r) {
-    for (int c = 0; c < 32; ++c) {
-      input_dbl[r * 32 + c] = output_32x32[r * 32 + c];
-    }
-  }
-  DECLARE_ALIGNED(32, double, output_dbl[64 * 64]);
-  av1_upscale_plane_double_prec(input_dbl, 32, 32, 32, output_dbl, 64, 64, 64);
+  DECLARE_ALIGNED(32, int16_t, output_up[64 * 64]);
+  av1_signed_up2(output_32x32, 32, 32, 32, output_up, 64, 1, 1, bd);
   for (int r = 0; r < 64; ++r) {
     for (int c = 0; c < 64; ++c) {
-      const int32_t residue = (int32_t)round(output_dbl[64 * r + c]);
+      const tran_low_t residue = (tran_low_t)output_up[64 * r + c];
       output[r * stride + c] =
           highbd_clip_pixel_add(output[r * stride + c], residue, bd);
     }
@@ -658,34 +832,27 @@ void av1_inv_txfm2d_add_32x64_c(const int32_t *input, uint16_t *output,
   // Inverse 32x32 transform.
   DECLARE_ALIGNED(32, int, txfm_buf[32 * 32 + 32 + 32]);
 
-  DECLARE_ALIGNED(32, uint16_t, output_32x32[32 * 32]);
+  DECLARE_ALIGNED(32, int16_t, output_32x32[32 * 32]);
   memset(output_32x32, 0, 32 * 32 * sizeof(output_32x32[0]));
-  inv_txfm2d_add_facade(input, output_32x32, 32, txfm_buf, tx_type, TX_32X32,
+  inv_txfm2d_facade(input, output_32x32, 32, txfm_buf, tx_type, TX_32X32,
 #if CONFIG_MODE_DEP_TX
-                        mode,
+                    mode,
 #endif  // CONFIG_MODE_DEP_TX
-                        bd);
-
+                    bd);
   // Scale.
   for (int r = 0; r < 32; ++r) {
     for (int c = 0; c < 32; ++c) {
-      output_32x32[r * 32 + c] = (uint16_t)round_shift(
+      output_32x32[r * 32 + c] = (int16_t)round_shift(
           (int64_t)output_32x32[r * 32 + c] * NewSqrt2, NewSqrt2Bits);
     }
   }
 
+  DECLARE_ALIGNED(32, int16_t, output_up[32 * 64]);
   // Upsample to 32x64.
-  DECLARE_ALIGNED(32, double, input_dbl[32 * 32]);
-  for (int r = 0; r < 32; ++r) {
-    for (int c = 0; c < 32; ++c) {
-      input_dbl[r * 32 + c] = output_32x32[r * 32 + c];
-    }
-  }
-  DECLARE_ALIGNED(32, double, output_dbl[32 * 64]);
-  av1_upscale_plane_double_prec(input_dbl, 32, 32, 32, output_dbl, 64, 32, 32);
+  av1_signed_up2(output_32x32, 32, 32, 32, output_up, 32, 1, 0, bd);
   for (int r = 0; r < 64; ++r) {
     for (int c = 0; c < 32; ++c) {
-      const int32_t residue = (int32_t)round(output_dbl[r * 32 + c]);
+      const tran_low_t residue = (tran_low_t)output_up[32 * r + c];
       output[r * stride + c] =
           highbd_clip_pixel_add(output[r * stride + c], residue, bd);
     }
@@ -701,34 +868,28 @@ void av1_inv_txfm2d_add_64x32_c(const int32_t *input, uint16_t *output,
   // Inverse 32x32 transform.
   DECLARE_ALIGNED(32, int, txfm_buf[32 * 32 + 32 + 32]);
 
-  DECLARE_ALIGNED(32, uint16_t, output_32x32[32 * 32]);
+  DECLARE_ALIGNED(32, int16_t, output_32x32[32 * 32]);
   memset(output_32x32, 0, 32 * 32 * sizeof(output_32x32[0]));
-  inv_txfm2d_add_facade(input, output_32x32, 32, txfm_buf, tx_type, TX_32X32,
+  inv_txfm2d_facade(input, output_32x32, 32, txfm_buf, tx_type, TX_32X32,
 #if CONFIG_MODE_DEP_TX
-                        mode,
+                    mode,
 #endif  // CONFIG_MODE_DEP_TX
-                        bd);
+                    bd);
 
   // Scale.
   for (int r = 0; r < 32; ++r) {
     for (int c = 0; c < 32; ++c) {
-      output_32x32[r * 32 + c] = (uint16_t)round_shift(
+      output_32x32[r * 32 + c] = (int16_t)round_shift(
           (int64_t)output_32x32[r * 32 + c] * NewSqrt2, NewSqrt2Bits);
     }
   }
 
+  DECLARE_ALIGNED(32, int16_t, output_up[64 * 32]);
   // Upsample to 64x32.
-  DECLARE_ALIGNED(32, double, input_dbl[32 * 32]);
-  for (int r = 0; r < 32; ++r) {
-    for (int c = 0; c < 32; ++c) {
-      input_dbl[r * 32 + c] = output_32x32[r * 32 + c];
-    }
-  }
-  DECLARE_ALIGNED(32, double, output_dbl[64 * 32]);
-  av1_upscale_plane_double_prec(input_dbl, 32, 32, 32, output_dbl, 32, 64, 64);
+  av1_signed_up2(output_32x32, 32, 32, 32, output_up, 64, 0, 1, bd);
   for (int r = 0; r < 32; ++r) {
     for (int c = 0; c < 64; ++c) {
-      const int32_t residue = (int32_t)round(output_dbl[r * 64 + c]);
+      const tran_low_t residue = (tran_low_t)output_up[64 * r + c];
       output[r * stride + c] =
           highbd_clip_pixel_add(output[r * stride + c], residue, bd);
     }
@@ -744,34 +905,28 @@ void av1_inv_txfm2d_add_16x64_c(const int32_t *input, uint16_t *output,
   // Inverse 16x32 transform.
   DECLARE_ALIGNED(32, int, txfm_buf[16 * 32 + 32 + 32]);
 
-  DECLARE_ALIGNED(32, uint16_t, output_16x32[16 * 32]);
+  DECLARE_ALIGNED(32, int16_t, output_16x32[16 * 32]);
   memset(output_16x32, 0, 16 * 32 * sizeof(output_16x32[0]));
-  inv_txfm2d_add_facade(input, output_16x32, 16, txfm_buf, tx_type, TX_16X32,
+  inv_txfm2d_facade(input, output_16x32, 16, txfm_buf, tx_type, TX_16X32,
 #if CONFIG_MODE_DEP_TX
-                        mode,
+                    mode,
 #endif  // CONFIG_MODE_DEP_TX
-                        bd);
+                    bd);
 
   // Scale.
   for (int r = 0; r < 32; ++r) {
     for (int c = 0; c < 16; ++c) {
-      output_16x32[r * 16 + c] = (uint16_t)round_shift(
+      output_16x32[r * 16 + c] = (int16_t)round_shift(
           (int64_t)output_16x32[r * 16 + c] * NewInvSqrt2, NewSqrt2Bits);
     }
   }
 
+  DECLARE_ALIGNED(32, int16_t, output_up[16 * 64]);
   // Upsample to 16x64.
-  DECLARE_ALIGNED(32, double, input_dbl[16 * 32]);
-  for (int r = 0; r < 32; ++r) {
-    for (int c = 0; c < 16; ++c) {
-      input_dbl[r * 16 + c] = output_16x32[r * 16 + c];
-    }
-  }
-  DECLARE_ALIGNED(32, double, output_dbl[16 * 64]);
-  av1_upscale_plane_double_prec(input_dbl, 32, 16, 16, output_dbl, 64, 16, 16);
+  av1_signed_up2(output_16x32, 32, 16, 16, output_up, 16, 1, 0, bd);
   for (int r = 0; r < 64; ++r) {
     for (int c = 0; c < 16; ++c) {
-      const int32_t residue = (int32_t)round(output_dbl[r * 16 + c]);
+      const tran_low_t residue = (tran_low_t)output_up[16 * r + c];
       output[r * stride + c] =
           highbd_clip_pixel_add(output[r * stride + c], residue, bd);
     }
@@ -787,34 +942,28 @@ void av1_inv_txfm2d_add_64x16_c(const int32_t *input, uint16_t *output,
   // Inverse 32x16 transform.
   DECLARE_ALIGNED(32, int, txfm_buf[32 * 16 + 32 + 32]);
 
-  DECLARE_ALIGNED(32, uint16_t, output_32x16[32 * 16]);
+  DECLARE_ALIGNED(32, int16_t, output_32x16[32 * 16]);
   memset(output_32x16, 0, 32 * 16 * sizeof(output_32x16[0]));
-  inv_txfm2d_add_facade(input, output_32x16, 32, txfm_buf, tx_type, TX_32X16,
+  inv_txfm2d_facade(input, output_32x16, 32, txfm_buf, tx_type, TX_32X16,
 #if CONFIG_MODE_DEP_TX
-                        mode,
+                    mode,
 #endif  // CONFIG_MODE_DEP_TX
-                        bd);
+                    bd);
 
   // Scale.
   for (int r = 0; r < 16; ++r) {
     for (int c = 0; c < 32; ++c) {
-      output_32x16[r * 32 + c] = (uint16_t)round_shift(
+      output_32x16[r * 32 + c] = (int16_t)round_shift(
           (int64_t)output_32x16[r * 32 + c] * NewInvSqrt2, NewSqrt2Bits);
     }
   }
 
+  DECLARE_ALIGNED(32, int16_t, output_up[64 * 16]);
   // Upsample to 64x16.
-  DECLARE_ALIGNED(32, double, input_dbl[32 * 16]);
-  for (int r = 0; r < 16; ++r) {
-    for (int c = 0; c < 32; ++c) {
-      input_dbl[r * 32 + c] = output_32x16[r * 32 + c];
-    }
-  }
-  DECLARE_ALIGNED(32, double, output_dbl[64 * 16]);
-  av1_upscale_plane_double_prec(input_dbl, 16, 32, 32, output_dbl, 16, 64, 64);
+  av1_signed_up2(output_32x16, 16, 32, 32, output_up, 64, 0, 1, bd);
   for (int r = 0; r < 16; ++r) {
     for (int c = 0; c < 64; ++c) {
-      const int32_t residue = (int32_t)round(output_dbl[r * 64 + c]);
+      const tran_low_t residue = (tran_low_t)output_up[64 * r + c];
       output[r * stride + c] =
           highbd_clip_pixel_add(output[r * stride + c], residue, bd);
     }
@@ -822,6 +971,7 @@ void av1_inv_txfm2d_add_64x16_c(const int32_t *input, uint16_t *output,
 }
 
 #else
+
 void av1_inv_txfm2d_add_64x64_c(const int32_t *input, uint16_t *output,
                                 int stride, TX_TYPE tx_type,
 #if CONFIG_MODE_DEP_TX
