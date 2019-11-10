@@ -1260,21 +1260,12 @@ if (aom_config("CONFIG_EXT_PARTITIONS") eq "") {
   specialize qw/aom_sub_pixel_avg_variance4x16 sse2 ssse3/;
   specialize qw/aom_sub_pixel_avg_variance8x32 sse2 ssse3/;
   specialize qw/aom_sub_pixel_avg_variance64x16 sse2 ssse3 avx2/;
-  specialize qw/aom_sub_pixel_variance16x4  ssse3/;
-  specialize qw/aom_sub_pixel_variance32x8  ssse3 avx2/;
-  specialize qw/aom_sub_pixel_variance16x64 ssse3/;
-  specialize qw/aom_sub_pixel_avg_variance16x4            ssse3/;
-  specialize qw/aom_sub_pixel_avg_variance32x8       ssse3 avx2/;
-  specialize qw/aom_sub_pixel_avg_variance16x64           ssse3/;
-
-  if (aom_config("CONFIG_EXT_PARTITIONS") eq "") {
-    specialize qw/aom_sub_pixel_variance16x4           sse2/;
-    specialize qw/aom_sub_pixel_variance32x8           sse2/;
-    specialize qw/aom_sub_pixel_variance16x64          sse2/;
-    specialize qw/aom_sub_pixel_avg_variance16x4       sse2/;
-    specialize qw/aom_sub_pixel_avg_variance32x8       sse2/;
-    specialize qw/aom_sub_pixel_avg_variance16x64      sse2/;
-  } # CONFIG_EXT_PARTITIONS
+  specialize qw/aom_sub_pixel_variance16x4       sse2 ssse3/;
+  specialize qw/aom_sub_pixel_variance32x8       sse2 ssse3 avx2/;
+  specialize qw/aom_sub_pixel_variance16x64      sse2 ssse3/;
+  specialize qw/aom_sub_pixel_avg_variance16x4   sse2 ssse3/;
+  specialize qw/aom_sub_pixel_avg_variance32x8   sse2 ssse3 avx2/;
+  specialize qw/aom_sub_pixel_avg_variance16x64  sse2 ssse3/;
 
   if (aom_config("CONFIG_FLEX_PARTITION") eq "yes") {
     specialize qw/aom_sub_pixel_variance8x64 sse2 ssse3/;

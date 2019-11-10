@@ -1893,12 +1893,10 @@ const SubpelVarianceParams kArraySubpelVariance_sse2[] = {
   SubpelVarianceParams(4, 5, &aom_sub_pixel_variance16x32_sse2, 0),
   SubpelVarianceParams(4, 4, &aom_sub_pixel_variance16x16_sse2, 0),
   SubpelVarianceParams(4, 3, &aom_sub_pixel_variance16x8_sse2, 0),
-#if !CONFIG_EXT_PARTITIONS
   SubpelVarianceParams(6, 4, &aom_sub_pixel_variance64x16_sse2, 0),
   SubpelVarianceParams(4, 6, &aom_sub_pixel_variance16x64_sse2, 0),
   SubpelVarianceParams(5, 3, &aom_sub_pixel_variance32x8_sse2, 0),
   SubpelVarianceParams(4, 2, &aom_sub_pixel_variance16x4_sse2, 0),
-#endif  // !CONFIG_EXT_PARTITIONS
   SubpelVarianceParams(3, 4, &aom_sub_pixel_variance8x16_sse2, 0),
   SubpelVarianceParams(3, 3, &aom_sub_pixel_variance8x8_sse2, 0),
   SubpelVarianceParams(3, 2, &aom_sub_pixel_variance8x4_sse2, 0),
@@ -1933,12 +1931,10 @@ const SubpelAvgVarianceParams kArraySubpelAvgVariance_sse2[] = {
   SubpelAvgVarianceParams(4, 5, &aom_sub_pixel_avg_variance16x32_sse2, 0),
   SubpelAvgVarianceParams(4, 4, &aom_sub_pixel_avg_variance16x16_sse2, 0),
   SubpelAvgVarianceParams(4, 3, &aom_sub_pixel_avg_variance16x8_sse2, 0),
-#if !CONFIG_EXT_PARTITIONS
   SubpelAvgVarianceParams(6, 4, &aom_sub_pixel_avg_variance64x16_sse2, 0),
   SubpelAvgVarianceParams(4, 6, &aom_sub_pixel_avg_variance16x64_sse2, 0),
   SubpelAvgVarianceParams(5, 3, &aom_sub_pixel_avg_variance32x8_sse2, 0),
   SubpelAvgVarianceParams(4, 2, &aom_sub_pixel_avg_variance16x4_sse2, 0),
-#endif  // !CONFIG_EXT_PARTITIONS
   SubpelAvgVarianceParams(3, 4, &aom_sub_pixel_avg_variance8x16_sse2, 0),
   SubpelAvgVarianceParams(3, 3, &aom_sub_pixel_avg_variance8x8_sse2, 0),
   SubpelAvgVarianceParams(3, 2, &aom_sub_pixel_avg_variance8x4_sse2, 0),
