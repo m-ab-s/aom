@@ -92,10 +92,8 @@ INSTANTIATE_TEST_CASE_P(C, AV1SubtractBlockTest,
                         ::testing::Values(aom_subtract_block_c));
 
 #if HAVE_SSE2
-#if !CONFIG_EXT_PARTITIONS
 INSTANTIATE_TEST_CASE_P(SSE2, AV1SubtractBlockTest,
                         ::testing::Values(aom_subtract_block_sse2));
-#endif  // !CONFIG_EXT_PARTITIONS
 #endif  // HAVE_SSE2
 #if HAVE_NEON
 INSTANTIATE_TEST_CASE_P(NEON, AV1SubtractBlockTest,

@@ -652,12 +652,7 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
   # Block subtraction
   #
   add_proto qw/void aom_subtract_block/, "int rows, int cols, int16_t *diff_ptr, ptrdiff_t diff_stride, const uint8_t *src_ptr, ptrdiff_t src_stride, const uint8_t *pred_ptr, ptrdiff_t pred_stride";
-  # sse2 has alignment issues with this experiment.
-  if (aom_config("CONFIG_EXT_PARTITIONS") eq "") {
-    specialize qw/aom_subtract_block neon msa sse2 avx2/;
-  } else {
-    specialize qw/aom_subtract_block neon msa avx2/;
-  } # CONFIG_EXT_PARTITIONS
+  specialize qw/aom_subtract_block neon msa sse2 avx2/;
 
   add_proto qw/void aom_highbd_subtract_block/, "int rows, int cols, int16_t *diff_ptr, ptrdiff_t diff_stride, const uint8_t *src_ptr, ptrdiff_t src_stride, const uint8_t *pred_ptr, ptrdiff_t pred_stride, int bd";
   specialize qw/aom_highbd_subtract_block sse2/;
