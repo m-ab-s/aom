@@ -510,9 +510,15 @@ void av1_inv_txfm_add_c(const tran_low_t *dqcoeff, uint8_t *dst, int stride,
   av1_highbd_inv_txfm_add_c(dqcoeff, CONVERT_TO_BYTEPTR(tmp), tmp_stride,
                             txfm_param);
 #else
-  av1_highbd_inv_txfm_add(dqcoeff, CONVERT_TO_BYTEPTR(tmp), tmp_stride,
-                          txfm_param);
-#endif
+#if CONFIG_NEW_TX64X64
+  if (txsize_sqr_up_map[tx_size] == TX_64X64)
+    av1_highbd_inv_txfm_add_c(dqcoeff, CONVERT_TO_BYTEPTR(tmp), tmp_stride,
+                              txfm_param);
+  else
+#endif  // CONFIG_NEW_TX64X64
+    av1_highbd_inv_txfm_add(dqcoeff, CONVERT_TO_BYTEPTR(tmp), tmp_stride,
+                            txfm_param);
+#endif  // CONFIG_MODE_DEP_TX
 
   for (int r = 0; r < h; ++r) {
     for (int c = 0; c < w; ++c) {
@@ -541,13 +547,23 @@ void av1_inverse_transform_block(const MACROBLOCKD *xd,
 #if CONFIG_MODE_DEP_TX
     av1_highbd_inv_txfm_add_c(dqcoeff, dst, stride, &txfm_param);
 #else
-    av1_highbd_inv_txfm_add(dqcoeff, dst, stride, &txfm_param);
-#endif
+#if CONFIG_NEW_TX64X64
+    if (txsize_sqr_up_map[tx_size] == TX_64X64)
+      av1_highbd_inv_txfm_add_c(dqcoeff, dst, stride, &txfm_param);
+    else
+#endif  // CONFIG_NEW_TX64X64
+      av1_highbd_inv_txfm_add(dqcoeff, dst, stride, &txfm_param);
+#endif  // CONFIG_MODE_DEP_TX
   } else {
 #if CONFIG_MODE_DEP_TX
     av1_inv_txfm_add_c(dqcoeff, dst, stride, &txfm_param);
 #else
-    av1_inv_txfm_add(dqcoeff, dst, stride, &txfm_param);
-#endif
+#if CONFIG_NEW_TX64X64
+    if (txsize_sqr_up_map[tx_size] == TX_64X64)
+      av1_inv_txfm_add_c(dqcoeff, dst, stride, &txfm_param);
+    else
+#endif  // CONFIG_NEW_TX64X64
+      av1_inv_txfm_add(dqcoeff, dst, stride, &txfm_param);
+#endif  // CONFIG_MODE_DEP_TX
   }
 }
