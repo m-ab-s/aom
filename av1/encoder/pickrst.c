@@ -131,6 +131,8 @@ typedef struct {
   WienerInfo wiener;
 #if CONFIG_WIENER_NONSEP
   WienerNonsepInfo wiener_nonsep;
+  const uint8_t *luma;
+  int luma_stride;
 #endif  // CONFIG_WIENER_NONSEP
   AV1PixelRect tile_rect;
 } RestSearchCtxt;
@@ -1404,19 +1406,19 @@ static void search_cnn(const RestorationTileLimits *limits,
 #endif  // CONFIG_LOOP_RESTORE_CNN
 
 #if CONFIG_WIENER_NONSEP
-static int count_wienerns_bits(int wienerns_win,
-                               WienerNonsepInfo *wienerns_info,
+static int count_wienerns_bits(int plane, WienerNonsepInfo *wienerns_info,
                                WienerNonsepInfo *ref_wienerns_info) {
-  assert(wienerns_win == WIENERNS_NUM_COEFF ||
-         wienerns_win == WIENERNS_NUM_COEFF_CHROMA);
+  int is_uv = (plane != AOM_PLANE_Y);
+  int beg_feat = is_uv ? WIENERNS_Y : 0;
+  int end_feat = is_uv ? WIENERNS_YUV : WIENERNS_Y;
+
   int bits = 0;
-  for (int i = 0; i < wienerns_win; ++i) {
+  for (int i = beg_feat; i < end_feat; ++i) {
     bits += aom_count_primitive_refsubexpfin(
-        (1 << wienerns_coeff_info[i][WIENERNS_BIT_ID]),
-        wienerns_coeff_info[i][WIENERNS_SUBEXP_K_ID],
-        ref_wienerns_info->nsfilter[i] -
-            wienerns_coeff_info[i][WIENERNS_MIN_ID],
-        wienerns_info->nsfilter[i] - wienerns_coeff_info[i][WIENERNS_MIN_ID]);
+        (1 << wienerns_coeff[i][WIENERNS_BIT_ID]),
+        wienerns_coeff[i][WIENERNS_SUBEXP_K_ID],
+        ref_wienerns_info->nsfilter[i] - wienerns_coeff[i][WIENERNS_MIN_ID],
+        wienerns_info->nsfilter[i] - wienerns_coeff[i][WIENERNS_MIN_ID]);
   }
   return bits;
 }
@@ -1428,61 +1430,80 @@ static int16_t quantize(double x, int16_t ratio, int16_t minv, int16_t n) {
   return scale_x;
 }
 
-static int compute_quantized_wienerns_filter(
-    const uint8_t *dgd, const uint8_t *src, int h_beg, int h_end, int v_beg,
-    int v_end, int dgd_stride, int src_stride,
-    WienerNonsepInfo *wiener_nonsep_info, int wienerns_win, int use_hbd) {
-  assert(wienerns_win == WIENERNS_NUM_COEFF ||
-         wienerns_win == WIENERNS_NUM_COEFF_CHROMA);
-
+static int compute_quantized_wienerns_filter(const uint8_t *dgd,
+                                             const uint8_t *src, int h_beg,
+                                             int h_end, int v_beg, int v_end,
+                                             int dgd_stride, int src_stride,
+                                             RestorationUnitInfo *rui,
+                                             int use_hbd) {
   const uint16_t *src_hbd = CONVERT_TO_SHORTPTR(src);
   const uint16_t *dgd_hbd = CONVERT_TO_SHORTPTR(dgd);
-  double A[WIENERNS_NUM_COEFF * WIENERNS_NUM_COEFF];
-  double b[WIENERNS_NUM_COEFF];
-  double x[WIENERNS_NUM_COEFF];
-  double buf[WIENERNS_NUM_COEFF];
+  const uint16_t *luma_hbd = CONVERT_TO_SHORTPTR(rui->luma);
+  double A[WIENERNS_MAX * WIENERNS_MAX];
+  double b[WIENERNS_MAX];
+  double x[WIENERNS_MAX];
+  double buf[WIENERNS_MAX];
   memset(A, 0, sizeof(A));
   memset(b, 0, sizeof(b));
+
+  int is_uv = (rui->plane != AOM_PLANE_Y);
+  int beg_pixel = is_uv ? WIENERNS_Y_PIXEL : 0;
+  int end_pixel = is_uv ? WIENERNS_YUV_PIXEL : WIENERNS_Y_PIXEL;
+  int num_feat = is_uv ? WIENERNS_UV : WIENERNS_Y;
 
   for (int i = v_beg; i < v_end; ++i) {
     for (int j = h_beg; j < h_end; ++j) {
       int dgd_id = i * dgd_stride + j;
       int src_id = i * src_stride + j;
+      int luma_id = i * rui->luma_stride + j;
       memset(buf, 0, sizeof(buf));
-      for (int k = 0; k < WIENERNS_NUM_PIXEL; ++k) {
-        int type = wienerns_config[k][WIENERNS_COEFF_ID];
+      for (int k = beg_pixel; k < end_pixel; ++k) {
+        int pos = wienerns_config[k][WIENERNS_BUF_POS];
         int r = wienerns_config[k][WIENERNS_ROW_ID];
         int c = wienerns_config[k][WIENERNS_COL_ID];
-        buf[type] +=
-            use_hbd
-                ? clip_base((double)dgd_hbd[(i + r) * dgd_stride + (j + c)] -
-                            dgd_hbd[dgd_id])
-                : clip_base((double)dgd[(i + r) * dgd_stride + (j + c)] -
-                            dgd[dgd_id]);
+        if (!is_uv || k - beg_pixel < WIENERNS_UV_INTER_PIXEL) {
+          buf[pos] +=
+              use_hbd
+                  ? clip_base((double)dgd_hbd[(i + r) * dgd_stride + (j + c)] -
+                              dgd_hbd[dgd_id])
+                  : clip_base((double)dgd[(i + r) * dgd_stride + (j + c)] -
+                              dgd[dgd_id]);
+        } else {
+          buf[pos] +=
+              use_hbd
+                  ? clip_base(
+                        (double)luma_hbd[(i + r) * rui->luma_stride + (j + c)] -
+                        luma_hbd[luma_id])
+                  : clip_base((double)rui
+                                  ->luma[(i + r) * rui->luma_stride + (j + c)] -
+                              rui->luma[luma_id]);
+        }
       }
-      for (int k = 0; k < wienerns_win; ++k) {
+      for (int k = 0; k < num_feat; ++k) {
         for (int l = 0; l <= k; ++l) {
-          A[k * wienerns_win + l] += buf[k] * buf[l];
+          A[k * num_feat + l] += buf[k] * buf[l];
         }
         b[k] += buf[k] * (use_hbd ? ((double)src_hbd[src_id] - dgd_hbd[dgd_id])
                                   : ((double)src[src_id] - dgd[dgd_id]));
       }
     }
   }
-  for (int k = 0; k < wienerns_win; ++k) {
-    for (int l = k + 1; l < wienerns_win; ++l) {
-      A[k * wienerns_win + l] = A[l * wienerns_win + k];
+
+  for (int k = 0; k < num_feat; ++k) {
+    for (int l = k + 1; l < num_feat; ++l) {
+      A[k * num_feat + l] = A[l * num_feat + k];
     }
   }
-  if (linsolve(wienerns_win, A, wienerns_win, b, x)) {
-    for (int k = 0; k < wienerns_win; ++k) {
-      wiener_nonsep_info->nsfilter[k] =
-          quantize(x[k], wienerns_coeff_info[k][WIENERNS_STEP_ID],
-                   wienerns_coeff_info[k][WIENERNS_MIN_ID],
-                   (1 << wienerns_coeff_info[k][WIENERNS_BIT_ID]));
-    }
-    for (int k = wienerns_win; k < WIENERNS_NUM_COEFF; ++k) {
-      wiener_nonsep_info->nsfilter[k] = 0;
+  if (linsolve(num_feat, A, num_feat, b, x)) {
+    int beg_feat = is_uv ? WIENERNS_Y : 0;
+    int end_feat = is_uv ? WIENERNS_YUV : WIENERNS_Y;
+    for (int k = 0; k < WIENERNS_YUV; ++k) {
+      rui->wiener_nonsep_info.nsfilter[k] =
+          (k < beg_feat || k >= end_feat)
+              ? wienerns_coeff[k][WIENERNS_MIN_ID]
+              : quantize(x[k - beg_feat], wienerns_coeff[k][WIENERNS_STEP_ID],
+                         wienerns_coeff[k][WIENERNS_MIN_ID],
+                         (1 << wienerns_coeff[k][WIENERNS_BIT_ID]));
     }
     return 1;
   } else {
@@ -1496,22 +1517,28 @@ static int compute_quantized_wienerns_filter(
 static int64_t finer_tile_search_wienerns(const RestSearchCtxt *rsc,
                                           const RestorationTileLimits *limits,
                                           const AV1PixelRect *tile_rect,
-                                          RestorationUnitInfo *rui, int w) {
+                                          RestorationUnitInfo *rui) {
+  assert(rsc->plane == rui->plane);
   int64_t best_err = try_restoration_unit(rsc, limits, tile_rect, rui);
 
-  int iter_step = 5;
+  int is_uv = (rui->plane != AOM_PLANE_Y);
+  int beg_feat = is_uv ? WIENERNS_Y : 0;
+  int end_feat = is_uv ? WIENERNS_YUV : WIENERNS_Y;
+
+  int iter_step = 10;
   int src_range = 3;
   WienerNonsepInfo curr = rui->wiener_nonsep_info;
   WienerNonsepInfo best = curr;
   for (int s = 0; s < iter_step; ++s) {
     int no_improv = 1;
-    for (int i = 0; i < w; ++i) {
-      for (int ci = MAX(curr.nsfilter[i] - src_range,
-                        wienerns_coeff_info[i][WIENERNS_MIN_ID]);
-           ci < MIN(curr.nsfilter[i] + src_range,
-                    wienerns_coeff_info[i][WIENERNS_MIN_ID] +
-                        (1 << wienerns_coeff_info[i][WIENERNS_BIT_ID]));
-           ++ci) {
+    for (int i = beg_feat; i < end_feat; ++i) {
+      int cmin =
+          MAX(curr.nsfilter[i] - src_range, wienerns_coeff[i][WIENERNS_MIN_ID]);
+      int cmax = MIN(curr.nsfilter[i] + src_range,
+                     wienerns_coeff[i][WIENERNS_MIN_ID] +
+                         (1 << wienerns_coeff[i][WIENERNS_BIT_ID]));
+
+      for (int ci = cmin; ci < cmax; ++ci) {
         if (ci == curr.nsfilter[i]) {
           continue;
         }
@@ -1523,6 +1550,7 @@ static int64_t finer_tile_search_wienerns(const RestSearchCtxt *rsc,
           best = rui->wiener_nonsep_info;
         }
       }
+
       rui->wiener_nonsep_info.nsfilter[i] = curr.nsfilter[i];
     }
     if (no_improv) {
@@ -1544,31 +1572,29 @@ static void search_wiener_nonsep(const RestorationTileLimits *limits,
   RestSearchCtxt *rsc = (RestSearchCtxt *)priv;
   RestUnitSearchInfo *rusi = &rsc->rusi[rest_unit_idx];
 
-  const int wienerns_win = (rsc->plane == AOM_PLANE_Y)
-                               ? WIENERNS_NUM_COEFF
-                               : WIENERNS_NUM_COEFF_CHROMA;
-
   const MACROBLOCK *const x = rsc->x;
   const int64_t bits_none = x->wiener_nonsep_restore_cost[0];
   RestorationUnitInfo rui;
   memset(&rui, 0, sizeof(rui));
   rui.restoration_type = RESTORE_WIENER_NONSEP;
+  rui.luma = rsc->luma;
+  rui.luma_stride = rsc->luma_stride;
+  rui.plane = rsc->plane;
 
   if (compute_quantized_wienerns_filter(
           rsc->dgd_buffer, rsc->src_buffer, limits->h_start, limits->h_end,
           limits->v_start, limits->v_end, rsc->dgd_stride, rsc->src_stride,
-          &rui.wiener_nonsep_info, wienerns_win,
-          rsc->cm->seq_params.use_highbitdepth)) {
+          &rui, rsc->cm->seq_params.use_highbitdepth)) {
     aom_clear_system_state();
 
     rusi->sse[RESTORE_WIENER_NONSEP] =
-        finer_tile_search_wienerns(rsc, limits, tile_rect, &rui, wienerns_win);
+        finer_tile_search_wienerns(rsc, limits, tile_rect, &rui);
     rusi->wiener_nonsep = rui.wiener_nonsep_info;
     assert(rusi->sse[RESTORE_WIENER_NONSEP] != INT64_MAX);
 
     const int64_t bits_wienerns =
         x->wiener_nonsep_restore_cost[1] +
-        (count_wienerns_bits(wienerns_win, &rusi->wiener_nonsep,
+        (count_wienerns_bits(rui.plane, &rusi->wiener_nonsep,
                              &rsc->wiener_nonsep)
          << AV1_PROB_COST_SHIFT);
     double cost_none =
@@ -1609,11 +1635,7 @@ static void search_switchable(const RestorationTileLimits *limits,
 
   const int wiener_win =
       (rsc->plane == AOM_PLANE_Y) ? WIENER_WIN : WIENER_WIN_CHROMA;
-#if CONFIG_WIENER_NONSEP
-  const int wienerns_win = (rsc->plane == AOM_PLANE_Y)
-                               ? WIENERNS_NUM_COEFF
-                               : WIENERNS_NUM_COEFF_CHROMA;
-#endif  // CONFIG_WIENER_NONSEP
+
   double best_cost = 0;
   int64_t best_bits = 0;
   RestorationType best_rtype = RESTORE_NONE;
@@ -1645,7 +1667,7 @@ static void search_switchable(const RestorationTileLimits *limits,
         break;
 #if CONFIG_WIENER_NONSEP
       case RESTORE_WIENER_NONSEP:
-        coeff_pcost = count_wienerns_bits(wienerns_win, &rusi->wiener_nonsep,
+        coeff_pcost = count_wienerns_bits(rsc->plane, &rusi->wiener_nonsep,
                                           &rsc->wiener_nonsep);
         break;
 #endif  // CONFIG_WIENER_NONSEP
@@ -1740,6 +1762,21 @@ void av1_pick_filter_restoration(const YV12_BUFFER_CONFIG *src, AV1_COMP *cpi) {
   RestSearchCtxt rsc;
   const int plane_start = AOM_PLANE_Y;
   const int plane_end = num_planes > 1 ? AOM_PLANE_V : AOM_PLANE_Y;
+
+#if CONFIG_WIENER_NONSEP
+  const YV12_BUFFER_CONFIG *dgd = &cpi->common.cur_frame->buf;
+  rsc.luma_stride = dgd->crop_widths[1] + 2 * WIENERNS_UV_BRD;
+
+  uint8_t *luma = NULL;
+  uint8_t *luma_buf = wienerns_copy_luma(
+      dgd->buffers[AOM_PLANE_Y], dgd->crop_heights[AOM_PLANE_Y],
+      dgd->crop_widths[AOM_PLANE_Y], dgd->strides[AOM_PLANE_Y], &luma,
+      dgd->crop_heights[1], dgd->crop_widths[1], WIENERNS_UV_BRD,
+      rsc.luma_stride);
+  rsc.luma = luma;
+  assert(luma_buf != NULL);
+#endif  // CONFIG_WIENER_NONSEP
+
   for (int plane = plane_start; plane <= plane_end; ++plane) {
     init_rsc(src, &cpi->common, &cpi->td.mb, &cpi->sf, plane, rusi,
              &cpi->trial_frame_rst, &rsc);
@@ -1781,6 +1818,10 @@ void av1_pick_filter_restoration(const YV12_BUFFER_CONFIG *src, AV1_COMP *cpi) {
       }
     }
   }
+
+#if CONFIG_WIENER_NONSEP
+  free(luma_buf);
+#endif  // CONFIG_WIENER_NONSEP
 
   aom_free(rusi);
 }

@@ -2228,24 +2228,19 @@ static void write_sgrproj_filter(const SgrprojInfo *sgrproj_info,
 }
 
 #if CONFIG_WIENER_NONSEP
-static void write_wiener_nsfilter(int wienerns_win,
+static void write_wiener_nsfilter(int is_uv,
                                   const WienerNonsepInfo *wienerns_info,
                                   WienerNonsepInfo *ref_wienerns_info,
                                   aom_writer *wb) {
-  assert(wienerns_win == WIENERNS_NUM_COEFF ||
-         wienerns_win == WIENERNS_NUM_COEFF_CHROMA);
-  if (wienerns_win != WIENERNS_NUM_COEFF) {
-    for (int i = wienerns_win; i < WIENERNS_NUM_COEFF; ++i) {
-      assert(wienerns_info->nsfilter[i] == 0);
-    }
-  }
-  for (int i = 0; i < wienerns_win; ++i) {
+  int beg_feat = is_uv ? WIENERNS_Y : 0;
+  int end_feat = is_uv ? WIENERNS_YUV : WIENERNS_Y;
+
+  for (int i = beg_feat; i < end_feat; ++i) {
     aom_write_primitive_refsubexpfin(
-        wb, (1 << wienerns_coeff_info[i][WIENERNS_BIT_ID]),
-        wienerns_coeff_info[i][WIENERNS_SUBEXP_K_ID],
-        ref_wienerns_info->nsfilter[i] -
-            wienerns_coeff_info[i][WIENERNS_MIN_ID],
-        wienerns_info->nsfilter[i] - wienerns_coeff_info[i][WIENERNS_MIN_ID]);
+        wb, (1 << wienerns_coeff[i][WIENERNS_BIT_ID]),
+        wienerns_coeff[i][WIENERNS_SUBEXP_K_ID],
+        ref_wienerns_info->nsfilter[i] - wienerns_coeff[i][WIENERNS_MIN_ID],
+        wienerns_info->nsfilter[i] - wienerns_coeff[i][WIENERNS_MIN_ID]);
   }
   memcpy(ref_wienerns_info, wienerns_info, sizeof(*wienerns_info));
 }
@@ -2265,8 +2260,7 @@ static void loop_restoration_write_sb_coeffs(const AV1_COMMON *const cm,
 
   const int wiener_win = (plane > 0) ? WIENER_WIN_CHROMA : WIENER_WIN;
 #if CONFIG_WIENER_NONSEP
-  const int wienerns_win =
-      (plane > 0) ? WIENERNS_NUM_COEFF_CHROMA : WIENERNS_NUM_COEFF;
+  const int is_uv = (plane > 0);
 #endif  // CONFIG_WIENER_NONSEP
   WienerInfo *ref_wiener_info = &xd->wiener_info[plane];
   SgrprojInfo *ref_sgrproj_info = &xd->sgrproj_info[plane];
@@ -2294,7 +2288,7 @@ static void loop_restoration_write_sb_coeffs(const AV1_COMMON *const cm,
 #endif  // CONFIG_LOOP_RESTORE_CNN
 #if CONFIG_WIENER_NONSEP
       case RESTORE_WIENER_NONSEP:
-        write_wiener_nsfilter(wienerns_win, &rui->wiener_nonsep_info,
+        write_wiener_nsfilter(is_uv, &rui->wiener_nonsep_info,
                               ref_wiener_nonsep_info, w);
         break;
 #endif  // CONFIG_WIENER_NONSEP
@@ -2336,7 +2330,7 @@ static void loop_restoration_write_sb_coeffs(const AV1_COMMON *const cm,
     ++counts->wiener_nonsep_restore[unit_rtype != RESTORE_NONE];
 #endif
     if (unit_rtype != RESTORE_NONE) {
-      write_wiener_nsfilter(wienerns_win, &rui->wiener_nonsep_info,
+      write_wiener_nsfilter(is_uv, &rui->wiener_nonsep_info,
                             ref_wiener_nonsep_info, w);
     }
   }
