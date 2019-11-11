@@ -521,10 +521,13 @@ add_proto qw/void av1_highbd_dist_wtd_convolve_2d_copy/, "const uint16_t *src, i
   specialize qw/av1_convolve_y_sr sse2 avx2 neon/;
   specialize qw/av1_convolve_2d_scale sse4_1/;
   specialize qw/av1_dist_wtd_convolve_2d sse2 ssse3 avx2 neon/;
+  specialize qw/av1_dist_wtd_convolve_2d_copy sse2 avx2/;
+  specialize qw/av1_dist_wtd_convolve_x sse2 avx2/;
+  specialize qw/av1_dist_wtd_convolve_y sse2 avx2/;
   if (aom_config("CONFIG_EXT_PARTITIONS") eq "") {
-    specialize qw/av1_dist_wtd_convolve_2d_copy sse2 avx2 neon/;
-    specialize qw/av1_dist_wtd_convolve_x sse2 avx2 neon/;
-    specialize qw/av1_dist_wtd_convolve_y sse2 avx2 neon/;
+    specialize qw/av1_dist_wtd_convolve_2d_copy neon/;
+    specialize qw/av1_dist_wtd_convolve_x neon/;
+    specialize qw/av1_dist_wtd_convolve_y neon/;
     specialize qw/av1_highbd_convolve_2d_copy_sr sse2 avx2/;
   } # CONFIG_EXT_PARTITIONS
   specialize qw/av1_highbd_convolve_2d_sr ssse3 avx2/;
