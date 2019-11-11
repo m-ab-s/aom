@@ -83,7 +83,6 @@ void av1_highbd_convolve_2d_copy_sr_sse2(
   (void)conv_params;
   (void)bd;
   if (w >= 16) {
-    assert(!((intptr_t)dst % 16));
     assert(!(dst_stride % 16));
   }
 
@@ -119,9 +118,9 @@ void av1_highbd_convolve_2d_copy_sr_sse2(
       src += src_stride;
       s[1] = _mm_loadu_si128((__m128i *)src);
       src += src_stride;
-      _mm_store_si128((__m128i *)dst, s[0]);
+      _mm_storeu_si128((__m128i *)dst, s[0]);
       dst += dst_stride;
-      _mm_store_si128((__m128i *)dst, s[1]);
+      _mm_storeu_si128((__m128i *)dst, s[1]);
       dst += dst_stride;
       h -= 2;
     } while (h);
@@ -134,11 +133,11 @@ void av1_highbd_convolve_2d_copy_sr_sse2(
       s[2] = _mm_loadu_si128((__m128i *)(src + 0 * 8));
       s[3] = _mm_loadu_si128((__m128i *)(src + 1 * 8));
       src += src_stride;
-      _mm_store_si128((__m128i *)(dst + 0 * 8), s[0]);
-      _mm_store_si128((__m128i *)(dst + 1 * 8), s[1]);
+      _mm_storeu_si128((__m128i *)(dst + 0 * 8), s[0]);
+      _mm_storeu_si128((__m128i *)(dst + 1 * 8), s[1]);
       dst += dst_stride;
-      _mm_store_si128((__m128i *)(dst + 0 * 8), s[2]);
-      _mm_store_si128((__m128i *)(dst + 1 * 8), s[3]);
+      _mm_storeu_si128((__m128i *)(dst + 0 * 8), s[2]);
+      _mm_storeu_si128((__m128i *)(dst + 1 * 8), s[3]);
       dst += dst_stride;
       h -= 2;
     } while (h);
@@ -155,15 +154,15 @@ void av1_highbd_convolve_2d_copy_sr_sse2(
       s[6] = _mm_loadu_si128((__m128i *)(src + 2 * 8));
       s[7] = _mm_loadu_si128((__m128i *)(src + 3 * 8));
       src += src_stride;
-      _mm_store_si128((__m128i *)(dst + 0 * 8), s[0]);
-      _mm_store_si128((__m128i *)(dst + 1 * 8), s[1]);
-      _mm_store_si128((__m128i *)(dst + 2 * 8), s[2]);
-      _mm_store_si128((__m128i *)(dst + 3 * 8), s[3]);
+      _mm_storeu_si128((__m128i *)(dst + 0 * 8), s[0]);
+      _mm_storeu_si128((__m128i *)(dst + 1 * 8), s[1]);
+      _mm_storeu_si128((__m128i *)(dst + 2 * 8), s[2]);
+      _mm_storeu_si128((__m128i *)(dst + 3 * 8), s[3]);
       dst += dst_stride;
-      _mm_store_si128((__m128i *)(dst + 0 * 8), s[4]);
-      _mm_store_si128((__m128i *)(dst + 1 * 8), s[5]);
-      _mm_store_si128((__m128i *)(dst + 2 * 8), s[6]);
-      _mm_store_si128((__m128i *)(dst + 3 * 8), s[7]);
+      _mm_storeu_si128((__m128i *)(dst + 0 * 8), s[4]);
+      _mm_storeu_si128((__m128i *)(dst + 1 * 8), s[5]);
+      _mm_storeu_si128((__m128i *)(dst + 2 * 8), s[6]);
+      _mm_storeu_si128((__m128i *)(dst + 3 * 8), s[7]);
       dst += dst_stride;
       h -= 2;
     } while (h);

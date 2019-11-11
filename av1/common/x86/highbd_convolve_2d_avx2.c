@@ -232,7 +232,6 @@ void av1_highbd_convolve_2d_copy_sr_avx2(
   (void)bd;
 
   if (w >= 16) {
-    assert(!((intptr_t)dst % 16));
     assert(!(dst_stride % 16));
   }
 
@@ -266,9 +265,9 @@ void av1_highbd_convolve_2d_copy_sr_avx2(
       src += src_stride;
       s[1] = _mm_loadu_si128((__m128i *)src);
       src += src_stride;
-      _mm_store_si128((__m128i *)dst, s[0]);
+      _mm_storeu_si128((__m128i *)dst, s[0]);
       dst += dst_stride;
-      _mm_store_si128((__m128i *)dst, s[1]);
+      _mm_storeu_si128((__m128i *)dst, s[1]);
       dst += dst_stride;
       h -= 2;
     } while (h);
