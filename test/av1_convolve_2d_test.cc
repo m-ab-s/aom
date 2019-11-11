@@ -230,7 +230,6 @@ INSTANTIATE_TEST_CASE_P(C_COPY, AV1HighbdJntConvolve2DTest,
                         libaom_test::AV1HighbdConvolve2D::BuildParams(
                             av1_highbd_dist_wtd_convolve_2d_copy_c, 0, 0));
 
-#if !CONFIG_EXT_PARTITIONS
 #if HAVE_SSE4_1
 INSTANTIATE_TEST_CASE_P(SSE4_1_COPY, AV1HighbdJntConvolve2DTest,
                         libaom_test::AV1HighbdConvolve2D::BuildParams(
@@ -259,5 +258,4 @@ INSTANTIATE_TEST_CASE_P(AVX2_Y, AV1HighbdJntConvolve2DTest,
                             av1_highbd_dist_wtd_convolve_y_avx2, 0, 1));
 #endif  // HAVE_AVX2
 #endif  // HAVE_SSE4_1
-#endif  // !CONFIG_EXT_PARTITIONS
 }  // namespace
