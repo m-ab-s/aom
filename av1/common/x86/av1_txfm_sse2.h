@@ -368,6 +368,50 @@ void av1_lowbd_fwd_txfm2d_64x16_sse2(const int16_t *input, int32_t *output,
 #endif
                                      int bd);
 
+#if CONFIG_FLEX_PARTITION
+void av1_lowbd_fwd_txfm2d_4x32_sse2(const int16_t *input, int32_t *output,
+                                    int stride, TX_TYPE tx_type,
+#if CONFIG_MODE_DEP_TX
+                                    PREDICTION_MODE mode,
+#endif
+                                    int bd);
+
+void av1_lowbd_fwd_txfm2d_32x4_sse2(const int16_t *input, int32_t *output,
+                                    int stride, TX_TYPE tx_type,
+#if CONFIG_MODE_DEP_TX
+                                    PREDICTION_MODE mode,
+#endif
+                                    int bd);
+
+void av1_lowbd_fwd_txfm2d_8x64_sse2(const int16_t *input, int32_t *output,
+                                    int stride, TX_TYPE tx_type,
+#if CONFIG_MODE_DEP_TX
+                                    PREDICTION_MODE mode,
+#endif
+                                    int bd);
+
+void av1_lowbd_fwd_txfm2d_64x8_sse2(const int16_t *input, int32_t *output,
+                                    int stride, TX_TYPE tx_type,
+#if CONFIG_MODE_DEP_TX
+                                    PREDICTION_MODE mode,
+#endif
+                                    int bd);
+
+void av1_lowbd_fwd_txfm2d_4x64_sse2(const int16_t *input, int32_t *output,
+                                    int stride, TX_TYPE tx_type,
+#if CONFIG_MODE_DEP_TX
+                                    PREDICTION_MODE mode,
+#endif
+                                    int bd);
+
+void av1_lowbd_fwd_txfm2d_64x4_sse2(const int16_t *input, int32_t *output,
+                                    int stride, TX_TYPE tx_type,
+#if CONFIG_MODE_DEP_TX
+                                    PREDICTION_MODE mode,
+#endif
+                                    int bd);
+#endif  // CONFIG_FLEX_PARTITION
+
 typedef void (*transform_1d_sse2)(const __m128i *input, __m128i *output,
                                   int8_t cos_bit);
 
