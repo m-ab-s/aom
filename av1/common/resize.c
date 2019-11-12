@@ -1545,8 +1545,8 @@ static void signed_fill_arr_to_col(int16_t *img, int stride, int len,
 static void signed_down2_multistep(const int16_t *const input, int length,
                                    int16_t *output, int steps, int16_t *otmp,
                                    int bd) {
-  const int16_t filter[SUBPEL_TAPS] = { -1, 0, 19, 46, 46, 19, 0, -1 };
-  const int filter_len = SUBPEL_TAPS;
+  const int16_t filter[] = { -1, 0, 17, 48, 48, 17, 0, -1 };
+  const int filter_len = sizeof(filter) / sizeof(filter[0]);
 
   assert((length & ((1 << steps) - 1)) == 0);
   if (steps == 0) {
@@ -1574,8 +1574,8 @@ static void signed_down2_multistep(const int16_t *const input, int length,
 static void signed_up2_multistep(const int16_t *const input, int length,
                                  int16_t *output, int steps, int16_t *otmp,
                                  int bd) {
-  const int16_t filter[SUBPEL_TAPS] = { -2, 6, -13, 38, 113, -19, 7, -2 };
-  const int filter_len = SUBPEL_TAPS;
+  const int16_t filter[] = { -1, 4, -12, 38, 112, -17, 5, -1 };
+  const int filter_len = sizeof(filter) / sizeof(filter[0]);
 
   if (steps == 0) {
     memcpy(output, input, sizeof(output[0]) * length);
