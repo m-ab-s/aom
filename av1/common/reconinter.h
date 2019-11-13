@@ -380,6 +380,30 @@ int av1_allow_warp(const MB_MODE_INFO *const mbmi,
                    int build_for_obmc, const struct scale_factors *const sf,
                    WarpedMotionParams *final_warp_params);
 
+#ifdef CONFIG_ILLUM_MCOMP
+
+// Compute the DC value for a predictor.
+int illum_mcomp_compute_dc(const uint8_t *pred, int stride, int bw, int bh);
+
+int illum_mcomp_compute_dc_high(const uint16_t *pred, int stride, int bw,
+                                int bh);
+
+// Writes the interpredictor into result, but subtracts out the DC from
+// the interpredictor and adds the DC from the intrapredictor.
+void illum_mcomp_subtract_add_dc(int bw, int bh, uint8_t *result,
+                                 int resultstride, const uint8_t *interpred,
+                                 int interstride, const uint8_t *intrapred,
+                                 int intrastride);
+
+void illum_mcomp_subtract_add_dc_high(int bw, int bh, uint16_t *result,
+                                      uint8_t resultstride,
+                                      const uint16_t *interpred,
+                                      int interstride,
+                                      const uint16_t *intrapred,
+                                      int intrastride, int bd);
+
+#endif  // CONFIG_ILLUM_MCOMP
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif

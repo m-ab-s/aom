@@ -220,7 +220,8 @@ if(NOT BUILD_SHARED_LIBS)
               "${AOM_ROOT}/test/frame_error_test.cc"
               "${AOM_ROOT}/test/warp_filter_test.cc"
               "${AOM_ROOT}/test/warp_filter_test_util.cc"
-              "${AOM_ROOT}/test/warp_filter_test_util.h")
+              "${AOM_ROOT}/test/warp_filter_test_util.h"
+              "${AOM_ROOT}/test/illum_mcomp_test.cc")
 
   list(APPEND AOM_UNIT_TEST_ENCODER_INTRIN_SSE4_1
               "${AOM_ROOT}/test/av1_highbd_iht_test.cc"

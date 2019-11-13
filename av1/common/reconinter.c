@@ -1397,6 +1397,133 @@ static void build_smooth_interintra_mask(uint8_t *mask, int stride,
   }
 }
 
+#if CONFIG_ILLUM_MCOMP
+int illum_mcomp_compute_dc(const uint8_t *pred, int stride, int bw, int bh) {
+  int sum = 0;
+  for (int i = 0; i < bh; ++i) {
+    for (int j = 0; j < bw; ++j) {
+      sum += pred[i * stride + j];
+    }
+  }
+  // Add "0.5" so we round "half-up" instead of "down".
+  const int count = bw * bh;
+  int expected_dc = (sum + (count >> 1)) / count;
+  return expected_dc;
+}
+
+// Copies the inter predictor into the result, but subtracts out the
+// DC from the inter predictor and adds in the DC from the intra predictor.
+// Note that "result" must already be allocated.
+void illum_mcomp_subtract_add_dc(int bw, int bh, uint8_t *result,
+                                 int resultstride, const uint8_t *interpred,
+                                 int interstride, const uint8_t *intrapred,
+                                 int intrastride) {
+  int intra_dc = illum_mcomp_compute_dc(intrapred, intrastride, bw, bh);
+  int inter_dc = illum_mcomp_compute_dc(interpred, interstride, bw, bh);
+  for (int i = 0; i < bh; ++i) {
+    for (int j = 0; j < bw; ++j) {
+      int16_t r = interpred[i * interstride + j];
+      r += intra_dc;
+      r -= inter_dc;
+      result[i * resultstride + j] = clip_pixel(r);
+    }
+  }
+}
+
+static void illum_combine_interintra(int8_t use_wedge_interintra,
+                                     int8_t wedge_index, int8_t wedge_sign,
+                                     BLOCK_SIZE bsize, BLOCK_SIZE plane_bsize,
+                                     uint8_t *comppred, int compstride,
+                                     const uint8_t *interpred, int interstride,
+                                     const uint8_t *intrapred,
+                                     int intrastride) {
+  const int bw = block_size_wide[plane_bsize];
+  const int bh = block_size_high[plane_bsize];
+
+  if (use_wedge_interintra && is_interintra_wedge_used(bsize)) {
+    // Create a new interpredictor with the DC value added back in.
+    uint8_t *new_interpred = aom_memalign(64, bw * bh * sizeof(*new_interpred));
+    illum_mcomp_subtract_add_dc(bw, bh, new_interpred, bw, interpred,
+                                interstride, intrapred, intrastride);
+    const uint8_t *mask =
+        av1_get_contiguous_soft_mask(wedge_index, wedge_sign, bsize);
+    const int subw = 2 * mi_size_wide[bsize] == bw;
+    const int subh = 2 * mi_size_high[bsize] == bh;
+    aom_blend_a64_mask(comppred, compstride, intrapred, intrastride,
+                       new_interpred, bw, mask, block_size_wide[bsize], bw, bh,
+                       subw, subh);
+    aom_free(new_interpred);
+    return;
+  }
+  illum_mcomp_subtract_add_dc(bw, bh, comppred, compstride, interpred,
+                              interstride, intrapred, intrastride);
+}
+
+int illum_mcomp_compute_dc_high(const uint16_t *pred, int stride, int bw,
+                                int bh) {
+  int sum = 0;
+  for (int i = 0; i < bh; ++i) {
+    for (int j = 0; j < bw; ++j) {
+      sum += pred[i * stride + j];
+    }
+  }
+  // Add "0.5" so we round "half-up" instead of "down".
+  const int count = bw * bh;
+  int expected_dc = (sum + (count >> 1)) / count;
+  return expected_dc;
+}
+
+void illum_mcomp_subtract_add_dc_high(int bw, int bh, uint16_t *result,
+                                      uint8_t resultstride,
+                                      const uint16_t *interpred,
+                                      int interstride,
+                                      const uint16_t *intrapred,
+                                      int intrastride, int bd) {
+  int intra_dc = illum_mcomp_compute_dc_high(intrapred, intrastride, bw, bh);
+  int inter_dc = illum_mcomp_compute_dc_high(interpred, interstride, bw, bh);
+
+  for (int i = 0; i < bh; ++i) {
+    for (int j = 0; j < bw; ++j) {
+      int32_t r = interpred[i * interstride + j];
+      r += intra_dc;
+      r -= inter_dc;
+      result[i * resultstride + j] = clip_pixel_highbd(r, bd);
+    }
+  }
+}
+
+static void illum_combine_interintra_highbd(
+    int8_t use_wedge_interintra, int8_t wedge_index, int8_t wedge_sign,
+    BLOCK_SIZE bsize, BLOCK_SIZE plane_bsize, uint8_t *comppred8,
+    int compstride, const uint8_t *interpred8, int interstride,
+    const uint8_t *intrapred8, int intrastride, int bd) {
+  const int bw = block_size_wide[plane_bsize];
+  const int bh = block_size_high[plane_bsize];
+  uint16_t *comppred = CONVERT_TO_SHORTPTR(comppred8);
+  uint16_t *interpred = CONVERT_TO_SHORTPTR(interpred8);
+  uint16_t *intrapred = CONVERT_TO_SHORTPTR(intrapred8);
+
+  if (use_wedge_interintra && is_interintra_wedge_used(bsize)) {
+    // Create a new interpredictor with the DC value added back in.
+    uint16_t *new_interpred =
+        aom_memalign(64, bw * bh * sizeof(*new_interpred));
+    illum_mcomp_subtract_add_dc_high(bw, bh, new_interpred, bw, interpred,
+                                     interstride, intrapred, intrastride, bh);
+    const uint8_t *mask =
+        av1_get_contiguous_soft_mask(wedge_index, wedge_sign, bsize);
+    const int subh = 2 * mi_size_high[bsize] == bh;
+    const int subw = 2 * mi_size_wide[bsize] == bw;
+    aom_highbd_blend_a64_mask(comppred8, compstride, intrapred8, intrastride,
+                              CONVERT_TO_BYTEPTR(new_interpred), bw, mask,
+                              block_size_wide[bsize], bw, bh, subw, subh, bd);
+    aom_free(new_interpred);
+    return;
+  }
+  illum_mcomp_subtract_add_dc_high(bw, bh, comppred, compstride, interpred,
+                                   interstride, intrapred, intrastride, bd);
+}
+#endif  // CONFIG_ILLUM_MCOMP
+
 static void combine_interintra(INTERINTRA_MODE mode,
                                int8_t use_wedge_interintra, int8_t wedge_index,
                                int8_t wedge_sign, BLOCK_SIZE bsize,
@@ -1404,6 +1531,15 @@ static void combine_interintra(INTERINTRA_MODE mode,
                                int compstride, const uint8_t *interpred,
                                int interstride, const uint8_t *intrapred,
                                int intrastride) {
+#if CONFIG_ILLUM_MCOMP
+  if (mode == II_ILLUM_MCOMP_PRED) {
+    illum_combine_interintra(use_wedge_interintra, wedge_index, wedge_sign,
+                             bsize, plane_bsize, comppred, compstride,
+                             interpred, interstride, intrapred, intrastride);
+    return;
+  }
+#endif  // CONFIG_ILLUM_MCOMP
+
   const int bw = block_size_wide[plane_bsize];
   const int bh = block_size_high[plane_bsize];
 
@@ -1431,6 +1567,15 @@ static void combine_interintra_highbd(
     int8_t wedge_sign, BLOCK_SIZE bsize, BLOCK_SIZE plane_bsize,
     uint8_t *comppred8, int compstride, const uint8_t *interpred8,
     int interstride, const uint8_t *intrapred8, int intrastride, int bd) {
+#if CONFIG_ILLUM_MCOMP
+  if (mode == II_ILLUM_MCOMP_PRED) {
+    illum_combine_interintra_highbd(use_wedge_interintra, wedge_index,
+                                    wedge_sign, bsize, plane_bsize, comppred8,
+                                    compstride, interpred8, interstride,
+                                    intrapred8, intrastride, bd);
+    return;
+  }
+#endif  // CONFIG_ILLUM_MCOMP
   const int bw = block_size_wide[plane_bsize];
   const int bh = block_size_high[plane_bsize];
 
