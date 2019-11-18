@@ -267,9 +267,13 @@ static INLINE void set_default_wiener_nonsep(WienerNonsepInfo *wienerns_info) {
   }
 }
 static INLINE double clip_base(double x) { return x; }
+
+#if CONFIG_WIENER_NONSEP_CROSS_FILT
 uint8_t *wienerns_copy_luma(const uint8_t *dgd, int height_y, int width_y,
                             int in_stride, uint8_t **luma, int height_uv,
                             int width_uv, int border, int out_stride);
+#endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
+
 #endif  // CONFIG_WIENER_NONSEP
 
 typedef struct {
