@@ -1302,7 +1302,7 @@ static void write_intra_prediction_modes(AV1_COMP *cpi, const int mi_row,
   write_filter_intra_mode_info(cm, xd, mbmi, w);
 
 #if CONFIG_ADAPT_FILTER_INTRA
-  if (is_keyframe) write_adapt_filter_intra_mode_info(cm, xd, mbmi, w);
+  write_adapt_filter_intra_mode_info(cm, xd, mbmi, w);
 #endif
 }
 

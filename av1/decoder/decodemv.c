@@ -1233,6 +1233,9 @@ static void read_intra_block_mode_info(AV1_COMMON *const cm, const int mi_row,
 #if CONFIG_ADAPT_FILTER_INTRA
   mbmi->adapt_filter_intra_mode_info.use_adapt_filter_intra = 0;
 #endif
+#if CONFIG_ADAPT_FILTER_INTRA
+  read_adapt_filter_intra_mode_info(cm, xd, r);
+#endif
 }
 
 static INLINE int is_mv_valid(const MV *mv) {

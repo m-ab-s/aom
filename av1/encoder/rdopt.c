@@ -12903,6 +12903,8 @@ static int64_t handle_intra_mode(InterModeSearchState *search_state,
     return INT64_MAX;
   }
 
+  mbmi->filter_intra_mode_info.use_filter_intra = 0;
+
   const int is_directional_mode = av1_is_directional_mode(mode);
   if (is_directional_mode && av1_use_angle_delta(bsize) &&
       cpi->oxcf.enable_angle_delta) {
@@ -13006,6 +13008,52 @@ static int64_t handle_intra_mode(InterModeSearchState *search_state,
       }
     }
   }
+
+#if CONFIG_ADAPT_FILTER_INTRA
+  if (mode == DC_PRED && av1_adapt_filter_intra_allowed_bsize(cm, bsize)) {
+    MB_MODE_INFO best_mbmi = *mbmi;
+    uint8_t best_blk_skip[MAX_MIB_SIZE * MAX_MIB_SIZE];
+    memcpy(best_blk_skip, x->blk_skip,
+           sizeof(best_blk_skip[0]) * ctx->num_4x4_blk);
+    mbmi->filter_intra_mode_info.use_filter_intra = 0;
+    mbmi->palette_mode_info.palette_size[0] = 0;
+    mbmi->adapt_filter_intra_mode_info.use_adapt_filter_intra = 1;
+    int64_t best_rd_so_far = INT64_MAX;
+    if (rd_stats_y->rate != INT_MAX) {
+      const int tmp_rate =
+          rd_stats_y->rate +
+          intra_mode_info_cost_y(cpi, x, mbmi, bsize, mode_cost);
+      best_rd_so_far = RDCOST(x->rdmult, tmp_rate, rd_stats_y->dist);
+    }
+
+    for (int this_mode = 0; this_mode < USED_ADAPT_FILTER_INTRA_MODES;
+         ++this_mode) {
+      mbmi->adapt_filter_intra_mode_info.adapt_filter_intra_mode = this_mode;
+      RD_STATS rd_stats_temp;
+      super_block_yrd(cpi, x, &rd_stats_temp, bsize, search_state->best_rd);
+      if (rd_stats_temp.rate == INT_MAX) continue;
+      const int total_rate =
+          rd_stats_temp.rate +
+          intra_mode_info_cost_y(cpi, x, mbmi, bsize, mode_cost);
+      const int64_t this_rd_tmp =
+          RDCOST(x->rdmult, total_rate, rd_stats_temp.dist);
+      if (this_rd_tmp != INT64_MAX && this_rd_tmp / 2 > search_state->best_rd) {
+        break;
+      }
+      if (this_rd_tmp < best_rd_so_far) {
+        memcpy(best_blk_skip, x->blk_skip,
+               sizeof(best_blk_skip[0]) * ctx->num_4x4_blk);
+        best_mbmi = *mbmi;
+        *rd_stats_y = rd_stats_temp;
+        best_rd_so_far = this_rd_tmp;
+      }
+    }
+
+    *mbmi = best_mbmi;
+    memcpy(x->blk_skip, best_blk_skip,
+           sizeof(x->blk_skip[0]) * ctx->num_4x4_blk);
+  }
+#endif  // CONFIG_ADAPT_FILTER_INTRA
 
   if (rd_stats_y->rate == INT_MAX) return INT64_MAX;
 
