@@ -106,12 +106,14 @@ static INLINE PREDICTION_MODE compound_ref0_mode(PREDICTION_MODE mode) {
     MB_MODE_COUNT,  // NEWMV
     NEARESTMV,      // NEAREST_NEARESTMV
     NEARMV,         // NEAR_NEARMV
-    NEARESTMV,      // NEAREST_NEWMV
-    NEWMV,          // NEW_NEARESTMV
-    NEARMV,         // NEAR_NEWMV
-    NEWMV,          // NEW_NEARMV
-    GLOBALMV,       // GLOBAL_GLOBALMV
-    NEWMV,          // NEW_NEWMV
+#if !CONFIG_NEW_INTER_MODES
+    NEARESTMV,  // NEAREST_NEWMV
+    NEWMV,      // NEW_NEARESTMV
+#endif          // !CONFIG_NEW_INTER_MODES
+    NEARMV,     // NEAR_NEWMV
+    NEWMV,      // NEW_NEARMV
+    GLOBALMV,   // GLOBAL_GLOBALMV
+    NEWMV,      // NEW_NEWMV
   };
   assert(NELEMENTS(lut) == MB_MODE_COUNT);
   assert(is_inter_compound_mode(mode));
@@ -139,12 +141,14 @@ static INLINE PREDICTION_MODE compound_ref1_mode(PREDICTION_MODE mode) {
     MB_MODE_COUNT,  // NEWMV
     NEARESTMV,      // NEAREST_NEARESTMV
     NEARMV,         // NEAR_NEARMV
-    NEWMV,          // NEAREST_NEWMV
-    NEARESTMV,      // NEW_NEARESTMV
-    NEWMV,          // NEAR_NEWMV
-    NEARMV,         // NEW_NEARMV
-    GLOBALMV,       // GLOBAL_GLOBALMV
-    NEWMV,          // NEW_NEWMV
+#if !CONFIG_NEW_INTER_MODES
+    NEWMV,      // NEAREST_NEWMV
+    NEARESTMV,  // NEW_NEARESTMV
+#endif          // !CONFIG_NEW_INTER_MODES
+    NEWMV,      // NEAR_NEWMV
+    NEARMV,     // NEW_NEARMV
+    GLOBALMV,   // GLOBAL_GLOBALMV
+    NEWMV,      // NEW_NEWMV
   };
   assert(NELEMENTS(lut) == MB_MODE_COUNT);
   assert(is_inter_compound_mode(mode));
@@ -157,8 +161,13 @@ static INLINE int have_nearmv_in_inter_mode(PREDICTION_MODE mode) {
 }
 
 static INLINE int have_newmv_in_inter_mode(PREDICTION_MODE mode) {
+#if CONFIG_NEW_INTER_MODES
+  return (mode == NEWMV || mode == NEW_NEWMV || mode == NEAR_NEWMV ||
+          mode == NEW_NEARMV);
+#else
   return (mode == NEWMV || mode == NEW_NEWMV || mode == NEAREST_NEWMV ||
           mode == NEW_NEARESTMV || mode == NEAR_NEWMV || mode == NEW_NEARMV);
+#endif  // CONFIG_NEW_INTER_MODES
 }
 
 static INLINE int is_masked_compound_type(COMPOUND_TYPE type) {
