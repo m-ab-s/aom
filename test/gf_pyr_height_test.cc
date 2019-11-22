@@ -23,18 +23,18 @@ static const struct GFPyrHeightTestParam {
   double psnr_thresh;
 } kTestParams[] = {
   // gf_min_pyr_height = 0
-  { 0, 0, 34.69 },
+  { 0, 0, 34.67 },
   { 0, 1, 34.75 },
-  { 0, 2, 35.24 },
+  { 0, 2, 35.23 },
   { 0, 3, 35.50 },
   { 0, 4, 35.50 },
   // gf_min_pyr_height = 1
   { 1, 1, 34.75 },
-  { 1, 2, 35.24 },
+  { 1, 2, 35.23 },
   { 1, 3, 35.50 },
   { 1, 4, 35.50 },
   // gf_min_pyr_height = 2
-  { 2, 2, 35.24 },
+  { 2, 2, 35.23 },
   { 2, 3, 35.50 },
   { 2, 4, 35.50 },
   // gf_min_pyr_height = 3
