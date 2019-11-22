@@ -1241,7 +1241,6 @@ static const aom_cdf_prob default_palette_uv_color_index_cdf
     };
 
 #if CONFIG_NEW_TX_PARTITION
-#if CONFIG_NEW_TX_PARTITION_EXT
 static const aom_cdf_prob
     default_txfm_partition_cdf[2][TXFM_PARTITION_CONTEXTS][CDF_SIZE(
         TX_PARTITION_TYPES)] = {
@@ -1294,19 +1293,6 @@ static const aom_cdf_prob
           { AOM_CDF6(16088, 17088, 17188, 17288, 17388) },
       }
     };
-#else
-static const aom_cdf_prob
-    default_txfm_partition_cdf[TXFM_PARTITION_CONTEXTS][CDF_SIZE(
-        TX_PARTITION_TYPES)] = {
-      { AOM_CDF2(28581) }, { AOM_CDF2(23846) }, { AOM_CDF2(20847) },
-      { AOM_CDF2(24315) }, { AOM_CDF2(18196) }, { AOM_CDF2(12133) },
-      { AOM_CDF2(18791) }, { AOM_CDF2(10887) }, { AOM_CDF2(11005) },
-      { AOM_CDF2(27179) }, { AOM_CDF2(20004) }, { AOM_CDF2(11281) },
-      { AOM_CDF2(26549) }, { AOM_CDF2(19308) }, { AOM_CDF2(14224) },
-      { AOM_CDF2(28015) }, { AOM_CDF2(21546) }, { AOM_CDF2(14400) },
-      { AOM_CDF2(28165) }, { AOM_CDF2(22401) }, { AOM_CDF2(16088) }
-    };
-#endif  // CONFIG_NEW_TX_PARTITION_EXT
 #else   // CONFIG_NEW_TX_PARTITION
 static const aom_cdf_prob
     default_txfm_partition_cdf[TXFM_PARTITION_CONTEXTS][CDF_SIZE(2)] = {
@@ -1462,7 +1448,6 @@ static const aom_cdf_prob
     };
 
 #if CONFIG_NEW_TX_PARTITION
-#if CONFIG_NEW_TX_PARTITION_EXT
 static const aom_cdf_prob default_tx_size_cdf[2][TX_SIZE_CONTEXTS][CDF_SIZE(
     TX_PARTITION_TYPES_INTRA)] = {
   { { AOM_CDF6(19968, 20968, 21968, 22968, 23968) },
@@ -1472,14 +1457,7 @@ static const aom_cdf_prob default_tx_size_cdf[2][TX_SIZE_CONTEXTS][CDF_SIZE(
     { AOM_CDF6(12272, 13272, 14272, 15272, 16272) },
     { AOM_CDF6(18677, 19677, 20677, 21677, 22677) } },
 };
-#else
-static const aom_cdf_prob default_tx_size_cdf[2][TX_SIZE_CONTEXTS][CDF_SIZE(
-    TX_PARTITION_TYPES_INTRA)] = {
-  { { AOM_CDF2(19968) }, { AOM_CDF2(19968) }, { AOM_CDF2(24320) } },
-  { { AOM_CDF2(12272) }, { AOM_CDF2(12272) }, { AOM_CDF2(18677) } },
-};
-#endif  // CONFIG_NEW_TX_PARTITION_EXT
-#else   // CONFIG_NEW_TX_PARTITION
+#else  // CONFIG_NEW_TX_PARTITION
 static const aom_cdf_prob default_tx_size_cdf[MAX_TX_CATS][TX_SIZE_CONTEXTS]
                                              [CDF_SIZE(MAX_TX_DEPTH + 1)] = {
                                                { { AOM_CDF2(19968) },

@@ -151,8 +151,6 @@ set_aom_config_var(CONFIG_DERIVED_INTRA_MODE 0 NUMBER
                    "AV2 derived intra mode experiment flag")
 set_aom_config_var(CONFIG_NEW_TX_PARTITION 0 NUMBER
                    "AV2 new transform partitions experiment flag")
-set_aom_config_var(CONFIG_NEW_TX_PARTITION_EXT 0 NUMBER
-                   "AV2 extended transform partitions experiment flag")
 set_aom_config_var(CONFIG_FLEX_MVRES 0 NUMBER
                    "AV2 Flexible MV resolution experiment flag")
 set_aom_config_var(CONFIG_CTX_ADAPT_LOG_WEIGHT 0 NUMBER

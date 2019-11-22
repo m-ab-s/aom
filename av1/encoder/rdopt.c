@@ -3569,15 +3569,15 @@ static int64_t txfm_yrd(const AV1_COMP *const cpi, MACROBLOCK *x,
       cm->tx_mode == TX_MODE_SELECT && block_signals_txsize(mbmi->sb_type);
   int ctx = txfm_partition_context(
       xd->above_txfm_context, xd->left_txfm_context, mbmi->sb_type, tx_size);
-#if CONFIG_NEW_TX_PARTITION_EXT
+#if CONFIG_NEW_TX_PARTITION
   const TX_SIZE max_tx_size = max_txsize_rect_lookup[bs];
   const int is_rect = is_rect_tx(max_tx_size);
   const int r_tx_size = is_inter ? x->txfm_partition_cost[is_rect][ctx][0]
                                  : tx_size_cost(cm, x, bs, tx_size);
-#else   // CONFIG_NEW_TX_PARTITION_EXT
+#else   // CONFIG_NEW_TX_PARTITION
   const int r_tx_size = is_inter ? x->txfm_partition_cost[ctx][0]
                                  : tx_size_cost(cm, x, bs, tx_size);
-#endif  // CONFIG_NEW_TX_PARTITION_EXT
+#endif  // CONFIG_NEW_TX_PARTITION
 
   assert(IMPLIES(is_rect_tx(tx_size), is_rect_tx_allowed_bsize(bs)));
 
@@ -5681,12 +5681,8 @@ static void select_tx_partition_type(
 
     // Add rate cost of signalling this partition type
     if (max_tx_size > TX_4X4) {
-#if CONFIG_NEW_TX_PARTITION_EXT
       const int is_rect = is_rect_tx(max_tx_size);
       partition_rd_stats.rate += x->txfm_partition_cost[is_rect][ctx_0][type];
-#else
-      partition_rd_stats.rate += x->txfm_partition_cost[ctx_0][type];
-#endif  // CONFIG_NEW_TX_PARTITION_EXT
     }
 
     // Get transform sizes created by this partition type

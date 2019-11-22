@@ -397,11 +397,7 @@ struct macroblock {
   // The rate associated with each alpha codeword
   int cfl_cost[CFL_JOINT_SIGNS][CFL_PRED_PLANES][CFL_ALPHABET_SIZE];
 #if CONFIG_NEW_TX_PARTITION
-#if CONFIG_NEW_TX_PARTITION_EXT
   int txfm_partition_cost[2][TXFM_PARTITION_CONTEXTS][TX_PARTITION_TYPES];
-#else   // CONFIG_NEW_TX_PARTITION_EXT
-  int txfm_partition_cost[TXFM_PARTITION_CONTEXTS][TX_PARTITION_TYPES];
-#endif  // CONFIG_NEW_TX_PARTITION_EXT
   int tx_size_cost[2][TX_SIZE_CONTEXTS][TX_PARTITION_TYPES_INTRA];
 #else   // CONFIG_NEW_TX_PARTITION
   int tx_size_cost[TX_SIZES - 1][TX_SIZE_CONTEXTS][TX_SIZES];
@@ -498,7 +494,7 @@ struct macroblock {
 
 static INLINE int is_rect_tx_allowed_bsize(BLOCK_SIZE bsize) {
   static const char LUT[BLOCK_SIZES_ALL] = {
-#if CONFIG_NEW_TX_PARTITION && CONFIG_NEW_TX_PARTITION_EXT
+#if CONFIG_NEW_TX_PARTITION
     0,  // BLOCK_4X4
     1,  // BLOCK_4X8
     1,  // BLOCK_8X4
@@ -544,7 +540,7 @@ static INLINE int is_rect_tx_allowed_bsize(BLOCK_SIZE bsize) {
     1,  // BLOCK_32X8
     1,  // BLOCK_16X64
     1,  // BLOCK_64X16
-#endif  // CONFIG_NEW_TX_PARTITION && CONFIG_NEW_TX_PARTITION_EXT
+#endif  // CONFIG_NEW_TX_PARTITION
   };
 
   return LUT[bsize];
