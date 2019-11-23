@@ -256,14 +256,66 @@ static void encode_block(int plane, int block, int blk_row, int blk_col,
 
   av1_set_txb_context(x, plane, block, tx_size, a, l);
 
+#if CONFIG_NEW_TX64X64
+#define GET_NEW_TX64X64_TRAINING_DATA 0
+#endif  // CONFIG_NEW_TX64X64
   if (p->eobs[block]) {
     *(args->skip) = 0;
 
     TX_TYPE tx_type = av1_get_tx_type(pd->plane_type, xd, blk_row, blk_col,
                                       tx_size, cm->reduced_tx_set_used);
+#if CONFIG_NEW_TX64X64 && GET_NEW_TX64X64_TRAINING_DATA
+    uint8_t prd[64 * 64];
+    if (dry_run == OUTPUT_ENABLED && txsize_sqr_up_map[tx_size] == TX_64X64) {
+      const int dst_stride = pd->dst.stride;
+      // Prediction
+      for (int ii = 0; ii < tx_size_high[tx_size]; ++ii) {
+        for (int jj = 0; jj < tx_size_wide[tx_size]; ++jj) {
+          const uint8_t prdval = dst[ii * dst_stride + jj];
+          prd[ii * tx_size_wide[tx_size] + jj] = prdval;
+        }
+      }
+    }
+#endif  // CONFIG_NEW_TX64X64 && GET_NEW_TX64X64_TRAINING_DATA
     av1_inverse_transform_block(xd, dqcoeff, plane, tx_type, tx_size, dst,
                                 pd->dst.stride, p->eobs[block],
                                 cm->reduced_tx_set_used);
+#if CONFIG_NEW_TX64X64 && GET_NEW_TX64X64_TRAINING_DATA
+    if (dry_run == OUTPUT_ENABLED && txsize_sqr_up_map[tx_size] == TX_64X64 &&
+        p->eobs[block] > 1) {
+      printf("Gotcha %d [%d]\n", xd->current_qindex, cm->base_qindex);
+      char fname[256];
+      sprintf(fname, "stx_%dx%d.dat", tx_size_wide[tx_size],
+              tx_size_high[tx_size]);
+      FILE *fp = fopen(fname, "ab");
+      // Source
+      const int src_stride = p->src.stride;
+      const int src_offset = (blk_row * src_stride + blk_col);
+      const uint8_t *src = &p->src.buf[src_offset << tx_size_wide_log2[0]];
+      for (int ii = 0; ii < tx_size_high[tx_size]; ++ii) {
+        for (int jj = 0; jj < tx_size_wide[tx_size]; ++jj) {
+          const uint8_t srcval = src[ii * src_stride + jj];
+          fwrite(&srcval, 1, 1, fp);
+        }
+      }
+      // Prediction
+      for (int ii = 0; ii < tx_size_high[tx_size]; ++ii) {
+        for (int jj = 0; jj < tx_size_wide[tx_size]; ++jj) {
+          const uint8_t prdval = prd[ii * tx_size_wide[tx_size] + jj];
+          fwrite(&prdval, 1, 1, fp);
+        }
+      }
+      // Reconstruction
+      const int dst_stride = pd->dst.stride;
+      for (int ii = 0; ii < tx_size_high[tx_size]; ++ii) {
+        for (int jj = 0; jj < tx_size_wide[tx_size]; ++jj) {
+          const uint8_t recval = dst[ii * dst_stride + jj];
+          fwrite(&recval, 1, 1, fp);
+        }
+      }
+      fclose(fp);
+    }
+#endif  // CONFIG_NEW_TX64X64 && GET_NEW_TX64X64_TRAINING_DATA
   }
 
   // TODO(debargha, jingning): Temporarily disable txk_type check for eob=0
