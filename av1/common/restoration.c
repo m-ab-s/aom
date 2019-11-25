@@ -44,13 +44,12 @@ const int wienerns_config[WIENERNS_YUV_PIXEL][3] = {
 };
 
 const int wienerns_coeff[WIENERNS_YUV][4] = {
-  { 6, -20, 4, 128 }, { 6, -20, 4, 128 }, { 5, -18, 3, 128 },
-  { 5, -18, 3, 128 }, { 5, -18, 3, 128 }, { 5, -18, 3, 128 },
-  { 3, -4, 3, 128 },  { 3, -4, 3, 128 },  { 4, -5, 3, 128 },
-  { 4, -5, 3, 128 },  { 3, -3, 3, 128 },  { 3, -3, 3, 128 },
+  { 6, -20, 4 }, { 6, -20, 4 }, { 5, -18, 3 }, { 5, -18, 3 },
+  { 5, -18, 3 }, { 5, -18, 3 }, { 3, -4, 3 },  { 3, -4, 3 },
+  { 4, -5, 3 },  { 4, -5, 3 },  { 3, -3, 3 },  { 3, -3, 3 },
 
-  { 5, -16, 4, 128 }, { 5, -16, 4, 128 }, { 4, -8, 3, 128 },
-  { 4, -8, 3, 128 },  { 4, -8, 3, 128 },  { 4, -8, 3, 128 },
+  { 5, -16, 4 }, { 5, -16, 4 }, { 4, -8, 3 },  { 4, -8, 3 },
+  { 4, -8, 3 },  { 4, -8, 3 },
 };
 #endif  // CONFIG_WIENER_NONSEP
 
@@ -998,7 +997,7 @@ void apply_wiener_nonsep(const uint8_t *dgd, int width, int height, int stride,
       int dgd_id = i * stride + j;
       int dst_id = i * dst_stride + j;
       int luma_id = i * luma_stride + j;
-      double tmp = (double)dgd[dgd_id] * (1 << WIENERNS_PREC_BITS);
+      int32_t tmp = (int32_t)dgd[dgd_id] * (1 << WIENERNS_PREC_BITS);
       for (int k = beg_pixel; k < end_pixel; ++k) {
         int pos = wienerns_config[k][WIENERNS_BUF_POS];
         int r = wienerns_config[k][WIENERNS_ROW_ID];
@@ -1011,10 +1010,10 @@ void apply_wiener_nonsep(const uint8_t *dgd, int width, int height, int stride,
                 : clip_base((int16_t)luma[(i + r) * luma_stride + (j + c)] -
                                 (int16_t)luma[luma_id],
                             8);
-        tmp += (double)filter[pos + beg_feat] * diff;
+        tmp += filter[pos + beg_feat] * diff;
       }
-      tmp /= (1 << WIENERNS_PREC_BITS);
-      dst[dst_id] = clip_pixel((int)round(tmp));
+      tmp = ROUND_POWER_OF_TWO_SIGNED(tmp, WIENERNS_PREC_BITS);
+      dst[dst_id] = (uint8_t)clip_pixel(tmp);
     }
   }
 }
@@ -1052,7 +1051,7 @@ void apply_wiener_nonsep_highbd(const uint8_t *dgd8, int width, int height,
       int dgd_id = i * stride + j;
       int dst_id = i * dst_stride + j;
       int luma_id = i * luma_stride + j;
-      double tmp = (double)dgd[dgd_id] * (1 << WIENERNS_PREC_BITS);
+      int32_t tmp = (int32_t)dgd[dgd_id] * (1 << WIENERNS_PREC_BITS);
       for (int k = beg_pixel; k < end_pixel; ++k) {
         int pos = wienerns_config[k][WIENERNS_BUF_POS];
         int r = wienerns_config[k][WIENERNS_ROW_ID];
@@ -1065,11 +1064,11 @@ void apply_wiener_nonsep_highbd(const uint8_t *dgd8, int width, int height,
                 : clip_base((int16_t)luma[(i + r) * luma_stride + (j + c)] -
                                 (int16_t)luma[luma_id],
                             bit_depth);
-        tmp += (double)filter[pos + beg_feat] * diff;
+        tmp += filter[pos + beg_feat] * diff;
       }
-      tmp /= (1 << WIENERNS_PREC_BITS);
-      const uint16_t out = clip_pixel_highbd((int)round(tmp), bit_depth);
-      *CONVERT_TO_SHORTPTR(dst + dst_id) = out;
+      tmp = ROUND_POWER_OF_TWO_SIGNED(tmp, WIENERNS_PREC_BITS);
+      *CONVERT_TO_SHORTPTR(dst + dst_id) =
+          (uint16_t)clip_pixel_highbd(tmp, bit_depth);
     }
   }
 }
