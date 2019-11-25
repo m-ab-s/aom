@@ -730,7 +730,8 @@ static void pick_sb_modes(AV1_COMP *const cpi, TileDataEnc *tile_data,
   av1_rd_cost_update(x->rdmult, &best_rd);
 
 #if CONFIG_DERIVED_INTRA_MODE
-  mbmi->use_derived_intra_mode = 0;
+  mbmi->use_derived_intra_mode[0] = 0;
+  mbmi->use_derived_intra_mode[1] = 0;
 #endif  // CONFIG_DERIVED_INTRA_MODE
 
   // Find best coding mode & reconstruct the MB so it is available
@@ -933,10 +934,10 @@ static void sum_intra_stats(const AV1_COMMON *const cm, FRAME_COUNTS *counts,
       if (is_dr_mode) {
         int update_intra_mode;
         if (av1_enable_derived_intra_mode(xd, bsize)) {
-          update_intra_mode = !mbmi->use_derived_intra_mode;
+          update_intra_mode = !mbmi->use_derived_intra_mode[0];
           if (allow_update_cdf) {
             update_cdf(get_derived_intra_mode_cdf(fc, above_mi, left_mi),
-                       mbmi->use_derived_intra_mode, 2);
+                       mbmi->use_derived_intra_mode[0], 2);
           }
         } else {
           update_intra_mode = 1;
@@ -1012,7 +1013,7 @@ static void sum_intra_stats(const AV1_COMMON *const cm, FRAME_COUNTS *counts,
 #endif
     if (allow_update_cdf) {
 #if CONFIG_DERIVED_INTRA_MODE
-      if (!mbmi->use_derived_intra_mode)
+      if (!mbmi->use_derived_intra_mode[0])
 #endif  // CONFIG_DERIVED_INTRA_MODE
       {
         update_cdf(fc->angle_delta_cdf[mbmi->mode - V_PRED],
@@ -1040,9 +1041,21 @@ static void sum_intra_stats(const AV1_COMMON *const cm, FRAME_COUNTS *counts,
     av1_nn_backprop_em(nn_model, uv_mode);
     av1_nn_update_em(nn_model, nn_model->lr);
 #else
+#if CONFIG_DERIVED_INTRA_MODE
+    if (av1_enable_derived_intra_mode(xd, bsize)) {
+      update_cdf(fc->uv_derived_intra_mode_cdf[mbmi->use_derived_intra_mode[0]],
+                 mbmi->use_derived_intra_mode[1], 2);
+    }
+    if (!mbmi->use_derived_intra_mode[1]) {
+      const CFL_ALLOWED_TYPE cfl_allowed = is_cfl_allowed(xd);
+      update_cdf(fc->uv_mode_cdf[cfl_allowed][y_mode], uv_mode,
+                 UV_INTRA_MODES - !cfl_allowed);
+    }
+#else
     const CFL_ALLOWED_TYPE cfl_allowed = is_cfl_allowed(xd);
     update_cdf(fc->uv_mode_cdf[cfl_allowed][y_mode], uv_mode,
                UV_INTRA_MODES - !cfl_allowed);
+#endif  // CONFIG_DERIVED_INTRA_MODE
 #endif  // CONFIG_INTRA_ENTROPY
   }
   if (uv_mode == UV_CFL_PRED) {
@@ -1074,6 +1087,9 @@ static void sum_intra_stats(const AV1_COMMON *const cm, FRAME_COUNTS *counts,
     }
   }
   if (av1_is_directional_mode(get_uv_mode(uv_mode)) &&
+#if CONFIG_DERIVED_INTRA_MODE
+      !mbmi->use_derived_intra_mode[1] &&
+#endif  // CONFIG_DERIVED_INTRA_MODE
       av1_use_angle_delta(bsize)) {
 #if CONFIG_ENTROPY_STATS
     ++counts->angle_delta[uv_mode - UV_V_PRED]
@@ -4697,6 +4713,8 @@ static void avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
 #if CONFIG_DERIVED_INTRA_MODE
   AVERAGE_CDF(ctx_left->derived_intra_mode_cdf, ctx_tr->derived_intra_mode_cdf,
               2);
+  AVERAGE_CDF(ctx_left->uv_derived_intra_mode_cdf,
+              ctx_tr->uv_derived_intra_mode_cdf, 2);
 #endif  // CONFIG_DERIVED_INTRA_MODE
   AVERAGE_CDF(ctx_left->seg.tree_cdf, ctx_tr->seg.tree_cdf, MAX_SEGMENTS);
   AVERAGE_CDF(ctx_left->seg.pred_cdf, ctx_tr->seg.pred_cdf, 2);
@@ -6281,12 +6299,18 @@ static void encode_superblock(const AV1_COMP *const cpi, TileDataEnc *tile_data,
 
   if (!is_inter) {
 #if CONFIG_DERIVED_INTRA_MODE
-    if (mbmi->use_derived_intra_mode) {
+    if (mbmi->use_derived_intra_mode[0] || mbmi->use_derived_intra_mode[1]) {
       uint8_t derived_angle;
       const int derived_mode =
           av1_get_derived_intra_mode(xd, bsize, &derived_angle);
-      assert(mbmi->mode == derived_mode &&
-             mbmi->derived_angle == derived_angle);
+      if (mbmi->use_derived_intra_mode[0]) {
+        assert(mbmi->mode == derived_mode &&
+               mbmi->derived_angle == derived_angle);
+      }
+      if (mbmi->use_derived_intra_mode[1]) {
+        assert(mbmi->uv_mode == derived_mode &&
+               mbmi->derived_angle == derived_angle);
+      }
       (void)derived_angle;
       (void)derived_mode;
     }

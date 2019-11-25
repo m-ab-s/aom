@@ -1334,6 +1334,11 @@ static const aom_cdf_prob default_derived_intra_mode_cdf[3][CDF_SIZE(2)] = {
   { AOM_CDF2(16384) },
   { AOM_CDF2(13107) },
 };
+
+static const aom_cdf_prob default_uv_derived_intra_mode_cdf[2][CDF_SIZE(2)] = {
+  { AOM_CDF2(16384) },
+  { AOM_CDF2(8192) },
+};
 #endif  // CONFIG_DERIVED_INTRA_MODE
 
 static const aom_cdf_prob default_filter_intra_mode_cdf[CDF_SIZE(
@@ -1723,6 +1728,7 @@ static void init_mode_probs(FRAME_CONTEXT *fc) {
   av1_copy(fc->intrabc_cdf, default_intrabc_cdf);
 #if CONFIG_DERIVED_INTRA_MODE
   av1_copy(fc->derived_intra_mode_cdf, default_derived_intra_mode_cdf);
+  av1_copy(fc->uv_derived_intra_mode_cdf, default_uv_derived_intra_mode_cdf);
 #endif  // CONFIG_DERIVED_INTRA_MODE
 }
 

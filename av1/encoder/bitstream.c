@@ -91,14 +91,13 @@ static void write_intra_y_mode_kf(MACROBLOCKD *const xd,
     const MB_MODE_INFO *const mbmi = xd->mi[0];
     if (av1_enable_derived_intra_mode(xd, mi->sb_type)) {
       aom_write_symbol(
-          w, mi->use_derived_intra_mode,
+          w, mi->use_derived_intra_mode[0],
           get_derived_intra_mode_cdf(frame_ctx, xd->above_mbmi, xd->left_mbmi),
           2);
     } else {
-      assert(!mbmi->use_derived_intra_mode);
+      assert(!mbmi->use_derived_intra_mode[0]);
     }
-    const int write_intra_mode = !mbmi->use_derived_intra_mode;
-    if (write_intra_mode) {
+    if (!mbmi->use_derived_intra_mode[0]) {
       aom_write_symbol(
           w, dr_mode_to_index[mode],
           get_kf_dr_mode_cdf(frame_ctx, xd->above_mbmi, xd->left_mbmi),
@@ -1112,6 +1111,17 @@ static void write_intra_uv_mode(const MACROBLOCKD *xd, FRAME_CONTEXT *frame_ctx,
   aom_write_symbol_nn(w, uv_mode, cdf, &(frame_ctx->intra_uv_mode),
                       UV_INTRA_MODES);
 #else
+#if CONFIG_DERIVED_INTRA_MODE
+  const MB_MODE_INFO *const mbmi = xd->mi[0];
+  const BLOCK_SIZE bsize = mbmi->sb_type;
+  if (av1_enable_derived_intra_mode(xd, bsize)) {
+    aom_write_symbol(
+        w, mbmi->use_derived_intra_mode[1],
+        frame_ctx->uv_derived_intra_mode_cdf[mbmi->use_derived_intra_mode[0]],
+        2);
+  }
+  if (mbmi->use_derived_intra_mode[1]) return;
+#endif  // CONFIG_DERIVED_INTRA_MODE
   const int cfl_allowed = is_cfl_allowed(xd);
   aom_write_symbol(w, uv_mode, frame_ctx->uv_mode_cdf[cfl_allowed][y_mode],
                    UV_INTRA_MODES - !cfl_allowed);
@@ -1301,7 +1311,7 @@ static void write_intra_prediction_modes(AV1_COMP *cpi, const int mi_row,
   const int use_angle_delta = av1_use_angle_delta(bsize);
   if (use_angle_delta &&
 #if CONFIG_DERIVED_INTRA_MODE
-      !mbmi->use_derived_intra_mode &&
+      !mbmi->use_derived_intra_mode[0] &&
 #endif  // CONFIG_DERIVED_INTRA_MODE
       av1_is_directional_mode(mode)) {
     write_angle_delta(w, mbmi->angle_delta[PLANE_TYPE_Y],
@@ -1316,7 +1326,11 @@ static void write_intra_prediction_modes(AV1_COMP *cpi, const int mi_row,
     write_intra_uv_mode(xd, ec_ctx, uv_mode, mode, w);
     if (uv_mode == UV_CFL_PRED)
       write_cfl_alphas(ec_ctx, mbmi->cfl_alpha_idx, mbmi->cfl_alpha_signs, w);
-    if (use_angle_delta && av1_is_directional_mode(get_uv_mode(uv_mode))) {
+    if (use_angle_delta &&
+#if CONFIG_DERIVED_INTRA_MODE
+        !mbmi->use_derived_intra_mode[1] &&
+#endif  // CONFIG_DERIVED_INTRA_MODE
+        av1_is_directional_mode(get_uv_mode(uv_mode))) {
       write_angle_delta(w, mbmi->angle_delta[PLANE_TYPE_UV],
                         ec_ctx->angle_delta_cdf[uv_mode - V_PRED]);
     }

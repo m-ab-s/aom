@@ -2530,7 +2530,7 @@ void av1_predict_intra_block_facade(const AV1_COMMON *cm, MACROBLOCKD *xd,
           adapt_filter_intra_mode,
 #endif
 #if CONFIG_DERIVED_INTRA_MODE
-          !plane && mbmi->use_derived_intra_mode ? mbmi->derived_angle : 0,
+          mbmi->use_derived_intra_mode[plane != 0] ? mbmi->derived_angle : 0,
 #endif  // CONFIG_DERIVED_INTRA_MODE
           dst, dst_stride, dst, dst_stride, blk_col, blk_row, plane);
       if (cfl->use_dc_pred_cache) {
@@ -2550,7 +2550,7 @@ void av1_predict_intra_block_facade(const AV1_COMMON *cm, MACROBLOCKD *xd,
       adapt_filter_intra_mode,
 #endif
 #if CONFIG_DERIVED_INTRA_MODE
-      !plane && mbmi->use_derived_intra_mode ? mbmi->derived_angle : 0,
+      mbmi->use_derived_intra_mode[plane != 0] ? mbmi->derived_angle : 0,
 #endif  // CONFIG_DERIVED_INTRA_MODE
       dst, dst_stride, dst, dst_stride, blk_col, blk_row, plane);
 }

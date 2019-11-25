@@ -304,7 +304,7 @@ typedef struct MB_MODE_INFO {
   int64_t y_recon_var;  // Variance of reconstructed Y values.
 #endif                  // CONFIG_INTRA_ENTROPY && !CONFIG_USE_SMALL_MODEL
 #if CONFIG_DERIVED_INTRA_MODE
-  uint8_t use_derived_intra_mode;
+  uint8_t use_derived_intra_mode[2];
   uint8_t derived_angle;
 #endif  // CONFIG_DERIVED_INTRA_MODE
 } MB_MODE_INFO;

@@ -331,6 +331,10 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, MACROBLOCK *x,
     av1_cost_tokens_from_cdf(x->derived_intra_mode_cost[i],
                              fc->derived_intra_mode_cdf[i], NULL);
   }
+  for (i = 0; i < 2; ++i) {
+    av1_cost_tokens_from_cdf(x->uv_derived_intra_mode_cost[i],
+                             fc->uv_derived_intra_mode_cdf[i], NULL);
+  }
 #endif  // CONFIG_DERIVED_INTRA_MODE
 
   if (!frame_is_intra_only(cm)) {
