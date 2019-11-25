@@ -1156,14 +1156,28 @@ static INLINE int partition_plane_context(const MACROBLOCKD *xd, int mi_row,
   const PARTITION_CONTEXT *above_ctx = xd->above_seg_context + mi_col;
   const PARTITION_CONTEXT *left_ctx =
       xd->left_seg_context + (mi_row & MAX_MIB_MASK);
-  // Minimum partition point is 8x8. Offset the bsl accordingly.
-  const int bsl = mi_size_wide_log2[bsize] - mi_size_wide_log2[BLOCK_8X8];
-  int above = (*above_ctx >> bsl) & 1, left = (*left_ctx >> bsl) & 1;
+#if CONFIG_EXT_RECUR_PARTITIONS
+  if (is_square_block(bsize)) {
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+    // Minimum partition point is 8x8. Offset the bsl accordingly.
+    const int bsl = mi_size_wide_log2[bsize] - mi_size_wide_log2[BLOCK_8X8];
+    int above = (*above_ctx >> bsl) & 1, left = (*left_ctx >> bsl) & 1;
 
-  assert(mi_size_wide_log2[bsize] == mi_size_high_log2[bsize]);
-  assert(bsl >= 0);
+    assert(mi_size_wide_log2[bsize] == mi_size_high_log2[bsize]);
+    assert(bsl >= 0);
 
-  return (left * 2 + above) + bsl * PARTITION_PLOFFSET;
+    return (left * 2 + above) + bsl * PARTITION_PLOFFSET;
+#if CONFIG_EXT_RECUR_PARTITIONS
+  } else {
+    const int bsl_w = mi_size_wide_log2[bsize] - mi_size_wide_log2[BLOCK_8X8];
+    const int bsl_h = mi_size_high_log2[bsize] - mi_size_high_log2[BLOCK_8X8];
+
+    const int above = (*above_ctx >> bsl_w) & 1;
+    const int left = (*left_ctx >> bsl_h) & 1;
+
+    return (left * 2 + above) + AOMMIN(bsl_w, bsl_h) * PARTITION_PLOFFSET;
+  }
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 }
 
 // Return the number of elements in the partition CDF when

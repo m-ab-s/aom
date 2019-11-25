@@ -328,6 +328,32 @@ PARTITION_TREE *av1_alloc_ptree_node(void);
 void av1_free_ptree_recursive(PARTITION_TREE *ptree);
 void av1_reset_ptree_in_sbi(SB_INFO *sbi);
 
+#if CONFIG_EXT_RECUR_PARTITIONS
+static INLINE PARTITION_TYPE get_partition_from_symbol_rec_block(
+    BLOCK_SIZE bsize, PARTITION_TYPE_REC partition_rec) {
+  if (block_size_wide[bsize] > block_size_high[bsize])
+    return partition_map_from_symbol_block_wgth[partition_rec];
+  else if (block_size_high[bsize] > block_size_wide[bsize])
+    return partition_map_from_symbol_block_hgtw[partition_rec];
+  else
+    return PARTITION_INVALID;
+}
+
+static INLINE PARTITION_TYPE_REC get_symbol_from_partition_rec_block(
+    BLOCK_SIZE bsize, PARTITION_TYPE partition) {
+  if (block_size_wide[bsize] > block_size_high[bsize])
+    return symbol_map_from_partition_block_wgth[partition];
+  else if (block_size_high[bsize] > block_size_wide[bsize])
+    return symbol_map_from_partition_block_hgtw[partition];
+  else
+    return PARTITION_INVALID_REC;
+}
+
+static INLINE int is_square_block(BLOCK_SIZE bsize) {
+  return block_size_high[bsize] == block_size_wide[bsize];
+}
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+
 static INLINE int is_intrabc_block(const MB_MODE_INFO *mbmi) {
   return mbmi->use_intrabc;
 }
@@ -710,10 +736,14 @@ static INLINE BLOCK_SIZE get_partition_subsize(BLOCK_SIZE bsize,
   if (partition == PARTITION_INVALID) {
     return BLOCK_INVALID;
   } else {
+#if CONFIG_EXT_RECUR_PARTITIONS
+    return subsize_lookup[partition][bsize];
+#else
     const int sqr_bsize_idx = get_sqr_bsize_idx(bsize);
     return sqr_bsize_idx >= SQR_BLOCK_SIZES
                ? BLOCK_INVALID
                : subsize_lookup[partition][sqr_bsize_idx];
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   }
 }
 

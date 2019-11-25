@@ -1451,27 +1451,41 @@ static PARTITION_TYPE read_partition(MACROBLOCKD *xd, int mi_row, int mi_col,
   const int ctx = partition_plane_context(xd, mi_row, mi_col, bsize);
   FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
 
-  if (!has_rows && !has_cols) return PARTITION_SPLIT;
+#if CONFIG_EXT_RECUR_PARTITIONS
+  if (is_square_block(bsize)) {
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+    if (!has_rows && !has_cols) return PARTITION_SPLIT;
 
-  assert(ctx >= 0);
-  aom_cdf_prob *partition_cdf = ec_ctx->partition_cdf[ctx];
-  if (has_rows && has_cols) {
-    return (PARTITION_TYPE)aom_read_symbol(
-        r, partition_cdf, partition_cdf_length(bsize), ACCT_STR);
-  } else if (!has_rows && has_cols) {
-    assert(bsize > BLOCK_8X8);
-    aom_cdf_prob cdf[2];
-    partition_gather_vert_alike(cdf, partition_cdf, bsize);
-    assert(cdf[1] == AOM_ICDF(CDF_PROB_TOP));
-    return aom_read_cdf(r, cdf, 2, ACCT_STR) ? PARTITION_SPLIT : PARTITION_HORZ;
+    assert(ctx >= 0);
+    aom_cdf_prob *partition_cdf = ec_ctx->partition_cdf[ctx];
+    if (has_rows && has_cols) {
+      return (PARTITION_TYPE)aom_read_symbol(
+          r, partition_cdf, partition_cdf_length(bsize), ACCT_STR);
+    } else if (!has_rows && has_cols) {
+      assert(bsize > BLOCK_8X8);
+      aom_cdf_prob cdf[2];
+      partition_gather_vert_alike(cdf, partition_cdf, bsize);
+      assert(cdf[1] == AOM_ICDF(CDF_PROB_TOP));
+      return aom_read_cdf(r, cdf, 2, ACCT_STR) ? PARTITION_SPLIT
+                                               : PARTITION_HORZ;
+    } else {
+      assert(has_rows && !has_cols);
+      assert(bsize > BLOCK_8X8);
+      aom_cdf_prob cdf[2];
+      partition_gather_horz_alike(cdf, partition_cdf, bsize);
+      assert(cdf[1] == AOM_ICDF(CDF_PROB_TOP));
+      return aom_read_cdf(r, cdf, 2, ACCT_STR) ? PARTITION_SPLIT
+                                               : PARTITION_VERT;
+    }
+#if CONFIG_EXT_RECUR_PARTITIONS
   } else {
-    assert(has_rows && !has_cols);
-    assert(bsize > BLOCK_8X8);
-    aom_cdf_prob cdf[2];
-    partition_gather_horz_alike(cdf, partition_cdf, bsize);
-    assert(cdf[1] == AOM_ICDF(CDF_PROB_TOP));
-    return aom_read_cdf(r, cdf, 2, ACCT_STR) ? PARTITION_SPLIT : PARTITION_VERT;
+    aom_cdf_prob *partition_rec_cdf = ec_ctx->partition_rec_cdf[ctx];
+    const PARTITION_TYPE_REC symbol = (PARTITION_TYPE_REC)aom_read_symbol(
+        r, partition_rec_cdf, PARTITION_TYPES_REC, ACCT_STR);
+
+    return get_partition_from_symbol_rec_block(bsize, symbol);
   }
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 }
 
 // TODO(slavarnway): eliminate bsize and subsize in future commits
@@ -1541,6 +1555,10 @@ static void decode_partition(AV1Decoder *const pbi, ThreadData *const td,
       case PARTITION_VERT_A:
       case PARTITION_VERT_B: num_splittable_sub_blocks = 2; break;
 #endif  // CONFIG_EXT_PARTITIONS
+#if CONFIG_EXT_RECUR_PARTITIONS
+      case PARTITION_HORZ:
+      case PARTITION_VERT: num_splittable_sub_blocks = 2; break;
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
       default: break;
     }
     if (num_splittable_sub_blocks > 0) {
@@ -1582,12 +1600,26 @@ static void decode_partition(AV1Decoder *const pbi, ThreadData *const td,
   switch (partition) {
     case PARTITION_NONE: DEC_BLOCK(mi_row, mi_col, subsize); break;
     case PARTITION_HORZ:
+#if CONFIG_EXT_RECUR_PARTITIONS
+      ptree->sub_tree[0]->partition = PARTITION_NONE;
+      ptree->sub_tree[1]->partition = PARTITION_NONE;
+      DEC_PARTITION(mi_row, mi_col, subsize, 0);
+      if (has_rows) DEC_PARTITION(mi_row + hbs, mi_col, subsize, 1);
+#else
       DEC_BLOCK(mi_row, mi_col, subsize);
       if (has_rows) DEC_BLOCK(mi_row + hbs, mi_col, subsize);
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
       break;
     case PARTITION_VERT:
+#if CONFIG_EXT_RECUR_PARTITIONS
+      ptree->sub_tree[0]->partition = PARTITION_NONE;
+      ptree->sub_tree[1]->partition = PARTITION_NONE;
+      DEC_PARTITION(mi_row, mi_col, subsize, 0);
+      if (has_cols) DEC_PARTITION(mi_row, mi_col + hbs, subsize, 1);
+#else
       DEC_BLOCK(mi_row, mi_col, subsize);
       if (has_cols) DEC_BLOCK(mi_row, mi_col + hbs, subsize);
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
       break;
     case PARTITION_SPLIT:
       DEC_PARTITION(mi_row, mi_col, subsize, 0);

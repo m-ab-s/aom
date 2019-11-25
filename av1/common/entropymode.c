@@ -368,6 +368,34 @@ static const aom_cdf_prob default_partition_cdf[PARTITION_CONTEXTS][CDF_SIZE(
   { AOM_CDF8(711, 966, 1172, 32448, 32538, 32617, 32664) },
 };
 
+#if CONFIG_EXT_RECUR_PARTITIONS
+// TODO(yuec) replace the placeholders by optimized probabilities
+static const aom_cdf_prob
+    default_partition_rec_cdf[PARTITION_CONTEXTS_REC]
+                             [CDF_SIZE(PARTITION_TYPES_REC)] = {
+                               // 16x8, 8x16
+                               { AOM_CDF4(19132, 25510, 30392) },
+                               { AOM_CDF4(13928, 19855, 28540) },
+                               { AOM_CDF4(12522, 23679, 28629) },
+                               { AOM_CDF4(9896, 18783, 25853) },
+                               // 32x16, 16x32
+                               { AOM_CDF4(19132, 25510, 30392) },
+                               { AOM_CDF4(13928, 19855, 28540) },
+                               { AOM_CDF4(12522, 23679, 28629) },
+                               { AOM_CDF4(9896, 18783, 25853) },
+                               // 64x32, 32x64
+                               { AOM_CDF4(19132, 25510, 30392) },
+                               { AOM_CDF4(13928, 19855, 28540) },
+                               { AOM_CDF4(12522, 23679, 28629) },
+                               { AOM_CDF4(9896, 18783, 25853) },
+                               // 128x64, 64x128
+                               { AOM_CDF4(19132, 25510, 30392) },
+                               { AOM_CDF4(13928, 19855, 28540) },
+                               { AOM_CDF4(12522, 23679, 28629) },
+                               { AOM_CDF4(9896, 18783, 25853) },
+                             };
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+
 #if CONFIG_MODE_DEP_TX
 static const aom_cdf_prob default_intra_ext_tx_cdf
     [EXT_TX_SETS_INTRA][EXT_TX_SIZES][INTRA_MODES]
@@ -1734,6 +1762,9 @@ static void init_mode_probs(FRAME_CONTEXT *fc) {
   av1_copy(fc->flex_mv_precision_cdf, default_flex_mv_precision_cdf);
 #endif  // CONFIG_FLEX_MVRES
   av1_copy(fc->partition_cdf, default_partition_cdf);
+#if CONFIG_EXT_RECUR_PARTITIONS
+  av1_copy(fc->partition_rec_cdf, default_partition_rec_cdf);
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   av1_copy(fc->intra_ext_tx_cdf, default_intra_ext_tx_cdf);
   av1_copy(fc->inter_ext_tx_cdf, default_inter_ext_tx_cdf);
 #if CONFIG_MODE_DEP_TX

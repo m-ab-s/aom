@@ -1835,17 +1835,34 @@ static void encode_sb(const AV1_COMP *const cpi, ThreadData *td,
     const int has_rows = (mi_row + hbs) < cm->mi_rows;
     const int has_cols = (mi_col + hbs) < cm->mi_cols;
 
-    if (has_rows && has_cols) {
+#if CONFIG_EXT_RECUR_PARTITIONS
+    if (is_square_block(bsize)) {
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+      if (has_rows && has_cols) {
 #if CONFIG_ENTROPY_STATS
-      td->counts->partition[ctx][partition]++;
+        td->counts->partition[ctx][partition]++;
+#endif
+
+        if (tile_data->allow_update_cdf) {
+          FRAME_CONTEXT *fc = xd->tile_ctx;
+          update_cdf(fc->partition_cdf[ctx], partition,
+                     partition_cdf_length(bsize));
+        }
+      }
+#if CONFIG_EXT_RECUR_PARTITIONS
+    } else {
+      const PARTITION_TYPE_REC p_rec =
+          get_symbol_from_partition_rec_block(bsize, partition);
+#if CONFIG_ENTROPY_STATS
+      td->counts->partition_rec[ctx][p_rec]++;
 #endif
 
       if (tile_data->allow_update_cdf) {
         FRAME_CONTEXT *fc = xd->tile_ctx;
-        update_cdf(fc->partition_cdf[ctx], partition,
-                   partition_cdf_length(bsize));
+        update_cdf(fc->partition_rec_cdf[ctx], p_rec, PARTITION_TYPES_REC);
       }
     }
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   }
 
   PARTITION_TREE *sub_tree[4] = { NULL, NULL, NULL, NULL };
@@ -1866,6 +1883,10 @@ static void encode_sb(const AV1_COMP *const cpi, ThreadData *td,
       case PARTITION_VERT_A:
       case PARTITION_VERT_B: num_splittable_sub_blocks = 2; break;
 #endif  // CONFIG_EXT_PARTITIONS
+#if CONFIG_EXT_RECUR_PARTITIONS
+      case PARTITION_HORZ:
+      case PARTITION_VERT: num_splittable_sub_blocks = 2; break;
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
       default: break;
     }
     if (num_splittable_sub_blocks > 0) {
@@ -1882,6 +1903,12 @@ static void encode_sb(const AV1_COMP *const cpi, ThreadData *td,
                partition, pc_tree->none, rate);
       break;
     case PARTITION_VERT:
+#if CONFIG_EXT_RECUR_PARTITIONS
+      if (!dry_run) {
+        sub_tree[0]->partition = PARTITION_NONE;
+        sub_tree[1]->partition = PARTITION_NONE;
+      }
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
       encode_b(cpi, tile_data, td, tp, mi_row, mi_col, dry_run, subsize,
                partition, pc_tree->vertical[0], rate);
       if (mi_col + hbs < cm->mi_cols) {
@@ -1890,6 +1917,12 @@ static void encode_sb(const AV1_COMP *const cpi, ThreadData *td,
       }
       break;
     case PARTITION_HORZ:
+#if CONFIG_EXT_RECUR_PARTITIONS
+      if (!dry_run) {
+        sub_tree[0]->partition = PARTITION_NONE;
+        sub_tree[1]->partition = PARTITION_NONE;
+      }
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
       encode_b(cpi, tile_data, td, tp, mi_row, mi_col, dry_run, subsize,
                partition, pc_tree->horizontal[0], rate);
       if (mi_row + hbs < cm->mi_rows) {
@@ -2420,6 +2453,10 @@ static void nonrd_use_partition(AV1_COMP *cpi, ThreadData *td,
     case PARTITION_VERT_A:
     case PARTITION_VERT_B: num_splittable_sub_blocks = 2; break;
 #endif  // CONFIG_EXT_PARTITIONS
+#if CONFIG_EXT_RECUR_PARTITIONS
+    case PARTITION_HORZ:
+    case PARTITION_VERT: num_splittable_sub_blocks = 2; break;
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
     default: break;
   }
   if (num_splittable_sub_blocks > 0) {
@@ -2443,6 +2480,10 @@ static void nonrd_use_partition(AV1_COMP *cpi, ThreadData *td,
                pc_tree->none, NULL);
       break;
     case PARTITION_VERT:
+#if CONFIG_EXT_RECUR_PARTITIONS
+      ptree->sub_tree[0]->partition = PARTITION_NONE;
+      ptree->sub_tree[1]->partition = PARTITION_NONE;
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
       for (int i = 0; i < 2; ++i) {
         pc_tree->vertical[i] =
             av1_alloc_pmc(cm, subsize, &td->shared_coeff_buf);
@@ -2463,6 +2504,10 @@ static void nonrd_use_partition(AV1_COMP *cpi, ThreadData *td,
       }
       break;
     case PARTITION_HORZ:
+#if CONFIG_EXT_RECUR_PARTITIONS
+      ptree->sub_tree[0]->partition = PARTITION_NONE;
+      ptree->sub_tree[1]->partition = PARTITION_NONE;
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
       for (int i = 0; i < 2; ++i) {
         pc_tree->horizontal[i] =
             av1_alloc_pmc(cm, subsize, &td->shared_coeff_buf);
@@ -4844,6 +4889,12 @@ static void avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
                      CDF_SIZE(10));
     }
   }
+#if CONFIG_EXT_RECUR_PARTITIONS
+  for (int i = 0; i < PARTITION_CONTEXTS_REC; ++i) {
+    AVERAGE_CDF(ctx_left->partition_rec_cdf[i], ctx_tr->partition_rec_cdf[i],
+                4);
+  }
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   AVERAGE_CDF(ctx_left->switchable_interp_cdf, ctx_tr->switchable_interp_cdf,
               SWITCHABLE_FILTERS);
 #if CONFIG_FLEX_MVRES

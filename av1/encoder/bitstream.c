@@ -1936,40 +1936,51 @@ static void write_modes_b(AV1_COMP *cpi, const TileInfo *const tile,
 }
 
 static void write_partition(const AV1_COMMON *const cm,
-                            const MACROBLOCKD *const xd, int hbs, int mi_row,
-                            int mi_col, PARTITION_TYPE p, BLOCK_SIZE bsize,
-                            aom_writer *w) {
+                            const MACROBLOCKD *const xd, int mi_row, int mi_col,
+                            PARTITION_TYPE p, BLOCK_SIZE bsize, aom_writer *w) {
   const int is_partition_point = bsize >= BLOCK_8X8;
 
   if (!is_partition_point) return;
 
-  const int has_rows = (mi_row + hbs) < cm->mi_rows;
-  const int has_cols = (mi_col + hbs) < cm->mi_cols;
   const int ctx = partition_plane_context(xd, mi_row, mi_col, bsize);
   FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
+#if CONFIG_EXT_RECUR_PARTITIONS
+  if (is_square_block(bsize)) {
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+    const int hbs = mi_size_wide[bsize] / 2;
+    const int has_rows = (mi_row + hbs) < cm->mi_rows;
+    const int has_cols = (mi_col + hbs) < cm->mi_cols;
 
-  if (!has_rows && !has_cols) {
-    assert(p == PARTITION_SPLIT);
-    return;
-  }
+    if (!has_rows && !has_cols) {
+      assert(p == PARTITION_SPLIT);
+      return;
+    }
 
-  if (has_rows && has_cols) {
-    aom_write_symbol(w, p, ec_ctx->partition_cdf[ctx],
-                     partition_cdf_length(bsize));
-  } else if (!has_rows && has_cols) {
-    assert(p == PARTITION_SPLIT || p == PARTITION_HORZ);
-    assert(bsize > BLOCK_8X8);
-    aom_cdf_prob cdf[2];
-    partition_gather_vert_alike(cdf, ec_ctx->partition_cdf[ctx], bsize);
-    aom_write_cdf(w, p == PARTITION_SPLIT, cdf, 2);
-  } else {
-    assert(has_rows && !has_cols);
-    assert(p == PARTITION_SPLIT || p == PARTITION_VERT);
-    assert(bsize > BLOCK_8X8);
-    aom_cdf_prob cdf[2];
-    partition_gather_horz_alike(cdf, ec_ctx->partition_cdf[ctx], bsize);
-    aom_write_cdf(w, p == PARTITION_SPLIT, cdf, 2);
+    if (has_rows && has_cols) {
+      aom_write_symbol(w, p, ec_ctx->partition_cdf[ctx],
+                       partition_cdf_length(bsize));
+    } else if (!has_rows && has_cols) {
+      assert(p == PARTITION_SPLIT || p == PARTITION_HORZ);
+      assert(bsize > BLOCK_8X8);
+      aom_cdf_prob cdf[2];
+      partition_gather_vert_alike(cdf, ec_ctx->partition_cdf[ctx], bsize);
+      aom_write_cdf(w, p == PARTITION_SPLIT, cdf, 2);
+    } else {
+      assert(has_rows && !has_cols);
+      assert(p == PARTITION_SPLIT || p == PARTITION_VERT);
+      assert(bsize > BLOCK_8X8);
+      aom_cdf_prob cdf[2];
+      partition_gather_horz_alike(cdf, ec_ctx->partition_cdf[ctx], bsize);
+      aom_write_cdf(w, p == PARTITION_SPLIT, cdf, 2);
+    }
+#if CONFIG_EXT_RECUR_PARTITIONS
+  } else {  // 1:2 or 2:1 rectangular blocks
+    const PARTITION_TYPE_REC symbol =
+        get_symbol_from_partition_rec_block(bsize, p);
+    aom_write_symbol(w, symbol, ec_ctx->partition_rec_cdf[ctx],
+                     PARTITION_TYPES_REC);
   }
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 }
 
 static void write_modes_sb(AV1_COMP *const cpi, const TileInfo *const tile,
@@ -2017,20 +2028,38 @@ static void write_modes_sb(AV1_COMP *const cpi, const TileInfo *const tile,
   }
 #endif  // CONFIG_CNN_RESTORATION && !CONFIG_LOOP_RESTORE_CNN
 
-  write_partition(cm, xd, hbs, mi_row, mi_col, partition, bsize, w);
+  write_partition(cm, xd, mi_row, mi_col, partition, bsize, w);
   switch (partition) {
     case PARTITION_NONE:
       write_modes_b(cpi, tile, w, tok, tok_end, mi_row, mi_col);
       break;
     case PARTITION_HORZ:
+#if CONFIG_EXT_RECUR_PARTITIONS
+      write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[0], mi_row,
+                     mi_col, subsize);
+      if (mi_row + hbs < cm->mi_rows) {
+        write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[1],
+                       mi_row + hbs, mi_col, subsize);
+      }
+#else   // CONFIG_EXT_RECUR_PARTITIONS
       write_modes_b(cpi, tile, w, tok, tok_end, mi_row, mi_col);
       if (mi_row + hbs < cm->mi_rows)
         write_modes_b(cpi, tile, w, tok, tok_end, mi_row + hbs, mi_col);
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
       break;
     case PARTITION_VERT:
+#if CONFIG_EXT_RECUR_PARTITIONS
+      write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[0], mi_row,
+                     mi_col, subsize);
+      if (mi_col + hbs < cm->mi_cols) {
+        write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[0], mi_row,
+                       mi_col + hbs, subsize);
+      }
+#else  // CONFIG_EXT_RECUR_PARTITIONS
       write_modes_b(cpi, tile, w, tok, tok_end, mi_row, mi_col);
       if (mi_col + hbs < cm->mi_cols)
         write_modes_b(cpi, tile, w, tok, tok_end, mi_row, mi_col + hbs);
+#endif
       break;
     case PARTITION_SPLIT:
       write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[0], mi_row,

@@ -202,6 +202,10 @@ typedef struct frame_contexts {
   aom_cdf_prob y_mode_cdf[BLOCK_SIZE_GROUPS][CDF_SIZE(INTRA_MODES)];
 #endif  // CONFIG_DERIVED_INTRA_MODE
   aom_cdf_prob partition_cdf[PARTITION_CONTEXTS][CDF_SIZE(EXT_PARTITION_TYPES)];
+#if CONFIG_EXT_RECUR_PARTITIONS
+  aom_cdf_prob partition_rec_cdf[PARTITION_CONTEXTS_REC]
+                                [CDF_SIZE(PARTITION_TYPES_REC)];
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   aom_cdf_prob switchable_interp_cdf[SWITCHABLE_FILTER_CONTEXTS]
                                     [CDF_SIZE(SWITCHABLE_FILTERS)];
 #if CONFIG_INTRA_ENTROPY
