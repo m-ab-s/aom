@@ -461,40 +461,6 @@ typedef struct {
   DECLARE_ALIGNED(16, InterpKernel, hfilter);
 } WienerInfo;
 
-#if CONFIG_WIENER_NONSEP
-#define WIENERNS_Y 12
-#define WIENERNS_Y_PIXEL 24
-
-#define WIENERNS_UV_BRD 2
-#define WIENERNS_UV_INTER 6
-#define WIENERNS_UV 6
-#define WIENERNS_UV_INTER_PIXEL 16
-#define WIENERNS_UV_PIXEL 16
-
-#if WIENERNS_Y >= WIENERNS_UV
-#define WIENERNS_MAX (WIENERNS_Y)
-#else
-#define WIENERNS_MAX (WIENERNS_UV)
-#endif
-
-#define WIENERNS_YUV (WIENERNS_Y + WIENERNS_UV)
-#define WIENERNS_YUV_PIXEL (WIENERNS_Y_PIXEL + WIENERNS_UV_PIXEL)
-
-#define WIENERNS_ROW_ID 0
-#define WIENERNS_COL_ID 1
-#define WIENERNS_BUF_POS 2
-
-#define WIENERNS_BIT_ID 0
-#define WIENERNS_MIN_ID 1
-#define WIENERNS_SUBEXP_K_ID 2
-#define WIENERNS_STEP_ID 3
-typedef struct {
-  DECLARE_ALIGNED(16, int16_t, nsfilter[WIENERNS_YUV]);
-} WienerNonsepInfo;
-extern const int wienerns_config[WIENERNS_YUV_PIXEL][3];
-extern const int wienerns_coeff[WIENERNS_YUV][4];
-#endif  // CONFIG_WIENER_NONSEP
-
 typedef struct {
   int ep;
   int xqd[2];
@@ -506,6 +472,13 @@ typedef struct {
   int base_qindex;
 } CNNInfo;
 #endif  // CONFIG_LOOP_RESTORE_CNN
+
+#if CONFIG_WIENER_NONSEP
+#define WIENERNS_YUV_MAX 24
+typedef struct {
+  DECLARE_ALIGNED(16, int16_t, nsfilter[WIENERNS_YUV_MAX]);
+} WienerNonsepInfo;
+#endif  // CONFIG_WIENER_NONSEP
 
 #if CONFIG_DEBUG
 #define CFL_SUB8X8_VAL_MI_SIZE (4)

@@ -29,6 +29,31 @@
 
 #include "aom_ports/mem.h"
 
+#if CONFIG_WIENER_NONSEP
+const int wienerns_config[WIENERNS_YUV_PIXEL][3] = {
+  { 1, 0, 0 },  { -1, 0, 0 },   { 0, 1, 1 },   { 0, -1, 1 },  { 2, 0, 2 },
+  { -2, 0, 2 }, { 0, 2, 3 },    { 0, -2, 3 },  { 1, 1, 4 },   { -1, -1, 4 },
+  { -1, 1, 5 }, { 1, -1, 5 },   { 2, 2, 6 },   { -2, -2, 6 }, { -2, 2, 7 },
+  { 2, -2, 7 }, { 3, 0, 8 },    { -3, 0, 8 },  { 0, 3, 9 },   { 0, -3, 9 },
+  { 3, 3, 10 }, { -3, -3, 10 }, { 3, -3, 11 }, { -3, 3, 11 },
+
+  { 1, 0, 0 },  { -1, 0, 0 },   { 0, 1, 1 },   { 0, -1, 1 },  { 2, 0, 2 },
+  { -2, 0, 2 }, { 0, 2, 3 },    { 0, -2, 3 },  { 1, 1, 4 },   { -1, -1, 4 },
+  { -1, 1, 4 }, { 1, -1, 4 },   { 2, 2, 5 },   { -2, -2, 5 }, { -2, 2, 5 },
+  { 2, -2, 5 },
+};
+
+const int wienerns_coeff[WIENERNS_YUV][4] = {
+  { 6, -20, 4, 128 }, { 6, -20, 4, 128 }, { 5, -18, 3, 128 },
+  { 5, -18, 3, 128 }, { 5, -18, 3, 128 }, { 5, -18, 3, 128 },
+  { 3, -4, 3, 128 },  { 3, -4, 3, 128 },  { 4, -5, 3, 128 },
+  { 4, -5, 3, 128 },  { 3, -3, 3, 128 },  { 3, -3, 3, 128 },
+
+  { 5, -16, 4, 128 }, { 5, -16, 4, 128 }, { 4, -8, 3, 128 },
+  { 4, -8, 3, 128 },  { 4, -8, 3, 128 },  { 4, -8, 3, 128 },
+};
+#endif  // CONFIG_WIENER_NONSEP
+
 // The 's' values are calculated based on original 'r' and 'e' values in the
 // spec using GenSgrprojVtable().
 // Note: Setting r = 0 skips the filter; with corresponding s = -1 (invalid).
@@ -973,20 +998,22 @@ void apply_wiener_nonsep(const uint8_t *dgd, int width, int height, int stride,
       int dgd_id = i * stride + j;
       int dst_id = i * dst_stride + j;
       int luma_id = i * luma_stride + j;
-      double tmp = (double)dgd[dgd_id];
+      double tmp = (double)dgd[dgd_id] * (1 << WIENERNS_PREC_BITS);
       for (int k = beg_pixel; k < end_pixel; ++k) {
         int pos = wienerns_config[k][WIENERNS_BUF_POS];
         int r = wienerns_config[k][WIENERNS_ROW_ID];
         int c = wienerns_config[k][WIENERNS_COL_ID];
-        double diff =
+        int16_t diff =
             (!is_uv || k - beg_pixel < WIENERNS_UV_INTER_PIXEL)
-                ? clip_base((double)dgd[(i + r) * stride + (j + c)] -
-                            dgd[dgd_id])
-                : clip_base((double)luma[(i + r) * luma_stride + (j + c)] -
-                            luma[luma_id]);
-        tmp += (double)filter[pos + beg_feat] * diff /
-               wienerns_coeff[pos + beg_feat][WIENERNS_STEP_ID];
+                ? clip_base((int16_t)dgd[(i + r) * stride + (j + c)] -
+                                (int16_t)dgd[dgd_id],
+                            8)
+                : clip_base((int16_t)luma[(i + r) * luma_stride + (j + c)] -
+                                (int16_t)luma[luma_id],
+                            8);
+        tmp += (double)filter[pos + beg_feat] * diff;
       }
+      tmp /= (1 << WIENERNS_PREC_BITS);
       dst[dst_id] = clip_pixel((int)round(tmp));
     }
   }
@@ -1025,20 +1052,22 @@ void apply_wiener_nonsep_highbd(const uint8_t *dgd8, int width, int height,
       int dgd_id = i * stride + j;
       int dst_id = i * dst_stride + j;
       int luma_id = i * luma_stride + j;
-      double tmp = (double)dgd[dgd_id];
+      double tmp = (double)dgd[dgd_id] * (1 << WIENERNS_PREC_BITS);
       for (int k = beg_pixel; k < end_pixel; ++k) {
         int pos = wienerns_config[k][WIENERNS_BUF_POS];
         int r = wienerns_config[k][WIENERNS_ROW_ID];
         int c = wienerns_config[k][WIENERNS_COL_ID];
-        double diff =
+        int16_t diff =
             (!is_uv || k - beg_pixel < WIENERNS_UV_INTER_PIXEL)
-                ? clip_base((double)dgd[(i + r) * stride + (j + c)] -
-                            dgd[dgd_id])
-                : clip_base((double)luma[(i + r) * luma_stride + (j + c)] -
-                            luma[luma_id]);
-        tmp += (double)filter[pos + beg_feat] * diff /
-               wienerns_coeff[pos + beg_feat][WIENERNS_STEP_ID];
+                ? clip_base((int16_t)dgd[(i + r) * stride + (j + c)] -
+                                (int16_t)dgd[dgd_id],
+                            bit_depth)
+                : clip_base((int16_t)luma[(i + r) * luma_stride + (j + c)] -
+                                (int16_t)luma[luma_id],
+                            bit_depth);
+        tmp += (double)filter[pos + beg_feat] * diff;
       }
+      tmp /= (1 << WIENERNS_PREC_BITS);
       const uint16_t out = clip_pixel_highbd((int)round(tmp), bit_depth);
       *CONVERT_TO_SHORTPTR(dst + dst_id) = out;
     }

@@ -1423,11 +1423,11 @@ static int count_wienerns_bits(int plane, WienerNonsepInfo *wienerns_info,
   return bits;
 }
 
-static int16_t quantize(double x, int16_t ratio, int16_t minv, int16_t n) {
-  int scale_x = (int)round(x * ratio);
-  if (scale_x <= minv) return minv;
-  if (scale_x >= minv + n - 1) return minv + n - 1;
-  return scale_x;
+static int16_t quantize(double x, int16_t minv, int16_t n) {
+  int scale_x = (int)round(x * (1 << WIENERNS_PREC_BITS));
+  scale_x = AOMMAX(scale_x, minv);
+  scale_x = AOMMIN(scale_x, minv + n - 1);
+  return (int16_t)scale_x;
 }
 
 static int compute_quantized_wienerns_filter(const uint8_t *dgd,
@@ -1435,7 +1435,7 @@ static int compute_quantized_wienerns_filter(const uint8_t *dgd,
                                              int h_end, int v_beg, int v_end,
                                              int dgd_stride, int src_stride,
                                              RestorationUnitInfo *rui,
-                                             int use_hbd) {
+                                             int use_hbd, int bit_depth) {
   const uint16_t *src_hbd = CONVERT_TO_SHORTPTR(src);
   const uint16_t *dgd_hbd = CONVERT_TO_SHORTPTR(dgd);
   const uint16_t *luma_hbd = CONVERT_TO_SHORTPTR(rui->luma);
@@ -1464,19 +1464,25 @@ static int compute_quantized_wienerns_filter(const uint8_t *dgd,
         if (!is_uv || k - beg_pixel < WIENERNS_UV_INTER_PIXEL) {
           buf[pos] +=
               use_hbd
-                  ? clip_base((double)dgd_hbd[(i + r) * dgd_stride + (j + c)] -
-                              dgd_hbd[dgd_id])
-                  : clip_base((double)dgd[(i + r) * dgd_stride + (j + c)] -
-                              dgd[dgd_id]);
+                  ? clip_base((int16_t)dgd_hbd[(i + r) * dgd_stride + (j + c)] -
+                                  (int16_t)dgd_hbd[dgd_id],
+                              bit_depth)
+                  : clip_base((int16_t)dgd[(i + r) * dgd_stride + (j + c)] -
+                                  (int16_t)dgd[dgd_id],
+                              bit_depth);
         } else {
           buf[pos] +=
               use_hbd
                   ? clip_base(
-                        (double)luma_hbd[(i + r) * rui->luma_stride + (j + c)] -
-                        luma_hbd[luma_id])
-                  : clip_base((double)rui
-                                  ->luma[(i + r) * rui->luma_stride + (j + c)] -
-                              rui->luma[luma_id]);
+                        (int16_t)
+                                luma_hbd[(i + r) * rui->luma_stride + (j + c)] -
+                            (int16_t)luma_hbd[luma_id],
+                        bit_depth)
+                  : clip_base(
+                        (int16_t)rui
+                                ->luma[(i + r) * rui->luma_stride + (j + c)] -
+                            (int16_t)rui->luma[luma_id],
+                        bit_depth);
         }
       }
       for (int k = 0; k < num_feat; ++k) {
@@ -1501,8 +1507,7 @@ static int compute_quantized_wienerns_filter(const uint8_t *dgd,
       rui->wiener_nonsep_info.nsfilter[k] =
           (k < beg_feat || k >= end_feat)
               ? wienerns_coeff[k][WIENERNS_MIN_ID]
-              : quantize(x[k - beg_feat], wienerns_coeff[k][WIENERNS_STEP_ID],
-                         wienerns_coeff[k][WIENERNS_MIN_ID],
+              : quantize(x[k - beg_feat], wienerns_coeff[k][WIENERNS_MIN_ID],
                          (1 << wienerns_coeff[k][WIENERNS_BIT_ID]));
     }
     return 1;
@@ -1584,7 +1589,8 @@ static void search_wiener_nonsep(const RestorationTileLimits *limits,
   if (compute_quantized_wienerns_filter(
           rsc->dgd_buffer, rsc->src_buffer, limits->h_start, limits->h_end,
           limits->v_start, limits->v_end, rsc->dgd_stride, rsc->src_stride,
-          &rui, rsc->cm->seq_params.use_highbitdepth)) {
+          &rui, rsc->cm->seq_params.use_highbitdepth,
+          rsc->cm->seq_params.bit_depth)) {
     aom_clear_system_state();
 
     rusi->sse[RESTORE_WIENER_NONSEP] =

@@ -161,6 +161,38 @@ extern "C" {
 #define WIENER_FILT_TAP1_SUBEXP_K 2
 #define WIENER_FILT_TAP2_SUBEXP_K 3
 
+#if CONFIG_WIENER_NONSEP
+#define WIENERNS_PREC_BITS 7
+#define WIENERNS_Y 12
+#define WIENERNS_Y_PIXEL 24
+
+#define WIENERNS_UV_BRD 2
+#define WIENERNS_UV_INTER 6
+#define WIENERNS_UV 6
+#define WIENERNS_UV_INTER_PIXEL 16
+#define WIENERNS_UV_PIXEL 16
+
+#if WIENERNS_Y >= WIENERNS_UV
+#define WIENERNS_MAX (WIENERNS_Y)
+#else
+#define WIENERNS_MAX (WIENERNS_UV)
+#endif
+
+#define WIENERNS_YUV (WIENERNS_Y + WIENERNS_UV)
+#define WIENERNS_YUV_PIXEL (WIENERNS_Y_PIXEL + WIENERNS_UV_PIXEL)
+
+#define WIENERNS_ROW_ID 0
+#define WIENERNS_COL_ID 1
+#define WIENERNS_BUF_POS 2
+
+#define WIENERNS_BIT_ID 0
+#define WIENERNS_MIN_ID 1
+#define WIENERNS_SUBEXP_K_ID 2
+#define WIENERNS_STEP_ID 3
+extern const int wienerns_config[WIENERNS_YUV_PIXEL][3];
+extern const int wienerns_coeff[WIENERNS_YUV][4];
+#endif  // CONFIG_WIENER_NONSEP
+
 // Max of SGRPROJ_TMPBUF_SIZE, DOMAINTXFMRF_TMPBUF_SIZE, WIENER_TMPBUF_SIZE
 #define RESTORATION_TMPBUF_SIZE (SGRPROJ_TMPBUF_SIZE)
 
@@ -266,7 +298,10 @@ static INLINE void set_default_wiener_nonsep(WienerNonsepInfo *wienerns_info) {
     wienerns_info->nsfilter[i] = wienerns_coeff[i][WIENERNS_MIN_ID];
   }
 }
-static INLINE double clip_base(double x) { return x; }
+static INLINE int16_t clip_base(int16_t x, int bit_depth) {
+  (void)bit_depth;
+  return x;
+}
 
 #if CONFIG_WIENER_NONSEP_CROSS_FILT
 uint8_t *wienerns_copy_luma(const uint8_t *dgd, int height_y, int width_y,
