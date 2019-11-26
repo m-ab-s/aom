@@ -51,13 +51,15 @@ static void dec_setup_mi(AV1_COMMON *cm) {
          cm->mi_stride * cm->mi_rows * sizeof(*cm->mi_grid_base));
 }
 
-static int dec_alloc_mi(AV1_COMMON *cm, int mi_size) {
+static int dec_alloc_mi(AV1_COMMON *cm, int mi_size, int sbi_size) {
   cm->mi = aom_calloc(mi_size, sizeof(*cm->mi));
   if (!cm->mi) return 1;
   cm->mi_alloc_size = mi_size;
   cm->mi_grid_base =
       (MB_MODE_INFO **)aom_calloc(mi_size, sizeof(MB_MODE_INFO *));
   if (!cm->mi_grid_base) return 1;
+  cm->sbi_grid_base = (SB_INFO *)aom_calloc(sbi_size, sizeof(SB_INFO));
+  if (!cm->sbi_grid_base) return 1;
   return 0;
 }
 
@@ -67,6 +69,8 @@ static void dec_free_mi(AV1_COMMON *cm) {
   aom_free(cm->mi_grid_base);
   cm->mi_grid_base = NULL;
   cm->mi_alloc_size = 0;
+  aom_free(cm->sbi_grid_base);
+  cm->sbi_grid_base = NULL;
 }
 
 AV1Decoder *av1_decoder_create(BufferPool *const pool) {

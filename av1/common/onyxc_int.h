@@ -442,7 +442,7 @@ typedef struct AV1Common {
   MB_MODE_INFO *prev_mi; /* 'mi' from last frame */
 
   // Separate mi functions between encoder and decoder.
-  int (*alloc_mi)(struct AV1Common *cm, int mi_size);
+  int (*alloc_mi)(struct AV1Common *cm, int mi_size, int sbmi_size);
   void (*free_mi)(struct AV1Common *cm);
   void (*setup_mi)(struct AV1Common *cm);
 
@@ -450,6 +450,11 @@ typedef struct AV1Common {
   // area will be NULL.
   MB_MODE_INFO **mi_grid_base;
   MB_MODE_INFO **prev_mi_grid_base;
+
+  // Grid of pointers to SB_INFO structs.
+  SB_INFO *sbi_grid_base;
+  int sbi_stride;
+  int sb_rows, sb_cols;
 
   // Whether to use previous frames' motion vectors for prediction.
   int allow_ref_frame_mvs;
@@ -799,6 +804,20 @@ static INLINE void av1_init_macroblockd(AV1_COMMON *cm, MACROBLOCKD *xd,
   xd->mi_stride = cm->mi_stride;
   xd->error_info = &cm->error;
   cfl_init(&xd->cfl, &cm->seq_params);
+}
+
+static INLINE SB_INFO *av1_get_sb_info(AV1_COMMON *cm, int mi_row, int mi_col) {
+  const int sb_row = mi_row >> cm->seq_params.mib_size_log2;
+  const int sb_col = mi_col >> cm->seq_params.mib_size_log2;
+  return cm->sbi_grid_base + sb_row * cm->sbi_stride + sb_col;
+}
+
+static INLINE void av1_set_sb_info(AV1_COMMON *cm, MACROBLOCKD *xd, int mi_row,
+                                   int mi_col) {
+  xd->sbi = av1_get_sb_info(cm, mi_row, mi_col);
+
+  xd->sbi->mi_row = mi_row;
+  xd->sbi->mi_col = mi_col;
 }
 
 static INLINE void set_skip_context(MACROBLOCKD *xd, int mi_row, int mi_col,

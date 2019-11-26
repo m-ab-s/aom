@@ -2097,6 +2097,7 @@ static void write_modes(AV1_COMP *const cpi, const TileInfo *const tile,
     for (mi_col = mi_col_start; mi_col < mi_col_end;
          mi_col += cm->seq_params.mib_size) {
       av1_reset_is_mi_coded_map(xd, cm->seq_params.mib_size);
+      xd->sbi = av1_get_sb_info(cm, mi_row, mi_col);
       cpi->td.mb.cb_coef_buff = av1_get_cb_coeff_buffer(cpi, mi_row, mi_col);
       write_modes_sb(cpi, tile, w, &tok, tok_end, mi_row, mi_col,
                      cm->seq_params.sb_size);

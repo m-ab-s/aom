@@ -2915,6 +2915,7 @@ static void decode_tile_sb_row(AV1Decoder *pbi, ThreadData *const td,
   for (int mi_col = tile_info.mi_col_start; mi_col < tile_info.mi_col_end;
        mi_col += cm->seq_params.mib_size, sb_col_in_tile++) {
     av1_reset_is_mi_coded_map(&td->xd, cm->seq_params.mib_size);
+    td->xd.sbi = av1_get_sb_info(cm, mi_row, mi_col);
     set_cb_buffer(pbi, &td->xd, pbi->cb_buffer_base, num_planes, mi_row,
                   mi_col);
 
@@ -2994,6 +2995,7 @@ static void decode_tile(AV1Decoder *pbi, ThreadData *const td, int tile_row,
     for (int mi_col = tile_info.mi_col_start; mi_col < tile_info.mi_col_end;
          mi_col += cm->seq_params.mib_size) {
       av1_reset_is_mi_coded_map(&td->xd, cm->seq_params.mib_size);
+      av1_set_sb_info(cm, &td->xd, mi_row, mi_col);
       set_cb_buffer(pbi, &td->xd, &td->cb_buffer_base, num_planes, 0, 0);
 
       // Bit-stream parsing and decoding of the superblock
@@ -3432,6 +3434,7 @@ static void parse_tile_row_mt(AV1Decoder *pbi, ThreadData *const td,
     for (int mi_col = tile_info.mi_col_start; mi_col < tile_info.mi_col_end;
          mi_col += cm->seq_params.mib_size) {
       av1_reset_is_mi_coded_map(&td->xd, cm->seq_params.mib_size);
+      av1_set_sb_info(cm, &td->xd, mi_row, mi_col);
       set_cb_buffer(pbi, &td->xd, pbi->cb_buffer_base, num_planes, mi_row,
                     mi_col);
 

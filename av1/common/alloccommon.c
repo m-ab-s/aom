@@ -80,6 +80,11 @@ void av1_set_mb_mi(AV1_COMMON *cm, int width, int height) {
   cm->mb_rows = (cm->mi_rows + 2) >> 2;
   cm->MBs = cm->mb_rows * cm->mb_cols;
 
+  const int mib_size_log2 = cm->seq_params.mib_size_log2;
+  cm->sb_cols = ALIGN_POWER_OF_TWO(cm->mi_cols, mib_size_log2) >> mib_size_log2;
+  cm->sb_rows = ALIGN_POWER_OF_TWO(cm->mi_rows, mib_size_log2) >> mib_size_log2;
+  cm->sbi_stride = cm->mi_stride >> cm->seq_params.mib_size_log2;
+
 #if CONFIG_LPF_MASK
   alloc_loop_filter_mask(cm);
 #endif
@@ -272,13 +277,12 @@ int av1_alloc_above_context_buffers(AV1_COMMON *cm,
 }
 
 int av1_alloc_context_buffers(AV1_COMMON *cm, int width, int height) {
-  int new_mi_size;
-
   av1_set_mb_mi(cm, width, height);
-  new_mi_size = cm->mi_stride * calc_mi_size(cm->mi_rows);
+  const int new_mi_size = cm->mi_stride * calc_mi_size(cm->mi_rows);
+  const int sbi_size = cm->sbi_stride * calc_mi_size(cm->sb_rows);
   if (cm->mi_alloc_size < new_mi_size) {
     cm->free_mi(cm);
-    if (cm->alloc_mi(cm, new_mi_size)) goto fail;
+    if (cm->alloc_mi(cm, new_mi_size, sbi_size)) goto fail;
   }
 
   return 0;

@@ -4891,6 +4891,7 @@ static void encode_sb_row(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
                                    sb_col_in_tile);
 
     av1_reset_is_mi_coded_map(xd, cm->seq_params.mib_size);
+    av1_set_sb_info(cm, xd, mi_row, mi_col);
 
     if (tile_data->allow_update_cdf && (cpi->row_mt == 1) &&
         (tile_info->mi_row_start != mi_row)) {

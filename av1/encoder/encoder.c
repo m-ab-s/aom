@@ -523,7 +523,7 @@ static void enc_setup_mi(AV1_COMMON *cm) {
          cm->mi_stride * mi_rows_sb_aligned * sizeof(*cm->mi_grid_base));
 }
 
-static int enc_alloc_mi(AV1_COMMON *cm, int mi_size) {
+static int enc_alloc_mi(AV1_COMMON *cm, int mi_size, int sbi_size) {
   cm->mi = aom_calloc(mi_size, sizeof(*cm->mi));
   if (!cm->mi) return 1;
   cm->prev_mi = aom_calloc(mi_size, sizeof(*cm->prev_mi));
@@ -536,6 +536,9 @@ static int enc_alloc_mi(AV1_COMMON *cm, int mi_size) {
   cm->prev_mi_grid_base =
       (MB_MODE_INFO **)aom_calloc(mi_size, sizeof(MB_MODE_INFO *));
   if (!cm->prev_mi_grid_base) return 1;
+
+  cm->sbi_grid_base = aom_calloc(sbi_size, sizeof(SB_INFO));
+  if (!cm->sbi_grid_base) return 1;
 
   return 0;
 }
@@ -550,6 +553,8 @@ static void enc_free_mi(AV1_COMMON *cm) {
   aom_free(cm->prev_mi_grid_base);
   cm->prev_mi_grid_base = NULL;
   cm->mi_alloc_size = 0;
+  aom_free(cm->sbi_grid_base);
+  cm->sbi_grid_base = NULL;
 }
 
 static void swap_mi_and_prev_mi(AV1_COMMON *cm) {

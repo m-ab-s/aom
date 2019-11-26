@@ -309,6 +309,12 @@ typedef struct MB_MODE_INFO {
 #endif  // CONFIG_DERIVED_INTRA_MODE
 } MB_MODE_INFO;
 
+typedef struct SB_INFO {
+  // TODO(yuec): add partition tree root.
+  int mi_row;
+  int mi_col;
+} SB_INFO;
+
 static INLINE int is_intrabc_block(const MB_MODE_INFO *mbmi) {
   return mbmi->use_intrabc;
 }
@@ -550,6 +556,8 @@ typedef struct macroblockd {
 #endif  // CONFIG_INTRA_ENTROPY
   MB_MODE_INFO *chroma_left_mbmi;
   MB_MODE_INFO *chroma_above_mbmi;
+
+  SB_INFO *sbi;
 
   int up_available;
   int left_available;
