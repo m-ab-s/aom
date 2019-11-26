@@ -178,20 +178,20 @@ const int8_t *av1_inv_txfm_shift_ls[TX_SIZES_ALL] = {
 /* clang-format off */
 const int8_t av1_inv_cos_bit_col[MAX_TXWH_IDX]      // txw_idx
                             [MAX_TXWH_IDX] = {  // txh_idx
-    { INV_COS_BIT, INV_COS_BIT, INV_COS_BIT,           0,           0 },
-    { INV_COS_BIT, INV_COS_BIT, INV_COS_BIT, INV_COS_BIT,           0 },
     { INV_COS_BIT, INV_COS_BIT, INV_COS_BIT, INV_COS_BIT, INV_COS_BIT },
-    {           0, INV_COS_BIT, INV_COS_BIT, INV_COS_BIT, INV_COS_BIT },
-    {           0,           0, INV_COS_BIT, INV_COS_BIT, INV_COS_BIT }
+    { INV_COS_BIT, INV_COS_BIT, INV_COS_BIT, INV_COS_BIT, INV_COS_BIT },
+    { INV_COS_BIT, INV_COS_BIT, INV_COS_BIT, INV_COS_BIT, INV_COS_BIT },
+    { INV_COS_BIT, INV_COS_BIT, INV_COS_BIT, INV_COS_BIT, INV_COS_BIT },
+    { INV_COS_BIT, INV_COS_BIT, INV_COS_BIT, INV_COS_BIT, INV_COS_BIT }
   };
 
 const int8_t av1_inv_cos_bit_row[MAX_TXWH_IDX]      // txw_idx
                             [MAX_TXWH_IDX] = {  // txh_idx
-    { INV_COS_BIT, INV_COS_BIT, INV_COS_BIT,           0,           0 },
-    { INV_COS_BIT, INV_COS_BIT, INV_COS_BIT, INV_COS_BIT,           0 },
     { INV_COS_BIT, INV_COS_BIT, INV_COS_BIT, INV_COS_BIT, INV_COS_BIT },
-    {           0, INV_COS_BIT, INV_COS_BIT, INV_COS_BIT, INV_COS_BIT },
-    {           0,           0, INV_COS_BIT, INV_COS_BIT, INV_COS_BIT }
+    { INV_COS_BIT, INV_COS_BIT, INV_COS_BIT, INV_COS_BIT, INV_COS_BIT },
+    { INV_COS_BIT, INV_COS_BIT, INV_COS_BIT, INV_COS_BIT, INV_COS_BIT },
+    { INV_COS_BIT, INV_COS_BIT, INV_COS_BIT, INV_COS_BIT, INV_COS_BIT },
+    { INV_COS_BIT, INV_COS_BIT, INV_COS_BIT, INV_COS_BIT, INV_COS_BIT }
   };
 /* clang-format on */
 
