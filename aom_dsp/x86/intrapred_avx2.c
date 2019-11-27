@@ -133,6 +133,15 @@ static DECLARE_ALIGNED(32, uint16_t, HighbdBaseMask[17][16]) = {
     0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff }
 };
 
+static DECLARE_ALIGNED(16, uint16_t,
+                       BaseInc16_16b[16]) = { 0, 1, 2,  3,  4,  5,  6,  7,
+                                              8, 9, 10, 11, 12, 13, 14, 15 };
+static DECLARE_ALIGNED(8, uint16_t,
+                       BaseInc8_16b[8]) = { 0, 1, 2, 3, 4, 5, 6, 7 };
+static DECLARE_ALIGNED(16, uint8_t, BaseInc16_8b[16]) = { 0,  1,  2,  3, 4,  5,
+                                                          6,  7,  8,  9, 10, 11,
+                                                          12, 13, 14, 15 };
+
 static INLINE void highbd_transpose16x4_8x8_sse2(__m128i *x, __m128i *d) {
   __m128i r0, r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11, r12, r13, r14, r15;
 
@@ -1113,8 +1122,8 @@ static AOM_FORCE_INLINE void highbd_dr_prediction_z1_4xN_internal_avx2(
               _mm256_set1_epi16(0x3f)),
           1);
     } else {
-      base_inc128 = _mm_setr_epi16(base, base + 1, base + 2, base + 3, base + 4,
-                                   base + 5, base + 6, base + 7);
+      mask128 = _mm_set1_epi16(base);
+      base_inc128 = _mm_add_epi16(mask128, *(__m128i *)BaseInc8_16b);
       shift = _mm256_srli_epi16(_mm256_and_si256(_mm256_set1_epi16(x), c3f), 1);
     }
     a0 = _mm256_castsi128_si256(a0_128);
@@ -1474,10 +1483,8 @@ static AOM_FORCE_INLINE void highbd_dr_prediction_32bit_z1_16xN_internal_avx2(
     res1 = _mm256_inserti128_si256(res[0], _mm256_castsi256_si128(res[1]),
                                    1);  // 16 16bit values
 
-    base_inc256 = _mm256_setr_epi16(base, base + 1, base + 2, base + 3,
-                                    base + 4, base + 5, base + 6, base + 7,
-                                    base + 8, base + 9, base + 10, base + 11,
-                                    base + 12, base + 13, base + 14, base + 15);
+    a0 = _mm256_set1_epi16(base);
+    base_inc256 = _mm256_add_epi16(a0, *(__m256i *)BaseInc16_16b);
     mask256 = _mm256_cmpgt_epi16(max_base_x256, base_inc256);
     dstvec[r] = _mm256_blendv_epi8(a_mbase_x, res1, mask256);
     x += dx;
@@ -1530,10 +1537,8 @@ static AOM_FORCE_INLINE void highbd_dr_prediction_z1_16xN_internal_avx2(
     res = _mm256_add_epi16(a32, b);
     res = _mm256_srli_epi16(res, 5);  // 16 16bit values
 
-    base_inc256 = _mm256_setr_epi16(base, base + 1, base + 2, base + 3,
-                                    base + 4, base + 5, base + 6, base + 7,
-                                    base + 8, base + 9, base + 10, base + 11,
-                                    base + 12, base + 13, base + 14, base + 15);
+    a0 = _mm256_set1_epi16(base);
+    base_inc256 = _mm256_add_epi16(a0, *(__m256i *)BaseInc16_16b);
     mask256 = _mm256_cmpgt_epi16(max_base_x256, base_inc256);
     dstvec[r] = _mm256_blendv_epi8(a_mbase_x, res, mask256);
     x += dx;
@@ -1636,11 +1641,8 @@ static AOM_FORCE_INLINE void highbd_dr_prediction_32bit_z1_32xN_internal_avx2(
         }
         res1 = _mm256_inserti128_si256(res[0], _mm256_castsi256_si128(res[1]),
                                        1);  // 16 16bit values
-        base_inc256 = _mm256_setr_epi16(
-            base + j, base + j + 1, base + j + 2, base + j + 3, base + j + 4,
-            base + j + 5, base + j + 6, base + j + 7, base + j + 8,
-            base + j + 9, base + j + 10, base + j + 11, base + j + 12,
-            base + j + 13, base + j + 14, base + j + 15);
+        a0 = _mm256_set1_epi16(base + j);
+        base_inc256 = _mm256_add_epi16(a0, *(__m256i *)BaseInc16_16b);
 
         mask256 = _mm256_cmpgt_epi16(max_base_x256, base_inc256);
         res1 = _mm256_blendv_epi8(a_mbase_x, res1, mask256);
@@ -1708,11 +1710,8 @@ static AOM_FORCE_INLINE void highbd_dr_prediction_z1_32xN_internal_avx2(
         res = _mm256_add_epi16(a32, b);
         res = _mm256_srli_epi16(res, 5);
 
-        base_inc256 = _mm256_setr_epi16(
-            base + j, base + j + 1, base + j + 2, base + j + 3, base + j + 4,
-            base + j + 5, base + j + 6, base + j + 7, base + j + 8,
-            base + j + 9, base + j + 10, base + j + 11, base + j + 12,
-            base + j + 13, base + j + 14, base + j + 15);
+        a0 = _mm256_set1_epi16(base + j);
+        base_inc256 = _mm256_add_epi16(a0, *(__m256i *)BaseInc16_16b);
 
         mask256 = _mm256_cmpgt_epi16(max_base_x256, base_inc256);
         res = _mm256_blendv_epi8(a_mbase_x, res, mask256);
@@ -1830,11 +1829,8 @@ static void highbd_dr_prediction_32bit_z1_64xN_avx2(int N, uint16_t *dst,
         }
         res1 = _mm256_inserti128_si256(res[0], _mm256_castsi256_si128(res[1]),
                                        1);  // 16 16bit values
-        base_inc256 = _mm256_setr_epi16(
-            base + j, base + j + 1, base + j + 2, base + j + 3, base + j + 4,
-            base + j + 5, base + j + 6, base + j + 7, base + j + 8,
-            base + j + 9, base + j + 10, base + j + 11, base + j + 12,
-            base + j + 13, base + j + 14, base + j + 15);
+        a0 = _mm256_set1_epi16(base + j);
+        base_inc256 = _mm256_add_epi16(a0, *(__m256i *)BaseInc16_16b);
 
         mask256 = _mm256_cmpgt_epi16(max_base_x256, base_inc256);
         res1 = _mm256_blendv_epi8(a_mbase_x, res1, mask256);
@@ -1903,11 +1899,8 @@ static void highbd_dr_prediction_z1_64xN_avx2(int N, uint16_t *dst,
         res = _mm256_add_epi16(a32, b);
         res = _mm256_srli_epi16(res, 5);
 
-        base_inc256 = _mm256_setr_epi16(
-            base + j, base + j + 1, base + j + 2, base + j + 3, base + j + 4,
-            base + j + 5, base + j + 6, base + j + 7, base + j + 8,
-            base + j + 9, base + j + 10, base + j + 11, base + j + 12,
-            base + j + 13, base + j + 14, base + j + 15);
+        a0 = _mm256_set1_epi16(base + j);
+        base_inc256 = _mm256_add_epi16(a0, *(__m256i *)BaseInc16_16b);
 
         mask256 = _mm256_cmpgt_epi16(max_base_x256, base_inc256);
         res = _mm256_blendv_epi8(a_mbase_x, res, mask256);
@@ -3841,11 +3834,8 @@ static void dr_prediction_z1_64xN_avx2(int N, uint8_t *dst, ptrdiff_t stride,
             res, _mm256_castsi128_si256(
                      _mm256_extracti128_si256(res, 1)));  // 16 8bit values
 
-        base_inc128 = _mm_setr_epi8(
-            base + j, base + j + 1, base + j + 2, base + j + 3, base + j + 4,
-            base + j + 5, base + j + 6, base + j + 7, base + j + 8,
-            base + j + 9, base + j + 10, base + j + 11, base + j + 12,
-            base + j + 13, base + j + 14, base + j + 15);
+        a0_128 = _mm_set1_epi8(base + j);
+        base_inc128 = _mm_add_epi8(a0_128, *(__m128i *)BaseInc16_8b);
 
         mask128 = _mm_cmpgt_epi8(_mm_subs_epu8(max_base_x128, base_inc128),
                                  _mm_setzero_si128());
