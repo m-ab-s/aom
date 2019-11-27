@@ -162,19 +162,22 @@ extern "C" {
 #define WIENER_FILT_TAP2_SUBEXP_K 3
 
 #if CONFIG_WIENER_NONSEP
-#define WIENERNS_PREC_BITS 7
-#define WIENERNS_Y 12
-#define WIENERNS_Y_PIXEL 24
+#define WIENERNS_PREC_BITS 8
+#define WIENERNS_Y 12        // Number of luma coefficients in all
+#define WIENERNS_Y_PIXEL 24  // Number of pixels used for filtering luma
 
 #if CONFIG_WIENER_NONSEP_CROSS_FILT
-#define WIENERNS_UV_BRD 2
-#define WIENERNS_UV 8
-#define WIENERNS_UV_INTER_PIXEL 16
-#define WIENERNS_UV_PIXEL 24
+#define WIENERNS_UV_BRD 2  // Max offset for luma used for chorma
+#define WIENERNS_UV 8      // Number of chroma coefficients in all
+#define WIENERNS_UV_INTER_PIXEL \
+  16  // Number of pixels used for filtering from chroma only
+#define WIENERNS_UV_PIXEL \
+  24  // Number of pixels used for filtering from chroma and luma
 #else
-#define WIENERNS_UV_BRD 0
-#define WIENERNS_UV 6
-#define WIENERNS_UV_INTER_PIXEL 16
+#define WIENERNS_UV_BRD 0  // Max offset for luma used for chorma
+#define WIENERNS_UV 6      // Number of chroma coefficients in all
+#define WIENERNS_UV_INTER_PIXEL \
+  16  // Number of pixels used for filtering from chroma only
 #define WIENERNS_UV_PIXEL (WIENERNS_UV_INTER_PIXEL)
 #endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
 
