@@ -32,9 +32,11 @@
 
 #define DEC_MISMATCH_DEBUG 0
 
+#if !CONFIG_DERIVED_INTRA_MODE
 static PREDICTION_MODE read_intra_mode(aom_reader *r, aom_cdf_prob *cdf) {
   return (PREDICTION_MODE)aom_read_symbol(r, cdf, INTRA_MODES, ACCT_STR);
 }
+#endif  // !CONFIG_DERIVED_INTRA_MODE
 
 static void read_cdef(AV1_COMMON *cm, aom_reader *r, MACROBLOCKD *const xd,
                       int mi_col, int mi_row) {
@@ -1249,12 +1251,42 @@ static void read_intra_block_mode_info(AV1_COMMON *const cm, const int mi_row,
   mbmi->ref_frame[1] = NONE_FRAME;
 
   FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
+#if CONFIG_DERIVED_INTRA_MODE
+  const int ctx = size_group_lookup[bsize];
+  const int is_dr =
+      aom_read_symbol(r, ec_ctx->bf_is_dr_mode_cdf[ctx], 2, ACCT_STR);
+  if (is_dr) {
+    if (av1_enable_derived_intra_mode(xd, bsize)) {
+      mbmi->use_derived_intra_mode[0] = aom_read_symbol(
+          r, get_derived_intra_mode_cdf(ec_ctx, xd->above_mbmi, xd->left_mbmi),
+          2, ACCT_STR);
+    }
+    if (mbmi->use_derived_intra_mode[0]) {
+      mbmi->mode = av1_get_derived_intra_mode(xd, bsize, &mbmi->derived_angle);
+    } else {
+      const int index = aom_read_symbol(r, ec_ctx->bf_dr_mode_cdf[ctx],
+                                        DIRECTIONAL_MODES, ACCT_STR);
+      mbmi->mode = dr_index_to_mode[index];
+    }
+  } else {
+    const int index = aom_read_symbol(r, ec_ctx->bf_none_dr_mode_cdf[ctx],
+                                      NONE_DIRECTIONAL_MODES, ACCT_STR);
+    mbmi->mode = none_dr_index_to_mode[index];
+  }
+#else
   mbmi->mode = read_intra_mode(r, ec_ctx->y_mode_cdf[size_group_lookup[bsize]]);
+#endif
 
-  mbmi->angle_delta[PLANE_TYPE_Y] =
-      use_angle_delta && av1_is_directional_mode(mbmi->mode)
-          ? read_angle_delta(r, ec_ctx->angle_delta_cdf[mbmi->mode - V_PRED])
-          : 0;
+  if (use_angle_delta &&
+#if CONFIG_DERIVED_INTRA_MODE
+      !mbmi->use_derived_intra_mode[0] &&
+#endif
+      av1_is_directional_mode(mbmi->mode)) {
+    mbmi->angle_delta[PLANE_TYPE_Y] =
+        read_angle_delta(r, ec_ctx->angle_delta_cdf[mbmi->mode - V_PRED]);
+  } else {
+    mbmi->angle_delta[PLANE_TYPE_Y] = 0;
+  }
   const int has_chroma =
       is_chroma_reference(mi_row, mi_col, bsize, xd->plane[1].subsampling_x,
                           xd->plane[1].subsampling_y);

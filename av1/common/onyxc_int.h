@@ -1012,8 +1012,10 @@ static INLINE aom_cdf_prob *get_y_mode_cdf(FRAME_CONTEXT *tile_ctx,
 static INLINE aom_cdf_prob *get_derived_intra_mode_cdf(
     FRAME_CONTEXT *tile_ctx, const MB_MODE_INFO *above_mi,
     const MB_MODE_INFO *left_mi) {
-  const int above = above_mi && above_mi->use_derived_intra_mode[0];
-  const int left = left_mi && left_mi->use_derived_intra_mode[0];
+  const int above = above_mi && !is_inter_block(above_mi) &&
+                    above_mi->use_derived_intra_mode[0];
+  const int left =
+      left_mi && !is_inter_block(left_mi) && left_mi->use_derived_intra_mode[0];
   return tile_ctx->derived_intra_mode_cdf[above + left];
 }
 #endif  // CONFIG_DERIVED_INTRA_MODE

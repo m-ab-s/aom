@@ -325,7 +325,13 @@ struct macroblock {
   // mode costs
   int intra_inter_cost[INTRA_INTER_CONTEXTS][2];
 
+#if CONFIG_DERIVED_INTRA_MODE
+  int bf_is_dr_mode_cost[BLOCK_SIZE_GROUPS][2];
+  int bf_dr_mode_cost[BLOCK_SIZE_GROUPS][DIRECTIONAL_MODES];
+  int bf_none_dr_mode_cost[BLOCK_SIZE_GROUPS][NONE_DIRECTIONAL_MODES];
+#else
   int mbmode_cost[BLOCK_SIZE_GROUPS][INTRA_MODES];
+#endif
   int newmv_mode_cost[NEWMV_MODE_CONTEXTS][2];
   int zeromv_mode_cost[GLOBALMV_MODE_CONTEXTS][2];
   int refmv_mode_cost[REFMV_MODE_CONTEXTS][2];

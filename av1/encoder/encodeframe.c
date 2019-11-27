@@ -960,7 +960,28 @@ static void sum_intra_stats(const AV1_COMMON *const cm, FRAME_COUNTS *counts,
     ++counts->y_mode[size_group_lookup[bsize]][y_mode];
 #endif  // CONFIG_ENTROPY_STATS
     if (allow_update_cdf) {
+#if CONFIG_DERIVED_INTRA_MODE
+      const int ctx = size_group_lookup[bsize];
+      const int is_dr_mode = av1_is_directional_mode(y_mode);
+      update_cdf(fc->bf_is_dr_mode_cdf[ctx], is_dr_mode, 2);
+      if (is_dr_mode) {
+        if (av1_enable_derived_intra_mode(xd, bsize)) {
+          update_cdf(get_derived_intra_mode_cdf(fc, above_mi, left_mi),
+                     mbmi->use_derived_intra_mode[0], 2);
+        } else {
+          assert(!mbmi->use_derived_intra_mode[0]);
+        }
+        if (!mbmi->use_derived_intra_mode[0]) {
+          update_cdf(fc->bf_dr_mode_cdf[ctx], dr_mode_to_index[y_mode],
+                     DIRECTIONAL_MODES);
+        }
+      } else {
+        update_cdf(fc->bf_none_dr_mode_cdf[ctx], none_dr_mode_to_index[y_mode],
+                   NONE_DIRECTIONAL_MODES);
+      }
+#else
       update_cdf(fc->y_mode_cdf[size_group_lookup[bsize]], y_mode, INTRA_MODES);
+#endif  // CONFIG_DERIVED_INTRA_MODE
     }
   }
 
@@ -4789,7 +4810,15 @@ static void avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
   AVERAGE_CDF(ctx_left->wiener_nonsep_restore_cdf,
               ctx_tr->wiener_nonsep_restore_cdf, 2);
 #endif  // CONFIG_WIENER_NONSEP
+#if CONFIG_DERIVED_INTRA_MODE
+  AVERAGE_CDF(ctx_left->bf_is_dr_mode_cdf, ctx_tr->bf_is_dr_mode_cdf, 2);
+  AVERAGE_CDF(ctx_left->bf_dr_mode_cdf, ctx_tr->bf_dr_mode_cdf,
+              DIRECTIONAL_MODES);
+  AVERAGE_CDF(ctx_left->bf_none_dr_mode_cdf, ctx_tr->bf_none_dr_mode_cdf,
+              NONE_DIRECTIONAL_MODES);
+#else
   AVERAGE_CDF(ctx_left->y_mode_cdf, ctx_tr->y_mode_cdf, INTRA_MODES);
+#endif  // CONFIG_DERIVED_INTRA_MODE
 #if !CONFIG_INTRA_ENTROPY
   AVG_CDF_STRIDE(ctx_left->uv_mode_cdf[0], ctx_tr->uv_mode_cdf[0],
                  UV_INTRA_MODES - 1, CDF_SIZE(UV_INTRA_MODES));

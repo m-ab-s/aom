@@ -151,10 +151,6 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, MACROBLOCK *x,
 #endif  // CONFIG_DERIVED_INTRA_MODE
 #endif  // !CONFIG_INTRA_ENTROPY
 
-  for (i = 0; i < BLOCK_SIZE_GROUPS; ++i) {
-    av1_cost_tokens_from_cdf(x->mbmode_cost[i], fc->y_mode_cdf[i], NULL);
-  }
-
   av1_cost_tokens_from_cdf(x->filter_intra_mode_cost, fc->filter_intra_mode_cdf,
                            NULL);
   for (i = 0; i < BLOCK_SIZES_ALL; ++i) {
@@ -334,6 +330,22 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, MACROBLOCK *x,
   for (i = 0; i < 2; ++i) {
     av1_cost_tokens_from_cdf(x->uv_derived_intra_mode_cost[i],
                              fc->uv_derived_intra_mode_cdf[i], NULL);
+  }
+  for (i = 0; i < BLOCK_SIZE_GROUPS; ++i) {
+    av1_cost_tokens_from_cdf(x->bf_is_dr_mode_cost[i], fc->bf_is_dr_mode_cdf[i],
+                             NULL);
+  }
+  for (i = 0; i < BLOCK_SIZE_GROUPS; ++i) {
+    av1_cost_tokens_from_cdf(x->bf_dr_mode_cost[i], fc->bf_dr_mode_cdf[i],
+                             NULL);
+  }
+  for (i = 0; i < BLOCK_SIZE_GROUPS; ++i) {
+    av1_cost_tokens_from_cdf(x->bf_none_dr_mode_cost[i],
+                             fc->bf_none_dr_mode_cdf[i], NULL);
+  }
+#else
+  for (i = 0; i < BLOCK_SIZE_GROUPS; ++i) {
+    av1_cost_tokens_from_cdf(x->mbmode_cost[i], fc->y_mode_cdf[i], NULL);
   }
 #endif  // CONFIG_DERIVED_INTRA_MODE
 

@@ -165,7 +165,13 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
 #if CONFIG_WIENER_NONSEP
   RESET_CDF_COUNTER(fc->wiener_nonsep_restore_cdf, 2);
 #endif  // CONFIG_WIENER_NONSEP
+#if CONFIG_DERIVED_INTRA_MODE
+  RESET_CDF_COUNTER(fc->bf_is_dr_mode_cdf, 2);
+  RESET_CDF_COUNTER(fc->bf_dr_mode_cdf, DIRECTIONAL_MODES);
+  RESET_CDF_COUNTER(fc->bf_none_dr_mode_cdf, NONE_DIRECTIONAL_MODES);
+#else
   RESET_CDF_COUNTER(fc->y_mode_cdf, INTRA_MODES);
+#endif  // CONFIG_DERIVED_INTRA_MODE
   for (int i = 0; i < PARTITION_CONTEXTS; i++) {
     if (i < 4) {
       RESET_CDF_COUNTER_STRIDE(fc->partition_cdf[i], 4, CDF_SIZE(10));
