@@ -367,17 +367,58 @@ INSTANTIATE_TEST_CASE_P(
                                NULL, AOM_BITS_12, kZ3Start)));
 
 #if HAVE_AVX2
-INSTANTIATE_TEST_CASE_P(
-    AVX2, LowbdDrPredTest,
-    ::testing::Values(DrPredFunc<DrPred>(&z1_wrapper<av1_dr_prediction_z1_c>,
-                                         &z1_wrapper<av1_dr_prediction_z1_avx2>,
-                                         AOM_BITS_8, kZ1Start),
-                      DrPredFunc<DrPred>(&z2_wrapper<av1_dr_prediction_z2_c>,
-                                         &z2_wrapper<av1_dr_prediction_z2_avx2>,
-                                         AOM_BITS_8, kZ2Start),
-                      DrPredFunc<DrPred>(&z3_wrapper<av1_dr_prediction_z3_c>,
-                                         &z3_wrapper<av1_dr_prediction_z3_avx2>,
-                                         AOM_BITS_8, kZ3Start)));
+const DrPredFunc<DrPred> kArrayLowbdDrPred[] = {
+#if !CONFIG_FLEX_PARTITION
+  DrPredFunc<DrPred>(&z1_wrapper<av1_dr_prediction_z1_c>,
+                     &z1_wrapper<av1_dr_prediction_z1_avx2>, AOM_BITS_8,
+                     kZ1Start),
+#endif  // CONFIG_FLEX_PARTITION
+  DrPredFunc<DrPred>(&z2_wrapper<av1_dr_prediction_z2_c>,
+                     &z2_wrapper<av1_dr_prediction_z2_avx2>, AOM_BITS_8,
+                     kZ2Start),
+  DrPredFunc<DrPred>(&z3_wrapper<av1_dr_prediction_z3_c>,
+                     &z3_wrapper<av1_dr_prediction_z3_avx2>, AOM_BITS_8,
+                     kZ3Start)
+};
+
+const DrPredFunc<DrPred_Hbd> kArrayHighbdDrPred[] = {
+#if !CONFIG_FLEX_PARTITION
+  DrPredFunc<DrPred_Hbd>(&z1_wrapper_hbd<av1_highbd_dr_prediction_z1_c>,
+                         &z1_wrapper_hbd<av1_highbd_dr_prediction_z1_avx2>,
+                         AOM_BITS_8, kZ1Start),
+  DrPredFunc<DrPred_Hbd>(&z1_wrapper_hbd<av1_highbd_dr_prediction_z1_c>,
+                         &z1_wrapper_hbd<av1_highbd_dr_prediction_z1_avx2>,
+                         AOM_BITS_10, kZ1Start),
+  DrPredFunc<DrPred_Hbd>(&z1_wrapper_hbd<av1_highbd_dr_prediction_z1_c>,
+                         &z1_wrapper_hbd<av1_highbd_dr_prediction_z1_avx2>,
+                         AOM_BITS_12, kZ1Start),
+#endif  // CONFIG_FLEX_PARTITION
+  /* TODO(niva213@gmail.com): Re-enable these tests after
+  fixing valgrind issue: https://crbug.com/aomedia/2316
+  DrPredFunc<DrPred_Hbd>(
+  &z2_wrapper_hbd<av1_highbd_dr_prediction_z2_c>,
+  &z2_wrapper_hbd<av1_highbd_dr_prediction_z2_avx2>,
+  AOM_BITS_8, kZ2Start),
+  DrPredFunc<DrPred_Hbd>(
+  &z2_wrapper_hbd<av1_highbd_dr_prediction_z2_c>,
+  &z2_wrapper_hbd<av1_highbd_dr_prediction_z2_avx2>,
+  AOM_BITS_10, kZ2Start),
+  DrPredFunc<DrPred_Hbd>(
+  &z2_wrapper_hbd<av1_highbd_dr_prediction_z2_c>,
+  &z2_wrapper_hbd<av1_highbd_dr_prediction_z2_avx2>,
+  AOM_BITS_12, kZ2Start),*/
+  DrPredFunc<DrPred_Hbd>(&z3_wrapper_hbd<av1_highbd_dr_prediction_z3_c>,
+                         &z3_wrapper_hbd<av1_highbd_dr_prediction_z3_avx2>,
+                         AOM_BITS_8, kZ3Start),
+  DrPredFunc<DrPred_Hbd>(&z3_wrapper_hbd<av1_highbd_dr_prediction_z3_c>,
+                         &z3_wrapper_hbd<av1_highbd_dr_prediction_z3_avx2>,
+                         AOM_BITS_10, kZ3Start),
+  DrPredFunc<DrPred_Hbd>(&z3_wrapper_hbd<av1_highbd_dr_prediction_z3_c>,
+                         &z3_wrapper_hbd<av1_highbd_dr_prediction_z3_avx2>,
+                         AOM_BITS_12, kZ3Start)
+};
+INSTANTIATE_TEST_CASE_P(AVX2, LowbdDrPredTest,
+                        ::testing::ValuesIn(kArrayLowbdDrPred));
 
 TEST_P(LowbdDrPredTest, DISABLED_Speed) {
   const int angles[] = { 3, 45, 87 };
@@ -405,46 +446,8 @@ TEST_P(LowbdDrPredTest, OperationCheck) {
   }
 }
 
-INSTANTIATE_TEST_CASE_P(
-    AVX2, HighbdDrPredTest,
-    ::testing::Values(DrPredFunc<DrPred_Hbd>(
-                          &z1_wrapper_hbd<av1_highbd_dr_prediction_z1_c>,
-                          &z1_wrapper_hbd<av1_highbd_dr_prediction_z1_avx2>,
-                          AOM_BITS_8, kZ1Start),
-                      DrPredFunc<DrPred_Hbd>(
-                          &z1_wrapper_hbd<av1_highbd_dr_prediction_z1_c>,
-                          &z1_wrapper_hbd<av1_highbd_dr_prediction_z1_avx2>,
-                          AOM_BITS_10, kZ1Start),
-                      DrPredFunc<DrPred_Hbd>(
-                          &z1_wrapper_hbd<av1_highbd_dr_prediction_z1_c>,
-                          &z1_wrapper_hbd<av1_highbd_dr_prediction_z1_avx2>,
-                          AOM_BITS_12, kZ1Start),
-                      /* TODO(niva213@gmail.com): Re-enable these tests after
-                      fixing valgrind issue: https://crbug.com/aomedia/2316
-                      DrPredFunc<DrPred_Hbd>(
-                          &z2_wrapper_hbd<av1_highbd_dr_prediction_z2_c>,
-                          &z2_wrapper_hbd<av1_highbd_dr_prediction_z2_avx2>,
-                          AOM_BITS_8, kZ2Start),
-                      DrPredFunc<DrPred_Hbd>(
-                          &z2_wrapper_hbd<av1_highbd_dr_prediction_z2_c>,
-                          &z2_wrapper_hbd<av1_highbd_dr_prediction_z2_avx2>,
-                          AOM_BITS_10, kZ2Start),
-                      DrPredFunc<DrPred_Hbd>(
-                          &z2_wrapper_hbd<av1_highbd_dr_prediction_z2_c>,
-                          &z2_wrapper_hbd<av1_highbd_dr_prediction_z2_avx2>,
-                          AOM_BITS_12, kZ2Start),*/
-                      DrPredFunc<DrPred_Hbd>(
-                          &z3_wrapper_hbd<av1_highbd_dr_prediction_z3_c>,
-                          &z3_wrapper_hbd<av1_highbd_dr_prediction_z3_avx2>,
-                          AOM_BITS_8, kZ3Start),
-                      DrPredFunc<DrPred_Hbd>(
-                          &z3_wrapper_hbd<av1_highbd_dr_prediction_z3_c>,
-                          &z3_wrapper_hbd<av1_highbd_dr_prediction_z3_avx2>,
-                          AOM_BITS_10, kZ3Start),
-                      DrPredFunc<DrPred_Hbd>(
-                          &z3_wrapper_hbd<av1_highbd_dr_prediction_z3_c>,
-                          &z3_wrapper_hbd<av1_highbd_dr_prediction_z3_avx2>,
-                          AOM_BITS_12, kZ3Start)));
+INSTANTIATE_TEST_CASE_P(AVX2, HighbdDrPredTest,
+                        ::testing::ValuesIn(kArrayHighbdDrPred));
 
 TEST_P(HighbdDrPredTest, DISABLED_Speed) {
   const int angles[] = { 3, 45, 87 };
