@@ -1218,7 +1218,11 @@ static void highbd_dr_prediction_z1_4xN_avx2(int N, uint16_t *dst,
                                              const uint16_t *above,
                                              int upsample_above, int dx,
                                              int bd) {
+#if CONFIG_FLEX_PARTITION
+  __m128i dstvec[64];
+#else
   __m128i dstvec[16];
+#endif  // CONFIG_FLEX_PARTITION
   if (bd < 12) {
     highbd_dr_prediction_z1_4xN_internal_avx2(N, dstvec, above, upsample_above,
                                               dx);
@@ -1401,7 +1405,11 @@ static void highbd_dr_prediction_z1_8xN_avx2(int N, uint16_t *dst,
                                              const uint16_t *above,
                                              int upsample_above, int dx,
                                              int bd) {
+#if CONFIG_FLEX_PARTITION
+  __m128i dstvec[64];
+#else
   __m128i dstvec[32];
+#endif  // CONFIG_FLEX_PARTITION
   if (bd < 12) {
     highbd_dr_prediction_z1_8xN_internal_avx2(N, dstvec, above, upsample_above,
                                               dx);
@@ -3809,7 +3817,11 @@ static AOM_FORCE_INLINE void dr_prediction_z1_HxW_internal_avx2(
 static void dr_prediction_z1_4xN_avx2(int N, uint8_t *dst, ptrdiff_t stride,
                                       const uint8_t *above, int upsample_above,
                                       int dx) {
+#if CONFIG_FLEX_PARTITION
+  __m128i dstvec[64];
+#else
   __m128i dstvec[16];
+#endif  // CONFIG_FLEX_PARTITION
 
   dr_prediction_z1_HxW_internal_avx2(4, N, dstvec, above, upsample_above, dx);
   for (int i = 0; i < N; i++) {
@@ -3820,7 +3832,11 @@ static void dr_prediction_z1_4xN_avx2(int N, uint8_t *dst, ptrdiff_t stride,
 static void dr_prediction_z1_8xN_avx2(int N, uint8_t *dst, ptrdiff_t stride,
                                       const uint8_t *above, int upsample_above,
                                       int dx) {
+#if CONFIG_FLEX_PARTITION
+  __m128i dstvec[64];
+#else
   __m128i dstvec[32];
+#endif  // CONFIG_FLEX_PARTITION
 
   dr_prediction_z1_HxW_internal_avx2(8, N, dstvec, above, upsample_above, dx);
   for (int i = 0; i < N; i++) {

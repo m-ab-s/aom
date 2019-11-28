@@ -368,11 +368,9 @@ INSTANTIATE_TEST_CASE_P(
 
 #if HAVE_AVX2
 const DrPredFunc<DrPred> kArrayLowbdDrPred[] = {
-#if !CONFIG_FLEX_PARTITION
   DrPredFunc<DrPred>(&z1_wrapper<av1_dr_prediction_z1_c>,
                      &z1_wrapper<av1_dr_prediction_z1_avx2>, AOM_BITS_8,
                      kZ1Start),
-#endif  // CONFIG_FLEX_PARTITION
   DrPredFunc<DrPred>(&z2_wrapper<av1_dr_prediction_z2_c>,
                      &z2_wrapper<av1_dr_prediction_z2_avx2>, AOM_BITS_8,
                      kZ2Start),
@@ -382,7 +380,6 @@ const DrPredFunc<DrPred> kArrayLowbdDrPred[] = {
 };
 
 const DrPredFunc<DrPred_Hbd> kArrayHighbdDrPred[] = {
-#if !CONFIG_FLEX_PARTITION
   DrPredFunc<DrPred_Hbd>(&z1_wrapper_hbd<av1_highbd_dr_prediction_z1_c>,
                          &z1_wrapper_hbd<av1_highbd_dr_prediction_z1_avx2>,
                          AOM_BITS_8, kZ1Start),
@@ -392,7 +389,6 @@ const DrPredFunc<DrPred_Hbd> kArrayHighbdDrPred[] = {
   DrPredFunc<DrPred_Hbd>(&z1_wrapper_hbd<av1_highbd_dr_prediction_z1_c>,
                          &z1_wrapper_hbd<av1_highbd_dr_prediction_z1_avx2>,
                          AOM_BITS_12, kZ1Start),
-#endif  // CONFIG_FLEX_PARTITION
   /* TODO(niva213@gmail.com): Re-enable these tests after
   fixing valgrind issue: https://crbug.com/aomedia/2316
   DrPredFunc<DrPred_Hbd>(
