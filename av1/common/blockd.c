@@ -61,6 +61,31 @@ void av1_mark_block_as_not_coded(MACROBLOCKD *xd, int mi_row, int mi_col,
   }
 }
 
+PARTITION_TREE *av1_alloc_ptree_node(BLOCK_SIZE bsize, int mi_row, int mi_col) {
+  PARTITION_TREE *ptree = NULL;
+  struct aom_internal_error_info error;
+
+  AOM_CHECK_MEM_ERROR(&error, ptree, aom_calloc(1, sizeof(*ptree)));
+
+  ptree->partition = PARTITION_NONE;
+  ptree->bsize = bsize;
+  ptree->mi_row = mi_row;
+  ptree->mi_col = mi_col;
+  ptree->is_settled = 0;
+
+  for (int i = 0; i < 4; ++i) ptree->sub_tree[i] = NULL;
+
+  return ptree;
+}
+
+void av1_free_ptree_recursive(PARTITION_TREE *ptree) {
+  if (ptree == NULL) return;
+
+  for (int i = 0; i < 4; ++i) av1_free_ptree_recursive(ptree->sub_tree[i]);
+
+  aom_free(ptree);
+}
+
 #if CONFIG_INTRA_ENTROPY
 #if !CONFIG_USE_SMALL_MODEL
 INLINE static void add_hist_features(const uint64_t *hist, float **features) {

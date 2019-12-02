@@ -309,11 +309,23 @@ typedef struct MB_MODE_INFO {
 #endif  // CONFIG_DERIVED_INTRA_MODE
 } MB_MODE_INFO;
 
-typedef struct SB_INFO {
-  // TODO(yuec): add partition tree root.
+typedef struct PARTITION_TREE {
+  struct PARTITION_TREE *sub_tree[4];
+  PARTITION_TYPE partition;
+  BLOCK_SIZE bsize;
+  int is_settled;
   int mi_row;
   int mi_col;
+} PARTITION_TREE;
+
+typedef struct SB_INFO {
+  int mi_row;
+  int mi_col;
+  PARTITION_TREE *ptree_root;
 } SB_INFO;
+
+PARTITION_TREE *av1_alloc_ptree_node(BLOCK_SIZE bsize, int mi_row, int mi_col);
+void av1_free_ptree_recursive(PARTITION_TREE *ptree);
 
 static INLINE int is_intrabc_block(const MB_MODE_INFO *mbmi) {
   return mbmi->use_intrabc;

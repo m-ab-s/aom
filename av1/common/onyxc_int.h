@@ -453,6 +453,7 @@ typedef struct AV1Common {
 
   // Grid of pointers to SB_INFO structs.
   SB_INFO *sbi_grid_base;
+  int sbi_alloc_size;
   int sbi_stride;
   int sb_rows, sb_cols;
 

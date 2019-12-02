@@ -539,6 +539,8 @@ static int enc_alloc_mi(AV1_COMMON *cm, int mi_size, int sbi_size) {
 
   cm->sbi_grid_base = aom_calloc(sbi_size, sizeof(SB_INFO));
   if (!cm->sbi_grid_base) return 1;
+  cm->sbi_alloc_size = sbi_size;
+  for (int i = 0; i < sbi_size; ++i) cm->sbi_grid_base[i].ptree_root = NULL;
 
   return 0;
 }
@@ -553,8 +555,12 @@ static void enc_free_mi(AV1_COMMON *cm) {
   aom_free(cm->prev_mi_grid_base);
   cm->prev_mi_grid_base = NULL;
   cm->mi_alloc_size = 0;
+
+  for (int i = 0; i < cm->sbi_alloc_size; ++i)
+    av1_free_ptree_recursive(cm->sbi_grid_base[i].ptree_root);
   aom_free(cm->sbi_grid_base);
   cm->sbi_grid_base = NULL;
+  cm->sbi_alloc_size = 0;
 }
 
 static void swap_mi_and_prev_mi(AV1_COMMON *cm) {
