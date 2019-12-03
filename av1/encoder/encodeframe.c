@@ -1790,7 +1790,7 @@ static void encode_b(const AV1_COMP *const cpi, TileDataEnc *tile_data,
 static void encode_sb(const AV1_COMP *const cpi, ThreadData *td,
                       TileDataEnc *tile_data, TOKENEXTRA **tp, int mi_row,
                       int mi_col, RUN_TYPE dry_run, BLOCK_SIZE bsize,
-                      PC_TREE *pc_tree, int *rate) {
+                      PC_TREE *pc_tree, PARTITION_TREE *ptree, int *rate) {
   assert(bsize < BLOCK_SIZES_ALL);
 
   const AV1_COMMON *const cm = &cpi->common;
@@ -1827,6 +1827,34 @@ static void encode_sb(const AV1_COMP *const cpi, ThreadData *td,
     }
   }
 
+  PARTITION_TREE *sub_tree[4] = { NULL, NULL, NULL, NULL };
+  if (!dry_run) {
+    assert(ptree);
+
+    ptree->partition = partition;
+    ptree->bsize = bsize;
+    ptree->mi_row = mi_row;
+    ptree->mi_col = mi_col;
+
+    int num_splittable_sub_blocks = 0;
+    switch (partition) {
+      case PARTITION_SPLIT: num_splittable_sub_blocks = 4; break;
+#if CONFIG_EXT_PARTITIONS
+      case PARTITION_HORZ_A:
+      case PARTITION_HORZ_B:
+      case PARTITION_VERT_A:
+      case PARTITION_VERT_B: num_splittable_sub_blocks = 2; break;
+#endif  // CONFIG_EXT_PARTITIONS
+      default: break;
+    }
+    if (num_splittable_sub_blocks > 0) {
+      for (int i = 0; i < num_splittable_sub_blocks; ++i) {
+        ptree->sub_tree[i] = av1_alloc_ptree_node();
+        sub_tree[i] = ptree->sub_tree[i];
+      }
+    }
+  }
+
   switch (partition) {
     case PARTITION_NONE:
       encode_b(cpi, tile_data, td, tp, mi_row, mi_col, dry_run, subsize,
@@ -1850,21 +1878,21 @@ static void encode_sb(const AV1_COMP *const cpi, ThreadData *td,
       break;
     case PARTITION_SPLIT:
       encode_sb(cpi, td, tile_data, tp, mi_row, mi_col, dry_run, subsize,
-                pc_tree->split[0], rate);
+                pc_tree->split[0], sub_tree[0], rate);
       encode_sb(cpi, td, tile_data, tp, mi_row, mi_col + hbs, dry_run, subsize,
-                pc_tree->split[1], rate);
+                pc_tree->split[1], sub_tree[1], rate);
       encode_sb(cpi, td, tile_data, tp, mi_row + hbs, mi_col, dry_run, subsize,
-                pc_tree->split[2], rate);
+                pc_tree->split[2], sub_tree[2], rate);
       encode_sb(cpi, td, tile_data, tp, mi_row + hbs, mi_col + hbs, dry_run,
-                subsize, pc_tree->split[3], rate);
+                subsize, pc_tree->split[3], sub_tree[3], rate);
       break;
 
     case PARTITION_HORZ_A:
 #if CONFIG_EXT_PARTITIONS
       encode_sb(cpi, td, tile_data, tp, mi_row, mi_col, dry_run, bsize2,
-                pc_tree->horza_split[0], rate);
+                pc_tree->horza_split[0], sub_tree[0], rate);
       encode_sb(cpi, td, tile_data, tp, mi_row, mi_col + hbs, dry_run, bsize2,
-                pc_tree->horza_split[1], rate);
+                pc_tree->horza_split[1], sub_tree[1], rate);
       encode_b(cpi, tile_data, td, tp, mi_row + hbs, mi_col, dry_run, subsize,
                partition, pc_tree->horza_rec, rate);
 #else
@@ -1881,9 +1909,9 @@ static void encode_sb(const AV1_COMP *const cpi, ThreadData *td,
       encode_b(cpi, tile_data, td, tp, mi_row, mi_col, dry_run, subsize,
                partition, pc_tree->horzb_rec, rate);
       encode_sb(cpi, td, tile_data, tp, mi_row + hbs, mi_col, dry_run, bsize2,
-                pc_tree->horzb_split[0], rate);
+                pc_tree->horzb_split[0], sub_tree[0], rate);
       encode_sb(cpi, td, tile_data, tp, mi_row + hbs, mi_col + hbs, dry_run,
-                bsize2, pc_tree->horzb_split[1], rate);
+                bsize2, pc_tree->horzb_split[1], sub_tree[1], rate);
 #else
       encode_b(cpi, tile_data, td, tp, mi_row, mi_col, dry_run, subsize,
                partition, pc_tree->horizontalb[0], rate);
@@ -1896,9 +1924,9 @@ static void encode_sb(const AV1_COMP *const cpi, ThreadData *td,
     case PARTITION_VERT_A:
 #if CONFIG_EXT_PARTITIONS
       encode_sb(cpi, td, tile_data, tp, mi_row, mi_col, dry_run, bsize2,
-                pc_tree->verta_split[0], rate);
+                pc_tree->verta_split[0], sub_tree[0], rate);
       encode_sb(cpi, td, tile_data, tp, mi_row + hbs, mi_col, dry_run, bsize2,
-                pc_tree->verta_split[1], rate);
+                pc_tree->verta_split[1], sub_tree[1], rate);
       encode_b(cpi, tile_data, td, tp, mi_row, mi_col + hbs, dry_run, subsize,
                partition, pc_tree->verta_rec, rate);
 #else
@@ -1915,9 +1943,9 @@ static void encode_sb(const AV1_COMP *const cpi, ThreadData *td,
       encode_b(cpi, tile_data, td, tp, mi_row, mi_col, dry_run, subsize,
                partition, pc_tree->vertb_rec, rate);
       encode_sb(cpi, td, tile_data, tp, mi_row, mi_col + hbs, dry_run, bsize2,
-                pc_tree->vertb_split[0], rate);
+                pc_tree->vertb_split[0], sub_tree[0], rate);
       encode_sb(cpi, td, tile_data, tp, mi_row + hbs, mi_col + hbs, dry_run,
-                bsize2, pc_tree->vertb_split[1], rate);
+                bsize2, pc_tree->vertb_split[1], sub_tree[1], rate);
 #else
       encode_b(cpi, tile_data, td, tp, mi_row, mi_col, dry_run, subsize,
                partition, pc_tree->verticalb[0], rate);
@@ -1975,6 +2003,7 @@ static void encode_sb(const AV1_COMP *const cpi, ThreadData *td,
     default: assert(0 && "Invalid partition type."); break;
   }
 
+  if (ptree) ptree->is_settled = 1;
   update_ext_partition_context(xd, mi_row, mi_col, subsize, bsize, partition);
 }
 
@@ -2275,7 +2304,7 @@ static void rd_use_partition(AV1_COMP *cpi, ThreadData *td,
 
       if (i != 3)
         encode_sb(cpi, td, tile_data, tp, mi_row + y_idx, mi_col + x_idx,
-                  OUTPUT_ENABLED, split_subsize, pc_tree->split[i], NULL);
+                  DRY_RUN_NORMAL, split_subsize, pc_tree->split[i], NULL, NULL);
 
       chosen_rdc.rate += x->partition_cost[pl][PARTITION_NONE];
     }
@@ -2311,11 +2340,12 @@ static void rd_use_partition(AV1_COMP *cpi, ThreadData *td,
       // encode_sb(cpi, td, tile_data, tp, mi_row, mi_col, DRY_RUN_COSTCOEFFS,
       //           bsize, pc_tree, &rate_coeffs);
       x->cb_offset = 0;
+      av1_reset_ptree_in_sbi(xd->sbi);
       encode_sb(cpi, td, tile_data, tp, mi_row, mi_col, OUTPUT_ENABLED, bsize,
-                pc_tree, NULL);
+                pc_tree, xd->sbi->ptree_root, NULL);
     } else {
       encode_sb(cpi, td, tile_data, tp, mi_row, mi_col, DRY_RUN_NORMAL, bsize,
-                pc_tree, NULL);
+                pc_tree, NULL, NULL);
     }
   }
 
@@ -2328,7 +2358,8 @@ static void rd_use_partition(AV1_COMP *cpi, ThreadData *td,
 static void nonrd_use_partition(AV1_COMP *cpi, ThreadData *td,
                                 TileDataEnc *tile_data, MB_MODE_INFO **mib,
                                 TOKENEXTRA **tp, int mi_row, int mi_col,
-                                BLOCK_SIZE bsize, PC_TREE *pc_tree) {
+                                BLOCK_SIZE bsize, PC_TREE *pc_tree,
+                                PARTITION_TREE *ptree) {
   AV1_COMMON *const cm = &cpi->common;
   TileInfo *const tile_info = &tile_data->tile_info;
   const SPEED_FEATURES *const sf = &cpi->sf;
@@ -2352,6 +2383,29 @@ static void nonrd_use_partition(AV1_COMP *cpi, ThreadData *td,
   assert(mi_size_wide[bsize] == mi_size_high[bsize]);
 
   pc_tree->partitioning = partition;
+
+  assert(ptree);
+  ptree->partition = partition;
+  ptree->bsize = bsize;
+  ptree->mi_row = mi_row;
+  ptree->mi_col = mi_col;
+
+  int num_splittable_sub_blocks = 0;
+  switch (partition) {
+    case PARTITION_SPLIT: num_splittable_sub_blocks = 4; break;
+#if CONFIG_EXT_PARTITIONS
+    case PARTITION_HORZ_A:
+    case PARTITION_HORZ_B:
+    case PARTITION_VERT_A:
+    case PARTITION_VERT_B: num_splittable_sub_blocks = 2; break;
+#endif  // CONFIG_EXT_PARTITIONS
+    default: break;
+  }
+  if (num_splittable_sub_blocks > 0) {
+    for (int i = 0; i < num_splittable_sub_blocks; ++i) {
+      ptree->sub_tree[i] = av1_alloc_ptree_node();
+    }
+  }
 
   xd->above_txfm_context = cm->above_txfm_context[tile_info->tile_row] + mi_col;
   xd->left_txfm_context =
@@ -2419,9 +2473,10 @@ static void nonrd_use_partition(AV1_COMP *cpi, ThreadData *td,
           continue;
 
         pc_tree->split[i] = av1_alloc_pc_tree_node(subsize, i == 3);
-        nonrd_use_partition(
-            cpi, td, tile_data, mib + jj * hbs * cm->mi_stride + ii * hbs, tp,
-            mi_row + y_idx, mi_col + x_idx, subsize, pc_tree->split[i]);
+        nonrd_use_partition(cpi, td, tile_data,
+                            mib + jj * hbs * cm->mi_stride + ii * hbs, tp,
+                            mi_row + y_idx, mi_col + x_idx, subsize,
+                            pc_tree->split[i], ptree->sub_tree[i]);
       }
       break;
     case PARTITION_VERT_A:
@@ -2438,6 +2493,8 @@ static void nonrd_use_partition(AV1_COMP *cpi, ThreadData *td,
       assert(0 && "Cannot handle extended partition types");
     default: assert(0); break;
   }
+
+  ptree->is_settled = 1;
   if (partition != PARTITION_SPLIT || bsize == BLOCK_8X8)
     update_partition_context(xd, mi_row, mi_col, subsize, bsize);
 }
@@ -4313,13 +4370,14 @@ BEGIN_PARTITION_SEARCH:
   if (found_best_partition) {
     if (bsize == cm->seq_params.sb_size) {
       x->cb_offset = 0;
+      av1_reset_ptree_in_sbi(xd->sbi);
       encode_sb(cpi, td, tile_data, tp, mi_row, mi_col, OUTPUT_ENABLED, bsize,
-                pc_tree, NULL);
+                pc_tree, xd->sbi->ptree_root, NULL);
       av1_free_pc_tree_recursive(pc_tree, num_planes, 0, 0);
       pc_tree_dealloc = 1;
     } else if (!pc_tree->is_last_subblock) {
       encode_sb(cpi, td, tile_data, tp, mi_row, mi_col, DRY_RUN_NORMAL, bsize,
-                pc_tree, NULL);
+                pc_tree, NULL, NULL);
     }
   }
 
@@ -5006,8 +5064,9 @@ static void encode_sb_row(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
       av1_choose_var_based_partitioning(cpi, tile_info, x, mi_row, mi_col);
       td->mb.cb_offset = 0;
       PC_TREE *const pc_root = av1_alloc_pc_tree_node(sb_size, 1);
+      av1_reset_ptree_in_sbi(xd->sbi);
       nonrd_use_partition(cpi, td, tile_data, mi, tp, mi_row, mi_col, sb_size,
-                          pc_root);
+                          pc_root, xd->sbi->ptree_root);
       av1_free_pc_tree_recursive(pc_root, num_planes, 0, 0);
     } else {
 #if !CONFIG_REALTIME_ONLY

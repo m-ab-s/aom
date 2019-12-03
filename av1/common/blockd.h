@@ -324,8 +324,9 @@ typedef struct SB_INFO {
   PARTITION_TREE *ptree_root;
 } SB_INFO;
 
-PARTITION_TREE *av1_alloc_ptree_node(BLOCK_SIZE bsize, int mi_row, int mi_col);
+PARTITION_TREE *av1_alloc_ptree_node(void);
 void av1_free_ptree_recursive(PARTITION_TREE *ptree);
+void av1_reset_ptree_in_sbi(SB_INFO *sbi);
 
 static INLINE int is_intrabc_block(const MB_MODE_INFO *mbmi) {
   return mbmi->use_intrabc;
