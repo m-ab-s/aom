@@ -1326,6 +1326,13 @@ static INLINE TX_SIZE get_tx_size(int width, int height) {
         case 16: return TX_16X32; break;
         case 32: return TX_32X64; break;
       }
+#if CONFIG_FLEX_PARTITION
+    } else if ((4 * width) < height) {
+      switch (width) {
+        case 4: return (height == 32) ? TX_4X32 : TX_4X64; break;
+        case 8: return TX_8X64; break;
+      }
+#endif
     } else {
       switch (width) {
         case 4: return TX_4X16; break;
@@ -1341,6 +1348,13 @@ static INLINE TX_SIZE get_tx_size(int width, int height) {
         case 16: return TX_32X16; break;
         case 32: return TX_64X32; break;
       }
+#if CONFIG_FLEX_PARTITION
+    } else if ((4 * height) < width) {
+      switch (height) {
+        case 4: return (width == 32) ? TX_32X4 : TX_64X4; break;
+        case 8: return TX_64X8; break;
+      }
+#endif
     } else {
       switch (height) {
         case 4: return TX_16X4; break;
@@ -1354,6 +1368,35 @@ static INLINE TX_SIZE get_tx_size(int width, int height) {
 }
 
 #if CONFIG_NEW_TX_PARTITION
+#if CONFIG_FLEX_PARTITION
+static const int new_tx_partition_used[TX_SIZES_ALL][TX_PARTITION_TYPES] = {
+  { 1, 0, 0, 0, 0, 0 },  // 4x4 transform
+  { 1, 1, 1, 1, 0, 0 },  // 8x8 transform
+  { 1, 1, 1, 1, 1, 1 },  // 16x16 transform
+  { 1, 1, 1, 1, 1, 1 },  // 32x32 transform
+  { 1, 1, 1, 1, 1, 1 },  // 64x64 transform
+  { 1, 0, 1, 0, 0, 0 },  // 4x8 transform
+  { 1, 0, 0, 1, 0, 0 },  // 8x4 transform
+  { 1, 1, 1, 1, 1, 0 },  // 8x16 transform
+  { 1, 1, 1, 1, 0, 1 },  // 16x8 transform
+  { 1, 1, 1, 1, 1, 1 },  // 16x32 transform
+  { 1, 1, 1, 1, 1, 1 },  // 32x16 transform
+  { 1, 1, 1, 1, 1, 1 },  // 32x64 transform
+  { 1, 1, 1, 1, 1, 1 },  // 64x32 transform
+  { 1, 0, 1, 0, 1, 0 },  // 4x16 transform
+  { 1, 0, 0, 1, 0, 1 },  // 16x4 transform
+  { 1, 1, 1, 1, 1, 0 },  // 8x32 transform
+  { 1, 1, 1, 1, 0, 1 },  // 32x8 transform
+  { 1, 1, 1, 1, 1, 1 },  // 16x64 transform
+  { 1, 1, 1, 1, 1, 1 },  // 64x16 transform
+  { 1, 0, 1, 0, 1, 0 },  // 4x32 transform
+  { 1, 0, 0, 1, 0, 1 },  // 32x4 transform
+  { 1, 1, 1, 1, 1, 0 },  // 8x64 transform
+  { 1, 1, 1, 1, 0, 1 },  // 64x8 transform
+  { 1, 0, 1, 0, 1, 0 },  // 4x64 transform
+  { 1, 0, 0, 1, 0, 1 },  // 64x4 transform
+};
+#else
 static const int new_tx_partition_used[TX_SIZES_ALL][TX_PARTITION_TYPES] = {
   { 1, 0, 0, 0, 0, 0 },  // 4x4 transform
   { 1, 1, 1, 1, 0, 0 },  // 8x8 transform
@@ -1375,6 +1418,7 @@ static const int new_tx_partition_used[TX_SIZES_ALL][TX_PARTITION_TYPES] = {
   { 1, 1, 1, 0, 1, 0 },  // 16x64 transform
   { 1, 1, 0, 1, 0, 1 },  // 64x16 transform
 };
+#endif  // CONFIG_FLEX_PARTITION
 
 #define MAX_TX_PARTITIONS 4
 typedef struct {
