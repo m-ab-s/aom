@@ -1477,7 +1477,8 @@ static PARTITION_TYPE read_partition(MACROBLOCKD *xd, int mi_row, int mi_col,
 // TODO(slavarnway): eliminate bsize and subsize in future commits
 static void decode_partition(AV1Decoder *const pbi, ThreadData *const td,
                              int mi_row, int mi_col, aom_reader *reader,
-                             BLOCK_SIZE bsize, int parse_decode_flag) {
+                             BLOCK_SIZE bsize, PARTITION_TREE *ptree,
+                             int parse_decode_flag) {
   assert(bsize < BLOCK_SIZES_ALL);
   AV1_COMMON *const cm = &pbi->common;
   MACROBLOCKD *const xd = &td->xd;
@@ -1498,6 +1499,7 @@ static void decode_partition(AV1Decoder *const pbi, ThreadData *const td,
                                                      decode_block,
                                                      parse_decode_block };
 
+  assert(ptree);
   if (parse_decode_flag & 1) {
 #if CONFIG_CNN_RESTORATION && !CONFIG_LOOP_RESTORE_CNN
     if (!cm->use_cnn) {
@@ -1524,8 +1526,30 @@ static void decode_partition(AV1Decoder *const pbi, ThreadData *const td,
     partition = (bsize < BLOCK_8X8) ? PARTITION_NONE
                                     : read_partition(xd, mi_row, mi_col, reader,
                                                      has_rows, has_cols, bsize);
+    ptree->partition = partition;
+    ptree->bsize = bsize;
+    ptree->mi_row = mi_row;
+    ptree->mi_col = mi_col;
+    ptree->is_settled = 1;
+
+    int num_splittable_sub_blocks = 0;
+    switch (partition) {
+      case PARTITION_SPLIT: num_splittable_sub_blocks = 4; break;
+#if CONFIG_EXT_PARTITIONS
+      case PARTITION_HORZ_A:
+      case PARTITION_HORZ_B:
+      case PARTITION_VERT_A:
+      case PARTITION_VERT_B: num_splittable_sub_blocks = 2; break;
+#endif  // CONFIG_EXT_PARTITIONS
+      default: break;
+    }
+    if (num_splittable_sub_blocks > 0) {
+      for (int i = 0; i < num_splittable_sub_blocks; ++i) {
+        ptree->sub_tree[i] = av1_alloc_ptree_node();
+      }
+    }
   } else {
-    partition = get_partition(cm, mi_row, mi_col, bsize);
+    partition = ptree->partition;
   }
   const BLOCK_SIZE subsize = get_partition_subsize(bsize, partition);
   if (subsize == BLOCK_INVALID) {
@@ -1549,9 +1573,9 @@ static void decode_partition(AV1Decoder *const pbi, ThreadData *const td,
 #define DEC_BLOCK(db_r, db_c, db_subsize)                                  \
   block_visit[parse_decode_flag](pbi, td, DEC_BLOCK_STX_ARG(db_r), (db_c), \
                                  reader, DEC_BLOCK_EPT_ARG(db_subsize))
-#define DEC_PARTITION(db_r, db_c, db_subsize)                        \
+#define DEC_PARTITION(db_r, db_c, db_subsize, index)                 \
   decode_partition(pbi, td, DEC_BLOCK_STX_ARG(db_r), (db_c), reader, \
-                   (db_subsize), parse_decode_flag)
+                   (db_subsize), ptree->sub_tree[(index)], parse_decode_flag)
 
   const BLOCK_SIZE bsize2 = get_partition_subsize(bsize, PARTITION_SPLIT);
 
@@ -1566,15 +1590,15 @@ static void decode_partition(AV1Decoder *const pbi, ThreadData *const td,
       if (has_cols) DEC_BLOCK(mi_row, mi_col + hbs, subsize);
       break;
     case PARTITION_SPLIT:
-      DEC_PARTITION(mi_row, mi_col, subsize);
-      DEC_PARTITION(mi_row, mi_col + hbs, subsize);
-      DEC_PARTITION(mi_row + hbs, mi_col, subsize);
-      DEC_PARTITION(mi_row + hbs, mi_col + hbs, subsize);
+      DEC_PARTITION(mi_row, mi_col, subsize, 0);
+      DEC_PARTITION(mi_row, mi_col + hbs, subsize, 1);
+      DEC_PARTITION(mi_row + hbs, mi_col, subsize, 2);
+      DEC_PARTITION(mi_row + hbs, mi_col + hbs, subsize, 3);
       break;
     case PARTITION_HORZ_A:
 #if CONFIG_EXT_PARTITIONS
-      DEC_PARTITION(mi_row, mi_col, bsize2);
-      DEC_PARTITION(mi_row, mi_col + hbs, bsize2);
+      DEC_PARTITION(mi_row, mi_col, bsize2, 0);
+      DEC_PARTITION(mi_row, mi_col + hbs, bsize2, 1);
 #else
       DEC_BLOCK(mi_row, mi_col, bsize2);
       DEC_BLOCK(mi_row, mi_col + hbs, bsize2);
@@ -1583,8 +1607,8 @@ static void decode_partition(AV1Decoder *const pbi, ThreadData *const td,
       break;
     case PARTITION_HORZ_B: DEC_BLOCK(mi_row, mi_col, subsize);
 #if CONFIG_EXT_PARTITIONS
-      DEC_PARTITION(mi_row + hbs, mi_col, bsize2);
-      DEC_PARTITION(mi_row + hbs, mi_col + hbs, bsize2);
+      DEC_PARTITION(mi_row + hbs, mi_col, bsize2, 0);
+      DEC_PARTITION(mi_row + hbs, mi_col + hbs, bsize2, 1);
 #else
       DEC_BLOCK(mi_row + hbs, mi_col, bsize2);
       DEC_BLOCK(mi_row + hbs, mi_col + hbs, bsize2);
@@ -1592,8 +1616,8 @@ static void decode_partition(AV1Decoder *const pbi, ThreadData *const td,
       break;
     case PARTITION_VERT_A:
 #if CONFIG_EXT_PARTITIONS
-      DEC_PARTITION(mi_row, mi_col, bsize2);
-      DEC_PARTITION(mi_row + hbs, mi_col, bsize2);
+      DEC_PARTITION(mi_row, mi_col, bsize2, 0);
+      DEC_PARTITION(mi_row + hbs, mi_col, bsize2, 1);
 #else
       DEC_BLOCK(mi_row, mi_col, bsize2);
       DEC_BLOCK(mi_row + hbs, mi_col, bsize2);
@@ -1602,8 +1626,8 @@ static void decode_partition(AV1Decoder *const pbi, ThreadData *const td,
       break;
     case PARTITION_VERT_B: DEC_BLOCK(mi_row, mi_col, subsize);
 #if CONFIG_EXT_PARTITIONS
-      DEC_PARTITION(mi_row, mi_col + hbs, bsize2);
-      DEC_PARTITION(mi_row + hbs, mi_col + hbs, bsize2);
+      DEC_PARTITION(mi_row, mi_col + hbs, bsize2, 0);
+      DEC_PARTITION(mi_row + hbs, mi_col + hbs, bsize2, 1);
 #else
       DEC_BLOCK(mi_row, mi_col + hbs, bsize2);
       DEC_BLOCK(mi_row + hbs, mi_col + hbs, bsize2);
@@ -2923,7 +2947,7 @@ static void decode_tile_sb_row(AV1Decoder *pbi, ThreadData *const td,
 
     // Decoding of the super-block
     decode_partition(pbi, td, mi_row, mi_col, td->bit_reader,
-                     cm->seq_params.sb_size, 0x2);
+                     cm->seq_params.sb_size, td->xd.sbi->ptree_root, 0x2);
 
     sync_write(&tile_data->dec_row_mt_sync, sb_row_in_tile, sb_col_in_tile,
                sb_cols_in_tile);
@@ -2996,11 +3020,12 @@ static void decode_tile(AV1Decoder *pbi, ThreadData *const td, int tile_row,
          mi_col += cm->seq_params.mib_size) {
       av1_reset_is_mi_coded_map(&td->xd, cm->seq_params.mib_size);
       av1_set_sb_info(cm, &td->xd, mi_row, mi_col);
+      av1_reset_ptree_in_sbi(td->xd.sbi);
       set_cb_buffer(pbi, &td->xd, &td->cb_buffer_base, num_planes, 0, 0);
 
       // Bit-stream parsing and decoding of the superblock
       decode_partition(pbi, td, mi_row, mi_col, td->bit_reader,
-                       cm->seq_params.sb_size, 0x3);
+                       cm->seq_params.sb_size, td->xd.sbi->ptree_root, 0x3);
 
       if (aom_reader_has_overflowed(td->bit_reader)) {
         aom_merge_corrupted_flag(&td->xd.corrupted, 1);
@@ -3435,12 +3460,13 @@ static void parse_tile_row_mt(AV1Decoder *pbi, ThreadData *const td,
          mi_col += cm->seq_params.mib_size) {
       av1_reset_is_mi_coded_map(&td->xd, cm->seq_params.mib_size);
       av1_set_sb_info(cm, &td->xd, mi_row, mi_col);
+      av1_reset_ptree_in_sbi(td->xd.sbi);
       set_cb_buffer(pbi, &td->xd, pbi->cb_buffer_base, num_planes, mi_row,
                     mi_col);
 
       // Bit-stream parsing of the superblock
       decode_partition(pbi, td, mi_row, mi_col, td->bit_reader,
-                       cm->seq_params.sb_size, 0x1);
+                       cm->seq_params.sb_size, td->xd.sbi->ptree_root, 0x1);
 
       if (aom_reader_has_overflowed(td->bit_reader)) {
         aom_merge_corrupted_flag(&td->xd.corrupted, 1);
