@@ -20,6 +20,7 @@ extern "C" {
 typedef uint16_t CONV_BUF_TYPE;
 typedef struct ConvolveParams {
   int do_average;
+  int filter_bits;
   CONV_BUF_TYPE *dst;
   int dst_stride;
   int round_0;
@@ -35,7 +36,7 @@ typedef struct ConvolveParams {
 #define COMPOUND_ROUND1_BITS 7
 #define WIENER_ROUND0_BITS 3
 
-#define WIENER_CLAMP_LIMIT(r0, bd) (1 << ((bd) + 1 + FILTER_BITS - r0))
+#define WIENER_CLAMP_LIMIT(fb, r0, bd) (1 << ((bd) + 1 + (fb) - (r0)))
 
 typedef void (*aom_convolve_fn_t)(const uint8_t *src, int src_stride,
                                   uint8_t *dst, int dst_stride, int w, int h,
@@ -68,6 +69,7 @@ static INLINE ConvolveParams get_conv_params_no_round(int do_average, int plane,
   ConvolveParams conv_params;
   conv_params.do_average = do_average;
   assert(IMPLIES(do_average, is_compound));
+  conv_params.filter_bits = FILTER_BITS;
   conv_params.is_compound = is_compound;
   conv_params.round_0 = ROUND0_BITS;
   conv_params.round_1 = is_compound ? COMPOUND_ROUND1_BITS
@@ -91,14 +93,15 @@ static INLINE ConvolveParams get_conv_params(int do_average, int plane,
   return get_conv_params_no_round(do_average, plane, NULL, 0, 0, bd);
 }
 
-static INLINE ConvolveParams get_conv_params_wiener(int bd) {
+static INLINE ConvolveParams get_conv_params_wiener(int bd, int filter_bits) {
   ConvolveParams conv_params;
   (void)bd;
+  conv_params.filter_bits = filter_bits;
   conv_params.do_average = 0;
   conv_params.is_compound = 0;
   conv_params.round_0 = WIENER_ROUND0_BITS;
-  conv_params.round_1 = 2 * FILTER_BITS - conv_params.round_0;
-  const int intbufrange = bd + FILTER_BITS - conv_params.round_0 + 2;
+  conv_params.round_1 = 2 * filter_bits - conv_params.round_0;
+  const int intbufrange = bd + filter_bits - conv_params.round_0 + 2;
   assert(IMPLIES(bd < 12, intbufrange <= 16));
   if (intbufrange > 16) {
     conv_params.round_0 += intbufrange - 16;
@@ -109,6 +112,29 @@ static INLINE ConvolveParams get_conv_params_wiener(int bd) {
   conv_params.plane = 0;
   return conv_params;
 }
+
+#if CONFIG_WIENER_SEP_HIPREC
+static INLINE ConvolveParams get_conv_params_wiener_hp(int bd,
+                                                       int filter_bits) {
+  ConvolveParams conv_params;
+  (void)bd;
+  conv_params.filter_bits = filter_bits;
+  conv_params.do_average = 0;
+  conv_params.is_compound = 0;
+  conv_params.round_0 = WIENER_ROUND0_BITS + filter_bits - FILTER_BITS;
+  conv_params.round_1 = 2 * filter_bits - conv_params.round_0;
+  const int intbufrange = bd + filter_bits - conv_params.round_0 + 2;
+  assert(IMPLIES(bd < 12, intbufrange <= 16));
+  if (intbufrange > 16) {
+    conv_params.round_0 += intbufrange - 16;
+    conv_params.round_1 -= intbufrange - 16;
+  }
+  conv_params.dst = NULL;
+  conv_params.dst_stride = 0;
+  conv_params.plane = 0;
+  return conv_params;
+}
+#endif  // CONFIG_WIENER_SEP_HIPREC
 
 void av1_highbd_convolve_2d_facade(const uint8_t *src8, int src_stride,
                                    uint8_t *dst, int dst_stride, int w, int h,

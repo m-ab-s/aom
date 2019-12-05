@@ -24,6 +24,7 @@ void av1_wiener_convolve_add_src_sse2(const uint8_t *src, ptrdiff_t src_stride,
                                       const int16_t *filter_y, int y_step_q4,
                                       int w, int h,
                                       const ConvolveParams *conv_params) {
+  const int filter_bits = conv_params->filter_bits;
   const int bd = 8;
   assert(x_step_q4 == 16 && y_step_q4 == 16);
   assert(!(w & 7));
@@ -40,7 +41,7 @@ void av1_wiener_convolve_add_src_sse2(const uint8_t *src, ptrdiff_t src_stride,
 
   const __m128i zero = _mm_setzero_si128();
   // Add an offset to account for the "add_src" part of the convolve function.
-  const __m128i offset = _mm_insert_epi16(zero, 1 << FILTER_BITS, 3);
+  const __m128i offset = _mm_insert_epi16(zero, 1 << filter_bits, 3);
 
   /* Horizontal filter */
   {
@@ -62,7 +63,7 @@ void av1_wiener_convolve_add_src_sse2(const uint8_t *src, ptrdiff_t src_stride,
     const __m128i coeff_67 = _mm_unpackhi_epi64(tmp_1, tmp_1);
 
     const __m128i round_const = _mm_set1_epi32(
-        (1 << (conv_params->round_0 - 1)) + (1 << (bd + FILTER_BITS - 1)));
+        (1 << (conv_params->round_0 - 1)) + (1 << (bd + filter_bits - 1)));
 
     for (i = 0; i < intermediate_height; ++i) {
       for (j = 0; j < w; j += 8) {
@@ -103,7 +104,8 @@ void av1_wiener_convolve_add_src_sse2(const uint8_t *src, ptrdiff_t src_stride,
         __m128i res = _mm_packs_epi32(res_even, res_odd);
         res = _mm_min_epi16(
             _mm_max_epi16(res, zero),
-            _mm_set1_epi16(WIENER_CLAMP_LIMIT(conv_params->round_0, bd) - 1));
+            _mm_set1_epi16(
+                WIENER_CLAMP_LIMIT(filter_bits, conv_params->round_0, bd) - 1));
         _mm_storeu_si128((__m128i *)&temp[i * MAX_SB_SIZE + j], res);
       }
     }

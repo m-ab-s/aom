@@ -1171,7 +1171,7 @@ static void convolve_add_src_horiz_hip(const uint8_t *src, ptrdiff_t src_stride,
                                        uint16_t *dst, ptrdiff_t dst_stride,
                                        const InterpKernel *x_filters, int x0_q4,
                                        int x_step_q4, int w, int h,
-                                       int round0_bits) {
+                                       int filter_bits, int round0_bits) {
   const int bd = 8;
   src -= SUBPEL_TAPS / 2 - 1;
   for (int y = 0; y < h; ++y) {
@@ -1179,11 +1179,12 @@ static void convolve_add_src_horiz_hip(const uint8_t *src, ptrdiff_t src_stride,
     for (int x = 0; x < w; ++x) {
       const uint8_t *const src_x = &src[x_q4 >> SUBPEL_BITS];
       const int16_t *const x_filter = x_filters[x_q4 & SUBPEL_MASK];
-      const int rounding = ((int)src_x[SUBPEL_TAPS / 2 - 1] << FILTER_BITS) +
-                           (1 << (bd + FILTER_BITS - 1));
+      const int rounding = ((int)src_x[SUBPEL_TAPS / 2 - 1] << filter_bits) +
+                           (1 << (bd + filter_bits - 1));
       const int sum = horz_scalar_product(src_x, x_filter) + rounding;
-      dst[x] = (uint16_t)clamp(ROUND_POWER_OF_TWO(sum, round0_bits), 0,
-                               WIENER_CLAMP_LIMIT(round0_bits, bd) - 1);
+      dst[x] =
+          (uint16_t)clamp(ROUND_POWER_OF_TWO(sum, round0_bits), 0,
+                          WIENER_CLAMP_LIMIT(filter_bits, round0_bits, bd) - 1);
       x_q4 += x_step_q4;
     }
     src += src_stride;
@@ -1195,7 +1196,7 @@ static void convolve_add_src_vert_hip(const uint16_t *src, ptrdiff_t src_stride,
                                       uint8_t *dst, ptrdiff_t dst_stride,
                                       const InterpKernel *y_filters, int y0_q4,
                                       int y_step_q4, int w, int h,
-                                      int round1_bits) {
+                                      int filter_bits, int round1_bits) {
   const int bd = 8;
   src -= src_stride * (SUBPEL_TAPS / 2 - 1);
 
@@ -1205,7 +1206,7 @@ static void convolve_add_src_vert_hip(const uint16_t *src, ptrdiff_t src_stride,
       const uint16_t *src_y = &src[(y_q4 >> SUBPEL_BITS) * src_stride];
       const int16_t *const y_filter = y_filters[y_q4 & SUBPEL_MASK];
       const int rounding =
-          ((int)src_y[(SUBPEL_TAPS / 2 - 1) * src_stride] << FILTER_BITS) -
+          ((int)src_y[(SUBPEL_TAPS / 2 - 1) * src_stride] << filter_bits) -
           (1 << (bd + round1_bits - 1));
       const int sum =
           highbd_vert_scalar_product(src_y, src_stride, y_filter) + rounding;
@@ -1242,17 +1243,19 @@ void av1_wiener_convolve_add_src_c(const uint8_t *src, ptrdiff_t src_stride,
   convolve_add_src_horiz_hip(src - src_stride * (SUBPEL_TAPS / 2 - 1),
                              src_stride, temp, MAX_SB_SIZE, filters_x, x0_q4,
                              x_step_q4, w, intermediate_height,
-                             conv_params->round_0);
+                             conv_params->filter_bits, conv_params->round_0);
   convolve_add_src_vert_hip(temp + MAX_SB_SIZE * (SUBPEL_TAPS / 2 - 1),
                             MAX_SB_SIZE, dst, dst_stride, filters_y, y0_q4,
-                            y_step_q4, w, h, conv_params->round_1);
+                            y_step_q4, w, h, conv_params->filter_bits,
+                            conv_params->round_1);
 }
 
 static void highbd_convolve_add_src_horiz_hip(
     const uint8_t *src8, ptrdiff_t src_stride, uint16_t *dst,
     ptrdiff_t dst_stride, const InterpKernel *x_filters, int x0_q4,
-    int x_step_q4, int w, int h, int round0_bits, int bd) {
-  const int extraprec_clamp_limit = WIENER_CLAMP_LIMIT(round0_bits, bd);
+    int x_step_q4, int w, int h, int filter_bits, int round0_bits, int bd) {
+  const int extraprec_clamp_limit =
+      WIENER_CLAMP_LIMIT(filter_bits, round0_bits, bd);
   uint16_t *src = CONVERT_TO_SHORTPTR(src8);
   src -= SUBPEL_TAPS / 2 - 1;
   for (int y = 0; y < h; ++y) {
@@ -1260,8 +1263,8 @@ static void highbd_convolve_add_src_horiz_hip(
     for (int x = 0; x < w; ++x) {
       const uint16_t *const src_x = &src[x_q4 >> SUBPEL_BITS];
       const int16_t *const x_filter = x_filters[x_q4 & SUBPEL_MASK];
-      const int rounding = ((int)src_x[SUBPEL_TAPS / 2 - 1] << FILTER_BITS) +
-                           (1 << (bd + FILTER_BITS - 1));
+      const int rounding = ((int)src_x[SUBPEL_TAPS / 2 - 1] << filter_bits) +
+                           (1 << (bd + filter_bits - 1));
       const int sum = highbd_horz_scalar_product(src_x, x_filter) + rounding;
       dst[x] = (uint16_t)clamp(ROUND_POWER_OF_TWO(sum, round0_bits), 0,
                                extraprec_clamp_limit - 1);
@@ -1275,7 +1278,7 @@ static void highbd_convolve_add_src_horiz_hip(
 static void highbd_convolve_add_src_vert_hip(
     const uint16_t *src, ptrdiff_t src_stride, uint8_t *dst8,
     ptrdiff_t dst_stride, const InterpKernel *y_filters, int y0_q4,
-    int y_step_q4, int w, int h, int round1_bits, int bd) {
+    int y_step_q4, int w, int h, int filter_bits, int round1_bits, int bd) {
   uint16_t *dst = CONVERT_TO_SHORTPTR(dst8);
   src -= src_stride * (SUBPEL_TAPS / 2 - 1);
   for (int x = 0; x < w; ++x) {
@@ -1284,7 +1287,7 @@ static void highbd_convolve_add_src_vert_hip(
       const uint16_t *src_y = &src[(y_q4 >> SUBPEL_BITS) * src_stride];
       const int16_t *const y_filter = y_filters[y_q4 & SUBPEL_MASK];
       const int rounding =
-          ((int)src_y[(SUBPEL_TAPS / 2 - 1) * src_stride] << FILTER_BITS) -
+          ((int)src_y[(SUBPEL_TAPS / 2 - 1) * src_stride] << filter_bits) -
           (1 << (bd + round1_bits - 1));
       const int sum =
           highbd_vert_scalar_product(src_y, src_stride, y_filter) + rounding;
@@ -1318,11 +1321,36 @@ void av1_highbd_wiener_convolve_add_src_c(
   assert(x_step_q4 <= 32);
   assert(bd + FILTER_BITS - conv_params->round_0 + 2 <= 16);
 
-  highbd_convolve_add_src_horiz_hip(src - src_stride * (SUBPEL_TAPS / 2 - 1),
-                                    src_stride, temp, MAX_SB_SIZE, filters_x,
-                                    x0_q4, x_step_q4, w, intermediate_height,
-                                    conv_params->round_0, bd);
+  highbd_convolve_add_src_horiz_hip(
+      src - src_stride * (SUBPEL_TAPS / 2 - 1), src_stride, temp, MAX_SB_SIZE,
+      filters_x, x0_q4, x_step_q4, w, intermediate_height,
+      conv_params->filter_bits, conv_params->round_0, bd);
   highbd_convolve_add_src_vert_hip(
       temp + MAX_SB_SIZE * (SUBPEL_TAPS / 2 - 1), MAX_SB_SIZE, dst, dst_stride,
-      filters_y, y0_q4, y_step_q4, w, h, conv_params->round_1, bd);
+      filters_y, y0_q4, y_step_q4, w, h, conv_params->filter_bits,
+      conv_params->round_1, bd);
 }
+
+#if CONFIG_WIENER_SEP_HIPREC
+void av1_wiener_hp_convolve_add_src_c(const uint8_t *src, ptrdiff_t src_stride,
+                                      uint8_t *dst, ptrdiff_t dst_stride,
+                                      const int16_t *filter_x, int x_step_q4,
+                                      const int16_t *filter_y, int y_step_q4,
+                                      int w, int h,
+                                      const ConvolveParams *conv_params) {
+  assert(conv_params->filter_bits > FILTER_BITS);
+  av1_wiener_convolve_add_src_c(src, src_stride, dst, dst_stride, filter_x,
+                                x_step_q4, filter_y, y_step_q4, w, h,
+                                conv_params);
+}
+
+void av1_highbd_wiener_hp_convolve_add_src_c(
+    const uint8_t *src, ptrdiff_t src_stride, uint8_t *dst,
+    ptrdiff_t dst_stride, const int16_t *filter_x, int x_step_q4,
+    const int16_t *filter_y, int y_step_q4, int w, int h,
+    const ConvolveParams *conv_params, int bd) {
+  av1_highbd_wiener_convolve_add_src_c(src, src_stride, dst, dst_stride,
+                                       filter_x, x_step_q4, filter_y, y_step_q4,
+                                       w, h, conv_params, bd);
+}
+#endif  // CONFIG_WIENER_SEP_HIPREC

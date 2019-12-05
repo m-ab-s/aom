@@ -92,7 +92,8 @@ void AV1HiprecConvolveTest::RunCheckOutput(hiprec_convolve_func test_impl) {
   const int out_w = GET_PARAM(0), out_h = GET_PARAM(1);
   const int num_iters = GET_PARAM(2);
   int i, j, k, m;
-  const ConvolveParams conv_params = get_conv_params_wiener(8);
+  const ConvolveParams conv_params =
+      get_conv_params_wiener(8, WIENER_FILT_PREC_BITS);
 
   uint8_t *input_ = new uint8_t[h * w];
   uint8_t *input = input_;
@@ -138,7 +139,8 @@ void AV1HiprecConvolveTest::RunSpeedTest(hiprec_convolve_func test_impl) {
   const int out_w = GET_PARAM(0), out_h = GET_PARAM(1);
   const int num_iters = GET_PARAM(2) / 500;
   int i, j, k;
-  const ConvolveParams conv_params = get_conv_params_wiener(8);
+  const ConvolveParams conv_params =
+      get_conv_params_wiener(8, WIENER_FILT_PREC_BITS);
 
   uint8_t *input_ = new uint8_t[h * w];
   uint8_t *input = input_;
@@ -230,7 +232,8 @@ void AV1HighbdHiprecConvolveTest::RunCheckOutput(
   const int num_iters = GET_PARAM(2);
   const int bd = GET_PARAM(3);
   int i, j;
-  const ConvolveParams conv_params = get_conv_params_wiener(bd);
+  const ConvolveParams conv_params =
+      get_conv_params_wiener(bd, WIENER_FILT_PREC_BITS);
 
   uint16_t *input = new uint16_t[h * w];
 
@@ -281,7 +284,8 @@ void AV1HighbdHiprecConvolveTest::RunSpeedTest(
   const int num_iters = GET_PARAM(2) / 500;
   const int bd = GET_PARAM(3);
   int i, j, k;
-  const ConvolveParams conv_params = get_conv_params_wiener(bd);
+  const ConvolveParams conv_params =
+      get_conv_params_wiener(bd, WIENER_FILT_PREC_BITS);
 
   uint16_t *input = new uint16_t[h * w];
 

@@ -30,9 +30,10 @@ void av1_highbd_wiener_convolve_add_src_avx2(
     ptrdiff_t dst_stride, const int16_t *filter_x, int x_step_q4,
     const int16_t *filter_y, int y_step_q4, int w, int h,
     const ConvolveParams *conv_params, int bd) {
+  const int filter_bits = conv_params->filter_bits;
   assert(x_step_q4 == 16 && y_step_q4 == 16);
   assert(!(w & 7));
-  assert(bd + FILTER_BITS - conv_params->round_0 + 2 <= 16);
+  assert(bd + filter_bits - conv_params->round_0 + 2 <= 16);
   (void)x_step_q4;
   (void)y_step_q4;
 
@@ -49,14 +50,14 @@ void av1_highbd_wiener_convolve_add_src_avx2(
   const __m256i zero_256 = _mm256_setzero_si256();
 
   // Add an offset to account for the "add_src" part of the convolve function.
-  const __m128i offset = _mm_insert_epi16(zero_128, 1 << FILTER_BITS, 3);
+  const __m128i offset = _mm_insert_epi16(zero_128, 1 << filter_bits, 3);
 
   const __m256i clamp_low = zero_256;
 
   /* Horizontal filter */
   {
-    const __m256i clamp_high_ep =
-        _mm256_set1_epi16(WIENER_CLAMP_LIMIT(conv_params->round_0, bd) - 1);
+    const __m256i clamp_high_ep = _mm256_set1_epi16(
+        WIENER_CLAMP_LIMIT(filter_bits, conv_params->round_0, bd) - 1);
 
     // coeffs [ f7 f6 f5 f4 f3 f2 f1 f0 ]
     const __m128i coeffs_x = _mm_add_epi16(xx_loadu_128(filter_x), offset);
@@ -85,7 +86,7 @@ void av1_highbd_wiener_convolve_add_src_avx2(
     const __m256i coeffs_67 = yy_set_m128i(coeffs_67_128, coeffs_67_128);
 
     const __m256i round_const = _mm256_set1_epi32(
-        (1 << (conv_params->round_0 - 1)) + (1 << (bd + FILTER_BITS - 1)));
+        (1 << (conv_params->round_0 - 1)) + (1 << (bd + filter_bits - 1)));
 
     for (int i = 0; i < intermediate_height; ++i) {
       for (int j = 0; j < w; j += 16) {

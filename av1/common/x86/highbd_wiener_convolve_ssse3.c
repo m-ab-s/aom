@@ -23,9 +23,10 @@ void av1_highbd_wiener_convolve_add_src_ssse3(
     ptrdiff_t dst_stride, const int16_t *filter_x, int x_step_q4,
     const int16_t *filter_y, int y_step_q4, int w, int h,
     const ConvolveParams *conv_params, int bd) {
+  const int filter_bits = conv_params->filter_bits;
   assert(x_step_q4 == 16 && y_step_q4 == 16);
   assert(!(w & 7));
-  assert(bd + FILTER_BITS - conv_params->round_0 + 2 <= 16);
+  assert(bd + filter_bits - conv_params->round_0 + 2 <= 16);
   (void)x_step_q4;
   (void)y_step_q4;
 
@@ -41,7 +42,7 @@ void av1_highbd_wiener_convolve_add_src_ssse3(
 
   const __m128i zero = _mm_setzero_si128();
   // Add an offset to account for the "add_src" part of the convolve function.
-  const __m128i offset = _mm_insert_epi16(zero, 1 << FILTER_BITS, 3);
+  const __m128i offset = _mm_insert_epi16(zero, 1 << filter_bits, 3);
 
   /* Horizontal filter */
   {
@@ -63,7 +64,7 @@ void av1_highbd_wiener_convolve_add_src_ssse3(
     const __m128i coeff_67 = _mm_unpackhi_epi64(tmp_1, tmp_1);
 
     const __m128i round_const = _mm_set1_epi32(
-        (1 << (conv_params->round_0 - 1)) + (1 << (bd + FILTER_BITS - 1)));
+        (1 << (conv_params->round_0 - 1)) + (1 << (bd + filter_bits - 1)));
 
     for (i = 0; i < intermediate_height; ++i) {
       for (j = 0; j < w; j += 8) {
@@ -103,7 +104,9 @@ void av1_highbd_wiener_convolve_add_src_ssse3(
 
         // Pack in the column order 0, 2, 4, 6, 1, 3, 5, 7
         const __m128i maxval =
-            _mm_set1_epi16((WIENER_CLAMP_LIMIT(conv_params->round_0, bd)) - 1);
+            _mm_set1_epi16((WIENER_CLAMP_LIMIT(conv_params->filter_bits,
+                                               conv_params->round_0, bd)) -
+                           1);
         __m128i res = _mm_packs_epi32(res_even, res_odd);
         res = _mm_min_epi16(_mm_max_epi16(res, zero), maxval);
         _mm_storeu_si128((__m128i *)&temp[i * MAX_SB_SIZE + j], res);

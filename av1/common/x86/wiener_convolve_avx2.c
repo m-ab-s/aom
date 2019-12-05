@@ -46,6 +46,7 @@ void av1_wiener_convolve_add_src_avx2(const uint8_t *src, ptrdiff_t src_stride,
                                       const int16_t *filter_y, int y_step_q4,
                                       int w, int h,
                                       const ConvolveParams *conv_params) {
+  const int filter_bits = conv_params->filter_bits;
   const int bd = 8;
   assert(x_step_q4 == 16 && y_step_q4 == 16);
   assert(!(w & 7));
@@ -90,15 +91,15 @@ void av1_wiener_convolve_add_src_avx2(const uint8_t *src, ptrdiff_t src_stride,
   const __m256i round_const_h =
       _mm256_set1_epi16((1 << (conv_params->round_0 - 1)));
   const __m256i round_const_horz =
-      _mm256_set1_epi16((1 << (bd + FILTER_BITS - conv_params->round_0 - 1)));
+      _mm256_set1_epi16((1 << (bd + filter_bits - conv_params->round_0 - 1)));
   const __m256i clamp_low = _mm256_setzero_si256();
-  const __m256i clamp_high =
-      _mm256_set1_epi16(WIENER_CLAMP_LIMIT(conv_params->round_0, bd) - 1);
+  const __m256i clamp_high = _mm256_set1_epi16(
+      WIENER_CLAMP_LIMIT(filter_bits, conv_params->round_0, bd) - 1);
   const __m128i round_shift_h = _mm_cvtsi32_si128(conv_params->round_0);
 
   // Add an offset to account for the "add_src" part of the convolve function.
   const __m128i zero_128 = _mm_setzero_si128();
-  const __m128i offset_0 = _mm_insert_epi16(zero_128, 1 << FILTER_BITS, 3);
+  const __m128i offset_0 = _mm_insert_epi16(zero_128, 1 << filter_bits, 3);
   const __m128i coeffs_y = _mm_add_epi16(xx_loadu_128(filter_y), offset_0);
 
   const __m256i filter_coeffs_y = _mm256_broadcastsi128_si256(coeffs_y);
@@ -137,9 +138,9 @@ void av1_wiener_convolve_add_src_avx2(const uint8_t *src, ptrdiff_t src_stride,
 
       __m256i data_0 = _mm256_shuffle_epi8(data, filt_center);
 
-      // multiply the center pixel by 2^(FILTER_BITS - round_0) and add it to
+      // multiply the center pixel by 2^(filter_bits - round_0) and add it to
       // the result
-      data_0 = _mm256_slli_epi16(data_0, FILTER_BITS - conv_params->round_0);
+      data_0 = _mm256_slli_epi16(data_0, filter_bits - conv_params->round_0);
       res = _mm256_add_epi16(res, data_0);
       res = _mm256_add_epi16(res, round_const_horz);
       const __m256i res_clamped =

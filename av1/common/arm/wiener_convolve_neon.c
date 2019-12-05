@@ -32,6 +32,7 @@ void av1_wiener_convolve_add_src_neon(const uint8_t *src, ptrdiff_t src_stride,
                                       const int16_t *filter_y, int y_step_q4,
                                       int w, int h,
                                       const ConvolveParams *conv_params) {
+  const int filter_bits = conv_params->filter_bits;
   uint16_t *d_tmp;
   uint8_t *d;
   const uint8_t *src_ptr, *s_tmp;
@@ -58,16 +59,16 @@ void av1_wiener_convolve_add_src_neon(const uint8_t *src, ptrdiff_t src_stride,
   assert(filter_y[7] == 0);
 
   /* assumption of horizontal filtering output will not exceed 15 bit.
-     ((bd) + 1 + FILTER_BITS - conv_params->round_0) <= 15
+     ((bd) + 1 + filter_bits - conv_params->round_0) <= 15
      16 - conv_params->round_0 <= 15 -- (conv_params->round_0) >= 1
    */
   assert((conv_params->round_0) >= 1);
 
-  memcpy(&filter_x_tmp[0], filter_x, sizeof(*filter_x) * FILTER_BITS);
-  memcpy(&filter_y_tmp[0], filter_y, sizeof(*filter_y) * FILTER_BITS);
+  memcpy(&filter_x_tmp[0], filter_x, sizeof(*filter_x) * filter_bits);
+  memcpy(&filter_y_tmp[0], filter_y, sizeof(*filter_y) * filter_bits);
 
-  filter_x_tmp[3] += (1 << FILTER_BITS);
-  filter_y_tmp[3] += (1 << FILTER_BITS);
+  filter_x_tmp[3] += (1 << filter_bits);
+  filter_y_tmp[3] += (1 << filter_bits);
 
   s_tmp = src - center_tap * src_stride - center_tap;
   dst_ptr = temp;
