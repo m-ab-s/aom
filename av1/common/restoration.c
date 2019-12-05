@@ -30,7 +30,9 @@
 #include "aom_ports/mem.h"
 
 #if CONFIG_WIENER_NONSEP
-#if CONFIG_WIENER_NONSEP_CROSS_FILT
+#define WIENERNS_PREC_BITS_MINUS8 (WIENERNS_PREC_BITS - 8)
+#define AOM_WIENERNS_COEFF(b, m, k) \
+  { (b) + WIENERNS_PREC_BITS_MINUS8, (m) * (1 << WIENERNS_PREC_BITS_MINUS8), k }
 const int wienerns_config[WIENERNS_YUV_PIXEL][3] = {
   { 1, 0, 0 },  { -1, 0, 0 },   { 0, 1, 1 },   { 0, -1, 1 },  { 2, 0, 2 },
   { -2, 0, 2 }, { 0, 2, 3 },    { 0, -2, 3 },  { 1, 1, 4 },   { -1, -1, 4 },
@@ -40,82 +42,30 @@ const int wienerns_config[WIENERNS_YUV_PIXEL][3] = {
 
   { 1, 0, 0 },  { -1, 0, 0 },   { 0, 1, 1 },   { 0, -1, 1 },  { 2, 0, 2 },
   { -2, 0, 2 }, { 0, 2, 3 },    { 0, -2, 3 },  { 1, 1, 4 },   { -1, -1, 4 },
-  { -1, 1, 4 }, { 1, -1, 4 },   { 2, 2, 5 },   { -2, -2, 5 }, { -2, 2, 5 },
-  { 2, -2, 5 },
+  { -1, 1, 5 }, { 1, -1, 5 },
 
+#if CONFIG_WIENER_NONSEP_CROSS_FILT
   { 1, 0, 6 },  { -1, 0, 6 },   { 0, 1, 6 },   { 0, -1, 6 },  { 2, 0, 7 },
   { -2, 0, 7 }, { 0, 2, 7 },    { 0, -2, 7 },
-};
-
-const int wienerns_coeff[WIENERNS_YUV][3] = {
-#if WIENERNS_PREC_BITS == 9
-  { 8, -96, 4 }, { 8, -96, 4 }, { 7, -64, 3 }, { 7, -64, 3 },
-  { 7, -96, 3 }, { 7, -96, 3 }, { 6, -24, 3 }, { 6, -24, 3 },
-  { 6, -28, 3 }, { 6, -28, 3 }, { 5, -16, 3 }, { 5, -16, 3 },
-
-  { 8, -96, 4 }, { 8, -96, 4 }, { 7, -64, 3 }, { 7, -64, 3 },
-  { 6, -28, 3 }, { 6, -28, 3 },
-
-  { 5, -12, 3 }, { 5, -12, 3 },
-#elif WIENERNS_PREC_BITS == 8
-  { 7, -48, 4 }, { 7, -48, 4 }, { 6, -32, 3 }, { 6, -32, 3 },
-  { 6, -48, 3 }, { 6, -48, 3 }, { 5, -12, 3 }, { 5, -12, 3 },
-  { 5, -14, 3 }, { 5, -14, 3 }, { 4, -8, 3 },  { 4, -8, 3 },
-
-  { 7, -48, 4 }, { 7, -48, 4 }, { 6, -32, 3 }, { 6, -32, 3 },
-  { 5, -14, 3 }, { 5, -14, 3 },
-
-  { 5, -12, 3 }, { 5, -12, 3 },
-#elif WIENERNS_PREC_BITS == 7
-  { 6, -24, 4 }, { 6, -24, 4 }, { 5, -16, 3 }, { 5, -16, 3 },
-  { 5, -24, 3 }, { 5, -24, 3 }, { 4, -6, 3 },  { 4, -6, 3 },
-  { 4, -7, 3 },  { 4, -7, 3 },  { 3, -4, 3 },  { 3, -4, 3 },
-
-  { 6, -24, 4 }, { 6, -24, 4 }, { 5, -16, 3 }, { 5, -16, 3 },
-  { 4, -7, 3 },  { 4, -7, 3 },
-
-  { 4, -6, 3 },  { 4, -6, 3 },
-#endif  // WIENERNS_PREC_BITS
-};
-#else
-const int wienerns_config[WIENERNS_YUV_PIXEL][3] = {
-  { 1, 0, 0 },  { -1, 0, 0 },   { 0, 1, 1 },   { 0, -1, 1 },  { 2, 0, 2 },
-  { -2, 0, 2 }, { 0, 2, 3 },    { 0, -2, 3 },  { 1, 1, 4 },   { -1, -1, 4 },
-  { -1, 1, 5 }, { 1, -1, 5 },   { 2, 2, 6 },   { -2, -2, 6 }, { -2, 2, 7 },
-  { 2, -2, 7 }, { 3, 0, 8 },    { -3, 0, 8 },  { 0, 3, 9 },   { 0, -3, 9 },
-  { 3, 3, 10 }, { -3, -3, 10 }, { 3, -3, 11 }, { -3, 3, 11 },
-
-  { 1, 0, 0 },  { -1, 0, 0 },   { 0, 1, 1 },   { 0, -1, 1 },  { 2, 0, 2 },
-  { -2, 0, 2 }, { 0, 2, 3 },    { 0, -2, 3 },  { 1, 1, 4 },   { -1, -1, 4 },
-  { -1, 1, 4 }, { 1, -1, 4 },   { 2, 2, 5 },   { -2, -2, 5 }, { -2, 2, 5 },
-  { 2, -2, 5 },
-};
-
-const int wienerns_coeff[WIENERNS_YUV][3] = {
-#if WIENERNS_PREC_BITS == 9
-  { 8, -96, 4 }, { 8, -96, 4 }, { 7, -64, 3 }, { 7, -64, 3 },
-  { 7, -96, 3 }, { 7, -96, 3 }, { 6, -24, 3 }, { 6, -24, 3 },
-  { 6, -28, 3 }, { 6, -28, 3 }, { 5, -16, 3 }, { 5, -16, 3 },
-
-  { 8, -96, 4 }, { 8, -96, 4 }, { 7, -64, 3 }, { 7, -64, 3 },
-  { 6, -28, 3 }, { 6, -28, 3 },
-#elif WIENERNS_PREC_BITS == 8
-  { 7, -48, 4 }, { 7, -48, 4 }, { 6, -32, 3 }, { 6, -32, 3 },
-  { 6, -48, 3 }, { 6, -48, 3 }, { 5, -12, 3 }, { 5, -12, 3 },
-  { 5, -14, 3 }, { 5, -14, 3 }, { 4, -8, 3 },  { 4, -8, 3 },
-
-  { 7, -48, 4 }, { 7, -48, 4 }, { 6, -32, 3 }, { 6, -32, 3 },
-  { 5, -14, 3 }, { 5, -14, 3 },
-#elif WIENERNS_PREC_BITS == 7
-  { 6, -24, 4 }, { 6, -24, 4 }, { 5, -16, 3 }, { 5, -16, 3 },
-  { 5, -24, 3 }, { 5, -24, 3 }, { 4, -6, 3 },  { 4, -6, 3 },
-  { 4, -7, 3 },  { 4, -7, 3 },  { 3, -4, 3 },  { 3, -4, 3 },
-
-  { 6, -24, 4 }, { 6, -24, 4 }, { 5, -16, 3 }, { 5, -16, 3 },
-  { 4, -7, 3 },  { 4, -7, 3 },
-#endif  // WIENERNS_PREC_BITS
-};
 #endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
+};
+
+const int wienerns_coeff[WIENERNS_YUV][3] = {
+  AOM_WIENERNS_COEFF(7, -48, 3), AOM_WIENERNS_COEFF(7, -48, 3),
+  AOM_WIENERNS_COEFF(6, -32, 3), AOM_WIENERNS_COEFF(6, -32, 3),
+  AOM_WIENERNS_COEFF(6, -48, 3), AOM_WIENERNS_COEFF(6, -48, 3),
+  AOM_WIENERNS_COEFF(5, -12, 3), AOM_WIENERNS_COEFF(5, -12, 3),
+  AOM_WIENERNS_COEFF(5, -14, 3), AOM_WIENERNS_COEFF(5, -14, 3),
+  AOM_WIENERNS_COEFF(4, -8, 3),  AOM_WIENERNS_COEFF(4, -8, 3),
+
+  AOM_WIENERNS_COEFF(7, -28, 3), AOM_WIENERNS_COEFF(7, -28, 3),
+  AOM_WIENERNS_COEFF(6, -40, 3), AOM_WIENERNS_COEFF(6, -40, 3),
+  AOM_WIENERNS_COEFF(7, -64, 3), AOM_WIENERNS_COEFF(7, -64, 3),
+
+#if CONFIG_WIENER_NONSEP_CROSS_FILT
+  AOM_WIENERNS_COEFF(6, -24, 3), AOM_WIENERNS_COEFF(6, -24, 3),
+#endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
+};
 #endif  // CONFIG_WIENER_NONSEP
 
 // The 's' values are calculated based on original 'r' and 'e' values in the

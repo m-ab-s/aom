@@ -170,14 +170,14 @@ extern "C" {
 #define WIENERNS_UV_BRD 2  // Max offset for luma used for chorma
 #define WIENERNS_UV 8      // Number of chroma coefficients in all
 #define WIENERNS_UV_INTER_PIXEL \
-  16  // Number of pixels used for filtering from chroma only
+  12  // Number of pixels used for filtering from chroma only
 #define WIENERNS_UV_PIXEL \
-  24  // Number of pixels used for filtering from chroma and luma
+  20  // Number of pixels used for filtering from chroma and luma
 #else
 #define WIENERNS_UV_BRD 0  // Max offset for luma used for chorma
 #define WIENERNS_UV 6      // Number of chroma coefficients in all
 #define WIENERNS_UV_INTER_PIXEL \
-  16  // Number of pixels used for filtering from chroma only
+  12  // Number of pixels used for filtering from chroma only
 #define WIENERNS_UV_PIXEL (WIENERNS_UV_INTER_PIXEL)
 #endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
 
