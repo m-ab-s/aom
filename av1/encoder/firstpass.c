@@ -220,65 +220,31 @@ static void first_pass_motion_search(AV1_COMP *cpi, MACROBLOCK *x,
                                      const MV *ref_mv, MV *best_mv,
                                      int *best_motion_err) {
   MACROBLOCKD *const xd = &x->e_mbd;
-  MV tmp_mv = kZeroMv;
   MV ref_mv_full = { ref_mv->row >> 3, ref_mv->col >> 3 };
-  int num00, tmp_err, n;
+  int tmp_err;
   const BLOCK_SIZE bsize = xd->mi[0]->sb_type;
   aom_variance_fn_ptr_t v_fn_ptr = cpi->fn_ptr[bsize];
   const int new_mv_mode_penalty = NEW_MV_MODE_PENALTY;
-
-  int step_param = 3;
-  int further_steps = (MAX_MVSEARCH_STEPS - 1) - step_param;
   const int sr = get_search_range(cpi);
-  step_param += sr;
-  further_steps -= sr;
+  int step_param = 3 + sr;
+  int cost_list[5];
   xd->mi[0]->max_mv_precision = cpi->common.mv_precision;
   xd->mi[0]->mv_precision = xd->mi[0]->max_mv_precision;
 
-  // Override the default variance function to use MSE.
-  v_fn_ptr.vf = get_block_variance_fn(bsize);
-  if (is_cur_buf_hbd(xd)) {
-    v_fn_ptr.vf = highbd_get_block_variance_fn(bsize, xd->bd);
-  }
+  tmp_err = av1_full_pixel_search(
+      cpi, x, bsize, &ref_mv_full, step_param, 0, NSTEP, 0, x->sadperbit16,
+      cond_cost_list(cpi, cost_list), ref_mv, INT_MAX, 0,
+      (MI_SIZE * xd->mi_col), (MI_SIZE * xd->mi_row), 0,
+      &cpi->ss_cfg[SS_CFG_SRC]);
 
-  // Center the initial step/diamond search on best mv.
-  tmp_err = cpi->diamond_search_sad(&cpi->common, x, &cpi->ss_cfg[SS_CFG_SRC],
-                                    &ref_mv_full, &tmp_mv, step_param,
-                                    x->sadperbit16, &num00, &v_fn_ptr, ref_mv);
   if (tmp_err < INT_MAX)
-    tmp_err =
-        av1_get_mvpred_var(&cpi->common, x, &tmp_mv, ref_mv, &v_fn_ptr, 1);
-  if (tmp_err < INT_MAX - new_mv_mode_penalty) tmp_err += new_mv_mode_penalty;
+    tmp_err = av1_get_mvpred_var(&cpi->common, x, &x->best_mv.as_mv, ref_mv,
+                                 &v_fn_ptr, 0) +
+              new_mv_mode_penalty;
 
   if (tmp_err < *best_motion_err) {
     *best_motion_err = tmp_err;
-    *best_mv = tmp_mv;
-  }
-
-  // Carry out further step/diamond searches as necessary.
-  n = num00;
-  num00 = 0;
-
-  while (n < further_steps) {
-    ++n;
-
-    if (num00) {
-      --num00;
-    } else {
-      tmp_err = cpi->diamond_search_sad(
-          &cpi->common, x, &cpi->ss_cfg[SS_CFG_SRC], &ref_mv_full, &tmp_mv,
-          step_param + n, x->sadperbit16, &num00, &v_fn_ptr, ref_mv);
-      if (tmp_err < INT_MAX)
-        tmp_err =
-            av1_get_mvpred_var(&cpi->common, x, &tmp_mv, ref_mv, &v_fn_ptr, 1);
-      if (tmp_err < INT_MAX - new_mv_mode_penalty)
-        tmp_err += new_mv_mode_penalty;
-
-      if (tmp_err < *best_motion_err) {
-        *best_motion_err = tmp_err;
-        *best_mv = tmp_mv;
-      }
-    }
+    *best_mv = x->best_mv.as_mv;
   }
 }
 

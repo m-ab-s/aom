@@ -82,7 +82,7 @@ int av1_mv_bit_cost_gen2(
 // Utility to compute variance + MV rate cost for a given MV
 int av1_get_mvpred_var(const struct AV1Common *cm, const MACROBLOCK *x,
                        const MV *best_mv, const MV *center_mv,
-                       const aom_variance_fn_ptr_t *vfp, int use_mvcost);
+                       const aom_variance_fn_ptr_t *vfp, int use_var);
 int av1_get_mvpred_av_var(const struct AV1Common *cm, const MACROBLOCK *x,
                           const MV *best_mv, const MV *center_mv,
                           const uint8_t *second_pred,
@@ -156,9 +156,9 @@ int av1_refining_search_8p_c(const AV1_COMMON *const cm, MACROBLOCK *x,
 
 int av1_full_pixel_search(const struct AV1_COMP *cpi, MACROBLOCK *x,
                           BLOCK_SIZE bsize, MV *mvp_full, int step_param,
-                          int method, int run_mesh_search, int error_per_bit,
-                          int *cost_list, const MV *ref_mv, int var_max, int rd,
-                          int x_pos, int y_pos, int intra,
+                          int use_var, int method, int run_mesh_search,
+                          int error_per_bit, int *cost_list, const MV *ref_mv,
+                          int var_max, int rd, int x_pos, int y_pos, int intra,
                           const search_site_config *cfg);
 
 int av1_full_pixel_search_var(const struct AV1_COMP *cpi, MACROBLOCK *x,
