@@ -1401,6 +1401,14 @@ static INLINE int av1_get_max_eob(TX_SIZE tx_size) {
   if (tx_size == TX_16X64 || tx_size == TX_64X16) {
     return 512;
   }
+#if CONFIG_FLEX_PARTITION
+  if (tx_size == TX_8X64 || tx_size == TX_64X8) {
+    return 256;
+  }
+  if (tx_size == TX_4X64 || tx_size == TX_64X4) {
+    return 128;
+  }
+#endif  // CONFIG_FLEX_PARTITION
   return tx_size_2d[tx_size];
 }
 
