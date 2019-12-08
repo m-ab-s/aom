@@ -684,7 +684,14 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCKD *xd,
     }
   }
 
-  av1_get_nz_map_contexts(levels, scan, eob, tx_size, tx_class, coeff_contexts);
+#if CONFIG_FLEX_PARTITION
+  if (tx_size == TX_32X4 || tx_size == TX_64X8 || tx_size == TX_64X4)
+    av1_get_nz_map_contexts_c(levels, scan, eob, tx_size, tx_class,
+                              coeff_contexts);
+  else
+#endif  // CONFIG_FLEX_PARTITION
+    av1_get_nz_map_contexts(levels, scan, eob, tx_size, tx_class,
+                            coeff_contexts);
 
   for (c = eob - 1; c >= 0; --c) {
     const int pos = scan[c];
@@ -928,7 +935,14 @@ static AOM_FORCE_INLINE int warehouse_efficients_txb(
 
   cost += get_eob_cost(eob, eob_costs, coeff_costs, tx_class);
 
-  av1_get_nz_map_contexts(levels, scan, eob, tx_size, tx_class, coeff_contexts);
+#if CONFIG_FLEX_PARTITION
+  if (tx_size == TX_32X4 || tx_size == TX_64X8 || tx_size == TX_64X4)
+    av1_get_nz_map_contexts_c(levels, scan, eob, tx_size, tx_class,
+                              coeff_contexts);
+  else
+#endif  // CONFIG_FLEX_PARTITION
+    av1_get_nz_map_contexts(levels, scan, eob, tx_size, tx_class,
+                            coeff_contexts);
 
   const int(*lps_cost)[COEFF_BASE_RANGE + 1 + COEFF_BASE_RANGE + 1] =
       coeff_costs->lps_cost;
@@ -2351,7 +2365,14 @@ void av1_update_and_record_txb_context(int plane, int block, int blk_row,
 #endif
 
   DECLARE_ALIGNED(16, int8_t, coeff_contexts[MAX_TX_SQUARE]);
-  av1_get_nz_map_contexts(levels, scan, eob, tx_size, tx_class, coeff_contexts);
+#if CONFIG_FLEX_PARTITION
+  if (tx_size == TX_32X4 || tx_size == TX_64X8 || tx_size == TX_64X4)
+    av1_get_nz_map_contexts_c(levels, scan, eob, tx_size, tx_class,
+                              coeff_contexts);
+  else
+#endif  // CONFIG_FLEX_PARTITION
+    av1_get_nz_map_contexts(levels, scan, eob, tx_size, tx_class,
+                            coeff_contexts);
 
   for (int c = eob - 1; c >= 0; --c) {
     const int pos = scan[c];
