@@ -214,9 +214,13 @@ struct macroblock {
   INTERPOLATION_FILTER_STATS interp_filter_stats[2][MAX_INTERP_FILTER_STATS];
   int interp_filter_stats_idx[2];
 
+#if CONFIG_NEW_INTER_MODES
+  // prune_comp_search_by_single_result (4:MAX_REF_MV_SEARCH)
+  SimpleRDState simple_rd_state[SINGLE_REF_MODES][4];
+#else
   // prune_comp_search_by_single_result (3:MAX_REF_MV_SEARCH)
   SimpleRDState simple_rd_state[SINGLE_REF_MODES][3];
-
+#endif  // CONFIG_NEW_INTER_MODES
   // Inter macroblock RD search info.
   MB_RD_RECORD mb_rd_record;
 

@@ -10683,6 +10683,17 @@ static INLINE int get_drl_cost(const MB_MODE_INFO *mbmi,
                                const int (*const drl_mode_cost0)[2],
                                int8_t ref_frame_type) {
   int cost = 0;
+#if CONFIG_NEW_INTER_MODES
+  if (mbmi->mode == NEWMV || mbmi->mode == NEW_NEWMV) {
+    int range = AOMMIN(mbmi_ext->ref_mv_count[ref_frame_type] - 1, 3);
+    for (int idx = 0; idx < range; ++idx) {
+      uint8_t drl_ctx = av1_drl_ctx(mbmi_ext->weight[ref_frame_type], idx);
+      cost += drl_mode_cost0[drl_ctx][mbmi->ref_mv_idx != idx];
+      if (mbmi->ref_mv_idx == idx) return cost;
+    }
+    return cost;
+  }
+#else
   if (mbmi->mode == NEWMV || mbmi->mode == NEW_NEWMV) {
     for (int idx = 0; idx < 2; ++idx) {
       if (mbmi_ext->ref_mv_count[ref_frame_type] > idx + 1) {
@@ -10693,6 +10704,7 @@ static INLINE int get_drl_cost(const MB_MODE_INFO *mbmi,
     }
     return cost;
   }
+#endif  // CONFIG_NEW_INTER_MODES
 
   if (have_nearmv_in_inter_mode(mbmi->mode)) {
     for (int idx = 1; idx < 3; ++idx) {
@@ -11071,9 +11083,12 @@ static int get_drl_refmv_count(const MACROBLOCK *const x,
   const int only_newmv = (mode == NEWMV || mode == NEW_NEWMV);
   const int has_drl =
       (has_nearmv && ref_mv_count > 2) || (only_newmv && ref_mv_count > 1);
-  const int ref_set =
-      has_drl ? AOMMIN(MAX_REF_MV_SEARCH, ref_mv_count - has_nearmv) : 1;
-
+  int ref_set = has_drl ? ref_mv_count - has_nearmv : 1;
+  ref_set = AOMMIN(MAX_REF_MV_SEARCH, ref_set);
+#if CONFIG_NEW_INTER_MODES
+  if (has_nearmv) ref_set = AOMMIN(3, ref_set);
+  assert(IMPLIES(ref_set == 4, only_newmv));
+#endif  // CONFIG_NEW_INTER_MODES
   return ref_set;
 }
 
@@ -11248,8 +11263,12 @@ static int ref_mv_idx_to_search(AV1_COMP *const cpi, MACROBLOCK *x,
     return good_indices;
   }
 
-  // Calculate the RD cost for the motion vectors using simple translation.
+// Calculate the RD cost for the motion vectors using simple translation.
+#if CONFIG_NEW_INTER_MODES
+  int64_t idx_rdcost[] = { INT64_MAX, INT64_MAX, INT64_MAX, INT64_MAX };
+#else
   int64_t idx_rdcost[] = { INT64_MAX, INT64_MAX, INT64_MAX };
+#endif  // CONFIG_NEW_INTER_MODES
   for (int ref_mv_idx = 0; ref_mv_idx < ref_set; ++ref_mv_idx) {
     // If this index is bad, ignore it.
     if (!mask_check_bit(good_indices, ref_mv_idx)) {
