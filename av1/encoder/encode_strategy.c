@@ -543,7 +543,7 @@ static struct lookahead_entry *setup_arf_or_arf2(
   *temporal_filtered = 0;
 
   struct lookahead_entry *source =
-      av1_lookahead_peek(cpi->lookahead, arf_src_index);
+      av1_lookahead_peek(cpi->lookahead, arf_src_index, ENCODE_STAGE);
 
   if (source != NULL) {
     cm->showable_frame = 1;
@@ -575,7 +575,8 @@ static struct lookahead_entry *setup_arf_or_arf2(
 static int is_forced_keyframe_pending(struct lookahead_ctx *lookahead,
                                       const int up_to_index) {
   for (int i = 0; i <= up_to_index; i++) {
-    const struct lookahead_entry *e = av1_lookahead_peek(lookahead, i);
+    const struct lookahead_entry *e =
+        av1_lookahead_peek(lookahead, i, ENCODE_STAGE);
     if (e == NULL) {
       // We have reached the end of the lookahead buffer and not early-returned
       // so there isn't a forced key-frame pending.
@@ -632,10 +633,10 @@ static struct lookahead_entry *choose_frame_source(
   if (!source) {
     // Get last frame source.
     if (cm->current_frame.frame_number > 0) {
-      *last_source = av1_lookahead_peek(cpi->lookahead, -1);
+      *last_source = av1_lookahead_peek(cpi->lookahead, -1, ENCODE_STAGE);
     }
     // Read in the source frame.
-    source = av1_lookahead_pop(cpi->lookahead, *flush);
+    source = av1_lookahead_pop(cpi->lookahead, *flush, ENCODE_STAGE);
     if (source == NULL) return NULL;
     *frame_update_type = LF_UPDATE;  // Default update type
     frame_params->show_frame = 1;
@@ -657,7 +658,7 @@ static int allow_show_existing(const AV1_COMP *const cpi,
   if (cpi->common.current_frame.frame_number == 0) return 0;
 
   const struct lookahead_entry *lookahead_src =
-      av1_lookahead_peek(cpi->lookahead, 0);
+      av1_lookahead_peek(cpi->lookahead, 0, ENCODE_STAGE);
   if (lookahead_src == NULL) return 1;
 
   const int is_error_resilient =
@@ -1251,7 +1252,7 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
   struct lookahead_entry *last_source = NULL;
   FRAME_UPDATE_TYPE frame_update_type;
   if (frame_params.show_existing_frame) {
-    source = av1_lookahead_pop(cpi->lookahead, flush);
+    source = av1_lookahead_pop(cpi->lookahead, flush, ENCODE_STAGE);
     frame_update_type = LF_UPDATE;
   } else {
     source = choose_frame_source(cpi, &temporal_filtered, &flush, &last_source,

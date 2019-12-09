@@ -802,7 +802,8 @@ static void define_gf_group_pass0(AV1_COMP *cpi,
   const int use_alt_ref =
       is_altref_enabled(cpi) &&
       (rc->baseline_gf_interval < cpi->oxcf.lag_in_frames) &&
-      !(cpi->lookahead->sz < rc->baseline_gf_interval - 1) &&
+      !(((int)av1_lookahead_depth(cpi->lookahead, ENCODE_STAGE)) <
+        rc->baseline_gf_interval - 1) &&
       (cpi->oxcf.gf_max_pyr_height > MIN_PYRAMID_LVL) &&
       (rc->baseline_gf_interval > 1);
   rc->source_alt_ref_pending = use_alt_ref;
