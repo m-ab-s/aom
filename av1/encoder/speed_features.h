@@ -50,16 +50,6 @@ enum {
 };
 
 enum {
-#if CONFIG_NEW_INTER_MODES
-  INTER_ALL = (1 << NEARESTMV) | (1 << NEARMV) | (1 << GLOBALMV) |
-              (1 << NEWMV) | (1 << NEAR_NEARMV) | (1 << NEW_NEWMV) |
-              (1 << NEAR_NEWMV) | (1 << NEW_NEARMV) | (1 << GLOBAL_GLOBALMV) |
-              (1 << NEAREST_NEARESTMV),
-  INTER_NEAREST_NEAR_ZERO = (1 << NEARESTMV) | (1 << NEARMV) | (1 << GLOBALMV) |
-                            (1 << GLOBAL_GLOBALMV) | (1 << NEW_NEARMV) |
-                            (1 << NEAR_NEWMV) | (1 << NEAR_NEARMV) |
-                            (1 << NEAREST_NEARESTMV),
-#else
   INTER_ALL = (1 << NEARESTMV) | (1 << NEARMV) | (1 << GLOBALMV) |
               (1 << NEWMV) | (1 << NEAREST_NEARESTMV) | (1 << NEAR_NEARMV) |
               (1 << NEW_NEWMV) | (1 << NEAREST_NEWMV) | (1 << NEAR_NEWMV) |
@@ -69,7 +59,6 @@ enum {
                             (1 << NEAREST_NEWMV) | (1 << NEW_NEARESTMV) |
                             (1 << NEW_NEARMV) | (1 << NEAR_NEWMV) |
                             (1 << NEAR_NEARMV),
-#endif  // CONFIG_NEW_INTER_MODES
 };
 
 enum {
