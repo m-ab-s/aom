@@ -880,6 +880,16 @@ void av1_inv_txfm2d_add_32x32_c(const int32_t *input, uint16_t *output,
 }
 
 #if CONFIG_NEW_TX64X64
+static int is_constant_buffer(int16_t *buf, int w, int h, int stride) {
+  const int16_t topleftcorner = buf[0];
+  for (int i = 0; i < h; ++i) {
+    for (int j = 0; j < w; ++j) {
+      if (buf[i * stride + j] != topleftcorner) return 0;
+    }
+  }
+  return 1;
+}
+
 void av1_inv_txfm2d_add_64x64_c(const int32_t *input, uint16_t *output,
                                 int stride, TX_TYPE tx_type,
 #if CONFIG_MODE_DEP_TX
@@ -896,15 +906,24 @@ void av1_inv_txfm2d_add_64x64_c(const int32_t *input, uint16_t *output,
                     mode,
 #endif  // CONFIG_MODE_DEP_TX
                     bd);
-
-  // Upsample to 64x64.
-  DECLARE_ALIGNED(32, int16_t, output_up[64 * 64]);
-  av1_signed_up2(output_32x32, 32, 32, 32, output_up, 64, 1, 1, bd);
-  for (int r = 0; r < 64; ++r) {
-    for (int c = 0; c < 64; ++c) {
-      const tran_low_t residue = (tran_low_t)output_up[64 * r + c];
-      output[r * stride + c] =
-          highbd_clip_pixel_add(output[r * stride + c], residue, bd);
+  if (is_constant_buffer(output_32x32, 32, 32, 32)) {
+    const tran_low_t residue = output_32x32[0];
+    for (int r = 0; r < 64; ++r) {
+      for (int c = 0; c < 64; ++c) {
+        output[r * stride + c] =
+            highbd_clip_pixel_add(output[r * stride + c], residue, bd);
+      }
+    }
+  } else {
+    // Upsample to 64x64.
+    DECLARE_ALIGNED(32, int16_t, output_up[64 * 64]);
+    av1_signed_up2(output_32x32, 32, 32, 32, output_up, 64, 1, 1, bd);
+    for (int r = 0; r < 64; ++r) {
+      for (int c = 0; c < 64; ++c) {
+        const tran_low_t residue = (tran_low_t)output_up[64 * r + c];
+        output[r * stride + c] =
+            highbd_clip_pixel_add(output[r * stride + c], residue, bd);
+      }
     }
   }
 }
@@ -933,14 +952,24 @@ void av1_inv_txfm2d_add_32x64_c(const int32_t *input, uint16_t *output,
     }
   }
 
-  DECLARE_ALIGNED(32, int16_t, output_up[32 * 64]);
-  // Upsample to 32x64.
-  av1_signed_up2(output_32x32, 32, 32, 32, output_up, 32, 1, 0, bd);
-  for (int r = 0; r < 64; ++r) {
-    for (int c = 0; c < 32; ++c) {
-      const tran_low_t residue = (tran_low_t)output_up[32 * r + c];
-      output[r * stride + c] =
-          highbd_clip_pixel_add(output[r * stride + c], residue, bd);
+  if (is_constant_buffer(output_32x32, 32, 32, 32)) {
+    const tran_low_t residue = output_32x32[0];
+    for (int r = 0; r < 64; ++r) {
+      for (int c = 0; c < 32; ++c) {
+        output[r * stride + c] =
+            highbd_clip_pixel_add(output[r * stride + c], residue, bd);
+      }
+    }
+  } else {
+    DECLARE_ALIGNED(32, int16_t, output_up[32 * 64]);
+    // Upsample to 32x64.
+    av1_signed_up2(output_32x32, 32, 32, 32, output_up, 32, 1, 0, bd);
+    for (int r = 0; r < 64; ++r) {
+      for (int c = 0; c < 32; ++c) {
+        const tran_low_t residue = (tran_low_t)output_up[32 * r + c];
+        output[r * stride + c] =
+            highbd_clip_pixel_add(output[r * stride + c], residue, bd);
+      }
     }
   }
 }
@@ -970,14 +999,24 @@ void av1_inv_txfm2d_add_64x32_c(const int32_t *input, uint16_t *output,
     }
   }
 
-  DECLARE_ALIGNED(32, int16_t, output_up[64 * 32]);
-  // Upsample to 64x32.
-  av1_signed_up2(output_32x32, 32, 32, 32, output_up, 64, 0, 1, bd);
-  for (int r = 0; r < 32; ++r) {
-    for (int c = 0; c < 64; ++c) {
-      const tran_low_t residue = (tran_low_t)output_up[64 * r + c];
-      output[r * stride + c] =
-          highbd_clip_pixel_add(output[r * stride + c], residue, bd);
+  if (is_constant_buffer(output_32x32, 32, 32, 32)) {
+    const tran_low_t residue = output_32x32[0];
+    for (int r = 0; r < 32; ++r) {
+      for (int c = 0; c < 64; ++c) {
+        output[r * stride + c] =
+            highbd_clip_pixel_add(output[r * stride + c], residue, bd);
+      }
+    }
+  } else {
+    DECLARE_ALIGNED(32, int16_t, output_up[64 * 32]);
+    // Upsample to 64x32.
+    av1_signed_up2(output_32x32, 32, 32, 32, output_up, 64, 0, 1, bd);
+    for (int r = 0; r < 32; ++r) {
+      for (int c = 0; c < 64; ++c) {
+        const tran_low_t residue = (tran_low_t)output_up[64 * r + c];
+        output[r * stride + c] =
+            highbd_clip_pixel_add(output[r * stride + c], residue, bd);
+      }
     }
   }
 }
@@ -1007,14 +1046,24 @@ void av1_inv_txfm2d_add_16x64_c(const int32_t *input, uint16_t *output,
     }
   }
 
-  DECLARE_ALIGNED(32, int16_t, output_up[16 * 64]);
-  // Upsample to 16x64.
-  av1_signed_up2(output_16x32, 32, 16, 16, output_up, 16, 1, 0, bd);
-  for (int r = 0; r < 64; ++r) {
-    for (int c = 0; c < 16; ++c) {
-      const tran_low_t residue = (tran_low_t)output_up[16 * r + c];
-      output[r * stride + c] =
-          highbd_clip_pixel_add(output[r * stride + c], residue, bd);
+  if (is_constant_buffer(output_16x32, 16, 32, 16)) {
+    const tran_low_t residue = output_16x32[0];
+    for (int r = 0; r < 64; ++r) {
+      for (int c = 0; c < 16; ++c) {
+        output[r * stride + c] =
+            highbd_clip_pixel_add(output[r * stride + c], residue, bd);
+      }
+    }
+  } else {
+    DECLARE_ALIGNED(32, int16_t, output_up[16 * 64]);
+    // Upsample to 16x64.
+    av1_signed_up2(output_16x32, 32, 16, 16, output_up, 16, 1, 0, bd);
+    for (int r = 0; r < 64; ++r) {
+      for (int c = 0; c < 16; ++c) {
+        const tran_low_t residue = (tran_low_t)output_up[16 * r + c];
+        output[r * stride + c] =
+            highbd_clip_pixel_add(output[r * stride + c], residue, bd);
+      }
     }
   }
 }
@@ -1044,14 +1093,24 @@ void av1_inv_txfm2d_add_64x16_c(const int32_t *input, uint16_t *output,
     }
   }
 
-  DECLARE_ALIGNED(32, int16_t, output_up[64 * 16]);
-  // Upsample to 64x16.
-  av1_signed_up2(output_32x16, 16, 32, 32, output_up, 64, 0, 1, bd);
-  for (int r = 0; r < 16; ++r) {
-    for (int c = 0; c < 64; ++c) {
-      const tran_low_t residue = (tran_low_t)output_up[64 * r + c];
-      output[r * stride + c] =
-          highbd_clip_pixel_add(output[r * stride + c], residue, bd);
+  if (is_constant_buffer(output_32x16, 32, 16, 32)) {
+    const tran_low_t residue = output_32x16[0];
+    for (int r = 0; r < 16; ++r) {
+      for (int c = 0; c < 64; ++c) {
+        output[r * stride + c] =
+            highbd_clip_pixel_add(output[r * stride + c], residue, bd);
+      }
+    }
+  } else {
+    DECLARE_ALIGNED(32, int16_t, output_up[64 * 16]);
+    // Upsample to 64x16.
+    av1_signed_up2(output_32x16, 16, 32, 32, output_up, 64, 0, 1, bd);
+    for (int r = 0; r < 16; ++r) {
+      for (int c = 0; c < 64; ++c) {
+        const tran_low_t residue = (tran_low_t)output_up[64 * r + c];
+        output[r * stride + c] =
+            highbd_clip_pixel_add(output[r * stride + c], residue, bd);
+      }
     }
   }
 }
