@@ -1502,7 +1502,7 @@ int av1_rc_pick_q_and_bounds(AV1_COMP *cpi, int width, int height,
   GF_GROUP *gf_group = &cpi->gf_group;
   if ((cpi->oxcf.rc_mode != AOM_Q ||
        gf_group->update_type[gf_group->index] == ARF_UPDATE) &&
-      cpi->oxcf.pass == 0) {
+      has_no_stats_stage(cpi)) {
     if (cpi->oxcf.rc_mode == AOM_CBR)
       q = rc_pick_q_and_bounds_one_pass_cbr(cpi, width, height, bottom_index,
                                             top_index);
