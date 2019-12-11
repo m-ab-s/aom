@@ -352,6 +352,15 @@ static INLINE PARTITION_TYPE_REC get_symbol_from_partition_rec_block(
 static INLINE int is_square_block(BLOCK_SIZE bsize) {
   return block_size_high[bsize] == block_size_wide[bsize];
 }
+
+static INLINE int is_partition_valid(BLOCK_SIZE bsize, PARTITION_TYPE p) {
+  if (bsize >= BLOCK_SIZES)
+    return p == PARTITION_NONE;
+  else if (is_square_block(bsize))
+    return subsize_lookup[bsize][p];
+  else
+    return p == PARTITION_NONE;
+}
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 
 static INLINE int is_intrabc_block(const MB_MODE_INFO *mbmi) {

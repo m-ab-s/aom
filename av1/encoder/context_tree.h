@@ -65,8 +65,13 @@ typedef struct PC_TREE {
   PARTITION_TYPE partitioning;
   BLOCK_SIZE block_size;
   PICK_MODE_CONTEXT *none;
+#if CONFIG_EXT_RECUR_PARTITIONS
+  struct PC_TREE *horizontal[2];
+  struct PC_TREE *vertical[2];
+#else
   PICK_MODE_CONTEXT *horizontal[2];
   PICK_MODE_CONTEXT *vertical[2];
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 #if CONFIG_EXT_PARTITIONS
   struct PC_TREE *horza_split[2];
   struct PC_TREE *horzb_split[2];

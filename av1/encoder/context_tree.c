@@ -186,10 +186,23 @@ void av1_free_pc_tree_recursive(PC_TREE *pc_tree, int num_planes, int keep_best,
     FREE_PMC_NODE(pc_tree->none);
 
   for (int i = 0; i < 2; ++i) {
+#if CONFIG_EXT_RECUR_PARTITIONS
+    if ((!keep_best || (partition != PARTITION_HORZ)) &&
+        pc_tree->horizontal[i] != NULL) {
+      av1_free_pc_tree_recursive(pc_tree->horizontal[i], num_planes, 0, 0);
+      pc_tree->horizontal[i] = NULL;
+    }
+    if ((!keep_best || (partition != PARTITION_VERT)) &&
+        pc_tree->vertical[i] != NULL) {
+      av1_free_pc_tree_recursive(pc_tree->vertical[i], num_planes, 0, 0);
+      pc_tree->vertical[i] = NULL;
+    }
+#else
     if (!keep_best || (partition != PARTITION_HORZ))
       FREE_PMC_NODE(pc_tree->horizontal[i]);
     if (!keep_best || (partition != PARTITION_VERT))
       FREE_PMC_NODE(pc_tree->vertical[i]);
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   }
 #if CONFIG_EXT_PARTITIONS
   if (!keep_best || (partition != PARTITION_HORZ_A))
