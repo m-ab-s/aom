@@ -1603,8 +1603,6 @@ static void decode_partition(AV1Decoder *const pbi, ThreadData *const td,
     case PARTITION_NONE: DEC_BLOCK(mi_row, mi_col, subsize); break;
     case PARTITION_HORZ:
 #if CONFIG_EXT_RECUR_PARTITIONS
-      ptree->sub_tree[0]->partition = PARTITION_NONE;
-      ptree->sub_tree[1]->partition = PARTITION_NONE;
       DEC_PARTITION(mi_row, mi_col, subsize, 0);
       if (has_rows) DEC_PARTITION(mi_row + hbs, mi_col, subsize, 1);
 #else
@@ -1614,8 +1612,6 @@ static void decode_partition(AV1Decoder *const pbi, ThreadData *const td,
       break;
     case PARTITION_VERT:
 #if CONFIG_EXT_RECUR_PARTITIONS
-      ptree->sub_tree[0]->partition = PARTITION_NONE;
-      ptree->sub_tree[1]->partition = PARTITION_NONE;
       DEC_PARTITION(mi_row, mi_col, subsize, 0);
       if (has_cols) DEC_PARTITION(mi_row, mi_col + hbs, subsize, 1);
 #else

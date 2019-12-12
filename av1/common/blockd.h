@@ -356,10 +356,8 @@ static INLINE int is_square_block(BLOCK_SIZE bsize) {
 static INLINE int is_partition_valid(BLOCK_SIZE bsize, PARTITION_TYPE p) {
   if (bsize >= BLOCK_SIZES)
     return p == PARTITION_NONE;
-  else if (is_square_block(bsize))
-    return subsize_lookup[bsize][p];
   else
-    return p == PARTITION_NONE;
+    return subsize_lookup[p][bsize] != BLOCK_INVALID;
 }
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 
@@ -746,7 +744,10 @@ static INLINE BLOCK_SIZE get_partition_subsize(BLOCK_SIZE bsize,
     return BLOCK_INVALID;
   } else {
 #if CONFIG_EXT_RECUR_PARTITIONS
-    return subsize_lookup[partition][bsize];
+    if (bsize < BLOCK_SIZES)
+      return subsize_lookup[partition][bsize];
+    else
+      return PARTITION_NONE ? bsize : BLOCK_INVALID;
 #else
     const int sqr_bsize_idx = get_sqr_bsize_idx(bsize);
     return sqr_bsize_idx >= SQR_BLOCK_SIZES
