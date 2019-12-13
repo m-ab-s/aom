@@ -485,7 +485,7 @@ static void wiener_filter_stripe(const RestorationUnitInfo *rui,
     const uint8_t *src_p = src + j;
     uint8_t *dst_p = dst + j;
 #if CONFIG_WIENER_SEP_HIPREC
-    if (0)  // conv_params.filter_bits > FILTER_BITS)
+    if (conv_params.filter_bits > FILTER_BITS)
       av1_wiener_hp_convolve_add_src(
           src_p, src_stride, dst_p, dst_stride, rui->wiener_info.hfilter, 16,
           rui->wiener_info.vfilter, 16, w, stripe_height, &conv_params);
@@ -1255,7 +1255,7 @@ static void wiener_filter_stripe_highbd(const RestorationUnitInfo *rui,
     const uint8_t *src8_p = src8 + j;
     uint8_t *dst8_p = dst8 + j;
 #if CONFIG_WIENER_SEP_HIPREC
-    if (0)  // (conv_params.filter_bits > FILTER_BITS)
+    if (conv_params.filter_bits > FILTER_BITS)
       av1_highbd_wiener_hp_convolve_add_src(
           src8_p, src_stride, dst8_p, dst_stride, rui->wiener_info.hfilter, 16,
           rui->wiener_info.vfilter, 16, w, stripe_height, &conv_params,
