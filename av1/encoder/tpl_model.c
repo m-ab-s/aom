@@ -460,7 +460,7 @@ static YV12_BUFFER_CONFIG *get_framebuf(
     const int frame_disp_idx = gf_group->frame_disp_idx[frame_idx];
     struct lookahead_entry *buf = av1_lookahead_peek(
         cpi->lookahead, frame_disp_idx - cpi->num_gf_group_show_frames,
-        ENCODE_STAGE);
+        cpi->compressor_stage);
     return &buf->img;
   }
 }
@@ -625,7 +625,7 @@ static void init_gop_frames_for_tpl(
                                     ? cpi->rc.baseline_gf_interval
                                     : gf_group->frame_disp_idx[gf_index];
       struct lookahead_entry *buf = av1_lookahead_peek(
-          cpi->lookahead, frame_display_index - 1, ENCODE_STAGE);
+          cpi->lookahead, frame_display_index - 1, cpi->compressor_stage);
       if (buf == NULL) break;
       tpl_frame->gf_picture = &buf->img;
     }
@@ -663,7 +663,7 @@ static void init_gop_frames_for_tpl(
     frame_params.frame_type = INTER_FRAME;
 
     struct lookahead_entry *buf = av1_lookahead_peek(
-        cpi->lookahead, frame_display_index - 1, ENCODE_STAGE);
+        cpi->lookahead, frame_display_index - 1, cpi->compressor_stage);
 
     if (buf == NULL) break;
 

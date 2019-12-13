@@ -1403,7 +1403,7 @@ static int estimate_strength(AV1_COMP *cpi, int distance, int group_boost,
                                       cpi->common.seq_params.bit_depth));
   MACROBLOCKD *mbd = &cpi->td.mb.e_mbd;
   struct lookahead_entry *buf =
-      av1_lookahead_peek(cpi->lookahead, distance, ENCODE_STAGE);
+      av1_lookahead_peek(cpi->lookahead, distance, cpi->compressor_stage);
   int strength;
   double noiselevel;
   if (is_cur_buf_hbd(mbd)) {
@@ -1453,7 +1453,7 @@ static void adjust_arnr_filter(AV1_COMP *cpi, int distance, int group_boost,
                                double *sigma) {
   const AV1EncoderConfig *const oxcf = &cpi->oxcf;
   const int frames_after_arf =
-      av1_lookahead_depth(cpi->lookahead, ENCODE_STAGE) - distance - 1;
+      av1_lookahead_depth(cpi->lookahead, cpi->compressor_stage) - distance - 1;
   int frames_fwd = (cpi->oxcf.arnr_max_frames - 1) >> 1;
   int frames_bwd;
   int frames;
@@ -1537,7 +1537,7 @@ void av1_temporal_filter(AV1_COMP *cpi, int distance) {
   for (frame = 0; frame < frames_to_blur; ++frame) {
     const int which_buffer = start_frame - frame;
     struct lookahead_entry *buf =
-        av1_lookahead_peek(cpi->lookahead, which_buffer, ENCODE_STAGE);
+        av1_lookahead_peek(cpi->lookahead, which_buffer, cpi->compressor_stage);
     if (buf == NULL) {
       frames[frames_to_blur - 1 - frame] = NULL;
     } else {

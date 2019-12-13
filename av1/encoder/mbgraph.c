@@ -373,7 +373,7 @@ static void separate_arf_mbs(AV1_COMP *cpi) {
 
 void av1_update_mbgraph_stats(AV1_COMP *cpi) {
   AV1_COMMON *const cm = &cpi->common;
-  int i, n_frames = av1_lookahead_depth(cpi->lookahead, ENCODE_STAGE);
+  int i, n_frames = av1_lookahead_depth(cpi->lookahead, cpi->compressor_stage);
   YV12_BUFFER_CONFIG *golden_ref = &get_ref_frame_buf(cm, GOLDEN_FRAME)->buf;
 
   assert(golden_ref != NULL);
@@ -398,7 +398,7 @@ void av1_update_mbgraph_stats(AV1_COMP *cpi) {
   for (i = 0; i < n_frames; i++) {
     MBGRAPH_FRAME_STATS *frame_stats = &cpi->mbgraph_stats[i];
     struct lookahead_entry *q_cur =
-        av1_lookahead_peek(cpi->lookahead, i, ENCODE_STAGE);
+        av1_lookahead_peek(cpi->lookahead, i, cpi->compressor_stage);
 
     assert(q_cur != NULL);
 

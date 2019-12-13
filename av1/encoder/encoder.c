@@ -3083,6 +3083,8 @@ AV1_COMP *av1_create_compressor(AV1EncoderConfig *oxcf, BufferPool *const pool,
   cpi->common.buffer_pool = pool;
 
   init_config(cpi, oxcf);
+  cpi->compressor_stage = ENCODE_STAGE;
+
   av1_rc_init(&cpi->oxcf, oxcf->pass, &cpi->rc);
 
   cm->current_frame.frame_number = 0;
