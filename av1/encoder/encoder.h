@@ -1103,6 +1103,7 @@ typedef struct AV1_COMP {
   // experiments, for example, temporal filtering on key frames.
   int pack_bitstream;
 
+  int lap_enabled;
   COMPRESSOR_STAGE compressor_stage;
 } AV1_COMP;
 
@@ -1161,7 +1162,9 @@ static INLINE int is_show_existing_fwd_kf(const AV1_COMP *const cpi) {
 
 struct AV1_COMP *av1_create_compressor(AV1EncoderConfig *oxcf,
                                        BufferPool *const pool,
-                                       FIRSTPASS_STATS *frame_stats_buf);
+                                       FIRSTPASS_STATS *frame_stats_buf,
+                                       COMPRESSOR_STAGE stage,
+                                       int num_lap_buffers);
 void av1_remove_compressor(AV1_COMP *cpi);
 
 void av1_change_config(AV1_COMP *cpi, const AV1EncoderConfig *oxcf);
@@ -1358,7 +1361,9 @@ static INLINE int is_altref_enabled(const AV1_COMP *const cpi) {
 
 // Check if statistics generation stage
 static INLINE int is_stat_generation_stage(const AV1_COMP *const cpi) {
-  return (cpi->oxcf.pass == 1);
+  assert(IMPLIES(cpi->compressor_stage == LAP_STAGE,
+                 cpi->oxcf.pass == 0 && cpi->lap_enabled));
+  return (cpi->oxcf.pass == 1 || (cpi->compressor_stage == LAP_STAGE));
 }
 // Check if statistics consumption stage of the two pass mode.
 static INLINE int is_stat_consumption_stage_twopass(const AV1_COMP *const cpi) {
@@ -1372,7 +1377,8 @@ static INLINE int is_stat_consumption_stage(const AV1_COMP *const cpi) {
 
 // Check if the current stage has statistics
 static INLINE int has_no_stats_stage(const AV1_COMP *const cpi) {
-  return (cpi->oxcf.pass == 0);
+  assert(IMPLIES(!cpi->lap_enabled, cpi->compressor_stage == ENCODE_STAGE));
+  return (cpi->oxcf.pass == 0 && !cpi->lap_enabled);
 }
 
 // TODO(zoeliu): To set up cpi->oxcf.enable_auto_brf
