@@ -6429,6 +6429,11 @@ static void update_txfm_count(MACROBLOCK *x, MACROBLOCKD *xd,
   TX_SIZE sub_txs[MAX_TX_PARTITIONS] = { 0 };
   get_tx_partition_sizes(mbmi->partition_type[txb_size_index], tx_size,
                          sub_txs);
+  // TODO(sarahparker) This assumes all of the tx sizes in the partition scheme
+  // are the same size. This will need to be adjusted to deal with the case
+  // where they can be different.
+  TX_SIZE this_size = sub_txs[0];
+  assert(mbmi->inter_tx_size[txb_size_index] == this_size);
   if (mbmi->partition_type[txb_size_index] != TX_PARTITION_NONE)
     ++x->txb_split_count;
 
@@ -6439,22 +6444,10 @@ static void update_txfm_count(MACROBLOCK *x, MACROBLOCKD *xd,
   if (allow_update_cdf)
     update_cdf(xd->tile_ctx->txfm_partition_cdf[is_rect][ctx],
                mbmi->partition_type[txb_size_index], TX_PARTITION_TYPES);
-  int cur_partition = 0;
-  int bsw = 0, bsh = 0;
-  const TX_SIZE max_tx_size = max_txsize_rect_lookup[bsize];
-  for (int r = 0; r < tx_size_high_unit[max_tx_size]; r += bsh) {
-    for (int c = 0; c < tx_size_wide_unit[max_tx_size]; c += bsw) {
-      const TX_SIZE sub_tx = sub_txs[cur_partition];
-      bsw = tx_size_wide_unit[sub_tx];
-      bsh = tx_size_high_unit[sub_tx];
-      const int offsetr = blk_row + r;
-      const int offsetc = blk_col + c;
-      mbmi->tx_size = sub_tx;
-      txfm_partition_update(xd->above_txfm_context + offsetc,
-                            xd->left_txfm_context + offsetr, sub_tx, sub_tx);
-      cur_partition++;
-    }
-  }
+
+  mbmi->tx_size = this_size;
+  txfm_partition_update(xd->above_txfm_context + blk_col,
+                        xd->left_txfm_context + blk_row, this_size, tx_size);
 #else  // CONFIG_NEW_TX_PARTITION
   if (depth == MAX_VARTX_DEPTH) {
     // Don't add to counts in this case

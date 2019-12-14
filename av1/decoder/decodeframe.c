@@ -1150,7 +1150,7 @@ static void read_tx_partition(MACROBLOCKD *xd, MB_MODE_INFO *mbmi,
   const int max_blocks_high = max_block_high(xd, bsize, 0);
   const int max_blocks_wide = max_block_wide(xd, bsize, 0);
   if (blk_row >= max_blocks_high || blk_col >= max_blocks_wide) return;
-  const TX_SIZE txs = smallest_sub_tx_size_map[max_txsize_rect_lookup[bsize]];
+  const TX_SIZE txs = sub_tx_size_map[max_txsize_rect_lookup[bsize]];
   const int tx_w_log2 = tx_size_wide_log2[txs] - MI_SIZE_LOG2;
   const int tx_h_log2 = tx_size_high_log2[txs] - MI_SIZE_LOG2;
   const int bw_log2 = mi_size_wide_log2[bsize];
@@ -1165,25 +1165,17 @@ static void read_tx_partition(MACROBLOCKD *xd, MB_MODE_INFO *mbmi,
                       TX_PARTITION_TYPES, ACCT_STR);
   TX_SIZE sub_txs[MAX_TX_PARTITIONS] = { 0 };
   get_tx_partition_sizes(partition, max_tx_size, sub_txs);
+  // TODO(sarahparker) This assumes all of the tx sizes in the partition scheme
+  // are the same size. This will need to be adjusted to deal with the case
+  // where they can be different.
+  mbmi->tx_size = sub_txs[0];
   const int index = av1_get_txb_size_index(bsize, blk_row, blk_col);
   mbmi->partition_type[index] = partition;
-  int cur_partition = 0;
-  int bsw = 0, bsh = 0;
-  for (int row = 0; row < tx_size_high_unit[max_tx_size]; row += bsh) {
-    for (int col = 0; col < tx_size_wide_unit[max_tx_size]; col += bsw) {
-      const TX_SIZE sub_tx = sub_txs[cur_partition];
-      bsw = tx_size_wide_unit[sub_tx];
-      bsh = tx_size_high_unit[sub_tx];
-      const int offsetr = blk_row + row;
-      const int offsetc = blk_col + col;
-      mbmi->tx_size = sub_tx;
-      txfm_partition_update(xd->above_txfm_context + offsetc,
-                            xd->left_txfm_context + offsetr, sub_tx, sub_tx);
-      set_inter_tx_size(mbmi, stride_log2, tx_w_log2, tx_h_log2, txs,
-                        mbmi->tx_size, mbmi->tx_size, offsetr, offsetc);
-      cur_partition++;
-    }
-  }
+  set_inter_tx_size(mbmi, stride_log2, tx_w_log2, tx_h_log2, txs, max_tx_size,
+                    mbmi->tx_size, blk_row, blk_col);
+  txfm_partition_update(xd->above_txfm_context + blk_col,
+                        xd->left_txfm_context + blk_row, mbmi->tx_size,
+                        max_tx_size);
 }
 
 static TX_SIZE read_tx_partition_intra(MACROBLOCKD *xd, aom_reader *r,
