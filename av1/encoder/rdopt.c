@@ -7853,7 +7853,8 @@ static void setup_buffer_ref_mvs_inter(
 
 static void single_motion_search(const AV1_COMP *const cpi, MACROBLOCK *x,
                                  BLOCK_SIZE bsize, int mi_row, int mi_col,
-                                 int ref_idx, int *rate_mv) {
+                                 int ref_idx, int *rate_mv,
+                                 bool use_full_pixel_var) {
   MACROBLOCKD *xd = &x->e_mbd;
   const AV1_COMMON *cm = &cpi->common;
   const int num_planes = av1_num_planes(cm);
@@ -7947,21 +7948,27 @@ static void single_motion_search(const AV1_COMP *const cpi, MACROBLOCK *x,
   mvp_full.row >>= 3;
 
   x->best_mv.as_int = x->second_best_mv.as_int = INVALID_MV;
-
-  switch (mbmi->motion_mode) {
-    case SIMPLE_TRANSLATION:
-      bestsme = av1_full_pixel_search(
-          cpi, x, bsize, &mvp_full, step_param, cpi->sf.mv.search_method, 0,
-          sadpb, cond_cost_list(cpi, cost_list), &ref_mv, INT_MAX, 1,
-          (MI_SIZE * mi_col), (MI_SIZE * mi_row), 0, &cpi->ss_cfg[SS_CFG_SRC]);
-      break;
-    case OBMC_CAUSAL:
-      bestsme = av1_obmc_full_pixel_search(
-          cpi, x, &mvp_full, step_param, sadpb,
-          MAX_MVSEARCH_STEPS - 1 - step_param, 1, &cpi->fn_ptr[bsize], &ref_mv,
-          &(x->best_mv.as_mv), 0, &cpi->ss_cfg[SS_CFG_SRC]);
-      break;
-    default: assert(0 && "Invalid motion mode!\n");
+  if (use_full_pixel_var) {
+    bestsme = av1_full_pixel_search_var(cpi, x, bsize, &mvp_full, step_param,
+                                        cond_cost_list(cpi, cost_list), &ref_mv,
+                                        &cpi->ss_cfg[SS_CFG_SRC]);
+  } else {
+    switch (mbmi->motion_mode) {
+      case SIMPLE_TRANSLATION:
+        bestsme = av1_full_pixel_search(
+            cpi, x, bsize, &mvp_full, step_param, cpi->sf.mv.search_method, 0,
+            sadpb, cond_cost_list(cpi, cost_list), &ref_mv, INT_MAX, 1,
+            (MI_SIZE * mi_col), (MI_SIZE * mi_row), 0,
+            &cpi->ss_cfg[SS_CFG_SRC]);
+        break;
+      case OBMC_CAUSAL:
+        bestsme = av1_obmc_full_pixel_search(
+            cpi, x, &mvp_full, step_param, sadpb,
+            MAX_MVSEARCH_STEPS - 1 - step_param, 1, &cpi->fn_ptr[bsize],
+            &ref_mv, &(x->best_mv.as_mv), 0, &cpi->ss_cfg[SS_CFG_SRC]);
+        break;
+      default: assert(0 && "Invalid motion mode!\n");
+    }
   }
 
   if (scaled_ref_frame) {
@@ -9161,7 +9168,7 @@ static int64_t handle_newmv(const AV1_COMP *const cpi, MACROBLOCK *const x,
       }
     }
   } else {
-    single_motion_search(cpi, x, bsize, mi_row, mi_col, 0, rate_mv);
+    single_motion_search(cpi, x, bsize, mi_row, mi_col, 0, rate_mv, false);
     if (x->best_mv.as_int == INVALID_MV) return INT64_MAX;
 
     args->single_newmv[ref_mv_idx][refs[0]] = x->best_mv;
@@ -10147,9 +10154,24 @@ static int handle_inter_intra_mode(const AV1_COMP *const cpi,
       !cpi->sf.disable_smooth_interintra) {
     mbmi->use_wedge_interintra = 0;
     int j = 0;
+#if CONFIG_ILLUM_MCOMP
+    MV old_best = x->best_mv.as_mv;
+#endif  // CONFIG_ILLUM_MCOMP
     if (cpi->sf.reuse_inter_intra_mode == 0 ||
         best_interintra_mode == INTERINTRA_MODES) {
-      for (j = 0; j < total_modes; ++j) {
+      for (j = 0; j < INTERINTRA_MODES; ++j) {
+#if CONFIG_ILLUM_MCOMP
+        if (j == II_ILLUM_MCOMP_PRED) {
+          single_motion_search(cpi, x, bsize, mi_row, mi_col, 0, &tmp_rate_mv,
+                               true);
+          av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize,
+                                        AOM_PLANE_Y, AOM_PLANE_Y);
+        } else if (j == II_ILLUM_MCOMP_PRED + 1) {
+          x->best_mv.as_mv = old_best;
+          av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize,
+                                        AOM_PLANE_Y, AOM_PLANE_Y);
+        }
+#endif  // CONFIG_ILLUM_MCOMP
         if ((!cpi->oxcf.enable_smooth_intra || cpi->sf.disable_smooth_intra) &&
             (INTERINTRA_MODE)j == II_SMOOTH_PRED)
           continue;
@@ -10187,6 +10209,13 @@ static int handle_inter_intra_mode(const AV1_COMP *const cpi,
       }
       args->inter_intra_mode[mbmi->ref_frame[0]] = best_interintra_mode;
     }
+#if CONFIG_ILLUM_MCOMP
+    if (best_interintra_mode != II_ILLUM_MCOMP_PRED) {
+      x->best_mv.as_mv = old_best;
+      av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize,
+                                    AOM_PLANE_Y, AOM_PLANE_Y);
+    }
+#endif  // CONFIG_ILLUM_MCOMP
     assert(IMPLIES(!cpi->oxcf.enable_smooth_interintra ||
                        cpi->sf.disable_smooth_interintra,
                    best_interintra_mode != II_SMOOTH_PRED));
@@ -10301,7 +10330,22 @@ static int handle_inter_intra_mode(const AV1_COMP *const cpi,
               pick_interintra_wedge(cpi, x, bsize, intrapred_, tmp_buf_);
 
           int j = 0;
-          for (j = 0; j < total_modes; ++j) {
+#if CONFIG_ILLUM_MCOMP
+          MV old_best = x->best_mv.as_mv;
+#endif  // CONFIG_ILLUM_MCOMP
+          for (j = 0; j < INTERINTRA_MODES; ++j) {
+#if CONFIG_ILLUM_MCOMP
+            if (j == II_ILLUM_MCOMP_PRED) {
+              single_motion_search(cpi, x, bsize, mi_row, mi_col, 0,
+                                   &tmp_rate_mv, true);
+              av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize,
+                                            AOM_PLANE_Y, AOM_PLANE_Y);
+            } else if (j == II_ILLUM_MCOMP_PRED + 1) {
+              x->best_mv.as_mv = old_best;
+              av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize,
+                                            AOM_PLANE_Y, AOM_PLANE_Y);
+            }
+#endif  // CONFIG_ILLUM_MCOMP
             mbmi->interintra_mode = (INTERINTRA_MODE)j;
 #if CONFIG_DERIVED_INTRA_MODE
             mbmi->use_derived_intra_mode[0] = 0;
@@ -10334,6 +10378,13 @@ static int handle_inter_intra_mode(const AV1_COMP *const cpi,
 #endif  // CONFIG_DERIVED_INTRA_MODE
             }
           }
+#if CONFIG_ILLUM_MCOMP
+          if (best_interintra_mode != II_ILLUM_MCOMP_PRED) {
+            x->best_mv.as_mv = old_best;
+            av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize,
+                                          AOM_PLANE_Y, AOM_PLANE_Y);
+          }
+#endif  // CONFIG_ILLUM_MCOMP
           args->inter_intra_mode[mbmi->ref_frame[0]] = best_interintra_mode;
           mbmi->interintra_mode = best_interintra_mode;
 #if CONFIG_DERIVED_INTRA_MODE
@@ -10637,7 +10688,8 @@ static int64_t motion_mode_rd(
       const uint32_t cur_mv = mbmi->mv[0].as_int;
       assert(!is_comp_pred);
       if (have_newmv_in_inter_mode(this_mode)) {
-        single_motion_search(cpi, x, bsize, mi_row, mi_col, 0, &tmp_rate_mv);
+        single_motion_search(cpi, x, bsize, mi_row, mi_col, 0, &tmp_rate_mv,
+                             false);
         mbmi->mv[0].as_int = x->best_mv.as_int;
 #if USE_DISCOUNT_NEWMV_TEST
         if (discount_newmv_test(cpi, x, this_mode, mbmi->mv[0])) {

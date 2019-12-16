@@ -175,6 +175,11 @@ int av1_full_pixel_search(const struct AV1_COMP *cpi, MACROBLOCK *x,
                           int x_pos, int y_pos, int intra,
                           const search_site_config *cfg);
 
+int av1_full_pixel_search_var(const struct AV1_COMP *cpi, MACROBLOCK *x,
+                              BLOCK_SIZE bsize, MV *mvp_full, int step_param,
+                              int *cost_list, const MV *ref_mv,
+                              const search_site_config *cfg);
+
 int av1_obmc_full_pixel_search(const struct AV1_COMP *cpi, MACROBLOCK *x,
                                MV *mvp_full, int step_param, int sadpb,
                                int further_steps, int do_refine,
