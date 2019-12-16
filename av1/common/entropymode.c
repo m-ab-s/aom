@@ -657,7 +657,7 @@ static const aom_cdf_prob default_use_mdtx_inter_cdf[EXT_TX_SIZES]
 static const aom_cdf_prob
     default_mdtx_type_intra_cdf[EXT_TX_SIZES][INTRA_MODES]
                                [CDF_SIZE(MDTX_TYPES_INTRA)] = {
-#if USE_NST_INTRA
+#if CONFIG_MODE_DEP_NONSEP_INTRA_TX
                                  {
                                      { AOM_CDF4(8192, 16384, 24576) },
                                      { AOM_CDF4(8192, 16384, 24576) },
@@ -779,7 +779,7 @@ static const aom_cdf_prob
                                      { AOM_CDF3(10923, 21845) },
                                      { AOM_CDF3(10923, 21845) },
                                  },
-#endif
+#endif  // CONFIG_MODE_DEP_NONSEP_INTRA_TX
                                };
 
 static const aom_cdf_prob default_use_mdtx_intra_cdf[EXT_TX_SIZES][INTRA_MODES]

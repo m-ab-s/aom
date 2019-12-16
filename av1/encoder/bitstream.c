@@ -1100,11 +1100,11 @@ void av1_write_tx_type(const AV1_COMMON *const cm, const MACROBLOCKD *xd,
         intra_dir = mbmi->mode;
 #if CONFIG_MODE_DEP_TX && USE_MDTX_INTRA
       if (tx_set_type == EXT_TX_SET_DTT4_IDTX_1DDCT_MDTX4) {
-#if USE_NST_INTRA
+#if CONFIG_MODE_DEP_NONSEP_INTRA_TX
         int is_mdtx = tx_type >= MDTX_INTRA_1 && tx_type <= MDTX_INTRA_4;
 #else
         int is_mdtx = tx_type >= MDTX_INTRA_1 && tx_type <= MDTX_INTRA_3;
-#endif
+#endif  // CONFIG_MODE_DEP_NONSEP_INTRA_TX
         aom_write_symbol(w, is_mdtx,
                          ec_ctx->use_mdtx_intra_cdf[square_tx_size][intra_dir],
                          2);
@@ -1120,14 +1120,14 @@ void av1_write_tx_type(const AV1_COMMON *const cm, const MACROBLOCKD *xd,
               av1_num_ext_tx_set[tx_set_type]);
         }
       } else {
-#endif
+#endif  // CONFIG_MODE_DEP_TX && USE_MDTX_INTRA
         aom_write_symbol(
             w, av1_ext_tx_ind[tx_set_type][tx_type],
             ec_ctx->intra_ext_tx_cdf[eset][square_tx_size][intra_dir],
             av1_num_ext_tx_set[tx_set_type]);
 #if CONFIG_MODE_DEP_TX && USE_MDTX_INTRA
       }
-#endif
+#endif  // CONFIG_MODE_DEP_TX && USE_MDTX_INTRA
     }
   }
 }

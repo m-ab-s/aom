@@ -175,10 +175,10 @@ typedef struct TXFM_2D_FLIP_CFG {
   int stage_num_row;
 #if CONFIG_MODE_DEP_TX
   PREDICTION_MODE mode;
-#if USE_MDTX_INTRA && USE_NST_INTRA
+#if USE_MDTX_INTRA && CONFIG_MODE_DEP_NONSEP_INTRA_TX
   const int32_t *nstx_mtx_ptr;
-#endif
-#endif
+#endif  // USE_MDTX_INTRA && CONFIG_MODE_DEP_NONSEP_INTRA_TX
+#endif  // CONFIG_MODE_DEP_TX
 } TXFM_2D_FLIP_CFG;
 
 static INLINE void get_flip_cfg(TX_TYPE tx_type, int *ud_flip, int *lr_flip) {
@@ -200,16 +200,16 @@ static INLINE void get_flip_cfg(TX_TYPE tx_type, int *ud_flip, int *lr_flip) {
     case MDTX_INTRA_1:
     case MDTX_INTRA_2:
     case MDTX_INTRA_3:
-#if USE_NST_INTRA
+#if CONFIG_MODE_DEP_NONSEP_INTRA_TX
     case MDTX_INTRA_4:
-#endif
-#endif
+#endif  // CONFIG_MODE_DEP_NONSEP_INTRA_TX
+#endif  // USE_MDTX_INTRA
 #if USE_MDTX_INTER
     case MDTX_INTER_1:
     case MDTX_INTER_2:
     case MDTX_INTER_3:
-#endif
-#endif
+#endif  // USE_MDTX_INTER
+#endif  // CONFIG_MODE_DEP_TX
       *ud_flip = 0;
       *lr_flip = 0;
       break;
@@ -219,7 +219,7 @@ static INLINE void get_flip_cfg(TX_TYPE tx_type, int *ud_flip, int *lr_flip) {
 #if CONFIG_MODE_DEP_TX && USE_MDTX_INTER
     case MDTX_INTER_5:
     case MDTX_INTER_7:
-#endif
+#endif  // CONFIG_MODE_DEP_TX && USE_MDTX_INTER
       *ud_flip = 1;
       *lr_flip = 0;
       break;
@@ -229,14 +229,14 @@ static INLINE void get_flip_cfg(TX_TYPE tx_type, int *ud_flip, int *lr_flip) {
 #if CONFIG_MODE_DEP_TX && USE_MDTX_INTER
     case MDTX_INTER_6:
     case MDTX_INTER_8:
-#endif
+#endif  // CONFIG_MODE_DEP_TX && USE_MDTX_INTER
       *ud_flip = 0;
       *lr_flip = 1;
       break;
     case FLIPADST_FLIPADST:
 #if CONFIG_MODE_DEP_TX && USE_MDTX_INTER
     case MDTX_INTER_4:
-#endif
+#endif  // CONFIG_MODE_DEP_TX && USE_MDTX_INTER
       *ud_flip = 1;
       *lr_flip = 1;
       break;

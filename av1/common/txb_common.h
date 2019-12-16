@@ -61,10 +61,10 @@ static const TX_CLASS tx_type_to_class[TX_TYPES] = {
   TX_CLASS_2D,  // MDTX_INTRA_1
   TX_CLASS_2D,  // MDTX_INTRA_2
   TX_CLASS_2D,  // MDTX_INTRA_3
-#if USE_NST_INTRA
+#if CONFIG_MODE_DEP_NONSEP_INTRA_TX
   TX_CLASS_2D,  // MDTX_INTRA_4
-#endif
-#endif
+#endif          // CONFIG_MODE_DEP_NONSEP_INTRA_TX
+#endif          // USE_MDTX_INTRA
 #if USE_MDTX_INTER
   TX_CLASS_2D,  // MDTX_INTER_1
   TX_CLASS_2D,  // MDTX_INTER_2
@@ -74,8 +74,8 @@ static const TX_CLASS tx_type_to_class[TX_TYPES] = {
   TX_CLASS_2D,  // MDTX_INTER_6
   TX_CLASS_2D,  // MDTX_INTER_7
   TX_CLASS_2D,  // MDTX_INTER_8`
-#endif
-#endif
+#endif          // USE_MDTX_INTER
+#endif          // CONFIG_MODE_DEP_TX
 };
 
 static INLINE int get_txb_bwl(TX_SIZE tx_size) {

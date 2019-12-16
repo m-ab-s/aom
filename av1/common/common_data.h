@@ -309,15 +309,15 @@ static const TX_TYPE_1D vtx_tab[TX_TYPES] = {
 #if CONFIG_MODE_DEP_TX
 #if USE_MDTX_INTRA
   MDTX1_1D,    MDTX1_1D, DCT_1D,
-#if USE_NST_INTRA
+#if CONFIG_MODE_DEP_NONSEP_INTRA_TX
   NSTX,
-#endif
-#endif
+#endif  // CONFIG_MODE_DEP_NONSEP_INTRA_TX
+#endif  // USE_MDTX_INTRA
 #if USE_MDTX_INTER
   MDTX1_1D,    MDTX1_1D, DCT_1D,      MDTX1_1D, MDTX1_1D,   DCT_1D,
   MDTX1_1D,    MDTX1_1D,
-#endif
-#endif
+#endif  // USE_MDTX_INTER
+#endif  // CONFIG_MODE_DEP_TX
 };
 
 static const TX_TYPE_1D htx_tab[TX_TYPES] = {
@@ -327,15 +327,15 @@ static const TX_TYPE_1D htx_tab[TX_TYPES] = {
 #if CONFIG_MODE_DEP_TX
 #if USE_MDTX_INTRA
   MDTX1_1D, DCT_1D,      MDTX1_1D,
-#if USE_NST_INTRA
+#if CONFIG_MODE_DEP_NONSEP_INTRA_TX
   NSTX,
-#endif
-#endif
+#endif  // CONFIG_MODE_DEP_NONSEP_INTRA_TX
+#endif  // USE_MDTX_INTRA
 #if USE_MDTX_INTER
   MDTX1_1D, DCT_1D,      MDTX1_1D,    MDTX1_1D,    DCT_1D,  MDTX1_1D,
   MDTX1_1D, MDTX1_1D,
-#endif
-#endif
+#endif  // USE_MDTX_INTER
+#endif  // CONFIG_MODE_DEP_TX
 };
 
 #define TXSIZE_CAT_INVALID (-1)

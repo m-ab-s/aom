@@ -239,7 +239,7 @@ static const int32_t mdt8_mode12[64] = {
   48,    2474,  -2665, 1539, -934,  527,   -189,  34,    8,
 };
 
-#if USE_MDTX_INTRA && USE_NST_INTRA
+#if USE_MDTX_INTRA && CONFIG_MODE_DEP_NONSEP_INTRA_TX
 // non-separable transforms
 static const int32_t mdt4x4_mode0[256] = {
   10,   22,   34,   44,   17,  55,  86,   88,  27,  75,   102, 94,   39,   69,
@@ -6704,7 +6704,7 @@ static const int32_t *nstx_intra_mtx[4][INTRA_MODES] = {
   { mdt4x4_mode0, mdt4x4_mode1, mdt4x4_mode2, mdt4x4_mode3, mdt4x4_mode4,
     mdt4x4_mode5, mdt4x4_mode6, mdt4x4_mode7, mdt4x4_mode8, mdt4x4_mode9,
     mdt4x4_mode10, mdt4x4_mode11, mdt4x4_mode12 },
-#if USE_NST_ALL_SIZES
+#if !CONFIG_MODE_DEP_NONSEP_SEC_INTRA_TX
   { mdt8x8_mode0, mdt8x8_mode1, mdt8x8_mode2, mdt8x8_mode3, mdt8x8_mode4,
     mdt8x8_mode5, mdt8x8_mode6, mdt8x8_mode7, mdt8x8_mode8, mdt8x8_mode9,
     mdt8x8_mode10, mdt8x8_mode11, mdt8x8_mode12 },
@@ -6724,7 +6724,7 @@ static const int32_t *nstx_intra_mtx[4][INTRA_MODES] = {
   { nsst8x4_mode0, nsst8x4_mode1, nsst8x4_mode2, nsst8x4_mode3, nsst8x4_mode4,
     nsst8x4_mode5, nsst8x4_mode6, nsst8x4_mode7, nsst8x4_mode8, nsst8x4_mode9,
     nsst8x4_mode10, nsst8x4_mode11, nsst8x4_mode12 },
-#endif
+#endif  // !CONFIG_MODE_DEP_NONSEP_SEC_INTRA_TX
 };
 
 static INLINE const int32_t *nstx_arr(TX_SIZE tx_size, PREDICTION_MODE mode) {
@@ -6736,7 +6736,7 @@ static INLINE const int32_t *nstx_arr(TX_SIZE tx_size, PREDICTION_MODE mode) {
     default: assert(0); return NULL;
   }
 }
-#endif
+#endif  // USE_MDTX_INTRA && CONFIG_MODE_DEP_NONSEP_INTRA_TX
 
 // pointers to separable mode-dependent transforms
 static const int32_t *mdt_mtx_arr[2][INTRA_MODES] = {

@@ -793,7 +793,7 @@ static const int av1_num_ext_tx_set[EXT_TX_SET_TYPES] = {
 #if CONFIG_MODE_DEP_TX
 #if USE_MDTX_INTRA && USE_MDTX_INTER
 static const int av1_ext_tx_used[EXT_TX_SET_TYPES][TX_TYPES] = {
-#if USE_NST_INTRA
+#if CONFIG_MODE_DEP_NONSEP_INTRA_TX
   { 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
   { 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0,
@@ -819,11 +819,11 @@ static const int av1_ext_tx_used[EXT_TX_SET_TYPES][TX_TYPES] = {
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
   { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
     1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1 },
-#endif
+#endif  // CONFIG_MODE_DEP_NONSEP_INTRA_TX
 };
 #elif USE_MDTX_INTRA
 static const int av1_ext_tx_used[EXT_TX_SET_TYPES][TX_TYPES] = {
-#if USE_NST_INTRA
+#if CONFIG_MODE_DEP_NONSEP_INTRA_TX
   { 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
   { 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
   { 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
@@ -837,7 +837,7 @@ static const int av1_ext_tx_used[EXT_TX_SET_TYPES][TX_TYPES] = {
   { 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1 },
   { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0 },
   { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0 },
-#endif
+#endif  // CONFIG_MODE_DEP_NONSEP_INTRA_TX
 };
 #elif USE_MDTX_INTER
 static const int av1_ext_tx_used[EXT_TX_SET_TYPES][TX_TYPES] = {
@@ -885,16 +885,16 @@ static const uint16_t av1_ext_tx_used_flag[EXT_TX_SET_TYPES] = {
   0xFFFF,  // 1111 1111 1111 1111
 };
 
-#if CONFIG_MODE_DEP_TX && USE_MDTX_INTRA && USE_NST_INTRA
+#if CONFIG_MODE_DEP_TX && USE_MDTX_INTRA && CONFIG_MODE_DEP_NONSEP_INTRA_TX
 static INLINE int use_nstx(TX_TYPE tx_type, TX_SIZE tx_size,
                            PREDICTION_MODE mode) {
   (void)mode;
   if (tx_type != MDTX_INTRA_4) return 0;
   int is_valid_nstx_size = tx_size == TX_4X4;
-#if USE_NST_ALL_SIZES
+#if !CONFIG_MODE_DEP_NONSEP_SEC_INTRA_TX
   is_valid_nstx_size |=
       (tx_size == TX_8X8 || tx_size == TX_4X8 || tx_size == TX_8X4);
-#endif
+#endif  // !CONFIG_MODE_DEP_NONSEP_SEC_INTRA_TX
   return is_valid_nstx_size;
 }
 
