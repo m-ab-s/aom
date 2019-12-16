@@ -811,7 +811,11 @@ void av1_find_best_ref_mvs(MvSubpelPrecision precision, int_mv *mvlist,
     lower_mv_precision(&mvlist[i].as_mv, precision);
   }
   *nearest_mv = mvlist[0];
+#if CONFIG_NEW_INTER_MODES
+  *near_mv = mvlist[0];
+#else
   *near_mv = mvlist[1];
+#endif  // CONFIG_NEW_INTER_MODES
 }
 
 void av1_setup_frame_buf_refs(AV1_COMMON *cm) {

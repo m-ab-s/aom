@@ -176,8 +176,6 @@ static void write_inter_mode(aom_writer *w, PREDICTION_MODE mode,
 static void write_drl_idx(FRAME_CONTEXT *ec_ctx, const MB_MODE_INFO *mbmi,
                           const MB_MODE_INFO_EXT *mbmi_ext, aom_writer *w) {
   uint8_t ref_frame_type = av1_ref_frame_type(mbmi->ref_frame);
-  int ref_mv_idx = mbmi->ref_mv_idx;
-  if (have_nearmv_in_inter_mode(mbmi->mode)) ref_mv_idx++;
   // Write the DRL index as a sequence of bits encoding a decision tree:
   // 0 -> 0   10 -> 1   110 -> 2    111 -> 3
   // Also use the number of reference MVs for a frame type to reduce the
@@ -185,8 +183,8 @@ static void write_drl_idx(FRAME_CONTEXT *ec_ctx, const MB_MODE_INFO *mbmi,
   int range = AOMMIN(mbmi_ext->ref_mv_count[ref_frame_type] - 1, 3);
   for (int idx = 0; idx < range; ++idx) {
     uint8_t drl_ctx = av1_drl_ctx(mbmi_ext->weight[ref_frame_type], idx);
-    aom_write_symbol(w, ref_mv_idx != idx, ec_ctx->drl_cdf[drl_ctx], 2);
-    if (ref_mv_idx == idx) break;
+    aom_write_symbol(w, mbmi->ref_mv_idx != idx, ec_ctx->drl_cdf[drl_ctx], 2);
+    if (mbmi->ref_mv_idx == idx) break;
   }
 }
 #else

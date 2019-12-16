@@ -1654,16 +1654,19 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
     lower_mv_precision(&nearestmv[1].as_mv, cm->mv_precision);
     lower_mv_precision(&nearmv[0].as_mv, cm->mv_precision);
     lower_mv_precision(&nearmv[1].as_mv, cm->mv_precision);
-  } else if (mbmi->ref_mv_idx > 0 && mbmi->mode == NEARMV) {
 #if CONFIG_NEW_INTER_MODES
+  } else if (mbmi->mode == NEARMV) {
     int_mv cur_mv =
         xd->ref_mv_stack[mbmi->ref_frame[0]][mbmi->ref_mv_idx].this_mv;
-#else
-    int_mv cur_mv =
-        xd->ref_mv_stack[mbmi->ref_frame[0]][1 + mbmi->ref_mv_idx].this_mv;
-#endif  // CONFIG_NEW_INTER_MODES
     nearmv[0] = cur_mv;
   }
+#else
+  } else if (mbmi->ref_mv_idx > 0 && mbmi->mode == NEARMV) {
+    int_mv cur_mv =
+        xd->ref_mv_stack[mbmi->ref_frame[0]][1 + mbmi->ref_mv_idx].this_mv;
+    nearmv[0] = cur_mv;
+  }
+#endif  // CONFIG_NEW_INTER_MODES
 
   int_mv ref_mv[2];
   ref_mv[0] = nearestmv[0];
