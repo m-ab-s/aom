@@ -4190,7 +4190,7 @@ static int intra_mode_info_cost_y(const AV1_COMP *cpi, const MACROBLOCK *x,
         xd->above_mbmi && xd->above_mbmi->use_derived_intra_mode[0];
     const int left = xd->left_mbmi && xd->left_mbmi->use_derived_intra_mode[0];
     const int *derived_intra_mode_cost =
-        x->derived_intra_mode_cost[above + left];
+        x->derived_intra_mode_cost[0][above + left];
     mode_cost += derived_intra_mode_cost[mbmi->use_derived_intra_mode[0]];
     if (mbmi->use_derived_intra_mode[0]) return mode_cost;
   }
@@ -10023,6 +10023,19 @@ static int handle_inter_intra_mode(const AV1_COMP *const cpi,
   restore_dst_buf(xd, *orig_dst, num_planes);
   mbmi->ref_frame[1] = INTRA_FRAME;
   best_interintra_mode = args->inter_intra_mode[mbmi->ref_frame[0]];
+#if CONFIG_DERIVED_INTRA_MODE
+  mbmi->use_derived_intra_mode[0] = 0;
+  mbmi->use_derived_intra_mode[1] = 0;
+  int pick_derived_intra_mode = 0;
+  const int total_modes =
+      INTERINTRA_MODES + av1_enable_derived_intra_mode(xd, bsize);
+  const int above = xd->above_mbmi && xd->above_mbmi->use_derived_intra_mode[0];
+  const int left = xd->left_mbmi && xd->left_mbmi->use_derived_intra_mode[0];
+  const int *derived_intra_mode_cost =
+      x->derived_intra_mode_cost[1][above + left];
+#else
+  const int total_modes = INTERINTRA_MODES;
+#endif  // CONFIG_DERIVED_INTRA_MODE
 
   if (cpi->oxcf.enable_smooth_interintra &&
       !cpi->sf.disable_smooth_interintra) {
@@ -10030,12 +10043,27 @@ static int handle_inter_intra_mode(const AV1_COMP *const cpi,
     int j = 0;
     if (cpi->sf.reuse_inter_intra_mode == 0 ||
         best_interintra_mode == INTERINTRA_MODES) {
-      for (j = 0; j < INTERINTRA_MODES; ++j) {
+      for (j = 0; j < total_modes; ++j) {
         if ((!cpi->oxcf.enable_smooth_intra || cpi->sf.disable_smooth_intra) &&
             (INTERINTRA_MODE)j == II_SMOOTH_PRED)
           continue;
         mbmi->interintra_mode = (INTERINTRA_MODE)j;
+#if CONFIG_DERIVED_INTRA_MODE
+        mbmi->use_derived_intra_mode[0] = 0;
+        if (j == INTERINTRA_MODES) {
+          if (!av1_enable_derived_intra_mode(xd, bsize)) continue;
+          mbmi->interintra_mode = 0;
+          mbmi->use_derived_intra_mode[0] = 1;
+        }
+        if (mbmi->use_derived_intra_mode[0]) {
+          rmode = derived_intra_mode_cost[1];
+        } else {
+          rmode = derived_intra_mode_cost[0] +
+                  interintra_mode_cost[mbmi->interintra_mode];
+        }
+#else
         rmode = interintra_mode_cost[mbmi->interintra_mode];
+#endif  // CONFIG_DERIVED_INTRA_MODE
         av1_build_intra_predictors_for_interintra(cm, xd, bsize, 0, orig_dst,
                                                   intrapred, bw);
         av1_combine_interintra(xd, bsize, 0, tmp_buf, bw, intrapred, bw);
@@ -10046,6 +10074,9 @@ static int handle_inter_intra_mode(const AV1_COMP *const cpi,
         if (rd < best_interintra_rd) {
           best_interintra_rd = rd;
           best_interintra_mode = mbmi->interintra_mode;
+#if CONFIG_DERIVED_INTRA_MODE
+          pick_derived_intra_mode = mbmi->use_derived_intra_mode[0];
+#endif  // CONFIG_DERIVED_INTRA_MODE
         }
       }
       args->inter_intra_mode[mbmi->ref_frame[0]] = best_interintra_mode;
@@ -10053,9 +10084,21 @@ static int handle_inter_intra_mode(const AV1_COMP *const cpi,
     assert(IMPLIES(!cpi->oxcf.enable_smooth_interintra ||
                        cpi->sf.disable_smooth_interintra,
                    best_interintra_mode != II_SMOOTH_PRED));
+#if CONFIG_DERIVED_INTRA_MODE
+    if (pick_derived_intra_mode) {
+      rmode = derived_intra_mode_cost[1];
+    } else {
+      rmode = derived_intra_mode_cost[0] +
+              interintra_mode_cost[best_interintra_mode];
+    }
+#else
     rmode = interintra_mode_cost[best_interintra_mode];
+#endif  // CONFIG_DERIVED_INTRA_MODE
     if (j == 0 || best_interintra_mode != INTERINTRA_MODES - 1) {
       mbmi->interintra_mode = best_interintra_mode;
+#if CONFIG_DERIVED_INTRA_MODE
+      mbmi->use_derived_intra_mode[0] = pick_derived_intra_mode;
+#endif  // CONFIG_DERIVED_INTRA_MODE
       av1_build_intra_predictors_for_interintra(cm, xd, bsize, 0, orig_dst,
                                                 intrapred, bw);
       av1_combine_interintra(xd, bsize, 0, tmp_buf, bw, intrapred, bw);
@@ -10080,10 +10123,14 @@ static int handle_inter_intra_mode(const AV1_COMP *const cpi,
       return -1;
     }
   }
+
   if (is_wedge_used) {
     int64_t best_interintra_rd_nowedge = rd;
     int64_t best_interintra_rd_wedge = INT64_MAX;
     int_mv tmp_mv;
+#if CONFIG_DERIVED_INTRA_MODE
+    int use_derived_mode = 0;
+#endif  // CONFIG_DERIVED_INTRA_MODE
     if (enable_wedge_interintra_search(x, cpi)) {
       mbmi->use_wedge_interintra = 1;
       if (!cpi->sf.fast_interintra_wedge_search) {
@@ -10091,24 +10138,45 @@ static int handle_inter_intra_mode(const AV1_COMP *const cpi,
         int best_mode = 0;
         int best_wedge_index = 0;
         int64_t best_total_rd = INT64_MAX;
-        for (int j = 0; j < INTERINTRA_MODES; ++j) {
+        for (int j = 0; j < total_modes; ++j) {
           mbmi->interintra_mode = (INTERINTRA_MODE)j;
+#if CONFIG_DERIVED_INTRA_MODE
+          mbmi->use_derived_intra_mode[0] = 0;
+          if (j == INTERINTRA_MODES) {
+            if (!av1_enable_derived_intra_mode(xd, bsize)) continue;
+            mbmi->interintra_mode = 0;
+            mbmi->use_derived_intra_mode[0] = 1;
+          }
+          if (mbmi->use_derived_intra_mode[0]) {
+            rmode = derived_intra_mode_cost[1];
+          } else {
+            rmode = derived_intra_mode_cost[0] +
+                    interintra_mode_cost[mbmi->interintra_mode];
+          }
+#else
+          rmode = interintra_mode_cost[mbmi->interintra_mode];
+#endif  // CONFIG_DERIVED_INTRA_MODE
           av1_build_intra_predictors_for_interintra(cm, xd, bsize, 0, orig_dst,
                                                     intrapred, bw);
           rd = pick_interintra_wedge(cpi, x, bsize, intrapred_, tmp_buf_);
           const int rate_overhead =
-              interintra_mode_cost[mbmi->interintra_mode] +
-              x->wedge_idx_cost[bsize][mbmi->interintra_wedge_index];
+              rmode + x->wedge_idx_cost[bsize][mbmi->interintra_wedge_index];
           const int64_t total_rd = rd + RDCOST(x->rdmult, rate_overhead, 0);
           if (total_rd < best_total_rd) {
             best_total_rd = total_rd;
             best_interintra_rd_wedge = rd;
             best_mode = mbmi->interintra_mode;
             best_wedge_index = mbmi->interintra_wedge_index;
+#if CONFIG_DERIVED_INTRA_MODE
+            use_derived_mode = mbmi->use_derived_intra_mode[0];
+#endif  // CONFIG_DERIVED_INTRA_MODE
           }
         }
         mbmi->interintra_mode = best_mode;
         mbmi->interintra_wedge_index = best_wedge_index;
+#if CONFIG_DERIVED_INTRA_MODE
+        mbmi->use_derived_intra_mode[0] = use_derived_mode;
+#endif  // CONFIG_DERIVED_INTRA_MODE
         if (best_mode != INTERINTRA_MODES - 1) {
           av1_build_intra_predictors_for_interintra(cm, xd, bsize, 0, orig_dst,
                                                     intrapred, bw);
@@ -10118,15 +10186,33 @@ static int handle_inter_intra_mode(const AV1_COMP *const cpi,
         if (best_interintra_mode == INTERINTRA_MODES) {
           mbmi->interintra_mode = INTERINTRA_MODES - 1;
           best_interintra_mode = INTERINTRA_MODES - 1;
+#if CONFIG_DERIVED_INTRA_MODE
+          mbmi->use_derived_intra_mode[0] = 0;
+#endif  // CONFIG_DERIVED_INTRA_MODE
           av1_build_intra_predictors_for_interintra(cm, xd, bsize, 0, orig_dst,
                                                     intrapred, bw);
           best_interintra_rd_wedge =
               pick_interintra_wedge(cpi, x, bsize, intrapred_, tmp_buf_);
 
           int j = 0;
-          for (j = 0; j < INTERINTRA_MODES; ++j) {
+          for (j = 0; j < total_modes; ++j) {
             mbmi->interintra_mode = (INTERINTRA_MODE)j;
+#if CONFIG_DERIVED_INTRA_MODE
+            mbmi->use_derived_intra_mode[0] = 0;
+            if (j == INTERINTRA_MODES) {
+              if (!av1_enable_derived_intra_mode(xd, bsize)) continue;
+              mbmi->interintra_mode = 0;
+              mbmi->use_derived_intra_mode[0] = 1;
+            }
+            if (mbmi->use_derived_intra_mode[0]) {
+              rmode = derived_intra_mode_cost[1];
+            } else {
+              rmode = derived_intra_mode_cost[0] +
+                      interintra_mode_cost[mbmi->interintra_mode];
+            }
+#else
             rmode = interintra_mode_cost[mbmi->interintra_mode];
+#endif  // CONFIG_DERIVED_INTRA_MODE
             av1_build_intra_predictors_for_interintra(cm, xd, bsize, 0,
                                                       orig_dst, intrapred, bw);
             av1_combine_interintra(xd, bsize, 0, tmp_buf, bw, intrapred, bw);
@@ -10137,10 +10223,16 @@ static int handle_inter_intra_mode(const AV1_COMP *const cpi,
             if (rd < best_interintra_rd) {
               best_interintra_rd_wedge = rd;
               best_interintra_mode = mbmi->interintra_mode;
+#if CONFIG_DERIVED_INTRA_MODE
+              pick_derived_intra_mode = mbmi->use_derived_intra_mode[0];
+#endif  // CONFIG_DERIVED_INTRA_MODE
             }
           }
           args->inter_intra_mode[mbmi->ref_frame[0]] = best_interintra_mode;
           mbmi->interintra_mode = best_interintra_mode;
+#if CONFIG_DERIVED_INTRA_MODE
+          mbmi->use_derived_intra_mode[0] = pick_derived_intra_mode;
+#endif  // CONFIG_DERIVED_INTRA_MODE
 
           if (best_interintra_mode != INTERINTRA_MODES - 1) {
             av1_build_intra_predictors_for_interintra(cm, xd, bsize, 0,
@@ -10148,6 +10240,9 @@ static int handle_inter_intra_mode(const AV1_COMP *const cpi,
           }
         } else {
           mbmi->interintra_mode = best_interintra_mode;
+#if CONFIG_DERIVED_INTRA_MODE
+          mbmi->use_derived_intra_mode[0] = pick_derived_intra_mode;
+#endif  // CONFIG_DERIVED_INTRA_MODE
           av1_build_intra_predictors_for_interintra(cm, xd, bsize, 0, orig_dst,
                                                     intrapred, bw);
           best_interintra_rd_wedge =
@@ -10158,7 +10253,16 @@ static int handle_inter_intra_mode(const AV1_COMP *const cpi,
             pick_interintra_wedge(cpi, x, bsize, intrapred_, tmp_buf_);
       }
 
+#if CONFIG_DERIVED_INTRA_MODE
+      if (mbmi->use_derived_intra_mode[0]) {
+        rmode = derived_intra_mode_cost[1];
+      } else {
+        rmode = derived_intra_mode_cost[0] +
+                interintra_mode_cost[mbmi->interintra_mode];
+      }
+#else
       rmode = interintra_mode_cost[mbmi->interintra_mode];
+#endif  // CONFIG_DERIVED_INTRA_MODE
       rwedge = x->wedge_idx_cost[bsize][mbmi->interintra_wedge_index] +
                x->wedge_interintra_cost[bsize][1];
       best_interintra_rd_wedge +=
@@ -10213,6 +10317,9 @@ static int handle_inter_intra_mode(const AV1_COMP *const cpi,
       } else {
         mbmi->use_wedge_interintra = 0;
         mbmi->interintra_mode = best_interintra_mode;
+#if CONFIG_DERIVED_INTRA_MODE
+        mbmi->use_derived_intra_mode[0] = pick_derived_intra_mode;
+#endif  // CONFIG_DERIVED_INTRA_MODE
         mbmi->mv[0].as_int = mv0.as_int;
         av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, orig_dst, bsize,
                                       AOM_PLANE_Y, AOM_PLANE_Y);
@@ -10346,6 +10453,10 @@ static int64_t motion_mode_rd(
   if (total_samples == 0) {
     last_motion_mode_allowed = OBMC_CAUSAL;
   }
+#if CONFIG_DERIVED_INTRA_MODE
+  mbmi->use_derived_intra_mode[0] = 0;
+  mbmi->use_derived_intra_mode[1] = 0;
+#endif  // CONFIG_DERIVED_INTRA_MODE
 
   const MB_MODE_INFO base_mbmi = *mbmi;
   MB_MODE_INFO best_mbmi;
@@ -10526,11 +10637,29 @@ static int64_t motion_mode_rd(
     rd_stats->rate = tmp_rate2;
     if (mbmi->motion_mode != WARPED_CAUSAL) rd_stats->rate += switchable_rate;
     if (interintra_allowed) {
-      rd_stats->rate += x->interintra_cost[size_group_lookup[bsize]]
-                                          [mbmi->ref_frame[1] == INTRA_FRAME];
-      if (mbmi->ref_frame[1] == INTRA_FRAME) {
-        rd_stats->rate += x->interintra_mode_cost[size_group_lookup[bsize]]
-                                                 [mbmi->interintra_mode];
+      const int is_interintra = mbmi->ref_frame[1] == INTRA_FRAME;
+      const int size_group = size_group_lookup[bsize];
+      rd_stats->rate += x->interintra_cost[size_group][is_interintra];
+      if (is_interintra) {
+#if CONFIG_DERIVED_INTRA_MODE
+        if (av1_enable_derived_intra_mode(xd, bsize)) {
+          const int above =
+              xd->above_mbmi && xd->above_mbmi->use_derived_intra_mode[0];
+          const int left =
+              xd->left_mbmi && xd->left_mbmi->use_derived_intra_mode[0];
+          const int *derived_intra_mode_cost =
+              x->derived_intra_mode_cost[1][above + left];
+          const int use_derived_intra_mode = mbmi->use_derived_intra_mode[0];
+          rd_stats->rate += derived_intra_mode_cost[use_derived_intra_mode];
+        } else {
+          assert(!mbmi->use_derived_intra_mode[0]);
+        }
+        if (!mbmi->use_derived_intra_mode[0])
+#endif  // CONFIG_DERIVED_INTRA_MODE
+        {
+          rd_stats->rate +=
+              x->interintra_mode_cost[size_group][mbmi->interintra_mode];
+        }
         if (is_interintra_wedge_used(bsize)) {
           rd_stats->rate +=
               x->wedge_interintra_cost[bsize][mbmi->use_wedge_interintra];

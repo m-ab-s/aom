@@ -963,7 +963,7 @@ static void sum_intra_stats(const AV1_COMMON *const cm, FRAME_COUNTS *counts,
         if (av1_enable_derived_intra_mode(xd, bsize)) {
           update_intra_mode = !mbmi->use_derived_intra_mode[0];
           if (allow_update_cdf) {
-            update_cdf(get_derived_intra_mode_cdf(fc, above_mi, left_mi),
+            update_cdf(get_derived_intra_mode_cdf(fc, above_mi, left_mi, 0),
                        mbmi->use_derived_intra_mode[0], 2);
           }
         } else {
@@ -993,7 +993,7 @@ static void sum_intra_stats(const AV1_COMMON *const cm, FRAME_COUNTS *counts,
       update_cdf(fc->bf_is_dr_mode_cdf[ctx], is_dr_mode, 2);
       if (is_dr_mode) {
         if (av1_enable_derived_intra_mode(xd, bsize)) {
-          update_cdf(get_derived_intra_mode_cdf(fc, above_mi, left_mi),
+          update_cdf(get_derived_intra_mode_cdf(fc, above_mi, left_mi, 0),
                      mbmi->use_derived_intra_mode[0], 2);
         } else {
           assert(!mbmi->use_derived_intra_mode[0]);
@@ -1465,8 +1465,18 @@ static void update_stats(const AV1_COMMON *const cm, TileDataEnc *tile_data,
             counts->interintra_mode[bsize_group][mbmi->interintra_mode]++;
 #endif  // CONFIG_ENTROPY_STATS
             if (allow_update_cdf) {
-              update_cdf(fc->interintra_mode_cdf[bsize_group],
-                         mbmi->interintra_mode, INTERINTRA_MODES);
+#if CONFIG_DERIVED_INTRA_MODE
+              if (av1_enable_derived_intra_mode(xd, bsize)) {
+                update_cdf(get_derived_intra_mode_cdf(fc, xd->above_mbmi,
+                                                      xd->left_mbmi, 1),
+                           mbmi->use_derived_intra_mode[0], 2);
+              }
+              if (!mbmi->use_derived_intra_mode[0])
+#endif  // CONFIG_DERIVED_INTRA_MODE
+              {
+                update_cdf(fc->interintra_mode_cdf[bsize_group],
+                           mbmi->interintra_mode, INTERINTRA_MODES);
+              }
             }
             if (is_interintra_wedge_used(bsize)) {
 #if CONFIG_ENTROPY_STATS

@@ -940,7 +940,8 @@ static void read_intra_frame_mode_info(AV1_COMMON *const cm,
   if (is_dr) {
     if (av1_enable_derived_intra_mode(xd, bsize)) {
       mbmi->use_derived_intra_mode[0] = aom_read_symbol(
-          r, get_derived_intra_mode_cdf(ec_ctx, xd->above_mbmi, xd->left_mbmi),
+          r,
+          get_derived_intra_mode_cdf(ec_ctx, xd->above_mbmi, xd->left_mbmi, 0),
           2, ACCT_STR);
     }
     if (mbmi->use_derived_intra_mode[0]) {
@@ -1291,7 +1292,8 @@ static void read_intra_block_mode_info(AV1_COMMON *const cm, const int mi_row,
   if (is_dr) {
     if (av1_enable_derived_intra_mode(xd, bsize)) {
       mbmi->use_derived_intra_mode[0] = aom_read_symbol(
-          r, get_derived_intra_mode_cdf(ec_ctx, xd->above_mbmi, xd->left_mbmi),
+          r,
+          get_derived_intra_mode_cdf(ec_ctx, xd->above_mbmi, xd->left_mbmi, 0),
           2, ACCT_STR);
     }
     if (mbmi->use_derived_intra_mode[0]) {
@@ -1767,8 +1769,24 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
         aom_read_symbol(r, ec_ctx->interintra_cdf[bsize_group], 2, ACCT_STR);
     assert(mbmi->ref_frame[1] == NONE_FRAME);
     if (interintra) {
+#if CONFIG_DERIVED_INTRA_MODE
+      mbmi->use_derived_intra_mode[0] = 0;
+      mbmi->use_derived_intra_mode[1] = 0;
+      if (av1_enable_derived_intra_mode(xd, bsize)) {
+        mbmi->use_derived_intra_mode[0] =
+            aom_read_symbol(r,
+                            get_derived_intra_mode_cdf(ec_ctx, xd->above_mbmi,
+                                                       xd->left_mbmi, 1),
+                            2, ACCT_STR);
+      }
+      const INTERINTRA_MODE interintra_mode =
+          mbmi->use_derived_intra_mode[0]
+              ? 0
+              : read_interintra_mode(xd, r, bsize_group);
+#else
       const INTERINTRA_MODE interintra_mode =
           read_interintra_mode(xd, r, bsize_group);
+#endif  // CONFIG_DERIVED_INTRA_MODE
       mbmi->ref_frame[1] = INTRA_FRAME;
       mbmi->interintra_mode = interintra_mode;
       mbmi->angle_delta[PLANE_TYPE_Y] = 0;

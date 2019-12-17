@@ -1611,11 +1611,20 @@ void av1_build_intra_predictors_for_interintra(const AV1_COMMON *cm,
   const int mi_col = -xd->mb_to_left_edge >> (3 + MI_SIZE_LOG2);
   BLOCK_SIZE plane_bsize =
       get_plane_block_size(mi_row, mi_col, bsize, ssx, ssy);
-  PREDICTION_MODE mode = interintra_to_intra_mode[xd->mi[0]->interintra_mode];
-  assert(xd->mi[0]->angle_delta[PLANE_TYPE_Y] == 0);
-  assert(xd->mi[0]->angle_delta[PLANE_TYPE_UV] == 0);
-  assert(xd->mi[0]->filter_intra_mode_info.use_filter_intra == 0);
-  assert(xd->mi[0]->use_intrabc == 0);
+  MB_MODE_INFO *mbmi = xd->mi[0];
+#if CONFIG_DERIVED_INTRA_MODE
+  const int use_derived_mode = mbmi->use_derived_intra_mode[0];
+  const PREDICTION_MODE mode =
+      use_derived_mode
+          ? av1_get_derived_intra_mode(xd, bsize, &mbmi->derived_angle)
+          : interintra_to_intra_mode[mbmi->interintra_mode];
+#else
+  const PREDICTION_MODE mode = interintra_to_intra_mode[mbmi->interintra_mode];
+#endif
+  assert(mbmi->angle_delta[PLANE_TYPE_Y] == 0);
+  assert(mbmi->angle_delta[PLANE_TYPE_UV] == 0);
+  assert(mbmi->filter_intra_mode_info.use_filter_intra == 0);
+  assert(mbmi->use_intrabc == 0);
   assert(plane_bsize < BLOCK_SIZES_ALL);
 
   av1_predict_intra_block(
@@ -1625,7 +1634,7 @@ void av1_build_intra_predictors_for_interintra(const AV1_COMMON *cm,
       ADAPT_FILTER_INTRA_MODES,
 #endif
 #if CONFIG_DERIVED_INTRA_MODE
-      0,
+      use_derived_mode ? mbmi->derived_angle : 0,
 #endif  // CONFIG_DERIVED_INTRA_MODE
       ctx->plane[plane], ctx->stride[plane], dst, dst_stride, 0, 0, plane);
 }

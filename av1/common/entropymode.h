@@ -312,7 +312,7 @@ typedef struct frame_contexts {
   aom_cdf_prob cfl_sign_cdf[CDF_SIZE(CFL_JOINT_SIGNS)];
   aom_cdf_prob cfl_alpha_cdf[CFL_ALPHA_CONTEXTS][CDF_SIZE(CFL_ALPHABET_SIZE)];
 #if CONFIG_DERIVED_INTRA_MODE
-  aom_cdf_prob derived_intra_mode_cdf[3][CDF_SIZE(2)];
+  aom_cdf_prob derived_intra_mode_cdf[2][3][CDF_SIZE(2)];
   aom_cdf_prob uv_derived_intra_mode_cdf[2][CDF_SIZE(2)];
 #endif  // CONFIG_DERIVED_INTRA_MODE
   int initialized;

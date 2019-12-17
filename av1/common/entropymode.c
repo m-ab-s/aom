@@ -1446,10 +1446,19 @@ static const aom_cdf_prob default_intrabc_cdf[CDF_SIZE(2)] = { AOM_CDF2(
     30531) };
 
 #if CONFIG_DERIVED_INTRA_MODE
-static const aom_cdf_prob default_derived_intra_mode_cdf[3][CDF_SIZE(2)] = {
-  { AOM_CDF2(19660) },
-  { AOM_CDF2(16384) },
-  { AOM_CDF2(13107) },
+// TODO(huisu): the default values are the same for regular intra and interintra
+// modes. May need to tune them.
+static const aom_cdf_prob default_derived_intra_mode_cdf[2][3][CDF_SIZE(2)] = {
+  {
+      { AOM_CDF2(19660) },
+      { AOM_CDF2(16384) },
+      { AOM_CDF2(13107) },
+  },
+  {
+      { AOM_CDF2(19660) },
+      { AOM_CDF2(16384) },
+      { AOM_CDF2(13107) },
+  },
 };
 
 static const aom_cdf_prob default_uv_derived_intra_mode_cdf[2][CDF_SIZE(2)] = {

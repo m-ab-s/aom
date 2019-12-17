@@ -444,7 +444,7 @@ struct macroblock {
 #endif  // CONFIG_WIENER_NONSEP
   int intrabc_cost[2];
 #if CONFIG_DERIVED_INTRA_MODE
-  int derived_intra_mode_cost[3][2];
+  int derived_intra_mode_cost[2][3][2];
   int uv_derived_intra_mode_cost[2][2];
 #endif  // CONFIG_DERIVED_INTRA_MODE
 
