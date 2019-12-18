@@ -654,6 +654,8 @@ static void pick_sb_modes(AV1_COMP *const cpi, TileDataEnc *tile_data,
     mbmi->partition = partition;
   }
 
+  mbmi->chroma_ref_info = ctx->chroma_ref_info;
+
 #if CONFIG_RD_DEBUG
   mbmi->mi_row = mi_row;
   mbmi->mi_col = mi_col;
@@ -679,9 +681,7 @@ static void pick_sb_modes(AV1_COMP *const cpi, TileDataEnc *tile_data,
     mbmi->skip_mode = 0;
   }
 
-  x->skip_chroma_rd =
-      !is_chroma_reference(mi_row, mi_col, bsize, xd->plane[1].subsampling_x,
-                           xd->plane[1].subsampling_y);
+  x->skip_chroma_rd = !mbmi->chroma_ref_info.is_chroma_ref;
 
   if (ctx->rd_mode_is_ready) {
     x->skip = ctx->rd_stats.skip;
@@ -929,8 +929,7 @@ static void sum_intra_stats(const AV1_COMMON *const cm, FRAME_COUNTS *counts,
 #if CONFIG_INTRA_ENTROPY
                             const MB_MODE_INFO *aboveleft_mi,
 #endif  // CONFIG_INTRA_ENTROPY
-                            const int intraonly, const int mi_row,
-                            const int mi_col, uint8_t allow_update_cdf) {
+                            const int intraonly, uint8_t allow_update_cdf) {
   FRAME_CONTEXT *fc = xd->tile_ctx;
   const PREDICTION_MODE y_mode = mbmi->mode;
   const UV_PREDICTION_MODE uv_mode = mbmi->uv_mode;
@@ -1071,10 +1070,7 @@ static void sum_intra_stats(const AV1_COMMON *const cm, FRAME_COUNTS *counts,
     }
   }
 
-  if (!is_chroma_reference(mi_row, mi_col, bsize,
-                           xd->plane[AOM_PLANE_U].subsampling_x,
-                           xd->plane[AOM_PLANE_U].subsampling_y))
-    return;
+  if (!mbmi->chroma_ref_info.is_chroma_ref) return;
 
 #if CONFIG_ENTROPY_STATS
   ++counts->uv_mode[is_cfl_allowed(xd)][y_mode][uv_mode];
@@ -1245,7 +1241,7 @@ static void update_stats(const AV1_COMMON *const cm, TileDataEnc *tile_data,
 #if CONFIG_INTRA_ENTROPY
                     xd->aboveleft_mbmi,
 #endif  // CONFIG_INTRA_ENTROPY
-                    frame_is_intra_only(cm), mi_row, mi_col, allow_update_cdf);
+                    frame_is_intra_only(cm), allow_update_cdf);
   }
 
   if (av1_allow_intrabc(cm)) {
@@ -1933,30 +1929,52 @@ static void encode_sb(const AV1_COMP *const cpi, ThreadData *td,
     ptree->bsize = bsize;
     ptree->mi_row = mi_row;
     ptree->mi_col = mi_col;
+    PARTITION_TREE *parent = ptree->parent;
+    const int ss_x = xd->plane[1].subsampling_x;
+    const int ss_y = xd->plane[1].subsampling_y;
+    set_chroma_ref_info(
+        mi_row, mi_col, ptree->index, bsize, &ptree->chroma_ref_info,
+        parent ? &parent->chroma_ref_info : NULL,
+        parent ? parent->bsize : BLOCK_INVALID,
+        parent ? parent->partition : PARTITION_NONE, ss_x, ss_y);
 
-    int num_splittable_sub_blocks = 0;
     switch (partition) {
-      case PARTITION_SPLIT: num_splittable_sub_blocks = 4; break;
+      case PARTITION_SPLIT:
+        ptree->sub_tree[0] = av1_alloc_ptree_node(ptree, 0);
+        ptree->sub_tree[1] = av1_alloc_ptree_node(ptree, 1);
+        ptree->sub_tree[2] = av1_alloc_ptree_node(ptree, 2);
+        ptree->sub_tree[3] = av1_alloc_ptree_node(ptree, 3);
+        break;
 #if !CONFIG_EXT_RECUR_PARTITIONS
 #if CONFIG_EXT_PARTITIONS
       case PARTITION_HORZ_A:
+        ptree->sub_tree[0] = av1_alloc_ptree_node(ptree, 0);
+        ptree->sub_tree[1] = av1_alloc_ptree_node(ptree, 1);
+        break;
       case PARTITION_HORZ_B:
+        ptree->sub_tree[0] = av1_alloc_ptree_node(ptree, 1);
+        ptree->sub_tree[1] = av1_alloc_ptree_node(ptree, 2);
+        break;
       case PARTITION_VERT_A:
-      case PARTITION_VERT_B: num_splittable_sub_blocks = 2; break;
+        ptree->sub_tree[0] = av1_alloc_ptree_node(ptree, 0);
+        ptree->sub_tree[1] = av1_alloc_ptree_node(ptree, 1);
+        break;
+      case PARTITION_VERT_B:
+        ptree->sub_tree[0] = av1_alloc_ptree_node(ptree, 1);
+        ptree->sub_tree[1] = av1_alloc_ptree_node(ptree, 2);
+        break;
 #endif  // CONFIG_EXT_PARTITIONS
 #endif  // !CONFIG_EXT_RECUR_PARTITIONS
 #if CONFIG_EXT_RECUR_PARTITIONS
       case PARTITION_HORZ:
-      case PARTITION_VERT: num_splittable_sub_blocks = 2; break;
+      case PARTITION_VERT:
+        ptree->sub_tree[0] = av1_alloc_ptree_node(ptree, 0);
+        ptree->sub_tree[1] = av1_alloc_ptree_node(ptree, 1);
+        break;
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
       default: break;
     }
-    if (num_splittable_sub_blocks > 0) {
-      for (int i = 0; i < num_splittable_sub_blocks; ++i) {
-        ptree->sub_tree[i] = av1_alloc_ptree_node();
-        sub_tree[i] = ptree->sub_tree[i];
-      }
-    }
+    for (int i = 0; i < 4; ++i) sub_tree[i] = ptree->sub_tree[i];
   }
 
   switch (partition) {
@@ -2195,6 +2213,8 @@ static void rd_use_partition(AV1_COMP *cpi, ThreadData *td,
   TileInfo *const tile_info = &tile_data->tile_info;
   MACROBLOCK *const x = &td->mb;
   MACROBLOCKD *const xd = &x->e_mbd;
+  const int ss_x = xd->plane[1].subsampling_x;
+  const int ss_y = xd->plane[1].subsampling_y;
   const int bs = mi_size_wide[bsize];
   const int hbs = bs / 2;
   const int pl = (bsize >= BLOCK_8X8)
@@ -2212,7 +2232,9 @@ static void rd_use_partition(AV1_COMP *cpi, ThreadData *td,
   int do_partition_search = 1;
 
   if (pc_tree->none == NULL) {
-    pc_tree->none = av1_alloc_pmc(cm, bsize, &td->shared_coeff_buf);
+    pc_tree->none =
+        av1_alloc_pmc(cm, mi_row, mi_col, bsize, pc_tree, PARTITION_NONE, 0,
+                      ss_x, ss_y, &td->shared_coeff_buf);
   }
   PICK_MODE_CONTEXT *ctx_none = pc_tree->none;
 
@@ -2277,7 +2299,9 @@ static void rd_use_partition(AV1_COMP *cpi, ThreadData *td,
   }
 
   for (int i = 0; i < 4; ++i) {
-    pc_tree->split[i] = av1_alloc_pc_tree_node(subsize, i == 3);
+    pc_tree->split[i] = av1_alloc_pc_tree_node(
+        mi_row + (i >> 1) * hbs, mi_col + (i & 1) * hbs, subsize, pc_tree,
+        PARTITION_SPLIT, i, i == 3, ss_x, ss_y);
   }
   switch (partition) {
     case PARTITION_NONE:
@@ -2286,15 +2310,19 @@ static void rd_use_partition(AV1_COMP *cpi, ThreadData *td,
       break;
     case PARTITION_HORZ:
 #if CONFIG_EXT_RECUR_PARTITIONS
-      pc_tree->horizontal[0] = av1_alloc_pc_tree_node(subsize, 0);
-      pc_tree->horizontal[1] = av1_alloc_pc_tree_node(subsize, 1);
+      pc_tree->horizontal[0] = av1_alloc_pc_tree_node(
+          mi_row, mi_col, subsize, pc_tree, PARTITION_HORZ, 0, 0, ss_x, ss_y);
+      pc_tree->horizontal[1] =
+          av1_alloc_pc_tree_node(mi_row + hbs, mi_col, subsize, pc_tree,
+                                 PARTITION_HORZ, 1, 1, ss_x, ss_y);
       rd_use_partition(cpi, td, tile_data, mib, tp, mi_row, mi_col, subsize,
                        &last_part_rdc.rate, &last_part_rdc.dist, 1,
                        pc_tree->horizontal[0]);
 #else
       for (int i = 0; i < 2; ++i) {
         pc_tree->horizontal[i] =
-            av1_alloc_pmc(cm, subsize, &td->shared_coeff_buf);
+            av1_alloc_pmc(cm, mi_row + hbs * i, mi_col, subsize, pc_tree,
+                          PARTITION_HORZ, i, ss_x, ss_y, &td->shared_coeff_buf);
       }
       pick_sb_modes(cpi, tile_data, x, mi_row, mi_col, &last_part_rdc,
                     PARTITION_HORZ, subsize, pc_tree->horizontal[0],
@@ -2328,15 +2356,19 @@ static void rd_use_partition(AV1_COMP *cpi, ThreadData *td,
       break;
     case PARTITION_VERT:
 #if CONFIG_EXT_RECUR_PARTITIONS
-      pc_tree->vertical[0] = av1_alloc_pc_tree_node(subsize, 0);
-      pc_tree->vertical[1] = av1_alloc_pc_tree_node(subsize, 1);
+      pc_tree->vertical[0] = av1_alloc_pc_tree_node(
+          mi_row, mi_col, subsize, pc_tree, PARTITION_VERT, 0, 0, ss_x, ss_y);
+      pc_tree->vertical[1] =
+          av1_alloc_pc_tree_node(mi_row, mi_col + hbs, subsize, pc_tree,
+                                 PARTITION_VERT, 1, 1, ss_x, ss_y);
       rd_use_partition(cpi, td, tile_data, mib, tp, mi_row, mi_col, subsize,
                        &last_part_rdc.rate, &last_part_rdc.dist, 1,
                        pc_tree->vertical[0]);
 #else
       for (int i = 0; i < 2; ++i) {
         pc_tree->vertical[i] =
-            av1_alloc_pmc(cm, subsize, &td->shared_coeff_buf);
+            av1_alloc_pmc(cm, mi_row, mi_col + hbs * i, subsize, pc_tree,
+                          PARTITION_VERT, i, ss_x, ss_y, &td->shared_coeff_buf);
       }
       pick_sb_modes(cpi, tile_data, x, mi_row, mi_col, &last_part_rdc,
                     PARTITION_VERT, subsize, pc_tree->vertical[0], invalid_rdc,
@@ -2443,7 +2475,9 @@ static void rd_use_partition(AV1_COMP *cpi, ThreadData *td,
       pc_tree->split[i]->partitioning = PARTITION_NONE;
       if (pc_tree->split[i]->none != NULL)
         pc_tree->split[i]->none =
-            av1_alloc_pmc(cm, split_subsize, &td->shared_coeff_buf);
+            av1_alloc_pmc(cm, mi_row + y_idx, mi_col + x_idx, split_subsize,
+                          pc_tree->split[i], PARTITION_NONE, 0, ss_x, ss_y,
+                          &td->shared_coeff_buf);
       pick_sb_modes(cpi, tile_data, x, mi_row + y_idx, mi_col + x_idx, &tmp_rdc,
                     PARTITION_SPLIT, split_subsize, pc_tree->split[i]->none,
                     invalid_rdc, PICK_MODE_RD);
@@ -2520,6 +2554,8 @@ static void nonrd_use_partition(AV1_COMP *cpi, ThreadData *td,
   const SPEED_FEATURES *const sf = &cpi->sf;
   MACROBLOCK *const x = &td->mb;
   MACROBLOCKD *const xd = &x->e_mbd;
+  const int ss_x = xd->plane[1].subsampling_x;
+  const int ss_y = xd->plane[1].subsampling_y;
   // Only square blocks from 8x8 to 128x128 are supported
   assert(bsize >= BLOCK_8X8 && bsize <= BLOCK_128X128);
   const int bs = mi_size_wide[bsize];
@@ -2544,28 +2580,49 @@ static void nonrd_use_partition(AV1_COMP *cpi, ThreadData *td,
   ptree->bsize = bsize;
   ptree->mi_row = mi_row;
   ptree->mi_col = mi_col;
+  PARTITION_TREE *parent = ptree->parent;
+  set_chroma_ref_info(mi_row, mi_col, ptree->index, bsize,
+                      &ptree->chroma_ref_info,
+                      parent ? &parent->chroma_ref_info : NULL,
+                      parent ? parent->bsize : BLOCK_INVALID,
+                      parent ? parent->partition : PARTITION_NONE, ss_x, ss_y);
 
-  int num_splittable_sub_blocks = 0;
+  // int num_splittable_sub_blocks = 0;
   switch (partition) {
-    case PARTITION_SPLIT: num_splittable_sub_blocks = 4; break;
+    case PARTITION_SPLIT:
+      ptree->sub_tree[0] = av1_alloc_ptree_node(ptree, 0);
+      ptree->sub_tree[1] = av1_alloc_ptree_node(ptree, 1);
+      ptree->sub_tree[2] = av1_alloc_ptree_node(ptree, 2);
+      ptree->sub_tree[3] = av1_alloc_ptree_node(ptree, 3);
+      break;
 #if !CONFIG_EXT_RECUR_PARTITIONS
 #if CONFIG_EXT_PARTITIONS
     case PARTITION_HORZ_A:
+      ptree->sub_tree[0] = av1_alloc_ptree_node(ptree, 0);
+      ptree->sub_tree[1] = av1_alloc_ptree_node(ptree, 1);
+      break;
     case PARTITION_HORZ_B:
+      ptree->sub_tree[0] = av1_alloc_ptree_node(ptree, 1);
+      ptree->sub_tree[1] = av1_alloc_ptree_node(ptree, 2);
+      break;
     case PARTITION_VERT_A:
-    case PARTITION_VERT_B: num_splittable_sub_blocks = 2; break;
+      ptree->sub_tree[0] = av1_alloc_ptree_node(ptree, 0);
+      ptree->sub_tree[1] = av1_alloc_ptree_node(ptree, 1);
+      break;
+    case PARTITION_VERT_B:
+      ptree->sub_tree[0] = av1_alloc_ptree_node(ptree, 1);
+      ptree->sub_tree[1] = av1_alloc_ptree_node(ptree, 2);
+      break;
 #endif  // CONFIG_EXT_PARTITIONS
 #endif  // !CONFIG_EXT_RECUR_PARTITIONS
 #if CONFIG_EXT_RECUR_PARTITIONS
     case PARTITION_HORZ:
-    case PARTITION_VERT: num_splittable_sub_blocks = 2; break;
+    case PARTITION_VERT:
+      ptree->sub_tree[0] = av1_alloc_ptree_node(ptree, 0);
+      ptree->sub_tree[1] = av1_alloc_ptree_node(ptree, 1);
+      break;
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
     default: break;
-  }
-  if (num_splittable_sub_blocks > 0) {
-    for (int i = 0; i < num_splittable_sub_blocks; ++i) {
-      ptree->sub_tree[i] = av1_alloc_ptree_node();
-    }
   }
 
   xd->above_txfm_context = cm->above_txfm_context[tile_info->tile_row] + mi_col;
@@ -2574,7 +2631,9 @@ static void nonrd_use_partition(AV1_COMP *cpi, ThreadData *td,
 
   switch (partition) {
     case PARTITION_NONE:
-      pc_tree->none = av1_alloc_pmc(cm, bsize, &td->shared_coeff_buf);
+      pc_tree->none =
+          av1_alloc_pmc(cm, mi_row, mi_col, bsize, pc_tree, PARTITION_NONE, 0,
+                        ss_x, ss_y, &td->shared_coeff_buf);
       pick_sb_modes(cpi, tile_data, x, mi_row, mi_col, &dummy_cost,
                     PARTITION_NONE, bsize, pc_tree->none, invalid_rd,
                     sf->use_fast_nonrd_pick_mode ? PICK_MODE_FAST_NONRD
@@ -2587,15 +2646,19 @@ static void nonrd_use_partition(AV1_COMP *cpi, ThreadData *td,
       ptree->sub_tree[0]->partition = PARTITION_NONE;
       ptree->sub_tree[1]->partition = PARTITION_NONE;
 
-      pc_tree->vertical[0] = av1_alloc_pc_tree_node(subsize, 0);
-      pc_tree->vertical[1] = av1_alloc_pc_tree_node(subsize, 1);
+      pc_tree->vertical[0] = av1_alloc_pc_tree_node(
+          mi_row, mi_col, subsize, pc_tree, PARTITION_VERT, 0, 0, ss_x, ss_y);
+      pc_tree->vertical[1] =
+          av1_alloc_pc_tree_node(mi_row, mi_col + hbs, subsize, pc_tree,
+                                 PARTITION_VERT, 1, 1, ss_x, ss_y);
 
       nonrd_use_partition(cpi, td, tile_data, mib, tp, mi_row, mi_col, subsize,
                           pc_tree->vertical[0], ptree->sub_tree[0]);
 #else
       for (int i = 0; i < 2; ++i) {
         pc_tree->vertical[i] =
-            av1_alloc_pmc(cm, subsize, &td->shared_coeff_buf);
+            av1_alloc_pmc(cm, mi_row, mi_col + hbs * i, subsize, pc_tree,
+                          PARTITION_VERT, i, ss_x, ss_y, &td->shared_coeff_buf);
       }
       pick_sb_modes(cpi, tile_data, x, mi_row, mi_col, &dummy_cost,
                     PARTITION_VERT, subsize, pc_tree->vertical[0], invalid_rd,
@@ -2624,15 +2687,19 @@ static void nonrd_use_partition(AV1_COMP *cpi, ThreadData *td,
       ptree->sub_tree[0]->partition = PARTITION_NONE;
       ptree->sub_tree[1]->partition = PARTITION_NONE;
 
-      pc_tree->horizontal[0] = av1_alloc_pc_tree_node(subsize, 0);
-      pc_tree->horizontal[1] = av1_alloc_pc_tree_node(subsize, 1);
+      pc_tree->horizontal[0] = av1_alloc_pc_tree_node(
+          mi_row, mi_col, subsize, pc_tree, PARTITION_HORZ, 0, 0, ss_x, ss_y);
+      pc_tree->horizontal[1] =
+          av1_alloc_pc_tree_node(mi_row + hbs, mi_col, subsize, pc_tree,
+                                 PARTITION_HORZ, 1, 1, ss_x, ss_y);
 
       nonrd_use_partition(cpi, td, tile_data, mib, tp, mi_row, mi_col, subsize,
                           pc_tree->horizontal[0], ptree->sub_tree[0]);
 #else
       for (int i = 0; i < 2; ++i) {
         pc_tree->horizontal[i] =
-            av1_alloc_pmc(cm, subsize, &td->shared_coeff_buf);
+            av1_alloc_pmc(cm, mi_row + hbs * i, mi_col, subsize, pc_tree,
+                          PARTITION_HORZ, i, ss_x, ss_y, &td->shared_coeff_buf);
       }
       pick_sb_modes(cpi, tile_data, x, mi_row, mi_col, &dummy_cost,
                     PARTITION_HORZ, subsize, pc_tree->horizontal[0], invalid_rd,
@@ -2667,7 +2734,9 @@ static void nonrd_use_partition(AV1_COMP *cpi, ThreadData *td,
         if ((mi_row + y_idx >= cm->mi_rows) || (mi_col + x_idx >= cm->mi_cols))
           continue;
 
-        pc_tree->split[i] = av1_alloc_pc_tree_node(subsize, i == 3);
+        pc_tree->split[i] = av1_alloc_pc_tree_node(
+            mi_row + y_idx, mi_col + x_idx, subsize, pc_tree, PARTITION_SPLIT,
+            i, i == 3, ss_x, ss_y);
         nonrd_use_partition(cpi, td, tile_data,
                             mib + jj * hbs * cm->mi_stride + ii * hbs, tp,
                             mi_row + y_idx, mi_col + x_idx, subsize,
@@ -3006,6 +3075,8 @@ static bool rd_pick_partition(AV1_COMP *const cpi, ThreadData *td,
   MACROBLOCKD *const xd = &x->e_mbd;
   const int mi_step_w = mi_size_wide[bsize] / 2;
   const int mi_step_h = mi_size_high[bsize] / 2;
+  const int ss_x = xd->plane[1].subsampling_x;
+  const int ss_y = xd->plane[1].subsampling_y;
   RD_SEARCH_MACROBLOCK_CONTEXT x_ctx;
   const TOKENEXTRA *const tp_orig = *tp;
   int tmp_partition_cost[PARTITION_TYPES];
@@ -3277,7 +3348,9 @@ BEGIN_PARTITION_SEARCH:
 #endif
 
   // PARTITION_NONE
-  pc_tree->none = av1_alloc_pmc(cm, bsize, &td->shared_coeff_buf);
+  pc_tree->none =
+      av1_alloc_pmc(cm, mi_row, mi_col, bsize, pc_tree, PARTITION_NONE, 0, ss_x,
+                    ss_y, &td->shared_coeff_buf);
   PICK_MODE_CONTEXT *ctx_none = pc_tree->none;
   if (is_le_min_sq_part && has_rows && has_cols) partition_none_allowed = 1;
   int64_t part_none_rd = INT64_MAX;
@@ -3407,7 +3480,11 @@ BEGIN_PARTITION_SEARCH:
   if ((!terminate_partition_search && do_square_split) || is_gt_max_sq_part) {
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
     for (int i = 0; i < 4; ++i) {
-      pc_tree->split[i] = av1_alloc_pc_tree_node(subsize, i == 3);
+      const int x_idx = (i & 1) * mi_step_w;
+      const int y_idx = (i >> 1) * mi_step_h;
+      pc_tree->split[i] = av1_alloc_pc_tree_node(
+          mi_row + y_idx, mi_col + x_idx, subsize, pc_tree, PARTITION_SPLIT, i,
+          i == 3, ss_x, ss_y);
     }
     av1_init_rd_stats(&sum_rdc);
     sum_rdc.rate = partition_cost[PARTITION_SPLIT];
@@ -3536,12 +3613,16 @@ BEGIN_PARTITION_SEARCH:
     av1_init_rd_stats(&sum_rdc);
     subsize = get_partition_subsize(bsize, PARTITION_HORZ);
 #if CONFIG_EXT_RECUR_PARTITIONS
-    pc_tree->horizontal[0] = av1_alloc_pc_tree_node(subsize, 0);
-    pc_tree->horizontal[1] = av1_alloc_pc_tree_node(subsize, 1);
+    pc_tree->horizontal[0] = av1_alloc_pc_tree_node(
+        mi_row, mi_col, subsize, pc_tree, PARTITION_HORZ, 0, 0, ss_x, ss_y);
+    pc_tree->horizontal[1] =
+        av1_alloc_pc_tree_node(mi_row + mi_step_h, mi_col, subsize, pc_tree,
+                               PARTITION_HORZ, 1, 1, ss_x, ss_y);
 #else
     for (int i = 0; i < 2; ++i) {
       pc_tree->horizontal[i] =
-          av1_alloc_pmc(cm, subsize, &td->shared_coeff_buf);
+          av1_alloc_pmc(cm, mi_row + mi_step_h * i, mi_col, subsize, pc_tree,
+                        PARTITION_HORZ, i, ss_x, ss_y, &td->shared_coeff_buf);
     }
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
     if (cpi->sf.adaptive_motion_search) load_pred_mv(x, ctx_none);
@@ -3650,11 +3731,16 @@ BEGIN_PARTITION_SEARCH:
     av1_init_rd_stats(&sum_rdc);
     subsize = get_partition_subsize(bsize, PARTITION_VERT);
 #if CONFIG_EXT_RECUR_PARTITIONS
-    pc_tree->vertical[0] = av1_alloc_pc_tree_node(subsize, 0);
-    pc_tree->vertical[1] = av1_alloc_pc_tree_node(subsize, 1);
+    pc_tree->vertical[0] = av1_alloc_pc_tree_node(
+        mi_row, mi_col, subsize, pc_tree, PARTITION_VERT, 0, 0, ss_x, ss_y);
+    pc_tree->vertical[1] =
+        av1_alloc_pc_tree_node(mi_row, mi_col + mi_step_w, subsize, pc_tree,
+                               PARTITION_VERT, 1, 1, ss_x, ss_y);
 #else
     for (int i = 0; i < 2; ++i) {
-      pc_tree->vertical[i] = av1_alloc_pmc(cm, subsize, &td->shared_coeff_buf);
+      pc_tree->vertical[i] =
+          av1_alloc_pmc(cm, mi_row, mi_col + mi_step_w * i, subsize, pc_tree,
+                        PARTITION_VERT, i, ss_x, ss_y, &td->shared_coeff_buf);
     }
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 
@@ -3880,9 +3966,14 @@ BEGIN_PARTITION_SEARCH:
     subsize = get_partition_subsize(bsize, PARTITION_HORZ_A);
 
 #if CONFIG_EXT_PARTITIONS
-    pc_tree->horza_split[0] = av1_alloc_pc_tree_node(bsize2, 0);
-    pc_tree->horza_split[1] = av1_alloc_pc_tree_node(bsize2, 0);
-    pc_tree->horza_rec = av1_alloc_pmc(cm, subsize, &td->shared_coeff_buf);
+    pc_tree->horza_split[0] = av1_alloc_pc_tree_node(
+        mi_row, mi_col, bsize2, pc_tree, PARTITION_HORZ_A, 0, 0, ss_x, ss_y);
+    pc_tree->horza_split[1] =
+        av1_alloc_pc_tree_node(mi_row, mi_col + mi_step_w, bsize2, pc_tree,
+                               PARTITION_HORZ_A, 1, 0, ss_x, ss_y);
+    pc_tree->horza_rec =
+        av1_alloc_pmc(cm, mi_row + mi_step_h, mi_col, subsize, pc_tree,
+                      PARTITION_HORZ_A, 2, ss_x, ss_y, &td->shared_coeff_buf);
 
     pc_tree->horza_rec->rd_mode_is_ready = 0;
     // TODO(yuec): implement tree copy to reduce duplicated RD search
@@ -3916,9 +4007,15 @@ BEGIN_PARTITION_SEARCH:
     };
     SUBBLOCK_RDO_DATA *subblocks[3] = { &subblock0, &subblock1, &subblock2 };
 #else
-    pc_tree->horizontala[0] = av1_alloc_pmc(cm, bsize2, &td->shared_coeff_buf);
-    pc_tree->horizontala[1] = av1_alloc_pmc(cm, bsize2, &td->shared_coeff_buf);
-    pc_tree->horizontala[2] = av1_alloc_pmc(cm, subsize, &td->shared_coeff_buf);
+    pc_tree->horizontala[0] =
+        av1_alloc_pmc(cm, mi_row, mi_col, bsize2, pc_tree, PARTITION_HORZ_A, 0,
+                      ss_x, ss_y, &td->shared_coeff_buf);
+    pc_tree->horizontala[1] =
+        av1_alloc_pmc(cm, mi_row, mi_col + mi_step_w, bsize2, pc_tree,
+                      PARTITION_HORZ_A, 1, ss_x, ss_y, &td->shared_coeff_buf);
+    pc_tree->horizontala[2] =
+        av1_alloc_pmc(cm, mi_row + mi_step_h, mi_col, subsize, pc_tree,
+                      PARTITION_HORZ_A, 2, ss_x, ss_y, &td->shared_coeff_buf);
 
     pc_tree->horizontala[0]->rd_mode_is_ready = 0;
     pc_tree->horizontala[1]->rd_mode_is_ready = 0;
@@ -3977,9 +4074,15 @@ BEGIN_PARTITION_SEARCH:
     subsize = get_partition_subsize(bsize, PARTITION_HORZ_B);
 
 #if CONFIG_EXT_PARTITIONS
-    pc_tree->horzb_rec = av1_alloc_pmc(cm, subsize, &td->shared_coeff_buf);
-    pc_tree->horzb_split[0] = av1_alloc_pc_tree_node(bsize2, 0);
-    pc_tree->horzb_split[1] = av1_alloc_pc_tree_node(bsize2, 1);
+    pc_tree->horzb_rec =
+        av1_alloc_pmc(cm, mi_row, mi_col, subsize, pc_tree, PARTITION_HORZ_B, 0,
+                      ss_x, ss_y, &td->shared_coeff_buf);
+    pc_tree->horzb_split[0] =
+        av1_alloc_pc_tree_node(mi_row + mi_step_h, mi_col, bsize2, pc_tree,
+                               PARTITION_HORZ_B, 1, 0, ss_x, ss_y);
+    pc_tree->horzb_split[1] =
+        av1_alloc_pc_tree_node(mi_row + mi_step_h, mi_col + mi_step_w, bsize2,
+                               pc_tree, PARTITION_HORZ_B, 2, 1, ss_x, ss_y);
 
     pc_tree->horzb_rec->rd_mode_is_ready = 0;
     if (horz_ctx_is_ready) {
@@ -4017,9 +4120,15 @@ BEGIN_PARTITION_SEARCH:
                                     min_sq_part };
     SUBBLOCK_RDO_DATA *subblocks[3] = { &subblock0, &subblock1, &subblock2 };
 #else
-    pc_tree->horizontalb[0] = av1_alloc_pmc(cm, subsize, &td->shared_coeff_buf);
-    pc_tree->horizontalb[1] = av1_alloc_pmc(cm, bsize2, &td->shared_coeff_buf);
-    pc_tree->horizontalb[2] = av1_alloc_pmc(cm, bsize2, &td->shared_coeff_buf);
+    pc_tree->horizontalb[0] =
+        av1_alloc_pmc(cm, mi_row, mi_col, subsize, pc_tree, PARTITION_HORZ_B, 0,
+                      ss_x, ss_y, &td->shared_coeff_buf);
+    pc_tree->horizontalb[1] =
+        av1_alloc_pmc(cm, mi_row + mi_step_h, mi_col, bsize2, pc_tree,
+                      PARTITION_HORZ_B, 1, ss_x, ss_y, &td->shared_coeff_buf);
+    pc_tree->horizontalb[2] = av1_alloc_pmc(
+        cm, mi_row + mi_step_h, mi_col + mi_step_w, bsize2, pc_tree,
+        PARTITION_HORZ_B, 2, ss_x, ss_y, &td->shared_coeff_buf);
 
     pc_tree->horizontalb[0]->rd_mode_is_ready = 0;
     pc_tree->horizontalb[1]->rd_mode_is_ready = 0;
@@ -4080,9 +4189,14 @@ BEGIN_PARTITION_SEARCH:
     subsize = get_partition_subsize(bsize, PARTITION_VERT_A);
 
 #if CONFIG_EXT_PARTITIONS
-    pc_tree->verta_split[0] = av1_alloc_pc_tree_node(bsize2, 0);
-    pc_tree->verta_split[1] = av1_alloc_pc_tree_node(bsize2, 0);
-    pc_tree->verta_rec = av1_alloc_pmc(cm, subsize, &td->shared_coeff_buf);
+    pc_tree->verta_split[0] = av1_alloc_pc_tree_node(
+        mi_row, mi_col, bsize2, pc_tree, PARTITION_VERT_A, 0, 0, ss_x, ss_y);
+    pc_tree->verta_split[1] =
+        av1_alloc_pc_tree_node(mi_row + mi_step_h, mi_col, bsize2, pc_tree,
+                               PARTITION_VERT_A, 1, 0, ss_x, ss_y);
+    pc_tree->verta_rec =
+        av1_alloc_pmc(cm, mi_row, mi_col + mi_step_w, subsize, pc_tree,
+                      PARTITION_VERT_A, 2, ss_x, ss_y, &td->shared_coeff_buf);
 
     pc_tree->verta_rec->rd_mode_is_ready = 0;
 
@@ -4121,9 +4235,15 @@ BEGIN_PARTITION_SEARCH:
                                     min_sq_part };
     SUBBLOCK_RDO_DATA *subblocks[3] = { &subblock0, &subblock1, &subblock2 };
 #else
-    pc_tree->verticala[0] = av1_alloc_pmc(cm, bsize2, &td->shared_coeff_buf);
-    pc_tree->verticala[1] = av1_alloc_pmc(cm, bsize2, &td->shared_coeff_buf);
-    pc_tree->verticala[2] = av1_alloc_pmc(cm, subsize, &td->shared_coeff_buf);
+    pc_tree->verticala[0] =
+        av1_alloc_pmc(cm, mi_row, mi_col, bsize2, pc_tree, PARTITION_VERT_A, 0,
+                      ss_x, ss_y, &td->shared_coeff_buf);
+    pc_tree->verticala[1] =
+        av1_alloc_pmc(cm, mi_row + mi_step_h, mi_col, bsize2, pc_tree,
+                      PARTITION_VERT_A, 1, ss_x, ss_y, &td->shared_coeff_buf);
+    pc_tree->verticala[2] =
+        av1_alloc_pmc(cm, mi_row, mi_col + mi_step_w, subsize, pc_tree,
+                      PARTITION_VERT_A, 2, ss_x, ss_y, &td->shared_coeff_buf);
 
     pc_tree->verticala[0]->rd_mode_is_ready = 0;
     pc_tree->verticala[1]->rd_mode_is_ready = 0;
@@ -4177,9 +4297,15 @@ BEGIN_PARTITION_SEARCH:
     subsize = get_partition_subsize(bsize, PARTITION_VERT_B);
 
 #if CONFIG_EXT_PARTITIONS
-    pc_tree->vertb_rec = av1_alloc_pmc(cm, subsize, &td->shared_coeff_buf);
-    pc_tree->vertb_split[0] = av1_alloc_pc_tree_node(bsize2, 0);
-    pc_tree->vertb_split[1] = av1_alloc_pc_tree_node(bsize2, 1);
+    pc_tree->vertb_rec =
+        av1_alloc_pmc(cm, mi_row, mi_col, subsize, pc_tree, PARTITION_VERT_B, 0,
+                      ss_x, ss_y, &td->shared_coeff_buf);
+    pc_tree->vertb_split[0] =
+        av1_alloc_pc_tree_node(mi_row, mi_col + mi_step_w, bsize2, pc_tree,
+                               PARTITION_VERT_B, 1, 0, ss_x, ss_y);
+    pc_tree->vertb_split[1] =
+        av1_alloc_pc_tree_node(mi_row + mi_step_h, mi_col + mi_step_w, bsize2,
+                               pc_tree, PARTITION_VERT_B, 2, 1, ss_x, ss_y);
 
     pc_tree->vertb_rec->rd_mode_is_ready = 0;
     if (vert_ctx_is_ready) {
@@ -4217,9 +4343,15 @@ BEGIN_PARTITION_SEARCH:
                                     min_sq_part };
     SUBBLOCK_RDO_DATA *subblocks[3] = { &subblock0, &subblock1, &subblock2 };
 #else
-    pc_tree->verticalb[0] = av1_alloc_pmc(cm, subsize, &td->shared_coeff_buf);
-    pc_tree->verticalb[1] = av1_alloc_pmc(cm, bsize2, &td->shared_coeff_buf);
-    pc_tree->verticalb[2] = av1_alloc_pmc(cm, bsize2, &td->shared_coeff_buf);
+    pc_tree->verticalb[0] =
+        av1_alloc_pmc(cm, mi_row, mi_col, subsize, pc_tree, PARTITION_VERT_B, 0,
+                      ss_x, ss_y, &td->shared_coeff_buf);
+    pc_tree->verticalb[1] =
+        av1_alloc_pmc(cm, mi_row, mi_col + mi_step_w, bsize2, pc_tree,
+                      PARTITION_VERT_B, 1, ss_x, ss_y, &td->shared_coeff_buf);
+    pc_tree->verticalb[2] = av1_alloc_pmc(
+        cm, mi_row + mi_step_h, mi_col + mi_step_w, bsize2, pc_tree,
+        PARTITION_VERT_B, 2, ss_x, ss_y, &td->shared_coeff_buf);
 
     pc_tree->verticalb[0]->rd_mode_is_ready = 0;
     pc_tree->verticalb[1]->rd_mode_is_ready = 0;
@@ -4363,9 +4495,15 @@ BEGIN_PARTITION_SEARCH:
     const int step_multipliers[3] = { 0, 1, 2 };
     const BLOCK_SIZE subblock_sizes[3] = { subsize, bsize3, subsize };
 
-    pc_tree->horizontal3[0] = av1_alloc_pmc(cm, subsize, &td->shared_coeff_buf);
-    pc_tree->horizontal3[1] = av1_alloc_pmc(cm, bsize3, &td->shared_coeff_buf);
-    pc_tree->horizontal3[2] = av1_alloc_pmc(cm, subsize, &td->shared_coeff_buf);
+    pc_tree->horizontal3[0] =
+        av1_alloc_pmc(cm, mi_row, mi_col, subsize, pc_tree, PARTITION_HORZ_3, 0,
+                      ss_x, ss_y, &td->shared_coeff_buf);
+    pc_tree->horizontal3[1] =
+        av1_alloc_pmc(cm, mi_row + quarter_step, mi_col, bsize3, pc_tree,
+                      PARTITION_HORZ_3, 1, ss_x, ss_y, &td->shared_coeff_buf);
+    pc_tree->horizontal3[2] =
+        av1_alloc_pmc(cm, mi_row + quarter_step * 3, mi_col, subsize, pc_tree,
+                      PARTITION_HORZ_3, 2, ss_x, ss_y, &td->shared_coeff_buf);
 
     int this_mi_row = mi_row;
     for (int i = 0; i < 3; ++i) {
@@ -4432,9 +4570,15 @@ BEGIN_PARTITION_SEARCH:
     const int step_multipliers[3] = { 0, 1, 2 };
     const BLOCK_SIZE subblock_sizes[3] = { subsize, bsize3, subsize };
 
-    pc_tree->vertical3[0] = av1_alloc_pmc(cm, subsize, &td->shared_coeff_buf);
-    pc_tree->vertical3[1] = av1_alloc_pmc(cm, bsize3, &td->shared_coeff_buf);
-    pc_tree->vertical3[2] = av1_alloc_pmc(cm, subsize, &td->shared_coeff_buf);
+    pc_tree->vertical3[0] =
+        av1_alloc_pmc(cm, mi_row, mi_col, subsize, pc_tree, PARTITION_VERT_3, 0,
+                      ss_x, ss_y, &td->shared_coeff_buf);
+    pc_tree->vertical3[1] =
+        av1_alloc_pmc(cm, mi_row, mi_col + quarter_step, bsize3, pc_tree,
+                      PARTITION_VERT_3, 1, ss_x, ss_y, &td->shared_coeff_buf);
+    pc_tree->vertical3[2] =
+        av1_alloc_pmc(cm, mi_row, mi_col + quarter_step * 3, subsize, pc_tree,
+                      PARTITION_VERT_3, 2, ss_x, ss_y, &td->shared_coeff_buf);
 
     int this_mi_col = mi_col;
     for (int i = 0; i < 3; ++i) {
@@ -4549,7 +4693,8 @@ BEGIN_PARTITION_SEARCH:
 
     for (int i = 0; i < 4; ++i) {
       pc_tree->horizontal4[i] =
-          av1_alloc_pmc(cm, subsize, &td->shared_coeff_buf);
+          av1_alloc_pmc(cm, mi_row + i * quarter_step, mi_col, subsize, pc_tree,
+                        PARTITION_HORZ_4, i, ss_x, ss_y, &td->shared_coeff_buf);
     }
 
 #if CONFIG_COLLECT_PARTITION_STATS
@@ -4611,8 +4756,11 @@ BEGIN_PARTITION_SEARCH:
     sum_rdc.rate = partition_cost[PARTITION_VERT_4];
     sum_rdc.rdcost = RDCOST(x->rdmult, sum_rdc.rate, 0);
 
-    for (int i = 0; i < 4; ++i)
-      pc_tree->vertical4[i] = av1_alloc_pmc(cm, subsize, &td->shared_coeff_buf);
+    for (int i = 0; i < 4; ++i) {
+      pc_tree->vertical4[i] =
+          av1_alloc_pmc(cm, mi_row, mi_col + i * quarter_step, subsize, pc_tree,
+                        PARTITION_VERT_4, i, ss_x, ss_y, &td->shared_coeff_buf);
+    }
 
 #if CONFIG_COLLECT_PARTITION_STATS
     if (best_rdc.rdcost - sum_rdc.rdcost >= 0) {
@@ -5283,6 +5431,8 @@ static void encode_sb_row(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
   const TileInfo *const tile_info = &tile_data->tile_info;
   MACROBLOCK *const x = &td->mb;
   MACROBLOCKD *const xd = &x->e_mbd;
+  const int ss_x = xd->plane[1].subsampling_x;
+  const int ss_y = xd->plane[1].subsampling_y;
   const SPEED_FEATURES *const sf = &cpi->sf;
   const int sb_cols_in_tile = av1_get_sb_cols_in_tile(cm, tile_data->tile_info);
   const BLOCK_SIZE sb_size = cm->seq_params.sb_size;
@@ -5428,7 +5578,8 @@ static void encode_sb_row(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
                                      sb_size);
       av1_choose_var_based_partitioning(cpi, tile_info, x, mi_row, mi_col);
       td->mb.cb_offset = 0;
-      PC_TREE *const pc_root = av1_alloc_pc_tree_node(sb_size, 1);
+      PC_TREE *const pc_root = av1_alloc_pc_tree_node(
+          mi_row, mi_col, sb_size, NULL, PARTITION_NONE, 0, 1, ss_x, ss_y);
       av1_reset_ptree_in_sbi(xd->sbi);
       nonrd_use_partition(cpi, td, tile_data, mi, tp, mi_row, mi_col, sb_size,
                           pc_root, xd->sbi->ptree_root);
@@ -5445,7 +5596,8 @@ static void encode_sb_row(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
         const BLOCK_SIZE bsize =
             seg_skip ? sb_size : sf->always_this_block_size;
         set_fixed_partitioning(cpi, tile_info, mi, mi_row, mi_col, bsize);
-        PC_TREE *const pc_root = av1_alloc_pc_tree_node(sb_size, 1);
+        PC_TREE *const pc_root = av1_alloc_pc_tree_node(
+            mi_row, mi_col, sb_size, NULL, PARTITION_NONE, 0, 1, ss_x, ss_y);
         rd_use_partition(cpi, td, tile_data, mi, tp, mi_row, mi_col, sb_size,
                          &dummy_rate, &dummy_dist, 1, pc_root);
         av1_free_pc_tree_recursive(pc_root, num_planes, 0, 0);
@@ -5454,7 +5606,8 @@ static void encode_sb_row(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
         const BLOCK_SIZE bsize =
             get_rd_var_based_fixed_partition(cpi, x, mi_row, mi_col);
         set_fixed_partitioning(cpi, tile_info, mi, mi_row, mi_col, bsize);
-        PC_TREE *const pc_root = av1_alloc_pc_tree_node(sb_size, 1);
+        PC_TREE *const pc_root = av1_alloc_pc_tree_node(
+            mi_row, mi_col, sb_size, NULL, PARTITION_NONE, 0, 1, ss_x, ss_y);
         rd_use_partition(cpi, td, tile_data, mi, tp, mi_row, mi_col, sb_size,
                          &dummy_rate, &dummy_dist, 1, pc_root);
         av1_free_pc_tree_recursive(pc_root, num_planes, 0, 0);
@@ -5496,7 +5649,8 @@ static void encode_sb_row(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
 
         min_sq_size = AOMMIN(min_sq_size, max_sq_size);
 
-        PC_TREE *const pc_root = av1_alloc_pc_tree_node(sb_size, 1);
+        PC_TREE *const pc_root = av1_alloc_pc_tree_node(
+            mi_row, mi_col, sb_size, NULL, PARTITION_NONE, 0, 1, ss_x, ss_y);
         rd_pick_partition(cpi, td, tile_data, tp, mi_row, mi_col, sb_size,
                           max_sq_size, min_sq_size, &dummy_rdc, dummy_rdc,
                           pc_root, sms_root, NULL);
@@ -6740,9 +6894,7 @@ static void encode_superblock(const AV1_COMP *const cpi, TileDataEnc *tile_data,
       (void)derived_mode;
     }
 #endif  // CONFIG_DERIVED_INTRA_MODE
-    xd->cfl.is_chroma_reference =
-        is_chroma_reference(mi_row, mi_col, bsize, cm->seq_params.subsampling_x,
-                            cm->seq_params.subsampling_y);
+    xd->cfl.is_chroma_reference = mbmi->chroma_ref_info.is_chroma_ref;
     xd->cfl.store_y = store_cfl_required(cm, xd);
     mbmi->skip = 1;
     for (int plane = 0; plane < num_planes; ++plane) {
@@ -6803,9 +6955,7 @@ static void encode_superblock(const AV1_COMP *const cpi, TileDataEnc *tile_data,
         int pixel_c, pixel_r;
         mi_to_pixel_loc(&pixel_c, &pixel_r, mi_col, mi_row, 0, 0,
                         pd->subsampling_x, pd->subsampling_y);
-        if (!is_chroma_reference(mi_row, mi_col, bsize, pd->subsampling_x,
-                                 pd->subsampling_y))
-          continue;
+        if (plane && !mbmi->chroma_ref_info.is_chroma_ref) continue;
         mismatch_record_block_pre(pd->dst.buf, pd->dst.stride,
                                   cm->current_frame.order_hint, plane, pixel_c,
                                   pixel_r, pd->width, pd->height,
@@ -6907,10 +7057,7 @@ static void encode_superblock(const AV1_COMP *const cpi, TileDataEnc *tile_data,
     set_txfm_ctxs(tx_size, xd->n4_w, xd->n4_h,
                   (mbmi->skip || seg_skip) && is_inter_block(mbmi), xd);
   }
-  CFL_CTX *const cfl = &xd->cfl;
-  if (is_inter_block(mbmi) &&
-      !is_chroma_reference(mi_row, mi_col, bsize, cfl->subsampling_x,
-                           cfl->subsampling_y) &&
+  if (is_inter_block(mbmi) && !mbmi->chroma_ref_info.is_chroma_ref &&
       is_cfl_allowed(xd)) {
     cfl_store_block(xd, mbmi->sb_type, mbmi->tx_size);
   }

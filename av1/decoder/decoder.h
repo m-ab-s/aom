@@ -313,13 +313,13 @@ static INLINE int av1_read_uniform(aom_reader *r, int n) {
 typedef void (*palette_visitor_fn_t)(MACROBLOCKD *const xd, int plane,
                                      aom_reader *r);
 
-void av1_visit_palette(AV1Decoder *const pbi, MACROBLOCKD *const xd, int mi_row,
-                       int mi_col, aom_reader *r, BLOCK_SIZE bsize,
-                       palette_visitor_fn_t visit);
+void av1_visit_palette(AV1Decoder *const pbi, MACROBLOCKD *const xd,
+                       aom_reader *r, palette_visitor_fn_t visit);
 
 typedef void (*block_visitor_fn_t)(AV1Decoder *const pbi, ThreadData *const td,
                                    int mi_row, int mi_col, aom_reader *r,
-                                   PARTITION_TYPE partition, BLOCK_SIZE bsize);
+                                   PARTITION_TYPE partition, BLOCK_SIZE bsize,
+                                   PARTITION_TREE *parent, int index);
 
 #ifdef __cplusplus
 }  // extern "C"

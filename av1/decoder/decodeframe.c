@@ -377,7 +377,8 @@ static void decode_reconstruct_tx(AV1_COMMON *cm, ThreadData *const td,
 
 static void set_offsets(AV1_COMMON *const cm, MACROBLOCKD *const xd,
                         BLOCK_SIZE bsize, int mi_row, int mi_col, int bw,
-                        int bh, int x_mis, int y_mis) {
+                        int bh, int x_mis, int y_mis, PARTITION_TREE *parent,
+                        int index) {
   const int num_planes = av1_num_planes(cm);
 
   const int offset = mi_row * cm->mi_stride + mi_col;
@@ -406,6 +407,11 @@ static void set_offsets(AV1_COMMON *const cm, MACROBLOCKD *const xd,
   set_plane_n4(xd, mi_row, mi_col, bsize, num_planes);
   set_skip_context(xd, mi_row, mi_col, bsize, num_planes);
 
+  set_chroma_ref_info(mi_row, mi_col, index, bsize, &xd->mi[0]->chroma_ref_info,
+                      parent ? &parent->chroma_ref_info : NULL,
+                      parent ? parent->bsize : BLOCK_INVALID,
+                      parent ? parent->partition : PARTITION_NONE,
+                      xd->plane[1].subsampling_x, xd->plane[1].subsampling_y);
   // Distance of Mb to the various image edges. These are specified to 8th pel
   // as they are always compared to values that are in 1/8th pel units
   set_mi_row_col(xd, tile, mi_row, bh, mi_col, bw, cm->mi_rows, cm->mi_cols);
@@ -416,7 +422,8 @@ static void set_offsets(AV1_COMMON *const cm, MACROBLOCKD *const xd,
 
 static void decode_mbmi_block(AV1Decoder *const pbi, MACROBLOCKD *const xd,
                               int mi_row, int mi_col, aom_reader *r,
-                              PARTITION_TYPE partition, BLOCK_SIZE bsize) {
+                              PARTITION_TYPE partition, BLOCK_SIZE bsize,
+                              PARTITION_TREE *parent, int index) {
   AV1_COMMON *const cm = &pbi->common;
   const SequenceHeader *const seq_params = &cm->seq_params;
   const int bw = mi_size_wide[bsize];
@@ -427,8 +434,10 @@ static void decode_mbmi_block(AV1Decoder *const pbi, MACROBLOCKD *const xd,
 #if CONFIG_ACCOUNTING
   aom_accounting_set_context(&pbi->accounting, mi_col, mi_row);
 #endif
-  set_offsets(cm, xd, bsize, mi_row, mi_col, bw, bh, x_mis, y_mis);
+  set_offsets(cm, xd, bsize, mi_row, mi_col, bw, bh, x_mis, y_mis, parent,
+              index);
   xd->mi[0]->partition = partition;
+
   av1_read_mode_info(pbi, xd, mi_row, mi_col, r, x_mis, y_mis);
   if (bsize >= BLOCK_8X8 &&
       (seq_params->subsampling_x || seq_params->subsampling_y)) {
@@ -732,8 +741,7 @@ static void dec_build_inter_predictors(const AV1_COMMON *cm, MACROBLOCKD *xd,
 }
 
 static void dec_build_inter_predictors_for_planes(const AV1_COMMON *cm,
-                                                  MACROBLOCKD *xd,
-                                                  BLOCK_SIZE bsize, int mi_row,
+                                                  MACROBLOCKD *xd, int mi_row,
                                                   int mi_col, int plane_from,
                                                   int plane_to) {
   int plane;
@@ -744,9 +752,7 @@ static void dec_build_inter_predictors_for_planes(const AV1_COMMON *cm,
     const int bw = pd->width;
     const int bh = pd->height;
 
-    if (!is_chroma_reference(mi_row, mi_col, bsize, pd->subsampling_x,
-                             pd->subsampling_y))
-      continue;
+    if (plane && !xd->mi[0]->chroma_ref_info.is_chroma_ref) continue;
 
     dec_build_inter_predictors(cm, xd, plane, xd->mi[0], 0, bw, bh, mi_x, mi_y);
   }
@@ -756,7 +762,7 @@ static void dec_build_inter_predictors_sby(const AV1_COMMON *cm,
                                            MACROBLOCKD *xd, int mi_row,
                                            int mi_col, const BUFFER_SET *ctx,
                                            BLOCK_SIZE bsize) {
-  dec_build_inter_predictors_for_planes(cm, xd, bsize, mi_row, mi_col, 0, 0);
+  dec_build_inter_predictors_for_planes(cm, xd, mi_row, mi_col, 0, 0);
 
   if (is_interintra_pred(xd->mi[0])) {
     BUFFER_SET default_ctx = { { xd->plane[0].dst.buf, NULL, NULL },
@@ -771,7 +777,7 @@ static void dec_build_inter_predictors_sbuv(const AV1_COMMON *cm,
                                             MACROBLOCKD *xd, int mi_row,
                                             int mi_col, const BUFFER_SET *ctx,
                                             BLOCK_SIZE bsize) {
-  dec_build_inter_predictors_for_planes(cm, xd, bsize, mi_row, mi_col, 1,
+  dec_build_inter_predictors_for_planes(cm, xd, mi_row, mi_col, 1,
                                         MAX_MB_PLANE - 1);
 
   if (is_interintra_pred(xd->mi[0])) {
@@ -985,9 +991,7 @@ static void predict_inter_block(AV1_COMMON *const cm, MACROBLOCKD *const xd,
     int pixel_c, pixel_r;
     mi_to_pixel_loc(&pixel_c, &pixel_r, mi_col, mi_row, 0, 0, pd->subsampling_x,
                     pd->subsampling_y);
-    if (!is_chroma_reference(mi_row, mi_col, bsize, pd->subsampling_x,
-                             pd->subsampling_y))
-      continue;
+    if (plane && !mbmi->chroma_ref_info.is_chroma_ref) continue;
     mismatch_check_block_pre(pd->dst.buf, pd->dst.stride,
                              cm->current_frame.order_hint, plane, pixel_c,
                              pixel_r, pd->width, pd->height,
@@ -1016,8 +1020,7 @@ static void decode_token_recon_block(AV1Decoder *const pbi,
 
   MB_MODE_INFO *mbmi = xd->mi[0];
   CFL_CTX *const cfl = &xd->cfl;
-  cfl->is_chroma_reference = is_chroma_reference(
-      mi_row, mi_col, bsize, cfl->subsampling_x, cfl->subsampling_y);
+  cfl->is_chroma_reference = mbmi->chroma_ref_info.is_chroma_ref;
 
   if (!is_inter_block(mbmi)) {
     int row, col;
@@ -1038,9 +1041,7 @@ static void decode_token_recon_block(AV1Decoder *const pbi,
       for (col = 0; col < max_blocks_wide; col += mu_blocks_wide) {
         for (int plane = 0; plane < num_planes; ++plane) {
           const struct macroblockd_plane *const pd = &xd->plane[plane];
-          if (!is_chroma_reference(mi_row, mi_col, bsize, pd->subsampling_x,
-                                   pd->subsampling_y))
-            continue;
+          if (plane && !mbmi->chroma_ref_info.is_chroma_ref) continue;
 
           const TX_SIZE tx_size = av1_get_tx_size(plane, xd);
           const int stepr = tx_size_high_unit[tx_size];
@@ -1097,9 +1098,7 @@ static void decode_token_recon_block(AV1Decoder *const pbi,
         for (col = 0; col < max_blocks_wide; col += mu_blocks_wide) {
           for (int plane = 0; plane < num_planes; ++plane) {
             const struct macroblockd_plane *const pd = &xd->plane[plane];
-            if (!is_chroma_reference(mi_row, mi_col, bsize, pd->subsampling_x,
-                                     pd->subsampling_y))
-              continue;
+            if (plane && !mbmi->chroma_ref_info.is_chroma_ref) continue;
 
             const BLOCK_SIZE plane_bsize = get_plane_block_size(
                 mi_row, mi_col, bsize, pd->subsampling_x, pd->subsampling_y);
@@ -1142,8 +1141,7 @@ static void decode_token_recon_block(AV1Decoder *const pbi,
   }
 #endif  // CONFIG_INTRA_ENTROPY
 
-  av1_visit_palette(pbi, xd, mi_row, mi_col, r, bsize,
-                    set_color_index_map_offset);
+  av1_visit_palette(pbi, xd, r, set_color_index_map_offset);
 
   av1_mark_block_as_coded(xd, mi_row, mi_col, bsize, cm->seq_params.sb_size);
 }
@@ -1342,12 +1340,13 @@ static TX_SIZE read_tx_size(AV1_COMMON *cm, MACROBLOCKD *xd, int is_inter,
 
 static void parse_decode_block(AV1Decoder *const pbi, ThreadData *const td,
                                int mi_row, int mi_col, aom_reader *r,
-                               PARTITION_TYPE partition, BLOCK_SIZE bsize) {
+                               PARTITION_TYPE partition, BLOCK_SIZE bsize,
+                               PARTITION_TREE *parent, int index) {
   MACROBLOCKD *const xd = &td->xd;
-  decode_mbmi_block(pbi, xd, mi_row, mi_col, r, partition, bsize);
+  decode_mbmi_block(pbi, xd, mi_row, mi_col, r, partition, bsize, parent,
+                    index);
 
-  av1_visit_palette(pbi, xd, mi_row, mi_col, r, bsize,
-                    av1_decode_palette_tokens);
+  av1_visit_palette(pbi, xd, r, av1_decode_palette_tokens);
 
   AV1_COMMON *cm = &pbi->common;
   const int num_planes = av1_num_planes(cm);
@@ -1434,7 +1433,8 @@ static void parse_decode_block(AV1Decoder *const pbi, ThreadData *const td,
 
 static void set_offsets_for_pred_and_recon(AV1Decoder *const pbi,
                                            ThreadData *const td, int mi_row,
-                                           int mi_col, BLOCK_SIZE bsize) {
+                                           int mi_col, BLOCK_SIZE bsize,
+                                           PARTITION_TREE *parent, int index) {
   AV1_COMMON *const cm = &pbi->common;
   MACROBLOCKD *const xd = &td->xd;
   const int bw = mi_size_wide[bsize];
@@ -1449,6 +1449,11 @@ static void set_offsets_for_pred_and_recon(AV1Decoder *const pbi,
   xd->cfl.mi_col = mi_col;
 
   set_plane_n4(xd, mi_row, mi_col, bsize, num_planes);
+  set_chroma_ref_info(mi_row, mi_col, index, bsize, &xd->mi[0]->chroma_ref_info,
+                      parent ? &parent->chroma_ref_info : NULL,
+                      parent ? parent->bsize : BLOCK_INVALID,
+                      parent ? parent->partition : PARTITION_NONE,
+                      xd->plane[1].subsampling_x, xd->plane[1].subsampling_y);
 
   // Distance of Mb to the various image edges. These are specified to 8th pel
   // as they are always compared to values that are in 1/8th pel units
@@ -1460,9 +1465,10 @@ static void set_offsets_for_pred_and_recon(AV1Decoder *const pbi,
 
 static void decode_block(AV1Decoder *const pbi, ThreadData *const td,
                          int mi_row, int mi_col, aom_reader *r,
-                         PARTITION_TYPE partition, BLOCK_SIZE bsize) {
+                         PARTITION_TYPE partition, BLOCK_SIZE bsize,
+                         PARTITION_TREE *parent, int index) {
   (void)partition;
-  set_offsets_for_pred_and_recon(pbi, td, mi_row, mi_col, bsize);
+  set_offsets_for_pred_and_recon(pbi, td, mi_row, mi_col, bsize, parent, index);
   decode_token_recon_block(pbi, td, mi_row, mi_col, r, bsize);
 }
 
@@ -1517,6 +1523,8 @@ static void decode_partition(AV1Decoder *const pbi, ThreadData *const td,
   assert(bsize < BLOCK_SIZES_ALL);
   AV1_COMMON *const cm = &pbi->common;
   MACROBLOCKD *const xd = &td->xd;
+  const int ss_x = xd->plane[1].subsampling_x;
+  const int ss_y = xd->plane[1].subsampling_y;
   const int bw = mi_size_wide[bsize];
   const int hbs = bw >> 1;
   PARTITION_TYPE partition;
@@ -1566,26 +1574,46 @@ static void decode_partition(AV1Decoder *const pbi, ThreadData *const td,
     ptree->mi_row = mi_row;
     ptree->mi_col = mi_col;
     ptree->is_settled = 1;
+    PARTITION_TREE *parent = ptree->parent;
+    set_chroma_ref_info(
+        mi_row, mi_col, ptree->index, bsize, &ptree->chroma_ref_info,
+        parent ? &parent->chroma_ref_info : NULL,
+        parent ? parent->bsize : BLOCK_INVALID,
+        parent ? parent->partition : PARTITION_NONE, ss_x, ss_y);
 
-    int num_splittable_sub_blocks = 0;
     switch (partition) {
-      case PARTITION_SPLIT: num_splittable_sub_blocks = 4; break;
+      case PARTITION_SPLIT:
+        ptree->sub_tree[0] = av1_alloc_ptree_node(ptree, 0);
+        ptree->sub_tree[1] = av1_alloc_ptree_node(ptree, 1);
+        ptree->sub_tree[2] = av1_alloc_ptree_node(ptree, 2);
+        ptree->sub_tree[3] = av1_alloc_ptree_node(ptree, 3);
+        break;
 #if !CONFIG_EXT_RECUR_PARTITIONS && CONFIG_EXT_PARTITIONS
       case PARTITION_HORZ_A:
+        ptree->sub_tree[0] = av1_alloc_ptree_node(ptree, 0);
+        ptree->sub_tree[1] = av1_alloc_ptree_node(ptree, 1);
+        break;
       case PARTITION_HORZ_B:
+        ptree->sub_tree[0] = av1_alloc_ptree_node(ptree, 1);
+        ptree->sub_tree[1] = av1_alloc_ptree_node(ptree, 2);
+        break;
       case PARTITION_VERT_A:
-      case PARTITION_VERT_B: num_splittable_sub_blocks = 2; break;
+        ptree->sub_tree[0] = av1_alloc_ptree_node(ptree, 0);
+        ptree->sub_tree[1] = av1_alloc_ptree_node(ptree, 1);
+        break;
+      case PARTITION_VERT_B:
+        ptree->sub_tree[0] = av1_alloc_ptree_node(ptree, 1);
+        ptree->sub_tree[1] = av1_alloc_ptree_node(ptree, 2);
+        break;
 #endif  // !CONFIG_EXT_RECUR_PARTITIONS && CONFIG_EXT_PARTITIONS
 #if CONFIG_EXT_RECUR_PARTITIONS
       case PARTITION_HORZ:
-      case PARTITION_VERT: num_splittable_sub_blocks = 2; break;
+      case PARTITION_VERT:
+        ptree->sub_tree[0] = av1_alloc_ptree_node(ptree, 0);
+        ptree->sub_tree[1] = av1_alloc_ptree_node(ptree, 1);
+        break;
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
       default: break;
-    }
-    if (num_splittable_sub_blocks > 0) {
-      for (int i = 0; i < num_splittable_sub_blocks; ++i) {
-        ptree->sub_tree[i] = av1_alloc_ptree_node();
-      }
     }
   } else {
     partition = ptree->partition;
@@ -1609,9 +1637,10 @@ static void decode_partition(AV1Decoder *const pbi, ThreadData *const td,
 
 #define DEC_BLOCK_STX_ARG
 #define DEC_BLOCK_EPT_ARG partition,
-#define DEC_BLOCK(db_r, db_c, db_subsize)                                  \
-  block_visit[parse_decode_flag](pbi, td, DEC_BLOCK_STX_ARG(db_r), (db_c), \
-                                 reader, DEC_BLOCK_EPT_ARG(db_subsize))
+#define DEC_BLOCK(db_r, db_c, db_subsize, index)                               \
+  block_visit[parse_decode_flag](pbi, td, DEC_BLOCK_STX_ARG(db_r), (db_c),     \
+                                 reader, DEC_BLOCK_EPT_ARG(db_subsize), ptree, \
+                                 index)
 #define DEC_PARTITION(db_r, db_c, db_subsize, index)                 \
   decode_partition(pbi, td, DEC_BLOCK_STX_ARG(db_r), (db_c), reader, \
                    (db_subsize), ptree->sub_tree[(index)], parse_decode_flag)
@@ -1621,14 +1650,14 @@ static void decode_partition(AV1Decoder *const pbi, ThreadData *const td,
 #endif  // !CONFIG_EXT_RECUR_PARTITIONS
 
   switch (partition) {
-    case PARTITION_NONE: DEC_BLOCK(mi_row, mi_col, subsize); break;
+    case PARTITION_NONE: DEC_BLOCK(mi_row, mi_col, subsize, 0); break;
     case PARTITION_HORZ:
 #if CONFIG_EXT_RECUR_PARTITIONS
       DEC_PARTITION(mi_row, mi_col, subsize, 0);
       if (has_rows) DEC_PARTITION(mi_row + hbs, mi_col, subsize, 1);
 #else
-      DEC_BLOCK(mi_row, mi_col, subsize);
-      if (has_rows) DEC_BLOCK(mi_row + hbs, mi_col, subsize);
+      DEC_BLOCK(mi_row, mi_col, subsize, 0);
+      if (has_rows) DEC_BLOCK(mi_row + hbs, mi_col, subsize, 1);
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
       break;
     case PARTITION_VERT:
@@ -1636,8 +1665,8 @@ static void decode_partition(AV1Decoder *const pbi, ThreadData *const td,
       DEC_PARTITION(mi_row, mi_col, subsize, 0);
       if (has_cols) DEC_PARTITION(mi_row, mi_col + hbs, subsize, 1);
 #else
-      DEC_BLOCK(mi_row, mi_col, subsize);
-      if (has_cols) DEC_BLOCK(mi_row, mi_col + hbs, subsize);
+      DEC_BLOCK(mi_row, mi_col, subsize, 0);
+      if (has_cols) DEC_BLOCK(mi_row, mi_col + hbs, subsize, 1);
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
       break;
     case PARTITION_SPLIT:
@@ -1652,18 +1681,18 @@ static void decode_partition(AV1Decoder *const pbi, ThreadData *const td,
       DEC_PARTITION(mi_row, mi_col, bsize2, 0);
       DEC_PARTITION(mi_row, mi_col + hbs, bsize2, 1);
 #else
-      DEC_BLOCK(mi_row, mi_col, bsize2);
-      DEC_BLOCK(mi_row, mi_col + hbs, bsize2);
+      DEC_BLOCK(mi_row, mi_col, bsize2, 0);
+      DEC_BLOCK(mi_row, mi_col + hbs, bsize2, 1);
 #endif  // CONFIG_EXT_PARTITIONS
-      DEC_BLOCK(mi_row + hbs, mi_col, subsize);
+      DEC_BLOCK(mi_row + hbs, mi_col, subsize, 2);
       break;
-    case PARTITION_HORZ_B: DEC_BLOCK(mi_row, mi_col, subsize);
+    case PARTITION_HORZ_B: DEC_BLOCK(mi_row, mi_col, subsize, 0);
 #if CONFIG_EXT_PARTITIONS
       DEC_PARTITION(mi_row + hbs, mi_col, bsize2, 0);
       DEC_PARTITION(mi_row + hbs, mi_col + hbs, bsize2, 1);
 #else
-      DEC_BLOCK(mi_row + hbs, mi_col, bsize2);
-      DEC_BLOCK(mi_row + hbs, mi_col + hbs, bsize2);
+      DEC_BLOCK(mi_row + hbs, mi_col, bsize2, 1);
+      DEC_BLOCK(mi_row + hbs, mi_col + hbs, bsize2, 2);
 #endif  // CONFIG_EXT_PARTITIONS
       break;
     case PARTITION_VERT_A:
@@ -1671,18 +1700,18 @@ static void decode_partition(AV1Decoder *const pbi, ThreadData *const td,
       DEC_PARTITION(mi_row, mi_col, bsize2, 0);
       DEC_PARTITION(mi_row + hbs, mi_col, bsize2, 1);
 #else
-      DEC_BLOCK(mi_row, mi_col, bsize2);
-      DEC_BLOCK(mi_row + hbs, mi_col, bsize2);
+      DEC_BLOCK(mi_row, mi_col, bsize2, 0);
+      DEC_BLOCK(mi_row + hbs, mi_col, bsize2, 1);
 #endif  // CONFIG_EXT_PARTITIONS
-      DEC_BLOCK(mi_row, mi_col + hbs, subsize);
+      DEC_BLOCK(mi_row, mi_col + hbs, subsize, 2);
       break;
-    case PARTITION_VERT_B: DEC_BLOCK(mi_row, mi_col, subsize);
+    case PARTITION_VERT_B: DEC_BLOCK(mi_row, mi_col, subsize, 0);
 #if CONFIG_EXT_PARTITIONS
       DEC_PARTITION(mi_row, mi_col + hbs, bsize2, 0);
       DEC_PARTITION(mi_row + hbs, mi_col + hbs, bsize2, 1);
 #else
-      DEC_BLOCK(mi_row, mi_col + hbs, bsize2);
-      DEC_BLOCK(mi_row + hbs, mi_col + hbs, bsize2);
+      DEC_BLOCK(mi_row, mi_col + hbs, bsize2, 1);
+      DEC_BLOCK(mi_row + hbs, mi_col + hbs, bsize2, 2);
 #endif  // CONFIG_EXT_PARTITIONS
       break;
 #endif  // !CONFIG_EXT_RECUR_PARTITIONS
@@ -1690,25 +1719,25 @@ static void decode_partition(AV1Decoder *const pbi, ThreadData *const td,
     case PARTITION_HORZ_3: {
       const BLOCK_SIZE bsize3 = get_partition_subsize(bsize, PARTITION_HORZ);
       int this_mi_row = mi_row;
-      DEC_BLOCK(this_mi_row, mi_col, subsize);
+      DEC_BLOCK(this_mi_row, mi_col, subsize, 0);
       this_mi_row += quarter_step;
       if (this_mi_row >= cm->mi_rows) break;
-      DEC_BLOCK(this_mi_row, mi_col, bsize3);
+      DEC_BLOCK(this_mi_row, mi_col, bsize3, 1);
       this_mi_row += 2 * quarter_step;
       if (this_mi_row >= cm->mi_rows) break;
-      DEC_BLOCK(this_mi_row, mi_col, subsize);
+      DEC_BLOCK(this_mi_row, mi_col, subsize, 2);
       break;
     }
     case PARTITION_VERT_3: {
       const BLOCK_SIZE bsize3 = get_partition_subsize(bsize, PARTITION_VERT);
       int this_mi_col = mi_col;
-      DEC_BLOCK(mi_row, this_mi_col, subsize);
+      DEC_BLOCK(mi_row, this_mi_col, subsize, 0);
       this_mi_col += quarter_step;
       if (this_mi_col >= cm->mi_cols) break;
-      DEC_BLOCK(mi_row, this_mi_col, bsize3);
+      DEC_BLOCK(mi_row, this_mi_col, bsize3, 1);
       this_mi_col += 2 * quarter_step;
       if (this_mi_col >= cm->mi_cols) break;
-      DEC_BLOCK(mi_row, this_mi_col, subsize);
+      DEC_BLOCK(mi_row, this_mi_col, subsize, 2);
       break;
     }
 #else
@@ -1716,14 +1745,14 @@ static void decode_partition(AV1Decoder *const pbi, ThreadData *const td,
       for (int i = 0; i < 4; ++i) {
         int this_mi_row = mi_row + i * quarter_step;
         if (i > 0 && this_mi_row >= cm->mi_rows) break;
-        DEC_BLOCK(this_mi_row, mi_col, subsize);
+        DEC_BLOCK(this_mi_row, mi_col, subsize, i);
       }
       break;
     case PARTITION_VERT_4:
       for (int i = 0; i < 4; ++i) {
         int this_mi_col = mi_col + i * quarter_step;
         if (i > 0 && this_mi_col >= cm->mi_cols) break;
-        DEC_BLOCK(mi_row, this_mi_col, subsize);
+        DEC_BLOCK(mi_row, this_mi_col, subsize, i);
       }
       break;
 #endif  // CONFIG_EXT_PARTITIONS

@@ -157,11 +157,20 @@ TEST(IntrabcTest, DvValidation) {
   memset(&cm, 0, sizeof(cm));
 
   for (int i = 0; i < static_cast<int>(GTEST_ARRAY_SIZE_(kDvCases)); ++i) {
-    EXPECT_EQ(static_cast<int>(kDvCases[i].valid),
-              av1_is_dv_valid(kDvCases[i].dv, &cm, &xd,
-                              xd.tile.mi_row_start + kDvCases[i].mi_row_offset,
-                              xd.tile.mi_col_start + kDvCases[i].mi_col_offset,
-                              kDvCases[i].bsize, MAX_MIB_SIZE_LOG2))
+    CHROMA_REF_INFO chr_ref_info = {
+      1,
+      0,
+      xd.tile.mi_row_start + kDvCases[i].mi_row_offset,
+      xd.tile.mi_col_start + kDvCases[i].mi_col_offset,
+      kDvCases[i].bsize,
+      kDvCases[i].bsize
+    };
+    EXPECT_EQ(
+        static_cast<int>(kDvCases[i].valid),
+        av1_is_dv_valid(kDvCases[i].dv, &cm, &xd,
+                        xd.tile.mi_row_start + kDvCases[i].mi_row_offset,
+                        xd.tile.mi_col_start + kDvCases[i].mi_col_offset,
+                        kDvCases[i].bsize, MAX_MIB_SIZE_LOG2, &chr_ref_info))
         << "DvCases[" << i << "]";
   }
 }

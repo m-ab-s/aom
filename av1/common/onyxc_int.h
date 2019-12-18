@@ -1021,6 +1021,7 @@ static INLINE aom_cdf_prob *get_derived_intra_mode_cdf(
 static INLINE void update_partition_context(MACROBLOCKD *xd, int mi_row,
                                             int mi_col, BLOCK_SIZE subsize,
                                             BLOCK_SIZE bsize) {
+  assert(bsize < BLOCK_SIZES_ALL);
   PARTITION_CONTEXT *const above_ctx = xd->above_seg_context + mi_col;
   PARTITION_CONTEXT *const left_ctx =
       xd->left_seg_context + (mi_row & MAX_MIB_MASK);

@@ -53,7 +53,7 @@ void av1_foreach_transformed_block_in_plane(
     foreach_transformed_block_visitor visit, void *arg);
 
 void av1_foreach_transformed_block(const MACROBLOCKD *const xd,
-                                   BLOCK_SIZE bsize, int mi_row, int mi_col,
+                                   BLOCK_SIZE bsize,
                                    foreach_transformed_block_visitor visit,
                                    void *arg, const int num_planes);
 

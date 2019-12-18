@@ -785,9 +785,7 @@ void av1_write_coeffs_mb(const AV1_COMMON *const cm, MACROBLOCK *x, int mi_row,
     for (col = 0; col < max_blocks_wide; col += mu_blocks_wide) {
       for (int plane = 0; plane < num_planes; ++plane) {
         const struct macroblockd_plane *const pd = &xd->plane[plane];
-        if (!is_chroma_reference(mi_row, mi_col, bsize, pd->subsampling_x,
-                                 pd->subsampling_y))
-          continue;
+        if (plane && !xd->mi[0]->chroma_ref_info.is_chroma_ref) continue;
         const TX_SIZE tx_size = av1_get_tx_size(plane, xd);
         const int stepr = tx_size_high_unit[tx_size];
         const int stepc = tx_size_wide_unit[tx_size];
@@ -2448,12 +2446,11 @@ void av1_update_txb_context(const AV1_COMP *cpi, ThreadData *td,
   }
 
   if (!dry_run) {
-    av1_foreach_transformed_block(xd, bsize, mi_row, mi_col,
-                                  av1_update_and_record_txb_context, &arg,
-                                  num_planes);
+    av1_foreach_transformed_block(xd, bsize, av1_update_and_record_txb_context,
+                                  &arg, num_planes);
   } else if (dry_run == DRY_RUN_NORMAL) {
-    av1_foreach_transformed_block(xd, bsize, mi_row, mi_col,
-                                  av1_update_txb_context_b, &arg, num_planes);
+    av1_foreach_transformed_block(xd, bsize, av1_update_txb_context_b, &arg,
+                                  num_planes);
   } else {
     printf("DRY_RUN_COSTCOEFFS is not supported yet\n");
     assert(0);

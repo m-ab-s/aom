@@ -305,7 +305,8 @@ static INLINE void av1_find_ref_dv(int_mv *ref_dv, const TileInfo *const tile,
 
 static INLINE int av1_is_dv_valid(const MV dv, const AV1_COMMON *cm,
                                   const MACROBLOCKD *xd, int mi_row, int mi_col,
-                                  BLOCK_SIZE bsize, int mib_size_log2) {
+                                  BLOCK_SIZE bsize, int mib_size_log2,
+                                  CHROMA_REF_INFO *chr_ref_info) {
   const int bw = block_size_wide[bsize];
   const int bh = block_size_high[bsize];
   const int SCALE_PX_TO_MV = 8;
@@ -334,8 +335,7 @@ static INLINE int av1_is_dv_valid(const MV dv, const AV1_COMMON *cm,
   // pixels outside current tile.
   for (int plane = 1; plane < av1_num_planes(cm); ++plane) {
     const struct macroblockd_plane *const pd = &xd->plane[plane];
-    if (is_chroma_reference(mi_row, mi_col, bsize, pd->subsampling_x,
-                            pd->subsampling_y)) {
+    if (!plane || chr_ref_info->is_chroma_ref) {
       if (bw < 8 && pd->subsampling_x)
         if (src_left_edge < tile_left_edge + 4 * SCALE_PX_TO_MV) return 0;
       if (bh < 8 && pd->subsampling_y)

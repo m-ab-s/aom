@@ -482,14 +482,11 @@ void av1_foreach_transformed_block_in_plane(
 }
 
 void av1_foreach_transformed_block(const MACROBLOCKD *const xd,
-                                   BLOCK_SIZE bsize, int mi_row, int mi_col,
+                                   BLOCK_SIZE bsize,
                                    foreach_transformed_block_visitor visit,
                                    void *arg, const int num_planes) {
   for (int plane = 0; plane < num_planes; ++plane) {
-    if (!is_chroma_reference(mi_row, mi_col, bsize,
-                             xd->plane[plane].subsampling_x,
-                             xd->plane[plane].subsampling_y))
-      continue;
+    if (plane && !xd->mi[0]->chroma_ref_info.is_chroma_ref) continue;
     av1_foreach_transformed_block_in_plane(xd, bsize, plane, visit, arg);
   }
 }
@@ -566,9 +563,7 @@ void av1_encode_sb(const struct AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
   for (plane = 0; plane < num_planes; ++plane) {
     const int subsampling_x = xd->plane[plane].subsampling_x;
     const int subsampling_y = xd->plane[plane].subsampling_y;
-    if (!is_chroma_reference(mi_row, mi_col, bsize, subsampling_x,
-                             subsampling_y))
-      continue;
+    if (plane && !mbmi->chroma_ref_info.is_chroma_ref) continue;
 
     const BLOCK_SIZE bsizec =
         scale_chroma_bsize(bsize, subsampling_x, subsampling_y, mi_row, mi_col);
@@ -730,10 +725,7 @@ void av1_encode_intra_block_plane(const struct AV1_COMP *cpi, MACROBLOCK *x,
     cpi, x, NULL, &(xd->mi[0]->skip), ta, tl, enable_optimize_b
   };
 
-  if (!is_chroma_reference(mi_row, mi_col, bsize,
-                           xd->plane[plane].subsampling_x,
-                           xd->plane[plane].subsampling_y))
-    return;
+  if (plane && !xd->mi[0]->chroma_ref_info.is_chroma_ref) return;
 
   if (enable_optimize_b) {
     const struct macroblockd_plane *const pd = &xd->plane[plane];

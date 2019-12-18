@@ -7328,9 +7328,7 @@ static void choose_intra_uv_mode(const AV1_COMP *const cpi, MACROBLOCK *const x,
     *mode_uv = UV_DC_PRED;
     return;
   }
-  xd->cfl.is_chroma_reference =
-      is_chroma_reference(mi_row, mi_col, bsize, cm->seq_params.subsampling_x,
-                          cm->seq_params.subsampling_y);
+  xd->cfl.is_chroma_reference = mbmi->chroma_ref_info.is_chroma_ref;
 
   // Only store reconstructed luma when there's chroma RDO. When there's no
   // chroma RDO, the reconstructed luma will be stored in encode_superblock().
@@ -12298,7 +12296,8 @@ static int64_t rd_pick_intrabc_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x,
     const MV dv = { .row = mvp_full.row * 8, .col = mvp_full.col * 8 };
     if (mv_check_bounds(&x->mv_limits, &dv)) continue;
     if (!av1_is_dv_valid(dv, cm, xd, mi_row, mi_col, bsize,
-                         cm->seq_params.mib_size_log2))
+                         cm->seq_params.mib_size_log2,
+                         &xd->mi[0]->chroma_ref_info))
       continue;
 
     // DV should not have sub-pel.
@@ -12389,9 +12388,7 @@ void av1_rd_pick_intra_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x, int mi_row,
   if (intra_yrd < best_rd) {
     // Only store reconstructed luma when there's chroma RDO. When there's no
     // chroma RDO, the reconstructed luma will be stored in encode_superblock().
-    xd->cfl.is_chroma_reference =
-        is_chroma_reference(mi_row, mi_col, bsize, cm->seq_params.subsampling_x,
-                            cm->seq_params.subsampling_y);
+    xd->cfl.is_chroma_reference = mbmi->chroma_ref_info.is_chroma_ref;
     xd->cfl.store_y = store_cfl_required_rdo(cm, x);
     if (xd->cfl.store_y) {
       // Restore reconstructed luma values.

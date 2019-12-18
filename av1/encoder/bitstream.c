@@ -986,8 +986,8 @@ static void write_palette_colors_uv(const MACROBLOCKD *const xd,
 }
 
 static void write_palette_mode_info(const AV1_COMMON *cm, const MACROBLOCKD *xd,
-                                    const MB_MODE_INFO *const mbmi, int mi_row,
-                                    int mi_col, aom_writer *w) {
+                                    const MB_MODE_INFO *const mbmi,
+                                    aom_writer *w) {
   const int num_planes = av1_num_planes(cm);
   const BLOCK_SIZE bsize = mbmi->sb_type;
   assert(av1_allow_palette(cm->allow_screen_content_tools, bsize));
@@ -1008,10 +1008,8 @@ static void write_palette_mode_info(const AV1_COMMON *cm, const MACROBLOCKD *xd,
     }
   }
 
-  const int uv_dc_pred =
-      num_planes > 1 && mbmi->uv_mode == UV_DC_PRED &&
-      is_chroma_reference(mi_row, mi_col, bsize, xd->plane[1].subsampling_x,
-                          xd->plane[1].subsampling_y);
+  const int uv_dc_pred = num_planes > 1 && mbmi->uv_mode == UV_DC_PRED &&
+                         mbmi->chroma_ref_info.is_chroma_ref;
   if (uv_dc_pred) {
     const int n = pmi->palette_size[1];
     const int palette_uv_mode_ctx = (pmi->palette_size[0] > 0);
@@ -1317,8 +1315,7 @@ static void write_delta_q_params(AV1_COMP *cpi, const int mi_row,
   }
 }
 
-static void write_intra_prediction_modes(AV1_COMP *cpi, const int mi_row,
-                                         const int mi_col, int is_keyframe,
+static void write_intra_prediction_modes(AV1_COMP *cpi, int is_keyframe,
                                          aom_writer *w) {
   const AV1_COMMON *const cm = &cpi->common;
   MACROBLOCK *const x = &cpi->td.mb;
@@ -1371,9 +1368,7 @@ static void write_intra_prediction_modes(AV1_COMP *cpi, const int mi_row,
   }
 
   // UV mode and UV angle delta.
-  if (!cm->seq_params.monochrome &&
-      is_chroma_reference(mi_row, mi_col, bsize, xd->plane[1].subsampling_x,
-                          xd->plane[1].subsampling_y)) {
+  if (!cm->seq_params.monochrome && mbmi->chroma_ref_info.is_chroma_ref) {
     const UV_PREDICTION_MODE uv_mode = mbmi->uv_mode;
     write_intra_uv_mode(xd, ec_ctx, uv_mode, mode, w);
     if (uv_mode == UV_CFL_PRED)
@@ -1390,7 +1385,7 @@ static void write_intra_prediction_modes(AV1_COMP *cpi, const int mi_row,
 
   // Palette.
   if (av1_allow_palette(cm->allow_screen_content_tools, bsize)) {
-    write_palette_mode_info(cm, xd, mbmi, mi_row, mi_col, w);
+    write_palette_mode_info(cm, xd, mbmi, w);
   }
 
   // Filter intra.
@@ -1465,7 +1460,7 @@ static void pack_inter_mode_mvs(AV1_COMP *cpi, const int mi_row,
   if (mbmi->skip_mode) return;
 
   if (!is_inter) {
-    write_intra_prediction_modes(cpi, mi_row, mi_col, 0, w);
+    write_intra_prediction_modes(cpi, 0, w);
   } else {
     av1_collect_neighbors_ref_counts(xd);
 
@@ -1664,7 +1659,7 @@ static void write_mb_modes_kf(AV1_COMP *cpi, MACROBLOCKD *xd,
     if (is_intrabc_block(mbmi)) return;
   }
 
-  write_intra_prediction_modes(cpi, mi_row, mi_col, 1, w);
+  write_intra_prediction_modes(cpi, 1, w);
 }
 
 #if CONFIG_RD_DEBUG
@@ -1854,11 +1849,7 @@ static void write_tokens_b(AV1_COMP *cpi, aom_writer *w, const TOKENEXTRA **tok,
     for (int row = 0; row < num_4x4_h; row += mu_blocks_high) {
       for (int col = 0; col < num_4x4_w; col += mu_blocks_wide) {
         for (int plane = 0; plane < num_planes; ++plane) {
-          const struct macroblockd_plane *const pd = &xd->plane[plane];
-          if (!is_chroma_reference(mi_row, mi_col, bsize, pd->subsampling_x,
-                                   pd->subsampling_y)) {
-            continue;
-          }
+          if (plane && !mbmi->chroma_ref_info.is_chroma_ref) continue;
           write_inter_txb_coeff(cm, x, mi_row, mi_col, mbmi, w, tok, tok_end,
                                 &token_stats, row, col, &block[plane], plane);
         }

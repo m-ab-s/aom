@@ -333,8 +333,11 @@ void av1_first_pass(AV1_COMP *cpi, const int64_t ts_duration) {
   TileInfo tile;
   struct macroblock_plane *const p = x->plane;
   struct macroblockd_plane *const pd = xd->plane;
+  const int ss_x = pd[1].subsampling_x;
+  const int ss_y = pd[1].subsampling_y;
   PICK_MODE_CONTEXT *ctx =
-      av1_alloc_pmc(cm, BLOCK_16X16, &cpi->td.shared_coeff_buf);
+      av1_alloc_pmc(cm, 0, 0, BLOCK_16X16, NULL, PARTITION_NONE, 0, ss_x, ss_y,
+                    &cpi->td.shared_coeff_buf);
   int i;
 
   int recon_yoffset, src_yoffset, recon_uvoffset;
@@ -479,8 +482,12 @@ void av1_first_pass(AV1_COMP *cpi, const int64_t ts_duration) {
       xd->left_available = (mb_col != 0);
       xd->mi[0]->sb_type = bsize;
       xd->mi[0]->ref_frame[0] = INTRA_FRAME;
-      set_mi_row_col(xd, &tile, mb_row * mb_scale, mi_size_high[bsize],
-                     mb_col * mb_scale, mi_size_wide[bsize], cm->mi_rows,
+
+      const int mi_row = mb_row * mb_scale;
+      const int mi_col = mb_col * mb_scale;
+      const int bh = mi_size_high[bsize];
+      const int bw = mi_size_wide[bsize];
+      set_mi_row_col(xd, &tile, mi_row, bh, mi_col, bw, cm->mi_rows,
                      cm->mi_cols);
 
       set_plane_n4(xd, mb_row * mb_scale, mb_col * mb_scale, bsize, num_planes);

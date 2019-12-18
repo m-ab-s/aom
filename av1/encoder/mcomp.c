@@ -2850,7 +2850,8 @@ int av1_full_pixel_search(const AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
               const MV dv = { 8 * (ref_block_hash.y - y_pos),
                               8 * (ref_block_hash.x - x_pos) };
               if (!av1_is_dv_valid(dv, &cpi->common, &x->e_mbd, mi_row, mi_col,
-                                   bsize, cpi->common.seq_params.mib_size_log2))
+                                   bsize, cpi->common.seq_params.mib_size_log2,
+                                   &x->e_mbd.mi[0]->chroma_ref_info))
                 continue;
             }
             MV hash_mv;

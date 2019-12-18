@@ -90,9 +90,7 @@ static void build_inter_predictors_for_plane(const AV1_COMMON *cm,
                                              int mi_col, const BUFFER_SET *ctx,
                                              BLOCK_SIZE bsize, int plane_idx) {
   const struct macroblockd_plane *pd = &xd->plane[plane_idx];
-  if (!is_chroma_reference(mi_row, mi_col, bsize, pd->subsampling_x,
-                           pd->subsampling_y))
-    return;
+  if (plane_idx && !xd->mi[0]->chroma_ref_info.is_chroma_ref) return;
 
   const int mi_x = mi_col * MI_SIZE;
   const int mi_y = mi_row * MI_SIZE;
