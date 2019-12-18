@@ -1826,7 +1826,9 @@ static void encode_sb(const AV1_COMP *const cpi, ThreadData *td,
   const PARTITION_TYPE partition = pc_tree->partitioning;
   const BLOCK_SIZE subsize = get_partition_subsize(bsize, partition);
   int quarter_step = mi_size_wide[bsize] / 4;
+#if !CONFIG_EXT_RECUR_PARTITIONS
   const BLOCK_SIZE bsize2 = get_partition_subsize(bsize, PARTITION_SPLIT);
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS
 
   if (mi_row >= cm->mi_rows || mi_col >= cm->mi_cols) return;
   if (subsize == BLOCK_INVALID) return;
@@ -1877,12 +1879,14 @@ static void encode_sb(const AV1_COMP *const cpi, ThreadData *td,
     int num_splittable_sub_blocks = 0;
     switch (partition) {
       case PARTITION_SPLIT: num_splittable_sub_blocks = 4; break;
+#if !CONFIG_EXT_RECUR_PARTITIONS
 #if CONFIG_EXT_PARTITIONS
       case PARTITION_HORZ_A:
       case PARTITION_HORZ_B:
       case PARTITION_VERT_A:
       case PARTITION_VERT_B: num_splittable_sub_blocks = 2; break;
 #endif  // CONFIG_EXT_PARTITIONS
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS
 #if CONFIG_EXT_RECUR_PARTITIONS
       case PARTITION_HORZ:
       case PARTITION_VERT: num_splittable_sub_blocks = 2; break;
@@ -1955,7 +1959,7 @@ static void encode_sb(const AV1_COMP *const cpi, ThreadData *td,
       encode_sb(cpi, td, tile_data, tp, mi_row + hbs, mi_col + hbs, dry_run,
                 subsize, pc_tree->split[3], sub_tree[3], rate);
       break;
-
+#if !CONFIG_EXT_RECUR_PARTITIONS
     case PARTITION_HORZ_A:
 #if CONFIG_EXT_PARTITIONS
       encode_sb(cpi, td, tile_data, tp, mi_row, mi_col, dry_run, bsize2,
@@ -2024,6 +2028,7 @@ static void encode_sb(const AV1_COMP *const cpi, ThreadData *td,
                bsize2, partition, pc_tree->verticalb[2], rate);
 #endif  // CONFIG_EXT_PARTITIONS
       break;
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS
 #if CONFIG_EXT_PARTITIONS
     case PARTITION_HORZ_3: {
       const BLOCK_SIZE bsize3 = get_partition_subsize(bsize, PARTITION_HORZ);
@@ -2340,10 +2345,12 @@ static void rd_use_partition(AV1_COMP *cpi, ThreadData *td,
         last_part_rdc.dist += tmp_rdc.dist;
       }
       break;
+#if !CONFIG_EXT_RECUR_PARTITIONS
     case PARTITION_VERT_A:
     case PARTITION_VERT_B:
     case PARTITION_HORZ_A:
     case PARTITION_HORZ_B:
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS
 #if CONFIG_EXT_PARTITIONS
     case PARTITION_HORZ_3:
     case PARTITION_VERT_3:
@@ -2491,12 +2498,14 @@ static void nonrd_use_partition(AV1_COMP *cpi, ThreadData *td,
   int num_splittable_sub_blocks = 0;
   switch (partition) {
     case PARTITION_SPLIT: num_splittable_sub_blocks = 4; break;
+#if !CONFIG_EXT_RECUR_PARTITIONS
 #if CONFIG_EXT_PARTITIONS
     case PARTITION_HORZ_A:
     case PARTITION_HORZ_B:
     case PARTITION_VERT_A:
     case PARTITION_VERT_B: num_splittable_sub_blocks = 2; break;
 #endif  // CONFIG_EXT_PARTITIONS
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS
 #if CONFIG_EXT_RECUR_PARTITIONS
     case PARTITION_HORZ:
     case PARTITION_VERT: num_splittable_sub_blocks = 2; break;
@@ -2615,10 +2624,12 @@ static void nonrd_use_partition(AV1_COMP *cpi, ThreadData *td,
                             pc_tree->split[i], ptree->sub_tree[i]);
       }
       break;
+#if !CONFIG_EXT_RECUR_PARTITIONS
     case PARTITION_VERT_A:
     case PARTITION_VERT_B:
     case PARTITION_HORZ_A:
     case PARTITION_HORZ_B:
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS
 #if CONFIG_EXT_PARTITIONS
     case PARTITION_HORZ_3:
     case PARTITION_VERT_3:
@@ -2751,6 +2762,7 @@ static int rd_try_subblock(AV1_COMP *const cpi, ThreadData *td,
   return 1;
 }
 
+#if !CONFIG_EXT_RECUR_PARTITIONS
 #if CONFIG_EXT_PARTITIONS
 typedef struct {
   SIMPLE_MOTION_DATA_TREE *sms_tree;
@@ -2897,6 +2909,7 @@ static bool rd_test_partition3(AV1_COMP *const cpi, ThreadData *td,
   return true;
 }
 #endif  // CONFIG_EXT_PARTITIONS
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS
 
 static void reset_simple_motion_tree_partition(
     SIMPLE_MOTION_DATA_TREE *sms_tree, BLOCK_SIZE bsize) {
@@ -2964,10 +2977,12 @@ static bool rd_pick_partition(AV1_COMP *const cpi, ThreadData *td,
   int prune_vert = 0;
   int terminate_partition_search = 0;
 
+#if !CONFIG_EXT_RECUR_PARTITIONS
   int split_ctx_is_ready[2] = { 0, 0 };
   int horz_ctx_is_ready = 0;
   int vert_ctx_is_ready = 0;
   BLOCK_SIZE bsize2 = get_partition_subsize(bsize, PARTITION_SPLIT);
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS
 #if CONFIG_EXT_PARTITIONS
   (void)split_ctx_is_ready;
 #endif  // CONFIG_EXT_PARTITIONS
@@ -3379,6 +3394,7 @@ BEGIN_PARTITION_SEARCH:
       sum_rdc.rate += this_rdc.rate;
       sum_rdc.dist += this_rdc.dist;
       av1_rd_cost_update(x->rdmult, &sum_rdc);
+#if !CONFIG_EXT_RECUR_PARTITIONS
       if (idx <= 1 && (bsize <= BLOCK_8X8 ||
                        pc_tree->split[idx]->partitioning == PARTITION_NONE)) {
         const MB_MODE_INFO *const mbmi = &pc_tree->split[idx]->none->mic;
@@ -3388,6 +3404,7 @@ BEGIN_PARTITION_SEARCH:
           if (mbmi->uv_mode != UV_CFL_PRED) split_ctx_is_ready[idx] = 1;
         }
       }
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS
     }
 #if CONFIG_COLLECT_PARTITION_STATS
     if (partition_timer_on) {
@@ -3779,6 +3796,7 @@ BEGIN_PARTITION_SEARCH:
         &vertb_partition_allowed);
   }
 
+#if !CONFIG_EXT_RECUR_PARTITIONS
   horza_partition_allowed &= cpi->oxcf.enable_ab_partitions;
   horzb_partition_allowed &= cpi->oxcf.enable_ab_partitions;
   verta_partition_allowed &= cpi->oxcf.enable_ab_partitions;
@@ -4182,6 +4200,7 @@ BEGIN_PARTITION_SEARCH:
 #endif
     restore_context(cm, x, &x_ctx, mi_row, mi_col, bsize, num_planes);
   }
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS
 
 #if CONFIG_EXT_PARTITIONS
   // partition3_allowed is 1 if we can use a PARTITION_HORZ_3 or
@@ -4203,13 +4222,17 @@ BEGIN_PARTITION_SEARCH:
                            yss) != BLOCK_INVALID;
   if (cpi->sf.prune_ext_partition_types_search_level == 2) {
     partition_horz3_allowed &= (pc_tree->partitioning == PARTITION_HORZ ||
+#if !CONFIG_EXT_RECUR_PARTITIONS
                                 pc_tree->partitioning == PARTITION_HORZ_A ||
                                 pc_tree->partitioning == PARTITION_HORZ_B ||
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS
                                 pc_tree->partitioning == PARTITION_SPLIT ||
                                 pc_tree->partitioning == PARTITION_NONE);
     partition_vert3_allowed &= (pc_tree->partitioning == PARTITION_VERT ||
+#if !CONFIG_EXT_RECUR_PARTITIONS
                                 pc_tree->partitioning == PARTITION_VERT_A ||
                                 pc_tree->partitioning == PARTITION_VERT_B ||
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS
                                 pc_tree->partitioning == PARTITION_SPLIT ||
                                 pc_tree->partitioning == PARTITION_NONE);
   }
@@ -4397,13 +4420,17 @@ BEGIN_PARTITION_SEARCH:
                            yss) != BLOCK_INVALID;
   if (cpi->sf.prune_ext_partition_types_search_level == 2) {
     partition_horz4_allowed &= (pc_tree->partitioning == PARTITION_HORZ ||
+#if !CONFIG_EXT_RECUR_PARTITIONS
                                 pc_tree->partitioning == PARTITION_HORZ_A ||
                                 pc_tree->partitioning == PARTITION_HORZ_B ||
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS
                                 pc_tree->partitioning == PARTITION_SPLIT ||
                                 pc_tree->partitioning == PARTITION_NONE);
     partition_vert4_allowed &= (pc_tree->partitioning == PARTITION_VERT ||
+#if !CONFIG_EXT_RECUR_PARTITIONS
                                 pc_tree->partitioning == PARTITION_VERT_A ||
                                 pc_tree->partitioning == PARTITION_VERT_B ||
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS
                                 pc_tree->partitioning == PARTITION_SPLIT ||
                                 pc_tree->partitioning == PARTITION_NONE);
   }

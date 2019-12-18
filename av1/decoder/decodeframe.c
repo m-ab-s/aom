@@ -1549,12 +1549,12 @@ static void decode_partition(AV1Decoder *const pbi, ThreadData *const td,
     int num_splittable_sub_blocks = 0;
     switch (partition) {
       case PARTITION_SPLIT: num_splittable_sub_blocks = 4; break;
-#if CONFIG_EXT_PARTITIONS
+#if !CONFIG_EXT_RECUR_PARTITIONS && CONFIG_EXT_PARTITIONS
       case PARTITION_HORZ_A:
       case PARTITION_HORZ_B:
       case PARTITION_VERT_A:
       case PARTITION_VERT_B: num_splittable_sub_blocks = 2; break;
-#endif  // CONFIG_EXT_PARTITIONS
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS && CONFIG_EXT_PARTITIONS
 #if CONFIG_EXT_RECUR_PARTITIONS
       case PARTITION_HORZ:
       case PARTITION_VERT: num_splittable_sub_blocks = 2; break;
@@ -1595,7 +1595,9 @@ static void decode_partition(AV1Decoder *const pbi, ThreadData *const td,
   decode_partition(pbi, td, DEC_BLOCK_STX_ARG(db_r), (db_c), reader, \
                    (db_subsize), ptree->sub_tree[(index)], parse_decode_flag)
 
+#if !CONFIG_EXT_RECUR_PARTITIONS
   const BLOCK_SIZE bsize2 = get_partition_subsize(bsize, PARTITION_SPLIT);
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS
 
   switch (partition) {
     case PARTITION_NONE: DEC_BLOCK(mi_row, mi_col, subsize); break;
@@ -1627,6 +1629,7 @@ static void decode_partition(AV1Decoder *const pbi, ThreadData *const td,
       DEC_PARTITION(mi_row + hbs, mi_col, subsize, 2);
       DEC_PARTITION(mi_row + hbs, mi_col + hbs, subsize, 3);
       break;
+#if !CONFIG_EXT_RECUR_PARTITIONS
     case PARTITION_HORZ_A:
 #if CONFIG_EXT_PARTITIONS
       DEC_PARTITION(mi_row, mi_col, bsize2, 0);
@@ -1665,6 +1668,7 @@ static void decode_partition(AV1Decoder *const pbi, ThreadData *const td,
       DEC_BLOCK(mi_row + hbs, mi_col + hbs, bsize2);
 #endif  // CONFIG_EXT_PARTITIONS
       break;
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS
 #if CONFIG_EXT_PARTITIONS
     case PARTITION_HORZ_3: {
       const BLOCK_SIZE bsize3 = get_partition_subsize(bsize, PARTITION_HORZ);

@@ -205,6 +205,7 @@ void av1_free_pc_tree_recursive(PC_TREE *pc_tree, int num_planes, int keep_best,
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
   }
 #if CONFIG_EXT_PARTITIONS
+#if !CONFIG_EXT_RECUR_PARTITIONS
   if (!keep_best || (partition != PARTITION_HORZ_A))
     FREE_PMC_NODE(pc_tree->horza_rec);
   if (!keep_best || (partition != PARTITION_HORZ_B))
@@ -235,6 +236,7 @@ void av1_free_pc_tree_recursive(PC_TREE *pc_tree, int num_planes, int keep_best,
       pc_tree->vertb_split[i] = NULL;
     }
   }
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS
   for (int i = 0; i < 3; ++i) {
     if (!keep_best || (partition != PARTITION_HORZ_3))
       FREE_PMC_NODE(pc_tree->horizontal3[i]);
@@ -242,6 +244,7 @@ void av1_free_pc_tree_recursive(PC_TREE *pc_tree, int num_planes, int keep_best,
       FREE_PMC_NODE(pc_tree->vertical3[i]);
   }
 #else
+#if !CONFIG_EXT_RECUR_PARTITIONS
   for (int i = 0; i < 3; ++i) {
     if (!keep_best || (partition != PARTITION_HORZ_A))
       FREE_PMC_NODE(pc_tree->horizontala[i]);
@@ -252,6 +255,7 @@ void av1_free_pc_tree_recursive(PC_TREE *pc_tree, int num_planes, int keep_best,
     if (!keep_best || (partition != PARTITION_VERT_B))
       FREE_PMC_NODE(pc_tree->verticalb[i]);
   }
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS
   for (int i = 0; i < 4; ++i) {
     if (!keep_best || (partition != PARTITION_HORZ_4))
       FREE_PMC_NODE(pc_tree->horizontal4[i]);

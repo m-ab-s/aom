@@ -2071,6 +2071,7 @@ static void write_modes_sb(AV1_COMP *const cpi, const TileInfo *const tile,
       write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[3],
                      mi_row + hbs, mi_col + hbs, subsize);
       break;
+#if !CONFIG_EXT_RECUR_PARTITIONS
     case PARTITION_HORZ_A:
 #if CONFIG_EXT_PARTITIONS
       write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[0], mi_row,
@@ -2119,6 +2120,7 @@ static void write_modes_sb(AV1_COMP *const cpi, const TileInfo *const tile,
       write_modes_b(cpi, tile, w, tok, tok_end, mi_row + hbs, mi_col + hbs);
 #endif  // CONFIG_EXT_PARTITIONS
       break;
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS
 #if CONFIG_EXT_PARTITIONS
     case PARTITION_HORZ_3:
       write_modes_b(cpi, tile, w, tok, tok_end, mi_row, mi_col);

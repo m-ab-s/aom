@@ -115,6 +115,7 @@ static void count_segs_sb(const AV1_COMMON *cm, MACROBLOCKD *xd,
       CSEGS(hbs, bs, 0, 0);
       CSEGS(hbs, bs, 0, hbs);
       break;
+#if !CONFIG_EXT_RECUR_PARTITIONS
     case PARTITION_HORZ_A:
       CSEGS(hbs, hbs, 0, 0);
       CSEGS(hbs, hbs, 0, hbs);
@@ -135,6 +136,7 @@ static void count_segs_sb(const AV1_COMMON *cm, MACROBLOCKD *xd,
       CSEGS(hbs, hbs, 0, hbs);
       CSEGS(hbs, hbs, hbs, hbs);
       break;
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS
 #if CONFIG_EXT_PARTITIONS
     case PARTITION_HORZ_3:
       CSEGS(bs, qbs, 0, 0);

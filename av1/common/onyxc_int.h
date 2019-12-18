@@ -1055,9 +1055,11 @@ static INLINE void partition_gather_horz_alike(aom_cdf_prob *out,
   out[0] = CDF_PROB_TOP;
   out[0] -= cdf_element_prob(in, PARTITION_HORZ);
   out[0] -= cdf_element_prob(in, PARTITION_SPLIT);
+#if !CONFIG_EXT_RECUR_PARTITIONS
   out[0] -= cdf_element_prob(in, PARTITION_HORZ_A);
   out[0] -= cdf_element_prob(in, PARTITION_HORZ_B);
   out[0] -= cdf_element_prob(in, PARTITION_VERT_A);
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS
 #if CONFIG_EXT_PARTITIONS
   if (bsize != BLOCK_128X128) out[0] -= cdf_element_prob(in, PARTITION_HORZ_3);
 #else
@@ -1074,9 +1076,11 @@ static INLINE void partition_gather_vert_alike(aom_cdf_prob *out,
   out[0] = CDF_PROB_TOP;
   out[0] -= cdf_element_prob(in, PARTITION_VERT);
   out[0] -= cdf_element_prob(in, PARTITION_SPLIT);
+#if !CONFIG_EXT_RECUR_PARTITIONS
   out[0] -= cdf_element_prob(in, PARTITION_HORZ_A);
   out[0] -= cdf_element_prob(in, PARTITION_VERT_A);
   out[0] -= cdf_element_prob(in, PARTITION_VERT_B);
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS
 #if CONFIG_EXT_PARTITIONS
   if (bsize != BLOCK_128X128) out[0] -= cdf_element_prob(in, PARTITION_VERT_3);
 #else
@@ -1091,11 +1095,15 @@ static INLINE void update_ext_partition_context(MACROBLOCKD *xd, int mi_row,
                                                 BLOCK_SIZE bsize,
                                                 PARTITION_TYPE partition) {
   if (bsize >= BLOCK_8X8) {
+#if !CONFIG_EXT_RECUR_PARTITIONS || CONFIG_EXT_PARTITIONS
     const int hbs = mi_size_wide[bsize] / 2;
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS || CONFIG_EXT_PARTITIONS
 #if CONFIG_EXT_PARTITIONS
     const int quarter_step = hbs / 2;
 #endif  // CONFIG_EXT_PARTITIONS
+#if !CONFIG_EXT_RECUR_PARTITIONS
     const BLOCK_SIZE bsize2 = get_partition_subsize(bsize, PARTITION_SPLIT);
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS
     switch (partition) {
       case PARTITION_SPLIT:
         if (bsize != BLOCK_8X8) break;
@@ -1130,6 +1138,7 @@ static INLINE void update_ext_partition_context(MACROBLOCKD *xd, int mi_row,
         update_partition_context(xd, mi_row, mi_col, subsize, bsize);
         break;
 #endif  // CONFIG_EXT_PARTITIONS
+#if !CONFIG_EXT_RECUR_PARTITIONS
       case PARTITION_HORZ_A:
         update_partition_context(xd, mi_row, mi_col, bsize2, subsize);
         update_partition_context(xd, mi_row + hbs, mi_col, subsize, subsize);
@@ -1146,6 +1155,7 @@ static INLINE void update_ext_partition_context(MACROBLOCKD *xd, int mi_row,
         update_partition_context(xd, mi_row, mi_col, subsize, subsize);
         update_partition_context(xd, mi_row, mi_col + hbs, bsize2, subsize);
         break;
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS
       default: assert(0 && "Invalid partition type");
     }
   }
@@ -1183,10 +1193,14 @@ static INLINE int partition_plane_context(const MACROBLOCKD *xd, int mi_row,
 // Return the number of elements in the partition CDF when
 // partitioning the (square) block with luma block size of bsize.
 static INLINE int partition_cdf_length(BLOCK_SIZE bsize) {
+#if CONFIG_EXT_RECUR_PARTITIONS
+  if (bsize <= BLOCK_8X8 || bsize == BLOCK_128X128) return PARTITION_TYPES;
+#else   // CONFIG_EXT_RECUR_PARTITIONS
   if (bsize <= BLOCK_8X8)
     return PARTITION_TYPES;
   else if (bsize == BLOCK_128X128)
     return EXT_PARTITION_TYPES - 2;
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   else
     return EXT_PARTITION_TYPES;
 }
@@ -1553,10 +1567,11 @@ static INLINE PARTITION_TYPE get_partition(const AV1_COMMON *const cm,
       }
       assert(sshigh * 2 == bhigh);
 
-      if (mbmi_below->sb_type == subsize)
-        return PARTITION_HORZ;
+      if (mbmi_below->sb_type == subsize) return PARTITION_HORZ;
+#if !CONFIG_EXT_RECUR_PARTITIONS
       else
         return PARTITION_HORZ_B;
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS
     } else if (sshigh == bhigh) {
       // Smaller width but same height. Is PARTITION_VERT_3 / PARTITION_VERT_4,
       // PARTITION_VERT or PARTITION_VERT_B. To distinguish the latter two,
@@ -1570,10 +1585,11 @@ static INLINE PARTITION_TYPE get_partition(const AV1_COMMON *const cm,
       }
       assert(sswide * 2 == bhigh);
 
-      if (mbmi_right->sb_type == subsize)
-        return PARTITION_VERT;
+      if (mbmi_right->sb_type == subsize) return PARTITION_VERT;
+#if !CONFIG_EXT_RECUR_PARTITIONS
       else
         return PARTITION_VERT_B;
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS
     } else {
       // Smaller width and smaller height. Might be PARTITION_SPLIT or could be
       // PARTITION_HORZ_A or PARTITION_VERT_A. If subsize isn't halved in both
@@ -1587,18 +1603,23 @@ static INLINE PARTITION_TYPE get_partition(const AV1_COMMON *const cm,
         if (mi_size_wide[mbmi_below->sb_type] < bwide &&
             mi_size_high[mbmi_right->sb_type] < bhigh)
           return PARTITION_SPLIT;
+#if !CONFIG_EXT_RECUR_PARTITIONS
         else if (mi_size_wide[mbmi_below->sb_type] == bwide)
           return PARTITION_HORZ_A;
         else
           return PARTITION_VERT_A;
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS
       }
+#if !CONFIG_EXT_RECUR_PARTITIONS
       if (mi_size_wide[mbmi_below->sb_type] == bwide) return PARTITION_HORZ_A;
       if (mi_size_high[mbmi_right->sb_type] == bhigh) return PARTITION_VERT_A;
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS
 #else
       if (sswide * 2 != bwide || sshigh * 2 != bhigh) return PARTITION_SPLIT;
-
+#if !CONFIG_EXT_RECUR_PARTITIONS
       if (mi_size_wide[mbmi_below->sb_type] == bwide) return PARTITION_HORZ_A;
       if (mi_size_high[mbmi_right->sb_type] == bhigh) return PARTITION_VERT_A;
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS
 #endif  // CONFIG_EXT_PARTITIONS
       return PARTITION_SPLIT;
     }
