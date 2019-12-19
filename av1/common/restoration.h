@@ -205,8 +205,15 @@ extern "C" {
 #define WIENERNS_MIN_ID 1
 #define WIENERNS_SUBEXP_K_ID 2
 #define WIENERNS_STEP_ID 3
-extern const int wienerns_config[WIENERNS_YUV_PIXEL][3];
-extern const int wienerns_coeff[WIENERNS_YUV][3];
+extern const int wienerns_prec_bits;
+extern const int wienerns_y_pixel;
+extern const int wienerns_yuv_pixel;
+extern const int wienerns_uv_inter_pixel;
+extern const int wienerns_y;
+extern const int wienerns_uv;
+extern const int wienerns_yuv;
+extern const int wienerns_config[][3];
+extern const int wienerns_coeff[][3];
 #endif  // CONFIG_WIENER_NONSEP
 
 // Max of SGRPROJ_TMPBUF_SIZE, DOMAINTXFMRF_TMPBUF_SIZE, WIENER_TMPBUF_SIZE
@@ -317,7 +324,7 @@ static INLINE void set_default_wiener(WienerInfo *wiener_info) {
 
 #if CONFIG_WIENER_NONSEP
 static INLINE void set_default_wiener_nonsep(WienerNonsepInfo *wienerns_info) {
-  for (int i = 0; i < WIENERNS_YUV; ++i) {
+  for (int i = 0; i < wienerns_yuv; ++i) {
     wienerns_info->nsfilter[i] = wienerns_coeff[i][WIENERNS_MIN_ID];
   }
 }

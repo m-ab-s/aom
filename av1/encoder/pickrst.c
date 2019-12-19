@@ -1409,8 +1409,8 @@ static void search_cnn(const RestorationTileLimits *limits,
 static int count_wienerns_bits(int plane, WienerNonsepInfo *wienerns_info,
                                WienerNonsepInfo *ref_wienerns_info) {
   int is_uv = (plane != AOM_PLANE_Y);
-  int beg_feat = is_uv ? WIENERNS_Y : 0;
-  int end_feat = is_uv ? WIENERNS_YUV : WIENERNS_Y;
+  int beg_feat = is_uv ? wienerns_y : 0;
+  int end_feat = is_uv ? wienerns_yuv : wienerns_y;
 
   int bits = 0;
   for (int i = beg_feat; i < end_feat; ++i) {
@@ -1424,7 +1424,7 @@ static int count_wienerns_bits(int plane, WienerNonsepInfo *wienerns_info,
 }
 
 static int16_t quantize(double x, int16_t minv, int16_t n) {
-  int scale_x = (int)round(x * (1 << WIENERNS_PREC_BITS));
+  int scale_x = (int)round(x * (1 << wienerns_prec_bits));
   scale_x = AOMMAX(scale_x, minv);
   scale_x = AOMMIN(scale_x, minv + n - 1);
   return (int16_t)scale_x;
@@ -1447,9 +1447,9 @@ static int compute_quantized_wienerns_filter(const uint8_t *dgd,
   memset(b, 0, sizeof(b));
 
   int is_uv = (rui->plane != AOM_PLANE_Y);
-  int beg_pixel = is_uv ? WIENERNS_Y_PIXEL : 0;
-  int end_pixel = is_uv ? WIENERNS_YUV_PIXEL : WIENERNS_Y_PIXEL;
-  int num_feat = is_uv ? WIENERNS_UV : WIENERNS_Y;
+  int beg_pixel = is_uv ? wienerns_y_pixel : 0;
+  int end_pixel = is_uv ? wienerns_yuv_pixel : wienerns_y_pixel;
+  int num_feat = is_uv ? wienerns_uv : wienerns_y;
 
   for (int i = v_beg; i < v_end; ++i) {
     for (int j = h_beg; j < h_end; ++j) {
@@ -1461,7 +1461,7 @@ static int compute_quantized_wienerns_filter(const uint8_t *dgd,
         int pos = wienerns_config[k][WIENERNS_BUF_POS];
         int r = wienerns_config[k][WIENERNS_ROW_ID];
         int c = wienerns_config[k][WIENERNS_COL_ID];
-        if (!is_uv || k - beg_pixel < WIENERNS_UV_INTER_PIXEL) {
+        if (!is_uv || k - beg_pixel < wienerns_uv_inter_pixel) {
           buf[pos] +=
               use_hbd
                   ? clip_base((int16_t)dgd_hbd[(i + r) * dgd_stride + (j + c)] -
@@ -1501,9 +1501,9 @@ static int compute_quantized_wienerns_filter(const uint8_t *dgd,
     }
   }
   if (linsolve(num_feat, A, num_feat, b, x)) {
-    int beg_feat = is_uv ? WIENERNS_Y : 0;
-    int end_feat = is_uv ? WIENERNS_YUV : WIENERNS_Y;
-    for (int k = 0; k < WIENERNS_YUV; ++k) {
+    int beg_feat = is_uv ? wienerns_y : 0;
+    int end_feat = is_uv ? wienerns_yuv : wienerns_y;
+    for (int k = 0; k < wienerns_yuv; ++k) {
       rui->wiener_nonsep_info.nsfilter[k] =
           (k < beg_feat || k >= end_feat)
               ? wienerns_coeff[k][WIENERNS_MIN_ID]
@@ -1527,8 +1527,8 @@ static int64_t finer_tile_search_wienerns(const RestSearchCtxt *rsc,
   int64_t best_err = try_restoration_unit(rsc, limits, tile_rect, rui);
 
   int is_uv = (rui->plane != AOM_PLANE_Y);
-  int beg_feat = is_uv ? WIENERNS_Y : 0;
-  int end_feat = is_uv ? WIENERNS_YUV : WIENERNS_Y;
+  int beg_feat = is_uv ? wienerns_y : 0;
+  int end_feat = is_uv ? wienerns_yuv : wienerns_y;
 
   int iter_step = 10;
   int src_range = 3;

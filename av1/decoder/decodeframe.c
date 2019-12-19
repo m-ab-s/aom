@@ -1997,11 +1997,11 @@ static void read_sgrproj_filter(SgrprojInfo *sgrproj_info,
 static void read_wiener_nsfilter(int is_uv, WienerNonsepInfo *wienerns_info,
                                  WienerNonsepInfo *ref_wienerns_info,
                                  aom_reader *rb) {
-  int beg_feat = is_uv ? WIENERNS_Y : 0;
-  int end_feat = is_uv ? WIENERNS_YUV : WIENERNS_Y;
+  int beg_feat = is_uv ? wienerns_y : 0;
+  int end_feat = is_uv ? wienerns_yuv : wienerns_y;
 
   memset(wienerns_info->nsfilter, 0, sizeof(wienerns_info->nsfilter));
-  for (int i = 0; i < WIENERNS_YUV; ++i) {
+  for (int i = 0; i < wienerns_yuv; ++i) {
     wienerns_info->nsfilter[i] = wienerns_coeff[i][WIENERNS_MIN_ID];
     if (beg_feat <= i && i < end_feat) {
       wienerns_info->nsfilter[i] += aom_read_primitive_refsubexpfin(

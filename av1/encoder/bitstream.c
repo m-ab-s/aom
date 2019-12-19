@@ -2363,8 +2363,8 @@ static void write_wiener_nsfilter(int is_uv,
                                   const WienerNonsepInfo *wienerns_info,
                                   WienerNonsepInfo *ref_wienerns_info,
                                   aom_writer *wb) {
-  int beg_feat = is_uv ? WIENERNS_Y : 0;
-  int end_feat = is_uv ? WIENERNS_YUV : WIENERNS_Y;
+  int beg_feat = is_uv ? wienerns_y : 0;
+  int end_feat = is_uv ? wienerns_yuv : wienerns_y;
 
   for (int i = beg_feat; i < end_feat; ++i) {
     aom_write_primitive_refsubexpfin(
