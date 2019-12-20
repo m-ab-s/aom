@@ -1024,42 +1024,21 @@ void apply_wiener_nonsep(const uint8_t *dgd, int width, int height, int stride,
                          const int16_t *filter, uint8_t *dst, int dst_stride,
                          int plane, const uint8_t *luma, int luma_stride) {
   int is_uv = (plane != AOM_PLANE_Y);
+  NonsepFilterConfig nsfilter = {
+    wienerns_prec_bits,
+    is_uv ? wienerns_uv_inter_pixel : wienerns_y_pixel,
+    is_uv ? wienerns_uv_pixel - wienerns_uv_inter_pixel : 0,
+    is_uv ? wienerns_config_uv : wienerns_config_y,
+  };
+  const int16_t *filter_ = is_uv ? filter + wienerns_y : filter;
   if (!is_uv || wienerns_uv_pixel == wienerns_uv_inter_pixel) {
-    const NonsepFilterConfig nsfilter = {
-      wienerns_prec_bits,
-      is_uv ? wienerns_uv_pixel : wienerns_y_pixel,
-      is_uv ? wienerns_config_uv : wienerns_config_y,
-    };
-    const int16_t *filter_ = is_uv ? filter + wienerns_y : filter;
     av1_convolve_nonsep(dgd, width, height, stride, &nsfilter, filter_, dst,
                         dst_stride);
-    return;
+  } else {
+    av1_convolve_nonsep_dual(dgd, width, height, stride, luma, luma_stride,
+                             &nsfilter, filter_, dst, dst_stride);
   }
-
-  for (int i = 0; i < height; ++i) {
-    for (int j = 0; j < width; ++j) {
-      int dgd_id = i * stride + j;
-      int dst_id = i * dst_stride + j;
-      int luma_id = i * luma_stride + j;
-      int32_t tmp = (int32_t)dgd[dgd_id] * (1 << wienerns_prec_bits);
-      for (int k = 0; k < wienerns_uv_pixel; ++k) {
-        int pos = wienerns_config_uv[k][WIENERNS_BUF_POS];
-        int r = wienerns_config_uv[k][WIENERNS_ROW_ID];
-        int c = wienerns_config_uv[k][WIENERNS_COL_ID];
-        int16_t diff =
-            (k < wienerns_uv_inter_pixel)
-                ? clip_base((int16_t)dgd[(i + r) * stride + (j + c)] -
-                                (int16_t)dgd[dgd_id],
-                            8)
-                : clip_base((int16_t)luma[(i + r) * luma_stride + (j + c)] -
-                                (int16_t)luma[luma_id],
-                            8);
-        tmp += filter[pos + wienerns_y] * diff;
-      }
-      tmp = ROUND_POWER_OF_TWO_SIGNED(tmp, wienerns_prec_bits);
-      dst[dst_id] = (uint8_t)clip_pixel(tmp);
-    }
-  }
+  return;
 }
 
 static void wiener_nsfilter_stripe(const RestorationUnitInfo *rui,
@@ -1085,45 +1064,22 @@ void apply_wiener_nonsep_highbd(const uint8_t *dgd8, int width, int height,
                                 const uint8_t *luma8, int luma_stride,
                                 int bit_depth) {
   int is_uv = (plane != AOM_PLANE_Y);
+  NonsepFilterConfig nsfilter = {
+    wienerns_prec_bits,
+    is_uv ? wienerns_uv_inter_pixel : wienerns_y_pixel,
+    is_uv ? wienerns_uv_pixel - wienerns_uv_inter_pixel : 0,
+    is_uv ? wienerns_config_uv : wienerns_config_y,
+  };
+  const int16_t *filter_ = is_uv ? filter + wienerns_y : filter;
   if (!is_uv || wienerns_uv_pixel == wienerns_uv_inter_pixel) {
-    const NonsepFilterConfig nsfilter = {
-      wienerns_prec_bits,
-      is_uv ? wienerns_uv_pixel : wienerns_y_pixel,
-      is_uv ? wienerns_config_uv : wienerns_config_y,
-    };
-    const int16_t *filter_ = is_uv ? filter + wienerns_y : filter;
     av1_convolve_nonsep_highbd(dgd8, width, height, stride, &nsfilter, filter_,
                                dst8, dst_stride, bit_depth);
-    return;
+  } else {
+    av1_convolve_nonsep_dual_highbd(dgd8, width, height, stride, luma8,
+                                    luma_stride, &nsfilter, filter_, dst8,
+                                    dst_stride, bit_depth);
   }
-  uint16_t *dst = CONVERT_TO_SHORTPTR(dst8);
-
-  const uint16_t *dgd = CONVERT_TO_SHORTPTR(dgd8);
-  const uint16_t *luma = CONVERT_TO_SHORTPTR(luma8);
-  for (int i = 0; i < height; ++i) {
-    for (int j = 0; j < width; ++j) {
-      int dgd_id = i * stride + j;
-      int dst_id = i * dst_stride + j;
-      int luma_id = i * luma_stride + j;
-      int32_t tmp = (int32_t)dgd[dgd_id] * (1 << wienerns_prec_bits);
-      for (int k = 0; k < wienerns_uv_pixel; ++k) {
-        int pos = wienerns_config_uv[k][WIENERNS_BUF_POS];
-        int r = wienerns_config_uv[k][WIENERNS_ROW_ID];
-        int c = wienerns_config_uv[k][WIENERNS_COL_ID];
-        int16_t diff =
-            (k < wienerns_uv_inter_pixel)
-                ? clip_base((int16_t)dgd[(i + r) * stride + (j + c)] -
-                                (int16_t)dgd[dgd_id],
-                            bit_depth)
-                : clip_base((int16_t)luma[(i + r) * luma_stride + (j + c)] -
-                                (int16_t)luma[luma_id],
-                            bit_depth);
-        tmp += filter[pos + wienerns_y] * diff;
-      }
-      tmp = ROUND_POWER_OF_TWO_SIGNED(tmp, wienerns_prec_bits);
-      dst[dst_id] = (uint16_t)clip_pixel_highbd(tmp, bit_depth);
-    }
-  }
+  return;
 }
 
 static void wiener_nsfilter_stripe_highbd(const RestorationUnitInfo *rui,

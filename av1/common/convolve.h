@@ -46,6 +46,7 @@ static INLINE int16_t clip_base(int16_t x, int bit_depth) {
 typedef struct NonsepFilterConfig {
   int prec_bits;
   int num_pixels;
+  int num_pixels2;
   const int (*config)[3];
 } NonsepFilterConfig;
 
@@ -56,6 +57,17 @@ void av1_convolve_nonsep_highbd(const uint8_t *dgd, int width, int height,
                                 int stride, const NonsepFilterConfig *config,
                                 const int16_t *filter, uint8_t *dst,
                                 int dst_stride, int bit_depth);
+void av1_convolve_nonsep_dual(const uint8_t *dgd, int width, int height,
+                              int stride, const uint8_t *dgd2, int stride2,
+                              const NonsepFilterConfig *config,
+                              const int16_t *filter, uint8_t *dst,
+                              int dst_stride);
+void av1_convolve_nonsep_dual_highbd(const uint8_t *dgd, int width, int height,
+                                     int stride, const uint8_t *dgd2,
+                                     int stride2,
+                                     const NonsepFilterConfig *config,
+                                     const int16_t *filter, uint8_t *dst,
+                                     int dst_stride, int bit_depth);
 
 #define ROUND0_BITS 3
 #define COMPOUND_ROUND1_BITS 7
