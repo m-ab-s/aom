@@ -1999,17 +1999,16 @@ static void read_wiener_nsfilter(int is_uv, WienerNonsepInfo *wienerns_info,
                                  aom_reader *rb) {
   int beg_feat = is_uv ? wienerns_y : 0;
   int end_feat = is_uv ? wienerns_yuv : wienerns_y;
+  const int(*wienerns_coeffs)[3] = is_uv ? wienerns_coeff_uv : wienerns_coeff_y;
 
-  memset(wienerns_info->nsfilter, 0, sizeof(wienerns_info->nsfilter));
-  for (int i = 0; i < wienerns_yuv; ++i) {
-    wienerns_info->nsfilter[i] = wienerns_coeff[i][WIENERNS_MIN_ID];
-    if (beg_feat <= i && i < end_feat) {
-      wienerns_info->nsfilter[i] += aom_read_primitive_refsubexpfin(
-          rb, (1 << wienerns_coeff[i][WIENERNS_BIT_ID]),
-          wienerns_coeff[i][WIENERNS_SUBEXP_K_ID],
-          ref_wienerns_info->nsfilter[i] - wienerns_coeff[i][WIENERNS_MIN_ID],
-          ACCT_STR);
-    }
+  set_default_wiener_nonsep(wienerns_info);
+  for (int i = beg_feat; i < end_feat; ++i) {
+    wienerns_info->nsfilter[i] += aom_read_primitive_refsubexpfin(
+        rb, (1 << wienerns_coeffs[i - beg_feat][WIENERNS_BIT_ID]),
+        wienerns_coeffs[i - beg_feat][WIENERNS_SUBEXP_K_ID],
+        ref_wienerns_info->nsfilter[i] -
+            wienerns_coeffs[i - beg_feat][WIENERNS_MIN_ID],
+        ACCT_STR);
   }
   memcpy(ref_wienerns_info, wienerns_info, sizeof(*wienerns_info));
 }

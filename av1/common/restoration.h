@@ -209,11 +209,14 @@ extern const int wienerns_prec_bits;
 extern const int wienerns_y_pixel;
 extern const int wienerns_yuv_pixel;
 extern const int wienerns_uv_inter_pixel;
+extern const int wienerns_uv_pixel;
 extern const int wienerns_y;
 extern const int wienerns_uv;
 extern const int wienerns_yuv;
-extern const int wienerns_config[][3];
-extern const int wienerns_coeff[][3];
+extern const int wienerns_config_y[][3];
+extern const int wienerns_config_uv[][3];
+extern const int wienerns_coeff_y[][3];
+extern const int wienerns_coeff_uv[][3];
 #endif  // CONFIG_WIENER_NONSEP
 
 // Max of SGRPROJ_TMPBUF_SIZE, DOMAINTXFMRF_TMPBUF_SIZE, WIENER_TMPBUF_SIZE
@@ -324,13 +327,13 @@ static INLINE void set_default_wiener(WienerInfo *wiener_info) {
 
 #if CONFIG_WIENER_NONSEP
 static INLINE void set_default_wiener_nonsep(WienerNonsepInfo *wienerns_info) {
-  for (int i = 0; i < wienerns_yuv; ++i) {
-    wienerns_info->nsfilter[i] = wienerns_coeff[i][WIENERNS_MIN_ID];
+  for (int i = 0; i < wienerns_y; ++i) {
+    wienerns_info->nsfilter[i] = wienerns_coeff_y[i][WIENERNS_MIN_ID];
   }
-}
-static INLINE int16_t clip_base(int16_t x, int bit_depth) {
-  (void)bit_depth;
-  return x;
+  for (int i = wienerns_y; i < wienerns_yuv; ++i) {
+    wienerns_info->nsfilter[i] =
+        wienerns_coeff_uv[i - wienerns_y][WIENERNS_MIN_ID];
+  }
 }
 
 #if CONFIG_WIENER_NONSEP_CROSS_FILT

@@ -1409,16 +1409,26 @@ static void search_cnn(const RestorationTileLimits *limits,
 static int count_wienerns_bits(int plane, WienerNonsepInfo *wienerns_info,
                                WienerNonsepInfo *ref_wienerns_info) {
   int is_uv = (plane != AOM_PLANE_Y);
-  int beg_feat = is_uv ? wienerns_y : 0;
-  int end_feat = is_uv ? wienerns_yuv : wienerns_y;
 
   int bits = 0;
-  for (int i = beg_feat; i < end_feat; ++i) {
-    bits += aom_count_primitive_refsubexpfin(
-        (1 << wienerns_coeff[i][WIENERNS_BIT_ID]),
-        wienerns_coeff[i][WIENERNS_SUBEXP_K_ID],
-        ref_wienerns_info->nsfilter[i] - wienerns_coeff[i][WIENERNS_MIN_ID],
-        wienerns_info->nsfilter[i] - wienerns_coeff[i][WIENERNS_MIN_ID]);
+  if (is_uv) {
+    for (int i = 0; i < wienerns_uv; ++i) {
+      bits += aom_count_primitive_refsubexpfin(
+          (1 << wienerns_coeff_uv[i][WIENERNS_BIT_ID]),
+          wienerns_coeff_uv[i][WIENERNS_SUBEXP_K_ID],
+          ref_wienerns_info->nsfilter[i + wienerns_y] -
+              wienerns_coeff_uv[i][WIENERNS_MIN_ID],
+          wienerns_info->nsfilter[i + wienerns_y] -
+              wienerns_coeff_uv[i][WIENERNS_MIN_ID]);
+    }
+  } else {
+    for (int i = 0; i < wienerns_y; ++i) {
+      bits += aom_count_primitive_refsubexpfin(
+          (1 << wienerns_coeff_y[i][WIENERNS_BIT_ID]),
+          wienerns_coeff_y[i][WIENERNS_SUBEXP_K_ID],
+          ref_wienerns_info->nsfilter[i] - wienerns_coeff_y[i][WIENERNS_MIN_ID],
+          wienerns_info->nsfilter[i] - wienerns_coeff_y[i][WIENERNS_MIN_ID]);
+    }
   }
   return bits;
 }
@@ -1447,8 +1457,10 @@ static int compute_quantized_wienerns_filter(const uint8_t *dgd,
   memset(b, 0, sizeof(b));
 
   int is_uv = (rui->plane != AOM_PLANE_Y);
-  int beg_pixel = is_uv ? wienerns_y_pixel : 0;
-  int end_pixel = is_uv ? wienerns_yuv_pixel : wienerns_y_pixel;
+  const int(*wienerns_config)[3] =
+      is_uv ? wienerns_config_uv : wienerns_config_y;
+  const int(*wienerns_coeffs)[3] = is_uv ? wienerns_coeff_uv : wienerns_coeff_y;
+  int end_pixel = is_uv ? wienerns_uv_pixel : wienerns_y_pixel;
   int num_feat = is_uv ? wienerns_uv : wienerns_y;
 
   for (int i = v_beg; i < v_end; ++i) {
@@ -1457,11 +1469,11 @@ static int compute_quantized_wienerns_filter(const uint8_t *dgd,
       int src_id = i * src_stride + j;
       int luma_id = i * rui->luma_stride + j;
       memset(buf, 0, sizeof(buf));
-      for (int k = beg_pixel; k < end_pixel; ++k) {
+      for (int k = 0; k < end_pixel; ++k) {
         int pos = wienerns_config[k][WIENERNS_BUF_POS];
         int r = wienerns_config[k][WIENERNS_ROW_ID];
         int c = wienerns_config[k][WIENERNS_COL_ID];
-        if (!is_uv || k - beg_pixel < wienerns_uv_inter_pixel) {
+        if (!is_uv || k < wienerns_uv_inter_pixel) {
           buf[pos] +=
               use_hbd
                   ? clip_base((int16_t)dgd_hbd[(i + r) * dgd_stride + (j + c)] -
@@ -1503,12 +1515,10 @@ static int compute_quantized_wienerns_filter(const uint8_t *dgd,
   if (linsolve(num_feat, A, num_feat, b, x)) {
     int beg_feat = is_uv ? wienerns_y : 0;
     int end_feat = is_uv ? wienerns_yuv : wienerns_y;
-    for (int k = 0; k < wienerns_yuv; ++k) {
-      rui->wiener_nonsep_info.nsfilter[k] =
-          (k < beg_feat || k >= end_feat)
-              ? wienerns_coeff[k][WIENERNS_MIN_ID]
-              : quantize(x[k - beg_feat], wienerns_coeff[k][WIENERNS_MIN_ID],
-                         (1 << wienerns_coeff[k][WIENERNS_BIT_ID]));
+    for (int k = beg_feat; k < end_feat; ++k) {
+      rui->wiener_nonsep_info.nsfilter[k] = quantize(
+          x[k - beg_feat], wienerns_coeffs[k - beg_feat][WIENERNS_MIN_ID],
+          (1 << wienerns_coeffs[k - beg_feat][WIENERNS_BIT_ID]));
     }
     return 1;
   } else {
@@ -1529,6 +1539,7 @@ static int64_t finer_tile_search_wienerns(const RestSearchCtxt *rsc,
   int is_uv = (rui->plane != AOM_PLANE_Y);
   int beg_feat = is_uv ? wienerns_y : 0;
   int end_feat = is_uv ? wienerns_yuv : wienerns_y;
+  const int(*wienerns_coeffs)[3] = is_uv ? wienerns_coeff_uv : wienerns_coeff_y;
 
   int iter_step = 10;
   int src_range = 3;
@@ -1537,11 +1548,11 @@ static int64_t finer_tile_search_wienerns(const RestSearchCtxt *rsc,
   for (int s = 0; s < iter_step; ++s) {
     int no_improv = 1;
     for (int i = beg_feat; i < end_feat; ++i) {
-      int cmin =
-          MAX(curr.nsfilter[i] - src_range, wienerns_coeff[i][WIENERNS_MIN_ID]);
+      int cmin = MAX(curr.nsfilter[i] - src_range,
+                     wienerns_coeffs[i - beg_feat][WIENERNS_MIN_ID]);
       int cmax = MIN(curr.nsfilter[i] + src_range,
-                     wienerns_coeff[i][WIENERNS_MIN_ID] +
-                         (1 << wienerns_coeff[i][WIENERNS_BIT_ID]));
+                     wienerns_coeffs[i - beg_feat][WIENERNS_MIN_ID] +
+                         (1 << wienerns_coeffs[i - beg_feat][WIENERNS_BIT_ID]));
 
       for (int ci = cmin; ci < cmax; ++ci) {
         if (ci == curr.nsfilter[i]) {

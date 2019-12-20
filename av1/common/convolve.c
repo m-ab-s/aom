@@ -1354,3 +1354,50 @@ void av1_highbd_wiener_hp_convolve_add_src_c(
                                        w, h, conv_params, bd);
 }
 #endif  // CONFIG_WIENER_SEP_HIPREC
+
+void av1_convolve_nonsep(const uint8_t *dgd, int width, int height, int stride,
+                         const NonsepFilterConfig *nsfilter,
+                         const int16_t *filter, uint8_t *dst, int dst_stride) {
+  for (int i = 0; i < height; ++i) {
+    for (int j = 0; j < width; ++j) {
+      int dgd_id = i * stride + j;
+      int dst_id = i * dst_stride + j;
+      int32_t tmp = (int32_t)dgd[dgd_id] * (1 << nsfilter->prec_bits);
+      for (int k = 0; k < nsfilter->num_pixels; ++k) {
+        int pos = nsfilter->config[k][NONSEP_BUF_POS];
+        int r = nsfilter->config[k][NONSEP_ROW_ID];
+        int c = nsfilter->config[k][NONSEP_COL_ID];
+        int16_t diff = clip_base(
+            (int16_t)dgd[(i + r) * stride + (j + c)] - (int16_t)dgd[dgd_id], 8);
+        tmp += filter[pos] * diff;
+      }
+      tmp = ROUND_POWER_OF_TWO_SIGNED(tmp, nsfilter->prec_bits);
+      dst[dst_id] = (uint8_t)clip_pixel(tmp);
+    }
+  }
+}
+
+void av1_convolve_nonsep_highbd(const uint8_t *dgd8, int width, int height,
+                                int stride, const NonsepFilterConfig *nsfilter,
+                                const int16_t *filter, uint8_t *dst8,
+                                int dst_stride, int bit_depth) {
+  const uint16_t *dgd = CONVERT_TO_SHORTPTR(dgd8);
+  uint16_t *dst = CONVERT_TO_SHORTPTR(dst8);
+  for (int i = 0; i < height; ++i) {
+    for (int j = 0; j < width; ++j) {
+      int dgd_id = i * stride + j;
+      int dst_id = i * dst_stride + j;
+      int32_t tmp = (int32_t)dgd[dgd_id] * (1 << nsfilter->prec_bits);
+      for (int k = 0; k < nsfilter->num_pixels; ++k) {
+        int pos = nsfilter->config[k][NONSEP_BUF_POS];
+        int r = nsfilter->config[k][NONSEP_ROW_ID];
+        int c = nsfilter->config[k][NONSEP_COL_ID];
+        int16_t diff = clip_base(
+            (int16_t)dgd[(i + r) * stride + (j + c)] - (int16_t)dgd[dgd_id], 8);
+        tmp += filter[pos] * diff;
+      }
+      tmp = ROUND_POWER_OF_TWO_SIGNED(tmp, nsfilter->prec_bits);
+      dst[dst_id] = (uint16_t)clip_pixel_highbd(tmp, bit_depth);
+    }
+  }
+}

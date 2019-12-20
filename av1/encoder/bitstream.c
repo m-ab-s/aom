@@ -2365,13 +2365,16 @@ static void write_wiener_nsfilter(int is_uv,
                                   aom_writer *wb) {
   int beg_feat = is_uv ? wienerns_y : 0;
   int end_feat = is_uv ? wienerns_yuv : wienerns_y;
+  const int(*wienerns_coeffs)[3] = is_uv ? wienerns_coeff_uv : wienerns_coeff_y;
 
   for (int i = beg_feat; i < end_feat; ++i) {
     aom_write_primitive_refsubexpfin(
-        wb, (1 << wienerns_coeff[i][WIENERNS_BIT_ID]),
-        wienerns_coeff[i][WIENERNS_SUBEXP_K_ID],
-        ref_wienerns_info->nsfilter[i] - wienerns_coeff[i][WIENERNS_MIN_ID],
-        wienerns_info->nsfilter[i] - wienerns_coeff[i][WIENERNS_MIN_ID]);
+        wb, (1 << wienerns_coeffs[i - beg_feat][WIENERNS_BIT_ID]),
+        wienerns_coeffs[i - beg_feat][WIENERNS_SUBEXP_K_ID],
+        ref_wienerns_info->nsfilter[i] -
+            wienerns_coeffs[i - beg_feat][WIENERNS_MIN_ID],
+        wienerns_info->nsfilter[i] -
+            wienerns_coeffs[i - beg_feat][WIENERNS_MIN_ID]);
   }
   memcpy(ref_wienerns_info, wienerns_info, sizeof(*wienerns_info));
 }

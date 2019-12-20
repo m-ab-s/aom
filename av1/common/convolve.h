@@ -32,6 +32,31 @@ typedef struct ConvolveParams {
   int bck_offset;
 } ConvolveParams;
 
+#define NONSEP_PIXELS_MAX 32
+#define NONSEP_COEFFS_MAX 32
+#define NONSEP_ROW_ID 0
+#define NONSEP_COL_ID 1
+#define NONSEP_BUF_POS 2
+
+static INLINE int16_t clip_base(int16_t x, int bit_depth) {
+  (void)bit_depth;
+  return x;
+}
+
+typedef struct NonsepFilterConfig {
+  int prec_bits;
+  int num_pixels;
+  const int (*config)[3];
+} NonsepFilterConfig;
+
+void av1_convolve_nonsep(const uint8_t *dgd, int width, int height, int stride,
+                         const NonsepFilterConfig *config,
+                         const int16_t *filter, uint8_t *dst, int dst_stride);
+void av1_convolve_nonsep_highbd(const uint8_t *dgd, int width, int height,
+                                int stride, const NonsepFilterConfig *config,
+                                const int16_t *filter, uint8_t *dst,
+                                int dst_stride, int bit_depth);
+
 #define ROUND0_BITS 3
 #define COMPOUND_ROUND1_BITS 7
 #define WIENER_ROUND0_BITS 3
