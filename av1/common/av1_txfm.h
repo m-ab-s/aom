@@ -36,6 +36,12 @@ extern const int32_t av1_sinpi_arr_data[7][5];
 #if CONFIG_DST7_16X16
 extern const int32_t dst7_16x16[16][16];
 #endif
+#if CONFIG_LGT
+#define LGT_PREC_BITS 16
+extern const int32_t lgt_4x4[4 * 4];
+extern const int32_t lgt_8x8[8 * 8];
+extern const int32_t lgt_16x16[16 * 16];
+#endif
 
 #define MAX_TXFM_STAGE_NUM 12
 
