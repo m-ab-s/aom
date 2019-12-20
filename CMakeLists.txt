@@ -42,6 +42,7 @@ include("${AOM_ROOT}/aom_util/aom_util.cmake")
 include("${AOM_ROOT}/av1/av1.cmake")
 include("${AOM_ROOT}/build/cmake/aom_install.cmake")
 include("${AOM_ROOT}/build/cmake/sanitizers.cmake")
+include("${AOM_ROOT}/build/cmake/tensorflow_lite.cmake")
 include("${AOM_ROOT}/build/cmake/util.cmake")
 include("${AOM_ROOT}/test/test.cmake")
 
@@ -471,6 +472,8 @@ if(ENABLE_EXAMPLES AND CONFIG_AV1_ENCODER AND CONFIG_AV1_DECODER)
   list(APPEND AOM_EXAMPLE_TARGETS lightfield_bitstream_parsing)
   list(APPEND AOM_APP_TARGETS lightfield_bitstream_parsing)
 endif()
+
+setup_tensorflow_lite()
 
 foreach(aom_app ${AOM_APP_TARGETS})
   target_link_libraries(${aom_app} ${AOM_LIB_LINK_TYPE} aom)

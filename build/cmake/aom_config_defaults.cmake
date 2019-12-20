@@ -188,6 +188,10 @@ set_aom_config_var(CONFIG_WIENER_SEP_HIPREC 0 NUMBER
 # path to tensorflow root via TENSORFLOW_INCLUDE_DIR.
 set_aom_config_var(CONFIG_TENSORFLOW 0 NUMBER "AV2 TF experiment flag.")
 
+# If enabled, compiles / links TensorFlow lite from third_party
+set_aom_config_var(CONFIG_TENSORFLOW_LITE 0 NUMBER
+                   "AV2 TF Lite experiment flag.")
+
 set_aom_config_var(CONFIG_LPF_MASK 0 NUMBER
                    "Enable the use loop filter bitmasks for optimizations.")
 set_aom_config_var(CONFIG_HTB_TRELLIS 0 NUMBER

@@ -1,3 +1,21 @@
 [submodule "third_party/tensorflow"]
 	path = third_party/tensorflow
 	url = https://github.com/tensorflow/tensorflow.git
+[submodule "third_party/tensorflow_aom/flatbuffers"]
+	path = third_party/tensorflow_aom/flatbuffers
+	url = https://github.com/google/flatbuffers
+[submodule "third_party/tensorflow_aom/abseil-cpp"]
+	path = third_party/tensorflow_aom/abseil-cpp
+	url = https://github.com/abseil/abseil-cpp.git
+[submodule "third_party/tensorflow_aom/farmhash"]
+	path = third_party/tensorflow_aom/farmhash
+	url = https://github.com/google/farmhash
+[submodule "third_party/tensorflow_aom/eigen"]
+	path = third_party/tensorflow_aom/eigen
+	url = https://gitlab.com/libeigen/eigen.git
+[submodule "third_party/tensorflow_aom/gemmlowp"]
+	path = third_party/tensorflow_aom/gemmlowp
+	url = https://github.com/google/gemmlowp.git
+[submodule "third_party/tensorflow_aom/ARM_NEON_2_x86_SSE"]
+	path = third_party/tensorflow_aom/ARM_NEON_2_x86_SSE
+	url = https://github.com/intel/ARM_NEON_2_x86_SSE.git
