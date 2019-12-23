@@ -1575,7 +1575,12 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
 
   if (mbmi->skip_mode) {
     assert(is_compound);
+#if CONFIG_NEW_INTER_MODES
+    mbmi->mode = NEAR_NEARMV;
+    mbmi->ref_mv_idx = 0;
+#else
     mbmi->mode = NEAREST_NEARESTMV;
+#endif  // CONFIG_NEW_INTER_MODES
     mbmi->max_mv_precision = av1_get_mbmi_max_mv_precision(cm, mbmi);
     mbmi->mv_precision = mbmi->max_mv_precision;
   } else {
@@ -1713,7 +1718,14 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
     }
   }
 
+#if CONFIG_NEW_INTER_MODES
+  if (mbmi->skip_mode) {
+    assert(mbmi->mode == NEAR_NEARMV);
+    assert(mbmi->ref_mv_idx == 0);
+  }
+#else
   if (mbmi->skip_mode) assert(mbmi->mode == NEAREST_NEARESTMV);
+#endif  // CONFIG_NEW_INTER_MODES
 
   int mv_corrupted_flag = !assign_mv(
       cm, xd, mbmi->mode, mbmi->ref_frame, mbmi->mv, ref_mv, nearestmv, nearmv,

@@ -12076,7 +12076,11 @@ static void rd_pick_skip_mode(RD_STATS *rd_cost,
       LAST_FRAME + skip_mode_info->ref_frame_idx_0;
   const MV_REFERENCE_FRAME second_ref_frame =
       LAST_FRAME + skip_mode_info->ref_frame_idx_1;
+#if CONFIG_NEW_INTER_MODES
+  const PREDICTION_MODE this_mode = NEAR_NEARMV;
+#else
   const PREDICTION_MODE this_mode = NEAREST_NEARESTMV;
+#endif  // CONFIG_NEW_INTER_MODES
   const int mode_index =
       get_prediction_mode_idx(this_mode, ref_frame, second_ref_frame);
 
@@ -12089,6 +12093,9 @@ static void rd_pick_skip_mode(RD_STATS *rd_cost,
   }
 
   mbmi->mode = this_mode;
+#if CONFIG_NEW_INTER_MODES
+  mbmi->ref_mv_idx = 0;
+#endif  // CONFIG_NEW_INTER_MODES
   mbmi->uv_mode = UV_DC_PRED;
   mbmi->ref_frame[0] = ref_frame;
   mbmi->ref_frame[1] = second_ref_frame;
@@ -12105,7 +12112,13 @@ static void rd_pick_skip_mode(RD_STATS *rd_cost,
                      mbmi_ext->mode_context);
   }
 
+#if CONFIG_NEW_INTER_MODES
+  assert(this_mode == NEAR_NEARMV);
+  assert(mbmi->mode == NEAR_NEARMV);
+  assert(mbmi->ref_mv_idx == 0);
+#else
   assert(this_mode == NEAREST_NEARESTMV);
+#endif  // CONFIG_NEW_INTER_MODES
   if (!build_cur_mv(mbmi->mv, this_mode, cm, x)) {
     return;
   }
@@ -12162,12 +12175,16 @@ static void rd_pick_skip_mode(RD_STATS *rd_cost,
     search_state->best_mbmode = *mbmi;
 
     search_state->best_mbmode.skip_mode = search_state->best_mbmode.skip = 1;
+#if CONFIG_NEW_INTER_MODES
+    search_state->best_mbmode.mode = NEAR_NEARMV;
+#else
     search_state->best_mbmode.mode = NEAREST_NEARESTMV;
+#endif  // CONFIG_NEW_INTER_MODES
+    search_state->best_mbmode.ref_mv_idx = 0;
     search_state->best_mbmode.ref_frame[0] = mbmi->ref_frame[0];
     search_state->best_mbmode.ref_frame[1] = mbmi->ref_frame[1];
     search_state->best_mbmode.mv[0].as_int = mbmi->mv[0].as_int;
     search_state->best_mbmode.mv[1].as_int = mbmi->mv[1].as_int;
-    search_state->best_mbmode.ref_mv_idx = 0;
 
     // Set up tx_size related variables for skip-specific loop filtering.
     search_state->best_mbmode.tx_size =
