@@ -48,6 +48,7 @@ typedef struct NonsepFilterConfig {
   int num_pixels;
   int num_pixels2;
   const int (*config)[3];
+  int strict_bounds;
 } NonsepFilterConfig;
 
 void av1_convolve_nonsep(const uint8_t *dgd, int width, int height, int stride,

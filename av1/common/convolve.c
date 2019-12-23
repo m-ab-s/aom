@@ -1364,11 +1364,15 @@ void av1_convolve_nonsep(const uint8_t *dgd, int width, int height, int stride,
       int dst_id = i * dst_stride + j;
       int32_t tmp = (int32_t)dgd[dgd_id] * (1 << nsfilter->prec_bits);
       for (int k = 0; k < nsfilter->num_pixels; ++k) {
-        int pos = nsfilter->config[k][NONSEP_BUF_POS];
-        int r = nsfilter->config[k][NONSEP_ROW_ID];
-        int c = nsfilter->config[k][NONSEP_COL_ID];
+        const int pos = nsfilter->config[k][NONSEP_BUF_POS];
+        const int r = nsfilter->config[k][NONSEP_ROW_ID];
+        const int c = nsfilter->config[k][NONSEP_COL_ID];
+        const int ir =
+            nsfilter->strict_bounds ? AOMMAX(AOMMIN(i + r, height - 1), 0) : 0;
+        const int jc =
+            nsfilter->strict_bounds ? AOMMAX(AOMMIN(j + c, width - 1), 0) : 0;
         int16_t diff = clip_base(
-            (int16_t)dgd[(i + r) * stride + (j + c)] - (int16_t)dgd[dgd_id], 8);
+            (int16_t)dgd[(ir)*stride + (jc)] - (int16_t)dgd[dgd_id], 8);
         tmp += filter[pos] * diff;
       }
       tmp = ROUND_POWER_OF_TWO_SIGNED(tmp, nsfilter->prec_bits);
@@ -1389,11 +1393,15 @@ void av1_convolve_nonsep_highbd(const uint8_t *dgd8, int width, int height,
       int dst_id = i * dst_stride + j;
       int32_t tmp = (int32_t)dgd[dgd_id] * (1 << nsfilter->prec_bits);
       for (int k = 0; k < nsfilter->num_pixels; ++k) {
-        int pos = nsfilter->config[k][NONSEP_BUF_POS];
-        int r = nsfilter->config[k][NONSEP_ROW_ID];
-        int c = nsfilter->config[k][NONSEP_COL_ID];
+        const int pos = nsfilter->config[k][NONSEP_BUF_POS];
+        const int r = nsfilter->config[k][NONSEP_ROW_ID];
+        const int c = nsfilter->config[k][NONSEP_COL_ID];
+        const int ir =
+            nsfilter->strict_bounds ? AOMMAX(AOMMIN(i + r, height - 1), 0) : 0;
+        const int jc =
+            nsfilter->strict_bounds ? AOMMAX(AOMMIN(j + c, width - 1), 0) : 0;
         int16_t diff = clip_base(
-            (int16_t)dgd[(i + r) * stride + (j + c)] - (int16_t)dgd[dgd_id], 8);
+            (int16_t)dgd[(ir)*stride + (jc)] - (int16_t)dgd[dgd_id], 8);
         tmp += filter[pos] * diff;
       }
       tmp = ROUND_POWER_OF_TWO_SIGNED(tmp, nsfilter->prec_bits);
@@ -1414,17 +1422,20 @@ void av1_convolve_nonsep_dual(const uint8_t *dgd, int width, int height,
       int dst_id = i * dst_stride + j;
       int32_t tmp = (int32_t)dgd[dgd_id] * (1 << nsfilter->prec_bits);
       for (int k = 0; k < nsfilter->num_pixels + nsfilter->num_pixels2; ++k) {
-        int pos = nsfilter->config[k][NONSEP_BUF_POS];
-        int r = nsfilter->config[k][NONSEP_ROW_ID];
-        int c = nsfilter->config[k][NONSEP_COL_ID];
-        int16_t diff =
-            k < nsfilter->num_pixels
-                ? clip_base((int16_t)dgd[(i + r) * stride + (j + c)] -
-                                (int16_t)dgd[dgd_id],
-                            8)
-                : clip_base((int16_t)dgd2[(i + r) * stride2 + (j + c)] -
-                                (int16_t)dgd2[dgd2_id],
-                            8);
+        const int pos = nsfilter->config[k][NONSEP_BUF_POS];
+        const int r = nsfilter->config[k][NONSEP_ROW_ID];
+        const int c = nsfilter->config[k][NONSEP_COL_ID];
+        const int ir =
+            nsfilter->strict_bounds ? AOMMAX(AOMMIN(i + r, height - 1), 0) : 0;
+        const int jc =
+            nsfilter->strict_bounds ? AOMMAX(AOMMIN(j + c, width - 1), 0) : 0;
+        int16_t diff = k < nsfilter->num_pixels
+                           ? clip_base((int16_t)dgd[(ir)*stride + (jc)] -
+                                           (int16_t)dgd[dgd_id],
+                                       8)
+                           : clip_base((int16_t)dgd2[(ir)*stride2 + (jc)] -
+                                           (int16_t)dgd2[dgd2_id],
+                                       8);
         tmp += filter[pos] * diff;
       }
       tmp = ROUND_POWER_OF_TWO_SIGNED(tmp, nsfilter->prec_bits);
@@ -1449,17 +1460,20 @@ void av1_convolve_nonsep_dual_highbd(const uint8_t *dgd8, int width, int height,
       int dst_id = i * dst_stride + j;
       int32_t tmp = (int32_t)dgd[dgd_id] * (1 << nsfilter->prec_bits);
       for (int k = 0; k < nsfilter->num_pixels + nsfilter->num_pixels2; ++k) {
-        int pos = nsfilter->config[k][NONSEP_BUF_POS];
-        int r = nsfilter->config[k][NONSEP_ROW_ID];
-        int c = nsfilter->config[k][NONSEP_COL_ID];
-        int16_t diff =
-            k < nsfilter->num_pixels
-                ? clip_base((int16_t)dgd[(i + r) * stride + (j + c)] -
-                                (int16_t)dgd[dgd_id],
-                            8)
-                : clip_base((int16_t)dgd2[(i + r) * stride2 + (j + c)] -
-                                (int16_t)dgd2[dgd2_id],
-                            8);
+        const int pos = nsfilter->config[k][NONSEP_BUF_POS];
+        const int r = nsfilter->config[k][NONSEP_ROW_ID];
+        const int c = nsfilter->config[k][NONSEP_COL_ID];
+        const int ir =
+            nsfilter->strict_bounds ? AOMMAX(AOMMIN(i + r, height - 1), 0) : 0;
+        const int jc =
+            nsfilter->strict_bounds ? AOMMAX(AOMMIN(j + c, width - 1), 0) : 0;
+        int16_t diff = k < nsfilter->num_pixels
+                           ? clip_base((int16_t)dgd[(ir)*stride + (jc)] -
+                                           (int16_t)dgd[dgd_id],
+                                       8)
+                           : clip_base((int16_t)dgd2[(ir)*stride2 + (jc)] -
+                                           (int16_t)dgd2[dgd2_id],
+                                       8);
         tmp += filter[pos] * diff;
       }
       tmp = ROUND_POWER_OF_TWO_SIGNED(tmp, nsfilter->prec_bits);

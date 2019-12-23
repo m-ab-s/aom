@@ -1029,6 +1029,7 @@ void apply_wiener_nonsep(const uint8_t *dgd, int width, int height, int stride,
     is_uv ? wienerns_uv_inter_pixel : wienerns_y_pixel,
     is_uv ? wienerns_uv_pixel - wienerns_uv_inter_pixel : 0,
     is_uv ? wienerns_config_uv : wienerns_config_y,
+    0,
   };
   const int16_t *filter_ = is_uv ? filter + wienerns_y : filter;
   if (!is_uv || wienerns_uv_pixel == wienerns_uv_inter_pixel) {
@@ -1069,6 +1070,7 @@ void apply_wiener_nonsep_highbd(const uint8_t *dgd8, int width, int height,
     is_uv ? wienerns_uv_inter_pixel : wienerns_y_pixel,
     is_uv ? wienerns_uv_pixel - wienerns_uv_inter_pixel : 0,
     is_uv ? wienerns_config_uv : wienerns_config_y,
+    0,
   };
   const int16_t *filter_ = is_uv ? filter + wienerns_y : filter;
   if (!is_uv || wienerns_uv_pixel == wienerns_uv_inter_pixel) {
