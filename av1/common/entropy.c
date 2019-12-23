@@ -103,7 +103,9 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
   RESET_CDF_COUNTER(fc->coeff_br_cdf, BR_CDF_SIZE);
   RESET_CDF_COUNTER(fc->newmv_cdf, 2);
   RESET_CDF_COUNTER(fc->zeromv_cdf, 2);
+#if !CONFIG_NEW_INTER_MODES
   RESET_CDF_COUNTER(fc->refmv_cdf, 2);
+#endif  // !CONFIG_NEW_INTER_MODES
   RESET_CDF_COUNTER(fc->drl_cdf, 2);
   RESET_CDF_COUNTER(fc->inter_compound_mode_cdf, INTER_COMPOUND_MODES);
   RESET_CDF_COUNTER(fc->compound_type_cdf, MASKED_COMPOUND_TYPES);

@@ -837,8 +837,11 @@ static void update_inter_mode_stats(FRAME_CONTEXT *fc, FRAME_COUNTS *counts,
 #if CONFIG_ENTROPY_STATS
       ++counts->refmv_mode[mode_ctx][mode != NEARESTMV];
 #endif
-      if (allow_update_cdf)
+#if !CONFIG_NEW_INTER_MODES
+      if (allow_update_cdf) {
         update_cdf(fc->refmv_cdf[mode_ctx], mode != NEARESTMV, 2);
+      }
+#endif  // !CONFIG_NEW_INTER_MODES
     }
   }
 }
@@ -1675,8 +1678,12 @@ static void update_stats(const AV1_COMMON *const cm, TileDataEnc *tile_data,
                                 mbmi->mv_precision);
           }
         } else {
+#if CONFIG_NEW_INTER_MODES
+          const int ref = mbmi->mode == NEAR_NEWMV;
+#else
           const int ref =
               (mbmi->mode == NEAREST_NEWMV || mbmi->mode == NEAR_NEWMV);
+#endif  // CONFIG_NEW_INTER_MODES
           const int_mv ref_mv = av1_get_ref_mv(x, ref);
           av1_update_mv_stats(&mbmi->mv[ref].as_mv, &ref_mv.as_mv, &fc->nmvc,
                               mbmi->mv_precision);
@@ -5024,7 +5031,9 @@ static void avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
   AVERAGE_CDF(ctx_left->coeff_br_cdf, ctx_tr->coeff_br_cdf, BR_CDF_SIZE);
   AVERAGE_CDF(ctx_left->newmv_cdf, ctx_tr->newmv_cdf, 2);
   AVERAGE_CDF(ctx_left->zeromv_cdf, ctx_tr->zeromv_cdf, 2);
+#if !CONFIG_NEW_INTER_MODES
   AVERAGE_CDF(ctx_left->refmv_cdf, ctx_tr->refmv_cdf, 2);
+#endif  // !CONFIG_NEW_INTER_MODES
   AVERAGE_CDF(ctx_left->drl_cdf, ctx_tr->drl_cdf, 2);
   AVERAGE_CDF(ctx_left->inter_compound_mode_cdf,
               ctx_tr->inter_compound_mode_cdf, INTER_COMPOUND_MODES);

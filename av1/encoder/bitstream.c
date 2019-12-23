@@ -165,10 +165,12 @@ static void write_inter_mode(aom_writer *w, PREDICTION_MODE mode,
         (mode_ctx >> GLOBALMV_OFFSET) & GLOBALMV_CTX_MASK;
     aom_write_symbol(w, mode != GLOBALMV, ec_ctx->zeromv_cdf[zeromv_ctx], 2);
 
+#if !CONFIG_NEW_INTER_MODES
     if (mode != GLOBALMV) {
       int16_t refmv_ctx = (mode_ctx >> REFMV_OFFSET) & REFMV_CTX_MASK;
       aom_write_symbol(w, mode != NEARESTMV, ec_ctx->refmv_cdf[refmv_ctx], 2);
     }
+#endif  // !CONFIG_NEW_INTER_MODES
   }
 }
 
@@ -176,6 +178,7 @@ static void write_inter_mode(aom_writer *w, PREDICTION_MODE mode,
 static void write_drl_idx(FRAME_CONTEXT *ec_ctx, const MB_MODE_INFO *mbmi,
                           const MB_MODE_INFO_EXT *mbmi_ext, aom_writer *w) {
   uint8_t ref_frame_type = av1_ref_frame_type(mbmi->ref_frame);
+  assert(!mbmi->skip_mode);
   // Write the DRL index as a sequence of bits encoding a decision tree:
   // 0 -> 0   10 -> 1   110 -> 2    111 -> 3
   // Also use the number of reference MVs for a frame type to reduce the
@@ -1496,6 +1499,19 @@ static void pack_inter_mode_mvs(AV1_COMP *cpi, const int mi_row,
         av1_encode_mv(cpi, w, &mbmi->mv[ref].as_mv, &ref_mv.as_mv, nmvc,
                       mbmi->mv_precision);
       }
+#if CONFIG_NEW_INTER_MODES
+    } else if (mode == NEAR_NEWMV) {
+      nmv_context *nmvc = &ec_ctx->nmvc;
+      const int_mv ref_mv = av1_get_ref_mv(x, 1);
+      av1_encode_mv(cpi, w, &mbmi->mv[1].as_mv, &ref_mv.as_mv, nmvc,
+                    mbmi->mv_precision);
+    } else if (mode == NEW_NEARMV) {
+      nmv_context *nmvc = &ec_ctx->nmvc;
+      const int_mv ref_mv = av1_get_ref_mv(x, 0);
+      av1_encode_mv(cpi, w, &mbmi->mv[0].as_mv, &ref_mv.as_mv, nmvc,
+                    mbmi->mv_precision);
+    }
+#else
     } else if (mode == NEAREST_NEWMV || mode == NEAR_NEWMV) {
       nmv_context *nmvc = &ec_ctx->nmvc;
       const int_mv ref_mv = av1_get_ref_mv(x, 1);
@@ -1507,6 +1523,7 @@ static void pack_inter_mode_mvs(AV1_COMP *cpi, const int mi_row,
       av1_encode_mv(cpi, w, &mbmi->mv[0].as_mv, &ref_mv.as_mv, nmvc,
                     mbmi->mv_precision);
     }
+#endif  // CONFIG_NEW_INTER_MODES
 
     if (cpi->common.current_frame.reference_mode != COMPOUND_REFERENCE &&
         cpi->common.seq_params.enable_interintra_compound &&

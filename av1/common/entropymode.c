@@ -943,14 +943,31 @@ static const aom_cdf_prob default_newmv_cdf[NEWMV_MODE_CONTEXTS][CDF_SIZE(
 static const aom_cdf_prob default_zeromv_cdf[GLOBALMV_MODE_CONTEXTS][CDF_SIZE(
     2)] = { { AOM_CDF2(2175) }, { AOM_CDF2(1054) } };
 
+#if !CONFIG_NEW_INTER_MODES
 static const aom_cdf_prob default_refmv_cdf[REFMV_MODE_CONTEXTS][CDF_SIZE(
     2)] = { { AOM_CDF2(23974) }, { AOM_CDF2(24188) }, { AOM_CDF2(17848) },
             { AOM_CDF2(28622) }, { AOM_CDF2(24312) }, { AOM_CDF2(19923) } };
-
+#endif  // !CONFIG_NEW_INTER_MODES
 static const aom_cdf_prob default_drl_cdf[DRL_MODE_CONTEXTS][CDF_SIZE(2)] = {
   { AOM_CDF2(13104) }, { AOM_CDF2(24560) }, { AOM_CDF2(18945) }
 };
 
+#if CONFIG_NEW_INTER_MODES
+// TODO(siroh): Renormalize this CDF.  Here are the rules:
+// NEAREST_NEAREST -> NEAR_NEAR
+// NEAREST_NEW -> NEAR_NEW
+// NEW_NEAREST -> NEW_NEAR
+static const aom_cdf_prob
+    default_inter_compound_mode_cdf[INTER_MODE_CONTEXTS][CDF_SIZE(
+        INTER_COMPOUND_MODES)] = { { AOM_CDF5(7760, 13823, 15808, 17641) },
+                                   { AOM_CDF5(10730, 19452, 21145, 22749) },
+                                   { AOM_CDF5(10664, 20221, 21588, 22906) },
+                                   { AOM_CDF5(13298, 16984, 20471, 24182) },
+                                   { AOM_CDF5(18904, 23325, 25242, 27432) },
+                                   { AOM_CDF5(10725, 17454, 20124, 22820) },
+                                   { AOM_CDF5(17125, 24273, 25814, 27492) },
+                                   { AOM_CDF5(13046, 23214, 24505, 25942) } };
+#else
 static const aom_cdf_prob
     default_inter_compound_mode_cdf[INTER_MODE_CONTEXTS][CDF_SIZE(
         INTER_COMPOUND_MODES)] = {
@@ -963,6 +980,7 @@ static const aom_cdf_prob
       { AOM_CDF8(17125, 24273, 25814, 27492, 28214, 28704, 30592) },
       { AOM_CDF8(13046, 23214, 24505, 25942, 27435, 28442, 29330) }
     };
+#endif  // CONFIG_NEW_INTER_MODES
 
 static const aom_cdf_prob default_interintra_cdf[BLOCK_SIZE_GROUPS][CDF_SIZE(
     2)] = { { AOM_CDF2(16384) },
@@ -1754,7 +1772,9 @@ static void init_mode_probs(FRAME_CONTEXT *fc) {
   av1_copy(fc->comp_group_idx_cdf, default_comp_group_idx_cdfs);
   av1_copy(fc->newmv_cdf, default_newmv_cdf);
   av1_copy(fc->zeromv_cdf, default_zeromv_cdf);
+#if !CONFIG_NEW_INTER_MODES
   av1_copy(fc->refmv_cdf, default_refmv_cdf);
+#endif  // !CONFIG_NEW_INTER_MODES
   av1_copy(fc->drl_cdf, default_drl_cdf);
   av1_copy(fc->motion_mode_cdf, default_motion_mode_cdf);
   av1_copy(fc->obmc_cdf, default_obmc_cdf);

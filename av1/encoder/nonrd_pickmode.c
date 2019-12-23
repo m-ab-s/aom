@@ -57,6 +57,20 @@ typedef struct {
   PREDICTION_MODE pred_mode;
 } REF_MODE;
 
+#if CONFIG_NEW_INTER_MODES
+#define RT_INTER_MODES 6
+static const REF_MODE ref_mode_set[RT_INTER_MODES] = {
+  { LAST_FRAME, NEARMV },  { LAST_FRAME, NEWMV },    { GOLDEN_FRAME, NEARMV },
+  { GOLDEN_FRAME, NEWMV }, { ALTREF_FRAME, NEARMV }, { ALTREF_FRAME, NEWMV }
+};
+
+static const THR_MODES mode_idx[REF_FRAMES][4] = {
+  { THR_DC, THR_V_PRED, THR_H_PRED, THR_SMOOTH },
+  { THR_NEARMV, THR_NEARMV, THR_GLOBALMV, THR_NEWMV },
+  { THR_NEARG, THR_NEARG, THR_GLOBALMV, THR_NEWG },
+  { THR_NEARA, THR_NEARA, THR_GLOBALMV, THR_NEWA },
+};
+#else
 #define RT_INTER_MODES 9
 static const REF_MODE ref_mode_set[RT_INTER_MODES] = {
   { LAST_FRAME, NEARESTMV },   { LAST_FRAME, NEARMV },
@@ -72,12 +86,13 @@ static const THR_MODES mode_idx[REF_FRAMES][4] = {
   { THR_NEARESTG, THR_NEARG, THR_GLOBALMV, THR_NEWG },
   { THR_NEARESTA, THR_NEARA, THR_GLOBALMV, THR_NEWA },
 };
+#endif  // CONFIG_NEW_INTER_MODES
 
 static const PREDICTION_MODE intra_mode_list[] = { DC_PRED, V_PRED, H_PRED,
                                                    SMOOTH_PRED };
 
 static INLINE int mode_offset(const PREDICTION_MODE mode) {
-  if (mode >= NEARESTMV) {
+  if (mode >= SINGLE_INTER_MODE_START) {
     return INTER_OFFSET(mode);
   } else {
     switch (mode) {
@@ -95,16 +110,27 @@ typedef struct {
   MV_REFERENCE_FRAME ref_frame[2];
 } MODE_DEFINITION;
 
+#if CONFIG_NEW_INTER_MODES
 enum {
-  //  INTER_ALL = (1 << NEARESTMV) | (1 << NEARMV) | (1 << NEWMV),
+  INTER_NEW = (1 << NEWMV),
+  INTER_NEAR = (1 << NEARMV),
+  INTER_NEAR_NEW = (1 << NEARMV) | (1 << NEWMV),
+};
+#else
+enum {
   INTER_NEAREST = (1 << NEARESTMV),
   INTER_NEAREST_NEW = (1 << NEARESTMV) | (1 << NEWMV),
   INTER_NEAREST_NEAR = (1 << NEARESTMV) | (1 << NEARMV),
   INTER_NEAR_NEW = (1 << NEARMV) | (1 << NEWMV),
 };
+#endif  // CONFIG_NEW_INTER_MODES
 
 static INLINE void init_best_pickmode(BEST_PICKMODE *bp) {
+#if CONFIG_NEW_INTER_MODES
+  bp->best_mode = NEARMV;
+#else
   bp->best_mode = NEARESTMV;
+#endif  // CONFIG_NEW_INTER_MODES
   bp->best_ref_frame = LAST_FRAME;
   bp->best_tx_size = TX_8X8;
   bp->best_intra_tx_size = TX_8X8;
@@ -306,9 +332,15 @@ static INLINE void find_predictors(
                      mbmi_ext->ref_mv_stack, mbmi_ext->weight, NULL,
                      mbmi_ext->global_mvs, mi_row, mi_col,
                      mbmi_ext->mode_context);
+#if CONFIG_NEW_INTER_MODES
+    av1_find_best_ref_mvs_from_stack(cm->mv_precision, mbmi_ext, ref_frame,
+                                     &frame_mv[NEARMV][ref_frame],
+                                     &frame_mv[NEARMV][ref_frame]);
+#else
     av1_find_best_ref_mvs_from_stack(cm->mv_precision, mbmi_ext, ref_frame,
                                      &frame_mv[NEARESTMV][ref_frame],
                                      &frame_mv[NEARMV][ref_frame]);
+#endif  // CONFIG_NEW_INTER_MODES
     // Early exit for golden frame if force_skip_low_temp_var is set.
     if (!av1_is_scaled(sf) && bsize >= BLOCK_8X8 &&
         !(force_skip_low_temp_var && ref_frame == GOLDEN_FRAME)) {
@@ -943,7 +975,11 @@ static int cost_mv_ref(const MACROBLOCK *const x, PREDICTION_MODE mode,
     } else {
       mode_cost += x->zeromv_mode_cost[mode_ctx][1];
       mode_ctx = (mode_context >> REFMV_OFFSET) & REFMV_CTX_MASK;
+#if !CONFIG_NEW_INTER_MODES
+      // We no longer need to write this bit with NEARESTMV gone.
+
       mode_cost += x->refmv_mode_cost[mode_ctx][mode != NEARESTMV];
+#endif  // CONFIG_NEW_INTER_MODES
       return mode_cost;
     }
   }
@@ -1111,8 +1147,12 @@ void av1_fast_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
 
   for (int i = 0; i < BLOCK_SIZES; ++i) inter_mode_mask[i] = INTER_ALL;
 
-  // TODO(kyslov) Move this to Speed Features
+// TODO(kyslov) Move this to Speed Features
+#if CONFIG_NEW_INTER_MODES
+  inter_mode_mask[BLOCK_128X128] = INTER_NEAR;
+#else
   inter_mode_mask[BLOCK_128X128] = INTER_NEAREST_NEAR;
+#endif  // CONFIG_NEW_INTER_MODES
 
   x->source_variance = UINT_MAX;
 
@@ -1325,8 +1365,8 @@ void av1_fast_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
         continue;
     }
 
-    for (PREDICTION_MODE inter_mv_mode = NEARESTMV; inter_mv_mode <= NEWMV;
-         inter_mv_mode++) {
+    for (PREDICTION_MODE inter_mv_mode = SINGLE_INTER_MODE_START;
+         inter_mv_mode < SINGLE_INTER_MODE_END; inter_mv_mode++) {
       if (inter_mv_mode == this_mode || comp_pred) continue;
       if (mode_checked[inter_mv_mode][ref_frame] &&
           frame_mv[this_mode][ref_frame].as_int ==
@@ -1353,10 +1393,12 @@ void av1_fast_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
       x->pred_mv_sad[LAST_FRAME] = best_pred_sad;
     }
 
+#if !CONFIG_NEW_INTER_MODES
     if (this_mode != NEARESTMV && !comp_pred &&
         frame_mv[this_mode][ref_frame].as_int ==
             frame_mv[NEARESTMV][ref_frame].as_int)
       continue;
+#endif  // !CONFIG_NEW_INTER_MODES
 
     mi->mode = this_mode;
     mi->mv[0].as_int = frame_mv[this_mode][ref_frame].as_int;
