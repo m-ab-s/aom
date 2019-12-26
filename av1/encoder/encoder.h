@@ -470,7 +470,9 @@ typedef struct FRAME_COUNTS {
                                    [SIG_COEF_CONTEXTS_EOB][NUM_BASE_LEVELS + 1];
   unsigned int newmv_mode[NEWMV_MODE_CONTEXTS][2];
   unsigned int zeromv_mode[GLOBALMV_MODE_CONTEXTS][2];
+#if !CONFIG_NEW_INTER_MODES
   unsigned int refmv_mode[REFMV_MODE_CONTEXTS][2];
+#endif  // !CONFIG_NEW_INTER_MODES
   unsigned int drl_mode[DRL_MODE_CONTEXTS][2];
   unsigned int inter_compound_mode[INTER_MODE_CONTEXTS][INTER_COMPOUND_MODES];
   unsigned int wedge_idx[BLOCK_SIZES_ALL][16];

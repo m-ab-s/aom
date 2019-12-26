@@ -430,11 +430,13 @@ int main(int argc, const char **argv) {
                      "static const aom_cdf_prob "
                      "default_zeromv_cdf[GLOBALMV_MODE_CONTEXTS][CDF_SIZE(2)]");
 
+#if !CONFIG_NEW_INTER_MODES
   cts_each_dim[0] = REFMV_MODE_CONTEXTS;
   cts_each_dim[1] = 2;
   optimize_cdf_table(&fc.refmv_mode[0][0], probsfile, 2, cts_each_dim,
                      "static const aom_cdf_prob "
                      "default_refmv_cdf[REFMV_MODE_CONTEXTS][CDF_SIZE(2)]");
+#endif  // !CONFIG_NEW_INTER_MODES
 
   cts_each_dim[0] = DRL_MODE_CONTEXTS;
   cts_each_dim[1] = 2;

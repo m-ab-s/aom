@@ -338,7 +338,9 @@ struct macroblock {
 #endif
   int newmv_mode_cost[NEWMV_MODE_CONTEXTS][2];
   int zeromv_mode_cost[GLOBALMV_MODE_CONTEXTS][2];
+#if !CONFIG_NEW_INTER_MODES
   int refmv_mode_cost[REFMV_MODE_CONTEXTS][2];
+#endif  // !CONFIG_NEW_INTER_MODES
   int drl_mode_cost0[DRL_MODE_CONTEXTS][2];
 
   int comp_inter_cost[COMP_INTER_CONTEXTS][2];
