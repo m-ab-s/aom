@@ -201,10 +201,6 @@ static INLINE int is_interintra_wedge_used(BLOCK_SIZE sb_type) {
   return av1_wedge_params_lookup[sb_type].bits > 0;
 }
 
-static INLINE int get_interintra_wedge_bits(BLOCK_SIZE sb_type) {
-  return av1_wedge_params_lookup[sb_type].bits;
-}
-
 void av1_make_inter_predictor(const uint8_t *src, int src_stride, uint8_t *dst,
                               int dst_stride, const SubpelParams *subpel_params,
                               const struct scale_factors *sf, int w, int h,

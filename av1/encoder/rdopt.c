@@ -10086,10 +10086,6 @@ static int handle_inter_intra_mode(const AV1_COMP *const cpi,
     int_mv tmp_mv;
     if (enable_wedge_interintra_search(x, cpi)) {
       mbmi->use_wedge_interintra = 1;
-
-      rwedge = av1_cost_literal(get_interintra_wedge_bits(bsize)) +
-               x->wedge_interintra_cost[bsize][1];
-
       if (!cpi->oxcf.enable_smooth_interintra ||
           cpi->sf.disable_smooth_interintra) {
         if (best_interintra_mode == INTERINTRA_MODES) {
@@ -10136,6 +10132,8 @@ static int handle_inter_intra_mode(const AV1_COMP *const cpi,
       }
 
       rmode = interintra_mode_cost[mbmi->interintra_mode];
+      rwedge = x->wedge_idx_cost[bsize][mbmi->interintra_wedge_index] +
+               x->wedge_interintra_cost[bsize][1];
       best_interintra_rd_wedge +=
           RDCOST(x->rdmult, rmode + *rate_mv + rwedge, 0);
       rd = INT64_MAX;
@@ -10510,7 +10508,7 @@ static int64_t motion_mode_rd(
               x->wedge_interintra_cost[bsize][mbmi->use_wedge_interintra];
           if (mbmi->use_wedge_interintra) {
             rd_stats->rate +=
-                av1_cost_literal(get_interintra_wedge_bits(bsize));
+                x->wedge_idx_cost[bsize][mbmi->interintra_wedge_index];
           }
         }
       }
