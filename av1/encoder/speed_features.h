@@ -600,6 +600,9 @@ typedef struct SPEED_FEATURES {
   // single ref modes
   int reuse_inter_intra_mode;
 
+  // De-couple wedge and mode search during interintra RDO.
+  int fast_interintra_wedge_search;
+
   // Set the full pixel search level of obmc
   // 0: obmc_full_pixel_diamond
   // 1: obmc_refining_search_sad (faster)

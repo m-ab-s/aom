@@ -324,6 +324,7 @@ static void set_good_speed_features_framesize_independent(
   if (speed >= 2) {
     sf->gm_erroradv_type = GM_ERRORADV_TR_2;
 
+    sf->fast_interintra_wedge_search = 1;
     sf->enable_sgr_ep_pruning = 1;
     sf->selective_ref_frame = 3;
     sf->inter_tx_size_search_init_depth_rect = 1;
@@ -818,6 +819,7 @@ void av1_set_speed_features_framesize_independent(AV1_COMP *cpi, int speed) {
   sf->two_loop_comp_search = 1;
   sf->use_dist_wtd_comp_flag = DIST_WTD_COMP_ENABLED;
   sf->reuse_inter_intra_mode = 0;
+  sf->fast_interintra_wedge_search = 0;
   sf->intra_angle_estimation = 0;
   sf->skip_obmc_in_uniform_mv_field = 0;
   sf->skip_wm_in_uniform_mv_field = 0;
