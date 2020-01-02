@@ -178,6 +178,31 @@ static INLINE int16_t av1_mode_context_analyzer(
   return comp_ctx;
 }
 
+#if CONFIG_NEW_INTER_MODES
+static INLINE uint8_t av1_drl_ctx(int16_t mode_ctx,
+                                  const uint16_t *ref_mv_weight, int ref_idx) {
+  int ctx = 0;
+  if (ref_mv_weight[ref_idx] >= REF_CAT_LEVEL &&
+      ref_mv_weight[ref_idx + 1] >= REF_CAT_LEVEL)
+    ctx = 0;
+
+  if (ref_mv_weight[ref_idx] >= REF_CAT_LEVEL &&
+      ref_mv_weight[ref_idx + 1] < REF_CAT_LEVEL)
+    ctx = 1;
+
+  if (ref_mv_weight[ref_idx] < REF_CAT_LEVEL &&
+      ref_mv_weight[ref_idx + 1] < REF_CAT_LEVEL)
+    ctx = 2;
+
+  if (ref_idx == 0) {
+    ctx = 3 + ((mode_ctx >> REFMV_OFFSET) & REFMV_CTX_MASK);
+  }
+
+  assert(ctx >= 0);
+  assert(ctx < DRL_MODE_CONTEXTS);
+  return ctx;
+}
+#else
 static INLINE uint8_t av1_drl_ctx(const uint16_t *ref_mv_weight, int ref_idx) {
   if (ref_mv_weight[ref_idx] >= REF_CAT_LEVEL &&
       ref_mv_weight[ref_idx + 1] >= REF_CAT_LEVEL)
@@ -193,6 +218,7 @@ static INLINE uint8_t av1_drl_ctx(const uint16_t *ref_mv_weight, int ref_idx) {
 
   return 0;
 }
+#endif  // CONFIG_NEW_INTER_MODES
 
 void av1_setup_frame_buf_refs(AV1_COMMON *cm);
 void av1_setup_frame_sign_bias(AV1_COMMON *cm);

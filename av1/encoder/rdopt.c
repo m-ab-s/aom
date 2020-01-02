@@ -10762,10 +10762,13 @@ static INLINE int get_drl_cost(const MB_MODE_INFO *mbmi,
   if (!has_drl) {
     return 0;
   }
+  int16_t mode_ctx =
+      av1_mode_context_analyzer(mbmi_ext->mode_context, mbmi->ref_frame);
   int cost = 0;
   int range = AOMMIN(mbmi_ext->ref_mv_count[ref_frame_type] - 1, 3);
   for (int idx = 0; idx < range; ++idx) {
-    uint8_t drl_ctx = av1_drl_ctx(mbmi_ext->weight[ref_frame_type], idx);
+    uint8_t drl_ctx =
+        av1_drl_ctx(mode_ctx, mbmi_ext->weight[ref_frame_type], idx);
     cost += drl_mode_cost0[drl_ctx][mbmi->ref_mv_idx != idx];
     if (mbmi->ref_mv_idx == idx) return cost;
   }

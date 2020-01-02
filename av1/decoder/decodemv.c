@@ -206,14 +206,14 @@ static PREDICTION_MODE read_inter_mode(FRAME_CONTEXT *ec_ctx, aom_reader *r,
 // Read a DRL index from the bitstream and modify mbmi->ref_mv_idx
 // to hold its value.
 // See write_drl_idx for a description of how this works.
-static void read_drl_idx(FRAME_CONTEXT *ec_ctx, MACROBLOCKD *xd,
-                         MB_MODE_INFO *mbmi, aom_reader *r) {
+static void read_drl_idx(FRAME_CONTEXT *ec_ctx, int16_t mode_ctx,
+                         MACROBLOCKD *xd, MB_MODE_INFO *mbmi, aom_reader *r) {
   uint8_t ref_frame_type = av1_ref_frame_type(mbmi->ref_frame);
   mbmi->ref_mv_idx = 0;
   assert(!mbmi->skip_mode);
   int range = AOMMIN(xd->ref_mv_count[ref_frame_type] - 1, 3);
   for (int idx = 0; idx < range; ++idx) {
-    uint8_t drl_ctx = av1_drl_ctx(xd->weight[ref_frame_type], idx);
+    uint8_t drl_ctx = av1_drl_ctx(mode_ctx, xd->weight[ref_frame_type], idx);
     int drl_idx = aom_read_symbol(r, ec_ctx->drl_cdf[drl_ctx], 2, ACCT_STR);
     mbmi->ref_mv_idx = idx + drl_idx;
     if (!drl_idx) break;
@@ -1632,7 +1632,7 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
       if (mbmi->mode == NEWMV || mbmi->mode == NEW_NEWMV ||
           have_nearmv_in_inter_mode(mbmi->mode)) {
 #if CONFIG_NEW_INTER_MODES
-        read_drl_idx(ec_ctx, xd, mbmi, r);
+        read_drl_idx(ec_ctx, mode_ctx, xd, mbmi, r);
 #else
         read_drl_idx(ec_ctx, cm, xd, mbmi, r);
 #endif  // CONFIG_NEW_INTER_MODES

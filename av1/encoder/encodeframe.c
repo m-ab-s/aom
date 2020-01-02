@@ -1586,14 +1586,12 @@ static void update_stats(const AV1_COMMON *const cm, TileDataEnc *tile_data,
                           have_nearmv_in_inter_mode(mbmi->mode);
       if (has_drl) {
         uint8_t ref_frame_type = av1_ref_frame_type(mbmi->ref_frame);
-        int range = AOMMIN(xd->ref_mv_count[ref_frame_type] - 1, 3);
-        for (int idx = 0; idx < 3; ++idx) {
-          if (mbmi_ext->ref_mv_count[ref_frame_type] > idx + 1) {
-            uint8_t drl_ctx =
-                av1_drl_ctx(mbmi_ext->weight[ref_frame_type], idx);
-            ++counts->drl_mode[drl_ctx][mbmi->ref_mv_idx != idx];
-            if (mbmi->ref_mv_idx == idx) break;
-          }
+        int range = AOMMIN(mbmi_ext->ref_mv_count[ref_frame_type] - 1, 3);
+        for (int idx = 0; idx < range; ++idx) {
+          uint8_t drl_ctx =
+              av1_drl_ctx(mode_ctx, mbmi_ext->weight[ref_frame_type], idx);
+          counts->drl_mode[drl_ctx][mbmi->ref_mv_idx != idx]++;
+          if (mbmi->ref_mv_idx == idx) break;
         }
       }
 #endif
@@ -1606,7 +1604,8 @@ static void update_stats(const AV1_COMMON *const cm, TileDataEnc *tile_data,
           }
         } else {
           const int ref =
-              mbmi->mode == NEAR_NEWMV;  // Get which reference has NEWMV
+              mbmi->mode == NEAR_NEWMV;  // Find which half of the compound
+                                         // reference has NEWMV
           const int_mv ref_mv = av1_get_ref_mv(x, ref);
           av1_update_mv_stats(&mbmi->mv[ref].as_mv, &ref_mv.as_mv, &fc->nmvc,
                               mbmi->mv_precision);

@@ -175,7 +175,8 @@ static void write_inter_mode(aom_writer *w, PREDICTION_MODE mode,
 }
 
 #if CONFIG_NEW_INTER_MODES
-static void write_drl_idx(FRAME_CONTEXT *ec_ctx, const MB_MODE_INFO *mbmi,
+static void write_drl_idx(FRAME_CONTEXT *ec_ctx, int16_t mode_ctx,
+                          const MB_MODE_INFO *mbmi,
                           const MB_MODE_INFO_EXT *mbmi_ext, aom_writer *w) {
   uint8_t ref_frame_type = av1_ref_frame_type(mbmi->ref_frame);
   assert(!mbmi->skip_mode);
@@ -185,7 +186,8 @@ static void write_drl_idx(FRAME_CONTEXT *ec_ctx, const MB_MODE_INFO *mbmi,
   // number of bits written if there are less than 4 valid DRL indices.
   int range = AOMMIN(mbmi_ext->ref_mv_count[ref_frame_type] - 1, 3);
   for (int idx = 0; idx < range; ++idx) {
-    uint8_t drl_ctx = av1_drl_ctx(mbmi_ext->weight[ref_frame_type], idx);
+    uint8_t drl_ctx =
+        av1_drl_ctx(mode_ctx, mbmi_ext->weight[ref_frame_type], idx);
     aom_write_symbol(w, mbmi->ref_mv_idx != idx, ec_ctx->drl_cdf[drl_ctx], 2);
     if (mbmi->ref_mv_idx == idx) break;
   }
@@ -1461,13 +1463,11 @@ static void pack_inter_mode_mvs(AV1_COMP *cpi, const int mi_row,
   if (!is_inter) {
     write_intra_prediction_modes(cpi, mi_row, mi_col, 0, w);
   } else {
-    int16_t mode_ctx;
-
     av1_collect_neighbors_ref_counts(xd);
 
     write_ref_frames(cm, xd, w);
 
-    mode_ctx =
+    int16_t mode_ctx =
         av1_mode_context_analyzer(mbmi_ext->mode_context, mbmi->ref_frame);
 
     // If segment skip is not enabled code the mode.
@@ -1484,7 +1484,7 @@ static void pack_inter_mode_mvs(AV1_COMP *cpi, const int mi_row,
 #endif  // CONFIG_FLEX_MVRES
       if (mode == NEWMV || mode == NEW_NEWMV || have_nearmv_in_inter_mode(mode))
 #if CONFIG_NEW_INTER_MODES
-        write_drl_idx(ec_ctx, mbmi, mbmi_ext, w);
+        write_drl_idx(ec_ctx, mode_ctx, mbmi, mbmi_ext, w);
 #else
         write_drl_idx(ec_ctx, cm, mbmi, mbmi_ext, w);
 #endif  // CONFIG_NEW_INTER_MODES
