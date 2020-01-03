@@ -51,6 +51,7 @@ typedef struct NonsepFilterConfig {
   int strict_bounds;
 } NonsepFilterConfig;
 
+// Nonseparable convolution
 void av1_convolve_nonsep(const uint8_t *dgd, int width, int height, int stride,
                          const NonsepFilterConfig *config,
                          const int16_t *filter, uint8_t *dst, int dst_stride);
@@ -58,6 +59,9 @@ void av1_convolve_nonsep_highbd(const uint8_t *dgd, int width, int height,
                                 int stride, const NonsepFilterConfig *config,
                                 const int16_t *filter, uint8_t *dst,
                                 int dst_stride, int bit_depth);
+
+// Nonseparable convolution with dual input planes - used for cross component
+// filtering
 void av1_convolve_nonsep_dual(const uint8_t *dgd, int width, int height,
                               int stride, const uint8_t *dgd2, int stride2,
                               const NonsepFilterConfig *config,
@@ -69,6 +73,23 @@ void av1_convolve_nonsep_dual_highbd(const uint8_t *dgd, int width, int height,
                                      const NonsepFilterConfig *config,
                                      const int16_t *filter, uint8_t *dst,
                                      int dst_stride, int bit_depth);
+
+#if CONFIG_NEW_TX64X64
+// Nonseparable classified convolution with different filters used for each
+// pixel based on its class as specified by supplied class map.
+void av1_convolve_nonsep_cls(const uint8_t *dgd, int width, int height,
+                             int stride, const NonsepFilterConfig *nsfilter,
+                             const uint8_t *cls, int cls_stride,
+                             const int16_t *filter, int filter_stride,
+                             uint8_t *dst, int dst_stride);
+void av1_convolve_nonsep_cls_highbd(const uint16_t *dgd, int width, int height,
+                                    int stride,
+                                    const NonsepFilterConfig *nsfilter,
+                                    const uint8_t *cls, int cls_stride,
+                                    const int16_t *filter, int filter_stride,
+                                    uint16_t *dst, int dst_stride,
+                                    int bit_depth);
+#endif  // CONFIG_NEW_TX64X64
 
 #define ROUND0_BITS 3
 #define COMPOUND_ROUND1_BITS 7

@@ -905,6 +905,241 @@ static int is_constant_buffer(int16_t *buf, int w, int h, int stride) {
   return 1;
 }
 
+// Number of 1D edge bands
+#define NUM_EDGE_BANDS 4
+
+// Number of 2D edge classes
+#define NUM_EDGE_CLASSES (2 * NUM_EDGE_BANDS * NUM_EDGE_BANDS - 1)
+
+static uint8_t get_class_from_grad(int gx, int gy, int bd) {
+  const int thresh[NUM_EDGE_BANDS - 1] = { 3 << (bd - 8), 6 << (bd - 8),
+                                           20 << (bd - 8) };
+  const int samesign = (gx * gy > 0);
+  int cx = 0, cy = 0;
+  if (gx > thresh[2])
+    cx = 3;
+  else if (gx > thresh[1])
+    cx = 2;
+  else if (gx > thresh[0])
+    cx = 1;
+  else
+    cx = 0;
+
+  if (gy > thresh[2])
+    cy = 3;
+  else if (gy > thresh[1])
+    cy = 2;
+  else if (gy > thresh[0])
+    cy = 1;
+  else
+    cy = 0;
+
+  uint8_t c = cx * 4 + cy;
+  if (c > 0) c = 2 * c - samesign;
+  return c;
+}
+
+static void edge_based_classify(const uint16_t *dgd, int width, int height,
+                                int stride, uint8_t *cls, int cls_stride,
+                                int bit_depth) {
+  {
+    int i = 0, j = 0;
+    const int id = i * stride + j;
+    const int gx = 6 * (dgd[id + 1] - dgd[id]) +
+                   2 * (dgd[id + stride + 1] - dgd[id + stride]);
+    const int gy = 6 * (dgd[id + stride] - dgd[id]) +
+                   2 * (dgd[id + stride + 1] - dgd[id + 1]);
+    cls[i * cls_stride + j] = get_class_from_grad(gx, gy, bit_depth);
+  }
+  {
+    int i = 0, j = width - 1;
+    const int id = i * stride + j;
+    const int gx = 6 * (dgd[id] - dgd[id - 1]) +
+                   2 * (dgd[id + stride] - dgd[id + stride - 1]);
+    const int gy = 6 * (dgd[id + stride] - dgd[id]) +
+                   2 * (dgd[id + stride - 1] - dgd[id - 1]);
+    cls[i * cls_stride + j] = get_class_from_grad(gx, gy, bit_depth);
+  }
+  {
+    int i = height - 1, j = 0;
+    const int id = i * stride + j;
+    const int gx = 6 * (dgd[id + 1] - dgd[id]) +
+                   2 * (dgd[id - stride + 1] - dgd[id - stride]);
+    const int gy = 6 * (dgd[id] - dgd[id - stride]) +
+                   2 * (dgd[id + 1] - dgd[id - stride + 1]);
+    cls[i * cls_stride + j] = get_class_from_grad(gx, gy, bit_depth);
+  }
+  {
+    int i = height - 1, j = width - 1;
+    const int id = i * stride + j;
+    const int gx = 6 * (dgd[id] - dgd[id - 1]) +
+                   2 * (dgd[id - stride] - dgd[id - stride - 1]);
+    const int gy = 6 * (dgd[id] - dgd[id - stride]) +
+                   2 * (dgd[id - 1] - dgd[id - stride - 1]);
+    cls[i * cls_stride + j] = get_class_from_grad(gx, gy, bit_depth);
+  }
+  for (int i = 0, j = 1; j < width - 1; ++j) {
+    const int id = i * stride + j;
+    const int gx = 3 * (dgd[id + 1] - dgd[id - 1]) +
+                   1 * (dgd[id + stride + 1] - dgd[id + stride - 1]);
+    const int gy = 4 * (dgd[id + stride] - dgd[id]) +
+                   2 * (dgd[id + stride + 1] - dgd[id + 1]) +
+                   2 * (dgd[id + stride - 1] - dgd[id - 1]);
+    cls[i * cls_stride + j] = get_class_from_grad(gx, gy, bit_depth);
+  }
+  for (int i = height - 1, j = 1; j < width - 1; ++j) {
+    const int id = i * stride + j;
+    const int gx = 3 * (dgd[id + 1] - dgd[id - 1]) +
+                   1 * (dgd[id - stride + 1] - dgd[id - stride - 1]);
+    const int gy = 4 * (dgd[id] - dgd[id - stride]) +
+                   2 * (dgd[id + 1] - dgd[id - stride + 1]) +
+                   2 * (dgd[id - 1] - dgd[id - stride - 1]);
+    cls[i * cls_stride + j] = get_class_from_grad(gx, gy, bit_depth);
+  }
+  for (int i = 1, j = 0; i < height - 1; ++i) {
+    const int id = i * stride + j;
+    const int gx = 4 * (dgd[id + 1] - dgd[id]) +
+                   2 * (dgd[id + stride + 1] - dgd[id + stride]) +
+                   2 * (dgd[id - stride + 1] - dgd[id - stride]);
+    const int gy = 3 * (dgd[id + stride] - dgd[id - stride]) +
+                   1 * (dgd[id + stride + 1] - dgd[id - stride + 1]);
+    cls[i * cls_stride + j] = get_class_from_grad(gx, gy, bit_depth);
+  }
+  for (int i = 1, j = width - 1; i < height - 1; ++i) {
+    const int id = i * stride + j;
+    const int gx = 4 * (dgd[id] - dgd[id - 1]) +
+                   2 * (dgd[id + stride] - dgd[id + stride - 1]) +
+                   2 * (dgd[id - stride] - dgd[id - stride - 1]);
+    const int gy = 3 * (dgd[id + stride] - dgd[id - stride]) +
+                   1 * (dgd[id + stride - 1] - dgd[id - stride - 1]);
+    cls[i * cls_stride + j] = get_class_from_grad(gx, gy, bit_depth);
+  }
+  for (int i = 1; i < height - 1; ++i) {
+    for (int j = 1; j < width - 1; ++j) {
+      const int id = i * stride + j;
+      const int gx = 2 * (dgd[id + 1] - dgd[id - 1]) +
+                     1 * (dgd[id + stride + 1] - dgd[id + stride - 1]) +
+                     1 * (dgd[id - stride + 1] - dgd[id - stride - 1]);
+      const int gy = 2 * (dgd[id + stride] - dgd[id - stride]) +
+                     1 * (dgd[id + stride + 1] - dgd[id - stride + 1]) +
+                     1 * (dgd[id + stride - 1] - dgd[id - stride - 1]);
+      cls[i * cls_stride + j] = get_class_from_grad(gx, gy, bit_depth);
+    }
+  }
+}
+
+#define STX64X64_FILTER_TAPS 32
+#define STX64XN_FILTER_TAPS 20
+#define STXNX64_FILTER_TAPS 20
+
+#define STX64X64_FILTER_COEFFS 16
+#define STX64XN_FILTER_COEFFS 10
+#define STXNX64_FILTER_COEFFS 10
+
+const int stx64x64_config[STX64X64_FILTER_TAPS][3] = {
+  { 1, 0, 0 },    { -1, 0, 0 },   { 0, 1, 1 },   { 0, -1, 1 },  { 2, 0, 2 },
+  { -2, 0, 2 },   { 0, 2, 3 },    { 0, -2, 3 },  { 1, 1, 4 },   { -1, -1, 4 },
+  { 1, -1, 5 },   { -1, 1, 5 },   { 2, 2, 6 },   { -2, -2, 6 }, { 2, -2, 7 },
+  { -2, 2, 7 },   { 3, 0, 8 },    { -3, 0, 8 },  { 0, 3, 9 },   { 0, -3, 9 },
+  { 3, 3, 10 },   { -3, -3, 10 }, { 3, -3, 11 }, { -3, 3, 11 }, { 1, 2, 12 },
+  { -1, -2, 12 }, { 1, -2, 13 },  { -1, 2, 13 }, { 2, 1, 14 },  { -2, -1, 14 },
+  { 2, -1, 15 },  { -2, 1, 15 },
+};
+
+const int16_t stx64x64_filters[STX64X64_FILTER_COEFFS * NUM_EDGE_CLASSES] = {
+  36, 13, 5,   -4,  93,  -14, 15, -1,  4,  9,  -1, 3,  -26, 15, -8,  -12,
+  55, 43, 0,   -6,  102, -29, 18, -7,  8,  9,  -2, 3,  -41, 20, -8,  -8,
+  80, -6, -4,  -6,  112, -8,  25, -3,  5,  9,  -2, 4,  -36, 18, -12, -13,
+  12, 42, -4,  -14, 50,  -16, 13, -7,  6,  12, 1,  3,  -26, 14, -5,  -3,
+  12, 32, -2,  -10, 68,  -12, 16, -5,  5,  7,  1,  3,  -28, 15, -11, -7,
+  11, 35, -9,  -17, -3,  -19, 7,  -12, 2,  11, 2,  2,  -7,  16, 0,   8,
+  9,  28, -14, -13, 2,   -17, 8,  -8,  4,  9,  1,  -2, -8,  12, 0,   11,
+  49, 53, 7,   -15, 111, -37, 20, -7,  9,  8,  -3, 2,  -40, 22, -16, -5,
+  1,  71, 4,   -22, 131, -6,  12, -4,  6,  8,  0,  3,  -40, 20, -4,  -9,
+  49, 43, -5,  -28, 96,  -11, 19, -9,  7,  10, -2, 3,  -34, 22, -7,  -2,
+  46, 30, -3,  -12, 111, -12, 17, -4,  5,  8,  0,  4,  -39, 13, -9,  -4,
+  9,  53, -4,  -22, 46,  -17, 14, -10, 5,  11, 1,  4,  -25, 18, -5,  0,
+  3,  37, 1,   -7,  85,  -14, 14, -4,  5,  8,  3,  3,  -33, 10, -13, -5,
+  21, 38, -13, -14, -7,  -20, 10, -10, 4,  11, -1, 2,  -12, 13, 2,   6,
+  6,  28, -8,  -16, 3,   -14, 6,  -3,  3,  13, 2,  1,  -4,  4,  -3,  4,
+  40, 17, 0,   -11, 51,  -30, 10, -7,  12, 2,  0,  3,  -24, 20, -11, -1,
+  44, 7,  1,   -3,  68,  -30, 11, -5,  12, 3,  0,  2,  -30, 16, -12, -4,
+  39, 19, -5,  -14, 47,  -23, 12, -6,  10, 3,  1,  3,  -24, 19, -9,  1,
+  43, 3,  -2,  3,   80,  -28, 10, -5,  10, 2,  1,  2,  -35, 13, -11, -1,
+  10, 27, -3,  -23, 20,  -13, 7,  -7,  6,  5,  1,  3,  -9,  17, -4,  1,
+  16, 8,  0,   6,   85,  -17, 14, -4,  6,  2,  3,  3,  -35, 8,  -16, -2,
+  4,  32, -11, -19, -15, -10, 0,  -11, 5,  9,  -1, 2,  0,   18, 11,  4,
+  -5, 17, 2,   -6,  29,  -10, 12, -3,  3,  8,  1,  1,  -16, 1,  -15, 1,
+  24, 13, -6,  -15, 0,   -22, 9,  -1,  9,  10, -5, -3, -9,  11, -2,  6,
+  15, 16, -3,  -20, 3,   -20, 1,  -5,  14, 8,  -1, -1, -3,  14, -2,  2,
+  25, 11, -9,  -13, -3,  -21, 4,  -7,  7,  1,  -1, 2,  -2,  14, -2,  10,
+  26, 9,  -5,  -12, 13,  -28, 6,  -6,  11, 9,  -2, -3, -10, 15, -7,  6,
+  9,  12, -5,  -18, -11, -15, 3,  -3,  6,  3,  -2, -1, 4,   14, -1,  9,
+  16, -4, -2,  4,   26,  -19, 9,  -3,  5,  3,  0,  -1, -23, 9,  -7,  1,
+  9,  16, -4,  -17, -22, -4,  -6, -4,  2,  5,  0,  -1, 9,   15, 9,   -1,
+  2,  1,  2,   0,   21,  -15, 7,  -3,  1,  4,  1,  0,  -15, 6,  -8,  0,
+};
+
+const int stx64xn_config[STX64XN_FILTER_TAPS][3] = {
+  { 1, 0, 0 },  { -1, 0, 0 }, { 0, 1, 1 },   { 0, -1, 1 },  { 0, 2, 2 },
+  { 0, -2, 2 }, { 1, 1, 3 },  { -1, -1, 3 }, { 1, -1, 4 },  { -1, 1, 4 },
+  { 0, 3, 5 },  { 0, -3, 5 }, { 1, 2, 6 },   { -1, -2, 6 }, { 1, -2, 7 },
+  { -1, 2, 7 }, { 1, 3, 8 },  { -1, -3, 8 }, { 1, -3, 9 },  { -1, 3, 9 },
+};
+
+const int16_t stx64xn_filters[STX64XN_FILTER_COEFFS * NUM_EDGE_CLASSES] = {
+  14,  52,  12,  93,  -38, 10,  -20, 11,  8,   3,   41,  99,  3,   96,  -54, 20,
+  -38, 6,   11,  1,   45,  35,  1,   103, -25, 19,  -18, 6,   5,   4,   22,  52,
+  -13, 47,  -26, 26,  -23, -1,  14,  2,   9,   46,  -2,  78,  -25, 21,  -25, 1,
+  9,   1,   17,  53,  -32, 6,   -14, 44,  -12, -5,  2,   0,   13,  51,  -21, 9,
+  -15, 42,  -21, 2,   12,  -11, 21,  85,  -8,  84,  -49, 13,  -31, 18,  11,  -1,
+  -32, 114, -8,  109, -39, 0,   -20, 24,  15,  0,   4,   115, -23, 87,  -37, 16,
+  -33, 18,  13,  1,   17,  86,  -5,  108, -46, 10,  -35, 19,  13,  1,   19,  59,
+  -20, 44,  -12, 24,  -25, -1,  11,  7,   7,   55,  -4,  86,  -37, 12,  -38, 6,
+  21,  3,   8,   53,  -18, -5,  -13, 25,  -24, 8,   17,  1,   -14, 64,  -27, 32,
+  -10, 38,  -18, -5,  16,  -8,  16,  21,  -7,  53,  -12, 8,   -23, 11,  8,   2,
+  4,   35,  -7,  77,  -20, 9,   -26, 7,   11,  0,   20,  34,  -16, 40,  -9,  11,
+  -21, 10,  9,   1,   12,  24,  1,   78,  -26, 8,   -34, 9,   13,  0,   13,  41,
+  -20, 20,  -8,  12,  -14, 11,  10,  1,   -10, 27,  -4,  85,  -25, 4,   -33, 5,
+  21,  4,   5,   42,  -21, -15, -15, 19,  0,   9,   1,   7,   -2,  33,  -20, 27,
+  -30, 28,  -12, 7,   18,  -11, 32,  5,   -8,  -15, -19, 2,   4,   11,  3,   -5,
+  30,  -4,  -10, 7,   -3,  -2,  -11, 13,  8,   0,   21,  20,  -29, -21, -15, 2,
+  8,   17,  6,   -2,  18,  -7,  -17, 14,  -4,  8,   -3,  9,   5,   -7,  35,  3,
+  -11, -19, -7,  1,   4,   12,  6,   -3,  15,  -9,  -1,  27,  -16, 1,   -16, 10,
+  9,   -3,  2,   10,  -16, -20, 6,   8,   4,   5,   0,   0,   -1,  1,   -9,  19,
+  -18, 7,   -9,  12,  14,  -14,
+};
+
+const int stxnx64_config[STXNX64_FILTER_TAPS][3] = {
+  { 0, 1, 0 },  { 0, -1, 0 }, { 1, 0, 1 },   { -1, 0, 1 },  { 2, 0, 2 },
+  { -2, 0, 2 }, { 1, 1, 3 },  { -1, -1, 3 }, { -1, 1, 4 },  { 1, -1, 4 },
+  { 3, 0, 5 },  { -3, 0, 5 }, { 2, 1, 6 },   { -2, -1, 6 }, { -2, 1, 7 },
+  { 2, -1, 7 }, { 3, 1, 8 },  { -3, -1, 8 }, { -3, 1, 9 },  { 3, -1, 9 },
+};
+
+const int16_t stxnx64_filters[STXNX64_FILTER_COEFFS * NUM_EDGE_CLASSES] = {
+  14,  52,  12,  93,  -38, 10,  -20, 11,  8,   3,   21,  85,  -8,  84, -49, 13,
+  -31, 18,  11,  -1,  -32, 114, -8,  109, -39, 0,   -20, 24,  15,  0,  16,  21,
+  -7,  53,  -12, 8,   -23, 11,  8,   2,   4,   35,  -7,  77,  -20, 9,  -26, 7,
+  11,  0,   32,  5,   -8,  -15, -19, 2,   4,   11,  3,   -5,  30,  -4, -10, 7,
+  -3,  -2,  -11, 13,  8,   0,   41,  99,  3,   96,  -54, 20,  -38, 6,  11,  1,
+  45,  35,  1,   103, -25, 19,  -18, 6,   5,   4,   4,   115, -23, 87, -37, 16,
+  -33, 18,  13,  1,   17,  86,  -5,  108, -46, 10,  -35, 19,  13,  1,  20,  34,
+  -16, 40,  -9,  11,  -21, 10,  9,   1,   12,  24,  1,   78,  -26, 8,  -34, 9,
+  13,  0,   21,  20,  -29, -21, -15, 2,   8,   17,  6,   -2,  18,  -7, -17, 14,
+  -4,  8,   -3,  9,   5,   -7,  22,  52,  -13, 47,  -26, 26,  -23, -1, 14,  2,
+  9,   46,  -2,  78,  -25, 21,  -25, 1,   9,   1,   19,  59,  -20, 44, -12, 24,
+  -25, -1,  11,  7,   7,   55,  -4,  86,  -37, 12,  -38, 6,   21,  3,  13,  41,
+  -20, 20,  -8,  12,  -14, 11,  10,  1,   -10, 27,  -4,  85,  -25, 4,  -33, 5,
+  21,  4,   35,  3,   -11, -19, -7,  1,   4,   12,  6,   -3,  15,  -9, -1,  27,
+  -16, 1,   -16, 10,  9,   -3,  17,  53,  -32, 6,   -14, 44,  -12, -5, 2,   0,
+  13,  51,  -21, 9,   -15, 42,  -21, 2,   12,  -11, 8,   53,  -18, -5, -13, 25,
+  -24, 8,   17,  1,   -14, 64,  -27, 32,  -10, 38,  -18, -5,  16,  -8, 5,   42,
+  -21, -15, -15, 19,  0,   9,   1,   7,   -2,  33,  -20, 27,  -30, 28, -12, 7,
+  18,  -11, 2,   10,  -16, -20, 6,   8,   4,   5,   0,   0,   -1,  1,  -9,  19,
+  -18, 7,   -9,  12,  14,  -14,
+};
+
 void av1_inv_txfm2d_add_64x64_c(const int32_t *input, uint16_t *output,
                                 int stride, TX_TYPE tx_type,
 #if CONFIG_MODE_DEP_TX
@@ -936,10 +1171,17 @@ void av1_inv_txfm2d_add_64x64_c(const int32_t *input, uint16_t *output,
     for (int r = 0; r < 64; ++r) {
       for (int c = 0; c < 64; ++c) {
         const tran_low_t residue = (tran_low_t)output_up[64 * r + c];
-        output[r * stride + c] =
+        output_up[r * 64 + c] =
             highbd_clip_pixel_add(output[r * stride + c], residue, bd);
       }
     }
+    DECLARE_ALIGNED(32, uint8_t, cls[64 * 64]);
+    NonsepFilterConfig nsfilter = { 10, STX64X64_FILTER_TAPS, 0,
+                                    stx64x64_config, 1 };
+    edge_based_classify((const uint16_t *)output_up, 64, 64, 64, cls, 64, bd);
+    av1_convolve_nonsep_cls_highbd((const uint16_t *)output_up, 64, 64, 64,
+                                   &nsfilter, cls, 64, stx64x64_filters, 16,
+                                   output, stride, bd);
   }
 }
 
@@ -982,10 +1224,17 @@ void av1_inv_txfm2d_add_32x64_c(const int32_t *input, uint16_t *output,
     for (int r = 0; r < 64; ++r) {
       for (int c = 0; c < 32; ++c) {
         const tran_low_t residue = (tran_low_t)output_up[32 * r + c];
-        output[r * stride + c] =
+        output_up[r * 32 + c] =
             highbd_clip_pixel_add(output[r * stride + c], residue, bd);
       }
     }
+    DECLARE_ALIGNED(32, uint8_t, cls[32 * 64]);
+    NonsepFilterConfig nsfilter = { 10, STXNX64_FILTER_TAPS, 0, stxnx64_config,
+                                    1 };
+    edge_based_classify((const uint16_t *)output_up, 32, 64, 32, cls, 32, bd);
+    av1_convolve_nonsep_cls_highbd((const uint16_t *)output_up, 32, 64, 32,
+                                   &nsfilter, cls, 32, stxnx64_filters, 10,
+                                   output, stride, bd);
   }
 }
 
@@ -1029,10 +1278,17 @@ void av1_inv_txfm2d_add_64x32_c(const int32_t *input, uint16_t *output,
     for (int r = 0; r < 32; ++r) {
       for (int c = 0; c < 64; ++c) {
         const tran_low_t residue = (tran_low_t)output_up[64 * r + c];
-        output[r * stride + c] =
+        output_up[r * 64 + c] =
             highbd_clip_pixel_add(output[r * stride + c], residue, bd);
       }
     }
+    DECLARE_ALIGNED(32, uint8_t, cls[32 * 64]);
+    NonsepFilterConfig nsfilter = { 10, STX64XN_FILTER_TAPS, 0, stx64xn_config,
+                                    1 };
+    edge_based_classify((const uint16_t *)output_up, 64, 32, 64, cls, 64, bd);
+    av1_convolve_nonsep_cls_highbd((const uint16_t *)output_up, 64, 32, 64,
+                                   &nsfilter, cls, 64, stx64xn_filters, 10,
+                                   output, stride, bd);
   }
 }
 
@@ -1076,10 +1332,17 @@ void av1_inv_txfm2d_add_16x64_c(const int32_t *input, uint16_t *output,
     for (int r = 0; r < 64; ++r) {
       for (int c = 0; c < 16; ++c) {
         const tran_low_t residue = (tran_low_t)output_up[16 * r + c];
-        output[r * stride + c] =
+        output_up[r * 16 + c] =
             highbd_clip_pixel_add(output[r * stride + c], residue, bd);
       }
     }
+    DECLARE_ALIGNED(32, uint8_t, cls[16 * 64]);
+    NonsepFilterConfig nsfilter = { 10, STXNX64_FILTER_TAPS, 0, stxnx64_config,
+                                    1 };
+    edge_based_classify((const uint16_t *)output_up, 16, 64, 16, cls, 16, bd);
+    av1_convolve_nonsep_cls_highbd((const uint16_t *)output_up, 16, 64, 16,
+                                   &nsfilter, cls, 16, stxnx64_filters, 10,
+                                   output, stride, bd);
   }
 }
 
@@ -1123,10 +1386,17 @@ void av1_inv_txfm2d_add_64x16_c(const int32_t *input, uint16_t *output,
     for (int r = 0; r < 16; ++r) {
       for (int c = 0; c < 64; ++c) {
         const tran_low_t residue = (tran_low_t)output_up[64 * r + c];
-        output[r * stride + c] =
+        output_up[r * 64 + c] =
             highbd_clip_pixel_add(output[r * stride + c], residue, bd);
       }
     }
+    DECLARE_ALIGNED(32, uint8_t, cls[16 * 64]);
+    NonsepFilterConfig nsfilter = { 10, STX64XN_FILTER_TAPS, 0, stx64xn_config,
+                                    1 };
+    edge_based_classify((const uint16_t *)output_up, 64, 16, 64, cls, 64, bd);
+    av1_convolve_nonsep_cls_highbd((const uint16_t *)output_up, 64, 16, 64,
+                                   &nsfilter, cls, 64, stx64xn_filters, 10,
+                                   output, stride, bd);
   }
 }
 
