@@ -11240,8 +11240,7 @@ static bool ref_mv_idx_early_breakout(MACROBLOCK *x,
       get_drl_cost(mbmi, mbmi_ext, x->drl_mode_cost0, ref_frame_type);
   est_rd_rate += drl_cost;
 #if CONFIG_NEW_INTER_MODES
-  if (RDCOST(x->rdmult, est_rd_rate, 0) > ref_best_rd && mbmi->mode != NEARMV &&
-      mbmi->mode != NEAR_NEARMV) {
+  if (RDCOST(x->rdmult, est_rd_rate, 0) > ref_best_rd) {
     return true;
   }
 #else
@@ -11358,8 +11357,15 @@ static int ref_mv_idx_to_search(AV1_COMP *const cpi, MACROBLOCK *x,
   const PREDICTION_MODE this_mode = mbmi->mode;
 
   // Only search indices if they have some chance of being good.
+#if CONFIG_NEW_INTER_MODES
+  int good_indices = 0x1;  // Always allow the zeroth MV to be searched
+  const int start_mv_idx =
+      1;  // Because MV 0 will be returned, don't waste time on it here
+#else
   int good_indices = 0;
-  for (int i = 0; i < ref_set; ++i) {
+  const int start_mv_idx = 0;
+#endif
+  for (int i = start_mv_idx; i < ref_set; ++i) {
     if (ref_mv_idx_early_breakout(x, &cpi->sf, args, ref_best_rd, i)) {
       continue;
     }
@@ -11379,14 +11385,13 @@ static int ref_mv_idx_to_search(AV1_COMP *const cpi, MACROBLOCK *x,
        av1_is_scaled(get_ref_scale_factors(cm, mbmi->ref_frame[1])))) {
     return good_indices;
   }
-
 // Calculate the RD cost for the motion vectors using simple translation.
 #if CONFIG_NEW_INTER_MODES
   int64_t idx_rdcost[] = { INT64_MAX, INT64_MAX, INT64_MAX, INT64_MAX };
 #else
   int64_t idx_rdcost[] = { INT64_MAX, INT64_MAX, INT64_MAX };
 #endif  // CONFIG_NEW_INTER_MODES
-  for (int ref_mv_idx = 0; ref_mv_idx < ref_set; ++ref_mv_idx) {
+  for (int ref_mv_idx = start_mv_idx; ref_mv_idx < ref_set; ++ref_mv_idx) {
     // If this index is bad, ignore it.
     if (!mask_check_bit(good_indices, ref_mv_idx)) {
       continue;
@@ -11396,16 +11401,20 @@ static int ref_mv_idx_to_search(AV1_COMP *const cpi, MACROBLOCK *x,
         mi_row, mi_col);
   }
   // Find the index with the best RD cost.
-  int best_idx = 0;
-  for (int i = 1; i < MAX_REF_MV_SEARCH; ++i) {
+  int best_idx = start_mv_idx;
+  for (int i = start_mv_idx + 1; i < MAX_REF_MV_SEARCH; ++i) {
     if (idx_rdcost[i] < idx_rdcost[best_idx]) {
       best_idx = i;
     }
   }
   // Only include indices that are good and within a % of the best.
   const double dth = has_second_ref(mbmi) ? 1.05 : 1.001;
+#if CONFIG_NEW_INTER_MODES
+  int result = 0x1;  // Always allow the zeroth MV to be searched
+#else
   int result = 0;
-  for (int i = 0; i < ref_set; ++i) {
+#endif
+  for (int i = start_mv_idx; i < ref_set; ++i) {
     if (mask_check_bit(good_indices, i) &&
         (1.0 * idx_rdcost[i]) / idx_rdcost[best_idx] < dth) {
       mask_set_bit(&result, i);
@@ -11488,6 +11497,8 @@ static int64_t handle_inter_mode(
   for (int ref_mv_idx = 0; ref_mv_idx < ref_set; ++ref_mv_idx) {
     mode_info[ref_mv_idx].mv.as_int = INVALID_MV;
     mode_info[ref_mv_idx].rd = INT64_MAX;
+    // This optimization makes it possible to ignore MV 0.
+    // Because NEARESTMV is gone, this greatly hurts performance.
     if (!mask_check_bit(idx_mask, ref_mv_idx)) {
       // MV did not perform well in simple translation search. Skip it.
       continue;
