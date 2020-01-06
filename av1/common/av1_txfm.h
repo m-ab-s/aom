@@ -37,7 +37,7 @@ extern const int32_t av1_sinpi_arr_data[7][5];
 extern const int32_t dst7_16x16[16][16];
 #endif
 #if CONFIG_LGT
-#define LGT_PREC_BITS 16
+#define LGT_PREC_BITS 10
 extern const int32_t lgt_intra_4x4[4 * 4];
 extern const int32_t lgt_intra_8x8[8 * 8];
 extern const int32_t lgt_intra_16x16[16 * 16];
