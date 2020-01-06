@@ -745,6 +745,9 @@ typedef struct SPEED_FEATURES {
   // Enable/disable adaptively deciding whether or not to encode ALTREF overlay
   // frame.
   int adaptive_overlay_encoding;
+
+  // Enable/disable second_alt_ref temporal filtering.
+  int second_alt_ref_filtering;
 } SPEED_FEATURES;
 
 struct AV1_COMP;

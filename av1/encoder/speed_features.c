@@ -379,6 +379,7 @@ static void set_good_speed_features_framesize_independent(
     // TODO(any): Experiment on the dependency of this speed feature with
     // use_intra_txb_hash, use_inter_txb_hash and use_mb_rd_hash speed features
     sf->enable_winner_mode_for_coeff_opt = 1;
+    sf->second_alt_ref_filtering = 0;
   }
 
   if (speed >= 4) {
@@ -742,6 +743,7 @@ void av1_set_speed_features_framesize_independent(AV1_COMP *cpi, int speed) {
   sf->mv.subpel_search_method = SUBPEL_TREE;
   sf->mv.subpel_iters_per_step = 2;
   sf->mv.subpel_force_stop = EIGHTH_PEL;
+  sf->second_alt_ref_filtering = 1;
   if (cpi->oxcf.disable_trellis_quant == 3) {
     sf->optimize_coefficients = !is_lossless_requested(&cpi->oxcf)
                                     ? NO_ESTIMATE_YRD_TRELLIS_OPT
