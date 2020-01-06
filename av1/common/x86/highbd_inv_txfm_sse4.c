@@ -675,11 +675,11 @@ static void iidentity4_sse4_1(__m128i *in, __m128i *out, int bit, int do_cols,
 
 void av1_inv_txfm2d_add_4x4_sse4_1(const int32_t *input, uint16_t *output,
                                    int stride, TX_TYPE tx_type,
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_TX || CONFIG_LGT
                                    PREDICTION_MODE mode,
 #endif
                                    int bd) {
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_TX || CONFIG_LGT
   (void)mode;
 #endif
 
@@ -1353,11 +1353,11 @@ static void write_buffer_8x8(__m128i *in, uint16_t *output, int stride,
 
 void av1_inv_txfm2d_add_8x8_sse4_1(const int32_t *input, uint16_t *output,
                                    int stride, TX_TYPE tx_type,
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_TX || CONFIG_LGT
                                    PREDICTION_MODE mode,
 #endif
                                    int bd) {
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_TX || CONFIG_LGT
   (void)mode;
 #endif
 
@@ -5117,7 +5117,7 @@ void av1_highbd_inv_txfm_add_8x8_sse4_1(const tran_low_t *input, uint8_t *dest,
   int bd = txfm_param->bd;
   const TX_TYPE tx_type = txfm_param->tx_type;
   const int32_t *src = cast_to_int32(input);
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_TX || CONFIG_LGT
   av1_inv_txfm2d_add_8x8_c(src, CONVERT_TO_SHORTPTR(dest), stride, tx_type,
                            txfm_param->mode, bd);
 #else
@@ -5154,7 +5154,7 @@ void av1_highbd_inv_txfm_add_4x4_sse4_1(const tran_low_t *input, uint8_t *dest,
     av1_highbd_iwht4x4_add(input, dest, stride, eob, bd);
     return;
   }
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_TX || CONFIG_LGT
   av1_inv_txfm2d_add_4x4_c(src, CONVERT_TO_SHORTPTR(dest), stride, tx_type,
                            txfm_param->mode, bd);
 #else

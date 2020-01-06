@@ -212,7 +212,7 @@ void reference_hybrid_1d(double *in, double *out, int size, int type) {
 
 double get_amplification_factor(TX_TYPE tx_type, TX_SIZE tx_size) {
   TXFM_2D_FLIP_CFG fwd_txfm_flip_cfg;
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_TX || CONFIG_LGT
   av1_get_fwd_txfm_cfg(tx_type, tx_size, 0, &fwd_txfm_flip_cfg);
 #else
   av1_get_fwd_txfm_cfg(tx_type, tx_size, &fwd_txfm_flip_cfg);

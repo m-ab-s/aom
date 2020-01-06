@@ -112,16 +112,35 @@ void av1_highbd_iwht4x4_1_add_c(const tran_low_t *in, uint8_t *dest8,
   }
 }
 
-static INLINE TxfmFunc inv_txfm_type_to_func(TXFM_TYPE txfm_type) {
+static INLINE TxfmFunc inv_txfm_type_to_func(
+#if CONFIG_LGT
+    int mode,
+#endif  // CONFIG_LGT
+    TXFM_TYPE txfm_type) {
   switch (txfm_type) {
     case TXFM_TYPE_DCT4: return av1_idct4_new;
     case TXFM_TYPE_DCT8: return av1_idct8_new;
     case TXFM_TYPE_DCT16: return av1_idct16_new;
     case TXFM_TYPE_DCT32: return av1_idct32_new;
     case TXFM_TYPE_DCT64: return av1_idct64_new;
+#if CONFIG_LGT
+    case TXFM_TYPE_ADST4:
+      return (mode >= INTER_MODE_START && mode < INTER_MODE_END)
+                 ? av1_iadst4_lgt_inter
+                 : av1_iadst4_lgt_intra;
+    case TXFM_TYPE_ADST8:
+      return (mode >= INTER_MODE_START && mode < INTER_MODE_END)
+                 ? av1_iadst8_lgt_inter
+                 : av1_iadst8_lgt_intra;
+    case TXFM_TYPE_ADST16:
+      return (mode >= INTER_MODE_START && mode < INTER_MODE_END)
+                 ? av1_iadst16_lgt_inter
+                 : av1_iadst16_lgt_intra;
+#else
     case TXFM_TYPE_ADST4: return av1_iadst4_new;
     case TXFM_TYPE_ADST8: return av1_iadst8_new;
     case TXFM_TYPE_ADST16: return av1_iadst16_new;
+#endif  // CONFIG_LGT
 #if CONFIG_MODE_DEP_TX
     case TXFM_TYPE_MDTX4: return av1_imdt4;
     case TXFM_TYPE_MDTX8: return av1_imdt8;
@@ -198,7 +217,7 @@ const int8_t av1_inv_cos_bit_row[MAX_TXWH_IDX]      // txw_idx
 static const int8_t iadst4_range[7] = { 0, 1, 0, 0, 0, 0, 0 };
 
 void av1_get_inv_txfm_cfg(TX_TYPE tx_type, TX_SIZE tx_size,
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_TX || CONFIG_LGT
                           PREDICTION_MODE mode,
 #endif
                           TXFM_2D_FLIP_CFG *cfg) {
@@ -222,9 +241,9 @@ void av1_get_inv_txfm_cfg(TX_TYPE tx_type, TX_SIZE tx_size,
   if (cfg->txfm_type_row == TXFM_TYPE_ADST4) {
     memcpy(cfg->stage_range_row, iadst4_range, sizeof(iadst4_range));
   }
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_TX || CONFIG_LGT
   cfg->mode = mode;
-#if USE_MDTX_INTRA && CONFIG_MODE_DEP_NONSEP_INTRA_TX
+#if CONFIG_MODE_DEP_TX && USE_MDTX_INTRA && CONFIG_MODE_DEP_NONSEP_INTRA_TX
   if (use_nstx(tx_type, tx_size, mode)) {
     cfg->nstx_mtx_ptr = nstx_arr(tx_size, mode);
   } else if (use_nsst(tx_type, tx_size, mode)) {
@@ -235,8 +254,9 @@ void av1_get_inv_txfm_cfg(TX_TYPE tx_type, TX_SIZE tx_size,
   } else {
     cfg->nstx_mtx_ptr = NULL;
   }
-#endif  // USE_MDTX_INTRA && CONFIG_MODE_DEP_NONSEP_INTRA_TX
-#endif  // CONFIG_MODE_DEP_TX
+#endif  // CONFIG_MODE_DEP_TX && USE_MDTX_INTRA &&
+        // CONFIG_MODE_DEP_NONSEP_INTRA_TX
+#endif  // CONFIG_MODE_DEP_TX || CONFIG_LGT
   cfg->stage_num_col = av1_txfm_stage_num_list[cfg->txfm_type_col];
   cfg->stage_num_row = av1_txfm_stage_num_list[cfg->txfm_type_row];
 }
@@ -463,8 +483,16 @@ static INLINE void inv_txfm2d_add_c(const int32_t *input, uint16_t *output,
 
   const int8_t cos_bit_col = cfg->cos_bit_col;
   const int8_t cos_bit_row = cfg->cos_bit_row;
-  const TxfmFunc txfm_func_col = inv_txfm_type_to_func(cfg->txfm_type_col);
-  const TxfmFunc txfm_func_row = inv_txfm_type_to_func(cfg->txfm_type_row);
+  const TxfmFunc txfm_func_col = inv_txfm_type_to_func(
+#if CONFIG_LGT
+      cfg->mode,
+#endif  // CONFIG_LGT
+      cfg->txfm_type_col);
+  const TxfmFunc txfm_func_row = inv_txfm_type_to_func(
+#if CONFIG_LGT
+      cfg->mode,
+#endif  // CONFIG_LGT
+      cfg->txfm_type_row);
 #if CONFIG_MODE_DEP_TX
   // For MDTX, the stage_range argument is not required. Instead, we pass
   // the prediction mode as side information to 1D transform functions.
@@ -602,12 +630,12 @@ static INLINE void inv_txfm2d_add_c(const int32_t *input, uint16_t *output,
 static INLINE void inv_txfm2d_add_facade(const int32_t *input, uint16_t *output,
                                          int stride, int32_t *txfm_buf,
                                          TX_TYPE tx_type, TX_SIZE tx_size,
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_TX || CONFIG_LGT
                                          PREDICTION_MODE mode,
 #endif
                                          int bd) {
   TXFM_2D_FLIP_CFG cfg;
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_TX || CONFIG_LGT
   av1_get_inv_txfm_cfg(tx_type, tx_size, mode, &cfg);
 #else
   av1_get_inv_txfm_cfg(tx_type, tx_size, &cfg);
@@ -648,8 +676,16 @@ static INLINE void inv_txfm2d_c(const int32_t *input, int16_t *output,
 
   const int8_t cos_bit_col = cfg->cos_bit_col;
   const int8_t cos_bit_row = cfg->cos_bit_row;
-  const TxfmFunc txfm_func_col = inv_txfm_type_to_func(cfg->txfm_type_col);
-  const TxfmFunc txfm_func_row = inv_txfm_type_to_func(cfg->txfm_type_row);
+  const TxfmFunc txfm_func_col = inv_txfm_type_to_func(
+#if CONFIG_LGT
+      cfg->mode,
+#endif  // CONFIG_LGT
+      cfg->txfm_type_col);
+  const TxfmFunc txfm_func_row = inv_txfm_type_to_func(
+#if CONFIG_LGT
+      cfg->mode,
+#endif  // CONFIG_LGT
+      cfg->txfm_type_row);
 #if CONFIG_MODE_DEP_TX
   // For MDTX, the stage_range argument is not required. Instead, we pass
   // the prediction mode as side information to 1D transform functions.
@@ -728,12 +764,12 @@ static INLINE void inv_txfm2d_c(const int32_t *input, int16_t *output,
 static INLINE void inv_txfm2d_facade(const int32_t *input, int16_t *output,
                                      int stride, int32_t *txfm_buf,
                                      TX_TYPE tx_type, TX_SIZE tx_size,
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_TX || CONFIG_LGT
                                      PREDICTION_MODE mode,
 #endif
                                      int bd) {
   TXFM_2D_FLIP_CFG cfg;
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_TX || CONFIG_LGT
   av1_get_inv_txfm_cfg(tx_type, tx_size, mode, &cfg);
 #else
   av1_get_inv_txfm_cfg(tx_type, tx_size, &cfg);
@@ -746,12 +782,12 @@ static INLINE void inv_txfm2d_facade(const int32_t *input, int16_t *output,
 
 void av1_inv_txfm2d_add_4x8_c(const int32_t *input, uint16_t *output,
                               int stride, TX_TYPE tx_type,
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_TX || CONFIG_LGT
                               PREDICTION_MODE mode,
 #endif
                               int bd) {
   DECLARE_ALIGNED(32, int, txfm_buf[4 * 8 + 8 + 8]);
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_TX || CONFIG_LGT
   inv_txfm2d_add_facade(input, output, stride, txfm_buf, tx_type, TX_4X8, mode,
                         bd);
 #else
@@ -761,12 +797,12 @@ void av1_inv_txfm2d_add_4x8_c(const int32_t *input, uint16_t *output,
 
 void av1_inv_txfm2d_add_8x4_c(const int32_t *input, uint16_t *output,
                               int stride, TX_TYPE tx_type,
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_TX || CONFIG_LGT
                               PREDICTION_MODE mode,
 #endif
                               int bd) {
   DECLARE_ALIGNED(32, int, txfm_buf[8 * 4 + 8 + 8]);
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_TX || CONFIG_LGT
   inv_txfm2d_add_facade(input, output, stride, txfm_buf, tx_type, TX_8X4, mode,
                         bd);
 #else
@@ -776,12 +812,12 @@ void av1_inv_txfm2d_add_8x4_c(const int32_t *input, uint16_t *output,
 
 void av1_inv_txfm2d_add_8x16_c(const int32_t *input, uint16_t *output,
                                int stride, TX_TYPE tx_type,
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_TX || CONFIG_LGT
                                PREDICTION_MODE mode,
 #endif
                                int bd) {
   DECLARE_ALIGNED(32, int, txfm_buf[8 * 16 + 16 + 16]);
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_TX || CONFIG_LGT
   inv_txfm2d_add_facade(input, output, stride, txfm_buf, tx_type, TX_8X16, mode,
                         bd);
 #else
@@ -791,12 +827,12 @@ void av1_inv_txfm2d_add_8x16_c(const int32_t *input, uint16_t *output,
 
 void av1_inv_txfm2d_add_16x8_c(const int32_t *input, uint16_t *output,
                                int stride, TX_TYPE tx_type,
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_TX || CONFIG_LGT
                                PREDICTION_MODE mode,
 #endif
                                int bd) {
   DECLARE_ALIGNED(32, int, txfm_buf[16 * 8 + 16 + 16]);
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_TX || CONFIG_LGT
   inv_txfm2d_add_facade(input, output, stride, txfm_buf, tx_type, TX_16X8, mode,
                         bd);
 #else
@@ -806,12 +842,12 @@ void av1_inv_txfm2d_add_16x8_c(const int32_t *input, uint16_t *output,
 
 void av1_inv_txfm2d_add_16x32_c(const int32_t *input, uint16_t *output,
                                 int stride, TX_TYPE tx_type,
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_TX || CONFIG_LGT
                                 PREDICTION_MODE mode,
 #endif
                                 int bd) {
   DECLARE_ALIGNED(32, int, txfm_buf[16 * 32 + 32 + 32]);
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_TX || CONFIG_LGT
   inv_txfm2d_add_facade(input, output, stride, txfm_buf, tx_type, TX_16X32,
                         mode, bd);
 #else
@@ -821,12 +857,12 @@ void av1_inv_txfm2d_add_16x32_c(const int32_t *input, uint16_t *output,
 
 void av1_inv_txfm2d_add_32x16_c(const int32_t *input, uint16_t *output,
                                 int stride, TX_TYPE tx_type,
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_TX || CONFIG_LGT
                                 PREDICTION_MODE mode,
 #endif
                                 int bd) {
   DECLARE_ALIGNED(32, int, txfm_buf[32 * 16 + 32 + 32]);
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_TX || CONFIG_LGT
   inv_txfm2d_add_facade(input, output, stride, txfm_buf, tx_type, TX_32X16,
                         mode, bd);
 #else
@@ -836,12 +872,12 @@ void av1_inv_txfm2d_add_32x16_c(const int32_t *input, uint16_t *output,
 
 void av1_inv_txfm2d_add_4x4_c(const int32_t *input, uint16_t *output,
                               int stride, TX_TYPE tx_type,
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_TX || CONFIG_LGT
                               PREDICTION_MODE mode,
 #endif
                               int bd) {
   DECLARE_ALIGNED(32, int, txfm_buf[4 * 4 + 4 + 4]);
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_TX || CONFIG_LGT
   inv_txfm2d_add_facade(input, output, stride, txfm_buf, tx_type, TX_4X4, mode,
                         bd);
 #else
@@ -851,12 +887,12 @@ void av1_inv_txfm2d_add_4x4_c(const int32_t *input, uint16_t *output,
 
 void av1_inv_txfm2d_add_8x8_c(const int32_t *input, uint16_t *output,
                               int stride, TX_TYPE tx_type,
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_TX || CONFIG_LGT
                               PREDICTION_MODE mode,
 #endif
                               int bd) {
   DECLARE_ALIGNED(32, int, txfm_buf[8 * 8 + 8 + 8]);
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_TX || CONFIG_LGT
   inv_txfm2d_add_facade(input, output, stride, txfm_buf, tx_type, TX_8X8, mode,
                         bd);
 #else
@@ -866,12 +902,12 @@ void av1_inv_txfm2d_add_8x8_c(const int32_t *input, uint16_t *output,
 
 void av1_inv_txfm2d_add_16x16_c(const int32_t *input, uint16_t *output,
                                 int stride, TX_TYPE tx_type,
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_TX || CONFIG_LGT
                                 PREDICTION_MODE mode,
 #endif
                                 int bd) {
   DECLARE_ALIGNED(32, int, txfm_buf[16 * 16 + 16 + 16]);
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_TX || CONFIG_LGT
   inv_txfm2d_add_facade(input, output, stride, txfm_buf, tx_type, TX_16X16,
                         mode, bd);
 #else
@@ -881,12 +917,12 @@ void av1_inv_txfm2d_add_16x16_c(const int32_t *input, uint16_t *output,
 
 void av1_inv_txfm2d_add_32x32_c(const int32_t *input, uint16_t *output,
                                 int stride, TX_TYPE tx_type,
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_TX || CONFIG_LGT
                                 PREDICTION_MODE mode,
 #endif
                                 int bd) {
   DECLARE_ALIGNED(32, int, txfm_buf[32 * 32 + 32 + 32]);
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_TX || CONFIG_LGT
   inv_txfm2d_add_facade(input, output, stride, txfm_buf, tx_type, TX_32X32,
                         mode, bd);
 #else
@@ -1142,9 +1178,9 @@ const int16_t stxnx64_filters[STXNX64_FILTER_COEFFS * NUM_EDGE_CLASSES] = {
 
 void av1_inv_txfm2d_add_64x64_c(const int32_t *input, uint16_t *output,
                                 int stride, TX_TYPE tx_type,
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_TX || CONFIG_LGT
                                 PREDICTION_MODE mode,
-#endif  // CONFIG_MODE_DEP_TX
+#endif  // CONFIG_MODE_DEP_TX || CONFIG_LGT
                                 int bd) {
   // Inverse 32x32 transform.
   DECLARE_ALIGNED(32, int, txfm_buf[32 * 32 + 32 + 32]);
@@ -1152,9 +1188,9 @@ void av1_inv_txfm2d_add_64x64_c(const int32_t *input, uint16_t *output,
   DECLARE_ALIGNED(32, int16_t, output_32x32[32 * 32]);
   memset(output_32x32, 0, 32 * 32 * sizeof(output_32x32[0]));
   inv_txfm2d_facade(input, output_32x32, 32, txfm_buf, tx_type, TX_32X32,
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_TX || CONFIG_LGT
                     mode,
-#endif  // CONFIG_MODE_DEP_TX
+#endif  // CONFIG_MODE_DEP_TX || CONFIG_LGT
                     bd);
   if (is_constant_buffer(output_32x32, 32, 32, 32)) {
     const tran_low_t residue = output_32x32[0];
@@ -1187,9 +1223,9 @@ void av1_inv_txfm2d_add_64x64_c(const int32_t *input, uint16_t *output,
 
 void av1_inv_txfm2d_add_32x64_c(const int32_t *input, uint16_t *output,
                                 int stride, TX_TYPE tx_type,
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_TX || CONFIG_LGT
                                 PREDICTION_MODE mode,
-#endif  // CONFIG_MODE_DEP_TX
+#endif  // CONFIG_MODE_DEP_TX || CONFIG_LGT
                                 int bd) {
   // Inverse 32x32 transform.
   DECLARE_ALIGNED(32, int, txfm_buf[32 * 32 + 32 + 32]);
@@ -1197,9 +1233,9 @@ void av1_inv_txfm2d_add_32x64_c(const int32_t *input, uint16_t *output,
   DECLARE_ALIGNED(32, int16_t, output_32x32[32 * 32]);
   memset(output_32x32, 0, 32 * 32 * sizeof(output_32x32[0]));
   inv_txfm2d_facade(input, output_32x32, 32, txfm_buf, tx_type, TX_32X32,
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_TX || CONFIG_LGT
                     mode,
-#endif  // CONFIG_MODE_DEP_TX
+#endif  // CONFIG_MODE_DEP_TX || CONFIG_LGT
                     bd);
   // Scale.
   for (int r = 0; r < 32; ++r) {
@@ -1240,9 +1276,9 @@ void av1_inv_txfm2d_add_32x64_c(const int32_t *input, uint16_t *output,
 
 void av1_inv_txfm2d_add_64x32_c(const int32_t *input, uint16_t *output,
                                 int stride, TX_TYPE tx_type,
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_TX || CONFIG_LGT
                                 PREDICTION_MODE mode,
-#endif  // CONFIG_MODE_DEP_TX
+#endif  // CONFIG_MODE_DEP_TX || CONFIG_LGT
                                 int bd) {
   // Inverse 32x32 transform.
   DECLARE_ALIGNED(32, int, txfm_buf[32 * 32 + 32 + 32]);
@@ -1250,9 +1286,9 @@ void av1_inv_txfm2d_add_64x32_c(const int32_t *input, uint16_t *output,
   DECLARE_ALIGNED(32, int16_t, output_32x32[32 * 32]);
   memset(output_32x32, 0, 32 * 32 * sizeof(output_32x32[0]));
   inv_txfm2d_facade(input, output_32x32, 32, txfm_buf, tx_type, TX_32X32,
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_TX || CONFIG_LGT
                     mode,
-#endif  // CONFIG_MODE_DEP_TX
+#endif  // CONFIG_MODE_DEP_TX || CONFIG_LGT
                     bd);
 
   // Scale.
@@ -1294,9 +1330,9 @@ void av1_inv_txfm2d_add_64x32_c(const int32_t *input, uint16_t *output,
 
 void av1_inv_txfm2d_add_16x64_c(const int32_t *input, uint16_t *output,
                                 int stride, TX_TYPE tx_type,
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_TX || CONFIG_LGT
                                 PREDICTION_MODE mode,
-#endif  // CONFIG_MODE_DEP_TX
+#endif  // CONFIG_MODE_DEP_TX || CONFIG_LGT
                                 int bd) {
   // Inverse 16x32 transform.
   DECLARE_ALIGNED(32, int, txfm_buf[16 * 32 + 32 + 32]);
@@ -1304,9 +1340,9 @@ void av1_inv_txfm2d_add_16x64_c(const int32_t *input, uint16_t *output,
   DECLARE_ALIGNED(32, int16_t, output_16x32[16 * 32]);
   memset(output_16x32, 0, 16 * 32 * sizeof(output_16x32[0]));
   inv_txfm2d_facade(input, output_16x32, 16, txfm_buf, tx_type, TX_16X32,
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_TX || CONFIG_LGT
                     mode,
-#endif  // CONFIG_MODE_DEP_TX
+#endif  // CONFIG_MODE_DEP_TX || CONFIG_LGT
                     bd);
 
   // Scale.
@@ -1348,9 +1384,9 @@ void av1_inv_txfm2d_add_16x64_c(const int32_t *input, uint16_t *output,
 
 void av1_inv_txfm2d_add_64x16_c(const int32_t *input, uint16_t *output,
                                 int stride, TX_TYPE tx_type,
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_TX || CONFIG_LGT
                                 PREDICTION_MODE mode,
-#endif  // CONFIG_MODE_DEP_TX
+#endif  // CONFIG_MODE_DEP_TX || CONFIG_LGT
                                 int bd) {
   // Inverse 32x16 transform.
   DECLARE_ALIGNED(32, int, txfm_buf[32 * 16 + 32 + 32]);
@@ -1358,9 +1394,9 @@ void av1_inv_txfm2d_add_64x16_c(const int32_t *input, uint16_t *output,
   DECLARE_ALIGNED(32, int16_t, output_32x16[32 * 16]);
   memset(output_32x16, 0, 32 * 16 * sizeof(output_32x16[0]));
   inv_txfm2d_facade(input, output_32x16, 32, txfm_buf, tx_type, TX_32X16,
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_TX || CONFIG_LGT
                     mode,
-#endif  // CONFIG_MODE_DEP_TX
+#endif  // CONFIG_MODE_DEP_TX || CONFIG_LGT
                     bd);
 
   // Scale.
@@ -1404,7 +1440,7 @@ void av1_inv_txfm2d_add_64x16_c(const int32_t *input, uint16_t *output,
 
 void av1_inv_txfm2d_add_64x64_c(const int32_t *input, uint16_t *output,
                                 int stride, TX_TYPE tx_type,
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_TX || CONFIG_LGT
                                 PREDICTION_MODE mode,
 #endif
                                 int bd) {
@@ -1419,7 +1455,7 @@ void av1_inv_txfm2d_add_64x64_c(const int32_t *input, uint16_t *output,
   }
   memset(mod_input + 32 * 64, 0, 32 * 64 * sizeof(*mod_input));
   DECLARE_ALIGNED(32, int, txfm_buf[64 * 64 + 64 + 64]);
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_TX || CONFIG_LGT
   inv_txfm2d_add_facade(mod_input, output, stride, txfm_buf, tx_type, TX_64X64,
                         mode, bd);
 #else
@@ -1430,7 +1466,7 @@ void av1_inv_txfm2d_add_64x64_c(const int32_t *input, uint16_t *output,
 
 void av1_inv_txfm2d_add_64x32_c(const int32_t *input, uint16_t *output,
                                 int stride, TX_TYPE tx_type,
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_TX || CONFIG_LGT
                                 PREDICTION_MODE mode,
 #endif
                                 int bd) {
@@ -1443,7 +1479,7 @@ void av1_inv_txfm2d_add_64x32_c(const int32_t *input, uint16_t *output,
     memset(mod_input + row * 64 + 32, 0, 32 * sizeof(*mod_input));
   }
   DECLARE_ALIGNED(32, int, txfm_buf[64 * 32 + 64 + 64]);
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_TX || CONFIG_LGT
   inv_txfm2d_add_facade(mod_input, output, stride, txfm_buf, tx_type, TX_64X32,
                         mode, bd);
 #else
@@ -1454,7 +1490,7 @@ void av1_inv_txfm2d_add_64x32_c(const int32_t *input, uint16_t *output,
 
 void av1_inv_txfm2d_add_32x64_c(const int32_t *input, uint16_t *output,
                                 int stride, TX_TYPE tx_type,
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_TX || CONFIG_LGT
                                 PREDICTION_MODE mode,
 #endif
                                 int bd) {
@@ -1465,7 +1501,7 @@ void av1_inv_txfm2d_add_32x64_c(const int32_t *input, uint16_t *output,
   memcpy(mod_input, input, 32 * 32 * sizeof(*mod_input));
   memset(mod_input + 32 * 32, 0, 32 * 32 * sizeof(*mod_input));
   DECLARE_ALIGNED(32, int, txfm_buf[64 * 32 + 64 + 64]);
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_TX || CONFIG_LGT
   inv_txfm2d_add_facade(mod_input, output, stride, txfm_buf, tx_type, TX_32X64,
                         mode, bd);
 #else
@@ -1476,7 +1512,7 @@ void av1_inv_txfm2d_add_32x64_c(const int32_t *input, uint16_t *output,
 
 void av1_inv_txfm2d_add_16x64_c(const int32_t *input, uint16_t *output,
                                 int stride, TX_TYPE tx_type,
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_TX || CONFIG_LGT
                                 PREDICTION_MODE mode,
 #endif
                                 int bd) {
@@ -1487,7 +1523,7 @@ void av1_inv_txfm2d_add_16x64_c(const int32_t *input, uint16_t *output,
   memcpy(mod_input, input, 16 * 32 * sizeof(*mod_input));
   memset(mod_input + 16 * 32, 0, 16 * 32 * sizeof(*mod_input));
   DECLARE_ALIGNED(32, int, txfm_buf[16 * 64 + 64 + 64]);
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_TX || CONFIG_LGT
   inv_txfm2d_add_facade(mod_input, output, stride, txfm_buf, tx_type, TX_16X64,
                         mode, bd);
 #else
@@ -1498,7 +1534,7 @@ void av1_inv_txfm2d_add_16x64_c(const int32_t *input, uint16_t *output,
 
 void av1_inv_txfm2d_add_64x16_c(const int32_t *input, uint16_t *output,
                                 int stride, TX_TYPE tx_type,
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_TX || CONFIG_LGT
                                 PREDICTION_MODE mode,
 #endif
                                 int bd) {
@@ -1511,7 +1547,7 @@ void av1_inv_txfm2d_add_64x16_c(const int32_t *input, uint16_t *output,
     memset(mod_input + row * 64 + 32, 0, 32 * sizeof(*mod_input));
   }
   DECLARE_ALIGNED(32, int, txfm_buf[16 * 64 + 64 + 64]);
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_TX || CONFIG_LGT
   inv_txfm2d_add_facade(mod_input, output, stride, txfm_buf, tx_type, TX_64X16,
                         mode, bd);
 #else
@@ -1524,12 +1560,12 @@ void av1_inv_txfm2d_add_64x16_c(const int32_t *input, uint16_t *output,
 
 void av1_inv_txfm2d_add_4x16_c(const int32_t *input, uint16_t *output,
                                int stride, TX_TYPE tx_type,
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_TX || CONFIG_LGT
                                PREDICTION_MODE mode,
 #endif
                                int bd) {
   DECLARE_ALIGNED(32, int, txfm_buf[4 * 16 + 16 + 16]);
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_TX || CONFIG_LGT
   inv_txfm2d_add_facade(input, output, stride, txfm_buf, tx_type, TX_4X16, mode,
                         bd);
 #else
@@ -1539,12 +1575,12 @@ void av1_inv_txfm2d_add_4x16_c(const int32_t *input, uint16_t *output,
 
 void av1_inv_txfm2d_add_16x4_c(const int32_t *input, uint16_t *output,
                                int stride, TX_TYPE tx_type,
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_TX || CONFIG_LGT
                                PREDICTION_MODE mode,
 #endif
                                int bd) {
   DECLARE_ALIGNED(32, int, txfm_buf[4 * 16 + 16 + 16]);
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_TX || CONFIG_LGT
   inv_txfm2d_add_facade(input, output, stride, txfm_buf, tx_type, TX_16X4, mode,
                         bd);
 #else
@@ -1554,12 +1590,12 @@ void av1_inv_txfm2d_add_16x4_c(const int32_t *input, uint16_t *output,
 
 void av1_inv_txfm2d_add_8x32_c(const int32_t *input, uint16_t *output,
                                int stride, TX_TYPE tx_type,
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_TX || CONFIG_LGT
                                PREDICTION_MODE mode,
 #endif
                                int bd) {
   DECLARE_ALIGNED(32, int, txfm_buf[8 * 32 + 32 + 32]);
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_TX || CONFIG_LGT
   inv_txfm2d_add_facade(input, output, stride, txfm_buf, tx_type, TX_8X32, mode,
                         bd);
 #else
@@ -1569,12 +1605,12 @@ void av1_inv_txfm2d_add_8x32_c(const int32_t *input, uint16_t *output,
 
 void av1_inv_txfm2d_add_32x8_c(const int32_t *input, uint16_t *output,
                                int stride, TX_TYPE tx_type,
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_TX || CONFIG_LGT
                                PREDICTION_MODE mode,
 #endif
                                int bd) {
   DECLARE_ALIGNED(32, int, txfm_buf[8 * 32 + 32 + 32]);
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_TX || CONFIG_LGT
   inv_txfm2d_add_facade(input, output, stride, txfm_buf, tx_type, TX_32X8, mode,
                         bd);
 #else
@@ -1585,12 +1621,12 @@ void av1_inv_txfm2d_add_32x8_c(const int32_t *input, uint16_t *output,
 #if CONFIG_FLEX_PARTITION
 void av1_inv_txfm2d_add_4x32_c(const int32_t *input, uint16_t *output,
                                int stride, TX_TYPE tx_type,
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_TX || CONFIG_LGT
                                PREDICTION_MODE mode,
 #endif
                                int bd) {
   DECLARE_ALIGNED(32, int, txfm_buf[4 * 32 + 32 + 32]);
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_TX || CONFIG_LGT
   inv_txfm2d_add_facade(input, output, stride, txfm_buf, tx_type, TX_4X32, mode,
                         bd);
 #else
@@ -1600,12 +1636,12 @@ void av1_inv_txfm2d_add_4x32_c(const int32_t *input, uint16_t *output,
 
 void av1_inv_txfm2d_add_32x4_c(const int32_t *input, uint16_t *output,
                                int stride, TX_TYPE tx_type,
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_TX || CONFIG_LGT
                                PREDICTION_MODE mode,
 #endif
                                int bd) {
   DECLARE_ALIGNED(32, int, txfm_buf[4 * 32 + 32 + 32]);
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_TX || CONFIG_LGT
   inv_txfm2d_add_facade(input, output, stride, txfm_buf, tx_type, TX_32X4, mode,
                         bd);
 #else
@@ -1615,7 +1651,7 @@ void av1_inv_txfm2d_add_32x4_c(const int32_t *input, uint16_t *output,
 
 void av1_inv_txfm2d_add_8x64_c(const int32_t *input, uint16_t *output,
                                int stride, TX_TYPE tx_type,
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_TX || CONFIG_LGT
                                PREDICTION_MODE mode,
 #endif
                                int bd) {
@@ -1626,7 +1662,7 @@ void av1_inv_txfm2d_add_8x64_c(const int32_t *input, uint16_t *output,
   memcpy(mod_input, input, 8 * 32 * sizeof(*mod_input));
   memset(mod_input + 8 * 32, 0, 8 * 32 * sizeof(*mod_input));
   DECLARE_ALIGNED(32, int, txfm_buf[8 * 64 + 64 + 64]);
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_TX || CONFIG_LGT
   inv_txfm2d_add_facade(mod_input, output, stride, txfm_buf, tx_type, TX_8X64,
                         mode, bd);
 #else
@@ -1637,7 +1673,7 @@ void av1_inv_txfm2d_add_8x64_c(const int32_t *input, uint16_t *output,
 
 void av1_inv_txfm2d_add_64x8_c(const int32_t *input, uint16_t *output,
                                int stride, TX_TYPE tx_type,
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_TX || CONFIG_LGT
                                PREDICTION_MODE mode,
 #endif
                                int bd) {
@@ -1650,7 +1686,7 @@ void av1_inv_txfm2d_add_64x8_c(const int32_t *input, uint16_t *output,
     memset(mod_input + row * 64 + 32, 0, 32 * sizeof(*mod_input));
   }
   DECLARE_ALIGNED(32, int, txfm_buf[8 * 64 + 64 + 64]);
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_TX || CONFIG_LGT
   inv_txfm2d_add_facade(mod_input, output, stride, txfm_buf, tx_type, TX_64X8,
                         mode, bd);
 #else
@@ -1661,7 +1697,7 @@ void av1_inv_txfm2d_add_64x8_c(const int32_t *input, uint16_t *output,
 
 void av1_inv_txfm2d_add_4x64_c(const int32_t *input, uint16_t *output,
                                int stride, TX_TYPE tx_type,
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_TX || CONFIG_LGT
                                PREDICTION_MODE mode,
 #endif
                                int bd) {
@@ -1672,7 +1708,7 @@ void av1_inv_txfm2d_add_4x64_c(const int32_t *input, uint16_t *output,
   memcpy(mod_input, input, 4 * 32 * sizeof(*mod_input));
   memset(mod_input + 4 * 32, 0, 4 * 32 * sizeof(*mod_input));
   DECLARE_ALIGNED(32, int, txfm_buf[4 * 64 + 64 + 64]);
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_TX || CONFIG_LGT
   inv_txfm2d_add_facade(mod_input, output, stride, txfm_buf, tx_type, TX_4X64,
                         mode, bd);
 #else
@@ -1683,7 +1719,7 @@ void av1_inv_txfm2d_add_4x64_c(const int32_t *input, uint16_t *output,
 
 void av1_inv_txfm2d_add_64x4_c(const int32_t *input, uint16_t *output,
                                int stride, TX_TYPE tx_type,
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_TX || CONFIG_LGT
                                PREDICTION_MODE mode,
 #endif
                                int bd) {
@@ -1696,7 +1732,7 @@ void av1_inv_txfm2d_add_64x4_c(const int32_t *input, uint16_t *output,
     memset(mod_input + row * 64 + 32, 0, 32 * sizeof(*mod_input));
   }
   DECLARE_ALIGNED(32, int, txfm_buf[4 * 64 + 64 + 64]);
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_TX || CONFIG_LGT
   inv_txfm2d_add_facade(mod_input, output, stride, txfm_buf, tx_type, TX_64X4,
                         mode, bd);
 #else

@@ -214,11 +214,11 @@ static void idtx4x4_sse4_1(__m128i *in, __m128i *out, int bit, int col_num) {
 }
 void av1_fwd_txfm2d_4x4_sse4_1(const int16_t *input, int32_t *coeff,
                                int input_stride, TX_TYPE tx_type,
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_TX || CONFIG_LGT
                                PREDICTION_MODE mode,
 #endif
                                int bd) {
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_TX || CONFIG_LGT
   (void)mode;
 #endif
   __m128i in[4];
@@ -850,11 +850,11 @@ static void idtx32x8_sse4_1(__m128i *in, __m128i *out, int bit, int col_num) {
 }
 void av1_fwd_txfm2d_8x8_sse4_1(const int16_t *input, int32_t *coeff, int stride,
                                TX_TYPE tx_type,
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_TX || CONFIG_LGT
                                PREDICTION_MODE mode,
 #endif
                                int bd) {
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_TX || CONFIG_LGT
   (void)mode;
 #endif
   __m128i in[16], out[16];
@@ -1763,11 +1763,11 @@ static void idtx16x16_sse4_1(__m128i *in, __m128i *out, int bit, int col_num) {
 }
 void av1_fwd_txfm2d_16x16_sse4_1(const int16_t *input, int32_t *coeff,
                                  int stride, TX_TYPE tx_type,
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_TX || CONFIG_LGT
                                  PREDICTION_MODE mode,
 #endif
                                  int bd) {
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_TX || CONFIG_LGT
   (void)mode;
 #endif
   __m128i in[64], out[64];
@@ -2154,11 +2154,11 @@ static const fwd_transform_1d_sse4_1 row_highbd_txfm8x32_arr[TX_TYPES] = {
 
 void av1_fwd_txfm2d_16x8_sse4_1(const int16_t *input, int32_t *coeff,
                                 int stride, TX_TYPE tx_type,
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_TX || CONFIG_LGT
                                 PREDICTION_MODE mode,
 #endif
                                 int bd) {
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_TX || CONFIG_LGT
   (void)mode;
 #endif
   __m128i in[32], out[32];
@@ -2196,11 +2196,11 @@ void av1_fwd_txfm2d_16x8_sse4_1(const int16_t *input, int32_t *coeff,
 
 void av1_fwd_txfm2d_8x16_sse4_1(const int16_t *input, int32_t *coeff,
                                 int stride, TX_TYPE tx_type,
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_TX || CONFIG_LGT
                                 PREDICTION_MODE mode,
 #endif
                                 int bd) {
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_TX || CONFIG_LGT
   (void)mode;
 #endif
   __m128i in[32], out[32];
@@ -2231,11 +2231,11 @@ void av1_fwd_txfm2d_8x16_sse4_1(const int16_t *input, int32_t *coeff,
 
 void av1_fwd_txfm2d_4x16_sse4_1(const int16_t *input, int32_t *coeff,
                                 int stride, TX_TYPE tx_type,
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_TX || CONFIG_LGT
                                 PREDICTION_MODE mode,
 #endif
                                 int bd) {
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_TX || CONFIG_LGT
   (void)mode;
 #endif
   __m128i in[16];
@@ -2267,11 +2267,11 @@ void av1_fwd_txfm2d_4x16_sse4_1(const int16_t *input, int32_t *coeff,
 
 void av1_fwd_txfm2d_16x4_sse4_1(const int16_t *input, int32_t *coeff,
                                 int stride, TX_TYPE tx_type,
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_TX || CONFIG_LGT
                                 PREDICTION_MODE mode,
 #endif
                                 int bd) {
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_TX || CONFIG_LGT
   (void)mode;
 #endif
   __m128i in[16];
@@ -2305,11 +2305,11 @@ void av1_fwd_txfm2d_16x4_sse4_1(const int16_t *input, int32_t *coeff,
 
 void av1_fwd_txfm2d_16x32_sse4_1(const int16_t *input, int32_t *coeff,
                                  int stride, TX_TYPE tx_type,
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_TX || CONFIG_LGT
                                  PREDICTION_MODE mode,
 #endif
                                  int bd) {
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_TX || CONFIG_LGT
   (void)mode;
 #endif
   __m128i in[128];
@@ -2343,11 +2343,11 @@ void av1_fwd_txfm2d_16x32_sse4_1(const int16_t *input, int32_t *coeff,
 
 void av1_fwd_txfm2d_32x64_sse4_1(const int16_t *input, int32_t *coeff,
                                  int stride, TX_TYPE tx_type,
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_TX || CONFIG_LGT
                                  PREDICTION_MODE mode,
 #endif
                                  int bd) {
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_TX || CONFIG_LGT
   (void)mode;
 #endif
   (void)tx_type;
@@ -2385,11 +2385,11 @@ void av1_fwd_txfm2d_32x64_sse4_1(const int16_t *input, int32_t *coeff,
 
 void av1_fwd_txfm2d_64x32_sse4_1(const int16_t *input, int32_t *coeff,
                                  int stride, TX_TYPE tx_type,
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_TX || CONFIG_LGT
                                  PREDICTION_MODE mode,
 #endif
                                  int bd) {
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_TX || CONFIG_LGT
   (void)mode;
 #endif
   (void)tx_type;
@@ -2437,11 +2437,11 @@ void av1_fwd_txfm2d_64x32_sse4_1(const int16_t *input, int32_t *coeff,
 
 void av1_fwd_txfm2d_32x16_sse4_1(const int16_t *input, int32_t *coeff,
                                  int stride, TX_TYPE tx_type,
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_TX || CONFIG_LGT
                                  PREDICTION_MODE mode,
 #endif
                                  int bd) {
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_TX || CONFIG_LGT
   (void)mode;
 #endif
   __m128i in[128];
@@ -2473,11 +2473,11 @@ void av1_fwd_txfm2d_32x16_sse4_1(const int16_t *input, int32_t *coeff,
 
 void av1_fwd_txfm2d_8x32_sse4_1(const int16_t *input, int32_t *coeff,
                                 int stride, TX_TYPE tx_type,
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_TX || CONFIG_LGT
                                 PREDICTION_MODE mode,
 #endif
                                 int bd) {
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_TX || CONFIG_LGT
   (void)mode;
 #endif
   __m128i in[64];
@@ -2515,11 +2515,11 @@ void av1_fwd_txfm2d_8x32_sse4_1(const int16_t *input, int32_t *coeff,
 
 void av1_fwd_txfm2d_32x8_sse4_1(const int16_t *input, int32_t *coeff,
                                 int stride, TX_TYPE tx_type,
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_TX || CONFIG_LGT
                                 PREDICTION_MODE mode,
 #endif
                                 int bd) {
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_TX || CONFIG_LGT
   (void)mode;
 #endif
   __m128i in[64];
@@ -2555,11 +2555,11 @@ void av1_fwd_txfm2d_32x8_sse4_1(const int16_t *input, int32_t *coeff,
 
 void av1_fwd_txfm2d_4x8_sse4_1(const int16_t *input, int32_t *coeff, int stride,
                                TX_TYPE tx_type,
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_TX || CONFIG_LGT
                                PREDICTION_MODE mode,
 #endif
                                int bd) {
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_TX || CONFIG_LGT
   (void)mode;
 #endif
   __m128i in[8];
@@ -2592,11 +2592,11 @@ void av1_fwd_txfm2d_4x8_sse4_1(const int16_t *input, int32_t *coeff, int stride,
 
 void av1_fwd_txfm2d_8x4_sse4_1(const int16_t *input, int32_t *coeff, int stride,
                                TX_TYPE tx_type,
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_TX || CONFIG_LGT
                                PREDICTION_MODE mode,
 #endif
                                int bd) {
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_TX || CONFIG_LGT
   (void)mode;
 #endif
   __m128i in[8];
@@ -2629,11 +2629,11 @@ void av1_fwd_txfm2d_8x4_sse4_1(const int16_t *input, int32_t *coeff, int stride,
 
 void av1_fwd_txfm2d_16x64_sse4_1(const int16_t *input, int32_t *coeff,
                                  int stride, TX_TYPE tx_type,
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_TX || CONFIG_LGT
                                  PREDICTION_MODE mode,
 #endif
                                  int bd) {
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_TX || CONFIG_LGT
   (void)mode;
 #endif
   __m128i in[256];
@@ -2678,11 +2678,11 @@ void av1_fwd_txfm2d_16x64_sse4_1(const int16_t *input, int32_t *coeff,
 
 void av1_fwd_txfm2d_64x16_sse4_1(const int16_t *input, int32_t *coeff,
                                  int stride, TX_TYPE tx_type,
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_TX || CONFIG_LGT
                                  PREDICTION_MODE mode,
 #endif
                                  int bd) {
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_TX || CONFIG_LGT
   (void)mode;
 #endif
   __m128i in[256];

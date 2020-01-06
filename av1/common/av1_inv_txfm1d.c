@@ -694,19 +694,36 @@ void av1_imdt16(const int32_t *input, int32_t *output, int8_t cos_bit,
 }
 #endif  // CONFIG_MODE_DEP_TX
 
-void av1_iadst4_new(const int32_t *input, int32_t *output, int8_t cos_bit,
-                    const int8_t *stage_range) {
 #if CONFIG_LGT
+void av1_iadst4_lgt_intra(const int32_t *input, int32_t *output, int8_t cos_bit,
+                          const int8_t *stage_range) {
   (void)cos_bit;
   (void)stage_range;
   for (int32_t i = 0; i < 4; i++) {
     int32_t sum = 0;
     for (int32_t j = 0; j < 4; j++) {
-      sum += input[j] * lgt_4x4[j * 4 + i];
+      sum += input[j] * lgt_intra_4x4[j * 4 + i];
     }
     output[i] = ROUND_POWER_OF_TWO_SIGNED(sum, LGT_PREC_BITS);
   }
-#else
+}
+
+void av1_iadst4_lgt_inter(const int32_t *input, int32_t *output, int8_t cos_bit,
+                          const int8_t *stage_range) {
+  (void)cos_bit;
+  (void)stage_range;
+  for (int32_t i = 0; i < 4; i++) {
+    int32_t sum = 0;
+    for (int32_t j = 0; j < 4; j++) {
+      sum += input[j] * lgt_inter_4x4[j * 4 + i];
+    }
+    output[i] = ROUND_POWER_OF_TWO_SIGNED(sum, LGT_PREC_BITS);
+  }
+}
+#endif  // CONFIG_LGT
+
+void av1_iadst4_new(const int32_t *input, int32_t *output, int8_t cos_bit,
+                    const int8_t *stage_range) {
   int bit = cos_bit;
   const int32_t *sinpi = sinpi_arr(bit);
   int32_t s0, s1, s2, s3, s4, s5, s6, s7;
@@ -760,23 +777,39 @@ void av1_iadst4_new(const int32_t *input, int32_t *output, int8_t cos_bit,
   output[1] = round_shift(x1, bit);
   output[2] = round_shift(x2, bit);
   output[3] = round_shift(x3, bit);
-#endif  // CONFIG_LGT
 }
 
-void av1_iadst8_new(const int32_t *input, int32_t *output, int8_t cos_bit,
-                    const int8_t *stage_range) {
-  assert(output != input);
 #if CONFIG_LGT
+void av1_iadst8_lgt_intra(const int32_t *input, int32_t *output, int8_t cos_bit,
+                          const int8_t *stage_range) {
   (void)cos_bit;
   (void)stage_range;
   for (int32_t i = 0; i < 8; i++) {
     int32_t sum = 0;
     for (int32_t j = 0; j < 8; j++) {
-      sum += input[j] * lgt_8x8[j * 8 + i];
+      sum += input[j] * lgt_intra_8x8[j * 8 + i];
     }
     output[i] = ROUND_POWER_OF_TWO_SIGNED(sum, LGT_PREC_BITS);
   }
-#else
+}
+
+void av1_iadst8_lgt_inter(const int32_t *input, int32_t *output, int8_t cos_bit,
+                          const int8_t *stage_range) {
+  (void)cos_bit;
+  (void)stage_range;
+  for (int32_t i = 0; i < 8; i++) {
+    int32_t sum = 0;
+    for (int32_t j = 0; j < 8; j++) {
+      sum += input[j] * lgt_inter_8x8[j * 8 + i];
+    }
+    output[i] = ROUND_POWER_OF_TWO_SIGNED(sum, LGT_PREC_BITS);
+  }
+}
+#endif  // CONFIG_LGT
+
+void av1_iadst8_new(const int32_t *input, int32_t *output, int8_t cos_bit,
+                    const int8_t *stage_range) {
+  assert(output != input);
   const int32_t size = 8;
   const int32_t *cospi = cospi_arr(cos_bit);
 
@@ -881,23 +914,40 @@ void av1_iadst8_new(const int32_t *input, int32_t *output, int8_t cos_bit,
   bf1[5] = -bf0[7];
   bf1[6] = bf0[5];
   bf1[7] = -bf0[1];
-#endif  // CONFIG_LGT
 }
 
-void av1_iadst16_new(const int32_t *input, int32_t *output, int8_t cos_bit,
-                     const int8_t *stage_range) {
-  assert(output != input);
 #if CONFIG_LGT
+void av1_iadst16_lgt_intra(const int32_t *input, int32_t *output,
+                           int8_t cos_bit, const int8_t *stage_range) {
   (void)cos_bit;
   (void)stage_range;
   for (int32_t i = 0; i < 16; i++) {
     int32_t sum = 0;
     for (int32_t j = 0; j < 16; j++) {
-      sum += input[j] * lgt_16x16[j * 16 + i];
+      sum += input[j] * lgt_intra_16x16[j * 16 + i];
     }
     output[i] = ROUND_POWER_OF_TWO_SIGNED(sum, LGT_PREC_BITS);
   }
-#elif CONFIG_DST7_16X16
+}
+
+void av1_iadst16_lgt_inter(const int32_t *input, int32_t *output,
+                           int8_t cos_bit, const int8_t *stage_range) {
+  (void)cos_bit;
+  (void)stage_range;
+  for (int32_t i = 0; i < 16; i++) {
+    int32_t sum = 0;
+    for (int32_t j = 0; j < 16; j++) {
+      sum += input[j] * lgt_inter_16x16[j * 16 + i];
+    }
+    output[i] = ROUND_POWER_OF_TWO_SIGNED(sum, LGT_PREC_BITS);
+  }
+}
+#endif  // CONFIG_LGT
+
+void av1_iadst16_new(const int32_t *input, int32_t *output, int8_t cos_bit,
+                     const int8_t *stage_range) {
+  assert(output != input);
+#if CONFIG_DST7_16X16
   (void)cos_bit;
   (void)stage_range;
   for (int32_t i = 0; i < 16; i++) {

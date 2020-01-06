@@ -38,9 +38,12 @@ extern const int32_t dst7_16x16[16][16];
 #endif
 #if CONFIG_LGT
 #define LGT_PREC_BITS 16
-extern const int32_t lgt_4x4[4 * 4];
-extern const int32_t lgt_8x8[8 * 8];
-extern const int32_t lgt_16x16[16 * 16];
+extern const int32_t lgt_intra_4x4[4 * 4];
+extern const int32_t lgt_intra_8x8[8 * 8];
+extern const int32_t lgt_intra_16x16[16 * 16];
+extern const int32_t lgt_inter_4x4[4 * 4];
+extern const int32_t lgt_inter_8x8[8 * 8];
+extern const int32_t lgt_inter_16x16[16 * 16];
 #endif
 
 #define MAX_TXFM_STAGE_NUM 12
@@ -118,7 +121,7 @@ static INLINE uint16_t highbd_clip_pixel_add(uint16_t dest, tran_high_t trans,
 typedef void (*TxfmFunc)(const int32_t *input, int32_t *output, int8_t cos_bit,
                          const int8_t *stage_range);
 
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_TX || CONFIG_LGT
 typedef void (*FwdTxfm2dFunc)(const int16_t *input, int32_t *output, int stride,
                               TX_TYPE tx_type, PREDICTION_MODE mode, int bd);
 #else
@@ -179,12 +182,13 @@ typedef struct TXFM_2D_FLIP_CFG {
   TXFM_TYPE txfm_type_row;
   int stage_num_col;
   int stage_num_row;
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_TX || CONFIG_LGT
   PREDICTION_MODE mode;
-#if USE_MDTX_INTRA && CONFIG_MODE_DEP_NONSEP_INTRA_TX
+#if CONFIG_MODE_DEP_TX && USE_MDTX_INTRA && CONFIG_MODE_DEP_NONSEP_INTRA_TX
   const int32_t *nstx_mtx_ptr;
-#endif  // USE_MDTX_INTRA && CONFIG_MODE_DEP_NONSEP_INTRA_TX
-#endif  // CONFIG_MODE_DEP_TX
+#endif  // CONFIG_MODE_DEP_TX && USE_MDTX_INTRA &&
+        // CONFIG_MODE_DEP_NONSEP_INTRA_TX
+#endif  // CONFIG_MODE_DEP_TX || CONFIG_LGT
 } TXFM_2D_FLIP_CFG;
 
 static INLINE void get_flip_cfg(TX_TYPE tx_type, int *ud_flip, int *lr_flip) {
@@ -289,12 +293,12 @@ void av1_gen_inv_stage_range(int8_t *stage_range_col, int8_t *stage_range_row,
                              int bd);
 
 void av1_get_fwd_txfm_cfg(TX_TYPE tx_type, TX_SIZE tx_size,
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_TX || CONFIG_LGT
                           PREDICTION_MODE mode,
 #endif
                           TXFM_2D_FLIP_CFG *cfg);
 void av1_get_inv_txfm_cfg(TX_TYPE tx_type, TX_SIZE tx_size,
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_TX || CONFIG_LGT
                           PREDICTION_MODE mode,
 #endif
                           TXFM_2D_FLIP_CFG *cfg);
