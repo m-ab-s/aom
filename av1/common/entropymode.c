@@ -946,8 +946,8 @@ static const aom_cdf_prob default_zeromv_cdf[GLOBALMV_MODE_CONTEXTS][CDF_SIZE(
 
 static const aom_cdf_prob default_drl_cdf[DRL_MODE_CONTEXTS][CDF_SIZE(2)] = {
   { AOM_CDF2(15946) }, { AOM_CDF2(24871) }, { AOM_CDF2(16015) },
-  { AOM_CDF2(17813) }, { AOM_CDF2(19618) }, { AOM_CDF2(14845) },
-  { AOM_CDF2(28461) }, { AOM_CDF2(25572) }, { AOM_CDF2(20156) }
+  { AOM_CDF2(23974) }, { AOM_CDF2(24188) }, { AOM_CDF2(17848) },
+  { AOM_CDF2(28622) }, { AOM_CDF2(24312) }, { AOM_CDF2(19923) }
 };
 
 static const aom_cdf_prob

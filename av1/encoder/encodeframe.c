@@ -803,6 +803,30 @@ static void pick_sb_modes(AV1_COMP *const cpi, TileDataEnc *tile_data,
 #endif
 }
 
+#if CONFIG_NEW_INTER_MODES
+static void update_drl_index_stats(FRAME_CONTEXT *fc, FRAME_COUNTS *counts,
+                                   const MB_MODE_INFO *mbmi,
+                                   const MB_MODE_INFO_EXT *mbmi_ext,
+                                   int16_t mode_ctx, uint8_t allow_update_cdf) {
+  assert(is_inter_mode(mbmi->mode));
+#if !CONFIG_ENTROPY_STATS
+  (void)counts;
+#endif  // !CONFIG_ENTROPY_STATS
+  if (!allow_update_cdf) return;
+  uint8_t ref_frame_type = av1_ref_frame_type(mbmi->ref_frame);
+  int range = AOMMIN(mbmi_ext->ref_mv_count[ref_frame_type] - 1, 3);
+  for (int idx = 0; idx < range; ++idx) {
+    uint8_t drl_ctx =
+        av1_drl_ctx(mode_ctx, mbmi_ext->weight[ref_frame_type], idx);
+#if CONFIG_ENTROPY_STATS
+    counts->drl_mode[drl_ctx][mbmi->ref_mv_idx != idx]++;
+#endif  // CONFIG_ENTROPY_STATS
+    update_cdf(fc->drl_cdf[drl_ctx], mbmi->ref_mv_idx != idx, 2);
+    if (mbmi->ref_mv_idx == idx) break;
+  }
+}
+#endif  // CONFIG_NEW_INTER_MODES
+
 static void update_inter_mode_stats(FRAME_CONTEXT *fc, FRAME_COUNTS *counts,
                                     PREDICTION_MODE mode, int16_t mode_context,
                                     uint8_t allow_update_cdf) {
@@ -833,8 +857,8 @@ static void update_inter_mode_stats(FRAME_CONTEXT *fc, FRAME_COUNTS *counts,
       ++counts->zeromv_mode[mode_ctx][1];
 #endif
       if (allow_update_cdf) update_cdf(fc->zeromv_cdf[mode_ctx], 1, 2);
-      mode_ctx = (mode_context >> REFMV_OFFSET) & REFMV_CTX_MASK;
 #if !CONFIG_NEW_INTER_MODES
+      mode_ctx = (mode_context >> REFMV_OFFSET) & REFMV_CTX_MASK;
 #if CONFIG_ENTROPY_STATS
       ++counts->refmv_mode[mode_ctx][mode != NEARESTMV];
 #endif
@@ -1577,24 +1601,17 @@ static void update_stats(const AV1_COMMON *const cm, TileDataEnc *tile_data,
       } else {
         update_inter_mode_stats(fc, counts, mode, mode_ctx, allow_update_cdf);
       }
+      if (is_inter_mode(mbmi->mode)) {
+      }
 
       const int new_mv = mbmi->mode == NEWMV || mbmi->mode == NEW_NEWMV;
 
 #if CONFIG_NEW_INTER_MODES
-#if CONFIG_ENTROPY_STATS
-      const int has_drl = have_newmv_in_inter_mode(mbmi->mode) ||
-                          have_nearmv_in_inter_mode(mbmi->mode);
+      const int has_drl = is_inter_mode(mbmi->mode);
       if (has_drl) {
-        uint8_t ref_frame_type = av1_ref_frame_type(mbmi->ref_frame);
-        int range = AOMMIN(mbmi_ext->ref_mv_count[ref_frame_type] - 1, 3);
-        for (int idx = 0; idx < range; ++idx) {
-          uint8_t drl_ctx =
-              av1_drl_ctx(mode_ctx, mbmi_ext->weight[ref_frame_type], idx);
-          counts->drl_mode[drl_ctx][mbmi->ref_mv_idx != idx]++;
-          if (mbmi->ref_mv_idx == idx) break;
-        }
+        update_drl_index_stats(fc, counts, mbmi, mbmi_ext, mode_ctx,
+                               allow_update_cdf);
       }
-#endif
       if (have_newmv_in_inter_mode(mbmi->mode)) {
         if (new_mv) {
           for (int ref = 0; ref < 1 + has_second_ref(mbmi); ++ref) {
