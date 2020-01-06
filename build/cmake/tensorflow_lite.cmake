@@ -68,14 +68,11 @@ function(add_tensorflow_lite_dependency_)
   include_directories("${AOM_ROOT}/third_party/tensorflow")
   include_directories(
     "${AOM_ROOT}/third_party/tensorflow_aom/flatbuffers/include/")
-  # Add tensorflow-lite as a dependency on all AOM applications.
-  foreach(aom_app ${AOM_APP_TARGETS})
-    add_dependencies(${aom_app} tensorflowlite_a)
-    target_link_libraries(
-      ${aom_app}
-      PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/libtensorflow-lite.a")
-    target_link_libraries(${aom_app} ${AOM_LIB_LINK_TYPE} Threads::Threads)
-  endforeach()
+  # Add tensorflow-lite as a dependency on libaom.
+  add_dependencies(aom tensorflowlite_a)
+  target_link_libraries(aom ${AOM_LIB_LINK_TYPE}
+                        "${CMAKE_CURRENT_BINARY_DIR}/libtensorflow-lite.a")
+  target_link_libraries(aom PRIVATE Threads::Threads)
 endfunction()
 
 function(add_tensorflow_lite_example_)

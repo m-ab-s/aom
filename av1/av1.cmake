@@ -376,6 +376,17 @@ endif()
 if(CONFIG_CNN_RESTORATION OR CONFIG_LOOP_RESTORE_CNN)
   list(APPEND AOM_AV1_COMMON_SOURCES "${AOM_ROOT}/av1/common/cnn_wrapper.c"
               "${AOM_ROOT}/av1/common/cnn_wrapper.h")
+  if(CONFIG_TENSORFLOW_LITE)
+    list(
+      APPEND
+        AOM_AV1_COMMON_SOURCES "${AOM_ROOT}/av1/common/cnn_tflite.cc"
+        "${AOM_ROOT}/av1/common/cnn_tflite.h"
+        "${AOM_ROOT}/av1/tflite_models/intra_frame_model/qp32.cc"
+        "${AOM_ROOT}/av1/tflite_models/intra_frame_model/qp32.h"
+        "${AOM_ROOT}/av1/tflite_models/intra_frame_model/qp32_op_registrations.cc"
+        "${AOM_ROOT}/av1/tflite_models/intra_frame_model/qp32_op_registrations.h"
+      )
+  endif()
 endif()
 
 if(CONFIG_REALTIME_ONLY)

@@ -188,7 +188,9 @@ aom_codec_err_t aom_codec_enc_config_default(aom_codec_iface_t *iface,
 #define FLOATING_POINT_RESTORE_PRECISION
 #endif  // ARCH_X86 || ARCH_X86_64
 
-#if HAVE_FEXCEPT && CONFIG_DEBUG
+// Tensorflow lite seems to allow certain kinds of SIGFPE as part of the
+// computation. So we disable setting floating point exceptions when using it.
+#if HAVE_FEXCEPT && CONFIG_DEBUG && !CONFIG_TENSORFLOW_LITE
 #define FLOATING_POINT_SET_EXCEPTIONS \
   const int float_excepts =           \
       feenableexcept(FE_DIVBYZERO | FE_UNDERFLOW | FE_OVERFLOW);
