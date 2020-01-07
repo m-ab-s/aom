@@ -213,7 +213,8 @@ static void read_drl_idx(FRAME_CONTEXT *ec_ctx, int16_t mode_ctx,
   assert(!mbmi->skip_mode);
   int range = AOMMIN(xd->ref_mv_count[ref_frame_type] - 1, 3);
   for (int idx = 0; idx < range; ++idx) {
-    uint8_t drl_ctx = av1_drl_ctx(mode_ctx, xd->weight[ref_frame_type], idx);
+    uint8_t drl_ctx =
+        av1_drl_ctx(mode_ctx, mbmi->mode, xd->weight[ref_frame_type], idx);
     int drl_idx = aom_read_symbol(r, ec_ctx->drl_cdf[drl_ctx], 2, ACCT_STR);
     mbmi->ref_mv_idx = idx + drl_idx;
     if (!drl_idx) break;

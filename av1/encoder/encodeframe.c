@@ -816,12 +816,12 @@ static void update_drl_index_stats(FRAME_CONTEXT *fc, FRAME_COUNTS *counts,
   uint8_t ref_frame_type = av1_ref_frame_type(mbmi->ref_frame);
   int range = AOMMIN(mbmi_ext->ref_mv_count[ref_frame_type] - 1, 3);
   for (int idx = 0; idx < range; ++idx) {
-    uint8_t drl_ctx =
-        av1_drl_ctx(mode_ctx, mbmi_ext->weight[ref_frame_type], idx);
+    uint8_t drl_ctx = av1_drl_ctx(mode_ctx, mbmi->mode,
+                                  mbmi_ext->weight[ref_frame_type], idx);
 #if CONFIG_ENTROPY_STATS
     counts->drl_mode[drl_ctx][mbmi->ref_mv_idx != idx]++;
 #endif  // CONFIG_ENTROPY_STATS
-    update_cdf(fc->drl_cdf[drl_ctx], mbmi->ref_mv_idx != idx, 2);
+    if (idx == 0) update_cdf(fc->drl_cdf[drl_ctx], mbmi->ref_mv_idx != idx, 2);
     if (mbmi->ref_mv_idx == idx) break;
   }
 }
@@ -1601,9 +1601,6 @@ static void update_stats(const AV1_COMMON *const cm, TileDataEnc *tile_data,
       } else {
         update_inter_mode_stats(fc, counts, mode, mode_ctx, allow_update_cdf);
       }
-      if (is_inter_mode(mbmi->mode)) {
-      }
-
       const int new_mv = mbmi->mode == NEWMV || mbmi->mode == NEW_NEWMV;
 
 #if CONFIG_NEW_INTER_MODES

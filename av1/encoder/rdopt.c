@@ -10767,8 +10767,8 @@ static INLINE int get_drl_cost(const MB_MODE_INFO *mbmi,
   int cost = 0;
   int range = AOMMIN(mbmi_ext->ref_mv_count[ref_frame_type] - 1, 3);
   for (int idx = 0; idx < range; ++idx) {
-    uint8_t drl_ctx =
-        av1_drl_ctx(mode_ctx, mbmi_ext->weight[ref_frame_type], idx);
+    uint8_t drl_ctx = av1_drl_ctx(mode_ctx, mbmi->mode,
+                                  mbmi_ext->weight[ref_frame_type], idx);
     cost += drl_mode_cost0[drl_ctx][mbmi->ref_mv_idx != idx];
     if (mbmi->ref_mv_idx == idx) return cost;
   }
@@ -11497,12 +11497,16 @@ static int64_t handle_inter_mode(
   for (int ref_mv_idx = 0; ref_mv_idx < ref_set; ++ref_mv_idx) {
     mode_info[ref_mv_idx].mv.as_int = INVALID_MV;
     mode_info[ref_mv_idx].rd = INT64_MAX;
+#if CONFIG_NEW_INTER_MODES
+    (void)idx_mask;
+#else
     // This optimization makes it possible to ignore MV 0.
     // Because NEARESTMV is gone, this greatly hurts performance.
     if (!mask_check_bit(idx_mask, ref_mv_idx)) {
       // MV did not perform well in simple translation search. Skip it.
       continue;
     }
+#endif  // CONFIG_NEW_INTER_MODES
     av1_init_rd_stats(rd_stats);
 
     mbmi->interinter_comp.type = COMPOUND_AVERAGE;

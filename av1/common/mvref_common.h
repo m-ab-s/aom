@@ -179,7 +179,7 @@ static INLINE int16_t av1_mode_context_analyzer(
 }
 
 #if CONFIG_NEW_INTER_MODES
-static INLINE uint8_t av1_drl_ctx(int16_t mode_ctx,
+static INLINE uint8_t av1_drl_ctx(int16_t mode_ctx, PREDICTION_MODE mode,
                                   const uint16_t *ref_mv_weight, int ref_idx) {
   int ctx = 0;
   if (ref_mv_weight[ref_idx] >= REF_CAT_LEVEL &&
@@ -194,7 +194,7 @@ static INLINE uint8_t av1_drl_ctx(int16_t mode_ctx,
       ref_mv_weight[ref_idx + 1] < REF_CAT_LEVEL)
     ctx = 2;
 
-  if (ref_idx == 0) {
+  if (ref_idx == 0 && mode == NEARMV) {
     ctx = 3 + ((mode_ctx >> REFMV_OFFSET) & REFMV_CTX_MASK);
   }
 
