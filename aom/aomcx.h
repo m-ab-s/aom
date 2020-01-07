@@ -1187,7 +1187,15 @@ enum aome_enc_control_id {
   /*!\brief Codec control function to set reference frame config:
    * the ref_idx and the refresh flags for each buffer slot.
    */
-  AV1E_SET_SVC_REF_FRAME_CONFIG = 152
+  AV1E_SET_SVC_REF_FRAME_CONFIG = 152,
+
+  /*!\brief Codec control function to enable the superblock multipass unit test
+   * in AV1 to ensure that the encoder does not leak state between different
+   * passes. Please note that this is only used in sb_multipass unit test.
+   *
+   * 0 : off, 1 : on
+   */
+  AV1E_ENABLE_SB_MULTIPASS_UNIT_TEST = 155,
 };
 
 /*!\brief aom 1-D scaling mode
@@ -1620,6 +1628,9 @@ AOM_CTRL_USE_TYPE(AV1E_SET_TIER_MASK, unsigned int)
 
 AOM_CTRL_USE_TYPE(AV1E_SET_MIN_CR, unsigned int)
 #define AOM_CTRL_AV1E_SET_MIN_CR
+
+AOM_CTRL_USE_TYPE(AV1E_ENABLE_SB_MULTIPASS_UNIT_TEST, unsigned int)
+#define AOM_CTRL_AV1E_ENABLE_SB_MULTIPASS_UNIT_TEST
 
 /*!\endcond */
 /*! @} - end defgroup aom_encoder */

@@ -1708,6 +1708,11 @@ static INLINE int all_ref_frames_the_same(const AV1_COMMON *const cm) {
 }
 #endif  // CONFIG_MISC_CHANGES
 
+static INLINE int get_mi_grid_idx(const AV1_COMMON *cm, int mi_row,
+                                  int mi_col) {
+  return mi_row * cm->mi_stride + mi_col;
+}
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif

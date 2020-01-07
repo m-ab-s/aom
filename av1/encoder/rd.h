@@ -313,6 +313,23 @@ int av1_get_adaptive_rdmult(const struct AV1_COMP *cpi, double beta);
 
 int av1_get_deltaq_offset(const struct AV1_COMP *cpi, int qindex, double beta);
 
+// Used to reset the state of tx/mb rd hash information
+static INLINE void reset_hash_records(MACROBLOCK *const x, int use_nonrd_mode) {
+  // Reset the state for use_inter_txb_hash
+  if (!use_nonrd_mode) {
+    av1_zero(x->txb_rd_record_8X8);
+    av1_zero(x->txb_rd_record_16X16);
+    av1_zero(x->txb_rd_record_32X32);
+    av1_zero(x->txb_rd_record_64X64);
+  }
+
+  // Reset the state for use_intra_txb_hash
+  av1_zero(x->txb_rd_record_intra);
+
+  // Reset the state for use_mb_rd_hash
+  x->mb_rd_record.num = x->mb_rd_record.index_start = 0;
+}
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif
