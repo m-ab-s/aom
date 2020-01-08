@@ -197,7 +197,10 @@ static INLINE uint8_t av1_drl_ctx(int16_t mode_ctx, PREDICTION_MODE mode,
   if (ref_idx == 0 && mode == NEARMV) {
     ctx = 3 + ((mode_ctx >> REFMV_OFFSET) & REFMV_CTX_MASK);
   }
-
+  if (ref_idx == 0 && is_inter_compound_mode(mode) &&
+      have_nearmv_in_inter_mode(mode)) {
+    ctx = 9 + mode_ctx;
+  }
   assert(ctx >= 0);
   assert(ctx < DRL_MODE_CONTEXTS);
   return ctx;
