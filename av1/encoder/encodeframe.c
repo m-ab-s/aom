@@ -5415,15 +5415,6 @@ static void adjust_rdmult_tpl_model(AV1_COMP *cpi, MACROBLOCK *x, int mi_row,
 }
 #endif
 
-static INLINE void reset_thresh_freq_fact(MACROBLOCK *const x) {
-  int i, j;
-  for (i = 0; i < BLOCK_SIZES_ALL; ++i) {
-    for (j = 0; j < MAX_MODES; ++j) {
-      x->thresh_freq_fact[i][j] = 32;
-    }
-  }
-}
-
 static void encode_sb_row(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
                           int mi_row, TOKENEXTRA **tp, int use_nonrd_mode) {
   AV1_COMMON *const cm = &cpi->common;
