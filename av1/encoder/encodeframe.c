@@ -808,11 +808,10 @@ static void update_drl_index_stats(FRAME_CONTEXT *fc, FRAME_COUNTS *counts,
                                    const MB_MODE_INFO *mbmi,
                                    const MB_MODE_INFO_EXT *mbmi_ext,
                                    int16_t mode_ctx, uint8_t allow_update_cdf) {
-  assert(is_inter_mode(mbmi->mode));
 #if !CONFIG_ENTROPY_STATS
   (void)counts;
 #endif  // !CONFIG_ENTROPY_STATS
-  if (!allow_update_cdf) return;
+  assert(have_drl_index(mbmi->mode));
   uint8_t ref_frame_type = av1_ref_frame_type(mbmi->ref_frame);
   int range = AOMMIN(mbmi_ext->ref_mv_count[ref_frame_type] - 1, 3);
   for (int idx = 0; idx < range; ++idx) {
@@ -821,7 +820,8 @@ static void update_drl_index_stats(FRAME_CONTEXT *fc, FRAME_COUNTS *counts,
 #if CONFIG_ENTROPY_STATS
     counts->drl_mode[drl_ctx][mbmi->ref_mv_idx != idx]++;
 #endif  // CONFIG_ENTROPY_STATS
-    if (idx == 0) update_cdf(fc->drl_cdf[drl_ctx], mbmi->ref_mv_idx != idx, 2);
+    if (allow_update_cdf && idx == 0 && mbmi->mode == NEARMV)
+      update_cdf(fc->drl_cdf[drl_ctx], mbmi->ref_mv_idx != idx, 2);
     if (mbmi->ref_mv_idx == idx) break;
   }
 }
@@ -1604,8 +1604,7 @@ static void update_stats(const AV1_COMMON *const cm, TileDataEnc *tile_data,
       const int new_mv = mbmi->mode == NEWMV || mbmi->mode == NEW_NEWMV;
 
 #if CONFIG_NEW_INTER_MODES
-      const int has_drl = is_inter_mode(mbmi->mode);
-      if (has_drl) {
+      if (have_drl_index(mbmi->mode)) {
         update_drl_index_stats(fc, counts, mbmi, mbmi_ext, mode_ctx,
                                allow_update_cdf);
       }

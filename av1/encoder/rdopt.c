@@ -10757,9 +10757,7 @@ static INLINE int get_drl_cost(const MB_MODE_INFO *mbmi,
                                const MB_MODE_INFO_EXT *mbmi_ext,
                                const int (*const drl_mode_cost0)[2],
                                int8_t ref_frame_type) {
-  const int has_drl = have_nearmv_in_inter_mode(mbmi->mode) ||
-                      have_newmv_in_inter_mode(mbmi->mode);
-  if (!has_drl) {
+  if (!have_drl_index(mbmi->mode)) {
     return 0;
   }
   int16_t mode_ctx =
@@ -11166,11 +11164,14 @@ static int get_drl_refmv_count(const MACROBLOCK *const x,
                                const MV_REFERENCE_FRAME *ref_frame,
                                PREDICTION_MODE mode) {
   MB_MODE_INFO_EXT *const mbmi_ext = x->mbmi_ext;
-  int has_drl =
-      have_nearmv_in_inter_mode(mode) || have_newmv_in_inter_mode(mode);
+  int has_drl = have_drl_index(mode);
+  if (!has_drl) {
+    return 1;
+  }
   const int8_t ref_frame_type = av1_ref_frame_type(ref_frame);
-  const int ref_mv_count = mbmi_ext->ref_mv_count[ref_frame_type];
-  return has_drl ? AOMMIN(MAX_REF_MV_SEARCH, ref_mv_count) : 1;
+  int ref_mv_count = mbmi_ext->ref_mv_count[ref_frame_type];
+  ref_mv_count = has_drl ? AOMMIN(MAX_REF_MV_SEARCH, ref_mv_count) : 1;
+  return ref_mv_count;
 }
 #else
 static int get_drl_refmv_count(const MACROBLOCK *const x,
@@ -11669,8 +11670,10 @@ static int64_t handle_inter_mode(
 #endif
 
 #if CONFIG_NEW_INTER_MODES
-      if (RDCOST(x->rdmult, rd_stats->rate, 0) > ref_best_rd &&
-          mbmi->mode != NEARMV && mbmi->mode != NEAR_NEARMV) {
+      const int like_nearest =
+          (mbmi->mode == NEARMV || mbmi->mode == NEAR_NEARMV) &&
+          mbmi->ref_mv_idx == 0;
+      if (RDCOST(x->rdmult, rd_stats->rate, 0) > ref_best_rd && !like_nearest) {
         continue;
       }
 #else

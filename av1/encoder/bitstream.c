@@ -1482,7 +1482,7 @@ static void pack_inter_mode_mvs(AV1_COMP *cpi, const int mi_row,
         write_mv_precision(cm, xd, w);
       }
 #endif  // CONFIG_FLEX_MVRES
-      if (mode == NEWMV || mode == NEW_NEWMV || have_nearmv_in_inter_mode(mode))
+      if (have_drl_index(mbmi->mode))
 #if CONFIG_NEW_INTER_MODES
         write_drl_idx(ec_ctx, mode_ctx, mbmi, mbmi_ext, w);
 #else
