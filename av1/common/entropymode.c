@@ -952,14 +952,14 @@ static const aom_cdf_prob default_drl_cdf[DRL_MODE_CONTEXTS][CDF_SIZE(2)] = {
 
 static const aom_cdf_prob
     default_inter_compound_mode_cdf[INTER_MODE_CONTEXTS][CDF_SIZE(
-        INTER_COMPOUND_MODES)] = { { AOM_CDF5(4038, 9491, 14268, 24635) },
-                                   { AOM_CDF5(6806, 12090, 17004, 25412) },
-                                   { AOM_CDF5(9224, 14334, 19087, 24599) },
-                                   { AOM_CDF5(11818, 17806, 23471, 24867) },
-                                   { AOM_CDF5(16396, 19567, 22561, 29513) },
-                                   { AOM_CDF5(11457, 16995, 22297, 23809) },
-                                   { AOM_CDF5(16588, 20168, 23580, 28677) },
-                                   { AOM_CDF5(17991, 21610, 25144, 27384) } };
+        INTER_COMPOUND_MODES)] = { { AOM_CDF5(13823, 17323, 20666, 26891) },
+                                   { AOM_CDF5(19452, 22435, 25131, 28724) },
+                                   { AOM_CDF5(20221, 22977, 25387, 28436) },
+                                   { AOM_CDF5(16984, 21356, 25736, 26422) },
+                                   { AOM_CDF5(23325, 25708, 28258, 30758) },
+                                   { AOM_CDF5(17454, 21499, 25168, 26046) },
+                                   { AOM_CDF5(24273, 26536, 28704, 30592) },
+                                   { AOM_CDF5(23214, 25998, 28442, 29330) } };
 
 #else
 static const aom_cdf_prob default_newmv_cdf[NEWMV_MODE_CONTEXTS][CDF_SIZE(
