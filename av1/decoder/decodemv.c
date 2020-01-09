@@ -185,7 +185,13 @@ static PREDICTION_MODE read_inter_mode(FRAME_CONTEXT *ec_ctx, aom_reader *r,
 #endif  // CONFIG_NEW_INTER_MODES
   is_newmv = aom_read_symbol(r, ec_ctx->newmv_cdf[mode_ctx], 2, ACCT_STR) == 0;
   if (is_newmv) return NEWMV;
-
+  // TODO(siroh): For some frames, the DRL will be "empty."
+  // Under NEW_INTER_MODES, the frame GMV will be inserted to fix this.
+  // Under the old process, get_this_mv inserts the frame GMV on-the-fly.
+  // When this situation happens there's no actual need to signal the next
+  // bit, because it's either NEARMV 0 referencing the GMV or GLOBAL referencing
+  // the GMV.
+  // Implement this for NEW_INTER_MODES, possibly using a new context.
   mode_ctx = (ctx >> GLOBALMV_OFFSET) & GLOBALMV_CTX_MASK;
   is_zeromv =
       aom_read_symbol(r, ec_ctx->zeromv_cdf[mode_ctx], 2, ACCT_STR) == 0;

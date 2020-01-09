@@ -762,6 +762,13 @@ static void setup_ref_mv_list(const AV1_COMMON *cm, const MACROBLOCKD *xd,
         mv_ref_list[idx].as_int = ref_mv_stack[idx].this_mv.as_int;
       }
     }
+#if CONFIG_NEW_INTER_MODES
+    // Ensure that there is always at least one local MV candidate to search
+    if (*refmv_count == 0) {
+      ref_mv_stack[0].this_mv.as_int = gm_mv_candidates[0].as_int;
+      (*refmv_count)++;
+    }
+#endif  // CONFIG_NEW_INTER_MODES
   }
 }
 

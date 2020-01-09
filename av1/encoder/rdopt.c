@@ -10683,7 +10683,7 @@ static int64_t skip_mode_rd(RD_STATS *rd_stats, const AV1_COMP *const cpi,
   restore_dst_buf(xd, *orig_dst, num_planes);
   return 0;
 }
-
+#if CONFIG_NEW_INTER_MODES
 static INLINE void get_this_mv(int_mv *this_mv, PREDICTION_MODE this_mode,
                                int ref_idx, int ref_mv_idx,
                                const MV_REFERENCE_FRAME *ref_frame,
@@ -10697,17 +10697,34 @@ static INLINE void get_this_mv(int_mv *this_mv, PREDICTION_MODE this_mode,
   } else if (single_mode == GLOBALMV) {
     *this_mv = mbmi_ext->global_mvs[ref_frame[ref_idx]];
   } else {
-#if CONFIG_NEW_INTER_MODES
     assert(single_mode == NEARMV);
-#else
-    assert(single_mode == NEARMV || single_mode == NEARESTMV);
-#endif  // !CONFIG_NEW_INTER_MODES
     const uint8_t ref_frame_type = av1_ref_frame_type(ref_frame);
-#if CONFIG_NEW_INTER_MODES
-    const int ref_mv_offset = ref_mv_idx;
+    assert(ref_mv_idx < mbmi_ext->ref_mv_count[ref_frame_type]);
+    assert(ref_mv_idx >= 0);
+    if (ref_idx == 0) {
+      *this_mv = mbmi_ext->ref_mv_stack[ref_frame_type][ref_mv_idx].this_mv;
+    } else {
+      *this_mv = mbmi_ext->ref_mv_stack[ref_frame_type][ref_mv_idx].comp_mv;
+    }
+  }
+}
 #else
+static INLINE void get_this_mv(int_mv *this_mv, PREDICTION_MODE this_mode,
+                               int ref_idx, int ref_mv_idx,
+                               const MV_REFERENCE_FRAME *ref_frame,
+                               const MB_MODE_INFO_EXT *mbmi_ext) {
+  const int is_comp_pred = ref_frame[1] > INTRA_FRAME;
+  const PREDICTION_MODE single_mode =
+      get_single_mode(this_mode, ref_idx, is_comp_pred);
+  assert(is_inter_singleref_mode(single_mode));
+  if (single_mode == NEWMV) {
+    this_mv->as_int = INVALID_MV;
+  } else if (single_mode == GLOBALMV) {
+    *this_mv = mbmi_ext->global_mvs[ref_frame[ref_idx]];
+  } else {
+    assert(single_mode == NEARMV || single_mode == NEARESTMV);
+    const uint8_t ref_frame_type = av1_ref_frame_type(ref_frame);
     const int ref_mv_offset = single_mode == NEARESTMV ? 0 : ref_mv_idx + 1;
-#endif  // CONFIG_NEW_INTER_MODES
     if (ref_mv_offset < mbmi_ext->ref_mv_count[ref_frame_type]) {
       assert(ref_mv_offset >= 0);
       if (ref_idx == 0) {
@@ -10722,7 +10739,7 @@ static INLINE void get_this_mv(int_mv *this_mv, PREDICTION_MODE this_mode,
     }
   }
 }
-
+#endif  // CONFIG_NEW_INTER_MODES
 // This function update the non-new mv for the current prediction mode
 static INLINE int build_cur_mv(int_mv *cur_mv, PREDICTION_MODE this_mode,
                                const AV1_COMMON *cm, const MACROBLOCK *x) {
@@ -11156,22 +11173,22 @@ static INLINE int is_single_newmv_valid(const HandleInterModeArgs *const args,
   return 1;
 }
 #if CONFIG_NEW_INTER_MODES
-// Get the count of DRL indices availiable to this mode.
+// Get the count of reference vectors availiable to this mode.
 // For NEAR and NEW, this is the min of the number of MVs available
-// in the frame and MAX_REF_MV_SEARCH.  For NEAREST, this
-// is always 1 to avoid breaking anything (for now!).
+// in the frame and MAX_REF_MV_SEARCH.
+// For GLOBALMV, this is 1: the frame global motion vector always exists.
 static int get_drl_refmv_count(const MACROBLOCK *const x,
                                const MV_REFERENCE_FRAME *ref_frame,
                                PREDICTION_MODE mode) {
   MB_MODE_INFO_EXT *const mbmi_ext = x->mbmi_ext;
   int has_drl = have_drl_index(mode);
   if (!has_drl) {
+    assert(mode == GLOBALMV || mode == GLOBAL_GLOBALMV);
     return 1;
   }
   const int8_t ref_frame_type = av1_ref_frame_type(ref_frame);
   int ref_mv_count = mbmi_ext->ref_mv_count[ref_frame_type];
-  ref_mv_count = has_drl ? AOMMIN(MAX_REF_MV_SEARCH, ref_mv_count) : 1;
-  return ref_mv_count;
+  return AOMMIN(MAX_REF_MV_SEARCH, ref_mv_count);
 }
 #else
 static int get_drl_refmv_count(const MACROBLOCK *const x,
@@ -11492,6 +11509,7 @@ static int64_t handle_inter_mode(
   // First, perform a simple translation search for each of the indices. If
   // an index performs well, it will be fully searched here.
   const int ref_set = get_drl_refmv_count(x, mbmi->ref_frame, this_mode);
+  assert(ref_set > 0);
   int idx_mask =
       ref_mv_idx_to_search(cpi, x, rd_stats, args, ref_best_rd, mode_info,
                            bsize, mi_row, mi_col, ref_set);
