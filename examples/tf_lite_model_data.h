@@ -13,6 +13,5 @@
 #define AOM_EXAMPLES_TF_LITE_MODEL_DATA_H_
 
 extern const unsigned char tf_lite_model_data[];
-extern const unsigned int tf_lite_model_data_len;
 
 #endif  // AOM_EXAMPLES_TF_LITE_MODEL_DATA_H_

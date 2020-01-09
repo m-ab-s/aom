@@ -18,8 +18,8 @@
  *    it smaller (see the Quantization section at
  *    https://www.tensorflow.org/lite/guide/get_started)
  * 3. Run `xxd -i model.tflite > model.cc` to make it a CC file.
- * 4. Change the declaration to be const.
- * 5. Create a .h file that exposes the array and length.
+ * 4. Change the array declaration to be const.
+ * 5. Create a .h file that exposes the array.
  * 6. Add appropriate copyright headers and includes.
  * 7. Update the ops registration as needed (see tf_lite_ops_registration.cc
  *    for more details).
