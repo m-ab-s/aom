@@ -13,22 +13,37 @@
 
 #include "av1/common/cnn_tflite.h"
 #include "av1/common/onyxc_int.h"
+#include "av1/tflite_models/intra_frame_model/op_registrations.h"
+#include "av1/tflite_models/intra_frame_model/qp22.h"
 #include "av1/tflite_models/intra_frame_model/qp32.h"
-#include "av1/tflite_models/intra_frame_model/qp32_op_registrations.h"
 #include "third_party/tensorflow/tensorflow/lite/interpreter.h"
 #include "third_party/tensorflow/tensorflow/lite/kernels/kernel_util.h"
 #include "third_party/tensorflow/tensorflow/lite/model.h"
+
+// Returns the TF-lite model based on the qindex.
+static const unsigned char *get_model_from_qindex(int qindex) {
+  assert(av1_use_cnn_tflite(qindex));
+  if (qindex <= MIN_CNN_Q_INDEX) {
+    assert(0);
+    return NULL;
+  } else if (qindex < 108) {
+    return qp22_model_tflite_data;
+  } else if (qindex < 148) {
+    return qp32_model_tflite_data;
+  } else {
+    assert(0);
+    return NULL;
+  }
+}
 
 // Builds and returns the TFlite interpreter.
 static std::unique_ptr<tflite::Interpreter> get_tflite_interpreter(int qindex,
                                                                    int width,
                                                                    int height) {
-  assert(av1_use_cnn_tflite(qindex));
-  // TODO(urvang): Switch TF-lite model and op registrations based on qindex.
-  (void)qindex;
-  auto model = tflite::GetModel(qp32_model_tflite_data);
+  const unsigned char *const model_tflite_data = get_model_from_qindex(qindex);
+  auto model = tflite::GetModel(model_tflite_data);
   tflite::MutableOpResolver resolver;
-  RegisterSelectedOpsQp32(&resolver);
+  RegisterSelectedOpsAllQps(&resolver);
   tflite::InterpreterBuilder builder(model, resolver);
   // TODO(urvang): Investigate if caching the interpreter object provides
   // further speed-up. May still have to re-build the interpreter if qindex

@@ -19,10 +19,16 @@ extern "C" {
 #include <stdint.h>
 #include "config/aom_config.h"
 
+// Minimum base_qindex needed to run cnn.
+#ifndef MIN_CNN_Q_INDEX
+#define MIN_CNN_Q_INDEX 100
+#endif
+
 // Returns true if we can use tflite model for a given qindex.
 static INLINE int av1_use_cnn_tflite(int qindex) {
-  // TFlite are yet to be ported for other q indices.
-  return qindex >= 108 && qindex < 148;
+  // TFlite models are yet to be ported for larger q indices.
+  static const int max_qindex_supported = 148;
+  return qindex > MIN_CNN_Q_INDEX && qindex < max_qindex_supported;
 }
 
 // Restores image in 'dgd' with a CNN model using TFlite and stores output in
