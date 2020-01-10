@@ -1346,6 +1346,15 @@ void av1_set_rd_speed_thresholds(AV1_COMP *cpi) {
   rd->thresh_mult[THR_NEWA] += 1000;
   rd->thresh_mult[THR_NEWG] += 1000;
 
+#if CONFIG_NEW_INTER_MODES
+  rd->thresh_mult[THR_NEARMV] += 0;
+  rd->thresh_mult[THR_NEARL2] += 0;
+  rd->thresh_mult[THR_NEARL3] += 100;
+  rd->thresh_mult[THR_NEARB] += 0;
+  rd->thresh_mult[THR_NEARA2] = 0;
+  rd->thresh_mult[THR_NEARA] += 0;
+  rd->thresh_mult[THR_NEARG] += 0;
+#else
   rd->thresh_mult[THR_NEARMV] += 1000;
   rd->thresh_mult[THR_NEARL2] += 1000;
   rd->thresh_mult[THR_NEARL3] += 1000;
@@ -1353,6 +1362,7 @@ void av1_set_rd_speed_thresholds(AV1_COMP *cpi) {
   rd->thresh_mult[THR_NEARA2] = 1000;
   rd->thresh_mult[THR_NEARA] += 1000;
   rd->thresh_mult[THR_NEARG] += 1000;
+#endif  // CONFIG_NEW_INTER_MODES
 
   rd->thresh_mult[THR_GLOBALMV] += 2200;
   rd->thresh_mult[THR_GLOBALL2] += 2000;
