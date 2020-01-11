@@ -23,6 +23,13 @@
 #include "aom/aom_integer.h"
 #include "aom_dsp/aom_dsp_common.h"
 
+#if CONFIG_NEW_TX64X64
+// Whether to use superres filter or not
+#define USE_SUPERRES_FILTER_TX64 1
+// Max filter extension needed for superres filter
+#define SUPERRES_FILTER_TX64_EXT 3
+#endif  // CONFIG_NEW_TX64X64
+
 #ifdef __cplusplus
 extern "C" {
 #endif

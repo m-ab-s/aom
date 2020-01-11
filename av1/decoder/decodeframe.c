@@ -533,8 +533,11 @@ static INLINE int update_extend_mc_border_params(
   // Do border extension if there is motion or
   // width/height is not a multiple of 8 pixels.
   if ((!is_intrabc) && (!do_warp) &&
-      (is_scaled || scaled_mv.col || scaled_mv.row || (frame_width & 0x7) ||
-       (frame_height & 0x7))) {
+      (is_scaled || scaled_mv.col || scaled_mv.row ||
+#if CONFIG_NEW_TX64X64
+       (USE_SUPERRES_FILTER_TX64) ||
+#endif  // CONFIG_NEW_TX64X64
+       (frame_width & 0x7) || (frame_height & 0x7))) {
     if (subpel_x_mv || (sf->x_step_q4 != SUBPEL_SHIFTS)) {
       block->x0 -= AOM_INTERP_EXTEND - 1;
       block->x1 += AOM_INTERP_EXTEND;
@@ -546,6 +549,21 @@ static INLINE int update_extend_mc_border_params(
       block->y1 += AOM_INTERP_EXTEND;
       *y_pad = 1;
     }
+
+#if CONFIG_NEW_TX64X64
+#if USE_SUPERRES_FILTER_TX64
+    if (!*x_pad) {
+      block->x0 -= SUPERRES_FILTER_TX64_EXT;
+      block->x1 += SUPERRES_FILTER_TX64_EXT;
+      *x_pad = 1;
+    }
+    if (!*y_pad) {
+      block->y0 -= SUPERRES_FILTER_TX64_EXT;
+      block->y1 += SUPERRES_FILTER_TX64_EXT;
+      *y_pad = 1;
+    }
+#endif  // USE_SUPERRES_FILTER_TX64
+#endif  // CONFIG_NEW_TX64X64
 
     // Skip border extension if block is inside the frame.
     if (block->x0 < 0 || block->x1 > frame_width - 1 || block->y0 < 0 ||
@@ -956,7 +974,6 @@ static void predict_inter_block(AV1_COMMON *const cm, MACROBLOCKD *const xd,
                            ref_scale_factors, num_planes);
     }
   }
-
   dec_build_inter_predictors_sb(cm, xd, mi_row, mi_col, NULL, bsize);
   if (mbmi->motion_mode == OBMC_CAUSAL) {
     dec_build_obmc_inter_predictors_sb(cm, xd, mi_row, mi_col);

@@ -941,9 +941,6 @@ static int is_constant_buffer(int16_t *buf, int w, int h, int stride) {
   return 1;
 }
 
-// Whether to use superres filter or not
-#define USE_SUPERRES_FILTER_TX64 0
-
 #if USE_SUPERRES_FILTER_TX64
 
 #define STX64X64_FILTER_TAPS 32
