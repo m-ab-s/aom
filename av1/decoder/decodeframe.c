@@ -5647,7 +5647,7 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
     if (cm->use_cnn) {
 #if CONFIG_TENSORFLOW_LITE
       if (av1_use_cnn_tflite(cm->base_qindex))
-        av1_restore_cnn_tflite(cm);
+        av1_restore_cnn_tflite(cm, pbi->num_workers);
       else
 #endif  // CONFIG_TENSORFLOW_LITE
         av1_decode_restore_cnn(cm, pbi->tile_workers, pbi->num_workers);

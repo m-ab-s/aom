@@ -4847,7 +4847,7 @@ static void loopfilter_frame(AV1_COMP *cpi, AV1_COMMON *cm) {
 
 #if CONFIG_TENSORFLOW_LITE
     if (av1_use_cnn_tflite(cm->base_qindex))
-      av1_restore_cnn_tflite(cm);
+      av1_restore_cnn_tflite(cm, cpi->num_workers);
     else
 #endif  // CONFIG_TENSORFLOW_LITE
       av1_encode_restore_cnn(cm, cpi->workers, cpi->num_workers);

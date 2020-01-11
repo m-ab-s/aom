@@ -1170,8 +1170,8 @@ static void cnn_filter_stripe(const RestorationUnitInfo *rui, int stripe_width,
     for (int j = 0; j < stripe_width; j += procunit_width) {
       int w = AOMMIN(procunit_width, stripe_width - j);
       av1_restore_cnn_img_tflite(rui->cnn_info.base_qindex, src + j, w,
-                                 stripe_height, src_stride, dst + j,
-                                 dst_stride);
+                                 stripe_height, src_stride, dst + j, dst_stride,
+                                 1 /* num_threads */);
     }
     return;
   }
@@ -1239,7 +1239,7 @@ static void cnn_filter_stripe_highbd(const RestorationUnitInfo *rui,
       av1_restore_cnn_img_tflite_highbd(
           rui->cnn_info.base_qindex, (const uint16_t *)(src + j), w,
           stripe_height, src_stride, (uint16_t *)(dst + j), dst_stride,
-          bit_depth);
+          1 /* num_threads */, bit_depth);
     }
     return;
   }
