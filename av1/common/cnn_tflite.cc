@@ -157,3 +157,59 @@ extern "C" int av1_restore_cnn_img_tflite_highbd(int qindex,
   }
   return 1;
 }
+
+extern "C" void av1_restore_cnn_tflite(const AV1_COMMON *cm) {
+  YV12_BUFFER_CONFIG *buf = &cm->cur_frame->buf;
+  const int plane_from = AOM_PLANE_Y;
+  const int plane_to = AOM_PLANE_Y;
+  for (int plane = plane_from; plane <= plane_to; ++plane) {
+    if (cm->seq_params.use_highbitdepth) {
+      switch (plane) {
+        case AOM_PLANE_Y:
+          av1_restore_cnn_img_tflite_highbd(
+              cm->base_qindex, CONVERT_TO_SHORTPTR(buf->y_buffer),
+              buf->y_crop_width, buf->y_crop_height, buf->y_stride,
+              CONVERT_TO_SHORTPTR(buf->y_buffer), buf->y_stride,
+              cm->seq_params.bit_depth);
+          break;
+        case AOM_PLANE_U:
+          av1_restore_cnn_img_tflite_highbd(
+              cm->base_qindex, CONVERT_TO_SHORTPTR(buf->u_buffer),
+              buf->uv_crop_width, buf->uv_crop_height, buf->uv_stride,
+              CONVERT_TO_SHORTPTR(buf->u_buffer), buf->uv_stride,
+              cm->seq_params.bit_depth);
+          break;
+        case AOM_PLANE_V:
+          av1_restore_cnn_img_tflite_highbd(
+              cm->base_qindex, CONVERT_TO_SHORTPTR(buf->v_buffer),
+              buf->uv_crop_width, buf->uv_crop_height, buf->uv_stride,
+              CONVERT_TO_SHORTPTR(buf->u_buffer), buf->uv_stride,
+              cm->seq_params.bit_depth);
+          break;
+        default: assert(0 && "Invalid plane index");
+      }
+    } else {
+      assert(cm->seq_params.bit_depth == 8);
+      switch (plane) {
+        case AOM_PLANE_Y:
+          av1_restore_cnn_img_tflite(
+              cm->base_qindex, buf->y_buffer, buf->y_crop_width,
+              buf->y_crop_height, buf->y_stride, buf->y_buffer, buf->y_stride);
+          break;
+        case AOM_PLANE_U:
+          av1_restore_cnn_img_tflite(cm->base_qindex, buf->u_buffer,
+                                     buf->uv_crop_width, buf->uv_crop_height,
+                                     buf->uv_stride, buf->u_buffer,
+                                     buf->uv_stride);
+          break;
+        case AOM_PLANE_V:
+          av1_restore_cnn_img_tflite(cm->base_qindex, buf->v_buffer,
+                                     buf->uv_crop_width, buf->uv_crop_height,
+                                     buf->uv_stride, buf->v_buffer,
+                                     buf->uv_stride);
+          break;
+        default: assert(0 && "Invalid plane index");
+      }
+    }
+  }
+}

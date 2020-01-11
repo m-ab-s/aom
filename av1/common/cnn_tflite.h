@@ -43,6 +43,11 @@ int av1_restore_cnn_img_tflite_highbd(int qindex, const uint16_t *dgd,
                                       uint16_t *rst, int rst_stride,
                                       int bit_depth);
 
+struct AV1Common;
+
+// Restore current frame buffer in 'cm' in-place with a CNN model using TFlite.
+void av1_restore_cnn_tflite(const struct AV1Common *cm);
+
 #ifdef __cplusplus
 }
 #endif
