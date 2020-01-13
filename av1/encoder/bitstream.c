@@ -26,7 +26,11 @@
 #endif  // CONFIG_BITSTREAM_DEBUG
 
 #if CONFIG_CNN_RESTORATION && !CONFIG_LOOP_RESTORE_CNN
+#if CONFIG_TENSORFLOW_LITE
+#include "av1/common/cnn_tflite.h"
+#else
 #include "av1/common/cnn_wrapper.h"
+#endif  // CONFIG_TENSORFLOW_LITE
 #endif  // CONFIG_CNN_RESTORATION && !CONFIG_LOOP_RESTORE_CNN
 
 #include "av1/common/cdef.h"

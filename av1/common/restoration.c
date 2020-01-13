@@ -22,8 +22,9 @@
 #include "av1/common/cnn.h"
 #if CONFIG_TENSORFLOW_LITE
 #include "av1/common/cnn_tflite.h"
-#endif  // CONFIG_TENSORFLOW_LITE
+#else
 #include "av1/common/cnn_wrapper.h"
+#endif  // CONFIG_TENSORFLOW_LITE
 #endif  // CONFIG_LOOP_RESTORE_CNN
 #include "av1/common/onyxc_int.h"
 #include "av1/common/resize.h"
@@ -1124,6 +1125,41 @@ uint8_t *wienerns_copy_luma(const uint8_t *dgd, int height_y, int width_y,
 #endif  // CONFIG_WIENER_NONSEP
 
 #if CONFIG_LOOP_RESTORE_CNN
+#if CONFIG_TENSORFLOW_LITE
+static void cnn_filter_stripe(const RestorationUnitInfo *rui, int stripe_width,
+                              int stripe_height, int procunit_width,
+                              const uint8_t *src, int src_stride, uint8_t *dst,
+                              int dst_stride, int32_t *tmpbuf, int bit_depth) {
+  (void)bit_depth;
+  assert(bit_depth == 8);
+
+  (void)tmpbuf;  // Unused.
+  for (int j = 0; j < stripe_width; j += procunit_width) {
+    int w = AOMMIN(procunit_width, stripe_width - j);
+    av1_restore_cnn_img_tflite(rui->cnn_info.base_qindex, src + j, w,
+                               stripe_height, src_stride, dst + j, dst_stride,
+                               1 /* num_threads */);
+  }
+}
+
+static void cnn_filter_stripe_highbd(const RestorationUnitInfo *rui,
+                                     int stripe_width, int stripe_height,
+                                     int procunit_width, const uint8_t *src,
+                                     int src_stride, uint8_t *dst,
+                                     int dst_stride, int32_t *tmpbuf,
+                                     int bit_depth) {
+  (void)tmpbuf;  // Unused.
+  for (int j = 0; j < stripe_width; j += procunit_width) {
+    int w = AOMMIN(procunit_width, stripe_width - j);
+    av1_restore_cnn_img_tflite_highbd(
+        rui->cnn_info.base_qindex, (const uint16_t *)(src + j), w,
+        stripe_height, src_stride, (uint16_t *)(dst + j), dst_stride,
+        1 /* num_threads */, bit_depth);
+  }
+}
+
+#else
+
 static void restore_cnn_img(const uint8_t *dgd, int width, int height,
                             int stride, const CNN_CONFIG *cnn_config,
                             const CNN_THREAD_DATA *thread_data, float *output,
@@ -1164,20 +1200,6 @@ static void cnn_filter_stripe(const RestorationUnitInfo *rui, int stripe_width,
   (void)bit_depth;
   assert(bit_depth == 8);
 
-#if CONFIG_TENSORFLOW_LITE
-  if (av1_use_cnn_tflite(rui->cnn_info.base_qindex)) {
-    // Use TFlite model.
-    for (int j = 0; j < stripe_width; j += procunit_width) {
-      int w = AOMMIN(procunit_width, stripe_width - j);
-      av1_restore_cnn_img_tflite(rui->cnn_info.base_qindex, src + j, w,
-                                 stripe_height, src_stride, dst + j, dst_stride,
-                                 1 /* num_threads */);
-    }
-    return;
-  }
-#endif  // CONFIG_TENSORFLOW_LITE
-
-  // Use our C API.
   const CNN_THREAD_DATA thread_data = { 1, NULL };
   const CNN_CONFIG *cnn_config = av1_get_cnn_config_from_qindex(
       rui->cnn_info.base_qindex, rui->cnn_info.frame_type);
@@ -1231,21 +1253,6 @@ static void cnn_filter_stripe_highbd(const RestorationUnitInfo *rui,
                                      int src_stride, uint8_t *dst,
                                      int dst_stride, int32_t *tmpbuf,
                                      int bit_depth) {
-#if CONFIG_TENSORFLOW_LITE
-  if (av1_use_cnn_tflite(rui->cnn_info.base_qindex)) {
-    // Use TFlite model.
-    for (int j = 0; j < stripe_width; j += procunit_width) {
-      int w = AOMMIN(procunit_width, stripe_width - j);
-      av1_restore_cnn_img_tflite_highbd(
-          rui->cnn_info.base_qindex, (const uint16_t *)(src + j), w,
-          stripe_height, src_stride, (uint16_t *)(dst + j), dst_stride,
-          1 /* num_threads */, bit_depth);
-    }
-    return;
-  }
-#endif  // CONFIG_TENSORFLOW_LITE
-
-  // Use our C API.
   const CNN_THREAD_DATA thread_data = { 1, NULL };
   const CNN_CONFIG *cnn_config = av1_get_cnn_config_from_qindex(
       rui->cnn_info.base_qindex, rui->cnn_info.frame_type);
@@ -1258,6 +1265,7 @@ static void cnn_filter_stripe_highbd(const RestorationUnitInfo *rui,
                            bit_depth);
   }
 }
+#endif  // CONFIG_TENSORFLOW_LITE
 #endif  // CONFIG_LOOP_RESTORE_CNN
 
 static void wiener_filter_stripe_highbd(const RestorationUnitInfo *rui,

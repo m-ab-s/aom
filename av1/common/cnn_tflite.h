@@ -16,17 +16,15 @@
 extern "C" {
 #endif
 
-#include <stdint.h>
-#include "config/aom_config.h"
+#include "av1/common/onyxc_int.h"
+#include "av1/common/resize.h"
 
 // Minimum base_qindex needed to run cnn.
-#ifndef MIN_CNN_Q_INDEX
 #define MIN_CNN_Q_INDEX 100
-#endif
 
-// Returns true if we can use tflite model for a given qindex.
-static INLINE int av1_use_cnn_tflite(int qindex) {
-  return qindex > MIN_CNN_Q_INDEX;
+// Returns true if we are allowed to use CNN for restoration.
+static INLINE int av1_use_cnn(const AV1_COMMON *cm) {
+  return ((cm->base_qindex > MIN_CNN_Q_INDEX) && !av1_superres_scaled(cm));
 }
 
 // Restores image in 'dgd' with a CNN model using TFlite and stores output in

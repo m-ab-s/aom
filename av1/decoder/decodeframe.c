@@ -63,9 +63,10 @@
 #include "av1/decoder/detokenize.h"
 
 #if CONFIG_CNN_RESTORATION && !CONFIG_LOOP_RESTORE_CNN
-#include "av1/common/cnn_wrapper.h"
 #if CONFIG_TENSORFLOW_LITE
 #include "av1/common/cnn_tflite.h"
+#else
+#include "av1/common/cnn_wrapper.h"
 #endif  // CONFIG_TENSORFLOW_LITE
 #endif  // CONFIG_CNN_RESTORATION && !CONFIG_LOOP_RESTORE_CNN
 
@@ -5663,11 +5664,10 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
 #if CONFIG_CNN_RESTORATION && !CONFIG_LOOP_RESTORE_CNN
     if (cm->use_cnn) {
 #if CONFIG_TENSORFLOW_LITE
-      if (av1_use_cnn_tflite(cm->base_qindex))
-        av1_restore_cnn_tflite(cm, pbi->num_workers);
-      else
+      av1_restore_cnn_tflite(cm, pbi->num_workers);
+#else
+      av1_decode_restore_cnn(cm, pbi->tile_workers, pbi->num_workers);
 #endif  // CONFIG_TENSORFLOW_LITE
-        av1_decode_restore_cnn(cm, pbi->tile_workers, pbi->num_workers);
     } else {
 #endif  // CONFIG_CNN_RESTORATION && !CONFIG_LOOP_RESTORE_CNN
 

@@ -20,9 +20,7 @@ extern "C" {
 #endif
 
 // Minimum base_qindex needed to run cnn.
-#ifndef MIN_CNN_Q_INDEX
 #define MIN_CNN_Q_INDEX 100
-#endif
 
 static INLINE int av1_use_cnn(const AV1_COMMON *cm) {
   return ((cm->base_qindex > MIN_CNN_Q_INDEX) && !av1_superres_scaled(cm));

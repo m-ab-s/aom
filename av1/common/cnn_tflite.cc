@@ -25,7 +25,6 @@
 
 // Returns the TF-lite model based on the qindex.
 static const unsigned char *get_model_from_qindex(int qindex) {
-  assert(av1_use_cnn_tflite(qindex));
   if (qindex <= MIN_CNN_Q_INDEX) {
     assert(0);
     return nullptr;
@@ -120,7 +119,6 @@ extern "C" int av1_restore_cnn_img_tflite(int qindex, const uint8_t *dgd,
 extern "C" int av1_restore_cnn_img_tflite_highbd(
     int qindex, const uint16_t *dgd, int width, int height, int dgd_stride,
     uint16_t *rst, int rst_stride, int num_threads, int bit_depth) {
-  assert(av1_use_cnn_tflite(qindex));
   std::unique_ptr<tflite::Interpreter> interpreter =
       get_tflite_interpreter(qindex, width, height, num_threads);
 

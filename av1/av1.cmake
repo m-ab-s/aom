@@ -374,8 +374,6 @@ if(CONFIG_INTERNAL_STATS)
 endif()
 
 if(CONFIG_CNN_RESTORATION OR CONFIG_LOOP_RESTORE_CNN)
-  list(APPEND AOM_AV1_COMMON_SOURCES "${AOM_ROOT}/av1/common/cnn_wrapper.c"
-              "${AOM_ROOT}/av1/common/cnn_wrapper.h")
   if(CONFIG_TENSORFLOW_LITE)
     list(
       APPEND
@@ -394,6 +392,9 @@ if(CONFIG_CNN_RESTORATION OR CONFIG_LOOP_RESTORE_CNN)
         "${AOM_ROOT}/av1/tflite_models/intra_frame_model/qp53.h"
         "${AOM_ROOT}/av1/tflite_models/intra_frame_model/qp63.cc"
         "${AOM_ROOT}/av1/tflite_models/intra_frame_model/qp63.h")
+  else()
+    list(APPEND AOM_AV1_COMMON_SOURCES "${AOM_ROOT}/av1/common/cnn_wrapper.c"
+                "${AOM_ROOT}/av1/common/cnn_wrapper.h")
   endif()
 endif()
 
