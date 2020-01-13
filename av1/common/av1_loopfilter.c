@@ -36,7 +36,10 @@ static const int delta_lf_id_lut[MAX_MB_PLANE][2] = { { 0, 1 },
 static const int mode_lf_lut[] = {
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  // INTRA_MODES
   1, 0, 1,                                // INTER_MODES (GLOBALMV == 0)
-  1, 1, 1, 0, 1  // INTER_COMPOUND_MODES (GLOBAL_GLOBALMV == 0)
+  1, 1, 1, 0, 1,  // INTER_COMPOUND_MODES (GLOBAL_GLOBALMV == 0)
+#if CONFIG_EXT_COMPOUND
+  1, 1, 1, 1
+#endif  // CONFIG_EXT_COMPOUND
 };
 #else
 static const int mode_lf_lut[] = {
