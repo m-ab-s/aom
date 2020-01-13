@@ -27,7 +27,7 @@ extern "C" {
 // Returns true if we can use tflite model for a given qindex.
 static INLINE int av1_use_cnn_tflite(int qindex) {
   // TFlite models are yet to be ported for larger q indices.
-  static const int max_qindex_supported = 192;
+  static const int max_qindex_supported = 232;
   return qindex > MIN_CNN_Q_INDEX && qindex < max_qindex_supported;
 }
 

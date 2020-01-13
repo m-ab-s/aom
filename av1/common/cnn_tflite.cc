@@ -17,6 +17,7 @@
 #include "av1/tflite_models/intra_frame_model/qp22.h"
 #include "av1/tflite_models/intra_frame_model/qp32.h"
 #include "av1/tflite_models/intra_frame_model/qp43.h"
+#include "av1/tflite_models/intra_frame_model/qp53.h"
 #include "third_party/tensorflow/tensorflow/lite/interpreter.h"
 #include "third_party/tensorflow/tensorflow/lite/kernels/kernel_util.h"
 #include "third_party/tensorflow/tensorflow/lite/model.h"
@@ -33,6 +34,8 @@ static const unsigned char *get_model_from_qindex(int qindex) {
     return qp32_model_tflite_data;
   } else if (qindex < 192) {
     return qp43_model_tflite_data;
+  } else if (qindex < 232) {
+    return qp53_model_tflite_data;
   } else {
     assert(0);
     return NULL;
