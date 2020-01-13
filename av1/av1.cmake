@@ -379,14 +379,17 @@ if(CONFIG_CNN_RESTORATION OR CONFIG_LOOP_RESTORE_CNN)
   if(CONFIG_TENSORFLOW_LITE)
     list(
       APPEND
-        AOM_AV1_COMMON_SOURCES "${AOM_ROOT}/av1/common/cnn_tflite.cc"
+        AOM_AV1_COMMON_SOURCES
+        "${AOM_ROOT}/av1/common/cnn_tflite.cc"
         "${AOM_ROOT}/av1/common/cnn_tflite.h"
         "${AOM_ROOT}/av1/tflite_models/intra_frame_model/op_registrations.cc"
         "${AOM_ROOT}/av1/tflite_models/intra_frame_model/op_registrations.h"
         "${AOM_ROOT}/av1/tflite_models/intra_frame_model/qp22.cc"
         "${AOM_ROOT}/av1/tflite_models/intra_frame_model/qp22.h"
         "${AOM_ROOT}/av1/tflite_models/intra_frame_model/qp32.cc"
-        "${AOM_ROOT}/av1/tflite_models/intra_frame_model/qp32.h")
+        "${AOM_ROOT}/av1/tflite_models/intra_frame_model/qp32.h"
+        "${AOM_ROOT}/av1/tflite_models/intra_frame_model/qp43.cc"
+        "${AOM_ROOT}/av1/tflite_models/intra_frame_model/qp43.h")
   endif()
 endif()
 
