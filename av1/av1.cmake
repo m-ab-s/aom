@@ -391,7 +391,9 @@ if(CONFIG_CNN_RESTORATION OR CONFIG_LOOP_RESTORE_CNN)
         "${AOM_ROOT}/av1/tflite_models/intra_frame_model/qp43.cc"
         "${AOM_ROOT}/av1/tflite_models/intra_frame_model/qp43.h"
         "${AOM_ROOT}/av1/tflite_models/intra_frame_model/qp53.cc"
-        "${AOM_ROOT}/av1/tflite_models/intra_frame_model/qp53.h")
+        "${AOM_ROOT}/av1/tflite_models/intra_frame_model/qp53.h"
+        "${AOM_ROOT}/av1/tflite_models/intra_frame_model/qp63.cc"
+        "${AOM_ROOT}/av1/tflite_models/intra_frame_model/qp63.h")
   endif()
 endif()
 
