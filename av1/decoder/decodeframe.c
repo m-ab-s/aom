@@ -405,19 +405,19 @@ static void set_offsets(AV1_COMMON *const cm, MACROBLOCKD *const xd,
   }
 
   set_plane_n4(xd, mi_row, mi_col, bsize, num_planes);
-  set_skip_context(xd, mi_row, mi_col, bsize, num_planes);
-
   set_chroma_ref_info(mi_row, mi_col, index, bsize, &xd->mi[0]->chroma_ref_info,
                       parent ? &parent->chroma_ref_info : NULL,
                       parent ? parent->bsize : BLOCK_INVALID,
                       parent ? parent->partition : PARTITION_NONE,
                       xd->plane[1].subsampling_x, xd->plane[1].subsampling_y);
+  set_skip_context(xd, mi_row, mi_col, num_planes, &xd->mi[0]->chroma_ref_info);
   // Distance of Mb to the various image edges. These are specified to 8th pel
   // as they are always compared to values that are in 1/8th pel units
-  set_mi_row_col(xd, tile, mi_row, bh, mi_col, bw, cm->mi_rows, cm->mi_cols);
+  set_mi_row_col(xd, tile, mi_row, bh, mi_col, bw, cm->mi_rows, cm->mi_cols,
+                 &xd->mi[0]->chroma_ref_info);
 
-  av1_setup_dst_planes(xd->plane, bsize, &cm->cur_frame->buf, mi_row, mi_col, 0,
-                       num_planes);
+  av1_setup_dst_planes(xd->plane, &cm->cur_frame->buf, mi_row, mi_col, 0,
+                       num_planes, &xd->mi[0]->chroma_ref_info);
 }
 
 static void decode_mbmi_block(AV1Decoder *const pbi, MACROBLOCKD *const xd,
@@ -948,8 +948,8 @@ static void dec_build_obmc_inter_predictors_sb(const AV1_COMMON *cm,
                                       dst_width1, dst_height1, dst_stride1);
   dec_build_prediction_by_left_preds(cm, xd, mi_row, mi_col, dst_buf2,
                                      dst_width2, dst_height2, dst_stride2);
-  av1_setup_dst_planes(xd->plane, xd->mi[0]->sb_type, &cm->cur_frame->buf,
-                       mi_row, mi_col, 0, num_planes);
+  av1_setup_dst_planes(xd->plane, &cm->cur_frame->buf, mi_row, mi_col, 0,
+                       num_planes, &xd->mi[0]->chroma_ref_info);
   av1_build_obmc_inter_prediction(cm, xd, mi_row, mi_col, dst_buf1, dst_stride1,
                                   dst_buf2, dst_stride2);
 }
@@ -978,7 +978,8 @@ static void predict_inter_block(AV1_COMMON *const cm, MACROBLOCKD *const xd,
 
       xd->block_ref_scale_factors[ref] = ref_scale_factors;
       av1_setup_pre_planes(xd, ref, &ref_buf->buf, mi_row, mi_col,
-                           ref_scale_factors, num_planes);
+                           ref_scale_factors, num_planes,
+                           &mbmi->chroma_ref_info);
     }
   }
   dec_build_inter_predictors_sb(cm, xd, mi_row, mi_col, NULL, bsize);
@@ -1457,10 +1458,11 @@ static void set_offsets_for_pred_and_recon(AV1Decoder *const pbi,
 
   // Distance of Mb to the various image edges. These are specified to 8th pel
   // as they are always compared to values that are in 1/8th pel units
-  set_mi_row_col(xd, tile, mi_row, bh, mi_col, bw, cm->mi_rows, cm->mi_cols);
+  set_mi_row_col(xd, tile, mi_row, bh, mi_col, bw, cm->mi_rows, cm->mi_cols,
+                 &xd->mi[0]->chroma_ref_info);
 
-  av1_setup_dst_planes(xd->plane, bsize, &cm->cur_frame->buf, mi_row, mi_col, 0,
-                       num_planes);
+  av1_setup_dst_planes(xd->plane, &cm->cur_frame->buf, mi_row, mi_col, 0,
+                       num_planes, &xd->mi[0]->chroma_ref_info);
 }
 
 static void decode_block(AV1Decoder *const pbi, ThreadData *const td,

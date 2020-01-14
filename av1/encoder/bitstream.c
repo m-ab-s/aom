@@ -1883,7 +1883,8 @@ static void write_modes_b(AV1_COMP *cpi, const TileInfo *const tile,
 
   const int bh = mi_size_high[bsize];
   const int bw = mi_size_wide[bsize];
-  set_mi_row_col(xd, tile, mi_row, bh, mi_col, bw, cm->mi_rows, cm->mi_cols);
+  set_mi_row_col(xd, tile, mi_row, bh, mi_col, bw, cm->mi_rows, cm->mi_cols,
+                 &mbmi->chroma_ref_info);
 
   xd->above_txfm_context = cm->above_txfm_context[tile->tile_row] + mi_col;
   xd->left_txfm_context =

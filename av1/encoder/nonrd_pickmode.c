@@ -170,7 +170,7 @@ static int combined_motion_search(AV1_COMP *cpi, MACROBLOCK *x,
     // motion search code to be used without additional modifications.
     for (i = 0; i < MAX_MB_PLANE; i++) backup_yv12[i] = xd->plane[i].pre[0];
     av1_setup_pre_planes(xd, 0, scaled_ref_frame, mi_row, mi_col, NULL,
-                         num_planes);
+                         num_planes, &mi->chroma_ref_info);
   }
   av1_set_mv_search_range(&x->mv_limits, &ref_mv);
 

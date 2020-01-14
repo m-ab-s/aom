@@ -2602,7 +2602,7 @@ unsigned int av1_int_pro_motion_estimation(const AV1_COMP *cpi, MACROBLOCK *x,
     // motion search code to be used without additional modifications.
     for (i = 0; i < MAX_MB_PLANE; i++) backup_yv12[i] = xd->plane[i].pre[0];
     av1_setup_pre_planes(xd, 0, scaled_ref_frame, mi_row, mi_col, NULL,
-                         MAX_MB_PLANE);
+                         MAX_MB_PLANE, &mi->chroma_ref_info);
   }
 
   if (xd->bd != 8) {
@@ -3597,12 +3597,13 @@ void av1_simple_motion_search(AV1_COMP *const cpi, MACROBLOCK *x, int mi_row,
   int var;
 
   av1_setup_pre_planes(xd, ref_idx, yv12, mi_row, mi_col,
-                       get_ref_scale_factors(cm, ref), num_planes);
+                       get_ref_scale_factors(cm, ref), num_planes,
+                       &mbmi->chroma_ref_info);
   set_ref_ptrs(cm, xd, mbmi->ref_frame[0], mbmi->ref_frame[1]);
   if (scaled_ref_frame) {
     backup_yv12 = xd->plane[AOM_PLANE_Y].pre[ref_idx];
     av1_setup_pre_planes(xd, ref_idx, scaled_ref_frame, mi_row, mi_col, NULL,
-                         num_planes);
+                         num_planes, &mbmi->chroma_ref_info);
   }
 
   // This overwrites the mv_limits so we will need to restore it later.

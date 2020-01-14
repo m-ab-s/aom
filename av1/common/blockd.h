@@ -374,6 +374,12 @@ static INLINE void set_chroma_ref_info(int mi_row, int mi_col, int index,
                                        PARTITION_TYPE parent_partition,
                                        int subsampling_x, int subsampling_y) {
   initialize_chr_ref_info(mi_row, mi_col, bsize, info);
+  int row_offset, col_offset;
+  get_mi_row_col_offsets(mi_row, mi_col, subsampling_x, subsampling_y,
+                         mi_size_wide[bsize], mi_size_high[bsize], &row_offset,
+                         &col_offset);
+  info->mi_row_chroma_base = mi_row - row_offset;
+  info->mi_col_chroma_base = mi_col - col_offset;
 
   if (parent_info == NULL) return;
 
@@ -421,9 +427,29 @@ static INLINE void set_chroma_ref_info(int mi_row, int mi_col, int index,
       } else {
         info->is_chroma_ref = 0;
         info->offset_started = 1;
-        info->mi_row_chroma_base = parent_info->mi_row_chroma_base;
-        info->mi_col_chroma_base = parent_info->mi_col_chroma_base;
-        info->bsize_base = parent_info->bsize_base;
+#if !CONFIG_EXT_PARTITIONS
+        if (parent_partition == PARTITION_HORZ_4 ||
+            parent_partition == PARTITION_VERT_4) {
+          info->mi_row_chroma_base = mi_row;
+          info->mi_col_chroma_base = mi_col;
+
+          PARTITION_TYPE mid_p = parent_partition == PARTITION_HORZ_4
+                                     ? PARTITION_HORZ
+                                     : PARTITION_VERT;
+#if CONFIG_EXT_RECUR_PARTITIONS
+          info->bsize_base = subsize_lookup[mid_p][parent_bsize];
+#else
+          info->bsize_base =
+              subsize_lookup[mid_p][get_sqr_bsize_idx(parent_bsize)];
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+        } else {
+#endif  // !CONFIG_EXT_PARTITIONS
+          info->mi_row_chroma_base = parent_info->mi_row_chroma_base;
+          info->mi_col_chroma_base = parent_info->mi_col_chroma_base;
+          info->bsize_base = parent_info->bsize_base;
+#if !CONFIG_EXT_PARTITIONS
+        }
+#endif  // !CONFIG_EXT_PARTITIONS
       }
     }
   } else {
@@ -433,6 +459,8 @@ static INLINE void set_chroma_ref_info(int mi_row, int mi_col, int index,
     info->mi_col_chroma_base = parent_info->mi_col_chroma_base;
     info->bsize_base = parent_info->bsize_base;
   }
+  info->mi_row_chroma_base = mi_row - row_offset;
+  info->mi_col_chroma_base = mi_col - col_offset;
 }
 
 // This structure now relates to 4x4 block regions.

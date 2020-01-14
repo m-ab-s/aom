@@ -1185,8 +1185,9 @@ void av1_ml_prune_4_partition(const AV1_COMP *const cpi, MACROBLOCK *const x,
     BLOCK_SIZE horz_4_bs = get_partition_subsize(bsize, PARTITION_HORZ_4);
     BLOCK_SIZE vert_4_bs = get_partition_subsize(bsize, PARTITION_VERT_4);
 #endif  // CONFIG_EXT_PARTITIONS
+    CHROMA_REF_INFO chr_ref_info = { 1, 0, mi_row, mi_col, bsize, bsize };
     av1_setup_src_planes(x, cpi->source, mi_row, mi_col,
-                         av1_num_planes(&cpi->common), bsize);
+                         av1_num_planes(&cpi->common), &chr_ref_info);
     const int src_stride = x->plane[0].src.stride;
     uint8_t *src = x->plane[0].src.buf;
     const MACROBLOCKD *const xd = &x->e_mbd;

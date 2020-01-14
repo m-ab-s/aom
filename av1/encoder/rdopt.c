@@ -7508,7 +7508,7 @@ static void joint_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
         for (i = 0; i < num_planes; i++)
           backup_yv12[ref][i] = xd->plane[i].pre[ref];
         av1_setup_pre_planes(xd, ref, scaled_ref_frame[ref], mi_row, mi_col,
-                             NULL, num_planes);
+                             NULL, num_planes, &mbmi->chroma_ref_info);
       }
     }
 
@@ -7880,7 +7880,7 @@ static void single_motion_search(const AV1_COMP *const cpi, MACROBLOCK *x,
       backup_yv12[i] = xd->plane[i].pre[ref_idx];
     }
     av1_setup_pre_planes(xd, ref_idx, scaled_ref_frame, mi_row, mi_col, NULL,
-                         num_planes);
+                         num_planes, &mbmi->chroma_ref_info);
   }
 
   // Work out the size of the first step in the mv step search.
@@ -8175,7 +8175,7 @@ static void compound_single_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
     // modifications.
     for (i = 0; i < num_planes; i++) backup_yv12[i] = xd->plane[i].pre[ref_idx];
     av1_setup_pre_planes(xd, ref_idx, scaled_ref_frame, mi_row, mi_col, NULL,
-                         num_planes);
+                         num_planes, &mbmi->chroma_ref_info);
   }
 
   int bestsme = INT_MAX;
@@ -13088,8 +13088,8 @@ static void set_params_rd_pick_inter_mode(
                                        args->left_pred_buf, dst_width2,
                                        dst_height2, args->left_pred_stride);
     const int num_planes = av1_num_planes(cm);
-    av1_setup_dst_planes(xd->plane, bsize, &cm->cur_frame->buf, mi_row, mi_col,
-                         0, num_planes);
+    av1_setup_dst_planes(xd->plane, &cm->cur_frame->buf, mi_row, mi_col, 0,
+                         num_planes, &mbmi->chroma_ref_info);
     calc_target_weighted_pred(
         cm, x, xd, mi_row, mi_col, args->above_pred_buf[0],
         args->above_pred_stride[0], args->left_pred_buf[0],

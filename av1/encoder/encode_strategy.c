@@ -1012,7 +1012,10 @@ void setup_mi(AV1_COMP *const cpi, YV12_BUFFER_CONFIG *src) {
   MACROBLOCK *const x = &cpi->td.mb;
   MACROBLOCKD *const xd = &x->e_mbd;
 
-  av1_setup_src_planes(x, src, 0, 0, num_planes, cm->seq_params.sb_size);
+  CHROMA_REF_INFO sb_chr_ref_info = {
+    1, 0, 0, 0, cm->seq_params.sb_size, cm->seq_params.sb_size
+  };
+  av1_setup_src_planes(x, src, 0, 0, num_planes, &sb_chr_ref_info);
 
   av1_setup_block_planes(xd, cm->seq_params.subsampling_x,
                          cm->seq_params.subsampling_y, num_planes);

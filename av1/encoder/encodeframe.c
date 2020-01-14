@@ -305,10 +305,10 @@ static void setup_block_rdmult(const AV1_COMP *const cpi, MACROBLOCK *const x,
   }
 }
 
-static void set_offsets_without_segment_id(const AV1_COMP *const cpi,
-                                           const TileInfo *const tile,
-                                           MACROBLOCK *const x, int mi_row,
-                                           int mi_col, BLOCK_SIZE bsize) {
+static void set_offsets_without_segment_id(
+    const AV1_COMP *const cpi, const TileInfo *const tile, MACROBLOCK *const x,
+    int mi_row, int mi_col, BLOCK_SIZE bsize,
+    const CHROMA_REF_INFO *chr_ref_info) {
   const AV1_COMMON *const cm = &cpi->common;
   const int num_planes = av1_num_planes(cm);
   MACROBLOCKD *const xd = &x->e_mbd;
@@ -317,15 +317,14 @@ static void set_offsets_without_segment_id(const AV1_COMP *const cpi,
   const int mi_height = mi_size_high[bsize];
 
   set_mode_info_offsets(cpi, x, xd, mi_row, mi_col);
-
-  set_skip_context(xd, mi_row, mi_col, bsize, num_planes);
+  set_skip_context(xd, mi_row, mi_col, num_planes, chr_ref_info);
   xd->above_txfm_context = cm->above_txfm_context[tile->tile_row] + mi_col;
   xd->left_txfm_context =
       xd->left_txfm_context_buffer + (mi_row & MAX_MIB_MASK);
 
   // Set up destination pointers.
-  av1_setup_dst_planes(xd->plane, bsize, &cm->cur_frame->buf, mi_row, mi_col, 0,
-                       num_planes);
+  av1_setup_dst_planes(xd->plane, &cm->cur_frame->buf, mi_row, mi_col, 0,
+                       num_planes, chr_ref_info);
 
   // Set up limit values for MV components.
   // Mv beyond the range do not produce new/different prediction block.
@@ -342,10 +341,11 @@ static void set_offsets_without_segment_id(const AV1_COMP *const cpi,
   assert(!(mi_col & (mi_width - 1)) && !(mi_row & (mi_height - 1)));
 #endif  // !CONFIG_EXT_PARTITIONS && !CONFIG_EXT_RECUR_PARTITIONS
   set_mi_row_col(xd, tile, mi_row, mi_height, mi_col, mi_width, cm->mi_rows,
-                 cm->mi_cols);
+                 cm->mi_cols, chr_ref_info);
 
   // Set up source buffers.
-  av1_setup_src_planes(x, cpi->source, mi_row, mi_col, num_planes, bsize);
+  av1_setup_src_planes(x, cpi->source, mi_row, mi_col, num_planes,
+                       chr_ref_info);
 
   // required by av1_append_sub8x8_mvs_for_idx() and av1_find_best_ref_mvs()
   xd->tile = *tile;
@@ -356,13 +356,14 @@ static void set_offsets_without_segment_id(const AV1_COMP *const cpi,
 
 static void set_offsets(const AV1_COMP *const cpi, const TileInfo *const tile,
                         MACROBLOCK *const x, int mi_row, int mi_col,
-                        BLOCK_SIZE bsize) {
+                        BLOCK_SIZE bsize, CHROMA_REF_INFO *chr_ref_info) {
   const AV1_COMMON *const cm = &cpi->common;
   const struct segmentation *const seg = &cm->seg;
   MACROBLOCKD *const xd = &x->e_mbd;
   MB_MODE_INFO *mbmi;
 
-  set_offsets_without_segment_id(cpi, tile, x, mi_row, mi_col, bsize);
+  set_offsets_without_segment_id(cpi, tile, x, mi_row, mi_col, bsize,
+                                 chr_ref_info);
 
   // Setup segment ID.
   mbmi = xd->mi[0];
@@ -573,7 +574,7 @@ static void update_state(const AV1_COMP *const cpi, ThreadData *td,
 
 void av1_setup_src_planes(MACROBLOCK *x, const YV12_BUFFER_CONFIG *src,
                           int mi_row, int mi_col, const int num_planes,
-                          BLOCK_SIZE bsize) {
+                          const CHROMA_REF_INFO *chr_ref_info) {
   // Set current frame pointer.
   x->e_mbd.cur_buf = src;
 
@@ -581,10 +582,10 @@ void av1_setup_src_planes(MACROBLOCK *x, const YV12_BUFFER_CONFIG *src,
   // the static analysis warnings.
   for (int i = 0; i < AOMMIN(num_planes, MAX_MB_PLANE); i++) {
     const int is_uv = i > 0;
-    setup_pred_plane(
-        &x->plane[i].src, bsize, src->buffers[i], src->crop_widths[is_uv],
-        src->crop_heights[is_uv], src->strides[is_uv], mi_row, mi_col, NULL,
-        x->e_mbd.plane[i].subsampling_x, x->e_mbd.plane[i].subsampling_y);
+    setup_pred_plane(&x->plane[i].src, src->buffers[i], src->crop_widths[is_uv],
+                     src->crop_heights[is_uv], src->strides[is_uv], mi_row,
+                     mi_col, NULL, x->e_mbd.plane[i].subsampling_x,
+                     x->e_mbd.plane[i].subsampling_y, i > 0, chr_ref_info);
   }
 }
 
@@ -638,7 +639,7 @@ static void pick_sb_modes(AV1_COMP *const cpi, TileDataEnc *tile_data,
 
   aom_clear_system_state();
 
-  set_offsets(cpi, tile_info, x, mi_row, mi_col, bsize);
+  set_offsets(cpi, tile_info, x, mi_row, mi_col, bsize, &ctx->chroma_ref_info);
 
   mbmi = xd->mi[0];
 
@@ -1822,7 +1823,8 @@ static void encode_b(const AV1_COMP *const cpi, TileDataEnc *tile_data,
   MACROBLOCKD *xd = &x->e_mbd;
 
   assert(bsize == ctx->mic.sb_type);
-  set_offsets_without_segment_id(cpi, tile, x, mi_row, mi_col, bsize);
+  set_offsets_without_segment_id(cpi, tile, x, mi_row, mi_col, bsize,
+                                 &ctx->chroma_ref_info);
   const int origin_mult = x->rdmult;
   setup_block_rdmult(cpi, x, mi_row, mi_col, bsize, NO_AQ, NULL);
   MB_MODE_INFO *mbmi = xd->mi[0];
@@ -2255,7 +2257,8 @@ static void rd_use_partition(AV1_COMP *cpi, ThreadData *td,
   save_context(x, &x_ctx, mi_row, mi_col, bsize, num_planes);
 
   if (bsize == BLOCK_16X16 && cpi->vaq_refresh) {
-    set_offsets(cpi, tile_info, x, mi_row, mi_col, bsize);
+    set_offsets(cpi, tile_info, x, mi_row, mi_col, bsize,
+                &pc_tree->chroma_ref_info);
     x->mb_energy = av1_log_block_var(cpi, x, bsize);
   }
 
@@ -3201,7 +3204,8 @@ static bool rd_pick_partition(AV1_COMP *const cpi, ThreadData *td,
 
   av1_init_rd_stats(&this_rdc);
 
-  set_offsets(cpi, tile_info, x, mi_row, mi_col, bsize);
+  set_offsets(cpi, tile_info, x, mi_row, mi_col, bsize,
+              &pc_tree->chroma_ref_info);
 
   // Save rdmult before it might be changed, so it can be restored later.
   const int orig_rdmult = x->rdmult;
@@ -3597,7 +3601,8 @@ BEGIN_PARTITION_SEARCH:
       cpi->sf.ml_prune_rect_partition && !frame_is_intra_only(cm) &&
       (partition_horz_allowed || partition_vert_allowed) &&
       !(prune_horz || prune_vert) && !terminate_partition_search) {
-    av1_setup_src_planes(x, cpi->source, mi_row, mi_col, num_planes, bsize);
+    av1_setup_src_planes(x, cpi->source, mi_row, mi_col, num_planes,
+                         &pc_tree->chroma_ref_info);
     av1_ml_prune_rect_partition(cpi, x, bsize, best_rdc.rdcost, cur_none_rd,
                                 split_rd, &prune_horz, &prune_vert);
   }
@@ -3833,7 +3838,8 @@ BEGIN_PARTITION_SEARCH:
   }
 
   if (pb_source_variance == UINT_MAX) {
-    av1_setup_src_planes(x, cpi->source, mi_row, mi_col, num_planes, bsize);
+    av1_setup_src_planes(x, cpi->source, mi_row, mi_col, num_planes,
+                         &pc_tree->chroma_ref_info);
     if (is_cur_buf_hbd(xd)) {
       pb_source_variance = av1_high_get_sby_perpixel_variance(
           cpi, &x->plane[0].src, bsize, xd->bd);
@@ -5063,7 +5069,7 @@ static void setup_delta_q(AV1_COMP *const cpi, ThreadData *td,
   const int mib_size = cm->seq_params.mib_size;
 
   // Delta-q modulation based on variance
-  av1_setup_src_planes(x, cpi->source, mi_row, mi_col, num_planes, sb_size);
+  av1_setup_src_planes(x, cpi->source, mi_row, mi_col, num_planes, NULL);
 
   int current_qindex = cm->base_qindex;
   if (cm->delta_q_info.delta_q_present_flag) {
@@ -5103,7 +5109,9 @@ static void setup_delta_q(AV1_COMP *const cpi, ThreadData *td,
   assert(current_qindex > 0);
 
   xd->delta_qindex = current_qindex - cm->base_qindex;
-  set_offsets(cpi, tile_info, x, mi_row, mi_col, sb_size);
+
+  CHROMA_REF_INFO sb_chr_ref_info = { 1, 0, mi_row, mi_col, sb_size, sb_size };
+  set_offsets(cpi, tile_info, x, mi_row, mi_col, sb_size, &sb_chr_ref_info);
   xd->mi[0]->current_qindex = current_qindex;
   av1_init_plane_quantizers(cpi, x, xd->mi[0]->segment_id);
 
@@ -5561,12 +5569,15 @@ static void encode_sb_row(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
       seg_skip = segfeature_active(seg, segment_id, SEG_LVL_SKIP);
     }
 
+    CHROMA_REF_INFO sb_chr_ref_info = {
+      1, 0, mi_row, mi_col, sb_size, sb_size
+    };
     // Realtime non-rd path.
     if (!(sf->partition_search_type == FIXED_PARTITION || seg_skip) &&
         !cpi->partition_search_skippable_frame &&
         sf->partition_search_type == VAR_BASED_PARTITION && use_nonrd_mode) {
-      set_offsets_without_segment_id(cpi, tile_info, x, mi_row, mi_col,
-                                     sb_size);
+      set_offsets_without_segment_id(cpi, tile_info, x, mi_row, mi_col, sb_size,
+                                     &sb_chr_ref_info);
       av1_choose_var_based_partitioning(cpi, tile_info, x, mi_row, mi_col);
       td->mb.cb_offset = 0;
       PC_TREE *const pc_root = av1_alloc_pc_tree_node(
@@ -5583,7 +5594,8 @@ static void encode_sb_row(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
       av1_invalid_rd_stats(&dummy_rdc);
       adjust_rdmult_tpl_model(cpi, x, mi_row, mi_col);
       if (sf->partition_search_type == FIXED_PARTITION || seg_skip) {
-        set_offsets(cpi, tile_info, x, mi_row, mi_col, sb_size);
+        set_offsets(cpi, tile_info, x, mi_row, mi_col, sb_size,
+                    &sb_chr_ref_info);
         const BLOCK_SIZE bsize =
             seg_skip ? sb_size : sf->always_this_block_size;
         set_fixed_partitioning(cpi, tile_info, mi, mi_row, mi_col, bsize);
@@ -5593,7 +5605,8 @@ static void encode_sb_row(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
                          &dummy_rate, &dummy_dist, 1, pc_root);
         av1_free_pc_tree_recursive(pc_root, num_planes, 0, 0);
       } else if (cpi->partition_search_skippable_frame) {
-        set_offsets(cpi, tile_info, x, mi_row, mi_col, sb_size);
+        set_offsets(cpi, tile_info, x, mi_row, mi_col, sb_size,
+                    &sb_chr_ref_info);
         const BLOCK_SIZE bsize =
             get_rd_var_based_fixed_partition(cpi, x, mi_row, mi_col);
         set_fixed_partitioning(cpi, tile_info, mi, mi_row, mi_col, bsize);
@@ -5680,8 +5693,10 @@ static void init_encode_frame_mb_context(AV1_COMP *cpi) {
   MACROBLOCKD *const xd = &x->e_mbd;
 
   // Copy data over into macro block data structures.
-  av1_setup_src_planes(x, cpi->source, 0, 0, num_planes,
-                       cm->seq_params.sb_size);
+  CHROMA_REF_INFO sb_chr_ref_info = {
+    1, 0, 0, 0, cm->seq_params.sb_size, cm->seq_params.sb_size
+  };
+  av1_setup_src_planes(x, cpi->source, 0, 0, num_planes, &sb_chr_ref_info);
 
   av1_setup_block_planes(xd, cm->seq_params.subsampling_x,
                          cm->seq_params.subsampling_y, num_planes);
@@ -6929,7 +6944,8 @@ static void encode_superblock(const AV1_COMP *const cpi, TileDataEnc *tile_data,
           get_ref_frame_yv12_buf(cm, mbmi->ref_frame[ref]);
       assert(IMPLIES(!is_intrabc_block(mbmi), cfg));
       av1_setup_pre_planes(xd, ref, cfg, mi_row, mi_col,
-                           xd->block_ref_scale_factors[ref], num_planes);
+                           xd->block_ref_scale_factors[ref], num_planes,
+                           &mbmi->chroma_ref_info);
     }
 
     av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize, 0,

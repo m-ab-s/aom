@@ -498,7 +498,8 @@ int av1_choose_var_based_partitioning(AV1_COMP *cpi, const TileInfo *const tile,
     assert(yv12 != NULL);
 
     av1_setup_pre_planes(xd, 0, yv12, mi_row, mi_col,
-                         get_ref_scale_factors(cm, LAST_FRAME), num_planes);
+                         get_ref_scale_factors(cm, LAST_FRAME), num_planes,
+                         NULL);
     mi->ref_frame[0] = LAST_FRAME;
     mi->ref_frame[1] = NONE_FRAME;
     mi->sb_type = cm->seq_params.sb_size;

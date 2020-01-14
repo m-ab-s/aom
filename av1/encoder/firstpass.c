@@ -26,7 +26,7 @@
 #include "aom_dsp/variance.h"
 #include "av1/common/entropymv.h"
 #include "av1/common/quant_common.h"
-#include "av1/common/reconinter.h"  // av1_setup_dst_planes()
+#include "av1/common/reconinter.h"
 #include "av1/common/txb_common.h"
 #include "av1/encoder/aq_variance.h"
 #include "av1/encoder/av1_quantize.h"
@@ -413,13 +413,14 @@ void av1_first_pass(AV1_COMP *cpi, const int64_t ts_duration) {
   av1_setup_block_planes(&x->e_mbd, seq_params->subsampling_x,
                          seq_params->subsampling_y, num_planes);
 
-  av1_setup_src_planes(x, cpi->source, 0, 0, num_planes,
-                       x->e_mbd.mi[0]->sb_type);
-  av1_setup_dst_planes(xd->plane, seq_params->sb_size, new_yv12, 0, 0, 0,
-                       num_planes);
+  CHROMA_REF_INFO mb_chr_ref_info = {
+    1, 0, 0, 0, x->e_mbd.mi[0]->sb_type, x->e_mbd.mi[0]->sb_type
+  };
+  av1_setup_src_planes(x, cpi->source, 0, 0, num_planes, &mb_chr_ref_info);
+  av1_setup_dst_planes(xd->plane, new_yv12, 0, 0, 0, num_planes, NULL);
 
   if (!frame_is_intra_only(cm)) {
-    av1_setup_pre_planes(xd, 0, lst_yv12, 0, 0, NULL, num_planes);
+    av1_setup_pre_planes(xd, 0, lst_yv12, 0, 0, NULL, num_planes, NULL);
   }
 
   xd->mi = cm->mi_grid_base;
@@ -487,8 +488,9 @@ void av1_first_pass(AV1_COMP *cpi, const int64_t ts_duration) {
       const int mi_col = mb_col * mb_scale;
       const int bh = mi_size_high[bsize];
       const int bw = mi_size_wide[bsize];
+      CHROMA_REF_INFO chr_ref_info = { 1, 0, mi_row, mi_col, bsize, bsize };
       set_mi_row_col(xd, &tile, mi_row, bh, mi_col, bw, cm->mi_rows,
-                     cm->mi_cols);
+                     cm->mi_cols, &chr_ref_info);
 
       set_plane_n4(xd, mb_row * mb_scale, mb_col * mb_scale, bsize, num_planes);
 

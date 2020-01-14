@@ -146,8 +146,8 @@ static INLINE void set_offsets_for_motion_search(const AV1_COMP *const cpi,
   set_mode_info_offsets(cpi, x, xd, mi_row, mi_col);
 
   // Set up destination pointers.
-  av1_setup_dst_planes(xd->plane, bsize, &cm->cur_frame->buf, mi_row, mi_col, 0,
-                       num_planes);
+  av1_setup_dst_planes(xd->plane, &cm->cur_frame->buf, mi_row, mi_col, 0,
+                       num_planes, NULL);
 
   // Set up limit values for MV components.
   // Mv beyond the range do not produce new/different prediction block.
@@ -167,7 +167,9 @@ static INLINE void set_offsets_for_motion_search(const AV1_COMP *const cpi,
   xd->mb_to_right_edge = ((cm->mi_cols - mi_width - mi_col) * MI_SIZE) * 8;
 
   // Set up source buffers.
-  av1_setup_src_planes(x, cpi->source, mi_row, mi_col, num_planes, bsize);
+  CHROMA_REF_INFO chr_ref_info = { 1, 0, mi_row, mi_col, bsize, bsize };
+  av1_setup_src_planes(x, cpi->source, mi_row, mi_col, num_planes,
+                       &chr_ref_info);
 }
 
 static INLINE void init_simple_motion_search_mvs(
