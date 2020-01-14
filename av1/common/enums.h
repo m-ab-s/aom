@@ -763,8 +763,8 @@ enum {
 #define NEWMV_MODE_CONTEXTS 6
 #define GLOBALMV_MODE_CONTEXTS 2
 #if CONFIG_NEW_INTER_MODES
-// drl bits + refmv contexts + inter_mode_contexts
-#define DRL_MODE_CONTEXTS 3 + 6 + 8
+// drl bits * (refmv contexts + newmv contexts + inter_mode_contexts)
+#define DRL_MODE_CONTEXTS 3 * (6 + 6 + 8)
 #else
 #define REFMV_MODE_CONTEXTS 6
 #define DRL_MODE_CONTEXTS 3

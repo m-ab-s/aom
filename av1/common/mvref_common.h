@@ -181,7 +181,7 @@ static INLINE int16_t av1_mode_context_analyzer(
 #if CONFIG_NEW_INTER_MODES
 static INLINE uint8_t av1_drl_ctx(int16_t mode_ctx, PREDICTION_MODE mode,
                                   const uint16_t *ref_mv_weight, int ref_idx) {
-  int ctx = 0;
+  int ctx = -1;
   if (ref_mv_weight[ref_idx] >= REF_CAT_LEVEL &&
       ref_mv_weight[ref_idx + 1] >= REF_CAT_LEVEL)
     ctx = 0;
@@ -194,12 +194,14 @@ static INLINE uint8_t av1_drl_ctx(int16_t mode_ctx, PREDICTION_MODE mode,
       ref_mv_weight[ref_idx + 1] < REF_CAT_LEVEL)
     ctx = 2;
 
-  if (ref_idx == 0 && mode == NEARMV) {
-    ctx = 3 + ((mode_ctx >> REFMV_OFFSET) & REFMV_CTX_MASK);
-  }
-  if (ref_idx == 0 && is_inter_compound_mode(mode) &&
-      have_nearmv_in_inter_mode(mode)) {
-    ctx = 9 + mode_ctx;
+  if (mode == NEARMV) {
+    ctx += 3 * ((mode_ctx >> REFMV_OFFSET) & REFMV_CTX_MASK);
+  } else if (mode == NEWMV) {
+    ctx += 3 * (mode_ctx & NEWMV_CTX_MASK);
+    ctx += 3 * 6;
+  } else {
+    ctx += 3 * mode_ctx;
+    ctx += 3 * (6 + 6);  // DRL contexts * (NEARESTMV+NEWMV) contexts
   }
   assert(ctx >= 0);
   assert(ctx < DRL_MODE_CONTEXTS);
