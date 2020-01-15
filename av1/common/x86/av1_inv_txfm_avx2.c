@@ -1870,15 +1870,9 @@ static INLINE void lowbd_inv_txfm2d_add_v_identity_avx2(
 }
 
 // for 32x32,32x64,64x32,64x64,16x32,32x16,64x16,16x64
-static INLINE void lowbd_inv_txfm2d_add_universe_avx2(const int32_t *input,
-                                                      uint8_t *output,
-                                                      int stride,
-                                                      TX_TYPE tx_type,
-                                                      TX_SIZE tx_size,
-#if CONFIG_MODE_DEP_TX
-                                                      PREDICTION_MODE mode,
-#endif
-                                                      int eob) {
+static INLINE void lowbd_inv_txfm2d_add_universe_avx2(
+    const int32_t *input, uint8_t *output, int stride, TX_TYPE tx_type,
+    TX_SIZE tx_size, PREDICTION_MODE mode, int eob) {
   (void)eob;
   switch (tx_type) {
     case DCT_DCT:
@@ -1910,20 +1904,14 @@ static INLINE void lowbd_inv_txfm2d_add_universe_avx2(const int32_t *input,
       break;
     default:
       av1_lowbd_inv_txfm2d_add_ssse3(input, output, stride, tx_type, tx_size,
-#if CONFIG_MODE_DEP_TX
-                                     mode,
-#endif
-                                     eob);
+                                     mode, eob);
       break;
   }
 }
 
 void av1_lowbd_inv_txfm2d_add_avx2(const int32_t *input, uint8_t *output,
                                    int stride, TX_TYPE tx_type, TX_SIZE tx_size,
-#if CONFIG_MODE_DEP_TX
-                                   PREDICTION_MODE mode,
-#endif
-                                   int eob) {
+                                   PREDICTION_MODE mode, int eob) {
   switch (tx_size) {
     case TX_4X4:
     case TX_8X8:
@@ -1944,10 +1932,7 @@ void av1_lowbd_inv_txfm2d_add_avx2(const int32_t *input, uint8_t *output,
     case TX_64X4:
 #endif  // CONFIG_FLEX_PARTITION
       av1_lowbd_inv_txfm2d_add_ssse3(input, output, stride, tx_type, tx_size,
-#if CONFIG_MODE_DEP_TX
-                                     mode,
-#endif
-                                     eob);
+                                     mode, eob);
       break;
     case TX_16X16:
     case TX_32X32:
@@ -1960,11 +1945,7 @@ void av1_lowbd_inv_txfm2d_add_avx2(const int32_t *input, uint8_t *output,
     case TX_64X16:
     default:
       lowbd_inv_txfm2d_add_universe_avx2(input, output, stride, tx_type,
-                                         tx_size,
-#if CONFIG_MODE_DEP_TX
-                                         mode,
-#endif
-                                         eob);
+                                         tx_size, mode, eob);
       break;
   }
 }
@@ -1974,10 +1955,7 @@ void av1_inv_txfm_add_avx2(const tran_low_t *dqcoeff, uint8_t *dst, int stride,
   const TX_TYPE tx_type = txfm_param->tx_type;
   if (!txfm_param->lossless) {
     av1_lowbd_inv_txfm2d_add_avx2(dqcoeff, dst, stride, tx_type,
-                                  txfm_param->tx_size,
-#if CONFIG_MODE_DEP_TX
-                                  txfm_param->mode,
-#endif
+                                  txfm_param->tx_size, txfm_param->mode,
                                   txfm_param->eob);
   } else {
     av1_inv_txfm_add_c(dqcoeff, dst, stride, txfm_param);

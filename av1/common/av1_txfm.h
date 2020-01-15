@@ -128,13 +128,8 @@ static INLINE uint16_t highbd_clip_pixel_add(uint16_t dest, tran_high_t trans,
 typedef void (*TxfmFunc)(const int32_t *input, int32_t *output, int8_t cos_bit,
                          const int8_t *stage_range);
 
-#if CONFIG_MODE_DEP_TX || CONFIG_LGT
 typedef void (*FwdTxfm2dFunc)(const int16_t *input, int32_t *output, int stride,
                               TX_TYPE tx_type, PREDICTION_MODE mode, int bd);
-#else
-typedef void (*FwdTxfm2dFunc)(const int16_t *input, int32_t *output, int stride,
-                              TX_TYPE tx_type, int bd);
-#endif
 
 enum {
   TXFM_TYPE_DCT4,
@@ -189,13 +184,11 @@ typedef struct TXFM_2D_FLIP_CFG {
   TXFM_TYPE txfm_type_row;
   int stage_num_col;
   int stage_num_row;
-#if CONFIG_MODE_DEP_TX || CONFIG_LGT
   PREDICTION_MODE mode;
 #if CONFIG_MODE_DEP_TX && USE_MDTX_INTRA && CONFIG_MODE_DEP_NONSEP_INTRA_TX
   const int32_t *nstx_mtx_ptr;
 #endif  // CONFIG_MODE_DEP_TX && USE_MDTX_INTRA &&
         // CONFIG_MODE_DEP_NONSEP_INTRA_TX
-#endif  // CONFIG_MODE_DEP_TX || CONFIG_LGT
 } TXFM_2D_FLIP_CFG;
 
 static INLINE void get_flip_cfg(TX_TYPE tx_type, int *ud_flip, int *lr_flip) {
@@ -300,15 +293,9 @@ void av1_gen_inv_stage_range(int8_t *stage_range_col, int8_t *stage_range_row,
                              int bd);
 
 void av1_get_fwd_txfm_cfg(TX_TYPE tx_type, TX_SIZE tx_size,
-#if CONFIG_MODE_DEP_TX || CONFIG_LGT
-                          PREDICTION_MODE mode,
-#endif
-                          TXFM_2D_FLIP_CFG *cfg);
+                          PREDICTION_MODE mode, TXFM_2D_FLIP_CFG *cfg);
 void av1_get_inv_txfm_cfg(TX_TYPE tx_type, TX_SIZE tx_size,
-#if CONFIG_MODE_DEP_TX || CONFIG_LGT
-                          PREDICTION_MODE mode,
-#endif
-                          TXFM_2D_FLIP_CFG *cfg);
+                          PREDICTION_MODE mode, TXFM_2D_FLIP_CFG *cfg);
 extern const TXFM_TYPE av1_txfm_type_ls[5][TX_TYPES_1D];
 extern const int8_t av1_txfm_stage_num_list[TXFM_TYPES];
 static INLINE int get_txw_idx(TX_SIZE tx_size) {

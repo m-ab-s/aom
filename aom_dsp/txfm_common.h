@@ -32,9 +32,7 @@ typedef struct txfm_param {
   // bd==8 implies !is_hbd, but that's not certain right now.
   int is_hbd;
   TxSetType tx_set_type;
-#if CONFIG_MODE_DEP_TX || CONFIG_LGT
   PREDICTION_MODE mode;
-#endif
   // for inverse transforms only
   int eob;
 } TxfmParam;

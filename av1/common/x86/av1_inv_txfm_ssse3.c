@@ -2942,13 +2942,8 @@ static INLINE void lowbd_inv_txfm2d_add_idtx_ssse3(const int32_t *input,
 static void lowbd_inv_txfm2d_add_4x4_ssse3(const int32_t *input,
                                            uint8_t *output, int stride,
                                            TX_TYPE tx_type, TX_SIZE tx_size_,
-#if CONFIG_MODE_DEP_TX
-                                           PREDICTION_MODE mode,
-#endif
-                                           int eob) {
-#if CONFIG_MODE_DEP_TX
+                                           PREDICTION_MODE mode, int eob) {
   (void)mode;
-#endif
   (void)tx_size_;
   (void)eob;
   __m128i buf[4];
@@ -3220,13 +3215,8 @@ static INLINE void lowbd_inv_txfm2d_add_universe_ssse3(
 static void lowbd_inv_txfm2d_add_4x8_ssse3(const int32_t *input,
                                            uint8_t *output, int stride,
                                            TX_TYPE tx_type, TX_SIZE tx_size_,
-#if CONFIG_MODE_DEP_TX
-                                           PREDICTION_MODE mode,
-#endif
-                                           int eob) {
-#if CONFIG_MODE_DEP_TX
+                                           PREDICTION_MODE mode, int eob) {
   (void)mode;
-#endif
   (void)tx_size_;
   (void)eob;
   __m128i buf[8];
@@ -3266,13 +3256,8 @@ static void lowbd_inv_txfm2d_add_4x8_ssse3(const int32_t *input,
 static void lowbd_inv_txfm2d_add_8x4_ssse3(const int32_t *input,
                                            uint8_t *output, int stride,
                                            TX_TYPE tx_type, TX_SIZE tx_size_,
-#if CONFIG_MODE_DEP_TX
-                                           PREDICTION_MODE mode,
-#endif
-                                           int eob) {
-#if CONFIG_MODE_DEP_TX
+                                           PREDICTION_MODE mode, int eob) {
   (void)mode;
-#endif
   (void)tx_size_;
   (void)eob;
   __m128i buf[8];
@@ -3312,13 +3297,8 @@ static void lowbd_inv_txfm2d_add_8x4_ssse3(const int32_t *input,
 static void lowbd_inv_txfm2d_add_4x16_ssse3(const int32_t *input,
                                             uint8_t *output, int stride,
                                             TX_TYPE tx_type, TX_SIZE tx_size_,
-#if CONFIG_MODE_DEP_TX
-                                            PREDICTION_MODE mode,
-#endif
-                                            int eob) {
-#if CONFIG_MODE_DEP_TX
+                                            PREDICTION_MODE mode, int eob) {
   (void)mode;
-#endif
   (void)tx_size_;
   (void)eob;
   __m128i buf[16];
@@ -3379,13 +3359,8 @@ static void lowbd_inv_txfm2d_add_4x16_ssse3(const int32_t *input,
 static void lowbd_inv_txfm2d_add_4x32_ssse3(const int32_t *input,
                                             uint8_t *output, int stride,
                                             TX_TYPE tx_type, TX_SIZE tx_size_,
-#if CONFIG_MODE_DEP_TX
-                                            PREDICTION_MODE mode,
-#endif
-                                            int eob) {
-#if CONFIG_MODE_DEP_TX
+                                            PREDICTION_MODE mode, int eob) {
   (void)mode;
-#endif
   (void)tx_size_;
   (void)eob;
   __m128i buf[32];
@@ -3436,13 +3411,8 @@ static void lowbd_inv_txfm2d_add_4x32_ssse3(const int32_t *input,
 static void lowbd_inv_txfm2d_add_4x64_ssse3(const int32_t *input,
                                             uint8_t *output, int stride,
                                             TX_TYPE tx_type, TX_SIZE tx_size_,
-#if CONFIG_MODE_DEP_TX
-                                            PREDICTION_MODE mode,
-#endif
-                                            int eob) {
-#if CONFIG_MODE_DEP_TX
+                                            PREDICTION_MODE mode, int eob) {
   (void)mode;
-#endif
   (void)tx_size_;
   (void)eob;
   __m128i buf[64];
@@ -3479,13 +3449,8 @@ static void lowbd_inv_txfm2d_add_4x64_ssse3(const int32_t *input,
 static void lowbd_inv_txfm2d_add_16x4_ssse3(const int32_t *input,
                                             uint8_t *output, int stride,
                                             TX_TYPE tx_type, TX_SIZE tx_size_,
-#if CONFIG_MODE_DEP_TX
-                                            PREDICTION_MODE mode,
-#endif
-                                            int eob) {
-#if CONFIG_MODE_DEP_TX
+                                            PREDICTION_MODE mode, int eob) {
   (void)mode;
-#endif
   (void)tx_size_;
   (void)eob;
   __m128i buf[16];
@@ -3551,13 +3516,8 @@ static void lowbd_inv_txfm2d_add_16x4_ssse3(const int32_t *input,
 static void lowbd_inv_txfm2d_add_32x4_ssse3(const int32_t *input,
                                             uint8_t *output, int stride,
                                             TX_TYPE tx_type, TX_SIZE tx_size_,
-#if CONFIG_MODE_DEP_TX
-                                            PREDICTION_MODE mode,
-#endif
-                                            int eob) {
-#if CONFIG_MODE_DEP_TX
+                                            PREDICTION_MODE mode, int eob) {
   (void)mode;
-#endif
   (void)tx_size_;
   (void)eob;
   __m128i buf[32];
@@ -3608,13 +3568,8 @@ static void lowbd_inv_txfm2d_add_32x4_ssse3(const int32_t *input,
 static void lowbd_inv_txfm2d_add_64x4_ssse3(const int32_t *input,
                                             uint8_t *output, int stride,
                                             TX_TYPE tx_type, TX_SIZE tx_size_,
-#if CONFIG_MODE_DEP_TX
-                                            PREDICTION_MODE mode,
-#endif
-                                            int eob) {
-#if CONFIG_MODE_DEP_TX
+                                            PREDICTION_MODE mode, int eob) {
   (void)mode;
-#endif
   (void)tx_size_;
   (void)eob;
   __m128i buf[64];
@@ -3657,75 +3612,45 @@ static void lowbd_inv_txfm2d_add_64x4_ssse3(const int32_t *input,
 
 void av1_lowbd_inv_txfm2d_add_ssse3(const int32_t *input, uint8_t *output,
                                     int stride, TX_TYPE tx_type,
-                                    TX_SIZE tx_size,
-#if CONFIG_MODE_DEP_TX
-                                    PREDICTION_MODE mode,
-#endif
+                                    TX_SIZE tx_size, PREDICTION_MODE mode,
                                     int eob) {
   switch (tx_size) {
     case TX_4X4:
       lowbd_inv_txfm2d_add_4x4_ssse3(input, output, stride, tx_type, tx_size,
-#if CONFIG_MODE_DEP_TX
-                                     mode,
-#endif
-                                     eob);
+                                     mode, eob);
       break;
     case TX_4X8:
       lowbd_inv_txfm2d_add_4x8_ssse3(input, output, stride, tx_type, tx_size,
-#if CONFIG_MODE_DEP_TX
-                                     mode,
-#endif
-                                     eob);
+                                     mode, eob);
       break;
     case TX_8X4:
       lowbd_inv_txfm2d_add_8x4_ssse3(input, output, stride, tx_type, tx_size,
-#if CONFIG_MODE_DEP_TX
-                                     mode,
-#endif
-                                     eob);
+                                     mode, eob);
       break;
     case TX_4X16:
       lowbd_inv_txfm2d_add_4x16_ssse3(input, output, stride, tx_type, tx_size,
-#if CONFIG_MODE_DEP_TX
-                                      mode,
-#endif
-                                      eob);
+                                      mode, eob);
       break;
     case TX_16X4:
       lowbd_inv_txfm2d_add_16x4_ssse3(input, output, stride, tx_type, tx_size,
-#if CONFIG_MODE_DEP_TX
-                                      mode,
-#endif
-                                      eob);
+                                      mode, eob);
       break;
 #if CONFIG_FLEX_PARTITION
     case TX_4X32:
       lowbd_inv_txfm2d_add_4x32_ssse3(input, output, stride, tx_type, tx_size,
-#if CONFIG_MODE_DEP_TX
-                                      mode,
-#endif
-                                      eob);
+                                      mode, eob);
       break;
     case TX_32X4:
       lowbd_inv_txfm2d_add_32x4_ssse3(input, output, stride, tx_type, tx_size,
-#if CONFIG_MODE_DEP_TX
-                                      mode,
-#endif
-                                      eob);
+                                      mode, eob);
       break;
     case TX_4X64:
       lowbd_inv_txfm2d_add_4x64_ssse3(input, output, stride, tx_type, tx_size,
-#if CONFIG_MODE_DEP_TX
-                                      mode,
-#endif
-                                      eob);
+                                      mode, eob);
       break;
     case TX_64X4:
       lowbd_inv_txfm2d_add_64x4_ssse3(input, output, stride, tx_type, tx_size,
-#if CONFIG_MODE_DEP_TX
-                                      mode,
-#endif
-                                      eob);
+                                      mode, eob);
       break;
 #endif  // CONFIG_FLEX_PARTITION
     default:
@@ -3740,10 +3665,7 @@ void av1_inv_txfm_add_ssse3(const tran_low_t *dqcoeff, uint8_t *dst, int stride,
   if (!txfm_param->lossless) {
     const TX_TYPE tx_type = txfm_param->tx_type;
     av1_lowbd_inv_txfm2d_add_ssse3(dqcoeff, dst, stride, tx_type,
-                                   txfm_param->tx_size,
-#if CONFIG_MODE_DEP_TX
-                                   txfm_param->mode,
-#endif
+                                   txfm_param->tx_size, txfm_param->mode,
                                    txfm_param->eob);
 
   } else {

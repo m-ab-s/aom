@@ -63,10 +63,7 @@ static INLINE void lowbd_write_buffer_16xn_avx2(__m256i *in, uint8_t *output,
 
 void av1_lowbd_inv_txfm2d_add_avx2(const int32_t *input, uint8_t *output,
                                    int stride, TX_TYPE tx_type, TX_SIZE tx_size,
-#if CONFIG_MODE_DEP_TX
-                                   PREDICTION_MODE mode,
-#endif
-                                   int eob);
+                                   PREDICTION_MODE mode, int eob);
 #ifdef __cplusplus
 }
 #endif

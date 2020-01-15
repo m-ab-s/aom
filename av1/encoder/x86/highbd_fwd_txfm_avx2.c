@@ -2045,13 +2045,8 @@ static const transform_1d_avx2 row_txfm8x32_arr[TX_TYPES] = {
 };
 void av1_fwd_txfm2d_32x32_avx2(const int16_t *input, int32_t *output,
                                int stride, TX_TYPE tx_type,
-#if CONFIG_MODE_DEP_TX || CONFIG_LGT
-                               PREDICTION_MODE mode,
-#endif
-                               int bd) {
-#if CONFIG_MODE_DEP_TX || CONFIG_LGT
+                               PREDICTION_MODE mode, int bd) {
   (void)mode;
-#endif
   (void)bd;
   __m256i buf0[128], buf1[128];
   const int tx_size = TX_32X32;
@@ -3115,13 +3110,8 @@ static void fdct64_avx2(__m256i *input, __m256i *output, int8_t cos_bit,
 }
 void av1_fwd_txfm2d_64x64_avx2(const int16_t *input, int32_t *output,
                                int stride, TX_TYPE tx_type,
-#if CONFIG_MODE_DEP_TX || CONFIG_LGT
-                               PREDICTION_MODE mode,
-#endif
-                               int bd) {
-#if CONFIG_MODE_DEP_TX || CONFIG_LGT
+                               PREDICTION_MODE mode, int bd) {
   (void)mode;
-#endif
   (void)bd;
   (void)tx_type;
   assert(tx_type == DCT_DCT);

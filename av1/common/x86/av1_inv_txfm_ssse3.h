@@ -235,10 +235,7 @@ typedef void (*transform_1d_ssse3)(const __m128i *input, __m128i *output,
 
 void av1_lowbd_inv_txfm2d_add_ssse3(const int32_t *input, uint8_t *output,
                                     int stride, TX_TYPE tx_type,
-                                    TX_SIZE tx_size,
-#if CONFIG_MODE_DEP_TX
-                                    PREDICTION_MODE mode,
-#endif
+                                    TX_SIZE tx_size, PREDICTION_MODE mode,
                                     int eob);
 #ifdef __cplusplus
 }  // extern "C"

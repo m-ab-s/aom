@@ -675,13 +675,8 @@ static void iidentity4_sse4_1(__m128i *in, __m128i *out, int bit, int do_cols,
 
 void av1_inv_txfm2d_add_4x4_sse4_1(const int32_t *input, uint16_t *output,
                                    int stride, TX_TYPE tx_type,
-#if CONFIG_MODE_DEP_TX || CONFIG_LGT
-                                   PREDICTION_MODE mode,
-#endif
-                                   int bd) {
-#if CONFIG_MODE_DEP_TX || CONFIG_LGT
+                                   PREDICTION_MODE mode, int bd) {
   (void)mode;
-#endif
 
   __m128i in[4];
   const int8_t *shift = av1_inv_txfm_shift_ls[TX_4X4];
@@ -1353,13 +1348,8 @@ static void write_buffer_8x8(__m128i *in, uint16_t *output, int stride,
 
 void av1_inv_txfm2d_add_8x8_sse4_1(const int32_t *input, uint16_t *output,
                                    int stride, TX_TYPE tx_type,
-#if CONFIG_MODE_DEP_TX || CONFIG_LGT
-                                   PREDICTION_MODE mode,
-#endif
-                                   int bd) {
-#if CONFIG_MODE_DEP_TX || CONFIG_LGT
+                                   PREDICTION_MODE mode, int bd) {
   (void)mode;
-#endif
 
   __m128i in[16], out[16];
   const int8_t *shift = av1_inv_txfm_shift_ls[TX_8X8];
@@ -5135,7 +5125,7 @@ void av1_highbd_inv_txfm_add_8x8_sse4_1(const tran_low_t *input, uint8_t *dest,
       break;
     default:
       av1_inv_txfm2d_add_8x8_sse4_1(src, CONVERT_TO_SHORTPTR(dest), stride,
-                                    tx_type, bd);
+                                    tx_type, txfm_param->mode, bd);
       break;
   }
 #endif
@@ -5159,7 +5149,7 @@ void av1_highbd_inv_txfm_add_4x4_sse4_1(const tran_low_t *input, uint8_t *dest,
                            txfm_param->mode, bd);
 #else
   av1_inv_txfm2d_add_4x4_sse4_1(src, CONVERT_TO_SHORTPTR(dest), stride, tx_type,
-                                bd);
+                                txfm_param->mode, bd);
 #endif
 }
 static void iidentity32_sse4_1(__m128i *in, __m128i *out, int bit, int do_cols,

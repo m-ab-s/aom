@@ -6739,23 +6739,38 @@ static INLINE const int32_t *nstx_arr(TX_SIZE tx_size, PREDICTION_MODE mode) {
 #endif  // USE_MDTX_INTRA && CONFIG_MODE_DEP_NONSEP_INTRA_TX
 
 // pointers to separable mode-dependent transforms
-static const int32_t *mdt_mtx_arr[2][INTRA_MODES] = {
-  { mdt4_mode0, mdt4_mode1, mdt4_mode2, mdt4_mode3, mdt4_mode4, mdt4_mode5,
-    mdt4_mode6, mdt4_mode7, mdt4_mode8, mdt4_mode9, mdt4_mode10, mdt4_mode11,
-    mdt4_mode12 },
-  { mdt8_mode0, mdt8_mode1, mdt8_mode2, mdt8_mode3, mdt8_mode4, mdt8_mode5,
-    mdt8_mode6, mdt8_mode7, mdt8_mode8, mdt8_mode9, mdt8_mode10, mdt8_mode11,
-    mdt8_mode12 },
+static const int32_t *mdt_mtx_intra_arr4[INTRA_MODES] = {
+  mdt4_mode0,  mdt4_mode1,  mdt4_mode2, mdt4_mode3, mdt4_mode4,
+  mdt4_mode5,  mdt4_mode6,  mdt4_mode7, mdt4_mode8, mdt4_mode9,
+  mdt4_mode10, mdt4_mode11, mdt4_mode12
 };
 
-static INLINE const int32_t *mdt_arr(int mode, int tx_size_1d) {
-  if (mode >= INTER_MODE_START && mode < INTER_MODE_END) {
-    return tx_size_1d == 0 ? klt4_inter : klt8_inter;
+static const int32_t *mdt_mtx_intra_arr8[INTRA_MODES] = {
+  mdt8_mode0,  mdt8_mode1,  mdt8_mode2, mdt8_mode3, mdt8_mode4,
+  mdt8_mode5,  mdt8_mode6,  mdt8_mode7, mdt8_mode8, mdt8_mode9,
+  mdt8_mode10, mdt8_mode11, mdt8_mode12
+};
+
+static INLINE const int32_t *mdt_arr4(int mode) {
+  if (is_inter_mode(mode)) {
+    return klt4_inter;
   } else {
-    return mdt_mtx_arr[tx_size_1d][mode];
+    return mdt_mtx_intra_arr4[mode];
   }
 }
 
+static INLINE const int32_t *mdt_arr8(int mode) {
+  if (is_inter_mode(mode)) {
+    return klt8_inter;
+  } else {
+    return mdt_mtx_intra_arr8[mode];
+  }
+}
+
+static INLINE const int32_t *mdt_arr16(int mode) {
+  (void)mode;
+  return dst7_16;
+}
 #ifdef __cplusplus
 }
 #endif

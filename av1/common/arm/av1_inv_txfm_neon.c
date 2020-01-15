@@ -4233,7 +4233,8 @@ static INLINE void lowbd_inv_txfm2d_add_universe_neon(
 
 void av1_lowbd_inv_txfm2d_add_neon(const int32_t *input, uint8_t *output,
                                    int stride, TX_TYPE tx_type, TX_SIZE tx_size,
-                                   int eob) {
+                                   PREDICTION_MODE mode, int eob) {
+  (void)mode;
   switch (tx_size) {
     case TX_4X4:
       lowbd_inv_txfm2d_add_4x4_neon(input, output, stride, tx_type, eob);
@@ -4266,7 +4267,8 @@ void av1_inv_txfm_add_neon(const tran_low_t *dqcoeff, uint8_t *dst, int stride,
   const TX_TYPE tx_type = txfm_param->tx_type;
   if (!txfm_param->lossless) {
     av1_lowbd_inv_txfm2d_add_neon(dqcoeff, dst, stride, tx_type,
-                                  txfm_param->tx_size, txfm_param->eob);
+                                  txfm_param->tx_size, txfm_param->mode,
+                                  txfm_param->eob);
   } else {
     av1_inv_txfm_add_c(dqcoeff, dst, stride, txfm_param);
   }

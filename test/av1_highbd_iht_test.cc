@@ -28,17 +28,10 @@ namespace {
 using libaom_test::ACMRandom;
 using ::testing::tuple;
 
-#if CONFIG_MODE_DEP_TX || CONFIG_LGT
 typedef void (*HbdHtFunc)(const int16_t *input, int32_t *output, int stride,
                           TX_TYPE tx_type, PREDICTION_MODE mode, int bd);
 typedef void (*IHbdHtFunc)(const int32_t *coeff, uint16_t *output, int stride,
                            TX_TYPE tx_type, PREDICTION_MODE mode, int bd);
-#else
-typedef void (*HbdHtFunc)(const int16_t *input, int32_t *output, int stride,
-                          TX_TYPE tx_type, int bd);
-typedef void (*IHbdHtFunc)(const int32_t *coeff, uint16_t *output, int stride,
-                           TX_TYPE tx_type, int bd);
-#endif
 
 static const char *tx_type_name[] = {
   "DCT_DCT",
@@ -148,17 +141,10 @@ void AV1HighbdInvHTNxN::RunBitexactCheck() {
       output_[j] = output_ref_[j];
     }
 
-#if CONFIG_MODE_DEP_TX || CONFIG_LGT
     txfm_ref_(input_, coeffs_, stride, tx_type_, 0, bit_depth_);
     inv_txfm_ref_(coeffs_, output_ref_, stride, tx_type_, 0, bit_depth_);
     ASM_REGISTER_STATE_CHECK(
         inv_txfm_(coeffs_, output_, stride, tx_type_, 0, bit_depth_));
-#else
-    txfm_ref_(input_, coeffs_, stride, tx_type_, bit_depth_);
-    inv_txfm_ref_(coeffs_, output_ref_, stride, tx_type_, bit_depth_);
-    ASM_REGISTER_STATE_CHECK(
-        inv_txfm_(coeffs_, output_, stride, tx_type_, bit_depth_));
-#endif
 
     for (int j = 0; j < num_coeffs_; ++j) {
       EXPECT_EQ(output_ref_[j], output_[j])
@@ -262,11 +248,7 @@ void AV1HighbdInvTxfm2d::RunAV1InvTxfm2dTest(TX_TYPE tx_type_, TX_SIZE tx_size_,
         ref_output[r * stride + c] = output[r * stride + c];
       }
     }
-#if CONFIG_MODE_DEP_TX || CONFIG_LGT
     fwd_func_(input, inv_input, stride, tx_type_, 0, bit_depth_);
-#else
-    fwd_func_(input, inv_input, stride, tx_type_, bit_depth_);
-#endif
 
     // produce eob input by setting high freq coeffs to zero
     const int eob = AOMMIN(cnt + 1, eobmax);

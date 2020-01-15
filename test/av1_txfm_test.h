@@ -76,16 +76,10 @@ void fliplrud(Type *dest, int width, int height, int stride);
 typedef void (*TxfmFunc)(const int32_t *in, int32_t *out, const int8_t cos_bit,
                          const int8_t *range_bit);
 
-#if CONFIG_MODE_DEP_TX || CONFIG_LGT
 typedef void (*InvTxfm2dFunc)(const int32_t *, uint16_t *, int, TX_TYPE,
                               PREDICTION_MODE, int);
 typedef void (*LbdInvTxfm2dFunc)(const int32_t *, uint8_t *, int, TX_TYPE,
                                  TX_SIZE, PREDICTION_MODE, int);
-#else
-typedef void (*InvTxfm2dFunc)(const int32_t *, uint16_t *, int, TX_TYPE, int);
-typedef void (*LbdInvTxfm2dFunc)(const int32_t *, uint8_t *, int, TX_TYPE,
-                                 TX_SIZE, int);
-#endif
 
 static const int bd = 10;
 static const int input_base = (1 << bd);
