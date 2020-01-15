@@ -404,12 +404,12 @@ static void set_offsets(AV1_COMMON *const cm, MACROBLOCKD *const xd,
     idx += cm->mi_stride;
   }
 
-  set_plane_n4(xd, mi_row, mi_col, bsize, num_planes);
   set_chroma_ref_info(mi_row, mi_col, index, bsize, &xd->mi[0]->chroma_ref_info,
                       parent ? &parent->chroma_ref_info : NULL,
                       parent ? parent->bsize : BLOCK_INVALID,
                       parent ? parent->partition : PARTITION_NONE,
                       xd->plane[1].subsampling_x, xd->plane[1].subsampling_y);
+  set_plane_n4(xd, bsize, num_planes, &xd->mi[0]->chroma_ref_info);
   set_skip_context(xd, mi_row, mi_col, num_planes, &xd->mi[0]->chroma_ref_info);
   // Distance of Mb to the various image edges. These are specified to 8th pel
   // as they are always compared to values that are in 1/8th pel units
@@ -1449,12 +1449,12 @@ static void set_offsets_for_pred_and_recon(AV1Decoder *const pbi,
   xd->cfl.mi_row = mi_row;
   xd->cfl.mi_col = mi_col;
 
-  set_plane_n4(xd, mi_row, mi_col, bsize, num_planes);
   set_chroma_ref_info(mi_row, mi_col, index, bsize, &xd->mi[0]->chroma_ref_info,
                       parent ? &parent->chroma_ref_info : NULL,
                       parent ? parent->bsize : BLOCK_INVALID,
                       parent ? parent->partition : PARTITION_NONE,
                       xd->plane[1].subsampling_x, xd->plane[1].subsampling_y);
+  set_plane_n4(xd, bsize, num_planes, &xd->mi[0]->chroma_ref_info);
 
   // Distance of Mb to the various image edges. These are specified to 8th pel
   // as they are always compared to values that are in 1/8th pel units

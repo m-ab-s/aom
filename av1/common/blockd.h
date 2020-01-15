@@ -90,6 +90,32 @@ static INLINE int get_sqr_bsize_idx(BLOCK_SIZE bsize) {
   }
 }
 
+// For a square block size 'bsize', returns the size of the sub-blocks used by
+// the given partition type. If the partition produces sub-blocks of different
+// sizes, then the function returns the largest sub-block size.
+// Implements the Partition_Subsize lookup table in the spec (Section 9.3.
+// Conversion tables).
+// Note: the input block size should be square.
+// Otherwise it's considered invalid.
+static INLINE BLOCK_SIZE get_partition_subsize(BLOCK_SIZE bsize,
+                                               PARTITION_TYPE partition) {
+  if (partition == PARTITION_INVALID) {
+    return BLOCK_INVALID;
+  } else {
+#if CONFIG_EXT_RECUR_PARTITIONS
+    if (bsize < BLOCK_SIZES)
+      return subsize_lookup[partition][bsize];
+    else
+      return PARTITION_NONE ? bsize : BLOCK_INVALID;
+#else
+    const int sqr_bsize_idx = get_sqr_bsize_idx(bsize);
+    return sqr_bsize_idx >= SQR_BLOCK_SIZES
+               ? BLOCK_INVALID
+               : subsize_lookup[partition][sqr_bsize_idx];
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+  }
+}
+
 static INLINE int is_inter_singleref_mode(PREDICTION_MODE mode) {
   return mode >= SINGLE_INTER_MODE_START && mode < SINGLE_INTER_MODE_END;
 }
@@ -357,19 +383,70 @@ static INLINE int have_nz_chroma_ref_offset(BLOCK_SIZE bsize,
 // flag indicating whether the mode info used for the combined chroma block is
 // located in the subblock.
 static INLINE int is_sub_partition_chroma_ref(PARTITION_TYPE partition,
-                                              int index,
-                                              int is_offset_started) {
+                                              int index, BLOCK_SIZE bsize,
+                                              BLOCK_SIZE parent_bsize, int ss_x,
+                                              int ss_y, int is_offset_started) {
   (void)is_offset_started;
+  (void)parent_bsize;
+  const int bw = block_size_wide[bsize];
+  const int bh = block_size_high[bsize];
+  const int pw = bw >> ss_x;
+  const int ph = bh >> ss_y;
+  const int pw_less_than_4 = pw < 4;
+  const int ph_less_than_4 = ph < 4;
+
   switch (partition) {
     case PARTITION_NONE: return 1;
     case PARTITION_HORZ:
     case PARTITION_VERT: return index == 1;
-    case PARTITION_SPLIT: return index == 3;
+    case PARTITION_SPLIT:
+      if (is_offset_started) {
+        return index == 3;
+      } else {
+        if (pw_less_than_4 && ph_less_than_4)
+          return index == 3;
+        else if (pw_less_than_4)
+          return index == 1 || index == 3;
+        else if (ph_less_than_4)
+          return index == 2 || index == 3;
+        else
+          return 1;
+      }
 #if !CONFIG_EXT_RECUR_PARTITIONS
     case PARTITION_HORZ_A:
     case PARTITION_HORZ_B:
     case PARTITION_VERT_A:
-    case PARTITION_VERT_B: return index == 2;
+    case PARTITION_VERT_B:
+      if (is_offset_started) {
+        return index == 2;
+      } else {
+        const int smallest_w = block_size_wide[parent_bsize] >> (ss_x + 1);
+        const int smallest_h = block_size_high[parent_bsize] >> (ss_y + 1);
+        const int smallest_w_less_than_4 = smallest_w < 4;
+        const int smallest_h_less_than_4 = smallest_h < 4;
+
+        if (smallest_w_less_than_4 && smallest_h_less_than_4) {
+          return index == 2;
+        } else if (smallest_w_less_than_4) {
+          if (partition == PARTITION_VERT_A || partition == PARTITION_VERT_B) {
+            return index == 2;
+          } else if (partition == PARTITION_HORZ_A) {
+            return index == 1 || index == 2;
+          } else {
+            return index == 0 || index == 2;
+          }
+        } else if (smallest_h_less_than_4) {
+          if (partition == PARTITION_HORZ_A || partition == PARTITION_HORZ_B) {
+            return index == 2;
+          } else if (partition == PARTITION_VERT_A) {
+            return index == 1 || index == 2;
+          } else {
+            return index == 0 || index == 2;
+          }
+        } else {
+          return 1;
+        }
+      }
 #endif  // !CONFIG_EXT_RECUR_PARTITIONS
 #if CONFIG_EXT_PARTITIONS
     case PARTITION_VERT_3:
@@ -377,10 +454,16 @@ static INLINE int is_sub_partition_chroma_ref(PARTITION_TYPE partition,
 #else
     case PARTITION_HORZ_4:
     case PARTITION_VERT_4:
-      if (is_offset_started)
+      if (is_offset_started) {
         return index == 3;
-      else
-        return index == 1 || index == 3;
+      } else {
+        if ((partition == PARTITION_HORZ_4 && ph_less_than_4) ||
+            (partition == PARTITION_VERT_4 && pw_less_than_4)) {
+          return index == 1 || index == 3;
+        } else {
+          return 1;
+        }
+      }
 #endif  // CONFIG_EXT_PARTITIONS
     default:
       assert(0 && "Invalid partition type!");
@@ -389,17 +472,139 @@ static INLINE int is_sub_partition_chroma_ref(PARTITION_TYPE partition,
   }
 }
 
+static INLINE void set_chroma_ref_offset_size(int mi_row, int mi_col,
+                                              PARTITION_TYPE partition,
+                                              BLOCK_SIZE bsize,
+                                              BLOCK_SIZE parent_bsize, int ss_x,
+                                              int ss_y, CHROMA_REF_INFO *info,
+                                              CHROMA_REF_INFO *parent_info) {
+  const int pw = block_size_wide[bsize] >> ss_x;
+  const int ph = block_size_high[bsize] >> ss_y;
+  const int pw_less_than_4 = pw < 4;
+  const int ph_less_than_4 = ph < 4;
+#if !CONFIG_EXT_RECUR_PARTITIONS
+  const int hppw = block_size_wide[parent_bsize] >> (ss_x + 1);
+  const int hpph = block_size_high[parent_bsize] >> (ss_y + 1);
+  const int hppw_less_than_4 = hppw < 4;
+  const int hpph_less_than_4 = hpph < 4;
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS
+#if !CONFIG_EXT_PARTITIONS
+  const int mi_row_mid_point =
+      parent_info->mi_row_chroma_base + (mi_size_high[parent_bsize] >> 1);
+  const int mi_col_mid_point =
+      parent_info->mi_col_chroma_base + (mi_size_wide[parent_bsize] >> 1);
+#endif  // !CONFIG_EXT_PARTITIONS
+
+  assert(parent_info->offset_started == 0);
+
+  switch (partition) {
+    case PARTITION_NONE:
+    case PARTITION_HORZ:
+    case PARTITION_VERT:
+#if CONFIG_EXT_PARTITIONS
+    case PARTITION_VERT_3:
+    case PARTITION_HORZ_3:
+#endif  // CONFIG_EXT_PARTITIONS
+      info->mi_row_chroma_base = parent_info->mi_row_chroma_base;
+      info->mi_col_chroma_base = parent_info->mi_col_chroma_base;
+      info->bsize_base = parent_bsize;
+      break;
+    case PARTITION_SPLIT:
+      if (pw_less_than_4 && ph_less_than_4) {
+        info->mi_row_chroma_base = parent_info->mi_row_chroma_base;
+        info->mi_col_chroma_base = parent_info->mi_col_chroma_base;
+        info->bsize_base = parent_bsize;
+      } else if (pw_less_than_4) {
+        info->bsize_base = get_partition_subsize(parent_bsize, PARTITION_HORZ);
+        info->mi_col_chroma_base = parent_info->mi_col_chroma_base;
+        if (mi_row == parent_info->mi_row_chroma_base) {
+          info->mi_row_chroma_base = parent_info->mi_row_chroma_base;
+        } else {
+          info->mi_row_chroma_base =
+              parent_info->mi_row_chroma_base + mi_size_high[bsize];
+        }
+      } else {
+        assert(ph_less_than_4);
+        info->bsize_base = get_partition_subsize(parent_bsize, PARTITION_VERT);
+        info->mi_row_chroma_base = parent_info->mi_row_chroma_base;
+        if (mi_col == parent_info->mi_col_chroma_base) {
+          info->mi_col_chroma_base = parent_info->mi_col_chroma_base;
+        } else {
+          info->mi_col_chroma_base =
+              parent_info->mi_col_chroma_base + mi_size_wide[bsize];
+        }
+      }
+      break;
+#if !CONFIG_EXT_RECUR_PARTITIONS
+    case PARTITION_HORZ_A:
+    case PARTITION_HORZ_B:
+    case PARTITION_VERT_A:
+    case PARTITION_VERT_B:
+      if ((hppw_less_than_4 && hpph_less_than_4) ||
+          (hppw_less_than_4 &&
+           (partition == PARTITION_VERT_A || partition == PARTITION_VERT_B)) ||
+          (hpph_less_than_4 &&
+           (partition == PARTITION_HORZ_A || partition == PARTITION_HORZ_B))) {
+        info->mi_row_chroma_base = parent_info->mi_row_chroma_base;
+        info->mi_col_chroma_base = parent_info->mi_col_chroma_base;
+        info->bsize_base = parent_bsize;
+      } else if (hppw_less_than_4) {
+        info->bsize_base = get_partition_subsize(parent_bsize, PARTITION_HORZ);
+        info->mi_col_chroma_base = parent_info->mi_col_chroma_base;
+        if (mi_row == parent_info->mi_row_chroma_base) {
+          info->mi_row_chroma_base = parent_info->mi_row_chroma_base;
+        } else {
+          info->mi_row_chroma_base = parent_info->mi_row_chroma_base +
+                                     (mi_size_high[parent_bsize] >> 1);
+        }
+      } else {
+        assert(hpph_less_than_4);
+
+        info->bsize_base = get_partition_subsize(parent_bsize, PARTITION_VERT);
+        info->mi_row_chroma_base = parent_info->mi_row_chroma_base;
+        if (mi_col == parent_info->mi_col_chroma_base) {
+          info->mi_col_chroma_base = parent_info->mi_col_chroma_base;
+        } else {
+          info->mi_col_chroma_base = parent_info->mi_col_chroma_base +
+                                     (mi_size_wide[parent_bsize] >> 1);
+        }
+      }
+      break;
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS
+#if !CONFIG_EXT_PARTITIONS
+    case PARTITION_HORZ_4:
+      info->bsize_base = get_partition_subsize(parent_bsize, PARTITION_HORZ);
+      info->mi_col_chroma_base = parent_info->mi_col_chroma_base;
+      if (mi_row < mi_row_mid_point) {
+        info->mi_row_chroma_base = parent_info->mi_row_chroma_base;
+      } else {
+        info->mi_row_chroma_base = mi_row_mid_point;
+      }
+      break;
+    case PARTITION_VERT_4:
+      info->bsize_base = get_partition_subsize(parent_bsize, PARTITION_VERT);
+      info->mi_row_chroma_base = parent_info->mi_row_chroma_base;
+      if (mi_col < mi_col_mid_point) {
+        info->mi_col_chroma_base = parent_info->mi_col_chroma_base;
+      } else {
+        info->mi_col_chroma_base = mi_col_mid_point;
+      }
+      break;
+#endif  // !CONFIG_EXT_PARTITIONS
+    default: assert(0 && "Invalid partition type!"); break;
+  }
+}
+
 static INLINE void set_chroma_ref_info(int mi_row, int mi_col, int index,
                                        BLOCK_SIZE bsize, CHROMA_REF_INFO *info,
                                        CHROMA_REF_INFO *parent_info,
                                        BLOCK_SIZE parent_bsize,
                                        PARTITION_TYPE parent_partition,
-                                       int subsampling_x, int subsampling_y) {
+                                       int ss_x, int ss_y) {
   initialize_chr_ref_info(mi_row, mi_col, bsize, info);
   int row_offset, col_offset;
-  get_mi_row_col_offsets(mi_row, mi_col, subsampling_x, subsampling_y,
-                         mi_size_wide[bsize], mi_size_high[bsize], &row_offset,
-                         &col_offset);
+  get_mi_row_col_offsets(mi_row, mi_col, ss_x, ss_y, mi_size_wide[bsize],
+                         mi_size_high[bsize], &row_offset, &col_offset);
   info->mi_row_chroma_base = mi_row - row_offset;
   info->mi_col_chroma_base = mi_col - col_offset;
 
@@ -407,7 +612,8 @@ static INLINE void set_chroma_ref_info(int mi_row, int mi_col, int index,
 
   if (parent_info->is_chroma_ref) {
     if (parent_info->offset_started) {
-      if (is_sub_partition_chroma_ref(parent_partition, index, 1)) {
+      if (is_sub_partition_chroma_ref(parent_partition, index, bsize,
+                                      parent_bsize, ss_x, ss_y, 1)) {
         info->is_chroma_ref = 1;
       } else {
         info->is_chroma_ref = 0;
@@ -416,63 +622,13 @@ static INLINE void set_chroma_ref_info(int mi_row, int mi_col, int index,
       info->mi_row_chroma_base = parent_info->mi_row_chroma_base;
       info->mi_col_chroma_base = parent_info->mi_col_chroma_base;
       info->bsize_base = parent_info->bsize_base;
-    } else if (have_nz_chroma_ref_offset(parent_bsize, parent_partition,
-                                         subsampling_x, subsampling_y)) {
-      if (is_sub_partition_chroma_ref(parent_partition, index, 0)) {
-        info->is_chroma_ref = 1;
-        info->offset_started = 1;
-#if !CONFIG_EXT_PARTITIONS
-        if (parent_partition == PARTITION_HORZ_4 ||
-            parent_partition == PARTITION_VERT_4) {
-          info->mi_row_chroma_base =
-              parent_partition == PARTITION_HORZ_4 ? mi_row - 1 : mi_row;
-          info->mi_col_chroma_base =
-              parent_partition == PARTITION_VERT_4 ? mi_col - 1 : mi_col;
-
-          PARTITION_TYPE mid_p = parent_partition == PARTITION_HORZ_4
-                                     ? PARTITION_HORZ
-                                     : PARTITION_VERT;
-#if CONFIG_EXT_RECUR_PARTITIONS
-          info->bsize_base = subsize_lookup[mid_p][parent_bsize];
-#else
-          info->bsize_base =
-              subsize_lookup[mid_p][get_sqr_bsize_idx(parent_bsize)];
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
-        } else {
-#endif  // !CONFIG_EXT_PARTITIONS
-          info->mi_row_chroma_base = parent_info->mi_row_chroma_base;
-          info->mi_col_chroma_base = parent_info->mi_col_chroma_base;
-          info->bsize_base = parent_bsize;
-#if !CONFIG_EXT_PARTITIONS
-        }
-#endif  // !CONFIG_EXT_PARTITIONS
-      } else {
-        info->is_chroma_ref = 0;
-        info->offset_started = 1;
-#if !CONFIG_EXT_PARTITIONS
-        if (parent_partition == PARTITION_HORZ_4 ||
-            parent_partition == PARTITION_VERT_4) {
-          info->mi_row_chroma_base = mi_row;
-          info->mi_col_chroma_base = mi_col;
-
-          PARTITION_TYPE mid_p = parent_partition == PARTITION_HORZ_4
-                                     ? PARTITION_HORZ
-                                     : PARTITION_VERT;
-#if CONFIG_EXT_RECUR_PARTITIONS
-          info->bsize_base = subsize_lookup[mid_p][parent_bsize];
-#else
-          info->bsize_base =
-              subsize_lookup[mid_p][get_sqr_bsize_idx(parent_bsize)];
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
-        } else {
-#endif  // !CONFIG_EXT_PARTITIONS
-          info->mi_row_chroma_base = parent_info->mi_row_chroma_base;
-          info->mi_col_chroma_base = parent_info->mi_col_chroma_base;
-          info->bsize_base = parent_info->bsize_base;
-#if !CONFIG_EXT_PARTITIONS
-        }
-#endif  // !CONFIG_EXT_PARTITIONS
-      }
+    } else if (have_nz_chroma_ref_offset(parent_bsize, parent_partition, ss_x,
+                                         ss_y)) {
+      info->offset_started = 1;
+      info->is_chroma_ref = is_sub_partition_chroma_ref(
+          parent_partition, index, bsize, parent_bsize, ss_x, ss_y, 0);
+      set_chroma_ref_offset_size(mi_row, mi_col, parent_partition, bsize,
+                                 parent_bsize, ss_x, ss_y, info, parent_info);
     }
   } else {
     info->is_chroma_ref = 0;
@@ -981,32 +1137,6 @@ static INLINE uint8_t *get_buf_by_bd(const MACROBLOCKD *xd, uint8_t *buf16) {
              : buf16;
 }
 
-// For a square block size 'bsize', returns the size of the sub-blocks used by
-// the given partition type. If the partition produces sub-blocks of different
-// sizes, then the function returns the largest sub-block size.
-// Implements the Partition_Subsize lookup table in the spec (Section 9.3.
-// Conversion tables).
-// Note: the input block size should be square.
-// Otherwise it's considered invalid.
-static INLINE BLOCK_SIZE get_partition_subsize(BLOCK_SIZE bsize,
-                                               PARTITION_TYPE partition) {
-  if (partition == PARTITION_INVALID) {
-    return BLOCK_INVALID;
-  } else {
-#if CONFIG_EXT_RECUR_PARTITIONS
-    if (bsize < BLOCK_SIZES)
-      return subsize_lookup[partition][bsize];
-    else
-      return PARTITION_NONE ? bsize : BLOCK_INVALID;
-#else
-    const int sqr_bsize_idx = get_sqr_bsize_idx(bsize);
-    return sqr_bsize_idx >= SQR_BLOCK_SIZES
-               ? BLOCK_INVALID
-               : subsize_lookup[partition][sqr_bsize_idx];
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
-  }
-}
-
 static TX_TYPE intra_mode_to_tx_type(const MB_MODE_INFO *mbmi,
                                      PLANE_TYPE plane_type) {
   static const TX_TYPE _intra_mode_to_tx_type[INTRA_MODES] = {
@@ -1436,8 +1566,9 @@ static INLINE TX_SIZE av1_get_tx_size(int plane, const MACROBLOCKD *xd) {
   const int mi_row = -xd->mb_to_top_edge >> (3 + MI_SIZE_LOG2);
   const int mi_col = -xd->mb_to_left_edge >> (3 + MI_SIZE_LOG2);
   const MACROBLOCKD_PLANE *pd = &xd->plane[plane];
-  const BLOCK_SIZE bsize = scale_chroma_bsize(
-      mbmi->sb_type, pd->subsampling_x, pd->subsampling_y, mi_row, mi_col);
+  const BLOCK_SIZE bsize =
+      plane ? mbmi->chroma_ref_info.bsize_base : mbmi->sb_type;
+
   return av1_get_max_uv_txsize(mi_row, mi_col, bsize, pd->subsampling_x,
                                pd->subsampling_y);
 }
@@ -1607,10 +1738,7 @@ static INLINE void av1_get_block_dimensions(BLOCK_SIZE bsize, int plane,
                                             int *rows_within_bounds,
                                             int *cols_within_bounds) {
   const struct macroblockd_plane *const pd = &xd->plane[plane];
-  const int mi_row = -xd->mb_to_top_edge >> (3 + MI_SIZE_LOG2);
-  const int mi_col = -xd->mb_to_left_edge >> (3 + MI_SIZE_LOG2);
-  bsize = scale_chroma_bsize(bsize, pd->subsampling_x, pd->subsampling_y,
-                             mi_row, mi_col);
+  bsize = plane ? xd->mi[0]->chroma_ref_info.bsize_base : bsize;
   const int block_height = block_size_high[bsize];
   const int block_width = block_size_wide[bsize];
   const int block_rows = (xd->mb_to_bottom_edge >= 0)

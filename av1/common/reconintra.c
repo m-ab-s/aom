@@ -2430,8 +2430,7 @@ void av1_predict_intra_block(const AV1_COMMON *cm, const MACROBLOCKD *xd,
       (mi_row + ((row_off + txh) << pd->subsampling_y) < xd->tile.mi_row_end);
 
   // force 4x4 chroma component block size.
-  bsize = scale_chroma_bsize(bsize, pd->subsampling_x, pd->subsampling_y,
-                             mi_row, mi_col);
+  bsize = plane ? mbmi->chroma_ref_info.bsize_base : bsize;
 
   int px_top_right = 0;
   const int have_top_right = has_top_right(

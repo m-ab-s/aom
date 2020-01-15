@@ -844,12 +844,12 @@ static INLINE int calc_mi_size(int len) {
   return ALIGN_POWER_OF_TWO(len, MAX_MIB_SIZE_LOG2);
 }
 
-static INLINE void set_plane_n4(MACROBLOCKD *const xd, int mi_row, int mi_col,
-                                BLOCK_SIZE bsize, int num_planes) {
+static INLINE void set_plane_n4(MACROBLOCKD *const xd, BLOCK_SIZE bsize,
+                                int num_planes,
+                                const CHROMA_REF_INFO *chr_ref_info) {
   for (int i = 0; i < num_planes; i++) {
     struct macroblockd_plane *const pd = &xd->plane[i];
-    bsize = scale_chroma_bsize(bsize, pd->subsampling_x, pd->subsampling_y,
-                               mi_row, mi_col);
+    bsize = i > 0 ? chr_ref_info->bsize_base : bsize;
     pd->width = block_size_wide[bsize] >> pd->subsampling_x;
     pd->height = block_size_high[bsize] >> pd->subsampling_y;
     assert(pd->width >= 4);

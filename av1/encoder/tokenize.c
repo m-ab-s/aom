@@ -246,8 +246,8 @@ void av1_tokenize_sb_tx_size(const AV1_COMP *cpi, ThreadData *td,
   for (int plane = 0; plane < num_planes; ++plane) {
     if (plane && !mbmi->chroma_ref_info.is_chroma_ref) continue;
     const struct macroblockd_plane *const pd = &xd->plane[plane];
-    const BLOCK_SIZE bsizec = scale_chroma_bsize(
-        bsize, pd->subsampling_x, pd->subsampling_y, mi_row, mi_col);
+    const BLOCK_SIZE bsizec =
+        plane ? mbmi->chroma_ref_info.bsize_base : mbmi->sb_type;
     const BLOCK_SIZE plane_bsize = get_plane_block_size(
         mi_row, mi_col, bsizec, pd->subsampling_x, pd->subsampling_y);
     assert(plane_bsize < BLOCK_SIZES_ALL);

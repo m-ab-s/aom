@@ -248,8 +248,8 @@ void av1_build_inter_predictors(
     // block size
     const int b4_w = block_size_wide[bsize] >> ss_x;
     const int b4_h = block_size_high[bsize] >> ss_y;
-    const BLOCK_SIZE plane_bsize = scale_chroma_bsize(
-        bsize, ss_x, ss_y, mi_y >> MI_SIZE_LOG2, mi_x >> MI_SIZE_LOG2);
+    const BLOCK_SIZE plane_bsize =
+        plane ? mi->chroma_ref_info.bsize_base : bsize;
     const int b8_w = block_size_wide[plane_bsize] >> ss_x;
     const int b8_h = block_size_high[plane_bsize] >> ss_y;
     assert(!is_compound);

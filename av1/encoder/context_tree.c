@@ -76,6 +76,7 @@ PICK_MODE_CONTEXT *av1_alloc_pmc(const AV1_COMMON *cm, int mi_row, int mi_col,
                       parent ? &parent->chroma_ref_info : NULL,
                       parent ? parent->block_size : BLOCK_INVALID,
                       parent_partition, subsampling_x, subsampling_y);
+  ctx->mic.chroma_ref_info = ctx->chroma_ref_info;
 
   const int num_planes = av1_num_planes(cm);
   const int num_pix = block_size_wide[bsize] * block_size_high[bsize];

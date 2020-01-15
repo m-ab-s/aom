@@ -537,8 +537,8 @@ void av1_encode_sby_pass1(AV1_COMMON *cm, MACROBLOCK *x, BLOCK_SIZE bsize) {
                                          encode_block_pass1, &args);
 }
 
-void av1_encode_sb(const struct AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
-                   int mi_row, int mi_col, RUN_TYPE dry_run) {
+void av1_encode_sb(const struct AV1_COMP *cpi, MACROBLOCK *x, int mi_row,
+                   int mi_col, RUN_TYPE dry_run) {
   (void)dry_run;
   const AV1_COMMON *const cm = &cpi->common;
   const int num_planes = av1_num_planes(cm);
@@ -558,15 +558,11 @@ void av1_encode_sb(const struct AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
 
   if (x->skip) return;
 
-  assert(bsize < BLOCK_SIZES_ALL);
-
   for (plane = 0; plane < num_planes; ++plane) {
-    const int subsampling_x = xd->plane[plane].subsampling_x;
-    const int subsampling_y = xd->plane[plane].subsampling_y;
     if (plane && !mbmi->chroma_ref_info.is_chroma_ref) continue;
 
     const BLOCK_SIZE bsizec =
-        scale_chroma_bsize(bsize, subsampling_x, subsampling_y, mi_row, mi_col);
+        plane ? mbmi->chroma_ref_info.bsize_base : mbmi->sb_type;
 
     // TODO(jingning): Clean this up.
     const struct macroblockd_plane *const pd = &xd->plane[plane];

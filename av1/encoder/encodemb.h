@@ -45,8 +45,8 @@ enum {
   AV1_XFORM_QUANT_TYPES,
 } UENUM1BYTE(AV1_XFORM_QUANT);
 
-void av1_encode_sb(const struct AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
-                   int mi_row, int mi_col, RUN_TYPE dry_run);
+void av1_encode_sb(const struct AV1_COMP *cpi, MACROBLOCK *x, int mi_row,
+                   int mi_col, RUN_TYPE dry_run);
 
 void av1_foreach_transformed_block_in_plane(
     const MACROBLOCKD *const xd, BLOCK_SIZE bsize, int plane,

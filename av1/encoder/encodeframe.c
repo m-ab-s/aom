@@ -369,7 +369,7 @@ static void set_offsets_without_segment_id(
   x->mv_limits.row_max = (cm->mi_rows - mi_row) * MI_SIZE + AOM_INTERP_EXTEND;
   x->mv_limits.col_max = (cm->mi_cols - mi_col) * MI_SIZE + AOM_INTERP_EXTEND;
 
-  set_plane_n4(xd, mi_row, mi_col, bsize, num_planes);
+  set_plane_n4(xd, bsize, num_planes, chr_ref_info);
 
   // Set up distance of MB to edge of frame in 1/8th pel units.
 #if !CONFIG_EXT_PARTITIONS && !CONFIG_EXT_RECUR_PARTITIONS
@@ -7208,7 +7208,7 @@ static void encode_superblock(const AV1_COMP *const cpi, TileDataEnc *tile_data,
     (void)num_planes;
 #endif
 
-    av1_encode_sb(cpi, x, bsize, mi_row, mi_col, dry_run);
+    av1_encode_sb(cpi, x, mi_row, mi_col, dry_run);
     av1_tokenize_sb_tx_size(cpi, td, t, dry_run, mi_row, mi_col, bsize, rate,
                             tile_data->allow_update_cdf);
   }

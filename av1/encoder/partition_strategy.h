@@ -157,7 +157,10 @@ static INLINE void set_offsets_for_motion_search(const AV1_COMP *const cpi,
   x->mv_limits.row_max = (cm->mi_rows - mi_row) * MI_SIZE + AOM_INTERP_EXTEND;
   x->mv_limits.col_max = (cm->mi_cols - mi_col) * MI_SIZE + AOM_INTERP_EXTEND;
 
-  set_plane_n4(xd, mi_row, mi_col, bsize, num_planes);
+  CHROMA_REF_INFO chr_ref_info = {
+    1, 0, mi_row, mi_col, AOMMAX(BLOCK_8X8, bsize), AOMMAX(BLOCK_8X8, bsize)
+  };
+  set_plane_n4(xd, bsize, num_planes, &chr_ref_info);
 
   // Set up distance of MB to edge of frame in 1/8th pel units.
   assert(!(mi_col & (mi_width - 1)) && !(mi_row & (mi_height - 1)));
@@ -167,7 +170,6 @@ static INLINE void set_offsets_for_motion_search(const AV1_COMP *const cpi,
   xd->mb_to_right_edge = ((cm->mi_cols - mi_width - mi_col) * MI_SIZE) * 8;
 
   // Set up source buffers.
-  CHROMA_REF_INFO chr_ref_info = { 1, 0, mi_row, mi_col, bsize, bsize };
   av1_setup_src_planes(x, cpi->source, mi_row, mi_col, num_planes,
                        &chr_ref_info);
 }
