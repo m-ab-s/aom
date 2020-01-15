@@ -28,4 +28,8 @@ macro(fix_experiment_configs)
   if(CONFIG_LPF_MASK AND CONFIG_FLEX_PARTITION)
     change_config_and_warn(CONFIG_LPF_MASK 0 CONFIG_FLEX_PARTITION)
   endif()
+
+  if(CONFIG_EXT_COMPOUND)
+    change_config_and_warn(CONFIG_NEW_INTER_MODES 1 CONFIG_EXT_COMPOUND)
+  endif()
 endmacro()
