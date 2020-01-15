@@ -3578,6 +3578,7 @@ void av1_simple_motion_search(AV1_COMP *const cpi, MACROBLOCK *x, int mi_row,
   mbmi->motion_mode = SIMPLE_TRANSLATION;
   mbmi->max_mv_precision = cm->mv_precision;
   mbmi->mv_precision = cm->mv_precision;
+  mbmi->interp_filters = av1_broadcast_interp_filter(EIGHTTAP_REGULAR);
 
   const YV12_BUFFER_CONFIG *yv12 = get_ref_frame_yv12_buf(cm, ref);
   const YV12_BUFFER_CONFIG *scaled_ref_frame =
