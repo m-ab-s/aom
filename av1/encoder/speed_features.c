@@ -240,11 +240,10 @@ static void set_good_speed_features_framesize_independent(
   sf->use_dist_wtd_comp_flag = DIST_WTD_COMP_SKIP_MV_SEARCH;
 #if CONFIG_NEW_TX_PARTITION
   sf->adaptive_txb_search_level = 0;
-  sf->model_based_prune_tx_search_level = 0;
 #else
   sf->adaptive_txb_search_level = 1;
-  sf->model_based_prune_tx_search_level = 1;
 #endif  // CONFIG_NEW_TX_PARTITION
+  sf->model_based_prune_tx_search_level = 0;
   sf->model_based_post_interp_filter_breakout = 1;
 
   // TODO(debargha): Test, tweak and turn on either 1 or 2
