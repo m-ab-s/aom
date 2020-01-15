@@ -215,8 +215,8 @@ struct macroblock {
   int interp_filter_stats_idx[2];
 
 #if CONFIG_NEW_INTER_MODES
-  // prune_comp_search_by_single_result (4:MAX_REF_MV_SEARCH)
-  SimpleRDState simple_rd_state[SINGLE_REF_MODES][4];
+  // prune_comp_search_by_single_result (MAX_REF_MV_SEARCH = MAX_DRL_BITS + 1)
+  SimpleRDState simple_rd_state[SINGLE_REF_MODES][MAX_DRL_BITS + 1];
 #else
   // prune_comp_search_by_single_result (3:MAX_REF_MV_SEARCH)
   SimpleRDState simple_rd_state[SINGLE_REF_MODES][3];
@@ -338,10 +338,14 @@ struct macroblock {
 #endif
   int newmv_mode_cost[NEWMV_MODE_CONTEXTS][2];
   int zeromv_mode_cost[GLOBALMV_MODE_CONTEXTS][2];
-#if !CONFIG_NEW_INTER_MODES
+#if CONFIG_NEW_INTER_MODES
+  int drl0_mode_cost[DRL_MODE_CONTEXTS][2];
+  int drl1_mode_cost[DRL_MODE_CONTEXTS][2];
+  int drl2_mode_cost[DRL_MODE_CONTEXTS][2];
+#else
   int refmv_mode_cost[REFMV_MODE_CONTEXTS][2];
-#endif  // !CONFIG_NEW_INTER_MODES
   int drl_mode_cost0[DRL_MODE_CONTEXTS][2];
+#endif  // !CONFIG_NEW_INTER_MODES
 
   int comp_inter_cost[COMP_INTER_CONTEXTS][2];
   int single_ref_cost[REF_CONTEXTS][SINGLE_REFS - 1][2];

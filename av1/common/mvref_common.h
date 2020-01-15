@@ -178,36 +178,6 @@ static INLINE int16_t av1_mode_context_analyzer(
   return comp_ctx;
 }
 
-#if CONFIG_NEW_INTER_MODES
-static INLINE uint8_t av1_drl_ctx(int16_t mode_ctx, PREDICTION_MODE mode,
-                                  const uint16_t *ref_mv_weight, int ref_idx) {
-  int ctx = -1;
-  if (ref_mv_weight[ref_idx] >= REF_CAT_LEVEL &&
-      ref_mv_weight[ref_idx + 1] >= REF_CAT_LEVEL)
-    ctx = 0;
-
-  if (ref_mv_weight[ref_idx] >= REF_CAT_LEVEL &&
-      ref_mv_weight[ref_idx + 1] < REF_CAT_LEVEL)
-    ctx = 1;
-
-  if (ref_mv_weight[ref_idx] < REF_CAT_LEVEL &&
-      ref_mv_weight[ref_idx + 1] < REF_CAT_LEVEL)
-    ctx = 2;
-
-  if (mode == NEARMV) {
-    ctx += 3 * ((mode_ctx >> REFMV_OFFSET) & REFMV_CTX_MASK);
-  } else if (mode == NEWMV) {
-    ctx += 3 * (mode_ctx & NEWMV_CTX_MASK);
-    ctx += 3 * 6;
-  } else {
-    ctx += 3 * mode_ctx;
-    ctx += 3 * (6 + 6);  // DRL contexts * (NEARESTMV+NEWMV) contexts
-  }
-  assert(ctx >= 0);
-  assert(ctx < DRL_MODE_CONTEXTS);
-  return ctx;
-}
-#else
 static INLINE uint8_t av1_drl_ctx(const uint16_t *ref_mv_weight, int ref_idx) {
   if (ref_mv_weight[ref_idx] >= REF_CAT_LEVEL &&
       ref_mv_weight[ref_idx + 1] >= REF_CAT_LEVEL)
@@ -222,6 +192,30 @@ static INLINE uint8_t av1_drl_ctx(const uint16_t *ref_mv_weight, int ref_idx) {
     return 2;
 
   return 0;
+}
+
+#if CONFIG_NEW_INTER_MODES
+static INLINE aom_cdf_prob *av1_get_drl_cdf(int16_t mode_ctx,
+                                            FRAME_CONTEXT *ec_ctx,
+                                            PREDICTION_MODE mode,
+                                            const uint16_t *ref_mv_weight,
+                                            int ref_idx) {
+  (void)mode_ctx;
+  (void)mode;  // These two are here for future experiments
+
+  assert(ref_idx >= 0);
+  assert(ref_idx < MAX_DRL_BITS);
+
+  const int ctx = av1_drl_ctx(ref_mv_weight, ref_idx);
+  switch (ref_idx) {
+    case 0: return ec_ctx->drl0_cdf[ctx];
+    case 1: return ec_ctx->drl1_cdf[ctx];
+    case 2: return ec_ctx->drl2_cdf[ctx];
+    default:
+      assert(false);
+      return NULL;  // this is an error condition but is checked by the asserts
+                    // above
+  }
 }
 #endif  // CONFIG_NEW_INTER_MODES
 

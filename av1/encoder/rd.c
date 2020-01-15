@@ -403,15 +403,22 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, MACROBLOCK *x,
       av1_cost_tokens_from_cdf(x->zeromv_mode_cost[i], fc->zeromv_cdf[i], NULL);
     }
 
-#if !CONFIG_NEW_INTER_MODES
+#if CONFIG_NEW_INTER_MODES
+    for (i = 0; i < DRL_MODE_CONTEXTS; ++i) {
+      av1_cost_tokens_from_cdf(x->drl0_mode_cost[i], fc->drl0_cdf[i], NULL);
+      av1_cost_tokens_from_cdf(x->drl1_mode_cost[i], fc->drl1_cdf[i], NULL);
+      av1_cost_tokens_from_cdf(x->drl2_mode_cost[i], fc->drl2_cdf[i], NULL);
+    }
+#else
     for (i = 0; i < REFMV_MODE_CONTEXTS; ++i) {
       av1_cost_tokens_from_cdf(x->refmv_mode_cost[i], fc->refmv_cdf[i], NULL);
     }
-#endif  // !CONFIG_NEW_INTER_MODES
 
     for (i = 0; i < DRL_MODE_CONTEXTS; ++i) {
       av1_cost_tokens_from_cdf(x->drl_mode_cost0[i], fc->drl_cdf[i], NULL);
     }
+#endif  // !CONFIG_NEW_INTER_MODES
+
     for (i = 0; i < INTER_MODE_CONTEXTS; ++i)
       av1_cost_tokens_from_cdf(x->inter_compound_mode_cost[i],
                                fc->inter_compound_mode_cdf[i], NULL);
