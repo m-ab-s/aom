@@ -518,11 +518,10 @@ static void pack_txb_tokens(aom_writer *w, AV1_COMMON *cm, MACROBLOCK *const x,
   if (blk_row >= max_blocks_high || blk_col >= max_blocks_wide) return;
 
   const struct macroblockd_plane *const pd = &xd->plane[plane];
-  const int mi_row = -xd->mb_to_top_edge >> (3 + MI_SIZE_LOG2);
-  const int mi_col = -xd->mb_to_left_edge >> (3 + MI_SIZE_LOG2);
+  const BLOCK_SIZE uv_bsize_base = mbmi->chroma_ref_info.bsize_base;
   const TX_SIZE plane_tx_size =
-      plane ? av1_get_max_uv_txsize(mi_row, mi_col, mbmi->sb_type,
-                                    pd->subsampling_x, pd->subsampling_y)
+      plane ? av1_get_max_uv_txsize(uv_bsize_base, pd->subsampling_x,
+                                    pd->subsampling_y)
             : mbmi->inter_tx_size[av1_get_txb_size_index(plane_bsize, blk_row,
                                                          blk_col)];
   const CB_COEFF_BUFFER *cb_coef_buff = x->cb_coef_buff;
@@ -1793,7 +1792,6 @@ static void write_mbmi_b(AV1_COMP *cpi, aom_writer *w, int mi_row, int mi_col) {
 }
 
 static void write_inter_txb_coeff(AV1_COMMON *const cm, MACROBLOCK *const x,
-                                  int mi_row, int mi_col,
                                   MB_MODE_INFO *const mbmi, aom_writer *w,
                                   const TOKENEXTRA **tok,
                                   const TOKENEXTRA *const tok_end,
@@ -1804,8 +1802,10 @@ static void write_inter_txb_coeff(AV1_COMMON *const cm, MACROBLOCK *const x,
   const BLOCK_SIZE bsize = mbmi->sb_type;
   assert(bsize < BLOCK_SIZES_ALL);
 
-  const BLOCK_SIZE plane_bsize = get_plane_block_size(
-      mi_row, mi_col, bsize, pd->subsampling_x, pd->subsampling_y);
+  const BLOCK_SIZE bsize_base =
+      plane ? xd->mi[0]->chroma_ref_info.bsize_base : bsize;
+  const BLOCK_SIZE plane_bsize =
+      get_plane_block_size(bsize_base, pd->subsampling_x, pd->subsampling_y);
   const TX_SIZE max_tx_size = get_vartx_max_txsize(xd, plane_bsize, plane);
   const int stepc = tx_size_wide_unit[max_tx_size];
   const int stepr = tx_size_high_unit[max_tx_size];
@@ -1814,9 +1814,8 @@ static void write_inter_txb_coeff(AV1_COMMON *const cm, MACROBLOCK *const x,
   const int col_plane = col >> pd->subsampling_x;
 
   int unit_width, unit_height;
-  av1_get_unit_width_height_coeff(xd, plane, mi_row, mi_col, plane_bsize,
-                                  row_plane, col_plane, &unit_width,
-                                  &unit_height);
+  av1_get_unit_width_height_coeff(xd, plane, plane_bsize, row_plane, col_plane,
+                                  &unit_width, &unit_height);
 
   for (int blk_row = row_plane; blk_row < unit_height; blk_row += stepr) {
     for (int blk_col = col_plane; blk_col < unit_width; blk_col += stepc) {
@@ -1829,8 +1828,7 @@ static void write_inter_txb_coeff(AV1_COMMON *const cm, MACROBLOCK *const x,
 }
 
 static void write_tokens_b(AV1_COMP *cpi, aom_writer *w, const TOKENEXTRA **tok,
-                           const TOKENEXTRA *const tok_end, int mi_row,
-                           int mi_col) {
+                           const TOKENEXTRA *const tok_end) {
   AV1_COMMON *const cm = &cpi->common;
   MACROBLOCK *const x = &cpi->td.mb;
   MACROBLOCKD *const xd = &x->e_mbd;
@@ -1841,11 +1839,10 @@ static void write_tokens_b(AV1_COMP *cpi, aom_writer *w, const TOKENEXTRA **tok,
 
   const int is_inter = is_inter_block(mbmi);
   if (!is_inter) {
-    av1_write_coeffs_mb(cm, x, mi_row, mi_col, w, bsize);
+    av1_write_coeffs_mb(cm, x, w, bsize);
   } else {
     int block[MAX_MB_PLANE] = { 0 };
-    assert(bsize == get_plane_block_size(mi_row, mi_col, bsize,
-                                         xd->plane[0].subsampling_x,
+    assert(bsize == get_plane_block_size(bsize, xd->plane[0].subsampling_x,
                                          xd->plane[0].subsampling_y));
     const int num_4x4_w = block_size_wide[bsize] >> tx_size_wide_log2[0];
     const int num_4x4_h = block_size_high[bsize] >> tx_size_high_log2[0];
@@ -1853,7 +1850,7 @@ static void write_tokens_b(AV1_COMP *cpi, aom_writer *w, const TOKENEXTRA **tok,
     init_token_stats(&token_stats);
 
     const BLOCK_SIZE max_unit_bsize = BLOCK_64X64;
-    assert(max_unit_bsize == get_plane_block_size(mi_row, mi_col, BLOCK_64X64,
+    assert(max_unit_bsize == get_plane_block_size(BLOCK_64X64,
                                                   xd->plane[0].subsampling_x,
                                                   xd->plane[0].subsampling_y));
     int mu_blocks_wide =
@@ -1869,8 +1866,8 @@ static void write_tokens_b(AV1_COMP *cpi, aom_writer *w, const TOKENEXTRA **tok,
       for (int col = 0; col < num_4x4_w; col += mu_blocks_wide) {
         for (int plane = 0; plane < num_planes; ++plane) {
           if (plane && !mbmi->chroma_ref_info.is_chroma_ref) continue;
-          write_inter_txb_coeff(cm, x, mi_row, mi_col, mbmi, w, tok, tok_end,
-                                &token_stats, row, col, &block[plane], plane);
+          write_inter_txb_coeff(cm, x, mbmi, w, tok, tok_end, &token_stats, row,
+                                col, &block[plane], plane);
         }
       }
     }
@@ -1959,7 +1956,7 @@ static void write_modes_b(AV1_COMP *cpi, const TileInfo *const tile,
   }
 
   if (!mbmi->skip) {
-    write_tokens_b(cpi, w, tok, tok_end, mi_row, mi_col);
+    write_tokens_b(cpi, w, tok, tok_end);
   }
 
   av1_mark_block_as_coded(xd, mi_row, mi_col, bsize, cm->seq_params.sb_size);

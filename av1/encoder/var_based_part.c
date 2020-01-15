@@ -231,7 +231,7 @@ static int set_vt_partitioning(AV1_COMP *cpi, MACROBLOCK *const x,
       get_variance(&vt.part_variances->vert[1]);
       if (vt.part_variances->vert[0].variance < threshold &&
           vt.part_variances->vert[1].variance < threshold &&
-          get_plane_block_size(mi_row, mi_col, subsize,
+          get_plane_block_size(AOMMAX(BLOCK_8X8, subsize),
                                xd->plane[1].subsampling_x,
                                xd->plane[1].subsampling_y) < BLOCK_INVALID) {
         set_block_size(cpi, x, xd, mi_row, mi_col, subsize);
@@ -247,7 +247,7 @@ static int set_vt_partitioning(AV1_COMP *cpi, MACROBLOCK *const x,
       get_variance(&vt.part_variances->horz[1]);
       if (vt.part_variances->horz[0].variance < threshold &&
           vt.part_variances->horz[1].variance < threshold &&
-          get_plane_block_size(mi_row, mi_col, subsize,
+          get_plane_block_size(AOMMAX(BLOCK_8X8, subsize),
                                xd->plane[1].subsampling_x,
                                xd->plane[1].subsampling_y) < BLOCK_INVALID) {
         set_block_size(cpi, x, xd, mi_row, mi_col, subsize);

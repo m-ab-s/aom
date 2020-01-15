@@ -2506,10 +2506,8 @@ void av1_predict_intra_block_facade(const AV1_COMMON *cm, MACROBLOCKD *xd,
   if (plane != AOM_PLANE_Y && mbmi->uv_mode == UV_CFL_PRED) {
 #if CONFIG_DEBUG
     assert(is_cfl_allowed(xd));
-    const int mi_row = -xd->mb_to_top_edge >> (3 + MI_SIZE_LOG2);
-    const int mi_col = -xd->mb_to_left_edge >> (3 + MI_SIZE_LOG2);
     const BLOCK_SIZE plane_bsize = get_plane_block_size(
-        mi_row, mi_col, mbmi->sb_type, pd->subsampling_x, pd->subsampling_y);
+        mbmi->chroma_ref_info.bsize_base, pd->subsampling_x, pd->subsampling_y);
     (void)plane_bsize;
     assert(plane_bsize < BLOCK_SIZES_ALL);
     if (!xd->lossless[mbmi->segment_id]) {

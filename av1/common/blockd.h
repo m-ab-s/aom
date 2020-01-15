@@ -601,12 +601,8 @@ static INLINE void set_chroma_ref_info(int mi_row, int mi_col, int index,
                                        BLOCK_SIZE parent_bsize,
                                        PARTITION_TYPE parent_partition,
                                        int ss_x, int ss_y) {
+  assert(bsize < BLOCK_SIZES_ALL);
   initialize_chr_ref_info(mi_row, mi_col, bsize, info);
-  int row_offset, col_offset;
-  get_mi_row_col_offsets(mi_row, mi_col, ss_x, ss_y, mi_size_wide[bsize],
-                         mi_size_high[bsize], &row_offset, &col_offset);
-  info->mi_row_chroma_base = mi_row - row_offset;
-  info->mi_col_chroma_base = mi_col - col_offset;
 
   if (parent_info == NULL) return;
 
@@ -637,8 +633,6 @@ static INLINE void set_chroma_ref_info(int mi_row, int mi_col, int index,
     info->mi_col_chroma_base = parent_info->mi_col_chroma_base;
     info->bsize_base = parent_info->bsize_base;
   }
-  info->mi_row_chroma_base = mi_row - row_offset;
-  info->mi_col_chroma_base = mi_col - col_offset;
 }
 
 // This structure now relates to 4x4 block regions.
@@ -1390,15 +1384,12 @@ static INLINE TX_TYPE get_default_tx_type(PLANE_TYPE plane_type,
 
 // Implements the get_plane_residual_size() function in the spec (Section
 // 5.11.38. Get plane residual size function).
-static INLINE BLOCK_SIZE get_plane_block_size(int mi_row, int mi_col,
-                                              BLOCK_SIZE bsize,
+static INLINE BLOCK_SIZE get_plane_block_size(BLOCK_SIZE bsize,
                                               int subsampling_x,
                                               int subsampling_y) {
   if (bsize == BLOCK_INVALID) return BLOCK_INVALID;
   assert(subsampling_x >= 0 && subsampling_x < 2);
   assert(subsampling_y >= 0 && subsampling_y < 2);
-  bsize =
-      scale_chroma_bsize(bsize, subsampling_x, subsampling_y, mi_row, mi_col);
   return ss_size_lookup[bsize][subsampling_x][subsampling_y];
 }
 
@@ -1549,11 +1540,10 @@ static INLINE TX_SIZE av1_get_adjusted_tx_size(TX_SIZE tx_size) {
   }
 }
 
-static INLINE TX_SIZE av1_get_max_uv_txsize(int mi_row, int mi_col,
-                                            BLOCK_SIZE bsize, int subsampling_x,
+static INLINE TX_SIZE av1_get_max_uv_txsize(BLOCK_SIZE bsize, int subsampling_x,
                                             int subsampling_y) {
   const BLOCK_SIZE plane_bsize =
-      get_plane_block_size(mi_row, mi_col, bsize, subsampling_x, subsampling_y);
+      get_plane_block_size(bsize, subsampling_x, subsampling_y);
   assert(plane_bsize < BLOCK_SIZES_ALL);
   const TX_SIZE uv_tx = max_txsize_rect_lookup[plane_bsize];
   return av1_get_adjusted_tx_size(uv_tx);
@@ -1563,18 +1553,15 @@ static INLINE TX_SIZE av1_get_tx_size(int plane, const MACROBLOCKD *xd) {
   const MB_MODE_INFO *mbmi = xd->mi[0];
   if (xd->lossless[mbmi->segment_id]) return TX_4X4;
   if (plane == 0) return mbmi->tx_size;
-  const int mi_row = -xd->mb_to_top_edge >> (3 + MI_SIZE_LOG2);
-  const int mi_col = -xd->mb_to_left_edge >> (3 + MI_SIZE_LOG2);
   const MACROBLOCKD_PLANE *pd = &xd->plane[plane];
   const BLOCK_SIZE bsize =
       plane ? mbmi->chroma_ref_info.bsize_base : mbmi->sb_type;
 
-  return av1_get_max_uv_txsize(mi_row, mi_col, bsize, pd->subsampling_x,
-                               pd->subsampling_y);
+  return av1_get_max_uv_txsize(bsize, pd->subsampling_x, pd->subsampling_y);
 }
 
-void av1_reset_skip_context(MACROBLOCKD *xd, int mi_row, int mi_col,
-                            BLOCK_SIZE bsize, const int num_planes);
+void av1_reset_skip_context(MACROBLOCKD *xd, BLOCK_SIZE bsize,
+                            const int num_planes);
 
 void av1_reset_loop_filter_delta(MACROBLOCKD *xd, int num_planes);
 
@@ -1839,10 +1826,8 @@ static INLINE CFL_ALLOWED_TYPE is_cfl_allowed(const MACROBLOCKD *xd) {
     // transform size.
     const int ssx = xd->plane[AOM_PLANE_U].subsampling_x;
     const int ssy = xd->plane[AOM_PLANE_U].subsampling_y;
-    const int mi_row = -xd->mb_to_top_edge >> (3 + MI_SIZE_LOG2);
-    const int mi_col = -xd->mb_to_left_edge >> (3 + MI_SIZE_LOG2);
     const int plane_bsize =
-        get_plane_block_size(mi_row, mi_col, bsize, ssx, ssy);
+        get_plane_block_size(xd->mi[0]->chroma_ref_info.bsize_base, ssx, ssy);
     return (CFL_ALLOWED_TYPE)(plane_bsize == BLOCK_4X4);
   }
   // Spec: CfL is available to luma partitions lesser than or equal to 32x32
@@ -1853,7 +1838,6 @@ static INLINE CFL_ALLOWED_TYPE is_cfl_allowed(const MACROBLOCKD *xd) {
 // Calculate unit width and height for processing coefficients this plane, to
 // ensure processing correct number of block rows and cols.
 void av1_get_unit_width_height_coeff(const MACROBLOCKD *const xd, int plane,
-                                     int mi_row, int mi_col,
                                      BLOCK_SIZE plane_bsize, int row_plane,
                                      int col_plane, int *unit_width,
                                      int *unit_height);

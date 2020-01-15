@@ -143,17 +143,18 @@ static void tokenize_tx_size(ThreadData *td, TOKENEXTRA **t, RUN_TYPE dry_run,
 
   if (blk_row >= max_blocks_high || blk_col >= max_blocks_wide) return;
 
-  const int mi_row = -xd->mb_to_top_edge >> (3 + MI_SIZE_LOG2);
-  const int mi_col = -xd->mb_to_left_edge >> (3 + MI_SIZE_LOG2);
+  const BLOCK_SIZE uv_bsize_base = mbmi->chroma_ref_info.bsize_base;
   const TX_SIZE plane_tx_size =
-      plane ? av1_get_max_uv_txsize(mi_row, mi_col, mbmi->sb_type,
-                                    pd->subsampling_x, pd->subsampling_y)
+      plane ? av1_get_max_uv_txsize(uv_bsize_base, pd->subsampling_x,
+                                    pd->subsampling_y)
             : mbmi->inter_tx_size[av1_get_txb_size_index(plane_bsize, blk_row,
                                                          blk_col)];
 
+  const BLOCK_SIZE bsize_base =
+      plane ? mbmi->chroma_ref_info.bsize_base : mbmi->sb_type;
   if (tx_size == plane_tx_size || plane) {
-    plane_bsize = get_plane_block_size(mi_row, mi_col, mbmi->sb_type,
-                                       pd->subsampling_x, pd->subsampling_y);
+    plane_bsize =
+        get_plane_block_size(bsize_base, pd->subsampling_x, pd->subsampling_y);
     if (!dry_run) {
       av1_update_and_record_txb_context(plane, block, blk_row, blk_col,
                                         plane_bsize, tx_size, arg);
@@ -172,8 +173,8 @@ static void tokenize_tx_size(ThreadData *td, TOKENEXTRA **t, RUN_TYPE dry_run,
     get_tx_partition_sizes(mbmi->partition_type[index], tx_size, sub_txs);
     int cur_partition = 0;
     int bsw = 0, bsh = 0;
-    plane_bsize = get_plane_block_size(blk_row, blk_col, mbmi->sb_type,
-                                       pd->subsampling_x, pd->subsampling_y);
+    plane_bsize =
+        get_plane_block_size(bsize_base, pd->subsampling_x, pd->subsampling_y);
     for (int r = 0; r < tx_size_high_unit[tx_size]; r += bsh) {
       for (int c = 0; c < tx_size_wide_unit[tx_size]; c += bsw) {
         const TX_SIZE sub_tx = sub_txs[cur_partition];
@@ -239,7 +240,7 @@ void av1_tokenize_sb_tx_size(const AV1_COMP *cpi, ThreadData *td,
   assert(bsize < BLOCK_SIZES_ALL);
 
   if (mbmi->skip) {
-    av1_reset_skip_context(xd, mi_row, mi_col, bsize, num_planes);
+    av1_reset_skip_context(xd, bsize, num_planes);
     return;
   }
 
@@ -248,8 +249,8 @@ void av1_tokenize_sb_tx_size(const AV1_COMP *cpi, ThreadData *td,
     const struct macroblockd_plane *const pd = &xd->plane[plane];
     const BLOCK_SIZE bsizec =
         plane ? mbmi->chroma_ref_info.bsize_base : mbmi->sb_type;
-    const BLOCK_SIZE plane_bsize = get_plane_block_size(
-        mi_row, mi_col, bsizec, pd->subsampling_x, pd->subsampling_y);
+    const BLOCK_SIZE plane_bsize =
+        get_plane_block_size(bsizec, pd->subsampling_x, pd->subsampling_y);
     assert(plane_bsize < BLOCK_SIZES_ALL);
     const int mi_width = block_size_wide[plane_bsize] >> tx_size_wide_log2[0];
     const int mi_height = block_size_high[plane_bsize] >> tx_size_high_log2[0];
@@ -261,8 +262,8 @@ void av1_tokenize_sb_tx_size(const AV1_COMP *cpi, ThreadData *td,
     int block = 0;
     int step = tx_size_wide_unit[max_tx_size] * tx_size_high_unit[max_tx_size];
 
-    const BLOCK_SIZE max_unit_bsize = get_plane_block_size(
-        mi_row, mi_col, BLOCK_64X64, pd->subsampling_x, pd->subsampling_y);
+    const BLOCK_SIZE max_unit_bsize =
+        get_plane_block_size(BLOCK_64X64, pd->subsampling_x, pd->subsampling_y);
     int mu_blocks_wide =
         block_size_wide[max_unit_bsize] >> tx_size_wide_log2[0];
     int mu_blocks_high =

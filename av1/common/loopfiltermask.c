@@ -1233,12 +1233,11 @@ void av1_store_bitmask_vartx(AV1_COMMON *cm, int mi_row, int mi_col,
   LoopFilterMask *lfm = get_loop_filter_mask(cm, mi_row, mi_col);
   const TX_SIZE tx_size_y_vert = txsize_vert_map[tx_size];
   const TX_SIZE tx_size_y_horz = txsize_horz_map[tx_size];
-  const TX_SIZE tx_size_uv_vert = txsize_vert_map[av1_get_max_uv_txsize(
-      mi_row, mi_col, mbmi->sb_type, cm->seq_params.subsampling_x,
-      cm->seq_params.subsampling_y)];
-  const TX_SIZE tx_size_uv_horz = txsize_horz_map[av1_get_max_uv_txsize(
-      mi_row, mi_col, mbmi->sb_type, cm->seq_params.subsampling_x,
-      cm->seq_params.subsampling_y)];
+  const TX_SIZE max_uv_txsize = av1_get_max_uv_txsize(
+      mi_row, mi_col, mbmi->chroma_ref_info.bsize_base,
+      cm->seq_params.subsampling_x, cm->seq_params.subsampling_y);
+  const TX_SIZE tx_size_uv_vert = txsize_vert_map[max_uv_txsize];
+  const TX_SIZE tx_size_uv_horz = txsize_horz_map[max_uv_txsize];
   const int is_square_transform_size = tx_size <= TX_64X64;
   int mask_id = 0;
   int offset = 0;
@@ -1305,12 +1304,11 @@ void av1_store_bitmask_univariant_tx(AV1_COMMON *cm, int mi_row, int mi_col,
   LoopFilterMask *lfm = get_loop_filter_mask(cm, mi_row, mi_col);
   const TX_SIZE tx_size_y_vert = txsize_vert_map[mbmi->tx_size];
   const TX_SIZE tx_size_y_horz = txsize_horz_map[mbmi->tx_size];
-  const TX_SIZE tx_size_uv_vert = txsize_vert_map[av1_get_max_uv_txsize(
-      mi_row, mi_col, mbmi->sb_type, cm->seq_params.subsampling_x,
-      cm->seq_params.subsampling_y)];
-  const TX_SIZE tx_size_uv_horz = txsize_horz_map[av1_get_max_uv_txsize(
-      mi_row, mi_col, mbmi->sb_type, cm->seq_params.subsampling_x,
-      cm->seq_params.subsampling_y)];
+  const TX_SIZE max_uv_txsize = av1_get_max_uv_txsize(
+      mbmi->chroma_ref_info.bsize_base, cm->seq_params.subsampling_x,
+      cm->seq_params.subsampling_y);
+  const TX_SIZE tx_size_uv_vert = txsize_vert_map[max_uv_txsize];
+  const TX_SIZE tx_size_uv_horz = txsize_horz_map[max_uv_txsize];
   const int is_square_transform_size = mbmi->tx_size <= TX_64X64;
   int mask_id = 0;
   int offset = 0;

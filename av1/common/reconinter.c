@@ -1131,10 +1131,12 @@ void av1_count_overlappable_neighbors(const AV1_COMMON *cm, MACROBLOCKD *xd,
 
 int av1_skip_u4x4_pred_in_obmc(int mi_row, int mi_col, BLOCK_SIZE bsize,
                                const struct macroblockd_plane *pd, int dir) {
+  (void)mi_row;
+  (void)mi_col;
   assert(is_motion_variation_allowed_bsize(bsize, mi_row, mi_col));
 
-  const BLOCK_SIZE bsize_plane = get_plane_block_size(
-      mi_row, mi_col, bsize, pd->subsampling_x, pd->subsampling_y);
+  const BLOCK_SIZE bsize_plane =
+      get_plane_block_size(bsize, pd->subsampling_x, pd->subsampling_y);
   switch (bsize_plane) {
 #if DISABLE_CHROMA_U8X8_OBMC
     case BLOCK_4X4:
@@ -1533,6 +1535,7 @@ static void combine_interintra(INTERINTRA_MODE mode,
                                int compstride, const uint8_t *interpred,
                                int interstride, const uint8_t *intrapred,
                                int intrastride) {
+  assert(plane_bsize < BLOCK_SIZES_ALL);
 #if CONFIG_ILLUM_MCOMP
   if (mode == II_ILLUM_MCOMP_PRED) {
     illum_combine_interintra(use_wedge_interintra, wedge_index, wedge_sign,
@@ -1569,6 +1572,7 @@ static void combine_interintra_highbd(
     int8_t wedge_sign, BLOCK_SIZE bsize, BLOCK_SIZE plane_bsize,
     uint8_t *comppred8, int compstride, const uint8_t *interpred8,
     int interstride, const uint8_t *intrapred8, int intrastride, int bd) {
+  assert(plane_bsize < BLOCK_SIZES_ALL);
 #if CONFIG_ILLUM_MCOMP
   if (mode == II_ILLUM_MCOMP_PRED) {
     illum_combine_interintra_highbd(use_wedge_interintra, wedge_index,
@@ -1609,11 +1613,10 @@ void av1_build_intra_predictors_for_interintra(const AV1_COMMON *cm,
   struct macroblockd_plane *const pd = &xd->plane[plane];
   const int ssx = xd->plane[plane].subsampling_x;
   const int ssy = xd->plane[plane].subsampling_y;
-  const int mi_row = -xd->mb_to_top_edge >> (3 + MI_SIZE_LOG2);
-  const int mi_col = -xd->mb_to_left_edge >> (3 + MI_SIZE_LOG2);
-  BLOCK_SIZE plane_bsize =
-      get_plane_block_size(mi_row, mi_col, bsize, ssx, ssy);
   MB_MODE_INFO *mbmi = xd->mi[0];
+  const BLOCK_SIZE bsize_base =
+      plane ? mbmi->chroma_ref_info.bsize_base : bsize;
+  BLOCK_SIZE plane_bsize = get_plane_block_size(bsize_base, ssx, ssy);
 #if CONFIG_DERIVED_INTRA_MODE
   const int use_derived_mode = mbmi->use_derived_intra_mode[0];
   const PREDICTION_MODE mode =
@@ -1646,10 +1649,9 @@ void av1_combine_interintra(MACROBLOCKD *xd, BLOCK_SIZE bsize, int plane,
                             const uint8_t *intra_pred, int intra_stride) {
   const int ssx = xd->plane[plane].subsampling_x;
   const int ssy = xd->plane[plane].subsampling_y;
-  const int mi_row = -xd->mb_to_top_edge >> (3 + MI_SIZE_LOG2);
-  const int mi_col = -xd->mb_to_left_edge >> (3 + MI_SIZE_LOG2);
-  const BLOCK_SIZE plane_bsize =
-      get_plane_block_size(mi_row, mi_col, bsize, ssx, ssy);
+  const BLOCK_SIZE bsize_base =
+      plane ? xd->mi[0]->chroma_ref_info.bsize_base : bsize;
+  const BLOCK_SIZE plane_bsize = get_plane_block_size(bsize_base, ssx, ssy);
   if (is_cur_buf_hbd(xd)) {
     combine_interintra_highbd(
         xd->mi[0]->interintra_mode, xd->mi[0]->use_wedge_interintra,

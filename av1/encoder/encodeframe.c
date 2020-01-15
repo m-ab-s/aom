@@ -3162,21 +3162,39 @@ static bool rd_pick_partition(
   // Override skipping rectangular partition operations for edge blocks
   const int has_rows = (mi_row + mi_step_h < cm->mi_rows);
   const int has_cols = (mi_col + mi_step_w < cm->mi_cols);
-  const int xss = x->e_mbd.plane[1].subsampling_x;
-  const int yss = x->e_mbd.plane[1].subsampling_y;
 
   if (none_rd) *none_rd = 0;
+  CHROMA_REF_INFO tmp_chr_ref_info = { 1, 0, mi_row, mi_col, bsize, bsize };
+
+  const BLOCK_SIZE subsize_horz = get_partition_subsize(bsize, PARTITION_HORZ);
+  int is_chroma_size_valid_horz = 0;
+  if (subsize_horz < BLOCK_SIZES_ALL) {
+    set_chroma_ref_info(mi_row, mi_col, 0, subsize_horz, &tmp_chr_ref_info,
+                        &pc_tree->chroma_ref_info, bsize, PARTITION_HORZ, ss_x,
+                        ss_y);
+    is_chroma_size_valid_horz =
+        get_plane_block_size(tmp_chr_ref_info.bsize_base, ss_x, ss_y) !=
+        BLOCK_INVALID;
+  }
+
+  const BLOCK_SIZE subsize_vert = get_partition_subsize(bsize, PARTITION_VERT);
+  int is_chroma_size_valid_vert = 0;
+  if (subsize_vert < BLOCK_SIZES_ALL) {
+    set_chroma_ref_info(mi_row, mi_col, 0, subsize_vert, &tmp_chr_ref_info,
+                        &pc_tree->chroma_ref_info, bsize, PARTITION_VERT, ss_x,
+                        ss_y);
+    is_chroma_size_valid_vert =
+        get_plane_block_size(tmp_chr_ref_info.bsize_base, ss_x, ss_y) !=
+        BLOCK_INVALID;
+  }
+
   int partition_none_allowed = has_rows && has_cols;
-  int partition_horz_allowed =
-      has_cols && bsize_at_least_8x8 && cpi->oxcf.enable_rect_partitions &&
-      get_plane_block_size(mi_row, mi_col,
-                           get_partition_subsize(bsize, PARTITION_HORZ), xss,
-                           yss) != BLOCK_INVALID;
-  int partition_vert_allowed =
-      has_rows && bsize_at_least_8x8 && cpi->oxcf.enable_rect_partitions &&
-      get_plane_block_size(mi_row, mi_col,
-                           get_partition_subsize(bsize, PARTITION_VERT), xss,
-                           yss) != BLOCK_INVALID;
+  int partition_horz_allowed = has_cols && bsize_at_least_8x8 &&
+                               cpi->oxcf.enable_rect_partitions &&
+                               is_chroma_size_valid_horz;
+  int partition_vert_allowed = has_rows && bsize_at_least_8x8 &&
+                               cpi->oxcf.enable_rect_partitions &&
+                               is_chroma_size_valid_vert;
 
   (void)*tp_orig;
 
@@ -3339,16 +3357,12 @@ BEGIN_PARTITION_SEARCH:
   if (x->must_find_valid_partition) {
     do_square_split = bsize_at_least_8x8;
     partition_none_allowed = has_rows && has_cols;
-    partition_horz_allowed =
-        has_cols && bsize_at_least_8x8 && cpi->oxcf.enable_rect_partitions &&
-        get_plane_block_size(mi_row, mi_col,
-                             get_partition_subsize(bsize, PARTITION_HORZ), xss,
-                             yss) != BLOCK_INVALID;
-    partition_vert_allowed =
-        has_rows && bsize_at_least_8x8 && cpi->oxcf.enable_rect_partitions &&
-        get_plane_block_size(mi_row, mi_col,
-                             get_partition_subsize(bsize, PARTITION_VERT), xss,
-                             yss) != BLOCK_INVALID;
+    partition_horz_allowed = has_cols && bsize_at_least_8x8 &&
+                             cpi->oxcf.enable_rect_partitions &&
+                             is_chroma_size_valid_horz;
+    partition_vert_allowed = has_rows && bsize_at_least_8x8 &&
+                             cpi->oxcf.enable_rect_partitions &&
+                             is_chroma_size_valid_vert;
     terminate_partition_search = 0;
 #if CONFIG_EXT_RECUR_PARTITIONS
     if (!is_square_block(bsize)) {
@@ -4449,16 +4463,34 @@ BEGIN_PARTITION_SEARCH:
   int partition3_allowed = cpi->oxcf.enable_1to3_partitions &&
                            ext_partition_allowed && bsize != BLOCK_128X128;
 
-  int partition_horz3_allowed =
-      partition3_allowed && partition_horz_allowed &&
-      get_plane_block_size(mi_row, mi_col,
-                           get_partition_subsize(bsize, PARTITION_HORZ_3), xss,
-                           yss) != BLOCK_INVALID;
-  int partition_vert3_allowed =
-      partition3_allowed && partition_vert_allowed &&
-      get_plane_block_size(mi_row, mi_col,
-                           get_partition_subsize(bsize, PARTITION_VERT_3), xss,
-                           yss) != BLOCK_INVALID;
+  const BLOCK_SIZE subsize_horz3 =
+      get_partition_subsize(bsize, PARTITION_HORZ_3);
+  int is_chroma_size_valid_horz3 = 0;
+  if (subsize_horz3 < BLOCK_SIZES_ALL) {
+    set_chroma_ref_info(mi_row, mi_col, 0, subsize_horz3, &tmp_chr_ref_info,
+                        &pc_tree->chroma_ref_info, bsize, PARTITION_HORZ_3,
+                        ss_x, ss_y);
+    is_chroma_size_valid_horz3 =
+        get_plane_block_size(tmp_chr_ref_info.bsize_base, ss_x, ss_y) !=
+        BLOCK_INVALID;
+  }
+
+  const BLOCK_SIZE subsize_vert3 =
+      get_partition_subsize(bsize, PARTITION_VERT_3);
+  int is_chroma_size_valid_vert3 = 0;
+  if (subsize_vert3) {
+    set_chroma_ref_info(mi_row, mi_col, 0, subsize_vert3, &tmp_chr_ref_info,
+                        &pc_tree->chroma_ref_info, bsize, PARTITION_VERT_3,
+                        ss_x, ss_y);
+    is_chroma_size_valid_vert3 =
+        get_plane_block_size(tmp_chr_ref_info.bsize_base, ss_x, ss_y) !=
+        BLOCK_INVALID;
+  }
+
+  int partition_horz3_allowed = partition3_allowed && partition_horz_allowed &&
+                                is_chroma_size_valid_horz3;
+  int partition_vert3_allowed = partition3_allowed && partition_vert_allowed &&
+                                is_chroma_size_valid_vert3;
   if (cpi->sf.prune_ext_partition_types_search_level == 2) {
     partition_horz3_allowed &= (pc_tree->partitioning == PARTITION_HORZ ||
 #if !CONFIG_EXT_RECUR_PARTITIONS
@@ -4662,16 +4694,34 @@ BEGIN_PARTITION_SEARCH:
                                  ext_partition_allowed &&
                                  bsize != BLOCK_128X128;
 
-  int partition_horz4_allowed =
-      partition4_allowed && partition_horz_allowed &&
-      get_plane_block_size(mi_row, mi_col,
-                           get_partition_subsize(bsize, PARTITION_HORZ_4), xss,
-                           yss) != BLOCK_INVALID;
-  int partition_vert4_allowed =
-      partition4_allowed && partition_vert_allowed &&
-      get_plane_block_size(mi_row, mi_col,
-                           get_partition_subsize(bsize, PARTITION_VERT_4), xss,
-                           yss) != BLOCK_INVALID;
+  const BLOCK_SIZE subsize_horz4 =
+      get_partition_subsize(bsize, PARTITION_HORZ_4);
+  int is_chroma_size_valid_horz4 = 0;
+  if (subsize_horz4 < BLOCK_SIZES_ALL) {
+    set_chroma_ref_info(mi_row, mi_col, 0, subsize_horz4, &tmp_chr_ref_info,
+                        &pc_tree->chroma_ref_info, bsize, PARTITION_HORZ_4,
+                        ss_x, ss_y);
+    is_chroma_size_valid_horz4 =
+        get_plane_block_size(tmp_chr_ref_info.bsize_base, ss_x, ss_y) !=
+        BLOCK_INVALID;
+  }
+
+  const BLOCK_SIZE subsize_vert4 =
+      get_partition_subsize(bsize, PARTITION_VERT_4);
+  int is_chroma_size_valid_vert4 = 0;
+  if (subsize_vert4 < BLOCK_SIZES_ALL) {
+    set_chroma_ref_info(mi_row, mi_col, 0, subsize_vert4, &tmp_chr_ref_info,
+                        &pc_tree->chroma_ref_info, bsize, PARTITION_VERT_4,
+                        ss_x, ss_y);
+    is_chroma_size_valid_vert4 =
+        get_plane_block_size(tmp_chr_ref_info.bsize_base, ss_x, ss_y) !=
+        BLOCK_INVALID;
+  }
+
+  int partition_horz4_allowed = partition4_allowed && partition_horz_allowed &&
+                                is_chroma_size_valid_horz4;
+  int partition_vert4_allowed = partition4_allowed && partition_vert_allowed &&
+                                is_chroma_size_valid_vert4;
   if (cpi->sf.prune_ext_partition_types_search_level == 2) {
     partition_horz4_allowed &= (pc_tree->partitioning == PARTITION_HORZ ||
 #if !CONFIG_EXT_RECUR_PARTITIONS
@@ -7140,8 +7190,7 @@ static void encode_superblock(const AV1_COMP *const cpi, TileDataEnc *tile_data,
     mbmi->skip = 1;
     for (int plane = 0; plane < num_planes; ++plane) {
       av1_encode_intra_block_plane(cpi, x, bsize, plane,
-                                   cpi->optimize_seg_arr[mbmi->segment_id],
-                                   mi_row, mi_col);
+                                   cpi->optimize_seg_arr[mbmi->segment_id]);
     }
 
     // If there is at least one lossless segment, force the skip for intra

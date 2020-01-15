@@ -351,9 +351,11 @@ void av1_build_inter_predictors_for_planes_single_buf(
   const int mi_x = mi_col * MI_SIZE;
   const int mi_y = mi_row * MI_SIZE;
   for (plane = plane_from; plane <= plane_to; ++plane) {
-    const BLOCK_SIZE plane_bsize = get_plane_block_size(
-        mi_row, mi_col, bsize, xd->plane[plane].subsampling_x,
-        xd->plane[plane].subsampling_y);
+    const BLOCK_SIZE bsize_base =
+        plane ? xd->mi[0]->chroma_ref_info.bsize_base : bsize;
+    const BLOCK_SIZE plane_bsize =
+        get_plane_block_size(bsize_base, xd->plane[plane].subsampling_x,
+                             xd->plane[plane].subsampling_y);
     assert(plane_bsize < BLOCK_SIZES_ALL);
     const int bw = block_size_wide[plane_bsize];
     const int bh = block_size_high[plane_bsize];
@@ -463,12 +465,12 @@ void av1_build_wedge_inter_predictor_from_buf(MACROBLOCKD *xd, BLOCK_SIZE bsize,
                                               int ext_dst_stride1[3]) {
   int plane;
   assert(bsize < BLOCK_SIZES_ALL);
-  const int mi_row = -xd->mb_to_top_edge >> (3 + MI_SIZE_LOG2);
-  const int mi_col = -xd->mb_to_left_edge >> (3 + MI_SIZE_LOG2);
   for (plane = plane_from; plane <= plane_to; ++plane) {
-    const BLOCK_SIZE plane_bsize = get_plane_block_size(
-        mi_row, mi_col, bsize, xd->plane[plane].subsampling_x,
-        xd->plane[plane].subsampling_y);
+    const BLOCK_SIZE bsize_base =
+        plane ? xd->mi[0]->chroma_ref_info.bsize_base : bsize;
+    const BLOCK_SIZE plane_bsize =
+        get_plane_block_size(bsize_base, xd->plane[plane].subsampling_x,
+                             xd->plane[plane].subsampling_y);
     assert(plane_bsize < BLOCK_SIZES_ALL);
     const int bw = block_size_wide[plane_bsize];
     const int bh = block_size_high[plane_bsize];

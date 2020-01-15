@@ -764,14 +764,13 @@ static void write_coeffs_txb_wrap(const AV1_COMMON *cm, MACROBLOCK *x,
                        &txb_ctx);
 }
 
-void av1_write_coeffs_mb(const AV1_COMMON *const cm, MACROBLOCK *x, int mi_row,
-                         int mi_col, aom_writer *w, BLOCK_SIZE bsize) {
+void av1_write_coeffs_mb(const AV1_COMMON *const cm, MACROBLOCK *x,
+                         aom_writer *w, BLOCK_SIZE bsize) {
   MACROBLOCKD *xd = &x->e_mbd;
   const int num_planes = av1_num_planes(cm);
   int block[MAX_MB_PLANE] = { 0 };
   int row, col;
-  assert(bsize == get_plane_block_size(mi_row, mi_col, bsize,
-                                       xd->plane[0].subsampling_x,
+  assert(bsize == get_plane_block_size(bsize, xd->plane[0].subsampling_x,
                                        xd->plane[0].subsampling_y));
   const int max_blocks_wide = max_block_wide(xd, bsize, 0);
   const int max_blocks_high = max_block_high(xd, bsize, 0);
@@ -791,15 +790,16 @@ void av1_write_coeffs_mb(const AV1_COMMON *const cm, MACROBLOCK *x, int mi_row,
         const int stepc = tx_size_wide_unit[tx_size];
         const int step = stepr * stepc;
 
+        const BLOCK_SIZE bsize_base =
+            plane ? xd->mi[0]->chroma_ref_info.bsize_base : bsize;
         const BLOCK_SIZE plane_bsize = get_plane_block_size(
-            mi_row, mi_col, bsize, pd->subsampling_x, pd->subsampling_y);
+            bsize_base, pd->subsampling_x, pd->subsampling_y);
         const int row_plane = row >> pd->subsampling_y;
         const int col_plane = col >> pd->subsampling_x;
 
         int unit_width, unit_height;
-        av1_get_unit_width_height_coeff(xd, plane, mi_row, mi_col, plane_bsize,
-                                        row_plane, col_plane, &unit_width,
-                                        &unit_height);
+        av1_get_unit_width_height_coeff(xd, plane, plane_bsize, row_plane,
+                                        col_plane, &unit_width, &unit_height);
 
         for (int blk_row = row_plane; blk_row < unit_height; blk_row += stepr) {
           for (int blk_col = col_plane; blk_col < unit_width;
@@ -2441,7 +2441,7 @@ void av1_update_txb_context(const AV1_COMP *cpi, ThreadData *td,
   (void)mi_row;
   (void)mi_col;
   if (mbmi->skip) {
-    av1_reset_skip_context(xd, mi_row, mi_col, bsize, num_planes);
+    av1_reset_skip_context(xd, bsize, num_planes);
     return;
   }
 

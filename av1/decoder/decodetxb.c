@@ -402,10 +402,10 @@ void av1_read_coeffs_txb_facade(const AV1_COMMON *const cm,
 
   const BLOCK_SIZE bsize = mbmi->sb_type;
   assert(bsize < BLOCK_SIZES_ALL);
-  const int mi_row = -xd->mb_to_top_edge >> (3 + MI_SIZE_LOG2);
-  const int mi_col = -xd->mb_to_left_edge >> (3 + MI_SIZE_LOG2);
-  const BLOCK_SIZE plane_bsize = get_plane_block_size(
-      mi_row, mi_col, bsize, pd->subsampling_x, pd->subsampling_y);
+  const BLOCK_SIZE bsize_base =
+      plane ? mbmi->chroma_ref_info.bsize_base : bsize;
+  const BLOCK_SIZE plane_bsize =
+      get_plane_block_size(bsize_base, pd->subsampling_x, pd->subsampling_y);
 
   TXB_CTX txb_ctx;
   get_txb_ctx(plane_bsize, tx_size, plane, pd->above_context + col,

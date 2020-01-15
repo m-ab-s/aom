@@ -222,8 +222,8 @@ void av1_set_contexts(const MACROBLOCKD *xd, struct macroblockd_plane *pd,
     memset(l, has_eob, sizeof(*l) * txs_high);
   }
 }
-void av1_reset_skip_context(MACROBLOCKD *xd, int mi_row, int mi_col,
-                            BLOCK_SIZE bsize, const int num_planes) {
+void av1_reset_skip_context(MACROBLOCKD *xd, BLOCK_SIZE bsize,
+                            const int num_planes) {
   int i;
   int nplanes;
   assert(bsize < BLOCK_SIZES_ALL);
@@ -231,8 +231,10 @@ void av1_reset_skip_context(MACROBLOCKD *xd, int mi_row, int mi_col,
   nplanes = 1 + (num_planes - 1) * xd->mi[0]->chroma_ref_info.is_chroma_ref;
   for (i = 0; i < nplanes; i++) {
     struct macroblockd_plane *const pd = &xd->plane[i];
-    const BLOCK_SIZE plane_bsize = get_plane_block_size(
-        mi_row, mi_col, bsize, pd->subsampling_x, pd->subsampling_y);
+    const BLOCK_SIZE bsize_base =
+        i ? xd->mi[0]->chroma_ref_info.bsize_base : bsize;
+    const BLOCK_SIZE plane_bsize =
+        get_plane_block_size(bsize_base, pd->subsampling_x, pd->subsampling_y);
     assert(plane_bsize < BLOCK_SIZES_ALL);
     const int txs_wide = block_size_wide[plane_bsize] >> tx_size_wide_log2[0];
     const int txs_high = block_size_high[plane_bsize] >> tx_size_high_log2[0];
@@ -274,7 +276,6 @@ void av1_setup_block_planes(MACROBLOCKD *xd, int ss_x, int ss_y,
 }
 
 void av1_get_unit_width_height_coeff(const MACROBLOCKD *const xd, int plane,
-                                     int mi_row, int mi_col,
                                      BLOCK_SIZE plane_bsize, int row_plane,
                                      int col_plane, int *unit_width,
                                      int *unit_height) {
@@ -287,8 +288,8 @@ void av1_get_unit_width_height_coeff(const MACROBLOCKD *const xd, int plane,
                : max_block_high(xd, plane_bsize, plane);
 
   const struct macroblockd_plane *const pd = &xd->plane[plane];
-  const BLOCK_SIZE max_unit_bsize_plane = get_plane_block_size(
-      mi_row, mi_col, BLOCK_64X64, pd->subsampling_x, pd->subsampling_y);
+  const BLOCK_SIZE max_unit_bsize_plane =
+      get_plane_block_size(BLOCK_64X64, pd->subsampling_x, pd->subsampling_y);
   int mu_blocks_wide_plane =
       block_size_wide[max_unit_bsize_plane] >> tx_size_wide_log2[0];
   int mu_blocks_high_plane =

@@ -86,8 +86,7 @@ void av1_encode_block_intra(int plane, int block, int blk_row, int blk_col,
 
 void av1_encode_intra_block_plane(const struct AV1_COMP *cpi, MACROBLOCK *x,
                                   BLOCK_SIZE bsize, int plane,
-                                  int enable_optimize_b, int mi_row,
-                                  int mi_col);
+                                  int enable_optimize_b);
 
 #ifdef __cplusplus
 }  // extern "C"
