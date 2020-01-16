@@ -106,7 +106,7 @@ static INLINE BLOCK_SIZE get_partition_subsize(BLOCK_SIZE bsize,
     if (bsize < BLOCK_SIZES)
       return subsize_lookup[partition][bsize];
     else
-      return PARTITION_NONE ? bsize : BLOCK_INVALID;
+      return partition == PARTITION_NONE ? bsize : BLOCK_INVALID;
 #else
     const int sqr_bsize_idx = get_sqr_bsize_idx(bsize);
     return sqr_bsize_idx >= SQR_BLOCK_SIZES

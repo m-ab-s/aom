@@ -1486,6 +1486,8 @@ static void decode_block(AV1Decoder *const pbi, ThreadData *const td,
 static PARTITION_TYPE read_partition(MACROBLOCKD *xd, int mi_row, int mi_col,
                                      aom_reader *r, int has_rows, int has_cols,
                                      BLOCK_SIZE bsize) {
+  if (!is_partition_point(bsize)) return PARTITION_NONE;
+
   const int ctx = partition_plane_context(xd, mi_row, mi_col, bsize);
   FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
 
@@ -1536,12 +1538,13 @@ static void decode_partition(AV1Decoder *const pbi, ThreadData *const td,
   MACROBLOCKD *const xd = &td->xd;
   const int ss_x = xd->plane[1].subsampling_x;
   const int ss_y = xd->plane[1].subsampling_y;
-  const int bw = mi_size_wide[bsize];
-  const int hbs = bw >> 1;
+  const int hbs_w = mi_size_wide[bsize] / 2;
+  const int hbs_h = mi_size_high[bsize] / 2;
+  const int qbs_w = mi_size_wide[bsize] / 4;
+  const int qbs_h = mi_size_high[bsize] / 4;
   PARTITION_TYPE partition;
-  const int quarter_step = bw / 4;
-  const int has_rows = (mi_row + hbs) < cm->mi_rows;
-  const int has_cols = (mi_col + hbs) < cm->mi_cols;
+  const int has_rows = (mi_row + hbs_h) < cm->mi_rows;
+  const int has_cols = (mi_col + hbs_w) < cm->mi_cols;
 
   if (mi_row >= cm->mi_rows || mi_col >= cm->mi_cols) return;
 
@@ -1655,64 +1658,64 @@ static void decode_partition(AV1Decoder *const pbi, ThreadData *const td,
     case PARTITION_HORZ:
 #if CONFIG_EXT_RECUR_PARTITIONS
       DEC_PARTITION(mi_row, mi_col, subsize, 0);
-      if (has_rows) DEC_PARTITION(mi_row + hbs, mi_col, subsize, 1);
+      if (has_rows) DEC_PARTITION(mi_row + hbs_h, mi_col, subsize, 1);
 #else
       DEC_BLOCK(mi_row, mi_col, subsize, 0);
-      if (has_rows) DEC_BLOCK(mi_row + hbs, mi_col, subsize, 1);
+      if (has_rows) DEC_BLOCK(mi_row + hbs_h, mi_col, subsize, 1);
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
       break;
     case PARTITION_VERT:
 #if CONFIG_EXT_RECUR_PARTITIONS
       DEC_PARTITION(mi_row, mi_col, subsize, 0);
-      if (has_cols) DEC_PARTITION(mi_row, mi_col + hbs, subsize, 1);
+      if (has_cols) DEC_PARTITION(mi_row, mi_col + hbs_w, subsize, 1);
 #else
       DEC_BLOCK(mi_row, mi_col, subsize, 0);
-      if (has_cols) DEC_BLOCK(mi_row, mi_col + hbs, subsize, 1);
+      if (has_cols) DEC_BLOCK(mi_row, mi_col + hbs_w, subsize, 1);
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
       break;
     case PARTITION_SPLIT:
       DEC_PARTITION(mi_row, mi_col, subsize, 0);
-      DEC_PARTITION(mi_row, mi_col + hbs, subsize, 1);
-      DEC_PARTITION(mi_row + hbs, mi_col, subsize, 2);
-      DEC_PARTITION(mi_row + hbs, mi_col + hbs, subsize, 3);
+      DEC_PARTITION(mi_row, mi_col + hbs_w, subsize, 1);
+      DEC_PARTITION(mi_row + hbs_h, mi_col, subsize, 2);
+      DEC_PARTITION(mi_row + hbs_h, mi_col + hbs_w, subsize, 3);
       break;
 #if !CONFIG_EXT_RECUR_PARTITIONS
     case PARTITION_HORZ_A:
 #if CONFIG_EXT_PARTITIONS
       DEC_PARTITION(mi_row, mi_col, bsize2, 0);
-      DEC_PARTITION(mi_row, mi_col + hbs, bsize2, 1);
+      DEC_PARTITION(mi_row, mi_col + hbs_w, bsize2, 1);
 #else
       DEC_BLOCK(mi_row, mi_col, bsize2, 0);
-      DEC_BLOCK(mi_row, mi_col + hbs, bsize2, 1);
+      DEC_BLOCK(mi_row, mi_col + hbs_w, bsize2, 1);
 #endif  // CONFIG_EXT_PARTITIONS
-      DEC_BLOCK(mi_row + hbs, mi_col, subsize, 2);
+      DEC_BLOCK(mi_row + hbs_h, mi_col, subsize, 2);
       break;
     case PARTITION_HORZ_B: DEC_BLOCK(mi_row, mi_col, subsize, 0);
 #if CONFIG_EXT_PARTITIONS
-      DEC_PARTITION(mi_row + hbs, mi_col, bsize2, 0);
-      DEC_PARTITION(mi_row + hbs, mi_col + hbs, bsize2, 1);
+      DEC_PARTITION(mi_row + hbs_h, mi_col, bsize2, 0);
+      DEC_PARTITION(mi_row + hbs_h, mi_col + hbs_w, bsize2, 1);
 #else
-      DEC_BLOCK(mi_row + hbs, mi_col, bsize2, 1);
-      DEC_BLOCK(mi_row + hbs, mi_col + hbs, bsize2, 2);
+      DEC_BLOCK(mi_row + hbs_h, mi_col, bsize2, 1);
+      DEC_BLOCK(mi_row + hbs_h, mi_col + hbs_w, bsize2, 2);
 #endif  // CONFIG_EXT_PARTITIONS
       break;
     case PARTITION_VERT_A:
 #if CONFIG_EXT_PARTITIONS
       DEC_PARTITION(mi_row, mi_col, bsize2, 0);
-      DEC_PARTITION(mi_row + hbs, mi_col, bsize2, 1);
+      DEC_PARTITION(mi_row + hbs_h, mi_col, bsize2, 1);
 #else
       DEC_BLOCK(mi_row, mi_col, bsize2, 0);
-      DEC_BLOCK(mi_row + hbs, mi_col, bsize2, 1);
+      DEC_BLOCK(mi_row + hbs_h, mi_col, bsize2, 1);
 #endif  // CONFIG_EXT_PARTITIONS
-      DEC_BLOCK(mi_row, mi_col + hbs, subsize, 2);
+      DEC_BLOCK(mi_row, mi_col + hbs_w, subsize, 2);
       break;
     case PARTITION_VERT_B: DEC_BLOCK(mi_row, mi_col, subsize, 0);
 #if CONFIG_EXT_PARTITIONS
-      DEC_PARTITION(mi_row, mi_col + hbs, bsize2, 0);
-      DEC_PARTITION(mi_row + hbs, mi_col + hbs, bsize2, 1);
+      DEC_PARTITION(mi_row, mi_col + hbs_w, bsize2, 0);
+      DEC_PARTITION(mi_row + hbs_h, mi_col + hbs_w, bsize2, 1);
 #else
-      DEC_BLOCK(mi_row, mi_col + hbs, bsize2, 1);
-      DEC_BLOCK(mi_row + hbs, mi_col + hbs, bsize2, 2);
+      DEC_BLOCK(mi_row, mi_col + hbs_w, bsize2, 1);
+      DEC_BLOCK(mi_row + hbs_h, mi_col + hbs_w, bsize2, 2);
 #endif  // CONFIG_EXT_PARTITIONS
       break;
 #endif  // !CONFIG_EXT_RECUR_PARTITIONS
@@ -1721,10 +1724,10 @@ static void decode_partition(AV1Decoder *const pbi, ThreadData *const td,
       const BLOCK_SIZE bsize3 = get_partition_subsize(bsize, PARTITION_HORZ);
       int this_mi_row = mi_row;
       DEC_BLOCK(this_mi_row, mi_col, subsize, 0);
-      this_mi_row += quarter_step;
+      this_mi_row += qbs_h;
       if (this_mi_row >= cm->mi_rows) break;
       DEC_BLOCK(this_mi_row, mi_col, bsize3, 1);
-      this_mi_row += 2 * quarter_step;
+      this_mi_row += 2 * qbs_h;
       if (this_mi_row >= cm->mi_rows) break;
       DEC_BLOCK(this_mi_row, mi_col, subsize, 2);
       break;
@@ -1733,10 +1736,10 @@ static void decode_partition(AV1Decoder *const pbi, ThreadData *const td,
       const BLOCK_SIZE bsize3 = get_partition_subsize(bsize, PARTITION_VERT);
       int this_mi_col = mi_col;
       DEC_BLOCK(mi_row, this_mi_col, subsize, 0);
-      this_mi_col += quarter_step;
+      this_mi_col += qbs_w;
       if (this_mi_col >= cm->mi_cols) break;
       DEC_BLOCK(mi_row, this_mi_col, bsize3, 1);
-      this_mi_col += 2 * quarter_step;
+      this_mi_col += 2 * qbs_w;
       if (this_mi_col >= cm->mi_cols) break;
       DEC_BLOCK(mi_row, this_mi_col, subsize, 2);
       break;
@@ -1744,14 +1747,14 @@ static void decode_partition(AV1Decoder *const pbi, ThreadData *const td,
 #else
     case PARTITION_HORZ_4:
       for (int i = 0; i < 4; ++i) {
-        int this_mi_row = mi_row + i * quarter_step;
+        int this_mi_row = mi_row + i * qbs_h;
         if (i > 0 && this_mi_row >= cm->mi_rows) break;
         DEC_BLOCK(this_mi_row, mi_col, subsize, i);
       }
       break;
     case PARTITION_VERT_4:
       for (int i = 0; i < 4; ++i) {
-        int this_mi_col = mi_col + i * quarter_step;
+        int this_mi_col = mi_col + i * qbs_w;
         if (i > 0 && this_mi_col >= cm->mi_cols) break;
         DEC_BLOCK(mi_row, this_mi_col, subsize, i);
       }

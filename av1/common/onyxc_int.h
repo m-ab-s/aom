@@ -1042,6 +1042,10 @@ static INLINE aom_cdf_prob cdf_element_prob(const aom_cdf_prob *cdf,
   return (element > 0 ? cdf[element - 1] : CDF_PROB_TOP) - cdf[element];
 }
 
+static INLINE int is_partition_point(BLOCK_SIZE bsize) {
+  return bsize >= BLOCK_8X8 && bsize < BLOCK_SIZES;
+}
+
 static INLINE void partition_gather_horz_alike(aom_cdf_prob *out,
                                                const aom_cdf_prob *const in,
                                                BLOCK_SIZE bsize) {

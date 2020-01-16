@@ -1965,18 +1965,17 @@ static void write_modes_b(AV1_COMP *cpi, const TileInfo *const tile,
 static void write_partition(const AV1_COMMON *const cm,
                             const MACROBLOCKD *const xd, int mi_row, int mi_col,
                             PARTITION_TYPE p, BLOCK_SIZE bsize, aom_writer *w) {
-  const int is_partition_point = bsize >= BLOCK_8X8;
-
-  if (!is_partition_point) return;
+  if (!is_partition_point(bsize)) return;
 
   const int ctx = partition_plane_context(xd, mi_row, mi_col, bsize);
   FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
 #if CONFIG_EXT_RECUR_PARTITIONS
   if (is_square_block(bsize)) {
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
-    const int hbs = mi_size_wide[bsize] / 2;
-    const int has_rows = (mi_row + hbs) < cm->mi_rows;
-    const int has_cols = (mi_col + hbs) < cm->mi_cols;
+    const int hbs_w = mi_size_wide[bsize] / 2;
+    const int hbs_h = mi_size_wide[bsize] / 2;
+    const int has_rows = (mi_row + hbs_h) < cm->mi_rows;
+    const int has_cols = (mi_col + hbs_w) < cm->mi_cols;
 
     if (!has_rows && !has_cols) {
       assert(p == PARTITION_SPLIT);
@@ -2020,8 +2019,10 @@ static void write_modes_sb(AV1_COMP *const cpi, const TileInfo *const tile,
   const AV1_COMMON *const cm = &cpi->common;
   MACROBLOCKD *const xd = &cpi->td.mb.e_mbd;
   assert(bsize < BLOCK_SIZES_ALL);
-  const int hbs = mi_size_wide[bsize] / 2;
-  const int quarter_step = mi_size_wide[bsize] / 4;
+  const int hbs_w = mi_size_wide[bsize] / 2;
+  const int hbs_h = mi_size_high[bsize] / 2;
+  const int qbs_w = mi_size_wide[bsize] / 4;
+  const int qbs_h = mi_size_high[bsize] / 4;
   const PARTITION_TYPE partition = ptree->partition;
   const BLOCK_SIZE subsize = get_partition_subsize(bsize, partition);
 #if CONFIG_EXT_PARTITIONS
@@ -2064,39 +2065,39 @@ static void write_modes_sb(AV1_COMP *const cpi, const TileInfo *const tile,
 #if CONFIG_EXT_RECUR_PARTITIONS
       write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[0], mi_row,
                      mi_col, subsize);
-      if (mi_row + hbs < cm->mi_rows) {
+      if (mi_row + hbs_h < cm->mi_rows) {
         write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[1],
-                       mi_row + hbs, mi_col, subsize);
+                       mi_row + hbs_h, mi_col, subsize);
       }
 #else   // CONFIG_EXT_RECUR_PARTITIONS
       write_modes_b(cpi, tile, w, tok, tok_end, mi_row, mi_col);
-      if (mi_row + hbs < cm->mi_rows)
-        write_modes_b(cpi, tile, w, tok, tok_end, mi_row + hbs, mi_col);
+      if (mi_row + hbs_h < cm->mi_rows)
+        write_modes_b(cpi, tile, w, tok, tok_end, mi_row + hbs_h, mi_col);
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
       break;
     case PARTITION_VERT:
 #if CONFIG_EXT_RECUR_PARTITIONS
       write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[0], mi_row,
                      mi_col, subsize);
-      if (mi_col + hbs < cm->mi_cols) {
-        write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[0], mi_row,
-                       mi_col + hbs, subsize);
+      if (mi_col + hbs_w < cm->mi_cols) {
+        write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[1], mi_row,
+                       mi_col + hbs_w, subsize);
       }
 #else  // CONFIG_EXT_RECUR_PARTITIONS
       write_modes_b(cpi, tile, w, tok, tok_end, mi_row, mi_col);
-      if (mi_col + hbs < cm->mi_cols)
-        write_modes_b(cpi, tile, w, tok, tok_end, mi_row, mi_col + hbs);
+      if (mi_col + hbs_w < cm->mi_cols)
+        write_modes_b(cpi, tile, w, tok, tok_end, mi_row, mi_col + hbs_w);
 #endif
       break;
     case PARTITION_SPLIT:
       write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[0], mi_row,
                      mi_col, subsize);
       write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[1], mi_row,
-                     mi_col + hbs, subsize);
+                     mi_col + hbs_w, subsize);
       write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[2],
-                     mi_row + hbs, mi_col, subsize);
+                     mi_row + hbs_h, mi_col, subsize);
       write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[3],
-                     mi_row + hbs, mi_col + hbs, subsize);
+                     mi_row + hbs_h, mi_col + hbs_w, subsize);
       break;
 #if !CONFIG_EXT_RECUR_PARTITIONS
     case PARTITION_HORZ_A:
@@ -2104,23 +2105,23 @@ static void write_modes_sb(AV1_COMP *const cpi, const TileInfo *const tile,
       write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[0], mi_row,
                      mi_col, half_sq_bsize);
       write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[1], mi_row,
-                     mi_col + hbs, half_sq_bsize);
+                     mi_col + hbs_w, half_sq_bsize);
 #else
       write_modes_b(cpi, tile, w, tok, tok_end, mi_row, mi_col);
-      write_modes_b(cpi, tile, w, tok, tok_end, mi_row, mi_col + hbs);
+      write_modes_b(cpi, tile, w, tok, tok_end, mi_row, mi_col + hbs_w);
 #endif  // CONFIG_EXT_PARTITIONS
-      write_modes_b(cpi, tile, w, tok, tok_end, mi_row + hbs, mi_col);
+      write_modes_b(cpi, tile, w, tok, tok_end, mi_row + hbs_h, mi_col);
       break;
     case PARTITION_HORZ_B:
       write_modes_b(cpi, tile, w, tok, tok_end, mi_row, mi_col);
 #if CONFIG_EXT_PARTITIONS
       write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[0],
-                     mi_row + hbs, mi_col, half_sq_bsize);
+                     mi_row + hbs_h, mi_col, half_sq_bsize);
       write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[1],
-                     mi_row + hbs, mi_col + hbs, half_sq_bsize);
+                     mi_row + hbs_h, mi_col + hbs_w, half_sq_bsize);
 #else
-      write_modes_b(cpi, tile, w, tok, tok_end, mi_row + hbs, mi_col);
-      write_modes_b(cpi, tile, w, tok, tok_end, mi_row + hbs, mi_col + hbs);
+      write_modes_b(cpi, tile, w, tok, tok_end, mi_row + hbs_h, mi_col);
+      write_modes_b(cpi, tile, w, tok, tok_end, mi_row + hbs_h, mi_col + hbs_w);
 #endif  // CONFIG_EXT_PARTITIONS
       break;
     case PARTITION_VERT_A:
@@ -2128,47 +2129,45 @@ static void write_modes_sb(AV1_COMP *const cpi, const TileInfo *const tile,
       write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[0], mi_row,
                      mi_col, half_sq_bsize);
       write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[1],
-                     mi_row + hbs, mi_col, half_sq_bsize);
+                     mi_row + hbs_h, mi_col, half_sq_bsize);
 #else
       write_modes_b(cpi, tile, w, tok, tok_end, mi_row, mi_col);
-      write_modes_b(cpi, tile, w, tok, tok_end, mi_row + hbs, mi_col);
+      write_modes_b(cpi, tile, w, tok, tok_end, mi_row + hbs_h, mi_col);
 #endif  // CONFIG_EXT_PARTITIONS
-      write_modes_b(cpi, tile, w, tok, tok_end, mi_row, mi_col + hbs);
+      write_modes_b(cpi, tile, w, tok, tok_end, mi_row, mi_col + hbs_w);
       break;
     case PARTITION_VERT_B:
       write_modes_b(cpi, tile, w, tok, tok_end, mi_row, mi_col);
 #if CONFIG_EXT_PARTITIONS
       write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[0], mi_row,
-                     mi_col + hbs, half_sq_bsize);
+                     mi_col + hbs_w, half_sq_bsize);
       write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[1],
-                     mi_row + hbs, mi_col + hbs, half_sq_bsize);
+                     mi_row + hbs_h, mi_col + hbs_w, half_sq_bsize);
 #else
-      write_modes_b(cpi, tile, w, tok, tok_end, mi_row, mi_col + hbs);
-      write_modes_b(cpi, tile, w, tok, tok_end, mi_row + hbs, mi_col + hbs);
+      write_modes_b(cpi, tile, w, tok, tok_end, mi_row, mi_col + hbs_w);
+      write_modes_b(cpi, tile, w, tok, tok_end, mi_row + hbs_h, mi_col + hbs_w);
 #endif  // CONFIG_EXT_PARTITIONS
       break;
 #endif  // !CONFIG_EXT_RECUR_PARTITIONS
 #if CONFIG_EXT_PARTITIONS
     case PARTITION_HORZ_3:
       write_modes_b(cpi, tile, w, tok, tok_end, mi_row, mi_col);
-      if (mi_row + quarter_step >= cm->mi_rows) break;
-      write_modes_b(cpi, tile, w, tok, tok_end, mi_row + quarter_step, mi_col);
-      if (mi_row + 3 * quarter_step >= cm->mi_rows) break;
-      write_modes_b(cpi, tile, w, tok, tok_end, mi_row + 3 * quarter_step,
-                    mi_col);
+      if (mi_row + qbs_h >= cm->mi_rows) break;
+      write_modes_b(cpi, tile, w, tok, tok_end, mi_row + qbs_h, mi_col);
+      if (mi_row + 3 * qbs_h >= cm->mi_rows) break;
+      write_modes_b(cpi, tile, w, tok, tok_end, mi_row + 3 * qbs_h, mi_col);
       break;
     case PARTITION_VERT_3:
       write_modes_b(cpi, tile, w, tok, tok_end, mi_row, mi_col);
-      if (mi_col + quarter_step >= cm->mi_cols) break;
-      write_modes_b(cpi, tile, w, tok, tok_end, mi_row, mi_col + quarter_step);
-      if (mi_col + 3 * quarter_step >= cm->mi_cols) break;
-      write_modes_b(cpi, tile, w, tok, tok_end, mi_row,
-                    mi_col + 3 * quarter_step);
+      if (mi_col + qbs_w >= cm->mi_cols) break;
+      write_modes_b(cpi, tile, w, tok, tok_end, mi_row, mi_col + qbs_w);
+      if (mi_col + 3 * qbs_w >= cm->mi_cols) break;
+      write_modes_b(cpi, tile, w, tok, tok_end, mi_row, mi_col + 3 * qbs_w);
       break;
 #else
     case PARTITION_HORZ_4:
       for (int i = 0; i < 4; ++i) {
-        int this_mi_row = mi_row + i * quarter_step;
+        int this_mi_row = mi_row + i * qbs_h;
         if (i > 0 && this_mi_row >= cm->mi_rows) break;
 
         write_modes_b(cpi, tile, w, tok, tok_end, this_mi_row, mi_col);
@@ -2176,7 +2175,7 @@ static void write_modes_sb(AV1_COMP *const cpi, const TileInfo *const tile,
       break;
     case PARTITION_VERT_4:
       for (int i = 0; i < 4; ++i) {
-        int this_mi_col = mi_col + i * quarter_step;
+        int this_mi_col = mi_col + i * qbs_w;
         if (i > 0 && this_mi_col >= cm->mi_cols) break;
 
         write_modes_b(cpi, tile, w, tok, tok_end, mi_row, this_mi_col);
