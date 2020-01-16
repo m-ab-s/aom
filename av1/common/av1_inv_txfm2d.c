@@ -491,9 +491,11 @@ static INLINE void inv_txfm2d_add_c(const int32_t *input, uint16_t *output,
 #if CONFIG_MODE_DEP_TX
   // For MDTX, the stage_range argument is not required. Instead, we pass
   // the prediction mode as side information to 1D transform functions.
-  if (txfm_func_col == av1_imdt4 || txfm_func_col == av1_imdt8)
+  if (txfm_func_col == av1_imdt4 || txfm_func_col == av1_imdt8 ||
+      txfm_func_col == av1_imdt16)
     stage_range_col[0] = (int)cfg->mode;
-  if (txfm_func_row == av1_imdt4 || txfm_func_row == av1_imdt8)
+  if (txfm_func_row == av1_imdt4 || txfm_func_row == av1_imdt8 ||
+      txfm_func_row == av1_imdt16)
     stage_range_row[0] = (int)cfg->mode;
 #endif
 
