@@ -3191,9 +3191,11 @@ AV1_COMP *av1_create_compressor(AV1EncoderConfig *oxcf, BufferPool *const pool,
       cpi->twopass.stats_in = cpi->twopass.stats_buf_ctx->stats_in_start;
       cpi->twopass.stats_buf_ctx->stats_in_end =
           &cpi->twopass.stats_buf_ctx->stats_in_start[packets - 1];
-    }
 
-    av1_init_second_pass(cpi);
+      av1_init_second_pass(cpi);
+    } else {
+      av1_init_single_pass_lap(cpi);
+    }
   }
 #endif
 
@@ -3708,6 +3710,10 @@ void av1_remove_compressor(AV1_COMP *cpi) {
   if (cpi->sf.use_hash_based_trellis) hbt_destroy();
 #endif  // CONFIG_HTB_TRELLIS
   av1_free_ref_frame_buffers(cm->buffer_pool);
+
+  aom_free(cpi->twopass.total_stats);
+  aom_free(cpi->twopass.total_left_stats);
+
   aom_free(cpi);
 
 #ifdef OUTPUT_YUV_SKINMAP

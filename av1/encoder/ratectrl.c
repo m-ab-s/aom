@@ -1845,13 +1845,15 @@ static void vbr_rate_correction(AV1_COMP *cpi, int *this_frame_target) {
   int64_t vbr_bits_off_target = rc->vbr_bits_off_target;
   int max_delta;
   double position_factor = 1.0;
+  double stats_count =
+      cpi->twopass.total_stats != NULL ? cpi->twopass.total_stats->count : 0.0;
 
   // How far through the clip are we.
   // This number is used to damp the per frame rate correction.
   // Range 0 - 1.0
-  if (cpi->twopass.total_stats.count != 0.) {
-    position_factor = sqrt((double)cpi->common.current_frame.frame_number /
-                           cpi->twopass.total_stats.count);
+  if (stats_count != 0.) {
+    position_factor =
+        sqrt((double)cpi->common.current_frame.frame_number / stats_count);
   }
   max_delta = (int)(position_factor *
                     ((*this_frame_target * VBR_PCT_ADJUSTMENT_LIMIT) / 100));
