@@ -184,11 +184,13 @@ static void write_drl_idx(FRAME_CONTEXT *ec_ctx, int16_t mode_ctx,
                           const MB_MODE_INFO_EXT *mbmi_ext, aom_writer *w) {
   uint8_t ref_frame_type = av1_ref_frame_type(mbmi->ref_frame);
   assert(!mbmi->skip_mode);
+  assert(mbmi->ref_mv_idx < mbmi_ext->ref_mv_count[ref_frame_type]);
+  assert(mbmi->ref_mv_idx < MAX_DRL_BITS + 1);
   // Write the DRL index as a sequence of bits encoding a decision tree:
   // 0 -> 0   10 -> 1   110 -> 2    111 -> 3
   // Also use the number of reference MVs for a frame type to reduce the
   // number of bits written if there are less than 4 valid DRL indices.
-  int range = AOMMIN(mbmi_ext->ref_mv_count[ref_frame_type] - 1, 3);
+  int range = AOMMIN(mbmi_ext->ref_mv_count[ref_frame_type] - 1, MAX_DRL_BITS);
   for (int idx = 0; idx < range; ++idx) {
     aom_cdf_prob *drl_cdf = av1_get_drl_cdf(
         mode_ctx, ec_ctx, mbmi->mode, mbmi_ext->weight[ref_frame_type], idx);

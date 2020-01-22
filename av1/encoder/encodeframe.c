@@ -848,13 +848,19 @@ static void update_drl_index_stats(FRAME_CONTEXT *fc, FRAME_COUNTS *counts,
   (void)counts;
 #endif  // !CONFIG_ENTROPY_STATS
   assert(have_drl_index(mbmi->mode));
+  assert(mbmi->ref_mv_idx < MAX_DRL_BITS + 1);
   uint8_t ref_frame_type = av1_ref_frame_type(mbmi->ref_frame);
-  int range = AOMMIN(mbmi_ext->ref_mv_count[ref_frame_type] - 1, 3);
+  int range = AOMMIN(mbmi_ext->ref_mv_count[ref_frame_type] - 1, MAX_DRL_BITS);
   for (int idx = 0; idx < range; ++idx) {
     aom_cdf_prob *drl_cdf = av1_get_drl_cdf(
         mode_ctx, fc, mbmi->mode, mbmi_ext->weight[ref_frame_type], idx);
 #if CONFIG_ENTROPY_STATS
-    counts->drl_mode[drl_ctx][mbmi->ref_mv_idx != idx]++;
+    int drl_ctx = av1_drl_ctx(mbmi_ext->weight[ref_frame_type], idx);
+    switch (mbmi->ref_mv_idx) {
+      case 0: counts->drl0_mode[drl_ctx][mbmi->ref_mv_idx != idx]++; break;
+      case 1: counts->drl1_mode[drl_ctx][mbmi->ref_mv_idx != idx]++; break;
+      default: counts->drl2_mode[drl_ctx][mbmi->ref_mv_idx != idx]++; break;
+    }
 #endif  // CONFIG_ENTROPY_STATS
     if (allow_update_cdf) update_cdf(drl_cdf, mbmi->ref_mv_idx != idx, 2);
     if (mbmi->ref_mv_idx == idx) break;

@@ -27,7 +27,9 @@ extern "C" {
 #endif
 
 #if CONFIG_NEW_INTER_MODES
-#define MAX_REF_MV_SEARCH 4
+// This is a roundabout way to define this, but it saves a lot of trouble with
+// reordering imports.
+#define MAX_REF_MV_SEARCH (MAX_DRL_BITS + 1)
 #else
 #define MAX_REF_MV_SEARCH 3
 #endif  // CONFIG_NEW_INTER_MODES

@@ -11288,6 +11288,7 @@ static INLINE int build_cur_mv(int_mv *cur_mv, PREDICTION_MODE this_mode,
 static INLINE int get_drl_cost(const MB_MODE_INFO *mbmi,
                                const MB_MODE_INFO_EXT *mbmi_ext,
                                const MACROBLOCK *x, int8_t ref_frame_type) {
+  assert(mbmi->ref_mv_idx < MAX_DRL_BITS + 1);
   if (!have_drl_index(mbmi->mode)) {
     return 0;
   }
@@ -11295,7 +11296,7 @@ static INLINE int get_drl_cost(const MB_MODE_INFO *mbmi,
       av1_mode_context_analyzer(mbmi_ext->mode_context, mbmi->ref_frame);
   (void)mode_ctx;  // This is here for future experiments
   int cost = 0;
-  int range = AOMMIN(mbmi_ext->ref_mv_count[ref_frame_type] - 1, 3);
+  int range = AOMMIN(mbmi_ext->ref_mv_count[ref_frame_type] - 1, MAX_DRL_BITS);
   for (int idx = 0; idx < range; ++idx) {
     uint8_t drl_ctx = av1_drl_ctx(mbmi_ext->weight[ref_frame_type], idx);
     switch (idx) {
@@ -11305,11 +11306,10 @@ static INLINE int get_drl_cost(const MB_MODE_INFO *mbmi,
       case 1:
         cost += x->drl1_mode_cost[drl_ctx][mbmi->ref_mv_idx != idx];
         break;
-      case 2:
+      default:
         cost += x->drl2_mode_cost[drl_ctx][mbmi->ref_mv_idx != idx];
         break;
     }
-
     if (mbmi->ref_mv_idx == idx) return cost;
   }
   return cost;
@@ -11938,7 +11938,8 @@ static int ref_mv_idx_to_search(AV1_COMP *const cpi, MACROBLOCK *x,
   }
 // Calculate the RD cost for the motion vectors using simple translation.
 #if CONFIG_NEW_INTER_MODES
-  int64_t idx_rdcost[] = { INT64_MAX, INT64_MAX, INT64_MAX, INT64_MAX };
+  int64_t idx_rdcost[MAX_REF_MV_SEARCH];
+  for (int i = 0; i < MAX_REF_MV_SEARCH; i++) idx_rdcost[i] = INT64_MAX;
 #else
   int64_t idx_rdcost[] = { INT64_MAX, INT64_MAX, INT64_MAX };
 #endif  // CONFIG_NEW_INTER_MODES
