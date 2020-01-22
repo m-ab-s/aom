@@ -82,7 +82,7 @@ static void enc_build_inter_predictors(const AV1_COMMON *cm, MACROBLOCKD *xd,
                                        int build_for_obmc, int bw, int bh,
                                        int mi_x, int mi_y) {
   av1_build_inter_predictors(cm, xd, plane, mi, build_for_obmc, bw, bh, mi_x,
-                             mi_y, enc_calc_subpel_params, NULL);
+                             mi_y, enc_calc_subpel_params, NULL, NULL);
 }
 
 static void build_inter_predictors_for_plane(const AV1_COMMON *cm,
@@ -148,7 +148,7 @@ void av1_build_inter_predictor(const uint8_t *src, int src_stride, uint8_t *dst,
   av1_make_inter_predictor(src, src_stride, dst, dst_stride, &subpel_params, sf,
                            w, h, conv_params, interp_filters, warp_types, p_col,
                            p_row, plane, ref, xd->mi[0], 0, xd,
-                           can_use_previous);
+                           can_use_previous, NULL);
 }
 
 static INLINE void build_prediction_by_above_pred(
@@ -339,7 +339,7 @@ static void build_inter_predictors_single_buf(MACROBLOCKD *xd, int plane,
   av1_make_inter_predictor(pre, src_stride, dst, ext_dst_stride, &subpel_params,
                            sf, w, h, &conv_params, mi->interp_filters,
                            &warp_types, pre_x + x, pre_y + y, plane, ref, mi, 0,
-                           xd, can_use_previous);
+                           xd, can_use_previous, NULL);
 }
 
 void av1_build_inter_predictors_for_planes_single_buf(

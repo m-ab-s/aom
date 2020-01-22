@@ -773,7 +773,13 @@ static INLINE int is_partition_valid(BLOCK_SIZE bsize, PARTITION_TYPE p) {
 }
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 
+static INLINE int has_second_ref(const MB_MODE_INFO *mbmi) {
+  return mbmi->ref_frame[1] > INTRA_FRAME;
+}
+
 static INLINE int is_intrabc_block(const MB_MODE_INFO *mbmi) {
+  // Intrabc implies this is not a compound mode.
+  assert(IMPLIES(mbmi->use_intrabc, !has_second_ref(mbmi)));
   return mbmi->use_intrabc;
 }
 
@@ -802,10 +808,6 @@ static INLINE PREDICTION_MODE get_uv_mode(UV_PREDICTION_MODE mode) {
 
 static INLINE int is_inter_block(const MB_MODE_INFO *mbmi) {
   return is_intrabc_block(mbmi) || mbmi->ref_frame[0] > INTRA_FRAME;
-}
-
-static INLINE int has_second_ref(const MB_MODE_INFO *mbmi) {
-  return mbmi->ref_frame[1] > INTRA_FRAME;
 }
 
 static INLINE int has_uni_comp_refs(const MB_MODE_INFO *mbmi) {

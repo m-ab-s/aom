@@ -201,15 +201,23 @@ static INLINE int is_interintra_wedge_used(BLOCK_SIZE sb_type) {
   return av1_wedge_params_lookup[sb_type].bits > 0;
 }
 
-void av1_make_inter_predictor(const uint8_t *src, int src_stride, uint8_t *dst,
-                              int dst_stride, const SubpelParams *subpel_params,
-                              const struct scale_factors *sf, int w, int h,
-                              ConvolveParams *conv_params,
-                              int_interpfilters interp_filters,
-                              const WarpTypesAllowed *warp_types, int p_col,
-                              int p_row, int plane, int ref,
-                              const MB_MODE_INFO *mi, int build_for_obmc,
-                              const MACROBLOCKD *xd, int can_use_previous);
+// Data structure for passing around configuration options for building
+// the extended inter-predictor. If NULL, will assume 0 values for everything.
+// All values must be non-negative.
+typedef struct InterPredExt {
+  int border_left;
+  int border_top;
+  int border_right;
+  int border_bottom;
+} InterPredExt;
+
+void av1_make_inter_predictor(
+    const uint8_t *src, int src_stride, uint8_t *dst, int dst_stride,
+    const SubpelParams *subpel_params, const struct scale_factors *sf, int w,
+    int h, ConvolveParams *conv_params, int_interpfilters interp_filters,
+    const WarpTypesAllowed *warp_types, int p_col, int p_row, int plane,
+    int ref, const MB_MODE_INFO *mi, int build_for_obmc, const MACROBLOCKD *xd,
+    int can_use_previous, const InterPredExt *ext);
 
 void av1_make_masked_inter_predictor(
     const uint8_t *pre, int pre_stride, uint8_t *dst, int dst_stride,
@@ -230,7 +238,8 @@ void av1_build_inter_predictors(const AV1_COMMON *cm, MACROBLOCKD *xd,
                                 int build_for_obmc, int bw, int bh, int mi_x,
                                 int mi_y,
                                 CalcSubpelParamsFunc calc_subpel_params_func,
-                                const void *const calc_subpel_params_func_args);
+                                const void *const calc_subpel_params_func_args,
+                                const InterPredExt *ext);
 
 // TODO(jkoleszar): yet another mv clamping function :-(
 static INLINE MV clamp_mv_to_umv_border_sb(const MACROBLOCKD *xd,
