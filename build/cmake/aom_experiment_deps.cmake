@@ -32,4 +32,9 @@ macro(fix_experiment_configs)
   if(CONFIG_EXT_COMPOUND)
     change_config_and_warn(CONFIG_NEW_INTER_MODES 1 CONFIG_EXT_COMPOUND)
   endif()
+
+  if(CONFIG_MODE_DEP_NONSEP_SEC_INTRA_TX)
+    change_config_and_warn(CONFIG_MODE_DEP_NONSEP_INTRA_TX 1
+                           CONFIG_MODE_DEP_NONSEP_SEC_INTRA_TX)
+  endif()
 endmacro()
