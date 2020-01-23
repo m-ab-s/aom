@@ -15,6 +15,7 @@
 #include "av1/common/entropy.h"
 #include "av1/common/entropymv.h"
 #include "av1/common/filter.h"
+#include "av1/common/mv.h"
 #include "av1/common/seg_common.h"
 #include "aom_dsp/aom_filter.h"
 
@@ -262,7 +263,11 @@ typedef struct frame_contexts {
                           [CDF_SIZE(UV_INTRA_MODES)];
 #endif  // CONFIG_INTRA_ENTROPY
 
-#if CONFIG_FLEX_MVRES
+#if CONFIG_SB_FLEX_MVRES
+  aom_cdf_prob
+      flex_mv_precision_cdf[MV_SUBPEL_PRECISIONS - MV_SUBPEL_HALF_PRECISION]
+                           [CDF_SIZE(MV_SUBPEL_PRECISIONS)];
+#elif CONFIG_FLEX_MVRES
 #if DISALLOW_ONE_DOWN_FLEX_MVRES == 2
   aom_cdf_prob flex_mv_precision_cdf[MV_PREC_DOWN_CONTEXTS]
                                     [MV_SUBPEL_PRECISIONS -
@@ -278,7 +283,7 @@ typedef struct frame_contexts {
                            [MV_SUBPEL_PRECISIONS - MV_SUBPEL_QTR_PRECISION]
                            [CDF_SIZE(MV_SUBPEL_PRECISIONS)];
 #endif  // DISALLOW_ONE_DOWN_FLEX_MVRES
-#endif  // CONFIG_FLEX_MVRES
+#endif  // CONFIG_SB_FLEX_MVRES
 
   aom_cdf_prob angle_delta_cdf[DIRECTIONAL_MODES]
                               [CDF_SIZE(2 * MAX_ANGLE_DELTA + 1)];

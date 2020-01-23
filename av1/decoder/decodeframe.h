@@ -16,6 +16,8 @@
 extern "C" {
 #endif
 
+#include "aom_dsp/bitreader.h"
+
 struct AV1Decoder;
 struct aom_read_bit_buffer;
 struct ThreadData;
@@ -77,6 +79,11 @@ struct aom_read_bit_buffer *av1_init_read_bit_buffer(
 void av1_free_mc_tmp_buf(struct ThreadData *thread_data);
 
 void av1_set_single_tile_decoding_mode(AV1_COMMON *const cm);
+
+#if CONFIG_FLEX_MVRES
+MvSubpelPrecision av1_read_mv_precision(AV1_COMMON *const cm,
+                                        MACROBLOCKD *const xd, aom_reader *r);
+#endif  // CONFIG_FLEX_MVRES
 
 #ifdef __cplusplus
 }  // extern "C"

@@ -12,6 +12,8 @@
 #ifndef AOM_AV1_COMMON_MV_H_
 #define AOM_AV1_COMMON_MV_H_
 
+#include <stdlib.h>
+
 #include "av1/common/common.h"
 #include "av1/common/common_data.h"
 #include "aom_dsp/aom_filter.h"
@@ -49,15 +51,23 @@ enum {
   MV_SUBPEL_PRECISIONS,
 } SENUM1BYTE(MvSubpelPrecision);
 
+// CONFIG_SB_FLEX_MVRES sets the mvres at the superblock level instead of the
+// prediction block level
+#if CONFIG_FLEX_MVRES
+#define CONFIG_SB_FLEX_MVRES 1
+#else
+#define CONFIG_SB_FLEX_MVRES 0
+#endif  // CONIFG_FLEX_MVRES
+
 // DISALLOW_ONE_DOWN_FLEX_MVRES 0 => allow all possible down precisions
 // DISALLOW_ONE_DOWN_FLEX_MVRES 1 => allow all possible down precisions except 1
 // DISALLOW_ONE_DOWN_FLEX_MVRES 2 => allow only 0 and 2 down precisions
-#if CONFIG_FLEX_MVRES
+#if CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES
 #define DISALLOW_ONE_DOWN_FLEX_MVRES 2  // Choose one of the above
 #define MV_PREC_DOWN_CONTEXTS 2
 #else
 #define DISALLOW_ONE_DOWN_FLEX_MVRES 0
-#endif  // CONFIG_FLEX_MVRES
+#endif  // CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES
 
 #if CONFIG_COMPANDED_MV
 #define COMPANDED_INTMV_THRESH_QTR 96

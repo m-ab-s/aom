@@ -1532,8 +1532,8 @@ static PARTITION_TYPE read_partition(MACROBLOCKD *xd, int mi_row, int mi_col,
 // TODO(slavarnway): eliminate bsize and subsize in future commits
 static void decode_partition(AV1Decoder *const pbi, ThreadData *const td,
                              int mi_row, int mi_col, aom_reader *reader,
-                             BLOCK_SIZE bsize, PARTITION_TREE *ptree,
-                             int parse_decode_flag) {
+                             BLOCK_SIZE bsize, SB_INFO *sbi,
+                             PARTITION_TREE *ptree, int parse_decode_flag) {
   assert(bsize < BLOCK_SIZES_ALL);
   AV1_COMMON *const cm = &pbi->common;
   MACROBLOCKD *const xd = &td->xd;
@@ -1548,6 +1548,15 @@ static void decode_partition(AV1Decoder *const pbi, ThreadData *const td,
   const int has_cols = (mi_col + hbs_w) < cm->mi_cols;
 
   if (mi_row >= cm->mi_rows || mi_col >= cm->mi_cols) return;
+
+#if CONFIG_SB_FLEX_MVRES
+  if (bsize == cm->seq_params.sb_size && !frame_is_intra_only(cm) &&
+      cm->use_flex_mv_precision) {
+    if (parse_decode_flag & 1) {
+      sbi->sb_mv_precision = av1_read_mv_precision(cm, xd, reader);
+    }
+  }
+#endif  // CONFIG_SB_FLEX_MVRES
 
   // parse_decode_flag takes the following values :
   // 01 - do parse only
@@ -1647,7 +1656,8 @@ static void decode_partition(AV1Decoder *const pbi, ThreadData *const td,
                                  index)
 #define DEC_PARTITION(db_r, db_c, db_subsize, index)                 \
   decode_partition(pbi, td, DEC_BLOCK_STX_ARG(db_r), (db_c), reader, \
-                   (db_subsize), ptree->sub_tree[(index)], parse_decode_flag)
+                   (db_subsize), sbi, ptree->sub_tree[(index)],      \
+                   parse_decode_flag)
 
 #if !CONFIG_EXT_RECUR_PARTITIONS
   const BLOCK_SIZE bsize2 = get_partition_subsize(bsize, PARTITION_SPLIT);
@@ -3032,7 +3042,8 @@ static void decode_tile_sb_row(AV1Decoder *pbi, ThreadData *const td,
 
     // Decoding of the super-block
     decode_partition(pbi, td, mi_row, mi_col, td->bit_reader,
-                     cm->seq_params.sb_size, td->xd.sbi->ptree_root, 0x2);
+                     cm->seq_params.sb_size, td->xd.sbi, td->xd.sbi->ptree_root,
+                     0x2);
 
     sync_write(&tile_data->dec_row_mt_sync, sb_row_in_tile, sb_col_in_tile,
                sb_cols_in_tile);
@@ -3110,7 +3121,8 @@ static void decode_tile(AV1Decoder *pbi, ThreadData *const td, int tile_row,
 
       // Bit-stream parsing and decoding of the superblock
       decode_partition(pbi, td, mi_row, mi_col, td->bit_reader,
-                       cm->seq_params.sb_size, td->xd.sbi->ptree_root, 0x3);
+                       cm->seq_params.sb_size, td->xd.sbi,
+                       td->xd.sbi->ptree_root, 0x3);
 
       if (aom_reader_has_overflowed(td->bit_reader)) {
         aom_merge_corrupted_flag(&td->xd.corrupted, 1);
@@ -3551,7 +3563,8 @@ static void parse_tile_row_mt(AV1Decoder *pbi, ThreadData *const td,
 
       // Bit-stream parsing of the superblock
       decode_partition(pbi, td, mi_row, mi_col, td->bit_reader,
-                       cm->seq_params.sb_size, td->xd.sbi->ptree_root, 0x1);
+                       cm->seq_params.sb_size, td->xd.sbi,
+                       td->xd.sbi->ptree_root, 0x1);
 
       if (aom_reader_has_overflowed(td->bit_reader)) {
         aom_merge_corrupted_flag(&td->xd.corrupted, 1);
@@ -5293,11 +5306,20 @@ static int read_uncompressed_header(AV1Decoder *pbi,
         cm->use_flex_mv_precision = 0;
 #endif  // CONFIG_FLEX_MVRES
       } else {
+#if CONFIG_SB_FLEX_MVRES
+        cm->mv_precision = (MvSubpelPrecision)aom_rb_read_literal(rb, 2);
+        if (cm->mv_precision == MV_SUBPEL_NONE) {
+          cm->use_flex_mv_precision = 0;
+        } else {
+          cm->use_flex_mv_precision = aom_rb_read_bit(rb);
+        }
+#else
         cm->mv_precision = aom_rb_read_bit(rb) ? MV_SUBPEL_EIGHTH_PRECISION
                                                : MV_SUBPEL_QTR_PRECISION;
 #if CONFIG_FLEX_MVRES
         cm->use_flex_mv_precision = aom_rb_read_bit(rb);
 #endif  // CONFIG_FLEX_MVRES
+#endif  // CONFIG_SB_FLEX_MVRES
       }
       cm->interp_filter = read_frame_interp_filter(rb);
       cm->switchable_motion_mode = aom_rb_read_bit(rb);
@@ -5785,3 +5807,45 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
     cm->cur_frame->frame_context = *cm->fc;
   }
 }
+
+#if CONFIG_FLEX_MVRES
+MvSubpelPrecision av1_read_mv_precision(AV1_COMMON *const cm,
+                                        MACROBLOCKD *const xd, aom_reader *r) {
+#if CONFIG_SB_FLEX_MVRES
+  const MvSubpelPrecision max_precision = cm->mv_precision;
+  const int down = aom_read_symbol(
+      r,
+      xd->tile_ctx
+          ->flex_mv_precision_cdf[max_precision - MV_SUBPEL_HALF_PRECISION],
+      cm->mv_precision + 1, ACCT_STR);
+#else
+  MB_MODE_INFO *const mbmi = xd->mi[0];
+  assert(mbmi->max_mv_precision == av1_get_mbmi_max_mv_precision(cm, mbmi));
+  assert(mbmi->max_mv_precision >= MV_SUBPEL_QTR_PRECISION);
+  const int down_ctx = av1_get_mv_precision_down_context(cm, xd);
+  const MvSubpelPrecision max_precision = mbmi->max_mv_precision;
+#if DISALLOW_ONE_DOWN_FLEX_MVRES == 2
+  int down = aom_read_symbol(
+      r,
+      xd->tile_ctx->flex_mv_precision_cdf[down_ctx][max_precision -
+                                                    MV_SUBPEL_QTR_PRECISION],
+      2, ACCT_STR);
+  down <<= 1;
+#elif DISALLOW_ONE_DOWN_FLEX_MVRES == 1
+  int down = aom_read_symbol(
+      r,
+      xd->tile_ctx->flex_mv_precision_cdf[down_ctx][max_precision -
+                                                    MV_SUBPEL_QTR_PRECISION],
+      max_precision, ACCT_STR);
+  down += (down > 0);
+#else
+  int down = aom_read_symbol(
+      r,
+      xd->tile_ctx->flex_mv_precision_cdf[down_ctx][max_precision -
+                                                    MV_SUBPEL_QTR_PRECISION],
+      max_precision + 1, ACCT_STR);
+#endif  // DISALLOW_ONE_DOWN_FLEX_MVRES
+#endif  // CONFIG_SB_FLEX_MVRES
+  return (MvSubpelPrecision)(max_precision - down);
+}
+#endif  // CONFIG_FLEX_MVRES

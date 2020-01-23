@@ -28,11 +28,11 @@ static void accumulate_rd_opt(ThreadData *td, ThreadData *td_t) {
       td_t->rd_counts.compound_ref_used_flag;
   td->rd_counts.skip_mode_used_flag |= td_t->rd_counts.skip_mode_used_flag;
 
-#if CONFIG_FLEX_MVRES
+#if CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES
   for (int i = 0; i < MV_SUBPEL_PRECISIONS; ++i)
     td->rd_counts.reduced_mv_precision_used[i] +=
         td_t->rd_counts.reduced_mv_precision_used[i];
-#endif  // CONFIG_FLEX_MVRES
+#endif  // CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES
 }
 
 static void update_delta_lf_for_row_mt(AV1_COMP *cpi) {
