@@ -105,6 +105,6 @@ TEST_P(ForwardKeyTest, ForwardKeyEncodeTest) {
 }
 
 AV1_INSTANTIATE_TEST_CASE(
-    ForwardKeyTest, ::testing::Values(::libaom_test::kTwoPassGood),
+    ForwardKeyTest, NONREALTIME_TEST_MODES,
     ::testing::Range(0, static_cast<int>(GTEST_ARRAY_SIZE_(kTestParams))));
 }  // namespace

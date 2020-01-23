@@ -1087,6 +1087,7 @@ static void get_intra_q_and_bounds_two_pass(const AV1_COMP *cpi, int width,
     active_best_quality = cq_level;
     active_worst_quality = cq_level;
   } else if (is_fwd_kf) {
+    assert(oxcf->fwd_kf_enabled);
     // Handle the special case for forward reference key frames.
     // Increase the boost because this keyframe is used as a forward and
     // backward reference.

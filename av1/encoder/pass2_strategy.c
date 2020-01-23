@@ -787,8 +787,8 @@ static void define_gf_group_pass0(AV1_COMP *cpi,
   else
     rc->baseline_gf_interval = MAX_GF_INTERVAL;
 
-  if (rc->baseline_gf_interval > rc->frames_to_key)
-    rc->baseline_gf_interval = rc->frames_to_key;
+  rc->baseline_gf_interval =
+      AOMMIN(rc->baseline_gf_interval, rc->frames_to_key);
 
   rc->gfu_boost = DEFAULT_GF_BOOST;
   rc->constrained_gf_group =
@@ -797,8 +797,16 @@ static void define_gf_group_pass0(AV1_COMP *cpi,
       is_altref_enabled(cpi) &&
       (rc->baseline_gf_interval < cpi->oxcf.lag_in_frames) &&
       !(cpi->lookahead->sz < rc->baseline_gf_interval - 1) &&
-      (cpi->oxcf.gf_max_pyr_height > MIN_PYRAMID_LVL);
+      (cpi->oxcf.gf_max_pyr_height > MIN_PYRAMID_LVL) &&
+      (rc->baseline_gf_interval > 1);
   rc->source_alt_ref_pending = use_alt_ref;
+
+  if (!cpi->oxcf.fwd_kf_enabled && rc->source_alt_ref_pending) {
+    // We cannot use a forward keyframe as an altref frame, so need to use the
+    // frame before keyframe as the altref.
+    rc->baseline_gf_interval =
+        AOMMIN(rc->baseline_gf_interval, rc->frames_to_key - 1);
+  }
 
   // Set up the structure of this Group-Of-Pictures (same as GF_GROUP)
   av1_gop_setup_structure(cpi, frame_params);
