@@ -46,7 +46,6 @@ extern "C" {
 
 #define MIN_GF_INTERVAL 4
 #define MAX_GF_INTERVAL 16
-#define FIXED_GF_INTERVAL 8  // Used in some testing modes only
 
 typedef struct {
   int resize_width;

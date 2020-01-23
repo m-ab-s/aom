@@ -787,6 +787,12 @@ static void define_gf_group_pass0(AV1_COMP *cpi,
   else
     rc->baseline_gf_interval = MAX_GF_INTERVAL;
 
+  // Respect the user-supplied GF interval limits.
+  rc->baseline_gf_interval =
+      AOMMAX(rc->baseline_gf_interval, rc->min_gf_interval);
+  rc->baseline_gf_interval =
+      AOMMIN(rc->baseline_gf_interval, rc->max_gf_interval);
+  // Respect the next keyframe boundary.
   rc->baseline_gf_interval =
       AOMMIN(rc->baseline_gf_interval, rc->frames_to_key);
 

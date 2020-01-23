@@ -899,11 +899,10 @@ static int rc_pick_q_and_bounds_one_pass_vbr(const AV1_COMP *cpi, int width,
 
   if (frame_is_intra_only(cm)) {
     if (oxcf->rc_mode == AOM_Q) {
-      const int qindex = cq_level;
-      const double q_val = av1_convert_qindex_to_q(qindex, bit_depth);
-      const int delta_qindex =
-          av1_compute_qdelta(rc, q_val, q_val * 0.25, bit_depth);
-      active_best_quality = AOMMAX(qindex + delta_qindex, rc->best_quality);
+      assert(0 &&
+             "AOM_Q mode should not call "
+             "rc_pick_q_and_bounds_one_pass_vbr(), except for ALTREF frames.");
+      return -1;
     } else if (rc->this_key_frame_forced) {
       const int qindex = rc->last_boosted_qindex;
       const double last_boosted_q = av1_convert_qindex_to_q(qindex, bit_depth);
@@ -957,15 +956,10 @@ static int rc_pick_q_and_bounds_one_pass_vbr(const AV1_COMP *cpi, int width,
     }
   } else {
     if (oxcf->rc_mode == AOM_Q) {
-      const int qindex = cq_level;
-      const double q_val = av1_convert_qindex_to_q(qindex, bit_depth);
-      const double delta_rate[FIXED_GF_INTERVAL] = { 0.50, 1.0, 0.85, 1.0,
-                                                     0.70, 1.0, 0.85, 1.0 };
-      const int delta_qindex = av1_compute_qdelta(
-          rc, q_val,
-          q_val * delta_rate[current_frame->frame_number % FIXED_GF_INTERVAL],
-          bit_depth);
-      active_best_quality = AOMMAX(qindex + delta_qindex, rc->best_quality);
+      assert(0 &&
+             "AOM_Q mode should not call "
+             "rc_pick_q_and_bounds_one_pass_vbr(), except for ALTREF frames.");
+      return -1;
     } else {
       // Use the lower of active_worst_quality and recent/average Q.
       active_best_quality = (current_frame->frame_number > 1)
@@ -1789,32 +1783,23 @@ int av1_compute_qdelta_by_rate(const RATE_CONTROL *rc, FRAME_TYPE frame_type,
 void av1_rc_set_gf_interval_range(const AV1_COMP *const cpi,
                                   RATE_CONTROL *const rc) {
   const AV1EncoderConfig *const oxcf = &cpi->oxcf;
+  rc->max_gf_interval = oxcf->max_gf_interval;
+  rc->min_gf_interval = oxcf->min_gf_interval;
+  if (rc->min_gf_interval == 0)
+    rc->min_gf_interval = av1_rc_get_default_min_gf_interval(
+        oxcf->width, oxcf->height, cpi->framerate);
+  if (rc->max_gf_interval == 0)
+    rc->max_gf_interval =
+        av1_rc_get_default_max_gf_interval(cpi->framerate, rc->min_gf_interval);
 
-  // Special case code for 1 pass fixed Q mode tests
-  if ((oxcf->pass == 0) && (oxcf->rc_mode == AOM_Q)) {
-    rc->max_gf_interval = FIXED_GF_INTERVAL;
-    rc->min_gf_interval = FIXED_GF_INTERVAL;
-    rc->static_scene_max_gf_interval = FIXED_GF_INTERVAL;
-  } else {
-    // Set Maximum gf/arf interval
-    rc->max_gf_interval = oxcf->max_gf_interval;
-    rc->min_gf_interval = oxcf->min_gf_interval;
-    if (rc->min_gf_interval == 0)
-      rc->min_gf_interval = av1_rc_get_default_min_gf_interval(
-          oxcf->width, oxcf->height, cpi->framerate);
-    if (rc->max_gf_interval == 0)
-      rc->max_gf_interval = av1_rc_get_default_max_gf_interval(
-          cpi->framerate, rc->min_gf_interval);
+  // Extended max interval for genuinely static scenes like slide shows.
+  rc->static_scene_max_gf_interval = MAX_STATIC_GF_GROUP_LENGTH;
 
-    // Extended max interval for genuinely static scenes like slide shows.
-    rc->static_scene_max_gf_interval = MAX_STATIC_GF_GROUP_LENGTH;
+  if (rc->max_gf_interval > rc->static_scene_max_gf_interval)
+    rc->max_gf_interval = rc->static_scene_max_gf_interval;
 
-    if (rc->max_gf_interval > rc->static_scene_max_gf_interval)
-      rc->max_gf_interval = rc->static_scene_max_gf_interval;
-
-    // Clamp min to max
-    rc->min_gf_interval = AOMMIN(rc->min_gf_interval, rc->max_gf_interval);
-  }
+  // Clamp min to max
+  rc->min_gf_interval = AOMMIN(rc->min_gf_interval, rc->max_gf_interval);
 }
 
 void av1_rc_update_framerate(AV1_COMP *cpi, int width, int height) {

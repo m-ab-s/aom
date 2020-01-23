@@ -2945,11 +2945,7 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
   x->e_mbd.bd = (int)seq_params->bit_depth;
   x->e_mbd.global_motion = cm->global_motion;
 
-  if ((oxcf->pass == 0) && (oxcf->rc_mode == AOM_Q)) {
-    rc->baseline_gf_interval = FIXED_GF_INTERVAL;
-  } else {
-    rc->baseline_gf_interval = (MIN_GF_INTERVAL + MAX_GF_INTERVAL) / 2;
-  }
+  rc->baseline_gf_interval = (MIN_GF_INTERVAL + MAX_GF_INTERVAL) / 2;
 
   cpi->refresh_last_frame = 1;
   cpi->refresh_golden_frame = 0;
