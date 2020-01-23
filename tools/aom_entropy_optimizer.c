@@ -454,7 +454,7 @@ int main(int argc, const char **argv) {
   optimize_cdf_table(&fc.drl_mode[0][0], probsfile, 2, cts_each_dim,
                      "static const aom_cdf_prob "
                      "default_drl_cdf[DRL_MODE_CONTEXTS][CDF_SIZE(2)]");
-#endif  // !CONFIG_NEW_INTER_MODES
+#endif  // CONFIG_NEW_INTER_MODES
 
   /* ext_inter experiment */
   /* New compound mode */

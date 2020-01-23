@@ -345,7 +345,7 @@ struct macroblock {
 #else
   int refmv_mode_cost[REFMV_MODE_CONTEXTS][2];
   int drl_mode_cost0[DRL_MODE_CONTEXTS][2];
-#endif  // !CONFIG_NEW_INTER_MODES
+#endif  // CONFIG_NEW_INTER_MODES
 
   int comp_inter_cost[COMP_INTER_CONTEXTS][2];
   int single_ref_cost[REF_CONTEXTS][SINGLE_REFS - 1][2];

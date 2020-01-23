@@ -979,7 +979,7 @@ static int cost_mv_ref(const MACROBLOCK *const x, PREDICTION_MODE mode,
       // We no longer need to write this bit with NEARESTMV gone.
 
       mode_cost += x->refmv_mode_cost[mode_ctx][mode != NEARESTMV];
-#endif  // CONFIG_NEW_INTER_MODES
+#endif  // !CONFIG_NEW_INTER_MODES
       return mode_cost;
     }
   }

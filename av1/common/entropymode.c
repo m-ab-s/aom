@@ -1809,7 +1809,7 @@ static void init_mode_probs(FRAME_CONTEXT *fc) {
 #else
   av1_copy(fc->refmv_cdf, default_refmv_cdf);
   av1_copy(fc->drl_cdf, default_drl_cdf);
-#endif  // !CONFIG_NEW_INTER_MODES
+#endif  // CONFIG_NEW_INTER_MODES
   av1_copy(fc->motion_mode_cdf, default_motion_mode_cdf);
   av1_copy(fc->obmc_cdf, default_obmc_cdf);
   av1_copy(fc->inter_compound_mode_cdf, default_inter_compound_mode_cdf);

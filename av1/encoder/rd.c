@@ -417,7 +417,7 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, MACROBLOCK *x,
     for (i = 0; i < DRL_MODE_CONTEXTS; ++i) {
       av1_cost_tokens_from_cdf(x->drl_mode_cost0[i], fc->drl_cdf[i], NULL);
     }
-#endif  // !CONFIG_NEW_INTER_MODES
+#endif  // CONFIG_NEW_INTER_MODES
 
     for (i = 0; i < INTER_MODE_CONTEXTS; ++i)
       av1_cost_tokens_from_cdf(x->inter_compound_mode_cost[i],

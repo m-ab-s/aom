@@ -485,7 +485,7 @@ typedef struct FRAME_COUNTS {
 #else
   unsigned int refmv_mode[REFMV_MODE_CONTEXTS][2];
   unsigned int drl_mode[DRL_MODE_CONTEXTS][2];
-#endif  // !CONFIG_NEW_INTER_MODES
+#endif  // CONFIG_NEW_INTER_MODES
   unsigned int inter_compound_mode[INTER_MODE_CONTEXTS][INTER_COMPOUND_MODES];
   unsigned int wedge_idx[BLOCK_SIZES_ALL][16];
   unsigned int interintra[BLOCK_SIZE_GROUPS][2];
