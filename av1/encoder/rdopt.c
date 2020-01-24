@@ -11321,7 +11321,7 @@ static INLINE int get_drl_cost(const MB_MODE_INFO *mbmi,
                                int8_t ref_frame_type) {
   int cost = 0;
   if (mbmi->mode == NEWMV || mbmi->mode == NEW_NEWMV) {
-    for (int idx = 0; idx < 2; ++idx) {
+    for (int idx = 0; idx < MAX_DRL_BITS; ++idx) {
       if (mbmi_ext->ref_mv_count[ref_frame_type] > idx + 1) {
         uint8_t drl_ctx = av1_drl_ctx(mbmi_ext->weight[ref_frame_type], idx);
         cost += drl_mode_cost0[drl_ctx][mbmi->ref_mv_idx != idx];
@@ -11331,7 +11331,7 @@ static INLINE int get_drl_cost(const MB_MODE_INFO *mbmi,
     return cost;
   }
   if (have_nearmv_in_inter_mode(mbmi->mode)) {
-    for (int idx = 1; idx < 3; ++idx) {
+    for (int idx = 1; idx < MAX_DRL_BITS + 1; ++idx) {
       if (mbmi_ext->ref_mv_count[ref_frame_type] > idx + 1) {
         uint8_t drl_ctx = av1_drl_ctx(mbmi_ext->weight[ref_frame_type], idx);
         cost += drl_mode_cost0[drl_ctx][mbmi->ref_mv_idx != (idx - 1)];

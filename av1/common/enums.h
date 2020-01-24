@@ -771,6 +771,9 @@ enum {
 #if CONFIG_NEW_INTER_MODES
 #define MAX_DRL_BITS 5
 #else
+// This constant can't be changed to tweak the DRL search size without
+// NEW_INTER_MODES
+#define MAX_DRL_BITS 2
 #define REFMV_MODE_CONTEXTS 6
 #endif  // CONFIG_NEW_INTER_MODES
 #define DRL_MODE_CONTEXTS 3

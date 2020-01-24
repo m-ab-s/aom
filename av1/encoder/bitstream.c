@@ -212,7 +212,7 @@ static void write_drl_idx(FRAME_CONTEXT *ec_ctx, const AV1_COMMON *cm,
     int idx;
 #if CONFIG_FLEX_MVRES
     if (mbmi->mv_precision < cm->mv_precision) {
-      for (idx = 0; idx < 2; ++idx) {
+      for (idx = 0; idx < MAX_DRL_BITS; ++idx) {
         if (mbmi_ext->ref_mv_count_adj > idx + 1) {
           uint8_t drl_ctx = av1_drl_ctx(mbmi_ext->weight_adj, idx);
           aom_write_symbol(w, mbmi->ref_mv_idx_adj != idx,
@@ -223,7 +223,7 @@ static void write_drl_idx(FRAME_CONTEXT *ec_ctx, const AV1_COMMON *cm,
       return;
     }
 #endif  // CONFIG_FLEX_MVRES
-    for (idx = 0; idx < 2; ++idx) {
+    for (idx = 0; idx < MAX_DRL_BITS; ++idx) {
       if (mbmi_ext->ref_mv_count[ref_frame_type] > idx + 1) {
         uint8_t drl_ctx = av1_drl_ctx(mbmi_ext->weight[ref_frame_type], idx);
         aom_write_symbol(w, mbmi->ref_mv_idx != idx, ec_ctx->drl_cdf[drl_ctx],
@@ -237,7 +237,7 @@ static void write_drl_idx(FRAME_CONTEXT *ec_ctx, const AV1_COMMON *cm,
   if (have_nearmv_in_inter_mode(mbmi->mode)) {
     int idx;
     // TODO(jingning): Temporary solution to compensate the NEARESTMV offset.
-    for (idx = 1; idx < 3; ++idx) {
+    for (idx = 1; idx < MAX_DRL_BITS + 1; ++idx) {
       if (mbmi_ext->ref_mv_count[ref_frame_type] > idx + 1) {
         uint8_t drl_ctx = av1_drl_ctx(mbmi_ext->weight[ref_frame_type], idx);
         aom_write_symbol(w, mbmi->ref_mv_idx != (idx - 1),

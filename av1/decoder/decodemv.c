@@ -237,7 +237,7 @@ static void read_drl_idx(FRAME_CONTEXT *ec_ctx, const AV1_COMMON *cm,
 #if CONFIG_FLEX_MVRES
     mbmi->ref_mv_idx_adj = 0;
     if (mbmi->mv_precision < cm->mv_precision) {
-      for (int idx = 0; idx < 2; ++idx) {
+      for (int idx = 0; idx < MAX_DRL_BITS; ++idx) {
         if (xd->ref_mv_count_adj > idx + 1) {
           uint8_t drl_ctx = av1_drl_ctx(xd->weight_adj, idx);
           int drl_idx =
@@ -249,7 +249,7 @@ static void read_drl_idx(FRAME_CONTEXT *ec_ctx, const AV1_COMMON *cm,
       return;
     }
 #endif  // CONFIG_FLEX_MVRES
-    for (int idx = 0; idx < 2; ++idx) {
+    for (int idx = 0; idx < MAX_DRL_BITS; ++idx) {
       if (xd->ref_mv_count[ref_frame_type] > idx + 1) {
         uint8_t drl_ctx = av1_drl_ctx(xd->weight[ref_frame_type], idx);
         int drl_idx = aom_read_symbol(r, ec_ctx->drl_cdf[drl_ctx], 2, ACCT_STR);
@@ -263,7 +263,7 @@ static void read_drl_idx(FRAME_CONTEXT *ec_ctx, const AV1_COMMON *cm,
     // Offset the NEARESTMV mode.
     // TODO(jingning): Unify the two syntax decoding loops after the NEARESTMV
     // mode is factored in.
-    for (int idx = 1; idx < 3; ++idx) {
+    for (int idx = 1; idx < MAX_DRL_BITS + 1; ++idx) {
       if (xd->ref_mv_count[ref_frame_type] > idx + 1) {
         uint8_t drl_ctx = av1_drl_ctx(xd->weight[ref_frame_type], idx);
         int drl_idx = aom_read_symbol(r, ec_ctx->drl_cdf[drl_ctx], 2, ACCT_STR);

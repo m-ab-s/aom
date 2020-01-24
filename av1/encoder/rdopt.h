@@ -26,13 +26,9 @@
 extern "C" {
 #endif
 
-#if CONFIG_NEW_INTER_MODES
 // This is a roundabout way to define this, but it saves a lot of trouble with
 // reordering imports.
 #define MAX_REF_MV_SEARCH (MAX_DRL_BITS + 1)
-#else
-#define MAX_REF_MV_SEARCH 3
-#endif  // CONFIG_NEW_INTER_MODES
 #define INTER_INTRA_RD_THRESH_SCALE 9
 #define INTER_INTRA_RD_THRESH_SHIFT 4
 #define COMP_TYPE_RD_THRESH_SCALE 11
