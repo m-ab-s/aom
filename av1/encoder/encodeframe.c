@@ -2809,7 +2809,7 @@ static int active_h_edge(const AV1_COMP *cpi, int mi_row, int mi_step) {
   int is_active_h_edge = 0;
 
   // For two pass account for any formatting bars detected.
-  if (cpi->oxcf.pass == 2) {
+  if (is_stat_consumption_stage_twopass(cpi)) {
     const TWO_PASS *const twopass = &cpi->twopass;
     const FIRSTPASS_STATS *const this_frame_stats =
         twopass->frame_stats_arr + twopass->frame_stats_next_idx;
@@ -2838,7 +2838,7 @@ static int active_v_edge(const AV1_COMP *cpi, int mi_col, int mi_step) {
   int is_active_v_edge = 0;
 
   // For two pass account for any formatting bars detected.
-  if (cpi->oxcf.pass == 2) {
+  if (is_stat_consumption_stage_twopass(cpi)) {
     const TWO_PASS *const twopass = &cpi->twopass;
     const FIRSTPASS_STATS *const this_frame_stats =
         twopass->frame_stats_arr + twopass->frame_stats_next_idx;
