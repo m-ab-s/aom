@@ -1237,8 +1237,12 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
   memset(&frame_results, 0, sizeof(frame_results));
 
   // TODO(sarahparker) finish bit allocation for one pass pyramid
-  if (oxcf->pass == 0 && oxcf->rc_mode != AOM_Q)
-    cpi->oxcf.gf_max_pyr_height = USE_ALTREF_FOR_ONE_PASS;
+  if (oxcf->pass == 0 && oxcf->rc_mode != AOM_Q) {
+    cpi->oxcf.gf_max_pyr_height =
+        AOMMIN(cpi->oxcf.gf_max_pyr_height, USE_ALTREF_FOR_ONE_PASS);
+    cpi->oxcf.gf_min_pyr_height =
+        AOMMIN(cpi->oxcf.gf_min_pyr_height, cpi->oxcf.gf_max_pyr_height);
+  }
 
   if (!is_stat_generation_stage(cpi)) {
     check_show_existing_frame(cpi, &frame_params);
