@@ -1326,9 +1326,7 @@ static INLINE void calc_int_cost_list(const AV1_COMMON *cm, const MACROBLOCK *x,
   const MV fcenter_mv = { ref_mv->row >> 3, ref_mv->col >> 3 };
   const int br = best_mv->row;
   const int bc = best_mv->col;
-  int i;
   unsigned int sse;
-  const MV this_mv = { br, bc };
   const int(
       *flex_mv_costs)[MV_SUBPEL_PRECISIONS - DISALLOW_ONE_DOWN_FLEX_MVRES];
   const MACROBLOCKD *xd = &x->e_mbd;
@@ -1347,33 +1345,38 @@ static INLINE void calc_int_cost_list(const AV1_COMMON *cm, const MACROBLOCK *x,
 #endif  // CONFIG_FLEX_MVRES
 
   cost_list[0] =
-      fn_ptr->vf(what->buf, what->stride, get_buf_from_mv(in_what, &this_mv),
+      fn_ptr->vf(what->buf, what->stride, get_buf_from_mv(in_what, best_mv),
                  in_what->stride, &sse) +
-      mvsad_err_cost(x, &this_mv, &fcenter_mv, mbmi->max_mv_precision, sadpb);
+      mvsad_err_cost(x, best_mv, &fcenter_mv, mbmi->max_mv_precision, sadpb);
   if (check_bounds(&x->mv_limits, br, bc, 1)) {
-    for (i = 0; i < 4; i++) {
+    for (int i = 0; i < 4; i++) {
       const MV neighbor_mv = { br + neighbors[i].row, bc + neighbors[i].col };
+      const MV neighbor_mv_subpel = { neighbor_mv.row * 8,
+                                      neighbor_mv.col * 8 };
       cost_list[i + 1] =
           fn_ptr->vf(what->buf, what->stride,
                      get_buf_from_mv(in_what, &neighbor_mv), in_what->stride,
                      &sse) +
-          mv_err_cost(&neighbor_mv, &fcenter_mv, mbmi->max_mv_precision,
+          mv_err_cost(&neighbor_mv_subpel, ref_mv, mbmi->max_mv_precision,
                       MV_SUBPEL_NONE, x->nmv_vec_cost, x->nmvcost,
                       flex_mv_costs, x->errorperbit);
     }
   } else {
-    for (i = 0; i < 4; i++) {
+    for (int i = 0; i < 4; i++) {
       const MV neighbor_mv = { br + neighbors[i].row, bc + neighbors[i].col };
-      if (!is_mv_in(&x->mv_limits, &neighbor_mv))
+      if (!is_mv_in(&x->mv_limits, &neighbor_mv)) {
         cost_list[i + 1] = INT_MAX;
-      else
+      } else {
+        const MV neighbor_mv_subpel = { neighbor_mv.row * 8,
+                                        neighbor_mv.col * 8 };
         cost_list[i + 1] =
             fn_ptr->vf(what->buf, what->stride,
                        get_buf_from_mv(in_what, &neighbor_mv), in_what->stride,
                        &sse) +
-            mv_err_cost(&neighbor_mv, &fcenter_mv, mbmi->max_mv_precision,
+            mv_err_cost(&neighbor_mv_subpel, ref_mv, mbmi->max_mv_precision,
                         MV_SUBPEL_NONE, x->nmv_vec_cost, x->nmvcost,
                         flex_mv_costs, x->errorperbit);
+      }
     }
   }
 }
@@ -1389,7 +1392,6 @@ static INLINE void calc_int_sad_list(const AV1_COMMON *const cm,
   const struct buf_2d *const what = &x->plane[0].src;
   const struct buf_2d *const in_what = &x->e_mbd.plane[0].pre[0];
   const MV fcenter_mv = { ref_mv->row >> 3, ref_mv->col >> 3 };
-  int i;
   const int br = best_mv->row;
   const int bc = best_mv->col;
   const MACROBLOCKD *xd = &x->e_mbd;
@@ -1398,14 +1400,14 @@ static INLINE void calc_int_sad_list(const AV1_COMMON *const cm,
   if (cost_list[0] == INT_MAX) {
     cost_list[0] = bestsad;
     if (check_bounds(&x->mv_limits, br, bc, 1)) {
-      for (i = 0; i < 4; i++) {
+      for (int i = 0; i < 4; i++) {
         const MV this_mv = { br + neighbors[i].row, bc + neighbors[i].col };
         cost_list[i + 1] =
             fn_ptr->sdf(what->buf, what->stride,
                         get_buf_from_mv(in_what, &this_mv), in_what->stride);
       }
     } else {
-      for (i = 0; i < 4; i++) {
+      for (int i = 0; i < 4; i++) {
         const MV this_mv = { br + neighbors[i].row, bc + neighbors[i].col };
         if (!is_mv_in(&x->mv_limits, &this_mv))
           cost_list[i + 1] = INT_MAX;
@@ -1417,7 +1419,7 @@ static INLINE void calc_int_sad_list(const AV1_COMMON *const cm,
     }
   } else {
     if (use_mvcost) {
-      for (i = 0; i < 4; i++) {
+      for (int i = 0; i < 4; i++) {
         const MV this_mv = { br + neighbors[i].row, bc + neighbors[i].col };
         if (cost_list[i + 1] != INT_MAX) {
           cost_list[i + 1] += mvsad_err_cost(x, &this_mv, &fcenter_mv,
@@ -1673,10 +1675,11 @@ static int pattern_search(
 
   // Returns the one-away integer pel cost/sad around the best as follows:
   // cost_list[0]: cost/sad at the best integer pel
-  // cost_list[1]: cost/sad at delta {0, -1} (left)   from the best integer pel
-  // cost_list[2]: cost/sad at delta { 1, 0} (bottom) from the best integer pel
-  // cost_list[3]: cost/sad at delta { 0, 1} (right)  from the best integer pel
-  // cost_list[4]: cost/sad at delta {-1, 0} (top)    from the best integer pel
+  // cost_list[1]: cost/sad at delta {0, -1} (left)   from the best integer
+  // pel cost_list[2]: cost/sad at delta { 1, 0} (bottom) from the best
+  // integer pel cost_list[3]: cost/sad at delta { 0, 1} (right)  from the
+  // best integer pel cost_list[4]: cost/sad at delta {-1, 0} (top)    from
+  // the best integer pel
   if (cost_list) {
     const MV best_int_mv = { br, bc };
     if (last_is_4) {
@@ -2052,11 +2055,9 @@ int av1_diamond_search_sad_c(const AV1_COMMON *const cm, MACROBLOCK *x,
   int ref_row;
   int ref_col;
 
-  // search_param determines the length of the initial step and hence the number
-  // of iterations.
-  // 0 = initial step (MAX_FIRST_STEP) pel
-  // 1 = (MAX_FIRST_STEP/2) pel,
-  // 2 = (MAX_FIRST_STEP/4) pel...
+  // search_param determines the length of the initial step and hence the
+  // number of iterations. 0 = initial step (MAX_FIRST_STEP) pel 1 =
+  // (MAX_FIRST_STEP/2) pel, 2 = (MAX_FIRST_STEP/4) pel...
   const search_site *ss = &cfg->ss[search_param * cfg->searches_per_step];
   const int tot_steps = (cfg->ss_count / cfg->searches_per_step) - search_param;
 
@@ -3274,10 +3275,9 @@ static int obmc_diamond_search_sad(
   const MACROBLOCKD *const xd = &x->e_mbd;
   const MB_MODE_INFO *mbmi = xd->mi[0];
   const struct buf_2d *const in_what = &xd->plane[0].pre[is_second];
-  // search_param determines the length of the initial step and hence the number
-  // of iterations
-  // 0 = initial step (MAX_FIRST_STEP) pel : 1 = (MAX_FIRST_STEP/2) pel, 2 =
-  // (MAX_FIRST_STEP/4) pel... etc.
+  // search_param determines the length of the initial step and hence the
+  // number of iterations 0 = initial step (MAX_FIRST_STEP) pel : 1 =
+  // (MAX_FIRST_STEP/2) pel, 2 = (MAX_FIRST_STEP/4) pel... etc.
   const search_site *const ss = &cfg->ss[search_param * cfg->searches_per_step];
   const int tot_steps = (cfg->ss_count / cfg->searches_per_step) - search_param;
   const MV fcenter_mv = { center_mv->row >> 3, center_mv->col >> 3 };
@@ -3584,8 +3584,9 @@ void av1_simple_motion_search(AV1_COMP *const cpi, MACROBLOCK *x, int mi_row,
   const YV12_BUFFER_CONFIG *scaled_ref_frame =
       av1_get_scaled_ref_frame(cpi, ref);
   struct buf_2d backup_yv12;
-  // ref_mv is used to code the motion vector. ref_mv_full is the initial point.
-  // ref_mv is in units of 1/8 pel whereas ref_mv_full is in units of pel.
+  // ref_mv is used to code the motion vector. ref_mv_full is the initial
+  // point. ref_mv is in units of 1/8 pel whereas ref_mv_full is in units of
+  // pel.
   MV ref_mv = { 0, 0 };
   const int step_param = cpi->mv_step_param;
   const MvLimits tmp_mv_limits = x->mv_limits;
@@ -3738,11 +3739,9 @@ static int diamond_search_var(const AV1_COMMON *cm, MACROBLOCK *x,
   int ref_row;
   int ref_col;
 
-  // search_param determines the length of the initial step and hence the number
-  // of iterations.
-  // 0 = initial step (MAX_FIRST_STEP) pel
-  // 1 = (MAX_FIRST_STEP/2) pel,
-  // 2 = (MAX_FIRST_STEP/4) pel...
+  // search_param determines the length of the initial step and hence the
+  // number of iterations. 0 = initial step (MAX_FIRST_STEP) pel 1 =
+  // (MAX_FIRST_STEP/2) pel, 2 = (MAX_FIRST_STEP/4) pel...
   const search_site *ss = &cfg->ss[search_param * cfg->searches_per_step];
   const int tot_steps = (cfg->ss_count / cfg->searches_per_step) - search_param;
 
