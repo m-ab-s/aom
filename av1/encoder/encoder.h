@@ -1158,7 +1158,8 @@ static INLINE int is_show_existing_fwd_kf(const AV1_COMP *const cpi) {
 }
 
 struct AV1_COMP *av1_create_compressor(AV1EncoderConfig *oxcf,
-                                       BufferPool *const pool);
+                                       BufferPool *const pool,
+                                       FIRSTPASS_STATS *frame_stats_buf);
 void av1_remove_compressor(AV1_COMP *cpi);
 
 void av1_change_config(AV1_COMP *cpi, const AV1EncoderConfig *oxcf);
