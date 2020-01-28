@@ -782,6 +782,15 @@ static void define_gf_group_pass0(AV1_COMP *cpi,
   GF_GROUP *const gf_group = &cpi->gf_group;
   int target;
 
+  // If this is last GF group of the video, correct frames_to_key if needed.
+  const int lookahead_size =
+      (int)av1_lookahead_depth(cpi->lookahead, ENCODE_STAGE);
+  if (cpi->oxcf.lag_in_frames > 0 && cpi->lookahead != NULL &&
+      lookahead_size + 1 < cpi->oxcf.lag_in_frames) {
+    // This must be the last GF group in the video.
+    rc->frames_to_key = AOMMIN(rc->frames_to_key, lookahead_size + 1);
+  }
+
   if (cpi->oxcf.aq_mode == CYCLIC_REFRESH_AQ)
     av1_cyclic_refresh_set_golden_update(cpi);
   else
@@ -802,8 +811,6 @@ static void define_gf_group_pass0(AV1_COMP *cpi,
   const int use_alt_ref =
       is_altref_enabled(cpi) &&
       (rc->baseline_gf_interval < cpi->oxcf.lag_in_frames) &&
-      !(((int)av1_lookahead_depth(cpi->lookahead, ENCODE_STAGE)) <
-        rc->baseline_gf_interval - 1) &&
       (cpi->oxcf.gf_max_pyr_height > MIN_PYRAMID_LVL) &&
       (rc->baseline_gf_interval > 1);
   rc->source_alt_ref_pending = use_alt_ref;
