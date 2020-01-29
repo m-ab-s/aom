@@ -94,6 +94,7 @@ struct av1_extracfg {
   const char *film_grain_table_filename;
   unsigned int motion_vector_unit_test;
   unsigned int cdf_update_mode;
+  int disable_ml_partition_speed_features;
   int enable_rect_partitions;  // enable rectangular partitions for sequence
   int enable_ab_partitions;    // enable AB partitions for sequence
 #if CONFIG_EXT_PARTITIONS
@@ -218,6 +219,7 @@ static struct av1_extracfg default_extra_cfg = {
   0,                            // film_grain_table_filename
   0,                            // motion_vector_unit_test
   1,                            // CDF update mode
+  0,                            // disable ML based partition speed up features
   1,                            // enable rectangular partitions
   1,                            // enable ab shape partitions
   1,                            // enable 1:4 and 4:1 partitions
@@ -826,6 +828,12 @@ static aom_codec_err_t set_encoder_config(
   oxcf->monochrome = cfg->monochrome;
   oxcf->full_still_picture_hdr = cfg->full_still_picture_hdr;
   oxcf->enable_dual_filter = extra_cfg->enable_dual_filter;
+  oxcf->disable_ml_partition_speed_features =
+#if CONFIG_EXT_RECUR_PARTITIONS
+      1;
+#else
+      extra_cfg->disable_ml_partition_speed_features;
+#endif
   oxcf->enable_rect_partitions = extra_cfg->enable_rect_partitions;
   oxcf->enable_ab_partitions = extra_cfg->enable_ab_partitions;
 #if CONFIG_EXT_PARTITIONS
@@ -1241,6 +1249,14 @@ static aom_codec_err_t ctrl_set_enable_chroma_deltaq(aom_codec_alg_priv_t *ctx,
                                                      va_list args) {
   struct av1_extracfg extra_cfg = ctx->extra_cfg;
   extra_cfg.enable_chroma_deltaq = CAST(AV1E_SET_ENABLE_CHROMA_DELTAQ, args);
+  return update_extra_cfg(ctx, &extra_cfg);
+}
+
+static aom_codec_err_t ctrl_set_disable_ml_partition_speed_features(
+    aom_codec_alg_priv_t *ctx, va_list args) {
+  struct av1_extracfg extra_cfg = ctx->extra_cfg;
+  extra_cfg.disable_ml_partition_speed_features =
+      CAST(AV1E_SET_DISABLE_ML_PARTITION_SPEED_FEATURES, args);
   return update_extra_cfg(ctx, &extra_cfg);
 }
 
@@ -2394,6 +2410,8 @@ static aom_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {
   { AV1E_SET_FRAME_PARALLEL_DECODING, ctrl_set_frame_parallel_decoding_mode },
   { AV1E_SET_ERROR_RESILIENT_MODE, ctrl_set_error_resilient_mode },
   { AV1E_SET_S_FRAME_MODE, ctrl_set_s_frame_mode },
+  { AV1E_SET_DISABLE_ML_PARTITION_SPEED_FEATURES,
+    ctrl_set_disable_ml_partition_speed_features },
   { AV1E_SET_ENABLE_RECT_PARTITIONS, ctrl_set_enable_rect_partitions },
   { AV1E_SET_ENABLE_AB_PARTITIONS, ctrl_set_enable_ab_partitions },
 #if CONFIG_EXT_PARTITIONS
