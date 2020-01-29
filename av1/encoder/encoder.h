@@ -1149,6 +1149,13 @@ typedef struct {
 // Must not be called more than once.
 void av1_initialize_enc(void);
 
+// Checks to see if the current frame is a displayed forward keyframe
+static INLINE int is_show_existing_fwd_kf(const AV1_COMP *const cpi) {
+  const GF_GROUP *const gf_group = &cpi->gf_group;
+  return (cpi->oxcf.fwd_kf_enabled && (gf_group->index == gf_group->size) &&
+          gf_group->update_type[1] == ARF_UPDATE && cpi->rc.frames_to_key == 0);
+}
+
 struct AV1_COMP *av1_create_compressor(AV1EncoderConfig *oxcf,
                                        BufferPool *const pool);
 void av1_remove_compressor(AV1_COMP *cpi);

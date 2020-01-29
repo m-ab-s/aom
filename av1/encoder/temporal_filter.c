@@ -1495,9 +1495,10 @@ void av1_temporal_filter(AV1_COMP *cpi, int distance) {
   const GF_GROUP *const gf_group = &cpi->gf_group;
   int rdmult = 0;
   double sigma = 0;
+  const int is_fwd_kf = is_show_existing_fwd_kf(cpi);
 
   // Apply context specific adjustments to the arnr filter parameters.
-  if (gf_group->update_type[gf_group->index] == INTNL_ARF_UPDATE) {
+  if (gf_group->update_type[gf_group->index] == INTNL_ARF_UPDATE || is_fwd_kf) {
     // TODO(weitinglin): Currently, we enforce the filtering strength on
     // internal ARFs to be zeros. We should investigate in which case it is more
     // beneficial to use non-zero strength filtering.
