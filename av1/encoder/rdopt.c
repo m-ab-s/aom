@@ -9147,7 +9147,11 @@ typedef struct {
   SimpleRDState *simple_rd_state;
 } HandleInterModeArgs;
 
-/* If the current mode shares the same mv with other modes with higher cost,
+#if !CONFIG_NEW_INTER_MODES
+/* Because NEARESTMV is gone with NEW_INTER_MODES and there is no easy way to
+ * check if GLOBALMV and NEARMV are using the same MV, this function should not
+ * be called.*/
+/* If the current mode shares the same mv with other modes but has higher cost,
  * skip this mode. */
 static int skip_repeated_mv(const AV1_COMMON *const cm,
                             const MACROBLOCK *const x,
@@ -9161,27 +9165,23 @@ static int skip_repeated_mv(const AV1_COMMON *const cm,
   PREDICTION_MODE compare_mode = MB_MODE_COUNT;
   if (!is_comp_pred) {
     if (this_mode == NEARMV) {
-#if !CONFIG_NEW_INTER_MODES
       if (ref_mv_count == 0) {
         // NEARMV has the same motion vector as NEARESTMV
         compare_mode = NEARESTMV;
       }
-#endif  // !CONFIG_NEW_INTER_MODES
-
       if (ref_mv_count == 1 &&
           cm->global_motion[ref_frames[0]].wmtype <= TRANSLATION) {
         // NEARMV has the same motion vector as GLOBALMV
         compare_mode = GLOBALMV;
       }
     }
+
     if (this_mode == GLOBALMV) {
-#if !CONFIG_NEW_INTER_MODES
       if (ref_mv_count == 0 &&
           cm->global_motion[ref_frames[0]].wmtype <= TRANSLATION) {
         // GLOBALMV has the same motion vector as NEARESTMV
         compare_mode = NEARESTMV;
       }
-#endif  // !CONFIG_NEW_INTER_MODES
       if (ref_mv_count == 1) {
         // GLOBALMV has the same motion vector as NEARMV
         compare_mode = NEARMV;
@@ -9208,6 +9208,7 @@ static int skip_repeated_mv(const AV1_COMMON *const cm,
   }
   return 0;
 }
+#endif  // !CONFIG_NEW_INTER_MODES
 
 static INLINE int clamp_and_check_mv(int_mv *out_mv, int_mv in_mv,
                                      const AV1_COMMON *cm,
@@ -13799,6 +13800,7 @@ static int inter_mode_search_order_independent_skip(
     const AV1_COMP *cpi, const MACROBLOCK *x, mode_skip_mask_t *mode_skip_mask,
     InterModeSearchState *search_state, int skip_ref_frame_mask,
     PREDICTION_MODE mode, const MV_REFERENCE_FRAME *ref_frame) {
+  const AV1_COMMON *const cm = &cpi->common;
   if (mask_says_skip(mode_skip_mask, ref_frame, mode)) {
     return 1;
   }
@@ -13807,10 +13809,11 @@ static int inter_mode_search_order_independent_skip(
   if (cpi->oxcf.motion_vector_unit_test && ref_frame[0] == INTRA_FRAME)
     return 1;
 
-  const AV1_COMMON *const cm = &cpi->common;
+#if !CONFIG_NEW_INTER_MODES
   if (skip_repeated_mv(cm, x, mode, ref_frame, search_state)) {
     return 1;
   }
+#endif  // !CONFIG_NEW_INTER_MODES
 
   const int comp_pred = ref_frame[1] > INTRA_FRAME;
   if (!cpi->oxcf.enable_onesided_comp && comp_pred && cpi->all_one_sided_refs) {
