@@ -810,6 +810,14 @@ static const arg_def_t set_tier_mask =
             "operating points conforms to. "
             "Bit value 0(defualt): Main Tier; 1: High Tier.");
 
+static const arg_def_t use_fixed_qp_offsets =
+    ARG_DEF(NULL, "use-fixed-qp-offsets", 1,
+            "Enable fixed QP offsets for frames at different levels of the "
+            "pyramid. Selected automatically from --cq-level if "
+            "--fixed-qp-offsets is not provided. If this option is not "
+            "specified (default), offsets are adaptively chosen by the "
+            "encoder.");
+
 static const arg_def_t fixed_qp_offsets =
     ARG_DEF(NULL, "fixed-qp-offsets", 1,
             "Set fixed QP offsets for frames at different levels of the "
@@ -1602,6 +1610,8 @@ static int parse_stream_params(struct AvxEncoderConfig *global,
     } else if (arg_match(&arg, &tile_height, argi)) {
       config->cfg.tile_height_count =
           arg_parse_list(&arg, config->cfg.tile_heights, MAX_TILE_HEIGHTS);
+    } else if (arg_match(&arg, &use_fixed_qp_offsets, argi)) {
+      config->cfg.use_fixed_qp_offsets = arg_parse_uint(&arg);
     } else if (arg_match(&arg, &fixed_qp_offsets, argi)) {
       const int fixed_qp_offset_count = arg_parse_list(
           &arg, config->cfg.fixed_qp_offsets, FIXED_QP_OFFSET_COUNT);
@@ -1610,6 +1620,7 @@ static int parse_stream_params(struct AvxEncoderConfig *global,
             "only %d values were provided.\n",
             FIXED_QP_OFFSET_COUNT, fixed_qp_offset_count);
       }
+      config->cfg.use_fixed_qp_offsets = 1;
 #if CONFIG_FILEOPTIONS
     } else if (arg_match(&arg, &ext_partition, argi)) {
       config->cfg.cfg.ext_partition = !!arg_parse_uint(&arg) > 0;
