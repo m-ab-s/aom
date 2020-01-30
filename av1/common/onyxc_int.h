@@ -1013,20 +1013,6 @@ static INLINE aom_cdf_prob *get_derived_intra_mode_cdf(
 }
 #endif  // CONFIG_DERIVED_INTRA_MODE
 
-static INLINE void update_partition_context(MACROBLOCKD *xd, int mi_row,
-                                            int mi_col, BLOCK_SIZE subsize,
-                                            BLOCK_SIZE bsize) {
-  assert(bsize < BLOCK_SIZES_ALL);
-  PARTITION_CONTEXT *const above_ctx = xd->above_seg_context + mi_col;
-  PARTITION_CONTEXT *const left_ctx =
-      xd->left_seg_context + (mi_row & MAX_MIB_MASK);
-
-  const int bw = mi_size_wide[bsize];
-  const int bh = mi_size_high[bsize];
-  memset(above_ctx, partition_context_lookup[subsize].above, bw);
-  memset(left_ctx, partition_context_lookup[subsize].left, bh);
-}
-
 static INLINE int is_chroma_reference(int mi_row, int mi_col, BLOCK_SIZE bsize,
                                       int subsampling_x, int subsampling_y) {
   assert(bsize < BLOCK_SIZES_ALL);
@@ -1040,10 +1026,6 @@ static INLINE aom_cdf_prob cdf_element_prob(const aom_cdf_prob *cdf,
                                             size_t element) {
   assert(cdf != NULL);
   return (element > 0 ? cdf[element - 1] : CDF_PROB_TOP) - cdf[element];
-}
-
-static INLINE int is_partition_point(BLOCK_SIZE bsize) {
-  return bsize >= BLOCK_8X8 && bsize < BLOCK_SIZES;
 }
 
 static INLINE void partition_gather_horz_alike(aom_cdf_prob *out,
@@ -1088,11 +1070,25 @@ static INLINE void partition_gather_vert_alike(aom_cdf_prob *out,
   out[1] = AOM_ICDF(CDF_PROB_TOP);
 }
 
+static INLINE void update_partition_context(MACROBLOCKD *xd, int mi_row,
+                                            int mi_col, BLOCK_SIZE subsize,
+                                            BLOCK_SIZE bsize) {
+  assert(bsize < BLOCK_SIZES_ALL);
+  PARTITION_CONTEXT *const above_ctx = xd->above_seg_context + mi_col;
+  PARTITION_CONTEXT *const left_ctx =
+      xd->left_seg_context + (mi_row & MAX_MIB_MASK);
+
+  const int bw = mi_size_wide[bsize];
+  const int bh = mi_size_high[bsize];
+  memset(above_ctx, partition_context_lookup[subsize].above, bw);
+  memset(left_ctx, partition_context_lookup[subsize].left, bh);
+}
+
 static INLINE void update_ext_partition_context(MACROBLOCKD *xd, int mi_row,
                                                 int mi_col, BLOCK_SIZE subsize,
                                                 BLOCK_SIZE bsize,
                                                 PARTITION_TYPE partition) {
-  if (bsize >= BLOCK_8X8) {
+  if (is_partition_point(bsize)) {
 #if !CONFIG_EXT_RECUR_PARTITIONS || CONFIG_EXT_PARTITIONS
     const int hbs = mi_size_wide[bsize] / 2;
 #endif  // !CONFIG_EXT_RECUR_PARTITIONS || CONFIG_EXT_PARTITIONS
@@ -1180,10 +1176,11 @@ static INLINE int partition_plane_context(const MACROBLOCKD *xd, int mi_row,
     const int bsl_w = mi_size_wide_log2[bsize] - mi_size_wide_log2[BLOCK_8X8];
     const int bsl_h = mi_size_high_log2[bsize] - mi_size_high_log2[BLOCK_8X8];
 
-    const int above = (*above_ctx >> bsl_w) & 1;
-    const int left = (*left_ctx >> bsl_h) & 1;
+    const int above = (*above_ctx >> AOMMAX(bsl_w, 0)) & 1;
+    const int left = (*left_ctx >> AOMMAX(bsl_h, 0)) & 1;
 
-    return (left * 2 + above) + AOMMIN(bsl_w, bsl_h) * PARTITION_PLOFFSET;
+    return (left * 2 + above) +
+           AOMMIN(bsl_w + 1, bsl_h + 1) * PARTITION_PLOFFSET;
   }
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 }

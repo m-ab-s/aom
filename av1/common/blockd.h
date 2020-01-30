@@ -760,18 +760,26 @@ static INLINE PARTITION_TYPE_REC get_symbol_from_partition_rec_block(
   else
     return PARTITION_INVALID_REC;
 }
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
 static INLINE int is_square_block(BLOCK_SIZE bsize) {
   return block_size_high[bsize] == block_size_wide[bsize];
 }
 
-static INLINE int is_partition_valid(BLOCK_SIZE bsize, PARTITION_TYPE p) {
-  if (bsize >= BLOCK_SIZES)
-    return p == PARTITION_NONE;
-  else
-    return subsize_lookup[p][bsize] != BLOCK_INVALID;
-}
+static INLINE int is_partition_point(BLOCK_SIZE bsize) {
+#if CONFIG_EXT_RECUR_PARTITIONS
+  return bsize != BLOCK_4X4 && bsize < BLOCK_SIZES;
+#else
+  return is_square_block(bsize) && bsize >= BLOCK_8X8 && bsize < BLOCK_SIZES;
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
+}
+
+static INLINE int is_partition_valid(BLOCK_SIZE bsize, PARTITION_TYPE p) {
+  if (is_partition_point(bsize))
+    return get_partition_subsize(bsize, p) < BLOCK_SIZES_ALL;
+  else
+    return p == PARTITION_NONE;
+}
 
 static INLINE int has_second_ref(const MB_MODE_INFO *mbmi) {
   return mbmi->ref_frame[1] > INTRA_FRAME;

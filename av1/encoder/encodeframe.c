@@ -3127,9 +3127,9 @@ static bool rd_pick_partition(
   int tmp_partition_cost[PARTITION_TYPES];
   BLOCK_SIZE subsize;
   RD_STATS this_rdc, sum_rdc;
-  const int bsize_at_least_8x8 = (bsize >= BLOCK_8X8);
-  int do_square_split = bsize_at_least_8x8;
-  const int pl = bsize_at_least_8x8
+  const int is_block_splittable = is_partition_point(bsize);
+  int do_square_split = is_block_splittable && is_square_block(bsize);
+  const int pl = is_block_splittable
                      ? partition_plane_context(xd, mi_row, mi_col, bsize)
                      : 0;
   const int *partition_cost =
@@ -3202,12 +3202,12 @@ static bool rd_pick_partition(
   }
 
   int partition_none_allowed = has_rows && has_cols;
-  int partition_horz_allowed = has_cols && bsize_at_least_8x8 &&
-                               cpi->oxcf.enable_rect_partitions &&
-                               is_chroma_size_valid_horz;
-  int partition_vert_allowed = has_rows && bsize_at_least_8x8 &&
-                               cpi->oxcf.enable_rect_partitions &&
-                               is_chroma_size_valid_vert;
+  int partition_horz_allowed =
+      has_cols && is_partition_valid(bsize, PARTITION_HORZ) &&
+      cpi->oxcf.enable_rect_partitions && is_chroma_size_valid_horz;
+  int partition_vert_allowed =
+      has_rows && is_partition_valid(bsize, PARTITION_VERT) &&
+      cpi->oxcf.enable_rect_partitions && is_chroma_size_valid_vert;
 
   (void)*tp_orig;
 
@@ -3225,7 +3225,7 @@ static bool rd_pick_partition(
   // Override partition costs at the edges of the frame in the same
   // way as in read_partition (see decodeframe.c)
   if (!(has_rows && has_cols)) {
-    assert(bsize_at_least_8x8 && pl >= 0);
+    assert(is_block_splittable && pl >= 0);
     const aom_cdf_prob *partition_cdf = cm->fc->partition_cdf[pl];
     const int max_cost = av1_cost_symbol(0);
     for (int i = 0; i < PARTITION_TYPES; ++i) tmp_partition_cost[i] = max_cost;
@@ -3368,14 +3368,14 @@ static bool rd_pick_partition(
 
 BEGIN_PARTITION_SEARCH:
   if (x->must_find_valid_partition) {
-    do_square_split = bsize_at_least_8x8;
+    do_square_split = is_block_splittable && is_square_block(bsize);
     partition_none_allowed = has_rows && has_cols;
-    partition_horz_allowed = has_cols && bsize_at_least_8x8 &&
-                             cpi->oxcf.enable_rect_partitions &&
-                             is_chroma_size_valid_horz;
-    partition_vert_allowed = has_rows && bsize_at_least_8x8 &&
-                             cpi->oxcf.enable_rect_partitions &&
-                             is_chroma_size_valid_vert;
+    partition_horz_allowed =
+        has_cols && is_partition_valid(bsize, PARTITION_HORZ) &&
+        cpi->oxcf.enable_rect_partitions && is_chroma_size_valid_horz;
+    partition_vert_allowed =
+        has_rows && is_partition_valid(bsize, PARTITION_VERT) &&
+        cpi->oxcf.enable_rect_partitions && is_chroma_size_valid_vert;
     terminate_partition_search = 0;
 #if CONFIG_EXT_RECUR_PARTITIONS
     if (!is_square_block(bsize)) {
@@ -3417,7 +3417,7 @@ BEGIN_PARTITION_SEARCH:
   if (!terminate_partition_search && partition_none_allowed &&
       !is_gt_max_sq_part) {
     int pt_cost = 0;
-    if (bsize_at_least_8x8) {
+    if (is_block_splittable) {
       pt_cost = partition_cost[PARTITION_NONE] < INT_MAX
                     ? partition_cost[PARTITION_NONE]
                     : 0;
@@ -3457,7 +3457,7 @@ BEGIN_PARTITION_SEARCH:
         update_picked_ref_frames_mask(x, ref_type, bsize,
                                       cm->seq_params.mib_size, mi_row, mi_col);
       }
-      if (bsize_at_least_8x8) {
+      if (is_block_splittable) {
         this_rdc.rate += pt_cost;
         this_rdc.rdcost = RDCOST(x->rdmult, this_rdc.rate, this_rdc.dist);
       }
@@ -3475,9 +3475,7 @@ BEGIN_PARTITION_SEARCH:
 
         best_rdc = this_rdc;
         found_best_partition = true;
-        if (bsize_at_least_8x8) {
-          pc_tree->partitioning = PARTITION_NONE;
-        }
+        pc_tree->partitioning = PARTITION_NONE;
 
         if (!frame_is_intra_only(cm) &&
             (do_square_split || do_rectangular_split) &&

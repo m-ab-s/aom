@@ -1581,9 +1581,8 @@ static void decode_partition(AV1Decoder *const pbi, ThreadData *const td,
     }
 #endif  // CONFIG_CNN_RESTORATION && !CONFIG_LOOP_RESTORE_CNN
 
-    partition = (bsize < BLOCK_8X8) ? PARTITION_NONE
-                                    : read_partition(xd, mi_row, mi_col, reader,
-                                                     has_rows, has_cols, bsize);
+    partition =
+        read_partition(xd, mi_row, mi_col, reader, has_rows, has_cols, bsize);
     ptree->partition = partition;
     ptree->bsize = bsize;
     ptree->mi_row = mi_row;
