@@ -141,7 +141,8 @@ TEST_P(GFPyrHeightTest, EncodeAndVerifyPSNR) {
       << "GF Max Pyramid Height = " << gf_max_pyr_height_;
 }
 
+// TODO(urvang): Add AOM_Q back when https://crbug.com/aomedia/2580 is fixed.
 AV1_INSTANTIATE_TEST_CASE(GFPyrHeightTest, NONREALTIME_TEST_MODES,
-                          ::testing::ValuesIn({ AOM_Q, AOM_VBR }),
+                          ::testing::ValuesIn({ AOM_VBR }),
                           ::testing::ValuesIn(kTestParams));
 }  // namespace
