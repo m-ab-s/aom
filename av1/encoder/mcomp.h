@@ -78,15 +78,6 @@ int av1_mv_bit_cost_gen2(
                                   DISALLOW_ONE_DOWN_FLEX_MVRES],
 #endif  // CONFIG_FLEX_MVRES
     int weight);
-int av1_mv_bit_cost(const MV *mv, const MV *ref,
-                    MvSubpelPrecision frame_precision, const int *mvjcost,
-                    int *const (*mvcost)[2],
-#if CONFIG_FLEX_MVRES
-                    MvSubpelPrecision precision,
-                    int (*flex_mv_precision_cost)[MV_SUBPEL_PRECISIONS -
-                                                  DISALLOW_ONE_DOWN_FLEX_MVRES],
-#endif  // CONFIG_FLEX_MVRES
-                    int weight);
 
 // Utility to compute variance + MV rate cost for a given MV
 int av1_get_mvpred_var(const struct AV1Common *cm, const MACROBLOCK *x,
