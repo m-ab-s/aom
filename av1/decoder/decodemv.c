@@ -780,6 +780,8 @@ void av1_read_tx_type(const AV1_COMMON *const cm, MACROBLOCKD *xd, int blk_row,
 
 static INLINE void read_mv(aom_reader *r, MV *mv, const MV *ref,
                            nmv_context *ctx, MvSubpelPrecision precision);
+static INLINE void read_dv(aom_reader *r, MV *mv, const MV *ref,
+                           nmv_context *ctx, MvSubpelPrecision precision);
 
 static INLINE int is_mv_valid(const MV *mv);
 
@@ -787,7 +789,7 @@ static INLINE int assign_dv(AV1_COMMON *cm, MACROBLOCKD *xd, int_mv *mv,
                             const int_mv *ref_mv, int mi_row, int mi_col,
                             BLOCK_SIZE bsize, aom_reader *r) {
   FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
-  read_mv(r, &mv->as_mv, &ref_mv->as_mv, &ec_ctx->ndvc, MV_SUBPEL_NONE);
+  read_dv(r, &mv->as_mv, &ref_mv->as_mv, &ec_ctx->ndvc, MV_SUBPEL_NONE);
   // DV should not have sub-pel.
   assert((mv->as_mv.col & 7) == 0);
   assert((mv->as_mv.row & 7) == 0);
@@ -1082,6 +1084,31 @@ static int read_mv_component(aom_reader *r, int ref, nmv_component *mvcomp,
 }
 
 static INLINE void read_mv(aom_reader *r, MV *mv, const MV *ref,
+                           nmv_context *ctx, MvSubpelPrecision precision) {
+  MV diff = kZeroMv;
+  const MV_JOINT_TYPE joint_type =
+      (MV_JOINT_TYPE)aom_read_symbol(
+          r, ctx->joints_cdf, MV_JOINTS - CONFIG_NEW_INTER_MODES, ACCT_STR) +
+      CONFIG_NEW_INTER_MODES;
+
+  if (mv_joint_vertical(joint_type))
+    diff.row = read_mv_component(r, ref->row, &ctx->comps[0], precision);
+
+  if (mv_joint_horizontal(joint_type))
+    diff.col = read_mv_component(r, ref->col, &ctx->comps[1], precision);
+
+#if CONFIG_FLEX_MVRES
+  MV ref_ = *ref;
+  lower_mv_precision(&ref_, precision);
+  mv->row = ref_.row + diff.row;
+  mv->col = ref_.col + diff.col;
+#else
+  mv->row = ref->row + diff.row;
+  mv->col = ref->col + diff.col;
+#endif  // CONFIG_FLEX_MVRES
+}
+
+static INLINE void read_dv(aom_reader *r, MV *mv, const MV *ref,
                            nmv_context *ctx, MvSubpelPrecision precision) {
   MV diff = kZeroMv;
   const MV_JOINT_TYPE joint_type =
