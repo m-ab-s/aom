@@ -112,11 +112,8 @@ void av1_highbd_iwht4x4_1_add_c(const tran_low_t *in, uint8_t *dest8,
   }
 }
 
-static INLINE TxfmFunc inv_txfm_type_to_func(
-#if CONFIG_LGT
-    int mode,
-#endif  // CONFIG_LGT
-    TXFM_TYPE txfm_type) {
+static INLINE TxfmFunc inv_txfm_type_to_func(int mode, TXFM_TYPE txfm_type) {
+  (void)mode;
   switch (txfm_type) {
     case TXFM_TYPE_DCT4: return av1_idct4_new;
     case TXFM_TYPE_DCT8: return av1_idct8_new;
@@ -470,34 +467,20 @@ static INLINE void inv_txfm2d_add_c(const int32_t *input, uint16_t *output,
   // Take the shift from the larger dimension in the rectangular case.
   const int8_t *shift = cfg->shift;
   const int rect_type = get_rect_tx_log_ratio(txfm_size_col, txfm_size_row);
-  int8_t stage_range_row[MAX_TXFM_STAGE_NUM];
-  int8_t stage_range_col[MAX_TXFM_STAGE_NUM];
+  int8_t stage_range_row[MAX_TXFM_STAGE_NUM + 1];
+  int8_t stage_range_col[MAX_TXFM_STAGE_NUM + 1];
   assert(cfg->stage_num_row <= MAX_TXFM_STAGE_NUM);
   assert(cfg->stage_num_col <= MAX_TXFM_STAGE_NUM);
   av1_gen_inv_stage_range(stage_range_col, stage_range_row, cfg, tx_size, bd);
 
   const int8_t cos_bit_col = cfg->cos_bit_col;
   const int8_t cos_bit_row = cfg->cos_bit_row;
-  const TxfmFunc txfm_func_col = inv_txfm_type_to_func(
-#if CONFIG_LGT
-      cfg->mode,
-#endif  // CONFIG_LGT
-      cfg->txfm_type_col);
-  const TxfmFunc txfm_func_row = inv_txfm_type_to_func(
-#if CONFIG_LGT
-      cfg->mode,
-#endif  // CONFIG_LGT
-      cfg->txfm_type_row);
-#if CONFIG_MODE_DEP_TX
-  // For MDTX, the stage_range argument is not required. Instead, we pass
-  // the prediction mode as side information to 1D transform functions.
-  if (txfm_func_col == av1_imdt4 || txfm_func_col == av1_imdt8 ||
-      txfm_func_col == av1_imdt16)
-    stage_range_col[0] = (int)cfg->mode;
-  if (txfm_func_row == av1_imdt4 || txfm_func_row == av1_imdt8 ||
-      txfm_func_row == av1_imdt16)
-    stage_range_row[0] = (int)cfg->mode;
-#endif
+  const TxfmFunc txfm_func_col =
+      inv_txfm_type_to_func(cfg->mode, cfg->txfm_type_col);
+  const TxfmFunc txfm_func_row =
+      inv_txfm_type_to_func(cfg->mode, cfg->txfm_type_row);
+  stage_range_col[MAX_TXFM_STAGE_NUM] = (int)cfg->mode;
+  stage_range_row[MAX_TXFM_STAGE_NUM] = (int)cfg->mode;
 
   // txfm_buf's length is  txfm_size_row * txfm_size_col + 2 *
   // AOMMAX(txfm_size_row, txfm_size_col)
@@ -658,32 +641,20 @@ static INLINE void inv_txfm2d_c(const int32_t *input, int16_t *output,
   // Take the shift from the larger dimension in the rectangular case.
   const int8_t *shift = cfg->shift;
   const int rect_type = get_rect_tx_log_ratio(txfm_size_col, txfm_size_row);
-  int8_t stage_range_row[MAX_TXFM_STAGE_NUM];
-  int8_t stage_range_col[MAX_TXFM_STAGE_NUM];
+  int8_t stage_range_row[MAX_TXFM_STAGE_NUM + 1];
+  int8_t stage_range_col[MAX_TXFM_STAGE_NUM + 1];
   assert(cfg->stage_num_row <= MAX_TXFM_STAGE_NUM);
   assert(cfg->stage_num_col <= MAX_TXFM_STAGE_NUM);
   av1_gen_inv_stage_range(stage_range_col, stage_range_row, cfg, tx_size, bd);
 
   const int8_t cos_bit_col = cfg->cos_bit_col;
   const int8_t cos_bit_row = cfg->cos_bit_row;
-  const TxfmFunc txfm_func_col = inv_txfm_type_to_func(
-#if CONFIG_LGT
-      cfg->mode,
-#endif  // CONFIG_LGT
-      cfg->txfm_type_col);
-  const TxfmFunc txfm_func_row = inv_txfm_type_to_func(
-#if CONFIG_LGT
-      cfg->mode,
-#endif  // CONFIG_LGT
-      cfg->txfm_type_row);
-#if CONFIG_MODE_DEP_TX
-  // For MDTX, the stage_range argument is not required. Instead, we pass
-  // the prediction mode as side information to 1D transform functions.
-  if (txfm_func_col == av1_imdt4 || txfm_func_col == av1_imdt8)
-    stage_range_col[0] = (int)cfg->mode;
-  if (txfm_func_row == av1_imdt4 || txfm_func_row == av1_imdt8)
-    stage_range_row[0] = (int)cfg->mode;
-#endif
+  const TxfmFunc txfm_func_col =
+      inv_txfm_type_to_func(cfg->mode, cfg->txfm_type_col);
+  const TxfmFunc txfm_func_row =
+      inv_txfm_type_to_func(cfg->mode, cfg->txfm_type_row);
+  stage_range_col[MAX_TXFM_STAGE_NUM] = (int)cfg->mode;
+  stage_range_row[MAX_TXFM_STAGE_NUM] = (int)cfg->mode;
 
   // txfm_buf's length is  txfm_size_row * txfm_size_col + 2 *
   // AOMMAX(txfm_size_row, txfm_size_col)

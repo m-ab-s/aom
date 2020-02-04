@@ -681,7 +681,7 @@ void av1_fmdt4(const int32_t *input, int32_t *output, int8_t cos_bit,
   // information such as prediction mode
   (void)cos_bit;
   int32_t s[4] = { 0 };
-  const int32_t *mdt = mdt_arr4(side_info[0]);
+  const int32_t *mdt = get_mdt_from_mode_4(side_info[MAX_TXFM_STAGE_NUM]);
   for (int i = 0; i < 4; i++)
     for (int j = 0; j < 4; j++) s[j] += mdt[j * 4 + i] * input[i];
 
@@ -692,7 +692,7 @@ void av1_fmdt8(const int32_t *input, int32_t *output, int8_t cos_bit,
                const int8_t *side_info) {
   (void)cos_bit;
   int32_t s[8] = { 0 };
-  const int32_t *mdt = mdt_arr8(side_info[0]);
+  const int32_t *mdt = get_mdt_from_mode_8(side_info[MAX_TXFM_STAGE_NUM]);
   for (int i = 0; i < 8; i++)
     for (int j = 0; j < 8; j++) s[j] += mdt[j * 8 + i] * input[i];
 
@@ -703,7 +703,7 @@ void av1_fmdt16(const int32_t *input, int32_t *output, int8_t cos_bit,
                 const int8_t *side_info) {
   (void)cos_bit;
   int32_t s[16] = { 0 };
-  const int32_t *mdt = mdt_arr16(side_info[0]);
+  const int32_t *mdt = get_mdt_from_mode_16(side_info[MAX_TXFM_STAGE_NUM]);
   for (int i = 0; i < 16; i++)
     for (int j = 0; j < 16; j++) s[j] += mdt[j * 16 + i] * input[i];
 

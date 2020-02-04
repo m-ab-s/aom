@@ -27,11 +27,8 @@
 #endif  // USE_SIMPLE_DOWNSCALE == 0
 #endif  // CONFIG_NEW_TX64X64
 
-static INLINE TxfmFunc fwd_txfm_type_to_func(
-#if CONFIG_LGT
-    int mode,
-#endif  // CONFIG_LGT
-    TXFM_TYPE txfm_type) {
+static INLINE TxfmFunc fwd_txfm_type_to_func(int mode, TXFM_TYPE txfm_type) {
+  (void)mode;
   switch (txfm_type) {
     case TXFM_TYPE_DCT4: return av1_fdct4_new;
     case TXFM_TYPE_DCT8: return av1_fdct8_new;
@@ -225,34 +222,20 @@ static INLINE void fwd_txfm2d_c(const int16_t *input, int32_t *output,
   // Take the shift from the larger dimension in the rectangular case.
   const int8_t *shift = cfg->shift;
   const int rect_type = get_rect_tx_log_ratio(txfm_size_col, txfm_size_row);
-  int8_t stage_range_col[MAX_TXFM_STAGE_NUM];
-  int8_t stage_range_row[MAX_TXFM_STAGE_NUM];
+  int8_t stage_range_col[MAX_TXFM_STAGE_NUM + 1];
+  int8_t stage_range_row[MAX_TXFM_STAGE_NUM + 1];
   assert(cfg->stage_num_col <= MAX_TXFM_STAGE_NUM);
   assert(cfg->stage_num_row <= MAX_TXFM_STAGE_NUM);
   av1_gen_fwd_stage_range(stage_range_col, stage_range_row, cfg, bd);
 
   const int8_t cos_bit_col = cfg->cos_bit_col;
   const int8_t cos_bit_row = cfg->cos_bit_row;
-  const TxfmFunc txfm_func_col = fwd_txfm_type_to_func(
-#if CONFIG_LGT
-      cfg->mode,
-#endif  // CONFIG_LGT
-      cfg->txfm_type_col);
-  const TxfmFunc txfm_func_row = fwd_txfm_type_to_func(
-#if CONFIG_LGT
-      cfg->mode,
-#endif  // CONFIG_LGT
-      cfg->txfm_type_row);
-#if CONFIG_MODE_DEP_TX
-  // For MDTX, the stage_range argument is not required. Instead, we pass
-  // the prediction mode as side information to 1D transform functions.
-  if (txfm_func_col == av1_fmdt4 || txfm_func_col == av1_fmdt8 ||
-      txfm_func_col == av1_fmdt16)
-    stage_range_col[0] = (int)cfg->mode;
-  if (txfm_func_row == av1_fmdt4 || txfm_func_row == av1_fmdt8 ||
-      txfm_func_row == av1_fmdt16)
-    stage_range_row[0] = (int)cfg->mode;
-#endif
+  const TxfmFunc txfm_func_col =
+      fwd_txfm_type_to_func(cfg->mode, cfg->txfm_type_col);
+  const TxfmFunc txfm_func_row =
+      fwd_txfm_type_to_func(cfg->mode, cfg->txfm_type_row);
+  stage_range_col[MAX_TXFM_STAGE_NUM] = (int)cfg->mode;
+  stage_range_row[MAX_TXFM_STAGE_NUM] = (int)cfg->mode;
 
   // use output buffer as temp buffer
   int32_t *temp_in = output;

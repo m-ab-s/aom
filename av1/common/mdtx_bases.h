@@ -6778,7 +6778,7 @@ static const int32_t *mdt_mtx_intra_arr8[INTRA_MODES] = {
   mdt8_mode10, mdt8_mode11, mdt8_mode12
 };
 
-static INLINE const int32_t *mdt_arr4(int mode) {
+static INLINE const int32_t *get_mdt_from_mode_4(int mode) {
   if (is_inter_mode(mode)) {
     return klt4_inter;
   } else {
@@ -6786,7 +6786,7 @@ static INLINE const int32_t *mdt_arr4(int mode) {
   }
 }
 
-static INLINE const int32_t *mdt_arr8(int mode) {
+static INLINE const int32_t *get_mdt_from_mode_8(int mode) {
   if (is_inter_mode(mode)) {
     return klt8_inter;
   } else {
@@ -6794,7 +6794,7 @@ static INLINE const int32_t *mdt_arr8(int mode) {
   }
 }
 
-static INLINE const int32_t *mdt_arr16(int mode) {
+static INLINE const int32_t *get_mdt_from_mode_16(int mode) {
   if (is_inter_mode(mode)) {
     return klt16_inter;
   } else {
