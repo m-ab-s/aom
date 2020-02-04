@@ -5741,8 +5741,6 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
     cpi->sf.interp_filter_search_mask = setup_interp_filter_search_mask(cpi);
 
   if (encode_show_existing_frame(cm)) {
-    restore_coding_context(cpi);
-
     finalize_encoded_frame(cpi);
     // Build the bitstream
     int largest_tile_id = 0;  // Output from bitstream: unused here
