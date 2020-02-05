@@ -2042,10 +2042,10 @@ static void write_modes_sb(AV1_COMP *const cpi, const TileInfo *const tile,
   const int qbs_h = mi_size_high[bsize] / 4;
   const PARTITION_TYPE partition = ptree->partition;
   const BLOCK_SIZE subsize = get_partition_subsize(bsize, partition);
-#if CONFIG_EXT_PARTITIONS
+#if CONFIG_EXT_PARTITIONS && !CONFIG_EXT_RECUR_PARTITIONS
   const BLOCK_SIZE half_sq_bsize =
       get_partition_subsize(bsize, PARTITION_SPLIT);
-#endif  // CONFIG_EXT_PARTITIONS
+#endif  // CONFIG_EXT_PARTITIONS && !CONFIG_EXT_RECUR_PARTITIONS
 
   if (mi_row >= cm->mi_rows || mi_col >= cm->mi_cols) return;
 

@@ -3202,10 +3202,8 @@ static bool rd_pick_partition(
   int horz_ctx_is_ready = 0;
   int vert_ctx_is_ready = 0;
   BLOCK_SIZE bsize2 = get_partition_subsize(bsize, PARTITION_SPLIT);
-#endif  // !CONFIG_EXT_RECUR_PARTITIONS
-#if CONFIG_EXT_PARTITIONS
   (void)split_ctx_is_ready;
-#endif  // CONFIG_EXT_PARTITIONS
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS
 
 #if CONFIG_EXT_RECUR_PARTITIONS
   if (sms_tree != NULL)
@@ -4542,7 +4540,7 @@ BEGIN_PARTITION_SEARCH:
   const BLOCK_SIZE subsize_vert3 =
       get_partition_subsize(bsize, PARTITION_VERT_3);
   int is_chroma_size_valid_vert3 = 0;
-  if (subsize_vert3) {
+  if (subsize_vert3 < BLOCK_SIZES_ALL) {
     set_chroma_ref_info(mi_row, mi_col, 0, subsize_vert3, &tmp_chr_ref_info,
                         &pc_tree->chroma_ref_info, bsize, PARTITION_VERT_3,
                         ss_x, ss_y);
@@ -4713,7 +4711,7 @@ BEGIN_PARTITION_SEARCH:
   assert(IMPLIES(!cpi->oxcf.enable_rect_partitions, !partition_vert3_allowed));
   if (!terminate_partition_search && partition_vert3_allowed && has_cols &&
 #if CONFIG_EXT_RECUR_PARTITIONS
-      is_partition_valid(bsize, PARTITION_VERT_3 &&
+      is_partition_valid(bsize, PARTITION_VERT_3) &&
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
       (do_rectangular_split || active_v_edge(cpi, mi_row, mi_step_h)) &&
       !is_gt_max_sq_part) {
@@ -5071,7 +5069,7 @@ BEGIN_PARTITION_SEARCH:
 #if CONFIG_EXT_RECUR_PARTITIONS
   if (sms_tree)
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
-  sms_tree->partitioning = pc_tree->partitioning;
+    sms_tree->partitioning = pc_tree->partitioning;
   if (bsize == cm->seq_params.sb_size && !found_best_partition) {
     // Did not find a valid partition, go back and search again, with less
     // constraint on which partition types to search.
@@ -5125,7 +5123,7 @@ BEGIN_PARTITION_SEARCH:
 #if CONFIG_EXT_RECUR_PARTITIONS
   if (sms_tree)
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
-  sms_tree->partitioning = pc_tree->partitioning;
+    sms_tree->partitioning = pc_tree->partitioning;
   int pc_tree_dealloc = 0;
   if (found_best_partition) {
     if (bsize == cm->seq_params.sb_size) {
