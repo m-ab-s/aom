@@ -6784,15 +6784,15 @@ static const int32_t *mdt_mtx_intra_arr16[INTRA_MODES] = {
 };
 
 static const int32_t *mdt_mtx_inter_arr4[MODE_DEP_INTER_TX_MODES] = {
-  klt4_inter,
+  klt4_inter, klt4_inter
 };
 
 static const int32_t *mdt_mtx_inter_arr8[MODE_DEP_INTER_TX_MODES] = {
-  klt8_inter,
+  klt8_inter, klt8_inter
 };
 
 static const int32_t *mdt_mtx_inter_arr16[MODE_DEP_INTER_TX_MODES] = {
-  klt16_inter,
+  klt16_inter, klt16_inter
 };
 
 static INLINE const int32_t *get_mdt_from_mode_4(int mode) {
