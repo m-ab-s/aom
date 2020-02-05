@@ -6778,27 +6778,44 @@ static const int32_t *mdt_mtx_intra_arr8[INTRA_MODES] = {
   mdt8_mode10, mdt8_mode11, mdt8_mode12
 };
 
+static const int32_t *mdt_mtx_intra_arr16[INTRA_MODES] = {
+  dst7_16, dst7_16, dst7_16, dst7_16, dst7_16, dst7_16, dst7_16,
+  dst7_16, dst7_16, dst7_16, dst7_16, dst7_16, dst7_16
+};
+
+static const int32_t *mdt_mtx_inter_arr4[MODE_DEP_INTER_TX_MODES] = {
+  klt4_inter,
+};
+
+static const int32_t *mdt_mtx_inter_arr8[MODE_DEP_INTER_TX_MODES] = {
+  klt8_inter,
+};
+
+static const int32_t *mdt_mtx_inter_arr16[MODE_DEP_INTER_TX_MODES] = {
+  klt16_inter,
+};
+
 static INLINE const int32_t *get_mdt_from_mode_4(int mode) {
-  if (is_inter_mode(mode)) {
-    return klt4_inter;
+  if (is_intra_mode_dep_txfm_mode(mode)) {
+    return mdt_mtx_intra_arr4[intra_mode_dep_txfm_mode(mode)];
   } else {
-    return mdt_mtx_intra_arr4[mode];
+    return mdt_mtx_inter_arr4[inter_mode_dep_txfm_mode(mode)];
   }
 }
 
 static INLINE const int32_t *get_mdt_from_mode_8(int mode) {
-  if (is_inter_mode(mode)) {
-    return klt8_inter;
+  if (is_intra_mode_dep_txfm_mode(mode)) {
+    return mdt_mtx_intra_arr8[intra_mode_dep_txfm_mode(mode)];
   } else {
-    return mdt_mtx_intra_arr8[mode];
+    return mdt_mtx_inter_arr8[inter_mode_dep_txfm_mode(mode)];
   }
 }
 
 static INLINE const int32_t *get_mdt_from_mode_16(int mode) {
-  if (is_inter_mode(mode)) {
-    return klt16_inter;
+  if (is_intra_mode_dep_txfm_mode(mode)) {
+    return mdt_mtx_intra_arr16[intra_mode_dep_txfm_mode(mode)];
   } else {
-    return dst7_16;
+    return mdt_mtx_inter_arr16[inter_mode_dep_txfm_mode(mode)];
   }
 }
 #ifdef __cplusplus

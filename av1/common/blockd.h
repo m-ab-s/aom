@@ -69,6 +69,10 @@ static INLINE int is_comp_ref_allowed(BLOCK_SIZE bsize) {
   return AOMMIN(block_size_wide[bsize], block_size_high[bsize]) >= 8;
 }
 
+static INLINE int is_intra_mode(PREDICTION_MODE mode) {
+  return mode < INTRA_MODE_END;
+}
+
 static INLINE int is_inter_mode(PREDICTION_MODE mode) {
   return mode >= INTER_MODE_START && mode < INTER_MODE_END;
 }
@@ -1893,6 +1897,37 @@ int av1_enable_derived_intra_mode(const MACROBLOCKD *xd, int bsize);
 int av1_get_derived_intra_mode(const MACROBLOCKD *xd, int bsize,
                                uint8_t *derived_angle);
 #endif  // CONFIG_DERIVED_INTRA_MODE
+
+#if CONFIG_MODE_DEP_INTRA_TX || CONFIG_MODE_DEP_INTER_TX
+
+#define MODE_DEP_INTER_TX_MODES 1
+#define MODE_DEP_INTER_TX_MODE_START 64
+
+// Transform mode to be used for mode dependent transforms
+static INLINE int get_mode_dep_txfm_mode(const MB_MODE_INFO *const mbmi) {
+  if (is_intra_mode(mbmi->mode)) return mbmi->mode;
+  // Inter modes start from 64.
+  // TODO(debargha): Add modes to this list starting from 64 using
+  // any information in mbmi.
+  return MODE_DEP_INTER_TX_MODE_START;
+}
+
+// whether it is an intra mode from the txfm_mode
+static INLINE int is_intra_mode_dep_txfm_mode(int txfm_mode) {
+  return (txfm_mode >= INTRA_MODE_START && txfm_mode < INTRA_MODE_END);
+}
+
+static INLINE int intra_mode_dep_txfm_mode(int txfm_mode) { return txfm_mode; }
+
+static INLINE int inter_mode_dep_txfm_mode(int txfm_mode) {
+  return txfm_mode - MODE_DEP_INTER_TX_MODE_START;
+}
+
+#else
+static INLINE int get_mode_dep_txfm_mode(const MB_MODE_INFO *const mbmi) {
+  return mbmi->mode;
+}
+#endif  // CONFIG_MODE_DEP_INTRA_TX || CONFIG_MODE_DEP_INTER_TX
 
 #ifdef __cplusplus
 }  // extern "C"

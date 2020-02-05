@@ -263,7 +263,7 @@ void av1_highbd_inv_txfm_add_64x4_c(const tran_low_t *input, uint8_t *dest,
 
 static void init_txfm_param(const MACROBLOCKD *xd, int plane, TX_SIZE tx_size,
                             TX_TYPE tx_type, int eob, int reduced_tx_set,
-                            PREDICTION_MODE mode, TxfmParam *txfm_param) {
+                            TxfmParam *txfm_param) {
   (void)plane;
   txfm_param->tx_type = tx_type;
   txfm_param->tx_size = tx_size;
@@ -273,7 +273,7 @@ static void init_txfm_param(const MACROBLOCKD *xd, int plane, TX_SIZE tx_size,
   txfm_param->is_hbd = is_cur_buf_hbd(xd);
   txfm_param->tx_set_type = av1_get_ext_tx_set_type(
       txfm_param->tx_size, is_inter_block(xd->mi[0]), reduced_tx_set);
-  txfm_param->mode = mode;
+  txfm_param->mode = get_mode_dep_txfm_mode(xd->mi[0]);
 }
 
 void av1_highbd_inv_txfm_add_c(const tran_low_t *input, uint8_t *dest,
@@ -425,7 +425,7 @@ void av1_inverse_transform_block(const MACROBLOCKD *xd,
 
   TxfmParam txfm_param;
   init_txfm_param(xd, plane, tx_size, tx_type, eob, reduced_tx_set,
-                  xd->mi[0]->mode, &txfm_param);
+                  &txfm_param);
   assert(av1_ext_tx_used[txfm_param.tx_set_type][txfm_param.tx_type]);
 
   if (txfm_param.is_hbd) {
