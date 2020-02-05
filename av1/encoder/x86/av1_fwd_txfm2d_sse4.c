@@ -363,7 +363,8 @@ static FwdTxfm2dFunc fwd_txfm2d_func_ls[TX_SIZES_ALL] = {
 void av1_lowbd_fwd_txfm_sse4_1(const int16_t *src_diff, tran_low_t *coeff,
                                int diff_stride, TxfmParam *txfm_param) {
   FwdTxfm2dFunc fwd_txfm2d_func = fwd_txfm2d_func_ls[txfm_param->tx_size];
-#if CONFIG_MODE_DEP_TX || CONFIG_LGT || CONFIG_DST7_16X16
+#if CONFIG_MODE_DEP_INTRA_TX || CONFIG_MODE_DEP_INTER_TX || CONFIG_LGT || \
+    CONFIG_DST7_16X16
   (void)fwd_txfm2d_func;  // this is added to silence a warning
   av1_lowbd_fwd_txfm_c(src_diff, coeff, diff_stride, txfm_param);
 #else

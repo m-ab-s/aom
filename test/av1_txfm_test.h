@@ -92,7 +92,7 @@ static INLINE bool IsTxSizeTypeValid(TX_SIZE tx_size, TX_TYPE tx_type) {
   } else if (tx_size_sqr_up == TX_32X32) {
     tx_set_type = EXT_TX_SET_DCT_IDTX;
   } else {
-#if CONFIG_MODE_DEP_TX && USE_MDTX_INTER
+#if CONFIG_MODE_DEP_INTER_TX
     tx_set_type = EXT_TX_SET_ALL16_MDTX8;
 #else
     tx_set_type = EXT_TX_SET_ALL16;

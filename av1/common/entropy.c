@@ -242,13 +242,13 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
   for (int i = 0; i < FRAME_LF_COUNT; i++) {
     RESET_CDF_COUNTER(fc->delta_lf_multi_cdf[i], DELTA_LF_PROBS + 1);
   }
-#if CONFIG_MODE_DEP_TX
-#if USE_MDTX_INTER
+#if CONFIG_MODE_DEP_INTRA_TX || CONFIG_MODE_DEP_INTER_TX
+#if CONFIG_MODE_DEP_INTER_TX
   RESET_CDF_COUNTER(fc->use_mdtx_inter_cdf, 2);
   RESET_CDF_COUNTER_STRIDE(fc->mdtx_type_inter_cdf, 8,
                            CDF_SIZE(MDTX_TYPES_INTER));
-#endif  // USE_MDTX_INTER
-#if USE_MDTX_INTRA
+#endif  // CONFIG_MODE_DEP_INTER_TX
+#if CONFIG_MODE_DEP_INTRA_TX
   RESET_CDF_COUNTER(fc->use_mdtx_intra_cdf, 2);
 #if CONFIG_MODE_DEP_NONSEP_INTRA_TX
   RESET_CDF_COUNTER_STRIDE(fc->mdtx_type_intra_cdf, 4,
@@ -257,7 +257,7 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
   RESET_CDF_COUNTER_STRIDE(fc->mdtx_type_intra_cdf, 3,
                            CDF_SIZE(MDTX_TYPES_INTRA));
 #endif  // CONFIG_MODE_DEP_NONSEP_INTRA_TX
-#endif  // USE_MDTX_INTRA
+#endif  // CONFIG_MODE_DEP_INTRA_TX
   RESET_CDF_COUNTER_STRIDE(fc->intra_ext_tx_cdf[1], 7,
                            CDF_SIZE(TX_TYPES_NOMDTX));
   RESET_CDF_COUNTER_STRIDE(fc->intra_ext_tx_cdf[2], 5,
@@ -274,7 +274,7 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
   RESET_CDF_COUNTER_STRIDE(fc->inter_ext_tx_cdf[1], 16, CDF_SIZE(TX_TYPES));
   RESET_CDF_COUNTER_STRIDE(fc->inter_ext_tx_cdf[2], 12, CDF_SIZE(TX_TYPES));
   RESET_CDF_COUNTER_STRIDE(fc->inter_ext_tx_cdf[3], 2, CDF_SIZE(TX_TYPES));
-#endif  // CONFIG_MODE_DEP_TX
+#endif  // CONFIG_MODE_DEP_INTRA_TX || CONFIG_MODE_DEP_INTER_TX
   RESET_CDF_COUNTER(fc->cfl_sign_cdf, CFL_JOINT_SIGNS);
   RESET_CDF_COUNTER(fc->cfl_alpha_cdf, CFL_ALPHABET_SIZE);
 }

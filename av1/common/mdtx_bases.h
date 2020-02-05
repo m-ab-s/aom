@@ -266,7 +266,7 @@ static const int32_t mdt8_mode12[64] = {
   48,    2474,  -2665, 1539, -934,  527,   -189,  34,    8,
 };
 
-#if USE_MDTX_INTRA && CONFIG_MODE_DEP_NONSEP_INTRA_TX
+#if CONFIG_MODE_DEP_INTRA_TX && CONFIG_MODE_DEP_NONSEP_INTRA_TX
 // non-separable transforms
 static const int32_t mdt4x4_mode0[256] = {
   10,   22,   34,   44,   17,  55,  86,   88,  27,  75,   102, 94,   39,   69,
@@ -6763,7 +6763,7 @@ static INLINE const int32_t *nstx_arr(TX_SIZE tx_size, PREDICTION_MODE mode) {
     default: assert(0); return NULL;
   }
 }
-#endif  // USE_MDTX_INTRA && CONFIG_MODE_DEP_NONSEP_INTRA_TX
+#endif  // CONFIG_MODE_DEP_INTRA_TX && CONFIG_MODE_DEP_NONSEP_INTRA_TX
 
 // pointers to separable mode-dependent transforms
 static const int32_t *mdt_mtx_intra_arr4[INTRA_MODES] = {

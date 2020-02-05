@@ -1179,8 +1179,7 @@ static const int av1_num_ext_tx_set[EXT_TX_SET_TYPES] = {
   1, 2, 5, 7, 12, 16,
 };
 
-#if CONFIG_MODE_DEP_TX
-#if USE_MDTX_INTRA && USE_MDTX_INTER
+#if CONFIG_MODE_DEP_INTRA_TX && CONFIG_MODE_DEP_INTER_TX
 static const int av1_ext_tx_used[EXT_TX_SET_TYPES][TX_TYPES] = {
 #if CONFIG_MODE_DEP_NONSEP_INTRA_TX
   { 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -1210,7 +1209,7 @@ static const int av1_ext_tx_used[EXT_TX_SET_TYPES][TX_TYPES] = {
     1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1 },
 #endif  // CONFIG_MODE_DEP_NONSEP_INTRA_TX
 };
-#elif USE_MDTX_INTRA
+#elif CONFIG_MODE_DEP_INTRA_TX
 static const int av1_ext_tx_used[EXT_TX_SET_TYPES][TX_TYPES] = {
 #if CONFIG_MODE_DEP_NONSEP_INTRA_TX
   { 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
@@ -1228,7 +1227,7 @@ static const int av1_ext_tx_used[EXT_TX_SET_TYPES][TX_TYPES] = {
   { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0 },
 #endif  // CONFIG_MODE_DEP_NONSEP_INTRA_TX
 };
-#elif USE_MDTX_INTER
+#elif CONFIG_MODE_DEP_INTER_TX
 static const int av1_ext_tx_used[EXT_TX_SET_TYPES][TX_TYPES] = {
   { 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
   { 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
@@ -1237,7 +1236,6 @@ static const int av1_ext_tx_used[EXT_TX_SET_TYPES][TX_TYPES] = {
   { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
   { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 },
 };
-#endif
 #else
 static const int av1_ext_tx_used[EXT_TX_SET_TYPES][TX_TYPES] = {
   { 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
@@ -1247,7 +1245,7 @@ static const int av1_ext_tx_used[EXT_TX_SET_TYPES][TX_TYPES] = {
   { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0 },
   { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 },
 };
-#endif
+#endif  // CONFIG_MODE_DEP_INTRA_TX && CONFIG_MODE_DEP_INTER_TX
 
 static const uint16_t av1_reduced_intra_tx_used_flag[INTRA_MODES] = {
   0x080F,  // DC_PRED:       0000 1000 0000 1111
@@ -1274,7 +1272,7 @@ static const uint16_t av1_ext_tx_used_flag[EXT_TX_SET_TYPES] = {
   0xFFFF,  // 1111 1111 1111 1111
 };
 
-#if CONFIG_MODE_DEP_TX && USE_MDTX_INTRA && CONFIG_MODE_DEP_NONSEP_INTRA_TX
+#if CONFIG_MODE_DEP_INTRA_TX && CONFIG_MODE_DEP_NONSEP_INTRA_TX
 static INLINE int use_nstx(TX_TYPE tx_type, TX_SIZE tx_size,
                            PREDICTION_MODE mode) {
   (void)mode;
@@ -1306,18 +1304,18 @@ static INLINE TxSetType av1_get_ext_tx_set_type(TX_SIZE tx_size, int is_inter,
   const TX_SIZE tx_size_sqr = txsize_sqr_map[tx_size];
   if (is_inter) {
     return (tx_size_sqr == TX_16X16 ? EXT_TX_SET_DTT9_IDTX_1DDCT
-#if CONFIG_MODE_DEP_TX && USE_MDTX_INTER
+#if CONFIG_MODE_DEP_INTER_TX
                                     : EXT_TX_SET_ALL16_MDTX8);
 #else
                                     : EXT_TX_SET_ALL16);
-#endif
+#endif  // CONFIG_MODE_DEP_INTER_TX
   } else {
     return (tx_size_sqr == TX_16X16 ? EXT_TX_SET_DTT4_IDTX
-#if CONFIG_MODE_DEP_TX && USE_MDTX_INTRA
+#if CONFIG_MODE_DEP_INTRA_TX
                                     : EXT_TX_SET_DTT4_IDTX_1DDCT_MDTX4);
 #else
                                     : EXT_TX_SET_DTT4_IDTX_1DDCT);
-#endif
+#endif  // CONFIG_MODE_DEP_INTRA_TX
   }
 }
 

@@ -342,17 +342,14 @@ enum {
   ADST_1D,
   FLIPADST_1D,
   IDTX_1D,
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_INTRA_TX || CONFIG_MODE_DEP_INTER_TX
   MDTX1_1D,
   NSTX,  // this is a placeholder
-#endif
+#endif   // CONFIG_MODE_DEP_INTRA_TX || CONFIG_MODE_DEP_INTER_TX
   TX_TYPES_1D,
 } UENUM1BYTE(TX_TYPE_1D);
 
-#if CONFIG_MODE_DEP_TX
-#define USE_MDTX_INTER 1
-#define USE_MDTX_INTRA 1
-
+#if CONFIG_MODE_DEP_INTRA_TX || CONFIG_MODE_DEP_INTER_TX
 // If CONFIG_MODE_DEP_NONSEP_SEC_INTRA_TX is 0, apply non-separable transforms
 // on 4x4, 4x8, 8x4, and 8x8 blocks. If it is 1, apply non-separable transforms
 // on 4x4 blocks, and DCT_DCT with secondary transforms on 4x8, 8x4, and 8x8
@@ -360,13 +357,13 @@ enum {
 #define TX_TYPES_NOMDTX 16
 #define MDTX_TYPES_INTER 8
 
-#if CONFIG_MODE_DEP_NONSEP_INTRA_TX
+#if CONFIG_MODE_DEP_INTRA_TX && CONFIG_MODE_DEP_NONSEP_INTRA_TX
 #define MDTX_TYPES_INTRA 4
 #define MDTX_DEBUG 0
 #else
 #define MDTX_TYPES_INTRA 3
-#endif  // CONFIG_MODE_DEP_NONSEP_INTRA_TX
-#endif  // CONFIG_MODE_DEP_TX
+#endif  // CONFIG_MODE_DEP_INTRA_TX && CONFIG_MODE_DEP_NONSEP_INTRA_TX
+#endif  // CONFIG_MODE_DEP_INTRA_TX || CONFIG_MODE_DEP_INTER_TX
 
 enum {
   DCT_DCT,            // DCT in both horizontal and vertical
@@ -385,8 +382,7 @@ enum {
   H_ADST,             // Identity in vertical, ADST in horizontal
   V_FLIPADST,         // FLIPADST in vertical, identity in horizontal
   H_FLIPADST,         // Identity in vertical, FLIPADST in horizontal
-#if CONFIG_MODE_DEP_TX
-#if USE_MDTX_INTRA
+#if CONFIG_MODE_DEP_INTRA_TX
   // 3 mode-dependent tx for intra
   MDTX_INTRA_1,  // MDTX in both horizontal and vertical
   MDTX_INTRA_2,  // MDTX in vertical, DCT in horizontal
@@ -394,8 +390,8 @@ enum {
 #if CONFIG_MODE_DEP_NONSEP_INTRA_TX
   MDTX_INTRA_4,  // non-separable MDTX
 #endif           // CONFIG_MODE_DEP_NONSEP_INTRA_TX
-#endif           // USE_MDTX_INTRA
-#if USE_MDTX_INTER
+#endif           // CONFIG_MODE_DEP_INTRA_TX
+#if CONFIG_MODE_DEP_INTER_TX
   // 8 mode-dependent tx for inter
   MDTX_INTER_1,  // MDTX in both horizontal and vertical
   MDTX_INTER_2,  // MDTX in vertical, DCT in horizontal
@@ -405,8 +401,7 @@ enum {
   MDTX_INTER_6,  // DCT in vertical, flipped MDTX in horizontal
   MDTX_INTER_7,  // flipped MDTX in vertical, MDTX in horizontal
   MDTX_INTER_8,  // MDTX in vertical, flipped MDTX in horizontal
-#endif           // USE_MDTX_INTER
-#endif           // CONFIG_MODE_DEP_TX
+#endif           // CONFIG_MODE_DEP_INTER_TX
   TX_TYPES,
 } UENUM1BYTE(TX_TYPE);
 
@@ -429,32 +424,32 @@ enum {
   EXT_TX_SET_DCT_IDTX,
   // Discrete Trig transforms w/o flip (4) + Identity (1)
   EXT_TX_SET_DTT4_IDTX,
-#if CONFIG_MODE_DEP_TX && USE_MDTX_INTRA
+#if CONFIG_MODE_DEP_INTRA_TX
   // Discrete Trig transforms w/o flip (4) + Identity (1) + 1D Hor/vert DCT (2)
   //  + DCT w/ 1 MDTX (2) + MDTX1_MDTX1 (1)
   EXT_TX_SET_DTT4_IDTX_1DDCT_MDTX4,
 #else
   // Discrete Trig transforms w/o flip (4) + Identity (1) + 1D Hor/vert DCT (2)
   EXT_TX_SET_DTT4_IDTX_1DDCT,
-#endif  // CONFIG_MODE_DEP_TX && USE_MDTX_INTRA
+#endif  // CONFIG_MODE_DEP_INTRA_TX
   // Discrete Trig transforms w/ flip (9) + Identity (1) + 1D Hor/Ver DCT (2)
   EXT_TX_SET_DTT9_IDTX_1DDCT,
-#if CONFIG_MODE_DEP_TX && USE_MDTX_INTER
+#if CONFIG_MODE_DEP_INTER_TX
   // Discrete Trig transforms w/ flip (9) + Identity (1) + 1D Hor/Ver (6)
   //  + DCT w/ 2 MDTXs (4) + 2 MDTXs (4)
   EXT_TX_SET_ALL16_MDTX8,
 #else
   // Discrete Trig transforms w/ flip (9) + Identity (1) + 1D Hor/Ver (6)
   EXT_TX_SET_ALL16,
-#endif  // CONFIG_MODE_DEP_TX && USE_MDTX_INTER
+#endif  // CONFIG_MODE_DEP_INTER_TX
   EXT_TX_SET_TYPES
 } UENUM1BYTE(TxSetType);
 
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_INTRA_TX || CONFIG_MODE_DEP_INTER_TX
 #define IS_2D_TRANSFORM(tx_type) (tx_type < IDTX || tx_type > H_FLIPADST)
 #else
 #define IS_2D_TRANSFORM(tx_type) (tx_type < IDTX)
-#endif  // CONFIG_MODE_DEP_TX
+#endif  // CONFIG_MODE_DEP_INTRA_TX || CONFIG_MODE_DEP_INTER_TX
 
 #define EXT_TX_SIZES 4       // number of sizes that use extended transforms
 #define EXT_TX_SETS_INTER 4  // Sets of transform selections for INTER

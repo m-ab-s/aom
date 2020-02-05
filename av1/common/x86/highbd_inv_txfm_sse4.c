@@ -5107,7 +5107,7 @@ void av1_highbd_inv_txfm_add_8x8_sse4_1(const tran_low_t *input, uint8_t *dest,
   int bd = txfm_param->bd;
   const TX_TYPE tx_type = txfm_param->tx_type;
   const int32_t *src = cast_to_int32(input);
-#if CONFIG_MODE_DEP_TX || CONFIG_LGT
+#if CONFIG_MODE_DEP_INTRA_TX || CONFIG_MODE_DEP_INTER_TX || CONFIG_LGT
   av1_inv_txfm2d_add_8x8_c(src, CONVERT_TO_SHORTPTR(dest), stride, tx_type,
                            txfm_param->mode, bd);
 #else
@@ -5128,7 +5128,7 @@ void av1_highbd_inv_txfm_add_8x8_sse4_1(const tran_low_t *input, uint8_t *dest,
                                     tx_type, txfm_param->mode, bd);
       break;
   }
-#endif
+#endif  // CONFIG_MODE_DEP_INTRA_TX || CONFIG_MODE_DEP_INTER_TX || CONFIG_LGT
 }
 void av1_highbd_inv_txfm_add_4x4_sse4_1(const tran_low_t *input, uint8_t *dest,
                                         int stride,
@@ -5144,13 +5144,13 @@ void av1_highbd_inv_txfm_add_4x4_sse4_1(const tran_low_t *input, uint8_t *dest,
     av1_highbd_iwht4x4_add(input, dest, stride, eob, bd);
     return;
   }
-#if CONFIG_MODE_DEP_TX || CONFIG_LGT
+#if CONFIG_MODE_DEP_INTRA_TX || CONFIG_MODE_DEP_INTER_TX || CONFIG_LGT
   av1_inv_txfm2d_add_4x4_c(src, CONVERT_TO_SHORTPTR(dest), stride, tx_type,
                            txfm_param->mode, bd);
 #else
   av1_inv_txfm2d_add_4x4_sse4_1(src, CONVERT_TO_SHORTPTR(dest), stride, tx_type,
                                 txfm_param->mode, bd);
-#endif
+#endif  // CONFIG_MODE_DEP_INTRA_TX || CONFIG_MODE_DEP_INTER_TX || CONFIG_LGT
 }
 static void iidentity32_sse4_1(__m128i *in, __m128i *out, int bit, int do_cols,
                                int bd, int out_shift) {

@@ -673,7 +673,7 @@ void av1_fdct32_new(const int32_t *input, int32_t *output, int8_t cos_bit,
   av1_range_check_buf(stage, input, bf1, size, stage_range[stage]);
 }
 
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_INTRA_TX || CONFIG_MODE_DEP_INTER_TX
 void av1_fmdt4(const int32_t *input, int32_t *output, int8_t cos_bit,
                const int8_t *side_info) {
   // The argument side_info is included in a way that the function has the same
@@ -709,7 +709,7 @@ void av1_fmdt16(const int32_t *input, int32_t *output, int8_t cos_bit,
 
   for (int i = 0; i < 16; i++) output[i] = round_shift(s[i], 11);
 }
-#endif  // CONFIG_MODE_DEP_TX
+#endif  // CONFIG_MODE_DEP_INTRA_TX || CONFIG_MODE_DEP_INTER_TX
 
 #if CONFIG_LGT
 void av1_fadst4_lgt_intra(const int32_t *input, int32_t *output, int8_t cos_bit,

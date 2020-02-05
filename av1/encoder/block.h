@@ -427,12 +427,12 @@ struct macroblock {
   int tx_size_cost[TX_SIZES - 1][TX_SIZE_CONTEXTS][TX_SIZES];
   int txfm_partition_cost[TXFM_PARTITION_CONTEXTS][2];
 #endif  // CONFIG_NEW_TX_PARTITION
-#if CONFIG_MODE_DEP_TX
-#if USE_MDTX_INTER
+#if CONFIG_MODE_DEP_INTRA_TX || CONFIG_MODE_DEP_INTER_TX
+#if CONFIG_MODE_DEP_INTER_TX
   int use_mdtx_inter_costs[EXT_TX_SIZES][2];
   int mdtx_type_inter_costs[EXT_TX_SIZES][MDTX_TYPES_INTER];
 #endif
-#if USE_MDTX_INTRA
+#if CONFIG_MODE_DEP_INTRA_TX
   int use_mdtx_intra_costs[EXT_TX_SIZES][INTRA_MODES][2];
   int mdtx_type_intra_costs[EXT_TX_SIZES][INTRA_MODES][MDTX_TYPES_INTRA];
 #endif
@@ -443,7 +443,7 @@ struct macroblock {
   int inter_tx_type_costs[EXT_TX_SETS_INTER][EXT_TX_SIZES][TX_TYPES];
   int intra_tx_type_costs[EXT_TX_SETS_INTRA][EXT_TX_SIZES][INTRA_MODES]
                          [TX_TYPES];
-#endif
+#endif  // CONFIG_MODE_DEP_INTRA_TX || CONFIG_MODE_DEP_INTER_TX
   int angle_delta_cost[DIRECTIONAL_MODES][2 * MAX_ANGLE_DELTA + 1];
   int switchable_restore_cost[RESTORE_SWITCHABLE_TYPES];
   int wiener_restore_cost[2];

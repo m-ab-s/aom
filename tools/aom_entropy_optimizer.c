@@ -331,9 +331,8 @@ int main(int argc, const char **argv) {
       "static const aom_cdf_prob default_partition_cdf[PARTITION_CONTEXTS]"
       "[CDF_SIZE(EXT_PARTITION_TYPES)]");
 
-#if CONFIG_MODE_DEP_TX
   /* mdt_type */
-#if USE_MDTX_INTER
+#if CONFIG_MODE_DEP_INTER_TX
   cts_each_dim[0] = EXT_TX_SIZES;
   cts_each_dim[1] = 2;
   optimize_cdf_table(
@@ -348,7 +347,7 @@ int main(int argc, const char **argv) {
                      "default_mdtx_type_inter[EXT_TX_SIZES]"
                      "[CDF_SIZE(MDTX_TYPES_INTER)]");
 #endif
-#if USE_MDTX_INTRA
+#if CONFIG_MODE_DEP_INTRA_TX
   cts_each_dim[0] = EXT_TX_SIZES;
   cts_each_dim[1] = INTRA_MODES;
   cts_each_dim[2] = 2;
@@ -365,13 +364,12 @@ int main(int argc, const char **argv) {
                      "default_mdtx_type_intra[EXT_TX_SIZES][INTRA_MODES]"
                      "[CDF_SIZE(MDTX_TYPES_INTRA)]");
 #endif
-#endif
 
   /* tx type */
   cts_each_dim[0] = EXT_TX_SETS_INTRA;
   cts_each_dim[1] = EXT_TX_SIZES;
   cts_each_dim[2] = INTRA_MODES;
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_INTRA_TX || CONFIG_MODE_DEP_INTER_TX
   cts_each_dim[3] = TX_TYPES_NOMDTX;
 #else
   cts_each_dim[3] = TX_TYPES;
@@ -385,7 +383,7 @@ int main(int argc, const char **argv) {
 
   cts_each_dim[0] = EXT_TX_SETS_INTER;
   cts_each_dim[1] = EXT_TX_SIZES;
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_INTRA_TX || CONFIG_MODE_DEP_INTER_TX
   cts_each_dim[2] = TX_TYPES_NOMDTX;
 #else
   cts_each_dim[2] = TX_TYPES;

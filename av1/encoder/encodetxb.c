@@ -829,7 +829,7 @@ static int get_tx_type_cost(const AV1_COMMON *cm, const MACROBLOCK *x,
     const int ext_tx_set =
         get_ext_tx_set(tx_size, is_inter, cm->reduced_tx_set_used);
     if (is_inter) {
-#if CONFIG_MODE_DEP_TX && USE_MDTX_INTER
+#if CONFIG_MODE_DEP_INTER_TX
       const TxSetType tx_set_type =
           av1_get_ext_tx_set_type(tx_size, is_inter, cm->reduced_tx_set_used);
       if (tx_set_type == EXT_TX_SET_ALL16_MDTX8) {
@@ -862,7 +862,7 @@ static int get_tx_type_cost(const AV1_COMMON *cm, const MACROBLOCK *x,
 #endif  // CONFIG_ADAPT_FILTER_INTRA
         else
           intra_dir = mbmi->mode;
-#if CONFIG_MODE_DEP_TX && USE_MDTX_INTRA
+#if CONFIG_MODE_DEP_INTRA_TX
         const TxSetType tx_set_type =
             av1_get_ext_tx_set_type(tx_size, is_inter, cm->reduced_tx_set_used);
         if (tx_set_type == EXT_TX_SET_DTT4_IDTX_1DDCT_MDTX4) {
@@ -886,7 +886,7 @@ static int get_tx_type_cost(const AV1_COMMON *cm, const MACROBLOCK *x,
 #else
         return x->intra_tx_type_costs[ext_tx_set][square_tx_size][intra_dir]
                                      [tx_type];
-#endif  // CONFIG_MODE_DEP_TX && USE_MDTX_INTRA
+#endif  // CONFIG_MODE_DEP_INTRA_TX
       }
     }
   }
@@ -2158,7 +2158,7 @@ static void update_tx_type_count(const AV1_COMP *cpi, const AV1_COMMON *cm,
           av1_get_ext_tx_set_type(tx_size, is_inter, cm->reduced_tx_set_used);
       if (is_inter) {
         if (allow_update_cdf) {
-#if CONFIG_MODE_DEP_TX && USE_MDTX_INTER
+#if CONFIG_MODE_DEP_INTER_TX
           if (tx_set_type == EXT_TX_SET_ALL16_MDTX8) {
             int is_mdtx = tx_type >= MDTX_INTER_1 && tx_type <= MDTX_INTER_8;
             update_cdf(fc->use_mdtx_inter_cdf[txsize_sqr_map[tx_size]], is_mdtx,
@@ -2172,16 +2172,16 @@ static void update_tx_type_count(const AV1_COMP *cpi, const AV1_COMMON *cm,
                          av1_num_ext_tx_set[tx_set_type]);
             }
           } else {
-#endif
+#endif  // CONFIG_MODE_DEP_INTER_TX
             update_cdf(fc->inter_ext_tx_cdf[eset][txsize_sqr_map[tx_size]],
                        av1_ext_tx_ind[tx_set_type][tx_type],
                        av1_num_ext_tx_set[tx_set_type]);
-#if CONFIG_MODE_DEP_TX && USE_MDTX_INTER
+#if CONFIG_MODE_DEP_INTER_TX
           }
 #endif
         }
 #if CONFIG_ENTROPY_STATS
-#if CONFIG_MODE_DEP_TX && USE_MDTX_INTER
+#if CONFIG_MODE_DEP_INTER_TX
         if (tx_set_type == EXT_TX_SET_ALL16_MDTX8) {
           int is_mdtx = tx_type >= MDTX_INTER_1 && tx_type <= MDTX_INTER_8;
           ++counts->use_mdtx_inter[txsize_sqr_map[tx_size]][is_mdtx];
@@ -2195,7 +2195,7 @@ static void update_tx_type_count(const AV1_COMP *cpi, const AV1_COMMON *cm,
 #endif
           ++counts->inter_ext_tx[eset][txsize_sqr_map[tx_size]]
                                 [av1_ext_tx_ind[tx_set_type][tx_type]];
-#if CONFIG_MODE_DEP_TX && USE_MDTX_INTER
+#if CONFIG_MODE_DEP_INTER_TX
         }
 #endif
 #endif  // CONFIG_ENTROPY_STATS
@@ -2213,7 +2213,7 @@ static void update_tx_type_count(const AV1_COMP *cpi, const AV1_COMMON *cm,
         else
           intra_dir = mbmi->mode;
 #if CONFIG_ENTROPY_STATS
-#if CONFIG_MODE_DEP_TX && USE_MDTX_INTRA
+#if CONFIG_MODE_DEP_INTRA_TX
         if (tx_set_type == EXT_TX_SET_DTT4_IDTX_1DDCT_MDTX4) {
 #if CONFIG_MODE_DEP_NONSEP_INTRA_TX
           int is_mdtx = tx_type >= MDTX_INTRA_1 && tx_type <= MDTX_INTRA_4;
@@ -2228,15 +2228,15 @@ static void update_tx_type_count(const AV1_COMP *cpi, const AV1_COMMON *cm,
             ++counts->intra_ext_tx[eset][txsize_sqr_map[tx_size]][intra_dir]
                                   [av1_ext_tx_ind[tx_set_type][tx_type]];
         } else {
-#endif  // CONFIG_MODE_DEP_TX && USE_MDTX_INTRA
+#endif  // CONFIG_MODE_DEP_INTRA_TX
           ++counts->intra_ext_tx[eset][txsize_sqr_map[tx_size]][intra_dir]
                                 [av1_ext_tx_ind[tx_set_type][tx_type]];
-#if CONFIG_MODE_DEP_TX && USE_MDTX_INTRA
+#if CONFIG_MODE_DEP_INTRA_TX
         }
-#endif  // CONFIG_MODE_DEP_TX && USE_MDTX_INTRA
+#endif  // CONFIG_MODE_DEP_INTRA_TX
 #endif  // CONFIG_ENTROPY_STATS
         if (allow_update_cdf) {
-#if CONFIG_MODE_DEP_TX && USE_MDTX_INTRA
+#if CONFIG_MODE_DEP_INTRA_TX
           if (tx_set_type == EXT_TX_SET_DTT4_IDTX_1DDCT_MDTX4) {
 #if CONFIG_MODE_DEP_NONSEP_INTRA_TX
             int is_mdtx = tx_type >= MDTX_INTRA_1 && tx_type <= MDTX_INTRA_4;
@@ -2257,14 +2257,14 @@ static void update_tx_type_count(const AV1_COMP *cpi, const AV1_COMMON *cm,
                          av1_num_ext_tx_set[tx_set_type]);
             }
           } else {
-#endif  // CONFIG_MODE_DEP_TX && USE_MDTX_INTRA
+#endif  // CONFIG_MODE_DEP_INTRA_TX
             update_cdf(
                 fc->intra_ext_tx_cdf[eset][txsize_sqr_map[tx_size]][intra_dir],
                 av1_ext_tx_ind[tx_set_type][tx_type],
                 av1_num_ext_tx_set[tx_set_type]);
-#if CONFIG_MODE_DEP_TX && USE_MDTX_INTRA
+#if CONFIG_MODE_DEP_INTRA_TX
           }
-#endif  // CONFIG_MODE_DEP_TX && USE_MDTX_INTRA
+#endif  // CONFIG_MODE_DEP_INTRA_TX
         }
       }
     }

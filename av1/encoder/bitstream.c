@@ -1052,7 +1052,7 @@ void av1_write_tx_type(const AV1_COMMON *const cm, const MACROBLOCKD *xd,
     assert(eset > 0);
     assert(av1_ext_tx_used[tx_set_type][tx_type]);
     if (is_inter) {
-#if CONFIG_MODE_DEP_TX && USE_MDTX_INTER
+#if CONFIG_MODE_DEP_INTER_TX
       if (tx_set_type == EXT_TX_SET_ALL16_MDTX8) {
         int is_mdtx = tx_type >= MDTX_INTER_1 && tx_type <= MDTX_INTER_8;
         aom_write_symbol(w, is_mdtx, ec_ctx->use_mdtx_inter_cdf[square_tx_size],
@@ -1067,13 +1067,13 @@ void av1_write_tx_type(const AV1_COMMON *const cm, const MACROBLOCKD *xd,
                            av1_num_ext_tx_set[tx_set_type]);
         }
       } else {
-#endif
+#endif  // CONFIG_MODE_DEP_INTER_TX
         aom_write_symbol(w, av1_ext_tx_ind[tx_set_type][tx_type],
                          ec_ctx->inter_ext_tx_cdf[eset][square_tx_size],
                          av1_num_ext_tx_set[tx_set_type]);
-#if CONFIG_MODE_DEP_TX && USE_MDTX_INTER
+#if CONFIG_MODE_DEP_INTER_TX
       }
-#endif
+#endif  // CONFIG_MODE_DEP_INTER_TX
     } else {
       PREDICTION_MODE intra_dir;
       if (mbmi->filter_intra_mode_info.use_filter_intra)
@@ -1087,7 +1087,7 @@ void av1_write_tx_type(const AV1_COMMON *const cm, const MACROBLOCKD *xd,
 #endif  // CONFIG_ADAPT_FILTER_INTRA
       else
         intra_dir = mbmi->mode;
-#if CONFIG_MODE_DEP_TX && USE_MDTX_INTRA
+#if CONFIG_MODE_DEP_INTRA_TX
       if (tx_set_type == EXT_TX_SET_DTT4_IDTX_1DDCT_MDTX4) {
 #if CONFIG_MODE_DEP_NONSEP_INTRA_TX
         int is_mdtx = tx_type >= MDTX_INTRA_1 && tx_type <= MDTX_INTRA_4;
@@ -1109,14 +1109,14 @@ void av1_write_tx_type(const AV1_COMMON *const cm, const MACROBLOCKD *xd,
               av1_num_ext_tx_set[tx_set_type]);
         }
       } else {
-#endif  // CONFIG_MODE_DEP_TX && USE_MDTX_INTRA
+#endif  // CONFIG_MODE_DEP_INTRA_TX
         aom_write_symbol(
             w, av1_ext_tx_ind[tx_set_type][tx_type],
             ec_ctx->intra_ext_tx_cdf[eset][square_tx_size][intra_dir],
             av1_num_ext_tx_set[tx_set_type]);
-#if CONFIG_MODE_DEP_TX && USE_MDTX_INTRA
+#if CONFIG_MODE_DEP_INTRA_TX
       }
-#endif  // CONFIG_MODE_DEP_TX && USE_MDTX_INTRA
+#endif  // CONFIG_MODE_DEP_INTRA_TX
     }
   }
 }

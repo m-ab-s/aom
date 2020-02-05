@@ -233,7 +233,7 @@ void AV1HighbdInvTxfm2d::RunAV1InvTxfm2dTest(TX_TYPE tx_type_, TX_SIZE tx_size_,
   txfm_param.lossless = 0;
   txfm_param.bd = bit_depth_;
   txfm_param.is_hbd = 1;
-#if CONFIG_MODE_DEP_TX && USE_MDTX_INTER
+#if CONFIG_MODE_DEP_INTER_TX
   txfm_param.tx_set_type = EXT_TX_SET_ALL16_MDTX8;
 #else
   txfm_param.tx_set_type = EXT_TX_SET_ALL16;

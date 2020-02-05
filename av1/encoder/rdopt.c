@@ -1999,7 +1999,7 @@ static uint16_t prune_tx_2D(MACROBLOCK *x, BLOCK_SIZE bsize, TX_SIZE tx_size,
     FLIPADST_DCT, FLIPADST_ADST, FLIPADST_FLIPADST, V_FLIPADST,
     H_DCT,        H_ADST,        H_FLIPADST,        IDTX
   };
-#if CONFIG_MODE_DEP_TX && USE_MDTX_INTER
+#if CONFIG_MODE_DEP_INTER_TX
   if (tx_set_type != EXT_TX_SET_ALL16_MDTX8 &&
 #else
   if (tx_set_type != EXT_TX_SET_ALL16 &&
@@ -2047,7 +2047,7 @@ static uint16_t prune_tx_2D(MACROBLOCK *x, BLOCK_SIZE bsize, TX_SIZE tx_size,
 
   const int prune_aggr_table[2][2] = { { 5, 2 }, { 7, 4 } };
   int pruning_aggressiveness = 1;
-#if CONFIG_MODE_DEP_TX && USE_MDTX_INTER
+#if CONFIG_MODE_DEP_INTER_TX
   if (tx_set_type == EXT_TX_SET_ALL16_MDTX8) {
 #else
   if (tx_set_type == EXT_TX_SET_ALL16) {
@@ -2080,11 +2080,11 @@ static uint16_t prune_tx_2D(MACROBLOCK *x, BLOCK_SIZE bsize, TX_SIZE tx_size,
       prune_bitmask |= (1 << tx_type_table_2D[i]);
   }
 
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_INTRA_TX || CONFIG_MODE_DEP_INTER_TX
   sort_probability(scores_2D, tx_type_table_2D, TX_TYPES_NOMDTX);
 #else
   sort_probability(scores_2D, tx_type_table_2D, TX_TYPES);
-#endif
+#endif  // CONFIG_MODE_DEP_INTRA_TX || CONFIG_MODE_DEP_INTER_TX
   memcpy(txk_map, tx_type_table_2D, sizeof(tx_type_table_2D));
 
   return prune_bitmask;
@@ -3418,11 +3418,11 @@ static int64_t search_txk_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
   // if txk_allowed = TX_TYPES, >1 tx types are allowed, else, if txk_allowed <
   // TX_TYPES, only that specific tx type is allowed.
   TX_TYPE txk_allowed = TX_TYPES;
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_INTRA_TX || CONFIG_MODE_DEP_INTER_TX
   int txk_map[TX_TYPES_NOMDTX] = {
 #else
   int txk_map[TX_TYPES] = {
-#endif
+#endif  // CONFIG_MODE_DEP_INTRA_TX || CONFIG_MODE_DEP_INTER_TX
     0,
     1,
     2,
@@ -3466,11 +3466,11 @@ static int64_t search_txk_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
           : mbmi->mode;
   const uint16_t ext_tx_used_flag =
       cpi->sf.tx_type_search.use_reduced_intra_txset &&
-#if CONFIG_MODE_DEP_TX && USE_MDTX_INTRA
+#if CONFIG_MODE_DEP_INTRA_TX
               tx_set_type == EXT_TX_SET_DTT4_IDTX_1DDCT_MDTX4
 #else
               tx_set_type == EXT_TX_SET_DTT4_IDTX_1DDCT
-#endif
+#endif  // CONFIG_MODE_DEP_INTRA_TX
           ? av1_reduced_intra_tx_used_flag[intra_dir]
           : av1_ext_tx_used_flag[tx_set_type];
   if (xd->lossless[mbmi->segment_id] || txsize_sqr_up_map[tx_size] > TX_32X32 ||
@@ -3548,15 +3548,15 @@ static int64_t search_txk_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
   // TODO(any): Experiment with variance and mean based thresholds
   perform_block_coeff_opt = (block_mse_q8 <= x->coeff_opt_dist_threshold);
 
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_INTRA_TX || CONFIG_MODE_DEP_INTER_TX
   assert(IMPLIES(txk_allowed < TX_TYPES_NOMDTX,
                  allowed_tx_mask == 1 << txk_allowed));
 #else
   assert(IMPLIES(txk_allowed < TX_TYPES, allowed_tx_mask == 1 << txk_allowed));
-#endif
+#endif  // CONFIG_MODE_DEP_INTRA_TX || CONFIG_MODE_DEP_INTER_TX
 
   for (int idx = 0; idx < TX_TYPES; ++idx) {
-#if CONFIG_MODE_DEP_TX
+#if CONFIG_MODE_DEP_INTRA_TX || CONFIG_MODE_DEP_INTER_TX
     const TX_TYPE tx_type = idx < 16 ? (TX_TYPE)txk_map[idx] : (TX_TYPE)idx;
     if ((tx_type <= H_FLIPADST && !(allowed_tx_mask & (1 << tx_type))) ||
         (tx_type > H_FLIPADST && !av1_ext_tx_used[tx_set_type][tx_type]))
