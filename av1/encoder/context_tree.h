@@ -75,6 +75,7 @@ typedef struct PC_TREE {
   PICK_MODE_CONTEXT *vertical[2];
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 #if CONFIG_EXT_PARTITIONS
+#if !CONFIG_EXT_RECUR_PARTITIONS
   struct PC_TREE *horza_split[2];
   struct PC_TREE *horzb_split[2];
   struct PC_TREE *verta_split[2];
@@ -83,15 +84,28 @@ typedef struct PC_TREE {
   PICK_MODE_CONTEXT *horzb_rec;
   PICK_MODE_CONTEXT *verta_rec;
   PICK_MODE_CONTEXT *vertb_rec;
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_EXT_RECUR_PARTITIONS
+  struct PC_TREE *horizontal3[3];
+  struct PC_TREE *vertical3[3];
+#else
   PICK_MODE_CONTEXT *horizontal3[3];
   PICK_MODE_CONTEXT *vertical3[3];
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 #else
+#if !CONFIG_EXT_RECUR_PARTITIONS
   PICK_MODE_CONTEXT *horizontala[3];
   PICK_MODE_CONTEXT *horizontalb[3];
   PICK_MODE_CONTEXT *verticala[3];
   PICK_MODE_CONTEXT *verticalb[3];
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_EXT_RECUR_PARTITIONS
+  struct PC_TREE *horizontal4[4];
+  struct PC_TREE *vertical4[4];
+#else
   PICK_MODE_CONTEXT *horizontal4[4];
   PICK_MODE_CONTEXT *vertical4[4];
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 #endif  // CONFIG_EXT_PARTITIONS
   struct PC_TREE *split[4];
   int is_last_subblock;
