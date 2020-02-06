@@ -156,6 +156,9 @@ typedef struct {
   // Q index used for ALT frame
   int arf_q;
   int active_worst_quality;
+
+  // Total number of stats used only for kf_boost calculation.
+  int num_stats_used_for_kf_boost;
 } RATE_CONTROL;
 
 struct AV1_COMP;
