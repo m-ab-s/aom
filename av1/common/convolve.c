@@ -10,6 +10,7 @@
  */
 
 #include <assert.h>
+#include <stdbool.h>
 #include <string.h>
 
 #include "config/aom_dsp_rtcd.h"
@@ -22,6 +23,12 @@
 #include "av1/common/resize.h"
 #include "aom_dsp/aom_dsp_common.h"
 #include "aom_ports/mem.h"
+
+// The maximum size of the intermediate image block when performing a
+// convolution.
+#define IM_BLOCK_SIZE ((MAX_SB_SIZE + MAX_FILTER_TAP - 1) * MAX_SB_SIZE)
+// Maximum size for a scale convolution.
+#define IM_BLOCK_SIZE_SCALE ((2 * (MAX_SB_SIZE) + MAX_FILTER_TAP) * MAX_SB_SIZE)
 
 void av1_convolve_horiz_rs_c(const uint8_t *src, int src_stride, uint8_t *dst,
                              int dst_stride, int w, int h,
@@ -76,7 +83,7 @@ void av1_highbd_convolve_horiz_rs_c(const uint16_t *src, int src_stride,
 void av1_convolve_2d_sobel_y_c(const uint8_t *src, int src_stride, double *dst,
                                int dst_stride, int w, int h, int dir,
                                double norm) {
-  int16_t im_block[(MAX_SB_SIZE + MAX_FILTER_TAP - 1) * MAX_SB_SIZE];
+  int16_t im_block[IM_BLOCK_SIZE];
   DECLARE_ALIGNED(256, static const int16_t, sobel_a[3]) = { 1, 0, -1 };
   DECLARE_ALIGNED(256, static const int16_t, sobel_b[3]) = { 1, 2, 1 };
   const int taps = 3;
@@ -118,7 +125,7 @@ void av1_convolve_2d_sr_c(const uint8_t *src, int src_stride, uint8_t *dst,
                           const InterpFilterParams *filter_params_y,
                           const int subpel_x_qn, const int subpel_y_qn,
                           ConvolveParams *conv_params) {
-  int16_t im_block[(MAX_SB_SIZE + MAX_FILTER_TAP - 1) * MAX_SB_SIZE];
+  int16_t im_block[IM_BLOCK_SIZE];
   int im_h = h + filter_params_y->taps - 1;
   int im_stride = w;
   assert(w <= MAX_SB_SIZE && h <= MAX_SB_SIZE);
@@ -251,7 +258,7 @@ void av1_dist_wtd_convolve_2d_c(const uint8_t *src, int src_stride,
                                 ConvolveParams *conv_params) {
   CONV_BUF_TYPE *dst16 = conv_params->dst;
   int dst16_stride = conv_params->dst_stride;
-  int16_t im_block[(MAX_SB_SIZE + MAX_FILTER_TAP - 1) * MAX_SB_SIZE];
+  int16_t im_block[IM_BLOCK_SIZE];
   int im_h = h + filter_params_y->taps - 1;
   int im_stride = w;
   const int fo_vert = filter_params_y->taps / 2 - 1;
@@ -459,7 +466,7 @@ void av1_convolve_2d_scale_c(const uint8_t *src, int src_stride, uint8_t *dst,
                              const int subpel_x_qn, const int x_step_qn,
                              const int subpel_y_qn, const int y_step_qn,
                              ConvolveParams *conv_params) {
-  int16_t im_block[(2 * MAX_SB_SIZE + MAX_FILTER_TAP) * MAX_SB_SIZE];
+  int16_t im_block[IM_BLOCK_SIZE_SCALE];
   int im_h = (((h - 1) * y_step_qn + subpel_y_qn) >> SCALE_SUBPEL_BITS) +
              filter_params_y->taps;
   CONV_BUF_TYPE *dst16 = conv_params->dst;
@@ -576,8 +583,8 @@ static void convolve_2d_for_intrabc(const uint8_t *src, int src_stride,
 }
 
 void av1_convolve_2d_facade(const uint8_t *src, int src_stride, uint8_t *dst,
-                            int dst_stride, int w, int h,
-                            int_interpfilters interp_filters,
+                            int dst_stride, int w, int h, int orig_w,
+                            int orig_h, int_interpfilters interp_filters,
                             const int subpel_x_qn, int x_step_q4,
                             const int subpel_y_qn, int y_step_q4, int scaled,
                             ConvolveParams *conv_params,
@@ -600,13 +607,16 @@ void av1_convolve_2d_facade(const uint8_t *src, int src_stride, uint8_t *dst,
   const int need_filter_params_y = (subpel_y_qn != 0) | scaled;
   if (need_filter_params_x) filter_x = interp_filters.as_filters.x_filter;
   if (need_filter_params_y) filter_y = interp_filters.as_filters.y_filter;
+  // Note: use the original width and height for computing the filter
+  // parameters; otherwise, the inter-pred region will differ when building
+  // an extended border.
   const InterpFilterParams *filter_params_x =
       need_filter_params_x
-          ? av1_get_interp_filter_params_with_block_size(filter_x, w)
+          ? av1_get_interp_filter_params_with_block_size(filter_x, orig_w)
           : NULL;
   const InterpFilterParams *filter_params_y =
       need_filter_params_y
-          ? av1_get_interp_filter_params_with_block_size(filter_y, h)
+          ? av1_get_interp_filter_params_with_block_size(filter_y, orig_h)
           : NULL;
 
   if (scaled) {
@@ -703,7 +713,7 @@ void av1_highbd_convolve_2d_sr_c(const uint16_t *src, int src_stride,
                                  const InterpFilterParams *filter_params_y,
                                  const int subpel_x_qn, const int subpel_y_qn,
                                  ConvolveParams *conv_params, int bd) {
-  int16_t im_block[(MAX_SB_SIZE + MAX_FILTER_TAP - 1) * MAX_SB_SIZE];
+  int16_t im_block[IM_BLOCK_SIZE];
   int im_h = h + filter_params_y->taps - 1;
   int im_stride = w;
   assert(w <= MAX_SB_SIZE && h <= MAX_SB_SIZE);
@@ -756,7 +766,7 @@ void av1_highbd_dist_wtd_convolve_2d_c(
     const InterpFilterParams *filter_params_y, const int subpel_x_qn,
     const int subpel_y_qn, ConvolveParams *conv_params, int bd) {
   int x, y, k;
-  int16_t im_block[(MAX_SB_SIZE + MAX_FILTER_TAP - 1) * MAX_SB_SIZE];
+  int16_t im_block[IM_BLOCK_SIZE];
   CONV_BUF_TYPE *dst16 = conv_params->dst;
   int dst16_stride = conv_params->dst_stride;
   int im_h = h + filter_params_y->taps - 1;
@@ -963,7 +973,7 @@ void av1_highbd_convolve_2d_scale_c(const uint16_t *src, int src_stride,
                                     const int subpel_x_qn, const int x_step_qn,
                                     const int subpel_y_qn, const int y_step_qn,
                                     ConvolveParams *conv_params, int bd) {
-  int16_t im_block[(2 * MAX_SB_SIZE + MAX_FILTER_TAP) * MAX_SB_SIZE];
+  int16_t im_block[IM_BLOCK_SIZE_SCALE];
   int im_h = (((h - 1) * y_step_qn + subpel_y_qn) >> SCALE_SUBPEL_BITS) +
              filter_params_y->taps;
   int im_stride = w;
@@ -1067,20 +1077,17 @@ static void highbd_convolve_2d_for_intrabc(const uint16_t *src, int src_stride,
   }
 }
 
-void av1_highbd_convolve_2d_facade(const uint8_t *src8, int src_stride,
-                                   uint8_t *dst8, int dst_stride, int w, int h,
-                                   int_interpfilters interp_filters,
-                                   const int subpel_x_qn, int x_step_q4,
-                                   const int subpel_y_qn, int y_step_q4,
-                                   int scaled, ConvolveParams *conv_params,
-                                   const struct scale_factors *sf,
-                                   int is_intrabc, int bd) {
+void av1_highbd_convolve_2d_facade(
+    const uint8_t *src8, int src_stride, uint8_t *dst8, int dst_stride, int w,
+    int h, int orig_w, int orig_h, int_interpfilters interp_filters,
+    const int subpel_x_qn, int x_step_q4, const int subpel_y_qn, int y_step_q4,
+    int scaled, ConvolveParams *conv_params, const struct scale_factors *sf,
+    int is_intrabc, int bd) {
   assert(IMPLIES(is_intrabc, !scaled));
   (void)x_step_q4;
   (void)y_step_q4;
   (void)dst_stride;
   const uint16_t *src = CONVERT_TO_SHORTPTR(src8);
-
   if (is_intrabc && (subpel_x_qn != 0 || subpel_y_qn != 0)) {
     uint16_t *dst = CONVERT_TO_SHORTPTR(dst8);
     highbd_convolve_2d_for_intrabc(src, src_stride, dst, dst_stride, w, h,
@@ -1094,13 +1101,16 @@ void av1_highbd_convolve_2d_facade(const uint8_t *src8, int src_stride,
   const int need_filter_params_y = (subpel_y_qn != 0) | scaled;
   if (need_filter_params_x) filter_x = interp_filters.as_filters.x_filter;
   if (need_filter_params_y) filter_y = interp_filters.as_filters.y_filter;
+  // Note: use the original width and height, not the extended region one,
+  // for computing the filter parameters, to ensure the inter-pred region
+  // is computed exactly the same.
   const InterpFilterParams *filter_params_x =
       need_filter_params_x
-          ? av1_get_interp_filter_params_with_block_size(filter_x, w)
+          ? av1_get_interp_filter_params_with_block_size(filter_x, orig_w)
           : NULL;
   const InterpFilterParams *filter_params_y =
       need_filter_params_y
-          ? av1_get_interp_filter_params_with_block_size(filter_y, h)
+          ? av1_get_interp_filter_params_with_block_size(filter_y, orig_h)
           : NULL;
 
   if (scaled) {

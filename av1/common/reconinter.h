@@ -106,53 +106,65 @@ static INLINE void revert_scale_extra_bits(SubpelParams *sp) {
   assert(sp->ys <= SUBPEL_SHIFTS);
 }
 
-static INLINE void inter_predictor(const uint8_t *src, int src_stride,
-                                   uint8_t *dst, int dst_stride,
-                                   const SubpelParams *subpel_params,
-                                   const struct scale_factors *sf, int w, int h,
-                                   ConvolveParams *conv_params,
-                                   int_interpfilters interp_filters,
-                                   int is_intrabc) {
+// Data structure for passing around configuration options for building
+// the extended inter-predictor. If NULL, will assume 0 values for everything.
+// Border value must be one of 0, 8, 16.
+typedef struct InterPredExt {
+  int border_left;
+  int border_top;
+  int border_right;
+  int border_bottom;
+} InterPredExt;
+
+// Checks if the InterPredExt is valid -- useful for assertions. NULL means
+// 0 values for all borders. Borders cannot extend beyond the top or left-most
+// border of the image.
+bool av1_valid_inter_pred_ext(const InterPredExt *ext, int p_col, int p_row);
+
+static INLINE void inter_predictor(
+    const uint8_t *src, int src_stride, uint8_t *dst, int dst_stride,
+    const SubpelParams *subpel_params, const struct scale_factors *sf, int w,
+    int h, int orig_w, int orig_h, ConvolveParams *conv_params,
+    int_interpfilters interp_filters, int is_intrabc) {
   assert(conv_params->do_average == 0 || conv_params->do_average == 1);
   assert(sf);
   const int is_scaled = has_scale(subpel_params->xs, subpel_params->ys);
   assert(IMPLIES(is_intrabc, !is_scaled));
   if (is_scaled) {
-    av1_convolve_2d_facade(src, src_stride, dst, dst_stride, w, h,
-                           interp_filters, subpel_params->subpel_x,
+    av1_convolve_2d_facade(src, src_stride, dst, dst_stride, w, h, orig_w,
+                           orig_h, interp_filters, subpel_params->subpel_x,
                            subpel_params->xs, subpel_params->subpel_y,
                            subpel_params->ys, 1, conv_params, sf, is_intrabc);
   } else {
     SubpelParams sp = *subpel_params;
     revert_scale_extra_bits(&sp);
-    av1_convolve_2d_facade(src, src_stride, dst, dst_stride, w, h,
-                           interp_filters, sp.subpel_x, sp.xs, sp.subpel_y,
-                           sp.ys, 0, conv_params, sf, is_intrabc);
+    av1_convolve_2d_facade(src, src_stride, dst, dst_stride, w, h, orig_w,
+                           orig_h, interp_filters, sp.subpel_x, sp.xs,
+                           sp.subpel_y, sp.ys, 0, conv_params, sf, is_intrabc);
   }
 }
 
-static INLINE void highbd_inter_predictor(const uint8_t *src, int src_stride,
-                                          uint8_t *dst, int dst_stride,
-                                          const SubpelParams *subpel_params,
-                                          const struct scale_factors *sf, int w,
-                                          int h, ConvolveParams *conv_params,
-                                          int_interpfilters interp_filters,
-                                          int is_intrabc, int bd) {
+static INLINE void highbd_inter_predictor(
+    const uint8_t *src, int src_stride, uint8_t *dst, int dst_stride,
+    const SubpelParams *subpel_params, const struct scale_factors *sf, int w,
+    int h, int orig_w, int orig_h, ConvolveParams *conv_params,
+    int_interpfilters interp_filters, int is_intrabc, int bd) {
   assert(conv_params->do_average == 0 || conv_params->do_average == 1);
   assert(sf);
   const int is_scaled = has_scale(subpel_params->xs, subpel_params->ys);
   assert(IMPLIES(is_intrabc, !is_scaled));
   if (is_scaled) {
     av1_highbd_convolve_2d_facade(
-        src, src_stride, dst, dst_stride, w, h, interp_filters,
+        src, src_stride, dst, dst_stride, w, h, orig_w, orig_h, interp_filters,
         subpel_params->subpel_x, subpel_params->xs, subpel_params->subpel_y,
         subpel_params->ys, 1, conv_params, sf, is_intrabc, bd);
   } else {
     SubpelParams sp = *subpel_params;
     revert_scale_extra_bits(&sp);
-    av1_highbd_convolve_2d_facade(
-        src, src_stride, dst, dst_stride, w, h, interp_filters, sp.subpel_x,
-        sp.xs, sp.subpel_y, sp.ys, 0, conv_params, sf, is_intrabc, bd);
+    av1_highbd_convolve_2d_facade(src, src_stride, dst, dst_stride, w, h,
+                                  orig_w, orig_h, interp_filters, sp.subpel_x,
+                                  sp.xs, sp.subpel_y, sp.ys, 0, conv_params, sf,
+                                  is_intrabc, bd);
   }
 }
 
@@ -199,16 +211,12 @@ static INLINE int is_interintra_wedge_used(BLOCK_SIZE sb_type) {
   return av1_wedge_params_lookup[sb_type].bits > 0;
 }
 
-// Data structure for passing around configuration options for building
-// the extended inter-predictor. If NULL, will assume 0 values for everything.
-// All values must be non-negative.
-typedef struct InterPredExt {
-  int border_left;
-  int border_top;
-  int border_right;
-  int border_bottom;
-} InterPredExt;
-
+// Makes the inter-predictor. Can be passed in an InterPredExt struct,
+// which indicates how to build an extended region around the inter-predictor.
+// If an extension is desired, it is up to the caller to ensure that either
+// dst or conv_params->dst is large enough to support the region. Note that
+// dst/conv_params->dst should point to the start of the extended region +
+// prediction, which src should point to the start of the prediction source.
 void av1_make_inter_predictor(
     const uint8_t *src, int src_stride, uint8_t *dst, int dst_stride,
     const SubpelParams *subpel_params, const struct scale_factors *sf, int w,
@@ -236,8 +244,7 @@ void av1_build_inter_predictors(const AV1_COMMON *cm, MACROBLOCKD *xd,
                                 int build_for_obmc, int bw, int bh, int mi_x,
                                 int mi_y,
                                 CalcSubpelParamsFunc calc_subpel_params_func,
-                                const void *const calc_subpel_params_func_args,
-                                const InterPredExt *ext);
+                                const void *const calc_subpel_params_func_args);
 
 // TODO(jkoleszar): yet another mv clamping function :-(
 static INLINE MV clamp_mv_to_umv_border_sb(const MACROBLOCKD *xd,

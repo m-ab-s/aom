@@ -11,6 +11,8 @@
 
 #ifndef AOM_AV1_COMMON_CONVOLVE_H_
 #define AOM_AV1_COMMON_CONVOLVE_H_
+
+#include <stdbool.h>
 #include "av1/common/filter.h"
 
 #ifdef __cplusplus
@@ -114,8 +116,8 @@ struct AV1Common;
 struct scale_factors;
 
 void av1_convolve_2d_facade(const uint8_t *src, int src_stride, uint8_t *dst,
-                            int dst_stride, int w, int h,
-                            int_interpfilters interp_filters,
+                            int dst_stride, int w, int h, int orig_w,
+                            int orig_h, int_interpfilters interp_filters,
                             const int subpel_x_qn, int x_step_q4,
                             const int subpel_y_qn, int y_step_q4, int scaled,
                             ConvolveParams *conv_params,
@@ -195,14 +197,12 @@ static INLINE ConvolveParams get_conv_params_wiener_hp(int bd,
 }
 #endif  // CONFIG_WIENER_SEP_HIPREC
 
-void av1_highbd_convolve_2d_facade(const uint8_t *src8, int src_stride,
-                                   uint8_t *dst, int dst_stride, int w, int h,
-                                   int_interpfilters interp_filters,
-                                   const int subpel_x_qn, int x_step_q4,
-                                   const int subpel_y_qn, int y_step_q4,
-                                   int scaled, ConvolveParams *conv_params,
-                                   const struct scale_factors *sf,
-                                   int is_intrabc, int bd);
+void av1_highbd_convolve_2d_facade(
+    const uint8_t *src8, int src_stride, uint8_t *dst, int dst_stride, int w,
+    int h, int orig_w, int orig_h, int_interpfilters interp_filters,
+    const int subpel_x_qn, int x_step_q4, const int subpel_y_qn, int y_step_q4,
+    int scaled, ConvolveParams *conv_params, const struct scale_factors *sf,
+    int is_intrabc, int bd);
 
 // TODO(sarahparker) This will need to be integerized and optimized
 void av1_convolve_2d_sobel_y_c(const uint8_t *src, int src_stride, double *dst,

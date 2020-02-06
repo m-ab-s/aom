@@ -101,8 +101,8 @@ void av1_highbd_dist_wtd_convolve_2d_copy_sse4_1(
           const __m128i res_unsigned_16b =
               _mm_adds_epu16(res, offset_const_16b);
 
-          _mm_store_si128((__m128i *)(&dst[i * dst_stride + j]),
-                          res_unsigned_16b);
+          _mm_storeu_si128((__m128i *)(&dst[i * dst_stride + j]),
+                           res_unsigned_16b);
         }
       }
     }
@@ -416,7 +416,7 @@ void av1_highbd_dist_wtd_convolve_2d_sse4_1(
           } else {
             const __m128i res_16b =
                 _mm_packus_epi32(res_unsigned_lo, res_unsigned_hi);
-            _mm_store_si128((__m128i *)(&dst[i * dst_stride + j]), res_16b);
+            _mm_storeu_si128((__m128i *)(&dst[i * dst_stride + j]), res_16b);
           }
         }
       }

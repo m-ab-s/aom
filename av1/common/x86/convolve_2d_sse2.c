@@ -424,10 +424,10 @@ void av1_dist_wtd_convolve_2d_copy_sse2(
           const __m128i res_8 =
               _mm_packus_epi16(round_result_lo, round_result_hi);
 
-          _mm_store_si128((__m128i *)(&dst0[j]), res_8);
+          _mm_storeu_si128((__m128i *)(&dst0[j]), res_8);
         } else {
-          _mm_store_si128((__m128i *)(&dst[j]), res_unsigned_lo);
-          _mm_store_si128((__m128i *)(&dst[j + 8]), res_unsigned_hi);
+          _mm_storeu_si128((__m128i *)(&dst[j]), res_unsigned_lo);
+          _mm_storeu_si128((__m128i *)(&dst[j + 8]), res_unsigned_hi);
         }
       }
       src += src_stride;
@@ -459,7 +459,7 @@ void av1_dist_wtd_convolve_2d_copy_sse2(
           else
             *(uint32_t *)(&dst0[j]) = _mm_cvtsi128_si32(res_8);
         } else {
-          _mm_store_si128((__m128i *)(&dst[j]), res_unsigned);
+          _mm_storeu_si128((__m128i *)(&dst[j]), res_unsigned);
         }
       }
       src += src_stride;

@@ -85,7 +85,7 @@ void av1_dist_wtd_convolve_x_sse2(const uint8_t *src, int src_stride,
         const __m128i res_8 = _mm_packus_epi16(round_result, round_result);
         *(uint32_t *)(&dst0[0]) = _mm_cvtsi128_si32(res_8);
       } else {
-        _mm_store_si128((__m128i *)(&dst[0]), res_unsigned);
+        _mm_storeu_si128((__m128i *)(&dst[0]), res_unsigned);
       }
       src_ptr += src_stride;
       dst += dst_stride;
@@ -142,7 +142,7 @@ void av1_dist_wtd_convolve_x_sse2(const uint8_t *src, int src_stride,
           const __m128i res_8 = _mm_packus_epi16(round_result, round_result);
           _mm_storel_epi64((__m128i *)(&dst0[i * dst_stride0 + j]), res_8);
         } else {
-          _mm_store_si128((__m128i *)(&dst[i * dst_stride + j]), res_unsigned);
+          _mm_storeu_si128((__m128i *)(&dst[i * dst_stride + j]), res_unsigned);
         }
         j += 8;
       } while (j < w);
@@ -234,7 +234,7 @@ void av1_dist_wtd_convolve_y_sse2(const uint8_t *src, int src_stride,
         *(uint32_t *)(&dst0[0]) = _mm_cvtsi128_si32(res_8);
 
       } else {
-        _mm_store_si128((__m128i *)dst, res_unsigned);
+        _mm_storeu_si128((__m128i *)dst, res_unsigned);
       }
 
       src_ptr += src_stride;
@@ -263,7 +263,7 @@ void av1_dist_wtd_convolve_y_sse2(const uint8_t *src, int src_stride,
         *(uint32_t *)(&dst0[0]) = _mm_cvtsi128_si32(res_8);
 
       } else {
-        _mm_store_si128((__m128i *)dst, res_unsigned);
+        _mm_storeu_si128((__m128i *)dst, res_unsigned);
       }
 
       src_ptr += src_stride;
@@ -339,7 +339,7 @@ void av1_dist_wtd_convolve_y_sse2(const uint8_t *src, int src_stride,
           const __m128i res_8 = _mm_packus_epi16(round_result, round_result);
           _mm_storel_epi64((__m128i *)(&dst0[i * dst_stride0 + j]), res_8);
         } else {
-          _mm_store_si128((__m128i *)(&dst[i * dst_stride + j]), res_unsigned);
+          _mm_storeu_si128((__m128i *)(&dst[i * dst_stride + j]), res_unsigned);
         }
         i++;
 
@@ -368,7 +368,7 @@ void av1_dist_wtd_convolve_y_sse2(const uint8_t *src, int src_stride,
           const __m128i res_8 = _mm_packus_epi16(round_result, round_result);
           _mm_storel_epi64((__m128i *)(&dst0[i * dst_stride0 + j]), res_8);
         } else {
-          _mm_store_si128((__m128i *)(&dst[i * dst_stride + j]), res_unsigned);
+          _mm_storeu_si128((__m128i *)(&dst[i * dst_stride + j]), res_unsigned);
         }
         i++;
 
@@ -499,7 +499,7 @@ void av1_dist_wtd_convolve_2d_sse2(const uint8_t *src, int src_stride,
 
         // Pack in the column order 0, 2, 4, 6, 1, 3, 5, 7
         __m128i res = _mm_packs_epi32(res_even, res_odd);
-        _mm_store_si128((__m128i *)&im_block[i * im_stride + j], res);
+        _mm_storeu_si128((__m128i *)&im_block[i * im_stride + j], res);
       }
     }
   }
@@ -607,7 +607,7 @@ void av1_dist_wtd_convolve_2d_sse2(const uint8_t *src, int src_stride,
             *(uint32_t *)(&dst0[i * dst_stride0 + j]) =
                 _mm_cvtsi128_si32(res_8);
         } else {
-          _mm_store_si128((__m128i *)(&dst[i * dst_stride + j]), res_unsigned);
+          _mm_storeu_si128((__m128i *)(&dst[i * dst_stride + j]), res_unsigned);
         }
       }
     }
