@@ -204,8 +204,10 @@ specialize qw/aom_paeth_predictor_8x4 ssse3/;
 specialize qw/aom_paeth_predictor_8x8 ssse3/;
 specialize qw/aom_paeth_predictor_8x16 ssse3/;
 specialize qw/aom_paeth_predictor_8x32 ssse3/;
+if ((aom_config("CONFIG_EXT_RECUR_PARTITIONS") eq "") || (aom_config("CONFIG_EXT_PARTITIONS") eq "")) {
 specialize qw/aom_paeth_predictor_16x4 ssse3/;
 specialize qw/aom_paeth_predictor_16x8 ssse3 avx2/;
+} # !CONFIG_EXT_RECUR_PARTITIONS || !CONFIG_EXT_PARTITIONS
 specialize qw/aom_paeth_predictor_16x16 ssse3 avx2/;
 specialize qw/aom_paeth_predictor_16x32 ssse3 avx2/;
 specialize qw/aom_paeth_predictor_16x64 ssse3 avx2/;
