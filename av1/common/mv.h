@@ -51,14 +51,6 @@ enum {
   MV_SUBPEL_PRECISIONS,
 } SENUM1BYTE(MvSubpelPrecision);
 
-// CONFIG_SB_FLEX_MVRES sets the mvres at the superblock level instead of the
-// prediction block level
-#if CONFIG_FLEX_MVRES
-#define CONFIG_SB_FLEX_MVRES 1
-#else
-#define CONFIG_SB_FLEX_MVRES 0
-#endif  // CONIFG_FLEX_MVRES
-
 // DISALLOW_ONE_DOWN_FLEX_MVRES 0 => allow all possible down precisions
 // DISALLOW_ONE_DOWN_FLEX_MVRES 1 => allow all possible down precisions except 1
 // DISALLOW_ONE_DOWN_FLEX_MVRES 2 => allow only 0 and 2 down precisions
