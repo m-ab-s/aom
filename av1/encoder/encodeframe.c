@@ -3488,9 +3488,9 @@ BEGIN_PARTITION_SEARCH:
       if (!partition_horz_allowed && !partition_vert_allowed &&
           !partition_none_allowed) {
         if (block_size_wide[bsize] > block_size_high[bsize])
-          partition_horz_allowed = 1;
-        else
           partition_vert_allowed = 1;
+        else
+          partition_horz_allowed = 1;
       }
     }
 #endif
