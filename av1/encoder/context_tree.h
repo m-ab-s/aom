@@ -61,6 +61,9 @@ typedef struct {
   MV pred_mv[REF_FRAMES];
 
   CHROMA_REF_INFO chroma_ref_info;
+
+  struct PC_TREE *parent;
+  int index;
 } PICK_MODE_CONTEXT;
 
 typedef struct PC_TREE {
@@ -108,8 +111,13 @@ typedef struct PC_TREE {
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 #endif  // CONFIG_EXT_PARTITIONS
   struct PC_TREE *split[4];
+  struct PC_TREE *parent;
+  int mi_row;
+  int mi_col;
+  int index;
   int is_last_subblock;
   CHROMA_REF_INFO chroma_ref_info;
+  RD_STATS rd_cost;
 } PC_TREE;
 
 typedef struct SIMPLE_MOTION_DATA_TREE {
@@ -125,6 +133,10 @@ typedef struct SIMPLE_MOTION_DATA_TREE {
   int sms_rect_valid;
 } SIMPLE_MOTION_DATA_TREE;
 
+#if CONFIG_EXT_RECUR_PARTITIONS && CONFIG_EXT_PARTITIONS
+PC_TREE *av1_look_for_counterpart_block(PC_TREE *pc_tree);
+#endif  // CONFIG_EXT_RECUR_PARTITIONS && CONFIG_EXT_PARTITIONS
+
 void av1_setup_shared_coeff_buffer(AV1_COMMON *cm,
                                    PC_TREE_SHARED_BUFFERS *shared_bufs);
 void av1_free_shared_coeff_buffer(PC_TREE_SHARED_BUFFERS *shared_bufs);
@@ -136,6 +148,12 @@ PC_TREE *av1_alloc_pc_tree_node(int mi_row, int mi_col, BLOCK_SIZE bsize,
                                 int subsampling_y);
 void av1_free_pc_tree_recursive(PC_TREE *tree, int num_planes, int keep_best,
                                 int keep_none);
+#if CONFIG_EXT_PARTITIONS && CONFIG_EXT_RECUR_PARTITIONS
+void av1_copy_pc_tree_recursive(const AV1_COMMON *cm, PC_TREE *dst,
+                                PC_TREE *src, int ss_x, int ss_y,
+                                PC_TREE_SHARED_BUFFERS *shared_bufs,
+                                int num_planes);
+#endif  // CONFIG_EXT_PARTITIONS && CONFIG_EXT_RECUR_PARTITIONS
 
 PICK_MODE_CONTEXT *av1_alloc_pmc(const AV1_COMMON *cm, int mi_row, int mi_col,
                                  BLOCK_SIZE bsize, PC_TREE *parent,

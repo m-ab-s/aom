@@ -71,6 +71,8 @@ PICK_MODE_CONTEXT *av1_alloc_pmc(const AV1_COMMON *cm, int mi_row, int mi_col,
   struct aom_internal_error_info error;
 
   AOM_CHECK_MEM_ERROR(&error, ctx, aom_calloc(1, sizeof(*ctx)));
+  ctx->parent = parent;
+  ctx->index = index;
 
   set_chroma_ref_info(mi_row, mi_col, index, bsize, &ctx->chroma_ref_info,
                       parent ? &parent->chroma_ref_info : NULL,
@@ -140,9 +142,14 @@ PC_TREE *av1_alloc_pc_tree_node(int mi_row, int mi_col, BLOCK_SIZE bsize,
 
   AOM_CHECK_MEM_ERROR(&error, pc_tree, aom_calloc(1, sizeof(*pc_tree)));
 
+  pc_tree->mi_row = mi_row;
+  pc_tree->mi_col = mi_col;
+  pc_tree->parent = parent;
+  pc_tree->index = index;
   pc_tree->partitioning = PARTITION_NONE;
   pc_tree->block_size = bsize;
   pc_tree->is_last_subblock = is_last;
+  av1_invalid_rd_stats(&pc_tree->rd_cost);
   set_chroma_ref_info(mi_row, mi_col, index, bsize, &pc_tree->chroma_ref_info,
                       parent ? &parent->chroma_ref_info : NULL,
                       parent ? parent->block_size : BLOCK_INVALID,
@@ -324,6 +331,144 @@ void av1_free_pc_tree_recursive(PC_TREE *pc_tree, int num_planes, int keep_best,
   if (!keep_best && !keep_none) aom_free(pc_tree);
 }
 
+#if CONFIG_EXT_PARTITIONS && CONFIG_EXT_RECUR_PARTITIONS
+void av1_copy_pc_tree_recursive(const AV1_COMMON *cm, PC_TREE *dst,
+                                PC_TREE *src, int ss_x, int ss_y,
+                                PC_TREE_SHARED_BUFFERS *shared_bufs,
+                                int num_planes) {
+  // Copy the best partition type. For basic information like bsize and index,
+  // we assume they have been set properly when initializing the dst PC_TREE
+  dst->partitioning = src->partitioning;
+  dst->rd_cost = src->rd_cost;
+  const BLOCK_SIZE bsize = dst->block_size;
+  const BLOCK_SIZE subsize = get_partition_subsize(bsize, src->partitioning);
+  const int mi_row = src->mi_row;
+  const int mi_col = src->mi_col;
+
+  switch (src->partitioning) {
+    // PARTITION_NONE
+    case PARTITION_NONE:
+      if (dst->none) av1_free_pmc(dst->none, num_planes);
+      dst->none = NULL;
+      if (src->none) {
+        dst->none = av1_alloc_pmc(cm, mi_row, mi_col, bsize, dst,
+                                  PARTITION_NONE, 0, ss_x, ss_y, shared_bufs);
+        av1_copy_tree_context(dst->none, src->none);
+      }
+      break;
+    // PARTITION_SPLIT
+    case PARTITION_SPLIT:
+      if (is_partition_valid(bsize, PARTITION_SPLIT)) {
+        for (int i = 0; i < 4; ++i) {
+          if (dst->split[i]) {
+            av1_free_pc_tree_recursive(dst->split[i], num_planes, 0, 0);
+            dst->split[i] = NULL;
+          }
+          if (src->split[i]) {
+            const int x_idx = (i & 1) * (mi_size_wide[bsize] >> 1);
+            const int y_idx = (i >> 1) * (mi_size_high[bsize] >> 1);
+            dst->split[i] = av1_alloc_pc_tree_node(
+                mi_row + y_idx, mi_col + x_idx, subsize, dst, PARTITION_SPLIT,
+                i, i == 3, ss_x, ss_y);
+            av1_copy_pc_tree_recursive(cm, dst->split[i], src->split[i], ss_x,
+                                       ss_y, shared_bufs, num_planes);
+          }
+        }
+      }
+      break;
+    // PARTITION_HORZ
+    case PARTITION_HORZ:
+      if (is_partition_valid(bsize, PARTITION_HORZ)) {
+        for (int i = 0; i < 2; ++i) {
+          if (dst->horizontal[i]) {
+            av1_free_pc_tree_recursive(dst->horizontal[i], num_planes, 0, 0);
+            dst->horizontal[i] = NULL;
+          }
+          if (src->horizontal[i]) {
+            const int this_mi_row = mi_row + i * (mi_size_high[bsize] >> 1);
+            dst->horizontal[i] =
+                av1_alloc_pc_tree_node(this_mi_row, mi_col, subsize, dst,
+                                       PARTITION_HORZ, i, i == 1, ss_x, ss_y);
+            av1_copy_pc_tree_recursive(cm, dst->horizontal[i],
+                                       src->horizontal[i], ss_x, ss_y,
+                                       shared_bufs, num_planes);
+          }
+        }
+      }
+      break;
+    // PARTITION_VERT
+    case PARTITION_VERT:
+      if (is_partition_valid(bsize, PARTITION_VERT)) {
+        for (int i = 0; i < 2; ++i) {
+          if (dst->vertical[i]) {
+            av1_free_pc_tree_recursive(dst->vertical[i], num_planes, 0, 0);
+            dst->vertical[i] = NULL;
+          }
+          if (src->vertical[i]) {
+            const int this_mi_col = mi_col + i * (mi_size_wide[bsize] >> 1);
+            dst->vertical[i] =
+                av1_alloc_pc_tree_node(mi_row, this_mi_col, subsize, dst,
+                                       PARTITION_VERT, i, i == 1, ss_x, ss_y);
+            av1_copy_pc_tree_recursive(cm, dst->vertical[i], src->vertical[i],
+                                       ss_x, ss_y, shared_bufs, num_planes);
+          }
+        }
+      }
+      break;
+    // PARTITION_HORZ_3
+    case PARTITION_HORZ_3:
+      if (is_partition_valid(bsize, PARTITION_HORZ_3)) {
+        const int mi_rows[3] = { mi_row, mi_row + (mi_size_high[bsize] >> 2),
+                                 mi_row + (mi_size_high[bsize] >> 2) * 3 };
+        const BLOCK_SIZE subsizes[3] = {
+          subsize, get_partition_subsize(bsize, PARTITION_HORZ), subsize
+        };
+
+        for (int i = 0; i < 3; ++i) {
+          if (dst->horizontal3[i]) {
+            av1_free_pc_tree_recursive(dst->horizontal3[i], num_planes, 0, 0);
+            dst->horizontal3[i] = NULL;
+          }
+          if (src->horizontal3[i]) {
+            dst->horizontal3[i] =
+                av1_alloc_pc_tree_node(mi_rows[i], mi_col, subsizes[i], dst,
+                                       PARTITION_HORZ_3, i, i == 2, ss_x, ss_y);
+            av1_copy_pc_tree_recursive(cm, dst->horizontal3[i],
+                                       src->horizontal3[i], ss_x, ss_y,
+                                       shared_bufs, num_planes);
+          }
+        }
+      }
+      break;
+    // PARTITION_VERT_3
+    case PARTITION_VERT_3:
+      if (is_partition_valid(bsize, PARTITION_VERT_3)) {
+        const int mi_cols[3] = { mi_col, mi_col + (mi_size_wide[bsize] >> 2),
+                                 mi_col + (mi_size_wide[bsize] >> 2) * 3 };
+        const BLOCK_SIZE subsizes[3] = {
+          subsize, get_partition_subsize(bsize, PARTITION_VERT), subsize
+        };
+
+        for (int i = 0; i < 3; ++i) {
+          if (dst->vertical3[i]) {
+            av1_free_pc_tree_recursive(dst->vertical3[i], num_planes, 0, 0);
+            dst->vertical3[i] = NULL;
+          }
+          if (src->vertical3[i]) {
+            dst->vertical3[i] =
+                av1_alloc_pc_tree_node(mi_row, mi_cols[i], subsizes[i], dst,
+                                       PARTITION_VERT_3, i, i == 2, ss_x, ss_y);
+            av1_copy_pc_tree_recursive(cm, dst->vertical3[i], src->vertical3[i],
+                                       ss_x, ss_y, shared_bufs, num_planes);
+          }
+        }
+      }
+      break;
+    default: assert(0 & "Not a valid partition."); break;
+  }
+}
+#endif  // CONFIG_EXT_PARTITIONS && CONFIG_EXT_RECUR_PARTITIONS
+
 void av1_setup_sms_tree(AV1_COMMON *cm, ThreadData *td) {
   const int tree_nodes_inc = 1024;
   const int leaf_factor = 4;
@@ -370,3 +515,57 @@ void av1_free_sms_tree(ThreadData *td) {
     td->sms_tree = NULL;
   }
 }
+
+#if CONFIG_EXT_RECUR_PARTITIONS && CONFIG_EXT_PARTITIONS
+PC_TREE *counterpart_from_different_partition(PC_TREE *pc_tree,
+                                              PC_TREE *target);
+
+static PC_TREE *look_for_counterpart_helper(PC_TREE *cur, PC_TREE *target) {
+  if (cur == NULL || cur == target) return NULL;
+
+  BLOCK_SIZE current_bsize = cur->block_size;
+  BLOCK_SIZE target_bsize = target->block_size;
+  if (current_bsize == target_bsize) {
+    return cur;
+  } else {
+    if (mi_size_wide[current_bsize] >= mi_size_wide[target_bsize] &&
+        mi_size_high[current_bsize] >= mi_size_high[target_bsize]) {
+      return counterpart_from_different_partition(cur, target);
+    } else {
+      return NULL;
+    }
+  }
+}
+
+PC_TREE *counterpart_from_different_partition(PC_TREE *pc_tree,
+                                              PC_TREE *target) {
+  if (pc_tree == NULL || pc_tree == target) return NULL;
+
+  PC_TREE *result;
+  result = look_for_counterpart_helper(pc_tree->split[0], target);
+  if (result) return result;
+  result = look_for_counterpart_helper(pc_tree->horizontal[0], target);
+  if (result) return result;
+  result = look_for_counterpart_helper(pc_tree->vertical[0], target);
+  if (result) return result;
+  result = look_for_counterpart_helper(pc_tree->horizontal3[0], target);
+  if (result) return result;
+  result = look_for_counterpart_helper(pc_tree->vertical3[0], target);
+  if (result) return result;
+
+  return NULL;
+}
+
+PC_TREE *av1_look_for_counterpart_block(PC_TREE *pc_tree) {
+  if (!pc_tree) return 0;
+
+  // Find the highest possible common parent node
+  PC_TREE *current = pc_tree;
+  while (current->index == 0 && current->parent) {
+    current = current->parent;
+  }
+
+  // Search from the highest common ancester
+  return counterpart_from_different_partition(current, pc_tree);
+}
+#endif  // CONFIG_EXT_RECUR_PARTITIONS && CONFIG_EXT_PARTITIONS

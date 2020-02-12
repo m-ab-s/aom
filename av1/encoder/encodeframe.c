@@ -3265,6 +3265,32 @@ static bool rd_pick_partition(
     return found_best_partition;
   }
 
+#if CONFIG_EXT_RECUR_PARTITIONS && CONFIG_EXT_PARTITIONS
+  // Check whether there is a counterpart pc_tree node with the same size
+  // and the same neighboring context at the same location but from a different
+  // partition path. If yes directly copy the RDO decision made for the
+  // counterpart.
+  PC_TREE *counterpart_block = av1_look_for_counterpart_block(pc_tree);
+  if (counterpart_block) {
+    if (counterpart_block->rd_cost.rate != INT_MAX) {
+      av1_copy_pc_tree_recursive(cm, pc_tree, counterpart_block, ss_x, ss_y,
+                                 &td->shared_coeff_buf, num_planes);
+      *rd_cost = pc_tree->rd_cost;
+      assert(bsize != cm->seq_params.sb_size);
+      if (bsize == cm->seq_params.sb_size) exit(0);
+
+      if (!pc_tree->is_last_subblock) {
+        encode_sb(cpi, td, tile_data, tp, mi_row, mi_col, DRY_RUN_NORMAL, bsize,
+                  pc_tree, NULL, NULL);
+      }
+      return true;
+    } else {
+      av1_invalid_rd_stats(rd_cost);
+      return false;
+    }
+  }
+#endif  // CONFIG_EXT_RECUR_PARTITIONS && CONFIG_EXT_PARTITIONS
+
   if (frame_is_intra_only(cm) && bsize == BLOCK_64X64) {
     x->quad_tree_idx = 0;
     x->cnn_output_valid = 0;
@@ -5129,6 +5155,8 @@ BEGIN_PARTITION_SEARCH:
   }
 
   *rd_cost = best_rdc;
+  pc_tree->rd_cost = best_rdc;
+  if (!found_best_partition) av1_invalid_rd_stats(&pc_tree->rd_cost);
 
 #if CONFIG_COLLECT_PARTITION_STATS
   if (best_rdc.rate < INT_MAX && best_rdc.dist < INT64_MAX) {
