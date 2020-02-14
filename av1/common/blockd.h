@@ -1915,12 +1915,7 @@ int av1_get_derived_intra_mode(const MACROBLOCKD *xd, int bsize,
 static INLINE int get_mode_dep_txfm_mode(const MB_MODE_INFO *const mbmi) {
   if (is_intra_mode(mbmi->mode)) return mbmi->mode;
   // Inter modes start from 64.
-  const int is_comp_pred = mbmi->ref_frame[1] > INTRA_FRAME;
-  for (int i = 0; i < is_comp_pred + 1; ++i) {
-    if (abs(mbmi->mv[i].as_mv.row) >= 8 || abs(mbmi->mv[i].as_mv.col) >= 8)
-      return MODE_DEP_INTER_TX_MODE_START + 1;
-  }
-  return MODE_DEP_INTER_TX_MODE_START;
+  return MODE_DEP_INTER_TX_MODE_START + is_inter_compound_mode(mbmi->mode);
 }
 
 // whether it is an intra mode from the txfm_mode
