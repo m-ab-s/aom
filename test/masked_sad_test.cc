@@ -244,7 +244,7 @@ const MaskedSADParam msad_test[] = {
 #endif  // CONFIG_FLEX_PARTITION
 };
 
-INSTANTIATE_TEST_CASE_P(SSSE3, MaskedSADTest, ::testing::ValuesIn(msad_test));
+INSTANTIATE_TEST_SUITE_P(SSSE3, MaskedSADTest, ::testing::ValuesIn(msad_test));
 
 const HighbdMaskedSADParam hbd_msad_test[] = {
   make_tuple(&aom_highbd_masked_sad4x4_ssse3, &aom_highbd_masked_sad4x4_c),
@@ -282,8 +282,8 @@ const HighbdMaskedSADParam hbd_msad_test[] = {
 #endif  // CONFIG_FLEX_PARTITION
 };
 
-INSTANTIATE_TEST_CASE_P(SSSE3, HighbdMaskedSADTest,
-                        ::testing::ValuesIn(hbd_msad_test));
+INSTANTIATE_TEST_SUITE_P(SSSE3, HighbdMaskedSADTest,
+                         ::testing::ValuesIn(hbd_msad_test));
 #endif  // HAVE_SSSE3
 
 #if HAVE_AVX2
@@ -320,8 +320,8 @@ const MaskedSADParam msad_avx2_test[] = {
 #endif  // CONFIG_FLEX_PARTITION
 };
 
-INSTANTIATE_TEST_CASE_P(AVX2, MaskedSADTest,
-                        ::testing::ValuesIn(msad_avx2_test));
+INSTANTIATE_TEST_SUITE_P(AVX2, MaskedSADTest,
+                         ::testing::ValuesIn(msad_avx2_test));
 
 const HighbdMaskedSADParam hbd_msad_avx2_test[] = {
   make_tuple(&aom_highbd_masked_sad4x4_avx2, &aom_highbd_masked_sad4x4_ssse3),
@@ -368,8 +368,8 @@ const HighbdMaskedSADParam hbd_msad_avx2_test[] = {
 #endif  // CONFIG_FLEX_PARTITION
 };
 
-INSTANTIATE_TEST_CASE_P(AVX2, HighbdMaskedSADTest,
-                        ::testing::ValuesIn(hbd_msad_avx2_test));
+INSTANTIATE_TEST_SUITE_P(AVX2, HighbdMaskedSADTest,
+                         ::testing::ValuesIn(hbd_msad_avx2_test));
 #endif  // HAVE_AVX2
 
 }  // namespace

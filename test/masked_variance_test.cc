@@ -379,8 +379,8 @@ const MaskedSubPixelVarianceParam sub_pel_var_test[] = {
 #endif  // CONFIG_FLEX_PARTITION
 };
 
-INSTANTIATE_TEST_CASE_P(SSSE3_C_COMPARE, MaskedSubPixelVarianceTest,
-                        ::testing::ValuesIn(sub_pel_var_test));
+INSTANTIATE_TEST_SUITE_P(SSSE3_C_COMPARE, MaskedSubPixelVarianceTest,
+                         ::testing::ValuesIn(sub_pel_var_test));
 
 const HighbdMaskedSubPixelVarianceParam hbd_sub_pel_var_test[] = {
   make_tuple(&aom_highbd_8_masked_sub_pixel_variance128x128_ssse3,
@@ -556,7 +556,7 @@ const HighbdMaskedSubPixelVarianceParam hbd_sub_pel_var_test[] = {
 #endif  // CONFIG_FLEX_PARTITION
 };
 
-INSTANTIATE_TEST_CASE_P(SSSE3_C_COMPARE, HighbdMaskedSubPixelVarianceTest,
-                        ::testing::ValuesIn(hbd_sub_pel_var_test));
+INSTANTIATE_TEST_SUITE_P(SSSE3_C_COMPARE, HighbdMaskedSubPixelVarianceTest,
+                         ::testing::ValuesIn(hbd_sub_pel_var_test));
 #endif  // HAVE_SSSE3
 }  // namespace

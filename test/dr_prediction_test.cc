@@ -326,7 +326,7 @@ TEST_P(LowbdDrPredTest, SaturatedValues) {
 
 using std::make_tuple;
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     C, LowbdDrPredTest,
     ::testing::Values(DrPredFunc<DrPred>(&z1_wrapper<av1_dr_prediction_z1_c>,
                                          NULL, AOM_BITS_8, kZ1Start),
@@ -347,7 +347,7 @@ TEST_P(HighbdDrPredTest, SaturatedValues) {
   }
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     C, HighbdDrPredTest,
     ::testing::Values(
         DrPredFunc<DrPred_Hbd>(&z1_wrapper_hbd<av1_highbd_dr_prediction_z1_c>,
@@ -416,8 +416,8 @@ const DrPredFunc<DrPred_Hbd> kArrayHighbdDrPred[] = {
                          &z3_wrapper_hbd<av1_highbd_dr_prediction_z3_avx2>,
                          AOM_BITS_12, kZ3Start)
 };
-INSTANTIATE_TEST_CASE_P(AVX2, LowbdDrPredTest,
-                        ::testing::ValuesIn(kArrayLowbdDrPred));
+INSTANTIATE_TEST_SUITE_P(AVX2, LowbdDrPredTest,
+                         ::testing::ValuesIn(kArrayLowbdDrPred));
 
 TEST_P(LowbdDrPredTest, DISABLED_Speed) {
   const int angles[] = { 3, 45, 87 };
@@ -445,8 +445,8 @@ TEST_P(LowbdDrPredTest, OperationCheck) {
   }
 }
 
-INSTANTIATE_TEST_CASE_P(AVX2, HighbdDrPredTest,
-                        ::testing::ValuesIn(kArrayHighbdDrPred));
+INSTANTIATE_TEST_SUITE_P(AVX2, HighbdDrPredTest,
+                         ::testing::ValuesIn(kArrayHighbdDrPred));
 
 TEST_P(HighbdDrPredTest, DISABLED_Speed) {
   const int angles[] = { 3, 45, 87 };

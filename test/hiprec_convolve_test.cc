@@ -27,19 +27,19 @@ TEST_P(AV1HiprecConvolveTest, DISABLED_SpeedTest) {
   RunSpeedTest(GET_PARAM(3));
 }
 #if HAVE_SSE2
-INSTANTIATE_TEST_CASE_P(SSE2, AV1HiprecConvolveTest,
-                        libaom_test::AV1HiprecConvolve::BuildParams(
-                            av1_wiener_convolve_add_src_sse2));
+INSTANTIATE_TEST_SUITE_P(SSE2, AV1HiprecConvolveTest,
+                         libaom_test::AV1HiprecConvolve::BuildParams(
+                             av1_wiener_convolve_add_src_sse2));
 #endif
 #if HAVE_AVX2
-INSTANTIATE_TEST_CASE_P(AVX2, AV1HiprecConvolveTest,
-                        libaom_test::AV1HiprecConvolve::BuildParams(
-                            av1_wiener_convolve_add_src_avx2));
+INSTANTIATE_TEST_SUITE_P(AVX2, AV1HiprecConvolveTest,
+                         libaom_test::AV1HiprecConvolve::BuildParams(
+                             av1_wiener_convolve_add_src_avx2));
 #endif
 #if HAVE_NEON
-INSTANTIATE_TEST_CASE_P(NEON, AV1HiprecConvolveTest,
-                        libaom_test::AV1HiprecConvolve::BuildParams(
-                            av1_wiener_convolve_add_src_neon));
+INSTANTIATE_TEST_SUITE_P(NEON, AV1HiprecConvolveTest,
+                         libaom_test::AV1HiprecConvolve::BuildParams(
+                             av1_wiener_convolve_add_src_neon));
 #endif
 
 #if HAVE_SSSE3 || HAVE_AVX2
@@ -50,14 +50,14 @@ TEST_P(AV1HighbdHiprecConvolveTest, DISABLED_SpeedTest) {
   RunSpeedTest(GET_PARAM(4));
 }
 #if HAVE_SSSE3
-INSTANTIATE_TEST_CASE_P(SSSE3, AV1HighbdHiprecConvolveTest,
-                        libaom_test::AV1HighbdHiprecConvolve::BuildParams(
-                            av1_highbd_wiener_convolve_add_src_ssse3));
+INSTANTIATE_TEST_SUITE_P(SSSE3, AV1HighbdHiprecConvolveTest,
+                         libaom_test::AV1HighbdHiprecConvolve::BuildParams(
+                             av1_highbd_wiener_convolve_add_src_ssse3));
 #endif
 #if HAVE_AVX2
-INSTANTIATE_TEST_CASE_P(AVX2, AV1HighbdHiprecConvolveTest,
-                        libaom_test::AV1HighbdHiprecConvolve::BuildParams(
-                            av1_highbd_wiener_convolve_add_src_avx2));
+INSTANTIATE_TEST_SUITE_P(AVX2, AV1HighbdHiprecConvolveTest,
+                         libaom_test::AV1HighbdHiprecConvolve::BuildParams(
+                             av1_highbd_wiener_convolve_add_src_avx2));
 #endif
 #endif
 

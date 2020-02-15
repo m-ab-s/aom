@@ -159,14 +159,14 @@ TEST_P(AV1CompMaskVarianceTest, DISABLED_Speed) {
 }
 
 #if HAVE_SSSE3
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     SSSE3, AV1CompMaskVarianceTest,
     ::testing::Combine(::testing::Values(&aom_comp_mask_pred_ssse3),
                        ::testing::ValuesIn(kValidBlockSize)));
 #endif
 
 #if HAVE_AVX2
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     AVX2, AV1CompMaskVarianceTest,
     ::testing::Combine(::testing::Values(&aom_comp_mask_pred_avx2),
                        ::testing::ValuesIn(kValidBlockSize)));
@@ -263,14 +263,14 @@ TEST_P(AV1CompMaskUpVarianceTest, DISABLED_Speed) {
 }
 
 #if HAVE_SSSE3
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     SSSE3, AV1CompMaskUpVarianceTest,
     ::testing::Combine(::testing::Values(&aom_comp_mask_pred_ssse3),
                        ::testing::ValuesIn(kValidBlockSize)));
 #endif
 
 #if HAVE_AVX2
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     AVX2, AV1CompMaskUpVarianceTest,
     ::testing::Combine(::testing::Values(&aom_comp_mask_pred_avx2),
                        ::testing::ValuesIn(kValidBlockSize)));
@@ -427,7 +427,7 @@ TEST_P(AV1HighbdCompMaskVarianceTest, DISABLED_Speed) {
 }
 
 #if HAVE_AVX2
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     AVX2, AV1HighbdCompMaskVarianceTest,
     ::testing::Combine(::testing::Values(&aom_highbd_comp_mask_pred_avx2),
                        ::testing::ValuesIn(kValidBlockSize),
@@ -435,7 +435,7 @@ INSTANTIATE_TEST_CASE_P(
 #endif
 
 #if HAVE_SSE2
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     SSE2, AV1HighbdCompMaskVarianceTest,
     ::testing::Combine(::testing::Values(&aom_highbd_comp_mask_pred_sse2),
                        ::testing::ValuesIn(kValidBlockSize),
@@ -563,7 +563,7 @@ TEST_P(AV1HighbdCompMaskUpVarianceTest, DISABLED_Speed) {
 }
 
 #if HAVE_AVX2
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     AVX2, AV1HighbdCompMaskUpVarianceTest,
     ::testing::Combine(::testing::Values(&aom_highbd_comp_mask_pred_avx2),
                        ::testing::ValuesIn(kValidBlockSize),
@@ -571,7 +571,7 @@ INSTANTIATE_TEST_CASE_P(
 #endif
 
 #if HAVE_SSE2
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     SSE2, AV1HighbdCompMaskUpVarianceTest,
     ::testing::Combine(::testing::Values(&aom_highbd_comp_mask_pred_sse2),
                        ::testing::ValuesIn(kValidBlockSize),

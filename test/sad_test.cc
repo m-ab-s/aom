@@ -938,7 +938,7 @@ const SadMxNParam c_tests[] = {
   make_tuple(4, 64, &aom_highbd_sad4x64_c, 12),
 #endif  // CONFIG_FLEX_PARTITION
 };
-INSTANTIATE_TEST_CASE_P(C, SADTest, ::testing::ValuesIn(c_tests));
+INSTANTIATE_TEST_SUITE_P(C, SADTest, ::testing::ValuesIn(c_tests));
 
 const SadMxNAvgParam avg_c_tests[] = {
   make_tuple(128, 128, &aom_sad128x128_avg_c, -1),
@@ -1062,7 +1062,7 @@ const SadMxNAvgParam avg_c_tests[] = {
   make_tuple(4, 64, &aom_highbd_sad4x64_avg_c, 12),
 #endif  // CONFIG_FLEX_PARTITION
 };
-INSTANTIATE_TEST_CASE_P(C, SADavgTest, ::testing::ValuesIn(avg_c_tests));
+INSTANTIATE_TEST_SUITE_P(C, SADavgTest, ::testing::ValuesIn(avg_c_tests));
 
 // TODO(chengchen): add highbd tests
 const DistWtdCompAvgParam dist_wtd_comp_avg_c_tests[] = {
@@ -1100,8 +1100,8 @@ const DistWtdCompAvgParam dist_wtd_comp_avg_c_tests[] = {
 #endif  // CONFIG_FLEX_PARTITION
 };
 
-INSTANTIATE_TEST_CASE_P(C, DistWtdCompAvgTest,
-                        ::testing::ValuesIn(dist_wtd_comp_avg_c_tests));
+INSTANTIATE_TEST_SUITE_P(C, DistWtdCompAvgTest,
+                         ::testing::ValuesIn(dist_wtd_comp_avg_c_tests));
 
 const DistWtdSadMxNAvgParam dist_wtd_avg_c_tests[] = {
   make_tuple(128, 128, &aom_dist_wtd_sad128x128_avg_c, -1),
@@ -1138,8 +1138,8 @@ const DistWtdSadMxNAvgParam dist_wtd_avg_c_tests[] = {
 #endif  // CONFIG_FLEX_PARTITION
 };
 
-INSTANTIATE_TEST_CASE_P(C, DistWtdSADavgTest,
-                        ::testing::ValuesIn(dist_wtd_avg_c_tests));
+INSTANTIATE_TEST_SUITE_P(C, DistWtdSADavgTest,
+                         ::testing::ValuesIn(dist_wtd_avg_c_tests));
 
 const SadMxNx4Param x4d_c_tests[] = {
   make_tuple(128, 128, &aom_sad128x128x4d_c, -1),
@@ -1263,7 +1263,7 @@ const SadMxNx4Param x4d_c_tests[] = {
   make_tuple(4, 64, &aom_highbd_sad4x64x4d_c, 12),
 #endif  // CONFIG_FLEX_PARTITION
 };
-INSTANTIATE_TEST_CASE_P(C, SADx4Test, ::testing::ValuesIn(x4d_c_tests));
+INSTANTIATE_TEST_SUITE_P(C, SADx4Test, ::testing::ValuesIn(x4d_c_tests));
 
 //------------------------------------------------------------------------------
 // ARM functions
@@ -1277,14 +1277,14 @@ const SadMxNParam neon_tests[] = {
   make_tuple(8, 8, &aom_sad8x8_neon, -1),
   make_tuple(4, 4, &aom_sad4x4_neon, -1),
 };
-INSTANTIATE_TEST_CASE_P(NEON, SADTest, ::testing::ValuesIn(neon_tests));
+INSTANTIATE_TEST_SUITE_P(NEON, SADTest, ::testing::ValuesIn(neon_tests));
 
 const SadMxNx4Param x4d_neon_tests[] = {
   make_tuple(64, 64, &aom_sad64x64x4d_neon, -1),
   make_tuple(32, 32, &aom_sad32x32x4d_neon, -1),
   make_tuple(16, 16, &aom_sad16x16x4d_neon, -1),
 };
-INSTANTIATE_TEST_CASE_P(NEON, SADx4Test, ::testing::ValuesIn(x4d_neon_tests));
+INSTANTIATE_TEST_SUITE_P(NEON, SADx4Test, ::testing::ValuesIn(x4d_neon_tests));
 #endif  // HAVE_NEON
 
 //------------------------------------------------------------------------------
@@ -1403,7 +1403,7 @@ const SadMxNParam sse2_tests[] = {
   make_tuple(4, 64, &aom_highbd_sad4x64_sse2, 12),
 #endif  // CONFIG_FLEX_PARTITION
 };
-INSTANTIATE_TEST_CASE_P(SSE2, SADTest, ::testing::ValuesIn(sse2_tests));
+INSTANTIATE_TEST_SUITE_P(SSE2, SADTest, ::testing::ValuesIn(sse2_tests));
 
 const SadMxNAvgParam avg_sse2_tests[] = {
   make_tuple(128, 128, &aom_sad128x128_avg_sse2, -1),
@@ -1524,7 +1524,7 @@ const SadMxNAvgParam avg_sse2_tests[] = {
   make_tuple(4, 64, &aom_highbd_sad4x64_avg_sse2, 12),
 #endif  // CONFIG_FLEX_PARTITION
 };
-INSTANTIATE_TEST_CASE_P(SSE2, SADavgTest, ::testing::ValuesIn(avg_sse2_tests));
+INSTANTIATE_TEST_SUITE_P(SSE2, SADavgTest, ::testing::ValuesIn(avg_sse2_tests));
 
 const SadMxNx4Param x4d_sse2_tests[] = {
   make_tuple(128, 128, &aom_sad128x128x4d_sse2, -1),
@@ -1639,7 +1639,7 @@ const SadMxNx4Param x4d_sse2_tests[] = {
   make_tuple(4, 64, &aom_highbd_sad4x64x4d_sse2, 12),
 #endif  // CONFIG_FLEX_PARTITION
 };
-INSTANTIATE_TEST_CASE_P(SSE2, SADx4Test, ::testing::ValuesIn(x4d_sse2_tests));
+INSTANTIATE_TEST_SUITE_P(SSE2, SADx4Test, ::testing::ValuesIn(x4d_sse2_tests));
 #endif  // HAVE_SSE2
 
 #if HAVE_SSSE3
@@ -1685,8 +1685,8 @@ const DistWtdSadMxhParam dist_wtd_sad_sse2_tests[] = {
   make_tuple(64, 4, &aom_sad64xh_sse2, -1),
 #endif  // CONFIG_FLEX_PARTITION
 };
-INSTANTIATE_TEST_CASE_P(SSE2, DistWtdSADTest,
-                        ::testing::ValuesIn(dist_wtd_sad_sse2_tests));
+INSTANTIATE_TEST_SUITE_P(SSE2, DistWtdSADTest,
+                         ::testing::ValuesIn(dist_wtd_sad_sse2_tests));
 
 #endif  // HAVE_SSSE3
 
@@ -1731,8 +1731,8 @@ const DistWtdCompAvgParam dist_wtd_comp_avg_ssse3_tests[] = {
 #endif  // CONFIG_FLEX_PARTITION
 };
 
-INSTANTIATE_TEST_CASE_P(SSSE3, DistWtdCompAvgTest,
-                        ::testing::ValuesIn(dist_wtd_comp_avg_ssse3_tests));
+INSTANTIATE_TEST_SUITE_P(SSSE3, DistWtdCompAvgTest,
+                         ::testing::ValuesIn(dist_wtd_comp_avg_ssse3_tests));
 
 const DistWtdSadMxNAvgParam dist_wtd_avg_ssse3_tests[] = {
   make_tuple(128, 128, &aom_dist_wtd_sad128x128_avg_ssse3, -1),
@@ -1768,8 +1768,8 @@ const DistWtdSadMxNAvgParam dist_wtd_avg_ssse3_tests[] = {
   make_tuple(4, 64, &aom_dist_wtd_sad4x64_avg_ssse3, -1),
 #endif  // CONFIG_FLEX_PARTITION
 };
-INSTANTIATE_TEST_CASE_P(SSSE3, DistWtdSADavgTest,
-                        ::testing::ValuesIn(dist_wtd_avg_ssse3_tests));
+INSTANTIATE_TEST_SUITE_P(SSSE3, DistWtdSADavgTest,
+                         ::testing::ValuesIn(dist_wtd_avg_ssse3_tests));
 #endif  // HAVE_SSSE3
 
 #if HAVE_SSE4_1
@@ -1849,7 +1849,7 @@ const SadMxNParam avx2_tests[] = {
   make_tuple(32, 4, &aom_highbd_sad32x4_avx2, 12),
 #endif  // CONFIG_FLEX_PARTITION
 };
-INSTANTIATE_TEST_CASE_P(AVX2, SADTest, ::testing::ValuesIn(avx2_tests));
+INSTANTIATE_TEST_SUITE_P(AVX2, SADTest, ::testing::ValuesIn(avx2_tests));
 
 const SadMxNAvgParam avg_avx2_tests[] = {
   make_tuple(64, 128, &aom_sad64x128_avg_avx2, -1),
@@ -1923,7 +1923,7 @@ const SadMxNAvgParam avg_avx2_tests[] = {
   make_tuple(32, 4, &aom_highbd_sad32x4_avg_avx2, 12),
 #endif  // CONFIG_FLEX_PARTITION
 };
-INSTANTIATE_TEST_CASE_P(AVX2, SADavgTest, ::testing::ValuesIn(avg_avx2_tests));
+INSTANTIATE_TEST_SUITE_P(AVX2, SADavgTest, ::testing::ValuesIn(avg_avx2_tests));
 
 const SadMxNx4Param x4d_avx2_tests[] = {
   make_tuple(64, 128, &aom_sad64x128x4d_avx2, -1),
@@ -1980,7 +1980,7 @@ const SadMxNx4Param x4d_avx2_tests[] = {
   make_tuple(16, 4, &aom_highbd_sad16x4x4d_avx2, 10),
   make_tuple(16, 4, &aom_highbd_sad16x4x4d_avx2, 12),
 };
-INSTANTIATE_TEST_CASE_P(AVX2, SADx4Test, ::testing::ValuesIn(x4d_avx2_tests));
+INSTANTIATE_TEST_SUITE_P(AVX2, SADx4Test, ::testing::ValuesIn(x4d_avx2_tests));
 #endif  // HAVE_AVX2
 
 //------------------------------------------------------------------------------
@@ -2001,7 +2001,7 @@ const SadMxNParam msa_tests[] = {
   make_tuple(4, 8, &aom_sad4x8_msa, -1),
   make_tuple(4, 4, &aom_sad4x4_msa, -1),
 };
-INSTANTIATE_TEST_CASE_P(MSA, SADTest, ::testing::ValuesIn(msa_tests));
+INSTANTIATE_TEST_SUITE_P(MSA, SADTest, ::testing::ValuesIn(msa_tests));
 
 const SadMxNAvgParam avg_msa_tests[] = {
   make_tuple(64, 64, &aom_sad64x64_avg_msa, -1),
@@ -2018,7 +2018,7 @@ const SadMxNAvgParam avg_msa_tests[] = {
   make_tuple(4, 8, &aom_sad4x8_avg_msa, -1),
   make_tuple(4, 4, &aom_sad4x4_avg_msa, -1),
 };
-INSTANTIATE_TEST_CASE_P(MSA, SADavgTest, ::testing::ValuesIn(avg_msa_tests));
+INSTANTIATE_TEST_SUITE_P(MSA, SADavgTest, ::testing::ValuesIn(avg_msa_tests));
 
 const SadMxNx4Param x4d_msa_tests[] = {
   make_tuple(64, 64, &aom_sad64x64x4d_msa, -1),
@@ -2035,7 +2035,7 @@ const SadMxNx4Param x4d_msa_tests[] = {
   make_tuple(4, 8, &aom_sad4x8x4d_msa, -1),
   make_tuple(4, 4, &aom_sad4x4x4d_msa, -1),
 };
-INSTANTIATE_TEST_CASE_P(MSA, SADx4Test, ::testing::ValuesIn(x4d_msa_tests));
+INSTANTIATE_TEST_SUITE_P(MSA, SADx4Test, ::testing::ValuesIn(x4d_msa_tests));
 #endif  // HAVE_MSA
 
 }  // namespace

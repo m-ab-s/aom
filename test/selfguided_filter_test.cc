@@ -202,19 +202,19 @@ TEST_P(AV1SelfguidedFilterTest, DISABLED_SpeedTest) { RunSpeedTest(); }
 TEST_P(AV1SelfguidedFilterTest, CorrectnessTest) { RunCorrectnessTest(); }
 
 #if HAVE_SSE4_1
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     SSE4_1, AV1SelfguidedFilterTest,
     ::testing::Values(av1_apply_selfguided_restoration_sse4_1));
 #endif
 
 #if HAVE_AVX2
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     AVX2, AV1SelfguidedFilterTest,
     ::testing::Values(av1_apply_selfguided_restoration_avx2));
 #endif
 
 #if HAVE_NEON
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     NEON, AV1SelfguidedFilterTest,
     ::testing::Values(av1_apply_selfguided_restoration_neon));
 #endif
@@ -393,7 +393,7 @@ TEST_P(AV1HighbdSelfguidedFilterTest, CorrectnessTest) { RunCorrectnessTest(); }
 
 #if HAVE_SSE4_1
 const int highbd_params_sse4_1[] = { 8, 10, 12 };
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     SSE4_1, AV1HighbdSelfguidedFilterTest,
     ::testing::Combine(
         ::testing::Values(av1_apply_selfguided_restoration_sse4_1),
@@ -402,14 +402,14 @@ INSTANTIATE_TEST_CASE_P(
 
 #if HAVE_AVX2
 const int highbd_params_avx2[] = { 8, 10, 12 };
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     AVX2, AV1HighbdSelfguidedFilterTest,
     ::testing::Combine(::testing::Values(av1_apply_selfguided_restoration_avx2),
                        ::testing::ValuesIn(highbd_params_avx2)));
 #endif
 #if HAVE_NEON
 const int highbd_params_neon[] = { 8, 10, 12 };
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     NEON, AV1HighbdSelfguidedFilterTest,
     ::testing::Combine(::testing::Values(av1_apply_selfguided_restoration_neon),
                        ::testing::ValuesIn(highbd_params_neon)));

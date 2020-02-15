@@ -757,7 +757,8 @@ const ConvolveParam kArrayConvolve_c[] = { ALL_SIZES(convolve8_c),
                                            ALL_SIZES(convolve10_c),
                                            ALL_SIZES(convolve12_c) };
 
-INSTANTIATE_TEST_CASE_P(C, ConvolveTest, ::testing::ValuesIn(kArrayConvolve_c));
+INSTANTIATE_TEST_SUITE_P(C, ConvolveTest,
+                         ::testing::ValuesIn(kArrayConvolve_c));
 
 #if HAVE_SSE2 && ARCH_X86_64
 const ConvolveFunctions convolve8_sse2(aom_convolve8_horiz_sse2,
@@ -772,8 +773,8 @@ const ConvolveParam kArrayConvolve_sse2[] = { ALL_SIZES(convolve8_sse2),
                                               ALL_SIZES(wrap_convolve8_sse2),
                                               ALL_SIZES(wrap_convolve10_sse2),
                                               ALL_SIZES(wrap_convolve12_sse2) };
-INSTANTIATE_TEST_CASE_P(SSE2, ConvolveTest,
-                        ::testing::ValuesIn(kArrayConvolve_sse2));
+INSTANTIATE_TEST_SUITE_P(SSE2, ConvolveTest,
+                         ::testing::ValuesIn(kArrayConvolve_sse2));
 #endif
 
 #if HAVE_SSSE3
@@ -781,8 +782,8 @@ const ConvolveFunctions convolve8_ssse3(aom_convolve8_horiz_ssse3,
                                         aom_convolve8_vert_ssse3, 0);
 
 const ConvolveParam kArrayConvolve8_ssse3[] = { ALL_SIZES(convolve8_ssse3) };
-INSTANTIATE_TEST_CASE_P(SSSE3, ConvolveTest,
-                        ::testing::ValuesIn(kArrayConvolve8_ssse3));
+INSTANTIATE_TEST_SUITE_P(SSSE3, ConvolveTest,
+                         ::testing::ValuesIn(kArrayConvolve8_ssse3));
 #endif
 
 #if HAVE_AVX2
@@ -799,8 +800,8 @@ const ConvolveParam kArray_Convolve8_avx2[] = {
   ALL_SIZES_64(wrap_convolve8_avx2), ALL_SIZES_64(wrap_convolve10_avx2),
   ALL_SIZES_64(wrap_convolve12_avx2), ALL_SIZES(convolve8_avx2)
 };
-INSTANTIATE_TEST_CASE_P(AVX2, ConvolveTest,
-                        ::testing::ValuesIn(kArray_Convolve8_avx2));
+INSTANTIATE_TEST_SUITE_P(AVX2, ConvolveTest,
+                         ::testing::ValuesIn(kArray_Convolve8_avx2));
 #endif  // HAVE_AVX2
 
 }  // namespace

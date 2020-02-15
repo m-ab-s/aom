@@ -133,7 +133,7 @@ const TX_SIZE kTxSize[] = {
 #endif  // CONFIG_FLEX_PARTITION
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     SSE4_1, AV1FilterIntraPredTest,
     ::testing::Combine(::testing::ValuesIn(kPredFuncMdArray),
                        ::testing::ValuesIn(kTxSize)));

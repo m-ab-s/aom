@@ -402,7 +402,7 @@ TEST_P(IntrapredExtensionTest, TopLeftCorner) {
   }
 }
 
-INSTANTIATE_TEST_CASE_P(IntrapredExtensionTests, IntrapredExtensionTest,
-                        ::testing::ValuesIn(GetSampledParams()));
+INSTANTIATE_TEST_SUITE_P(IntrapredExtensionTests, IntrapredExtensionTest,
+                         ::testing::ValuesIn(GetSampledParams()));
 
 }  // namespace

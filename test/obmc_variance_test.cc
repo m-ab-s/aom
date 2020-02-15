@@ -166,8 +166,8 @@ const ObmcVarianceTest::ParamType sse4_functions[] = {
 #endif  // CONFIG_FLEX_PARTITION
 };
 
-INSTANTIATE_TEST_CASE_P(SSE4_1, ObmcVarianceTest,
-                        ::testing::ValuesIn(sse4_functions));
+INSTANTIATE_TEST_SUITE_P(SSE4_1, ObmcVarianceTest,
+                         ::testing::ValuesIn(sse4_functions));
 #endif  // HAVE_SSE4_1
 
 #if HAVE_AVX2
@@ -206,8 +206,8 @@ const ObmcVarianceTest::ParamType avx2_functions[] = {
 #endif  // CONFIG_FLEX_PARTITION
 };
 
-INSTANTIATE_TEST_CASE_P(AVX2, ObmcVarianceTest,
-                        ::testing::ValuesIn(avx2_functions));
+INSTANTIATE_TEST_SUITE_P(AVX2, ObmcVarianceTest,
+                         ::testing::ValuesIn(avx2_functions));
 #endif  // HAVE_AVX2
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -447,7 +447,7 @@ ObmcVarianceHBDTest::ParamType sse4_functions_hbd[] = {
 #endif  // CONFIG_FLEX_PARTITION
 };
 
-INSTANTIATE_TEST_CASE_P(SSE4_1, ObmcVarianceHBDTest,
-                        ::testing::ValuesIn(sse4_functions_hbd));
+INSTANTIATE_TEST_SUITE_P(SSE4_1, ObmcVarianceHBDTest,
+                         ::testing::ValuesIn(sse4_functions_hbd));
 #endif  // HAVE_SSE4_1
 }  // namespace

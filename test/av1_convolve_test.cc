@@ -432,8 +432,8 @@ TEST_P(AV1ConvolveXTest, AVX2) { RunTest(av1_convolve_x_sr_avx2); }
 TEST_P(AV1ConvolveXTest, NEON) { RunTest(av1_convolve_x_sr_neon); }
 #endif
 
-INSTANTIATE_TEST_CASE_P(AV1Convolve, AV1ConvolveXTest,
-                        ::testing::ValuesIn(GetLowbdTestParams()));
+INSTANTIATE_TEST_SUITE_P(AV1Convolve, AV1ConvolveXTest,
+                         ::testing::ValuesIn(GetLowbdTestParams()));
 
 /////////////////////////////////////////////////////////
 // Single reference convolve-x functions (high bit-depth)
@@ -488,8 +488,8 @@ TEST_P(AV1HighbdConvolveXTest, SSSE3) {
 TEST_P(AV1HighbdConvolveXTest, AVX2) { RunTest(av1_highbd_convolve_x_sr_avx2); }
 #endif
 
-INSTANTIATE_TEST_CASE_P(AV1Convolve, AV1HighbdConvolveXTest,
-                        testing::ValuesIn(GetHighbdTestParams()));
+INSTANTIATE_TEST_SUITE_P(AV1Convolve, AV1HighbdConvolveXTest,
+                         testing::ValuesIn(GetHighbdTestParams()));
 
 ////////////////////////////////////////////////////////
 // Single reference convolve-y functions (low bit-depth)
@@ -540,8 +540,8 @@ TEST_P(AV1ConvolveYTest, AVX2) { RunTest(av1_convolve_y_sr_avx2); }
 TEST_P(AV1ConvolveYTest, NEON) { RunTest(av1_convolve_y_sr_neon); }
 #endif
 
-INSTANTIATE_TEST_CASE_P(AV1Convolve, AV1ConvolveYTest,
-                        ::testing::ValuesIn(GetLowbdTestParams()));
+INSTANTIATE_TEST_SUITE_P(AV1Convolve, AV1ConvolveYTest,
+                         ::testing::ValuesIn(GetLowbdTestParams()));
 
 /////////////////////////////////////////////////////////
 // Single reference convolve-y functions (high bit-depth)
@@ -591,8 +591,8 @@ TEST_P(AV1HighbdConvolveYTest, SSSE3) {
 TEST_P(AV1HighbdConvolveYTest, AVX2) { RunTest(av1_highbd_convolve_y_sr_avx2); }
 #endif
 
-INSTANTIATE_TEST_CASE_P(AV1Convolve, AV1HighbdConvolveYTest,
-                        ::testing::ValuesIn(GetHighbdTestParams()));
+INSTANTIATE_TEST_SUITE_P(AV1Convolve, AV1HighbdConvolveYTest,
+                         ::testing::ValuesIn(GetHighbdTestParams()));
 
 //////////////////////////////////////////////////////////////
 // Single reference convolve-copy functions (low bit-depth)
@@ -639,8 +639,8 @@ TEST_P(AV1ConvolveCopyTest, AVX2) { RunTest(aom_convolve_copy_avx2); }
 TEST_P(AV1ConvolveCopyTest, NEON) { RunTest(aom_convolve_copy_neon); }
 #endif
 
-INSTANTIATE_TEST_CASE_P(AV1Convolve, AV1ConvolveCopyTest,
-                        ::testing::ValuesIn(GetLowbdTestParams()));
+INSTANTIATE_TEST_SUITE_P(AV1Convolve, AV1ConvolveCopyTest,
+                         ::testing::ValuesIn(GetLowbdTestParams()));
 
 ///////////////////////////////////////////////////////////////
 // Single reference convolve-copy functions (high bit-depth)
@@ -690,8 +690,8 @@ TEST_P(AV1HighbdConvolveCopyTest, AVX2) {
 }
 #endif
 
-INSTANTIATE_TEST_CASE_P(AV1Convolve, AV1HighbdConvolveCopyTest,
-                        ::testing::ValuesIn(GetHighbdTestParams()));
+INSTANTIATE_TEST_SUITE_P(AV1Convolve, AV1HighbdConvolveCopyTest,
+                         ::testing::ValuesIn(GetHighbdTestParams()));
 
 // Single reference 2D convolution parameters.
 class Param2D {
@@ -837,8 +837,8 @@ TEST_P(AV1Convolve2DTest, AVX2) { RunTest(av1_convolve_2d_sr_avx2); }
 TEST_P(AV1Convolve2DTest, NEON) { RunTest(av1_convolve_2d_sr_neon); }
 #endif
 
-INSTANTIATE_TEST_CASE_P(AV1Convolve, AV1Convolve2DTest,
-                        ::testing::ValuesIn(GetLowbdTestParams()));
+INSTANTIATE_TEST_SUITE_P(AV1Convolve, AV1Convolve2DTest,
+                         ::testing::ValuesIn(GetLowbdTestParams()));
 
 //////////////////////////////////////////////////////////
 // Single reference convolve-2d functions (high bit-depth)
@@ -902,8 +902,8 @@ TEST_P(AV1HighbdConvolve2DTest, AVX2) {
 }
 #endif
 
-INSTANTIATE_TEST_CASE_P(AV1Convolve, AV1HighbdConvolve2DTest,
-                        ::testing::ValuesIn(GetHighbdTestParams()));
+INSTANTIATE_TEST_SUITE_P(AV1Convolve, AV1HighbdConvolve2DTest,
+                         ::testing::ValuesIn(GetHighbdTestParams()));
 
 //////////////////////////
 // Compound Convolve Tests
@@ -1125,8 +1125,8 @@ TEST_P(AV1CompoundConvolveXTest, NEON) {
 }
 #endif
 
-INSTANTIATE_TEST_CASE_P(AV1Convolve, AV1CompoundConvolveXTest,
-                        ::testing::ValuesIn(GetLowbdLumaTestParams()));
+INSTANTIATE_TEST_SUITE_P(AV1Convolve, AV1CompoundConvolveXTest,
+                         ::testing::ValuesIn(GetLowbdLumaTestParams()));
 
 /////////////////////////////////////////////////
 // Compound convolve-x functions (high bit-depth)
@@ -1211,8 +1211,8 @@ TEST_P(AV1HighbdCompoundConvolveXTest, AVX2) {
 }
 #endif
 
-INSTANTIATE_TEST_CASE_P(AV1Convolve, AV1HighbdCompoundConvolveXTest,
-                        testing::ValuesIn(GetHighbdLumaTestParams()));
+INSTANTIATE_TEST_SUITE_P(AV1Convolve, AV1HighbdCompoundConvolveXTest,
+                         testing::ValuesIn(GetHighbdLumaTestParams()));
 
 ////////////////////////////////////////////////
 // Compound convolve-y functions (low bit-depth)
@@ -1252,8 +1252,8 @@ TEST_P(AV1CompoundConvolveYTest, NEON) {
 }
 #endif
 
-INSTANTIATE_TEST_CASE_P(AV1Convolve, AV1CompoundConvolveYTest,
-                        ::testing::ValuesIn(GetLowbdLumaTestParams()));
+INSTANTIATE_TEST_SUITE_P(AV1Convolve, AV1CompoundConvolveYTest,
+                         ::testing::ValuesIn(GetLowbdLumaTestParams()));
 
 /////////////////////////////////////////////////
 // Compound convolve-y functions (high bit-depth)
@@ -1286,8 +1286,8 @@ TEST_P(AV1HighbdCompoundConvolveYTest, AVX2) {
 }
 #endif
 
-INSTANTIATE_TEST_CASE_P(AV1Convolve, AV1HighbdCompoundConvolveYTest,
-                        ::testing::ValuesIn(GetHighbdLumaTestParams()));
+INSTANTIATE_TEST_SUITE_P(AV1Convolve, AV1HighbdCompoundConvolveYTest,
+                         ::testing::ValuesIn(GetHighbdLumaTestParams()));
 
 //////////////////////////////////////////////////////
 // Compound convolve-2d-copy functions (low bit-depth)
@@ -1365,8 +1365,8 @@ TEST_P(AV1CompoundConvolve2DCopyTest, NEON) {
 }
 #endif
 
-INSTANTIATE_TEST_CASE_P(AV1Convolve, AV1CompoundConvolve2DCopyTest,
-                        ::testing::ValuesIn(GetLowbdLumaTestParams()));
+INSTANTIATE_TEST_SUITE_P(AV1Convolve, AV1CompoundConvolve2DCopyTest,
+                         ::testing::ValuesIn(GetLowbdLumaTestParams()));
 
 ///////////////////////////////////////////////////////
 // Compound convolve-2d-copy functions (high bit-depth)
@@ -1443,8 +1443,8 @@ TEST_P(AV1HighbdCompoundConvolve2DCopyTest, AVX2) {
 }
 #endif
 
-INSTANTIATE_TEST_CASE_P(AV1Convolve, AV1HighbdCompoundConvolve2DCopyTest,
-                        ::testing::ValuesIn(GetHighbdLumaTestParams()));
+INSTANTIATE_TEST_SUITE_P(AV1Convolve, AV1HighbdCompoundConvolve2DCopyTest,
+                         ::testing::ValuesIn(GetHighbdLumaTestParams()));
 
 /////////////////////////////////////////////////
 // Compound convolve-2d functions (low bit-depth)
@@ -1536,8 +1536,8 @@ TEST_P(AV1CompoundConvolve2DTest, NEON) {
 }
 #endif
 
-INSTANTIATE_TEST_CASE_P(AV1Convolve, AV1CompoundConvolve2DTest,
-                        ::testing::ValuesIn(GetLowbdLumaTestParams()));
+INSTANTIATE_TEST_SUITE_P(AV1Convolve, AV1CompoundConvolve2DTest,
+                         ::testing::ValuesIn(GetLowbdLumaTestParams()));
 
 //////////////////////////////////////////////////
 // Compound convolve-2d functions (high bit-depth)
@@ -1620,7 +1620,7 @@ TEST_P(AV1HighbdCompoundConvolve2DTest, AVX2) {
 }
 #endif
 
-INSTANTIATE_TEST_CASE_P(AV1Convolve, AV1HighbdCompoundConvolve2DTest,
-                        ::testing::ValuesIn(GetHighbdLumaTestParams()));
+INSTANTIATE_TEST_SUITE_P(AV1Convolve, AV1HighbdCompoundConvolve2DTest,
+                         ::testing::ValuesIn(GetHighbdLumaTestParams()));
 
 }  // namespace

@@ -213,8 +213,8 @@ vector<AV1FwdTxfm2dParam> GetTxfm2dParamList() {
   return param_list;
 }
 
-INSTANTIATE_TEST_CASE_P(C, AV1FwdTxfm2d,
-                        ::testing::ValuesIn(GetTxfm2dParamList()));
+INSTANTIATE_TEST_SUITE_P(C, AV1FwdTxfm2d,
+                         ::testing::ValuesIn(GetTxfm2dParamList()));
 
 TEST_P(AV1FwdTxfm2d, RunFwdAccuracyCheck) { RunFwdAccuracyCheck(); }
 
@@ -399,9 +399,9 @@ static TX_SIZE fwd_txfm_for_sse2[] = {
 #endif  // CONFIG_FLEX_PARTITION
 };
 
-INSTANTIATE_TEST_CASE_P(SSE2, AV1FwdTxfm2dTest,
-                        Combine(ValuesIn(fwd_txfm_for_sse2),
-                                Values(av1_lowbd_fwd_txfm_sse2)));
+INSTANTIATE_TEST_SUITE_P(SSE2, AV1FwdTxfm2dTest,
+                         Combine(ValuesIn(fwd_txfm_for_sse2),
+                                 Values(av1_lowbd_fwd_txfm_sse2)));
 #endif  // HAVE_SSE2
 
 #if HAVE_SSE4_1
@@ -412,9 +412,9 @@ static TX_SIZE fwd_txfm_for_sse41[] = {
   TX_64X32,
 };
 
-INSTANTIATE_TEST_CASE_P(SSE4_1, AV1FwdTxfm2dTest,
-                        Combine(ValuesIn(fwd_txfm_for_sse41),
-                                Values(av1_lowbd_fwd_txfm_sse4_1)));
+INSTANTIATE_TEST_SUITE_P(SSE4_1, AV1FwdTxfm2dTest,
+                         Combine(ValuesIn(fwd_txfm_for_sse41),
+                                 Values(av1_lowbd_fwd_txfm_sse4_1)));
 #endif  // HAVE_SSE4_1
 
 #if HAVE_AVX2
@@ -427,9 +427,9 @@ static TX_SIZE fwd_txfm_for_avx2[] = {
 #endif  // CONFIG_FLEX_PARTITION
 };
 
-INSTANTIATE_TEST_CASE_P(AVX2, AV1FwdTxfm2dTest,
-                        Combine(ValuesIn(fwd_txfm_for_avx2),
-                                Values(av1_lowbd_fwd_txfm_avx2)));
+INSTANTIATE_TEST_SUITE_P(AVX2, AV1FwdTxfm2dTest,
+                         Combine(ValuesIn(fwd_txfm_for_avx2),
+                                 Values(av1_lowbd_fwd_txfm_avx2)));
 #endif  // HAVE_AVX2
 
 typedef void (*Highbd_fwd_txfm_func)(const int16_t *src_diff, tran_low_t *coeff,
@@ -593,16 +593,16 @@ static TX_SIZE Highbd_fwd_txfm_for_sse4_1[] = {
 #endif  // CONFIG_FLEX_PARTITION
 };
 
-INSTANTIATE_TEST_CASE_P(SSE4_1, AV1HighbdFwdTxfm2dTest,
-                        Combine(ValuesIn(Highbd_fwd_txfm_for_sse4_1),
-                                Values(av1_highbd_fwd_txfm)));
+INSTANTIATE_TEST_SUITE_P(SSE4_1, AV1HighbdFwdTxfm2dTest,
+                         Combine(ValuesIn(Highbd_fwd_txfm_for_sse4_1),
+                                 Values(av1_highbd_fwd_txfm)));
 #endif  // HAVE_SSE4_1
 #if HAVE_AVX2
 static TX_SIZE Highbd_fwd_txfm_for_avx2[] = { TX_8X8,   TX_16X16, TX_32X32,
                                               TX_64X64, TX_8X16,  TX_16X8 };
 
-INSTANTIATE_TEST_CASE_P(AVX2, AV1HighbdFwdTxfm2dTest,
-                        Combine(ValuesIn(Highbd_fwd_txfm_for_avx2),
-                                Values(av1_highbd_fwd_txfm)));
+INSTANTIATE_TEST_SUITE_P(AVX2, AV1HighbdFwdTxfm2dTest,
+                         Combine(ValuesIn(Highbd_fwd_txfm_for_avx2),
+                                 Values(av1_highbd_fwd_txfm)));
 #endif  // HAVE_AVX2
 }  // namespace

@@ -31,7 +31,7 @@ TEST_P(AV1WarpFilterTest, DISABLED_Speed) {
   RunSpeedTest(std::get<3>(GET_PARAM(0)));
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     C, AV1WarpFilterTest,
     libaom_test::AV1WarpFilter::BuildParams(av1_warp_affine_c));
 
@@ -43,13 +43,13 @@ TEST_P(AV1ExtWarpFilterTest, DISABLED_Speed) {
   RunSpeedTest(::testing::get<3>(GET_PARAM(0)));
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     C, AV1ExtWarpFilterTest,
     libaom_test::AV1ExtWarpFilter::BuildParams(av1_ext_warp_affine_c));
 #endif  // CONFIG_EXT_WARP
 
 #if HAVE_SSE4_1
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     SSE4_1, AV1WarpFilterTest,
     libaom_test::AV1WarpFilter::BuildParams(av1_warp_affine_sse4_1));
 
@@ -60,9 +60,9 @@ TEST_P(AV1HighbdWarpFilterTest, DISABLED_Speed) {
   RunSpeedTest(std::get<4>(GET_PARAM(0)));
 }
 
-INSTANTIATE_TEST_CASE_P(SSE4_1, AV1HighbdWarpFilterTest,
-                        libaom_test::AV1HighbdWarpFilter::BuildParams(
-                            av1_highbd_warp_affine_sse4_1));
+INSTANTIATE_TEST_SUITE_P(SSE4_1, AV1HighbdWarpFilterTest,
+                         libaom_test::AV1HighbdWarpFilter::BuildParams(
+                             av1_highbd_warp_affine_sse4_1));
 #if CONFIG_EXT_WARP
 TEST_P(AV1ExtHighbdWarpFilterTest, CheckOutput) {
   RunCheckOutput(::testing::get<4>(GET_PARAM(0)));
@@ -71,25 +71,25 @@ TEST_P(AV1ExtHighbdWarpFilterTest, DISABLED_Speed) {
   RunSpeedTest(::testing::get<4>(GET_PARAM(0)));
 }
 
-INSTANTIATE_TEST_CASE_P(SSE4_1, AV1ExtHighbdWarpFilterTest,
-                        libaom_test::AV1ExtHighbdWarpFilter::BuildParams(
-                            av1_ext_highbd_warp_affine_sse4_1));
+INSTANTIATE_TEST_SUITE_P(SSE4_1, AV1ExtHighbdWarpFilterTest,
+                         libaom_test::AV1ExtHighbdWarpFilter::BuildParams(
+                             av1_ext_highbd_warp_affine_sse4_1));
 #endif  // CONFIG_EXT_WARP
 #endif  // HAVE_SSE4_1
 
 #if HAVE_AVX2
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     AVX2, AV1WarpFilterTest,
     libaom_test::AV1WarpFilter::BuildParams(av1_warp_affine_avx2));
 #if CONFIG_EXT_WARP
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     AVX2, AV1ExtWarpFilterTest,
     libaom_test::AV1ExtWarpFilter::BuildParams(av1_ext_warp_affine_avx2));
 #endif  // CONFIG_EXT_WARP
 #endif  // HAVE_AVX2
 
 #if HAVE_NEON
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     NEON, AV1WarpFilterTest,
     libaom_test::AV1WarpFilter::BuildParams(av1_warp_affine_neon));
 #endif  // HAVE_NEON

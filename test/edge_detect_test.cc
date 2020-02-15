@@ -217,20 +217,20 @@ TEST_P(EdgeDetectBrightnessTest, DetectUniformBrightness) {
              .magnitude);
 }
 
-INSTANTIATE_TEST_CASE_P(ImageBrightnessTests, EdgeDetectBrightnessTest,
-                        ::testing::Combine(
-                            // Brightness
-                            ::testing::Values(0, 1, 2, 127, 128, 129, 254, 255,
-                                              256, 511, 512, 1023, 1024, 2048,
-                                              4095),
-                            // Width
-                            ::testing::Values(8, 16, 32),
-                            // Height
-                            ::testing::Values(4, 8, 12, 32),
-                            // High bit depth representation
-                            ::testing::Bool(),
-                            // Bit depth
-                            ::testing::Values(8, 10, 12)));
+INSTANTIATE_TEST_SUITE_P(ImageBrightnessTests, EdgeDetectBrightnessTest,
+                         ::testing::Combine(
+                             // Brightness
+                             ::testing::Values(0, 1, 2, 127, 128, 129, 254, 255,
+                                               256, 511, 512, 1023, 1024, 2048,
+                                               4095),
+                             // Width
+                             ::testing::Values(8, 16, 32),
+                             // Height
+                             ::testing::Values(4, 8, 12, 32),
+                             // High bit depth representation
+                             ::testing::Bool(),
+                             // Bit depth
+                             ::testing::Values(8, 10, 12)));
 
 class EdgeDetectImageTest :
     // Parameters are (width, height, high bit depth representation, bit depth).
@@ -362,14 +362,14 @@ TEST(EdgeDetectImageTest, SobelTest) {
   ASSERT_EQ(-860, result.y);
 }
 
-INSTANTIATE_TEST_CASE_P(EdgeDetectImages, EdgeDetectImageTest,
-                        ::testing::Combine(
-                            // Width
-                            ::testing::Values(8, 16, 32),
-                            // Height
-                            ::testing::Values(4, 8, 12, 32),
-                            // High bit depth representation
-                            ::testing::Bool(),
-                            // Bit depth
-                            ::testing::Values(8, 10, 12)));
+INSTANTIATE_TEST_SUITE_P(EdgeDetectImages, EdgeDetectImageTest,
+                         ::testing::Combine(
+                             // Width
+                             ::testing::Values(8, 16, 32),
+                             // Height
+                             ::testing::Values(4, 8, 12, 32),
+                             // High bit depth representation
+                             ::testing::Bool(),
+                             // Bit depth
+                             ::testing::Values(8, 10, 12)));
 }  // namespace

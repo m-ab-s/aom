@@ -707,7 +707,7 @@ TEST_P(YUVTemporalFilterTest, DISABLED_Speed) {
   }
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     C, YUVTemporalFilterTest,
     ::testing::Values(
         TemporalFilterWithBd(&av1_apply_temporal_filter_c, 8),
@@ -715,7 +715,7 @@ INSTANTIATE_TEST_CASE_P(
         TemporalFilterWithBd(&av1_highbd_apply_temporal_filter_c, 12)));
 
 #if HAVE_SSE4_1
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     SSE4_1, YUVTemporalFilterTest,
     ::testing::Values(
         TemporalFilterWithBd(&av1_apply_temporal_filter_sse4_1, 8),
