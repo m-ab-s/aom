@@ -464,7 +464,7 @@ void av1_copy_pc_tree_recursive(const AV1_COMMON *cm, PC_TREE *dst,
         }
       }
       break;
-    default: assert(0 & "Not a valid partition."); break;
+    default: assert(0 && "Not a valid partition."); break;
   }
 }
 #endif  // CONFIG_EXT_PARTITIONS && CONFIG_EXT_RECUR_PARTITIONS

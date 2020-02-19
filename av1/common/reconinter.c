@@ -369,8 +369,7 @@ static void build_inter_predictors_sub8x8(
   // block size
   const int b4_w = block_size_wide[bsize] >> ss_x;
   const int b4_h = block_size_high[bsize] >> ss_y;
-  const BLOCK_SIZE plane_bsize = scale_chroma_bsize(
-      bsize, ss_x, ss_y, mi_y >> MI_SIZE_LOG2, mi_x >> MI_SIZE_LOG2);
+  const BLOCK_SIZE plane_bsize = plane ? mi->chroma_ref_info.bsize_base : bsize;
   const int b8_w = block_size_wide[plane_bsize] >> ss_x;
   const int b8_h = block_size_high[plane_bsize] >> ss_y;
   const int is_intrabc = is_intrabc_block(mi);
@@ -381,11 +380,10 @@ static void build_inter_predictors_sub8x8(
   // corner is at (pre_x, pre_y).
   const int mi_row = -xd->mb_to_top_edge >> (3 + MI_SIZE_LOG2);
   const int mi_col = -xd->mb_to_left_edge >> (3 + MI_SIZE_LOG2);
-  int mi_row_offset, mi_col_offset;
-  get_mi_row_col_offsets(mi_row, mi_col, ss_x, ss_y, mi_size_wide[bsize],
-                         mi_size_high[bsize], &mi_row_offset, &mi_col_offset);
-  int row_start = -mi_row_offset;
-  int col_start = -mi_col_offset;
+  const int row_start =
+      plane ? mi->chroma_ref_info.mi_row_chroma_base - mi_row : 0;
+  const int col_start =
+      plane ? mi->chroma_ref_info.mi_col_chroma_base - mi_col : 0;
 
   const int pre_x = (mi_x + MI_SIZE * col_start) >> ss_x;
   const int pre_y = (mi_y + MI_SIZE * row_start) >> ss_y;
@@ -566,17 +564,15 @@ static bool is_sub8x8_inter(MACROBLOCKD *xd, int plane, const MB_MODE_INFO *mi,
   if (!sub8x8_inter) {
     return false;
   }
-  int row_start = 0;
-  int col_start = 0;
   // For sub8x8 chroma blocks, we may be covering more than one luma block's
   // worth of pixels.
   const int mi_row = -xd->mb_to_top_edge >> (3 + MI_SIZE_LOG2);
   const int mi_col = -xd->mb_to_left_edge >> (3 + MI_SIZE_LOG2);
-  int mi_row_offset, mi_col_offset;
-  get_mi_row_col_offsets(mi_row, mi_col, ss_x, ss_y, mi_size_wide[bsize],
-                         mi_size_high[bsize], &mi_row_offset, &mi_col_offset);
-  row_start = -mi_row_offset;
-  col_start = -mi_col_offset;
+  const int row_start =
+      plane ? mi->chroma_ref_info.mi_row_chroma_base - mi_row : 0;
+  const int col_start =
+      plane ? mi->chroma_ref_info.mi_col_chroma_base - mi_col : 0;
+
   for (int row = row_start; row <= 0; ++row) {
     for (int col = col_start; col <= 0; ++col) {
       const MB_MODE_INFO *this_mbmi = xd->mi[row * xd->mi_stride + col];
