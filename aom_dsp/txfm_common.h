@@ -32,7 +32,9 @@ typedef struct txfm_param {
   // bd==8 implies !is_hbd, but that's not certain right now.
   int is_hbd;
   TxSetType tx_set_type;
-  PREDICTION_MODE mode;
+  // TXFM mode - for intra modes, this is the same as mbmi->mode.
+  // Inter modes start at 64 and are used to index motion dependent transforms.
+  int mode;
   // for inverse transforms only
   int eob;
 } TxfmParam;

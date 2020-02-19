@@ -1925,7 +1925,8 @@ static INLINE int get_mode_dep_txfm_mode(const MB_MODE_INFO *const mbmi) {
 
 // whether it is an intra mode from the txfm_mode
 static INLINE int is_intra_mode_dep_txfm_mode(int txfm_mode) {
-  return (txfm_mode >= INTRA_MODE_START && txfm_mode < INTRA_MODE_END);
+  // Intra txfm modes have the same values as mbmi modes
+  return is_intra_mode(txfm_mode);
 }
 
 static INLINE int intra_mode_dep_txfm_mode(int txfm_mode) { return txfm_mode; }
