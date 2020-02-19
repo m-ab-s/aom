@@ -557,6 +557,9 @@ static const arg_def_t enable_cfl_intra =
             "(0: false, 1: true (default))");
 static const arg_def_t enable_obmc = ARG_DEF(
     NULL, "enable-obmc", 1, "Enable OBMC (0: false, 1: true (default))");
+static const arg_def_t enable_overlay =
+    ARG_DEF(NULL, "enable-overlay", 1,
+            "Enable coding overlay frames (0: false, 1: true (default))");
 static const arg_def_t enable_palette =
     ARG_DEF(NULL, "enable-palette", 1,
             "Enable palette prediction mode (0: false, 1: true (default))");
@@ -878,6 +881,7 @@ static const arg_def_t *av1_args[] = { &cpu_used_av1,
                                        &enable_paeth_intra,
                                        &enable_cfl_intra,
                                        &enable_obmc,
+                                       &enable_overlay,
                                        &enable_palette,
                                        &enable_intrabc,
                                        &enable_angle_delta,
@@ -989,6 +993,7 @@ static const int av1_arg_ctrl_map[] = {
   AV1E_SET_ENABLE_PAETH_INTRA,
   AV1E_SET_ENABLE_CFL_INTRA,
   AV1E_SET_ENABLE_OBMC,
+  AV1E_SET_ENABLE_OVERLAY,
   AV1E_SET_ENABLE_PALETTE,
   AV1E_SET_ENABLE_INTRABC,
   AV1E_SET_ENABLE_ANGLE_DELTA,

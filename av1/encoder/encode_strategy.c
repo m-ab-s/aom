@@ -1179,7 +1179,7 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
 
   if (!is_stat_generation_stage(cpi)) {
     frame_params.show_existing_frame =
-        (cpi->show_existing_alt_ref &&
+        ((oxcf->enable_overlay == 0 || cpi->show_existing_alt_ref) &&
          gf_group->update_type[gf_group->index] == OVERLAY_UPDATE) ||
         gf_group->update_type[gf_group->index] == INTNL_OVERLAY_UPDATE;
     frame_params.show_existing_frame &= allow_show_existing(cpi, *frame_flags);
@@ -1342,7 +1342,9 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
 
     frame_params.existing_fb_idx_to_show =
         frame_params.show_existing_frame
-            ? get_ref_frame_map_idx(cm, BWDREF_FRAME)
+            ? (frame_update_type == INTNL_OVERLAY_UPDATE
+                   ? get_ref_frame_map_idx(cm, BWDREF_FRAME)
+                   : get_ref_frame_map_idx(cm, ALTREF_FRAME))
             : INVALID_IDX;
   }
 
