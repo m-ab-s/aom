@@ -7461,15 +7461,13 @@ static void encode_superblock(const AV1_COMP *const cpi, TileDataEnc *tile_data,
       const int derived_mode =
           av1_get_derived_intra_mode(xd, bsize, &derived_angle);
       if (mbmi->use_derived_intra_mode[0]) {
-        assert(mbmi->mode == derived_mode &&
-               mbmi->derived_angle == derived_angle);
+        mbmi->mode = derived_mode;
+        mbmi->derived_angle = derived_angle;
       }
       if (mbmi->use_derived_intra_mode[1]) {
-        assert(mbmi->uv_mode == derived_mode &&
-               mbmi->derived_angle == derived_angle);
+        mbmi->uv_mode = derived_mode;
+        mbmi->derived_angle = derived_angle;
       }
-      (void)derived_angle;
-      (void)derived_mode;
     }
 #endif  // CONFIG_DERIVED_INTRA_MODE
     xd->cfl.is_chroma_reference = mbmi->chroma_ref_info.is_chroma_ref;
