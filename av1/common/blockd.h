@@ -1652,9 +1652,14 @@ static INLINE int is_motion_variation_allowed_bsize(BLOCK_SIZE bsize,
   }
 #if CONFIG_EXT_PARTITIONS
   // TODO(urvang): Enable this special case, if we make OBMC work.
+  // TODO(yuec): Enable this case when the alignment issue is fixed. There
+  // will be memory leak in global above_pred_buff and left_pred_buff if
+  // the restriction on mi_row and mi_col is removed.
   if ((mi_row & 0x01) || (mi_col & 0x01)) {
+#if !CONFIG_EXT_RECUR_PARTITIONS
     assert((block_size_wide[bsize] == 8 && block_size_high[bsize] == 16) ||
            (block_size_wide[bsize] == 16 && block_size_high[bsize] == 8));
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS
     return 0;
   }
 #else
