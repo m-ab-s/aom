@@ -163,6 +163,16 @@ static void scan_row_mbmi(const AV1_COMMON *cm, const MACROBLOCKD *xd,
   (void)mi_row;
 
   for (i = 0; i < end_mi;) {
+#if CONFIG_EXT_RECUR_PARTITIONS && CONFIG_EXT_PARTITIONS
+    const int sb_mi_size = mi_size_wide[cm->seq_params.sb_size];
+    const int mask_row = mi_row & (sb_mi_size - 1);
+    const int mask_col = mi_col & (sb_mi_size - 1);
+    const int ref_mask_row = mask_row + row_offset;
+    const int ref_mask_col = mask_col + col_offset + i;
+    if (ref_mask_col >= sb_mi_size) break;
+    const int ref_offset = ref_mask_row * xd->is_mi_coded_stride + ref_mask_col;
+    if (!xd->is_mi_coded[ref_offset]) break;
+#endif  // CONFIG_EXT_RECUR_PARTITIONS && CONFIG_EXT_PARTITIONS
     const MB_MODE_INFO *const candidate = candidate_mi0[col_offset + i];
     const int candidate_bsize = candidate->sb_type;
     const int n4_w = mi_size_wide[candidate_bsize];
@@ -212,6 +222,16 @@ static void scan_col_mbmi(const AV1_COMMON *cm, const MACROBLOCKD *xd,
   (void)mi_col;
 
   for (i = 0; i < end_mi;) {
+#if CONFIG_EXT_RECUR_PARTITIONS && CONFIG_EXT_PARTITIONS
+    const int sb_mi_size = mi_size_wide[cm->seq_params.sb_size];
+    const int mask_row = mi_row & (sb_mi_size - 1);
+    const int mask_col = mi_col & (sb_mi_size - 1);
+    const int ref_mask_row = mask_row + row_offset + i;
+    const int ref_mask_col = mask_col + col_offset;
+    if (ref_mask_row >= sb_mi_size) break;
+    const int ref_offset = ref_mask_row * xd->is_mi_coded_stride + ref_mask_col;
+    if (!xd->is_mi_coded[ref_offset]) break;
+#endif  // CONFIG_EXT_RECUR_PARTITIONS && CONFIG_EXT_PARTITIONS
     const MB_MODE_INFO *const candidate =
         xd->mi[(row_offset + i) * xd->mi_stride + col_offset];
     const int candidate_bsize = candidate->sb_type;
