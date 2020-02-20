@@ -43,6 +43,10 @@ extern const int32_t av1_sinpi_arr_data[7][5];
 #if CONFIG_DST7_16X16
 extern const int32_t dst7_16x16[16][16];
 #endif
+#if CONFIG_DST7_32x32
+extern const int32_t dst7_32x32[32][32];
+#define DST7_32x32_PREC_BITS 7
+#endif
 #if CONFIG_LGT
 #define LGT_PREC_BITS 10
 extern const int32_t lgt_intra_4x4[4 * 4];
@@ -148,7 +152,10 @@ enum {
   TXFM_TYPE_MDTX4,
   TXFM_TYPE_MDTX8,
   TXFM_TYPE_MDTX16,  // DST type 7
-#endif               // CONFIG_MODE_DEP_INTRA_TX || CONFIG_MODE_DEP_INTER_TX
+#endif
+#if CONFIG_DST7_32x32
+  TXFM_TYPE_ADST32,
+#endif
   TXFM_TYPES,
   TXFM_TYPE_INVALID,
 } UENUM1BYTE(TXFM_TYPE);

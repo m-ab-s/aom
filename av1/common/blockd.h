@@ -1300,6 +1300,33 @@ static INLINE int use_nsst(TX_TYPE tx_type, TX_SIZE tx_size,
 }
 #endif
 
+#if CONFIG_DST7_32x32
+static INLINE TxSetType av1_get_ext_tx_set_type(TX_SIZE tx_size, int is_inter,
+                                                int use_reduced_set) {
+  const TX_SIZE tx_size_sqr_up = txsize_sqr_up_map[tx_size];
+  if (tx_size_sqr_up >= TX_64X64) return EXT_TX_SET_DCTONLY;
+  if (use_reduced_set)
+    return is_inter ? EXT_TX_SET_DCT_IDTX : EXT_TX_SET_DTT4_IDTX;
+  const TX_SIZE tx_size_sqr = txsize_sqr_map[tx_size];
+  if (is_inter) {
+    return (((tx_size_sqr == TX_16X16) || (tx_size_sqr == TX_32X32))
+                ? EXT_TX_SET_DTT9_IDTX_1DDCT
+#if CONFIG_MODE_DEP_INTER_TX
+                : EXT_TX_SET_ALL16_MDTX8);
+#else
+                : EXT_TX_SET_ALL16);
+#endif
+  } else {
+    return (((tx_size_sqr == TX_16X16) || (tx_size_sqr == TX_32X32))
+                ? EXT_TX_SET_DTT4_IDTX
+#if CONFIG_MODE_DEP_INTRA_TX
+                : EXT_TX_SET_DTT4_IDTX_1DDCT_MDTX4);
+#else
+                : EXT_TX_SET_DTT4_IDTX_1DDCT);
+#endif
+  }
+}
+#else
 static INLINE TxSetType av1_get_ext_tx_set_type(TX_SIZE tx_size, int is_inter,
                                                 int use_reduced_set) {
   const TX_SIZE tx_size_sqr_up = txsize_sqr_up_map[tx_size];
@@ -1325,7 +1352,7 @@ static INLINE TxSetType av1_get_ext_tx_set_type(TX_SIZE tx_size, int is_inter,
 #endif  // CONFIG_MODE_DEP_INTRA_TX
   }
 }
-
+#endif  // CONFIG_DST7_32x32
 // Maps tx set types to the indices.
 static const int ext_tx_set_index[2][EXT_TX_SET_TYPES] = {
   { // Intra

@@ -139,6 +139,7 @@ set_aom_config_var(CONFIG_MODE_DEP_NONSEP_INTRA_TX 0 NUMBER
 set_aom_config_var(CONFIG_MODE_DEP_NONSEP_SEC_INTRA_TX 0 NUMBER
                    "AV2 experiment flag for sec mode-dep intra tx.")
 set_aom_config_var(CONFIG_DST7_16X16 0 NUMBER "AV2 DST7 16x16 experiment flag.")
+set_aom_config_var(CONFIG_DST7_32x32 0 NUMBER "AV2 DST7 32x32 experiment flag.")
 set_aom_config_var(CONFIG_LGT 0 NUMBER "AV2 LGT experiment flag.")
 set_aom_config_var(CONFIG_CNN_RESTORATION 0 NUMBER
                    "AV2 CNN Restoration experiment flag")

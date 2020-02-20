@@ -1195,6 +1195,21 @@ void av1_fadst16_new(const int32_t *input, int32_t *output, int8_t cos_bit,
 #endif
 }
 
+#if CONFIG_DST7_32x32
+void av1_fadst32_new(const int32_t *input, int32_t *output, int8_t cos_bit,
+                     const int8_t *stage_range) {
+  (void)cos_bit;
+  (void)stage_range;
+  for (int32_t i = 0; i < 32; i++) {
+    int32_t sum = 0;
+    for (int32_t j = 0; j < 32; j++) {
+      sum += input[j] * dst7_32x32[i][j];
+    }
+    output[i] = ROUND_POWER_OF_TWO_SIGNED(sum, DST7_32x32_PREC_BITS);
+  }
+}
+#endif
+
 void av1_fidentity4_c(const int32_t *input, int32_t *output, int8_t cos_bit,
                       const int8_t *stage_range) {
   (void)cos_bit;

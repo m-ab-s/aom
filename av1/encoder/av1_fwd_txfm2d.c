@@ -58,6 +58,9 @@ static INLINE TxfmFunc fwd_txfm_type_to_func(int mode, TXFM_TYPE txfm_type) {
     case TXFM_TYPE_MDTX8: return av1_fmdt8;
     case TXFM_TYPE_MDTX16: return av1_fmdt16;
 #endif
+#if CONFIG_DST7_32x32
+    case TXFM_TYPE_ADST32: return av1_fadst32_new;
+#endif
     case TXFM_TYPE_IDENTITY4: return av1_fidentity4_c;
     case TXFM_TYPE_IDENTITY8: return av1_fidentity8_c;
     case TXFM_TYPE_IDENTITY16: return av1_fidentity16_c;
@@ -784,7 +787,9 @@ static const int8_t fdct64_range_mult2[12] = { 0,  2,  4,  6,  8,  10,
 static const int8_t fadst4_range_mult2[7] = { 0, 2, 4, 3, 3, 3, 3 };
 static const int8_t fadst8_range_mult2[8] = { 0, 0, 1, 3, 3, 5, 5, 5 };
 static const int8_t fadst16_range_mult2[10] = { 0, 0, 1, 3, 3, 5, 5, 7, 7, 7 };
-
+#if CONFIG_DST7_32x32
+static const int8_t fadst32_range_mult2[1] = { 9 };
+#endif
 static const int8_t fidtx4_range_mult2[1] = { 1 };
 static const int8_t fidtx8_range_mult2[1] = { 2 };
 static const int8_t fidtx16_range_mult2[1] = { 3 };
@@ -807,6 +812,9 @@ static const int8_t *fwd_txfm_range_mult2_list[TXFM_TYPES] = {
   fidtx8_range_mult2, fidtx16_range_mult2, fidtx32_range_mult2,
 #if CONFIG_MODE_DEP_INTRA_TX || CONFIG_MODE_DEP_INTER_TX
   fadst4_range_mult2, fadst8_range_mult2,  fadst16_range_mult2,
+#endif
+#if CONFIG_DST7_32x32
+  fadst32_range_mult2
 #endif
 };
 
