@@ -235,7 +235,7 @@ static void first_pass_motion_search(AV1_COMP *cpi, MACROBLOCK *x,
       cpi, x, bsize, &ref_mv_full, step_param, 0, NSTEP, 0, x->sadperbit16,
       cond_cost_list(cpi, cost_list), ref_mv, INT_MAX, 0,
       (MI_SIZE * xd->mi_col), (MI_SIZE * xd->mi_row), 0,
-      &cpi->ss_cfg[SS_CFG_SRC]);
+      &cpi->ss_cfg[SS_CFG_FPF]);
 
   if (tmp_err < INT_MAX)
     tmp_err = av1_get_mvpred_var(&cpi->common, x, &x->best_mv.as_mv, ref_mv,

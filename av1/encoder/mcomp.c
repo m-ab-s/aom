@@ -327,7 +327,7 @@ static int mvsad_err_cost(const MACROBLOCK *x, const MV *mv, const MV *ref,
 }
 
 void av1_init_dsmotion_compensation(search_site_config *cfg, int stride) {
-  int len, ss_count = 1;
+  int len, ss_count = 0;
   int stage_index = MAX_MVSEARCH_STEPS - 1;
 
   cfg->ss[stage_index][0].mv.col = cfg->ss[stage_index][0].mv.row = 0;
@@ -348,6 +348,7 @@ void av1_init_dsmotion_compensation(search_site_config *cfg, int stride) {
     cfg->searches_per_step[stage_index] = 4;
     cfg->radius[stage_index] = len;
     --stage_index;
+    ++ss_count;
   }
 
   cfg->ss_count = ss_count;
@@ -392,6 +393,7 @@ void av1_init_motion_fpf(search_site_config *cfg, int stride) {
     cfg->searches_per_step[stage_index] = num_search_pts;
     cfg->radius[stage_index] = radius;
     --stage_index;
+    ++ss_count;
   }
   cfg->ss_count = ss_count;
 }
@@ -2195,7 +2197,7 @@ int av1_diamond_search_sad_c(const AV1_COMMON *const cm, MACROBLOCK *x,
 
   // search_param determines the length of the initial step and hence the number
   // of iterations.
-  const int tot_steps = MAX_MVSEARCH_STEPS - 1 - search_param;
+  const int tot_steps = cfg->ss_count - 1 - search_param;
 
   const MV fcenter_mv = { center_mv->row >> 3, center_mv->col >> 3 };
   clamp_mv(ref_mv, x->mv_limits.col_min, x->mv_limits.col_max,
@@ -2734,9 +2736,9 @@ int av1_full_pixel_search(const AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
                           cost_list, fn_ptr, 1, ref_mv);
       break;
     case NSTEP:
-      var = full_pixel_diamond(
-          cpi, x, mvp_full, step_param, use_var, error_per_bit,
-          MAX_MVSEARCH_STEPS - 1 - step_param, cost_list, fn_ptr, ref_mv, cfg);
+      var = full_pixel_diamond(cpi, x, mvp_full, step_param, use_var,
+                               error_per_bit, cfg->ss_count - 1 - step_param,
+                               cost_list, fn_ptr, ref_mv, cfg);
       break;
     default: assert(0 && "Invalid search method.");
   }
@@ -3698,7 +3700,7 @@ static int diamond_search_var(const AV1_COMMON *cm, MACROBLOCK *x,
   // search_param determines the length of the initial step and hence the
   // number of iterations. 0 = initial step (MAX_FIRST_STEP) pel 1 =
   // (MAX_FIRST_STEP/2) pel, 2 = (MAX_FIRST_STEP/4) pel...
-  const int tot_steps = MAX_MVSEARCH_STEPS - 1 - search_param;
+  const int tot_steps = cfg->ss_count - 1 - search_param;
 
   const MV fcenter_mv = { center_mv->row >> 3, center_mv->col >> 3 };
   clamp_mv(ref_mv, x->mv_limits.col_min, x->mv_limits.col_max,
@@ -3918,8 +3920,8 @@ int av1_full_pixel_search_var(const AV1_COMP *cpi, MACROBLOCK *x,
   const SPEED_FEATURES *const sf = &cpi->sf;
   const aom_variance_fn_ptr_t *fn_ptr = &cpi->fn_ptr[bsize];
   int var = full_pixel_diamond_var(cpi, x, mvp_full, step_param,
-                                   MAX_MVSEARCH_STEPS - 1 - step_param, 1,
-                                   cost_list, fn_ptr, ref_mv, cfg);
+                                   cfg->ss_count - 1 - step_param, 1, cost_list,
+                                   fn_ptr, ref_mv, cfg);
 
   // Should we allow a follow on exhaustive search?
   bool run_exhaustive_search = false;
