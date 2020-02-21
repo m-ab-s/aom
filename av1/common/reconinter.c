@@ -393,7 +393,13 @@ static void build_inter_predictors_sub8x8(
     int col = col_start;
     for (int x = 0; x < b8_w; x += b4_w) {
       MB_MODE_INFO *this_mbmi = xd->mi[row * xd->mi_stride + col];
+#if CONFIG_EXT_PARTITIONS
+      // TODO(yuec): enabling compound prediction in none sub8x8 mbs in the
+      // group
+      bool is_compound = 0;
+#else
       bool is_compound = has_second_ref(this_mbmi);
+#endif  // CONFIG_EXT_PARTITIONS
       const int tmp_dst_stride = 8;
       assert(bw < 8 || bh < 8);
       ConvolveParams conv_params = get_conv_params_no_round(
@@ -533,28 +539,14 @@ static void build_inter_predictors(
 //  3. If sub-sampled, none of the previous blocks around the sub-sample
 //     are intrabc or inter-blocks
 static bool is_sub8x8_inter(MACROBLOCKD *xd, int plane, const MB_MODE_INFO *mi,
-                            int build_for_obmc, int bw, int bh) {
+                            int build_for_obmc) {
   const int is_intrabc = is_intrabc_block(mi);
   if (is_intrabc || build_for_obmc) {
     return false;
   }
 
-  struct macroblockd_plane *const pd = &xd->plane[plane];
   const BLOCK_SIZE bsize = mi->sb_type;
-  const bool ss_x = pd->subsampling_x;
-  const bool ss_y = pd->subsampling_y;
-  int sub8x8_inter = (block_size_wide[bsize] < 8 && ss_x) ||
-                     (block_size_high[bsize] < 8 && ss_y);
-
-#if CONFIG_EXT_PARTITIONS
-  if (sub8x8_inter && bw == 8 && bh == 8) {
-    // 3rd sub-block of a 16x16 VERT3 or HORZ3 partition.
-    sub8x8_inter = 0;
-  }
-#else
-  (void)bw;
-  (void)bh;
-#endif  // CONFIG_EXT_PARTITIONS
+  int sub8x8_inter = plane && (bsize != mi->chroma_ref_info.bsize_base);
 
   if (!sub8x8_inter) {
     return false;
@@ -584,7 +576,7 @@ void av1_build_inter_predictors(
     int build_for_obmc, int bw, int bh, int mi_x, int mi_y,
     CalcSubpelParamsFunc calc_subpel_params_func,
     const void *const calc_subpel_params_func_args) {
-  if (is_sub8x8_inter(xd, plane, mi, build_for_obmc, bw, bh)) {
+  if (is_sub8x8_inter(xd, plane, mi, build_for_obmc)) {
     build_inter_predictors_sub8x8(cm, xd, plane, mi, bw, bh, mi_x, mi_y,
                                   calc_subpel_params_func,
                                   calc_subpel_params_func_args);

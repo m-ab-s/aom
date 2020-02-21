@@ -169,9 +169,13 @@ static void scan_row_mbmi(const AV1_COMMON *cm, const MACROBLOCKD *xd,
     const int mask_col = mi_col & (sb_mi_size - 1);
     const int ref_mask_row = mask_row + row_offset;
     const int ref_mask_col = mask_col + col_offset + i;
-    if (ref_mask_col >= sb_mi_size) break;
-    const int ref_offset = ref_mask_row * xd->is_mi_coded_stride + ref_mask_col;
-    if (!xd->is_mi_coded[ref_offset]) break;
+    if (ref_mask_row >= 0) {
+      if (ref_mask_col >= sb_mi_size) break;
+
+      const int ref_offset =
+          ref_mask_row * xd->is_mi_coded_stride + ref_mask_col;
+      if (!xd->is_mi_coded[ref_offset]) break;
+    }
 #endif  // CONFIG_EXT_RECUR_PARTITIONS && CONFIG_EXT_PARTITIONS
     const MB_MODE_INFO *const candidate = candidate_mi0[col_offset + i];
     const int candidate_bsize = candidate->sb_type;
@@ -228,9 +232,12 @@ static void scan_col_mbmi(const AV1_COMMON *cm, const MACROBLOCKD *xd,
     const int mask_col = mi_col & (sb_mi_size - 1);
     const int ref_mask_row = mask_row + row_offset + i;
     const int ref_mask_col = mask_col + col_offset;
-    if (ref_mask_row >= sb_mi_size) break;
-    const int ref_offset = ref_mask_row * xd->is_mi_coded_stride + ref_mask_col;
-    if (!xd->is_mi_coded[ref_offset]) break;
+    if (ref_mask_col >= 0) {
+      if (ref_mask_row >= sb_mi_size) break;
+      const int ref_offset =
+          ref_mask_row * xd->is_mi_coded_stride + ref_mask_col;
+      if (!xd->is_mi_coded[ref_offset]) break;
+    }
 #endif  // CONFIG_EXT_RECUR_PARTITIONS && CONFIG_EXT_PARTITIONS
     const MB_MODE_INFO *const candidate =
         xd->mi[(row_offset + i) * xd->mi_stride + col_offset];
