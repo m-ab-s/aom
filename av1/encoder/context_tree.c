@@ -36,6 +36,12 @@ void av1_copy_tree_context(PICK_MODE_CONTEXT *dst_ctx,
   dst_ctx->rd_mode_is_ready = src_ctx->rd_mode_is_ready;
 
   memcpy(dst_ctx->pred_mv, src_ctx->pred_mv, sizeof(MV) * REF_FRAMES);
+#if CONFIG_EXT_RECUR_PARTITIONS && CONFIG_EXT_PARTITIONS
+  for (int i = 0; i < 2; ++i) {
+    memcpy(dst_ctx->color_index_map[i], src_ctx->color_index_map[i],
+           sizeof(src_ctx->color_index_map[i][0]) * src_ctx->num_4x4_blk * 16);
+  }
+#endif  // CONFIG_EXT_RECUR_PARTITIONS && CONFIG_EXT_PARTITIONS
 }
 
 void av1_setup_shared_coeff_buffer(AV1_COMMON *cm,

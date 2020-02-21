@@ -401,7 +401,9 @@ static void build_inter_predictors_sub8x8(
       bool is_compound = has_second_ref(this_mbmi);
 #endif  // CONFIG_EXT_PARTITIONS
       const int tmp_dst_stride = 8;
+#if !CONFIG_EXT_PARTITIONS && !CONFIG_EXT_RECUR_PARTITIONS
       assert(bw < 8 || bh < 8);
+#endif  // !CONFIG_EXT_PARTITIONS && !CONFIG_EXT_RECUR_PARTITIONS
       ConvolveParams conv_params = get_conv_params_no_round(
           0, plane, xd->tmp_conv_dst, tmp_dst_stride, is_compound, xd->bd);
       conv_params.use_dist_wtd_comp_avg = 0;
