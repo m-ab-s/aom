@@ -191,6 +191,8 @@ set_aom_config_var(CONFIG_NEW_INTER_MODES 0 NUMBER
                    "AV2 inter mode consolidation experiment flag")
 set_aom_config_var(CONFIG_WIENER_SEP_HIPREC 0 NUMBER
                    "AV2 high-prec separable Wiener filter experiment flag")
+set_aom_config_var(CONFIG_EXTQUANT 0 NUMBER
+                   "AV2 extended quantization experiment flag")
 
 # To include Tensorflow, make sure to build tensorflow locally using
 # tensorflow/contrib/makefile/build_all_linux.sh and then providing the correct

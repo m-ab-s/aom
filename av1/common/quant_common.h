@@ -22,9 +22,14 @@ extern "C" {
 #endif
 
 #define MINQ 0
+#if CONFIG_EXTQUANT
+#define MAXQ 287
+#define QINDEX_BITS 9
+#else
 #define MAXQ 255
-#define QINDEX_RANGE (MAXQ - MINQ + 1)
 #define QINDEX_BITS 8
+#endif
+#define QINDEX_RANGE (MAXQ - MINQ + 1)
 // Total number of QM sets stored
 #define QM_LEVEL_BITS 4
 #define NUM_QM_LEVELS (1 << QM_LEVEL_BITS)
@@ -38,8 +43,13 @@ extern "C" {
 
 struct AV1Common;
 
+#if CONFIG_EXTQUANT
+int32_t av1_dc_quant_QTX(int qindex, int delta, aom_bit_depth_t bit_depth);
+int32_t av1_ac_quant_QTX(int qindex, int delta, aom_bit_depth_t bit_depth);
+#else
 int16_t av1_dc_quant_QTX(int qindex, int delta, aom_bit_depth_t bit_depth);
 int16_t av1_ac_quant_QTX(int qindex, int delta, aom_bit_depth_t bit_depth);
+#endif
 
 int av1_get_qindex(const struct segmentation *seg, int segment_id,
                    int base_qindex);

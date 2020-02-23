@@ -42,9 +42,15 @@ static INLINE void init_one_qp(const __m128i *p, __m256i *qp) {
   *qp = _mm256_insertf128_si256(_mm256_castsi128_si256(*p), ac, 1);
 }
 
+#if CONFIG_EXTQUANT
+static INLINE void init_qp(const int32_t *round_ptr, const int32_t *quant_ptr,
+                           const int32_t *dequant_ptr, int log_scale,
+                           __m256i *thr, __m256i *qp) {
+#else
 static INLINE void init_qp(const int16_t *round_ptr, const int16_t *quant_ptr,
                            const int16_t *dequant_ptr, int log_scale,
                            __m256i *thr, __m256i *qp) {
+#endif
   __m128i round = _mm_loadu_si128((const __m128i *)round_ptr);
   const __m128i quant = _mm_loadu_si128((const __m128i *)quant_ptr);
   const __m128i dequant = _mm_loadu_si128((const __m128i *)dequant_ptr);
@@ -132,6 +138,15 @@ static INLINE void quantize(const __m256i *thr, const __m256i *qp, __m256i *c,
   }
 }
 
+#if CONFIG_EXTQUANT
+void av1_quantize_fp_avx2(const tran_low_t *coeff_ptr, intptr_t n_coeffs,
+                          const int32_t *zbin_ptr, const int32_t *round_ptr,
+                          const int32_t *quant_ptr,
+                          const int32_t *quant_shift_ptr,
+                          tran_low_t *qcoeff_ptr, tran_low_t *dqcoeff_ptr,
+                          const int32_t *dequant_ptr, uint16_t *eob_ptr,
+                          const int16_t *scan_ptr, const int16_t *iscan_ptr) {
+#else
 void av1_quantize_fp_avx2(const tran_low_t *coeff_ptr, intptr_t n_coeffs,
                           const int16_t *zbin_ptr, const int16_t *round_ptr,
                           const int16_t *quant_ptr,
@@ -139,6 +154,7 @@ void av1_quantize_fp_avx2(const tran_low_t *coeff_ptr, intptr_t n_coeffs,
                           tran_low_t *qcoeff_ptr, tran_low_t *dqcoeff_ptr,
                           const int16_t *dequant_ptr, uint16_t *eob_ptr,
                           const int16_t *scan_ptr, const int16_t *iscan_ptr) {
+#endif
   (void)scan_ptr;
   (void)zbin_ptr;
   (void)quant_shift_ptr;
@@ -208,12 +224,21 @@ static INLINE void quantize_32x32(const __m256i *thr, const __m256i *qp,
   }
 }
 
+#if CONFIG_EXTQUANT
+void av1_quantize_fp_32x32_avx2(
+    const tran_low_t *coeff_ptr, intptr_t n_coeffs, const int32_t *zbin_ptr,
+    const int32_t *round_ptr, const int32_t *quant_ptr,
+    const int32_t *quant_shift_ptr, tran_low_t *qcoeff_ptr,
+    tran_low_t *dqcoeff_ptr, const int32_t *dequant_ptr, uint16_t *eob_ptr,
+    const int16_t *scan_ptr, const int16_t *iscan_ptr) {
+#else
 void av1_quantize_fp_32x32_avx2(
     const tran_low_t *coeff_ptr, intptr_t n_coeffs, const int16_t *zbin_ptr,
     const int16_t *round_ptr, const int16_t *quant_ptr,
     const int16_t *quant_shift_ptr, tran_low_t *qcoeff_ptr,
     tran_low_t *dqcoeff_ptr, const int16_t *dequant_ptr, uint16_t *eob_ptr,
     const int16_t *scan_ptr, const int16_t *iscan_ptr) {
+#endif
   (void)scan_ptr;
   (void)zbin_ptr;
   (void)quant_shift_ptr;
@@ -287,12 +312,21 @@ static INLINE void quantize_64x64(const __m256i *thr, const __m256i *qp,
   }
 }
 
+#if CONFIG_EXTQUANT
+void av1_quantize_fp_64x64_avx2(
+    const tran_low_t *coeff_ptr, intptr_t n_coeffs, const int32_t *zbin_ptr,
+    const int32_t *round_ptr, const int32_t *quant_ptr,
+    const int32_t *quant_shift_ptr, tran_low_t *qcoeff_ptr,
+    tran_low_t *dqcoeff_ptr, const int32_t *dequant_ptr, uint16_t *eob_ptr,
+    const int16_t *scan_ptr, const int16_t *iscan_ptr) {
+#else
 void av1_quantize_fp_64x64_avx2(
     const tran_low_t *coeff_ptr, intptr_t n_coeffs, const int16_t *zbin_ptr,
     const int16_t *round_ptr, const int16_t *quant_ptr,
     const int16_t *quant_shift_ptr, tran_low_t *qcoeff_ptr,
     tran_low_t *dqcoeff_ptr, const int16_t *dequant_ptr, uint16_t *eob_ptr,
     const int16_t *scan_ptr, const int16_t *iscan_ptr) {
+#endif
   (void)scan_ptr;
   (void)zbin_ptr;
   (void)quant_shift_ptr;

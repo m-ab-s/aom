@@ -41,7 +41,11 @@ struct CYCLIC_REFRESH {
   // Cyclic refresh map.
   int8_t *map;
   // Map of the last q a block was coded at.
+#if CONFIG_EXTQUANT
+  uint16_t *last_coded_q_map;
+#else
   uint8_t *last_coded_q_map;
+#endif
   // Thresholds applied to the projected rate/distortion of the coding block,
   // when deciding whether block should be refreshed.
   int64_t thresh_rate_sb;
@@ -75,8 +79,13 @@ CYCLIC_REFRESH *av1_cyclic_refresh_alloc(int mi_rows, int mi_cols) {
     av1_cyclic_refresh_free(cr);
     return NULL;
   }
+#if CONFIG_EXTQUANT
+  assert(MAXQ <= 287);
+  for (int i = 0; i <= (mi_rows * mi_cols); i++) cr->last_coded_q_map[i] = MAXQ;
+#else
   assert(MAXQ <= 255);
   memset(cr->last_coded_q_map, MAXQ, last_coded_q_map_size);
+#endif
 
   return cr;
 }
@@ -437,8 +446,13 @@ void av1_cyclic_refresh_setup(AV1_COMP *const cpi) {
     memset(seg_map, 0, cm->mi_rows * cm->mi_cols);
     av1_disable_segmentation(&cm->seg);
     if (cm->current_frame.frame_type == KEY_FRAME) {
+#if CONFIG_EXTQUANT
+      for (int i = 0; i <= (cm->mi_rows * cm->mi_cols); i++)
+        cr->last_coded_q_map[i] = MAXQ;
+#else
       memset(cr->last_coded_q_map, MAXQ,
              cm->mi_rows * cm->mi_cols * sizeof(*cr->last_coded_q_map));
+#endif
       cr->sb_index = 0;
     }
     return;

@@ -4280,7 +4280,11 @@ static int predict_skip_flag(MACROBLOCK *x, BLOCK_SIZE bsize, int64_t *dist,
   const int bw = block_size_wide[bsize];
   const int bh = block_size_high[bsize];
   const MACROBLOCKD *xd = &x->e_mbd;
+#if CONFIG_EXTQUANT
+  const int32_t dc_q = av1_dc_quant_QTX(x->qindex, 0, xd->bd);
+#else
   const int16_t dc_q = av1_dc_quant_QTX(x->qindex, 0, xd->bd);
+#endif
 
   *dist = pixel_diff_dist(x, 0, 0, 0, bsize, bsize, NULL);
 
@@ -4308,7 +4312,11 @@ static int predict_skip_flag(MACROBLOCK *x, BLOCK_SIZE bsize, int64_t *dist,
   const uint32_t max_qcoef_thresh = skip_pred_threshold[bd_idx][bsize];
   const int16_t *src_diff = x->plane[0].src_diff;
   const int n_coeff = tx_w * tx_h;
+#if CONFIG_EXTQUANT
+  const int32_t ac_q = av1_ac_quant_QTX(x->qindex, 0, xd->bd);
+#else
   const int16_t ac_q = av1_ac_quant_QTX(x->qindex, 0, xd->bd);
+#endif
   const uint32_t dc_thresh = max_qcoef_thresh * dc_q;
   const uint32_t ac_thresh = max_qcoef_thresh * ac_q;
   for (int row = 0; row < bh; row += tx_h) {

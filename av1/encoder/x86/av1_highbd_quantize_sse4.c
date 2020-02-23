@@ -112,12 +112,21 @@ static INLINE uint16_t get_accumulated_eob(__m128i *eob) {
   return eobValue;
 }
 
+#if CONFIG_EXTQUANT
+void av1_highbd_quantize_fp_sse4_1(
+    const tran_low_t *coeff_ptr, intptr_t count, const int32_t *zbin_ptr,
+    const int32_t *round_ptr, const int32_t *quant_ptr,
+    const int32_t *quant_shift_ptr, tran_low_t *qcoeff_ptr,
+    tran_low_t *dqcoeff_ptr, const int32_t *dequant_ptr, uint16_t *eob_ptr,
+    const int16_t *scan, const int16_t *iscan, int log_scale) {
+#else
 void av1_highbd_quantize_fp_sse4_1(
     const tran_low_t *coeff_ptr, intptr_t count, const int16_t *zbin_ptr,
     const int16_t *round_ptr, const int16_t *quant_ptr,
     const int16_t *quant_shift_ptr, tran_low_t *qcoeff_ptr,
     tran_low_t *dqcoeff_ptr, const int16_t *dequant_ptr, uint16_t *eob_ptr,
     const int16_t *scan, const int16_t *iscan, int log_scale) {
+#endif
   __m128i coeff[2], qcoeff[3], dequant[2], qparam[4], coeff_sign;
   __m128i eob = _mm_setzero_si128();
   const tran_low_t *src = coeff_ptr;

@@ -48,6 +48,15 @@ typedef struct macroblock_plane {
   // These are used/accessed only in the quantization process
   // RDO does not / must not depend on any of these values
   // All values below share the coefficient scale/shift used in TX
+#if CONFIG_EXTQUANT
+  const int32_t *quant_fp_QTX;
+  const int32_t *round_fp_QTX;
+  const int32_t *quant_QTX;
+  const int32_t *quant_shift_QTX;
+  const int32_t *zbin_QTX;
+  const int32_t *round_QTX;
+  const int32_t *dequant_QTX;
+#else
   const int16_t *quant_fp_QTX;
   const int16_t *round_fp_QTX;
   const int16_t *quant_QTX;
@@ -55,6 +64,7 @@ typedef struct macroblock_plane {
   const int16_t *zbin_QTX;
   const int16_t *round_QTX;
   const int16_t *dequant_QTX;
+#endif
 } MACROBLOCK_PLANE;
 
 typedef struct {

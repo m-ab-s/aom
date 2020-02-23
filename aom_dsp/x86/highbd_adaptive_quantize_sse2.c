@@ -91,12 +91,21 @@ static INLINE __m128i highbd_calculate_dqcoeff(__m128i qcoeff, __m128i dequant,
   return invert_sign_32_sse2(abs_coeff, coeff_sign);
 }
 
+#if CONFIG_EXTQUANT
+void aom_highbd_quantize_b_adaptive_sse2(
+    const tran_low_t *coeff_ptr, intptr_t n_coeffs, const int32_t *zbin_ptr,
+    const int32_t *round_ptr, const int32_t *quant_ptr,
+    const int32_t *quant_shift_ptr, tran_low_t *qcoeff_ptr,
+    tran_low_t *dqcoeff_ptr, const int32_t *dequant_ptr, uint16_t *eob_ptr,
+    const int16_t *scan, const int16_t *iscan) {
+#else
 void aom_highbd_quantize_b_adaptive_sse2(
     const tran_low_t *coeff_ptr, intptr_t n_coeffs, const int16_t *zbin_ptr,
     const int16_t *round_ptr, const int16_t *quant_ptr,
     const int16_t *quant_shift_ptr, tran_low_t *qcoeff_ptr,
     tran_low_t *dqcoeff_ptr, const int16_t *dequant_ptr, uint16_t *eob_ptr,
     const int16_t *scan, const int16_t *iscan) {
+#endif
   int index = 8;
   const int log_scale = 0;
   int non_zero_count = 0;
@@ -299,12 +308,21 @@ void aom_highbd_quantize_b_adaptive_sse2(
 #endif
 }
 
+#if CONFIG_EXTQUANT
+void aom_highbd_quantize_b_32x32_adaptive_sse2(
+    const tran_low_t *coeff_ptr, intptr_t n_coeffs, const int32_t *zbin_ptr,
+    const int32_t *round_ptr, const int32_t *quant_ptr,
+    const int32_t *quant_shift_ptr, tran_low_t *qcoeff_ptr,
+    tran_low_t *dqcoeff_ptr, const int32_t *dequant_ptr, uint16_t *eob_ptr,
+    const int16_t *scan, const int16_t *iscan) {
+#else
 void aom_highbd_quantize_b_32x32_adaptive_sse2(
     const tran_low_t *coeff_ptr, intptr_t n_coeffs, const int16_t *zbin_ptr,
     const int16_t *round_ptr, const int16_t *quant_ptr,
     const int16_t *quant_shift_ptr, tran_low_t *qcoeff_ptr,
     tran_low_t *dqcoeff_ptr, const int16_t *dequant_ptr, uint16_t *eob_ptr,
     const int16_t *scan, const int16_t *iscan) {
+#endif
   int index = 8;
   const int log_scale = 1;
   int non_zero_count = 0;
@@ -515,12 +533,21 @@ void aom_highbd_quantize_b_32x32_adaptive_sse2(
 #endif
 }
 
+#if CONFIG_EXTQUANT
+void aom_highbd_quantize_b_64x64_adaptive_sse2(
+    const tran_low_t *coeff_ptr, intptr_t n_coeffs, const int32_t *zbin_ptr,
+    const int32_t *round_ptr, const int32_t *quant_ptr,
+    const int32_t *quant_shift_ptr, tran_low_t *qcoeff_ptr,
+    tran_low_t *dqcoeff_ptr, const int32_t *dequant_ptr, uint16_t *eob_ptr,
+    const int16_t *scan, const int16_t *iscan) {
+#else
 void aom_highbd_quantize_b_64x64_adaptive_sse2(
     const tran_low_t *coeff_ptr, intptr_t n_coeffs, const int16_t *zbin_ptr,
     const int16_t *round_ptr, const int16_t *quant_ptr,
     const int16_t *quant_shift_ptr, tran_low_t *qcoeff_ptr,
     tran_low_t *dqcoeff_ptr, const int16_t *dequant_ptr, uint16_t *eob_ptr,
     const int16_t *scan, const int16_t *iscan) {
+#endif
   int index = 8;
   const int log_scale = 2;
   int non_zero_count = 0;

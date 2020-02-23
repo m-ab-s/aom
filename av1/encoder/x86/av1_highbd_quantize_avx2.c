@@ -29,9 +29,15 @@ static INLINE void update_qp(__m256i *qp) {
   qp[2] = _mm256_permute2x128_si256(qp[2], qp[2], 0x11);
 }
 
+#if CONFIG_EXTQUANT
+static INLINE void init_qp(const int32_t *round_ptr, const int32_t *quant_ptr,
+                           const int32_t *dequant_ptr, int log_scale,
+                           __m256i *qp) {
+#else
 static INLINE void init_qp(const int16_t *round_ptr, const int16_t *quant_ptr,
                            const int16_t *dequant_ptr, int log_scale,
                            __m256i *qp) {
+#endif
   __m128i round = _mm_loadu_si128((const __m128i *)round_ptr);
   if (log_scale) {
     const __m128i round_scale = _mm_set1_epi16(1 << (15 - log_scale));
@@ -87,12 +93,21 @@ static INLINE void quantize(const __m256i *qp, __m256i *c,
   *eob = _mm256_max_epi32(cur_eob, *eob);
 }
 
+#if CONFIG_EXTQUANT
+void av1_highbd_quantize_fp_avx2(
+    const tran_low_t *coeff_ptr, intptr_t n_coeffs, const int32_t *zbin_ptr,
+    const int32_t *round_ptr, const int32_t *quant_ptr,
+    const int32_t *quant_shift_ptr, tran_low_t *qcoeff_ptr,
+    tran_low_t *dqcoeff_ptr, const int32_t *dequant_ptr, uint16_t *eob_ptr,
+    const int16_t *scan, const int16_t *iscan, int log_scale) {
+#else
 void av1_highbd_quantize_fp_avx2(
     const tran_low_t *coeff_ptr, intptr_t n_coeffs, const int16_t *zbin_ptr,
     const int16_t *round_ptr, const int16_t *quant_ptr,
     const int16_t *quant_shift_ptr, tran_low_t *qcoeff_ptr,
     tran_low_t *dqcoeff_ptr, const int16_t *dequant_ptr, uint16_t *eob_ptr,
     const int16_t *scan, const int16_t *iscan, int log_scale) {
+#endif
   (void)scan;
   (void)zbin_ptr;
   (void)quant_shift_ptr;

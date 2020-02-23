@@ -423,9 +423,15 @@ typedef struct AV1Common {
   // The dequantizers below are true dequantizers used only in the
   // dequantization process.  They have the same coefficient
   // shift/scale as TX.
+#if CONFIG_EXTQUANT
+  int32_t y_dequant_QTX[MAX_SEGMENTS][2];
+  int32_t u_dequant_QTX[MAX_SEGMENTS][2];
+  int32_t v_dequant_QTX[MAX_SEGMENTS][2];
+#else
   int16_t y_dequant_QTX[MAX_SEGMENTS][2];
   int16_t u_dequant_QTX[MAX_SEGMENTS][2];
   int16_t v_dequant_QTX[MAX_SEGMENTS][2];
+#endif
 
   // Global quant matrix tables
   const qm_val_t *giqmatrix[NUM_QM_LEVELS][3][TX_SIZES_ALL];

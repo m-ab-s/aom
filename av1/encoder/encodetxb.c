@@ -62,7 +62,11 @@ typedef struct LevelDownStats {
   int new_eob;
 } LevelDownStats;
 
+#if CONFIG_EXTQUANT
+static INLINE int get_dqv(const int32_t *dequant, int coeff_idx,
+#else
 static INLINE int get_dqv(const int16_t *dequant, int coeff_idx,
+#endif
                           const qm_val_t *iqmatrix) {
   int dqv = dequant[!!coeff_idx];
   if (iqmatrix != NULL)
@@ -1551,7 +1555,11 @@ static INLINE void get_qc_dqc_low(tran_low_t abs_qc, int sign, int dqv,
 static INLINE void update_coeff_general(
     int *accu_rate, int64_t *accu_dist, int si, int eob, TX_SIZE tx_size,
     TX_CLASS tx_class, int bwl, int height, int64_t rdmult, int shift,
+#if CONFIG_EXTQUANT
+    int dc_sign_ctx, const int32_t *dequant, const int16_t *scan,
+#else
     int dc_sign_ctx, const int16_t *dequant, const int16_t *scan,
+#endif
     const LV_MAP_COEFF_COST *txb_costs, const tran_low_t *tcoeff,
     tran_low_t *qcoeff, tran_low_t *dqcoeff, uint8_t *levels,
     const qm_val_t *iqmatrix) {
@@ -1608,7 +1616,11 @@ static INLINE void update_coeff_general(
 
 static AOM_FORCE_INLINE void update_coeff_simple(
     int *accu_rate, int si, int eob, TX_SIZE tx_size, TX_CLASS tx_class,
+#if CONFIG_EXTQUANT
+    int bwl, int64_t rdmult, int shift, const int32_t *dequant,
+#else
     int bwl, int64_t rdmult, int shift, const int16_t *dequant,
+#endif
     const int16_t *scan, const LV_MAP_COEFF_COST *txb_costs,
     const tran_low_t *tcoeff, tran_low_t *qcoeff, tran_low_t *dqcoeff,
     uint8_t *levels, const qm_val_t *iqmatrix) {
@@ -1657,7 +1669,11 @@ static AOM_FORCE_INLINE void update_coeff_simple(
 }
 
 static INLINE void update_coeff_eob_fast(int *eob, int shift,
+#if CONFIG_EXTQUANT
+                                         const int32_t *dequant_ptr,
+#else
                                          const int16_t *dequant_ptr,
+#endif
                                          const int16_t *scan,
                                          const tran_low_t *coeff_ptr,
                                          tran_low_t *qcoeff_ptr,
@@ -1689,7 +1705,11 @@ static INLINE void update_coeff_eob_fast(int *eob, int shift,
 static AOM_FORCE_INLINE void update_coeff_eob(
     int *accu_rate, int64_t *accu_dist, int *eob, int *nz_num, int *nz_ci,
     int si, TX_SIZE tx_size, TX_CLASS tx_class, int bwl, int height,
+#if CONFIG_EXTQUANT
+    int dc_sign_ctx, int64_t rdmult, int shift, const int32_t *dequant,
+#else
     int dc_sign_ctx, int64_t rdmult, int shift, const int16_t *dequant,
+#endif
     const int16_t *scan, const LV_MAP_EOB_COST *txb_eob_costs,
     const LV_MAP_COEFF_COST *txb_costs, const tran_low_t *tcoeff,
     tran_low_t *qcoeff, tran_low_t *dqcoeff, uint8_t *levels, int sharpness,
@@ -1830,7 +1850,11 @@ int av1_optimize_txb_new(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
   const int16_t *scan = scan_order->scan;
   const int shift = av1_get_tx_scale(tx_size);
   int eob = p->eobs[block];
+#if CONFIG_EXTQUANT
+  const int32_t *dequant = p->dequant_QTX;
+#else
   const int16_t *dequant = p->dequant_QTX;
+#endif
   const TX_SIZE qm_tx_size = av1_get_adjusted_tx_size(tx_size);
   const qm_val_t *iqmatrix =
       IS_2D_TRANSFORM(tx_type)
@@ -2009,7 +2033,11 @@ int av1_optimize_txb(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
   tran_low_t *qcoeff = BLOCK_OFFSET(p->qcoeff, block);
   tran_low_t *dqcoeff = BLOCK_OFFSET(pd->dqcoeff, block);
   const tran_low_t *tcoeff = BLOCK_OFFSET(p->coeff, block);
+#if CONFIG_EXTQUANT
+  const int32_t *dequant = p->dequant_QTX;
+#else
   const int16_t *dequant = p->dequant_QTX;
+#endif
   const int seg_eob = av1_get_max_eob(tx_size);
   const int bwl = get_txb_bwl(tx_size);
   const int width = get_txb_wide(tx_size);
