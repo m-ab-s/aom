@@ -152,20 +152,15 @@ static void av1_make_inter_predictor_aux(
     int build_for_obmc, const MACROBLOCKD *xd, int can_use_previous);
 
 static bool valid_border(int border) {
-  return border == 0 || border == 8 || border == 16;
+  return border % 8 == 0 && border >= 0 && border <= MAX_INTER_PRED_BORDER;
 }
 
-bool av1_valid_inter_pred_ext(const InterPredExt *ext, int p_col, int p_row) {
+bool av1_valid_inter_pred_ext(const InterPredExt *ext) {
   if (ext == NULL) {
     return true;  // NULL means no extension.
   }
   return valid_border(ext->border_left) && valid_border(ext->border_top) &&
-         valid_border(ext->border_bottom) && valid_border(ext->border_right) &&
-         // Warp motion cannot handle negative values for p-row and p-col --
-         // it performs shift operations on the these values, which need to
-         // be shifted by the border region -- left shift of negative values
-         // is undefined.
-         p_col >= ext->border_left && p_row >= ext->border_top;
+         valid_border(ext->border_bottom) && valid_border(ext->border_right);
 }
 
 // Makes the interpredictor for the region by dividing it up into 8x8 blocks
@@ -253,7 +248,7 @@ void av1_make_inter_predictor(
     const WarpTypesAllowed *warp_types, int p_col, int p_row, int plane,
     int ref, const MB_MODE_INFO *mi, int build_for_obmc, const MACROBLOCKD *xd,
     int can_use_previous, const InterPredExt *ext) {
-  assert(av1_valid_inter_pred_ext(ext, p_col, p_row));
+  assert(av1_valid_inter_pred_ext(ext));
   const int border_left = (ext == NULL) ? 0 : ext->border_left;
   const int border_top = (ext == NULL) ? 0 : ext->border_top;
   const int border_right = (ext == NULL) ? 0 : ext->border_right;

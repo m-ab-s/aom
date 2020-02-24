@@ -108,7 +108,10 @@ static INLINE void revert_scale_extra_bits(SubpelParams *sp) {
 
 // Data structure for passing around configuration options for building
 // the extended inter-predictor. If NULL, will assume 0 values for everything.
-// Border value must be one of 0, 8, 16.
+// Border value must be a multiple of 8 and between 0 and MAX_INTER_PRED_BORDER
+// (inclusive on both ends).
+#define MAX_INTER_PRED_BORDER 16
+
 typedef struct InterPredExt {
   int border_left;
   int border_top;
@@ -117,9 +120,8 @@ typedef struct InterPredExt {
 } InterPredExt;
 
 // Checks if the InterPredExt is valid -- useful for assertions. NULL means
-// 0 values for all borders. Borders cannot extend beyond the top or left-most
-// border of the image.
-bool av1_valid_inter_pred_ext(const InterPredExt *ext, int p_col, int p_row);
+// 0 values for all borders.
+bool av1_valid_inter_pred_ext(const InterPredExt *ext);
 
 static INLINE void inter_predictor(
     const uint8_t *src, int src_stride, uint8_t *dst, int dst_stride,

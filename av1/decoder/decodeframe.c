@@ -545,53 +545,23 @@ static INLINE int update_extend_mc_border_params(
     const struct scale_factors *const sf, struct buf_2d *const pre_buf,
     MV32 scaled_mv, PadBlock *block, int subpel_x_mv, int subpel_y_mv,
     int do_warp, int is_intrabc, int *x_pad, int *y_pad) {
-  const int is_scaled = av1_is_scaled(sf);
-  // Get reference width and height.
-  int frame_width = pre_buf->width;
-  int frame_height = pre_buf->height;
-
-  // Do border extension if there is motion or
-  // width/height is not a multiple of 8 pixels.
-  if ((!is_intrabc) && (!do_warp) &&
-      (is_scaled || scaled_mv.col || scaled_mv.row ||
-#if CONFIG_NEW_TX64X64
-       (USE_SUPERRES_FILTER_TX64) ||
-#endif  // CONFIG_NEW_TX64X64
-       (frame_width & 0x7) || (frame_height & 0x7))) {
-    if (subpel_x_mv || (sf->x_step_q4 != SUBPEL_SHIFTS)) {
-      block->x0 -= AOM_INTERP_EXTEND - 1;
-      block->x1 += AOM_INTERP_EXTEND;
-      *x_pad = 1;
-    }
-
-    if (subpel_y_mv || (sf->y_step_q4 != SUBPEL_SHIFTS)) {
-      block->y0 -= AOM_INTERP_EXTEND - 1;
-      block->y1 += AOM_INTERP_EXTEND;
-      *y_pad = 1;
-    }
-
-#if CONFIG_NEW_TX64X64
-#if USE_SUPERRES_FILTER_TX64
-    if (!*x_pad) {
-      block->x0 -= SUPERRES_FILTER_TX64_EXT;
-      block->x1 += SUPERRES_FILTER_TX64_EXT;
-      *x_pad = 1;
-    }
-    if (!*y_pad) {
-      block->y0 -= SUPERRES_FILTER_TX64_EXT;
-      block->y1 += SUPERRES_FILTER_TX64_EXT;
-      *y_pad = 1;
-    }
-#endif  // USE_SUPERRES_FILTER_TX64
-#endif  // CONFIG_NEW_TX64X64
-
-    // Skip border extension if block is inside the frame.
-    if (block->x0 < 0 || block->x1 > frame_width - 1 || block->y0 < 0 ||
-        block->y1 > frame_height - 1) {
-      return 1;
-    }
-  }
-  return 0;
+  // For simplicity, always extend the border region. When someone calls
+  // av1_make_inter_predictor and wants a border built around it, this
+  // ensures it can read the data around it.
+  (void)sf;
+  (void)pre_buf;
+  (void)scaled_mv;
+  (void)subpel_x_mv;
+  (void)subpel_y_mv;
+  (void)do_warp;
+  (void)is_intrabc;
+  block->x0 -= (AOM_INTERP_EXTEND - 1 + MAX_INTER_PRED_BORDER);
+  block->x1 += (AOM_INTERP_EXTEND + MAX_INTER_PRED_BORDER);
+  *x_pad = 1;
+  block->y0 -= (AOM_INTERP_EXTEND - 1 + MAX_INTER_PRED_BORDER);
+  block->y1 += (AOM_INTERP_EXTEND + MAX_INTER_PRED_BORDER);
+  *y_pad = 1;
+  return 1;
 }
 
 static INLINE void extend_mc_border(const struct scale_factors *const sf,
@@ -622,8 +592,9 @@ static INLINE void extend_mc_border(const struct scale_factors *const sf,
                       b_h, pre_buf->width, pre_buf->height);
     }
     *src_stride = b_w;
-    *pre = mc_buf + y_pad * (AOM_INTERP_EXTEND - 1) * b_w +
-           x_pad * (AOM_INTERP_EXTEND - 1);
+    *pre = mc_buf +
+           y_pad * (AOM_INTERP_EXTEND - 1 + MAX_INTER_PRED_BORDER) * b_w +
+           x_pad * (AOM_INTERP_EXTEND - 1 + MAX_INTER_PRED_BORDER);
   }
 }
 
