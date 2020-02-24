@@ -794,7 +794,7 @@ void aom_paeth_predictor_16x8_avx2(uint8_t *dst, ptrdiff_t stride,
     const __m256i l16 = _mm256_shuffle_epi8(l, rep);
     const __m128i row = paeth_16x1_pred(&l16, &top, &tl16);
 
-    _mm_store_si128((__m128i *)dst, row);
+    _mm_storeu_si128((__m128i *)dst, row);
     dst += stride;
     rep = _mm256_add_epi16(rep, one);
   }
