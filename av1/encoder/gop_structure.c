@@ -61,7 +61,7 @@ static void set_multi_layer_params(const TWO_PASS *twopass,
 
     // Get the boost factor for intermediate ARF frames.
     gf_group->arf_boost[*frame_ind] = av1_calc_arf_boost(
-        twopass, rc, frame_info, m, end - m, m - start, NULL);
+        twopass, rc, frame_info, m, end - m, m - start, NULL, NULL);
     ++(*frame_ind);
 
     // Frames displayed before this internal ARF.

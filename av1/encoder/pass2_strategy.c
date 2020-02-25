@@ -468,11 +468,35 @@ static double calc_kf_frame_boost(const RATE_CONTROL *rc,
   return AOMMIN(frame_boost, max_boost * boost_q_correction);
 }
 
+static int get_projected_gfu_boost(const RATE_CONTROL *rc, int gfu_boost,
+                                   int frames_to_project,
+                                   int num_stats_used_for_gfu_boost) {
+  /*
+   * If frames_to_project is equal to num_stats_used_for_gfu_boost,
+   * it means that gfu_boost was calculated over frames_to_project to
+   * begin with(ie; all stats required were available), hence return
+   * the original boost.
+   */
+  if (num_stats_used_for_gfu_boost >= frames_to_project) return gfu_boost;
+
+  double min_boost_factor = sqrt(rc->baseline_gf_interval);
+  // Get the current tpl factor (number of frames = frames_to_project).
+  double tpl_factor = av1_get_gfu_boost_projection_factor(
+      min_boost_factor, MAX_GFUBOOST_FACTOR, frames_to_project);
+  // Get the tpl factor when number of frames = num_stats_used_for_prior_boost.
+  double tpl_factor_num_stats = av1_get_gfu_boost_projection_factor(
+      min_boost_factor, MAX_GFUBOOST_FACTOR, num_stats_used_for_gfu_boost);
+  int projected_gfu_boost =
+      (int)rint((tpl_factor * gfu_boost) / tpl_factor_num_stats);
+  return projected_gfu_boost;
+}
+
 #define GF_MAX_BOOST 90.0
 #define MIN_DECAY_FACTOR 0.01
 int av1_calc_arf_boost(const TWO_PASS *twopass, const RATE_CONTROL *rc,
                        FRAME_INFO *frame_info, int offset, int f_frames,
-                       int b_frames, int *num_fpstats_used) {
+                       int b_frames, int *num_fpstats_used,
+                       int *num_fpstats_required) {
   int i;
   double boost_score = 0.0;
   double mv_ratio_accumulator = 0.0;
@@ -552,6 +576,14 @@ int av1_calc_arf_boost(const TWO_PASS *twopass, const RATE_CONTROL *rc,
     if (num_fpstats_used) (*num_fpstats_used)++;
   }
   arf_boost += (int)boost_score;
+
+  if (num_fpstats_required) {
+    *num_fpstats_required = f_frames + b_frames;
+    if (num_fpstats_used) {
+      arf_boost = get_projected_gfu_boost(rc, arf_boost, *num_fpstats_required,
+                                          *num_fpstats_used);
+    }
+  }
 
   if (arf_boost < ((b_frames + f_frames) * 20))
     arf_boost = ((b_frames + f_frames) * 20);
@@ -818,6 +850,38 @@ static void define_gf_group_pass0(AV1_COMP *cpi,
       }
     }
     gf_group->bit_allocation[cur_index] = target;
+  }
+}
+
+static INLINE void set_baseline_gf_interval(AV1_COMP *cpi, int arf_position,
+                                            int active_max_gf_interval) {
+  RATE_CONTROL *const rc = &cpi->rc;
+  TWO_PASS *const twopass = &cpi->twopass;
+  // Set the interval until the next gf.
+  // If forward keyframes are enabled, ensure the final gf group obeys the
+  // MIN_FWD_KF_INTERVAL.
+  if (cpi->oxcf.fwd_kf_enabled &&
+      ((twopass->stats_in - arf_position + rc->frames_to_key) <
+       twopass->stats_buf_ctx->stats_in_end)) {
+    if (arf_position == rc->frames_to_key) {
+      rc->baseline_gf_interval = arf_position;
+      // if the last gf group will be smaller than MIN_FWD_KF_INTERVAL
+    } else if ((rc->frames_to_key - arf_position <
+                AOMMAX(MIN_FWD_KF_INTERVAL, rc->min_gf_interval)) &&
+               (rc->frames_to_key != arf_position)) {
+      // if possible, merge the last two gf groups
+      if (rc->frames_to_key <= active_max_gf_interval) {
+        rc->baseline_gf_interval = rc->frames_to_key;
+        // if merging the last two gf groups creates a group that is too long,
+        // split them and force the last gf group to be the MIN_FWD_KF_INTERVAL
+      } else {
+        rc->baseline_gf_interval = rc->frames_to_key - MIN_FWD_KF_INTERVAL;
+      }
+    } else {
+      rc->baseline_gf_interval = arf_position - rc->source_alt_ref_pending;
+    }
+  } else {
+    rc->baseline_gf_interval = arf_position - rc->source_alt_ref_pending;
   }
 }
 
@@ -1137,52 +1201,31 @@ static void define_gf_group(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
 
   // Should we use the alternate reference frame.
   if (use_alt_ref) {
+    rc->source_alt_ref_pending = 1;
+    gf_group->max_layer_depth_allowed = cpi->oxcf.gf_max_pyr_height;
+    set_baseline_gf_interval(cpi, i, active_max_gf_interval);
+
     const int forward_frames = (rc->frames_to_key - i >= i - 1)
                                    ? i - 1
                                    : AOMMAX(0, rc->frames_to_key - i);
 
     // Calculate the boost for alt ref.
-    rc->gfu_boost =
-        av1_calc_arf_boost(twopass, rc, frame_info, alt_offset, forward_frames,
-                           (i - 1), &rc->num_stats_used_for_gfu_boost);
-    rc->num_stats_required_for_gfu_boost = (forward_frames + i - 1);
-    rc->source_alt_ref_pending = 1;
-    gf_group->max_layer_depth_allowed = cpi->oxcf.gf_max_pyr_height;
+    rc->gfu_boost = av1_calc_arf_boost(
+        twopass, rc, frame_info, alt_offset, forward_frames, (i - 1),
+        cpi->lap_enabled ? &rc->num_stats_used_for_gfu_boost : NULL,
+        cpi->lap_enabled ? &rc->num_stats_required_for_gfu_boost : NULL);
   } else {
     reset_fpf_position(twopass, start_pos);
-    rc->gfu_boost =
-        AOMMIN(MAX_GF_BOOST,
-               av1_calc_arf_boost(twopass, rc, frame_info, alt_offset, (i - 1),
-                                  0, &rc->num_stats_used_for_gfu_boost));
-    rc->num_stats_required_for_gfu_boost = (i - 1);
     rc->source_alt_ref_pending = 0;
     gf_group->max_layer_depth_allowed = 0;
-  }
+    set_baseline_gf_interval(cpi, i, active_max_gf_interval);
 
-  // Set the interval until the next gf.
-  // If forward keyframes are enabled, ensure the final gf group obeys the
-  // MIN_FWD_KF_INTERVAL.
-  if (cpi->oxcf.fwd_kf_enabled && ((twopass->stats_in - i + rc->frames_to_key) <
-                                   twopass->stats_buf_ctx->stats_in_end)) {
-    if (i == rc->frames_to_key) {
-      rc->baseline_gf_interval = i;
-      // if the last gf group will be smaller than MIN_FWD_KF_INTERVAL
-    } else if ((rc->frames_to_key - i <
-                AOMMAX(MIN_FWD_KF_INTERVAL, rc->min_gf_interval)) &&
-               (rc->frames_to_key != i)) {
-      // if possible, merge the last two gf groups
-      if (rc->frames_to_key <= active_max_gf_interval) {
-        rc->baseline_gf_interval = rc->frames_to_key;
-        // if merging the last two gf groups creates a group that is too long,
-        // split them and force the last gf group to be the MIN_FWD_KF_INTERVAL
-      } else {
-        rc->baseline_gf_interval = rc->frames_to_key - MIN_FWD_KF_INTERVAL;
-      }
-    } else {
-      rc->baseline_gf_interval = i - rc->source_alt_ref_pending;
-    }
-  } else {
-    rc->baseline_gf_interval = i - rc->source_alt_ref_pending;
+    rc->gfu_boost = AOMMIN(
+        MAX_GF_BOOST,
+        av1_calc_arf_boost(
+            twopass, rc, frame_info, alt_offset, (i - 1), 0,
+            cpi->lap_enabled ? &rc->num_stats_used_for_gfu_boost : NULL,
+            cpi->lap_enabled ? &rc->num_stats_required_for_gfu_boost : NULL));
   }
 
 #define LAST_ALR_BOOST_FACTOR 0.2f
@@ -1391,6 +1434,25 @@ static int test_candidate_kf(TWO_PASS *twopass,
 #define KF_MAX_FRAME_BOOST 128.0
 #define MIN_KF_BOOST 300          // Minimum boost for non-static KF interval
 #define MIN_STATIC_KF_BOOST 5400  // Minimum boost for static KF interval
+
+static int get_projected_kf_boost(AV1_COMP *cpi) {
+  /*
+   * If num_stats_used_for_kf_boost >= frames_to_key, then
+   * all stats needed for prior boost calculation are available.
+   * Hence projecting the prior boost is not needed in this cases.
+   */
+  if (cpi->rc.num_stats_used_for_kf_boost >= cpi->rc.frames_to_key)
+    return cpi->rc.kf_boost;
+
+  // Get the current tpl factor (number of frames = frames_to_key).
+  double tpl_factor = av1_get_kf_boost_projection_factor(cpi->rc.frames_to_key);
+  // Get the tpl factor when number of frames = num_stats_used_for_kf_boost.
+  double tpl_factor_num_stats =
+      av1_get_kf_boost_projection_factor(cpi->rc.num_stats_used_for_kf_boost);
+  int projected_kf_boost =
+      (int)rint((tpl_factor * cpi->rc.kf_boost) / tpl_factor_num_stats);
+  return projected_kf_boost;
+}
 
 static void find_next_key_frame(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame) {
   RATE_CONTROL *const rc = &cpi->rc;
@@ -1622,6 +1684,10 @@ static void find_next_key_frame(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame) {
       start_position, twopass->stats_buf_ctx->stats_in_end, rc->frames_to_key);
 
   rc->kf_boost = (int)boost_score;
+
+  if (cpi->lap_enabled) {
+    rc->kf_boost = get_projected_kf_boost(cpi);
+  }
 
   // Special case for static / slide show content but don't apply
   // if the kf group is very short.
