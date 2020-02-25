@@ -1422,7 +1422,7 @@ static void find_next_key_frame(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame) {
   if (has_no_stats_stage(cpi)) {
     rc->this_key_frame_forced =
         current_frame->frame_number != 0 && rc->frames_to_key == 0;
-    rc->frames_to_key = cpi->oxcf.key_freq;
+    rc->frames_to_key = AOMMAX(1, cpi->oxcf.key_freq);
     rc->kf_boost = DEFAULT_KF_BOOST;
     rc->source_alt_ref_active = 0;
     gf_group->update_type[0] = KF_UPDATE;
@@ -1512,7 +1512,7 @@ static void find_next_key_frame(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame) {
    * When lap_enabled forcing frames_to_key as key_freq,
    * since all frame stats are not available.
    */
-  if (cpi->lap_enabled) rc->frames_to_key = cpi->oxcf.key_freq;
+  if (cpi->lap_enabled) rc->frames_to_key = AOMMAX(1, cpi->oxcf.key_freq);
 
   // If there is a max kf interval set by the user we must obey it.
   // We already breakout of the loop above at 2x max.
