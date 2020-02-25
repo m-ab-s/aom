@@ -1178,10 +1178,12 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
   }
 
   if (!is_stat_generation_stage(cpi)) {
+    const int is_fwd_kf = is_show_existing_fwd_kf(cpi);
     frame_params.show_existing_frame =
         ((oxcf->enable_overlay == 0 || cpi->show_existing_alt_ref) &&
          gf_group->update_type[gf_group->index] == OVERLAY_UPDATE) ||
-        gf_group->update_type[gf_group->index] == INTNL_OVERLAY_UPDATE;
+        gf_group->update_type[gf_group->index] == INTNL_OVERLAY_UPDATE ||
+        is_fwd_kf;
     frame_params.show_existing_frame &= allow_show_existing(cpi, *frame_flags);
 
     // Reset show_existing_alt_ref decision to 0 after it is used.
