@@ -819,8 +819,11 @@ static void define_gf_group_pass0(AV1_COMP *cpi,
       is_altref_enabled(cpi) &&
       (rc->baseline_gf_interval < cpi->oxcf.lag_in_frames) &&
       (cpi->oxcf.gf_max_pyr_height > MIN_PYRAMID_LVL) &&
-      (rc->baseline_gf_interval > 1);
+      (rc->baseline_gf_interval >= MIN_GF_INTERVAL);
   rc->source_alt_ref_pending = use_alt_ref;
+
+  gf_group->max_layer_depth_allowed =
+      (use_alt_ref == 0) ? 0 : cpi->oxcf.gf_max_pyr_height;
 
   if (!cpi->oxcf.fwd_kf_enabled && rc->source_alt_ref_pending) {
     // We cannot use a forward keyframe as an altref frame, so need to use the
