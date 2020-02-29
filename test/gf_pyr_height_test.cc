@@ -142,6 +142,6 @@ TEST_P(GFPyrHeightTest, EncodeAndVerifyPSNR) {
 }
 
 AV1_INSTANTIATE_TEST_CASE(GFPyrHeightTest, NONREALTIME_TEST_MODES,
-                          ::testing::ValuesIn({ AOM_Q, AOM_VBR }),
+                          ::testing::Values(AOM_Q, AOM_VBR),
                           ::testing::ValuesIn(kTestParams));
 }  // namespace
