@@ -30,20 +30,20 @@ TEST_F(IllumMcompTest, ComputeDc) {
     }
     // Try different shapes/sizes/strides. They should all
     // produce the same value.
-    ASSERT_EQ(i, illum_mcomp_compute_dc(pred, 8, 8, 8));
-    ASSERT_EQ(i, illum_mcomp_compute_dc(pred, 1, 1, 256));
-    ASSERT_EQ(i, illum_mcomp_compute_dc(pred, 2, 1, 128));
-    ASSERT_EQ(i, illum_mcomp_compute_dc(pred, 2, 2, 128));
+    ASSERT_EQ(i, illum_mcomp_compute_dc_lowbd(pred, 8, 8, 8));
+    ASSERT_EQ(i, illum_mcomp_compute_dc_lowbd(pred, 1, 1, 256));
+    ASSERT_EQ(i, illum_mcomp_compute_dc_lowbd(pred, 2, 1, 128));
+    ASSERT_EQ(i, illum_mcomp_compute_dc_lowbd(pred, 2, 2, 128));
   }
 
   // Try half black, half white. Average should be grey.
   for (int j = 0; j < 256; ++j) {
     pred[j] = (j < 128) ? 0 : 255;
   }
-  ASSERT_EQ(128, illum_mcomp_compute_dc(pred, 16, 16, 16));
-  ASSERT_EQ(128, illum_mcomp_compute_dc(pred, 1, 1, 256));
-  ASSERT_EQ(128, illum_mcomp_compute_dc(pred, 2, 1, 128));
-  ASSERT_EQ(128, illum_mcomp_compute_dc(pred, 2, 2, 128));
+  ASSERT_EQ(128, illum_mcomp_compute_dc_lowbd(pred, 16, 16, 16));
+  ASSERT_EQ(128, illum_mcomp_compute_dc_lowbd(pred, 1, 1, 256));
+  ASSERT_EQ(128, illum_mcomp_compute_dc_lowbd(pred, 2, 1, 128));
+  ASSERT_EQ(128, illum_mcomp_compute_dc_lowbd(pred, 2, 2, 128));
 }
 
 TEST_F(IllumMcompTest, ComputeDcHigh) {
@@ -54,70 +54,20 @@ TEST_F(IllumMcompTest, ComputeDcHigh) {
     }
     // Try different shapes/sizes/strides. They should all
     // produce the same value.
-    ASSERT_EQ(i, illum_mcomp_compute_dc_high(pred, 16, 16, 16));
-    ASSERT_EQ(i, illum_mcomp_compute_dc_high(pred, 1, 1, 256));
-    ASSERT_EQ(i, illum_mcomp_compute_dc_high(pred, 2, 1, 128));
-    ASSERT_EQ(i, illum_mcomp_compute_dc_high(pred, 2, 2, 128));
+    ASSERT_EQ(i, illum_mcomp_compute_dc_highbd(pred, 16, 16, 16));
+    ASSERT_EQ(i, illum_mcomp_compute_dc_highbd(pred, 1, 1, 256));
+    ASSERT_EQ(i, illum_mcomp_compute_dc_highbd(pred, 2, 1, 128));
+    ASSERT_EQ(i, illum_mcomp_compute_dc_highbd(pred, 2, 2, 128));
   }
 
   // Try half black, half white. Average should be grey.
   for (int j = 0; j < 256; ++j) {
     pred[j] = (j < 128) ? 0 : 1023;
   }
-  ASSERT_EQ(512, illum_mcomp_compute_dc_high(pred, 16, 16, 16));
-  ASSERT_EQ(512, illum_mcomp_compute_dc_high(pred, 1, 1, 256));
-  ASSERT_EQ(512, illum_mcomp_compute_dc_high(pred, 2, 1, 128));
-  ASSERT_EQ(512, illum_mcomp_compute_dc_high(pred, 2, 2, 128));
-}
-
-TEST_F(IllumMcompTest, SubtractAddDc) {
-  uint8_t black[256];
-  for (int i = 0; i < 256; ++i) {
-    black[i] = 0;
-  }
-
-  uint8_t white[256];
-  for (int i = 0; i < 256; ++i) {
-    white[i] = 255;
-  }
-
-  uint8_t result[256];
-  illum_mcomp_subtract_add_dc(16, 16, result, 16, black, 16, white, 16);
-
-  for (int i = 0; i < 256; ++i) {
-    ASSERT_EQ(255, result[i]);
-  }
-
-  illum_mcomp_subtract_add_dc(16, 16, result, 16, white, 16, black, 16);
-  for (int i = 0; i < 256; ++i) {
-    ASSERT_EQ(0, result[i]);
-  }
-}
-
-TEST_F(IllumMcompTest, SubtractAddDcHigh) {
-  uint16_t black[256];
-  for (int i = 0; i < 256; ++i) {
-    black[i] = 0;
-  }
-
-  uint16_t white[256];
-  for (int i = 0; i < 256; ++i) {
-    white[i] = 1023;
-  }
-
-  uint16_t result[256];
-  illum_mcomp_subtract_add_dc_high(16, 16, result, 16, black, 16, white, 16,
-                                   10);
-
-  for (int i = 0; i < 256; ++i) {
-    ASSERT_EQ(1023, result[i]);
-  }
-
-  illum_mcomp_subtract_add_dc_high(16, 16, result, 16, white, 16, black, 16,
-                                   10);
-  for (int i = 0; i < 256; ++i) {
-    ASSERT_EQ(0, result[i]);
-  }
+  ASSERT_EQ(512, illum_mcomp_compute_dc_highbd(pred, 16, 16, 16));
+  ASSERT_EQ(512, illum_mcomp_compute_dc_highbd(pred, 1, 1, 256));
+  ASSERT_EQ(512, illum_mcomp_compute_dc_highbd(pred, 2, 1, 128));
+  ASSERT_EQ(512, illum_mcomp_compute_dc_highbd(pred, 2, 2, 128));
 }
 
 }  // namespace

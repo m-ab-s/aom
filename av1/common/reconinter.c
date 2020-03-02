@@ -1618,19 +1618,19 @@ static void build_smooth_interintra_mask(uint8_t *mask, int stride,
 
 // Defines a function that can be used to obtain the DC of a block for the
 // type.
-#define ILLUM_MCOMP_COMPUTE_DC(INT_TYPE, suffix)                               \
-  static int illum_mcomp_compute_dc_##suffix(const INT_TYPE *pred, int stride, \
-                                             int bw, int bh) {                 \
-    int sum = 0;                                                               \
-    for (int i = 0; i < bh; ++i) {                                             \
-      for (int j = 0; j < bw; ++j) {                                           \
-        sum += pred[i * stride + j];                                           \
-      }                                                                        \
-    }                                                                          \
-    /* Add "0.5" so we round "half-up" instead of "down". */                   \
-    const int count = bw * bh;                                                 \
-    int expected_dc = (sum + (count >> 1)) / count;                            \
-    return expected_dc;                                                        \
+#define ILLUM_MCOMP_COMPUTE_DC(INT_TYPE, suffix)                        \
+  int illum_mcomp_compute_dc_##suffix(const INT_TYPE *pred, int stride, \
+                                      int bw, int bh) {                 \
+    int sum = 0;                                                        \
+    for (int i = 0; i < bh; ++i) {                                      \
+      for (int j = 0; j < bw; ++j) {                                    \
+        sum += pred[i * stride + j];                                    \
+      }                                                                 \
+    }                                                                   \
+    /* Add "0.5" so we round "half-up" instead of "down". */            \
+    const int count = bw * bh;                                          \
+    int expected_dc = (sum + (count >> 1)) / count;                     \
+    return expected_dc;                                                 \
   }
 
 ILLUM_MCOMP_COMPUTE_DC(uint8_t, lowbd);
