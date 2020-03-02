@@ -43,6 +43,56 @@ static const int32_t dst7_16[256] = {
   -924,  568,   -192,
 };
 
+#if CONFIG_LGT
+// Quantized with 2^12 and scale factor 0.7071067811865475
+static const int32_t lgt_klt4_inter[16] = {
+  -42, 269,  1732, 2305, -37,  877,  2156, -1723,
+  929, 2607, -796, 310,  2743, -867, 326,  -93,
+};
+
+// Quantized with 2^12 and scale factor 1
+static const int32_t lgt_klt8_inter[64] = {
+  38,   13,    -9,    223,   1102,  2376,  2712,  1584, -66,  -134,  77,
+  1197, 2528,  1609,  -1261, -2179, -53,   161,   1256, 2612, 1250,  -1626,
+  -453, 1984,  752,   1952,  2668,  740,   -1340, 441,  898,  -1391, 2492,
+  2232, -518,  -1270, 1056,  173,   -1165, 1097,  2438, -660, -1701, 1508,
+  -186, -1100, 1587,  -1212, -1680, 1975,  -695,  -725, 1564, -1814, 1566,
+  -925, 1108,  -1898, 2105,  -1873, 1490,  -1083, 702,  -349,
+};
+
+// Quantized with 2^12 and scale factor 1.4142135623730951
+static const int32_t lgt_klt16_inter[256] = {
+  630,   738,   830,   937,   1067,  1223,  1408,  1606,  1766,  1870,  1935,
+  1945,  1864,  1693,  1447,  1127,  -838,  -1035, -1187, -1333, -1466, -1569,
+  -1610, -1528, -1205, -593,  241,   1145,  1887,  2249,  2147,  1630,  -1469,
+  -1709, -1725, -1613, -1348, -884,  -188,  674,   1478,  2011,  2042,  1378,
+  154,   -1120, -1838, -1689, 1413,  1574,  1389,  983,   360,   -445,  -1325,
+  -1928, -1677, -394,  1294,  2276,  1670,  -196,  -1852, -2075, -1525, -1514,
+  -925,  -45,   933,   1715,  1855,  972,   -744,  -2113, -1646, 580,   2255,
+  1382,  -943,  -1983, 1774,  1519,  460,   -822,  -1805, -1838, -512,  1444,
+  2021,  218,   -1876, -1329, 1227,  1905,  -284,  -1896, -1667, -1057, 421,
+  1630,  1711,  292,   -1605, -1788, 538,   2186,  193,   -2089, -333,  2112,
+  532,   -1927, -1989, -754,  1428,  2208,  608,   -1788, -1784, 936,   1839,
+  -765,  -1608, 1011,  1269,  -1404, -921,  1576,  -1862, 62,    2106,  1156,
+  -1540, -1691, 1111,  1712,  -1249, -1282, 1670,  411,   -1842, 807,   1471,
+  -1594, -1837, 768,   2139,  -458,  -2138, 511,   1893,  -1112, -1139, 1827,
+  -304,  -1532, 1639,  6,     -1776, 1498,  -1744, 1533,  1409,  -1916, -626,
+  2079,  -575,  -1534, 1845,  -280,  -1414, 1805,  -696,  -909,  1877,  -1240,
+  1553,  -1963, -214,  2022,  -1368, -747,  1940,  -1342, -253,  1627,  -1868,
+  952,   497,   -1655, 1962,  -1105, 1200,  -1921, 777,   1027,  -1939, 1272,
+  275,   -1620, 2038,  -1530, 436,   773,   -1714, 2076,  -1827, 906,   -979,
+  1830,  -1491, 266,   1086,  -1755, 1518,  -663,  -365,  1285,  -1911, 2176,
+  -2124, 1804,  -1296, 583,   898,   -1811, 1857,  -1124, -83,   1205,  -1916,
+  2169,  -2132, 1934,  -1669, 1366,  -1065, 763,   -485,  201,   -770,  1772,
+  -2440, 2725,  -2597, 2205,  -1662, 1132,  -720,  440,   -245,  115,   -38,
+  2,     16,    -9,
+};
+#else
+// These split inter mode TXs do not produce significant performance
+// improvements.  They have been left in this code in case someone else wants to
+// pick up this idea later on.  Current best results are had with CONFIG_LGT=1
+// and CONFIG_MODE_DEP_INTER_TX=1
+
 // Quantized with 2^12 and scale factor 1.4142135623730951
 static const int32_t single_klt16_inter[256] = {
   687,   779,   863,   960,   1070,  1201,  1354,  1522,  1661,  1773,  1869,
@@ -127,6 +177,7 @@ static const int32_t comp_klt8_inter[64] = {
   1078,  -800,  408,  -230,  3148,  4,     -1634, 1501,  -1171, 656,   -357,
   125,   -1926, 2673, -1993, 1197,  -645,  299,   -115,  26,
 };
+#endif  // CONFIG_LGT
 
 static const int32_t mdt4_mode0[16] = {
   -520, -337, 1393, 2462, -617, 1398,  2167, -1165,
@@ -6827,6 +6878,22 @@ static const int32_t *mdt_mtx_intra_arr16[INTRA_MODES] = {
   dst7_16, dst7_16, dst7_16, dst7_16, dst7_16, dst7_16
 };
 
+#if CONFIG_LGT
+static const int32_t *mdt_mtx_inter_arr4[MODE_DEP_INTER_TX_MODES] = {
+  lgt_klt4_inter,
+  lgt_klt4_inter,
+};
+
+static const int32_t *mdt_mtx_inter_arr8[MODE_DEP_INTER_TX_MODES] = {
+  lgt_klt8_inter,
+  lgt_klt8_inter,
+};
+
+static const int32_t *mdt_mtx_inter_arr16[MODE_DEP_INTER_TX_MODES] = {
+  lgt_klt16_inter,
+  lgt_klt16_inter,
+};
+#else
 static const int32_t *mdt_mtx_inter_arr4[MODE_DEP_INTER_TX_MODES] = {
   single_klt4_inter, comp_klt4_inter
 };
@@ -6838,6 +6905,7 @@ static const int32_t *mdt_mtx_inter_arr8[MODE_DEP_INTER_TX_MODES] = {
 static const int32_t *mdt_mtx_inter_arr16[MODE_DEP_INTER_TX_MODES] = {
   single_klt16_inter, comp_klt16_inter
 };
+#endif  // CONFIG_LGT
 
 static INLINE const int32_t *get_mdt_from_mode_4(int mode) {
   if (is_intra_mode_dep_txfm_mode(mode)) {
@@ -6866,4 +6934,4 @@ static INLINE const int32_t *get_mdt_from_mode_16(int mode) {
 }
 #endif
 
-#endif  // MDTX_BASES_H_
+#endif  // MDTX_BASES_H
