@@ -228,6 +228,11 @@ list(APPEND AOM_AV1_ENCODER_SOURCES
             "${AOM_ROOT}/av1/encoder/dwt.c"
             "${AOM_ROOT}/av1/encoder/dwt.h")
 
+if(CONFIG_SEGMENT_BASED_PARTITIONING)
+  list(APPEND AOM_AV1_ENCODER_SOURCES "${AOM_ROOT}/av1/encoder/segment_patch.cc"
+              "${AOM_ROOT}/av1/encoder/segment_patch.h")
+endif()
+
 list(APPEND AOM_AV1_COMMON_INTRIN_SSE2
             "${AOM_ROOT}/av1/common/cdef_block_sse2.c"
             "${AOM_ROOT}/av1/common/x86/cfl_sse2.c"
