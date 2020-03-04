@@ -535,8 +535,9 @@ static void build_inter_predictors(
 
 // True if the following hold:
 //  1. Not intrabc and not build_for_obmc
-//  2. At least one dimension of block-size is < 8 and it's subsampled
-//  3. If sub-sampled, none of the previous blocks around the sub-sample
+//  2. A U or V plane
+//  3. If the block size differs from the base block size
+//  4. If sub-sampled, none of the previous blocks around the sub-sample
 //     are intrabc or inter-blocks
 static bool is_sub8x8_inter(MACROBLOCKD *xd, int plane, const MB_MODE_INFO *mi,
                             int build_for_obmc) {
