@@ -10404,7 +10404,7 @@ static int handle_inter_intra_mode(const AV1_COMP *const cpi,
 #endif  // CONFIG_ILLUM_MCOMP
     if (cpi->sf.reuse_inter_intra_mode == 0 ||
         best_interintra_mode == INTERINTRA_MODES) {
-      for (j = 0; j < INTERINTRA_MODES; ++j) {
+      for (j = 0; j < total_modes; ++j) {
 #if CONFIG_ILLUM_MCOMP
         if (j == II_ILLUM_MCOMP_PRED) {
           single_motion_search(cpi, x, bsize, 0, &tmp_rate_mv, true);
