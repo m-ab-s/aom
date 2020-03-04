@@ -919,7 +919,7 @@ typedef struct macroblockd_plane {
   // The dequantizers below are true dequantizers used only in the
   // dequantization process.  They have the same coefficient
   // shift/scale as TX.
-#if CONFIG_EXTQUANT
+#if CONFIG_EXTQUANT_72 || CONFIG_EXTQUANT_64
   int32_t seg_dequant_QTX[MAX_SEGMENTS][2];
 #else
   int16_t seg_dequant_QTX[MAX_SEGMENTS][2];

@@ -374,7 +374,7 @@ void av1_cdef_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
   const int nvfb = (cm->mi_rows + MI_SIZE_64X64 - 1) / MI_SIZE_64X64;
   const int nhfb = (cm->mi_cols + MI_SIZE_64X64 - 1) / MI_SIZE_64X64;
   int *sb_index = aom_malloc(nvfb * nhfb * sizeof(*sb_index));
-#if CONFIG_EXTQUANT
+#if CONFIG_EXTQUANT_72
   const int damping = AOMMIN(3 + (cm->base_qindex >> 6), 6);
 #else
   const int damping = 3 + (cm->base_qindex >> 6);

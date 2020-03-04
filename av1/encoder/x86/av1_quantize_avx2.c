@@ -42,7 +42,7 @@ static INLINE void init_one_qp(const __m128i *p, __m256i *qp) {
   *qp = _mm256_insertf128_si256(_mm256_castsi128_si256(*p), ac, 1);
 }
 
-#if CONFIG_EXTQUANT
+#if CONFIG_EXTQUANT_72 || CONFIG_EXTQUANT_64
 static INLINE void init_qp(const int32_t *round_ptr, const int32_t *quant_ptr,
                            const int32_t *dequant_ptr, int log_scale,
                            __m256i *thr, __m256i *qp) {
@@ -138,7 +138,7 @@ static INLINE void quantize(const __m256i *thr, const __m256i *qp, __m256i *c,
   }
 }
 
-#if CONFIG_EXTQUANT
+#if CONFIG_EXTQUANT_72 || CONFIG_EXTQUANT_64
 void av1_quantize_fp_avx2(const tran_low_t *coeff_ptr, intptr_t n_coeffs,
                           const int32_t *zbin_ptr, const int32_t *round_ptr,
                           const int32_t *quant_ptr,
@@ -224,7 +224,7 @@ static INLINE void quantize_32x32(const __m256i *thr, const __m256i *qp,
   }
 }
 
-#if CONFIG_EXTQUANT
+#if CONFIG_EXTQUANT_72 || CONFIG_EXTQUANT_64
 void av1_quantize_fp_32x32_avx2(
     const tran_low_t *coeff_ptr, intptr_t n_coeffs, const int32_t *zbin_ptr,
     const int32_t *round_ptr, const int32_t *quant_ptr,
@@ -312,7 +312,7 @@ static INLINE void quantize_64x64(const __m256i *thr, const __m256i *qp,
   }
 }
 
-#if CONFIG_EXTQUANT
+#if CONFIG_EXTQUANT_72 || CONFIG_EXTQUANT_64
 void av1_quantize_fp_64x64_avx2(
     const tran_low_t *coeff_ptr, intptr_t n_coeffs, const int32_t *zbin_ptr,
     const int32_t *round_ptr, const int32_t *quant_ptr,

@@ -375,7 +375,7 @@ static aom_codec_err_t validate_config(aom_codec_alg_priv_t *ctx,
   RANGE_CHECK(cfg, g_timebase.den, 1, 1000000000);
   RANGE_CHECK(cfg, g_timebase.num, 1, cfg->g_timebase.den);
   RANGE_CHECK_HI(cfg, g_profile, MAX_PROFILES - 1);
-#if CONFIG_EXTQUANT
+#if CONFIG_EXTQUANT_72
   RANGE_CHECK_HI(cfg, rc_max_quantizer, 71);
 #else
   RANGE_CHECK_HI(cfg, rc_max_quantizer, 63);
@@ -462,7 +462,7 @@ static aom_codec_err_t validate_config(aom_codec_alg_priv_t *ctx,
   RANGE_CHECK_HI(extra_cfg, sharpness, 7);
   RANGE_CHECK_HI(extra_cfg, arnr_max_frames, 15);
   RANGE_CHECK_HI(extra_cfg, arnr_strength, 6);
-#if CONFIG_EXTQUANT
+#if CONFIG_EXTQUANT_72
   RANGE_CHECK_HI(extra_cfg, cq_level, 71);
 #else
   RANGE_CHECK_HI(extra_cfg, cq_level, 63);

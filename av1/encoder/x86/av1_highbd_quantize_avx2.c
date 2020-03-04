@@ -29,7 +29,7 @@ static INLINE void update_qp(__m256i *qp) {
   qp[2] = _mm256_permute2x128_si256(qp[2], qp[2], 0x11);
 }
 
-#if CONFIG_EXTQUANT
+#if CONFIG_EXTQUANT_72 || CONFIG_EXTQUANT_64
 static INLINE void init_qp(const int32_t *round_ptr, const int32_t *quant_ptr,
                            const int32_t *dequant_ptr, int log_scale,
                            __m256i *qp) {
@@ -93,7 +93,7 @@ static INLINE void quantize(const __m256i *qp, __m256i *c,
   *eob = _mm256_max_epi32(cur_eob, *eob);
 }
 
-#if CONFIG_EXTQUANT
+#if CONFIG_EXTQUANT_72 || CONFIG_EXTQUANT_64
 void av1_highbd_quantize_fp_avx2(
     const tran_low_t *coeff_ptr, intptr_t n_coeffs, const int32_t *zbin_ptr,
     const int32_t *round_ptr, const int32_t *quant_ptr,

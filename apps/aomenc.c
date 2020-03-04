@@ -1130,7 +1130,7 @@ struct stream_state {
   uint64_t psnr_samples_total;
   double psnr_totals[4];
   int psnr_count;
-#if CONFIG_EXTQUANT
+#if CONFIG_EXTQUANT_72
   int counts[72];
 #else
   int counts[64];

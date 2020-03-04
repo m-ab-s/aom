@@ -50,7 +50,7 @@ static INLINE int rec_eob_pos(const int eob_token, const int extra) {
   return eob;
 }
 
-#if CONFIG_EXTQUANT
+#if CONFIG_EXTQUANT_72 || CONFIG_EXTQUANT_64
 static INLINE int get_dqv(const int32_t *dequant, int coeff_idx,
 #else
 static INLINE int get_dqv(const int16_t *dequant, int coeff_idx,
@@ -123,7 +123,7 @@ uint8_t av1_read_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCKD *const xd,
   const PLANE_TYPE plane_type = get_plane_type(plane);
   MB_MODE_INFO *const mbmi = xd->mi[0];
   struct macroblockd_plane *const pd = &xd->plane[plane];
-#if CONFIG_EXTQUANT
+#if CONFIG_EXTQUANT_72 || CONFIG_EXTQUANT_64
   const int32_t *const dequant = pd->seg_dequant_QTX[mbmi->segment_id];
 #else
   const int16_t *const dequant = pd->seg_dequant_QTX[mbmi->segment_id];

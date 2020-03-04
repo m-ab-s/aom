@@ -112,7 +112,7 @@ static INLINE uint16_t get_accumulated_eob(__m128i *eob) {
   return eobValue;
 }
 
-#if CONFIG_EXTQUANT
+#if CONFIG_EXTQUANT_72 || CONFIG_EXTQUANT_64
 void av1_highbd_quantize_fp_sse4_1(
     const tran_low_t *coeff_ptr, intptr_t count, const int32_t *zbin_ptr,
     const int32_t *round_ptr, const int32_t *quant_ptr,

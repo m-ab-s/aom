@@ -22,7 +22,7 @@ extern "C" {
 #endif
 
 #define MINQ 0
-#if CONFIG_EXTQUANT
+#if CONFIG_EXTQUANT_72
 #define MAXQ 287
 #define QINDEX_BITS 9
 #else
@@ -43,7 +43,7 @@ extern "C" {
 
 struct AV1Common;
 
-#if CONFIG_EXTQUANT
+#if CONFIG_EXTQUANT_72 || CONFIG_EXTQUANT_64
 int32_t av1_dc_quant_QTX(int qindex, int delta, aom_bit_depth_t bit_depth);
 int32_t av1_ac_quant_QTX(int qindex, int delta, aom_bit_depth_t bit_depth);
 #else

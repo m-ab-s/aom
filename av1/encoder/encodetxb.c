@@ -62,7 +62,7 @@ typedef struct LevelDownStats {
   int new_eob;
 } LevelDownStats;
 
-#if CONFIG_EXTQUANT
+#if CONFIG_EXTQUANT_72 || CONFIG_EXTQUANT_64
 static INLINE int get_dqv(const int32_t *dequant, int coeff_idx,
 #else
 static INLINE int get_dqv(const int16_t *dequant, int coeff_idx,
@@ -1555,7 +1555,7 @@ static INLINE void get_qc_dqc_low(tran_low_t abs_qc, int sign, int dqv,
 static INLINE void update_coeff_general(
     int *accu_rate, int64_t *accu_dist, int si, int eob, TX_SIZE tx_size,
     TX_CLASS tx_class, int bwl, int height, int64_t rdmult, int shift,
-#if CONFIG_EXTQUANT
+#if CONFIG_EXTQUANT_72 || CONFIG_EXTQUANT_64
     int dc_sign_ctx, const int32_t *dequant, const int16_t *scan,
 #else
     int dc_sign_ctx, const int16_t *dequant, const int16_t *scan,
@@ -1616,7 +1616,7 @@ static INLINE void update_coeff_general(
 
 static AOM_FORCE_INLINE void update_coeff_simple(
     int *accu_rate, int si, int eob, TX_SIZE tx_size, TX_CLASS tx_class,
-#if CONFIG_EXTQUANT
+#if CONFIG_EXTQUANT_72 || CONFIG_EXTQUANT_64
     int bwl, int64_t rdmult, int shift, const int32_t *dequant,
 #else
     int bwl, int64_t rdmult, int shift, const int16_t *dequant,
@@ -1669,7 +1669,7 @@ static AOM_FORCE_INLINE void update_coeff_simple(
 }
 
 static INLINE void update_coeff_eob_fast(int *eob, int shift,
-#if CONFIG_EXTQUANT
+#if CONFIG_EXTQUANT_72 || CONFIG_EXTQUANT_64
                                          const int32_t *dequant_ptr,
 #else
                                          const int16_t *dequant_ptr,
@@ -1705,7 +1705,7 @@ static INLINE void update_coeff_eob_fast(int *eob, int shift,
 static AOM_FORCE_INLINE void update_coeff_eob(
     int *accu_rate, int64_t *accu_dist, int *eob, int *nz_num, int *nz_ci,
     int si, TX_SIZE tx_size, TX_CLASS tx_class, int bwl, int height,
-#if CONFIG_EXTQUANT
+#if CONFIG_EXTQUANT_72 || CONFIG_EXTQUANT_64
     int dc_sign_ctx, int64_t rdmult, int shift, const int32_t *dequant,
 #else
     int dc_sign_ctx, int64_t rdmult, int shift, const int16_t *dequant,
@@ -1850,7 +1850,7 @@ int av1_optimize_txb_new(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
   const int16_t *scan = scan_order->scan;
   const int shift = av1_get_tx_scale(tx_size);
   int eob = p->eobs[block];
-#if CONFIG_EXTQUANT
+#if CONFIG_EXTQUANT_72 || CONFIG_EXTQUANT_64
   const int32_t *dequant = p->dequant_QTX;
 #else
   const int16_t *dequant = p->dequant_QTX;
@@ -2033,7 +2033,7 @@ int av1_optimize_txb(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
   tran_low_t *qcoeff = BLOCK_OFFSET(p->qcoeff, block);
   tran_low_t *dqcoeff = BLOCK_OFFSET(pd->dqcoeff, block);
   const tran_low_t *tcoeff = BLOCK_OFFSET(p->coeff, block);
-#if CONFIG_EXTQUANT
+#if CONFIG_EXTQUANT_72 || CONFIG_EXTQUANT_64
   const int32_t *dequant = p->dequant_QTX;
 #else
   const int16_t *dequant = p->dequant_QTX;

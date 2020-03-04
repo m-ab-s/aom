@@ -13,7 +13,7 @@
 #include "aom_mem/aom_mem.h"
 #include "av1/encoder/av1_quantize.h"
 
-#if CONFIG_EXTQUANT
+#if CONFIG_EXTQUANT_72 || CONFIG_EXTQUANT_64
 void aom_quantize_b_adaptive_helper_c(
     const tran_low_t *coeff_ptr, intptr_t n_coeffs, const int32_t *zbin_ptr,
     const int32_t *round_ptr, const int32_t *quant_ptr,
@@ -115,7 +115,7 @@ void aom_quantize_b_adaptive_helper_c(
   *eob_ptr = eob + 1;
 }
 
-#if CONFIG_EXTQUANT
+#if CONFIG_EXTQUANT_72 || CONFIG_EXTQUANT_64
 void aom_quantize_b_helper_c(const tran_low_t *coeff_ptr, intptr_t n_coeffs,
                              const int32_t *zbin_ptr, const int32_t *round_ptr,
                              const int32_t *quant_ptr,
@@ -190,7 +190,7 @@ void aom_quantize_b_helper_c(const tran_low_t *coeff_ptr, intptr_t n_coeffs,
   *eob_ptr = eob + 1;
 }
 
-#if CONFIG_EXTQUANT
+#if CONFIG_EXTQUANT_72 || CONFIG_EXTQUANT_64
 void aom_highbd_quantize_b_adaptive_helper_c(
     const tran_low_t *coeff_ptr, intptr_t n_coeffs, const int32_t *zbin_ptr,
     const int32_t *round_ptr, const int32_t *quant_ptr,
@@ -287,7 +287,7 @@ void aom_highbd_quantize_b_adaptive_helper_c(
   *eob_ptr = eob + 1;
 }
 
-#if CONFIG_EXTQUANT
+#if CONFIG_EXTQUANT_72 || CONFIG_EXTQUANT_64
 void aom_highbd_quantize_b_helper_c(
     const tran_low_t *coeff_ptr, intptr_t n_coeffs, const int32_t *zbin_ptr,
     const int32_t *round_ptr, const int32_t *quant_ptr,
@@ -356,7 +356,7 @@ void aom_highbd_quantize_b_helper_c(
 
 /* These functions should only be called when quantisation matrices
    are not used. */
-#if CONFIG_EXTQUANT
+#if CONFIG_EXTQUANT_72 || CONFIG_EXTQUANT_64
 void aom_quantize_b_adaptive_c(const tran_low_t *coeff_ptr, intptr_t n_coeffs,
                                const int32_t *zbin_ptr,
                                const int32_t *round_ptr,
@@ -381,7 +381,7 @@ void aom_quantize_b_adaptive_c(const tran_low_t *coeff_ptr, intptr_t n_coeffs,
                                    iscan, NULL, NULL, 0);
 }
 
-#if CONFIG_EXTQUANT
+#if CONFIG_EXTQUANT_72 || CONFIG_EXTQUANT_64
 void aom_quantize_b_32x32_adaptive_c(
     const tran_low_t *coeff_ptr, intptr_t n_coeffs, const int32_t *zbin_ptr,
     const int32_t *round_ptr, const int32_t *quant_ptr,
@@ -402,7 +402,7 @@ void aom_quantize_b_32x32_adaptive_c(
                                    iscan, NULL, NULL, 1);
 }
 
-#if CONFIG_EXTQUANT
+#if CONFIG_EXTQUANT_72 || CONFIG_EXTQUANT_64
 void aom_quantize_b_64x64_adaptive_c(
     const tran_low_t *coeff_ptr, intptr_t n_coeffs, const int32_t *zbin_ptr,
     const int32_t *round_ptr, const int32_t *quant_ptr,
@@ -423,7 +423,7 @@ void aom_quantize_b_64x64_adaptive_c(
                                    iscan, NULL, NULL, 2);
 }
 
-#if CONFIG_EXTQUANT
+#if CONFIG_EXTQUANT_72 || CONFIG_EXTQUANT_64
 void aom_highbd_quantize_b_adaptive_c(
     const tran_low_t *coeff_ptr, intptr_t n_coeffs, const int32_t *zbin_ptr,
     const int32_t *round_ptr, const int32_t *quant_ptr,
@@ -444,7 +444,7 @@ void aom_highbd_quantize_b_adaptive_c(
                                           eob_ptr, scan, iscan, NULL, NULL, 0);
 }
 
-#if CONFIG_EXTQUANT
+#if CONFIG_EXTQUANT_72 || CONFIG_EXTQUANT_64
 void aom_highbd_quantize_b_32x32_adaptive_c(
     const tran_low_t *coeff_ptr, intptr_t n_coeffs, const int32_t *zbin_ptr,
     const int32_t *round_ptr, const int32_t *quant_ptr,
@@ -465,7 +465,7 @@ void aom_highbd_quantize_b_32x32_adaptive_c(
                                           eob_ptr, scan, iscan, NULL, NULL, 1);
 }
 
-#if CONFIG_EXTQUANT
+#if CONFIG_EXTQUANT_72 || CONFIG_EXTQUANT_64
 void aom_highbd_quantize_b_64x64_adaptive_c(
     const tran_low_t *coeff_ptr, intptr_t n_coeffs, const int32_t *zbin_ptr,
     const int32_t *round_ptr, const int32_t *quant_ptr,
@@ -486,7 +486,7 @@ void aom_highbd_quantize_b_64x64_adaptive_c(
                                           eob_ptr, scan, iscan, NULL, NULL, 2);
 }
 
-#if CONFIG_EXTQUANT
+#if CONFIG_EXTQUANT_72 || CONFIG_EXTQUANT_64
 void aom_quantize_b_c(const tran_low_t *coeff_ptr, intptr_t n_coeffs,
                       const int32_t *zbin_ptr, const int32_t *round_ptr,
                       const int32_t *quant_ptr, const int32_t *quant_shift_ptr,
@@ -506,7 +506,7 @@ void aom_quantize_b_c(const tran_low_t *coeff_ptr, intptr_t n_coeffs,
                           eob_ptr, scan, iscan, NULL, NULL, 0);
 }
 
-#if CONFIG_EXTQUANT
+#if CONFIG_EXTQUANT_72 || CONFIG_EXTQUANT_64
 void aom_quantize_b_32x32_c(const tran_low_t *coeff_ptr, intptr_t n_coeffs,
                             const int32_t *zbin_ptr, const int32_t *round_ptr,
                             const int32_t *quant_ptr,
@@ -528,7 +528,7 @@ void aom_quantize_b_32x32_c(const tran_low_t *coeff_ptr, intptr_t n_coeffs,
                           eob_ptr, scan, iscan, NULL, NULL, 1);
 }
 
-#if CONFIG_EXTQUANT
+#if CONFIG_EXTQUANT_72 || CONFIG_EXTQUANT_64
 void aom_quantize_b_64x64_c(const tran_low_t *coeff_ptr, intptr_t n_coeffs,
                             const int32_t *zbin_ptr, const int32_t *round_ptr,
                             const int32_t *quant_ptr,
@@ -550,7 +550,7 @@ void aom_quantize_b_64x64_c(const tran_low_t *coeff_ptr, intptr_t n_coeffs,
                           eob_ptr, scan, iscan, NULL, NULL, 2);
 }
 
-#if CONFIG_EXTQUANT
+#if CONFIG_EXTQUANT_72 || CONFIG_EXTQUANT_64
 void aom_highbd_quantize_b_c(const tran_low_t *coeff_ptr, intptr_t n_coeffs,
                              const int32_t *zbin_ptr, const int32_t *round_ptr,
                              const int32_t *quant_ptr,
@@ -573,7 +573,7 @@ void aom_highbd_quantize_b_c(const tran_low_t *coeff_ptr, intptr_t n_coeffs,
                                  NULL, NULL, 0);
 }
 
-#if CONFIG_EXTQUANT
+#if CONFIG_EXTQUANT_72 || CONFIG_EXTQUANT_64
 void aom_highbd_quantize_b_32x32_c(
     const tran_low_t *coeff_ptr, intptr_t n_coeffs, const int32_t *zbin_ptr,
     const int32_t *round_ptr, const int32_t *quant_ptr,
@@ -594,7 +594,7 @@ void aom_highbd_quantize_b_32x32_c(
                                  NULL, NULL, 1);
 }
 
-#if CONFIG_EXTQUANT
+#if CONFIG_EXTQUANT_72 || CONFIG_EXTQUANT_64
 void aom_highbd_quantize_b_64x64_c(
     const tran_low_t *coeff_ptr, intptr_t n_coeffs, const int32_t *zbin_ptr,
     const int32_t *round_ptr, const int32_t *quant_ptr,

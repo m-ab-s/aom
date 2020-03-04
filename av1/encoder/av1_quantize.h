@@ -45,7 +45,7 @@ typedef void (*AV1_QUANT_FACADE)(const tran_low_t *coeff_ptr, intptr_t n_coeffs,
 // All of its fields use the same coefficient shift/scaling at TX.
 typedef struct {
   // 0: dc 1: ac 2-8: ac repeated to SIMD width
-#if CONFIG_EXTQUANT
+#if CONFIG_EXTQUANT_72 || CONFIG_EXTQUANT_64
   DECLARE_ALIGNED(32, int32_t, y_quant[QINDEX_RANGE][8]);
   DECLARE_ALIGNED(32, int32_t, y_quant_shift[QINDEX_RANGE][8]);
   DECLARE_ALIGNED(32, int32_t, y_zbin[QINDEX_RANGE][8]);
@@ -99,7 +99,7 @@ typedef struct {
 // Fields are suffixed according to whether or not they're expressed in
 // the same coefficient shift/precision as TX or a fixed Q3 format.
 typedef struct {
-#if CONFIG_EXTQUANT
+#if CONFIG_EXTQUANT_72 || CONFIG_EXTQUANT_64
   DECLARE_ALIGNED(32, int32_t,
                   y_dequant_QTX[QINDEX_RANGE][8]);  // 8: SIMD width
   DECLARE_ALIGNED(32, int32_t,

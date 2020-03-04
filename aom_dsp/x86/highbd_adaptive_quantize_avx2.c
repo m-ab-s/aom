@@ -18,7 +18,7 @@
 
 #include "av1/encoder/av1_quantize.h"
 
-#if CONFIG_EXTQUANT
+#if CONFIG_EXTQUANT_72 || CONFIG_EXTQUANT_64
 static INLINE void highbd_load_b_values_avx2(
     const int32_t *zbin_ptr, __m256i *zbin, const int32_t *round_ptr,
     __m256i *round, const int32_t *quant_ptr, __m256i *quant,
@@ -111,7 +111,7 @@ static INLINE void highbd_store_coefficients_avx2(__m256i coeff0,
   _mm256_store_si256((__m256i *)(coeff_ptr + 8), coeff1);
 }
 
-#if CONFIG_EXTQUANT
+#if CONFIG_EXTQUANT_72 || CONFIG_EXTQUANT_64
 void aom_highbd_quantize_b_adaptive_avx2(
     const tran_low_t *coeff_ptr, intptr_t n_coeffs, const int32_t *zbin_ptr,
     const int32_t *round_ptr, const int32_t *quant_ptr,
@@ -288,7 +288,7 @@ void aom_highbd_quantize_b_adaptive_avx2(
 #endif
 }
 
-#if CONFIG_EXTQUANT
+#if CONFIG_EXTQUANT_72 || CONFIG_EXTQUANT_64
 void aom_highbd_quantize_b_32x32_adaptive_avx2(
     const tran_low_t *coeff_ptr, intptr_t n_coeffs, const int32_t *zbin_ptr,
     const int32_t *round_ptr, const int32_t *quant_ptr,

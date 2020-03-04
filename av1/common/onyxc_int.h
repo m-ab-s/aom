@@ -424,7 +424,7 @@ typedef struct AV1Common {
   // The dequantizers below are true dequantizers used only in the
   // dequantization process.  They have the same coefficient
   // shift/scale as TX.
-#if CONFIG_EXTQUANT
+#if CONFIG_EXTQUANT_72 || CONFIG_EXTQUANT_64
   int32_t y_dequant_QTX[MAX_SEGMENTS][2];
   int32_t u_dequant_QTX[MAX_SEGMENTS][2];
   int32_t v_dequant_QTX[MAX_SEGMENTS][2];

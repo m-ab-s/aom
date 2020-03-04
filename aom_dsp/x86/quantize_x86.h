@@ -13,7 +13,7 @@
 
 #include "aom/aom_integer.h"
 
-#if CONFIG_EXTQUANT
+#if CONFIG_EXTQUANT_72 || CONFIG_EXTQUANT_64
 static INLINE void load_b_values(const int32_t *zbin_ptr, __m128i *zbin,
                                  const int32_t *round_ptr, __m128i *round,
                                  const int32_t *quant_ptr, __m128i *quant,

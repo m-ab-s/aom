@@ -27,7 +27,7 @@
 namespace {
 using libaom_test::ACMRandom;
 
-#if CONFIG_EXTQUANT
+#if CONFIG_EXTQUANT_72 || CONFIG_EXTQUANT_64
 #define QUAN_PARAM_LIST                                                       \
   const tran_low_t *coeff_ptr, intptr_t n_coeffs, const int32_t *zbin_ptr,    \
       const int32_t *round_ptr, const int32_t *quant_ptr,                     \
@@ -128,7 +128,7 @@ class QuantizeTest : public ::testing::TestWithParam<QuantizeParam> {
     const SCAN_ORDER *const sc = get_default_scan(tx_size_, DCT_DCT);
 
     // Testing uses luminance quantization table
-#if CONFIG_EXTQUANT
+#if CONFIG_EXTQUANT_72 || CONFIG_EXTQUANT_64
     const int32_t *zbin = qtab_->quant.y_zbin[q];
     const int32_t *round = 0;
     const int32_t *quant = 0;
@@ -145,7 +145,7 @@ class QuantizeTest : public ::testing::TestWithParam<QuantizeParam> {
       quant = qtab_->quant.y_quant_fp[q];
     }
 
-#if CONFIG_EXTQUANT
+#if CONFIG_EXTQUANT_72 || CONFIG_EXTQUANT_64
     const int32_t *quant_shift = qtab_->quant.y_quant_shift[q];
     const int32_t *dequant = qtab_->dequant.y_dequant_QTX[q];
 #else
@@ -306,7 +306,7 @@ TEST_P(QuantizeTest, DISABLED_Speed) {
 
   // Testing uses luminance quantization table
   const int q = 22;
-#if CONFIG_EXTQUANT
+#if CONFIG_EXTQUANT_72 || CONFIG_EXTQUANT_64
   const int32_t *zbin = qtab_->quant.y_zbin[q];
   const int32_t *round_fp = qtab_->quant.y_round_fp[q];
   const int32_t *quant_fp = qtab_->quant.y_quant_fp[q];
@@ -352,7 +352,7 @@ TEST_P(QuantizeTest, DISABLED_Speed) {
 
 using ::testing::make_tuple;
 
-#if HAVE_AVX2 && !CONFIG_EXTQUANT
+#if HAVE_AVX2 && !CONFIG_EXTQUANT_72 && !CONFIG_EXTQUANT_64
 const QuantizeParam kQParamArrayAvx2[] = {
   make_tuple(&av1_quantize_fp_c, &av1_quantize_fp_avx2,
              static_cast<TX_SIZE>(TX_16X16), TYPE_FP, AOM_BITS_8),
@@ -435,7 +435,7 @@ INSTANTIATE_TEST_CASE_P(AVX2, QuantizeTest,
                         ::testing::ValuesIn(kQParamArrayAvx2));
 #endif  // HAVE_AVX2
 
-#if HAVE_SSE2 && !CONFIG_EXTQUANT
+#if HAVE_SSE2 && !CONFIG_EXTQUANT_72 && !CONFIG_EXTQUANT_64
 const QuantizeParam kQParamArraySSE2[] = {
   make_tuple(&av1_quantize_fp_c, &av1_quantize_fp_sse2,
              static_cast<TX_SIZE>(TX_16X16), TYPE_FP, AOM_BITS_8),
@@ -524,7 +524,7 @@ INSTANTIATE_TEST_CASE_P(SSE2, QuantizeTest,
                         ::testing::ValuesIn(kQParamArraySSE2));
 #endif
 
-#if HAVE_SSSE3 && ARCH_X86_64 && !CONFIG_EXTQUANT
+#if HAVE_SSSE3 && ARCH_X86_64 && !CONFIG_EXTQUANT_72 && !CONFIG_EXTQUANT_64
 INSTANTIATE_TEST_CASE_P(
     SSSE3, QuantizeTest,
     ::testing::Values(
@@ -537,7 +537,7 @@ INSTANTIATE_TEST_CASE_P(
 
 #endif  // HAVE_SSSE3 && ARCH_X86_64
 
-#if HAVE_AVX && ARCH_X86_64 && !CONFIG_EXTQUANT
+#if HAVE_AVX && ARCH_X86_64 && !CONFIG_EXTQUANT_72 && !CONFIG_EXTQUANT_64
 INSTANTIATE_TEST_CASE_P(
     AVX, QuantizeTest,
     ::testing::Values(

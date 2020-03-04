@@ -16,7 +16,7 @@
 #include "av1/encoder/av1_quantize.h"
 #include "aom_dsp/x86/quantize_x86.h"
 
-#if CONFIG_EXTQUANT
+#if CONFIG_EXTQUANT_72 || CONFIG_EXTQUANT_64
 void aom_quantize_b_adaptive_sse2(
     const tran_low_t *coeff_ptr, intptr_t n_coeffs, const int32_t *zbin_ptr,
     const int32_t *round_ptr, const int32_t *quant_ptr,
@@ -225,7 +225,7 @@ void aom_quantize_b_adaptive_sse2(
 #endif
 }
 
-#if CONFIG_EXTQUANT
+#if CONFIG_EXTQUANT_72 || CONFIG_EXTQUANT_64
 void aom_quantize_b_32x32_adaptive_sse2(
     const tran_low_t *coeff_ptr, intptr_t n_coeffs, const int32_t *zbin_ptr,
     const int32_t *round_ptr, const int32_t *quant_ptr,
@@ -442,7 +442,7 @@ void aom_quantize_b_32x32_adaptive_sse2(
 #endif
 }
 
-#if CONFIG_EXTQUANT
+#if CONFIG_EXTQUANT_72 || CONFIG_EXTQUANT_64
 void aom_quantize_b_64x64_adaptive_sse2(
     const tran_low_t *coeff_ptr, intptr_t n_coeffs, const int32_t *zbin_ptr,
     const int32_t *round_ptr, const int32_t *quant_ptr,

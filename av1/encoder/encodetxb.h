@@ -38,7 +38,7 @@ typedef struct TxbInfo {
   uint8_t *levels;  // absolute values and clamped to 255.
   tran_low_t *dqcoeff;
   const tran_low_t *tcoeff;
-#if CONFIG_EXTQUANT
+#if CONFIG_EXTQUANT_72 || CONFIG_EXTQUANT_64
   const int32_t *dequant;
 #else
   const int16_t *dequant;

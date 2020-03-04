@@ -135,7 +135,7 @@ static INLINE void quantize(const int16_t *iscan_ptr,
   }
 }
 
-#if CONFIG_EXTQUANT
+#if CONFIG_EXTQUANT_72 || CONFIG_EXTQUANT_64
 void av1_quantize_fp_sse2(const tran_low_t *coeff_ptr, intptr_t n_coeffs,
                           const int32_t *zbin_ptr, const int32_t *round_ptr,
                           const int32_t *quant_ptr,

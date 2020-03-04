@@ -59,7 +59,7 @@ static INLINE void calculate_dqcoeff_and_store_64x64(const __m128i qcoeff,
   _mm_store_si128((__m128i *)(dqcoeff + 4), dqcoeff32_1);
 }
 
-#if CONFIG_EXTQUANT
+#if CONFIG_EXTQUANT_72 || CONFIG_EXTQUANT_64
 void aom_quantize_b_64x64_ssse3(const tran_low_t *coeff_ptr, intptr_t n_coeffs,
                                 const int32_t *zbin_ptr,
                                 const int32_t *round_ptr,
