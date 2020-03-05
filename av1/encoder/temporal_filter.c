@@ -661,13 +661,14 @@ void av1_highbd_temporal_filter_apply_c(
 void av1_temporal_filter_plane_c(uint8_t *frame1, unsigned int stride,
                                  uint8_t *frame2, unsigned int stride2,
                                  int block_width, int block_height,
-                                 int strength, double sigma, int decay_control,
-                                 const int *blk_fw, int use_32x32,
-                                 unsigned int *accumulator, uint16_t *count) {
+                                 int strength, double noise_level,
+                                 int decay_control, const int *blk_fw,
+                                 int use_32x32, unsigned int *accumulator,
+                                 uint16_t *count) {
   (void)strength;
   (void)blk_fw;
   (void)use_32x32;
-  const double h = (double)decay_control * (0.7 + log(sigma + 1.0));
+  const double h = (double)decay_control * (0.7 + log(noise_level + 1.0));
   const double beta = 1.0;
   for (int i = 0, k = 0; i < block_height; i++) {
     for (int j = 0; j < block_width; j++, k++) {
@@ -705,14 +706,14 @@ void av1_temporal_filter_plane_c(uint8_t *frame1, unsigned int stride,
 void av1_highbd_temporal_filter_plane_c(
     uint8_t *frame1_8bit, unsigned int stride, uint8_t *frame2_8bit,
     unsigned int stride2, int block_width, int block_height, int strength,
-    double sigma, int decay_control, const int *blk_fw, int use_32x32,
+    double noise_level, int decay_control, const int *blk_fw, int use_32x32,
     unsigned int *accumulator, uint16_t *count, int bit_depth) {
   (void)strength;
   (void)blk_fw;
   (void)use_32x32;
   uint16_t *frame1 = CONVERT_TO_SHORTPTR(frame1_8bit);
   uint16_t *frame2 = CONVERT_TO_SHORTPTR(frame2_8bit);
-  const double h = (double)decay_control * (0.7 + log(sigma + 1.0));
+  const double h = (double)decay_control * (0.7 + log(noise_level + 1.0));
   const double beta = 1.0;
   for (int i = 0, k = 0; i < block_height; i++) {
     for (int j = 0; j < block_width; j++, k++) {
@@ -754,10 +755,10 @@ void apply_temporal_filter_block(YV12_BUFFER_CONFIG *frame, MACROBLOCKD *mbd,
                                  int mb_y_src_offset, int mb_uv_src_offset,
                                  int mb_uv_width, int mb_uv_height,
                                  int num_planes, uint8_t *predictor,
-                                 int frame_height, int strength, double sigma,
-                                 int *blk_fw, int use_32x32,
-                                 unsigned int *accumulator, uint16_t *count,
-                                 int use_new_temporal_mode) {
+                                 int frame_height, int strength,
+                                 double *noise_levels, int *blk_fw,
+                                 int use_32x32, unsigned int *accumulator,
+                                 uint16_t *count, int use_new_temporal_mode) {
   const int is_hbd = is_cur_buf_hbd(mbd);
   // High bitdepth
   if (is_hbd) {
@@ -772,18 +773,18 @@ void apply_temporal_filter_block(YV12_BUFFER_CONFIG *frame, MACROBLOCKD *mbd,
       }
       av1_highbd_temporal_filter_plane_c(
           frame->y_buffer + mb_y_src_offset, frame->y_stride, predictor, BW, BW,
-          BH, strength, sigma, decay_control, blk_fw, use_32x32, accumulator,
-          count, mbd->bd);
+          BH, strength, noise_levels[0], decay_control, blk_fw, use_32x32,
+          accumulator, count, mbd->bd);
       if (num_planes > 1) {
         av1_highbd_temporal_filter_plane_c(
             frame->u_buffer + mb_uv_src_offset, frame->uv_stride,
             predictor + BLK_PELS, mb_uv_width, mb_uv_width, mb_uv_height,
-            strength, sigma, decay_control, blk_fw, use_32x32,
+            strength, noise_levels[1], decay_control, blk_fw, use_32x32,
             accumulator + BLK_PELS, count + BLK_PELS, mbd->bd);
         av1_highbd_temporal_filter_plane_c(
             frame->v_buffer + mb_uv_src_offset, frame->uv_stride,
             predictor + (BLK_PELS << 1), mb_uv_width, mb_uv_width, mb_uv_height,
-            strength, sigma, decay_control, blk_fw, use_32x32,
+            strength, noise_levels[2], decay_control, blk_fw, use_32x32,
             accumulator + (BLK_PELS << 1), count + (BLK_PELS << 1), mbd->bd);
       }
     } else {
@@ -822,18 +823,18 @@ void apply_temporal_filter_block(YV12_BUFFER_CONFIG *frame, MACROBLOCKD *mbd,
     }
     av1_temporal_filter_plane_c(frame->y_buffer + mb_y_src_offset,
                                 frame->y_stride, predictor, BW, BW, BH,
-                                strength, sigma, decay_control, blk_fw,
-                                use_32x32, accumulator, count);
+                                strength, noise_levels[0], decay_control,
+                                blk_fw, use_32x32, accumulator, count);
     if (num_planes > 1) {
       av1_temporal_filter_plane_c(
           frame->u_buffer + mb_uv_src_offset, frame->uv_stride,
           predictor + BLK_PELS, mb_uv_width, mb_uv_width, mb_uv_height,
-          strength, sigma, decay_control, blk_fw, use_32x32,
+          strength, noise_levels[1], decay_control, blk_fw, use_32x32,
           accumulator + BLK_PELS, count + BLK_PELS);
       av1_temporal_filter_plane_c(
           frame->v_buffer + mb_uv_src_offset, frame->uv_stride,
           predictor + (BLK_PELS << 1), mb_uv_width, mb_uv_width, mb_uv_height,
-          strength, sigma, decay_control, blk_fw, use_32x32,
+          strength, noise_levels[2], decay_control, blk_fw, use_32x32,
           accumulator + (BLK_PELS << 1), count + (BLK_PELS << 1));
     }
   } else {
@@ -1005,7 +1006,7 @@ typedef struct {
 
 static FRAME_DIFF temporal_filter_iterate_c(
     AV1_COMP *cpi, YV12_BUFFER_CONFIG **frames, int frame_count,
-    int alt_ref_index, int strength, double sigma, int is_key_frame,
+    int alt_ref_index, int strength, double *noise_levels, int is_key_frame,
     struct scale_factors *ref_scale_factors, int second_alt_ref) {
   const AV1_COMMON *cm = &cpi->common;
   const int num_planes = av1_num_planes(cm);
@@ -1032,7 +1033,7 @@ static FRAME_DIFF temporal_filter_iterate_c(
 #if EXPERIMENT_TEMPORAL_FILTER
   const int use_new_temporal_mode = AOMMIN(cm->width, cm->height) >= 480;
 #else
-  (void)sigma;
+  (void)noise_levels;
   const int use_new_temporal_mode = 0;
 #endif
 
@@ -1197,7 +1198,7 @@ static FRAME_DIFF temporal_filter_iterate_c(
               apply_temporal_filter_block(
                   f, mbd, mb_y_src_offset, mb_uv_src_offset, mb_uv_width,
                   mb_uv_height, num_planes, predictor, cm->height, strength,
-                  sigma, blk_fw, use_32x32, accumulator, count,
+                  noise_levels, blk_fw, use_32x32, accumulator, count,
                   use_new_temporal_mode);
 #else
               const int adj_strength = strength + 2 * (mbd->bd - 8);
@@ -1225,7 +1226,7 @@ static FRAME_DIFF temporal_filter_iterate_c(
               apply_temporal_filter_block(
                   f, mbd, mb_y_src_offset, mb_uv_src_offset, mb_uv_width,
                   mb_uv_height, num_planes, predictor, cm->height, strength,
-                  sigma, blk_fw, use_32x32, accumulator, count,
+                  noise_levels, blk_fw, use_32x32, accumulator, count,
                   use_new_temporal_mode);
 #else
               if (num_planes <= 1) {
@@ -1439,7 +1440,7 @@ double highbd_estimate_noise(const uint8_t *src8, int width, int height,
 }
 
 static int estimate_strength(AV1_COMP *cpi, int distance, int group_boost,
-                             double *sigma) {
+                             double *noise_levels) {
   // Adjust the strength based on active max q.
   int q;
   if (cpi->common.current_frame.frame_number > 1)
@@ -1452,33 +1453,38 @@ static int estimate_strength(AV1_COMP *cpi, int distance, int group_boost,
   struct lookahead_entry *buf =
       av1_lookahead_peek(cpi->lookahead, distance, cpi->compressor_stage);
   int strength;
-  double noiselevel;
-  if (is_cur_buf_hbd(mbd)) {
-    noiselevel = highbd_estimate_noise(
-        buf->img.y_buffer, buf->img.y_crop_width, buf->img.y_crop_height,
-        buf->img.y_stride, mbd->bd, EDGE_THRESHOLD);
-    *sigma = noiselevel;
-  } else {
-    noiselevel = estimate_noise(buf->img.y_buffer, buf->img.y_crop_width,
-                                buf->img.y_crop_height, buf->img.y_stride,
-                                EDGE_THRESHOLD);
-    *sigma = noiselevel;
+  double y_noiselevel;
+  const int num_planes = av1_num_planes(&cpi->common);
+  for (int plane = 0; plane < num_planes; ++plane) {
+    const int is_y_plane = (plane == 0);
+    const int height = buf->img.crop_heights[is_y_plane ? 0 : 1];
+    const int width = buf->img.crop_widths[is_y_plane ? 0 : 1];
+    const int stride = buf->img.strides[is_y_plane ? 0 : 1];
+    const uint8_t *src = buf->img.buffers[plane];
+    if (is_cur_buf_hbd(mbd)) {
+      noise_levels[plane] = highbd_estimate_noise(src, width, height, stride,
+                                                  mbd->bd, EDGE_THRESHOLD);
+    } else {
+      noise_levels[plane] =
+          estimate_noise(src, width, height, stride, EDGE_THRESHOLD);
+    }
   }
+  y_noiselevel = noise_levels[0];
   int adj_strength = cpi->oxcf.arnr_strength;
-  if (noiselevel > 0) {
+  if (y_noiselevel > 0) {
     // Get 4 integer adjustment levels in [-2, 1]
     int noiselevel_adj;
-    if (noiselevel < 0.75)
+    if (y_noiselevel < 0.75)
       noiselevel_adj = -2;
-    else if (noiselevel < 1.75)
+    else if (y_noiselevel < 1.75)
       noiselevel_adj = -1;
-    else if (noiselevel < 4.0)
+    else if (y_noiselevel < 4.0)
       noiselevel_adj = 0;
     else
       noiselevel_adj = 1;
     adj_strength += noiselevel_adj;
   }
-  // printf("[noise level: %g, strength = %d]\n", noiselevel, adj_strength);
+  // printf("[noise level: %g, strength = %d]\n", y_noiselevel, adj_strength);
 
   if (q > 16) {
     strength = adj_strength;
@@ -1497,7 +1503,7 @@ static int estimate_strength(AV1_COMP *cpi, int distance, int group_boost,
 // Apply buffer limits and context specific adjustments to arnr filter.
 static void adjust_arnr_filter(AV1_COMP *cpi, int distance, int group_boost,
                                int *arnr_frames, int *arnr_strength,
-                               double *sigma, int *frm_bwd, int *frm_fwd,
+                               double *noise_levels, int *frm_bwd, int *frm_fwd,
                                int second_alt_ref) {
   int frames = cpi->oxcf.arnr_max_frames;
 
@@ -1523,7 +1529,7 @@ static void adjust_arnr_filter(AV1_COMP *cpi, int distance, int group_boost,
   frames = frames_bwd + 1 + frames_fwd;
 
   *arnr_frames = frames;
-  *arnr_strength = estimate_strength(cpi, distance, group_boost, sigma);
+  *arnr_strength = estimate_strength(cpi, distance, group_boost, noise_levels);
   *frm_bwd = frames_bwd;
   *frm_fwd = frames_fwd;
 }
@@ -1542,7 +1548,7 @@ int av1_temporal_filter(AV1_COMP *cpi, int distance,
   YV12_BUFFER_CONFIG *frames[MAX_LAG_BUFFERS] = { NULL };
   const GF_GROUP *const gf_group = &cpi->gf_group;
   int rdmult = 0;
-  double sigma = 0;
+  double noise_levels[MAX_MB_PLANE] = { 0 };
   const int is_fwd_kf = is_show_existing_fwd_kf(cpi);
 
   // Temporal filter 1 more alt ref if its distance >= 7. This frame is always
@@ -1575,7 +1581,7 @@ int av1_temporal_filter(AV1_COMP *cpi, int distance,
     frames_to_blur = NUM_KEY_FRAME_DENOISING;
     if (distance == -1) {
       // Apply temporal filtering on key frame.
-      strength = estimate_strength(cpi, distance, rc->gfu_boost, &sigma);
+      strength = estimate_strength(cpi, distance, rc->gfu_boost, noise_levels);
       // Number of frames for temporal filtering, could be tuned.
       frames_to_blur_backward = 0;
       frames_to_blur_forward = frames_to_blur - 1;
@@ -1583,7 +1589,8 @@ int av1_temporal_filter(AV1_COMP *cpi, int distance,
     } else {
       // Apply temporal filtering on forward key frame. This requires filtering
       // backwards rather than forwards.
-      strength = estimate_strength(cpi, -1 * distance, rc->gfu_boost, &sigma);
+      strength =
+          estimate_strength(cpi, -1 * distance, rc->gfu_boost, noise_levels);
       // Number of frames for temporal filtering, could be tuned.
       frames_to_blur_backward = frames_to_blur - 1;
       frames_to_blur_forward = 0;
@@ -1591,7 +1598,7 @@ int av1_temporal_filter(AV1_COMP *cpi, int distance,
     }
   } else {
     adjust_arnr_filter(cpi, distance, rc->gfu_boost, &frames_to_blur, &strength,
-                       &sigma, &frames_to_blur_backward,
+                       noise_levels, &frames_to_blur_backward,
                        &frames_to_blur_forward, second_alt_ref);
     start_frame = distance + frames_to_blur_forward;
     cpi->common.showable_frame = (strength == 0 && frames_to_blur == 1) ||
@@ -1621,8 +1628,8 @@ int av1_temporal_filter(AV1_COMP *cpi, int distance,
   }
 
   FRAME_DIFF diff = temporal_filter_iterate_c(
-      cpi, frames, frames_to_blur, frames_to_blur_backward, strength, sigma,
-      distance < 0, &sf, second_alt_ref);
+      cpi, frames, frames_to_blur, frames_to_blur_backward, strength,
+      noise_levels, distance < 0, &sf, second_alt_ref);
 
   if (distance < 0) return 1;
 
