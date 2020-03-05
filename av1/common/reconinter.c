@@ -367,7 +367,7 @@ static void build_inter_predictors_sub8x8(
   const BLOCK_SIZE plane_bsize = plane ? mi->chroma_ref_info.bsize_base : bsize;
   const int b8_w = block_size_wide[plane_bsize] >> ss_x;
   const int b8_h = block_size_high[plane_bsize] >> ss_y;
-  const int is_intrabc = is_intrabc_block(mi);
+  assert(!is_intrabc_block(mi));
 
   // For sub8x8 chroma blocks, we may be covering more than one luma block's
   // worth of pixels. Thus (mi_x, mi_y) may not be the correct coordinates for
@@ -423,9 +423,8 @@ static void build_inter_predictors_sub8x8(
       pd->pre[0].height = ref_buf->buf.uv_crop_height;
       pd->pre[0].stride = ref_buf->buf.uv_stride;
 
-      const struct scale_factors *const sf =
-          is_intrabc ? &cm->sf_identity : ref_scale_factors;
-      struct buf_2d *const pre_buf = is_intrabc ? dst_buf : &pd->pre[0];
+      const struct scale_factors *const sf = ref_scale_factors;
+      struct buf_2d *const pre_buf = &pd->pre[0];
 
       const MV mv = this_mbmi->mv[0].as_mv;
 
