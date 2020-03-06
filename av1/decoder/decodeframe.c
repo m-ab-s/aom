@@ -554,14 +554,16 @@ static INLINE int update_extend_mc_border_params(
   (void)subpel_x_mv;
   (void)subpel_y_mv;
   (void)do_warp;
-  (void)is_intrabc;
-  block->x0 -= (AOM_INTERP_EXTEND - 1 + MAX_INTER_PRED_BORDER);
-  block->x1 += (AOM_INTERP_EXTEND + MAX_INTER_PRED_BORDER);
-  *x_pad = 1;
-  block->y0 -= (AOM_INTERP_EXTEND - 1 + MAX_INTER_PRED_BORDER);
-  block->y1 += (AOM_INTERP_EXTEND + MAX_INTER_PRED_BORDER);
-  *y_pad = 1;
-  return 1;
+  if (!is_intrabc) {
+    block->x0 -= AOM_INTERP_EXTEND - 1 + MAX_INTER_PRED_BORDER;
+    block->x1 += AOM_INTERP_EXTEND + MAX_INTER_PRED_BORDER;
+    *x_pad = 1;
+    block->y0 -= AOM_INTERP_EXTEND - 1 + MAX_INTER_PRED_BORDER;
+    block->y1 += AOM_INTERP_EXTEND + MAX_INTER_PRED_BORDER;
+    *y_pad = 1;
+    return 1;
+  }
+  return 0;
 }
 
 static INLINE void extend_mc_border(const struct scale_factors *const sf,
