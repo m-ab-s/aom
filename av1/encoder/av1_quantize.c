@@ -606,7 +606,7 @@ static void invert_quant(int16_t *quant, int16_t *shift, int d) {
   int l, m;
   t = d;
   for (l = 0; t > 1; l++) t >>= 1;
-  m = 1 + (1 << (16 + l)) / d;
+  m = 1 + (1u << (16 + l)) / d;
 #if CONFIG_EXTQUANT
   *quant = (int32_t)(m - (1 << 16));
 #else
