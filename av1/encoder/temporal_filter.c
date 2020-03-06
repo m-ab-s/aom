@@ -658,21 +658,27 @@ void av1_highbd_temporal_filter_apply_c(
 }
 
 #if EXPERIMENT_TEMPORAL_FILTER
-void av1_temporal_filter_plane_c(uint8_t *frame1, unsigned int stride,
-                                 uint8_t *frame2, unsigned int stride2,
-                                 int block_width, int block_height,
-                                 int strength, double noise_level,
-                                 int decay_control, const int *blk_fw,
-                                 int use_32x32, unsigned int *accumulator,
-                                 uint16_t *count) {
+void av1_temporal_filter_plane_c(MACROBLOCKD *mbd, uint8_t *frame1,
+                                 unsigned int stride, uint8_t *frame2,
+                                 unsigned int stride2, uint16_t *square_diffs_y,
+                                 int plane_idx, int block_width,
+                                 int block_height, int strength,
+                                 double noise_level, int decay_control,
+                                 const int *blk_fw, int use_32x32,
+                                 unsigned int *accumulator, uint16_t *count) {
   (void)strength;
   (void)blk_fw;
   (void)use_32x32;
+  int ss_x_shift =
+      mbd->plane[plane_idx].subsampling_x - mbd->plane[0].subsampling_x;
+  int ss_y_shift =
+      mbd->plane[plane_idx].subsampling_y - mbd->plane[0].subsampling_y;
   const double h = (double)decay_control * (0.7 + log(noise_level + 1.0));
   const double beta = 1.0;
   for (int i = 0, k = 0; i < block_height; i++) {
     for (int j = 0; j < block_width; j++, k++) {
       const int pixel_value = frame2[i * stride2 + j];
+      int num_ref_pixels = 0;
 
       int diff_sse = 0;
       for (int idy = -WINDOW_LENGTH; idy <= WINDOW_LENGTH; ++idy) {
@@ -687,9 +693,24 @@ void av1_temporal_filter_plane_c(uint8_t *frame1, unsigned int stride,
           int diff = frame1[row * (int)stride + col] -
                      frame2[row * (int)stride2 + col];
           diff_sse += diff * diff;
+          ++num_ref_pixels;
         }
       }
-      diff_sse /= WINDOW_SIZE;
+      // Filter U-plane and V-plane using Y-plane. This is because motion
+      // search is only done on Y-plane, so the information from Y-plane will
+      // be more accurate.
+      if (plane_idx != 0) {
+        for (int ii = 0; ii < (1 << ss_y_shift); ++ii) {
+          for (int jj = 0; jj < (1 << ss_x_shift); ++jj) {
+            const int yy = (i << ss_y_shift) + ii;     // Y-coord on Y-plane.
+            const int xx = (j << ss_x_shift) + jj;     // X-coord on Y-plane.
+            const int ww = block_width << ss_x_shift;  // Width of Y-plane.
+            diff_sse += square_diffs_y[yy * ww + xx];
+            ++num_ref_pixels;
+          }
+        }
+      }
+      diff_sse /= num_ref_pixels;
 
       double scaled_diff = -diff_sse / (2 * beta * h * h);
       // clamp the value to avoid underflow in exp()
@@ -704,8 +725,9 @@ void av1_temporal_filter_plane_c(uint8_t *frame1, unsigned int stride,
 }
 
 void av1_highbd_temporal_filter_plane_c(
-    uint8_t *frame1_8bit, unsigned int stride, uint8_t *frame2_8bit,
-    unsigned int stride2, int block_width, int block_height, int strength,
+    MACROBLOCKD *mbd, uint8_t *frame1_8bit, unsigned int stride,
+    uint8_t *frame2_8bit, unsigned int stride2, uint32_t *square_diffs_y,
+    int plane_idx, int block_width, int block_height, int strength,
     double noise_level, int decay_control, const int *blk_fw, int use_32x32,
     unsigned int *accumulator, uint16_t *count, int bit_depth) {
   (void)strength;
@@ -713,11 +735,16 @@ void av1_highbd_temporal_filter_plane_c(
   (void)use_32x32;
   uint16_t *frame1 = CONVERT_TO_SHORTPTR(frame1_8bit);
   uint16_t *frame2 = CONVERT_TO_SHORTPTR(frame2_8bit);
+  int ss_x_shift =
+      mbd->plane[plane_idx].subsampling_x - mbd->plane[0].subsampling_x;
+  int ss_y_shift =
+      mbd->plane[plane_idx].subsampling_y - mbd->plane[0].subsampling_y;
   const double h = (double)decay_control * (0.7 + log(noise_level + 1.0));
   const double beta = 1.0;
   for (int i = 0, k = 0; i < block_height; i++) {
     for (int j = 0; j < block_width; j++, k++) {
       const int pixel_value = frame2[i * stride2 + j];
+      int num_ref_pixels = 0;
 
       int diff_sse = 0;
       for (int idy = -WINDOW_LENGTH; idy <= WINDOW_LENGTH; ++idy) {
@@ -732,12 +759,27 @@ void av1_highbd_temporal_filter_plane_c(
           int diff = frame1[row * (int)stride + col] -
                      frame2[row * (int)stride2 + col];
           diff_sse += diff * diff;
+          ++num_ref_pixels;
+        }
+      }
+      // Filter U-plane and V-plane using Y-plane. This is because motion
+      // search is only done on Y-plane, so the information from Y-plane will
+      // be more accurate.
+      if (plane_idx != 0) {
+        for (int ii = 0; ii < (1 << ss_y_shift); ++ii) {
+          for (int jj = 0; jj < (1 << ss_x_shift); ++jj) {
+            const int yy = (i << ss_y_shift) + ii;     // Y-coord on Y-plane.
+            const int xx = (j << ss_x_shift) + jj;     // X-coord on Y-plane.
+            const int ww = block_width << ss_x_shift;  // Width of Y-plane.
+            diff_sse += square_diffs_y[yy * ww + xx];
+            ++num_ref_pixels;
+          }
         }
       }
       // Scale down the difference for high bit depth input.
       diff_sse >>= (bit_depth - 8) * (bit_depth - 8);
 
-      diff_sse /= WINDOW_SIZE;
+      diff_sse /= num_ref_pixels;
 
       double scaled_diff = -diff_sse / (2 * beta * h * h);
       // clamp the value to avoid underflow in exp()
@@ -771,21 +813,31 @@ void apply_temporal_filter_block(YV12_BUFFER_CONFIG *frame, MACROBLOCKD *mbd,
       } else {
         decay_control = 3;
       }
+
+      // Allocate memory for pixel-wise squared differences for y plane.
+      // This will be used in filtering U, V planes(Cross-Plane info).
+      uint32_t *square_diffs_y = aom_memalign(16, BLK_PELS * sizeof(uint32_t));
+      memset(square_diffs_y, 0, BLK_PELS * sizeof(square_diffs_y[0]));
+      highbd_calculate_squared_errors(
+          CONVERT_TO_SHORTPTR(frame->y_buffer + mb_y_src_offset),
+          frame->y_stride, CONVERT_TO_SHORTPTR(predictor), BW, square_diffs_y,
+          BW, BH);
       av1_highbd_temporal_filter_plane_c(
-          frame->y_buffer + mb_y_src_offset, frame->y_stride, predictor, BW, BW,
-          BH, strength, noise_levels[0], decay_control, blk_fw, use_32x32,
-          accumulator, count, mbd->bd);
+          mbd, frame->y_buffer + mb_y_src_offset, frame->y_stride, predictor,
+          BW, NULL, 0, BW, BH, strength, noise_levels[0], decay_control, blk_fw,
+          use_32x32, accumulator, count, mbd->bd);
       if (num_planes > 1) {
         av1_highbd_temporal_filter_plane_c(
-            frame->u_buffer + mb_uv_src_offset, frame->uv_stride,
-            predictor + BLK_PELS, mb_uv_width, mb_uv_width, mb_uv_height,
-            strength, noise_levels[1], decay_control, blk_fw, use_32x32,
-            accumulator + BLK_PELS, count + BLK_PELS, mbd->bd);
+            mbd, frame->u_buffer + mb_uv_src_offset, frame->uv_stride,
+            predictor + BLK_PELS, mb_uv_width, square_diffs_y, 1, mb_uv_width,
+            mb_uv_height, strength, noise_levels[1], decay_control, blk_fw,
+            use_32x32, accumulator + BLK_PELS, count + BLK_PELS, mbd->bd);
         av1_highbd_temporal_filter_plane_c(
-            frame->v_buffer + mb_uv_src_offset, frame->uv_stride,
-            predictor + (BLK_PELS << 1), mb_uv_width, mb_uv_width, mb_uv_height,
-            strength, noise_levels[2], decay_control, blk_fw, use_32x32,
-            accumulator + (BLK_PELS << 1), count + (BLK_PELS << 1), mbd->bd);
+            mbd, frame->v_buffer + mb_uv_src_offset, frame->uv_stride,
+            predictor + (BLK_PELS << 1), mb_uv_width, square_diffs_y, 2,
+            mb_uv_width, mb_uv_height, strength, noise_levels[2], decay_control,
+            blk_fw, use_32x32, accumulator + (BLK_PELS << 1),
+            count + (BLK_PELS << 1), mbd->bd);
       }
     } else {
       // Apply original non-local means filtering for small resolution
@@ -821,21 +873,29 @@ void apply_temporal_filter_block(YV12_BUFFER_CONFIG *frame, MACROBLOCKD *mbd,
     } else {
       decay_control = 3;
     }
-    av1_temporal_filter_plane_c(frame->y_buffer + mb_y_src_offset,
-                                frame->y_stride, predictor, BW, BW, BH,
+
+    // Allocate memory for pixel-wise squared differences for y plane.
+    // This will be used in filtering U, V planes(Cross-Plane info).
+    uint16_t *square_diffs_y = aom_memalign(16, BLK_PELS * sizeof(uint16_t));
+    memset(square_diffs_y, 0, BLK_PELS * sizeof(square_diffs_y[0]));
+    calculate_squared_errors(frame->y_buffer + mb_y_src_offset, frame->y_stride,
+                             predictor, BW, square_diffs_y, BW, BH);
+    av1_temporal_filter_plane_c(mbd, frame->y_buffer + mb_y_src_offset,
+                                frame->y_stride, predictor, BW, NULL, 0, BW, BH,
                                 strength, noise_levels[0], decay_control,
                                 blk_fw, use_32x32, accumulator, count);
     if (num_planes > 1) {
       av1_temporal_filter_plane_c(
-          frame->u_buffer + mb_uv_src_offset, frame->uv_stride,
-          predictor + BLK_PELS, mb_uv_width, mb_uv_width, mb_uv_height,
-          strength, noise_levels[1], decay_control, blk_fw, use_32x32,
-          accumulator + BLK_PELS, count + BLK_PELS);
+          mbd, frame->u_buffer + mb_uv_src_offset, frame->uv_stride,
+          predictor + BLK_PELS, mb_uv_width, square_diffs_y, 1, mb_uv_width,
+          mb_uv_height, strength, noise_levels[1], decay_control, blk_fw,
+          use_32x32, accumulator + BLK_PELS, count + BLK_PELS);
       av1_temporal_filter_plane_c(
-          frame->v_buffer + mb_uv_src_offset, frame->uv_stride,
-          predictor + (BLK_PELS << 1), mb_uv_width, mb_uv_width, mb_uv_height,
-          strength, noise_levels[2], decay_control, blk_fw, use_32x32,
-          accumulator + (BLK_PELS << 1), count + (BLK_PELS << 1));
+          mbd, frame->v_buffer + mb_uv_src_offset, frame->uv_stride,
+          predictor + (BLK_PELS << 1), mb_uv_width, square_diffs_y, 2,
+          mb_uv_width, mb_uv_height, strength, noise_levels[2], decay_control,
+          blk_fw, use_32x32, accumulator + (BLK_PELS << 1),
+          count + (BLK_PELS << 1));
     }
   } else {
     // Apply original non-local means filtering for small resolution
