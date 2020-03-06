@@ -685,7 +685,7 @@ void av1_fmdt4(const int32_t *input, int32_t *output, int8_t cos_bit,
   for (int i = 0; i < 4; i++)
     for (int j = 0; j < 4; j++) s[j] += mdt[j * 4 + i] * input[i];
 
-  for (int i = 0; i < 4; i++) output[i] = round_shift(s[i], 11);
+  for (int i = 0; i < 4; i++) output[i] = round_shift(s[i], 10);
 }
 
 void av1_fmdt8(const int32_t *input, int32_t *output, int8_t cos_bit,
@@ -696,7 +696,7 @@ void av1_fmdt8(const int32_t *input, int32_t *output, int8_t cos_bit,
   for (int i = 0; i < 8; i++)
     for (int j = 0; j < 8; j++) s[j] += mdt[j * 8 + i] * input[i];
 
-  for (int i = 0; i < 8; i++) output[i] = round_shift(s[i], 11);
+  for (int i = 0; i < 8; i++) output[i] = round_shift(s[i], 10);
 }
 
 void av1_fmdt16(const int32_t *input, int32_t *output, int8_t cos_bit,
@@ -707,7 +707,7 @@ void av1_fmdt16(const int32_t *input, int32_t *output, int8_t cos_bit,
   for (int i = 0; i < 16; i++)
     for (int j = 0; j < 16; j++) s[j] += mdt[j * 16 + i] * input[i];
 
-  for (int i = 0; i < 16; i++) output[i] = round_shift(s[i], 11);
+  for (int i = 0; i < 16; i++) output[i] = round_shift(s[i], 10);
 }
 #endif  // CONFIG_MODE_DEP_INTRA_TX || CONFIG_MODE_DEP_INTER_TX
 
