@@ -82,7 +82,11 @@ static INLINE int av1_check_newmv_joint_nonzero(const AV1_COMMON *cm,
       return 0;
     }
 #if CONFIG_NEW_INTER_MODES
+#if CONFIG_EXT_COMPOUND
+  } else if (this_mode == NEAR_NEWMV || this_mode == SCALED_NEWMV) {
+#else
   } else if (this_mode == NEAR_NEWMV) {
+#endif  // CONFIG_EXT_COMPOUND
 #else
   } else if (this_mode == NEAREST_NEWMV || this_mode == NEAR_NEWMV) {
 #endif  // CONFIG_NEW_INTER_MODES
@@ -92,7 +96,11 @@ static INLINE int av1_check_newmv_joint_nonzero(const AV1_COMMON *cm,
       return 0;
     }
 #if CONFIG_NEW_INTER_MODES
+#if CONFIG_EXT_COMPOUND
+  } else if (this_mode == NEW_NEARMV || this_mode == NEW_SCALEDMV) {
+#else
   } else if (this_mode == NEW_NEARMV) {
+#endif  // CONFIG_EXT_COMPOUND
 #else
   } else if (this_mode == NEW_NEARESTMV || this_mode == NEW_NEARMV) {
 #endif  // CONFIG_NEW_INTER_MODES
