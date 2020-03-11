@@ -248,6 +248,17 @@ void av1_build_inter_predictors(const AV1_COMMON *cm, MACROBLOCKD *xd,
                                 CalcSubpelParamsFunc calc_subpel_params_func,
                                 const void *const calc_subpel_params_func_args);
 
+#if CONFIG_EXT_COMPOUND
+int av1_compute_subpel_gradients(const AV1_COMMON *cm, MACROBLOCKD *xd,
+                                 int plane, const MB_MODE_INFO *mi,
+                                 int build_for_obmc, int bw, int bh, int mi_x,
+                                 int mi_y,
+                                 CalcSubpelParamsFunc calc_subpel_params_func,
+                                 const void *const calc_subpel_params_func_args,
+                                 int ref, uint8_t *pred_dst, int8_t *x_grad,
+                                 int8_t *y_grad);
+#endif  // CONFIG_EXT_COMPOUND
+
 // TODO(jkoleszar): yet another mv clamping function :-(
 static INLINE MV clamp_mv_to_umv_border_sb(const MACROBLOCKD *xd,
                                            const MV *src_mv, int bw, int bh,

@@ -143,6 +143,163 @@ int av1_allow_warp(const MB_MODE_INFO *const mbmi,
   return 0;
 }
 
+#if CONFIG_EXT_COMPOUND
+int av1_compute_subpel_gradients(const AV1_COMMON *cm, MACROBLOCKD *xd,
+                                 int plane, const MB_MODE_INFO *mi,
+                                 int build_for_obmc, int bw, int bh, int mi_x,
+                                 int mi_y,
+                                 CalcSubpelParamsFunc calc_subpel_params_func,
+                                 const void *const calc_subpel_params_func_args,
+                                 int ref, uint8_t *pred_dst, int8_t *x_grad,
+                                 int8_t *y_grad) {
+  // Only do this for luma
+  assert(plane == 0);
+  assert(cm->seq_params.order_hint_info.enable_order_hint);
+
+  // Compute distance between the current frame and reference
+  const int cur_frame_index = cm->cur_frame->order_hint;
+  const RefCntBuffer *const ref_buf = get_ref_frame_buf(cm, mi->ref_frame[ref]);
+  assert(ref_buf != NULL);
+  const int ref_index = ref_buf->order_hint;
+  // Find the distance in display order between the current frame and each
+  // reference
+  const int r_dist = get_relative_dist(&cm->seq_params.order_hint_info,
+                                       cur_frame_index, ref_index);
+
+  // Do references one at a time
+  const int is_compound = 0;
+  ConvolveParams conv_params = get_conv_params_no_round(
+      0, plane, xd->tmp_conv_dst, MAX_SB_SIZE, is_compound, xd->bd);
+  av1_dist_wtd_comp_weight_assign(
+      cm, mi, 0, &conv_params.fwd_offset, &conv_params.bck_offset,
+      &conv_params.use_dist_wtd_comp_avg, is_compound);
+
+  struct macroblockd_plane *const pd = &xd->plane[plane];
+  struct buf_2d *const dst_buf = &pd->dst;
+  const int is_intrabc = is_intrabc_block(mi);
+  uint8_t tmp_buf1[MAX_SB_SIZE * MAX_SB_SIZE] = { 0 };
+  uint8_t tmp_buf2[MAX_SB_SIZE * MAX_SB_SIZE] = { 0 };
+
+  int is_global[2] = { 0, 0 };
+  const WarpedMotionParams *const wm = &xd->global_motion[mi->ref_frame[ref]];
+  is_global[ref] = is_global_mv_block(mi, wm->wmtype);
+  const WarpTypesAllowed warp_types = { is_global[ref],
+                                        mi->motion_mode == WARPED_CAUSAL };
+  const struct scale_factors *const sf =
+      is_intrabc ? &cm->sf_identity : xd->block_ref_scale_factors[ref];
+  WarpedMotionParams final_warp_params;
+  const int do_warp =
+      (bw >= 8 && bh >= 8 &&
+       av1_allow_warp(mi, &warp_types, &xd->global_motion[mi->ref_frame[ref]],
+                      build_for_obmc, sf, &final_warp_params));
+  // TODO(sarahparker) make compatible with warped modes
+  if (do_warp || !r_dist) return 0;
+
+  const int ss_x = pd->subsampling_x;
+  const int ss_y = pd->subsampling_y;
+  int row_start = 0;
+  int col_start = 0;
+  if (!build_for_obmc) {
+    const int mi_row = -xd->mb_to_top_edge >> (3 + MI_SIZE_LOG2);
+    const int mi_col = -xd->mb_to_left_edge >> (3 + MI_SIZE_LOG2);
+    int mi_row_offset, mi_col_offset;
+    mi_row_offset =
+        plane ? (mi_row - mi->chroma_ref_info.mi_row_chroma_base) : 0;
+    mi_col_offset =
+        plane ? (mi_col - mi->chroma_ref_info.mi_col_chroma_base) : 0;
+    row_start = -mi_row_offset;
+    col_start = -mi_col_offset;
+  }
+  const int pre_x = (mi_x + MI_SIZE * col_start) >> ss_x;
+  const int pre_y = (mi_y + MI_SIZE * row_start) >> ss_y;
+
+  struct buf_2d *const pre_buf = is_intrabc ? dst_buf : &pd->pre[ref];
+  const MV mv_orig = mi->mv[ref].as_mv;
+  MV mv_modified = mv_orig;
+
+  uint8_t *pre;
+  SubpelParams subpel_params;
+  int src_stride;
+  calc_subpel_params_func(
+      xd, sf, &mv_orig, plane, pre_x, pre_y, 0, 0, pre_buf, bw, bh, &warp_types,
+      ref, calc_subpel_params_func_args, &pre, &subpel_params, &src_stride);
+
+  // Original predictor
+  assert(mi->interinter_comp.type == COMPOUND_AVERAGE);
+  conv_params.do_average = 0;
+  av1_make_inter_predictor(pre, src_stride, pred_dst, bw, &subpel_params, sf,
+                           bw, bh, &conv_params, mi->interp_filters,
+                           &warp_types, mi_x >> pd->subsampling_x,
+                           mi_y >> pd->subsampling_y, plane, ref, mi,
+                           build_for_obmc, xd, cm->allow_warped_motion, NULL);
+
+  // X gradient
+  // Get predictor to the left
+  mv_modified.col = mv_orig.col - 1;
+  mv_modified.row = mv_orig.row;
+  calc_subpel_params_func(xd, sf, &mv_modified, plane, pre_x, pre_y, 0, 0,
+                          pre_buf, bw, bh, &warp_types, ref,
+                          calc_subpel_params_func_args, &pre, &subpel_params,
+                          &src_stride);
+  av1_make_inter_predictor(pre, src_stride, tmp_buf1, bw, &subpel_params, sf,
+                           bw, bh, &conv_params, mi->interp_filters,
+                           &warp_types, mi_x >> pd->subsampling_x,
+                           mi_y >> pd->subsampling_y, plane, ref, mi,
+                           build_for_obmc, xd, cm->allow_warped_motion, NULL);
+  // Get predictor to the right
+  mv_modified.col = mv_orig.col + 1;
+  mv_modified.row = mv_orig.row;
+  calc_subpel_params_func(xd, sf, &mv_modified, plane, pre_x, pre_y, 0, 0,
+                          pre_buf, bw, bh, &warp_types, ref,
+                          calc_subpel_params_func_args, &pre, &subpel_params,
+                          &src_stride);
+  av1_make_inter_predictor(pre, src_stride, tmp_buf2, bw, &subpel_params, sf,
+                           bw, bh, &conv_params, mi->interp_filters,
+                           &warp_types, mi_x >> pd->subsampling_x,
+                           mi_y >> pd->subsampling_y, plane, ref, mi,
+                           build_for_obmc, xd, cm->allow_warped_motion, NULL);
+  // Compute difference
+  for (int i = 0; i < bh; i++) {
+    for (int j = 0; j < bw; j++) {
+      x_grad[i * bw + j] = tmp_buf2[i * bw + j] - tmp_buf1[i * bw + j];
+    }
+  }
+
+  // Y gradient
+  // Get predictor below
+  mv_modified.col = mv_orig.col;
+  mv_modified.row = mv_orig.row - 1;
+  calc_subpel_params_func(xd, sf, &mv_modified, plane, pre_x, pre_y, 0, 0,
+                          pre_buf, bw, bh, &warp_types, ref,
+                          calc_subpel_params_func_args, &pre, &subpel_params,
+                          &src_stride);
+  av1_make_inter_predictor(pre, src_stride, tmp_buf1, bw, &subpel_params, sf,
+                           bw, bh, &conv_params, mi->interp_filters,
+                           &warp_types, mi_x >> pd->subsampling_x,
+                           mi_y >> pd->subsampling_y, plane, ref, mi,
+                           build_for_obmc, xd, cm->allow_warped_motion, NULL);
+  // Get predictor above
+  mv_modified.col = mv_orig.col;
+  mv_modified.row = mv_orig.row + 1;
+  calc_subpel_params_func(xd, sf, &mv_modified, plane, pre_x, pre_y, 0, 0,
+                          pre_buf, bw, bh, &warp_types, ref,
+                          calc_subpel_params_func_args, &pre, &subpel_params,
+                          &src_stride);
+  av1_make_inter_predictor(pre, src_stride, tmp_buf2, bw, &subpel_params, sf,
+                           bw, bh, &conv_params, mi->interp_filters,
+                           &warp_types, mi_x >> pd->subsampling_x,
+                           mi_y >> pd->subsampling_y, plane, ref, mi,
+                           build_for_obmc, xd, cm->allow_warped_motion, NULL);
+  // Compute difference
+  for (int i = 0; i < bh; i++) {
+    for (int j = 0; j < bw; j++) {
+      y_grad[i * bw + j] = tmp_buf2[i * bw + j] - tmp_buf1[i * bw + j];
+    }
+  }
+  return r_dist;
+}
+#endif  // CONFIG_EXT_COMPOUND
+
 static void av1_make_inter_predictor_aux(
     const uint8_t *src, int src_stride, uint8_t *dst, int dst_stride,
     const SubpelParams *subpel_params, const struct scale_factors *sf, int w,
