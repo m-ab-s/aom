@@ -13,6 +13,7 @@
 #include <math.h>
 #include <stdbool.h>
 
+#include "av1/common/blockd.h"
 #include "config/aom_dsp_rtcd.h"
 #include "config/av1_rtcd.h"
 
@@ -7674,10 +7675,10 @@ static void joint_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
       NULL;
 #elif CONFIG_FLEX_MVRES
   const int use_flex_mv =
-      is_flex_mv_precision_active(cm, mbmi->mode, mbmi->max_mv_precision);
-  const int down_ctx = av1_get_mv_precision_down_context(cm, xd);
+      is_pb_mv_precision_active(cm, mbmi->mode, mbmi->max_mv_precision);
+  const int down_ctx = av1_get_pb_mv_precision_down_context(cm, xd);
   int(*mv_precision_cost)[MV_SUBPEL_PRECISIONS - DISALLOW_ONE_DOWN_FLEX_MVRES] =
-      x->flex_mv_precision_costs[down_ctx];
+      x->pb_mv_precision_costs[down_ctx];
 #endif  // CONFIG_FLEX_MVRES
   const MvSubpelPrecision max_mv_precision = mbmi->max_mv_precision;
 
@@ -8210,10 +8211,10 @@ static void single_motion_search(const AV1_COMP *const cpi, MACROBLOCK *x,
       NULL;
 #elif CONFIG_FLEX_MVRES
   const int use_flex_mv =
-      is_flex_mv_precision_active(cm, mbmi->mode, mbmi->max_mv_precision);
-  const int down_ctx = av1_get_mv_precision_down_context(cm, xd);
+      is_pb_mv_precision_active(cm, mbmi->mode, mbmi->max_mv_precision);
+  const int down_ctx = av1_get_pb_mv_precision_down_context(cm, xd);
   int(*mv_precision_cost)[MV_SUBPEL_PRECISIONS - DISALLOW_ONE_DOWN_FLEX_MVRES] =
-      x->flex_mv_precision_costs[down_ctx];
+      x->pb_mv_precision_costs[down_ctx];
 #endif  // CONFIG_SB_FLEX_MVRES
   const MvSubpelPrecision max_mv_precision = mbmi->max_mv_precision;
 
@@ -8460,10 +8461,10 @@ static void compound_single_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
       NULL;
 #elif CONFIG_FLEX_MVRES
   const int use_flex_mv =
-      is_flex_mv_precision_active(cm, mbmi->mode, mbmi->max_mv_precision);
-  const int down_ctx = av1_get_mv_precision_down_context(cm, xd);
+      is_pb_mv_precision_active(cm, mbmi->mode, mbmi->max_mv_precision);
+  const int down_ctx = av1_get_pb_mv_precision_down_context(cm, xd);
   int(*mv_precision_cost)[MV_SUBPEL_PRECISIONS - DISALLOW_ONE_DOWN_FLEX_MVRES] =
-      x->flex_mv_precision_costs[down_ctx];
+      x->pb_mv_precision_costs[down_ctx];
 #endif  // CONFIG_SB_FLEX_MVRES
   const MvSubpelPrecision max_mv_precision = mbmi->max_mv_precision;
 
@@ -9327,12 +9328,12 @@ static int64_t handle_newmv(const AV1_COMP *const cpi, MACROBLOCK *const x,
     int(*mv_precision_cost)[MV_SUBPEL_PRECISIONS -
                             DISALLOW_ONE_DOWN_FLEX_MVRES] = NULL;
 #elif CONFIG_FLEX_MVRES
-    const int use_flex_mv = is_flex_mv_precision_active(
-        &cpi->common, mbmi->mode, mbmi->max_mv_precision);
-    const int down_ctx = av1_get_mv_precision_down_context(&cpi->common, xd);
+    const int use_flex_mv = is_pb_mv_precision_active(&cpi->common, mbmi->mode,
+                                                      mbmi->max_mv_precision);
+    const int down_ctx = av1_get_pb_mv_precision_down_context(&cpi->common, xd);
     int(*mv_precision_cost)[MV_SUBPEL_PRECISIONS -
                             DISALLOW_ONE_DOWN_FLEX_MVRES] =
-        x->flex_mv_precision_costs[down_ctx];
+        x->pb_mv_precision_costs[down_ctx];
 #endif  // CONFIG_SB_FLEX_MVRES
     const MvSubpelPrecision max_mv_precision = mbmi->max_mv_precision;
 
@@ -10990,12 +10991,12 @@ static int64_t motion_mode_rd(const AV1_COMP *const cpi, TileDataEnc *tile_data,
           int(*mv_precision_cost)[MV_SUBPEL_PRECISIONS -
                                   DISALLOW_ONE_DOWN_FLEX_MVRES] = NULL;
 #elif CONFIG_FLEX_MVRES
-          const int use_flex_mv = is_flex_mv_precision_active(
-              cm, mbmi->mode, mbmi->max_mv_precision);
-          const int down_ctx = av1_get_mv_precision_down_context(cm, xd);
+          const int use_flex_mv =
+              is_pb_mv_precision_active(cm, mbmi->mode, mbmi->max_mv_precision);
+          const int down_ctx = av1_get_pb_mv_precision_down_context(cm, xd);
           int(*mv_precision_cost)[MV_SUBPEL_PRECISIONS -
                                   DISALLOW_ONE_DOWN_FLEX_MVRES] =
-              x->flex_mv_precision_costs[down_ctx];
+              x->pb_mv_precision_costs[down_ctx];
 #endif  // CONFIG_SB_FLEX_MVRES
           const MvSubpelPrecision max_mv_precision = mbmi->max_mv_precision;
 
@@ -12217,12 +12218,12 @@ static int64_t handle_inter_mode(AV1_COMP *const cpi, TileDataEnc *tile_data,
             int(*mv_precision_cost)[MV_SUBPEL_PRECISIONS -
                                     DISALLOW_ONE_DOWN_FLEX_MVRES] = NULL;
 #elif CONFIG_FLEX_MVRES
-            const int use_flex_mv = is_flex_mv_precision_active(
+            const int use_flex_mv = is_pb_mv_precision_active(
                 cm, mbmi->mode, mbmi->max_mv_precision);
-            const int down_ctx = av1_get_mv_precision_down_context(cm, xd);
+            const int down_ctx = av1_get_pb_mv_precision_down_context(cm, xd);
             int(*mv_precision_cost)[MV_SUBPEL_PRECISIONS -
                                     DISALLOW_ONE_DOWN_FLEX_MVRES] =
-                x->flex_mv_precision_costs[down_ctx];
+                x->pb_mv_precision_costs[down_ctx];
 #endif  // CONFIG_SB_FLEX_MVRES
             const MvSubpelPrecision max_mv_precision = mbmi->max_mv_precision;
             int skip = 0;
@@ -13904,13 +13905,7 @@ static INLINE void init_mbmi(MB_MODE_INFO *mbmi, int mode_index,
   mbmi->motion_mode = SIMPLE_TRANSLATION;
   mbmi->interintra_mode = (INTERINTRA_MODE)(II_DC_PRED - 1);
   set_default_interp_filters(mbmi, cm->interp_filter);
-#if CONFIG_SB_FLEX_MVRES
-  mbmi->max_mv_precision = xd->sbi->sb_mv_precision;
-#else
-  (void)xd;
-  mbmi->max_mv_precision = av1_get_mbmi_max_mv_precision(cm, mbmi);
-#endif  // CONFIG_SB_FLEX_MVRES
-  mbmi->pb_mv_precision = mbmi->max_mv_precision;
+  set_default_mbmi_mv_precision(mbmi, xd->sbi);
 }
 
 static int64_t handle_intra_mode(InterModeSearchState *search_state,
@@ -15121,7 +15116,7 @@ void av1_rd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
   assert(check_mbmi_mv_companding(x, mbmi));
 #endif  // CONFIG_COMPANDED_MV
 #if CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES
-  if (is_flex_mv_precision_active(cm, mbmi->mode, mbmi->max_mv_precision)) {
+  if (is_pb_mv_precision_active(cm, mbmi->mode, mbmi->max_mv_precision)) {
     mbmi->pb_mv_precision = av1_get_mbmi_mv_precision(cm, mbmi);
   } else {
     mbmi->pb_mv_precision = mbmi->max_mv_precision;
@@ -15818,12 +15813,7 @@ void av1_rd_pick_inter_mode_sb_seg_skip(const AV1_COMP *cpi,
 
   mbmi->ref_mv_idx = 0;
 
-#if CONFIG_SB_FLEX_MVRES
-  mbmi->max_mv_precision = xd->sbi->sb_mv_precision;
-#else
-  mbmi->max_mv_precision = av1_get_mbmi_max_mv_precision(cm, mbmi);
-#endif  // CONFIG_SB_FLEX_MVRES
-  mbmi->pb_mv_precision = mbmi->max_mv_precision;
+  set_default_mbmi_mv_precision(mbmi, xd->sbi);
 
   av1_count_overlappable_neighbors(cm, xd);
   if (is_motion_variation_allowed_bsize(bsize, mi_row, mi_col) &&

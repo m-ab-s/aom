@@ -173,8 +173,8 @@ static INLINE int av1_get_skip_context(const MACROBLOCKD *xd) {
 }
 
 #if CONFIG_FLEX_MVRES
-static INLINE int av1_get_mv_precision_down_context(const AV1_COMMON *cm,
-                                                    const MACROBLOCKD *xd) {
+static INLINE int av1_get_pb_mv_precision_down_context(const AV1_COMMON *cm,
+                                                       const MACROBLOCKD *xd) {
   (void)cm;
   const MB_MODE_INFO *const above_mi = xd->above_mbmi;
   const MB_MODE_INFO *const left_mi = xd->left_mbmi;

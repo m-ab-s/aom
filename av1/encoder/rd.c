@@ -178,8 +178,8 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, MACROBLOCK *x,
   for (i = MV_SUBPEL_QTR_PRECISION; i < MV_SUBPEL_PRECISIONS; ++i) {
     for (j = 0; j < MV_PREC_DOWN_CONTEXTS; ++j)
       av1_cost_tokens_from_cdf(
-          x->flex_mv_precision_costs[j][i - MV_SUBPEL_QTR_PRECISION],
-          fc->flex_mv_precision_cdf[j][i - MV_SUBPEL_QTR_PRECISION], NULL);
+          x->pb_mv_precision_costs[j][i - MV_SUBPEL_QTR_PRECISION],
+          fc->pb_mv_precision_cdf[j][i - MV_SUBPEL_QTR_PRECISION], NULL);
   }
 #endif  // CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES
 

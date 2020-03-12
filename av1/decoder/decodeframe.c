@@ -1502,6 +1502,38 @@ static PARTITION_TYPE read_partition(MACROBLOCKD *xd, int mi_row, int mi_col,
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 }
 
+#if CONFIG_SB_FLEX_MVRES
+static MvSubpelPrecision av1_read_sb_mv_precision(AV1_COMMON *const cm,
+                                                  MACROBLOCKD *const xd,
+                                                  aom_reader *r) {
+  const MvSubpelPrecision max_precision = cm->fr_mv_precision;
+  const int down = aom_read_symbol(
+      r,
+      xd->tile_ctx
+          ->sb_mv_precision_cdf[max_precision - MV_SUBPEL_HALF_PRECISION],
+      cm->fr_mv_precision + 1, ACCT_STR);
+  return (MvSubpelPrecision)(max_precision - down);
+}
+#endif
+
+// Read the superblock level parameters
+static void read_sb_info(SB_INFO *sbi, AV1Decoder *const pbi,
+                         ThreadData *const td, aom_reader *reader) {
+  AV1_COMMON *const cm = &pbi->common;
+  if (!frame_is_intra_only(cm)) {
+    sbi->sb_mv_precision = cm->fr_mv_precision;
+#if CONFIG_SB_FLEX_MVRES
+    if (cm->use_sb_mv_precision) {
+      MACROBLOCKD *const xd = &td->xd;
+      sbi->sb_mv_precision = av1_read_sb_mv_precision(cm, xd, reader);
+    }
+#else
+    (void)reader;
+    (void)td;
+#endif  // CONFIG_SB_FLEX_MVRES
+  }
+}
+
 // TODO(slavarnway): eliminate bsize and subsize in future commits
 static void decode_partition(AV1Decoder *const pbi, ThreadData *const td,
                              int mi_row, int mi_col, aom_reader *reader,
@@ -1522,14 +1554,9 @@ static void decode_partition(AV1Decoder *const pbi, ThreadData *const td,
 
   if (mi_row >= cm->mi_rows || mi_col >= cm->mi_cols) return;
 
-#if CONFIG_SB_FLEX_MVRES
-  if (bsize == cm->seq_params.sb_size && !frame_is_intra_only(cm) &&
-      cm->use_flex_mv_precision) {
-    if (parse_decode_flag & 1) {
-      sbi->sb_mv_precision = av1_read_mv_precision(cm, xd, reader);
-    }
+  if (bsize == cm->seq_params.sb_size && parse_decode_flag & 1) {
+    read_sb_info(sbi, pbi, td, reader);
   }
-#endif  // CONFIG_SB_FLEX_MVRES
 
   // parse_decode_flag takes the following values :
   // 01 - do parse only
@@ -5323,22 +5350,24 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 
       if (cm->cur_frame_force_integer_mv) {
         cm->fr_mv_precision = MV_SUBPEL_NONE;
-#if CONFIG_FLEX_MVRES
-        cm->use_flex_mv_precision = 0;
+#if CONFIG_SB_FLEX_MVRES
+        cm->use_sb_mv_precision = 0;
+#elif CONFIG_FLEX_MVRES
+        cm->use_pb_mv_precision = 0;
 #endif  // CONFIG_FLEX_MVRES
       } else {
 #if CONFIG_SB_FLEX_MVRES
         cm->fr_mv_precision = (MvSubpelPrecision)aom_rb_read_literal(rb, 2);
         if (cm->fr_mv_precision == MV_SUBPEL_NONE) {
-          cm->use_flex_mv_precision = 0;
+          cm->use_sb_mv_precision = 0;
         } else {
-          cm->use_flex_mv_precision = aom_rb_read_bit(rb);
+          cm->use_sb_mv_precision = aom_rb_read_bit(rb);
         }
 #else
         cm->fr_mv_precision = aom_rb_read_bit(rb) ? MV_SUBPEL_EIGHTH_PRECISION
                                                   : MV_SUBPEL_QTR_PRECISION;
 #if CONFIG_FLEX_MVRES
-        cm->use_flex_mv_precision = aom_rb_read_bit(rb);
+        cm->use_pb_mv_precision = aom_rb_read_bit(rb);
 #endif  // CONFIG_FLEX_MVRES
 #endif  // CONFIG_SB_FLEX_MVRES
       }
@@ -5828,45 +5857,3 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
     cm->cur_frame->frame_context = *cm->fc;
   }
 }
-
-#if CONFIG_FLEX_MVRES
-MvSubpelPrecision av1_read_mv_precision(AV1_COMMON *const cm,
-                                        MACROBLOCKD *const xd, aom_reader *r) {
-#if CONFIG_SB_FLEX_MVRES
-  const MvSubpelPrecision max_precision = cm->fr_mv_precision;
-  const int down = aom_read_symbol(
-      r,
-      xd->tile_ctx
-          ->flex_mv_precision_cdf[max_precision - MV_SUBPEL_HALF_PRECISION],
-      cm->fr_mv_precision + 1, ACCT_STR);
-#else
-  MB_MODE_INFO *const mbmi = xd->mi[0];
-  assert(mbmi->max_mv_precision == av1_get_mbmi_max_mv_precision(cm, mbmi));
-  assert(mbmi->max_mv_precision >= MV_SUBPEL_QTR_PRECISION);
-  const int down_ctx = av1_get_mv_precision_down_context(cm, xd);
-  const MvSubpelPrecision max_precision = mbmi->max_mv_precision;
-#if DISALLOW_ONE_DOWN_FLEX_MVRES == 2
-  int down = aom_read_symbol(
-      r,
-      xd->tile_ctx->flex_mv_precision_cdf[down_ctx][max_precision -
-                                                    MV_SUBPEL_QTR_PRECISION],
-      2, ACCT_STR);
-  down <<= 1;
-#elif DISALLOW_ONE_DOWN_FLEX_MVRES == 1
-  int down = aom_read_symbol(
-      r,
-      xd->tile_ctx->flex_mv_precision_cdf[down_ctx][max_precision -
-                                                    MV_SUBPEL_QTR_PRECISION],
-      max_precision, ACCT_STR);
-  down += (down > 0);
-#else
-  int down = aom_read_symbol(
-      r,
-      xd->tile_ctx->flex_mv_precision_cdf[down_ctx][max_precision -
-                                                    MV_SUBPEL_QTR_PRECISION],
-      max_precision + 1, ACCT_STR);
-#endif  // DISALLOW_ONE_DOWN_FLEX_MVRES
-#endif  // CONFIG_SB_FLEX_MVRES
-  return (MvSubpelPrecision)(max_precision - down);
-}
-#endif  // CONFIG_FLEX_MVRES

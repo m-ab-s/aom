@@ -509,7 +509,7 @@ static void update_global_motion_used(PREDICTION_MODE mode, BLOCK_SIZE bsize,
 static void update_reduced_mv_precision_used(const AV1_COMMON *const cm,
                                              const MB_MODE_INFO *mbmi,
                                              RD_COUNTS *rdc) {
-  if (!is_flex_mv_precision_active(cm, mbmi->mode, mbmi->max_mv_precision))
+  if (!is_pb_mv_precision_active(cm, mbmi->mode, mbmi->max_mv_precision))
     return;
   assert(av1_get_mbmi_mv_precision(cm, mbmi) == mbmi->pb_mv_precision);
   rdc->reduced_mv_precision_used[mbmi->max_mv_precision -
@@ -1712,8 +1712,8 @@ static void update_stats(const AV1_COMMON *const cm, TileDataEnc *tile_data,
 #if CONFIG_SB_FLEX_MVRES
         assert(mbmi->mv_precision == xd->sbi->sb_mv_precision);
 #elif CONFIG_FLEX_MVRES
-        if (allow_update_cdf && is_flex_mv_precision_active(
-                                    cm, mbmi->mode, mbmi->max_mv_precision)) {
+        if (allow_update_cdf &&
+            is_pb_mv_precision_active(cm, mbmi->mode, mbmi->max_mv_precision)) {
           const int down_ctx = av1_get_mv_precision_down_context(cm, xd);
           int down = mbmi->max_mv_precision - mbmi->mv_precision;
 #if DISALLOW_ONE_DOWN_FLEX_MVRES == 2
@@ -1795,11 +1795,14 @@ static void update_stats(const AV1_COMMON *const cm, TileDataEnc *tile_data,
 
       if (have_newmv_in_inter_mode(mbmi->mode)) {
 #if CONFIG_SB_FLEX_MVRES
-        assert(mbmi->pb_mv_precision == xd->sbi->sb_mv_precision);
+        assert(mbmi->pb_mv_precision == mbmi->max_mv_precision);
+        assert(mbmi->max_mv_precision == xd->sbi->sb_mv_precision);
 #elif CONFIG_FLEX_MVRES
-        if (allow_update_cdf && is_flex_mv_precision_active(
-                                    cm, mbmi->mode, mbmi->max_mv_precision)) {
-          const int down_ctx = av1_get_mv_precision_down_context(cm, xd);
+        assert(mbmi->pb_mv_precision <= mbmi->max_mv_precision);
+        assert(mbmi->max_mv_precision == xd->sbi->sb_mv_precision);
+        if (allow_update_cdf &&
+            is_pb_mv_precision_active(cm, mbmi->mode, mbmi->max_mv_precision)) {
+          const int down_ctx = av1_get_pb_mv_precision_down_context(cm, xd);
           int down = mbmi->max_mv_precision - mbmi->pb_mv_precision;
 #if DISALLOW_ONE_DOWN_FLEX_MVRES == 2
           assert((down & 1) == 0);
@@ -1812,10 +1815,9 @@ static void update_stats(const AV1_COMMON *const cm, TileDataEnc *tile_data,
 #else
           const int nsymbs = mbmi->max_mv_precision + 1;
 #endif  // DISALLOW_ONE_DOWN_FLEX_MVRES
-          update_cdf(
-              fc->flex_mv_precision_cdf[down_ctx][mbmi->max_mv_precision -
-                                                  MV_SUBPEL_QTR_PRECISION],
-              down, nsymbs);
+          update_cdf(fc->pb_mv_precision_cdf[down_ctx][mbmi->max_mv_precision -
+                                                       MV_SUBPEL_QTR_PRECISION],
+                     down, nsymbs);
         }
         assert(mbmi->pb_mv_precision == av1_get_mbmi_mv_precision(cm, mbmi));
 #endif  // CONFIG_SB_FLEX_MVRES
@@ -5713,18 +5715,18 @@ static void avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
     for (int j = 0; j < MV_PREC_DOWN_CONTEXTS; ++j) {
 #if DISALLOW_ONE_DOWN_FLEX_MVRES == 2
       AVG_CDF_STRIDE(
-          ctx_left->flex_mv_precision_cdf[j][p - MV_SUBPEL_QTR_PRECISION],
-          ctx_tr->flex_mv_precision_cdf[j][p - MV_SUBPEL_QTR_PRECISION], 2,
+          ctx_left->pb_mv_precision_cdf[j][p - MV_SUBPEL_QTR_PRECISION],
+          ctx_tr->pb_mv_precision_cdf[j][p - MV_SUBPEL_QTR_PRECISION], 2,
           CDF_SIZE(2));
 #elif DISALLOW_ONE_DOWN_FLEX_MVRES == 1
       AVG_CDF_STRIDE(
-          ctx_left->flex_mv_precision_cdf[j][p - MV_SUBPEL_QTR_PRECISION],
-          ctx_tr->flex_mv_precision_cdf[j][p - MV_SUBPEL_QTR_PRECISION], p,
+          ctx_left->pb_mv_precision_cdf[j][p - MV_SUBPEL_QTR_PRECISION],
+          ctx_tr->pb_mv_precision_cdf[j][p - MV_SUBPEL_QTR_PRECISION], p,
           CDF_SIZE(MV_SUBPEL_PRECISIONS - 1));
 #else
       AVG_CDF_STRIDE(
-          ctx_left->flex_mv_precision_cdf[j][p - MV_SUBPEL_QTR_PRECISION],
-          ctx_tr->flex_mv_precision_cdf[j][p - MV_SUBPEL_QTR_PRECISION], p + 1,
+          ctx_left->pb_mv_precision_cdf[j][p - MV_SUBPEL_QTR_PRECISION],
+          ctx_tr->pb_mv_precision_cdf[j][p - MV_SUBPEL_QTR_PRECISION], p + 1,
           CDF_SIZE(MV_SUBPEL_PRECISIONS));
 #endif  // DISALLOW_ONE_DOWN_FLEX_MVRES
     }
@@ -5816,6 +5818,7 @@ static AOM_INLINE void encode_nonrd_sb(AV1_COMP *cpi, ThreadData *td,
   PC_TREE *pc_root = av1_alloc_pc_tree_node(mi_row, mi_col, sb_size, NULL,
                                             PARTITION_NONE, 0, 1, ss_x, ss_y);
   av1_reset_ptree_in_sbi(xd->sbi);
+  xd->sbi->sb_mv_precision = cm->fr_mv_precision;
   nonrd_use_partition(cpi, td, tile_data, mi, tp, mi_row, mi_col, sb_size,
                       pc_root, xd->sbi->ptree_root);
   av1_free_pc_tree_recursive(pc_root, num_planes, 0, 0);
@@ -6061,6 +6064,7 @@ static AOM_INLINE void encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
 
     const int num_passes = cpi->oxcf.sb_multipass_unit_test ? 2 : 1;
 
+    x->e_mbd.sbi->sb_mv_precision = cm->fr_mv_precision;
     if (num_passes == 1) {
 #if CONFIG_SB_FLEX_MVRES
       SB_FIRST_PASS_STATS sb_fp_stats;
@@ -6098,7 +6102,6 @@ static AOM_INLINE void encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
         restore_sb_state(&sb_fp_stats, cpi, td, tile_data, mi_row, mi_col);
       }
 
-      // x->e_mbd.sbi->sb_mv_precision = best_prec;
       x->e_mbd.sbi->sb_mv_precision = best_prec;
 #endif  // CONFIG_SB_FLEX_MVRES
 

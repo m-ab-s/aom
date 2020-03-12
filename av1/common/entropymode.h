@@ -265,23 +265,23 @@ typedef struct frame_contexts {
 
 #if CONFIG_SB_FLEX_MVRES
   aom_cdf_prob
-      flex_mv_precision_cdf[MV_SUBPEL_PRECISIONS - MV_SUBPEL_HALF_PRECISION]
-                           [CDF_SIZE(MV_SUBPEL_PRECISIONS)];
+      sb_mv_precision_cdf[MV_SUBPEL_PRECISIONS - MV_SUBPEL_HALF_PRECISION]
+                         [CDF_SIZE(MV_SUBPEL_PRECISIONS)];
 #elif CONFIG_FLEX_MVRES
 #if DISALLOW_ONE_DOWN_FLEX_MVRES == 2
-  aom_cdf_prob flex_mv_precision_cdf[MV_PREC_DOWN_CONTEXTS]
-                                    [MV_SUBPEL_PRECISIONS -
-                                     MV_SUBPEL_QTR_PRECISION][CDF_SIZE(2)];
+  aom_cdf_prob pb_mv_precision_cdf[MV_PREC_DOWN_CONTEXTS]
+                                  [MV_SUBPEL_PRECISIONS -
+                                   MV_SUBPEL_QTR_PRECISION][CDF_SIZE(2)];
 #elif DISALLOW_ONE_DOWN_FLEX_MVRES == 1
   aom_cdf_prob
-      flex_mv_precision_cdf[MV_PREC_DOWN_CONTEXTS]
-                           [MV_SUBPEL_PRECISIONS - MV_SUBPEL_QTR_PRECISION]
-                           [CDF_SIZE(MV_SUBPEL_PRECISIONS - 1)];
+      pb_mv_precision_cdf[MV_PREC_DOWN_CONTEXTS]
+                         [MV_SUBPEL_PRECISIONS - MV_SUBPEL_QTR_PRECISION]
+                         [CDF_SIZE(MV_SUBPEL_PRECISIONS - 1)];
 #else
   aom_cdf_prob
-      flex_mv_precision_cdf[MV_PREC_DOWN_CONTEXTS]
-                           [MV_SUBPEL_PRECISIONS - MV_SUBPEL_QTR_PRECISION]
-                           [CDF_SIZE(MV_SUBPEL_PRECISIONS)];
+      pb_mv_precision_cdf[MV_PREC_DOWN_CONTEXTS]
+                         [MV_SUBPEL_PRECISIONS - MV_SUBPEL_QTR_PRECISION]
+                         [CDF_SIZE(MV_SUBPEL_PRECISIONS)];
 #endif  // DISALLOW_ONE_DOWN_FLEX_MVRES
 #endif  // CONFIG_SB_FLEX_MVRES
 

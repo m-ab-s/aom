@@ -204,7 +204,7 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
 #endif  // CONFIG_INTRA_ENTROPY
 #if CONFIG_SB_FLEX_MVRES
   for (int p = MV_SUBPEL_HALF_PRECISION; p <= MV_SUBPEL_EIGHTH_PRECISION; ++p) {
-    RESET_CDF_COUNTER(fc->flex_mv_precision_cdf[p - MV_SUBPEL_HALF_PRECISION],
+    RESET_CDF_COUNTER(fc->sb_mv_precision_cdf[p - MV_SUBPEL_HALF_PRECISION],
                       p + 1);
   }
 #elif CONFIG_FLEX_MVRES
@@ -212,15 +212,15 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
     for (int j = 0; j < MV_PREC_DOWN_CONTEXTS; ++j) {
 #if DISALLOW_ONE_DOWN_FLEX_MVRES == 2
       RESET_CDF_COUNTER_STRIDE(
-          fc->flex_mv_precision_cdf[j][p - MV_SUBPEL_QTR_PRECISION], 2,
+          fc->pb_mv_precision_cdf[j][p - MV_SUBPEL_QTR_PRECISION], 2,
           CDF_SIZE(2));
 #elif DISALLOW_ONE_DOWN_FLEX_MVRES == 1
       RESET_CDF_COUNTER_STRIDE(
-          fc->flex_mv_precision_cdf[j][p - MV_SUBPEL_QTR_PRECISION], p,
+          fc->pb_mv_precision_cdf[j][p - MV_SUBPEL_QTR_PRECISION], p,
           CDF_SIZE(MV_SUBPEL_PRECISIONS - 1));
 #else
       RESET_CDF_COUNTER_STRIDE(
-          fc->flex_mv_precision_cdf[j][p - MV_SUBPEL_QTR_PRECISION], p + 1,
+          fc->pb_mv_precision_cdf[j][p - MV_SUBPEL_QTR_PRECISION], p + 1,
           CDF_SIZE(MV_SUBPEL_PRECISIONS));
 #endif  // DISALLOW_ONE_DOWN_FLEX_MVRES
     }

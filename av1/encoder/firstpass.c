@@ -333,8 +333,10 @@ void av1_first_pass(AV1_COMP *cpi, const int64_t ts_duration) {
   MV lastmv = kZeroMv;
   TWO_PASS *twopass = &cpi->twopass;
   int recon_y_stride, src_y_stride, recon_uv_stride, uv_mb_height;
-#if CONFIG_FLEX_MVRES
-  assert(cm->use_flex_mv_precision == 0);
+#if CONFIG_SB_FLEX_MVRES
+  assert(!cm->use_sb_mv_precision == 0);
+#elif CONFIG_FLEX_MVRES
+  assert(!cm->use_pb_mv_precision == 0);
 #endif  // CONFIG_FLEX_MVRES
 
   const YV12_BUFFER_CONFIG *const lst_yv12 =

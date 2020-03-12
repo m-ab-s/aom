@@ -918,38 +918,37 @@ static const aom_cdf_prob
       { AOM_CDF3(601, 943) },     { AOM_CDF3(14969, 21398) }
     };
 
-#if CONFIG_FLEX_MVRES
 #if CONFIG_SB_FLEX_MVRES
 static const aom_cdf_prob
-    default_flex_mv_precision_cdf[MV_SUBPEL_PRECISIONS - 1]
-                                 [CDF_SIZE(MV_SUBPEL_PRECISIONS)] = {
-                                   { AOM_CDF2(24000) },
-                                   { AOM_CDF3(24000, 29000) },
-                                   { AOM_CDF4(24000, 29000, 31000) },
-                                 };
-#else
+    default_sb_mv_precision_cdf[MV_SUBPEL_PRECISIONS - 1]
+                               [CDF_SIZE(MV_SUBPEL_PRECISIONS)] = {
+                                 { AOM_CDF2(24000) },
+                                 { AOM_CDF3(24000, 29000) },
+                                 { AOM_CDF4(24000, 29000, 31000) },
+                               };
+#elif CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES
 #if DISALLOW_ONE_DOWN_FLEX_MVRES == 2
-static const aom_cdf_prob default_flex_mv_precision_cdf
-    [MV_PREC_DOWN_CONTEXTS][MV_SUBPEL_PRECISIONS - MV_SUBPEL_QTR_PRECISION]
-    [CDF_SIZE(MV_SUBPEL_PRECISIONS - 2)] = {
-      { { AOM_CDF2(30000) }, { AOM_CDF2(28000) } },
-      { { AOM_CDF2(30000) }, { AOM_CDF2(28000) } },
+static const aom_cdf_prob
+    default_pb_mv_precision_cdf[MV_PREC_DOWN_CONTEXTS]
+                               [MV_SUBPEL_PRECISIONS - MV_SUBPEL_QTR_PRECISION]
+                               [CDF_SIZE(MV_SUBPEL_PRECISIONS - 2)] = {
+                                 { { AOM_CDF2(30000) }, { AOM_CDF2(28000) } },
+                                 { { AOM_CDF2(30000) }, { AOM_CDF2(28000) } },
 #elif DISALLOW_ONE_DOWN_FLEX_MVRES == 1
-static const aom_cdf_prob default_flex_mv_precision_cdf
+static const aom_cdf_prob default_pb_mv_precision_cdf
     [MV_PREC_DOWN_CONTEXTS][MV_SUBPEL_PRECISIONS - MV_SUBPEL_QTR_PRECISION]
     [CDF_SIZE(MV_SUBPEL_PRECISIONS - 1)] = {
       { { AOM_CDF2(31000) }, { AOM_CDF3(29000, 31500) } },
       { { AOM_CDF2(30000) }, { AOM_CDF3(28000, 31000) } },
 #else
-static const aom_cdf_prob default_flex_mv_precision_cdf
+static const aom_cdf_prob default_pb_mv_precision_cdf
     [MV_PREC_DOWN_CONTEXTS][MV_SUBPEL_PRECISIONS - MV_SUBPEL_QTR_PRECISION]
     [CDF_SIZE(MV_SUBPEL_PRECISIONS)] = {
       { { AOM_CDF3(24000, 29000) }, { AOM_CDF4(24000, 29000, 31000) } },
       { { AOM_CDF4(24000, 29000) }, { AOM_CDF4(24000, 29000, 31000) } },
 #endif  // DISALLOW_ONE_DOWN_FLEX_MVRES
-    };
-#endif  // CONFIG_SB_FLEX_MVRES
-#endif  // CONFIG_FLEX_MVRES
+                               };
+#endif  // CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES
 
 #if CONFIG_NEW_INTER_MODES
 static const aom_cdf_prob default_newmv_cdf[NEWMV_MODE_CONTEXTS][CDF_SIZE(
@@ -1875,8 +1874,10 @@ static void init_mode_probs(FRAME_CONTEXT *fc) {
   av1_copy(fc->y_mode_cdf, default_if_y_mode_cdf);
 #endif  // CONFIG_DERIVED_INTRA_MODE
   av1_copy(fc->switchable_interp_cdf, default_switchable_interp_cdf);
-#if CONFIG_FLEX_MVRES
-  av1_copy(fc->flex_mv_precision_cdf, default_flex_mv_precision_cdf);
+#if CONFIG_SB_FLEX_MVRES
+  av1_copy(fc->sb_mv_precision_cdf, default_sb_mv_precision_cdf);
+#elif CONFIG_FLEX_MVRES
+  av1_copy(fc->pb_mv_precision_cdf, default_pb_mv_precision_cdf);
 #endif  // CONFIG_FLEX_MVRES
   av1_copy(fc->partition_cdf, default_partition_cdf);
 #if CONFIG_EXT_RECUR_PARTITIONS

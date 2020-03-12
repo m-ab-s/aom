@@ -1592,21 +1592,39 @@ static void dec_dump_logs(AV1_COMMON *cm, MB_MODE_INFO *const mbmi, int mi_row,
 }
 #endif  // DEC_MISMATCH_DEBUG
 
-static INLINE void set_mbmi_mv_precision(MB_MODE_INFO *mbmi,
-                                         const AV1_COMMON *cm,
-                                         const MACROBLOCKD *xd) {
-#if CONFIG_SB_FLEX_MVRES
-  if (cm->use_flex_mv_precision) {
-    mbmi->max_mv_precision = xd->sbi->sb_mv_precision;
-  } else {
-    mbmi->max_mv_precision = cm->fr_mv_precision;
-  }
+#if CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES
+MvSubpelPrecision av1_read_pb_mv_precision(AV1_COMMON *const cm,
+                                           MACROBLOCKD *const xd,
+                                           aom_reader *r) {
+  MB_MODE_INFO *const mbmi = xd->mi[0];
+  assert(mbmi->max_mv_precision == av1_get_mbmi_max_mv_precision(cm, mbmi));
+  assert(mbmi->max_mv_precision >= MV_SUBPEL_QTR_PRECISION);
+  const int down_ctx = av1_get_pb_mv_precision_down_context(cm, xd);
+  const MvSubpelPrecision max_precision = mbmi->max_mv_precision;
+#if DISALLOW_ONE_DOWN_FLEX_MVRES == 2
+  int down = aom_read_symbol(
+      r,
+      xd->tile_ctx->pb_mv_precision_cdf[down_ctx][max_precision -
+                                                  MV_SUBPEL_QTR_PRECISION],
+      2, ACCT_STR);
+  down <<= 1;
+#elif DISALLOW_ONE_DOWN_FLEX_MVRES == 1
+  int down = aom_read_symbol(
+      r,
+      xd->tile_ctx->pb_mv_precision_cdf[down_ctx][max_precision -
+                                                  MV_SUBPEL_QTR_PRECISION],
+      max_precision, ACCT_STR);
+  down += (down > 0);
 #else
-  (void)xd;
-  mbmi->max_mv_precision = av1_get_mbmi_max_mv_precision(cm, mbmi);
-#endif  // CONFIG_SB_FLEX_MVRES
-  mbmi->pb_mv_precision = mbmi->max_mv_precision;
+  int down = aom_read_symbol(
+      r,
+      xd->tile_ctx->pb_mv_precision_cdf[down_ctx][max_precision -
+                                                  MV_SUBPEL_QTR_PRECISION],
+      max_precision + 1, ACCT_STR);
+#endif  // DISALLOW_ONE_DOWN_FLEX_MVRES
+  return (MvSubpelPrecision)(max_precision - down);
 }
+#endif  //  CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES
 
 static void read_inter_block_mode_info(AV1Decoder *const pbi,
                                        MACROBLOCKD *const xd,
@@ -1619,6 +1637,7 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
   int16_t inter_mode_ctx[MODE_CTX_REF_FRAMES];
   int pts[SAMPLES_ARRAY_SIZE], pts_inref[SAMPLES_ARRAY_SIZE];
   FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
+  const SB_INFO *sbi = xd->sbi;
 
   mbmi->uv_mode = UV_DC_PRED;
   mbmi->palette_mode_info.palette_size[0] = 0;
@@ -1636,6 +1655,7 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
   int mode_ctx = av1_mode_context_analyzer(inter_mode_ctx, mbmi->ref_frame);
   mbmi->ref_mv_idx = 0;
 
+  set_default_mbmi_mv_precision(mbmi, sbi);
   if (mbmi->skip_mode) {
     assert(is_compound);
 #if CONFIG_NEW_INTER_MODES
@@ -1644,21 +1664,18 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
 #else
     mbmi->mode = NEAREST_NEARESTMV;
 #endif  // CONFIG_NEW_INTER_MODES
-    set_mbmi_mv_precision(mbmi, cm, xd);
   } else {
     if (segfeature_active(&cm->seg, mbmi->segment_id, SEG_LVL_SKIP) ||
         segfeature_active(&cm->seg, mbmi->segment_id, SEG_LVL_GLOBALMV)) {
       mbmi->mode = GLOBALMV;
-      set_mbmi_mv_precision(mbmi, cm, xd);
     } else {
       if (is_compound)
         mbmi->mode = read_inter_compound_mode(xd, r, mode_ctx);
       else
         mbmi->mode = read_inter_mode(ec_ctx, r, mode_ctx);
-      set_mbmi_mv_precision(mbmi, cm, xd);
 #if CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES
-      if (is_flex_mv_precision_active(cm, mbmi->mode, mbmi->max_mv_precision)) {
-        mbmi->pb_mv_precision = av1_read_mv_precision(cm, xd, r);
+      if (is_pb_mv_precision_active(cm, mbmi->mode, mbmi->max_mv_precision)) {
+        mbmi->pb_mv_precision = av1_read_pb_mv_precision(cm, xd, r);
       }
 #if !CONFIG_NEW_INTER_MODES
       if (mbmi->pb_mv_precision < cm->fr_mv_precision &&

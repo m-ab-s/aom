@@ -406,17 +406,16 @@ struct macroblock {
 #if CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES
   // costs are based on precision down from frame level mv precision
 #if DISALLOW_ONE_DOWN_FLEX_MVRES == 2
-  int flex_mv_precision_costs[MV_PREC_DOWN_CONTEXTS]
-                             [MV_SUBPEL_PRECISIONS - MV_SUBPEL_QTR_PRECISION]
-                             [2];
+  int pb_mv_precision_costs[MV_PREC_DOWN_CONTEXTS]
+                           [MV_SUBPEL_PRECISIONS - MV_SUBPEL_QTR_PRECISION][2];
 #elif DISALLOW_ONE_DOWN_FLEX_MVRES == 1
-  int flex_mv_precision_costs[MV_PREC_DOWN_CONTEXTS]
-                             [MV_SUBPEL_PRECISIONS - MV_SUBPEL_QTR_PRECISION]
-                             [MV_SUBPEL_PRECISIONS - 1];
+  int pb_mv_precision_costs[MV_PREC_DOWN_CONTEXTS]
+                           [MV_SUBPEL_PRECISIONS - MV_SUBPEL_QTR_PRECISION]
+                           [MV_SUBPEL_PRECISIONS - 1];
 #else
-  int flex_mv_precision_costs[MV_PREC_DOWN_CONTEXTS]
-                             [MV_SUBPEL_PRECISIONS - MV_SUBPEL_QTR_PRECISION]
-                             [MV_SUBPEL_PRECISIONS];
+  int pb_mv_precision_costs[MV_PREC_DOWN_CONTEXTS]
+                           [MV_SUBPEL_PRECISIONS - MV_SUBPEL_QTR_PRECISION]
+                           [MV_SUBPEL_PRECISIONS];
 #endif  // DISALLOW_ONE_DOWN_FLEX_MVRES
 #endif  // CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES
   int partition_cost[PARTITION_CONTEXTS][EXT_PARTITION_TYPES];

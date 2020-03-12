@@ -1397,26 +1397,30 @@ static void write_intra_prediction_modes(AV1_COMP *cpi, int is_keyframe,
 #endif
 }
 
-#if CONFIG_FLEX_MVRES
-static void write_mv_precision(const AV1_COMMON *const cm,
-                               MACROBLOCKD *const xd, aom_writer *w) {
-  const MB_MODE_INFO *const mbmi = xd->mi[0];
 #if CONFIG_SB_FLEX_MVRES
-  assert(mbmi->pb_mv_precision == mbmi->max_mv_precision &&
-         mbmi->max_mv_precision == xd->sbi->sb_mv_precision);
-  assert(mbmi->max_mv_precision <= cm->fr_mv_precision);
+static void write_sb_mv_precision(const AV1_COMMON *const cm,
+                                  MACROBLOCKD *const xd, aom_writer *w) {
+  const MB_MODE_INFO *const mbmi = xd->mi[0];
+  assert(mbmi->pb_mv_precision == mbmi->max_mv_precision);
+  assert(mbmi->max_mv_precision == xd->sbi->sb_mv_precision);
+  assert(xd->sbi->sb_mv_precision <= cm->fr_mv_precision);
   aom_write_symbol(
       w, cm->fr_mv_precision - xd->sbi->sb_mv_precision,
-      xd->tile_ctx->flex_mv_precision_cdf[cm->fr_mv_precision -
-                                          MV_SUBPEL_HALF_PRECISION],
+      xd->tile_ctx
+          ->sb_mv_precision_cdf[cm->fr_mv_precision - MV_SUBPEL_HALF_PRECISION],
       cm->fr_mv_precision + 1);
   (void)mbmi;
-#else
+}
+#elif CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES
+static void write_pb_mv_precision(const AV1_COMMON *const cm,
+                                  MACROBLOCKD *const xd, aom_writer *w) {
+  const MB_MODE_INFO *const mbmi = xd->mi[0];
   assert(mbmi->pb_mv_precision <= mbmi->max_mv_precision);
-  assert(mbmi->max_mv_precision == cm->fr_mv_precision);
+  assert(mbmi->max_mv_precision == xd->sbi->sb_mv_precision);
+  assert(xd->sbi->sb_mv_precision == cm->fr_mv_precision);
   assert(av1_get_mbmi_max_mv_precision(cm, mbmi) == mbmi->max_mv_precision);
   assert(av1_get_mbmi_mv_precision(cm, mbmi) == mbmi->pb_mv_precision);
-  const int down_ctx = av1_get_mv_precision_down_context(cm, xd);
+  const int down_ctx = av1_get_pb_mv_precision_down_context(cm, xd);
   int down = mbmi->max_mv_precision - mbmi->pb_mv_precision;
 #if DISALLOW_ONE_DOWN_FLEX_MVRES == 2
   assert((down & 1) == 0);
@@ -1431,12 +1435,11 @@ static void write_mv_precision(const AV1_COMMON *const cm,
 #endif  // DISALLOW_ONE_DOWN_FLEX_MVRES
   aom_write_symbol(
       w, down,
-      xd->tile_ctx->flex_mv_precision_cdf[down_ctx][mbmi->max_mv_precision -
-                                                    MV_SUBPEL_QTR_PRECISION],
+      xd->tile_ctx->pb_mv_precision_cdf[down_ctx][mbmi->max_mv_precision -
+                                                  MV_SUBPEL_QTR_PRECISION],
       nsymbs);
-#endif  // CONFIG_SB_FLEX_MVRES
 }
-#endif  // CONFIG_FLEX_MVRES
+#endif  // CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES
 
 static void pack_inter_mode_mvs(AV1_COMP *cpi, const int mi_row,
                                 const int mi_col, aom_writer *w) {
@@ -1490,13 +1493,11 @@ static void pack_inter_mode_mvs(AV1_COMP *cpi, const int mi_row,
       else if (is_inter_singleref_mode(mode))
         write_inter_mode(w, mode, ec_ctx, mode_ctx);
 
-#if CONFIG_FLEX_MVRES
-      if (is_flex_mv_precision_active(cm, mode, mbmi->max_mv_precision)) {
-#if CONFIG_SB_FLEX_MVRES
-        assert(mbmi->pb_mv_precision == xd->sbi->sb_mv_precision);
-#else
-        write_mv_precision(cm, xd, w);
-#endif  // CONFIG_SB_FLEX_MVRES
+#if CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES
+      if (is_pb_mv_precision_active(cm, mode, mbmi->max_mv_precision)) {
+        assert(mbmi->pb_mv_precision <= mbmi->max_mv_precision);
+        assert(mbmi->max_mv_precision == xd->sbi->sb_mv_precision);
+        write_pb_mv_precision(cm, xd, w);
       }
 #endif  // CONFIG_FLEX_MVRES
       if (have_drl_index(mbmi->mode))
@@ -2051,9 +2052,9 @@ static void write_modes_sb(AV1_COMP *const cpi, const TileInfo *const tile,
 
 #if CONFIG_SB_FLEX_MVRES
   if (bsize == cm->seq_params.sb_size && !frame_is_intra_only(cm) &&
-      cm->use_flex_mv_precision) {
+      cm->use_sb_mv_precision) {
     xd->mi = cm->mi_grid_base + mi_row * cm->mi_stride + mi_col;
-    write_mv_precision(cm, xd, w);
+    write_sb_mv_precision(cm, xd, w);
   }
 #endif  // CONFIG_FLEX_MVRES
 
@@ -3689,9 +3690,9 @@ static void write_uncompressed_header_obu(AV1_COMP *cpi,
         assert(cm->fr_mv_precision >= MV_SUBPEL_HALF_PRECISION);
         aom_wb_write_literal(wb, cm->fr_mv_precision, 2);
         if (cm->fr_mv_precision == MV_SUBPEL_NONE) {
-          assert(!cm->use_flex_mv_precision);
+          assert(!cm->use_sb_mv_precision);
         } else {
-          aom_wb_write_bit(wb, cm->use_flex_mv_precision);
+          aom_wb_write_bit(wb, cm->use_sb_mv_precision);
         }
 #else
         assert(cm->fr_mv_precision >= MV_SUBPEL_QTR_PRECISION);
@@ -3699,10 +3700,14 @@ static void write_uncompressed_header_obu(AV1_COMP *cpi,
 #endif  // CONFIG_SB_FLEX_MVRES
 #if CONFIG_FLEX_MVRES
 #if !CONFIG_SB_FLEX_MVRES
-        aom_wb_write_bit(wb, cm->use_flex_mv_precision);
+        aom_wb_write_bit(wb, cm->use_pb_mv_precision);
 #endif
       } else {
-        assert(!cm->use_flex_mv_precision);
+#if CONFIG_SB_FLEX_MVRES
+        assert(!cm->use_sb_mv_precision);
+#else
+        assert(!cm->use_pb_mv_precision);
+#endif
 #endif  // CONFIG_FLEX_MVRES
       }
       write_frame_interp_filter(cm->interp_filter, wb);
