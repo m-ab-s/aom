@@ -935,7 +935,7 @@ static int temporal_filter_find_matching_mb_c(
   MvLimits tmp_mv_limits = x->mv_limits;
 
   xd->mi[0]->max_mv_precision = MV_SUBPEL_EIGHTH_PRECISION;
-  xd->mi[0]->mv_precision = MV_SUBPEL_EIGHTH_PRECISION;
+  xd->mi[0]->pb_mv_precision = MV_SUBPEL_EIGHTH_PRECISION;
 
   const int min_frame_size = AOMMIN(cpi->common.width, cpi->common.height);
   const MV_COST_TYPE mv_cost_type =

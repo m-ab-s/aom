@@ -179,9 +179,9 @@ static INLINE int av1_get_mv_precision_down_context(const AV1_COMMON *cm,
   const MB_MODE_INFO *const above_mi = xd->above_mbmi;
   const MB_MODE_INFO *const left_mi = xd->left_mbmi;
   const int above_down =
-      above_mi ? above_mi->max_mv_precision - above_mi->mv_precision : 0;
+      above_mi ? above_mi->max_mv_precision - above_mi->pb_mv_precision : 0;
   const int left_down =
-      left_mi ? left_mi->max_mv_precision - left_mi->mv_precision : 0;
+      left_mi ? left_mi->max_mv_precision - left_mi->pb_mv_precision : 0;
   assert(above_down >= 0);
   assert(left_down >= 0);
   return (above_down + left_down > 0);

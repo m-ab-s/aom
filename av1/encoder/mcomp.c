@@ -1301,7 +1301,7 @@ unsigned int av1_compute_motion_cost(const AV1_COMP *cpi, MACROBLOCK *const x,
 #else
   flex_mv_costs = NULL;
   mv_err_cost_fn *mv_err_cost = mv_base_err_cost;
-  assert(mbmi->max_mv_precision == mbmi->mv_precision);
+  assert(mbmi->max_mv_precision == mbmi->pb_mv_precision);
 #endif  // CONFIG_FLEX_MVRES
   MvSubpelPrecision max_precision = mbmi->max_mv_precision;
   MvSubpelPrecision min_precision = MV_SUBPEL_NONE;
@@ -1456,7 +1456,7 @@ static INLINE void calc_int_cost_list(const AV1_COMMON *cm, const MACROBLOCK *x,
   (void)cm;
   flex_mv_costs = NULL;
   mv_err_cost_fn *mv_err_cost = mv_base_err_cost;
-  assert(mbmi->max_mv_precision == mbmi->mv_precision);
+  assert(mbmi->max_mv_precision == mbmi->pb_mv_precision);
 #endif  // CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES
   const MvSubpelPrecision max_mv_precision = mbmi->max_mv_precision;
 
@@ -1514,7 +1514,7 @@ static INLINE void calc_int_sad_list(const AV1_COMMON *const cm,
   const MB_MODE_INFO *mbmi = xd->mi[0];
   const MvSubpelPrecision max_mv_precision = mbmi->max_mv_precision;
 #if CONFIG_SB_FLEX_MVRES
-  assert(mbmi->mv_precision == mbmi->max_mv_precision);
+  assert(mbmi->pb_mv_precision == mbmi->max_mv_precision);
 #endif  // CONFIG_SB_FLEX_MVRES
 
   if (cost_list[0] == INT_MAX) {
@@ -1572,7 +1572,7 @@ static int pattern_search(
   const int last_is_4 = num_candidates[0] == 4;
   const MvSubpelPrecision max_mv_precision = mbmi->max_mv_precision;
 #if CONFIG_SB_FLEX_MVRES
-  assert(mbmi->max_mv_precision == mbmi->mv_precision);
+  assert(mbmi->max_mv_precision == mbmi->pb_mv_precision);
 #endif  // CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES
   int br, bc;
   int bestsad = INT_MAX;
@@ -1842,7 +1842,7 @@ int av1_get_mvpred_var(const AV1_COMMON *cm, const MACROBLOCK *x,
   (void)cm;
   flex_mv_costs = NULL;
   mv_err_cost_fn *mv_err_cost = mv_base_err_cost;
-  assert(mbmi->max_mv_precision == mbmi->mv_precision);
+  assert(mbmi->max_mv_precision == mbmi->pb_mv_precision);
 #endif  // CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES
 
   var = vfp->vf(what->buf, what->stride, get_buf_from_mv(in_what, best_mv),
@@ -1880,7 +1880,7 @@ int av1_get_mvpred_av_var(const AV1_COMMON *cm, const MACROBLOCK *x,
   (void)cm;
   flex_mv_costs = NULL;
   mv_err_cost_fn *mv_err_cost = mv_base_err_cost;
-  assert(mbmi->max_mv_precision == mbmi->mv_precision);
+  assert(mbmi->max_mv_precision == mbmi->pb_mv_precision);
 #endif  // CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES
 
   return vfp->svaf(get_buf_from_mv(in_what, best_mv), in_what->stride, 0, 0,
@@ -1917,7 +1917,7 @@ int av1_get_mvpred_mask_var(const AV1_COMMON *cm, const MACROBLOCK *x,
   (void)cm;
   flex_mv_costs = NULL;
   mv_err_cost_fn *mv_err_cost = mv_base_err_cost;
-  assert(mbmi->max_mv_precision == mbmi->mv_precision);
+  assert(mbmi->max_mv_precision == mbmi->pb_mv_precision);
 #endif  // CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES
 
   return vfp->msvf(what->buf, what->stride, 0, 0,
@@ -2090,7 +2090,7 @@ static int exhuastive_mesh_search(const AV1_COMMON *cm, MACROBLOCK *x,
   assert(step >= 1);
   const MvSubpelPrecision max_mv_precision = mbmi->max_mv_precision;
 #if CONFIG_SB_FLEX_MVRES
-  assert(mbmi->max_mv_precision == mbmi->mv_precision);
+  assert(mbmi->max_mv_precision == mbmi->pb_mv_precision);
 #endif  // CONFIG_SB_FLEX_MVRES
 
   clamp_mv(&fcenter_mv, x->mv_limits.col_min, x->mv_limits.col_max,
@@ -2185,7 +2185,7 @@ int av1_diamond_search_sad_c(const AV1_COMMON *const cm, MACROBLOCK *x,
 
   const MvSubpelPrecision max_mv_precision = mbmi->max_mv_precision;
 #if CONFIG_SB_FLEX_MVRES
-  assert(mbmi->max_mv_precision == mbmi->mv_precision);
+  assert(mbmi->max_mv_precision == mbmi->pb_mv_precision);
 #endif  // CONFIG_SB_FLEX_MVRES
 
   unsigned int bestsad = INT_MAX;
@@ -2395,7 +2395,7 @@ int av1_refining_search_8p_c(const AV1_COMMON *const cm, MACROBLOCK *x,
   const MV fcenter_mv = { center_mv->row >> 3, center_mv->col >> 3 };
   const MvSubpelPrecision max_mv_precision = mbmi->max_mv_precision;
 #if CONFIG_SB_FLEX_MVRES
-  assert(mbmi->max_mv_precision == mbmi->mv_precision);
+  assert(mbmi->max_mv_precision == mbmi->pb_mv_precision);
 #endif  // CONFIG_SB_FLEX_MVRES
   MV *best_mv = &x->best_mv.as_mv;
   unsigned int best_sad = INT_MAX;
@@ -3176,7 +3176,7 @@ static int get_obmc_mvpred_var(const AV1_COMMON *cm, const MACROBLOCK *x,
   (void)cm;
   flex_mv_costs = NULL;
   mv_err_cost_fn *mv_err_cost = mv_base_err_cost;
-  assert(mbmi->max_mv_precision == mbmi->mv_precision);
+  assert(mbmi->max_mv_precision == mbmi->pb_mv_precision);
 #endif  // CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES
 
   return vfp->ovf(get_buf_from_mv(in_what, best_mv), in_what->stride, wsrc,
@@ -3201,7 +3201,7 @@ static int obmc_refining_search_sad(const AV1_COMMON *const cm,
   const MV fcenter_mv = { center_mv->row >> 3, center_mv->col >> 3 };
   const MvSubpelPrecision max_mv_precision = mbmi->max_mv_precision;
 #if CONFIG_SB_FLEX_MVRES
-  assert(mbmi->max_mv_precision == mbmi->mv_precision);
+  assert(mbmi->max_mv_precision == mbmi->pb_mv_precision);
 #endif  // CONFIG_SB_FLEX_MVRES
   unsigned int best_sad =
       fn_ptr->osdf(get_buf_from_mv(in_what, ref_mv), in_what->stride, wsrc,
@@ -3256,7 +3256,7 @@ static int obmc_diamond_search_sad(
   const MV fcenter_mv = { center_mv->row >> 3, center_mv->col >> 3 };
   const MvSubpelPrecision max_mv_precision = mbmi->max_mv_precision;
 #if CONFIG_SB_FLEX_MVRES
-  assert(mbmi->max_mv_precision == mbmi->mv_precision);
+  assert(mbmi->max_mv_precision == mbmi->pb_mv_precision);
 #endif  // CONFIG_SB_FLEX_MVRES
   const uint8_t *best_address, *in_what_ref;
   int best_sad = INT_MAX;
@@ -3535,7 +3535,7 @@ void av1_simple_motion_search(AV1_COMP *const cpi, MACROBLOCK *x, int mi_row,
 #else
   mbmi->max_mv_precision = cm->fr_mv_precision;
 #endif  // CONFIG_SB_FLEX_MVRES
-  mbmi->mv_precision = mbmi->max_mv_precision;
+  mbmi->pb_mv_precision = mbmi->max_mv_precision;
   mbmi->interp_filters = av1_broadcast_interp_filter(EIGHTTAP_REGULAR);
 
   const YV12_BUFFER_CONFIG *yv12 = get_ref_frame_yv12_buf(cm, ref);
@@ -3581,7 +3581,7 @@ void av1_simple_motion_search(AV1_COMP *const cpi, MACROBLOCK *x, int mi_row,
   }
   if (use_subpel_search) {
     int not_used = 0;
-    const MvSubpelPrecision max_mv_precision = mbmi->mv_precision;
+    const MvSubpelPrecision max_mv_precision = mbmi->pb_mv_precision;
     if (cpi->sf.use_accurate_subpel_search) {
       const int pw = block_size_wide[bsize];
       const int ph = block_size_high[bsize];

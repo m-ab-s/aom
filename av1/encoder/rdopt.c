@@ -9274,15 +9274,15 @@ static int check_mbmi_mv_companding(const MACROBLOCK *x,
 #ifndef NDEBUG
 static int check_mv_precision(const MB_MODE_INFO *const mbmi) {
   const int is_comp_pred = mbmi->ref_frame[1] > INTRA_FRAME;
-  assert(mbmi->mv_precision <= mbmi->max_mv_precision);
+  assert(mbmi->pb_mv_precision <= mbmi->max_mv_precision);
   if (have_newmv_in_inter_mode(mbmi->mode)) {
     if (mbmi->mode == NEWMV || mbmi->mode == NEW_NEWMV) {
       for (int i = 0; i < is_comp_pred + 1; ++i) {
         if ((mbmi->mv[i].as_mv.row &
-             ((1 << (MV_SUBPEL_EIGHTH_PRECISION - mbmi->mv_precision)) - 1)))
+             ((1 << (MV_SUBPEL_EIGHTH_PRECISION - mbmi->pb_mv_precision)) - 1)))
           return 0;
         if ((mbmi->mv[i].as_mv.col &
-             ((1 << (MV_SUBPEL_EIGHTH_PRECISION - mbmi->mv_precision)) - 1)))
+             ((1 << (MV_SUBPEL_EIGHTH_PRECISION - mbmi->pb_mv_precision)) - 1)))
           return 0;
       }
     } else {
@@ -9292,10 +9292,10 @@ static int check_mv_precision(const MB_MODE_INFO *const mbmi) {
       const int i = (mbmi->mode == NEAREST_NEWMV || mbmi->mode == NEAR_NEWMV);
 #endif  // CONFIG_NEW_INTER_MODES
       if ((mbmi->mv[i].as_mv.row &
-           ((1 << (MV_SUBPEL_EIGHTH_PRECISION - mbmi->mv_precision)) - 1)))
+           ((1 << (MV_SUBPEL_EIGHTH_PRECISION - mbmi->pb_mv_precision)) - 1)))
         return 0;
       if ((mbmi->mv[i].as_mv.col &
-           ((1 << (MV_SUBPEL_EIGHTH_PRECISION - mbmi->mv_precision)) - 1)))
+           ((1 << (MV_SUBPEL_EIGHTH_PRECISION - mbmi->pb_mv_precision)) - 1)))
         return 0;
     }
   }
@@ -12637,7 +12637,7 @@ static int64_t rd_pick_intrabc_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x,
     mbmi->mv[0].as_mv = dv;
     mbmi->interp_filters = av1_broadcast_interp_filter(BILINEAR);
     mbmi->max_mv_precision = MV_SUBPEL_NONE;
-    mbmi->mv_precision = mbmi->max_mv_precision;
+    mbmi->pb_mv_precision = mbmi->max_mv_precision;
     mbmi->skip = 0;
     x->skip = 0;
     av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize, 0,
@@ -13910,7 +13910,7 @@ static INLINE void init_mbmi(MB_MODE_INFO *mbmi, int mode_index,
   (void)xd;
   mbmi->max_mv_precision = av1_get_mbmi_max_mv_precision(cm, mbmi);
 #endif  // CONFIG_SB_FLEX_MVRES
-  mbmi->mv_precision = mbmi->max_mv_precision;
+  mbmi->pb_mv_precision = mbmi->max_mv_precision;
 }
 
 static int64_t handle_intra_mode(InterModeSearchState *search_state,
@@ -15122,25 +15122,25 @@ void av1_rd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
 #endif  // CONFIG_COMPANDED_MV
 #if CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES
   if (is_flex_mv_precision_active(cm, mbmi->mode, mbmi->max_mv_precision)) {
-    mbmi->mv_precision = av1_get_mbmi_mv_precision(cm, mbmi);
+    mbmi->pb_mv_precision = av1_get_mbmi_mv_precision(cm, mbmi);
   } else {
-    mbmi->mv_precision = mbmi->max_mv_precision;
+    mbmi->pb_mv_precision = mbmi->max_mv_precision;
   }
 #if !CONFIG_NEW_INTER_MODES
-  if (mbmi->mv_precision < cm->fr_mv_precision &&
+  if (mbmi->pb_mv_precision < cm->fr_mv_precision &&
       (mbmi->mode == NEWMV || mbmi->mode == NEW_NEWMV)) {
     const int8_t ref_frame_type = av1_ref_frame_type(mbmi->ref_frame);
     MB_MODE_INFO_EXT *const mbmi_ext = x->mbmi_ext;
     av1_get_mv_refs_adj(mbmi_ext->ref_mv_stack[ref_frame_type],
                         mbmi_ext->weight[ref_frame_type],
                         mbmi_ext->ref_mv_count[ref_frame_type],
-                        is_inter_compound_mode(mbmi->mode), mbmi->mv_precision,
-                        mbmi_ext->ref_mv_stack_adj, mbmi_ext->weight_adj,
-                        &mbmi_ext->ref_mv_count_adj);
+                        is_inter_compound_mode(mbmi->mode),
+                        mbmi->pb_mv_precision, mbmi_ext->ref_mv_stack_adj,
+                        mbmi_ext->weight_adj, &mbmi_ext->ref_mv_count_adj);
     mbmi->ref_mv_idx_adj = av1_get_ref_mv_idx_adj(
         mbmi_ext->ref_mv_stack[ref_frame_type],
         mbmi_ext->ref_mv_count[ref_frame_type], mbmi->ref_mv_idx,
-        is_inter_compound_mode(mbmi->mode), mbmi->mv_precision,
+        is_inter_compound_mode(mbmi->mode), mbmi->pb_mv_precision,
         mbmi_ext->ref_mv_stack_adj, mbmi_ext->ref_mv_count_adj);
   }
 #endif  // !CONFIG_NEW_INTER_MODES
@@ -15823,7 +15823,7 @@ void av1_rd_pick_inter_mode_sb_seg_skip(const AV1_COMP *cpi,
 #else
   mbmi->max_mv_precision = av1_get_mbmi_max_mv_precision(cm, mbmi);
 #endif  // CONFIG_SB_FLEX_MVRES
-  mbmi->mv_precision = mbmi->max_mv_precision;
+  mbmi->pb_mv_precision = mbmi->max_mv_precision;
 
   av1_count_overlappable_neighbors(cm, xd);
   if (is_motion_variation_allowed_bsize(bsize, mi_row, mi_col) &&

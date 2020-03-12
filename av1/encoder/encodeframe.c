@@ -511,8 +511,9 @@ static void update_reduced_mv_precision_used(const AV1_COMMON *const cm,
                                              RD_COUNTS *rdc) {
   if (!is_flex_mv_precision_active(cm, mbmi->mode, mbmi->max_mv_precision))
     return;
-  assert(av1_get_mbmi_mv_precision(cm, mbmi) == mbmi->mv_precision);
-  rdc->reduced_mv_precision_used[mbmi->max_mv_precision - mbmi->mv_precision]++;
+  assert(av1_get_mbmi_mv_precision(cm, mbmi) == mbmi->pb_mv_precision);
+  rdc->reduced_mv_precision_used[mbmi->max_mv_precision -
+                                 mbmi->pb_mv_precision]++;
 }
 #endif  // CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES
 
@@ -1737,7 +1738,7 @@ static void update_stats(const AV1_COMMON *const cm, TileDataEnc *tile_data,
           for (int ref = 0; ref < 1 + has_second_ref(mbmi); ++ref) {
             const int_mv ref_mv = av1_get_ref_mv(x, ref);
             av1_update_mv_stats(&mbmi->mv[ref].as_mv, &ref_mv.as_mv, &fc->nmvc,
-                                mbmi->mv_precision);
+                                mbmi->pb_mv_precision);
           }
         } else {
           const int ref =
@@ -1745,7 +1746,7 @@ static void update_stats(const AV1_COMMON *const cm, TileDataEnc *tile_data,
                                          // reference has NEWMV
           const int_mv ref_mv = av1_get_ref_mv(x, ref);
           av1_update_mv_stats(&mbmi->mv[ref].as_mv, &ref_mv.as_mv, &fc->nmvc,
-                              mbmi->mv_precision);
+                              mbmi->pb_mv_precision);
         }
       }
 #else
@@ -1754,7 +1755,7 @@ static void update_stats(const AV1_COMMON *const cm, TileDataEnc *tile_data,
         uint8_t ref_frame_type = av1_ref_frame_type(mbmi->ref_frame);
 
 #if CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES
-        if (mbmi->mv_precision < cm->fr_mv_precision) {
+        if (mbmi->pb_mv_precision < cm->fr_mv_precision) {
           for (int idx = 0; idx < MAX_DRL_BITS; ++idx) {
             if (mbmi_ext->ref_mv_count_adj > idx + 1) {
               uint8_t drl_ctx = av1_drl_ctx(mbmi_ext->weight_adj, idx);
@@ -1794,12 +1795,12 @@ static void update_stats(const AV1_COMMON *const cm, TileDataEnc *tile_data,
 
       if (have_newmv_in_inter_mode(mbmi->mode)) {
 #if CONFIG_SB_FLEX_MVRES
-        assert(mbmi->mv_precision == xd->sbi->sb_mv_precision);
+        assert(mbmi->pb_mv_precision == xd->sbi->sb_mv_precision);
 #elif CONFIG_FLEX_MVRES
         if (allow_update_cdf && is_flex_mv_precision_active(
                                     cm, mbmi->mode, mbmi->max_mv_precision)) {
           const int down_ctx = av1_get_mv_precision_down_context(cm, xd);
-          int down = mbmi->max_mv_precision - mbmi->mv_precision;
+          int down = mbmi->max_mv_precision - mbmi->pb_mv_precision;
 #if DISALLOW_ONE_DOWN_FLEX_MVRES == 2
           assert((down & 1) == 0);
           const int nsymbs = 2;
@@ -1816,21 +1817,21 @@ static void update_stats(const AV1_COMMON *const cm, TileDataEnc *tile_data,
                                                   MV_SUBPEL_QTR_PRECISION],
               down, nsymbs);
         }
-        assert(mbmi->mv_precision == av1_get_mbmi_mv_precision(cm, mbmi));
+        assert(mbmi->pb_mv_precision == av1_get_mbmi_mv_precision(cm, mbmi));
 #endif  // CONFIG_SB_FLEX_MVRES
 
         if (new_mv) {
           for (int ref = 0; ref < 1 + has_second_ref(mbmi); ++ref) {
             const int_mv ref_mv = av1_get_ref_mv(x, ref);
             av1_update_mv_stats(&mbmi->mv[ref].as_mv, &ref_mv.as_mv, &fc->nmvc,
-                                mbmi->mv_precision);
+                                mbmi->pb_mv_precision);
           }
         } else {
           const int ref =
               (mbmi->mode == NEAREST_NEWMV || mbmi->mode == NEAR_NEWMV);
           const int_mv ref_mv = av1_get_ref_mv(x, ref);
           av1_update_mv_stats(&mbmi->mv[ref].as_mv, &ref_mv.as_mv, &fc->nmvc,
-                              mbmi->mv_precision);
+                              mbmi->pb_mv_precision);
         }
       }
 #endif  // CONFIG_NEW_INTER_MODES

@@ -1536,7 +1536,7 @@ void av1_fast_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
   mi->mode = best_pickmode.best_mode;
   mi->interp_filters = av1_broadcast_interp_filter(best_filter);
   mi->max_mv_precision = cm->fr_mv_precision;
-  mi->mv_precision = cm->fr_mv_precision;
+  mi->pb_mv_precision = cm->fr_mv_precision;
   mi->tx_size = best_pickmode.best_tx_size;
   memset(mi->inter_tx_size, mi->tx_size, sizeof(mi->inter_tx_size));
   mi->ref_frame[0] = best_pickmode.best_ref_frame;
