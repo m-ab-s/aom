@@ -275,10 +275,8 @@ void av1_encode_mv(AV1_COMP *cpi, aom_writer *w, const MV *mv, const MV *ref,
   const MV diff = { mv->row - ref_.row, mv->col - ref_.col };
   const MV_JOINT_TYPE j = av1_get_mv_joint(&diff);
 
-#if !CONFIG_NEW_INTER_MODES && !CONFIG_FLEX_MVRES
   // If the mv_diff is zero, then we should have used near or nearest instead.
   assert(j != MV_JOINT_ZERO);
-#endif  // !CONFIG_NEW_INTER_MODES
 
 #if CONFIG_FLEX_MVRES
   assert((diff.row & ((1 << (MV_SUBPEL_EIGHTH_PRECISION - precision)) - 1)) ==

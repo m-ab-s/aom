@@ -9286,7 +9286,11 @@ static int check_mv_precision(const MB_MODE_INFO *const mbmi) {
           return 0;
       }
     } else {
+#if CONFIG_NEW_INTER_MODES
+      const int i = (mbmi->mode == NEAR_NEWMV);
+#else
       const int i = (mbmi->mode == NEAREST_NEWMV || mbmi->mode == NEAR_NEWMV);
+#endif  // CONFIG_NEW_INTER_MODES
       if ((mbmi->mv[i].as_mv.row &
            ((1 << (MV_SUBPEL_EIGHTH_PRECISION - mbmi->mv_precision)) - 1)))
         return 0;
@@ -11053,37 +11057,7 @@ static int64_t motion_mode_rd(const AV1_COMP *const cpi, TileDataEnc *tile_data,
 
     // If we are searching newmv and the mv is the same as refmv, skip the
     // current mode
-    if (this_mode == NEW_NEWMV) {
-      const int_mv ref_mv_0 = av1_get_ref_mv(x, 0);
-      const int_mv ref_mv_1 = av1_get_ref_mv(x, 1);
-      if (mbmi->mv[0].as_int == ref_mv_0.as_int ||
-          mbmi->mv[1].as_int == ref_mv_1.as_int) {
-        continue;
-      }
-#if CONFIG_NEW_INTER_MODES
-    } else if (this_mode == NEAR_NEWMV) {
-#else
-    } else if (this_mode == NEAREST_NEWMV || this_mode == NEAR_NEWMV) {
-#endif  // CONFIG_NEW_INTER_MODES
-      const int_mv ref_mv_1 = av1_get_ref_mv(x, 1);
-      if (mbmi->mv[1].as_int == ref_mv_1.as_int) {
-        continue;
-      }
-#if CONFIG_NEW_INTER_MODES
-    } else if (this_mode == NEW_NEARMV) {
-#else
-    } else if (this_mode == NEW_NEARESTMV || this_mode == NEW_NEARMV) {
-#endif  // CONFIG_NEW_INTER_MODES
-      const int_mv ref_mv_0 = av1_get_ref_mv(x, 0);
-      if (mbmi->mv[0].as_int == ref_mv_0.as_int) {
-        continue;
-      }
-    } else if (this_mode == NEWMV) {
-      const int_mv ref_mv_0 = av1_get_ref_mv(x, 0);
-      if (mbmi->mv[0].as_int == ref_mv_0.as_int) {
-        continue;
-      }
-    }
+    if (!av1_check_newmv_joint_nonzero(cm, x)) continue;
 
     x->skip = 0;
     rd_stats->dist = 0;
@@ -11243,9 +11217,10 @@ static int64_t motion_mode_rd(const AV1_COMP *const cpi, TileDataEnc *tile_data,
       if (best_xskip) break;
     }
   }
+
   mbmi->ref_frame[1] = ref_frame_1;
   *rate_mv = best_rate_mv;
-  if (best_rd == INT64_MAX) {
+  if (best_rd == INT64_MAX || !av1_check_newmv_joint_nonzero(cm, x)) {
     av1_invalid_rd_stats(rd_stats);
     restore_dst_buf(xd, *orig_dst, num_planes);
     return INT64_MAX;
@@ -12525,6 +12500,7 @@ static int64_t handle_inter_mode(AV1_COMP *const cpi, TileDataEnc *tile_data,
   memcpy(x->blk_skip, best_blk_skip,
          sizeof(best_blk_skip[0]) * xd->n4_h * xd->n4_w);
 
+  assert(av1_check_newmv_joint_nonzero(cm, x));
   return RDCOST(x->rdmult, rd_stats->rate, rd_stats->dist);
 }
 
@@ -15139,6 +15115,7 @@ void av1_rd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
 
   // macroblock modes
   *mbmi = search_state.best_mbmode;
+  assert(av1_check_newmv_joint_nonzero(cm, x));
 
 #if CONFIG_COMPANDED_MV
   assert(check_mbmi_mv_companding(x, mbmi));
@@ -15149,6 +15126,7 @@ void av1_rd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
   } else {
     mbmi->mv_precision = mbmi->max_mv_precision;
   }
+#if !CONFIG_NEW_INTER_MODES
   if (mbmi->mv_precision < cm->mv_precision &&
       (mbmi->mode == NEWMV || mbmi->mode == NEW_NEWMV)) {
     const int8_t ref_frame_type = av1_ref_frame_type(mbmi->ref_frame);
@@ -15165,8 +15143,10 @@ void av1_rd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
         is_inter_compound_mode(mbmi->mode), mbmi->mv_precision,
         mbmi_ext->ref_mv_stack_adj, mbmi_ext->ref_mv_count_adj);
   }
+#endif  // !CONFIG_NEW_INTER_MODES
   assert(check_mv_precision(mbmi));
 #endif  // CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES
+  assert(av1_check_newmv_joint_nonzero(cm, x));
 
   x->skip |= search_state.best_skip2;
 
@@ -15905,7 +15885,6 @@ void av1_rd_pick_inter_mode_sb_seg_skip(const AV1_COMP *cpi,
     av1_update_rd_thresh_fact(cm, x->thresh_freq_fact,
                               cpi->sf.adaptive_rd_thresh, bsize, THR_GLOBALMV);
   }
-
   av1_zero(best_pred_diff);
 
   store_coding_context(x, ctx, THR_GLOBALMV, best_pred_diff, 0);

@@ -1660,6 +1660,7 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
       if (is_flex_mv_precision_active(cm, mbmi->mode, mbmi->max_mv_precision)) {
         mbmi->mv_precision = av1_read_mv_precision(cm, xd, r);
       }
+#if !CONFIG_NEW_INTER_MODES
       if (mbmi->mv_precision < cm->mv_precision &&
           (mbmi->mode == NEWMV || mbmi->mode == NEW_NEWMV)) {
         av1_get_mv_refs_adj(xd->ref_mv_stack[ref_frame], xd->weight[ref_frame],
@@ -1668,6 +1669,7 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
                             mbmi->mv_precision, xd->ref_mv_stack_adj,
                             xd->weight_adj, &xd->ref_mv_count_adj);
       }
+#endif  // !CONFIG_NEW_INTER_MODES
 #endif  // CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES
       if (have_drl_index(mbmi->mode)) {
 #if CONFIG_NEW_INTER_MODES
@@ -1696,7 +1698,7 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
 #else
     int ref_mv_idx = mbmi->ref_mv_idx + 1;
 #endif  // CONFIG_NEW_INTER_MODES
-#if CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES
+#if CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES && !CONFIG_NEW_INTER_MODES
     if (mbmi->mv_precision < cm->mv_precision && mbmi->mode == NEW_NEWMV) {
       ref_mv_idx = mbmi->ref_mv_idx_adj + 1;
       nearestmv[0] = xd->ref_mv_stack_adj[0].this_mv;
@@ -1704,14 +1706,14 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
       nearmv[0] = xd->ref_mv_stack_adj[ref_mv_idx].this_mv;
       nearmv[1] = xd->ref_mv_stack_adj[ref_mv_idx].comp_mv;
     } else {
-#endif  // CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES
+#endif  // CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES && !CONFIG_NEW_INTER_MODES
       nearestmv[0] = xd->ref_mv_stack[ref_frame][0].this_mv;
       nearestmv[1] = xd->ref_mv_stack[ref_frame][0].comp_mv;
       nearmv[0] = xd->ref_mv_stack[ref_frame][ref_mv_idx].this_mv;
       nearmv[1] = xd->ref_mv_stack[ref_frame][ref_mv_idx].comp_mv;
-#if CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES
+#if CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES && !CONFIG_NEW_INTER_MODES
     }
-#endif  // CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES
+#endif  // CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES && !CONFIG_NEW_INTER_MODES
     assert(IMPLIES(cm->cur_frame_force_integer_mv,
                    cm->mv_precision == MV_SUBPEL_NONE));
     lower_mv_precision(&nearestmv[0].as_mv, cm->mv_precision);
@@ -1745,35 +1747,35 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
     if (mbmi->mode == NEAR_NEWMV || mbmi->mode == NEW_NEARMV)
       ref_mv_idx = 1 + mbmi->ref_mv_idx;
 #endif  // !CONFIG_NEW_INTER_MODES
-#if CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES
+#if CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES && !CONFIG_NEW_INTER_MODES
     if (mbmi->mv_precision < cm->mv_precision && mbmi->mode == NEW_NEWMV) {
       ref_mv_idx = mbmi->ref_mv_idx_adj;
       ref_mv[0] = xd->ref_mv_stack_adj[ref_mv_idx].this_mv;
       ref_mv[1] = xd->ref_mv_stack_adj[ref_mv_idx].comp_mv;
     } else {
-#endif  // CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES
+#endif  // CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES && !CONFIG_NEW_INTER_MODES
       // TODO(jingning, yunqing): Do we need a lower_mv_precision() call here?
       if (compound_ref0_mode(mbmi->mode) == NEWMV)
         ref_mv[0] = xd->ref_mv_stack[ref_frame][ref_mv_idx].this_mv;
 
       if (compound_ref1_mode(mbmi->mode) == NEWMV)
         ref_mv[1] = xd->ref_mv_stack[ref_frame][ref_mv_idx].comp_mv;
-#if CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES
+#if CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES && !CONFIG_NEW_INTER_MODES
     }
-#endif  // CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES
+#endif  // CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES && !CONFIG_NEW_INTER_MODES
   } else {
     if (mbmi->mode == NEWMV) {
-#if CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES
+#if CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES && !CONFIG_NEW_INTER_MODES
       if (mbmi->mv_precision < cm->mv_precision) {
         if (xd->ref_mv_count_adj > 1)
           ref_mv[0] = xd->ref_mv_stack_adj[mbmi->ref_mv_idx_adj].this_mv;
       } else {
-#endif  // CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES
+#endif  // CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES && !CONFIG_NEW_INTER_MODES
         if (xd->ref_mv_count[ref_frame] > 1)
           ref_mv[0] = xd->ref_mv_stack[ref_frame][mbmi->ref_mv_idx].this_mv;
-#if CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES
+#if CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES && !CONFIG_NEW_INTER_MODES
       }
-#endif  // CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES
+#endif  // CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES && !CONFIG_NEW_INTER_MODES
     }
   }
 

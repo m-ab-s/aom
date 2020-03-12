@@ -1717,7 +1717,11 @@ static INLINE MvSubpelPrecision av1_get_mbmi_mv_precision(
       precision = get_mv_precision2(mbmi->mv[0].as_mv, mbmi->mv[1].as_mv,
                                     mbmi->max_mv_precision);
     } else {
+#if CONFIG_NEW_INTER_MODES
+      const int i = (mbmi->mode == NEAR_NEWMV);
+#else
       const int i = (mbmi->mode == NEAREST_NEWMV || mbmi->mode == NEAR_NEWMV);
+#endif  // CONFIG_NEW_INTER_MODES
       precision = get_mv_precision(mbmi->mv[i].as_mv, mbmi->max_mv_precision);
     }
     return (MvSubpelPrecision)AOMMIN(precision, mbmi->max_mv_precision);
