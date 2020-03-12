@@ -236,7 +236,7 @@ static void read_drl_idx(FRAME_CONTEXT *ec_ctx, const AV1_COMMON *cm,
   if (mbmi->mode == NEWMV || mbmi->mode == NEW_NEWMV) {
 #if CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES
     mbmi->ref_mv_idx_adj = 0;
-    if (mbmi->mv_precision < cm->mv_precision) {
+    if (mbmi->mv_precision < cm->fr_mv_precision) {
       for (int idx = 0; idx < MAX_DRL_BITS; ++idx) {
         if (xd->ref_mv_count_adj > idx + 1) {
           uint8_t drl_ctx = av1_drl_ctx(xd->weight_adj, idx);
@@ -824,7 +824,7 @@ static void read_intrabc_info(AV1_COMMON *const cm, MACROBLOCKD *const xd,
                      inter_mode_ctx);
 
     int_mv nearestmv, nearmv;
-    av1_find_best_ref_mvs(cm->mv_precision, ref_mvs[INTRA_FRAME], &nearestmv,
+    av1_find_best_ref_mvs(cm->fr_mv_precision, ref_mvs[INTRA_FRAME], &nearestmv,
                           &nearmv);
     int_mv dv_ref = nearestmv.as_int == 0 ? nearmv : nearestmv;
     if (dv_ref.as_int == 0)
@@ -1436,7 +1436,7 @@ static INLINE int assign_mv(AV1_COMMON *cm, MACROBLOCKD *xd,
     case GLOBALMV: {
       mv[0].as_int =
           gm_get_motion_vector(&cm->global_motion[ref_frame[0]],
-                               cm->mv_precision, bsize, mi_col, mi_row)
+                               cm->fr_mv_precision, bsize, mi_col, mi_row)
               .as_int;
       break;
     }
@@ -1496,11 +1496,11 @@ static INLINE int assign_mv(AV1_COMMON *cm, MACROBLOCKD *xd,
       assert(is_compound);
       mv[0].as_int =
           gm_get_motion_vector(&cm->global_motion[ref_frame[0]],
-                               cm->mv_precision, bsize, mi_col, mi_row)
+                               cm->fr_mv_precision, bsize, mi_col, mi_row)
               .as_int;
       mv[1].as_int =
           gm_get_motion_vector(&cm->global_motion[ref_frame[1]],
-                               cm->mv_precision, bsize, mi_col, mi_row)
+                               cm->fr_mv_precision, bsize, mi_col, mi_row)
               .as_int;
       break;
     }
@@ -1599,7 +1599,7 @@ static INLINE void set_mbmi_mv_precision(MB_MODE_INFO *mbmi,
   if (cm->use_flex_mv_precision) {
     mbmi->max_mv_precision = xd->sbi->sb_mv_precision;
   } else {
-    mbmi->max_mv_precision = cm->mv_precision;
+    mbmi->max_mv_precision = cm->fr_mv_precision;
   }
 #else
   (void)xd;
@@ -1661,7 +1661,7 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
         mbmi->mv_precision = av1_read_mv_precision(cm, xd, r);
       }
 #if !CONFIG_NEW_INTER_MODES
-      if (mbmi->mv_precision < cm->mv_precision &&
+      if (mbmi->mv_precision < cm->fr_mv_precision &&
           (mbmi->mode == NEWMV || mbmi->mode == NEW_NEWMV)) {
         av1_get_mv_refs_adj(xd->ref_mv_stack[ref_frame], xd->weight[ref_frame],
                             xd->ref_mv_count[ref_frame],
@@ -1688,7 +1688,7 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
   }
 
   if (!is_compound && mbmi->mode != GLOBALMV) {
-    av1_find_best_ref_mvs(cm->mv_precision, ref_mvs[mbmi->ref_frame[0]],
+    av1_find_best_ref_mvs(cm->fr_mv_precision, ref_mvs[mbmi->ref_frame[0]],
                           &nearestmv[0], &nearmv[0]);
   }
 
@@ -1699,7 +1699,7 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
     int ref_mv_idx = mbmi->ref_mv_idx + 1;
 #endif  // CONFIG_NEW_INTER_MODES
 #if CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES && !CONFIG_NEW_INTER_MODES
-    if (mbmi->mv_precision < cm->mv_precision && mbmi->mode == NEW_NEWMV) {
+    if (mbmi->mv_precision < cm->fr_mv_precision && mbmi->mode == NEW_NEWMV) {
       ref_mv_idx = mbmi->ref_mv_idx_adj + 1;
       nearestmv[0] = xd->ref_mv_stack_adj[0].this_mv;
       nearestmv[1] = xd->ref_mv_stack_adj[0].comp_mv;
@@ -1715,11 +1715,11 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
     }
 #endif  // CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES && !CONFIG_NEW_INTER_MODES
     assert(IMPLIES(cm->cur_frame_force_integer_mv,
-                   cm->mv_precision == MV_SUBPEL_NONE));
-    lower_mv_precision(&nearestmv[0].as_mv, cm->mv_precision);
-    lower_mv_precision(&nearestmv[1].as_mv, cm->mv_precision);
-    lower_mv_precision(&nearmv[0].as_mv, cm->mv_precision);
-    lower_mv_precision(&nearmv[1].as_mv, cm->mv_precision);
+                   cm->fr_mv_precision == MV_SUBPEL_NONE));
+    lower_mv_precision(&nearestmv[0].as_mv, cm->fr_mv_precision);
+    lower_mv_precision(&nearestmv[1].as_mv, cm->fr_mv_precision);
+    lower_mv_precision(&nearmv[0].as_mv, cm->fr_mv_precision);
+    lower_mv_precision(&nearmv[1].as_mv, cm->fr_mv_precision);
 #if CONFIG_NEW_INTER_MODES
   } else if (mbmi->mode == NEARMV) {
     int_mv cur_mv =
@@ -1748,7 +1748,7 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
       ref_mv_idx = 1 + mbmi->ref_mv_idx;
 #endif  // !CONFIG_NEW_INTER_MODES
 #if CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES && !CONFIG_NEW_INTER_MODES
-    if (mbmi->mv_precision < cm->mv_precision && mbmi->mode == NEW_NEWMV) {
+    if (mbmi->mv_precision < cm->fr_mv_precision && mbmi->mode == NEW_NEWMV) {
       ref_mv_idx = mbmi->ref_mv_idx_adj;
       ref_mv[0] = xd->ref_mv_stack_adj[ref_mv_idx].this_mv;
       ref_mv[1] = xd->ref_mv_stack_adj[ref_mv_idx].comp_mv;
@@ -1766,7 +1766,7 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
   } else {
     if (mbmi->mode == NEWMV) {
 #if CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES && !CONFIG_NEW_INTER_MODES
-      if (mbmi->mv_precision < cm->mv_precision) {
+      if (mbmi->mv_precision < cm->fr_mv_precision) {
         if (xd->ref_mv_count_adj > 1)
           ref_mv[0] = xd->ref_mv_stack_adj[mbmi->ref_mv_idx_adj].this_mv;
       } else {
@@ -1950,8 +1950,8 @@ static void read_inter_frame_mode_info(AV1Decoder *const pbi,
   mbmi->mv[0].as_int = 0;
   mbmi->mv[1].as_int = 0;
   mbmi->segment_id = read_inter_segment_id(cm, xd, mi_row, mi_col, 1, r);
-  mbmi->max_mv_precision = cm->mv_precision;
-  mbmi->mv_precision = cm->mv_precision;
+  mbmi->max_mv_precision = cm->fr_mv_precision;
+  mbmi->mv_precision = cm->fr_mv_precision;
 
   mbmi->skip_mode = read_skip_mode(cm, xd, mbmi->segment_id, r);
 

@@ -105,7 +105,7 @@ static uint32_t motion_estimation(AV1_COMP *cpi, MACROBLOCK *x,
                                   int mi_col) {
   AV1_COMMON *cm = &cpi->common;
   MACROBLOCKD *const xd = &x->e_mbd;
-  const MvSubpelPrecision max_mv_precision = cm->mv_precision;
+  const MvSubpelPrecision max_mv_precision = cm->fr_mv_precision;
   xd->mi[0]->max_mv_precision = max_mv_precision;
   xd->mi[0]->mv_precision = max_mv_precision;
   MV_SPEED_FEATURES *const mv_sf = &cpi->sf.mv;

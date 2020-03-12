@@ -30,7 +30,7 @@ static unsigned int do_16x16_motion_iteration(AV1_COMP *cpi, const MV *ref_mv,
   MACROBLOCKD *const xd = &x->e_mbd;
   const MV_SPEED_FEATURES *const mv_sf = &cpi->sf.mv;
   const aom_variance_fn_ptr_t v_fn_ptr = cpi->fn_ptr[BLOCK_16X16];
-  xd->mi[0]->max_mv_precision = cpi->common.mv_precision;
+  xd->mi[0]->max_mv_precision = cpi->common.fr_mv_precision;
 
   const MvLimits tmp_mv_limits = x->mv_limits;
   MV ref_full;

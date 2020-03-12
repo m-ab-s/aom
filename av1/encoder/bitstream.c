@@ -211,7 +211,7 @@ static void write_drl_idx(FRAME_CONTEXT *ec_ctx, const AV1_COMMON *cm,
   if (new_mv) {
     int idx;
 #if CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES
-    if (mbmi->mv_precision < cm->mv_precision) {
+    if (mbmi->mv_precision < cm->fr_mv_precision) {
       for (idx = 0; idx < MAX_DRL_BITS; ++idx) {
         if (mbmi_ext->ref_mv_count_adj > idx + 1) {
           uint8_t drl_ctx = av1_drl_ctx(mbmi_ext->weight_adj, idx);
@@ -1404,16 +1404,16 @@ static void write_mv_precision(const AV1_COMMON *const cm,
 #if CONFIG_SB_FLEX_MVRES
   assert(mbmi->mv_precision == mbmi->max_mv_precision &&
          mbmi->max_mv_precision == xd->sbi->sb_mv_precision);
-  assert(mbmi->max_mv_precision <= cm->mv_precision);
+  assert(mbmi->max_mv_precision <= cm->fr_mv_precision);
   aom_write_symbol(
-      w, cm->mv_precision - xd->sbi->sb_mv_precision,
-      xd->tile_ctx
-          ->flex_mv_precision_cdf[cm->mv_precision - MV_SUBPEL_HALF_PRECISION],
-      cm->mv_precision + 1);
+      w, cm->fr_mv_precision - xd->sbi->sb_mv_precision,
+      xd->tile_ctx->flex_mv_precision_cdf[cm->fr_mv_precision -
+                                          MV_SUBPEL_HALF_PRECISION],
+      cm->fr_mv_precision + 1);
   (void)mbmi;
 #else
   assert(mbmi->mv_precision <= mbmi->max_mv_precision);
-  assert(mbmi->max_mv_precision == cm->mv_precision);
+  assert(mbmi->max_mv_precision == cm->fr_mv_precision);
   assert(av1_get_mbmi_max_mv_precision(cm, mbmi) == mbmi->max_mv_precision);
   assert(av1_get_mbmi_mv_precision(cm, mbmi) == mbmi->mv_precision);
   const int down_ctx = av1_get_mv_precision_down_context(cm, xd);
@@ -3368,7 +3368,7 @@ static void write_global_motion(AV1_COMP *cpi,
         cm->prev_frame ? &cm->prev_frame->global_motion[frame]
                        : &default_warp_params;
     write_global_motion_params(&cm->global_motion[frame], ref_params, wb,
-                               cm->mv_precision);
+                               cm->fr_mv_precision);
     // TODO(sarahparker, debargha): The logic in the commented out code below
     // does not work currently and causes mismatches when resize is on.
     // Fix it before turning the optimization back on.
@@ -3378,7 +3378,7 @@ static void write_global_motion(AV1_COMP *cpi,
         cpi->source->y_crop_height == ref_buf->y_crop_height) {
       write_global_motion_params(&cm->global_motion[frame],
                                  &cm->prev_frame->global_motion[frame], wb,
-                                 cm->mv_precision);
+                                 cm->fr_mv_precision);
     } else {
       assert(cm->global_motion[frame].wmtype == IDENTITY &&
              "Invalid warp type for frames of different resolutions");
@@ -3686,16 +3686,16 @@ static void write_uncompressed_header_obu(AV1_COMP *cpi,
 
       if (!cm->cur_frame_force_integer_mv) {
 #if CONFIG_SB_FLEX_MVRES
-        assert(cm->mv_precision >= MV_SUBPEL_HALF_PRECISION);
-        aom_wb_write_literal(wb, cm->mv_precision, 2);
-        if (cm->mv_precision == MV_SUBPEL_NONE) {
+        assert(cm->fr_mv_precision >= MV_SUBPEL_HALF_PRECISION);
+        aom_wb_write_literal(wb, cm->fr_mv_precision, 2);
+        if (cm->fr_mv_precision == MV_SUBPEL_NONE) {
           assert(!cm->use_flex_mv_precision);
         } else {
           aom_wb_write_bit(wb, cm->use_flex_mv_precision);
         }
 #else
-        assert(cm->mv_precision >= MV_SUBPEL_QTR_PRECISION);
-        aom_wb_write_bit(wb, cm->mv_precision > MV_SUBPEL_QTR_PRECISION);
+        assert(cm->fr_mv_precision >= MV_SUBPEL_QTR_PRECISION);
+        aom_wb_write_bit(wb, cm->fr_mv_precision > MV_SUBPEL_QTR_PRECISION);
 #endif  // CONFIG_SB_FLEX_MVRES
 #if CONFIG_FLEX_MVRES
 #if !CONFIG_SB_FLEX_MVRES

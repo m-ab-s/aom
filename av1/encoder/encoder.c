@@ -359,7 +359,7 @@ static MvSubpelPrecision determine_frame_mv_precision(const AV1_COMP *cpi,
 #if CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES
 #define FLEX_MV_PRECISION_QTHRESH 256  // Reduce to turn off at low quality
 static int determine_flex_mv_precision(const AV1_COMP *cpi, int q) {
-  return (cpi->common.mv_precision >= MV_SUBPEL_QTR_PRECISION &&
+  return (cpi->common.fr_mv_precision >= MV_SUBPEL_QTR_PRECISION &&
           !is_stat_generation_stage(cpi) && q <= FLEX_MV_PRECISION_QTHRESH);
 }
 #endif  // CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES
@@ -435,12 +435,12 @@ static void set_mv_precision(AV1_COMP *cpi, MvSubpelPrecision precision,
   x->nmvcost[2][1] = &x->nmv_costs[2][1][MV_MAX];
   x->nmvcost[3][0] = &x->nmv_costs[3][0][MV_MAX];
   x->nmvcost[3][1] = &x->nmv_costs[3][1][MV_MAX];
-  cpi->common.mv_precision =
+  cpi->common.fr_mv_precision =
       cur_frame_force_integer_mv ? MV_SUBPEL_NONE : precision;
 
 #if CONFIG_SB_FLEX_MVRES
   AV1_COMMON *cm = &cpi->common;
-  if (frame_is_intra_only(cm) || cm->mv_precision == MV_SUBPEL_NONE) {
+  if (frame_is_intra_only(cm) || cm->fr_mv_precision == MV_SUBPEL_NONE) {
     cm->use_flex_mv_precision = 0;
   } else {
     cm->use_flex_mv_precision = 1;
@@ -5034,7 +5034,7 @@ static void fix_use_flex_mv_precision(AV1_COMP *const cpi) {
   /*
   printf("flex_mv_counts (ARF %d frame prec %d) - [%d %d %d %d]\n",
          cpi->gf_group.update_type[cpi->gf_group.index] == ARF_UPDATE,
-         cm->mv_precision,
+         cm->fr_mv_precision,
          rdc->reduced_mv_precision_used[0], rdc->reduced_mv_precision_used[1],
          rdc->reduced_mv_precision_used[2], rdc->reduced_mv_precision_used[3]);
          */

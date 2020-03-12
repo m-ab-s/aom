@@ -389,7 +389,7 @@ typedef struct AV1Common {
   int show_existing_frame;
 
   uint8_t disable_cdf_update;
-  MvSubpelPrecision mv_precision;
+  MvSubpelPrecision fr_mv_precision;
   uint8_t cur_frame_force_integer_mv;  // 0 the default in AOM, 1 only integer
 #if CONFIG_FLEX_MVRES
   uint8_t use_flex_mv_precision;
@@ -1687,8 +1687,8 @@ static INLINE MvSubpelPrecision av1_get_mbmi_max_mv_precision(
     const AV1_COMMON *const cm, const MB_MODE_INFO *mbmi) {
   (void)mbmi;
   // TODO(debargha): Change this to have a default max precision
-  // different from cm->mv_precision for every mode.
-  return cm->mv_precision;
+  // different from cm->fr_mv_precision for every mode.
+  return cm->fr_mv_precision;
 }
 #endif  // !CONFIG_SB_FLEX_MVRES
 

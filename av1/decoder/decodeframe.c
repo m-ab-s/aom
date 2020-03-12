@@ -4754,7 +4754,7 @@ static void read_global_motion(AV1_COMMON *cm, struct aom_read_bit_buffer *rb) {
         cm->prev_frame ? &cm->prev_frame->global_motion[frame]
                        : &default_warp_params;
     int good_params = read_global_motion_params(
-        &cm->global_motion[frame], ref_params, rb, cm->mv_precision);
+        &cm->global_motion[frame], ref_params, rb, cm->fr_mv_precision);
     if (!good_params) {
 #if WARPED_MOTION_DEBUG
       printf("Warning: unexpected global motion shear params from aomenc\n");
@@ -4771,7 +4771,7 @@ static void read_global_motion(AV1_COMMON *cm, struct aom_read_bit_buffer *rb) {
         cm->height == ref_buf->y_crop_height) {
       read_global_motion_params(&cm->global_motion[frame],
                                 &cm->prev_frame->global_motion[frame], rb,
-                                cm->mv_precision);
+                                cm->fr_mv_precision);
     } else {
       cm->global_motion[frame] = default_warp_params;
     }
@@ -5322,21 +5322,21 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       }
 
       if (cm->cur_frame_force_integer_mv) {
-        cm->mv_precision = MV_SUBPEL_NONE;
+        cm->fr_mv_precision = MV_SUBPEL_NONE;
 #if CONFIG_FLEX_MVRES
         cm->use_flex_mv_precision = 0;
 #endif  // CONFIG_FLEX_MVRES
       } else {
 #if CONFIG_SB_FLEX_MVRES
-        cm->mv_precision = (MvSubpelPrecision)aom_rb_read_literal(rb, 2);
-        if (cm->mv_precision == MV_SUBPEL_NONE) {
+        cm->fr_mv_precision = (MvSubpelPrecision)aom_rb_read_literal(rb, 2);
+        if (cm->fr_mv_precision == MV_SUBPEL_NONE) {
           cm->use_flex_mv_precision = 0;
         } else {
           cm->use_flex_mv_precision = aom_rb_read_bit(rb);
         }
 #else
-        cm->mv_precision = aom_rb_read_bit(rb) ? MV_SUBPEL_EIGHTH_PRECISION
-                                               : MV_SUBPEL_QTR_PRECISION;
+        cm->fr_mv_precision = aom_rb_read_bit(rb) ? MV_SUBPEL_EIGHTH_PRECISION
+                                                  : MV_SUBPEL_QTR_PRECISION;
 #if CONFIG_FLEX_MVRES
         cm->use_flex_mv_precision = aom_rb_read_bit(rb);
 #endif  // CONFIG_FLEX_MVRES
@@ -5833,12 +5833,12 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
 MvSubpelPrecision av1_read_mv_precision(AV1_COMMON *const cm,
                                         MACROBLOCKD *const xd, aom_reader *r) {
 #if CONFIG_SB_FLEX_MVRES
-  const MvSubpelPrecision max_precision = cm->mv_precision;
+  const MvSubpelPrecision max_precision = cm->fr_mv_precision;
   const int down = aom_read_symbol(
       r,
       xd->tile_ctx
           ->flex_mv_precision_cdf[max_precision - MV_SUBPEL_HALF_PRECISION],
-      cm->mv_precision + 1, ACCT_STR);
+      cm->fr_mv_precision + 1, ACCT_STR);
 #else
   MB_MODE_INFO *const mbmi = xd->mi[0];
   assert(mbmi->max_mv_precision == av1_get_mbmi_max_mv_precision(cm, mbmi));

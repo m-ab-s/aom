@@ -255,7 +255,7 @@ static INLINE int_mv gm_get_motion_vector(const WarpedMotionParams *gm,
     // All global motion vectors are stored with WARPEDMODEL_PREC_BITS (16)
     // bits of fractional precision. The offset for a translation is stored in
     // entries 0 and 1. For translations, all but the top three (two if
-    // cm->mv_precision is qtr) fractional bits are always zero.
+    // cm->fr_mv_precision is qtr) fractional bits are always zero.
     //
     // After the right shifts, there are 3 fractional bits of precision. If
     // allow_hp is false, the bottom bit is always zero (so we don't need a

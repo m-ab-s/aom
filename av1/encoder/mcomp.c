@@ -3529,11 +3529,11 @@ void av1_simple_motion_search(AV1_COMP *const cpi, MACROBLOCK *x, int mi_row,
   mbmi->ref_frame[0] = ref;
   mbmi->ref_frame[1] = NONE_FRAME;
   mbmi->motion_mode = SIMPLE_TRANSLATION;
-  mbmi->max_mv_precision = cm->mv_precision;
+  mbmi->max_mv_precision = cm->fr_mv_precision;
 #if CONFIG_SB_FLEX_MVRES
   mbmi->max_mv_precision = xd->sbi->sb_mv_precision;
 #else
-  mbmi->max_mv_precision = cm->mv_precision;
+  mbmi->max_mv_precision = cm->fr_mv_precision;
 #endif  // CONFIG_SB_FLEX_MVRES
   mbmi->mv_precision = mbmi->max_mv_precision;
   mbmi->interp_filters = av1_broadcast_interp_filter(EIGHTTAP_REGULAR);

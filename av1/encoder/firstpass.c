@@ -228,7 +228,7 @@ static void first_pass_motion_search(AV1_COMP *cpi, MACROBLOCK *x,
   const int sr = get_search_range(cpi);
   int step_param = 3 + sr;
   int cost_list[5];
-  xd->mi[0]->max_mv_precision = cpi->common.mv_precision;
+  xd->mi[0]->max_mv_precision = cpi->common.fr_mv_precision;
   xd->mi[0]->mv_precision = xd->mi[0]->max_mv_precision;
 
   tmp_err = av1_full_pixel_search(

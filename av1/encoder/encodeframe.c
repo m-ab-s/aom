@@ -1754,7 +1754,7 @@ static void update_stats(const AV1_COMMON *const cm, TileDataEnc *tile_data,
         uint8_t ref_frame_type = av1_ref_frame_type(mbmi->ref_frame);
 
 #if CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES
-        if (mbmi->mv_precision < cm->mv_precision) {
+        if (mbmi->mv_precision < cm->fr_mv_precision) {
           for (int idx = 0; idx < MAX_DRL_BITS; ++idx) {
             if (mbmi_ext->ref_mv_count_adj > idx + 1) {
               uint8_t drl_ctx = av1_drl_ctx(mbmi_ext->weight_adj, idx);
@@ -6069,7 +6069,7 @@ static AOM_INLINE void encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
       MvSubpelPrecision best_prec = MV_SUBPEL_NONE;
       if (!frame_is_intra_only(cm)) {
         for (MvSubpelPrecision mv_prec = MV_SUBPEL_NONE;
-             mv_prec <= cm->mv_precision; mv_prec++) {
+             mv_prec <= cm->fr_mv_precision; mv_prec++) {
           if (!pc_root) {
             init_encode_rd_sb(cpi, td, tile_data, &pc_root, sms_root,
                               &dummy_rdc, mi_row, mi_col, 0);
@@ -7021,11 +7021,11 @@ static void encode_frame_internal(AV1_COMP *cpi) {
 
           if (cm->global_motion[frame].wmtype == TRANSLATION) {
             cm->global_motion[frame].wmmat[0] =
-                convert_to_trans_prec(cm->mv_precision,
+                convert_to_trans_prec(cm->fr_mv_precision,
                                       cm->global_motion[frame].wmmat[0]) *
                 GM_TRANS_ONLY_DECODE_FACTOR;
             cm->global_motion[frame].wmmat[1] =
-                convert_to_trans_prec(cm->mv_precision,
+                convert_to_trans_prec(cm->fr_mv_precision,
                                       cm->global_motion[frame].wmmat[1]) *
                 GM_TRANS_ONLY_DECODE_FACTOR;
           }
@@ -7045,7 +7045,7 @@ static void encode_frame_internal(AV1_COMP *cpi) {
           if (!av1_is_enough_erroradvantage(
                   (double)best_warp_error / ref_frame_error,
                   gm_get_params_cost(&cm->global_motion[frame], ref_params,
-                                     cm->mv_precision),
+                                     cm->fr_mv_precision),
                   cpi->sf.gm_erroradv_type)) {
             cm->global_motion[frame] = default_warp_params;
           }
@@ -7056,7 +7056,7 @@ static void encode_frame_internal(AV1_COMP *cpi) {
       if (cm->global_motion[frame].wmtype != IDENTITY) num_refs_using_gm++;
       cpi->gmparams_cost[frame] =
           gm_get_params_cost(&cm->global_motion[frame], ref_params,
-                             cm->mv_precision) +
+                             cm->fr_mv_precision) +
           cpi->gmtype_cost[cm->global_motion[frame].wmtype] -
           cpi->gmtype_cost[IDENTITY];
     }

@@ -348,11 +348,11 @@ static INLINE void find_predictors(
                      mbmi_ext->ref_mv_stack, mbmi_ext->weight, NULL,
                      mbmi_ext->global_mvs, mbmi_ext->mode_context);
 #if CONFIG_NEW_INTER_MODES
-    av1_find_best_ref_mvs_from_stack(cm->mv_precision, mbmi_ext, ref_frame,
+    av1_find_best_ref_mvs_from_stack(cm->fr_mv_precision, mbmi_ext, ref_frame,
                                      &frame_mv[NEARMV][ref_frame],
                                      &frame_mv[NEARMV][ref_frame]);
 #else
-    av1_find_best_ref_mvs_from_stack(cm->mv_precision, mbmi_ext, ref_frame,
+    av1_find_best_ref_mvs_from_stack(cm->fr_mv_precision, mbmi_ext, ref_frame,
                                      &frame_mv[NEARESTMV][ref_frame],
                                      &frame_mv[NEARMV][ref_frame]);
 #endif  // CONFIG_NEW_INTER_MODES
@@ -1535,8 +1535,8 @@ void av1_fast_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
 
   mi->mode = best_pickmode.best_mode;
   mi->interp_filters = av1_broadcast_interp_filter(best_filter);
-  mi->max_mv_precision = cm->mv_precision;
-  mi->mv_precision = cm->mv_precision;
+  mi->max_mv_precision = cm->fr_mv_precision;
+  mi->mv_precision = cm->fr_mv_precision;
   mi->tx_size = best_pickmode.best_tx_size;
   memset(mi->inter_tx_size, mi->tx_size, sizeof(mi->inter_tx_size));
   mi->ref_frame[0] = best_pickmode.best_ref_frame;
