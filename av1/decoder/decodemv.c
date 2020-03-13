@@ -1677,8 +1677,7 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
                             xd->weight_adj, &xd->ref_mv_count_adj);
       }
 #endif  // CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES
-      if (mbmi->mode == NEWMV || mbmi->mode == NEW_NEWMV ||
-          have_nearmv_in_inter_mode(mbmi->mode)) {
+      if (have_drl_index(mbmi->mode)) {
 #if CONFIG_NEW_INTER_MODES
         read_drl_idx(ec_ctx, mode_ctx, xd, mbmi, r);
 #else
