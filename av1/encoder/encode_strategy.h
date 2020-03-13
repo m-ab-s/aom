@@ -56,6 +56,9 @@ void av1_get_ref_frames(AV1_COMP *const cpi,
                         FRAME_UPDATE_TYPE frame_update_type,
                         RefBufferStack *ref_buffer_stack);
 
+int is_forced_keyframe_pending(struct lookahead_ctx *lookahead,
+                               const int up_to_index,
+                               const COMPRESSOR_STAGE compressor_stage);
 #ifdef __cplusplus
 }  // extern "C"
 #endif

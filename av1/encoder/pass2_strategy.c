@@ -26,6 +26,7 @@
 #include "av1/encoder/gop_structure.h"
 #include "av1/encoder/ratectrl.h"
 #include "av1/encoder/use_flat_gop_model_params.h"
+#include "av1/encoder/encode_strategy.h"
 
 #define DEFAULT_KF_BOOST 2300
 #define DEFAULT_GF_BOOST 2000
@@ -865,7 +866,8 @@ static INLINE void set_baseline_gf_interval(AV1_COMP *cpi, int arf_position,
   // MIN_FWD_KF_INTERVAL.
   if (cpi->oxcf.fwd_kf_enabled &&
       ((twopass->stats_in - arf_position + rc->frames_to_key) <
-       twopass->stats_buf_ctx->stats_in_end)) {
+       twopass->stats_buf_ctx->stats_in_end) &&
+      cpi->rc.next_is_fwd_key) {
     if (arf_position == rc->frames_to_key) {
       rc->baseline_gf_interval = arf_position;
       // if the last gf group will be smaller than MIN_FWD_KF_INTERVAL
@@ -1457,6 +1459,14 @@ static int get_projected_kf_boost(AV1_COMP *cpi) {
   return projected_kf_boost;
 }
 
+static int detect_app_forced_key(AV1_COMP *cpi) {
+  if (cpi->oxcf.fwd_kf_enabled) cpi->rc.next_is_fwd_key = 1;
+  int num_frames_to_app_forced_key = is_forced_keyframe_pending(
+      cpi->lookahead, cpi->lookahead->max_sz, cpi->compressor_stage);
+  if (num_frames_to_app_forced_key != -1) cpi->rc.next_is_fwd_key = 0;
+  return num_frames_to_app_forced_key;
+}
+
 static void find_next_key_frame(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame) {
   RATE_CONTROL *const rc = &cpi->rc;
   TWO_PASS *const twopass = &cpi->twopass;
@@ -1484,10 +1494,15 @@ static void find_next_key_frame(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame) {
 
   rc->frames_to_key = 1;
 
+  int num_frames_to_app_forced_key = detect_app_forced_key(cpi);
+
   if (has_no_stats_stage(cpi)) {
     rc->this_key_frame_forced =
         current_frame->frame_number != 0 && rc->frames_to_key == 0;
-    rc->frames_to_key = AOMMAX(1, cpi->oxcf.key_freq);
+    if (num_frames_to_app_forced_key != -1)
+      rc->frames_to_key = num_frames_to_app_forced_key;
+    else
+      rc->frames_to_key = AOMMAX(1, cpi->oxcf.key_freq);
     rc->kf_boost = DEFAULT_KF_BOOST;
     rc->source_alt_ref_active = 0;
     gf_group->update_type[0] = KF_UPDATE;
@@ -1504,6 +1519,7 @@ static void find_next_key_frame(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame) {
   double kf_group_err = 0.0;
   double recent_loop_decay[FRAMES_TO_CHECK_DECAY];
   double sr_accumulator = 0.0;
+  int num_frames_to_check = cpi->oxcf.key_freq;
 
   rc->num_stats_used_for_kf_boost = 1;
   // Is this a forced key frame by interval.
@@ -1518,10 +1534,12 @@ static void find_next_key_frame(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame) {
   // Initialize the decay rates for the recent frames to check
   for (j = 0; j < FRAMES_TO_CHECK_DECAY; ++j) recent_loop_decay[j] = 1.0;
 
+  if (num_frames_to_app_forced_key != -1)
+    num_frames_to_check = num_frames_to_app_forced_key;
   // Find the next keyframe.
   i = 0;
   while (twopass->stats_in < twopass->stats_buf_ctx->stats_in_end &&
-         rc->frames_to_key < cpi->oxcf.key_freq) {
+         rc->frames_to_key < num_frames_to_check) {
     // Accumulate total number of stats available till next key frame
     rc->num_stats_used_for_kf_boost++;
 
@@ -1577,8 +1595,12 @@ static void find_next_key_frame(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame) {
    * When lap_enabled forcing frames_to_key as key_freq,
    * since all frame stats are not available.
    */
-  if (cpi->lap_enabled) rc->frames_to_key = AOMMAX(1, cpi->oxcf.key_freq);
-
+  if (cpi->lap_enabled) {
+    if (num_frames_to_app_forced_key != -1)
+      rc->frames_to_key = num_frames_to_app_forced_key;
+    else
+      rc->frames_to_key = AOMMAX(1, cpi->oxcf.key_freq);
+  }
   // If there is a max kf interval set by the user we must obey it.
   // We already breakout of the loop above at 2x max.
   // This code centers the extra kf if the actual natural interval
@@ -1904,6 +1926,9 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
   if (rc->frames_till_gf_update_due == 0) {
     assert(cpi->common.current_frame.frame_number == 0 ||
            gf_group->index == gf_group->size);
+    int num_frames_to_app_forced_key = detect_app_forced_key(cpi);
+    if (num_frames_to_app_forced_key != -1)
+      rc->frames_to_key = num_frames_to_app_forced_key;
     define_gf_group(cpi, &this_frame, frame_params);
     rc->frames_till_gf_update_due = rc->baseline_gf_interval;
     cpi->num_gf_group_show_frames = 0;
