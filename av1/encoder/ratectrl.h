@@ -165,6 +165,7 @@ typedef struct {
   int num_stats_required_for_gfu_boost;
   int base_layer_qp;
   int next_is_fwd_key;
+  int enable_scenecut_detection;
 } RATE_CONTROL;
 
 struct AV1_COMP;
