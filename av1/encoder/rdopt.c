@@ -12528,6 +12528,12 @@ static int64_t rd_pick_intrabc_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x,
                    mbmi_ext->ref_mv_stack, mbmi_ext->weight, NULL,
                    mbmi_ext->global_mvs, mbmi_ext->mode_context);
 
+#if CONFIG_NEW_INTER_MODES
+  int_mv dv_ref;
+  av1_find_best_ref_mv_from_stack(cm->fr_mv_precision, mbmi_ext, ref_frame,
+                                  &dv_ref);
+  dv_ref.as_int = dv_ref.as_int == INVALID_MV ? 0 : dv_ref.as_int;
+#else
   int_mv nearestmv, nearmv;
   av1_find_best_ref_mvs_from_stack(cm->fr_mv_precision, mbmi_ext, ref_frame,
                                    &nearestmv, &nearmv);
@@ -12540,6 +12546,8 @@ static int64_t rd_pick_intrabc_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x,
   }
 
   int_mv dv_ref = nearestmv.as_int == 0 ? nearmv : nearestmv;
+#endif  // CONFIG_NEW_INTER_MODES
+
   if (dv_ref.as_int == 0) {
     av1_find_ref_dv(&dv_ref, tile, cm->seq_params.mib_size, mi_row, mi_col);
   }

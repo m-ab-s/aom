@@ -348,9 +348,8 @@ static INLINE void find_predictors(
                      mbmi_ext->ref_mv_stack, mbmi_ext->weight, NULL,
                      mbmi_ext->global_mvs, mbmi_ext->mode_context);
 #if CONFIG_NEW_INTER_MODES
-    av1_find_best_ref_mvs_from_stack(cm->fr_mv_precision, mbmi_ext, ref_frame,
-                                     &frame_mv[NEARMV][ref_frame],
-                                     &frame_mv[NEARMV][ref_frame]);
+    av1_find_best_ref_mv_from_stack(cm->fr_mv_precision, mbmi_ext, ref_frame,
+                                    &frame_mv[NEARMV][ref_frame]);
 #else
     av1_find_best_ref_mvs_from_stack(cm->fr_mv_precision, mbmi_ext, ref_frame,
                                      &frame_mv[NEARESTMV][ref_frame],
