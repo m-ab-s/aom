@@ -15121,8 +15121,8 @@ void av1_rd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
   } else {
     mbmi->pb_mv_precision = mbmi->max_mv_precision;
   }
-#if !CONFIG_NEW_INTER_MODES
-  if (mbmi->pb_mv_precision < cm->fr_mv_precision &&
+#if ADJUST_DRL_FLEX_MVRES
+  if (mbmi->pb_mv_precision < mbmi->max_mv_precision &&
       (mbmi->mode == NEWMV || mbmi->mode == NEW_NEWMV)) {
     const int8_t ref_frame_type = av1_ref_frame_type(mbmi->ref_frame);
     MB_MODE_INFO_EXT *const mbmi_ext = x->mbmi_ext;
@@ -15138,7 +15138,7 @@ void av1_rd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
         is_inter_compound_mode(mbmi->mode), mbmi->pb_mv_precision,
         mbmi_ext->ref_mv_stack_adj, mbmi_ext->ref_mv_count_adj);
   }
-#endif  // !CONFIG_NEW_INTER_MODES
+#endif  // ADJUST_DRL_FLEX_MVRES
   assert(check_mv_precision(mbmi));
 #endif  // CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES
   assert(av1_check_newmv_joint_nonzero(cm, x));

@@ -707,7 +707,11 @@ typedef struct MB_MODE_INFO {
   uint8_t ref_mv_idx : 2;
 #endif  // CONFIG_NEW_INTER_MODES && MAX_DRL_BITS> 3
 #if CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES
+#if CONFIG_NEW_INTER_MODES && MAX_DRL_BITS > 3
+  uint8_t ref_mv_idx_adj : 3;
+#else
   uint8_t ref_mv_idx_adj : 2;
+#endif  // CONFIG_NEW_INTER_MODES && MAX_DRL_BITS> 3
 #endif  // CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES
   // Indicate if masked compound is used(1) or not(0).
   uint8_t comp_group_idx : 1;

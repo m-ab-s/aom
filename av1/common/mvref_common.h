@@ -18,6 +18,9 @@
 extern "C" {
 #endif
 
+// Whether to use drl adjustment for flexible mvres.
+#define ADJUST_DRL_FLEX_MVRES 1
+
 #define MVREF_ROW_COLS 3
 
 // Set the upper limit of the motion vector component magnitude.
@@ -369,6 +372,7 @@ static INLINE int av1_is_dv_valid(const MV dv, const AV1_COMMON *cm,
 }
 
 #if CONFIG_FLEX_MVRES
+#if ADJUST_DRL_FLEX_MVRES
 void av1_get_mv_refs_adj(CANDIDATE_MV ref_mv_stack_orig[MAX_REF_MV_STACK_SIZE],
                          uint16_t weight_orig[MAX_REF_MV_STACK_SIZE],
                          uint8_t ref_mv_count_orig, int is_compound,
@@ -382,6 +386,7 @@ int av1_get_ref_mv_idx_adj(
     MvSubpelPrecision precision,
     CANDIDATE_MV ref_mv_stack_adj[MAX_REF_MV_STACK_SIZE],
     uint8_t ref_mv_count_adj);
+#endif  // ADJUST_DRL_FLEX_MVRES
 #endif  // CONFIG_FLEX_MVRES
 #ifdef __cplusplus
 }  // extern "C"

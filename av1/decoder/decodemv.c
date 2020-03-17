@@ -212,11 +212,29 @@ static PREDICTION_MODE read_inter_mode(FRAME_CONTEXT *ec_ctx, aom_reader *r,
 // Read a DRL index from the bitstream and modify mbmi->ref_mv_idx
 // to hold its value.
 // See write_drl_idx for a description of how this works.
-static void read_drl_idx(FRAME_CONTEXT *ec_ctx, int16_t mode_ctx,
-                         MACROBLOCKD *xd, MB_MODE_INFO *mbmi, aom_reader *r) {
+static void read_drl_idx(FRAME_CONTEXT *ec_ctx, const AV1_COMMON *cm,
+                         int16_t mode_ctx, MACROBLOCKD *xd, MB_MODE_INFO *mbmi,
+                         aom_reader *r) {
+  (void)cm;
   uint8_t ref_frame_type = av1_ref_frame_type(mbmi->ref_frame);
   mbmi->ref_mv_idx = 0;
   assert(!mbmi->skip_mode);
+#if CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES && ADJUST_DRL_FLEX_MVRES
+  mbmi->ref_mv_idx_adj = 0;
+  if (mbmi->pb_mv_precision < mbmi->max_mv_precision &&
+      (mbmi->mode == NEWMV || mbmi->mode == NEW_NEWMV)) {
+    int range_adj = AOMMIN(xd->ref_mv_count_adj - 1, MAX_DRL_BITS);
+    for (int idx = 0; idx < range_adj; ++idx) {
+      aom_cdf_prob *drl_cdf =
+          av1_get_drl_cdf(mode_ctx, ec_ctx, mbmi->mode, xd->weight_adj, idx);
+      int drl_idx = aom_read_symbol(r, drl_cdf, 2, ACCT_STR);
+      mbmi->ref_mv_idx_adj = idx + drl_idx;
+      if (!drl_idx) break;
+    }
+    assert(mbmi->ref_mv_idx_adj < MAX_DRL_BITS + 1);
+    return;
+  }
+#endif  // CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES && ADJUST_DRL_FLEX_MVRES
   int range = AOMMIN(xd->ref_mv_count[ref_frame_type] - 1, MAX_DRL_BITS);
   for (int idx = 0; idx < range; ++idx) {
     aom_cdf_prob *drl_cdf = av1_get_drl_cdf(mode_ctx, ec_ctx, mbmi->mode,
@@ -236,7 +254,7 @@ static void read_drl_idx(FRAME_CONTEXT *ec_ctx, const AV1_COMMON *cm,
   if (mbmi->mode == NEWMV || mbmi->mode == NEW_NEWMV) {
 #if CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES
     mbmi->ref_mv_idx_adj = 0;
-    if (mbmi->pb_mv_precision < cm->fr_mv_precision) {
+    if (mbmi->pb_mv_precision < mbmi->max_mv_precision) {
       for (int idx = 0; idx < MAX_DRL_BITS; ++idx) {
         if (xd->ref_mv_count_adj > idx + 1) {
           uint8_t drl_ctx = av1_drl_ctx(xd->weight_adj, idx);
@@ -1677,8 +1695,8 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
       if (is_pb_mv_precision_active(cm, mbmi->mode, mbmi->max_mv_precision)) {
         mbmi->pb_mv_precision = av1_read_pb_mv_precision(cm, xd, r);
       }
-#if !CONFIG_NEW_INTER_MODES
-      if (mbmi->pb_mv_precision < cm->fr_mv_precision &&
+#if ADJUST_DRL_FLEX_MVRES
+      if (mbmi->pb_mv_precision < mbmi->max_mv_precision &&
           (mbmi->mode == NEWMV || mbmi->mode == NEW_NEWMV)) {
         av1_get_mv_refs_adj(xd->ref_mv_stack[ref_frame], xd->weight[ref_frame],
                             xd->ref_mv_count[ref_frame],
@@ -1686,11 +1704,11 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
                             mbmi->pb_mv_precision, xd->ref_mv_stack_adj,
                             xd->weight_adj, &xd->ref_mv_count_adj);
       }
-#endif  // !CONFIG_NEW_INTER_MODES
+#endif  // ADJUST_DRL_FLEX_MVRES
 #endif  // CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES
       if (have_drl_index(mbmi->mode)) {
 #if CONFIG_NEW_INTER_MODES
-        read_drl_idx(ec_ctx, mode_ctx, xd, mbmi, r);
+        read_drl_idx(ec_ctx, cm, mode_ctx, xd, mbmi, r);
 #else
         read_drl_idx(ec_ctx, cm, xd, mbmi, r);
 #endif  // CONFIG_NEW_INTER_MODES
@@ -1715,23 +1733,23 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
 #else
     int ref_mv_idx = mbmi->ref_mv_idx + 1;
 #endif  // CONFIG_NEW_INTER_MODES
-#if CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES && !CONFIG_NEW_INTER_MODES
-    if (mbmi->pb_mv_precision < cm->fr_mv_precision &&
+#if CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES && ADJUST_DRL_FLEX_MVRES
+    if (mbmi->pb_mv_precision < mbmi->max_mv_precision &&
         mbmi->mode == NEW_NEWMV) {
-      ref_mv_idx = mbmi->ref_mv_idx_adj + 1;
+      ref_mv_idx = mbmi->ref_mv_idx_adj;
       nearestmv[0] = xd->ref_mv_stack_adj[0].this_mv;
       nearestmv[1] = xd->ref_mv_stack_adj[0].comp_mv;
       nearmv[0] = xd->ref_mv_stack_adj[ref_mv_idx].this_mv;
       nearmv[1] = xd->ref_mv_stack_adj[ref_mv_idx].comp_mv;
     } else {
-#endif  // CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES && !CONFIG_NEW_INTER_MODES
+#endif  // CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES && ADJUST_DRL_FLEX_MVRES
       nearestmv[0] = xd->ref_mv_stack[ref_frame][0].this_mv;
       nearestmv[1] = xd->ref_mv_stack[ref_frame][0].comp_mv;
       nearmv[0] = xd->ref_mv_stack[ref_frame][ref_mv_idx].this_mv;
       nearmv[1] = xd->ref_mv_stack[ref_frame][ref_mv_idx].comp_mv;
-#if CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES && !CONFIG_NEW_INTER_MODES
+#if CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES && ADJUST_DRL_FLEX_MVRES
     }
-#endif  // CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES && !CONFIG_NEW_INTER_MODES
+#endif  // CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES && ADJUST_DRL_FLEX_MVRES
     assert(IMPLIES(cm->cur_frame_force_integer_mv,
                    cm->fr_mv_precision == MV_SUBPEL_NONE));
     lower_mv_precision(&nearestmv[0].as_mv, cm->fr_mv_precision);
@@ -1765,36 +1783,36 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
     if (mbmi->mode == NEAR_NEWMV || mbmi->mode == NEW_NEARMV)
       ref_mv_idx = 1 + mbmi->ref_mv_idx;
 #endif  // !CONFIG_NEW_INTER_MODES
-#if CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES && !CONFIG_NEW_INTER_MODES
-    if (mbmi->pb_mv_precision < cm->fr_mv_precision &&
+#if CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES && ADJUST_DRL_FLEX_MVRES
+    if (mbmi->pb_mv_precision < mbmi->max_mv_precision &&
         mbmi->mode == NEW_NEWMV) {
       ref_mv_idx = mbmi->ref_mv_idx_adj;
       ref_mv[0] = xd->ref_mv_stack_adj[ref_mv_idx].this_mv;
       ref_mv[1] = xd->ref_mv_stack_adj[ref_mv_idx].comp_mv;
     } else {
-#endif  // CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES && !CONFIG_NEW_INTER_MODES
+#endif  // CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES && ADJUST_DRL_FLEX_MVRES
       // TODO(jingning, yunqing): Do we need a lower_mv_precision() call here?
       if (compound_ref0_mode(mbmi->mode) == NEWMV)
         ref_mv[0] = xd->ref_mv_stack[ref_frame][ref_mv_idx].this_mv;
 
       if (compound_ref1_mode(mbmi->mode) == NEWMV)
         ref_mv[1] = xd->ref_mv_stack[ref_frame][ref_mv_idx].comp_mv;
-#if CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES && !CONFIG_NEW_INTER_MODES
+#if CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES && ADJUST_DRL_FLEX_MVRES
     }
-#endif  // CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES && !CONFIG_NEW_INTER_MODES
+#endif  // CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES && ADJUST_DRL_FLEX_MVRES
   } else {
     if (mbmi->mode == NEWMV) {
-#if CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES && !CONFIG_NEW_INTER_MODES
-      if (mbmi->pb_mv_precision < cm->fr_mv_precision) {
-        if (xd->ref_mv_count_adj > 1)
+#if CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES && ADJUST_DRL_FLEX_MVRES
+      if (mbmi->pb_mv_precision < mbmi->max_mv_precision) {
+        if (xd->ref_mv_count_adj > 0)
           ref_mv[0] = xd->ref_mv_stack_adj[mbmi->ref_mv_idx_adj].this_mv;
       } else {
-#endif  // CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES && !CONFIG_NEW_INTER_MODES
-        if (xd->ref_mv_count[ref_frame] > 1)
+#endif  // CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES && ADJUST_DRL_FLEX_MVRES
+        if (xd->ref_mv_count[ref_frame] > 0)
           ref_mv[0] = xd->ref_mv_stack[ref_frame][mbmi->ref_mv_idx].this_mv;
-#if CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES && !CONFIG_NEW_INTER_MODES
+#if CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES && ADJUST_DRL_FLEX_MVRES
       }
-#endif  // CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES && !CONFIG_NEW_INTER_MODES
+#endif  // CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES && ADJUST_DRL_FLEX_MVRES
     }
   }
 

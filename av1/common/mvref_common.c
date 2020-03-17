@@ -841,10 +841,17 @@ static void setup_ref_mv_list(const AV1_COMMON *cm, const MACROBLOCKD *xd,
     // If there is extra space in the stack, copy the GLOBALMV vector into it.
     // This also guarantees the existence of at least one vector to search.
     if (*refmv_count < MAX_REF_MV_STACK_SIZE) {
-      ref_mv_stack[*refmv_count].this_mv.as_int = gm_mv_candidates[0].as_int;
-      ref_mv_stack[*refmv_count].comp_mv.as_int = gm_mv_candidates[1].as_int;
-      ref_mv_weight[*refmv_count] = REF_CAT_LEVEL;
-      (*refmv_count)++;
+      int stack_idx;
+      for (stack_idx = 0; stack_idx < *refmv_count; ++stack_idx) {
+        const int_mv stack_mv = ref_mv_stack[stack_idx].this_mv;
+        if (gm_mv_candidates[0].as_int == stack_mv.as_int) break;
+      }
+      if (stack_idx == *refmv_count) {
+        ref_mv_stack[*refmv_count].this_mv.as_int = gm_mv_candidates[0].as_int;
+        ref_mv_stack[*refmv_count].comp_mv.as_int = gm_mv_candidates[1].as_int;
+        ref_mv_weight[*refmv_count] = REF_CAT_LEVEL;
+        (*refmv_count)++;
+      }
     }
 #endif  // CONFIG_NEW_INTER_MODES
   }
@@ -901,7 +908,7 @@ void av1_find_best_ref_mvs(MvSubpelPrecision precision, int_mv *mvlist,
   }
   *nearest_mv = mvlist[0];
 #if CONFIG_NEW_INTER_MODES
-  *near_mv = mvlist[0];
+  *near_mv = mvlist[1];
 #else
   *near_mv = mvlist[1];
 #endif  // CONFIG_NEW_INTER_MODES
@@ -1582,6 +1589,7 @@ void av1_set_frame_refs(AV1_COMMON *const cm, int *remapped_ref_idx,
 }
 
 #if CONFIG_FLEX_MVRES
+#if ADJUST_DRL_FLEX_MVRES
 void av1_get_mv_refs_adj(CANDIDATE_MV ref_mv_stack_orig[MAX_REF_MV_STACK_SIZE],
                          uint16_t weight_orig[MAX_REF_MV_STACK_SIZE],
                          uint8_t ref_mv_count_orig, int is_compound,
@@ -1589,39 +1597,37 @@ void av1_get_mv_refs_adj(CANDIDATE_MV ref_mv_stack_orig[MAX_REF_MV_STACK_SIZE],
                          CANDIDATE_MV ref_mv_stack_adj[MAX_REF_MV_STACK_SIZE],
                          uint16_t weight_adj[MAX_REF_MV_STACK_SIZE],
                          uint8_t *ref_mv_count_adj) {
-  ref_mv_stack_adj[0] = ref_mv_stack_orig[0];
-  lower_mv_precision(&ref_mv_stack_adj[0].this_mv.as_mv, precision);
-  if (is_compound) {
-    lower_mv_precision(&ref_mv_stack_adj[0].comp_mv.as_mv, precision);
-  }
-  *ref_mv_count_adj = 1;
-  weight_adj[0] = weight_orig[0];
+  *ref_mv_count_adj = 0;
 
-  for (int i = 1; i < ref_mv_count_orig; ++i) {
+  for (int i = 0; i < ref_mv_count_orig; ++i) {
     ref_mv_stack_adj[*ref_mv_count_adj] = ref_mv_stack_orig[i];
-    weight_adj[*ref_mv_count_adj] = weight_orig[i];
     lower_mv_precision(&ref_mv_stack_adj[*ref_mv_count_adj].this_mv.as_mv,
                        precision);
     if (is_compound) {
       lower_mv_precision(&ref_mv_stack_adj[*ref_mv_count_adj].comp_mv.as_mv,
                          precision);
     }
+    weight_adj[*ref_mv_count_adj] = weight_orig[i];
+    int k;
     if (is_compound) {
-      if (ref_mv_stack_adj[*ref_mv_count_adj].this_mv.as_int !=
-              ref_mv_stack_adj[*ref_mv_count_adj - 1].this_mv.as_int ||
-          ref_mv_stack_adj[*ref_mv_count_adj].comp_mv.as_int !=
-              ref_mv_stack_adj[*ref_mv_count_adj - 1].comp_mv.as_int) {
-        ++(*ref_mv_count_adj);
-      } else {
-        weight_adj[*ref_mv_count_adj - 1] += weight_adj[*ref_mv_count_adj];
+      for (k = 0; k < *ref_mv_count_adj; ++k) {
+        if (ref_mv_stack_adj[*ref_mv_count_adj].this_mv.as_int ==
+                ref_mv_stack_adj[k].this_mv.as_int &&
+            ref_mv_stack_adj[*ref_mv_count_adj].comp_mv.as_int ==
+                ref_mv_stack_adj[k].comp_mv.as_int)
+          break;
       }
     } else {
-      if (ref_mv_stack_adj[*ref_mv_count_adj].this_mv.as_int !=
-          ref_mv_stack_adj[*ref_mv_count_adj - 1].this_mv.as_int) {
-        ++(*ref_mv_count_adj);
-      } else {
-        weight_adj[*ref_mv_count_adj - 1] += weight_adj[*ref_mv_count_adj];
+      for (k = 0; k < *ref_mv_count_adj; ++k) {
+        if (ref_mv_stack_adj[*ref_mv_count_adj].this_mv.as_int ==
+            ref_mv_stack_adj[k].this_mv.as_int)
+          break;
       }
+    }
+    if (k == *ref_mv_count_adj) {
+      ++(*ref_mv_count_adj);
+    } else {
+      weight_adj[k] += weight_adj[*ref_mv_count_adj];
     }
   }
 }
@@ -1653,4 +1659,5 @@ int av1_get_ref_mv_idx_adj(
   assert(0);
   return -1;
 }
+#endif  // ADJUST_DRL_FLEX_MVRES
 #endif  // CONFIG_FLEX_MVRES
