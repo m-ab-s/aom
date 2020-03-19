@@ -1714,8 +1714,8 @@ static void update_stats(const AV1_COMMON *const cm, TileDataEnc *tile_data,
 #elif CONFIG_FLEX_MVRES
         if (allow_update_cdf &&
             is_pb_mv_precision_active(cm, mbmi->mode, mbmi->max_mv_precision)) {
-          const int down_ctx = av1_get_mv_precision_down_context(cm, xd);
-          int down = mbmi->max_mv_precision - mbmi->mv_precision;
+          const int down_ctx = av1_get_pb_mv_precision_down_context(cm, xd);
+          int down = mbmi->max_mv_precision - mbmi->pb_mv_precision;
 #if DISALLOW_ONE_DOWN_FLEX_MVRES == 2
           assert((down & 1) == 0);
           const int nsymbs = 2;
@@ -1727,12 +1727,11 @@ static void update_stats(const AV1_COMMON *const cm, TileDataEnc *tile_data,
 #else
           const int nsymbs = mbmi->max_mv_precision + 1;
 #endif  // DISALLOW_ONE_DOWN_FLEX_MVRES
-          update_cdf(
-              fc->flex_mv_precision_cdf[down_ctx][mbmi->max_mv_precision -
-                                                  MV_SUBPEL_QTR_PRECISION],
-              down, nsymbs);
+          update_cdf(fc->pb_mv_precision_cdf[down_ctx][mbmi->max_mv_precision -
+                                                       MV_SUBPEL_QTR_PRECISION],
+                     down, nsymbs);
         }
-        assert(mbmi->mv_precision == av1_get_mbmi_mv_precision(cm, mbmi));
+        assert(mbmi->pb_mv_precision == av1_get_mbmi_mv_precision(cm, mbmi));
 #endif  // CONFIG_SB_FLEX_MVRES
         if (new_mv) {
           for (int ref = 0; ref < 1 + has_second_ref(mbmi); ++ref) {

@@ -1686,6 +1686,14 @@ static INLINE int is_valid_seq_level_idx(AV1_LEVEL seq_level_idx) {
 }
 
 #if CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES
+static INLINE MvSubpelPrecision av1_get_mbmi_max_mv_precision(
+    const AV1_COMMON *const cm, const MB_MODE_INFO *mbmi) {
+  (void)mbmi;
+  // TODO(debargha): Change this to have a default max precision
+  // different from cm->fr_mv_precision for every mode.
+  return cm->fr_mv_precision;
+}
+
 static INLINE int is_pb_mv_precision_active(
     const AV1_COMMON *const cm, PREDICTION_MODE mode,
     MvSubpelPrecision max_mv_precision) {
