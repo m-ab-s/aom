@@ -298,6 +298,108 @@ int av1_compute_subpel_gradients(const AV1_COMMON *cm, MACROBLOCKD *xd,
   }
   return r_dist;
 }
+
+#define OPFL_REFINE_MV_PREC_BITS 6  // 6 refers to 1/64th pel precision
+
+// Optical flow based mv refinement computation function:
+//
+// p0, pstride0: predictor 0 and its stride
+// p1, pstride1: predictor 1 and its stride
+// gx0, gy0: x and y gradients for p0
+// gx1, gy1: x and y gradients for p1
+// gstride: stride for all the gradients assumed to be the same
+// bw, bh: block dumensions
+// d0: distance of p0 to current frame, where +ve value refers to
+//     p0 before the current frame.
+// d1: distance of p1 to current frame, where +ve value refers to
+//     p1 after the current frame.
+// max_prec_bits: maximum offset in bits
+// vx0, vy0: output high resolution mv offset for p0
+// vx1, vy1: output high resolution mv offset for p1
+
+void av1_opfl_mv_refinement_lowbd(const uint8_t *p0, int pstride0,
+                                  const uint8_t *p1, int pstride1,
+                                  const int16_t *gx0, const int16_t *gy0,
+                                  const int16_t *gx1, const int16_t *gy1,
+                                  int gstride, int bw, int bh, int d0, int d1,
+                                  int max_prec_bits, int *vx0, int *vy0,
+                                  int *vx1, int *vy1) {
+  int64_t su2 = 0;
+  int64_t suv = 0;
+  int64_t sv2 = 0;
+  int64_t suw = 0;
+  int64_t svw = 0;
+  for (int i = 0; i < bh; ++i) {
+    for (int j = 0; j < bw; ++j) {
+      const int u = d0 * gx0[i * gstride + j] + d1 * gx1[i * gstride + j];
+      const int v = d0 * gy0[i * gstride + j] + d1 * gy1[i * gstride + j];
+      const int w = d0 * (p1[i * pstride1 + j] - p0[i * pstride0 + j]);
+      su2 += (u * u);
+      suv += (u * v);
+      sv2 += (v * v);
+      suw += (u * w);
+      svw += (v * w);
+    }
+  }
+  const int64_t D = su2 * sv2 - suv * suv;
+  const int64_t Px = (sv2 * suw - suv * svw) * (1 << OPFL_REFINE_MV_PREC_BITS);
+  const int64_t Py = (su2 * svw - suv * suw) * (1 << OPFL_REFINE_MV_PREC_BITS);
+
+  *vx0 = DIVIDE_AND_ROUND_SIGNED(Px, D);
+  *vy0 = DIVIDE_AND_ROUND_SIGNED(Py, D);
+  const int tx1 = -(*vx0) * d1;
+  const int ty1 = -(*vy0) * d1;
+  *vx1 = DIVIDE_AND_ROUND_SIGNED(tx1, d0);
+  *vy1 = DIVIDE_AND_ROUND_SIGNED(ty1, d0);
+
+  const int max_value = 1 << (OPFL_REFINE_MV_PREC_BITS - max_prec_bits);
+  *vx0 = clamp(*vx0, -max_value, max_value);
+  *vy0 = clamp(*vy0, -max_value, max_value);
+  *vx1 = clamp(*vx1, -max_value, max_value);
+  *vy1 = clamp(*vy1, -max_value, max_value);
+}
+
+void av1_opfl_mv_refinement_highbd(const uint16_t *p0, int pstride0,
+                                   const uint16_t *p1, int pstride1,
+                                   const int16_t *gx0, const int16_t *gy0,
+                                   const int16_t *gx1, const int16_t *gy1,
+                                   int gstride, int bw, int bh, int d0, int d1,
+                                   int max_prec_bits, int *vx0, int *vy0,
+                                   int *vx1, int *vy1) {
+  int64_t su2 = 0;
+  int64_t suv = 0;
+  int64_t sv2 = 0;
+  int64_t suw = 0;
+  int64_t svw = 0;
+  for (int i = 0; i < bh; ++i) {
+    for (int j = 0; j < bw; ++j) {
+      const int u = d0 * gx0[i * gstride + j] + d1 * gx1[i * gstride + j];
+      const int v = d0 * gy0[i * gstride + j] + d1 * gy1[i * gstride + j];
+      const int w = d0 * (p1[i * pstride1 + j] - p0[i * pstride0 + j]);
+      su2 += (u * u);
+      suv += (u * v);
+      sv2 += (v * v);
+      suw += (u * w);
+      svw += (v * w);
+    }
+  }
+  const int64_t D = su2 * sv2 - suv * suv;
+  const int64_t Px = (sv2 * suw - suv * svw) * (1 << OPFL_REFINE_MV_PREC_BITS);
+  const int64_t Py = (su2 * svw - suv * suw) * (1 << OPFL_REFINE_MV_PREC_BITS);
+
+  *vx0 = DIVIDE_AND_ROUND_SIGNED(Px, D);
+  *vy0 = DIVIDE_AND_ROUND_SIGNED(Py, D);
+  const int tx1 = -(*vx0) * d1;
+  const int ty1 = -(*vy0) * d1;
+  *vx1 = DIVIDE_AND_ROUND_SIGNED(tx1, d0);
+  *vy1 = DIVIDE_AND_ROUND_SIGNED(ty1, d0);
+
+  const int max_value = 1 << (OPFL_REFINE_MV_PREC_BITS - max_prec_bits);
+  *vx0 = clamp(*vx0, -max_value, max_value);
+  *vy0 = clamp(*vy0, -max_value, max_value);
+  *vx1 = clamp(*vx1, -max_value, max_value);
+  *vy1 = clamp(*vy1, -max_value, max_value);
+}
 #endif  // CONFIG_EXT_COMPOUND
 
 static void av1_make_inter_predictor_aux(

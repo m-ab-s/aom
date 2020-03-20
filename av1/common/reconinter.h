@@ -257,6 +257,20 @@ int av1_compute_subpel_gradients(const AV1_COMMON *cm, MACROBLOCKD *xd,
                                  const void *const calc_subpel_params_func_args,
                                  int ref, uint8_t *pred_dst, int8_t *x_grad,
                                  int8_t *y_grad);
+void av1_opfl_mv_refinement_lowbd(const uint8_t *p0, int pstride0,
+                                  const uint8_t *p1, int pstride1,
+                                  const int16_t *gx0, const int16_t *gy0,
+                                  const int16_t *gx1, const int16_t *gy1,
+                                  int gstride, int bw, int bh, int d0, int d1,
+                                  int max_prec_bits, int *vx0, int *vy0,
+                                  int *vx1, int *vy1);
+void av1_opfl_mv_refinement_highbd(const uint16_t *p0, int pstride0,
+                                   const uint16_t *p1, int pstride1,
+                                   const int16_t *gx0, const int16_t *gy0,
+                                   const int16_t *gx1, const int16_t *gy1,
+                                   int gstride, int bw, int bh, int d0, int d1,
+                                   int max_prec_bits, int *vx0, int *vy0,
+                                   int *vx1, int *vy1);
 #endif  // CONFIG_EXT_COMPOUND
 
 // TODO(jkoleszar): yet another mv clamping function :-(
