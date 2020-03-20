@@ -193,6 +193,8 @@ set_aom_config_var(CONFIG_WIENER_SEP_HIPREC 0 NUMBER
                    "AV2 high-prec separable Wiener filter experiment flag")
 set_aom_config_var(CONFIG_EXTQUANT 0 NUMBER
                    "AV2 extended quantization experiment flag")
+set_aom_config_var(CONFIG_EXT_LOOP_RESTORATION 0 NUMBER
+                   "AV2 extensions to loop restoration")
 
 # To include Tensorflow, make sure to build tensorflow locally using
 # tensorflow/contrib/makefile/build_all_linux.sh and then providing the correct
