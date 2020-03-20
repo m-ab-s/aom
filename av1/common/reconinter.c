@@ -1919,12 +1919,12 @@ static void illum_mcomp_linear_model_lowbd(const uint8_t *inter_pred,
       n++;
     }
   }
-  const int64_t Pa = n * sxy - sx * sy;
-  const int64_t Pb = -sx * sxy + sx2 * sy;
+  const int64_t Pa = (n * sxy - sx * sy) * ILLUM_MCOMMP_PREC;
+  const int64_t Pb = (-sx * sxy + sx2 * sy) * ILLUM_MCOMMP_PREC;
   const int64_t D = sx2 * n - sx * sx;
 
-  const int64_t a = ((Pa << ILLUM_MCOMMP_PREC_BITS) + D / 2) / D;
-  const int64_t b = ((Pb << ILLUM_MCOMMP_PREC_BITS) + D / 2) / D;
+  const int64_t a = DIVIDE_AND_ROUND_SIGNED(Pa, D);
+  const int64_t b = DIVIDE_AND_ROUND_SIGNED(Pb, D);
   // Clamp to reasonable range
   *alpha = (int)clamp64(a, ILLUM_MCOMMP_PREC / 4, ILLUM_MCOMMP_PREC * 4);
   *beta = (int)clamp64(b, -(1 << (bd - 2)) * ILLUM_MCOMMP_PREC,
@@ -1969,12 +1969,12 @@ static void illum_mcomp_linear_model_highbd(const uint16_t *inter_pred,
       n++;
     }
   }
-  const int64_t Pa = n * sxy - sx * sy;
-  const int64_t Pb = -sx * sxy + sx2 * sy;
+  const int64_t Pa = (n * sxy - sx * sy) * ILLUM_MCOMMP_PREC;
+  const int64_t Pb = (-sx * sxy + sx2 * sy) * ILLUM_MCOMMP_PREC;
   const int64_t D = sx2 * n - sx * sx;
 
-  const int64_t a = ((Pa << ILLUM_MCOMMP_PREC_BITS) + D / 2) / D;
-  const int64_t b = ((Pb << ILLUM_MCOMMP_PREC_BITS) + D / 2) / D;
+  const int64_t a = DIVIDE_AND_ROUND_SIGNED(Pa, D);
+  const int64_t b = DIVIDE_AND_ROUND_SIGNED(Pb, D);
   // Clamp to reasonable range
   *alpha = (int)clamp64(a, ILLUM_MCOMMP_PREC / 4, ILLUM_MCOMMP_PREC * 4);
   *beta = (int)clamp64(b, -(1 << (bd - 2)) * ILLUM_MCOMMP_PREC,
