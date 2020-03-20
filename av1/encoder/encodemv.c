@@ -377,16 +377,34 @@ int_mv av1_get_ref_mv(const MACROBLOCK *x, int ref_idx) {
 }
 
 #if CONFIG_NEW_INTER_MODES
-void av1_find_best_ref_mv_from_stack(MvSubpelPrecision precision,
-                                     const MB_MODE_INFO_EXT *mbmi_ext,
-                                     MV_REFERENCE_FRAME ref_frame, int_mv *mv) {
-  const int ref_idx = 0;
+/**
+ * Get the best reference MV (for use with intrabc) from the refmv stack.
+ * This function will search all available references and return the first one
+ * that is not zero or invalid.
+ *
+ * @param precision The MV precision to use.  The returned MV will be reduced to
+ * match.
+ * @param mbmi_ext The MB ext struct.  Used in get_ref_mv_from_stack.
+ * @param ref_frame The reference frame to find motion vectors from.
+ * @return The best MV, or INVALID_MV if none exists.
+ */
+int_mv av1_find_best_ref_mv_from_stack(MvSubpelPrecision precision,
+                                       const MB_MODE_INFO_EXT *mbmi_ext,
+                                       MV_REFERENCE_FRAME ref_frame) {
+  int_mv mv;
+  bool found_ref_mv = false;
   MV_REFERENCE_FRAME ref_frames[2] = { ref_frame, NONE_FRAME };
-  for (int i = 0; i < MAX_MV_REF_CANDIDATES; i++) {
-    *mv = av1_get_ref_mv_from_stack(ref_idx, ref_frames, 0, mbmi_ext);
-    if (mv->as_int != 0 && mv->as_int != INVALID_MV) break;
+  int range = AOMMIN(mbmi_ext->ref_mv_count[ref_frame], MAX_REF_MV_STACK_SIZE);
+  for (int i = 0; i < range; i++) {
+    mv = av1_get_ref_mv_from_stack(0, ref_frames, i, mbmi_ext);
+    if (mv.as_int != 0 && mv.as_int != INVALID_MV) {
+      found_ref_mv = true;
+      break;
+    }
   }
-  lower_mv_precision(&mv->as_mv, precision);
+  lower_mv_precision(&mv.as_mv, precision);
+  if (!found_ref_mv) mv.as_int = INVALID_MV;
+  return mv;
 }
 #else
 void av1_find_best_ref_mvs_from_stack(MvSubpelPrecision precision,
@@ -397,11 +415,7 @@ void av1_find_best_ref_mvs_from_stack(MvSubpelPrecision precision,
   MV_REFERENCE_FRAME ref_frames[2] = { ref_frame, NONE_FRAME };
   *nearest_mv = av1_get_ref_mv_from_stack(ref_idx, ref_frames, 0, mbmi_ext);
   lower_mv_precision(&nearest_mv->as_mv, precision);
-#if CONFIG_NEW_INTER_MODES
-  *near_mv = av1_get_ref_mv_from_stack(ref_idx, ref_frames, 0, mbmi_ext);
-#else
   *near_mv = av1_get_ref_mv_from_stack(ref_idx, ref_frames, 1, mbmi_ext);
-#endif  // CONFIG_NEW_INTER_MODES
   lower_mv_precision(&near_mv->as_mv, precision);
 }
 #endif  // CONFIG_NEW_INTER_MODES

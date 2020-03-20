@@ -12529,9 +12529,8 @@ static int64_t rd_pick_intrabc_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x,
                    mbmi_ext->global_mvs, mbmi_ext->mode_context);
 
 #if CONFIG_NEW_INTER_MODES
-  int_mv dv_ref;
-  av1_find_best_ref_mv_from_stack(cm->fr_mv_precision, mbmi_ext, ref_frame,
-                                  &dv_ref);
+  int_mv dv_ref =
+      av1_find_best_ref_mv_from_stack(cm->fr_mv_precision, mbmi_ext, ref_frame);
   dv_ref.as_int = dv_ref.as_int == INVALID_MV ? 0 : dv_ref.as_int;
 #else
   int_mv nearestmv, nearmv;
