@@ -5148,6 +5148,7 @@ static void recode_loop_update_q(
     int *const low_cr_seen, const int loop_at_this_size) {
   AV1_COMMON *const cm = &cpi->common;
   RATE_CONTROL *const rc = &cpi->rc;
+  *loop = 0;
 
   const int min_cr = cpi->oxcf.min_cr;
   if (min_cr > 0) {
@@ -5359,6 +5360,7 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
     }
     av1_set_quantizer(cm, q);
     av1_init_quantizer(cpi);
+    av1_set_speed_features_qindex_dependent(cpi, cpi->oxcf.speed);
 
     av1_set_variance_partition_thresholds(cpi, q, 0);
 
