@@ -2008,9 +2008,15 @@ static void decode_restoration_mode(AV1_COMMON *cm,
 
 static void read_wiener_filter(int wiener_win, WienerInfo *wiener_info,
                                WienerInfo *ref_wiener_info, aom_reader *rb) {
+#if CONFIG_EXT_LOOP_RESTORATION
+  const int equal = aom_read_bit(rb, ACCT_STR);
+  if (equal) {
+    memcpy(wiener_info, ref_wiener_info, sizeof(*wiener_info));
+    return;
+  }
+#endif  // CONFIG_EXT_LOOP_RESTORATION
   memset(wiener_info->vfilter, 0, sizeof(wiener_info->vfilter));
   memset(wiener_info->hfilter, 0, sizeof(wiener_info->hfilter));
-
   if (wiener_win == WIENER_WIN)
     wiener_info->vfilter[0] = wiener_info->vfilter[WIENER_WIN - 1] =
         aom_read_primitive_refsubexpfin(
@@ -2067,6 +2073,13 @@ static void read_wiener_filter(int wiener_win, WienerInfo *wiener_info,
 
 static void read_sgrproj_filter(SgrprojInfo *sgrproj_info,
                                 SgrprojInfo *ref_sgrproj_info, aom_reader *rb) {
+#if CONFIG_EXT_LOOP_RESTORATION
+  const int equal = aom_read_bit(rb, ACCT_STR);
+  if (equal) {
+    memcpy(sgrproj_info, ref_sgrproj_info, sizeof(*sgrproj_info));
+    return;
+  }
+#endif  // CONFIG_EXT_LOOP_RESTORATION
   sgrproj_info->ep = aom_read_literal(rb, SGRPROJ_PARAMS_BITS, ACCT_STR);
   const sgr_params_type *params = &av1_sgr_params[sgrproj_info->ep];
 
@@ -2105,6 +2118,13 @@ static void read_sgrproj_filter(SgrprojInfo *sgrproj_info,
 static void read_wiener_nsfilter(int is_uv, WienerNonsepInfo *wienerns_info,
                                  WienerNonsepInfo *ref_wienerns_info,
                                  aom_reader *rb) {
+#if CONFIG_EXT_LOOP_RESTORATION
+  const int equal = aom_read_bit(rb, ACCT_STR);
+  if (equal) {
+    memcpy(wienerns_info, ref_wienerns_info, sizeof(*wienerns_info));
+    return;
+  }
+#endif  // CONFIG_EXT_LOOP_RESTORATION
   int beg_feat = is_uv ? wienerns_y : 0;
   int end_feat = is_uv ? wienerns_yuv : wienerns_y;
   const int(*wienerns_coeffs)[3] = is_uv ? wienerns_coeff_uv : wienerns_coeff_y;

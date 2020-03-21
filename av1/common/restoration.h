@@ -122,6 +122,7 @@ extern "C" {
 // If WIENER_WIN_CHROMA == WIENER_WIN - 2, that implies 5x5 filters are used for
 // chroma. To use 7x7 for chroma set WIENER_WIN_CHROMA to WIENER_WIN.
 #define WIENER_WIN_CHROMA (WIENER_WIN - 2)
+#define WIENER_HALFWIN_CHROMA (WIENER_HALFWIN - 1)
 #define WIENER_WIN_REDUCED (WIENER_WIN - 2)
 #define WIENER_WIN2_CHROMA ((WIENER_WIN_CHROMA) * (WIENER_WIN_CHROMA))
 
@@ -325,6 +326,32 @@ static INLINE void set_default_wiener(WienerInfo *wiener_info) {
   wiener_info->vfilter[6] = wiener_info->hfilter[6] = WIENER_FILT_TAP0_MIDV;
 }
 
+#if CONFIG_EXT_LOOP_RESTORATION
+static INLINE int check_wiener_eq(int chroma, const WienerInfo *info,
+                                  const WienerInfo *ref) {
+  if (!chroma) {
+    if (!memcmp(info->vfilter, ref->vfilter,
+                WIENER_HALFWIN * sizeof(info->vfilter[0])) &&
+        !memcmp(info->hfilter, ref->hfilter,
+                WIENER_HALFWIN * sizeof(info->hfilter[0])))
+      return 1;
+  } else {
+    if (!memcmp(&info->vfilter[1], &ref->vfilter[1],
+                WIENER_HALFWIN_CHROMA * sizeof(info->vfilter[1])) &&
+        !memcmp(&info->hfilter[1], &ref->hfilter[1],
+                WIENER_HALFWIN_CHROMA * sizeof(info->hfilter[1])))
+      return 1;
+  }
+  return 0;
+}
+
+static INLINE int check_sgrproj_eq(const SgrprojInfo *info,
+                                   const SgrprojInfo *ref) {
+  if (!memcmp(info, ref, sizeof(*info))) return 1;
+  return 0;
+}
+#endif  // CONFIG_EXT_LOOP_RESTORATION
+
 #if CONFIG_WIENER_NONSEP
 static INLINE void set_default_wiener_nonsep(WienerNonsepInfo *wienerns_info) {
   for (int i = 0; i < wienerns_y; ++i) {
@@ -335,6 +362,22 @@ static INLINE void set_default_wiener_nonsep(WienerNonsepInfo *wienerns_info) {
         wienerns_coeff_uv[i - wienerns_y][WIENERNS_MIN_ID];
   }
 }
+
+#if CONFIG_EXT_LOOP_RESTORATION
+static INLINE int check_wienerns_eq(int chroma, const WienerNonsepInfo *info,
+                                    const WienerNonsepInfo *ref) {
+  if (!chroma) {
+    if (!memcmp(info->nsfilter, ref->nsfilter,
+                wienerns_y * sizeof(*info->nsfilter)))
+      return 1;
+  } else {
+    if (!memcmp(&info->nsfilter[wienerns_y], &ref->nsfilter[wienerns_y],
+                wienerns_uv * sizeof(*info->nsfilter)))
+      return 1;
+  }
+  return 0;
+}
+#endif  // CONFIG_EXT_LOOP_RESTORATION
 
 #if CONFIG_WIENER_NONSEP_CROSS_FILT
 uint8_t *wienerns_copy_luma(const uint8_t *dgd, int height_y, int width_y,

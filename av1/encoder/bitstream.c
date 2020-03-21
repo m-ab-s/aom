@@ -2401,6 +2401,15 @@ static void encode_restoration_mode(AV1_COMMON *cm,
 
 static void write_wiener_filter(int wiener_win, const WienerInfo *wiener_info,
                                 WienerInfo *ref_wiener_info, aom_writer *wb) {
+#if CONFIG_EXT_LOOP_RESTORATION
+  const int equal =
+      check_wiener_eq(wiener_win != WIENER_WIN, wiener_info, ref_wiener_info);
+  aom_write_bit(wb, equal);
+  if (equal) {
+    memcpy(ref_wiener_info, wiener_info, sizeof(*wiener_info));
+    return;
+  }
+#endif  // CONFIG_EXT_LOOP_RESTORATION
   if (wiener_win == WIENER_WIN)
     aom_write_primitive_refsubexpfin(
         wb, WIENER_FILT_TAP0_MAXV - WIENER_FILT_TAP0_MINV + 1,
@@ -2445,6 +2454,14 @@ static void write_wiener_filter(int wiener_win, const WienerInfo *wiener_info,
 static void write_sgrproj_filter(const SgrprojInfo *sgrproj_info,
                                  SgrprojInfo *ref_sgrproj_info,
                                  aom_writer *wb) {
+#if CONFIG_EXT_LOOP_RESTORATION
+  const int equal = check_sgrproj_eq(sgrproj_info, ref_sgrproj_info);
+  aom_write_bit(wb, equal);
+  if (equal) {
+    memcpy(ref_sgrproj_info, sgrproj_info, sizeof(*sgrproj_info));
+    return;
+  }
+#endif  // CONFIG_EXT_LOOP_RESTORATION
   aom_write_literal(wb, sgrproj_info->ep, SGRPROJ_PARAMS_BITS);
   const sgr_params_type *params = &av1_sgr_params[sgrproj_info->ep];
 
@@ -2478,6 +2495,14 @@ static void write_wiener_nsfilter(int is_uv,
                                   const WienerNonsepInfo *wienerns_info,
                                   WienerNonsepInfo *ref_wienerns_info,
                                   aom_writer *wb) {
+#if CONFIG_EXT_LOOP_RESTORATION
+  const int equal = check_wienerns_eq(is_uv, wienerns_info, ref_wienerns_info);
+  aom_write_bit(wb, equal);
+  if (equal) {
+    memcpy(ref_wienerns_info, wienerns_info, sizeof(*wienerns_info));
+    return;
+  }
+#endif  // CONFIG_EXT_LOOP_RESTORATION
   int beg_feat = is_uv ? wienerns_y : 0;
   int end_feat = is_uv ? wienerns_yuv : wienerns_y;
   const int(*wienerns_coeffs)[3] = is_uv ? wienerns_coeff_uv : wienerns_coeff_y;
