@@ -94,12 +94,12 @@ static const PARTITION_TYPE
     partition_map_from_symbol_block_wgth[PARTITION_TYPES_REC] = {
       PARTITION_NONE,
       PARTITION_VERT,
-      PARTITION_HORZ,
 #if CONFIG_EXT_PARTITIONS
       PARTITION_VERT_3,
 #else
       PARTITION_VERT_4,
 #endif  // CONFIG_EXT_PARTITIONS
+      PARTITION_HORZ,
     };
 
 static const PARTITION_TYPE_REC
@@ -112,12 +112,12 @@ static const PARTITION_TYPE
     partition_map_from_symbol_block_hgtw[PARTITION_TYPES_REC] = {
       PARTITION_NONE,
       PARTITION_HORZ,
-      PARTITION_VERT,
 #if CONFIG_EXT_PARTITIONS
       PARTITION_HORZ_3,
 #else
       PARTITION_HORZ_4,
 #endif  // CONFIG_EXT_PARTITIONS
+      PARTITION_VERT,
     };
 
 static const PARTITION_TYPE_REC
