@@ -316,6 +316,12 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, MACROBLOCK *x,
                            fc->switchable_restore_cdf, NULL);
   av1_cost_tokens_from_cdf(x->wiener_restore_cost, fc->wiener_restore_cdf,
                            NULL);
+#if CONFIG_EXT_LOOP_RESTORATION
+  // TODO(anyone): Make the sharad param flag use the arithmetic encoder
+  // av1_cost_tokens_from_cdf(x->shared_param_cost, fc->shared_param_cdf, NULL);
+  x->shared_param_cost[0] = 1 << AV1_PROB_COST_SHIFT;
+  x->shared_param_cost[1] = 1 << AV1_PROB_COST_SHIFT;
+#endif  // CONFIG_EXT_LOOP_RESTORATION
   av1_cost_tokens_from_cdf(x->sgrproj_restore_cost, fc->sgrproj_restore_cdf,
                            NULL);
 #if CONFIG_LOOP_RESTORE_CNN

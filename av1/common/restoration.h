@@ -245,6 +245,13 @@ extern const int wienerns_coeff_uv[][3];
 #define LR_TILE_COL 0
 #define LR_TILE_COLS 1
 
+#if CONFIG_EXT_LOOP_RESTORATION
+typedef struct {
+  int64_t vfilter[WIENER_WIN2];
+  int64_t hfilter[WIENER_WIN2];
+} SharedParams;
+#endif  // CONFIG_EXT_LOOP_RESTORATION
+
 typedef struct {
   int r[2];  // radii
   int s[2];  // sgr parameters for r[0] and r[1], based on GenSgrprojVtable()
@@ -395,6 +402,9 @@ typedef void (*rest_unit_visitor_t)(const RestorationTileLimits *limits,
                                     const AV1PixelRect *tile_rect,
                                     int rest_unit_idx, void *priv,
                                     int32_t *tmpbuf,
+#if CONFIG_EXT_LOOP_RESTORATION
+                                    RestorationUnitInfo *previous_rui,
+#endif  // CONFIG_EXT_LOOP_RESTORATION
                                     RestorationLineBuffers *rlbs);
 
 typedef struct FilterFrameCtxt {
@@ -508,9 +518,12 @@ void av1_foreach_rest_unit_in_row(
     RestorationTileLimits *limits, const AV1PixelRect *tile_rect,
     rest_unit_visitor_t on_rest_unit, int row_number, int unit_size,
     int unit_idx0, int hunits_per_tile, int vunits_per_tile, int plane,
-    void *priv, int32_t *tmpbuf, RestorationLineBuffers *rlbs,
-    sync_read_fn_t on_sync_read, sync_write_fn_t on_sync_write,
-    struct AV1LrSyncData *const lr_sync);
+    void *priv, int32_t *tmpbuf,
+#if CONFIG_EXT_LOOP_RESTORATION
+    RestorationUnitInfo *previous_rui,
+#endif  // CONFIG_EXT_LOOP_RESTORATION
+    RestorationLineBuffers *rlbs, sync_read_fn_t on_sync_read,
+    sync_write_fn_t on_sync_write, struct AV1LrSyncData *const lr_sync);
 AV1PixelRect av1_whole_frame_rect(const struct AV1Common *cm, int is_uv);
 int av1_lr_count_units_in_tile(int unit_size, int tile_size);
 void av1_lr_sync_read_dummy(void *const lr_sync, int r, int c, int plane);
