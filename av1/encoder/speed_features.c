@@ -53,16 +53,31 @@ static unsigned int tx_domain_dist_thresholds[MAX_TX_DOMAIN_EVAL_SPEED + 1] = {
   UINT_MAX, 22026, 22026, 22026, 22026, 0
 };
 // Threshold values to be used for disabling coeff RD-optimization
-// based on block MSE
+// based on block MSE / qstep^2.
 // TODO(any): Experiment the threshold logic based on variance metric
 // Index 0 corresponds to the modes where winner mode processing is not
 // applicable (Eg : IntraBc). Index 1 corresponds to the mode evaluation and is
 // applicable when enable_winner_mode_for_coeff_opt speed feature is ON
-static unsigned int coeff_opt_dist_thresholds[5][2] = { { UINT_MAX, UINT_MAX },
-                                                        { 442413, 36314 },
-                                                        { 162754, 36314 },
-                                                        { 22026, 22026 },
-                                                        { 22026, 22026 } };
+static unsigned int coeff_opt_dist_thresholds[5][2] = { {
+                                                            UINT_MAX,
+                                                            UINT_MAX,
+                                                        },
+                                                        {
+                                                            1728,
+                                                            142,
+                                                        },
+                                                        {
+                                                            864,
+                                                            142,
+                                                        },
+                                                        {
+                                                            432,
+                                                            86,
+                                                        },
+                                                        {
+                                                            216,
+                                                            86,
+                                                        } };
 // scaling values to be used for gating wedge/compound segment based on best
 // approximate rd
 static int comp_type_rd_threshold_mul[3] = { 1, 11, 12 };
