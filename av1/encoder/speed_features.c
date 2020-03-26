@@ -52,15 +52,16 @@ static uint8_t intrabc_max_mesh_pct[MAX_MESH_SPEED + 1] = { 100, 100, 100,
 static unsigned int tx_domain_dist_thresholds[MAX_TX_DOMAIN_EVAL_SPEED + 1] = {
   UINT_MAX, 22026, 22026, 22026, 22026, 0
 };
+
 // Threshold values to be used for disabling coeff RD-optimization
 // based on block MSE / qstep^2.
-// TODO(any): Experiment the threshold logic based on variance metric
-// Index 0 corresponds to the modes where winner mode processing is not
-// applicable (Eg : IntraBc). Index 1 corresponds to the mode evaluation and is
-// applicable when enable_winner_mode_for_coeff_opt speed feature is ON
-static unsigned int coeff_opt_dist_thresholds[5][2] = { {
+static unsigned int coeff_opt_dist_thresholds[6][2] = { {
                                                             UINT_MAX,
                                                             UINT_MAX,
+                                                        },
+                                                        {
+                                                            3200,
+                                                            250,
                                                         },
                                                         {
                                                             1728,
@@ -78,6 +79,7 @@ static unsigned int coeff_opt_dist_thresholds[5][2] = { {
                                                             216,
                                                             86,
                                                         } };
+
 // scaling values to be used for gating wedge/compound segment based on best
 // approximate rd
 static int comp_type_rd_threshold_mul[3] = { 1, 11, 12 };
@@ -288,6 +290,8 @@ static void set_good_speed_features_framesize_independent(
   sf->use_nonrd_pick_mode = 0;
   sf->use_real_time_ref_set = 0;
 
+  sf->perform_coeff_opt = 1;
+
   if (speed >= 1) {
     sf->selective_ref_frame = 2;
 
@@ -319,7 +323,7 @@ static void set_good_speed_features_framesize_independent(
     sf->gm_search_type = GM_REDUCED_REF_SEARCH_SKIP_L2_L3_ARF2;
     sf->cb_pred_filter_search = 1;
     sf->use_transform_domain_distortion = boosted ? 1 : 2;
-    sf->perform_coeff_opt = boosted ? 1 : 2;
+    sf->perform_coeff_opt = boosted ? 2 : 3;
     sf->prune_ref_frame_for_rect_partitions =
         (frame_is_intra_only(&cpi->common) || (cm->allow_screen_content_tools))
             ? 0
@@ -360,7 +364,7 @@ static void set_good_speed_features_framesize_independent(
     // TODO(Sachin): Enable/Enhance this speed feature for speed 2 & 3
     sf->cb_pred_filter_search = 0;
     sf->adaptive_interp_filter_search = 1;
-    sf->perform_coeff_opt = is_boosted_arf2_bwd_type ? 2 : 3;
+    sf->perform_coeff_opt = is_boosted_arf2_bwd_type ? 3 : 4;
     sf->model_based_prune_tx_search_level = 0;
     // TODO(yunqing): need to test and turn it on for speed > 1.
     sf->adaptive_overlay_encoding = 0;
@@ -409,7 +413,7 @@ static void set_good_speed_features_framesize_independent(
     sf->adaptive_mode_search = 1;
     sf->alt_ref_search_fp = 1;
     sf->skip_sharp_interp_filter_search = 1;
-    sf->perform_coeff_opt = is_boosted_arf2_bwd_type ? 2 : 4;
+    sf->perform_coeff_opt = is_boosted_arf2_bwd_type ? 3 : 5;
 #if CONFIG_NEW_TX_PARTITION
     sf->adaptive_txb_search_level = 0;
 #else
@@ -1006,7 +1010,7 @@ void av1_set_speed_features_framesize_independent(AV1_COMP *cpi, int speed) {
   cpi->tx_domain_dist_threshold = tx_domain_dist_thresholds[tx_domain_speed];
 
   // assert ensures that coeff_opt_dist_thresholds is accessed correctly
-  assert(cpi->sf.perform_coeff_opt >= 0 && cpi->sf.perform_coeff_opt < 5);
+  assert(cpi->sf.perform_coeff_opt >= 0 && cpi->sf.perform_coeff_opt < 6);
   memcpy(cpi->coeff_opt_dist_threshold,
          coeff_opt_dist_thresholds[cpi->sf.perform_coeff_opt],
          sizeof(cpi->coeff_opt_dist_threshold));
@@ -1032,6 +1036,10 @@ void av1_set_speed_features_qindex_dependent(AV1_COMP *cpi, int speed) {
   const int is_720p_or_larger = AOMMIN(cm->width, cm->height) >= 720;
   if (is_720p_or_larger && cpi->oxcf.mode == GOOD && speed == 0) {
     if (cm->base_qindex <= 80) {
+      sf->perform_coeff_opt = 2;
+      memcpy(cpi->coeff_opt_dist_threshold,
+             coeff_opt_dist_thresholds[sf->perform_coeff_opt],
+             sizeof(cpi->coeff_opt_dist_threshold));
       sf->simple_motion_search_split = cm->allow_screen_content_tools ? 1 : 2;
       sf->inter_tx_size_search_init_depth_rect = 1;
       sf->inter_tx_size_search_init_depth_sqr = 1;
