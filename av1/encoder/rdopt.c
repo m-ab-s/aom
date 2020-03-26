@@ -10485,7 +10485,8 @@ static int handle_inter_intra_mode(const AV1_COMP *const cpi,
 #else
     rmode = interintra_mode_cost[best_interintra_mode];
 #endif  // CONFIG_DERIVED_INTRA_MODE
-    if (j == 0 || best_interintra_mode != INTERINTRA_MODES - 1) {
+    if (j == 0 || CONFIG_DERIVED_INTRA_MODE ||
+        best_interintra_mode != INTERINTRA_MODES - 1) {
       mbmi->interintra_mode = best_interintra_mode;
 #if CONFIG_DERIVED_INTRA_MODE
       mbmi->use_derived_intra_mode[0] = pick_derived_intra_mode;
@@ -10568,7 +10569,7 @@ static int handle_inter_intra_mode(const AV1_COMP *const cpi,
 #if CONFIG_DERIVED_INTRA_MODE
         mbmi->use_derived_intra_mode[0] = use_derived_mode;
 #endif  // CONFIG_DERIVED_INTRA_MODE
-        if (best_mode != INTERINTRA_MODES - 1) {
+        if (CONFIG_DERIVED_INTRA_MODE || best_mode != INTERINTRA_MODES - 1) {
           av1_build_intra_predictors_for_interintra(cm, xd, bsize, 0, orig_dst,
                                                     intrapred, bw);
         }
