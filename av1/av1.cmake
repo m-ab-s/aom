@@ -184,6 +184,8 @@ list(APPEND AOM_AV1_ENCODER_SOURCES
             "${AOM_ROOT}/av1/encoder/mcomp.h"
             "${AOM_ROOT}/av1/encoder/ml.c"
             "${AOM_ROOT}/av1/encoder/ml.h"
+            "${AOM_ROOT}/av1/encoder/mv_prec.c"
+            "${AOM_ROOT}/av1/encoder/mv_prec.h"
             "${AOM_ROOT}/av1/encoder/palette.c"
             "${AOM_ROOT}/av1/encoder/palette.h"
             "${AOM_ROOT}/av1/encoder/partition_strategy.h"

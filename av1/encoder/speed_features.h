@@ -284,6 +284,12 @@ typedef enum {
   FLAG_SKIP_EIGHTTAP_SHARP = 1 << MULTITAP_SHARP,
 } INTERP_FILTER_MASK;
 
+enum {
+  LAST_MV_DATA,  // Not implemented yet
+  CURRENT_Q,
+  QTR_ONLY,
+} UENUM1BYTE(MV_PREC_LOGIC);
+
 typedef struct SPEED_FEATURES {
   MV_SPEED_FEATURES mv;
 
@@ -291,6 +297,12 @@ typedef struct SPEED_FEATURES {
   int frame_parameter_update;
 
   RECODE_LOOP_TYPE recode_loop;
+
+  // Determine how motion vector precision is chosen. The possibilities are:
+  // LAST_MV_DATA: use the mv data from the last coded frame
+  // CURRENT_Q: use the current q as a threshold
+  // QTR_ONLY: use quarter pel precision only.
+  MV_PREC_LOGIC high_precision_mv_usage;
 
   // Trellis (dynamic programming) optimization of quantized values
   TRELLIS_OPT_TYPE optimize_coefficients;

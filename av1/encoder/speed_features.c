@@ -759,6 +759,7 @@ void av1_set_speed_features_framesize_independent(AV1_COMP *cpi, int speed) {
   sf->frame_parameter_update = 1;
   sf->mv.search_method = NSTEP;
   sf->recode_loop = ALLOW_RECODE;
+  sf->high_precision_mv_usage = CURRENT_Q;
   sf->mv.subpel_search_method = SUBPEL_TREE;
   sf->mv.subpel_iters_per_step = 2;
   sf->mv.subpel_force_stop = EIGHTH_PEL;
