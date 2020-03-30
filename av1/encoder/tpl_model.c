@@ -152,7 +152,7 @@ static uint32_t motion_estimation(AV1_COMP *cpi, MACROBLOCK *x,
       x->errorperbit, &cpi->fn_ptr[bsize], 0, mv_sf->subpel_iters_per_step,
       cond_cost_list(cpi, cost_list), NULL, NULL,
 #if CONFIG_FLEX_MVRES
-      0, NULL, MV_SUBPEL_NONE,
+      NULL, MV_SUBPEL_NONE,
 #endif  // CONFIG_FLEX_MVRES
       &distortion, &sse, NULL, NULL, 0, 0, pw, ph, 1, 1);
 

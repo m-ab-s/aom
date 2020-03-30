@@ -66,7 +66,6 @@ int av1_mv_bit_cost_gen(
     const MV *mv, const MV *ref, MvSubpelPrecision frame_precision,
     const int *mvjcost, int *const (*mvcost)[2],
 #if CONFIG_FLEX_MVRES
-    int use_flexmv,
     int (*flex_mv_precision_cost)[MV_SUBPEL_PRECISIONS -
                                   DISALLOW_ONE_DOWN_FLEX_MVRES],
 #endif  // CONFIG_FLEX_MVRES
@@ -75,7 +74,6 @@ int av1_mv_bit_cost_gen2(
     const MV *mv, const MV *ref, MvSubpelPrecision frame_precision,
     const int *mvjcost, int *const (*mvcost)[2],
 #if CONFIG_FLEX_MVRES
-    int use_flexmv,
     int (*flex_mv_precision_cost)[MV_SUBPEL_PRECISIONS -
                                   DISALLOW_ONE_DOWN_FLEX_MVRES],
 #endif  // CONFIG_FLEX_MVRES
@@ -124,7 +122,6 @@ typedef int(fractional_mv_step_fp)(
     int forced_stop,  // 0 - full, 1 - qtr only, 2 - half only
     int iters_per_step, int *cost_list, int *mvjcost, int *(*mvcost)[2],
 #if CONFIG_FLEX_MVRES
-    int use_flex_mv,
     int (*flex_mv_costs)[MV_SUBPEL_PRECISIONS - DISALLOW_ONE_DOWN_FLEX_MVRES],
     MvSubpelPrecision min_precision,
 #endif  // CONFIG_FLEX_MVRES
@@ -180,7 +177,6 @@ int av1_find_best_obmc_sub_pixel_tree_up(
     int error_per_bit, const aom_variance_fn_ptr_t *vfp, int forced_stop,
     int iters_per_step, int *mvjcost, int *(*mvcost)[2],
 #if CONFIG_FLEX_MVRES
-    int use_flex_mv,
     int (*flex_mv_costs)[MV_SUBPEL_PRECISIONS - DISALLOW_ONE_DOWN_FLEX_MVRES],
     MvSubpelPrecision min_precision,
 #endif  // CONFIG_FLEX_MVRES

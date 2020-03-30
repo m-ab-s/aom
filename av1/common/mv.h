@@ -43,9 +43,7 @@ typedef struct mv32 {
 
 enum {
   MV_SUBPEL_NONE = 0,
-#if CONFIG_FLEX_MVRES
   MV_SUBPEL_HALF_PRECISION = 1,
-#endif  // CONFIG_FLEX_MVRES
   MV_SUBPEL_QTR_PRECISION = 2,
   MV_SUBPEL_EIGHTH_PRECISION = 3,
   MV_SUBPEL_PRECISIONS,
@@ -60,6 +58,8 @@ enum {
 #else
 #define DISALLOW_ONE_DOWN_FLEX_MVRES 0
 #endif  // CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES
+#define FLEX_MV_COSTS_SIZE \
+  ((MV_SUBPEL_PRECISIONS) - (DISALLOW_ONE_DOWN_FLEX_MVRES))
 
 #if CONFIG_COMPANDED_MV
 #define COMPANDED_INTMV_THRESH_QTR 96
@@ -346,7 +346,6 @@ static INLINE MvSubpelPrecision get_companded_mv_precision(int comp, int ref) {
 }
 #endif  // CONFIG_COMPANDED_MV
 
-#if CONFIG_FLEX_MVRES
 static INLINE MvSubpelPrecision
 get_mv_precision(const MV mv, MvSubpelPrecision max_precision) {
   (void)max_precision;
@@ -368,6 +367,7 @@ get_mv_precision(const MV mv, MvSubpelPrecision max_precision) {
   return precision;
 }
 
+#if CONFIG_FLEX_MVRES
 static INLINE MvSubpelPrecision
 get_mv_precision2(const MV mv, const MV mv2, MvSubpelPrecision max_precision) {
   return (MvSubpelPrecision)AOMMAX(get_mv_precision(mv, max_precision),
