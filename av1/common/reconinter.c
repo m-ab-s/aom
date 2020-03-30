@@ -601,11 +601,11 @@ static void av1_make_inter_predictor_aux(
                    pre_buf->stride, dst, p_col, p_row, w, h, dst_stride,
                    pd->subsampling_x, pd->subsampling_y, conv_params);
   } else if (is_cur_buf_hbd(xd)) {
-    highbd_inter_predictor(src, src_stride, dst, dst_stride, subpel_params, sf,
-                           w, h, orig_w, orig_h, conv_params, interp_filters,
+    highbd_inter_predictor(src, src_stride, dst, dst_stride, subpel_params, w,
+                           h, orig_w, orig_h, conv_params, interp_filters,
                            is_intrabc, xd->bd);
   } else {
-    inter_predictor(src, src_stride, dst, dst_stride, subpel_params, sf, w, h,
+    inter_predictor(src, src_stride, dst, dst_stride, subpel_params, w, h,
                     orig_w, orig_h, conv_params, interp_filters, is_intrabc);
   }
 }
@@ -1360,14 +1360,12 @@ static void init_wedge_masks() {
     if (wbits == 0) continue;
     for (w = 0; w < wtypes; ++w) {
       mask = get_wedge_mask_inplace(w, 0, bsize);
-      aom_convolve_copy(mask, MASK_MASTER_STRIDE, dst, bw, NULL, 0, NULL, 0, bw,
-                        bh);
+      aom_convolve_copy(mask, MASK_MASTER_STRIDE, dst, bw, bw, bh);
       wedge_params->masks[0][w] = dst;
       dst += bw * bh;
 
       mask = get_wedge_mask_inplace(w, 1, bsize);
-      aom_convolve_copy(mask, MASK_MASTER_STRIDE, dst, bw, NULL, 0, NULL, 0, bw,
-                        bh);
+      aom_convolve_copy(mask, MASK_MASTER_STRIDE, dst, bw, bw, bh);
       wedge_params->masks[1][w] = dst;
       dst += bw * bh;
     }

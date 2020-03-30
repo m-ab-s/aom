@@ -1551,8 +1551,7 @@ void av1_fast_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
       if (best_pred->data == orig_dst.buf) {
         this_mode_pred = &tmp[get_pred_buffer(tmp, 3)];
         aom_convolve_copy(best_pred->data, best_pred->stride,
-                          this_mode_pred->data, this_mode_pred->stride, 0, 0, 0,
-                          0, bw, bh);
+                          this_mode_pred->data, this_mode_pred->stride, bw, bh);
         best_pickmode.best_pred = this_mode_pred;
       }
     }
@@ -1628,7 +1627,7 @@ void av1_fast_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
     PRED_BUFFER *const best_pred = best_pickmode.best_pred;
     if (best_pred->data != orig_dst.buf && is_inter_mode(mi->mode)) {
       aom_convolve_copy(best_pred->data, best_pred->stride, pd->dst.buf,
-                        pd->dst.stride, 0, 0, 0, 0, bw, bh);
+                        pd->dst.stride, bw, bh);
     }
   }
 
