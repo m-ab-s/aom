@@ -1224,6 +1224,28 @@ static INLINE int partition_cdf_length(BLOCK_SIZE bsize) {
     return EXT_PARTITION_TYPES;
 }
 
+#if CONFIG_EXT_RECUR_PARTITIONS
+static INLINE int partition_rec_cdf_length(BLOCK_SIZE bsize) {
+  assert(block_size_wide[bsize] != block_size_high[bsize]);
+
+  switch (bsize) {
+    case BLOCK_4X8:
+    case BLOCK_8X4: return (PARTITION_LONG_SIDE_REC + 1);
+    case BLOCK_64X128:
+    case BLOCK_128X64: return (PARTITION_MULTI_WAY_REC + 1);
+    case BLOCK_8X16:
+    case BLOCK_16X8:
+    case BLOCK_16X32:
+    case BLOCK_32X16:
+    case BLOCK_32X64:
+    case BLOCK_64X32: return PARTITION_TYPES_REC;
+    default:
+      assert(0 && "Invalid splittable rectangular bsize");
+      return PARTITION_INVALID_REC;
+  }
+}
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+
 static INLINE int max_block_wide(const MACROBLOCKD *xd, BLOCK_SIZE bsize,
                                  int plane) {
   assert(bsize < BLOCK_SIZES_ALL);

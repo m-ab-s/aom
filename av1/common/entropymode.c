@@ -406,10 +406,10 @@ static const aom_cdf_prob
     default_partition_rec_cdf[PARTITION_CONTEXTS_REC]
                              [CDF_SIZE(PARTITION_TYPES_REC)] = {
                                // 8x4, 4x8
-                               { AOM_CDF4(19132, 25510, 30392) },
-                               { AOM_CDF4(13928, 19855, 28540) },
-                               { AOM_CDF4(12522, 23679, 28629) },
-                               { AOM_CDF4(9896, 18783, 25853) },
+                               { AOM_CDF2(19132) },
+                               { AOM_CDF2(13928) },
+                               { AOM_CDF2(12522) },
+                               { AOM_CDF2(9896) },
                                // 16x8, 8x16
                                { AOM_CDF4(19132, 25510, 30392) },
                                { AOM_CDF4(13928, 19855, 28540) },
@@ -426,10 +426,10 @@ static const aom_cdf_prob
                                { AOM_CDF4(12522, 23679, 28629) },
                                { AOM_CDF4(9896, 18783, 25853) },
                                // 128x64, 64x128
-                               { AOM_CDF4(19132, 25510, 30392) },
-                               { AOM_CDF4(13928, 19855, 28540) },
-                               { AOM_CDF4(12522, 23679, 28629) },
-                               { AOM_CDF4(9896, 18783, 25853) },
+                               { AOM_CDF3(19132, 25510) },
+                               { AOM_CDF3(13928, 19855) },
+                               { AOM_CDF3(12522, 23679) },
+                               { AOM_CDF3(9896, 18783) },
                              };
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 

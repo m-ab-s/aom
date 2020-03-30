@@ -1495,7 +1495,7 @@ static PARTITION_TYPE read_partition(MACROBLOCKD *xd, int mi_row, int mi_col,
   } else {
     aom_cdf_prob *partition_rec_cdf = ec_ctx->partition_rec_cdf[ctx];
     const PARTITION_TYPE_REC symbol = (PARTITION_TYPE_REC)aom_read_symbol(
-        r, partition_rec_cdf, PARTITION_TYPES_REC, ACCT_STR);
+        r, partition_rec_cdf, partition_rec_cdf_length(bsize), ACCT_STR);
 
     return get_partition_from_symbol_rec_block(bsize, symbol);
   }

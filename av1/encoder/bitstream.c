@@ -2038,7 +2038,7 @@ static void write_partition(const AV1_COMMON *const cm,
     const PARTITION_TYPE_REC symbol =
         get_symbol_from_partition_rec_block(bsize, p);
     aom_write_symbol(w, symbol, ec_ctx->partition_rec_cdf[ctx],
-                     PARTITION_TYPES_REC);
+                     partition_rec_cdf_length(bsize));
   }
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 }

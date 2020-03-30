@@ -1997,7 +1997,8 @@ static void encode_sb(const AV1_COMP *const cpi, ThreadData *td,
 
       if (tile_data->allow_update_cdf) {
         FRAME_CONTEXT *fc = xd->tile_ctx;
-        update_cdf(fc->partition_rec_cdf[ctx], p_rec, PARTITION_TYPES_REC);
+        update_cdf(fc->partition_rec_cdf[ctx], p_rec,
+                   partition_rec_cdf_length(bsize));
       }
     }
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
