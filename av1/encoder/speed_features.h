@@ -285,7 +285,7 @@ typedef enum {
 } INTERP_FILTER_MASK;
 
 enum {
-  LAST_MV_DATA,  // Not implemented yet
+  LAST_MV_DATA,
   CURRENT_Q,
   QTR_ONLY,
 } UENUM1BYTE(MV_PREC_LOGIC);

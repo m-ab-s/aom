@@ -22,20 +22,6 @@
 #include "aom_dsp/aom_dsp_common.h"
 #include "aom_ports/bitops.h"
 
-// If n != 0, returns the floor of log base 2 of n. If n == 0, returns 0.
-static INLINE uint8_t log_in_base_2(unsigned int n) {
-  // get_msb() is only valid when n != 0.
-  return n == 0 ? 0 : get_msb(n);
-}
-
-static INLINE MV_CLASS_TYPE get_mv_class(int z, int *offset) {
-  const MV_CLASS_TYPE c = (z >= CLASS0_SIZE * 4096)
-                              ? MV_CLASS_10
-                              : (MV_CLASS_TYPE)log_in_base_2(z >> 3);
-  if (offset) *offset = z - mv_class_base(c);
-  return c;
-}
-
 static void update_mv_component_stats(int comp, int ref, nmv_component *mvcomp,
                                       MvSubpelPrecision precision) {
   (void)ref;
@@ -43,7 +29,7 @@ static void update_mv_component_stats(int comp, int ref, nmv_component *mvcomp,
   int offset;
   const int sign = comp < 0;
   const int mag = sign ? -comp : comp;
-  const int mv_class = get_mv_class(mag - 1, &offset);
+  const int mv_class = av1_get_mv_class(mag - 1, &offset);
   const int d = offset >> 3;         // int mv data
   const int fr = (offset >> 1) & 3;  // fractional mv data
   const int hp = offset & 1;         // high precision mv data
@@ -118,7 +104,7 @@ static void encode_mv_component(aom_writer *w, int comp, int ref,
   int offset;
   const int sign = comp < 0;
   const int mag = sign ? -comp : comp;
-  const int mv_class = get_mv_class(mag - 1, &offset);
+  const int mv_class = av1_get_mv_class(mag - 1, &offset);
   const int d = offset >> 3;         // int mv data
   const int fr = (offset >> 1) & 3;  // fractional mv data
   const int hp = offset & 1;         // high precision mv data
@@ -222,7 +208,7 @@ static void build_nmv_component_cost_table(int *mvcost,
     }
 #endif  // CONFIG_DEBUG && CONFIG_FLEX_MVRES
     z = v - 1;
-    c = get_mv_class(z, &o);
+    c = av1_get_mv_class(z, &o);
     cost += class_cost[c];
     d = (o >> 3);     /* int mv data */
     f = (o >> 1) & 3; /* fractional pel mv data */

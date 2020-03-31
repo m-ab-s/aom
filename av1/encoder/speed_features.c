@@ -241,6 +241,7 @@ static void set_good_speed_features_framesize_independent(
   const int is_boosted_arf2_bwd_type =
       boosted || cpi->refresh_bwd_ref_frame || cpi->refresh_alt2_ref_frame;
 
+  if (!cpi->oxcf.large_scale_tile) sf->high_precision_mv_usage = LAST_MV_DATA;
   // Speed 0 for all speed features that give neutral coding performance change.
   sf->reduce_inter_modes = 1;
   sf->prune_ext_partition_types_search_level = 1;
@@ -402,6 +403,7 @@ static void set_good_speed_features_framesize_independent(
   }
 
   if (speed >= 4) {
+    sf->high_precision_mv_usage = CURRENT_Q;
     sf->selective_ref_frame = 4;
     sf->use_intra_txb_hash = 0;
     sf->tx_type_search.fast_intra_tx_type_search = 1;

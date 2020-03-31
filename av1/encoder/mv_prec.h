@@ -10,6 +10,18 @@
  */
 #include "av1/encoder/encoder.h"
 
+#if !CONFIG_REALTIME_ONLY
+void av1_collect_mv_stats(AV1_COMP *cpi, int current_q);
+
+static AOM_INLINE int av1_frame_allows_smart_mv(const AV1_COMP *cpi) {
+  const int gf_group_index = cpi->gf_group.index;
+  const int gf_update_type = cpi->gf_group.update_type[gf_group_index];
+  return !frame_is_intra_only(&cpi->common) &&
+         !(gf_update_type == INTNL_OVERLAY_UPDATE ||
+           gf_update_type == OVERLAY_UPDATE);
+}
+#endif  // !CONFIG_REALTIME_ONLY
+
 static AOM_INLINE void av1_set_mv_precision(AV1_COMP *cpi,
                                             MvSubpelPrecision precision,
                                             int cur_frame_force_integer_mv) {
@@ -26,9 +38,7 @@ static AOM_INLINE void av1_set_mv_precision(AV1_COMP *cpi,
   if (cur_frame_force_integer_mv) {
     cpi->common.fr_mv_precision = MV_SUBPEL_NONE;
   } else {
-    cpi->common.fr_mv_precision = cpi->sf.high_precision_mv_usage == QTR_ONLY
-                                      ? MV_SUBPEL_QTR_PRECISION
-                                      : precision;
+    cpi->common.fr_mv_precision = precision;
   }
 
 #if CONFIG_SB_FLEX_MVRES
