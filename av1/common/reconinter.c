@@ -345,12 +345,12 @@ void av1_opfl_mv_refinement_lowbd(const uint8_t *p0, int pstride0,
   const int64_t Px = (sv2 * suw - suv * svw) * (1 << OPFL_REFINE_MV_PREC_BITS);
   const int64_t Py = (su2 * svw - suv * suw) * (1 << OPFL_REFINE_MV_PREC_BITS);
 
-  *vx0 = DIVIDE_AND_ROUND_SIGNED(Px, D);
-  *vy0 = DIVIDE_AND_ROUND_SIGNED(Py, D);
+  *vx0 = (int)DIVIDE_AND_ROUND_SIGNED(Px, D);
+  *vy0 = (int)DIVIDE_AND_ROUND_SIGNED(Py, D);
   const int tx1 = -(*vx0) * d1;
   const int ty1 = -(*vy0) * d1;
-  *vx1 = DIVIDE_AND_ROUND_SIGNED(tx1, d0);
-  *vy1 = DIVIDE_AND_ROUND_SIGNED(ty1, d0);
+  *vx1 = (int)DIVIDE_AND_ROUND_SIGNED(tx1, d0);
+  *vy1 = (int)DIVIDE_AND_ROUND_SIGNED(ty1, d0);
 
   const int max_value = 1 << (OPFL_REFINE_MV_PREC_BITS - max_prec_bits);
   *vx0 = clamp(*vx0, -max_value, max_value);
@@ -387,12 +387,12 @@ void av1_opfl_mv_refinement_highbd(const uint16_t *p0, int pstride0,
   const int64_t Px = (sv2 * suw - suv * svw) * (1 << OPFL_REFINE_MV_PREC_BITS);
   const int64_t Py = (su2 * svw - suv * suw) * (1 << OPFL_REFINE_MV_PREC_BITS);
 
-  *vx0 = DIVIDE_AND_ROUND_SIGNED(Px, D);
-  *vy0 = DIVIDE_AND_ROUND_SIGNED(Py, D);
+  *vx0 = (int)DIVIDE_AND_ROUND_SIGNED(Px, D);
+  *vy0 = (int)DIVIDE_AND_ROUND_SIGNED(Py, D);
   const int tx1 = -(*vx0) * d1;
   const int ty1 = -(*vy0) * d1;
-  *vx1 = DIVIDE_AND_ROUND_SIGNED(tx1, d0);
-  *vy1 = DIVIDE_AND_ROUND_SIGNED(ty1, d0);
+  *vx1 = (int)DIVIDE_AND_ROUND_SIGNED(tx1, d0);
+  *vy1 = (int)DIVIDE_AND_ROUND_SIGNED(ty1, d0);
 
   const int max_value = 1 << (OPFL_REFINE_MV_PREC_BITS - max_prec_bits);
   *vx0 = clamp(*vx0, -max_value, max_value);
