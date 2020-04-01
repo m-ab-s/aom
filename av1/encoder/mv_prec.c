@@ -580,13 +580,13 @@ static MvSubpelPrecision determine_frame_mv_precision(const AV1_COMP *cpi,
   return MV_SUBPEL_QTR_PRECISION;
 }
 
-#if CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES
+#if CONFIG_FLEX_MVRES
 #define FLEX_MV_PRECISION_QTHRESH 256  // Reduce to turn off at low quality
-static int determine_flex_mv_precision(const AV1_COMP *cpi, int q) {
+static int determine_pb_flex_mv_precision(const AV1_COMP *cpi, int q) {
   return (cpi->common.fr_mv_precision >= MV_SUBPEL_QTR_PRECISION &&
           !is_stat_generation_stage(cpi) && q <= FLEX_MV_PRECISION_QTHRESH);
 }
-#endif  // CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES
+#endif  // CONFIG_FLEX_MVRES
 
 void av1_pick_and_set_high_precision_mv(AV1_COMP *cpi, int q) {
   MvSubpelPrecision precision = cpi->common.cur_frame_force_integer_mv
@@ -609,7 +609,9 @@ void av1_pick_and_set_high_precision_mv(AV1_COMP *cpi, int q) {
 
   av1_set_mv_precision(cpi, precision, cpi->common.cur_frame_force_integer_mv);
 
-#if CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES
-  cpi->common.use_pb_mv_precision = determine_flex_mv_precision(cpi, q);
-#endif  // CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES
+#if CONFIG_FLEX_MVRES
+  cpi->common.use_sb_mv_precision = ENABLE_SB_RES;
+  cpi->common.use_pb_mv_precision =
+      ENABLE_PB_RES ? determine_pb_flex_mv_precision(cpi, q) : 0;
+#endif  // CONFIG_FLEX_MVRES
 }

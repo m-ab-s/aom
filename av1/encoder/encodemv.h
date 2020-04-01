@@ -68,10 +68,10 @@ static INLINE int av1_check_newmv_joint_nonzero(const AV1_COMMON *cm,
   MB_MODE_INFO *mbmi = xd->mi[0];
   const PREDICTION_MODE this_mode = mbmi->mode;
   MvSubpelPrecision precision = mbmi->max_mv_precision;
-#if CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES
+#if CONFIG_FLEX_MVRES
   if (is_pb_mv_precision_active(cm, this_mode, mbmi->max_mv_precision))
     precision = av1_get_mbmi_mv_precision(cm, mbmi);
-#endif  // CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES
+#endif  // CONFIG_FLEX_MVRES
   if (this_mode == NEW_NEWMV) {
     int_mv ref_mv_0 = av1_get_ref_mv(x, 0);
     int_mv ref_mv_1 = av1_get_ref_mv(x, 1);

@@ -2843,9 +2843,6 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
 
   av1_reset_segment_features(cm);
   av1_set_mv_precision(cpi, MV_SUBPEL_EIGHTH_PRECISION, 0);
-#if CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES
-  cm->use_pb_mv_precision = 0;
-#endif  // CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES
 
   set_rc_buffer_sizes(rc, &cpi->oxcf);
 
@@ -4871,7 +4868,7 @@ static void fix_interp_filter(InterpFilter *const interp_filter,
   }
 }
 
-#if CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES
+#if CONFIG_FLEX_MVRES
 static void fix_use_flex_mv_precision(AV1_COMP *const cpi) {
   AV1_COMMON *const cm = &cpi->common;
   if (!cm->use_pb_mv_precision) return;
@@ -4889,7 +4886,7 @@ static void fix_use_flex_mv_precision(AV1_COMP *const cpi) {
   // Turn off use_flex_mv_flag if not used in the frame
   if (reduced_count == 0) cm->use_pb_mv_precision = 0;
 }
-#endif  // CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES
+#endif  // CONFIG_FLEX_MVRES
 
 static void finalize_encoded_frame(AV1_COMP *const cpi) {
   AV1_COMMON *const cm = &cpi->common;
@@ -4937,9 +4934,9 @@ static void finalize_encoded_frame(AV1_COMP *const cpi) {
   }
 
   fix_interp_filter(&cm->interp_filter, cpi->td.counts);
-#if CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES
+#if CONFIG_FLEX_MVRES
   fix_use_flex_mv_precision(cpi);
-#endif  // CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES
+#endif  // CONFIG_FLEX_MVRES
 }
 
 static int get_regulated_q_overshoot(AV1_COMP *const cpi, int q_low, int q_high,

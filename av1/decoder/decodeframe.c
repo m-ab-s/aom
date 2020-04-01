@@ -1502,7 +1502,7 @@ static PARTITION_TYPE read_partition(MACROBLOCKD *xd, int mi_row, int mi_col,
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 }
 
-#if CONFIG_SB_FLEX_MVRES
+#if CONFIG_FLEX_MVRES
 static MvSubpelPrecision av1_read_sb_mv_precision(AV1_COMMON *const cm,
                                                   MACROBLOCKD *const xd,
                                                   aom_reader *r) {
@@ -1514,7 +1514,7 @@ static MvSubpelPrecision av1_read_sb_mv_precision(AV1_COMMON *const cm,
       cm->fr_mv_precision + 1, ACCT_STR);
   return (MvSubpelPrecision)(max_precision - down);
 }
-#endif
+#endif  // CONFIG_FLEX_MVRES
 
 // Read the superblock level parameters
 static void read_sb_info(SB_INFO *sbi, AV1Decoder *const pbi,
@@ -1522,7 +1522,7 @@ static void read_sb_info(SB_INFO *sbi, AV1Decoder *const pbi,
   AV1_COMMON *const cm = &pbi->common;
   if (!frame_is_intra_only(cm)) {
     sbi->sb_mv_precision = cm->fr_mv_precision;
-#if CONFIG_SB_FLEX_MVRES
+#if CONFIG_FLEX_MVRES
     if (cm->use_sb_mv_precision) {
       MACROBLOCKD *const xd = &td->xd;
       sbi->sb_mv_precision = av1_read_sb_mv_precision(cm, xd, reader);
@@ -1530,7 +1530,7 @@ static void read_sb_info(SB_INFO *sbi, AV1Decoder *const pbi,
 #else
     (void)reader;
     (void)td;
-#endif  // CONFIG_SB_FLEX_MVRES
+#endif  // CONFIG_FLEX_MVRES
   }
 }
 
@@ -5370,26 +5370,22 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 
       if (cm->cur_frame_force_integer_mv) {
         cm->fr_mv_precision = MV_SUBPEL_NONE;
-#if CONFIG_SB_FLEX_MVRES
+#if CONFIG_FLEX_MVRES
         cm->use_sb_mv_precision = 0;
-#elif CONFIG_FLEX_MVRES
         cm->use_pb_mv_precision = 0;
 #endif  // CONFIG_FLEX_MVRES
       } else {
-#if CONFIG_SB_FLEX_MVRES
-        cm->fr_mv_precision = (MvSubpelPrecision)aom_rb_read_literal(rb, 2);
-        if (cm->fr_mv_precision == MV_SUBPEL_NONE) {
-          cm->use_sb_mv_precision = 0;
-        } else {
-          cm->use_sb_mv_precision = aom_rb_read_bit(rb);
-        }
-#else
         cm->fr_mv_precision = aom_rb_read_bit(rb) ? MV_SUBPEL_EIGHTH_PRECISION
                                                   : MV_SUBPEL_QTR_PRECISION;
 #if CONFIG_FLEX_MVRES
-        cm->use_pb_mv_precision = aom_rb_read_bit(rb);
+        if (cm->fr_mv_precision == MV_SUBPEL_NONE) {
+          cm->use_sb_mv_precision = 0;
+          cm->use_pb_mv_precision = 0;
+        } else {
+          cm->use_sb_mv_precision = aom_rb_read_bit(rb);
+          cm->use_pb_mv_precision = aom_rb_read_bit(rb);
+        }
 #endif  // CONFIG_FLEX_MVRES
-#endif  // CONFIG_SB_FLEX_MVRES
       }
       cm->interp_filter = read_frame_interp_filter(rb);
       cm->switchable_motion_mode = aom_rb_read_bit(rb);

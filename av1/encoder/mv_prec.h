@@ -41,14 +41,11 @@ static AOM_INLINE void av1_set_mv_precision(AV1_COMP *cpi,
     cpi->common.fr_mv_precision = precision;
   }
 
-#if CONFIG_SB_FLEX_MVRES
+#if CONFIG_FLEX_MVRES
   AV1_COMMON *cm = &cpi->common;
-  if (frame_is_intra_only(cm) || cm->fr_mv_precision == MV_SUBPEL_NONE) {
-    cm->use_sb_mv_precision = 0;
-  } else {
-    cm->use_sb_mv_precision = 1;
-  }
-#endif  // CONFIG_SB_FLEX_MVRES
+  cm->use_sb_mv_precision = 0;
+  cm->use_pb_mv_precision = 0;
+#endif  // CONFIG_FLEX_MVRES
 }
 
 void av1_pick_and_set_high_precision_mv(AV1_COMP *cpi, int q);

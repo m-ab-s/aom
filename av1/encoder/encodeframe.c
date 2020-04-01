@@ -505,7 +505,7 @@ static void update_global_motion_used(PREDICTION_MODE mode, BLOCK_SIZE bsize,
   }
 }
 
-#if CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES
+#if CONFIG_FLEX_MVRES
 static void update_reduced_mv_precision_used(const AV1_COMMON *const cm,
                                              const MB_MODE_INFO *mbmi,
                                              RD_COUNTS *rdc) {
@@ -515,7 +515,7 @@ static void update_reduced_mv_precision_used(const AV1_COMMON *const cm,
   rdc->reduced_mv_precision_used[mbmi->max_mv_precision -
                                  mbmi->pb_mv_precision]++;
 }
-#endif  // CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES
+#endif  // CONFIG_FLEX_MVRES
 
 static void reset_tx_size(MACROBLOCK *x, MB_MODE_INFO *mbmi,
                           const TX_MODE tx_mode) {
@@ -640,9 +640,9 @@ static void update_state(const AV1_COMP *const cpi, ThreadData *td,
       // TODO(sarahparker): global motion stats need to be handled per-tile
       // to be compatible with tile-based threading.
       update_global_motion_used(mi_addr->mode, bsize, mi_addr, rdc);
-#if CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES
+#if CONFIG_FLEX_MVRES
       update_reduced_mv_precision_used(cm, mi_addr, rdc);
-#endif  // CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES
+#endif  // CONFIG_FLEX_MVRES
     }
 
     if (cm->interp_filter == SWITCHABLE &&
@@ -904,7 +904,7 @@ static void update_drl_index_stats(FRAME_CONTEXT *fc, FRAME_COUNTS *counts,
 #endif  // !CONFIG_ENTROPY_STATS
   assert(have_drl_index(mbmi->mode));
   uint8_t ref_frame_type = av1_ref_frame_type(mbmi->ref_frame);
-#if CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES && ADJUST_DRL_FLEX_MVRES
+#if CONFIG_FLEX_MVRES && ADJUST_DRL_FLEX_MVRES
   if (mbmi->pb_mv_precision < mbmi->max_mv_precision &&
       (mbmi->mode == NEWMV || mbmi->mode == NEW_NEWMV)) {
     assert(mbmi->ref_mv_idx_adj < mbmi_ext->ref_mv_count_adj);
@@ -918,7 +918,7 @@ static void update_drl_index_stats(FRAME_CONTEXT *fc, FRAME_COUNTS *counts,
     }
     return;
   }
-#endif  // CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES && ADJUST_DRL_FLEX_MVRES
+#endif  // CONFIG_FLEX_MVRES && ADJUST_DRL_FLEX_MVRES
   assert(mbmi->ref_mv_idx < MAX_DRL_BITS + 1);
   int range = AOMMIN(mbmi_ext->ref_mv_count[ref_frame_type] - 1, MAX_DRL_BITS);
   for (int idx = 0; idx < range; ++idx) {
@@ -1726,9 +1726,7 @@ static void update_stats(const AV1_COMMON *const cm, TileDataEnc *tile_data,
                                allow_update_cdf);
       }
       if (have_newmv_in_inter_mode(mbmi->mode)) {
-#if CONFIG_SB_FLEX_MVRES
-        assert(mbmi->pb_mv_precision == xd->sbi->sb_mv_precision);
-#elif CONFIG_FLEX_MVRES
+#if CONFIG_FLEX_MVRES
         if (allow_update_cdf &&
             is_pb_mv_precision_active(cm, mbmi->mode, mbmi->max_mv_precision)) {
           const int down_ctx = av1_get_pb_mv_precision_down_context(cm, xd);
@@ -1749,7 +1747,7 @@ static void update_stats(const AV1_COMMON *const cm, TileDataEnc *tile_data,
                      down, nsymbs);
         }
         assert(mbmi->pb_mv_precision == av1_get_mbmi_mv_precision(cm, mbmi));
-#endif  // CONFIG_SB_FLEX_MVRES
+#endif  // CONFIG_FLEX_MVRES
         if (new_mv) {
           for (int ref = 0; ref < 1 + has_second_ref(mbmi); ++ref) {
             const int_mv ref_mv = av1_get_ref_mv(x, ref);
@@ -1767,10 +1765,7 @@ static void update_stats(const AV1_COMMON *const cm, TileDataEnc *tile_data,
       }
 #else
       if (have_newmv_in_inter_mode(mbmi->mode)) {
-#if CONFIG_SB_FLEX_MVRES
-        assert(mbmi->pb_mv_precision == mbmi->max_mv_precision);
-        assert(mbmi->max_mv_precision == xd->sbi->sb_mv_precision);
-#elif CONFIG_FLEX_MVRES
+#if CONFIG_FLEX_MVRES
         assert(mbmi->pb_mv_precision <= mbmi->max_mv_precision);
         assert(mbmi->max_mv_precision == xd->sbi->sb_mv_precision);
         if (allow_update_cdf &&
@@ -1793,7 +1788,7 @@ static void update_stats(const AV1_COMMON *const cm, TileDataEnc *tile_data,
                      down, nsymbs);
         }
         assert(mbmi->pb_mv_precision == av1_get_mbmi_mv_precision(cm, mbmi));
-#endif  // CONFIG_SB_FLEX_MVRES
+#endif  // CONFIG_FLEX_MVRES
 
         if (new_mv) {
           for (int ref = 0; ref < 1 + has_second_ref(mbmi); ++ref) {
@@ -5703,7 +5698,7 @@ static void avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
   AVERAGE_CDF(ctx_left->switchable_interp_cdf, ctx_tr->switchable_interp_cdf,
               SWITCHABLE_FILTERS);
-#if CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES
+#if CONFIG_FLEX_MVRES
   for (int p = MV_SUBPEL_QTR_PRECISION; p < MV_SUBPEL_PRECISIONS; ++p) {
     for (int j = 0; j < MV_PREC_DOWN_CONTEXTS; ++j) {
 #if DISALLOW_ONE_DOWN_FLEX_MVRES == 2
@@ -5724,7 +5719,7 @@ static void avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
 #endif  // DISALLOW_ONE_DOWN_FLEX_MVRES
     }
   }
-#endif  // CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES
+#endif  // CONFIG_FLEX_MVRES
   AVERAGE_CDF(ctx_left->angle_delta_cdf, ctx_tr->angle_delta_cdf,
               2 * MAX_ANGLE_DELTA + 1);
 #if CONFIG_NEW_TX_PARTITION
@@ -6017,6 +6012,7 @@ static AOM_INLINE void encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
   const BLOCK_SIZE sb_size = cm->seq_params.sb_size;
   const int num_planes = av1_num_planes(cm);
   const int mib_size_log2 = cm->seq_params.mib_size_log2;
+  SB_INFO *sbi = x->e_mbd.sbi;
 
   SIMPLE_MOTION_DATA_TREE *sms_root =
       td->sms_root[mib_size_log2 - MIN_MIB_SIZE_LOG2];
@@ -6057,14 +6053,14 @@ static AOM_INLINE void encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
 
     const int num_passes = cpi->oxcf.sb_multipass_unit_test ? 2 : 1;
 
-    x->e_mbd.sbi->sb_mv_precision = cm->fr_mv_precision;
-    if (num_passes == 1) {
-#if CONFIG_SB_FLEX_MVRES
+    sbi->sb_mv_precision = cm->fr_mv_precision;
+#if CONFIG_FLEX_MVRES
+    MvSubpelPrecision best_prec = cm->fr_mv_precision;
+    if (cm->use_sb_mv_precision) {
       SB_FIRST_PASS_STATS sb_fp_stats;
       backup_sb_state(&sb_fp_stats, cpi, td, tile_data, mi_row, mi_col);
 
       int64_t best_rdc = INT64_MAX;
-      MvSubpelPrecision best_prec = MV_SUBPEL_NONE;
       if (!frame_is_intra_only(cm)) {
         for (MvSubpelPrecision mv_prec = MV_SUBPEL_NONE;
              mv_prec <= cm->fr_mv_precision; mv_prec++) {
@@ -6075,7 +6071,7 @@ static AOM_INLINE void encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
             restore_sb_state(&sb_fp_stats, cpi, td, tile_data, mi_row, mi_col);
           }
 
-          x->e_mbd.sbi->sb_mv_precision = mv_prec;
+          sbi->sb_mv_precision = mv_prec;
 
           rd_pick_partition(cpi, td, tile_data, tp, mi_row, mi_col, sb_size,
                             max_sq_size, min_sq_size, &dummy_rdc, dummy_rdc,
@@ -6094,10 +6090,11 @@ static AOM_INLINE void encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
         reset_mbmi(&cpi->common, mi_row, mi_col);
         restore_sb_state(&sb_fp_stats, cpi, td, tile_data, mi_row, mi_col);
       }
+    }
+    sbi->sb_mv_precision = best_prec;
+#endif
 
-      x->e_mbd.sbi->sb_mv_precision = best_prec;
-#endif  // CONFIG_SB_FLEX_MVRES
-
+    if (num_passes == 1) {
       rd_pick_partition(cpi, td, tile_data, tp, mi_row, mi_col, sb_size,
                         max_sq_size, min_sq_size, &dummy_rdc, dummy_rdc,
                         pc_root, sms_root, NULL, SB_WET_PASS);
@@ -6881,9 +6878,9 @@ static void encode_frame_internal(AV1_COMP *cpi) {
 #endif
   av1_zero(rdc->global_motion_used);
   av1_zero(cpi->gmparams_cost);
-#if CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES
+#if CONFIG_FLEX_MVRES
   av1_zero(rdc->reduced_mv_precision_used);
-#endif  // CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES
+#endif  // CONFIG_FLEX_MVRES
   if (cpi->common.current_frame.frame_type == INTER_FRAME && cpi->source &&
       cpi->oxcf.enable_global_motion && !cpi->global_motion_search_done) {
     YV12_BUFFER_CONFIG *ref_buf[REF_FRAMES];

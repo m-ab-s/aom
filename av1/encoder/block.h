@@ -107,11 +107,11 @@ typedef struct {
   int cb_offset;
   int16_t mode_context[MODE_CTX_REF_FRAMES];
   uint8_t ref_mv_count[MODE_CTX_REF_FRAMES];
-#if CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES
+#if CONFIG_FLEX_MVRES
   CANDIDATE_MV ref_mv_stack_adj[MAX_REF_MV_STACK_SIZE];
   uint16_t weight_adj[MAX_REF_MV_STACK_SIZE];
   uint8_t ref_mv_count_adj;
-#endif  // CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES
+#endif  // CONFIG_FLEX_MVRES
 } MB_MODE_INFO_EXT;
 
 typedef struct {
@@ -410,21 +410,18 @@ struct macroblock {
   int adapt_filter_intra_mode_cost[USED_ADAPT_FILTER_INTRA_MODES];
 #endif  // CONFIG_ADAPT_FILTER_INTRA
   int switchable_interp_costs[SWITCHABLE_FILTER_CONTEXTS][SWITCHABLE_FILTERS];
-#if CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES
+#if CONFIG_FLEX_MVRES
   // costs are based on precision down from frame level mv precision
 #if DISALLOW_ONE_DOWN_FLEX_MVRES == 2
-  int pb_mv_precision_costs[MV_PREC_DOWN_CONTEXTS]
-                           [MV_SUBPEL_PRECISIONS - MV_SUBPEL_QTR_PRECISION][2];
+  int pb_mv_precision_costs[MV_PREC_DOWN_CONTEXTS][FLEX_MV_COSTS_SIZE][2];
 #elif DISALLOW_ONE_DOWN_FLEX_MVRES == 1
-  int pb_mv_precision_costs[MV_PREC_DOWN_CONTEXTS]
-                           [MV_SUBPEL_PRECISIONS - MV_SUBPEL_QTR_PRECISION]
+  int pb_mv_precision_costs[MV_PREC_DOWN_CONTEXTS][FLEX_MV_COSTS_SIZE]
                            [MV_SUBPEL_PRECISIONS - 1];
 #else
-  int pb_mv_precision_costs[MV_PREC_DOWN_CONTEXTS]
-                           [MV_SUBPEL_PRECISIONS - MV_SUBPEL_QTR_PRECISION]
+  int pb_mv_precision_costs[MV_PREC_DOWN_CONTEXTS][FLEX_MV_COSTS_SIZE]
                            [MV_SUBPEL_PRECISIONS];
 #endif  // DISALLOW_ONE_DOWN_FLEX_MVRES
-#endif  // CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES
+#endif  // CONFIG_FLEX_MVRES
   int partition_cost[PARTITION_CONTEXTS][EXT_PARTITION_TYPES];
 #if CONFIG_EXT_RECUR_PARTITIONS
   int partition_rec_cost[PARTITION_CONTEXTS_REC][PARTITION_TYPES_REC];

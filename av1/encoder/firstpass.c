@@ -333,9 +333,8 @@ void av1_first_pass(AV1_COMP *cpi, const int64_t ts_duration) {
   MV lastmv = kZeroMv;
   TWO_PASS *twopass = &cpi->twopass;
   int recon_y_stride, src_y_stride, recon_uv_stride, uv_mb_height;
-#if CONFIG_SB_FLEX_MVRES
+#if CONFIG_FLEX_MVRES
   assert(!cm->use_sb_mv_precision);
-#elif CONFIG_FLEX_MVRES
   assert(!cm->use_pb_mv_precision);
 #endif  // CONFIG_FLEX_MVRES
 

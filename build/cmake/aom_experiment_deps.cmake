@@ -37,6 +37,10 @@ macro(fix_experiment_configs)
     change_config_and_warn(CONFIG_FLEX_MVRES 1 CONFIG_SB_FLEX_MVRES)
   endif()
 
+  if(CONFIG_PB_FLEX_MVRES)
+    change_config_and_warn(CONFIG_FLEX_MVRES 1 CONFIG_PB_FLEX_MVRES)
+  endif()
+
   if(CONFIG_MODE_DEP_NONSEP_SEC_INTRA_TX)
     change_config_and_warn(CONFIG_MODE_DEP_NONSEP_INTRA_TX 1
                            CONFIG_MODE_DEP_NONSEP_SEC_INTRA_TX)

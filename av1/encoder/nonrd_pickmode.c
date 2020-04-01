@@ -196,16 +196,13 @@ static int combined_motion_search(AV1_COMP *cpi, MACROBLOCK *x,
   mvp_full.col = tmp_mv->as_mv.col * 8;
 
   const MvSubpelPrecision max_mv_precision = mi->max_mv_precision;
-#if CONFIG_SB_FLEX_MVRES
-  int(*mv_precision_cost)[MV_SUBPEL_PRECISIONS - DISALLOW_ONE_DOWN_FLEX_MVRES] =
-      NULL;
-#elif CONFIG_FLEX_MVRES
+#if CONFIG_FLEX_MVRES
   const int use_flex_mv =
       is_pb_mv_precision_active(cm, mi->mode, max_mv_precision);
   const int down_ctx = av1_get_pb_mv_precision_down_context(cm, xd);
-  int(*mv_precision_cost)[MV_SUBPEL_PRECISIONS - DISALLOW_ONE_DOWN_FLEX_MVRES] =
+  int(*mv_precision_cost)[FLEX_MV_COSTS_SIZE] =
       use_flex_mv ? x->pb_mv_precision_costs[down_ctx] : NULL;
-#endif  // CONFIG_SB_FLEX_MVRES
+#endif  // CONFIG_FLEX_MVRES
 
   *rate_mv = av1_mv_bit_cost_gen(&mvp_full, &ref_mv, max_mv_precision,
                                  x->nmv_vec_cost, x->nmvcost,
@@ -276,17 +273,13 @@ static int search_new_mv(AV1_COMP *cpi, MACROBLOCK *x,
     MV ref_mv = av1_get_ref_mv(x, 0).as_mv;
 
     const MvSubpelPrecision max_mv_precision = mi->max_mv_precision;
-#if CONFIG_SB_FLEX_MVRES
-    int(*mv_precision_cost)[MV_SUBPEL_PRECISIONS -
-                            DISALLOW_ONE_DOWN_FLEX_MVRES] = NULL;
-#elif CONFIG_FLEX_MVRES
+#if CONFIG_FLEX_MVRES
     const int use_flex_mv =
         is_pb_mv_precision_active(cm, mi->mode, max_mv_precision);
     const int down_ctx = av1_get_pb_mv_precision_down_context(cm, xd);
-    int(*mv_precision_cost)[MV_SUBPEL_PRECISIONS -
-                            DISALLOW_ONE_DOWN_FLEX_MVRES] =
+    int(*mv_precision_cost)[FLEX_MV_COSTS_SIZE] =
         use_flex_mv ? x->pb_mv_precision_costs[down_ctx] : NULL;
-#endif  // CONFIG_SB_FLEX_MVRES
+#endif  // CONFIG_FLEX_MVRES
     *rate_mv =
         av1_mv_bit_cost_gen(&frame_mv[NEWMV][ref_frame].as_mv, &ref_mv,
                             max_mv_precision, x->nmv_vec_cost, x->nmvcost,
