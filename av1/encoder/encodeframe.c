@@ -3232,8 +3232,27 @@ static bool rd_pick_partition(
   const int pl = is_block_splittable
                      ? partition_plane_context(xd, mi_row, mi_col, bsize)
                      : 0;
+#if CONFIG_EXT_RECUR_PARTITIONS
+  int *partition_cost;
+  int partition_cost_table[EXT_PARTITION_TYPES];
+  if (is_square_block(bsize)) {
+    partition_cost = pl >= 0 ? x->partition_cost[pl] : x->partition_cost[0];
+  } else {
+    int tmp_pl = pl >= 0 ? pl : 0;
+    for (PARTITION_TYPE p = PARTITION_NONE; p < EXT_PARTITION_TYPES; ++p) {
+      PARTITION_TYPE_REC p_rec = get_symbol_from_partition_rec_block(bsize, p);
+
+      if (p_rec != PARTITION_INVALID_REC)
+        partition_cost_table[p] = x->partition_rec_cost[tmp_pl][p_rec];
+      else
+        partition_cost_table[p] = INT_MAX;
+    }
+    partition_cost = partition_cost_table;
+  }
+#else
   const int *partition_cost =
       pl >= 0 ? x->partition_cost[pl] : x->partition_cost[0];
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
   int do_rectangular_split = cpi->oxcf.enable_rect_partitions;
   int64_t cur_none_rd = 0;
