@@ -12227,7 +12227,7 @@ static int64_t handle_inter_mode(AV1_COMP *const cpi, TileDataEnc *tile_data,
                 if (mode_info[i].mv.as_int != INVALID_MV) {
                   const int compare_cost =
                       mode_info[i].rate_mv + mode_info[i].drl_cost;
-                  const int_mv ref_mv = av1_get_ref_mv(x, 0);
+                  int_mv ref_mv = av1_get_ref_mv(x, 0);
                   this_rate_mv = av1_mv_bit_cost_gen(
                       &mode_info[i].mv.as_mv, &ref_mv.as_mv, max_mv_precision,
                       x->nmv_vec_cost, x->nmvcost,
@@ -12242,11 +12242,37 @@ static int64_t handle_inter_mode(AV1_COMP *const cpi, TileDataEnc *tile_data,
                     break;
                   } else {
                     // If the cost is less than current best result, make this
-                    // the best and update corresponding variables unless the
-                    // best_mv is the same as ref_mv. In this case we skip and
-                    // rely on NEAR(EST)MV instead
+                    // cur_mv[0].as_intthe best and update corresponding
+                    // variables unless the best_mv is the same as ref_mv. In
+                    // this case we skip and rely on NEAR(EST)MV instead
+#if CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES
+                    MvSubpelPrecision this_precision = max_mv_precision;
+                    if (is_pb_mv_precision_active(cm, this_mode,
+                                                  max_mv_precision)) {
+                      this_precision = av1_get_mbmi_mv_precision(cm, mbmi);
+                      lower_mv_precision(&ref_mv.as_mv, this_precision);
+                    }
+#endif  // CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES
                     if (best_mbmi.ref_mv_idx == i &&
                         mode_info[i].mv.as_int != ref_mv.as_int) {
+#if CONFIG_NEW_INTER_MODES && DISABLE_NEW_INTER_MODES_JOINT_ZERO
+                      MB_MODE_INFO backup_mbmi = *mbmi;
+                      *mbmi = best_mbmi;
+                      mbmi->ref_mv_idx = ref_mv_idx;
+                      if (av1_check_newmv_joint_nonzero(cm, x)) {
+                        assert(best_rd != INT64_MAX);
+                        best_mbmi.ref_mv_idx = ref_mv_idx;
+                        best_rd_stats.rate += this_cost - compare_cost;
+                        best_rd = RDCOST(x->rdmult, best_rd_stats.rate,
+                                         best_rd_stats.dist);
+                        if (best_rd < ref_best_rd) ref_best_rd = best_rd;
+                        skip = 1;
+                        assert(av1_check_newmv_joint_nonzero(cm, x));
+                        break;
+                      } else {
+                        *mbmi = backup_mbmi;
+                      }
+#else
                       assert(best_rd != INT64_MAX);
                       best_mbmi.ref_mv_idx = ref_mv_idx;
                       best_rd_stats.rate += this_cost - compare_cost;
@@ -12255,6 +12281,7 @@ static int64_t handle_inter_mode(AV1_COMP *const cpi, TileDataEnc *tile_data,
                       if (best_rd < ref_best_rd) ref_best_rd = best_rd;
                       skip = 1;
                       break;
+#endif  // CONFIG_NEW_INTER_MODES && DISABLE_NEW_INTER_MODES_JOINT_ZERO
                     }
                   }
                 }
@@ -12442,6 +12469,8 @@ static int64_t handle_inter_mode(AV1_COMP *const cpi, TileDataEnc *tile_data,
                                rd_stats_uv, disable_skip, args, ref_best_rd,
                                refs, &rate_mv, &orig_dst, best_est_rd,
                                do_tx_search, inter_modes_info);
+      assert(
+          IMPLIES(!av1_check_newmv_joint_nonzero(cm, x), ret_val == INT64_MAX));
 
 #if CONFIG_COLLECT_COMPONENT_TIMING
       end_timing(cpi, motion_mode_rd_time);
@@ -15135,7 +15164,6 @@ void av1_rd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
 #endif  // ADJUST_DRL_FLEX_MVRES
   assert(check_mv_precision(mbmi));
 #endif  // CONFIG_FLEX_MVRES && !CONFIG_SB_FLEX_MVRES
-  assert(av1_check_newmv_joint_nonzero(cm, x));
 
   x->skip |= search_state.best_skip2;
 
