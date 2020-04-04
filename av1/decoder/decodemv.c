@@ -1105,9 +1105,10 @@ static INLINE void read_mv(aom_reader *r, MV *mv, const MV *ref,
                            nmv_context *ctx, MvSubpelPrecision precision) {
   MV diff = kZeroMv;
   const MV_JOINT_TYPE joint_type =
-      (MV_JOINT_TYPE)aom_read_symbol(
-          r, ctx->joints_cdf, MV_JOINTS - CONFIG_NEW_INTER_MODES, ACCT_STR) +
-      CONFIG_NEW_INTER_MODES;
+      (MV_JOINT_TYPE)aom_read_symbol(r, ctx->joints_cdf,
+                                     MV_JOINTS - NO_NEW_INTER_MODES_JOINT_ZERO,
+                                     ACCT_STR) +
+      NO_NEW_INTER_MODES_JOINT_ZERO;
 
   if (mv_joint_vertical(joint_type))
     diff.row = read_mv_component(r, ref->row, &ctx->comps[0], precision);

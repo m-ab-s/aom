@@ -18,9 +18,6 @@
 extern "C" {
 #endif
 
-// Whether to use drl adjustment for flexible mvres.
-#define ADJUST_DRL_FLEX_MVRES 1
-
 #define MVREF_ROW_COLS 3
 
 // Set the upper limit of the motion vector component magnitude.

@@ -28,6 +28,14 @@ void av1_init_mv_probs(struct AV1Common *cm);
 
 #define MV_UPDATE_PROB 252
 
+// Whether to use drl adjustment for flexible mvres.
+#define ADJUST_DRL_FLEX_MVRES 1
+
+// Whether to disable joint zero
+#define DISABLE_NEW_INTER_MODES_JOINT_ZERO 1
+#define NO_NEW_INTER_MODES_JOINT_ZERO \
+  (DISABLE_NEW_INTER_MODES_JOINT_ZERO & CONFIG_NEW_INTER_MODES)
+
 /* Symbols for coding which components are zero jointly */
 #define MV_JOINTS 4
 enum {
