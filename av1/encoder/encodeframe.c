@@ -6256,6 +6256,10 @@ static void encode_sb_row(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
     CHROMA_REF_INFO sb_chr_ref_info = {
       1, 0, mi_row, mi_col, sb_size, sb_size
     };
+
+    // Initialize some features for the current superblock
+    x->e_mbd.sbi->sb_mv_precision = cm->fr_mv_precision;
+
     if (!(sf->partition_search_type == FIXED_PARTITION || seg_skip) &&
         !cpi->partition_search_skippable_frame &&
         sf->partition_search_type == VAR_BASED_PARTITION && use_nonrd_mode) {

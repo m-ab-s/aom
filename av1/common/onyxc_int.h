@@ -838,6 +838,8 @@ static INLINE void av1_set_sb_info(AV1_COMMON *cm, MACROBLOCKD *xd, int mi_row,
 
   xd->sbi->mi_row = mi_row;
   xd->sbi->mi_col = mi_col;
+
+  xd->sbi->sb_mv_precision = cm->fr_mv_precision;
 }
 
 static INLINE void set_skip_context(MACROBLOCKD *xd, int mi_row, int mi_col,
