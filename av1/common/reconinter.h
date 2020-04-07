@@ -256,8 +256,8 @@ int av1_compute_subpel_gradients(const AV1_COMMON *cm, MACROBLOCKD *xd,
                                  int mi_y,
                                  CalcSubpelParamsFunc calc_subpel_params_func,
                                  const void *const calc_subpel_params_func_args,
-                                 int ref, uint8_t *pred_dst, int8_t *x_grad,
-                                 int8_t *y_grad);
+                                 int ref, uint8_t *pred_dst, int16_t *x_grad,
+                                 int16_t *y_grad);
 void av1_opfl_mv_refinement_lowbd(const uint8_t *p0, int pstride0,
                                   const uint8_t *p1, int pstride1,
                                   const int16_t *gx0, const int16_t *gy0,

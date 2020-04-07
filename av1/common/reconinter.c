@@ -150,8 +150,8 @@ int av1_compute_subpel_gradients(const AV1_COMMON *cm, MACROBLOCKD *xd,
                                  int mi_y,
                                  CalcSubpelParamsFunc calc_subpel_params_func,
                                  const void *const calc_subpel_params_func_args,
-                                 int ref, uint8_t *pred_dst, int8_t *x_grad,
-                                 int8_t *y_grad) {
+                                 int ref, uint8_t *pred_dst, int16_t *x_grad,
+                                 int16_t *y_grad) {
   // Only do this for luma
   assert(plane == 0);
   assert(cm->seq_params.order_hint_info.enable_order_hint);
@@ -261,7 +261,8 @@ int av1_compute_subpel_gradients(const AV1_COMMON *cm, MACROBLOCKD *xd,
   // Compute difference
   for (int i = 0; i < bh; i++) {
     for (int j = 0; j < bw; j++) {
-      x_grad[i * bw + j] = tmp_buf2[i * bw + j] - tmp_buf1[i * bw + j];
+      x_grad[i * bw + j] =
+          (int16_t)tmp_buf2[i * bw + j] - (int16_t)tmp_buf1[i * bw + j];
     }
   }
 
@@ -293,7 +294,8 @@ int av1_compute_subpel_gradients(const AV1_COMMON *cm, MACROBLOCKD *xd,
   // Compute difference
   for (int i = 0; i < bh; i++) {
     for (int j = 0; j < bw; j++) {
-      y_grad[i * bw + j] = tmp_buf2[i * bw + j] - tmp_buf1[i * bw + j];
+      y_grad[i * bw + j] =
+          (int16_t)tmp_buf2[i * bw + j] - (int16_t)tmp_buf1[i * bw + j];
     }
   }
   return r_dist;
@@ -345,6 +347,7 @@ void av1_opfl_mv_refinement_lowbd(const uint8_t *p0, int pstride0,
   const int64_t Px = (sv2 * suw - suv * svw) * (1 << OPFL_REFINE_MV_PREC_BITS);
   const int64_t Py = (su2 * svw - suv * suw) * (1 << OPFL_REFINE_MV_PREC_BITS);
 
+  if (D == 0) return;
   *vx0 = (int)DIVIDE_AND_ROUND_SIGNED(Px, D);
   *vy0 = (int)DIVIDE_AND_ROUND_SIGNED(Py, D);
   const int tx1 = -(*vx0) * d1;
@@ -387,6 +390,7 @@ void av1_opfl_mv_refinement_highbd(const uint16_t *p0, int pstride0,
   const int64_t Px = (sv2 * suw - suv * svw) * (1 << OPFL_REFINE_MV_PREC_BITS);
   const int64_t Py = (su2 * svw - suv * suw) * (1 << OPFL_REFINE_MV_PREC_BITS);
 
+  if (D == 0) return;
   *vx0 = (int)DIVIDE_AND_ROUND_SIGNED(Px, D);
   *vy0 = (int)DIVIDE_AND_ROUND_SIGNED(Py, D);
   const int tx1 = -(*vx0) * d1;
@@ -399,6 +403,102 @@ void av1_opfl_mv_refinement_highbd(const uint16_t *p0, int pstride0,
   *vy0 = clamp(*vy0, -max_value, max_value);
   *vx1 = clamp(*vx1, -max_value, max_value);
   *vy1 = clamp(*vy1, -max_value, max_value);
+}
+
+int av1_get_optflow_based_mv(const AV1_COMMON *cm, MACROBLOCKD *xd,
+                             const MB_MODE_INFO *mbmi, int_mv *mv_refined,
+                             int bw, int bh, int mi_x, int mi_y,
+                             int build_for_obmc,
+                             CalcSubpelParamsFunc calc_subpel_params_func,
+                             const void *const calc_subpel_params_func_args) {
+  int vx0 = 0, vy0 = 0, vx1 = 0, vy1 = 0;
+  const int prec = mbmi->pb_mv_precision;
+  const int target_prec = prec + 1;
+  int out_prec = 0;
+
+  // Currently only do this for 1/4 precision mvs
+  if (prec != 2) return prec;
+
+  // Allocate gradient and prediction buffers
+  int16_t *g0 = aom_malloc(2 * MAX_SB_SIZE * MAX_SB_SIZE * sizeof(*g0));
+  memset(g0, 0, 2 * MAX_SB_SIZE * MAX_SB_SIZE * sizeof(*g0));
+  uint8_t *dst0 = aom_malloc(MAX_SB_SIZE * MAX_SB_SIZE * sizeof(*dst0));
+  memset(dst0, 0, MAX_SB_SIZE * MAX_SB_SIZE * sizeof(*dst0));
+  int16_t *g1 = aom_malloc(2 * MAX_SB_SIZE * MAX_SB_SIZE * sizeof(*g1));
+  memset(g1, 0, 2 * MAX_SB_SIZE * MAX_SB_SIZE * sizeof(*g1));
+  uint8_t *dst1 = aom_malloc(MAX_SB_SIZE * MAX_SB_SIZE * sizeof(*dst1));
+  memset(dst1, 0, MAX_SB_SIZE * MAX_SB_SIZE * sizeof(*dst1));
+
+  int16_t *gx0 = g0;
+  int16_t *gy0 = g0 + (MAX_SB_SIZE * MAX_SB_SIZE);
+  int16_t *gx1 = g1;
+  int16_t *gy1 = g1 + (MAX_SB_SIZE * MAX_SB_SIZE);
+
+  if (is_cur_buf_hbd(xd)) {
+    // TODO(sarahparker) implement hbd version
+    assert(0);
+  } else {
+    // Compute gradients and predictor for P0
+    int d0 = av1_compute_subpel_gradients(
+        cm, xd, 0, mbmi, build_for_obmc, bw, bh, mi_x, mi_y,
+        calc_subpel_params_func, calc_subpel_params_func_args, 0, dst0, gx0,
+        gy0);
+    if (d0 == 0) goto exit_refinement;
+
+    // Compute gradients and predictor for P1
+    int d1 = av1_compute_subpel_gradients(
+        cm, xd, 0, mbmi, build_for_obmc, bw, bh, mi_x, mi_y,
+        calc_subpel_params_func, calc_subpel_params_func_args, 1, dst1, gx1,
+        gy1);
+    if (d1 == 0) goto exit_refinement;
+
+    // P0 is before current frame or both are after current frame
+    if ((d0 < 0) || ((d0 > 0) && (d1 > 0))) {
+      // Reverse sign of d0 to indicate to opfl function that it is before
+      // current frame
+      d0 *= -1;
+      av1_opfl_mv_refinement_lowbd(dst0, bw, dst1, bw, gx0, gy0, gx1, gy1, bw,
+                                   bw, bh, d0, d1, target_prec, &vx0, &vy0,
+                                   &vx1, &vy1);
+
+      // P1 before current frame and P0 is after current frame
+    } else {
+      assert(d1 < 0);
+      // Reverse sign of d1 to indicate to opfl function that it is before
+      // current frame
+      d1 *= -1;
+      av1_opfl_mv_refinement_lowbd(dst1, bw, dst0, bw, gx1, gy1, gx0, gy0, bw,
+                                   bw, bh, d1, d0, target_prec, &vx1, &vy1,
+                                   &vx0, &vy0);
+    }
+  }
+
+  // Only update precision if any of the offsets is nonzero
+  if (vx0 == 0 && vy0 == 0 && vx1 == 0 && vy1 == 0) goto exit_refinement;
+
+  out_prec = target_prec;
+  // Compute offset sign
+  const int vy0_sign = (vy0 < 0) ? -1 : 1;
+  const int vy1_sign = (vy1 < 0) ? -1 : 1;
+  const int vx0_sign = (vx0 < 0) ? -1 : 1;
+  const int vx1_sign = (vx1 < 0) ? -1 : 1;
+  // Compute final offset
+  const int vy0_prec = vy0_sign * (abs(vy0) >= (1 << (out_prec - 1)));
+  const int vy1_prec = vy1_sign * (abs(vy1) >= (1 << (out_prec - 1)));
+  const int vx0_prec = vx0_sign * (abs(vx0) >= (1 << (out_prec - 1)));
+  const int vx1_prec = vx1_sign * (abs(vx1) >= (1 << (out_prec - 1)));
+  // Add offset to output MV
+  mv_refined[0].as_mv.row += vy0_prec;
+  mv_refined[0].as_mv.col += vx0_prec;
+  mv_refined[1].as_mv.row += vy1_prec;
+  mv_refined[1].as_mv.col += vx1_prec;
+
+exit_refinement:
+  aom_free(g0);
+  aom_free(dst0);
+  aom_free(g1);
+  aom_free(dst1);
+  return out_prec;
 }
 #endif  // CONFIG_EXT_COMPOUND
 
@@ -759,6 +859,21 @@ static void build_inter_predictors(
   const int pre_x = (mi_x + MI_SIZE * col_start) >> ss_x;
   const int pre_y = (mi_y + MI_SIZE * row_start) >> ss_y;
 
+#if CONFIG_EXT_COMPOUND
+#define USE_OPTFLOW_REFINEMENT 0
+  int_mv mv_refined[2];
+  // Initialize refined mv
+  mv_refined[0].as_mv = mi->mv[0].as_mv;
+  mv_refined[1].as_mv = mi->mv[1].as_mv;
+  const int use_optflow_prec =
+      (mi->mode > NEW_NEWMV) && is_compound && USE_OPTFLOW_REFINEMENT;
+  if (use_optflow_prec) {
+    av1_get_optflow_based_mv(cm, xd, mi, mv_refined, bw, bh, mi_x, mi_y,
+                             build_for_obmc, calc_subpel_params_func,
+                             calc_subpel_params_func_args);
+  }
+#endif  // CONFIG_EXT_COMPOUND
+
   for (int ref = 0; ref < 1 + is_compound; ++ref) {
     const struct scale_factors *const sf =
         is_intrabc ? &cm->sf_identity : xd->block_ref_scale_factors[ref];
@@ -770,9 +885,23 @@ static void build_inter_predictors(
     uint8_t *pre;
     SubpelParams subpel_params;
     int src_stride;
+#if CONFIG_EXT_COMPOUND
+    if (use_optflow_prec) {
+      // Compute subpel params with refined mv
+      calc_subpel_params_func(xd, sf, &(mv_refined[ref].as_mv), plane, pre_x,
+                              pre_y, 0, 0, pre_buf, bw, bh, &warp_types, ref,
+                              calc_subpel_params_func_args, &pre,
+                              &subpel_params, &src_stride);
+    } else {
+      calc_subpel_params_func(
+          xd, sf, &mv, plane, pre_x, pre_y, 0, 0, pre_buf, bw, bh, &warp_types,
+          ref, calc_subpel_params_func_args, &pre, &subpel_params, &src_stride);
+    }
+#else
     calc_subpel_params_func(xd, sf, &mv, plane, pre_x, pre_y, 0, 0, pre_buf, bw,
                             bh, &warp_types, ref, calc_subpel_params_func_args,
                             &pre, &subpel_params, &src_stride);
+#endif  // CONFIG_EXT_COMPOUND
 
     if (ref && is_masked_compound_type(mi->interinter_comp.type)) {
       // masked compound type has its own average mechanism
