@@ -11316,12 +11316,15 @@ static INLINE void get_this_mv(const AV1_COMMON *cm, int_mv *mv,
   } else {
     assert(single_mode == NEARMV);
     const uint8_t ref_frame_type = av1_ref_frame_type(ref_frame);
-    assert(ref_mv_idx < mbmi_ext->ref_mv_count[ref_frame_type]);
-    assert(ref_mv_idx >= 0);
-    if (ref_idx == 0) {
-      *this_mv = mbmi_ext->ref_mv_stack[ref_frame_type][ref_mv_idx].this_mv;
+    if (ref_mv_idx < mbmi_ext->ref_mv_count[ref_frame_type]) {
+      assert(ref_mv_idx >= 0);
+      if (ref_idx == 0) {
+        *this_mv = mbmi_ext->ref_mv_stack[ref_frame_type][ref_mv_idx].this_mv;
+      } else {
+        *this_mv = mbmi_ext->ref_mv_stack[ref_frame_type][ref_mv_idx].comp_mv;
+      }
     } else {
-      *this_mv = mbmi_ext->ref_mv_stack[ref_frame_type][ref_mv_idx].comp_mv;
+      *this_mv = mbmi_ext->global_mvs[ref_frame[ref_idx]];
     }
   }
 }
