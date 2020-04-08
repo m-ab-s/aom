@@ -777,6 +777,9 @@ static INLINE int is_partition_point(BLOCK_SIZE bsize) {
 }
 
 static INLINE int is_partition_valid(BLOCK_SIZE bsize, PARTITION_TYPE p) {
+#if CONFIG_EXT_RECUR_PARTITIONS
+  if (p == PARTITION_SPLIT) return 0;
+#endif
   if (is_partition_point(bsize))
     return get_partition_subsize(bsize, p) < BLOCK_SIZES_ALL;
   else

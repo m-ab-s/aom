@@ -2020,10 +2020,17 @@ static void write_partition(const AV1_COMMON *const cm,
 #if CONFIG_EXT_RECUR_PARTITIONS
   if (is_square_block(bsize)) {
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
-    const int hbs_w = mi_size_wide[bsize] / 2;
-    const int hbs_h = mi_size_wide[bsize] / 2;
-    const int has_rows = (mi_row + hbs_h) < cm->mi_rows;
-    const int has_cols = (mi_col + hbs_w) < cm->mi_cols;
+#if CONFIG_EXT_RECUR_PARTITIONS
+    const int has_rows = 1;
+    const int has_cols = 1;
+
+    (void)cm;
+#else
+  const int hbs_w = mi_size_wide[bsize] / 2;
+  const int hbs_h = mi_size_wide[bsize] / 2;
+  const int has_rows = (mi_row + hbs_h) < cm->mi_rows;
+  const int has_cols = (mi_col + hbs_w) < cm->mi_cols;
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
     if (!has_rows && !has_cols) {
       assert(p == PARTITION_SPLIT);

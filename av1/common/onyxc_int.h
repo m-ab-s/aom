@@ -1606,7 +1606,9 @@ static INLINE PARTITION_TYPE get_partition(const AV1_COMMON *const cm,
         return PARTITION_HORZ_4;
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
       }
+#if !CONFIG_EXT_RECUR_PARTITIONS
       assert(sshigh * 2 == bhigh);
+#endif
 
       if (mbmi_below->sb_type == subsize) return PARTITION_HORZ;
 #if !CONFIG_EXT_RECUR_PARTITIONS
@@ -1624,7 +1626,9 @@ static INLINE PARTITION_TYPE get_partition(const AV1_COMMON *const cm,
         return PARTITION_VERT_4;
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
       }
+#if !CONFIG_EXT_RECUR_PARTITIONS
       assert(sswide * 2 == bhigh);
+#endif
 
       if (mbmi_right->sb_type == subsize) return PARTITION_VERT;
 #if !CONFIG_EXT_RECUR_PARTITIONS
