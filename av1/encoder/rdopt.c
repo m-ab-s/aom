@@ -14002,7 +14002,7 @@ static INLINE void init_mbmi(MB_MODE_INFO *mbmi, int mode_index,
   mbmi->motion_mode = SIMPLE_TRANSLATION;
   mbmi->interintra_mode = (INTERINTRA_MODE)(II_DC_PRED - 1);
   set_default_interp_filters(mbmi, cm->interp_filter);
-  set_default_mbmi_mv_precision(mbmi, xd->sbi);
+  set_default_mbmi_mv_precision(cm, mbmi, xd->sbi);
 }
 
 static int64_t handle_intra_mode(InterModeSearchState *search_state,
@@ -15930,7 +15930,7 @@ void av1_rd_pick_inter_mode_sb_seg_skip(const AV1_COMP *cpi,
 
   mbmi->ref_mv_idx = 0;
 
-  set_default_mbmi_mv_precision(mbmi, xd->sbi);
+  set_default_mbmi_mv_precision(cm, mbmi, xd->sbi);
 
   av1_count_overlappable_neighbors(cm, xd);
   if (is_motion_variation_allowed_bsize(bsize, mi_row, mi_col) &&

@@ -1675,7 +1675,6 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
   int mode_ctx = av1_mode_context_analyzer(inter_mode_ctx, mbmi->ref_frame);
   mbmi->ref_mv_idx = 0;
 
-  set_default_mbmi_mv_precision(mbmi, sbi);
   if (mbmi->skip_mode) {
     assert(is_compound);
 #if CONFIG_NEW_INTER_MODES
@@ -1684,15 +1683,18 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
 #else
     mbmi->mode = NEAREST_NEARESTMV;
 #endif  // CONFIG_NEW_INTER_MODES
+    set_default_mbmi_mv_precision(cm, mbmi, sbi);
   } else {
     if (segfeature_active(&cm->seg, mbmi->segment_id, SEG_LVL_SKIP) ||
         segfeature_active(&cm->seg, mbmi->segment_id, SEG_LVL_GLOBALMV)) {
       mbmi->mode = GLOBALMV;
+      set_default_mbmi_mv_precision(cm, mbmi, sbi);
     } else {
       if (is_compound)
         mbmi->mode = read_inter_compound_mode(xd, r, mode_ctx);
       else
         mbmi->mode = read_inter_mode(ec_ctx, r, mode_ctx);
+      set_default_mbmi_mv_precision(cm, mbmi, sbi);
 #if CONFIG_FLEX_MVRES
       if (is_pb_mv_precision_active(cm, mbmi->mode, mbmi->max_mv_precision)) {
         mbmi->pb_mv_precision = av1_read_pb_mv_precision(cm, xd, r);

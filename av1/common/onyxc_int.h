@@ -1707,15 +1707,32 @@ static INLINE int is_valid_seq_level_idx(AV1_LEVEL seq_level_idx) {
   return seq_level_idx < SEQ_LEVELS || seq_level_idx == SEQ_LEVEL_MAX;
 }
 
-#if CONFIG_FLEX_MVRES
 static INLINE MvSubpelPrecision av1_get_mbmi_max_mv_precision(
     const AV1_COMMON *const cm, const SB_INFO *sbi, const MB_MODE_INFO *mbmi) {
   (void)mbmi;
   // TODO(debargha): Change this to have a default max precision
   // different from cm->fr_mv_precision for every mode.
-  return cm->use_sb_mv_precision ? sbi->sb_mv_precision : cm->fr_mv_precision;
+#if CONFIG_FLEX_MVRES
+  MvSubpelPrecision precision =
+      cm->use_sb_mv_precision ? sbi->sb_mv_precision : cm->fr_mv_precision;
+#else
+  (void)cm;
+  MvSubpelPrecision precision = sbi->sb_mv_precision;
+#endif
+
+  return precision;
 }
 
+// Sets the pb_mv_precision and max_mv_precision to sb_mv_precision or other
+// default values if needed
+static INLINE void set_default_mbmi_mv_precision(const AV1_COMMON *cm,
+                                                 MB_MODE_INFO *mbmi,
+                                                 const SB_INFO *sbi) {
+  mbmi->max_mv_precision = av1_get_mbmi_max_mv_precision(cm, sbi, mbmi);
+  mbmi->pb_mv_precision = mbmi->max_mv_precision;
+}
+
+#if CONFIG_FLEX_MVRES
 static INLINE int is_pb_mv_precision_active(
     const AV1_COMMON *const cm, PREDICTION_MODE mode,
     MvSubpelPrecision max_mv_precision) {

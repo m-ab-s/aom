@@ -1969,13 +1969,6 @@ static INLINE int get_mode_dep_txfm_mode(const MB_MODE_INFO *const mbmi) {
 }
 #endif  // CONFIG_MODE_DEP_INTRA_TX || CONFIG_MODE_DEP_INTER_TX
 
-// Set the pb_mv_precision and max_mv_precision to sb-mv_precision
-static INLINE void set_default_mbmi_mv_precision(MB_MODE_INFO *mbmi,
-                                                 const SB_INFO *sbi) {
-  mbmi->max_mv_precision = sbi->sb_mv_precision;
-  mbmi->pb_mv_precision = mbmi->max_mv_precision;
-}
-
 #ifdef __cplusplus
 }  // extern "C"
 #endif
