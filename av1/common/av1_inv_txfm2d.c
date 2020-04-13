@@ -143,7 +143,7 @@ static INLINE TxfmFunc inv_txfm_type_to_func(int mode, TXFM_TYPE txfm_type) {
     case TXFM_TYPE_MDTX8: return av1_imdt8;
     case TXFM_TYPE_MDTX16: return av1_imdt16;
 #endif
-#if CONFIG_DST7_32x32
+#if CONFIG_DST_32X32
     case TXFM_TYPE_ADST32: return av1_iadst32_new;
 #endif
     case TXFM_TYPE_IDENTITY4: return av1_iidentity4_c;

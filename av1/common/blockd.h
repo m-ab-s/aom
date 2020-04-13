@@ -1306,7 +1306,7 @@ static INLINE int use_nsst(TX_TYPE tx_type, TX_SIZE tx_size,
 }
 #endif
 
-#if CONFIG_DST7_32x32
+#if CONFIG_DST_32X32
 static INLINE TxSetType av1_get_ext_tx_set_type(TX_SIZE tx_size, int is_inter,
                                                 int use_reduced_set) {
   const TX_SIZE tx_size_sqr_up = txsize_sqr_up_map[tx_size];
@@ -1358,7 +1358,7 @@ static INLINE TxSetType av1_get_ext_tx_set_type(TX_SIZE tx_size, int is_inter,
 #endif  // CONFIG_MODE_DEP_INTRA_TX
   }
 }
-#endif  // CONFIG_DST7_32x32
+#endif  // CONFIG_DST_32X32
 // Maps tx set types to the indices.
 static const int ext_tx_set_index[2][EXT_TX_SET_TYPES] = {
   { // Intra

@@ -46,7 +46,7 @@ void av1_fadst8_new(const int32_t *input, int32_t *output, int8_t cos_bit,
                     const int8_t *stage_range);
 void av1_fadst16_new(const int32_t *input, int32_t *output, int8_t cos_bit,
                      const int8_t *stage_range);
-#if CONFIG_DST7_32x32
+#if CONFIG_DST_32X32
 void av1_fadst32_new(const int32_t *input, int32_t *output, int8_t cos_bit,
                      const int8_t *stage_range);
 #endif
