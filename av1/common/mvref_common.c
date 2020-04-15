@@ -901,17 +901,12 @@ void av1_find_mv_refs(const AV1_COMMON *cm, const MACROBLOCKD *xd,
 
 void av1_find_best_ref_mvs(MvSubpelPrecision precision, int_mv *mvlist,
                            int_mv *nearest_mv, int_mv *near_mv) {
-  int i;
   // Make sure all the candidates are properly clamped etc
-  for (i = 0; i < MAX_MV_REF_CANDIDATES; ++i) {
+  for (int i = 0; i < MAX_MV_REF_CANDIDATES; ++i) {
     lower_mv_precision(&mvlist[i].as_mv, precision);
   }
   *nearest_mv = mvlist[0];
-#if CONFIG_NEW_INTER_MODES
   *near_mv = mvlist[1];
-#else
-  *near_mv = mvlist[1];
-#endif  // CONFIG_NEW_INTER_MODES
 }
 
 void av1_setup_frame_buf_refs(AV1_COMMON *cm) {
