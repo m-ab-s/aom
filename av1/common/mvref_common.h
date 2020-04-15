@@ -186,9 +186,9 @@ static INLINE int16_t av1_mode_context_analyzer(
 
 static INLINE uint8_t av1_drl_ctx(const uint16_t *ref_mv_weight, int ref_idx) {
 #if CONFIG_NEW_INTER_MODES
-  // If this is the last possible DRL bit, return 1 instead of doing a
-  // potentially undefined read
-  if (ref_idx > MAX_DRL_BITS) return 1;
+  assert(ref_idx >= 0 && ref_idx < MAX_DRL_BITS);
+#else
+  assert(ref_idx >= 0 && ref_idx < MAX_DRL_BITS + 1);
 #endif  // CONFIG_NEW_INTER_MODES
 
   if (ref_mv_weight[ref_idx] >= REF_CAT_LEVEL &&
@@ -215,8 +215,7 @@ static INLINE aom_cdf_prob *av1_get_drl_cdf(int16_t mode_ctx,
   (void)mode_ctx;
   (void)mode;  // These two are here for future experiments
 
-  assert(ref_idx >= 0);
-  assert(ref_idx < MAX_DRL_BITS);
+  assert(ref_idx >= 0 && ref_idx < MAX_DRL_BITS);
 
   const int ctx = av1_drl_ctx(ref_mv_weight, ref_idx);
   switch (ref_idx) {
