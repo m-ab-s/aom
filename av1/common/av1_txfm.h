@@ -44,8 +44,12 @@ extern const int32_t av1_sinpi_arr_data[7][5];
 extern const int32_t dst7_16x16[16][16];
 #endif
 #if CONFIG_DST_32X32
+#if CONFIG_LGT32
+extern const int32_t lgt_32x32[32 * 32];
+#else
 extern const int32_t dst7_32x32[32][32];
-#define DST7_32x32_PREC_BITS 7
+#endif  // CONFIG_LGT32
+#define DST_32X32_PREC_BITS 7
 #endif
 #if CONFIG_LGT
 #define LGT_PREC_BITS 10

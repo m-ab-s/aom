@@ -1174,9 +1174,13 @@ void av1_iadst32_new(const int32_t *input, int32_t *output, int8_t cos_bit,
   for (int32_t i = 0; i < 32; i++) {
     int32_t sum = 0;
     for (int32_t j = 0; j < 32; j++) {
+#if CONFIG_LGT32
+      sum += input[j] * lgt_32x32[j * 32 + i];
+#else
       sum += input[j] * dst7_32x32[j][i];
+#endif  // CONFIG_LGT32
     }
-    output[i] = ROUND_POWER_OF_TWO_SIGNED(sum, DST7_32x32_PREC_BITS);
+    output[i] = ROUND_POWER_OF_TWO_SIGNED(sum, DST_32X32_PREC_BITS);
   }
 }
 #endif
