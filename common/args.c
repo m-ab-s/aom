@@ -92,11 +92,11 @@ int parse_cfg(const char *file, cfg_options_t *config) {
     GET_PARAMS(min_partition_size);
     GET_PARAMS(disable_ab_partition_type);
     GET_PARAMS(disable_rect_partition_type);
-#if CONFIG_EXT_PARTITIONS
+#if CONFIG_EXT_RECUR_PARTITIONS
     GET_PARAMS(disable_1to3_partition_type);
 #else
     GET_PARAMS(disable_1to4_partition_type);
-#endif  // CONFIG_EXT_PARTITIONS
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
     GET_PARAMS(disable_flip_idtx);
     GET_PARAMS(disable_cdef);
     GET_PARAMS(disable_lr);

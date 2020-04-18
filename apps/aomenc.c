@@ -450,7 +450,7 @@ static const arg_def_t enable_rect_partitions =
 static const arg_def_t enable_ab_partitions =
     ARG_DEF(NULL, "enable-ab-partitions", 1,
             "Enable ab partitions (0: false, 1: true (default))");
-#if CONFIG_EXT_PARTITIONS
+#if CONFIG_EXT_RECUR_PARTITIONS
 static const arg_def_t enable_1to3_partitions =
     ARG_DEF(NULL, "enable-1to3-partitions", 1,
             "Enable 3-way partitions "
@@ -460,7 +460,7 @@ static const arg_def_t enable_1to4_partitions =
     ARG_DEF(NULL, "enable-1to4-partitions", 1,
             "Enable 1:4 and 4:1 partitions "
             "(0: false, 1: true (default))");
-#endif  // CONFIG_EXT_PARTITIONS
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 static const arg_def_t min_partition_size =
     ARG_DEF(NULL, "min-partition-size", 4,
             "Set min partition size "
@@ -849,12 +849,11 @@ static const arg_def_t *av1_args[] = { &cpu_used_av1,
                                        &disable_ml_partition_speed_features,
                                        &enable_rect_partitions,
                                        &enable_ab_partitions,
-#if CONFIG_EXT_PARTITIONS
-
+#if CONFIG_EXT_RECUR_PARTITIONS
                                        &enable_1to3_partitions,
 #else
                                        &enable_1to4_partitions,
-#endif  // CONFIG_EXT_PARTITIONS
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
                                        &min_partition_size,
                                        &max_partition_size,
                                        &enable_dual_filter,
@@ -962,11 +961,11 @@ static const int av1_arg_ctrl_map[] = {
   AV1E_SET_DISABLE_ML_PARTITION_SPEED_FEATURES,
   AV1E_SET_ENABLE_RECT_PARTITIONS,
   AV1E_SET_ENABLE_AB_PARTITIONS,
-#if CONFIG_EXT_PARTITIONS
+#if CONFIG_EXT_RECUR_PARTITIONS
   AV1E_SET_ENABLE_1TO3_PARTITIONS,
 #else
   AV1E_SET_ENABLE_1TO4_PARTITIONS,
-#endif  // CONFIG_EXT_PARTITIONS
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   AV1E_SET_MIN_PARTITION_SIZE,
   AV1E_SET_MAX_PARTITION_SIZE,
   AV1E_SET_ENABLE_DUAL_FILTER,
@@ -1807,11 +1806,11 @@ static void show_stream_config(struct stream_state *stream,
   SHOW_PARAMS(min_partition_size);
   SHOW_PARAMS(disable_ab_partition_type);
   SHOW_PARAMS(disable_rect_partition_type);
-#if CONFIG_EXT_PARTITIONS
+#if CONFIG_EXT_RECUR_PARTITIONS
   SHOW_PARAMS(disable_1to3_partition_type);
 #else
   SHOW_PARAMS(disable_1to4_partition_type);
-#endif  // CONFIG_EXT_PARTITIONS
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   SHOW_PARAMS(disable_flip_idtx);
   SHOW_PARAMS(disable_cdef);
   SHOW_PARAMS(disable_lr);

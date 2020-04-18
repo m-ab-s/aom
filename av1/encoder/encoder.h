@@ -378,11 +378,11 @@ typedef struct AV1EncoderConfig {
   int disable_ml_partition_speed_features;
   int enable_rect_partitions;
   int enable_ab_partitions;
-#if CONFIG_EXT_PARTITIONS
+#if CONFIG_EXT_RECUR_PARTITIONS
   int enable_1to3_partitions;
 #else
   int enable_1to4_partitions;
-#endif  // CONFIG_EXT_PARTITIONS
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   int min_partition_size;
   int max_partition_size;
   int enable_intra_edge_filter;

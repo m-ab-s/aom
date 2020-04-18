@@ -98,11 +98,11 @@ struct av1_extracfg {
   int disable_ml_partition_speed_features;
   int enable_rect_partitions;  // enable rectangular partitions for sequence
   int enable_ab_partitions;    // enable AB partitions for sequence
-#if CONFIG_EXT_PARTITIONS
+#if CONFIG_EXT_RECUR_PARTITIONS
   int enable_1to3_partitions;  // enable 3-way partitions for sequence
 #else
   int enable_1to4_partitions;  // enable 1:4 and 4:1 partitions for sequence
-#endif                           // CONFIG_EXT_PARTITIONS
+#endif                           // CONFIG_EXT_RECUR_PARTITIONS
   int min_partition_size;        // min partition size [4,8,16,32,64,128]
   int max_partition_size;        // max partition size [4,8,16,32,64,128]
   int enable_intra_edge_filter;  // enable intra-edge filter for sequence
@@ -665,11 +665,11 @@ static void update_default_encoder_config(const cfg_options_t *cfg,
   extra_cfg->enable_angle_delta = (cfg->disable_intra_angle_delta == 0);
   extra_cfg->enable_rect_partitions = (cfg->disable_rect_partition_type == 0);
   extra_cfg->enable_ab_partitions = (cfg->disable_ab_partition_type == 0);
-#if CONFIG_EXT_PARTITIONS
+#if CONFIG_EXT_RECUR_PARTITIONS
   extra_cfg->enable_1to3_partitions = (cfg->disable_1to3_partition_type == 0);
 #else
   extra_cfg->enable_1to4_partitions = (cfg->disable_1to4_partition_type == 0);
-#endif  // CONFIG_EXT_PARTITIONS
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   extra_cfg->max_partition_size = cfg->max_partition_size;
   extra_cfg->min_partition_size = cfg->min_partition_size;
   extra_cfg->enable_intra_edge_filter = (cfg->disable_intra_edge_filter == 0);
@@ -937,14 +937,14 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
       1;
 #else
       extra_cfg->disable_ml_partition_speed_features;
-#endif
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   oxcf->enable_rect_partitions = extra_cfg->enable_rect_partitions;
   oxcf->enable_ab_partitions = extra_cfg->enable_ab_partitions;
-#if CONFIG_EXT_PARTITIONS
+#if CONFIG_EXT_RECUR_PARTITIONS
   oxcf->enable_1to3_partitions = extra_cfg->enable_1to3_partitions;
 #else
   oxcf->enable_1to4_partitions = extra_cfg->enable_1to4_partitions;
-#endif  // CONFIG_EXT_PARTITIONS
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   oxcf->min_partition_size = extra_cfg->min_partition_size;
   oxcf->max_partition_size = extra_cfg->max_partition_size;
   oxcf->enable_intra_edge_filter = extra_cfg->enable_intra_edge_filter;
@@ -1397,7 +1397,7 @@ static aom_codec_err_t ctrl_set_enable_ab_partitions(aom_codec_alg_priv_t *ctx,
   return update_extra_cfg(ctx, &extra_cfg);
 }
 
-#if CONFIG_EXT_PARTITIONS
+#if CONFIG_EXT_RECUR_PARTITIONS
 static aom_codec_err_t ctrl_set_enable_1to3_partitions(
     aom_codec_alg_priv_t *ctx, va_list args) {
   struct av1_extracfg extra_cfg = ctx->extra_cfg;
@@ -1413,7 +1413,7 @@ static aom_codec_err_t ctrl_set_enable_1to4_partitions(
       CAST(AV1E_SET_ENABLE_1TO4_PARTITIONS, args);
   return update_extra_cfg(ctx, &extra_cfg);
 }
-#endif  // CONFIG_EXT_PARTITIONS
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
 static aom_codec_err_t ctrl_set_min_partition_size(aom_codec_alg_priv_t *ctx,
                                                    va_list args) {
@@ -2656,11 +2656,11 @@ static aom_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {
     ctrl_set_disable_ml_partition_speed_features },
   { AV1E_SET_ENABLE_RECT_PARTITIONS, ctrl_set_enable_rect_partitions },
   { AV1E_SET_ENABLE_AB_PARTITIONS, ctrl_set_enable_ab_partitions },
-#if CONFIG_EXT_PARTITIONS
+#if CONFIG_EXT_RECUR_PARTITIONS
   { AV1E_SET_ENABLE_1TO3_PARTITIONS, ctrl_set_enable_1to3_partitions },
 #else
   { AV1E_SET_ENABLE_1TO4_PARTITIONS, ctrl_set_enable_1to4_partitions },
-#endif  // CONFIG_EXT_PARTITIONS
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   { AV1E_SET_MIN_PARTITION_SIZE, ctrl_set_min_partition_size },
   { AV1E_SET_MAX_PARTITION_SIZE, ctrl_set_max_partition_size },
   { AV1E_SET_ENABLE_DUAL_FILTER, ctrl_set_enable_dual_filter },

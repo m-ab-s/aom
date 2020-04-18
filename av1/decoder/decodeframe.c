@@ -1611,46 +1611,18 @@ static void decode_partition(AV1Decoder *const pbi, ThreadData *const td,
         ptree->sub_tree[2] = av1_alloc_ptree_node(ptree, 2);
         ptree->sub_tree[3] = av1_alloc_ptree_node(ptree, 3);
         break;
-#if !CONFIG_EXT_RECUR_PARTITIONS && CONFIG_EXT_PARTITIONS
-      case PARTITION_HORZ_A:
-        ptree->sub_tree[0] = av1_alloc_ptree_node(ptree, 0);
-        ptree->sub_tree[1] = av1_alloc_ptree_node(ptree, 1);
-        break;
-      case PARTITION_HORZ_B:
-        ptree->sub_tree[0] = av1_alloc_ptree_node(ptree, 1);
-        ptree->sub_tree[1] = av1_alloc_ptree_node(ptree, 2);
-        break;
-      case PARTITION_VERT_A:
-        ptree->sub_tree[0] = av1_alloc_ptree_node(ptree, 0);
-        ptree->sub_tree[1] = av1_alloc_ptree_node(ptree, 1);
-        break;
-      case PARTITION_VERT_B:
-        ptree->sub_tree[0] = av1_alloc_ptree_node(ptree, 1);
-        ptree->sub_tree[1] = av1_alloc_ptree_node(ptree, 2);
-        break;
-#endif  // !CONFIG_EXT_RECUR_PARTITIONS && CONFIG_EXT_PARTITIONS
 #if CONFIG_EXT_RECUR_PARTITIONS
       case PARTITION_HORZ:
       case PARTITION_VERT:
         ptree->sub_tree[0] = av1_alloc_ptree_node(ptree, 0);
         ptree->sub_tree[1] = av1_alloc_ptree_node(ptree, 1);
         break;
-#if CONFIG_EXT_PARTITIONS
       case PARTITION_HORZ_3:
       case PARTITION_VERT_3:
         ptree->sub_tree[0] = av1_alloc_ptree_node(ptree, 0);
         ptree->sub_tree[1] = av1_alloc_ptree_node(ptree, 1);
         ptree->sub_tree[2] = av1_alloc_ptree_node(ptree, 2);
         break;
-#else
-      case PARTITION_HORZ_4:
-      case PARTITION_VERT_4:
-        ptree->sub_tree[0] = av1_alloc_ptree_node(ptree, 0);
-        ptree->sub_tree[1] = av1_alloc_ptree_node(ptree, 1);
-        ptree->sub_tree[2] = av1_alloc_ptree_node(ptree, 2);
-        ptree->sub_tree[3] = av1_alloc_ptree_node(ptree, 3);
-        break;
-#endif  // CONFIG_EXT_PARTITIONS
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
       default: break;
     }
@@ -1705,119 +1677,67 @@ static void decode_partition(AV1Decoder *const pbi, ThreadData *const td,
       DEC_PARTITION(mi_row + hbs_h, mi_col, subsize, 2);
       DEC_PARTITION(mi_row + hbs_h, mi_col + hbs_w, subsize, 3);
       break;
-#if !CONFIG_EXT_RECUR_PARTITIONS
-    case PARTITION_HORZ_A:
-#if CONFIG_EXT_PARTITIONS
-      DEC_PARTITION(mi_row, mi_col, bsize2, 0);
-      DEC_PARTITION(mi_row, mi_col + hbs_w, bsize2, 1);
-#else
-      DEC_BLOCK(mi_row, mi_col, bsize2, 0);
-      DEC_BLOCK(mi_row, mi_col + hbs_w, bsize2, 1);
-#endif  // CONFIG_EXT_PARTITIONS
-      DEC_BLOCK(mi_row + hbs_h, mi_col, subsize, 2);
-      break;
-    case PARTITION_HORZ_B: DEC_BLOCK(mi_row, mi_col, subsize, 0);
-#if CONFIG_EXT_PARTITIONS
-      DEC_PARTITION(mi_row + hbs_h, mi_col, bsize2, 0);
-      DEC_PARTITION(mi_row + hbs_h, mi_col + hbs_w, bsize2, 1);
-#else
-      DEC_BLOCK(mi_row + hbs_h, mi_col, bsize2, 1);
-      DEC_BLOCK(mi_row + hbs_h, mi_col + hbs_w, bsize2, 2);
-#endif  // CONFIG_EXT_PARTITIONS
-      break;
-    case PARTITION_VERT_A:
-#if CONFIG_EXT_PARTITIONS
-      DEC_PARTITION(mi_row, mi_col, bsize2, 0);
-      DEC_PARTITION(mi_row + hbs_h, mi_col, bsize2, 1);
-#else
-      DEC_BLOCK(mi_row, mi_col, bsize2, 0);
-      DEC_BLOCK(mi_row + hbs_h, mi_col, bsize2, 1);
-#endif  // CONFIG_EXT_PARTITIONS
-      DEC_BLOCK(mi_row, mi_col + hbs_w, subsize, 2);
-      break;
-    case PARTITION_VERT_B: DEC_BLOCK(mi_row, mi_col, subsize, 0);
-#if CONFIG_EXT_PARTITIONS
-      DEC_PARTITION(mi_row, mi_col + hbs_w, bsize2, 0);
-      DEC_PARTITION(mi_row + hbs_h, mi_col + hbs_w, bsize2, 1);
-#else
-      DEC_BLOCK(mi_row, mi_col + hbs_w, bsize2, 1);
-      DEC_BLOCK(mi_row + hbs_h, mi_col + hbs_w, bsize2, 2);
-#endif  // CONFIG_EXT_PARTITIONS
-      break;
-#endif  // !CONFIG_EXT_RECUR_PARTITIONS
-#if CONFIG_EXT_PARTITIONS
+#if CONFIG_EXT_RECUR_PARTITIONS
     case PARTITION_HORZ_3: {
       const BLOCK_SIZE bsize3 = get_partition_subsize(bsize, PARTITION_HORZ);
       int this_mi_row = mi_row;
-#if CONFIG_EXT_RECUR_PARTITIONS
       DEC_PARTITION(this_mi_row, mi_col, subsize, 0);
-#else
-      DEC_BLOCK(this_mi_row, mi_col, subsize, 0);
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
       this_mi_row += qbs_h;
       if (this_mi_row >= cm->mi_rows) break;
-#if CONFIG_EXT_RECUR_PARTITIONS
       DEC_PARTITION(this_mi_row, mi_col, bsize3, 1);
-#else
-      DEC_BLOCK(this_mi_row, mi_col, bsize3, 1);
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
       this_mi_row += 2 * qbs_h;
       if (this_mi_row >= cm->mi_rows) break;
-#if CONFIG_EXT_RECUR_PARTITIONS
       DEC_PARTITION(this_mi_row, mi_col, subsize, 2);
-#else
-      DEC_BLOCK(this_mi_row, mi_col, subsize, 2);
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
       break;
     }
     case PARTITION_VERT_3: {
       const BLOCK_SIZE bsize3 = get_partition_subsize(bsize, PARTITION_VERT);
       int this_mi_col = mi_col;
-#if CONFIG_EXT_RECUR_PARTITIONS
       DEC_PARTITION(mi_row, this_mi_col, subsize, 0);
-#else
-      DEC_BLOCK(mi_row, this_mi_col, subsize, 0);
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
       this_mi_col += qbs_w;
       if (this_mi_col >= cm->mi_cols) break;
-#if CONFIG_EXT_RECUR_PARTITIONS
       DEC_PARTITION(mi_row, this_mi_col, bsize3, 1);
-#else
-      DEC_BLOCK(mi_row, this_mi_col, bsize3, 1);
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
       this_mi_col += 2 * qbs_w;
       if (this_mi_col >= cm->mi_cols) break;
-#if CONFIG_EXT_RECUR_PARTITIONS
       DEC_PARTITION(mi_row, this_mi_col, subsize, 2);
-#else
-      DEC_BLOCK(mi_row, this_mi_col, subsize, 2);
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
       break;
     }
 #else
+    case PARTITION_HORZ_A:
+      DEC_BLOCK(mi_row, mi_col, bsize2, 0);
+      DEC_BLOCK(mi_row, mi_col + hbs_w, bsize2, 1);
+      DEC_BLOCK(mi_row + hbs_h, mi_col, subsize, 2);
+      break;
+    case PARTITION_HORZ_B:
+      DEC_BLOCK(mi_row, mi_col, subsize, 0);
+      DEC_BLOCK(mi_row + hbs_h, mi_col, bsize2, 1);
+      DEC_BLOCK(mi_row + hbs_h, mi_col + hbs_w, bsize2, 2);
+      break;
+    case PARTITION_VERT_A:
+      DEC_BLOCK(mi_row, mi_col, bsize2, 0);
+      DEC_BLOCK(mi_row + hbs_h, mi_col, bsize2, 1);
+      DEC_BLOCK(mi_row, mi_col + hbs_w, subsize, 2);
+      break;
+    case PARTITION_VERT_B:
+      DEC_BLOCK(mi_row, mi_col, subsize, 0);
+      DEC_BLOCK(mi_row, mi_col + hbs_w, bsize2, 1);
+      DEC_BLOCK(mi_row + hbs_h, mi_col + hbs_w, bsize2, 2);
+      break;
     case PARTITION_HORZ_4:
       for (int i = 0; i < 4; ++i) {
         int this_mi_row = mi_row + i * qbs_h;
         if (i > 0 && this_mi_row >= cm->mi_rows) break;
-#if CONFIG_EXT_RECUR_PARTITIONS
-        DEC_PARTITION(this_mi_row, mi_col, subsize, i);
-#else
         DEC_BLOCK(this_mi_row, mi_col, subsize, i);
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
       }
       break;
     case PARTITION_VERT_4:
       for (int i = 0; i < 4; ++i) {
         int this_mi_col = mi_col + i * qbs_w;
         if (i > 0 && this_mi_col >= cm->mi_cols) break;
-#if CONFIG_EXT_RECUR_PARTITIONS
-        DEC_PARTITION(mi_row, this_mi_col, subsize, i);
-#else
         DEC_BLOCK(mi_row, this_mi_col, subsize, i);
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
       }
       break;
-#endif  // CONFIG_EXT_PARTITIONS
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
     default: assert(0 && "Invalid partition type");
   }
 

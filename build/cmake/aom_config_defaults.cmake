@@ -143,9 +143,6 @@ set_aom_config_var(CONFIG_LOOP_RESTORE_CNN 0 NUMBER
                    "AV2 CNN in Loop Restoration experiment flag")
 set_aom_config_var(CONFIG_FLEX_PARTITION 0 NUMBER
                    "AV2 Flexible partition experiment flag")
-set_aom_config_var(
-  CONFIG_EXT_PARTITIONS 0 NUMBER
-  "AV2 3way partitions and recursive a/b partition experiment flag")
 set_aom_config_var(CONFIG_EXT_RECUR_PARTITIONS 0 NUMBER
                    "AV2 Fully recursive partitions experiment flag")
 set_aom_config_var(CONFIG_INTRA_ENTROPY 0 NUMBER

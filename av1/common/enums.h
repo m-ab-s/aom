@@ -149,7 +149,7 @@ typedef enum ATTRIBUTE_PACKED {
 //  |       |     |   |   |     |   |   |     |   |   |
 //  +-------+     +---+---+     +---+---+     +---+---+
 //
-#if CONFIG_EXT_PARTITIONS
+#if CONFIG_EXT_RECUR_PARTITIONS
 //  HORZ_3                 VERT_3
 //  +--------------+       +---+------+---+
 //  |              |       |   |      |   |
@@ -165,25 +165,23 @@ typedef enum ATTRIBUTE_PACKED {
 //  +-----+       | | | |
 //  +-----+       | | | |
 //  +-----+       +-+-+-+
-#endif  // CONFIG_EXT_PARTITIONS
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 enum {
   PARTITION_NONE,
   PARTITION_HORZ,
   PARTITION_VERT,
   PARTITION_SPLIT,
-#if !CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_EXT_RECUR_PARTITIONS
+  PARTITION_HORZ_3,  // 3 horizontal sub-partitions with ratios 4:1, 2:1 and 4:1
+  PARTITION_VERT_3,  // 3 vertical sub-partitions with ratios 4:1, 2:1 and 4:1
+#else
   PARTITION_HORZ_A,  // HORZ split and the top partition is split again
   PARTITION_HORZ_B,  // HORZ split and the bottom partition is split again
   PARTITION_VERT_A,  // VERT split and the left partition is split again
   PARTITION_VERT_B,  // VERT split and the right partition is split again
-#endif               // !CONFIG_EXT_RECUR_PARTITIONS
-#if CONFIG_EXT_PARTITIONS
-  PARTITION_HORZ_3,  // 3 horizontal sub-partitions with ratios 4:1, 2:1 and 4:1
-  PARTITION_VERT_3,  // 3 vertical sub-partitions with ratios 4:1, 2:1 and 4:1
-#else
   PARTITION_HORZ_4,  // 4:1 horizontal partition
   PARTITION_VERT_4,  // 4:1 vertical partition
-#endif  // CONFIG_EXT_PARTITIONS
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   EXT_PARTITION_TYPES,
   PARTITION_TYPES = PARTITION_SPLIT + 1,
   PARTITION_INVALID = 255

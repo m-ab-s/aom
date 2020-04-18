@@ -233,7 +233,7 @@ typedef struct cfg_options {
    *
    */
   unsigned int disable_rect_partition_type;
-#if CONFIG_EXT_PARTITIONS
+#if CONFIG_EXT_RECUR_PARTITIONS
   /*!\brief disable 1:3/3:1 partition type
    *
    */
@@ -243,7 +243,7 @@ typedef struct cfg_options {
    *
    */
   unsigned int disable_1to4_partition_type;
-#endif  // CONFIG_EXT_PARTITIONS
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   /*!\brief disable flip and identity transform type
    *
    */

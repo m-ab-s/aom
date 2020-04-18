@@ -73,43 +73,18 @@ typedef struct PC_TREE {
 #if CONFIG_EXT_RECUR_PARTITIONS
   struct PC_TREE *horizontal[2];
   struct PC_TREE *vertical[2];
-#else
-  PICK_MODE_CONTEXT *horizontal[2];
-  PICK_MODE_CONTEXT *vertical[2];
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
-#if CONFIG_EXT_PARTITIONS
-#if !CONFIG_EXT_RECUR_PARTITIONS
-  struct PC_TREE *horza_split[2];
-  struct PC_TREE *horzb_split[2];
-  struct PC_TREE *verta_split[2];
-  struct PC_TREE *vertb_split[2];
-  PICK_MODE_CONTEXT *horza_rec;
-  PICK_MODE_CONTEXT *horzb_rec;
-  PICK_MODE_CONTEXT *verta_rec;
-  PICK_MODE_CONTEXT *vertb_rec;
-#endif  // !CONFIG_EXT_RECUR_PARTITIONS
-#if CONFIG_EXT_RECUR_PARTITIONS
   struct PC_TREE *horizontal3[3];
   struct PC_TREE *vertical3[3];
 #else
-  PICK_MODE_CONTEXT *horizontal3[3];
-  PICK_MODE_CONTEXT *vertical3[3];
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
-#else
-#if !CONFIG_EXT_RECUR_PARTITIONS
+  PICK_MODE_CONTEXT *horizontal[2];
+  PICK_MODE_CONTEXT *vertical[2];
   PICK_MODE_CONTEXT *horizontala[3];
   PICK_MODE_CONTEXT *horizontalb[3];
   PICK_MODE_CONTEXT *verticala[3];
   PICK_MODE_CONTEXT *verticalb[3];
-#endif  // !CONFIG_EXT_RECUR_PARTITIONS
-#if CONFIG_EXT_RECUR_PARTITIONS
-  struct PC_TREE *horizontal4[4];
-  struct PC_TREE *vertical4[4];
-#else
   PICK_MODE_CONTEXT *horizontal4[4];
   PICK_MODE_CONTEXT *vertical4[4];
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
-#endif  // CONFIG_EXT_PARTITIONS
   struct PC_TREE *split[4];
   struct PC_TREE *parent;
   int mi_row;
@@ -133,9 +108,9 @@ typedef struct SIMPLE_MOTION_DATA_TREE {
   int sms_rect_valid;
 } SIMPLE_MOTION_DATA_TREE;
 
-#if CONFIG_EXT_RECUR_PARTITIONS && CONFIG_EXT_PARTITIONS
+#if CONFIG_EXT_RECUR_PARTITIONS
 PC_TREE *av1_look_for_counterpart_block(PC_TREE *pc_tree);
-#endif  // CONFIG_EXT_RECUR_PARTITIONS && CONFIG_EXT_PARTITIONS
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
 void av1_setup_shared_coeff_buffer(AV1_COMMON *cm,
                                    PC_TREE_SHARED_BUFFERS *shared_bufs);
@@ -148,12 +123,12 @@ PC_TREE *av1_alloc_pc_tree_node(int mi_row, int mi_col, BLOCK_SIZE bsize,
                                 int subsampling_y);
 void av1_free_pc_tree_recursive(PC_TREE *tree, int num_planes, int keep_best,
                                 int keep_none);
-#if CONFIG_EXT_PARTITIONS && CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_EXT_RECUR_PARTITIONS
 void av1_copy_pc_tree_recursive(const AV1_COMMON *cm, PC_TREE *dst,
                                 PC_TREE *src, int ss_x, int ss_y,
                                 PC_TREE_SHARED_BUFFERS *shared_bufs,
                                 int num_planes);
-#endif  // CONFIG_EXT_PARTITIONS && CONFIG_EXT_RECUR_PARTITIONS
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
 PICK_MODE_CONTEXT *av1_alloc_pmc(const AV1_COMMON *cm, int mi_row, int mi_col,
                                  BLOCK_SIZE bsize, PC_TREE *parent,

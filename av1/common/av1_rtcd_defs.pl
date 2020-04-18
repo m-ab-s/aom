@@ -457,11 +457,11 @@ specialize qw/av1_dist_wtd_convolve_2d_copy sse2 avx2/;
 specialize qw/av1_dist_wtd_convolve_x sse2 avx2/;
 specialize qw/av1_dist_wtd_convolve_y sse2 avx2/;
 specialize qw/av1_highbd_convolve_2d_copy_sr sse2 avx2/;
-if (aom_config("CONFIG_EXT_PARTITIONS") eq "") {
+if (aom_config("CONFIG_EXT_RECUR_PARTITIONS") eq "") {
   specialize qw/av1_dist_wtd_convolve_2d_copy neon/;
   specialize qw/av1_dist_wtd_convolve_x neon/;
   specialize qw/av1_dist_wtd_convolve_y neon/;
-} # CONFIG_EXT_PARTITIONS
+} # CONFIG_EXT_RECUR_PARTITIONS
 specialize qw/av1_highbd_convolve_2d_sr ssse3 avx2/;
 specialize qw/av1_highbd_convolve_x_sr ssse3 avx2/;
 specialize qw/av1_highbd_convolve_y_sr ssse3 avx2/;

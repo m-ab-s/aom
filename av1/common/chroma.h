@@ -31,7 +31,7 @@ static INLINE BLOCK_SIZE scale_chroma_bsize(BLOCK_SIZE bsize,
                                             bool subsampling_x,
                                             bool subsampling_y, int mi_row,
                                             int mi_col) {
-#if CONFIG_EXT_PARTITIONS
+#if CONFIG_EXT_RECUR_PARTITIONS
   const int bw = mi_size_wide[bsize];
   const int bh = mi_size_high[bsize];
   const int is_3rd_horz3_16x16_partition =
@@ -44,7 +44,7 @@ static INLINE BLOCK_SIZE scale_chroma_bsize(BLOCK_SIZE bsize,
   (void)mi_row;
   (void)mi_col;
   const bool is_3way_part = false;
-#endif  // CONFIG_EXT_PARTITIONS
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
   switch (bsize) {
     case BLOCK_4X4:
@@ -109,7 +109,7 @@ static INLINE void get_mi_row_col_offsets(int mi_row, int mi_col, int ss_x,
                                           int *mi_col_offset) {
   *mi_row_offset = 0;
   *mi_col_offset = 0;
-#if CONFIG_EXT_PARTITIONS
+#if CONFIG_EXT_RECUR_PARTITIONS
   if (ss_x && (mi_col & 0x01)) {
     if (bw == 1 && bh == 4) {
       // Special case: 3rd vertical sub-block of a 16x16 vert3 partition.
@@ -139,7 +139,7 @@ static INLINE void get_mi_row_col_offsets(int mi_row, int mi_col, int ss_x,
   if (ss_y && (mi_row & 0x01) && bh == 1) {
     *mi_row_offset = 1;
   }
-#endif  // CONFIG_EXT_PARTITIONS
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 }
 
 #ifdef __cplusplus

@@ -1182,13 +1182,13 @@ void av1_ml_prune_4_partition(const AV1_COMP *const cpi, MACROBLOCK *const x,
   unsigned int horz_4_source_var[4] = { 0 };
   unsigned int vert_4_source_var[4] = { 0 };
   {
-#if CONFIG_EXT_PARTITIONS
+#if CONFIG_EXT_RECUR_PARTITIONS
     BLOCK_SIZE horz_4_bs = get_partition_subsize(bsize, PARTITION_HORZ_3);
     BLOCK_SIZE vert_4_bs = get_partition_subsize(bsize, PARTITION_VERT_3);
 #else
     BLOCK_SIZE horz_4_bs = get_partition_subsize(bsize, PARTITION_HORZ_4);
     BLOCK_SIZE vert_4_bs = get_partition_subsize(bsize, PARTITION_VERT_4);
-#endif  // CONFIG_EXT_PARTITIONS
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
     CHROMA_REF_INFO chr_ref_info = { 1, 0, mi_row, mi_col, bsize, bsize };
     av1_setup_src_planes(x, cpi->source, mi_row, mi_col,
                          av1_num_planes(&cpi->common), &chr_ref_info);

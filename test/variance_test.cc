@@ -1854,9 +1854,9 @@ const VarianceParams kArrayAOMVariance_sse2[] = {
   VarianceParams(5, 4, &aom_variance32x16_sse2),
   VarianceParams(5, 3, &aom_variance32x8_sse2),
   VarianceParams(4, 6, &aom_variance16x64_sse2),
-#if !CONFIG_EXT_PARTITIONS
+#if !CONFIG_EXT_RECUR_PARTITIONS
   VarianceParams(4, 5, &aom_variance16x32_sse2),
-#endif  // !CONFIG_EXT_PARTITIONS
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS
   VarianceParams(4, 4, &aom_variance16x16_sse2),
   VarianceParams(4, 3, &aom_variance16x8_sse2),
   VarianceParams(4, 2, &aom_variance16x4_sse2),
@@ -2630,11 +2630,11 @@ INSTANTIATE_TEST_CASE_P(
 INSTANTIATE_TEST_CASE_P(
     NEON, AvxSubpelVarianceTest,
     ::testing::Values(
-#if !CONFIG_EXT_PARTITIONS
+#if !CONFIG_EXT_RECUR_PARTITIONS
         SubpelVarianceParams(6, 6, &aom_sub_pixel_variance64x64_neon, 0),
         SubpelVarianceParams(5, 5, &aom_sub_pixel_variance32x32_neon, 0),
         SubpelVarianceParams(4, 4, &aom_sub_pixel_variance16x16_neon, 0),
-#endif  // !CONFIG_EXT_PARTITIONS
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS
         SubpelVarianceParams(3, 3, &aom_sub_pixel_variance8x8_neon, 0)));
 #endif  // HAVE_NEON
 
