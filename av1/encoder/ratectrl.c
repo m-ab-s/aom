@@ -1889,6 +1889,7 @@ void av1_get_one_pass_rt_params(AV1_COMP *cpi,
     rc->this_key_frame_forced =
         cm->current_frame.frame_number != 0 && rc->frames_to_key == 0;
     rc->frames_to_key = cpi->oxcf.key_freq;
+    rc->frames_to_key = AOMMAX(1, rc->frames_to_key);
     rc->kf_boost = DEFAULT_KF_BOOST_RT;
     rc->source_alt_ref_active = 0;
     frame_update_type = KF_UPDATE;

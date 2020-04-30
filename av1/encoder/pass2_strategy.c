@@ -1610,7 +1610,8 @@ static void find_next_key_frame(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame) {
     if (num_frames_to_app_forced_key != -1)
       rc->frames_to_key = num_frames_to_app_forced_key;
     else
-      rc->frames_to_key = AOMMAX(1, cpi->oxcf.key_freq);
+      rc->frames_to_key = cpi->oxcf.key_freq;
+    rc->frames_to_key = AOMMAX(1, rc->frames_to_key);
     correct_frames_to_key(cpi);
     rc->kf_boost = DEFAULT_KF_BOOST;
     rc->source_alt_ref_active = 0;
@@ -1643,6 +1644,7 @@ static void find_next_key_frame(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame) {
     rc->frames_to_key = AOMMIN(oxcf->key_freq, frames_to_key);
   else
     rc->frames_to_key = oxcf->key_freq;
+  rc->frames_to_key = AOMMAX(1, rc->frames_to_key);
 
   if (cpi->lap_enabled) correct_frames_to_key(cpi);
 
