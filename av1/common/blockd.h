@@ -719,6 +719,11 @@ typedef struct MB_MODE_INFO {
   uint8_t use_derived_intra_mode[2];
   uint8_t derived_angle;
 #endif  // CONFIG_DERIVED_INTRA_MODE
+#if CONFIG_DERIVED_MV
+  int derived_mv_allowed;
+  int use_derived_mv;
+  MV derived_mv;
+#endif  // CONFIG_DERIVED_MV
 } MB_MODE_INFO;
 
 typedef struct PARTITION_TREE {

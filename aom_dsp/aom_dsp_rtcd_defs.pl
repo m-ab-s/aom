@@ -1303,6 +1303,13 @@ if (aom_config("CONFIG_EXT_RECUR_PARTITIONS") eq "") {
     specialize qw/aom_sub_pixel_avg_variance32x4 sse2 ssse3 avx2/;
   }
 
+  if (aom_config("CONFIG_DERIVED_MV") eq "yes") {
+    add_proto qw/uint32_t/, "aom_sub_pixel_variance4x64", "const uint8_t *src_ptr, int source_stride, int xoffset, int  yoffset, const uint8_t *ref_ptr, int ref_stride, uint32_t *sse";
+    add_proto qw/uint32_t/, "aom_sub_pixel_variance64x4", "const uint8_t *src_ptr, int source_stride, int xoffset, int  yoffset, const uint8_t *ref_ptr, int ref_stride, uint32_t *sse";
+    add_proto qw/uint32_t/, "aom_sub_pixel_variance4x32", "const uint8_t *src_ptr, int source_stride, int xoffset, int  yoffset, const uint8_t *ref_ptr, int ref_stride, uint32_t *sse";
+    add_proto qw/uint32_t/, "aom_sub_pixel_variance32x4", "const uint8_t *src_ptr, int source_stride, int xoffset, int  yoffset, const uint8_t *ref_ptr, int ref_stride, uint32_t *sse";
+  }
+
   specialize qw/aom_dist_wtd_sub_pixel_avg_variance64x64 ssse3/;
   specialize qw/aom_dist_wtd_sub_pixel_avg_variance64x32 ssse3/;
   specialize qw/aom_dist_wtd_sub_pixel_avg_variance32x64 ssse3/;

@@ -185,6 +185,9 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
 #else
   RESET_CDF_COUNTER(fc->y_mode_cdf, INTRA_MODES);
 #endif  // CONFIG_DERIVED_INTRA_MODE
+#if CONFIG_DERIVED_MV
+  RESET_CDF_COUNTER(fc->use_derived_mv_cdf, 2);
+#endif  // CONFIG_DERIVED_MV
   for (int i = 0; i < PARTITION_CONTEXTS; i++) {
     if (i < 4) {
       RESET_CDF_COUNTER_STRIDE(fc->partition_cdf[i], 4, CDF_SIZE(10));

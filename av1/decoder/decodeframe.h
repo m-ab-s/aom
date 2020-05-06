@@ -17,6 +17,7 @@ extern "C" {
 #endif
 
 #include "aom_dsp/bitreader.h"
+#include "av1/common/reconinter.h"
 
 struct AV1Decoder;
 struct aom_read_bit_buffer;

@@ -188,6 +188,9 @@ static void write_inter_mode(aom_writer *w, PREDICTION_MODE mode,
 static void write_drl_idx(FRAME_CONTEXT *ec_ctx, const AV1_COMMON *cm,
                           int16_t mode_ctx, const MB_MODE_INFO *mbmi,
                           const MB_MODE_INFO_EXT *mbmi_ext, aom_writer *w) {
+#if CONFIG_DERIVED_MV
+  if (mbmi->derived_mv_allowed && mbmi->use_derived_mv) return;
+#endif  // CONFIG_DERIVED_MV
   (void)cm;
   uint8_t ref_frame_type = av1_ref_frame_type(mbmi->ref_frame);
   assert(!mbmi->skip_mode);
@@ -1522,6 +1525,13 @@ static void pack_inter_mode_mvs(AV1_COMP *cpi, const int mi_row,
         write_inter_compound_mode(xd, w, mode, mode_ctx);
       else if (is_inter_singleref_mode(mode))
         write_inter_mode(w, mode, ec_ctx, mode_ctx);
+
+#if CONFIG_DERIVED_MV
+      if (mbmi->derived_mv_allowed) {
+        aom_write_symbol(w, mbmi->use_derived_mv,
+                         ec_ctx->use_derived_mv_cdf[bsize], 2);
+      }
+#endif  // CONFIG_DERIVED_MV
 
 #if CONFIG_FLEX_MVRES
       if (is_pb_mv_precision_active(cm, mode, mbmi->max_mv_precision)) {

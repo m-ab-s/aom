@@ -561,6 +561,9 @@ struct macroblock {
   int derived_intra_mode_cost[2][3][2];
   int uv_derived_intra_mode_cost[2][2];
 #endif  // CONFIG_DERIVED_INTRA_MODE
+#if CONFIG_DERIVED_MV
+  int use_derived_mv_cost[BLOCK_SIZES_ALL][2];
+#endif  // CONFIG_DERIVED_MV
 
   // Used to store sub partition's choices.
   MV pred_mv[REF_FRAMES];

@@ -12308,6 +12308,10 @@ static int64_t handle_inter_mode(AV1_COMP *const cpi, TileDataEnc *tile_data,
     mbmi->motion_mode = SIMPLE_TRANSLATION;
     mbmi->ref_mv_idx = ref_mv_idx;
 
+#if CONFIG_DERIVED_MV
+    mbmi->derived_mv_allowed = mbmi->use_derived_mv = 0;
+#endif  // CONFIG_DERIVED_MV
+
     rd_stats->rate += args->ref_frame_cost + args->single_comp_cost;
 #if CONFIG_NEW_INTER_MODES
     const int drl_cost = get_drl_cost(mbmi, mbmi_ext, x, ref_frame_type);
@@ -12492,6 +12496,47 @@ static int64_t handle_inter_mode(AV1_COMP *const cpi, TileDataEnc *tile_data,
 #else
       rd_stats->rate += ref_mv_cost;
 #endif
+
+#if CONFIG_DERIVED_MV
+      mbmi->derived_mv_allowed = av1_derived_mv_allowed(xd, mbmi);
+      if (mbmi->derived_mv_allowed && mbmi->ref_mv_idx == 0) {
+        mbmi->derived_mv =
+            av1_derive_mv(cm, xd, mbmi, orig_dst.plane[0], orig_dst.stride[0]);
+        const MV orig_mv = mbmi->mv[0].as_mv;
+        RD_STATS tmp_rd_stats, tmp_rd_stats_y, tmp_rd_stats_uv;
+        av1_enc_build_inter_predictor(cm, xd, xd->mi_row, xd->mi_col, &orig_dst,
+                                      bsize, 0, av1_num_planes(cm) - 1);
+        int rd_valid = txfm_search(cpi, tile_data, x, bsize, &tmp_rd_stats,
+                                   &tmp_rd_stats_y, &tmp_rd_stats_uv,
+                                   x->use_derived_mv_cost[bsize][0], INT64_MAX);
+        const int64_t no_refine_rd =
+            rd_valid ? RDCOST(x->rdmult, tmp_rd_stats.rate, tmp_rd_stats.dist)
+                     : INT64_MAX;
+
+        mbmi->mv[0].as_mv = mbmi->derived_mv;
+        av1_enc_build_inter_predictor(cm, xd, xd->mi_row, xd->mi_col, &orig_dst,
+                                      bsize, 0, av1_num_planes(cm) - 1);
+        rd_valid = txfm_search(cpi, tile_data, x, bsize, &tmp_rd_stats,
+                               &tmp_rd_stats_y, &tmp_rd_stats_uv,
+                               x->use_derived_mv_cost[bsize][1], INT64_MAX);
+        const int64_t refine_rd =
+            rd_valid ? RDCOST(x->rdmult, tmp_rd_stats.rate, tmp_rd_stats.dist)
+                     : INT64_MAX;
+        if (refine_rd < no_refine_rd) {
+          mbmi->use_derived_mv = 1;
+          mbmi->mv[0].as_mv = mbmi->derived_mv;
+        } else {
+          mbmi->use_derived_mv = 0;
+          mbmi->mv[0].as_mv = orig_mv;
+        }
+      } else {
+        mbmi->use_derived_mv = 0;
+      }
+      if (mbmi->derived_mv_allowed) {
+        rd_stats->rate += x->use_derived_mv_cost[bsize][mbmi->use_derived_mv];
+        if (mbmi->use_derived_mv) rd_stats->rate -= drl_cost;
+      }
+#endif  // CONFIG_DERIVED_MV
 
 #if CONFIG_NEW_INTER_MODES
       const int like_nearest =
@@ -13068,6 +13113,9 @@ static int64_t rd_pick_intrabc_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x,
       // mbmi->is_ibcplus = (ibcMode != ROTATION_0) ? 0x1 : 0x0;
       // mbmi->ibcplus_mode = mbmi->is_ibcplus ? (ibcMode-MIRROR_90) : 0x0;
 #endif  // CONFIG_EXT_IBC_MODES
+#if CONFIG_DERIVED_MV
+      mbmi->derived_mv_allowed = mbmi->use_derived_mv = 0;
+#endif  // CONFIG_DERIVED_MV
 
       x->skip = 0;
 
@@ -13342,6 +13390,9 @@ static void rd_pick_skip_mode(RD_STATS *rd_cost,
   mbmi->motion_mode = SIMPLE_TRANSLATION;
   mbmi->ref_mv_idx = 0;
   mbmi->skip_mode = mbmi->skip = 1;
+#if CONFIG_DERIVED_MV
+  mbmi->derived_mv_allowed = 0;
+#endif  // CONFIG_DERIVED_MV
 
   set_default_interp_filters(mbmi, cm->interp_filter);
 
@@ -14369,6 +14420,9 @@ static INLINE void init_mbmi(MB_MODE_INFO *mbmi, int mode_index,
   mbmi->interintra_mode = (INTERINTRA_MODE)(II_DC_PRED - 1);
   set_default_interp_filters(mbmi, cm->interp_filter);
   set_default_mbmi_mv_precision(cm, mbmi, xd->sbi);
+#if CONFIG_DERIVED_MV
+  mbmi->derived_mv_allowed = mbmi->use_derived_mv = 0;
+#endif  // CONFIG_DERIVED_MV
 }
 
 static int64_t handle_intra_mode(InterModeSearchState *search_state,
@@ -15448,7 +15502,6 @@ void av1_rd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
           if (is_comp_pred)
             xd->plane[i].pre[1] = yv12_mb[mbmi->ref_frame[1]][i];
         }
-
         av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize, 0,
                                       av1_num_planes(cm) - 1);
         if (mbmi->motion_mode == OBMC_CAUSAL)

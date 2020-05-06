@@ -219,6 +219,9 @@ static void read_drl_idx(FRAME_CONTEXT *ec_ctx, const AV1_COMMON *cm,
   uint8_t ref_frame_type = av1_ref_frame_type(mbmi->ref_frame);
   mbmi->ref_mv_idx = 0;
   assert(!mbmi->skip_mode);
+#if CONFIG_DERIVED_MV
+  if (mbmi->derived_mv_allowed && mbmi->use_derived_mv) return;
+#endif  // CONFIG_DERIVED_MV
 #if CONFIG_FLEX_MVRES && ADJUST_DRL_FLEX_MVRES
   mbmi->ref_mv_idx_adj = 0;
   if (mbmi->pb_mv_precision < mbmi->max_mv_precision &&
@@ -1698,6 +1701,10 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
 
   int mode_ctx = av1_mode_context_analyzer(inter_mode_ctx, mbmi->ref_frame);
   mbmi->ref_mv_idx = 0;
+#if CONFIG_DERIVED_MV
+  mbmi->derived_mv_allowed = 0;
+  mbmi->use_derived_mv = 0;
+#endif  // CONFIG_DERIVED_MV
 
   if (mbmi->skip_mode) {
     assert(is_compound);
@@ -1734,6 +1741,15 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
       }
 #endif  // ADJUST_DRL_FLEX_MVRES
 #endif  // CONFIG_FLEX_MVRES
+
+#if CONFIG_DERIVED_MV
+      mbmi->derived_mv_allowed = av1_derived_mv_allowed(xd, mbmi);
+      if (mbmi->derived_mv_allowed) {
+        mbmi->use_derived_mv =
+            aom_read_symbol(r, ec_ctx->use_derived_mv_cdf[bsize], 2, ACCT_STR);
+      }
+#endif  // CONFIG_DERIVED_MV
+
       if (have_drl_index(mbmi->mode)) {
 #if CONFIG_NEW_INTER_MODES
         read_drl_idx(ec_ctx, cm, mode_ctx, xd, mbmi, r);
@@ -1857,6 +1873,33 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
       cm, xd, mbmi->mode, mbmi->ref_frame, mbmi->mv, ref_mv, nearestmv, nearmv,
       mi_row, mi_col, is_compound, mbmi->pb_mv_precision, r);
   aom_merge_corrupted_flag(&xd->corrupted, mv_corrupted_flag);
+
+#if CONFIG_DERIVED_MV
+  if (mbmi->derived_mv_allowed && mbmi->use_derived_mv) {
+    assert(mbmi->ref_mv_idx == 0);
+    const int num_planes = av1_num_planes(cm);
+    for (int ref = 0; ref < 1 + has_second_ref(mbmi); ++ref) {
+      const MV_REFERENCE_FRAME frame = mbmi->ref_frame[ref];
+      if (frame < LAST_FRAME) {
+        assert(is_intrabc_block(mbmi));
+        assert(frame == INTRA_FRAME);
+        assert(ref == 0);
+      } else {
+        const RefCntBuffer *ref_buf = get_ref_frame_buf(cm, frame);
+        const struct scale_factors *ref_scale_factors =
+            get_ref_scale_factors_const(cm, frame);
+
+        xd->block_ref_scale_factors[ref] = ref_scale_factors;
+        av1_setup_pre_planes(xd, ref, &ref_buf->buf, mi_row, mi_col,
+                             ref_scale_factors, num_planes,
+                             &mbmi->chroma_ref_info);
+      }
+    }
+    mbmi->derived_mv = av1_derive_mv(cm, xd, mbmi, xd->plane[0].dst.buf,
+                                     xd->plane[0].dst.stride);
+    mbmi->mv[0].as_mv = mbmi->derived_mv;
+  }
+#endif  // CONFIG_DERIVED_MV
 
   mbmi->use_wedge_interintra = 0;
   if (cm->seq_params.enable_interintra_compound && !mbmi->skip_mode &&
@@ -2017,7 +2060,9 @@ static void read_inter_frame_mode_info(AV1Decoder *const pbi,
   mbmi->segment_id = read_inter_segment_id(cm, xd, mi_row, mi_col, 1, r);
   mbmi->max_mv_precision = cm->fr_mv_precision;
   mbmi->pb_mv_precision = cm->fr_mv_precision;
-
+#if CONFIG_DERIVED_MV
+  mbmi->derived_mv_allowed = mbmi->use_derived_mv = 0;
+#endif  // CONFIG_DERIVED_MV
   mbmi->skip_mode = read_skip_mode(cm, xd, mbmi->segment_id, r);
 
   if (mbmi->skip_mode)
@@ -2081,6 +2126,10 @@ void av1_read_mode_info(AV1Decoder *const pbi, MACROBLOCKD *xd, int mi_row,
   mi->use_derived_intra_mode[0] = 0;
   mi->use_derived_intra_mode[1] = 0;
 #endif  // CONFIG_DERIVED_INTRA_MODE
+#if CONFIG_DERIVED_MV
+  mi->derived_mv_allowed = mi->use_derived_mv = 0;
+#endif  // CONFIG_DERIVED_MV
+  mi->ref_mv_idx = 0;
 
   if (frame_is_intra_only(cm)) {
     read_intra_frame_mode_info(cm, xd, mi_row, mi_col, r);

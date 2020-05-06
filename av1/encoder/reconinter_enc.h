@@ -66,6 +66,9 @@ static INLINE int has_subpel_mv_component(const MB_MODE_INFO *const mbmi,
 
 static INLINE int av1_is_interp_search_needed(const MACROBLOCKD *const xd) {
   MB_MODE_INFO *const mi = xd->mi[0];
+#if CONFIG_DERIVED_MV
+  if (mi->derived_mv_allowed && mi->use_derived_mv) return 1;
+#endif  // CONFIG_DERIVED_MV
   const int is_compound = has_second_ref(mi);
   int ref;
   for (ref = 0; ref < 1 + is_compound; ++ref) {

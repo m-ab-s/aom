@@ -830,6 +830,9 @@ static void pick_sb_modes(AV1_COMP *const cpi, TileDataEnc *tile_data,
   mbmi->use_derived_intra_mode[0] = 0;
   mbmi->use_derived_intra_mode[1] = 0;
 #endif  // CONFIG_DERIVED_INTRA_MODE
+#if CONFIG_DERIVED_MV
+  mbmi->derived_mv_allowed = mbmi->use_derived_mv = 0;
+#endif  // CONFIG_DERIVED_MV
 
   // Find best coding mode & reconstruct the MB so it is available
   // as a predictor for MBs that follow in the SB
@@ -908,6 +911,9 @@ static void update_drl_index_stats(FRAME_CONTEXT *fc, FRAME_COUNTS *counts,
 #if !CONFIG_ENTROPY_STATS
   (void)counts;
 #endif  // !CONFIG_ENTROPY_STATS
+#if CONFIG_DERIVED_MV
+  if (mbmi->derived_mv_allowed && mbmi->use_derived_mv) return;
+#endif  // CONFIG_DERIVED_MV
   assert(have_drl_index(mbmi->mode));
   uint8_t ref_frame_type = av1_ref_frame_type(mbmi->ref_frame);
 #if CONFIG_FLEX_MVRES && ADJUST_DRL_FLEX_MVRES
@@ -1575,6 +1581,12 @@ static void update_stats(const AV1_COMMON *const cm, TileDataEnc *tile_data,
             }
           }
         }
+
+#if CONFIG_DERIVED_MV
+        if (mbmi->derived_mv_allowed) {
+          update_cdf(fc->use_derived_mv_cdf[bsize], mbmi->use_derived_mv, 2);
+        }
+#endif  // CONFIG_DERIVED_MV
 
         if (cm->seq_params.enable_interintra_compound &&
             is_interintra_allowed(mbmi)) {
@@ -5328,6 +5340,9 @@ static void avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
   AVERAGE_CDF(ctx_left->uv_derived_intra_mode_cdf,
               ctx_tr->uv_derived_intra_mode_cdf, 2);
 #endif  // CONFIG_DERIVED_INTRA_MODE
+#if CONFIG_DERIVED_MV
+  AVERAGE_CDF(ctx_left->use_derived_mv_cdf, ctx_tr->use_derived_mv_cdf, 2);
+#endif  // CONFIG_DERIVED_MV
   AVERAGE_CDF(ctx_left->seg.tree_cdf, ctx_tr->seg.tree_cdf, MAX_SEGMENTS);
   AVERAGE_CDF(ctx_left->seg.pred_cdf, ctx_tr->seg.pred_cdf, 2);
   AVERAGE_CDF(ctx_left->seg.spatial_pred_seg_cdf,
@@ -7345,6 +7360,33 @@ static void encode_superblock(const AV1_COMP *const cpi, TileDataEnc *tile_data,
         ibc_rotation270++;*/
     }
 #endif  // CONFIG_EXT_IBC_MODES
+
+#if CONFIG_DERIVED_MV
+    assert(mbmi->derived_mv_allowed == av1_derived_mv_allowed(xd, mbmi));
+    if (mbmi->derived_mv_allowed && mbmi->use_derived_mv) {
+      const MV derived_mv = av1_derive_mv(cm, xd, mbmi, xd->plane[0].dst.buf,
+                                          xd->plane[0].dst.stride);
+      // In rare cases the derived_mv may have changed and is different from
+      // the values obtained during RDO.
+      if (mbmi->mv[0].as_mv.row != derived_mv.row ||
+          mbmi->mv[0].as_mv.col != derived_mv.col) {
+        mbmi->mv[0].as_mv = derived_mv;
+        // Do not use warped motion because the warped motion coefficients may
+        // have become invalid due to the MV change.
+        if (mbmi->motion_mode == WARPED_CAUSAL) {
+          mbmi->motion_mode = SIMPLE_TRANSLATION;
+        }
+        // Update the frame MV buffers.
+        if (!dry_run && cm->seq_params.order_hint_info.enable_ref_frame_mvs) {
+          const int bw = mi_size_wide[bsize];
+          const int bh = mi_size_high[bsize];
+          const int x_mis = AOMMIN(bw, cm->mi_cols - mi_col);
+          const int y_mis = AOMMIN(bh, cm->mi_rows - mi_row);
+          av1_copy_frame_mvs(cm, mbmi, mi_row, mi_col, x_mis, y_mis);
+        }
+      }
+    }
+#endif  // CONFIG_DERIVED_MV
 
     av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize, 0,
                                   av1_num_planes(cm) - 1);

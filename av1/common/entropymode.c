@@ -1551,6 +1551,20 @@ static const aom_cdf_prob default_uv_derived_intra_mode_cdf[2][CDF_SIZE(2)] = {
 };
 #endif  // CONFIG_DERIVED_INTRA_MODE
 
+#if CONFIG_DERIVED_MV
+static const aom_cdf_prob
+    default_use_derived_mv_cdf[BLOCK_SIZES_ALL][CDF_SIZE(2)] = {
+      { AOM_CDF2(16384) }, { AOM_CDF2(16384) }, { AOM_CDF2(16384) },
+      { AOM_CDF2(16384) }, { AOM_CDF2(16384) }, { AOM_CDF2(16384) },
+      { AOM_CDF2(16384) }, { AOM_CDF2(16384) }, { AOM_CDF2(16384) },
+      { AOM_CDF2(16384) }, { AOM_CDF2(16384) }, { AOM_CDF2(16384) },
+      { AOM_CDF2(16384) }, { AOM_CDF2(16384) }, { AOM_CDF2(16384) },
+      { AOM_CDF2(16384) }, { AOM_CDF2(16384) }, { AOM_CDF2(16384) },
+      { AOM_CDF2(16384) }, { AOM_CDF2(16384) }, { AOM_CDF2(16384) },
+      { AOM_CDF2(16384) },
+    };
+#endif  // CONFIG_DERIVED_MV
+
 static const aom_cdf_prob default_filter_intra_mode_cdf[CDF_SIZE(
     FILTER_INTRA_MODES)] = { AOM_CDF5(8949, 12776, 17211, 29558) };
 
@@ -1960,6 +1974,9 @@ static void init_mode_probs(FRAME_CONTEXT *fc) {
   av1_copy(fc->derived_intra_mode_cdf, default_derived_intra_mode_cdf);
   av1_copy(fc->uv_derived_intra_mode_cdf, default_uv_derived_intra_mode_cdf);
 #endif  // CONFIG_DERIVED_INTRA_MODE
+#if CONFIG_DERIVED_MV
+  av1_copy(fc->use_derived_mv_cdf, default_use_derived_mv_cdf);
+#endif  // CONFIG_DERIVED_MV
 }
 
 void av1_set_default_ref_deltas(int8_t *ref_deltas) {

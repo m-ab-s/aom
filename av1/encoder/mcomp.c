@@ -3431,6 +3431,9 @@ void av1_simple_motion_search(AV1_COMP *const cpi, MACROBLOCK *x, int mi_row,
   mbmi->ref_frame[1] = NONE_FRAME;
   mbmi->motion_mode = SIMPLE_TRANSLATION;
   mbmi->mode = NEWMV;
+#if CONFIG_DERIVED_MV
+  mbmi->derived_mv_allowed = mbmi->use_derived_mv = 0;
+#endif  // CONFIG_DERIVED_MV
   set_default_mbmi_mv_precision(cm, mbmi, xd->sbi);
   mbmi->interp_filters = av1_broadcast_interp_filter(EIGHTTAP_REGULAR);
 
