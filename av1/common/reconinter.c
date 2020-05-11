@@ -865,8 +865,8 @@ static void build_inter_predictors(
   // Initialize refined mv
   mv_refined[0].as_mv = mi->mv[0].as_mv;
   mv_refined[1].as_mv = mi->mv[1].as_mv;
-  const int use_optflow_prec =
-      (mi->mode > NEW_NEWMV) && is_compound && USE_OPTFLOW_REFINEMENT;
+  const int use_optflow_prec = (mi->mode > NEW_NEWMV) && is_compound &&
+                               USE_OPTFLOW_REFINEMENT && plane == 0;
   if (use_optflow_prec) {
     av1_get_optflow_based_mv(cm, xd, mi, mv_refined, bw, bh, mi_x, mi_y,
                              build_for_obmc, calc_subpel_params_func,
