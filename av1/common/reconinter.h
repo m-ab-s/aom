@@ -239,6 +239,9 @@ typedef void (*CalcSubpelParamsFunc)(
     MACROBLOCKD *xd, const struct scale_factors *const sf, const MV *const mv,
     int plane, int pre_x, int pre_y, int x, int y, struct buf_2d *const pre_buf,
     int bw, int bh, const WarpTypesAllowed *const warp_types, int ref,
+#if CONFIG_EXT_COMPOUND
+    int use_optflow_ref,
+#endif
     const void *const args, uint8_t **pre, SubpelParams *subpel_params,
     int *src_stride);
 
@@ -277,6 +280,9 @@ void av1_opfl_mv_refinement_highbd(const uint16_t *p0, int pstride0,
 // TODO(jkoleszar): yet another mv clamping function :-(
 static INLINE MV clamp_mv_to_umv_border_sb(const MACROBLOCKD *xd,
                                            const MV *src_mv, int bw, int bh,
+#if CONFIG_EXT_COMPOUND
+                                           int use_optflow_refinement,
+#endif  // CONFIG_EXT_COMPOUND
                                            int ss_x, int ss_y) {
   // If the MV points so far into the UMV border that no visible pixels
   // are used for reconstruction, the subpel part of the MV can be
@@ -285,11 +291,24 @@ static INLINE MV clamp_mv_to_umv_border_sb(const MACROBLOCKD *xd,
   const int spel_right = spel_left - SUBPEL_SHIFTS;
   const int spel_top = (AOM_INTERP_EXTEND + bh) << SUBPEL_BITS;
   const int spel_bottom = spel_top - SUBPEL_SHIFTS;
+#if CONFIG_EXT_COMPOUND
+  MV clamped_mv;
+  if (use_optflow_refinement) {
+    // optflow refinement always returns MVs with 1/16 precision so it is not
+    // necessary to shift the MV before clamping
+    clamped_mv.row = (int16_t)(src_mv->row);
+    clamped_mv.col = (int16_t)(src_mv->col);
+
+  } else {
+    clamped_mv.row = (int16_t)(src_mv->row * (1 << (1 - ss_y)));
+    clamped_mv.col = (int16_t)(src_mv->col * (1 << (1 - ss_x)));
+  }
+#else
   MV clamped_mv = { (int16_t)(src_mv->row * (1 << (1 - ss_y))),
                     (int16_t)(src_mv->col * (1 << (1 - ss_x))) };
+#endif  // CONFIG_EXT_COMPOUND
   assert(ss_x <= 1);
   assert(ss_y <= 1);
-
   clamp_mv(&clamped_mv, xd->mb_to_left_edge * (1 << (1 - ss_x)) - spel_left,
            xd->mb_to_right_edge * (1 << (1 - ss_x)) + spel_right,
            xd->mb_to_top_edge * (1 << (1 - ss_y)) - spel_top,

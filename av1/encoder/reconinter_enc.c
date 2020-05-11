@@ -32,6 +32,9 @@ static INLINE void enc_calc_subpel_params(
     MACROBLOCKD *xd, const struct scale_factors *const sf, const MV *const mv,
     int plane, int pre_x, int pre_y, int x, int y, struct buf_2d *const pre_buf,
     int bw, int bh, const WarpTypesAllowed *const warp_types, int ref,
+#if CONFIG_EXT_COMPOUND
+    int use_optflow_refinement,
+#endif  // CONFIG_EXT_COMPOUND
     const void *const args, uint8_t **pre, SubpelParams *subpel_params,
     int *src_stride) {
   (void)warp_types;
@@ -66,8 +69,12 @@ static INLINE void enc_calc_subpel_params(
     subpel_params->xs = sf->x_step_q4;
     subpel_params->ys = sf->y_step_q4;
   } else {
-    const MV mv_q4 = clamp_mv_to_umv_border_sb(
-        xd, mv, bw, bh, pd->subsampling_x, pd->subsampling_y);
+    const MV mv_q4 =
+        clamp_mv_to_umv_border_sb(xd, mv, bw, bh,
+#if CONFIG_EXT_COMPOUND
+                                  use_optflow_refinement,
+#endif  // CONFIG_EXT_COMPOUND
+                                  pd->subsampling_x, pd->subsampling_y);
     subpel_params->xs = subpel_params->ys = SCALE_SUBPEL_SHIFTS;
     subpel_params->subpel_x = (mv_q4.col & SUBPEL_MASK) << SCALE_EXTRA_BITS;
     subpel_params->subpel_y = (mv_q4.row & SUBPEL_MASK) << SCALE_EXTRA_BITS;
@@ -332,8 +339,11 @@ static void build_inter_predictors_single_buf(MACROBLOCKD *xd, int plane,
   SubpelParams subpel_params;
   int src_stride;
   enc_calc_subpel_params(xd, sf, &mv, plane, pre_x, pre_y, x, y, pre_buf, bw,
-                         bh, &warp_types, ref, NULL, &pre, &subpel_params,
-                         &src_stride);
+                         bh, &warp_types, ref,
+#if CONFIG_EXT_COMPOUND
+                         0,
+#endif  // CONFIG_EXT_COMPOUND
+                         NULL, &pre, &subpel_params, &src_stride);
 
   av1_make_inter_predictor(pre, src_stride, dst, ext_dst_stride, &subpel_params,
                            sf, w, h, &conv_params, mi->interp_filters,

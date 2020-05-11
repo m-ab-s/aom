@@ -10027,8 +10027,12 @@ static INLINE void calc_interp_skip_pred_flag(MACROBLOCK *const x,
       struct macroblockd_plane *const pd = &xd->plane[plane_idx];
       const int bw = pd->width;
       const int bh = pd->height;
-      const MV mv_q4 = clamp_mv_to_umv_border_sb(
-          xd, &mv, bw, bh, pd->subsampling_x, pd->subsampling_y);
+      const MV mv_q4 =
+          clamp_mv_to_umv_border_sb(xd, &mv, bw, bh,
+#if CONFIG_EXT_COMPOUND
+                                    0,
+#endif  // CONFIG_EXT_COMPOUND
+                                    pd->subsampling_x, pd->subsampling_y);
       const int sub_x = (mv_q4.col & SUBPEL_MASK) << SCALE_EXTRA_BITS;
       const int sub_y = (mv_q4.row & SUBPEL_MASK) << SCALE_EXTRA_BITS;
       skip_hor_plane |= ((sub_x == 0) << plane_idx);

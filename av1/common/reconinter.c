@@ -222,7 +222,7 @@ int av1_compute_subpel_gradients(const AV1_COMMON *cm, MACROBLOCKD *xd,
   int src_stride;
   calc_subpel_params_func(
       xd, sf, &mv_orig, plane, pre_x, pre_y, 0, 0, pre_buf, bw, bh, &warp_types,
-      ref, calc_subpel_params_func_args, &pre, &subpel_params, &src_stride);
+      ref, 0, calc_subpel_params_func_args, &pre, &subpel_params, &src_stride);
 
   // Original predictor
   assert(mi->interinter_comp.type == COMPOUND_AVERAGE);
@@ -238,7 +238,7 @@ int av1_compute_subpel_gradients(const AV1_COMMON *cm, MACROBLOCKD *xd,
   mv_modified.col = mv_orig.col - 1;
   mv_modified.row = mv_orig.row;
   calc_subpel_params_func(xd, sf, &mv_modified, plane, pre_x, pre_y, 0, 0,
-                          pre_buf, bw, bh, &warp_types, ref,
+                          pre_buf, bw, bh, &warp_types, ref, 0,
                           calc_subpel_params_func_args, &pre, &subpel_params,
                           &src_stride);
   av1_make_inter_predictor(pre, src_stride, tmp_buf1, bw, &subpel_params, sf,
@@ -250,7 +250,7 @@ int av1_compute_subpel_gradients(const AV1_COMMON *cm, MACROBLOCKD *xd,
   mv_modified.col = mv_orig.col + 1;
   mv_modified.row = mv_orig.row;
   calc_subpel_params_func(xd, sf, &mv_modified, plane, pre_x, pre_y, 0, 0,
-                          pre_buf, bw, bh, &warp_types, ref,
+                          pre_buf, bw, bh, &warp_types, ref, 0,
                           calc_subpel_params_func_args, &pre, &subpel_params,
                           &src_stride);
   av1_make_inter_predictor(pre, src_stride, tmp_buf2, bw, &subpel_params, sf,
@@ -271,7 +271,7 @@ int av1_compute_subpel_gradients(const AV1_COMMON *cm, MACROBLOCKD *xd,
   mv_modified.col = mv_orig.col;
   mv_modified.row = mv_orig.row - 1;
   calc_subpel_params_func(xd, sf, &mv_modified, plane, pre_x, pre_y, 0, 0,
-                          pre_buf, bw, bh, &warp_types, ref,
+                          pre_buf, bw, bh, &warp_types, ref, 0,
                           calc_subpel_params_func_args, &pre, &subpel_params,
                           &src_stride);
   av1_make_inter_predictor(pre, src_stride, tmp_buf1, bw, &subpel_params, sf,
@@ -283,7 +283,7 @@ int av1_compute_subpel_gradients(const AV1_COMMON *cm, MACROBLOCKD *xd,
   mv_modified.col = mv_orig.col;
   mv_modified.row = mv_orig.row + 1;
   calc_subpel_params_func(xd, sf, &mv_modified, plane, pre_x, pre_y, 0, 0,
-                          pre_buf, bw, bh, &warp_types, ref,
+                          pre_buf, bw, bh, &warp_types, ref, 0,
                           calc_subpel_params_func_args, &pre, &subpel_params,
                           &src_stride);
   av1_make_inter_predictor(pre, src_stride, tmp_buf2, bw, &subpel_params, sf,
@@ -405,6 +405,8 @@ void av1_opfl_mv_refinement_highbd(const uint16_t *p0, int pstride0,
   *vy1 = clamp(*vy1, -max_value, max_value);
 }
 
+// Refine MV using optical flow. The final output MV will be in 1/16
+// precision.
 int av1_get_optflow_based_mv(const AV1_COMMON *cm, MACROBLOCKD *xd,
                              const MB_MODE_INFO *mbmi, int_mv *mv_refined,
                              int bw, int bh, int mi_x, int mi_y,
@@ -415,6 +417,11 @@ int av1_get_optflow_based_mv(const AV1_COMMON *cm, MACROBLOCKD *xd,
   const int prec = mbmi->pb_mv_precision;
   const int target_prec = prec + 1;
   int out_prec = 0;
+  // Convert output MV to 1/16th pel
+  mv_refined[0].as_mv.row *= 2;
+  mv_refined[0].as_mv.col *= 2;
+  mv_refined[1].as_mv.row *= 2;
+  mv_refined[1].as_mv.col *= 2;
 
   // Currently only do this for 1/4 precision mvs
   if (prec != 2) return prec;
@@ -482,11 +489,17 @@ int av1_get_optflow_based_mv(const AV1_COMMON *cm, MACROBLOCKD *xd,
   const int vy1_sign = (vy1 < 0) ? -1 : 1;
   const int vx0_sign = (vx0 < 0) ? -1 : 1;
   const int vx1_sign = (vx1 < 0) ? -1 : 1;
+  // Used to convert the offset to 1/16th pel
+  const int prec_factor = 1 << (SUBPEL_BITS - out_prec);
   // Compute final offset
-  const int vy0_prec = vy0_sign * (abs(vy0) >= (1 << (out_prec - 1)));
-  const int vy1_prec = vy1_sign * (abs(vy1) >= (1 << (out_prec - 1)));
-  const int vx0_prec = vx0_sign * (abs(vx0) >= (1 << (out_prec - 1)));
-  const int vx1_prec = vx1_sign * (abs(vx1) >= (1 << (out_prec - 1)));
+  const int vy0_prec =
+      vy0_sign * (abs(vy0) >= (1 << (out_prec - 1))) * prec_factor;
+  const int vy1_prec =
+      vy1_sign * (abs(vy1) >= (1 << (out_prec - 1))) * prec_factor;
+  const int vx0_prec =
+      vx0_sign * (abs(vx0) >= (1 << (out_prec - 1))) * prec_factor;
+  const int vx1_prec =
+      vx1_sign * (abs(vx1) >= (1 << (out_prec - 1))) * prec_factor;
   // Add offset to output MV
   mv_refined[0].as_mv.row += vy0_prec;
   mv_refined[0].as_mv.col += vx0_prec;
@@ -797,6 +810,9 @@ static void build_inter_predictors_sub8x8(
       int src_stride;
       calc_subpel_params_func(xd, sf, &mv, plane, pre_x, pre_y, x, y, pre_buf,
                               bw, bh, &warp_types, 0 /* ref */,
+#if CONFIG_EXT_COMPOUND
+                              0,
+#endif  // CONFIG_EXT_COMPOUND
                               calc_subpel_params_func_args, &pre,
                               &subpel_params, &src_stride);
 
@@ -889,13 +905,14 @@ static void build_inter_predictors(
     if (use_optflow_prec) {
       // Compute subpel params with refined mv
       calc_subpel_params_func(xd, sf, &(mv_refined[ref].as_mv), plane, pre_x,
-                              pre_y, 0, 0, pre_buf, bw, bh, &warp_types, ref,
+                              pre_y, 0, 0, pre_buf, bw, bh, &warp_types, ref, 1,
                               calc_subpel_params_func_args, &pre,
                               &subpel_params, &src_stride);
     } else {
-      calc_subpel_params_func(
-          xd, sf, &mv, plane, pre_x, pre_y, 0, 0, pre_buf, bw, bh, &warp_types,
-          ref, calc_subpel_params_func_args, &pre, &subpel_params, &src_stride);
+      calc_subpel_params_func(xd, sf, &mv, plane, pre_x, pre_y, 0, 0, pre_buf,
+                              bw, bh, &warp_types, ref, 0,
+                              calc_subpel_params_func_args, &pre,
+                              &subpel_params, &src_stride);
     }
 #else
     calc_subpel_params_func(xd, sf, &mv, plane, pre_x, pre_y, 0, 0, pre_buf, bw,

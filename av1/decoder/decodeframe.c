@@ -604,7 +604,11 @@ static INLINE void dec_calc_subpel_params(
     MACROBLOCKD *xd, const struct scale_factors *const sf, const MV *const mv,
     int plane, int pre_x, int pre_y, int x, int y, struct buf_2d *const pre_buf,
     SubpelParams *subpel_params, int bw, int bh, PadBlock *block, int mi_x,
-    int mi_y, MV32 *scaled_mv, int *subpel_x_mv, int *subpel_y_mv) {
+    int mi_y,
+#if CONFIG_EXT_COMPOUND
+    int use_optflow_refinement,
+#endif  // CONFIG_EXT_COMPOUND
+    MV32 *scaled_mv, int *subpel_x_mv, int *subpel_y_mv) {
   struct macroblockd_plane *const pd = &xd->plane[plane];
   const int is_scaled = av1_is_scaled(sf);
   if (is_scaled) {
@@ -643,8 +647,11 @@ static INLINE void dec_calc_subpel_params(
         ((pos_y + (bh - 1) * subpel_params->ys) >> SCALE_SUBPEL_BITS) + 1;
 
     MV temp_mv;
-    temp_mv = clamp_mv_to_umv_border_sb(xd, mv, bw, bh, pd->subsampling_x,
-                                        pd->subsampling_y);
+    temp_mv = clamp_mv_to_umv_border_sb(xd, mv, bw, bh,
+#if CONFIG_EXT_COMPOUND
+                                        use_optflow_refinement,
+#endif  // CONFIG_EXT_COMPOUND
+                                        pd->subsampling_x, pd->subsampling_y);
     *scaled_mv = av1_scale_mv(&temp_mv, (mi_x + x), (mi_y + y), sf);
     scaled_mv->row += SCALE_EXTRA_OFF;
     scaled_mv->col += SCALE_EXTRA_OFF;
@@ -656,8 +663,12 @@ static INLINE void dec_calc_subpel_params(
     int pos_x = (pre_x + x) << SUBPEL_BITS;
     int pos_y = (pre_y + y) << SUBPEL_BITS;
 
-    const MV mv_q4 = clamp_mv_to_umv_border_sb(
-        xd, mv, bw, bh, pd->subsampling_x, pd->subsampling_y);
+    const MV mv_q4 =
+        clamp_mv_to_umv_border_sb(xd, mv, bw, bh,
+#if CONFIG_EXT_COMPOUND
+                                  use_optflow_refinement,
+#endif  // CONFIG_EXT_COMPOUND
+                                  pd->subsampling_x, pd->subsampling_y);
     subpel_params->xs = subpel_params->ys = SCALE_SUBPEL_SHIFTS;
     subpel_params->subpel_x = (mv_q4.col & SUBPEL_MASK) << SCALE_EXTRA_BITS;
     subpel_params->subpel_y = (mv_q4.row & SUBPEL_MASK) << SCALE_EXTRA_BITS;
@@ -690,6 +701,9 @@ static void dec_calc_subpel_params_and_extend(
     MACROBLOCKD *xd, const struct scale_factors *const sf, const MV *const mv,
     int plane, int pre_x, int pre_y, int x, int y, struct buf_2d *const pre_buf,
     int bw, int bh, const WarpTypesAllowed *const warp_types, int ref,
+#if CONFIG_EXT_COMPOUND
+    int use_optflow_refinement,
+#endif  // CONFIG_EXT_COMPOUND
     const void *const void_args, uint8_t **pre, SubpelParams *subpel_params,
     int *src_stride) {
   const DecCalcSubpelFuncArgs *const args =
@@ -699,6 +713,9 @@ static void dec_calc_subpel_params_and_extend(
   int subpel_x_mv, subpel_y_mv;
   dec_calc_subpel_params(xd, sf, mv, plane, pre_x, pre_y, x, y, pre_buf,
                          subpel_params, bw, bh, &block, args->mi_x, args->mi_y,
+#if CONFIG_EXT_COMPOUND
+                         use_optflow_refinement,
+#endif  // CONFIG_EXT_COMPOUND
                          &scaled_mv, &subpel_x_mv, &subpel_y_mv);
   *pre = pre_buf->buf0 + block.y0 * pre_buf->stride + block.x0;
   *src_stride = pre_buf->stride;
