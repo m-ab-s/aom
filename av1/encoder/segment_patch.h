@@ -32,6 +32,32 @@ void av1_get_segments(const uint8_t *input, int width, int height, int stride,
                       const Av1SegmentParams *seg_params, uint8_t *output,
                       int *num_components);
 
+// Amend mask with values {0,1} to one with values {0,64}.
+// Input/output:
+// - mask: Binary mask that is modified in-place.
+// Inputs:
+// - w: mask width and also stride
+// - h: mask height
+void av1_extend_binary_mask_range(uint8_t *const mask, int w, int h);
+
+// Applies box blur on 'mask' using an averaging filter.
+// Input/output:
+// - mask: Binary mask with extended range that is modified in-place.
+// Inputs:
+// - w: mask width and also stride
+// - h: mask height
+void av1_apply_box_blur(uint8_t *const mask, int w, int h);
+
+#define DUMP_SEGMENT_MASKS 0
+
+#if DUMP_SEGMENT_MASKS
+// Dump raw Y plane to a YUV file.
+// Can be viewed as follows, for example:
+// ffplay -f rawvideo -pixel_format gray -video_size wxh -i <filename>
+extern "C" void av1_dump_raw_y_plane(const uint8_t *y, int width, int height,
+                                     int stride, const char *filename);
+#endif  // DUMP_SEGMENT_MASKS
+
 #ifdef __cplusplus
 }
 #endif
