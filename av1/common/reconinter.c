@@ -491,15 +491,12 @@ int av1_get_optflow_based_mv(const AV1_COMMON *cm, MACROBLOCKD *xd,
   const int vx1_sign = (vx1 < 0) ? -1 : 1;
   // Used to convert the offset to 1/16th pel
   const int prec_factor = 1 << (SUBPEL_BITS - out_prec);
+  const int round_factor = 1 << (OPFL_REFINE_MV_PREC_BITS - out_prec - 1);
   // Compute final offset
-  const int vy0_prec =
-      vy0_sign * (abs(vy0) >= (1 << (out_prec - 1))) * prec_factor;
-  const int vy1_prec =
-      vy1_sign * (abs(vy1) >= (1 << (out_prec - 1))) * prec_factor;
-  const int vx0_prec =
-      vx0_sign * (abs(vx0) >= (1 << (out_prec - 1))) * prec_factor;
-  const int vx1_prec =
-      vx1_sign * (abs(vx1) >= (1 << (out_prec - 1))) * prec_factor;
+  const int vy0_prec = vy0_sign * (abs(vy0) >= round_factor) * prec_factor;
+  const int vy1_prec = vy1_sign * (abs(vy1) >= round_factor) * prec_factor;
+  const int vx0_prec = vx0_sign * (abs(vx0) >= round_factor) * prec_factor;
+  const int vx1_prec = vx1_sign * (abs(vx1) >= round_factor) * prec_factor;
   // Add offset to output MV
   mv_refined[0].as_mv.row += vy0_prec;
   mv_refined[0].as_mv.col += vx0_prec;
