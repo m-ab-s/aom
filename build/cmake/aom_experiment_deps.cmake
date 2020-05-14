@@ -29,6 +29,10 @@ macro(fix_experiment_configs)
     change_config_and_warn(CONFIG_LPF_MASK 0 CONFIG_FLEX_PARTITION)
   endif()
 
+  if(CONFIG_OPTFLOW_REFINEMENT)
+    change_config_and_warn(CONFIG_EXT_COMPOUND 1 CONFIG_OPTFLOW_REFINEMENT)
+  endif()
+
   if(CONFIG_EXT_COMPOUND)
     change_config_and_warn(CONFIG_NEW_INTER_MODES 1 CONFIG_EXT_COMPOUND)
   endif()
