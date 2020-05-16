@@ -121,7 +121,8 @@ typedef struct InterPredExt {
 
 // Checks if the InterPredExt is valid -- useful for assertions. NULL means
 // 0 values for all borders.
-bool av1_valid_inter_pred_ext(const InterPredExt *ext);
+bool av1_valid_inter_pred_ext(const InterPredExt *ext, bool intra_bc,
+                              bool is_compound);
 
 static INLINE void inter_predictor(const uint8_t *src, int src_stride,
                                    uint8_t *dst, int dst_stride,

@@ -524,9 +524,20 @@ static bool valid_border(int border) {
   return border % 8 == 0 && border >= 0 && border <= MAX_INTER_PRED_BORDER;
 }
 
-bool av1_valid_inter_pred_ext(const InterPredExt *ext) {
+bool av1_valid_inter_pred_ext(const InterPredExt *ext, bool intra_bc,
+                              bool is_compound) {
   if (ext == NULL) {
     return true;  // NULL means no extension.
+  }
+  // Intra-block copy will set the source pointer to a different location in
+  // the destination buffer. It's possible that the border pixels around that
+  // region have not been initialized.
+  // Compound mode does not currently work as the masked inter-predictor needs
+  // to increase its region used for the mask.
+  if ((is_compound || intra_bc) &&
+      !(ext->border_left == 0 && ext->border_right == 0 &&
+        ext->border_bottom == 0 && ext->border_top == 0)) {
+    return false;
   }
   return valid_border(ext->border_left) && valid_border(ext->border_top) &&
          valid_border(ext->border_bottom) && valid_border(ext->border_right);
@@ -617,7 +628,8 @@ void av1_make_inter_predictor(
     const WarpTypesAllowed *warp_types, int p_col, int p_row, int plane,
     int ref, const MB_MODE_INFO *mi, int build_for_obmc, const MACROBLOCKD *xd,
     int can_use_previous, const InterPredExt *ext) {
-  assert(av1_valid_inter_pred_ext(ext));
+  assert(av1_valid_inter_pred_ext(ext, mi->use_intrabc,
+                                  has_second_ref(xd->mi[0])));
   const int border_left = (ext == NULL) ? 0 : ext->border_left;
   const int border_top = (ext == NULL) ? 0 : ext->border_top;
   const int border_right = (ext == NULL) ? 0 : ext->border_right;
