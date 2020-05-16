@@ -831,6 +831,77 @@ static void build_inter_predictors_sub8x8(
   }
 }
 
+static void build_masked_compound_no_round(
+    uint8_t *dst, int dst_stride, const CONV_BUF_TYPE *src0, int src0_stride,
+    const CONV_BUF_TYPE *src1, int src1_stride,
+    const INTERINTER_COMPOUND_DATA *const comp_data, BLOCK_SIZE sb_type, int h,
+    int w, ConvolveParams *conv_params, MACROBLOCKD *xd) {
+  // Derive subsampling from h and w passed in. May be refactored to
+  // pass in subsampling factors directly.
+  const int subh = (2 << mi_size_high_log2[sb_type]) == h;
+  const int subw = (2 << mi_size_wide_log2[sb_type]) == w;
+  const uint8_t *mask = av1_get_compound_type_mask(comp_data, sb_type);
+  if (is_cur_buf_hbd(xd)) {
+    aom_highbd_blend_a64_d16_mask(dst, dst_stride, src0, src0_stride, src1,
+                                  src1_stride, mask, block_size_wide[sb_type],
+                                  w, h, subw, subh, conv_params, xd->bd);
+  } else {
+    aom_lowbd_blend_a64_d16_mask(dst, dst_stride, src0, src0_stride, src1,
+                                 src1_stride, mask, block_size_wide[sb_type], w,
+                                 h, subw, subh, conv_params);
+  }
+}
+
+static void av1_make_masked_inter_predictor(
+    const uint8_t *pre, int pre_stride, uint8_t *dst, int dst_stride,
+    const SubpelParams *subpel_params, const struct scale_factors *sf, int w,
+    int h, ConvolveParams *conv_params, int_interpfilters interp_filters,
+    int plane, const WarpTypesAllowed *warp_types, int p_col, int p_row,
+    int ref, MACROBLOCKD *xd, int can_use_previous) {
+  MB_MODE_INFO *mi = xd->mi[0];
+  mi->interinter_comp.seg_mask = xd->seg_mask;
+  const INTERINTER_COMPOUND_DATA *comp_data = &mi->interinter_comp;
+
+// We're going to call av1_make_inter_predictor to generate a prediction into
+// a temporary buffer, then will blend that temporary buffer with that from
+// the other reference.
+//
+#define INTER_PRED_BYTES_PER_PIXEL 2
+
+  DECLARE_ALIGNED(32, uint8_t,
+                  tmp_buf[INTER_PRED_BYTES_PER_PIXEL * MAX_SB_SQUARE]);
+#undef INTER_PRED_BYTES_PER_PIXEL
+
+  const int tmp_buf_stride = MAX_SB_SIZE;
+  CONV_BUF_TYPE *org_dst = conv_params->dst;
+  int org_dst_stride = conv_params->dst_stride;
+  CONV_BUF_TYPE *tmp_buf16 = (CONV_BUF_TYPE *)tmp_buf;
+  conv_params->dst = tmp_buf16;
+  conv_params->dst_stride = tmp_buf_stride;
+  assert(conv_params->do_average == 0);
+
+  // This will generate a prediction in tmp_buf for the second reference
+  av1_make_inter_predictor(pre, pre_stride, dst, dst_stride, subpel_params, sf,
+                           w, h, conv_params, interp_filters, warp_types, p_col,
+                           p_row, plane, ref, mi, 0, xd, can_use_previous,
+                           NULL /* inter-pred extension */);
+
+  if (!plane && comp_data->type == COMPOUND_DIFFWTD) {
+#if CONFIG_CTX_ADAPT_LOG_WEIGHT || CONFIG_DIFFWTD_42
+    av1_build_compound_diffwtd_mask_d16_c(
+        comp_data->seg_mask, comp_data->mask_type, org_dst, org_dst_stride,
+        tmp_buf16, tmp_buf_stride, h, w, conv_params, xd->bd);
+#else
+    av1_build_compound_diffwtd_mask_d16(
+        comp_data->seg_mask, comp_data->mask_type, org_dst, org_dst_stride,
+        tmp_buf16, tmp_buf_stride, h, w, conv_params, xd->bd);
+#endif  // CONFIG_CTX_ADAPT_LOG_WEIGHT || CONFIG_DIFFWTD_42
+  }
+  build_masked_compound_no_round(dst, dst_stride, org_dst, org_dst_stride,
+                                 tmp_buf16, tmp_buf_stride, comp_data,
+                                 mi->sb_type, h, w, conv_params, xd);
+}
+
 static void build_inter_predictors(
     const AV1_COMMON *cm, MACROBLOCKD *xd, int plane, const MB_MODE_INFO *mi,
     int build_for_obmc, int bw, int bh, int mi_x, int mi_y,
@@ -1522,77 +1593,6 @@ void av1_init_wedge_masks() {
   init_wedge_signs();
 #endif  // !USE_PRECOMPUTED_WEDGE_SIGN
   init_wedge_masks();
-}
-
-static void build_masked_compound_no_round(
-    uint8_t *dst, int dst_stride, const CONV_BUF_TYPE *src0, int src0_stride,
-    const CONV_BUF_TYPE *src1, int src1_stride,
-    const INTERINTER_COMPOUND_DATA *const comp_data, BLOCK_SIZE sb_type, int h,
-    int w, ConvolveParams *conv_params, MACROBLOCKD *xd) {
-  // Derive subsampling from h and w passed in. May be refactored to
-  // pass in subsampling factors directly.
-  const int subh = (2 << mi_size_high_log2[sb_type]) == h;
-  const int subw = (2 << mi_size_wide_log2[sb_type]) == w;
-  const uint8_t *mask = av1_get_compound_type_mask(comp_data, sb_type);
-  if (is_cur_buf_hbd(xd)) {
-    aom_highbd_blend_a64_d16_mask(dst, dst_stride, src0, src0_stride, src1,
-                                  src1_stride, mask, block_size_wide[sb_type],
-                                  w, h, subw, subh, conv_params, xd->bd);
-  } else {
-    aom_lowbd_blend_a64_d16_mask(dst, dst_stride, src0, src0_stride, src1,
-                                 src1_stride, mask, block_size_wide[sb_type], w,
-                                 h, subw, subh, conv_params);
-  }
-}
-
-void av1_make_masked_inter_predictor(
-    const uint8_t *pre, int pre_stride, uint8_t *dst, int dst_stride,
-    const SubpelParams *subpel_params, const struct scale_factors *sf, int w,
-    int h, ConvolveParams *conv_params, int_interpfilters interp_filters,
-    int plane, const WarpTypesAllowed *warp_types, int p_col, int p_row,
-    int ref, MACROBLOCKD *xd, int can_use_previous) {
-  MB_MODE_INFO *mi = xd->mi[0];
-  mi->interinter_comp.seg_mask = xd->seg_mask;
-  const INTERINTER_COMPOUND_DATA *comp_data = &mi->interinter_comp;
-
-// We're going to call av1_make_inter_predictor to generate a prediction into
-// a temporary buffer, then will blend that temporary buffer with that from
-// the other reference.
-//
-#define INTER_PRED_BYTES_PER_PIXEL 2
-
-  DECLARE_ALIGNED(32, uint8_t,
-                  tmp_buf[INTER_PRED_BYTES_PER_PIXEL * MAX_SB_SQUARE]);
-#undef INTER_PRED_BYTES_PER_PIXEL
-
-  const int tmp_buf_stride = MAX_SB_SIZE;
-  CONV_BUF_TYPE *org_dst = conv_params->dst;
-  int org_dst_stride = conv_params->dst_stride;
-  CONV_BUF_TYPE *tmp_buf16 = (CONV_BUF_TYPE *)tmp_buf;
-  conv_params->dst = tmp_buf16;
-  conv_params->dst_stride = tmp_buf_stride;
-  assert(conv_params->do_average == 0);
-
-  // This will generate a prediction in tmp_buf for the second reference
-  av1_make_inter_predictor(pre, pre_stride, dst, dst_stride, subpel_params, sf,
-                           w, h, conv_params, interp_filters, warp_types, p_col,
-                           p_row, plane, ref, mi, 0, xd, can_use_previous,
-                           NULL /* inter-pred extension */);
-
-  if (!plane && comp_data->type == COMPOUND_DIFFWTD) {
-#if CONFIG_CTX_ADAPT_LOG_WEIGHT || CONFIG_DIFFWTD_42
-    av1_build_compound_diffwtd_mask_d16_c(
-        comp_data->seg_mask, comp_data->mask_type, org_dst, org_dst_stride,
-        tmp_buf16, tmp_buf_stride, h, w, conv_params, xd->bd);
-#else
-    av1_build_compound_diffwtd_mask_d16(
-        comp_data->seg_mask, comp_data->mask_type, org_dst, org_dst_stride,
-        tmp_buf16, tmp_buf_stride, h, w, conv_params, xd->bd);
-#endif  // CONFIG_CTX_ADAPT_LOG_WEIGHT || CONFIG_DIFFWTD_42
-  }
-  build_masked_compound_no_round(dst, dst_stride, org_dst, org_dst_stride,
-                                 tmp_buf16, tmp_buf_stride, comp_data,
-                                 mi->sb_type, h, w, conv_params, xd);
 }
 
 void av1_dist_wtd_comp_weight_assign(const AV1_COMMON *cm,
