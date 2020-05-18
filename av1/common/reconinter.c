@@ -2026,110 +2026,6 @@ static void build_smooth_interintra_mask(uint8_t *mask, int stride,
 
 #if CONFIG_ILLUM_MCOMP
 
-#define ILLUM_MCOMMP_PREC_BITS 8
-#define ILLUM_MCOMMP_PREC (1 << ILLUM_MCOMMP_PREC_BITS)
-
-static void illum_mcomp_linear_model_lowbd(const uint8_t *inter_pred,
-                                           int inter_stride,
-                                           const uint8_t *intra_pred,
-                                           int intra_stride, int bw, int bh,
-                                           int border, int bd, int *alpha,
-                                           int *beta) {
-  assert(bd == 8);
-  if (border == 0) {
-    *alpha = (1 << ILLUM_MCOMMP_PREC_BITS);
-    *beta = 0;
-    return;
-  }
-  int64_t n = 0;
-  int64_t sx2 = 0;
-  int64_t sx = 0;
-  int64_t sxy = 0;
-  int64_t sy = 0;
-  for (int i = -border; i < 0; ++i) {
-    for (int j = -border; j < bw; ++j) {
-      const int x = inter_pred[i * inter_stride + j];
-      const int y = intra_pred[i * intra_stride + j];
-      sx += x;
-      sy += y;
-      sx2 += x * x;
-      sxy += x * y;
-      n++;
-    }
-  }
-  for (int i = 0; i < bh; ++i) {
-    for (int j = -border; j < 0; ++j) {
-      const int x = inter_pred[i * inter_stride + j];
-      const int y = intra_pred[i * intra_stride + j];
-      sx += x;
-      sy += y;
-      sx2 += x * x;
-      sxy += x * y;
-      n++;
-    }
-  }
-  const int64_t Pa = (n * sxy - sx * sy) * ILLUM_MCOMMP_PREC;
-  const int64_t Pb = (-sx * sxy + sx2 * sy) * ILLUM_MCOMMP_PREC;
-  const int64_t D = sx2 * n - sx * sx;
-
-  const int64_t a = DIVIDE_AND_ROUND_SIGNED(Pa, D);
-  const int64_t b = DIVIDE_AND_ROUND_SIGNED(Pb, D);
-  // Clamp to reasonable range
-  *alpha = (int)clamp64(a, ILLUM_MCOMMP_PREC / 4, ILLUM_MCOMMP_PREC * 4);
-  *beta = (int)clamp64(b, -(1 << (bd - 2)) * ILLUM_MCOMMP_PREC,
-                       (1 << (bd - 2)) * ILLUM_MCOMMP_PREC);
-}
-
-static void illum_mcomp_linear_model_highbd(const uint16_t *inter_pred,
-                                            int inter_stride,
-                                            const uint16_t *intra_pred,
-                                            int intra_stride, int bw, int bh,
-                                            int border, int bd, int *alpha,
-                                            int *beta) {
-  if (border == 0) {
-    *alpha = (1 << ILLUM_MCOMMP_PREC_BITS);
-    *beta = 0;
-    return;
-  }
-  int64_t n = 0;
-  int64_t sx2 = 0;
-  int64_t sx = 0;
-  int64_t sxy = 0;
-  int64_t sy = 0;
-  for (int i = -border; i < 0; ++i) {
-    for (int j = -border; j < bw; ++j) {
-      const int x = inter_pred[i * inter_stride + j];
-      const int y = intra_pred[i * intra_stride + j];
-      sx += x;
-      sy += y;
-      sx2 += x * x;
-      sxy += x * y;
-      n++;
-    }
-  }
-  for (int i = 0; i < bh; ++i) {
-    for (int j = -border; j < 0; ++j) {
-      const int x = inter_pred[i * inter_stride + j];
-      const int y = intra_pred[i * intra_stride + j];
-      sx += x;
-      sy += y;
-      sx2 += x * x;
-      sxy += x * y;
-      n++;
-    }
-  }
-  const int64_t Pa = (n * sxy - sx * sy) * ILLUM_MCOMMP_PREC;
-  const int64_t Pb = (-sx * sxy + sx2 * sy) * ILLUM_MCOMMP_PREC;
-  const int64_t D = sx2 * n - sx * sx;
-
-  const int64_t a = DIVIDE_AND_ROUND_SIGNED(Pa, D);
-  const int64_t b = DIVIDE_AND_ROUND_SIGNED(Pb, D);
-  // Clamp to reasonable range
-  *alpha = (int)clamp64(a, ILLUM_MCOMMP_PREC / 4, ILLUM_MCOMMP_PREC * 4);
-  *beta = (int)clamp64(b, -(1 << (bd - 2)) * ILLUM_MCOMMP_PREC,
-                       (1 << (bd - 2)) * ILLUM_MCOMMP_PREC);
-}
-
 // Defines a function that can be used to obtain the DC of a block for the
 // type.
 #define ILLUM_MCOMP_COMPUTE_DC(INT_TYPE, suffix)                        \
@@ -2149,6 +2045,129 @@ static void illum_mcomp_linear_model_highbd(const uint16_t *inter_pred,
 
 ILLUM_MCOMP_COMPUTE_DC(uint8_t, lowbd);
 ILLUM_MCOMP_COMPUTE_DC(uint16_t, highbd);
+
+#define ILLUM_MCOMP_PREC_BITS 8
+#define ILLUM_MCOMP_PREC (1 << ILLUM_MCOMP_PREC_BITS)
+#define ILLUM_MCOMP_OLD 0
+static void illum_mcomp_linear_model_lowbd(const uint8_t *inter_pred,
+                                           int inter_stride,
+                                           const uint8_t *intra_pred,
+                                           int intra_stride, int bw, int bh,
+                                           int border, int bd, int *alpha,
+                                           int *beta) {
+  assert(bd == 8);
+  if (border == 0) {
+    *alpha = (1 << ILLUM_MCOMP_PREC_BITS);
+    *beta = 0;
+    return;
+  }
+
+#if ILLUM_MCOMP_OLD
+  *alpha = 1 << ILLUM_MCOMP_PREC_BITS;
+  int intra_dc = illum_mcomp_compute_dc_lowbd(intra_pred, intra_stride, bw, bh);
+  int inter_dc = illum_mcomp_compute_dc_lowbd(inter_pred, inter_stride, bw, bh);
+  *beta = (intra_dc - inter_dc) << ILLUM_MCOMP_PREC_BITS;
+  return;
+#endif  // ILLUM_MCOMP_OLD
+
+  int64_t n = 0;
+  int64_t sx2 = 0;
+  int64_t sx = 0;
+  int64_t sxy = 0;
+  int64_t sy = 0;
+  for (int i = -border; i < 0; ++i) {
+    for (int j = -border; j < bw; ++j) {
+      const int x = inter_pred[i * inter_stride + j];
+      const int y = intra_pred[i * intra_stride + j];
+      sx += x;
+      sy += y;
+      sx2 += x * x;
+      sxy += x * y;
+      n++;
+    }
+  }
+  for (int i = 0; i < bh; ++i) {
+    for (int j = -border; j < 0; ++j) {
+      const int x = inter_pred[i * inter_stride + j];
+      const int y = intra_pred[i * intra_stride + j];
+      sx += x;
+      sy += y;
+      sx2 += x * x;
+      sxy += x * y;
+      n++;
+    }
+  }
+  const int64_t Pa = (n * sxy - sx * sy) * ILLUM_MCOMP_PREC;
+  const int64_t Pb = (-sx * sxy + sx2 * sy) * ILLUM_MCOMP_PREC;
+  const int64_t D = sx2 * n - sx * sx;
+
+  const int64_t a = DIVIDE_AND_ROUND_SIGNED(Pa, D);
+  const int64_t b = DIVIDE_AND_ROUND_SIGNED(Pb, D);
+  // Clamp to reasonable range
+  *alpha = (int)clamp64(a, ILLUM_MCOMP_PREC / 4, ILLUM_MCOMP_PREC * 4);
+  *beta = (int)clamp64(b, -(1 << (bd - 2)) * ILLUM_MCOMP_PREC,
+                       (1 << (bd - 2)) * ILLUM_MCOMP_PREC);
+}
+
+static void illum_mcomp_linear_model_highbd(const uint16_t *inter_pred,
+                                            int inter_stride,
+                                            const uint16_t *intra_pred,
+                                            int intra_stride, int bw, int bh,
+                                            int border, int bd, int *alpha,
+                                            int *beta) {
+  if (border == 0) {
+    *alpha = (1 << ILLUM_MCOMP_PREC_BITS);
+    *beta = 0;
+    return;
+  }
+#if ILLUM_MCOMP_OLD
+  *alpha = 1 << ILLUM_MCOMP_PREC_BITS;
+  int intra_dc =
+      illum_mcomp_compute_dc_highbd(intra_pred, intra_stride, bw, bh);
+  int inter_dc =
+      illum_mcomp_compute_dc_highbd(inter_pred, inter_stride, bw, bh);
+  *beta = (intra_dc - inter_dc) << ILLUM_MCOMP_PREC_BITS;
+  return;
+#endif  // ILLUM_MCOMP_OLD
+
+  int64_t n = 0;
+  int64_t sx2 = 0;
+  int64_t sx = 0;
+  int64_t sxy = 0;
+  int64_t sy = 0;
+  for (int i = -border; i < 0; ++i) {
+    for (int j = -border; j < bw; ++j) {
+      const int x = inter_pred[i * inter_stride + j];
+      const int y = intra_pred[i * intra_stride + j];
+      sx += x;
+      sy += y;
+      sx2 += x * x;
+      sxy += x * y;
+      n++;
+    }
+  }
+  for (int i = 0; i < bh; ++i) {
+    for (int j = -border; j < 0; ++j) {
+      const int x = inter_pred[i * inter_stride + j];
+      const int y = intra_pred[i * intra_stride + j];
+      sx += x;
+      sy += y;
+      sx2 += x * x;
+      sxy += x * y;
+      n++;
+    }
+  }
+  const int64_t Pa = (n * sxy - sx * sy) * ILLUM_MCOMP_PREC;
+  const int64_t Pb = (-sx * sxy + sx2 * sy) * ILLUM_MCOMP_PREC;
+  const int64_t D = sx2 * n - sx * sx;
+
+  const int64_t a = DIVIDE_AND_ROUND_SIGNED(Pa, D);
+  const int64_t b = DIVIDE_AND_ROUND_SIGNED(Pb, D);
+  // Clamp to reasonable range
+  *alpha = (int)clamp64(a, ILLUM_MCOMP_PREC / 4, ILLUM_MCOMP_PREC * 4);
+  *beta = (int)clamp64(b, -(1 << (bd - 2)) * ILLUM_MCOMP_PREC,
+                       (1 << (bd - 2)) * ILLUM_MCOMP_PREC);
+}
 
 static void illum_combine_interintra(
     int8_t use_wedge_interintra, int8_t wedge_index, int8_t wedge_sign,
@@ -2177,7 +2196,7 @@ static void illum_combine_interintra(
       int32_t r = inter_pred[i * inter_stride + j];
       r *= alpha;
       r += beta;
-      r >>= ILLUM_MCOMMP_PREC_BITS;
+      r >>= ILLUM_MCOMP_PREC_BITS;
       projected[i * projected_stride + j] = clip_pixel_highbd(r, 8);
     }
   }
@@ -2222,7 +2241,7 @@ static void illum_combine_interintra_highbd(
       int32_t r = inter_pred[i * inter_stride + j];
       r *= alpha;
       r += beta;
-      r >>= ILLUM_MCOMMP_PREC_BITS;
+      r >>= ILLUM_MCOMP_PREC_BITS;
       projected[i * projected_stride + j] = clip_pixel_highbd(r, bd);
     }
   }
