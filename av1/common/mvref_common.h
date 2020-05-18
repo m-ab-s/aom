@@ -34,7 +34,8 @@ typedef struct position {
 #if CONFIG_EXT_COMPOUND
 void av1_get_scaled_mv(const AV1_COMMON *const cm, const int_mv refmv,
                        int this_ref, const MV_REFERENCE_FRAME rf[2],
-                       int_mv *scaled_mv);
+                       int_mv *scaled_mv, BLOCK_SIZE bsize, int mi_row,
+                       int mi_col);
 #endif  // CONFIG_EXT_COMPOUND
 
 // clamp_mv_ref

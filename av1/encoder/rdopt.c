@@ -8553,6 +8553,9 @@ static INLINE void get_this_mv(const AV1_COMMON *cm, int_mv *mv,
                                PREDICTION_MODE this_mode, int ref_idx,
                                int ref_mv_idx,
                                const MV_REFERENCE_FRAME *ref_frame,
+#if CONFIG_EXT_COMPOUND
+                               BLOCK_SIZE bsize, int mi_row, int mi_col,
+#endif
                                const MB_MODE_INFO_EXT *mbmi_ext);
 static int discount_newmv_test(const AV1_COMP *const cpi, const MACROBLOCK *x,
                                PREDICTION_MODE this_mode, int_mv this_mv) {
@@ -8567,18 +8570,29 @@ static int discount_newmv_test(const AV1_COMP *const cpi, const MACROBLOCK *x,
                                                    NONE_FRAME };
     const uint8_t ref_frame_type = av1_ref_frame_type(tmp_ref_frames);
     int_mv nearest_mv[2];
-    get_this_mv(cm, nearest_mv, NEARESTMV, 0, 0, tmp_ref_frames, x->mbmi_ext);
+    get_this_mv(cm, nearest_mv, NEARESTMV, 0, 0, tmp_ref_frames,
+#if CONFIG_EXT_COMPOUND
+                mbmi->sb_type, xd->mi_row, xd->mi_col,
+#endif
+                x->mbmi_ext);
     int ret = nearest_mv[0].as_int == 0;
     for (int ref_mv_idx = 0;
          ref_mv_idx < x->mbmi_ext->ref_mv_count[ref_frame_type]; ++ref_mv_idx) {
       int_mv near_mv[2];
       get_this_mv(cm, near_mv, NEARMV, 0, ref_mv_idx, tmp_ref_frames,
+#if CONFIG_EXT_COMPOUND
+                  mbmi->sb_type, xd->mi_row, xd->mi_col,
+#endif
                   x->mbmi_ext);
       ret &= near_mv[0].as_int == 0;
     }
     if (cm->global_motion[tmp_ref_frames[0]].wmtype <= TRANSLATION) {
       int_mv global_mv[2];
-      get_this_mv(cm, global_mv, GLOBALMV, 0, 0, tmp_ref_frames, x->mbmi_ext);
+      get_this_mv(cm, global_mv, GLOBALMV, 0, 0, tmp_ref_frames,
+#if CONFIG_EXT_COMPOUND
+                  mbmi->sb_type, xd->mi_row, xd->mi_col,
+#endif
+                  x->mbmi_ext);
       ret &= global_mv[0].as_int != this_mv.as_int;
     }
     return ret;
@@ -9384,7 +9398,7 @@ static int64_t handle_newmv(const AV1_COMP *const cpi, MACROBLOCK *const x,
 #if CONFIG_EXT_COMPOUND
       if (this_mode == SCALED_NEWMV)
         av1_get_scaled_mv(&cpi->common, cur_mv[1], 0, mbmi->ref_frame,
-                          &cur_mv[0]);
+                          &cur_mv[0], bsize, xd->mi_row, xd->mi_col);
 #endif  // CONFIG_EXT_COMPOUND
     } else {
 #if CONFIG_NEW_INTER_MODES
@@ -9418,7 +9432,7 @@ static int64_t handle_newmv(const AV1_COMP *const cpi, MACROBLOCK *const x,
 #if CONFIG_EXT_COMPOUND
       if (this_mode == NEW_SCALEDMV)
         av1_get_scaled_mv(&cpi->common, cur_mv[0], 1, mbmi->ref_frame,
-                          &cur_mv[1]);
+                          &cur_mv[1], bsize, xd->mi_row, xd->mi_col);
 #endif  // CONFIG_EXT_COMPOUND
     }
   } else {
@@ -11290,6 +11304,9 @@ static INLINE void get_this_mv(const AV1_COMMON *cm, int_mv *mv,
                                PREDICTION_MODE this_mode, int ref_idx,
                                int ref_mv_idx,
                                const MV_REFERENCE_FRAME *ref_frame,
+#if CONFIG_EXT_COMPOUND
+                               BLOCK_SIZE bsize, int mi_row, int mi_col,
+#endif
                                const MB_MODE_INFO_EXT *mbmi_ext) {
   (void)cm;
   int_mv *this_mv = &mv[ref_idx];
@@ -11314,7 +11331,8 @@ static INLINE void get_this_mv(const AV1_COMMON *cm, int_mv *mv,
 #if CONFIG_EXT_COMPOUND
   } else if (single_mode == MB_MODE_COUNT) {
     assert(this_mode > NEW_NEWMV);
-    av1_get_scaled_mv(cm, mv[!ref_idx], ref_idx, ref_frame, this_mv);
+    av1_get_scaled_mv(cm, mv[!ref_idx], ref_idx, ref_frame, this_mv, bsize,
+                      mi_row, mi_col);
 #endif
   } else {
     assert(single_mode == NEARMV);
@@ -11380,7 +11398,7 @@ static INLINE int build_cur_mv(int_mv *cur_mv, PREDICTION_MODE this_mode,
     // Reverse mv assignment order so derived mv is computed second
     if (this_mode == SCALED_NEWMV || this_mode == SCALED_NEARMV) index = !i;
     get_this_mv(cm, cur_mv, this_mode, index, mbmi->ref_mv_idx, mbmi->ref_frame,
-                x->mbmi_ext);
+                mbmi->sb_type, xd->mi_row, xd->mi_col, x->mbmi_ext);
     const PREDICTION_MODE single_mode =
         get_single_mode(this_mode, index, is_comp_pred);
     // NEWMV motion vectors will be assigned later
@@ -13344,8 +13362,16 @@ static void init_mode_skip_mask(mode_skip_mask_t *mask, const AV1_COMP *cpi,
 #if !CONFIG_NEW_INTER_MODES
       get_this_mv(cm, nearest_mv, NEARESTMV, 0, 0, tmp_ref_frames, x->mbmi_ext);
 #endif  // !CONFIG_NEW_INTER_MODES
-      get_this_mv(cm, near_mv, NEARMV, 0, 0, tmp_ref_frames, x->mbmi_ext);
-      get_this_mv(cm, global_mv, GLOBALMV, 0, 0, tmp_ref_frames, x->mbmi_ext);
+      get_this_mv(cm, near_mv, NEARMV, 0, 0, tmp_ref_frames,
+#if CONFIG_EXT_COMPOUND
+                  mbmi->sb_type, xd->mi_row, xd->mi_col,
+#endif
+                  x->mbmi_ext);
+      get_this_mv(cm, global_mv, GLOBALMV, 0, 0, tmp_ref_frames,
+#if CONFIG_EXT_COMPOUND
+                  mbmi->sb_type, xd->mi_row, xd->mi_col,
+#endif
+                  x->mbmi_ext);
 
       if (near_mv[0].as_int != global_mv[0].as_int)
         mask->pred_modes[ALTREF_FRAME] |= (1 << NEARMV);
@@ -14503,6 +14529,8 @@ static int compound_skip_by_single_states(
     const MV_REFERENCE_FRAME second_ref_frame, const MACROBLOCK *x) {
 #if CONFIG_EXT_COMPOUND
   assert(this_mode <= NEW_NEWMV);
+  const MACROBLOCKD *const xd = &x->e_mbd;
+  const MB_MODE_INFO *const mbmi = xd->mi[0];
 #endif
   const MV_REFERENCE_FRAME refs[2] = { ref_frame, second_ref_frame };
   const int mode[2] = { compound_ref0_mode(this_mode),
@@ -14543,8 +14571,14 @@ static int compound_skip_by_single_states(
       int_mv single_mv[2];
       int_mv comp_mv[2];
       get_this_mv(&cpi->common, single_mv, mode[i], 0, ref_mv_idx, single_refs,
+#if CONFIG_EXT_COMPOUND
+                  mbmi->sb_type, xd->mi_row, xd->mi_col,
+#endif
                   x->mbmi_ext);
       get_this_mv(&cpi->common, comp_mv, this_mode, i, ref_mv_idx, refs,
+#if CONFIG_EXT_COMPOUND
+                  mbmi->sb_type, xd->mi_row, xd->mi_col,
+#endif
                   x->mbmi_ext);
       if (single_mv[0].as_int != comp_mv[i].as_int) {
         ref_mv_match[i] = 0;

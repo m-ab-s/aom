@@ -1526,27 +1526,31 @@ static INLINE int assign_mv(AV1_COMMON *cm, MACROBLOCKD *xd,
 #if CONFIG_EXT_COMPOUND
     case NEAR_SCALEDMV: {
       mv[0].as_int = near_mv[0].as_int;
-      av1_get_scaled_mv(cm, mv[0], 1, mbmi->ref_frame, &mv[1]);
+      av1_get_scaled_mv(cm, mv[0], 1, mbmi->ref_frame, &mv[1], mbmi->sb_type,
+                        xd->mi_row, xd->mi_col);
       assert(is_compound);
       break;
     }
     case SCALED_NEARMV: {
       mv[1].as_int = near_mv[1].as_int;
-      av1_get_scaled_mv(cm, mv[1], 0, mbmi->ref_frame, &mv[0]);
+      av1_get_scaled_mv(cm, mv[1], 0, mbmi->ref_frame, &mv[0], mbmi->sb_type,
+                        xd->mi_row, xd->mi_col);
       assert(is_compound);
       break;
     }
     case NEW_SCALEDMV: {
       nmv_context *const nmvc = &ec_ctx->nmvc;
       read_mv(r, &mv[0].as_mv, &ref_mv[0].as_mv, nmvc, precision);
-      av1_get_scaled_mv(cm, mv[0], 1, mbmi->ref_frame, &mv[1]);
+      av1_get_scaled_mv(cm, mv[0], 1, mbmi->ref_frame, &mv[1], mbmi->sb_type,
+                        xd->mi_row, xd->mi_col);
       assert(is_compound);
       break;
     }
     case SCALED_NEWMV: {
       nmv_context *const nmvc = &ec_ctx->nmvc;
       read_mv(r, &mv[1].as_mv, &ref_mv[1].as_mv, nmvc, precision);
-      av1_get_scaled_mv(cm, mv[1], 0, mbmi->ref_frame, &mv[0]);
+      av1_get_scaled_mv(cm, mv[1], 0, mbmi->ref_frame, &mv[0], mbmi->sb_type,
+                        xd->mi_row, xd->mi_col);
       assert(is_compound);
       break;
     }

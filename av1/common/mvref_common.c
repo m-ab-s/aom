@@ -72,6 +72,23 @@ void av1_copy_frame_mvs(const AV1_COMMON *const cm,
 }
 
 #if CONFIG_EXT_COMPOUND
+static void clamp_ext_compound_mv(const AV1_COMMON *const cm, int_mv *mv,
+                                  int mi_row, int mi_col, BLOCK_SIZE bsize) {
+  const int mi_width = mi_size_wide[bsize];
+  const int mi_height = mi_size_high[bsize];
+  int row_min = -(((mi_row + mi_height) * MI_SIZE) + AOM_INTERP_EXTEND);
+  int col_min = -(((mi_col + mi_width) * MI_SIZE) + AOM_INTERP_EXTEND);
+  int row_max = (cm->mi_rows - mi_row) * MI_SIZE + AOM_INTERP_EXTEND;
+  int col_max = (cm->mi_cols - mi_col) * MI_SIZE + AOM_INTERP_EXTEND;
+
+  col_min = AOMMAX(MV_LOW + 1, col_min);
+  col_max = AOMMIN(MV_UPP - 1, col_max);
+  row_min = AOMMAX(MV_LOW + 1, row_min);
+  row_max = AOMMIN(MV_UPP - 1, row_max);
+
+  clamp_mv(&mv->as_mv, col_min, col_max, row_min, row_max);
+}
+
 // Scales a motion vector according to the distance between the current frame
 // and each of its references
 static void scale_mv(const int_mv this_refmv, int this_ref, int r1_dist,
@@ -88,16 +105,17 @@ static void scale_mv(const int_mv this_refmv, int this_ref, int r1_dist,
   const float col_round =
       (((r1_dist < 0) != (r2_dist < 0)) && (this_refmv.as_mv.col > 0)) ? -0.5
                                                                        : 0.5;
-  scaled_mv->as_mv.row =
-      (int16_t)((float)this_refmv.as_mv.row * ratio + row_round);
-  scaled_mv->as_mv.col =
-      (int16_t)((float)this_refmv.as_mv.col * ratio + col_round);
+  int32_t mv_row = (int32_t)((float)this_refmv.as_mv.row * ratio + row_round);
+  int32_t mv_col = (int32_t)((float)this_refmv.as_mv.col * ratio + col_round);
+  scaled_mv->as_mv.row = (int16_t)clamp(mv_row, INT16_MIN, INT16_MAX);
+  scaled_mv->as_mv.col = (int16_t)clamp(mv_col, INT16_MIN, INT16_MAX);
   lower_mv_precision(&scaled_mv->as_mv, precision);
 }
 
 void av1_get_scaled_mv(const AV1_COMMON *const cm, const int_mv refmv,
                        int this_ref, const MV_REFERENCE_FRAME rf[2],
-                       int_mv *scaled_mv) {
+                       int_mv *scaled_mv, BLOCK_SIZE bsize, int mi_row,
+                       int mi_col) {
   // Scaled mvs are currently only enabled with enable_order_hint
   assert(cm->seq_params.order_hint_info.enable_order_hint);
   const int cur_frame_index = cm->cur_frame->order_hint;
@@ -116,6 +134,7 @@ void av1_get_scaled_mv(const AV1_COMMON *const cm, const int_mv refmv,
                                         cur_frame_index, frame1_index);
   // Scale the mv according to the distance between references
   scale_mv(refmv, this_ref, r0_dist, r1_dist, cm->fr_mv_precision, scaled_mv);
+  clamp_ext_compound_mv(cm, scaled_mv, mi_row, mi_col, bsize);
 }
 #endif  // CONFIG_EXT_COMPOUND
 
