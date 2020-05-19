@@ -423,9 +423,6 @@ int av1_get_optflow_based_mv(const AV1_COMMON *cm, MACROBLOCKD *xd,
   mv_refined[1].as_mv.row *= 2;
   mv_refined[1].as_mv.col *= 2;
 
-  // Currently only do this for 1/4 precision mvs
-  if (prec != 2) return prec;
-
   // Allocate gradient and prediction buffers
   int16_t *g0 = aom_malloc(2 * MAX_SB_SIZE * MAX_SB_SIZE * sizeof(*g0));
   memset(g0, 0, 2 * MAX_SB_SIZE * MAX_SB_SIZE * sizeof(*g0));
