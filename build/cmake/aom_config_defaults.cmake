@@ -110,7 +110,7 @@ set_aom_config_var(CONFIG_SPATIAL_RESAMPLING 1 "Spatial resampling.")
 set_aom_config_var(DECODE_HEIGHT_LIMIT 0 "Set limit for decode height.")
 set_aom_config_var(DECODE_WIDTH_LIMIT 0 "Set limit for decode width.")
 
-# AV1 experiment flags.
+# Misc flags
 set_aom_config_var(CONFIG_SPEED_STATS 0 "AV1 experiment flag.")
 set_aom_config_var(CONFIG_COLLECT_RD_STATS 0 "AV1 experiment flag.")
 set_aom_config_var(CONFIG_DIST_8X8 0 "AV1 experiment flag.")
@@ -124,6 +124,8 @@ set_aom_config_var(CONFIG_COLLECT_PARTITION_STATS 0
                    "Collect stats on partition decisions.")
 set_aom_config_var(CONFIG_COLLECT_COMPONENT_TIMING 0
                    "Collect encoding component timing information.")
+set_aom_config_var(CONFIG_COLLECT_FRAME_INFO 0
+                   "Collect frame info with quantization indices.")
 
 # AV2 experiment flags
 set_aom_config_var(CONFIG_ADAPT_FILTER_INTRA 0 NUMBER "AV2 experiment flag.")

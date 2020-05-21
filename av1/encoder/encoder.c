@@ -5725,6 +5725,28 @@ static int hash_me_has_at_most_two_refs(RefCntBuffer *frame_bufs) {
 }
 #endif
 
+#if CONFIG_COLLECT_FRAME_INFO
+static INLINE void print_frame_info(AV1_COMMON *const cm,
+                                    int is_show_existing_frame,
+                                    int is_overlay_update, int frame_size) {
+  FILE *f = fopen("frame_info_qindices.csv", "a");
+  if (!f) {
+    fprintf(stderr, "File: frame_info_qindices.csv open error.\n");
+    return;
+  }
+  fprintf(f,
+          "coded_frame# = %d, actual_frame# = %d, visible = %d, q = %d, "
+          "frame_type = %d, is_show_existing_frame = %d, "
+          "is_overlay_update = %d, frame_size = %d\n",
+          cm->coded_frame_idx, cm->cur_frame->display_order_hint,
+          cm->show_frame, cm->cur_frame->base_qindex,
+          cm->current_frame.frame_type, is_show_existing_frame,
+          is_overlay_update, frame_size);
+  ++cm->coded_frame_idx;
+  fclose(f);
+}
+#endif  // CONFIG_COLLECT_FRAME_INFO
+
 static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
                                      uint8_t *dest) {
   AV1_COMMON *const cm = &cpi->common;
@@ -5763,6 +5785,10 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
     int largest_tile_id = 0;  // Output from bitstream: unused here
     if (av1_pack_bitstream(cpi, dest, size, &largest_tile_id) != AOM_CODEC_OK)
       return AOM_CODEC_ERROR;
+
+#if CONFIG_COLLECT_FRAME_INFO
+    print_frame_info(cm, 1, 0, (int)(*size) << 3);
+#endif  // CONFIG_COLLECT_FRAME_INFO
 
     if (seq_params->frame_id_numbers_present_flag &&
         current_frame->frame_type == KEY_FRAME) {
@@ -6007,6 +6033,18 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
 #if CONFIG_COLLECT_COMPONENT_TIMING
   end_timing(cpi, av1_pack_bitstream_final_time);
 #endif
+
+#if CONFIG_COLLECT_FRAME_INFO
+
+  int is_overlay_update = 0;
+  const GF_GROUP *gf_group = &cpi->gf_group;
+  if (gf_group->update_type[gf_group->index] == OVERLAY_UPDATE ||
+      gf_group->update_type[gf_group->index] == INTNL_OVERLAY_UPDATE) {
+    is_overlay_update = 1;
+  }
+
+  print_frame_info(cm, 0, is_overlay_update, (int)(*size) << 3);
+#endif  // CONFIG_COLLECT_FRAME_INFO
 
   cpi->seq_params_locked = 1;
 
