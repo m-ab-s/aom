@@ -672,6 +672,54 @@ typedef struct {
   int64_t sse;
 } FRAME_DIFF;
 
+#define TF_DEBUG_MODE 0
+#if TF_DEBUG_MODE == 1
+void dump_frame(AV1_COMP *cpi, const YV12_BUFFER_CONFIG *frame_buf,
+                const int frame_idx, char *fname_addition) {
+  AV1_COMMON *const cm = &cpi->common;
+  if (frame_buf == NULL) {
+    printf("Frame is not ready.\n");
+    return;
+  }
+
+  int h;
+  char file_name[256];
+  snprintf(file_name, 256, "/tmp/frame%d%s.yuv", frame_idx, fname_addition);
+  FILE *f_frame = NULL;
+  if ((f_frame = fopen(file_name, "w")) == NULL) {
+    printf("Unable to open file %s to write.\n", file_name);
+    return;
+  }
+  printf(
+      "\nDumping Frame=%d, encode_update_type[%5d]=%1d,"
+      "show_frame=%d, show_existing_frame=%d, source_alt_ref_active=%d, "
+      "refresh_alt_ref_frame=%d, "
+      "y_stride=%4d, uv_stride=%4d, cm->width=%4d, cm->height=%4d\n\n",
+      frame_idx, cpi->gf_group.index,
+      cpi->gf_group.update_type[cpi->gf_group.index], cm->show_frame,
+      cm->show_existing_frame, cpi->rc.source_alt_ref_active,
+      cpi->refresh_frame.alt_ref_frame, frame_buf->y_stride,
+      frame_buf->uv_stride, cm->width, cm->height);
+
+  // --- Y ---
+  for (h = 0; h < cm->height; ++h) {
+    fwrite(&frame_buf->y_buffer[h * frame_buf->y_stride], sizeof(uint8_t),
+           cm->width, f_frame);
+  }
+  // --- U ---
+  for (h = 0; h < (cm->height >> 1); ++h) {
+    fwrite(&frame_buf->u_buffer[h * frame_buf->uv_stride], sizeof(uint8_t),
+           (cm->width >> 1), f_frame);
+  }
+  // --- V ---
+  for (h = 0; h < (cm->height >> 1); ++h) {
+    fwrite(&frame_buf->v_buffer[h * frame_buf->uv_stride], sizeof(uint8_t),
+           (cm->width >> 1), f_frame);
+  }
+
+  fclose(f_frame);
+}
+#endif
 // Does temporal filter for a particular frame.
 // Inputs:
 //   cpi: Pointer to the composed information of input video.
@@ -829,6 +877,11 @@ static FRAME_DIFF tf_do_filtering(AV1_COMP *cpi, YV12_BUFFER_CONFIG **frames,
       }
     }
   }
+
+#if TF_DEBUG_MODE == 1
+  dump_frame(cpi, frame_to_filter, filter_frame_idx, "_beforetf");
+  dump_frame(cpi, &(cpi->alt_ref_buffer), filter_frame_idx, "_aftertf");
+#endif  
 
   // Restore input state
   for (int i = 0; i < num_planes; i++) {
