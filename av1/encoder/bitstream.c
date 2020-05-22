@@ -74,12 +74,14 @@ static void loop_restoration_write_sb_coeffs(const AV1_COMMON *const cm,
                                              aom_writer *const w, int plane,
                                              FRAME_COUNTS *counts);
 
-static void write_intra_y_mode_kf(MACROBLOCKD *const xd,
+static void write_intra_y_mode_kf(const AV1_COMMON *const cm,
+                                  MACROBLOCKD *const xd,
                                   FRAME_CONTEXT *frame_ctx,
                                   const MB_MODE_INFO *mi, PREDICTION_MODE mode,
                                   aom_writer *w) {
   assert(!is_intrabc_block(mi));
   (void)mi;
+  (void)cm;  // Only needed in CONFIG_DELTA_DCQUANT experiment
 
 #if CONFIG_INTRA_ENTROPY
   aom_cdf_prob cdf[INTRA_MODES];
@@ -128,7 +130,11 @@ static void write_intra_y_mode_kf(MACROBLOCKD *const xd,
     if (!fp) break;
 
     const int dc_q =
-        av1_dc_quant_QTX(xd->current_qindex, 0, xd->bd) >> (xd->bd - 8);
+        av1_dc_quant_QTX(xd->current_qindex, 0,
+#if CONFIG_DELTA_DCQUANT
+                         cm->seq_params.base_dc_delta_q,
+#endif  // CONFIG_DELTA_DCQUANT
+                         xd->bd) >> (xd->bd - 8);
     fprintf(fp, "%d,%d,%d,%d,",
             mode,
             block_size_wide[mi->sb_type],
@@ -1145,9 +1151,12 @@ static void write_intra_y_mode_nonkf(FRAME_CONTEXT *frame_ctx, BLOCK_SIZE bsize,
 }
 #endif  // !CONFIG_DERIVED_INTRA_MODE
 
-static void write_intra_uv_mode(const MACROBLOCKD *xd, FRAME_CONTEXT *frame_ctx,
+static void write_intra_uv_mode(const AV1_COMMON *const cm,
+                                const MACROBLOCKD *xd, FRAME_CONTEXT *frame_ctx,
                                 UV_PREDICTION_MODE uv_mode,
                                 PREDICTION_MODE y_mode, aom_writer *w) {
+  (void)cm;  // Only needed in CONFIG_DELTA_DCQUANT experiment only for
+             // training data collection
 #if CONFIG_INTRA_ENTROPY
   aom_cdf_prob cdf[UV_INTRA_MODES];
   av1_get_uv_mode_cdf_ml(xd, y_mode, cdf);
@@ -1177,7 +1186,11 @@ static void write_intra_uv_mode(const MACROBLOCKD *xd, FRAME_CONTEXT *frame_ctx,
     if (!fp) break;
 
     const int dc_q =
-        av1_dc_quant_QTX(xd->current_qindex, 0, xd->bd) >> (xd->bd - 8);
+        av1_dc_quant_QTX(xd->current_qindex, 0,
+#if CONFIG_DELTA_DCQUANT
+                         cm->seq_params.base_dc_delta_q,
+#endif  // CONFIG_DELTA_DCQUANT
+                         xd->bd) >> (xd->bd - 8);
     fprintf(fp, "%d,%d,%d,%d,%d,%d,",
             uv_mode,
             y_mode,
@@ -1344,7 +1357,7 @@ static void write_intra_prediction_modes(AV1_COMP *cpi, int is_keyframe,
 
   // Y mode.
   if (is_keyframe) {
-    write_intra_y_mode_kf(xd, ec_ctx, mbmi, mode, w);
+    write_intra_y_mode_kf(cm, xd, ec_ctx, mbmi, mode, w);
   } else {
 #if CONFIG_DERIVED_INTRA_MODE
     const int ctx = size_group_lookup[bsize];
@@ -1387,7 +1400,7 @@ static void write_intra_prediction_modes(AV1_COMP *cpi, int is_keyframe,
   // UV mode and UV angle delta.
   if (!cm->seq_params.monochrome && mbmi->chroma_ref_info.is_chroma_ref) {
     const UV_PREDICTION_MODE uv_mode = mbmi->uv_mode;
-    write_intra_uv_mode(xd, ec_ctx, uv_mode, mode, w);
+    write_intra_uv_mode(cm, xd, ec_ctx, uv_mode, mode, w);
     if (uv_mode == UV_CFL_PRED)
       write_cfl_alphas(ec_ctx, mbmi->cfl_alpha_idx, mbmi->cfl_alpha_signs, w);
     if (use_angle_delta &&
@@ -3036,6 +3049,12 @@ static void write_color_config(const SequenceHeader *const seq_params,
     }
   }
   aom_wb_write_bit(wb, seq_params->separate_uv_delta_q);
+#if CONFIG_DELTA_DCQUANT
+  assert(seq_params->base_dc_delta_q <= DELTA_DCQUANT_MAX);
+  assert(seq_params->base_dc_delta_q >= DELTA_DCQUANT_MIN);
+  aom_wb_write_unsigned_literal(
+      wb, seq_params->base_dc_delta_q - DELTA_DCQUANT_MIN, DELTA_DCQUANT_BITS);
+#endif  // CONFIG_DELTA_DCQUANT
 }
 
 static void write_timing_info_header(AV1_COMMON *const cm,

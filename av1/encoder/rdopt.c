@@ -4281,15 +4281,25 @@ static const TX_SIZE max_predict_sf_tx_size[BLOCK_SIZES_ALL] = {
 // Uses simple features on top of DCT coefficients to quickly predict
 // whether optimal RD decision is to skip encoding the residual.
 // The sse value is stored in dist.
-static int predict_skip_flag(MACROBLOCK *x, BLOCK_SIZE bsize, int64_t *dist,
+static int predict_skip_flag(const AV1_COMMON *const cm, MACROBLOCK *x,
+                             BLOCK_SIZE bsize, int64_t *dist,
                              int reduced_tx_set) {
+  (void)cm;  // Only needed in CONFIG_DELTA_DCQUANT experiment
   const int bw = block_size_wide[bsize];
   const int bh = block_size_high[bsize];
   const MACROBLOCKD *xd = &x->e_mbd;
 #if CONFIG_EXTQUANT_72 || CONFIG_EXTQUANT_64
-  const int32_t dc_q = av1_dc_quant_QTX(x->qindex, 0, xd->bd);
+  const int32_t dc_q = av1_dc_quant_QTX(x->qindex, 0,
+#if CONFIG_DELTA_DCQUANT
+                                        cm->seq_params.base_dc_delta_q,
+#endif  // CONFIG_DELTA_DCQUANT
+                                        xd->bd);
 #else
-  const int16_t dc_q = av1_dc_quant_QTX(x->qindex, 0, xd->bd);
+  const int16_t dc_q = av1_dc_quant_QTX(x->qindex, 0,
+#if CONFIG_DELTA_DCQUANT
+                                        cm->seq_params.base_dc_delta_q,
+#endif  // CONFIG_DELTA_DCQUANT
+                                        xd->bd);
 #endif
 
   *dist = pixel_diff_dist(x, 0, 0, 0, bsize, bsize, NULL);
@@ -4483,7 +4493,8 @@ static void super_block_yrd(const AV1_COMP *const cpi, MACROBLOCK *x,
 
   if (cpi->sf.tx_type_search.use_skip_flag_prediction && is_inter &&
       (!xd->lossless[xd->mi[0]->segment_id]) &&
-      predict_skip_flag(x, bs, &dist, cpi->common.reduced_tx_set_used)) {
+      predict_skip_flag(&cpi->common, x, bs, &dist,
+                        cpi->common.reduced_tx_set_used)) {
     // Populate rdstats as per skip decision
     set_skip_flag(x, rd_stats, bs, dist);
     // Save the RD search results into tx_rd_record.
@@ -6902,7 +6913,8 @@ static void pick_tx_size_type_yrd(const AV1_COMP *cpi, MACROBLOCK *x,
   // context and terminate early.
   int64_t dist;
   if (cpi->sf.tx_type_search.use_skip_flag_prediction &&
-      predict_skip_flag(x, bsize, &dist, cm->reduced_tx_set_used)) {
+      predict_skip_flag(&cpi->common, x, bsize, &dist,
+                        cm->reduced_tx_set_used)) {
     set_skip_flag(x, rd_stats, bsize, dist);
     // Save the RD search results into tx_rd_record.
     if (is_mb_rd_hash_enabled)
@@ -13708,8 +13720,12 @@ static void search_derived_intra_mode(const AV1_COMP *cpi, MACROBLOCK *x,
   rd_stats.rate += intra_ref_frame_cost +
                    intra_mode_info_cost_y(cpi, x, mbmi, bsize, is_dr_cost);
   const AV1_COMMON *const cm = &cpi->common;
-  const int intra_cost_penalty = av1_get_intra_cost_penalty(
-      cm->base_qindex, cm->y_dc_delta_q, cm->seq_params.bit_depth);
+  const int intra_cost_penalty =
+      av1_get_intra_cost_penalty(cm->base_qindex, cm->y_dc_delta_q,
+#if CONFIG_DELTA_DCQUANT
+                                 cm->seq_params.base_dc_delta_q,
+#endif  // CONFIG_DELTA_DCQUANT
+                                 cm->seq_params.bit_depth);
   rd_stats.rate += intra_cost_penalty;
 
   const int num_planes = av1_num_planes(cm);
@@ -14062,8 +14078,12 @@ static int64_t handle_intra_mode(InterModeSearchState *search_state,
 #else
   const int mode_cost = x->mbmode_cost[size_group_lookup[bsize]][mode];
 #endif
-  const int intra_cost_penalty = av1_get_intra_cost_penalty(
-      cm->base_qindex, cm->y_dc_delta_q, cm->seq_params.bit_depth);
+  const int intra_cost_penalty =
+      av1_get_intra_cost_penalty(cm->base_qindex, cm->y_dc_delta_q,
+#if CONFIG_DELTA_DCQUANT
+                                 cm->seq_params.base_dc_delta_q,
+#endif  // CONFIG_DELTA_DCQUANT
+                                 cm->seq_params.bit_depth);
   const int skip_ctx = av1_get_skip_context(xd);
 
   int known_rate = mode_cost;

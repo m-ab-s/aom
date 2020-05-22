@@ -57,6 +57,12 @@ extern "C" {
 #define FRAME_ID_LENGTH 15
 #define DELTA_FRAME_ID_LENGTH 14
 
+#if CONFIG_DELTA_DCQUANT
+#define DELTA_DCQUANT_BITS 5
+#define DELTA_DCQUANT_MIN (-(1 << (DELTA_DCQUANT_BITS - 2)))
+#define DELTA_DCQUANT_MAX (DELTA_DCQUANT_MIN + (1 << DELTA_DCQUANT_BITS) - 1)
+#endif  // CONFIG_DELTA_DCQUANT
+
 #define FRAME_CONTEXTS (FRAME_BUFFERS + 1)
 // Extra frame context which is always kept at default values
 #define FRAME_CONTEXT_DEFAULTS (FRAME_CONTEXTS - 1)
@@ -290,6 +296,9 @@ typedef struct SequenceHeader {
   int subsampling_y;  // Chroma subsampling for y
   aom_chroma_sample_position_t chroma_sample_position;
   uint8_t separate_uv_delta_q;
+#if CONFIG_DELTA_DCQUANT
+  int8_t base_dc_delta_q;
+#endif  // CONFIG_DELTA_DCQUANT
   uint8_t film_grain_params_present;
 } SequenceHeader;
 

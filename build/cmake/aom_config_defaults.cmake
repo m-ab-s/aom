@@ -191,6 +191,8 @@ set_aom_config_var(CONFIG_EXTQUANT_72 0 NUMBER
                    "AV2 extended quantization experiment flag")
 set_aom_config_var(CONFIG_EXTQUANT_64 0 NUMBER
                    "AV2 extended quantization experiment flag")
+set_aom_config_var(CONFIG_DELTA_DCQUANT 0 NUMBER
+                   "AV2 base dc delta_q experiment flag")
 set_aom_config_var(CONFIG_EXT_LOOP_RESTORATION 0 NUMBER
                    "AV2 extensions to loop restoration")
 set_aom_config_var(CONFIG_SEGMENT_BASED_PARTITIONING 0 NUMBER

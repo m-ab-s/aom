@@ -110,7 +110,11 @@ class QuantizeTest : public ::testing::TestWithParam<QuantizeParam> {
   }
 
   void InitQuantizer() {
-    av1_build_quantizer(bd_, 0, 0, 0, 0, 0, &qtab_->quant, &qtab_->dequant);
+    av1_build_quantizer(bd_, 0, 0, 0, 0, 0,
+#if CONFIG_DELTA_DCQUANT
+                        0,
+#endif  // CONFIG_DELTA_DCQUANT
+                        &qtab_->quant, &qtab_->dequant);
   }
 
   void QuantizeRun(bool is_loop, int q = 0, int test_num = 1) {

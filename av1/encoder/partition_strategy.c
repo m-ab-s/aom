@@ -103,8 +103,12 @@ void av1_intra_mode_cnn_partition(const AV1_COMMON *const cm, MACROBLOCK *x,
     // Prepare the input
     const MACROBLOCKD *xd = &x->e_mbd;
     const int bit_depth = xd->bd;
-    const int dc_q =
-        av1_dc_quant_QTX(x->qindex, 0, bit_depth) >> (bit_depth - 8);
+    const int dc_q = av1_dc_quant_QTX(x->qindex, 0,
+#if CONFIG_DELTA_DCQUANT
+                                      cm->seq_params.base_dc_delta_q,
+#endif  // CONFIG_DELTA_DCQUANT
+                                      bit_depth) >>
+                     (bit_depth - 8);
     x->log_q = logf(1.0f + (float)(dc_q * dc_q) / 256.0f);
     x->log_q = (x->log_q - av1_intra_mode_cnn_partition_mean[0]) /
                av1_intra_mode_cnn_partition_std[0];
@@ -488,7 +492,12 @@ static void simple_motion_search_prune_part_features(
   set_offsets_for_motion_search(cpi, x, mi_row, mi_col, bsize);
 
   // Q_INDEX
-  const int dc_q = av1_dc_quant_QTX(x->qindex, 0, xd->bd) >> (xd->bd - 8);
+  const int dc_q = av1_dc_quant_QTX(x->qindex, 0,
+#if CONFIG_DELTA_DCQUANT
+                                    cpi->common.seq_params.base_dc_delta_q,
+#endif  // CONFIG_DELTA_DCQUANT
+                                    xd->bd) >>
+                   (xd->bd - 8);
   features[f_idx++] = logf(1.0f + (float)(dc_q * dc_q) / 256.0f);
 
   // Neighbor stuff
@@ -668,7 +677,12 @@ void av1_get_max_min_partition_features(AV1_COMP *const cpi, MACROBLOCK *x,
 
   int f_idx = 0;
 
-  const int dc_q = av1_dc_quant_QTX(x->qindex, 0, xd->bd) >> (xd->bd - 8);
+  const int dc_q = av1_dc_quant_QTX(x->qindex, 0,
+#if CONFIG_DELTA_DCQUANT
+                                    cm->seq_params.base_dc_delta_q,
+#endif  // CONFIG_DELTA_DCQUANT
+                                    xd->bd) >>
+                   (xd->bd - 8);
   aom_clear_system_state();
   const float log_q_sq = logf(1.0f + (float)(dc_q * dc_q) / 256.0f);
 
@@ -896,7 +910,12 @@ void av1_ml_early_term_after_split(AV1_COMP *const cpi, MACROBLOCK *const x,
   if (cpi->sf.ml_early_term_after_part_split_level < 2) thresh -= 0.3f;
 
   const MACROBLOCKD *const xd = &x->e_mbd;
-  const int dc_q = av1_dc_quant_QTX(x->qindex, 0, xd->bd) >> (xd->bd - 8);
+  const int dc_q = av1_dc_quant_QTX(x->qindex, 0,
+#if CONFIG_DELTA_DCQUANT
+                                    cm->seq_params.base_dc_delta_q,
+#endif  // CONFIG_DELTA_DCQUANT
+                                    xd->bd) >>
+                   (xd->bd - 8);
   const int bs = block_size_wide[bsize];
   int f_idx = 0;
   float features[FEATURES] = { 0.0f };

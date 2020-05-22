@@ -102,6 +102,10 @@ FILE *yuv_rec_file;
 #define FILE_NAME_LEN 100
 #endif
 
+#if CONFIG_DELTA_DCQUANT
+#define DEFAULT_DELTA_DCQUANT 8
+#endif  // CONFIG_DELTA_DCQUANT
+
 static INLINE void Scale2Ratio(AOM_SCALING mode, int *hr, int *hs) {
   switch (mode) {
     case NORMAL:
@@ -1123,6 +1127,9 @@ static void init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
       seq->operating_point_idc[i] =
           (~(~0u << (seq->operating_points_cnt_minus_1 + 1 - i)) << 8) | 1;
   }
+#if CONFIG_DELTA_DCQUANT
+  seq->base_dc_delta_q = DEFAULT_DELTA_DCQUANT;
+#endif  // CONFIG_DELTA_DCQUANT
 }
 
 static void init_config(struct AV1_COMP *cpi, AV1EncoderConfig *oxcf) {
