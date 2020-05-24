@@ -39,6 +39,13 @@ extern const int16_t av1_warped_filter[WARPEDPIXEL_PREC_SHIFTS * 3 + 1][8];
 DECLARE_ALIGNED(8, extern const int8_t,
                 av1_filter_8bit[WARPEDPIXEL_PREC_SHIFTS * 3 + 1][8]);
 
+#if CONFIG_EXT_WARP
+extern const int16_t av1_ext_warped_filter[WARPEDPIXEL_PREC_SHIFTS + 1][8];
+
+DECLARE_ALIGNED(16, extern const int16_t,
+                av1_ext_filter_16bit[WARPEDPIXEL_PREC_SHIFTS + 1][8]);
+#endif  // CONFIG_EXT_WARP
+
 /* clang-format off */
 static const int error_measure_lut[512] = {
     // pow 0.7

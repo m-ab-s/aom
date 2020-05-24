@@ -276,6 +276,193 @@ void AV1WarpFilterTest::RunCheckOutput(warp_affine_func test_impl) {
 }
 }  // namespace AV1WarpFilter
 
+#if CONFIG_EXT_WARP
+namespace AV1ExtWarpFilter {
+::testing::internal::ParamGenerator<AV1ExtWarpTestParams> BuildParams(
+    av1_ext_warp_affine_func filter) {
+  AV1ExtWarpTestParam params[] = {
+    make_tuple(4, 4, 50000, filter),  make_tuple(8, 8, 50000, filter),
+    make_tuple(64, 64, 1000, filter), make_tuple(4, 16, 20000, filter),
+    make_tuple(32, 8, 10000, filter),
+  };
+  return ::testing::Combine(::testing::ValuesIn(params),
+                            ::testing::Values(0, 1), ::testing::Values(0, 1),
+                            ::testing::Values(0, 1), ::testing::Values(0, 1));
+}
+
+AV1ExtWarpFilterTest::~AV1ExtWarpFilterTest() {}
+void AV1ExtWarpFilterTest::SetUp() {
+  rnd_.Reset(ACMRandom::DeterministicSeed());
+}
+
+void AV1ExtWarpFilterTest::TearDown() { libaom_test::ClearSystemState(); }
+
+void AV1ExtWarpFilterTest::RunSpeedTest(av1_ext_warp_affine_func test_impl) {
+  const int w = 128, h = 128;
+  const int border = 16;
+  const int stride = w + 2 * border;
+  AV1ExtWarpTestParam params = GET_PARAM(0);
+  const int is_alpha_zero = GET_PARAM(1);
+  const int is_beta_zero = GET_PARAM(2);
+  const int is_gamma_zero = GET_PARAM(3);
+  const int is_delta_zero = GET_PARAM(4);
+  const int out_w = ::testing::get<0>(params),
+            out_h = ::testing::get<1>(params);
+  int sub_x, sub_y;
+  const int bd = 8;
+
+  uint8_t *input_ = new uint8_t[h * stride];
+  uint8_t *input = input_ + border;
+
+  // The warp functions always write rows with widths that are multiples of 8.
+  // So to avoid a buffer overflow, we may need to pad rows to a multiple of 8.
+  int output_n = ((out_w + 7) & ~7) * out_h;
+  uint8_t *output = new uint8_t[output_n];
+  int32_t mat[8];
+  int16_t alpha, beta, gamma, delta;
+  ConvolveParams conv_params = get_conv_params(0, 0, bd);
+  CONV_BUF_TYPE *dsta = new CONV_BUF_TYPE[output_n];
+  generate_warped_model(&rnd_, mat, &alpha, &beta, &gamma, &delta,
+                        is_alpha_zero, is_beta_zero, is_gamma_zero,
+                        is_delta_zero);
+
+  for (int r = 0; r < h; ++r)
+    for (int c = 0; c < w; ++c) input[r * stride + c] = rnd_.Rand8();
+  for (int r = 0; r < h; ++r) {
+    memset(input + r * stride - border, input[r * stride], border);
+    memset(input + r * stride + w, input[r * stride + (w - 1)], border);
+  }
+
+  sub_x = 0;
+  sub_y = 0;
+  int do_average = 0;
+
+  conv_params = get_conv_params_no_round(do_average, 0, dsta, out_w, 1, bd);
+  conv_params.use_dist_wtd_comp_avg = 0;
+
+  const int num_loops = 1000000000 / (out_w + out_h);
+  aom_usec_timer timer;
+  aom_usec_timer_start(&timer);
+  for (int i = 0; i < num_loops; ++i)
+    test_impl(mat, input, w, h, stride, output, 32, 32, out_w, out_h, out_w,
+              sub_x, sub_y, &conv_params);
+
+  aom_usec_timer_mark(&timer);
+  const int elapsed_time = static_cast<int>(aom_usec_timer_elapsed(&timer));
+  printf("warp %3dx%-3d: %7.2f ns\n", out_w, out_h,
+         1000.0 * elapsed_time / num_loops);
+
+  delete[] input_;
+  delete[] output;
+  delete[] dsta;
+}
+
+void AV1ExtWarpFilterTest::RunCheckOutput(av1_ext_warp_affine_func test_impl) {
+  const int w = 128, h = 128;
+  const int border = 16;
+  const int stride = w + 2 * border;
+  AV1ExtWarpTestParam params = GET_PARAM(0);
+  const int is_alpha_zero = GET_PARAM(1);
+  const int is_beta_zero = GET_PARAM(2);
+  const int is_gamma_zero = GET_PARAM(3);
+  const int is_delta_zero = GET_PARAM(4);
+  const int out_w = ::testing::get<0>(params),
+            out_h = ::testing::get<1>(params);
+  const int num_iters = ::testing::get<2>(params);
+  int i, j, sub_x, sub_y;
+  const int bd = 8;
+
+  // The warp functions always write rows with widths that are multiples of 8.
+  // So to avoid a buffer overflow, we may need to pad rows to a multiple of 8.
+  int output_n = ((out_w + 7) & ~7) * out_h;
+  uint8_t *input_ = new uint8_t[h * stride];
+  uint8_t *input = input_ + border;
+  uint8_t *output = new uint8_t[output_n];
+  uint8_t *output2 = new uint8_t[output_n];
+  int32_t mat[8];
+  int16_t alpha, beta, gamma, delta;
+  ConvolveParams conv_params = get_conv_params(0, 0, bd);
+  CONV_BUF_TYPE *dsta = new CONV_BUF_TYPE[output_n];
+  CONV_BUF_TYPE *dstb = new CONV_BUF_TYPE[output_n];
+  for (int i = 0; i < output_n; ++i) output[i] = output2[i] = rnd_.Rand8();
+
+  for (i = 0; i < num_iters; ++i) {
+    // Generate an input block and extend its borders horizontally
+    for (int r = 0; r < h; ++r)
+      for (int c = 0; c < w; ++c) input[r * stride + c] = rnd_.Rand8();
+    for (int r = 0; r < h; ++r) {
+      memset(input + r * stride - border, input[r * stride], border);
+      memset(input + r * stride + w, input[r * stride + (w - 1)], border);
+    }
+    const int use_no_round = rnd_.Rand8() & 1;
+    for (sub_x = 0; sub_x < 2; ++sub_x)
+      for (sub_y = 0; sub_y < 2; ++sub_y) {
+        generate_warped_model(&rnd_, mat, &alpha, &beta, &gamma, &delta,
+                              is_alpha_zero, is_beta_zero, is_gamma_zero,
+                              is_delta_zero);
+        for (int ii = 0; ii < 2; ++ii) {
+          for (int jj = 0; jj < 5; ++jj) {
+            for (int do_average = 0; do_average <= 1; ++do_average) {
+              if (use_no_round) {
+                conv_params =
+                    get_conv_params_no_round(do_average, 0, dsta, out_w, 1, bd);
+              } else {
+                conv_params = get_conv_params(0, 0, bd);
+              }
+              if (jj >= 4) {
+                conv_params.use_dist_wtd_comp_avg = 0;
+              } else {
+                conv_params.use_dist_wtd_comp_avg = 1;
+                conv_params.fwd_offset = quant_dist_lookup_table[ii][jj][0];
+                conv_params.bck_offset = quant_dist_lookup_table[ii][jj][1];
+              }
+              av1_ext_warp_affine_c(mat, input, w, h, stride, output, 32, 32,
+                                    out_w, out_h, out_w, sub_x, sub_y,
+                                    &conv_params);
+              if (use_no_round) {
+                conv_params =
+                    get_conv_params_no_round(do_average, 0, dstb, out_w, 1, bd);
+              }
+              if (jj >= 4) {
+                conv_params.use_dist_wtd_comp_avg = 0;
+              } else {
+                conv_params.use_dist_wtd_comp_avg = 1;
+                conv_params.fwd_offset = quant_dist_lookup_table[ii][jj][0];
+                conv_params.bck_offset = quant_dist_lookup_table[ii][jj][1];
+              }
+              test_impl(mat, input, w, h, stride, output2, 32, 32, out_w, out_h,
+                        out_w, sub_x, sub_y, &conv_params);
+              if (use_no_round) {
+                for (j = 0; j < out_w * out_h; ++j)
+                  ASSERT_EQ(dsta[j], dstb[j])
+                      << "Pixel mismatch at index " << j << " = ("
+                      << (j % out_w) << ", " << (j / out_w) << ") on iteration "
+                      << i;
+                for (j = 0; j < out_w * out_h; ++j)
+                  ASSERT_EQ(output[j], output2[j])
+                      << "Pixel mismatch at index " << j << " = ("
+                      << (j % out_w) << ", " << (j / out_w) << ") on iteration "
+                      << i;
+              } else {
+                for (j = 0; j < out_w * out_h; ++j)
+                  ASSERT_EQ(output[j], output2[j])
+                      << "Pixel mismatch at index " << j << " = ("
+                      << (j % out_w) << ", " << (j / out_w) << ") on iteration "
+                      << i;
+              }
+            }
+          }
+        }
+      }
+  }
+  delete[] input_;
+  delete[] output;
+  delete[] output2;
+  delete[] dsta;
+  delete[] dstb;
+}
+}  // namespace AV1ExtWarpFilter
+#endif  // CONFIG_EXT_WARP
 namespace AV1HighbdWarpFilter {
 ::testing::internal::ParamGenerator<HighbdWarpTestParams> BuildParams(
     highbd_warp_affine_func filter) {
