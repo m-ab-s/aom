@@ -4288,7 +4288,7 @@ static int predict_skip_flag(const AV1_COMMON *const cm, MACROBLOCK *x,
   const int bw = block_size_wide[bsize];
   const int bh = block_size_high[bsize];
   const MACROBLOCKD *xd = &x->e_mbd;
-#if CONFIG_EXTQUANT_72 || CONFIG_EXTQUANT_64
+#if CONFIG_EXTQUANT
   const int32_t dc_q = av1_dc_quant_QTX(x->qindex, 0,
 #if CONFIG_DELTA_DCQUANT
                                         cm->seq_params.base_dc_delta_q,
@@ -4328,7 +4328,7 @@ static int predict_skip_flag(const AV1_COMMON *const cm, MACROBLOCK *x,
   const uint32_t max_qcoef_thresh = skip_pred_threshold[bd_idx][bsize];
   const int16_t *src_diff = x->plane[0].src_diff;
   const int n_coeff = tx_w * tx_h;
-#if CONFIG_EXTQUANT_72 || CONFIG_EXTQUANT_64
+#if CONFIG_EXTQUANT
   const int32_t ac_q = av1_ac_quant_QTX(x->qindex, 0, xd->bd);
 #else
   const int16_t ac_q = av1_ac_quant_QTX(x->qindex, 0, xd->bd);

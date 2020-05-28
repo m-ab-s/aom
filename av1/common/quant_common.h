@@ -22,13 +22,8 @@ extern "C" {
 #endif
 
 #define MINQ 0
-#if CONFIG_EXTQUANT_72
-#define MAXQ 287
-#define QINDEX_BITS 9
-#else
 #define MAXQ 255
 #define QINDEX_BITS 8
-#endif
 #define QINDEX_RANGE (MAXQ - MINQ + 1)
 // Total number of QM sets stored
 #define QM_LEVEL_BITS 4
@@ -43,7 +38,7 @@ extern "C" {
 
 struct AV1Common;
 
-#if CONFIG_EXTQUANT_72 || CONFIG_EXTQUANT_64
+#if CONFIG_EXTQUANT
 int32_t av1_dc_quant_QTX(int qindex, int delta,
 #if CONFIG_DELTA_DCQUANT
                          int base_dc_delta_q,
