@@ -36,6 +36,9 @@
 #include "av1/common/idct.h"
 #include "av1/common/mv.h"
 #include "av1/common/mvref_common.h"
+#if CONFIG_NN_RECON
+#include "av1/common/nn_recon.h"
+#endif
 #include "av1/common/pred_common.h"
 #include "av1/common/quant_common.h"
 #include "av1/common/reconintra.h"
@@ -5516,6 +5519,9 @@ static void avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
   AVERAGE_CDF(ctx_left->tx_size_cdf[3], ctx_tr->tx_size_cdf[3],
               MAX_TX_DEPTH + 1);
 #endif  // CONFIG_NEW_TX_PARTITION
+#if CONFIG_NN_RECON
+  AVERAGE_CDF(ctx_left->use_nn_recon_cdf, ctx_tr->use_nn_recon_cdf, 2 + 1);
+#endif  // CONFIG_NN_RECON
   AVERAGE_CDF(ctx_left->delta_q_cdf, ctx_tr->delta_q_cdf, DELTA_Q_PROBS + 1);
   AVERAGE_CDF(ctx_left->delta_lf_cdf, ctx_tr->delta_lf_cdf, DELTA_LF_PROBS + 1);
   for (int i = 0; i < FRAME_LF_COUNT; i++) {
@@ -7653,6 +7659,13 @@ static void encode_superblock(const AV1_COMP *const cpi, TileDataEnc *tile_data,
 
       if (intra_tx_size != max_txsize_rect_lookup[bsize]) ++x->txb_split_count;
     }
+#if CONFIG_NN_RECON
+    if (av1_is_block_nn_recon_eligible(cm, mbmi, mbmi->tx_size)) {
+      if (tile_data->allow_update_cdf) {
+        update_cdf(xd->tile_ctx->use_nn_recon_cdf, mbmi->use_nn_recon, 2 + 1);
+      }
+    }
+#endif  // CONFIG_NN_RECON
   }
 
   if (cm->tx_mode == TX_MODE_SELECT && block_signals_txsize(mbmi->sb_type) &&

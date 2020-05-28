@@ -31,6 +31,9 @@
 #include "av1/common/entropymode.h"
 #include "av1/common/idct.h"
 #include "av1/common/mvref_common.h"
+#if CONFIG_NN_RECON
+#include "av1/common/nn_recon.h"
+#endif  // CONFIG_NN_RECON
 #include "av1/common/obmc.h"
 #include "av1/common/onyxc_int.h"
 #include "av1/common/pred_common.h"
@@ -4185,33 +4188,77 @@ static void choose_tx_size_type_from_rd(const AV1_COMP *const cpi,
   TX_TYPE best_txk_type[TXK_TYPE_BUF_LEN];
   uint8_t best_blk_skip[MAX_MIB_SIZE * MAX_MIB_SIZE];
   TX_SIZE best_tx_size = max_rect_tx_size;
+#if CONFIG_NN_RECON
+  // TODO(chiyotsai@google.com): Move rdopt with CNN out of this func, otherwise
+  // the encoding time complexity is too large for any practical experiment.
+  int best_use_nn_recon = 0;
+#endif  // CONFIG_NN_RECON
   int64_t best_rd = INT64_MAX;
   const int n4 = bsize_to_num_blk(bs);
   x->rd_model = FULL_TXFM_RD;
   depth = init_depth;
   int64_t rd[MAX_TX_DEPTH + 1] = { INT64_MAX, INT64_MAX, INT64_MAX };
-  for (int n = start_tx; depth <= MAX_TX_DEPTH;
-       depth++, n = sub_tx_size_map[n]) {
+  for (int tx_size = start_tx; depth <= MAX_TX_DEPTH;
+       depth++, tx_size = sub_tx_size_map[tx_size]) {
 #if CONFIG_DIST_8X8
     if (x->using_dist_8x8) {
       if (tx_size_wide[n] < 8 || tx_size_high[n] < 8) continue;
     }
 #endif
-    if (!cpi->oxcf.enable_tx64 && txsize_sqr_up_map[n] == TX_64X64) continue;
+    if (!cpi->oxcf.enable_tx64 && txsize_sqr_up_map[tx_size] == TX_64X64)
+      continue;
 
     RD_STATS this_rd_stats;
-    rd[depth] =
-        txfm_yrd(cpi, x, &this_rd_stats, ref_best_rd, bs, n, FTXS_NONE, 0);
+
+#if CONFIG_NN_RECON
+    mbmi->use_nn_recon = 0;
+#endif  // CONFIG_NN_RECON
+    rd[depth] = txfm_yrd(cpi, x, &this_rd_stats, ref_best_rd, bs, tx_size,
+                         FTXS_NONE, 0);
+#if CONFIG_NN_RECON
+    if (av1_is_block_nn_recon_eligible(cm, mbmi, tx_size) &&
+        this_rd_stats.rate < INT_MAX) {
+      this_rd_stats.rate += x->use_nn_recon_cost[0];
+      rd[depth] = rd[depth] + RDCOST(x->rdmult, x->use_nn_recon_cost[0], 0);
+    }
+#endif  // CONFIG_NN_RECON
 
     if (rd[depth] < best_rd) {
       memcpy(best_txk_type, mbmi->txk_type,
              sizeof(best_txk_type[0]) * TXK_TYPE_BUF_LEN);
       memcpy(best_blk_skip, x->blk_skip, sizeof(best_blk_skip[0]) * n4);
-      best_tx_size = n;
+      best_tx_size = tx_size;
       best_rd = rd[depth];
       *rd_stats = this_rd_stats;
+#if CONFIG_NN_RECON
+      best_use_nn_recon = 0;
+#endif  // CONFIG_NN_RECON
     }
-    if (n == TX_4X4) break;
+
+#if CONFIG_NN_RECON
+    if (av1_is_block_nn_recon_eligible(cm, mbmi, tx_size)) {
+      mbmi->use_nn_recon = 1;
+      int64_t rd_nn = txfm_yrd(cpi, x, &this_rd_stats, ref_best_rd, bs, tx_size,
+                               FTXS_NONE, 0);
+      if (this_rd_stats.rate < INT_MAX) {
+        this_rd_stats.rate += x->use_nn_recon_cost[1];
+        rd_nn = rd_nn + RDCOST(x->rdmult, x->use_nn_recon_cost[1], 0);
+      }
+      if (rd_nn < rd[depth]) {
+        rd[depth] = rd_nn;
+        if (rd_nn < best_rd) {
+          memcpy(best_txk_type, mbmi->txk_type,
+                 sizeof(best_txk_type[0]) * TXK_TYPE_BUF_LEN);
+          memcpy(best_blk_skip, x->blk_skip, sizeof(best_blk_skip[0]) * n4);
+          best_tx_size = tx_size;
+          best_rd = rd[depth];
+          *rd_stats = this_rd_stats;
+          best_use_nn_recon = 1;
+        }
+      }
+    }
+#endif  // CONFIG_NN_RECON
+    if (tx_size == TX_4X4) break;
     // If we are searching three depths, prune the smallest size depending
     // on rd results for the first two depths for low contrast blocks.
     if (depth > init_depth && depth != MAX_TX_DEPTH &&
@@ -4222,6 +4269,9 @@ static void choose_tx_size_type_from_rd(const AV1_COMP *const cpi,
 
   if (rd_stats->rate != INT_MAX) {
     mbmi->tx_size = best_tx_size;
+#if CONFIG_NN_RECON
+    mbmi->use_nn_recon = best_use_nn_recon;
+#endif  // CONFIG_NN_RECON
     memcpy(mbmi->txk_type, best_txk_type,
            sizeof(best_txk_type[0]) * TXK_TYPE_BUF_LEN);
     memcpy(x->blk_skip, best_blk_skip, sizeof(best_blk_skip[0]) * n4);
@@ -5014,6 +5064,9 @@ static int rd_pick_filter_intra_sby(const AV1_COMP *const cpi, MACROBLOCK *x,
 #if CONFIG_NEW_TX_PARTITION
   TX_PARTITION_TYPE best_tx_partition = TX_PARTITION_NONE;
 #endif  // CONFIG_NEW_TX_PARTITION
+#if CONFIG_NN_RECON
+  int best_use_nn_recon = 1;
+#endif  // CONFIG_NN_RECON
   FILTER_INTRA_MODE_INFO filter_intra_mode_info;
   TX_TYPE best_txk_type[TXK_TYPE_BUF_LEN];
   (void)ctx;
@@ -5050,6 +5103,9 @@ static int rd_pick_filter_intra_sby(const AV1_COMP *const cpi, MACROBLOCK *x,
 #if CONFIG_NEW_TX_PARTITION
       best_tx_partition = mbmi->partition_type[0];
 #endif  // CONFIG_NEW_TX_PARTITION
+#if CONFIG_NN_RECON
+      best_use_nn_recon = mbmi->use_nn_recon;
+#endif  // CONFIG_NN_RECON
       filter_intra_mode_info = mbmi->filter_intra_mode_info;
       memcpy(best_txk_type, mbmi->txk_type,
              sizeof(best_txk_type[0]) * TXK_TYPE_BUF_LEN);
@@ -5069,6 +5125,9 @@ static int rd_pick_filter_intra_sby(const AV1_COMP *const cpi, MACROBLOCK *x,
 #if CONFIG_NEW_TX_PARTITION
     mbmi->partition_type[0] = best_tx_partition;
 #endif  // CONFIG_NEW_TX_PARTITION
+#if CONFIG_NN_RECON
+    mbmi->use_nn_recon = best_use_nn_recon;
+#endif  // CONFIG_NN_RECON
     mbmi->filter_intra_mode_info = filter_intra_mode_info;
     memcpy(mbmi->txk_type, best_txk_type,
            sizeof(best_txk_type[0]) * TXK_TYPE_BUF_LEN);
@@ -5198,6 +5257,9 @@ static int64_t calc_rd_given_intra_angle(
 #if CONFIG_NEW_TX_PARTITION
     TX_PARTITION_TYPE *best_tx_partition,
 #endif  // CONFIG_NEW_TX_PARTITION
+#if CONFIG_NN_RECON
+    int *best_use_nn_recon,
+#endif  // CONFIG_NN_RECON
     int64_t *best_rd, int64_t *best_model_rd, TX_TYPE *best_txk_type,
     uint8_t *best_blk_skip, int skip_model_rd) {
   RD_STATS tokenonly_rd_stats;
@@ -5230,6 +5292,9 @@ static int64_t calc_rd_given_intra_angle(
 #if CONFIG_NEW_TX_PARTITION
     *best_tx_partition = mbmi->partition_type[0];
 #endif  // CONFIG_NEW_TX_PARTITION
+#if CONFIG_NN_RECON
+    *best_use_nn_recon = mbmi->use_nn_recon;
+#endif  // CONFIG_NN_RECON
     *rate = this_rate;
     rd_stats->rate = tokenonly_rd_stats.rate;
     rd_stats->dist = tokenonly_rd_stats.dist;
@@ -5252,6 +5317,9 @@ static int64_t rd_pick_intra_angle_sby(const AV1_COMP *const cpi, MACROBLOCK *x,
   int best_angle_delta = 0;
   int64_t rd_cost[2 * (MAX_ANGLE_DELTA + 2)];
   TX_SIZE best_tx_size = mbmi->tx_size;
+#if CONFIG_NN_RECON
+  int best_use_nn_recon = 1;
+#endif  // CONFIG_NN_RECON
 #if CONFIG_NEW_TX_PARTITION
   TX_PARTITION_TYPE best_tx_partition = mbmi->partition_type[0];
 #endif  // CONFIG_NEW_TX_PARTITION
@@ -5273,6 +5341,9 @@ static int64_t rd_pick_intra_angle_sby(const AV1_COMP *const cpi, MACROBLOCK *x,
 #if CONFIG_NEW_TX_PARTITION
           &best_tx_partition,
 #endif  // CONFIG_NEW_TX_PARTITION
+#if CONFIG_NN_RECON
+          &best_use_nn_recon,
+#endif  // CONFIG_NN_RECON
           &best_rd, best_model_rd, best_txk_type, best_blk_skip,
           (skip_model_rd_for_zero_deg & !angle_delta));
       rd_cost[2 * angle_delta + i] = this_rd;
@@ -5301,6 +5372,9 @@ static int64_t rd_pick_intra_angle_sby(const AV1_COMP *const cpi, MACROBLOCK *x,
 #if CONFIG_NEW_TX_PARTITION
             &best_tx_partition,
 #endif  // CONFIG_NEW_TX_PARTITION
+#if CONFIG_NN_RECON
+            &best_use_nn_recon,
+#endif  // CONFIG_NN_RECON
             &best_rd, best_model_rd, best_txk_type, best_blk_skip, 0);
       }
     }
@@ -5311,6 +5385,9 @@ static int64_t rd_pick_intra_angle_sby(const AV1_COMP *const cpi, MACROBLOCK *x,
 #if CONFIG_NEW_TX_PARTITION
     mbmi->partition_type[0] = best_tx_partition;
 #endif  // CONFIG_NEW_TX_PARTITION
+#if CONFIG_NN_RECON
+    mbmi->use_nn_recon = best_use_nn_recon;
+#endif  // CONFIG_NN_RECON
     mbmi->angle_delta[PLANE_TYPE_Y] = best_angle_delta;
     memcpy(mbmi->txk_type, best_txk_type,
            sizeof(*best_txk_type) * TXK_TYPE_BUF_LEN);
@@ -5567,6 +5644,9 @@ static int64_t rd_pick_intra_sby_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
       continue;
     if (!cpi->oxcf.enable_paeth_intra && mbmi->mode == PAETH_PRED) continue;
     mbmi->angle_delta[PLANE_TYPE_Y] = 0;
+#if CONFIG_NN_RECON
+    mbmi->use_nn_recon = 0;
+#endif  // CONFIG_NN_RECON
 
     if (model_intra_yrd_and_prune(cpi, x, bsize, mi_row, mi_col,
                                   bmode_costs[mbmi->mode], &best_model_rd)) {
@@ -13293,6 +13373,9 @@ static int64_t rd_pick_intrabc_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x,
       mbmi->max_mv_precision = MV_SUBPEL_NONE;
       mbmi->pb_mv_precision = mbmi->max_mv_precision;
       mbmi->skip = 0;
+#if CONFIG_NN_RECON
+      mbmi->use_nn_recon = 0;
+#endif  // CONFIG_NN_RECON
 #if CONFIG_EXT_IBC_MODES
       mbmi->ibc_mode = ibcMode;
       // mbmi->is_ibcplus = (ibcMode != ROTATION_0) ? 0x1 : 0x0;

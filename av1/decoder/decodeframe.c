@@ -46,6 +46,9 @@
 #include "av1/common/frame_buffers.h"
 #include "av1/common/idct.h"
 #include "av1/common/mvref_common.h"
+#if CONFIG_NN_RECON
+#include "av1/common/nn_recon.h"
+#endif  // CONFIG_NN_RECON
 #include "av1/common/pred_common.h"
 #include "av1/common/quant_common.h"
 #include "av1/common/reconinter.h"
@@ -1376,6 +1379,12 @@ static void parse_decode_block(AV1Decoder *const pbi, ThreadData *const td,
 #endif  // CONFIG_NEW_TX_PARTITION
   } else {
     mbmi->tx_size = read_tx_size(cm, xd, inter_block_tx, !mbmi->skip, r);
+#if CONFIG_NN_RECON
+    if (av1_is_block_nn_recon_eligible(cm, mbmi, mbmi->tx_size)) {
+      mbmi->use_nn_recon = aom_read_symbol(r, xd->tile_ctx->use_nn_recon_cdf,
+                                           CDF_SIZE(2), ACCT_STR);
+    }
+#endif
     if (inter_block_tx)
       memset(mbmi->inter_tx_size, mbmi->tx_size, sizeof(mbmi->inter_tx_size));
     set_txfm_ctxs(mbmi->tx_size, xd->n4_w, xd->n4_h,

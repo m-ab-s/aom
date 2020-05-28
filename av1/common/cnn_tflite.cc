@@ -24,10 +24,12 @@
 #include "av1/tflite_models/inter_frame_model/qp148_191.h"
 #include "av1/tflite_models/inter_frame_model/qp192_231.h"
 #include "av1/tflite_models/inter_frame_model/qp232_255.h"
-#include "third_party/tensorflow/tensorflow/lite/interpreter.h"
-#include "third_party/tensorflow/tensorflow/lite/kernels/kernel_util.h"
-#include "third_party/tensorflow/tensorflow/lite/model.h"
+#if CONFIG_NN_RECON
+#include "av1/tflite_models/intra_txfm_recon_model/tx16x16.h"
+#endif  // CONFIG_NN_RECON
+#include "common/tf_lite_includes.h"
 
+#if CONFIG_CNN_RESTORATION
 // Returns the TF-lite model based on the qindex.
 static const unsigned char *get_intra_model_from_qindex(int qindex) {
   if (qindex <= MIN_CNN_Q_INDEX) {
@@ -242,3 +244,72 @@ extern "C" void av1_restore_cnn_tflite(const AV1_COMMON *cm, int num_threads) {
     }
   }
 }
+#endif  // CONFIG_CNN_RESTORATION
+
+#if CONFIG_NN_RECON
+// Builds and returns the TFlite interpreter.
+static std::unique_ptr<tflite::Interpreter> get_nn_recon_tflite_interpreter(
+    int width, int height, int num_threads) {
+  auto model = tflite::GetModel(tx16x16_tflite);
+  tflite::MutableOpResolver resolver;
+  RegisterSelectedOpsAllQps(&resolver);
+  tflite::InterpreterBuilder builder(model, resolver);
+
+  std::unique_ptr<tflite::Interpreter> interpreter;
+  builder(&interpreter);
+  interpreter->SetNumThreads(AOMMAX(num_threads, 1));
+  tflite::ErrorReporter *reporter = tflite::DefaultErrorReporter();
+
+  // Dimension order: batch_size, height, width, num_channels.
+  // Note: height comes before width here!
+  const std::vector<int> in_out_dims = { 1, height, width, 1 };
+  // We only need to resize the input tensor. All other tensors (including
+  // output tensor) will be resized automatically.
+  if (interpreter->ResizeInputTensor(interpreter->inputs()[0], in_out_dims) !=
+      kTfLiteOk) {
+    reporter->Report("Failed at input tensor resize");
+    return nullptr;
+  }
+
+  if (interpreter->AllocateTensors() != kTfLiteOk) {
+    reporter->Report("Failed at tensor allocation");
+    return nullptr;
+  }
+  return interpreter;
+}
+
+extern "C" int av1_cnn_recon_tflite(uint8_t *dst, int dst_stride, int height,
+                                    int width) {
+  const int num_threads = 1;
+  std::unique_ptr<tflite::Interpreter> interpreter =
+      get_nn_recon_tflite_interpreter(width, height, num_threads);
+
+  // Prepare input.
+  const int in_stride = width;
+  auto input = interpreter->typed_input_tensor<float>(0);
+  for (int r = 0; r < height; ++r) {
+    for (int c = 0; c < width; ++c) {
+      input[r * in_stride + c] = static_cast<float>(dst[r * dst_stride + c]);
+    }
+  }
+
+  // Invoke TFlite inference.
+  tflite::ErrorReporter *reporter = tflite::DefaultErrorReporter();
+  auto status = interpreter->Invoke();
+  if (status != kTfLiteOk) {
+    reporter->Report("Failed at interpreter invocation");
+    return 0;
+  }
+
+  // Use the output to restore 'dgd' and store in 'rst'.
+  const auto output = interpreter->typed_output_tensor<float>(0);
+  const int out_stride = width;
+  for (int r = 0; r < height; ++r) {
+    for (int c = 0; c < width; ++c) {
+      const int residue = static_cast<int>(output[r * out_stride + c] + 0.5);
+      dst[r * dst_stride + c] = clip_pixel(dst[r * dst_stride + c] + residue);
+    }
+  }
+  return 1;
+}
+#endif  // CONFIG_NN_RECON

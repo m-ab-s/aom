@@ -729,6 +729,9 @@ typedef struct MB_MODE_INFO {
   // CONFIG_DSPL_RESIDUAL experiment
   DSPL_TYPE dspl_type;
 #endif  // CONFIG_DSPL_RESIDUAL
+#if CONFIG_NN_RECON
+  int use_nn_recon;
+#endif  // CONFIG_NN_RECON
 } MB_MODE_INFO;
 
 typedef struct PARTITION_TREE {

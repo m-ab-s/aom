@@ -56,6 +56,9 @@ struct AV1Common;
 // Restore current frame buffer in 'cm' in-place with a CNN model using TFlite.
 void av1_restore_cnn_tflite(const struct AV1Common *cm, int num_threads);
 
+// Uses CNN model for txfm reconstruction
+int av1_cnn_recon_tflite(uint8_t *dst, int dst_stride, int height, int width);
+
 #ifdef __cplusplus
 }
 #endif

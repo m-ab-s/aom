@@ -264,6 +264,9 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, MACROBLOCK *x,
       av1_cost_tokens_from_cdf(x->tx_size_cost[i][j], fc->tx_size_cdf[i][j],
                                NULL);
 #endif  // CONFIG_NEW_TX_PARTITION
+#if CONFIG_NN_RECON
+  av1_cost_tokens_from_cdf(x->use_nn_recon_cost, fc->use_nn_recon_cdf, NULL);
+#endif  // CONFIG_NN_RECON
 
   for (i = 0; i < TXFM_PARTITION_CONTEXTS; ++i) {
 #if CONFIG_NEW_TX_PARTITION

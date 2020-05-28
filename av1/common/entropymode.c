@@ -1717,7 +1717,10 @@ static const aom_cdf_prob default_tx_size_cdf[MAX_TX_CATS][TX_SIZE_CONTEXTS]
                                                  { AOM_CDF3(16803, 22759) } },
                                              };
 #endif
-
+#if CONFIG_NN_RECON
+static const aom_cdf_prob default_use_nn_recon_cdf[CDF_SIZE(2)] = { AOM_CDF2(
+    19968) };
+#endif  // CONFIG_NN_RECON
 #define MAX_COLOR_CONTEXT_HASH 8
 // Negative values are invalid
 static const int palette_color_index_context_lookup[MAX_COLOR_CONTEXT_HASH +
@@ -1975,6 +1978,9 @@ static void init_mode_probs(FRAME_CONTEXT *fc) {
     av1_copy(fc->seg.spatial_pred_seg_cdf[i],
              default_spatial_pred_seg_tree_cdf[i]);
   av1_copy(fc->tx_size_cdf, default_tx_size_cdf);
+#if CONFIG_NN_RECON
+  av1_copy(fc->use_nn_recon_cdf, default_use_nn_recon_cdf);
+#endif  // CONFIG_NN_RECON
   av1_copy(fc->delta_q_cdf, default_delta_q_cdf);
   av1_copy(fc->delta_lf_cdf, default_delta_lf_cdf);
   av1_copy(fc->delta_lf_multi_cdf, default_delta_lf_multi_cdf);

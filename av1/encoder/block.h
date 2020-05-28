@@ -543,6 +543,9 @@ struct macroblock {
   int tx_size_cost[TX_SIZES - 1][TX_SIZE_CONTEXTS][TX_SIZES];
   int txfm_partition_cost[TXFM_PARTITION_CONTEXTS][2];
 #endif  // CONFIG_NEW_TX_PARTITION
+#if CONFIG_NN_RECON
+  int use_nn_recon_cost[2];
+#endif  // CONFIG_USE_NN_RECON
 #if CONFIG_MODE_DEP_INTRA_TX || CONFIG_MODE_DEP_INTER_TX
 #if CONFIG_MODE_DEP_INTER_TX
   int use_mdtx_inter_costs[EXT_TX_SIZES][2];

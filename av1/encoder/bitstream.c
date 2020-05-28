@@ -39,6 +39,9 @@
 #include "av1/common/entropymode.h"
 #include "av1/common/entropymv.h"
 #include "av1/common/mvref_common.h"
+#if CONFIG_NN_RECON
+#include "av1/common/nn_recon.h"
+#endif  // CONFIG_NN_RECON
 #include "av1/common/pred_common.h"
 #include "av1/common/reconinter.h"
 #include "av1/common/reconintra.h"
@@ -393,6 +396,18 @@ static void write_selected_tx_size(const MACROBLOCKD *xd, aom_writer *w) {
   }
 }
 #endif  // CONFIG_NEW_TX_PARTITION
+
+#if CONFIG_NN_RECON
+static void write_use_nn_recon(const AV1_COMMON *cm, const MACROBLOCKD *xd,
+                               aom_writer *w) {
+  const MB_MODE_INFO *const mbmi = xd->mi[0];
+  FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
+  if (av1_is_block_nn_recon_eligible(cm, mbmi, mbmi->tx_size)) {
+    aom_write_symbol(w, mbmi->use_nn_recon, ec_ctx->use_nn_recon_cdf,
+                     CDF_SIZE(2));
+  }
+}
+#endif  // CONFIG_NN_RECON
 
 static int write_skip(const AV1_COMMON *cm, const MACROBLOCKD *xd,
                       int segment_id, const MB_MODE_INFO *mi, aom_writer *w) {
@@ -2035,6 +2050,9 @@ static void write_modes_b(AV1_COMP *cpi, const TileInfo *const tile,
       write_tx_partition_intra(xd, w, max_tx_size);
 #else
       write_selected_tx_size(xd, w);
+#endif
+#if CONFIG_NN_RECON
+      write_use_nn_recon(cm, xd, w);
 #endif
       set_txfm_ctxs(mbmi->tx_size, xd->n4_w, xd->n4_h, 0, xd);
     }

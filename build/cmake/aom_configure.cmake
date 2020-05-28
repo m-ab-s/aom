@@ -40,6 +40,10 @@ if(FORCE_HIGHBITDEPTH_DECODING AND NOT CONFIG_AV1_HIGHBITDEPTH)
                          "FORCE_HIGHBITDEPTH_DECODING")
 endif()
 
+if(CONFIG_NN_RECON AND CMAKE_TOOLCHAIN_FILE)
+  change_config_and_warn(CONFIG_NN_RECON 0 "CMAKE_TOOLCHAIN_FILE")
+endif()
+
 # Generate the user config settings.
 list(APPEND aom_build_vars ${AOM_CONFIG_VARS} ${AOM_OPTION_VARS})
 foreach(cache_var ${aom_build_vars})

@@ -24,6 +24,10 @@
 #include "av1/common/resize.h"
 #include "av1/common/scan.h"
 #endif  // CONFIG_DSPL_RESIDUAL
+#if CONFIG_NN_RECON
+#include "av1/common/cnn_tflite.h"
+#include "av1/common/nn_recon.h"
+#endif  // CONFIG_NN_RECON
 
 int av1_get_tx_scale(const TX_SIZE tx_size) {
   const int pels = tx_size_2d[tx_size];
@@ -691,5 +695,10 @@ void av1_inverse_transform_block(const MACROBLOCKD *xd,
 #else
     av1_inv_txfm_add(dqcoeff, dst, stride, &txfm_param);
 #endif  // CONFIG_MODE_DEP_INTRA_TX || CONFIG_MODE_DEP_INTER_TX || CONFIG_LGT
+#if CONFIG_NN_RECON
+    if (xd->mi[0]->use_nn_recon && plane == 0) {
+      av1_cnn_recon(xd, dst, stride, tx_size);
+    }
+#endif  // CONFIG_NN_RECON
   }
 }

@@ -302,6 +302,9 @@ typedef struct frame_contexts {
   aom_cdf_prob tx_size_cdf[MAX_TX_CATS][TX_SIZE_CONTEXTS]
                           [CDF_SIZE(MAX_TX_DEPTH + 1)];
 #endif  // CONFIG_NEW_TX_PARTITION
+#if CONFIG_NN_RECON
+  aom_cdf_prob use_nn_recon_cdf[CDF_SIZE(2)];
+#endif  // CONFIG_NN_RECON
   aom_cdf_prob delta_q_cdf[CDF_SIZE(DELTA_Q_PROBS + 1)];
   aom_cdf_prob delta_lf_multi_cdf[FRAME_LF_COUNT][CDF_SIZE(DELTA_LF_PROBS + 1)];
   aom_cdf_prob delta_lf_cdf[CDF_SIZE(DELTA_LF_PROBS + 1)];

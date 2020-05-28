@@ -101,6 +101,10 @@ if(CONFIG_INTRA_ENTROPY)
               "${AOM_ROOT}/av1/common/nn_em.h" "${AOM_ROOT}/av1/common/nn_em.c")
 endif()
 
+if(CONFIG_NN_RECON)
+  list(APPEND AOM_AV1_COMMON_SOURCES "${AOM_ROOT}/av1/common/nn_recon.h")
+endif()
+
 list(APPEND AOM_AV1_DECODER_SOURCES
             "${AOM_ROOT}/av1/av1_dx_iface.c"
             "${AOM_ROOT}/av1/decoder/decodeframe.c"
@@ -411,6 +415,15 @@ if(CONFIG_CNN_RESTORATION OR CONFIG_LOOP_RESTORE_CNN)
     list(APPEND AOM_AV1_COMMON_SOURCES "${AOM_ROOT}/av1/common/cnn_wrapper.c"
                 "${AOM_ROOT}/av1/common/cnn_wrapper.h")
   endif()
+endif()
+
+if(CONFIG_NN_RECON)
+  list(APPEND AOM_AV1_COMMON_SOURCES "${AOM_ROOT}/av1/common/cnn_tflite.cc"
+              "${AOM_ROOT}/av1/common/cnn_tflite.h"
+              "${AOM_ROOT}/av1/tflite_models/intra_txfm_recon_model/tx16x16.cc"
+              "${AOM_ROOT}/av1/tflite_models/intra_txfm_recon_model/tx16x16.h"
+              "${AOM_ROOT}/av1/tflite_models/op_registrations.cc"
+              "${AOM_ROOT}/av1/tflite_models/op_registrations.h")
 endif()
 
 if(CONFIG_REALTIME_ONLY)

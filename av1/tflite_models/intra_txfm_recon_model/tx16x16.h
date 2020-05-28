@@ -9,12 +9,9 @@
  * PATENTS file, you can obtain it at www.aomedia.org/license/patent.
  */
 
-#ifndef AOM_AV1_TFLITE_MODELS_OP_REGISTRATIONS_H_
-#define AOM_AV1_TFLITE_MODELS_OP_REGISTRATIONS_H_
+#ifndef AOM_AV1_TFLITE_MODELS_INTRA_TXFM_RECON_MODEL_TX16X16_H_
+#define AOM_AV1_TFLITE_MODELS_INTRA_TXFM_RECON_MODEL_TX16X16_H_
 
-#include "common/tf_lite_includes.h"
+extern const unsigned char tx16x16_tflite[];
 
-// Returns super-set of TF-lite ops required by CNN models for all QPs.
-void RegisterSelectedOpsAllQps(::tflite::MutableOpResolver *resolver);
-
-#endif  // AOM_AV1_TFLITE_MODELS_OP_REGISTRATIONS_H_
+#endif  // AOM_AV1_TFLITE_MODELS_INTRA_TXFM_RECON_MODEL_TX16X16_H_

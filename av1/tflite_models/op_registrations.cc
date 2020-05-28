@@ -1,4 +1,5 @@
 #include "av1/tflite_models/op_registrations.h"
+#include "config/aom_config.h"
 #include "tensorflow/lite/kernels/builtin_op_kernels.h"
 
 void RegisterSelectedOpsAllQps(::tflite::MutableOpResolver *resolver) {
@@ -10,4 +11,11 @@ void RegisterSelectedOpsAllQps(::tflite::MutableOpResolver *resolver) {
                        ::tflite::ops::builtin::Register_DEPTHWISE_CONV_2D());
   resolver->AddBuiltin(::tflite::BuiltinOperator_MIRROR_PAD,
                        ::tflite::ops::builtin::Register_MIRROR_PAD());
+
+#if CONFIG_NN_RECON
+  resolver->AddBuiltin(::tflite::BuiltinOperator_CONCATENATION,
+                       ::tflite::ops::builtin::Register_CONCATENATION());
+  resolver->AddBuiltin(::tflite::BuiltinOperator_RESHAPE,
+                       ::tflite::ops::builtin::Register_RESHAPE());
+#endif  // CONFIG_NN_RECON
 }
