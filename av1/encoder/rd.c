@@ -44,6 +44,14 @@
 
 #define RD_THRESH_POW 1.25
 
+#if CONFIG_DELTA_DCQUANT
+#define RDMULT_FROM_Q2_NUM 100
+#define RDMULT_FROM_Q2_DEN 32
+#else
+#define RDMULT_FROM_Q2_NUM 88
+#define RDMULT_FROM_Q2_DEN 24
+#endif  // CONFIG_DELTA_DCQUANT
+
 // The baseline rd thresholds for breaking out of the rd loop for
 // certain modes are assumed to be based on 8x8 blocks.
 // This table is used to correct for block size.
@@ -506,22 +514,21 @@ static const int rd_frame_type_factor[FRAME_UPDATE_TYPES] = { 128, 144, 128,
                                                               128 };
 
 int av1_compute_rd_mult_based_on_qindex(const AV1_COMP *cpi, int qindex) {
-  const int q = av1_dc_quant_QTX(qindex, 0,
+  const int64_t q = av1_dc_quant_QTX(qindex, 0,
 #if CONFIG_DELTA_DCQUANT
-                                 cpi->common.seq_params.base_dc_delta_q,
+                                     cpi->common.seq_params.base_dc_delta_q,
 #endif  // CONFIG_DELTA_DCQUANT
-                                 cpi->common.seq_params.bit_depth);
-  int rdmult = q * q;
-  rdmult = rdmult * 3 + (rdmult * 2 / 3);
+                                     cpi->common.seq_params.bit_depth);
+  int64_t rdmult = q * q * RDMULT_FROM_Q2_NUM / RDMULT_FROM_Q2_DEN;
   switch (cpi->common.seq_params.bit_depth) {
     case AOM_BITS_8: break;
-    case AOM_BITS_10: rdmult = ROUND_POWER_OF_TWO(rdmult, 4); break;
-    case AOM_BITS_12: rdmult = ROUND_POWER_OF_TWO(rdmult, 8); break;
+    case AOM_BITS_10: rdmult = ROUND_POWER_OF_TWO_64(rdmult, 4); break;
+    case AOM_BITS_12: rdmult = ROUND_POWER_OF_TWO_64(rdmult, 8); break;
     default:
       assert(0 && "bit_depth should be AOM_BITS_8, AOM_BITS_10 or AOM_BITS_12");
       return -1;
   }
-  return rdmult > 0 ? rdmult : 1;
+  return (int)(rdmult > 0 ? rdmult : 1);
 }
 
 int av1_compute_rd_mult(const AV1_COMP *cpi, int qindex) {
@@ -574,24 +581,28 @@ int av1_get_adaptive_rdmult(const AV1_COMP *cpi, double beta) {
   const AV1_COMMON *cm = &cpi->common;
   int64_t q = av1_dc_quant_QTX(cm->base_qindex, 0,
 #if CONFIG_DELTA_DCQUANT
-                               cpi->common.seq_params.base_dc_delta_q,
+                               cm->seq_params.base_dc_delta_q,
 #endif  // CONFIG_DELTA_DCQUANT
-                               cpi->common.seq_params.bit_depth);
+                               cm->seq_params.bit_depth);
   int64_t rdmult = 0;
 
-  switch (cpi->common.seq_params.bit_depth) {
-    case AOM_BITS_8: rdmult = (int)((88 * q * q / beta) / 24); break;
+  switch (cm->seq_params.bit_depth) {
+    case AOM_BITS_8:
+      rdmult = (int)((RDMULT_FROM_Q2_NUM * q * q / beta) / RDMULT_FROM_Q2_DEN);
+      break;
     case AOM_BITS_10:
-      rdmult = ROUND_POWER_OF_TWO((int)((88 * q * q / beta) / 24), 4);
+      rdmult = ROUND_POWER_OF_TWO(
+          (int)((RDMULT_FROM_Q2_NUM * q * q / beta) / RDMULT_FROM_Q2_DEN), 4);
       break;
     default:
       assert(cpi->common.seq_params.bit_depth == AOM_BITS_12);
-      rdmult = ROUND_POWER_OF_TWO((int)((88 * q * q / beta) / 24), 8);
+      rdmult = ROUND_POWER_OF_TWO(
+          (int)((RDMULT_FROM_Q2_NUM * q * q / beta) / RDMULT_FROM_Q2_DEN), 8);
       break;
   }
 
   if (is_stat_consumption_stage(cpi) &&
-      (cpi->common.current_frame.frame_type != KEY_FRAME)) {
+      (cm->current_frame.frame_type != KEY_FRAME)) {
     const GF_GROUP *const gf_group = &cpi->gf_group;
     const FRAME_UPDATE_TYPE frame_type = gf_group->update_type[gf_group->index];
     const int boost_index = AOMMIN(15, (cpi->rc.gfu_boost / 100));
@@ -638,8 +649,12 @@ static int compute_rd_thresh_factor(int qindex,
       assert(0 && "bit_depth should be AOM_BITS_8, AOM_BITS_10 or AOM_BITS_12");
       return -1;
   }
-  // TODO(debargha): Adjust the function below.
+    // TODO(debargha): Adjust the function below.
+#if CONFIG_DELTA_DCQUANT
+  return AOMMAX((int)(pow(q, RD_THRESH_POW) * 4.40), 8);
+#else
   return AOMMAX((int)(pow(q, RD_THRESH_POW) * 5.12), 8);
+#endif  // CONFIG_DELTA_DCQUANT
 }
 
 void av1_initialize_me_consts(const AV1_COMP *cpi, MACROBLOCK *x, int qindex) {
@@ -1744,6 +1759,12 @@ void av1_update_rd_thresh_fact(const AV1_COMMON *const cm,
   }
 }
 
+#if CONFIG_DELTA_DCQUANT
+#define INTRA_COST_PENALTY_Q_FACTOR 10
+#else
+#define INTRA_COST_PENALTY_Q_FACTOR 20
+#endif  // CONFIG_DELTA_DCQUANT
+
 int av1_get_intra_cost_penalty(int qindex, int qdelta,
 #if CONFIG_DELTA_DCQUANT
                                int base_dc_delta_q,
@@ -1755,9 +1776,11 @@ int av1_get_intra_cost_penalty(int qindex, int qdelta,
 #endif  // CONFIG_DELTA_DCQUANT
                                  bit_depth);
   switch (bit_depth) {
-    case AOM_BITS_8: return 20 * q;
-    case AOM_BITS_10: return 5 * q;
-    case AOM_BITS_12: return ROUND_POWER_OF_TWO(5 * q, 2);
+    case AOM_BITS_8: return INTRA_COST_PENALTY_Q_FACTOR * q;
+    case AOM_BITS_10:
+      return ROUND_POWER_OF_TWO(INTRA_COST_PENALTY_Q_FACTOR * q, 2);
+    case AOM_BITS_12:
+      return ROUND_POWER_OF_TWO(INTRA_COST_PENALTY_Q_FACTOR * q, 4);
     default:
       assert(0 && "bit_depth should be AOM_BITS_8, AOM_BITS_10 or AOM_BITS_12");
       return -1;

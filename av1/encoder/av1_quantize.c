@@ -26,6 +26,11 @@
 #include "av1/encoder/encoder.h"
 #include "av1/encoder/rd.h"
 
+#if CONFIG_DELTA_DCQUANT
+#define DEFAULT_INTRAONLY_Y_DC_DELTA_Q 0
+#define DEFAULT_INTER_Y_DC_DELTA_Q 0
+#endif  // CONFIG_DELTA_DCQUANT
+
 void av1_quantize_skip(intptr_t n_coeffs, tran_low_t *qcoeff_ptr,
                        tran_low_t *dqcoeff_ptr, uint16_t *eob_ptr) {
   memset(qcoeff_ptr, 0, n_coeffs * sizeof(*qcoeff_ptr));
@@ -822,7 +827,12 @@ void av1_set_quantizer(AV1_COMMON *cm, int q) {
   // delta_q changes.
   cm->base_qindex = AOMMAX(cm->delta_q_info.delta_q_present_flag, q);
   cm->cur_frame->base_qindex = cm->base_qindex;
+#if CONFIG_DELTA_DCQUANT
+  cm->y_dc_delta_q = frame_is_intra_only(cm) ? DEFAULT_INTRAONLY_Y_DC_DELTA_Q
+                                             : DEFAULT_INTER_Y_DC_DELTA_Q;
+#else
   cm->y_dc_delta_q = 0;
+#endif  // CONFIG_DELTA_DCQUANT
   cm->u_dc_delta_q = 0;
   cm->u_ac_delta_q = 0;
   cm->v_dc_delta_q = 0;

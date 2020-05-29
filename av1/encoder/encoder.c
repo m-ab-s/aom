@@ -103,7 +103,7 @@ FILE *yuv_rec_file;
 #endif
 
 #if CONFIG_DELTA_DCQUANT
-#define DEFAULT_DELTA_DCQUANT 8
+#define DEFAULT_BASE_DC_DELTA_Q 8
 #endif  // CONFIG_DELTA_DCQUANT
 
 static INLINE void Scale2Ratio(AOM_SCALING mode, int *hr, int *hs) {
@@ -1128,7 +1128,7 @@ static void init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
           (~(~0u << (seq->operating_points_cnt_minus_1 + 1 - i)) << 8) | 1;
   }
 #if CONFIG_DELTA_DCQUANT
-  seq->base_dc_delta_q = DEFAULT_DELTA_DCQUANT;
+  seq->base_dc_delta_q = DEFAULT_BASE_DC_DELTA_Q;
 #endif  // CONFIG_DELTA_DCQUANT
 }
 
