@@ -17,7 +17,7 @@
 #include "av1/common/blockd.h"
 
 /* clang-format off */
-#if !CONFIG_EXTQUANT
+#if !CONFIG_DELTA_DCQUANT
 static const int16_t dc_qlookup_QTX[QINDEX_RANGE] = {
   4,    8,    8,    9,    10,   11,   12,   12,   13,   14,   15,   16,   17,
   18,   19,   19,   20,   21,   22,   23,   24,   25,   26,   26,   27,   28,
@@ -94,7 +94,7 @@ static const int16_t dc_qlookup_12_QTX[QINDEX_RANGE] = {
   13501, 13913, 14343, 14807, 15290, 15812, 16356, 16943, 17575, 18237, 18949,
   19718, 20521, 21387,
 };
-#endif  // !CONFIG_EXTQUANT
+#endif  // !CONFIG_DELTA_DCQUANT
 
 #if CONFIG_EXTQUANT
 static const int32_t ac_qlookup_QTX[QINDEX_RANGE] = {
@@ -260,9 +260,15 @@ int16_t av1_dc_quant_QTX(int qindex, int delta, aom_bit_depth_t bit_depth) {
   const int q_clamped = clamp(qindex + delta, 0, MAXQ);
 #endif  // CONFIG_DELTA_DCQUANT
   switch (bit_depth) {
+#if CONFIG_DELTA_DCQUANT
+    case AOM_BITS_8: return ac_qlookup_QTX[q_clamped];
+    case AOM_BITS_10: return ac_qlookup_10_QTX[q_clamped];
+    case AOM_BITS_12: return ac_qlookup_12_QTX[q_clamped];
+#else
     case AOM_BITS_8: return dc_qlookup_QTX[q_clamped];
     case AOM_BITS_10: return dc_qlookup_10_QTX[q_clamped];
     case AOM_BITS_12: return dc_qlookup_12_QTX[q_clamped];
+#endif  // CONFIG_DELTA_DCQUANT
     default:
       assert(0 && "bit_depth should be AOM_BITS_8, AOM_BITS_10 or AOM_BITS_12");
       return -1;

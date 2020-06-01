@@ -49,6 +49,10 @@ macro(fix_experiment_configs)
     change_config_and_warn(CONFIG_DST_32X32 1 CONFIG_LGT32)
   endif()
 
+  if(CONFIG_EXTQUANT)
+    change_config_and_warn(CONFIG_DELTA_DCQUANT 1 CONFIG_EXTQUANT)
+  endif()
+
   if(CONFIG_MODE_DEP_NONSEP_SEC_INTRA_TX)
     change_config_and_warn(CONFIG_MODE_DEP_NONSEP_INTRA_TX 1
                            CONFIG_MODE_DEP_NONSEP_SEC_INTRA_TX)
