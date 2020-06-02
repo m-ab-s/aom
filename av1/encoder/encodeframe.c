@@ -1969,13 +1969,8 @@ static void encode_sb(const AV1_COMP *const cpi, ThreadData *td,
 #endif
 
   if (!dry_run && ctx >= 0) {
-#if CONFIG_EXT_RECUR_PARTITIONS
-    const int has_rows = 1;
-    const int has_cols = 1;
-#else
     const int has_rows = (mi_row + hbs_h) < cm->mi_rows;
     const int has_cols = (mi_col + hbs_w) < cm->mi_cols;
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
 #if CONFIG_EXT_RECUR_PARTITIONS
     if (is_square_block(bsize)) {

@@ -2020,40 +2020,48 @@ static void write_partition(const AV1_COMMON *const cm,
 #if CONFIG_EXT_RECUR_PARTITIONS
   if (is_square_block(bsize)) {
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
+    const int hbs_w = mi_size_wide[bsize] / 2;
+    const int hbs_h = mi_size_high[bsize] / 2;
+    const int has_rows = (mi_row + hbs_h) < cm->mi_rows;
+    const int has_cols = (mi_col + hbs_w) < cm->mi_cols;
+
 #if CONFIG_EXT_RECUR_PARTITIONS
-    const int has_rows = 1;
-    const int has_cols = 1;
-
-    (void)cm;
-#else
-  const int hbs_w = mi_size_wide[bsize] / 2;
-  const int hbs_h = mi_size_wide[bsize] / 2;
-  const int has_rows = (mi_row + hbs_h) < cm->mi_rows;
-  const int has_cols = (mi_col + hbs_w) < cm->mi_cols;
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
-
-    if (!has_rows && !has_cols) {
-      assert(p == PARTITION_SPLIT);
-      return;
-    }
-
     if (has_rows && has_cols) {
       aom_write_symbol(w, p, ec_ctx->partition_cdf[ctx],
                        partition_cdf_length(bsize));
     } else if (!has_rows && has_cols) {
-      assert(p == PARTITION_SPLIT || p == PARTITION_HORZ);
-      assert(bsize > BLOCK_8X8);
-      aom_cdf_prob cdf[2];
-      partition_gather_vert_alike(cdf, ec_ctx->partition_cdf[ctx], bsize);
-      aom_write_cdf(w, p == PARTITION_SPLIT, cdf, 2);
+      assert(p == PARTITION_HORZ);
+    } else if (has_rows && !has_cols) {
+      assert(p == PARTITION_VERT);
     } else {
-      assert(has_rows && !has_cols);
-      assert(p == PARTITION_SPLIT || p == PARTITION_VERT);
-      assert(bsize > BLOCK_8X8);
-      aom_cdf_prob cdf[2];
-      partition_gather_horz_alike(cdf, ec_ctx->partition_cdf[ctx], bsize);
-      aom_write_cdf(w, p == PARTITION_SPLIT, cdf, 2);
+      assert(p == PARTITION_HORZ || p == PARTITION_VERT);
+      aom_cdf_prob cdf[2] = { 16384, AOM_ICDF(CDF_PROB_TOP) };
+      aom_write_cdf(w, p == PARTITION_VERT, cdf, 2);
     }
+#else
+  if (!has_rows && !has_cols) {
+    assert(p == PARTITION_SPLIT);
+    return;
+  }
+
+  if (has_rows && has_cols) {
+    aom_write_symbol(w, p, ec_ctx->partition_cdf[ctx],
+                     partition_cdf_length(bsize));
+  } else if (!has_rows && has_cols) {
+    assert(p == PARTITION_SPLIT || p == PARTITION_HORZ);
+    assert(bsize > BLOCK_8X8);
+    aom_cdf_prob cdf[2];
+    partition_gather_vert_alike(cdf, ec_ctx->partition_cdf[ctx], bsize);
+    aom_write_cdf(w, p == PARTITION_SPLIT, cdf, 2);
+  } else {
+    assert(has_rows && !has_cols);
+    assert(p == PARTITION_SPLIT || p == PARTITION_VERT);
+    assert(bsize > BLOCK_8X8);
+    aom_cdf_prob cdf[2];
+    partition_gather_horz_alike(cdf, ec_ctx->partition_cdf[ctx], bsize);
+    aom_write_cdf(w, p == PARTITION_SPLIT, cdf, 2);
+  }
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 #if CONFIG_EXT_RECUR_PARTITIONS
   } else {  // 1:2 or 2:1 rectangular blocks
     const PARTITION_TYPE_REC symbol =

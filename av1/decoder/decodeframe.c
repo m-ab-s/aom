@@ -1488,30 +1488,43 @@ static PARTITION_TYPE read_partition(MACROBLOCKD *xd, int mi_row, int mi_col,
 
 #if CONFIG_EXT_RECUR_PARTITIONS
   if (is_square_block(bsize)) {
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
-    if (!has_rows && !has_cols) return PARTITION_SPLIT;
+    if (!has_rows && has_cols) return PARTITION_HORZ;
+    if (has_rows && !has_cols) return PARTITION_VERT;
 
     assert(ctx >= 0);
-    aom_cdf_prob *partition_cdf = ec_ctx->partition_cdf[ctx];
     if (has_rows && has_cols) {
+      aom_cdf_prob *partition_cdf = ec_ctx->partition_cdf[ctx];
+
       return (PARTITION_TYPE)aom_read_symbol(
           r, partition_cdf, partition_cdf_length(bsize), ACCT_STR);
-    } else if (!has_rows && has_cols) {
-      assert(bsize > BLOCK_8X8);
-      aom_cdf_prob cdf[2];
-      partition_gather_vert_alike(cdf, partition_cdf, bsize);
-      assert(cdf[1] == AOM_ICDF(CDF_PROB_TOP));
-      return aom_read_cdf(r, cdf, 2, ACCT_STR) ? PARTITION_SPLIT
+    } else {  // !has_rows && !has_cols
+      aom_cdf_prob cdf[2] = { 16384, AOM_ICDF(CDF_PROB_TOP) };
+      return aom_read_cdf(r, cdf, 2, ACCT_STR) ? PARTITION_VERT
                                                : PARTITION_HORZ;
-    } else {
-      assert(has_rows && !has_cols);
-      assert(bsize > BLOCK_8X8);
-      aom_cdf_prob cdf[2];
-      partition_gather_horz_alike(cdf, partition_cdf, bsize);
-      assert(cdf[1] == AOM_ICDF(CDF_PROB_TOP));
-      return aom_read_cdf(r, cdf, 2, ACCT_STR) ? PARTITION_SPLIT
-                                               : PARTITION_VERT;
     }
+#else
+  if (!has_rows && !has_cols) return PARTITION_SPLIT;
+
+  assert(ctx >= 0);
+  aom_cdf_prob *partition_cdf = ec_ctx->partition_cdf[ctx];
+  if (has_rows && has_cols) {
+    return (PARTITION_TYPE)aom_read_symbol(
+        r, partition_cdf, partition_cdf_length(bsize), ACCT_STR);
+  } else if (!has_rows && has_cols) {
+    assert(bsize > BLOCK_8X8);
+    aom_cdf_prob cdf[2];
+    partition_gather_vert_alike(cdf, partition_cdf, bsize);
+    assert(cdf[1] == AOM_ICDF(CDF_PROB_TOP));
+    return aom_read_cdf(r, cdf, 2, ACCT_STR) ? PARTITION_SPLIT : PARTITION_HORZ;
+  } else {
+    assert(has_rows && !has_cols);
+    assert(bsize > BLOCK_8X8);
+    aom_cdf_prob cdf[2];
+    partition_gather_horz_alike(cdf, partition_cdf, bsize);
+    assert(cdf[1] == AOM_ICDF(CDF_PROB_TOP));
+    return aom_read_cdf(r, cdf, 2, ACCT_STR) ? PARTITION_SPLIT : PARTITION_VERT;
+  }
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 #if CONFIG_EXT_RECUR_PARTITIONS
   } else {
     aom_cdf_prob *partition_rec_cdf = ec_ctx->partition_rec_cdf[ctx];
@@ -1570,13 +1583,8 @@ static void decode_partition(AV1Decoder *const pbi, ThreadData *const td,
   const int qbs_w = mi_size_wide[bsize] / 4;
   const int qbs_h = mi_size_high[bsize] / 4;
   PARTITION_TYPE partition;
-#if CONFIG_EXT_RECUR_PARTITIONS
-  const int has_rows = 1;
-  const int has_cols = 1;
-#else
   const int has_rows = (mi_row + hbs_h) < cm->mi_rows;
   const int has_cols = (mi_col + hbs_w) < cm->mi_cols;
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
   if (mi_row >= cm->mi_rows || mi_col >= cm->mi_cols) return;
 
