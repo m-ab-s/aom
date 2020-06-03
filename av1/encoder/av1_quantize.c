@@ -26,11 +26,6 @@
 #include "av1/encoder/encoder.h"
 #include "av1/encoder/rd.h"
 
-#if CONFIG_DELTA_DCQUANT
-#define DEFAULT_INTRAONLY_Y_DC_DELTA_Q 0
-#define DEFAULT_INTER_Y_DC_DELTA_Q 0
-#endif  // CONFIG_DELTA_DCQUANT
-
 void av1_quantize_skip(intptr_t n_coeffs, tran_low_t *qcoeff_ptr,
                        tran_low_t *dqcoeff_ptr, uint16_t *eob_ptr) {
   memset(qcoeff_ptr, 0, n_coeffs * sizeof(*qcoeff_ptr));
@@ -822,20 +817,34 @@ void av1_frame_init_quantizer(AV1_COMP *cpi) {
   av1_init_plane_quantizers(cpi, x, xd->mi[0]->segment_id);
 }
 
+void set_frame_dc_delta_q(const AV1_COMMON *const cm, int *y_dc_delta_q,
+                          int *u_dc_delta_q, int *v_dc_delta_q) {
+  (void)cm;
+  *y_dc_delta_q = 0;
+  *u_dc_delta_q = 0;
+  *v_dc_delta_q = 0;
+#if CONFIG_DELTA_DCQUANT
+  if (frame_is_intra_only(cm)) {
+    const int is_360p_or_larger = AOMMIN(cm->width, cm->height) >= 360;
+    const int is_720p_or_larger = AOMMIN(cm->width, cm->height) >= 720;
+    if (!is_360p_or_larger)
+      *y_dc_delta_q = 0;
+    else if (!is_720p_or_larger)
+      *y_dc_delta_q = -2;
+    else
+      *y_dc_delta_q = -4;
+  }
+#endif  // CONFIG_DELTA_DCQUANT
+}
+
 void av1_set_quantizer(AV1_COMMON *cm, int q) {
   // quantizer has to be reinitialized with av1_init_quantizer() if any
   // delta_q changes.
   cm->base_qindex = AOMMAX(cm->delta_q_info.delta_q_present_flag, q);
   cm->cur_frame->base_qindex = cm->base_qindex;
-#if CONFIG_DELTA_DCQUANT
-  cm->y_dc_delta_q = frame_is_intra_only(cm) ? DEFAULT_INTRAONLY_Y_DC_DELTA_Q
-                                             : DEFAULT_INTER_Y_DC_DELTA_Q;
-#else
-  cm->y_dc_delta_q = 0;
-#endif  // CONFIG_DELTA_DCQUANT
-  cm->u_dc_delta_q = 0;
+  set_frame_dc_delta_q(cm, &cm->y_dc_delta_q, &cm->u_dc_delta_q,
+                       &cm->v_dc_delta_q);
   cm->u_ac_delta_q = 0;
-  cm->v_dc_delta_q = 0;
   cm->v_ac_delta_q = 0;
   cm->qm_y = aom_get_qmlevel(cm->base_qindex, cm->min_qmlevel, cm->max_qmlevel);
   cm->qm_u = aom_get_qmlevel(cm->base_qindex + cm->u_ac_delta_q,

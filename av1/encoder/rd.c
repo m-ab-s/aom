@@ -45,9 +45,11 @@
 #define RD_THRESH_POW 1.25
 
 #if CONFIG_DELTA_DCQUANT
-#define RDMULT_FROM_Q2_NUM 100
+#define RD_THRESH_MUL 4.40
+#define RDMULT_FROM_Q2_NUM 102
 #define RDMULT_FROM_Q2_DEN 32
 #else
+#define RD_THRESH_MUL 5.12
 #define RDMULT_FROM_Q2_NUM 88
 #define RDMULT_FROM_Q2_DEN 24
 #endif  // CONFIG_DELTA_DCQUANT
@@ -649,12 +651,8 @@ static int compute_rd_thresh_factor(int qindex,
       assert(0 && "bit_depth should be AOM_BITS_8, AOM_BITS_10 or AOM_BITS_12");
       return -1;
   }
-    // TODO(debargha): Adjust the function below.
-#if CONFIG_DELTA_DCQUANT
-  return AOMMAX((int)(pow(q, RD_THRESH_POW) * 4.40), 8);
-#else
-  return AOMMAX((int)(pow(q, RD_THRESH_POW) * 5.12), 8);
-#endif  // CONFIG_DELTA_DCQUANT
+  // TODO(debargha): Adjust the function below.
+  return AOMMAX((int)(pow(q, RD_THRESH_POW) * RD_THRESH_MUL), 8);
 }
 
 void av1_initialize_me_consts(const AV1_COMP *cpi, MACROBLOCK *x, int qindex) {
@@ -1760,7 +1758,7 @@ void av1_update_rd_thresh_fact(const AV1_COMMON *const cm,
 }
 
 #if CONFIG_DELTA_DCQUANT
-#define INTRA_COST_PENALTY_Q_FACTOR 10
+#define INTRA_COST_PENALTY_Q_FACTOR 8
 #else
 #define INTRA_COST_PENALTY_Q_FACTOR 20
 #endif  // CONFIG_DELTA_DCQUANT
