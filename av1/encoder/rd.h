@@ -299,7 +299,7 @@ void av1_setup_pred_block(const MACROBLOCKD *xd,
 
 int av1_get_intra_cost_penalty(int qindex, int qdelta,
 #if CONFIG_DELTA_DCQUANT
-                               int base_dc_delta_q,
+                               int base_y_dc_delta_q,
 #endif  // CONFIG_DELTA_DCQUANT
                                aom_bit_depth_t bit_depth);
 

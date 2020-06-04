@@ -105,7 +105,7 @@ void av1_intra_mode_cnn_partition(const AV1_COMMON *const cm, MACROBLOCK *x,
     const int bit_depth = xd->bd;
     const int dc_q = av1_dc_quant_QTX(x->qindex, 0,
 #if CONFIG_DELTA_DCQUANT
-                                      cm->seq_params.base_dc_delta_q,
+                                      cm->seq_params.base_y_dc_delta_q,
 #endif  // CONFIG_DELTA_DCQUANT
                                       bit_depth) >>
                      (bit_depth - 8);
@@ -494,7 +494,7 @@ static void simple_motion_search_prune_part_features(
   // Q_INDEX
   const int dc_q = av1_dc_quant_QTX(x->qindex, 0,
 #if CONFIG_DELTA_DCQUANT
-                                    cpi->common.seq_params.base_dc_delta_q,
+                                    cpi->common.seq_params.base_y_dc_delta_q,
 #endif  // CONFIG_DELTA_DCQUANT
                                     xd->bd) >>
                    (xd->bd - 8);
@@ -679,7 +679,7 @@ void av1_get_max_min_partition_features(AV1_COMP *const cpi, MACROBLOCK *x,
 
   const int dc_q = av1_dc_quant_QTX(x->qindex, 0,
 #if CONFIG_DELTA_DCQUANT
-                                    cm->seq_params.base_dc_delta_q,
+                                    cm->seq_params.base_y_dc_delta_q,
 #endif  // CONFIG_DELTA_DCQUANT
                                     xd->bd) >>
                    (xd->bd - 8);
@@ -912,7 +912,7 @@ void av1_ml_early_term_after_split(AV1_COMP *const cpi, MACROBLOCK *const x,
   const MACROBLOCKD *const xd = &x->e_mbd;
   const int dc_q = av1_dc_quant_QTX(x->qindex, 0,
 #if CONFIG_DELTA_DCQUANT
-                                    cm->seq_params.base_dc_delta_q,
+                                    cm->seq_params.base_y_dc_delta_q,
 #endif  // CONFIG_DELTA_DCQUANT
                                     xd->bd) >>
                    (xd->bd - 8);

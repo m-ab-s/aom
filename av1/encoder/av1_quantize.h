@@ -128,7 +128,7 @@ void av1_build_quantizer(aom_bit_depth_t bit_depth, int y_dc_delta_q,
                          int u_dc_delta_q, int u_ac_delta_q, int v_dc_delta_q,
                          int v_ac_delta_q,
 #if CONFIG_DELTA_DCQUANT
-                         int base_dc_delta_q,
+                         int base_y_dc_delta_q, int base_uv_dc_delta_q,
 #endif  // CONFIG_DELTA_DCQUANT
                          QUANTS *const quants, Dequants *const deq);
 

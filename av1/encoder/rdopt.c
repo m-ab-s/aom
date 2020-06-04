@@ -4291,13 +4291,13 @@ static int predict_skip_flag(const AV1_COMMON *const cm, MACROBLOCK *x,
 #if CONFIG_EXTQUANT
   const int32_t dc_q = av1_dc_quant_QTX(x->qindex, 0,
 #if CONFIG_DELTA_DCQUANT
-                                        cm->seq_params.base_dc_delta_q,
+                                        cm->seq_params.base_y_dc_delta_q,
 #endif  // CONFIG_DELTA_DCQUANT
                                         xd->bd);
 #else
   const int16_t dc_q = av1_dc_quant_QTX(x->qindex, 0,
 #if CONFIG_DELTA_DCQUANT
-                                        cm->seq_params.base_dc_delta_q,
+                                        cm->seq_params.base_y_dc_delta_q,
 #endif  // CONFIG_DELTA_DCQUANT
                                         xd->bd);
 #endif
@@ -13723,7 +13723,7 @@ static void search_derived_intra_mode(const AV1_COMP *cpi, MACROBLOCK *x,
   const int intra_cost_penalty =
       av1_get_intra_cost_penalty(cm->base_qindex, cm->y_dc_delta_q,
 #if CONFIG_DELTA_DCQUANT
-                                 cm->seq_params.base_dc_delta_q,
+                                 cm->seq_params.base_y_dc_delta_q,
 #endif  // CONFIG_DELTA_DCQUANT
                                  cm->seq_params.bit_depth);
   rd_stats.rate += intra_cost_penalty;
@@ -14081,7 +14081,7 @@ static int64_t handle_intra_mode(InterModeSearchState *search_state,
   const int intra_cost_penalty =
       av1_get_intra_cost_penalty(cm->base_qindex, cm->y_dc_delta_q,
 #if CONFIG_DELTA_DCQUANT
-                                 cm->seq_params.base_dc_delta_q,
+                                 cm->seq_params.base_y_dc_delta_q,
 #endif  // CONFIG_DELTA_DCQUANT
                                  cm->seq_params.bit_depth);
   const int skip_ctx = av1_get_skip_context(xd);

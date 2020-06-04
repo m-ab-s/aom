@@ -132,7 +132,7 @@ static void write_intra_y_mode_kf(const AV1_COMMON *const cm,
     const int dc_q =
         av1_dc_quant_QTX(xd->current_qindex, 0,
 #if CONFIG_DELTA_DCQUANT
-                         cm->seq_params.base_dc_delta_q,
+                         cm->seq_params.base_y_dc_delta_q,
 #endif  // CONFIG_DELTA_DCQUANT
                          xd->bd) >> (xd->bd - 8);
     fprintf(fp, "%d,%d,%d,%d,",
@@ -1188,7 +1188,7 @@ static void write_intra_uv_mode(const AV1_COMMON *const cm,
     const int dc_q =
         av1_dc_quant_QTX(xd->current_qindex, 0,
 #if CONFIG_DELTA_DCQUANT
-                         cm->seq_params.base_dc_delta_q,
+                         cm->seq_params.base_y_dc_delta_q,
 #endif  // CONFIG_DELTA_DCQUANT
                          xd->bd) >> (xd->bd - 8);
     fprintf(fp, "%d,%d,%d,%d,%d,%d,",
@@ -3065,10 +3065,14 @@ static void write_color_config(const SequenceHeader *const seq_params,
   }
   aom_wb_write_bit(wb, seq_params->separate_uv_delta_q);
 #if CONFIG_DELTA_DCQUANT
-  assert(seq_params->base_dc_delta_q <= DELTA_DCQUANT_MAX);
-  assert(seq_params->base_dc_delta_q >= DELTA_DCQUANT_MIN);
+  assert(seq_params->base_y_dc_delta_q <= DELTA_DCQUANT_MAX);
+  assert(seq_params->base_uv_dc_delta_q >= DELTA_DCQUANT_MIN);
   aom_wb_write_unsigned_literal(
-      wb, seq_params->base_dc_delta_q - DELTA_DCQUANT_MIN, DELTA_DCQUANT_BITS);
+      wb, seq_params->base_y_dc_delta_q - DELTA_DCQUANT_MIN,
+      DELTA_DCQUANT_BITS);
+  aom_wb_write_unsigned_literal(
+      wb, seq_params->base_uv_dc_delta_q - DELTA_DCQUANT_MIN,
+      DELTA_DCQUANT_BITS);
 #endif  // CONFIG_DELTA_DCQUANT
 }
 

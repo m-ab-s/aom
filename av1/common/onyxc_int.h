@@ -297,7 +297,8 @@ typedef struct SequenceHeader {
   aom_chroma_sample_position_t chroma_sample_position;
   uint8_t separate_uv_delta_q;
 #if CONFIG_DELTA_DCQUANT
-  int8_t base_dc_delta_q;
+  int8_t base_y_dc_delta_q;
+  int8_t base_uv_dc_delta_q;
 #endif  // CONFIG_DELTA_DCQUANT
   uint8_t film_grain_params_present;
 } SequenceHeader;

@@ -46,7 +46,7 @@
 
 #if CONFIG_DELTA_DCQUANT
 #define RD_THRESH_MUL 4.40
-#define RDMULT_FROM_Q2_NUM 102
+#define RDMULT_FROM_Q2_NUM 96
 #define RDMULT_FROM_Q2_DEN 32
 #else
 #define RD_THRESH_MUL 5.12
@@ -518,7 +518,7 @@ static const int rd_frame_type_factor[FRAME_UPDATE_TYPES] = { 128, 144, 128,
 int av1_compute_rd_mult_based_on_qindex(const AV1_COMP *cpi, int qindex) {
   const int64_t q = av1_dc_quant_QTX(qindex, 0,
 #if CONFIG_DELTA_DCQUANT
-                                     cpi->common.seq_params.base_dc_delta_q,
+                                     cpi->common.seq_params.base_y_dc_delta_q,
 #endif  // CONFIG_DELTA_DCQUANT
                                      cpi->common.seq_params.bit_depth);
   int64_t rdmult = q * q * RDMULT_FROM_Q2_NUM / RDMULT_FROM_Q2_DEN;
@@ -551,7 +551,7 @@ int av1_get_deltaq_offset(const AV1_COMP *cpi, int qindex, double beta) {
   assert(beta > 0.0);
   int q = av1_dc_quant_QTX(qindex, 0,
 #if CONFIG_DELTA_DCQUANT
-                           cpi->common.seq_params.base_dc_delta_q,
+                           cpi->common.seq_params.base_y_dc_delta_q,
 #endif  // CONFIG_DELTA_DCQUANT
                            cpi->common.seq_params.bit_depth);
   int newq = (int)rint(q / sqrt(beta));
@@ -561,7 +561,7 @@ int av1_get_deltaq_offset(const AV1_COMP *cpi, int qindex, double beta) {
       qindex--;
       q = av1_dc_quant_QTX(qindex, 0,
 #if CONFIG_DELTA_DCQUANT
-                           cpi->common.seq_params.base_dc_delta_q,
+                           cpi->common.seq_params.base_y_dc_delta_q,
 #endif  // CONFIG_DELTA_DCQUANT
                            cpi->common.seq_params.bit_depth);
     } while (newq < q && qindex > 0);
@@ -570,7 +570,7 @@ int av1_get_deltaq_offset(const AV1_COMP *cpi, int qindex, double beta) {
       qindex++;
       q = av1_dc_quant_QTX(qindex, 0,
 #if CONFIG_DELTA_DCQUANT
-                           cpi->common.seq_params.base_dc_delta_q,
+                           cpi->common.seq_params.base_y_dc_delta_q,
 #endif  // CONFIG_DELTA_DCQUANT
                            cpi->common.seq_params.bit_depth);
     } while (newq > q && qindex < MAXQ);
@@ -583,7 +583,7 @@ int av1_get_adaptive_rdmult(const AV1_COMP *cpi, double beta) {
   const AV1_COMMON *cm = &cpi->common;
   int64_t q = av1_dc_quant_QTX(cm->base_qindex, 0,
 #if CONFIG_DELTA_DCQUANT
-                               cm->seq_params.base_dc_delta_q,
+                               cm->seq_params.base_y_dc_delta_q,
 #endif  // CONFIG_DELTA_DCQUANT
                                cm->seq_params.bit_depth);
   int64_t rdmult = 0;
@@ -618,7 +618,7 @@ int av1_get_adaptive_rdmult(const AV1_COMP *cpi, double beta) {
 
 static int compute_rd_thresh_factor(int qindex,
 #if CONFIG_DELTA_DCQUANT
-                                    int base_dc_delta_q,
+                                    int base_y_dc_delta_q,
 #endif  // CONFIG_DELTA_DCQUANT
                                     aom_bit_depth_t bit_depth) {
   double q;
@@ -626,7 +626,7 @@ static int compute_rd_thresh_factor(int qindex,
     case AOM_BITS_8:
       q = av1_dc_quant_QTX(qindex, 0,
 #if CONFIG_DELTA_DCQUANT
-                           base_dc_delta_q,
+                           base_y_dc_delta_q,
 #endif  // CONFIG_DELTA_DCQUANT
                            AOM_BITS_8) /
           4.0;
@@ -634,7 +634,7 @@ static int compute_rd_thresh_factor(int qindex,
     case AOM_BITS_10:
       q = av1_dc_quant_QTX(qindex, 0,
 #if CONFIG_DELTA_DCQUANT
-                           base_dc_delta_q,
+                           base_y_dc_delta_q,
 #endif  // CONFIG_DELTA_DCQUANT
                            AOM_BITS_10) /
           16.0;
@@ -642,7 +642,7 @@ static int compute_rd_thresh_factor(int qindex,
     case AOM_BITS_12:
       q = av1_dc_quant_QTX(qindex, 0,
 #if CONFIG_DELTA_DCQUANT
-                           base_dc_delta_q,
+                           base_y_dc_delta_q,
 #endif  // CONFIG_DELTA_DCQUANT
                            AOM_BITS_12) /
           64.0;
@@ -684,7 +684,7 @@ static void set_block_thresholds(const AV1_COMMON *cm, RD_OPT *rd) {
               0, MAXQ);
     const int q = compute_rd_thresh_factor(qindex,
 #if CONFIG_DELTA_DCQUANT
-                                           cm->seq_params.base_dc_delta_q,
+                                           cm->seq_params.base_y_dc_delta_q,
 #endif  // CONFIG_DELTA_DCQUANT
                                            cm->seq_params.bit_depth);
 
@@ -1765,12 +1765,12 @@ void av1_update_rd_thresh_fact(const AV1_COMMON *const cm,
 
 int av1_get_intra_cost_penalty(int qindex, int qdelta,
 #if CONFIG_DELTA_DCQUANT
-                               int base_dc_delta_q,
+                               int base_y_dc_delta_q,
 #endif  // CONFIG_DELTA_DCQUANT
                                aom_bit_depth_t bit_depth) {
   const int q = av1_dc_quant_QTX(qindex, qdelta,
 #if CONFIG_DELTA_DCQUANT
-                                 base_dc_delta_q,
+                                 base_y_dc_delta_q,
 #endif  // CONFIG_DELTA_DCQUANT
                                  bit_depth);
   switch (bit_depth) {

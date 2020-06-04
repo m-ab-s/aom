@@ -1128,12 +1128,16 @@ static void init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
       AOMMIN(seq->max_frame_width, seq->max_frame_height) >= 360;
   const int is_720p_or_larger =
       AOMMIN(seq->max_frame_width, seq->max_frame_height) >= 720;
-  if (!is_360p_or_larger)
-    seq->base_dc_delta_q = 7;
-  else if (!is_720p_or_larger)
-    seq->base_dc_delta_q = 5;
-  else
-    seq->base_dc_delta_q = 4;
+  if (!is_360p_or_larger) {
+    seq->base_y_dc_delta_q = 7;
+    seq->base_uv_dc_delta_q = 6;
+  } else if (!is_720p_or_larger) {
+    seq->base_y_dc_delta_q = 5;
+    seq->base_uv_dc_delta_q = 4;
+  } else {
+    seq->base_y_dc_delta_q = 4;
+    seq->base_uv_dc_delta_q = 3;
+  }
 #endif  // CONFIG_DELTA_DCQUANT
 }
 

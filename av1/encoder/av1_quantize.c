@@ -617,12 +617,12 @@ static void invert_quant(int16_t *quant, int16_t *shift, int d) {
 
 static int get_qzbin_factor(int q,
 #if CONFIG_DELTA_DCQUANT
-                            int base_dc_delta_q,
+                            int base_y_dc_delta_q,
 #endif  // CONFIG_DELTA_DCQUANT
                             aom_bit_depth_t bit_depth) {
   const int quant = av1_dc_quant_QTX(q, 0,
 #if CONFIG_DELTA_DCQUANT
-                                     base_dc_delta_q,
+                                     base_y_dc_delta_q,
 #endif  // CONFIG_DELTA_DCQUANT
                                      bit_depth);
   switch (bit_depth) {
@@ -639,7 +639,7 @@ void av1_build_quantizer(aom_bit_depth_t bit_depth, int y_dc_delta_q,
                          int u_dc_delta_q, int u_ac_delta_q, int v_dc_delta_q,
                          int v_ac_delta_q,
 #if CONFIG_DELTA_DCQUANT
-                         int base_dc_delta_q,
+                         int base_y_dc_delta_q, int base_uv_dc_delta_q,
 #endif  // CONFIG_DELTA_DCQUANT
                          QUANTS *const quants, Dequants *const deq) {
   int i, q, quant_QTX;
@@ -647,7 +647,7 @@ void av1_build_quantizer(aom_bit_depth_t bit_depth, int y_dc_delta_q,
   for (q = 0; q < QINDEX_RANGE; q++) {
     const int qzbin_factor = get_qzbin_factor(q,
 #if CONFIG_DELTA_DCQUANT
-                                              base_dc_delta_q,
+                                              base_y_dc_delta_q,
 #endif  // CONFIG_DELTA_DCQUANT
                                               bit_depth);
     const int qrounding_factor = q == 0 ? 64 : 48;
@@ -657,7 +657,7 @@ void av1_build_quantizer(aom_bit_depth_t bit_depth, int y_dc_delta_q,
       // y quantizer with TX scale
       quant_QTX = i == 0 ? av1_dc_quant_QTX(q, y_dc_delta_q,
 #if CONFIG_DELTA_DCQUANT
-                                            base_dc_delta_q,
+                                            base_y_dc_delta_q,
 #endif  // CONFIG_DELTA_DCQUANT
                                             bit_depth)
                          : av1_ac_quant_QTX(q, 0, bit_depth);
@@ -672,7 +672,7 @@ void av1_build_quantizer(aom_bit_depth_t bit_depth, int y_dc_delta_q,
       // u quantizer with TX scale
       quant_QTX = i == 0 ? av1_dc_quant_QTX(q, u_dc_delta_q,
 #if CONFIG_DELTA_DCQUANT
-                                            base_dc_delta_q,
+                                            base_uv_dc_delta_q,
 #endif  // CONFIG_DELTA_DCQUANT
                                             bit_depth)
                          : av1_ac_quant_QTX(q, u_ac_delta_q, bit_depth);
@@ -687,7 +687,7 @@ void av1_build_quantizer(aom_bit_depth_t bit_depth, int y_dc_delta_q,
       // v quantizer with TX scale
       quant_QTX = i == 0 ? av1_dc_quant_QTX(q, v_dc_delta_q,
 #if CONFIG_DELTA_DCQUANT
-                                            base_dc_delta_q,
+                                            base_uv_dc_delta_q,
 #endif  // CONFIG_DELTA_DCQUANT
                                             bit_depth)
                          : av1_ac_quant_QTX(q, v_ac_delta_q, bit_depth);
@@ -731,13 +731,13 @@ void av1_init_quantizer(AV1_COMP *cpi) {
   AV1_COMMON *const cm = &cpi->common;
   QUANTS *const quants = &cpi->quants;
   Dequants *const dequants = &cpi->dequants;
-  av1_build_quantizer(cm->seq_params.bit_depth, cm->y_dc_delta_q,
-                      cm->u_dc_delta_q, cm->u_ac_delta_q, cm->v_dc_delta_q,
-                      cm->v_ac_delta_q,
+  av1_build_quantizer(
+      cm->seq_params.bit_depth, cm->y_dc_delta_q, cm->u_dc_delta_q,
+      cm->u_ac_delta_q, cm->v_dc_delta_q, cm->v_ac_delta_q,
 #if CONFIG_DELTA_DCQUANT
-                      cm->seq_params.base_dc_delta_q,
+      cm->seq_params.base_y_dc_delta_q, cm->seq_params.base_uv_dc_delta_q,
 #endif  // CONFIG_DELTA_DCQUANT
-                      quants, dequants);
+      quants, dequants);
 }
 
 void av1_init_plane_quantizers(const AV1_COMP *cpi, MACROBLOCK *x,
@@ -827,12 +827,16 @@ void set_frame_dc_delta_q(const AV1_COMMON *const cm, int *y_dc_delta_q,
   if (frame_is_intra_only(cm)) {
     const int is_360p_or_larger = AOMMIN(cm->width, cm->height) >= 360;
     const int is_720p_or_larger = AOMMIN(cm->width, cm->height) >= 720;
-    if (!is_360p_or_larger)
+    if (!is_360p_or_larger) {
       *y_dc_delta_q = 0;
-    else if (!is_720p_or_larger)
+      *u_dc_delta_q = *v_dc_delta_q = 0;
+    } else if (!is_720p_or_larger) {
       *y_dc_delta_q = -2;
-    else
+      *u_dc_delta_q = *v_dc_delta_q = -1;
+    } else {
       *y_dc_delta_q = -4;
+      *u_dc_delta_q = *v_dc_delta_q = -2;
+    }
   }
 #endif  // CONFIG_DELTA_DCQUANT
 }
