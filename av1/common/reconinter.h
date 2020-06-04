@@ -244,7 +244,9 @@ void av1_build_inter_predictors(const AV1_COMMON *cm, MACROBLOCKD *xd,
                                 int build_for_obmc, int bw, int bh, int mi_x,
                                 int mi_y,
                                 CalcSubpelParamsFunc calc_subpel_params_func,
-                                const void *const calc_subpel_params_func_args);
+                                const void *const calc_subpel_params_func_args,
+                                uint8_t *dst, int dst_stride,
+                                const InterPredExt *ext);
 
 #if CONFIG_EXT_COMPOUND
 int av1_compute_subpel_gradients(const AV1_COMMON *cm, MACROBLOCKD *xd,

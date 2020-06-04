@@ -89,7 +89,9 @@ static void enc_build_inter_predictors(const AV1_COMMON *cm, MACROBLOCKD *xd,
                                        int build_for_obmc, int bw, int bh,
                                        int mi_x, int mi_y) {
   av1_build_inter_predictors(cm, xd, plane, mi, build_for_obmc, bw, bh, mi_x,
-                             mi_y, enc_calc_subpel_params, NULL);
+                             mi_y, enc_calc_subpel_params, NULL,
+                             xd->plane[plane].dst.buf,
+                             xd->plane[plane].dst.stride, NULL);
 }
 
 static void build_inter_predictors_for_plane(const AV1_COMMON *cm,
