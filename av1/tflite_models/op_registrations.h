@@ -9,12 +9,12 @@
  * PATENTS file, you can obtain it at www.aomedia.org/license/patent.
  */
 
-#ifndef AOM_AV1_TFLITE_MODELS_INTRA_FRAME_MODEL_OP_REGISTRATIONS_H_
-#define AOM_AV1_TFLITE_MODELS_INTRA_FRAME_MODEL_OP_REGISTRATIONS_H_
+#ifndef AOM_AV1_TFLITE_MODELS_OP_REGISTRATIONS_H_
+#define AOM_AV1_TFLITE_MODELS_OP_REGISTRATIONS_H_
 
 #include "tensorflow/lite/op_resolver.h"
 
 // Returns super-set of TF-lite ops required by CNN models for all QPs.
 void RegisterSelectedOpsAllQps(::tflite::MutableOpResolver *resolver);
 
-#endif  // AOM_AV1_TFLITE_MODELS_INTRA_FRAME_MODEL_OP_REGISTRATIONS_H_
+#endif  // AOM_AV1_TFLITE_MODELS_OP_REGISTRATIONS_H_

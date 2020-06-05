@@ -14,6 +14,7 @@
 
 #include "av1/common/onyxc_int.h"
 #include "av1/common/resize.h"
+#include "av1/encoder/ratectrl.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -24,6 +25,14 @@ extern "C" {
 
 static INLINE int av1_use_cnn(const AV1_COMMON *cm) {
   return ((cm->base_qindex > MIN_CNN_Q_INDEX) && !av1_superres_scaled(cm));
+}
+
+static INLINE int av1_use_cnn_encode(const AV1_COMMON *cm,
+                                     FRAME_UPDATE_TYPE update_type) {
+  const bool is_overlay_update =
+      (update_type == OVERLAY_UPDATE || update_type == INTNL_OVERLAY_UPDATE);
+
+  return av1_use_cnn(cm) && !is_overlay_update;
 }
 
 void av1_encode_restore_cnn(AV1_COMMON *cm, AVxWorker *workers,

@@ -382,23 +382,31 @@ endif()
 
 if(CONFIG_CNN_RESTORATION OR CONFIG_LOOP_RESTORE_CNN)
   if(CONFIG_TENSORFLOW_LITE)
-    list(
-      APPEND
-        AOM_AV1_COMMON_SOURCES
-        "${AOM_ROOT}/av1/common/cnn_tflite.cc"
-        "${AOM_ROOT}/av1/common/cnn_tflite.h"
-        "${AOM_ROOT}/av1/tflite_models/intra_frame_model/op_registrations.cc"
-        "${AOM_ROOT}/av1/tflite_models/intra_frame_model/op_registrations.h"
-        "${AOM_ROOT}/av1/tflite_models/intra_frame_model/qp22.cc"
-        "${AOM_ROOT}/av1/tflite_models/intra_frame_model/qp22.h"
-        "${AOM_ROOT}/av1/tflite_models/intra_frame_model/qp32.cc"
-        "${AOM_ROOT}/av1/tflite_models/intra_frame_model/qp32.h"
-        "${AOM_ROOT}/av1/tflite_models/intra_frame_model/qp43.cc"
-        "${AOM_ROOT}/av1/tflite_models/intra_frame_model/qp43.h"
-        "${AOM_ROOT}/av1/tflite_models/intra_frame_model/qp53.cc"
-        "${AOM_ROOT}/av1/tflite_models/intra_frame_model/qp53.h"
-        "${AOM_ROOT}/av1/tflite_models/intra_frame_model/qp63.cc"
-        "${AOM_ROOT}/av1/tflite_models/intra_frame_model/qp63.h")
+    list(APPEND AOM_AV1_COMMON_SOURCES
+                "${AOM_ROOT}/av1/common/cnn_tflite.cc"
+                "${AOM_ROOT}/av1/common/cnn_tflite.h"
+                "${AOM_ROOT}/av1/tflite_models/inter_frame_model/qp68_107.cc"
+                "${AOM_ROOT}/av1/tflite_models/inter_frame_model/qp68_107.h"
+                "${AOM_ROOT}/av1/tflite_models/inter_frame_model/qp108_147.cc"
+                "${AOM_ROOT}/av1/tflite_models/inter_frame_model/qp108_147.h"
+                "${AOM_ROOT}/av1/tflite_models/inter_frame_model/qp148_191.cc"
+                "${AOM_ROOT}/av1/tflite_models/inter_frame_model/qp148_191.h"
+                "${AOM_ROOT}/av1/tflite_models/inter_frame_model/qp192_231.cc"
+                "${AOM_ROOT}/av1/tflite_models/inter_frame_model/qp192_231.h"
+                "${AOM_ROOT}/av1/tflite_models/inter_frame_model/qp232_255.cc"
+                "${AOM_ROOT}/av1/tflite_models/inter_frame_model/qp232_255.h"
+                "${AOM_ROOT}/av1/tflite_models/intra_frame_model/qp22.cc"
+                "${AOM_ROOT}/av1/tflite_models/intra_frame_model/qp22.h"
+                "${AOM_ROOT}/av1/tflite_models/intra_frame_model/qp32.cc"
+                "${AOM_ROOT}/av1/tflite_models/intra_frame_model/qp32.h"
+                "${AOM_ROOT}/av1/tflite_models/intra_frame_model/qp43.cc"
+                "${AOM_ROOT}/av1/tflite_models/intra_frame_model/qp43.h"
+                "${AOM_ROOT}/av1/tflite_models/intra_frame_model/qp53.cc"
+                "${AOM_ROOT}/av1/tflite_models/intra_frame_model/qp53.h"
+                "${AOM_ROOT}/av1/tflite_models/intra_frame_model/qp63.cc"
+                "${AOM_ROOT}/av1/tflite_models/intra_frame_model/qp63.h"
+                "${AOM_ROOT}/av1/tflite_models/op_registrations.cc"
+                "${AOM_ROOT}/av1/tflite_models/op_registrations.h")
   else()
     list(APPEND AOM_AV1_COMMON_SOURCES "${AOM_ROOT}/av1/common/cnn_wrapper.c"
                 "${AOM_ROOT}/av1/common/cnn_wrapper.h")

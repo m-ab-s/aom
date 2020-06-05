@@ -4801,7 +4801,7 @@ static void loopfilter_frame(AV1_COMP *cpi, AV1_COMMON *cm) {
 
 #if CONFIG_CNN_RESTORATION && !CONFIG_LOOP_RESTORE_CNN
   cm->use_cnn = 0;
-  if (av1_use_cnn(cm)) {
+  if (av1_use_cnn_encode(cm, cpi->gf_group.update_type[cpi->gf_group.index])) {
     int64_t dgd_error = INT64_MAX;
     int64_t cnn_error = INT64_MAX;
     int64_t res_error = INT64_MAX;
