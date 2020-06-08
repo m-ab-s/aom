@@ -1355,10 +1355,10 @@ const wedge_params_type av1_wedge_params_lookup[BLOCK_SIZES_ALL] = {
     wedge_masks[BLOCK_32X32] },
   { 0, NULL, NULL, NULL },
   { 0, NULL, NULL, NULL },
+  { CONFIG_SEGMENT_BASED_PARTITIONING, NULL, NULL, NULL },
   { 0, NULL, NULL, NULL },
   { 0, NULL, NULL, NULL },
-  { 0, NULL, NULL, NULL },
-  { 0, NULL, NULL, NULL },
+  { CONFIG_SEGMENT_BASED_PARTITIONING, NULL, NULL, NULL },
   { 0, NULL, NULL, NULL },
   { 0, NULL, NULL, NULL },
   { 4, wedge_codebook_16_hgtw, wedge_signflip_lookup[BLOCK_8X32],
@@ -1724,9 +1724,9 @@ static void init_wedge_masks() {
     const int bh = block_size_high[bsize];
     const wedge_params_type *wedge_params = &av1_wedge_params_lookup[bsize];
     const int wbits = wedge_params->bits;
+    if (wbits == 0 || wedge_params->codebook == NULL) continue;
     const int wtypes = 1 << wbits;
     int w;
-    if (wbits == 0) continue;
     for (w = 0; w < wtypes; ++w) {
       mask = get_wedge_mask_inplace(w, 0, bsize);
       aom_convolve_copy(mask, MASK_MASTER_STRIDE, dst, bw, bw, bh);
