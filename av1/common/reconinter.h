@@ -420,13 +420,13 @@ const uint8_t *av1_get_compound_type_mask(
 void av1_build_interintra_predictors_sbp(const AV1_COMMON *cm, MACROBLOCKD *xd,
                                          uint8_t *pred, int stride,
                                          const BUFFER_SET *ctx, int plane,
-                                         BLOCK_SIZE bsize);
+                                         BLOCK_SIZE bsize, int border);
 
 void av1_build_interintra_predictors_sbuv(const AV1_COMMON *cm, MACROBLOCKD *xd,
                                           uint8_t *upred, uint8_t *vpred,
                                           int ustride, int vstride,
                                           const BUFFER_SET *ctx,
-                                          BLOCK_SIZE bsize);
+                                          BLOCK_SIZE bsize, int border);
 
 void av1_build_intra_predictors_for_interintra(const AV1_COMMON *cm,
                                                MACROBLOCKD *xd,
@@ -434,9 +434,16 @@ void av1_build_intra_predictors_for_interintra(const AV1_COMMON *cm,
                                                const BUFFER_SET *ctx,
                                                uint8_t *dst, int dst_stride);
 
+// If the inter-intra mode is one that requires an extended region, then
+// inter_pred and intra_pred should point to the start of the inter/intra
+// predictor, *not* the border. The beginning of the border can be accessed
+// by offsetting with (-border * stride - border). Note that the code assumes
+// the border is along the top-left. If there is no extended region, border
+// should be 0.
 void av1_combine_interintra(MACROBLOCKD *xd, BLOCK_SIZE bsize, int plane,
                             const uint8_t *inter_pred, int inter_stride,
-                            const uint8_t *intra_pred, int intra_stride);
+                            const uint8_t *intra_pred, int intra_stride,
+                            int border);
 
 void av1_dist_wtd_comp_weight_assign(const AV1_COMMON *cm,
                                      const MB_MODE_INFO *mbmi, int order_idx,
@@ -448,17 +455,6 @@ int av1_allow_warp(const MB_MODE_INFO *const mbmi,
                    const WarpedMotionParams *const gm_params,
                    int build_for_obmc, const struct scale_factors *const sf,
                    WarpedMotionParams *final_warp_params);
-
-#ifdef CONFIG_ILLUM_MCOMP
-
-// Compute the DC value for a predictor.
-int illum_mcomp_compute_dc_lowbd(const uint8_t *pred, int stride, int bw,
-                                 int bh);
-
-int illum_mcomp_compute_dc_highbd(const uint16_t *pred, int stride, int bw,
-                                  int bh);
-
-#endif  // CONFIG_ILLUM_MCOMP
 
 #ifdef __cplusplus
 }  // extern "C"

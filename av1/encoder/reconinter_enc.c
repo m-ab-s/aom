@@ -113,9 +113,10 @@ static void build_inter_predictors_for_plane(const AV1_COMMON *cm,
       default_ctx.stride[plane_idx] = xd->plane[plane_idx].dst.stride;
       ctx = &default_ctx;
     }
+    const int border = 0;
     av1_build_interintra_predictors_sbp(cm, xd, xd->plane[plane_idx].dst.buf,
                                         xd->plane[plane_idx].dst.stride, ctx,
-                                        plane_idx, bsize);
+                                        plane_idx, bsize, border);
   }
 }
 

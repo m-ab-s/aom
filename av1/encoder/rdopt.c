@@ -10485,7 +10485,9 @@ static int handle_inter_intra_mode(const AV1_COMP *const cpi,
 #endif  // CONFIG_DERIVED_INTRA_MODE
         av1_build_intra_predictors_for_interintra(cm, xd, bsize, 0, orig_dst,
                                                   intrapred, bw);
-        av1_combine_interintra(xd, bsize, 0, tmp_buf, bw, intrapred, bw);
+        const int border = 0;
+        av1_combine_interintra(xd, bsize, 0, tmp_buf, bw, intrapred, bw,
+                               border);
         model_rd_sb_fn[MODELRD_TYPE_INTERINTRA](
             cpi, bsize, x, xd, 0, 0, mi_row, mi_col, &rate_sum, &dist_sum,
             &tmp_skip_txfm_sb, &tmp_skip_sse_sb, NULL, NULL, NULL);
@@ -10528,7 +10530,8 @@ static int handle_inter_intra_mode(const AV1_COMP *const cpi,
 #endif  // CONFIG_DERIVED_INTRA_MODE
       av1_build_intra_predictors_for_interintra(cm, xd, bsize, 0, orig_dst,
                                                 intrapred, bw);
-      av1_combine_interintra(xd, bsize, 0, tmp_buf, bw, intrapred, bw);
+      const int border = 0;
+      av1_combine_interintra(xd, bsize, 0, tmp_buf, bw, intrapred, bw, border);
     }
 
     RD_STATS rd_stats;
@@ -10656,7 +10659,9 @@ static int handle_inter_intra_mode(const AV1_COMP *const cpi,
 #endif  // CONFIG_DERIVED_INTRA_MODE
             av1_build_intra_predictors_for_interintra(cm, xd, bsize, 0,
                                                       orig_dst, intrapred, bw);
-            av1_combine_interintra(xd, bsize, 0, tmp_buf, bw, intrapred, bw);
+            const int border = 0;
+            av1_combine_interintra(xd, bsize, 0, tmp_buf, bw, intrapred, bw,
+                                   border);
             model_rd_sb_fn[MODELRD_TYPE_INTERINTRA](
                 cpi, bsize, x, xd, 0, 0, mi_row, mi_col, &rate_sum, &dist_sum,
                 &tmp_skip_txfm_sb, &tmp_skip_sse_sb, NULL, NULL, NULL);
@@ -10733,9 +10738,10 @@ static int handle_inter_intra_mode(const AV1_COMP *const cpi,
           av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, orig_dst, bsize,
                                         AOM_PLANE_Y, AOM_PLANE_Y);
           mbmi->ref_frame[1] = INTRA_FRAME;
+          const int border = 0;
           av1_combine_interintra(xd, bsize, 0, xd->plane[AOM_PLANE_Y].dst.buf,
                                  xd->plane[AOM_PLANE_Y].dst.stride, intrapred,
-                                 bw);
+                                 bw, border);
           model_rd_sb_fn[MODELRD_TYPE_MASKED_COMPOUND](
               cpi, bsize, x, xd, 0, 0, mi_row, mi_col, &rate_sum, &dist_sum,
               &tmp_skip_txfm_sb, &tmp_skip_sse_sb, NULL, NULL, NULL);
@@ -10746,7 +10752,9 @@ static int handle_inter_intra_mode(const AV1_COMP *const cpi,
       if (rd >= best_interintra_rd_wedge) {
         tmp_mv.as_int = mv0.as_int;
         tmp_rate_mv = *rate_mv;
-        av1_combine_interintra(xd, bsize, 0, tmp_buf, bw, intrapred, bw);
+        const int border = 0;
+        av1_combine_interintra(xd, bsize, 0, tmp_buf, bw, intrapred, bw,
+                               border);
       }
       // Evaluate closer to true rd
       RD_STATS rd_stats;

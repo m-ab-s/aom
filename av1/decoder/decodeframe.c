@@ -770,8 +770,10 @@ static void dec_build_inter_predictors_sby(const AV1_COMMON *cm,
     BUFFER_SET default_ctx = { { xd->plane[0].dst.buf, NULL, NULL },
                                { xd->plane[0].dst.stride, 0, 0 } };
     if (!ctx) ctx = &default_ctx;
+    const int border = 0;
     av1_build_interintra_predictors_sbp(cm, xd, xd->plane[0].dst.buf,
-                                        xd->plane[0].dst.stride, ctx, 0, bsize);
+                                        xd->plane[0].dst.stride, ctx, 0, bsize,
+                                        border);
   }
 }
 
@@ -788,9 +790,10 @@ static void dec_build_inter_predictors_sbuv(const AV1_COMMON *cm,
       { 0, xd->plane[1].dst.stride, xd->plane[2].dst.stride }
     };
     if (!ctx) ctx = &default_ctx;
+    const int border = 0;
     av1_build_interintra_predictors_sbuv(
         cm, xd, xd->plane[1].dst.buf, xd->plane[2].dst.buf,
-        xd->plane[1].dst.stride, xd->plane[2].dst.stride, ctx, bsize);
+        xd->plane[1].dst.stride, xd->plane[2].dst.stride, ctx, bsize, border);
   }
 }
 
