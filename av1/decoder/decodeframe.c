@@ -5494,9 +5494,19 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 
   for (int i = 0; i < MAX_SEGMENTS; ++i) {
     const int qindex = av1_get_qindex(&cm->seg, i, cm->base_qindex);
+#if CONFIG_DELTA_DCQUANT
+    xd->lossless[i] =
+        qindex == 0 &&
+        (cm->y_dc_delta_q - cm->seq_params.base_y_dc_delta_q <= 0) &&
+        (cm->u_dc_delta_q - cm->seq_params.base_uv_dc_delta_q <= 0) &&
+        cm->u_ac_delta_q == 0 &&
+        (cm->v_dc_delta_q - cm->seq_params.base_uv_dc_delta_q <= 0) &&
+        cm->v_ac_delta_q == 0;
+#else
     xd->lossless[i] = qindex == 0 && cm->y_dc_delta_q == 0 &&
                       cm->u_dc_delta_q == 0 && cm->u_ac_delta_q == 0 &&
                       cm->v_dc_delta_q == 0 && cm->v_ac_delta_q == 0;
+#endif  // CONFIG_DELTA_DCQUANT
     xd->qindex[i] = qindex;
   }
   cm->coded_lossless = is_coded_lossless(cm, xd);
