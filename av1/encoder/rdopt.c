@@ -5138,6 +5138,7 @@ static int rd_pick_derived_intra_mode_sby(
   MB_MODE_INFO *mbmi = xd->mi[0];
   mbmi->filter_intra_mode_info.use_filter_intra = 0;
   mbmi->palette_mode_info.palette_size[0] = 0;
+  mbmi->use_intrabc = 0;
 #if CONFIG_ADAPT_FILTER_INTRA
   mbmi->adapt_filter_intra_mode_info.use_adapt_filter_intra = 0;
 #endif
@@ -12768,6 +12769,9 @@ static int64_t rd_pick_intrabc_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x,
 #if CONFIG_ADAPT_FILTER_INTRA
     mbmi->adapt_filter_intra_mode_info.use_adapt_filter_intra = 0;
 #endif
+#if CONFIG_DERIVED_INTRA_MODE
+    mbmi->use_derived_intra_mode[0] = mbmi->use_derived_intra_mode[1] = 0;
+#endif  // CONFIG_DERIVED_INTRA_MODE
     mbmi->use_intrabc = 1;
     mbmi->mode = DC_PRED;
     mbmi->uv_mode = UV_DC_PRED;
