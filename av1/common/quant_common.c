@@ -361,7 +361,9 @@ int32_t av1_dc_quant_QTX(int qindex, int delta, aom_bit_depth_t bit_depth) {
 #endif  // CONFIG_DELTA_DCQUANT
 
   int16_t qstep;
-  if (q_clamped <= 59)
+  if (q_clamped == 0)
+    return 4;
+  else if (q_clamped <= 59)
     qstep = ac_qlookup_QTX[q_clamped];
   else
     qstep = ac_qlookup_QTX[30 + q_clamped % 30] << ((q_clamped - 30) / 30);
@@ -405,7 +407,9 @@ int16_t av1_dc_quant_QTX(int qindex, int delta, aom_bit_depth_t bit_depth) {
 int32_t av1_ac_quant_QTX(int qindex, int delta, aom_bit_depth_t bit_depth) {
   const int q_clamped = clamp(qindex + delta, 0, MAXQ);
   int16_t qstep;
-  if (q_clamped <= 59)
+  if (q_clamped == 0)
+    return 4;
+  else if (q_clamped <= 59)
     qstep = ac_qlookup_QTX[q_clamped];
   else
     qstep = ac_qlookup_QTX[30 + q_clamped % 30] << ((q_clamped - 30) / 30);
