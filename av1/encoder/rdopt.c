@@ -10390,6 +10390,147 @@ static INLINE bool enable_wedge_interintra_search(MACROBLOCK *const x,
          !cpi->sf.disable_wedge_interintra_search;
 }
 
+static INLINE bool enable_smooth_interintra_search(const AV1_COMP *const cpi) {
+  return cpi->oxcf.enable_smooth_interintra &&
+         !cpi->sf.disable_smooth_interintra;
+}
+
+// Special value indicating that the inter-intra mode is so bad, it should be
+// ignored. This value must be non-zero.
+#define IGNORE_MODE -1
+
+static int handle_smooth_inter_intra_mode(
+    const AV1_COMP *const cpi, MACROBLOCK *const x, BLOCK_SIZE bsize,
+    MB_MODE_INFO *mbmi, int64_t ref_best_rd, int *rate_mv, int *rmode,
+    int rwedge, int64_t *best_interintra_rd, int64_t *rd,
+    INTERINTRA_MODE *best_interintra_mode, const BUFFER_SET *orig_dst,
+    uint8_t *tmp_buf, uint8_t *intrapred, HandleInterModeArgs *args,
+    int total_modes, const int *derived_intra_mode_cost,
+    int *pick_derived_intra_mode) {
+  int tmp_rate_mv = 0;
+  const AV1_COMMON *const cm = &cpi->common;
+  MACROBLOCKD *xd = &x->e_mbd;
+  const int mi_row = xd->mi_row;
+  const int mi_col = xd->mi_col;
+  const int bw = block_size_wide[bsize];
+  const int *const interintra_mode_cost =
+      x->interintra_mode_cost[size_group_lookup[bsize]];
+  mbmi->use_wedge_interintra = 0;
+  int j = 0;
+#if CONFIG_ILLUM_MCOMP
+  MV old_best = x->best_mv.as_mv;
+#endif  // CONFIG_ILLUM_MCOMP
+  if (cpi->sf.reuse_inter_intra_mode == 0 ||
+      *best_interintra_mode == INTERINTRA_MODES) {
+    for (j = 0; j < total_modes; ++j) {
+#if CONFIG_ILLUM_MCOMP
+      if (j == II_ILLUM_MCOMP_PRED) {
+        single_motion_search(cpi, x, bsize, 0, &tmp_rate_mv, true);
+        av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize,
+                                      AOM_PLANE_Y, AOM_PLANE_Y);
+      } else if (j == II_ILLUM_MCOMP_PRED + 1) {
+        x->best_mv.as_mv = old_best;
+        av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize,
+                                      AOM_PLANE_Y, AOM_PLANE_Y);
+      }
+#endif  // CONFIG_ILLUM_MCOMP
+      if ((!cpi->oxcf.enable_smooth_intra || cpi->sf.disable_smooth_intra) &&
+          (INTERINTRA_MODE)j == II_SMOOTH_PRED)
+        continue;
+      mbmi->interintra_mode = (INTERINTRA_MODE)j;
+#if CONFIG_DERIVED_INTRA_MODE
+      mbmi->use_derived_intra_mode[0] = 0;
+      if (j == INTERINTRA_MODES) {
+        if (!av1_enable_derived_intra_mode(xd, bsize)) continue;
+        mbmi->interintra_mode = 0;
+        mbmi->use_derived_intra_mode[0] = 1;
+      }
+      if (mbmi->use_derived_intra_mode[0]) {
+        *rmode = derived_intra_mode_cost[1];
+      } else {
+        *rmode = derived_intra_mode_cost[0] +
+                 interintra_mode_cost[mbmi->interintra_mode];
+      }
+#else
+      (void)derived_intra_mode_cost;
+      *rmode = interintra_mode_cost[mbmi->interintra_mode];
+#endif  // CONFIG_DERIVED_INTRA_MODE
+      av1_build_intra_predictors_for_interintra(cm, xd, bsize, 0, orig_dst,
+                                                intrapred, bw);
+      const int border = 0;
+      av1_combine_interintra(xd, bsize, 0, tmp_buf, bw, intrapred, bw, border);
+      int tmp_skip_txfm_sb, rate_sum;
+      int64_t tmp_skip_sse_sb, dist_sum;
+      model_rd_sb_fn[MODELRD_TYPE_INTERINTRA](
+          cpi, bsize, x, xd, 0, 0, mi_row, mi_col, &rate_sum, &dist_sum,
+          &tmp_skip_txfm_sb, &tmp_skip_sse_sb, NULL, NULL, NULL);
+      *rd = RDCOST(x->rdmult, tmp_rate_mv + rate_sum + *rmode, dist_sum);
+      if (*rd < *best_interintra_rd) {
+        *best_interintra_rd = *rd;
+        *best_interintra_mode = mbmi->interintra_mode;
+#if CONFIG_DERIVED_INTRA_MODE
+        *pick_derived_intra_mode = mbmi->use_derived_intra_mode[0];
+#else
+        (void)pick_derived_intra_mode;
+#endif  // CONFIG_DERIVED_INTRA_MODE
+      }
+    }
+    args->inter_intra_mode[mbmi->ref_frame[0]] = *best_interintra_mode;
+  }
+
+#if CONFIG_ILLUM_MCOMP
+  if (*best_interintra_mode != II_ILLUM_MCOMP_PRED) {
+    x->best_mv.as_mv = old_best;
+    av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize,
+                                  AOM_PLANE_Y, AOM_PLANE_Y);
+  }
+#endif  // CONFIG_ILLUM_MCOMP
+  assert(IMPLIES(
+      !cpi->oxcf.enable_smooth_interintra || cpi->sf.disable_smooth_interintra,
+      *best_interintra_mode != II_SMOOTH_PRED));
+#if CONFIG_DERIVED_INTRA_MODE
+  if (*pick_derived_intra_mode) {
+    *rmode = derived_intra_mode_cost[1];
+  } else {
+    *rmode = derived_intra_mode_cost[0] +
+             interintra_mode_cost[*best_interintra_mode];
+  }
+#else
+  *rmode = interintra_mode_cost[*best_interintra_mode];
+#endif  // CONFIG_DERIVED_INTRA_MODE
+  if (j == 0 || CONFIG_DERIVED_INTRA_MODE ||
+      *best_interintra_mode != INTERINTRA_MODES - 1) {
+    mbmi->interintra_mode = *best_interintra_mode;
+#if CONFIG_DERIVED_INTRA_MODE
+    mbmi->use_derived_intra_mode[0] = *pick_derived_intra_mode;
+#endif  // CONFIG_DERIVED_INTRA_MODE
+    av1_build_intra_predictors_for_interintra(cm, xd, bsize, 0, orig_dst,
+                                              intrapred, bw);
+    const int border = 0;
+    av1_combine_interintra(xd, bsize, 0, tmp_buf, bw, intrapred, bw, border);
+  }
+
+  RD_STATS rd_stats;
+  const int64_t rd_thresh = get_rd_thresh_from_best_rd(
+      ref_best_rd, (1 << INTER_INTRA_RD_THRESH_SHIFT),
+      INTER_INTRA_RD_THRESH_SCALE);
+  const int64_t mode_rd = RDCOST(x->rdmult, *rate_mv + *rmode + rwedge, 0);
+  const int64_t tmp_rd_thresh = rd_thresh - mode_rd;
+  *rd = estimate_yrd_for_sb(cpi, bsize, x, tmp_rd_thresh, &rd_stats);
+  if (*rd != INT64_MAX) {
+    *rd = RDCOST(x->rdmult, *rate_mv + *rmode + rd_stats.rate + rwedge,
+                 rd_stats.dist);
+  }
+  *best_interintra_rd = *rd;
+  if (ref_best_rd < INT64_MAX &&
+      ((((*best_interintra_rd >> INTER_INTRA_RD_THRESH_SHIFT) *
+         INTER_INTRA_RD_THRESH_SCALE) > ref_best_rd) ||
+       (*best_interintra_rd == INT64_MAX))) {
+    return IGNORE_MODE;
+  }
+  return 0;
+}
+
 static int handle_inter_intra_mode(const AV1_COMP *const cpi,
                                    MACROBLOCK *const x, BLOCK_SIZE bsize,
                                    MB_MODE_INFO *mbmi,
@@ -10441,117 +10582,18 @@ static int handle_inter_intra_mode(const AV1_COMP *const cpi,
       x->derived_intra_mode_cost[1][above + left];
 #else
   const int total_modes = INTERINTRA_MODES;
+  const int *derived_intra_mode_cost = NULL;
+  int pick_derived_intra_mode = 0;
 #endif  // CONFIG_DERIVED_INTRA_MODE
 
-  if (cpi->oxcf.enable_smooth_interintra &&
-      !cpi->sf.disable_smooth_interintra) {
-    mbmi->use_wedge_interintra = 0;
-    int j = 0;
-#if CONFIG_ILLUM_MCOMP
-    MV old_best = x->best_mv.as_mv;
-#endif  // CONFIG_ILLUM_MCOMP
-    if (cpi->sf.reuse_inter_intra_mode == 0 ||
-        best_interintra_mode == INTERINTRA_MODES) {
-      for (j = 0; j < total_modes; ++j) {
-#if CONFIG_ILLUM_MCOMP
-        if (j == II_ILLUM_MCOMP_PRED) {
-          single_motion_search(cpi, x, bsize, 0, &tmp_rate_mv, true);
-          av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize,
-                                        AOM_PLANE_Y, AOM_PLANE_Y);
-        } else if (j == II_ILLUM_MCOMP_PRED + 1) {
-          x->best_mv.as_mv = old_best;
-          av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize,
-                                        AOM_PLANE_Y, AOM_PLANE_Y);
-        }
-#endif  // CONFIG_ILLUM_MCOMP
-        if ((!cpi->oxcf.enable_smooth_intra || cpi->sf.disable_smooth_intra) &&
-            (INTERINTRA_MODE)j == II_SMOOTH_PRED)
-          continue;
-        mbmi->interintra_mode = (INTERINTRA_MODE)j;
-#if CONFIG_DERIVED_INTRA_MODE
-        mbmi->use_derived_intra_mode[0] = 0;
-        if (j == INTERINTRA_MODES) {
-          if (!av1_enable_derived_intra_mode(xd, bsize)) continue;
-          mbmi->interintra_mode = 0;
-          mbmi->use_derived_intra_mode[0] = 1;
-        }
-        if (mbmi->use_derived_intra_mode[0]) {
-          rmode = derived_intra_mode_cost[1];
-        } else {
-          rmode = derived_intra_mode_cost[0] +
-                  interintra_mode_cost[mbmi->interintra_mode];
-        }
-#else
-        rmode = interintra_mode_cost[mbmi->interintra_mode];
-#endif  // CONFIG_DERIVED_INTRA_MODE
-        av1_build_intra_predictors_for_interintra(cm, xd, bsize, 0, orig_dst,
-                                                  intrapred, bw);
-        const int border = 0;
-        av1_combine_interintra(xd, bsize, 0, tmp_buf, bw, intrapred, bw,
-                               border);
-        model_rd_sb_fn[MODELRD_TYPE_INTERINTRA](
-            cpi, bsize, x, xd, 0, 0, mi_row, mi_col, &rate_sum, &dist_sum,
-            &tmp_skip_txfm_sb, &tmp_skip_sse_sb, NULL, NULL, NULL);
-        rd = RDCOST(x->rdmult, tmp_rate_mv + rate_sum + rmode, dist_sum);
-        if (rd < best_interintra_rd) {
-          best_interintra_rd = rd;
-          best_interintra_mode = mbmi->interintra_mode;
-#if CONFIG_DERIVED_INTRA_MODE
-          pick_derived_intra_mode = mbmi->use_derived_intra_mode[0];
-#endif  // CONFIG_DERIVED_INTRA_MODE
-        }
-      }
-      args->inter_intra_mode[mbmi->ref_frame[0]] = best_interintra_mode;
-    }
-#if CONFIG_ILLUM_MCOMP
-    if (best_interintra_mode != II_ILLUM_MCOMP_PRED) {
-      x->best_mv.as_mv = old_best;
-      av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize,
-                                    AOM_PLANE_Y, AOM_PLANE_Y);
-    }
-#endif  // CONFIG_ILLUM_MCOMP
-    assert(IMPLIES(!cpi->oxcf.enable_smooth_interintra ||
-                       cpi->sf.disable_smooth_interintra,
-                   best_interintra_mode != II_SMOOTH_PRED));
-#if CONFIG_DERIVED_INTRA_MODE
-    if (pick_derived_intra_mode) {
-      rmode = derived_intra_mode_cost[1];
-    } else {
-      rmode = derived_intra_mode_cost[0] +
-              interintra_mode_cost[best_interintra_mode];
-    }
-#else
-    rmode = interintra_mode_cost[best_interintra_mode];
-#endif  // CONFIG_DERIVED_INTRA_MODE
-    if (j == 0 || CONFIG_DERIVED_INTRA_MODE ||
-        best_interintra_mode != INTERINTRA_MODES - 1) {
-      mbmi->interintra_mode = best_interintra_mode;
-#if CONFIG_DERIVED_INTRA_MODE
-      mbmi->use_derived_intra_mode[0] = pick_derived_intra_mode;
-#endif  // CONFIG_DERIVED_INTRA_MODE
-      av1_build_intra_predictors_for_interintra(cm, xd, bsize, 0, orig_dst,
-                                                intrapred, bw);
-      const int border = 0;
-      av1_combine_interintra(xd, bsize, 0, tmp_buf, bw, intrapred, bw, border);
-    }
-
-    RD_STATS rd_stats;
-    const int64_t rd_thresh = get_rd_thresh_from_best_rd(
-        ref_best_rd, (1 << INTER_INTRA_RD_THRESH_SHIFT),
-        INTER_INTRA_RD_THRESH_SCALE);
-    const int64_t mode_rd = RDCOST(x->rdmult, *rate_mv + rmode + rwedge, 0);
-    const int64_t tmp_rd_thresh = rd_thresh - mode_rd;
-    rd = estimate_yrd_for_sb(cpi, bsize, x, tmp_rd_thresh, &rd_stats);
-    if (rd != INT64_MAX) {
-      rd = RDCOST(x->rdmult, *rate_mv + rmode + rd_stats.rate + rwedge,
-                  rd_stats.dist);
-    }
-    best_interintra_rd = rd;
-    if (ref_best_rd < INT64_MAX &&
-        ((((best_interintra_rd >> INTER_INTRA_RD_THRESH_SHIFT) *
-           INTER_INTRA_RD_THRESH_SCALE) > ref_best_rd) ||
-         (best_interintra_rd == INT64_MAX))) {
-      return -1;
+  if (enable_smooth_interintra_search(cpi)) {
+    int ret = handle_smooth_inter_intra_mode(
+        cpi, x, bsize, mbmi, ref_best_rd, rate_mv, &rmode, rwedge,
+        &best_interintra_rd, &rd, &best_interintra_mode, orig_dst, tmp_buf,
+        intrapred, args, total_modes, derived_intra_mode_cost,
+        &pick_derived_intra_mode);
+    if (ret == IGNORE_MODE) {
+      return IGNORE_MODE;
     }
   }
 
