@@ -97,7 +97,7 @@ static const int16_t dc_qlookup_12_QTX[QINDEX_RANGE] = {
 #endif  // !CONFIG_DELTA_DCQUANT
 
 #if CONFIG_EXTQUANT
-/*
+#if 0
 //           4,                        q_index = 0
 //  qstep =  q_index + 8,              q_index in [1, 77]
 //           16*POWER(2, q_index/32)   q_index in [78, 255]
@@ -200,7 +200,6 @@ static const int16_t ac_qlookup_QTX[QINDEX_RANGE] = {
   4234, 4333, 4435, 4538, 4644, 4753, 4864, 4978, 5094, 5213, 5335, 5460, 5587,
   5718, 5852, 5988, 6128, 6271, 6418, 6568, 6722, 6879,
 };
-*/
 
 //           4,                                             q_index = 0
 //  qstep =  (34 + 9 * q_index) / 8                         q_index in [1, 29]
@@ -213,7 +212,7 @@ static const int16_t ac_qlookup_QTX[60] = {
   44,   45,   46,   47,   48,   49,   50,   51,   53,   54,   55,   56,
   58,   59,   60,   62,   63,   65,   66,   68,   69,   71,   73,   74,
 };
-/* this is equivelent to table below
+// this is equivelent to table below
 {
   4,    5,    7,    8,    9,    10,   11,   12,   13,   14,   16,   17,
   18,   19,   20,   21,   22,   23,   25,   26,   27,   28,   29,   30,
@@ -238,7 +237,34 @@ static const int16_t ac_qlookup_QTX[60] = {
   4864, 4992, 5120, 5248, 5376, 5504, 5632, 5760, 5888, 6016, 6144, 6272,
   6400, 6528, 6784, 6912,
 }
-*/
+#endif
+//           4,                                     q_index = 0
+//  qstep =  (34 + 9 * q_index) / 8                 q_index in [1, 29]
+//           19*POWER(2, q_index/30)                q_index in [30,255]
+static const int16_t ac_qlookup_QTX[QINDEX_RANGE] = {
+  4,    5,    7,    8,    9,    10,   11,   12,   13,   14,   16,   17,
+  18,   19,   20,   21,   22,   23,   25,   26,   27,   28,   29,   30,
+  31,   32,   34,   35,   36,   37,   38,   39,   40,   41,   42,   43,
+  44,   45,   46,   47,   48,   49,   50,   51,   53,   54,   55,   56,
+  58,   59,   60,   62,   63,   65,   66,   68,   69,   71,   73,   74,
+  76,   78,   80,   81,   83,   85,   87,   89,   91,   94,   96,   98,
+  100,  103,  105,  107,  110,  113,  115,  118,  121,  123,  126,  129,
+  132,  135,  139,  142,  145,  149,  152,  156,  159,  163,  167,  171,
+  175,  179,  183,  187,  192,  196,  201,  205,  210,  215,  220,  225,
+  230,  236,  241,  247,  253,  259,  265,  271,  277,  284,  290,  297,
+  304,  311,  318,  326,  333,  341,  349,  357,  366,  374,  383,  392,
+  401,  411,  420,  430,  440,  450,  461,  472,  483,  494,  505,  517,
+  529,  542,  554,  567,  581,  594,  608,  622,  637,  652,  667,  682,
+  698,  715,  731,  749,  766,  784,  802,  821,  840,  860,  880,  901,
+  922,  943,  965,  988,  1011, 1034, 1059, 1083, 1109, 1135, 1161, 1188,
+  1216, 1244, 1274, 1303, 1334, 1365, 1397, 1429, 1463, 1497, 1532, 1568,
+  1605, 1642, 1680, 1720, 1760, 1801, 1843, 1886, 1930, 1975, 2022, 2069,
+  2117, 2167, 2217, 2269, 2322, 2376, 2432, 2489, 2547, 2607, 2667, 2730,
+  2794, 2859, 2926, 2994, 3064, 3136, 3209, 3284, 3361, 3439, 3520, 3602,
+  3686, 3772, 3861, 3951, 4043, 4138, 4234, 4333, 4435, 4538, 4644, 4753,
+  4864, 4978, 5094, 5213, 5335, 5460, 5587, 5718, 5852, 5988, 6128, 6271,
+  6418, 6568, 6722, 6879,
+};
 #else
 static const int16_t ac_qlookup_QTX[QINDEX_RANGE] = {
   4,    8,    9,    10,   11,   12,   13,   14,   15,   16,   17,   18,   19,
@@ -359,15 +385,9 @@ int32_t av1_dc_quant_QTX(int qindex, int delta, int base_dc_delta_q,
 int32_t av1_dc_quant_QTX(int qindex, int delta, aom_bit_depth_t bit_depth) {
   const int q_clamped = clamp(qindex + delta, 0, MAXQ);
 #endif  // CONFIG_DELTA_DCQUANT
+  if (q_clamped == 0) return 4;
 
-  int16_t qstep;
-  if (q_clamped == 0)
-    return 4;
-  else if (q_clamped <= 59)
-    qstep = ac_qlookup_QTX[q_clamped];
-  else
-    qstep = ac_qlookup_QTX[30 + q_clamped % 30] << ((q_clamped - 30) / 30);
-
+  int16_t qstep = ac_qlookup_QTX[q_clamped];
   switch (bit_depth) {
     case AOM_BITS_8: return qstep;
     case AOM_BITS_10: return 4 * qstep;
@@ -406,13 +426,9 @@ int16_t av1_dc_quant_QTX(int qindex, int delta, aom_bit_depth_t bit_depth) {
 #if CONFIG_EXTQUANT
 int32_t av1_ac_quant_QTX(int qindex, int delta, aom_bit_depth_t bit_depth) {
   const int q_clamped = clamp(qindex + delta, 0, MAXQ);
-  int16_t qstep;
-  if (q_clamped == 0)
-    return 4;
-  else if (q_clamped <= 59)
-    qstep = ac_qlookup_QTX[q_clamped];
-  else
-    qstep = ac_qlookup_QTX[30 + q_clamped % 30] << ((q_clamped - 30) / 30);
+  if (q_clamped == 0) return 4;
+
+  int16_t qstep = ac_qlookup_QTX[q_clamped];
 
   switch (bit_depth) {
     case AOM_BITS_8: return qstep;
