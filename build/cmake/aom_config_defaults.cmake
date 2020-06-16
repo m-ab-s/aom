@@ -173,6 +173,8 @@ set_aom_config_var(CONFIG_MISC_CHANGES 0 NUMBER
                    "AV2 miscellaneous bitstream changes experiment flag")
 set_aom_config_var(CONFIG_ENTROPY_CONTEXTS 0 NUMBER
                    "AV2 entropy coding contexts experiment flag")
+set_aom_config_var(CONFIG_EXT_IBC_MODES 0 NUMBER
+                   "AV2 enhanced IBC coding modes experiment flag")
 set_aom_config_var(CONFIG_WIENER_NONSEP 0 NUMBER
                    "AV2 nonsep Wiener filter experiment flag")
 set_aom_config_var(CONFIG_NEW_TX64X64 0 NUMBER

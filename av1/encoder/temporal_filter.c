@@ -964,10 +964,15 @@ static int temporal_filter_find_matching_mb_c(
   // av1_full_pixel_search() parameters: best_ref_mv1_full is the start mv, and
   // ref_mv is for mv rate calculation. The search result is stored in
   // x->best_mv.
+
   av1_full_pixel_search(cpi, x, TF_BLOCK, &best_ref_mv1_full, step_param, 1,
                         NSTEP, 1, sadpb, cond_cost_list(cpi, cost_list),
                         &ref_mv, 0, 0, x_pos, y_pos, 0,
+#if CONFIG_EXT_IBC_MODES
+                        0,
+#endif  // CONFIG_EXT_IBC_MODES
                         &cpi->ss_cfg[SS_CFG_LOOKAHEAD]);
+
   x->mv_cost_type = MV_COST_NONE;
   x->mv_limits = tmp_mv_limits;
 
@@ -1026,10 +1031,15 @@ static int temporal_filter_find_matching_mb_c(
 
       av1_set_mv_search_range(&x->mv_limits, &ref_mv);
       x->mv_cost_type = mv_cost_type;
-      av1_full_pixel_search(cpi, x, TF_SUB_BLOCK, &best_ref_mv1_full,
-                            step_param, 1, NSTEP, 1, sadpb,
-                            cond_cost_list(cpi, cost_list), &ref_mv, 0, 0,
-                            x_pos, y_pos, 0, &cpi->ss_cfg[SS_CFG_LOOKAHEAD]);
+
+      av1_full_pixel_search(
+          cpi, x, TF_SUB_BLOCK, &best_ref_mv1_full, step_param, 1, NSTEP, 1,
+          sadpb, cond_cost_list(cpi, cost_list), &ref_mv, 0, 0, x_pos, y_pos, 0,
+#if CONFIG_EXT_IBC_MODES
+          0,
+#endif  // CONFIG_EXT_IBC_MODES
+          &cpi->ss_cfg[SS_CFG_LOOKAHEAD]);
+
       x->mv_limits = tmp_mv_limits;
       x->mv_cost_type = MV_COST_NONE;
 

@@ -692,6 +692,11 @@ typedef struct MB_MODE_INFO {
   uint8_t seg_id_predicted : 1;  // valid only when temporal_update is enabled
   uint8_t skip_mode : 1;
   uint8_t use_intrabc : 1;
+#if CONFIG_EXT_IBC_MODES
+  uint8_t ibc_mode : 3;
+  // uint8_t is_ibcplus : 1;
+  // uint8_t ibcplus_mode : 2;
+#endif  // CONFIG_EXT_IBC_MODES
   CHROMA_REF_INFO chroma_ref_info;
 #if CONFIG_NEW_INTER_MODES && MAX_DRL_BITS > 3
   uint8_t ref_mv_idx : 3;

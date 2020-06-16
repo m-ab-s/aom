@@ -1514,6 +1514,21 @@ static const aom_cdf_prob
 static const aom_cdf_prob default_intrabc_cdf[CDF_SIZE(2)] = { AOM_CDF2(
     30531) };
 
+#if CONFIG_EXT_IBC_MODES
+static const aom_cdf_prob default_intrabc_mode_cdf[CDF_SIZE(8)] = {
+  // AOM_CDF4(24835, 28629, 31043) };
+  AOM_CDF8(22937, 26542, 29491, 31130, 31948, 32440, 32604)
+};
+/*static const aom_cdf_prob default_intrabcplus_cdf[CDF_SIZE(2)] = {
+        AOM_CDF2(22937) };
+static const aom_cdf_prob default_intrabcplus_mode_cdf[CDF_SIZE(4)] = {
+        //AOM_CDF7(12015, 21845, 27306, 28945, 31676, 32222) };
+        AOM_CDF4(12015, 21845, 27306) };
+        //AOM_CDF4(24835, 28629, 31043) };
+        //AOM_CDF2(18022) };
+        //AOM_CDF8(22937, 26542, 29491, 31130, 31948, 32440, 32604) };*/
+#endif  // CONFIG_EXT_IBC_MODES
+
 #if CONFIG_DERIVED_INTRA_MODE
 // TODO(huisu): the default values are the same for regular intra and interintra
 // modes. May need to tune them.
@@ -1935,6 +1950,12 @@ static void init_mode_probs(FRAME_CONTEXT *fc) {
   av1_copy(fc->cfl_sign_cdf, default_cfl_sign_cdf);
   av1_copy(fc->cfl_alpha_cdf, default_cfl_alpha_cdf);
   av1_copy(fc->intrabc_cdf, default_intrabc_cdf);
+#if CONFIG_EXT_IBC_MODES
+  av1_copy(fc->intrabc_mode_cdf, default_intrabc_mode_cdf);
+  // av1_copy(fc->intrabcplus_cdf, default_intrabcplus_cdf);
+  // av1_copy(fc->intrabcplus_mode_cdf, default_intrabcplus_mode_cdf);
+#endif  // CONFIG_EXT_IBC_MODES
+
 #if CONFIG_DERIVED_INTRA_MODE
   av1_copy(fc->derived_intra_mode_cdf, default_derived_intra_mode_cdf);
   av1_copy(fc->uv_derived_intra_mode_cdf, default_uv_derived_intra_mode_cdf);

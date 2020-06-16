@@ -235,6 +235,9 @@ static void first_pass_motion_search(AV1_COMP *cpi, MACROBLOCK *x,
       cpi, x, bsize, &ref_mv_full, step_param, 0, NSTEP, 0, x->sadperbit16,
       cond_cost_list(cpi, cost_list), ref_mv, INT_MAX, 0,
       (MI_SIZE * xd->mi_col), (MI_SIZE * xd->mi_row), 0,
+#if CONFIG_EXT_IBC_MODES
+      0,
+#endif  // CONFIG_EXT_IBC_MODES
       &cpi->ss_cfg[SS_CFG_FPF]);
 
   if (tmp_err < INT_MAX)

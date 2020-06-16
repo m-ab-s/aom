@@ -3973,6 +3973,9 @@ static void set_screen_content_options(AV1_COMP *cpi) {
 
   if (cpi->oxcf.content == AOM_CONTENT_SCREEN) {
     cm->allow_screen_content_tools = cm->allow_intrabc = 1;
+#if CONFIG_EXT_IBC_MODES
+    cm->ext_IBC_config = CONFIG_EXT_IBC_ALLMODES;
+#endif
     return;
   }
 

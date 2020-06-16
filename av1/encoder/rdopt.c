@@ -8204,6 +8204,9 @@ static void single_motion_search(const AV1_COMP *const cpi, MACROBLOCK *x,
             cpi, x, bsize, &mvp_full, step_param, 1, cpi->sf.mv.search_method,
             0, sadpb, cond_cost_list(cpi, cost_list), &ref_mv, INT_MAX, 1,
             (MI_SIZE * mi_col), (MI_SIZE * mi_row), 0,
+#if CONFIG_EXT_IBC_MODES
+            0,
+#endif  // CONFIG_EXT_IBC_MODES
             &cpi->ss_cfg[SS_CFG_SRC]);
         break;
       case OBMC_CAUSAL:
@@ -12685,6 +12688,138 @@ static int64_t handle_inter_mode(AV1_COMP *const cpi, TileDataEnc *tile_data,
   return RDCOST(x->rdmult, rd_stats->rate, rd_stats->dist);
 }
 
+#if CONFIG_EXT_IBC_MODES
+static void rd_intrabc_allocate_sb(uint16_t **InputBlock, BLOCK_SIZE bsize) {
+  uint16_t width = block_size_wide[bsize];
+  uint16_t height = block_size_high[bsize];
+
+  (*InputBlock) = (uint16_t *)aom_malloc(width * height * sizeof(uint16_t));
+}
+
+static void rd_intrabc_extract_source_sb(MACROBLOCK *x, uint16_t *InputBlock,
+                                         BLOCK_SIZE bsize) {
+  uint16_t width = block_size_wide[bsize];
+  uint16_t height = block_size_high[bsize];
+  uint16_t stride = x->plane[0].src.stride;
+
+  for (int rows = 0; rows < height; ++rows) {
+    for (int cols = 0; cols < width; ++cols) {
+      uint16_t *pixelAddr =
+          CONVERT_TO_SHORTPTR(x->plane[0].src.buf + rows * stride + cols);
+      InputBlock[rows * width + cols] = *(pixelAddr);
+    }
+  }
+}
+
+static void rd_intrabc_copy_sb(uint16_t *DstBlock, uint16_t *SrcBlock,
+                               BLOCK_SIZE bsize) {
+  uint16_t width = block_size_wide[bsize];
+  uint16_t height = block_size_high[bsize];
+
+  // Copy block
+  for (int rows = 0; rows < height; ++rows) {
+    for (int cols = 0; cols < width; ++cols) {
+      DstBlock[rows * 128 + cols] = SrcBlock[rows * width + cols];
+    }
+  }
+}
+
+static void rd_intrabc_rotate90_sb(uint16_t *DstBlock, uint16_t *SrcBlock,
+                                   BLOCK_SIZE bsize) {
+  uint16_t width = block_size_wide[bsize];
+  uint16_t height = block_size_high[bsize];
+
+  // Rotate Block by 90 degrees
+  for (int rows = 0; rows < height; ++rows) {
+    for (int cols = 0; cols < width; ++cols) {
+      DstBlock[cols * 128 + (height - 1 - rows)] =
+          SrcBlock[rows * width + cols];
+    }
+  }
+}
+
+static void rd_intrabc_rotate180_sb(uint16_t *DstBlock, uint16_t *SrcBlock,
+                                    BLOCK_SIZE bsize) {
+  uint16_t width = block_size_wide[bsize];
+  uint16_t height = block_size_high[bsize];
+
+  // Rotate Block by 180 degrees
+  for (int rows = 0; rows < height; ++rows) {
+    for (int cols = 0; cols < width; ++cols) {
+      DstBlock[(height - 1 - rows) * 128 + (width - 1 - cols)] =
+          SrcBlock[rows * width + cols];
+    }
+  }
+}
+
+static void rd_intrabc_rotate270_sb(uint16_t *DstBlock, uint16_t *SrcBlock,
+                                    BLOCK_SIZE bsize) {
+  uint16_t width = block_size_wide[bsize];
+  uint16_t height = block_size_high[bsize];
+
+  // Rotate Block by 270 degrees
+  for (int rows = 0; rows < height; ++rows) {
+    for (int cols = 0; cols < width; ++cols) {
+      DstBlock[(width - 1 - cols) * 128 + rows] = SrcBlock[rows * width + cols];
+    }
+  }
+}
+
+static void rd_intrabc_mirror0_sb(uint16_t *DstBlock, uint16_t *SrcBlock,
+                                  BLOCK_SIZE bsize) {
+  uint16_t width = block_size_wide[bsize];
+  uint16_t height = block_size_high[bsize];
+
+  // Mirror Block across the 0 degree axis
+  for (int rows = 0; rows < height; ++rows) {
+    for (int cols = 0; cols < width; ++cols) {
+      DstBlock[(height - 1 - rows) * 128 + cols] =
+          SrcBlock[rows * width + cols];
+    }
+  }
+}
+
+static void rd_intrabc_mirror45_sb(uint16_t *DstBlock, uint16_t *SrcBlock,
+                                   BLOCK_SIZE bsize) {
+  uint16_t width = block_size_wide[bsize];
+  uint16_t height = block_size_high[bsize];
+
+  // Mirror Block across the 45 degree axis
+  for (int rows = 0; rows < height; ++rows) {
+    for (int cols = 0; cols < width; ++cols) {
+      DstBlock[(width - 1 - cols) * 128 + (height - 1 - rows)] =
+          SrcBlock[rows * width + cols];
+    }
+  }
+}
+
+static void rd_intrabc_mirror90_sb(uint16_t *DstBlock, uint16_t *SrcBlock,
+                                   BLOCK_SIZE bsize) {
+  uint16_t width = block_size_wide[bsize];
+  uint16_t height = block_size_high[bsize];
+
+  // Mirror Block across the 90 degree axis
+  for (int rows = 0; rows < height; ++rows) {
+    for (int cols = 0; cols < width; ++cols) {
+      DstBlock[rows * 128 + (width - 1 - cols)] = SrcBlock[rows * width + cols];
+    }
+  }
+}
+
+static void rd_intrabc_mirror135_sb(uint16_t *DstBlock, uint16_t *SrcBlock,
+                                    BLOCK_SIZE bsize) {
+  uint16_t width = block_size_wide[bsize];
+  uint16_t height = block_size_high[bsize];
+
+  // Mirror Block across the 135 degree axis
+  for (int rows = 0; rows < height; ++rows) {
+    for (int cols = 0; cols < width; ++cols) {
+      DstBlock[cols * 128 + rows] = SrcBlock[rows * width + cols];
+    }
+  }
+}
+#endif  // CONFIG_EXT_IBC_MODES
+
 static int64_t rd_pick_intrabc_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x,
                                        RD_STATS *rd_stats, BLOCK_SIZE bsize,
                                        int64_t best_rd) {
@@ -12752,114 +12887,231 @@ static int64_t rd_pick_intrabc_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x,
   int best_skip = x->skip;
 
   uint8_t best_blk_skip[MAX_MIB_SIZE * MAX_MIB_SIZE] = { 0 };
-  for (enum IntrabcMotionDirection dir = IBC_MOTION_ABOVE;
-       dir < IBC_MOTION_DIRECTIONS; ++dir) {
-    const MvLimits tmp_mv_limits = x->mv_limits;
-    switch (dir) {
-      case IBC_MOTION_ABOVE:
-        x->mv_limits.col_min = (tile->mi_col_start - mi_col) * MI_SIZE;
+
+#if CONFIG_EXT_IBC_MODES
+  uint16_t *src_block = NULL;
+  uint16_t *ibc_src_block = NULL;
+
+  // Iterate through all IBC & IBC+ Modes
+  // Allocate & Store Source block
+  rd_intrabc_allocate_sb(&src_block, bsize);
+  rd_intrabc_extract_source_sb(x, src_block, bsize);
+
+  // Allocate the IBC Source Buffer : Always 128x128, with valid data inset
+  rd_intrabc_allocate_sb(&ibc_src_block, BLOCK_128X128);
+
+  // Assign Macroblock pointer to IBC+ Translated Source
+  x->plane[0].ibc_src = ibc_src_block;
+
+  for (IBC_MODE ibcMode = ROTATION_0; ibcMode <= ROTATION_270 /*ROTATION_90*/;
+       ++ibcMode) {
+    // Translate Source Block & Update Source Pointer for search
+    switch (ibcMode) {
+      case ROTATION_0:
+        rd_intrabc_copy_sb(ibc_src_block, src_block, bsize);
+        break;
+
+      case MIRROR_90:
+        rd_intrabc_mirror90_sb(ibc_src_block, src_block, bsize);
+        break;
+
+      case MIRROR_0:
+        rd_intrabc_mirror0_sb(ibc_src_block, src_block, bsize);
+        break;
+
+      case ROTATION_180:
+        rd_intrabc_rotate180_sb(ibc_src_block, src_block, bsize);
+        break;
+
+      case ROTATION_90:
+        rd_intrabc_rotate90_sb(ibc_src_block, src_block, bsize);
+        break;
+
+      case MIRROR_135:
+        rd_intrabc_mirror135_sb(ibc_src_block, src_block, bsize);
+        break;
+
+      case MIRROR_45:
+        rd_intrabc_mirror45_sb(ibc_src_block, src_block, bsize);
+        break;
+
+      case ROTATION_270:
+        rd_intrabc_rotate270_sb(ibc_src_block, src_block, bsize);
+        break;
+
+      default: break;
+    }
+#endif  // CONFIG_EXT_IBC_MODES
+
+    for (enum IntrabcMotionDirection dir = IBC_MOTION_ABOVE;
+         dir < IBC_MOTION_DIRECTIONS; ++dir) {
+      const MvLimits tmp_mv_limits = x->mv_limits;
+
+      switch (dir) {
+        case IBC_MOTION_ABOVE:
+          x->mv_limits.col_min = (tile->mi_col_start - mi_col) * MI_SIZE;
+          x->mv_limits.row_min = (tile->mi_row_start - mi_row) * MI_SIZE;
+
+#if CONFIG_EXT_IBC_MODES
+          if (ibcMode == ROTATION_90 || ibcMode == ROTATION_270 ||
+              ibcMode == MIRROR_45 || ibcMode == MIRROR_135) {
+            x->mv_limits.col_max = (tile->mi_col_end - mi_col) * MI_SIZE - h;
+            x->mv_limits.row_max =
+                (sb_row * cm->seq_params.mib_size - mi_row) * MI_SIZE - w;
+          } else {
+            x->mv_limits.col_max = (tile->mi_col_end - mi_col) * MI_SIZE - w;
+            x->mv_limits.row_max =
+                (sb_row * cm->seq_params.mib_size - mi_row) * MI_SIZE - h;
+          }
+#else
         x->mv_limits.col_max = (tile->mi_col_end - mi_col) * MI_SIZE - w;
-        x->mv_limits.row_min = (tile->mi_row_start - mi_row) * MI_SIZE;
         x->mv_limits.row_max =
             (sb_row * cm->seq_params.mib_size - mi_row) * MI_SIZE - h;
-        break;
-      case IBC_MOTION_LEFT:
-        x->mv_limits.col_min = (tile->mi_col_start - mi_col) * MI_SIZE;
+#endif  // CONFIG_EXT_IBC_MODES
+          break;
+
+        case IBC_MOTION_LEFT:
+          x->mv_limits.col_min = (tile->mi_col_start - mi_col) * MI_SIZE;
+          x->mv_limits.row_min = (tile->mi_row_start - mi_row) * MI_SIZE;
+          // TODO(aconverse@google.com): Minimize the overlap between above and
+          // left areas.
+          int bottom_coded_mi_edge =
+              AOMMIN((sb_row + 1) * cm->seq_params.mib_size, tile->mi_row_end);
+#if CONFIG_EXT_IBC_MODES
+          if (ibcMode == ROTATION_90 || ibcMode == ROTATION_270 ||
+              ibcMode == MIRROR_45 || ibcMode == MIRROR_135) {
+            x->mv_limits.col_max =
+                (sb_col * cm->seq_params.mib_size - mi_col) * MI_SIZE - h;
+            x->mv_limits.row_max =
+                (bottom_coded_mi_edge - mi_row) * MI_SIZE - w;
+          } else {
+            x->mv_limits.col_max =
+                (sb_col * cm->seq_params.mib_size - mi_col) * MI_SIZE - w;
+            x->mv_limits.row_max =
+                (bottom_coded_mi_edge - mi_row) * MI_SIZE - h;
+          }
+#else
         x->mv_limits.col_max =
             (sb_col * cm->seq_params.mib_size - mi_col) * MI_SIZE - w;
-        // TODO(aconverse@google.com): Minimize the overlap between above and
-        // left areas.
-        x->mv_limits.row_min = (tile->mi_row_start - mi_row) * MI_SIZE;
-        int bottom_coded_mi_edge =
-            AOMMIN((sb_row + 1) * cm->seq_params.mib_size, tile->mi_row_end);
         x->mv_limits.row_max = (bottom_coded_mi_edge - mi_row) * MI_SIZE - h;
-        break;
-      default: assert(0);
-    }
-    assert(x->mv_limits.col_min >= tmp_mv_limits.col_min);
-    assert(x->mv_limits.col_max <= tmp_mv_limits.col_max);
-    assert(x->mv_limits.row_min >= tmp_mv_limits.row_min);
-    assert(x->mv_limits.row_max <= tmp_mv_limits.row_max);
-    av1_set_mv_search_range(&x->mv_limits, &dv_ref.as_mv);
+#endif  // CONFIG_EXT_IBC_MODES
+          break;
 
-    if (x->mv_limits.col_max < x->mv_limits.col_min ||
-        x->mv_limits.row_max < x->mv_limits.row_min) {
+        default: assert(0);
+      }
+
+      assert(x->mv_limits.col_min >= tmp_mv_limits.col_min);
+      assert(x->mv_limits.col_max <= tmp_mv_limits.col_max);
+      assert(x->mv_limits.row_min >= tmp_mv_limits.row_min);
+      assert(x->mv_limits.row_max <= tmp_mv_limits.row_max);
+
+      av1_set_mv_search_range(&x->mv_limits, &dv_ref.as_mv);
+
+      if (x->mv_limits.col_max < x->mv_limits.col_min ||
+          x->mv_limits.row_max < x->mv_limits.row_min) {
+        x->mv_limits = tmp_mv_limits;
+        continue;
+      }
+
+      int step_param = cpi->mv_step_param;
+      MV mvp_full = dv_ref.as_mv;
+      mvp_full.col >>= 3;
+      mvp_full.row >>= 3;
+
+      const int sadpb = x->sadperbit16;
+      int cost_list[5];
+
+      const int bestsme = av1_full_pixel_search(
+          cpi, x, bsize, &mvp_full, step_param, 1, cpi->sf.mv.search_method, 0,
+          sadpb, cond_cost_list(cpi, cost_list), &dv_ref.as_mv, INT_MAX, 1,
+          (MI_SIZE * mi_col), (MI_SIZE * mi_row), 1,
+#if CONFIG_EXT_IBC_MODES
+          ibcMode,
+#endif  // CONFIG_EXT_IBC_MODES
+          &cpi->ss_cfg[SS_CFG_LOOKAHEAD]);
+
       x->mv_limits = tmp_mv_limits;
-      continue;
-    }
+      if (bestsme == INT_MAX) continue;
 
-    int step_param = cpi->mv_step_param;
-    MV mvp_full = dv_ref.as_mv;
-    mvp_full.col >>= 3;
-    mvp_full.row >>= 3;
-    const int sadpb = x->sadperbit16;
-    int cost_list[5];
-    const int bestsme = av1_full_pixel_search(
-        cpi, x, bsize, &mvp_full, step_param, 1, cpi->sf.mv.search_method, 0,
-        sadpb, cond_cost_list(cpi, cost_list), &dv_ref.as_mv, INT_MAX, 1,
-        (MI_SIZE * mi_col), (MI_SIZE * mi_row), 1,
-        &cpi->ss_cfg[SS_CFG_LOOKAHEAD]);
+      mvp_full = x->best_mv.as_mv;
+      const MV dv = { .row = mvp_full.row * 8, .col = mvp_full.col * 8 };
+      if (mv_check_bounds(&x->mv_limits, &dv)) continue;
+      if (!av1_is_dv_valid(dv, cm, xd, mi_row, mi_col, bsize,
+                           cm->seq_params.mib_size_log2,
+                           &xd->mi[0]->chroma_ref_info))
+        continue;
 
-    x->mv_limits = tmp_mv_limits;
-    if (bestsme == INT_MAX) continue;
-    mvp_full = x->best_mv.as_mv;
-    const MV dv = { .row = mvp_full.row * 8, .col = mvp_full.col * 8 };
-    if (mv_check_bounds(&x->mv_limits, &dv)) continue;
-    if (!av1_is_dv_valid(dv, cm, xd, mi_row, mi_col, bsize,
-                         cm->seq_params.mib_size_log2,
-                         &xd->mi[0]->chroma_ref_info))
-      continue;
-
-    // DV should not have sub-pel.
-    assert((dv.col & 7) == 0);
-    assert((dv.row & 7) == 0);
-    memset(&mbmi->palette_mode_info, 0, sizeof(mbmi->palette_mode_info));
-    mbmi->filter_intra_mode_info.use_filter_intra = 0;
+      // DV should not have sub-pel.
+      assert((dv.col & 7) == 0);
+      assert((dv.row & 7) == 0);
+      memset(&mbmi->palette_mode_info, 0, sizeof(mbmi->palette_mode_info));
+      mbmi->filter_intra_mode_info.use_filter_intra = 0;
 #if CONFIG_ADAPT_FILTER_INTRA
-    mbmi->adapt_filter_intra_mode_info.use_adapt_filter_intra = 0;
+      mbmi->adapt_filter_intra_mode_info.use_adapt_filter_intra = 0;
 #endif
 #if CONFIG_DERIVED_INTRA_MODE
-    mbmi->use_derived_intra_mode[0] = mbmi->use_derived_intra_mode[1] = 0;
+      mbmi->use_derived_intra_mode[0] = mbmi->use_derived_intra_mode[1] = 0;
 #endif  // CONFIG_DERIVED_INTRA_MODE
-    mbmi->use_intrabc = 1;
-    mbmi->mode = DC_PRED;
-    mbmi->uv_mode = UV_DC_PRED;
-    mbmi->motion_mode = SIMPLE_TRANSLATION;
-    mbmi->mv[0].as_mv = dv;
-    mbmi->interp_filters = av1_broadcast_interp_filter(BILINEAR);
-    mbmi->max_mv_precision = MV_SUBPEL_NONE;
-    mbmi->pb_mv_precision = mbmi->max_mv_precision;
-    mbmi->skip = 0;
-    x->skip = 0;
-    av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize, 0,
-                                  av1_num_planes(cm) - 1);
+      mbmi->use_intrabc = 1;
+      mbmi->mode = DC_PRED;
+      mbmi->uv_mode = UV_DC_PRED;
+      mbmi->motion_mode = SIMPLE_TRANSLATION;
+      mbmi->mv[0].as_mv = dv;
+      mbmi->interp_filters = av1_broadcast_interp_filter(BILINEAR);
+      mbmi->max_mv_precision = MV_SUBPEL_NONE;
+      mbmi->pb_mv_precision = mbmi->max_mv_precision;
+      mbmi->skip = 0;
+#if CONFIG_EXT_IBC_MODES
+      mbmi->ibc_mode = ibcMode;
+      // mbmi->is_ibcplus = (ibcMode != ROTATION_0) ? 0x1 : 0x0;
+      // mbmi->ibcplus_mode = mbmi->is_ibcplus ? (ibcMode-MIRROR_90) : 0x0;
+#endif  // CONFIG_EXT_IBC_MODES
 
-    int *dvcost[2] = { (int *)&cpi->dv_cost[0][MV_MAX],
-                       (int *)&cpi->dv_cost[1][MV_MAX] };
-    // TODO(aconverse@google.com): The full motion field defining discount
-    // in MV_COST_WEIGHT is too large. Explore other values.
-    const int rate_mv = av1_mv_bit_cost_gen(
-        &dv, &dv_ref.as_mv, mbmi->max_mv_precision, cpi->dv_joint_cost, &dvcost,
+      x->skip = 0;
+
+      av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize, 0,
+                                    av1_num_planes(cm) - 1);
+
+      int *dvcost[2] = { (int *)&cpi->dv_cost[0][MV_MAX],
+                         (int *)&cpi->dv_cost[1][MV_MAX] };
+
+      // TODO(aconverse@google.com): The full motion field defining discount
+      // in MV_COST_WEIGHT is too large. Explore other values.
+      const int rate_mv =
+          av1_mv_bit_cost_gen(&dv, &dv_ref.as_mv, mbmi->max_mv_precision,
+                              cpi->dv_joint_cost, &dvcost,
 #if CONFIG_FLEX_MVRES
-        NULL,
+                              NULL,
 #endif  // CONFIG_FLEX_MVRES
-        MV_COST_WEIGHT_SUB);
-    const int rate_mode = x->intrabc_cost[1];
-    RD_STATS rd_stats_yuv, rd_stats_y, rd_stats_uv;
-    if (!txfm_search(cpi, NULL, x, bsize, &rd_stats_yuv, &rd_stats_y,
-                     &rd_stats_uv, rate_mode + rate_mv, INT64_MAX))
-      continue;
-    rd_stats_yuv.rdcost =
-        RDCOST(x->rdmult, rd_stats_yuv.rate, rd_stats_yuv.dist);
-    if (rd_stats_yuv.rdcost < best_rd) {
-      best_rd = rd_stats_yuv.rdcost;
-      best_mbmi = *mbmi;
-      best_skip = mbmi->skip;
-      best_rdstats = rd_stats_yuv;
-      memcpy(best_blk_skip, x->blk_skip,
-             sizeof(x->blk_skip[0]) * xd->n4_h * xd->n4_w);
+                              MV_COST_WEIGHT_SUB);
+
+      const int rate_mode = x->intrabc_cost[1];
+      RD_STATS rd_stats_yuv, rd_stats_y, rd_stats_uv;
+
+      if (!txfm_search(cpi, NULL, x, bsize, &rd_stats_yuv, &rd_stats_y,
+                       &rd_stats_uv, rate_mode + rate_mv, INT64_MAX))
+        continue;
+
+      rd_stats_yuv.rdcost =
+          RDCOST(x->rdmult, rd_stats_yuv.rate, rd_stats_yuv.dist);
+
+      if (rd_stats_yuv.rdcost < best_rd) {
+        best_rd = rd_stats_yuv.rdcost;
+        best_mbmi = *mbmi;
+        best_skip = mbmi->skip;
+        best_rdstats = rd_stats_yuv;
+        memcpy(best_blk_skip, x->blk_skip,
+               sizeof(x->blk_skip[0]) * xd->n4_h * xd->n4_w);
+      }
     }
+#if CONFIG_EXT_IBC_MODES
   }
+
+  // DeAllocate source & IBC source blocks
+  aom_free(src_block);
+  aom_free(ibc_src_block);
+#endif  // CONFIG_EXT_IBC_MODES
+
   *mbmi = best_mbmi;
   *rd_stats = best_rdstats;
   x->skip = best_skip;
@@ -12889,6 +13141,11 @@ void av1_rd_pick_intra_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x,
   mbmi->ref_frame[0] = INTRA_FRAME;
   mbmi->ref_frame[1] = NONE_FRAME;
   mbmi->use_intrabc = 0;
+#if CONFIG_EXT_IBC_MODES
+  mbmi->ibc_mode = 0;
+  // mbmi->is_ibcplus = 0;
+  // mbmi->ibcplus_mode = 0;
+#endif  // CONFIG_EXT_IBC_MODES
   mbmi->mv[0].as_int = 0;
 
   const int64_t intra_yrd =

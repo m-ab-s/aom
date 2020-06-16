@@ -1213,6 +1213,20 @@ typedef struct {
   size_t size;  // Size of resulting bitstream
 } EncodeFrameResults;
 
+#if CONFIG_EXT_IBC_MODES
+/*FILE *IBCStats;
+#define FILE_NAME_LEN 100
+
+uint16_t regular_ibc;
+uint16_t ibc_rotation90;
+uint16_t ibc_rotation180;
+uint16_t ibc_rotation270;
+uint16_t ibc_mirror0;
+uint16_t ibc_mirror45;
+uint16_t ibc_mirror90;
+uint16_t ibc_mirror135;*/
+#endif  // CONFIG_EXT_IBC_MODES
+
 // Must not be called more than once.
 void av1_initialize_enc(void);
 

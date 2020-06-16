@@ -1711,7 +1711,14 @@ int av1_get_mvpred_var(const AV1_COMMON *cm, const MACROBLOCK *x,
                        const MV *best_mv, const MV *center_mv,
                        const aom_variance_fn_ptr_t *vfp, int use_var) {
   const MACROBLOCKD *const xd = &x->e_mbd;
+#if CONFIG_EXT_IBC_MODES
+  const uint8_t *what_buf = CONVERT_TO_BYTEPTR(x->plane[0].ibc_src);
+  const int what_stride = 128;
+#else
   const struct buf_2d *const what = &x->plane[0].src;
+  const uint8_t *what_buf = what->buf;
+  const int what_stride = what->stride;
+#endif  // CONFIG_EXT_IBC_MODES
   const struct buf_2d *const in_what = &xd->plane[0].pre[0];
   const MV mv = { best_mv->row * 8, best_mv->col * 8 };
   unsigned int sse, var;
@@ -1728,7 +1735,7 @@ int av1_get_mvpred_var(const AV1_COMMON *cm, const MACROBLOCK *x,
   (void)cm;
 #endif  // CONFIG_FLEX_MVRES
 
-  var = vfp->vf(what->buf, what->stride, get_buf_from_mv(in_what, best_mv),
+  var = vfp->vf(what_buf, what_stride, get_buf_from_mv(in_what, best_mv),
                 in_what->stride, &sse);
 
   if (!use_var) var = sse;
@@ -1950,7 +1957,14 @@ static int exhuastive_mesh_search(const AV1_COMMON *cm, MACROBLOCK *x,
   (void)cm;
   const MACROBLOCKD *const xd = &x->e_mbd;
   const MB_MODE_INFO *mbmi = xd->mi[0];
+#if CONFIG_EXT_IBC_MODES
+  const uint8_t *what_buf = CONVERT_TO_BYTEPTR(x->plane[0].ibc_src);
+  const int what_stride = 128;  // Fixed stride (128x128 Scratch Buffer)
+#else
   const struct buf_2d *const what = &x->plane[0].src;
+  const uint8_t *what_buf = what->buf;
+  const int what_stride = what->stride;
+#endif  // CONFIG_EXT_IBC_MODES
   const struct buf_2d *const in_what = &xd->plane[0].pre[0];
   MV fcenter_mv = { center_mv->row, center_mv->col };
   unsigned int best_sad = INT_MAX;
@@ -1964,9 +1978,10 @@ static int exhuastive_mesh_search(const AV1_COMMON *cm, MACROBLOCK *x,
   clamp_mv(&fcenter_mv, x->mv_limits.col_min, x->mv_limits.col_max,
            x->mv_limits.row_min, x->mv_limits.row_max);
   *best_mv = fcenter_mv;
+
   best_sad =
-      fn_ptr->sdf(what->buf, what->stride,
-                  get_buf_from_mv(in_what, &fcenter_mv), in_what->stride) +
+      fn_ptr->sdf(what_buf, what_stride, get_buf_from_mv(in_what, &fcenter_mv),
+                  in_what->stride) +
       mvsad_err_cost(x, &fcenter_mv, ref_mv, max_mv_precision, sad_per_bit);
   start_row = AOMMAX(-range, x->mv_limits.row_min - fcenter_mv.row);
   start_col = AOMMAX(-range, x->mv_limits.col_min - fcenter_mv.col);
@@ -1979,7 +1994,7 @@ static int exhuastive_mesh_search(const AV1_COMMON *cm, MACROBLOCK *x,
       if (step > 1) {
         const MV mv = { fcenter_mv.row + r, fcenter_mv.col + c };
         unsigned int sad =
-            fn_ptr->sdf(what->buf, what->stride, get_buf_from_mv(in_what, &mv),
+            fn_ptr->sdf(what_buf, what_stride, get_buf_from_mv(in_what, &mv),
                         in_what->stride);
         if (sad < best_sad) {
           sad += mvsad_err_cost(x, &mv, ref_mv, max_mv_precision, sad_per_bit);
@@ -1998,7 +2013,7 @@ static int exhuastive_mesh_search(const AV1_COMMON *cm, MACROBLOCK *x,
             const MV mv = { fcenter_mv.row + r, fcenter_mv.col + c + i };
             addrs[i] = get_buf_from_mv(in_what, &mv);
           }
-          fn_ptr->sdx4df(what->buf, what->stride, addrs, in_what->stride, sads);
+          fn_ptr->sdx4df(what_buf, what_stride, addrs, in_what->stride, sads);
 
           for (i = 0; i < 4; ++i) {
             if (sads[i] < best_sad) {
@@ -2017,7 +2032,7 @@ static int exhuastive_mesh_search(const AV1_COMMON *cm, MACROBLOCK *x,
           for (i = 0; i < end_col - c; ++i) {
             const MV mv = { fcenter_mv.row + r, fcenter_mv.col + c + i };
             unsigned int sad =
-                fn_ptr->sdf(what->buf, what->stride,
+                fn_ptr->sdf(what_buf, what_stride,
                             get_buf_from_mv(in_what, &mv), in_what->stride);
             if (sad < best_sad) {
               sad +=
@@ -2045,8 +2060,13 @@ int av1_diamond_search_sad_c(const AV1_COMMON *const cm, MACROBLOCK *x,
   (void)cm;
   const MACROBLOCKD *const xd = &x->e_mbd;
   const MB_MODE_INFO *mbmi = xd->mi[0];
+#if CONFIG_EXT_IBC_MODES
+  uint8_t *what = CONVERT_TO_BYTEPTR(x->plane[0].ibc_src);
+  const int what_stride = 128;  // Fixed stride (128x128 Scratch Buffer)
+#else
   uint8_t *what = x->plane[0].src.buf;
   const int what_stride = x->plane[0].src.stride;
+#endif  // CONFIG_EXT_IBC_MODES
   const uint8_t *in_what;
   const int in_what_stride = xd->plane[0].pre[0].stride;
   const uint8_t *best_address;
@@ -2561,9 +2581,58 @@ int av1_full_pixel_search(const AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
                           int run_mesh_search, int error_per_bit,
                           int *cost_list, const MV *ref_mv, int var_max, int rd,
                           int x_pos, int y_pos, int intra,
+#if CONFIG_EXT_IBC_MODES
+                          IBC_MODE ibcMode,
+#endif  // CONFIG_EXT_IBC_MODES
                           const search_site_config *cfg) {
   const SPEED_FEATURES *const sf = &cpi->sf;
+#if CONFIG_EXT_IBC_MODES
+  const aom_variance_fn_ptr_t *fn_ptr = NULL;
+
+  // Non-square shape handling
+  uint16_t width = block_size_wide[bsize];
+  uint16_t height = block_size_high[bsize];
+
+  if (width != height && (ibcMode == ROTATION_90 || ibcMode == ROTATION_270 ||
+                          ibcMode == MIRROR_45 || ibcMode == MIRROR_135)) {
+    if (bsize == BLOCK_8X4)
+      fn_ptr = &cpi->fn_ptr[BLOCK_4X8];
+    else if (bsize == BLOCK_4X8)
+      fn_ptr = &cpi->fn_ptr[BLOCK_8X4];
+    else if (bsize == BLOCK_8X16)
+      fn_ptr = &cpi->fn_ptr[BLOCK_16X8];
+    else if (bsize == BLOCK_16X8)
+      fn_ptr = &cpi->fn_ptr[BLOCK_8X16];
+    else if (bsize == BLOCK_32X16)
+      fn_ptr = &cpi->fn_ptr[BLOCK_16X32];
+    else if (bsize == BLOCK_16X32)
+      fn_ptr = &cpi->fn_ptr[BLOCK_32X16];
+    else if (bsize == BLOCK_32X64)
+      fn_ptr = &cpi->fn_ptr[BLOCK_64X32];
+    else if (bsize == BLOCK_64X32)
+      fn_ptr = &cpi->fn_ptr[BLOCK_32X64];
+    else if (bsize == BLOCK_128X64)
+      fn_ptr = &cpi->fn_ptr[BLOCK_64X128];
+    else if (bsize == BLOCK_64X128)
+      fn_ptr = &cpi->fn_ptr[BLOCK_128X64];
+    else if (bsize == BLOCK_4X16)
+      fn_ptr = &cpi->fn_ptr[BLOCK_16X4];
+    else if (bsize == BLOCK_16X4)
+      fn_ptr = &cpi->fn_ptr[BLOCK_4X16];
+    else if (bsize == BLOCK_32X8)
+      fn_ptr = &cpi->fn_ptr[BLOCK_8X32];
+    else if (bsize == BLOCK_8X32)
+      fn_ptr = &cpi->fn_ptr[BLOCK_32X8];
+    else if (bsize == BLOCK_64X16)
+      fn_ptr = &cpi->fn_ptr[BLOCK_16X64];
+    else if (bsize == BLOCK_16X64)
+      fn_ptr = &cpi->fn_ptr[BLOCK_64X16];
+  } else {
+    fn_ptr = &cpi->fn_ptr[bsize];
+  }
+#else
   const aom_variance_fn_ptr_t *fn_ptr = &cpi->fn_ptr[bsize];
+#endif  // CONFIG_EXT_IBC_MODES
   int var = 0;
 
   if (cost_list) {
@@ -2641,8 +2710,14 @@ int av1_full_pixel_search(const AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
     if (block_height == block_width && x_pos >= 0 && y_pos >= 0) {
       if (block_width == 4 || block_width == 8 || block_width == 16 ||
           block_width == 32 || block_width == 64 || block_width == 128) {
+#if CONFIG_EXT_IBC_MODES
+        uint8_t *what = CONVERT_TO_BYTEPTR(x->plane[0].ibc_src);
+        const int what_stride = 128;  // Fixed stride (128x128 Scratch Buffer)
+#else
         uint8_t *what = x->plane[0].src.buf;
         const int what_stride = x->plane[0].src.stride;
+#endif  // CONFIG_EXT_IBC_MODES
+
         uint32_t hash_value1, hash_value2;
         MV best_hash_mv;
         int best_hash_cost = INT_MAX;
@@ -3388,10 +3463,16 @@ void av1_simple_motion_search(AV1_COMP *const cpi, MACROBLOCK *x, int mi_row,
 
   // This overwrites the mv_limits so we will need to restore it later.
   av1_set_mv_search_range(&x->mv_limits, &ref_mv);
-  var = av1_full_pixel_search(
-      cpi, x, bsize, &ref_mv_full, step_param, 1, search_methods,
-      do_mesh_search, sadpb, cond_cost_list(cpi, cost_list), &ref_mv, INT_MAX,
-      1, mi_col * MI_SIZE, mi_row * MI_SIZE, 0, &cpi->ss_cfg[SS_CFG_SRC]);
+
+  var = av1_full_pixel_search(cpi, x, bsize, &ref_mv_full, step_param, 1,
+                              search_methods, do_mesh_search, sadpb,
+                              cond_cost_list(cpi, cost_list), &ref_mv, INT_MAX,
+                              1, mi_col * MI_SIZE, mi_row * MI_SIZE, 0,
+#if CONFIG_EXT_IBC_MODES
+                              0,
+#endif  // CONFIG_EXT_IBC_MODES
+                              &cpi->ss_cfg[SS_CFG_SRC]);
+
   // Restore
   x->mv_limits = tmp_mv_limits;
 
@@ -3499,10 +3580,16 @@ void av1_simple_motion_search_ext(AV1_COMP *const cpi,
 
   // This overwrites the mv_limits so we will need to restore it later.
   av1_set_mv_search_range(&x->mv_limits, &ref_mv);
-  var = av1_full_pixel_search(
-      cpi, x, bsize, &start_mv, step_param, 1, search_methods, do_mesh_search,
-      sadpb, cond_cost_list(cpi, cost_list), &ref_mv, INT_MAX, 1,
-      mi_col * MI_SIZE, mi_row * MI_SIZE, 0, &cpi->ss_cfg[SS_CFG_SRC]);
+
+  var = av1_full_pixel_search(cpi, x, bsize, &start_mv, step_param, 1,
+                              search_methods, do_mesh_search, sadpb,
+                              cond_cost_list(cpi, cost_list), &ref_mv, INT_MAX,
+                              1, mi_col * MI_SIZE, mi_row * MI_SIZE, 0,
+#if CONFIG_EXT_IBC_MODES
+                              0,
+#endif  // CONFIG_EXT_IBC_MODES
+                              &cpi->ss_cfg[SS_CFG_SRC]);
+
   // Restore
   x->mv_limits = tmp_mv_limits;
 

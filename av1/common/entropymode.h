@@ -183,6 +183,11 @@ typedef struct frame_contexts {
   nmv_context nmvc;
   nmv_context ndvc;
   aom_cdf_prob intrabc_cdf[CDF_SIZE(2)];
+#if CONFIG_EXT_IBC_MODES
+  aom_cdf_prob intrabc_mode_cdf[CDF_SIZE(8)];
+  // aom_cdf_prob intrabcplus_cdf[CDF_SIZE(2)];
+  // aom_cdf_prob intrabcplus_mode_cdf[CDF_SIZE(4)];
+#endif  // CONFIG_EXT_IBC_MODES
   struct segmentation_probs seg;
   aom_cdf_prob filter_intra_cdfs[BLOCK_SIZES_ALL][CDF_SIZE(2)];
   aom_cdf_prob filter_intra_mode_cdf[CDF_SIZE(FILTER_INTRA_MODES)];
