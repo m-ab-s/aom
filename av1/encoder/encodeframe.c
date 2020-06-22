@@ -443,9 +443,9 @@ static void set_offsets_without_segment_id(
   xd->cfl.mi_col = mi_col;
 }
 
-static void set_offsets(const AV1_COMP *const cpi, const TileInfo *const tile,
-                        MACROBLOCK *const x, int mi_row, int mi_col,
-                        BLOCK_SIZE bsize, CHROMA_REF_INFO *chr_ref_info) {
+void av1_enc_set_offsets(const AV1_COMP *const cpi, const TileInfo *const tile,
+                         MACROBLOCK *const x, int mi_row, int mi_col,
+                         BLOCK_SIZE bsize, CHROMA_REF_INFO *chr_ref_info) {
   const AV1_COMMON *const cm = &cpi->common;
   const struct segmentation *const seg = &cm->seg;
   MACROBLOCKD *const xd = &x->e_mbd;
@@ -729,7 +729,8 @@ static void pick_sb_modes(AV1_COMP *const cpi, TileDataEnc *tile_data,
 
   aom_clear_system_state();
 
-  set_offsets(cpi, tile_info, x, mi_row, mi_col, bsize, &ctx->chroma_ref_info);
+  av1_enc_set_offsets(cpi, tile_info, x, mi_row, mi_col, bsize,
+                      &ctx->chroma_ref_info);
 
   mbmi = xd->mi[0];
 
@@ -2288,8 +2289,8 @@ static void rd_use_partition(AV1_COMP *cpi, ThreadData *td,
   save_context(x, &x_ctx, mi_row, mi_col, bsize, num_planes);
 
   if (bsize == BLOCK_16X16 && cpi->vaq_refresh) {
-    set_offsets(cpi, tile_info, x, mi_row, mi_col, bsize,
-                &pc_tree->chroma_ref_info);
+    av1_enc_set_offsets(cpi, tile_info, x, mi_row, mi_col, bsize,
+                        &pc_tree->chroma_ref_info);
     x->mb_energy = av1_log_block_var(cpi, x, bsize);
   }
 
@@ -3280,8 +3281,8 @@ static bool rd_pick_partition(
 
   av1_init_rd_stats(&this_rdc);
 
-  set_offsets(cpi, tile_info, x, mi_row, mi_col, bsize,
-              &pc_tree->chroma_ref_info);
+  av1_enc_set_offsets(cpi, tile_info, x, mi_row, mi_col, bsize,
+                      &pc_tree->chroma_ref_info);
 
   // Save rdmult before it might be changed, so it can be restored later.
   const int orig_rdmult = x->rdmult;
@@ -5026,7 +5027,8 @@ static void setup_delta_q(AV1_COMP *const cpi, ThreadData *td,
   xd->delta_qindex = current_qindex - cm->base_qindex;
 
   CHROMA_REF_INFO sb_chr_ref_info = { 1, 0, mi_row, mi_col, sb_size, sb_size };
-  set_offsets(cpi, tile_info, x, mi_row, mi_col, sb_size, &sb_chr_ref_info);
+  av1_enc_set_offsets(cpi, tile_info, x, mi_row, mi_col, sb_size,
+                      &sb_chr_ref_info);
   xd->mi[0]->current_qindex = current_qindex;
   av1_init_plane_quantizers(cpi, x, xd->mi[0]->segment_id);
 
@@ -5590,12 +5592,17 @@ static AOM_INLINE void encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
   init_encode_rd_sb(cpi, td, tile_data, &pc_root, sms_root, &dummy_rdc, mi_row,
                     mi_col, 1);
 
+#if CONFIG_EXT_RECUR_PARTITIONS
+  x->sms_bufs = td->sms_bufs;
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 #if CONFIG_EXT_RECUR_PARTITIONS && !KEEP_PARTITION_SPLIT
+
   // TODO(yuec): incorporate the new partition syntax into rd_use_partition()
   if (0) {
 #else
   if (sf->partition_search_type == FIXED_PARTITION || seg_skip) {
-    set_offsets(cpi, tile_info, x, mi_row, mi_col, sb_size, sb_chr_ref_info);
+    av1_enc_set_offsets(cpi, tile_info, x, mi_row, mi_col, sb_size,
+                        sb_chr_ref_info);
     const BLOCK_SIZE bsize = seg_skip ? sb_size : sf->always_this_block_size;
     set_fixed_partitioning(cpi, tile_info, mi, mi_row, mi_col, bsize);
     rd_use_partition(cpi, td, tile_data, mi, tp, mi_row, mi_col, sb_size,
@@ -5603,7 +5610,8 @@ static AOM_INLINE void encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
     av1_free_pc_tree_recursive(pc_root, num_planes, 0, 0);
   } else if (cpi->partition_search_skippable_frame) {
 #endif  // CONFIG_EXT_RECUR_PARTITIONS && !KEEP_PARTITION_SPLIT
-    set_offsets(cpi, tile_info, x, mi_row, mi_col, sb_size, sb_chr_ref_info);
+    av1_enc_set_offsets(cpi, tile_info, x, mi_row, mi_col, sb_size,
+                        sb_chr_ref_info);
     const BLOCK_SIZE bsize =
         get_rd_var_based_fixed_partition(cpi, x, mi_row, mi_col);
     set_fixed_partitioning(cpi, tile_info, mi, mi_row, mi_col, bsize);

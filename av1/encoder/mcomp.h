@@ -194,6 +194,14 @@ void av1_simple_motion_search(struct AV1_COMP *const cpi, MACROBLOCK *x,
                               int mi_row, int mi_col, BLOCK_SIZE bsize, int ref,
                               MV ref_mv_full, int num_planes, int use_subpixel);
 
+#if CONFIG_EXT_RECUR_PARTITIONS
+void av1_simple_motion_search_ext(struct AV1_COMP *const cpi,
+                                  const TileInfo *const tile, MACROBLOCK *x,
+                                  CHROMA_REF_INFO *chr_ref_info, int mi_row,
+                                  int mi_col, BLOCK_SIZE bsize, int ref_frame,
+                                  MV start_mv);
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+
 // Performs a simple motion search to calculate the sse and var of the residue
 void av1_simple_motion_sse_var(struct AV1_COMP *cpi, MACROBLOCK *x, int mi_row,
                                int mi_col, BLOCK_SIZE bsize,

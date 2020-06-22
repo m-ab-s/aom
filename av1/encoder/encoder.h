@@ -681,6 +681,7 @@ typedef struct ThreadData {
   PC_TREE_SHARED_BUFFERS shared_coeff_buf;
   SIMPLE_MOTION_DATA_TREE *sms_tree;
   SIMPLE_MOTION_DATA_TREE *sms_root[MAX_MIB_SIZE_LOG2 - MIN_MIB_SIZE_LOG2 + 1];
+  struct SimpleMotionDataBufs *sms_bufs;
   InterModesInfo *inter_modes_info;
   uint32_t *hash_value_buffer[2][2];
   int32_t *wsrc_buf;

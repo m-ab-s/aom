@@ -225,6 +225,75 @@ enum {
   MV_COST_NONE        // Use 0 as as cost irrespective of the current mv
 } UENUM1BYTE(MV_COST_TYPE);
 
+#if CONFIG_EXT_RECUR_PARTITIONS
+typedef struct SimpleMotionData {
+  MV mv_ref;
+  unsigned int sse;
+  unsigned int var;
+  unsigned int dist;
+  int64_t rate;
+  int64_t rdcost;
+  int valid;
+} SimpleMotionData;
+
+#define BLOCK_128_COUNT 1
+#define BLOCK_64_COUNT 3
+#define BLOCK_32_COUNT 7
+#define BLOCK_16_COUNT 15
+#define BLOCK_8_COUNT 31
+#define BLOCK_4_COUNT 32
+
+#define MAKE_SM_DATA_BUF(width, height) \
+  SimpleMotionData                      \
+      b_##width##x##height[BLOCK_##width##_COUNT * BLOCK_##height##_COUNT]
+
+typedef struct SimpleMotionDataBufs {
+  // Square blocks
+  MAKE_SM_DATA_BUF(128, 128);
+  MAKE_SM_DATA_BUF(64, 64);
+  MAKE_SM_DATA_BUF(32, 32);
+  MAKE_SM_DATA_BUF(16, 16);
+  MAKE_SM_DATA_BUF(8, 8);
+  MAKE_SM_DATA_BUF(4, 4);
+
+  // 1:2 blocks
+  MAKE_SM_DATA_BUF(64, 128);
+  MAKE_SM_DATA_BUF(32, 64);
+  MAKE_SM_DATA_BUF(16, 32);
+  MAKE_SM_DATA_BUF(8, 16);
+  MAKE_SM_DATA_BUF(4, 8);
+
+  // 2:1 blocks
+  MAKE_SM_DATA_BUF(128, 64);
+  MAKE_SM_DATA_BUF(64, 32);
+  MAKE_SM_DATA_BUF(32, 16);
+  MAKE_SM_DATA_BUF(16, 8);
+  MAKE_SM_DATA_BUF(8, 4);
+
+  // 1:4 blocks
+  MAKE_SM_DATA_BUF(16, 64);
+  MAKE_SM_DATA_BUF(8, 32);
+  MAKE_SM_DATA_BUF(4, 16);
+
+  // 4:1 blocks
+  MAKE_SM_DATA_BUF(64, 16);
+  MAKE_SM_DATA_BUF(32, 8);
+  MAKE_SM_DATA_BUF(16, 4);
+
+#if CONFIG_FLEX_PARTITION
+  // 1:8 blocks
+  MAKE_SM_DATA_BUF(64, 8);
+  MAKE_SM_DATA_BUF(32, 4);
+
+  // 8:1 blocks
+  MAKE_SM_DATA_BUF(8, 64);
+  MAKE_SM_DATA_BUF(4, 32);
+#endif  // CONFIG_FLEX_PARTITION
+} SimpleMotionDataBufs;
+
+#undef MAKE_SM_DATA_BUF
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+
 struct inter_modes_info;
 typedef struct macroblock MACROBLOCK;
 struct macroblock {
@@ -537,6 +606,10 @@ struct macroblock {
 
   // The type of mv cost used during motion search
   MV_COST_TYPE mv_cost_type;
+
+#if CONFIG_EXT_RECUR_PARTITIONS
+  SimpleMotionDataBufs *sms_bufs;
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 };
 
 static INLINE int is_rect_tx_allowed_bsize(BLOCK_SIZE bsize) {

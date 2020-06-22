@@ -583,6 +583,9 @@ static void dealloc_compressor_data(AV1_COMP *cpi) {
 
   av1_free_shared_coeff_buffer(&cpi->td.shared_coeff_buf);
   av1_free_sms_tree(&cpi->td);
+#if CONFIG_EXT_RECUR_PARTITIONS
+  av1_free_sms_bufs(&cpi->td);
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
   aom_free(cpi->td.mb.palette_buffer);
   av1_release_compound_type_rd_buffers(&cpi->td.mb.comp_rd_buffer);
@@ -883,6 +886,9 @@ static void alloc_compressor_data(AV1_COMP *cpi) {
 
   av1_setup_shared_coeff_buffer(&cpi->common, &cpi->td.shared_coeff_buf);
   av1_setup_sms_tree(&cpi->common, &cpi->td);
+#if CONFIG_EXT_RECUR_PARTITIONS
+  av1_setup_sms_bufs(&cpi->common, &cpi->td);
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 }
 
 void av1_new_framerate(AV1_COMP *cpi, double framerate) {
@@ -3590,6 +3596,9 @@ void av1_remove_compressor(AV1_COMP *cpi) {
       aom_free(thread_data->td->counts);
       av1_free_shared_coeff_buffer(&thread_data->td->shared_coeff_buf);
       av1_free_sms_tree(thread_data->td);
+#if CONFIG_EXT_RECUR_PARTITIONS
+      av1_free_sms_bufs(thread_data->td);
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
       aom_free(thread_data->td);
     }
   }
@@ -4300,6 +4309,9 @@ static int set_size_literal(AV1_COMP *cpi, int width, int height) {
     av1_free_context_buffers(cm);
     av1_free_shared_coeff_buffer(&cpi->td.shared_coeff_buf);
     av1_free_sms_tree(&cpi->td);
+#if CONFIG_EXT_RECUR_PARTITIONS
+    av1_free_sms_bufs(&cpi->td);
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
     alloc_compressor_data(cpi);
     realloc_segmentation_maps(cpi);
     cpi->initial_width = cpi->initial_height = 0;

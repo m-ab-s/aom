@@ -131,6 +131,12 @@ int av1_ml_predict_breakout(const AV1_COMP *const cpi, BLOCK_SIZE bsize,
                             unsigned int pb_source_variance);
 #endif  // !CONFIG_REALTIME_ONLY
 
+#if CONFIG_EXT_RECUR_PARTITIONS
+void av1_get_sms_data(AV1_COMP *const cpi, const TileInfo *const tile,
+                      MACROBLOCK *x, CHROMA_REF_INFO *chr_ref_info, int mi_row,
+                      int mi_col, BLOCK_SIZE bsize);
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+
 // A simplified version of set_offsets meant to be used for
 // simple_motion_search.
 static INLINE void set_offsets_for_motion_search(const AV1_COMP *const cpi,
@@ -190,6 +196,12 @@ static INLINE void init_simple_motion_search_mvs(
     init_simple_motion_search_mvs(sms_tree->split[3]);
   }
 }
+
+#if CONFIG_EXT_RECUR_PARTITIONS
+static INLINE void init_sms_data_bufs(SimpleMotionDataBufs *data_bufs) {
+  memset(data_bufs, 0, sizeof(*data_bufs));
+}
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
 static INLINE int is_full_sb(AV1_COMMON *const cm, int mi_row, int mi_col,
                              BLOCK_SIZE sb_size) {

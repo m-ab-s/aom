@@ -419,6 +419,9 @@ static void create_enc_workers(AV1_COMP *cpi, int num_workers) {
 
       // Set up sms_tree.
       av1_setup_sms_tree(cm, thread_data->td);
+#if CONFIG_EXT_RECUR_PARTITIONS
+      av1_setup_sms_bufs(cm, thread_data->td);
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
       av1_setup_shared_coeff_buffer(cm, &thread_data->td->shared_coeff_buf);
 
       CHECK_MEM_ERROR(cm, thread_data->td->above_pred_buf,
