@@ -74,6 +74,10 @@ static AOM_INLINE void alloc_compressor_data(AV1_COMP *cpi) {
 
   av1_setup_shared_coeff_buffer(&cpi->common, &cpi->td.shared_coeff_buf);
   av1_setup_sms_tree(cpi, &cpi->td);
+#if CONFIG_EXT_RECUR_PARTITIONS
+  av1_setup_sms_bufs(&cpi->common, &cpi->td);
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+
   cpi->td.firstpass_ctx =
       av1_alloc_pmc(cm, 0, 0, BLOCK_16X16, NULL, PARTITION_NONE, 0,
                     cm->seq_params.subsampling_x, cm->seq_params.subsampling_y,
@@ -297,6 +301,9 @@ static AOM_INLINE void dealloc_compressor_data(AV1_COMP *cpi) {
 
   av1_free_shared_coeff_buffer(&cpi->td.shared_coeff_buf);
   av1_free_sms_tree(&cpi->td);
+#if CONFIG_EXT_RECUR_PARTITIONS
+  av1_free_sms_bufs(&cpi->td);
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
   aom_free(cpi->td.mb.palette_buffer);
   release_compound_type_rd_buffers(&cpi->td.mb.comp_rd_buffer);

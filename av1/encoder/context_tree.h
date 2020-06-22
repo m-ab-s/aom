@@ -142,6 +142,10 @@ void av1_copy_tree_context(PICK_MODE_CONTEXT *dst_ctx,
 
 void av1_setup_sms_tree(struct AV1_COMP *const cpi, struct ThreadData *td);
 void av1_free_sms_tree(struct ThreadData *td);
+#if CONFIG_EXT_RECUR_PARTITIONS
+void av1_setup_sms_bufs(struct AV1Common *cm, struct ThreadData *td);
+void av1_free_sms_bufs(struct ThreadData *td);
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
 #ifdef __cplusplus
 }  // extern "C"

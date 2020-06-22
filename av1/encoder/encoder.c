@@ -1406,6 +1406,9 @@ static AOM_INLINE void free_thread_data(AV1_COMP *cpi) {
     thread_data->td->firstpass_ctx = NULL;
     av1_free_shared_coeff_buffer(&thread_data->td->shared_coeff_buf);
     av1_free_sms_tree(thread_data->td);
+#if CONFIG_EXT_RECUR_PARTITIONS
+    av1_free_sms_bufs(thread_data->td);
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
     aom_free(thread_data->td);
   }
 }
@@ -1915,6 +1918,9 @@ int av1_set_size_literal(AV1_COMP *cpi, int width, int height) {
     av1_free_context_buffers(cm);
     av1_free_shared_coeff_buffer(&cpi->td.shared_coeff_buf);
     av1_free_sms_tree(&cpi->td);
+#if CONFIG_EXT_RECUR_PARTITIONS
+    av1_free_sms_bufs(&cpi->td);
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
     av1_free_pmc(cpi->td.firstpass_ctx, av1_num_planes(cm));
     cpi->td.firstpass_ctx = NULL;
     alloc_compressor_data(cpi);

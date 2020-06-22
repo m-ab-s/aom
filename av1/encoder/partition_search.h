@@ -15,6 +15,7 @@
 #include "av1/encoder/block.h"
 #include "av1/encoder/encoder.h"
 #include "av1/encoder/encodeframe.h"
+#include "av1/encoder/encodeframe_utils.h"
 #include "av1/encoder/tokenize.h"
 
 void av1_set_offsets_without_segment_id(const AV1_COMP *const cpi,

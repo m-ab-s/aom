@@ -606,6 +606,9 @@ static AOM_INLINE void encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
 
   init_encode_rd_sb(cpi, td, tile_data, sms_root, &dummy_rdc, mi_row, mi_col,
                     1);
+#if CONFIG_EXT_RECUR_PARTITIONS
+  x->sms_bufs = td->sms_bufs;
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
   // Encode the superblock
 #if CONFIG_EXT_RECUR_PARTITIONS

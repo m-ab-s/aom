@@ -20,13 +20,13 @@
 
 #if !CONFIG_REALTIME_ONLY
 #include "av1/encoder/cnn.h"
-#include "av1/encoder/partition_model_weights.h"
 #include "av1/encoder/partition_cnn_weights.h"
+#include "av1/encoder/partition_model_weights.h"
 #endif
 #include "av1/encoder/encoder.h"
 
 #include "av1/encoder/motion_search_facade.h"
-#include "av1/encoder/partition_strategy.h"
+#include "av1/encoder/partition_search.h"
 #include "av1/encoder/rdopt.h"
 
 #if !CONFIG_REALTIME_ONLY
@@ -1631,4 +1631,155 @@ void av1_prune_ab_partitions(
   }
 }
 
+#if CONFIG_EXT_RECUR_PARTITIONS
+// Gets the number of sms data in a single dimension
+static INLINE int get_sms_count_from_length(int mi_length) {
+  switch (mi_length) {
+    case 32: return BLOCK_128_COUNT;
+    case 16: return BLOCK_64_COUNT;
+    case 8: return BLOCK_32_COUNT;
+    case 4: return BLOCK_16_COUNT;
+    case 2: return BLOCK_8_COUNT;
+    case 1: return BLOCK_4_COUNT;
+    default: assert(0 && "Invalid mi_width"); return -1;
+  }
+}
+
+// Gets the linear index corresponds to the current block.
+static INLINE int get_sms_arr_1d_idx(int mi_bsize, int mi_in_sb) {
+  int idx = -1;
+  if (mi_bsize == 1) {
+    idx = mi_in_sb;
+  } else {
+    assert(mi_in_sb % (mi_bsize / 2) == 0);
+    idx = mi_in_sb / (mi_bsize / 2);
+  }
+  assert(idx >= 0 && idx < get_sms_count_from_length(mi_bsize));
+
+  return idx;
+}
+
+#define MAKE_SMS_ARR_SWITCH_CASE(width, height) \
+  case BLOCK_##width##X##height: {              \
+    return sms_bufs->b_##width##x##height;      \
+  }
+
+// Returns the buffer in SimpleMotionDataBufs that correspond to bsize.
+static INLINE SimpleMotionData *get_sms_arr(SimpleMotionDataBufs *sms_bufs,
+                                            BLOCK_SIZE bsize) {
+  switch (bsize) {
+    // Square blocks
+    MAKE_SMS_ARR_SWITCH_CASE(128, 128);
+    MAKE_SMS_ARR_SWITCH_CASE(64, 64);
+    MAKE_SMS_ARR_SWITCH_CASE(32, 32);
+    MAKE_SMS_ARR_SWITCH_CASE(16, 16);
+    MAKE_SMS_ARR_SWITCH_CASE(8, 8);
+    MAKE_SMS_ARR_SWITCH_CASE(4, 4);
+
+    // 1:2 blocks
+    MAKE_SMS_ARR_SWITCH_CASE(64, 128);
+    MAKE_SMS_ARR_SWITCH_CASE(32, 64);
+    MAKE_SMS_ARR_SWITCH_CASE(16, 32);
+    MAKE_SMS_ARR_SWITCH_CASE(8, 16);
+    MAKE_SMS_ARR_SWITCH_CASE(4, 8);
+
+    // 2:1 blocks
+    MAKE_SMS_ARR_SWITCH_CASE(128, 64);
+    MAKE_SMS_ARR_SWITCH_CASE(64, 32);
+    MAKE_SMS_ARR_SWITCH_CASE(32, 16);
+    MAKE_SMS_ARR_SWITCH_CASE(16, 8);
+    MAKE_SMS_ARR_SWITCH_CASE(8, 4);
+
+    // 1:4 blocks
+    MAKE_SMS_ARR_SWITCH_CASE(16, 64);
+    MAKE_SMS_ARR_SWITCH_CASE(8, 32);
+    MAKE_SMS_ARR_SWITCH_CASE(4, 16);
+
+    // 4:1 blocks
+    MAKE_SMS_ARR_SWITCH_CASE(64, 16);
+    MAKE_SMS_ARR_SWITCH_CASE(32, 8);
+    MAKE_SMS_ARR_SWITCH_CASE(16, 4);
+
+    default: assert(0 && "Invalid bsize"); return NULL;
+  }
+}
+#undef MAKE_SMS_ARR_SWITCH_CASE
+
+// Retrieves the SimpleMotionData from SimpleMotionDataBufs
+static INLINE SimpleMotionData *get_sms_data_entry(
+    SimpleMotionDataBufs *sms_bufs, int mi_row, int mi_col, BLOCK_SIZE bsize,
+    BLOCK_SIZE sb_size) {
+  assert(mi_size_high[sb_size] == mi_size_wide[sb_size]);
+  const int mi_in_sb = mi_size_high[sb_size];
+  const int mi_row_in_sb = mi_row % mi_in_sb;
+  const int mi_col_in_sb = mi_col % mi_in_sb;
+  const int mi_high = mi_size_high[bsize];
+  const int mi_wide = mi_size_wide[bsize];
+
+  const int idx_row_in_sb = get_sms_arr_1d_idx(mi_high, mi_row_in_sb);
+  const int idx_col_in_sb = get_sms_arr_1d_idx(mi_wide, mi_col_in_sb);
+  const int arr_stride = get_sms_count_from_length(mi_wide);
+
+  SimpleMotionData *sms_arr = get_sms_arr(sms_bufs, bsize);
+
+  return &sms_arr[idx_row_in_sb * arr_stride + idx_col_in_sb];
+}
+
+// Performs a simple motion search and store the result in sms_data.
+static void get_sms_data(AV1_COMP *const cpi, const TileInfo *const tile,
+                         MACROBLOCK *x, CHROMA_REF_INFO *chr_ref_info,
+                         SimpleMotionData *sms_data, int mi_row, int mi_col,
+                         BLOCK_SIZE bsize) {
+  const AV1_COMMON *const cm = &cpi->common;
+  const int ref_frame =
+      cpi->rc.is_src_frame_alt_ref ? ALTREF_FRAME : LAST_FRAME;
+
+  const CommonModeInfoParams *const mi_params = &cm->mi_params;
+  if (mi_col >= mi_params->mi_cols || mi_row >= mi_params->mi_rows) {
+    // If the whole block is outside of the image, set the var and sse to 0.
+    sms_data->sse = 0;
+    sms_data->var = 0;
+    sms_data->dist = 0;
+    sms_data->rate = 0;
+    sms_data->rdcost = 0;
+    sms_data->valid = 1;
+
+    return;
+  }
+
+  av1_set_offsets(cpi, tile, x, mi_row, mi_col, bsize, chr_ref_info);
+
+  if (cpi->common.ref_frame_flags & av1_ref_frame_flag_list[ref_frame]) {
+    const MACROBLOCKD *xd = &x->e_mbd;
+    av1_simple_motion_search_ext(cpi, tile, x, mi_row, mi_col, bsize, ref_frame,
+                                 kZeroFullMv, 1, 1, sms_data);
+    sms_data->var = cpi->fn_ptr[bsize].vf(
+        x->plane[0].src.buf, x->plane[0].src.stride, xd->plane[0].dst.buf,
+        xd->plane[0].dst.stride, &sms_data->sse);
+
+    sms_data->dist = sms_data->sse;
+    sms_data->rate = 0;
+    sms_data->rdcost = RDCOST(x->rdmult, sms_data->rate, sms_data->dist);
+  }
+
+  return;
+}
+
+// Computes and stores the simple motion search data for the block at mi_row,
+// mi_col with block size bsize.
+void av1_get_sms_data(AV1_COMP *const cpi, const TileInfo *const tile,
+                      MACROBLOCK *x, CHROMA_REF_INFO *chr_ref_info, int mi_row,
+                      int mi_col, BLOCK_SIZE bsize) {
+  const AV1_COMMON *const cm = &cpi->common;
+  const BLOCK_SIZE sb_size = cm->seq_params.sb_size;
+  SimpleMotionDataBufs *sms_bufs = x->sms_bufs;
+  SimpleMotionData *cur_block =
+      get_sms_data_entry(sms_bufs, mi_row, mi_col, bsize, sb_size);
+  if (cur_block->valid) {
+    return;
+  } else {
+    get_sms_data(cpi, tile, x, chr_ref_info, cur_block, mi_row, mi_col, bsize);
+  }
+}
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 #endif  // !CONFIG_REALTIME_ONLY

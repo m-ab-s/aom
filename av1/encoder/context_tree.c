@@ -478,6 +478,17 @@ void av1_free_sms_tree(ThreadData *td) {
 }
 
 #if CONFIG_EXT_RECUR_PARTITIONS
+void av1_setup_sms_bufs(AV1_COMMON *cm, ThreadData *td) {
+  CHECK_MEM_ERROR(cm, td->sms_bufs, aom_malloc(sizeof(*td->sms_bufs)));
+}
+
+void av1_free_sms_bufs(ThreadData *td) {
+  if (td->sms_bufs != NULL) {
+    aom_free(td->sms_bufs);
+    td->sms_bufs = NULL;
+  }
+}
+
 PC_TREE *counterpart_from_different_partition(PC_TREE *pc_tree,
                                               PC_TREE *target);
 
