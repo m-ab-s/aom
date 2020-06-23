@@ -2676,7 +2676,13 @@ static void encode_quantization(const AV1_COMMON *const cm,
                                 struct aom_write_bit_buffer *wb) {
   const int num_planes = av1_num_planes(cm);
 
+#if CONFIG_EXTQUANT_HBD
+  aom_wb_write_literal(
+      wb, cm->base_qindex,
+      cm->seq_params.bit_depth == AOM_BITS_8 ? QINDEX_BITS_UNEXT : QINDEX_BITS);
+#else
   aom_wb_write_literal(wb, cm->base_qindex, QINDEX_BITS);
+#endif
   write_delta_q(wb, cm->y_dc_delta_q);
   if (num_planes > 1) {
     int diff_uv_delta = (cm->u_dc_delta_q != cm->v_dc_delta_q) ||

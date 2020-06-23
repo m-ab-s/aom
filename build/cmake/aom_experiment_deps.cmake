@@ -49,6 +49,10 @@ macro(fix_experiment_configs)
     change_config_and_warn(CONFIG_DST_32X32 1 CONFIG_LGT32)
   endif()
 
+  if(CONFIG_EXTQUANT_HBD)
+    change_config_and_warn(CONFIG_EXTQUANT 1 CONFIG_EXTQUANT_HBD)
+  endif()
+
   if(CONFIG_EXTQUANT)
     change_config_and_warn(CONFIG_DELTA_DCQUANT 1 CONFIG_EXTQUANT)
   endif()

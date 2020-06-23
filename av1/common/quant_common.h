@@ -21,10 +21,20 @@
 extern "C" {
 #endif
 
+#if CONFIG_EXTQUANT_HBD
+#define MINQ 0
+#define MAXQ 375
+#define MAXQ_UNEXT 255
+#define QINDEX_BITS 9
+#define QINDEX_BITS_UNEXT 8
+#define QINDEX_RANGE (MAXQ - MINQ + 1)
+#define QINDEX_RANGE_UNEXT (MAXQ_UNEXT - MINQ + 1)
+#else
 #define MINQ 0
 #define MAXQ 255
 #define QINDEX_BITS 8
 #define QINDEX_RANGE (MAXQ - MINQ + 1)
+#endif
 // Total number of QM sets stored
 #define QM_LEVEL_BITS 4
 #define NUM_QM_LEVELS (1 << QM_LEVEL_BITS)
@@ -58,8 +68,19 @@ int av1_get_qindex(const struct segmentation *seg, int segment_id,
                    int base_qindex);
 // Reduce the large number of quantizers to a smaller number of levels for which
 // different matrices may be defined
-static INLINE int aom_get_qmlevel(int qindex, int first, int last) {
+static INLINE int aom_get_qmlevel(int qindex, int first, int last
+#if CONFIG_EXTQUANT_HBD
+                                  ,
+                                  aom_bit_depth_t bit_depth
+#endif
+) {
+#if CONFIG_EXTQUANT_HBD
+  return first +
+         (qindex * (last + 1 - first)) /
+             (bit_depth == AOM_BITS_8 ? QINDEX_RANGE_UNEXT : QINDEX_RANGE);
+#else
   return first + (qindex * (last + 1 - first)) / QINDEX_RANGE;
+#endif
 }
 void av1_qm_init(struct AV1Common *cm);
 const qm_val_t *av1_iqmatrix(struct AV1Common *cm, int qmlevel, int plane,

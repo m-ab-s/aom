@@ -644,7 +644,13 @@ void av1_build_quantizer(aom_bit_depth_t bit_depth, int y_dc_delta_q,
                          QUANTS *const quants, Dequants *const deq) {
   int i, q, quant_QTX;
 
+#if CONFIG_EXTQUANT_HBD
+  int qindex_offset = 30 * (bit_depth - 8);
+  int qindex_range = QINDEX_RANGE_UNEXT + qindex_offset;
+  for (q = 0; q < qindex_range; q++) {
+#else
   for (q = 0; q < QINDEX_RANGE; q++) {
+#endif
     const int qzbin_factor = get_qzbin_factor(q,
 #if CONFIG_DELTA_DCQUANT
                                               base_y_dc_delta_q,
@@ -745,11 +751,19 @@ void av1_init_plane_quantizers(const AV1_COMP *cpi, MACROBLOCK *x,
   const AV1_COMMON *const cm = &cpi->common;
   MACROBLOCKD *const xd = &x->e_mbd;
   const QUANTS *const quants = &cpi->quants;
-
+#if CONFIG_EXTQUANT_HBD
+  int current_qindex = AOMMAX(
+      0, AOMMIN(cm->seq_params.bit_depth == AOM_BITS_8 ? QINDEX_RANGE_UNEXT - 1
+                                                       : QINDEX_RANGE - 1,
+                cm->delta_q_info.delta_q_present_flag
+                    ? cm->base_qindex + xd->delta_qindex
+                    : cm->base_qindex));
+#else
   int current_qindex = AOMMAX(
       0, AOMMIN(QINDEX_RANGE - 1, cm->delta_q_info.delta_q_present_flag
                                       ? cm->base_qindex + xd->delta_qindex
                                       : cm->base_qindex));
+#endif
   const int qindex = av1_get_qindex(&cm->seg, segment_id, current_qindex);
   const int rdmult = av1_compute_rd_mult(cpi, qindex + cm->y_dc_delta_q);
   int qmlevel = (xd->lossless[segment_id] || cm->using_qmatrix == 0)
@@ -850,15 +864,30 @@ void av1_set_quantizer(AV1_COMMON *cm, int q) {
                        &cm->v_dc_delta_q);
   cm->u_ac_delta_q = 0;
   cm->v_ac_delta_q = 0;
-  cm->qm_y = aom_get_qmlevel(cm->base_qindex, cm->min_qmlevel, cm->max_qmlevel);
+  cm->qm_y = aom_get_qmlevel(cm->base_qindex, cm->min_qmlevel, cm->max_qmlevel
+#if CONFIG_EXTQUANT_HBD
+                             ,
+                             cm->seq_params.bit_depth
+#endif
+  );
   cm->qm_u = aom_get_qmlevel(cm->base_qindex + cm->u_ac_delta_q,
-                             cm->min_qmlevel, cm->max_qmlevel);
+                             cm->min_qmlevel, cm->max_qmlevel
+#if CONFIG_EXTQUANT_HBD
+                             ,
+                             cm->seq_params.bit_depth
+#endif
+  );
 
   if (!cm->seq_params.separate_uv_delta_q)
     cm->qm_v = cm->qm_u;
   else
     cm->qm_v = aom_get_qmlevel(cm->base_qindex + cm->v_ac_delta_q,
-                               cm->min_qmlevel, cm->max_qmlevel);
+                               cm->min_qmlevel, cm->max_qmlevel
+#if CONFIG_EXTQUANT_HBD
+                               ,
+                               cm->seq_params.bit_depth
+#endif
+    );
 }
 
 // Table that converts 0-63 Q-range values passed in outside to the Qindex
@@ -873,14 +902,58 @@ static const int quantizer_to_qindex[] = {
 };
 // clang-format on
 
-int av1_quantizer_to_qindex(int quantizer) {
+#if CONFIG_EXTQUANT_HBD
+static const int qindex_10b_offset[] = {
+  0,  7,  18, 34, 42, 50, 54, 56, 60, 60, 60, 60, 60, 60, 60, 60,
+  60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60,
+  60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60,
+  60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60,
+};
+static const int qindex_12b_offset[] = {
+  0,   7,   75,  94,  102, 110, 114, 116, 120, 120, 120, 120, 120,
+  120, 120, 120, 120, 120, 120, 120, 120, 120, 120, 120, 120, 120,
+  120, 120, 120, 120, 120, 120, 120, 120, 120, 120, 120, 120, 120,
+  120, 120, 120, 120, 120, 120, 120, 120, 120, 120, 120, 120, 120,
+  120, 120, 120, 120, 120, 120, 120, 120, 120, 120, 120, 120,
+};
+#endif
+
+int av1_quantizer_to_qindex(int quantizer
+#if CONFIG_EXTQUANT_HBD
+                            ,
+                            aom_bit_depth_t bit_depth
+#endif
+) {
+#if CONFIG_EXTQUANT_HBD
+  switch (bit_depth) {
+    case AOM_BITS_8: return quantizer_to_qindex[quantizer];
+    case AOM_BITS_10:
+      return (quantizer_to_qindex[quantizer] + qindex_10b_offset[quantizer]);
+    case AOM_BITS_12:
+      return (quantizer_to_qindex[quantizer] + qindex_12b_offset[quantizer]);
+    default:
+      assert(0 && "bit_depth should be AOM_BITS_8, AOM_BITS_10 or AOM_BITS_12");
+      return -1;
+  }
+#else
   return quantizer_to_qindex[quantizer];
+#endif
 }
 
-int av1_qindex_to_quantizer(int qindex) {
+int av1_qindex_to_quantizer(int qindex
+#if CONFIG_EXTQUANT_HBD
+                            ,
+                            aom_bit_depth_t bit_depth
+#endif
+) {
   int quantizer;
   for (quantizer = 0; quantizer < 64; ++quantizer)
+#if CONFIG_EXTQUANT_HBD
+    if (av1_quantizer_to_qindex(quantizer, bit_depth) >= qindex)
+      return quantizer;
+#else
     if (quantizer_to_qindex[quantizer] >= qindex) return quantizer;
+#endif
 
   return 63;
 }

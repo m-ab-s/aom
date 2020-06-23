@@ -79,7 +79,11 @@ CYCLIC_REFRESH *av1_cyclic_refresh_alloc(int mi_rows, int mi_cols) {
     av1_cyclic_refresh_free(cr);
     return NULL;
   }
+#if CONFIG_EXTQUANT_HBD
+  assert(MAXQ <= (QINDEX_RANGE - 1));
+#else
   assert(MAXQ <= 255);
+#endif
   memset(cr->last_coded_q_map, MAXQ, last_coded_q_map_size);
 
   return cr;

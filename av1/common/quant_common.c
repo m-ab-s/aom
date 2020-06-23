@@ -241,7 +241,11 @@ static const int16_t ac_qlookup_QTX[60] = {
 //           4,                                     q_index = 0
 //  qstep =  (34 + 9 * q_index) / 8                 q_index in [1, 29]
 //           19*POWER(2, q_index/30)                q_index in [30,255]
+#if CONFIG_EXTQUANT_HBD
+static const int16_t ac_qlookup_QTX[QINDEX_RANGE_UNEXT] = {
+#else
 static const int16_t ac_qlookup_QTX[QINDEX_RANGE] = {
+#endif
   4,    5,    7,    8,    9,    10,   11,   12,   13,   14,   16,   17,
   18,   19,   20,   21,   22,   23,   25,   26,   27,   28,   29,   30,
   31,   32,   34,   35,   36,   37,   38,   39,   40,   41,   42,   43,
@@ -387,6 +391,22 @@ int32_t av1_dc_quant_QTX(int qindex, int delta, aom_bit_depth_t bit_depth) {
 #endif  // CONFIG_DELTA_DCQUANT
   if (q_clamped == 0) return 4;
 
+#if CONFIG_EXTQUANT_HBD
+  int qindex_offset = 30 * (bit_depth - 8);
+  if (q_clamped > MAXQ_UNEXT) {
+    switch (bit_depth) {
+      case AOM_BITS_8: assert(q_clamped <= MAXQ_UNEXT);
+      case AOM_BITS_10: return 4 * ac_qlookup_QTX[q_clamped - qindex_offset];
+      case AOM_BITS_12: return 16 * ac_qlookup_QTX[q_clamped - qindex_offset];
+      default:
+        assert(0 &&
+               "bit_depth should be AOM_BITS_8, AOM_BITS_10 or AOM_BITS_12");
+        return -1;
+    }
+  } else {
+    return ac_qlookup_QTX[q_clamped];
+  }
+#else
   int16_t qstep = ac_qlookup_QTX[q_clamped];
   switch (bit_depth) {
     case AOM_BITS_8: return qstep;
@@ -396,6 +416,7 @@ int32_t av1_dc_quant_QTX(int qindex, int delta, aom_bit_depth_t bit_depth) {
       assert(0 && "bit_depth should be AOM_BITS_8, AOM_BITS_10 or AOM_BITS_12");
       return -1;
   }
+#endif
 }
 #else
 #if CONFIG_DELTA_DCQUANT
@@ -428,8 +449,23 @@ int32_t av1_ac_quant_QTX(int qindex, int delta, aom_bit_depth_t bit_depth) {
   const int q_clamped = clamp(qindex + delta, 0, MAXQ);
   if (q_clamped == 0) return 4;
 
+#if CONFIG_EXTQUANT_HBD
+  int qindex_offset = 30 * (bit_depth - 8);
+  if (q_clamped > MAXQ_UNEXT) {
+    switch (bit_depth) {
+      case AOM_BITS_8: assert(q_clamped <= MAXQ_UNEXT);
+      case AOM_BITS_10: return 4 * ac_qlookup_QTX[q_clamped - qindex_offset];
+      case AOM_BITS_12: return 16 * ac_qlookup_QTX[q_clamped - qindex_offset];
+      default:
+        assert(0 &&
+               "bit_depth should be AOM_BITS_8, AOM_BITS_10 or AOM_BITS_12");
+        return -1;
+    }
+  } else {
+    return ac_qlookup_QTX[q_clamped];
+  }
+#else
   int16_t qstep = ac_qlookup_QTX[q_clamped];
-
   switch (bit_depth) {
     case AOM_BITS_8: return qstep;
     case AOM_BITS_10: return 4 * qstep;
@@ -438,6 +474,7 @@ int32_t av1_ac_quant_QTX(int qindex, int delta, aom_bit_depth_t bit_depth) {
       assert(0 && "bit_depth should be AOM_BITS_8, AOM_BITS_10 or AOM_BITS_12");
       return -1;
   }
+#endif
 }
 #else
 int16_t av1_ac_quant_QTX(int qindex, int delta, aom_bit_depth_t bit_depth) {

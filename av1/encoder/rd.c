@@ -501,8 +501,13 @@ static void init_me_luts_bd(int *bit16lut, int *bit4lut, int range,
 }
 
 void av1_init_me_luts(void) {
+#if CONFIG_EXTQUANT_HBD
+  init_me_luts_bd(sad_per_bit16lut_8, sad_per_bit4lut_8, QINDEX_RANGE_UNEXT,
+                  AOM_BITS_8);
+#else
   init_me_luts_bd(sad_per_bit16lut_8, sad_per_bit4lut_8, QINDEX_RANGE,
                   AOM_BITS_8);
+#endif
   init_me_luts_bd(sad_per_bit16lut_10, sad_per_bit4lut_10, QINDEX_RANGE,
                   AOM_BITS_10);
   init_me_luts_bd(sad_per_bit16lut_12, sad_per_bit4lut_12, QINDEX_RANGE,

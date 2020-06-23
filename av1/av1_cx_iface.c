@@ -625,7 +625,11 @@ static void disable_superres(AV1EncoderConfig *const oxcf) {
 
 static double convert_qp_offset(int cq_level, int q_offset, int bit_depth) {
   const double base_q_val = av1_convert_qindex_to_q(cq_level, bit_depth);
+#if CONFIG_EXTQUANT_HBD
+  const int new_q_index_offset = av1_quantizer_to_qindex(q_offset, AOM_BITS_8);
+#else
   const int new_q_index_offset = av1_quantizer_to_qindex(q_offset);
+#endif
   const int new_q_index = AOMMAX(cq_level - new_q_index_offset, 0);
   const double new_q_val = av1_convert_qindex_to_q(new_q_index, bit_depth);
   return (base_q_val - new_q_val);
@@ -764,12 +768,24 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   oxcf->rc_max_intra_bitrate_pct = extra_cfg->rc_max_intra_bitrate_pct;
   oxcf->rc_max_inter_bitrate_pct = extra_cfg->rc_max_inter_bitrate_pct;
   oxcf->gf_cbr_boost_pct = extra_cfg->gf_cbr_boost_pct;
-
+#if CONFIG_EXTQUANT_HBD
+  oxcf->best_allowed_q =
+      extra_cfg->lossless
+          ? 0
+          : av1_quantizer_to_qindex(cfg->rc_min_quantizer, cfg->g_bit_depth);
+  oxcf->worst_allowed_q =
+      extra_cfg->lossless
+          ? 0
+          : av1_quantizer_to_qindex(cfg->rc_max_quantizer, cfg->g_bit_depth);
+  oxcf->cq_level =
+      av1_quantizer_to_qindex(extra_cfg->cq_level, cfg->g_bit_depth);
+#else
   oxcf->best_allowed_q =
       extra_cfg->lossless ? 0 : av1_quantizer_to_qindex(cfg->rc_min_quantizer);
   oxcf->worst_allowed_q =
       extra_cfg->lossless ? 0 : av1_quantizer_to_qindex(cfg->rc_max_quantizer);
   oxcf->cq_level = av1_quantizer_to_qindex(extra_cfg->cq_level);
+#endif
   oxcf->fixed_q = -1;
 
   oxcf->enable_cdef = extra_cfg->enable_cdef;
@@ -831,9 +847,16 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
     oxcf->superres_scale_denominator = (uint8_t)cfg->rc_superres_denominator;
     oxcf->superres_kf_scale_denominator =
         (uint8_t)cfg->rc_superres_kf_denominator;
+#if CONFIG_EXTQUANT_HBD
+    oxcf->superres_qthresh =
+        av1_quantizer_to_qindex(cfg->rc_superres_qthresh, cfg->g_bit_depth);
+    oxcf->superres_kf_qthresh =
+        av1_quantizer_to_qindex(cfg->rc_superres_kf_qthresh, cfg->g_bit_depth);
+#else
     oxcf->superres_qthresh = av1_quantizer_to_qindex(cfg->rc_superres_qthresh);
     oxcf->superres_kf_qthresh =
         av1_quantizer_to_qindex(cfg->rc_superres_kf_qthresh);
+#endif
     if (oxcf->superres_mode == SUPERRES_FIXED &&
         oxcf->superres_scale_denominator == SCALE_NUMERATOR &&
         oxcf->superres_kf_scale_denominator == SCALE_NUMERATOR) {
@@ -1112,7 +1135,12 @@ static aom_codec_err_t ctrl_get_quantizer64(aom_codec_alg_priv_t *ctx,
                                             va_list args) {
   int *const arg = va_arg(args, int *);
   if (arg == NULL) return AOM_CODEC_INVALID_PARAM;
+#if CONFIG_EXTQUANT_HBD
+  *arg = av1_qindex_to_quantizer(av1_get_quantizer(ctx->cpi),
+                                 ctx->cfg.g_bit_depth);
+#else
   *arg = av1_qindex_to_quantizer(av1_get_quantizer(ctx->cpi));
+#endif
   return AOM_CODEC_OK;
 }
 

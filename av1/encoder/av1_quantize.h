@@ -136,9 +136,19 @@ void av1_init_quantizer(struct AV1_COMP *cpi);
 
 void av1_set_quantizer(struct AV1Common *cm, int q);
 
-int av1_quantizer_to_qindex(int quantizer);
+int av1_quantizer_to_qindex(int quantizer
+#if CONFIG_EXTQUANT_HBD
+                            ,
+                            aom_bit_depth_t bit_depth
+#endif
+);
 
-int av1_qindex_to_quantizer(int qindex);
+int av1_qindex_to_quantizer(int qindex
+#if CONFIG_EXTQUANT_HBD
+                            ,
+                            aom_bit_depth_t bit_depth
+#endif
+);
 
 void av1_quantize_skip(intptr_t n_coeffs, tran_low_t *qcoeff_ptr,
                        tran_low_t *dqcoeff_ptr, uint16_t *eob_ptr);
