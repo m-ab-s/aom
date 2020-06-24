@@ -1494,6 +1494,8 @@ static PARTITION_TYPE read_partition(MACROBLOCKD *xd, int mi_row, int mi_col,
 
 #if CONFIG_EXT_RECUR_PARTITIONS
   if (is_square_block(bsize)) {
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_EXT_RECUR_PARTITIONS && !KEEP_PARTITION_SPLIT
     if (!has_rows && has_cols) return PARTITION_HORZ;
     if (has_rows && !has_cols) return PARTITION_VERT;
 
@@ -1508,7 +1510,7 @@ static PARTITION_TYPE read_partition(MACROBLOCKD *xd, int mi_row, int mi_col,
       return aom_read_cdf(r, cdf, 2, ACCT_STR) ? PARTITION_VERT
                                                : PARTITION_HORZ;
     }
-#else
+#else   // CONFIG_EXT_RECUR_PARTITIONS && !KEEP_PARTITION_SPLIT
   if (!has_rows && !has_cols) return PARTITION_SPLIT;
 
   assert(ctx >= 0);
@@ -1530,7 +1532,7 @@ static PARTITION_TYPE read_partition(MACROBLOCKD *xd, int mi_row, int mi_col,
     assert(cdf[1] == AOM_ICDF(CDF_PROB_TOP));
     return aom_read_cdf(r, cdf, 2, ACCT_STR) ? PARTITION_SPLIT : PARTITION_VERT;
   }
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
+#endif  // CONFIG_EXT_RECUR_PARTITIONS && !KEEP_PARTITION_SPLIT
 #if CONFIG_EXT_RECUR_PARTITIONS
   } else {
     aom_cdf_prob *partition_rec_cdf = ec_ctx->partition_rec_cdf[ctx];

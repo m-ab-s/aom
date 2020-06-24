@@ -1,4 +1,3 @@
-
 /*
  * Copyright (c) 2016, Alliance for Open Media. All rights reserved
  *
@@ -1964,9 +1963,9 @@ static void encode_sb(const AV1_COMP *const cpi, ThreadData *td,
 
   if (mi_row >= cm->mi_rows || mi_col >= cm->mi_cols) return;
   if (subsize == BLOCK_INVALID) return;
-#if CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_EXT_RECUR_PARTITIONS && !KEEP_PARTITION_SPLIT
   assert(partition != PARTITION_SPLIT);
-#endif
+#endif  // CONFIG_EXT_RECUR_PARTITIONS && !KEEP_PARTITION_SPLIT
 
   if (!dry_run && ctx >= 0) {
     const int has_rows = (mi_row + hbs_h) < cm->mi_rows;
@@ -2531,9 +2530,9 @@ static void rd_use_partition(AV1_COMP *cpi, ThreadData *td,
       chosen_rdc.rate += x->partition_cost[pl][PARTITION_NONE];
     }
     if (chosen_rdc.rate < INT_MAX) {
-#if !CONFIG_EXT_RECUR_PARTITIONS
+#if !(CONFIG_EXT_RECUR_PARTITIONS && !KEEP_PARTITION_SPLIT)
       chosen_rdc.rate += x->partition_cost[pl][PARTITION_SPLIT];
-#endif  // !CONFIG_EXT_RECUR_PARTITIONS
+#endif  // !(CONFIG_EXT_RECUR_PARTITIONS && !KEEP_PARTITION_SPLIT)
       chosen_rdc.rdcost = RDCOST(x->rdmult, chosen_rdc.rate, chosen_rdc.dist);
     }
   }
@@ -3071,9 +3070,9 @@ static bool rd_pick_partition(
   BLOCK_SIZE subsize;
   RD_STATS this_rdc, sum_rdc;
   const int is_block_splittable = is_partition_point(bsize);
-#if !CONFIG_EXT_RECUR_PARTITIONS
+#if !(CONFIG_EXT_RECUR_PARTITIONS && !KEEP_PARTITION_SPLIT)
   int do_square_split = is_block_splittable && is_square_block(bsize);
-#endif  // !CONFIG_EXT_RECUR_PARTITIONS
+#endif  // !(CONFIG_EXT_RECUR_PARTITIONS && !KEEP_PARTITION_SPLIT)
   const int pl = is_block_splittable
                      ? partition_plane_context(xd, mi_row, mi_col, bsize)
                      : 0;
@@ -3100,9 +3099,9 @@ static bool rd_pick_partition(
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 
   int do_rectangular_split = cpi->oxcf.enable_rect_partitions;
-#if !CONFIG_EXT_RECUR_PARTITIONS
+#if !(CONFIG_EXT_RECUR_PARTITIONS && !KEEP_PARTITION_SPLIT)
   int64_t cur_none_rd = 0;
-#endif  // !CONFIG_EXT_RECUR_PARTITIONS
+#endif  // !(CONFIG_EXT_RECUR_PARTITIONS && !KEEP_PARTITION_SPLIT)
   int64_t split_rd[4] = { 0, 0, 0, 0 };
   int64_t horz_rd[2] = { 0, 0 };
   int64_t vert_rd[2] = { 0, 0 };
@@ -3193,20 +3192,20 @@ static bool rd_pick_partition(
 
   int partition_none_allowed = has_rows && has_cols;
   int partition_horz_allowed =
-#if CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_EXT_RECUR_PARTITIONS && !KEEP_PARTITION_SPLIT
       (has_cols || (!has_cols && !has_rows)) &&
       is_partition_valid(bsize, PARTITION_HORZ) &&
-#else
+#else   // CONFIG_EXT_RECUR_PARTITIONS && !KEEP_PARTITION_SPLIT
       has_cols && is_partition_valid(bsize, PARTITION_HORZ) &&
-#endif
+#endif  // CONFIG_EXT_RECUR_PARTITIONS && !KEEP_PARTITION_SPLIT
       cpi->oxcf.enable_rect_partitions && is_chroma_size_valid_horz;
   int partition_vert_allowed =
-#if CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_EXT_RECUR_PARTITIONS && !KEEP_PARTITION_SPLIT
       (has_rows || (!has_cols && !has_rows)) &&
       is_partition_valid(bsize, PARTITION_VERT) &&
-#else
+#else   // CONFIG_EXT_RECUR_PARTITIONS && !KEEP_PARTITION_SPLIT
       has_rows && is_partition_valid(bsize, PARTITION_VERT) &&
-#endif
+#endif  // CONFIG_EXT_RECUR_PARTITIONS && !KEEP_PARTITION_SPLIT
       cpi->oxcf.enable_rect_partitions && is_chroma_size_valid_vert;
 
   (void)*tp_orig;
@@ -3222,7 +3221,7 @@ static bool rd_pick_partition(
 #endif
 #endif
 
-#if CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_EXT_RECUR_PARTITIONS && !KEEP_PARTITION_SPLIT
   // Override partition costs at the edges of the frame in the same
   // way as in read_partition (see decodeframe.c)
   if (!(has_rows && has_cols)) {
@@ -3237,7 +3236,7 @@ static bool rd_pick_partition(
     }
     partition_cost = tmp_partition_cost;
   }
-#else
+#else   // CONFIG_EXT_RECUR_PARTITIONS && !KEEP_PARTITION_SPLIT
   // Override partition costs at the edges of the frame in the same
   // way as in read_partition (see decodeframe.c)
   if (!(has_rows && has_cols)) {
@@ -3264,7 +3263,7 @@ static bool rd_pick_partition(
 
     partition_cost = tmp_partition_cost;
   }
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
+#endif  // CONFIG_EXT_RECUR_PARTITIONS && !KEEP_PARTITION_SPLIT
 
 #ifndef NDEBUG
   // Nothing should rely on the default value of this array (which is just
@@ -3371,14 +3370,14 @@ static bool rd_pick_partition(
   if (is_gt_max_sq_part) {
     // If current block size is larger than max, only allow split.
     partition_none_allowed = 0;
-#if CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_EXT_RECUR_PARTITIONS && !KEEP_PARTITION_SPLIT
     partition_horz_allowed = 1;
     partition_vert_allowed = 1;
-#else
+#else   // CONFIG_EXT_RECUR_PARTITIONS && !KEEP_PARTITION_SPLIT
     partition_horz_allowed = 0;
     partition_vert_allowed = 0;
     do_square_split = 1;
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
+#endif  // CONFIG_EXT_RECUR_PARTITIONS && !KEEP_PARTITION_SPLIT
   } else if (is_le_min_sq_part) {
     // If current block size is less or equal to min, only allow none if valid
     // block large enough; only allow split otherwise.
@@ -3386,35 +3385,35 @@ static bool rd_pick_partition(
     partition_vert_allowed = 0;
     // only disable square split when current block is not at the picture
     // boundary. otherwise, inherit the square split flag from previous logic
-#if CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_EXT_RECUR_PARTITIONS && !KEEP_PARTITION_SPLIT
     partition_none_allowed = 1;
-#else
+#else   // CONFIG_EXT_RECUR_PARTITIONS && !KEEP_PARTITION_SPLIT
     if (has_rows && has_cols) do_square_split = 0;
     partition_none_allowed = !do_square_split;
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
+#endif  // CONFIG_EXT_RECUR_PARTITIONS && !KEEP_PARTITION_SPLIT
   }
 
 BEGIN_PARTITION_SEARCH:
   if (x->must_find_valid_partition) {
-#if !CONFIG_EXT_RECUR_PARTITIONS
+#if !(CONFIG_EXT_RECUR_PARTITIONS && !KEEP_PARTITION_SPLIT)
     do_square_split = is_block_splittable && is_square_block(bsize);
-#endif  // !CONFIG_EXT_RECUR_PARTITIONS
+#endif  // !(CONFIG_EXT_RECUR_PARTITIONS && !KEEP_PARTITION_SPLIT)
     partition_none_allowed = has_rows && has_cols;
     partition_horz_allowed =
-#if CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_EXT_RECUR_PARTITIONS && !KEEP_PARTITION_SPLIT
         (has_cols || (!has_rows && !has_cols)) &&
         is_partition_valid(bsize, PARTITION_HORZ) &&
-#else
+#else   // CONFIG_EXT_RECUR_PARTITIONS && !KEEP_PARTITION_SPLIT
         has_cols && is_partition_valid(bsize, PARTITION_HORZ) &&
-#endif
+#endif  // CONFIG_EXT_RECUR_PARTITIONS && !KEEP_PARTITION_SPLIT
         cpi->oxcf.enable_rect_partitions && is_chroma_size_valid_horz;
     partition_vert_allowed =
-#if CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_EXT_RECUR_PARTITIONS && !KEEP_PARTITION_SPLIT
         (has_rows || (!has_rows && !has_cols)) &&
         is_partition_valid(bsize, PARTITION_VERT) &&
-#else
+#else   // CONFIG_EXT_RECUR_PARTITIONS && !KEEP_PARTITION_SPLIT
         has_rows && is_partition_valid(bsize, PARTITION_VERT) &&
-#endif
+#endif  // CONFIG_EXT_RECUR_PARTITIONS && !KEEP_PARTITION_SPLIT
         cpi->oxcf.enable_rect_partitions && is_chroma_size_valid_vert;
     terminate_partition_search = 0;
 #if CONFIG_EXT_RECUR_PARTITIONS
@@ -3453,9 +3452,9 @@ BEGIN_PARTITION_SEARCH:
                     ss_y, &td->shared_coeff_buf);
   PICK_MODE_CONTEXT *ctx_none = pc_tree->none;
   if (is_le_min_sq_part && has_rows && has_cols) partition_none_allowed = 1;
-#if !CONFIG_EXT_RECUR_PARTITIONS
+#if !(CONFIG_EXT_RECUR_PARTITIONS && !KEEP_PARTITION_SPLIT)
   int64_t part_none_rd = INT64_MAX;
-#endif  // !CONFIG_EXT_RECUR_PARTITIONS
+#endif  // !(CONFIG_EXT_RECUR_PARTITIONS && !KEEP_PARTITION_SPLIT)
   if (!terminate_partition_search && partition_none_allowed &&
       !is_gt_max_sq_part) {
     int pt_cost = 0;
@@ -3524,11 +3523,11 @@ BEGIN_PARTITION_SEARCH:
         pc_tree->partitioning = PARTITION_NONE;
 
         if (!frame_is_intra_only(cm) &&
-#if CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_EXT_RECUR_PARTITIONS && !KEEP_PARTITION_SPLIT
             do_rectangular_split &&
-#else
+#else   // CONFIG_EXT_RECUR_PARTITIONS && !KEEP_PARTITION_SPLIT
             (do_square_split || do_rectangular_split) &&
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
+#endif  // CONFIG_EXT_RECUR_PARTITIONS && !KEEP_PARTITION_SPLIT
             !x->e_mbd.lossless[xd->mi[0]->segment_id] && ctx_none->skippable) {
           const int use_ml_based_breakout =
 #if CONFIG_EXT_RECUR_PARTITIONS
@@ -3539,9 +3538,9 @@ BEGIN_PARTITION_SEARCH:
           if (use_ml_based_breakout) {
             if (av1_ml_predict_breakout(cpi, bsize, x, &this_rdc,
                                         pb_source_variance)) {
-#if !CONFIG_EXT_RECUR_PARTITIONS
+#if !(CONFIG_EXT_RECUR_PARTITIONS && !KEEP_PARTITION_SPLIT)
               do_square_split = 0;
-#endif  // !CONFIG_EXT_RECUR_PARTITIONS
+#endif  // !(CONFIG_EXT_RECUR_PARTITIONS && !KEEP_PARTITION_SPLIT)
               do_rectangular_split = 0;
             }
           }
@@ -3553,9 +3552,9 @@ BEGIN_PARTITION_SEARCH:
           // disable the early termination at that speed.
           if (best_rdc.dist < dist_breakout_thr &&
               best_rdc.rate < rate_breakout_thr) {
-#if !CONFIG_EXT_RECUR_PARTITIONS
+#if !(CONFIG_EXT_RECUR_PARTITIONS && !KEEP_PARTITION_SPLIT)
             do_square_split = 0;
-#endif  // !CONFIG_EXT_RECUR_PARTITIONS
+#endif  // !(CONFIG_EXT_RECUR_PARTITIONS && !KEEP_PARTITION_SPLIT)
             do_rectangular_split = 0;
           }
         }
@@ -3581,7 +3580,7 @@ BEGIN_PARTITION_SEARCH:
   // store estimated motion vector
   if (cpi->sf.adaptive_motion_search) store_pred_mv(x, ctx_none);
 
-#if !CONFIG_EXT_RECUR_PARTITIONS
+#if !(CONFIG_EXT_RECUR_PARTITIONS && !KEEP_PARTITION_SPLIT)
   // PARTITION_SPLIT
   int64_t part_split_rd = INT64_MAX;
   subsize = get_partition_subsize(bsize, PARTITION_SPLIT);
@@ -3715,7 +3714,7 @@ BEGIN_PARTITION_SEARCH:
     av1_ml_prune_rect_partition(cpi, x, bsize, best_rdc.rdcost, cur_none_rd,
                                 split_rd, &prune_horz, &prune_vert);
   }
-#endif
+#endif  // !(CONFIG_EXT_RECUR_PARTITIONS && !KEEP_PARTITION_SPLIT)
 
   // PARTITION_HORZ
   assert(IMPLIES(!cpi->oxcf.enable_rect_partitions, !partition_horz_allowed));
@@ -4771,9 +4770,9 @@ BEGIN_PARTITION_SEARCH:
     sms_tree->partitioning = pc_tree->partitioning;
   int pc_tree_dealloc = 0;
   if (found_best_partition) {
-#if CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_EXT_RECUR_PARTITIONS && !KEEP_PARTITION_SPLIT
     assert(pc_tree->partitioning != PARTITION_SPLIT);
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
+#endif  // CONFIG_EXT_RECUR_PARTITIONS && !KEEP_PARTITION_SPLIT
     if (bsize == cm->seq_params.sb_size) {
       const int emit_output = multi_pass_mode != SB_DRY_PASS;
       const RUN_TYPE run_type = emit_output ? OUTPUT_ENABLED : DRY_RUN_NORMAL;
@@ -5566,9 +5565,9 @@ static AOM_INLINE void encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
                                     CHROMA_REF_INFO *sb_chr_ref_info) {
   AV1_COMMON *const cm = &cpi->common;
   MACROBLOCK *const x = &td->mb;
-#if !CONFIG_EXT_RECUR_PARTITIONS
+#if !(CONFIG_EXT_RECUR_PARTITIONS && !KEEP_PARTITION_SPLIT)
   const SPEED_FEATURES *const sf = &cpi->sf;
-#endif  // !CONFIG_EXT_RECUR_PARTITIONS
+#endif  // !(CONFIG_EXT_RECUR_PARTITIONS && !KEEP_PARTITION_SPLIT)
   const TileInfo *const tile_info = &tile_data->tile_info;
   MB_MODE_INFO **mi = cm->mi_grid_base + get_mi_grid_idx(cm, mi_row, mi_col);
   const BLOCK_SIZE sb_size = cm->seq_params.sb_size;
@@ -5584,14 +5583,14 @@ static AOM_INLINE void encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
   int64_t dummy_dist;
   RD_STATS dummy_rdc;
 
-#if CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_EXT_RECUR_PARTITIONS && !KEEP_PARTITION_SPLIT
   (void)seg_skip;
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
+#endif  // CONFIG_EXT_RECUR_PARTITIONS && !KEEP_PARTITION_SPLIT
 
   init_encode_rd_sb(cpi, td, tile_data, &pc_root, sms_root, &dummy_rdc, mi_row,
                     mi_col, 1);
 
-#if CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_EXT_RECUR_PARTITIONS && !KEEP_PARTITION_SPLIT
   // TODO(yuec): incorporate the new partition syntax into rd_use_partition()
   if (0) {
 #else
@@ -5603,7 +5602,7 @@ static AOM_INLINE void encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
                      &dummy_rate, &dummy_dist, 1, pc_root);
     av1_free_pc_tree_recursive(pc_root, num_planes, 0, 0);
   } else if (cpi->partition_search_skippable_frame) {
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
+#endif  // CONFIG_EXT_RECUR_PARTITIONS && !KEEP_PARTITION_SPLIT
     set_offsets(cpi, tile_info, x, mi_row, mi_col, sb_size, sb_chr_ref_info);
     const BLOCK_SIZE bsize =
         get_rd_var_based_fixed_partition(cpi, x, mi_row, mi_col);

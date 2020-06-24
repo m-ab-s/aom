@@ -2025,7 +2025,7 @@ static void write_partition(const AV1_COMMON *const cm,
     const int has_rows = (mi_row + hbs_h) < cm->mi_rows;
     const int has_cols = (mi_col + hbs_w) < cm->mi_cols;
 
-#if CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_EXT_RECUR_PARTITIONS && !KEEP_PARTITION_SPLIT
     if (has_rows && has_cols) {
       aom_write_symbol(w, p, ec_ctx->partition_cdf[ctx],
                        partition_cdf_length(bsize));
@@ -2038,7 +2038,7 @@ static void write_partition(const AV1_COMMON *const cm,
       aom_cdf_prob cdf[2] = { 16384, AOM_ICDF(CDF_PROB_TOP) };
       aom_write_cdf(w, p == PARTITION_VERT, cdf, 2);
     }
-#else
+#else   // CONFIG_EXT_RECUR_PARTITIONS && !KEEP_PARTITION_SPLIT
   if (!has_rows && !has_cols) {
     assert(p == PARTITION_SPLIT);
     return;
@@ -2061,7 +2061,7 @@ static void write_partition(const AV1_COMMON *const cm,
     partition_gather_horz_alike(cdf, ec_ctx->partition_cdf[ctx], bsize);
     aom_write_cdf(w, p == PARTITION_SPLIT, cdf, 2);
   }
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
+#endif  // CONFIG_EXT_RECUR_PARTITIONS && !KEEP_SPLIT_PARTITION
 #if CONFIG_EXT_RECUR_PARTITIONS
   } else {  // 1:2 or 2:1 rectangular blocks
     const PARTITION_TYPE_REC symbol =

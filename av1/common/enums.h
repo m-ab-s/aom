@@ -133,6 +133,10 @@ typedef enum ATTRIBUTE_PACKED {
 // 4X4, 8X8, 16X16, 32X32, 64X64, 128X128
 #define SQR_BLOCK_SIZES 6
 
+#if CONFIG_EXT_RECUR_PARTITIONS
+#define KEEP_PARTITION_SPLIT 0
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+
 //  Block partition types.  R: Recursive
 //
 //  NONE          HORZ          VERT          SPLIT
@@ -166,14 +170,37 @@ typedef enum ATTRIBUTE_PACKED {
 //  +-----+       | | | |
 //  +-----+       +-+-+-+
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_EXT_RECUR_PARTITIONS
+#if KEEP_PARTITION_SPLIT
 enum {
   PARTITION_NONE,
   PARTITION_HORZ,
   PARTITION_VERT,
-#if CONFIG_EXT_RECUR_PARTITIONS
+  PARTITION_SPLIT,
   PARTITION_HORZ_3,  // 3 horizontal sub-partitions with ratios 4:1, 2:1 and 4:1
   PARTITION_VERT_3,  // 3 vertical sub-partitions with ratios 4:1, 2:1 and 4:1
-#else
+  EXT_PARTITION_TYPES,
+  PARTITION_TYPES = PARTITION_SPLIT + 1,
+  PARTITION_INVALID = 255
+} UENUM1BYTE(PARTITION_TYPE);
+#else   // KEEP_PARTITION_SPLIT
+enum {
+  PARTITION_NONE,
+  PARTITION_HORZ,
+  PARTITION_VERT,
+  PARTITION_HORZ_3,  // 3 horizontal sub-partitions with ratios 4:1, 2:1 and 4:1
+  PARTITION_VERT_3,  // 3 vertical sub-partitions with ratios 4:1, 2:1 and 4:1
+  EXT_PARTITION_TYPES,
+  PARTITION_SPLIT = EXT_PARTITION_TYPES,
+  PARTITION_TYPES = PARTITION_VERT + 1,
+  PARTITION_INVALID = 255
+} UENUM1BYTE(PARTITION_TYPE);
+#endif  // KEEP_PARTITION_SPLIT
+#else   // CONFIG_EXT_RECUR_PARTITIONS
+enum {
+  PARTITION_NONE,
+  PARTITION_HORZ,
+  PARTITION_VERT,
   PARTITION_SPLIT,
   PARTITION_HORZ_A,  // HORZ split and the top partition is split again
   PARTITION_HORZ_B,  // HORZ split and the bottom partition is split again
@@ -181,16 +208,11 @@ enum {
   PARTITION_VERT_B,  // VERT split and the right partition is split again
   PARTITION_HORZ_4,  // 4:1 horizontal partition
   PARTITION_VERT_4,  // 4:1 vertical partition
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
   EXT_PARTITION_TYPES,
-#if CONFIG_EXT_RECUR_PARTITIONS
-  PARTITION_SPLIT = EXT_PARTITION_TYPES,
-  PARTITION_TYPES = PARTITION_VERT + 1,
-#else
   PARTITION_TYPES = PARTITION_SPLIT + 1,
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
   PARTITION_INVALID = 255
 } UENUM1BYTE(PARTITION_TYPE);
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
 typedef char PARTITION_CONTEXT;
 #define PARTITION_PLOFFSET 4  // number of probability models per block size
