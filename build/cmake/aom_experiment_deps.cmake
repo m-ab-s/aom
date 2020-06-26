@@ -53,6 +53,10 @@ macro(fix_experiment_configs)
     change_config_and_warn(CONFIG_EXTQUANT 1 CONFIG_EXTQUANT_HBD)
   endif()
 
+  if(CONFIG_EXTQUANT_HP)
+    change_config_and_warn(CONFIG_EXTQUANT 1 CONFIG_EXTQUANT_HP)
+  endif()
+
   if(CONFIG_EXTQUANT)
     change_config_and_warn(CONFIG_DELTA_DCQUANT 1 CONFIG_EXTQUANT)
   endif()

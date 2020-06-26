@@ -132,7 +132,8 @@ void aom_quantize_b_adaptive_avx2(
   int thresh[2];
   const qm_val_t wt = (1 << AOM_QM_BITS);
   for (int i = 0; i < 2; ++i) {
-    prescan_add[i] = ROUND_POWER_OF_TWO(dequant_ptr[i] * EOB_FACTOR, 7);
+    prescan_add[i] =
+        ROUND_POWER_OF_TWO(dequant_ptr[i] * EOB_FACTOR, 7 + QUANT_TABLE_BITS);
     thresh[i] = (zbin_ptr[i] * wt + prescan_add[i]) - 1;
   }
   __m256i threshold[2];
@@ -249,8 +250,8 @@ void aom_quantize_b_adaptive_avx2(
       const int coeff_sign = (coeff0 >> 31);
       const int abs_coeff = (coeff0 ^ coeff_sign) - coeff_sign;
       const int factor = EOB_FACTOR + SKIP_EOB_FACTOR_ADJUST;
-      const int prescan_add_val =
-          ROUND_POWER_OF_TWO(dequant_ptr[rc != 0] * factor, 7);
+      const int prescan_add_val = ROUND_POWER_OF_TWO(
+          dequant_ptr[rc != 0] * factor, 7 + QUANT_TABLE_BITS);
       if (abs_coeff <
           (zbin_ptr[rc != 0] * (1 << AOM_QM_BITS) + prescan_add_val)) {
         qcoeff_ptr[rc] = 0;

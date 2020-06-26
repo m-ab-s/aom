@@ -350,7 +350,8 @@ static void set_vbp_thresholds(AV1_COMP *cpi, int64_t thresholds[], int q,
   const int is_key_frame = frame_is_intra_only(cm);
   const int threshold_multiplier = is_key_frame ? 40 : 1;
   int64_t threshold_base =
-      (int64_t)(threshold_multiplier * cpi->dequants.y_dequant_QTX[q][1]);
+      (int64_t)(threshold_multiplier * cpi->dequants.y_dequant_QTX[q][1] /
+                (1 << QUANT_TABLE_BITS));
 
   if (is_key_frame) {
     thresholds[0] = threshold_base;
@@ -397,22 +398,18 @@ void av1_set_variance_partition_thresholds(AV1_COMP *cpi, int q,
       cpi->vbp_threshold_copy = 0;
       cpi->vbp_bsize_min = BLOCK_8X8;
     } else {
+      const int y_dq = cpi->dequants.y_dequant_QTX[q][1] >> QUANT_TABLE_BITS;
       if (cm->width <= 352 && cm->height <= 288)
         cpi->vbp_threshold_sad = 10;
       else
-        cpi->vbp_threshold_sad = (cpi->dequants.y_dequant_QTX[q][1] << 1) > 1000
-                                     ? (cpi->dequants.y_dequant_QTX[q][1] << 1)
-                                     : 1000;
+        cpi->vbp_threshold_sad = (y_dq << 1) > 1000 ? (y_dq << 1) : 1000;
       cpi->vbp_bsize_min = BLOCK_16X16;
       if (cm->width <= 352 && cm->height <= 288)
         cpi->vbp_threshold_copy = 4000;
       else if (cm->width <= 640 && cm->height <= 360)
         cpi->vbp_threshold_copy = 8000;
       else
-        cpi->vbp_threshold_copy =
-            (cpi->dequants.y_dequant_QTX[q][1] << 3) > 8000
-                ? (cpi->dequants.y_dequant_QTX[q][1] << 3)
-                : 8000;
+        cpi->vbp_threshold_copy = (y_dq << 3) > 8000 ? (y_dq << 3) : 8000;
     }
     cpi->vbp_threshold_minmax = 15 + (q >> 3);
   }

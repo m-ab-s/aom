@@ -42,7 +42,8 @@ void aom_quantize_b_adaptive_helper_c(
 
   int prescan_add[2];
   for (i = 0; i < 2; ++i)
-    prescan_add[i] = ROUND_POWER_OF_TWO(dequant_ptr[i] * EOB_FACTOR, 7);
+    prescan_add[i] =
+        ROUND_POWER_OF_TWO(dequant_ptr[i] * EOB_FACTOR, 7 + QUANT_TABLE_BITS);
 
   // Pre-scan pass
   for (i = (int)n_coeffs - 1; i >= 0; i--) {
@@ -83,7 +84,8 @@ void aom_quantize_b_adaptive_helper_c(
       const int dequant =
           (dequant_ptr[rc != 0] * iwt + (1 << (AOM_QM_BITS - 1))) >>
           AOM_QM_BITS;
-      const tran_low_t abs_dqcoeff = (tmp32 * dequant) >> log_scale;
+      const tran_low_t abs_dqcoeff =
+          (tmp32 * dequant) >> (log_scale + QUANT_TABLE_BITS);
       dqcoeff_ptr[rc] = (tran_low_t)((abs_dqcoeff ^ coeff_sign) - coeff_sign);
 
       if (tmp32) {
@@ -101,8 +103,8 @@ void aom_quantize_b_adaptive_helper_c(
       const qm_val_t wt = qm_ptr != NULL ? qm_ptr[rc] : (1 << AOM_QM_BITS);
       const int coeff = coeff_ptr[rc] * wt;
       const int factor = EOB_FACTOR + SKIP_EOB_FACTOR_ADJUST;
-      const int prescan_add_val =
-          ROUND_POWER_OF_TWO(dequant_ptr[rc != 0] * factor, 7);
+      const int prescan_add_val = ROUND_POWER_OF_TWO(
+          dequant_ptr[rc != 0] * factor, 7 + QUANT_TABLE_BITS);
       if (coeff < (zbins[rc != 0] * (1 << AOM_QM_BITS) + prescan_add_val) &&
           coeff > (nzbins[rc != 0] * (1 << AOM_QM_BITS) - prescan_add_val)) {
         qcoeff_ptr[rc] = 0;
@@ -181,7 +183,8 @@ void aom_quantize_b_helper_c(const tran_low_t *coeff_ptr, intptr_t n_coeffs,
       const int dequant =
           (dequant_ptr[rc != 0] * iwt + (1 << (AOM_QM_BITS - 1))) >>
           AOM_QM_BITS;
-      const tran_low_t abs_dqcoeff = (tmp32 * dequant) >> log_scale;
+      const tran_low_t abs_dqcoeff =
+          (tmp32 * dequant) >> (log_scale + QUANT_TABLE_BITS);
       dqcoeff_ptr[rc] = (tran_low_t)((abs_dqcoeff ^ coeff_sign) - coeff_sign);
 
       if (tmp32) eob = i;
@@ -218,7 +221,8 @@ void aom_highbd_quantize_b_adaptive_helper_c(
 
   int prescan_add[2];
   for (i = 0; i < 2; ++i)
-    prescan_add[i] = ROUND_POWER_OF_TWO(dequant_ptr[i] * EOB_FACTOR, 7);
+    prescan_add[i] =
+        ROUND_POWER_OF_TWO(dequant_ptr[i] * EOB_FACTOR, 7 + QUANT_TABLE_BITS);
 
   // Pre-scan pass
   for (i = (int)n_coeffs - 1; i >= 0; i--) {
@@ -256,7 +260,8 @@ void aom_highbd_quantize_b_adaptive_helper_c(
       const int dequant =
           (dequant_ptr[rc != 0] * iwt + (1 << (AOM_QM_BITS - 1))) >>
           AOM_QM_BITS;
-      const tran_low_t abs_dqcoeff = (abs_qcoeff * dequant) >> log_scale;
+      const tran_low_t abs_dqcoeff =
+          (abs_qcoeff * dequant) >> (log_scale + QUANT_TABLE_BITS);
       dqcoeff_ptr[rc] = (tran_low_t)((abs_dqcoeff ^ coeff_sign) - coeff_sign);
       if (abs_qcoeff) {
         eob = i;
@@ -273,8 +278,8 @@ void aom_highbd_quantize_b_adaptive_helper_c(
       const qm_val_t wt = qm_ptr != NULL ? qm_ptr[rc] : (1 << AOM_QM_BITS);
       const int coeff = coeff_ptr[rc] * wt;
       const int factor = EOB_FACTOR + SKIP_EOB_FACTOR_ADJUST;
-      const int prescan_add_val =
-          ROUND_POWER_OF_TWO(dequant_ptr[rc != 0] * factor, 7);
+      const int prescan_add_val = ROUND_POWER_OF_TWO(
+          dequant_ptr[rc != 0] * factor, 7 + QUANT_TABLE_BITS);
       if (coeff < (zbins[rc != 0] * (1 << AOM_QM_BITS) + prescan_add_val) &&
           coeff > (nzbins[rc != 0] * (1 << AOM_QM_BITS) - prescan_add_val)) {
         qcoeff_ptr[rc] = 0;
@@ -347,7 +352,8 @@ void aom_highbd_quantize_b_helper_c(
     qcoeff_ptr[rc] = (tran_low_t)((abs_qcoeff ^ coeff_sign) - coeff_sign);
     dequant =
         (dequant_ptr[rc != 0] * iwt + (1 << (AOM_QM_BITS - 1))) >> AOM_QM_BITS;
-    const tran_low_t abs_dqcoeff = (abs_qcoeff * dequant) >> log_scale;
+    const tran_low_t abs_dqcoeff =
+        (abs_qcoeff * dequant) >> (log_scale + QUANT_TABLE_BITS);
     dqcoeff_ptr[rc] = (tran_low_t)((abs_dqcoeff ^ coeff_sign) - coeff_sign);
     if (abs_qcoeff) eob = idx_arr[i];
   }

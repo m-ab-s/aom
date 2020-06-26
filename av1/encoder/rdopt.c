@@ -4310,7 +4310,7 @@ static int predict_skip_flag(const AV1_COMMON *const cm, MACROBLOCK *x,
   const int64_t mse = *dist / bw / bh;
   // Normalized quantizer takes the transform upscaling factor (8 for tx size
   // smaller than 32) into account.
-  const int16_t normalized_dc_q = dc_q >> 3;
+  const int16_t normalized_dc_q = dc_q >> (3 + QUANT_TABLE_BITS);
   const int64_t mse_thresh = (int64_t)normalized_dc_q * normalized_dc_q / 8;
   // Predict not to skip when mse is larger than threshold.
   if (mse > mse_thresh) return 0;
@@ -4336,8 +4336,10 @@ static int predict_skip_flag(const AV1_COMMON *const cm, MACROBLOCK *x,
 #else
   const int16_t ac_q = av1_ac_quant_QTX(x->qindex, 0, xd->bd);
 #endif
-  const uint32_t dc_thresh = max_qcoef_thresh * dc_q;
-  const uint32_t ac_thresh = max_qcoef_thresh * ac_q;
+  const uint32_t dc_thresh =
+      (max_qcoef_thresh * dc_q) / (1 << QUANT_TABLE_BITS);
+  const uint32_t ac_thresh =
+      (max_qcoef_thresh * ac_q) / (1 << QUANT_TABLE_BITS);
   for (int row = 0; row < bh; row += tx_h) {
     for (int col = 0; col < bw; col += tx_w) {
       av1_fwd_txfm(src_diff + col, coefs, bw, &param);

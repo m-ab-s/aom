@@ -197,6 +197,8 @@ set_aom_config_var(CONFIG_EXTQUANT 0 NUMBER
                    "AV2 extended quantization experiment flag")
 set_aom_config_var(CONFIG_EXTQUANT_HBD 0 NUMBER
                    "AV2 high bitdepth extended quantization experiment flag")
+set_aom_config_var(CONFIG_EXTQUANT_HP 0 NUMBER
+                   "AV2 high prec extended quantization experiment flag")
 set_aom_config_var(CONFIG_DELTA_DCQUANT 0 NUMBER
                    "AV2 base dc delta_q experiment flag")
 set_aom_config_var(CONFIG_EXT_LOOP_RESTORATION 0 NUMBER

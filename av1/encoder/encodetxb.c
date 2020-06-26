@@ -118,7 +118,13 @@ static INLINE tran_low_t qcoeff_to_dqcoeff(tran_low_t qc, int coeff_idx,
   if (iqmatrix != NULL)
     dqv =
         ((iqmatrix[coeff_idx] * dqv) + (1 << (AOM_QM_BITS - 1))) >> AOM_QM_BITS;
+#if QUANT_TABLE_BITS
+  return sign * (((tran_low_t)ROUND_POWER_OF_TWO_64((tran_high_t)abs(qc) * dqv,
+                                                    QUANT_TABLE_BITS)) >>
+                 shift);
+#else
   return sign * ((abs(qc) * dqv) >> shift);
+#endif  // QUANT_TABLE_BITS
 }
 
 static INLINE int64_t get_coeff_dist(tran_low_t tcoeff, tran_low_t dqcoeff,
@@ -1547,7 +1553,13 @@ static INLINE void get_qc_dqc_low(tran_low_t abs_qc, int sign, int dqv,
   tran_low_t abs_qc_low = abs_qc - 1;
   *qc_low = (-sign ^ abs_qc_low) + sign;
   assert((sign ? -abs_qc_low : abs_qc_low) == *qc_low);
+#if QUANT_TABLE_BITS
+  tran_low_t abs_dqc_low = (tran_low_t)(
+      ROUND_POWER_OF_TWO_64((tran_high_t)abs_qc_low * dqv, QUANT_TABLE_BITS) >>
+      shift);
+#else
   tran_low_t abs_dqc_low = (abs_qc_low * dqv) >> shift;
+#endif  // QUANT_TABLE_BITS
   *dqc_low = (-sign ^ abs_dqc_low) + sign;
   assert((sign ? -abs_dqc_low : abs_dqc_low) == *dqc_low);
 }
@@ -1652,7 +1664,14 @@ static AOM_FORCE_INLINE void update_coeff_simple(
     const int64_t rd = RDCOST(rdmult, rate, dist);
 
     const tran_low_t abs_qc_low = abs_qc - 1;
+#if QUANT_TABLE_BITS
+    const tran_low_t abs_dqc_low =
+        (tran_low_t)ROUND_POWER_OF_TWO_64((tran_high_t)abs_qc_low * dqv,
+                                          QUANT_TABLE_BITS) >>
+        shift;
+#else
     const tran_low_t abs_dqc_low = (abs_qc_low * dqv) >> shift;
+#endif  // QUANT_TABLE_BITS
     const int64_t dist_low = get_coeff_dist(abs_tqc, abs_dqc_low, shift);
     const int64_t rd_low = RDCOST(rdmult, rate_low, dist_low);
 
@@ -1680,8 +1699,10 @@ static INLINE void update_coeff_eob_fast(int *eob, int shift,
                                          tran_low_t *dqcoeff_ptr) {
   // TODO(sarahparker) make this work for aomqm
   int eob_out = *eob;
-  int zbin[2] = { dequant_ptr[0] + ROUND_POWER_OF_TWO(dequant_ptr[0] * 70, 7),
-                  dequant_ptr[1] + ROUND_POWER_OF_TWO(dequant_ptr[1] * 70, 7) };
+  int zbin[2] = { dequant_ptr[0] + ROUND_POWER_OF_TWO(dequant_ptr[0] * 70,
+                                                      7 + QUANT_TABLE_BITS),
+                  dequant_ptr[1] + ROUND_POWER_OF_TWO(dequant_ptr[1] * 70,
+                                                      7 + QUANT_TABLE_BITS) };
 
   for (int i = *eob - 1; i >= 0; i--) {
     const int rc = scan[i];

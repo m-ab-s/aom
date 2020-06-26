@@ -534,7 +534,8 @@ int av1_compute_rd_mult_based_on_qindex(const AV1_COMP *cpi, int qindex) {
                                      cpi->common.seq_params.base_y_dc_delta_q,
 #endif  // CONFIG_DELTA_DCQUANT
                                      cpi->common.seq_params.bit_depth);
-  int64_t rdmult = q * q * RDMULT_FROM_Q2_NUM / RDMULT_FROM_Q2_DEN;
+  int64_t rdmult = q * q * RDMULT_FROM_Q2_NUM /
+                   (RDMULT_FROM_Q2_DEN << (2 * QUANT_TABLE_BITS));
   switch (cpi->common.seq_params.bit_depth) {
     case AOM_BITS_8: break;
     case AOM_BITS_10: rdmult = ROUND_POWER_OF_TWO_64(rdmult, 4); break;
@@ -608,20 +609,25 @@ int av1_get_adaptive_rdmult(const AV1_COMP *cpi, double beta) {
                                cm->seq_params.base_y_dc_delta_q,
 #endif  // CONFIG_DELTA_DCQUANT
                                cm->seq_params.bit_depth);
-  int64_t rdmult = 0;
+  int64_t rdmult;
 
   switch (cm->seq_params.bit_depth) {
     case AOM_BITS_8:
-      rdmult = (int)((RDMULT_FROM_Q2_NUM * q * q / beta) / RDMULT_FROM_Q2_DEN);
+      rdmult = ROUND_POWER_OF_TWO(
+          (int)((RDMULT_FROM_Q2_NUM * q * q / beta) / RDMULT_FROM_Q2_DEN),
+          2 * QUANT_TABLE_BITS);
       break;
     case AOM_BITS_10:
       rdmult = ROUND_POWER_OF_TWO(
-          (int)((RDMULT_FROM_Q2_NUM * q * q / beta) / RDMULT_FROM_Q2_DEN), 4);
+          (int)((RDMULT_FROM_Q2_NUM * q * q / beta) / RDMULT_FROM_Q2_DEN),
+          4 + 2 * QUANT_TABLE_BITS);
       break;
+    case AOM_BITS_12:
     default:
       assert(cpi->common.seq_params.bit_depth == AOM_BITS_12);
       rdmult = ROUND_POWER_OF_TWO(
-          (int)((RDMULT_FROM_Q2_NUM * q * q / beta) / RDMULT_FROM_Q2_DEN), 8);
+          (int)((RDMULT_FROM_Q2_NUM * q * q / beta) / RDMULT_FROM_Q2_DEN),
+          8 + 2 * QUANT_TABLE_BITS);
       break;
   }
 
@@ -673,6 +679,7 @@ static int compute_rd_thresh_factor(int qindex,
       assert(0 && "bit_depth should be AOM_BITS_8, AOM_BITS_10 or AOM_BITS_12");
       return -1;
   }
+  q /= (1 << QUANT_TABLE_BITS);
   // TODO(debargha): Adjust the function below.
   return AOMMAX((int)(pow(q, RD_THRESH_POW) * RD_THRESH_MUL), 8);
 }
@@ -1807,11 +1814,15 @@ int av1_get_intra_cost_penalty(int qindex, int qdelta,
 #endif  // CONFIG_DELTA_DCQUANT
                                  bit_depth);
   switch (bit_depth) {
-    case AOM_BITS_8: return INTRA_COST_PENALTY_Q_FACTOR * q;
+    case AOM_BITS_8:
+      return ROUND_POWER_OF_TWO(INTRA_COST_PENALTY_Q_FACTOR * q,
+                                0 + 2 * QUANT_TABLE_BITS);
     case AOM_BITS_10:
-      return ROUND_POWER_OF_TWO(INTRA_COST_PENALTY_Q_FACTOR * q, 2);
+      return ROUND_POWER_OF_TWO(INTRA_COST_PENALTY_Q_FACTOR * q,
+                                2 + 2 * QUANT_TABLE_BITS);
     case AOM_BITS_12:
-      return ROUND_POWER_OF_TWO(INTRA_COST_PENALTY_Q_FACTOR * q, 4);
+      return ROUND_POWER_OF_TWO(INTRA_COST_PENALTY_Q_FACTOR * q,
+                                4 + 2 * QUANT_TABLE_BITS);
     default:
       assert(0 && "bit_depth should be AOM_BITS_8, AOM_BITS_10 or AOM_BITS_12");
       return -1;
