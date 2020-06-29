@@ -16,6 +16,8 @@
 #include "av1/common/blockd.h"
 #include "av1/common/enums.h"
 
+#include "av1/encoder/enc_enums.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -45,6 +47,11 @@ void av1_encode_sb_row(struct AV1_COMP *cpi, struct ThreadData *td,
 void av1_enc_set_offsets(const struct AV1_COMP *cpi, const TileInfo *const tile,
                          struct macroblock *const x, int mi_row, int mi_col,
                          BLOCK_SIZE bsize, CHROMA_REF_INFO *chr_ref_info);
+
+void av1_setup_block_rdmult(const struct AV1_COMP *cpi,
+                            struct macroblock *const x, int mi_row, int mi_col,
+                            BLOCK_SIZE bsize, AQ_MODE aq_mode,
+                            MB_MODE_INFO *mbmi);
 
 #ifdef __cplusplus
 }  // extern "C"

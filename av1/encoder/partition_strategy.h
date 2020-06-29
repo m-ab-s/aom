@@ -132,9 +132,11 @@ int av1_ml_predict_breakout(const AV1_COMP *const cpi, BLOCK_SIZE bsize,
 #endif  // !CONFIG_REALTIME_ONLY
 
 #if CONFIG_EXT_RECUR_PARTITIONS
-void av1_get_sms_data(AV1_COMP *const cpi, const TileInfo *const tile,
-                      MACROBLOCK *x, CHROMA_REF_INFO *chr_ref_info, int mi_row,
-                      int mi_col, BLOCK_SIZE bsize);
+SimpleMotionData *av1_get_sms_data(AV1_COMP *const cpi,
+                                   const TileInfo *const tile, MACROBLOCK *x,
+                                   CHROMA_REF_INFO *chr_ref_info, int mi_row,
+                                   int mi_col, BLOCK_SIZE bsize);
+
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 
 // A simplified version of set_offsets meant to be used for
@@ -198,7 +200,7 @@ static INLINE void init_simple_motion_search_mvs(
 }
 
 #if CONFIG_EXT_RECUR_PARTITIONS
-static INLINE void init_sms_data_bufs(SimpleMotionDataBufs *data_bufs) {
+static INLINE void av1_init_sms_data_bufs(SimpleMotionDataBufs *data_bufs) {
   memset(data_bufs, 0, sizeof(*data_bufs));
 }
 #endif  // CONFIG_EXT_RECUR_PARTITIONS

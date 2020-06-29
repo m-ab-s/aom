@@ -14,6 +14,7 @@
 
 #include "av1/common/entropymv.h"
 #include "av1/common/entropy.h"
+#include "av1/common/mv.h"
 #include "av1/common/mvref_common.h"
 
 #include "av1/encoder/enc_enums.h"
@@ -232,12 +233,21 @@ enum {
 #if CONFIG_EXT_RECUR_PARTITIONS
 typedef struct SimpleMotionData {
   MV mv_ref;
+  MV fullmv;
+  MV submv;
   unsigned int sse;
   unsigned int var;
   unsigned int dist;
   int64_t rate;
   int64_t rdcost;
   int valid;
+
+  BLOCK_SIZE bsize;
+  int mi_row, mi_col;
+
+  MV_COST_TYPE mv_cost_type;
+  MvSubpelPrecision mv_precision;
+  int sadpb, errorperbit;
 } SimpleMotionData;
 
 #define BLOCK_128_COUNT 1

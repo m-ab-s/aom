@@ -1435,7 +1435,7 @@ static INLINE SimpleMotionData *get_sms_arr(SimpleMotionDataBufs *sms_bufs,
 #undef MAKE_SMS_ARR_SWITCH_CASE
 
 // Retrieves the SimpleMotionData from SimpleMotionDataBufs
-static INLINE SimpleMotionData *get_sms_data_entry(
+static AOM_INLINE SimpleMotionData *get_sms_data_entry(
     SimpleMotionDataBufs *sms_bufs, int mi_row, int mi_col, BLOCK_SIZE bsize,
     BLOCK_SIZE sb_size) {
   assert(mi_size_high[sb_size] == mi_size_wide[sb_size]);
@@ -1455,10 +1455,10 @@ static INLINE SimpleMotionData *get_sms_data_entry(
 }
 
 // Performs a simple motion search and store the result in sms_data.
-static void get_sms_data(AV1_COMP *const cpi, const TileInfo *const tile,
-                         MACROBLOCK *x, CHROMA_REF_INFO *chr_ref_info,
-                         SimpleMotionData *sms_data, int mi_row, int mi_col,
-                         BLOCK_SIZE bsize) {
+static void compute_sms_data(AV1_COMP *const cpi, const TileInfo *const tile,
+                             MACROBLOCK *x, CHROMA_REF_INFO *chr_ref_info,
+                             SimpleMotionData *sms_data, int mi_row, int mi_col,
+                             BLOCK_SIZE bsize) {
   const AV1_COMMON *const cm = &cpi->common;
   const int ref_frame =
       cpi->rc.is_src_frame_alt_ref ? ALTREF_FRAME : LAST_FRAME;
@@ -1477,10 +1477,19 @@ static void get_sms_data(AV1_COMP *const cpi, const TileInfo *const tile,
 
   av1_enc_set_offsets(cpi, tile, x, mi_row, mi_col, bsize, chr_ref_info);
 
+  // We need to update the rd-mult here to in case we are doing simple motion
+  // search on a sublock of the current coding block.
+  const int orig_rdmult = x->rdmult;
+  const AQ_MODE aq_mode = cpi->oxcf.aq_mode;
+  MB_MODE_INFO *mbmi = x->e_mbd.mi[0];
+  av1_setup_block_rdmult(cpi, x, mi_row, mi_col, bsize, aq_mode, mbmi);
+  // Set error per bit for current rdmult
+  set_error_per_bit(x, x->rdmult);
+
   if (cpi->ref_frame_flags & av1_ref_frame_flag_list[ref_frame]) {
     const MACROBLOCKD *xd = &x->e_mbd;
     av1_simple_motion_search_ext(cpi, tile, x, chr_ref_info, mi_row, mi_col,
-                                 bsize, ref_frame, kZeroMv);
+                                 bsize, ref_frame, kZeroMv, sms_data);
     sms_data->var = cpi->fn_ptr[bsize].vf(
         x->plane[0].src.buf, x->plane[0].src.stride, xd->plane[0].dst.buf,
         xd->plane[0].dst.stride, &sms_data->sse);
@@ -1490,24 +1499,50 @@ static void get_sms_data(AV1_COMP *const cpi, const TileInfo *const tile,
     sms_data->rdcost = RDCOST(x->rdmult, sms_data->rate, sms_data->dist);
   }
 
+  sms_data->valid = 1;
+  sms_data->bsize = bsize;
+  sms_data->mi_row = mi_row;
+  sms_data->mi_col = mi_col;
+
+  x->rdmult = orig_rdmult;
+
   return;
 }
 
+#if CONFIG_DEBUG
+static INLINE void print_sms(const SimpleMotionData *sms_data, char *prefix) {
+  BLOCK_SIZE bsize = sms_data->bsize;
+  MV fullmv = sms_data->fullmv;
+  MV submv = sms_data->submv;
+  printf("%s:: bsize: (%d, %d), mi_row: %d, mi_col: %d, rd: %ld\n", prefix,
+         block_size_wide[bsize], block_size_high[bsize], sms_data->mi_row,
+         sms_data->mi_col, sms_data->rdcost);
+  printf("%s:: fullmv: (%d, %d), submv: (%d, %d),\n", prefix, fullmv.row,
+         fullmv.col, submv.row, submv.col);
+
+  printf("%s:: mv_cost_type: %d, sadpb: %d, errpb: %d, mv_prec: %d\n", prefix,
+         sms_data->mv_cost_type, sms_data->sadpb, sms_data->errorperbit,
+         sms_data->mv_precision);
+}
+#endif
+
 // Computes and stores the simple motion search data for the block at mi_row,
 // mi_col with block size bsize.
-void av1_get_sms_data(AV1_COMP *const cpi, const TileInfo *const tile,
-                      MACROBLOCK *x, CHROMA_REF_INFO *chr_ref_info, int mi_row,
-                      int mi_col, BLOCK_SIZE bsize) {
+SimpleMotionData *av1_get_sms_data(AV1_COMP *const cpi,
+                                   const TileInfo *const tile, MACROBLOCK *x,
+                                   CHROMA_REF_INFO *chr_ref_info, int mi_row,
+                                   int mi_col, BLOCK_SIZE bsize) {
   const AV1_COMMON *const cm = &cpi->common;
   const BLOCK_SIZE sb_size = cm->seq_params.sb_size;
   SimpleMotionDataBufs *sms_bufs = x->sms_bufs;
   SimpleMotionData *cur_block =
       get_sms_data_entry(sms_bufs, mi_row, mi_col, bsize, sb_size);
-  if (cur_block->valid) {
-    return;
-  } else {
-    get_sms_data(cpi, tile, x, chr_ref_info, cur_block, mi_row, mi_col, bsize);
+  const int valid = cur_block->valid;
+  if (!valid) {
+    compute_sms_data(cpi, tile, x, chr_ref_info, cur_block, mi_row, mi_col,
+                     bsize);
   }
+  return cur_block;
 }
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 #endif  // !CONFIG_REALTIME_ONLY

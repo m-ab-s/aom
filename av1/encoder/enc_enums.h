@@ -490,6 +490,14 @@ enum {
   MAX_REFS
 } UENUM1BYTE(THR_MODES_SUB8X8);
 
+enum {
+  NO_AQ = 0,
+  VARIANCE_AQ = 1,
+  COMPLEXITY_AQ = 2,
+  CYCLIC_REFRESH_AQ = 3,
+  AQ_MODE_COUNT  // This should always be the last member of the enum
+} UENUM1BYTE(AQ_MODE);
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif

@@ -3533,7 +3533,7 @@ void av1_simple_motion_search_ext(AV1_COMP *const cpi,
                                   const TileInfo *const tile, MACROBLOCK *x,
                                   CHROMA_REF_INFO *chr_ref_info, int mi_row,
                                   int mi_col, BLOCK_SIZE bsize, int ref_frame,
-                                  MV start_mv) {
+                                  MV start_mv, SimpleMotionData *sms_data) {
   assert(!frame_is_intra_only(&cpi->common) &&
          "Simple motion search only enabled for non-key frames");
   AV1_COMMON *const cm = &cpi->common;
@@ -3570,16 +3570,21 @@ void av1_simple_motion_search_ext(AV1_COMP *const cpi,
 
   av1_setup_pre_planes(xd, ref_idx, yv12, mi_row, mi_col,
                        get_ref_scale_factors(cm, ref_frame), num_planes,
-                       &mbmi->chroma_ref_info);
+                       chr_ref_info);
   set_ref_ptrs(cm, xd, mbmi->ref_frame[0], mbmi->ref_frame[1]);
   if (scaled_ref_frame) {
     backup_yv12 = xd->plane[AOM_PLANE_Y].pre[ref_idx];
     av1_setup_pre_planes(xd, ref_idx, scaled_ref_frame, mi_row, mi_col, NULL,
-                         num_planes, &mbmi->chroma_ref_info);
+                         num_planes, chr_ref_info);
   }
 
   // This overwrites the mv_limits so we will need to restore it later.
   av1_set_mv_search_range(&x->mv_limits, &ref_mv);
+
+  sms_data->mv_cost_type = x->mv_cost_type;
+  sms_data->sadpb = sadpb;
+  sms_data->errorperbit = x->errorperbit;
+  sms_data->mv_precision = mbmi->max_mv_precision;
 
   var = av1_full_pixel_search(cpi, x, bsize, &start_mv, step_param, 1,
                               search_methods, do_mesh_search, sadpb,
@@ -3590,6 +3595,7 @@ void av1_simple_motion_search_ext(AV1_COMP *const cpi,
 #endif  // CONFIG_EXT_IBC_MODES
                               &cpi->ss_cfg[SS_CFG_SRC]);
 
+  sms_data->fullmv = x->best_mv.as_mv;
   // Restore
   x->mv_limits = tmp_mv_limits;
 
@@ -3632,6 +3638,7 @@ void av1_simple_motion_search_ext(AV1_COMP *const cpi,
     x->best_mv.as_mv.col *= 8;
   }
 
+  sms_data->submv = x->best_mv.as_mv;
   mbmi->mv[0].as_mv = x->best_mv.as_mv;
 
   // Get a copy of the prediction output
@@ -3665,7 +3672,7 @@ void av1_simple_motion_sse_var(AV1_COMP *cpi, MACROBLOCK *x, int mi_row,
   *var = cpi->fn_ptr[bsize].vf(src, src_stride, dst, dst_stride, sse);
 }
 
-// Exhuastive motion search around a given centre position with a given
+// Exhaustive motion search around a given centre position with a given
 // step size.
 static int exhaustive_mesh_search_var(const AV1_COMMON *cm, MACROBLOCK *x,
                                       MV *ref_mv, MV *best_mv, int range,

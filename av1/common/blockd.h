@@ -472,12 +472,10 @@ static INLINE int is_sub_partition_chroma_ref(PARTITION_TYPE partition,
   }
 }
 
-static INLINE void set_chroma_ref_offset_size(int mi_row, int mi_col,
-                                              PARTITION_TYPE partition,
-                                              BLOCK_SIZE bsize,
-                                              BLOCK_SIZE parent_bsize, int ss_x,
-                                              int ss_y, CHROMA_REF_INFO *info,
-                                              CHROMA_REF_INFO *parent_info) {
+static INLINE void set_chroma_ref_offset_size(
+    int mi_row, int mi_col, PARTITION_TYPE partition, BLOCK_SIZE bsize,
+    BLOCK_SIZE parent_bsize, int ss_x, int ss_y, CHROMA_REF_INFO *info,
+    const CHROMA_REF_INFO *parent_info) {
   const int pw = block_size_wide[bsize] >> ss_x;
   const int ph = block_size_high[bsize] >> ss_y;
   const int pw_less_than_4 = pw < 4;
@@ -593,7 +591,7 @@ static INLINE void set_chroma_ref_offset_size(int mi_row, int mi_col,
 
 static INLINE void set_chroma_ref_info(int mi_row, int mi_col, int index,
                                        BLOCK_SIZE bsize, CHROMA_REF_INFO *info,
-                                       CHROMA_REF_INFO *parent_info,
+                                       const CHROMA_REF_INFO *parent_info,
                                        BLOCK_SIZE parent_bsize,
                                        PARTITION_TYPE parent_partition,
                                        int ss_x, int ss_y) {

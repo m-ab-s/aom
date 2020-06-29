@@ -111,13 +111,6 @@ enum {
 } UENUM1BYTE(FRAMETYPE_FLAGS);
 
 enum {
-  NO_AQ = 0,
-  VARIANCE_AQ = 1,
-  COMPLEXITY_AQ = 2,
-  CYCLIC_REFRESH_AQ = 3,
-  AQ_MODE_COUNT  // This should always be the last member of the enum
-} UENUM1BYTE(AQ_MODE);
-enum {
   NO_DELTA_Q = 0,
   DELTA_Q_OBJECTIVE = 1,   // Modulation to improve objective quality
   DELTA_Q_PERCEPTUAL = 2,  // Modulation to improve perceptual quality
