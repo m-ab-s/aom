@@ -1294,10 +1294,26 @@ static INLINE int partition_rec_cdf_length(BLOCK_SIZE bsize) {
   switch (bsize) {
     case BLOCK_4X8:
     case BLOCK_8X4: return (PARTITION_LONG_SIDE_2_REC + 1);
+#if CONFIG_FLEX_PARTITION
+    case BLOCK_4X16:
+    case BLOCK_16X4:
+    case BLOCK_4X32:
+    case BLOCK_32X4:
+    case BLOCK_4X64:
+    case BLOCK_64X4:
+#endif  // CONFIG_FLEX_PARTITION
     case BLOCK_64X128:
     case BLOCK_128X64: return (PARTITION_LONG_SIDE_3_REC + 1);
     case BLOCK_8X16:
     case BLOCK_16X8:
+#if CONFIG_FLEX_PARTITION
+    case BLOCK_8X32:
+    case BLOCK_32X8:
+    case BLOCK_8X64:
+    case BLOCK_64X8: return (PARTITION_SHORT_SIDE_2_REC + 1);
+    case BLOCK_16X64:
+    case BLOCK_64X16:
+#endif  // CONFIG_FLEX_PARTITION
     case BLOCK_16X32:
     case BLOCK_32X16:
     case BLOCK_32X64:
