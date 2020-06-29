@@ -800,8 +800,12 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
 
   switch (cfg->g_pass) {
     case AOM_RC_ONE_PASS: oxcf->pass = 0; break;
+#if CONFIG_SINGLEPASS
+    default: oxcf->pass = 0; break;
+#else
     case AOM_RC_FIRST_PASS: oxcf->pass = 1; break;
     case AOM_RC_LAST_PASS: oxcf->pass = 2; break;
+#endif  // !CONFIG_SINGLEPASS
   }
 
   // Set Rate Control configuration.

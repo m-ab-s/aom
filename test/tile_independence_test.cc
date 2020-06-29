@@ -54,7 +54,11 @@ class TileIndependenceTest
 
   virtual void SetUp() {
     InitializeConfig();
+#if CONFIG_SINGLEPASS
+    SetMode(libaom_test::kOnePassGood);
+#else
     SetMode(libaom_test::kTwoPassGood);
+#endif  // CONFIG_SINGLEPASS
   }
 
   virtual void PreEncodeFrameHook(libaom_test::VideoSource *video,

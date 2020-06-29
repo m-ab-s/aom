@@ -45,6 +45,7 @@ void Encoder::EncodeFrame(VideoSource *video, const unsigned long frame_flags) {
   else
     Flush();
 
+#if !CONFIG_SINGLEPASS
   // Handle twopass stats
   CxDataIterator iter = GetCxData();
 
@@ -53,6 +54,7 @@ void Encoder::EncodeFrame(VideoSource *video, const unsigned long frame_flags) {
 
     stats_->Append(*pkt);
   }
+#endif  // !CONFIG_SINGLEPASS
 }
 
 void Encoder::EncodeFrameInternal(const VideoSource &video,
@@ -90,8 +92,10 @@ void EncoderTest::InitializeConfig() {
 
 void EncoderTest::SetMode(TestMode mode) {
   switch (mode) {
-    case kOnePassGood:
+    case kOnePassGood: break;
+#if !CONFIG_SINGLEPASS
     case kTwoPassGood: break;
+#endif  // !CONFIG_SINGLEPASS
     case kRealTime: {
       cfg_.g_lag_in_frames = 0;
       cfg_.g_usage = AOM_USAGE_REALTIME;
@@ -100,10 +104,14 @@ void EncoderTest::SetMode(TestMode mode) {
     default: ASSERT_TRUE(false) << "Unexpected mode " << mode;
   }
   mode_ = mode;
+#if CONFIG_SINGLEPASS
+  passes_ = 1;
+#else
   if (mode == kTwoPassGood)
     passes_ = 2;
   else
     passes_ = 1;
+#endif  // CONFIG_SINGLEPASS
 }
 
 static bool compare_plane(const uint8_t *const buf1, int stride1,
@@ -267,7 +275,9 @@ void EncoderTest::RunLoop(VideoSource *video) {
 
             case AOM_CODEC_PSNR_PKT: PSNRPktHook(pkt); break;
 
+#if !CONFIG_SINGLEPASS
             case AOM_CODEC_STATS_PKT: StatsPktHook(pkt); break;
+#endif  // !CONFIG_SINGLEPASS
 
             default: break;
           }

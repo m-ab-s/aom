@@ -82,6 +82,7 @@ set_aom_config_var(CONFIG_PIC 0 "Build with PIC enabled.")
 set_aom_config_var(CONFIG_RUNTIME_CPU_DETECT 1 "Runtime CPU detection support.")
 set_aom_config_var(CONFIG_SHARED 0 "Build shared libs.")
 set_aom_config_var(CONFIG_WEBM_IO 1 "Enables WebM support.")
+set_aom_config_var(CONFIG_SINGLEPASS 1 "Only allow single pass encoding.")
 
 # Debugging flags.
 set_aom_config_var(CONFIG_DEBUG 0 "Debug build flag.")

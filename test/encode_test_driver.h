@@ -28,6 +28,18 @@ namespace libaom_test {
 class CodecFactory;
 class VideoSource;
 
+#if CONFIG_SINGLEPASS
+enum TestMode { kRealTime, kOnePassGood };
+#define ALL_TEST_MODES \
+  ::testing::Values(::libaom_test::kRealTime, ::libaom_test::kOnePassGood)
+
+#define ONE_PASS_TEST_MODES \
+  ::testing::Values(::libaom_test::kRealTime, ::libaom_test::kOnePassGood)
+
+#define TWO_PASS_TEST_MODES ::testing::Values()
+
+#define NONREALTIME_TEST_MODES ::testing::Values(::libaom_test::kOnePassGood)
+#else
 enum TestMode { kRealTime, kOnePassGood, kTwoPassGood };
 #define ALL_TEST_MODES                                                     \
   ::testing::Values(::libaom_test::kRealTime, ::libaom_test::kOnePassGood, \
@@ -40,6 +52,7 @@ enum TestMode { kRealTime, kOnePassGood, kTwoPassGood };
 
 #define NONREALTIME_TEST_MODES \
   ::testing::Values(::libaom_test::kOnePassGood, ::libaom_test::kTwoPassGood)
+#endif  // CONFIG_SINGLEPASS
 
 // Provides an object to handle the libaom get_cx_data() iteration pattern
 class CxDataIterator {

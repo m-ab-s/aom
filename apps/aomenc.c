@@ -11,8 +11,6 @@
 
 #include "apps/aomenc.h"
 
-#include "config/aom_config.h"
-
 #include <assert.h>
 #include <limits.h>
 #include <math.h>
@@ -43,7 +41,9 @@
 
 #include "common/y4minput.h"
 #include "examples/encoder_util.h"
+#if !CONFIG_SINGLEPASS
 #include "stats/aomstats.h"
+#endif  // !CONFIG_SINGLEPASS
 #include "stats/rate_hist.h"
 
 #if CONFIG_LIBYUV
@@ -139,7 +139,7 @@ static const arg_def_t use_i444 =
     ARG_DEF(NULL, "i444", 0, "Input file is I444");
 static const arg_def_t codecarg = ARG_DEF(NULL, "codec", 1, "Codec to use");
 static const arg_def_t passes =
-    ARG_DEF("p", "passes", 1, "Number of passes (1/2)");
+    ARG_DEF("p", "passes", 1, "Number of passes (must be 1)");
 static const arg_def_t pass_arg =
     ARG_DEF(NULL, "pass", 1, "Pass to execute (1/2)");
 static const arg_def_t fpf_name =
@@ -354,6 +354,7 @@ static const arg_def_t *rc_args[] = { &dropframe_thresh,
                                       &buf_optimal_sz,
                                       NULL };
 
+#if !CONFIG_SINGLEPASS
 static const arg_def_t bias_pct =
     ARG_DEF(NULL, "bias-pct", 1, "CBR/VBR bias (0=CBR, 100=VBR)");
 static const arg_def_t minsection_pct =
@@ -362,6 +363,8 @@ static const arg_def_t maxsection_pct =
     ARG_DEF(NULL, "maxsection-pct", 1, "GOP max bitrate (% of target)");
 static const arg_def_t *rc_twopass_args[] = { &bias_pct, &minsection_pct,
                                               &maxsection_pct, NULL };
+#endif  // !CONFIG_SINGLEPASS
+
 static const arg_def_t fwd_kf_enabled =
     ARG_DEF(NULL, "enable-fwd-kf", 1, "Enable forward reference keyframes");
 static const arg_def_t kf_min_dist =
@@ -1048,8 +1051,10 @@ static void show_help(FILE *fout, int shorthelp) {
   arg_show_usage(fout, global_args);
   fprintf(fout, "\nRate Control Options:\n");
   arg_show_usage(fout, rc_args);
+#if !CONFIG_SINGLEPASS
   fprintf(fout, "\nTwopass Rate Control Options:\n");
   arg_show_usage(fout, rc_twopass_args);
+#endif  // !CONFIG_SINGLEPASS
   fprintf(fout, "\nKeyframe Placement Options:\n");
   arg_show_usage(fout, kf_args);
 #if CONFIG_AV1_ENCODER
@@ -1093,7 +1098,9 @@ struct WebmOutputContext {
 struct stream_config {
   struct aom_codec_enc_cfg cfg;
   const char *out_fn;
+#if !CONFIG_SINGLEPASS
   const char *stats_fn;
+#endif  // !CONFIG_SINGLEPASS
   stereo_format_t stereo_fmt;
   int arg_ctrls[ARG_CTRL_CNT_MAX][2];
   int arg_ctrl_cnt;
@@ -1123,7 +1130,9 @@ struct stream_state {
   unsigned int frames_out;
   uint64_t cx_time;
   size_t nbytes;
+#if !CONFIG_SINGLEPASS
   stats_io_t stats;
+#endif  // !CONFIG_SINGLEPASS
   struct aom_image *img;
   aom_codec_ctx_t decoder;
   int mismatch_seen;
@@ -1190,13 +1199,23 @@ static void parse_global_config(struct AvxEncoderConfig *global, char ***argv) {
     } else if (arg_match(&arg, &passes, argi)) {
       global->passes = arg_parse_uint(&arg);
 
+#if CONFIG_SINGLEPASS
+      if (global->passes != 1)
+        die("Error: Invalid number of passes (%d)\n", global->passes);
+#else
       if (global->passes < 1 || global->passes > 2)
         die("Error: Invalid number of passes (%d)\n", global->passes);
+#endif  // CONFIG_SINGLEPASS
     } else if (arg_match(&arg, &pass_arg, argi)) {
       global->pass = arg_parse_uint(&arg);
 
+#if CONFIG_SINGLEPASS
+      if (global->pass != 1)
+        die("Error: Invalid pass selected (%d)\n", global->pass);
+#else
       if (global->pass < 1 || global->pass > 2)
         die("Error: Invalid pass selected (%d)\n", global->pass);
+#endif  // CONFIG_SINGLEPASS
     } else if (arg_match(&arg, &input_chroma_sample_position, argi)) {
       global->csp = arg_parse_enum(&arg);
       /* Flag is used by later code as well, preserve it. */
@@ -1245,6 +1264,7 @@ static void parse_global_config(struct AvxEncoderConfig *global, char ***argv) {
       argj++;
   }
 
+#if !CONFIG_SINGLEPASS
   if (global->pass) {
     /* DWIM: Assume the user meant passes=2 if pass=2 is specified */
     if (global->pass > global->passes) {
@@ -1253,26 +1273,34 @@ static void parse_global_config(struct AvxEncoderConfig *global, char ***argv) {
       global->passes = global->pass;
     }
   }
+#endif  // !CONFIG_SINGLEPASS
+
   /* Validate global config */
   if (global->passes == 0) {
 #if CONFIG_AV1_ENCODER
     // Make default AV1 passes = 2 until there is a better quality 1-pass
     // encoder
     if (global->codec != NULL)
+#if CONFIG_SINGLEPASS
+      global->passes = 1;
+#else
       global->passes =
           (strcmp(get_short_name_by_aom_encoder(global->codec), "av1") == 0 &&
            global->usage != AOM_USAGE_REALTIME)
               ? 2
               : 1;
+#endif  // CONFIG_SINGLEPASS
 #else
     global->passes = 1;
-#endif
+#endif  // CONFIG_AV1_ENCODER
   }
 
+#if !CONFIG_SINGLEPASS
   if (global->usage == AOM_USAGE_REALTIME && global->passes > 1) {
     warn("Enforcing one-pass encoding in realtime mode\n");
     global->passes = 1;
   }
+#endif  // !CONFIG_SINGLEPASS
 }
 
 static void open_input_file(struct AvxInputContext *input,
@@ -1469,8 +1497,10 @@ static int parse_stream_params(struct AvxEncoderConfig *global,
           config->write_ivf = 0;
         }
       }
+#if !CONFIG_SINGLEPASS
     } else if (arg_match(&arg, &fpf_name, argi)) {
       config->stats_fn = arg.val;
+#endif  // !CONFIG_SINGLEPASS
     } else if (arg_match(&arg, &use_webm, argi)) {
 #if CONFIG_WEBM_IO
       config->write_webm = 1;
@@ -1571,6 +1601,7 @@ static int parse_stream_params(struct AvxEncoderConfig *global,
       config->cfg.rc_buf_initial_sz = arg_parse_uint(&arg);
     } else if (arg_match(&arg, &buf_optimal_sz, argi)) {
       config->cfg.rc_buf_optimal_sz = arg_parse_uint(&arg);
+#if !CONFIG_SINGLEPASS
     } else if (arg_match(&arg, &bias_pct, argi)) {
       config->cfg.rc_2pass_vbr_bias_pct = arg_parse_uint(&arg);
       if (global->passes < 2)
@@ -1585,6 +1616,7 @@ static int parse_stream_params(struct AvxEncoderConfig *global,
 
       if (global->passes < 2)
         warn("option %s ignored in one-pass mode.\n", arg.name);
+#endif  // !CONFIG_SINGLEPASS
     } else if (arg_match(&arg, &fwd_kf_enabled, argi)) {
       config->cfg.fwd_kf_enabled = arg_parse_uint(&arg);
     } else if (arg_match(&arg, &kf_min_dist, argi)) {
@@ -1679,6 +1711,7 @@ static void validate_stream_config(const struct stream_state *stream,
               streami->index, stream->index);
     }
 
+#if !CONFIG_SINGLEPASS
     /* Check for two streams sharing a stats file. */
     if (streami != stream) {
       const char *a = stream->config.stats_fn;
@@ -1687,6 +1720,7 @@ static void validate_stream_config(const struct stream_state *stream,
         fatal("Stream %d: duplicate stats file (from stream %d)",
               streami->index, stream->index);
     }
+#endif  // !CONFIG_SINGLEPASS
   }
 }
 
@@ -1775,9 +1809,11 @@ static void show_stream_config(struct stream_state *stream,
   SHOW(rc_buf_sz);
   SHOW(rc_buf_initial_sz);
   SHOW(rc_buf_optimal_sz);
+#if !CONFIG_SINGLEPASS
   SHOW(rc_2pass_vbr_bias_pct);
   SHOW(rc_2pass_vbr_minsection_pct);
   SHOW(rc_2pass_vbr_maxsection_pct);
+#endif  // !CONFIG_SINGLEPASS
   SHOW(fwd_kf_enabled);
   SHOW(kf_mode);
   SHOW(kf_min_dist);
@@ -1886,6 +1922,11 @@ static void close_output_file(struct stream_state *stream,
 
 static void setup_pass(struct stream_state *stream,
                        struct AvxEncoderConfig *global, int pass) {
+#if CONFIG_SINGLEPASS
+  (void)global;
+  (void)pass;
+  assert(pass == 0);
+#else
   if (stream->config.stats_fn) {
     if (!stats_open_file(&stream->stats, stream->config.stats_fn, pass))
       fatal("Failed to open statistics store");
@@ -1893,13 +1934,18 @@ static void setup_pass(struct stream_state *stream,
     if (!stats_open_mem(&stream->stats, pass))
       fatal("Failed to open statistics store");
   }
+#endif  // CONFIG_SINGLEPASS
 
+#if CONFIG_SINGLEPASS
+  stream->config.cfg.g_pass = AOM_RC_ONE_PASS;
+#else
   stream->config.cfg.g_pass = global->passes == 2
                                   ? pass ? AOM_RC_LAST_PASS : AOM_RC_FIRST_PASS
                                   : AOM_RC_ONE_PASS;
   if (pass) {
     stream->config.cfg.rc_twopass_stats_in = stats_get(&stream->stats);
   }
+#endif  // CONFIG_SINGLEPASS
 
   stream->cx_time = 0;
   stream->nbytes = 0;
@@ -2129,12 +2175,14 @@ static void get_cx_data(struct stream_state *stream,
         }
 #endif
         break;
+#if !CONFIG_SINGLEPASS
       case AOM_CODEC_STATS_PKT:
         stream->frames_out++;
         stats_write(&stream->stats, pkt->data.twopass_stats.buf,
                     pkt->data.twopass_stats.sz);
         stream->nbytes += pkt->data.raw.sz;
         break;
+#endif  // !CONFIG_SINGLEPASS
       case AOM_CODEC_PSNR_PKT:
 
         if (global->show_psnr) {
@@ -2493,6 +2541,7 @@ int main(int argc, const char **argv_) {
     }
     FOREACH_STREAM(stream, streams) { validate_stream_config(stream, &global); }
 
+#if !CONFIG_SINGLEPASS
     /* Ensure that --passes and --pass are consistent. If --pass is set and
      * --passes=2, ensure --fpf was set.
      */
@@ -2504,6 +2553,7 @@ int main(int argc, const char **argv_) {
               stream->index, global.pass);
       }
     }
+#endif  // !CONFIG_SINGLEPASS
 
 #if !CONFIG_WEBM_IO
     FOREACH_STREAM(stream, streams) {
@@ -2527,13 +2577,17 @@ int main(int argc, const char **argv_) {
       stream->config.cfg.g_timebase.num = global.framerate.den;
     }
     /* Show configuration */
+#if CONFIG_SINGLEPASS
+    if (global.verbose) {
+#else
     if (global.verbose && pass == 0) {
+#endif  // CONFIG_SINGLEPASS
       FOREACH_STREAM(stream, streams) {
         show_stream_config(stream, &global, &input);
       }
     }
 
-    if (pass == (global.pass ? global.pass - 1 : 0)) {
+    if (CONFIG_SINGLEPASS || pass == (global.pass ? global.pass - 1 : 0)) {
       if (input.file_type == FILE_TYPE_Y4M)
         /*The Y4M reader does its own allocation.
           Just initialize this here to avoid problems if we never read any
@@ -2755,9 +2809,11 @@ int main(int argc, const char **argv_) {
       close_output_file(stream, get_fourcc_by_aom_encoder(global.codec));
     }
 
+#if !CONFIG_SINGLEPASS
     FOREACH_STREAM(stream, streams) {
       stats_close(&stream->stats, global.passes - 1);
     }
+#endif  // !CONFIG_SINGLEPASS
 
     if (global.pass) break;
   }

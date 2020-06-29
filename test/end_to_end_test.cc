@@ -77,7 +77,9 @@ const TestVideoParam kTestVectors[] = {
 
 // Encoding modes tested
 const libaom_test::TestMode kEncodingModeVectors[] = {
+#if !CONFIG_SINGLEPASS
   ::libaom_test::kTwoPassGood,
+#endif  // !CONFIG_SINGLEPASS
   ::libaom_test::kOnePassGood,
   ::libaom_test::kRealTime,
 };
@@ -136,11 +138,15 @@ class EndToEndTest
       encoder->Control(AV1E_SET_FRAME_PARALLEL_DECODING, 1);
       encoder->Control(AV1E_SET_TILE_COLUMNS, 4);
       encoder->Control(AOME_SET_CPUUSED, cpu_used_);
+#if CONFIG_SINGLEPASS
+      encoder->Control(AV1E_SET_TUNE_CONTENT, AOM_CONTENT_DEFAULT);
+#else
       // Test screen coding tools at cpu_used = 1 && encoding mode is two-pass.
       if (cpu_used_ == 1 && encoding_mode_ == ::libaom_test::kTwoPassGood)
         encoder->Control(AV1E_SET_TUNE_CONTENT, AOM_CONTENT_SCREEN);
       else
         encoder->Control(AV1E_SET_TUNE_CONTENT, AOM_CONTENT_DEFAULT);
+#endif  // CONFIG_SINGLEPASS
       if (encoding_mode_ != ::libaom_test::kRealTime) {
         encoder->Control(AOME_SET_ENABLEAUTOALTREF, 1);
         encoder->Control(AOME_SET_ARNR_MAXFRAMES, 7);

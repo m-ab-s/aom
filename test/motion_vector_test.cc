@@ -24,7 +24,9 @@ namespace {
 
 // Encoding modes
 const libaom_test::TestMode kEncodingModeVectors[] = {
+#if !CONFIG_SINGLEPASS
   ::libaom_test::kTwoPassGood,
+#endif  // !CONFIG_SINGLEPASS
   ::libaom_test::kOnePassGood,
 };
 

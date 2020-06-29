@@ -16,6 +16,8 @@ example_tests=$(ls -r $(dirname $0)/*.sh)
 
 # List of script names to exclude.
 exclude_list="best_encode examples run_encodes tools_common"
+[ "$(aom_config_option_enabled CONFIG_SINGLEPASS)" = "yes" ] && \
+  exclude_list="$exclude_list twopass_encoder lightfield_test"
 
 # Filter out the scripts in $exclude_list.
 for word in ${exclude_list}; do

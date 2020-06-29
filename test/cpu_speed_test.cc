@@ -78,8 +78,10 @@ void CpuSpeedTest::TestQ0() {
   // without a mismatch when passing in a very low max q.  This pushes
   // the encoder to producing lots of big partitions which will likely
   // extend into the border and test the border condition.
+#if !CONFIG_SINGLEPASS
   cfg_.rc_2pass_vbr_minsection_pct = 5;
   cfg_.rc_2pass_vbr_maxsection_pct = 2000;
+#endif  // !CONFIG_SINGLEPASS
   cfg_.rc_target_bitrate = 400;
   cfg_.rc_max_quantizer = 0;
   cfg_.rc_min_quantizer = 0;
@@ -96,8 +98,10 @@ void CpuSpeedTest::TestQ0() {
 void CpuSpeedTest::TestScreencastQ0() {
   ::libaom_test::Y4mVideoSource video("screendata.y4m", 0, 3);
   cfg_.g_timebase = video.timebase();
+#if !CONFIG_SINGLEPASS
   cfg_.rc_2pass_vbr_minsection_pct = 5;
   cfg_.rc_2pass_vbr_maxsection_pct = 2000;
+#endif  // !CONFIG_SINGLEPASS
   cfg_.rc_target_bitrate = 400;
   cfg_.rc_max_quantizer = 0;
   cfg_.rc_min_quantizer = 0;
@@ -111,8 +115,10 @@ void CpuSpeedTest::TestScreencastQ0() {
 void CpuSpeedTest::TestTuneScreen() {
   ::libaom_test::Y4mVideoSource video("screendata.y4m", 0, 3);
   cfg_.g_timebase = video.timebase();
+#if !CONFIG_SINGLEPASS
   cfg_.rc_2pass_vbr_minsection_pct = 5;
   cfg_.rc_2pass_vbr_minsection_pct = 2000;
+#endif  // !CONFIG_SINGLEPASS
   cfg_.rc_target_bitrate = 2000;
   cfg_.rc_max_quantizer = 63;
   cfg_.rc_min_quantizer = 0;
@@ -128,8 +134,10 @@ void CpuSpeedTest::TestEncodeHighBitrate() {
   // without a mismatch when passing in a very low max q.  This pushes
   // the encoder to producing lots of big partitions which will likely
   // extend into the border and test the border condition.
+#if !CONFIG_SINGLEPASS
   cfg_.rc_2pass_vbr_minsection_pct = 5;
   cfg_.rc_2pass_vbr_maxsection_pct = 2000;
+#endif  // !CONFIG_SINGLEPASS
   cfg_.rc_target_bitrate = 12000;
   cfg_.rc_max_quantizer = 10;
   cfg_.rc_min_quantizer = 0;
@@ -144,8 +152,10 @@ void CpuSpeedTest::TestLowBitrate() {
   // Validate that this clip encodes and decodes without a mismatch
   // when passing in a very high min q.  This pushes the encoder to producing
   // lots of small partitions which might will test the other condition.
+#if !CONFIG_SINGLEPASS
   cfg_.rc_2pass_vbr_minsection_pct = 5;
   cfg_.rc_2pass_vbr_maxsection_pct = 2000;
+#endif  // !CONFIG_SINGLEPASS
   cfg_.rc_target_bitrate = 200;
   cfg_.rc_min_quantizer = 40;
 
@@ -169,6 +179,14 @@ TEST_P(CpuSpeedTestLarge, TestTuneScreen) { TestTuneScreen(); }
 TEST_P(CpuSpeedTestLarge, TestEncodeHighBitrate) { TestEncodeHighBitrate(); }
 TEST_P(CpuSpeedTestLarge, TestLowBitrate) { TestLowBitrate(); }
 
+#if CONFIG_SINGLEPASS
+AV1_INSTANTIATE_TEST_CASE(CpuSpeedTest,
+                          ::testing::Values(::libaom_test::kOnePassGood),
+                          ::testing::Range(1, 3));
+AV1_INSTANTIATE_TEST_CASE(CpuSpeedTestLarge,
+                          ::testing::Values(::libaom_test::kOnePassGood),
+                          ::testing::Range(0, 1));
+#else
 AV1_INSTANTIATE_TEST_CASE(CpuSpeedTest,
                           ::testing::Values(::libaom_test::kTwoPassGood,
                                             ::libaom_test::kOnePassGood),
@@ -177,4 +195,5 @@ AV1_INSTANTIATE_TEST_CASE(CpuSpeedTestLarge,
                           ::testing::Values(::libaom_test::kTwoPassGood,
                                             ::libaom_test::kOnePassGood),
                           ::testing::Range(0, 1));
+#endif  // CONFIG_SINGLEPASS
 }  // namespace

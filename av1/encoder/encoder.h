@@ -2671,24 +2671,41 @@ static INLINE int is_altref_enabled(int lag_in_frames, bool enable_auto_arf) {
 static INLINE int is_stat_generation_stage(const AV1_COMP *const cpi) {
   assert(IMPLIES(cpi->compressor_stage == LAP_STAGE,
                  cpi->oxcf.pass == 0 && cpi->lap_enabled));
+#if CONFIG_SINGLEPASS
+  return (cpi->compressor_stage == LAP_STAGE);
+#else
   return (cpi->oxcf.pass == 1 || (cpi->compressor_stage == LAP_STAGE));
+#endif  // CONFIG_SINGLEPASS
 }
 // Check if statistics consumption stage
 static INLINE int is_stat_consumption_stage_twopass(const AV1_COMP *const cpi) {
+#if CONFIG_SINGLEPASS
   return (cpi->oxcf.pass == 2);
+#else
+  (void)cpi;
+  return 0;
+#endif  // CONFIG_SINGLEPASS
 }
 
 // Check if statistics consumption stage
 static INLINE int is_stat_consumption_stage(const AV1_COMP *const cpi) {
   return (is_stat_consumption_stage_twopass(cpi) ||
+#if CONFIG_SINGLEPASS
+          ((cpi->compressor_stage == ENCODE_STAGE) &&
+#else
           (cpi->oxcf.pass == 0 && (cpi->compressor_stage == ENCODE_STAGE) &&
+#endif  // CONFIG_SINGLEPASS
            cpi->lap_enabled));
 }
 
 // Check if the current stage has statistics
 static INLINE int has_no_stats_stage(const AV1_COMP *const cpi) {
   assert(IMPLIES(!cpi->lap_enabled, cpi->compressor_stage == ENCODE_STAGE));
+#if CONFIG_SINGLEPASS
+  return (!cpi->lap_enabled);
+#else
   return (cpi->oxcf.pass == 0 && !cpi->lap_enabled);
+#endif  // CONFIG_SINGLEPASS
 }
 
 // Function return size of frame stats buffer

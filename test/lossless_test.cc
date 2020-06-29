@@ -120,7 +120,12 @@ TEST_P(LosslessTestLarge, TestLossLessEncodingCtrl) {
   EXPECT_GE(psnr_lossless, kMaxPsnr);
 }
 
+#if CONFIG_SINGLEPASS
+AV1_INSTANTIATE_TEST_CASE(LosslessTestLarge,
+                          ::testing::Values(::libaom_test::kOnePassGood));
+#else
 AV1_INSTANTIATE_TEST_CASE(LosslessTestLarge,
                           ::testing::Values(::libaom_test::kOnePassGood,
                                             ::libaom_test::kTwoPassGood));
+#endif  // CONFIG_SINGLEPASS
 }  // namespace

@@ -77,6 +77,9 @@ static int get_frame_stats(aom_codec_ctx_t *ctx, const aom_image_t *img,
   while ((pkt = aom_codec_get_cx_data(ctx, &iter)) != NULL) {
     got_pkts = 1;
 
+#if CONFIG_SINGLEPASS
+    (void)stats;
+#else
     if (pkt->kind == AOM_CODEC_STATS_PKT) {
       const uint8_t *const pkt_buf = pkt->data.twopass_stats.buf;
       const size_t pkt_size = pkt->data.twopass_stats.sz;
@@ -84,6 +87,7 @@ static int get_frame_stats(aom_codec_ctx_t *ctx, const aom_image_t *img,
       memcpy((uint8_t *)stats->buf + stats->sz, pkt_buf, pkt_size);
       stats->sz += pkt_size;
     }
+#endif  // !CONFIG_SINGLEPASS
   }
 
   return got_pkts;

@@ -11,6 +11,7 @@
 #ifndef AOM_APPS_AOMENC_H_
 #define AOM_APPS_AOMENC_H_
 
+#include "config/aom_config.h"
 #include "aom/aom_codec.h"
 #include "aom/aom_encoder.h"
 
