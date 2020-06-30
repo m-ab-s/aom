@@ -242,7 +242,7 @@ static const int16_t ac_qlookup_QTX[60] = {
 //  qstep =  (34 + 9 * q_index) / 8                 q_index in [1, 29]
 //           19*POWER(2, q_index/30)                q_index in [30,255]
 #if CONFIG_EXTQUANT_HBD
-static const int16_t ac_qlookup_QTX[QINDEX_RANGE_UNEXT] = {
+static const int16_t ac_qlookup_QTX[QINDEX_RANGE_8_BITS] = {
 #else
 static const int16_t ac_qlookup_QTX[QINDEX_RANGE] = {
 #endif
@@ -384,7 +384,14 @@ static const int16_t ac_qlookup_12_QTX[QINDEX_RANGE] = {
 #if CONFIG_DELTA_DCQUANT
 int32_t av1_dc_quant_QTX(int qindex, int delta, int base_dc_delta_q,
                          aom_bit_depth_t bit_depth) {
+#if CONFIG_EXTQUANT_HBD
+  const int q_clamped = clamp(
+      qindex - base_dc_delta_q + delta, 0,
+      bit_depth == AOM_BITS_8 ? MAXQ_8_BITS
+                              : bit_depth == AOM_BITS_10 ? MAXQ_10_BITS : MAXQ);
+#else
   const int q_clamped = clamp(qindex - base_dc_delta_q + delta, 0, MAXQ);
+#endif
 #else
 int32_t av1_dc_quant_QTX(int qindex, int delta, aom_bit_depth_t bit_depth) {
   const int q_clamped = clamp(qindex + delta, 0, MAXQ);
@@ -393,9 +400,9 @@ int32_t av1_dc_quant_QTX(int qindex, int delta, aom_bit_depth_t bit_depth) {
 
 #if CONFIG_EXTQUANT_HBD
   int qindex_offset = 30 * (bit_depth - 8);
-  if (q_clamped > MAXQ_UNEXT) {
+  if (q_clamped > MAXQ_8_BITS) {
     switch (bit_depth) {
-      case AOM_BITS_8: assert(q_clamped <= MAXQ_UNEXT);
+      case AOM_BITS_8: assert(q_clamped <= MAXQ_8_BITS);
       case AOM_BITS_10: return 4 * ac_qlookup_QTX[q_clamped - qindex_offset];
       case AOM_BITS_12: return 16 * ac_qlookup_QTX[q_clamped - qindex_offset];
       default:
@@ -446,14 +453,21 @@ int16_t av1_dc_quant_QTX(int qindex, int delta, aom_bit_depth_t bit_depth) {
 
 #if CONFIG_EXTQUANT
 int32_t av1_ac_quant_QTX(int qindex, int delta, aom_bit_depth_t bit_depth) {
+#if CONFIG_EXTQUANT_HBD
+  const int q_clamped = clamp(
+      qindex + delta, 0,
+      bit_depth == AOM_BITS_8 ? MAXQ_8_BITS
+                              : bit_depth == AOM_BITS_10 ? MAXQ_10_BITS : MAXQ);
+#else
   const int q_clamped = clamp(qindex + delta, 0, MAXQ);
+#endif
   if (q_clamped == 0) return 4;
 
 #if CONFIG_EXTQUANT_HBD
   int qindex_offset = 30 * (bit_depth - 8);
-  if (q_clamped > MAXQ_UNEXT) {
+  if (q_clamped > MAXQ_8_BITS) {
     switch (bit_depth) {
-      case AOM_BITS_8: assert(q_clamped <= MAXQ_UNEXT);
+      case AOM_BITS_8: assert(q_clamped <= MAXQ_8_BITS);
       case AOM_BITS_10: return 4 * ac_qlookup_QTX[q_clamped - qindex_offset];
       case AOM_BITS_12: return 16 * ac_qlookup_QTX[q_clamped - qindex_offset];
       default:
@@ -491,11 +505,23 @@ int16_t av1_ac_quant_QTX(int qindex, int delta, aom_bit_depth_t bit_depth) {
 #endif
 
 int av1_get_qindex(const struct segmentation *seg, int segment_id,
-                   int base_qindex) {
+                   int base_qindex
+#if CONFIG_EXTQUANT_HBD
+                   ,
+                   aom_bit_depth_t bit_depth
+#endif
+) {
   if (segfeature_active(seg, segment_id, SEG_LVL_ALT_Q)) {
     const int data = get_segdata(seg, segment_id, SEG_LVL_ALT_Q);
     const int seg_qindex = base_qindex + data;
+#if CONFIG_EXTQUANT_HBD
+    return clamp(seg_qindex, 0,
+                 bit_depth == AOM_BITS_8
+                     ? MAXQ_8_BITS
+                     : bit_depth == AOM_BITS_10 ? MAXQ_10_BITS : MAXQ);
+#else
     return clamp(seg_qindex, 0, MAXQ);
+#endif
   } else {
     return base_qindex;
   }

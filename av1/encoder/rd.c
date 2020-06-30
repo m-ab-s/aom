@@ -502,16 +502,20 @@ static void init_me_luts_bd(int *bit16lut, int *bit4lut, int range,
 
 void av1_init_me_luts(void) {
 #if CONFIG_EXTQUANT_HBD
-  init_me_luts_bd(sad_per_bit16lut_8, sad_per_bit4lut_8, QINDEX_RANGE_UNEXT,
+  init_me_luts_bd(sad_per_bit16lut_8, sad_per_bit4lut_8, QINDEX_RANGE_8_BITS,
                   AOM_BITS_8);
+  init_me_luts_bd(sad_per_bit16lut_10, sad_per_bit4lut_10, QINDEX_RANGE_10_BITS,
+                  AOM_BITS_10);
+  init_me_luts_bd(sad_per_bit16lut_12, sad_per_bit4lut_12, QINDEX_RANGE,
+                  AOM_BITS_12);
 #else
   init_me_luts_bd(sad_per_bit16lut_8, sad_per_bit4lut_8, QINDEX_RANGE,
                   AOM_BITS_8);
-#endif
   init_me_luts_bd(sad_per_bit16lut_10, sad_per_bit4lut_10, QINDEX_RANGE,
                   AOM_BITS_10);
   init_me_luts_bd(sad_per_bit16lut_12, sad_per_bit4lut_12, QINDEX_RANGE,
                   AOM_BITS_12);
+#endif
 }
 
 static const int rd_boost_factor[16] = { 64, 32, 32, 32, 24, 16, 12, 12,
@@ -578,7 +582,16 @@ int av1_get_deltaq_offset(const AV1_COMP *cpi, int qindex, double beta) {
                            cpi->common.seq_params.base_y_dc_delta_q,
 #endif  // CONFIG_DELTA_DCQUANT
                            cpi->common.seq_params.bit_depth);
+#if CONFIG_EXTQUANT_HBD
+    } while (newq > q &&
+             (qindex < (cpi->common.seq_params.bit_depth == AOM_BITS_8
+                            ? MAXQ_8_BITS
+                            : cpi->common.seq_params.bit_depth == AOM_BITS_10
+                                  ? MAXQ_10_BITS
+                                  : MAXQ)));
+#else
     } while (newq > q && qindex < MAXQ);
+#endif
   }
   return qindex - orig_qindex;
 }
@@ -683,10 +696,21 @@ static void set_block_thresholds(const AV1_COMMON *cm, RD_OPT *rd) {
   int i, bsize, segment_id;
 
   for (segment_id = 0; segment_id < MAX_SEGMENTS; ++segment_id) {
+#if CONFIG_EXTQUANT_HBD
+    const int qindex = clamp(
+        av1_get_qindex(&cm->seg, segment_id, cm->base_qindex,
+                       cm->seq_params.bit_depth) +
+            cm->y_dc_delta_q,
+        0,
+        cm->seq_params.bit_depth == AOM_BITS_8
+            ? MAXQ_8_BITS
+            : cm->seq_params.bit_depth == AOM_BITS_10 ? MAXQ_10_BITS : MAXQ);
+#else
     const int qindex =
         clamp(av1_get_qindex(&cm->seg, segment_id, cm->base_qindex) +
                   cm->y_dc_delta_q,
               0, MAXQ);
+#endif
     const int q = compute_rd_thresh_factor(qindex,
 #if CONFIG_DELTA_DCQUANT
                                            cm->seq_params.base_y_dc_delta_q,

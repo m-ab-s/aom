@@ -63,7 +63,12 @@ struct CYCLIC_REFRESH {
   int apply_cyclic_refresh;
 };
 
-CYCLIC_REFRESH *av1_cyclic_refresh_alloc(int mi_rows, int mi_cols) {
+CYCLIC_REFRESH *av1_cyclic_refresh_alloc(int mi_rows, int mi_cols
+#if CONFIG_EXTQUANT_HBD
+                                         ,
+                                         aom_bit_depth_t bit_depth
+#endif
+) {
   size_t last_coded_q_map_size;
   CYCLIC_REFRESH *const cr = aom_calloc(1, sizeof(*cr));
   if (cr == NULL) return NULL;
@@ -80,11 +85,20 @@ CYCLIC_REFRESH *av1_cyclic_refresh_alloc(int mi_rows, int mi_cols) {
     return NULL;
   }
 #if CONFIG_EXTQUANT_HBD
-  assert(MAXQ <= (QINDEX_RANGE - 1));
+  assert(bit_depth == AOM_BITS_8
+             ? (MAXQ_8_BITS <= (QINDEX_RANGE_8_BITS - 1))
+             : bit_depth == AOM_BITS_10
+                   ? (MAXQ_10_BITS <= (QINDEX_RANGE_10_BITS - 1))
+                   : (MAXQ <= (QINDEX_RANGE - 1)));
+  memset(cr->last_coded_q_map,
+         bit_depth == AOM_BITS_8
+             ? MAXQ_8_BITS
+             : bit_depth == AOM_BITS_10 ? MAXQ_10_BITS : MAXQ,
+         last_coded_q_map_size);
 #else
   assert(MAXQ <= 255);
-#endif
   memset(cr->last_coded_q_map, MAXQ, last_coded_q_map_size);
+#endif
 
   return cr;
 }
@@ -322,7 +336,12 @@ static void cyclic_refresh_update_map(AV1_COMP *const cpi) {
     int mi_col = sb_col_index * cm->seq_params.mib_size;
     int qindex_thresh =
         cpi->oxcf.content == AOM_CONTENT_SCREEN
+#if CONFIG_EXTQUANT_HBD
+            ? av1_get_qindex(&cm->seg, CR_SEGMENT_ID_BOOST2, cm->base_qindex,
+                             cm->seq_params.bit_depth)
+#else
             ? av1_get_qindex(&cm->seg, CR_SEGMENT_ID_BOOST2, cm->base_qindex)
+#endif
             : 0;
     assert(mi_row >= 0 && mi_row < cm->mi_rows);
     assert(mi_col >= 0 && mi_col < cm->mi_cols);
@@ -447,7 +466,14 @@ void av1_cyclic_refresh_setup(AV1_COMP *const cpi) {
     if (cm->current_frame.frame_type == KEY_FRAME) {
 #if CONFIG_EXTQUANT
       for (int i = 0; i <= (cm->mi_rows * cm->mi_cols); i++)
+#if CONFIG_EXTQUANT_HBD
+        cr->last_coded_q_map[i] =
+            cm->seq_params.bit_depth == AOM_BITS_8
+                ? MAXQ_8_BITS
+                : cm->seq_params.bit_depth == AOM_BITS_10 ? MAXQ_10_BITS : MAXQ;
+#else
         cr->last_coded_q_map[i] = MAXQ;
+#endif
 #else
       memset(cr->last_coded_q_map, MAXQ,
              cm->mi_rows * cm->mi_cols * sizeof(*cr->last_coded_q_map));
@@ -493,8 +519,16 @@ void av1_cyclic_refresh_setup(AV1_COMP *const cpi) {
     cr->qindex_delta[1] = qindex_delta;
 
     // Compute rd-mult for segment BOOST1.
+#if CONFIG_EXTQUANT_HBD
+    const int qindex2 = clamp(
+        cm->base_qindex + cm->y_dc_delta_q + qindex_delta, 0,
+        cm->seq_params.bit_depth == AOM_BITS_8
+            ? MAXQ_8_BITS
+            : cm->seq_params.bit_depth == AOM_BITS_10 ? MAXQ_10_BITS : MAXQ);
+#else
     const int qindex2 =
         clamp(cm->base_qindex + cm->y_dc_delta_q + qindex_delta, 0, MAXQ);
+#endif
     cr->rdmult = av1_compute_rd_mult(cpi, qindex2);
 
     av1_set_segdata(seg, CR_SEGMENT_ID_BOOST1, SEG_LVL_ALT_Q, qindex_delta);

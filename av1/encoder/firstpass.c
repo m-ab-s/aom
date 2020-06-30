@@ -265,9 +265,12 @@ static BLOCK_SIZE get_bsize(const AV1_COMMON *cm, int mb_row, int mb_col) {
 
 static int find_fp_qindex(aom_bit_depth_t bit_depth) {
 #if CONFIG_EXTQUANT_HBD
-  return av1_find_qindex(
-      FIRST_PASS_Q, bit_depth, 0,
-      bit_depth == AOM_BITS_8 ? QINDEX_RANGE_UNEXT - 1 : QINDEX_RANGE - 1);
+  return av1_find_qindex(FIRST_PASS_Q, bit_depth, 0,
+                         bit_depth == AOM_BITS_8
+                             ? QINDEX_RANGE_8_BITS - 1
+                             : bit_depth == AOM_BITS_10
+                                   ? QINDEX_RANGE_10_BITS - 1
+                                   : QINDEX_RANGE - 1);
 #else
   return av1_find_qindex(FIRST_PASS_Q, bit_depth, 0, QINDEX_RANGE - 1);
 #endif

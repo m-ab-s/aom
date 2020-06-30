@@ -1415,8 +1415,13 @@ static void parse_decode_block(AV1Decoder *const pbi, ThreadData *const td,
 
   if (cm->delta_q_info.delta_q_present_flag) {
     for (int i = 0; i < MAX_SEGMENTS; i++) {
+#if CONFIG_EXTQUANT_HBD
+      const int current_qindex = av1_get_qindex(&cm->seg, i, xd->current_qindex,
+                                                cm->seq_params.bit_depth);
+#else
       const int current_qindex =
           av1_get_qindex(&cm->seg, i, xd->current_qindex);
+#endif
       for (int j = 0; j < num_planes; ++j) {
         const int dc_delta_q =
             j == 0 ? cm->y_dc_delta_q
@@ -5504,7 +5509,12 @@ static int read_uncompressed_header(AV1Decoder *pbi,
   xd->cur_frame_force_integer_mv = cm->cur_frame_force_integer_mv;
 
   for (int i = 0; i < MAX_SEGMENTS; ++i) {
+#if CONFIG_EXTQUANT_HBD
+    const int qindex =
+        av1_get_qindex(&cm->seg, i, cm->base_qindex, cm->seq_params.bit_depth);
+#else
     const int qindex = av1_get_qindex(&cm->seg, i, cm->base_qindex);
+#endif
 #if CONFIG_DELTA_DCQUANT
     xd->lossless[i] =
         qindex == 0 &&

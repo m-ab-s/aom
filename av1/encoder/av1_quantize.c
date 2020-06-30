@@ -646,7 +646,7 @@ void av1_build_quantizer(aom_bit_depth_t bit_depth, int y_dc_delta_q,
 
 #if CONFIG_EXTQUANT_HBD
   int qindex_offset = 30 * (bit_depth - 8);
-  int qindex_range = QINDEX_RANGE_UNEXT + qindex_offset;
+  int qindex_range = QINDEX_RANGE_8_BITS + qindex_offset;
   for (q = 0; q < qindex_range; q++) {
 #else
   for (q = 0; q < QINDEX_RANGE; q++) {
@@ -752,19 +752,24 @@ void av1_init_plane_quantizers(const AV1_COMP *cpi, MACROBLOCK *x,
   MACROBLOCKD *const xd = &x->e_mbd;
   const QUANTS *const quants = &cpi->quants;
 #if CONFIG_EXTQUANT_HBD
-  int current_qindex = AOMMAX(
-      0, AOMMIN(cm->seq_params.bit_depth == AOM_BITS_8 ? QINDEX_RANGE_UNEXT - 1
-                                                       : QINDEX_RANGE - 1,
-                cm->delta_q_info.delta_q_present_flag
-                    ? cm->base_qindex + xd->delta_qindex
-                    : cm->base_qindex));
+  int current_qindex =
+      AOMMAX(0, AOMMIN(cm->seq_params.bit_depth == AOM_BITS_8
+                           ? QINDEX_RANGE_8_BITS - 1
+                           : cm->seq_params.bit_depth == AOM_BITS_10
+                                 ? QINDEX_RANGE_10_BITS - 1
+                                 : QINDEX_RANGE - 1,
+                       cm->delta_q_info.delta_q_present_flag
+                           ? cm->base_qindex + xd->delta_qindex
+                           : cm->base_qindex));
+  const int qindex = av1_get_qindex(&cm->seg, segment_id, current_qindex,
+                                    cm->seq_params.bit_depth);
 #else
   int current_qindex = AOMMAX(
       0, AOMMIN(QINDEX_RANGE - 1, cm->delta_q_info.delta_q_present_flag
                                       ? cm->base_qindex + xd->delta_qindex
                                       : cm->base_qindex));
-#endif
   const int qindex = av1_get_qindex(&cm->seg, segment_id, current_qindex);
+#endif
   const int rdmult = av1_compute_rd_mult(cpi, qindex + cm->y_dc_delta_q);
   int qmlevel = (xd->lossless[segment_id] || cm->using_qmatrix == 0)
                     ? NUM_QM_LEVELS - 1

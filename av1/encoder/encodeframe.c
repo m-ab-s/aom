@@ -356,7 +356,12 @@ static int set_segment_rdmult(const AV1_COMP *const cpi, MACROBLOCK *const x,
   const AV1_COMMON *const cm = &cpi->common;
   av1_init_plane_quantizers(cpi, x, segment_id);
   aom_clear_system_state();
+#if CONFIG_EXTQUANT_HBD
+  int segment_qindex = av1_get_qindex(&cm->seg, segment_id, cm->base_qindex,
+                                      cm->seq_params.bit_depth);
+#else
   int segment_qindex = av1_get_qindex(&cm->seg, segment_id, cm->base_qindex);
+#endif
   return av1_compute_rd_mult(cpi, segment_qindex + cm->y_dc_delta_q);
 }
 
@@ -4969,7 +4974,15 @@ static int get_q_for_deltaq_objective(AV1_COMP *const cpi, BLOCK_SIZE bsize,
   offset = AOMMIN(offset, delta_q_info->delta_q_res * 9 - 1);
   offset = AOMMAX(offset, -delta_q_info->delta_q_res * 9 + 1);
   int qindex = cm->base_qindex + offset;
+#if CONFIG_EXTQUANT_HBD
+  qindex = AOMMIN(qindex, cm->seq_params.bit_depth == AOM_BITS_8
+                              ? MAXQ_8_BITS
+                              : cm->seq_params.bit_depth == AOM_BITS_10
+                                    ? MAXQ_10_BITS
+                                    : MAXQ);
+#else
   qindex = AOMMIN(qindex, MAXQ);
+#endif
   qindex = AOMMAX(qindex, MINQ);
 
   return qindex;
@@ -6380,7 +6393,12 @@ static void encode_frame_internal(AV1_COMP *cpi) {
 
   for (i = 0; i < MAX_SEGMENTS; ++i) {
     const int qindex = cm->seg.enabled
+#if CONFIG_EXTQUANT_HBD
+                           ? av1_get_qindex(&cm->seg, i, cm->base_qindex,
+                                            cm->seq_params.bit_depth)
+#else
                            ? av1_get_qindex(&cm->seg, i, cm->base_qindex)
+#endif
                            : cm->base_qindex;
 #if CONFIG_DELTA_DCQUANT
     xd->lossless[i] =

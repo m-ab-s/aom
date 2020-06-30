@@ -2714,8 +2714,14 @@ static void realloc_segmentation_maps(AV1_COMP *cpi) {
 
   // Create a map used for cyclic background refresh.
   if (cpi->cyclic_refresh) av1_cyclic_refresh_free(cpi->cyclic_refresh);
+#if CONFIG_EXTQUANT_HBD
+  CHECK_MEM_ERROR(cm, cpi->cyclic_refresh,
+                  av1_cyclic_refresh_alloc(cm->mi_rows, cm->mi_cols,
+                                           cm->seq_params.bit_depth));
+#else
   CHECK_MEM_ERROR(cm, cpi->cyclic_refresh,
                   av1_cyclic_refresh_alloc(cm->mi_rows, cm->mi_cols));
+#endif
 
   // Create a map used to mark inactive areas.
   aom_free(cpi->active_map.map);

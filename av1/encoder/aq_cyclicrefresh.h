@@ -32,7 +32,12 @@ struct AV1_COMP;
 struct CYCLIC_REFRESH;
 typedef struct CYCLIC_REFRESH CYCLIC_REFRESH;
 
-CYCLIC_REFRESH *av1_cyclic_refresh_alloc(int mi_rows, int mi_cols);
+CYCLIC_REFRESH *av1_cyclic_refresh_alloc(int mi_rows, int mi_cols
+#if CONFIG_EXTQUANT_HBD
+                                         ,
+                                         aom_bit_depth_t bit_depth
+#endif
+);
 
 void av1_cyclic_refresh_free(CYCLIC_REFRESH *cr);
 

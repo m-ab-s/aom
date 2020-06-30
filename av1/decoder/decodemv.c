@@ -874,7 +874,15 @@ static void read_delta_q_params(AV1_COMMON *const cm, MACROBLOCKD *const xd,
     xd->current_qindex += read_delta_qindex(cm, xd, r, mbmi, mi_col, mi_row) *
                           delta_q_info->delta_q_res;
     /* Normative: Clamp to [1,MAXQ] to not interfere with lossless mode */
+#if CONFIG_EXTQUANT_HBD
+    xd->current_qindex = clamp(
+        xd->current_qindex, 1,
+        cm->seq_params.bit_depth == AOM_BITS_8
+            ? MAXQ_8_BITS
+            : cm->seq_params.bit_depth == AOM_BITS_10 ? MAXQ_10_BITS : MAXQ);
+#else
     xd->current_qindex = clamp(xd->current_qindex, 1, MAXQ);
+#endif
     FRAME_CONTEXT *const ec_ctx = xd->tile_ctx;
     if (delta_q_info->delta_lf_present_flag) {
       if (delta_q_info->delta_lf_multi) {
@@ -1557,7 +1565,6 @@ static INLINE int assign_mv(AV1_COMMON *cm, MACROBLOCKD *xd,
 #endif  // CONFIG_EXT_COMPOUND
     default: { return 0; }
   }
-
   int ret = is_mv_valid(&mv[0].as_mv);
   if (is_compound) {
     ret = ret && is_mv_valid(&mv[1].as_mv);
