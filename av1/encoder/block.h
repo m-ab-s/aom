@@ -714,6 +714,14 @@ static INLINE int is_rect_tx_allowed_bsize(BLOCK_SIZE bsize) {
     1,  // BLOCK_16X64
     1,  // BLOCK_64X16
 #endif  // CONFIG_NEW_TX_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS && CONFIG_FLEX_PARTITION
+    1,  // BLOCK_4X32
+    1,  // BLOCK_32X4
+    1,  // BLOCK_8X64
+    1,  // BLOCK_64X8
+    1,  // BLOCK_4X64
+    1,  // BLOCK_64X4
+#endif  // CONFIG_EXT_RECUR_PARTITIONS && CONFIG_FLEX_PARTITION
   };
 
   return LUT[bsize];

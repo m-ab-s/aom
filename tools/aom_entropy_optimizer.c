@@ -340,9 +340,16 @@ int main(int argc, const char **argv) {
 #if CONFIG_EXT_RECUR_PARTITIONS
   cts_each_dim[0] = PARTITION_CONTEXTS_REC;
   cts_each_dim[1] = PARTITION_TYPES_REC;
+#if CONFIG_FLEX_PARTITION
+  int part_types_each_ctx_rec[PARTITION_CONTEXTS_REC] = {
+    2, 2, 2, 2, 4, 4, 4, 4, 5, 5, 5, 5, 5, 5, 5, 5, 3, 3, 3, 3, 3, 3,
+    3, 3, 4, 4, 4, 4, 5, 5, 5, 5, 3, 3, 3, 3, 4, 4, 4, 4, 3, 3, 3, 3
+  };
+#else   // CONFIG_FLEX_PARTITION
   int part_types_each_ctx_rec[PARTITION_CONTEXTS_REC] = { 2, 2, 2, 2, 4, 4, 4,
                                                           4, 4, 4, 4, 4, 4, 4,
                                                           4, 4, 3, 3, 3, 3 };
+#endif  // CONFIG_FLEX_PARTITION
   optimize_cdf_table_var_modes_2d(
       &fc.partition_rec[0][0], probsfile, 2, cts_each_dim,
       part_types_each_ctx_rec,

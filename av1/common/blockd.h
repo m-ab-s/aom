@@ -802,7 +802,11 @@ static INLINE int is_square_block(BLOCK_SIZE bsize) {
 
 static INLINE int is_partition_point(BLOCK_SIZE bsize) {
 #if CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_FLEX_PARTITION
+  return bsize != BLOCK_4X4;
+#else   // CONFIG_FLEX_PARTITION
   return bsize != BLOCK_4X4 && bsize < BLOCK_SIZES;
+#endif  // CONFIG_FLEX_PARTITION
 #else
   return is_square_block(bsize) && bsize >= BLOCK_8X8 && bsize < BLOCK_SIZES;
 #endif  // CONFIG_EXT_RECUR_PARTITIONS

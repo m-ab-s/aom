@@ -1242,6 +1242,22 @@ static INLINE void update_ext_partition_context(MACROBLOCKD *xd, int mi_row,
   }
 }
 
+#if CONFIG_EXT_RECUR_PARTITIONS && CONFIG_FLEX_PARTITION
+static INLINE int partition_context_rec_size_offset(int bsl_w, int bsl_h) {
+  assert(bsl_w != bsl_h);
+  const int shape_code = AOMMAX(bsl_w, bsl_h) - AOMMIN(bsl_w, bsl_h);
+  const int size_offset = AOMMIN(bsl_w + 1, bsl_h + 1);
+
+  switch (shape_code) {
+    case 1: return size_offset;       // 1:2/2:1
+    case 2: return 5 + size_offset;   // 1:4/4:1
+    case 3: return 8 + size_offset;   // 1:8/8:1
+    case 4: return 10 + size_offset;  // 1:16/16:1
+    default: assert(0); return 0;
+  }
+}
+#endif  // CONFIG_EXT_RECUR_PARTITIONS && CONFIG_FLEX_PARTITION
+
 static INLINE int partition_plane_context(const MACROBLOCKD *xd, int mi_row,
                                           int mi_col, BLOCK_SIZE bsize) {
   const PARTITION_CONTEXT *above_ctx = xd->above_seg_context + mi_col;
@@ -1266,8 +1282,13 @@ static INLINE int partition_plane_context(const MACROBLOCKD *xd, int mi_row,
     const int above = (*above_ctx >> AOMMAX(bsl_w, 0)) & 1;
     const int left = (*left_ctx >> AOMMAX(bsl_h, 0)) & 1;
 
+#if CONFIG_FLEX_PARTITION
+    return (left * 2 + above) +
+           partition_context_rec_size_offset(bsl_w, bsl_h) * PARTITION_PLOFFSET;
+#else   // CONFIG_FLEX_PARTITION
     return (left * 2 + above) +
            AOMMIN(bsl_w + 1, bsl_h + 1) * PARTITION_PLOFFSET;
+#endif  // CONFIG_FLEX_PARTITION
   }
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 }
