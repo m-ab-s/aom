@@ -333,11 +333,12 @@ void av1_rc_init(const AV1EncoderConfig *oxcf, int pass, RATE_CONTROL *rc) {
   if (rc->min_gf_interval == 0)
     rc->min_gf_interval = av1_rc_get_default_min_gf_interval(
         oxcf->frm_dim_cfg.width, oxcf->frm_dim_cfg.height,
-        oxcf->init_framerate);
+        oxcf->input_cfg.init_framerate);
   if (rc->max_gf_interval == 0)
     rc->max_gf_interval = av1_rc_get_default_max_gf_interval(
-        oxcf->init_framerate, rc->min_gf_interval);
+        oxcf->input_cfg.init_framerate, rc->min_gf_interval);
   rc->baseline_gf_interval = (rc->min_gf_interval + rc->max_gf_interval) / 2;
+  rc->avg_frame_low_motion = 0;
 }
 
 int av1_rc_drop_frame(AV1_COMP *cpi) {
@@ -1638,10 +1639,11 @@ void av1_rc_set_frame_target(AV1_COMP *cpi, int target, int width, int height) {
   rc->this_frame_target = target;
 
   // Modify frame size target when down-scaled.
-  if (av1_frame_scaled(cm))
+  if (av1_frame_scaled(cm) && cpi->oxcf.rc_cfg.mode != AOM_CBR) {
     rc->this_frame_target =
         (int)(rc->this_frame_target *
               resize_rate_factor(&cpi->oxcf.frm_dim_cfg, width, height));
+  }
 
   // Target rate per SB64 (including partial SB64s.
   rc->sb64_target_rate =
@@ -2304,8 +2306,12 @@ void av1_get_one_pass_rt_params(AV1_COMP *cpi,
   RATE_CONTROL *const rc = &cpi->rc;
   AV1_COMMON *const cm = &cpi->common;
   GF_GROUP *const gf_group = &cpi->gf_group;
+  SVC *const svc = &cpi->svc;
   int gf_update = 0;
   int target;
+  const int layer =
+      LAYER_IDS_TO_IDX(svc->spatial_layer_id, svc->temporal_layer_id,
+                       svc->number_temporal_layers);
   // Turn this on to explicitly set the reference structure rather than
   // relying on internal/default structure.
   const int set_reference_structure = 1;
@@ -2315,8 +2321,8 @@ void av1_get_one_pass_rt_params(AV1_COMP *cpi,
   }
   // Set frame type.
   if ((!cpi->use_svc && rc->frames_to_key == 0) ||
-      (cpi->use_svc && cpi->svc.spatial_layer_id == 0 &&
-       cpi->svc.current_superframe % cpi->oxcf.kf_cfg.key_freq_max == 0) ||
+      (cpi->use_svc && svc->spatial_layer_id == 0 &&
+       svc->current_superframe % cpi->oxcf.kf_cfg.key_freq_max == 0) ||
       (frame_flags & FRAMEFLAGS_KEY)) {
     frame_params->frame_type = KEY_FRAME;
     rc->this_key_frame_forced =
@@ -2325,11 +2331,21 @@ void av1_get_one_pass_rt_params(AV1_COMP *cpi,
     rc->kf_boost = DEFAULT_KF_BOOST_RT;
     rc->source_alt_ref_active = 0;
     gf_group->update_type[gf_group->index] = KF_UPDATE;
-    if (cpi->use_svc && cm->current_frame.frame_number > 0)
-      av1_svc_reset_temporal_layers(cpi, 1);
+    if (cpi->use_svc) {
+      if (cm->current_frame.frame_number > 0)
+        av1_svc_reset_temporal_layers(cpi, 1);
+      svc->layer_context[layer].is_key_frame = 1;
+    }
   } else {
     frame_params->frame_type = INTER_FRAME;
     gf_group->update_type[gf_group->index] = LF_UPDATE;
+    if (cpi->use_svc) {
+      LAYER_CONTEXT *lc = &svc->layer_context[layer];
+      lc->is_key_frame =
+          svc->spatial_layer_id == 0
+              ? 0
+              : svc->layer_context[svc->temporal_layer_id].is_key_frame;
+    }
   }
   // Check for scene change, for non-SVC for now.
   if (!cpi->use_svc && cpi->sf.rt_sf.check_scene_detection)
@@ -2410,5 +2426,38 @@ int av1_encodedframe_overshoot(AV1_COMP *cpi, int *q) {
     return 1;
   } else {
     return 0;
+  }
+}
+
+void av1_compute_frame_low_motion(AV1_COMP *const cpi) {
+  AV1_COMMON *const cm = &cpi->common;
+  const CommonModeInfoParams *const mi_params = &cm->mi_params;
+  SVC *const svc = &cpi->svc;
+  MB_MODE_INFO **mi = mi_params->mi_grid_base;
+  RATE_CONTROL *const rc = &cpi->rc;
+  const int rows = mi_params->mi_rows, cols = mi_params->mi_cols;
+  int cnt_zeromv = 0;
+  for (int mi_row = 0; mi_row < rows; mi_row++) {
+    for (int mi_col = 0; mi_col < cols; mi_col++) {
+      if (mi[0]->ref_frame[0] == LAST_FRAME &&
+          abs(mi[0]->mv[0].as_mv.row) < 16 && abs(mi[0]->mv[0].as_mv.col) < 16)
+        cnt_zeromv++;
+      mi++;
+    }
+    mi += mi_params->mi_stride - cols;
+  }
+  cnt_zeromv = 100 * cnt_zeromv / (rows * cols);
+  rc->avg_frame_low_motion = (3 * rc->avg_frame_low_motion + cnt_zeromv) >> 2;
+
+  // For SVC: set avg_frame_low_motion (only computed on top spatial layer)
+  // to all lower spatial layers.
+  if (cpi->use_svc && svc->spatial_layer_id == svc->number_spatial_layers - 1) {
+    for (int i = 0; i < svc->number_spatial_layers - 1; ++i) {
+      const int layer = LAYER_IDS_TO_IDX(i, svc->temporal_layer_id,
+                                         svc->number_temporal_layers);
+      LAYER_CONTEXT *const lc = &svc->layer_context[layer];
+      RATE_CONTROL *const lrc = &lc->rc;
+      lrc->avg_frame_low_motion = rc->avg_frame_low_motion;
+    }
   }
 }

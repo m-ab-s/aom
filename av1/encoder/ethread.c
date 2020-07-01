@@ -217,7 +217,8 @@ static void row_mt_sync_mem_dealloc(AV1EncRowMultiThreadSync *row_mt_sync) {
   }
 }
 
-static void row_mt_mem_alloc(AV1_COMP *cpi, int max_sb_rows) {
+static void row_mt_mem_alloc(AV1_COMP *cpi, int max_sb_rows, int max_sb_cols,
+                             int alloc_row_ctx) {
   struct AV1Common *cm = &cpi->common;
   AV1EncRowMultiThreadInfo *const enc_row_mt = &cpi->mt_info.enc_row_mt;
   const int tile_cols = cm->tiles.cols;
@@ -232,10 +233,10 @@ static void row_mt_mem_alloc(AV1_COMP *cpi, int max_sb_rows) {
 
       row_mt_sync_mem_alloc(&this_tile->row_mt_sync, cm, max_sb_rows);
 
-      if (cpi->oxcf.cdf_update_mode) {
-        const int sb_cols_in_tile =
-            av1_get_sb_cols_in_tile(cm, this_tile->tile_info);
-        const int num_row_ctx = AOMMAX(1, (sb_cols_in_tile - 1));
+      this_tile->row_ctx = NULL;
+      if (alloc_row_ctx) {
+        assert(max_sb_cols > 0);
+        const int num_row_ctx = AOMMAX(1, (max_sb_cols - 1));
         CHECK_MEM_ERROR(cm, this_tile->row_ctx,
                         (FRAME_CONTEXT *)aom_memalign(
                             16, num_row_ctx * sizeof(*this_tile->row_ctx)));
@@ -245,6 +246,7 @@ static void row_mt_mem_alloc(AV1_COMP *cpi, int max_sb_rows) {
   enc_row_mt->allocated_tile_cols = tile_cols;
   enc_row_mt->allocated_tile_rows = tile_rows;
   enc_row_mt->allocated_sb_rows = max_sb_rows;
+  enc_row_mt->allocated_sb_cols = max_sb_cols - 1;
 }
 
 void av1_row_mt_mem_dealloc(AV1_COMP *cpi) {
@@ -261,7 +263,7 @@ void av1_row_mt_mem_dealloc(AV1_COMP *cpi) {
 
       row_mt_sync_mem_dealloc(&this_tile->row_mt_sync);
 
-      if (cpi->oxcf.cdf_update_mode) aom_free(this_tile->row_ctx);
+      if (cpi->oxcf.algo_cfg.cdf_update_mode) aom_free(this_tile->row_ctx);
     }
   }
   enc_row_mt->allocated_sb_rows = 0;
@@ -855,12 +857,12 @@ static AOM_INLINE int compute_num_enc_tile_mt_workers(AV1_COMMON *const cm,
 }
 
 // Computes the number of workers for encoding stage (row/tile multi-threading)
-int av1_compute_num_enc_workers(AV1_COMP *cpi) {
-  if (cpi->oxcf.max_threads <= 1) return 1;
-  if (cpi->oxcf.row_mt && (cpi->oxcf.max_threads > 1))
-    return compute_num_enc_row_mt_workers(&cpi->common, cpi->oxcf.max_threads);
+int av1_compute_num_enc_workers(AV1_COMP *cpi, int max_workers) {
+  if (max_workers <= 1) return 1;
+  if (cpi->oxcf.row_mt && (max_workers > 1))
+    return compute_num_enc_row_mt_workers(&cpi->common, max_workers);
   else
-    return compute_num_enc_tile_mt_workers(&cpi->common, cpi->oxcf.max_threads);
+    return compute_num_enc_tile_mt_workers(&cpi->common, max_workers);
 }
 
 void av1_encode_tiles_mt(AV1_COMP *cpi) {
@@ -868,7 +870,7 @@ void av1_encode_tiles_mt(AV1_COMP *cpi) {
   MultiThreadInfo *const mt_info = &cpi->mt_info;
   const int tile_cols = cm->tiles.cols;
   const int tile_rows = cm->tiles.rows;
-  int num_workers = av1_compute_num_enc_workers(cpi);
+  int num_workers = av1_compute_num_enc_workers(cpi, mt_info->num_workers);
 
   assert(IMPLIES(cpi->tile_data == NULL,
                  cpi->allocated_tiles < tile_cols * tile_rows));
@@ -901,20 +903,21 @@ void av1_accumulate_frame_counts(FRAME_COUNTS *acc_counts,
 
 // Computes the maximum number of sb_rows for row multi-threading of encoding
 // stage
-static AOM_INLINE int compute_max_sb_rows(AV1_COMP *cpi) {
+static AOM_INLINE void compute_max_sb_rows_cols(AV1_COMP *cpi, int *max_sb_rows,
+                                                int *max_sb_cols) {
   AV1_COMMON *const cm = &cpi->common;
   const int tile_cols = cm->tiles.cols;
   const int tile_rows = cm->tiles.rows;
-  int max_sb_rows = 0;
   for (int row = 0; row < tile_rows; row++) {
     for (int col = 0; col < tile_cols; col++) {
       const int tile_index = row * cm->tiles.cols + col;
       TileInfo tile_info = cpi->tile_data[tile_index].tile_info;
       const int num_sb_rows_in_tile = av1_get_sb_rows_in_tile(cm, tile_info);
-      max_sb_rows = AOMMAX(max_sb_rows, num_sb_rows_in_tile);
+      const int num_sb_cols_in_tile = av1_get_sb_cols_in_tile(cm, tile_info);
+      *max_sb_rows = AOMMAX(*max_sb_rows, num_sb_rows_in_tile);
+      *max_sb_cols = AOMMAX(*max_sb_cols, num_sb_cols_in_tile);
     }
   }
-  return max_sb_rows;
 }
 
 #if !CONFIG_REALTIME_ONLY
@@ -966,14 +969,14 @@ void av1_encode_tiles_row_mt(AV1_COMP *cpi) {
   const int tile_cols = cm->tiles.cols;
   const int tile_rows = cm->tiles.rows;
   int *thread_id_to_tile_id = enc_row_mt->thread_id_to_tile_id;
-  int max_sb_rows = 0;
+  int max_sb_rows = 0, max_sb_cols = 0;
 
   // TODO(ravi.chaudhary@ittiam.com): Currently the percentage of
   // post-processing stages in encoder is quiet low, so limiting the number of
   // threads to the theoretical limit in row-mt does not have much impact on
   // post-processing multi-threading stage. Need to revisit this when
   // post-processing time starts shooting up.
-  int num_workers = av1_compute_num_enc_workers(cpi);
+  int num_workers = av1_compute_num_enc_workers(cpi, mt_info->num_workers);
 
   assert(IMPLIES(cpi->tile_data == NULL,
                  cpi->allocated_tiles < tile_cols * tile_rows));
@@ -984,13 +987,15 @@ void av1_encode_tiles_row_mt(AV1_COMP *cpi) {
 
   av1_init_tile_data(cpi);
 
-  max_sb_rows = compute_max_sb_rows(cpi);
+  compute_max_sb_rows_cols(cpi, &max_sb_rows, &max_sb_cols);
 
   if (enc_row_mt->allocated_tile_cols != tile_cols ||
       enc_row_mt->allocated_tile_rows != tile_rows ||
-      enc_row_mt->allocated_sb_rows != max_sb_rows) {
+      enc_row_mt->allocated_sb_rows != max_sb_rows ||
+      enc_row_mt->allocated_sb_cols != (max_sb_cols - 1)) {
     av1_row_mt_mem_dealloc(cpi);
-    row_mt_mem_alloc(cpi, max_sb_rows);
+    row_mt_mem_alloc(cpi, max_sb_rows, max_sb_cols,
+                     cpi->oxcf.algo_cfg.cdf_update_mode);
   }
 
   memset(thread_id_to_tile_id, -1,
@@ -1063,7 +1068,7 @@ void av1_fp_encode_tiles_row_mt(AV1_COMP *cpi) {
       enc_row_mt->allocated_tile_rows != tile_rows ||
       enc_row_mt->allocated_sb_rows != max_mb_rows) {
     av1_row_mt_mem_dealloc(cpi);
-    row_mt_mem_alloc(cpi, max_mb_rows);
+    row_mt_mem_alloc(cpi, max_mb_rows, -1, 0);
   }
 
   memset(thread_id_to_tile_id, -1,
@@ -1270,7 +1275,7 @@ static AOM_INLINE void prepare_tpl_workers(AV1_COMP *cpi, AVxWorkerHook hook,
 
 // Computes num_workers for tpl multi-threading.
 static AOM_INLINE int compute_num_tpl_workers(AV1_COMP *cpi) {
-  return av1_compute_num_enc_workers(cpi);
+  return av1_compute_num_enc_workers(cpi, cpi->mt_info.num_workers);
 }
 
 // Implements multi-threading for tpl.

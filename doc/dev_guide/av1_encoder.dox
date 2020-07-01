@@ -1,19 +1,458 @@
-/*!\page encoder_guide AV1 ENCODING TECHNIQUES
+/*!\page encoder_guide AV1 ENCODER GUIDE
 
-  AV1 encoding algorithm consists following modules:
-    - \ref high_level_algo
-      - \ref frame_coding_pipeline
-      - \ref two_pass_algo
-      - \ref look_ahead_buffer
-    - \ref partition_search
-    - \ref intra_mode_search
-    - \ref inter_mode_search
-    - \ref transform_search
-    - \ref in_loop_filter
-    - \ref in_loop_cdef
-    - \ref in_loop_restoration
-    - \ref rate_control
-    */
+\tableofcontents
+
+\section architecture_introduction Introduction
+
+This document provides an architectural overview of the libaom AV1 encoder.
+
+It is intended as a high level starting point for anyone wishing to contribute
+to the project, that will help them to more quickly understand the structure
+of the encoder and find their way around the codebase.
+
+It stands above and will where necessary link to more detailed function
+level documents.
+
+\section  architecture_gencodecs Generic Block Transform Based Codecs
+
+Most modern video encoders including VP8, H.264, VP9, HEVC and AV1
+(in increasing order of complexity) share a common basic paradigm. This
+comprises separating a stream of raw video frames into a series of discrete
+blocks (of one or more sizes), then computing a prediction signal and a
+quantized, transform coded, residual error signal. The prediction and residual
+error signal, along with any side information needed by the decoder, are then
+entropy coded and packed to form the encoded bitstream. See Figure 1: below,
+where the blue blocks are, to all intents and purposes, the lossless parts of
+the encoder and the red block is the lossy part.
+
+This is of course a gross oversimplification, even in regard to the simplest
+of the above codecs.  For example, all of them allow for block based
+prediction at multiple different scales (i.e. different block sizes) and may
+use previously coded pixels in the current frame for prediction or pixels from
+one or more previously encoded frames. Further, they may support multiple
+different transforms and transform sizes and quality optimization tools like
+loop filtering.
+
+\image html genericcodecflow.png "" width=70%
+
+\section architecture_av1_structure AV1 Structure and Complexity
+
+As previously stated, AV1 adopts the same underlying paradigm as other block
+transform based codecs. However, it is much more complicated than previous
+generation codecs and supports many more block partitioning, prediction and
+transform options.
+
+AV1 supports block partitions of various sizes from 128x128 pixels down to 4x4
+pixels using a multi-layer recursive tree structure as illustrated in figure 2
+below.
+
+\image html av1partitions.png "" width=70%
+
+AV1 also provides 71 basic intra prediction modes, 56 single frame inter prediction
+modes (7 reference frames x 4 modes x 2 for OBMC (overlapped block motion
+compensation)), 12768 compound inter prediction modes (that combine inter
+predictors from two reference frames) and 36708 compound inter / intra
+prediction modes. Furthermore, in addition to simple inter motion estimation,
+AV1 also supports warped motion prediction using affine transforms.
+
+In terms of transform coding, it has 16 separable 2-D transform kernels
+{ DCT, ADST, fADST, IDTX }2 that can be applied at up to 19 different scales
+from 64x64 down to 4x4 pixels.
+
+When combined together, this means that for any one 8x8 pixel block in a
+source frame, there are approximately 45,000,000 different ways that it can
+be encoded.
+
+Consequently, AV1 requires complex control processes. While not necessarily
+a normative part of the bitstream, these are the algorithms that turn a set
+of compression tools and a bitstream format specification, into a coherent
+and useful codec implementation. These may include but are not limited to
+things like :-
+
+- Rate distortion optimization (The process of trying to choose the most
+  efficient combination of block size, prediction mode, transform type
+  etc.)
+- Rate control (regulation of the output bitrate)
+- Encoder speed vs quality trade offs.
+- Features such as two pass encoding or optimization for low delay
+  encoding.
+
+For a more detailed overview of AV1's encoding tools and a discussion of some
+of the design considerations and hardware constraints that had to be
+accommodated, please refer to *** TODO link to Jingning's AV1 overview paper.
+
+Figure 3 provides a slightly expanded but still simplistic view of the
+AV1 encoder architecture with blocks that relate to some of the subsequent
+sections of this document. In this diagram, the raw uncompressed frame buffers
+are shown in dark green and the reconstructed frame buffers used for
+prediction in light green. Red indicates those parts of the codec that are
+(or may be) lossy, where fidelity can be traded off against compression
+efficiency, whilst light blue shows algorithms or coding tools that are
+lossless. The yellow blocks represent non-bitstream normative configuration
+and control algorithms.
+
+\image html av1encoderflow.png "" width=70%
+
+\section architecture_command_line The Libaom Command Line Interface
+
+ Add details or links here: TODO ? elliotk@
+
+\section architecture_enc_data_structures Main Encoder Data Structures
+
+The following are the main high level data structures used by the libaom AV1
+encoder and referenced elsewhere in this overview document:
+
+ - \ref AV1_COMP
+   - \ref AV1_COMP.rc (\ref RATE_CONTROL)
+   - \ref AV1_COMP.oxcf (\ref AV1EncoderConfig)
+   - \ref AV1_COMP.twopass (\ref TWO_PASS)
+   - \ref AV1_COMP.gf_group (\ref GF_GROUP)
+   - \ref AV1_COMP.speed
+   - \ref AV1_COMP.sf (\ref SPEED_FEATURES)
+
+ - \ref AV1EncoderConfig (Encoder configuration parameters)
+   - \ref AV1EncoderConfig.rc_cfg (\ref RateControlCfg)
+
+ - \ref RATE_CONTROL (Rate control status)
+ - \ref RateControlCfg (Rate control configuration)
+ - \ref TWO_PASS (Two pass status and control data)
+ - \ref GF_GROUP (Data relating to the current GF/ARF group)
+ - \ref FIRSTPASS_STATS (Defines entries in the first pass stats buffer)
+ - \ref SPEED_FEATURES (Encode speed / quality tradeoff parameters)
+
+\section architecture_enc_use_cases Encoder Use Cases
+
+The libaom AV1 encoder is configurable to support a number of different use
+cases and rate control strategies.
+
+The principle use cases for which it is optimised are as follows:
+
+ - <b>Video on Demand / Streaming</b>
+ - <b>Low Delay or Live Streaming</b>
+ - <b>Video Conferencing / Real Time Coding (RTC)</b>
+ - <b>Fixed Quality / Testing</b>
+
+Other examples of use cases for which the encoder could be configured but for
+which there is less by way of specific optimizations include:
+
+ - <b>Download and Play</b>
+ - <b>Disk Playback</b>>
+ - <b>Storage</b>
+ - <b>Editing</b>
+ - <b>Broadcast video</b>
+
+Specific use cases may have particular requirements or constraints. For
+example:
+
+<b>Video Conferencing:</b>  In a video conference we need to encode the video
+in real time and to avoid any coding tools that could increase latency, such
+as frame look ahead.
+
+<b>Live Streams:</b> In cases such as live streaming of games or events, it
+may be possible to allow some limited buffering of the video and use of
+lookahead coding tools to improve encoding quality. However,  whilst a lag of
+a second or two may be fine given the one way nature of this type of video,
+it is clearly not possible to use tools such as two pass coding.
+
+<b>Broadcast:</b> Broadcast video (e.g. digital TV over satellite) may have
+specific requirements such as frequent and regular key frames (e.g. once per
+second or more) as these are important as entry points to users when switching
+channels. There may also be  strict upper limits on bandwidth over a short
+window of time.
+
+<b>Download and Play:</b> Download and play applications may have less strict
+requirements in terms of local frame by frame rate control but there may be a
+requirement to accurately hit a file size target for the video clip as a
+whole. Similar considerations may apply to playback from mass storage devices
+such as DVD or disk drives.
+
+<b>Editing:</b> In certain special use cases such as offline editing, it may
+be desirable to have very high quality and data rate but also very frequent
+key frames or indeed to encode the video exclusively as key frames. Lossless
+video encoding may also be required in this use case.
+
+<b>VOD / Streaming:</b> One of the most important and common use cases for AV1
+is video on demand or streaming, for services such as YouTube and Netflix. In
+this use case it is possible to do two or even multi-pass encoding to improve
+compression efficiency. Streaming services will often store many encoded
+copies of a video at different resolutions and data rates to support users
+with different types of playback device and bandwidth limitations.
+Furthermore, these services support dynamic switching between multiple
+streams, so that they can respond to changing network conditions.
+
+Exact rate control when encoding for a specific format (e.g 360P or 1080P on
+YouTube) may not be critical, provided that the video bandwidth remains within
+allowed limits. Whilst a format may have a nominal target data rate, this can
+be considered more as the desired average egress rate over the video corpus
+rather than a strict requirement for any individual clip. Indeed, in order
+to maintain optimal quality of experience for the end user, it may be
+desirable to encode some easier videos or sections of video at a lower data
+rate and harder videos or sections at a higher rate.
+
+VOD / streaming does not usually require very frequent key frames (as in the
+broadcast case) but key frames are important in trick play (scanning back and
+forth to different points in a video) and for adaptive stream switching. As
+such, in a use case like YouTube, there is normally an upper limit on the
+maximum time between key frames of a few seconds, but within certain limits
+the encoder can try to align key frames with real scene cuts.
+
+Whilst encoder speed may not seem to be as critical in this use case, for
+services such as YouTube, where millions of new videos have to be encoded
+every day, encoder speed is still important, so libaom allows command line
+control of the encode speed vs quality trade off.
+
+<b>Fixed Quality / Testing Mode:</b> Libaom also has a fixed quality encoder
+pathway designed for testing under highly constrained conditions.
+
+
+\section architecture_enc_rate_ctrl Rate Control
+
+Different use cases may have different requirements in terms of data rate
+control.
+
+The broad rate control strategy is selected using the <b>--end-usage</b>
+parameter on the command line, which maps onto the field
+\ref aom_codec_enc_cfg_t.rc_end_usage in \ref aom_encoder.h.
+
+The four supported options are:-
+
+- <b>VBR</b> (Variable Bitrate)
+- <b>CBR</b> (Constant Bitrate)
+- <b>CQ</b> (Constrained Quality mode ; A constrained variant of VBR)
+- <b>Fixed Q</b> (Constant quality of Q mode)
+
+The value of \ref aom_codec_enc_cfg_t.rc_end_usage is in turn copied over
+into the encoder rate control configuration data structure as
+(TODO REF) RateControlCfg.rc_mode (see \ref encoder.h).
+
+In regards to the most important use cases above, Video on demand uses either
+VBR or CQ mode. CBR is the preferred rate control model for RTC and Live
+streaming and Fixed Q is only used in testing.
+
+The behaviour of each of these modes is regulated by a series of secondary
+command line rate control options but also depends somewhat on the selected
+use case, whether 2-pass coding is enabled and the selected encode speed vs
+quality trade offs (\ref AV1_COMP.speed and \ref AV1_COMP.sf).
+
+The list below gives the names of the main rate control command line
+options together with the names of the corresponding fields in the rate
+control configuration data structure.
+
+- <b>--target-bitrate</b> ((TODO REF)RateControlCfg.target_bandwidth)
+- <b>--min-q</b> ((TODO REF)RateControlCfg.best_allowed_q)
+- <b>--max-q</b> ((TODO REF)RateControlCfg.worst_allowed_q)
+- <b>--cq-level</b> ((TODO REF)RateControlCfg.cq_level)
+- <b>--undershoot-pct</b> ((TODO REF)RateControlCfg.under_shoot_pct)
+- <b>--overshoot-pct</b> ((TODO REF)RateControlCfg.over_shoot_pct)
+
+The following control aspects of 2 pass vbr encoding
+
+- <b>--bias-pct</b> (RateControlCfg::two_pass_vbrbias)
+- <b>--minsection-pct</b> ((TODO REF)RateControlCfg.two_pass_vbrmin_section)
+- <b>--maxsection-pct</b> ((TODO REF)RateControlCfg.two_pass_vbrmax_section)
+
+The following relate to buffer and delay management in one pass low delay and
+real time coding
+
+- <b>--buf-sz</b> ((TODO REF) RateControlCfg::maximum_buffer_size_ms)
+- <b>--buf-initial-sz</b> ((TODO REF)RateControlCfg.starting_buffer_level_ms)
+- <b>--buf-optimal-sz</b> ((TODO REF)RateControlCfg.optimal_buffer_level_ms)
+
+The rate control configuration data structure can be found in:
+
+- \ref AV1_COMP.oxcf
+  - \ref AV1EncoderConfig.rc_cfg
+
+\subsection architecture_enc_vbr Variable Bitrate (VBR) Encoding
+
+For streamed VOD content the most common rate control strategy is Variable
+Bitrate (VBR) encoding. The CQ mode mentioned above is a variant of this
+where additional quantizer and quality constraints are applied.  VBR
+encoding may in theory be used in conjunction with either 1-pass or 2-pass
+encoding.
+
+VBR encoding varies the number of bits given to each frame or group of frames
+according to the difficulty of that frame or group of frames, such that easier
+frames are allocated fewer bits and harder frames are allocated more bits. The
+intent here is to even out the quality between frames. This contrasts with
+Constant Bitrate (CBR) encoding where each frame is allocated the same number
+of bits.
+
+Whilst for any given frame or group of frames the data rate may vary, the VBR
+algorithm attempts to deliver a given average bitrate over a wider time
+interval. In standard VBR encoding, the time interval over which the data rate
+is averaged is usually the duration of the video clip.  An alternative
+approach is to target an average VBR bitrate over the entire video corpus for
+a particular video format (corpus VBR).
+
+\subsubsection architecture_enc_1pass_vbr 1 Pass VBR Encoding
+
+The command line for libaom does allow 1 Pass VBR, but this has not been
+properly optimised and behaves much like 1 pass CBR in most regards with bits
+allocated to frames by the following functions defined in ratectrl.c
+
+- \ref av1_calc_iframe_target_size_one_pass_vbr()
+- \ref av1_calc_pframe_target_size_one_pass_vbr()
+
+\subsubsection architecture_enc_2pass_vbr 2 Pass VBR Encoding
+
+The main focus here will be on 2-pass VBR encoding (and the related CQ mode)
+as these are the modes most commonly used for VOD content.
+
+2-pass encoding is selected on the command line by setting --passes=2
+(or -p 2).
+
+Generally speaking, in 2-pass encoding, an encoder will first encode a video
+using a default set of parameters and assumptions. Depending on the outcome
+of that first encode, the baseline assumptions and parameters will be adjusted
+to optimize the output during the second pass.  In essence the first pass is a
+fact finding mission to establish the complexity and variability of the video,
+in order to allow a better allocation of bits in the second pass.
+
+The libaom 2-pass algorithm is unusual in that the first pass is not a full
+encode of the video. Rather it uses a limited set of prediction and transform
+options and a fixed quantizer,  to generate statistics about each frame. No
+output bitstream is created and the per frame first pass statistics are stored
+entirely in volatile memory. This has some disadvantages when compared to a
+full first pass encode, but avoids the need for file I/O and improves speed.
+
+In this section I will refer to the following key data structures.
+(see also \ref architecture_enc_data_structures)
+
+- \ref AV1_COMP cpi (the main compressor instance data structure)
+   - \ref AV1_COMP.oxcf (\ref AV1EncoderConfig)
+   - \ref AV1_COMP.rc (\ref RATE_CONTROL)
+   - \ref AV1_COMP.twopass (\ref TWO_PASS)
+
+- \ref AV1EncoderConfig  (Encoder configuration parameters)
+   - \ref AV1EncoderConfig.pass
+
+- \ref RATE_CONTROL (Rate control status)
+- \ref TWO_PASS (Two pass status and control data)
+
+- \ref FIRSTPASS_STATS *frame_stats_buf (used to store per frame first
+  pass stats)
+
+For two pass encoding, the function \ref av1_encode() in encoder.c will first
+be called for each frame in the video with the value \ref AV1EncoderConfig.pass
+= 1. This will result in calls to \ref av1_first_pass() in firspass.c
+
+Statistics for each frame are stored in \ref FIRSTPASS_STATS frame_stats_buf.
+
+After completion of the first pass, \ref av1_encode() will be called again for
+each frame with \ref AV1EncoderConfig.pass = 2.  The frames are then encoded in
+accordance with the statistics gathered during the first pass by calls to
+\ref encode_frame_to_data_rate() in encoder.c.
+
+\ref encode_frame_to_data_rate() in turn calls (TODO REF)
+av1_get_second_pass_params() which is defined in pass2_strategy.c
+
+In summary the second pass code :-
+
+- Searches for scene cuts (if auto key frame detection is enabled).
+- Defines the length of and hierarchical structure to be used in each
+  ARF/GF group.
+- Allocates bits based on the relative complexity of each frame, the quality
+  of frame to frame prediction and the type of frame (e.g. key frame, ARF
+  frame, golden frame or normal leaf frame).
+- Suggests a maximum Q (quantizer value) for each ARF/GF group, based on
+  estimated complexity and recent rate control compliance
+  (\ref RATE_CONTROL.active_worst_quality)
+- Tracks adherence to the overall rate control objectives and adjusts
+  heuristics.
+
+The main two pass 2 functions in regard to the above (also in pass2_strategy.c)
+include:-
+
+- (TODO REF) find_next_key_frame()
+- (TODO REF) define_gf_group()
+- (TODO REF) calculate_total_gf_group_bits()
+- (TODO REF) get_twopass_worst_quality()
+- (TODO REF) av1_gop_setup_structure()
+- (TODO REF) av1_gop_bit_allocation()
+- (TODO REF) av1_twopass_postencode_update()
+
+For each frame, the two pass algorithm defines a target number of bits
+\ref RATE_CONTROL.base_frame_target,  which is then adjusted if necessary to
+reflect any undershoot or overshoot on previous frames to give
+\ref RATE_CONTROL.this_frame_target.
+
+As well as \ref RATE_CONTROL.active_worst_quality, the two pass code also
+maintains a record of the actual Q value used to encode previous frames
+at each level in the current pyramid hierarchy
+(\ref RATE_CONTROL.active_best_quality). The function
+\ref rc_pick_q_and_bounds(), defined in rate_ctrl.c, uses these values
+to set a permitted Q range for each frame.
+
+\subsubsection architecture_enc_1pass_lagged 1 Pass Lagged VBR Encoding
+
+1 pass lagged encode falls between simple 1 pass encoding and full two pass
+encoding and is used for cases where it is not possible to do a full first
+pass through the entire video clip, but where some delay is permissible. For
+example near live streaming where there is a delay of up to a few seconds. In
+this case the first pass and second pass are in effect combined such that the
+first pass starts encoding the clip and the second pass lags behind it by a
+few frames.  When using this method, full sequence level statistics are not
+available, but it is possible to collect and use frame or group of frame level
+data to help in the allocation of bits and in defining ARF/GF coding
+hierarchies.  The reader is referred to the data value
+(TODO REF) cpi->lap_enabled (where <b>lap</b> stands for
+<b>look ahead processing</b>). This encoding mode for the most part uses the
+same rate control pathways as two pass VBR encoding.
+
+\subsection architecture_enc_rc_loop The Main Rate Control Loop
+
+ Add details here.
+
+\subsection architecture_enc_fixed_q Fixed Q Mode
+
+ Add details here.
+
+\section architecture_enc_src_proc Source Frame Processing
+
+ Add details here.
+
+\section architecture_enc_hierachical Hierarchical Coding
+
+ Add details here.
+
+\section architecture_enc_tpl Temporal Dependency Modelling
+
+ Add details here.
+
+\section architecture_enc_partitions Block Partition Search
+
+ Add details here.
+
+\section architecture_enc_inter_modes Inter Prediction Mode Search
+
+ Add details here.
+
+\section architecture_enc_intra_modes Intra Mode Search
+
+ Add details here.
+
+\section architecture_enc_tx_search Transform Search
+
+ Add details here.
+
+\section architecture_loop_filt Loop Filtering
+
+ Add details here.
+
+\section architecture_loop_rest Loop Restoration Filtering
+
+ Add details here.
+
+\section architecture_cdef CDEF
+
+ Add details here.
+
+\section architecture_entropy Entropy Coding
+
+ Add details here.
+
+*/
 
 /*!\defgroup encoder_algo Encoder Algorithm
  *
@@ -267,6 +706,14 @@ void second_pass(char *stats, size_t stats_len) {
  * @{
  */
 /*! @} - end defgroup transform_search */
+
+/*!\defgroup coefficient_coding Transform Coefficient Coding and Optimization
+ * \ingroup encoder_algo
+ * This module describes the algorithms of transform coefficient coding and optimization in AV1.
+ * More details will be added.
+ * @{
+ */
+/*! @} - end defgroup coefficient_coding */
 
 /*!\defgroup in_loop_filter In-loop Filter
  * \ingroup encoder_algo

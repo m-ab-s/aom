@@ -167,7 +167,13 @@ enum {
   FRAME_CONTENT_TYPES = 2
 } UENUM1BYTE(FRAME_CONTENT_TYPE);
 
+/*!\endcond */
+/*!
+ * \brief  Data relating to the current GF/ARF group and the
+ * individual frames within the group
+ */
 typedef struct {
+  /*!\cond */
   unsigned char index;
   FRAME_UPDATE_TYPE update_type[MAX_STATIC_GF_GROUP_LENGTH];
   unsigned char arf_src_offset[MAX_STATIC_GF_GROUP_LENGTH];
@@ -186,7 +192,9 @@ typedef struct {
   unsigned char q_val[MAX_STATIC_GF_GROUP_LENGTH];
   int bit_allocation[MAX_STATIC_GF_GROUP_LENGTH];
   int size;
+  /*!\endcond */
 } GF_GROUP;
+/*!\cond */
 
 typedef struct {
   FIRSTPASS_STATS *stats_in_start;
@@ -196,7 +204,13 @@ typedef struct {
   FIRSTPASS_STATS *total_left_stats;
 } STATS_BUFFER_CTX;
 
+/*!\endcond */
+
+/*!
+ * \brief Two pass status and control data.
+ */
 typedef struct {
+  /*!\cond */
   unsigned int section_intra_rating;
   // Circular queue of first pass stats stored for most recent frames.
   // cpi->output_pkt_list[i].data.twopass_stats.buf points to actual data stored
@@ -236,7 +250,10 @@ typedef struct {
   int extend_minq;
   int extend_maxq;
   int extend_minq_fast;
+  /*!\endcond */
 } TWO_PASS;
+
+/*!\cond */
 
 // This structure contains several key parameters to be accumulated for this
 // frame.

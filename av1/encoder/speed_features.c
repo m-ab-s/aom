@@ -244,6 +244,12 @@ static void set_good_speed_feature_framesize_dependent(
   }
 
   if (speed >= 6) {
+    if (is_720p_or_larger) {
+      sf->part_sf.auto_max_partition_based_on_simple_motion = NOT_IN_USE;
+    } else if (is_480p_or_larger) {
+      sf->part_sf.auto_max_partition_based_on_simple_motion = DIRECT_PRED;
+    }
+
     if (is_1080p_or_larger) {
       sf->part_sf.default_min_partition_size = BLOCK_8X8;
     }
@@ -259,6 +265,12 @@ static void set_good_speed_feature_framesize_dependent(
       sf->part_sf.use_square_partition_only_threshold = BLOCK_32X32;
     } else {
       sf->part_sf.use_square_partition_only_threshold = BLOCK_16X16;
+    }
+
+    if (is_720p_or_larger) {
+      sf->inter_sf.prune_ref_mv_idx_search = 2;
+    } else {
+      sf->inter_sf.prune_ref_mv_idx_search = 1;
     }
   }
 }
@@ -279,6 +291,9 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
       sf->rt_sf.use_modeled_non_rd_cost = 0;
       sf->rt_sf.use_nonrd_filter_search = 0;
     }
+    if (speed >= 9) {
+      sf->rt_sf.use_modeled_non_rd_cost = 1;
+    }
   }
   if (!is_480p_or_larger) {
     if (speed == 7) {
@@ -286,8 +301,11 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
     }
     if (speed >= 8) {
       sf->mv_sf.subpel_search_method = SUBPEL_TREE;
-
       sf->rt_sf.estimate_motion_for_var_based_partition = 1;
+    }
+    if (speed >= 9) {
+      sf->mv_sf.subpel_search_method = SUBPEL_TREE_PRUNED;
+      sf->rt_sf.estimate_motion_for_var_based_partition = 0;
     }
   }
 }
@@ -515,6 +533,7 @@ static void set_good_speed_features_framesize_independent(
     sf->mv_sf.subpel_search_method = SUBPEL_TREE_PRUNED_MORE;
 
     sf->part_sf.simple_motion_search_prune_agg = 2;
+    sf->part_sf.simple_motion_search_reduce_search_steps = 4;
     sf->part_sf.prune_ab_partition_using_split_info = 1;
 
     sf->inter_sf.alt_ref_search_fp = 1;
@@ -559,8 +578,9 @@ static void set_good_speed_features_framesize_independent(
     sf->rd_sf.tx_domain_dist_thres_level = 2;
 
     // TODO(any): Extend multi-winner mode processing support for inter frames
-    sf->winner_mode_sf.enable_multiwinner_mode_process =
-        frame_is_intra_only(&cpi->common) ? 1 : 0;
+    sf->winner_mode_sf.multi_winner_mode_type =
+        frame_is_intra_only(&cpi->common) ? MULTI_WINNER_MODE_DEFAULT
+                                          : MULTI_WINNER_MODE_OFF;
     sf->winner_mode_sf.enable_winner_mode_for_tx_size_srch = 1;
 
     sf->lpf_sf.cdef_pick_method = CDEF_FAST_SEARCH_LVL2;
@@ -597,6 +617,11 @@ static void set_good_speed_features_framesize_independent(
     sf->inter_sf.txfm_rd_gate_level = boosted ? 0 : 4;
     sf->inter_sf.prune_inter_modes_if_skippable = 1;
 
+    // TODO(any): Extend multi-winner mode processing support for inter frames
+    sf->winner_mode_sf.multi_winner_mode_type =
+        frame_is_intra_only(&cpi->common) ? MULTI_WINNER_MODE_FAST
+                                          : MULTI_WINNER_MODE_OFF;
+
     sf->lpf_sf.lpf_pick = LPF_PICK_FROM_FULL_IMAGE_NON_DUAL;
     sf->lpf_sf.disable_lr_filter = 1;
     sf->lpf_sf.cdef_pick_method = CDEF_FAST_SEARCH_LVL3;
@@ -615,8 +640,17 @@ static void set_good_speed_features_framesize_independent(
     sf->tpl_sf.subpel_force_stop = FULL_PEL;
     sf->tpl_sf.disable_filtered_key_tpl = 1;
 
+    sf->tx_sf.use_intra_txb_hash = 1;
     sf->tx_sf.tx_type_search.prune_tx_type_est_rd = 0;
+
+    sf->winner_mode_sf.multi_winner_mode_type = MULTI_WINNER_MODE_OFF;
   }
+
+  // Intra txb hash is currently not compatible with multi-winner mode as the
+  // hashes got reset during multi-winner mode processing.
+  assert(IMPLIES(
+      sf->winner_mode_sf.multi_winner_mode_type != MULTI_WINNER_MODE_OFF,
+      !sf->tx_sf.use_intra_txb_hash));
 }
 
 // TODO(kyslov): now this is very similar to
@@ -844,6 +878,9 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
       sf->rt_sf.overshoot_detection_cbr = FAST_DETECTION_MAXQ;
       sf->rt_sf.check_scene_detection = 1;
     }
+    // Keeping this off for now as some clips show ~6% BDRate regression with
+    // moderate speed-up (~20%)
+    sf->rt_sf.use_temporal_noise_estimate = 0;
   }
 
   if (speed >= 6) {
@@ -897,6 +934,10 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
     sf->rt_sf.source_metrics_sb_nonrd = 1;
     sf->rt_sf.skip_intra_pred_if_tx_skip = 0;
     sf->interp_sf.cb_pred_filter_search = 1;
+  }
+  if (speed >= 9) {
+    sf->rt_sf.force_large_partition_blocks = 1;
+    sf->rt_sf.nonrd_intra_dc_only = 1;
   }
 }
 
@@ -961,6 +1002,7 @@ static AOM_INLINE void init_part_sf(PARTITION_SPEED_FEATURES *part_sf) {
   part_sf->simple_motion_search_split = 0;
   part_sf->simple_motion_search_prune_rect = 0;
   part_sf->simple_motion_search_early_term_none = 0;
+  part_sf->simple_motion_search_reduce_search_steps = 0;
   part_sf->intra_cnn_split = 0;
   part_sf->ext_partition_eval_thresh = BLOCK_8X8;
   part_sf->prune_4_partition_using_split_info = 0;
@@ -1078,22 +1120,23 @@ static AOM_INLINE void init_tx_sf(TX_SPEED_FEATURES *tx_sf) {
 }
 
 static AOM_INLINE void init_rd_sf(RD_CALC_SPEED_FEATURES *rd_sf,
-                                  const AV1_COMP *cpi) {
-  if (cpi->oxcf.disable_trellis_quant == 3) {
-    rd_sf->optimize_coefficients = !is_lossless_requested(&cpi->oxcf.rc_cfg)
+                                  const AV1EncoderConfig *oxcf) {
+  const int disable_trellis_quant = oxcf->algo_cfg.disable_trellis_quant;
+  if (disable_trellis_quant == 3) {
+    rd_sf->optimize_coefficients = !is_lossless_requested(&oxcf->rc_cfg)
                                        ? NO_ESTIMATE_YRD_TRELLIS_OPT
                                        : NO_TRELLIS_OPT;
-  } else if (cpi->oxcf.disable_trellis_quant == 2) {
-    rd_sf->optimize_coefficients = !is_lossless_requested(&cpi->oxcf.rc_cfg)
+  } else if (disable_trellis_quant == 2) {
+    rd_sf->optimize_coefficients = !is_lossless_requested(&oxcf->rc_cfg)
                                        ? FINAL_PASS_TRELLIS_OPT
                                        : NO_TRELLIS_OPT;
-  } else if (cpi->oxcf.disable_trellis_quant == 0) {
-    if (is_lossless_requested(&cpi->oxcf.rc_cfg)) {
+  } else if (disable_trellis_quant == 0) {
+    if (is_lossless_requested(&oxcf->rc_cfg)) {
       rd_sf->optimize_coefficients = NO_TRELLIS_OPT;
     } else {
       rd_sf->optimize_coefficients = FULL_TRELLIS_OPT;
     }
-  } else if (cpi->oxcf.disable_trellis_quant == 1) {
+  } else if (disable_trellis_quant == 1) {
     rd_sf->optimize_coefficients = NO_TRELLIS_OPT;
   } else {
     assert(0 && "Invalid disable_trellis_quant value");
@@ -1119,7 +1162,7 @@ static AOM_INLINE void init_winner_mode_sf(
   winner_mode_sf->enable_winner_mode_for_coeff_opt = 0;
   winner_mode_sf->enable_winner_mode_for_tx_size_srch = 0;
   winner_mode_sf->enable_winner_mode_for_use_tx_domain_dist = 0;
-  winner_mode_sf->enable_multiwinner_mode_process = 0;
+  winner_mode_sf->multi_winner_mode_type = 0;
 }
 
 static AOM_INLINE void init_lpf_sf(LOOP_FILTER_SPEED_FEATURES *lpf_sf) {
@@ -1157,9 +1200,9 @@ void av1_set_speed_features_framesize_dependent(AV1_COMP *cpi, int speed) {
   }
 
   // This is only used in motion vector unit test.
-  if (cpi->oxcf.motion_vector_unit_test == 1)
+  if (cpi->oxcf.unit_test_cfg.motion_vector_unit_test == 1)
     cpi->mv_search_params.find_fractional_mv_step = av1_return_max_sub_pixel_mv;
-  else if (cpi->oxcf.motion_vector_unit_test == 2)
+  else if (cpi->oxcf.unit_test_cfg.motion_vector_unit_test == 2)
     cpi->mv_search_params.find_fractional_mv_step = av1_return_min_sub_pixel_mv;
 }
 
@@ -1178,7 +1221,7 @@ void av1_set_speed_features_framesize_independent(AV1_COMP *cpi, int speed) {
   init_interp_sf(&sf->interp_sf);
   init_intra_sf(&sf->intra_sf);
   init_tx_sf(&sf->tx_sf);
-  init_rd_sf(&sf->rd_sf, cpi);
+  init_rd_sf(&sf->rd_sf, oxcf);
   init_winner_mode_sf(&sf->winner_mode_sf);
   init_lpf_sf(&sf->lpf_sf);
   init_rt_sf(&sf->rt_sf);
@@ -1248,9 +1291,9 @@ void av1_set_speed_features_framesize_independent(AV1_COMP *cpi, int speed) {
   }
 
   // This is only used in motion vector unit test.
-  if (cpi->oxcf.motion_vector_unit_test == 1)
+  if (cpi->oxcf.unit_test_cfg.motion_vector_unit_test == 1)
     mv_search_params->find_fractional_mv_step = av1_return_max_sub_pixel_mv;
-  else if (cpi->oxcf.motion_vector_unit_test == 2)
+  else if (cpi->oxcf.unit_test_cfg.motion_vector_unit_test == 2)
     mv_search_params->find_fractional_mv_step = av1_return_min_sub_pixel_mv;
 
   // assert ensures that tx_domain_dist_level is accessed correctly

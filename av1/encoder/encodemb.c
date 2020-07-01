@@ -98,7 +98,8 @@ int av1_optimize_b(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
   }
 
   return av1_optimize_txb_new(cpi, x, plane, block, tx_size, tx_type, txb_ctx,
-                              rate_cost, cpi->oxcf.sharpness, fast_mode);
+                              rate_cost, cpi->oxcf.algo_cfg.sharpness,
+                              fast_mode);
 }
 
 // Hyper-parameters for dropout optimization, based on following logics.
@@ -224,7 +225,7 @@ void av1_dropout_qcoeff(MACROBLOCK *mb, int plane, int block, TX_SIZE tx_size,
   if (eob != p->eobs[block]) {
     p->eobs[block] = eob;
     p->txb_entropy_ctx[block] =
-        (uint8_t)av1_get_txb_entropy_context(qcoeff, scan_order, eob);
+        av1_get_txb_entropy_context(qcoeff, scan_order, eob);
   }
 }
 
@@ -311,7 +312,7 @@ void av1_quant(MACROBLOCK *x, int plane, int block, TxfmParam *txfm_param,
     p->txb_entropy_ctx[block] = 0;
   } else {
     p->txb_entropy_ctx[block] =
-        (uint8_t)av1_get_txb_entropy_context(qcoeff, scan_order, *eob);
+        av1_get_txb_entropy_context(qcoeff, scan_order, *eob);
   }
 }
 

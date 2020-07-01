@@ -149,6 +149,7 @@ list(APPEND AOM_AV1_ENCODER_SOURCES
             "${AOM_ROOT}/av1/encoder/encoder.c"
             "${AOM_ROOT}/av1/encoder/encoder.h"
             "${AOM_ROOT}/av1/encoder/encoder_alloc.h"
+            "${AOM_ROOT}/av1/encoder/encoder_utils.c"
             "${AOM_ROOT}/av1/encoder/encoder_utils.h"
             "${AOM_ROOT}/av1/encoder/encodetxb.c"
             "${AOM_ROOT}/av1/encoder/encodetxb.h"
@@ -234,6 +235,8 @@ list(APPEND AOM_AV1_ENCODER_SOURCES
             "${AOM_ROOT}/av1/encoder/wedge_utils.c"
             "${AOM_ROOT}/av1/encoder/var_based_part.c"
             "${AOM_ROOT}/av1/encoder/var_based_part.h"
+            "${AOM_ROOT}/av1/encoder/av1_noise_estimate.c"
+            "${AOM_ROOT}/av1/encoder/av1_noise_estimate.h"
             "${AOM_ROOT}/third_party/fastfeat/fast.c"
             "${AOM_ROOT}/third_party/fastfeat/fast.h"
             "${AOM_ROOT}/third_party/fastfeat/fast_9.c"
@@ -271,7 +274,8 @@ list(APPEND AOM_AV1_COMMON_INTRIN_SSSE3
             "${AOM_ROOT}/av1/common/x86/highbd_convolve_2d_ssse3.c"
             "${AOM_ROOT}/av1/common/x86/highbd_wiener_convolve_ssse3.c"
             "${AOM_ROOT}/av1/common/x86/jnt_convolve_ssse3.c"
-            "${AOM_ROOT}/av1/common/x86/reconinter_ssse3.c")
+            "${AOM_ROOT}/av1/common/x86/reconinter_ssse3.c"
+            "${AOM_ROOT}/av1/common/x86/resize_ssse3.c")
 
 if(NOT CONFIG_AV1_HIGHBITDEPTH)
   list(REMOVE_ITEM AOM_AV1_COMMON_INTRIN_SSSE3
@@ -378,9 +382,12 @@ endif()
 
 list(APPEND AOM_AV1_ENCODER_INTRIN_NEON
             "${AOM_ROOT}/av1/encoder/arm/neon/quantize_neon.c"
+            "${AOM_ROOT}/av1/encoder/arm/neon/ml_neon.c"
             "${AOM_ROOT}/av1/encoder/arm/neon/picksrt_neon.c"
+            "${AOM_ROOT}/av1/encoder/arm/neon/rdopt_neon.c"
             "${AOM_ROOT}/av1/encoder/arm/neon/av1_error_neon.c"
             "${AOM_ROOT}/av1/encoder/arm/neon/encodetxb_neon.c"
+            "${AOM_ROOT}/av1/encoder/arm/neon/hybrid_fwd_txfm_neon.c"
             "${AOM_ROOT}/av1/encoder/arm/neon/av1_fwd_txfm2d_neon.c"
             "${AOM_ROOT}/av1/encoder/arm/neon/highbd_fwd_txfm_neon.c")
 
@@ -401,6 +408,7 @@ list(APPEND AOM_AV1_COMMON_INTRIN_NEON
             "${AOM_ROOT}/av1/common/arm/blend_a64_vmask_neon.c"
             "${AOM_ROOT}/av1/common/arm/reconinter_neon.c"
             "${AOM_ROOT}/av1/common/arm/reconintra_neon.c"
+            "${AOM_ROOT}/av1/common/arm/resize_neon.c"
             "${AOM_ROOT}/av1/common/arm/wiener_convolve_neon.c"
             "${AOM_ROOT}/av1/common/arm/selfguided_neon.c"
             "${AOM_ROOT}/av1/common/arm/av1_inv_txfm_neon.c"

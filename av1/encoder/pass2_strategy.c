@@ -2711,15 +2711,17 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
 
     reset_fpf_position(twopass, start_position);
 
-    int max_gop_length = (oxcf->gf_cfg.lag_in_frames >= 32 &&
-                          is_stat_consumption_stage_twopass(cpi))
-                             ? MAX_GF_INTERVAL
-                             : MAX_GF_LENGTH_LAP;
+    int max_gop_length =
+        (oxcf->gf_cfg.lag_in_frames >= 32 &&
+         is_stat_consumption_stage_twopass(cpi))
+            ? AOMMIN(MAX_GF_INTERVAL, oxcf->gf_cfg.lag_in_frames -
+                                          oxcf->algo_cfg.arnr_max_frames / 2)
+            : MAX_GF_LENGTH_LAP;
     if (rc->intervals_till_gf_calculate_due == 0) {
       calculate_gf_length(cpi, max_gop_length, MAX_NUM_GF_INTERVALS);
     }
 
-    if (max_gop_length > 16 && oxcf->enable_tpl_model &&
+    if (max_gop_length > 16 && oxcf->algo_cfg.enable_tpl_model &&
         !cpi->sf.tpl_sf.disable_gop_length_decision) {
       if (rc->gf_intervals[rc->cur_gf_index] - 1 > 16) {
         // The calculate_gf_length function is previously used with

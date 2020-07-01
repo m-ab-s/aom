@@ -202,25 +202,25 @@ specialize qw/aom_paeth_predictor_16x16 ssse3/;
 specialize qw/aom_paeth_predictor_16x32 ssse3/;
 specialize qw/aom_paeth_predictor_32x16 ssse3/;
 specialize qw/aom_paeth_predictor_32x32 ssse3/;
-specialize qw/aom_smooth_predictor_4x4 ssse3/;
-specialize qw/aom_smooth_predictor_4x8 ssse3/;
-specialize qw/aom_smooth_predictor_4x16 ssse3/;
-specialize qw/aom_smooth_predictor_8x4 ssse3/;
-specialize qw/aom_smooth_predictor_8x8 ssse3/;
-specialize qw/aom_smooth_predictor_8x16 ssse3/;
-specialize qw/aom_smooth_predictor_8x32 ssse3/;
-specialize qw/aom_smooth_predictor_16x4 ssse3/;
-specialize qw/aom_smooth_predictor_16x8 ssse3/;
-specialize qw/aom_smooth_predictor_16x16 ssse3/;
-specialize qw/aom_smooth_predictor_16x32 ssse3/;
-specialize qw/aom_smooth_predictor_16x64 ssse3/;
-specialize qw/aom_smooth_predictor_32x8 ssse3/;
-specialize qw/aom_smooth_predictor_32x16 ssse3/;
-specialize qw/aom_smooth_predictor_32x32 ssse3/;
-specialize qw/aom_smooth_predictor_32x64 ssse3/;
-specialize qw/aom_smooth_predictor_64x64 ssse3/;
-specialize qw/aom_smooth_predictor_64x32 ssse3/;
-specialize qw/aom_smooth_predictor_64x16 ssse3/;
+specialize qw/aom_smooth_predictor_4x4 neon ssse3/;
+specialize qw/aom_smooth_predictor_4x8 neon ssse3/;
+specialize qw/aom_smooth_predictor_4x16 neon ssse3/;
+specialize qw/aom_smooth_predictor_8x4 neon ssse3/;
+specialize qw/aom_smooth_predictor_8x8 neon ssse3/;
+specialize qw/aom_smooth_predictor_8x16 neon ssse3/;
+specialize qw/aom_smooth_predictor_8x32 neon ssse3/;
+specialize qw/aom_smooth_predictor_16x4 neon ssse3/;
+specialize qw/aom_smooth_predictor_16x8 neon ssse3/;
+specialize qw/aom_smooth_predictor_16x16 neon ssse3/;
+specialize qw/aom_smooth_predictor_16x32 neon ssse3/;
+specialize qw/aom_smooth_predictor_16x64 neon ssse3/;
+specialize qw/aom_smooth_predictor_32x8 neon ssse3/;
+specialize qw/aom_smooth_predictor_32x16 neon ssse3/;
+specialize qw/aom_smooth_predictor_32x32 neon ssse3/;
+specialize qw/aom_smooth_predictor_32x64 neon ssse3/;
+specialize qw/aom_smooth_predictor_64x64 neon ssse3/;
+specialize qw/aom_smooth_predictor_64x32 neon ssse3/;
+specialize qw/aom_smooth_predictor_64x16 neon ssse3/;
 
 specialize qw/aom_smooth_v_predictor_4x4 ssse3/;
 specialize qw/aom_smooth_v_predictor_4x8 ssse3/;
@@ -353,6 +353,7 @@ if (aom_config("CONFIG_AV1_HIGHBITDEPTH") eq "yes") {
 #
 # Sub Pixel Filters
 #
+add_proto qw/void aom_convolve8/, "const uint8_t *src, ptrdiff_t src_stride, uint8_t *dst, ptrdiff_t dst_stride, const InterpKernel *filter, int x0_q4, int x_step_q4, int y0_q4, int y_step_q4, int w, int h";
 add_proto qw/void aom_convolve_copy/,             "const uint8_t *src, ptrdiff_t src_stride, uint8_t *dst, ptrdiff_t dst_stride, int w, int h";
 add_proto qw/void aom_convolve8_horiz/,           "const uint8_t *src, ptrdiff_t src_stride, uint8_t *dst, ptrdiff_t dst_stride, const int16_t *filter_x, int x_step_q4, const int16_t *filter_y, int y_step_q4, int w, int h";
 add_proto qw/void aom_convolve8_vert/,            "const uint8_t *src, ptrdiff_t src_stride, uint8_t *dst, ptrdiff_t dst_stride, const int16_t *filter_x, int x_step_q4, const int16_t *filter_y, int y_step_q4, int w, int h";
