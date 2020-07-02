@@ -204,6 +204,20 @@ enum {
   FAST_DETECTION_MAXQ = 1,
 } UENUM1BYTE(OVERSHOOT_DETECTION_CBR);
 
+enum {
+  // Turns off multi-winner mode. So we will do txfm search on either all modes
+  // if winner mode is off, or we will only on txfm search on a single winner
+  // mode.
+  MULTI_WINNER_MODE_OFF = 0,
+
+  // Limits the number of winner modes to at most 2
+  MULTI_WINNER_MODE_FAST = 1,
+
+  // Uses the default number of winner modes, which is 3 for intra mode, and 1
+  // for inter mode.
+  MULTI_WINNER_MODE_DEFAULT = 2,
+} UENUM1BYTE(MULTI_WINNER_MODE_TYPE);
+
 typedef struct {
   TX_TYPE_PRUNE_MODE prune_2d_txfm_mode;
   int fast_intra_tx_type_search;
@@ -277,7 +291,7 @@ typedef struct HIGH_LEVEL_SPEED_FEATURES {
   MV_PREC_LOGIC high_precision_mv_usage;
 
   // Whether to disable overlay frames for filtered Altref frames,
-  // overiding oxcf->enable_overlay flag set as 1.
+  // overiding oxcf->algo_cfg.enable_overlay flag set as 1.
   int disable_overlay_frames;
 
   // Enable/disable adaptively deciding whether or not to encode ALTREF overlay
@@ -389,8 +403,8 @@ typedef struct PARTITION_SPEED_FEATURES {
   BLOCK_SIZE default_min_partition_size;
   BLOCK_SIZE default_max_partition_size;
 
-  // Sets level of adjustmet of variace-based partitioning during
-  // rd_use_partition 0 - no partition adjusment, 1 - try to merge partitions
+  // Sets level of adjustment of variance-based partitioning during
+  // rd_use_partition 0 - no partition adjustment, 1 - try to merge partitions
   // for small blocks and high QP, 2 - always try to merge leaf partitions, 3 -
   // try to merge and split leaf partitions
   int adjust_var_based_rd_partitioning;
@@ -405,7 +419,7 @@ typedef struct PARTITION_SPEED_FEATURES {
   // Allow skipping partition search for still image frame
   int allow_partition_search_skip;
 
-  // The aggresiveness of pruning with simple_motion_search.
+  // The aggressiveness of pruning with simple_motion_search.
   // Currently 0 is the lowest, and 2 the highest.
   int simple_motion_search_prune_agg;
 
@@ -423,6 +437,12 @@ typedef struct PARTITION_SPEED_FEATURES {
   // Use features from simple_motion_search to terminate prediction block
   // partition after PARTITION_NONE
   int simple_motion_search_early_term_none;
+
+  // Controls whether to reduce the number of motion search steps. If this is 0,
+  // then simple_motion_search has the same number of steps as
+  // single_motion_search (assuming no other speed features). Otherwise, reduce
+  // the number of steps by the value contained in this variable.
+  int simple_motion_search_reduce_search_steps;
 
   // This variable controls the maximum block size where intra blocks can be
   // used in inter frames.
@@ -775,7 +795,9 @@ typedef struct TX_SPEED_FEATURES {
   int model_based_prune_tx_search_level;
 
   // Use hash table to store intra(keyframe only) txb transform search results
-  // to avoid repeated search on the same residue signal.
+  // to avoid repeated search on the same residue signal. This is currently not
+  // compatible with multi-winner mode as the hash states are reset during
+  // winner mode processing.
   int use_intra_txb_hash;
 
   // Use hash table to store inter txb transform search results
@@ -852,7 +874,7 @@ typedef struct WINNER_MODE_SPEED_FEATURES {
   int enable_winner_mode_for_use_tx_domain_dist;
 
   // Flag used to enable processing of multiple winner modes
-  int enable_multiwinner_mode_process;
+  MULTI_WINNER_MODE_TYPE multi_winner_mode_type;
 
   // Motion mode for winner candidates:
   // 0: speed feature OFF
@@ -978,9 +1000,24 @@ typedef struct REAL_TIME_SPEED_FEATURES {
 
   // Check for scene/content change detection on every frame before encoding.
   int check_scene_detection;
+
+  // Forces larger partition blocks in variance based partitioning
+  int force_large_partition_blocks;
+
+  // Only checks intra DCPRED mode in nonrd_pick_inter_mode
+  int nonrd_intra_dc_only;
+
+  // uses results of temporal noise estimate
+  int use_temporal_noise_estimate;
 } REAL_TIME_SPEED_FEATURES;
 
+/*!\endcond */
+
+/*!
+ * \brief Top level speed vs quality trade off data struture.
+ */
 typedef struct SPEED_FEATURES {
+  /*!\cond */
   /*
    * Sequence/frame level speed features:
    */
@@ -1045,7 +1082,9 @@ typedef struct SPEED_FEATURES {
    * Real-time mode speed features:
    */
   REAL_TIME_SPEED_FEATURES rt_sf;
+  /*!\endcond */
 } SPEED_FEATURES;
+/*!\cond */
 
 struct AV1_COMP;
 

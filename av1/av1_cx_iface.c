@@ -423,7 +423,7 @@ static aom_codec_err_t validate_config(aom_codec_alg_priv_t *ctx,
   RANGE_CHECK_HI(extra_cfg, ext_tile_debug, 1);
   RANGE_CHECK_HI(extra_cfg, enable_auto_alt_ref, 1);
   RANGE_CHECK_HI(extra_cfg, enable_auto_bwd_ref, 2);
-  RANGE_CHECK(extra_cfg, cpu_used, 0, 8);
+  RANGE_CHECK(extra_cfg, cpu_used, 0, 9);
   RANGE_CHECK_HI(extra_cfg, noise_sensitivity, 6);
   RANGE_CHECK(extra_cfg, superblock_size, AOM_SUPERBLOCK_SIZE_64X64,
               AOM_SUPERBLOCK_SIZE_DYNAMIC);
@@ -728,6 +728,12 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
 
   QuantizationCfg *const q_cfg = &oxcf->q_cfg;
 
+  ColorCfg *const color_cfg = &oxcf->color_cfg;
+
+  InputCfg *const input_cfg = &oxcf->input_cfg;
+
+  AlgoCfg *const algo_cfg = &oxcf->algo_cfg;
+
   const int is_vbr = cfg->rc_end_usage == AOM_VBR;
   oxcf->profile = cfg->g_profile;
   oxcf->max_threads = (int)cfg->g_threads;
@@ -742,9 +748,24 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   frm_dim_cfg->render_height = extra_cfg->render_height;
 
   oxcf->bit_depth = cfg->g_bit_depth;
-  oxcf->input_bit_depth = cfg->g_input_bit_depth;
+
+  // Set input video related configuration.
+  input_cfg->input_bit_depth = cfg->g_input_bit_depth;
   // guess a frame rate if out of whack, use 30
-  oxcf->init_framerate = (double)cfg->g_timebase.den / cfg->g_timebase.num;
+  input_cfg->init_framerate = (double)cfg->g_timebase.den / cfg->g_timebase.num;
+  if (cfg->g_pass == AOM_RC_LAST_PASS) {
+    const size_t packet_sz = sizeof(FIRSTPASS_STATS);
+    const int n_packets = (int)(cfg->rc_twopass_stats_in.sz / packet_sz);
+    input_cfg->limit = n_packets - 1;
+  } else {
+    input_cfg->limit = cfg->g_limit;
+  }
+  input_cfg->chroma_subsampling_x = extra_cfg->chroma_subsampling_x;
+  input_cfg->chroma_subsampling_y = extra_cfg->chroma_subsampling_y;
+  if (input_cfg->init_framerate > 180) {
+    input_cfg->init_framerate = 30;
+    dec_model_cfg->timing_info_present = 0;
+  }
 
   // Set Decoder model configuration.
   if (extra_cfg->timing_info_type == AOM_TIMING_EQUAL ||
@@ -776,11 +797,6 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
     dec_model_cfg->decoder_model_info_present_flag = 1;
     dec_model_cfg->display_model_info_present_flag = 1;
   }
-  if (oxcf->init_framerate > 180) {
-    oxcf->init_framerate = 30;
-    dec_model_cfg->timing_info_present = 0;
-  }
-  oxcf->encoder_cfg = &cfg->encoder_cfg;
 
   switch (cfg->g_pass) {
     case AOM_RC_ONE_PASS: oxcf->pass = 0; break;
@@ -812,9 +828,7 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   oxcf->enable_restoration =
       (cfg->g_usage == AOM_USAGE_REALTIME) ? 0 : extra_cfg->enable_restoration;
   oxcf->force_video_mode = extra_cfg->force_video_mode;
-  oxcf->enable_overlay = extra_cfg->enable_overlay;
   oxcf->enable_palette = extra_cfg->enable_palette;
-  oxcf->disable_trellis_quant = extra_cfg->disable_trellis_quant;
   oxcf->allow_ref_frame_mvs = extra_cfg->enable_ref_frame_mvs;
 
   // Set Quantization related configuration.
@@ -865,6 +879,17 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
 
   oxcf->drop_frames_water_mark = cfg->rc_dropframe_thresh;
 
+  // Set encoder algorithm related configuration.
+  algo_cfg->enable_overlay = extra_cfg->enable_overlay;
+  algo_cfg->disable_trellis_quant = extra_cfg->disable_trellis_quant;
+  algo_cfg->sharpness = extra_cfg->sharpness;
+  algo_cfg->arnr_max_frames = extra_cfg->arnr_max_frames;
+  algo_cfg->arnr_strength = extra_cfg->arnr_strength;
+  algo_cfg->cdf_update_mode = (uint8_t)extra_cfg->cdf_update_mode;
+  // TODO(any): Fix and Enable TPL for resize-mode > 0
+  algo_cfg->enable_tpl_model =
+      resize_cfg->resize_mode ? 0 : extra_cfg->enable_tpl_model;
+
   // Set two-pass configuration.
   two_pass_cfg->vbrbias = cfg->rc_2pass_vbr_bias_pct;
   two_pass_cfg->vbrmin_section = cfg->rc_2pass_vbr_minsection_pct;
@@ -884,17 +909,14 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   kf_cfg->enable_intrabc = extra_cfg->enable_intrabc;
 
   oxcf->speed = extra_cfg->cpu_used;
-  oxcf->noise_sensitivity = extra_cfg->noise_sensitivity;
-  oxcf->sharpness = extra_cfg->sharpness;
 
-  oxcf->color_primaries = extra_cfg->color_primaries;
-  oxcf->transfer_characteristics = extra_cfg->transfer_characteristics;
-  oxcf->matrix_coefficients = extra_cfg->matrix_coefficients;
+  // Set Color related configuration.
+  color_cfg->color_primaries = extra_cfg->color_primaries;
+  color_cfg->transfer_characteristics = extra_cfg->transfer_characteristics;
+  color_cfg->matrix_coefficients = extra_cfg->matrix_coefficients;
+  color_cfg->color_range = extra_cfg->color_range;
+
   oxcf->chroma_sample_position = extra_cfg->chroma_sample_position;
-
-  oxcf->color_range = extra_cfg->color_range;
-  oxcf->arnr_max_frames = extra_cfg->arnr_max_frames;
-  oxcf->arnr_strength = extra_cfg->arnr_strength;
 
   // Set Group of frames configuration.
   gf_cfg->lag_in_frames = clamp(cfg->g_lag_in_frames, 0, MAX_LAG_BUFFERS);
@@ -908,7 +930,6 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   oxcf->tuning = extra_cfg->tuning;
   oxcf->vmaf_model_path = extra_cfg->vmaf_model_path;
   oxcf->content = extra_cfg->content;
-  oxcf->cdf_update_mode = (uint8_t)extra_cfg->cdf_update_mode;
   oxcf->superblock_size = extra_cfg->superblock_size;
   if (cfg->large_scale_tile) {
     oxcf->film_grain_test_vector = 0;
@@ -1050,35 +1071,24 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   oxcf->error_resilient_mode =
       cfg->g_error_resilient | extra_cfg->error_resilient_mode;
   oxcf->frame_parallel_decoding_mode = extra_cfg->frame_parallel_decoding_mode;
-  if (cfg->g_pass == AOM_RC_LAST_PASS) {
-    const size_t packet_sz = sizeof(FIRSTPASS_STATS);
-    const int n_packets = (int)(cfg->rc_twopass_stats_in.sz / packet_sz);
-    oxcf->limit = n_packets - 1;
-  } else {
-    oxcf->limit = cfg->g_limit;
-  }
 
-  if (oxcf->limit == 1) {
+  if (input_cfg->limit == 1) {
     // still picture mode, display model and timing is meaningless
     dec_model_cfg->display_model_info_present_flag = 0;
     dec_model_cfg->timing_info_present = 0;
   }
-
-  // TODO(any): Fix and Enable TPL for resize-mode > 0
-  oxcf->enable_tpl_model =
-      resize_cfg->resize_mode ? 0 : extra_cfg->enable_tpl_model;
 
   oxcf->deltalf_mode =
       (q_cfg->deltaq_mode != NO_DELTA_Q) && extra_cfg->deltalf_mode;
 
   oxcf->save_as_annexb = cfg->save_as_annexb;
 
-  oxcf->frame_periodic_boost = extra_cfg->frame_periodic_boost;
-  oxcf->motion_vector_unit_test = extra_cfg->motion_vector_unit_test;
-  oxcf->sb_multipass_unit_test = extra_cfg->sb_multipass_unit_test;
+  // Set unit test related configuration.
+  oxcf->unit_test_cfg.motion_vector_unit_test =
+      extra_cfg->motion_vector_unit_test;
+  oxcf->unit_test_cfg.sb_multipass_unit_test =
+      extra_cfg->sb_multipass_unit_test;
 
-  oxcf->chroma_subsampling_x = extra_cfg->chroma_subsampling_x;
-  oxcf->chroma_subsampling_y = extra_cfg->chroma_subsampling_y;
   oxcf->border_in_pixels =
       (resize_cfg->resize_mode || superres_cfg->superres_mode)
           ? AOM_BORDER_IN_PIXELS
@@ -2055,9 +2065,15 @@ static aom_codec_err_t encoder_destroy(aom_codec_alg_priv_t *ctx) {
 
 static aom_codec_frame_flags_t get_frame_pkt_flags(const AV1_COMP *cpi,
                                                    unsigned int lib_flags) {
+  const SVC *const svc = &cpi->svc;
   aom_codec_frame_flags_t flags = lib_flags << 16;
 
-  if (lib_flags & FRAMEFLAGS_KEY) flags |= AOM_FRAME_IS_KEY;
+  if (lib_flags & FRAMEFLAGS_KEY ||
+      (cpi->use_svc &&
+       svc->layer_context[svc->spatial_layer_id * svc->number_temporal_layers +
+                          svc->temporal_layer_id]
+           .is_key_frame))
+    flags |= AOM_FRAME_IS_KEY;
   if (lib_flags & FRAMEFLAGS_INTRAONLY) flags |= AOM_FRAME_IS_INTRAONLY;
   if (lib_flags & FRAMEFLAGS_SWITCH) flags |= AOM_FRAME_IS_SWITCH;
   if (lib_flags & FRAMEFLAGS_ERROR_RESILIENT)
@@ -2244,7 +2260,7 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
       num_workers = av1_fp_compute_num_enc_workers(cpi);
 #endif
     } else {
-      num_workers = av1_compute_num_enc_workers(cpi);
+      num_workers = av1_compute_num_enc_workers(cpi, cpi->oxcf.max_threads);
     }
     if ((num_workers > 1) && (cpi->mt_info.num_workers == 0))
       av1_create_workers(cpi, num_workers);

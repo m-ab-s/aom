@@ -24,6 +24,7 @@
 extern "C" {
 #endif
 
+/*!\cond */
 #define TXB_SKIP_CTX_MASK 15
 #define DC_SIGN_CTX_SHIFT 4
 #define DC_SIGN_CTX_MASK 3
@@ -50,11 +51,49 @@ typedef struct TxbInfo {
   int tx_type_cost;
 } TxbInfo;
 
+/*!\endcond */
+/*!\brief Allocate the memory resources for all the macro blocks in the current
+ * coding frame.
+ * \ingroup coefficient_coding
+ *
+ * Each macro block will need a \ref CB_COEFF_BUFFER to store information for
+ * rate-distortion optimization and entropy coding of transform coefficients.
+ *
+ * \param[in]    cpi            Top-level encoder structure
+ */
 void av1_alloc_txb_buf(AV1_COMP *cpi);
+/*!\brief Free the memory resources for all the macro blocks in the current
+ * coding frame.
+ * \ingroup coefficient_coding
+ *
+ * See \ref av1_alloc_txb_buf and \ref CB_COEFF_BUFFER for more details.
+ *
+ * \param[in]    cpi            Top-level encoder structure
+ */
 void av1_free_txb_buf(AV1_COMP *cpi);
+/*!\brief Compute the entropy cost of coding coefficients in a transform block.
+ *
+ * \ingroup coefficient_coding
+ *
+ * \param[in]    x                    Pointer to structure holding the data for
+ the current encoding macroblock.
+ * \param[in]    plane                The index of the current plane.
+ * \param[in]    block                The index of the current transform block
+ in the
+ * macroblock. It's defined by number of 4x4 units that has been coded before
+ * the currernt transform block.
+ * \param[in]    tx_size              The transform size.
+ * \param[in]    tx_type              The transform type.
+ * \param[in]    txb_ctx              Context info for entropy coding transform
+ block
+ * skip flag (tx_skip) and the sign of DC coefficient (dc_sign).
+ * \param[in]    reduced_tx_set_used  Whether the transform type is chosen from
+ * a reduced set.
+ */
 int av1_cost_coeffs_txb(const MACROBLOCK *x, const int plane, const int block,
                         const TX_SIZE tx_size, const TX_TYPE tx_type,
                         const TXB_CTX *const txb_ctx, int reduced_tx_set_used);
+/*!\cond */
 int av1_cost_coeffs_txb_laplacian(const MACROBLOCK *x, const int plane,
                                   const int block, const TX_SIZE tx_size,
                                   const TX_TYPE tx_type,
@@ -64,13 +103,68 @@ int av1_cost_coeffs_txb_laplacian(const MACROBLOCK *x, const int plane,
 int av1_cost_coeffs_txb_estimate(const MACROBLOCK *x, const int plane,
                                  const int block, const TX_SIZE tx_size,
                                  const TX_TYPE tx_type);
+/*!\endcond */
+
+/*!\brief Write quantized coefficients in a transform block into bitstream using
+ * entropy coding.
+ *
+ * \ingroup coefficient_coding
+ *
+ * This function will write the quantized coefficients in a transform block into
+ * the bitstream using entropy coding.
+ *
+ * The coding steps are as follows.
+ *
+ * 1) Code the end of block position "eob", which is the scan index of the
+ * last non-zero coefficient plus one.
+ *
+ * 2) Code the lower magnitude level (<= COEFF_BASE_RANGE + NUM_BASE_LEVELS)
+ * for each coefficient in reversed scan order.
+ *
+ * 3) Code the sign and higher magnitude level
+ * (> COEFF_BASE_RANGE + NUM_BASE_LEVELS) in forward scan order.
+ *
+ * \param[in]    cm             Top-level structure shared by encoder and
+ * decoder
+ * \param[in]    x              Pointer to structure holding the data for the
+                                current encoding macroblock
+ * \param[in]    w              Entropy coding write pointer
+ * \param[in]    blk_row      The row index of the current transform block
+ * in the macroblock. Each unit has 4 pixels in y plane
+ * \param[in]    blk_col      The col index of the current transform block
+ * in the macroblock. Each unit has 4 pixels in y plane
+ * \param[in]    plane          The index of the current plane
+ * \param[in]    block          The index of the current transform block in the
+ * macroblock. It's defined by number of 4x4 units that has been coded before
+ * the currernt transform block
+ * \param[in]    tx_size        The given transform size
+ */
 void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
                           aom_writer *w, int blk_row, int blk_col, int plane,
                           int block, TX_SIZE tx_size);
-void av1_write_coeffs_mb(const AV1_COMMON *const cm, MACROBLOCK *x,
-                         aom_writer *w, BLOCK_SIZE bsize);
-int av1_get_txb_entropy_context(const tran_low_t *qcoeff,
-                                const SCAN_ORDER *scan_order, int eob);
+
+/*!\brief Write quantized coefficients of all transform blocks in an intra
+ * macroblock into the bitstream using entropy coding.
+ *
+ * \ingroup coefficient_coding
+ *
+ * All transform blocks in the intra macroblock share the same transform size.
+ *
+ * This function use \ref av1_write_coeffs_txb() to code each transform block in
+ * raster order.
+ *
+ * \param[in]    cm             Top-level structure shared by encoder and
+ * decoder
+ * \param[in]    x              Pointer to structure holding the data for the
+                                current encoding macroblock
+ * \param[in]    w              Entropy coding write pointer
+ * \param[in]    bsize          size of the current encoding macroblock
+ */
+void av1_write_intra_coeffs_mb(const AV1_COMMON *const cm, MACROBLOCK *x,
+                               aom_writer *w, BLOCK_SIZE bsize);
+/*!\cond */
+uint8_t av1_get_txb_entropy_context(const tran_low_t *qcoeff,
+                                    const SCAN_ORDER *scan_order, int eob);
 void av1_update_txb_context(const AV1_COMP *cpi, ThreadData *td,
                             RUN_TYPE dry_run, BLOCK_SIZE bsize,
                             uint8_t allow_update_cdf);
@@ -80,15 +174,60 @@ void av1_update_and_record_txb_context(int plane, int block, int blk_row,
 #if CONFIG_HTB_TRELLIS
 void hbt_destroy();
 #endif  // CONFIG_HTB_TRELLIS
+
+/*!\endcond */
+/*!\brief Adjust the magnitude of quantized coefficients to achieve better
+ * rate-distortion (RD) trade-off.
+ *
+ * \ingroup coefficient_coding
+ *
+ * This function goes through each coefficient and greedily choose to lower
+ * the coefficient magnitude by 1 or not based on the RD score.
+ *
+ * The coefficients are processing in reversed scan order.
+ *
+ * Note that, the end of block position (eob) may change if the original last
+ * coefficient is lowered to zero.
+ *
+ * \param[in]    cpi            Top-level encoder structure
+ * \param[in]    x              Pointer to structure holding the data for the
+                                current encoding macroblock
+ * \param[in]    plane          The index of the current plane
+ * \param[in]    block          The index of the current transform block in the
+ * \param[in]    tx_size        The transform size
+ * \param[in]    tx_type        The transform type
+ * \param[in]    txb_ctx        Context info for entropy coding transform block
+ * skip flag (tx_skip) and the sign of DC coefficient (dc_sign).
+ * \param[out]   rate_cost      The entropy cost of coding the transform block
+ * after adjustment of coefficients.
+ * \param[in]    sharpness      When sharpness == 1, the function will be less
+ * aggresive toward lowering the magnitude of coefficients.
+ * In this way, the transform block will contain more high-frequency
+ coefficients
+ * and therefore preserve the sharpness of the reconstructed block.
+ * \param[in]    fast_mode      Faster mode
+ */
 int av1_optimize_txb_new(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
                          int block, TX_SIZE tx_size, TX_TYPE tx_type,
                          const TXB_CTX *const txb_ctx, int *rate_cost,
                          int sharpness, int fast_mode);
+/*!\cond */
 
 CB_COEFF_BUFFER *av1_get_cb_coeff_buffer(const struct AV1_COMP *cpi, int mi_row,
                                          int mi_col);
+/*!\endcond */
 
-// Returns the rate cost associated with skipping the current transform block.
+/*!\brief Returns the entropy cost associated with skipping the current
+ * transform block.
+ *
+ * \ingroup coefficient_coding
+ *
+ * \param[in]    coeff_costs    Table of entropy cost for coefficient coding.
+ * \param[in]    txb_ctx        Context info for entropy coding transform block
+ * skip flag (tx_skip) and the sign of DC coefficient (dc_sign).
+ * \param[in]    plane          The index of the current plane
+ * \param[in]    tx_size        The transform size
+ */
 static INLINE int av1_cost_skip_txb(const CoeffCosts *coeff_costs,
                                     const TXB_CTX *const txb_ctx, int plane,
                                     TX_SIZE tx_size) {
@@ -99,11 +238,13 @@ static INLINE int av1_cost_skip_txb(const CoeffCosts *coeff_costs,
   return coeff_costs_->txb_skip_cost[txb_ctx->txb_skip_ctx][1];
 }
 
+/*!\cond */
 // These numbers are empirically obtained.
 static const int plane_rd_mult[REF_TYPES][PLANE_TYPES] = {
   { 17, 13 },
   { 16, 10 },
 };
+/*!\endcond */
 
 #ifdef __cplusplus
 }

@@ -81,28 +81,79 @@ enum {
   FRAME_UPDATE_TYPES
 } UENUM1BYTE(FRAME_UPDATE_TYPE);
 
+/*!\endcond */
+/*!
+ * \brief  Rate Control parameters and status
+ */
 typedef struct {
   // Rate targetting variables
-  int base_frame_target;  // A baseline frame target before adjustment
-                          // for previous under or over shoot.
+
+  /*!
+   * Baseline target rate for frame before adjustment for previous under or
+   * over shoot.
+   */
+  int base_frame_target;
+  /*!
+   * Target rate for frame after adjustment for previous under or over shoot.
+   */
   int this_frame_target;  // Actual frame target after rc adjustment.
 
-  // gop bit budget
+  /*!
+   * Target bit budget for the current GF / ARF group of frame.
+   */
   int64_t gf_group_bits;
 
+  /*!
+   * Projected size for current frame
+   */
   int projected_frame_size;
-  int sb64_target_rate;
-  int last_q[FRAME_TYPES];  // Separate values for Intra/Inter
-  int last_boosted_qindex;  // Last boosted GF/KF/ARF q
-  int last_kf_qindex;       // Q index of the last key frame coded.
 
+  /*!
+   * Super block rate target used with some adaptive quantization strategies.
+   */
+  int sb64_target_rate;
+
+  /*!
+   * Q used on last encoded frame of the given type.
+   */
+  int last_q[FRAME_TYPES];
+
+  /*!
+   * Q used for last boosted (non leaf) frame (GF/KF/ARF)
+   */
+  int last_boosted_qindex;
+
+  /*!
+   * Q used for last boosted (non leaf) frame
+   */
+  int last_kf_qindex;
+
+  /*!
+   * Boost factor used to calculate the extra bits allocated to ARFs and GFs
+   */
   int gfu_boost;
+  /*!
+   * Boost factor used to calculate the extra bits allocated to the key frame
+   */
   int kf_boost;
 
+  /*!
+   * Correction factors used to adjust the q estimate for a given target rate
+   * in the encode loop.
+   */
   double rate_correction_factors[RATE_FACTOR_LEVELS];
 
+  /*!
+   * Number of frames since the last ARF / GF.
+   */
   int frames_since_golden;
+
+  /*!
+   * Number of frames till the next ARF / GF is due.
+   */
   int frames_till_gf_update_due;
+
+  /*!\cond */
 
   // number of determined gf group length left
   int intervals_till_gf_calculate_due;
@@ -160,12 +211,29 @@ typedef struct {
   int64_t total_target_bits;
   int64_t total_target_vs_actual;
 
+  /*!\endcond */
+  /*!
+   * User specified maximum Q allowed for current frame
+   */
   int worst_quality;
+  /*!
+   * User specified minimum Q allowed for current frame
+   */
   int best_quality;
 
+  /*!
+   * Initial buffuer level in ms for CBR / low delay encoding
+   */
   int64_t starting_buffer_level;
+  /*!
+   * Optimum / target buffuer level in ms for CBR / low delay encoding
+   */
   int64_t optimal_buffer_level;
+  /*!
+   * Maximum target buffuer level in ms for CBR / low delay encoding
+   */
   int64_t maximum_buffer_size;
+  /*!\cond */
 
   // rate control history for last frame(1) and the frame before(2).
   // -1: undershot
@@ -177,10 +245,22 @@ typedef struct {
   int q_2_frame;
 
   float_t arf_boost_factor;
-  // Q index used for ALT frame
+
+  /*!\endcond */
+  /*!
+   * Q index used for ALT frame
+   */
   int arf_q;
+  /*!
+   * Proposed maximum alloed Q for current frame
+   */
   int active_worst_quality;
+  /*!
+   * Proposed minimum allowed Q different layers in a coding pyramid
+   */
   int active_best_quality[MAX_ARF_LAYERS + 1];
+
+  /*!\cond */
   int base_layer_qp;
 
   // Total number of stats used only for kf_boost calculation.
@@ -192,7 +272,12 @@ typedef struct {
   int next_is_fwd_key;
   int enable_scenecut_detection;
   int use_arf_in_this_kf_group;
+  // Track amount of low motion in scene
+  int avg_frame_low_motion;
+  /*!\endcond */
 } RATE_CONTROL;
+
+/*!\cond */
 
 struct AV1_COMP;
 struct AV1EncoderConfig;
@@ -325,10 +410,33 @@ int av1_resize_one_pass_cbr(struct AV1_COMP *cpi);
 void av1_rc_set_frame_target(struct AV1_COMP *cpi, int target, int width,
                              int height);
 
+/*!\endcond */
+/*!\brief Calculates how many bits to use for a P frame in one pass vbr
+ *
+ * \ingroup rate_control
+ * \callgraph
+ * \callergraph
+ *
+ * \param[in]       cpi                 Top level encoder structure
+ * \param[in]       frame_update_type   Type of frame
+ *
+ * \return	Returns the target number of bits for this frame.
+ */
 int av1_calc_pframe_target_size_one_pass_vbr(
     const struct AV1_COMP *const cpi, FRAME_UPDATE_TYPE frame_update_type);
 
+/*!\brief Calculates how many bits to use for an i frame in one pass vbr
+ *
+ * \ingroup rate_control
+ * \callgraph
+ * \callergraph
+ *
+ * \param[in]       cpi  Top level encoder structure
+ *
+ * \return	Returns the target number of bits for this frame.
+ */
 int av1_calc_iframe_target_size_one_pass_vbr(const struct AV1_COMP *const cpi);
+/*!\cond */
 
 int av1_calc_pframe_target_size_one_pass_cbr(
     const struct AV1_COMP *cpi, FRAME_UPDATE_TYPE frame_update_type);
@@ -340,6 +448,8 @@ void av1_get_one_pass_rt_params(struct AV1_COMP *cpi,
                                 unsigned int frame_flags);
 
 int av1_encodedframe_overshoot(struct AV1_COMP *cpi, int *q);
+
+void av1_compute_frame_low_motion(struct AV1_COMP *const cpi);
 
 /*!\endcond */
 

@@ -304,6 +304,11 @@ static AOM_INLINE void dealloc_compressor_data(AV1_COMP *cpi) {
   }
 
   if (cpi->use_svc) av1_free_svc_cyclic_refresh(cpi);
+
+  if (cpi->consec_zero_mv) {
+    aom_free(cpi->consec_zero_mv);
+    cpi->consec_zero_mv = NULL;
+  }
 }
 
 static AOM_INLINE void variance_partition_alloc(AV1_COMP *cpi) {
@@ -392,8 +397,9 @@ static AOM_INLINE YV12_BUFFER_CONFIG *realloc_and_scale_source(
                        "Failed to reallocate scaled source buffer");
   assert(cpi->scaled_source.y_crop_width == scaled_width);
   assert(cpi->scaled_source.y_crop_height == scaled_height);
-  av1_resize_and_extend_frame(cpi->unscaled_source, &cpi->scaled_source,
-                              (int)cm->seq_params.bit_depth, num_planes);
+  av1_resize_and_extend_frame_nonnormative(
+      cpi->unscaled_source, &cpi->scaled_source, (int)cm->seq_params.bit_depth,
+      num_planes);
   return &cpi->scaled_source;
 }
 
