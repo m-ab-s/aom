@@ -77,6 +77,7 @@ class MonochromeTest
       frame0_psnr_y_ = pkt->data.psnr.psnr[1];
       EXPECT_GT(frame0_psnr_y_, 29.);
     }
+    EXPECT_GT(pkt->data.psnr.psnr[1], 29.);
     EXPECT_NEAR(pkt->data.psnr.psnr[1], frame0_psnr_y_, 2.5);
   }
 
@@ -125,6 +126,7 @@ TEST_P(MonochromeTest, TestMonochromeEncoding) {
 }
 
 AV1_INSTANTIATE_TEST_CASE(MonochromeTest,
-                          ::testing::Values(::libaom_test::kTwoPassGood));
+                          ::testing::Values(::libaom_test::kOnePassGood,
+                                            ::libaom_test::kTwoPassGood));
 
 }  // namespace
