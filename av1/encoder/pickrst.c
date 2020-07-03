@@ -1838,6 +1838,67 @@ static int rest_tiles_in_plane(const AV1_COMMON *cm, int plane) {
   return rsi->units_per_tile;
 }
 
+#if CONFIG_DUMP_MFQE_DATA
+// Subroutine for dump_frame_data function. Write a single frame's
+// luma component into the file, along with the header information
+// including base_qindex, y_width, and y_height.
+static void dump_frame_buffer(const YV12_BUFFER_CONFIG *buf, FILE *file,
+                              int base_qindex) {
+  if (!(buf && file)) return;
+  // Skip if upsampling is used to encode the frame.
+  if (!(buf->y_width == buf->y_crop_width &&
+        buf->y_height == buf->y_crop_height))
+    return;
+
+  // Write out header information for YV12_BUFFER_CONFIG.
+  fwrite(&base_qindex, 1, sizeof(base_qindex), file);
+  fwrite(&buf->y_width, 1, sizeof(buf->y_width), file);
+  fwrite(&buf->y_height, 1, sizeof(buf->y_height), file);
+
+  // Write the luma component buffer to file.
+  for (int h = 0; h < buf->y_height; ++h) {
+    fwrite(&buf->y_buffer[h * buf->y_stride], 1, buf->y_width, file);
+  }
+}
+
+// Dumps the data containing a tuple of source frame, current frame,
+// and reference frames for the purpose of experimenting with MFQE.
+static void dump_frame_data(const YV12_BUFFER_CONFIG *src,
+                            const YV12_BUFFER_CONFIG *cur, AV1_COMMON *cm) {
+  const char file_name[256] = "enc_frame_data.yuv";
+  FILE *f_data = fopen(file_name, "ab");
+
+  assert(f_data != NULL);
+  assert(src != NULL);
+  assert(cur != NULL);
+  assert(cm != NULL);
+
+  // Dump source frame to file.
+  dump_frame_buffer(src, f_data, -1);
+
+  // Dump current frame to file.
+  dump_frame_buffer(cur, f_data, cm->base_qindex);
+
+  // Dump reference frames to file.
+  int num_ref_frame = 0;
+  MV_REFERENCE_FRAME ref_frame;
+  for (ref_frame = LAST_FRAME; ref_frame < ALTREF_FRAME; ++ref_frame) {
+    if (get_ref_frame_buf(cm, ref_frame)) num_ref_frame++;
+  }
+  fwrite(&num_ref_frame, 1, sizeof(num_ref_frame), f_data);
+
+  for (ref_frame = LAST_FRAME; ref_frame < ALTREF_FRAME; ++ref_frame) {
+    const RefCntBuffer *ref = get_ref_frame_buf(cm, ref_frame);
+    if (ref) {
+      fwrite(&ref->order_hint, 1, sizeof(ref->order_hint), f_data);
+      dump_frame_buffer(&ref->buf, f_data, ref->base_qindex);
+    }
+  }
+
+  fclose(f_data);
+}
+#endif  // CONFIG_DUMP_MFQE_DATA
+
 void av1_pick_filter_restoration(const YV12_BUFFER_CONFIG *src, AV1_COMP *cpi) {
   AV1_COMMON *const cm = &cpi->common;
   const int num_planes = av1_num_planes(cm);
@@ -1862,6 +1923,10 @@ void av1_pick_filter_restoration(const YV12_BUFFER_CONFIG *src, AV1_COMP *cpi) {
   RestSearchCtxt rsc;
   const int plane_start = AOM_PLANE_Y;
   const int plane_end = num_planes > 1 ? AOM_PLANE_V : AOM_PLANE_Y;
+
+#if CONFIG_DUMP_MFQE_DATA
+  dump_frame_data(src, &cm->cur_frame->buf, cm);
+#endif  // CONFIG_DUMP_MFQE_DATA
 
 #if CONFIG_WIENER_NONSEP
   const YV12_BUFFER_CONFIG *dgd = &cpi->common.cur_frame->buf;
