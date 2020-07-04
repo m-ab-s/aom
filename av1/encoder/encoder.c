@@ -892,6 +892,7 @@ AV1_COMP *av1_create_compressor(AV1EncoderConfig *oxcf, BufferPool *const pool,
   init_frame_info(&cpi->frame_info, cm);
 
   cm->current_frame.frame_number = 0;
+  cm->current_frame.key_frame_number = 0;
   cm->current_frame_id = -1;
   cpi->seq_params_locked = 0;
   cpi->partition_search_skippable_frame = 0;
@@ -3062,12 +3063,18 @@ int av1_encode(AV1_COMP *const cpi, uint8_t *const dest,
   memcpy(&cpi->refresh_frame, &frame_params->refresh_frame,
          sizeof(cpi->refresh_frame));
 
-  if (current_frame->frame_type == KEY_FRAME && cm->show_frame)
+  if (current_frame->frame_type == KEY_FRAME && cm->show_frame) {
+    current_frame->key_frame_number += current_frame->frame_number;
     current_frame->frame_number = 0;
+  }
 
   current_frame->order_hint =
       current_frame->frame_number + frame_params->order_offset;
   current_frame->display_order_hint = current_frame->order_hint;
+
+  current_frame->absolute_poc =
+      current_frame->key_frame_number + current_frame->display_order_hint;
+
   current_frame->order_hint %=
       (1 << (cm->seq_params.order_hint_info.order_hint_bits_minus_1 + 1));
 

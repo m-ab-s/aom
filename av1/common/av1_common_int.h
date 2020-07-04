@@ -134,6 +134,7 @@ typedef struct RefCntBuffer {
   // the limitation of get_relative_dist() which returns incorrect
   // distance when a very old frame is used as a reference.
   unsigned int display_order_hint;
+  unsigned int absolute_poc;
   unsigned int ref_display_order_hint[INTER_REFS_PER_FRAME];
 
   MV_REF *mvs;
@@ -320,6 +321,8 @@ typedef struct {
 
   unsigned int order_hint;
   unsigned int display_order_hint;
+  unsigned int absolute_poc;
+  unsigned int key_frame_number;
   unsigned int frame_number;
   SkipModeInfo skip_mode_info;
   int refresh_frame_flags;  // Which ref frames are overwritten by this frame

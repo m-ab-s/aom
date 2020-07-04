@@ -27,6 +27,9 @@
 #include "av1/encoder/ethread.h"
 #include "av1/encoder/firstpass.h"
 
+#include "aom_dsp/psnr.h"
+#include "aom_ports/aom_timer.h"
+
 #define MAG_SIZE (4)
 
 struct av1_extracfg {
@@ -647,46 +650,88 @@ static void disable_superres(SuperResCfg *const superres_cfg) {
   superres_cfg->superres_kf_qthresh = 255;
 }
 
+static void update_encoder_config(cfg_options_t *cfg,
+                                  struct av1_extracfg *extra_cfg) {
+  cfg->enable_cdef = extra_cfg->enable_cdef;
+  cfg->enable_restoration = extra_cfg->enable_restoration;
+  cfg->superblock_size =
+      (extra_cfg->superblock_size == AOM_SUPERBLOCK_SIZE_64X64)
+          ? 64
+          : (extra_cfg->superblock_size == AOM_SUPERBLOCK_SIZE_128X128) ? 128
+                                                                        : 0;
+  cfg->enable_warped_motion = extra_cfg->enable_warped_motion;
+  cfg->enable_dist_wtd_comp = extra_cfg->enable_dist_wtd_comp;
+  cfg->enable_diff_wtd_comp = extra_cfg->enable_diff_wtd_comp;
+  cfg->enable_dual_filter = extra_cfg->enable_dual_filter;
+  cfg->enable_angle_delta = extra_cfg->enable_angle_delta;
+  cfg->enable_rect_partitions = extra_cfg->enable_rect_partitions;
+  cfg->enable_ab_partitions = extra_cfg->enable_ab_partitions;
+  cfg->enable_1to4_partitions = extra_cfg->enable_1to4_partitions;
+  cfg->max_partition_size = extra_cfg->max_partition_size;
+  cfg->min_partition_size = extra_cfg->min_partition_size;
+  cfg->enable_intra_edge_filter = extra_cfg->enable_intra_edge_filter;
+  cfg->enable_tx64 = extra_cfg->enable_tx64;
+  cfg->enable_flip_idtx = extra_cfg->enable_flip_idtx;
+  cfg->enable_masked_comp = extra_cfg->enable_masked_comp;
+  cfg->enable_interintra_comp = extra_cfg->enable_interintra_comp;
+  cfg->enable_smooth_interintra = extra_cfg->enable_smooth_interintra;
+  cfg->enable_interinter_wedge = extra_cfg->enable_interinter_wedge;
+  cfg->enable_interintra_wedge = extra_cfg->enable_interintra_wedge;
+  cfg->enable_global_motion = extra_cfg->enable_global_motion;
+  cfg->enable_filter_intra = extra_cfg->enable_filter_intra;
+  cfg->enable_smooth_intra = extra_cfg->enable_smooth_intra;
+  cfg->enable_paeth_intra = extra_cfg->enable_paeth_intra;
+  cfg->enable_cfl_intra = extra_cfg->enable_cfl_intra;
+  cfg->enable_obmc = extra_cfg->enable_obmc;
+  cfg->enable_palette = extra_cfg->enable_palette;
+  cfg->enable_intrabc = extra_cfg->enable_intrabc;
+  cfg->disable_trellis_quant = extra_cfg->disable_trellis_quant;
+  cfg->enable_ref_frame_mvs =
+      (extra_cfg->allow_ref_frame_mvs || extra_cfg->enable_ref_frame_mvs);
+  cfg->enable_onesided_comp = extra_cfg->enable_onesided_comp;
+  cfg->enable_reduced_reference_set = extra_cfg->enable_reduced_reference_set;
+  cfg->reduced_tx_type_set = extra_cfg->reduced_tx_type_set;
+}
+
 static void update_default_encoder_config(const cfg_options_t *cfg,
                                           struct av1_extracfg *extra_cfg) {
-  extra_cfg->enable_cdef = (cfg->disable_cdef == 0);
-  extra_cfg->enable_restoration = (cfg->disable_lr == 0);
-  extra_cfg->superblock_size = (cfg->super_block_size == 64)
+  extra_cfg->enable_cdef = cfg->enable_cdef;
+  extra_cfg->enable_restoration = cfg->enable_restoration;
+  extra_cfg->superblock_size = (cfg->superblock_size == 64)
                                    ? AOM_SUPERBLOCK_SIZE_64X64
-                                   : (cfg->super_block_size == 128)
+                                   : (cfg->superblock_size == 128)
                                          ? AOM_SUPERBLOCK_SIZE_128X128
                                          : AOM_SUPERBLOCK_SIZE_DYNAMIC;
-  extra_cfg->enable_warped_motion = (cfg->disable_warp_motion == 0);
-  extra_cfg->enable_dist_wtd_comp = (cfg->disable_dist_wtd_comp == 0);
-  extra_cfg->enable_diff_wtd_comp = (cfg->disable_diff_wtd_comp == 0);
-  extra_cfg->enable_dual_filter = (cfg->disable_dual_filter == 0);
-  extra_cfg->enable_angle_delta = (cfg->disable_intra_angle_delta == 0);
-  extra_cfg->enable_rect_partitions = (cfg->disable_rect_partition_type == 0);
-  extra_cfg->enable_ab_partitions = (cfg->disable_ab_partition_type == 0);
-  extra_cfg->enable_1to4_partitions = (cfg->disable_1to4_partition_type == 0);
+  extra_cfg->enable_warped_motion = cfg->enable_warped_motion;
+  extra_cfg->enable_dist_wtd_comp = cfg->enable_dist_wtd_comp;
+  extra_cfg->enable_diff_wtd_comp = cfg->enable_diff_wtd_comp;
+  extra_cfg->enable_dual_filter = cfg->enable_dual_filter;
+  extra_cfg->enable_angle_delta = cfg->enable_angle_delta;
+  extra_cfg->enable_rect_partitions = cfg->enable_rect_partitions;
+  extra_cfg->enable_ab_partitions = cfg->enable_ab_partitions;
+  extra_cfg->enable_1to4_partitions = cfg->enable_1to4_partitions;
   extra_cfg->max_partition_size = cfg->max_partition_size;
   extra_cfg->min_partition_size = cfg->min_partition_size;
-  extra_cfg->enable_intra_edge_filter = (cfg->disable_intra_edge_filter == 0);
-  extra_cfg->enable_tx64 = (cfg->disable_tx_64x64 == 0);
-  extra_cfg->enable_flip_idtx = (cfg->disable_flip_idtx == 0);
-  extra_cfg->enable_masked_comp = (cfg->disable_masked_comp == 0);
-  extra_cfg->enable_interintra_comp = (cfg->disable_inter_intra_comp == 0);
-  extra_cfg->enable_smooth_interintra = (cfg->disable_smooth_inter_intra == 0);
-  extra_cfg->enable_interinter_wedge = (cfg->disable_inter_inter_wedge == 0);
-  extra_cfg->enable_interintra_wedge = (cfg->disable_inter_intra_wedge == 0);
-  extra_cfg->enable_global_motion = (cfg->disable_global_motion == 0);
-  extra_cfg->enable_filter_intra = (cfg->disable_filter_intra == 0);
-  extra_cfg->enable_smooth_intra = (cfg->disable_smooth_intra == 0);
-  extra_cfg->enable_paeth_intra = (cfg->disable_paeth_intra == 0);
-  extra_cfg->enable_cfl_intra = (cfg->disable_cfl == 0);
-  extra_cfg->enable_obmc = (cfg->disable_obmc == 0);
-  extra_cfg->enable_palette = (cfg->disable_palette == 0);
-  extra_cfg->enable_intrabc = (cfg->disable_intrabc == 0);
+  extra_cfg->enable_intra_edge_filter = cfg->enable_intra_edge_filter;
+  extra_cfg->enable_tx64 = cfg->enable_tx64;
+  extra_cfg->enable_flip_idtx = cfg->enable_flip_idtx;
+  extra_cfg->enable_masked_comp = cfg->enable_masked_comp;
+  extra_cfg->enable_interintra_comp = cfg->enable_interintra_comp;
+  extra_cfg->enable_smooth_interintra = cfg->enable_smooth_interintra;
+  extra_cfg->enable_interinter_wedge = cfg->enable_interinter_wedge;
+  extra_cfg->enable_interintra_wedge = cfg->enable_interintra_wedge;
+  extra_cfg->enable_global_motion = cfg->enable_global_motion;
+  extra_cfg->enable_filter_intra = cfg->enable_filter_intra;
+  extra_cfg->enable_smooth_intra = cfg->enable_smooth_intra;
+  extra_cfg->enable_paeth_intra = cfg->enable_paeth_intra;
+  extra_cfg->enable_cfl_intra = cfg->enable_cfl_intra;
+  extra_cfg->enable_obmc = cfg->enable_obmc;
+  extra_cfg->enable_palette = cfg->enable_palette;
+  extra_cfg->enable_intrabc = cfg->enable_intrabc;
   extra_cfg->disable_trellis_quant = cfg->disable_trellis_quant;
-  extra_cfg->allow_ref_frame_mvs = (cfg->disable_ref_frame_mv == 0);
-  extra_cfg->enable_ref_frame_mvs = (cfg->disable_ref_frame_mv == 0);
-  extra_cfg->enable_onesided_comp = (cfg->disable_one_sided_comp == 0);
-  extra_cfg->enable_reduced_reference_set = cfg->reduced_reference_set;
+  extra_cfg->enable_ref_frame_mvs = cfg->enable_ref_frame_mvs;
+  extra_cfg->enable_onesided_comp = cfg->enable_onesided_comp;
+  extra_cfg->enable_reduced_reference_set = cfg->enable_reduced_reference_set;
   extra_cfg->reduced_tx_type_set = cfg->reduced_tx_type_set;
 }
 
@@ -707,10 +752,15 @@ static double get_modeled_qp_offset(int cq_level, int level, int bit_depth) {
   return q_val * percents[level] / 100;
 }
 
+// update_config parameter is used to indicate whether extra command line
+// parameters are read. If extra command line parameters are read, then
+// parameters in the configure file will not overwrite the parameters in
+// extra_cfg.
 static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
-                                          const aom_codec_enc_cfg_t *cfg,
-                                          struct av1_extracfg *extra_cfg) {
-  if (cfg->encoder_cfg.init_by_cfg_file) {
+                                          aom_codec_enc_cfg_t *cfg,
+                                          struct av1_extracfg *extra_cfg,
+                                          int update_config) {
+  if (cfg->encoder_cfg.init_by_cfg_file && !update_config) {
     update_default_encoder_config(&cfg->encoder_cfg, extra_cfg);
   }
 
@@ -1118,6 +1168,9 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
 
   oxcf->vbr_corpus_complexity_lap = extra_cfg->vbr_corpus_complexity_lap;
 
+  if (update_config) {
+    update_encoder_config(&cfg->encoder_cfg, extra_cfg);
+  }
   return AOM_CODEC_OK;
 }
 
@@ -1153,7 +1206,7 @@ static aom_codec_err_t encoder_set_config(aom_codec_alg_priv_t *ctx,
 
   if (res == AOM_CODEC_OK) {
     ctx->cfg = *cfg;
-    set_encoder_config(&ctx->oxcf, &ctx->cfg, &ctx->extra_cfg);
+    set_encoder_config(&ctx->oxcf, &ctx->cfg, &ctx->extra_cfg, 0);
     // On profile change, request a key frame
     force_key |= ctx->cpi->common.seq_params.profile != ctx->oxcf.profile;
     av1_change_config(ctx->cpi, &ctx->oxcf);
@@ -1192,7 +1245,7 @@ static aom_codec_err_t update_extra_cfg(aom_codec_alg_priv_t *ctx,
   const aom_codec_err_t res = validate_config(ctx, &ctx->cfg, extra_cfg);
   if (res == AOM_CODEC_OK) {
     ctx->extra_cfg = *extra_cfg;
-    set_encoder_config(&ctx->oxcf, &ctx->cfg, &ctx->extra_cfg);
+    set_encoder_config(&ctx->oxcf, &ctx->cfg, &ctx->extra_cfg, 1);
     av1_change_config(ctx->cpi, &ctx->oxcf);
     if (ctx->cpi_lap != NULL) {
       av1_change_config(ctx->cpi_lap, &ctx->oxcf);
@@ -2015,8 +2068,7 @@ static aom_codec_err_t encoder_init(aom_codec_ctx_t *ctx) {
       priv->timestamp_ratio.num =
           (int64_t)priv->cfg.g_timebase.num * TICKS_PER_SEC;
       reduce_ratio(&priv->timestamp_ratio);
-
-      set_encoder_config(&priv->oxcf, &priv->cfg, &priv->extra_cfg);
+      set_encoder_config(&priv->oxcf, &priv->cfg, &priv->extra_cfg, 0);
       if (priv->oxcf.rc_cfg.mode != AOM_CBR && priv->oxcf.pass == 0 &&
           priv->oxcf.mode == GOOD) {
         // Enable look ahead - enabled for AOM_Q, AOM_CQ, AOM_VBR
@@ -2107,6 +2159,77 @@ static aom_codec_frame_flags_t get_frame_pkt_flags(const AV1_COMP *cpi,
   if (cpi->droppable) flags |= AOM_FRAME_IS_DROPPABLE;
 
   return flags;
+}
+
+static void calculate_psnr(AV1_COMP *cpi, PSNR_STATS *psnr) {
+  int i;
+  PSNR_STATS stats;
+#if CONFIG_AV1_HIGHBITDEPTH
+  const uint32_t in_bit_depth = cpi->oxcf.input_cfg.input_bit_depth;
+  const uint32_t bit_depth = cpi->td.mb.e_mbd.bd;
+  aom_calc_highbd_psnr(cpi->source, &cpi->common.cur_frame->buf, &stats,
+                       bit_depth, in_bit_depth);
+#else
+  aom_calc_psnr(cpi->source, &cpi->common.cur_frame->buf, psnr);
+#endif
+
+  for (i = 0; i < 4; ++i) {
+    psnr->psnr[i] = stats.psnr[i];
+  }
+}
+
+static void report_stats(AV1_COMP *cpi, size_t frame_size, uint64_t cx_time) {
+  const AV1_COMMON *const cm = &cpi->common;
+  const int base_qindex = cm->quant_params.base_qindex;
+  const char frameType[5][20] = {
+    " KEY ", "INTER", "INTRA", "  S  ", " UNK ",
+  };
+
+  PSNR_STATS psnr;
+
+  for (int i = 0; i < 4; ++i) {
+    psnr.psnr[i] = 0;
+  }
+
+  if (cpi->b_calculate_psnr) {
+    calculate_psnr(cpi, &psnr);
+  }
+
+  if (!cm->show_existing_frame) {
+    // Get reference frame information
+    int ref_poc[INTER_REFS_PER_FRAME];
+    for (int ref_frame = LAST_FRAME; ref_frame <= ALTREF_FRAME; ++ref_frame) {
+      const int ref_idx = ref_frame - LAST_FRAME;
+      const RefCntBuffer *const buf = get_ref_frame_buf(cm, ref_frame);
+      ref_poc[ref_idx] = buf ? (int)buf->absolute_poc : -1;
+    }
+    if (cpi->b_calculate_psnr) {
+      fprintf(stdout,
+              "POC:%6d [%s][Q:%3d]: %10" PRIu64
+              " Bytes, "
+              "%6.1fms, %2.4f dB(Y), %2.4f dB(U), "
+              "%2.4f dB(V), "
+              "%2.4f dB(Avg)",
+              cm->cur_frame->absolute_poc,
+              frameType[cm->current_frame.frame_type], base_qindex,
+              (uint64_t)frame_size, cx_time / 1000.0, psnr.psnr[1],
+              psnr.psnr[2], psnr.psnr[3], psnr.psnr[0]);
+    } else {
+      fprintf(stdout,
+              "POC:%6d [%s][Q:%3d]: %10" PRIu64
+              " Bytes, "
+              "%6.1fms",
+              cm->cur_frame->absolute_poc,
+              frameType[cm->current_frame.frame_type], base_qindex,
+              (uint64_t)frame_size, cx_time / 1000.0);
+    }
+
+    fprintf(stdout, "    [");
+    for (int ref_idx = 0; ref_idx < INTER_REFS_PER_FRAME; ++ref_idx) {
+      fprintf(stdout, "%3d,", ref_poc[ref_idx]);
+    }
+    fprintf(stdout, "]\n");
+  }
 }
 
 // TODO(Mufaddal): Check feasibility of abstracting functions related to LAP
@@ -2317,11 +2440,17 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
     // visible frame.
     int64_t dst_time_stamp;
     int64_t dst_end_time_stamp;
+    struct aom_usec_timer timer;
     while (cx_data_sz - index_size >= ctx->cx_data_sz / 2 &&
            !is_frame_visible) {
+      uint64_t cx_time = 0;
+      aom_usec_timer_start(&timer);
+
       const int status = av1_get_compressed_data(
           cpi, &lib_flags, &frame_size, cx_data, &dst_time_stamp,
           &dst_end_time_stamp, !img, timestamp_ratio);
+      aom_usec_timer_mark(&timer);
+      cx_time += aom_usec_timer_elapsed(&timer);
       if (status == -1) break;
       if (status != AOM_CODEC_OK) {
         aom_internal_error(&cpi->common.error, AOM_CODEC_ERROR, NULL);
@@ -2392,6 +2521,8 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
 
         has_fwd_keyframe |= (!is_frame_visible &&
                              cpi->common.current_frame.frame_type == KEY_FRAME);
+
+        report_stats(cpi, frame_size, cx_time);
       }
     }
     if (is_frame_visible) {
@@ -2982,8 +3113,8 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = {
       { 0 },                   // tile_heights
       0,                       // use_fixed_qp_offsets
       { -1, -1, -1, -1, -1 },  // fixed_qp_offsets
-      { 0, 128, 128, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        0, 0,   0,   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },  // cfg
+      { 0, 128, 128, 4, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0,
+        0, 1,   1,   1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0 },  // cfg
   },
   {
       // NOLINT
@@ -3052,8 +3183,8 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = {
       { 0 },                   // tile_heights
       0,                       // use_fixed_qp_offsets
       { -1, -1, -1, -1, -1 },  // fixed_qp_offsets
-      { 0, 128, 128, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        0, 0,   0,   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },  // cfg
+      { 0, 128, 128, 4, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0,
+        0, 1,   1,   1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0 },  // cfg
   },
 };
 

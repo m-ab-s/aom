@@ -210,7 +210,7 @@ typedef struct cfg_options {
   /*!\brief Superblock size
    * 0, 64 or 128
    */
-  unsigned int super_block_size;
+  unsigned int superblock_size;
   /*!\brief max partition size
    * 8, 16, 32, 64, 128
    */
@@ -219,126 +219,126 @@ typedef struct cfg_options {
    * 8, 16, 32, 64, 128
    */
   unsigned int min_partition_size;
-  /*!\brief disable AB Shape partition type
+  /*!\brief enable AB Shape partition type
    *
    */
-  unsigned int disable_ab_partition_type;
-  /*!\brief disable rectangular partition type
+  unsigned int enable_ab_partitions;
+  /*!\brief enable rectangular partition type
    *
    */
-  unsigned int disable_rect_partition_type;
-  /*!\brief disable 1:4/4:1 partition type
+  unsigned int enable_rect_partitions;
+  /*!\brief enable 1:4/4:1 partition type
    *
    */
-  unsigned int disable_1to4_partition_type;
-  /*!\brief disable flip and identity transform type
+  unsigned int enable_1to4_partitions;
+  /*!\brief enable flip and identity transform type
    *
    */
-  unsigned int disable_flip_idtx;
-  /*!\brief disable CDEF filter
+  unsigned int enable_flip_idtx;
+  /*!\brief enable CDEF filter
    *
    */
-  unsigned int disable_cdef;
-  /*!\brief disable Loop Restoration Filter
+  unsigned int enable_cdef;
+  /*!\brief enable Loop Restoration Filter
    *
    */
-  unsigned int disable_lr;
-  /*!\brief disable OBMC
+  unsigned int enable_restoration;
+  /*!\brief enable OBMC
    *
    */
-  unsigned int disable_obmc;
-  /*!\brief disable Warped Motion
+  unsigned int enable_obmc;
+  /*!\brief enable Warped Motion
    *
    */
-  unsigned int disable_warp_motion;
-  /*!\brief disable global motion
+  unsigned int enable_warped_motion;
+  /*!\brief enable global motion
    *
    */
-  unsigned int disable_global_motion;
-  /*!\brief disable dist weighted compound
+  unsigned int enable_global_motion;
+  /*!\brief enable dist weighted compound
    *
    */
-  unsigned int disable_dist_wtd_comp;
-  /*!\brief disable diff weighted compound
+  unsigned int enable_dist_wtd_comp;
+  /*!\brief enable diff weighted compound
    *
    */
-  unsigned int disable_diff_wtd_comp;
-  /*!\brief disable inter/intra compound
+  unsigned int enable_diff_wtd_comp;
+  /*!\brief enable inter/intra compound
    *
    */
-  unsigned int disable_inter_intra_comp;
-  /*!\brief disable masked compound
+  unsigned int enable_interintra_comp;
+  /*!\brief enable masked compound
    *
    */
-  unsigned int disable_masked_comp;
-  /*!\brief disable one sided compound
+  unsigned int enable_masked_comp;
+  /*!\brief enable one sided compound
    *
    */
-  unsigned int disable_one_sided_comp;
-  /*!\brief disable Palette
+  unsigned int enable_onesided_comp;
+  /*!\brief enable Palette
    *
    */
-  unsigned int disable_palette;
-  /*!\brief disable Intra Block Copy
+  unsigned int enable_palette;
+  /*!\brief enable Intra Block Copy
    *
    */
-  unsigned int disable_intrabc;
-  /*!\brief disable chroma from luma
+  unsigned int enable_intrabc;
+  /*!\brief enable chroma from luma
    *
    */
-  unsigned int disable_cfl;
-  /*!\brief disable intra smooth mode
+  unsigned int enable_cfl_intra;
+  /*!\brief enable intra smooth mode
    *
    */
-  unsigned int disable_smooth_intra;
-  /*!\brief disable filter intra
+  unsigned int enable_smooth_intra;
+  /*!\brief enable filter intra
    *
    */
-  unsigned int disable_filter_intra;
-  /*!\brief disable dual filter
+  unsigned int enable_filter_intra;
+  /*!\brief enable dual filter
    *
    */
-  unsigned int disable_dual_filter;
-  /*!\brief disable intra angle delta
+  unsigned int enable_dual_filter;
+  /*!\brief enable intra angle delta
    *
    */
-  unsigned int disable_intra_angle_delta;
-  /*!\brief disable intra edge filter
+  unsigned int enable_angle_delta;
+  /*!\brief enable intra edge filter
    *
    */
-  unsigned int disable_intra_edge_filter;
-  /*!\brief disable 64x64 transform
+  unsigned int enable_intra_edge_filter;
+  /*!\brief enable 64x64 transform
    *
    */
-  unsigned int disable_tx_64x64;
-  /*!\brief disable smooth inter/intra
+  unsigned int enable_tx64;
+  /*!\brief enable smooth inter/intra
    *
    */
-  unsigned int disable_smooth_inter_intra;
-  /*!\brief disable inter/inter wedge comp
+  unsigned int enable_smooth_interintra;
+  /*!\brief enable inter/inter wedge comp
    *
    */
-  unsigned int disable_inter_inter_wedge;
-  /*!\brief disable inter/intra wedge comp
+  unsigned int enable_interinter_wedge;
+  /*!\brief enable inter/intra wedge comp
    *
    */
-  unsigned int disable_inter_intra_wedge;
-  /*!\brief disable paeth intra
+  unsigned int enable_interintra_wedge;
+  /*!\brief enable paeth intra
    *
    */
-  unsigned int disable_paeth_intra;
-  /*!\brief disable trellis quantization
+  unsigned int enable_paeth_intra;
+  /*!\brief enable trellis quantization
    *
    */
   unsigned int disable_trellis_quant;
-  /*!\brief disable ref frame MV
+  /*!\brief enable ref frame MV
    *
    */
-  unsigned int disable_ref_frame_mv;
+  unsigned int enable_ref_frame_mvs;
   /*!\brief use reduced reference frame set
    *
    */
-  unsigned int reduced_reference_set;
+  unsigned int enable_reduced_reference_set;
   /*!\brief use reduced transform type set
    *
    */

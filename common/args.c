@@ -50,11 +50,11 @@ void ignore_end_spaces(char *str) {
 }
 
 static const char kSbSizeWarningString[] =
-    "super_block_size has to be 64 or 128.";
+    "superblock_size has to be 64 or 128.";
 static const char kMinpartWarningString[] =
     "min_partition_size has to be smaller or equal to max_partition_size.";
 static const char kMaxpartWarningString[] =
-    "max_partition_size has to be smaller or equal to super_block_size.";
+    "max_partition_size has to be smaller or equal to superblock_size.";
 
 int parse_cfg(const char *file, cfg_options_t *config) {
   char line[1024 * 10];
@@ -86,46 +86,46 @@ int parse_cfg(const char *file, cfg_options_t *config) {
     ignore_end_spaces(left);
     ignore_end_spaces(right);
 
-    GET_PARAMS(super_block_size);
+    GET_PARAMS(superblock_size);
     GET_PARAMS(max_partition_size);
     GET_PARAMS(min_partition_size);
-    GET_PARAMS(disable_ab_partition_type);
-    GET_PARAMS(disable_rect_partition_type);
-    GET_PARAMS(disable_1to4_partition_type);
-    GET_PARAMS(disable_flip_idtx);
-    GET_PARAMS(disable_cdef);
-    GET_PARAMS(disable_lr);
-    GET_PARAMS(disable_obmc);
-    GET_PARAMS(disable_warp_motion);
-    GET_PARAMS(disable_global_motion);
-    GET_PARAMS(disable_dist_wtd_comp);
-    GET_PARAMS(disable_diff_wtd_comp);
-    GET_PARAMS(disable_inter_intra_comp);
-    GET_PARAMS(disable_masked_comp);
-    GET_PARAMS(disable_one_sided_comp);
-    GET_PARAMS(disable_palette);
-    GET_PARAMS(disable_intrabc);
-    GET_PARAMS(disable_cfl);
-    GET_PARAMS(disable_smooth_intra);
-    GET_PARAMS(disable_filter_intra);
-    GET_PARAMS(disable_dual_filter);
-    GET_PARAMS(disable_intra_angle_delta);
-    GET_PARAMS(disable_intra_edge_filter);
-    GET_PARAMS(disable_tx_64x64);
-    GET_PARAMS(disable_smooth_inter_intra);
-    GET_PARAMS(disable_inter_inter_wedge);
-    GET_PARAMS(disable_inter_intra_wedge);
-    GET_PARAMS(disable_paeth_intra);
+    GET_PARAMS(enable_ab_partitions);
+    GET_PARAMS(enable_rect_partitions);
+    GET_PARAMS(enable_1to4_partitions);
+    GET_PARAMS(enable_flip_idtx);
+    GET_PARAMS(enable_cdef);
+    GET_PARAMS(enable_restoration);
+    GET_PARAMS(enable_obmc);
+    GET_PARAMS(enable_warped_motion);
+    GET_PARAMS(enable_global_motion);
+    GET_PARAMS(enable_dist_wtd_comp);
+    GET_PARAMS(enable_diff_wtd_comp);
+    GET_PARAMS(enable_interintra_comp);
+    GET_PARAMS(enable_masked_comp);
+    GET_PARAMS(enable_onesided_comp);
+    GET_PARAMS(enable_palette);
+    GET_PARAMS(enable_intrabc);
+    GET_PARAMS(enable_cfl_intra);
+    GET_PARAMS(enable_smooth_intra);
+    GET_PARAMS(enable_filter_intra);
+    GET_PARAMS(enable_dual_filter);
+    GET_PARAMS(enable_angle_delta);
+    GET_PARAMS(enable_intra_edge_filter);
+    GET_PARAMS(enable_tx64);
+    GET_PARAMS(enable_smooth_interintra);
+    GET_PARAMS(enable_interinter_wedge);
+    GET_PARAMS(enable_interintra_wedge);
+    GET_PARAMS(enable_paeth_intra);
     GET_PARAMS(disable_trellis_quant);
-    GET_PARAMS(disable_ref_frame_mv);
-    GET_PARAMS(reduced_reference_set);
+    GET_PARAMS(enable_ref_frame_mvs);
+    GET_PARAMS(enable_reduced_reference_set);
     GET_PARAMS(reduced_tx_type_set);
 
     fprintf(stderr, "\nInvalid parameter: %s", left);
     exit(-1);
   }
 
-  if (config->super_block_size != 128 && config->super_block_size != 64) {
+  if (config->superblock_size != 128 && config->superblock_size != 64) {
     fprintf(stderr, "\n%s", kSbSizeWarningString);
     exit(-1);
   }
@@ -133,7 +133,7 @@ int parse_cfg(const char *file, cfg_options_t *config) {
     fprintf(stderr, "\n%s", kMinpartWarningString);
     exit(-1);
   }
-  if (config->max_partition_size > config->super_block_size) {
+  if (config->max_partition_size > config->superblock_size) {
     fprintf(stderr, "\n%s", kMaxpartWarningString);
     exit(-1);
   }
