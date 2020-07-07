@@ -825,6 +825,12 @@ static const arg_def_t vbr_corpus_complexity_lap = ARG_DEF(
     "Set average corpus complexity per mb for single pass VBR using lap. "
     "(0..10000), default is 0");
 
+static const arg_def_t subgop_config_str =
+    ARG_DEF(NULL, "subgop-config-str", 1,
+            "Set specified SubGOP configurations for various SubGOP lengths. "
+            "If this option is not specified (default), the configurations "
+            "are chosen by the encoder using a default algorithm.");
+
 static const arg_def_t *av1_args[] = { &cpu_used_av1,
                                        &auto_altref,
                                        &sharpness,
@@ -921,16 +927,10 @@ static const arg_def_t *av1_args[] = { &cpu_used_av1,
                                        &set_tier_mask,
                                        &set_min_cr,
                                        &vbr_corpus_complexity_lap,
-                                       &bitdeptharg,
-                                       &inbitdeptharg,
-                                       &input_chroma_subsampling_x,
-                                       &input_chroma_subsampling_y,
-                                       &sframe_dist,
-                                       &sframe_mode,
-                                       &save_as_annexb,
 #if CONFIG_TUNE_VMAF
                                        &vmaf_model_path,
 #endif
+                                       &subgop_config_str,
                                        NULL };
 static const int av1_arg_ctrl_map[] = { AOME_SET_CPUUSED,
                                         AOME_SET_ENABLEAUTOALTREF,
@@ -1031,6 +1031,7 @@ static const int av1_arg_ctrl_map[] = { AOME_SET_CPUUSED,
 #if CONFIG_TUNE_VMAF
                                         AV1E_SET_VMAF_MODEL_PATH,
 #endif
+                                        AV1E_SET_SUBGOP_CONFIG_STR,
                                         0 };
 #endif  // CONFIG_AV1_ENCODER
 
@@ -1112,6 +1113,7 @@ struct stream_config {
 #if CONFIG_TUNE_VMAF
   const char *vmaf_model_path;
 #endif
+  const char *subgop_config_str;
 };
 
 struct stream_state {
@@ -1416,6 +1418,11 @@ static void set_config_arg_ctrls(struct stream_config *config, int key,
   int j;
   if (key == AV1E_SET_FILM_GRAIN_TABLE) {
     config->film_grain_filename = arg->val;
+    return;
+  }
+
+  if (key == AV1E_SET_SUBGOP_CONFIG_STR) {
+    config->subgop_config_str = arg->val;
     return;
   }
 
@@ -1986,6 +1993,10 @@ static void initialize_encoder(struct stream_state *stream,
                                   stream->config.film_grain_filename);
   }
 
+  if (stream->config.subgop_config_str) {
+    AOM_CODEC_CONTROL_TYPECHECKED(&stream->encoder, AV1E_SET_SUBGOP_CONFIG_STR,
+                                  stream->config.subgop_config_str);
+  }
 #if CONFIG_AV1_DECODER
   if (global->test_decode != TEST_DECODE_OFF) {
     aom_codec_iface_t *decoder = get_aom_decoder_by_short_name(

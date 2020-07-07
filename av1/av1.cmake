@@ -217,6 +217,8 @@ list(APPEND AOM_AV1_ENCODER_SOURCES
             "${AOM_ROOT}/av1/encoder/segmentation.h"
             "${AOM_ROOT}/av1/encoder/speed_features.c"
             "${AOM_ROOT}/av1/encoder/speed_features.h"
+            "${AOM_ROOT}/av1/encoder/subgop.c"
+            "${AOM_ROOT}/av1/encoder/subgop.h"
             "${AOM_ROOT}/av1/encoder/superres_scale.c"
             "${AOM_ROOT}/av1/encoder/superres_scale.h"
             "${AOM_ROOT}/av1/encoder/svc_layercontext.c"

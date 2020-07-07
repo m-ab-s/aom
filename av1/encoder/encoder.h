@@ -635,6 +635,37 @@ typedef struct {
   bool enable_overlay;
 } AlgoCfg;
 
+#define MAX_SUBGOP_CONFIGS 64
+#define MAX_SUBGOP_STEPS 64
+
+typedef enum {
+  FRAME_TYPE_INO_VISIBLE,
+  FRAME_TYPE_INO_REPEAT,
+  FRAME_TYPE_INO_SHOWEXISTING,
+  FRAME_TYPE_OOO_FILTERED,
+  FRAME_TYPE_OOO_UNFILTERED,
+} FRAME_TYPE_CODE;
+
+typedef struct {
+  int8_t disp_frame_idx;
+  FRAME_TYPE_CODE type_code;
+  int8_t pyr_level;
+  int8_t num_references;
+  int8_t references[INTER_REFS_PER_FRAME];
+} SubGOPStepCfg;
+
+typedef struct {
+  int8_t num_frames;
+  bool is_last_subgop;
+  int8_t num_steps;
+  SubGOPStepCfg step[MAX_SUBGOP_STEPS];
+} SubGOPCfg;
+
+typedef struct {
+  int8_t num_configs;
+  SubGOPCfg config[MAX_SUBGOP_CONFIGS];
+} SubGOPSetCfg;
+
 /*!\endcond */
 /*!
  * \brief Main encoder configuration data structure.
@@ -704,6 +735,9 @@ typedef struct AV1EncoderConfig {
 
   // two pass datarate control
   TwoPassCfg two_pass_cfg;
+
+  // SubGOP config.
+  const char *subgop_config_str;
 
   // END DATARATE CONTROL OPTIONS
   // ----------------------------------------------------------------
@@ -2071,6 +2105,11 @@ typedef struct AV1_COMP {
    * Information related to two pass encoding.
    */
   TWO_PASS twopass;
+
+  /*!
+   * Information related to subGOP configuration if specified.
+   */
+  SubGOPSetCfg subgop_config_set;
 
   /*!
    * Information related to a gf group.

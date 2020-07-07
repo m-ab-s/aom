@@ -13,6 +13,7 @@
 #include <float.h>
 #include <math.h>
 #include <stdio.h>
+#include <string.h>
 
 #include "config/aom_config.h"
 
@@ -67,11 +68,12 @@
 #include "av1/encoder/rc_utils.h"
 #include "av1/encoder/rd.h"
 #include "av1/encoder/rdopt.h"
+#include "av1/encoder/reconinter_enc.h"
 #include "av1/encoder/segmentation.h"
 #include "av1/encoder/speed_features.h"
+#include "av1/encoder/subgop.h"
 #include "av1/encoder/superres_scale.h"
 #include "av1/encoder/tpl_model.h"
-#include "av1/encoder/reconinter_enc.h"
 #include "av1/encoder/var_based_part.h"
 
 #if CONFIG_TUNE_VMAF
@@ -787,6 +789,11 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
   if (lap_lag_in_frames != -1) {
     cpi->oxcf.gf_cfg.lag_in_frames = lap_lag_in_frames;
   }
+
+  av1_process_subgop_config_set(oxcf->subgop_config_str,
+                                &cpi->subgop_config_set);
+  // Uncomment to print out the configuration
+  // av1_print_subgop_config_set(&cpi->subgop_config_set);
 }
 
 static INLINE void init_frame_info(FRAME_INFO *frame_info,
