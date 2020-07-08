@@ -411,8 +411,8 @@ static const struct arg_enum_list tuning_enum[] = {
 };
 static const arg_def_t tune_metric =
     ARG_DEF_ENUM(NULL, "tune", 1, "Distortion metric tuned with", tuning_enum);
-static const arg_def_t cq_level =
-    ARG_DEF(NULL, "cq-level", 1, "Constant/Constrained Quality level");
+static const arg_def_t qp_level =
+    ARG_DEF(NULL, "qp", 1, "Constant/Constrained Quality level");
 static const arg_def_t max_intra_rate_pct =
     ARG_DEF(NULL, "max-intra-rate", 1, "Max I-frame bitrate (pct)");
 
@@ -815,7 +815,7 @@ static const arg_def_t set_tier_mask =
 static const arg_def_t use_fixed_qp_offsets =
     ARG_DEF(NULL, "use-fixed-qp-offsets", 1,
             "Enable fixed QP offsets for frames at different levels of the "
-            "pyramid. Selected automatically from --cq-level if "
+            "pyramid. Selected automatically from --qp if "
             "--fixed-qp-offsets is not provided. If this option is not "
             "specified (default), offsets are adaptively chosen by the "
             "encoder.");
@@ -851,7 +851,7 @@ static const arg_def_t *av1_args[] = { &cpu_used_av1,
                                        &arnr_maxframes,
                                        &arnr_strength,
                                        &tune_metric,
-                                       &cq_level,
+                                       &qp_level,
                                        &max_intra_rate_pct,
                                        &max_inter_rate_pct,
                                        &gf_cbr_boost_pct,
@@ -1135,7 +1135,7 @@ struct stream_state {
   uint64_t psnr_samples_total;
   double psnr_totals[4];
   int psnr_count;
-  int counts[64];
+  int counts[256];
   aom_codec_ctx_t encoder;
   unsigned int frames_out;
   uint64_t cx_time;
@@ -2159,7 +2159,7 @@ static void update_quantizer_histogram(struct stream_state *stream) {
   if (stream->config.cfg.g_pass != AOM_RC_FIRST_PASS) {
     int q;
 
-    AOM_CODEC_CONTROL_TYPECHECKED(&stream->encoder, AOME_GET_LAST_QUANTIZER_64,
+    AOM_CODEC_CONTROL_TYPECHECKED(&stream->encoder, AOME_GET_LAST_QUANTIZER,
                                   &q);
     ctx_exit_on_error(&stream->encoder, "Failed to read quantizer");
     stream->counts[q]++;

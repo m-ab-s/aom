@@ -350,8 +350,8 @@ class DatarateTestSVC
     svc_params->number_spatial_layers = number_spatial_layers;
     svc_params->number_temporal_layers = number_temporal_layers;
     for (int i = 0; i < number_temporal_layers * number_spatial_layers; ++i) {
-      svc_params->max_quantizers[i] = 60;
-      svc_params->min_quantizers[i] = 2;
+      svc_params->max_quantizers[i] = 240;
+      svc_params->min_quantizers[i] = 8;
       svc_params->layer_target_bitrate[i] = target_layer_bitrate_[i];
     }
     // Do at most 3 spatial or temporal layers here.
@@ -387,7 +387,7 @@ class DatarateTestSVC
     cfg_.rc_buf_sz = 1000;
     cfg_.rc_dropframe_thresh = 0;
     cfg_.rc_min_quantizer = 0;
-    cfg_.rc_max_quantizer = 63;
+    cfg_.rc_max_quantizer = 255;
     cfg_.rc_end_usage = AOM_CBR;
     cfg_.g_lag_in_frames = 0;
     cfg_.g_error_resilient = 1;
@@ -416,7 +416,7 @@ class DatarateTestSVC
     cfg_.rc_buf_sz = 1000;
     cfg_.rc_dropframe_thresh = 0;
     cfg_.rc_min_quantizer = 0;
-    cfg_.rc_max_quantizer = 63;
+    cfg_.rc_max_quantizer = 255;
     cfg_.rc_end_usage = AOM_CBR;
     cfg_.g_lag_in_frames = 0;
     cfg_.g_error_resilient = 1;
@@ -445,7 +445,7 @@ class DatarateTestSVC
     cfg_.rc_buf_sz = 1000;
     cfg_.rc_dropframe_thresh = 0;
     cfg_.rc_min_quantizer = 0;
-    cfg_.rc_max_quantizer = 63;
+    cfg_.rc_max_quantizer = 255;
     cfg_.rc_end_usage = AOM_CBR;
     cfg_.g_lag_in_frames = 0;
     cfg_.g_error_resilient = 1;
@@ -475,7 +475,7 @@ class DatarateTestSVC
     cfg_.rc_buf_sz = 1000;
     cfg_.rc_dropframe_thresh = 0;
     cfg_.rc_min_quantizer = 0;
-    cfg_.rc_max_quantizer = 63;
+    cfg_.rc_max_quantizer = 255;
     cfg_.rc_end_usage = AOM_CBR;
     cfg_.g_lag_in_frames = 0;
     cfg_.g_error_resilient = 1;
@@ -517,7 +517,7 @@ class DatarateTestSVC
     cfg_.rc_buf_sz = 1000;
     cfg_.rc_dropframe_thresh = 0;
     cfg_.rc_min_quantizer = 0;
-    cfg_.rc_max_quantizer = 63;
+    cfg_.rc_max_quantizer = 255;
     cfg_.rc_end_usage = AOM_CBR;
     cfg_.g_lag_in_frames = 0;
     cfg_.g_error_resilient = 1;
@@ -558,7 +558,7 @@ class DatarateTestSVC
     cfg_.rc_buf_sz = 1000;
     cfg_.rc_dropframe_thresh = 0;
     cfg_.rc_min_quantizer = 0;
-    cfg_.rc_max_quantizer = 63;
+    cfg_.rc_max_quantizer = 255;
     cfg_.rc_end_usage = AOM_CBR;
     cfg_.g_lag_in_frames = 0;
     cfg_.g_error_resilient = 1;
@@ -602,7 +602,7 @@ class DatarateTestSVC
     cfg_.rc_buf_sz = 1000;
     cfg_.rc_dropframe_thresh = 0;
     cfg_.rc_min_quantizer = 0;
-    cfg_.rc_max_quantizer = 63;
+    cfg_.rc_max_quantizer = 255;
     cfg_.rc_end_usage = AOM_CBR;
     cfg_.g_lag_in_frames = 0;
     cfg_.g_error_resilient = 1;
@@ -645,7 +645,7 @@ class DatarateTestSVC
     cfg_.rc_buf_sz = 1000;
     cfg_.rc_dropframe_thresh = 0;
     cfg_.rc_min_quantizer = 0;
-    cfg_.rc_max_quantizer = 63;
+    cfg_.rc_max_quantizer = 255;
     cfg_.rc_end_usage = AOM_CBR;
     cfg_.g_lag_in_frames = 0;
     // error_resilient can set to off/0, since for SVC the context update
@@ -690,7 +690,7 @@ class DatarateTestSVC
     cfg_.rc_buf_sz = 1000;
     cfg_.rc_dropframe_thresh = 0;
     cfg_.rc_min_quantizer = 0;
-    cfg_.rc_max_quantizer = 63;
+    cfg_.rc_max_quantizer = 255;
     cfg_.rc_end_usage = AOM_CBR;
     cfg_.g_lag_in_frames = 0;
     // error_resilient for sequence can be off/0, since dropped frames (TL2)
@@ -735,7 +735,7 @@ class DatarateTestSVC
     cfg_.rc_buf_sz = 1000;
     cfg_.rc_dropframe_thresh = 0;
     cfg_.rc_min_quantizer = 0;
-    cfg_.rc_max_quantizer = 63;
+    cfg_.rc_max_quantizer = 255;
     cfg_.rc_end_usage = AOM_CBR;
     cfg_.g_lag_in_frames = 0;
 

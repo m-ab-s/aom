@@ -76,9 +76,9 @@ const SuperresDenominatorPair kSuperresDenominators[] = {
 // Superres q thresholds and superres kf q thresholds to be tested
 typedef tuple<int, int> SuperresQThresholdPair;
 const SuperresQThresholdPair kSuperresQThresholds[] = {
-  make_tuple(63, 63), make_tuple(63, 41), make_tuple(17, 63),
-  make_tuple(41, 11), make_tuple(1, 37),  make_tuple(11, 11),
-  make_tuple(1, 1),   make_tuple(17, 29), make_tuple(29, 11),
+  make_tuple(255, 255), make_tuple(255, 164), make_tuple(68, 255),
+  make_tuple(164, 44),  make_tuple(4, 148),   make_tuple(44, 44),
+  make_tuple(4, 4),     make_tuple(68, 116),  make_tuple(116, 44),
 };
 
 /* END (TESTING PARAMETERS) */

@@ -774,26 +774,3 @@ void av1_set_quantizer(AV1_COMMON *const cm, int min_qmlevel, int max_qmlevel,
         aom_get_qmlevel(quant_params->base_qindex + quant_params->v_ac_delta_q,
                         min_qmlevel, max_qmlevel);
 }
-
-// Table that converts 0-63 Q-range values passed in outside to the Qindex
-// range used internally.
-static const int quantizer_to_qindex[] = {
-  0,   4,   8,   12,  16,  20,  24,  28,  32,  36,  40,  44,  48,
-  52,  56,  60,  64,  68,  72,  76,  80,  84,  88,  92,  96,  100,
-  104, 108, 112, 116, 120, 124, 128, 132, 136, 140, 144, 148, 152,
-  156, 160, 164, 168, 172, 176, 180, 184, 188, 192, 196, 200, 204,
-  208, 212, 216, 220, 224, 228, 232, 236, 240, 244, 249, 255,
-};
-
-int av1_quantizer_to_qindex(int quantizer) {
-  return quantizer_to_qindex[quantizer];
-}
-
-int av1_qindex_to_quantizer(int qindex) {
-  int quantizer;
-
-  for (quantizer = 0; quantizer < 64; ++quantizer)
-    if (quantizer_to_qindex[quantizer] >= qindex) return quantizer;
-
-  return 63;
-}

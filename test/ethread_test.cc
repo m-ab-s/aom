@@ -49,7 +49,7 @@ class AVxFirstPassEncoderThreadTest
     cfg_.rc_2pass_vbr_minsection_pct = 5;
     cfg_.rc_2pass_vbr_maxsection_pct = 2000;
 #endif  // !CONFIG_SINGLEPASS
-    cfg_.rc_max_quantizer = 56;
+    cfg_.rc_max_quantizer = 224;
     cfg_.rc_min_quantizer = 0;
   }
 
@@ -243,7 +243,7 @@ class AVxEncoderThreadTest
       cfg_.rc_end_usage = AOM_CBR;
       cfg_.g_error_resilient = 1;
     }
-    cfg_.rc_max_quantizer = 56;
+    cfg_.rc_max_quantizer = 224;
     cfg_.rc_min_quantizer = 0;
   }
 

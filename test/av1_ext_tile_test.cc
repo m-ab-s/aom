@@ -71,7 +71,7 @@ class AV1ExtTileTest
     cfg_.rc_end_usage = AOM_VBR;
     cfg_.g_error_resilient = 1;
 
-    cfg_.rc_max_quantizer = 56;
+    cfg_.rc_max_quantizer = 224;
     cfg_.rc_min_quantizer = 0;
   }
 

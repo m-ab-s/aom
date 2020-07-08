@@ -40,10 +40,10 @@ TEST(WebmencTest, ExtractEncoderSettingsOutput2) {
 }
 
 TEST(WebmencTest, ExtractEncoderSettingsOutput3) {
-  const char *argv[] = { "aomenc", "--cq-level=63", "--end-usage=q",
-                         "--output=foo", "baz" };
+  const char *argv[] = { "aomenc", "--qp=255", "--end-usage=q", "--output=foo",
+                         "baz" };
   int argc = 5;
-  const std::string expected("version:23 --cq-level=63 --end-usage=q");
+  const std::string expected("version:23 --qp=255 --end-usage=q");
   char *result = extract_encoder_settings("23", argv, argc, "baz");
   ASSERT_EQ(expected, std::string(result));
   free(result);

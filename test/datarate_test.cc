@@ -45,7 +45,7 @@ class DatarateTestLarge
 
   virtual void BasicRateTargetingVBRTest() {
     cfg_.rc_min_quantizer = 0;
-    cfg_.rc_max_quantizer = 63;
+    cfg_.rc_max_quantizer = 255;
     cfg_.g_error_resilient = 0;
     cfg_.rc_end_usage = AOM_VBR;
     cfg_.g_lag_in_frames = 0;
@@ -68,7 +68,7 @@ class DatarateTestLarge
     cfg_.rc_buf_sz = 1000;
     cfg_.rc_dropframe_thresh = 1;
     cfg_.rc_min_quantizer = 0;
-    cfg_.rc_max_quantizer = 63;
+    cfg_.rc_max_quantizer = 255;
     cfg_.rc_end_usage = AOM_CBR;
     cfg_.g_lag_in_frames = 0;
 
@@ -90,7 +90,7 @@ class DatarateTestLarge
     cfg_.rc_buf_sz = 1000;
     cfg_.rc_dropframe_thresh = 1;
     cfg_.rc_min_quantizer = 0;
-    cfg_.rc_max_quantizer = 63;
+    cfg_.rc_max_quantizer = 255;
     cfg_.rc_end_usage = AOM_CBR;
     cfg_.g_lag_in_frames = 0;
     // Periodic keyframe
@@ -114,8 +114,8 @@ class DatarateTestLarge
     cfg_.rc_buf_optimal_sz = 500;
     cfg_.rc_buf_sz = 1000;
     cfg_.rc_dropframe_thresh = 0;
-    cfg_.rc_min_quantizer = 2;
-    cfg_.rc_max_quantizer = 63;
+    cfg_.rc_min_quantizer = 8;
+    cfg_.rc_max_quantizer = 255;
     cfg_.rc_end_usage = AOM_CBR;
     cfg_.g_lag_in_frames = 0;
     cfg_.g_error_resilient = 0;
@@ -146,7 +146,7 @@ class DatarateTestLarge
     cfg_.rc_buf_sz = 1000;
     cfg_.rc_dropframe_thresh = 1;
     cfg_.rc_min_quantizer = 0;
-    cfg_.rc_max_quantizer = 63;
+    cfg_.rc_max_quantizer = 255;
     cfg_.rc_end_usage = AOM_CBR;
 
     const int bitrate_array[2] = { 250, 650 };
@@ -191,7 +191,7 @@ class DatarateTestFrameDropLarge
     cfg_.rc_undershoot_pct = 20;
     cfg_.rc_dropframe_thresh = 10;
     cfg_.rc_min_quantizer = 0;
-    cfg_.rc_max_quantizer = 50;
+    cfg_.rc_max_quantizer = 200;
     cfg_.rc_end_usage = AOM_CBR;
     cfg_.rc_target_bitrate = 200;
     cfg_.g_lag_in_frames = 0;
@@ -294,7 +294,7 @@ class DatarateTestSpeedChangeRealtime
     cfg_.rc_undershoot_pct = 20;
     cfg_.rc_dropframe_thresh = 10;
     cfg_.rc_min_quantizer = 0;
-    cfg_.rc_max_quantizer = 50;
+    cfg_.rc_max_quantizer = 200;
     cfg_.rc_end_usage = AOM_CBR;
     cfg_.rc_target_bitrate = 200;
     cfg_.g_lag_in_frames = 0;

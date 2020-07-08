@@ -53,7 +53,7 @@ struct av1_extracfg {
   aom_tune_metric tuning;
   const char *vmaf_model_path;
   const char *subgop_config_str;
-  unsigned int cq_level;  // constrained quality level
+  unsigned int qp;  // constant/constrained quality level
   unsigned int rc_max_intra_bitrate_pct;
   unsigned int rc_max_inter_bitrate_pct;
   unsigned int gf_cbr_boost_pct;
@@ -190,7 +190,7 @@ static struct av1_extracfg default_extra_cfg = {
   AOM_TUNE_PSNR,  // tuning
   "/usr/local/share/model/vmaf_v0.6.1.pkl",  // VMAF model path
   subgop_config_str_16,                      // SubGOP config string
-  10,                                        // cq_level
+  40,                                        // qp
   0,                                         // rc_max_intra_bitrate_pct
   0,                                         // rc_max_inter_bitrate_pct
   0,                                         // gf_cbr_boost_pct
@@ -386,7 +386,7 @@ static aom_codec_err_t validate_config(aom_codec_alg_priv_t *ctx,
   RANGE_CHECK(cfg, g_timebase.num, 1, cfg->g_timebase.den);
   RANGE_CHECK_HI(cfg, g_profile, MAX_PROFILES - 1);
 
-  RANGE_CHECK_HI(cfg, rc_max_quantizer, 63);
+  RANGE_CHECK_HI(cfg, rc_max_quantizer, 255);
   RANGE_CHECK_HI(cfg, rc_min_quantizer, cfg->rc_max_quantizer);
   RANGE_CHECK_BOOL(extra_cfg, lossless);
   RANGE_CHECK_HI(extra_cfg, aq_mode, AQ_MODE_COUNT - 1);
@@ -431,8 +431,8 @@ static aom_codec_err_t validate_config(aom_codec_alg_priv_t *ctx,
               SCALE_NUMERATOR << 1);
   RANGE_CHECK(cfg, rc_superres_kf_denominator, SCALE_NUMERATOR,
               SCALE_NUMERATOR << 1);
-  RANGE_CHECK(cfg, rc_superres_qthresh, 1, 63);
-  RANGE_CHECK(cfg, rc_superres_kf_qthresh, 1, 63);
+  RANGE_CHECK(cfg, rc_superres_qthresh, 1, 255);
+  RANGE_CHECK(cfg, rc_superres_kf_qthresh, 1, 255);
   RANGE_CHECK_HI(extra_cfg, cdf_update_mode, 2);
 
   RANGE_CHECK_HI(extra_cfg, motion_vector_unit_test, 2);
@@ -462,7 +462,7 @@ static aom_codec_err_t validate_config(aom_codec_alg_priv_t *ctx,
   RANGE_CHECK_HI(extra_cfg, sharpness, 7);
   RANGE_CHECK_HI(extra_cfg, arnr_max_frames, 15);
   RANGE_CHECK_HI(extra_cfg, arnr_strength, 6);
-  RANGE_CHECK_HI(extra_cfg, cq_level, 63);
+  RANGE_CHECK_HI(extra_cfg, qp, 255);
   RANGE_CHECK(cfg, g_bit_depth, AOM_BITS_8, AOM_BITS_12);
   RANGE_CHECK(cfg, g_input_bit_depth, 8, 12);
   RANGE_CHECK(extra_cfg, content, AOM_CONTENT_DEFAULT, AOM_CONTENT_INVALID - 1);
@@ -500,7 +500,7 @@ static aom_codec_err_t validate_config(aom_codec_alg_priv_t *ctx,
   if (cfg->rc_end_usage == AOM_Q) {
     RANGE_CHECK_HI(cfg, use_fixed_qp_offsets, 1);
     for (int i = 0; i < FIXED_QP_OFFSET_COUNT; ++i) {
-      RANGE_CHECK_HI(cfg, fixed_qp_offsets[i], 63);
+      RANGE_CHECK_HI(cfg, fixed_qp_offsets[i], 255);
     }
   } else {
     if (cfg->use_fixed_qp_offsets > 0) {
@@ -735,20 +735,19 @@ static void update_default_encoder_config(const cfg_options_t *cfg,
   extra_cfg->reduced_tx_type_set = cfg->reduced_tx_type_set;
 }
 
-static double convert_qp_offset(int cq_level, int q_offset, int bit_depth) {
-  const double base_q_val = av1_convert_qindex_to_q(cq_level, bit_depth);
-  const int new_q_index_offset = av1_quantizer_to_qindex(q_offset);
-  const int new_q_index = AOMMAX(cq_level - new_q_index_offset, 0);
-  const double new_q_val = av1_convert_qindex_to_q(new_q_index, bit_depth);
+static double convert_qp_offset(int qp, int qp_offset, int bit_depth) {
+  const double base_q_val = av1_convert_qindex_to_q(qp, bit_depth);
+  const int new_qp = AOMMAX(qp - qp_offset, 0);
+  const double new_q_val = av1_convert_qindex_to_q(new_qp, bit_depth);
   return (base_q_val - new_q_val);
 }
 
-static double get_modeled_qp_offset(int cq_level, int level, int bit_depth) {
+static double get_modeled_qp_offset(int qp, int level, int bit_depth) {
   // 80% for keyframe was derived empirically.
   // 40% similar to rc_pick_q_and_bounds_one_pass_vbr() for Q mode ARF.
   // Rest derived similar to rc_pick_q_and_bounds_two_pass()
   static const int percents[FIXED_QP_OFFSET_COUNT] = { 76, 60, 30, 15, 8 };
-  const double q_val = av1_convert_qindex_to_q(cq_level, bit_depth);
+  const double q_val = av1_convert_qindex_to_q(qp, bit_depth);
   return q_val * percents[level] / 100;
 }
 
@@ -878,11 +877,10 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   rc_cfg->gf_cbr_boost_pct = extra_cfg->gf_cbr_boost_pct;
   rc_cfg->mode = cfg->rc_end_usage;
   rc_cfg->min_cr = extra_cfg->min_cr;
-  rc_cfg->best_allowed_q =
-      extra_cfg->lossless ? 0 : av1_quantizer_to_qindex(cfg->rc_min_quantizer);
-  rc_cfg->worst_allowed_q =
-      extra_cfg->lossless ? 0 : av1_quantizer_to_qindex(cfg->rc_max_quantizer);
-  rc_cfg->cq_level = av1_quantizer_to_qindex(extra_cfg->cq_level);
+  rc_cfg->best_allowed_q = extra_cfg->lossless ? 0 : cfg->rc_min_quantizer;
+  rc_cfg->worst_allowed_q = extra_cfg->lossless ? 0 : cfg->rc_max_quantizer;
+  rc_cfg->qp = extra_cfg->qp;
+
   rc_cfg->under_shoot_pct = cfg->rc_undershoot_pct;
   rc_cfg->over_shoot_pct = cfg->rc_overshoot_pct;
   rc_cfg->maximum_buffer_size_ms = is_vbr ? 240000 : cfg->rc_buf_sz;
@@ -913,10 +911,10 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
     if (q_cfg->use_fixed_qp_offsets) {
       if (cfg->fixed_qp_offsets[i] >= 0) {  // user-provided qp offset
         q_cfg->fixed_qp_offsets[i] = convert_qp_offset(
-            rc_cfg->cq_level, cfg->fixed_qp_offsets[i], oxcf->bit_depth);
+            rc_cfg->qp, cfg->fixed_qp_offsets[i], oxcf->bit_depth);
       } else {  // auto-selected qp offset
         q_cfg->fixed_qp_offsets[i] =
-            get_modeled_qp_offset(rc_cfg->cq_level, i, oxcf->bit_depth);
+            get_modeled_qp_offset(rc_cfg->qp, i, oxcf->bit_depth);
       }
     } else {
       q_cfg->fixed_qp_offsets[i] = -1.0;
@@ -1114,10 +1112,8 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
         (uint8_t)cfg->rc_superres_denominator;
     superres_cfg->superres_kf_scale_denominator =
         (uint8_t)cfg->rc_superres_kf_denominator;
-    superres_cfg->superres_qthresh =
-        av1_quantizer_to_qindex(cfg->rc_superres_qthresh);
-    superres_cfg->superres_kf_qthresh =
-        av1_quantizer_to_qindex(cfg->rc_superres_kf_qthresh);
+    superres_cfg->superres_qthresh = cfg->rc_superres_qthresh;
+    superres_cfg->superres_kf_qthresh = cfg->rc_superres_kf_qthresh;
     if (superres_cfg->superres_mode == AOM_SUPERRES_FIXED &&
         superres_cfg->superres_scale_denominator == SCALE_NUMERATOR &&
         superres_cfg->superres_kf_scale_denominator == SCALE_NUMERATOR) {
@@ -1229,14 +1225,6 @@ static aom_codec_err_t ctrl_get_quantizer(aom_codec_alg_priv_t *ctx,
   int *const arg = va_arg(args, int *);
   if (arg == NULL) return AOM_CODEC_INVALID_PARAM;
   *arg = av1_get_quantizer(ctx->cpi);
-  return AOM_CODEC_OK;
-}
-
-static aom_codec_err_t ctrl_get_quantizer64(aom_codec_alg_priv_t *ctx,
-                                            va_list args) {
-  int *const arg = va_arg(args, int *);
-  if (arg == NULL) return AOM_CODEC_INVALID_PARAM;
-  *arg = av1_qindex_to_quantizer(av1_get_quantizer(ctx->cpi));
   return AOM_CODEC_OK;
 }
 
@@ -1353,10 +1341,9 @@ static aom_codec_err_t ctrl_set_tuning(aom_codec_alg_priv_t *ctx,
   return update_extra_cfg(ctx, &extra_cfg);
 }
 
-static aom_codec_err_t ctrl_set_cq_level(aom_codec_alg_priv_t *ctx,
-                                         va_list args) {
+static aom_codec_err_t ctrl_set_qp(aom_codec_alg_priv_t *ctx, va_list args) {
   struct av1_extracfg extra_cfg = ctx->extra_cfg;
-  extra_cfg.cq_level = CAST(AOME_SET_CQ_LEVEL, args);
+  extra_cfg.qp = CAST(AOME_SET_CQ_LEVEL, args);
   return update_extra_cfg(ctx, &extra_cfg);
 }
 
@@ -2936,7 +2923,7 @@ static aom_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {
   { AOME_SET_ARNR_MAXFRAMES, ctrl_set_arnr_max_frames },
   { AOME_SET_ARNR_STRENGTH, ctrl_set_arnr_strength },
   { AOME_SET_TUNING, ctrl_set_tuning },
-  { AOME_SET_CQ_LEVEL, ctrl_set_cq_level },
+  { AOME_SET_CQ_LEVEL, ctrl_set_qp },
   { AOME_SET_MAX_INTRA_BITRATE_PCT, ctrl_set_rc_max_intra_bitrate_pct },
   { AOME_SET_NUMBER_SPATIAL_LAYERS, ctrl_set_number_spatial_layers },
   { AV1E_SET_MAX_INTER_BITRATE_PCT, ctrl_set_rc_max_inter_bitrate_pct },
@@ -3040,7 +3027,6 @@ static aom_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {
 
   // Getters
   { AOME_GET_LAST_QUANTIZER, ctrl_get_quantizer },
-  { AOME_GET_LAST_QUANTIZER_64, ctrl_get_quantizer64 },
   { AV1_GET_REFERENCE, ctrl_get_reference },
   { AV1E_GET_ACTIVEMAP, ctrl_get_active_map },
   { AV1_GET_NEW_FRAME_IMAGE, ctrl_get_new_frame_image },
@@ -3083,15 +3069,15 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = {
       AOM_SUPERRES_NONE,  // rc_superres_mode
       SCALE_NUMERATOR,    // rc_superres_denominator
       SCALE_NUMERATOR,    // rc_superres_kf_denominator
-      63,                 // rc_superres_qthresh
-      32,                 // rc_superres_kf_qthresh
+      255,                // rc_superres_qthresh
+      128,                // rc_superres_kf_qthresh
 
       AOM_VBR,      // rc_end_usage
       { NULL, 0 },  // rc_twopass_stats_in
       { NULL, 0 },  // rc_firstpass_mb_stats_in
       256,          // rc_target_bandwidth
       0,            // rc_min_quantizer
-      63,           // rc_max_quantizer
+      255,          // rc_max_quantizer
       25,           // rc_undershoot_pct
       25,           // rc_overshoot_pct
 
@@ -3153,15 +3139,15 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = {
       0,                // rc_superres_mode
       SCALE_NUMERATOR,  // rc_superres_denominator
       SCALE_NUMERATOR,  // rc_superres_kf_denominator
-      63,               // rc_superres_qthresh
-      32,               // rc_superres_kf_qthresh
+      255,              // rc_superres_qthresh
+      128,              // rc_superres_kf_qthresh
 
       AOM_CBR,      // rc_end_usage
       { NULL, 0 },  // rc_twopass_stats_in
       { NULL, 0 },  // rc_firstpass_mb_stats_in
       256,          // rc_target_bandwidth
       0,            // rc_min_quantizer
-      63,           // rc_max_quantizer
+      255,          // rc_max_quantizer
       25,           // rc_undershoot_pct
       25,           // rc_overshoot_pct
 

@@ -243,7 +243,7 @@ static int get_twopass_worst_quality(AV1_COMP *cpi, const double section_err,
         rc->worst_quality);
 
     // Restriction on active max q for constrained quality mode.
-    if (rc_cfg->mode == AOM_CQ) q = AOMMAX(q, rc_cfg->cq_level);
+    if (rc_cfg->mode == AOM_CQ) q = AOMMAX(q, rc_cfg->qp);
     return q;
   }
 }
@@ -1625,7 +1625,7 @@ static void define_gf_group(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
         (i >= MIN_GF_INTERVAL) && (gf_cfg->gf_max_pyr_height > MIN_PYRAMID_LVL);
 
     // TODO(urvang): Improve and use model for VBR, CQ etc as well.
-    if (use_alt_ref && rc_cfg->mode == AOM_Q && rc_cfg->cq_level <= 200) {
+    if (use_alt_ref && rc_cfg->mode == AOM_Q && rc_cfg->qp <= 200) {
       aom_clear_system_state();
       float features[21];
       get_features_from_gf_stats(
@@ -1649,7 +1649,7 @@ static void define_gf_group(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
   // The length reduction strategy is tweaked for certain cases, and doesn't
   // work well for certain other cases.
   const int allow_gf_length_reduction =
-      ((rc_cfg->mode == AOM_Q && rc_cfg->cq_level <= 128) ||
+      ((rc_cfg->mode == AOM_Q && rc_cfg->qp <= 128) ||
        !cpi->internal_altref_allowed) &&
       !is_lossless_requested(rc_cfg);
 
@@ -2637,15 +2637,14 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
 
   aom_clear_system_state();
 
-  if (oxcf->rc_cfg.mode == AOM_Q)
-    rc->active_worst_quality = oxcf->rc_cfg.cq_level;
+  if (oxcf->rc_cfg.mode == AOM_Q) rc->active_worst_quality = oxcf->rc_cfg.qp;
   FIRSTPASS_STATS this_frame;
   av1_zero(this_frame);
   // call above fn
   if (is_stat_consumption_stage(cpi)) {
     process_first_pass_stats(cpi, &this_frame);
   } else {
-    rc->active_worst_quality = oxcf->rc_cfg.cq_level;
+    rc->active_worst_quality = oxcf->rc_cfg.qp;
   }
 
   // Keyframe and section processing.

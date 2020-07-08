@@ -97,8 +97,8 @@ TEST_P(MonochromeTest, TestMonochromeEncoding) {
   cfg_.rc_buf_initial_sz = 500;
   cfg_.rc_buf_optimal_sz = 600;
   cfg_.rc_buf_sz = 1000;
-  cfg_.rc_min_quantizer = 2;
-  cfg_.rc_max_quantizer = 56;
+  cfg_.rc_min_quantizer = 8;
+  cfg_.rc_max_quantizer = 224;
   cfg_.rc_undershoot_pct = 50;
   cfg_.rc_overshoot_pct = 50;
   cfg_.rc_end_usage = AOM_CBR;

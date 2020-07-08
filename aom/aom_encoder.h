@@ -572,7 +572,7 @@ typedef struct aom_codec_enc_cfg {
   /*!\brief Frame super-resolution q threshold.
    *
    * The q level threshold after which superres is used.
-   * Valid values are 1 to 63.
+   * Valid values are 1 to 255.
    *
    * Used only by AOM_SUPERRES_QTHRESH
    */
@@ -581,7 +581,7 @@ typedef struct aom_codec_enc_cfg {
   /*!\brief Keyframe super-resolution q threshold.
    *
    * The q level threshold after which superres is used for key frames.
-   * Valid values are 1 to 63.
+   * Valid values are 1 to 255.
    *
    * Used only by AOM_SUPERRES_QTHRESH
    */
@@ -861,7 +861,7 @@ typedef struct aom_codec_enc_cfg {
    * at different levels of the pyramid.
    * - If 'fixed_qp_offsets' is also provided, encoder will use the given
    * offsets
-   * - If not, encoder will select the fixed offsets based on the cq-level
+   * - If not, encoder will select the fixed offsets based on the --qp
    *   provided.
    * If a value of 0 is provided and fixed_qp_offset are not provided, encoder
    * will NOT use fixed QP offsets.
@@ -877,7 +877,7 @@ typedef struct aom_codec_enc_cfg {
 
   /*!\brief Array of fixed QP offsets
    *
-   * This array specifies fixed QP offsets (range: 0 to 63) for frames at
+   * This array specifies fixed QP offsets (range: 0 to 255) for frames at
    * different levels of the pyramid. It is a comma-separated list of 5 values:
    * - QP offset for keyframe
    * - QP offset for ALTREF frame
@@ -886,7 +886,7 @@ typedef struct aom_codec_enc_cfg {
    * - QP offset for 3rd level internal ARF
    * Notes:
    * - QP offset for leaf level frames is not explicitly specified. These frames
-   *   use the worst quality allowed (--cq-level).
+   *   use the worst quality allowed (--qp).
    * - This option is only relevant for --end-usage=q.
    */
   int fixed_qp_offsets[FIXED_QP_OFFSET_COUNT];

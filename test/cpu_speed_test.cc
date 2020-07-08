@@ -120,7 +120,7 @@ void CpuSpeedTest::TestTuneScreen() {
   cfg_.rc_2pass_vbr_minsection_pct = 2000;
 #endif  // !CONFIG_SINGLEPASS
   cfg_.rc_target_bitrate = 2000;
-  cfg_.rc_max_quantizer = 63;
+  cfg_.rc_max_quantizer = 255;
   cfg_.rc_min_quantizer = 0;
   tune_content_ = AOM_CONTENT_SCREEN;
 
@@ -139,7 +139,7 @@ void CpuSpeedTest::TestEncodeHighBitrate() {
   cfg_.rc_2pass_vbr_maxsection_pct = 2000;
 #endif  // !CONFIG_SINGLEPASS
   cfg_.rc_target_bitrate = 12000;
-  cfg_.rc_max_quantizer = 10;
+  cfg_.rc_max_quantizer = 40;
   cfg_.rc_min_quantizer = 0;
 
   ::libaom_test::I420VideoSource video("hantro_odd.yuv", 208, 144, 30, 1, 0,
@@ -157,7 +157,7 @@ void CpuSpeedTest::TestLowBitrate() {
   cfg_.rc_2pass_vbr_maxsection_pct = 2000;
 #endif  // !CONFIG_SINGLEPASS
   cfg_.rc_target_bitrate = 200;
-  cfg_.rc_min_quantizer = 40;
+  cfg_.rc_min_quantizer = 160;
 
   ::libaom_test::I420VideoSource video("hantro_odd.yuv", 208, 144, 30, 1, 0,
                                        10);

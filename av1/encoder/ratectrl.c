@@ -898,13 +898,12 @@ static int gf_group_pyramid_level(const GF_GROUP *gf_group, int gf_index) {
   return gf_group->layer_depth[gf_index];
 }
 
-static int get_active_cq_level(const RATE_CONTROL *rc,
-                               const AV1EncoderConfig *const oxcf,
-                               int intra_only, aom_superres_mode superres_mode,
-                               int superres_denom) {
+static int get_active_qp(const RATE_CONTROL *rc,
+                         const AV1EncoderConfig *const oxcf, int intra_only,
+                         aom_superres_mode superres_mode, int superres_denom) {
   const RateControlCfg *const rc_cfg = &oxcf->rc_cfg;
   static const double cq_adjust_threshold = 0.1;
-  int active_cq_level = rc_cfg->cq_level;
+  int active_qp = rc_cfg->qp;
   (void)intra_only;
   if (rc_cfg->mode == AOM_CQ || rc_cfg->mode == AOM_Q) {
     // printf("Superres %d %d %d = %d\n", superres_denom, intra_only,
@@ -920,17 +919,17 @@ static int get_active_cq_level(const RATE_CONTROL *rc,
       } else {
         mult = SUPERRES_QADJ_PER_DENOM_ARFFRAME;
       }
-      active_cq_level = AOMMAX(
-          active_cq_level - ((superres_denom - SCALE_NUMERATOR) * mult), 0);
+      active_qp =
+          AOMMAX(active_qp - ((superres_denom - SCALE_NUMERATOR) * mult), 0);
     }
   }
   if (rc_cfg->mode == AOM_CQ && rc->total_target_bits > 0) {
     const double x = (double)rc->total_actual_bits / rc->total_target_bits;
     if (x < cq_adjust_threshold) {
-      active_cq_level = (int)(active_cq_level * x / cq_adjust_threshold);
+      active_qp = (int)(active_qp * x / cq_adjust_threshold);
     }
   }
-  return active_cq_level;
+  return active_qp;
 }
 
 /*! \brief Pick q index for this frame using fixed q index offsets.
@@ -944,8 +943,8 @@ static int get_active_cq_level(const RATE_CONTROL *rc,
  * \param[in]   rc          Top level rate control structure
  * \param[in]   gf_group    Configuration of current golden frame group
  * \param[in]   gf_index    Index of this frame in the golden frame group
- * \param[in]   cq_level    Upper bound for q index (this may be same as
- *                          \c oxcf->cq_level, or slightly modified for some
+ * \param[in]   qp          Upper bound for q index (this may be same as
+ *                          \c oxcf->qp, or slightly modified for some
  *                          special cases)
  * \param[in]   bit_depth   Bit depth of the codec (same as
  *                          \c cm->seq_params.bit_depth)
@@ -954,8 +953,7 @@ static int get_active_cq_level(const RATE_CONTROL *rc,
 static int get_q_using_fixed_offsets(const AV1EncoderConfig *const oxcf,
                                      const RATE_CONTROL *const rc,
                                      const GF_GROUP *const gf_group,
-                                     int gf_index, int cq_level,
-                                     int bit_depth) {
+                                     int gf_index, int qp, int bit_depth) {
   assert(oxcf->q_cfg.use_fixed_qp_offsets);
   assert(oxcf->rc_cfg.mode == AOM_Q);
   const FRAME_UPDATE_TYPE update_type = gf_group->update_type[gf_index];
@@ -964,7 +962,7 @@ static int get_q_using_fixed_offsets(const AV1EncoderConfig *const oxcf,
   if (update_type == KF_UPDATE) {
     if (rc->frames_to_key <= 1) {
       // Image / intra-only coding: ignore offsets.
-      return cq_level;
+      return qp;
     }
     offset_idx = 0;
   } else if (update_type == ARF_UPDATE || update_type == GF_UPDATE) {
@@ -975,18 +973,18 @@ static int get_q_using_fixed_offsets(const AV1EncoderConfig *const oxcf,
   } else {  // Leaf level / overlay frame.
     assert(update_type == LF_UPDATE || update_type == OVERLAY_UPDATE ||
            update_type == INTNL_OVERLAY_UPDATE);
-    return cq_level;  // Directly Return worst quality allowed.
+    return qp;  // Directly Return worst quality allowed.
   }
   assert(offset_idx >= 0 && offset_idx < FIXED_QP_OFFSET_COUNT);
   assert(oxcf->q_cfg.fixed_qp_offsets[offset_idx] >= 0);
 
   // Get qindex offset, by first converting to 'q' and then back.
-  const double q_val_orig = av1_convert_qindex_to_q(cq_level, bit_depth);
+  const double q_val_orig = av1_convert_qindex_to_q(qp, bit_depth);
   const double q_val_target =
       AOMMAX(q_val_orig - oxcf->q_cfg.fixed_qp_offsets[offset_idx], 0.0);
   const int delta_qindex =
       av1_compute_qdelta(rc, q_val_orig, q_val_target, bit_depth);
-  return AOMMAX(cq_level + delta_qindex, 0);
+  return AOMMAX(qp + delta_qindex, 0);
 }
 
 /*!\brief Picks q and q bounds given non-CBR rate control params in \c cpi->rc.
@@ -1024,13 +1022,13 @@ static int rc_pick_q_and_bounds_no_stats(const AV1_COMP *cpi, int width,
   assert(
       IMPLIES(rc_mode == AOM_Q, gf_group->update_type[gf_index] == ARF_UPDATE));
 
-  const int cq_level =
-      get_active_cq_level(rc, oxcf, frame_is_intra_only(cm), cpi->superres_mode,
-                          cm->superres_scale_denominator);
+  const int qp =
+      get_active_qp(rc, oxcf, frame_is_intra_only(cm), cpi->superres_mode,
+                    cm->superres_scale_denominator);
   const int bit_depth = cm->seq_params.bit_depth;
 
   if (oxcf->q_cfg.use_fixed_qp_offsets) {
-    return get_q_using_fixed_offsets(oxcf, rc, gf_group, gf_index, cq_level,
+    return get_q_using_fixed_offsets(oxcf, rc, gf_group, gf_index, qp,
                                      bit_depth);
   }
 
@@ -1042,7 +1040,7 @@ static int rc_pick_q_and_bounds_no_stats(const AV1_COMP *cpi, int width,
 
   if (frame_is_intra_only(cm)) {
     if (rc_mode == AOM_Q) {
-      const int qindex = cq_level;
+      const int qindex = qp;
       const double q_val = av1_convert_qindex_to_q(qindex, bit_depth);
       const int delta_qindex =
           av1_compute_qdelta(rc, q_val, q_val * 0.25, bit_depth);
@@ -1084,12 +1082,12 @@ static int rc_pick_q_and_bounds_no_stats(const AV1_COMP *cpi, int width,
             : rc->avg_frame_qindex[KEY_FRAME];
     // For constrained quality dont allow Q less than the cq level
     if (rc_mode == AOM_CQ) {
-      if (q < cq_level) q = cq_level;
+      if (q < qp) q = qp;
       active_best_quality = get_gf_active_quality(rc, q, bit_depth);
       // Constrained quality use slightly lower active best.
       active_best_quality = active_best_quality * 15 / 16;
     } else if (rc_mode == AOM_Q) {
-      const int qindex = cq_level;
+      const int qindex = qp;
       const double q_val = av1_convert_qindex_to_q(qindex, bit_depth);
       const int delta_qindex =
           (refresh_frame_flags->alt_ref_frame)
@@ -1101,7 +1099,7 @@ static int rc_pick_q_and_bounds_no_stats(const AV1_COMP *cpi, int width,
     }
   } else {
     if (rc_mode == AOM_Q) {
-      const int qindex = cq_level;
+      const int qindex = qp;
       const double q_val = av1_convert_qindex_to_q(qindex, bit_depth);
       const double delta_rate[FIXED_GF_INTERVAL] = { 0.50, 1.0, 0.85, 1.0,
                                                      0.70, 1.0, 0.85, 1.0 };
@@ -1117,8 +1115,8 @@ static int rc_pick_q_and_bounds_no_stats(const AV1_COMP *cpi, int width,
                                 : inter_minq[rc->avg_frame_qindex[KEY_FRAME]];
       // For the constrained quality mode we don't want
       // q to fall below the cq level.
-      if ((rc_mode == AOM_CQ) && (active_best_quality < cq_level)) {
-        active_best_quality = cq_level;
+      if ((rc_mode == AOM_CQ) && (active_best_quality < qp)) {
+        active_best_quality = qp;
       }
     }
   }
@@ -1206,11 +1204,11 @@ static int rc_pick_q_and_bounds_no_stats_cq(const AV1_COMP *cpi, int width,
   const AV1_COMMON *const cm = &cpi->common;
   const RATE_CONTROL *const rc = &cpi->rc;
   const AV1EncoderConfig *const oxcf = &cpi->oxcf;
-  const int cq_level =
-      get_active_cq_level(rc, oxcf, frame_is_intra_only(cm), cpi->superres_mode,
-                          cm->superres_scale_denominator);
+  const int qp =
+      get_active_qp(rc, oxcf, frame_is_intra_only(cm), cpi->superres_mode,
+                    cm->superres_scale_denominator);
   const int bit_depth = cm->seq_params.bit_depth;
-  const int q = (int)av1_convert_qindex_to_q(cq_level, bit_depth);
+  const int q = (int)av1_convert_qindex_to_q(qp, bit_depth);
   (void)width;
   (void)height;
   assert(has_no_stats_stage(cpi));
@@ -1225,8 +1223,8 @@ static int rc_pick_q_and_bounds_no_stats_cq(const AV1_COMP *cpi, int width,
 
 #define STATIC_MOTION_THRESH 95
 static void get_intra_q_and_bounds(const AV1_COMP *cpi, int width, int height,
-                                   int *active_best, int *active_worst,
-                                   int cq_level, int is_fwd_kf) {
+                                   int *active_best, int *active_worst, int qp,
+                                   int is_fwd_kf) {
   const AV1_COMMON *const cm = &cpi->common;
   const RATE_CONTROL *const rc = &cpi->rc;
   const AV1EncoderConfig *const oxcf = &cpi->oxcf;
@@ -1236,10 +1234,9 @@ static void get_intra_q_and_bounds(const AV1_COMP *cpi, int width, int height,
 
   if (rc->frames_to_key <= 1 && oxcf->rc_cfg.mode == AOM_Q) {
     // If the next frame is also a key frame or the current frame is the
-    // only frame in the sequence in AOM_Q mode, just use the cq_level
-    // as q.
-    active_best_quality = cq_level;
-    active_worst_quality = cq_level;
+    // only frame in the sequence in AOM_Q mode, just use the qp as q.
+    active_best_quality = qp;
+    active_worst_quality = qp;
   } else if (is_fwd_kf) {
     // Handle the special case for forward reference key frames.
     // Increase the boost because this keyframe is used as a forward and
@@ -1416,8 +1413,8 @@ static int get_q(const AV1_COMP *cpi, const int width, const int height,
 // The returning active_best_quality could further be adjusted in
 // adjust_active_best_and_worst_quality().
 static int get_active_best_quality(const AV1_COMP *const cpi,
-                                   const int active_worst_quality,
-                                   const int cq_level, const int gf_index) {
+                                   const int active_worst_quality, const int qp,
+                                   const int gf_index) {
   const AV1_COMMON *const cm = &cpi->common;
   const int bit_depth = cm->seq_params.bit_depth;
   const RATE_CONTROL *const rc = &cpi->rc;
@@ -1436,13 +1433,13 @@ static int get_active_best_quality(const AV1_COMP *const cpi,
   const int is_overlay_frame = rc->is_src_frame_alt_ref;
 
   if (is_leaf_frame || is_overlay_frame) {
-    if (rc_mode == AOM_Q) return cq_level;
+    if (rc_mode == AOM_Q) return qp;
 
     active_best_quality = inter_minq[active_worst_quality];
     // For the constrained quality mode we don't want
     // q to fall below the cq level.
-    if ((rc_mode == AOM_CQ) && (active_best_quality < cq_level)) {
-      active_best_quality = cq_level;
+    if ((rc_mode == AOM_CQ) && (active_best_quality < qp)) {
+      active_best_quality = qp;
     }
     return active_best_quality;
   }
@@ -1450,7 +1447,7 @@ static int get_active_best_quality(const AV1_COMP *const cpi,
   // TODO(chengchen): can we remove this condition?
   if (rc_mode == AOM_Q && !refresh_frame_flags->alt_ref_frame &&
       !is_intrl_arf_boost) {
-    return cq_level;
+    return qp;
   }
 
   // Determine active_best_quality for frames that are not leaf or overlay.
@@ -1462,7 +1459,7 @@ static int get_active_best_quality(const AV1_COMP *const cpi,
       rc->avg_frame_qindex[INTER_FRAME] < active_worst_quality) {
     q = rc->avg_frame_qindex[INTER_FRAME];
   }
-  if (rc_mode == AOM_CQ && q < cq_level) q = cq_level;
+  if (rc_mode == AOM_CQ && q < qp) q = qp;
   active_best_quality = get_gf_active_quality(rc, q, bit_depth);
   // Constrained quality use slightly lower active best.
   if (rc_mode == AOM_CQ) active_best_quality = active_best_quality * 15 / 16;
@@ -1506,14 +1503,14 @@ static int rc_pick_q_and_bounds(const AV1_COMP *cpi, int width, int height,
   assert(IMPLIES(has_no_stats_stage(cpi),
                  cpi->oxcf.rc_cfg.mode == AOM_Q &&
                      gf_group->update_type[gf_index] != ARF_UPDATE));
-  const int cq_level =
-      get_active_cq_level(rc, oxcf, frame_is_intra_only(cm), cpi->superres_mode,
-                          cm->superres_scale_denominator);
+  const int qp =
+      get_active_qp(rc, oxcf, frame_is_intra_only(cm), cpi->superres_mode,
+                    cm->superres_scale_denominator);
   const int bit_depth = cm->seq_params.bit_depth;
 
   if (oxcf->q_cfg.use_fixed_qp_offsets) {
-    return get_q_using_fixed_offsets(oxcf, rc, gf_group, gf_group->index,
-                                     cq_level, bit_depth);
+    return get_q_using_fixed_offsets(oxcf, rc, gf_group, gf_group->index, qp,
+                                     bit_depth);
   }
 
   int active_best_quality = 0;
@@ -1527,7 +1524,7 @@ static int rc_pick_q_and_bounds(const AV1_COMP *cpi, int width, int height,
     const int is_fwd_kf =
         cm->current_frame.frame_type == KEY_FRAME && cm->show_frame == 0;
     get_intra_q_and_bounds(cpi, width, height, &active_best_quality,
-                           &active_worst_quality, cq_level, is_fwd_kf);
+                           &active_worst_quality, qp, is_fwd_kf);
 #ifdef STRICT_RC
     active_best_quality = 0;
 #endif
@@ -1537,8 +1534,8 @@ static int rc_pick_q_and_bounds(const AV1_COMP *cpi, int width, int height,
 
     if ((pyramid_level <= 1) || (pyramid_level > MAX_ARF_LAYERS) ||
         (oxcf->rc_cfg.mode == AOM_Q)) {
-      active_best_quality = get_active_best_quality(cpi, active_worst_quality,
-                                                    cq_level, gf_index);
+      active_best_quality =
+          get_active_best_quality(cpi, active_worst_quality, qp, gf_index);
     } else {
       active_best_quality = rc->active_best_quality[pyramid_level - 1] + 1;
       active_best_quality = AOMMIN(active_best_quality, active_worst_quality);

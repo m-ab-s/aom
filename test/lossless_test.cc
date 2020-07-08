@@ -108,8 +108,8 @@ TEST_P(LosslessTestLarge, TestLossLessEncodingCtrl) {
   cfg_.g_lag_in_frames = 25;
   // Intentionally set Q > 0, to make sure control can be used to activate
   // lossless
-  cfg_.rc_min_quantizer = 10;
-  cfg_.rc_max_quantizer = 20;
+  cfg_.rc_min_quantizer = 40;
+  cfg_.rc_max_quantizer = 80;
 
   init_flags_ = AOM_CODEC_USE_PSNR;
 

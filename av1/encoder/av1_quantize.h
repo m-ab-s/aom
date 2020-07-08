@@ -111,10 +111,6 @@ void av1_init_quantizer(EncQuantDequantParams *const enc_quant_dequant_params,
 void av1_set_quantizer(struct AV1Common *const cm, int min_qmlevel,
                        int max_qmlevel, int q, int enable_chroma_deltaq);
 
-int av1_quantizer_to_qindex(int quantizer);
-
-int av1_qindex_to_quantizer(int qindex);
-
 void av1_quantize_skip(intptr_t n_coeffs, tran_low_t *qcoeff_ptr,
                        tran_low_t *dqcoeff_ptr, uint16_t *eob_ptr);
 

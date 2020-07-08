@@ -45,8 +45,8 @@ void av1_init_layer_context(AV1_COMP *const cpi) {
       lrc->ni_frames = 0;
       lrc->decimation_count = 0;
       lrc->decimation_factor = 0;
-      lrc->worst_quality = av1_quantizer_to_qindex(lc->max_q);
-      lrc->best_quality = av1_quantizer_to_qindex(lc->min_q);
+      lrc->worst_quality = lc->max_q;
+      lrc->best_quality = lc->min_q;
       for (int i = 0; i < RATE_FACTOR_LEVELS; ++i) {
         lrc->rate_correction_factors[i] = 1.0;
       }
@@ -121,8 +121,8 @@ void av1_update_layer_context_change_config(AV1_COMP *const cpi,
       lc->framerate = cpi->framerate / lc->framerate_factor;
       lrc->avg_frame_bandwidth = (int)(lc->target_bandwidth / lc->framerate);
       lrc->max_frame_bandwidth = rc->max_frame_bandwidth;
-      lrc->worst_quality = av1_quantizer_to_qindex(lc->max_q);
-      lrc->best_quality = av1_quantizer_to_qindex(lc->min_q);
+      lrc->worst_quality = lc->max_q;
+      lrc->best_quality = lc->min_q;
     }
   }
 }

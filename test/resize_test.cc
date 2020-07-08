@@ -330,7 +330,7 @@ TEST_P(ResizeInternalTestLarge, TestInternalResizeWorks) {
   change_config_ = false;
 
   // q picked such that initial keyframe on this clip is ~30dB PSNR
-  cfg_.rc_min_quantizer = cfg_.rc_max_quantizer = 48;
+  cfg_.rc_min_quantizer = cfg_.rc_max_quantizer = 192;
 
   // If the number of frames being encoded is smaller than g_lag_in_frames
   // the encoded frame is unavailable using the current API. Comparing
@@ -428,8 +428,8 @@ class ResizeRealtimeTest
     cfg_.rc_buf_initial_sz = 500;
     cfg_.rc_buf_optimal_sz = 600;
     cfg_.rc_buf_sz = 1000;
-    cfg_.rc_min_quantizer = 2;
-    cfg_.rc_max_quantizer = 56;
+    cfg_.rc_min_quantizer = 8;
+    cfg_.rc_max_quantizer = 224;
     cfg_.rc_undershoot_pct = 50;
     cfg_.rc_overshoot_pct = 50;
     cfg_.rc_end_usage = AOM_CBR;
@@ -718,7 +718,7 @@ TEST_P(ResizeCspTest, TestResizeCspWorks) {
   for (const aom_img_fmt_t &img_format : image_formats) {
     ResizingCspVideoSource video(img_format);
     init_flags_ = AOM_CODEC_USE_PSNR;
-    cfg_.rc_min_quantizer = cfg_.rc_max_quantizer = 48;
+    cfg_.rc_min_quantizer = cfg_.rc_max_quantizer = 192;
     cfg_.g_lag_in_frames = 0;
     cfg_.g_profile = (img_format == AOM_IMG_FMT_I420) ? 0 : 1;
     ASSERT_NO_FATAL_FAILURE(RunLoop(&video));

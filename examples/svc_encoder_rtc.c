@@ -690,8 +690,8 @@ int main(int argc, char **argv) {
 
   cfg.rc_dropframe_thresh = (unsigned int)strtoul(argv[9], NULL, 0);
   cfg.rc_end_usage = AOM_CBR;
-  cfg.rc_min_quantizer = 2;
-  cfg.rc_max_quantizer = 52;
+  cfg.rc_min_quantizer = 8;
+  cfg.rc_max_quantizer = 208;
   cfg.rc_undershoot_pct = 50;
   cfg.rc_overshoot_pct = 50;
   cfg.rc_buf_initial_sz = 600;

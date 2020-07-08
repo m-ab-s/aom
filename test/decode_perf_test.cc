@@ -110,8 +110,8 @@ class AV1NewEncodeDecodePerfTest
     SetMode(encoding_mode_);
 
     cfg_.g_lag_in_frames = 25;
-    cfg_.rc_min_quantizer = 2;
-    cfg_.rc_max_quantizer = 56;
+    cfg_.rc_min_quantizer = 8;
+    cfg_.rc_max_quantizer = 224;
     cfg_.rc_dropframe_thresh = 0;
     cfg_.rc_undershoot_pct = 50;
     cfg_.rc_overshoot_pct = 50;

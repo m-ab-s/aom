@@ -48,8 +48,8 @@ class AqSegmentTest
     aq_mode_ = aq_mode;
     deltaq_mode_ = 0;
     cfg_.kf_max_dist = 12;
-    cfg_.rc_min_quantizer = 8;
-    cfg_.rc_max_quantizer = 56;
+    cfg_.rc_min_quantizer = 32;
+    cfg_.rc_max_quantizer = 224;
     cfg_.rc_end_usage = AOM_CBR;
     cfg_.g_lag_in_frames = 6;
     cfg_.rc_buf_initial_sz = 500;

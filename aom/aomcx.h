@@ -227,14 +227,6 @@ enum aome_enc_control_id {
    */
   AOME_GET_LAST_QUANTIZER = AOME_SET_STATIC_THRESHOLD + 2,  // 19
 
-  /*!\brief Codec control function to get last quantizer chosen by the encoder,
-   * int* parameter
-   *
-   * Return value uses the 0..63 scale as used by the rc_*_quantizer config
-   * parameters.
-   */
-  AOME_GET_LAST_QUANTIZER_64 = 20,
-
   /*!\brief Codec control function to set the max no of frames to create arf,
    * unsigned int parameter
    */
@@ -1472,9 +1464,6 @@ AOM_CTRL_USE_TYPE(AV1E_SET_ENABLE_KEYFRAME_FILTERING, unsigned int)
 
 AOM_CTRL_USE_TYPE(AOME_GET_LAST_QUANTIZER, int *)
 #define AOM_CTRL_AOME_GET_LAST_QUANTIZER
-
-AOM_CTRL_USE_TYPE(AOME_GET_LAST_QUANTIZER_64, int *)
-#define AOM_CTRL_AOME_GET_LAST_QUANTIZER_64
 
 AOM_CTRL_USE_TYPE(AOME_SET_MAX_INTRA_BITRATE_PCT, unsigned int)
 #define AOM_CTRL_AOME_SET_MAX_INTRA_BITRATE_PCT

@@ -34,7 +34,7 @@
  *
  * # Encode with your favorite settings (including the grain table):
  * aomenc --limit=100  --cpu-used=4 --input-bit-depth=8                  \
- *    --i420 -w 854 -h 480 --end-usage=q --cq-level=25 --lag-in-frames=25 \
+ *    --i420 -w 854 -h 480 --end-usage=q --qp=100 --lag-in-frames=25 \
  *    --auto-alt-ref=2 --bit-depth=8 --film-grain-table=film_grain.tbl \
  *    -o denoised_with_grain_params.ivf denoised.854_480.yuv
  */
