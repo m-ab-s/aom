@@ -903,11 +903,16 @@ PREDICTION_MODE av1_above_block_mode(const MB_MODE_INFO *above_mi);
 static INLINE int is_global_mv_block(const MB_MODE_INFO *const mbmi,
                                      TransformationType type) {
   const PREDICTION_MODE mode = mbmi->mode;
+
+#if CONFIG_EXT_WARP && CONFIG_SUB8X8_WARP
+  return ((mode == GLOBALMV || mode == GLOBAL_GLOBALMV) && type > TRANSLATION);
+#else
   const BLOCK_SIZE bsize = mbmi->sb_type;
   const int block_size_allowed =
       AOMMIN(block_size_wide[bsize], block_size_high[bsize]) >= 8;
   return (mode == GLOBALMV || mode == GLOBAL_GLOBALMV) && type > TRANSLATION &&
          block_size_allowed;
+#endif  // CONFIG_EXT_WARP && CONFIG_SUB8X8_WARP
 }
 
 #if CONFIG_MISMATCH_DEBUG
@@ -1787,6 +1792,32 @@ motion_mode_allowed(const WarpedMotionParams *gm_params, const MACROBLOCKD *xd,
   }
   const int mi_row = -xd->mb_to_top_edge >> (3 + MI_SIZE_LOG2);
   const int mi_col = -xd->mb_to_left_edge >> (3 + MI_SIZE_LOG2);
+#if CONFIG_EXT_WARP && CONFIG_SUB8X8_WARP
+  const int is_motion_variation_allowed =
+      is_motion_variation_allowed_bsize(mbmi->sb_type, mi_row, mi_col);
+  if (is_inter_mode(mbmi->mode) && mbmi->ref_frame[1] != INTRA_FRAME &&
+      is_motion_variation_allowed_compound(mbmi)) {
+    if (!check_num_overlappable_neighbors(mbmi)) return SIMPLE_TRANSLATION;
+    assert(!has_second_ref(mbmi));
+    if (mbmi->num_proj_ref >= 1 &&
+        (allow_warped_motion &&
+         !av1_is_scaled(xd->block_ref_scale_factors[0]))) {
+      if (xd->cur_frame_force_integer_mv && is_motion_variation_allowed) {
+        return OBMC_CAUSAL;
+      } else if (!xd->cur_frame_force_integer_mv) {
+        return WARPED_CAUSAL;
+      } else {
+        return SIMPLE_TRANSLATION;
+      }
+    }
+    if (is_motion_variation_allowed)
+      return OBMC_CAUSAL;
+    else
+      return SIMPLE_TRANSLATION;
+  } else {
+    return SIMPLE_TRANSLATION;
+  }
+#else
   if (is_motion_variation_allowed_bsize(mbmi->sb_type, mi_row, mi_col) &&
       is_inter_mode(mbmi->mode) && mbmi->ref_frame[1] != INTRA_FRAME &&
       is_motion_variation_allowed_compound(mbmi)) {
@@ -1804,6 +1835,7 @@ motion_mode_allowed(const WarpedMotionParams *gm_params, const MACROBLOCKD *xd,
   } else {
     return SIMPLE_TRANSLATION;
   }
+#endif  // CONFIG_EXT_WARP && CONFIG_SUB8X8_WARP
 }
 
 static INLINE void assert_motion_mode_valid(MOTION_MODE mode,
@@ -1896,8 +1928,10 @@ static INLINE int is_nontrans_global_motion(const MACROBLOCKD *xd,
   // First check if all modes are GLOBALMV
   if (mbmi->mode != GLOBALMV && mbmi->mode != GLOBAL_GLOBALMV) return 0;
 
+#if !(CONFIG_EXT_WARP && CONFIG_SUB8X8_WARP)
   if (AOMMIN(mi_size_wide[mbmi->sb_type], mi_size_high[mbmi->sb_type]) < 2)
     return 0;
+#endif  // !(CONFIG_EXT_WARP && CONFIG_SUB8X8_WARP)
 
   // Now check if all global motion is non translational
   for (ref = 0; ref < 1 + has_second_ref(mbmi); ++ref) {

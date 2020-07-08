@@ -494,10 +494,32 @@ static void write_motion_mode(const AV1_COMMON *cm, MACROBLOCKD *xd,
       aom_write_symbol(w, mbmi->motion_mode == OBMC_CAUSAL,
                        xd->tile_ctx->obmc_cdf[mbmi->sb_type], 2);
       break;
-    default:
+    default: {
+#if CONFIG_EXT_WARP && CONFIG_SUB8X8_WARP
+      BLOCK_SIZE bsize = mbmi->sb_type;
+      int is_bs_sub8 =
+          AOMMIN(block_size_wide[bsize], block_size_high[bsize]) < 8;
+      if (is_bs_sub8) {
+        // If  AOMMIN(block_size_wide[bsize], block_size_high[bsize]) < 8 only
+        // SIMPLE_TRANSLATION and WARPED_CAUSAL are the valid motion modes.
+        assert(mbmi->motion_mode == SIMPLE_TRANSLATION ||
+               mbmi->motion_mode == WARPED_CAUSAL);
+        // If mbmi->motion_mode = SIMPLE_TRANSLATION signal 0
+        // If mbmi->motion_mode = WARPED_CAUSAL signal 1
+        int motion_mode_signal = (mbmi->motion_mode == 0) ? 0 : 1;
+        aom_write_symbol(w, motion_mode_signal,
+                         xd->tile_ctx->warp_cdf[mbmi->sb_type], 2);
+      } else {
+        aom_write_symbol(w, mbmi->motion_mode,
+                         xd->tile_ctx->motion_mode_cdf[mbmi->sb_type],
+                         MOTION_MODES);
+      }
+#else
       aom_write_symbol(w, mbmi->motion_mode,
                        xd->tile_ctx->motion_mode_cdf[mbmi->sb_type],
                        MOTION_MODES);
+#endif  // CONFIG_EXT_WARP && CONFIG_SUB8X8_WARP
+    }
   }
 }
 

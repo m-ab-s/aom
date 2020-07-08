@@ -727,10 +727,14 @@ static void dec_calc_subpel_params_and_extend(
   *src_stride = pre_buf->stride;
   const int highbd = is_cur_buf_hbd(xd);
   const int do_warp =
-      bw >= 8 && bh >= 8 &&
-      av1_allow_warp(args->mi, warp_types,
-                     &xd->global_motion[args->mi->ref_frame[ref]],
-                     args->build_for_obmc, sf, NULL) &&
+#if CONFIG_EXT_WARP && CONFIG_SUB8X8_WARP
+      bw >= 4 && bh >= 4
+#else
+      bw >= 8 && bh >= 8
+#endif  //  CONFIG_EXT_WARP && CONFIG_SUB8X8_WARP
+      && av1_allow_warp(args->mi, warp_types,
+                        &xd->global_motion[args->mi->ref_frame[ref]],
+                        args->build_for_obmc, sf, NULL) &&
       (xd->cur_frame_force_integer_mv == 0);
   extend_mc_border(sf, pre_buf, scaled_mv, block, subpel_x_mv, subpel_y_mv,
                    do_warp, is_intrabc_block(args->mi), highbd, xd->mc_buf[ref],

@@ -123,6 +123,9 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
   RESET_CDF_COUNTER(fc->interintra_mode_cdf, INTERINTRA_MODES);
 #endif  // CONFIG_INTERINTRA_ML
   RESET_CDF_COUNTER(fc->motion_mode_cdf, MOTION_MODES);
+#if CONFIG_EXT_WARP && CONFIG_SUB8X8_WARP
+  RESET_CDF_COUNTER(fc->warp_cdf, 2);
+#endif  // CONFIG_EXT_WARP && CONFIG_SUB8X8_WARP
   RESET_CDF_COUNTER(fc->obmc_cdf, 2);
   RESET_CDF_COUNTER(fc->palette_y_size_cdf, PALETTE_SIZES);
   RESET_CDF_COUNTER(fc->palette_uv_size_cdf, PALETTE_SIZES);

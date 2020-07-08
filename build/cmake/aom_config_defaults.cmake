@@ -213,6 +213,8 @@ set_aom_config_var(CONFIG_SEGMENT_BASED_PARTITIONING 0 NUMBER
                    "AV2 segment based partitioning experiment flag")
 set_aom_config_var(CONFIG_EXT_WARP 0 NUMBER
                    "AV2 extension to warp experiment flag")
+set_aom_config_var(CONFIG_SUB8X8_WARP 0 NUMBER
+                   "AV2 experiment flag for enabling sub-8x8 warp")
 set_aom_config_var(CONFIG_ENHANCED_WARPED_MOTION 0 NUMBER
                    "AV2 enhanced warped motion experiment flag")
 set_aom_config_var(CONFIG_DUMP_MFQE_DATA 0 NUMBER

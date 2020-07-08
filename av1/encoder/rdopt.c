@@ -11284,6 +11284,13 @@ static int64_t motion_mode_rd(
         mbmi->motion_mode == OBMC_CAUSAL)
       continue;
 
+#if CONFIG_EXT_WARP && CONFIG_SUB8X8_WARP
+    const int is_motion_variation_allowed =
+        is_motion_variation_allowed_bsize(mbmi->sb_type, mi_row, mi_col);
+    if (mbmi->motion_mode == OBMC_CAUSAL && !is_motion_variation_allowed)
+      continue;
+#endif  // CONFIG_EXT_WARP && CONFIG_SUB8X8_WARP
+
     if (identical_obmc_mv_field_detected) {
       if (cpi->sf.skip_obmc_in_uniform_mv_field &&
           mbmi->motion_mode == OBMC_CAUSAL)
@@ -11473,7 +11480,19 @@ static int64_t motion_mode_rd(
     if ((last_motion_mode_allowed > SIMPLE_TRANSLATION) &&
         (mbmi->ref_frame[1] != INTRA_FRAME)) {
       if (last_motion_mode_allowed == WARPED_CAUSAL) {
+#if CONFIG_EXT_WARP && CONFIG_SUB8X8_WARP
+        int is_bs_sub8 =
+            AOMMIN(block_size_wide[bsize], block_size_high[bsize]) < 8;
+        if (is_bs_sub8) {
+          assert(mbmi->motion_mode != OBMC_CAUSAL);
+          int motion_mode_idx = (mbmi->motion_mode == 0) ? 0 : 1;
+          rd_stats->rate += x->motion_mode_cost_low_bs[bsize][motion_mode_idx];
+        } else {
+          rd_stats->rate += x->motion_mode_cost[bsize][mbmi->motion_mode];
+        }
+#else
         rd_stats->rate += x->motion_mode_cost[bsize][mbmi->motion_mode];
+#endif  // CONFIG_EXT_WARP
       } else {
         rd_stats->rate += x->motion_mode_cost1[bsize][mbmi->motion_mode];
       }

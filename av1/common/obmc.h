@@ -86,4 +86,22 @@ static INLINE void foreach_overlappable_nb_left(const AV1_COMMON *cm,
   }
 }
 
+#if CONFIG_EXT_WARP && CONFIG_SUB8X8_WARP
+static INLINE void foreach_inter_nb_above(MACROBLOCKD *xd,
+                                          uint8_t *above_neighbor_count) {
+  if (!xd->up_available) return;
+
+  const int mi_row_offset = -1;
+  const MB_MODE_INFO *mbmi = xd->mi[mi_row_offset * xd->mi_stride];
+  if (is_inter_block(mbmi)) (*above_neighbor_count)++;
+}
+
+static INLINE void foreach_inter_nb_left(MACROBLOCKD *xd,
+                                         uint8_t *left_neighbor_count) {
+  if (!xd->left_available) return;
+  const int mi_col_offset = -1;
+  const MB_MODE_INFO *mbmi = xd->mi[mi_col_offset];
+  if (is_inter_block(mbmi)) (*left_neighbor_count)++;
+}
+#endif  // CONFIG_EXT_WARP && CONFIG_SUB8X8_WARP
 #endif  // AOM_AV1_COMMON_OBMC_H_

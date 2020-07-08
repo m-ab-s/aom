@@ -894,9 +894,13 @@ static void av1_make_inter_predictor_aux(
 
   WarpedMotionParams final_warp_params;
   const int do_warp =
-      (orig_w >= 8 && orig_h >= 8 &&
-       av1_allow_warp(mi, warp_types, &xd->global_motion[mi->ref_frame[ref]],
-                      build_for_obmc, sf, &final_warp_params));
+#if CONFIG_EXT_WARP && CONFIG_SUB8X8_WARP
+      orig_w >= 4 && orig_h >= 4
+#else
+      orig_w >= 8 && orig_h >= 8
+#endif  // CONFIG_EXT_WARP && CONFIG_SUB8X8_WARP
+      && av1_allow_warp(mi, warp_types, &xd->global_motion[mi->ref_frame[ref]],
+                        build_for_obmc, sf, &final_warp_params);
   const int is_intrabc = mi->use_intrabc;
   assert(IMPLIES(is_intrabc, !do_warp));
 
@@ -906,7 +910,12 @@ static void av1_make_inter_predictor_aux(
     av1_warp_plane(&final_warp_params, is_cur_buf_hbd(xd), xd->bd,
                    pre_buf->buf0, pre_buf->width, pre_buf->height,
                    pre_buf->stride, dst, p_col, p_row, w, h, dst_stride,
-                   pd->subsampling_x, pd->subsampling_y, conv_params);
+                   pd->subsampling_x, pd->subsampling_y,
+#if CONFIG_EXT_WARP && CONFIG_SUB8X8_WARP
+                   (orig_w < 8 || orig_h < 8),
+#endif  // CONFIG_EXT_WARP && CONFIG_SUB8X8_WARP
+                   conv_params);
+
   } else if (is_cur_buf_hbd(xd)) {
     highbd_inter_predictor(src, src_stride, dst, dst_stride, subpel_params, w,
                            h, orig_w, orig_h, conv_params, interp_filters,
@@ -2248,6 +2257,19 @@ void av1_count_overlappable_neighbors(const AV1_COMMON *cm, MACROBLOCKD *xd) {
   mbmi->overlappable_neighbors[0] = 0;
   mbmi->overlappable_neighbors[1] = 0;
 
+#if CONFIG_EXT_WARP && CONFIG_SUB8X8_WARP
+  if (block_size_wide[mbmi->sb_type] > 4)
+    foreach_overlappable_nb_above(cm, xd, INT_MAX, increment_int_ptr,
+                                  &mbmi->overlappable_neighbors[0]);
+  else
+    foreach_inter_nb_above(xd, &mbmi->overlappable_neighbors[0]);
+
+  if (block_size_high[mbmi->sb_type] > 4)
+    foreach_overlappable_nb_left(cm, xd, INT_MAX, increment_int_ptr,
+                                 &mbmi->overlappable_neighbors[1]);
+  else
+    foreach_inter_nb_left(xd, &mbmi->overlappable_neighbors[1]);
+#else
   if (!is_motion_variation_allowed_bsize(mbmi->sb_type, xd->mi_row, xd->mi_col))
     return;
 
@@ -2255,6 +2277,7 @@ void av1_count_overlappable_neighbors(const AV1_COMMON *cm, MACROBLOCKD *xd) {
                                 &mbmi->overlappable_neighbors[0]);
   foreach_overlappable_nb_left(cm, xd, INT_MAX, increment_int_ptr,
                                &mbmi->overlappable_neighbors[1]);
+#endif  // CONFIG_EXT_WARP && CONFIG_SUB8X8_WARP
 }
 
 // HW does not support < 4x4 prediction. To limit the bandwidth requirement, if

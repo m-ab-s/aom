@@ -313,9 +313,23 @@ static MOTION_MODE read_motion_mode(AV1_COMMON *cm, MACROBLOCKD *xd,
         aom_read_symbol(r, xd->tile_ctx->obmc_cdf[mbmi->sb_type], 2, ACCT_STR);
     return (MOTION_MODE)(SIMPLE_TRANSLATION + motion_mode);
   } else {
+#if CONFIG_EXT_WARP && CONFIG_SUB8X8_WARP
+    BLOCK_SIZE bsize = mbmi->sb_type;
+    int is_bs_sub8 = AOMMIN(block_size_wide[bsize], block_size_high[bsize]) < 8;
+    if (is_bs_sub8) {
+      motion_mode = aom_read_symbol(r, xd->tile_ctx->warp_cdf[mbmi->sb_type], 2,
+                                    ACCT_STR);
+      motion_mode = (motion_mode == 0) ? SIMPLE_TRANSLATION : WARPED_CAUSAL;
+    } else {
+      motion_mode =
+          aom_read_symbol(r, xd->tile_ctx->motion_mode_cdf[mbmi->sb_type],
+                          MOTION_MODES, ACCT_STR);
+    }
+#else
     motion_mode =
         aom_read_symbol(r, xd->tile_ctx->motion_mode_cdf[mbmi->sb_type],
                         MOTION_MODES, ACCT_STR);
+#endif  // CONFIG_EXT_WARP && CONFIG_SUB8X8_WARP
     return (MOTION_MODE)(SIMPLE_TRANSLATION + motion_mode);
   }
 }
@@ -2012,6 +2026,16 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
   }
 
   mbmi->motion_mode = SIMPLE_TRANSLATION;
+
+#if CONFIG_EXT_WARP && CONFIG_SUB8X8_WARP
+  if (!mbmi->skip_mode && !has_second_ref(mbmi)) {
+    mbmi->num_proj_ref = av1_findSamples(cm, xd,
+#if CONFIG_ENHANCED_WARPED_MOTION
+                                         &xd->ref_mv_info,
+#endif  // CONFIG_ENHANCED_WARPED_MOTION
+                                         pts, pts_inref);
+  }
+#else
   if (is_motion_variation_allowed_bsize(mbmi->sb_type, mi_row, mi_col) &&
       !mbmi->skip_mode && !has_second_ref(mbmi)) {
     mbmi->num_proj_ref = av1_findSamples(cm, xd,
@@ -2020,6 +2044,8 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
 #endif  // CONFIG_ENHANCED_WARPED_MOTION
                                          pts, pts_inref);
   }
+#endif  // CONFIG_EXT_WARP && CONFIG_SUB8X8_WARP
+
   av1_count_overlappable_neighbors(cm, xd);
 
   if (mbmi->ref_frame[1] != INTRA_FRAME)

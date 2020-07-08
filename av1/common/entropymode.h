@@ -160,6 +160,9 @@ typedef struct frame_contexts {
                                   [CDF_SIZE(INTERINTRA_MODES)];
 #endif  // CONFIG_INTERINTRA_ML
   aom_cdf_prob motion_mode_cdf[BLOCK_SIZES_ALL][CDF_SIZE(MOTION_MODES)];
+#if CONFIG_EXT_WARP && CONFIG_SUB8X8_WARP
+  aom_cdf_prob warp_cdf[BLOCK_SIZES_ALL][CDF_SIZE(2)];
+#endif  // CONFIG_EXT_WARP && CONFIG_SUB8X8_WARP
   aom_cdf_prob obmc_cdf[BLOCK_SIZES_ALL][CDF_SIZE(2)];
   aom_cdf_prob palette_y_size_cdf[PALATTE_BSIZE_CTXS][CDF_SIZE(PALETTE_SIZES)];
   aom_cdf_prob palette_uv_size_cdf[PALATTE_BSIZE_CTXS][CDF_SIZE(PALETTE_SIZES)];
