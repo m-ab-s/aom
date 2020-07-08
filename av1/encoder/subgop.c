@@ -155,13 +155,12 @@ void av1_print_subgop_config_set(SubGOPSetCfg *config_set) {
 const SubGOPCfg *av1_find_subgop_config(SubGOPSetCfg *config_set,
                                         int num_frames, int is_last_subgop) {
   SubGOPCfg *cfg = NULL;
-  int j = -1;
   for (int i = 0; i < config_set->num_configs; ++i) {
     if (config_set->config[i].num_frames == num_frames) {
       if (config_set->config[i].is_last_subgop == is_last_subgop)
         return &config_set->config[i];
       else
-        cfg = &config_set->config[j];
+        cfg = &config_set->config[i];
     }
   }
   return cfg;
