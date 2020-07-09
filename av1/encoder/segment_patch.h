@@ -48,6 +48,18 @@ void av1_extend_binary_mask_range(uint8_t *const mask, int w, int h);
 // - h: mask height
 void av1_apply_box_blur(uint8_t *const mask, int w, int h);
 
+// Run-length encodes 'img'.
+// Inputs:
+// - img: image to be encoded
+// - width: image width
+// - height: image height
+// - stride: image stride
+// Outputs:
+// - out: run-length encoded image. Assumed to be already allocated.
+// - out_size: length of 'out'
+void av1_run_length_encode(const uint8_t *const img, int width, int height,
+                           int stride, uint8_t *out, int *out_size);
+
 #define DUMP_SEGMENT_MASKS 0
 
 #if DUMP_SEGMENT_MASKS

@@ -2,6 +2,7 @@
 #include <unordered_map>
 
 #include "aom_mem/aom_mem.h"
+#include "av1/common/enums.h"
 #include "av1/encoder/segment_patch.h"
 #include "third_party/segment/segment-image.h"
 
@@ -149,6 +150,42 @@ extern "C" void av1_apply_box_blur(uint8_t *const mask, int w, int h) {
 #undef BLUR_KERNEL
 #undef BLUR_HALF_KERNEL
 #undef BLUR_BORDER
+
+static void write_run_length(int run_len, uint8_t *out, int *out_idx) {
+  assert(run_len > 0);
+  assert(run_len <= MAX_SB_SQUARE);
+  const int range = UINT8_MAX + 1;
+  const int run_len_msb = run_len / range;
+  assert(run_len_msb < range);  // Because run_len <= MAX_SB_SQUARE.
+  out[(*out_idx)++] = (uint8_t)run_len_msb;
+  const int run_len_lsb = run_len % range;
+  assert(run_len_msb < range);
+  out[(*out_idx)++] = (uint8_t)run_len_lsb;
+}
+
+void av1_run_length_encode(const uint8_t *const img, int width, int height,
+                           int stride, uint8_t *out, int *out_size) {
+  int out_idx = 0;
+  uint8_t prev_val = img[0];
+  int run_len = 1;
+
+  for (int r = 0; r < height; ++r) {
+    for (int c = (r == 0) ? 1 : 0; c < width; ++c) {
+      const uint8_t curr_val = img[r * stride + c];
+      if (curr_val == prev_val) {
+        ++run_len;
+      } else {
+        out[out_idx++] = prev_val;
+        write_run_length(run_len, out, &out_idx);
+        run_len = 1;
+        prev_val = curr_val;
+      }
+    }
+  }
+  out[out_idx++] = prev_val;
+  write_run_length(run_len, out, &out_idx);
+  *out_size = out_idx;
+}
 
 #if DUMP_SEGMENT_MASKS
 extern "C" void av1_dump_raw_y_plane(const uint8_t *y, int width, int height,

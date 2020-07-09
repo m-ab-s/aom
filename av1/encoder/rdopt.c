@@ -7618,13 +7618,24 @@ static INLINE int get_interinter_compound_mask_rate(
     const MACROBLOCK *const x, const MB_MODE_INFO *const mbmi) {
   const COMPOUND_TYPE compound_type = mbmi->interinter_comp.type;
   // This function will be called only for COMPOUND_WEDGE and COMPOUND_DIFFWTD
-  // TODO(urvang): Compute rate in case of arbitrary mask.
   if (compound_type == COMPOUND_WEDGE) {
-    return get_interinter_wedge_bits(mbmi->sb_type) > 0
-               ? av1_cost_literal(1) +
-                     x->wedge_idx_cost[mbmi->sb_type]
-                                      [mbmi->interinter_comp.wedge_index]
-               : 0;
+    if (get_interinter_wedge_bits(mbmi->sb_type) == 0) return 0;
+#if CONFIG_SEGMENT_BASED_PARTITIONING
+    if (av1_wedge_params_lookup[mbmi->sb_type].codebook == NULL) {
+      // We are using an arbitrary mask, so need to run RLE to compute rate.
+      const int bw = block_size_wide[mbmi->sb_type];
+      const int bh = block_size_high[mbmi->sb_type];
+      // For input of length n, max length of run-length encoded string is
+      // 3*n, as storing each length takes 2 bytes.
+      uint8_t rle_buf[3 * MAX_SB_SQUARE];
+      int rle_size = 0;
+      av1_run_length_encode(mbmi->interinter_comp.seg_mask, bw, bh, bw, rle_buf,
+                            &rle_size);
+      return rle_size;
+    }
+#endif  // CONFIG_SEGMENT_BASED_PARTITIONING
+    return av1_cost_literal(1) +
+           x->wedge_idx_cost[mbmi->sb_type][mbmi->interinter_comp.wedge_index];
   } else {
     assert(compound_type == COMPOUND_DIFFWTD);
     return av1_cost_literal(1);
