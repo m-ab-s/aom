@@ -1404,6 +1404,12 @@ const uint8_t *av1_get_compound_type_mask(
   (void)sb_type;
   switch (comp_data->type) {
     case COMPOUND_WEDGE:
+#if CONFIG_SEGMENT_BASED_PARTITIONING
+      if (av1_wedge_params_lookup[sb_type].codebook == NULL) {
+        // We are using an arbitrary mask, stored earlier.
+        return comp_data->seg_mask;
+      }
+#endif  // CONFIG_SEGMENT_BASED_PARTITIONING
       return av1_get_contiguous_soft_mask(comp_data->wedge_index,
                                           comp_data->wedge_sign, sb_type);
     case COMPOUND_DIFFWTD: return comp_data->seg_mask;
