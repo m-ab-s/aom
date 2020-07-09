@@ -10534,7 +10534,7 @@ static int handle_smooth_inter_intra_mode(
       *rmode = interintra_mode_cost[mbmi->interintra_mode];
 #endif  // CONFIG_DERIVED_INTRA_MODE
       av1_build_intra_predictors_for_interintra(cm, xd, bsize, 0, orig_dst,
-                                                intrapred, bw);
+                                                intrapred, bw, 0 /*border*/);
       const int border = 0;
       av1_combine_interintra(xd, bsize, 0, tmp_buf, bw, intrapred, bw, border);
       int tmp_skip_txfm_sb, rate_sum;
@@ -10583,7 +10583,7 @@ static int handle_smooth_inter_intra_mode(
     mbmi->use_derived_intra_mode[0] = *pick_derived_intra_mode;
 #endif  // CONFIG_DERIVED_INTRA_MODE
     av1_build_intra_predictors_for_interintra(cm, xd, bsize, 0, orig_dst,
-                                              intrapred, bw);
+                                              intrapred, bw, 0 /*border*/);
     const int border = 0;
     av1_combine_interintra(xd, bsize, 0, tmp_buf, bw, intrapred, bw, border);
   }
@@ -10703,7 +10703,7 @@ static int handle_inter_intra_mode(const AV1_COMP *const cpi,
       mbmi->use_derived_intra_mode[0] = pick_derived_intra_mode;
 #endif  // CONFIG_DERIVED_INTRA_MODE
       av1_build_intra_predictors_for_interintra(cm, xd, bsize, 0, orig_dst,
-                                                intrapred, bw);
+                                                intrapred, bw, 0 /*border*/);
       best_interintra_rd_wedge =
           pick_interintra_wedge(cpi, x, bsize, intrapred_, tmp_buf_);
     } else {
@@ -10730,7 +10730,7 @@ static int handle_inter_intra_mode(const AV1_COMP *const cpi,
         rmode = interintra_mode_cost[mbmi->interintra_mode];
 #endif  // CONFIG_DERIVED_INTRA_MODE
         av1_build_intra_predictors_for_interintra(cm, xd, bsize, 0, orig_dst,
-                                                  intrapred, bw);
+                                                  intrapred, bw, 0 /*border*/);
         rd = pick_interintra_wedge(cpi, x, bsize, intrapred_, tmp_buf_);
         const int rate_overhead =
             rmode + x->wedge_idx_cost[bsize][mbmi->interintra_wedge_index];
@@ -10752,7 +10752,7 @@ static int handle_inter_intra_mode(const AV1_COMP *const cpi,
 #endif  // CONFIG_DERIVED_INTRA_MODE
       if (CONFIG_DERIVED_INTRA_MODE || best_mode != INTERINTRA_MODES - 1) {
         av1_build_intra_predictors_for_interintra(cm, xd, bsize, 0, orig_dst,
-                                                  intrapred, bw);
+                                                  intrapred, bw, 0 /*border*/);
       }
     }
 

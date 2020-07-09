@@ -22,6 +22,19 @@
 extern "C" {
 #endif
 
+// Calculate the number of rows / columns available in the reference
+// frame.
+int av1_intra_top_available(const MACROBLOCKD *xd, int plane);
+int av1_intra_left_available(const MACROBLOCKD *xd, int plane);
+
+// Extends the intra-predictor to have a border region consisting of the
+// reference frame; border region is to the top-left and assumed to be
+// offset negatively from the passed in pointer (which points to the start
+// of the regular intra-prediction).
+void av1_extend_intra_border(const uint8_t *ref, int ref_stride, uint8_t *dst,
+                             int dst_stride, int top_rows_available,
+                             int left_cols_available, int width, int height,
+                             int border, aom_bit_depth_t bd);
 void av1_init_intra_predictors(void);
 void av1_predict_intra_block_facade(const AV1_COMMON *cm, MACROBLOCKD *xd,
                                     int plane, int blk_col, int blk_row,

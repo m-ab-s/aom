@@ -428,11 +428,12 @@ void av1_build_interintra_predictors_sbuv(const AV1_COMMON *cm, MACROBLOCKD *xd,
                                           const BUFFER_SET *ctx,
                                           BLOCK_SIZE bsize, int border);
 
-void av1_build_intra_predictors_for_interintra(const AV1_COMMON *cm,
-                                               MACROBLOCKD *xd,
-                                               BLOCK_SIZE bsize, int plane,
-                                               const BUFFER_SET *ctx,
-                                               uint8_t *dst, int dst_stride);
+// If border is specified, then the destination pointer is treated as having
+// an extended region to the top and left, which can be accessed via
+// a negative offset to the destination.
+void av1_build_intra_predictors_for_interintra(
+    const AV1_COMMON *cm, MACROBLOCKD *xd, BLOCK_SIZE bsize, int plane,
+    const BUFFER_SET *ctx, uint8_t *dst, int dst_stride, int border);
 
 // If the inter-intra mode is one that requires an extended region, then
 // inter_pred and intra_pred should point to the start of the inter/intra
