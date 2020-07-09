@@ -54,8 +54,8 @@ void av1_apply_box_blur(uint8_t *const mask, int w, int h);
 // Dump raw Y plane to a YUV file.
 // Can be viewed as follows, for example:
 // ffplay -f rawvideo -pixel_format gray -video_size wxh -i <filename>
-extern "C" void av1_dump_raw_y_plane(const uint8_t *y, int width, int height,
-                                     int stride, const char *filename);
+void av1_dump_raw_y_plane(const uint8_t *y, int width, int height, int stride,
+                          const char *filename);
 #endif  // DUMP_SEGMENT_MASKS
 
 #ifdef __cplusplus

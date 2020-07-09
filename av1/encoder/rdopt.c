@@ -8830,8 +8830,8 @@ static int64_t pick_arbitrary_wedge(const AV1_COMP *const cpi,
   const int bh = block_size_high[bsize];
   const int N = bw * bh;
 #if DUMP_SEGMENT_MASKS
-  dump_raw_y_plane(x->plane[0].src.buf, bw, bh, x->plane[0].src.stride,
-                   "/tmp/1.source.yuv");
+  av1_dump_raw_y_plane(x->plane[0].src.buf, bw, bh, x->plane[0].src.stride,
+                       "/tmp/1.source.yuv");
 #endif  // DUMP_SEGMENT_MASKS
 
   // Get segment mask from helper library.
@@ -8848,13 +8848,13 @@ static int64_t pick_arbitrary_wedge(const AV1_COMP *const cpi,
       // Convert binary mask with values {0, 1} to one with values {0, 64}.
       av1_extend_binary_mask_range(seg_mask, bw, bh);
 #if DUMP_SEGMENT_MASKS
-      dump_raw_y_plane(seg_mask, bw, bh, bw, "/tmp/2.binary_mask.yuv");
+      av1_dump_raw_y_plane(seg_mask, bw, bh, bw, "/tmp/2.binary_mask.yuv");
 #endif  // DUMP_SEGMENT_MASKS
 
       // Get a smooth mask from the binary mask.
       av1_apply_box_blur(seg_mask, bw, bh);
 #if DUMP_SEGMENT_MASKS
-      dump_raw_y_plane(seg_mask, bw, bh, bw, "/tmp/3.smooth_mask.yuv");
+      av1_dump_raw_y_plane(seg_mask, bw, bh, bw, "/tmp/3.smooth_mask.yuv");
 #endif  // DUMP_SEGMENT_MASKS
 
       // Get RDCost
