@@ -790,10 +790,21 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
     cpi->oxcf.gf_cfg.lag_in_frames = lap_lag_in_frames;
   }
 
-  av1_process_subgop_config_set(oxcf->subgop_config_str,
-                                &cpi->subgop_config_set);
-  // Uncomment to print out the configuration
-  // av1_print_subgop_config_set(&cpi->subgop_config_set);
+  if (cpi->subgop_config_str == NULL ||
+      strcmp(cpi->subgop_config_str, oxcf->subgop_config_str)) {
+    aom_free(cpi->subgop_config_str);
+    if (oxcf->subgop_config_str != NULL) {
+      cpi->subgop_config_str =
+          (char *)aom_malloc((strlen(oxcf->subgop_config_str) + 1) *
+                             sizeof(*oxcf->subgop_config_str));
+      strcpy(cpi->subgop_config_str, oxcf->subgop_config_str);
+      av1_process_subgop_config_set(oxcf->subgop_config_str,
+                                    &cpi->subgop_config_set);
+      // print only the encoder stage config
+      if (cpi->compressor_stage == ENCODE_STAGE)
+        av1_print_subgop_config_set(&cpi->subgop_config_set);
+    }
+  }
 }
 
 static INLINE void init_frame_info(FRAME_INFO *frame_info,
@@ -1482,6 +1493,7 @@ void av1_remove_compressor(AV1_COMP *cpi) {
 #endif  // CONFIG_HTB_TRELLIS
   av1_free_ref_frame_buffers(cm->buffer_pool);
 
+  aom_free(cpi->subgop_config_str);
   aom_free(cpi);
 
 #ifdef OUTPUT_YUV_REC

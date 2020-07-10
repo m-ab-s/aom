@@ -638,11 +638,11 @@ typedef struct {
 #define MAX_SUBGOP_STEPS 64
 
 typedef enum {
-  FRAME_TYPE_INO_VISIBLE,
-  FRAME_TYPE_INO_REPEAT,
-  FRAME_TYPE_INO_SHOWEXISTING,
-  FRAME_TYPE_OOO_FILTERED,
-  FRAME_TYPE_OOO_UNFILTERED,
+  FRAME_TYPE_INO_VISIBLE = 'V',
+  FRAME_TYPE_INO_REPEAT = 'R',
+  FRAME_TYPE_INO_SHOWEXISTING = 'S',
+  FRAME_TYPE_OOO_FILTERED = 'F',
+  FRAME_TYPE_OOO_UNFILTERED = 'U',
 } FRAME_TYPE_CODE;
 
 typedef struct {
@@ -2104,6 +2104,11 @@ typedef struct AV1_COMP {
    * Information related to two pass encoding.
    */
   TWO_PASS twopass;
+
+  /*!
+   * SubGOP configuration string
+   */
+  char *subgop_config_str;
 
   /*!
    * Information related to subGOP configuration if specified.
