@@ -68,6 +68,8 @@ extern "C" {
 #define AOM_CODEC_USE_PSNR 0x10000 /**< Calculate PSNR on each frame */
 /*!\brief Make the encoder output one  partition at a time. */
 #define AOM_CODEC_USE_HIGHBITDEPTH 0x40000 /**< Use high bitdepth */
+/*!\brief Print per frame stats. */
+#define AOM_CODEC_USE_PER_FRAME_STATS 0x80000 /**< Enable printing of stats */
 
 /*!\brief Generic fixed size buffer structure
  *

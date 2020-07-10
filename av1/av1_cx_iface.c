@@ -2321,7 +2321,12 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
 
   if (res == AOM_CODEC_OK) {
     // Set up internal flags
-    if (ctx->base.init_flags & AOM_CODEC_USE_PSNR) cpi->b_calculate_psnr = 1;
+    if (ctx->base.init_flags & AOM_CODEC_USE_PSNR) {
+      cpi->b_calculate_psnr = 1;
+    }
+    if (ctx->base.init_flags & AOM_CODEC_USE_PER_FRAME_STATS) {
+      cpi->print_per_frame_stats = 1;
+    }
 
     if (img != NULL) {
       if (!ctx->pts_offset_initialized) {
@@ -2522,7 +2527,9 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
         has_fwd_keyframe |= (!is_frame_visible &&
                              cpi->common.current_frame.frame_type == KEY_FRAME);
 
-        report_stats(cpi, frame_size, cx_time);
+        if (cpi->print_per_frame_stats) {
+          report_stats(cpi, frame_size, cx_time);
+        }
       }
     }
     if (is_frame_visible) {

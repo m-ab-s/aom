@@ -2171,6 +2171,11 @@ typedef struct AV1_COMP {
    */
   int b_calculate_psnr;
 
+  /*!
+   * Prints stats for each frame when set to 1.
+   */
+  int print_per_frame_stats;
+
 #if CONFIG_SPEED_STATS
   /*!
    * For debugging: number of transform searches we have performed.
