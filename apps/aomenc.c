@@ -413,6 +413,8 @@ static const arg_def_t tune_metric =
     ARG_DEF_ENUM(NULL, "tune", 1, "Distortion metric tuned with", tuning_enum);
 static const arg_def_t qp_level =
     ARG_DEF(NULL, "qp", 1, "Constant/Constrained Quality level");
+static const arg_def_t cq_level =
+    ARG_DEF(NULL, "cq-level", 1, "Constant/Constrained Quality level");
 static const arg_def_t max_intra_rate_pct =
     ARG_DEF(NULL, "max-intra-rate", 1, "Max I-frame bitrate (pct)");
 
@@ -1672,6 +1674,27 @@ static int parse_stream_params(struct AvxEncoderConfig *global,
       if (arg_parse_uint(&arg) == 1) {
         warn("non-zero %s option ignored in realtime mode.\n", arg.name);
       }
+    } else if (arg_match(&arg, &cq_level, argi)) {
+      warn(
+          "Option '--cq-level' (range 0 to 63) is DEPRECATED and will be "
+          "removed in future. Use option '--qp' (range 0 to 255) instead.");
+      static const int quantizer_to_qindex[] = {
+        0,   4,   8,   12,  16,  20,  24,  28,  32,  36,  40,  44,  48,
+        52,  56,  60,  64,  68,  72,  76,  80,  84,  88,  92,  96,  100,
+        104, 108, 112, 116, 120, 124, 128, 132, 136, 140, 144, 148, 152,
+        156, 160, 164, 168, 172, 176, 180, 184, 188, 192, 196, 200, 204,
+        208, 212, 216, 220, 224, 228, 232, 236, 240, 244, 249, 255,
+      };
+      const unsigned int cq_level_val = arg_parse_uint(&arg);
+      if (cq_level_val > 63) {
+        fprintf(stderr, "--cq-level out of range (0 to 63)");
+      }
+      const int qp_val = quantizer_to_qindex[cq_level_val];
+      const int idx = config->arg_ctrl_cnt;
+      assert(idx < (int)ARG_CTRL_CNT_MAX);
+      config->arg_ctrls[idx][0] = AOME_SET_QP;
+      config->arg_ctrls[idx][1] = qp_val;
+      ++config->arg_ctrl_cnt;
     } else {
       int i, match = 0;
       for (i = 0; ctrl_args[i]; i++) {
