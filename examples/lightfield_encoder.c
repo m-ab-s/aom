@@ -357,7 +357,7 @@ static void pass1(aom_image_t *raw, FILE *infile, const char *outfile_name,
     die_codec(&codec, "Failed to configure encoder");
 
   // The fixed q value used in encoding.
-  if (aom_codec_control(&codec, AOME_SET_CQ_LEVEL, 36))
+  if (aom_codec_control(&codec, AOME_SET_QP, 36))
     die_codec(&codec, "Failed to set cq level");
   if (aom_codec_control(&codec, AV1E_SET_FRAME_PARALLEL_DECODING, 1))
     die_codec(&codec, "Failed to set frame parallel decoding");

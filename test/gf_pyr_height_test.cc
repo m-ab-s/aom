@@ -111,7 +111,7 @@ class GFPyrHeightTest
     if (video->frame() == 0) {
       encoder->Control(AOME_SET_CPUUSED, cpu_used_);
       if (rc_mode_ == AOM_Q) {
-        encoder->Control(AOME_SET_CQ_LEVEL, 32);
+        encoder->Control(AOME_SET_QP, 32);
       }
       if (encoding_mode_ != ::libaom_test::kRealTime) {
         encoder->Control(AOME_SET_ENABLEAUTOALTREF, 1);

@@ -242,7 +242,7 @@ int main(int argc, char **argv) {
       die_codec(&codec, "Failed to set enc cfg for layer 0");
     if (aom_codec_control(&codec, AOME_SET_SPATIAL_LAYER_ID, 0))
       die_codec(&codec, "Failed to set layer id to 0");
-    if (aom_codec_control(&codec, AOME_SET_CQ_LEVEL, 62))
+    if (aom_codec_control(&codec, AOME_SET_QP, 62))
       die_codec(&codec, "Failed to set cq level");
     encode_frame(&codec, &raw0, frame_count++, flags, outfile);
 
@@ -261,7 +261,7 @@ int main(int argc, char **argv) {
       die_codec(&codec, "Failed to set enc cfg for layer 1");
     if (aom_codec_control(&codec, AOME_SET_SPATIAL_LAYER_ID, 1))
       die_codec(&codec, "Failed to set layer id to 1");
-    if (aom_codec_control(&codec, AOME_SET_CQ_LEVEL, 10))
+    if (aom_codec_control(&codec, AOME_SET_QP, 10))
       die_codec(&codec, "Failed to set cq level");
     encode_frame(&codec, &raw1, frame_count++, flags, outfile);
 

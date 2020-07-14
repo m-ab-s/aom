@@ -247,12 +247,12 @@ enum aome_enc_control_id {
   /*!\brief Codec control function to set constrained / constant quality level,
    * unsigned int parameter
    *
-   * Valid range: 0..63
+   * Valid range: 0..255
    *
    * \attention For this value to be used aom_codec_enc_cfg_t::rc_end_usage
    *            must be set to #AOM_CQ or #AOM_Q.
    */
-  AOME_SET_CQ_LEVEL = 25,
+  AOME_SET_QP = 25,
 
   /*!\brief Codec control function to set max data rate for intra frames,
    * unsigned int parameter
@@ -1444,8 +1444,8 @@ AOM_CTRL_USE_TYPE(AOME_SET_ARNR_STRENGTH, unsigned int)
 AOM_CTRL_USE_TYPE(AOME_SET_TUNING, int) /* aom_tune_metric */
 #define AOM_CTRL_AOME_SET_TUNING
 
-AOM_CTRL_USE_TYPE(AOME_SET_CQ_LEVEL, unsigned int)
-#define AOM_CTRL_AOME_SET_CQ_LEVEL
+AOM_CTRL_USE_TYPE(AOME_SET_QP, unsigned int)
+#define AOM_CTRL_AOME_SET_QP
 
 AOM_CTRL_USE_TYPE(AV1E_SET_ROW_MT, unsigned int)
 #define AOM_CTRL_AV1E_SET_ROW_MT

@@ -952,7 +952,7 @@ static const int av1_arg_ctrl_map[] = { AOME_SET_CPUUSED,
                                         AOME_SET_ARNR_MAXFRAMES,
                                         AOME_SET_ARNR_STRENGTH,
                                         AOME_SET_TUNING,
-                                        AOME_SET_CQ_LEVEL,
+                                        AOME_SET_QP,
                                         AOME_SET_MAX_INTRA_BITRATE_PCT,
                                         AV1E_SET_MAX_INTER_BITRATE_PCT,
                                         AV1E_SET_GF_CBR_BOOST_PCT,
@@ -1825,7 +1825,7 @@ static void show_stream_config(struct stream_state *stream,
   for (int i = 0; i < stream->config.arg_ctrl_cnt; i++) {
     int ctrl = stream->config.arg_ctrls[i][0];
 
-    if (ctrl == AOME_SET_CQ_LEVEL) {
+    if (ctrl == AOME_SET_QP) {
       qp = stream->config.arg_ctrls[i][1];
     }
     if (ctrl == AOME_SET_CPUUSED) {
