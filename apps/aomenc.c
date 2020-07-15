@@ -332,6 +332,12 @@ static const arg_def_t min_qp_level =
     ARG_DEF(NULL, "min-qp", 1, "Minimum (best) quantizer");
 static const arg_def_t max_qp_level =
     ARG_DEF(NULL, "max-qp", 1, "Maximum (worst) quantizer");
+static const arg_def_t min_q_level = ARG_DEF(
+    NULL, "min-q", 1, "Minimum (best) quantizer in range 0 to 63 (DEPRECATED)");
+static const arg_def_t max_q_level =
+    ARG_DEF(NULL, "max-q", 1,
+            "Maximum (worst) quantizer in range 0 to 63 (DEPRECATED)");
+
 static const arg_def_t undershoot_pct =
     ARG_DEF(NULL, "undershoot-pct", 1, "Datarate undershoot (min) target (%)");
 static const arg_def_t overshoot_pct =
@@ -414,7 +420,8 @@ static const arg_def_t tune_metric =
 static const arg_def_t qp_level =
     ARG_DEF(NULL, "qp", 1, "Constant/Constrained Quality level");
 static const arg_def_t cq_level =
-    ARG_DEF(NULL, "cq-level", 1, "Constant/Constrained Quality level");
+    ARG_DEF(NULL, "cq-level", 1,
+            "Constant/Constrained Quality level in range 0 to 63 (DEPRECATED)");
 static const arg_def_t max_intra_rate_pct =
     ARG_DEF(NULL, "max-intra-rate", 1, "Max I-frame bitrate (pct)");
 
@@ -1465,6 +1472,28 @@ static void set_config_arg_ctrls(struct stream_config *config, int key,
   if (j == config->arg_ctrl_cnt) config->arg_ctrl_cnt++;
 }
 
+// Converts quantizer in deprecated range 0 to 63, to qindex in range 0 to 255.
+// Also prints deprecation warning.
+static unsigned int get_qindex_from_quantizer_and_warn(
+    unsigned int quantizer, const char *quantizer_str, const char *qindex_str) {
+  static const int quantizer_to_qindex[] = {
+    0,   4,   8,   12,  16,  20,  24,  28,  32,  36,  40,  44,  48,
+    52,  56,  60,  64,  68,  72,  76,  80,  84,  88,  92,  96,  100,
+    104, 108, 112, 116, 120, 124, 128, 132, 136, 140, 144, 148, 152,
+    156, 160, 164, 168, 172, 176, 180, 184, 188, 192, 196, 200, 204,
+    208, 212, 216, 220, 224, 228, 232, 236, 240, 244, 249, 255,
+  };
+  warn(
+      "Option '--%s' (range 0 to 63) is DEPRECATED and will be "
+      "removed in future. Use option '--%s' (range 0 to 255) instead.",
+      quantizer_str, qindex_str);
+  if (quantizer > 63) {
+    fprintf(stderr, "'--%s=%u' out of range (0 to 63)", quantizer_str,
+            quantizer);
+  }
+  return quantizer_to_qindex[quantizer];
+}
+
 static int parse_stream_params(struct AvxEncoderConfig *global,
                                struct stream_state *stream, char **argv) {
   char **argi, **argj;
@@ -1608,6 +1637,14 @@ static int parse_stream_params(struct AvxEncoderConfig *global,
       config->cfg.rc_min_quantizer = arg_parse_uint(&arg);
     } else if (arg_match(&arg, &max_qp_level, argi)) {
       config->cfg.rc_max_quantizer = arg_parse_uint(&arg);
+    } else if (arg_match(&arg, &min_q_level, argi)) {
+      const unsigned int min_q_val = arg_parse_uint(&arg);
+      config->cfg.rc_min_quantizer =
+          get_qindex_from_quantizer_and_warn(min_q_val, "min-q", "min-qp");
+    } else if (arg_match(&arg, &max_q_level, argi)) {
+      const unsigned int max_q_val = arg_parse_uint(&arg);
+      config->cfg.rc_min_quantizer =
+          get_qindex_from_quantizer_and_warn(max_q_val, "max-q", "max-qp");
     } else if (arg_match(&arg, &undershoot_pct, argi)) {
       config->cfg.rc_undershoot_pct = arg_parse_uint(&arg);
     } else if (arg_match(&arg, &overshoot_pct, argi)) {
@@ -1675,21 +1712,9 @@ static int parse_stream_params(struct AvxEncoderConfig *global,
         warn("non-zero %s option ignored in realtime mode.\n", arg.name);
       }
     } else if (arg_match(&arg, &cq_level, argi)) {
-      warn(
-          "Option '--cq-level' (range 0 to 63) is DEPRECATED and will be "
-          "removed in future. Use option '--qp' (range 0 to 255) instead.");
-      static const int quantizer_to_qindex[] = {
-        0,   4,   8,   12,  16,  20,  24,  28,  32,  36,  40,  44,  48,
-        52,  56,  60,  64,  68,  72,  76,  80,  84,  88,  92,  96,  100,
-        104, 108, 112, 116, 120, 124, 128, 132, 136, 140, 144, 148, 152,
-        156, 160, 164, 168, 172, 176, 180, 184, 188, 192, 196, 200, 204,
-        208, 212, 216, 220, 224, 228, 232, 236, 240, 244, 249, 255,
-      };
       const unsigned int cq_level_val = arg_parse_uint(&arg);
-      if (cq_level_val > 63) {
-        fprintf(stderr, "--cq-level out of range (0 to 63)");
-      }
-      const int qp_val = quantizer_to_qindex[cq_level_val];
+      const int qp_val =
+          get_qindex_from_quantizer_and_warn(cq_level_val, "cq-level", "qp");
       const int idx = config->arg_ctrl_cnt;
       assert(idx < (int)ARG_CTRL_CNT_MAX);
       config->arg_ctrls[idx][0] = AOME_SET_QP;
