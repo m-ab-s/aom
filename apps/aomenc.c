@@ -328,10 +328,10 @@ static const arg_def_t end_usage =
     ARG_DEF_ENUM(NULL, "end-usage", 1, "Rate control mode", end_usage_enum);
 static const arg_def_t target_bitrate =
     ARG_DEF(NULL, "target-bitrate", 1, "Bitrate (kbps)");
-static const arg_def_t min_quantizer =
-    ARG_DEF(NULL, "min-q", 1, "Minimum (best) quantizer");
-static const arg_def_t max_quantizer =
-    ARG_DEF(NULL, "max-q", 1, "Maximum (worst) quantizer");
+static const arg_def_t min_qp_level =
+    ARG_DEF(NULL, "min-qp", 1, "Minimum (best) quantizer");
+static const arg_def_t max_qp_level =
+    ARG_DEF(NULL, "max-qp", 1, "Maximum (worst) quantizer");
 static const arg_def_t undershoot_pct =
     ARG_DEF(NULL, "undershoot-pct", 1, "Datarate undershoot (min) target (%)");
 static const arg_def_t overshoot_pct =
@@ -353,8 +353,8 @@ static const arg_def_t *rc_args[] = { &dropframe_thresh,
                                       &superres_kf_qthresh,
                                       &end_usage,
                                       &target_bitrate,
-                                      &min_quantizer,
-                                      &max_quantizer,
+                                      &min_qp_level,
+                                      &max_qp_level,
                                       &undershoot_pct,
                                       &overshoot_pct,
                                       &buf_sz,
@@ -1604,9 +1604,9 @@ static int parse_stream_params(struct AvxEncoderConfig *global,
       config->cfg.rc_end_usage = arg_parse_enum_or_int(&arg);
     } else if (arg_match(&arg, &target_bitrate, argi)) {
       config->cfg.rc_target_bitrate = arg_parse_uint(&arg);
-    } else if (arg_match(&arg, &min_quantizer, argi)) {
+    } else if (arg_match(&arg, &min_qp_level, argi)) {
       config->cfg.rc_min_quantizer = arg_parse_uint(&arg);
-    } else if (arg_match(&arg, &max_quantizer, argi)) {
+    } else if (arg_match(&arg, &max_qp_level, argi)) {
       config->cfg.rc_max_quantizer = arg_parse_uint(&arg);
     } else if (arg_match(&arg, &undershoot_pct, argi)) {
       config->cfg.rc_undershoot_pct = arg_parse_uint(&arg);

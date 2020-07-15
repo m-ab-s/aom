@@ -40,8 +40,8 @@ if [[ -e $f.fpf ]]; then
     --kf-min-dist=0 \
     --kf-max-dist=99999 \
     --static-thresh=0 \
-    --min-q=0 \
-    --max-q=63 \
+    --min-qp=0 \
+    --max-qp=255 \
     --drop-frame=0 \
     --bias-pct=50 \
     --minsection-pct=0 \
@@ -69,8 +69,8 @@ else
     --kf-min-dist=0 \
     --kf-max-dist=99999 \
     --static-thresh=0 \
-    --min-q=0 \
-    --max-q=63 \
+    --min-qp=0 \
+    --max-qp=255 \
     --drop-frame=0
 
   aomenc \
@@ -90,8 +90,8 @@ else
     --kf-min-dist=0 \
     --kf-max-dist=99999 \
     --static-thresh=0 \
-    --min-q=0 \
-    --max-q=63 \
+    --min-qp=0 \
+    --max-qp=255 \
     --drop-frame=0 \
     --bias-pct=50 \
     --minsection-pct=0 \

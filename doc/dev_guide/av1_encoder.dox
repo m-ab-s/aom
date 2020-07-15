@@ -465,8 +465,8 @@ options together with the names of the corresponding fields in the rate
 control configuration data structures.
 
 - <b>--target-bitrate</b> (\ref RateControlCfg.target_bandwidth)
-- <b>--min-q</b> (\ref RateControlCfg.best_allowed_q)
-- <b>--max-q</b> (\ref RateControlCfg.worst_allowed_q)
+- <b>--min-qp</b> (\ref RateControlCfg.best_allowed_q)
+- <b>--max-qp</b> (\ref RateControlCfg.worst_allowed_q)
 - <b>--qp</b> (\ref RateControlCfg.qp)
 - <b>--undershoot-pct</b> (\ref RateControlCfg.under_shoot_pct)
 - <b>--overshoot-pct</b> (\ref RateControlCfg.over_shoot_pct)

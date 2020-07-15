@@ -192,8 +192,8 @@ aomenc_av1_ivf_minq0_maxq0() {
       $(aomenc_encode_test_fast_params) \
       --ivf \
       --output="${output}" \
-      --min-q=0 \
-      --max-q=0 || return 1
+      --min-qp=0 \
+      --max-qp=0 || return 1
 
     if [ ! -e "${output}" ]; then
       elog "Output file does not exist."

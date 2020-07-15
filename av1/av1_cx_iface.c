@@ -2776,8 +2776,8 @@ static aom_codec_err_t ctrl_set_svc_params(aom_codec_alg_priv_t *ctx,
       for (tl = 0; tl < cm->number_temporal_layers; ++tl) {
         const int layer = LAYER_IDS_TO_IDX(sl, tl, cm->number_temporal_layers);
         LAYER_CONTEXT *lc = &cpi->svc.layer_context[layer];
-        lc->max_q = params->max_quantizers[layer];
-        lc->min_q = params->min_quantizers[layer];
+        lc->max_qp = params->max_quantizers[layer];
+        lc->min_qp = params->min_quantizers[layer];
         lc->scaling_factor_num = params->scaling_factor_num[sl];
         lc->scaling_factor_den = params->scaling_factor_den[sl];
         lc->layer_target_bitrate = 1000 * params->layer_target_bitrate[layer];

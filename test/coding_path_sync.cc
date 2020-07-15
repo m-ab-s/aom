@@ -36,9 +36,9 @@ class CompressedSource {
     // force the quantizer, to reduce the sensitivity on encoding choices.
     // e.g, we don't want this test to break when the rate control is modified.
     {
-      const int max_q = cfg.rc_max_quantizer;
-      const int min_q = cfg.rc_min_quantizer;
-      const int q = rnd_.PseudoUniform(max_q - min_q + 1) + min_q;
+      const int max_qp = cfg.rc_max_quantizer;
+      const int min_qp = cfg.rc_min_quantizer;
+      const int q = rnd_.PseudoUniform(max_qp - min_qp + 1) + min_qp;
 
       cfg.rc_end_usage = AOM_Q;
       cfg.rc_max_quantizer = q;

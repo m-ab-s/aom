@@ -34,8 +34,8 @@ typedef struct {
   int64_t spatial_layer_target_bandwidth;
   double framerate;
   int avg_frame_size;
-  int max_q;
-  int min_q;
+  int max_qp;
+  int min_qp;
   int frames_from_key_frame;
   /*!\endcond */
 
