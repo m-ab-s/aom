@@ -100,11 +100,11 @@ TEST_P(TimestampTest, TestAv1Rollover) {
 }
 
 #if CONFIG_SINGLEPASS
-AV1_INSTANTIATE_TEST_CASE(TimestampTest,
-                          ::testing::Values(::libaom_test::kOnePassGood));
+AV1_INSTANTIATE_TEST_SUITE(TimestampTest,
+                           ::testing::Values(::libaom_test::kOnePassGood));
 #else
-AV1_INSTANTIATE_TEST_CASE(TimestampTest,
-                          ::testing::Values(::libaom_test::kTwoPassGood));
+AV1_INSTANTIATE_TEST_SUITE(TimestampTest,
+                           ::testing::Values(::libaom_test::kTwoPassGood));
 #endif  // CONFIG_SINGLEPASS
 
 }  // namespace

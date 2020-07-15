@@ -15,6 +15,7 @@
 
 #include "av1/common/txb_common.h"
 #include "av1/encoder/encodetxb.h"
+#include "av1/common/arm/mem_neon.h"
 
 void av1_txb_init_levels_neon(const tran_low_t *const coeff, const int width,
                               const int height, uint8_t *const levels) {
@@ -187,12 +188,16 @@ static const DECLARE_ALIGNED(16, uint8_t, c_16_po_hor[16]) = {
 
 static INLINE uint8x16_t load_8bit_4x4_to_1_reg(const uint8_t *const src,
                                                 const int byte_stride) {
+#ifdef __aarch64__
   uint32x4_t v_data = vld1q_u32((uint32_t *)src);
   v_data = vld1q_lane_u32((uint32_t *)(src + 1 * byte_stride), v_data, 1);
   v_data = vld1q_lane_u32((uint32_t *)(src + 2 * byte_stride), v_data, 2);
   v_data = vld1q_lane_u32((uint32_t *)(src + 3 * byte_stride), v_data, 3);
 
   return vreinterpretq_u8_u32(v_data);
+#else
+  return load_unaligned_u8q(src, byte_stride);
+#endif
 }
 
 static INLINE uint8x16_t load_8bit_8x2_to_1_reg(const uint8_t *const src,

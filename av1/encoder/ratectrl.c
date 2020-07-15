@@ -322,7 +322,8 @@ void av1_rc_init(const AV1EncoderConfig *oxcf, int pass, RATE_CONTROL *rc) {
   rc->ni_frames = 0;
 
   rc->tot_q = 0.0;
-  rc->avg_q = av1_convert_qindex_to_q(rc_cfg->worst_allowed_q, oxcf->bit_depth);
+  rc->avg_q = av1_convert_qindex_to_q(rc_cfg->worst_allowed_q,
+                                      oxcf->tool_cfg.bit_depth);
 
   for (i = 0; i < RATE_FACTOR_LEVELS; ++i) {
     rc->rate_correction_factors[i] = 0.7;
@@ -345,7 +346,7 @@ int av1_rc_drop_frame(AV1_COMP *cpi) {
   const AV1EncoderConfig *oxcf = &cpi->oxcf;
   RATE_CONTROL *const rc = &cpi->rc;
 
-  if (!oxcf->drop_frames_water_mark) {
+  if (!oxcf->rc_cfg.drop_frames_water_mark) {
     return 0;
   } else {
     if (rc->buffer_level < 0) {
@@ -354,8 +355,8 @@ int av1_rc_drop_frame(AV1_COMP *cpi) {
     } else {
       // If buffer is below drop_mark, for now just drop every other frame
       // (starting with the next frame) until it increases back over drop_mark.
-      int drop_mark =
-          (int)(oxcf->drop_frames_water_mark * rc->optimal_buffer_level / 100);
+      int drop_mark = (int)(oxcf->rc_cfg.drop_frames_water_mark *
+                            rc->optimal_buffer_level / 100);
       if ((rc->buffer_level > drop_mark) && (rc->decimation_factor > 0)) {
         --rc->decimation_factor;
       } else if (rc->buffer_level <= drop_mark && rc->decimation_factor == 0) {
@@ -1187,10 +1188,6 @@ int av1_frame_type_qdelta(const AV1_COMP *cpi, int q) {
   double rate_factor;
 
   rate_factor = rate_factor_deltas[rf_lvl];
-  if (rf_lvl == GF_ARF_LOW) {
-    rate_factor -= (cpi->gf_group.layer_depth[cpi->gf_group.index] - 2) * 0.1;
-    rate_factor = AOMMAX(rate_factor, 1.0);
-  }
   return av1_compute_qdelta_by_rate(&cpi->rc, frame_type, q, rate_factor,
                                     cpi->common.seq_params.bit_depth);
 }
@@ -1521,8 +1518,8 @@ static int rc_pick_q_and_bounds(const AV1_COMP *cpi, int width, int height,
       gf_group->update_type[gf_index] == INTNL_ARF_UPDATE;
 
   if (frame_is_intra_only(cm)) {
-    const int is_fwd_kf =
-        cm->current_frame.frame_type == KEY_FRAME && cm->show_frame == 0;
+    const int is_fwd_kf = cm->current_frame.frame_type == KEY_FRAME &&
+                          cm->show_frame == 0 && cpi->no_show_fwd_kf;
     get_intra_q_and_bounds(cpi, width, height, &active_best_quality,
                            &active_worst_quality, qp, is_fwd_kf);
 #ifdef STRICT_RC
@@ -1902,7 +1899,8 @@ void av1_rc_update_framerate(AV1_COMP *cpi, int width, int height) {
   int vbr_max_bits;
   const int MBs = av1_get_MBs(width, height);
 
-  rc->avg_frame_bandwidth = (int)(oxcf->target_bandwidth / cpi->framerate);
+  rc->avg_frame_bandwidth =
+      (int)(oxcf->rc_cfg.target_bandwidth / cpi->framerate);
   rc->min_frame_bandwidth =
       (int)(rc->avg_frame_bandwidth * oxcf->two_pass_cfg.vbrmin_section / 100);
 
@@ -2075,11 +2073,23 @@ int av1_calc_iframe_target_size_one_pass_cbr(const AV1_COMP *cpi) {
   return av1_rc_clamp_iframe_target_size(cpi, target);
 }
 
-// Specify the reference prediction structure, for 1 layer nonrd mode.
-// Current structue is to use 3 references (LAST, GOLDEN, ALTREF),
-// where ALT_REF always behind current by lag_alt frames, and GOLDEN is
-// either updated on LAST with period baseline_gf_interval (fixed slot)
-// or always behind current by lag_gld (gld_fixed_slot = 0, lag_gld <= 7).
+/*!\brief Setup the reference prediction structure for 1 pass real-time
+ *
+ * Set the reference prediction structure for 1 layer.
+ * Current structue is to use 3 references (LAST, GOLDEN, ALTREF),
+ * where ALT_REF always behind current by lag_alt frames, and GOLDEN is
+ * either updated on LAST with period baseline_gf_interval (fixed slot)
+ * or always behind current by lag_gld (gld_fixed_slot = 0, lag_gld <= 7).
+ *
+ * \ingroup rate_control
+ * \param[in]       cpi          Top level encoder structure
+ * \param[in]       gf_update    Flag to indicate if GF is updated
+ *
+ * \return Nothing is returned. Instead the settings for the prediction
+ * structure are set in \c cpi-ext_flags; and the buffer slot index
+ * (for each of 7 references) and refresh flags (for each of the 8 slots)
+ * are set in \c cpi->svc.ref_idx[] and \c cpi->svc.refresh[].
+ */
 static void set_reference_structure_one_pass_rt(AV1_COMP *cpi, int gf_update) {
   AV1_COMMON *const cm = &cpi->common;
   ExternalFlags *const ext_flags = &cpi->ext_flags;
@@ -2134,10 +2144,19 @@ static void set_reference_structure_one_pass_rt(AV1_COMP *cpi, int gf_update) {
   }
 }
 
-// Compute average source sad (temporal sad: between current source and
-// previous source) over a subset of superblocks. Use this is detect big changes
-// in content and set the high_source_sad flag.
-static void av1_scene_detection_onepass(AV1_COMP *cpi) {
+/*!\brief Check for scene detection, for 1 pass real-time mode.
+ *
+ * Compute average source sad (temporal sad: between current source and
+ * previous source) over a subset of superblocks. Use this is detect big changes
+ * in content and set the \c cpi->rc.high_source_sad flag.
+ *
+ * \ingroup rate_control
+ * \param[in]       cpi          Top level encoder structure
+ *
+ * \return Nothing is returned. Instead the flag \c cpi->rc.high_source_sad
+ * is set if scene change is detected, and \c cpi->rc.avg_source_sad is updated.
+ */
+static void rc_scene_detection_onepass_rt(AV1_COMP *cpi) {
   AV1_COMMON *const cm = &cpi->common;
   RATE_CONTROL *const rc = &cpi->rc;
   YV12_BUFFER_CONFIG const *unscaled_src = cpi->unscaled_source;
@@ -2165,7 +2184,7 @@ static void av1_scene_detection_onepass(AV1_COMP *cpi) {
     const int num_mi_rows = cm->mi_params.mi_rows;
     int num_zero_temp_sad = 0;
     uint32_t min_thresh = 10000;
-    if (cpi->oxcf.content != AOM_CONTENT_SCREEN) min_thresh = 100000;
+    if (cpi->oxcf.tune_cfg.content != AOM_CONTENT_SCREEN) min_thresh = 100000;
     const BLOCK_SIZE bsize = BLOCK_64X64;
     int full_sampling = (cm->width * cm->height < 640 * 360) ? 1 : 0;
     // Loop over sub-sample of frame, compute average sad over 64x64 blocks.
@@ -2237,7 +2256,16 @@ static void av1_scene_detection_onepass(AV1_COMP *cpi) {
 #define DEFAULT_KF_BOOST_RT 2300
 #define DEFAULT_GF_BOOST_RT 2000
 
-// Set the GF baseline interval and return update flag.
+/*!\brief Set the GF baseline interval for 1 pass real-time mode.
+ *
+ *
+ * \ingroup rate_control
+ * \param[in]       cpi          Top level encoder structure
+ * \param[in]       frame_type   frame type
+ *
+ * \return Return GF update flag, and update the \c cpi->rc with
+ * the next GF interval settings.
+ */
 static int set_gf_interval_update_onepass_rt(AV1_COMP *cpi,
                                              FRAME_TYPE frame_type) {
   RATE_CONTROL *const rc = &cpi->rc;
@@ -2292,11 +2320,6 @@ static int set_gf_interval_update_onepass_rt(AV1_COMP *cpi,
   return gf_update;
 }
 
-// For 1 pass real-time mode: set the frame_type, check for
-// scene change and GF update, and set the target frame size.
-// For 1 layer (non-SVC) this will also set the reference structure
-// (GF and ALT reference/refresh); for SVC some update/resets are done
-// (update_temporal_layer_framerate and restore_layer_context).
 void av1_get_one_pass_rt_params(AV1_COMP *cpi,
                                 EncodeFrameParams *const frame_params,
                                 unsigned int frame_flags) {
@@ -2346,7 +2369,7 @@ void av1_get_one_pass_rt_params(AV1_COMP *cpi,
   }
   // Check for scene change, for non-SVC for now.
   if (!cpi->use_svc && cpi->sf.rt_sf.check_scene_detection)
-    av1_scene_detection_onepass(cpi);
+    rc_scene_detection_onepass_rt(cpi);
   // Set the GF interval and update flag.
   gf_update = set_gf_interval_update_onepass_rt(cpi, frame_params->frame_type);
   // Set target size.
@@ -2374,15 +2397,14 @@ void av1_get_one_pass_rt_params(AV1_COMP *cpi,
   cm->current_frame.frame_type = frame_params->frame_type;
 }
 
-// Increase the QP, reset/adjust some rate control parameters, and return 1.
-int av1_encodedframe_overshoot(AV1_COMP *cpi, int *q) {
+int av1_encodedframe_overshoot_cbr(AV1_COMP *cpi, int *q) {
   AV1_COMMON *const cm = &cpi->common;
   RATE_CONTROL *const rc = &cpi->rc;
   SPEED_FEATURES *const sf = &cpi->sf;
   int thresh_qp = 7 * (rc->worst_quality >> 3);
   // Lower thresh_qp for video (more overshoot at lower Q) to be
   // more conservative for video.
-  if (cpi->oxcf.content != AOM_CONTENT_SCREEN)
+  if (cpi->oxcf.tune_cfg.content != AOM_CONTENT_SCREEN)
     thresh_qp = 3 * (rc->worst_quality >> 2);
   if (sf->rt_sf.overshoot_detection_cbr == FAST_DETECTION_MAXQ &&
       cm->quant_params.base_qindex < thresh_qp) {

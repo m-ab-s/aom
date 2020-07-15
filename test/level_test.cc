@@ -154,12 +154,12 @@ TEST_P(LevelTest, TestTargetLevel0) {
 }
 
 #if CONFIG_SINGLEPASS
-AV1_INSTANTIATE_TEST_CASE(LevelTest,
-                          ::testing::Values(::libaom_test::kOnePassGood),
-                          ::testing::ValuesIn(kCpuUsedVectors));
+AV1_INSTANTIATE_TEST_SUITE(LevelTest,
+                           ::testing::Values(::libaom_test::kOnePassGood),
+                           ::testing::ValuesIn(kCpuUsedVectors));
 #else
-AV1_INSTANTIATE_TEST_CASE(LevelTest,
-                          ::testing::Values(::libaom_test::kTwoPassGood),
-                          ::testing::ValuesIn(kCpuUsedVectors));
-#endif  // !CONFIG_SINGLEPASS
+AV1_INSTANTIATE_TEST_SUITE(LevelTest,
+                           ::testing::Values(::libaom_test::kTwoPassGood),
+                           ::testing::ValuesIn(kCpuUsedVectors));
+#endif  // CONFIG_SINGLEPASS
 }  // namespace

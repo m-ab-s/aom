@@ -594,6 +594,7 @@ void av1_update_film_grain_parameters(struct AV1_COMP *cpi,
                                       const AV1EncoderConfig *oxcf) {
   AV1_COMMON *const cm = &cpi->common;
   cpi->oxcf = *oxcf;
+  const TuneCfg *const tune_cfg = &oxcf->tune_cfg;
 
   if (cpi->film_grain_table) {
     aom_film_grain_table_free(cpi->film_grain_table);
@@ -601,27 +602,27 @@ void av1_update_film_grain_parameters(struct AV1_COMP *cpi,
     cpi->film_grain_table = NULL;
   }
 
-  if (oxcf->film_grain_test_vector) {
+  if (tune_cfg->film_grain_test_vector) {
     cm->seq_params.film_grain_params_present = 1;
     if (cm->current_frame.frame_type == KEY_FRAME) {
       memcpy(&cm->film_grain_params,
-             film_grain_test_vectors + oxcf->film_grain_test_vector - 1,
+             film_grain_test_vectors + tune_cfg->film_grain_test_vector - 1,
              sizeof(cm->film_grain_params));
-      if (oxcf->monochrome)
+      if (oxcf->tool_cfg.enable_monochrome)
         reset_film_grain_chroma_params(&cm->film_grain_params);
       cm->film_grain_params.bit_depth = cm->seq_params.bit_depth;
       if (cm->seq_params.color_range == AOM_CR_FULL_RANGE) {
         cm->film_grain_params.clip_to_restricted_range = 0;
       }
     }
-  } else if (oxcf->film_grain_table_filename) {
+  } else if (tune_cfg->film_grain_table_filename) {
     cm->seq_params.film_grain_params_present = 1;
 
     cpi->film_grain_table = aom_malloc(sizeof(*cpi->film_grain_table));
     memset(cpi->film_grain_table, 0, sizeof(aom_film_grain_table_t));
 
     aom_film_grain_table_read(cpi->film_grain_table,
-                              oxcf->film_grain_table_filename, &cm->error);
+                              tune_cfg->film_grain_table_filename, &cm->error);
   } else {
 #if CONFIG_DENOISE
     cm->seq_params.film_grain_params_present = (cpi->oxcf.noise_level > 0);
@@ -726,11 +727,12 @@ BLOCK_SIZE av1_select_sb_size(const AV1_COMP *const cpi) {
   const AV1_COMMON *const cm = &cpi->common;
   const AV1EncoderConfig *const oxcf = &cpi->oxcf;
 
-  if (oxcf->superblock_size == AOM_SUPERBLOCK_SIZE_64X64) return BLOCK_64X64;
-  if (oxcf->superblock_size == AOM_SUPERBLOCK_SIZE_128X128)
+  if (oxcf->tool_cfg.superblock_size == AOM_SUPERBLOCK_SIZE_64X64)
+    return BLOCK_64X64;
+  if (oxcf->tool_cfg.superblock_size == AOM_SUPERBLOCK_SIZE_128X128)
     return BLOCK_128X128;
 
-  assert(oxcf->superblock_size == AOM_SUPERBLOCK_SIZE_DYNAMIC);
+  assert(oxcf->tool_cfg.superblock_size == AOM_SUPERBLOCK_SIZE_DYNAMIC);
 
   if (cpi->svc.number_spatial_layers > 1 ||
       oxcf->resize_cfg.resize_mode != RESIZE_NONE) {
@@ -888,7 +890,7 @@ static void set_encoding_params_for_screen_content(AV1_COMP *cpi,
     cm->features.allow_intrabc = 0;
     cpi->is_screen_content_type = 0;
     cpi->sf.part_sf.partition_search_type = FIXED_PARTITION;
-    cpi->sf.part_sf.always_this_block_size = BLOCK_32X32;
+    cpi->sf.part_sf.fixed_partition_size = BLOCK_32X32;
     return;
   }
   assert(pass == 1);
@@ -899,7 +901,7 @@ static void set_encoding_params_for_screen_content(AV1_COMP *cpi,
   // cm->allow_intrabc = 1;
   cpi->is_screen_content_type = 1;
   cpi->sf.part_sf.partition_search_type = FIXED_PARTITION;
-  cpi->sf.part_sf.always_this_block_size = BLOCK_32X32;
+  cpi->sf.part_sf.fixed_partition_size = BLOCK_32X32;
 }
 
 // Determines whether to use screen content tools for the key frame group.
@@ -932,7 +934,7 @@ void av1_determine_sc_tools_with_encoding(AV1_COMP *cpi, const int q_orig) {
       is_lossless_requested(&oxcf->rc_cfg) ? q_orig : AOMMAX(q_orig, 244);
   const int partition_search_type_orig = cpi->sf.part_sf.partition_search_type;
   const BLOCK_SIZE fixed_partition_block_size_orig =
-      cpi->sf.part_sf.always_this_block_size;
+      cpi->sf.part_sf.fixed_partition_size;
 
   // Setup necessary params for encoding, including frame source, etc.
   aom_clear_system_state();
@@ -966,9 +968,9 @@ void av1_determine_sc_tools_with_encoding(AV1_COMP *cpi, const int q_orig) {
   for (int pass = 0; pass < 2; ++pass) {
     set_encoding_params_for_screen_content(cpi, pass);
 #if CONFIG_TUNE_VMAF
-    if (oxcf->tuning == AOM_TUNE_VMAF_WITH_PREPROCESSING ||
-        oxcf->tuning == AOM_TUNE_VMAF_WITHOUT_PREPROCESSING ||
-        oxcf->tuning == AOM_TUNE_VMAF_MAX_GAIN) {
+    if (oxcf->tune_cfg.tuning == AOM_TUNE_VMAF_WITH_PREPROCESSING ||
+        oxcf->tune_cfg.tuning == AOM_TUNE_VMAF_WITHOUT_PREPROCESSING ||
+        oxcf->tune_cfg.tuning == AOM_TUNE_VMAF_MAX_GAIN) {
       av1_set_quantizer(
           cm, q_cfg->qm_minlevel, q_cfg->qm_maxlevel,
           av1_get_vmaf_base_qindex(cpi, q_for_screen_content_quick_run),
@@ -999,7 +1001,7 @@ void av1_determine_sc_tools_with_encoding(AV1_COMP *cpi, const int q_orig) {
 
   // Set partition speed feature back.
   cpi->sf.part_sf.partition_search_type = partition_search_type_orig;
-  cpi->sf.part_sf.always_this_block_size = fixed_partition_block_size_orig;
+  cpi->sf.part_sf.fixed_partition_size = fixed_partition_block_size_orig;
 }
 
 #define GM_RECODE_LOOP_NUM4X4_FACTOR 192

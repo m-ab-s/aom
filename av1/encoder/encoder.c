@@ -304,6 +304,10 @@ static void update_frame_size(AV1_COMP *cpi) {
 
   if (!is_stat_generation_stage(cpi))
     alloc_context_buffers_ext(cm, &cpi->mbmi_ext_info);
+
+  if (!cpi->seq_params_locked)
+    set_sb_size(&cm->seq_params, av1_select_sb_size(cpi));
+
   set_tile_info(cm, &cpi->oxcf.tile_cfg);
 }
 
@@ -386,18 +390,19 @@ static void set_bitstream_level_tier(SequenceHeader *seq, AV1_COMMON *cm,
 void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
                                const AV1EncoderConfig *oxcf, int use_svc) {
   const FrameDimensionCfg *const frm_dim_cfg = &oxcf->frm_dim_cfg;
+  const ToolCfg *const tool_cfg = &oxcf->tool_cfg;
 
   seq->still_picture =
-      (oxcf->force_video_mode == 0) && (oxcf->input_cfg.limit == 1);
+      (tool_cfg->force_video_mode == 0) && (oxcf->input_cfg.limit == 1);
   seq->reduced_still_picture_hdr = seq->still_picture;
-  seq->reduced_still_picture_hdr &= !oxcf->full_still_picture_hdr;
+  seq->reduced_still_picture_hdr &= !tool_cfg->full_still_picture_hdr;
   seq->force_screen_content_tools = (oxcf->mode == REALTIME) ? 0 : 2;
   seq->force_integer_mv = 2;
-  seq->order_hint_info.enable_order_hint = oxcf->enable_order_hint;
+  seq->order_hint_info.enable_order_hint = tool_cfg->enable_order_hint;
   seq->frame_id_numbers_present_flag =
       !(seq->still_picture && seq->reduced_still_picture_hdr) &&
-      !oxcf->tile_cfg.enable_large_scale_tile && oxcf->error_resilient_mode &&
-      !use_svc;
+      !oxcf->tile_cfg.enable_large_scale_tile &&
+      tool_cfg->error_resilient_mode && !use_svc;
   if (seq->still_picture && seq->reduced_still_picture_hdr) {
     seq->order_hint_info.enable_order_hint = 0;
     seq->force_screen_content_tools = 2;
@@ -424,19 +429,19 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
   seq->frame_id_length = FRAME_ID_LENGTH;
   seq->delta_frame_id_length = DELTA_FRAME_ID_LENGTH;
 
-  seq->enable_dual_filter = oxcf->enable_dual_filter;
+  seq->enable_dual_filter = tool_cfg->enable_dual_filter;
   seq->order_hint_info.enable_dist_wtd_comp =
       oxcf->comp_type_cfg.enable_dist_wtd_comp;
   seq->order_hint_info.enable_dist_wtd_comp &=
       seq->order_hint_info.enable_order_hint;
-  seq->order_hint_info.enable_ref_frame_mvs = oxcf->enable_ref_frame_mvs;
+  seq->order_hint_info.enable_ref_frame_mvs = tool_cfg->ref_frame_mvs_present;
   seq->order_hint_info.enable_ref_frame_mvs &=
       seq->order_hint_info.enable_order_hint;
   seq->enable_superres = oxcf->superres_cfg.enable_superres;
-  seq->enable_cdef = oxcf->enable_cdef;
-  seq->enable_restoration = oxcf->enable_restoration;
+  seq->enable_cdef = tool_cfg->enable_cdef;
+  seq->enable_restoration = tool_cfg->enable_restoration;
   seq->enable_warped_motion = oxcf->motion_mode_cfg.enable_warped_motion;
-  seq->enable_interintra_compound = oxcf->enable_interintra_comp;
+  seq->enable_interintra_compound = tool_cfg->enable_interintra_comp;
   seq->enable_masked_compound = oxcf->comp_type_cfg.enable_masked_comp;
   seq->enable_intra_edge_filter = oxcf->intra_mode_cfg.enable_intra_edge_filter;
   seq->enable_filter_intra = oxcf->intra_mode_cfg.enable_filter_intra;
@@ -475,13 +480,13 @@ static void init_config(struct AV1_COMP *cpi, AV1EncoderConfig *oxcf) {
   cpi->framerate = oxcf->input_cfg.init_framerate;
 
   seq_params->profile = oxcf->profile;
-  seq_params->bit_depth = oxcf->bit_depth;
+  seq_params->bit_depth = oxcf->tool_cfg.bit_depth;
   seq_params->use_highbitdepth = oxcf->use_highbitdepth;
   seq_params->color_primaries = color_cfg->color_primaries;
   seq_params->transfer_characteristics = color_cfg->transfer_characteristics;
   seq_params->matrix_coefficients = color_cfg->matrix_coefficients;
-  seq_params->monochrome = oxcf->monochrome;
-  seq_params->chroma_sample_position = oxcf->chroma_sample_position;
+  seq_params->monochrome = oxcf->tool_cfg.enable_monochrome;
+  seq_params->chroma_sample_position = color_cfg->chroma_sample_position;
   seq_params->color_range = color_cfg->color_range;
   seq_params->timing_info_present = dec_model_cfg->timing_info_present;
   seq_params->timing_info.num_units_in_display_tick =
@@ -586,7 +591,7 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
   const FrameDimensionCfg *const frm_dim_cfg = &cpi->oxcf.frm_dim_cfg;
   const DecoderModelCfg *const dec_model_cfg = &oxcf->dec_model_cfg;
   const ColorCfg *const color_cfg = &oxcf->color_cfg;
-
+  const RateControlCfg *const rc_cfg = &oxcf->rc_cfg;
   // in case of LAP, lag in frames is set according to number of lap buffers
   // calculated at init time. This stores and restores LAP's lag in frames to
   // prevent override by new cfg.
@@ -596,12 +601,12 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
   }
 
   if (seq_params->profile != oxcf->profile) seq_params->profile = oxcf->profile;
-  seq_params->bit_depth = oxcf->bit_depth;
+  seq_params->bit_depth = oxcf->tool_cfg.bit_depth;
   seq_params->color_primaries = color_cfg->color_primaries;
   seq_params->transfer_characteristics = color_cfg->transfer_characteristics;
   seq_params->matrix_coefficients = color_cfg->matrix_coefficients;
-  seq_params->monochrome = oxcf->monochrome;
-  seq_params->chroma_sample_position = oxcf->chroma_sample_position;
+  seq_params->monochrome = oxcf->tool_cfg.enable_monochrome;
+  seq_params->chroma_sample_position = color_cfg->chroma_sample_position;
   seq_params->color_range = color_cfg->color_range;
 
   assert(IMPLIES(seq_params->profile <= PROFILE_1,
@@ -665,7 +670,7 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
                         seq_params->tier[0]);
   }
 
-  if ((has_no_stats_stage(cpi)) && (oxcf->rc_cfg.mode == AOM_Q)) {
+  if ((has_no_stats_stage(cpi)) && (rc_cfg->mode == AOM_Q)) {
     rc->baseline_gf_interval = FIXED_GF_INTERVAL;
   } else {
     rc->baseline_gf_interval = (MIN_GF_INTERVAL + MAX_GF_INTERVAL) / 2;
@@ -674,9 +679,10 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
   refresh_frame_flags->golden_frame = false;
   refresh_frame_flags->bwd_ref_frame = false;
 
-  cm->features.refresh_frame_context = (oxcf->frame_parallel_decoding_mode)
-                                           ? REFRESH_FRAME_CONTEXT_DISABLED
-                                           : REFRESH_FRAME_CONTEXT_BACKWARD;
+  cm->features.refresh_frame_context =
+      (oxcf->tool_cfg.frame_parallel_decoding_mode)
+          ? REFRESH_FRAME_CONTEXT_DISABLED
+          : REFRESH_FRAME_CONTEXT_BACKWARD;
   if (oxcf->tile_cfg.enable_large_scale_tile)
     cm->features.refresh_frame_context = REFRESH_FRAME_CONTEXT_DISABLED;
 
@@ -708,7 +714,7 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
 
   av1_set_high_precision_mv(cpi, 1, 0);
 
-  set_rc_buffer_sizes(rc, &cpi->oxcf);
+  set_rc_buffer_sizes(rc, rc_cfg);
 
   // Under a configuration change, where maximum_buffer_size may change,
   // keep buffer level clipped to the maximum allowed buffer size.
@@ -719,8 +725,8 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
   av1_new_framerate(cpi, cpi->framerate);
 
   // Set absolute upper and lower quality limits
-  rc->worst_quality = cpi->oxcf.rc_cfg.worst_allowed_q;
-  rc->best_quality = cpi->oxcf.rc_cfg.best_allowed_q;
+  rc->worst_quality = rc_cfg->worst_allowed_q;
+  rc->best_quality = rc_cfg->best_allowed_q;
 
   cm->features.interp_filter =
       oxcf->tile_cfg.enable_large_scale_tile ? EIGHTTAP_REGULAR : SWITCHABLE;
@@ -783,7 +789,7 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
   }
 
   if (cpi->use_svc)
-    av1_update_layer_context_change_config(cpi, oxcf->target_bandwidth);
+    av1_update_layer_context_change_config(cpi, rc_cfg->target_bandwidth);
 
   // restore the value of lag_in_frame for LAP stage.
   if (lap_lag_in_frames != -1) {
@@ -877,6 +883,8 @@ AV1_COMP *av1_create_compressor(AV1EncoderConfig *oxcf, BufferPool *const pool,
   if (cpi->compressor_stage == LAP_STAGE) {
     cpi->oxcf.gf_cfg.lag_in_frames = lap_lag_in_frames;
   }
+
+  cpi->frames_left = cpi->oxcf.input_cfg.limit;
 
 #if CONFIG_SINGLEPASS
   av1_rc_init(&cpi->oxcf, 0, &cpi->rc);
@@ -1370,7 +1378,8 @@ void av1_remove_compressor(AV1_COMP *cpi) {
           (double)cpi->bytes * (double)8 / (double)1000 / time_encoded;
       const double peak =
           (double)((1 << cpi->oxcf.input_cfg.input_bit_depth) - 1);
-      const double target_rate = (double)cpi->oxcf.target_bandwidth / 1000;
+      const double target_rate =
+          (double)cpi->oxcf.rc_cfg.target_bandwidth / 1000;
       const double rate_err = ((100.0 * (dr - target_rate)) / target_rate);
 
       if (cpi->b_calculate_psnr) {
@@ -1488,9 +1497,6 @@ void av1_remove_compressor(AV1_COMP *cpi) {
 #endif  // CONFIG_INTERNAL_STATS
 
   av1_remove_common(cm);
-#if CONFIG_HTB_TRELLIS
-  if (cpi->sf.use_hash_based_trellis) hbt_destroy();
-#endif  // CONFIG_HTB_TRELLIS
   av1_free_ref_frame_buffers(cm->buffer_pool);
 
   aom_free(cpi->subgop_config_str);
@@ -1649,7 +1655,7 @@ void av1_set_screen_content_options(const AV1_COMP *cpi,
     return;
   }
 
-  if (cpi->oxcf.content == AOM_CONTENT_SCREEN) {
+  if (cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN) {
     features->allow_screen_content_tools = features->allow_intrabc = 1;
     return;
   }
@@ -2067,13 +2073,21 @@ static int encode_without_recode(AV1_COMP *cpi) {
 
   if (!cpi->use_svc) {
     phase_scaler = 8;
+    // 2:1 scaling.
     if ((cm->width << 1) == unscaled->y_crop_width &&
-        (cm->height << 1) == unscaled->y_crop_height)
+        (cm->height << 1) == unscaled->y_crop_height) {
       filter_scaler = BILINEAR;
-    // Use eighttap for 4:1 scaling.
-    if ((cm->width << 2) == unscaled->y_crop_width &&
-        (cm->height << 2) == unscaled->y_crop_height)
+      // For lower resolutions use eighttap_smooth.
+      if (cm->width * cm->height <= 320 * 180) filter_scaler = EIGHTTAP_SMOOTH;
+    } else if ((cm->width << 2) == unscaled->y_crop_width &&
+               (cm->height << 2) == unscaled->y_crop_height) {
+      // 4:1 scaling.
       filter_scaler = EIGHTTAP_SMOOTH;
+    } else if ((cm->width << 2) == 3 * unscaled->y_crop_width &&
+               (cm->height << 2) == 3 * unscaled->y_crop_height) {
+      // 4:3 scaling.
+      filter_scaler = EIGHTTAP_REGULAR;
+    }
   }
 
   if (cpi->sf.part_sf.partition_search_type == VAR_BASED_PARTITION)
@@ -2126,7 +2140,7 @@ static int encode_without_recode(AV1_COMP *cpi) {
   // control parameters.
   if (cpi->sf.rt_sf.overshoot_detection_cbr == FAST_DETECTION_MAXQ &&
       cpi->rc.high_source_sad) {
-    if (av1_encodedframe_overshoot(cpi, &q)) {
+    if (av1_encodedframe_overshoot_cbr(cpi, &q)) {
       av1_set_quantizer(cm, q_cfg->qm_minlevel, q_cfg->qm_maxlevel, q,
                         q_cfg->enable_chroma_deltaq);
       av1_set_speed_features_qindex_dependent(cpi, cpi->oxcf.speed);
@@ -2250,7 +2264,6 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
   // Loop variables
   int loop = 0;
   int loop_count = 0;
-  int loop_at_this_size = 0;
   int overshoot_seen = 0;
   int undershoot_seen = 0;
   int low_cr_seen = 0;
@@ -2284,9 +2297,9 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
       av1_scale_references(cpi, EIGHTTAP_REGULAR, 0, 0);
     }
 #if CONFIG_TUNE_VMAF
-    if (oxcf->tuning == AOM_TUNE_VMAF_WITH_PREPROCESSING ||
-        oxcf->tuning == AOM_TUNE_VMAF_WITHOUT_PREPROCESSING ||
-        oxcf->tuning == AOM_TUNE_VMAF_MAX_GAIN) {
+    if (oxcf->tune_cfg.tuning == AOM_TUNE_VMAF_WITH_PREPROCESSING ||
+        oxcf->tune_cfg.tuning == AOM_TUNE_VMAF_WITHOUT_PREPROCESSING ||
+        oxcf->tune_cfg.tuning == AOM_TUNE_VMAF_MAX_GAIN) {
       av1_set_quantizer(cm, q_cfg->qm_minlevel, q_cfg->qm_maxlevel,
                         av1_get_vmaf_base_qindex(cpi, q),
                         q_cfg->enable_chroma_deltaq);
@@ -2396,7 +2409,7 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
       // Update q and decide whether to do a recode loop
       recode_loop_update_q(cpi, &loop, &q, &q_low, &q_high, top_index,
                            bottom_index, &undershoot_seen, &overshoot_seen,
-                           &low_cr_seen, loop_at_this_size);
+                           &low_cr_seen, loop_count);
     }
 
     // Special case for overlay frame.
@@ -2414,7 +2427,6 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
 
     if (loop) {
       ++loop_count;
-      ++loop_at_this_size;
 
 #if CONFIG_INTERNAL_STATS
       ++cpi->tot_recode_hits;
@@ -2850,17 +2862,19 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
   if (has_no_stats_stage(cpi) && oxcf->rc_cfg.mode == AOM_CBR &&
       current_frame->frame_type != KEY_FRAME) {
     if (av1_rc_drop_frame(cpi)) {
+      av1_setup_frame_size(cpi);
       av1_rc_postencode_update_drop_frame(cpi);
       release_scaled_references(cpi);
       return AOM_CODEC_OK;
     }
   }
 
-  if (oxcf->tuning == AOM_TUNE_SSIM) av1_set_mb_ssim_rdmult_scaling(cpi);
+  if (oxcf->tune_cfg.tuning == AOM_TUNE_SSIM)
+    av1_set_mb_ssim_rdmult_scaling(cpi);
 
 #if CONFIG_TUNE_VMAF
-  if (oxcf->tuning == AOM_TUNE_VMAF_WITHOUT_PREPROCESSING ||
-      oxcf->tuning == AOM_TUNE_VMAF_MAX_GAIN) {
+  if (oxcf->tune_cfg.tuning == AOM_TUNE_VMAF_WITHOUT_PREPROCESSING ||
+      oxcf->tune_cfg.tuning == AOM_TUNE_VMAF_MAX_GAIN) {
     av1_set_mb_vmaf_rdmult_scaling(cpi);
   }
 #endif
@@ -3075,7 +3089,7 @@ int av1_encode(AV1_COMP *const cpi, uint8_t *const dest,
   memcpy(&cpi->refresh_frame, &frame_params->refresh_frame,
          sizeof(cpi->refresh_frame));
 
-  if (current_frame->frame_type == KEY_FRAME && cm->show_frame) {
+  if (current_frame->frame_type == KEY_FRAME && !cpi->no_show_fwd_kf) {
     current_frame->key_frame_number += current_frame->frame_number;
     current_frame->frame_number = 0;
   }
@@ -3165,11 +3179,11 @@ int av1_receive_raw_frame(AV1_COMP *cpi, aom_enc_frame_flags_t frame_flags,
 
 #if CONFIG_TUNE_VMAF
   if (!is_stat_generation_stage(cpi) &&
-      cpi->oxcf.tuning == AOM_TUNE_VMAF_WITH_PREPROCESSING) {
+      cpi->oxcf.tune_cfg.tuning == AOM_TUNE_VMAF_WITH_PREPROCESSING) {
     av1_vmaf_frame_preprocessing(cpi, sd);
   }
   if (!is_stat_generation_stage(cpi) &&
-      cpi->oxcf.tuning == AOM_TUNE_VMAF_MAX_GAIN) {
+      cpi->oxcf.tune_cfg.tuning == AOM_TUNE_VMAF_MAX_GAIN) {
     av1_vmaf_blk_preprocessing(cpi, sd);
   }
 #endif
@@ -3192,6 +3206,14 @@ int av1_receive_raw_frame(AV1_COMP *cpi, aom_enc_frame_flags_t frame_flags,
   aom_usec_timer_mark(&timer);
   cpi->time_receive_data += aom_usec_timer_elapsed(&timer);
 #endif
+
+  // Note: Regarding profile setting, the following checks are added to help
+  // choose a proper profile for the input video. The criterion is that all
+  // bitstreams must be designated as the lowest profile that match its content.
+  // E.G. A bitstream that contains 4:4:4 video must be designated as High
+  // Profile in the seq header, and likewise a bitstream that contains 4:2:2
+  // bitstream must be designated as Professional Profile in the sequence
+  // header.
   if ((seq_params->profile == PROFILE_0) && !seq_params->monochrome &&
       (subsampling_x != 1 || subsampling_y != 1)) {
     aom_internal_error(&cm->error, AOM_CODEC_INVALID_PARAM,
@@ -3208,7 +3230,7 @@ int av1_receive_raw_frame(AV1_COMP *cpi, aom_enc_frame_flags_t frame_flags,
       (seq_params->bit_depth <= AOM_BITS_10) &&
       !(subsampling_x == 1 && subsampling_y == 0)) {
     aom_internal_error(&cm->error, AOM_CODEC_INVALID_PARAM,
-                       "Profile 2 bit-depth < 10 requires 4:2:2 color format");
+                       "Profile 2 bit-depth <= 10 requires 4:2:2 color format");
     res = -1;
   }
 
@@ -3346,14 +3368,15 @@ int av1_get_compressed_data(AV1_COMP *cpi, unsigned int *frame_flags,
   av1_set_high_precision_mv(cpi, 1, 0);
 
   // Normal defaults
-  cm->features.refresh_frame_context = oxcf->frame_parallel_decoding_mode
-                                           ? REFRESH_FRAME_CONTEXT_DISABLED
-                                           : REFRESH_FRAME_CONTEXT_BACKWARD;
+  cm->features.refresh_frame_context =
+      oxcf->tool_cfg.frame_parallel_decoding_mode
+          ? REFRESH_FRAME_CONTEXT_DISABLED
+          : REFRESH_FRAME_CONTEXT_BACKWARD;
   if (oxcf->tile_cfg.enable_large_scale_tile)
     cm->features.refresh_frame_context = REFRESH_FRAME_CONTEXT_DISABLED;
 
   // Initialize fields related to forward keyframes
-  cpi->no_show_kf = 0;
+  cpi->no_show_fwd_kf = 0;
 
   if (assign_cur_frame_new_fb(cm) == NULL) return AOM_CODEC_ERROR;
 
@@ -3381,16 +3404,16 @@ int av1_get_compressed_data(AV1_COMP *cpi, unsigned int *frame_flags,
 
 #if CONFIG_TUNE_VMAF
   if (!is_stat_generation_stage(cpi) &&
-      (oxcf->tuning == AOM_TUNE_VMAF_WITH_PREPROCESSING ||
-       oxcf->tuning == AOM_TUNE_VMAF_WITHOUT_PREPROCESSING ||
-       oxcf->tuning == AOM_TUNE_VMAF_MAX_GAIN)) {
+      (oxcf->tune_cfg.tuning == AOM_TUNE_VMAF_WITH_PREPROCESSING ||
+       oxcf->tune_cfg.tuning == AOM_TUNE_VMAF_WITHOUT_PREPROCESSING ||
+       oxcf->tune_cfg.tuning == AOM_TUNE_VMAF_MAX_GAIN)) {
     av1_update_vmaf_curve(cpi, cpi->source, &cpi->common.cur_frame->buf);
   }
 #endif
 
   if (cpi->level_params.keep_level_stats && !is_stat_generation_stage(cpi)) {
     // Initialize level info. at the beginning of each sequence.
-    if (cm->current_frame.frame_type == KEY_FRAME && cm->show_frame) {
+    if (cm->current_frame.frame_type == KEY_FRAME && !cpi->no_show_fwd_kf) {
       av1_init_level_info(cpi);
     }
     av1_update_level_info(cpi, *size, *time_stamp, *time_end);
@@ -3468,8 +3491,10 @@ int av1_set_internal_size(AV1EncoderConfig *const oxcf,
   resize_pending_params->width = (hs - 1 + oxcf->frm_dim_cfg.width * hr) / hs;
   resize_pending_params->height = (vs - 1 + oxcf->frm_dim_cfg.height * vr) / vs;
 
-  if (horiz_mode != NORMAL || vert_mode != NORMAL)
+  if (horiz_mode != NORMAL || vert_mode != NORMAL) {
     oxcf->resize_cfg.resize_mode = RESIZE_FIXED;
+    oxcf->algo_cfg.enable_tpl_model = 0;
+  }
   return 0;
 }
 
@@ -3630,9 +3655,9 @@ void av1_apply_encoding_flags(AV1_COMP *cpi, aom_enc_frame_flags_t flags) {
       ext_refresh_frame_flags->update_pending = 0;
   }
 
-  ext_flags->use_ref_frame_mvs = cpi->oxcf.allow_ref_frame_mvs &
+  ext_flags->use_ref_frame_mvs = cpi->oxcf.tool_cfg.enable_ref_frame_mvs &
                                  ((flags & AOM_EFLAG_NO_REF_FRAME_MVS) == 0);
-  ext_flags->use_error_resilient = cpi->oxcf.error_resilient_mode |
+  ext_flags->use_error_resilient = cpi->oxcf.tool_cfg.error_resilient_mode |
                                    ((flags & AOM_EFLAG_ERROR_RESILIENT) != 0);
   ext_flags->use_s_frame =
       cpi->oxcf.kf_cfg.enable_sframe | ((flags & AOM_EFLAG_SET_S_FRAME) != 0);

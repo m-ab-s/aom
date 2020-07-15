@@ -9,6 +9,14 @@
  * PATENTS file, you can obtain it at www.aomedia.org/license/patent.
  */
 
+/*!\defgroup gf_group_algo Golden Frame Group
+ * \ingroup high_level_algo
+ * Algorithms regarding determining the length of GF groups and defining GF
+ * group structures.
+ * @{
+ */
+/*! @} - end defgroup gf_group_algo */
+
 #include <stdint.h>
 
 #include "config/aom_config.h"
@@ -696,11 +704,6 @@ static int64_t calculate_total_gf_group_bits(AV1_COMP *cpi,
   const int max_bits = frame_max_bits(rc, &cpi->oxcf);
   int64_t total_group_bits;
 
-  if (cpi->lap_enabled) {
-    total_group_bits = rc->avg_frame_bandwidth * rc->baseline_gf_interval;
-    return total_group_bits;
-  }
-
   // Calculate the bits to be allocated to the group as a whole.
   if ((twopass->kf_group_bits > 0) && (twopass->kf_group_error_left > 0)) {
     total_group_bits = (int64_t)(twopass->kf_group_bits *
@@ -1181,8 +1184,18 @@ void set_last_prev_low_err(int *cur_start_ptr, int *cur_last_ptr, int *cut_pos,
   return;
 }
 
-// This function decides the gf group length of future frames in batch
-// rc->gf_intervals is modified to store the group lengths
+/*!\brief Determine the length of future GF groups.
+ *
+ * \ingroup gf_group_algo
+ * This function decides the gf group length of future frames in batch
+ *
+ * \param[in]    cpi              Top-level encoder structure
+ * \param[in]    max_gop_length   Maximum length of the GF group
+ * \param[in]    max_intervals    Maximum number of intervals to decide
+ *
+ * \return Nothing is returned. Instead, cpi->rc.gf_intervals is
+ * changed to store the decided GF group lengths.
+ */
 static void calculate_gf_length(AV1_COMP *cpi, int max_gop_length,
                                 int max_intervals) {
   RATE_CONTROL *const rc = &cpi->rc;
@@ -1353,10 +1366,27 @@ static void correct_frames_to_key(AV1_COMP *cpi) {
       (int)av1_lookahead_depth(cpi->lookahead, cpi->compressor_stage) + 1;
   if (lookahead_size <
       av1_lookahead_pop_sz(cpi->lookahead, cpi->compressor_stage)) {
+    assert(IMPLIES(cpi->frames_left > 0, lookahead_size == cpi->frames_left));
     cpi->rc.frames_to_key = AOMMIN(cpi->rc.frames_to_key, lookahead_size);
+  } else if (cpi->frames_left > 0) {
+    // Correct frames to key based on limit
+    cpi->rc.frames_to_key = AOMMIN(cpi->rc.frames_to_key, cpi->frames_left);
   }
 }
 
+/*!\brief Define a GF group in one pass mode when no look ahead stats are
+ * available.
+ *
+ * \ingroup gf_group_algo
+ * This function defines the structure of a GF group, along with various
+ * parameters regarding bit-allocation and quality setup in the special
+ * case of one pass encoding where no lookahead stats are avialable.
+ *
+ * \param[in]    cpi             Top-level encoder structure
+ * \param[in]    frame_params    Structure with frame parameters
+ *
+ * \return Nothing is returned. Instead, cpi->gf_group is changed.
+ */
 static void define_gf_group_pass0(AV1_COMP *cpi,
                                   const EncodeFrameParams *const frame_params) {
   RATE_CONTROL *const rc = &cpi->rc;
@@ -1484,6 +1514,21 @@ static void init_gf_stats(GF_GROUP_STATS *gf_stats) {
 
 // Analyse and define a gf/arf group.
 #define MAX_GF_BOOST 5400
+/*!\brief Define a GF group.
+ *
+ * \ingroup gf_group_algo
+ * This function defines the structure of a GF group, along with various
+ * parameters regarding bit-allocation and quality setup.
+ *
+ * \param[in]    cpi             Top-level encoder structure
+ * \param[in]    this_frame      First pass statistics structure
+ * \param[in]    frame_params    Structure with frame parameters
+ * \param[in]    max_gop_length  Maximum length of the GF group
+ * \param[in]    is_final_pass   Whether this is the final pass for the
+ *                               GF group, or a trial (non-zero)
+ *
+ * \return Nothing is returned. Instead, cpi->gf_group is changed.
+ */
 static void define_gf_group(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
                             const EncodeFrameParams *const frame_params,
                             int max_gop_length, int is_final_pass) {
@@ -1736,6 +1781,12 @@ static void define_gf_group(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
   // Reset the file position.
   reset_fpf_position(twopass, start_pos);
 
+  if (cpi->lap_enabled) {
+    // Since we don't have enough stats to know the actual error of the
+    // gf group, we assume error of each frame to be equal to 1 and set
+    // the error of the group as baseline_gf_interval.
+    gf_stats.gf_group_err = rc->baseline_gf_interval;
+  }
   // Calculate the bits to be allocated to the gf/arf group as a whole
   gf_group_bits = calculate_total_gf_group_bits(cpi, gf_stats.gf_group_err);
   rc->gf_group_bits = gf_group_bits;
@@ -1760,7 +1811,7 @@ static void define_gf_group(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
     int tmp_q;
     // rc factor is a weight factor that corrects for local rate control drift.
     double rc_factor = 1.0;
-    int64_t bits = oxcf->target_bandwidth;
+    int64_t bits = rc_cfg->target_bandwidth;
 
     if (bits > 0) {
       int rate_error;
@@ -2008,6 +2059,19 @@ static int get_projected_kf_boost(AV1_COMP *cpi) {
   return projected_kf_boost;
 }
 
+/*!\brief Determine the location of the next key frame
+ *
+ * \ingroup gf_group_algo
+ * This function decides the placement of the next key frame when a
+ * scenecut is detected or the maximum key frame distance is reached.
+ *
+ * \param[in]    cpi              Top-level encoder structure
+ * \param[in]    this_frame       Pointer to first pass stats
+ * \param[out]   kf_group_err     The total error in the KF group
+ * \param[in]    num_frames_to_detect_scenecut Maximum lookahead frames.
+ *
+ * \return       Number of frames to the next key.
+ */
 static int define_kf_interval(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
                               double *kf_group_err,
                               int num_frames_to_detect_scenecut) {
@@ -2148,13 +2212,13 @@ static int64_t get_kf_group_bits(AV1_COMP *cpi, double kf_group_err,
   int64_t kf_group_bits;
   if (cpi->lap_enabled) {
     kf_group_bits = (int64_t)rc->frames_to_key * rc->avg_frame_bandwidth;
-    if (cpi->oxcf.vbr_corpus_complexity_lap) {
+    if (cpi->oxcf.rc_cfg.vbr_corpus_complexity_lap) {
       const int num_mbs = (cpi->oxcf.resize_cfg.resize_mode != RESIZE_NONE)
                               ? cpi->initial_mbs
                               : cpi->common.mi_params.MBs;
 
       double vbr_corpus_complexity_lap =
-          cpi->oxcf.vbr_corpus_complexity_lap / 10.0;
+          cpi->oxcf.rc_cfg.vbr_corpus_complexity_lap / 10.0;
       /* Get the average corpus complexity of the frame */
       vbr_corpus_complexity_lap = vbr_corpus_complexity_lap * num_mbs;
       kf_group_bits = (int64_t)(
@@ -2265,6 +2329,21 @@ static double get_kf_boost_score(AV1_COMP *cpi, double kf_raw_err,
   return boost_score;
 }
 
+/*!\brief Interval(in seconds) to clip key-frame distance to in LAP.
+ */
+#define MAX_KF_BITS_INTERVAL_SINGLE_PASS 5
+
+/*!\brief Determine the next key frame group
+ *
+ * \ingroup gf_group_algo
+ * This function decides the placement of the next key frame, and
+ * calculates the bit allocation of the KF group and the keyframe itself.
+ *
+ * \param[in]    cpi              Top-level encoder structure
+ * \param[in]    this_frame       Pointer to first pass stats
+ *
+ * \return Nothing is returned.
+ */
 static void find_next_key_frame(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame) {
   RATE_CONTROL *const rc = &cpi->rc;
   TWO_PASS *const twopass = &cpi->twopass;
@@ -2319,7 +2398,9 @@ static void find_next_key_frame(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame) {
   double kf_group_err = 0.0;
   double sr_accumulator = 0.0;
   double kf_group_avg_error = 0.0;
-  int frames_to_key;
+  int frames_to_key, frames_to_key_clipped = INT_MAX;
+  int64_t kf_group_bits_clipped = INT64_MAX;
+
   // Is this a forced key frame by interval.
   rc->this_key_frame_forced = rc->next_key_frame_forced;
 
@@ -2386,7 +2467,7 @@ static void find_next_key_frame(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame) {
     // Maximum number of bits allocated to the key frame group.
     int64_t max_grp_bits;
 
-    if (oxcf->vbr_corpus_complexity_lap) {
+    if (oxcf->rc_cfg.vbr_corpus_complexity_lap) {
       kf_group_avg_error = get_kf_group_avg_error(
           twopass, &first_frame, start_position, rc->frames_to_key);
     }
@@ -2403,6 +2484,22 @@ static void find_next_key_frame(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame) {
     twopass->kf_group_bits = 0;
   }
   twopass->kf_group_bits = AOMMAX(0, twopass->kf_group_bits);
+
+  if (cpi->lap_enabled) {
+    // In the case of single pass based on LAP, frames to  key may have an
+    // inaccurate value, and hence should be clipped to an appropriate
+    // interval.
+    frames_to_key_clipped =
+        (int)(MAX_KF_BITS_INTERVAL_SINGLE_PASS * cpi->framerate);
+
+    // This variable calculates the bits allocated to kf_group with a clipped
+    // frames_to_key.
+    if (rc->frames_to_key > frames_to_key_clipped) {
+      kf_group_bits_clipped =
+          (int64_t)((double)twopass->kf_group_bits * frames_to_key_clipped /
+                    rc->frames_to_key);
+    }
+  }
 
   // Reset the first pass file position.
   reset_fpf_position(twopass, start_position);
@@ -2448,8 +2545,12 @@ static void find_next_key_frame(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame) {
   }
 
   // Work out how many bits to allocate for the key frame itself.
-  kf_bits = calculate_boost_bits((rc->frames_to_key - 1), rc->kf_boost,
-                                 twopass->kf_group_bits);
+  // In case of LAP enabled for VBR, if the frames_to_key value is
+  // very high, we calculate the bits based on a clipped value of
+  // frames_to_key.
+  kf_bits = calculate_boost_bits(
+      AOMMIN(rc->frames_to_key, frames_to_key_clipped) - 1, rc->kf_boost,
+      AOMMIN(twopass->kf_group_bits, kf_group_bits_clipped));
   // printf("kf boost = %d kf_bits = %d kf_zeromotion_pct = %d\n", rc->kf_boost,
   //        kf_bits, twopass->kf_zeromotion_pct);
   kf_bits = adjust_boost_bits_for_target_level(cpi, rc, kf_bits,
@@ -2462,7 +2563,13 @@ static void find_next_key_frame(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame) {
   gf_group->update_type[0] = KF_UPDATE;
 
   // Note the total error score of the kf group minus the key frame itself.
-  twopass->kf_group_error_left = (int)(kf_group_err - kf_mod_err);
+  if (cpi->lap_enabled)
+    // As we don't have enough stats to know the actual error of the group,
+    // we assume the complexity of each frame to be equal to 1, and set the
+    // error as the number of frames in the group(minus the keyframe).
+    twopass->kf_group_error_left = (int)(rc->frames_to_key - 1);
+  else
+    twopass->kf_group_error_left = (int)(kf_group_err - kf_mod_err);
 
   // Adjust the count of total modified error left.
   // The count of bits left is adjusted elsewhere based on real coded frame
@@ -2618,7 +2725,7 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
     // If this is an arf frame then we dont want to read the stats file or
     // advance the input pointer as we already have what we need.
     if (update_type == ARF_UPDATE || update_type == INTNL_ARF_UPDATE) {
-      if (cpi->no_show_kf) {
+      if (cpi->no_show_fwd_kf) {
         assert(update_type == ARF_UPDATE);
         frame_params->frame_type = KEY_FRAME;
       } else {
@@ -2790,7 +2897,7 @@ void av1_init_second_pass(AV1_COMP *cpi) {
   // first pass.
   av1_new_framerate(cpi, frame_rate);
   twopass->bits_left =
-      (int64_t)(stats->duration * oxcf->target_bandwidth / 10000000.0);
+      (int64_t)(stats->duration * oxcf->rc_cfg.target_bandwidth / 10000000.0);
 
   // This variable monitors how far behind the second ref update is lagging.
   twopass->sr_update_lag = 1;

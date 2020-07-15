@@ -36,6 +36,7 @@
 #include "av1/encoder/reconinter_enc.h"
 
 extern int g_pick_inter_mode_cnt;
+/*!\cond */
 typedef struct {
   uint8_t *data;
   int stride;
@@ -56,6 +57,7 @@ typedef struct {
   MV_REFERENCE_FRAME ref_frame;
   PREDICTION_MODE pred_mode;
 } REF_MODE;
+/*!\endcond */
 
 static const int pos_shift_16x16[4][4] = {
   { 9, 10, 13, 14 }, { 11, 12, 15, 16 }, { 17, 18, 21, 22 }, { 19, 20, 23, 24 }
@@ -734,6 +736,27 @@ static void model_rd_for_sb_y(const AV1_COMP *const cpi, BLOCK_SIZE bsize,
   rd_stats->dist = dist;
 }
 
+/*!\brief Calculates RD Cost using Hadamard transform.
+ *
+ * \ingroup inter_mode_search
+ * \callgraph
+ * \callergraph
+ * Calculates RD Cost using Hadamard transform. For low bit depth this function
+ * uses low-precision set of functions (16-bit) and 32 bit for high bit depth
+ * \param[in]    cpi            Top-level encoder structure
+ * \param[in]    x              Pointer to structure holding all the data for
+                                the current macroblock
+ * \param[in]    mi_row         Row index in 4x4 units
+ * \param[in]    mi_col         Column index in 4x4 units
+ * \param[in]    this_rdc       Pointer to calculated RD Cost
+ * \param[in]    skippable      Pointer to a flag indicating possible tx skip
+ * \param[in]    bsize          Current block size
+ * \param[in]    tx_size        Transform size
+ *
+ * \return Nothing is returned. Instead, calculated RD cost is placed to
+ * \c this_rdc. \c skippable flag is set if there is no non-zero quantized
+ * coefficients for Hadamard transform
+ */
 static void block_yrd(AV1_COMP *cpi, MACROBLOCK *x, int mi_row, int mi_col,
                       RD_STATS *this_rdc, int *skippable, BLOCK_SIZE bsize,
                       TX_SIZE tx_size) {
@@ -1101,6 +1124,7 @@ static void model_rd_for_sb_uv(AV1_COMP *cpi, BLOCK_SIZE plane_bsize,
   *sse_y = tot_sse;
 }
 
+/*!\cond */
 struct estimate_block_intra_args {
   AV1_COMP *cpi;
   MACROBLOCK *x;
@@ -1108,7 +1132,27 @@ struct estimate_block_intra_args {
   int skippable;
   RD_STATS *rdc;
 };
+/*!\endcond */
 
+/*!\brief Estimation of RD cost of an intra mode for Non-RD optimized case.
+ *
+ * \ingroup intra_mode_search
+ * \callgraph
+ * \callergraph
+ * Calculates RD Cost for an intra mode for a single TX block using Hadamard
+ * transform.
+ * \param[in]    plane          Color plane
+ * \param[in]    block          Index of a TX block in a prediction block
+ * \param[in]    row            Row of a current TX block
+ * \param[in]    col            Column of a current TX block
+ * \param[in]    plane_bsize    Block size of a current prediction block
+ * \param[in]    tx_size        Transform size
+ * \param[in]    arg            Pointer to a structure that holds paramaters
+ *                              for intra mode search
+ *
+ * \return Nothing is returned. Instead, best mode and RD Cost of the best mode
+ * are set in \c args->rdc and \c args->mode
+ */
 static void estimate_block_intra(int plane, int block, int row, int col,
                                  BLOCK_SIZE plane_bsize, TX_SIZE tx_size,
                                  void *arg) {
@@ -1287,6 +1331,38 @@ static INLINE int get_force_skip_low_temp_var(uint8_t *variance_low, int mi_row,
 }
 
 #define FILTER_SEARCH_SIZE 2
+/*!\brief Searches for the best intrpolation filter
+ *
+ * \ingroup inter_mode_search
+ * \callgraph
+ * \callergraph
+ * Iterates through subset of possible interpolation filters (currently
+ * only EIGHTTAP_REGULAR and EIGTHTAP_SMOOTH in both directions) and selects
+ * the one that gives lowest RD cost. RD cost is calculated using curvfit model
+ *
+ * \param[in]    cpi                  Top-level encoder structure
+ * \param[in]    x                    Pointer to structure holding all the
+ *                                    data for the current macroblock
+ * \param[in]    this_rdc             Pointer to calculated RD Cost
+ * \param[in]    mi_row               Row index in 4x4 units
+ * \param[in]    mi_col               Column index in 4x4 units
+ * \param[in]    tmp                  Pointer to a temporary buffer for
+ *                                    prediction re-use
+ * \param[in]    bsize                Current block size
+ * \param[in]    reuse_inter_pred     Flag, indicating prediction re-use
+ * \param[out]   this_mode_pred       Pointer to store prediction buffer
+ *                                    for prediction re-use
+ * \param[out]   this_early_term      Flag, indicating that transform can be
+ *                                    skipped
+ * \param[in]    use_model_yrd_large  Flag, indicating special logic to handle
+ *                                    large blocks
+ *
+ * \return Nothing is returned. Instead, calculated RD cost is placed to
+ * \c this_rdc and best filter is placed to \c mi->interp_filters. In case
+ * \c reuse_inter_pred flag is set, this function also ouputs
+ * \c this_mode_pred. Also \c this_early_temp is set if transform can be
+ * skipped
+ */
 static void search_filter_ref(AV1_COMP *cpi, MACROBLOCK *x, RD_STATS *this_rdc,
                               int mi_row, int mi_col, PRED_BUFFER *tmp,
                               BLOCK_SIZE bsize, int reuse_inter_pred,
@@ -1525,6 +1601,39 @@ static AOM_INLINE void get_ref_frame_use_mask(AV1_COMP *cpi, MACROBLOCK *x,
   use_ref_frame[GOLDEN_FRAME] = use_golden_ref_frame;
 }
 
+/*!\brief Estimates best intra mode for inter mode search
+ *
+ * \ingroup inter_mode_search
+ * \callgraph
+ * \callergraph
+ *
+ * Using heuristics based on best inter mode, block size, and other decides
+ * whether to check intra modes. If so, estimates and selects best intra mode
+ * from the reduced set of intra modes (max 4 intra modes checked)
+ *
+ * \param[in]    cpi                      Top-level encoder structure
+ * \param[in]    x                        Pointer to structure holding all the
+ *                                        data for the current macroblock
+ * \param[in]    bsize                    Current block size
+ * \param[in]    use_modeled_non_rd_cost  Flag, indicating usage of curvfit
+ *                                        model for RD cost
+ * \param[in]    best_early_term          Flag, indicating that TX for the
+ *                                        best inter mode was skipped
+ * \param[in]    ref_cost_intra           Cost of signalling intra mode
+ * \param[in]    reuse_prediction         Flag, indicating prediction re-use
+ * \param[in]    orig_dst                 Original destination buffer
+ * \param[in]    tmp_buffers              Pointer to a temporary buffers for
+ *                                        prediction re-use
+ * \param[out]   this_mode_pred           Pointer to store prediction buffer
+ *                                        for prediction re-use
+ * \param[in]    best_rdc                 Pointer to RD cost for the best
+ *                                        selected intra mode
+ * \param[in]    best_pickmode            Pointer to a structure containing
+ *                                        best mode picked so far
+ *
+ * \return Nothing is returned. Instead, calculated RD cost is placed to
+ * \c best_rdc and best selected mode is placed to \c best_pickmode
+ */
 static void estimate_intra_mode(
     AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize, int use_modeled_non_rd_cost,
     int best_early_term, unsigned int ref_cost_intra, int reuse_prediction,

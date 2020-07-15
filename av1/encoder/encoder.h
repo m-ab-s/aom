@@ -322,13 +322,15 @@ typedef struct {
  */
 typedef struct {
   /*!
-   * Flag to indicate if super-resolution should be enabled for the sequence.
+   * Indicates the qindex based threshold to be used when AOM_SUPERRES_QTHRESH
+   * mode is used for inter frames.
    */
-  bool enable_superres;
+  int superres_qthresh;
   /*!
-   * Indicates the Super-resolution mode to be used by the encoder.
+   * Indicates the qindex based threshold to be used when AOM_SUPERRES_QTHRESH
+   * mode is used for key frames.
    */
-  aom_superres_mode superres_mode;
+  int superres_kf_qthresh;
   /*!
    * Indicates the denominator of the fraction that specifies the ratio between
    * the superblock width before and after upscaling for inter frames. The
@@ -342,91 +344,156 @@ typedef struct {
    */
   uint8_t superres_kf_scale_denominator;
   /*!
-   * Indicates the qindex based threshold to be used when AOM_SUPERRES_QTHRESH
-   * mode is used for inter frames.
+   * Indicates the Super-resolution mode to be used by the encoder.
    */
-  int superres_qthresh;
+  aom_superres_mode superres_mode;
   /*!
-   * Indicates the qindex based threshold to be used when AOM_SUPERRES_QTHRESH
-   * mode is used for key frames.
+   * Flag to indicate if super-resolution should be enabled for the sequence.
    */
-  int superres_kf_qthresh;
+  bool enable_superres;
 } SuperResCfg;
 
-/*!\cond */
-
+/*!
+ * \brief Encoder config related to the coding of key frames.
+ */
 typedef struct {
-  // Indicates the minimum distance to a key frame.
+  /*!
+   * Indicates the minimum distance to a key frame.
+   */
   int key_freq_min;
-  // Indicates the maximum distance to a key frame.
+
+  /*!
+   * Indicates the maximum distance to a key frame.
+   */
   int key_freq_max;
-  // Indicates if temporal filtering should be applied on keyframe.
+
+  /*!
+   * Indicates if temporal filtering should be applied on keyframe.
+   */
   int enable_keyframe_filtering;
-  // Indicates the number of frames after which a frame may be coded as an
-  // S-Frame.
+
+  /*!
+   * Indicates the number of frames after which a frame may be coded as an
+   * S-Frame.
+   */
   int sframe_dist;
-  // Indicates how an S-Frame should be inserted.
-  // 1: the considered frame will be made into an S-Frame only if it is an
-  // altref frame. 2: the next altref frame will be made into an S-Frame.
+
+  /*!
+   * Indicates how an S-Frame should be inserted.
+   * 1: the considered frame will be made into an S-Frame only if it is an
+   * altref frame. 2: the next altref frame will be made into an S-Frame.
+   */
   int sframe_mode;
-  // Indicates if encoder should autodetect cut scenes and set the keyframes.
+
+  /*!
+   * Indicates if encoder should autodetect cut scenes and set the keyframes.
+   */
   bool auto_key;
-  // Indicates if forward keyframe reference should be enabled.
+
+  /*!
+   * Indicates if forward keyframe reference should be enabled.
+   */
   bool fwd_kf_enabled;
-  // Indicates if S-Frames should be enabled for the sequence.
+
+  /*!
+   * Indicates if S-Frames should be enabled for the sequence.
+   */
   bool enable_sframe;
-  // Indicates if intra block copy prediction mode should be enabled or not.
+
+  /*!
+   * Indicates if intra block copy prediction mode should be enabled or not.
+   */
   bool enable_intrabc;
 } KeyFrameCfg;
 
-/*!\endcond */
 /*!
  * \brief Encoder rate control configuration parameters
  */
 typedef struct {
   /*!\cond */
   // BUFFERING PARAMETERS
-  // Indicates the amount of data that will be buffered by the decoding
-  // application prior to beginning playback, and is expressed in units of
-  // time(milliseconds).
+  /*!\endcond */
+  /*!
+   * Indicates the amount of data that will be buffered by the decoding
+   * application prior to beginning playback, and is expressed in units of
+   * time(milliseconds).
+   */
   int64_t starting_buffer_level_ms;
-  // Indicates the amount of data that the encoder should try to maintain in the
-  // decoder's buffer, and is expressed in units of time(milliseconds).
+  /*!
+   * Indicates the amount of data that the encoder should try to maintain in the
+   * decoder's buffer, and is expressed in units of time(milliseconds).
+   */
   int64_t optimal_buffer_level_ms;
-  // Indicates the maximum amount of data that may be buffered by the decoding
-  // application, and is expressed in units of time(milliseconds).
+  /*!
+   * Indicates the maximum amount of data that may be buffered by the decoding
+   * application, and is expressed in units of time(milliseconds).
+   */
   int64_t maximum_buffer_size_ms;
 
-  // Indicates the maximum allowed bitrate for any intra frame as % of bitrate
-  // target.
+  /*!
+   * Indicates the bandwidth to be used in bits per second.
+   */
+  int64_t target_bandwidth;
+
+  /*!
+   * Indicates average complexity of the corpus in single pass vbr based on
+   * LAP. 0 indicates that corpus complexity vbr mode is disabled.
+   */
+  unsigned int vbr_corpus_complexity_lap;
+  /*!
+   * Indicates the maximum allowed bitrate for any intra frame as % of bitrate
+   * target.
+   */
   unsigned int max_intra_bitrate_pct;
-  // Indicates the maximum allowed bitrate for any inter frame as % of bitrate
-  // target.
+  /*!
+   * Indicates the maximum allowed bitrate for any inter frame as % of bitrate
+   * target.
+   */
   unsigned int max_inter_bitrate_pct;
-  // Indicates the percentage of rate boost for golden frame in CBR mode.
+  /*!
+   * Indicates the percentage of rate boost for golden frame in CBR mode.
+   */
   unsigned int gf_cbr_boost_pct;
-  // min_cr / 100 indicates the target minimum compression ratio for each frame.
+  /*!
+   * min_cr / 100 indicates the target minimum compression ratio for each
+   * frame.
+   */
   unsigned int min_cr;
-  // under_shoot_pct indicates the tolerance of the VBR algorithm to undershoot
-  // and is used as a trigger threshold for more agressive adaptation of Q. It's
-  // value can range from 0-100.
+  /*!
+   * Indicates the frame drop threshold.
+   */
+  int drop_frames_water_mark;
+  /*!
+   * under_shoot_pct indicates the tolerance of the VBR algorithm to
+   * undershoot and is used as a trigger threshold for more agressive
+   * adaptation of Q. It's value can range from 0-100.
+   */
   int under_shoot_pct;
-  // over_shoot_pct indicates the tolerance of the VBR algorithm to overshoot
-  // and is used as a trigger threshold for more agressive adaptation of Q. It's
-  // value can range from 0-1000.
+  /*!
+   * over_shoot_pct indicates the tolerance of the VBR algorithm to overshoot
+   * and is used as a trigger threshold for more agressive adaptation of Q.
+   * It's value can range from 0-1000.
+   */
   int over_shoot_pct;
-  // Indicates the maximum qindex that can be used by the quantizer i.e. the
-  // worst quality qindex.
+  /*!
+   * Indicates the maximum qindex that can be used by the quantizer i.e. the
+   * worst quality qindex.
+   */
   int worst_allowed_q;
-  // Indicates the minimum qindex that can be used by the quantizer i.e. the
-  // best quality qindex.
+  /*!
+   * Indicates the minimum qindex that can be used by the quantizer i.e. the
+   * best quality qindex.
+   */
   int best_allowed_q;
-  // Indicates the Constant/Constrained Quality level.
+  /*!
+   * Indicates the Constant/Constrained Quality level.
+   */
   int qp;
-  // Indicates if the encoding mode is vbr, cbr, constrained quality or constant
-  // quality.
+  /*!
+   * Indicates if the encoding mode is vbr, cbr, constrained quality or
+   * constant quality.
+   */
   enum aom_rc_mode mode;
-  /*!\endcond */
 } RateControlCfg;
 
 /*!\cond */
@@ -517,24 +584,37 @@ typedef struct {
   bool timing_info_present;
 } DecoderModelCfg;
 
+/*!\endcond */
+/*!
+ * \brief Two pass specific rate control configuration parameters
+ */
 typedef struct {
-  // stats_in buffer contains all of the stats packets produced in the first
-  // pass, concatenated.
+  // TWO PASS DATARATE CONTROL OPTIONS.
+  /*!
+   * stats_in buffer contains all of the stats packets produced in the first
+   * pass, concatenated.
+   */
   aom_fixed_buf_t stats_in;
 
-  // TWO PASS DATARATE CONTROL OPTIONS.
-  // Indicates the bias (expressed on a scale of 0 to 100) for determining
-  // target size for the current frame. The value 0 indicates the optimal CBR
-  // mode value should be used, and 100 indicates the optimal VBR mode value
-  // should be used.
+  /*!
+   * Indicates the bias (expressed on a scale of 0 to 100) for determining
+   * target size for the current frame. The value 0 indicates the optimal CBR
+   * mode value should be used, and 100 indicates the optimal VBR mode value
+   * should be used.
+   */
   int vbrbias;
-  // Indicates the minimum bitrate to be used for a single GOP as a percentage
-  // of the target bitrate.
+  /*!
+   * Indicates the minimum bitrate to be used for a single GOP as a percentage
+   *  of the target bitrate.
+   */
   int vbrmin_section;
-  // Indicates the maximum bitrate to be used for a single GOP as a percentage
-  // of the target bitrate.
+  /*!
+   * Indicates the maximum bitrate to be used for a single GOP as a percentage
+   * of the target bitrate.
+   */
   int vbrmax_section;
 } TwoPassCfg;
+/*!\cond */
 
 typedef struct {
   // Indicates the update frequency for coeff costs.
@@ -561,6 +641,8 @@ typedef struct {
   aom_transfer_characteristics_t transfer_characteristics;
   // Indicates the matrix coefficients to be used for the transfer function.
   aom_matrix_coefficients_t matrix_coefficients;
+  // Indicates the chroma 4:2:0 sample position info.
+  aom_chroma_sample_position_t chroma_sample_position;
   // Indicates if a limited color range or full color range should be used.
   aom_color_range_t color_range;
 } ColorCfg;
@@ -571,6 +653,19 @@ typedef struct {
   // Indicates if superblock multipass unit test should be enabled or not.
   unsigned int sb_multipass_unit_test;
 } UnitTestCfg;
+
+typedef struct {
+  // Indicates the file path to the VMAF model.
+  const char *vmaf_model_path;
+  // Indicates the path to the film grain parameters.
+  const char *film_grain_table_filename;
+  // Indicates the visual tuning metric.
+  aom_tune_metric tuning;
+  // Indicates if the current content is screen or default type.
+  aom_tune_content content;
+  // Indicates the film grain parameters.
+  int film_grain_test_vector;
+} TuneCfg;
 
 typedef struct {
   // Indicates the framerate of the input video.
@@ -609,30 +704,93 @@ typedef struct {
   bool using_qm;
 } QuantizationCfg;
 
+/*!\endcond */
+/*!
+ * \brief Algorithm configuration parameters.
+ */
 typedef struct {
-  // Indicates the loop filter sharpness.
+  /*!
+   * Indicates the loop filter sharpness.
+   */
   int sharpness;
-  // Indicates the trellis optimization mode of quantized coefficients.
-  // 0: disabled
-  // 1: enabled
-  // 2: enabled for rd search
-  // 3: true for estimate yrd search
+
+  /*!
+   * Indicates the trellis optimization mode of quantized coefficients.
+   * 0: disabled
+   * 1: enabled
+   * 2: enabled for rd search
+   * 3: true for estimate yrd search
+   */
   int disable_trellis_quant;
-  // Indicates the maximum number of frames to create arf.
+
+  /*!
+   * The maximum number of frames used to create an arf.
+   */
   int arnr_max_frames;
-  // Indicates the temporal filter strength for arf.
+
+  /*!
+   * The temporal filter strength for arf used when creating ARFs.
+   */
   int arnr_strength;
-  // Indicates the CDF update mode
-  // 0: no update
-  // 1: update on every frame(default)
-  // 2: selectively update
+
+  /*!
+   * Indicates the CDF update mode
+   * 0: no update
+   * 1: update on every frame(default)
+   * 2: selectively update
+   */
   uint8_t cdf_update_mode;
-  // Indicates if RDO based on frame temporal dependency should be enabled.
+
+  /*!
+   * Indicates if RDO based on frame temporal dependency should be enabled.
+   */
   bool enable_tpl_model;
-  // Indicates if coding of overlay frames for filtered ALTREF frames is
-  // enabled.
+
+  /*!
+   * Indicates if coding of overlay frames for filtered ALTREF frames is
+   * enabled.
+   */
   bool enable_overlay;
 } AlgoCfg;
+/*!\cond */
+
+typedef struct {
+  // Indicates the codec bit-depth.
+  aom_bit_depth_t bit_depth;
+  // Indicates the superblock size that should be used by the encoder.
+  aom_superblock_size_t superblock_size;
+  // Indicates if loopfilter modulation should be enabled.
+  bool enable_deltalf_mode;
+  // Indicates if CDEF should be enabled.
+  bool enable_cdef;
+  // Indicates if loop restoration filter should be enabled.
+  bool enable_restoration;
+  // When enabled, video mode should be used even for single frame input.
+  bool force_video_mode;
+  // Indicates if the error resiliency features should be enabled.
+  bool error_resilient_mode;
+  // Indicates if frame parallel decoding feature should be enabled.
+  bool frame_parallel_decoding_mode;
+  // Indicates if the input should be encoded as monochrome.
+  bool enable_monochrome;
+  // When enabled, the encoder will use a full header even for still pictures.
+  // When disabled, a reduced header is used for still pictures.
+  bool full_still_picture_hdr;
+  // Indicates if dual interpolation filters should be enabled.
+  bool enable_dual_filter;
+  // Indicates if frame order hint should be enabled or not.
+  bool enable_order_hint;
+  // Indicates if ref_frame_mvs should be enabled at the sequence level.
+  bool ref_frame_mvs_present;
+  // Indicates if ref_frame_mvs should be enabled at the frame level.
+  bool enable_ref_frame_mvs;
+  // Indicates if interintra compound mode is enabled.
+  bool enable_interintra_comp;
+  // Indicates if global motion should be enabled.
+  bool enable_global_motion;
+  // Indicates if palette should be enabled.
+  bool enable_palette;
+} ToolCfg;
 
 #define MAX_SUBGOP_CONFIGS 64
 #define MAX_SUBGOP_STEPS 64
@@ -671,57 +829,28 @@ typedef struct {
  */
 typedef struct AV1EncoderConfig {
   /*!\cond */
-  BITSTREAM_PROFILE profile;
-  aom_bit_depth_t bit_depth;  // Codec bit-depth.
-  int64_t target_bandwidth;   // bandwidth to be used in bits per second
-
   // Configuration related to the input video.
   InputCfg input_cfg;
 
   // Configuration related to frame-dimensions.
   FrameDimensionCfg frm_dim_cfg;
 
-  // Configuration related to encoder algorithm.
-  AlgoCfg algo_cfg;
-
-  int speed;
-
-  MODE mode;
-
   /*!\endcond */
   /*!
-   * Indicates the current encoder pass :
-   * 0 = 1 Pass encode,
-   * 1 = First pass of two pass,
-   * 2 = Second pass of two pass.
-   *
+   * Encoder algorithm configuration.
    */
-  int pass;
-  /*!\cond */
+  AlgoCfg algo_cfg;
 
-  // Configuration related to key-frame.
+  /*!
+   * Configuration related to key-frames.
+   */
   KeyFrameCfg kf_cfg;
 
-  // ----------------------------------------------------------------
-  // DATARATE CONTROL OPTIONS
-
-  /*!\endcond */
   /*!
    * Rate control configuration
    */
   RateControlCfg rc_cfg;
   /*!\cond */
-
-  // Frame drop threshold.
-  int drop_frames_water_mark;
-
-  // controlling quality
-  int deltalf_mode;
-  int enable_cdef;
-  int enable_restoration;
-  int force_video_mode;
-  unsigned int vbr_corpus_complexity_lap;  // 0 indicates corpus complexity vbr
-                                           // mode is disabled
 
   // Configuration related to Quantization.
   QuantizationCfg q_cfg;
@@ -732,26 +861,18 @@ typedef struct AV1EncoderConfig {
   // Frame Super-Resolution size scaling.
   SuperResCfg superres_cfg;
 
-  // two pass datarate control
+  /*!\endcond */
+  /*!
+   * Two pass specific rate control configuration parameters
+   */
   TwoPassCfg two_pass_cfg;
+  /*!\cond */
 
   // SubGOP config.
   const char *subgop_config_str;
 
-  // END DATARATE CONTROL OPTIONS
-  // ----------------------------------------------------------------
-
-  /* Bitfield defining the error resiliency features to enable.
-   * Can provide decodable frames after losses in previous
-   * frames and decodable partitions after losses in the same frame.
-   */
-  unsigned int error_resilient_mode;
-
-  /* Bitfield defining the parallel decoding mode where the
-   * decoding in successive frames may be conducted in parallel
-   * just by decoding the frame headers.
-   */
-  unsigned int frame_parallel_decoding_mode;
+  // Configuration related to encoder toolsets.
+  ToolCfg tool_cfg;
 
   // Configuration related to Group of frames.
   GFConfig gf_cfg;
@@ -759,17 +880,8 @@ typedef struct AV1EncoderConfig {
   // Tile related configuration parameters.
   TileConfig tile_cfg;
 
-  int row_mt;
-
-  int max_threads;
-
-  aom_tune_metric tuning;
-  const char *vmaf_model_path;
-  aom_tune_content content;
-  int use_highbitdepth;
-  aom_chroma_sample_position_t chroma_sample_position;
-  int film_grain_test_vector;
-  const char *film_grain_table_filename;
+  // Configuration related to Tune.
+  TuneCfg tune_cfg;
 
   // Configuration related to color.
   ColorCfg color_cfg;
@@ -782,18 +894,6 @@ typedef struct AV1EncoderConfig {
 
   // Configuration related to unit tests.
   UnitTestCfg unit_test_cfg;
-
-  aom_superblock_size_t superblock_size;
-  uint8_t monochrome;
-  unsigned int full_still_picture_hdr;
-  int enable_dual_filter;
-  int enable_order_hint;
-  int enable_ref_frame_mvs;
-  unsigned int allow_ref_frame_mvs;
-  int enable_interintra_comp;
-  int enable_global_motion;
-  int enable_palette;
-  unsigned int save_as_annexb;
 
   // Flags related to motion mode.
   MotionModeCfg motion_mode_cfg;
@@ -810,19 +910,61 @@ typedef struct AV1EncoderConfig {
   // Partition related information.
   PartitionCfg part_cfg;
 
-#if CONFIG_DENOISE
-  float noise_level;
-  int noise_block_size;
-#endif
-
   // Configuration related to frequency of cost update.
   CostUpdateFreq cost_upd_freq;
 
-  int border_in_pixels;
-  AV1_LEVEL target_seq_level_idx[MAX_NUM_OPERATING_POINTS];
+#if CONFIG_DENOISE
+  // Indicates the noise level.
+  float noise_level;
+  // Indicates the the denoisers block size.
+  int noise_block_size;
+#endif
+
   // Bit mask to specify which tier each of the 32 possible operating points
   // conforms to.
   unsigned int tier_mask;
+
+  // Indicates the number of pixels off the edge of a reference frame we're
+  // allowed to go when forming an inter prediction.
+  int border_in_pixels;
+
+  // Indicates the maximum number of threads that may be used by the encoder.
+  int max_threads;
+
+  // Indicates the spped preset to be used.
+  int speed;
+
+  // Indicates the target sequence level index for each operating point(OP).
+  AV1_LEVEL target_seq_level_idx[MAX_NUM_OPERATING_POINTS];
+
+  // Indicates the bitstream profile to be used.
+  BITSTREAM_PROFILE profile;
+
+  /*!\endcond */
+  /*!
+   * Indicates the current encoder pass :
+   * 0 = 1 Pass encode,
+   * 1 = First pass of two pass,
+   * 2 = Second pass of two pass.
+   *
+   */
+  enum aom_enc_pass pass;
+  /*!\cond */
+
+  // Indicates if the encoding is GOOD or REALTIME.
+  MODE mode;
+
+  // Indicates if row-based multi-threading should be enabled or not.
+  bool row_mt;
+
+  // Indicates if 16bit frame buffers are to be used i.e., the content is >
+  // 8-bit.
+  bool use_highbitdepth;
+
+  // Indicates the bitstream syntax mode. 0 indicates bitstream is saved as
+  // Section 5 bitstream, while 1 indicates the bitstream is saved in Annex - B
+  // format.
+  bool save_as_annexb;
 
   /*!\endcond */
 } AV1EncoderConfig;
@@ -1208,15 +1350,19 @@ typedef struct {
    */
   int allocated_tile_cols;
   /*!
-   * Number of superblock rows for which row synchronization memory is allocated
-   * per tile.
+   * Number of rows for which row synchronization memory is allocated
+   * per tile. During first-pass/look-ahead stage this equals the
+   * maximum number of macroblock rows in a tile. During encode stage,
+   * this equals the maximum number of superblock rows in a tile.
    */
-  int allocated_sb_rows;
+  int allocated_rows;
   /*!
-   * Number of superblock columns for which entropy context memory is allocated
-   * per tile.
+   * Number of columns for which entropy context memory is allocated
+   * per tile. During encode stage, this equals the maximum number of
+   * superblock columns in a tile minus 1. The entropy context memory
+   * is not allocated during first-pass/look-ahead stage.
    */
-  int allocated_sb_cols;
+  int allocated_cols;
 
   /*!
    * thread_id_to_tile_id[i] indicates the tile id assigned to the ith thread.
@@ -1901,7 +2047,7 @@ typedef struct AV1_COMP {
   /*!
    * When set, this flag indicates that the current frame is a forward keyframe.
    */
-  int no_show_kf;
+  int no_show_fwd_kf;
 
   /*!
    * Stores the trellis optimization type at segment level.
@@ -2429,6 +2575,11 @@ typedef struct AV1_COMP {
    * in a scale of 8x8 block.
    */
   uint8_t *consec_zero_mv;
+
+  /*!
+   * Number of frames left to be encoded, is 0 if limit is not set.
+   */
+  int frames_left;
 } AV1_COMP;
 
 /*!\cond */
