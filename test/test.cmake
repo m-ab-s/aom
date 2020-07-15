@@ -218,6 +218,7 @@ if(NOT BUILD_SHARED_LIBS)
               "${AOM_ROOT}/test/pickrst_test.cc"
               "${AOM_ROOT}/test/quantize_func_test.cc"
               "${AOM_ROOT}/test/sad_test.cc"
+              "${AOM_ROOT}/test/stream_iter_test.cc"
               "${AOM_ROOT}/test/subtract_test.cc"
               "${AOM_ROOT}/test/reconinter_test.cc"
               "${AOM_ROOT}/test/sum_squares_test.cc"

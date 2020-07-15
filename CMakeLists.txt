@@ -155,6 +155,7 @@ list(APPEND AOM_ENCODER_APP_UTIL_SOURCES
             "${AOM_ROOT}/common/warnings.h"
             "${AOM_ROOT}/common/y4minput.c"
             "${AOM_ROOT}/common/y4minput.h"
+            "${AOM_ROOT}/common/stream_iter.c"
             "${AOM_ROOT}/examples/encoder_util.h"
             "${AOM_ROOT}/examples/encoder_util.c")
 

@@ -43,6 +43,7 @@ struct AvxEncoderConfig {
   int verbose;
   int limit;
   int skip_frames;
+  int step_frames;
   int show_psnr;
   enum TestDecodeFatality test_decode;
   int have_framerate;
