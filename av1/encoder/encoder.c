@@ -807,8 +807,10 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
       av1_process_subgop_config_set(oxcf->subgop_config_str,
                                     &cpi->subgop_config_set);
       // print only the encoder stage config
-      if (cpi->compressor_stage == ENCODE_STAGE)
-        av1_print_subgop_config_set(&cpi->subgop_config_set);
+      if (cpi->compressor_stage == ENCODE_STAGE) {
+        // Uncomment to print out the configuration
+        // av1_print_subgop_config_set(&cpi->subgop_config_set);
+      }
     }
   }
 }
