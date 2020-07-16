@@ -772,6 +772,73 @@ static int get_free_ref_map_index(const RefBufferStack *ref_buffer_stack) {
   return INVALID_IDX;
 }
 
+static int get_refresh_frame_flags_subgop_cfg(
+    const AV1_COMP *const cpi, const RefBufferStack *const ref_buffer_stack,
+    int refresh_mask, int free_fb_index) {
+  const int gop_cfg_index =
+      get_subgop_idx(&cpi->gf_group, &cpi->subgop_config_set);
+  SubGOPCfg gop_cfg = cpi->subgop_config_set.config[gop_cfg_index];
+  const int step_index =
+      get_subgop_step_idx(&cpi->gf_group, &cpi->subgop_config_set,
+                          cpi->common.current_frame.frame_type);
+  assert(step_index >= 0);
+  SubGOPStepCfg step_gop_cfg = gop_cfg.step[step_index];
+
+  const int pyr_level = step_gop_cfg.pyr_level;
+  const FRAME_TYPE_CODE type_code = step_gop_cfg.type_code;
+  // No refresh necessary for these frame types
+  if (type_code == FRAME_TYPE_INO_REPEAT ||
+      type_code == FRAME_TYPE_INO_SHOWEXISTING)
+    return refresh_mask;
+  // If there is an open slot, refresh that one instead of replacing a reference
+  if (free_fb_index != INVALID_IDX) {
+    refresh_mask = 1 << free_fb_index;
+    return refresh_mask;
+  }
+
+  switch (type_code) {
+    case FRAME_TYPE_INO_VISIBLE:
+      if (ref_buffer_stack->lst_stack_size >= 2)
+        refresh_mask =
+            1 << ref_buffer_stack
+                     ->lst_stack[ref_buffer_stack->lst_stack_size - 1];
+      else if (ref_buffer_stack->gld_stack_size >= 2)
+        refresh_mask =
+            1 << ref_buffer_stack
+                     ->gld_stack[ref_buffer_stack->gld_stack_size - 1];
+      else
+        assert(0 && "No ref map index found");
+      break;
+    case FRAME_TYPE_OOO_FILTERED:
+      if (pyr_level == 1) {
+        if (ref_buffer_stack->gld_stack_size >= 3)
+          refresh_mask =
+              1 << ref_buffer_stack
+                       ->gld_stack[ref_buffer_stack->gld_stack_size - 1];
+        else if (ref_buffer_stack->lst_stack_size >= 2)
+          refresh_mask =
+              1 << ref_buffer_stack
+                       ->lst_stack[ref_buffer_stack->lst_stack_size - 1];
+        else
+          assert(0 && "No ref map index found");
+
+      } else {
+        refresh_mask =
+            1 << ref_buffer_stack
+                     ->lst_stack[ref_buffer_stack->lst_stack_size - 1];
+      }
+      break;
+    case FRAME_TYPE_OOO_UNFILTERED:
+      refresh_mask = 1 << ref_buffer_stack
+                              ->lst_stack[ref_buffer_stack->lst_stack_size - 1];
+      break;
+    case FRAME_TYPE_INO_REPEAT:
+    case FRAME_TYPE_INO_SHOWEXISTING:
+    default: assert(0); break;
+  }
+  return refresh_mask;
+}
+
 int av1_get_refresh_frame_flags(const AV1_COMP *const cpi,
                                 const EncodeFrameParams *const frame_params,
                                 FRAME_UPDATE_TYPE frame_update_type,
@@ -844,6 +911,17 @@ int av1_get_refresh_frame_flags(const AV1_COMP *const cpi,
 
   // Search for the open slot to store the current frame.
   int free_fb_index = get_free_ref_map_index(ref_buffer_stack);
+
+  // Compute the refresh mask according to the subgop cfg
+  const int gop_cfg_index =
+      get_subgop_idx(&cpi->gf_group, &cpi->subgop_config_set);
+  if (cpi->subgop_config_set.num_configs > 0 &&
+      cpi->oxcf.algo_cfg.enable_tpl_model
+      // TODO(sarahparker) Use the subgop cfg for the last subgop group
+      && gop_cfg_index == 0) {
+    return get_refresh_frame_flags_subgop_cfg(cpi, ref_buffer_stack,
+                                              refresh_mask, free_fb_index);
+  }
   switch (frame_update_type) {
     case KF_UPDATE:
     case GF_UPDATE:
