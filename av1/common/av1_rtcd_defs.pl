@@ -282,7 +282,7 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
   add_proto qw/void av1_fwd_txfm2d_16x64/, "const int16_t *input, int32_t *output, int stride, TX_TYPE tx_type, PREDICTION_MODE mode, int bd";
   add_proto qw/void av1_fwd_txfm2d_64x16/, "const int16_t *input, int32_t *output, int stride, TX_TYPE tx_type, PREDICTION_MODE mode, int bd";
 
-  if (aom_config("CONFIG_NEW_TX64X64") eq "") {
+  if (aom_config("CONFIG_SUPERRES_TX64") eq "") {
     specialize qw/av1_fwd_txfm2d_64x64 sse4_1 avx2/;
     specialize qw/av1_fwd_txfm2d_32x64 sse4_1/;
     specialize qw/av1_fwd_txfm2d_64x32 sse4_1/;

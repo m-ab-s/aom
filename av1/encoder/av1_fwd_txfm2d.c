@@ -20,12 +20,12 @@
 #include "av1/encoder/av1_fwd_txfm1d.h"
 #include "av1/encoder/av1_fwd_txfm1d_cfg.h"
 
-#if CONFIG_NEW_TX64X64
+#if CONFIG_SUPERRES_TX64
 #define USE_SIMPLE_DOWNSCALE 0
 #if USE_SIMPLE_DOWNSCALE == 0
 #include "av1/common/resize.h"
 #endif  // USE_SIMPLE_DOWNSCALE == 0
-#endif  // CONFIG_NEW_TX64X64
+#endif  // CONFIG_SUPERRES_TX64
 
 static INLINE TxfmFunc fwd_txfm_type_to_func(int mode, TXFM_TYPE txfm_type) {
   (void)mode;
@@ -430,7 +430,7 @@ void av1_fwd_txfm2d_32x32_c(const int16_t *input, int32_t *output, int stride,
   fwd_txfm2d_c(input, output, stride, &cfg, txfm_buf, bd);
 }
 
-#if CONFIG_NEW_TX64X64
+#if CONFIG_SUPERRES_TX64
 void av1_fwd_txfm2d_64x64_c(const int16_t *input, int32_t *output, int stride,
                             TX_TYPE tx_type, PREDICTION_MODE mode, int bd) {
   // Downsample to 32x32
@@ -645,7 +645,7 @@ void av1_fwd_txfm2d_64x16_c(const int16_t *input, int32_t *output, int stride,
   }
 }
 
-#endif  // CONFIG_NEW_TX64X64
+#endif  // CONFIG_SUPERRES_TX64
 
 #if CONFIG_FLEX_PARTITION
 void av1_fwd_txfm2d_4x32_c(const int16_t *input, int32_t *output, int stride,

@@ -415,7 +415,7 @@ void av1_fwd_txfm(const int16_t *src_diff, tran_low_t *coeff, int diff_stride,
   av1_lowbd_fwd_txfm_c(src_diff, coeff, diff_stride, txfm_param);
 #else
   if (txfm_param->bd == 8) {
-#if CONFIG_DST7_16X16 && CONFIG_NEW_TX64X64 && CONFIG_DST_32X32
+#if CONFIG_DST7_16X16 && CONFIG_SUPERRES_TX64 && CONFIG_DST_32X32
     if (tx_size_wide[txfm_param->tx_size] == 16 ||
         tx_size_high[txfm_param->tx_size] == 16 ||
         tx_size_wide[txfm_param->tx_size] == 32 ||
@@ -433,7 +433,7 @@ void av1_fwd_txfm(const int16_t *src_diff, tran_low_t *coeff, int diff_stride,
       av1_lowbd_fwd_txfm_c(src_diff, coeff, diff_stride, txfm_param);
     else
       av1_lowbd_fwd_txfm(src_diff, coeff, diff_stride, txfm_param);
-#elif CONFIG_DST7_16X16 && CONFIG_NEW_TX64X64
+#elif CONFIG_DST7_16X16 && CONFIG_SUPERRES_TX64
     if (tx_size_wide[txfm_param->tx_size] == 16 ||
         tx_size_high[txfm_param->tx_size] == 16 ||
         tx_size_wide[txfm_param->tx_size] == 64 ||
@@ -441,7 +441,7 @@ void av1_fwd_txfm(const int16_t *src_diff, tran_low_t *coeff, int diff_stride,
       av1_lowbd_fwd_txfm_c(src_diff, coeff, diff_stride, txfm_param);
     else
       av1_lowbd_fwd_txfm(src_diff, coeff, diff_stride, txfm_param);
-#elif CONFIG_DST_32X32 && CONFIG_NEW_TX64X64
+#elif CONFIG_DST_32X32 && CONFIG_SUPERRES_TX64
     if (tx_size_wide[txfm_param->tx_size] == 32 ||
         tx_size_high[txfm_param->tx_size] == 32 ||
         tx_size_wide[txfm_param->tx_size] == 64 ||
@@ -461,7 +461,7 @@ void av1_fwd_txfm(const int16_t *src_diff, tran_low_t *coeff, int diff_stride,
       av1_lowbd_fwd_txfm_c(src_diff, coeff, diff_stride, txfm_param);
     else
       av1_lowbd_fwd_txfm(src_diff, coeff, diff_stride, txfm_param);
-#elif CONFIG_NEW_TX64X64
+#elif CONFIG_SUPERRES_TX64
     if (tx_size_wide[txfm_param->tx_size] == 64 ||
         tx_size_high[txfm_param->tx_size] == 64)
       av1_lowbd_fwd_txfm_c(src_diff, coeff, diff_stride, txfm_param);
@@ -469,7 +469,7 @@ void av1_fwd_txfm(const int16_t *src_diff, tran_low_t *coeff, int diff_stride,
       av1_lowbd_fwd_txfm(src_diff, coeff, diff_stride, txfm_param);
 #else
     av1_lowbd_fwd_txfm(src_diff, coeff, diff_stride, txfm_param);
-#endif  // CONFIG_NEW_TX64X64
+#endif  // CONFIG_SUPERRES_TX64
   } else {
     av1_highbd_fwd_txfm(src_diff, coeff, diff_stride, txfm_param);
   }

@@ -76,7 +76,7 @@ void av1_convolve_nonsep_dual_highbd(const uint8_t *dgd, int width, int height,
                                      const int16_t *filter, uint8_t *dst,
                                      int dst_stride, int bit_depth);
 
-#if CONFIG_NEW_TX64X64
+#if CONFIG_SUPERRES_TX64
 // Nonseparable classified convolution with different filters used for each
 // pixel based on its class as specified by supplied class map.
 void av1_convolve_nonsep_cls(const uint8_t *dgd, int width, int height,
@@ -91,7 +91,7 @@ void av1_convolve_nonsep_cls_highbd(const uint16_t *dgd, int width, int height,
                                     const int16_t *filter, int filter_stride,
                                     uint16_t *dst, int dst_stride,
                                     int bit_depth);
-#endif  // CONFIG_NEW_TX64X64
+#endif  // CONFIG_SUPERRES_TX64
 
 #define ROUND0_BITS 3
 #define COMPOUND_ROUND1_BITS 7

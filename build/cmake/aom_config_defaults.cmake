@@ -177,8 +177,10 @@ set_aom_config_var(CONFIG_EXT_IBC_MODES 0 NUMBER
                    "AV2 enhanced IBC coding modes experiment flag")
 set_aom_config_var(CONFIG_WIENER_NONSEP 0 NUMBER
                    "AV2 nonsep Wiener filter experiment flag")
-set_aom_config_var(CONFIG_NEW_TX64X64 0 NUMBER
-                   "AV2 new 64-length transform experiment flag")
+set_aom_config_var(CONFIG_SUPERRES_TX64 0 NUMBER
+                   "AV2 64-length superres tx experiment flag")
+set_aom_config_var(CONFIG_SUPERRES_TX64_DIRFILTER 0 NUMBER
+                   "AV2 64-length superres tx w/ dir filter experiment flag")
 set_aom_config_var(CONFIG_DIFFWTD_42 0 NUMBER
                    "AV2 diffwtd mask experiment flag")
 set_aom_config_var(CONFIG_ILLUM_MCOMP 0 NUMBER

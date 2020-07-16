@@ -620,7 +620,7 @@ static INLINE void inv_txfm2d_add_facade(const int32_t *input, uint16_t *output,
   inv_txfm2d_add_c(input, output, stride, &cfg, txfm_buf, tx_size, bd);
 }
 
-#if CONFIG_NEW_TX64X64
+#if CONFIG_SUPERRES_TX64
 static INLINE void inv_txfm2d_c(const int32_t *input, int16_t *output,
                                 int stride, TXFM_2D_FLIP_CFG *cfg,
                                 int32_t *txfm_buf, TX_SIZE tx_size, int bd) {
@@ -734,7 +734,7 @@ static INLINE void inv_txfm2d_facade(const int32_t *input, int16_t *output,
   // av1_gen_inv_stage_range() does for inverse shifts.
   inv_txfm2d_c(input, output, stride, &cfg, txfm_buf, tx_size, bd);
 }
-#endif  // CONFIG_NEW_TX64X64
+#endif  // CONFIG_SUPERRES_TX64
 
 void av1_inv_txfm2d_add_4x8_c(const int32_t *input, uint16_t *output,
                               int stride, TX_TYPE tx_type, PREDICTION_MODE mode,
@@ -816,7 +816,7 @@ void av1_inv_txfm2d_add_32x32_c(const int32_t *input, uint16_t *output,
                         mode, bd);
 }
 
-#if CONFIG_NEW_TX64X64
+#if CONFIG_SUPERRES_TX64
 static int is_constant_buffer(int16_t *buf, int w, int h, int stride) {
   const int16_t topleftcorner = buf[0];
   for (int i = 0; i < h; ++i) {
@@ -827,7 +827,7 @@ static int is_constant_buffer(int16_t *buf, int w, int h, int stride) {
   return 1;
 }
 
-#if USE_SUPERRES_FILTER_TX64
+#if CONFIG_SUPERRES_TX64_DIRFILTER
 
 #define STX64X64_FILTER_TAPS 32
 #define STX64XN_FILTER_TAPS 20
@@ -1054,7 +1054,7 @@ const int16_t stxnx64_filters[STXNX64_FILTER_COEFFS * NUM_EDGE_CLASSES] = {
   33, -28, 8,   13,  -5,  3,  44,  -22, -14, -13, 19,  -1,  8,   2,   8,
   2,  10,  -16, -20, 6,   8,  4,   5,   0,   0,
 };
-#endif  // USE_SUPERRES_FILTER_TX64
+#endif  // CONFIG_SUPERRES_TX64_DIRFILTER
 
 void av1_inv_txfm2d_add_64x64_c(const int32_t *input, uint16_t *output,
                                 int stride, TX_TYPE tx_type,
@@ -1078,7 +1078,7 @@ void av1_inv_txfm2d_add_64x64_c(const int32_t *input, uint16_t *output,
     // Upsample to 64x64.
     DECLARE_ALIGNED(32, int16_t, output_up[64 * 64]);
     av1_signed_up2(output_32x32, 32, 32, 32, output_up, 64, 1, 1, bd);
-#if USE_SUPERRES_FILTER_TX64
+#if CONFIG_SUPERRES_TX64_DIRFILTER
     for (int r = 0; r < 64; ++r) {
       for (int c = 0; c < 64; ++c) {
         const tran_low_t residue = (tran_low_t)output_up[64 * r + c];
@@ -1101,7 +1101,7 @@ void av1_inv_txfm2d_add_64x64_c(const int32_t *input, uint16_t *output,
             highbd_clip_pixel_add(output[r * stride + c], residue, bd);
       }
     }
-#endif  // USE_SUPERRES_FILTER_TX64
+#endif  // CONFIG_SUPERRES_TX64_DIRFILTER
   }
 }
 
@@ -1135,7 +1135,7 @@ void av1_inv_txfm2d_add_32x64_c(const int32_t *input, uint16_t *output,
     DECLARE_ALIGNED(32, int16_t, output_up[32 * 64]);
     // Upsample to 32x64.
     av1_signed_up2(output_32x32, 32, 32, 32, output_up, 32, 1, 0, bd);
-#if USE_SUPERRES_FILTER_TX64
+#if CONFIG_SUPERRES_TX64_DIRFILTER
     for (int r = 0; r < 64; ++r) {
       for (int c = 0; c < 32; ++c) {
         const tran_low_t residue = (tran_low_t)output_up[32 * r + c];
@@ -1158,7 +1158,7 @@ void av1_inv_txfm2d_add_32x64_c(const int32_t *input, uint16_t *output,
             highbd_clip_pixel_add(output[r * stride + c], residue, bd);
       }
     }
-#endif  // USE_SUPERRES_FILTER_TX64
+#endif  // CONFIG_SUPERRES_TX64_DIRFILTER
   }
 }
 
@@ -1193,7 +1193,7 @@ void av1_inv_txfm2d_add_64x32_c(const int32_t *input, uint16_t *output,
     DECLARE_ALIGNED(32, int16_t, output_up[64 * 32]);
     // Upsample to 64x32.
     av1_signed_up2(output_32x32, 32, 32, 32, output_up, 64, 0, 1, bd);
-#if USE_SUPERRES_FILTER_TX64
+#if CONFIG_SUPERRES_TX64_DIRFILTER
     for (int r = 0; r < 32; ++r) {
       for (int c = 0; c < 64; ++c) {
         const tran_low_t residue = (tran_low_t)output_up[64 * r + c];
@@ -1216,7 +1216,7 @@ void av1_inv_txfm2d_add_64x32_c(const int32_t *input, uint16_t *output,
             highbd_clip_pixel_add(output[r * stride + c], residue, bd);
       }
     }
-#endif  // USE_SUPERRES_FILTER_TX64
+#endif  // CONFIG_SUPERRES_TX64_DIRFILTER
   }
 }
 
@@ -1251,7 +1251,7 @@ void av1_inv_txfm2d_add_16x64_c(const int32_t *input, uint16_t *output,
     DECLARE_ALIGNED(32, int16_t, output_up[16 * 64]);
     // Upsample to 16x64.
     av1_signed_up2(output_16x32, 32, 16, 16, output_up, 16, 1, 0, bd);
-#if USE_SUPERRES_FILTER_TX64
+#if CONFIG_SUPERRES_TX64_DIRFILTER
     for (int r = 0; r < 64; ++r) {
       for (int c = 0; c < 16; ++c) {
         const tran_low_t residue = (tran_low_t)output_up[16 * r + c];
@@ -1274,7 +1274,7 @@ void av1_inv_txfm2d_add_16x64_c(const int32_t *input, uint16_t *output,
             highbd_clip_pixel_add(output[r * stride + c], residue, bd);
       }
     }
-#endif  // USE_SUPERRES_FILTER_TX64
+#endif  // CONFIG_SUPERRES_TX64_DIRFILTER
   }
 }
 
@@ -1309,7 +1309,7 @@ void av1_inv_txfm2d_add_64x16_c(const int32_t *input, uint16_t *output,
     DECLARE_ALIGNED(32, int16_t, output_up[64 * 16]);
     // Upsample to 64x16.
     av1_signed_up2(output_32x16, 16, 32, 32, output_up, 64, 0, 1, bd);
-#if USE_SUPERRES_FILTER_TX64
+#if CONFIG_SUPERRES_TX64_DIRFILTER
     for (int r = 0; r < 16; ++r) {
       for (int c = 0; c < 64; ++c) {
         const tran_low_t residue = (tran_low_t)output_up[64 * r + c];
@@ -1332,7 +1332,7 @@ void av1_inv_txfm2d_add_64x16_c(const int32_t *input, uint16_t *output,
             highbd_clip_pixel_add(output[r * stride + c], residue, bd);
       }
     }
-#endif  // USE_SUPERRES_FILTER_TX64
+#endif  // CONFIG_SUPERRES_TX64_DIRFILTER
   }
 }
 
@@ -1416,7 +1416,7 @@ void av1_inv_txfm2d_add_64x16_c(const int32_t *input, uint16_t *output,
                         mode, bd);
 }
 
-#endif  // CONFIG_NEW_TX64X64
+#endif  // CONFIG_SUPERRES_TX64
 
 void av1_inv_txfm2d_add_4x16_c(const int32_t *input, uint16_t *output,
                                int stride, TX_TYPE tx_type,

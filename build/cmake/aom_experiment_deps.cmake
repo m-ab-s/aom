@@ -61,4 +61,9 @@ macro(fix_experiment_configs)
     change_config_and_warn(CONFIG_MODE_DEP_NONSEP_INTRA_TX 1
                            CONFIG_MODE_DEP_NONSEP_SEC_INTRA_TX)
   endif()
+
+  if(CONFIG_SUPERRES_TX64_DIRFILTER)
+    change_config_and_warn(CONFIG_SUPERRES_TX64 1
+                           CONFIG_SUPERRES_TX64_DIRFILTER)
+  endif()
 endmacro()
