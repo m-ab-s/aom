@@ -601,12 +601,90 @@ static void update_arf_stack(int ref_map_index,
   }
 }
 
+// Update reference frame stack info according to the subgop cfg
+static void update_ref_frame_map_gopcfg(AV1_COMP *cpi, int show_existing_frame,
+                                        int ref_map_index,
+                                        RefBufferStack *ref_buffer_stack) {
+  GF_GROUP gf_group = cpi->gf_group;
+  AV1_COMMON *const cm = &cpi->common;
+
+  if (is_frame_droppable(&cpi->svc, &cpi->ext_flags.refresh_frame)) return;
+  if (cm->current_frame.frame_type == KEY_FRAME || frame_is_sframe(cm)) {
+    if (show_existing_frame)
+      ref_map_index = stack_pop(ref_buffer_stack->arf_stack,
+                                &ref_buffer_stack->arf_stack_size);
+    stack_reset(ref_buffer_stack->lst_stack, &ref_buffer_stack->lst_stack_size);
+    stack_reset(ref_buffer_stack->gld_stack, &ref_buffer_stack->gld_stack_size);
+    stack_reset(ref_buffer_stack->arf_stack, &ref_buffer_stack->arf_stack_size);
+    stack_push(ref_buffer_stack->gld_stack, &ref_buffer_stack->gld_stack_size,
+               ref_map_index);
+  } else {
+    const int gop_cfg_index =
+        get_subgop_idx(&gf_group, &cpi->subgop_config_set);
+    SubGOPCfg gop_cfg = cpi->subgop_config_set.config[gop_cfg_index];
+    const int step_index =
+        get_subgop_step_idx(&gf_group, &cpi->subgop_config_set,
+                            cpi->common.current_frame.frame_type);
+    assert(step_index >= 0);
+    SubGOPStepCfg step_gop_cfg = gop_cfg.step[step_index];
+
+    const int pyr_level = step_gop_cfg.pyr_level;
+    const FRAME_TYPE_CODE type_code = step_gop_cfg.type_code;
+    switch (type_code) {
+      case FRAME_TYPE_INO_REPEAT:
+        if (pyr_level == 1) {
+          ref_map_index = stack_pop(ref_buffer_stack->arf_stack,
+                                    &ref_buffer_stack->arf_stack_size);
+          stack_push(ref_buffer_stack->gld_stack,
+                     &ref_buffer_stack->gld_stack_size, ref_map_index);
+        } else {
+          ref_map_index = stack_pop(ref_buffer_stack->arf_stack,
+                                    &ref_buffer_stack->arf_stack_size);
+          stack_push(ref_buffer_stack->lst_stack,
+                     &ref_buffer_stack->lst_stack_size, ref_map_index);
+        }
+        break;
+      case FRAME_TYPE_INO_VISIBLE:
+        update_arf_stack(ref_map_index, ref_buffer_stack);
+        stack_push(ref_buffer_stack->lst_stack,
+                   &ref_buffer_stack->lst_stack_size, ref_map_index);
+        break;
+      case FRAME_TYPE_INO_SHOWEXISTING:
+        ref_map_index = stack_pop(ref_buffer_stack->arf_stack,
+                                  &ref_buffer_stack->arf_stack_size);
+        stack_push(ref_buffer_stack->lst_stack,
+                   &ref_buffer_stack->lst_stack_size, ref_map_index);
+        break;
+      case FRAME_TYPE_OOO_FILTERED:
+      case FRAME_TYPE_OOO_UNFILTERED:
+        update_arf_stack(ref_map_index, ref_buffer_stack);
+        stack_push(ref_buffer_stack->arf_stack,
+                   &ref_buffer_stack->arf_stack_size, ref_map_index);
+        break;
+      default: assert(0 && "unknown type");
+    }
+  }
+  return;
+}
+
 // Update reference frame stack info.
 void av1_update_ref_frame_map(AV1_COMP *cpi,
                               FRAME_UPDATE_TYPE frame_update_type,
                               int show_existing_frame, int ref_map_index,
                               RefBufferStack *ref_buffer_stack) {
   AV1_COMMON *const cm = &cpi->common;
+  const int gop_cfg_index =
+      get_subgop_idx(&cpi->gf_group, &cpi->subgop_config_set);
+  if (cpi->subgop_config_set.num_configs > 0 &&
+      !cpi->oxcf.algo_cfg.enable_tpl_model
+      // TODO(sarahparker) Use the subgop cfg for the last subgop group
+      && gop_cfg_index == 0) {
+    // Use the subgop cfg to update the ref frame map
+    update_ref_frame_map_gopcfg(cpi, show_existing_frame, ref_map_index,
+                                ref_buffer_stack);
+    return;
+  }
+
   // TODO(jingning): Consider the S-frame same as key frame for the
   // reference frame tracking purpose. The logic might be better
   // expressed than converting the frame update type.
