@@ -44,6 +44,38 @@ static INLINE void set_refresh_frame_flags(
   refresh_frame_flags->alt_ref_frame = refresh_arf;
 }
 
+// Get the subgop config index corresponding to the current gf group
+int get_subgop_idx(const GF_GROUP *const gf_group,
+                   const SubGOPSetCfg *const subgop_config_set) {
+  // Indicate there is no subgop cfg currently in use
+  if (subgop_config_set->num_configs == 0) return -1;
+  // TODO(sarahparker) This currently assumes there can be at most 2 config
+  // sets: The general set and the one to be applied to the last gf group in
+  // the GOP. This will need to be expanded to support a different scheme.
+  SubGOPCfg gop_cfg_0 = subgop_config_set->config[0];
+  // Assumes that set 0 will always have the same size as a gf group unless
+  // it is the last gf group in the GOP.
+  if (gf_group->size != gop_cfg_0.num_steps) return 1;
+  return 0;
+}
+
+// Get the subgop config index corresponding to the current frame within the
+// gf group
+int get_subgop_step_idx(const GF_GROUP *const gf_group,
+                        const SubGOPSetCfg *const subgop_config_set,
+                        FRAME_TYPE frame_type) {
+  // There is no config for the keyframe
+  if (frame_type == KEY_FRAME) return -1;
+  const int index = gf_group->index;
+  const int gop_cfg_index = get_subgop_idx(gf_group, subgop_config_set);
+  const int gop_cfg_index_prev = AOMMAX(0, gop_cfg_index - 1);
+  SubGOPCfg gop_cfg = subgop_config_set->config[gop_cfg_index_prev];
+  // The gop_cfg index and the gf_group index are misaligned by 1. This means
+  // gf group index 0 maps to the last gop cfg index from the previous group.
+  // This will realign them.
+  return index == 0 ? gop_cfg.num_steps - 1 : index - 1;
+}
+
 void av1_configure_buffer_updates(
     AV1_COMP *const cpi, RefreshFrameFlagsInfo *const refresh_frame_flags,
     const FRAME_UPDATE_TYPE type, int force_refresh_all) {
