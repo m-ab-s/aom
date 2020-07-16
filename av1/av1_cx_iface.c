@@ -157,6 +157,7 @@ struct av1_extracfg {
   unsigned int sb_multipass_unit_test;
 };
 
+// Example subgop config. Currently not used by default.
 const char subgop_config_str_16[] =
     "16:0:16F1P1^1/8F2P1^1^2^-1/4U3P1^1^2^-2^-1/2U4P1^1^-3^-2^-1/"
     "1V5P1^1^-4^-3^-2^-1/2S/3V5P1^5^4^-3^-2^-1/4S/6U4P1^3^4^-2^-1/"
@@ -189,7 +190,7 @@ static struct av1_extracfg default_extra_cfg = {
   5,              // gf_max_pyr_height
   AOM_TUNE_PSNR,  // tuning
   "/usr/local/share/model/vmaf_v0.6.1.pkl",  // VMAF model path
-  subgop_config_str_16,                      // SubGOP config string
+  NULL,                                      // SubGOP config string
   40,                                        // qp
   0,                                         // rc_max_intra_bitrate_pct
   0,                                         // rc_max_inter_bitrate_pct
