@@ -70,7 +70,7 @@ static int continue_prompt(int num_warnings) {
 static void check_quantizer(int min_qp, int max_qp,
                             struct WarningList *warning_list) {
   const int lossless = min_qp == 0 && max_qp == 0;
-  if (!lossless && (min_qp == max_qp || abs(max_qp - min_qp) < 8))
+  if (!lossless && (min_qp == max_qp || abs(max_qp - min_qp) < 32))
     add_warning(quantizer_warning_string, warning_list);
 }
 

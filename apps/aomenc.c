@@ -1640,7 +1640,7 @@ static int parse_stream_params(struct AvxEncoderConfig *global,
           get_qindex_from_quantizer_and_warn(min_q_val, "min-q", "min-qp");
     } else if (arg_match(&arg, &max_q_level, argi)) {
       const unsigned int max_q_val = arg_parse_uint(&arg);
-      config->cfg.rc_min_quantizer =
+      config->cfg.rc_max_quantizer =
           get_qindex_from_quantizer_and_warn(max_q_val, "max-q", "max-qp");
     } else if (arg_match(&arg, &undershoot_pct, argi)) {
       config->cfg.rc_undershoot_pct = arg_parse_uint(&arg);
