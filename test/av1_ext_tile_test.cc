@@ -200,12 +200,12 @@ class AV1ExtTileTest
 TEST_P(AV1ExtTileTest, DecoderResultTest) { TestRoundTrip(); }
 
 #if CONFIG_SINGLEPASS
-AV1_INSTANTIATE_TEST_CASE(
+AV1_INSTANTIATE_TEST_SUITE(
     // Only test 1-pass mode.
     AV1ExtTileTest, ::testing::Values(::libaom_test::kOnePassGood),
     ::testing::Range(1, 4));
 #else
-AV1_INSTANTIATE_TEST_CASE(
+AV1_INSTANTIATE_TEST_SUITE(
     // Only test 2-pass mode.
     AV1ExtTileTest, ::testing::Values(::libaom_test::kTwoPassGood),
     ::testing::Range(1, 4));
@@ -216,12 +216,12 @@ class AV1ExtTileTestLarge : public AV1ExtTileTest {};
 TEST_P(AV1ExtTileTestLarge, DecoderResultTest) { TestRoundTrip(); }
 
 #if CONFIG_SINGLEPASS
-AV1_INSTANTIATE_TEST_CASE(
+AV1_INSTANTIATE_TEST_SUITE(
     // Only test 1-pass mode.
     AV1ExtTileTestLarge, ::testing::Values(::libaom_test::kOnePassGood),
     ::testing::Range(0, 1));
 #else
-AV1_INSTANTIATE_TEST_CASE(
+AV1_INSTANTIATE_TEST_SUITE(
     // Only test 2-pass mode.
     AV1ExtTileTestLarge, ::testing::Values(::libaom_test::kTwoPassGood),
     ::testing::Range(0, 1));

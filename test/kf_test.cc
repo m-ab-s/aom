@@ -104,21 +104,12 @@ class KeyFrameIntervalTestLarge
 TEST_P(KeyFrameIntervalTestLarge, KeyFrameIntervalTest) {
   libaom_test::I420VideoSource video("hantro_collage_w352h288.yuv", 352, 288,
                                      cfg_.g_timebase.den, cfg_.g_timebase.num,
-                                     0, 150);
+                                     0, 75);
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
   ASSERT_EQ(is_kf_interval_violated_, false) << kf_dist_param_;
 }
 
-#if CONFIG_SINGLEPASS
-AV1_INSTANTIATE_TEST_CASE(KeyFrameIntervalTestLarge,
-                          ::testing::Values(::libaom_test::kOnePassGood),
-                          ::testing::ValuesIn(kfTestParams),
-                          ::testing::Values(AOM_Q, AOM_VBR, AOM_CBR, AOM_CQ));
-#else
-AV1_INSTANTIATE_TEST_CASE(KeyFrameIntervalTestLarge,
-                          ::testing::Values(::libaom_test::kOnePassGood,
-                                            ::libaom_test::kTwoPassGood),
-                          ::testing::ValuesIn(kfTestParams),
-                          ::testing::Values(AOM_Q, AOM_VBR, AOM_CBR, AOM_CQ));
-#endif  // CONFIG_SINGLEPASS
+AV1_INSTANTIATE_TEST_SUITE(KeyFrameIntervalTestLarge, NONREALTIME_TEST_MODES,
+                           ::testing::ValuesIn(kfTestParams),
+                           ::testing::Values(AOM_Q, AOM_VBR, AOM_CBR, AOM_CQ));
 }  // namespace

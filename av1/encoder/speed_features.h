@@ -39,13 +39,6 @@ enum {
 } UENUM1BYTE(GM_SEARCH_TYPE);
 
 enum {
-  GM_ERRORADV_TR_0,
-  GM_ERRORADV_TR_1,
-  GM_ERRORADV_TR_2,
-  GM_ERRORADV_TR_TYPES,
-} UENUM1BYTE(GM_ERRORADV_TYPE);
-
-enum {
   DIST_WTD_COMP_ENABLED,
   DIST_WTD_COMP_SKIP_MV_SEARCH,
   DIST_WTD_COMP_DISABLED,
@@ -117,14 +110,25 @@ enum {
   RESERVE_3_SF = 128,
 } UENUM1BYTE(DEV_SPEED_FEATURES);
 
+/* This enumeration defines when the rate control recode loop will be
+ * enabled.
+ */
 enum {
-  // No recode.
+  /*
+   * No recodes allowed
+   */
   DISALLOW_RECODE = 0,
-  // Allow recode for KF and exceeding maximum frame bandwidth.
+  /*
+   * Recode KF's exceeding maximum frame bandwidth
+   */
   ALLOW_RECODE_KFMAXBW = 1,
-  // Allow recode only for KF/ARF/GF frames.
+  /*
+   * Allow recode only for KF/ARF/GF frames
+   */
   ALLOW_RECODE_KFARFGF = 2,
-  // Allow recode for all frames based on bitrate constraints.
+  /*
+   * Allow recode for all frame types based on bitrate constraints.
+   */
   ALLOW_RECODE = 3,
 } UENUM1BYTE(RECODE_LOOP_TYPE);
 
@@ -184,15 +188,17 @@ enum {
 } UENUM1BYTE(MODE_SEARCH_SKIP_LOGIC);
 
 enum {
-  NO_PRUNE = 0,
+  // No tx type pruning
+  TX_TYPE_PRUNE_0 = 0,
   // adaptively prunes the least perspective tx types out of all 16
   // (tuned to provide negligible quality loss)
-  PRUNE_2D_ACCURATE = 1,
+  TX_TYPE_PRUNE_1 = 1,
   // similar, but applies much more aggressive pruning to get better speed-up
-  PRUNE_2D_FAST = 2,
-  PRUNE_2D_MORE = 3,
+  TX_TYPE_PRUNE_2 = 2,
+  TX_TYPE_PRUNE_3 = 3,
   // More aggressive pruning based on tx type score and allowed tx count
-  PRUNE_2D_AGGRESSIVE = 4,
+  TX_TYPE_PRUNE_4 = 4,
+  TX_TYPE_PRUNE_5 = 5,
 } UENUM1BYTE(TX_TYPE_PRUNE_MODE);
 
 enum {
@@ -246,7 +252,7 @@ typedef struct {
   // inter blocks. It enables further tx type mode pruning based on ML model for
   // mode evaluation and disables tx type mode pruning for winner mode
   // processing.
-  int enable_winner_mode_tx_type_pruning;
+  int winner_mode_tx_type_pruning;
 } TX_TYPE_SEARCH;
 
 enum {
@@ -256,8 +262,7 @@ enum {
   // Always use a fixed size partition
   FIXED_PARTITION,
 
-  REFERENCE_PARTITION,
-
+  // Partition using source variance
   VAR_BASED_PARTITION
 } UENUM1BYTE(PARTITION_SEARCH_TYPE);
 
@@ -274,29 +279,33 @@ enum {
   QTR_ONLY,
 } UENUM1BYTE(MV_PREC_LOGIC);
 
+/*!\endcond */
+/*!
+ * \brief Sequence/frame level speed vs quality features
+ */
 typedef struct HIGH_LEVEL_SPEED_FEATURES {
+  /*!\cond */
   // Frame level coding parameter update
   int frame_parameter_update;
 
+  /*!\endcond */
+  /*!
+   * Cases and frame types for which the recode loop is enabled.
+   */
   RECODE_LOOP_TYPE recode_loop;
 
-  // This feature controls the tolerence vs target used in deciding whether to
-  // recode a frame. It has no meaning if recode is disabled.
+  /*!
+   * Controls the tolerance vs target rate used in deciding whether to
+   * recode a frame. It has no meaning if recode is disabled.
+   */
   int recode_tolerance;
 
+  /*!\cond */
   // Determine how motion vector precision is chosen. The possibilities are:
   // LAST_MV_DATA: use the mv data from the last coded frame
   // CURRENT_Q: use the current q as a threshold
   // QTR_ONLY: use quarter pel precision only.
   MV_PREC_LOGIC high_precision_mv_usage;
-
-  // Whether to disable overlay frames for filtered Altref frames,
-  // overiding oxcf->algo_cfg.enable_overlay flag set as 1.
-  int disable_overlay_frames;
-
-  // Enable/disable adaptively deciding whether or not to encode ALTREF overlay
-  // frame.
-  int adaptive_overlay_encoding;
 
   // Always set to 0. If on it enables 0 cost background transmission
   // (except for the initial transmission of the segmentation). The feature is
@@ -304,11 +313,10 @@ typedef struct HIGH_LEVEL_SPEED_FEATURES {
   // backgrounds very to cheap to encode, and the segmentation we have
   // adds overhead.
   int static_segmentation;
-
-  // Enable/disable second_alt_ref temporal filtering.
-  int second_alt_ref_filtering;
+  /*!\endcond */
 } HIGH_LEVEL_SPEED_FEATURES;
 
+/*!\cond */
 typedef struct TPL_SPEED_FEATURES {
   // Enable/disable GOP length adaptive decision.
   int disable_gop_length_decision;
@@ -337,12 +345,6 @@ typedef struct TPL_SPEED_FEATURES {
 } TPL_SPEED_FEATURES;
 
 typedef struct GLOBAL_MOTION_SPEED_FEATURES {
-  // Global motion warp error threshold
-  GM_ERRORADV_TYPE gm_erroradv_type;
-
-  // Disable adaptive threshold for global motion warp error
-  int disable_adaptive_warp_error_thresh;
-
   // Do not compute the global motion parameters for a LAST2_FRAME or
   // LAST3_FRAME if the GOLDEN_FRAME is closer and it has a non identity
   // global model.
@@ -362,8 +364,8 @@ typedef struct GLOBAL_MOTION_SPEED_FEATURES {
 typedef struct PARTITION_SPEED_FEATURES {
   PARTITION_SEARCH_TYPE partition_search_type;
 
-  // Used if partition_search_type = FIXED_SIZE_PARTITION
-  BLOCK_SIZE always_this_block_size;
+  // Used if partition_search_type = FIXED_PARTITION
+  BLOCK_SIZE fixed_partition_size;
 
   // Prune extended partition types search
   // Can take values 0 - 2, 0 referring to no pruning, and 1 - 2 increasing
@@ -572,10 +574,6 @@ typedef struct INTER_MODE_SPEED_FEATURES {
   // Flag used to control the ref_best_rd based gating for chroma
   int perform_best_rd_based_gating_for_chroma;
 
-  // Skip certain motion modes (OBMC, warped, interintra) for single reference
-  // motion search, using the results of single ref SIMPLE_TRANSLATION
-  int prune_single_motion_modes_by_simple_trans;
-
   // Reuse the inter_intra_mode search result from NEARESTMV mode to other
   // single ref modes
   int reuse_inter_intra_mode;
@@ -643,10 +641,6 @@ typedef struct INTER_MODE_SPEED_FEATURES {
 
   // Disable obmc.
   int disable_obmc;
-
-  // Gate warp evaluation for motions of type IDENTITY,
-  // TRANSLATION and AFFINE(based on number of warp neighbors)
-  int prune_warp_using_wmtype;
 
   // Prune warped motion search using previous frame stats.
   int prune_warped_prob_thresh;
@@ -809,10 +803,6 @@ typedef struct TX_SPEED_FEATURES {
 } TX_SPEED_FEATURES;
 
 typedef struct RD_CALC_SPEED_FEATURES {
-  // This feature controls whether we do the expensive context update and
-  // calculation in the rd coefficient costing loop.
-  int use_fast_coef_costing;
-
   // Fast approximation of av1_model_rd_from_var_lapndz
   int simple_model_rd_from_var;
 
@@ -830,19 +820,9 @@ typedef struct RD_CALC_SPEED_FEATURES {
   // Trellis (dynamic programming) optimization of quantized values
   TRELLIS_OPT_TYPE optimize_coefficients;
 
-  // Use a hash table to store previously computed optimized qcoeffs from
-  // expensive calls to optimize_txb.
-  int use_hash_based_trellis;
-
   // Use hash table to store macroblock RD search results
   // to avoid repeated search on the same residue signal.
   int use_mb_rd_hash;
-
-  // Flag used to control the speed of the eob selection in trellis.
-  int trellis_eob_fast;
-
-  // Calculate RD cost before doing optimize_b, and skip if the cost is large.
-  int optimize_b_precheck;
 
   // Flag used to control the extent of coeff R-D optimization
   int perform_coeff_opt;
@@ -1017,72 +997,70 @@ typedef struct REAL_TIME_SPEED_FEATURES {
  * \brief Top level speed vs quality trade off data struture.
  */
 typedef struct SPEED_FEATURES {
-  /*!\cond */
-  /*
+  /*!
    * Sequence/frame level speed features:
    */
   HIGH_LEVEL_SPEED_FEATURES hl_sf;
 
-  /*
+  /*!
    * Speed features related to how tpl's searches are done.
    */
   TPL_SPEED_FEATURES tpl_sf;
 
-  /*
+  /*!
    * Global motion speed features:
    */
   GLOBAL_MOTION_SPEED_FEATURES gm_sf;
 
-  /*
+  /*!
    * Partition search speed features:
    */
   PARTITION_SPEED_FEATURES part_sf;
 
-  /*
+  /*!
    * Motion search speed features:
    */
   MV_SPEED_FEATURES mv_sf;
 
-  /*
+  /*!
    * Inter mode search speed features:
    */
   INTER_MODE_SPEED_FEATURES inter_sf;
 
-  /*
+  /*!
    * Interpolation filter search speed features:
    */
   INTERP_FILTER_SPEED_FEATURES interp_sf;
 
-  /*
+  /*!
    * Intra mode search speed features:
    */
   INTRA_MODE_SPEED_FEATURES intra_sf;
 
-  /*
+  /*!
    * Transform size/type search speed features:
    */
   TX_SPEED_FEATURES tx_sf;
 
-  /*
+  /*!
    * RD calculation speed features:
    */
   RD_CALC_SPEED_FEATURES rd_sf;
 
-  /*
+  /*!
    * Two-pass mode evaluation features:
    */
   WINNER_MODE_SPEED_FEATURES winner_mode_sf;
 
-  /*
+  /*!
    * In-loop filter speed features:
    */
   LOOP_FILTER_SPEED_FEATURES lpf_sf;
 
-  /*
+  /*!
    * Real-time mode speed features:
    */
   REAL_TIME_SPEED_FEATURES rt_sf;
-  /*!\endcond */
 } SPEED_FEATURES;
 /*!\cond */
 

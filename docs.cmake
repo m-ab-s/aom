@@ -114,6 +114,7 @@ if(CONFIG_AV1_ENCODER)
       ${AOM_DOXYGEN_SOURCES}
       "${AOM_ROOT}/av1/encoder/bitstream.h"
       "${AOM_ROOT}/av1/encoder/block.h"
+      "${AOM_ROOT}/av1/encoder/aq_cyclicrefresh.h"
       "${AOM_ROOT}/av1/encoder/encode_strategy.c"
       "${AOM_ROOT}/av1/encoder/encode_strategy.h"
       "${AOM_ROOT}/av1/encoder/encodeframe.c"
@@ -128,15 +129,23 @@ if(CONFIG_AV1_ENCODER)
       "${AOM_ROOT}/av1/encoder/lookahead.h"
       "${AOM_ROOT}/av1/encoder/palette.h"
       "${AOM_ROOT}/av1/encoder/palette.c"
+      "${AOM_ROOT}/av1/encoder/partition_search.h"
+      "${AOM_ROOT}/av1/encoder/partition_search.c"
+      "${AOM_ROOT}/av1/encoder/pass2_strategy.c"
       "${AOM_ROOT}/av1/encoder/pickcdef.h"
       "${AOM_ROOT}/av1/encoder/picklpf.h"
       "${AOM_ROOT}/av1/encoder/pickrst.h"
       "${AOM_ROOT}/av1/encoder/ratectrl.c"
       "${AOM_ROOT}/av1/encoder/ratectrl.h"
+      "${AOM_ROOT}/av1/encoder/rc_utils.h"
       "${AOM_ROOT}/av1/encoder/rdopt.h"
       "${AOM_ROOT}/av1/encoder/rdopt.c"
       "${AOM_ROOT}/av1/encoder/speed_features.h"
-      "${AOM_ROOT}/av1/encoder/tx_search.h")
+      "${AOM_ROOT}/av1/encoder/svc_layercontext.c"
+      "${AOM_ROOT}/av1/encoder/svc_layercontext.h"
+      "${AOM_ROOT}/av1/encoder/tx_search.h"
+      "${AOM_ROOT}/av1/encoder/var_based_part.h"
+      "${AOM_ROOT}/av1/encoder/nonrd_pickmode.c")
 endif()
 
 if(CONFIG_AV1_DECODER AND CONFIG_AV1_ENCODER)

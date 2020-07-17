@@ -478,7 +478,7 @@ TEST_P(ResizeRealtimeTest, TestInternalResizeSetScaleMode1) {
   ASSERT_EQ(frame_info_list_.size(), video.limit());
   for (std::vector<FrameInfo>::const_iterator info = frame_info_list_.begin();
        info != frame_info_list_.end(); ++info) {
-    const unsigned int frame = static_cast<unsigned>(info->pts);
+    const auto frame = static_cast<unsigned>(info->pts);
     unsigned int expected_w = 1280 >> 1;
     unsigned int expected_h = 720 >> 1;
     if (frame > 40) {
@@ -487,6 +487,41 @@ TEST_P(ResizeRealtimeTest, TestInternalResizeSetScaleMode1) {
     } else if (frame > 20 && frame <= 40) {
       expected_w = 1280 >> 2;
       expected_h = 720 >> 2;
+    }
+    EXPECT_EQ(expected_w, info->w)
+        << "Frame " << frame << " had unexpected width";
+    EXPECT_EQ(expected_h, info->h)
+        << "Frame " << frame << " had unexpected height";
+    EXPECT_EQ(static_cast<unsigned int>(0), GetMismatchFrames());
+  }
+}
+
+// Check the AOME_SET_SCALEMODE control by downsizing to
+// 1/2, then 1/4, and then back up to originsal.
+TEST_P(ResizeRealtimeTest, TestInternalResizeSetScaleMode1QVGA) {
+  ::libaom_test::I420VideoSource video("desktop1.320_180.yuv", 320, 180, 30, 1,
+                                       0, 80);
+  cfg_.g_w = 320;
+  cfg_.g_h = 180;
+  set_scale_mode_ = true;
+  set_scale_mode2_ = false;
+  DefaultConfig();
+  change_bitrate_ = false;
+  mismatch_nframes_ = 0;
+  ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
+  // Check we decoded the same number of frames as we attempted to encode
+  ASSERT_EQ(frame_info_list_.size(), video.limit());
+  for (std::vector<FrameInfo>::const_iterator info = frame_info_list_.begin();
+       info != frame_info_list_.end(); ++info) {
+    const auto frame = static_cast<unsigned>(info->pts);
+    unsigned int expected_w = 320 >> 1;
+    unsigned int expected_h = 180 >> 1;
+    if (frame > 40) {
+      expected_w = 320;
+      expected_h = 180;
+    } else if (frame > 20 && frame <= 40) {
+      expected_w = 320 >> 2;
+      expected_h = 180 >> 2;
     }
     EXPECT_EQ(expected_w, info->w)
         << "Frame " << frame << " had unexpected width";
@@ -512,7 +547,7 @@ TEST_P(ResizeRealtimeTest, TestInternalResizeSetScaleMode2) {
   ASSERT_EQ(frame_info_list_.size(), video.limit());
   for (std::vector<FrameInfo>::const_iterator info = frame_info_list_.begin();
        info != frame_info_list_.end(); ++info) {
-    const unsigned int frame = static_cast<unsigned>(info->pts);
+    const auto frame = static_cast<unsigned>(info->pts);
     unsigned int expected_w = 1280 >> 2;
     unsigned int expected_h = 720 >> 2;
     if (frame > 40) {
@@ -533,12 +568,12 @@ TEST_P(ResizeRealtimeTest, TestInternalResizeSetScaleMode2) {
 TEST_P(ResizeRealtimeTest, TestExternalResizeWorks) {
   ResizingVideoSource video;
   video.flag_codec_ = 1;
-  DefaultConfig();
   change_bitrate_ = false;
   set_scale_mode_ = false;
   set_scale_mode2_ = false;
   mismatch_psnr_ = 0.0;
   mismatch_nframes_ = 0;
+  DefaultConfig();
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
 
   // Check we decoded the same number of frames as we attempted to encode
@@ -729,13 +764,13 @@ TEST_P(ResizeCspTest, TestResizeCspWorks) {
   }
 }
 
-AV1_INSTANTIATE_TEST_CASE(ResizeTest,
-                          ::testing::Values(::libaom_test::kRealTime));
-AV1_INSTANTIATE_TEST_CASE(ResizeInternalTestLarge,
-                          ::testing::Values(::libaom_test::kOnePassGood));
-AV1_INSTANTIATE_TEST_CASE(ResizeRealtimeTest,
-                          ::testing::Values(::libaom_test::kRealTime),
-                          ::testing::Range(5, 9));
-AV1_INSTANTIATE_TEST_CASE(ResizeCspTest,
-                          ::testing::Values(::libaom_test::kRealTime));
+AV1_INSTANTIATE_TEST_SUITE(ResizeTest,
+                           ::testing::Values(::libaom_test::kRealTime));
+AV1_INSTANTIATE_TEST_SUITE(ResizeInternalTestLarge,
+                           ::testing::Values(::libaom_test::kOnePassGood));
+AV1_INSTANTIATE_TEST_SUITE(ResizeRealtimeTest,
+                           ::testing::Values(::libaom_test::kRealTime),
+                           ::testing::Range(5, 9));
+AV1_INSTANTIATE_TEST_SUITE(ResizeCspTest,
+                           ::testing::Values(::libaom_test::kRealTime));
 }  // namespace

@@ -180,10 +180,6 @@ typedef struct {
   // The number of frames displayed so far within the GOP at a given coding
   // frame.
   unsigned char cur_frame_idx[MAX_STATIC_GF_GROUP_LENGTH];
-  unsigned char frame_disp_idx[MAX_STATIC_GF_GROUP_LENGTH];
-
-  // TODO(jingning): Unify the data structure used here after the new control
-  // mechanism is in place.
   int layer_depth[MAX_STATIC_GF_GROUP_LENGTH];
   int arf_boost[MAX_STATIC_GF_GROUP_LENGTH];
   int max_layer_depth;
@@ -191,6 +187,7 @@ typedef struct {
   // This is currently only populated for AOM_Q mode
   unsigned char q_val[MAX_STATIC_GF_GROUP_LENGTH];
   int bit_allocation[MAX_STATIC_GF_GROUP_LENGTH];
+  int arf_index;  // the index in the gf group of ARF, if no arf, then -1
   int size;
   /*!\endcond */
 } GF_GROUP;

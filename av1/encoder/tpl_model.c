@@ -40,15 +40,32 @@ static AOM_INLINE void get_quantize_error(const MACROBLOCK *x, int plane,
                                           uint16_t *eob, int64_t *recon_error,
                                           int64_t *sse) {
   const struct macroblock_plane *const p = &x->plane[plane];
+  const MACROBLOCKD *xd = &x->e_mbd;
   const SCAN_ORDER *const scan_order = &av1_default_scan_orders[tx_size];
   int pix_num = 1 << num_pels_log2_lookup[txsize_to_bsize[tx_size]];
   const int shift = tx_size == TX_32X32 ? 0 : 2;
 
-  av1_quantize_fp(coeff, pix_num, p->zbin_QTX, p->round_fp_QTX, p->quant_fp_QTX,
-                  p->quant_shift_QTX, qcoeff, dqcoeff, p->dequant_QTX, eob,
-                  scan_order->scan, scan_order->iscan);
+  QUANT_PARAM quant_param;
+  av1_setup_quant(tx_size, 0, AV1_XFORM_QUANT_FP, 0, &quant_param);
 
+#if CONFIG_AV1_HIGHBITDEPTH
+  if (is_cur_buf_hbd(xd)) {
+    av1_highbd_quantize_fp_facade(coeff, pix_num, p, qcoeff, dqcoeff, eob,
+                                  scan_order, &quant_param);
+    *recon_error =
+        av1_highbd_block_error(coeff, dqcoeff, pix_num, sse, xd->bd) >> shift;
+  } else {
+    av1_quantize_fp_facade(coeff, pix_num, p, qcoeff, dqcoeff, eob, scan_order,
+                           &quant_param);
+    *recon_error = av1_block_error(coeff, dqcoeff, pix_num, sse) >> shift;
+  }
+#else
+  (void)xd;
+  av1_quantize_fp_facade(coeff, pix_num, p, qcoeff, dqcoeff, eob, scan_order,
+                         &quant_param);
   *recon_error = av1_block_error(coeff, dqcoeff, pix_num, sse) >> shift;
+#endif  // CONFIG_AV1_HIGHBITDEPTH
+
   *recon_error = AOMMAX(*recon_error, 1);
 
   *sse = (*sse) >> shift;
@@ -903,11 +920,12 @@ static AOM_INLINE void init_gop_frames_for_tpl(
   *tpl_group_frames = cur_frame_idx;
 
   int gf_index;
-  int use_arf = gf_group->update_type[1] == ARF_UPDATE;
+  int use_arf = gf_group->arf_index >= 0;
   int anc_frame_offset = gf_group->cur_frame_idx[cur_frame_idx];
   int process_frame_count = 0;
   const int gop_length =
       AOMMIN(gf_group->size - 1 + use_arf, MAX_TPL_FRAME_IDX - 1);
+
   for (gf_index = cur_frame_idx; gf_index <= gop_length; ++gf_index) {
     TplDepFrame *tpl_frame = &tpl_data->tpl_frame[gf_index];
     FRAME_UPDATE_TYPE frame_update_type = gf_group->update_type[gf_index];
@@ -928,7 +946,8 @@ static AOM_INLINE void init_gop_frames_for_tpl(
     } else {
       int frame_display_index = gf_index == gf_group->size
                                     ? cpi->rc.baseline_gf_interval
-                                    : gf_group->frame_disp_idx[gf_index];
+                                    : gf_group->cur_frame_idx[gf_index] +
+                                          gf_group->arf_src_offset[gf_index];
       struct lookahead_entry *buf = av1_lookahead_peek(
           cpi->lookahead, frame_display_index - anc_frame_offset,
           cpi->compressor_stage);
@@ -1134,7 +1153,8 @@ int av1_tpl_setup_stats(AV1_COMP *cpi, int gop_eval,
             (this_stats->recrf_dist << RDDIV_BITS) + mc_dep_delta;
       }
     }
-    beta[frame_idx - 1] = (double)mc_dep_cost_base / intra_cost_base;
+    beta[frame_idx - gf_group->arf_index] =
+        (double)mc_dep_cost_base / intra_cost_base;
   }
 
   // Allow larger GOP size if the base layer ARF has higher dependency factor
