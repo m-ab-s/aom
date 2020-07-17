@@ -391,12 +391,21 @@ static AOM_INLINE void simple_motion_search_prune_part_features(
   const int w_mi = mi_size_wide[bsize];
   const int h_mi = mi_size_high[bsize];
   assert(mi_size_wide[bsize] == mi_size_high[bsize]);
-  assert(cpi->ref_frame_flags & av1_ref_frame_flag_list[LAST_FRAME] ||
-         cpi->ref_frame_flags & av1_ref_frame_flag_list[ALTREF_FRAME]);
-
   // Setting up motion search
-  const int ref_list[] = { cpi->rc.is_src_frame_alt_ref ? ALTREF_FRAME
-                                                        : LAST_FRAME };
+  int ref_list[1];
+  if (!(cpi->ref_frame_flags & av1_ref_frame_flag_list[LAST_FRAME]) &&
+      !(cpi->ref_frame_flags & av1_ref_frame_flag_list[ALTREF_FRAME])) {
+    for (int i = LAST_FRAME; i <= ALTREF_FRAME; i++) {
+      if (cpi->ref_frame_flags & av1_ref_frame_flag_list[i]) {
+        ref_list[0] = i;
+        break;
+      }
+    }
+  } else {
+    // Setting up motion search
+    ref_list[0] = cpi->rc.is_src_frame_alt_ref ? ALTREF_FRAME : LAST_FRAME;
+  }
+
   const int num_refs = 1;
   const int use_subpixel = 1;
 
