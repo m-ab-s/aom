@@ -402,12 +402,17 @@ static aom_codec_err_t validate_config(aom_codec_alg_priv_t *ctx,
   RANGE_CHECK_HI(cfg, rc_2pass_vbr_bias_pct, 100);
   RANGE_CHECK(cfg, kf_mode, AOM_KF_DISABLED, AOM_KF_AUTO);
   RANGE_CHECK_HI(cfg, rc_dropframe_thresh, 100);
+#if CONFIG_SINGLEPASS
+  RANGE_CHECK(cfg, g_pass, AOM_RC_ONE_PASS, AOM_RC_ONE_PASS);
+  RANGE_CHECK_HI(cfg, g_lag_in_frames, MAX_TOTAL_BUFFERS);
+#else
   RANGE_CHECK(cfg, g_pass, AOM_RC_ONE_PASS, AOM_RC_LAST_PASS);
   if (cfg->g_pass == AOM_RC_ONE_PASS) {
     RANGE_CHECK_HI(cfg, g_lag_in_frames, MAX_TOTAL_BUFFERS);
   } else {
     RANGE_CHECK_HI(cfg, g_lag_in_frames, MAX_LAG_BUFFERS);
   }
+#endif  // CONFIG_SINGLEPASS
   RANGE_CHECK_HI(extra_cfg, min_gf_interval, MAX_LAG_BUFFERS - 1);
   RANGE_CHECK_HI(extra_cfg, max_gf_interval, MAX_LAG_BUFFERS - 1);
   if (extra_cfg->max_gf_interval > 0) {
@@ -468,6 +473,7 @@ static aom_codec_err_t validate_config(aom_codec_alg_priv_t *ctx,
   RANGE_CHECK(cfg, g_input_bit_depth, 8, 12);
   RANGE_CHECK(extra_cfg, content, AOM_CONTENT_DEFAULT, AOM_CONTENT_INVALID - 1);
 
+#if !CONFIG_SINGLEPASS
   if (cfg->g_pass == AOM_RC_LAST_PASS) {
     const size_t packet_sz = sizeof(FIRSTPASS_STATS);
     const int n_packets = (int)(cfg->rc_twopass_stats_in.sz / packet_sz);
@@ -488,6 +494,7 @@ static aom_codec_err_t validate_config(aom_codec_alg_priv_t *ctx,
     if ((int)(stats->count + 0.5) != n_packets - 1)
       ERROR("rc_twopass_stats_in missing EOS stats packet");
   }
+#endif  // !CONFIG_SINGLEPASS
 
   if (cfg->g_profile <= (unsigned int)PROFILE_1 &&
       cfg->g_bit_depth > AOM_BITS_10) {
@@ -525,7 +532,11 @@ static aom_codec_err_t validate_config(aom_codec_alg_priv_t *ctx,
 
   /* Average corpus complexity is supported only in the case of single pass
    * VBR*/
+#if CONFIG_SINGLEPASS
+  if (cfg->rc_end_usage == AOM_VBR)
+#else
   if (cfg->g_pass == AOM_RC_ONE_PASS && cfg->rc_end_usage == AOM_VBR)
+#endif  // CONFIG_SINGLEPASS
     RANGE_CHECK_HI(extra_cfg, vbr_corpus_complexity_lap,
                    MAX_VBR_CORPUS_COMPLEXITY);
   else if (extra_cfg->vbr_corpus_complexity_lap != 0)
@@ -819,6 +830,9 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   input_cfg->input_bit_depth = cfg->g_input_bit_depth;
   // guess a frame rate if out of whack, use 30
   input_cfg->init_framerate = (double)cfg->g_timebase.den / cfg->g_timebase.num;
+#if CONFIG_SINGLEPASS
+  input_cfg->limit = cfg->g_limit;
+#else
   if (cfg->g_pass == AOM_RC_LAST_PASS) {
     const size_t packet_sz = sizeof(FIRSTPASS_STATS);
     const int n_packets = (int)(cfg->rc_twopass_stats_in.sz / packet_sz);
@@ -826,6 +840,7 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   } else {
     input_cfg->limit = cfg->g_limit;
   }
+#endif  // CONFIG_SINGLEPASS
   input_cfg->chroma_subsampling_x = extra_cfg->chroma_subsampling_x;
   input_cfg->chroma_subsampling_y = extra_cfg->chroma_subsampling_y;
   if (input_cfg->init_framerate > 180) {
@@ -1177,8 +1192,13 @@ static aom_codec_err_t encoder_set_config(aom_codec_alg_priv_t *ctx,
   int force_key = 0;
 
   if (cfg->g_w != ctx->cfg.g_w || cfg->g_h != ctx->cfg.g_h) {
+#if CONFIG_SINGLEPASS
+    if (cfg->g_lag_in_frames > 1)
+      ERROR("Cannot change width or height after initialization");
+#else
     if (cfg->g_lag_in_frames > 1 || cfg->g_pass != AOM_RC_ONE_PASS)
       ERROR("Cannot change width or height after initialization");
+#endif  // CONFIG_SINGLEPASS
     if (!valid_ref_frame_size(ctx->cfg.g_w, ctx->cfg.g_h, cfg->g_w, cfg->g_h) ||
         (initial_dimensions->width &&
          (int)cfg->g_w > initial_dimensions->width) ||
@@ -2056,7 +2076,10 @@ static aom_codec_err_t encoder_init(aom_codec_ctx_t *ctx) {
           (int64_t)priv->cfg.g_timebase.num * TICKS_PER_SEC;
       reduce_ratio(&priv->timestamp_ratio);
       set_encoder_config(&priv->oxcf, &priv->cfg, &priv->extra_cfg, 0);
-      if (priv->oxcf.rc_cfg.mode != AOM_CBR && priv->oxcf.pass == 0 &&
+      if (priv->oxcf.rc_cfg.mode != AOM_CBR &&
+#if !CONFIG_SINGLEPASS
+          priv->oxcf.pass == 0 &&
+#endif  // !CONFIG_SINGLEPASS
           priv->oxcf.mode == GOOD) {
         // Enable look ahead - enabled for AOM_Q, AOM_CQ, AOM_VBR
         *num_lap_buffers = priv->cfg.g_lag_in_frames;
@@ -2236,7 +2259,11 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
 
   if (cpi == NULL) return AOM_CODEC_INVALID_PARAM;
 
+#if CONFIG_SINGLEPASS
+  if (cpi->lap_enabled && cpi_lap == NULL)
+#else
   if (cpi->lap_enabled && cpi_lap == NULL && cpi->oxcf.pass == 0)
+#endif  // CONFIG_SINGLEPASS
     return AOM_CODEC_INVALID_PARAM;
 
   if (img != NULL) {
@@ -2396,6 +2423,9 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
     int has_no_show_keyframe = 0;
     int num_workers = 0;
 
+#if CONFIG_SINGLEPASS
+    num_workers = av1_compute_num_enc_workers(cpi, cpi->oxcf.max_threads);
+#else
     if (cpi->oxcf.pass == 1) {
 #if !CONFIG_REALTIME_ONLY
       num_workers = av1_fp_compute_num_enc_workers(cpi);
@@ -2403,6 +2433,7 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
     } else {
       num_workers = av1_compute_num_enc_workers(cpi, cpi->oxcf.max_threads);
     }
+#endif  // CONFIG_SINGLEPASS
     if ((num_workers > 1) && (cpi->mt_info.num_workers == 0))
       av1_create_workers(cpi, num_workers);
 

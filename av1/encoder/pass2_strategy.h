@@ -52,7 +52,9 @@ typedef struct {
   double frame_tr_coded_error;
 } GF_FRAME_STATS;
 
+#if !CONFIG_SINGLEPASS
 void av1_init_second_pass(struct AV1_COMP *cpi);
+#endif  // !CONFIG_SINGLEPASS
 
 void av1_init_single_pass_lap(AV1_COMP *cpi);
 

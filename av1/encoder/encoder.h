@@ -2888,13 +2888,13 @@ static INLINE int is_stat_consumption_stage_twopass(const AV1_COMP *const cpi) {
 
 // Check if statistics consumption stage
 static INLINE int is_stat_consumption_stage(const AV1_COMP *const cpi) {
-  return (is_stat_consumption_stage_twopass(cpi) ||
 #if CONFIG_SINGLEPASS
-          ((cpi->compressor_stage == ENCODE_STAGE) &&
+  return (cpi->compressor_stage == ENCODE_STAGE && cpi->lap_enabled);
 #else
+  return (is_stat_consumption_stage_twopass(cpi) ||
           (cpi->oxcf.pass == 0 && (cpi->compressor_stage == ENCODE_STAGE) &&
-#endif  // CONFIG_SINGLEPASS
            cpi->lap_enabled));
+#endif  // CONFIG_SINGLEPASS
 }
 
 // Check if the current stage has statistics
