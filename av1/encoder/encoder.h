@@ -2879,10 +2879,10 @@ static INLINE int is_stat_generation_stage(const AV1_COMP *const cpi) {
 // Check if statistics consumption stage
 static INLINE int is_stat_consumption_stage_twopass(const AV1_COMP *const cpi) {
 #if CONFIG_SINGLEPASS
-  return (cpi->oxcf.pass == 2);
-#else
   (void)cpi;
   return 0;
+#else
+  return (cpi->oxcf.pass == 2);
 #endif  // CONFIG_SINGLEPASS
 }
 
