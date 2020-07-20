@@ -16,3 +16,8 @@
 *.pjt        -crlf
 *.vcp        -crlf
 *.inf        -crlf
+# fft2d is not available through git, and the code
+# is checked in verbatim. Do not apply diffing to
+# it, otherwise it fails the 'git diff HEAD^ --check'
+# test.
+third_party/tensorflow_dependencies/fft2d/** -diff

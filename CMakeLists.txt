@@ -604,6 +604,23 @@ if(XCODE)
   endif()
 endif()
 
+if(CONFIG_TENSORFLOW_LITE)
+  include("${AOM_ROOT}/build/cmake/tensorflow_lite.cmake")
+  setup_tensorflow_lite()
+
+  if(ENABLE_EXAMPLES)
+    add_executable(tf_lite_model "${AOM_ROOT}/examples/tf_lite_model.cc")
+    list(APPEND AOM_EXAMPLE_TARGETS tf_lite_model)
+    list(APPEND AOM_APP_TARGETS tf_lite_model)
+    add_dependencies(tf_lite_model tensorflowlite_a)
+    target_link_libraries(
+      tf_lite_model
+      PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/libtensorflow-lite.a"
+      PRIVATE Threads::Threads
+      PRIVATE ${CMAKE_DL_LIBS})
+  endif()
+endif()
+
 if(ENABLE_EXAMPLES AND "${CMAKE_GENERATOR}" MATCHES "Makefiles$")
 
   # For historical purposes place the example binaries in the example directory.
