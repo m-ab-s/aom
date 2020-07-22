@@ -41,7 +41,6 @@ include("${AOM_ROOT}/aom_util/aom_util.cmake")
 include("${AOM_ROOT}/av1/av1.cmake")
 include("${AOM_ROOT}/build/cmake/aom_install.cmake")
 include("${AOM_ROOT}/build/cmake/sanitizers.cmake")
-include("${AOM_ROOT}/build/cmake/tensorflow_lite.cmake")
 include("${AOM_ROOT}/build/cmake/util.cmake")
 include("${AOM_ROOT}/test/test.cmake")
 
@@ -472,8 +471,6 @@ if(ENABLE_EXAMPLES AND CONFIG_AV1_ENCODER AND CONFIG_AV1_DECODER)
   list(APPEND AOM_APP_TARGETS lightfield_bitstream_parsing)
 endif()
 
-setup_tensorflow_lite()
-
 foreach(aom_app ${AOM_APP_TARGETS})
   target_link_libraries(${aom_app} ${AOM_LIB_LINK_TYPE} aom)
   if(CONFIG_TENSORFLOW)
@@ -560,6 +557,25 @@ if(XCODE)
     foreach(aom_app ${AOM_APP_TARGETS})
       add_dummy_source_file_to_target("${aom_app}" "cc")
     endforeach()
+  endif()
+endif()
+
+if(CONFIG_TENSORFLOW_LITE)
+  include("${AOM_ROOT}/build/cmake/tensorflow_lite.cmake")
+  setup_tensorflow_lite()
+
+  # CONFIG_TENSORFLOW_LITE may have been set to 0 by the setup command above (if
+  # an unsupported use case is invoked). Check again.
+  if(CONFIG_TENSORFLOW_LITE AND ENABLE_EXAMPLES)
+    add_executable(tf_lite_model "${AOM_ROOT}/examples/tf_lite_model.cc")
+    list(APPEND AOM_EXAMPLE_TARGETS tf_lite_model)
+    list(APPEND AOM_APP_TARGETS tf_lite_model)
+    add_dependencies(tf_lite_model tensorflowlite_a)
+    target_link_libraries(
+      tf_lite_model
+      PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/libtensorflow-lite.a"
+      PRIVATE Threads::Threads
+      PRIVATE ${CMAKE_DL_LIBS})
   endif()
 endif()
 
