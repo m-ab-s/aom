@@ -494,6 +494,23 @@ typedef struct {
    * constant quality.
    */
   enum aom_rc_mode mode;
+  /*!
+   * Indicates the bias (expressed on a scale of 0 to 100) for determining
+   * target size for the current frame. The value 0 indicates the optimal CBR
+   * mode value should be used, and 100 indicates the optimal VBR mode value
+   * should be used.
+   */
+  int vbrbias;
+  /*!
+   * Indicates the minimum bitrate to be used for a single frame as a percentage
+   * of the target bitrate.
+   */
+  int vbrmin_section;
+  /*!
+   * Indicates the maximum bitrate to be used for a single frame as a percentage
+   * of the target bitrate.
+   */
+  int vbrmax_section;
 } RateControlCfg;
 
 /*!\cond */
@@ -595,24 +612,6 @@ typedef struct {
    * pass, concatenated.
    */
   aom_fixed_buf_t stats_in;
-
-  /*!
-   * Indicates the bias (expressed on a scale of 0 to 100) for determining
-   * target size for the current frame. The value 0 indicates the optimal CBR
-   * mode value should be used, and 100 indicates the optimal VBR mode value
-   * should be used.
-   */
-  int vbrbias;
-  /*!
-   * Indicates the minimum bitrate to be used for a single GOP as a percentage
-   *  of the target bitrate.
-   */
-  int vbrmin_section;
-  /*!
-   * Indicates the maximum bitrate to be used for a single GOP as a percentage
-   * of the target bitrate.
-   */
-  int vbrmax_section;
 } TwoPassCfg;
 /*!\cond */
 
