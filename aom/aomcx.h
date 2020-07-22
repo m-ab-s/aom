@@ -1265,6 +1265,10 @@ enum aome_enc_control_id {
   /*!\brief Control to set the subgop config string.
    */
   AV1E_SET_SUBGOP_CONFIG_STR = 158,
+
+  /*!\brief Control to get baseline gf interval
+   */
+  AV1E_GET_BASELINE_GF_INTERVAL = 159,
 };
 
 /*!\brief aom 1-D scaling mode
@@ -1683,6 +1687,9 @@ AOM_CTRL_USE_TYPE(AV1E_SET_SUPERBLOCK_SIZE, unsigned int)
 
 AOM_CTRL_USE_TYPE(AV1E_GET_SEQ_LEVEL_IDX, int *)
 #define AOM_CTRL_AV1E_GET_SEQ_LEVEL_IDX
+
+AOM_CTRL_USE_TYPE(AV1E_GET_BASELINE_GF_INTERVAL, int *)
+#define AOM_CTRL_AV1E_GET_BASELINE_GF_INTERVAL
 
 AOM_CTRL_USE_TYPE(AV1E_SET_SINGLE_TILE_DECODING, unsigned int)
 #define AOM_CTRL_AV1E_SET_SINGLE_TILE_DECODING
