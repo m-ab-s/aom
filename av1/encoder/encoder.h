@@ -2876,15 +2876,13 @@ static INLINE int is_stat_generation_stage(const AV1_COMP *const cpi) {
   return (cpi->oxcf.pass == 1 || (cpi->compressor_stage == LAP_STAGE));
 #endif  // CONFIG_SINGLEPASS
 }
+
+#if !CONFIG_SINGLEPASS
 // Check if statistics consumption stage
 static INLINE int is_stat_consumption_stage_twopass(const AV1_COMP *const cpi) {
-#if CONFIG_SINGLEPASS
-  (void)cpi;
-  return 0;
-#else
   return (cpi->oxcf.pass == 2);
-#endif  // CONFIG_SINGLEPASS
 }
+#endif  // !CONFIG_SINGLEPASS
 
 // Check if statistics consumption stage
 static INLINE int is_stat_consumption_stage(const AV1_COMP *const cpi) {

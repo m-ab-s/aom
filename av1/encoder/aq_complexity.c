@@ -157,10 +157,14 @@ void av1_caq_select_segment(const AV1_COMP *cpi, MACROBLOCK *mb, BLOCK_SIZE bs,
                                               cm->seq_params.bit_depth);
 
     aom_clear_system_state();
+#if CONFIG_SINGLEPASS
+    low_var_thresh = DEFAULT_LV_THRESH;
+#else
     low_var_thresh =
         (is_stat_consumption_stage_twopass(cpi))
             ? AOMMAX(exp(cpi->twopass.mb_av_energy), MIN_DEFAULT_LV_THRESH)
             : DEFAULT_LV_THRESH;
+#endif  // CONFIG_SINGLEPASS
 
     av1_setup_src_planes(mb, cpi->source, mi_row, mi_col, num_planes, bs);
     logvar = av1_log_block_var(cpi, mb, bs);

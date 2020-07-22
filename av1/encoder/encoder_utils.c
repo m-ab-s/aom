@@ -300,6 +300,7 @@ const int default_switchable_interp_probs[FRAME_UPDATE_TYPES]
                                              { 512, 512, 512 } }
                                          };
 
+#if !CONFIG_SINGLEPASS
 static void configure_static_seg_features(AV1_COMP *cpi) {
   AV1_COMMON *const cm = &cpi->common;
   const RATE_CONTROL *const rc = &cpi->rc;
@@ -428,6 +429,7 @@ static void configure_static_seg_features(AV1_COMP *cpi) {
     }
   }
 }
+#endif  // !CONFIG_SINGLEPASS
 
 void av1_apply_active_map(AV1_COMP *cpi) {
   struct segmentation *const seg = &cpi->common.seg;
@@ -567,6 +569,7 @@ void av1_set_size_dependent_vars(AV1_COMP *cpi, int *q, int *bottom_index,
   *q = av1_rc_pick_q_and_bounds(cpi, &cpi->rc, cm->width, cm->height,
                                 cpi->gf_group.index, bottom_index, top_index);
 
+#if !CONFIG_SINGLEPASS
   // Configure experimental use of segmentation for enhanced coding of
   // static regions if indicated.
   // Only allowed in the second pass of a two pass encode, as it requires
@@ -574,6 +577,7 @@ void av1_set_size_dependent_vars(AV1_COMP *cpi, int *q, int *bottom_index,
   if (is_stat_consumption_stage_twopass(cpi) &&
       cpi->sf.hl_sf.static_segmentation)
     configure_static_seg_features(cpi);
+#endif  // !CONFIG_SINGLEPASS
 }
 
 static void reset_film_grain_chroma_params(aom_film_grain_t *pars) {

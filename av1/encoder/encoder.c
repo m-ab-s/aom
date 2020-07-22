@@ -2229,10 +2229,12 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
   assert(IMPLIES(oxcf->rc_cfg.min_cr > 0, allow_recode));
 
   set_size_independent_vars(cpi);
+#if !CONFIG_SINGLEPASS
   if (is_stat_consumption_stage_twopass(cpi) &&
       cpi->sf.interp_sf.adaptive_interp_filter_search)
     cpi->interp_search_flags.interp_filter_search_mask =
         av1_setup_interp_filter_search_mask(cpi);
+#endif  // !CONFIG_SINGLEPASS
   cpi->source->buf_8bit_valid = 0;
 
   av1_setup_frame_size(cpi);

@@ -1251,6 +1251,7 @@ static void get_intra_q_and_bounds(const AV1_COMP *cpi, int width, int height,
     int delta_qindex;
     int qindex;
 
+#if !CONFIG_SINGLEPASS
     if (is_stat_consumption_stage_twopass(cpi) &&
         cpi->twopass.last_kfgroup_zeromotion_pct >= STATIC_MOTION_THRESH) {
       qindex = AOMMIN(rc->last_kf_qindex, rc->last_boosted_qindex);
@@ -1261,12 +1262,15 @@ static void get_intra_q_and_bounds(const AV1_COMP *cpi, int width, int height,
       active_worst_quality =
           AOMMIN(qindex + delta_qindex, active_worst_quality);
     } else {
+#endif  // !CONFIG_SINGLEPASS
       qindex = rc->last_boosted_qindex;
       last_boosted_q = av1_convert_qindex_to_q(qindex, bit_depth);
       delta_qindex = av1_compute_qdelta(rc, last_boosted_q,
                                         last_boosted_q * 0.50, bit_depth);
       active_best_quality = AOMMAX(qindex + delta_qindex, rc->best_quality);
+#if !CONFIG_SINGLEPASS
     }
+#endif  // !CONFIG_SINGLEPASS
   } else {
     // Not forced keyframe.
     double q_adj_factor = 1.0;
@@ -1276,19 +1280,23 @@ static void get_intra_q_and_bounds(const AV1_COMP *cpi, int width, int height,
     active_best_quality =
         get_kf_active_quality(rc, active_worst_quality, bit_depth);
 
+#if !CONFIG_SINGLEPASS
     if (is_stat_consumption_stage_twopass(cpi) &&
         cpi->twopass.kf_zeromotion_pct >= STATIC_KF_GROUP_THRESH) {
       active_best_quality /= 3;
     }
+#endif  // !CONFIG_SINGLEPASS
 
     // Allow somewhat lower kf minq with small image formats.
     if ((width * height) <= (352 * 288)) {
       q_adj_factor -= 0.25;
     }
 
+#if !CONFIG_SINGLEPASS
     // Make a further adjustment based on the kf zero motion measure.
     if (is_stat_consumption_stage_twopass(cpi))
       q_adj_factor += 0.05 - (0.001 * (double)cpi->twopass.kf_zeromotion_pct);
+#endif  // !CONFIG_SINGLEPASS
 
     // Convert the adjustment factor to a qindex delta
     // on active_best_quality.

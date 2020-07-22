@@ -2461,10 +2461,16 @@ static void find_next_key_frame(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame) {
       if (EOF == input_stats(twopass, &tmp_frame)) break;
     }
     rc->next_key_frame_forced = 1;
+
+#if CONFIG_SINGLEPASS
+  } else if (rc->frames_to_key >= kf_cfg->key_freq_max) {
+    rc->next_key_frame_forced = 1;
+#else
   } else if ((twopass->stats_in == twopass->stats_buf_ctx->stats_in_end &&
               is_stat_consumption_stage_twopass(cpi)) ||
              rc->frames_to_key >= kf_cfg->key_freq_max) {
     rc->next_key_frame_forced = 1;
+#endif  // CONFIG_SINGLEPASS
   } else {
     rc->next_key_frame_forced = 0;
   }
@@ -2839,12 +2845,16 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
 
     reset_fpf_position(twopass, start_position);
 
+#if CONFIG_SINGLEPASS
+    int max_gop_length = MAX_GF_LENGTH_LAP;
+#else
     int max_gop_length =
         (oxcf->gf_cfg.lag_in_frames >= 32 &&
          is_stat_consumption_stage_twopass(cpi))
             ? AOMMIN(MAX_GF_INTERVAL, oxcf->gf_cfg.lag_in_frames -
                                           oxcf->algo_cfg.arnr_max_frames / 2)
             : MAX_GF_LENGTH_LAP;
+#endif  // CONFIG_SINGLEPASS
     if (rc->intervals_till_gf_calculate_due == 0) {
       calculate_gf_length(cpi, max_gop_length, MAX_NUM_GF_INTERVALS);
     }
