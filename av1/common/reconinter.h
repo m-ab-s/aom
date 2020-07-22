@@ -111,6 +111,8 @@ static INLINE void revert_scale_extra_bits(SubpelParams *sp) {
 // Border value must be a multiple of 8 and between 0 and MAX_INTER_PRED_BORDER
 // (inclusive on both ends).
 #define MAX_INTER_PRED_BORDER 16
+#define MAX_INTERINTRA_BORDER_SB_SQUARE \
+  ((MAX_INTER_PRED_BORDER + 32) * (MAX_INTER_PRED_BORDER + 32))
 
 typedef struct InterPredExt {
   int border_left;

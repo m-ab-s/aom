@@ -8390,11 +8390,29 @@ static void build_second_inter_pred(const AV1_COMP *cpi, MACROBLOCK *x,
                                   &xd->jcp_param.use_dist_wtd_comp_avg, 1);
 }
 
+// Equivalent to memmove, but looks at the bit-depth and converts the
+// pointer to dst16 (and the amount of data moved) if in high bitdepth mode.
+// TODO(elliottk): move this (and the version in reconintra.c) into a common
+// location.
+static void bd_memmove(uint8_t *dst, const uint8_t *ref, size_t n,
+                       aom_bit_depth_t bd) {
+  if (bd == AOM_BITS_8) {
+    memmove(dst, ref, n * sizeof(uint8_t));
+    return;
+  }
+
+  assert(bd == AOM_BITS_10 || bd == AOM_BITS_12);
+  uint16_t *dst16 = CONVERT_TO_SHORTPTR(dst);
+  const uint16_t *ref16 = CONVERT_TO_SHORTPTR(ref);
+  memmove(dst16, ref16, n * sizeof(uint16_t));
+}
+
 // Search for the best mv for one component of a compound,
 // given that the other component is fixed.
 static void compound_single_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
                                           BLOCK_SIZE bsize, MV *this_mv,
-                                          const uint8_t *second_pred,
+                                          const uint8_t *orig_second_pred,
+                                          const int orig_second_pred_stride,
                                           const uint8_t *mask, int mask_stride,
                                           int *rate_mv, int ref_idx) {
   const AV1_COMMON *const cm = &cpi->common;
@@ -8411,6 +8429,20 @@ static void compound_single_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
   const YV12_BUFFER_CONFIG *const scaled_ref_frame =
       av1_get_scaled_ref_frame(cpi, ref);
 
+  uint8_t *second_pred_buf_ = NULL;
+  const uint8_t *second_pred = orig_second_pred;
+  // Much of the code in single motion search assumes that the second_pred
+  // stride is equal to the plane width. Rather than change all of these
+  // locations, copy the predictor over to such a structure.
+  if (orig_second_pred_stride != pw) {
+    second_pred_buf_ = aom_memalign(16, sizeof(uint16_t) * pw * ph);
+    uint8_t *tmp = get_buf_by_bd(xd, second_pred_buf_);
+    for (int j = 0; j < ph; ++j) {
+      bd_memmove(tmp + j * pw, orig_second_pred + j * orig_second_pred_stride,
+                 pw, xd->bd);
+    }
+    second_pred = tmp;
+  }
   // Check that this is either an interinter or an interintra block
   assert(has_second_ref(mbmi) || (ref_idx == 0 && is_interintra_mode(mbmi)));
 
@@ -8519,6 +8551,7 @@ static void compound_single_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
                                   mv_precision_cost,
 #endif  // CONFIG_FLEX_MVRES
                                   MV_COST_WEIGHT);
+  aom_free(second_pred_buf_);
 }
 
 // Wrapper for compound_single_motion_search, for the common case
@@ -8544,8 +8577,9 @@ static void compound_single_motion_search_interinter(
 
   build_second_inter_pred(cpi, x, bsize, other_mv, block, ref_idx, second_pred);
 
-  compound_single_motion_search(cpi, x, bsize, this_mv, second_pred, mask,
-                                mask_stride, rate_mv, ref_idx);
+  compound_single_motion_search(cpi, x, bsize, this_mv, second_pred,
+                                block_size_wide[bsize], mask, mask_stride,
+                                rate_mv, ref_idx);
 }
 
 static void do_masked_motion_search_indexed(
@@ -9002,11 +9036,10 @@ static int64_t pick_interinter_seg(const AV1_COMP *const cpi,
   return best_rd;
 }
 
-static int64_t pick_interintra_wedge(const AV1_COMP *const cpi,
-                                     const MACROBLOCK *const x,
-                                     const BLOCK_SIZE bsize,
-                                     const uint8_t *const p0,
-                                     const uint8_t *const p1) {
+static int64_t pick_interintra_wedge(
+    const AV1_COMP *const cpi, const MACROBLOCK *const x,
+    const BLOCK_SIZE bsize, const uint8_t *const p0, const int p0_stride,
+    const uint8_t *const p1, const int p1_stride) {
   const MACROBLOCKD *const xd = &x->e_mbd;
   MB_MODE_INFO *const mbmi = xd->mi[0];
   assert(is_interintra_wedge_used(bsize));
@@ -9019,12 +9052,14 @@ static int64_t pick_interintra_wedge(const AV1_COMP *const cpi,
   DECLARE_ALIGNED(32, int16_t, diff10[MAX_SB_SQUARE]);     // pred1 - pred0
   if (is_cur_buf_hbd(xd)) {
     aom_highbd_subtract_block(bh, bw, residual1, bw, src->buf, src->stride,
-                              CONVERT_TO_BYTEPTR(p1), bw, xd->bd);
-    aom_highbd_subtract_block(bh, bw, diff10, bw, CONVERT_TO_BYTEPTR(p1), bw,
-                              CONVERT_TO_BYTEPTR(p0), bw, xd->bd);
+                              CONVERT_TO_BYTEPTR(p1), p1_stride, xd->bd);
+    aom_highbd_subtract_block(bh, bw, diff10, bw, CONVERT_TO_BYTEPTR(p1),
+                              p1_stride, CONVERT_TO_BYTEPTR(p0), p0_stride,
+                              xd->bd);
   } else {
-    aom_subtract_block(bh, bw, residual1, bw, src->buf, src->stride, p1, bw);
-    aom_subtract_block(bh, bw, diff10, bw, p1, bw, p0, bw);
+    aom_subtract_block(bh, bw, residual1, bw, src->buf, src->stride, p1,
+                       p1_stride);
+    aom_subtract_block(bh, bw, diff10, bw, p1, p1_stride, p0, p0_stride);
   }
   int8_t wedge_index = -1;
   int64_t rd =
@@ -10498,7 +10533,8 @@ static int handle_smooth_inter_intra_mode(
     MB_MODE_INFO *mbmi, int64_t ref_best_rd, int *rate_mv, int *rmode,
     int rwedge, int64_t *best_interintra_rd, int64_t *rd,
     INTERINTRA_MODE *best_interintra_mode, const BUFFER_SET *orig_dst,
-    uint8_t *tmp_buf, uint8_t *intrapred, HandleInterModeArgs *args,
+    uint8_t *tmp_buf, const int tmp_buf_stride, uint8_t *intrapred,
+    const int intrapred_stride, const int border, HandleInterModeArgs *args,
     int total_modes, const int *derived_intra_mode_cost,
     int *pick_derived_intra_mode) {
   int tmp_rate_mv = 0;
@@ -10506,7 +10542,6 @@ static int handle_smooth_inter_intra_mode(
   MACROBLOCKD *xd = &x->e_mbd;
   const int mi_row = xd->mi_row;
   const int mi_col = xd->mi_col;
-  const int bw = block_size_wide[bsize];
   const int *const interintra_mode_cost =
       x->interintra_mode_cost[size_group_lookup[bsize]];
   mbmi->use_wedge_interintra = 0;
@@ -10549,10 +10584,10 @@ static int handle_smooth_inter_intra_mode(
       (void)derived_intra_mode_cost;
       *rmode = interintra_mode_cost[mbmi->interintra_mode];
 #endif  // CONFIG_DERIVED_INTRA_MODE
-      av1_build_intra_predictors_for_interintra(cm, xd, bsize, 0, orig_dst,
-                                                intrapred, bw, 0 /*border*/);
-      const int border = 0;
-      av1_combine_interintra(xd, bsize, 0, tmp_buf, bw, intrapred, bw, border);
+      av1_build_intra_predictors_for_interintra(
+          cm, xd, bsize, 0, orig_dst, intrapred, intrapred_stride, border);
+      av1_combine_interintra(xd, bsize, 0, tmp_buf, tmp_buf_stride, intrapred,
+                             intrapred_stride, border);
       int tmp_skip_txfm_sb, rate_sum;
       int64_t tmp_skip_sse_sb, dist_sum;
       model_rd_sb_fn[MODELRD_TYPE_INTERINTRA](
@@ -10598,10 +10633,10 @@ static int handle_smooth_inter_intra_mode(
 #if CONFIG_DERIVED_INTRA_MODE
     mbmi->use_derived_intra_mode[0] = *pick_derived_intra_mode;
 #endif  // CONFIG_DERIVED_INTRA_MODE
-    av1_build_intra_predictors_for_interintra(cm, xd, bsize, 0, orig_dst,
-                                              intrapred, bw, 0 /*border*/);
-    const int border = 0;
-    av1_combine_interintra(xd, bsize, 0, tmp_buf, bw, intrapred, bw, border);
+    av1_build_intra_predictors_for_interintra(
+        cm, xd, bsize, 0, orig_dst, intrapred, intrapred_stride, border);
+    av1_combine_interintra(xd, bsize, 0, tmp_buf, tmp_buf_stride, intrapred,
+                           intrapred_stride, border);
   }
 
   RD_STATS rd_stats;
@@ -10644,8 +10679,21 @@ static int handle_inter_intra_mode(const AV1_COMP *const cpi,
   int tmp_skip_txfm_sb;
   int bw = block_size_wide[bsize];
   int64_t tmp_skip_sse_sb;
-  DECLARE_ALIGNED(16, uint8_t, tmp_buf_[2 * MAX_INTERINTRA_SB_SQUARE]);
-  DECLARE_ALIGNED(16, uint8_t, intrapred_[2 * MAX_INTERINTRA_SB_SQUARE]);
+#if CONFIG_INTERINTRA_BORDER
+  DECLARE_ALIGNED(16, uint8_t,
+                  aligned_buf1_[2 * MAX_INTERINTRA_BORDER_SB_SQUARE]);
+  DECLARE_ALIGNED(16, uint8_t,
+                  aligned_buf2_[2 * MAX_INTERINTRA_BORDER_SB_SQUARE]);
+  const int border = 16;
+  const int stride = MAX_INTER_PRED_BORDER + bw;
+#else
+  DECLARE_ALIGNED(16, uint8_t, aligned_buf1_[2 * MAX_INTERINTRA_SB_SQUARE]);
+  DECLARE_ALIGNED(16, uint8_t, aligned_buf2_[2 * MAX_INTERINTRA_SB_SQUARE]);
+  const int border = 0;
+  const int stride = bw;
+#endif  // CONFIG_INTERINTRA_BORDER
+  uint8_t *tmp_buf_ = aligned_buf1_ + border * stride + border;
+  uint8_t *intrapred_ = aligned_buf2_ + border * stride + border;
   uint8_t *tmp_buf = get_buf_by_bd(xd, tmp_buf_);
   uint8_t *intrapred = get_buf_by_bd(xd, intrapred_);
   const int *const interintra_mode_cost =
@@ -10655,11 +10703,24 @@ static int handle_inter_intra_mode(const AV1_COMP *const cpi,
   int rwedge = is_wedge_used ? x->wedge_interintra_cost[bsize][0] : 0;
   mbmi->ref_frame[1] = NONE_FRAME;
   xd->plane[0].dst.buf = tmp_buf;
-  xd->plane[0].dst.stride = bw;
+  xd->plane[0].dst.stride = stride;
   const int mi_row = xd->mi_row;
   const int mi_col = xd->mi_col;
-  av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize,
-                                AOM_PLANE_Y, AOM_PLANE_Y);
+
+  // Only build the extended region in the inter-border if it is possible
+  // to do so, due to limitations in the inter-prediction extension code.
+  InterPredExt ext = { .border_left = border,
+                       .border_top = border,
+                       .border_right = 0,
+                       .border_bottom = 0 };
+  if (av1_valid_inter_pred_ext(&ext, is_intrabc_block(xd->mi[0]),
+                               has_second_ref(mbmi))) {
+    av1_enc_build_border_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize,
+                                         AOM_PLANE_Y, AOM_PLANE_Y, border);
+  } else {
+    av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize,
+                                  AOM_PLANE_Y, AOM_PLANE_Y);
+  }
 
   restore_dst_buf(xd, *orig_dst, num_planes);
   mbmi->ref_frame[1] = INTRA_FRAME;
@@ -10684,8 +10745,8 @@ static int handle_inter_intra_mode(const AV1_COMP *const cpi,
     int ret = handle_smooth_inter_intra_mode(
         cpi, x, bsize, mbmi, ref_best_rd, rate_mv, &rmode, rwedge,
         &best_interintra_rd, &rd, &best_interintra_mode, orig_dst, tmp_buf,
-        intrapred, args, total_modes, derived_intra_mode_cost,
-        &pick_derived_intra_mode);
+        stride, intrapred, stride, border, args, total_modes,
+        derived_intra_mode_cost, &pick_derived_intra_mode);
     if (ret == IGNORE_MODE) {
       return IGNORE_MODE;
     }
@@ -10711,17 +10772,17 @@ static int handle_inter_intra_mode(const AV1_COMP *const cpi,
     // from the II_DC_PRED mode.
     if (cpi->sf.fast_interintra_wedge_search &&
         enable_smooth_interintra_search(cpi)) {
-      best_interintra_rd_wedge =
-          pick_interintra_wedge(cpi, x, bsize, intrapred_, tmp_buf_);
+      best_interintra_rd_wedge = pick_interintra_wedge(
+          cpi, x, bsize, intrapred_, stride, tmp_buf_, stride);
     } else if (cpi->sf.fast_interintra_wedge_search) {
       mbmi->interintra_mode = II_DC_PRED;
 #if CONFIG_DERIVED_INTRA_MODE
       mbmi->use_derived_intra_mode[0] = pick_derived_intra_mode;
 #endif  // CONFIG_DERIVED_INTRA_MODE
       av1_build_intra_predictors_for_interintra(cm, xd, bsize, 0, orig_dst,
-                                                intrapred, bw, 0 /*border*/);
-      best_interintra_rd_wedge =
-          pick_interintra_wedge(cpi, x, bsize, intrapred_, tmp_buf_);
+                                                intrapred, stride, border);
+      best_interintra_rd_wedge = pick_interintra_wedge(
+          cpi, x, bsize, intrapred_, stride, tmp_buf_, stride);
     } else {
       // Exhaustive search of all wedge and mode combinations.
       int best_mode = 0;
@@ -10746,8 +10807,9 @@ static int handle_inter_intra_mode(const AV1_COMP *const cpi,
         rmode = interintra_mode_cost[mbmi->interintra_mode];
 #endif  // CONFIG_DERIVED_INTRA_MODE
         av1_build_intra_predictors_for_interintra(cm, xd, bsize, 0, orig_dst,
-                                                  intrapred, bw, 0 /*border*/);
-        rd = pick_interintra_wedge(cpi, x, bsize, intrapred_, tmp_buf_);
+                                                  intrapred, stride, border);
+        rd = pick_interintra_wedge(cpi, x, bsize, intrapred_, stride, tmp_buf_,
+                                   stride);
         const int rate_overhead =
             rmode + x->wedge_idx_cost[bsize][mbmi->interintra_wedge_index];
         const int64_t total_rd = rd + RDCOST(x->rdmult, rate_overhead, 0);
@@ -10768,7 +10830,7 @@ static int handle_inter_intra_mode(const AV1_COMP *const cpi,
 #endif  // CONFIG_DERIVED_INTRA_MODE
       if (CONFIG_DERIVED_INTRA_MODE || best_mode != INTERINTRA_MODES - 1) {
         av1_build_intra_predictors_for_interintra(cm, xd, bsize, 0, orig_dst,
-                                                  intrapred, bw, 0 /*border*/);
+                                                  intrapred, stride, border);
       }
     }
 
@@ -10793,7 +10855,7 @@ static int handle_inter_intra_mode(const AV1_COMP *const cpi,
           av1_get_contiguous_soft_mask(mbmi->interintra_wedge_index, 1, bsize);
       tmp_mv = mbmi->mv[0];
       compound_single_motion_search(cpi, x, bsize, &tmp_mv.as_mv, intrapred,
-                                    mask, bw, &tmp_rate_mv, 0);
+                                    stride, mask, bw, &tmp_rate_mv, 0);
       if (mbmi->mv[0].as_int != tmp_mv.as_int) {
         mbmi->mv[0].as_int = tmp_mv.as_int;
         // Set ref_frame[1] to NONE_FRAME temporarily so that the intra
@@ -10803,10 +10865,9 @@ static int handle_inter_intra_mode(const AV1_COMP *const cpi,
         av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, orig_dst, bsize,
                                       AOM_PLANE_Y, AOM_PLANE_Y);
         mbmi->ref_frame[1] = INTRA_FRAME;
-        const int border = 0;
         av1_combine_interintra(xd, bsize, 0, xd->plane[AOM_PLANE_Y].dst.buf,
-                               xd->plane[AOM_PLANE_Y].dst.stride, intrapred, bw,
-                               border);
+                               xd->plane[AOM_PLANE_Y].dst.stride, intrapred,
+                               stride, border);
         model_rd_sb_fn[MODELRD_TYPE_MASKED_COMPOUND](
             cpi, bsize, x, xd, 0, 0, mi_row, mi_col, &rate_sum, &dist_sum,
             &tmp_skip_txfm_sb, &tmp_skip_sse_sb, NULL, NULL, NULL);
@@ -10817,8 +10878,8 @@ static int handle_inter_intra_mode(const AV1_COMP *const cpi,
     if (rd >= best_interintra_rd_wedge) {
       tmp_mv.as_int = mv0.as_int;
       tmp_rate_mv = *rate_mv;
-      const int border = 0;
-      av1_combine_interintra(xd, bsize, 0, tmp_buf, bw, intrapred, bw, border);
+      av1_combine_interintra(xd, bsize, 0, tmp_buf, stride, intrapred, stride,
+                             border);
     }
     // Evaluate closer to true rd
     RD_STATS rd_stats;

@@ -2979,11 +2979,10 @@ void av1_build_intra_predictors_for_interintra(
       ctx->plane[plane], ctx->stride[plane], dst, dst_stride, 0, 0, plane);
 
   if (border > 0) {
-    av1_extend_intra_border(ctx->plane[plane], ctx->stride[plane], dst,
-                            dst_stride, av1_intra_top_available(xd, plane),
-                            av1_intra_left_available(xd, plane),
-                            xd->plane[plane].width, xd->plane[plane].height,
-                            border, is_cur_buf_hbd(xd));
+    av1_extend_intra_border(
+        ctx->plane[plane], ctx->stride[plane], dst, dst_stride,
+        av1_intra_top_available(xd, plane), av1_intra_left_available(xd, plane),
+        xd->plane[plane].width, xd->plane[plane].height, border, xd->bd);
   }
 }
 
@@ -2993,12 +2992,6 @@ void av1_combine_interintra(MACROBLOCKD *xd, BLOCK_SIZE bsize, int plane,
                             int border) {
   assert(border >= 0);
   const INTERINTRA_MODE mode = xd->mi[0]->interintra_mode;
-#if CONFIG_ILLUM_MCOMP
-  assert(IMPLIES(mode == II_ILLUM_MCOMP_PRED, border > 0));
-  assert(IMPLIES(border > 0, mode == II_ILLUM_MCOMP_PRED));
-#else
-  assert(border == 0);
-#endif
   const int ssx = xd->plane[plane].subsampling_x;
   const int ssy = xd->plane[plane].subsampling_y;
   const BLOCK_SIZE bsize_base =

@@ -2197,7 +2197,7 @@ int av1_intra_top_available(const MACROBLOCKD *xd, int plane) {
   const int have_top =
       (pd->subsampling_y ? xd->chroma_up_available : xd->up_available);
   if (have_top) {
-    return xd->mb_to_top_edge >> (3 + pd->subsampling_y);
+    return -xd->mb_to_top_edge >> (3 + pd->subsampling_y);
   } else {
     return 0;
   }
@@ -2208,7 +2208,7 @@ int av1_intra_left_available(const MACROBLOCKD *xd, int plane) {
   const int have_left =
       (pd->subsampling_x ? xd->chroma_left_available : xd->left_available);
   if (have_left) {
-    return xd->mb_to_left_edge >> (3 + pd->subsampling_x);
+    return -xd->mb_to_left_edge >> (3 + pd->subsampling_x);
   } else {
     return 0;
   }

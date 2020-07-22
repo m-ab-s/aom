@@ -97,7 +97,8 @@ static void enc_build_inter_predictors(const AV1_COMMON *cm, MACROBLOCKD *xd,
 static void build_inter_predictors_for_plane(const AV1_COMMON *cm,
                                              MACROBLOCKD *xd, int mi_row,
                                              int mi_col, const BUFFER_SET *ctx,
-                                             BLOCK_SIZE bsize, int plane_idx) {
+                                             BLOCK_SIZE bsize, int plane_idx,
+                                             int border) {
   const struct macroblockd_plane *pd = &xd->plane[plane_idx];
   if (plane_idx && !xd->mi[0]->chroma_ref_info.is_chroma_ref) return;
 
@@ -113,7 +114,6 @@ static void build_inter_predictors_for_plane(const AV1_COMMON *cm,
       default_ctx.stride[plane_idx] = xd->plane[plane_idx].dst.stride;
       ctx = &default_ctx;
     }
-    const int border = 0;
     av1_build_interintra_predictors_sbp(cm, xd, xd->plane[plane_idx].dst.buf,
                                         xd->plane[plane_idx].dst.stride, ctx,
                                         plane_idx, bsize, border);
@@ -126,7 +126,18 @@ void av1_enc_build_inter_predictor(const AV1_COMMON *cm, MACROBLOCKD *xd,
                                    int plane_from, int plane_to) {
   for (int plane_idx = plane_from; plane_idx <= plane_to; ++plane_idx) {
     build_inter_predictors_for_plane(cm, xd, mi_row, mi_col, ctx, bsize,
-                                     plane_idx);
+                                     plane_idx, 0 /* border */);
+  }
+}
+
+void av1_enc_build_border_inter_predictor(const AV1_COMMON *cm, MACROBLOCKD *xd,
+                                          int mi_row, int mi_col,
+                                          const BUFFER_SET *ctx,
+                                          BLOCK_SIZE bsize, int plane_from,
+                                          int plane_to, const int border) {
+  for (int plane_idx = plane_from; plane_idx <= plane_to; ++plane_idx) {
+    build_inter_predictors_for_plane(cm, xd, mi_row, mi_col, ctx, bsize,
+                                     plane_idx, border);
   }
 }
 
