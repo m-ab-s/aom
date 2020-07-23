@@ -41,9 +41,14 @@ class CodecFactory {
   virtual Decoder *CreateDecoder(aom_codec_dec_cfg_t cfg,
                                  const aom_codec_flags_t flags) const = 0;
 
+#if CONFIG_SINGLEPASS
+  virtual Encoder *CreateEncoder(aom_codec_enc_cfg_t cfg,
+                                 const aom_codec_flags_t init_flags) const = 0;
+#else
   virtual Encoder *CreateEncoder(aom_codec_enc_cfg_t cfg,
                                  const aom_codec_flags_t init_flags,
                                  TwopassStatsStore *stats) const = 0;
+#endif  // CONFIG_SINGLEPASS
 
   virtual aom_codec_err_t DefaultEncoderConfig(aom_codec_enc_cfg_t *cfg,
                                                unsigned int usage) const = 0;
@@ -101,9 +106,14 @@ class AV1Decoder : public Decoder {
 
 class AV1Encoder : public Encoder {
  public:
+#if CONFIG_SINGLEPASS
+  AV1Encoder(aom_codec_enc_cfg_t cfg, const aom_codec_flags_t init_flags)
+      : Encoder(cfg, init_flags) {}
+#else
   AV1Encoder(aom_codec_enc_cfg_t cfg, const aom_codec_flags_t init_flags,
              TwopassStatsStore *stats)
       : Encoder(cfg, init_flags, stats) {}
+#endif  // CONFIG_SINGLEPASS
 
  protected:
   virtual aom_codec_iface_t *CodecInterface() const {
@@ -134,15 +144,27 @@ class AV1CodecFactory : public CodecFactory {
 #endif
   }
 
+#if CONFIG_SINGLEPASS
+  virtual Encoder *CreateEncoder(aom_codec_enc_cfg_t cfg,
+                                 const aom_codec_flags_t init_flags) const
+#else
   virtual Encoder *CreateEncoder(aom_codec_enc_cfg_t cfg,
                                  const aom_codec_flags_t init_flags,
-                                 TwopassStatsStore *stats) const {
+                                 TwopassStatsStore *stats) const
+#endif  // CONFIG_SINGLEPASS
+  {
 #if CONFIG_AV1_ENCODER
+#if CONFIG_SINGLEPASS
+    return new AV1Encoder(cfg, init_flags);
+#else
     return new AV1Encoder(cfg, init_flags, stats);
+#endif  // CONFIG_SINGLEPASS
 #else
     (void)cfg;
     (void)init_flags;
+#if !CONFIG_SINGLEPASS
     (void)stats;
+#endif  // !CONFIG_SINGLEPASS
     return NULL;
 #endif
   }

@@ -990,8 +990,13 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   algo_cfg->enable_tpl_model =
       resize_cfg->resize_mode ? 0 : extra_cfg->enable_tpl_model;
 
-  // Set two-pass stats configuration.
+// Set two-pass stats configuration.
+#if CONFIG_SINGLEPASS
+  oxcf->twopass_stats_in.buf = NULL;
+  oxcf->twopass_stats_in.sz = 0;
+#else
   oxcf->twopass_stats_in = cfg->rc_twopass_stats_in;
+#endif  // CONFIG_SINGLEPASS
 
   // Set Key frame configuration.
   kf_cfg->fwd_kf_enabled = cfg->fwd_kf_enabled;

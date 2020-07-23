@@ -242,7 +242,12 @@ int main(int argc, char **argv) {
   // Pass 1
   rewind(infile);
   cfg.g_pass = AOM_RC_LAST_PASS;
+#if CONFIG_SINGLEPASS
+  cfg.rc_twopass_stats_in.buf = NULL;
+  cfg.rc_twopass_stats_in.sz = 0;
+#else
   cfg.rc_twopass_stats_in = stats;
+#endif  // CONFIG_SINGLEPASS
   pass1(&raw, infile, outfile_arg, encoder, &cfg, limit);
   free(stats.buf);
 
