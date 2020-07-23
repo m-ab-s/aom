@@ -906,7 +906,9 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   rc_cfg->target_bandwidth = 1000 * cfg->rc_target_bitrate;
   rc_cfg->drop_frames_water_mark = cfg->rc_dropframe_thresh;
   rc_cfg->vbr_corpus_complexity_lap = extra_cfg->vbr_corpus_complexity_lap;
+#if !CONFIG_SINGLEPASS
   rc_cfg->vbrbias = cfg->rc_2pass_vbr_bias_pct;
+#endif  // !CONFIG_SINGLEPASS
   rc_cfg->vbrmin_section = cfg->rc_2pass_vbr_minsection_pct;
   rc_cfg->vbrmax_section = cfg->rc_2pass_vbr_maxsection_pct;
 
@@ -991,12 +993,9 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
       resize_cfg->resize_mode ? 0 : extra_cfg->enable_tpl_model;
 
 // Set two-pass stats configuration.
-#if CONFIG_SINGLEPASS
-  oxcf->twopass_stats_in.buf = NULL;
-  oxcf->twopass_stats_in.sz = 0;
-#else
+#if !CONFIG_SINGLEPASS
   oxcf->twopass_stats_in = cfg->rc_twopass_stats_in;
-#endif  // CONFIG_SINGLEPASS
+#endif  // !CONFIG_SINGLEPASS
 
   // Set Key frame configuration.
   kf_cfg->fwd_kf_enabled = cfg->fwd_kf_enabled;

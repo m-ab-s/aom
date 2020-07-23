@@ -494,6 +494,7 @@ typedef struct {
    * constant quality.
    */
   enum aom_rc_mode mode;
+#if !CONFIG_SINGLEPASS
   /*!
    * Indicates the bias (expressed on a scale of 0 to 100) for determining
    * target size for the current frame. The value 0 indicates the optimal CBR
@@ -501,6 +502,7 @@ typedef struct {
    * should be used.
    */
   int vbrbias;
+#endif  // !CONFIG_SINGLEPASS
   /*!
    * Indicates the minimum bitrate to be used for a single frame as a percentage
    * of the target bitrate.
@@ -846,6 +848,7 @@ typedef struct AV1EncoderConfig {
   // Frame Super-Resolution size scaling.
   SuperResCfg superres_cfg;
 
+#if !CONFIG_SINGLEPASS
   /*!\endcond */
   /*!
    * stats_in buffer contains all of the stats packets produced in the first
@@ -853,6 +856,7 @@ typedef struct AV1EncoderConfig {
    */
   aom_fixed_buf_t twopass_stats_in;
   /*!\cond */
+#endif  // !CONFIG_SINGLEPASS
 
   // SubGOP config.
   const char *subgop_config_str;
