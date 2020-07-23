@@ -64,6 +64,7 @@ static int img_size_bytes(aom_image_t *img) {
   return image_size_bytes;
 }
 
+#if !CONFIG_SINGLEPASS
 static int get_frame_stats(aom_codec_ctx_t *ctx, const aom_image_t *img,
                            aom_codec_pts_t pts, unsigned int duration,
                            aom_enc_frame_flags_t flags,
@@ -77,9 +78,6 @@ static int get_frame_stats(aom_codec_ctx_t *ctx, const aom_image_t *img,
   while ((pkt = aom_codec_get_cx_data(ctx, &iter)) != NULL) {
     got_pkts = 1;
 
-#if CONFIG_SINGLEPASS
-    (void)stats;
-#else
     if (pkt->kind == AOM_CODEC_STATS_PKT) {
       const uint8_t *const pkt_buf = pkt->data.twopass_stats.buf;
       const size_t pkt_size = pkt->data.twopass_stats.sz;
@@ -87,11 +85,11 @@ static int get_frame_stats(aom_codec_ctx_t *ctx, const aom_image_t *img,
       memcpy((uint8_t *)stats->buf + stats->sz, pkt_buf, pkt_size);
       stats->sz += pkt_size;
     }
-#endif  // !CONFIG_SINGLEPASS
   }
 
   return got_pkts;
 }
+#endif  // !CONFIG_SINGLEPASS
 
 static int encode_frame(aom_codec_ctx_t *ctx, const aom_image_t *img,
                         aom_codec_pts_t pts, unsigned int duration,
@@ -131,6 +129,7 @@ static void get_raw_image(aom_image_t **frame_to_encode, aom_image_t *raw,
   }
 }
 
+#if !CONFIG_SINGLEPASS
 static aom_fixed_buf_t pass0(aom_image_t *raw, FILE *infile,
                              aom_codec_iface_t *encoder,
                              const aom_codec_enc_cfg_t *cfg, int lf_width,
@@ -233,6 +232,7 @@ static aom_fixed_buf_t pass0(aom_image_t *raw, FILE *infile,
 
   return stats;
 }
+#endif  // !CONFIG_SINGLEPASS
 
 static void pass1(aom_image_t *raw, FILE *infile, const char *outfile_name,
                   aom_codec_iface_t *encoder, aom_codec_enc_cfg_t *cfg,
@@ -439,7 +439,9 @@ int main(int argc, char **argv) {
   aom_image_t raw;
   aom_image_t raw_shift;
   aom_codec_err_t res;
+#if !CONFIG_SINGLEPASS
   aom_fixed_buf_t stats;
+#endif  // !CONFIG_SINGLEPASS
   int flags = 0;
 
   const int fps = 30;
@@ -504,6 +506,12 @@ int main(int argc, char **argv) {
   if (!(infile = fopen(infile_arg, "rb")))
     die("Failed to open %s for reading", infile_arg);
 
+#if CONFIG_SINGLEPASS
+  // Pass 1
+  cfg.g_pass = AOM_RC_ONE_PASS;
+  pass1(&raw, infile, outfile_arg, encoder, &cfg, lf_width, lf_height,
+        lf_blocksize, flags, &raw_shift);
+#else
   // Pass 0
   cfg.g_pass = AOM_RC_FIRST_PASS;
   stats = pass0(&raw, infile, encoder, &cfg, lf_width, lf_height, lf_blocksize,
@@ -512,15 +520,11 @@ int main(int argc, char **argv) {
   // Pass 1
   rewind(infile);
   cfg.g_pass = AOM_RC_LAST_PASS;
-#if CONFIG_SINGLEPASS
-  cfg.rc_twopass_stats_in.buf = NULL;
-  cfg.rc_twopass_stats_in.sz = 0;
-#else
   cfg.rc_twopass_stats_in = stats;
-#endif  // CONFIG_SINGLEPASS
   pass1(&raw, infile, outfile_arg, encoder, &cfg, lf_width, lf_height,
         lf_blocksize, flags, &raw_shift);
   free(stats.buf);
+#endif  // CONFIG_SINGLEPASS
 
   if (FORCE_HIGHBITDEPTH_DECODING) aom_img_free(&raw_shift);
   aom_img_free(&raw);

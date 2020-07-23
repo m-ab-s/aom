@@ -32,12 +32,9 @@ void Encoder::InitEncoder(VideoSource *video) {
     cfg_.g_w = img->d_w;
     cfg_.g_h = img->d_h;
     cfg_.g_timebase = video->timebase();
-#if CONFIG_SINGLEPASS
-    cfg_.rc_twopass_stats_in.buf = NULL;
-    cfg_.rc_twopass_stats_in.sz = 0;
-#else
+#if !CONFIG_SINGLEPASS
     cfg_.rc_twopass_stats_in = stats_->buf();
-#endif  // CONFIG_SINGLEPASS
+#endif  // !CONFIG_SINGLEPASS
 
     res = aom_codec_enc_init(&encoder_, CodecInterface(), &cfg_, init_flags_);
     ASSERT_EQ(AOM_CODEC_OK, res) << EncoderError();

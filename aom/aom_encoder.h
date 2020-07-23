@@ -30,6 +30,7 @@
 extern "C" {
 #endif
 
+#include "config/aom_config.h"
 #include "aom/aom_codec.h"
 
 /*!\brief Current ABI version number
@@ -597,12 +598,14 @@ typedef struct aom_codec_enc_cfg {
    */
   enum aom_rc_mode rc_end_usage;
 
+#if !CONFIG_SINGLEPASS
   /*!\brief Two-pass stats buffer.
    *
    * A buffer containing all of the stats packets produced in the first
    * pass, concatenated.
    */
   aom_fixed_buf_t rc_twopass_stats_in;
+#endif  // !CONFIG_SINGLEPASS
 
   /*!\brief first pass mb stats buffer.
    *
@@ -700,6 +703,7 @@ typedef struct aom_codec_enc_cfg {
    * 2 pass rate control parameters
    */
 
+#if !CONFIG_SINGLEPASS
   /*!\brief Two-pass mode CBR/VBR bias
    *
    * Bias, expressed on a scale of 0 to 100, for determining target size
@@ -709,6 +713,7 @@ typedef struct aom_codec_enc_cfg {
    * encoder should "lean."
    */
   unsigned int rc_2pass_vbr_bias_pct;
+#endif  // !CONFIG_SINGLEPASS
 
   /*!\brief Two-pass mode per-GOP minimum bitrate
    *

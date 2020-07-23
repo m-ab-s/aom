@@ -399,7 +399,9 @@ static aom_codec_err_t validate_config(aom_codec_alg_priv_t *ctx,
   RANGE_CHECK(cfg, rc_end_usage, AOM_VBR, AOM_Q);
   RANGE_CHECK_HI(cfg, rc_undershoot_pct, 100);
   RANGE_CHECK_HI(cfg, rc_overshoot_pct, 100);
+#if !CONFIG_SINGLEPASS
   RANGE_CHECK_HI(cfg, rc_2pass_vbr_bias_pct, 100);
+#endif  // !!CONFIG_SINGLEPASS
   RANGE_CHECK(cfg, kf_mode, AOM_KF_DISABLED, AOM_KF_AUTO);
   RANGE_CHECK_HI(cfg, rc_dropframe_thresh, 100);
 #if CONFIG_SINGLEPASS
@@ -3109,8 +3111,10 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = {
       255,                // rc_superres_qthresh
       128,                // rc_superres_kf_qthresh
 
-      AOM_VBR,      // rc_end_usage
+      AOM_VBR,  // rc_end_usage
+#if !CONFIG_SINGLEPASS
       { NULL, 0 },  // rc_twopass_stats_in
+#endif              // !CONFIG_SINGLEPASS
       { NULL, 0 },  // rc_firstpass_mb_stats_in
       256,          // rc_target_bandwidth
       0,            // rc_min_quantizer
@@ -3122,7 +3126,9 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = {
       4000,  // rc_buffer_initial_size
       5000,  // rc_buffer_optimal_size
 
+#if !CONFIG_SINGLEPASS
       50,    // rc_two_pass_vbrbias
+#endif       // !CONFIG_SINGLEPASS
       0,     // rc_two_pass_vbrmin_section
       2000,  // rc_two_pass_vbrmax_section
 
@@ -3179,8 +3185,10 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = {
       255,              // rc_superres_qthresh
       128,              // rc_superres_kf_qthresh
 
-      AOM_CBR,      // rc_end_usage
+      AOM_CBR,  // rc_end_usage
+#if !CONFIG_SINGLEPASS
       { NULL, 0 },  // rc_twopass_stats_in
+#endif              // !CONFIG_SINGLEPASS
       { NULL, 0 },  // rc_firstpass_mb_stats_in
       256,          // rc_target_bandwidth
       0,            // rc_min_quantizer
@@ -3192,7 +3200,9 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = {
       4000,  // rc_buffer_initial_size
       5000,  // rc_buffer_optimal_size
 
+#if !CONFIG_SINGLEPASS
       50,    // rc_two_pass_vbrbias
+#endif       // !CONFIG_SINGLEPASS
       0,     // rc_two_pass_vbrmin_section
       2000,  // rc_two_pass_vbrmax_section
 
