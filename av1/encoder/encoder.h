@@ -601,20 +601,6 @@ typedef struct {
   bool timing_info_present;
 } DecoderModelCfg;
 
-/*!\endcond */
-/*!
- * \brief Two pass specific rate control configuration parameters
- */
-typedef struct {
-  // TWO PASS DATARATE CONTROL OPTIONS.
-  /*!
-   * stats_in buffer contains all of the stats packets produced in the first
-   * pass, concatenated.
-   */
-  aom_fixed_buf_t stats_in;
-} TwoPassCfg;
-/*!\cond */
-
 typedef struct {
   // Indicates the update frequency for coeff costs.
   COST_UPDATE_TYPE coeff;
@@ -862,9 +848,10 @@ typedef struct AV1EncoderConfig {
 
   /*!\endcond */
   /*!
-   * Two pass specific rate control configuration parameters
+   * stats_in buffer contains all of the stats packets produced in the first
+   * pass, concatenated.
    */
-  TwoPassCfg two_pass_cfg;
+  aom_fixed_buf_t twopass_stats_in;
   /*!\cond */
 
   // SubGOP config.
