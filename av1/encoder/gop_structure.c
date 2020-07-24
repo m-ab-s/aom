@@ -24,6 +24,7 @@
 #include "av1/encoder/encoder.h"
 #include "av1/encoder/firstpass.h"
 #include "av1/encoder/gop_structure.h"
+#include "av1/encoder/subgop.h"
 
 // Set parameters for frames between 'start' and 'end' (excluding both).
 static void set_multi_layer_params(const TWO_PASS *twopass,
@@ -85,7 +86,7 @@ static void set_multi_layer_params(const TWO_PASS *twopass,
   }
 }
 
-static int find_backward_alt_ref(SubGOPCfg *subgop_cfg, int cur_idx) {
+static int find_backward_alt_ref(const SubGOPCfg *subgop_cfg, int cur_idx) {
   int cur_disp_idx = subgop_cfg->step[cur_idx].disp_frame_idx;
   int cur_pyr_level = subgop_cfg->step[cur_idx].pyr_level;
   int bwd_alt_ref_disp_idx = 0;
@@ -101,7 +102,7 @@ static int find_backward_alt_ref(SubGOPCfg *subgop_cfg, int cur_idx) {
   return bwd_alt_ref_disp_idx;
 }
 
-static int find_forward_alt_ref(SubGOPCfg *subgop_cfg, int cur_idx) {
+static int find_forward_alt_ref(const SubGOPCfg *subgop_cfg, int cur_idx) {
   int cur_disp_idx = subgop_cfg->step[cur_idx].disp_frame_idx;
   int cur_pyr_level = subgop_cfg->step[cur_idx].pyr_level;
   int fwd_alt_ref_disp_idx = subgop_cfg->num_frames;
@@ -118,13 +119,13 @@ static int find_forward_alt_ref(SubGOPCfg *subgop_cfg, int cur_idx) {
 }
 
 static void set_multi_layer_params_from_subgop_cfg(
-    const TWO_PASS *twopass, GF_GROUP *const gf_group, SubGOPCfg *subgop_cfg,
-    RATE_CONTROL *rc, FRAME_INFO *frame_info, int *cur_frame_idx,
-    int *frame_index) {
+    const TWO_PASS *twopass, GF_GROUP *const gf_group,
+    const SubGOPCfg *subgop_cfg, RATE_CONTROL *rc, FRAME_INFO *frame_info,
+    int *cur_frame_idx, int *frame_index) {
   int use_altref = 0;
 
   for (int idx = 0; idx < subgop_cfg->num_steps; ++idx) {
-    SubGOPStepCfg *frame = &subgop_cfg->step[idx];
+    const SubGOPStepCfg *frame = &subgop_cfg->step[idx];
     FRAME_TYPE_CODE type = frame->type_code;
     int pyr_level = frame->pyr_level;
     int disp_idx = frame->disp_frame_idx;
@@ -205,10 +206,22 @@ static int construct_multi_layer_gf_structure(
   ++cur_frame_index;
 
   // Rest of the frames.
-  if (gf_interval == cpi->subgop_config_set.config[0].num_frames) {
-    set_multi_layer_params_from_subgop_cfg(
-        twopass, gf_group, &cpi->subgop_config_set.config[0], rc, frame_info,
-        &cur_frame_index, &frame_index);
+  SubGOPSetCfg *subgop_cfg_set = &cpi->subgop_config_set;
+  const SubGOPCfg *subgop_cfg0 =
+      av1_find_subgop_config(subgop_cfg_set, gf_interval, 0);
+  if (subgop_cfg0) {
+    const SubGOPCfg *subgop_cfg = subgop_cfg0;
+
+    // Check if it is the last GOP
+    if (rc->frames_to_key == gf_interval) {
+      const SubGOPCfg *subgop_cfg1 =
+          av1_find_subgop_config(subgop_cfg_set, gf_interval, 1);
+      if (subgop_cfg1) subgop_cfg = subgop_cfg1;
+    }
+
+    set_multi_layer_params_from_subgop_cfg(twopass, gf_group, subgop_cfg, rc,
+                                           frame_info, &cur_frame_index,
+                                           &frame_index);
   } else {
     // ALTREF.
     const int use_altref = gf_group->max_layer_depth_allowed > 0;
