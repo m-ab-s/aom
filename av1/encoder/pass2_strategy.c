@@ -1449,8 +1449,12 @@ static void define_gf_group_pass0(AV1_COMP *cpi,
 
 static INLINE void set_baseline_gf_interval(AV1_COMP *cpi, int arf_position,
                                             int active_max_gf_interval,
-                                            int use_alt_ref,
-                                            int is_final_pass) {
+                                            int use_alt_ref
+#if !CONFIG_SINGLEPASS
+                                            ,
+                                            int is_final_pass
+#endif  // !CONFIG_SINGLEPASS
+) {
   RATE_CONTROL *const rc = &cpi->rc;
   TWO_PASS *const twopass = &cpi->twopass;
   // Set the interval until the next gf.
@@ -1471,12 +1475,18 @@ static INLINE void set_baseline_gf_interval(AV1_COMP *cpi, int arf_position,
       // if possible, merge the last two gf groups
       if (rc->frames_to_key <= active_max_gf_interval) {
         rc->baseline_gf_interval = rc->frames_to_key;
-        if (is_final_pass) rc->intervals_till_gf_calculate_due = 0;
+#if !CONFIG_SINGLEPASS
+        if (is_final_pass)
+#endif  // !CONFIG_SINGLEPASS
+          rc->intervals_till_gf_calculate_due = 0;
         // if merging the last two gf groups creates a group that is too long,
         // split them and force the last gf group to be the MIN_FWD_KF_INTERVAL
       } else {
         rc->baseline_gf_interval = rc->frames_to_key - MIN_FWD_KF_INTERVAL;
-        if (is_final_pass) rc->intervals_till_gf_calculate_due = 0;
+#if !CONFIG_SINGLEPASS
+        if (is_final_pass)
+#endif  // !CONFIG_SINGLEPASS
+          rc->intervals_till_gf_calculate_due = 0;
       }
     } else {
       rc->baseline_gf_interval = arf_position - rc->source_alt_ref_pending;
@@ -1532,7 +1542,12 @@ static void init_gf_stats(GF_GROUP_STATS *gf_stats) {
  */
 static void define_gf_group(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
                             const EncodeFrameParams *const frame_params,
-                            int max_gop_length, int is_final_pass) {
+                            int max_gop_length
+#if !CONFIG_SINGLEPASS
+                            ,
+                            int is_final_pass
+#endif  // !CONFIG_SINGLEPASS
+) {
   AV1_COMMON *const cm = &cpi->common;
   RATE_CONTROL *const rc = &cpi->rc;
   const AV1EncoderConfig *const oxcf = &cpi->oxcf;
@@ -1641,10 +1656,15 @@ static void define_gf_group(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
   last_frame_stats.frame_sr_coded_error = next_frame.sr_coded_error;
   last_frame_stats.frame_tr_coded_error = next_frame.tr_coded_error;
 
+#if CONFIG_SINGLEPASS
+  rc->intervals_till_gf_calculate_due--;
+  rc->cur_gf_index++;
+#else
   if (is_final_pass) {
     rc->intervals_till_gf_calculate_due--;
     rc->cur_gf_index++;
   }
+#endif  // CONFIG_SINGLEPASS
 
   // Was the group length constrained by the requirement for a new KF?
   rc->constrained_gf_group = (i >= rc->frames_to_key) ? 1 : 0;
@@ -1729,7 +1749,10 @@ static void define_gf_group(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
       if (i - roll_back >= active_min_gf_interval + 1) {
         alt_offset = -roll_back;
         i -= roll_back;
-        if (is_final_pass) rc->intervals_till_gf_calculate_due = 0;
+#if !CONFIG_SINGLEPASS
+        if (is_final_pass)
+#endif  // !CONFIG_SINGLEPASS
+          rc->intervals_till_gf_calculate_due = 0;
       }
     }
   }
@@ -1738,8 +1761,12 @@ static void define_gf_group(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
   if (use_alt_ref) {
     rc->source_alt_ref_pending = 1;
     gf_group->max_layer_depth_allowed = gf_cfg->gf_max_pyr_height;
+#if CONFIG_SINGLEPASS
+    set_baseline_gf_interval(cpi, i, active_max_gf_interval, use_alt_ref);
+#else
     set_baseline_gf_interval(cpi, i, active_max_gf_interval, use_alt_ref,
                              is_final_pass);
+#endif  // CONFIG_SINGLEPASS
 
     const int forward_frames = (rc->frames_to_key - i >= i - 1)
                                    ? i - 1
@@ -1754,8 +1781,12 @@ static void define_gf_group(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
     reset_fpf_position(twopass, start_pos);
     rc->source_alt_ref_pending = 0;
     gf_group->max_layer_depth_allowed = 0;
+#if CONFIG_SINGLEPASS
+    set_baseline_gf_interval(cpi, i, active_max_gf_interval, use_alt_ref);
+#else
     set_baseline_gf_interval(cpi, i, active_max_gf_interval, use_alt_ref,
                              is_final_pass);
+#endif  // CONFIG_SINGLEPASS
 
     rc->gfu_boost = AOMMIN(
         MAX_GF_BOOST,
@@ -1770,10 +1801,17 @@ static void define_gf_group(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
   // the next gf group.
   // TODO(bohanli): should incorporate the usage of alt_ref into
   // calculate_gf_length
+#if CONFIG_SINGLEPASS
+  if (rc->source_alt_ref_pending == 0 &&
+      rc->intervals_till_gf_calculate_due > 0) {
+    rc->gf_intervals[rc->cur_gf_index]--;
+  }
+#else
   if (is_final_pass && rc->source_alt_ref_pending == 0 &&
       rc->intervals_till_gf_calculate_due > 0) {
     rc->gf_intervals[rc->cur_gf_index]--;
   }
+#endif  // CONFIG_SINGLEPASS
 
 #define LAST_ALR_BOOST_FACTOR 0.2f
   rc->arf_boost_factor = 1.0;
@@ -1842,7 +1880,9 @@ static void define_gf_group(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
 #endif
 
   // Adjust KF group bits and error remaining.
+#if !CONFIG_SINGLEPASS
   if (is_final_pass)
+#endif  // !CONFIG_SINGLEPASS
     twopass->kf_group_error_left -= (int64_t)gf_stats.gf_group_err;
 
   // Set up the structure of this Group-Of-Pictures (same as GF_GROUP)
@@ -2735,7 +2775,9 @@ static void setup_target_rate(AV1_COMP *cpi) {
 
 void av1_get_second_pass_params(AV1_COMP *cpi,
                                 EncodeFrameParams *const frame_params,
+#if !CONFIG_SINGLEPASS
                                 const EncodeFrameInput *const frame_input,
+#endif  // !CONFIG_SINGLEPASS
                                 unsigned int frame_flags) {
   RATE_CONTROL *const rc = &cpi->rc;
   TWO_PASS *const twopass = &cpi->twopass;
@@ -2859,6 +2901,11 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
       calculate_gf_length(cpi, max_gop_length, MAX_NUM_GF_INTERVALS);
     }
 
+#if CONFIG_SINGLEPASS
+    // Note max_gop_length = MAX_GF_LENGTH_LAP (16) in 1-pass case
+    assert(max_gop_length == MAX_GF_LENGTH_LAP);
+    define_gf_group(cpi, &this_frame, frame_params, max_gop_length);
+#else
     if (max_gop_length > 16 && oxcf->algo_cfg.enable_tpl_model &&
         !cpi->sf.tpl_sf.disable_gop_length_decision) {
       if (rc->gf_intervals[rc->cur_gf_index] - 1 > 16) {
@@ -2879,6 +2926,7 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
       }
     }
     define_gf_group(cpi, &this_frame, frame_params, max_gop_length, 1);
+#endif  // CONFIG_SINGLEPASS
     rc->frames_till_gf_update_due = rc->baseline_gf_interval;
     assert(gf_group->index == 0);
 
