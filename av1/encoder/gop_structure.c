@@ -85,6 +85,100 @@ static void set_multi_layer_params(const TWO_PASS *twopass,
   }
 }
 
+static int find_backward_alt_ref(SubGOPCfg *subgop_cfg, int cur_idx) {
+  int cur_disp_idx = subgop_cfg->step[cur_idx].disp_frame_idx;
+  int cur_pyr_level = subgop_cfg->step[cur_idx].pyr_level;
+  int bwd_alt_ref_disp_idx = 0;
+
+  for (int i = 0; i < cur_idx; ++i) {
+    int disp_idx = subgop_cfg->step[i].disp_frame_idx;
+    int pyr_level = subgop_cfg->step[i].pyr_level;
+    if (pyr_level < cur_pyr_level && disp_idx < cur_disp_idx) {
+      if (disp_idx > bwd_alt_ref_disp_idx) bwd_alt_ref_disp_idx = disp_idx;
+    }
+  }
+
+  return bwd_alt_ref_disp_idx;
+}
+
+static int find_forward_alt_ref(SubGOPCfg *subgop_cfg, int cur_idx) {
+  int cur_disp_idx = subgop_cfg->step[cur_idx].disp_frame_idx;
+  int cur_pyr_level = subgop_cfg->step[cur_idx].pyr_level;
+  int fwd_alt_ref_disp_idx = subgop_cfg->num_frames;
+
+  for (int i = 0; i < cur_idx; ++i) {
+    int disp_idx = subgop_cfg->step[i].disp_frame_idx;
+    int pyr_level = subgop_cfg->step[i].pyr_level;
+    if (pyr_level < cur_pyr_level && disp_idx > cur_disp_idx) {
+      if (disp_idx < fwd_alt_ref_disp_idx) fwd_alt_ref_disp_idx = disp_idx;
+    }
+  }
+
+  return fwd_alt_ref_disp_idx;
+}
+
+static void set_multi_layer_params_from_subgop_cfg(
+    const TWO_PASS *twopass, GF_GROUP *const gf_group, SubGOPCfg *subgop_cfg,
+    RATE_CONTROL *rc, FRAME_INFO *frame_info, int *cur_frame_idx,
+    int *frame_index) {
+  int use_altref = 0;
+
+  for (int idx = 0; idx < subgop_cfg->num_steps; ++idx) {
+    SubGOPStepCfg *frame = &subgop_cfg->step[idx];
+    FRAME_TYPE_CODE type = frame->type_code;
+    int pyr_level = frame->pyr_level;
+    int disp_idx = frame->disp_frame_idx;
+
+    if (type == FRAME_TYPE_OOO_FILTERED ||
+        type == FRAME_TYPE_OOO_UNFILTERED) {  // ARF
+      use_altref = 1;
+      gf_group->update_type[*frame_index] =
+          pyr_level == 1 ? ARF_UPDATE : INTNL_ARF_UPDATE;
+      if (pyr_level == 1) {
+        gf_group->arf_index = *frame_index;
+        gf_group->arf_boost[*frame_index] = rc->gfu_boost;
+        gf_group->arf_src_offset[*frame_index] = disp_idx - 1;
+      } else {
+        int fwd_arf_disp_idx = find_forward_alt_ref(subgop_cfg, idx);
+        int bwd_arf_disp_idx = find_backward_alt_ref(subgop_cfg, idx);
+        gf_group->arf_boost[*frame_index] = av1_calc_arf_boost(
+            twopass, rc, frame_info, disp_idx, fwd_arf_disp_idx - disp_idx,
+            disp_idx - bwd_arf_disp_idx, NULL, NULL);
+        gf_group->arf_src_offset[*frame_index] =
+            disp_idx - bwd_arf_disp_idx - 1;
+      }
+    } else if (type == FRAME_TYPE_INO_VISIBLE) {  // Leaf
+      gf_group->update_type[*frame_index] = LF_UPDATE;
+
+      int fwd_arf_disp_idx = find_forward_alt_ref(subgop_cfg, idx);
+      int bwd_arf_disp_idx = find_backward_alt_ref(subgop_cfg, idx);
+      gf_group->arf_boost[*frame_index] =
+          av1_calc_arf_boost(twopass, rc, frame_info, disp_idx,
+                             fwd_arf_disp_idx - disp_idx, 0, NULL, NULL);
+      gf_group->arf_src_offset[*frame_index] = disp_idx - bwd_arf_disp_idx - 1;
+
+      (*cur_frame_idx)++;
+    } else if (type == FRAME_TYPE_INO_REPEAT ||
+               type == FRAME_TYPE_INO_SHOWEXISTING) {  // Overlay
+      gf_group->update_type[*frame_index] =
+          pyr_level == 1 ? OVERLAY_UPDATE : INTNL_OVERLAY_UPDATE;
+      gf_group->arf_boost[*frame_index] = 0;
+      gf_group->arf_src_offset[*frame_index] = 0;
+      (*cur_frame_idx)++;
+    }
+    gf_group->cur_frame_idx[*frame_index] = *cur_frame_idx;
+    gf_group->layer_depth[*frame_index] =
+        type == FRAME_TYPE_INO_VISIBLE ? MAX_ARF_LAYERS : pyr_level;
+    gf_group->max_layer_depth = AOMMAX(gf_group->max_layer_depth, pyr_level);
+
+    if (idx == (subgop_cfg->num_steps - 1)) {
+      if (!use_altref) gf_group->update_type[*frame_index] = GF_UPDATE;
+    } else {
+      (*frame_index)++;
+    }
+  }
+}
+
 static int construct_multi_layer_gf_structure(
     AV1_COMP *cpi, TWO_PASS *twopass, GF_GROUP *const gf_group,
     RATE_CONTROL *rc, FRAME_INFO *const frame_info, int gf_interval,
@@ -110,29 +204,36 @@ static int construct_multi_layer_gf_structure(
   // cur_frame_index after the overlay frame.
   ++cur_frame_index;
 
-  // ALTREF.
-  const int use_altref = gf_group->max_layer_depth_allowed > 0;
-  if (use_altref) {
-    gf_group->update_type[frame_index] = ARF_UPDATE;
-    gf_group->arf_src_offset[frame_index] = gf_interval - 1;
-    gf_group->cur_frame_idx[frame_index] = cur_frame_index;
-    gf_group->layer_depth[frame_index] = 1;
-    gf_group->arf_boost[frame_index] = cpi->rc.gfu_boost;
-    gf_group->max_layer_depth = 1;
-    gf_group->arf_index = frame_index;
-    ++frame_index;
+  // Rest of the frames.
+  if (gf_interval == cpi->subgop_config_set.config[0].num_frames) {
+    set_multi_layer_params_from_subgop_cfg(
+        twopass, gf_group, &cpi->subgop_config_set.config[0], rc, frame_info,
+        &cur_frame_index, &frame_index);
   } else {
-    gf_group->arf_index = -1;
+    // ALTREF.
+    const int use_altref = gf_group->max_layer_depth_allowed > 0;
+
+    if (use_altref) {
+      gf_group->update_type[frame_index] = ARF_UPDATE;
+      gf_group->arf_src_offset[frame_index] = gf_interval - 1;
+      gf_group->cur_frame_idx[frame_index] = cur_frame_index;
+      gf_group->layer_depth[frame_index] = 1;
+      gf_group->arf_boost[frame_index] = cpi->rc.gfu_boost;
+      gf_group->max_layer_depth = 1;
+      gf_group->arf_index = frame_index;
+      ++frame_index;
+    } else {
+      gf_group->arf_index = -1;
+    }
+    set_multi_layer_params(twopass, gf_group, rc, frame_info, 0, gf_interval,
+                           &cur_frame_index, &frame_index, use_altref + 1);
+    // The end frame will be Overlay frame for an ARF GOP; otherwise set it to
+    // be GF, for consistency, which will be updated in the next GOP.
+    gf_group->update_type[frame_index] =
+        use_altref ? OVERLAY_UPDATE : GF_UPDATE;
+    gf_group->arf_src_offset[frame_index] = 0;
   }
 
-  // Rest of the frames.
-  set_multi_layer_params(twopass, gf_group, rc, frame_info, 0, gf_interval,
-                         &cur_frame_index, &frame_index, use_altref + 1);
-
-  // The end frame will be Overlay frame for an ARF GOP; otherwise set it to
-  // be GF, for consistency, which will be updated in the next GOP.
-  gf_group->update_type[frame_index] = use_altref ? OVERLAY_UPDATE : GF_UPDATE;
-  gf_group->arf_src_offset[frame_index] = 0;
   return frame_index;
 }
 
