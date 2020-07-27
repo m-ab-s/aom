@@ -51,7 +51,7 @@ static int process_subgop_step(char *str, SubGOPStepCfg *step) {
     default: return 0;
   }
   str = ++ptr;
-  step->pyr_level = strtol(str, &ptr, 10);
+  step->pyr_level = (int8_t)strtol(str, &ptr, 10);
   // Check if no numeric disp idx exist
   if (ptr == str) return 0;
   // Check for character P preceding the references
