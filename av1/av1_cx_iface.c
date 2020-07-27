@@ -633,7 +633,8 @@ static aom_codec_err_t validate_img(aom_codec_alg_priv_t *ctx,
   if (img->d_w != ctx->cfg.g_w || img->d_h != ctx->cfg.g_h)
     ERROR("Image size must match encoder init configuration size");
 
-  if (img->fmt != AOM_IMG_FMT_I420 && !ctx->extra_cfg.enable_tx64) {
+  if (img->fmt != AOM_IMG_FMT_I420 && img->fmt != AOM_IMG_FMT_I42016 &&
+      !ctx->extra_cfg.enable_tx64) {
     ERROR("TX64 can only be disabled on I420 images.");
   }
 
