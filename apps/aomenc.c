@@ -1207,7 +1207,9 @@ static void parse_global_config(struct AvxEncoderConfig *global, char ***argv) {
 
     if (arg_match(&arg, &use_cfg, argi)) {
       if (cfg_included) continue;
-      parse_cfg(arg.val, &global->encoder_config);
+      if (parse_cfg(arg.val, &global->encoder_config)) {
+        die("Reading / parsing error for config file: %s\n", arg.val);
+      }
       cfg_included = 1;
       continue;
     }
