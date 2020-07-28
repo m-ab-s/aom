@@ -781,6 +781,7 @@ typedef struct {
 
 #define MAX_SUBGOP_CONFIGS 64
 #define MAX_SUBGOP_STEPS 64
+#define MAX_SUBGOP_LENGTH 32
 
 typedef enum {
   FRAME_TYPE_INO_VISIBLE = 'V',

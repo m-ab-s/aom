@@ -73,10 +73,22 @@ static int process_subgop_steps(char *str, SubGOPCfg *config) {
   char *token;
   while ((token = my_strtok_r(str, delim, &str)) != NULL) {
     int res = process_subgop_step(token, &config->step[config->num_steps]);
-    if (res)
-      config->num_steps++;
-    else
-      return 0;
+    if (!res) return 0;
+    // Populate pyr level for show existing frame
+    if (config->step[config->num_steps].type_code ==
+        FRAME_TYPE_INO_SHOWEXISTING) {
+      int k;
+      for (k = 0; k < config->num_steps; ++k) {
+        if (config->step[k].disp_frame_idx ==
+            config->step[config->num_steps].disp_frame_idx) {
+          config->step[config->num_steps].pyr_level = config->step[k].pyr_level;
+          break;
+        }
+      }
+      // showexisting for a frame not coded before is invalid
+      if (k == config->num_steps) return 0;
+    }
+    config->num_steps++;
   }
   return 1;
 }
@@ -94,11 +106,57 @@ static int process_subgop_config(char *str, SubGOPCfg *config) {
   return process_subgop_steps(token, config);
 }
 
+static int is_visible(FRAME_TYPE_CODE code) {
+  switch (code) {
+    case FRAME_TYPE_INO_VISIBLE:
+    case FRAME_TYPE_INO_REPEAT:
+    case FRAME_TYPE_INO_SHOWEXISTING: return 1;
+    case FRAME_TYPE_OOO_FILTERED:
+    case FRAME_TYPE_OOO_UNFILTERED: return 0;
+    default: assert(0 && "Invalid frame type code"); return 0;
+  }
+}
+
 static int check_subgop_config(SubGOPCfg *config) {
+  // check for invalid disp_frame_idx
   for (int s = 0; s < config->num_steps; ++s) {
-    // check for invalid disp_frame_idx
     if (config->step[s].disp_frame_idx > config->num_frames) return 0;
   }
+
+  // Each disp frame index must be shown exactly once
+  int visible[MAX_SUBGOP_LENGTH];
+  memset(visible, 0, config->num_frames * sizeof(*visible));
+  for (int s = 0; s < config->num_steps; ++s) {
+    if (is_visible(config->step[s].type_code))
+      visible[config->step[s].disp_frame_idx - 1]++;
+  }
+  for (int k = 0; k < config->num_frames; ++k) {
+    if (visible[k] != 1) return 0;
+  }
+
+  // Each disp frame index must have at most one invisible frame
+  int invisible[MAX_SUBGOP_LENGTH];
+  memset(invisible, 0, config->num_frames * sizeof(*invisible));
+  for (int s = 0; s < config->num_steps; ++s) {
+    if (!is_visible(config->step[s].type_code))
+      invisible[config->step[s].disp_frame_idx - 1]++;
+  }
+  for (int k = 0; k < config->num_frames; ++k) {
+    if (invisible[k] > 1) return 0;
+  }
+
+  // Check for a single level 1 frame in the subgop
+  int level[MAX_SUBGOP_LENGTH];
+  memset(level, 0, config->num_frames * sizeof(*level));
+  for (int s = 0; s < config->num_steps; ++s) {
+    if (is_visible(config->step[s].type_code))
+      level[config->step[s].disp_frame_idx - 1] = config->step[s].pyr_level;
+  }
+  int num_level1 = 0;
+  for (int k = 0; k < config->num_frames; ++k) {
+    num_level1 += (level[k] == 1);
+  }
+  if (num_level1 != 1) return 0;
   return 1;
 }
 
@@ -145,8 +203,8 @@ void av1_print_subgop_config_set(SubGOPSetCfg *config_set) {
       printf("  step:%d -> ", j);
       printf("disp_frame_idx:%d ", config->step[j].disp_frame_idx);
       printf("type_code:%c ", config->step[j].type_code);
+      printf("pyr_level:%d ", config->step[j].pyr_level);
       if (config->step[j].type_code != FRAME_TYPE_INO_SHOWEXISTING) {
-        printf("pyr_level:%d ", config->step[j].pyr_level);
         printf("references:");
         for (int r = 0; r < config->step[j].num_references; ++r) {
           if (r) printf("^");
