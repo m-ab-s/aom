@@ -133,9 +133,10 @@ enum {
 } UENUM1BYTE(DELTAQ_MODE);
 
 enum {
-  RESIZE_NONE = 0,    // No frame resizing allowed.
-  RESIZE_FIXED = 1,   // All frames are coded at the specified scale.
-  RESIZE_RANDOM = 2,  // All frames are coded at a random scale.
+  RESIZE_NONE = 0,     // No frame resizing allowed.
+  RESIZE_FIXED = 1,    // All frames are coded at the specified scale.
+  RESIZE_RANDOM = 2,   // All frames are coded at a random scale.
+  RESIZE_DYNAMIC = 3,  // Frames coded at lower scale based on rate control.
   RESIZE_MODES
 } UENUM1BYTE(RESIZE_MODE);
 
@@ -1726,7 +1727,7 @@ typedef struct {
    * motion search. search_site_cfg[SS_CFG_LOOKAHEAD]: Used in intraBC, temporal
    * filter search_site_cfg[SS_CFG_FPF]: Used during first pass and lookahead
    */
-  search_site_config search_site_cfg[SS_CFG_TOTAL];
+  search_site_config search_site_cfg[SS_CFG_TOTAL][NUM_DISTINCT_SEARCH_METHODS];
 } MotionVectorSearchParams;
 
 /*!
@@ -2573,40 +2574,71 @@ typedef struct AV1_COMP {
   int frames_left;
 } AV1_COMP;
 
-/*!\cond */
-
+/*!
+ * \brief Input frames and last input frame
+ */
 typedef struct EncodeFrameInput {
+  /*!\cond */
   YV12_BUFFER_CONFIG *source;
   YV12_BUFFER_CONFIG *last_source;
   int64_t ts_duration;
+  /*!\endcond */
 } EncodeFrameInput;
 
-// EncodeFrameParams contains per-frame encoding parameters decided upon by
-// av1_encode_strategy() and passed down to av1_encode()
-struct EncodeFrameParams {
+/*!
+ * \brief contains per-frame encoding parameters decided upon by
+ * av1_encode_strategy() and passed down to av1_encode().
+ */
+typedef struct EncodeFrameParams {
+  /*!
+   * Is error resilient mode enabled
+   */
   int error_resilient_mode;
+  /*!
+   * Frame type (eg KF vs inter frame etc)
+   */
   FRAME_TYPE frame_type;
+
+  /*!\cond */
   int primary_ref_frame;
   int order_offset;
+
+  /*!\endcond */
+  /*!
+   * Should the current frame be displayed after being decoded
+   */
   int show_frame;
+
+  /*!\cond */
   int refresh_frame_flags;
 
   int show_existing_frame;
   int existing_fb_idx_to_show;
 
-  // Bitmask of which reference buffers may be referenced by this frame
+  /*!\endcond */
+  /*!
+   *  Bitmask of which reference buffers may be referenced by this frame.
+   */
   int ref_frame_flags;
 
-  // Reference buffer assignment for this frame.
+  /*!
+   *  Reference buffer assignment for this frame.
+   */
   int remapped_ref_idx[REF_FRAMES];
 
-  // Flags which determine which reference buffers are refreshed by this frame.
+  /*!
+   *  Flags which determine which reference buffers are refreshed by this
+   *  frame.
+   */
   RefreshFrameFlagsInfo refresh_frame;
 
-  // Speed level to use for this frame: Bigger number means faster.
+  /*!
+   *  Speed level to use for this frame: Bigger number means faster.
+   */
   int speed;
-};
-typedef struct EncodeFrameParams EncodeFrameParams;
+} EncodeFrameParams;
+
+/*!\cond */
 
 // EncodeFrameResults contains information about the result of encoding a
 // single frame
@@ -2886,7 +2918,15 @@ static INLINE int is_stat_consumption_stage(const AV1_COMP *const cpi) {
 #endif  // CONFIG_SINGLEPASS
 }
 
-// Check if the current stage has statistics
+/*!\endcond */
+/*!\brief Check if the current stage has statistics
+ *
+ *\ingroup two_pass_algo
+ *
+ * \param[in]    cpi     Top - level encoder instance structure
+ *
+ * \return 0 if no stats for current stage else 1
+ */
 static INLINE int has_no_stats_stage(const AV1_COMP *const cpi) {
   assert(IMPLIES(!cpi->lap_enabled, cpi->compressor_stage == ENCODE_STAGE));
 #if CONFIG_SINGLEPASS
@@ -2895,6 +2935,7 @@ static INLINE int has_no_stats_stage(const AV1_COMP *const cpi) {
   return (cpi->oxcf.pass == 0 && !cpi->lap_enabled);
 #endif  // CONFIG_SINGLEPASS
 }
+/*!\cond */
 
 // Function return size of frame stats buffer
 static INLINE int get_stats_buf_size(int num_lap_buffer, int num_lag_buffer) {

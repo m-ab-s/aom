@@ -15,6 +15,7 @@
 #include "test/encode_test_driver.h"
 #include "test/i420_video_source.h"
 #include "test/util.h"
+#include "av1/encoder/av1_quantize.h"
 #include "test/y4m_video_source.h"
 
 namespace {
@@ -141,8 +142,10 @@ class QuantizerBoundsCheckTestLarge
       aom_codec_ctx_t *ctx_dec = decoder->GetDecoder();
       AOM_CODEC_CONTROL_TYPECHECKED(ctx_dec, AOMD_GET_LAST_QUANTIZER,
                                     &base_qindex_);
-      if ((base_qindex_ < (int)cfg_.rc_min_quantizer ||
-           base_qindex_ > (int)cfg_.rc_max_quantizer) &&
+      min_bound_qindex_ = cfg_.rc_min_quantizer;
+      max_bound_qindex_ = cfg_.rc_max_quantizer;
+      if ((base_qindex_ < min_bound_qindex_ ||
+           base_qindex_ > max_bound_qindex_) &&
           quant_bound_violated_ == false) {
         quant_bound_violated_ = true;
       }
@@ -153,6 +156,8 @@ class QuantizerBoundsCheckTestLarge
   ::libaom_test::TestMode encoding_mode_;
   const QuantParam quant_param_;
   int base_qindex_;
+  int min_bound_qindex_;
+  int max_bound_qindex_;
   bool quant_bound_violated_;
   aom_rc_mode rc_end_usage_;
 };

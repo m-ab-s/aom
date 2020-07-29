@@ -221,26 +221,49 @@ static int find_qindex_by_rate_with_correction(
   return low;
 }
 
-static int get_twopass_worst_quality(AV1_COMP *cpi, const double section_err,
+/*!\brief Choose a target maximum Q for a group of frames
+ *
+ * \ingroup rate_control
+ *
+ * This function is used to estimate a suitable maximum Q for a
+ * group of frames. Inititally it is called to get a crude estimate
+ * for the whole clip. It is then called for each ARF/GF group to get
+ * a revised estimate for that group.
+ *
+ * \param[in]    cpi                 Top-level encoder structure
+ * \param[in]    av_frame_err        The average per frame coded error score
+ *                                   for frames making up this section/group.
+ * \param[in]    inactive_zone       Used to mask off /ignore part of the
+ *                                   frame. The most common use case is where
+ *                                   a wide format video (e.g. 16:9) is
+ *                                   letter-boxed into a more square format.
+ *                                   Here we want to ignore the bands at the
+ *                                   top and bottom.
+ * \param[in]    av_target_bandwidth The target bits per frame
+ * \param[in]    group_weight_factor A correction factor allowing the algorithm
+ *                                   to correct for errors over time.
+ *
+ * \return The maximum Q for frames in the group.
+ */
+static int get_twopass_worst_quality(AV1_COMP *cpi, const double av_frame_err,
                                      double inactive_zone,
-                                     int section_target_bandwidth,
+                                     int av_target_bandwidth,
                                      double group_weight_factor) {
   const RATE_CONTROL *const rc = &cpi->rc;
   const AV1EncoderConfig *const oxcf = &cpi->oxcf;
   const RateControlCfg *const rc_cfg = &oxcf->rc_cfg;
   inactive_zone = fclamp(inactive_zone, 0.0, 1.0);
 
-  if (section_target_bandwidth <= 0) {
+  if (av_target_bandwidth <= 0) {
     return rc->worst_quality;  // Highest value allowed
   } else {
     const int num_mbs = (oxcf->resize_cfg.resize_mode != RESIZE_NONE)
                             ? cpi->initial_mbs
                             : cpi->common.mi_params.MBs;
     const int active_mbs = AOMMAX(1, num_mbs - (int)(num_mbs * inactive_zone));
-    const double av_err_per_mb = section_err / active_mbs;
+    const double av_err_per_mb = av_frame_err / active_mbs;
     const int target_norm_bits_per_mb =
-        (int)((uint64_t)section_target_bandwidth << BPER_MB_NORMBITS) /
-        active_mbs;
+        (int)((uint64_t)av_target_bandwidth << BPER_MB_NORMBITS) / active_mbs;
     int rate_err_tol = AOMMIN(rc_cfg->under_shoot_pct, rc_cfg->over_shoot_pct);
 
     twopass_update_bpm_factor(&cpi->twopass);
@@ -697,7 +720,18 @@ static int calculate_section_intra_ratio(const FIRSTPASS_STATS *begin,
   return (int)(intra_error / DOUBLE_DIVIDE_CHECK(coded_error));
 }
 
-// Calculate the total bits to allocate in this GF/ARF group.
+/*!\brief Calculates the bit target for this GF/ARF group
+ *
+ * \ingroup rate_control
+ *
+ * Calculates the total bits to allocate in this GF/ARF group.
+ *
+ * \param[in]    cpi              Top-level encoder structure
+ * \param[in]    gf_group_err     Cumulative coded error score for the
+ *                                frames making up this group.
+ *
+ * \return The target total number of bits for this GF/ARF group.
+ */
 static int64_t calculate_total_gf_group_bits(AV1_COMP *cpi,
                                              double gf_group_err) {
   const RATE_CONTROL *const rc = &cpi->rc;
@@ -1591,7 +1625,7 @@ static void define_gf_group(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
   init_gf_stats(&gf_stats);
   GF_FRAME_STATS first_frame_stats, last_frame_stats;
 
-  const int can_disable_arf = (gf_cfg->gf_min_pyr_height == MIN_PYRAMID_LVL);
+  const int can_disable_arf = !gf_cfg->gf_min_pyr_height;
 
   // Load stats for the current frame.
   double mod_frame_err =
@@ -1681,8 +1715,7 @@ static void define_gf_group(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
   //   avg_sr_coded_error:      average of the SSE per pixel of each frame;
   //   avg_raw_err_stdev:       average of the standard deviation of (0,0)
   //                            motion error per block of each frame.
-  const int can_disable_internal_arfs =
-      (gf_cfg->gf_min_pyr_height <= MIN_PYRAMID_LVL + 1);
+  const int can_disable_internal_arfs = gf_cfg->gf_min_pyr_height <= 1;
   if (can_disable_internal_arfs &&
       gf_stats.zero_motion_accumulator > MIN_ZERO_MOTION &&
       gf_stats.avg_sr_coded_error / num_mbs < MAX_SR_CODED_ERROR &&
@@ -1696,7 +1729,7 @@ static void define_gf_group(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
         !is_almost_static(gf_stats.zero_motion_accumulator,
                           twopass->kf_zeromotion_pct, cpi->lap_enabled) &&
         rc->use_arf_in_this_kf_group && (i < gf_cfg->lag_in_frames) &&
-        (i >= MIN_GF_INTERVAL) && (gf_cfg->gf_max_pyr_height > MIN_PYRAMID_LVL);
+        (i >= MIN_GF_INTERVAL);
 
     // TODO(urvang): Improve and use model for VBR, CQ etc as well.
     if (use_alt_ref && rc_cfg->mode == AOM_Q && rc_cfg->qp <= 200) {
@@ -1711,7 +1744,6 @@ static void define_gf_group(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
       use_alt_ref = (score <= 0.0);
     }
   } else {
-    assert(gf_cfg->gf_max_pyr_height > MIN_PYRAMID_LVL);
     use_alt_ref =
         rc->use_arf_in_this_kf_group && (i < gf_cfg->lag_in_frames) && (i > 2);
   }
@@ -2235,6 +2267,7 @@ static int define_kf_interval(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
 
   return frames_to_key;
 }
+
 static double get_kf_group_avg_error(TWO_PASS *twopass,
                                      const FIRSTPASS_STATS *first_frame,
                                      const FIRSTPASS_STATS *start_position,

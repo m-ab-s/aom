@@ -1715,6 +1715,18 @@ void av1_set_screen_content_options(const AV1_COMP *cpi,
                             counts_2 * blk_h * blk_w * 12 > width * height;
 }
 
+// Function pointer to search site config initialization
+// of different search method functions.
+typedef void (*av1_init_search_site_config)(search_site_config *cfg,
+                                            int stride);
+
+av1_init_search_site_config
+    av1_init_motion_compensation[NUM_DISTINCT_SEARCH_METHODS] = {
+      av1_init_dsmotion_compensation, av1_init_motion_compensation_nstep,
+      av1_init_motion_compensation_hex, av1_init_motion_compensation_bigdia,
+      av1_init_motion_compensation_square
+    };
+
 static void init_motion_estimation(AV1_COMP *cpi) {
   AV1_COMMON *const cm = &cpi->common;
   MotionVectorSearchParams *const mv_search_params = &cpi->mv_search_params;
@@ -1730,27 +1742,31 @@ static void init_motion_estimation(AV1_COMP *cpi) {
   // Update if search_site_cfg is uninitialized or the current frame has a new
   // stride
   const int should_update =
-      !mv_search_params->search_site_cfg[SS_CFG_SRC].stride ||
-      !mv_search_params->search_site_cfg[SS_CFG_LOOKAHEAD].stride ||
-      (y_stride != mv_search_params->search_site_cfg[SS_CFG_SRC].stride);
+      !mv_search_params->search_site_cfg[SS_CFG_SRC][DIAMOND].stride ||
+      !mv_search_params->search_site_cfg[SS_CFG_LOOKAHEAD][DIAMOND].stride ||
+      (y_stride !=
+       mv_search_params->search_site_cfg[SS_CFG_SRC][DIAMOND].stride);
 
   if (!should_update) {
     return;
   }
 
-  if (cpi->sf.mv_sf.search_method == DIAMOND) {
-    av1_init_dsmotion_compensation(
-        &mv_search_params->search_site_cfg[SS_CFG_SRC], y_stride);
-    av1_init_dsmotion_compensation(
-        &mv_search_params->search_site_cfg[SS_CFG_LOOKAHEAD], y_stride_src);
-  } else {
-    av1_init3smotion_compensation(
-        &mv_search_params->search_site_cfg[SS_CFG_SRC], y_stride);
-    av1_init3smotion_compensation(
-        &mv_search_params->search_site_cfg[SS_CFG_LOOKAHEAD], y_stride_src);
+  // Initialization of search_site_cfg for NUM_DISTINCT_SEARCH_METHODS.
+  for (SEARCH_METHODS i = DIAMOND; i < NUM_DISTINCT_SEARCH_METHODS; i++) {
+    av1_init_motion_compensation[i](
+        &mv_search_params->search_site_cfg[SS_CFG_SRC][i], y_stride);
+    av1_init_motion_compensation[i](
+        &mv_search_params->search_site_cfg[SS_CFG_LOOKAHEAD][i], y_stride_src);
   }
-  av1_init_motion_fpf(&mv_search_params->search_site_cfg[SS_CFG_FPF],
+
+  // First pass search site config initialization.
+  av1_init_motion_fpf(&mv_search_params->search_site_cfg[SS_CFG_FPF][DIAMOND],
                       fpf_y_stride);
+  for (SEARCH_METHODS i = NSTEP; i < NUM_DISTINCT_SEARCH_METHODS; i++) {
+    memcpy(&mv_search_params->search_site_cfg[SS_CFG_FPF][i],
+           &mv_search_params->search_site_cfg[SS_CFG_FPF][DIAMOND],
+           sizeof(search_site_config));
+  }
 }
 
 #define COUPLED_CHROMA_FROM_LUMA_RESTORATION 0
@@ -2090,7 +2106,9 @@ static int encode_without_recode(AV1_COMP *cpi) {
     } else if ((cm->width << 2) == 3 * unscaled->y_crop_width &&
                (cm->height << 2) == 3 * unscaled->y_crop_height) {
       // 4:3 scaling.
-      filter_scaler = EIGHTTAP_REGULAR;
+      // TODO(jianj): Neon optimization for 4:3 scaling for EIGHTTAP has issues.
+      // See aomedia:2766.
+      filter_scaler = BILINEAR;
     }
   }
 
@@ -2123,6 +2141,27 @@ static int encode_without_recode(AV1_COMP *cpi) {
     av1_update_noise_estimate(cpi);
   }
 
+  // For 1 spatial layer encoding: if the (non-LAST) reference has different
+  // resolution from the source then disable that reference. This is to avoid
+  // significant increase in encode time from scaling the references in
+  // av1_scale_references. Note GOLDEN is forced to update on the (first/tigger)
+  // resized frame and ALTREF will be refreshed ~4 frames later, so both
+  // references become available again after few frames.
+  if (svc->number_spatial_layers == 1) {
+    if (cpi->ref_frame_flags & av1_ref_frame_flag_list[GOLDEN_FRAME]) {
+      const YV12_BUFFER_CONFIG *const ref =
+          get_ref_frame_yv12_buf(cm, GOLDEN_FRAME);
+      if (ref->y_crop_width != cm->width || ref->y_crop_height != cm->height)
+        cpi->ref_frame_flags ^= AOM_GOLD_FLAG;
+    }
+    if (cpi->ref_frame_flags & av1_ref_frame_flag_list[ALTREF_FRAME]) {
+      const YV12_BUFFER_CONFIG *const ref =
+          get_ref_frame_yv12_buf(cm, ALTREF_FRAME);
+      if (ref->y_crop_width != cm->width || ref->y_crop_height != cm->height)
+        cpi->ref_frame_flags ^= AOM_ALT_FLAG;
+    }
+  }
+
   // For SVC the inter-layer/spatial prediction is not done for newmv
   // (zero_mode is forced), and since the scaled references are only
   // use for newmv search, we can avoid scaling here.
@@ -2152,6 +2191,8 @@ static int encode_without_recode(AV1_COMP *cpi) {
         av1_init_quantizer(&cpi->enc_quant_dequant_params, &cm->quant_params,
                            cm->seq_params.bit_depth);
       av1_set_variance_partition_thresholds(cpi, q, 0);
+      if (frame_is_intra_only(cm) || cm->features.error_resilient_mode)
+        av1_setup_frame(cpi);
     }
   }
 
@@ -2476,8 +2517,7 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
 #if CONFIG_REALTIME_ONLY
   err = encode_without_recode(cpi);
 #else
-  if (cpi->sf.hl_sf.recode_loop == DISALLOW_RECODE &&
-      cpi->oxcf.mode == REALTIME)
+  if (cpi->sf.hl_sf.recode_loop == DISALLOW_RECODE)
     err = encode_without_recode(cpi);
   else
     err = encode_with_recode_loop(cpi, size, dest);
@@ -2525,9 +2565,6 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
   cm->cur_frame->buf.color_range = seq_params->color_range;
   cm->cur_frame->buf.render_width = cm->render_width;
   cm->cur_frame->buf.render_height = cm->render_height;
-
-  // TODO(zoeliu): For non-ref frames, loop filtering may need to be turned
-  // off.
 
   // Pick the loop filter level for the frame.
   if (!cm->features.allow_intrabc) {
