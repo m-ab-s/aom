@@ -2160,9 +2160,9 @@ static int define_kf_interval(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
     // Accumulate total number of stats available till next key frame
     num_stats_used_for_kf_boost++;
 
+#if !CONFIG_SINGLEPASS
     // Accumulate kf group error.
     if (kf_group_err != NULL)
-#if !CONFIG_SINGLEPASS
       *kf_group_err +=
           calculate_modified_err(frame_info, twopass, oxcf, this_frame);
 #endif  // !CONFIG_SINGLEPASS
