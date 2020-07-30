@@ -46,8 +46,8 @@ static INLINE void set_refresh_frame_flags(
 
 // Get the subgop config corresponding to the current frame within the
 // gf group
-const SubGOPStepCfg *get_subgop_step(const GF_GROUP *const gf_group) {
-  const int index = gf_group->index;
+const SubGOPStepCfg *get_subgop_step(const GF_GROUP *const gf_group,
+                                     int index) {
   const SubGOPCfg *subgop_cfg = gf_group->subgop_cfg;
   if (subgop_cfg == NULL) return NULL;
   return index == 0 ? gf_group->last_step_prev : &subgop_cfg->step[index - 1];
@@ -274,8 +274,10 @@ static void get_gop_cfg_enabled_refs(AV1_COMP *const cpi, int *ref_frame_flags,
   const int cur_frame_disp =
       cpi->common.current_frame.frame_number + order_offset;
 
-  const SubGOPStepCfg *step_gop_cfg = get_subgop_step(&gf_group);
+  const SubGOPStepCfg *step_gop_cfg =
+      get_subgop_step(&gf_group, gf_group.index);
   assert(step_gop_cfg != NULL);
+
   // Mask to indicate whether or not each ref is allowed by the GOP config
   int ref_frame_used[REF_FRAMES] = { 0 };
   // Structures to hash each reference frame based on its pyramid level. This
@@ -678,7 +680,8 @@ static void update_arf_stack(int ref_map_index,
 }
 
 // Update reference frame stack info according to the subgop cfg
-static void update_ref_frame_map_gopcfg(AV1_COMP *cpi, int show_existing_frame,
+static void update_ref_frame_map_gopcfg(AV1_COMP *cpi, int gf_index,
+                                        int show_existing_frame,
                                         int ref_map_index,
                                         RefBufferStack *ref_buffer_stack) {
   GF_GROUP gf_group = cpi->gf_group;
@@ -695,7 +698,7 @@ static void update_ref_frame_map_gopcfg(AV1_COMP *cpi, int show_existing_frame,
     stack_push(ref_buffer_stack->gld_stack, &ref_buffer_stack->gld_stack_size,
                ref_map_index);
   } else {
-    const SubGOPStepCfg *step_gop_cfg = get_subgop_step(&gf_group);
+    const SubGOPStepCfg *step_gop_cfg = get_subgop_step(&gf_group, gf_index);
 
     const int pyr_level = step_gop_cfg->pyr_level;
     const FRAME_TYPE_CODE type_code = step_gop_cfg->type_code;
@@ -737,6 +740,7 @@ static void update_ref_frame_map_gopcfg(AV1_COMP *cpi, int show_existing_frame,
 }
 
 int use_subgop_cfg(const GF_GROUP *const gf_group, int gf_index) {
+  if (gf_index < 0) return 0;
   if (gf_group->subgop_cfg == NULL) return 0;
   if (gf_index == 0) return gf_group->last_step_prev != NULL;
   return 1;
@@ -744,15 +748,14 @@ int use_subgop_cfg(const GF_GROUP *const gf_group, int gf_index) {
 
 // Update reference frame stack info.
 void av1_update_ref_frame_map(AV1_COMP *cpi,
-                              FRAME_UPDATE_TYPE frame_update_type,
+                              FRAME_UPDATE_TYPE frame_update_type, int gf_index,
                               int show_existing_frame, int ref_map_index,
                               RefBufferStack *ref_buffer_stack) {
   AV1_COMMON *const cm = &cpi->common;
-  if (use_subgop_cfg(&cpi->gf_group, cpi->gf_group.index) &&
-      !cpi->oxcf.algo_cfg.enable_tpl_model) {
+  if (use_subgop_cfg(&cpi->gf_group, gf_index)) {
     // Use the subgop cfg to update the ref frame map
-    update_ref_frame_map_gopcfg(cpi, show_existing_frame, ref_map_index,
-                                ref_buffer_stack);
+    update_ref_frame_map_gopcfg(cpi, gf_index, show_existing_frame,
+                                ref_map_index, ref_buffer_stack);
     return;
   }
 
@@ -845,8 +848,8 @@ static int get_free_ref_map_index(const RefBufferStack *ref_buffer_stack) {
 
 static int get_refresh_frame_flags_subgop_cfg(
     const AV1_COMP *const cpi, const RefBufferStack *const ref_buffer_stack,
-    int refresh_mask, int free_fb_index) {
-  const SubGOPStepCfg *step_gop_cfg = get_subgop_step(&cpi->gf_group);
+    int gf_index, int refresh_mask, int free_fb_index) {
+  const SubGOPStepCfg *step_gop_cfg = get_subgop_step(&cpi->gf_group, gf_index);
   assert(step_gop_cfg != NULL);
   const int pyr_level = step_gop_cfg->pyr_level;
   const FRAME_TYPE_CODE type_code = step_gop_cfg->type_code;
@@ -906,6 +909,7 @@ static int get_refresh_frame_flags_subgop_cfg(
 int av1_get_refresh_frame_flags(const AV1_COMP *const cpi,
                                 const EncodeFrameParams *const frame_params,
                                 FRAME_UPDATE_TYPE frame_update_type,
+                                int gf_index,
                                 const RefBufferStack *const ref_buffer_stack) {
   const AV1_COMMON *const cm = &cpi->common;
   const ExtRefreshFrameFlagsInfo *const ext_refresh_frame_flags =
@@ -976,9 +980,8 @@ int av1_get_refresh_frame_flags(const AV1_COMP *const cpi,
   // Search for the open slot to store the current frame.
   int free_fb_index = get_free_ref_map_index(ref_buffer_stack);
 
-  if (use_subgop_cfg(&cpi->gf_group, cpi->gf_group.index) &&
-      !cpi->oxcf.algo_cfg.enable_tpl_model) {
-    return get_refresh_frame_flags_subgop_cfg(cpi, ref_buffer_stack,
+  if (use_subgop_cfg(&cpi->gf_group, gf_index)) {
+    return get_refresh_frame_flags_subgop_cfg(cpi, ref_buffer_stack, gf_index,
                                               refresh_mask, free_fb_index);
   }
   switch (frame_update_type) {
@@ -1477,14 +1480,14 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
     frame_params.order_offset = gf_group->arf_src_offset[gf_group->index];
 
     if (!is_stat_generation_stage(cpi) &&
-        use_subgop_cfg(&cpi->gf_group, cpi->gf_group.index) &&
-        !cpi->oxcf.algo_cfg.enable_tpl_model) {
+        use_subgop_cfg(&cpi->gf_group, cpi->gf_group.index)) {
       get_gop_cfg_enabled_refs(cpi, &frame_params.ref_frame_flags,
                                frame_params.order_offset);
     }
 
     frame_params.refresh_frame_flags = av1_get_refresh_frame_flags(
-        cpi, &frame_params, frame_update_type, &cpi->ref_buffer_stack);
+        cpi, &frame_params, frame_update_type, cpi->gf_group.index,
+        &cpi->ref_buffer_stack);
 
     frame_params.existing_fb_idx_to_show =
         frame_params.show_existing_frame
@@ -1535,8 +1538,9 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
     if (!ext_flags->refresh_frame.update_pending) {
       int ref_map_index =
           av1_get_refresh_ref_frame_map(cm->current_frame.refresh_frame_flags);
-      av1_update_ref_frame_map(cpi, frame_update_type, cm->show_existing_frame,
-                               ref_map_index, &cpi->ref_buffer_stack);
+      av1_update_ref_frame_map(cpi, frame_update_type, cpi->gf_group.index,
+                               cm->show_existing_frame, ref_map_index,
+                               &cpi->ref_buffer_stack);
     }
   }
 

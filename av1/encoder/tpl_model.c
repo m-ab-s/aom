@@ -965,10 +965,10 @@ static AOM_INLINE void init_gop_frames_for_tpl(
 
     av1_get_ref_frames(cpi, &ref_buffer_stack);
     int refresh_mask = av1_get_refresh_frame_flags(
-        cpi, &frame_params, frame_update_type, &ref_buffer_stack);
+        cpi, &frame_params, frame_update_type, gf_index, &ref_buffer_stack);
 
     int refresh_frame_map_index = av1_get_refresh_ref_frame_map(refresh_mask);
-    av1_update_ref_frame_map(cpi, frame_update_type,
+    av1_update_ref_frame_map(cpi, frame_update_type, gf_index,
                              frame_params.show_existing_frame,
                              refresh_frame_map_index, &ref_buffer_stack);
 
@@ -1014,10 +1014,14 @@ static AOM_INLINE void init_gop_frames_for_tpl(
     gf_group->q_val[gf_index] = *pframe_qindex;
 
     av1_get_ref_frames(cpi, &ref_buffer_stack);
+    // TODO(sarahparker) av1_get_refresh_frame_flags() and
+    // av1_update_ref_frame_map() will execute default behavior even when
+    // subgop cfg is enabled. This should be addressed if we ever remove the
+    // frame_update_type.
     int refresh_mask = av1_get_refresh_frame_flags(
-        cpi, &frame_params, frame_update_type, &ref_buffer_stack);
+        cpi, &frame_params, frame_update_type, -1, &ref_buffer_stack);
     int refresh_frame_map_index = av1_get_refresh_ref_frame_map(refresh_mask);
-    av1_update_ref_frame_map(cpi, frame_update_type,
+    av1_update_ref_frame_map(cpi, frame_update_type, -1,
                              frame_params.show_existing_frame,
                              refresh_frame_map_index, &ref_buffer_stack);
 
