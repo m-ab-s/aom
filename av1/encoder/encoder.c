@@ -804,10 +804,11 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
           (char *)aom_malloc((strlen(oxcf->subgop_config_str) + 1) *
                              sizeof(*oxcf->subgop_config_str));
       strcpy(cpi->subgop_config_str, oxcf->subgop_config_str);
-      av1_process_subgop_config_set(oxcf->subgop_config_str,
-                                    &cpi->subgop_config_set);
-      // print only the encoder stage config
       if (cpi->compressor_stage == ENCODE_STAGE) {
+        av1_process_subgop_config_set(oxcf->subgop_config_str,
+                                      &cpi->subgop_config_set);
+        printf("Successfully processed %d subgop configs.\n",
+               cpi->subgop_config_set.num_configs);
         // Uncomment to print out the configuration
         // av1_print_subgop_config_set(&cpi->subgop_config_set);
       }

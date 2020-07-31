@@ -176,11 +176,20 @@ int av1_process_subgop_config_set(const char *param, SubGOPSetCfg *config_set) {
         token, &config_set->config[config_set->num_configs]);
     if (res) {
       res = check_subgop_config(&config_set->config[config_set->num_configs]);
-      if (res)
+      if (res) {
         config_set->num_configs++;
-      else
+      } else {
+        printf(
+            "Warning: Subgop config validation failed for config #%d, "
+            "skipping the rest.\n",
+            config_set->num_configs);
         return 0;
+      }
     } else {
+      printf(
+          "Warning: Subgop config parsing failed for config #%d, "
+          "skipping the rest.\n",
+          config_set->num_configs);
       return 0;
     }
   }
