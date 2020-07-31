@@ -2699,8 +2699,17 @@ static void illum_mcomp_linear_model_lowbd(const uint8_t *inter_pred,
   const int64_t Pb = (-sx * sxy + sx2 * sy) * ILLUM_MCOMP_PREC;
   const int64_t D = sx2 * n - sx * sx;
 
-  const int64_t a = DIVIDE_AND_ROUND_SIGNED(Pa, D);
-  const int64_t b = DIVIDE_AND_ROUND_SIGNED(Pb, D);
+  int64_t a;
+  int64_t b;
+  if (D != 0) {
+    a = DIVIDE_AND_ROUND_SIGNED(Pa, D);
+    b = DIVIDE_AND_ROUND_SIGNED(Pb, D);
+  } else {
+    // Set to extreme values.
+    a = ILLUM_MCOMP_PREC * 4;
+    const int sign = (Pb < 0) ? -1 : 1;
+    b = sign * (1 << (bd - 2)) * ILLUM_MCOMP_PREC;
+  }
   // Clamp to reasonable range
   *alpha = (int)clamp64(a, ILLUM_MCOMP_PREC / 4, ILLUM_MCOMP_PREC * 4);
   *beta = (int)clamp64(b, -(1 << (bd - 2)) * ILLUM_MCOMP_PREC,
@@ -2756,8 +2765,17 @@ static void illum_mcomp_linear_model_highbd(const uint16_t *inter_pred,
   const int64_t Pb = (-sx * sxy + sx2 * sy) * ILLUM_MCOMP_PREC;
   const int64_t D = sx2 * n - sx * sx;
 
-  const int64_t a = DIVIDE_AND_ROUND_SIGNED(Pa, D);
-  const int64_t b = DIVIDE_AND_ROUND_SIGNED(Pb, D);
+  int64_t a;
+  int64_t b;
+  if (D != 0) {
+    a = DIVIDE_AND_ROUND_SIGNED(Pa, D);
+    b = DIVIDE_AND_ROUND_SIGNED(Pb, D);
+  } else {
+    // Set to extreme values.
+    a = ILLUM_MCOMP_PREC * 4;
+    const int sign = (Pb < 0) ? -1 : 1;
+    b = sign * (1 << (bd - 2)) * ILLUM_MCOMP_PREC;
+  }
   // Clamp to reasonable range
   *alpha = (int)clamp64(a, ILLUM_MCOMP_PREC / 4, ILLUM_MCOMP_PREC * 4);
   *beta = (int)clamp64(b, -(1 << (bd - 2)) * ILLUM_MCOMP_PREC,
