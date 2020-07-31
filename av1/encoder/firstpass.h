@@ -167,32 +167,6 @@ enum {
   FRAME_CONTENT_TYPES = 2
 } UENUM1BYTE(FRAME_CONTENT_TYPE);
 
-/*!\endcond */
-/*!
- * \brief  Data relating to the current GF/ARF group and the
- * individual frames within the group
- */
-typedef struct {
-  /*!\cond */
-  unsigned char index;
-  FRAME_UPDATE_TYPE update_type[MAX_STATIC_GF_GROUP_LENGTH];
-  unsigned char arf_src_offset[MAX_STATIC_GF_GROUP_LENGTH];
-  // The number of frames displayed so far within the GOP at a given coding
-  // frame.
-  unsigned char cur_frame_idx[MAX_STATIC_GF_GROUP_LENGTH];
-  int layer_depth[MAX_STATIC_GF_GROUP_LENGTH];
-  int arf_boost[MAX_STATIC_GF_GROUP_LENGTH];
-  int max_layer_depth;
-  int max_layer_depth_allowed;
-  // This is currently only populated for AOM_Q mode
-  unsigned char q_val[MAX_STATIC_GF_GROUP_LENGTH];
-  int bit_allocation[MAX_STATIC_GF_GROUP_LENGTH];
-  int arf_index;  // the index in the gf group of ARF, if no arf, then -1
-  int size;
-  /*!\endcond */
-} GF_GROUP;
-/*!\cond */
-
 typedef struct {
   FIRSTPASS_STATS *stats_in_start;
   FIRSTPASS_STATS *stats_in_end;

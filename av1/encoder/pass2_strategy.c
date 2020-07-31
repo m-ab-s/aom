@@ -1571,7 +1571,12 @@ static void define_gf_group(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
   // Reset the GF group data structures unless this is a key
   // frame in which case it will already have been done.
   if (!is_intra_only) {
+    const SubGOPCfg *subgop_cfg = cpi->gf_group.subgop_cfg;
+    const SubGOPStepCfg *last_step_prev =
+        subgop_cfg != NULL ? &subgop_cfg->step[subgop_cfg->num_steps - 1]
+                           : NULL;
     av1_zero(cpi->gf_group);
+    gf_group->last_step_prev = last_step_prev;
   }
 
   aom_clear_system_state();

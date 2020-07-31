@@ -209,9 +209,9 @@ static int construct_multi_layer_gf_structure(
   SubGOPSetCfg *subgop_cfg_set = &cpi->subgop_config_set;
   const SubGOPCfg *subgop_cfg0 =
       av1_find_subgop_config(subgop_cfg_set, gf_interval, 0);
+  gf_group->subgop_cfg = NULL;
   if (subgop_cfg0) {
     const SubGOPCfg *subgop_cfg = subgop_cfg0;
-
     // Check if it is the last GOP
     if (rc->frames_to_key == gf_interval) {
       const SubGOPCfg *subgop_cfg1 =
@@ -219,6 +219,7 @@ static int construct_multi_layer_gf_structure(
       if (subgop_cfg1) subgop_cfg = subgop_cfg1;
     }
 
+    gf_group->subgop_cfg = subgop_cfg;
     set_multi_layer_params_from_subgop_cfg(twopass, gf_group, subgop_cfg, rc,
                                            frame_info, &cur_frame_index,
                                            &frame_index);

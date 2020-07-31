@@ -44,36 +44,13 @@ static INLINE void set_refresh_frame_flags(
   refresh_frame_flags->alt_ref_frame = refresh_arf;
 }
 
-// Get the subgop config index corresponding to the current gf group
-int get_subgop_idx(const GF_GROUP *const gf_group,
-                   const SubGOPSetCfg *const subgop_config_set) {
-  // Indicate there is no subgop cfg currently in use
-  if (subgop_config_set->num_configs == 0) return -1;
-  // TODO(sarahparker) This currently assumes there can be at most 2 config
-  // sets: The general set and the one to be applied to the last gf group in
-  // the GOP. This will need to be expanded to support a different scheme.
-  SubGOPCfg gop_cfg_0 = subgop_config_set->config[0];
-  // Assumes that set 0 will always have the same size as a gf group unless
-  // it is the last gf group in the GOP.
-  if (gf_group->size != gop_cfg_0.num_steps) return 1;
-  return 0;
-}
-
-// Get the subgop config index corresponding to the current frame within the
+// Get the subgop config corresponding to the current frame within the
 // gf group
-int get_subgop_step_idx(const GF_GROUP *const gf_group,
-                        const SubGOPSetCfg *const subgop_config_set,
-                        FRAME_TYPE frame_type) {
-  // There is no config for the keyframe
-  if (frame_type == KEY_FRAME) return -1;
+const SubGOPStepCfg *get_subgop_step(const GF_GROUP *const gf_group) {
   const int index = gf_group->index;
-  const int gop_cfg_index = get_subgop_idx(gf_group, subgop_config_set);
-  const int gop_cfg_index_prev = AOMMAX(0, gop_cfg_index - 1);
-  SubGOPCfg gop_cfg = subgop_config_set->config[gop_cfg_index_prev];
-  // The gop_cfg index and the gf_group index are misaligned by 1. This means
-  // gf group index 0 maps to the last gop cfg index from the previous group.
-  // This will realign them.
-  return index == 0 ? gop_cfg.num_steps - 1 : index - 1;
+  const SubGOPCfg *subgop_cfg = gf_group->subgop_cfg;
+  if (subgop_cfg == NULL) return NULL;
+  return index == 0 ? gf_group->last_step_prev : &subgop_cfg->step[index - 1];
 }
 
 void av1_configure_buffer_updates(
@@ -296,15 +273,9 @@ static void get_gop_cfg_enabled_refs(AV1_COMP *const cpi, int *ref_frame_flags,
   // The order offset to get the correct value here.
   const int cur_frame_disp =
       cpi->common.current_frame.frame_number + order_offset;
-  if (cpi->common.current_frame.frame_type == KEY_FRAME) return;
 
-  const int gop_cfg_index = get_subgop_idx(&gf_group, &cpi->subgop_config_set);
-  SubGOPCfg gop_cfg = cpi->subgop_config_set.config[gop_cfg_index];
-  const int step_index = get_subgop_step_idx(
-      &gf_group, &cpi->subgop_config_set, cpi->common.current_frame.frame_type);
-  assert(step_index >= 0);
-  SubGOPStepCfg step_gop_cfg = gop_cfg.step[step_index];
-
+  const SubGOPStepCfg *step_gop_cfg = get_subgop_step(&gf_group);
+  assert(step_gop_cfg != NULL);
   // Mask to indicate whether or not each ref is allowed by the GOP config
   int ref_frame_used[REF_FRAMES] = { 0 };
   // Structures to hash each reference frame based on its pyramid level. This
@@ -356,8 +327,8 @@ static void get_gop_cfg_enabled_refs(AV1_COMP *const cpi, int *ref_frame_flags,
 
   // For each reference specified in the step_gop_cfg, map it to a reference
   // buffer based on pyramid level if possible.
-  for (int i = 0; i < step_gop_cfg.num_references; i++) {
-    const int level = step_gop_cfg.references[i];
+  for (int i = 0; i < step_gop_cfg->num_references; i++) {
+    const int level = step_gop_cfg->references[i];
     const int abs_level = abs(level);
     int best_frame = -1;
     int best_frame_index = -1;
@@ -724,17 +695,10 @@ static void update_ref_frame_map_gopcfg(AV1_COMP *cpi, int show_existing_frame,
     stack_push(ref_buffer_stack->gld_stack, &ref_buffer_stack->gld_stack_size,
                ref_map_index);
   } else {
-    const int gop_cfg_index =
-        get_subgop_idx(&gf_group, &cpi->subgop_config_set);
-    SubGOPCfg gop_cfg = cpi->subgop_config_set.config[gop_cfg_index];
-    const int step_index =
-        get_subgop_step_idx(&gf_group, &cpi->subgop_config_set,
-                            cpi->common.current_frame.frame_type);
-    assert(step_index >= 0);
-    SubGOPStepCfg step_gop_cfg = gop_cfg.step[step_index];
+    const SubGOPStepCfg *step_gop_cfg = get_subgop_step(&gf_group);
 
-    const int pyr_level = step_gop_cfg.pyr_level;
-    const FRAME_TYPE_CODE type_code = step_gop_cfg.type_code;
+    const int pyr_level = step_gop_cfg->pyr_level;
+    const FRAME_TYPE_CODE type_code = step_gop_cfg->type_code;
     switch (type_code) {
       case FRAME_TYPE_INO_REPEAT:
         if (pyr_level == 1) {
@@ -772,18 +736,20 @@ static void update_ref_frame_map_gopcfg(AV1_COMP *cpi, int show_existing_frame,
   return;
 }
 
+int use_subgop_cfg(const GF_GROUP *const gf_group, int gf_index) {
+  if (gf_group->subgop_cfg == NULL) return 0;
+  if (gf_index == 0) return gf_group->last_step_prev != NULL;
+  return 1;
+}
+
 // Update reference frame stack info.
 void av1_update_ref_frame_map(AV1_COMP *cpi,
                               FRAME_UPDATE_TYPE frame_update_type,
                               int show_existing_frame, int ref_map_index,
                               RefBufferStack *ref_buffer_stack) {
   AV1_COMMON *const cm = &cpi->common;
-  const int gop_cfg_index =
-      get_subgop_idx(&cpi->gf_group, &cpi->subgop_config_set);
-  if (cpi->subgop_config_set.num_configs > 0 &&
-      !cpi->oxcf.algo_cfg.enable_tpl_model
-      // TODO(sarahparker) Use the subgop cfg for the last subgop group
-      && gop_cfg_index == 0) {
+  if (use_subgop_cfg(&cpi->gf_group, cpi->gf_group.index) &&
+      !cpi->oxcf.algo_cfg.enable_tpl_model) {
     // Use the subgop cfg to update the ref frame map
     update_ref_frame_map_gopcfg(cpi, show_existing_frame, ref_map_index,
                                 ref_buffer_stack);
@@ -880,17 +846,10 @@ static int get_free_ref_map_index(const RefBufferStack *ref_buffer_stack) {
 static int get_refresh_frame_flags_subgop_cfg(
     const AV1_COMP *const cpi, const RefBufferStack *const ref_buffer_stack,
     int refresh_mask, int free_fb_index) {
-  const int gop_cfg_index =
-      get_subgop_idx(&cpi->gf_group, &cpi->subgop_config_set);
-  SubGOPCfg gop_cfg = cpi->subgop_config_set.config[gop_cfg_index];
-  const int step_index =
-      get_subgop_step_idx(&cpi->gf_group, &cpi->subgop_config_set,
-                          cpi->common.current_frame.frame_type);
-  assert(step_index >= 0);
-  SubGOPStepCfg step_gop_cfg = gop_cfg.step[step_index];
-
-  const int pyr_level = step_gop_cfg.pyr_level;
-  const FRAME_TYPE_CODE type_code = step_gop_cfg.type_code;
+  const SubGOPStepCfg *step_gop_cfg = get_subgop_step(&cpi->gf_group);
+  assert(step_gop_cfg != NULL);
+  const int pyr_level = step_gop_cfg->pyr_level;
+  const FRAME_TYPE_CODE type_code = step_gop_cfg->type_code;
   // No refresh necessary for these frame types
   if (type_code == FRAME_TYPE_INO_REPEAT ||
       type_code == FRAME_TYPE_INO_SHOWEXISTING)
@@ -1017,13 +976,8 @@ int av1_get_refresh_frame_flags(const AV1_COMP *const cpi,
   // Search for the open slot to store the current frame.
   int free_fb_index = get_free_ref_map_index(ref_buffer_stack);
 
-  // Compute the refresh mask according to the subgop cfg
-  const int gop_cfg_index =
-      get_subgop_idx(&cpi->gf_group, &cpi->subgop_config_set);
-  if (cpi->subgop_config_set.num_configs > 0 &&
-      cpi->oxcf.algo_cfg.enable_tpl_model
-      // TODO(sarahparker) Use the subgop cfg for the last subgop group
-      && gop_cfg_index == 0) {
+  if (use_subgop_cfg(&cpi->gf_group, cpi->gf_group.index) &&
+      !cpi->oxcf.algo_cfg.enable_tpl_model) {
     return get_refresh_frame_flags_subgop_cfg(cpi, ref_buffer_stack,
                                               refresh_mask, free_fb_index);
   }
@@ -1522,12 +1476,9 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
         choose_primary_ref_frame(cpi, &frame_params);
     frame_params.order_offset = gf_group->arf_src_offset[gf_group->index];
 
-    const int gop_cfg_index = get_subgop_idx(gf_group, &cpi->subgop_config_set);
     if (!is_stat_generation_stage(cpi) &&
-        cpi->subgop_config_set.num_configs > 0 &&
-        !cpi->oxcf.algo_cfg.enable_tpl_model
-        // TODO(sarahparker) Use the subgop cfg for the last subgop group
-        && gop_cfg_index == 0) {
+        use_subgop_cfg(&cpi->gf_group, cpi->gf_group.index) &&
+        !cpi->oxcf.algo_cfg.enable_tpl_model) {
       get_gop_cfg_enabled_refs(cpi, &frame_params.ref_frame_flags,
                                frame_params.order_offset);
     }
