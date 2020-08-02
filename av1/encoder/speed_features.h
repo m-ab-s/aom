@@ -337,6 +337,9 @@ typedef struct TPL_SPEED_FEATURES {
   // When to stop subpel search.
   SUBPEL_FORCE_STOP subpel_force_stop;
 
+  // Which search method to use.
+  SEARCH_METHODS search_method;
+
   // Prune starting mvs in TPL based on sad scores.
   int prune_starting_mv;
 
@@ -468,6 +471,12 @@ typedef struct PARTITION_SPEED_FEATURES {
 typedef struct MV_SPEED_FEATURES {
   // Motion search method (Diamond, NSTEP, Hex, Big Diamond, Square, etc).
   SEARCH_METHODS search_method;
+
+  // Enable the use of faster, less accurate mv search method on bsize >=
+  // BLOCK_32X32.
+  // TODO(chiyotsai@google.com): Take the clip's resolution and mv activity into
+  // account.
+  int use_bsize_dependent_search_method;
 
   // If this is set to 1, we limit the motion search range to 2 times the
   // largest motion vector found in the last frame.
@@ -1066,13 +1075,46 @@ typedef struct SPEED_FEATURES {
 
 struct AV1_COMP;
 
+/*!\endcond */
+/*!\brief Frame size independent speed vs quality trade off flags
+ *
+ *\ingroup speed_features
+ *
+ * \param[in]    cpi     Top - level encoder instance structure
+ * \param[in]    speed   Speed setting passed in from the command  line
+ *
+ * \return No return value but configures the various speed trade off flags
+ *         based on the passed in speed setting. (Higher speed gives lower
+ *         quality)
+ */
 void av1_set_speed_features_framesize_independent(struct AV1_COMP *cpi,
                                                   int speed);
+
+/*!\brief Frame size dependent speed vs quality trade off flags
+ *
+ *\ingroup speed_features
+ *
+ * \param[in]    cpi     Top - level encoder instance structure
+ * \param[in]    speed   Speed setting passed in from the command  line
+ *
+ * \return No return value but configures the various speed trade off flags
+ *         based on the passed in speed setting and frame size. (Higher speed
+ *         corresponds to lower quality)
+ */
 void av1_set_speed_features_framesize_dependent(struct AV1_COMP *cpi,
                                                 int speed);
+/*!\brief Q index dependent speed vs quality trade off flags
+ *
+ *\ingroup speed_features
+ *
+ * \param[in]    cpi     Top - level encoder instance structure
+ * \param[in]    speed   Speed setting passed in from the command  line
+ *
+ * \return No return value but configures the various speed trade off flags
+ *         based on the passed in speed setting and current frame's Q index.
+ *         (Higher speed corresponds to lower quality)
+ */
 void av1_set_speed_features_qindex_dependent(struct AV1_COMP *cpi, int speed);
-
-/*!\endcond */
 
 #ifdef __cplusplus
 }  // extern "C"

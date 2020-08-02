@@ -502,6 +502,7 @@ static void set_good_speed_features_framesize_independent(
     sf->tpl_sf.prune_starting_mv = 1;
     sf->tpl_sf.reduce_first_step_size = 6;
     sf->tpl_sf.subpel_force_stop = QUARTER_PEL;
+    sf->tpl_sf.search_method = DIAMOND;
 
     sf->tx_sf.adaptive_txb_search_level = boosted ? 2 : 3;
     sf->tx_sf.tx_type_search.use_skip_flag_prediction = 2;
@@ -562,6 +563,7 @@ static void set_good_speed_features_framesize_independent(
 
     sf->tpl_sf.prune_starting_mv = 2;
     sf->tpl_sf.subpel_force_stop = HALF_PEL;
+    sf->tpl_sf.search_method = FAST_BIGDIA;
 
     sf->tx_sf.tx_type_search.winner_mode_tx_type_pruning = 1;
     sf->tx_sf.tx_type_search.fast_intra_tx_type_search = 1;
@@ -583,24 +585,6 @@ static void set_good_speed_features_framesize_independent(
     sf->winner_mode_sf.enable_winner_mode_for_tx_size_srch = 1;
 
     sf->lpf_sf.cdef_pick_method = CDEF_FAST_SEARCH_LVL2;
-
-    // TODO(any): The following features have no impact on quality and speed,
-    // and are disabled.
-    // sf->part_sf.partition_search_breakout_rate_thr = 300;
-    // sf->interp_sf.disable_filter_search_var_thresh = 200;
-    // sf->rd_sf.use_fast_coef_costing = 1;
-
-    // TODO(any): The following features give really bad quality/speed trade
-    // off. Needs to be re-worked.
-    // sf->mv_sf.search_method = BIGDIA;
-    // sf->inter_sf.adaptive_rd_thresh = 4;
-    // sf->rd_sf.tx_domain_dist_level = 2;
-    // sf->rt_sf.mode_search_skip_flags =
-    //     (cm->current_frame.frame_type == KEY_FRAME)
-    //     ? 0
-    //     : FLAG_SKIP_INTRA_DIRMISMATCH | FLAG_SKIP_INTRA_BESTINTER |
-    //     FLAG_SKIP_COMP_BESTINTRA | FLAG_SKIP_INTRA_LOWVAR |
-    //     FLAG_EARLY_TERMINATE;
   }
 
   if (speed >= 5) {
@@ -633,7 +617,7 @@ static void set_good_speed_features_framesize_independent(
 
   if (speed >= 6) {
     sf->mv_sf.simple_motion_subpel_force_stop = FULL_PEL;
-    sf->rd_sf.perform_coeff_opt = is_boosted_arf2_bwd_type ? 4 : 6;
+    sf->mv_sf.use_bsize_dependent_search_method = 1;
 
     sf->tpl_sf.disable_gop_length_decision = 1;
     sf->tpl_sf.subpel_force_stop = FULL_PEL;
@@ -642,6 +626,8 @@ static void set_good_speed_features_framesize_independent(
     sf->tx_sf.tx_type_search.winner_mode_tx_type_pruning = 2;
     sf->tx_sf.use_intra_txb_hash = 1;
     sf->tx_sf.tx_type_search.prune_tx_type_est_rd = 0;
+
+    sf->rd_sf.perform_coeff_opt = is_boosted_arf2_bwd_type ? 4 : 6;
 
     sf->winner_mode_sf.multi_winner_mode_type = MULTI_WINNER_MODE_OFF;
   }
@@ -704,6 +690,7 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
   sf->rt_sf.use_nonrd_pick_mode = 0;
   sf->rt_sf.use_real_time_ref_set = 0;
   sf->rt_sf.check_scene_detection = 0;
+  sf->rt_sf.overshoot_detection_cbr = NO_DETECTION;
   sf->tx_sf.adaptive_txb_search_level = 1;
   sf->tx_sf.intra_tx_size_search_init_depth_sqr = 1;
   sf->tx_sf.model_based_prune_tx_search_level = 1;
@@ -866,10 +853,10 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
     sf->rt_sf.use_real_time_ref_set = 1;
     sf->rt_sf.use_simple_rd_model = 1;
 
-    if (cm->current_frame.frame_type != KEY_FRAME &&
-        cpi->oxcf.rc_cfg.mode == AOM_CBR) {
-      sf->rt_sf.overshoot_detection_cbr = FAST_DETECTION_MAXQ;
+    if (cpi->oxcf.rc_cfg.mode == AOM_CBR) {
       sf->rt_sf.check_scene_detection = 1;
+      if (cm->current_frame.frame_type != KEY_FRAME)
+        sf->rt_sf.overshoot_detection_cbr = FAST_DETECTION_MAXQ;
     }
     // Keeping this off for now as some clips show ~6% BDRate regression with
     // moderate speed-up (~20%)
@@ -881,8 +868,6 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
   }
 
   if (speed >= 7) {
-    sf->hl_sf.frame_parameter_update = 0;
-
     sf->part_sf.default_max_partition_size = BLOCK_128X128;
     sf->part_sf.default_min_partition_size = BLOCK_8X8;
     sf->part_sf.partition_search_type = VAR_BASED_PARTITION;
@@ -950,6 +935,7 @@ static AOM_INLINE void init_tpl_sf(TPL_SPEED_FEATURES *tpl_sf) {
   tpl_sf->reduce_first_step_size = 0;
   tpl_sf->skip_alike_starting_mv = 0;
   tpl_sf->subpel_force_stop = EIGHTH_PEL;
+  tpl_sf->search_method = NSTEP;
   tpl_sf->disable_filtered_key_tpl = 0;
 }
 
@@ -1010,6 +996,7 @@ static AOM_INLINE void init_mv_sf(MV_SPEED_FEATURES *mv_sf) {
   mv_sf->subpel_iters_per_step = 2;
   mv_sf->subpel_search_method = SUBPEL_TREE;
   mv_sf->use_accurate_subpel_search = USE_8_TAPS;
+  mv_sf->use_bsize_dependent_search_method = 0;
   mv_sf->use_fullpel_costlist = 0;
 }
 

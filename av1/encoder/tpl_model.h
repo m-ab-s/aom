@@ -16,6 +16,8 @@
 extern "C" {
 #endif
 
+/*!\cond */
+
 struct AV1_COMP;
 struct EncodeFrameParams;
 struct EncodeFrameInput;
@@ -111,7 +113,6 @@ typedef struct TplDepFrame {
 } TplDepFrame;
 
 /*!\endcond */
-
 /*!
  * \brief Params related to temporal dependency model.
  */
@@ -175,11 +176,30 @@ typedef struct TplParams {
    * multi-threading of tpl
    */
   AV1TplRowMultiThreadSync tpl_mt_sync;
+
+  /*!
+   * Frame border for tpl frame.
+   */
+  int border_in_pixels;
 } TplParams;
 
+/*!\brief Implements temporal dependency modelling for a GOP (GF/ARF
+ * group) and selects between 16 and 32 frame GOP structure.
+ *
+ *\ingroup tpl_modelling
+ *
+ * \param[in]    cpi           Top - level encoder instance structure
+ * \param[in]    gop_eval      Flag if it is in the GOP length decision stage
+ * \param[in]    frame_params  Per frame encoding parameters
+ * \param[in]    frame_input   Input frame buffers
+ *
+ * \return Indicates whether or not we should use a longer GOP length.
+ */
 int av1_tpl_setup_stats(struct AV1_COMP *cpi, int gop_eval,
                         const struct EncodeFrameParams *const frame_params,
                         const struct EncodeFrameInput *const frame_input);
+
+/*!\cond */
 
 int av1_tpl_ptr_pos(int mi_row, int mi_col, int stride, uint8_t right_shift);
 
@@ -190,7 +210,7 @@ void av1_tpl_rdmult_setup_sb(struct AV1_COMP *cpi, MACROBLOCK *const x,
 
 void av1_mc_flow_dispenser_row(struct AV1_COMP *cpi, MACROBLOCK *x, int mi_row,
                                BLOCK_SIZE bsize, TX_SIZE tx_size);
-
+/*!\endcond */
 #ifdef __cplusplus
 }  // extern "C"
 #endif

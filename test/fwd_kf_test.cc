@@ -110,15 +110,8 @@ TEST_P(ForwardKeyTest, ForwardKeyEncodeTest) {
       << "kf max dist = " << kf_max_dist_;
 }
 
-#if CONFIG_SINGLEPASS
-AV1_INSTANTIATE_TEST_SUITE(ForwardKeyTest,
-                           ::testing::Values(::libaom_test::kOnePassGood),
+AV1_INSTANTIATE_TEST_SUITE(ForwardKeyTest, NONREALTIME_TEST_MODES,
                            ::testing::ValuesIn(kTestParams));
-#else
-AV1_INSTANTIATE_TEST_SUITE(ForwardKeyTest,
-                           ::testing::Values(::libaom_test::kTwoPassGood),
-                           ::testing::ValuesIn(kTestParams));
-#endif  // CONFIG_SINGLEPASS
 
 typedef struct {
   const unsigned int min_kf_dist;

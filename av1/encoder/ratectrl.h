@@ -41,11 +41,6 @@ extern "C" {
 // The maximum duration of a GF group that is static (e.g. a slide show).
 #define MAX_STATIC_GF_GROUP_LENGTH 250
 
-// Minimum and maximum height for the new pyramid structure.
-// (Old structure supports height = 1, but does NOT support height = 4).
-#define MIN_PYRAMID_LVL 0
-#define MAX_PYRAMID_LVL 4
-
 #define MIN_GF_INTERVAL 4
 #define MAX_GF_INTERVAL 32
 #define FIXED_GF_INTERVAL 8  // Used in some testing modes only
@@ -80,6 +75,16 @@ enum {
   INTNL_ARF_UPDATE,      // Internal Altref Frame
   FRAME_UPDATE_TYPES
 } UENUM1BYTE(FRAME_UPDATE_TYPE);
+
+typedef enum {
+  NO_RESIZE = 0,
+  DOWN_THREEFOUR = 1,  // From orig to 3/4.
+  DOWN_ONEHALF = 2,    // From orig or 3/4 to 1/2.
+  UP_THREEFOUR = -1,   // From 1/2 to 3/4.
+  UP_ORIG = -2,        // From 1/2 or 3/4 to orig.
+} RESIZE_ACTION;
+
+typedef enum { ORIG = 0, THREE_QUARTER = 1, ONE_HALF = 2 } RESIZE_STATE;
 
 /*!\endcond */
 /*!
@@ -286,6 +291,12 @@ typedef struct {
   int use_arf_in_this_kf_group;
   // Track amount of low motion in scene
   int avg_frame_low_motion;
+
+  // For dynamic resize, 1 pass cbr.
+  RESIZE_STATE resize_state;
+  int resize_avg_qp;
+  int resize_buffer_underflow;
+  int resize_count;
   /*!\endcond */
 } RATE_CONTROL;
 
@@ -340,10 +351,22 @@ void av1_rc_postencode_update(struct AV1_COMP *cpi, uint64_t bytes_used);
 // Post encode update of the rate control parameters for dropped frames
 void av1_rc_postencode_update_drop_frame(struct AV1_COMP *cpi);
 
-// Updates rate correction factors
-// Changes only the rate correction factors in the rate control structure.
+/*!\endcond */
+/*!\brief Updates the rate correction factor linking Q to output bits
+ *
+ * This function updates the Q rate correction factor after an encode
+ * cycle depending on whether we overshot or undershot the target rate.
+ *
+ * \ingroup rate_control
+ * \param[in]   cpi                   Top level encoder instance structure
+ * \param[in]   width                 Frame width
+ * \param[in]   height                Frame height
+ *
+ * \return None but updates the relevant rate correction factor in cpi->rc
+ */
 void av1_rc_update_rate_correction_factors(struct AV1_COMP *cpi, int width,
                                            int height);
+/*!\cond */
 
 // Decide if we should drop this frame: For 1-pass CBR.
 // Changes only the decimation count in the rate control structure
@@ -374,13 +397,23 @@ int av1_rc_pick_q_and_bounds(const struct AV1_COMP *cpi, RATE_CONTROL *rc,
                              int width, int height, int gf_index,
                              int *bottom_index, int *top_index);
 
-/*!\cond */
-
-// Estimates q to achieve a target bits per frame
+/*!\brief Estimates q to achieve a target bits per frame
+ *
+ * \ingroup rate_control
+ * \param[in]   cpi                   Top level encoder instance structure
+ * \param[in]   target_bits_per_frame Frame rate target
+ * \param[in]   active_worst_quality  Max Q allowed
+ * \param[in]   active_best_quality   Min Q allowed
+ * \param[in]   width                 Frame width
+ * \param[in]   height                Frame height
+ *
+ * \return Returns a q index value
+ */
 int av1_rc_regulate_q(const struct AV1_COMP *cpi, int target_bits_per_frame,
                       int active_best_quality, int active_worst_quality,
                       int width, int height);
 
+/*!\cond */
 // Estimates bits per mb for a given qindex and correction factor.
 int av1_rc_bits_per_mb(FRAME_TYPE frame_type, int qindex,
                        double correction_factor, aom_bit_depth_t bit_depth,

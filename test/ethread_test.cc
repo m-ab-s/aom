@@ -442,7 +442,10 @@ TEST_P(AVxEncoderThreadTestLarge, EncoderResultTest) {
   DoTest();
 }
 
-#if !CONFIG_SINGLEPASS
+#if CONFIG_SINGLEPASS
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(AVxFirstPassEncoderThreadTest);
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(AVxEncoderThreadTest);
+#else
 // first pass stats test
 AV1_INSTANTIATE_TEST_SUITE(AVxFirstPassEncoderThreadTest,
                            ::testing::Values(::libaom_test::kTwoPassGood),
