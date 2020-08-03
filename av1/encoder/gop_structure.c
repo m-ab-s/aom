@@ -167,6 +167,7 @@ static void set_multi_layer_params_from_subgop_cfg(
       gf_group->arf_src_offset[*frame_index] = 0;
       (*cur_frame_idx)++;
     }
+    gf_group->is_filtered[*frame_index] = (type == FRAME_TYPE_OOO_FILTERED);
     gf_group->cur_frame_idx[*frame_index] = *cur_frame_idx;
     gf_group->layer_depth[*frame_index] =
         type == FRAME_TYPE_INO_VISIBLE ? MAX_ARF_LAYERS : pyr_level;
@@ -220,6 +221,7 @@ static int construct_multi_layer_gf_structure(
     }
 
     gf_group->subgop_cfg = subgop_cfg;
+    gf_group->is_user_specified = 1;
     set_multi_layer_params_from_subgop_cfg(twopass, gf_group, subgop_cfg, rc,
                                            frame_info, &cur_frame_index,
                                            &frame_index);
@@ -288,6 +290,7 @@ void av1_gop_setup_structure(AV1_COMP *cpi,
   const FRAME_UPDATE_TYPE first_frame_update_type =
       key_frame ? KF_UPDATE
                 : rc->source_alt_ref_active ? OVERLAY_UPDATE : GF_UPDATE;
+  gf_group->is_user_specified = 0;
   gf_group->size = construct_multi_layer_gf_structure(
       cpi, twopass, gf_group, rc, frame_info, rc->baseline_gf_interval,
       first_frame_update_type);

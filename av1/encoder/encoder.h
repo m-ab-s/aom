@@ -814,12 +814,14 @@ typedef struct {
  */
 typedef struct {
   /*!\cond */
+  unsigned char is_user_specified;
   unsigned char index;
   FRAME_UPDATE_TYPE update_type[MAX_STATIC_GF_GROUP_LENGTH];
   unsigned char arf_src_offset[MAX_STATIC_GF_GROUP_LENGTH];
   // The number of frames displayed so far within the GOP at a given coding
   // frame.
   unsigned char cur_frame_idx[MAX_STATIC_GF_GROUP_LENGTH];
+  unsigned char is_filtered[MAX_STATIC_GF_GROUP_LENGTH];
   int layer_depth[MAX_STATIC_GF_GROUP_LENGTH];
   int arf_boost[MAX_STATIC_GF_GROUP_LENGTH];
   int max_layer_depth;
