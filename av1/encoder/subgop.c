@@ -209,12 +209,12 @@ void av1_print_subgop_config_set(SubGOPSetCfg *config_set) {
     printf("  is_last_subgop:%d\n", config->is_last_subgop);
     printf("  num_steps:%d\n", config->num_steps);
     for (int j = 0; j < config->num_steps; ++j) {
-      printf("  step:%d -> ", j);
-      printf("disp_frame_idx:%d ", config->step[j].disp_frame_idx);
-      printf("type_code:%c ", config->step[j].type_code);
-      printf("pyr_level:%d ", config->step[j].pyr_level);
+      printf("  step:%d ->", j);
+      printf(" disp_frame_idx:%d", config->step[j].disp_frame_idx);
+      printf(" type_code:%c", config->step[j].type_code);
+      printf(" pyr_level:%d", config->step[j].pyr_level);
       if (config->step[j].type_code != FRAME_TYPE_INO_SHOWEXISTING) {
-        printf("references:");
+        printf(" references:");
         for (int r = 0; r < config->step[j].num_references; ++r) {
           if (r) printf("^");
           printf("%d", config->step[j].references[r]);
