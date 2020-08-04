@@ -1125,10 +1125,9 @@ static int denoise_and_encode(AV1_COMP *const cpi, uint8_t *const dest,
   } else if (get_frame_update_type(&cpi->gf_group) == ARF_UPDATE ||
              get_frame_update_type(&cpi->gf_group) == INTNL_ARF_UPDATE) {
     // ARF
+    apply_filtering = oxcf->algo_cfg.arnr_max_frames > 0;
     if (gf_group->is_user_specified) {
-      apply_filtering = gf_group->is_filtered[gf_group->index];
-    } else {
-      apply_filtering = oxcf->algo_cfg.arnr_max_frames > 0;
+      apply_filtering &= gf_group->is_filtered[gf_group->index];
     }
     if (apply_filtering) {
       arf_src_index = gf_group->arf_src_offset[gf_group->index];

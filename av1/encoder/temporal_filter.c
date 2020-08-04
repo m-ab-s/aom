@@ -1076,8 +1076,10 @@ int av1_temporal_filter(AV1_COMP *cpi, const int filter_frame_lookahead_idx,
   // TODO(anyone): Currently, we enforce the filtering strength on internal
   // ARFs except the second ARF to be zero. We should investigate in which case
   // it is more beneficial to use non-zero strength filtering.
-  if (update_type == INTNL_ARF_UPDATE && !is_second_arf) {
-    return 0;
+  if (!cpi->gf_group.is_user_specified) {
+    if (update_type == INTNL_ARF_UPDATE && !is_second_arf) {
+      return 0;
+    }
   }
 
   // TODO(yunqing): For INTNL_ARF_UPDATE type, the following me initialization
