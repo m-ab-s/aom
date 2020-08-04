@@ -776,10 +776,23 @@ static void dec_build_inter_predictors_sby(const AV1_COMMON *cm,
     BUFFER_SET default_ctx = { { xd->plane[0].dst.buf, NULL, NULL },
                                { xd->plane[0].dst.stride, 0, 0 } };
     if (!ctx) ctx = &default_ctx;
-    const int border = 0;
-    av1_build_interintra_predictors_sbp(cm, xd, xd->plane[0].dst.buf,
-                                        xd->plane[0].dst.stride, ctx, 0, bsize,
-                                        border);
+    const int border = av1_calc_border(xd);
+    uint8_t *interpred = xd->plane[0].dst.buf;
+    int interpred_stride = xd->plane[0].dst.stride;
+    if (border > 0) {
+      av1_alloc_buf_with_border(&interpred, &interpred_stride, border,
+                                is_cur_buf_hbd(xd));
+      dec_build_inter_predictors(cm, xd, 0 /* plane */, xd->mi[0], 0,
+                                 xd->plane[0].width, xd->plane[0].height,
+                                 mi_col * MI_SIZE, mi_row * MI_SIZE, interpred,
+                                 interpred_stride, border);
+    }
+    av1_build_interintra_predictors_sbp(cm, xd, interpred, interpred_stride,
+                                        ctx, 0, bsize, border);
+    if (border > 0) {
+      av1_free_buf_with_border(interpred, interpred_stride, border,
+                               is_cur_buf_hbd(xd));
+    }
   }
 }
 
@@ -796,10 +809,37 @@ static void dec_build_inter_predictors_sbuv(const AV1_COMMON *cm,
       { 0, xd->plane[1].dst.stride, xd->plane[2].dst.stride }
     };
     if (!ctx) ctx = &default_ctx;
-    const int border = 0;
-    av1_build_interintra_predictors_sbuv(
-        cm, xd, xd->plane[1].dst.buf, xd->plane[2].dst.buf,
-        xd->plane[1].dst.stride, xd->plane[2].dst.stride, ctx, bsize, border);
+    const int border = av1_calc_border(xd);
+    uint8_t *interpred_u = xd->plane[1].dst.buf;
+    int interpred_u_stride = xd->plane[1].dst.stride;
+    uint8_t *interpred_v = xd->plane[2].dst.buf;
+    int interpred_v_stride = xd->plane[2].dst.stride;
+    if (border > 0) {
+      av1_alloc_buf_with_border(&interpred_u, &interpred_u_stride, border,
+                                is_cur_buf_hbd(xd));
+      av1_alloc_buf_with_border(&interpred_v, &interpred_v_stride, border,
+                                is_cur_buf_hbd(xd));
+      if (xd->mi[0]->chroma_ref_info.is_chroma_ref) {
+        dec_build_inter_predictors(cm, xd, 1 /* plane */, xd->mi[0], 0,
+                                   xd->plane[1].width, xd->plane[1].height,
+                                   mi_col * MI_SIZE, mi_row * MI_SIZE,
+                                   interpred_u, interpred_u_stride, border);
+        dec_build_inter_predictors(cm, xd, 2 /* plane */, xd->mi[0], 0,
+                                   xd->plane[2].width, xd->plane[2].height,
+                                   mi_col * MI_SIZE, mi_row * MI_SIZE,
+                                   interpred_v, interpred_v_stride, border);
+      }
+    }
+    av1_build_interintra_predictors_sbuv(cm, xd, interpred_u, interpred_v,
+                                         interpred_u_stride, interpred_v_stride,
+                                         ctx, bsize, border);
+
+    if (border > 0) {
+      av1_free_buf_with_border(interpred_u, interpred_u_stride, border,
+                               is_cur_buf_hbd(xd));
+      av1_free_buf_with_border(interpred_v, interpred_v_stride, border,
+                               is_cur_buf_hbd(xd));
+    }
   }
 }
 

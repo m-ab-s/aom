@@ -241,6 +241,11 @@ typedef void (*CalcSubpelParamsFunc)(
     const void *const args, uint8_t **pre, SubpelParams *subpel_params,
     int *src_stride);
 
+// Calculate the border region (top-left) that should be used.
+int av1_calc_border(const MACROBLOCKD *xd);
+
+// Note that in the case of a border, dst should already be offset, to allow
+// negative offsetting.
 void av1_build_inter_predictors(const AV1_COMMON *cm, MACROBLOCKD *xd,
                                 int plane, const MB_MODE_INFO *mi,
                                 int build_for_obmc, int bw, int bh, int mi_x,
@@ -417,6 +422,17 @@ static INLINE const uint8_t *av1_get_contiguous_soft_mask(int8_t wedge_index,
 
 const uint8_t *av1_get_compound_type_mask(
     const INTERINTER_COMPOUND_DATA *const comp_data, BLOCK_SIZE sb_type);
+
+// Allocate a buffer large enough to build a top-left border region. Guarantees
+// that the buffer is allocated on a 16-byte boundary and that the stride
+// is a multiple of 16. Note that the returned pointer is already offset
+// into the allocated buffer, so negative offsetting is acceptable. Use
+// av1_free_extended_buffer to unallocate.
+void av1_alloc_buf_with_border(uint8_t **buf, int *buf_stride, int border,
+                               bool is_hbd);
+
+void av1_free_buf_with_border(uint8_t *buf, int buf_stride, int border,
+                              bool is_hbd);
 
 // build interintra_predictors for one plane
 void av1_build_interintra_predictors_sbp(const AV1_COMMON *cm, MACROBLOCKD *xd,

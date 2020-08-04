@@ -910,6 +910,7 @@ void av1_make_inter_predictor(
   CONV_BUF_TYPE *orig_conv_dst = conv_params->dst;
 
   src -= (src_stride * border_top + border_left);
+  dst -= (dst_stride * border_top + border_left);
   p_row -= border_top;
   p_col -= border_left;
   // Build the top row of the extension in 8x8 blocks.
@@ -1633,6 +1634,24 @@ static bool is_sub8x8_inter(MACROBLOCKD *xd, int plane, const MB_MODE_INFO *mi,
     }
   }
   return true;
+}
+
+int av1_calc_border(const MACROBLOCKD *xd) {
+  const InterPredExt ext = {
+    .border_left = 16, .border_top = 16, .border_bottom = 0, .border_right = 0
+  };
+  if (!av1_valid_inter_pred_ext(&ext, xd->mi[0]->use_intrabc,
+                                has_second_ref(xd->mi[0]))) {
+    return 0;
+  }
+
+#if CONFIG_ILLUM_MCOMP
+  if (xd->mi[0]->interintra_mode == II_ILLUM_MCOMP_PRED) {
+    return 4;
+  }
+#endif  // CONFIG_ILLUM_MCOMP
+
+  return 0;
 }
 
 void av1_build_inter_predictors(const AV1_COMMON *cm, MACROBLOCKD *xd,
@@ -3030,23 +3049,37 @@ void av1_combine_interintra(MACROBLOCKD *xd, BLOCK_SIZE bsize, int plane,
                      intra_pred, intra_stride, border);
 }
 
+void av1_alloc_buf_with_border(uint8_t **buf, int *buf_stride, int border,
+                               bool is_hbd) {
+  const int border16 = border % 16 == 0 ? border : 16 * (1 + border / 16);
+  *buf_stride = MAX_SB_SIZE + border16;
+  assert(*buf_stride % 16 == 0);
+  const int intrapred_buf_size = *buf_stride * *buf_stride;
+  const int bytes_per_val = is_hbd ? sizeof(uint16_t) : sizeof(uint8_t);
+  *buf = aom_memalign(16, intrapred_buf_size * bytes_per_val);
+  // Offset past the border.
+  *buf += (border16 + border16 * *buf_stride) * bytes_per_val;
+}
+
+void av1_free_buf_with_border(uint8_t *buf, int buf_stride, int border,
+                              bool is_hbd) {
+  const int border16 = border % 16 == 0 ? border : 16 * (1 + border / 16);
+  const int bytes_per_val = is_hbd ? sizeof(uint16_t) : sizeof(uint8_t);
+  aom_free(buf - (border16 + border16 * buf_stride) * bytes_per_val);
+}
+
 // build interintra_predictors for one plane
 void av1_build_interintra_predictors_sbp(const AV1_COMMON *cm, MACROBLOCKD *xd,
                                          uint8_t *pred, int stride,
                                          const BUFFER_SET *ctx, int plane,
                                          BLOCK_SIZE bsize, int border) {
   assert(bsize < BLOCK_SIZES_ALL);
-  // Note that the processing code assumes 16-byte boundaries, so the border
-  // region in the buffer must be a multiple of 16, as well as the initial
-  // offset into the buffer.
-  const int border16 = border % 16 == 0 ? border : 16 * (1 + border / 16);
-  const int intrapred_stride = MAX_SB_SIZE + border16;
-  const int intrapred_buf_size = intrapred_stride * intrapred_stride;
-  void *intrapred_buf;
+  uint8_t *intrapred_buf;
+  int intrapred_stride;
+  av1_alloc_buf_with_border(&intrapred_buf, &intrapred_stride, border,
+                            is_cur_buf_hbd(xd));
   if (is_cur_buf_hbd(xd)) {
-    intrapred_buf = aom_memalign(16, intrapred_buf_size * sizeof(uint16_t));
     uint16_t *intrapredictor = (uint16_t *)intrapred_buf;
-    intrapredictor += border16 + border16 * intrapred_stride;
     av1_build_intra_predictors_for_interintra(
         cm, xd, bsize, plane, ctx, CONVERT_TO_BYTEPTR(intrapredictor),
         intrapred_stride, border);
@@ -3054,15 +3087,13 @@ void av1_build_interintra_predictors_sbp(const AV1_COMMON *cm, MACROBLOCKD *xd,
                            CONVERT_TO_BYTEPTR(intrapredictor), intrapred_stride,
                            border);
   } else {
-    intrapred_buf = aom_memalign(16, intrapred_buf_size * sizeof(uint8_t));
-    uint8_t *intrapredictor = (uint8_t *)intrapred_buf;
-    intrapredictor += border16 + border16 * intrapred_stride;
     av1_build_intra_predictors_for_interintra(
-        cm, xd, bsize, plane, ctx, intrapredictor, intrapred_stride, border);
-    av1_combine_interintra(xd, bsize, plane, pred, stride, intrapredictor,
+        cm, xd, bsize, plane, ctx, intrapred_buf, intrapred_stride, border);
+    av1_combine_interintra(xd, bsize, plane, pred, stride, intrapred_buf,
                            intrapred_stride, border);
   }
-  aom_free(intrapred_buf);
+  av1_free_buf_with_border(intrapred_buf, intrapred_stride, border,
+                           is_cur_buf_hbd(xd));
 }
 
 void av1_build_interintra_predictors_sbuv(const AV1_COMMON *cm, MACROBLOCKD *xd,
