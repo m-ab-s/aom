@@ -734,12 +734,16 @@ static void dec_calc_subpel_params_and_extend(
 static void dec_build_inter_predictors(const AV1_COMMON *cm, MACROBLOCKD *xd,
                                        int plane, const MB_MODE_INFO *mi,
                                        int build_for_obmc, int bw, int bh,
-                                       int mi_x, int mi_y) {
+                                       int mi_x, int mi_y, uint8_t *dst,
+                                       int dst_stride, int border) {
+  const InterPredExt ext = { .border_left = border,
+                             .border_top = border,
+                             .border_right = 0,
+                             .border_bottom = 0 };
   const DecCalcSubpelFuncArgs args = { mi, mi_x, mi_y, build_for_obmc };
   av1_build_inter_predictors(cm, xd, plane, mi, build_for_obmc, bw, bh, mi_x,
                              mi_y, dec_calc_subpel_params_and_extend, &args,
-                             xd->plane[plane].dst.buf,
-                             xd->plane[plane].dst.stride, NULL);
+                             dst, dst_stride, &ext);
 }
 
 static void dec_build_inter_predictors_for_planes(const AV1_COMMON *cm,
@@ -756,7 +760,9 @@ static void dec_build_inter_predictors_for_planes(const AV1_COMMON *cm,
 
     if (plane && !xd->mi[0]->chroma_ref_info.is_chroma_ref) continue;
 
-    dec_build_inter_predictors(cm, xd, plane, xd->mi[0], 0, bw, bh, mi_x, mi_y);
+    dec_build_inter_predictors(cm, xd, plane, xd->mi[0], 0, bw, bh, mi_x, mi_y,
+                               xd->plane[plane].dst.buf,
+                               xd->plane[plane].dst.stride, 0);
   }
 }
 
@@ -831,7 +837,8 @@ static INLINE void dec_build_prediction_by_above_pred(
 
     if (av1_skip_u4x4_pred_in_obmc(mi_row, mi_col, bsize, pd, 0)) continue;
     dec_build_inter_predictors(ctxt->cm, xd, j, &backup_mbmi, 1, bw, bh, mi_x,
-                               mi_y);
+                               mi_y, xd->plane[j].dst.buf,
+                               xd->plane[j].dst.stride, 0 /* border */);
   }
 }
 
@@ -886,7 +893,8 @@ static INLINE void dec_build_prediction_by_left_pred(
 
     if (av1_skip_u4x4_pred_in_obmc(mi_row, mi_col, bsize, pd, 1)) continue;
     dec_build_inter_predictors(ctxt->cm, xd, j, &backup_mbmi, 1, bw, bh, mi_x,
-                               mi_y);
+                               mi_y, xd->plane[j].dst.buf,
+                               xd->plane[j].dst.stride, 0 /* border */);
   }
 }
 
