@@ -278,7 +278,7 @@ int32_t av1_dc_quant_QTX(int qindex, int delta, aom_bit_depth_t bit_depth) {
   if (q_clamped == 0) return (int32_t)ac_qlookup_QTX[q_clamped];
 
 #if CONFIG_EXTQUANT_HBD
-  int qindex_offset = 30 * (bit_depth - 8);
+  int qindex_offset = MAXQ_OFFSET * (bit_depth - 8);
   if (q_clamped > MAXQ_8_BITS) {
     switch (bit_depth) {
       case AOM_BITS_8: assert(q_clamped <= MAXQ_8_BITS);
@@ -345,7 +345,7 @@ int32_t av1_ac_quant_QTX(int qindex, int delta, aom_bit_depth_t bit_depth) {
   if (q_clamped == 0) return (int32_t)ac_qlookup_QTX[q_clamped];
 
 #if CONFIG_EXTQUANT_HBD
-  int qindex_offset = 30 * (bit_depth - 8);
+  int qindex_offset = MAXQ_OFFSET * (bit_depth - 8);
   if (q_clamped > MAXQ_8_BITS) {
     switch (bit_depth) {
       case AOM_BITS_8: assert(q_clamped <= MAXQ_8_BITS);

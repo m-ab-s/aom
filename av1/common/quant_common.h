@@ -23,11 +23,16 @@ extern "C" {
 
 #if CONFIG_EXTQUANT_HBD
 #define MINQ 0
-#define MAXQ 375
-#define MAXQ_10_BITS 315
-#define MAXQ_8_BITS 255
 #define QINDEX_BITS 9
 #define QINDEX_BITS_UNEXT 8
+#define MAXQ_8_BITS 255
+#if CONFIG_EXTQUANT_HP
+#define MAXQ_OFFSET 24
+#else
+#define MAXQ_OFFSET 30
+#endif
+#define MAXQ (255 + 4 * MAXQ_OFFSET)
+#define MAXQ_10_BITS (255 + 2 * MAXQ_OFFSET)
 #define QINDEX_RANGE (MAXQ - MINQ + 1)
 #define QINDEX_RANGE_8_BITS (MAXQ_8_BITS - MINQ + 1)
 #define QINDEX_RANGE_10_BITS (MAXQ_10_BITS - MINQ + 1)

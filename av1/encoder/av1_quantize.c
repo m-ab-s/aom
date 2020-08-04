@@ -695,8 +695,10 @@ void av1_build_quantizer(aom_bit_depth_t bit_depth, int y_dc_delta_q,
   int i, q, quant_QTX;
 
 #if CONFIG_EXTQUANT_HBD
-  int qindex_offset = 30 * (bit_depth - 8);
-  int qindex_range = QINDEX_RANGE_8_BITS + qindex_offset;
+  int qindex_range =
+      (bit_depth == AOM_BITS_8
+           ? QINDEX_RANGE_8_BITS
+           : bit_depth == AOM_BITS_10 ? QINDEX_RANGE_10_BITS : QINDEX_RANGE);
   for (q = 0; q < qindex_range; q++) {
 #else
   for (q = 0; q < QINDEX_RANGE; q++) {
@@ -967,6 +969,16 @@ static const int quantizer_to_qindex[] = {
 // clang-format on
 
 #if CONFIG_EXTQUANT_HBD
+#if CONFIG_EXTQUANT_HP
+static const int qindex_10b_offset[] = {
+  0,
+  48,
+};
+static const int qindex_12b_offset[] = {
+  0,
+  96,
+};
+#else
 static const int qindex_10b_offset[] = {
   0,  7,  18, 34, 42, 50, 54, 56, 60, 60, 60, 60, 60, 60, 60, 60,
   60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60,
@@ -981,6 +993,7 @@ static const int qindex_12b_offset[] = {
   120, 120, 120, 120, 120, 120, 120, 120, 120, 120, 120, 120,
 };
 #endif
+#endif
 
 int av1_quantizer_to_qindex(int quantizer
 #if CONFIG_EXTQUANT_HBD
@@ -991,10 +1004,19 @@ int av1_quantizer_to_qindex(int quantizer
 #if CONFIG_EXTQUANT_HBD
   switch (bit_depth) {
     case AOM_BITS_8: return quantizer_to_qindex[quantizer];
+#if CONFIG_EXTQUANT_HP
+    case AOM_BITS_10:
+      return (quantizer_to_qindex[quantizer] +
+              qindex_10b_offset[quantizer != 0]);
+    case AOM_BITS_12:
+      return (quantizer_to_qindex[quantizer] +
+              qindex_12b_offset[quantizer != 0]);
+#else
     case AOM_BITS_10:
       return (quantizer_to_qindex[quantizer] + qindex_10b_offset[quantizer]);
     case AOM_BITS_12:
       return (quantizer_to_qindex[quantizer] + qindex_12b_offset[quantizer]);
+#endif
     default:
       assert(0 && "bit_depth should be AOM_BITS_8, AOM_BITS_10 or AOM_BITS_12");
       return -1;

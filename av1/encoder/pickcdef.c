@@ -311,10 +311,11 @@ static void pick_cdef_from_qp(AV1_COMMON *const cm) {
   cdef_info->nb_cdef_strengths = 1;
 #if CONFIG_EXTQUANT_HBD
   int damping_offset =
-      clamp(cm->base_qindex -
-                (cm->seq_params.bit_depth == AOM_BITS_8
-                     ? 0
-                     : cm->seq_params.bit_depth == AOM_BITS_10 ? 60 : 120),
+      clamp(cm->base_qindex - (cm->seq_params.bit_depth == AOM_BITS_8
+                                   ? 0
+                                   : cm->seq_params.bit_depth == AOM_BITS_10
+                                         ? 2 * MAXQ_OFFSET
+                                         : 4 * MAXQ_OFFSET),
             MINQ, MAXQ_8_BITS) >>
       6;
   cdef_info->cdef_damping = AOMMIN(3 + damping_offset, 6);
@@ -387,10 +388,11 @@ void av1_cdef_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
   int *sb_index = aom_malloc(nvfb * nhfb * sizeof(*sb_index));
 #if CONFIG_EXTQUANT_HBD
   int damping_offset =
-      clamp(cm->base_qindex -
-                (cm->seq_params.bit_depth == AOM_BITS_8
-                     ? 0
-                     : cm->seq_params.bit_depth == AOM_BITS_10 ? 60 : 120),
+      clamp(cm->base_qindex - (cm->seq_params.bit_depth == AOM_BITS_8
+                                   ? 0
+                                   : cm->seq_params.bit_depth == AOM_BITS_10
+                                         ? 2 * MAXQ_OFFSET
+                                         : 4 * MAXQ_OFFSET),
             MINQ, MAXQ_8_BITS) >>
       6;
   const int damping = AOMMIN(3 + damping_offset, 6);
