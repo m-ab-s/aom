@@ -33,6 +33,7 @@
 #include "aom_ports/mem_ops.h"
 #include "common/args.h"
 #include "common/ivfenc.h"
+#include "common/rawenc.h"
 #include "common/stream_iter.h"
 #include "common/tools_common.h"
 #include "common/warnings.h"
@@ -125,6 +126,7 @@ static const arg_def_t debugmode =
     ARG_DEF("D", "debug", 0, "Debug mode (makes output deterministic)");
 static const arg_def_t outputfile =
     ARG_DEF("o", "output", 1, "Output filename");
+static const arg_def_t reconfile = ARG_DEF(NULL, "recon", 1, "Recon filename");
 static const arg_def_t use_yv12 =
     ARG_DEF(NULL, "yv12", 0, "Input file is YV12 ");
 static const arg_def_t use_i420 =
@@ -210,6 +212,7 @@ static const arg_def_t *main_args[] = { &help,
                                         &use_cfg,
                                         &debugmode,
                                         &outputfile,
+                                        &reconfile,
                                         &codecarg,
                                         &passes,
                                         &pass_arg,
@@ -1113,6 +1116,7 @@ struct WebmOutputContext {
 struct stream_config {
   struct aom_codec_enc_cfg cfg;
   const char *out_fn;
+  const char *recon_fn;
 #if !CONFIG_SINGLEPASS
   const char *stats_fn;
 #endif  // !CONFIG_SINGLEPASS
@@ -1563,6 +1567,8 @@ static int parse_stream_params(struct AvxEncoderConfig *global,
 #else
       die("Error: --webm specified but webm is disabled.");
 #endif
+    } else if (arg_match(&arg, &reconfile, argi)) {
+      config->recon_fn = arg.val;
     } else if (arg_match(&arg, &use_ivf, argi)) {
       config->write_webm = 0;
       config->write_ivf = 1;
@@ -2330,6 +2336,21 @@ static float usec_to_fps(uint64_t usec, unsigned int frames) {
   return (float)(usec > 0 ? frames * 1000000.0 / (float)usec : 0);
 }
 
+static void write_recon_file(struct stream_state *stream, FILE *file) {
+  aom_image_t enc_img;
+
+  AOM_CODEC_CONTROL_TYPECHECKED(&stream->encoder, AV1_GET_NEW_FRAME_IMAGE,
+                                &enc_img);
+
+  ctx_exit_on_error(&stream->encoder,
+                    "Failed to get encoder reconstructed frame");
+
+  int num_planes = enc_img.monochrome ? 1 : 3;
+  const int PLANES_YUV[] = { AOM_PLANE_Y, AOM_PLANE_U, AOM_PLANE_V };
+  const int *planes = PLANES_YUV;
+  raw_write_image_file(&enc_img, planes, num_planes, file);
+}
+
 static void test_decode(struct stream_state *stream,
                         enum TestDecodeFatality fatal) {
   aom_image_t enc_img, dec_img;
@@ -2411,6 +2432,8 @@ int main(int argc, const char **argv_) {
   input.only_i420 = 1;
   input.bit_depth = 0;
 
+  FILE *recon_file = NULL;
+
   /* First parse the global configuration values, because we want to apply
    * other parameters on top of the default configuration provided by the
    * codec.
@@ -2457,6 +2480,13 @@ int main(int argc, const char **argv_) {
 
   /* Handle non-option arguments */
   input.filename = argv[0];
+
+  FOREACH_STREAM(stream, streams) {
+    if (stream->config.recon_fn != NULL) {
+      recon_file = fopen(stream->config.recon_fn, "wb");
+      if (!recon_file) fatal("Failed to open recon file");
+    }
+  }
 
   if (!input.filename) {
     fprintf(stderr, "No input file specified!\n");
@@ -2792,7 +2822,11 @@ int main(int argc, const char **argv_) {
       FOREACH_STREAM(stream, streams) {
         get_cx_data(stream, &global, &got_data);
       }
-
+      if (got_data && recon_file != NULL) {
+        FOREACH_STREAM(stream, streams) {
+          write_recon_file(stream, recon_file);
+        }
+      }
       if (got_data && global.test_decode != TEST_DECODE_OFF) {
         FOREACH_STREAM(stream, streams) {
           test_decode(stream, global.test_decode);
@@ -2902,6 +2936,8 @@ int main(int argc, const char **argv_) {
     }
   }
 #endif
+
+  if (recon_file != NULL) fclose(recon_file);
 
   if (allocated_raw_shift) aom_img_free(&raw_shift);
   aom_img_free(&raw);
