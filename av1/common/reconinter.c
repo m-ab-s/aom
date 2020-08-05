@@ -1028,7 +1028,13 @@ static void build_inter_predictors_sub8x8(
       const struct scale_factors *const sf = ref_scale_factors;
       struct buf_2d *const pre_buf = &pd->pre[0];
 
+#if CONFIG_DERIVED_MV
+      const MV mv = (this_mbmi->derived_mv_allowed && this_mbmi->use_derived_mv)
+                        ? this_mbmi->derived_mv
+                        : this_mbmi->mv[0].as_mv;
+#else
       const MV mv = this_mbmi->mv[0].as_mv;
+#endif  // CONFIG_DERIVED_MV
 
       const WarpTypesAllowed warp_types = { is_global, this_mbmi->motion_mode ==
                                                            WARPED_CAUSAL };
@@ -1199,10 +1205,15 @@ static void build_inter_predictors(
     const struct scale_factors *const sf =
         is_intrabc ? &cm->sf_identity : xd->block_ref_scale_factors[ref];
     struct buf_2d *const pre_buf = is_intrabc ? dst_buf : &pd->pre[ref];
+#if CONFIG_DERIVED_MV
+    const MV mv = (mi->derived_mv_allowed && mi->use_derived_mv)
+                      ? mi->derived_mv
+                      : mi->mv[ref].as_mv;
+#else
     const MV mv = mi->mv[ref].as_mv;
+#endif  // CONFIG_DERIVED_MV
     const WarpTypesAllowed warp_types = { is_global[ref],
                                           mi->motion_mode == WARPED_CAUSAL };
-
     uint8_t *pre;
     SubpelParams subpel_params;
     int src_stride;
@@ -1381,8 +1392,9 @@ static void build_inter_predictors(
 #if CONFIG_DERIVED_MV
 #define DERIVED_MV_REF_LINES 4
 #define REFINE_SUBPEL_RANGE 16
-#define REFINE_FULLPEL_RANGE 16
+#define REFINE_FULLPEL_RANGE 4
 #define REFINE_FULLPEL_STEP 1
+#define DERIVED_MV_IDX_RANGE 8
 #define DERIVED_MV_MAX_BSIZE 64
 #define DERIVED_MV_MIN_BSIZE 4
 
@@ -1497,7 +1509,8 @@ MV av1_derive_mv(const AV1_COMMON *const cm, MACROBLOCKD *xd,
   const int bw = block_size_wide[bsize];
   const int bh = block_size_high[bsize];
   // Motion search around each reference MV.
-  for (int i = 0; i < xd->ref_mv_count[ref_frame]; ++i) {
+  for (int i = 0; i < AOMMIN(DERIVED_MV_IDX_RANGE, xd->ref_mv_count[ref_frame]);
+       ++i) {
     MV ref_mv = xd->ref_mv_stack[ref_frame][i].this_mv.as_mv;
     // Full pel MV search.
     ref_mv = full_pel_refine(cm, xd, bsize, ref_mv, recon_top, recon_left,

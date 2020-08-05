@@ -7382,8 +7382,18 @@ static void encode_superblock(const AV1_COMP *const cpi, TileDataEnc *tile_data,
     if (mbmi->derived_mv_allowed && mbmi->use_derived_mv) {
       const MV derived_mv = av1_derive_mv(cm, xd, mbmi, xd->plane[0].dst.buf,
                                           xd->plane[0].dst.stride);
+#if CONFIG_DERIVED_MV_NO_PD
+      if (mbmi->derived_mv.row != derived_mv.row ||
+          mbmi->derived_mv.col != derived_mv.col) {
+        mbmi->derived_mv = derived_mv;
+        if (mbmi->motion_mode == WARPED_CAUSAL) {
+          mbmi->motion_mode = SIMPLE_TRANSLATION;
+        }
+      }
+#else
       // In rare cases the derived_mv may have changed and is different from
       // the values obtained during RDO.
+      mbmi->derived_mv = derived_mv;
       if (mbmi->mv[0].as_mv.row != derived_mv.row ||
           mbmi->mv[0].as_mv.col != derived_mv.col) {
         mbmi->mv[0].as_mv = derived_mv;
@@ -7401,6 +7411,7 @@ static void encode_superblock(const AV1_COMP *const cpi, TileDataEnc *tile_data,
           av1_copy_frame_mvs(cm, mbmi, mi_row, mi_col, x_mis, y_mis);
         }
       }
+#endif  // CONFIG_DERIVED_MV_NO_PD
     }
 #endif  // CONFIG_DERIVED_MV
 

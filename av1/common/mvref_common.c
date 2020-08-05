@@ -1151,8 +1151,18 @@ static INLINE void record_samples(const MB_MODE_INFO *mbmi, int *pts,
 
   pts[0] = (x * 8);
   pts[1] = (y * 8);
+#if CONFIG_DERIVED_MV
+  if (mbmi->derived_mv_allowed && mbmi->use_derived_mv) {
+    pts_inref[0] = (x * 8) + mbmi->derived_mv.col;
+    pts_inref[1] = (y * 8) + mbmi->derived_mv.row;
+  } else {
+    pts_inref[0] = (x * 8) + mbmi->mv[0].as_mv.col;
+    pts_inref[1] = (y * 8) + mbmi->mv[0].as_mv.row;
+  }
+#else
   pts_inref[0] = (x * 8) + mbmi->mv[0].as_mv.col;
   pts_inref[1] = (y * 8) + mbmi->mv[0].as_mv.row;
+#endif  // CONFIG_DERIVED_MV && CONFIG_DERIVED_MV_NOPD
 }
 
 // Select samples according to the motion vector difference.

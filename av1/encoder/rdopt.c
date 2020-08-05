@@ -10104,6 +10104,11 @@ static INLINE void save_interp_filter_search_stat(MACROBLOCK *x,
                                         mbmi->interinter_comp.type,
                                         rd,
                                         pred_sse };
+#if CONFIG_DERIVED_MV
+    if (mbmi->derived_mv_allowed && mbmi->use_derived_mv) {
+      stat.mv[0].as_mv = mbmi->derived_mv;
+    }
+#endif  // CONFIG_DERIVED_MV
     x->interp_filter_stats[comp_idx][offset] = stat;
     x->interp_filter_stats_idx[comp_idx]++;
   }
@@ -10147,6 +10152,10 @@ static INLINE int find_interp_filter_match(MACROBLOCK *const x,
   if (cpi->sf.skip_repeat_interpolation_filter_search && need_search)
     match_found_idx = find_interp_filter_in_stats(x, mbmi);
 
+#if CONFIG_DERIVED_MV
+  if (mbmi->derived_mv_allowed && mbmi->use_derived_mv) match_found_idx = -1;
+#endif  // CONFIG_DERIVED_MV
+
   if (!need_search || match_found_idx == -1)
     set_default_interp_filters(mbmi, assign_filter);
   return match_found_idx;
@@ -10170,7 +10179,13 @@ static INLINE void calc_interp_skip_pred_flag(MACROBLOCK *const x,
       *skip_ver = 0;
       break;
     }
+#if CONFIG_DERIVED_MV
+    const MV mv = (mbmi->derived_mv_allowed && mbmi->use_derived_mv)
+                      ? mbmi->derived_mv
+                      : mbmi->mv[ref].as_mv;
+#else
     const MV mv = mbmi->mv[ref].as_mv;
+#endif  // CONFIG_DERIVED_MV
     int skip_hor_plane = 0;
     int skip_ver_plane = 0;
     for (int plane_idx = 0; plane_idx < AOMMAX(1, (num_planes - 1));
@@ -10923,11 +10938,28 @@ static INLINE void obmc_check_identical_mv(MACROBLOCKD *xd, int rel_mi_col,
 
   if (ctxt->mv_field_check_result == 0) return;
 
+#if CONFIG_DERIVED_MV
+  if (nb_mi->ref_frame[0] != current_mi->ref_frame[0] ||
+      nb_mi->interp_filters.as_int != current_mi->interp_filters.as_int) {
+    ctxt->mv_field_check_result = 0;
+  }
+  const MV cur_mv =
+      (current_mi->derived_mv_allowed && current_mi->use_derived_mv)
+          ? current_mi->derived_mv
+          : current_mi->mv[0].as_mv;
+  const MV nb_mv = (nb_mi->derived_mv_allowed && nb_mi->use_derived_mv)
+                       ? nb_mi->derived_mv
+                       : nb_mi->mv[0].as_mv;
+  if (cur_mv.row != nb_mv.row || cur_mv.col != nb_mv.col) {
+    ctxt->mv_field_check_result = 0;
+  }
+#else
   if (nb_mi->ref_frame[0] != current_mi->ref_frame[0] ||
       nb_mi->mv[0].as_int != current_mi->mv[0].as_int ||
       nb_mi->interp_filters.as_int != current_mi->interp_filters.as_int) {
     ctxt->mv_field_check_result = 0;
   }
+#endif  // CONFIG_DERIVED_MV
 }
 
 // Check if the neighbors' motions used by obmc have same parameters as for
@@ -11101,15 +11133,21 @@ static int64_t motion_mode_rd(const AV1_COMP *const cpi, TileDataEnc *tile_data,
 
       memcpy(pts, pts0, total_samples * 2 * sizeof(*pts0));
       memcpy(pts_inref, pts_inref0, total_samples * 2 * sizeof(*pts_inref0));
+      MV mv = mbmi->mv[0].as_mv;
+#if CONFIG_DERIVED_MV
+      if (mbmi->derived_mv_allowed && mbmi->use_derived_mv) {
+        mv = mbmi->derived_mv;
+      }
+#endif  // CONFIG_DERIVED_MV
       // Select the samples according to motion vector difference
       if (mbmi->num_proj_ref > 1) {
-        mbmi->num_proj_ref = av1_selectSamples(
-            &mbmi->mv[0].as_mv, pts, pts_inref, mbmi->num_proj_ref, bsize);
+        mbmi->num_proj_ref =
+            av1_selectSamples(&mv, pts, pts_inref, mbmi->num_proj_ref, bsize);
       }
 
       if (!av1_find_projection(mbmi->num_proj_ref, pts, pts_inref, bsize,
-                               mbmi->mv[0].as_mv.row, mbmi->mv[0].as_mv.col,
-                               &mbmi->wm_params, mi_row, mi_col)) {
+                               mv.row, mv.col, &mbmi->wm_params, mi_row,
+                               mi_col)) {
         // Refine MV for NEWMV mode
         assert(!is_comp_pred);
         if (have_newmv_in_inter_mode(this_mode)) {
@@ -12525,7 +12563,6 @@ static int64_t handle_inter_mode(AV1_COMP *const cpi, TileDataEnc *tile_data,
       if (mbmi->derived_mv_allowed && mbmi->ref_mv_idx == 0) {
         mbmi->derived_mv =
             av1_derive_mv(cm, xd, mbmi, orig_dst.plane[0], orig_dst.stride[0]);
-        const MV orig_mv = mbmi->mv[0].as_mv;
         RD_STATS tmp_rd_stats, tmp_rd_stats_y, tmp_rd_stats_uv;
         av1_enc_build_inter_predictor(cm, xd, xd->mi_row, xd->mi_col, &orig_dst,
                                       bsize, 0, av1_num_planes(cm) - 1);
@@ -12535,8 +12572,7 @@ static int64_t handle_inter_mode(AV1_COMP *const cpi, TileDataEnc *tile_data,
         const int64_t no_refine_rd =
             rd_valid ? RDCOST(x->rdmult, tmp_rd_stats.rate, tmp_rd_stats.dist)
                      : INT64_MAX;
-
-        mbmi->mv[0].as_mv = mbmi->derived_mv;
+        mbmi->use_derived_mv = 1;
         av1_enc_build_inter_predictor(cm, xd, xd->mi_row, xd->mi_col, &orig_dst,
                                       bsize, 0, av1_num_planes(cm) - 1);
         rd_valid = txfm_search(cpi, tile_data, x, bsize, &tmp_rd_stats,
@@ -12547,17 +12583,20 @@ static int64_t handle_inter_mode(AV1_COMP *const cpi, TileDataEnc *tile_data,
                      : INT64_MAX;
         if (refine_rd < no_refine_rd) {
           mbmi->use_derived_mv = 1;
-          mbmi->mv[0].as_mv = mbmi->derived_mv;
         } else {
           mbmi->use_derived_mv = 0;
-          mbmi->mv[0].as_mv = orig_mv;
         }
       } else {
         mbmi->use_derived_mv = 0;
       }
       if (mbmi->derived_mv_allowed) {
         rd_stats->rate += x->use_derived_mv_cost[bsize][mbmi->use_derived_mv];
-        if (mbmi->use_derived_mv) rd_stats->rate -= drl_cost;
+        if (mbmi->use_derived_mv) {
+          rd_stats->rate -= drl_cost;
+#if !CONFIG_DERIVED_MV_NO_PD
+          mbmi->mv[0].as_mv = mbmi->derived_mv;
+#endif  // CONFIG_DERIVED_MV_NO_PD
+        }
       }
 #endif  // CONFIG_DERIVED_MV
 
@@ -12716,6 +12755,11 @@ static int64_t handle_inter_mode(AV1_COMP *const cpi, TileDataEnc *tile_data,
 #endif
 
       mode_info[ref_mv_idx].mv.as_int = mbmi->mv[0].as_int;
+#if CONFIG_DERIVED_MV
+      if (mbmi->derived_mv_allowed && mbmi->use_derived_mv) {
+        mode_info[ref_mv_idx].mv.as_mv = mbmi->derived_mv;
+      }
+#endif  // CONFIG_DERIVED_MV
       mode_info[ref_mv_idx].rate_mv = rate_mv;
       if (ret_val != INT64_MAX) {
         int64_t tmp_rd = RDCOST(x->rdmult, rd_stats->rate, rd_stats->dist);
@@ -13414,7 +13458,7 @@ static void rd_pick_skip_mode(RD_STATS *rd_cost,
   mbmi->ref_mv_idx = 0;
   mbmi->skip_mode = mbmi->skip = 1;
 #if CONFIG_DERIVED_MV
-  mbmi->derived_mv_allowed = 0;
+  mbmi->derived_mv_allowed = mbmi->use_derived_mv = 0;
 #endif  // CONFIG_DERIVED_MV
 
   set_default_interp_filters(mbmi, cm->interp_filter);
@@ -16381,8 +16425,10 @@ void av1_rd_pick_inter_mode_sb_seg_skip(const AV1_COMP *cpi,
           .as_int;
   mbmi->tx_size = max_txsize_lookup[bsize];
   x->skip = 1;
-
   mbmi->ref_mv_idx = 0;
+#if CONFIG_DERIVED_MV
+  mbmi->derived_mv_allowed = mbmi->use_derived_mv = 0;
+#endif  // CONFIG_DEIRVED_MV
 
   set_default_mbmi_mv_precision(cm, mbmi, xd->sbi);
 

@@ -1897,7 +1897,9 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
     }
     mbmi->derived_mv = av1_derive_mv(cm, xd, mbmi, xd->plane[0].dst.buf,
                                      xd->plane[0].dst.stride);
+#if !CONFIG_DERIVED_MV_NO_PD
     mbmi->mv[0].as_mv = mbmi->derived_mv;
+#endif  // !CONFIG_DERIVED_MV_NO_PD
   }
 #endif  // CONFIG_DERIVED_MV
 
@@ -2025,14 +2027,18 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
   if (mbmi->motion_mode == WARPED_CAUSAL) {
     mbmi->wm_params.wmtype = DEFAULT_WMTYPE;
     mbmi->wm_params.invalid = 0;
-
+    MV mv = mbmi->mv[0].as_mv;
+#if CONFIG_DERIVED_MV
+    if (mbmi->derived_mv_allowed && mbmi->use_derived_mv) {
+      mv = mbmi->derived_mv;
+    }
+#endif  // CONFIG_DERIVED_MV
     if (mbmi->num_proj_ref > 1)
-      mbmi->num_proj_ref = av1_selectSamples(&mbmi->mv[0].as_mv, pts, pts_inref,
-                                             mbmi->num_proj_ref, bsize);
+      mbmi->num_proj_ref =
+          av1_selectSamples(&mv, pts, pts_inref, mbmi->num_proj_ref, bsize);
 
-    if (av1_find_projection(mbmi->num_proj_ref, pts, pts_inref, bsize,
-                            mbmi->mv[0].as_mv.row, mbmi->mv[0].as_mv.col,
-                            &mbmi->wm_params, mi_row, mi_col)) {
+    if (av1_find_projection(mbmi->num_proj_ref, pts, pts_inref, bsize, mv.row,
+                            mv.col, &mbmi->wm_params, mi_row, mi_col)) {
 #if WARPED_MOTION_DEBUG
       printf("Warning: unexpected warped model from aomenc\n");
 #endif
