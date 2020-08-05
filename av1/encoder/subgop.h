@@ -21,13 +21,14 @@ int av1_process_subgop_config_set(const char *param, SubGOPSetCfg *config_set);
 void av1_print_subgop_config_set(SubGOPSetCfg *config_set);
 
 // Finds the ptr to the subgop config with the queried number of
-// frames and whether it is the last subgop in a gop.
+// frames and whether it is the last or first subgop in a gop.
 // If the right number of frames is found but the right
-// is_last_subgop is not found then the first config with the
+// subgop_in_gop_code is not found then the generic config with the
 // matching length is returned. If the right number of frames
 // is not found, Null is returned.
 const SubGOPCfg *av1_find_subgop_config(SubGOPSetCfg *config_set,
-                                        int num_frames, int is_last_gop);
+                                        int num_frames, int is_last_gop,
+                                        int is_first_subgop);
 
 #ifdef __cplusplus
 }  // extern "C"

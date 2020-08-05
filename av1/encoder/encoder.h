@@ -792,17 +792,24 @@ typedef enum {
   FRAME_TYPE_OOO_UNFILTERED = 'U',
 } FRAME_TYPE_CODE;
 
+typedef enum {
+  SUBGOP_IN_GOP_GENERIC = 0,
+  SUBGOP_IN_GOP_LAST,
+  SUBGOP_IN_GOP_FIRST,
+  SUBGOP_IN_GOP_CODES
+} SUBGOP_IN_GOP_CODE;
+
 typedef struct {
   int8_t disp_frame_idx;
   FRAME_TYPE_CODE type_code;
   int8_t pyr_level;
-  int8_t num_references;
+  int8_t num_references;  // value of -1 indicates unspecified references
   int8_t references[INTER_REFS_PER_FRAME];
 } SubGOPStepCfg;
 
 typedef struct {
   int8_t num_frames;
-  bool is_last_subgop;
+  SUBGOP_IN_GOP_CODE subgop_in_gop_code;
   int8_t num_steps;
   SubGOPStepCfg step[MAX_SUBGOP_STEPS];
 } SubGOPCfg;

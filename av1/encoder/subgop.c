@@ -106,7 +106,11 @@ static int process_subgop_config(char *str, SubGOPCfg *config) {
   config->num_frames = atoi(token);
   token = my_strtok_r(str, delim, &str);
   if (!token) return 0;
-  config->is_last_subgop = atoi(token);
+  int subgop_in_gop_code = atoi(token);
+  // check for invalid subgop_in_gop_code
+  if (subgop_in_gop_code < 0 || subgop_in_gop_code >= SUBGOP_IN_GOP_CODES)
+    return 0;
+  config->subgop_in_gop_code = (SUBGOP_IN_GOP_CODE)subgop_in_gop_code;
   token = my_strtok_r(str, delim, &str);
   if (!token) return 0;
   return process_subgop_steps(token, config);
@@ -212,7 +216,7 @@ void av1_print_subgop_config_set(SubGOPSetCfg *config_set) {
     printf("config:%d ->\n", i);
     SubGOPCfg *config = &config_set->config[i];
     printf("  num_frames:%d\n", config->num_frames);
-    printf("  is_last_subgop:%d\n", config->is_last_subgop);
+    printf("  subgop_in_gop_code:%d\n", config->subgop_in_gop_code);
     printf("  num_steps:%d\n", config->num_steps);
     for (int j = 0; j < config->num_steps; ++j) {
       printf("  step:%d ->", j);
@@ -234,13 +238,22 @@ void av1_print_subgop_config_set(SubGOPSetCfg *config_set) {
 }
 
 const SubGOPCfg *av1_find_subgop_config(SubGOPSetCfg *config_set,
-                                        int num_frames, int is_last_subgop) {
+                                        int num_frames, int is_last_subgop,
+                                        int is_first_subgop) {
   SubGOPCfg *cfg = NULL;
+  SUBGOP_IN_GOP_CODE subgop_in_gop_code;
+  if (is_last_subgop)
+    subgop_in_gop_code = SUBGOP_IN_GOP_LAST;
+  else if (is_first_subgop)
+    subgop_in_gop_code = SUBGOP_IN_GOP_FIRST;
+  else
+    subgop_in_gop_code = SUBGOP_IN_GOP_GENERIC;
   for (int i = 0; i < config_set->num_configs; ++i) {
     if (config_set->config[i].num_frames == num_frames) {
-      if (config_set->config[i].is_last_subgop == is_last_subgop)
+      if (config_set->config[i].subgop_in_gop_code == subgop_in_gop_code)
         return &config_set->config[i];
-      else if (!config_set->config[i].is_last_subgop)
+      else if (config_set->config[i].subgop_in_gop_code ==
+               SUBGOP_IN_GOP_GENERIC)
         cfg = &config_set->config[i];
     }
   }

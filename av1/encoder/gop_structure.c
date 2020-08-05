@@ -209,14 +209,14 @@ static int construct_multi_layer_gf_structure(
   // Rest of the frames.
   SubGOPSetCfg *subgop_cfg_set = &cpi->subgop_config_set;
   const SubGOPCfg *subgop_cfg0 =
-      av1_find_subgop_config(subgop_cfg_set, gf_interval, 0);
+      av1_find_subgop_config(subgop_cfg_set, gf_interval, 0, 0);
   gf_group->subgop_cfg = NULL;
   if (subgop_cfg0) {
     const SubGOPCfg *subgop_cfg = subgop_cfg0;
     // Check if it is the last GOP
     if (rc->frames_to_key == gf_interval) {
       const SubGOPCfg *subgop_cfg1 =
-          av1_find_subgop_config(subgop_cfg_set, gf_interval, 1);
+          av1_find_subgop_config(subgop_cfg_set, gf_interval, 1, 0);
       if (subgop_cfg1) subgop_cfg = subgop_cfg1;
     }
 
