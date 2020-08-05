@@ -54,6 +54,12 @@ static int process_subgop_step(char *str, SubGOPStepCfg *step) {
   step->pyr_level = (int8_t)strtol(str, &ptr, 10);
   // Check if no numeric disp idx exist
   if (ptr == str) return 0;
+
+  // Check for unspecified references
+  if (*ptr == 0) {
+    step->num_references = -1;
+    return 1;
+  }
   // Check for character P preceding the references
   if (*ptr != 'P') return 0;
   str = ++ptr;
@@ -213,7 +219,8 @@ void av1_print_subgop_config_set(SubGOPSetCfg *config_set) {
       printf(" disp_frame_idx:%d", config->step[j].disp_frame_idx);
       printf(" type_code:%c", config->step[j].type_code);
       printf(" pyr_level:%d", config->step[j].pyr_level);
-      if (config->step[j].type_code != FRAME_TYPE_INO_SHOWEXISTING) {
+      if (config->step[j].type_code != FRAME_TYPE_INO_SHOWEXISTING &&
+          config->step[j].num_references >= 0) {
         printf(" references:");
         for (int r = 0; r < config->step[j].num_references; ++r) {
           if (r) printf("^");
