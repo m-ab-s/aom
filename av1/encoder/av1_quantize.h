@@ -40,6 +40,12 @@ typedef void (*AV1_QUANT_FACADE)(const tran_low_t *coeff_ptr, intptr_t n_coeffs,
                                  const SCAN_ORDER *sc,
                                  const QUANT_PARAM *qparam);
 
+#if CONFIG_EXTQUANT
+#define QUANT_FP_BITS 4
+#else
+#define QUANT_FP_BITS 0
+#endif  // CONFIG_EXTQUANT
+
 // The QUANTS structure is used only for internal quantizer setup in
 // av1_quantize.c.
 // All of its fields use the same coefficient shift/scaling at TX.
