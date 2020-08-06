@@ -110,7 +110,7 @@ void av1_intra_mode_cnn_partition(const AV1_COMMON *const cm, MACROBLOCK *x,
                                       bit_depth) >>
                      (bit_depth - 8);
     x->log_q = logf(1.0f + (float)((int64_t)dc_q * (int64_t)dc_q) /
-                               (256.0f * (1 << (2 * QUANT_TABLE_BITS))));
+                               (256 << (2 * QUANT_TABLE_BITS)));
     x->log_q = (x->log_q - av1_intra_mode_cnn_partition_mean[0]) /
                av1_intra_mode_cnn_partition_std[0];
 
@@ -500,7 +500,7 @@ static void simple_motion_search_prune_part_features(
                                     xd->bd) >>
                    (xd->bd - 8);
   features[f_idx++] = logf(1.0f + (float)((int64_t)dc_q * (int64_t)dc_q) /
-                                      (256.0f * (1 << (2 * QUANT_TABLE_BITS))));
+                                      (256 << (2 * QUANT_TABLE_BITS)));
 
   // Neighbor stuff
   const int has_above = !!xd->above_mbmi;
@@ -686,9 +686,8 @@ void av1_get_max_min_partition_features(AV1_COMP *const cpi, MACROBLOCK *x,
                                     xd->bd) >>
                    (xd->bd - 8);
   aom_clear_system_state();
-  const float log_q_sq =
-      logf(1.0f + (float)((int64_t)dc_q * (int64_t)dc_q) /
-                      (256.0f * (1 << (2 * QUANT_TABLE_BITS))));
+  const float log_q_sq = logf(1.0f + (float)((int64_t)dc_q * (int64_t)dc_q) /
+                                         (256 << (2 * QUANT_TABLE_BITS)));
 
   // Perform full-pixel single motion search in Y plane of 16x16 mbs in the sb
   float sum_mv_row_sq = 0;
@@ -926,8 +925,7 @@ void av1_ml_early_term_after_split(AV1_COMP *const cpi, MACROBLOCK *const x,
 
   aom_clear_system_state();
 
-  features[f_idx++] =
-      logf(1.0f + (float)dc_q / (4.0f * (1 << QUANT_TABLE_BITS)));
+  features[f_idx++] = logf(1.0f + (float)dc_q / (4 << QUANT_TABLE_BITS));
   features[f_idx++] = logf(1.0f + (float)best_rd / bs / bs / 1024.0f);
 
   add_rd_feature(part_none_rd, best_rd, features, &f_idx);
@@ -1342,7 +1340,8 @@ int av1_ml_predict_breakout(const AV1_COMP *const cpi, BLOCK_SIZE bsize,
   features[feature_index++] = (float)pb_source_variance;
 
   const int dc_q = (int)x->plane[0].dequant_QTX[0];
-  features[feature_index++] = (float)(dc_q * dc_q) / 256.0f;
+  features[feature_index++] =
+      (float)(dc_q * dc_q) / (256 << (2 * QUANT_TABLE_BITS));
   assert(feature_index == FEATURES);
 
   // Calculate score using the NN model.

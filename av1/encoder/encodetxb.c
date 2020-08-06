@@ -1699,10 +1699,10 @@ static INLINE void update_coeff_eob_fast(int *eob, int shift,
                                          tran_low_t *dqcoeff_ptr) {
   // TODO(sarahparker) make this work for aomqm
   int eob_out = *eob;
-  int zbin[2] = { dequant_ptr[0] + ROUND_POWER_OF_TWO(dequant_ptr[0] * 70,
-                                                      7 + QUANT_TABLE_BITS),
-                  dequant_ptr[1] + ROUND_POWER_OF_TWO(dequant_ptr[1] * 70,
-                                                      7 + QUANT_TABLE_BITS) };
+  int zbin[2] = {
+    ROUND_POWER_OF_TWO(198 * dequant_ptr[0], 7 + QUANT_TABLE_BITS),
+    ROUND_POWER_OF_TWO(198 * dequant_ptr[1], 7 + QUANT_TABLE_BITS)
+  };
 
   for (int i = *eob - 1; i >= 0; i--) {
     const int rc = scan[i];

@@ -1715,8 +1715,8 @@ int av1_temporal_filter(AV1_COMP *cpi, int distance,
     const int q =
         av1_rc_pick_q_and_bounds(cpi, cpi->oxcf.width, cpi->oxcf.height,
                                  gf_group->index, &bottom_index, &top_index);
-    const int ac_q = av1_ac_quant_QTX(q, 0, cm->seq_params.bit_depth) /
-                     (1 << QUANT_TABLE_BITS);
+    const int ac_q = ROUND_POWER_OF_TWO(
+        av1_ac_quant_QTX(q, 0, cm->seq_params.bit_depth), QUANT_TABLE_BITS);
     const int ac_q_2 = ac_q * ac_q;
     const int mb_cols = get_cols(frames[frames_to_blur_backward]->y_crop_width);
     const int mb_rows =

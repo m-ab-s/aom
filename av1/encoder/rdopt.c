@@ -2102,11 +2102,12 @@ static void model_rd_from_sse(const AV1_COMP *const cpi,
   const MACROBLOCKD *const xd = &x->e_mbd;
   const struct macroblock_plane *const p = &x->plane[plane];
   const int dequant_shift = (is_cur_buf_hbd(xd)) ? xd->bd - 5 : 3;
+  int quantizer =
+      ROUND_POWER_OF_TWO(p->dequant_QTX[1], QUANT_TABLE_BITS) >> dequant_shift;
 
   // Fast approximate the modelling function.
   if (cpi->sf.simple_model_rd_from_var) {
     const int64_t square_error = sse;
-    int quantizer = p->dequant_QTX[1] >> dequant_shift;
     if (quantizer < 120)
       *rate = (int)AOMMIN(
           (square_error * (280 - quantizer)) >> (16 - AV1_PROB_COST_SHIFT),
@@ -2117,8 +2118,7 @@ static void model_rd_from_sse(const AV1_COMP *const cpi,
     *dist = (square_error * quantizer) >> 8;
   } else {
     av1_model_rd_from_var_lapndz(sse, num_pels_log2_lookup[plane_bsize],
-                                 p->dequant_QTX[1] >> dequant_shift, rate,
-                                 dist);
+                                 quantizer, rate, dist);
   }
   *dist <<= 4;
 }
@@ -2759,7 +2759,8 @@ static void PrintTransformUnitStats(const AV1_COMP *const cpi, MACROBLOCK *x,
   const int txw = tx_size_wide[tx_size];
   const int txh = tx_size_high[tx_size];
   const int dequant_shift = (is_cur_buf_hbd(xd)) ? xd->bd - 5 : 3;
-  const int q_step = p->dequant_QTX[1] >> dequant_shift;
+  const int q_step =
+      ROUND_POWER_OF_TWO(p->dequant_QTX[1], QUANT_TABLE_BITS) >> dequant_shift;
   const int num_samples = txw * txh;
 
   const double rate_norm = (double)rd_stats->rate / num_samples;
@@ -2866,7 +2867,8 @@ static void PrintPredictionUnitStats(const AV1_COMP *const cpi,
                      &bh);
   const int num_samples = bw * bh;
   const int dequant_shift = (is_cur_buf_hbd(xd)) ? xd->bd - 5 : 3;
-  const int q_step = p->dequant_QTX[1] >> dequant_shift;
+  const int q_step =
+      ROUND_POWER_OF_TWO(p->dequant_QTX[1], QUANT_TABLE_BITS) >> dequant_shift;
 
   const double rate_norm = (double)rd_stats->rate / num_samples;
   const double dist_norm = (double)rd_stats->dist / num_samples;
@@ -2979,7 +2981,9 @@ static void model_rd_with_dnn(const AV1_COMP *const cpi,
   const int log_numpels = num_pels_log2_lookup[plane_bsize];
 
   const int dequant_shift = (is_cur_buf_hbd(xd)) ? xd->bd - 5 : 3;
-  const int q_step = AOMMAX(p->dequant_QTX[1] >> dequant_shift, 1);
+  const int q_step = AOMMAX(
+      ROUND_POWER_OF_TWO(p->dequant_QTX[1], QUANT_TABLE_BITS) >> dequant_shift,
+      1);
 
   int bw, bh;
   get_txb_dimensions(xd, plane, plane_bsize, 0, 0, plane_bsize, NULL, NULL, &bw,
@@ -3140,7 +3144,9 @@ static void model_rd_with_surffit(const AV1_COMP *const cpi,
   const MACROBLOCKD *const xd = &x->e_mbd;
   const struct macroblock_plane *const p = &x->plane[plane];
   const int dequant_shift = (is_cur_buf_hbd(xd)) ? xd->bd - 5 : 3;
-  const int qstep = AOMMAX(p->dequant_QTX[1] >> dequant_shift, 1);
+  const int qstep = AOMMAX(
+      ROUND_POWER_OF_TWO(p->dequant_QTX[1], QUANT_TABLE_BITS) >> dequant_shift,
+      1);
   if (sse == 0) {
     if (rate) *rate = 0;
     if (dist) *dist = 0;
@@ -3247,7 +3253,9 @@ static void model_rd_with_curvfit(const AV1_COMP *const cpi,
   const MACROBLOCKD *const xd = &x->e_mbd;
   const struct macroblock_plane *const p = &x->plane[plane];
   const int dequant_shift = (is_cur_buf_hbd(xd)) ? xd->bd - 5 : 3;
-  const int qstep = AOMMAX(p->dequant_QTX[1] >> dequant_shift, 1);
+  const int qstep = AOMMAX(
+      ROUND_POWER_OF_TWO(p->dequant_QTX[1], QUANT_TABLE_BITS) >> dequant_shift,
+      1);
 
   if (sse == 0) {
     if (rate) *rate = 0;
@@ -3524,7 +3532,9 @@ static int64_t search_txk_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
   }
   block_sse *= 16;
   const int dequant_shift = (is_cur_buf_hbd(xd)) ? xd->bd - 5 : 3;
-  const int qstep = x->plane[plane].dequant_QTX[1] >> dequant_shift;
+  const int qstep =
+      ROUND_POWER_OF_TWO(x->plane[plane].dequant_QTX[1], QUANT_TABLE_BITS) >>
+      dequant_shift;
 
   // Tranform domain distortion is accurate for higher residuals.
   // TODO(any): Experiment with variance and mean based thresholds
@@ -4310,7 +4320,8 @@ static int predict_skip_flag(const AV1_COMMON *const cm, MACROBLOCK *x,
   const int64_t mse = *dist / bw / bh;
   // Normalized quantizer takes the transform upscaling factor (8 for tx size
   // smaller than 32) into account.
-  const int16_t normalized_dc_q = dc_q >> (3 + QUANT_TABLE_BITS);
+  const int16_t normalized_dc_q =
+      ROUND_POWER_OF_TWO(dc_q, (3 + QUANT_TABLE_BITS));
   const int64_t mse_thresh = (int64_t)normalized_dc_q * normalized_dc_q / 8;
   // Predict not to skip when mse is larger than threshold.
   if (mse > mse_thresh) return 0;
@@ -4337,9 +4348,9 @@ static int predict_skip_flag(const AV1_COMMON *const cm, MACROBLOCK *x,
   const int16_t ac_q = av1_ac_quant_QTX(x->qindex, 0, xd->bd);
 #endif
   const uint32_t dc_thresh =
-      (max_qcoef_thresh * dc_q) / (1 << QUANT_TABLE_BITS);
+      ROUND_POWER_OF_TWO((max_qcoef_thresh * dc_q), QUANT_TABLE_BITS);
   const uint32_t ac_thresh =
-      (max_qcoef_thresh * ac_q) / (1 << QUANT_TABLE_BITS);
+      ROUND_POWER_OF_TWO((max_qcoef_thresh * ac_q), QUANT_TABLE_BITS);
   for (int row = 0; row < bh; row += tx_h) {
     for (int col = 0; col < bw; col += tx_w) {
       av1_fwd_txfm(src_diff + col, coefs, bw, &param);
