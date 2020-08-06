@@ -277,6 +277,8 @@ static void get_gop_cfg_enabled_refs(AV1_COMP *const cpi, int *ref_frame_flags,
   const SubGOPStepCfg *step_gop_cfg =
       get_subgop_step(&gf_group, gf_group.index);
   assert(step_gop_cfg != NULL);
+  // No references specified
+  if (step_gop_cfg->num_references < 0) return;
 
   // Mask to indicate whether or not each ref is allowed by the GOP config
   int ref_frame_used[REF_FRAMES] = { 0 };
