@@ -123,6 +123,7 @@ static void set_multi_layer_params_from_subgop_cfg(
     const SubGOPCfg *subgop_cfg, RATE_CONTROL *rc, FRAME_INFO *frame_info,
     int *cur_frame_idx, int *frame_index) {
   int use_altref = 0;
+  int last_shown_frame = 0;
 
   for (int idx = 0; idx < subgop_cfg->num_steps; ++idx) {
     const SubGOPStepCfg *frame = &subgop_cfg->step[idx];
@@ -138,25 +139,23 @@ static void set_multi_layer_params_from_subgop_cfg(
       if (pyr_level == 1) {
         gf_group->arf_index = *frame_index;
         gf_group->arf_boost[*frame_index] = rc->gfu_boost;
-        gf_group->arf_src_offset[*frame_index] = disp_idx - 1;
       } else {
         int fwd_arf_disp_idx = find_forward_alt_ref(subgop_cfg, idx);
         int bwd_arf_disp_idx = find_backward_alt_ref(subgop_cfg, idx);
         gf_group->arf_boost[*frame_index] = av1_calc_arf_boost(
             twopass, rc, frame_info, disp_idx, fwd_arf_disp_idx - disp_idx,
             disp_idx - bwd_arf_disp_idx, NULL, NULL);
-        gf_group->arf_src_offset[*frame_index] =
-            disp_idx - bwd_arf_disp_idx - 1;
       }
+      gf_group->arf_src_offset[*frame_index] = disp_idx - last_shown_frame - 1;
     } else if (type == FRAME_TYPE_INO_VISIBLE) {  // Leaf
       gf_group->update_type[*frame_index] = LF_UPDATE;
 
       int fwd_arf_disp_idx = find_forward_alt_ref(subgop_cfg, idx);
-      int bwd_arf_disp_idx = find_backward_alt_ref(subgop_cfg, idx);
       gf_group->arf_boost[*frame_index] =
           av1_calc_arf_boost(twopass, rc, frame_info, disp_idx,
                              fwd_arf_disp_idx - disp_idx, 0, NULL, NULL);
-      gf_group->arf_src_offset[*frame_index] = disp_idx - bwd_arf_disp_idx - 1;
+      gf_group->arf_src_offset[*frame_index] = 0;
+      last_shown_frame = disp_idx;
 
       (*cur_frame_idx)++;
     } else if (type == FRAME_TYPE_INO_REPEAT ||
@@ -165,12 +164,12 @@ static void set_multi_layer_params_from_subgop_cfg(
           pyr_level == 1 ? OVERLAY_UPDATE : INTNL_OVERLAY_UPDATE;
       gf_group->arf_boost[*frame_index] = 0;
       gf_group->arf_src_offset[*frame_index] = 0;
+      last_shown_frame = disp_idx;
       (*cur_frame_idx)++;
     }
     gf_group->is_filtered[*frame_index] = (type == FRAME_TYPE_OOO_FILTERED);
     gf_group->cur_frame_idx[*frame_index] = *cur_frame_idx;
-    gf_group->layer_depth[*frame_index] =
-        type == FRAME_TYPE_INO_VISIBLE ? MAX_ARF_LAYERS : pyr_level;
+    gf_group->layer_depth[*frame_index] = pyr_level;
     gf_group->max_layer_depth = AOMMAX(gf_group->max_layer_depth, pyr_level);
 
     if (idx == (subgop_cfg->num_steps - 1)) {
@@ -178,6 +177,10 @@ static void set_multi_layer_params_from_subgop_cfg(
     } else {
       (*frame_index)++;
     }
+  }
+  for (int idx = 1; idx <= *frame_index; idx++) {
+    if (gf_group->layer_depth[idx] == gf_group->max_layer_depth)
+      gf_group->layer_depth[idx] = MAX_ARF_LAYERS;
   }
 }
 
