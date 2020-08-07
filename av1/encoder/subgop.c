@@ -9,6 +9,7 @@
  * PATENTS file, you can obtain it at www.aomedia.org/license/patent.
  */
 
+#include <ctype.h>
 #include <stdio.h>
 #include <string.h>
 #include "av1/encoder/subgop.h"
@@ -28,12 +29,62 @@ static char *my_strtok_r(char *str, const char *delim, char **saveptr) {
   return ptr;
 }
 
-static void init_subgop_config_set(SubGOPSetCfg *config_set) {
+static char *read_token_after(char *str, const char *delim, char **saveptr) {
+  if (str == NULL) return NULL;
+  if (strlen(str) == 0) return NULL;
+  char *ptr = str;
+  char *x = strstr(str, delim);
+  if (x) {
+    ptr = x + strlen(delim);
+    while (*x != 0 && !isspace(*x)) x++;
+    *x = 0;
+    *saveptr = x + 1;
+    return ptr;
+  } else {
+    *saveptr = NULL;
+    return NULL;
+  }
+}
+
+static bool readline(char *buf, int size, FILE *fp) {
+  buf[0] = '\0';
+  buf[size - 1] = '\0';
+  char *tmp;
+  while (1) {
+    if (fgets(buf, size, fp) == NULL) {
+      *buf = '\0';
+      return false;
+    } else {
+      if ((tmp = strrchr(buf, '\n')) != NULL) *tmp = '\0';
+      for (int i = 0; i < (int)strlen(buf); ++i) {
+        if (!isspace(buf[i])) return true;
+      }
+    }
+  }
+  return true;
+}
+
+void av1_init_subgop_config_set(SubGOPSetCfg *config_set) {
   memset(config_set, 0, sizeof(*config_set));
   config_set->num_configs = 0;
   for (int i = 0; i < MAX_SUBGOP_CONFIGS; ++i) {
     memset(&config_set->config[i], 0, sizeof(config_set->config[i]));
   }
+}
+
+static void check_duplicate_and_add(SubGOPSetCfg *config_set) {
+  int k;
+  const int n = config_set->num_configs;
+  for (k = 0; k < n; ++k) {
+    if (config_set->config[k].num_frames == config_set->config[n].num_frames &&
+        config_set->config[k].subgop_in_gop_code ==
+            config_set->config[n].subgop_in_gop_code) {
+      memcpy(&config_set->config[k], &config_set->config[n],
+             sizeof(config_set->config[k]));
+      return;
+    }
+  }
+  if (k == n) config_set->num_configs++;
 }
 
 static int process_subgop_step(char *str, SubGOPStepCfg *step) {
@@ -171,7 +222,6 @@ static int check_subgop_config(SubGOPCfg *config) {
 }
 
 int av1_process_subgop_config_set(const char *param, SubGOPSetCfg *config_set) {
-  init_subgop_config_set(config_set);
   if (!param) return 1;
   if (!strlen(param)) return 1;
   const int bufsize = (int)((strlen(param) + 1) * sizeof(*param));
@@ -187,7 +237,7 @@ int av1_process_subgop_config_set(const char *param, SubGOPSetCfg *config_set) {
     if (res) {
       res = check_subgop_config(&config_set->config[config_set->num_configs]);
       if (res) {
-        config_set->num_configs++;
+        check_duplicate_and_add(config_set);
       } else {
         printf(
             "Warning: Subgop config validation failed for config #%d, "
@@ -207,19 +257,155 @@ int av1_process_subgop_config_set(const char *param, SubGOPSetCfg *config_set) {
   return 1;
 }
 
+static int process_subgop_config_fromfile(FILE *fp, SubGOPCfg *config) {
+  char line[256];
+  int linesize = 256;
+  int s;
+  if (!readline(line, linesize, fp)) return 0;
+  char *token;
+  char *str = line;
+  token = read_token_after(str, "num_frames:", &str);
+  if (!token) return 0;
+  if (strlen(token) == 0) return 0;
+  const int num_frames = atoi(token);
+  if (num_frames <= 0) return 0;
+  config->num_frames = num_frames;
+
+  token = read_token_after(str, "subgop_in_gop_code:", &str);
+  if (!token) return 0;
+  if (strlen(token) == 0) return 0;
+  const int subgop_in_gop_code = atoi(token);
+  // check for invalid subgop_in_gop_code
+  if (subgop_in_gop_code < 0 || subgop_in_gop_code >= SUBGOP_IN_GOP_CODES)
+    return 0;
+  config->subgop_in_gop_code = (SUBGOP_IN_GOP_CODE)subgop_in_gop_code;
+
+  token = read_token_after(str, "num_steps:", &str);
+  if (!token) return 0;
+  if (strlen(token) == 0) return 0;
+  config->num_steps = atoi(token);
+  for (s = 0; s < config->num_steps; ++s) {
+    SubGOPStepCfg *step = &config->step[s];
+    step->num_references = 0;
+    if (!readline(line, linesize, fp)) return 0;
+    str = line;
+
+    token = read_token_after(str, "disp_frame_idx:", &str);
+    if (!token) return 0;
+    if (strlen(token) == 0) return 0;
+    const int disp_frame_idx = atoi(token);
+    if (disp_frame_idx < 0 || disp_frame_idx > config->num_frames) return 0;
+    step->disp_frame_idx = disp_frame_idx;
+    token = read_token_after(str, "type_code:", &str);
+    if (!token) return 0;
+    if (strlen(token) != 1) return 0;
+    switch (*token) {
+      case 'V': step->type_code = FRAME_TYPE_INO_VISIBLE; break;
+      case 'R': step->type_code = FRAME_TYPE_INO_REPEAT; break;
+      case 'S': step->type_code = FRAME_TYPE_INO_SHOWEXISTING; break;
+      case 'F': step->type_code = FRAME_TYPE_OOO_FILTERED; break;
+      case 'U': step->type_code = FRAME_TYPE_OOO_UNFILTERED; break;
+      default: return 0;
+    }
+    if (step->type_code == FRAME_TYPE_INO_SHOWEXISTING) {
+      int k;
+      for (k = 0; k < s; ++k) {
+        if (config->step[k].disp_frame_idx == step->disp_frame_idx) {
+          step->pyr_level = config->step[k].pyr_level;
+          break;
+        }
+      }
+      // showexisting for a frame not coded before is invalid
+      if (k == s) return 0;
+      continue;
+    }
+    token = read_token_after(str, "pyr_level:", &str);
+    if (!token) return 0;
+    if (strlen(token) == 0) return 0;
+    const int pyr_level = atoi(token);
+    if (pyr_level <= 0) return 0;
+    step->pyr_level = pyr_level;
+
+    token = read_token_after(str, "references:", &str);
+    if (!token) {  // no references specified
+      step->num_references = -1;
+      continue;
+    }
+    if (strlen(token) == 0) continue;  // no references
+
+    char delim[] = "^";
+    str = token;
+    while ((token = my_strtok_r(str, delim, &str)) != NULL) {
+      if (step->num_references >= INTER_REFS_PER_FRAME) return 0;
+      step->references[step->num_references] = (int8_t)strtol(token, NULL, 10);
+      step->num_references++;
+    }
+  }
+  return 1;
+}
+
+int av1_process_subgop_config_set_fromfile(const char *paramfile,
+                                           SubGOPSetCfg *config_set) {
+  if (!paramfile) return 1;
+  if (!strlen(paramfile)) return 1;
+  FILE *fp = fopen(paramfile, "r");
+  if (!fp) return 0;
+  char line[256];
+  int linesize = 256;
+  char *tok, *str;
+  if (readline(line, linesize, fp)) {
+    tok = read_token_after(line, "[num_configs:", &str);
+    if (!tok) rewind(fp);
+  } else {
+    // Blank file
+    return 1;
+  }
+  while (readline(line, linesize, fp)) {
+    str = line;
+    tok = read_token_after(str, "config:", &str);
+    if (tok) {
+      int res = process_subgop_config_fromfile(
+          fp, &config_set->config[config_set->num_configs]);
+      if (res) {
+        res = check_subgop_config(&config_set->config[config_set->num_configs]);
+        if (res) {
+          check_duplicate_and_add(config_set);
+        } else {
+          printf(
+              "Warning: Subgop config validation failed for config #%d, "
+              "skipping the rest.\n",
+              config_set->num_configs);
+          fclose(fp);
+          return 0;
+        }
+      } else {
+        printf("Warning: config parsing failed, skipping the rest.\n");
+        fclose(fp);
+        return 0;
+      }
+    } else {
+      printf("Warning: config not found, skipping the rest.\n");
+      fclose(fp);
+      return 0;
+    }
+  }
+  fclose(fp);
+  return 1;
+}
+
 void av1_print_subgop_config_set(SubGOPSetCfg *config_set) {
   if (!config_set->num_configs) return;
   printf("SUBGOP CONFIG SET\n");
   printf("=================\n");
-  printf("num_configs:%d\n", config_set->num_configs);
+  printf("[num_configs:%d]\n", config_set->num_configs);
   for (int i = 0; i < config_set->num_configs; ++i) {
-    printf("config:%d ->\n", i);
+    printf("config:[%d]\n", i);
     SubGOPCfg *config = &config_set->config[i];
-    printf("  num_frames:%d\n", config->num_frames);
-    printf("  subgop_in_gop_code:%d\n", config->subgop_in_gop_code);
-    printf("  num_steps:%d\n", config->num_steps);
+    printf("  num_frames:%d", config->num_frames);
+    printf(" subgop_in_gop_code:%d", config->subgop_in_gop_code);
+    printf(" num_steps:%d\n", config->num_steps);
     for (int j = 0; j < config->num_steps; ++j) {
-      printf("  step:%d ->", j);
+      printf("  [step:%d]", j);
       printf(" disp_frame_idx:%d", config->step[j].disp_frame_idx);
       printf(" type_code:%c", config->step[j].type_code);
       printf(" pyr_level:%d", config->step[j].pyr_level);

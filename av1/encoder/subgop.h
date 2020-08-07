@@ -17,8 +17,11 @@
 extern "C" {
 #endif
 
+void av1_init_subgop_config_set(SubGOPSetCfg *config_set);
 int av1_process_subgop_config_set(const char *param, SubGOPSetCfg *config_set);
 void av1_print_subgop_config_set(SubGOPSetCfg *config_set);
+int av1_process_subgop_config_set_fromfile(const char *paramfile,
+                                           SubGOPSetCfg *config_set);
 
 // Finds the ptr to the subgop config with the queried number of
 // frames and whether it is the last or first subgop in a gop.

@@ -805,6 +805,7 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
                              sizeof(*oxcf->subgop_config_str));
       strcpy(cpi->subgop_config_str, oxcf->subgop_config_str);
       if (cpi->compressor_stage == ENCODE_STAGE) {
+        av1_init_subgop_config_set(&cpi->subgop_config_set);
         av1_process_subgop_config_set(oxcf->subgop_config_str,
                                       &cpi->subgop_config_set);
         printf("Successfully processed %d subgop configs.\n",
