@@ -98,26 +98,44 @@ static void enc_build_inter_predictors(const AV1_COMMON *cm, MACROBLOCKD *xd,
 static void build_inter_predictors_for_plane(const AV1_COMMON *cm,
                                              MACROBLOCKD *xd, int mi_row,
                                              int mi_col, const BUFFER_SET *ctx,
-                                             BLOCK_SIZE bsize, int plane_idx,
-                                             int border) {
+                                             BLOCK_SIZE bsize, int plane_idx) {
   const struct macroblockd_plane *pd = &xd->plane[plane_idx];
   if (plane_idx && !xd->mi[0]->chroma_ref_info.is_chroma_ref) return;
 
   const int mi_x = mi_col * MI_SIZE;
   const int mi_y = mi_row * MI_SIZE;
-  enc_build_inter_predictors(cm, xd, plane_idx, xd->mi[0], 0, pd->width,
-                             pd->height, mi_x, mi_y);
+  const int build_for_obmc = 0;
+  if (!is_interintra_pred(xd->mi[0])) {
+    enc_build_inter_predictors(cm, xd, plane_idx, xd->mi[0], build_for_obmc,
+                               pd->width, pd->height, mi_x, mi_y);
+    return;
+  }
 
-  if (is_interintra_pred(xd->mi[0])) {
-    BUFFER_SET default_ctx = { { NULL, NULL, NULL }, { 0, 0, 0 } };
-    if (!ctx) {
-      default_ctx.plane[plane_idx] = xd->plane[plane_idx].dst.buf;
-      default_ctx.stride[plane_idx] = xd->plane[plane_idx].dst.stride;
-      ctx = &default_ctx;
-    }
-    av1_build_interintra_predictors_sbp(cm, xd, xd->plane[plane_idx].dst.buf,
-                                        xd->plane[plane_idx].dst.stride, ctx,
-                                        plane_idx, bsize, border);
+  BUFFER_SET default_ctx = { { NULL, NULL, NULL }, { 0, 0, 0 } };
+  if (!ctx) {
+    default_ctx.plane[plane_idx] = xd->plane[plane_idx].dst.buf;
+    default_ctx.stride[plane_idx] = xd->plane[plane_idx].dst.stride;
+    ctx = &default_ctx;
+  }
+  // If a border is needed, build the inter-predictor with one. A larger
+  // buffer is needed, so alloc/dealloc as needed. If no border is needed,
+  // it can be written directly into xd->plane[plane_idx].buf
+  const int border = av1_calc_border(xd, plane_idx, build_for_obmc);
+  uint8_t *interpred = xd->plane[plane_idx].dst.buf;
+  int interpred_stride = xd->plane[plane_idx].dst.stride;
+  if (border > 0) {
+    av1_alloc_buf_with_border(&interpred, &interpred_stride, border,
+                              is_cur_buf_hbd(xd));
+  }
+  av1_build_inter_predictors(
+      cm, xd, plane_idx, xd->mi[0], build_for_obmc, pd->width, pd->height, mi_x,
+      mi_y, enc_calc_subpel_params, NULL, interpred, interpred_stride, border);
+  // Stores the result in xd->plane[plane_idx].dst.buf.
+  av1_build_interintra_predictors_sbp(cm, xd, interpred, interpred_stride, ctx,
+                                      plane_idx, bsize, border);
+  if (border > 0) {
+    av1_free_buf_with_border(interpred, interpred_stride, border,
+                             is_cur_buf_hbd(xd));
   }
 }
 
@@ -125,10 +143,9 @@ void av1_enc_build_inter_predictor(const AV1_COMMON *cm, MACROBLOCKD *xd,
                                    int mi_row, int mi_col,
                                    const BUFFER_SET *ctx, BLOCK_SIZE bsize,
                                    int plane_from, int plane_to) {
-  const int border = 0;
   for (int plane_idx = plane_from; plane_idx <= plane_to; ++plane_idx) {
     build_inter_predictors_for_plane(cm, xd, mi_row, mi_col, ctx, bsize,
-                                     plane_idx, border);
+                                     plane_idx);
   }
 }
 

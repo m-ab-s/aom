@@ -1046,7 +1046,7 @@ static void build_inter_predictors_sub8x8(
 
       conv_params.do_average = 0;
 
-      assert(av1_calc_border(xd) == 0);
+      // Border computation does not currnetly work in sub-8x8.
       const int border = 0;
       av1_make_inter_predictor(
           pre, src_stride, dst, orig_dst_stride, &subpel_params, sf, b4_w, b4_h,
@@ -1092,7 +1092,7 @@ static void av1_make_masked_inter_predictor(
     int plane, const WarpTypesAllowed *warp_types, int p_col, int p_row,
     int ref, MACROBLOCKD *xd, int can_use_previous) {
   // Inter-predictor extended border not supported yet.
-  assert(av1_calc_border(xd) == 0);
+  assert(av1_calc_border(xd, plane, false) == 0);
   MB_MODE_INFO *mi = xd->mi[0];
   mi->interinter_comp.seg_mask = xd->seg_mask;
   const INTERINTER_COMPOUND_DATA *comp_data = &mi->interinter_comp;
@@ -1245,6 +1245,7 @@ static void build_inter_predictors(
     if (ref && is_masked_compound_type(mi->interinter_comp.type)) {
       // masked compound type has its own average mechanism
       conv_params.do_average = 0;
+      assert(!build_for_obmc);
       av1_make_masked_inter_predictor(
           pre, src_stride, dst, dst_stride, &subpel_params, sf, bw, bh,
           &conv_params, mi->interp_filters, plane, &warp_types,
@@ -1549,8 +1550,8 @@ MV av1_derive_mv(const AV1_COMMON *const cm, MACROBLOCKD *xd,
 //  3. If the block size differs from the base block size
 //  4. If sub-sampled, none of the previous blocks around the sub-sample
 //     are intrabc or inter-blocks
-static bool is_sub8x8_inter(MACROBLOCKD *xd, int plane, const MB_MODE_INFO *mi,
-                            int build_for_obmc) {
+static bool is_sub8x8_inter(const MACROBLOCKD *xd, int plane,
+                            const MB_MODE_INFO *mi, int build_for_obmc) {
   const int is_intrabc = is_intrabc_block(mi);
   if (is_intrabc || build_for_obmc) {
     return false;
@@ -1582,21 +1583,28 @@ static bool is_sub8x8_inter(MACROBLOCKD *xd, int plane, const MB_MODE_INFO *mi,
   return true;
 }
 
-int av1_calc_border(const MACROBLOCKD *xd) {
+int av1_calc_border(const MACROBLOCKD *xd, int plane, int build_for_obmc) {
 #if CONFIG_INTERINTRA_BORDER
   // Intra-block copy will set the source pointer to a different location in
   // the destination buffer. It's possible that the border pixels around that
   // region have not been initialized.
   // Compound mode does not currently work as the masked inter-predictor needs
   // to increase its region used for the mask.
-  const bool is_compound = has_second_ref(xd->mi[0]);
-  const bool intra_bc = xd->mi[0]->use_intrabc;
+  const MB_MODE_INFO *mi = xd->mi[0];
+  const bool is_compound = has_second_ref(mi);
+  const bool intra_bc = mi->use_intrabc;
   if (is_compound || intra_bc) {
+    return 0;
+  }
+  // Not implemented for sub-8x8 blocks.
+  if (is_sub8x8_inter(xd, plane, mi, build_for_obmc)) {
     return 0;
   }
   return INTERINTRA_PRED_BORDER;
 #endif  // CONFIG_INTERINTRA_BORDER
   (void)xd;
+  (void)plane;
+  (void)build_for_obmc;
   return 0;
 }
 

@@ -23,6 +23,11 @@
 extern "C" {
 #endif
 
+// Builds the inter-predictors in xd->dst.buf[plane] for each plane
+// between from and to (inclusive on both ends). Note that if the mode
+// is an inter-intra mode with an extended border region, the border region
+// will be computed internally and used for the prediction, but discarded
+// after function return (since the result must fit in xd->dst.buf[plane]).
 void av1_enc_build_inter_predictor(const AV1_COMMON *cm, MACROBLOCKD *xd,
                                    int mi_row, int mi_col,
                                    const BUFFER_SET *ctx, BLOCK_SIZE bsize,

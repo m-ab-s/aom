@@ -10658,8 +10658,8 @@ static int handle_inter_intra_mode(const AV1_COMP *const cpi,
                   aligned_buf1_[2 * MAX_INTERINTRA_BORDER_SB_SQUARE]);
   DECLARE_ALIGNED(16, uint8_t,
                   aligned_buf2_[2 * MAX_INTERINTRA_BORDER_SB_SQUARE]);
-  const int border = 16;
-  const int stride = INTERINTRA_PRED_BORDER + bw;
+  const int border = av1_calc_border(xd, AOM_PLANE_Y, false);
+  const int stride = border + bw;
 #else
   DECLARE_ALIGNED(16, uint8_t, aligned_buf1_[2 * MAX_INTERINTRA_SB_SQUARE]);
   DECLARE_ALIGNED(16, uint8_t, aligned_buf2_[2 * MAX_INTERINTRA_SB_SQUARE]);

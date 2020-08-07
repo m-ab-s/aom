@@ -772,7 +772,7 @@ static void dec_build_inter_predictors_sby(const AV1_COMMON *cm,
     BUFFER_SET default_ctx = { { xd->plane[0].dst.buf, NULL, NULL },
                                { xd->plane[0].dst.stride, 0, 0 } };
     if (!ctx) ctx = &default_ctx;
-    const int border = av1_calc_border(xd);
+    const int border = av1_calc_border(xd, AOM_PLANE_Y, false);
     uint8_t *interpred = xd->plane[0].dst.buf;
     int interpred_stride = xd->plane[0].dst.stride;
     if (border > 0) {
@@ -805,7 +805,9 @@ static void dec_build_inter_predictors_sbuv(const AV1_COMMON *cm,
       { 0, xd->plane[1].dst.stride, xd->plane[2].dst.stride }
     };
     if (!ctx) ctx = &default_ctx;
-    const int border = av1_calc_border(xd);
+    const int border_u = av1_calc_border(xd, AOM_PLANE_U, false);
+    const int border_v = av1_calc_border(xd, AOM_PLANE_V, false);
+    int border = border_u == border_v ? border_u : 0;
     uint8_t *interpred_u = xd->plane[1].dst.buf;
     int interpred_u_stride = xd->plane[1].dst.stride;
     uint8_t *interpred_v = xd->plane[2].dst.buf;

@@ -233,7 +233,7 @@ typedef void (*CalcSubpelParamsFunc)(
 
 // Calculate the size of the border region (top-left) that should be used.
 // If 0 is returned, no border should be constructed.
-int av1_calc_border(const MACROBLOCKD *xd);
+int av1_calc_border(const MACROBLOCKD *xd, int plane, int build_for_obmc);
 
 // Note that in the case of a border, dst should already be offset, to allow
 // negative offsetting.
