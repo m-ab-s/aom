@@ -2143,33 +2143,25 @@ static void build_intra_predictors_high(
   }
 }
 
-// Equivalent to memmove, but looks at the bit-depth and converts the
-// pointer to dst16 (and the amount of data moved) if in high bitdepth mode.
-static void bd_memmove(uint8_t *dst, const uint8_t *ref, size_t n,
-                       aom_bit_depth_t bd) {
-  if (bd == AOM_BITS_8) {
-    memmove(dst, ref, n * sizeof(uint8_t));
+void av1_bd_memmove(uint8_t *dst, const uint8_t *ref, size_t n, bool is_hbd) {
+  if (is_hbd) {
+    uint16_t *dst16 = CONVERT_TO_SHORTPTR(dst);
+    const uint16_t *ref16 = CONVERT_TO_SHORTPTR(ref);
+    memmove(dst16, ref16, n * sizeof(uint16_t));
     return;
   }
-
-  assert(bd == AOM_BITS_10 || bd == AOM_BITS_12);
-  uint16_t *dst16 = CONVERT_TO_SHORTPTR(dst);
-  const uint16_t *ref16 = CONVERT_TO_SHORTPTR(ref);
-  memmove(dst16, ref16, n * sizeof(uint16_t));
+  memmove(dst, ref, n * sizeof(uint8_t));
 }
 
-// Equivalent to memset, but looks at the bit-depth and copies the value
-// every uint16_t space if in high bitdepth mode.
-static void bd_memset(uint8_t *dst, int c, size_t n, aom_bit_depth_t bd) {
-  if (bd == AOM_BITS_8) {
-    memset(dst, c, n);
+void av1_bd_memset(uint8_t *dst, int c, size_t n, bool is_hbd) {
+  if (is_hbd) {
+    uint16_t *dst16 = CONVERT_TO_SHORTPTR(dst);
+    for (size_t i = 0; i < n; ++i) {
+      dst16[i] = c;
+    }
     return;
   }
-  assert(bd == AOM_BITS_10 || bd == AOM_BITS_12);
-  uint16_t *dst16 = CONVERT_TO_SHORTPTR(dst);
-  for (size_t i = 0; i < n; ++i) {
-    dst16[i] = c;
-  }
+  memset(dst, c, n);
 }
 
 // If a value cannot be copied for the intra-prediction extension (because there
@@ -2184,12 +2176,11 @@ static int base_value(aom_bit_depth_t bd) {
   }
 }
 
-static int last_val_bd(const uint8_t *ref, int offset, aom_bit_depth_t bd) {
-  if (bd == AOM_BITS_8) {
-    return ref[offset];
+static int last_val_bd(const uint8_t *ref, int offset, bool is_hbd) {
+  if (is_hbd) {
+    return CONVERT_TO_SHORTPTR(ref)[offset];
   }
-  assert(bd == AOM_BITS_10 || bd == AOM_BITS_12);
-  return CONVERT_TO_SHORTPTR(ref)[offset];
+  return ref[offset];
 }
 
 int av1_intra_top_available(const MACROBLOCKD *xd, int plane) {
@@ -2217,14 +2208,15 @@ int av1_intra_left_available(const MACROBLOCKD *xd, int plane) {
 static void extend_intra_border_cols(const uint8_t *ref, int ref_stride,
                                      uint8_t *dst, int dst_stride,
                                      int left_available_cols, const int height,
-                                     int border, aom_bit_depth_t bd) {
+                                     int border, aom_bit_depth_t bd,
+                                     bool is_hbd) {
   const int left_part = AOMMIN(border, left_available_cols);
   // If there is no data, use the default value.
   if (left_part == 0) {
     const int left_default_val = base_value(bd) + 1;
     dst -= border;
     for (int j = 0; j < height; ++j) {
-      bd_memset(dst, left_default_val, border, bd);
+      av1_bd_memset(dst, left_default_val, border, is_hbd);
       dst += dst_stride;
     }
     return;
@@ -2234,10 +2226,10 @@ static void extend_intra_border_cols(const uint8_t *ref, int ref_stride,
   ref -= left_part;
   for (int j = 0; j < height; ++j) {
     // If there is partial data, replicate the closest column.
-    int last_val = last_val_bd(ref, 0, bd);
-    bd_memset(dst, last_val, border - left_part, bd);
+    int last_val = last_val_bd(ref, 0, is_hbd);
+    av1_bd_memset(dst, last_val, border - left_part, is_hbd);
     // Copy over the remaining values.
-    bd_memmove(dst + border - left_part, ref, left_part, bd);
+    av1_bd_memmove(dst + border - left_part, ref, left_part, is_hbd);
     dst += dst_stride;
     ref += ref_stride;
   }
@@ -2246,14 +2238,15 @@ static void extend_intra_border_cols(const uint8_t *ref, int ref_stride,
 static void extend_intra_border_rows(const uint8_t *ref, int ref_stride,
                                      uint8_t *dst, int dst_stride,
                                      int top_available_rows, const int width,
-                                     int border, aom_bit_depth_t bd) {
+                                     int border, aom_bit_depth_t bd,
+                                     bool is_hbd) {
   const int top_part = AOMMIN(border, top_available_rows);
   // If there is no data, use the default value.
   if (top_part == 0) {
     const int top_default_val = base_value(bd) - 1;
     dst -= border * dst_stride;
     for (int j = 0; j < border; ++j) {
-      bd_memset(dst, top_default_val, width, bd);
+      av1_bd_memset(dst, top_default_val, width, is_hbd);
       dst += dst_stride;
     }
     return;
@@ -2263,13 +2256,13 @@ static void extend_intra_border_rows(const uint8_t *ref, int ref_stride,
   dst -= border * dst_stride;
   ref -= top_part * ref_stride;
   for (int j = 0; j < border - top_part; ++j) {
-    bd_memmove(dst, ref, width, bd);
+    av1_bd_memmove(dst, ref, width, is_hbd);
     dst += dst_stride;
   }
 
   // Copy over the remaining data.
   for (int j = 0; j < top_part; ++j) {
-    bd_memmove(dst, ref, width, bd);
+    av1_bd_memmove(dst, ref, width, is_hbd);
     dst += dst_stride;
     ref += ref_stride;
   }
@@ -2279,7 +2272,7 @@ static void extend_intra_border_corner(const uint8_t *ref, int ref_stride,
                                        uint8_t *dst, int dst_stride,
                                        int top_available_rows,
                                        int left_available_cols, int border,
-                                       aom_bit_depth_t bd) {
+                                       aom_bit_depth_t bd, bool is_hbd) {
   const int top_part = AOMMIN(border, top_available_rows);
   const int left_part = AOMMIN(border, left_available_cols);
   const int corner_part = AOMMIN(top_part, left_part);
@@ -2289,7 +2282,7 @@ static void extend_intra_border_corner(const uint8_t *ref, int ref_stride,
     const int corner_default_val = base_value(bd) - 1;
     dst -= border * dst_stride + border;
     for (int j = 0; j < border; ++j) {
-      bd_memset(dst, corner_default_val, border, bd);
+      av1_bd_memset(dst, corner_default_val, border, is_hbd);
       dst += dst_stride;
     }
     return;
@@ -2299,10 +2292,10 @@ static void extend_intra_border_corner(const uint8_t *ref, int ref_stride,
   ref -= ref_stride * corner_part + corner_part;
   for (int j = 0; j < corner_part; ++j) {
     // If there is partial data, replicate the closest column.
-    int last_val = last_val_bd(ref, 0, bd);
-    bd_memset(dst, last_val, border - corner_part, bd);
+    int last_val = last_val_bd(ref, 0, is_hbd);
+    av1_bd_memset(dst, last_val, border - corner_part, is_hbd);
     // Copy over the remaining values.
-    bd_memmove(dst + border - corner_part, ref, corner_part, bd);
+    av1_bd_memmove(dst + border - corner_part, ref, corner_part, is_hbd);
     dst += dst_stride;
     ref += ref_stride;
   }
@@ -2311,7 +2304,7 @@ static void extend_intra_border_corner(const uint8_t *ref, int ref_stride,
   const uint8_t *dst_ref = dst - dst_stride * corner_part;
   dst -= dst_stride * border;
   for (int j = 0; j < border - corner_part; ++j) {
-    bd_memmove(dst, dst_ref, border, bd);
+    av1_bd_memmove(dst, dst_ref, border, is_hbd);
     dst += dst_stride;
   }
 }
@@ -2348,17 +2341,18 @@ static void extend_intra_border_corner(const uint8_t *ref, int ref_stride,
 void av1_extend_intra_border(const uint8_t *ref, int ref_stride, uint8_t *dst,
                              int dst_stride, int top_available_rows,
                              int left_available_cols, const int width,
-                             const int height, int border, aom_bit_depth_t bd) {
+                             const int height, int border, aom_bit_depth_t bd,
+                             bool is_hbd) {
   // Step 1: copy over the rows.
   extend_intra_border_rows(ref, ref_stride, dst, dst_stride, top_available_rows,
-                           width, border, bd);
+                           width, border, bd, is_hbd);
   // Step 2: copy over the columns.
   extend_intra_border_cols(ref, ref_stride, dst, dst_stride,
-                           left_available_cols, height, border, bd);
+                           left_available_cols, height, border, bd, is_hbd);
   // Step 3: copy over the top-left corner.
   extend_intra_border_corner(ref, ref_stride, dst, dst_stride,
                              top_available_rows, left_available_cols, border,
-                             bd);
+                             bd, is_hbd);
 }
 
 static void build_intra_predictors(

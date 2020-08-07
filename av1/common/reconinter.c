@@ -3016,10 +3016,11 @@ void av1_build_intra_predictors_for_interintra(
       ctx->plane[plane], ctx->stride[plane], dst, dst_stride, 0, 0, plane);
 
   if (border > 0) {
-    av1_extend_intra_border(
-        ctx->plane[plane], ctx->stride[plane], dst, dst_stride,
-        av1_intra_top_available(xd, plane), av1_intra_left_available(xd, plane),
-        xd->plane[plane].width, xd->plane[plane].height, border, xd->bd);
+    av1_extend_intra_border(ctx->plane[plane], ctx->stride[plane], dst,
+                            dst_stride, av1_intra_top_available(xd, plane),
+                            av1_intra_left_available(xd, plane),
+                            xd->plane[plane].width, xd->plane[plane].height,
+                            border, xd->bd, is_cur_buf_hbd(xd));
   }
 }
 

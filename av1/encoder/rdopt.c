@@ -8401,23 +8401,6 @@ static void build_second_inter_pred(const AV1_COMP *cpi, MACROBLOCK *x,
                                   &xd->jcp_param.use_dist_wtd_comp_avg, 1);
 }
 
-// Equivalent to memmove, but looks at the bit-depth and converts the
-// pointer to dst16 (and the amount of data moved) if in high bitdepth mode.
-// TODO(elliottk): move this (and the version in reconintra.c) into a common
-// location.
-static void bd_memmove(uint8_t *dst, const uint8_t *ref, size_t n,
-                       aom_bit_depth_t bd) {
-  if (bd == AOM_BITS_8) {
-    memmove(dst, ref, n * sizeof(uint8_t));
-    return;
-  }
-
-  assert(bd == AOM_BITS_10 || bd == AOM_BITS_12);
-  uint16_t *dst16 = CONVERT_TO_SHORTPTR(dst);
-  const uint16_t *ref16 = CONVERT_TO_SHORTPTR(ref);
-  memmove(dst16, ref16, n * sizeof(uint16_t));
-}
-
 // Search for the best mv for one component of a compound,
 // given that the other component is fixed.
 static void compound_single_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
@@ -8449,8 +8432,9 @@ static void compound_single_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
     second_pred_buf_ = aom_memalign(16, sizeof(uint16_t) * pw * ph);
     uint8_t *tmp = get_buf_by_bd(xd, second_pred_buf_);
     for (int j = 0; j < ph; ++j) {
-      bd_memmove(tmp + j * pw, orig_second_pred + j * orig_second_pred_stride,
-                 pw, xd->bd);
+      av1_bd_memmove(tmp + j * pw,
+                     orig_second_pred + j * orig_second_pred_stride, pw,
+                     is_cur_buf_hbd(xd));
     }
     second_pred = tmp;
   }

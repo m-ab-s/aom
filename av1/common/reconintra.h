@@ -27,14 +27,24 @@ extern "C" {
 int av1_intra_top_available(const MACROBLOCKD *xd, int plane);
 int av1_intra_left_available(const MACROBLOCKD *xd, int plane);
 
+// Equivalent to memmove, but looks at the bit-depth and converts the
+// pointer to dst16 (and the amount of data moved) if in high bitdepth mode.
+void av1_bd_memmove(uint8_t *dst, const uint8_t *ref, size_t n, bool is_hbd);
+
+// Equivalent to memset, but looks at the bit-depth and copies the value
+// every uint16_t space if in high bitdepth mode.
+void av1_bd_memset(uint8_t *dst, int c, size_t n, bool is_hbd);
+
 // Extends the intra-predictor to have a border region consisting of the
 // reference frame; border region is to the top-left and assumed to be
 // offset negatively from the passed in pointer (which points to the start
-// of the regular intra-prediction).
+// of the regular intra-prediction). Note that it is possible for the
+// bit-depth to be 8 and is_hbd to be true, if high-bitdepth pipeline
+// is forced on.
 void av1_extend_intra_border(const uint8_t *ref, int ref_stride, uint8_t *dst,
                              int dst_stride, int top_rows_available,
                              int left_cols_available, int width, int height,
-                             int border, aom_bit_depth_t bd);
+                             int border, aom_bit_depth_t bd, bool is_hbd);
 void av1_init_intra_predictors(void);
 void av1_predict_intra_block_facade(const AV1_COMMON *cm, MACROBLOCKD *xd,
                                     int plane, int blk_col, int blk_row,

@@ -21,9 +21,12 @@ namespace {
 class TestParam {
  public:
   TestParam(int width, int height, int dst_stride_padding,
-            int ref_stride_padding, int border, aom_bit_depth_t bd)
+            int ref_stride_padding, int border, aom_bit_depth_t bd, bool is_hbd)
       : width_(width), height_(height), dst_stride_padding_(dst_stride_padding),
-        ref_stride_padding_(ref_stride_padding), border_(border), bd_(bd) {}
+        ref_stride_padding_(ref_stride_padding), border_(border), bd_(bd),
+        is_hbd_(is_hbd) {
+    assert(IMPLIES(bd != AOM_BITS_8, is_hbd));
+  }
 
   int Width() const { return width_; }
   int Height() const { return height_; }
@@ -31,12 +34,14 @@ class TestParam {
   int RefStridePadding() const { return ref_stride_padding_; }
   int Border() const { return border_; }
   aom_bit_depth_t BitDepth() const { return bd_; }
+  bool IsHighBitDepth() const { return is_hbd_; }
 
   bool operator==(const TestParam &other) const {
     return Width() == other.Width() && Height() == other.Height() &&
            DstStridePadding() == other.DstStridePadding() &&
            RefStridePadding() == other.RefStridePadding() &&
-           Border() == other.Border() && BitDepth() == other.BitDepth();
+           Border() == other.Border() && BitDepth() == other.BitDepth() &&
+           IsHighBitDepth() == other.IsHighBitDepth();
   }
 
  private:
@@ -46,6 +51,7 @@ class TestParam {
   int ref_stride_padding_;
   int border_;
   aom_bit_depth_t bd_;
+  bool is_hbd_;
 };
 
 // For exhaustive testing.
@@ -57,12 +63,16 @@ std::vector<TestParam> GetTestParams() {
     for (int dst_padding = 0; dst_padding < 48; dst_padding += 16) {
       for (int ref_padding = 0; ref_padding < 48; ref_padding += 16) {
         for (int border = 4; border < 16; border += 4) {
-          params.push_back(
-              TestParam(w, h, dst_padding, ref_padding, border, AOM_BITS_8));
-          params.push_back(
-              TestParam(w, h, dst_padding, ref_padding, border, AOM_BITS_10));
-          params.push_back(
-              TestParam(w, h, dst_padding, ref_padding, border, AOM_BITS_12));
+          params.push_back(TestParam(w, h, dst_padding, ref_padding, border,
+                                     AOM_BITS_8, false));
+          // Test case where low-bitdepth but high-bitdepth pipeline is forced
+          // on.
+          params.push_back(TestParam(w, h, dst_padding, ref_padding, border,
+                                     AOM_BITS_8, true));
+          params.push_back(TestParam(w, h, dst_padding, ref_padding, border,
+                                     AOM_BITS_10, true));
+          params.push_back(TestParam(w, h, dst_padding, ref_padding, border,
+                                     AOM_BITS_12, true));
         }
       }
     }
@@ -95,7 +105,7 @@ std::ostream &operator<<(std::ostream &os, const TestParam &test_arg) {
             << " ref_padding:" << test_arg.RefStridePadding()
             << " dst_padding:" << test_arg.DstStridePadding()
             << " border:" << test_arg.Border() << " bd:" << test_arg.BitDepth()
-            << " }";
+            << " is_hbd:" << test_arg.IsHighBitDepth() << " }";
 }
 
 class IntrapredExtensionTest : public ::testing::TestWithParam<TestParam> {
@@ -107,7 +117,7 @@ class IntrapredExtensionTest : public ::testing::TestWithParam<TestParam> {
     const TestParam &p = GetParam();
     int height = p.Height() + p.Border();
     int width = p.Width() + p.Border();
-    int bytes = p.BitDepth() == AOM_BITS_8 ? sizeof(uint8_t) : sizeof(uint16_t);
+    int bytes = p.IsHighBitDepth() ? sizeof(uint16_t) : sizeof(uint8_t);
     const int ref_size = height * (width + p.RefStridePadding()) * bytes;
     ref_ = reinterpret_cast<uint8_t *>(aom_memalign(16, ref_size));
     const int dst_size = height * (width + p.DstStridePadding()) * bytes;
@@ -123,7 +133,7 @@ class IntrapredExtensionTest : public ::testing::TestWithParam<TestParam> {
 
   const uint8_t *Ref() const {
     const int offset = RefStride() * GetParam().Border() + GetParam().Border();
-    if (GetParam().BitDepth() != AOM_BITS_8) {
+    if (GetParam().IsHighBitDepth()) {
       return CONVERT_TO_BYTEPTR(ref_) + offset;
     }
     return ref_ + offset;
@@ -131,7 +141,7 @@ class IntrapredExtensionTest : public ::testing::TestWithParam<TestParam> {
 
   uint8_t *Dst() const {
     const int offset = DstStride() * GetParam().Border() + GetParam().Border();
-    if (GetParam().BitDepth() != AOM_BITS_8) {
+    if (GetParam().IsHighBitDepth()) {
       return CONVERT_TO_BYTEPTR(dst_) + offset;
     }
     return dst_ + offset;
@@ -159,7 +169,7 @@ class IntrapredExtensionTest : public ::testing::TestWithParam<TestParam> {
       const uint8_t *ref_row = ref + i * RefStride();
       const uint8_t *dst_row = dst + i * DstStride();
       int bytes = sizeof(uint8_t);
-      if (GetParam().BitDepth() != AOM_BITS_8) {
+      if (GetParam().IsHighBitDepth()) {
         ref_row = reinterpret_cast<uint8_t *>(CONVERT_TO_SHORTPTR(ref_row));
         dst_row = reinterpret_cast<uint8_t *>(CONVERT_TO_SHORTPTR(dst_row));
         bytes = sizeof(uint16_t);
@@ -179,7 +189,7 @@ class IntrapredExtensionTest : public ::testing::TestWithParam<TestParam> {
       const uint8_t *ref_row = ref;
       const uint8_t *dst_row = dst + i * DstStride();
       int bytes = sizeof(uint8_t);
-      if (GetParam().BitDepth() != AOM_BITS_8) {
+      if (GetParam().IsHighBitDepth()) {
         ref_row = reinterpret_cast<uint8_t *>(CONVERT_TO_SHORTPTR(ref_row));
         dst_row = reinterpret_cast<uint8_t *>(CONVERT_TO_SHORTPTR(dst_row));
         bytes = sizeof(uint16_t);
@@ -199,11 +209,11 @@ class IntrapredExtensionTest : public ::testing::TestWithParam<TestParam> {
       for (int i = 0; i < border - num_cols; ++i) {
         const uint8_t *ref_row = ref + j * RefStride();
         const uint8_t *dst_row = dst + j * DstStride() + i;
-        if (GetParam().BitDepth() == AOM_BITS_8) {
-          EXPECT_EQ(ref_row[0], dst_row[0]);
-        } else {
+        if (GetParam().IsHighBitDepth()) {
           EXPECT_EQ(CONVERT_TO_SHORTPTR(ref_row)[0],
                     CONVERT_TO_SHORTPTR(dst_row)[0]);
+        } else {
+          EXPECT_EQ(ref_row[0], dst_row[0]);
         }
       }
     }
@@ -221,7 +231,7 @@ class IntrapredExtensionTest : public ::testing::TestWithParam<TestParam> {
       const uint8_t *ref_row = ref + i * RefStride();
       const uint8_t *dst_row = dst + i * DstStride();
       int bytes = sizeof(uint8_t);
-      if (GetParam().BitDepth() != AOM_BITS_8) {
+      if (GetParam().IsHighBitDepth()) {
         ref_row = reinterpret_cast<uint8_t *>(CONVERT_TO_SHORTPTR(ref_row));
         dst_row = reinterpret_cast<uint8_t *>(CONVERT_TO_SHORTPTR(dst_row));
         bytes = sizeof(uint16_t);
@@ -241,7 +251,7 @@ class IntrapredExtensionTest : public ::testing::TestWithParam<TestParam> {
       const uint8_t *ref_row = ref + i * RefStride();
       const uint8_t *dst_row = dst + i * DstStride();
       int bytes = sizeof(uint8_t);
-      if (GetParam().BitDepth() != AOM_BITS_8) {
+      if (GetParam().IsHighBitDepth()) {
         ref_row = reinterpret_cast<uint8_t *>(CONVERT_TO_SHORTPTR(ref_row));
         dst_row = reinterpret_cast<uint8_t *>(CONVERT_TO_SHORTPTR(dst_row));
         bytes = sizeof(uint16_t);
@@ -258,7 +268,7 @@ class IntrapredExtensionTest : public ::testing::TestWithParam<TestParam> {
     dst -= border;
     for (int j = 0; j < border; ++j) {
       for (int i = 0; i < border; ++i) {
-        if (GetParam().BitDepth() != AOM_BITS_8) {
+        if (GetParam().IsHighBitDepth()) {
           EXPECT_EQ(base_val, CONVERT_TO_SHORTPTR(dst)[i]);
         } else {
           EXPECT_EQ(base_val, dst[i]);
@@ -275,7 +285,7 @@ class IntrapredExtensionTest : public ::testing::TestWithParam<TestParam> {
     dst -= DstStride() * border;
     for (int j = 0; j < border; ++j) {
       for (int i = 0; i < GetParam().Width(); ++i) {
-        if (GetParam().BitDepth() != AOM_BITS_8) {
+        if (GetParam().IsHighBitDepth()) {
           EXPECT_EQ(base_val, CONVERT_TO_SHORTPTR(dst)[i]);
         } else {
           EXPECT_EQ(base_val, dst[i]);
@@ -292,7 +302,7 @@ class IntrapredExtensionTest : public ::testing::TestWithParam<TestParam> {
     dst -= border;
     for (int j = 0; j < GetParam().Height(); ++j) {
       for (int i = 0; i < border; ++i) {
-        if (GetParam().BitDepth() != AOM_BITS_8) {
+        if (GetParam().IsHighBitDepth()) {
           EXPECT_EQ(base_val, CONVERT_TO_SHORTPTR(dst)[i]);
         } else {
           EXPECT_EQ(base_val, dst[i]);
@@ -313,17 +323,17 @@ class IntrapredExtensionTest : public ::testing::TestWithParam<TestParam> {
     // Check left-replicated.
     for (int j = 0; j < num_pix; ++j) {
       int last_val;
-      if (GetParam().BitDepth() == AOM_BITS_8) {
+      if (!GetParam().IsHighBitDepth()) {
         last_val = ref[0];
       } else {
         last_val = CONVERT_TO_SHORTPTR(ref)[0];
       }
 
       for (int i = 0; i < border - num_pix; ++i) {
-        if (GetParam().BitDepth() == AOM_BITS_8) {
-          EXPECT_EQ(last_val, dst[i]);
-        } else {
+        if (GetParam().IsHighBitDepth()) {
           EXPECT_EQ(last_val, CONVERT_TO_SHORTPTR(dst)[i]);
+        } else {
+          EXPECT_EQ(last_val, dst[i]);
         }
       }
       ref += RefStride();
@@ -336,7 +346,7 @@ class IntrapredExtensionTest : public ::testing::TestWithParam<TestParam> {
       const uint8_t *ref_row = dst_ref;
       const uint8_t *dst_row = dst + j * DstStride();
       int bytes = sizeof(uint8_t);
-      if (GetParam().BitDepth() != AOM_BITS_8) {
+      if (GetParam().IsHighBitDepth()) {
         ref_row = reinterpret_cast<uint8_t *>(CONVERT_TO_SHORTPTR(ref_row));
         dst_row = reinterpret_cast<uint8_t *>(CONVERT_TO_SHORTPTR(dst_row));
         bytes = sizeof(uint16_t);
@@ -358,16 +368,25 @@ class IntrapredExtensionTest : public ::testing::TestWithParam<TestParam> {
     const TestParam &p = GetParam();
     int height = p.Height() + p.Border();
     int width = p.Width() + p.Border();
-    int bytes = p.BitDepth() == AOM_BITS_8 ? sizeof(uint8_t) : sizeof(uint16_t);
-
-    const int ref_size = height * (width + p.RefStridePadding()) * bytes;
-    for (int i = 0; i < ref_size; ++i) {
-      ref_[i] = rnd_.Rand8();
+    const int ref_size = height * (width + p.RefStridePadding());
+    const int dst_size = height * (width + p.DstStridePadding());
+    if (!p.IsHighBitDepth()) {
+      for (int i = 0; i < ref_size; ++i) {
+        ref_[i] = rnd_.Rand8();
+      }
+      for (int i = 0; i < dst_size; ++i) {
+        dst_[i] = rnd_.Rand8();
+      }
+      return;
     }
 
-    const int dst_size = height * (width + p.DstStridePadding()) * bytes;
+    uint16_t *ref16 = reinterpret_cast<uint16_t *>(ref_);
+    for (int i = 0; i < ref_size; ++i) {
+      ref16[i] = rnd_.Rand16() & ((1 << p.BitDepth()) - 1);
+    }
+    uint16_t *dst16 = reinterpret_cast<uint16_t *>(dst_);
     for (int i = 0; i < dst_size; ++i) {
-      dst_[i] = rnd_.Rand8();
+      dst16[i] = rnd_.Rand16() & ((1 << p.BitDepth()) - 1);
     }
   }
 
@@ -385,7 +404,7 @@ TEST_P(IntrapredExtensionTest, NoLeftNoTop) {
   int border = GetParam().Border();
   av1_extend_intra_border(ref, RefStride(), dst, DstStride(), 0, 0,
                           GetParam().Width(), GetParam().Height(), border,
-                          GetParam().BitDepth());
+                          GetParam().BitDepth(), GetParam().IsHighBitDepth());
   CheckTopLeftBaseEq(Base() - 1);
   CheckTopBaseEq(Base() - 1);
   CheckLeftBaseEq(Base() + 1);
@@ -399,7 +418,7 @@ TEST_P(IntrapredExtensionTest, NoLeftPartialTop) {
     uint8_t *dst = Dst();
     av1_extend_intra_border(ref, RefStride(), dst, DstStride(), rows, 0,
                             GetParam().Width(), GetParam().Height(), border,
-                            GetParam().BitDepth());
+                            GetParam().BitDepth(), GetParam().IsHighBitDepth());
     CheckTopCopied(rows);
     CheckTopExtended(rows);
     CheckLeftBaseEq(Base() + 1);
@@ -415,7 +434,8 @@ TEST_P(IntrapredExtensionTest, NoLeftSufficientTop) {
     uint8_t *dst = Dst();
     av1_extend_intra_border(ref, RefStride(), dst, DstStride(),
                             border + extra_rows, 0, GetParam().Width(),
-                            GetParam().Height(), border, GetParam().BitDepth());
+                            GetParam().Height(), border, GetParam().BitDepth(),
+                            GetParam().IsHighBitDepth());
     CheckTopCopied(border);
     CheckLeftBaseEq(Base() + 1);
     CheckTopLeftBaseEq(Base() - 1);
@@ -430,7 +450,7 @@ TEST_P(IntrapredExtensionTest, PartialLeftNoTop) {
     uint8_t *dst = Dst();
     av1_extend_intra_border(ref, RefStride(), dst, DstStride(), 0, cols,
                             GetParam().Width(), GetParam().Height(), border,
-                            GetParam().BitDepth());
+                            GetParam().BitDepth(), GetParam().IsHighBitDepth());
     CheckTopBaseEq(Base() - 1);
     CheckLeftCopied(cols);
     CheckLeftExtended(cols);
@@ -448,7 +468,8 @@ TEST_P(IntrapredExtensionTest, PartialLeftPartialTop) {
 
       av1_extend_intra_border(ref, RefStride(), dst, DstStride(), rows, cols,
                               GetParam().Width(), GetParam().Height(), border,
-                              GetParam().BitDepth());
+                              GetParam().BitDepth(),
+                              GetParam().IsHighBitDepth());
 
       CheckTopCopied(rows);
       CheckTopExtended(rows);
@@ -468,10 +489,10 @@ TEST_P(IntrapredExtensionTest, PartialLeftSufficientTop) {
       const uint8_t *ref = Ref();
       uint8_t *dst = Dst();
 
-      av1_extend_intra_border(ref, RefStride(), dst, DstStride(),
-                              border + extra_rows, cols, GetParam().Width(),
-                              GetParam().Height(), border,
-                              GetParam().BitDepth());
+      av1_extend_intra_border(
+          ref, RefStride(), dst, DstStride(), border + extra_rows, cols,
+          GetParam().Width(), GetParam().Height(), border,
+          GetParam().BitDepth(), GetParam().IsHighBitDepth());
       CheckTopCopied(border);
       CheckLeftCopied(cols);
       CheckLeftExtended(cols);
@@ -489,7 +510,8 @@ TEST_P(IntrapredExtensionTest, SufficientLeftNoTop) {
     uint8_t *dst = Dst();
     av1_extend_intra_border(ref, RefStride(), dst, DstStride(), 0,
                             border + extra_cols, GetParam().Width(),
-                            GetParam().Height(), border, GetParam().BitDepth());
+                            GetParam().Height(), border, GetParam().BitDepth(),
+                            GetParam().IsHighBitDepth());
     CheckTopBaseEq(Base() - 1);
     CheckLeftCopied(border);
     CheckTopLeftBaseEq(Base() - 1);
@@ -504,10 +526,10 @@ TEST_P(IntrapredExtensionTest, SufficientLeftPartialTop) {
       const uint8_t *ref = Ref();
       uint8_t *dst = Dst();
 
-      av1_extend_intra_border(ref, RefStride(), dst, DstStride(), rows,
-                              border + extra_cols, GetParam().Width(),
-                              GetParam().Height(), border,
-                              GetParam().BitDepth());
+      av1_extend_intra_border(
+          ref, RefStride(), dst, DstStride(), rows, border + extra_cols,
+          GetParam().Width(), GetParam().Height(), border,
+          GetParam().BitDepth(), GetParam().IsHighBitDepth());
       CheckTopCopied(rows);
       CheckTopExtended(rows);
       CheckLeftCopied(border);
@@ -528,10 +550,10 @@ TEST_P(IntrapredExtensionTest, SufficientTopLeft) {
   for (int extra_rows = 0; extra_rows < 3; ++extra_rows) {
     for (int extra_cols = 0; extra_cols < 3; ++extra_cols) {
       Randomize();
-      av1_extend_intra_border(ref, RefStride(), dst, DstStride(),
-                              border + extra_rows, border + extra_cols,
-                              GetParam().Width(), GetParam().Height(), border,
-                              GetParam().BitDepth());
+      av1_extend_intra_border(
+          ref, RefStride(), dst, DstStride(), border + extra_rows,
+          border + extra_cols, GetParam().Width(), GetParam().Height(), border,
+          GetParam().BitDepth(), GetParam().IsHighBitDepth());
       CheckTopCopied(border);
       CheckLeftCopied(border);
       CheckTopLeftCopied(border);
