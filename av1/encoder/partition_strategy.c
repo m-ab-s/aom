@@ -393,6 +393,7 @@ static AOM_INLINE void simple_motion_search_prune_part_features(
   assert(mi_size_wide[bsize] == mi_size_high[bsize]);
   // Setting up motion search
   int ref_list[1];
+  ref_list[0] = LAST_FRAME;
   if (!(cpi->ref_frame_flags & av1_ref_frame_flag_list[LAST_FRAME]) &&
       !(cpi->ref_frame_flags & av1_ref_frame_flag_list[ALTREF_FRAME])) {
     for (int i = LAST_FRAME; i <= ALTREF_FRAME; i++) {
