@@ -1583,7 +1583,7 @@ static bool is_sub8x8_inter(MACROBLOCKD *xd, int plane, const MB_MODE_INFO *mi,
 }
 
 int av1_calc_border(const MACROBLOCKD *xd) {
-#if CONFIG_ILLUM_MCOMP
+#if CONFIG_INTERINTRA_BORDER
   // Intra-block copy will set the source pointer to a different location in
   // the destination buffer. It's possible that the border pixels around that
   // region have not been initialized.
@@ -1594,10 +1594,8 @@ int av1_calc_border(const MACROBLOCKD *xd) {
   if (is_compound || intra_bc) {
     return 0;
   }
-  if (xd->mi[0]->interintra_mode == II_ILLUM_MCOMP_PRED) {
-    return INTERINTRA_PRED_BORDER;
-  }
-#endif  // CONFIG_ILLUM_MCOMP
+  return INTERINTRA_PRED_BORDER;
+#endif  // CONFIG_INTERINTRA_BORDER
   (void)xd;
   return 0;
 }
@@ -2584,6 +2582,9 @@ static void build_smooth_interintra_mask(uint8_t *mask, int stride,
 
 #if CONFIG_ILLUM_MCOMP
 
+// Only analyze the 4 pixel border around the inter/intra predictors.
+#define ILLUM_MCOMP_BORDER 4
+
 // Toggle between 'old' method (using difference of averages) and
 // 'new' method (linear regression).
 #define ILLUM_MCOMP_OLD 0
@@ -2592,8 +2593,8 @@ static void build_smooth_interintra_mask(uint8_t *mask, int stride,
 // extended region.
 #define ILLUM_MCOMP_COMPUTE_DC(INT_TYPE, suffix)                               \
   static int illum_mcomp_compute_dc_##suffix(const INT_TYPE *pred, int stride, \
-                                             int bw, int bh, int border) {     \
-    assert(border > 0);                                                        \
+                                             int bw, int bh) {                 \
+    const int border = ILLUM_MCOMP_BORDER;                                     \
     int sum = 0;                                                               \
     for (int i = -border; i < 0; ++i) {                                        \
       for (int j = -border; j < bw; ++j) {                                     \
@@ -2622,16 +2623,12 @@ static void illum_mcomp_linear_model_lowbd(const uint8_t *inter_pred,
                                            int inter_stride,
                                            const uint8_t *intra_pred,
                                            int intra_stride, int bw, int bh,
-                                           int bd, int border, int *alpha,
-                                           int *beta) {
+                                           int bd, int *alpha, int *beta) {
   assert(bd == 8);
-  assert(border > 0);
 #if ILLUM_MCOMP_OLD
   *alpha = 1 << ILLUM_MCOMP_PREC_BITS;
-  int intra_dc =
-      illum_mcomp_compute_dc_lowbd(intra_pred, intra_stride, bw, bh, border);
-  int inter_dc =
-      illum_mcomp_compute_dc_lowbd(inter_pred, inter_stride, bw, bh, border);
+  int intra_dc = illum_mcomp_compute_dc_lowbd(intra_pred, intra_stride, bw, bh);
+  int inter_dc = illum_mcomp_compute_dc_lowbd(inter_pred, inter_stride, bw, bh);
   *beta = (intra_dc - inter_dc) << ILLUM_MCOMP_PREC_BITS;
   return;
 #endif  // ILLUM_MCOMP_OLD
@@ -2641,6 +2638,7 @@ static void illum_mcomp_linear_model_lowbd(const uint8_t *inter_pred,
   int64_t sx = 0;
   int64_t sxy = 0;
   int64_t sy = 0;
+  const int border = ILLUM_MCOMP_BORDER;
   for (int i = -border; i < 0; ++i) {
     for (int j = -border; j < bw; ++j) {
       const int x = inter_pred[i * inter_stride + j];
@@ -2688,16 +2686,14 @@ static void illum_mcomp_linear_model_highbd(const uint16_t *inter_pred,
                                             int inter_stride,
                                             const uint16_t *intra_pred,
                                             int intra_stride, int bw, int bh,
-                                            int bd, int border, int *alpha,
-                                            int *beta) {
+                                            int bd, int *alpha, int *beta) {
   assert(bd > 8);
-  assert(border > 0);
 #if ILLUM_MCOMP_OLD
   *alpha = 1 << ILLUM_MCOMP_PREC_BITS;
   int intra_dc =
-      illum_mcomp_compute_dc_highbd(intra_pred, intra_stride, bw, bh, border);
+      illum_mcomp_compute_dc_highbd(intra_pred, intra_stride, bw, bh);
   int inter_dc =
-      illum_mcomp_compute_dc_highbd(inter_pred, inter_stride, bw, bh, border);
+      illum_mcomp_compute_dc_highbd(inter_pred, inter_stride, bw, bh);
   *beta = (intra_dc - inter_dc) << ILLUM_MCOMP_PREC_BITS;
   return;
 #endif  // ILLUM_MCOMP_OLD
@@ -2707,6 +2703,7 @@ static void illum_mcomp_linear_model_highbd(const uint16_t *inter_pred,
   int64_t sx = 0;
   int64_t sxy = 0;
   int64_t sy = 0;
+  const int border = ILLUM_MCOMP_BORDER;
   for (int i = -border; i < 0; ++i) {
     for (int j = -border; j < bw; ++j) {
       const int x = inter_pred[i * inter_stride + j];
@@ -2755,7 +2752,8 @@ static void illum_combine_interintra(
     BLOCK_SIZE bsize, BLOCK_SIZE plane_bsize, uint8_t *comp_pred,
     int comp_stride, const uint8_t *inter_pred, int inter_stride,
     const uint8_t *intra_pred, int intra_stride, int border) {
-  assert(border > 0);
+  assert(border >= ILLUM_MCOMP_BORDER);
+  (void)border;
   const int bw = block_size_wide[plane_bsize];
   const int bh = block_size_high[plane_bsize];
 
@@ -2772,8 +2770,7 @@ static void illum_combine_interintra(
 
   int alpha, beta;
   illum_mcomp_linear_model_lowbd(inter_pred, inter_stride, intra_pred,
-                                 intra_stride, bw, bh, 8, border, &alpha,
-                                 &beta);
+                                 intra_stride, bw, bh, 8, &alpha, &beta);
   for (int i = 0; i < bh; ++i) {
     for (int j = 0; j < bw; ++j) {
       int32_t r = inter_pred[i * inter_stride + j];
@@ -2802,7 +2799,8 @@ static void illum_combine_interintra_highbd(
     BLOCK_SIZE bsize, BLOCK_SIZE plane_bsize, uint8_t *comp_pred8,
     int comp_stride, const uint8_t *inter_pred8, int inter_stride,
     const uint8_t *intra_pred8, int intra_stride, int bd, int border) {
-  assert(border > 0);
+  assert(border >= ILLUM_MCOMP_BORDER);
+  (void)border;
   const int bw = block_size_wide[plane_bsize];
   const int bh = block_size_high[plane_bsize];
 
@@ -2819,8 +2817,7 @@ static void illum_combine_interintra_highbd(
   }
   int alpha, beta;
   illum_mcomp_linear_model_highbd(inter_pred, inter_stride, intra_pred,
-                                  intra_stride, bw, bh, bd, border, &alpha,
-                                  &beta);
+                                  intra_stride, bw, bh, bd, &alpha, &beta);
   for (int i = 0; i < bh; ++i) {
     for (int j = 0; j < bw; ++j) {
       int32_t r = inter_pred[i * inter_stride + j];

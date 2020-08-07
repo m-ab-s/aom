@@ -10541,23 +10541,9 @@ static int handle_smooth_inter_intra_mode(
       x->interintra_mode_cost[size_group_lookup[bsize]];
   mbmi->use_wedge_interintra = 0;
   int j = 0;
-#if CONFIG_ILLUM_MCOMP
-  MV old_best = x->best_mv.as_mv;
-#endif  // CONFIG_ILLUM_MCOMP
   if (cpi->sf.reuse_inter_intra_mode == 0 ||
       *best_interintra_mode == INTERINTRA_MODES) {
     for (j = 0; j < total_modes; ++j) {
-#if CONFIG_ILLUM_MCOMP
-      if (j == II_ILLUM_MCOMP_PRED) {
-        single_motion_search(cpi, x, bsize, 0, &tmp_rate_mv, true);
-        av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize,
-                                      AOM_PLANE_Y, AOM_PLANE_Y);
-      } else if (j == II_ILLUM_MCOMP_PRED + 1) {
-        x->best_mv.as_mv = old_best;
-        av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize,
-                                      AOM_PLANE_Y, AOM_PLANE_Y);
-      }
-#endif  // CONFIG_ILLUM_MCOMP
       if ((!cpi->oxcf.enable_smooth_intra || cpi->sf.disable_smooth_intra) &&
           (INTERINTRA_MODE)j == II_SMOOTH_PRED)
         continue;
@@ -10602,13 +10588,6 @@ static int handle_smooth_inter_intra_mode(
     args->inter_intra_mode[mbmi->ref_frame[0]] = *best_interintra_mode;
   }
 
-#if CONFIG_ILLUM_MCOMP
-  if (*best_interintra_mode != II_ILLUM_MCOMP_PRED) {
-    x->best_mv.as_mv = old_best;
-    av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize,
-                                  AOM_PLANE_Y, AOM_PLANE_Y);
-  }
-#endif  // CONFIG_ILLUM_MCOMP
   assert(IMPLIES(
       !cpi->oxcf.enable_smooth_interintra || cpi->sf.disable_smooth_interintra,
       *best_interintra_mode != II_SMOOTH_PRED));
