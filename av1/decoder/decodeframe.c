@@ -555,11 +555,11 @@ static INLINE int update_extend_mc_border_params(
   (void)subpel_y_mv;
   (void)do_warp;
   if (!is_intrabc) {
-    block->x0 -= AOM_INTERP_EXTEND - 1 + MAX_INTER_PRED_BORDER;
-    block->x1 += AOM_INTERP_EXTEND + MAX_INTER_PRED_BORDER;
+    block->x0 -= AOM_INTERP_EXTEND - 1 + INTERINTRA_PRED_BORDER;
+    block->x1 += AOM_INTERP_EXTEND + INTERINTRA_PRED_BORDER;
     *x_pad = 1;
-    block->y0 -= AOM_INTERP_EXTEND - 1 + MAX_INTER_PRED_BORDER;
-    block->y1 += AOM_INTERP_EXTEND + MAX_INTER_PRED_BORDER;
+    block->y0 -= AOM_INTERP_EXTEND - 1 + INTERINTRA_PRED_BORDER;
+    block->y1 += AOM_INTERP_EXTEND + INTERINTRA_PRED_BORDER;
     *y_pad = 1;
     return 1;
   }
@@ -595,8 +595,8 @@ static INLINE void extend_mc_border(const struct scale_factors *const sf,
     }
     *src_stride = b_w;
     *pre = mc_buf +
-           y_pad * (AOM_INTERP_EXTEND - 1 + MAX_INTER_PRED_BORDER) * b_w +
-           x_pad * (AOM_INTERP_EXTEND - 1 + MAX_INTER_PRED_BORDER);
+           y_pad * (AOM_INTERP_EXTEND - 1 + INTERINTRA_PRED_BORDER) * b_w +
+           x_pad * (AOM_INTERP_EXTEND - 1 + INTERINTRA_PRED_BORDER);
   }
 }
 
@@ -736,14 +736,10 @@ static void dec_build_inter_predictors(const AV1_COMMON *cm, MACROBLOCKD *xd,
                                        int build_for_obmc, int bw, int bh,
                                        int mi_x, int mi_y, uint8_t *dst,
                                        int dst_stride, int border) {
-  const InterPredExt ext = { .border_left = border,
-                             .border_top = border,
-                             .border_right = 0,
-                             .border_bottom = 0 };
   const DecCalcSubpelFuncArgs args = { mi, mi_x, mi_y, build_for_obmc };
   av1_build_inter_predictors(cm, xd, plane, mi, build_for_obmc, bw, bh, mi_x,
                              mi_y, dec_calc_subpel_params_and_extend, &args,
-                             dst, dst_stride, &ext);
+                             dst, dst_stride, border);
 }
 
 static void dec_build_inter_predictors_for_planes(const AV1_COMMON *cm,

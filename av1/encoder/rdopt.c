@@ -10680,7 +10680,7 @@ static int handle_inter_intra_mode(const AV1_COMP *const cpi,
   DECLARE_ALIGNED(16, uint8_t,
                   aligned_buf2_[2 * MAX_INTERINTRA_BORDER_SB_SQUARE]);
   const int border = 16;
-  const int stride = MAX_INTER_PRED_BORDER + bw;
+  const int stride = INTERINTRA_PRED_BORDER + bw;
 #else
   DECLARE_ALIGNED(16, uint8_t, aligned_buf1_[2 * MAX_INTERINTRA_SB_SQUARE]);
   DECLARE_ALIGNED(16, uint8_t, aligned_buf2_[2 * MAX_INTERINTRA_SB_SQUARE]);
@@ -10702,20 +10702,8 @@ static int handle_inter_intra_mode(const AV1_COMP *const cpi,
   const int mi_row = xd->mi_row;
   const int mi_col = xd->mi_col;
 
-  // Only build the extended region in the inter-border if it is possible
-  // to do so, due to limitations in the inter-prediction extension code.
-  InterPredExt ext = { .border_left = border,
-                       .border_top = border,
-                       .border_right = 0,
-                       .border_bottom = 0 };
-  if (av1_valid_inter_pred_ext(&ext, is_intrabc_block(xd->mi[0]),
-                               has_second_ref(mbmi))) {
-    av1_enc_build_border_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize,
-                                         AOM_PLANE_Y, AOM_PLANE_Y, border);
-  } else {
-    av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize,
-                                  AOM_PLANE_Y, AOM_PLANE_Y);
-  }
+  av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize,
+                                AOM_PLANE_Y, AOM_PLANE_Y);
 
   restore_dst_buf(xd, *orig_dst, num_planes);
   mbmi->ref_frame[1] = INTRA_FRAME;

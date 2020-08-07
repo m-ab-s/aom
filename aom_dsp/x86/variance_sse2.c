@@ -644,12 +644,12 @@ void aom_upsampled_pred_sse2(MACROBLOCKD *xd, const struct AV1Common *const cm,
 
       // Get the inter predictor.
       const int build_for_obmc = 0;
-      const InterPredExt *ext = NULL;
+      const int border = 0;
       av1_make_inter_predictor(
           pre, pre_buf->stride, comp_pred, width, &subpel_params, sf, width,
           height, &conv_params, filters, &warp_types, mi_x >> pd->subsampling_x,
           mi_y >> pd->subsampling_y, plane, ref_num, mi, build_for_obmc, xd,
-          cm->allow_warped_motion, ext);
+          cm->allow_warped_motion, border);
       return;
     }
   }

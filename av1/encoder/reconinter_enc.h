@@ -28,12 +28,6 @@ void av1_enc_build_inter_predictor(const AV1_COMMON *cm, MACROBLOCKD *xd,
                                    const BUFFER_SET *ctx, BLOCK_SIZE bsize,
                                    int plane_from, int plane_to);
 
-void av1_enc_build_border_inter_predictor(const AV1_COMMON *cm, MACROBLOCKD *xd,
-                                          int mi_row, int mi_col,
-                                          const BUFFER_SET *ctx,
-                                          BLOCK_SIZE bsize, int plane_from,
-                                          int plane_to, const int border);
-
 void av1_build_inter_predictor(const uint8_t *src, int src_stride, uint8_t *dst,
                                int dst_stride, const MV *src_mv,
                                const struct scale_factors *sf, int w, int h,

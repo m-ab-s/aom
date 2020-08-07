@@ -88,10 +88,11 @@ static void enc_build_inter_predictors(const AV1_COMMON *cm, MACROBLOCKD *xd,
                                        int plane, const MB_MODE_INFO *mi,
                                        int build_for_obmc, int bw, int bh,
                                        int mi_x, int mi_y) {
+  const int border = 0;
   av1_build_inter_predictors(cm, xd, plane, mi, build_for_obmc, bw, bh, mi_x,
                              mi_y, enc_calc_subpel_params, NULL,
                              xd->plane[plane].dst.buf,
-                             xd->plane[plane].dst.stride, NULL);
+                             xd->plane[plane].dst.stride, border);
 }
 
 static void build_inter_predictors_for_plane(const AV1_COMMON *cm,
@@ -124,17 +125,7 @@ void av1_enc_build_inter_predictor(const AV1_COMMON *cm, MACROBLOCKD *xd,
                                    int mi_row, int mi_col,
                                    const BUFFER_SET *ctx, BLOCK_SIZE bsize,
                                    int plane_from, int plane_to) {
-  for (int plane_idx = plane_from; plane_idx <= plane_to; ++plane_idx) {
-    build_inter_predictors_for_plane(cm, xd, mi_row, mi_col, ctx, bsize,
-                                     plane_idx, 0 /* border */);
-  }
-}
-
-void av1_enc_build_border_inter_predictor(const AV1_COMMON *cm, MACROBLOCKD *xd,
-                                          int mi_row, int mi_col,
-                                          const BUFFER_SET *ctx,
-                                          BLOCK_SIZE bsize, int plane_from,
-                                          int plane_to, const int border) {
+  const int border = 0;
   for (int plane_idx = plane_from; plane_idx <= plane_to; ++plane_idx) {
     build_inter_predictors_for_plane(cm, xd, mi_row, mi_col, ctx, bsize,
                                      plane_idx, border);
@@ -166,10 +157,11 @@ void av1_build_inter_predictor(const uint8_t *src, int src_stride, uint8_t *dst,
   src += (mv.row >> SCALE_SUBPEL_BITS) * src_stride +
          (mv.col >> SCALE_SUBPEL_BITS);
 
+  const int border = 0;
   av1_make_inter_predictor(src, src_stride, dst, dst_stride, &subpel_params, sf,
                            w, h, conv_params, interp_filters, warp_types, p_col,
                            p_row, plane, ref, xd->mi[0], 0, xd,
-                           can_use_previous, NULL);
+                           can_use_previous, border);
 }
 
 static INLINE void build_prediction_by_above_pred(
@@ -359,10 +351,11 @@ static void build_inter_predictors_single_buf(MACROBLOCKD *xd, int plane,
 #endif  // CONFIG_EXT_COMPOUND
                          NULL, &pre, &subpel_params, &src_stride);
 
+  const int border = 0;
   av1_make_inter_predictor(pre, src_stride, dst, ext_dst_stride, &subpel_params,
                            sf, w, h, &conv_params, mi->interp_filters,
                            &warp_types, pre_x + x, pre_y + y, plane, ref, mi, 0,
-                           xd, can_use_previous, NULL);
+                           xd, can_use_previous, border);
 }
 
 void av1_build_inter_predictors_for_planes_single_buf(

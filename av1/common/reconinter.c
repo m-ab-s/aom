@@ -382,11 +382,11 @@ int av1_compute_subpel_gradients(const AV1_COMMON *cm, MACROBLOCKD *xd,
   // Original predictor
   assert(mi->interinter_comp.type == COMPOUND_AVERAGE);
   conv_params.do_average = 0;
-  av1_make_inter_predictor(pre, src_stride, pred_dst, bw, &subpel_params, sf,
-                           bw, bh, &conv_params, mi->interp_filters,
-                           &warp_types, mi_x >> pd->subsampling_x,
-                           mi_y >> pd->subsampling_y, plane, ref, mi,
-                           build_for_obmc, xd, cm->allow_warped_motion, NULL);
+  av1_make_inter_predictor(
+      pre, src_stride, pred_dst, bw, &subpel_params, sf, bw, bh, &conv_params,
+      mi->interp_filters, &warp_types, mi_x >> pd->subsampling_x,
+      mi_y >> pd->subsampling_y, plane, ref, mi, build_for_obmc, xd,
+      cm->allow_warped_motion, 0 /* border */);
 
   // X gradient
   // Get predictor to the left
@@ -396,11 +396,11 @@ int av1_compute_subpel_gradients(const AV1_COMMON *cm, MACROBLOCKD *xd,
                           pre_buf, bw, bh, &warp_types, ref, 0,
                           calc_subpel_params_func_args, &pre, &subpel_params,
                           &src_stride);
-  av1_make_inter_predictor(pre, src_stride, tmp_buf1, bw, &subpel_params, sf,
-                           bw, bh, &conv_params, mi->interp_filters,
-                           &warp_types, mi_x >> pd->subsampling_x,
-                           mi_y >> pd->subsampling_y, plane, ref, mi,
-                           build_for_obmc, xd, cm->allow_warped_motion, NULL);
+  av1_make_inter_predictor(
+      pre, src_stride, tmp_buf1, bw, &subpel_params, sf, bw, bh, &conv_params,
+      mi->interp_filters, &warp_types, mi_x >> pd->subsampling_x,
+      mi_y >> pd->subsampling_y, plane, ref, mi, build_for_obmc, xd,
+      cm->allow_warped_motion, 0 /* border */);
   // Get predictor to the right
   mv_modified.col = mv_orig.col + 1;
   mv_modified.row = mv_orig.row;
@@ -408,11 +408,11 @@ int av1_compute_subpel_gradients(const AV1_COMMON *cm, MACROBLOCKD *xd,
                           pre_buf, bw, bh, &warp_types, ref, 0,
                           calc_subpel_params_func_args, &pre, &subpel_params,
                           &src_stride);
-  av1_make_inter_predictor(pre, src_stride, tmp_buf2, bw, &subpel_params, sf,
-                           bw, bh, &conv_params, mi->interp_filters,
-                           &warp_types, mi_x >> pd->subsampling_x,
-                           mi_y >> pd->subsampling_y, plane, ref, mi,
-                           build_for_obmc, xd, cm->allow_warped_motion, NULL);
+  av1_make_inter_predictor(
+      pre, src_stride, tmp_buf2, bw, &subpel_params, sf, bw, bh, &conv_params,
+      mi->interp_filters, &warp_types, mi_x >> pd->subsampling_x,
+      mi_y >> pd->subsampling_y, plane, ref, mi, build_for_obmc, xd,
+      cm->allow_warped_motion, 0 /* border */);
   // Compute difference
   for (int i = 0; i < bh; i++) {
     for (int j = 0; j < bw; j++) {
@@ -429,11 +429,11 @@ int av1_compute_subpel_gradients(const AV1_COMMON *cm, MACROBLOCKD *xd,
                           pre_buf, bw, bh, &warp_types, ref, 0,
                           calc_subpel_params_func_args, &pre, &subpel_params,
                           &src_stride);
-  av1_make_inter_predictor(pre, src_stride, tmp_buf1, bw, &subpel_params, sf,
-                           bw, bh, &conv_params, mi->interp_filters,
-                           &warp_types, mi_x >> pd->subsampling_x,
-                           mi_y >> pd->subsampling_y, plane, ref, mi,
-                           build_for_obmc, xd, cm->allow_warped_motion, NULL);
+  av1_make_inter_predictor(
+      pre, src_stride, tmp_buf1, bw, &subpel_params, sf, bw, bh, &conv_params,
+      mi->interp_filters, &warp_types, mi_x >> pd->subsampling_x,
+      mi_y >> pd->subsampling_y, plane, ref, mi, build_for_obmc, xd,
+      cm->allow_warped_motion, 0 /* border */);
   // Get predictor above
   mv_modified.col = mv_orig.col;
   mv_modified.row = mv_orig.row + 1;
@@ -441,11 +441,11 @@ int av1_compute_subpel_gradients(const AV1_COMMON *cm, MACROBLOCKD *xd,
                           pre_buf, bw, bh, &warp_types, ref, 0,
                           calc_subpel_params_func_args, &pre, &subpel_params,
                           &src_stride);
-  av1_make_inter_predictor(pre, src_stride, tmp_buf2, bw, &subpel_params, sf,
-                           bw, bh, &conv_params, mi->interp_filters,
-                           &warp_types, mi_x >> pd->subsampling_x,
-                           mi_y >> pd->subsampling_y, plane, ref, mi,
-                           build_for_obmc, xd, cm->allow_warped_motion, NULL);
+  av1_make_inter_predictor(
+      pre, src_stride, tmp_buf2, bw, &subpel_params, sf, bw, bh, &conv_params,
+      mi->interp_filters, &warp_types, mi_x >> pd->subsampling_x,
+      mi_y >> pd->subsampling_y, plane, ref, mi, build_for_obmc, xd,
+      cm->allow_warped_motion, 0 /* border */);
   // Compute difference
   for (int i = 0; i < bh; i++) {
     for (int j = 0; j < bw; j++) {
@@ -745,29 +745,6 @@ static void av1_make_inter_predictor_aux(
     int p_col, int p_row, int plane, int ref, const MB_MODE_INFO *mi,
     int build_for_obmc, const MACROBLOCKD *xd, int can_use_previous);
 
-static bool valid_border(int border) {
-  return border % 8 == 0 && border >= 0 && border <= MAX_INTER_PRED_BORDER;
-}
-
-bool av1_valid_inter_pred_ext(const InterPredExt *ext, bool intra_bc,
-                              bool is_compound) {
-  if (ext == NULL) {
-    return true;  // NULL means no extension.
-  }
-  // Intra-block copy will set the source pointer to a different location in
-  // the destination buffer. It's possible that the border pixels around that
-  // region have not been initialized.
-  // Compound mode does not currently work as the masked inter-predictor needs
-  // to increase its region used for the mask.
-  if ((is_compound || intra_bc) &&
-      !(ext->border_left == 0 && ext->border_right == 0 &&
-        ext->border_bottom == 0 && ext->border_top == 0)) {
-    return false;
-  }
-  return valid_border(ext->border_left) && valid_border(ext->border_top) &&
-         valid_border(ext->border_bottom) && valid_border(ext->border_right);
-}
-
 #if CONFIG_OPTFLOW_REFINEMENT && USE_OF_NXN
 // Makes the interpredictor for the region by dividing it up into nxn blocks
 // and running the interpredictor code on each one.
@@ -900,70 +877,38 @@ void av1_make_inter_predictor(
     int h, ConvolveParams *conv_params, int_interpfilters interp_filters,
     const WarpTypesAllowed *warp_types, int p_col, int p_row, int plane,
     int ref, const MB_MODE_INFO *mi, int build_for_obmc, const MACROBLOCKD *xd,
-    int can_use_previous, const InterPredExt *ext) {
-  assert(av1_valid_inter_pred_ext(ext, mi->use_intrabc,
-                                  has_second_ref(xd->mi[0])));
-  const int border_left = (ext == NULL) ? 0 : ext->border_left;
-  const int border_top = (ext == NULL) ? 0 : ext->border_top;
-  const int border_right = (ext == NULL) ? 0 : ext->border_right;
-  const int border_bottom = (ext == NULL) ? 0 : ext->border_bottom;
+    int can_use_previous, const int border) {
   CONV_BUF_TYPE *orig_conv_dst = conv_params->dst;
 
-  src -= (src_stride * border_top + border_left);
-  dst -= (dst_stride * border_top + border_left);
-  p_row -= border_top;
-  p_col -= border_left;
+  src -= (src_stride * border + border);
+  dst -= (dst_stride * border + border);
+  p_row -= border;
+  p_col -= border;
   // Build the top row of the extension in 8x8 blocks.
   make_inter_pred_8x8(src, src_stride, dst, dst_stride, subpel_params, sf,
-                      border_left + border_right + w, border_top, w, h,
-                      conv_params, interp_filters, warp_types, p_col, p_row,
-                      plane, ref, mi, build_for_obmc, xd, can_use_previous);
-  src += src_stride * border_top;
-  dst += dst_stride * border_top;
-  p_row += border_top;
-  conv_params->dst += conv_params->dst_stride * border_top;
+                      border + border + w, border, w, h, conv_params,
+                      interp_filters, warp_types, p_col, p_row, plane, ref, mi,
+                      build_for_obmc, xd, can_use_previous);
+  src += src_stride * border;
+  dst += dst_stride * border;
+  p_row += border;
+  conv_params->dst += conv_params->dst_stride * border;
 
   // Build the left edge (not including corners).
   make_inter_pred_8x8(src, src_stride, dst, dst_stride, subpel_params, sf,
-                      border_left, h, w, h, conv_params, interp_filters,
-                      warp_types, p_col, p_row, plane, ref, mi, build_for_obmc,
-                      xd, can_use_previous);
-  src += border_left;
-  dst += border_left;
-  p_col += border_left;
-  conv_params->dst += border_left;
+                      border, h, w, h, conv_params, interp_filters, warp_types,
+                      p_col, p_row, plane, ref, mi, build_for_obmc, xd,
+                      can_use_previous);
+  src += border;
+  dst += border;
+  p_col += border;
+  conv_params->dst += border;
 
   // Build the original inter-predicator.
   av1_make_inter_predictor_aux(src, src_stride, dst, dst_stride, subpel_params,
                                sf, w, h, w, h, conv_params, interp_filters,
                                warp_types, p_col, p_row, plane, ref, mi,
                                build_for_obmc, xd, can_use_previous);
-  src += w;
-  dst += w;
-  p_col += w;
-  conv_params->dst += w;
-
-  // Build the right edge (not including corners).
-  make_inter_pred_8x8(src, src_stride, dst, dst_stride, subpel_params, sf,
-                      border_right, h, w, h, conv_params, interp_filters,
-                      warp_types, p_col, p_row, plane, ref, mi, build_for_obmc,
-                      xd, can_use_previous);
-
-  src -= (w + border_left);
-  dst -= (w + border_left);
-  p_col -= (w + border_left);
-  conv_params->dst -= (w + border_left);
-  src += h * src_stride;
-  dst += h * dst_stride;
-  p_row += h;
-  conv_params->dst += h * conv_params->dst_stride;
-
-  // Build the bottom row of the extension in 8x8 blocks.
-  make_inter_pred_8x8(src, src_stride, dst, dst_stride, subpel_params, sf,
-                      border_left + border_right + w, border_bottom, w, h,
-                      conv_params, interp_filters, warp_types, p_col, p_row,
-                      plane, ref, mi, build_for_obmc, xd, can_use_previous);
-
   conv_params->dst = orig_conv_dst;
 }
 
@@ -1011,7 +956,7 @@ static void build_inter_predictors_sub8x8(
     int bw, int bh, int mi_x, int mi_y,
     CalcSubpelParamsFunc calc_subpel_params_func,
     const void *const calc_subpel_params_func_args, uint8_t *orig_dst,
-    int orig_dst_stride, const InterPredExt *ext) {
+    int orig_dst_stride) {
   const BLOCK_SIZE bsize = mi->sb_type;
   struct macroblockd_plane *const pd = &xd->plane[plane];
   const bool ss_x = pd->subsampling_x;
@@ -1101,12 +1046,14 @@ static void build_inter_predictors_sub8x8(
 
       conv_params.do_average = 0;
 
+      assert(av1_calc_border(xd) == 0);
+      const int border = 0;
       av1_make_inter_predictor(
           pre, src_stride, dst, orig_dst_stride, &subpel_params, sf, b4_w, b4_h,
           &conv_params, this_mbmi->interp_filters, &warp_types,
           (mi_x >> pd->subsampling_x) + x, (mi_y >> pd->subsampling_y) + y,
           plane, 0 /* ref */, mi, false /* build_for_obmc */, xd,
-          cm->allow_warped_motion, ext);
+          cm->allow_warped_motion, border);
       ++col;
     }
     ++row;
@@ -1143,11 +1090,9 @@ static void av1_make_masked_inter_predictor(
     const SubpelParams *subpel_params, const struct scale_factors *sf, int w,
     int h, ConvolveParams *conv_params, int_interpfilters interp_filters,
     int plane, const WarpTypesAllowed *warp_types, int p_col, int p_row,
-    int ref, MACROBLOCKD *xd, int can_use_previous, const InterPredExt *ext) {
+    int ref, MACROBLOCKD *xd, int can_use_previous) {
   // Inter-predictor extended border not supported yet.
-  assert(ext == NULL || (ext->border_left == 0 && ext->border_right == 0 &&
-                         ext->border_top == 0 && ext->border_bottom == 0));
-  (void)ext;
+  assert(av1_calc_border(xd) == 0);
   MB_MODE_INFO *mi = xd->mi[0];
   mi->interinter_comp.seg_mask = xd->seg_mask;
   const INTERINTER_COMPOUND_DATA *comp_data = &mi->interinter_comp;
@@ -1171,10 +1116,11 @@ static void av1_make_masked_inter_predictor(
   assert(conv_params->do_average == 0);
 
   // This will generate a prediction in tmp_buf for the second reference
+  const int border = 0;
   av1_make_inter_predictor(pre, pre_stride, dst, dst_stride, subpel_params, sf,
                            w, h, conv_params, interp_filters, warp_types, p_col,
                            p_row, plane, ref, mi, 0, xd, can_use_previous,
-                           NULL /* inter-pred extension */);
+                           border);
 
   if (!plane && comp_data->type == COMPOUND_DIFFWTD) {
 #if CONFIG_CTX_ADAPT_LOG_WEIGHT || CONFIG_DIFFWTD_42
@@ -1197,7 +1143,7 @@ static void build_inter_predictors(
     int build_for_obmc, int bw, int bh, int mi_x, int mi_y,
     CalcSubpelParamsFunc calc_subpel_params_func,
     const void *const calc_subpel_params_func_args, uint8_t *dst,
-    int dst_stride, const InterPredExt *ext) {
+    int dst_stride, const int border) {
   int is_compound = has_second_ref(mi);
   ConvolveParams conv_params = get_conv_params_no_round(
       0, plane, xd->tmp_conv_dst, MAX_SB_SIZE, is_compound, xd->bd);
@@ -1280,7 +1226,7 @@ static void build_inter_predictors(
           pre, src_stride, dst, dst_buf->stride, &subpel_params, sf, bw, bh,
           &conv_params, mi->interp_filters, &warp_types,
           mi_x >> pd->subsampling_x, mi_y >> pd->subsampling_y, plane, ref, mi,
-          build_for_obmc, xd, cm->allow_warped_motion, NULL);
+          build_for_obmc, xd, cm->allow_warped_motion, 0 /* border */);
 #endif  // USE_OF_NXN
       // Predictor already built
       continue;
@@ -1303,7 +1249,7 @@ static void build_inter_predictors(
           pre, src_stride, dst, dst_stride, &subpel_params, sf, bw, bh,
           &conv_params, mi->interp_filters, plane, &warp_types,
           mi_x >> pd->subsampling_x, mi_y >> pd->subsampling_y, ref, xd,
-          cm->allow_warped_motion, ext);
+          cm->allow_warped_motion);
     } else {
       conv_params.do_average = ref;
 
@@ -1404,7 +1350,7 @@ static void build_inter_predictors(
             pred, stride, dst, dst_stride, &subpel_params, sf, bw, bh,
             &conv_params, mi->interp_filters, &warp_types,
             mi_x >> pd->subsampling_x, mi_y >> pd->subsampling_y, plane, ref,
-            mi, build_for_obmc, xd, cm->allow_warped_motion, ext);
+            mi, build_for_obmc, xd, cm->allow_warped_motion, border);
 
         // Deallocate 1D arrays
         aom_free(pred_block);
@@ -1418,14 +1364,14 @@ static void build_inter_predictors(
             pre, src_stride, dst, dst_stride, &subpel_params, sf, bw, bh,
             &conv_params, mi->interp_filters, &warp_types,
             mi_x >> pd->subsampling_x, mi_y >> pd->subsampling_y, plane, ref,
-            mi, build_for_obmc, xd, cm->allow_warped_motion, ext);
+            mi, build_for_obmc, xd, cm->allow_warped_motion, border);
       }
 #else
       av1_make_inter_predictor(
           pre, src_stride, dst, dst_stride, &subpel_params, sf, bw, bh,
           &conv_params, mi->interp_filters, &warp_types,
           mi_x >> pd->subsampling_x, mi_y >> pd->subsampling_y, plane, ref, mi,
-          build_for_obmc, xd, cm->allow_warped_motion, ext);
+          build_for_obmc, xd, cm->allow_warped_motion, border);
 #endif  // CONFIG_EXT_IBC_MODES
     }
   }
@@ -1637,20 +1583,22 @@ static bool is_sub8x8_inter(MACROBLOCKD *xd, int plane, const MB_MODE_INFO *mi,
 }
 
 int av1_calc_border(const MACROBLOCKD *xd) {
-  const InterPredExt ext = {
-    .border_left = 16, .border_top = 16, .border_bottom = 0, .border_right = 0
-  };
-  if (!av1_valid_inter_pred_ext(&ext, xd->mi[0]->use_intrabc,
-                                has_second_ref(xd->mi[0]))) {
+#if CONFIG_ILLUM_MCOMP
+  // Intra-block copy will set the source pointer to a different location in
+  // the destination buffer. It's possible that the border pixels around that
+  // region have not been initialized.
+  // Compound mode does not currently work as the masked inter-predictor needs
+  // to increase its region used for the mask.
+  const bool is_compound = has_second_ref(xd->mi[0]);
+  const bool intra_bc = xd->mi[0]->use_intrabc;
+  if (is_compound || intra_bc) {
     return 0;
   }
-
-#if CONFIG_ILLUM_MCOMP
   if (xd->mi[0]->interintra_mode == II_ILLUM_MCOMP_PRED) {
-    return 4;
+    return INTERINTRA_PRED_BORDER;
   }
 #endif  // CONFIG_ILLUM_MCOMP
-
+  (void)xd;
   return 0;
 }
 
@@ -1660,16 +1608,17 @@ void av1_build_inter_predictors(const AV1_COMMON *cm, MACROBLOCKD *xd,
                                 int mi_y,
                                 CalcSubpelParamsFunc calc_subpel_params_func,
                                 const void *const calc_subpel_params_func_args,
-                                uint8_t *dst, int dst_stride,
-                                const InterPredExt *ext) {
+                                uint8_t *dst, int dst_stride, int border) {
   if (is_sub8x8_inter(xd, plane, mi, build_for_obmc)) {
+    assert(border == 0);  // Not yet supported for sub8x8.
     build_inter_predictors_sub8x8(
         cm, xd, plane, mi, bw, bh, mi_x, mi_y, calc_subpel_params_func,
-        calc_subpel_params_func_args, dst, dst_stride, ext);
+        calc_subpel_params_func_args, dst, dst_stride);
   } else {
     build_inter_predictors(cm, xd, plane, mi, build_for_obmc, bw, bh, mi_x,
                            mi_y, calc_subpel_params_func,
-                           calc_subpel_params_func_args, dst, dst_stride, ext);
+                           calc_subpel_params_func_args, dst, dst_stride,
+                           border);
   }
 }
 
