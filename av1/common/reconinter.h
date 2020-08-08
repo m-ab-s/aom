@@ -430,12 +430,6 @@ void av1_build_interintra_predictors_sbp(const AV1_COMMON *cm, MACROBLOCKD *xd,
                                          const BUFFER_SET *ctx, int plane,
                                          BLOCK_SIZE bsize, int border);
 
-void av1_build_interintra_predictors_sbuv(const AV1_COMMON *cm, MACROBLOCKD *xd,
-                                          uint8_t *upred, uint8_t *vpred,
-                                          int ustride, int vstride,
-                                          const BUFFER_SET *ctx,
-                                          BLOCK_SIZE bsize, int border);
-
 // If border is specified, then the destination pointer is treated as having
 // an extended region to the top and left, which can be accessed via
 // a negative offset to the destination.

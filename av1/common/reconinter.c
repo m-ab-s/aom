@@ -3050,14 +3050,3 @@ void av1_build_interintra_predictors_sbp(const AV1_COMMON *cm, MACROBLOCKD *xd,
   av1_free_buf_with_border(intrapred_buf, intrapred_stride, border,
                            is_cur_buf_hbd(xd));
 }
-
-void av1_build_interintra_predictors_sbuv(const AV1_COMMON *cm, MACROBLOCKD *xd,
-                                          uint8_t *upred, uint8_t *vpred,
-                                          int ustride, int vstride,
-                                          const BUFFER_SET *ctx,
-                                          BLOCK_SIZE bsize, int border) {
-  av1_build_interintra_predictors_sbp(cm, xd, upred, ustride, ctx, 1, bsize,
-                                      border);
-  av1_build_interintra_predictors_sbp(cm, xd, vpred, vstride, ctx, 2, bsize,
-                                      border);
-}
