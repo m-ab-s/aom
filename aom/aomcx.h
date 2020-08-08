@@ -1266,9 +1266,13 @@ enum aome_enc_control_id {
    */
   AV1E_SET_SUBGOP_CONFIG_STR = 158,
 
+  /*!\brief Control to set the subgop config path.
+   */
+  AV1E_SET_SUBGOP_CONFIG_PATH = 159,
+
   /*!\brief Control to get baseline gf interval
    */
-  AV1E_GET_BASELINE_GF_INTERVAL = 159,
+  AV1E_GET_BASELINE_GF_INTERVAL = 160,
 };
 
 /*!\brief aom 1-D scaling mode
@@ -1786,6 +1790,9 @@ AOM_CTRL_USE_TYPE(AV1E_SET_VBR_CORPUS_COMPLEXITY_LAP, unsigned int)
 
 AOM_CTRL_USE_TYPE(AV1E_SET_SUBGOP_CONFIG_STR, const char *)
 #define AOM_CTRL_AV1E_SET_SUBGOP_CONFIG_STR
+
+AOM_CTRL_USE_TYPE(AV1E_SET_SUBGOP_CONFIG_PATH, const char *)
+#define AOM_CTRL_AV1E_SET_SUBGOP_CONFIG_PATH
 
 /*!\endcond */
 /*! @} - end defgroup aom_encoder */

@@ -902,6 +902,9 @@ typedef struct AV1EncoderConfig {
   // SubGOP config.
   const char *subgop_config_str;
 
+  // SubGOP config.
+  const char *subgop_config_path;
+
   // Configuration related to encoder toolsets.
   ToolCfg tool_cfg;
 
@@ -2286,6 +2289,11 @@ typedef struct AV1_COMP {
    * SubGOP configuration string
    */
   char *subgop_config_str;
+
+  /*!
+   * SubGOP configuration file path
+   */
+  char *subgop_config_path;
 
   /*!
    * Information related to subGOP configuration if specified.

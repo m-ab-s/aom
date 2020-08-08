@@ -848,7 +848,15 @@ static const arg_def_t vbr_corpus_complexity_lap = ARG_DEF(
 
 static const arg_def_t subgop_config_str =
     ARG_DEF(NULL, "subgop-config-str", 1,
-            "Set specified SubGOP configurations for various SubGOP lengths. "
+            "Set specified SubGOP configurations in string format provided "
+            "for various SubGOP lengths. "
+            "If this option is not specified (default), the configurations "
+            "are chosen by the encoder using a default algorithm.");
+
+static const arg_def_t subgop_config_path =
+    ARG_DEF(NULL, "subgop-config-path", 1,
+            "Set specified SubGOP configurations in config file path provided "
+            "for various SubGOP lengths. "
             "If this option is not specified (default), the configurations "
             "are chosen by the encoder using a default algorithm.");
 
@@ -952,6 +960,7 @@ static const arg_def_t *av1_args[] = { &cpu_used_av1,
                                        &vmaf_model_path,
 #endif
                                        &subgop_config_str,
+                                       &subgop_config_path,
                                        NULL };
 static const int av1_arg_ctrl_map[] = { AOME_SET_CPUUSED,
                                         AOME_SET_ENABLEAUTOALTREF,
@@ -1053,6 +1062,7 @@ static const int av1_arg_ctrl_map[] = { AOME_SET_CPUUSED,
                                         AV1E_SET_VMAF_MODEL_PATH,
 #endif
                                         AV1E_SET_SUBGOP_CONFIG_STR,
+                                        AV1E_SET_SUBGOP_CONFIG_PATH,
                                         0 };
 #endif  // CONFIG_AV1_ENCODER
 
@@ -1132,6 +1142,7 @@ struct stream_config {
   const char *vmaf_model_path;
 #endif
   const char *subgop_config_str;
+  const char *subgop_config_path;
 };
 
 struct stream_state {
@@ -1453,6 +1464,10 @@ static void set_config_arg_ctrls(struct stream_config *config, int key,
 
   if (key == AV1E_SET_SUBGOP_CONFIG_STR) {
     config->subgop_config_str = arg->val;
+    return;
+  }
+  if (key == AV1E_SET_SUBGOP_CONFIG_PATH) {
+    config->subgop_config_path = arg->val;
     return;
   }
 
@@ -2118,6 +2133,10 @@ static void initialize_encoder(struct stream_state *stream,
   if (stream->config.subgop_config_str) {
     AOM_CODEC_CONTROL_TYPECHECKED(&stream->encoder, AV1E_SET_SUBGOP_CONFIG_STR,
                                   stream->config.subgop_config_str);
+  }
+  if (stream->config.subgop_config_path) {
+    AOM_CODEC_CONTROL_TYPECHECKED(&stream->encoder, AV1E_SET_SUBGOP_CONFIG_PATH,
+                                  stream->config.subgop_config_path);
   }
 #if CONFIG_AV1_DECODER
   if (global->test_decode != TEST_DECODE_OFF) {

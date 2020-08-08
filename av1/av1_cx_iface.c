@@ -53,6 +53,7 @@ struct av1_extracfg {
   aom_tune_metric tuning;
   const char *vmaf_model_path;
   const char *subgop_config_str;
+  const char *subgop_config_path;
   unsigned int qp;  // constant/constrained quality level
   unsigned int rc_max_intra_bitrate_pct;
   unsigned int rc_max_inter_bitrate_pct;
@@ -227,7 +228,8 @@ static struct av1_extracfg default_extra_cfg = {
   5,              // gf_max_pyr_height
   AOM_TUNE_PSNR,  // tuning
   "/usr/local/share/model/vmaf_v0.6.1.pkl",  // VMAF model path
-  NULL,                                      // SubGOP config string
+  NULL,                                      // subgop_config_str
+  NULL,                                      // subgop_config_path
   40,                                        // qp
   0,                                         // rc_max_intra_bitrate_pct
   0,                                         // rc_max_inter_bitrate_pct
@@ -1063,6 +1065,7 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   gf_cfg->gf_max_pyr_height = extra_cfg->gf_max_pyr_height;
 
   oxcf->subgop_config_str = extra_cfg->subgop_config_str;
+  oxcf->subgop_config_path = extra_cfg->subgop_config_path;
 
   // Set tune related configuration.
   tune_cfg->tuning = extra_cfg->tuning;
@@ -1895,6 +1898,13 @@ static aom_codec_err_t ctrl_set_subgop_config_str(aom_codec_alg_priv_t *ctx,
                                                   va_list args) {
   struct av1_extracfg extra_cfg = ctx->extra_cfg;
   extra_cfg.subgop_config_str = CAST(AV1E_SET_SUBGOP_CONFIG_STR, args);
+  return update_extra_cfg(ctx, &extra_cfg);
+}
+
+static aom_codec_err_t ctrl_set_subgop_config_path(aom_codec_alg_priv_t *ctx,
+                                                   va_list args) {
+  struct av1_extracfg extra_cfg = ctx->extra_cfg;
+  extra_cfg.subgop_config_path = CAST(AV1E_SET_SUBGOP_CONFIG_PATH, args);
   return update_extra_cfg(ctx, &extra_cfg);
 }
 
@@ -3090,6 +3100,7 @@ static aom_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {
   { AV1E_SET_SINGLE_TILE_DECODING, ctrl_set_single_tile_decoding },
   { AV1E_SET_VMAF_MODEL_PATH, ctrl_set_vmaf_model_path },
   { AV1E_SET_SUBGOP_CONFIG_STR, ctrl_set_subgop_config_str },
+  { AV1E_SET_SUBGOP_CONFIG_PATH, ctrl_set_subgop_config_path },
   { AV1E_SET_FILM_GRAIN_TEST_VECTOR, ctrl_set_film_grain_test_vector },
   { AV1E_SET_FILM_GRAIN_TABLE, ctrl_set_film_grain_table },
   { AV1E_SET_DENOISE_NOISE_LEVEL, ctrl_set_denoise_noise_level },
