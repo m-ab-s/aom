@@ -8,4 +8,6 @@ void RegisterSelectedOpsAllQps(::tflite::MutableOpResolver *resolver) {
                        ::tflite::ops::builtin::Register_CONV_2D());
   resolver->AddBuiltin(::tflite::BuiltinOperator_DEPTHWISE_CONV_2D,
                        ::tflite::ops::builtin::Register_DEPTHWISE_CONV_2D());
+  resolver->AddBuiltin(::tflite::BuiltinOperator_MIRROR_PAD,
+                       ::tflite::ops::builtin::Register_MIRROR_PAD());
 }
