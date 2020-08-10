@@ -295,23 +295,6 @@ static const THR_MODES av1_default_mode_order[MAX_MODES] = {
   THR_D45_PRED,
 };
 
-static int find_last_single_ref_mode_idx(const THR_MODES *mode_order) {
-  uint8_t mode_found[NUM_SINGLE_REF_MODES];
-  av1_zero(mode_found);
-  int num_single_ref_modes_left = NUM_SINGLE_REF_MODES;
-
-  for (int idx = 0; idx < MAX_MODES; idx++) {
-    const THR_MODES curr_mode = mode_order[idx];
-    if (curr_mode < SINGLE_REF_MODE_END) {
-      num_single_ref_modes_left--;
-    }
-    if (!num_single_ref_modes_left) {
-      return idx;
-    }
-  }
-  return -1;
-}
-
 /*!\cond */
 typedef struct SingleInterModeState {
   int64_t rd;
@@ -3701,6 +3684,22 @@ static AOM_INLINE void init_neighbor_pred_buf(
   }
 }
 
+static AOM_INLINE int prune_ref_frame(const AV1_COMP *cpi, const MACROBLOCK *x,
+                                      MV_REFERENCE_FRAME ref_frame) {
+  const AV1_COMMON *const cm = &cpi->common;
+  MV_REFERENCE_FRAME rf[2];
+  av1_set_ref_frame(rf, ref_frame);
+
+  if ((cpi->prune_ref_frame_mask >> ref_frame) & 1) return 1;
+
+  if (prune_ref_by_selective_ref_frame(cpi, x, rf,
+                                       cm->cur_frame->ref_display_order_hint)) {
+    return 1;
+  }
+
+  return 0;
+}
+
 // Please add/modify parameter setting in this function, making it consistent
 // and easy to read and maintain.
 static AOM_INLINE void set_params_rd_pick_inter_mode(
@@ -3754,7 +3753,7 @@ static AOM_INLINE void set_params_rd_pick_inter_mode(
           AOMMIN(x->best_pred_mv_sad, x->pred_mv_sad[ref_frame]);
   }
   // ref_frame = ALTREF_FRAME
-  if (!cpi->sf.rt_sf.use_real_time_ref_set) {
+  if (!cpi->sf.rt_sf.use_real_time_ref_set && is_comp_ref_allowed(bsize)) {
     // No second reference on RT ref set, so no need to initialize
     for (; ref_frame < MODE_CTX_REF_FRAMES; ++ref_frame) {
       x->mbmi_ext->mode_context[ref_frame] = 0;
@@ -3771,6 +3770,10 @@ static AOM_INLINE void set_params_rd_pick_inter_mode(
           continue;
         }
       }
+      // Ref mv list population is not required, when compound references are
+      // pruned.
+      if (prune_ref_frame(cpi, x, ref_frame)) continue;
+
       av1_find_mv_refs(cm, xd, mbmi, ref_frame, mbmi_ext->ref_mv_count,
                        xd->ref_mv_stack, xd->weight, NULL, mbmi_ext->global_mvs,
                        mbmi_ext->mode_context);
@@ -3987,7 +3990,7 @@ static int inter_mode_search_order_independent_skip(
   }
 
   const int ref_type = av1_ref_frame_type(ref_frame);
-  if ((cpi->prune_ref_frame_mask >> ref_type) & 1) return 1;
+  if (prune_ref_frame(cpi, x, ref_type)) return 1;
 
   // This is only used in motion vector unit test.
   if (cpi->oxcf.unit_test_cfg.motion_vector_unit_test &&
@@ -3996,13 +3999,6 @@ static int inter_mode_search_order_independent_skip(
 
   const AV1_COMMON *const cm = &cpi->common;
   if (skip_repeated_mv(cm, x, mode, ref_frame, search_state)) {
-    return 1;
-  }
-
-  const int comp_pred = ref_frame[1] > INTRA_FRAME;
-  if ((!cpi->oxcf.ref_frm_cfg.enable_onesided_comp ||
-       cpi->sf.inter_sf.disable_onesided_comp) &&
-      comp_pred && cpi->all_one_sided_refs) {
     return 1;
   }
 
@@ -4050,10 +4046,6 @@ static int inter_mode_search_order_independent_skip(
         return 1;
     }
   }
-
-  if (prune_ref_by_selective_ref_frame(cpi, x, ref_frame,
-                                       cm->cur_frame->ref_display_order_hint))
-    return 1;
 
   if (skip_motion_mode) return 2;
 
@@ -4558,6 +4550,7 @@ typedef struct {
   int mode_thresh_mul_fact;
   int *intra_mode_idx_ls;
   int *intra_mode_num;
+  int *num_single_modes_processed;
   int prune_cpd_using_sr_stats_ready;
 } InterModeSFArgs;
 /*!\endcond */
@@ -4576,17 +4569,6 @@ static int skip_inter_mode(AV1_COMP *cpi, MACROBLOCK *x, const BLOCK_SIZE bsize,
   const MV_REFERENCE_FRAME ref_frame = ref_frames[0];
   const MV_REFERENCE_FRAME second_ref_frame = ref_frames[1];
   const int comp_pred = second_ref_frame > INTRA_FRAME;
-  const int last_single_ref_mode_idx =
-      find_last_single_ref_mode_idx(av1_default_mode_order);
-
-  // After we done with single reference modes, find the 2nd best RD
-  // for a reference frame. Only search compound modes that have a reference
-  // frame at least as good as the 2nd best.
-  if (sf->inter_sf.prune_compound_using_single_ref &&
-      midx == last_single_ref_mode_idx + 1) {
-    find_top_ref(ref_frame_rd);
-    args->prune_cpd_using_sr_stats_ready = 1;
-  }
 
   // Check if this mode should be skipped because it is incompatible with the
   // current frame
@@ -4641,10 +4623,18 @@ static int skip_inter_mode(AV1_COMP *cpi, MACROBLOCK *x, const BLOCK_SIZE bsize,
     return 1;
   }
 
-  if (sf->inter_sf.prune_compound_using_single_ref &&
-      args->prune_cpd_using_sr_stats_ready && comp_pred &&
-      !in_single_ref_cutoff(ref_frame_rd, ref_frame, second_ref_frame)) {
-    return 1;
+  if (sf->inter_sf.prune_compound_using_single_ref && comp_pred) {
+    // After we done with single reference modes, find the 2nd best RD
+    // for a reference frame. Only search compound modes that have a reference
+    // frame at least as good as the 2nd best.
+    if (!args->prune_cpd_using_sr_stats_ready &&
+        *args->num_single_modes_processed == NUM_SINGLE_REF_MODES) {
+      find_top_ref(ref_frame_rd);
+      args->prune_cpd_using_sr_stats_ready = 1;
+    }
+    if (args->prune_cpd_using_sr_stats_ready &&
+        !in_single_ref_cutoff(ref_frame_rd, ref_frame, second_ref_frame))
+      return 1;
   }
 
   if (sf->inter_sf.prune_compound_using_neighbors && comp_pred) {
@@ -4945,6 +4935,7 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
   inter_modes_info->num = 0;
 
   int intra_mode_num = 0;
+  int num_single_modes_processed = 0;
   int intra_mode_idx_ls[INTRA_MODES];
 
   // Temporary buffers used by handle_inter_mode().
@@ -5040,6 +5031,7 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
                               mode_thresh_mul_fact,
                               intra_mode_idx_ls,
                               &intra_mode_num,
+                              &num_single_modes_processed,
                               0 };
 
   // This is the main loop of this function. It loops over all possible modes
@@ -5065,6 +5057,7 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
     init_mbmi(mbmi, this_mode, ref_frames, cm);
 
     txfm_info->skip_txfm = 0;
+    num_single_modes_processed += is_single_pred;
     set_ref_ptrs(cm, xd, ref_frame, second_ref_frame);
 
     // Apply speed features to decide if this inter mode can be skipped

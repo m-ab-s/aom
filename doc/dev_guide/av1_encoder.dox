@@ -56,8 +56,8 @@ prediction modes. Furthermore, in addition to simple inter motion estimation,
 AV1 also supports warped motion prediction using affine transforms.
 
 In terms of transform coding, it has 16 separable 2-D transform kernels
-{ DCT, ADST, fADST, IDTX }2 that can be applied at up to 19 different scales
-from 64x64 down to 4x4 pixels.
+\f$(DCT, ADST, fADST, IDTX)^2\f$ that can be applied at up to 19 different
+scales from 64x64 down to 4x4 pixels.
 
 When combined together, this means that for any one 8x8 pixel block in a
 source frame, there are approximately 45,000,000 different ways that it can
@@ -79,7 +79,8 @@ things like :-
 
 For a more detailed overview of AV1's encoding tools and a discussion of some
 of the design considerations and hardware constraints that had to be
-accommodated, please refer to *** TODO link to Jingning's AV1 overview paper.
+accommodated, please refer to (TODO REF) <b>A Technical Overview of the AV1
+Standard</b> (TODO add link to Jingning's AV1 overview paper).
 
 Figure 3 provides a slightly expanded but still simplistic view of the
 AV1 encoder architecture with blocks that relate to some of the subsequent
@@ -160,6 +161,8 @@ encoder and referenced elsewhere in this overview document:
 - \ref HIGH_LEVEL_SPEED_FEATURES
     - \ref HIGH_LEVEL_SPEED_FEATURES.recode_loop
     - \ref HIGH_LEVEL_SPEED_FEATURES.recode_tolerance
+
+- \ref TplParams
 
 \section architecture_enc_use_cases Encoder Use Cases
 
@@ -1046,43 +1049,185 @@ The reader is also refered to the following functions and data structures:
  \ref av1_rd_use_partition(), or av1_rd_pick_partition() and returning best
  options for sub-trees to their parent partitions.
 
- In libaom, partition search lays on top of mode search (predictor, transform,
- etc.) instead of being a separate module, the interface of mode search is
- \ref pick_sb_modes(), which connects the partition_search with
- \ref inter_mode_search and \ref intra_mode_search. To make good decisions,
- reconstruction is also required in order to build references and contexts.
- This is implemented by \ref encode_sb() at the sub-tree level and
- \ref encode_b() at coding block level.
+ In libaom, the partition search lays on top of the mode search (predictor,
+ transform, etc.), instead of being a separate module. The interface of mode
+ search is \ref pick_sb_modes(), which connects the partition_search with
+ \ref architecture_enc_inter_modes and \ref architecture_enc_intra_modes. To
+ make good decisions, reconstruction is also required in order to build
+ references and contexts. This is implemented by \ref encode_sb() at the
+ sub-tree level and \ref encode_b() at coding block level.
 
  See also \ref partition_search
 
-\section architecture_enc_inter_modes Inter Prediction Mode Search
-
- Add details here.
-
 \section architecture_enc_intra_modes Intra Mode Search
 
- Add details here.
+AV1 also provides 71 different intra prediction modes, i.e. modes that predict
+only based upon information in the current frame with no dependency on
+previous or future frames. For key frames, where this independence from any
+other frame is a defining requirement and for other cases where intra only
+frames are required, the encoder need only considers these modes in the rate
+distortion loop.
+
+Even so, in most use cases, searching all possible intra prediction modes for
+every block and partition size is not practical and some pruning of the search
+tree is necessary.
+
+For the Rate distortion optimized case, the main top level function
+responsible for selecting the intra prediction mode for a given block is
+\ref av1_rd_pick_intra_mode_sb(). The readers attention is also drawn to the
+functions \ref hybrid_intra_mode_search() and \ref av1_nonrd_pick_intra_mode()
+which may be used where encode speed is critical. The choice between the
+rd path and the non rd or hybrid paths depends on the encoder use case and the
+\ref AV1_COMP.speed parameter. Further fine control of the speed vs quality
+trade off is provided by means of fields in \ref AV1_COMP.sf (which has type
+\ref SPEED_FEATURES).
+
+Note that some intra modes are only considered for specific use cases or
+types of video. For example the palette based prediction modes are often
+valueable for graphics or screen share content but not for natural video.
+(See \ref av1_search_palette_mode())
+
+See also \ref intra_mode_search for more details.
+
+\section architecture_enc_inter_modes Inter Prediction Mode Search
+
+For inter frames, where we also allow prediction using one or more previously
+coded frames (which may chronologically speaking be past or future frames or
+non-display reference buffers such as ARF frames), the size of the search tree
+that needs to be traversed, to select a prediction mode, is considerably more
+massive.
+
+In addition to the 71 possible intra modes we also need to consider 56 single
+frame inter prediction modes (7 reference frames x 4 modes x 2 for OBMC
+(overlapped block motion compensation)), 12768 compound inter prediction modes
+(these are modes that combine inter predictors from two reference frames) and
+36708 compound inter / intra prediction modes.
+
+As with the intra mode search, libaom supports an RD based pathway and a non
+rd pathway for speed critical use cases.  The entry points for these two cases
+are \ref av1_rd_pick_inter_mode_sb() and \ref av1_nonrd_pick_inter_mode_sb()
+respectively.
+
+Various heuristics and predictive strategies are used to prune the search tree
+with fine control provided through the speed features parameter in the main
+compressor instance data structure \ref AV1_COMP.sf.
+
+It is worth noting, that some prediction modes incurr a much larger rate cost
+than others (ignoring for now the cost of coding the error residual). For
+example, a compound mode that requires the encoder to specify two reference
+frames and two new motion vectors will almost inevitable have a higher rate
+cost than a simple inter prediction mode that uses a predicted or 0,0 motion
+vector. As such, if we have already found a mode for the current block that
+has a low RD cost, we can skip a large number of the possible modes on the
+basis that even if the error residual is 0 the inherent rate cost of the
+mode itself will garauntee that it is not chosen.
+
+See also \ref inter_mode_search for more details.
 
 \section architecture_enc_tx_search Transform Search
 
- Add details here.
+AV1 implements the transform stage using 4 seperable 1-d transforms (DCT,
+ADST, FLIPADST and IDTX, where FLIPADST is the reversed version of ADST
+and IDTX is the identity transform) which can be combined to give 16 2-d
+combinations.
 
-\section architecture_loop_filt Loop Filtering
+These combinations can be applied at 19 different scales from 64x64 pixels
+down to 4x4 pixels.
 
- Add details here.
+This gives rise to a large number of possible candidate transform options
+for coding the residual error after prediction. An exhaustive rate-distortion
+based evaluation of all candidates would not be practical from a speed
+perspective in a production encoder implementation. Hence libaom addopts a
+number of strategies to prune the selection of both the transform size and
+transform type.
 
-\section architecture_loop_rest Loop Restoration Filtering
+There are a number of strategies that have been tested and implememnted in
+libaom including:
 
- Add details here.
+- A statistics based approach that looks at the frequency with which certain
+  combinations are used in a given context and prunes out very unlikely
+  candidates. It is worth noting here that some size candidates can be pruned
+  out immediately based on the size of the prediction partition. For example it
+  does not make sense to use a transform size that is larger than the
+  prediction partition size but also a very large prediction partition size is
+  unlikely to be optimally pared with small transforms.
 
-\section architecture_cdef CDEF
+- A Machine learning based model
 
- Add details here.
+- A method that initially tests candidates using a fast algorithm that skips
+  entropy encoding and uses an estimated cost model to choose a reduced subset
+  for full RD analysis. This subject is covered more fully in a paper authored
+  by Bohan Li, Jingning Han, and Yaowu Xu titled: <b>Fast Transform Type
+  Selection Using Conditional Laplace Distribution Based Rate Estimation</b>
+
+<b>TODO Add link to paper when available</b>
+
+See also \ref transform_search for more details.
+
+\section architecture_post_enc_filt Post Encode Loop Filtering
+
+AV1 supports three types of post encode <b>in loop</b> filtering to improve
+the quality of the reconstructed video.
+
+- <b>Deblocking Filter</b> The first of these is a farily traditional boundary
+  deblocking filter that attempts to smooth discontinuities that may occur at
+  the boundaries between blocks. See also \ref in_loop_filter.
+
+- <b>CDEF Filter</b> The constrained directional enhancement filter (CDEF)
+  allows the codec to apply a non-linear deringing filter along certain
+  (potentially oblique) directions. A primary filter is applied along the
+  selected direction, whilst a secondary filter is applied at 45 degrees to
+  the primary direction. (See also \ref in_loop_cdef and (TODO REF)
+  <b>A Technical Overview of the AV1 Standard</b> (TODO add link to
+  Jingning's AV1 overview paper).
+
+- <b>Loop Restoration Filter</b> The loop restoration filter is applied after
+  any prior post filtering stages. It acts on units of either 64 x 64,
+  128 x 128, or 256 x 256 pixel blocks, refered to as loop restoration units.
+  Each unit can independently select either to bypass filtering, use a Wiener
+  filter, or use a self-guided filter. (See also \ref in_loop_restoration and
+  (TODO REF) <b>A Technical Overview of the AV1 Standard</b> (TODO add link
+  to Jingning's AV1 overview paper).
 
 \section architecture_entropy Entropy Coding
 
- Add details here.
+\subsection architecture_entropy_aritmetic Arithmetic Coder
+
+VP9, used a binary arithmetic coder to encode symbols, where the propability
+of a 1 or 0 at each descision node was based on a context model that took
+into account recently coded values (for example previously coded coefficients
+in the current block). A mechanism existed to update the context model each
+frame, either explicitly in the bitstream, or implicitly at both the encoder
+and decoder based on the observed frequency of different outcomes in the
+previous frame. VP9 also supported seperate context models for different types
+of frame (e.g. inter coded frames and key frames).
+
+In contrast, AV1 uses an M-ary symbol arithmetic coder to compress the syntax
+elements, where integer \f$M\in[2, 14]\f$. This approach is based upon the entropy
+coding strategy used in the Daala video codec and allows for some bit-level
+parallelism in its implementation. AV1 also has an extended context model and
+allows for updates to the probabilities on a per symbol basis as opposed to
+the per frame strategy in VP9.
+
+To improve the performance / throughput of the arithmetic encoder, especially
+in hardware implementations, the probability model is updated and maintained
+at 15-bit precision, but the arithmetic encoder only uses the most significant
+9 bits when encoding a symbol. A more detailed discussion of the algorithm
+and design constraints can be found in (TODO REF) <b>A Technical Overview of
+the AV1 Standard</b> (TODO add link to Jingning's AV1 overview paper).
+
+TODO add references to key functions / files.
+
+As with VP9, a mechanism exists in AV1 to encode some elements into the
+bitstream as uncrompresed bits or literal values, without using the arithmetic
+coder. For example, some frame and sequence header values, where it is
+beneficial to be able to read the values directly.
+
+TODO add references to key functions / files.
+
+\subsection architecture_entropy_coef Coefficient Coding and Optimisaztion
+
+See also \ref coefficient_coding for more details.
 
 */
 
@@ -1320,7 +1465,6 @@ void second_pass(char *stats, size_t stats_len) {
 /*!\defgroup transform_search Transform Search
  * \ingroup encoder_algo
  * This module describes transform search algorithm in AV1.
- * More details will be added.
  * @{
  */
 /*! @} - end defgroup transform_search */

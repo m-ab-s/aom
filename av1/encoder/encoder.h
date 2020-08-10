@@ -2814,7 +2814,7 @@ int av1_convert_sect5obus_to_annexb(uint8_t *buffer, size_t *input_size);
 //   cpi->common.allow_intrabc
 // However, the estimation is not accurate and may misclassify videos.
 // A slower but more accurate approach that determines whether to use screen
-// content tools is employed later. See determine_sc_tools_with_encoding().
+// content tools is employed later. See av1_determine_sc_tools_with_encoding().
 void av1_set_screen_content_options(const struct AV1_COMP *cpi,
                                     FeatureFlags *features);
 
@@ -3199,10 +3199,19 @@ aom_fixed_buf_t *av1_get_global_headers(AV1_COMP *cpi);
 #define MAX_GFUBOOST_FACTOR 10.0
 #define MIN_GFUBOOST_FACTOR 4.0
 
-static INLINE int is_frame_tpl_eligible(const GF_GROUP *const gf_group) {
-  const FRAME_UPDATE_TYPE update_type = gf_group->update_type[gf_group->index];
+static INLINE int is_frame_tpl_eligible(const GF_GROUP *const gf_group,
+                                        uint8_t index) {
+  const FRAME_UPDATE_TYPE update_type = gf_group->update_type[index];
   return update_type == ARF_UPDATE || update_type == GF_UPDATE ||
          update_type == KF_UPDATE;
+}
+
+static INLINE int is_frame_eligible_for_ref_pruning(const GF_GROUP *gf_group,
+                                                    int selective_ref_frame,
+                                                    int prune_ref_frames,
+                                                    int gf_index) {
+  return (selective_ref_frame > 0) && (prune_ref_frames > 0) &&
+         !is_frame_tpl_eligible(gf_group, gf_index);
 }
 
 // Get update type of the current frame.

@@ -447,8 +447,9 @@ static const arg_def_t enable_tpl_model =
             "This is required for deltaq mode.");
 static const arg_def_t enable_keyframe_filtering =
     ARG_DEF(NULL, "enable-keyframe-filtering", 1,
-            "Apply temporal filtering on key frame "
-            "(0: false, 1: true (default)");
+            "Apply temporal filtering on key frame"
+            "(0: no filter, 1: filter without overlay (default),"
+            "2: filter with overlay)");
 static const arg_def_t tile_width =
     ARG_DEF(NULL, "tile-width", 1, "Tile widths (comma separated)");
 static const arg_def_t tile_height =
@@ -1621,12 +1622,6 @@ static int parse_stream_params(struct AvxEncoderConfig *global,
       config->cfg.g_error_resilient = arg_parse_uint(&arg);
     } else if (arg_match(&arg, &lag_in_frames, argi)) {
       config->cfg.g_lag_in_frames = arg_parse_uint(&arg);
-      if (global->usage == AOM_USAGE_REALTIME &&
-          config->cfg.rc_end_usage == AOM_CBR &&
-          config->cfg.g_lag_in_frames != 0) {
-        warn("non-zero %s option ignored in realtime CBR mode.\n", arg.name);
-        config->cfg.g_lag_in_frames = 0;
-      }
     } else if (arg_match(&arg, &large_scale_tile, argi)) {
       config->cfg.large_scale_tile = arg_parse_uint(&arg);
       if (config->cfg.large_scale_tile) {
@@ -1765,6 +1760,10 @@ static int parse_stream_params(struct AvxEncoderConfig *global,
   }
   config->use_16bit_internal |= config->cfg.g_bit_depth > AOM_BITS_8;
 
+  if (global->usage == AOM_USAGE_REALTIME && config->cfg.g_lag_in_frames != 0) {
+    warn("non-zero lag-in-frames option ignored in realtime mode.\n");
+    config->cfg.g_lag_in_frames = 0;
+  }
   return eos_mark_found;
 }
 
