@@ -353,7 +353,10 @@ static void get_gop_cfg_enabled_refs(AV1_COMP *const cpi, int *ref_frame_flags,
       }
     }
     if (best_frame == -1) {
-      fprintf(stderr, "GOP CFG REF FRAME WARNING\n");
+      fprintf(stderr,
+              "Warning [Subgop cfg]: "
+              "Level %d ref for frame %d not found\n",
+              level, step_gop_cfg->disp_frame_idx);
     } else {
       ref_frame_used[best_frame] = 1;
       disp_orders[abs_level][best_frame_index] = -1;
