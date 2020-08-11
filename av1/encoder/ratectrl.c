@@ -1024,8 +1024,14 @@ static int get_q_using_fixed_offsets(const AV1EncoderConfig *const oxcf,
   } else if (update_type == INTNL_ARF_UPDATE) {
     offset_idx =
         AOMMIN(gf_group->layer_depth[gf_index], FIXED_QP_OFFSET_COUNT - 1);
-  } else {  // Leaf level / overlay frame.
-    assert(update_type == LF_UPDATE || update_type == OVERLAY_UPDATE ||
+  } else if (update_type == LF_UPDATE) {
+    if (gf_group->layer_depth[gf_index] >= FIXED_QP_OFFSET_COUNT) {  // Leaf.
+      return qp;  // Directly Return worst quality allowed.
+    }
+    offset_idx =
+        AOMMIN(gf_group->layer_depth[gf_index], FIXED_QP_OFFSET_COUNT - 1);
+  } else {  // Overlay frame.
+    assert(update_type == OVERLAY_UPDATE ||
            update_type == INTNL_OVERLAY_UPDATE);
     return qp;  // Directly Return worst quality allowed.
   }
