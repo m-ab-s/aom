@@ -264,16 +264,43 @@ static const int16_t ac_qlookup_12_QTX[QINDEX_RANGE] = {
 int32_t av1_dc_quant_QTX(int qindex, int delta, int base_dc_delta_q,
                          aom_bit_depth_t bit_depth) {
 #if CONFIG_EXTQUANT_HBD
+#if CONFIG_LOWQP_QUANT_CLIP
+  int q_clamped;
+  if ((qindex == 0) && (delta - base_dc_delta_q <= 0))
+    q_clamped = 0;
+  else
+    q_clamped = clamp(qindex - base_dc_delta_q + delta, 1,
+                      bit_depth == AOM_BITS_8
+                          ? MAXQ_8_BITS
+                          : bit_depth == AOM_BITS_10 ? MAXQ_10_BITS : MAXQ);
+#else
   const int q_clamped = clamp(
       qindex - base_dc_delta_q + delta, 0,
       bit_depth == AOM_BITS_8 ? MAXQ_8_BITS
                               : bit_depth == AOM_BITS_10 ? MAXQ_10_BITS : MAXQ);
+#endif
+#else
+#if CONFIG_LOWQP_QUANT_CLIP
+  int q_clamped;
+  if ((qindex == 0) && (delta - base_dc_delta_q <= 0))
+    q_clamped = 0;
+  else
+    q_clamped = clamp(qindex - base_dc_delta_q + delta, 1, MAXQ);
 #else
   const int q_clamped = clamp(qindex - base_dc_delta_q + delta, 0, MAXQ);
 #endif
+#endif
 #else
 int32_t av1_dc_quant_QTX(int qindex, int delta, aom_bit_depth_t bit_depth) {
+#if CONFIG_LOWQP_QUANT_CLIP
+  int q_clamped;
+  if ((qindex == 0) && (delta <= 0))
+    q_clamped = 0;
+  else
+    q_clamped = clamp(qindex + delta, 1, MAXQ);
+#else
   const int q_clamped = clamp(qindex + delta, 0, MAXQ);
+#endif
 #endif  // CONFIG_DELTA_DCQUANT
   if (q_clamped == 0) return (int32_t)ac_qlookup_QTX[q_clamped];
 
@@ -310,10 +337,26 @@ int32_t av1_dc_quant_QTX(int qindex, int delta, aom_bit_depth_t bit_depth) {
 #if CONFIG_DELTA_DCQUANT
 int16_t av1_dc_quant_QTX(int qindex, int delta, int base_dc_delta_q,
                          aom_bit_depth_t bit_depth) {
+#if CONFIG_LOWQP_QUANT_CLIP
+  int q_clamped;
+  if ((qindex == 0) && (delta - base_dc_delta_q <= 0))
+    q_clamped = 0;
+  else
+    q_clamped = clamp(qindex - base_dc_delta_q + delta, 1, MAXQ);
+#else
   const int q_clamped = clamp(qindex - base_dc_delta_q + delta, 0, MAXQ);
+#endif
 #else
 int16_t av1_dc_quant_QTX(int qindex, int delta, aom_bit_depth_t bit_depth) {
+#if CONFIG_LOWQP_QUANT_CLIP
+  int q_clamped;
+  if ((qindex == 0) && (delta <= 0))
+    q_clamped = 0;
+  else
+    q_clamped = clamp(qindex + delta, 1, MAXQ);
+#else
   const int q_clamped = clamp(qindex + delta, 0, MAXQ);
+#endif
 #endif  // CONFIG_DELTA_DCQUANT
   switch (bit_depth) {
 #if CONFIG_DELTA_DCQUANT
@@ -335,12 +378,31 @@ int16_t av1_dc_quant_QTX(int qindex, int delta, aom_bit_depth_t bit_depth) {
 #if CONFIG_EXTQUANT
 int32_t av1_ac_quant_QTX(int qindex, int delta, aom_bit_depth_t bit_depth) {
 #if CONFIG_EXTQUANT_HBD
+#if CONFIG_LOWQP_QUANT_CLIP
+  int q_clamped;
+  if ((qindex == 0) && (delta <= 0))
+    q_clamped = 0;
+  else
+    q_clamped = clamp(qindex + delta, 1,
+                      bit_depth == AOM_BITS_8
+                          ? MAXQ_8_BITS
+                          : bit_depth == AOM_BITS_10 ? MAXQ_10_BITS : MAXQ);
+#else
   const int q_clamped = clamp(
       qindex + delta, 0,
       bit_depth == AOM_BITS_8 ? MAXQ_8_BITS
                               : bit_depth == AOM_BITS_10 ? MAXQ_10_BITS : MAXQ);
+#endif
+#else
+#if CONFIG_LOWQP_QUANT_CLIP
+  int q_clamped;
+  if ((qindex == 0) && (delta <= 0))
+    q_clamped = 0;
+  else
+    q_clamped = clamp(qindex + delta, 1, MAXQ);
 #else
   const int q_clamped = clamp(qindex + delta, 0, MAXQ);
+#endif
 #endif
   if (q_clamped == 0) return (int32_t)ac_qlookup_QTX[q_clamped];
 
@@ -375,7 +437,15 @@ int32_t av1_ac_quant_QTX(int qindex, int delta, aom_bit_depth_t bit_depth) {
 }
 #else
 int16_t av1_ac_quant_QTX(int qindex, int delta, aom_bit_depth_t bit_depth) {
+#if CONFIG_LOWQP_QUANT_CLIP
+  int q_clamped;
+  if ((qindex == 0) && (delta <= 0))
+    q_clamped = 0;
+  else
+    q_clamped = clamp(qindex + delta, 1, MAXQ);
+#else
   const int q_clamped = clamp(qindex + delta, 0, MAXQ);
+#endif
   switch (bit_depth) {
     case AOM_BITS_8: return ac_qlookup_QTX[q_clamped];
     case AOM_BITS_10: return ac_qlookup_10_QTX[q_clamped];

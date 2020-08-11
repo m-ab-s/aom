@@ -6533,6 +6533,15 @@ static void encode_frame_internal(AV1_COMP *cpi) {
 #endif
                            : cm->base_qindex;
 #if CONFIG_DELTA_DCQUANT
+#if CONFIG_LOWQP_QUANT_CLIP
+    xd->lossless[i] =
+        qindex == 0 &&
+        (cm->y_dc_delta_q - cm->seq_params.base_y_dc_delta_q <= 0) &&
+        (cm->u_dc_delta_q - cm->seq_params.base_uv_dc_delta_q <= 0) &&
+        cm->u_ac_delta_q <= 0 &&
+        (cm->v_dc_delta_q - cm->seq_params.base_uv_dc_delta_q <= 0) &&
+        cm->v_ac_delta_q <= 0;
+#else
     xd->lossless[i] =
         qindex == 0 &&
         (cm->y_dc_delta_q - cm->seq_params.base_y_dc_delta_q <= 0) &&
@@ -6540,10 +6549,17 @@ static void encode_frame_internal(AV1_COMP *cpi) {
         cm->u_ac_delta_q == 0 &&
         (cm->v_dc_delta_q - cm->seq_params.base_uv_dc_delta_q <= 0) &&
         cm->v_ac_delta_q == 0;
+#endif
+#else
+#if CONFIG_LOWQP_QUANT_CLIP
+    xd->lossless[i] = qindex == 0 && cm->y_dc_delta_q <= 0 &&
+                      cm->u_dc_delta_q <= 0 && cm->u_ac_delta_q <= 0 &&
+                      cm->v_dc_delta_q <= 0 && cm->v_ac_delta_q <= 0;
 #else
     xd->lossless[i] = qindex == 0 && cm->y_dc_delta_q == 0 &&
                       cm->u_dc_delta_q == 0 && cm->u_ac_delta_q == 0 &&
                       cm->v_dc_delta_q == 0 && cm->v_ac_delta_q == 0;
+#endif
 #endif  // CONFIG_DELTA_DCQUANT
     if (xd->lossless[i]) cpi->has_lossless_segment = 1;
     xd->qindex[i] = qindex;
