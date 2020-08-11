@@ -886,9 +886,9 @@ void av1_make_inter_predictor(
   p_col -= border;
   // Build the top row of the extension in 8x8 blocks.
   make_inter_pred_8x8(src, src_stride, dst, dst_stride, subpel_params, sf,
-                      border + border + w, border, w, h, conv_params,
-                      interp_filters, warp_types, p_col, p_row, plane, ref, mi,
-                      build_for_obmc, xd, can_use_previous);
+                      border + w, border, w, h, conv_params, interp_filters,
+                      warp_types, p_col, p_row, plane, ref, mi, build_for_obmc,
+                      xd, can_use_previous);
   src += src_stride * border;
   dst += dst_stride * border;
   p_row += border;

@@ -87,18 +87,23 @@ static INLINE void enc_calc_subpel_params(
 static void enc_build_inter_predictors(const AV1_COMMON *cm, MACROBLOCKD *xd,
                                        int plane, const MB_MODE_INFO *mi,
                                        int build_for_obmc, int bw, int bh,
-                                       int mi_x, int mi_y) {
-  const int border = 0;
+                                       int mi_x, int mi_y, bool store_border) {
+  const int border =
+      store_border ? av1_calc_border(xd, plane, build_for_obmc) : 0;
   av1_build_inter_predictors(cm, xd, plane, mi, build_for_obmc, bw, bh, mi_x,
                              mi_y, enc_calc_subpel_params, NULL,
                              xd->plane[plane].dst.buf,
                              xd->plane[plane].dst.stride, border);
 }
 
+// If store_border is true, then the border is stored at a negative offset in
+// xd->plane[plane].dst.buf. Otherwise, it is computed separately, used for
+// the predictor, and only the predictor is stored in xd->plane[plane].dst.buf.
 static void build_inter_predictors_for_plane(const AV1_COMMON *cm,
                                              MACROBLOCKD *xd, int mi_row,
                                              int mi_col, const BUFFER_SET *ctx,
-                                             BLOCK_SIZE bsize, int plane_idx) {
+                                             BLOCK_SIZE bsize, int plane_idx,
+                                             bool store_border) {
   const struct macroblockd_plane *pd = &xd->plane[plane_idx];
   if (plane_idx && !xd->mi[0]->chroma_ref_info.is_chroma_ref) return;
 
@@ -107,7 +112,7 @@ static void build_inter_predictors_for_plane(const AV1_COMMON *cm,
   const int build_for_obmc = 0;
   if (!is_interintra_pred(xd->mi[0])) {
     enc_build_inter_predictors(cm, xd, plane_idx, xd->mi[0], build_for_obmc,
-                               pd->width, pd->height, mi_x, mi_y);
+                               pd->width, pd->height, mi_x, mi_y, store_border);
     return;
   }
 
@@ -123,17 +128,18 @@ static void build_inter_predictors_for_plane(const AV1_COMMON *cm,
   const int border = av1_calc_border(xd, plane_idx, build_for_obmc);
   uint8_t *interpred = xd->plane[plane_idx].dst.buf;
   int interpred_stride = xd->plane[plane_idx].dst.stride;
-  if (border > 0) {
+  if (!store_border && border > 0) {
     av1_alloc_buf_with_border(&interpred, &interpred_stride, border,
                               is_cur_buf_hbd(xd));
   }
+
   av1_build_inter_predictors(
       cm, xd, plane_idx, xd->mi[0], build_for_obmc, pd->width, pd->height, mi_x,
       mi_y, enc_calc_subpel_params, NULL, interpred, interpred_stride, border);
   // Stores the result in xd->plane[plane_idx].dst.buf.
   av1_build_interintra_predictors_sbp(cm, xd, interpred, interpred_stride, ctx,
                                       plane_idx, bsize, border);
-  if (border > 0) {
+  if (!store_border && border > 0) {
     av1_free_buf_with_border(interpred, interpred_stride, border,
                              is_cur_buf_hbd(xd));
   }
@@ -145,7 +151,18 @@ void av1_enc_build_inter_predictor(const AV1_COMMON *cm, MACROBLOCKD *xd,
                                    int plane_from, int plane_to) {
   for (int plane_idx = plane_from; plane_idx <= plane_to; ++plane_idx) {
     build_inter_predictors_for_plane(cm, xd, mi_row, mi_col, ctx, bsize,
-                                     plane_idx);
+                                     plane_idx, false);
+  }
+}
+
+void av1_enc_build_border_inter_predictor(const AV1_COMMON *cm, MACROBLOCKD *xd,
+                                          int mi_row, int mi_col,
+                                          const BUFFER_SET *ctx,
+                                          BLOCK_SIZE bsize, int plane_from,
+                                          int plane_to) {
+  for (int plane_idx = plane_from; plane_idx <= plane_to; ++plane_idx) {
+    build_inter_predictors_for_plane(cm, xd, mi_row, mi_col, ctx, bsize,
+                                     plane_idx, true);
   }
 }
 
@@ -207,7 +224,7 @@ static INLINE void build_prediction_by_above_pred(
 
     if (av1_skip_u4x4_pred_in_obmc(mi_row, mi_col, bsize, pd, 0)) continue;
     enc_build_inter_predictors(ctxt->cm, xd, j, &backup_mbmi, 1, bw, bh, mi_x,
-                               mi_y);
+                               mi_y, false /* store_border */);
   }
 }
 
@@ -262,7 +279,7 @@ static INLINE void build_prediction_by_left_pred(
 
     if (av1_skip_u4x4_pred_in_obmc(mi_row, mi_col, bsize, pd, 1)) continue;
     enc_build_inter_predictors(ctxt->cm, xd, j, &backup_mbmi, 1, bw, bh, mi_x,
-                               mi_y);
+                               mi_y, false /* store_border */);
   }
 }
 

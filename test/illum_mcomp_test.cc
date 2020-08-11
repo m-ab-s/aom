@@ -21,6 +21,8 @@ namespace {
 // To instantiate a regular test.
 class IllumMcompTest : public ::testing::Test {};
 
+#if ILLUM_MCOMP_OLD
+
 TEST_F(IllumMcompTest, ComputeDc) {
   uint8_t pred[256];
   // Averaging the same color, is always that color.
@@ -69,6 +71,8 @@ TEST_F(IllumMcompTest, ComputeDcHigh) {
   ASSERT_EQ(512, illum_mcomp_compute_dc_highbd(pred, 2, 1, 128));
   ASSERT_EQ(512, illum_mcomp_compute_dc_highbd(pred, 2, 2, 128));
 }
+
+#endif  // ILLUM_MCOMP_OLD
 
 }  // namespace
 

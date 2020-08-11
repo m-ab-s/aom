@@ -10681,8 +10681,8 @@ static int handle_inter_intra_mode(const AV1_COMP *const cpi,
   const int mi_row = xd->mi_row;
   const int mi_col = xd->mi_col;
 
-  av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize,
-                                AOM_PLANE_Y, AOM_PLANE_Y);
+  av1_enc_build_border_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize,
+                                       AOM_PLANE_Y, AOM_PLANE_Y);
 
   restore_dst_buf(xd, *orig_dst, num_planes);
   mbmi->ref_frame[1] = INTRA_FRAME;
