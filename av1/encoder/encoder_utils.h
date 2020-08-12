@@ -24,7 +24,6 @@ extern "C" {
 
 #define AM_SEGMENT_ID_INACTIVE 7
 #define AM_SEGMENT_ID_ACTIVE 0
-#define DUMP_RECON_FRAMES 0
 
 extern const int default_tx_type_probs[FRAME_UPDATE_TYPES][TX_SIZES_ALL]
                                       [TX_TYPES];
@@ -818,10 +817,6 @@ void av1_set_mb_ssim_rdmult_scaling(AV1_COMP *cpi);
 
 #if CONFIG_SUPERRES_IN_RECODE
 void av1_save_all_coding_context(AV1_COMP *cpi);
-#endif
-
-#if DUMP_RECON_FRAMES == 1
-void av1_dump_filtered_recon_frames(AV1_COMP *cpi);
 #endif
 
 #ifdef __cplusplus

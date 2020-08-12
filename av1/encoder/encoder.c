@@ -2853,11 +2853,6 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
 
     cpi->seq_params_locked = 1;
 
-#if DUMP_RECON_FRAMES == 1
-    // NOTE(zoeliu): For debug - Output the filtered reconstructed video.
-    av1_dump_filtered_recon_frames(cpi);
-#endif  // DUMP_RECON_FRAMES
-
     // NOTE: Save the new show frame buffer index for --test-code=warn, i.e.,
     //       for the purpose to verify no mismatch between encoder and decoder.
     if (cm->show_frame) cpi->last_show_frame_buf = cm->cur_frame;
@@ -3038,11 +3033,6 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
 
   if (cpi->svc.spatial_layer_id == cpi->svc.number_spatial_layers - 1)
     cpi->svc.num_encoded_top_layer++;
-
-#if DUMP_RECON_FRAMES == 1
-  // NOTE(zoeliu): For debug - Output the filtered reconstructed video.
-  av1_dump_filtered_recon_frames(cpi);
-#endif  // DUMP_RECON_FRAMES
 
   if (cm->seg.enabled) {
     if (cm->seg.update_map) {
