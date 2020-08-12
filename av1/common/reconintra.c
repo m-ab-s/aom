@@ -2205,11 +2205,31 @@ int av1_intra_left_available(const MACROBLOCKD *xd, int plane) {
   }
 }
 
+int av1_intra_bottom_unavailable(const MACROBLOCKD *xd, const int plane,
+                                 const TX_SIZE tx_size) {
+  const int txhpx = tx_size_high[tx_size];
+  const int hpx = xd->plane[plane].height;
+  const int ssy = xd->plane[plane].subsampling_y;
+  const int yd = (xd->mb_to_bottom_edge >> (3 + ssy)) + hpx - txhpx;
+  return yd < 0 ? -1 * yd : 0;
+}
+
+int av1_intra_right_unavailable(const MACROBLOCKD *xd, const int plane,
+                                const TX_SIZE tx_size) {
+  const int txwpx = tx_size_wide[tx_size];
+  const int wpx = xd->plane[plane].width;
+  const int ssx = xd->plane[plane].subsampling_x;
+  const int xr = (xd->mb_to_right_edge >> (3 + ssx)) + wpx - txwpx;
+  return xr < 0 ? -1 * xr : 0;
+}
+
 static void extend_intra_border_cols(const uint8_t *ref, int ref_stride,
                                      uint8_t *dst, int dst_stride,
-                                     int left_available_cols, const int height,
-                                     int border, aom_bit_depth_t bd,
-                                     bool is_hbd) {
+                                     int left_available_cols,
+                                     int bottom_unavailable_rows,
+                                     const int height, int border,
+                                     aom_bit_depth_t bd, bool is_hbd) {
+  assert(height > bottom_unavailable_rows);
   const int left_part = AOMMIN(border, left_available_cols);
   // If there is no data, use the default value.
   if (left_part == 0) {
@@ -2224,7 +2244,8 @@ static void extend_intra_border_cols(const uint8_t *ref, int ref_stride,
 
   dst -= border;
   ref -= left_part;
-  for (int j = 0; j < height; ++j) {
+  const int copyable = height - bottom_unavailable_rows;
+  for (int j = 0; j < copyable; ++j) {
     // If there is partial data, replicate the closest column.
     int last_val = last_val_bd(ref, 0, is_hbd);
     av1_bd_memset(dst, last_val, border - left_part, is_hbd);
@@ -2233,13 +2254,20 @@ static void extend_intra_border_cols(const uint8_t *ref, int ref_stride,
     dst += dst_stride;
     ref += ref_stride;
   }
+  for (int j = 0; j < bottom_unavailable_rows; ++j) {
+    // Copy the previous row.
+    av1_bd_memmove(dst, dst - dst_stride, border, is_hbd);
+    dst += dst_stride;
+  }
 }
 
 static void extend_intra_border_rows(const uint8_t *ref, int ref_stride,
                                      uint8_t *dst, int dst_stride,
-                                     int top_available_rows, const int width,
-                                     int border, aom_bit_depth_t bd,
-                                     bool is_hbd) {
+                                     int top_available_rows,
+                                     int right_unavailable_cols,
+                                     const int width, int border,
+                                     aom_bit_depth_t bd, bool is_hbd) {
+  assert(width > right_unavailable_cols);
   const int top_part = AOMMIN(border, top_available_rows);
   // If there is no data, use the default value.
   if (top_part == 0) {
@@ -2251,18 +2279,22 @@ static void extend_intra_border_rows(const uint8_t *ref, int ref_stride,
     }
     return;
   }
-
   // If there is partial data, replicate the closest row.
   dst -= border * dst_stride;
   ref -= top_part * ref_stride;
+  const int copyable = width - right_unavailable_cols;
   for (int j = 0; j < border - top_part; ++j) {
-    av1_bd_memmove(dst, ref, width, is_hbd);
+    av1_bd_memmove(dst, ref, copyable, is_hbd);
+    int last_val = last_val_bd(dst, copyable - 1, is_hbd);
+    av1_bd_memset(dst + copyable, last_val, right_unavailable_cols, is_hbd);
     dst += dst_stride;
   }
 
   // Copy over the remaining data.
   for (int j = 0; j < top_part; ++j) {
-    av1_bd_memmove(dst, ref, width, is_hbd);
+    av1_bd_memmove(dst, ref, copyable, is_hbd);
+    int last_val = last_val_bd(dst, copyable - 1, is_hbd);
+    av1_bd_memset(dst + copyable, last_val, right_unavailable_cols, is_hbd);
     dst += dst_stride;
     ref += ref_stride;
   }
@@ -2338,18 +2370,31 @@ static void extend_intra_border_corner(const uint8_t *ref, int ref_stride,
 // 3. For the top-left, if it exists in the reference buffer, copy
 // it over. If no values exist, use ((1 << (bit depth - 1)) - 1). Otherwise,
 // replicate leftward followed by replicating upward.
+//
+// Note that it's possible for a block to extend beyond the boundaries of an
+// image (imagine a 32x8 block positioned 32 pixels from the right border
+// but only 4 pixels from the bottom border -- it would extend 4 pixels
+// below the end of the frame). In this situation, the unavailable rows or
+// columns must be extended.
 void av1_extend_intra_border(const uint8_t *ref, int ref_stride, uint8_t *dst,
                              int dst_stride, int top_available_rows,
-                             int left_available_cols, const int width,
+                             int right_unavailable_cols,
+                             int left_available_cols,
+                             int bottom_unavailable_rows, const int width,
                              const int height, int border, aom_bit_depth_t bd,
                              bool is_hbd) {
   // Step 1: copy over the rows.
   extend_intra_border_rows(ref, ref_stride, dst, dst_stride, top_available_rows,
-                           width, border, bd, is_hbd);
+                           right_unavailable_cols, width, border, bd, is_hbd);
   // Step 2: copy over the columns.
   extend_intra_border_cols(ref, ref_stride, dst, dst_stride,
-                           left_available_cols, height, border, bd, is_hbd);
-  // Step 3: copy over the top-left corner.
+                           left_available_cols, bottom_unavailable_rows, height,
+                           border, bd, is_hbd);
+  // Step 3: copy over the top-left corner. No need to check for unavailable
+  // rows or columns -- in such a case where it would affect it, either
+  // top_available_rows or left_available cols would be zero.
+  assert(right_unavailable_cols < width);
+  assert(bottom_unavailable_rows < height);
   extend_intra_border_corner(ref, ref_stride, dst, dst_stride,
                              top_available_rows, left_available_cols, border,
                              bd, is_hbd);
