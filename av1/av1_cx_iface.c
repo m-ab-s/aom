@@ -703,11 +703,6 @@ static aom_codec_err_t validate_img(aom_codec_alg_priv_t *ctx,
   if (img->d_w != ctx->cfg.g_w || img->d_h != ctx->cfg.g_h)
     ERROR("Image size must match encoder init configuration size");
 
-  if (img->fmt != AOM_IMG_FMT_I420 && img->fmt != AOM_IMG_FMT_I42016 &&
-      !ctx->extra_cfg.enable_tx64) {
-    ERROR("TX64 can only be disabled on I420 images.");
-  }
-
   return AOM_CODEC_OK;
 }
 
@@ -3173,8 +3168,8 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = {
       0,                       // g_threads
       0,                       // g_profile
 
-      320,         // g_width
-      240,         // g_height
+      320,         // g_w
+      240,         // g_h
       0,           // g_limit
       0,           // g_forced_max_frame_width
       0,           // g_forced_max_frame_height
@@ -3247,8 +3242,8 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = {
       0,                   // g_threads
       0,                   // g_profile
 
-      320,         // g_width
-      240,         // g_height
+      320,         // g_w
+      240,         // g_h
       0,           // g_limit
       0,           // g_forced_max_frame_width
       0,           // g_forced_max_frame_height
@@ -3268,11 +3263,11 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = {
       SCALE_NUMERATOR,  // rc_resize_denominator
       SCALE_NUMERATOR,  // rc_resize_kf_denominator
 
-      0,                // rc_superres_mode
-      SCALE_NUMERATOR,  // rc_superres_denominator
-      SCALE_NUMERATOR,  // rc_superres_kf_denominator
-      255,              // rc_superres_qthresh
-      128,              // rc_superres_kf_qthresh
+      AOM_SUPERRES_NONE,  // rc_superres_mode
+      SCALE_NUMERATOR,    // rc_superres_denominator
+      SCALE_NUMERATOR,    // rc_superres_kf_denominator
+      255,                // rc_superres_qthresh
+      128,                // rc_superres_kf_qthresh
 
       AOM_CBR,  // rc_end_usage
 #if !CONFIG_SINGLEPASS

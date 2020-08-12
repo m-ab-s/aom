@@ -345,6 +345,9 @@ typedef struct TPL_SPEED_FEATURES {
 
   // Not run TPL for filtered Key frame.
   int disable_filtered_key_tpl;
+
+  // Prune reference frames in TPL.
+  int prune_ref_frames_in_tpl;
 } TPL_SPEED_FEATURES;
 
 typedef struct GLOBAL_MOTION_SPEED_FEATURES {
@@ -466,6 +469,10 @@ typedef struct PARTITION_SPEED_FEATURES {
 
   // Prune AB partition search using split and HORZ/VERT info
   int prune_ab_partition_using_split_info;
+
+  // Terminate partition search for child partition,
+  // when NONE and SPLIT partition rd_costs are INT64_MAX.
+  int early_term_after_none_split;
 } PARTITION_SPEED_FEATURES;
 
 typedef struct MV_SPEED_FEATURES {
@@ -998,6 +1005,12 @@ typedef struct REAL_TIME_SPEED_FEATURES {
 
   // uses results of temporal noise estimate
   int use_temporal_noise_estimate;
+
+  // Parameter indicating initial search window to be used in full-pixel search
+  // for nonrd_pickmode. Range [0, MAX_MVSEARCH_STEPS - 1]. Lower value
+  // indicates larger window. If set to 0, step_param is set based on internal
+  // logic in set_mv_search_params().
+  int fullpel_search_step_param;
 } REAL_TIME_SPEED_FEATURES;
 
 /*!\endcond */
