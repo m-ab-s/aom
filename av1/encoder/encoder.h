@@ -805,6 +805,7 @@ typedef struct {
   int8_t pyr_level;
   int8_t num_references;  // value of -1 indicates unspecified references
   int8_t references[INTER_REFS_PER_FRAME];
+  int8_t refresh;
 } SubGOPStepCfg;
 
 typedef struct {
