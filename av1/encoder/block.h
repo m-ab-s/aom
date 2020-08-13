@@ -234,14 +234,15 @@ enum {
 } UENUM1BYTE(MV_COST_TYPE);
 
 #if CONFIG_EXT_RECUR_PARTITIONS
+#define kSMSMaxStartMVs 1
 typedef struct SimpleMotionData {
   MV mv_ref;
   MV fullmv;
   MV submv;
   unsigned int sse;
   unsigned int var;
-  unsigned int dist;
-  int64_t rate;
+  int64_t dist;
+  int rate;
   int64_t rdcost;
   int valid;
 
@@ -251,6 +252,8 @@ typedef struct SimpleMotionData {
   MV_COST_TYPE mv_cost_type;
   MvSubpelPrecision mv_precision;
   int sadpb, errorperbit;
+  MV start_mv_list[kSMSMaxStartMVs];
+  int num_start_mvs;
 } SimpleMotionData;
 
 #define BLOCK_128_COUNT 1

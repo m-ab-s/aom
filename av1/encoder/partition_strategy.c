@@ -23,6 +23,10 @@
 #include "av1/encoder/partition_model_weights.h"
 #include "av1/encoder/partition_cnn_weights.h"
 #endif
+#if CONFIG_EXT_RECUR_PARTITIONS
+#include "av1/common/idct.h"
+#include "av1/encoder/hybrid_fwd_txfm.h"
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 #include "av1/encoder/encoder.h"
 
 #include "av1/encoder/partition_strategy.h"
@@ -1458,6 +1462,90 @@ static AOM_INLINE SimpleMotionData *get_sms_data_entry(
   return &sms_arr[idx_row_in_sb * arr_stride + idx_col_in_sb];
 }
 
+static AOM_INLINE void compute_sms_txfm_data(
+    const MACROBLOCK *x, BLOCK_SIZE bsize, const aom_variance_fn_ptr_t *fn_ptr,
+    int *est_rate, int64_t *dist) {
+  const MACROBLOCKD *xd = &x->e_mbd;
+  const uint8_t *src_buf = x->plane[0].src.buf;
+  const uint8_t *dst_buf = xd->plane[0].dst.buf;
+  const int src_stride = x->plane[0].src.stride;
+  const int dst_stride = xd->plane[0].dst.stride;
+  const int bw = block_size_wide[bsize];
+  const int bh = block_size_high[bsize];
+  const int is_hbd = is_cur_buf_hbd(xd);
+  const int bd = xd->bd;
+  assert(!is_hbd &&
+         "high bitdepth sms txfm pipeline has not been implemented yet");
+
+  DECLARE_ALIGNED(32, int16_t, src_diff[MAX_SB_SQUARE]);
+  DECLARE_ALIGNED(32, tran_low_t, coeff[MAX_SB_SQUARE]);
+  DECLARE_ALIGNED(32, tran_low_t, qcoeff[MAX_SB_SQUARE]);
+  DECLARE_ALIGNED(32, tran_low_t, dqcoeff[MAX_SB_SQUARE]);
+  DECLARE_ALIGNED(16, uint8_t, recon[MAX_TX_SQUARE]);
+  const int diff_stride = bw;
+  const int recon_stride = MAX_TX_SIZE;
+
+  aom_subtract_block(bh, bw, src_diff, diff_stride, src_buf, src_stride,
+                     dst_buf, dst_stride);
+
+  const TX_SIZE tx_size = max_txsize_lookup[bsize];
+  const BLOCK_SIZE tx_bsize = txsize_to_bsize[tx_size];
+  const int tx_wide = tx_size_wide[tx_size];
+  const int tx_high = tx_size_high[tx_size];
+  const int pix_num = av1_get_max_eob(tx_size);
+  const TX_TYPE tx_type = DCT_DCT;
+  TxfmParam txfm_param;
+  txfm_param.tx_type = tx_type;
+  txfm_param.tx_size = tx_size;
+  txfm_param.lossless = 0;
+  txfm_param.bd = bd;
+  txfm_param.is_hbd = is_hbd;
+  txfm_param.tx_set_type = EXT_TX_SET_ALL16;
+
+  *est_rate = *dist = 0;
+  for (int row = 0; row < bh; row += tx_high) {
+    for (int col = 0; col < bw; col += tx_wide) {
+      const int16_t *cur_diff = src_diff + row * diff_stride + col;
+      const uint8_t *cur_src = src_buf + row * src_stride + col;
+      const uint8_t *cur_dst = dst_buf + row * dst_stride + col;
+
+      // Txfm
+      av1_fwd_txfm(cur_diff, coeff, diff_stride, &txfm_param);
+
+      // Quantize
+      const struct macroblock_plane *const p = &x->plane[AOM_PLANE_Y];
+      const SCAN_ORDER *const scan_order = &av1_default_scan_orders[tx_size];
+      uint16_t eob = -1;
+      int cur_est_rate = 0;
+      av1_quantize_fp(coeff, pix_num, p->zbin_QTX, p->round_fp_QTX,
+                      p->quant_fp_QTX, p->quant_shift_QTX, qcoeff, dqcoeff,
+                      p->dequant_QTX, &eob, scan_order->scan,
+                      scan_order->iscan);
+
+      for (int idx = 0; idx < eob; ++idx) {
+        const int abs_level = abs(qcoeff[scan_order->scan[idx]]);
+        cur_est_rate += (int)(log(abs_level + 1.0) / log(2.0)) + 1;
+      }
+      cur_est_rate <<= AV1_PROB_COST_SHIFT;
+      *est_rate += cur_est_rate;
+
+      // Inverse transform
+      aom_convolve_copy(cur_dst, dst_stride, recon, recon_stride, tx_wide,
+                        tx_high);
+
+      av1_inverse_transform_block(xd, dqcoeff, AOM_PLANE_Y, tx_type, tx_size,
+                                  recon, recon_stride, eob, 0);
+
+      uint32_t cur_dist = 0;
+      fn_ptr[tx_bsize].vf(cur_src, src_stride, recon, recon_stride, &cur_dist);
+
+      *dist += cur_dist;
+    }
+  }
+
+  *dist *= 16;
+}
+
 // Performs a simple motion search and store the result in sms_data.
 static void compute_sms_data(AV1_COMP *const cpi, const TileInfo *const tile,
                              MACROBLOCK *x, CHROMA_REF_INFO *chr_ref_info,
@@ -1482,7 +1570,7 @@ static void compute_sms_data(AV1_COMP *const cpi, const TileInfo *const tile,
   av1_enc_set_offsets(cpi, tile, x, mi_row, mi_col, bsize, chr_ref_info);
 
   // We need to update the rd-mult here to in case we are doing simple motion
-  // search on a sublock of the current coding block.
+  // search on a subblock of the current coding block.
   const int orig_rdmult = x->rdmult;
   const AQ_MODE aq_mode = cpi->oxcf.aq_mode;
   MB_MODE_INFO *mbmi = x->e_mbd.mi[0];
@@ -1492,15 +1580,38 @@ static void compute_sms_data(AV1_COMP *const cpi, const TileInfo *const tile,
 
   if (cpi->ref_frame_flags & av1_ref_frame_flag_list[ref_frame]) {
     const MACROBLOCKD *xd = &x->e_mbd;
-    av1_simple_motion_search_ext(cpi, tile, x, chr_ref_info, mi_row, mi_col,
-                                 bsize, ref_frame, kZeroMv, sms_data);
-    sms_data->var = cpi->fn_ptr[bsize].vf(
-        x->plane[0].src.buf, x->plane[0].src.stride, xd->plane[0].dst.buf,
-        xd->plane[0].dst.stride, &sms_data->sse);
+    const uint8_t *src_buf = x->plane[0].src.buf;
+    const uint8_t *dst_buf = xd->plane[0].dst.buf;
+    const int src_stride = x->plane[0].src.stride;
+    const int dst_stride = xd->plane[0].dst.stride;
 
-    sms_data->dist = sms_data->sse;
-    sms_data->rate = 0;
-    sms_data->rdcost = RDCOST(x->rdmult, sms_data->rate, sms_data->dist);
+    if (sms_data->num_start_mvs == 0) {
+      sms_data->start_mv_list[sms_data->num_start_mvs++] = kZeroMv;
+    }
+    sms_data->rdcost = INT64_MAX;
+    SimpleMotionData best_data = *sms_data;
+
+    for (int idx = 0; idx < sms_data->num_start_mvs; idx++) {
+      const MV start_mv = sms_data->start_mv_list[idx];
+      av1_simple_motion_search_ext(cpi, tile, x, chr_ref_info, mi_row, mi_col,
+                                   bsize, ref_frame, start_mv, sms_data);
+      sms_data->var = cpi->fn_ptr[bsize].vf(src_buf, src_stride, dst_buf,
+                                            dst_stride, &sms_data->sse);
+
+      sms_data->dist = 16 * sms_data->sse;
+      sms_data->rate = 0;
+
+      if (USE_EST_TXFM) {
+        compute_sms_txfm_data(x, bsize, cpi->fn_ptr, &sms_data->rate,
+                              &sms_data->dist);
+      }
+
+      sms_data->rdcost = RDCOST(x->rdmult, sms_data->rate, sms_data->dist);
+
+      if (sms_data->rdcost <= best_data.rdcost) {
+        best_data = *sms_data;
+      }
+    }
   }
 
   sms_data->valid = 1;
@@ -1530,6 +1641,58 @@ static INLINE void print_sms(const SimpleMotionData *sms_data, char *prefix) {
 }
 #endif
 
+static INLINE void add_start_mv_to_block(SimpleMotionData *block, MV start_mv) {
+  if (block->num_start_mvs == kSMSMaxStartMVs) {
+    return;
+  }
+  for (int idx = 0; idx < block->num_start_mvs; idx++) {
+    const int_mv *cur_mv = (int_mv *)&block->start_mv_list[idx];
+    if (((int_mv *)&start_mv)->as_int == cur_mv->as_int) {
+      return;
+    }
+  }
+  block->start_mv_list[block->num_start_mvs++] = start_mv;
+}
+
+static INLINE void add_start_mv_to_partition(
+    SimpleMotionDataBufs *sms_bufs, int mi_row, int mi_col, BLOCK_SIZE bsize,
+    BLOCK_SIZE sb_size, PARTITION_TYPE partition, MV start_mv) {
+  const int quarter_step_h = block_size_high[bsize] / 4;
+  const int quarter_step_w = block_size_wide[bsize] / 4;
+  static const int subblock_count[EXT_PARTITION_TYPES] = {
+    1,  // PARTITION_NONE
+    2,  // PARTITION_HORZ
+    2,  // PARTITION_VERT
+    3,  // PARTITION_HORZ_3
+    3,  // PARTITION_VERT_3
+  };
+  // PARTITION x NUM_SUBBLOCKS x (ROW and COL)
+  static const int step_multiplier[EXT_PARTITION_TYPES][3][2] = {
+    { { 0, 0 }, { 0, 0 }, { 0, 0 } },  // PARTITION_NONE
+    { { 0, 0 }, { 2, 0 }, { 0, 0 } },  // PARTITION_HORZ
+    { { 0, 0 }, { 0, 2 }, { 0, 0 } },  // PARTITION_VERT
+    { { 0, 0 }, { 1, 0 }, { 3, 0 } },  // PARTITION_HORZ_3
+    { { 0, 0 }, { 0, 1 }, { 0, 3 } },  // PARTITION_VERT_3
+  };
+  for (int idx = 0; idx < subblock_count[partition]; idx++) {
+    BLOCK_SIZE subsize = get_partition_subsize(bsize, partition);
+    if (subsize == BLOCK_INVALID) {
+      return;
+    } else if (partition == PARTITION_HORZ_3 && idx == 1) {
+      subsize = get_partition_subsize(bsize, PARTITION_HORZ);
+    } else if (partition == PARTITION_VERT_3 && idx == 1) {
+      subsize = get_partition_subsize(bsize, PARTITION_VERT);
+    }
+    const int sub_row =
+        mi_row + step_multiplier[partition][idx][0] * quarter_step_h / 4;
+    const int sub_col =
+        mi_col + step_multiplier[partition][idx][1] * quarter_step_w / 4;
+    SimpleMotionData *subblock =
+        get_sms_data_entry(sms_bufs, sub_row, sub_col, subsize, sb_size);
+    add_start_mv_to_block(subblock, start_mv);
+  }
+}
+
 // Computes and stores the simple motion search data for the block at mi_row,
 // mi_col with block size bsize.
 SimpleMotionData *av1_get_sms_data(AV1_COMP *const cpi,
@@ -1545,8 +1708,56 @@ SimpleMotionData *av1_get_sms_data(AV1_COMP *const cpi,
   if (!valid) {
     compute_sms_data(cpi, tile, x, chr_ref_info, cur_block, mi_row, mi_col,
                      bsize);
+
+    for (PARTITION_TYPE partition = PARTITION_NONE;
+         partition < EXT_PARTITION_TYPES; partition++) {
+      add_start_mv_to_partition(sms_bufs, mi_row, mi_col, bsize, sb_size,
+                                partition, cur_block->fullmv);
+    }
   }
   return cur_block;
+}
+
+static INLINE void gather_part_stats(RD_STATS *rd_stats,
+                                     const SimpleMotionData **part_data,
+                                     int part_size, int part_rate, int rdmult) {
+  av1_init_rd_stats(rd_stats);
+  if (part_rate < INT_MAX) {
+    // rd_stats->rate += part_rate;
+  } else {
+    rd_stats->rate = INT_MAX;
+    rd_stats->rdcost = INT64_MAX;
+    return;
+  }
+  for (int idx = 0; idx < part_size; idx++) {
+    rd_stats->rate += part_data[idx]->rate;
+    rd_stats->dist += part_data[idx]->dist;
+  }
+  rd_stats->rdcost = RDCOST(rdmult, rd_stats->rate, rd_stats->dist);
+}
+
+int av1_prune_new_part(const SimpleMotionData **part_old, int part_old_size,
+                       int part_old_rate, const SimpleMotionData **part_new,
+                       int part_new_size, int part_new_rate, int rdmult) {
+  RD_STATS old_rd_stat, new_rd_stat;
+  gather_part_stats(&old_rd_stat, part_old, part_old_size, part_old_rate,
+                    rdmult);
+  gather_part_stats(&new_rd_stat, part_new, part_new_size, part_new_rate,
+                    rdmult);
+
+  return old_rd_stat.rdcost < new_rd_stat.rdcost;
+}
+
+void av1_copy_sms_part(const SimpleMotionData **part_dst, int *part_size_dst,
+                       int *part_rate_dst,
+                       const SimpleMotionData *const *part_src,
+                       int part_size_src, int part_rate_src) {
+  *part_size_dst = part_size_src;
+  *part_rate_dst = part_rate_src;
+
+  for (int idx = 0; idx < part_size_src; idx++) {
+    part_dst[idx] = part_src[idx];
+  }
 }
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 #endif  // !CONFIG_REALTIME_ONLY
