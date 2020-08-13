@@ -889,7 +889,7 @@ static int get_free_ref_map_index(const RefBufferStack *ref_buffer_stack) {
 
 static int get_refresh_idx(const AV1_COMP *const cpi,
                            const EncodeFrameParams *const frame_params,
-                           int update_arf) {
+                           int update_arf, int refresh_level) {
   const int order_offset = frame_params->order_offset;
   const int cur_frame_disp =
       cpi->common.current_frame.frame_number + order_offset;
@@ -899,6 +899,10 @@ static int get_refresh_idx(const AV1_COMP *const cpi,
 
   int oldest_frame_order = INT32_MAX;
   int oldest_idx = -1;
+
+  int oldest_ref_level_order = INT32_MAX;
+  int oldest_ref_level_idx = -1;
+
   for (int map_idx = 0; map_idx < REF_FRAMES; map_idx++) {
     // Get reference frame buffer
     const RefCntBuffer *const buf =
@@ -906,10 +910,21 @@ static int get_refresh_idx(const AV1_COMP *const cpi,
     if (buf == NULL) continue;
     const int frame_order = (int)buf->display_order_hint;
     if (frame_order > cur_frame_disp) continue;
-    const int ref_frame_level = get_true_pyr_level(
+    const int reference_frame_level = get_true_pyr_level(
         buf->pyramid_level, frame_order, cpi->gf_group.max_layer_depth);
 
-    if (ref_frame_level == 1) {
+    // Keep track of the oldest reference frame matching the specified
+    // refresh level from the subgop cfg
+    if (refresh_level > 0 && refresh_level == reference_frame_level) {
+      if (frame_order < oldest_ref_level_order) {
+        oldest_ref_level_order = frame_order;
+        oldest_ref_level_idx = map_idx;
+      }
+    }
+
+    // Keep track of the oldest level 1 frame if the current frame is level also
+    // 1
+    if (reference_frame_level == 1) {
       // If there are more than 2 level 1 frames in the reference list,
       // discard the oldest
       if (update_arf) {
@@ -921,13 +936,15 @@ static int get_refresh_idx(const AV1_COMP *const cpi,
       }
       continue;
     }
-    // Update the oldest reference frame
+
+    // Update the overall oldest reference frame
     if (frame_order < oldest_frame_order) {
       oldest_frame_order = frame_order;
       oldest_idx = map_idx;
     }
   }
   assert(oldest_idx >= 0);
+  if (oldest_ref_level_idx > -1) return oldest_ref_level_idx;
   if (arf_count > 2) return oldest_arf_idx;
   return oldest_idx;
 }
@@ -954,7 +971,9 @@ static int get_refresh_frame_flags_subgop_cfg(
   if (!cpi->oxcf.algo_cfg.enable_tpl_model) {
     const int update_arf =
         type_code == FRAME_TYPE_OOO_FILTERED && pyr_level == 1;
-    const int refresh_idx = get_refresh_idx(cpi, frame_params, update_arf);
+    const int refresh_level = step_gop_cfg->refresh;
+    const int refresh_idx =
+        get_refresh_idx(cpi, frame_params, update_arf, refresh_level);
     return 1 << refresh_idx;
   }
 
