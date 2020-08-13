@@ -2118,28 +2118,27 @@ static void write_modes_sb(AV1_COMP *const cpi, const TileInfo *const tile,
 #endif  // CONFIG_FLEX_MVRES
 
 #if CONFIG_CNN_RESTORATION && !CONFIG_LOOP_RESTORE_CNN
-  if (!cm->use_cnn) {
+  const int plane_start = cm->use_cnn ? AOM_PLANE_U : AOM_PLANE_Y;
+#else
+  const int plane_start = AOM_PLANE_Y;
 #endif  // CONFIG_CNN_RESTORATION && !CONFIG_LOOP_RESTORE_CNN
-    const int num_planes = av1_num_planes(cm);
-    for (int plane = 0; plane < num_planes; ++plane) {
-      int rcol0, rcol1, rrow0, rrow1;
-      if (av1_loop_restoration_corners_in_sb(cm, plane, mi_row, mi_col, bsize,
-                                             &rcol0, &rcol1, &rrow0, &rrow1)) {
-        const int rstride = cm->rst_info[plane].horz_units_per_tile;
-        for (int rrow = rrow0; rrow < rrow1; ++rrow) {
-          for (int rcol = rcol0; rcol < rcol1; ++rcol) {
-            const int runit_idx = rcol + rrow * rstride;
-            const RestorationUnitInfo *rui =
-                &cm->rst_info[plane].unit_info[runit_idx];
-            loop_restoration_write_sb_coeffs(cm, xd, rui, w, plane,
-                                             cpi->td.counts);
-          }
+  const int num_planes = av1_num_planes(cm);
+  for (int plane = plane_start; plane < num_planes; ++plane) {
+    int rcol0, rcol1, rrow0, rrow1;
+    if (av1_loop_restoration_corners_in_sb(cm, plane, mi_row, mi_col, bsize,
+                                           &rcol0, &rcol1, &rrow0, &rrow1)) {
+      const int rstride = cm->rst_info[plane].horz_units_per_tile;
+      for (int rrow = rrow0; rrow < rrow1; ++rrow) {
+        for (int rcol = rcol0; rcol < rcol1; ++rcol) {
+          const int runit_idx = rcol + rrow * rstride;
+          const RestorationUnitInfo *rui =
+              &cm->rst_info[plane].unit_info[runit_idx];
+          loop_restoration_write_sb_coeffs(cm, xd, rui, w, plane,
+                                           cpi->td.counts);
         }
       }
     }
-#if CONFIG_CNN_RESTORATION && !CONFIG_LOOP_RESTORE_CNN
   }
-#endif  // CONFIG_CNN_RESTORATION && !CONFIG_LOOP_RESTORE_CNN
 
   write_partition(cm, xd, mi_row, mi_col, partition, bsize, w);
   switch (partition) {
@@ -2302,7 +2301,20 @@ static void encode_restoration_mode(AV1_COMMON *cm,
   if (cm->allow_intrabc) return;
   const int num_planes = av1_num_planes(cm);
   int all_none = 1, chroma_none = 1;
-  for (int p = 0; p < num_planes; ++p) {
+
+#if CONFIG_CNN_RESTORATION && !CONFIG_LOOP_RESTORE_CNN
+  const int plane_start = cm->use_cnn ? AOM_PLANE_U : AOM_PLANE_Y;
+#else
+  const int plane_start = AOM_PLANE_Y;
+#endif  // CONFIG_CNN_RESTORATION && !CONFIG_LOOP_RESTORE_CNN
+
+#if CONFIG_DEBUG
+  for (int p = 0; p < plane_start; ++p) {
+    RestorationInfo *rsi = &cm->rst_info[p];
+    assert(rsi->frame_restoration_type == RESTORE_NONE);
+  }
+#endif  // CONFIG_DEBUG
+  for (int p = plane_start; p < num_planes; ++p) {
     RestorationInfo *rsi = &cm->rst_info[p];
     if (rsi->frame_restoration_type != RESTORE_NONE) {
       all_none = 0;
@@ -2668,13 +2680,24 @@ static void encode_cdef(const AV1_COMMON *cm, struct aom_write_bit_buffer *wb) {
   assert(!cm->coded_lossless);
   if (!cm->seq_params.enable_cdef) return;
   if (cm->allow_intrabc) return;
+
+#if CONFIG_CNN_RESTORATION && !CONFIG_LOOP_RESTORE_CNN
+  const bool filter_y_plane = !cm->use_cnn;
+#else
+  const bool filter_y_plane = true;
+#endif  // CONFIG_CNN_RESTORATION && !CONFIG_LOOP_RESTORE_CNN
+
   const int num_planes = av1_num_planes(cm);
   int i;
   aom_wb_write_literal(wb, cm->cdef_info.cdef_damping - 3, 2);
   aom_wb_write_literal(wb, cm->cdef_info.cdef_bits, 2);
   for (i = 0; i < cm->cdef_info.nb_cdef_strengths; i++) {
-    aom_wb_write_literal(wb, cm->cdef_info.cdef_strengths[i],
-                         CDEF_STRENGTH_BITS);
+    if (filter_y_plane) {
+      aom_wb_write_literal(wb, cm->cdef_info.cdef_strengths[i],
+                           CDEF_STRENGTH_BITS);
+    } else {
+      assert(cm->cdef_info.cdef_strengths[i] == 0);
+    }
     if (num_planes > 1)
       aom_wb_write_literal(wb, cm->cdef_info.cdef_uv_strengths[i],
                            CDEF_STRENGTH_BITS);
@@ -3795,13 +3818,9 @@ static void write_uncompressed_header_obu(AV1_COMP *cpi,
     if (!cm->coded_lossless) {
       encode_loopfilter(cm, wb);
       encode_cnn(cm, wb);
-      if (!cm->use_cnn) {
-        encode_cdef(cm, wb);
-      }
+      encode_cdef(cm, wb);
     }
-    if (!cm->use_cnn) {
-      encode_restoration_mode(cm, wb);
-    }
+    encode_restoration_mode(cm, wb);
 #else
     if (!cm->coded_lossless) {
       encode_loopfilter(cm, wb);

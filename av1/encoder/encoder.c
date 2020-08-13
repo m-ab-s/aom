@@ -4716,19 +4716,33 @@ static void superres_post_encode(AV1_COMP *cpi) {
   }
 }
 
-static void cdef_restoration_frame(AV1_COMP *cpi, AV1_COMMON *cm,
-                                   MACROBLOCKD *xd, int use_restoration,
-                                   int use_cdef) {
-  if (use_restoration)
+static void cdef_restoration_frame_planes(AV1_COMP *cpi, AV1_COMMON *cm,
+                                          MACROBLOCKD *xd, bool use_restoration,
+                                          bool use_cdef, bool filter_y_plane,
+                                          bool filter_uv_planes) {
+  assert(
+      IMPLIES(use_restoration || use_cdef, filter_y_plane || filter_uv_planes));
+
+  if (use_restoration) {
     av1_loop_restoration_save_boundary_lines(&cm->cur_frame->buf, cm, 0);
+  }
 
   if (use_cdef) {
 #if CONFIG_COLLECT_COMPONENT_TIMING
     start_timing(cpi, cdef_time);
 #endif
     // Find CDEF parameters
+    // TODO(any): The search itself should ideally consider 'uv_plane_only'.
     av1_cdef_search(&cm->cur_frame->buf, cpi->source, cm, xd,
                     cpi->sf.cdef_pick_method, cpi->td.mb.rdmult);
+    if (!filter_y_plane) {
+      memset(cm->cdef_info.cdef_strengths, 0,
+             sizeof(cm->cdef_info.cdef_strengths));
+    }
+    if (!filter_uv_planes) {
+      memset(cm->cdef_info.cdef_uv_strengths, 0,
+             sizeof(cm->cdef_info.cdef_uv_strengths));
+    }
 
     // Apply the filter
     av1_cdef_frame(&cm->cur_frame->buf, cm, xd);
@@ -4750,6 +4764,15 @@ static void cdef_restoration_frame(AV1_COMP *cpi, AV1_COMMON *cm,
   if (use_restoration) {
     av1_loop_restoration_save_boundary_lines(&cm->cur_frame->buf, cm, 1);
     av1_pick_filter_restoration(cpi->source, cpi);
+    // TODO(any): The search itself should ideally consider 'uv_plane_only'.
+    if (!filter_y_plane) {
+      cm->rst_info[0].frame_restoration_type = RESTORE_NONE;
+    }
+    if (!filter_uv_planes) {
+      cm->rst_info[1].frame_restoration_type = RESTORE_NONE;
+      cm->rst_info[2].frame_restoration_type = RESTORE_NONE;
+    }
+
     if (cm->rst_info[0].frame_restoration_type != RESTORE_NONE ||
         cm->rst_info[1].frame_restoration_type != RESTORE_NONE ||
         cm->rst_info[2].frame_restoration_type != RESTORE_NONE) {
@@ -4773,6 +4796,13 @@ static void cdef_restoration_frame(AV1_COMP *cpi, AV1_COMMON *cm,
 #if CONFIG_COLLECT_COMPONENT_TIMING
   end_timing(cpi, loop_restoration_time);
 #endif
+}
+
+static void cdef_restoration_frame(AV1_COMP *cpi, AV1_COMMON *cm,
+                                   MACROBLOCKD *xd, bool use_restoration,
+                                   bool use_cdef) {
+  return cdef_restoration_frame_planes(cpi, cm, xd, use_restoration, use_cdef,
+                                       true, true);
 }
 
 static void loopfilter_frame(AV1_COMP *cpi, AV1_COMMON *cm) {
@@ -4866,9 +4896,11 @@ static void loopfilter_frame(AV1_COMP *cpi, AV1_COMMON *cm) {
         aom_yv12_copy_u(&cpi->last_frame_uf, &cm->cur_frame->buf);
       if (num_planes > 2)
         aom_yv12_copy_v(&cpi->last_frame_uf, &cm->cur_frame->buf);
-      // Since cnn restores better than cdef-restoration, disable the
-      // cdef-restoration instructions.
-      cdef_restoration_frame(cpi, cm, xd, 0, 0);
+      // Since cnn restores better than CDEF and LR for Y plane, we disable CDEF
+      // and LR for Y plane.
+      // TODO(now): Should be quicker to do this.
+      cdef_restoration_frame_planes(cpi, cm, xd, use_restoration, use_cdef,
+                                    false, true);
     }
     /*
     printf("dgd = %"PRId64" cnn = %"PRId64" res = %"PRId64"\n",

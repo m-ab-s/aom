@@ -1613,26 +1613,24 @@ static void decode_partition(AV1Decoder *const pbi, ThreadData *const td,
   assert(ptree);
   if (parse_decode_flag & 1) {
 #if CONFIG_CNN_RESTORATION && !CONFIG_LOOP_RESTORE_CNN
-    if (!cm->use_cnn) {
+    const int plane_start = cm->use_cnn ? AOM_PLANE_U : AOM_PLANE_Y;
+#else
+    const int plane_start = AOM_PLANE_Y;
 #endif  // CONFIG_CNN_RESTORATION && !CONFIG_LOOP_RESTORE_CNN
-      const int num_planes = av1_num_planes(cm);
-      for (int plane = 0; plane < num_planes; ++plane) {
-        int rcol0, rcol1, rrow0, rrow1;
-        if (av1_loop_restoration_corners_in_sb(cm, plane, mi_row, mi_col, bsize,
-                                               &rcol0, &rcol1, &rrow0,
-                                               &rrow1)) {
-          const int rstride = cm->rst_info[plane].horz_units_per_tile;
-          for (int rrow = rrow0; rrow < rrow1; ++rrow) {
-            for (int rcol = rcol0; rcol < rcol1; ++rcol) {
-              const int runit_idx = rcol + rrow * rstride;
-              loop_restoration_read_sb_coeffs(cm, xd, reader, plane, runit_idx);
-            }
+    const int num_planes = av1_num_planes(cm);
+    for (int plane = plane_start; plane < num_planes; ++plane) {
+      int rcol0, rcol1, rrow0, rrow1;
+      if (av1_loop_restoration_corners_in_sb(cm, plane, mi_row, mi_col, bsize,
+                                             &rcol0, &rcol1, &rrow0, &rrow1)) {
+        const int rstride = cm->rst_info[plane].horz_units_per_tile;
+        for (int rrow = rrow0; rrow < rrow1; ++rrow) {
+          for (int rcol = rcol0; rcol < rcol1; ++rcol) {
+            const int runit_idx = rcol + rrow * rstride;
+            loop_restoration_read_sb_coeffs(cm, xd, reader, plane, runit_idx);
           }
         }
       }
-#if CONFIG_CNN_RESTORATION && !CONFIG_LOOP_RESTORE_CNN
     }
-#endif  // CONFIG_CNN_RESTORATION && !CONFIG_LOOP_RESTORE_CNN
 
     partition =
         read_partition(xd, mi_row, mi_col, reader, has_rows, has_cols, bsize);
@@ -1903,7 +1901,18 @@ static void decode_restoration_mode(AV1_COMMON *cm,
   const int num_planes = av1_num_planes(cm);
   if (cm->allow_intrabc) return;
   int all_none = 1, chroma_none = 1;
-  for (int p = 0; p < num_planes; ++p) {
+
+#if CONFIG_CNN_RESTORATION && !CONFIG_LOOP_RESTORE_CNN
+  const int plane_start = cm->use_cnn ? AOM_PLANE_U : AOM_PLANE_Y;
+#else
+  const int plane_start = AOM_PLANE_Y;
+#endif  // CONFIG_CNN_RESTORATION && !CONFIG_LOOP_RESTORE_CNN
+
+  for (int p = 0; p < plane_start; ++p) {
+    RestorationInfo *rsi = &cm->rst_info[p];
+    rsi->frame_restoration_type = RESTORE_NONE;
+  }
+  for (int p = plane_start; p < num_planes; ++p) {
     RestorationInfo *rsi = &cm->rst_info[p];
     if (aom_rb_read_bit(rb)) {
       if (aom_rb_read_bit(rb)) {
@@ -1944,6 +1953,8 @@ static void decode_restoration_mode(AV1_COMMON *cm,
     for (int p = 0; p < num_planes; ++p)
       cm->rst_info[p].restoration_unit_size = sb_size;
 
+    // TODO(urvang): Could save some bits by not reading restoration unit size
+    // for Y plane, when use_cnn = 1.
     RestorationInfo *rsi = &cm->rst_info[0];
 
     if (sb_size == 64) {
@@ -2244,11 +2255,19 @@ static void setup_cdef(AV1_COMMON *cm, struct aom_read_bit_buffer *rb) {
   CdefInfo *const cdef_info = &cm->cdef_info;
 
   if (cm->allow_intrabc) return;
+
+#if CONFIG_CNN_RESTORATION && !CONFIG_LOOP_RESTORE_CNN
+  const bool filter_y_plane = !cm->use_cnn;
+#else
+  const bool filter_y_plane = true;
+#endif  // CONFIG_CNN_RESTORATION && !CONFIG_LOOP_RESTORE_CNN
+
   cdef_info->cdef_damping = aom_rb_read_literal(rb, 2) + 3;
   cdef_info->cdef_bits = aom_rb_read_literal(rb, 2);
   cdef_info->nb_cdef_strengths = 1 << cdef_info->cdef_bits;
   for (int i = 0; i < cdef_info->nb_cdef_strengths; i++) {
-    cdef_info->cdef_strengths[i] = aom_rb_read_literal(rb, CDEF_STRENGTH_BITS);
+    cdef_info->cdef_strengths[i] =
+        filter_y_plane ? aom_rb_read_literal(rb, CDEF_STRENGTH_BITS) : 0;
     cdef_info->cdef_uv_strengths[i] =
         num_planes > 1 ? aom_rb_read_literal(rb, CDEF_STRENGTH_BITS) : 0;
   }
@@ -5574,24 +5593,13 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 #if CONFIG_CNN_RESTORATION && !CONFIG_LOOP_RESTORE_CNN
   cm->use_cnn = 0;
   if (!cm->coded_lossless) decode_cnn(cm, rb);
-  if (!cm->use_cnn) {
 #endif  // CONFIG_CNN_RESTORATION && !CONFIG_LOOP_RESTORE_CNN
-    if (!cm->coded_lossless && seq_params->enable_cdef) {
-      setup_cdef(cm, rb);
-    }
-    if (!cm->all_lossless && seq_params->enable_restoration) {
-      decode_restoration_mode(cm, rb);
-    }
-#if CONFIG_CNN_RESTORATION && !CONFIG_LOOP_RESTORE_CNN
-  } else {
-    cm->cdef_info.cdef_bits = 0;
-    cm->cdef_info.cdef_strengths[0] = 0;
-    cm->cdef_info.cdef_uv_strengths[0] = 0;
-    cm->rst_info[0].frame_restoration_type = RESTORE_NONE;
-    cm->rst_info[1].frame_restoration_type = RESTORE_NONE;
-    cm->rst_info[2].frame_restoration_type = RESTORE_NONE;
+  if (!cm->coded_lossless && seq_params->enable_cdef) {
+    setup_cdef(cm, rb);
   }
-#endif  // CONFIG_CNN_RESTORATION && !CONFIG_LOOP_RESTORE_CNN
+  if (!cm->all_lossless && seq_params->enable_restoration) {
+    decode_restoration_mode(cm, rb);
+  }
 
   cm->tx_mode = read_tx_mode(cm, rb);
 #if CONFIG_MISC_CHANGES
@@ -5812,76 +5820,75 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
 
 #if CONFIG_CNN_RESTORATION && !CONFIG_LOOP_RESTORE_CNN
     if (cm->use_cnn) {
+      assert(cm->rst_info[0].frame_restoration_type == RESTORE_NONE);
+      assert(cm->cdef_info.cdef_strengths[0] == 0);
 #if CONFIG_TENSORFLOW_LITE
       av1_restore_cnn_tflite(cm, pbi->num_workers);
 #else
       av1_decode_restore_cnn(cm, pbi->tile_workers, pbi->num_workers);
 #endif  // CONFIG_TENSORFLOW_LITE
-    } else {
+    }
 #endif  // CONFIG_CNN_RESTORATION && !CONFIG_LOOP_RESTORE_CNN
 
-      const int do_loop_restoration =
-          cm->rst_info[0].frame_restoration_type != RESTORE_NONE ||
-          cm->rst_info[1].frame_restoration_type != RESTORE_NONE ||
-          cm->rst_info[2].frame_restoration_type != RESTORE_NONE;
-      const int do_cdef =
-          !cm->skip_loop_filter && !cm->coded_lossless &&
-          (cm->cdef_info.cdef_bits || cm->cdef_info.cdef_strengths[0] ||
-           cm->cdef_info.cdef_uv_strengths[0]);
-      const int do_superres = av1_superres_scaled(cm);
-      const int optimized_loop_restoration = !do_cdef && !do_superres;
+    const int do_loop_restoration =
+        cm->rst_info[0].frame_restoration_type != RESTORE_NONE ||
+        cm->rst_info[1].frame_restoration_type != RESTORE_NONE ||
+        cm->rst_info[2].frame_restoration_type != RESTORE_NONE;
+    const int do_cdef =
+        !cm->skip_loop_filter && !cm->coded_lossless &&
+        (cm->cdef_info.cdef_bits || cm->cdef_info.cdef_strengths[0] ||
+         cm->cdef_info.cdef_uv_strengths[0]);
+    const int do_superres = av1_superres_scaled(cm);
+    const int optimized_loop_restoration = !do_cdef && !do_superres;
 
-      if (!optimized_loop_restoration) {
-        if (do_loop_restoration)
-          av1_loop_restoration_save_boundary_lines(&pbi->common.cur_frame->buf,
-                                                   cm, 0);
+    if (!optimized_loop_restoration) {
+      if (do_loop_restoration)
+        av1_loop_restoration_save_boundary_lines(&pbi->common.cur_frame->buf,
+                                                 cm, 0);
 
-        if (do_cdef) av1_cdef_frame(&pbi->common.cur_frame->buf, cm, &pbi->mb);
+      if (do_cdef) av1_cdef_frame(&pbi->common.cur_frame->buf, cm, &pbi->mb);
 
-        superres_post_decode(pbi);
+      superres_post_decode(pbi);
 
-        if (do_loop_restoration) {
-          av1_loop_restoration_save_boundary_lines(&pbi->common.cur_frame->buf,
-                                                   cm, 1);
-          if (pbi->num_workers > 1) {
+      if (do_loop_restoration) {
+        av1_loop_restoration_save_boundary_lines(&pbi->common.cur_frame->buf,
+                                                 cm, 1);
+        if (pbi->num_workers > 1) {
 #if CONFIG_EXT_LOOP_RESTORATION
-            assert(false);  // MT loop restoration is not supported here!
+          assert(false);  // MT loop restoration is not supported here!
 #else
           av1_loop_restoration_filter_frame_mt(
               (YV12_BUFFER_CONFIG *)xd->cur_buf, cm, optimized_loop_restoration,
               pbi->tile_workers, pbi->num_workers, &pbi->lr_row_sync,
               &pbi->lr_ctxt);
 #endif  // CONFIG_EXT_LOOP_RESTORATION
-          } else {
-            av1_loop_restoration_filter_frame((YV12_BUFFER_CONFIG *)xd->cur_buf,
-                                              cm, optimized_loop_restoration,
-                                              &pbi->lr_ctxt);
-          }
+        } else {
+          av1_loop_restoration_filter_frame((YV12_BUFFER_CONFIG *)xd->cur_buf,
+                                            cm, optimized_loop_restoration,
+                                            &pbi->lr_ctxt);
         }
-      } else {
-        // In no cdef and no superres case. Provide an optimized version of
-        // loop_restoration_filter.
-        if (do_loop_restoration) {
-          if (pbi->num_workers > 1) {
+      }
+    } else {
+      // In no cdef and no superres case. Provide an optimized version of
+      // loop_restoration_filter.
+      if (do_loop_restoration) {
+        if (pbi->num_workers > 1) {
 #if CONFIG_EXT_LOOP_RESTORATION
-            assert(false);  // MT loop restoration is not supported here!
+          assert(false);  // MT loop restoration is not supported here!
 #else
           av1_loop_restoration_filter_frame_mt(
               (YV12_BUFFER_CONFIG *)xd->cur_buf, cm, optimized_loop_restoration,
               pbi->tile_workers, pbi->num_workers, &pbi->lr_row_sync,
               &pbi->lr_ctxt);
 #endif  // CONFIG_EXT_LOOP_RESTORATION
-          } else {
-            av1_loop_restoration_filter_frame((YV12_BUFFER_CONFIG *)xd->cur_buf,
-                                              cm, optimized_loop_restoration,
-                                              &pbi->lr_ctxt);
-          }
+        } else {
+          av1_loop_restoration_filter_frame((YV12_BUFFER_CONFIG *)xd->cur_buf,
+                                            cm, optimized_loop_restoration,
+                                            &pbi->lr_ctxt);
         }
       }
     }
-#if CONFIG_CNN_RESTORATION && !CONFIG_LOOP_RESTORE_CNN
   }
-#endif  // CONFIG_CNN_RESTORATION && !CONFIG_LOOP_RESTORE_CNN
 
 #if CONFIG_LPF_MASK
   av1_zero_array(cm->lf.lfm, cm->lf.lfm_num);
