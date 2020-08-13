@@ -206,16 +206,15 @@ static int check_subgop_config(SubGOPCfg *config) {
     if (config->step[s].disp_frame_idx > config->num_frames) return 0;
   }
 
-  // Each disp frame index must be shown exactly once
-  int visible[MAX_SUBGOP_LENGTH];
-  memset(visible, 0, config->num_frames * sizeof(*visible));
+  // Each disp frame index must be shown exactly once and in ascending order
+  int last_visible = 0;
   for (int s = 0; s < config->num_steps; ++s) {
-    if (is_visible(config->step[s].type_code))
-      visible[config->step[s].disp_frame_idx - 1]++;
+    if (is_visible(config->step[s].type_code)) {
+      if (config->step[s].disp_frame_idx != last_visible + 1) return 0;
+      last_visible = config->step[s].disp_frame_idx;
+    }
   }
-  for (int k = 0; k < config->num_frames; ++k) {
-    if (visible[k] != 1) return 0;
-  }
+  if (last_visible != config->num_frames) return 0;
 
   // Each disp frame index must have at most one invisible frame
   int invisible[MAX_SUBGOP_LENGTH];
