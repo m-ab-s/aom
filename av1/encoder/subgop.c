@@ -228,18 +228,6 @@ static int check_subgop_config(SubGOPCfg *config) {
     if (invisible[k] > 1) return 0;
   }
 
-  // Check for a single level 1 frame in the subgop
-  int level[MAX_SUBGOP_LENGTH];
-  memset(level, 0, config->num_frames * sizeof(*level));
-  for (int s = 0; s < config->num_steps; ++s) {
-    if (is_visible(config->step[s].type_code))
-      level[config->step[s].disp_frame_idx - 1] = config->step[s].pyr_level;
-  }
-  int num_level1 = 0;
-  for (int k = 0; k < config->num_frames; ++k) {
-    num_level1 += (level[k] == 1);
-  }
-  if (num_level1 != 1) return 0;
   return 1;
 }
 

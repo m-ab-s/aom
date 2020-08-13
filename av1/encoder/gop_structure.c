@@ -124,6 +124,13 @@ static void set_multi_layer_params_from_subgop_cfg(
     int *cur_frame_idx, int *frame_index) {
   int use_altref = 0;
   int last_shown_frame = 0;
+  int min_pyr_level = MAX_ARF_LAYERS;
+
+  for (int idx = 0; idx < subgop_cfg->num_steps; ++idx) {
+    const SubGOPStepCfg *frame = &subgop_cfg->step[idx];
+
+    if (frame->pyr_level < min_pyr_level) min_pyr_level = frame->pyr_level;
+  }
 
   for (int idx = 0; idx < subgop_cfg->num_steps; ++idx) {
     const SubGOPStepCfg *frame = &subgop_cfg->step[idx];
@@ -135,8 +142,8 @@ static void set_multi_layer_params_from_subgop_cfg(
         type == FRAME_TYPE_OOO_UNFILTERED) {  // ARF
       use_altref = 1;
       gf_group->update_type[*frame_index] =
-          pyr_level == 1 ? ARF_UPDATE : INTNL_ARF_UPDATE;
-      if (pyr_level == 1) {
+          pyr_level == min_pyr_level ? ARF_UPDATE : INTNL_ARF_UPDATE;
+      if (pyr_level == min_pyr_level) {
         gf_group->arf_index = *frame_index;
         gf_group->arf_boost[*frame_index] = rc->gfu_boost;
       } else {
@@ -161,7 +168,7 @@ static void set_multi_layer_params_from_subgop_cfg(
     } else if (type == FRAME_TYPE_INO_REPEAT ||
                type == FRAME_TYPE_INO_SHOWEXISTING) {  // Overlay
       gf_group->update_type[*frame_index] =
-          pyr_level == 1 ? OVERLAY_UPDATE : INTNL_OVERLAY_UPDATE;
+          pyr_level == min_pyr_level ? OVERLAY_UPDATE : INTNL_OVERLAY_UPDATE;
       gf_group->arf_boost[*frame_index] = 0;
       gf_group->arf_src_offset[*frame_index] = 0;
       last_shown_frame = disp_idx;
