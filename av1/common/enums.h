@@ -130,6 +130,14 @@ typedef enum ATTRIBUTE_PACKED {
   BLOCK_LARGEST = (BLOCK_SIZES - 1)
 } BLOCK_SIZE;
 
+#if CONFIG_DSPL_RESIDUAL
+enum {
+  DSPL_NONE = 2,  // Don't downsample before transforming
+  DSPL_XY,        // Downsample before transforming
+  DSPL_END
+} UENUM1BYTE(DSPL_TYPE);
+#endif  // CONFIG_DSPL_RESIDUAL
+
 #if CONFIG_EXT_IBC_MODES
 // 1. Rotation 90/180/270
 // 2. Mirror 0/45/90/135

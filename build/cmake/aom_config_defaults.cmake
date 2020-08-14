@@ -217,6 +217,8 @@ set_aom_config_var(CONFIG_DUMP_MFQE_DATA 0 NUMBER
                    "AV2 in-loop MFQE experiment flag")
 set_aom_config_var(CONFIG_INTERINTRA_BORDER 0 NUMBER
                    "Calculate an extended border for interintra prediction")
+set_aom_config_var(CONFIG_DSPL_RESIDUAL 0 NUMBER
+                   "AV2 partition-level residual downsampling experiment flag")
 
 # To include Tensorflow, make sure to build tensorflow locally using
 # tensorflow/contrib/makefile/build_all_linux.sh and then providing the correct
