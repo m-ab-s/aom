@@ -520,6 +520,21 @@ static int read_skip(AV1_COMMON *cm, const MACROBLOCKD *xd, int segment_id,
   }
 }
 
+#if CONFIG_DSPL_RESIDUAL
+static DSPL_TYPE read_dspl_type(AV1_COMMON *cm, const MACROBLOCKD *xd,
+                                int segment_id, aom_reader *r) {
+  (void)cm;
+  (void)segment_id;
+
+  FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
+
+  const DSPL_TYPE dspl_type =
+      aom_read_symbol(r, ec_ctx->dspl_type_cdf, DSPL_END, ACCT_STR);
+
+  return dspl_type;
+}
+#endif  // CONFIG_DSPL_RESIDUAL
+
 // Merge the sorted list of cached colors(cached_colors[0...n_cached_colors-1])
 // and the sorted list of transmitted colors(colors[n_cached_colors...n-1]) into
 // one single sorted list(colors[...]).
@@ -934,6 +949,10 @@ static void read_intra_frame_mode_info(AV1_COMMON *const cm,
         read_intra_segment_id(cm, xd, mi_row, mi_col, bsize, r, 0);
 
   mbmi->skip = read_skip(cm, xd, mbmi->segment_id, r);
+
+#if CONFIG_DSPL_RESIDUAL
+  mbmi->dspl_type = DSPL_NONE;
+#endif  // CONFIG_DSPL_RESIDUAL
 
   if (!seg->segid_preskip)
     mbmi->segment_id =
@@ -2086,6 +2105,15 @@ static void read_inter_frame_mode_info(AV1Decoder *const pbi,
 
   if (!mbmi->skip_mode)
     inter_block = read_is_inter_block(cm, xd, mbmi->segment_id, r);
+
+#if CONFIG_DSPL_RESIDUAL
+  if (!mbmi->skip && inter_block &&
+      block_size_wide[mbmi->sb_type] >= DSPL_MIN_PARTITION_SIDE &&
+      block_size_high[mbmi->sb_type] >= DSPL_MIN_PARTITION_SIDE)
+    mbmi->dspl_type = read_dspl_type(cm, xd, mbmi->segment_id, r);
+  else
+    mbmi->dspl_type = DSPL_NONE;
+#endif  // CONFIG_DSPL_RESIDUAL
 
   mbmi->current_qindex = xd->current_qindex;
 

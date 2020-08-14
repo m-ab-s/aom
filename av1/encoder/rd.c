@@ -129,6 +129,10 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, MACROBLOCK *x,
     av1_cost_tokens_from_cdf(x->skip_cost[i], fc->skip_cdfs[i], NULL);
   }
 
+#if CONFIG_DSPL_RESIDUAL
+  av1_cost_tokens_from_cdf(x->dspl_type_cost, fc->dspl_type_cdf, NULL);
+#endif  // CONFIG_DSPL_RESIDUAL
+
 #if !CONFIG_INTRA_ENTROPY
   for (i = 0; i < CFL_ALLOWED_TYPES; ++i) {
     for (j = 0; j < INTRA_MODES; ++j) {

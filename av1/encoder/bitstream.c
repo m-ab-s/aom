@@ -407,6 +407,19 @@ static int write_skip(const AV1_COMMON *cm, const MACROBLOCKD *xd,
   }
 }
 
+#if CONFIG_DSPL_RESIDUAL
+static void write_dspl_type(const AV1_COMMON *cm, const MACROBLOCKD *xd,
+                            int segment_id, const MB_MODE_INFO *mbmi,
+                            aom_writer *w) {
+  (void)cm;
+  (void)segment_id;
+
+  FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
+
+  aom_write_symbol(w, mbmi->dspl_type, ec_ctx->dspl_type_cdf, DSPL_END);
+}
+#endif  // CONFIG_DSPL_RESIDUAL
+
 static int write_skip_mode(const AV1_COMMON *cm, const MACROBLOCKD *xd,
                            int segment_id, const MB_MODE_INFO *mi,
                            aom_writer *w) {
@@ -1508,6 +1521,14 @@ static void pack_inter_mode_mvs(AV1_COMP *cpi, const int mi_row,
   if (!mbmi->skip_mode) write_is_inter(cm, xd, mbmi->segment_id, w, is_inter);
 
   if (mbmi->skip_mode) return;
+
+#if CONFIG_DSPL_RESIDUAL
+  if (!skip && is_inter && block_size_wide[bsize] >= DSPL_MIN_PARTITION_SIDE &&
+      block_size_high[bsize] >= DSPL_MIN_PARTITION_SIDE)
+    write_dspl_type(cm, xd, segment_id, mbmi, w);
+  else
+    assert(mbmi->dspl_type == DSPL_NONE);
+#endif  // CONFIG_DSPL_RESIDUAL
 
   if (!is_inter) {
     write_intra_prediction_modes(cpi, 0, w);

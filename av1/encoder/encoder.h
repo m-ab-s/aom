@@ -528,6 +528,9 @@ typedef struct FRAME_COUNTS {
 #endif  // CONFIG_NEW_TX_PARTITION
   unsigned int skip_mode[SKIP_MODE_CONTEXTS][2];
   unsigned int skip[SKIP_CONTEXTS][2];
+#if CONFIG_DSPL_RESIDUAL
+  unsigned int dspl_type[DSPL_END];
+#endif  // CONFIG_DSPL_RESIDUAL
   unsigned int compound_index[COMP_INDEX_CONTEXTS][2];
   unsigned int comp_group_idx[COMP_GROUP_IDX_CONTEXTS][2];
   unsigned int delta_q[DELTA_Q_PROBS][2];

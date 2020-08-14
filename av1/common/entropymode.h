@@ -179,6 +179,11 @@ typedef struct frame_contexts {
   aom_cdf_prob comp_group_idx_cdf[COMP_GROUP_IDX_CONTEXTS][CDF_SIZE(2)];
   aom_cdf_prob skip_mode_cdfs[SKIP_CONTEXTS][CDF_SIZE(2)];
   aom_cdf_prob skip_cdfs[SKIP_CONTEXTS][CDF_SIZE(2)];
+#if CONFIG_DSPL_RESIDUAL
+  // CDF to use for entropy coding partition level residual downsampling
+  // decision
+  aom_cdf_prob dspl_type_cdf[CDF_SIZE(DSPL_END)];
+#endif  // CONFIG_DSPL_RESIDUAL
   aom_cdf_prob intra_inter_cdf[INTRA_INTER_CONTEXTS][CDF_SIZE(2)];
   nmv_context nmvc;
   nmv_context ndvc;

@@ -565,6 +565,10 @@ struct macroblock {
   int use_derived_mv_cost[BLOCK_SIZES_ALL][2];
 #endif  // CONFIG_DERIVED_MV
 
+#if CONFIG_DSPL_RESIDUAL
+  int dspl_type_cost[DSPL_END];
+#endif  // CONFIG_DSPL_RESIDUAL
+
   // Used to store sub partition's choices.
   MV pred_mv[REF_FRAMES];
 
