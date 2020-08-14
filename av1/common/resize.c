@@ -1436,7 +1436,7 @@ void av1_superres_upscale(AV1_COMMON *cm, BufferPool *const pool) {
   aom_free_frame_buffer(&copy_buffer);
 }
 
-#if CONFIG_SUPERRES_TX64
+#if CONFIG_SUPERRES_TX64 || CONFIG_DSPL_RESIDUAL
 static void down2_symeven_signed(const int16_t *const input, int length,
                                  int16_t *output, const int16_t *filter,
                                  int filter_length, int downbits, int doclip,
@@ -1698,4 +1698,4 @@ Error:
   aom_free(arrbuf);
   aom_free(arrbuf2);
 }
-#endif  // CONFIG_SUPERRES_TX64
+#endif  // CONFIG_SUPERRES_TX64 || CONFIG_DSPL_RESIDUAL
