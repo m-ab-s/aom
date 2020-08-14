@@ -1019,12 +1019,8 @@ static int get_q_using_fixed_offsets(const AV1EncoderConfig *const oxcf,
       return qp;
     }
     offset_idx = 0;
-  } else if (update_type == ARF_UPDATE || update_type == GF_UPDATE) {
-    offset_idx = 1;
-  } else if (update_type == INTNL_ARF_UPDATE) {
-    offset_idx =
-        AOMMIN(gf_group->layer_depth[gf_index], FIXED_QP_OFFSET_COUNT - 1);
-  } else if (update_type == LF_UPDATE) {
+  } else if (update_type == ARF_UPDATE || update_type == GF_UPDATE ||
+             update_type == INTNL_ARF_UPDATE || update_type == LF_UPDATE) {
     if (gf_group->layer_depth[gf_index] >= FIXED_QP_OFFSET_COUNT) {  // Leaf.
       return qp;  // Directly Return worst quality allowed.
     }
