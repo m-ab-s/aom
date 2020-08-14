@@ -749,6 +749,9 @@ static void pick_sb_modes(AV1_COMP *const cpi, TileDataEnc *tile_data,
   } else {
     mbmi->sb_type = bsize;
     mbmi->partition = partition;
+#if CONFIG_DSPL_RESIDUAL
+    mbmi->dspl_type = DSPL_NONE;
+#endif  // CONFIG_DSPL_RESIDUAL
   }
 
   mbmi->chroma_ref_info = ctx->chroma_ref_info;

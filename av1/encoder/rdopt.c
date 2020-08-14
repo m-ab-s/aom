@@ -12368,6 +12368,9 @@ static int64_t handle_inter_mode(AV1_COMP *const cpi, TileDataEnc *tile_data,
     mbmi->num_proj_ref = 0;
     mbmi->motion_mode = SIMPLE_TRANSLATION;
     mbmi->ref_mv_idx = ref_mv_idx;
+#if CONFIG_DSPL_RESIDUAL
+    mbmi->dspl_type = DSPL_NONE;
+#endif  // CONFIG_DSPL_RESIDUAL
 
 #if CONFIG_DERIVED_MV
     mbmi->derived_mv_allowed = mbmi->use_derived_mv = 0;
@@ -13264,6 +13267,10 @@ void av1_rd_pick_intra_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x,
   // mbmi->ibcplus_mode = 0;
 #endif  // CONFIG_EXT_IBC_MODES
   mbmi->mv[0].as_int = 0;
+#if CONFIG_DSPL_RESIDUAL
+  // Don't downsample intra blocks
+  mbmi->dspl_type = DSPL_NONE;
+#endif  // CONFIG_DSPL_RESIDUAL
 
   const int64_t intra_yrd =
       rd_pick_intra_sby_mode(cpi, x, mi_row, mi_col, &rate_y, &rate_y_tokenonly,
@@ -13457,6 +13464,9 @@ static void rd_pick_skip_mode(RD_STATS *rd_cost,
   mbmi->motion_mode = SIMPLE_TRANSLATION;
   mbmi->ref_mv_idx = 0;
   mbmi->skip_mode = mbmi->skip = 1;
+#if CONFIG_DSPL_RESIDUAL
+  mbmi->dspl_type = DSPL_NONE;
+#endif  // CONFIG_DSPL_RESIDUAL
 #if CONFIG_DERIVED_MV
   mbmi->derived_mv_allowed = mbmi->use_derived_mv = 0;
 #endif  // CONFIG_DERIVED_MV
@@ -14044,6 +14054,9 @@ static void search_palette_mode(const AV1_COMP *cpi, MACROBLOCK *x, int mi_row,
   mbmi->uv_mode = UV_DC_PRED;
   mbmi->ref_frame[0] = INTRA_FRAME;
   mbmi->ref_frame[1] = NONE_FRAME;
+#if CONFIG_DSPL_RESIDUAL
+  mbmi->dspl_type = DSPL_NONE;
+#endif  // CONFIG_DSPL_RESIDUAL
 #if CONFIG_DERIVED_INTRA_MODE
   const int mode_ctx = size_group_lookup[bsize];
   const int is_dr_cost = x->bf_is_dr_mode_cost[mode_ctx][0];
@@ -14236,6 +14249,9 @@ static void init_inter_mode_search_state(InterModeSearchState *search_state,
   search_state->best_rd = best_rd_so_far;
 
   av1_zero(search_state->best_mbmode);
+#if CONFIG_DSPL_RESIDUAL
+  search_state->best_mbmode.dspl_type = DSPL_NONE;
+#endif  // CONFIG_DSPL_RESIDUAL
 
   search_state->best_rate_y = INT_MAX;
 
@@ -14485,6 +14501,9 @@ static INLINE void init_mbmi(MB_MODE_INFO *mbmi, int mode_index,
   mbmi->mv[0].as_int = mbmi->mv[1].as_int = 0;
   mbmi->motion_mode = SIMPLE_TRANSLATION;
   mbmi->interintra_mode = (INTERINTRA_MODE)(II_DC_PRED - 1);
+#if CONFIG_DSPL_RESIDUAL
+  mbmi->dspl_type = DSPL_NONE;
+#endif  // CONFIG_DSPL_RESIDUAL
   set_default_interp_filters(mbmi, cm->interp_filter);
   set_default_mbmi_mv_precision(cm, mbmi, xd->sbi);
 #if CONFIG_DERIVED_MV

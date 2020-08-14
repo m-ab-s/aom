@@ -79,6 +79,9 @@ PICK_MODE_CONTEXT *av1_alloc_pmc(const AV1_COMMON *cm, int mi_row, int mi_col,
   AOM_CHECK_MEM_ERROR(&error, ctx, aom_calloc(1, sizeof(*ctx)));
   ctx->parent = parent;
   ctx->index = index;
+#if CONFIG_DSPL_RESIDUAL
+  ctx->mic.dspl_type = DSPL_NONE;
+#endif  // CONFIG_DSPL_RESIDUAL
 
   set_chroma_ref_info(mi_row, mi_col, index, bsize, &ctx->chroma_ref_info,
                       parent ? &parent->chroma_ref_info : NULL,

@@ -724,6 +724,11 @@ typedef struct MB_MODE_INFO {
   int use_derived_mv;
   MV derived_mv;
 #endif  // CONFIG_DERIVED_MV
+#if CONFIG_DSPL_RESIDUAL
+  // dspl_type stores the partition level downsampling decision for the
+  // CONFIG_DSPL_RESIDUAL experiment
+  DSPL_TYPE dspl_type;
+#endif  // CONFIG_DSPL_RESIDUAL
 } MB_MODE_INFO;
 
 typedef struct PARTITION_TREE {

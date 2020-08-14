@@ -211,6 +211,9 @@ static void mode_estimation(AV1_COMP *cpi, MACROBLOCK *x, MACROBLOCKD *xd,
   xd->mi[0]->motion_mode = SIMPLE_TRANSLATION;
   xd->up_available = mi_row > 0;
   xd->left_available = mi_col > 0;
+#if CONFIG_DSPL_RESIDUAL
+  xd->mi[0]->dspl_type = DSPL_NONE;
+#endif  // CONFIG_DSPL_RESIDUAL
 
   const int qstep_cur_noise = 0;
 

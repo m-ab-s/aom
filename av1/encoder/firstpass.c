@@ -475,6 +475,10 @@ void av1_first_pass(AV1_COMP *cpi, const int64_t ts_duration) {
       set_mi_row_col(xd, &tile, mi_row, bh, mi_col, bw, cm->mi_rows,
                      cm->mi_cols, &chr_ref_info);
 
+#if CONFIG_DSPL_RESIDUAL
+      xd->mi[0]->dspl_type = DSPL_NONE;
+#endif  // CONFIG_DSPL_RESIDUAL
+
       set_plane_n4(xd, bsize, num_planes, &chr_ref_info);
 
       // Do intra 16x16 prediction.
