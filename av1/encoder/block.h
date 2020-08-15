@@ -333,10 +333,21 @@ struct macroblock {
   MB_RD_RECORD mb_rd_record;
 
   // Inter transform block RD search info. for square TX sizes.
+#if CONFIG_DSPL_RESIDUAL
+  TXB_RD_RECORD txb_rd_record_8X8[DSPL_END]
+                                 [(MAX_MIB_SIZE >> 1) * (MAX_MIB_SIZE >> 1)];
+  TXB_RD_RECORD txb_rd_record_16X16[DSPL_END]
+                                   [(MAX_MIB_SIZE >> 2) * (MAX_MIB_SIZE >> 2)];
+  TXB_RD_RECORD txb_rd_record_32X32[DSPL_END]
+                                   [(MAX_MIB_SIZE >> 3) * (MAX_MIB_SIZE >> 3)];
+  TXB_RD_RECORD txb_rd_record_64X64[DSPL_END]
+                                   [(MAX_MIB_SIZE >> 4) * (MAX_MIB_SIZE >> 4)];
+#else
   TXB_RD_RECORD txb_rd_record_8X8[(MAX_MIB_SIZE >> 1) * (MAX_MIB_SIZE >> 1)];
   TXB_RD_RECORD txb_rd_record_16X16[(MAX_MIB_SIZE >> 2) * (MAX_MIB_SIZE >> 2)];
   TXB_RD_RECORD txb_rd_record_32X32[(MAX_MIB_SIZE >> 3) * (MAX_MIB_SIZE >> 3)];
   TXB_RD_RECORD txb_rd_record_64X64[(MAX_MIB_SIZE >> 4) * (MAX_MIB_SIZE >> 4)];
+#endif  // CONFIG_DSPL_RESIDUAL
 
   // Intra transform block RD search info. for square TX sizes.
   TXB_RD_RECORD txb_rd_record_intra;
