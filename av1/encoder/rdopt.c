@@ -6245,6 +6245,16 @@ static void select_tx_block(const AV1_COMP *cpi, MACROBLOCK *x, int blk_row,
   const int try_no_split =
       cpi->oxcf.enable_tx64 || txsize_sqr_up_map[tx_size] != TX_64X64;
   int try_split = tx_size > TX_4X4 && depth < MAX_VARTX_DEPTH;
+#if CONFIG_DSPL_RESIDUAL
+  // When considering splitting the current transform block with dpsl_type set
+  // to DSPL_XY it is important to ensure that downsampling is supported for the
+  // split transform size. dspl_tx_size_map sets such non-supported sizes to
+  // TX_INVALID, so we can simply test for that.
+  const DSPL_TYPE dspl_type = mbmi->dspl_type;
+  if (dspl_type == DSPL_XY &&
+      dspl_tx_size_map[sub_tx_size_map[tx_size]] == TX_INVALID)
+    try_split = 0;
+#endif  // CONFIG_DSPL_RESIDUAL
 #if CONFIG_DIST_8X8
   if (x->using_dist_8x8)
     try_split &= tx_size_wide[tx_size] >= 16 && tx_size_high[tx_size] >= 16;
@@ -6362,7 +6372,19 @@ static int64_t select_tx_size_and_type(const AV1_COMP *cpi, MACROBLOCK *x,
   memcpy(tx_left, xd->left_txfm_context, sizeof(TXFM_CONTEXT) * mi_height);
 
   const int skip_ctx = av1_get_skip_context(xd);
+#if CONFIG_DSPL_RESIDUAL
+  // dspl_type won't be signalled for blocks whose sides are not at least equal
+  // to DSPL_MIN_PARTITION_SIDE; in these cases we set signalling cost to 0
+  const int dspl_type_cost =
+      (block_size_wide[bsize] < DSPL_MIN_PARTITION_SIDE ||
+       block_size_high[bsize] < DSPL_MIN_PARTITION_SIDE)
+          ? 0
+          : x->dspl_type_cost[xd->mi[0]->dspl_type];
+  // add dspl_type cost to the cost for signalling mbmi->skip == 0
+  const int s0 = x->skip_cost[skip_ctx][0] + dspl_type_cost;
+#else
   const int s0 = x->skip_cost[skip_ctx][0];
+#endif  // CONFIG_DSPL_RESIDUAL
   const int s1 = x->skip_cost[skip_ctx][1];
   const TX_SIZE max_tx_size = max_txsize_rect_lookup[plane_bsize];
   const int bh = tx_size_high_unit[max_tx_size];
@@ -6430,6 +6452,10 @@ static int64_t select_tx_size_and_type(const AV1_COMP *cpi, MACROBLOCK *x,
     if (!xd->lossless[xd->mi[0]->segment_id])
       rd = AOMMIN(rd, RDCOST(x->rdmult, s1, rd_stats->sse));
   }
+
+#if CONFIG_DSPL_RESIDUAL
+  rd_stats->rate += dspl_type_cost;
+#endif  // CONFIG_DSPL_RESIDUAL
 
   return rd;
 }
@@ -6893,6 +6919,9 @@ static void pick_tx_size_type_yrd(const AV1_COMP *cpi, MACROBLOCK *x,
                                   int64_t ref_best_rd) {
   const AV1_COMMON *cm = &cpi->common;
   MACROBLOCKD *const xd = &x->e_mbd;
+#if CONFIG_DSPL_RESIDUAL
+  MB_MODE_INFO *mbmi = xd->mi[0];
+#endif  // CONFIG_DSPL_RESIDUAL
   assert(is_inter_block(xd->mi[0]));
   const int mi_row = x->e_mbd.mi_row;
   const int mi_col = x->e_mbd.mi_col;
@@ -6956,6 +6985,62 @@ static void pick_tx_size_type_yrd(const AV1_COMP *cpi, MACROBLOCK *x,
   ++x->tx_search_count;
 #endif  // CONFIG_SPEED_STATS
 
+#if CONFIG_DSPL_RESIDUAL
+  int64_t best_rd = INT64_MAX;
+  DSPL_TYPE best_dspl_type = DSPL_NONE;
+  TXB_RD_INFO_NODE matched_rd_info[DSPL_END][4 + 16 + 64];
+  int found_rd_info[DSPL_END];
+  memset(found_rd_info, 0, DSPL_END * sizeof(found_rd_info[0]));
+
+  for (DSPL_TYPE dspl_type = DSPL_NONE; dspl_type < DSPL_END; ++dspl_type) {
+    // Residual downsampling option is only available for partitions whose
+    // either side is at least DSPL_MIN_PARTITION_SIDE
+    if (dspl_type > DSPL_NONE &&
+        (block_size_wide[bsize] < DSPL_MIN_PARTITION_SIDE ||
+         block_size_high[bsize] < DSPL_MIN_PARTITION_SIDE))
+      continue;
+
+    mbmi->dspl_type = dspl_type;
+
+    // Pre-compute residue hashes (transform block level) and find existing or
+    // add new RD records to store and reuse rate and distortion values to speed
+    // up TX size/type search.
+#if !CONFIG_NEW_TX_PARTITION
+    if (ref_best_rd != INT64_MAX && within_border &&
+        cpi->sf.use_inter_txb_hash) {
+      found_rd_info[dspl_type] =
+          find_tx_size_rd_records(x, bsize, matched_rd_info[dspl_type]);
+    }
+#endif  // !CONFIG_NEW_TX_PARTITION
+
+    RD_STATS dummy_rd_stats;
+    const int64_t dspl_rd = select_tx_size_and_type(
+        cpi, x, &dummy_rd_stats, bsize, ref_best_rd,
+        found_rd_info[dspl_type] ? matched_rd_info[dspl_type] : NULL);
+
+    if (dspl_rd < best_rd) {
+      best_rd = dspl_rd;
+      *rd_stats = dummy_rd_stats;
+      best_dspl_type = dspl_type;
+    }
+  }
+
+  int found = 0;
+  if (best_rd != INT64_MAX) {
+    found = 1;
+    // TODO(singhprakhar): Currently, we make a final call to
+    // select_tx_size_and_type() using the selected best_dspl_type. This can be
+    // avoided by saving state after the calls to select_tx_size_and_type above
+    // and restoring state here. This won't affect compression performance but
+    // will result in encoder speedup.
+    mbmi->dspl_type = best_dspl_type;
+    select_tx_size_and_type(
+        cpi, x, rd_stats, bsize, ref_best_rd,
+        found_rd_info[best_dspl_type] ? matched_rd_info[best_dspl_type] : NULL);
+  } else {
+    av1_invalid_rd_stats(rd_stats);
+  }
+#else
   // Precompute residual hashes and find existing or add new RD records to
   // store and reuse rate and distortion values to speed up TX size search.
   TXB_RD_INFO_NODE matched_rd_info[4 + 16 + 64];
@@ -6977,6 +7062,7 @@ static void pick_tx_size_type_yrd(const AV1_COMP *cpi, MACROBLOCK *x,
     *rd_stats = this_rd_stats;
     found = 1;
   }
+#endif  // CONFIG_DSPL_RESIDUAL
 
   // We should always find at least one candidate unless ref_best_rd is less
   // than INT64_MAX (in which case, all the calls to select_tx_size_fix_type
@@ -10497,6 +10583,11 @@ static int txfm_search(const AV1_COMP *cpi, const TileDataEnc *tile_data,
     rd_stats->rate += skip_flag_cost[1];
     mbmi->skip = 1;
     // here mbmi->skip temporarily plays a role as what this_skip2 does
+#if CONFIG_DSPL_RESIDUAL
+    // mbmi->dspl_type is unused when mbmi->skip == 1. As a convention, we
+    // maintain IMPLIES(mbmi->skip, mbmi->dspl_type == DSPL_NONE).
+    mbmi->dspl_type = DSPL_NONE;
+#endif  // CONFIG_DSPL_RESIDUAL
 
     const int64_t tmprd = RDCOST(x->rdmult, rd_stats->rate, rd_stats->dist);
     if (tmprd > ref_best_rd) {
