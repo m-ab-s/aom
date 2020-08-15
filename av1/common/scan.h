@@ -48,6 +48,35 @@ static INLINE const SCAN_ORDER *get_scan(TX_SIZE tx_size, TX_TYPE tx_type) {
   return get_default_scan(tx_size, tx_type);
 }
 
+#if CONFIG_DSPL_RESIDUAL
+/*!
+ * Scans in an input array into an output array in the order defined by
+ * scan_order. The ith element of output dst[i] = src[scan_order->scan[i]]
+ *
+ * \param src        Pointer to start of input array
+ * \param dst        Pointer to start of output array
+ * \param eob        Number of elements to scan into the output, e.g., if eob=N
+                     then N elements would be written to dst
+ * \param scan_order The scan order to use
+ */
+void scan_array(const tran_low_t *const src, tran_low_t *const dst,
+                const int eob, const SCAN_ORDER *const scan_order);
+
+/*!
+ * Scans out an input array into an output array in the order defined by
+ * scan_order. The ith input element src[i] affects the output as follows:
+ * dst[scan_order->scan[i]] = src[i]
+ *
+ * \param src        Pointer to start of input array
+ * \param dst        Pointer to start of output array
+ * \param eob        Number of elements to scan into the output, e.g., if eob=N
+                     then N elements would be read from src
+ * \param scan_order The scan scan order to use
+ */
+void iscan_array(const tran_low_t *const src, tran_low_t *const dst,
+                 const int eob, const SCAN_ORDER *const scan_order);
+#endif  // CONFIG_DSPL_RESIDUAL
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif

@@ -20,6 +20,10 @@
 #include "av1/common/blockd.h"
 #include "av1/common/enums.h"
 #include "av1/common/idct.h"
+#if CONFIG_DSPL_RESIDUAL
+#include "av1/common/resize.h"
+#include "av1/common/scan.h"
+#endif  // CONFIG_DSPL_RESIDUAL
 
 int av1_get_tx_scale(const TX_SIZE tx_size) {
   const int pels = tx_size_2d[tx_size];
@@ -447,6 +451,133 @@ void av1_inv_txfm_add_c(const tran_low_t *dqcoeff, uint8_t *dst, int stride,
   }
 }
 
+#if CONFIG_DSPL_RESIDUAL
+/*!
+ * Given dequantized coefficients and transform parameters, this function
+ * inverts the transform and saves result in a signed 16-bit integer buffer dst.
+ *
+ * This function is necessitated by the reduced output range of
+ * av1_inverse_transform_block(), which produces unsigned output in [0-255],
+ * [0-1023], etc depending on bitdepth. This is because after
+ * av1_inverse_transform_block() inverts transform, it adds the residuals to the
+ * prediction buffer to obtain the reconstruction. The reconstruction is always
+ * in this bounded range.
+ *
+ * However the CONFIG_DSPL_RESIDUAL experiment requires access to the residuals
+ * themselves, not the reconstruction. The residuals can range form
+ * [-255, 255], [-1023, 1023], etc depending on bitdepth.
+ *
+ * To extract these residuals, this function forces a 12-bit depth transform
+ * with prediction initialized to 1023. For 8 and 10 bit depths, 1023 can then
+ * be subtracted from the output to compute residual.
+ *
+ * Currently this function only supports 8-bit depth (as that is the target
+ * of CONFIG_DSPL_RESIDUAL at this moment). Extension to 10-bit depth
+ * should be straightforward but has not been tested. However, extension to
+ * 12-bit depth will require using inverse functions further down the call stack
+ * rather than using av1_highbd_inv_txfm_add() since residuals will range in
+ * [-4095, 4095].
+ */
+void av1_inverse_transform_block_diff(const MACROBLOCKD *xd,
+                                      const tran_low_t *dqcoeff, int plane,
+                                      TX_TYPE tx_type, TX_SIZE tx_size,
+                                      int16_t *dst, int stride, int eob,
+                                      int reduced_tx_set) {
+  if (!eob) return;
+
+  // This method has not been tested for 10-bit depth and most certainly won't
+  // work with 12-bit depth
+  assert(xd->bd == 8);
+
+  // We initialize the residual buffer to 1023 and then subtract 1023 after the
+  // inverse and add operation is performed by av1_highbd_inv_txfm_add() to get
+  // residuals
+  const uint16_t residual_init_val = 1023;
+  const uint8_t txw = tx_size_wide[tx_size], txh = tx_size_high[tx_size];
+
+  DECLARE_ALIGNED(32, uint16_t, residual16[MAX_SB_SQUARE]);
+  uint8_t *const residual = CONVERT_TO_BYTEPTR(residual16);
+
+  for (int r = 0; r < txh; ++r)
+    for (int c = 0; c < txw; ++c)
+      residual16[r * MAX_TX_SIZE + c] = residual_init_val;
+
+  TxfmParam txfm_param;
+  init_txfm_param(xd, plane, tx_size, tx_type, eob, reduced_tx_set,
+                  &txfm_param);
+  txfm_param.bd = 12;
+  txfm_param.is_hbd = 1;
+
+  av1_highbd_inv_txfm_add(dqcoeff, residual, MAX_TX_SIZE, &txfm_param);
+
+  for (int r = 0; r < txh; ++r)
+    for (int c = 0; c < txw; ++c)
+      dst[r * stride + c] =
+          (int16_t)residual16[r * MAX_TX_SIZE + c] - residual_init_val;
+}
+
+/*!
+ * This function inverts transform blocks which have been coded using
+ * downsampling in four steps: unpack coefficients, perform inverse transform,
+ * upsample and add to the prediction buffer dst. For packing logic, please see
+ * av1_xform_quant().
+ */
+void av1_inverse_dspl_transform_block(const MACROBLOCKD *xd,
+                                      const tran_low_t *dqcoeff, int plane,
+                                      TX_TYPE tx_type, TX_SIZE tx_size,
+                                      uint8_t *dst, int stride, int eob,
+                                      int reduced_tx_set) {
+  const TX_SIZE new_tx_size = dspl_tx_size_map[tx_size];
+  const uint8_t txw = tx_size_wide[tx_size], txh = tx_size_high[tx_size];
+  const uint8_t dspl_txw = tx_size_wide[new_tx_size],
+                dspl_txh = tx_size_high[new_tx_size];
+
+  // Since we have to have enough buffer memory on the stack for MAX_TX_SIZE
+  // size transforms, we will use MAX_TX_SIZE as stride for simplicity.
+  const int buf_stride = MAX_TX_SIZE;
+  assert(buf_stride >= dspl_txw);
+
+  // Buffers
+  DECLARE_ALIGNED(32, tran_low_t, scan_buf[MAX_TX_SQUARE]);
+  DECLARE_ALIGNED(32, tran_low_t, dqcoeff_buf[MAX_TX_SQUARE]);
+  DECLARE_ALIGNED(32, int16_t, buf_diff[MAX_TX_SQUARE]);
+  DECLARE_ALIGNED(32, int16_t, buf_up_diff[MAX_TX_SQUARE]);
+
+  const int dspl_eob = eob;
+  TxfmParam txfm_param;
+  init_txfm_param(xd, plane, tx_size, tx_type, dspl_eob, reduced_tx_set,
+                  &txfm_param);
+
+  // Unpack coefficients
+  const SCAN_ORDER *const scan_order = get_scan(tx_size, tx_type);
+  const SCAN_ORDER *const dspl_scan_order = get_scan(new_tx_size, tx_type);
+  const int size = av1_get_max_eob(tx_size);
+  memset(scan_buf, 0, size * sizeof(tran_low_t));
+  scan_array(dqcoeff, scan_buf, eob, scan_order);
+  memset(dqcoeff_buf, 0, txw * txh * sizeof(tran_low_t));
+  iscan_array(scan_buf, dqcoeff_buf, dspl_eob, dspl_scan_order);
+
+  // Invert and compute difference
+  av1_inverse_transform_block_diff(xd, dqcoeff_buf, plane, tx_type, new_tx_size,
+                                   buf_diff, buf_stride, dspl_eob,
+                                   reduced_tx_set);
+
+  // Upsample
+  av1_signed_up2(buf_diff, dspl_txh, dspl_txw, buf_stride, buf_up_diff,
+                 buf_stride, 1, 1, txfm_param.bd);
+
+  // Add to output
+  for (int r = 0; r < txh; ++r) {
+    for (int c = 0; c < txw; ++c) {
+      const tran_low_t residue = (tran_low_t)buf_up_diff[r * buf_stride + c];
+      const uint16_t out =
+          highbd_clip_pixel_add(dst[r * stride + c], residue, txfm_param.bd);
+      dst[r * stride + c] = (uint8_t)out;
+    }
+  }
+}
+#endif  // CONFIG_DSPL_RESIDUAL
+
 void av1_inverse_transform_block(const MACROBLOCKD *xd,
                                  const tran_low_t *dqcoeff, int plane,
                                  TX_TYPE tx_type, TX_SIZE tx_size, uint8_t *dst,
@@ -549,6 +680,14 @@ void av1_inverse_transform_block(const MACROBLOCKD *xd,
       av1_inv_txfm_add_c(dqcoeff, dst, stride, &txfm_param);
     else
       av1_inv_txfm_add(dqcoeff, dst, stride, &txfm_param);
+#elif CONFIG_DSPL_RESIDUAL
+    DSPL_TYPE dspl_type = xd->mi[0]->dspl_type;
+    if (plane == 0 && dspl_type == DSPL_XY && xd->bd == 8) {
+      av1_inverse_dspl_transform_block(xd, dqcoeff, plane, tx_type, tx_size,
+                                       dst, stride, eob, reduced_tx_set);
+    } else {
+      av1_inv_txfm_add(dqcoeff, dst, stride, &txfm_param);
+    }
 #else
     av1_inv_txfm_add(dqcoeff, dst, stride, &txfm_param);
 #endif  // CONFIG_MODE_DEP_INTRA_TX || CONFIG_MODE_DEP_INTER_TX || CONFIG_LGT

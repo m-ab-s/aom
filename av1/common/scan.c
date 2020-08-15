@@ -2774,3 +2774,17 @@ const SCAN_ORDER av1_scan_orders[TX_SIZES_ALL][TX_TYPES] = {
   },
 #endif  // CONFIG_FLEX_PARTITION
 };
+
+#if CONFIG_DSPL_RESIDUAL
+void scan_array(const tran_low_t *const src, tran_low_t *const dst,
+                const int eob, const SCAN_ORDER *const scan_order) {
+  for (int scn_idx = 0; scn_idx < eob; ++scn_idx)
+    dst[scn_idx] = src[scan_order->scan[scn_idx]];
+}
+
+void iscan_array(const tran_low_t *const src, tran_low_t *const dst,
+                 const int eob, const SCAN_ORDER *const scan_order) {
+  for (int scn_idx = 0; scn_idx < eob; ++scn_idx)
+    dst[scan_order->scan[scn_idx]] = src[scn_idx];
+}
+#endif  // CONFIG_DSPL_RESIDUAL

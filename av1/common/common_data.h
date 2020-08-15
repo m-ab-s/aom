@@ -427,6 +427,35 @@ static const TX_SIZE txsize_vert_map[TX_SIZES_ALL] = {
 #endif       // CONFIG_FLEX_PARTITION
 };
 
+#if CONFIG_DSPL_RESIDUAL
+/*!
+ * Mapping for halving transform size in both X and Y directions indexed by
+ * TX_SIZE. Note that transforms which have width or height equal to 4 cannot be
+ * halved because transforms for those sizes aren't available.
+ */
+static const TX_SIZE dspl_tx_size_map[TX_SIZES_ALL] = {
+  TX_INVALID,  // TX_4X4
+  TX_4X4,      // TX_8X8
+  TX_8X8,      // TX_16X16
+  TX_16X16,    // TX_32X32
+  TX_32X32,    // TX_64X64
+  TX_INVALID,  // TX_4X8
+  TX_INVALID,  // TX_8X4
+  TX_4X8,      // TX_8X16
+  TX_8X4,      // TX_16X8
+  TX_8X16,     // TX_16X32
+  TX_16X8,     // TX_32X16
+  TX_16X32,    // TX_32X64
+  TX_32X16,    // TX_64X32
+  TX_INVALID,  // TX_4X16
+  TX_INVALID,  // TX_16X4
+  TX_4X16,     // TX_8X32
+  TX_16X4,     // TX_32X8
+  TX_8X32,     // TX_16X64
+  TX_32X8,     // TX_64X16
+};
+#endif  // CONFIG_DSPL_RESIDUAL
+
 #define TX_SIZE_W_MIN 4
 
 // Transform block width in pixels

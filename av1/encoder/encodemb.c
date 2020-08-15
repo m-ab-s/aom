@@ -133,6 +133,52 @@ static AV1_QUANT_FACADE
       { NULL, NULL }
     };
 
+#if CONFIG_DSPL_RESIDUAL
+/*!
+ * This functions transforms residuals after downsampling them. There are three
+ * key steps: downsampling, transform and packing.
+ *
+ * Packing is done by scanning in (using scan_array()) transformed coefficients
+ * into a buffer in the scan order of the smaller transform and then scanning
+ * them back out (using iscan_array()) in the order of the original transform.
+ * This ensures that the quantizer always sees the smaller transform
+ * coefficients first in the coeff buffer followed by consecutive zeros which
+ * are coded at almost no cost (using eob).
+ */
+void av1_dspl_xform(const int16_t *src_diff, const int diff_stride,
+                    tran_low_t *const coeff, const TxfmParam *txfm_param,
+                    const TX_SIZE tx_size, const TX_TYPE tx_type) {
+  const uint8_t txw = tx_size_wide[tx_size], txh = tx_size_high[tx_size];
+  const TX_SIZE new_tx_size = dspl_tx_size_map[tx_size];
+  const uint8_t dspl_txw = txw >> 1;
+  TxfmParam dspl_txfm_param = *txfm_param;
+  dspl_txfm_param.tx_size = new_tx_size;
+
+  // Buffers
+  DECLARE_ALIGNED(32, int16_t, dspl_src_diff[MAX_TX_SQUARE]);
+  DECLARE_ALIGNED(32, tran_low_t, scan_buf[MAX_TX_SQUARE]);
+
+  // Downsample
+  memset(dspl_src_diff, 0, MAX_TX_SQUARE * sizeof(int16_t));
+  av1_signed_down2(src_diff, txh, txw, diff_stride, dspl_src_diff, dspl_txw, 1,
+                   1, dspl_txfm_param.bd);
+
+  // Transform
+  memset(coeff, 0, txw * txh * sizeof(tran_low_t));
+  av1_fwd_txfm(dspl_src_diff, coeff, dspl_txw, &dspl_txfm_param);
+
+  // Pack coeffcients
+  const int size = av1_get_max_eob(tx_size),
+            dspl_size = av1_get_max_eob(new_tx_size);
+  const SCAN_ORDER *const scan_order = get_scan(tx_size, tx_type);
+  const SCAN_ORDER *const dspl_scan_order = get_scan(new_tx_size, tx_type);
+  memset(scan_buf, 0, size * sizeof(tran_low_t));
+  scan_array(coeff, scan_buf, dspl_size, dspl_scan_order);
+  memset(coeff, 0, txw * txh * sizeof(tran_low_t));
+  iscan_array(scan_buf, coeff, size, scan_order);
+}
+#endif  // CONFIG_DSPL_RESIDUAL
+
 void av1_xform_quant(const AV1_COMMON *cm, MACROBLOCK *x, int plane, int block,
                      int blk_row, int blk_col, BLOCK_SIZE plane_bsize,
                      TX_SIZE tx_size, TX_TYPE tx_type,
@@ -178,7 +224,16 @@ void av1_xform_quant(const AV1_COMMON *cm, MACROBLOCK *x, int plane, int block,
   txfm_param.is_hbd = is_cur_buf_hbd(xd);
   txfm_param.mode = get_mode_dep_txfm_mode(mbmi);
 
+#if CONFIG_DSPL_RESIDUAL
+  DSPL_TYPE dspl_type = xd->mi[0]->dspl_type;
+  if (plane > 0 || dspl_type != DSPL_XY || xd->bd > 8) {
+    av1_fwd_txfm(src_diff, coeff, diff_stride, &txfm_param);
+  } else {
+    av1_dspl_xform(src_diff, diff_stride, coeff, &txfm_param, tx_size, tx_type);
+  }
+#else
   av1_fwd_txfm(src_diff, coeff, diff_stride, &txfm_param);
+#endif  // CONFIG_DSPL_RESIDUAL
 
   if (xform_quant_idx != AV1_XFORM_QUANT_SKIP_QUANT) {
     const int n_coeffs = av1_get_max_eob(tx_size);
