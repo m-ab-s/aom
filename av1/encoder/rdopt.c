@@ -4434,6 +4434,9 @@ static void save_tx_rd_info(int n4, uint32_t hash, const MACROBLOCK *const x,
   const MB_MODE_INFO *const mbmi = xd->mi[0];
   tx_rd_info->hash_value = hash;
   tx_rd_info->tx_size = mbmi->tx_size;
+#if CONFIG_DSPL_RESIDUAL
+  tx_rd_info->dspl_type = mbmi->dspl_type;
+#endif  // CONFIG_DSPL_RESIDUAL
   memcpy(tx_rd_info->blk_skip, x->blk_skip,
          sizeof(tx_rd_info->blk_skip[0]) * n4);
   av1_copy(tx_rd_info->inter_tx_size, mbmi->inter_tx_size);
@@ -4446,6 +4449,9 @@ static void fetch_tx_rd_info(int n4, const MB_RD_INFO *const tx_rd_info,
   MACROBLOCKD *const xd = &x->e_mbd;
   MB_MODE_INFO *const mbmi = xd->mi[0];
   mbmi->tx_size = tx_rd_info->tx_size;
+#if CONFIG_DSPL_RESIDUAL
+  mbmi->dspl_type = tx_rd_info->dspl_type;
+#endif  // CONFIG_DSPL_RESIDUAL
   memcpy(x->blk_skip, tx_rd_info->blk_skip,
          sizeof(tx_rd_info->blk_skip[0]) * n4);
   av1_copy(mbmi->inter_tx_size, tx_rd_info->inter_tx_size);

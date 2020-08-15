@@ -138,6 +138,9 @@ typedef struct {
   TX_TYPE txk_type[TXK_TYPE_BUF_LEN];
   RD_STATS rd_stats;
   uint32_t hash_value;
+#if CONFIG_DSPL_RESIDUAL
+  DSPL_TYPE dspl_type;
+#endif  // CONFIG_DSPL_RESIDUAL
 } MB_RD_INFO;
 
 #define RD_RECORD_BUFFER_LEN 8
