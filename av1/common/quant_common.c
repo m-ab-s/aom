@@ -530,6 +530,20 @@ void av1_qm_init(AV1_COMMON *cm) {
   }
 }
 
+#if CONFIG_DSPL_RESIDUAL
+int av1_calc_dspl_qindex(int qindex) {
+  const int dspl_delta_qindex = 3;
+  return AOMMAX(1, qindex - dspl_delta_qindex);
+}
+
+void av1_get_dspl_delta_q(int base_qindex, int *dspl_delta_q) {
+  int dspl_base_qindex = av1_calc_dspl_qindex(base_qindex);
+
+  dspl_delta_q[DSPL_NONE] = 0;
+  dspl_delta_q[DSPL_XY] = dspl_base_qindex - base_qindex;
+}
+#endif  // CONFIG_DSPL_RESIDUAL
+
 /* Provide 15 sets of quantization matrices for chroma and luma
    and each TX size. Matrices for different TX sizes are in fact
    sub-sampled from the 32x32 and 16x16 sizes, but explicitly

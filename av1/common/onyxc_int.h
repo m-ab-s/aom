@@ -435,11 +435,19 @@ typedef struct AV1Common {
   // dequantization process.  They have the same coefficient
   // shift/scale as TX.
 #if CONFIG_EXTQUANT
+#if CONFIG_DSPL_RESIDUAL
+  int32_t y_dequant_QTX[DSPL_END][MAX_SEGMENTS][2];
+#else
   int32_t y_dequant_QTX[MAX_SEGMENTS][2];
+#endif  // CONFIG_DSPL_RESIDUAL
   int32_t u_dequant_QTX[MAX_SEGMENTS][2];
   int32_t v_dequant_QTX[MAX_SEGMENTS][2];
 #else
+#if CONFIG_DSPL_RESIDUAL
+  int16_t y_dequant_QTX[DSPL_END][MAX_SEGMENTS][2];
+#else
   int16_t y_dequant_QTX[MAX_SEGMENTS][2];
+#endif  // CONFIG_DSPL_RESIDUAL
   int16_t u_dequant_QTX[MAX_SEGMENTS][2];
   int16_t v_dequant_QTX[MAX_SEGMENTS][2];
 #endif
@@ -815,6 +823,41 @@ static INLINE void av1_init_above_context(AV1_COMMON *cm, MACROBLOCKD *xd,
 static INLINE void av1_init_macroblockd(AV1_COMMON *cm, MACROBLOCKD *xd,
                                         tran_low_t *dqcoeff) {
   const int num_planes = av1_num_planes(cm);
+#if CONFIG_DSPL_RESIDUAL
+  // In this experiment, separate dequantizers must be maintained for each
+  // downsampling option. This is implemented by adding a new dimension to the
+  // dequantizer arrays in the macroblockd_plane struct. This struct is common
+  // to Y, U and V planes. For the Y plane, separate dequantizers are copied for
+  // DSPL_NONE and DSPL_XY. For U and V planes, since these planes are not
+  // affected in this experiment, the same dequantizers are copied for both
+  // DSPL_NONE and DSPL_XY.
+  for (DSPL_TYPE dspl_type = DSPL_NONE; dspl_type < DSPL_END; ++dspl_type) {
+    for (int i = 0; i < num_planes; ++i) {
+      xd->plane[i].dqcoeff = dqcoeff;
+
+      if (xd->plane[i].plane_type == PLANE_TYPE_Y) {
+        memcpy(xd->plane[i].seg_dequant_QTX[dspl_type],
+               cm->y_dequant_QTX[dspl_type],
+               sizeof(cm->y_dequant_QTX[dspl_type]));
+        memcpy(xd->plane[i].seg_iqmatrix, cm->y_iqmatrix,
+               sizeof(cm->y_iqmatrix));
+
+      } else {
+        if (i == AOM_PLANE_U) {
+          memcpy(xd->plane[i].seg_dequant_QTX[dspl_type], cm->u_dequant_QTX,
+                 sizeof(cm->u_dequant_QTX));
+          memcpy(xd->plane[i].seg_iqmatrix, cm->u_iqmatrix,
+                 sizeof(cm->u_iqmatrix));
+        } else {
+          memcpy(xd->plane[i].seg_dequant_QTX[dspl_type], cm->v_dequant_QTX,
+                 sizeof(cm->v_dequant_QTX));
+          memcpy(xd->plane[i].seg_iqmatrix, cm->v_iqmatrix,
+                 sizeof(cm->v_iqmatrix));
+        }
+      }
+    }
+  }
+#else
   for (int i = 0; i < num_planes; ++i) {
     xd->plane[i].dqcoeff = dqcoeff;
 
@@ -837,6 +880,7 @@ static INLINE void av1_init_macroblockd(AV1_COMMON *cm, MACROBLOCKD *xd,
       }
     }
   }
+#endif  // CONFIG_DSPL_RESIDUAL
   xd->mi_stride = cm->mi_stride;
   xd->error_info = &cm->error;
   cfl_init(&xd->cfl, &cm->seq_params);

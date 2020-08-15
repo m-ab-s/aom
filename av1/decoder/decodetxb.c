@@ -124,9 +124,19 @@ uint8_t av1_read_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCKD *const xd,
   MB_MODE_INFO *const mbmi = xd->mi[0];
   struct macroblockd_plane *const pd = &xd->plane[plane];
 #if CONFIG_EXTQUANT
+#if CONFIG_DSPL_RESIDUAL
+  const int32_t *const dequant =
+      pd->seg_dequant_QTX[mbmi->dspl_type][mbmi->segment_id];
+#else
   const int32_t *const dequant = pd->seg_dequant_QTX[mbmi->segment_id];
+#endif  // CONFIG_DSPL_RESIDUAL
+#else
+#if CONFIG_DSPL_RESIDUAL
+  const int16_t *const dequant =
+      pd->seg_dequant_QTX[mbmi->dspl_type][mbmi->segment_id];
 #else
   const int16_t *const dequant = pd->seg_dequant_QTX[mbmi->segment_id];
+#endif  // CONFIG_DSPL_RESIDUAL
 #endif
   tran_low_t *const tcoeffs = pd->dqcoeff_block + xd->cb_offset[plane];
   const int shift = av1_get_tx_scale(tx_size);

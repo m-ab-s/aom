@@ -1412,6 +1412,45 @@ static void parse_decode_block(AV1Decoder *const pbi, ThreadData *const td,
 
   if (cm->delta_q_info.delta_q_present_flag) {
     for (int i = 0; i < MAX_SEGMENTS; i++) {
+#if CONFIG_DSPL_RESIDUAL
+      for (int j = 0; j < num_planes; ++j) {
+        // Similar to av1_init_macroblockd(), we need to build dequantizers for
+        // each of the downsampling options. By design, the dequantizers only
+        // differ for the Y plane. For U and V planes, we use the original
+        // dequantizers for both options.
+        for (DSPL_TYPE dspl_type = DSPL_NONE; dspl_type < DSPL_END;
+             ++dspl_type) {
+#if CONFIG_EXTQUANT_HBD
+          int current_qindex = av1_get_qindex(&cm->seg, i, xd->current_qindex,
+                                              cm->seq_params.bit_depth);
+#else
+          int current_qindex = av1_get_qindex(&cm->seg, i, xd->current_qindex);
+#endif
+          if (j == 0) {
+            int dspl_delta_q[DSPL_END];
+            av1_get_dspl_delta_q(current_qindex, dspl_delta_q);
+            current_qindex =
+                AOMMAX(0, current_qindex + dspl_delta_q[dspl_type]);
+          }
+
+          const int dc_delta_q =
+              j == 0 ? cm->y_dc_delta_q
+                     : (j == 1 ? cm->u_dc_delta_q : cm->v_dc_delta_q);
+          const int ac_delta_q =
+              j == 0 ? 0 : (j == 1 ? cm->u_ac_delta_q : cm->v_ac_delta_q);
+          xd->plane[j].seg_dequant_QTX[dspl_type][i][0] =
+              av1_dc_quant_QTX(current_qindex, dc_delta_q,
+#if CONFIG_DELTA_DCQUANT
+                               j == 0 ? cm->seq_params.base_y_dc_delta_q
+                                      : cm->seq_params.base_uv_dc_delta_q,
+#endif
+                               cm->seq_params.bit_depth);
+          xd->plane[j].seg_dequant_QTX[dspl_type][i][1] = av1_ac_quant_QTX(
+              current_qindex, ac_delta_q, cm->seq_params.bit_depth);
+        }
+      }
+
+#else
 #if CONFIG_EXTQUANT_HBD
       const int current_qindex = av1_get_qindex(&cm->seg, i, xd->current_qindex,
                                                 cm->seq_params.bit_depth);
@@ -1435,6 +1474,7 @@ static void parse_decode_block(AV1Decoder *const pbi, ThreadData *const td,
         xd->plane[j].seg_dequant_QTX[i][1] = av1_ac_quant_QTX(
             current_qindex, ac_delta_q, cm->seq_params.bit_depth);
       }
+#endif  // CONFIG_DSPL_RESIDUAL
     }
   }
   if (mbmi->skip) av1_reset_skip_context(xd, bsize, num_planes);
@@ -2333,12 +2373,30 @@ static void setup_segmentation_dequant(AV1_COMMON *const cm,
   const int max_segments = cm->seg.enabled ? MAX_SEGMENTS : 1;
   for (int i = 0; i < max_segments; ++i) {
     const int qindex = xd->qindex[i];
+#if CONFIG_DSPL_RESIDUAL
+    // This dequantizer change is similar to the dequantizer changes in
+    // parse_decode_block() and av1_init_macroblockd()
+    int dspl_delta_q[DSPL_END];
+    av1_get_dspl_delta_q(xd->qindex[i], dspl_delta_q);
+    for (DSPL_TYPE dspl_type = DSPL_NONE; dspl_type < DSPL_END; ++dspl_type) {
+      int qindex_y = AOMMAX(0, xd->qindex[i] + dspl_delta_q[dspl_type]);
+      cm->y_dequant_QTX[dspl_type][i][0] =
+          av1_dc_quant_QTX(qindex_y, cm->y_dc_delta_q,
+#if CONFIG_DELTA_DCQUANT
+                           cm->seq_params.base_y_dc_delta_q,
+#endif  // CONFIG_DELTA_DCQUANT
+                           bit_depth);
+      cm->y_dequant_QTX[dspl_type][i][1] =
+          av1_ac_quant_QTX(qindex_y, 0, bit_depth);
+    }
+#else
     cm->y_dequant_QTX[i][0] = av1_dc_quant_QTX(qindex, cm->y_dc_delta_q,
 #if CONFIG_DELTA_DCQUANT
                                                cm->seq_params.base_y_dc_delta_q,
 #endif  // CONFIG_DELTA_DCQUANT
                                                bit_depth);
     cm->y_dequant_QTX[i][1] = av1_ac_quant_QTX(qindex, 0, bit_depth);
+#endif  // CONFIG_DSPL_RESIDUAL
     cm->u_dequant_QTX[i][0] =
         av1_dc_quant_QTX(qindex, cm->u_dc_delta_q,
 #if CONFIG_DELTA_DCQUANT

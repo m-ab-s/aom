@@ -7000,6 +7000,8 @@ static void pick_tx_size_type_yrd(const AV1_COMP *cpi, MACROBLOCK *x,
          block_size_high[bsize] < DSPL_MIN_PARTITION_SIDE))
       continue;
 
+    // Set quantizer pointers based on dspl_type
+    av1_setup_dspl_quantizer(cpi, x, mbmi->segment_id, dspl_type);
     mbmi->dspl_type = dspl_type;
 
     // Pre-compute residue hashes (transform block level) and find existing or
@@ -7033,6 +7035,7 @@ static void pick_tx_size_type_yrd(const AV1_COMP *cpi, MACROBLOCK *x,
     // avoided by saving state after the calls to select_tx_size_and_type above
     // and restoring state here. This won't affect compression performance but
     // will result in encoder speedup.
+    av1_setup_dspl_quantizer(cpi, x, mbmi->segment_id, best_dspl_type);
     mbmi->dspl_type = best_dspl_type;
     select_tx_size_and_type(
         cpi, x, rd_stats, bsize, ref_best_rd,
@@ -7040,6 +7043,9 @@ static void pick_tx_size_type_yrd(const AV1_COMP *cpi, MACROBLOCK *x,
   } else {
     av1_invalid_rd_stats(rd_stats);
   }
+
+  // Restore original quantizer
+  av1_setup_dspl_quantizer(cpi, x, mbmi->segment_id, DSPL_NONE);
 #else
   // Precompute residual hashes and find existing or add new RD records to
   // store and reuse rate and distortion values to speed up TX size search.

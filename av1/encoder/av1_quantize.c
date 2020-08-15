@@ -896,6 +896,47 @@ void av1_init_plane_quantizers(const AV1_COMP *cpi, MACROBLOCK *x,
   av1_initialize_me_consts(cpi, x, qindex);
 }
 
+#if CONFIG_DSPL_RESIDUAL
+void av1_setup_dspl_quantizer(const AV1_COMP *cpi, MACROBLOCK *x,
+                              int segment_id, DSPL_TYPE dspl_type) {
+  const AV1_COMMON *const cm = &cpi->common;
+  MACROBLOCKD *const xd = &x->e_mbd;
+  const QUANTS *const quants = &cpi->quants;
+#if CONFIG_EXTQUANT_HBD
+  int current_qindex =
+      AOMMAX(0, AOMMIN(cm->seq_params.bit_depth == AOM_BITS_8
+                           ? QINDEX_RANGE_8_BITS - 1
+                           : cm->seq_params.bit_depth == AOM_BITS_10
+                                 ? QINDEX_RANGE_10_BITS - 1
+                                 : QINDEX_RANGE - 1,
+                       cm->delta_q_info.delta_q_present_flag
+                           ? cm->base_qindex + xd->delta_qindex
+                           : cm->base_qindex));
+  int qindex = av1_get_qindex(&cm->seg, segment_id, current_qindex,
+                              cm->seq_params.bit_depth);
+#else
+  int current_qindex = AOMMAX(
+      0, AOMMIN(QINDEX_RANGE - 1, cm->delta_q_info.delta_q_present_flag
+                                      ? cm->base_qindex + xd->delta_qindex
+                                      : cm->base_qindex));
+  int qindex = av1_get_qindex(&cm->seg, segment_id, current_qindex);
+#endif
+
+  int dspl_delta_q[DSPL_END];
+  av1_get_dspl_delta_q(qindex, dspl_delta_q);
+  qindex = AOMMAX(0, qindex + dspl_delta_q[dspl_type]);
+
+  // Y
+  x->plane[0].quant_QTX = quants->y_quant[qindex];
+  x->plane[0].quant_fp_QTX = quants->y_quant_fp[qindex];
+  x->plane[0].round_fp_QTX = quants->y_round_fp[qindex];
+  x->plane[0].quant_shift_QTX = quants->y_quant_shift[qindex];
+  x->plane[0].zbin_QTX = quants->y_zbin[qindex];
+  x->plane[0].round_QTX = quants->y_round[qindex];
+  x->plane[0].dequant_QTX = cpi->dequants.y_dequant_QTX[qindex];
+}
+#endif  // CONFIG_DSPL_RESIDUAL
+
 void av1_frame_init_quantizer(AV1_COMP *cpi) {
   MACROBLOCK *const x = &cpi->td.mb;
   MACROBLOCKD *const xd = &x->e_mbd;

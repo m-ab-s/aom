@@ -936,9 +936,17 @@ typedef struct macroblockd_plane {
   // dequantization process.  They have the same coefficient
   // shift/scale as TX.
 #if CONFIG_EXTQUANT
+#if CONFIG_DSPL_RESIDUAL
+  int32_t seg_dequant_QTX[DSPL_END][MAX_SEGMENTS][2];
+#else
   int32_t seg_dequant_QTX[MAX_SEGMENTS][2];
+#endif  // CONFIG_DSPL_RESIDUAL
+#else
+#if CONFIG_DSPL_RESIDUAL
+  int16_t seg_dequant_QTX[DSPL_END][MAX_SEGMENTS][2];
 #else
   int16_t seg_dequant_QTX[MAX_SEGMENTS][2];
+#endif  // CONFIG_DSPL_RESIDUAL
 #endif
   uint8_t *color_index_map;
 

@@ -129,6 +129,14 @@ void av1_frame_init_quantizer(struct AV1_COMP *cpi);
 
 void av1_init_plane_quantizers(const struct AV1_COMP *cpi, MACROBLOCK *x,
                                int segment_id);
+#if CONFIG_DSPL_RESIDUAL
+/*!
+ * This function sets quantizer pointers in macroblock_plane struct for the Y
+ * plane based on dspl_type.
+ */
+void av1_setup_dspl_quantizer(const struct AV1_COMP *cpi, MACROBLOCK *x,
+                              int segment_id, DSPL_TYPE dspl_type);
+#endif
 
 void av1_build_quantizer(aom_bit_depth_t bit_depth, int y_dc_delta_q,
                          int u_dc_delta_q, int u_ac_delta_q, int v_dc_delta_q,

@@ -7458,9 +7458,17 @@ static void encode_superblock(const AV1_COMP *const cpi, TileDataEnc *tile_data,
     (void)num_planes;
 #endif
 
+#if CONFIG_DSPL_RESIDUAL
+    // Set quantizer
+    av1_setup_dspl_quantizer(cpi, x, mbmi->segment_id, mbmi->dspl_type);
+#endif
     av1_encode_sb(cpi, x, mi_row, mi_col, dry_run);
     av1_tokenize_sb_tx_size(cpi, td, t, dry_run, mi_row, mi_col, bsize, rate,
                             tile_data->allow_update_cdf);
+#if CONFIG_DSPL_RESIDUAL
+    // Restore quantizer
+    av1_setup_dspl_quantizer(cpi, x, mbmi->segment_id, DSPL_NONE);
+#endif
   }
 
 #if CONFIG_INTRA_ENTROPY && !CONFIG_USE_SMALL_MODEL

@@ -101,6 +101,9 @@ const qm_val_t *av1_iqmatrix(struct AV1Common *cm, int qmlevel, int plane,
                              TX_SIZE tx_size);
 const qm_val_t *av1_qmatrix(struct AV1Common *cm, int qmlevel, int plane,
                             TX_SIZE tx_size);
+#if CONFIG_DSPL_RESIDUAL
+void av1_get_dspl_delta_q(int base_qindex, int *dspl_delta_q);
+#endif  // CONFIG_DSPL_RESIDUAL
 
 #ifdef __cplusplus
 }  // extern "C"
