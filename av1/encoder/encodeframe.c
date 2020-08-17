@@ -5835,6 +5835,65 @@ static AOM_INLINE void encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
     sbi->sb_mv_precision = best_prec;
 #endif
 
+#if CONFIG_DSPL_RESIDUAL
+    sbi->allow_dspl_residual = 0;
+    // For non-key frames, we try encoding each superblock first without
+    // downsampling and then with downsampling (in DRY_RUN mode to avoid
+    // updating contexts). Then based on RDO, we allow or disallow residual
+    // downsampling for that superblock and encode the superblock again in wet
+    // run mode. This RDO optimization is aimed at tackling sub-optimal
+    // partition level RDO decisions as the coding of partitions in a superblock
+    // is affected by the coding of their nearby partitions.
+    // Note that when allow_dspl_residual == 1 then partitions within this SB
+    // are *allowed* to pick the new downsampling option but are not *required*
+    // to. This decision is made using partition level RDO.
+    if (!frame_is_intra_only(cm)) {
+      // Save state
+      SB_FIRST_PASS_STATS sb_fp_stats;
+      backup_sb_state(&sb_fp_stats, cpi, td, tile_data, mi_row, mi_col);
+
+      PC_TREE *pc_root_dspl[2];
+      RD_STATS rd_stats_dspl[2];
+
+      // Try dry pass with downsampling disabled
+      sbi->allow_dspl_residual = 0;
+      pc_root_dspl[0] = NULL;
+      init_encode_rd_sb(cpi, td, tile_data, &pc_root_dspl[0], sms_root,
+                        &rd_stats_dspl[0], mi_row, mi_col, 0);
+      reset_mbmi(&cpi->common, mi_row, mi_col);
+      restore_sb_state(&sb_fp_stats, cpi, td, tile_data, mi_row, mi_col);
+      rd_pick_partition(cpi, td, tile_data, tp, mi_row, mi_col, sb_size,
+                        max_sq_size, min_sq_size, &rd_stats_dspl[0],
+                        rd_stats_dspl[0], pc_root_dspl[0], sms_root, NULL,
+                        SB_DRY_PASS);
+
+      // Try dry pass with downsampling enabled
+      sbi->allow_dspl_residual = 1;
+      pc_root_dspl[1] = NULL;
+      init_encode_rd_sb(cpi, td, tile_data, &pc_root_dspl[1], sms_root,
+                        &rd_stats_dspl[1], mi_row, mi_col, 0);
+      reset_mbmi(&cpi->common, mi_row, mi_col);
+      restore_sb_state(&sb_fp_stats, cpi, td, tile_data, mi_row, mi_col);
+      rd_pick_partition(cpi, td, tile_data, tp, mi_row, mi_col, sb_size,
+                        max_sq_size, min_sq_size, &rd_stats_dspl[1],
+                        rd_stats_dspl[1], pc_root_dspl[1], sms_root, NULL,
+                        SB_DRY_PASS);
+
+      // Select best downsampling option
+      if (rd_stats_dspl[0].rdcost <= rd_stats_dspl[1].rdcost)
+        sbi->allow_dspl_residual = 0;
+      else
+        sbi->allow_dspl_residual = 1;
+
+      // Restore state
+      pc_root = NULL;
+      init_encode_rd_sb(cpi, td, tile_data, &pc_root, sms_root, &dummy_rdc,
+                        mi_row, mi_col, 0);
+      reset_mbmi(&cpi->common, mi_row, mi_col);
+      restore_sb_state(&sb_fp_stats, cpi, td, tile_data, mi_row, mi_col);
+    }
+#endif  // CONFIG_DSPL_RESIDUAL
+
     if (num_passes == 1) {
       rd_pick_partition(cpi, td, tile_data, tp, mi_row, mi_col, sb_size,
                         max_sq_size, min_sq_size, &dummy_rdc, dummy_rdc,

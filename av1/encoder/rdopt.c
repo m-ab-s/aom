@@ -7000,6 +7000,10 @@ static void pick_tx_size_type_yrd(const AV1_COMP *cpi, MACROBLOCK *x,
          block_size_high[bsize] < DSPL_MIN_PARTITION_SIDE))
       continue;
 
+    // If downsampling is not allowed for this superblock, we terminate after
+    // coding with DSPL_NONE
+    if (dspl_type > DSPL_NONE && xd->sbi->allow_dspl_residual == 0) continue;
+
     // Set quantizer pointers based on dspl_type
     av1_setup_dspl_quantizer(cpi, x, mbmi->segment_id, dspl_type);
     mbmi->dspl_type = dspl_type;

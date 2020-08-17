@@ -749,6 +749,12 @@ typedef struct SB_INFO {
   PARTITION_TREE *ptree_root;
 
   MvSubpelPrecision sb_mv_precision;
+#if CONFIG_DSPL_RESIDUAL
+  // allow_dspl_residual == 1 allows the encoder to pick, for each partition,
+  // whether to downsample residuals before coding or not. allow_dspl_residual
+  // == 0 forces each partition to pick the no downsampling option.
+  int8_t allow_dspl_residual;
+#endif  // CONFIG_DSPL_RESIDUAL
 } SB_INFO;
 
 PARTITION_TREE *av1_alloc_ptree_node(PARTITION_TREE *parent, int index);
