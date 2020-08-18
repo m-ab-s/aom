@@ -1508,12 +1508,13 @@ static int get_active_best_quality(const AV1_COMP *const cpi,
   int active_best_quality = 0;
   const int is_intrl_arf_boost =
       gf_group->update_type[gf_index] == INTNL_ARF_UPDATE;
-  const int is_leaf_frame =
+  const int is_bottom_leaf_frame =
       !(refresh_frame_flags->golden_frame ||
-        refresh_frame_flags->alt_ref_frame || is_intrl_arf_boost);
+        refresh_frame_flags->alt_ref_frame || is_intrl_arf_boost) &&
+      (gf_group->layer_depth[gf_index] == MAX_ARF_LAYERS);
   const int is_overlay_frame = rc->is_src_frame_alt_ref;
 
-  if (is_leaf_frame || is_overlay_frame) {
+  if (is_bottom_leaf_frame || is_overlay_frame) {
     if (rc_mode == AOM_Q) return qp;
 
     active_best_quality = inter_minq[active_worst_quality];
@@ -1523,12 +1524,6 @@ static int get_active_best_quality(const AV1_COMP *const cpi,
       active_best_quality = qp;
     }
     return active_best_quality;
-  }
-
-  // TODO(chengchen): can we remove this condition?
-  if (rc_mode == AOM_Q && !refresh_frame_flags->alt_ref_frame &&
-      !is_intrl_arf_boost) {
-    return qp;
   }
 
   // Determine active_best_quality for frames that are not leaf or overlay.

@@ -122,7 +122,6 @@ static void set_multi_layer_params_from_subgop_cfg(
     const TWO_PASS *twopass, GF_GROUP *const gf_group,
     const SubGOPCfg *subgop_cfg, RATE_CONTROL *rc, FRAME_INFO *frame_info,
     int *cur_frame_idx, int *frame_index) {
-  int use_altref = 0;
   int last_shown_frame = 0;
   int min_pyr_level = MAX_ARF_LAYERS;
 
@@ -140,7 +139,6 @@ static void set_multi_layer_params_from_subgop_cfg(
 
     if (type == FRAME_TYPE_OOO_FILTERED ||
         type == FRAME_TYPE_OOO_UNFILTERED) {  // ARF
-      use_altref = 1;
       gf_group->update_type[*frame_index] =
           pyr_level == min_pyr_level ? ARF_UPDATE : INTNL_ARF_UPDATE;
       if (pyr_level == min_pyr_level) {
@@ -155,7 +153,8 @@ static void set_multi_layer_params_from_subgop_cfg(
       }
       gf_group->arf_src_offset[*frame_index] = disp_idx - last_shown_frame - 1;
     } else if (type == FRAME_TYPE_INO_VISIBLE) {  // Leaf
-      gf_group->update_type[*frame_index] = LF_UPDATE;
+      gf_group->update_type[*frame_index] =
+          pyr_level == min_pyr_level ? GF_UPDATE : LF_UPDATE;
 
       int fwd_arf_disp_idx = find_forward_alt_ref(subgop_cfg, idx);
       gf_group->arf_boost[*frame_index] =
@@ -179,11 +178,7 @@ static void set_multi_layer_params_from_subgop_cfg(
     gf_group->layer_depth[*frame_index] = pyr_level;
     gf_group->max_layer_depth = AOMMAX(gf_group->max_layer_depth, pyr_level);
 
-    if (idx == (subgop_cfg->num_steps - 1)) {
-      if (!use_altref) gf_group->update_type[*frame_index] = GF_UPDATE;
-    } else {
-      (*frame_index)++;
-    }
+    if (idx != (subgop_cfg->num_steps - 1)) (*frame_index)++;
   }
   for (int idx = 1; idx <= *frame_index; idx++) {
     if (gf_group->layer_depth[idx] == gf_group->max_layer_depth)
