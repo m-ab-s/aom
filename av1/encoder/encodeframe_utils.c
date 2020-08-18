@@ -793,7 +793,8 @@ void av1_get_tpl_stats_sb(AV1_COMP *cpi, BLOCK_SIZE bsize, int mi_row,
   if (cpi->superres_mode != AOM_SUPERRES_NONE) return;
   if (cpi->common.current_frame.frame_type == KEY_FRAME) return;
   const FRAME_UPDATE_TYPE update_type = get_frame_update_type(&cpi->gf_group);
-  if (update_type == INTNL_OVERLAY_UPDATE || update_type == OVERLAY_UPDATE)
+  if (update_type == INTNL_OVERLAY_UPDATE || update_type == OVERLAY_UPDATE ||
+      update_type == KFFLT_OVERLAY_UPDATE)
     return;
   assert(IMPLIES(cpi->gf_group.size > 0,
                  cpi->gf_group.index < cpi->gf_group.size));

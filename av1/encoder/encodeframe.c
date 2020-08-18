@@ -342,7 +342,9 @@ static void init_ref_frame_space(AV1_COMP *cpi, ThreadData *td, int mi_row,
   if (cpi->superres_mode != AOM_SUPERRES_NONE) return;
   if (cpi->oxcf.q_cfg.aq_mode != NO_AQ) return;
 
-  const int is_overlay = cpi->gf_group.update_type[frame_idx] == OVERLAY_UPDATE;
+  const int is_overlay =
+      cpi->gf_group.update_type[frame_idx] == OVERLAY_UPDATE ||
+      cpi->gf_group.update_type[frame_idx] == KFFLT_OVERLAY_UPDATE;
   if (is_overlay) {
     memset(x->tpl_keep_ref_frame, 1, sizeof(x->tpl_keep_ref_frame));
     return;
@@ -427,7 +429,8 @@ static AOM_INLINE void adjust_rdmult_tpl_model(AV1_COMP *cpi, MACROBLOCK *x,
   const int gf_group_index = cpi->gf_group.index;
   if (cpi->oxcf.algo_cfg.enable_tpl_model && cpi->oxcf.q_cfg.aq_mode == NO_AQ &&
       cpi->oxcf.q_cfg.deltaq_mode == NO_DELTA_Q && gf_group_index > 0 &&
-      cpi->gf_group.update_type[gf_group_index] == ARF_UPDATE) {
+      (cpi->gf_group.update_type[gf_group_index] == ARF_UPDATE ||
+       cpi->gf_group.update_type[gf_group_index] == KFFLT_UPDATE)) {
     const int dr =
         av1_get_rdmult_delta(cpi, sb_size, 0, mi_row, mi_col, orig_rdmult);
     x->rdmult = dr;

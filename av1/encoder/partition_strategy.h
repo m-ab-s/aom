@@ -276,6 +276,8 @@ static INLINE int use_auto_max_partition(const AV1_COMP *const cpi,
          sb_size == BLOCK_128X128 &&
          is_full_sb(&cm->mi_params, mi_row, mi_col, sb_size) &&
          cpi->gf_group.update_type[cpi->gf_group.index] != OVERLAY_UPDATE &&
+         cpi->gf_group.update_type[cpi->gf_group.index] !=
+             KFFLT_OVERLAY_UPDATE &&
          cpi->gf_group.update_type[cpi->gf_group.index] != INTNL_OVERLAY_UPDATE;
 }
 

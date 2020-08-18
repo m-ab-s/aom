@@ -114,7 +114,8 @@ static double get_energy_by_q2_thresh(const GF_GROUP *gf_group,
                                       const RATE_CONTROL *rc) {
   // TODO(now): Return keyframe thresh * factor based on frame type / pyramid
   // level.
-  if (gf_group->update_type[gf_group->index] == ARF_UPDATE) {
+  if (gf_group->update_type[gf_group->index] == ARF_UPDATE ||
+      gf_group->update_type[gf_group->index] == KFFLT_UPDATE) {
     return SUPERRES_ENERGY_BY_Q2_THRESH_ARFFRAME;
   } else if (gf_group->update_type[gf_group->index] == KF_UPDATE) {
     if (rc->frames_to_key <= 1)
@@ -146,13 +147,16 @@ static uint8_t get_superres_denom_for_qindex(const AV1_COMP *cpi, int qindex,
   // Use superres for Key-frames and Alt-ref frames only.
   const GF_GROUP *gf_group = &cpi->gf_group;
   if (gf_group->update_type[gf_group->index] != KF_UPDATE &&
-      gf_group->update_type[gf_group->index] != ARF_UPDATE) {
+      gf_group->update_type[gf_group->index] != ARF_UPDATE &&
+      gf_group->update_type[gf_group->index] != KFFLT_UPDATE) {
     return SCALE_NUMERATOR;
   }
   if (gf_group->update_type[gf_group->index] == KF_UPDATE && !sr_kf) {
     return SCALE_NUMERATOR;
   }
-  if (gf_group->update_type[gf_group->index] == ARF_UPDATE && !sr_arf) {
+  if ((gf_group->update_type[gf_group->index] == ARF_UPDATE ||
+       gf_group->update_type[gf_group->index] == KFFLT_UPDATE) &&
+      !sr_arf) {
     return SCALE_NUMERATOR;
   }
 

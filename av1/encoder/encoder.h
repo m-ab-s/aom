@@ -2906,7 +2906,7 @@ static INLINE int frame_is_kf_gf_arf(const AV1_COMP *cpi) {
   const FRAME_UPDATE_TYPE update_type = gf_group->update_type[gf_group->index];
 
   return frame_is_intra_only(&cpi->common) || update_type == ARF_UPDATE ||
-         update_type == GF_UPDATE;
+         update_type == KFFLT_UPDATE || update_type == GF_UPDATE;
 }
 
 // TODO(huisu@google.com, youzhou@microsoft.com): enable hash-me for HBD.
@@ -3240,7 +3240,7 @@ static INLINE int is_frame_tpl_eligible(const GF_GROUP *const gf_group,
                                         uint8_t index) {
   const FRAME_UPDATE_TYPE update_type = gf_group->update_type[index];
   return update_type == ARF_UPDATE || update_type == GF_UPDATE ||
-         update_type == KF_UPDATE;
+         update_type == KFFLT_UPDATE || update_type == KF_UPDATE;
 }
 
 static INLINE int is_frame_eligible_for_ref_pruning(const GF_GROUP *gf_group,

@@ -886,6 +886,7 @@ static void allocate_gf_group_bits(GF_GROUP *gf_group, RATE_CONTROL *const rc,
   int max_arf_layer = gf_group->max_layer_depth - 1;
   for (int idx = frame_index; idx < gf_group_size; ++idx) {
     if ((gf_group->update_type[idx] == ARF_UPDATE) ||
+        (gf_group->update_type[idx] == KFFLT_UPDATE) ||
         (gf_group->update_type[idx] == INTNL_ARF_UPDATE)) {
       layer_frames[gf_group->layer_depth[idx]]++;
     }
@@ -907,10 +908,12 @@ static void allocate_gf_group_bits(GF_GROUP *gf_group, RATE_CONTROL *const rc,
     switch (gf_group->update_type[idx]) {
       case ARF_UPDATE:
       case INTNL_ARF_UPDATE:
+      case KFFLT_UPDATE:
         arf_extra_bits = layer_extra_bits[gf_group->layer_depth[idx]];
         gf_group->bit_allocation[idx] = base_frame_bits + arf_extra_bits;
         break;
       case INTNL_OVERLAY_UPDATE:
+      case KFFLT_OVERLAY_UPDATE:
       case OVERLAY_UPDATE: gf_group->bit_allocation[idx] = 0; break;
       default: gf_group->bit_allocation[idx] = base_frame_bits; break;
     }
@@ -2835,9 +2838,10 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
 
     // If this is an arf frame then we dont want to read the stats file or
     // advance the input pointer as we already have what we need.
-    if (update_type == ARF_UPDATE || update_type == INTNL_ARF_UPDATE) {
+    if (update_type == ARF_UPDATE || update_type == INTNL_ARF_UPDATE ||
+        update_type == KFFLT_UPDATE) {
       if (cpi->no_show_fwd_kf) {
-        assert(update_type == ARF_UPDATE);
+        assert(update_type == ARF_UPDATE || update_type == KFFLT_UPDATE);
         frame_params->frame_type = KEY_FRAME;
       } else {
         frame_params->frame_type = INTER_FRAME;
@@ -2892,7 +2896,8 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
         if (sframe_mode == 1) {
           // sframe_mode == 1: insert sframe if it matches altref frame.
           if (current_frame->frame_number % sframe_dist == 0 &&
-              current_frame->frame_number != 0 && update_type == ARF_UPDATE) {
+              current_frame->frame_number != 0 &&
+              (update_type == ARF_UPDATE || update_type == KFFLT_UPDATE)) {
             frame_params->frame_type = S_FRAME;
           }
         } else {
@@ -2902,7 +2907,8 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
               current_frame->frame_number != 0) {
             rc->sframe_due = 1;
           }
-          if (rc->sframe_due && update_type == ARF_UPDATE) {
+          if (rc->sframe_due &&
+              (update_type == ARF_UPDATE || update_type == KFFLT_UPDATE)) {
             frame_params->frame_type = S_FRAME;
             rc->sframe_due = 0;
           }

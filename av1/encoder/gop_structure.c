@@ -202,14 +202,14 @@ static int construct_multi_layer_gf_structure(
   if (first_frame_update_type == KF_UPDATE &&
       cpi->oxcf.kf_cfg.enable_keyframe_filtering > 1) {
     gf_group->has_overlay_for_key_frame = 1;
-    gf_group->update_type[frame_index] = ARF_UPDATE;
+    gf_group->update_type[frame_index] = KFFLT_UPDATE;
     gf_group->arf_src_offset[frame_index] = 0;
     gf_group->cur_frame_idx[frame_index] = cur_frame_index;
     gf_group->layer_depth[frame_index] = 0;
     gf_group->max_layer_depth = 0;
     ++frame_index;
 
-    gf_group->update_type[frame_index] = OVERLAY_UPDATE;
+    gf_group->update_type[frame_index] = KFFLT_OVERLAY_UPDATE;
     gf_group->arf_src_offset[frame_index] = 0;
     gf_group->cur_frame_idx[frame_index] = cur_frame_index;
     gf_group->layer_depth[frame_index] = 0;
@@ -273,9 +273,9 @@ static int construct_multi_layer_gf_structure(
 #if CHECK_GF_PARAMETER
 void check_frame_params(GF_GROUP *const gf_group, int gf_interval) {
   static const char *update_type_strings[FRAME_UPDATE_TYPES] = {
-    "KF_UPDATE",       "LF_UPDATE",      "GF_UPDATE",
-    "ARF_UPDATE",      "OVERLAY_UPDATE", "INTNL_OVERLAY_UPDATE",
-    "INTNL_ARF_UPDATE"
+    "KF_UPDATE",        "LF_UPDATE",      "GF_UPDATE",
+    "ARF_UPDATE",       "OVERLAY_UPDATE", "INTNL_OVERLAY_UPDATE",
+    "INTNL_ARF_UPDATE", "KFFLT_UPDATE",   "KFFLT_OVERLAY_UPDATE",
   };
   FILE *fid = fopen("GF_PARAMS.txt", "a");
 

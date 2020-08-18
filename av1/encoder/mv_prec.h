@@ -25,6 +25,7 @@ static AOM_INLINE int av1_frame_allows_smart_mv(const AV1_COMP *cpi) {
   const int gf_update_type = cpi->gf_group.update_type[gf_group_index];
   return !frame_is_intra_only(&cpi->common) &&
          !(gf_update_type == INTNL_OVERLAY_UPDATE ||
+           gf_update_type == KFFLT_OVERLAY_UPDATE ||
            gf_update_type == OVERLAY_UPDATE);
 }
 #endif  // !CONFIG_REALTIME_ONLY

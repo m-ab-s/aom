@@ -967,10 +967,12 @@ static AOM_INLINE void init_gop_frames_for_tpl(
                                         gf_group->arf_src_offset[gf_index];
 
     frame_params.show_frame = frame_update_type != ARF_UPDATE &&
+                              frame_update_type != KFFLT_UPDATE &&
                               frame_update_type != INTNL_ARF_UPDATE;
     frame_params.show_existing_frame =
         frame_update_type == INTNL_OVERLAY_UPDATE ||
-        frame_update_type == OVERLAY_UPDATE;
+        frame_update_type == OVERLAY_UPDATE ||
+        frame_update_type == KFFLT_OVERLAY_UPDATE;
     frame_params.frame_type =
         (frame_update_type == KF_UPDATE ||
          av1_check_keyframe_arf(gf_index, gf_group, cpi->rc.frames_since_key))
@@ -1001,6 +1003,7 @@ static AOM_INLINE void init_gop_frames_for_tpl(
         frame_display_index + cm->current_frame.frame_number - anc_frame_offset;
 
     if (frame_update_type != OVERLAY_UPDATE &&
+        frame_update_type != KFFLT_OVERLAY_UPDATE &&
         frame_update_type != INTNL_OVERLAY_UPDATE) {
       tpl_frame->rec_picture = &tpl_data->tpl_rec_pool[process_frame_count];
       tpl_frame->tpl_stats_ptr = tpl_data->tpl_stats_pool[process_frame_count];
@@ -1048,6 +1051,7 @@ static AOM_INLINE void init_gop_frames_for_tpl(
     TplDepFrame *tpl_frame = &tpl_data->tpl_frame[gf_index];
     FRAME_UPDATE_TYPE frame_update_type = LF_UPDATE;
     frame_params.show_frame = frame_update_type != ARF_UPDATE &&
+                              frame_update_type != KFFLT_UPDATE &&
                               frame_update_type != INTNL_ARF_UPDATE;
     frame_params.show_existing_frame =
         frame_update_type == INTNL_OVERLAY_UPDATE;
@@ -1145,6 +1149,7 @@ int av1_tpl_setup_stats(AV1_COMP *cpi, int gop_eval,
            sizeof(cpi->refresh_frame));
 
     cm->show_frame = gf_group->update_type[gf_index] != ARF_UPDATE &&
+                     gf_group->update_type[gf_index] != KFFLT_UPDATE &&
                      gf_group->update_type[gf_index] != INTNL_ARF_UPDATE;
 
     gf_group->q_val[gf_index] =
@@ -1170,6 +1175,7 @@ int av1_tpl_setup_stats(AV1_COMP *cpi, int gop_eval,
   for (int frame_idx = gf_group->index; frame_idx < tpl_gf_group_frames;
        ++frame_idx) {
     if (gf_group->update_type[frame_idx] == INTNL_OVERLAY_UPDATE ||
+        gf_group->update_type[frame_idx] == KFFLT_OVERLAY_UPDATE ||
         gf_group->update_type[frame_idx] == OVERLAY_UPDATE)
       continue;
 
@@ -1190,6 +1196,7 @@ int av1_tpl_setup_stats(AV1_COMP *cpi, int gop_eval,
   for (int frame_idx = tpl_gf_group_frames - 1; frame_idx >= gf_group->index;
        --frame_idx) {
     if (gf_group->update_type[frame_idx] == INTNL_OVERLAY_UPDATE ||
+        gf_group->update_type[frame_idx] == KFFLT_OVERLAY_UPDATE ||
         gf_group->update_type[frame_idx] == OVERLAY_UPDATE)
       continue;
 

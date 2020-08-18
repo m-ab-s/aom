@@ -190,6 +190,7 @@ int av1_rc_clamp_pframe_target_size(const AV1_COMP *const cpi, int target,
       AOMMAX(rc->min_frame_bandwidth, rc->avg_frame_bandwidth >> 5);
   // Clip the frame target to the minimum setup value.
   if (frame_update_type == OVERLAY_UPDATE ||
+      frame_update_type == KFFLT_OVERLAY_UPDATE ||
       frame_update_type == INTNL_OVERLAY_UPDATE) {
     // If there is an active ARF at this location use the minimum
     // bits on this frame even if it is a constructed arf.
@@ -433,6 +434,8 @@ static const RATE_FACTOR_LEVEL rate_factor_levels[FRAME_UPDATE_TYPES] = {
   INTER_NORMAL,  // OVERLAY_UPDATE
   INTER_NORMAL,  // INTNL_OVERLAY_UPDATE
   GF_ARF_LOW,    // INTNL_ARF_UPDATE
+  GF_ARF_STD,    // KFFLT_UPDATE
+  INTER_NORMAL,  // KFFLT_OVERLAY_UPDATE
 };
 
 static RATE_FACTOR_LEVEL get_rate_factor_level(const GF_GROUP *const gf_group) {
@@ -1020,7 +1023,8 @@ static int get_q_using_fixed_offsets(const AV1EncoderConfig *const oxcf,
     }
     offset_idx = 0;
   } else if (update_type == ARF_UPDATE || update_type == GF_UPDATE ||
-             update_type == INTNL_ARF_UPDATE || update_type == LF_UPDATE) {
+             update_type == INTNL_ARF_UPDATE || update_type == LF_UPDATE ||
+             update_type == KFFLT_UPDATE) {
     if (gf_group->layer_depth[gf_index] >= FIXED_QP_OFFSET_COUNT) {  // Leaf.
       return qp;  // Directly Return worst quality allowed.
     }
@@ -1028,6 +1032,7 @@ static int get_q_using_fixed_offsets(const AV1EncoderConfig *const oxcf,
         AOMMIN(gf_group->layer_depth[gf_index], FIXED_QP_OFFSET_COUNT - 1);
   } else {  // Overlay frame.
     assert(update_type == OVERLAY_UPDATE ||
+           update_type == KFFLT_OVERLAY_UPDATE ||
            update_type == INTNL_OVERLAY_UPDATE);
     return qp;  // Directly Return worst quality allowed.
   }
@@ -1075,8 +1080,9 @@ static int rc_pick_q_and_bounds_no_stats(const AV1_COMP *cpi, int width,
   assert(rc_mode == AOM_VBR ||
          (!USE_UNRESTRICTED_Q_IN_CQ_MODE && rc_mode == AOM_CQ) ||
          rc_mode == AOM_Q);
-  assert(
-      IMPLIES(rc_mode == AOM_Q, gf_group->update_type[gf_index] == ARF_UPDATE));
+  assert(IMPLIES(rc_mode == AOM_Q,
+                 gf_group->update_type[gf_index] == ARF_UPDATE ||
+                     gf_group->update_type[gf_index] == KFFLT_UPDATE));
 
   const int qp =
       get_active_qp(rc, oxcf, frame_is_intra_only(cm), cpi->superres_mode,
@@ -1568,7 +1574,8 @@ static int rc_pick_q_and_bounds(const AV1_COMP *cpi, int width, int height,
   const GF_GROUP *gf_group = &cpi->gf_group;
   assert(IMPLIES(has_no_stats_stage(cpi),
                  cpi->oxcf.rc_cfg.mode == AOM_Q &&
-                     gf_group->update_type[gf_index] != ARF_UPDATE));
+                     gf_group->update_type[gf_index] != ARF_UPDATE &&
+                     gf_group->update_type[gf_index] != KFFLT_UPDATE));
   const int qp =
       get_active_qp(rc, oxcf, frame_is_intra_only(cm), cpi->superres_mode,
                     cm->superres_scale_denominator);
@@ -1654,7 +1661,8 @@ int av1_rc_pick_q_and_bounds(const AV1_COMP *cpi, RATE_CONTROL *rc, int width,
   // with rc_pick_q_and_bounds().
   const GF_GROUP *gf_group = &cpi->gf_group;
   if ((cpi->oxcf.rc_cfg.mode != AOM_Q ||
-       gf_group->update_type[gf_index] == ARF_UPDATE) &&
+       gf_group->update_type[gf_index] == ARF_UPDATE ||
+       gf_group->update_type[gf_index] == KFFLT_UPDATE) &&
       has_no_stats_stage(cpi)) {
     if (cpi->oxcf.rc_cfg.mode == AOM_CBR) {
       q = rc_pick_q_and_bounds_no_stats_cbr(cpi, width, height, bottom_index,
@@ -1672,7 +1680,9 @@ int av1_rc_pick_q_and_bounds(const AV1_COMP *cpi, RATE_CONTROL *rc, int width,
     q = rc_pick_q_and_bounds(cpi, width, height, gf_index, bottom_index,
                              top_index);
   }
-  if (gf_group->update_type[gf_index] == ARF_UPDATE) rc->arf_q = q;
+  if (gf_group->update_type[gf_index] == ARF_UPDATE ||
+      gf_group->update_type[gf_index] == KFFLT_UPDATE)
+    rc->arf_q = q;
 
   return q;
 }
@@ -2039,7 +2049,7 @@ int av1_calc_pframe_target_size_one_pass_vbr(
   int64_t target;
 #if USE_ALTREF_FOR_ONE_PASS
   if (frame_update_type == KF_UPDATE || frame_update_type == GF_UPDATE ||
-      frame_update_type == ARF_UPDATE) {
+      frame_update_type == ARF_UPDATE || frame_update_type == KFFLT_UPDATE) {
     target = ((int64_t)rc->avg_frame_bandwidth * rc->baseline_gf_interval *
               af_ratio) /
              (rc->baseline_gf_interval + af_ratio - 1);
@@ -2074,7 +2084,8 @@ int av1_calc_pframe_target_size_one_pass_cbr(
 
   if (rc_cfg->gf_cbr_boost_pct) {
     const int af_ratio_pct = rc_cfg->gf_cbr_boost_pct + 100;
-    if (frame_update_type == GF_UPDATE || frame_update_type == OVERLAY_UPDATE) {
+    if (frame_update_type == GF_UPDATE || frame_update_type == OVERLAY_UPDATE ||
+        frame_update_type == KFFLT_OVERLAY_UPDATE) {
       target =
           (rc->avg_frame_bandwidth * rc->baseline_gf_interval * af_ratio_pct) /
           (rc->baseline_gf_interval * 100 + af_ratio_pct - 100);

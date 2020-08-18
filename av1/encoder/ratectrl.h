@@ -72,6 +72,8 @@ enum {
   OVERLAY_UPDATE,
   INTNL_OVERLAY_UPDATE,  // Internal Overlay Frame
   INTNL_ARF_UPDATE,      // Internal Altref Frame
+  KFFLT_UPDATE,          // Filtered KF w/ overlay update
+  KFFLT_OVERLAY_UPDATE,  // Overlay frame for filtered keyframe
   FRAME_UPDATE_TYPES
 } UENUM1BYTE(FRAME_UPDATE_TYPE);
 
