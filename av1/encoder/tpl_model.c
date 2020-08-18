@@ -1010,7 +1010,7 @@ static AOM_INLINE void init_gop_frames_for_tpl(
       ++process_frame_count;
     }
 
-    av1_get_ref_frames(cpi, &ref_buffer_stack);
+    av1_get_ref_frames(cpi, &ref_buffer_stack, ref_frame_map_pairs);
     const int true_disp =
         (int)(tpl_frame->frame_display_index) - frame_params.show_frame;
     int refresh_mask = av1_get_refresh_frame_flags(
@@ -1082,7 +1082,7 @@ static AOM_INLINE void init_gop_frames_for_tpl(
     gf_group->update_type[gf_index] = LF_UPDATE;
     gf_group->q_val[gf_index] = *pframe_qindex;
 
-    av1_get_ref_frames(cpi, &ref_buffer_stack);
+    av1_get_ref_frames(cpi, &ref_buffer_stack, ref_frame_map_pairs);
     // TODO(sarahparker) av1_get_refresh_frame_flags() and
     // av1_update_ref_frame_map() will execute default behavior even when
     // subgop cfg is enabled. This should be addressed if we ever remove the
@@ -1119,7 +1119,7 @@ static AOM_INLINE void init_gop_frames_for_tpl(
     ++frame_display_index;
   }
 
-  av1_get_ref_frames(cpi, &cpi->ref_buffer_stack);
+  av1_get_ref_frames(cpi, &cpi->ref_buffer_stack, ref_frame_map_pairs);
 }
 
 static AOM_INLINE void init_tpl_stats(TplParams *const tpl_data) {

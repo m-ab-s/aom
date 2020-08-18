@@ -3176,7 +3176,9 @@ int av1_encode(AV1_COMP *const cpi, uint8_t *const dest,
   current_frame->order_hint =
       current_frame->frame_number + frame_params->order_offset;
   current_frame->display_order_hint = current_frame->order_hint;
-  current_frame->pyramid_level = cpi->gf_group.layer_depth[cpi->gf_group.index];
+  current_frame->pyramid_level = get_true_pyr_level(
+      cpi->gf_group.layer_depth[cpi->gf_group.index],
+      current_frame->display_order_hint, cpi->gf_group.max_layer_depth);
 
   current_frame->absolute_poc =
       current_frame->key_frame_number + current_frame->display_order_hint;

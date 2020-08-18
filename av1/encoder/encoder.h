@@ -118,6 +118,21 @@ enum {
   FRAMEFLAGS_ERROR_RESILIENT = 1 << 6,
 } UENUM1BYTE(FRAMETYPE_FLAGS);
 
+static INLINE int get_true_pyr_level(int frame_level, int frame_order,
+                                     int max_layer_depth) {
+  if (frame_order == 0) {
+    // Keyframe case
+    return 1;
+  } else if (frame_level == MAX_ARF_LAYERS) {
+    // Leaves
+    return max_layer_depth;
+  } else if (frame_level == (MAX_ARF_LAYERS + 1)) {
+    // Altrefs
+    return 1;
+  }
+  return frame_level;
+}
+
 enum {
   NO_AQ = 0,
   VARIANCE_AQ = 1,
@@ -2812,21 +2827,6 @@ int av1_convert_sect5obus_to_annexb(uint8_t *buffer, size_t *input_size);
 void av1_set_screen_content_options(const struct AV1_COMP *cpi,
                                     FeatureFlags *features);
 
-static INLINE int get_true_pyr_level(int frame_level, int frame_order,
-                                     int max_layer_depth) {
-  if (frame_order == 0) {
-    // Keyframe case
-    return 1;
-  } else if (frame_level == MAX_ARF_LAYERS) {
-    // Leaves
-    return max_layer_depth;
-  } else if (frame_level == (MAX_ARF_LAYERS + 1)) {
-    // Altrefs
-    return 1;
-  }
-  return frame_level;
-}
-
 typedef struct {
   int pyr_level;
   int disp_order;
@@ -2840,9 +2840,7 @@ static INLINE void init_ref_map_pair(
     const RefCntBuffer *const buf = cpi->common.ref_frame_map[map_idx];
     if (buf == NULL) continue;
     ref_frame_map_pairs[map_idx].disp_order = (int)buf->display_order_hint;
-    const int reference_frame_level = get_true_pyr_level(
-        buf->pyramid_level, ref_frame_map_pairs[map_idx].disp_order,
-        cpi->gf_group.max_layer_depth);
+    const int reference_frame_level = buf->pyramid_level;
     ref_frame_map_pairs[map_idx].pyr_level = reference_frame_level;
   }
 }
@@ -3301,6 +3299,7 @@ static INLINE void end_timing(AV1_COMP *cpi, int component) {
   cpi->frame_component_time[component] +=
       aom_usec_timer_elapsed(&cpi->component_timer[component]);
 }
+
 static INLINE char const *get_frame_type_enum(int type) {
   switch (type) {
     case 0: return "KEY_FRAME";
