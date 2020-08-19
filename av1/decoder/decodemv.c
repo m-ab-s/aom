@@ -2033,9 +2033,10 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
       mv = mbmi->derived_mv;
     }
 #endif  // CONFIG_DERIVED_MV
-    if (mbmi->num_proj_ref > 1)
+    if (mbmi->num_proj_ref > 1) {
       mbmi->num_proj_ref =
           av1_selectSamples(&mv, pts, pts_inref, mbmi->num_proj_ref, bsize);
+    }
 
     if (av1_find_projection(mbmi->num_proj_ref, pts, pts_inref, bsize, mv.row,
                             mv.col, &mbmi->wm_params, mi_row, mi_col)) {
