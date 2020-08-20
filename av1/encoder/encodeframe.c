@@ -432,7 +432,7 @@ static AOM_INLINE void adjust_rdmult_tpl_model(AV1_COMP *cpi, MACROBLOCK *x,
       (cpi->gf_group.update_type[gf_group_index] == ARF_UPDATE ||
        cpi->gf_group.update_type[gf_group_index] == KFFLT_UPDATE)) {
     const int dr =
-        av1_get_rdmult_delta(cpi, sb_size, 0, mi_row, mi_col, orig_rdmult);
+        av1_get_rdmult_delta(cpi, sb_size, mi_row, mi_col, orig_rdmult);
     x->rdmult = dr;
   }
 }
