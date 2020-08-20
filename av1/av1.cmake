@@ -91,6 +91,13 @@ list(APPEND AOM_AV1_COMMON_SOURCES
             "${AOM_ROOT}/av1/common/warped_motion.c"
             "${AOM_ROOT}/av1/common/warped_motion.h")
 
+if(CONFIG_INTERINTRA_ML)
+  list(APPEND AOM_AV1_COMMON_SOURCES "${AOM_ROOT}/av1/common/interintra_ml.h"
+              "${AOM_ROOT}/av1/common/interintra_ml.cc"
+              "${AOM_ROOT}/av1/common/interintra_ml_model.h"
+              "${AOM_ROOT}/av1/common/interintra_ml_model.cc")
+endif()
+
 if(CONFIG_LPF_MASK)
   list(APPEND AOM_AV1_COMMON_SOURCES "${AOM_ROOT}/av1/common/loopfiltermask.c")
 endif()

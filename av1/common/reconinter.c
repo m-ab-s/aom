@@ -30,6 +30,10 @@
 #include "av1/common/onyxc_int.h"
 #include "av1/common/obmc.h"
 
+#if CONFIG_INTERINTRA_ML
+#include "av1/common/interintra_ml.h"
+#endif
+
 #define USE_PRECOMPUTED_WEDGE_MASK 1
 #define USE_PRECOMPUTED_WEDGE_SIGN 1
 
@@ -2592,6 +2596,18 @@ static void build_smooth_interintra_mask(uint8_t *mask, int stride,
 #if CONFIG_ILLUM_MCOMP
     case II_ILLUM_MCOMP_PRED:
 #endif  // CONFIG_ILLUM_MCOMP
+#if CONFIG_INTERINTRA_ML
+    case II_ML_PRED0:
+    case II_ML_PRED1:
+    case II_ML_PRED2:
+    case II_ML_PRED3:
+    case II_ML_PRED4:
+    case II_ML_PRED5:
+    case II_ML_PRED6:
+    case II_ML_PRED7:
+    case II_ML_PRED8:
+    case II_ML_PRED9:
+#endif  // CONFIG_INTERINTRA_ML
     default:
       for (i = 0; i < bh; ++i) {
         memset(mask, 32, bw * sizeof(mask[0]));
@@ -2871,6 +2887,7 @@ static void combine_interintra(INTERINTRA_MODE mode,
                                int interstride, const uint8_t *intrapred,
                                int intrastride, int border) {
   assert(plane_bsize < BLOCK_SIZES_ALL);
+  (void)border;
 #if CONFIG_ILLUM_MCOMP
   if (mode == II_ILLUM_MCOMP_PRED) {
     illum_combine_interintra(use_wedge_interintra, wedge_index, wedge_sign,
@@ -2879,9 +2896,15 @@ static void combine_interintra(INTERINTRA_MODE mode,
                              border);
     return;
   }
-#else
-  (void)border;
 #endif  // CONFIG_ILLUM_MCOMP
+#if CONFIG_INTERINTRA_ML
+  if (mode >= II_ML_PRED0 && mode <= II_ML_PRED9) {
+    av1_combine_interintra_ml(mode, plane_bsize, comppred, compstride,
+                              interpred, interstride, intrapred, intrastride,
+                              border);
+    return;
+  }
+#endif  // CONFIG_INTERINTRA_ML
 
   const int bw = block_size_wide[plane_bsize];
   const int bh = block_size_high[plane_bsize];
@@ -2912,6 +2935,7 @@ static void combine_interintra_highbd(
     int interstride, const uint8_t *intrapred8, int intrastride, int bd,
     int border) {
   assert(plane_bsize < BLOCK_SIZES_ALL);
+  (void)border;
 #if CONFIG_ILLUM_MCOMP
   if (mode == II_ILLUM_MCOMP_PRED) {
     illum_combine_interintra_highbd(use_wedge_interintra, wedge_index,
@@ -2920,9 +2944,15 @@ static void combine_interintra_highbd(
                                     intrapred8, intrastride, bd, border);
     return;
   }
-#else
-  (void)border;
 #endif  // CONFIG_ILLUM_MCOMP
+#if CONFIG_INTERINTRA_ML
+  if (mode >= II_ML_PRED0 && mode <= II_ML_PRED9) {
+    av1_combine_interintra_ml_highbd(mode, plane_bsize, comppred8, compstride,
+                                     interpred8, interstride, intrapred8,
+                                     intrastride, bd, border);
+    return;
+  }
+#endif  // CONFIG_INTERINTRA_ML
   const int bw = block_size_wide[plane_bsize];
   const int bh = block_size_high[plane_bsize];
 

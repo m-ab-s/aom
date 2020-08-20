@@ -44,6 +44,35 @@ if(CONFIG_NN_RECON AND CMAKE_TOOLCHAIN_FILE)
   change_config_and_warn(CONFIG_NN_RECON 0 "CMAKE_TOOLCHAIN_FILE")
 endif()
 
+if(CONFIG_ILLUM_MCOMP)
+  if(NOT CONFIG_INTERINTRA_BORDER)
+    change_config_and_warn(CONFIG_INTERINTRA_BORDER 1 "CONFIG_ILLUM_MCOMP")
+  endif()
+endif()
+
+if(CONFIG_INTERINTRA_ML AND CMAKE_TOOLCHAIN_FILE)
+  change_config_and_warn(CONFIG_INTERINTRA_ML 0 "CMAKE_TOOLCHAIN_FILE")
+endif()
+
+if(CONFIG_INTERINTRA_ML)
+  if(NOT CONFIG_INTERINTRA_BORDER)
+    change_config_and_warn(CONFIG_INTERINTRA_BORDER 1 "CONFIG_INTERINTRA_ML")
+  endif()
+  if(NOT CONFIG_TENSORFLOW_LITE)
+    change_config_and_warn(CONFIG_TENSORFLOW_LITE 1 "CONFIG_INTERINTRA_ML")
+  endif()
+  if(CONFIG_DERIVED_INTRA_MODE)
+    message(
+      FATAL_ERROR
+        "Cannot enable both CONFIG_INTERINTRA_ML and CONFIG_DERIVED_INTRA_MODE")
+  endif()
+  if(CONFIG_ILLUM_MCOMP)
+    message(
+      FATAL_ERROR
+        "Cannot enable both CONFIG_INTERINTRA_ML and CONFIG_ILLUM_MCOMP")
+  endif()
+endif()
+
 # Generate the user config settings.
 list(APPEND aom_build_vars ${AOM_CONFIG_VARS} ${AOM_OPTION_VARS})
 foreach(cache_var ${aom_build_vars})
