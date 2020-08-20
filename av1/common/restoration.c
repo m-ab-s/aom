@@ -1113,6 +1113,22 @@ uint8_t *wienerns_copy_luma(const uint8_t *dgd, int height_y, int width_y,
   *luma = aug_luma + border * out_stride + border;
   av1_resize_plane(dgd, height_y, width_y, in_stride, *luma, height_uv,
                    width_uv, out_stride);
+  // extend border by replication
+  for (int r = 0; r < height_uv; ++r) {
+    for (int c = -border; c < 0; ++c)
+      (*luma)[r * out_stride + c] = (*luma)[r * out_stride];
+    for (int c = 0; c < border; ++c)
+      (*luma)[r * out_stride + width_uv + c] =
+          (*luma)[r * out_stride + width_uv - 1];
+  }
+  for (int r = -border; r < 0; ++r) {
+    memcpy(&(*luma)[r * out_stride - border], &(*luma)[-border],
+           width_uv + 2 * border * sizeof((*luma)[0]));
+  }
+  for (int r = 0; r < border; ++r)
+    memcpy(&(*luma)[(height_uv + r) * out_stride - border],
+           &(*luma)[(height_uv - 1) * out_stride - border],
+           width_uv + 2 * border * sizeof((*luma)[0]));
   return aug_luma;
 }
 #endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
