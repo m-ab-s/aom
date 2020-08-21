@@ -70,4 +70,9 @@ macro(fix_experiment_configs)
     change_config_and_warn(CONFIG_SUPERRES_TX64 1
                            CONFIG_SUPERRES_TX64_DIRFILTER)
   endif()
+
+  if(CONFIG_WIENER_NONSEP_CROSS_FILT)
+    change_config_and_warn(CONFIG_WIENER_NONSEP 1
+                           CONFIG_WIENER_NONSEP_CROSS_FILT)
+  endif()
 endmacro()
