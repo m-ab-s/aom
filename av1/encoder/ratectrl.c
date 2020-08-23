@@ -1508,10 +1508,11 @@ static int get_active_best_quality(const AV1_COMP *const cpi,
   int active_best_quality = 0;
   const int is_intrl_arf_boost =
       gf_group->update_type[gf_index] == INTNL_ARF_UPDATE;
-  const int is_bottom_leaf_frame =
+  const int is_leaf_frame =
       !(refresh_frame_flags->golden_frame ||
-        refresh_frame_flags->alt_ref_frame || is_intrl_arf_boost) &&
-      (gf_group->layer_depth[gf_index] == MAX_ARF_LAYERS);
+        refresh_frame_flags->alt_ref_frame || is_intrl_arf_boost);
+  const int is_bottom_leaf_frame =
+      is_leaf_frame && (gf_group->layer_depth[gf_index] == MAX_ARF_LAYERS);
   const int is_overlay_frame = rc->is_src_frame_alt_ref;
 
   if (is_bottom_leaf_frame || is_overlay_frame) {
@@ -1542,7 +1543,7 @@ static int get_active_best_quality(const AV1_COMP *const cpi,
   const int min_boost = get_gf_high_motion_quality(q, bit_depth);
   const int boost = min_boost - active_best_quality;
   active_best_quality = min_boost - (int)(boost * rc->arf_boost_factor);
-  if (!is_intrl_arf_boost) return active_best_quality;
+  if (!is_intrl_arf_boost && !is_leaf_frame) return active_best_quality;
 
   if (rc_mode == AOM_Q || rc_mode == AOM_CQ) active_best_quality = rc->arf_q;
   int this_height = gf_group_pyramid_level(gf_group, gf_index);
