@@ -179,8 +179,8 @@ const char subgop_config_str_16_def[] =
 
 // An enhanced config where the last subgop uses a shorter dist to arf
 const char subgop_config_str_16_enh[] =
-    "16:2:16F1/8F2/4U3/2U4/1V5/2S/3V5/4S/6U4/"
-    "5V5/6S/7V5/8R2/12U3/10U4/9V5/10S/"
+    "16:2:16F1/8F2/4U3/2U4/1V5/2S/3V5/4S/"
+    "6U4/5V5/6S/7V5/8R2/12U3/10U4/9V5/10S/"
     "11V5/12S/14U4/13V5/14S/15V5/16R1,"
 
     "16:0:16F1/8F2/4U3/2U4/1V5/2S/3V5/4S/"
@@ -188,7 +188,7 @@ const char subgop_config_str_16_enh[] =
     "11V5/12S/14U4/13V5/14S/15V5/16R1,"
 
     "16:1:14F1/7F2/4U3/2U4/1V5/2S/3V5/4S/"
-    "6U4/5V5/6S/7R2/11U3/9U4/8V5/9S/10V5/11S/"
+    "5V4/6V5/7R2/11U3/9U4/8V5/9S/10V5/11S/"
     "13U4/12V5/13S/14R1/16U4/15V5/16S";
 
 // A config that honors temporally scalable prediction structure, i.e.
@@ -209,13 +209,13 @@ const char subgop_config_str_16_ts[] =
 // An asymmetrical config where the hierarchical frames are not exactly
 // dyadic, but slightly skewed.
 const char subgop_config_str_16_asym[] =
-    "16:2:16F1/10F2/5U3/3U4/1V4/2V5/3S/"
-    "4V5/5S/8U4/6V5/7V5/8S/9V4/10R2/"
-    "13U3/11V4/12V5/13S/14V4/15V5/16R1/,"
+    "16:2:16F1/10F2/5U3/3U4/1V5/2V5/3S/"
+    "4V5/5S/8U4/6V5/7V5/8S/9V5/10R2/"
+    "13U3/11V5/12V5/13S/14V5/15V5/16R1/,"
 
     "16:0:16F1/10F2/5U3/3U4/1V5/2V5/3S/"
-    "4V5/5S/8U4/6V5/7V5/8S/9V4/10R2/"
-    "13U3/11V4/12V5/13S/14V4/15V5/16R1,"
+    "4V5/5S/8U4/6V5/7V5/8S/9V5/10R2/"
+    "13U3/11V5/12V5/13S/14V5/15V5/16R1,"
 
     "16:1:14F1/7F2/4U3/2U4/1V5/2S/3V5/4S/"
     "5V4/6V5/7R2/11U3/9U4/8V5/9S/10V5/11S/"
