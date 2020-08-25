@@ -161,7 +161,7 @@ struct av1_extracfg {
 // Example subgop configs. Currently not used by default.
 //
 // Default config
-const char subgop_config_str_16_def[] =
+const char subgop_config_str_def[] =
     "16:2:16F1P1/8F2P1^-1/4U3P-2^1^-1/2U4P1^-3^-2^-1/"
     "1V5P1^-2^-4^-3^-1/2S/3V5P4^5^1^-3^-2^-1/4S/6U4P3^5^5^1^-2^4^-1/"
     "5V5P3^5^4^1^-4^-2^-1/6S/7V5P4^5^5^1^-2^3^-1/8R2P5^4^3^1^2^5^-1/"
@@ -178,22 +178,34 @@ const char subgop_config_str_16_def[] =
     "14S/15V5P4^5^5^1^1^3^-1/16R1P5^4^5^1^3^5^1,";
 
 // An enhanced config where the last subgop uses a shorter dist to arf
-const char subgop_config_str_16_enh[] =
-    "16:2:16F1/8F2/4U3/2U4/1V5/2S/3V5/4S/"
-    "6U4/5V5/6S/7V5/8R2/12U3/10U4/9V5/10S/"
-    "11V5/12S/14U4/13V5/14S/15V5/16R1,"
+const char subgop_config_str_enh[] =
+    "14:0:14F1/7F2/3U3/1V5/2V5/3S/5U4/4V5/"
+    "5S/6V5/7R2/10U3/8V5/9V5/10S/12U4/"
+    "11V5/12S/13V5/14R1,"
+
+    "14:1:12F1/6F2/3U3/1V5/2V5/3S/5U5/4V5/5S/"
+    "6R2/9U3/8U5/7V5/8S/9S/11U5/10V5/11S/"
+    "12R1/14U5/13V5/14S,"
+
+    "15:0:15F1/7F2/3U3/1V5/2V5/3S/5U4/4V5/"
+    "5S/6V5/7R2/11U3/9U4/8V5/9S/10V5/11S/"
+    "13U4/12V5/13S/14V5/15R1,"
+
+    "15:1:13F1/7F2/3U3/1V5/2V5/3S/5U4/4V5/"
+    "5S/6V5/7R2/10U3/8V5/9V5/10S/11V5/12V5/"
+    "13R1/15U4/14V5/15S,"
 
     "16:0:16F1/8F2/4U3/2U4/1V5/2S/3V5/4S/"
     "6U4/5V5/6S/7V5/8R2/12U3/10U4/9V5/10S/"
     "11V5/12S/14U4/13V5/14S/15V5/16R1,"
 
-    "16:1:14F1/7F2/4U3/2U4/1V5/2S/3V5/4S/"
-    "5V4/6V5/7R2/11U3/9U4/8V5/9S/10V5/11S/"
+    "16:1:14F1/7F2/3U3/1V5/2V5/3S/5U4/4V5/"
+    "5S/6V5/7R2/11U3/9U4/8V5/9S/10V5/11S/"
     "13U4/12V5/13S/14R1/16U4/15V5/16S";
 
 // A config that honors temporally scalable prediction structure, i.e.
 // no frame is coded with references at higher pyramid depths.
-const char subgop_config_str_16_ts[] =
+const char subgop_config_str_ts[] =
     "16:0:16F1P1^1/8F2P1^1^2^-1/4U3P1^1^2^-2^-1/2U4P1^1^-3^-2^-1/"
     "1V5P1^1^-4^-3^-2^-1/2S/3V5P1^5^4^-3^-2^-1/4S/6U4P1^3^4^-2^-1/"
     "5V5P1^4^5^3^-4^-2^-1/6S/7V5P1^3^5^4^-2^-1/8R2P1^2^-1/12U3P1^3^2^-1/"
@@ -208,21 +220,17 @@ const char subgop_config_str_16_ts[] =
 
 // An asymmetrical config where the hierarchical frames are not exactly
 // dyadic, but slightly skewed.
-const char subgop_config_str_16_asym[] =
-    "16:2:16F1/10F2/5U3/3U4/1V5/2V5/3S/"
-    "4V5/5S/8U4/6V5/7V5/8S/9V5/10R2/"
-    "13U3/11V5/12V5/13S/14V5/15V5/16R1/,"
-
+const char subgop_config_str_asym[] =
     "16:0:16F1/10F2/5U3/3U4/1V5/2V5/3S/"
     "4V5/5S/8U4/6V5/7V5/8S/9V5/10R2/"
     "13U3/11V5/12V5/13S/14V5/15V5/16R1,"
 
-    "16:1:14F1/7F2/4U3/2U4/1V5/2S/3V5/4S/"
-    "5V4/6V5/7R2/11U3/9U4/8V5/9S/10V5/11S/"
-    "13U4/12V5/13S/14R1/16U4/15V5/16S";
+    "16:1:13F1/7F2/4U3/2U4/1V5/2S/3V5/4S/"
+    "5V4/6V5/7R2/10U3/8V4/9V5/10S/11V4/12V5/"
+    "13R1/16U4/14V4/15V5/16S";
 
 // low delay config without references
-const char subgop_config_str_16_ld[] =
+const char subgop_config_str_ld[] =
     "16:0:1V5/2V4/3V5/4V3/5V5/6V4/7V5/8V2/"
     "9V5/10V4/11V5/12V3/13V5/14V4/15V5/16V1,"
 
