@@ -1712,7 +1712,7 @@ int av1_get_mvpred_var(const AV1_COMMON *cm, const MACROBLOCK *x,
                        const aom_variance_fn_ptr_t *vfp, int use_var) {
   const MACROBLOCKD *const xd = &x->e_mbd;
 #if CONFIG_EXT_IBC_MODES
-  const uint8_t *what_buf = CONVERT_TO_BYTEPTR(x->plane[0].ibc_src);
+  const uint8_t *what_buf = CONVERT_TO_BYTEPTR(x->ibc_src);
   const int what_stride = 128;
 #else
   const struct buf_2d *const what = &x->plane[0].src;
@@ -1958,7 +1958,7 @@ static int exhuastive_mesh_search(const AV1_COMMON *cm, MACROBLOCK *x,
   const MACROBLOCKD *const xd = &x->e_mbd;
   const MB_MODE_INFO *mbmi = xd->mi[0];
 #if CONFIG_EXT_IBC_MODES
-  const uint8_t *what_buf = CONVERT_TO_BYTEPTR(x->plane[0].ibc_src);
+  const uint8_t *what_buf = CONVERT_TO_BYTEPTR(x->ibc_src);
   const int what_stride = 128;  // Fixed stride (128x128 Scratch Buffer)
 #else
   const struct buf_2d *const what = &x->plane[0].src;
@@ -2061,7 +2061,7 @@ int av1_diamond_search_sad_c(const AV1_COMMON *const cm, MACROBLOCK *x,
   const MACROBLOCKD *const xd = &x->e_mbd;
   const MB_MODE_INFO *mbmi = xd->mi[0];
 #if CONFIG_EXT_IBC_MODES
-  uint8_t *what = CONVERT_TO_BYTEPTR(x->plane[0].ibc_src);
+  uint8_t *what = CONVERT_TO_BYTEPTR(x->ibc_src);
   const int what_stride = 128;  // Fixed stride (128x128 Scratch Buffer)
 #else
   uint8_t *what = x->plane[0].src.buf;
@@ -2711,7 +2711,7 @@ int av1_full_pixel_search(const AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
       if (block_width == 4 || block_width == 8 || block_width == 16 ||
           block_width == 32 || block_width == 64 || block_width == 128) {
 #if CONFIG_EXT_IBC_MODES
-        uint8_t *what = CONVERT_TO_BYTEPTR(x->plane[0].ibc_src);
+        uint8_t *what = CONVERT_TO_BYTEPTR(x->ibc_src);
         const int what_stride = 128;  // Fixed stride (128x128 Scratch Buffer)
 #else
         uint8_t *what = x->plane[0].src.buf;

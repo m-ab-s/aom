@@ -13001,133 +13001,113 @@ static int64_t handle_inter_mode(AV1_COMP *const cpi, TileDataEnc *tile_data,
 }
 
 #if CONFIG_EXT_IBC_MODES
-static void rd_intrabc_allocate_sb(uint16_t **InputBlock, BLOCK_SIZE bsize) {
-  uint16_t width = block_size_wide[bsize];
-  uint16_t height = block_size_high[bsize];
-
+static void rd_intrabc_allocate_sb(uint16_t **InputBlock, uint16_t width,
+                                   uint16_t height) {
   (*InputBlock) = (uint16_t *)aom_malloc(width * height * sizeof(uint16_t));
 }
 
 static void rd_intrabc_extract_source_sb(MACROBLOCK *x, uint16_t *InputBlock,
-                                         BLOCK_SIZE bsize) {
-  uint16_t width = block_size_wide[bsize];
-  uint16_t height = block_size_high[bsize];
-  uint16_t stride = x->plane[0].src.stride;
+                                         uint16_t width, uint16_t height) {
+  uint16_t src_stride = x->plane[0].src.stride;
+
+  uint16_t *pixelStartAddr = CONVERT_TO_SHORTPTR(x->plane[0].src.buf);
+  uint16_t size = (width << 1);
 
   for (int rows = 0; rows < height; ++rows) {
-    for (int cols = 0; cols < width; ++cols) {
-      uint16_t *pixelAddr =
-          CONVERT_TO_SHORTPTR(x->plane[0].src.buf + rows * stride + cols);
-      InputBlock[rows * width + cols] = *(pixelAddr);
-    }
+    memcpy(InputBlock, pixelStartAddr, size);
+    InputBlock += width;
+    pixelStartAddr += src_stride;
   }
 }
 
 static void rd_intrabc_copy_sb(uint16_t *DstBlock, uint16_t *SrcBlock,
-                               BLOCK_SIZE bsize) {
-  uint16_t width = block_size_wide[bsize];
-  uint16_t height = block_size_high[bsize];
+                               uint16_t width, uint16_t height) {
+  uint16_t size = (width << 1);
 
   // Copy block
   for (int rows = 0; rows < height; ++rows) {
-    for (int cols = 0; cols < width; ++cols) {
-      DstBlock[rows * 128 + cols] = SrcBlock[rows * width + cols];
-    }
+    memcpy(DstBlock, SrcBlock, size);
+    DstBlock += 128;
+    SrcBlock += width;
   }
 }
 
 static void rd_intrabc_rotate90_sb(uint16_t *DstBlock, uint16_t *SrcBlock,
-                                   BLOCK_SIZE bsize) {
-  uint16_t width = block_size_wide[bsize];
-  uint16_t height = block_size_high[bsize];
-
+                                   uint16_t width, uint16_t height) {
   // Rotate Block by 90 degrees
   for (int rows = 0; rows < height; ++rows) {
     for (int cols = 0; cols < width; ++cols) {
-      DstBlock[cols * 128 + (height - 1 - rows)] =
-          SrcBlock[rows * width + cols];
+      DstBlock[cols * 128 + (height - 1 - rows)] = SrcBlock[cols];
     }
+    SrcBlock += width;
   }
 }
 
 static void rd_intrabc_rotate180_sb(uint16_t *DstBlock, uint16_t *SrcBlock,
-                                    BLOCK_SIZE bsize) {
-  uint16_t width = block_size_wide[bsize];
-  uint16_t height = block_size_high[bsize];
-
+                                    uint16_t width, uint16_t height) {
   // Rotate Block by 180 degrees
   for (int rows = 0; rows < height; ++rows) {
     for (int cols = 0; cols < width; ++cols) {
-      DstBlock[(height - 1 - rows) * 128 + (width - 1 - cols)] =
-          SrcBlock[rows * width + cols];
+      DstBlock[(height - 1 - rows) * 128 + (width - 1 - cols)] = SrcBlock[cols];
     }
+    SrcBlock += width;
   }
 }
 
 static void rd_intrabc_rotate270_sb(uint16_t *DstBlock, uint16_t *SrcBlock,
-                                    BLOCK_SIZE bsize) {
-  uint16_t width = block_size_wide[bsize];
-  uint16_t height = block_size_high[bsize];
-
+                                    uint16_t width, uint16_t height) {
   // Rotate Block by 270 degrees
   for (int rows = 0; rows < height; ++rows) {
     for (int cols = 0; cols < width; ++cols) {
-      DstBlock[(width - 1 - cols) * 128 + rows] = SrcBlock[rows * width + cols];
+      DstBlock[(width - 1 - cols) * 128 + rows] = SrcBlock[cols];
     }
+    SrcBlock += width;
   }
 }
 
 static void rd_intrabc_mirror0_sb(uint16_t *DstBlock, uint16_t *SrcBlock,
-                                  BLOCK_SIZE bsize) {
-  uint16_t width = block_size_wide[bsize];
-  uint16_t height = block_size_high[bsize];
+                                  uint16_t width, uint16_t height) {
+  uint16_t size = (width << 1);
 
   // Mirror Block across the 0 degree axis
+  DstBlock += (height - 1) * 128;
   for (int rows = 0; rows < height; ++rows) {
-    for (int cols = 0; cols < width; ++cols) {
-      DstBlock[(height - 1 - rows) * 128 + cols] =
-          SrcBlock[rows * width + cols];
-    }
+    memcpy(DstBlock, SrcBlock, size);
+    DstBlock -= 128;
+    SrcBlock += width;
   }
 }
 
 static void rd_intrabc_mirror45_sb(uint16_t *DstBlock, uint16_t *SrcBlock,
-                                   BLOCK_SIZE bsize) {
-  uint16_t width = block_size_wide[bsize];
-  uint16_t height = block_size_high[bsize];
-
+                                   uint16_t width, uint16_t height) {
   // Mirror Block across the 45 degree axis
   for (int rows = 0; rows < height; ++rows) {
     for (int cols = 0; cols < width; ++cols) {
-      DstBlock[(width - 1 - cols) * 128 + (height - 1 - rows)] =
-          SrcBlock[rows * width + cols];
+      DstBlock[(width - 1 - cols) * 128 + (height - 1 - rows)] = SrcBlock[cols];
     }
+    SrcBlock += width;
   }
 }
 
 static void rd_intrabc_mirror90_sb(uint16_t *DstBlock, uint16_t *SrcBlock,
-                                   BLOCK_SIZE bsize) {
-  uint16_t width = block_size_wide[bsize];
-  uint16_t height = block_size_high[bsize];
-
+                                   uint16_t width, uint16_t height) {
   // Mirror Block across the 90 degree axis
   for (int rows = 0; rows < height; ++rows) {
     for (int cols = 0; cols < width; ++cols) {
-      DstBlock[rows * 128 + (width - 1 - cols)] = SrcBlock[rows * width + cols];
+      DstBlock[rows * 128 + (width - 1 - cols)] = SrcBlock[cols];
     }
+    SrcBlock += width;
   }
 }
 
 static void rd_intrabc_mirror135_sb(uint16_t *DstBlock, uint16_t *SrcBlock,
-                                    BLOCK_SIZE bsize) {
-  uint16_t width = block_size_wide[bsize];
-  uint16_t height = block_size_high[bsize];
-
+                                    uint16_t width, uint16_t height) {
   // Mirror Block across the 135 degree axis
   for (int rows = 0; rows < height; ++rows) {
     for (int cols = 0; cols < width; ++cols) {
-      DstBlock[cols * 128 + rows] = SrcBlock[rows * width + cols];
+      DstBlock[cols * 128 + rows] = SrcBlock[cols];
     }
+    SrcBlock += width;
   }
 }
 #endif  // CONFIG_EXT_IBC_MODES
@@ -13202,53 +13182,42 @@ static int64_t rd_pick_intrabc_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x,
 
 #if CONFIG_EXT_IBC_MODES
   uint16_t *src_block = NULL;
-  uint16_t *ibc_src_block = NULL;
 
   // Iterate through all IBC & IBC+ Modes
   // Allocate & Store Source block
-  rd_intrabc_allocate_sb(&src_block, bsize);
-  rd_intrabc_extract_source_sb(x, src_block, bsize);
-
-  // Allocate the IBC Source Buffer : Always 128x128, with valid data inset
-  rd_intrabc_allocate_sb(&ibc_src_block, BLOCK_128X128);
-
-  // Assign Macroblock pointer to IBC+ Translated Source
-  x->plane[0].ibc_src = ibc_src_block;
+  rd_intrabc_allocate_sb(&src_block, w, h);
+  rd_intrabc_extract_source_sb(x, src_block, w, h);
 
   for (IBC_MODE ibcMode = ROTATION_0; ibcMode <= ROTATION_270 /*ROTATION_90*/;
        ++ibcMode) {
     // Translate Source Block & Update Source Pointer for search
     switch (ibcMode) {
-      case ROTATION_0:
-        rd_intrabc_copy_sb(ibc_src_block, src_block, bsize);
-        break;
+      case ROTATION_0: rd_intrabc_copy_sb(x->ibc_src, src_block, w, h); break;
 
       case MIRROR_90:
-        rd_intrabc_mirror90_sb(ibc_src_block, src_block, bsize);
+        rd_intrabc_mirror90_sb(x->ibc_src, src_block, w, h);
         break;
 
-      case MIRROR_0:
-        rd_intrabc_mirror0_sb(ibc_src_block, src_block, bsize);
-        break;
+      case MIRROR_0: rd_intrabc_mirror0_sb(x->ibc_src, src_block, w, h); break;
 
       case ROTATION_180:
-        rd_intrabc_rotate180_sb(ibc_src_block, src_block, bsize);
+        rd_intrabc_rotate180_sb(x->ibc_src, src_block, w, h);
         break;
 
       case ROTATION_90:
-        rd_intrabc_rotate90_sb(ibc_src_block, src_block, bsize);
+        rd_intrabc_rotate90_sb(x->ibc_src, src_block, w, h);
         break;
 
       case MIRROR_135:
-        rd_intrabc_mirror135_sb(ibc_src_block, src_block, bsize);
+        rd_intrabc_mirror135_sb(x->ibc_src, src_block, w, h);
         break;
 
       case MIRROR_45:
-        rd_intrabc_mirror45_sb(ibc_src_block, src_block, bsize);
+        rd_intrabc_mirror45_sb(x->ibc_src, src_block, w, h);
         break;
 
       case ROTATION_270:
-        rd_intrabc_rotate270_sb(ibc_src_block, src_block, bsize);
+        rd_intrabc_rotate270_sb(x->ibc_src, src_block, w, h);
         break;
 
       default: break;
@@ -13422,12 +13391,15 @@ static int64_t rd_pick_intrabc_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x,
                sizeof(x->blk_skip[0]) * xd->n4_h * xd->n4_w);
       }
     }
+
 #if CONFIG_EXT_IBC_MODES
+    // Disable IBC+ Mode Search for Shapes > MaxIBCBlockSize
+    if (ibcMode == ROTATION_0 && (w > MAX_IBC_BLK_SIZE || h > MAX_IBC_BLK_SIZE))
+      break;
   }
 
-  // DeAllocate source & IBC source blocks
+  // DeAllocate source block
   aom_free(src_block);
-  aom_free(ibc_src_block);
 #endif  // CONFIG_EXT_IBC_MODES
 
   *mbmi = best_mbmi;

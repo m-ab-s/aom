@@ -156,148 +156,110 @@ void av1_intrabc_allocate_sb(uint16_t **InputBlock, const uint16_t width,
   (*InputBlock) = (uint16_t *)aom_malloc(width * height * sizeof(uint16_t));
 }
 
-void av1_intrabc_copy_sb(uint16_t *DstBlock, const uint16_t dstwidth,
-                         uint16_t *SrcBlock, const uint16_t srcwidth,
-                         const uint16_t srcheight) {
-  for (int rows = 0; rows < srcheight; ++rows) {
-    for (int cols = 0; cols < srcwidth; ++cols) {
-      DstBlock[rows * dstwidth + cols] = SrcBlock[rows * srcwidth + cols];
-    }
+void av1_fetch_prediction_sb(const uint8_t *src, int src_stride,
+                             uint16_t *InputBlock, const uint16_t width,
+                             const uint16_t height) {
+  uint16_t *pixelStartAddr = CONVERT_TO_SHORTPTR(src);
+  uint16_t size = (width << 1);
+
+  // Populate prediction data
+  for (int rows = 0; rows < height; ++rows) {
+    memcpy(InputBlock, pixelStartAddr, size);
+    pixelStartAddr += src_stride;
+    InputBlock += width;
   }
 }
 
-void av1_extract_prediction_sb(const uint8_t *src, int src_stride,
-                               uint16_t *InputBlock, const uint16_t width,
-                               const uint16_t height) {
+void av1_write_prediction_sb(const uint8_t *dst, int dst_stride,
+                             uint16_t *InputBlock, const uint16_t width,
+                             const uint16_t height) {
+  uint16_t *pixelStartAddr = CONVERT_TO_SHORTPTR(dst);
+  uint16_t size = (width << 1);
+
+  // Write prediction data
+  for (int rows = 0; rows < height; ++rows) {
+    memcpy(pixelStartAddr, InputBlock, size);
+    InputBlock += 128;
+    pixelStartAddr += dst_stride;
+  }
+}
+
+void av1_intrabc_rotate90_sb(uint16_t *DstBlock, uint16_t *SrcBlock,
+                             const uint16_t width, const uint16_t height) {
+  // Rotate Block by 90 degrees
   for (int rows = 0; rows < height; ++rows) {
     for (int cols = 0; cols < width; ++cols) {
-      uint16_t *pixelAddr = CONVERT_TO_SHORTPTR(src + rows * src_stride + cols);
-      InputBlock[rows * width + cols] = *(pixelAddr);
+      DstBlock[cols * 128 + (height - 1 - rows)] = SrcBlock[cols];
     }
-  }
-}
-
-void av1_extract_extra_prediction_data_sb(
-    const uint8_t *src, int src_stride, uint16_t *DstBlock,
-    const uint16_t dstwidth, const uint16_t dstheight, uint16_t *SrcBlock,
-    const uint16_t srcwidth, const uint16_t srcheight) {
-  // Copy over the translated block
-  av1_intrabc_copy_sb(DstBlock, dstwidth, SrcBlock, srcwidth, srcheight);
-
-  // Extract additional data from Prediction surface
-  // Additional Column
-  if (dstwidth != srcwidth) {
-    int cols = dstwidth - 1;
-    for (int rows = 0; rows < dstheight; ++rows) {
-      uint16_t *pixelAddr = CONVERT_TO_SHORTPTR(src + rows * src_stride + cols);
-      DstBlock[rows * dstwidth + cols] = *(pixelAddr);
-    }
-  }
-  // Additional Row
-  if (dstheight != srcheight) {
-    int rows = dstheight - 1;
-    for (int cols = 0; cols < dstwidth; ++cols) {
-      uint16_t *pixelAddr = CONVERT_TO_SHORTPTR(src + rows * src_stride + cols);
-      DstBlock[rows * dstwidth + cols] = *(pixelAddr);
-    }
-  }
-}
-
-void av1_intrabc_rotate90_sb(uint16_t *DstBlock, uint16_t dstWidth,
-                             uint16_t *SrcBlock, const uint16_t srcWidth,
-                             const uint16_t srcHeight) {
-  uint16_t dstStride = dstWidth;
-  uint16_t srcStride = srcWidth;
-
-  // Rotate Block by 90 degrees
-  for (int rows = 0; rows < srcHeight; ++rows) {
-    for (int cols = 0; cols < srcWidth; ++cols) {
-      DstBlock[cols * dstStride + (srcHeight - 1 - rows)] =
-          SrcBlock[rows * srcStride + cols];
-    }
+    SrcBlock += width;
   }
 }
 
 void av1_intrabc_rotate180_sb(uint16_t *DstBlock, uint16_t *SrcBlock,
                               const uint16_t width, const uint16_t height) {
-  uint16_t stride = width;
-
   // Rotate Block by 180 degrees
   for (int rows = 0; rows < height; ++rows) {
     for (int cols = 0; cols < width; ++cols) {
-      DstBlock[(height - 1 - rows) * stride + (width - 1 - cols)] =
-          SrcBlock[rows * stride + cols];
+      DstBlock[(height - 1 - rows) * 128 + (width - 1 - cols)] = SrcBlock[cols];
     }
+    SrcBlock += width;
   }
 }
 
-void av1_intrabc_rotate270_sb(uint16_t *DstBlock, uint16_t dstWidth,
-                              uint16_t *SrcBlock, const uint16_t srcWidth,
-                              const uint16_t srcHeight) {
-  uint16_t dstStride = dstWidth;
-  uint16_t srcStride = srcWidth;
-
+void av1_intrabc_rotate270_sb(uint16_t *DstBlock, uint16_t *SrcBlock,
+                              const uint16_t width, const uint16_t height) {
   // Rotate Block by 270 degrees
-  for (int rows = 0; rows < srcHeight; ++rows) {
-    for (int cols = 0; cols < srcWidth; ++cols) {
-      DstBlock[(srcWidth - 1 - cols) * dstStride + rows] =
-          SrcBlock[rows * srcStride + cols];
+  for (int rows = 0; rows < height; ++rows) {
+    for (int cols = 0; cols < width; ++cols) {
+      DstBlock[(width - 1 - cols) * 128 + rows] = SrcBlock[cols];
     }
+    SrcBlock += width;
   }
 }
 
 void av1_intrabc_mirror0_sb(uint16_t *DstBlock, uint16_t *SrcBlock,
                             const uint16_t width, const uint16_t height) {
-  uint16_t stride = width;
+  uint16_t size = (width << 1);
 
   // Mirror Block across the 0 degree axis
+  DstBlock += (height - 1) * 128;
   for (int rows = 0; rows < height; ++rows) {
-    for (int cols = 0; cols < width; ++cols) {
-      DstBlock[(height - 1 - rows) * stride + cols] =
-          SrcBlock[rows * stride + cols];
-    }
+    memcpy(DstBlock, SrcBlock, size);
+    DstBlock -= 128;
+    SrcBlock += width;
   }
 }
 
-void av1_intrabc_mirror45_sb(uint16_t *DstBlock, uint16_t dstWidth,
-                             uint16_t *SrcBlock, const uint16_t srcWidth,
-                             const uint16_t srcHeight) {
-  uint16_t dstStride = dstWidth;
-  uint16_t srcStride = srcWidth;
-
+void av1_intrabc_mirror45_sb(uint16_t *DstBlock, uint16_t *SrcBlock,
+                             const uint16_t width, const uint16_t height) {
   // Mirror Block across the 45 degree axis
-  for (int rows = 0; rows < srcHeight; ++rows) {
-    for (int cols = 0; cols < srcWidth; ++cols) {
-      DstBlock[(srcWidth - 1 - cols) * dstStride + (srcHeight - 1 - rows)] =
-          SrcBlock[rows * srcStride + cols];
+  for (int rows = 0; rows < height; ++rows) {
+    for (int cols = 0; cols < width; ++cols) {
+      DstBlock[(width - 1 - cols) * 128 + (height - 1 - rows)] = SrcBlock[cols];
     }
+    SrcBlock += width;
   }
 }
 
 void av1_intrabc_mirror90_sb(uint16_t *DstBlock, uint16_t *SrcBlock,
                              const uint16_t width, const uint16_t height) {
-  uint16_t stride = width;
-
   // Mirror Block across the 90 degree axis
   for (int rows = 0; rows < height; ++rows) {
     for (int cols = 0; cols < width; ++cols) {
-      DstBlock[rows * stride + (width - 1 - cols)] =
-          SrcBlock[rows * stride + cols];
+      DstBlock[rows * 128 + (width - 1 - cols)] = SrcBlock[cols];
     }
+    SrcBlock += width;
   }
 }
 
-void av1_intrabc_mirror135_sb(uint16_t *DstBlock, uint16_t dstWidth,
-                              uint16_t *SrcBlock, const uint16_t srcWidth,
-                              const uint16_t srcHeight) {
-  uint16_t dstStride = dstWidth;
-  uint16_t srcStride = srcWidth;
-
+void av1_intrabc_mirror135_sb(uint16_t *DstBlock, uint16_t *SrcBlock,
+                              const uint16_t width, const uint16_t height) {
   // Mirror Block across the 135 degree axis
-  for (int rows = 0; rows < srcHeight; ++rows) {
-    for (int cols = 0; cols < srcWidth; ++cols) {
-      DstBlock[cols * dstStride + rows] = SrcBlock[rows * srcStride + cols];
+  for (int rows = 0; rows < height; ++rows) {
+    for (int cols = 0; cols < width; ++cols) {
+      DstBlock[cols * 128 + rows] = SrcBlock[cols];
     }
+    SrcBlock += width;
   }
 }
 #endif  // CONFIG_EXT_IBC_MODES
@@ -1270,112 +1232,78 @@ static void build_inter_predictors(
       conv_params.do_average = ref;
 
 #if CONFIG_EXT_IBC_MODES
-      // IBC Winners : Extract Predicted block & translate accordingly
-      if (is_intrabc) {
+      // IBC+ Winners Only : Extract Predicted block & translate accordingly
+      if (is_intrabc && mi->ibc_mode) {
         uint8_t ibcWinMode = mi->ibc_mode;
         // uint8_t ibcWinMode = mi->is_ibcplus ? (0x1 + mi->ibcplus_mode) : 0x0;
 
-        // Allocate & Extract/Fecth predicted block
+        // Allocate & Extract/Fetch predicted block
         uint16_t *pred_block = NULL;
+
+        uint8_t *dst_block = CONVERT_TO_BYTEPTR(xd->ibc_pred);
+        uint8_t dst_block_stride = 128;
 
         if (bw != bh &&
             (ibcWinMode == ROTATION_90 || ibcWinMode == ROTATION_270 ||
              ibcWinMode == MIRROR_45 || ibcWinMode == MIRROR_135)) {
+          av1_make_inter_predictor(
+              pre, src_stride, dst_block, dst_block_stride, &subpel_params, sf,
+              bh, bw, &conv_params, mi->interp_filters, &warp_types,
+              mi_x >> pd->subsampling_x, mi_y >> pd->subsampling_y, plane, ref,
+              mi, build_for_obmc, xd, cm->allow_warped_motion, border);
+
           av1_intrabc_allocate_sb(&pred_block, bh, bw);
-          av1_extract_prediction_sb(pre, src_stride, pred_block, bh, bw);
+          av1_fetch_prediction_sb(dst_block, dst_block_stride, pred_block, bh,
+                                  bw);
         } else {
+          av1_make_inter_predictor(
+              pre, src_stride, dst_block, dst_block_stride, &subpel_params, sf,
+              bw, bh, &conv_params, mi->interp_filters, &warp_types,
+              mi_x >> pd->subsampling_x, mi_y >> pd->subsampling_y, plane, ref,
+              mi, build_for_obmc, xd, cm->allow_warped_motion, border);
+
           av1_intrabc_allocate_sb(&pred_block, bw, bh);
-          av1_extract_prediction_sb(pre, src_stride, pred_block, bw, bh);
+          av1_fetch_prediction_sb(dst_block, dst_block_stride, pred_block, bw,
+                                  bh);
         }
 
-        // Allocate Translated Prediction block
-        uint16_t *ibc_pred_block = NULL;
-        av1_intrabc_allocate_sb(&ibc_pred_block, bw, bh);
-
         switch (ibcWinMode) {
-          case ROTATION_0:
-            av1_intrabc_copy_sb(ibc_pred_block, bw, pred_block, bw,
-                                bh);  // No Translation, just copy
-            break;
-
           case MIRROR_90:
-            av1_intrabc_mirror90_sb(ibc_pred_block, pred_block, bw,
-                                    bh);  // Mirror across Y = 1 Axis
+            av1_intrabc_mirror90_sb(xd->ibc_pred, pred_block, bw, bh);
             break;
 
           case MIRROR_0:
-            av1_intrabc_mirror0_sb(ibc_pred_block, pred_block, bw,
-                                   bh);  // Mirror across X = 0 Axis
+            av1_intrabc_mirror0_sb(xd->ibc_pred, pred_block, bw, bh);
             break;
 
           case ROTATION_180:
-            av1_intrabc_rotate180_sb(ibc_pred_block, pred_block, bw, bh);
+            av1_intrabc_rotate180_sb(xd->ibc_pred, pred_block, bw, bh);
             break;
 
           case ROTATION_90:
-            av1_intrabc_rotate270_sb(ibc_pred_block, bw, pred_block, bh,
-                                     bw);  // Handle non-square shapes
+            av1_intrabc_rotate270_sb(xd->ibc_pred, pred_block, bh, bw);
             break;
 
           case MIRROR_135:
-            av1_intrabc_mirror135_sb(ibc_pred_block, bw, pred_block, bh,
-                                     bw);  // Mirror across X/Y = -1 Axis
+            av1_intrabc_mirror135_sb(xd->ibc_pred, pred_block, bh, bw);
             break;
 
           case MIRROR_45:
-            av1_intrabc_mirror45_sb(ibc_pred_block, bw, pred_block, bh,
-                                    bw);  // Mirror across X/Y = 1 Axis
+            av1_intrabc_mirror45_sb(xd->ibc_pred, pred_block, bh, bw);
             break;
 
           case ROTATION_270:
-            av1_intrabc_rotate90_sb(ibc_pred_block, bw, pred_block, bh,
-                                    bw);  // Handle non-square shapes
+            av1_intrabc_rotate90_sb(xd->ibc_pred, pred_block, bh, bw);
             break;
 
           default: break;  // assert(0);
         }
 
-        // Convert to byte pointer
-        uint8_t *pred = CONVERT_TO_BYTEPTR(ibc_pred_block);
-        uint8_t stride = bw;
-
-        const int subpel_x_qn = subpel_params.subpel_x >> SCALE_EXTRA_BITS;
-        const int subpel_y_qn = subpel_params.subpel_y >> SCALE_EXTRA_BITS;
-
-        uint16_t *ibc_pred_block_extra = NULL;
-
-        if (subpel_x_qn != 0 || subpel_y_qn != 0) {
-          uint16_t width = bw;
-          uint16_t height = bh;
-
-          if (subpel_x_qn != 0) width++;
-          if (subpel_y_qn != 0) height++;
-
-          // Allocate 1D array to store the predicted block
-          av1_intrabc_allocate_sb(&ibc_pred_block_extra, width, height);
-
-          av1_extract_extra_prediction_data_sb(pre, src_stride,
-                                               ibc_pred_block_extra, width,
-                                               height, ibc_pred_block, bw, bh);
-
-          pred = CONVERT_TO_BYTEPTR(ibc_pred_block_extra);
-          stride = width;
-        }
-
-        av1_make_inter_predictor(
-            pred, stride, dst, dst_stride, &subpel_params, sf, bw, bh,
-            &conv_params, mi->interp_filters, &warp_types,
-            mi_x >> pd->subsampling_x, mi_y >> pd->subsampling_y, plane, ref,
-            mi, build_for_obmc, xd, cm->allow_warped_motion, border);
+        av1_write_prediction_sb(dst, dst_stride, xd->ibc_pred, bw, bh);
 
         // Deallocate 1D arrays
         aom_free(pred_block);
-        aom_free(ibc_pred_block);
-
-        if (subpel_x_qn != 0 || subpel_y_qn != 0) {
-          aom_free(ibc_pred_block_extra);
-        }
-      } else {
+      } else {  // Regular IBC
         av1_make_inter_predictor(
             pre, src_stride, dst, dst_stride, &subpel_params, sf, bw, bh,
             &conv_params, mi->interp_filters, &warp_types,

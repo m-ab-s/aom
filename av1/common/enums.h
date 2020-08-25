@@ -155,6 +155,8 @@ typedef enum {
   ROTATION_270,
 } IBC_MODE;
 
+#define MAX_IBC_BLK_SIZE 128
+
 typedef enum {
   CONFIG_EXT_IBC_ALLMODES,
   CONFIG_EXT_IBC_TOP4MODES,

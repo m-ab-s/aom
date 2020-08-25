@@ -1090,6 +1090,10 @@ typedef struct macroblockd {
   /* pointer to current frame */
   const YV12_BUFFER_CONFIG *cur_buf;
 
+#if CONFIG_EXT_IBC_MODES
+  uint16_t *ibc_pred;
+#endif  // CONFIG_EXT_IBC_MODES
+
   ENTROPY_CONTEXT *above_context[MAX_MB_PLANE];
   ENTROPY_CONTEXT left_context[MAX_MB_PLANE][MAX_MIB_SIZE];
 

@@ -6208,6 +6208,15 @@ void av1_alloc_tile_data(AV1_COMP *cpi) {
   cpi->allocated_tiles = tile_cols * tile_rows;
 }
 
+#if CONFIG_EXT_IBC_MODES
+void av1_allocate_intrabc_sb(uint16_t **InputBlock, BLOCK_SIZE bsize) {
+  uint16_t width = block_size_wide[bsize];
+  uint16_t height = block_size_high[bsize];
+
+  (*InputBlock) = (uint16_t *)aom_malloc(width * height * sizeof(uint16_t));
+}
+#endif  // CONFIG_EXT_IBC_MODES
+
 void av1_init_tile_data(AV1_COMP *cpi) {
   AV1_COMMON *const cm = &cpi->common;
   const int num_planes = av1_num_planes(cm);
@@ -6321,6 +6330,16 @@ static void encode_tiles(AV1_COMP *cpi) {
 
   av1_init_tile_data(cpi);
 
+#if CONFIG_EXT_IBC_MODES
+  // Allocate 128x128 scratch buffers for Encode:
+  // 1. Source
+  MACROBLOCK *const x = &cpi->td.mb;
+  av1_allocate_intrabc_sb(&x->ibc_src, BLOCK_128X128);
+  // 2. Prediction
+  MACROBLOCKD *const xd = &x->e_mbd;
+  av1_allocate_intrabc_sb(&xd->ibc_pred, BLOCK_128X128);
+#endif  // CONFIG_EXT_IBC_MODES
+
   for (tile_row = 0; tile_row < tile_rows; ++tile_row) {
     for (tile_col = 0; tile_col < tile_cols; ++tile_col) {
       TileDataEnc *const this_tile =
@@ -6334,6 +6353,12 @@ static void encode_tiles(AV1_COMP *cpi) {
       cpi->deltaq_used |= cpi->td.deltaq_used;
     }
   }
+
+#if CONFIG_EXT_IBC_MODES
+  // Free scratch buffers for Encode
+  aom_free(x->ibc_src);
+  aom_free(xd->ibc_pred);
+#endif  // CONFIG_EXT_IBC_MODES
 }
 
 #define GLOBAL_TRANS_TYPES_ENC 3  // highest motion model to search
@@ -7017,53 +7042,156 @@ static void encode_frame_internal(AV1_COMP *cpi) {
 #define CHECK_PRECOMPUTED_REF_FRAME_MAP 0
 
 #if CONFIG_EXT_IBC_MODES
-/*static uint16_t FrameNum = -1;
+// static uint16_t FrameNum = -1;
 
+/*
 static void av1_setup_ibc_statistics() {
-  FrameNum++;  // Update Frame Count
 
-  regular_ibc = ibc_rotation90 = ibc_rotation180 = ibc_rotation270 = ibc_mirror0
-= ibc_mirror45 = ibc_mirror90 = ibc_mirror135 = 0;  // Reset variables
+  // FrameNum++;  // Update Frame Count
+
+  // Reset variables
+
+  // regular_ibc = ibc_rotation90 = ibc_rotation180 = ibc_rotation270 =
+  // ibc_mirror0 = ibc_mirror45 = ibc_mirror90 = ibc_mirror135 = 0;
+
+  // regular_ibc = ibc_plus = 0;
+  // ibc_blk128x = ibc_blk64x = ibc_blk32x = ibc_blk16x = ibc_blk8x =
+  // ibc_blk4x = 0;
+
 }
+*/
 
+/*
 static void av1_write_ibc_statistics() {
-  IBCStats = fopen("IBC_Statistics.txt", "a+");
-  fprintf(IBCStats, "\nFrame Number : %d\n", FrameNum);
 
-  float totalIBCWinners = regular_ibc + ibc_rotation90 + ibc_rotation180 +
-                          ibc_rotation270 + ibc_mirror0 + ibc_mirror45 +
-                          ibc_mirror90 + ibc_mirror135;
+  // IBCStats = fopen("IBC_Statistics.txt", "a+");
+  // fprintf(IBCStats, "\nFrame Number : %d\n", FrameNum);
 
-  float regularIBCPercent = (float)(regular_ibc) / totalIBCWinners * 100;
-  fprintf(IBCStats, "Regular IBC : %d\t Percentage Win : %f\n", regular_ibc,
-          regularIBCPercent);
+  // float totalIBCWinners = regular_ibc + ibc_rotation90 + ibc_rotation180 +
+  //                      ibc_rotation270 + ibc_mirror0 + ibc_mirror45 +
+  //                      ibc_mirror90 + ibc_mirror135;
+  // float regularIBCPercent = (float)(regular_ibc) / totalIBCWinners * 100;
+  // fprintf(IBCStats, "Regular IBC : %d\t Percentage Win : %f\n", regular_ibc,
+  //      regularIBCPercent);
 
-  fprintf(IBCStats, "Rotation Mode Winners :\n");
-  float ibcR90Percent = (float)(ibc_rotation90) / totalIBCWinners * 100;
-  fprintf(IBCStats, "Rotation 90 : %d\t Percentage Win : %f\n", ibc_rotation90,
-          ibcR90Percent);
-  float ibcR180Percent = (float)(ibc_rotation180) / totalIBCWinners * 100;
-  fprintf(IBCStats, "Rotation 180 : %d\t Percentage Win : %f\n",
-ibc_rotation180, ibcR180Percent); float ibcR270Percent =
-(float)(ibc_rotation270) / totalIBCWinners * 100; fprintf(IBCStats, "Rotation
-270 : %d\t Percentage Win : %f\n", ibc_rotation270, ibcR270Percent);
+  // fprintf(IBCStats, "Rotation Mode Winners :\n");
+  // float ibcR90Percent = (float)(ibc_rotation90) / totalIBCWinners * 100;
+  // fprintf(IBCStats, "Rotation 90 : %d\t Percentage Win : %f\n",
+ibc_rotation90,
+  //         ibcR90Percent);
+  // float ibcR180Percent = (float)(ibc_rotation180) / totalIBCWinners * 100;
+  // fprintf(IBCStats, "Rotation 180 : %d\t Percentage Win : %f\n",
+  // ibc_rotation180, ibcR180Percent); float ibcR270Percent =
+  // (float)(ibc_rotation270) / totalIBCWinners * 100; fprintf(IBCStats,
+"Rotation
+  // 270 : %d\t Percentage Win : %f\n", ibc_rotation270, ibcR270Percent);
+  //
+  // fprintf(IBCStats, "Mirror Mode Winners :\n");
+  // float ibcM0Percent = (float)(ibc_mirror0) / totalIBCWinners * 100;
+  // fprintf(IBCStats, "Mirror 0 : %d\t Percentage Win : %f\n", ibc_mirror0,
+  //         ibcM0Percent);
+  // float ibcM45Percent = (float)(ibc_mirror45) / totalIBCWinners * 100;
+  // fprintf(IBCStats, "Mirror 45 : %d\t Percentage Win : %f\n", ibc_mirror45,
+  //         ibcM45Percent);
+  // float ibcM90Percent = (float)(ibc_mirror90) / totalIBCWinners * 100;
+  // fprintf(IBCStats, "Mirror 90 : %d\t Percentage Win : %f\n", ibc_mirror90,
+  //         ibcM90Percent);
+  // float ibcM135Percent = (float)(ibc_mirror135) / totalIBCWinners * 100;
+  // fprintf(IBCStats, "Mirror 135 : %d\t Percentage Win : %f\n", ibc_mirror135,
+  //         ibcM135Percent);
 
-  fprintf(IBCStats, "Mirror Mode Winners :\n");
-  float ibcM0Percent = (float)(ibc_mirror0) / totalIBCWinners * 100;
-  fprintf(IBCStats, "Mirror 0 : %d\t Percentage Win : %f\n", ibc_mirror0,
-          ibcM0Percent);
-  float ibcM45Percent = (float)(ibc_mirror45) / totalIBCWinners * 100;
-  fprintf(IBCStats, "Mirror 45 : %d\t Percentage Win : %f\n", ibc_mirror45,
-          ibcM45Percent);
-  float ibcM90Percent = (float)(ibc_mirror90) / totalIBCWinners * 100;
-  fprintf(IBCStats, "Mirror 90 : %d\t Percentage Win : %f\n", ibc_mirror90,
-          ibcM90Percent);
-  float ibcM135Percent = (float)(ibc_mirror135) / totalIBCWinners * 100;
-  fprintf(IBCStats, "Mirror 135 : %d\t Percentage Win : %f\n", ibc_mirror135,
-          ibcM135Percent);
+  // float totalIBCWinners = regular_ibc + ibc_plus;
+  //
+  // float regularIBCPercent = (float)(regular_ibc) / totalIBCWinners * 100;
+  // fprintf(IBCStats, "Regular IBC : %d\t Percentage Win : %f\n", regular_ibc,
+  //         regularIBCPercent);
+  // float ibcPlusPercent = (float)(ibc_plus) / totalIBCWinners * 100;
+  // fprintf(IBCStats, "IBC+ : %d\t Percentage Win : %f\n", ibc_plus,
+  //         ibcPlusPercent);
+  //
+  // fprintf(IBCStats, " \n");
+  // float ibc_blk128x_Percent = (float)(ibc_blk128x) / ibc_plus * 100;
+  // fprintf(IBCStats,
+  //         "IBC+ Blocks (128x128, 128x64, 64x128) : %d\t Percentage Win :
+%f\n",
+  //         ibc_blk128x, ibc_blk128x_Percent);
+  // float ibc_blk64x_Percent = (float)(ibc_blk64x) / ibc_plus * 100;
+  // fprintf(IBCStats,
+  //         "IBC+ Blocks (64x64, 64x32, 32x64, 64x16, 16x64) : %d\t Percentage
+"
+  //         "Win : %f\n", ibc_blk64x, ibc_blk64x_Percent);
+  // float ibc_blk32x_Percent = (float)(ibc_blk32x) / ibc_plus * 100;
+  // fprintf(IBCStats,
+  //         "IBC+ Blocks (32x32, 32x16, 16x32, 32x8, 8x32) : %d\t Percentage
+Win "
+  //         ": %f\n", ibc_blk32x, ibc_blk32x_Percent);
+  // float ibc_blk16x_Percent = (float)(ibc_blk16x) / ibc_plus * 100;
+  // fprintf(IBCStats,
+  //         "IBC+ Blocks (16x16, 16x8, 8x16, 16x4, 4x16) : %d\t Percentage Win
+"
+  //         ": %f\n", ibc_blk16x, ibc_blk16x_Percent);
+  // float ibc_blk8x_Percent = (float)(ibc_blk8x) / ibc_plus * 100;
+  // fprintf(IBCStats,
+  //         "IBC+ Blocks (8x8, 8x4, 4x8) : %d\t Percentage Win "
+  //         ": %f\n", ibc_blk8x, ibc_blk8x_Percent);
+  // float ibc_blk4x_Percent = (float)(ibc_blk4x) / ibc_plus * 100;
+  // fprintf(IBCStats,
+  //         "IBC+ Blocks (4x4) : %d\t Percentage Win "
+  //         ": %f\n", ibc_blk4x, ibc_blk4x_Percent);
 
-  fclose(IBCStats);
-}*/
+  // fclose(IBCStats);
+}
+*/
+
+/*
+static void av1_log_ibc_statistics(MB_MODE_INFO *mbmi, BLOCK_SIZE bsize) {
+  // uint8_t ibcWinMode = mbmi->ibc_mode;
+  // uint8_t ibcWinMode = mbmi->is_ibcplus ? (0x1 + mbmi->ibcplus_mode) : 0x0;
+
+  // if (ibcWinMode == ROTATION_0)
+  //   regular_ibc++;
+  // else if (ibcWinMode == MIRROR_90)
+  //   ibc_mirror90++;
+  // else if (ibcWinMode == MIRROR_0)
+  //   ibc_mirror0++;
+  // else if (ibcWinMode == ROTATION_180)
+  //   ibc_rotation180++;
+  // else if (ibcWinMode == MIRROR_135)
+  //   ibc_mirror135++;
+  // else if (ibcWinMode == MIRROR_45)
+  //   ibc_mirror45++;
+  // else if (ibcWinMode == ROTATION_90)
+  //   ibc_rotation90++;
+  // else if (ibcWinMode == ROTATION_270)
+  //   ibc_rotation270++;
+
+
+  // if (ibcWinMode == ROTATION_0) {
+  //   ++regular_ibc;
+  // } else {
+  //   ++ibc_plus;
+  //   if (bsize == BLOCK_128X128 || bsize == BLOCK_128X64 ||
+  //       bsize == BLOCK_64X128)
+  //     ++ibc_blk128x;
+  //   else if (bsize == BLOCK_64X64 || bsize == BLOCK_64X32 ||
+  //            bsize == BLOCK_32X64 || bsize == BLOCK_64X16 ||
+  //            bsize == BLOCK_16X64)
+  //     ++ibc_blk64x;
+  //   else if (bsize == BLOCK_32X32 || bsize == BLOCK_32X16 ||
+  //            bsize == BLOCK_16X32 || bsize == BLOCK_32X8 || bsize ==
+BLOCK_8X32)
+  //     ++ibc_blk32x;
+  //   else if (bsize == BLOCK_16X16 || bsize == BLOCK_16X8 ||
+  //            bsize == BLOCK_8X16 || bsize == BLOCK_16X4 || bsize ==
+BLOCK_4X16)
+  //     ++ibc_blk16x;
+  //   else if (bsize == BLOCK_8X8 || bsize == BLOCK_8X4 || bsize == BLOCK_4X8)
+  //     ++ibc_blk8x;
+  //   else if (bsize == BLOCK_4X4)
+  //     ++ibc_blk4x;
+  // }
+}
+*/
 #endif  // CONFIG_EXT_IBC_MODES
 
 void av1_encode_frame(AV1_COMP *cpi) {
@@ -7494,29 +7622,11 @@ static void encode_superblock(const AV1_COMP *const cpi, TileDataEnc *tile_data,
     assert(av1_check_newmv_joint_nonzero(cm, x));
 #endif  // CONFIG_NEW_INTER_MODES && DISABLE_NEW_INTER_MODES_JOINT_ZERO
 #if CONFIG_EXT_IBC_MODES
-    // Update winner
+    /* Log IBC Statistics
     if (is_intrabc_block(mbmi) && !dry_run) {
-      /*uint8_t ibcWinMode = mbmi->ibc_mode;
-      // uint8_t ibcWinMode = mbmi->is_ibcplus ? (0x1 + mbmi->ibcplus_mode) :
-      // 0x0;
-
-      if (ibcWinMode == ROTATION_0)
-        regular_ibc++;
-      else if (ibcWinMode == MIRROR_90)
-        ibc_mirror90++;
-      else if (ibcWinMode == MIRROR_0)
-        ibc_mirror0++;
-      else if (ibcWinMode == ROTATION_180)
-        ibc_rotation180++;
-      else if (ibcWinMode == MIRROR_135)
-        ibc_mirror135++;
-      else if (ibcWinMode == MIRROR_45)
-        ibc_mirror45++;
-      else if (ibcWinMode == ROTATION_90)
-        ibc_rotation90++;
-      else if (ibcWinMode == ROTATION_270)
-        ibc_rotation270++;*/
+      av1_log_ibc_statistics(mbmi, bsize);
     }
+    */
 #endif  // CONFIG_EXT_IBC_MODES
 
 #if CONFIG_DERIVED_MV

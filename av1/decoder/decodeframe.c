@@ -3231,6 +3231,15 @@ static void set_decode_func_pointers(ThreadData *td, int parse_decode_flag) {
   }
 }
 
+#if CONFIG_EXT_IBC_MODES
+static void av1_allocate_intrabc_sb(uint16_t **InputBlock, BLOCK_SIZE bsize) {
+  uint16_t width = block_size_wide[bsize];
+  uint16_t height = block_size_high[bsize];
+
+  (*InputBlock) = (uint16_t *)aom_malloc(width * height * sizeof(uint16_t));
+}
+#endif  // CONFIG_EXT_IBC_MODES
+
 static void decode_tile(AV1Decoder *pbi, ThreadData *const td, int tile_row,
                         int tile_col) {
   TileInfo tile_info;
@@ -3357,6 +3366,12 @@ static const uint8_t *decode_tiles(AV1Decoder *pbi, const uint8_t *data,
     td->xd.tmp_obmc_bufs[j] = td->tmp_obmc_bufs[j];
   }
 
+#if CONFIG_EXT_IBC_MODES
+  // Allocate 128x128 scratch buffers for Decode:
+  MACROBLOCKD *const xd = &td->xd;
+  av1_allocate_intrabc_sb(&xd->ibc_pred, BLOCK_128X128);
+#endif  // CONFIG_EXT_IBC_MODES
+
   for (tile_row = tile_rows_start; tile_row < tile_rows_end; ++tile_row) {
     const int row = inv_row_order ? tile_rows - 1 - tile_row : tile_row;
 
@@ -3402,6 +3417,11 @@ static const uint8_t *decode_tiles(AV1Decoder *pbi, const uint8_t *data,
                            "Failed to decode tile data");
     }
   }
+
+#if CONFIG_EXT_IBC_MODES
+  // Free scratch buffers for Decode
+  aom_free(xd->ibc_pred);
+#endif  // CONFIG_EXT_IBC_MODES
 
   if (cm->large_scale_tile) {
     if (n_tiles == 1) {

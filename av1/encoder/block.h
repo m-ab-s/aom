@@ -52,10 +52,6 @@ typedef struct macroblock_plane {
   uint8_t *txb_entropy_ctx;
   struct buf_2d src;
 
-#if CONFIG_EXT_IBC_MODES
-  uint16_t *ibc_src;
-#endif  // CONFIG_EXT_IBC_MODES
-
   // Quantizer setings
   // These are used/accessed only in the quantization process
   // RDO does not / must not depend on any of these values
@@ -337,6 +333,10 @@ struct macroblock {
 #endif  // CONFIG_NEW_INTER_MODES
   // Inter macroblock RD search info.
   MB_RD_RECORD mb_rd_record;
+
+#if CONFIG_EXT_IBC_MODES
+  uint16_t *ibc_src;
+#endif  // CONFIG_EXT_IBC_MODES
 
   // Inter transform block RD search info. for square TX sizes.
 #if CONFIG_DSPL_RESIDUAL
