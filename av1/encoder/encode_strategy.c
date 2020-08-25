@@ -49,8 +49,10 @@ static INLINE void set_refresh_frame_flags(
 const SubGOPStepCfg *get_subgop_step(const GF_GROUP *const gf_group,
                                      int index) {
   const SubGOPCfg *subgop_cfg = gf_group->subgop_cfg;
+  const int offset = gf_group->has_overlay_for_key_frame ? 2 : 1;
   if (subgop_cfg == NULL) return NULL;
-  return index == 0 ? gf_group->last_step_prev : &subgop_cfg->step[index - 1];
+  return index == 0 ? gf_group->last_step_prev
+                    : &subgop_cfg->step[index - offset];
 }
 
 void av1_configure_buffer_updates(
@@ -774,6 +776,7 @@ int use_subgop_cfg(const GF_GROUP *const gf_group, int gf_index) {
   if (gf_index < 0) return 0;
   if (gf_group->subgop_cfg == NULL) return 0;
   if (gf_index == 0) return gf_group->last_step_prev != NULL;
+  if (gf_index == 1) return !gf_group->has_overlay_for_key_frame;
   return 1;
 }
 

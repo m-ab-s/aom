@@ -201,6 +201,7 @@ static int construct_multi_layer_gf_structure(
 
   if (first_frame_update_type == KF_UPDATE &&
       cpi->oxcf.kf_cfg.enable_keyframe_filtering > 1) {
+    gf_group->has_overlay_for_key_frame = 1;
     gf_group->update_type[frame_index] = ARF_UPDATE;
     gf_group->arf_src_offset[frame_index] = 0;
     gf_group->cur_frame_idx[frame_index] = cur_frame_index;
@@ -320,6 +321,7 @@ void av1_gop_setup_structure(AV1_COMP *cpi,
       key_frame ? KF_UPDATE
                 : rc->source_alt_ref_active ? OVERLAY_UPDATE : GF_UPDATE;
   gf_group->is_user_specified = 0;
+  gf_group->has_overlay_for_key_frame = 0;
   gf_group->size = construct_multi_layer_gf_structure(
       cpi, twopass, gf_group, rc, frame_info, rc->baseline_gf_interval,
       first_frame_update_type);

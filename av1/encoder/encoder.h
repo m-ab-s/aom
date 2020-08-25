@@ -823,6 +823,7 @@ typedef struct {
 typedef struct {
   /*!\cond */
   unsigned char is_user_specified;
+  unsigned char has_overlay_for_key_frame;
   unsigned char index;
   FRAME_UPDATE_TYPE update_type[MAX_STATIC_GF_GROUP_LENGTH];
   unsigned char arf_src_offset[MAX_STATIC_GF_GROUP_LENGTH];
