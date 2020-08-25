@@ -69,7 +69,8 @@ void av1_configure_buffer_updates(
 int av1_get_refresh_frame_flags(const AV1_COMP *const cpi,
                                 const EncodeFrameParams *const frame_params,
                                 FRAME_UPDATE_TYPE frame_update_type,
-                                int gf_index,
+                                int gf_index, int cur_frame_disp,
+                                RefFrameMapPair ref_frame_map_pairs[REF_FRAMES],
                                 const RefBufferStack *const ref_buffer_stack);
 
 int av1_get_refresh_ref_frame_map(int refresh_frame_flags);

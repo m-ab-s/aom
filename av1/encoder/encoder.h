@@ -2820,6 +2820,41 @@ int av1_convert_sect5obus_to_annexb(uint8_t *buffer, size_t *input_size);
 void av1_set_screen_content_options(const struct AV1_COMP *cpi,
                                     FeatureFlags *features);
 
+static INLINE int get_true_pyr_level(int frame_level, int frame_order,
+                                     int max_layer_depth) {
+  if (frame_order == 0) {
+    // Keyframe case
+    return 1;
+  } else if (frame_level == MAX_ARF_LAYERS) {
+    // Leaves
+    return max_layer_depth;
+  } else if (frame_level == (MAX_ARF_LAYERS + 1)) {
+    // Altrefs
+    return 1;
+  }
+  return frame_level;
+}
+
+typedef struct {
+  int pyr_level;
+  int disp_order;
+} RefFrameMapPair;
+
+static INLINE void init_ref_map_pair(
+    AV1_COMP *cpi, RefFrameMapPair ref_frame_map_pairs[REF_FRAMES]) {
+  memset(ref_frame_map_pairs, -1, sizeof(*ref_frame_map_pairs) * REF_FRAMES);
+  for (int map_idx = 0; map_idx < REF_FRAMES; map_idx++) {
+    // Get reference frame buffer
+    const RefCntBuffer *const buf = cpi->common.ref_frame_map[map_idx];
+    if (buf == NULL) continue;
+    ref_frame_map_pairs[map_idx].disp_order = (int)buf->display_order_hint;
+    const int reference_frame_level = get_true_pyr_level(
+        buf->pyramid_level, ref_frame_map_pairs[map_idx].disp_order,
+        cpi->gf_group.max_layer_depth);
+    ref_frame_map_pairs[map_idx].pyr_level = reference_frame_level;
+  }
+}
+
 // TODO(jingning): Move these functions as primitive members for the new cpi
 // class.
 static INLINE void stack_push(int *stack, int *stack_size, int item) {

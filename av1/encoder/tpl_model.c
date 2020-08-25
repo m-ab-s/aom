@@ -927,6 +927,8 @@ static AOM_INLINE void init_gop_frames_for_tpl(
   AV1_COMMON *cm = &cpi->common;
   int cur_frame_idx = gf_group->index;
   *pframe_qindex = 0;
+  RefFrameMapPair ref_frame_map_pairs[REF_FRAMES];
+  init_ref_map_pair(cpi, ref_frame_map_pairs);
 
   RefBufferStack ref_buffer_stack = cpi->ref_buffer_stack;
   EncodeFrameParams frame_params = *init_frame_params;
@@ -1006,13 +1008,23 @@ static AOM_INLINE void init_gop_frames_for_tpl(
     }
 
     av1_get_ref_frames(cpi, &ref_buffer_stack);
+    const int true_disp =
+        (int)(tpl_frame->frame_display_index) - frame_params.show_frame;
     int refresh_mask = av1_get_refresh_frame_flags(
-        cpi, &frame_params, frame_update_type, gf_index, &ref_buffer_stack);
+        cpi, &frame_params, frame_update_type, gf_index, true_disp,
+        ref_frame_map_pairs, &ref_buffer_stack);
 
     int refresh_frame_map_index = av1_get_refresh_ref_frame_map(refresh_mask);
     av1_update_ref_frame_map(cpi, frame_update_type, frame_params.frame_type,
                              gf_index, frame_params.show_existing_frame,
                              refresh_frame_map_index, &ref_buffer_stack);
+
+    if (refresh_frame_map_index < REF_FRAMES) {
+      ref_frame_map_pairs[refresh_frame_map_index].disp_order =
+          AOMMAX(0, true_disp);
+      ref_frame_map_pairs[refresh_frame_map_index].pyr_level =
+          gf_group->layer_depth[gf_index];
+    }
 
     for (int i = LAST_FRAME; i <= ALTREF_FRAME; ++i)
       tpl_frame->ref_map_index[i - LAST_FRAME] =
@@ -1071,8 +1083,11 @@ static AOM_INLINE void init_gop_frames_for_tpl(
     // av1_update_ref_frame_map() will execute default behavior even when
     // subgop cfg is enabled. This should be addressed if we ever remove the
     // frame_update_type.
+    const int true_disp =
+        (int)(tpl_frame->frame_display_index) - frame_params.show_frame;
     int refresh_mask = av1_get_refresh_frame_flags(
-        cpi, &frame_params, frame_update_type, -1, &ref_buffer_stack);
+        cpi, &frame_params, frame_update_type, -1, true_disp,
+        ref_frame_map_pairs, &ref_buffer_stack);
     int refresh_frame_map_index = av1_get_refresh_ref_frame_map(refresh_mask);
     av1_update_ref_frame_map(cpi, frame_update_type, frame_params.frame_type,
                              -1, frame_params.show_existing_frame,
