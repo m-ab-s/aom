@@ -239,94 +239,163 @@ typedef struct {
 
 #define INTER_TX_SIZE_BUF_LEN 16
 #define TXK_TYPE_BUF_LEN 64
-// This structure now relates to 4x4 block regions.
+/*!\endcond */
+
+/*! \brief Stores the prediction/txfm mode of the current coding block
+ */
 typedef struct MB_MODE_INFO {
-  // interinter members
-  INTERINTER_COMPOUND_DATA interinter_comp;
-  WarpedMotionParams wm_params;
-  int_mv mv[2];
-  // q index for the current coding block.
-  int current_qindex;
-  // Only for INTER blocks
-#if CONFIG_REMOVE_DUAL_FILTER
-  int interp_fltr;
-#else
-  int_interpfilters interp_filters;
-#endif  // CONFIG_REMOVE_DUAL_FILTER
-  // TODO(debargha): Consolidate these flags
-#if CONFIG_RD_DEBUG
-  RD_STATS rd_stats;
-  int mi_row;
-  int mi_col;
-#endif
-#if CONFIG_INSPECTION
-  int16_t tx_skip[TXK_TYPE_BUF_LEN];
-#endif
-  PALETTE_MODE_INFO palette_mode_info;
+  /*****************************************************************************
+   * \name General Info of the Coding Block
+   ****************************************************************************/
+  /**@{*/
+  /*! \brief The block size of the current coding block */
   // Common for both INTER and INTRA blocks
 #if CONFIG_SDP
   BLOCK_SIZE sb_type[2];
 #else
   BLOCK_SIZE sb_type;
 #endif
+  /*! \brief The partition type of the current coding block. */
+  PARTITION_TYPE partition;
+  /*! \brief The prediction mode used */
+  PREDICTION_MODE mode;
+  /*! \brief The UV mode when intra is used */
+  UV_PREDICTION_MODE uv_mode;
+  /*! \brief The q index for the current coding block. */
+  int current_qindex;
+  /**@}*/
 
+  /*****************************************************************************
+   * \name Inter Mode Info
+   ****************************************************************************/
+  /**@{*/
+  /*! \brief The motion vectors used by the current inter mode */
+  int_mv mv[2];
+  /*! \brief The reference frames for the MV */
+  MV_REFERENCE_FRAME ref_frame[2];
+  /*! \brief Filter used in subpel interpolation. */
+#if CONFIG_REMOVE_DUAL_FILTER
+  int interp_fltr;
+#else
+  int_interpfilters interp_filters;
+#endif  // CONFIG_REMOVE_DUAL_FILTER
+  /*! \brief The motion mode used by the inter prediction. */
+  MOTION_MODE motion_mode;
+  /*! \brief Number of samples used by warp causal */
+  uint8_t num_proj_ref;
+  /*! \brief The number of overlapped neighbors above/left for obmc/warp motion
+   * mode. */
+  uint8_t overlappable_neighbors[2];
+  /*! \brief The parameters used in warp motion mode. */
+  WarpedMotionParams wm_params;
+  /*! \brief The type of intra mode used by inter-intra */
+  INTERINTRA_MODE interintra_mode;
+  /*! \brief The type of wedge used in interintra mode. */
+  int8_t interintra_wedge_index;
+  /*! \brief Struct that stores the data used in interinter compound mode. */
+  INTERINTER_COMPOUND_DATA interinter_comp;
+  /**@}*/
+
+  /*****************************************************************************
+   * \name Intra Mode Info
+   ****************************************************************************/
+  /**@{*/
+  /*! \brief Directional mode delta: the angle is base angle + (angle_delta *
+   * step). */
+  int8_t angle_delta[PLANE_TYPES];
+  /*! \brief The type of filter intra mode used (if applicable). */
+  FILTER_INTRA_MODE_INFO filter_intra_mode_info;
+  /*! \brief Chroma from Luma: Joint sign of alpha Cb and alpha Cr */
+  int8_t cfl_alpha_signs;
+  /*! \brief Chroma from Luma: Index of the alpha Cb and alpha Cr combination */
+  uint8_t cfl_alpha_idx;
+  /*! \brief Stores the size and colors of palette mode */
+  PALETTE_MODE_INFO palette_mode_info;
 #if CONFIG_MRLS
+  /*! \brief Reference line index for multiple reference line selection. */
   uint8_t mrl_index;
 #endif
-  PREDICTION_MODE mode;
-  // Only for INTRA blocks
-  UV_PREDICTION_MODE uv_mode;
-  // interintra members
-  INTERINTRA_MODE interintra_mode;
-  MOTION_MODE motion_mode;
-  PARTITION_TYPE partition;
-  MV_REFERENCE_FRAME ref_frame[2];
-  FILTER_INTRA_MODE_INFO filter_intra_mode_info;
+  /**@}*/
+
+  /*****************************************************************************
+   * \name Transform Info
+   ****************************************************************************/
+  /**@{*/
+  /*! \brief Whether to skip transforming and sending. */
 #if CONFIG_SDP
   int8_t skip_txfm[2];
 #else
   int8_t skip_txfm;
 #endif
-  uint8_t inter_tx_size[INTER_TX_SIZE_BUF_LEN];
+  /*! \brief Transform size when fixed size txfm is used (e.g. intra modes). */
   TX_SIZE tx_size;
+  /*! \brief Transform size when recursive txfm tree is on. */
+  uint8_t inter_tx_size[INTER_TX_SIZE_BUF_LEN];
+  /**@}*/
+
+  /*****************************************************************************
+   * \name Loop Filter Info
+   ****************************************************************************/
+  /**@{*/
+  /*! \copydoc MACROBLOCKD::delta_lf_from_base */
   int8_t delta_lf_from_base;
+  /*! \copydoc MACROBLOCKD::delta_lf */
   int8_t delta_lf[FRAME_LF_COUNT];
-  int8_t interintra_wedge_index;
-  // The actual prediction angle is the base angle + (angle_delta * step).
-  int8_t angle_delta[PLANE_TYPES];
-  /* deringing gain *per-superblock* */
-  // Joint sign of alpha Cb and alpha Cr
-  int8_t cfl_alpha_signs;
-  // Index of the alpha Cb and alpha Cr combination
-  uint8_t cfl_alpha_idx;
-  uint8_t num_proj_ref;
-  uint8_t overlappable_neighbors[2];
-  // If comp_group_idx=0, indicate if dist_wtd_comp(0) or avg_comp(1) is used.
-  uint8_t compound_idx;
-  uint8_t use_wedge_interintra : 1;
+  /**@}*/
+
+  /*****************************************************************************
+   * \name Bitfield for Memory Reduction
+   ****************************************************************************/
+  /**@{*/
+  /*! \brief The segment id */
   uint8_t segment_id : 3;
-  uint8_t seg_id_predicted : 1;  // valid only when temporal_update is enabled
-  uint8_t skip_mode : 1;
-#if CONFIG_SDP
-  uint8_t use_intrabc[2];
-#else
-  uint8_t use_intrabc : 1;
-#endif
+  /*! \brief Only valid when temporal update if off. */
+  uint8_t seg_id_predicted : 1;
+  /*! \brief Which ref_mv to use */
 #if CONFIG_NEW_INTER_MODES
   uint8_t ref_mv_idx : 3;
 #else
   uint8_t ref_mv_idx : 2;
 #endif  // CONFIG_NEW_INTER_MODES
-  // Indicate if masked compound is used(1) or not(0).
+  /*! \brief Inter skip mode */
+  uint8_t skip_mode : 1;
+  /*! \brief Whether intrabc is used. */
+#if CONFIG_SDP
+  uint8_t use_intrabc[2];
+#else
+  uint8_t use_intrabc : 1;
+#endif
+  /*! \brief Indicates if masked compound is used(1) or not (0). */
   uint8_t comp_group_idx : 1;
+  /*! \brief Indicates whether dist_wtd_comp(0) is used or not (0). */
+  uint8_t compound_idx : 1;
+  /*! \brief Whether to use interintra wedge */
+  uint8_t use_wedge_interintra : 1;
+  /*! \brief CDEF strength per BLOCK_64X64 */
   int8_t cdef_strength : 4;
 #if CONFIG_CCSO
-  /** ccso blk u */
+  /*! \brief Whether to use cross-component sample offset for the U plane. */
   uint8_t ccso_blk_u : 2;
-  /** ccso blk v */
+  /*! \brief Whether to use cross-component sample offset for the V plane. */
   uint8_t ccso_blk_v : 2;
 #endif
+  /**@}*/
+
+#if CONFIG_RD_DEBUG
+  /*! \brief RD info used for debugging */
+  RD_STATS rd_stats;
+  /*! \brief The current row in unit of 4x4 blocks for debugging */
+  int mi_row;
+  /*! \brief The current col in unit of 4x4 blocks for debugging */
+  int mi_col;
+#endif
+#if CONFIG_INSPECTION
+  /*! \brief Whether we are skipping the current rows or columns. */
+  int16_t tx_skip[TXK_TYPE_BUF_LEN];
+#endif
 } MB_MODE_INFO;
+
+/*!\cond */
 
 #if CONFIG_SDP
 static INLINE int is_intrabc_block(const MB_MODE_INFO *mbmi, int tree_type) {
