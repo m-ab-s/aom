@@ -237,6 +237,17 @@ const char subgop_config_str_ld[] =
     "16:1:1V5/2V4/3V5/4V3/5V5/6V4/7V5/8V2/"
     "9V5/10V4/11V5/12V3/13V5/14V1/15V5/16V5";
 
+typedef struct {
+  const char *preset_tag;
+  const char *preset_str;
+} subgop_config_str_preset_map_type;
+
+const subgop_config_str_preset_map_type subgop_config_str_preset_map[] = {
+  { "def", subgop_config_str_def },  { "enh", subgop_config_str_enh },
+  { "asym", subgop_config_str_enh }, { "ts", subgop_config_str_ts },
+  { "ld", subgop_config_str_ld },
+};
+
 static struct av1_extracfg default_extra_cfg = {
   0,              // cpu_used
   1,              // enable_auto_alt_ref
@@ -1090,6 +1101,20 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
 
   oxcf->subgop_config_str = extra_cfg->subgop_config_str;
   oxcf->subgop_config_path = extra_cfg->subgop_config_path;
+
+  // check if subgop_config_str is a preset tag
+  if (oxcf->subgop_config_str) {
+    int num_preset_configs = sizeof(subgop_config_str_preset_map) /
+                             sizeof(*subgop_config_str_preset_map);
+    int p;
+    for (p = 0; p < num_preset_configs; ++p) {
+      if (!strcmp(oxcf->subgop_config_str,
+                  subgop_config_str_preset_map[p].preset_tag)) {
+        oxcf->subgop_config_str = subgop_config_str_preset_map[p].preset_str;
+        break;
+      }
+    }
+  }
 
   // Set tune related configuration.
   tune_cfg->tuning = extra_cfg->tuning;
