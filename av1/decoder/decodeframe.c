@@ -45,6 +45,9 @@
 #include "av1/common/entropymv.h"
 #include "av1/common/frame_buffers.h"
 #include "av1/common/idct.h"
+#if CONFIG_MFQE_RESTORATION
+#include "av1/common/mfqe.h"
+#endif  // CONFIG_MFQE_RESTORATION
 #include "av1/common/mvref_common.h"
 #if CONFIG_NN_RECON
 #include "av1/common/nn_recon.h"
@@ -1939,6 +1942,12 @@ static void decode_cnn(AV1_COMMON *cm, struct aom_read_bit_buffer *rb) {
   }
 }
 #endif  // CONFIG_CNN_RESTORATION && !CONFIG_LOOP_RESTORE_CNN
+
+#if CONFIG_MFQE_RESTORATION
+static void decode_mfqe(AV1_COMMON *cm, struct aom_read_bit_buffer *rb) {
+  cm->use_mfqe = aom_rb_read_bit(rb);
+}
+#endif  // CONFIG_MFQE_RESTORATION
 
 static void decode_restoration_mode(AV1_COMMON *cm,
                                     struct aom_read_bit_buffer *rb) {
@@ -5680,6 +5689,9 @@ static int read_uncompressed_header(AV1Decoder *pbi,
   if (!cm->coded_lossless && seq_params->enable_cdef) {
     setup_cdef(cm, rb);
   }
+#if CONFIG_MFQE_RESTORATION
+  if (!cm->all_lossless) decode_mfqe(cm, rb);
+#endif  // CONFIG_MFQE_RESTORATION
   if (!cm->all_lossless && seq_params->enable_restoration) {
     decode_restoration_mode(cm, rb);
   }
@@ -5918,7 +5930,11 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
         (cm->cdef_info.cdef_bits || cm->cdef_info.cdef_strengths[0] ||
          cm->cdef_info.cdef_uv_strengths[0]);
     const int do_superres = av1_superres_scaled(cm);
-    const int optimized_loop_restoration = !do_cdef && !do_superres;
+    const int optimized_loop_restoration = !do_cdef
+#if CONFIG_MFQE_RESTORATION
+                                           && !cm->use_mfqe
+#endif  // CONFIG_MFQE_RESTORATION
+                                           && !do_superres;
 
     if (!optimized_loop_restoration) {
       if (do_loop_restoration)
@@ -5928,6 +5944,11 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
       if (do_cdef) av1_cdef_frame(&pbi->common.cur_frame->buf, cm, &pbi->mb);
 
       superres_post_decode(pbi);
+
+#if CONFIG_MFQE_RESTORATION
+      if (cm->use_mfqe)
+        av1_decode_restore_mfqe(cm, MFQE_SCALE_SIZE, MFQE_BLOCK_SIZE);
+#endif  // CONFIG_MFQE_RESTORATION
 
       if (do_loop_restoration) {
         av1_loop_restoration_save_boundary_lines(&pbi->common.cur_frame->buf,

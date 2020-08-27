@@ -612,6 +612,9 @@ typedef struct AV1Common {
 #if CONFIG_CNN_RESTORATION
   int use_cnn;
 #endif  // CONFIG_CNN_RESTORATION
+#if CONFIG_MFQE_RESTORATION
+  int use_mfqe;
+#endif  // CONFIG_MFQE_RESTORATION
 #if CONFIG_MISC_CHANGES
   int only_one_ref_available;
 #endif  // CONFIG_MISC_CHANGES

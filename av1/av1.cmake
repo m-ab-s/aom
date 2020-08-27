@@ -108,6 +108,11 @@ if(CONFIG_INTRA_ENTROPY)
               "${AOM_ROOT}/av1/common/nn_em.h" "${AOM_ROOT}/av1/common/nn_em.c")
 endif()
 
+if(CONFIG_MFQE_RESTORATION)
+  list(APPEND AOM_AV1_COMMON_SOURCES "${AOM_ROOT}/av1/common/mfqe.c"
+              "${AOM_ROOT}/av1/common/mfqe.h")
+endif()
+
 if(CONFIG_NN_RECON)
   list(APPEND AOM_AV1_COMMON_SOURCES "${AOM_ROOT}/av1/common/nn_recon.h")
 endif()

@@ -26,6 +26,9 @@
 #if CONFIG_LOOP_RESTORE_CNN
 #include "av1/common/cnn_tflite.h"
 #endif  // CONFIG_LOOP_RESTORE_CNN
+#if CONFIG_MFQE_RESTORATION
+#include "av1/common/mfqe.h"
+#endif  // CONFIG_MFQE_RESTORATION
 #include "av1/common/onyxc_int.h"
 #include "av1/common/quant_common.h"
 #include "av1/common/restoration.h"
@@ -35,6 +38,7 @@
 #include "av1/encoder/mathutils.h"
 #include "av1/encoder/picklpf.h"
 #include "av1/encoder/pickrst.h"
+#include "av1/encoder/rdopt.h"
 
 // When set to RESTORE_WIENER or RESTORE_SGRPROJ only those are allowed.
 // When set to RESTORE_TYPES we allow switchable.
@@ -1899,6 +1903,94 @@ static void dump_frame_data(const YV12_BUFFER_CONFIG *src,
 }
 #endif  // CONFIG_DUMP_MFQE_DATA
 
+#if CONFIG_MFQE_RESTORATION
+// Copy the buffer from source to destination for a single plane.
+static void copy_single_plane_lowbd(const uint8_t *src_buf, uint8_t *dst_buf,
+                                    int src_stride, int dst_stride, int h,
+                                    int w) {
+  for (int row = 0; row < h; row++) {
+    memcpy(dst_buf, src_buf, w);
+    src_buf += src_stride;
+    dst_buf += dst_stride;
+  }
+}
+
+// Compute the mean squared error between two frames, just for a single plane.
+static double get_mse_frame(uint8_t *buf1, uint8_t *buf2, int stride1,
+                            int stride2, int w, int h) {
+  uint64_t sse = aom_sse(buf1, stride1, buf2, stride2, w, h);
+  double mse = ((double)sse) / (w * h);
+  return mse;
+}
+
+// Apply In-Loop Multi-Frame Quality Enhancement to the y plane of the current
+// frame. If MFQE improves the current frame, replace the current y plane with
+// the updated buffer. Returns 1 if MFQE is selected, 0 otherwise.
+static void search_rest_mfqe_lowbd(const YV12_BUFFER_CONFIG *src,
+                                   YV12_BUFFER_CONFIG *cur, AV1_COMMON *cm,
+                                   int *use_mfqe) {
+  int frame_bytes = cur->y_stride * (cur->y_height + 2 * MFQE_PADDING_SIZE);
+
+  // Buffer to store temporary copy of current frame for MFQE.
+  uint8_t *tmpbuf_orig = aom_memalign(32, sizeof(uint8_t) * frame_bytes);
+  uint8_t *tmpbuf = tmpbuf_orig + cur->y_stride * MFQE_PADDING_SIZE;
+  copy_single_plane_lowbd(cur->y_buffer, tmpbuf, cur->y_stride, cur->y_stride,
+                          cur->y_height, cur->y_width);
+
+  Y_BUFFER_CONFIG tmp = { .buffer = tmpbuf,
+                          .stride = cur->y_stride,
+                          .height = cur->y_height,
+                          .width = cur->y_width };
+
+  RefCntBuffer *ref_frames[ALTREF_FRAME - LAST_FRAME + 1];
+  int num_ref_frames = 0;
+  MV_REFERENCE_FRAME ref_frame;
+  for (ref_frame = LAST_FRAME; ref_frame < ALTREF_FRAME; ++ref_frame) {
+    RefCntBuffer *ref = get_ref_frame_buf(cm, ref_frame);
+    if (ref) ref_frames[num_ref_frames++] = ref;
+  }
+
+  // Return if we have less than 3 available reference frames.
+  if (num_ref_frames < MFQE_NUM_REFS) {
+    aom_free(tmpbuf_orig);
+    return;
+  }
+
+  // Assert that pointers to RefCntBuffer are valid, then sort the reference
+  // frames based on their base_qindex, from lowest to highest.
+  for (int i = 0; i < num_ref_frames; i++) assert(ref_frames[i] != NULL);
+  qsort(ref_frames, num_ref_frames, sizeof(ref_frames[0]), cmpref);
+
+  // Perform In-Loop Multi-Frame Quality Enhancement on tmp.
+  av1_apply_loop_mfqe(&tmp, ref_frames, MFQE_BLOCK_SIZE, MFQE_SCALE_SIZE,
+                      cm->seq_params.use_highbitdepth,
+                      cm->seq_params.bit_depth);
+
+  double mse_prev = get_mse_frame(src->y_buffer, cur->y_buffer, src->y_stride,
+                                  cur->y_stride, src->y_width, src->y_height);
+  double mse_curr = get_mse_frame(src->y_buffer, tmp.buffer, src->y_stride,
+                                  tmp.stride, src->y_width, src->y_height);
+
+  if (mse_curr < mse_prev) {
+    *use_mfqe = 1;
+    copy_single_plane_lowbd(tmpbuf, cur->y_buffer, cur->y_stride, cur->y_stride,
+                            cur->y_height, cur->y_width);
+  }
+
+  aom_free(tmpbuf_orig);
+}
+
+// Wrapper function for In-Loop Multi-Frame Quality Enhancement. There are two
+// different code paths for low bit depth and high bit depth.
+static void search_rest_mfqe(const YV12_BUFFER_CONFIG *src,
+                             YV12_BUFFER_CONFIG *cur, AV1_COMMON *cm,
+                             int *use_mfqe) {
+  if (!cm->seq_params.use_highbitdepth)
+    search_rest_mfqe_lowbd(src, cur, cm, use_mfqe);
+  // TODO(hjihun): Implement high bit depth function for search_rest_mfqe.
+}
+#endif  // CONFIG_MFQE_RESTORATION
+
 void av1_pick_filter_restoration(const YV12_BUFFER_CONFIG *src, AV1_COMP *cpi) {
   AV1_COMMON *const cm = &cpi->common;
   const int num_planes = av1_num_planes(cm);
@@ -1927,6 +2019,13 @@ void av1_pick_filter_restoration(const YV12_BUFFER_CONFIG *src, AV1_COMP *cpi) {
 #if CONFIG_DUMP_MFQE_DATA
   dump_frame_data(src, &cm->cur_frame->buf, cm);
 #endif  // CONFIG_DUMP_MFQE_DATA
+
+#if CONFIG_MFQE_RESTORATION
+  int use_mfqe = 0;
+  // Perform In-Loop Multi-Frame Quality Enhancement for the frame.
+  search_rest_mfqe(src, &cm->cur_frame->buf, cm, &use_mfqe);
+  cm->use_mfqe = use_mfqe;
+#endif  // CONFIG_MFQE_RESTORATION
 
 #if CONFIG_WIENER_NONSEP
   const YV12_BUFFER_CONFIG *dgd = &cpi->common.cur_frame->buf;
