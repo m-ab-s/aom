@@ -179,13 +179,22 @@ const char subgop_config_str_def[] =
 
 // An enhanced config where the last subgop uses a shorter dist to arf
 const char subgop_config_str_enh[] =
+    "8:0:8F1/4U2/2U3/1V4/2S/3V4/4S/6U3/5V4/6S/7V4/8R1,"
+    "8:1:7F1/3U2/1V4/2V4/3S/5U2/4V4/5S/6V4/7R1/8V4,"
+
+    "12:0:12F1/7U2/3U3/1V5/2V5/3S/5U4/4V5/"
+    "5S/6V5/7S/9U3/8V5/9S/11U4/10V5/11S/12R1,"
+
+    "12:1:11F1/7U2/3U3/1V5/2V5/3S/5U4/4V5/"
+    "5S/6V5/7S/9U3/8V5/9S/10V5/11R1/12V5,"
+
     "14:0:14F1/7F2/3U3/1V5/2V5/3S/5U4/4V5/"
     "5S/6V5/7R2/10U3/8V5/9V5/10S/12U4/"
     "11V5/12S/13V5/14R1,"
 
     "14:1:12F1/6F2/3U3/1V5/2V5/3S/5U5/4V5/5S/"
     "6R2/9U3/8U5/7V5/8S/9S/11U5/10V5/11S/"
-    "12R1/14U5/13V5/14S,"
+    "12R1/14U4/13V5/14S,"
 
     "15:0:15F1/7F2/3U3/1V5/2V5/3S/5U4/4V5/"
     "5S/6V5/7R2/11U3/9U4/8V5/9S/10V5/11S/"
@@ -243,8 +252,8 @@ typedef struct {
 } subgop_config_str_preset_map_type;
 
 const subgop_config_str_preset_map_type subgop_config_str_preset_map[] = {
-  { "def", subgop_config_str_def },  { "enh", subgop_config_str_enh },
-  { "asym", subgop_config_str_enh }, { "ts", subgop_config_str_ts },
+  { "def", subgop_config_str_def },   { "enh", subgop_config_str_enh },
+  { "asym", subgop_config_str_asym }, { "ts", subgop_config_str_ts },
   { "ld", subgop_config_str_ld },
 };
 
