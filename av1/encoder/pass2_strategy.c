@@ -34,6 +34,7 @@
 #include "av1/encoder/gop_structure.h"
 #include "av1/encoder/pass2_strategy.h"
 #include "av1/encoder/ratectrl.h"
+#include "av1/encoder/subgop.h"
 #include "av1/encoder/rc_utils.h"
 #include "av1/encoder/tpl_model.h"
 #include "av1/encoder/use_flat_gop_model_params.h"
@@ -1762,6 +1763,8 @@ static void define_gf_group(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
   const int allow_gf_length_reduction =
       ((rc_cfg->mode == AOM_Q && rc_cfg->qp <= 128) ||
        !cpi->internal_altref_allowed) &&
+      !av1_find_subgop_config_exact(&cpi->subgop_config_set, i - 1,
+                                    SUBGOP_IN_GOP_LAST) &&
       !is_lossless_requested(rc_cfg);
 
   if (allow_gf_length_reduction && use_alt_ref) {

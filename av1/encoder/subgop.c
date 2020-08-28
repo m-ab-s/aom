@@ -452,3 +452,15 @@ const SubGOPCfg *av1_find_subgop_config(SubGOPSetCfg *config_set,
   }
   return cfg;
 }
+
+const SubGOPCfg *av1_find_subgop_config_exact(
+    SubGOPSetCfg *config_set, int num_frames,
+    SUBGOP_IN_GOP_CODE subgop_in_gop_code) {
+  for (int i = 0; i < config_set->num_configs; ++i) {
+    if (config_set->config[i].num_frames == num_frames) {
+      if (config_set->config[i].subgop_in_gop_code == subgop_in_gop_code)
+        return &config_set->config[i];
+    }
+  }
+  return NULL;
+}

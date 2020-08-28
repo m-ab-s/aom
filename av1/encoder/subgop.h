@@ -33,6 +33,14 @@ const SubGOPCfg *av1_find_subgop_config(SubGOPSetCfg *config_set,
                                         int num_frames, int is_last_gop,
                                         int is_first_subgop);
 
+// Finds the ptr to the subgop config with the queried number of
+// frames and subgop_in_gop_code. Only if th exact subgop_in_gop_code
+// is found for the given length, the pointer to that config is returned.
+// Else Null is returned.
+const SubGOPCfg *av1_find_subgop_config_exact(
+    SubGOPSetCfg *config_set, int num_frames,
+    SUBGOP_IN_GOP_CODE subgop_in_gop_code);
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif
