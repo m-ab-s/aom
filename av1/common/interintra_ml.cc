@@ -161,7 +161,7 @@ void copy_to_output(tflite::Interpreter *interpreter, BLOCK_SIZE bsize,
   for (int j = 0; j < bh; ++j) {
     for (int i = 0; i < bw; ++i) {
       comp_pred[i + j * comp_stride] =
-          static_cast<uint8_t>(fclamp(0, 255, output[i + j * bw]));
+          static_cast<uint8_t>(fclamp(output[i + j * bw], 0, 255));
     }
   }
 }
