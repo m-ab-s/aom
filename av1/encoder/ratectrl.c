@@ -1941,38 +1941,29 @@ int av1_compute_qdelta_by_rate(const RATE_CONTROL *rc, FRAME_TYPE frame_type,
 void av1_rc_set_gf_interval_range(const AV1_COMP *const cpi,
                                   RATE_CONTROL *const rc) {
   const AV1EncoderConfig *const oxcf = &cpi->oxcf;
+  rc->max_gf_interval = oxcf->gf_cfg.max_gf_interval;
+  rc->min_gf_interval = oxcf->gf_cfg.min_gf_interval;
+  if (rc->min_gf_interval == 0)
+    rc->min_gf_interval = av1_rc_get_default_min_gf_interval(
+        oxcf->frm_dim_cfg.width, oxcf->frm_dim_cfg.height, cpi->framerate);
+  if (rc->max_gf_interval == 0)
+    rc->max_gf_interval =
+        av1_rc_get_default_max_gf_interval(cpi->framerate, rc->min_gf_interval);
+  /*
+   * Extended max interval for genuinely static scenes like slide shows.
+   * The no.of.stats available in the case of LAP is limited,
+   * hence setting to max_gf_interval.
+   */
+  if (cpi->lap_enabled)
+    rc->static_scene_max_gf_interval = rc->max_gf_interval + 1;
+  else
+    rc->static_scene_max_gf_interval = MAX_STATIC_GF_GROUP_LENGTH;
 
-  // Special case code for 1 pass fixed Q mode tests
-  if ((has_no_stats_stage(cpi)) && (oxcf->rc_cfg.mode == AOM_Q)) {
-    rc->max_gf_interval = FIXED_GF_INTERVAL;
-    rc->min_gf_interval = FIXED_GF_INTERVAL;
-    rc->static_scene_max_gf_interval = FIXED_GF_INTERVAL;
-  } else {
-    // Set Maximum gf/arf interval
-    rc->max_gf_interval = oxcf->gf_cfg.max_gf_interval;
-    rc->min_gf_interval = oxcf->gf_cfg.min_gf_interval;
-    if (rc->min_gf_interval == 0)
-      rc->min_gf_interval = av1_rc_get_default_min_gf_interval(
-          oxcf->frm_dim_cfg.width, oxcf->frm_dim_cfg.height, cpi->framerate);
-    if (rc->max_gf_interval == 0)
-      rc->max_gf_interval = av1_rc_get_default_max_gf_interval(
-          cpi->framerate, rc->min_gf_interval);
-    /*
-     * Extended max interval for genuinely static scenes like slide shows.
-     * The no.of.stats available in the case of LAP is limited,
-     * hence setting to max_gf_interval.
-     */
-    if (cpi->lap_enabled)
-      rc->static_scene_max_gf_interval = rc->max_gf_interval + 1;
-    else
-      rc->static_scene_max_gf_interval = MAX_STATIC_GF_GROUP_LENGTH;
+  if (rc->max_gf_interval > rc->static_scene_max_gf_interval)
+    rc->max_gf_interval = rc->static_scene_max_gf_interval;
 
-    if (rc->max_gf_interval > rc->static_scene_max_gf_interval)
-      rc->max_gf_interval = rc->static_scene_max_gf_interval;
-
-    // Clamp min to max
-    rc->min_gf_interval = AOMMIN(rc->min_gf_interval, rc->max_gf_interval);
-  }
+  // Clamp min to max
+  rc->min_gf_interval = AOMMIN(rc->min_gf_interval, rc->max_gf_interval);
 }
 
 void av1_rc_update_framerate(AV1_COMP *cpi, int width, int height) {
