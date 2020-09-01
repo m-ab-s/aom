@@ -143,8 +143,9 @@ void load_inputs(tflite::Interpreter *interpreter, INTERINTRA_MODE mode,
 
   // Load the left columns of the intra-predictor border.
   float *intra_left_input = interpreter->typed_input_tensor<float>(2);
-  for (int j = INTERINTRA_ML_BORDER; j < INTERINTRA_ML_BORDER + bh; ++j) {
-    std::copy_n(intra_pred + j * intra_stride, INTERINTRA_ML_BORDER,
+  for (int j = 0; j < bh; ++j) {
+    std::copy_n(intra_pred + (j + INTERINTRA_ML_BORDER) * intra_stride,
+                INTERINTRA_ML_BORDER,
                 intra_left_input + j * INTERINTRA_ML_BORDER);
   }
 
