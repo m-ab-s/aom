@@ -677,11 +677,7 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
                         seq_params->tier[0]);
   }
 
-  if ((has_no_stats_stage(cpi)) && (rc_cfg->mode == AOM_Q)) {
-    rc->baseline_gf_interval = FIXED_GF_INTERVAL;
-  } else {
-    rc->baseline_gf_interval = (MIN_GF_INTERVAL + MAX_GF_INTERVAL) / 2;
-  }
+  rc->baseline_gf_interval = (MIN_GF_INTERVAL + MAX_GF_INTERVAL) / 2;
 
   refresh_frame_flags->golden_frame = false;
   refresh_frame_flags->bwd_ref_frame = false;

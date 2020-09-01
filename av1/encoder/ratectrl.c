@@ -1154,26 +1154,15 @@ static int rc_pick_q_and_bounds_no_stats(const AV1_COMP *cpi, int width,
       active_best_quality = get_gf_active_quality(rc, q, bit_depth);
     }
   } else {
-    if (rc_mode == AOM_Q) {
-      const int qindex = qp;
-      const double q_val = av1_convert_qindex_to_q(qindex, bit_depth);
-      const double delta_rate[FIXED_GF_INTERVAL] = { 0.50, 1.0, 0.85, 1.0,
-                                                     0.70, 1.0, 0.85, 1.0 };
-      const int delta_qindex = av1_compute_qdelta(
-          rc, q_val,
-          q_val * delta_rate[current_frame->frame_number % FIXED_GF_INTERVAL],
-          bit_depth);
-      active_best_quality = AOMMAX(qindex + delta_qindex, rc->best_quality);
-    } else {
-      // Use the lower of active_worst_quality and recent/average Q.
-      active_best_quality = (current_frame->frame_number > 1)
-                                ? inter_minq[rc->avg_frame_qindex[INTER_FRAME]]
-                                : inter_minq[rc->avg_frame_qindex[KEY_FRAME]];
-      // For the constrained quality mode we don't want
-      // q to fall below the cq level.
-      if ((rc_mode == AOM_CQ) && (active_best_quality < qp)) {
-        active_best_quality = qp;
-      }
+    assert(rc_mode != AOM_Q);
+    // Use the lower of active_worst_quality and recent/average Q.
+    active_best_quality = (current_frame->frame_number > 1)
+                              ? inter_minq[rc->avg_frame_qindex[INTER_FRAME]]
+                              : inter_minq[rc->avg_frame_qindex[KEY_FRAME]];
+    // For the constrained quality mode we don't want
+    // q to fall below the cq level.
+    if ((rc_mode == AOM_CQ) && (active_best_quality < qp)) {
+      active_best_quality = qp;
     }
   }
 
