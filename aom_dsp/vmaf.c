@@ -12,7 +12,9 @@
 #include "aom_dsp/vmaf.h"
 
 #include <assert.h>
-#include <libvmaf/libvmaf.h>
+#if !CONFIG_USE_VMAF_RC
+#include <libvmaf.h>
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -24,17 +26,18 @@
 #include "aom_dsp/blend.h"
 #include "aom_ports/system_state.h"
 
+static void vmaf_fatal_error(const char *message) {
+  fprintf(stderr, "Fatal error: %s\n", message);
+  exit(EXIT_FAILURE);
+}
+
+#if !CONFIG_USE_VMAF_RC
 typedef struct FrameData {
   const YV12_BUFFER_CONFIG *source;
   const YV12_BUFFER_CONFIG *distorted;
   int frame_set;
   int bit_depth;
 } FrameData;
-
-static void vmaf_fatal_error(const char *message) {
-  fprintf(stderr, "Fatal error: %s\n", message);
-  exit(EXIT_FAILURE);
-}
 
 // A callback function used to pass data to VMAF.
 // Returns 0 after reading a frame.
@@ -163,6 +166,7 @@ void aom_calc_vmaf_multi_frame(void *user_data, const char *model_path,
 
   aom_clear_system_state();
 }
+#endif
 
 #if CONFIG_USE_VMAF_RC
 void aom_init_vmaf_rc(VmafModel **vmaf_model, const char *model_path) {
