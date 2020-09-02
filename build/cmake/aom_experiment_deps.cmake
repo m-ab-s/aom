@@ -85,7 +85,13 @@ macro(fix_experiment_configs)
       change_config_and_warn(CONFIG_CNN_RESTORATION 1
                              CONFIG_CNN_RESTORATION_SMALL_MODELS)
     endif()
-    change_config_and_warn(CONFIG_TENSORFLOW_LITE 1
-                           CONFIG_CNN_RESTORATION_SMALL_MODELS)
+  endif()
+
+  if(CONFIG_CNN_RESTORATION)
+    change_config_and_warn(CONFIG_TENSORFLOW_LITE 1 CONFIG_CNN_RESTORATION)
+  endif()
+
+  if(CONFIG_LOOP_RESTORE_CNN)
+    change_config_and_warn(CONFIG_TENSORFLOW_LITE 1 CONFIG_LOOP_RESTORE_CNN)
   endif()
 endmacro()

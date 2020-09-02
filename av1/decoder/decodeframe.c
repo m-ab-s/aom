@@ -66,11 +66,7 @@
 #include "av1/decoder/detokenize.h"
 
 #if CONFIG_CNN_RESTORATION && !CONFIG_LOOP_RESTORE_CNN
-#if CONFIG_TENSORFLOW_LITE
 #include "av1/common/cnn_tflite.h"
-#else
-#include "av1/common/cnn_wrapper.h"
-#endif  // CONFIG_TENSORFLOW_LITE
 #endif  // CONFIG_CNN_RESTORATION && !CONFIG_LOOP_RESTORE_CNN
 
 #define ACCT_STR __func__
@@ -5909,11 +5905,7 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
     if (cm->use_cnn) {
       assert(cm->rst_info[0].frame_restoration_type == RESTORE_NONE);
       assert(cm->cdef_info.cdef_strengths[0] == 0);
-#if CONFIG_TENSORFLOW_LITE
       av1_restore_cnn_tflite(cm, pbi->num_workers);
-#else
-      av1_decode_restore_cnn(cm, pbi->tile_workers, pbi->num_workers);
-#endif  // CONFIG_TENSORFLOW_LITE
     }
 #endif  // CONFIG_CNN_RESTORATION && !CONFIG_LOOP_RESTORE_CNN
 

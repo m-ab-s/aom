@@ -77,11 +77,7 @@
 #include "av1/encoder/var_based_part.h"
 
 #if CONFIG_CNN_RESTORATION && !CONFIG_LOOP_RESTORE_CNN
-#if CONFIG_TENSORFLOW_LITE
 #include "av1/common/cnn_tflite.h"
-#else
-#include "av1/common/cnn_wrapper.h"
-#endif  // CONFIG_TENSORFLOW_LITE
 #endif  // CONFIG_CNN_RESTORATION && !CONFIG_LOOP_RESTORE_CNN
 
 #define DEFAULT_EXPLICIT_ORDER_HINT_BITS 7
@@ -4870,11 +4866,7 @@ static void loopfilter_frame(AV1_COMP *cpi, AV1_COMMON *cm) {
     dgd_error = aom_get_sse_plane(cpi->source, &cm->cur_frame->buf, plane,
                                   cm->seq_params.use_highbitdepth);
 
-#if CONFIG_TENSORFLOW_LITE
     av1_restore_cnn_tflite(cm, cpi->num_workers);
-#else
-    av1_encode_restore_cnn(cm, cpi->workers, cpi->num_workers);
-#endif  // CONFIG_TENSORFLOW_LITE
 
     // Find the error of the plane from source after applying cnn.
     cnn_error = aom_get_sse_plane(cpi->source, &cm->cur_frame->buf, plane,

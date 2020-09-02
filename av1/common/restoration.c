@@ -19,12 +19,7 @@
 #include "aom_mem/aom_mem.h"
 #include "av1/common/convolve.h"
 #if CONFIG_LOOP_RESTORE_CNN
-#include "av1/common/cnn.h"
-#if CONFIG_TENSORFLOW_LITE
 #include "av1/common/cnn_tflite.h"
-#else
-#include "av1/common/cnn_wrapper.h"
-#endif  // CONFIG_TENSORFLOW_LITE
 #endif  // CONFIG_LOOP_RESTORE_CNN
 #include "av1/common/onyxc_int.h"
 #include "av1/common/resize.h"
@@ -1125,7 +1120,6 @@ uint8_t *wienerns_copy_luma(const uint8_t *dgd, int height_y, int width_y,
 #endif  // CONFIG_WIENER_NONSEP
 
 #if CONFIG_LOOP_RESTORE_CNN
-#if CONFIG_TENSORFLOW_LITE
 
 static INLINE int is_frame_intra_only(const FRAME_TYPE frame_type) {
   return frame_type == KEY_FRAME || frame_type == INTRA_ONLY_FRAME;
@@ -1169,114 +1163,6 @@ static void cnn_filter_stripe_highbd(const RestorationUnitInfo *rui,
   }
 }
 
-#else
-
-static void restore_cnn_img(const uint8_t *dgd, int width, int height,
-                            int stride, const CNN_CONFIG *cnn_config,
-                            const CNN_THREAD_DATA *thread_data, float *output,
-                            uint8_t *dst, int dst_stride) {
-  const float max_val = 255;
-  int out_width = 0;
-  int out_height = 0;
-  int out_channels = 0;
-  av1_find_cnn_output_size(width, height, cnn_config, &out_width, &out_height,
-                           &out_channels);
-  assert(out_width == width);
-  assert(out_height == height);
-  // For restoration, we only want one channel outputted.
-  assert(out_channels == 1);
-
-  const int out_stride = out_width;
-  av1_cnn_predict_img((uint8_t **)&dgd, width, height, stride, cnn_config,
-                      thread_data, &output, out_stride);
-
-  if (cnn_config->is_residue) {
-    for (int i = 0; i < height; ++i)
-      for (int j = 0; j < width; ++j) {
-        const int residue = (int)(output[i * out_stride + j] * max_val + 0.5);
-        dst[i * dst_stride + j] = clip_pixel(dgd[i * stride + j] + residue);
-      }
-  } else {
-    for (int i = 0; i < height; ++i)
-      for (int j = 0; j < width; ++j)
-        dst[i * dst_stride + j] =
-            clip_pixel((int)(output[i * out_stride + j] * max_val + 0.5));
-  }
-}
-
-static void cnn_filter_stripe(const RestorationUnitInfo *rui, int stripe_width,
-                              int stripe_height, int procunit_width,
-                              const uint8_t *src, int src_stride, uint8_t *dst,
-                              int dst_stride, int32_t *tmpbuf, int bit_depth) {
-  (void)bit_depth;
-  assert(bit_depth == 8);
-
-  const CNN_THREAD_DATA thread_data = { 1, NULL };
-  const CNN_CONFIG *cnn_config = av1_get_cnn_config_from_qindex(
-      rui->cnn_info.base_qindex, rui->cnn_info.frame_type);
-  if (!cnn_config) return;
-
-  for (int j = 0; j < stripe_width; j += procunit_width) {
-    int w = AOMMIN(procunit_width, stripe_width - j);
-    restore_cnn_img(src + j, w, stripe_height, src_stride, cnn_config,
-                    &thread_data, (float *)tmpbuf, dst + j, dst_stride);
-  }
-}
-
-static void restore_cnn_img_highbd(const uint8_t *dgd, int width, int height,
-                                   int stride, const CNN_CONFIG *cnn_config,
-                                   const CNN_THREAD_DATA *thread_data,
-                                   float *output, uint8_t *dst, int dst_stride,
-                                   int bit_depth) {
-  const float max_val = (float)((1 << bit_depth) - 1);
-  int out_width = 0;
-  int out_height = 0;
-  int out_channels = 0;
-  av1_find_cnn_output_size(width, height, cnn_config, &out_width, &out_height,
-                           &out_channels);
-  assert(out_width == width);
-  assert(out_height == height);
-  // For restoration, we only want one channel outputted.
-  assert(out_channels == 1);
-
-  const int out_stride = out_width;
-  av1_cnn_predict_img_highbd((uint16_t **)&dgd, width, height, stride,
-                             cnn_config, thread_data, bit_depth, &output,
-                             out_stride);
-
-  if (cnn_config->is_residue) {
-    for (int i = 0; i < height; ++i)
-      for (int j = 0; j < width; ++j) {
-        const int residue = (int)(output[i * out_stride + j] * max_val + 0.5);
-        dst[i * dst_stride + j] = clip_pixel(dgd[i * stride + j] + residue);
-      }
-  } else {
-    for (int i = 0; i < height; ++i)
-      for (int j = 0; j < width; ++j)
-        dst[i * dst_stride + j] =
-            clip_pixel((int)(output[i * out_stride + j] * max_val + 0.5));
-  }
-}
-
-static void cnn_filter_stripe_highbd(const RestorationUnitInfo *rui,
-                                     int stripe_width, int stripe_height,
-                                     int procunit_width, const uint8_t *src,
-                                     int src_stride, uint8_t *dst,
-                                     int dst_stride, int32_t *tmpbuf,
-                                     int bit_depth) {
-  const CNN_THREAD_DATA thread_data = { 1, NULL };
-  const CNN_CONFIG *cnn_config = av1_get_cnn_config_from_qindex(
-      rui->cnn_info.base_qindex, rui->cnn_info.frame_type);
-  if (!cnn_config) return;
-
-  for (int j = 0; j < stripe_width; j += procunit_width) {
-    int w = AOMMIN(procunit_width, stripe_width - j);
-    restore_cnn_img_highbd(src + j, w, stripe_height, src_stride, cnn_config,
-                           &thread_data, (float *)tmpbuf, dst + j, dst_stride,
-                           bit_depth);
-  }
-}
-#endif  // CONFIG_TENSORFLOW_LITE
 #endif  // CONFIG_LOOP_RESTORE_CNN
 
 static void wiener_filter_stripe_highbd(const RestorationUnitInfo *rui,

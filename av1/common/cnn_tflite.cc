@@ -29,7 +29,7 @@
 #endif  // CONFIG_NN_RECON
 #include "common/tf_lite_includes.h"
 
-#if CONFIG_CNN_RESTORATION
+#if CONFIG_CNN_RESTORATION || CONFIG_LOOP_RESTORE_CNN
 // Returns the TF-lite model based on the qindex.
 static const unsigned char *get_intra_model_from_qindex(int qindex) {
   if (qindex <= MIN_CNN_Q_INDEX) {
@@ -244,7 +244,7 @@ extern "C" void av1_restore_cnn_tflite(const AV1_COMMON *cm, int num_threads) {
     }
   }
 }
-#endif  // CONFIG_CNN_RESTORATION
+#endif  // CONFIG_CNN_RESTORATION || CONFIG_LOOP_RESTORE_CNN
 
 #if CONFIG_NN_RECON
 // Builds and returns the TFlite interpreter.

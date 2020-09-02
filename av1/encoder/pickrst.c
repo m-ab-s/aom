@@ -24,8 +24,7 @@
 #include "aom_ports/mem.h"
 #include "aom_ports/system_state.h"
 #if CONFIG_LOOP_RESTORE_CNN
-#include "av1/common/cnn.h"
-#include "av1/common/cnn_wrapper.h"
+#include "av1/common/cnn_tflite.h"
 #endif  // CONFIG_LOOP_RESTORE_CNN
 #include "av1/common/onyxc_int.h"
 #include "av1/common/quant_common.h"
@@ -1438,6 +1437,7 @@ static void search_cnn(const RestorationTileLimits *limits,
   const AV1_COMMON *cm = rsc->cm;
 
   // Add condition to filter out U and V planes from CNN.
+  // TODO(urvang): Use av1_use_cnn_encode()?
   if (av1_use_cnn(cm) && rsc->plane == AOM_PLANE_Y) {
     RestorationUnitInfo rui;
     memset(&rui, 0, sizeof(rui));
