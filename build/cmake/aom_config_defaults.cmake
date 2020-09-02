@@ -139,10 +139,14 @@ set_aom_config_var(CONFIG_DST7_16X16 0 NUMBER "AV2 DST7 16x16 experiment flag.")
 set_aom_config_var(CONFIG_DST_32X32 0 NUMBER "AV2 DST7 32x32 experiment flag.")
 set_aom_config_var(CONFIG_LGT 0 NUMBER "AV2 LGT experiment flag.")
 set_aom_config_var(CONFIG_LGT32 0 NUMBER "AV2 LGT 32x32 experiment flag.")
+
 set_aom_config_var(CONFIG_CNN_RESTORATION 0 NUMBER
                    "AV2 CNN Restoration experiment flag")
 set_aom_config_var(CONFIG_LOOP_RESTORE_CNN 0 NUMBER
                    "AV2 CNN in Loop Restoration experiment flag")
+set_aom_config_var(CONFIG_CNN_RESTORATION_SMALL_MODELS 0 NUMBER
+                   "AV2 CNN restoration with smaller models experiment flag")
+
 set_aom_config_var(CONFIG_FLEX_PARTITION 0 NUMBER
                    "AV2 Flexible partition experiment flag")
 set_aom_config_var(CONFIG_EXT_RECUR_PARTITIONS 0 NUMBER

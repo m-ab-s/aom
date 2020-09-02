@@ -13,7 +13,7 @@ if(AOM_BUILD_CMAKE_AOM_EXPERIMENT_DEPS_CMAKE_)
 endif() # AOM_BUILD_CMAKE_AOM_EXPERIMENT_DEPS_CMAKE_
 set(AOM_BUILD_CMAKE_AOM_EXPERIMENT_DEPS_CMAKE_ 1)
 
-# Adjusts CONFIG_* CMake variables to address conflicts between active AV1
+# Adjusts CONFIG_* CMake variables to address conflicts between active AV2
 # experiments.
 macro(fix_experiment_configs)
 
@@ -78,5 +78,14 @@ macro(fix_experiment_configs)
 
   if(CONFIG_NN_RECON)
     change_config_and_warn(CONFIG_TENSORFLOW_LITE 1 CONFIG_NN_RECON)
+  endif()
+
+  if(CONFIG_CNN_RESTORATION_SMALL_MODELS)
+    if(NOT (CONFIG_CNN_RESTORATION OR CONFIG_LOOP_RESTORE_CNN))
+      change_config_and_warn(CONFIG_CNN_RESTORATION 1
+                             CONFIG_CNN_RESTORATION_SMALL_MODELS)
+    endif()
+    change_config_and_warn(CONFIG_TENSORFLOW_LITE 1
+                           CONFIG_CNN_RESTORATION_SMALL_MODELS)
   endif()
 endmacro()
