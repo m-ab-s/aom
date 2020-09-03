@@ -3146,8 +3146,8 @@ typedef struct {
   // rect_part_rd[1][i] is the RD cost of ith partition index of PARTITION_VERT.
   int64_t rect_part_rd[NUM_RECT_PARTS][SUB_PARTITIONS_RECT];
 
-  // // Flags indicating if the corresponding partition was winner or not.
-  // // Used to bypass similar blocks during AB partition evaluation.
+  // Flags indicating if the corresponding partition was winner or not.
+  // Used to bypass similar blocks during AB partition evaluation.
   int split_ctx_is_ready[2];
   int rect_ctx_is_ready[NUM_RECT_PARTS];
 
@@ -3164,8 +3164,8 @@ typedef struct {
   // Partition plane context index.
   int pl;
 
-  // // This flag will be set if best partition is found from the search.
-  // bool found_best_partition;
+  // This flag will be set if best partition is found from the search.
+  bool found_best_partition;
 } PartitionSearchState;
 
 static INLINE void set_default_partition_cost(
@@ -3361,6 +3361,186 @@ static INLINE void init_partition_search_state(
 
   av1_zero(search_state->split_ctx_is_ready);
   av1_zero(search_state->rect_ctx_is_ready);
+
+  search_state->found_best_partition = false;
+}
+
+static INLINE void prune_partitions_after_none(
+    PartitionSearchState *search_state, AV1_COMP *const cpi, MACROBLOCK *x,
+    SIMPLE_MOTION_DATA_TREE *sms_tree, const PICK_MODE_CONTEXT *ctx_none,
+    const RD_STATS *this_rdc, unsigned int *pb_source_variance) {
+  const AV1_COMMON *const cm = &cpi->common;
+  MACROBLOCKD *const xd = &x->e_mbd;
+
+  const PartitionBlkParams *blk_params = &search_state->part_blk_params;
+  const BLOCK_SIZE bsize = blk_params->bsize;
+
+#if CONFIG_EXT_RECUR_PARTITIONS
+  (void)sms_tree;
+#else   // !CONFIG_EXT_RECUR_PARTITIONS
+  const int mi_row = blk_params->mi_row, mi_col = blk_params->mi_col;
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+
+  if (!frame_is_intra_only(cm) &&
+#if CONFIG_EXT_RECUR_PARTITIONS && !KEEP_PARTITION_SPLIT
+      search_state->do_rectangular_split &&
+#else   // CONFIG_EXT_RECUR_PARTITIONS && !KEEP_PARTITION_SPLIT
+      (search_state->do_square_split || search_state->do_rectangular_split) &&
+#endif  // CONFIG_EXT_RECUR_PARTITIONS && !KEEP_PARTITION_SPLIT
+      !x->e_mbd.lossless[xd->mi[0]->segment_id] && ctx_none->skippable) {
+    const int use_ml_based_breakout =
+#if CONFIG_EXT_RECUR_PARTITIONS
+        is_square_block(bsize) &&
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+        bsize <= cpi->sf.use_square_partition_only_threshold &&
+        bsize > BLOCK_4X4 && xd->bd == 8;
+    if (use_ml_based_breakout) {
+      if (av1_ml_predict_breakout(cpi, bsize, x, this_rdc,
+                                  *pb_source_variance)) {
+#if !(CONFIG_EXT_RECUR_PARTITIONS && !KEEP_PARTITION_SPLIT)
+        search_state->do_square_split = 0;
+#endif  // !(CONFIG_EXT_RECUR_PARTITIONS && !KEEP_PARTITION_SPLIT)
+        search_state->do_rectangular_split = 0;
+      }
+    }
+
+    // Adjust dist breakout threshold according to the partition size.
+    const int64_t dist_breakout_thr =
+        cpi->sf.partition_search_breakout_dist_thr >>
+        ((2 * (MAX_SB_SIZE_LOG2 - 2)) -
+         (mi_size_wide_log2[bsize] + mi_size_high_log2[bsize]));
+    const int rate_breakout_thr = cpi->sf.partition_search_breakout_rate_thr *
+                                  num_pels_log2_lookup[bsize];
+
+    // If all y, u, v transform blocks in this partition are skippable,
+    // and the dist & rate are within the thresholds, the partition
+    // search is terminated for current branch of the partition search
+    // tree. The dist & rate thresholds are set to 0 at speed 0 to
+    // disable the early termination at that speed.
+    if (this_rdc->dist < dist_breakout_thr &&
+        this_rdc->rate < rate_breakout_thr) {
+#if !(CONFIG_EXT_RECUR_PARTITIONS && !KEEP_PARTITION_SPLIT)
+      search_state->do_square_split = 0;
+#endif  // !(CONFIG_EXT_RECUR_PARTITIONS && !KEEP_PARTITION_SPLIT)
+      search_state->do_rectangular_split = 0;
+    }
+  }
+
+#if !CONFIG_EXT_RECUR_PARTITIONS
+  if (cpi->sf.simple_motion_search_early_term_none && cm->show_frame &&
+      !frame_is_intra_only(cm) && bsize >= BLOCK_16X16 &&
+      mi_row + blk_params->mi_step_h < cm->mi_rows &&
+      mi_col + blk_params->mi_step_w < cm->mi_cols &&
+      this_rdc->rdcost < INT64_MAX && this_rdc->rdcost >= 0 &&
+      this_rdc->rate < INT_MAX && this_rdc->rate >= 0 &&
+      (search_state->do_square_split || search_state->do_rectangular_split)) {
+    av1_simple_motion_search_early_term_none(
+        cpi, x, sms_tree, mi_row, mi_col, bsize, this_rdc,
+        &search_state->terminate_partition_search);
+  }
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS
+}
+
+static INLINE void search_partition_none(
+    PartitionSearchState *search_state, AV1_COMP *const cpi, ThreadData *td,
+    TileDataEnc *tile_data, RD_STATS *best_rdc, PC_TREE *pc_tree,
+    SIMPLE_MOTION_DATA_TREE *sms_tree, RD_SEARCH_MACROBLOCK_CONTEXT *x_ctx,
+    unsigned int *pb_source_variance, int64_t *none_rd, int64_t *part_none_rd) {
+  const AV1_COMMON *const cm = &cpi->common;
+  const int num_planes = av1_num_planes(cm);
+  MACROBLOCK *const x = &td->mb;
+
+#if CONFIG_EXT_RECUR_PARTITIONS
+  (void)part_none_rd;
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+
+  const PartitionBlkParams *blk_params = &search_state->part_blk_params;
+  const int mi_row = blk_params->mi_row, mi_col = blk_params->mi_col;
+  const BLOCK_SIZE bsize = blk_params->bsize;
+
+  RD_STATS this_rdc;
+
+  pc_tree->none =
+      av1_alloc_pmc(cm, mi_row, mi_col, bsize, pc_tree, PARTITION_NONE, 0,
+                    blk_params->ss_x, blk_params->ss_y, &td->shared_coeff_buf);
+  PICK_MODE_CONTEXT *ctx_none = pc_tree->none;
+
+  const int is_le_min_sq_part =
+      blk_params->width <= blk_params->min_partition_size_1d;
+  const int is_gt_max_sq_part =
+      blk_params->width > blk_params->max_partition_size_1d;
+  if (is_le_min_sq_part && blk_params->has_rows && blk_params->has_cols)
+    search_state->partition_none_allowed = 1;
+  if (search_state->terminate_partition_search ||
+      !search_state->partition_none_allowed || is_gt_max_sq_part) {
+    return;
+  }
+
+  int pt_cost = 0;
+  if (search_state->is_block_splittable) {
+    pt_cost = search_state->partition_cost[PARTITION_NONE] < INT_MAX
+                  ? search_state->partition_cost[PARTITION_NONE]
+                  : 0;
+  }
+  RD_STATS partition_rdcost;
+  av1_init_rd_stats(&partition_rdcost);
+  partition_rdcost.rate = pt_cost;
+  av1_rd_cost_update(x->rdmult, &partition_rdcost);
+  RD_STATS best_remain_rdcost;
+  av1_rd_stats_subtraction(x->rdmult, best_rdc, &partition_rdcost,
+                           &best_remain_rdcost);
+#if CONFIG_COLLECT_PARTITION_STATS
+  if (best_remain_rdcost >= 0) {
+    partition_attempts[PARTITION_NONE] += 1;
+    aom_usec_timer_start(&partition_timer);
+    partition_timer_on = 1;
+  }
+#endif
+  pick_sb_modes(cpi, tile_data, x, mi_row, mi_col, &this_rdc, PARTITION_NONE,
+                bsize, ctx_none, best_remain_rdcost, PICK_MODE_RD);
+  av1_rd_cost_update(x->rdmult, &this_rdc);
+#if CONFIG_COLLECT_PARTITION_STATS
+  if (partition_timer_on) {
+    aom_usec_timer_mark(&partition_timer);
+    int64_t time = aom_usec_timer_elapsed(&partition_timer);
+    partition_times[PARTITION_NONE] += time;
+    partition_timer_on = 0;
+  }
+#endif
+  *pb_source_variance = x->source_variance;
+  if (none_rd) *none_rd = this_rdc.rdcost;
+  search_state->none_rd = this_rdc.rdcost;
+
+  // Whether the search produced a valid result.
+  if (this_rdc.rate != INT_MAX) {
+    // Record picked ref frame to prune ref frames for other partition types.
+    if (cpi->sf.prune_ref_frame_for_rect_partitions) {
+      const int ref_type = av1_ref_frame_type(ctx_none->mic.ref_frame);
+      update_picked_ref_frames_mask(x, ref_type, bsize, cm->seq_params.mib_size,
+                                    mi_row, mi_col);
+    }
+
+    // Calculate the total cost and update the best partition.
+    if (search_state->is_block_splittable) {
+      this_rdc.rate += pt_cost;
+      this_rdc.rdcost = RDCOST(x->rdmult, this_rdc.rate, this_rdc.dist);
+    }
+
+#if !CONFIG_EXT_RECUR_PARTITIONS
+    *part_none_rd = this_rdc.rdcost;
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS
+    if (this_rdc.rdcost < best_rdc->rdcost) {
+      // Update if the current partition is the best
+      *best_rdc = this_rdc;
+      search_state->found_best_partition = true;
+      pc_tree->partitioning = PARTITION_NONE;
+
+      prune_partitions_after_none(search_state, cpi, x, sms_tree, ctx_none,
+                                  &this_rdc, pb_source_variance);
+    }
+  }
+
+  restore_context(cm, x, x_ctx, mi_row, mi_col, bsize, num_planes);
 }
 
 // TODO(jinging,jimbankoski,rbultje): properly skip partition types that are
@@ -3405,10 +3585,9 @@ static bool rd_pick_partition(
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
     sms_tree->partitioning = PARTITION_NONE;
 
-  bool found_best_partition = false;
   if (best_rdc.rdcost < 0) {
     av1_invalid_rd_stats(rd_cost);
-    return found_best_partition;
+    return search_state.found_best_partition;
   }
 
 #if CONFIG_EXT_RECUR_PARTITIONS
@@ -3629,11 +3808,6 @@ BEGIN_PARTITION_SEARCH:
 #endif
 
   // PARTITION_NONE
-  pc_tree->none =
-      av1_alloc_pmc(cm, mi_row, mi_col, bsize, pc_tree, PARTITION_NONE, 0,
-                    blk_params->ss_x, blk_params->ss_y, &td->shared_coeff_buf);
-  PICK_MODE_CONTEXT *ctx_none = pc_tree->none;
-
 #if CONFIG_EXT_RECUR_PARTITIONS
   if (ENABLE_FAST_RECUR_PARTITION && !frame_is_intra_only(cm)) {
     const SimpleMotionData *whole = av1_get_sms_data(
@@ -3643,133 +3817,11 @@ BEGIN_PARTITION_SEARCH:
     best_part_rate = search_state.partition_cost[PARTITION_NONE];
   }
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
-
-  if (is_le_min_sq_part && blk_params->has_rows && blk_params->has_cols)
-    search_state.partition_none_allowed = 1;
-#if !(CONFIG_EXT_RECUR_PARTITIONS && !KEEP_PARTITION_SPLIT)
   int64_t part_none_rd = INT64_MAX;
-#endif  // !(CONFIG_EXT_RECUR_PARTITIONS && !KEEP_PARTITION_SPLIT)
-  if (!search_state.terminate_partition_search &&
-      search_state.partition_none_allowed && !is_gt_max_sq_part) {
-    int pt_cost = 0;
-    if (search_state.is_block_splittable) {
-      pt_cost = search_state.partition_cost[PARTITION_NONE] < INT_MAX
-                    ? search_state.partition_cost[PARTITION_NONE]
-                    : 0;
-    }
-    RD_STATS partition_rdcost;
-    av1_init_rd_stats(&partition_rdcost);
-    partition_rdcost.rate = pt_cost;
-    av1_rd_cost_update(x->rdmult, &partition_rdcost);
-    RD_STATS best_remain_rdcost;
-    av1_rd_stats_subtraction(x->rdmult, &best_rdc, &partition_rdcost,
-                             &best_remain_rdcost);
-#if CONFIG_COLLECT_PARTITION_STATS
-    if (best_remain_rdcost >= 0) {
-      partition_attempts[PARTITION_NONE] += 1;
-      aom_usec_timer_start(&partition_timer);
-      partition_timer_on = 1;
-    }
-#endif
-    pick_sb_modes(cpi, tile_data, x, mi_row, mi_col, &this_rdc, PARTITION_NONE,
-                  bsize, ctx_none, best_remain_rdcost, PICK_MODE_RD);
-    av1_rd_cost_update(x->rdmult, &this_rdc);
-#if CONFIG_COLLECT_PARTITION_STATS
-    if (partition_timer_on) {
-      aom_usec_timer_mark(&partition_timer);
-      int64_t time = aom_usec_timer_elapsed(&partition_timer);
-      partition_times[PARTITION_NONE] += time;
-      partition_timer_on = 0;
-    }
-#endif
-    pb_source_variance = x->source_variance;
-    if (none_rd) *none_rd = this_rdc.rdcost;
-    search_state.none_rd = this_rdc.rdcost;
-    if (this_rdc.rate != INT_MAX) {
-      if (cpi->sf.prune_ref_frame_for_rect_partitions) {
-        const int ref_type = av1_ref_frame_type(ctx_none->mic.ref_frame);
-        update_picked_ref_frames_mask(x, ref_type, bsize,
-                                      cm->seq_params.mib_size, mi_row, mi_col);
-      }
-      if (search_state.is_block_splittable) {
-        this_rdc.rate += pt_cost;
-        this_rdc.rdcost = RDCOST(x->rdmult, this_rdc.rate, this_rdc.dist);
-      }
 
-#if !CONFIG_EXT_RECUR_PARTITIONS
-      part_none_rd = this_rdc.rdcost;
-#endif  // !CONFIG_EXT_RECUR_PARTITIONS
-      if (this_rdc.rdcost < best_rdc.rdcost) {
-        // Adjust dist breakout threshold according to the partition size.
-        const int64_t dist_breakout_thr =
-            cpi->sf.partition_search_breakout_dist_thr >>
-            ((2 * (MAX_SB_SIZE_LOG2 - 2)) -
-             (mi_size_wide_log2[bsize] + mi_size_high_log2[bsize]));
-        const int rate_breakout_thr =
-            cpi->sf.partition_search_breakout_rate_thr *
-            num_pels_log2_lookup[bsize];
-
-        best_rdc = this_rdc;
-        found_best_partition = true;
-        pc_tree->partitioning = PARTITION_NONE;
-
-        if (!frame_is_intra_only(cm) &&
-#if CONFIG_EXT_RECUR_PARTITIONS && !KEEP_PARTITION_SPLIT
-            search_state.do_rectangular_split &&
-#else   // CONFIG_EXT_RECUR_PARTITIONS && !KEEP_PARTITION_SPLIT
-            (search_state.do_square_split ||
-             search_state.do_rectangular_split) &&
-#endif  // CONFIG_EXT_RECUR_PARTITIONS && !KEEP_PARTITION_SPLIT
-            !x->e_mbd.lossless[xd->mi[0]->segment_id] && ctx_none->skippable) {
-          const int use_ml_based_breakout =
-#if CONFIG_EXT_RECUR_PARTITIONS
-              is_square_block(bsize) &&
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
-              bsize <= cpi->sf.use_square_partition_only_threshold &&
-              bsize > BLOCK_4X4 && xd->bd == 8;
-          if (use_ml_based_breakout) {
-            if (av1_ml_predict_breakout(cpi, bsize, x, &this_rdc,
-                                        pb_source_variance)) {
-#if !(CONFIG_EXT_RECUR_PARTITIONS && !KEEP_PARTITION_SPLIT)
-              search_state.do_square_split = 0;
-#endif  // !(CONFIG_EXT_RECUR_PARTITIONS && !KEEP_PARTITION_SPLIT)
-              search_state.do_rectangular_split = 0;
-            }
-          }
-
-          // If all y, u, v transform blocks in this partition are skippable,
-          // and the dist & rate are within the thresholds, the partition
-          // search is terminated for current branch of the partition search
-          // tree. The dist & rate thresholds are set to 0 at speed 0 to
-          // disable the early termination at that speed.
-          if (best_rdc.dist < dist_breakout_thr &&
-              best_rdc.rate < rate_breakout_thr) {
-#if !(CONFIG_EXT_RECUR_PARTITIONS && !KEEP_PARTITION_SPLIT)
-            search_state.do_square_split = 0;
-#endif  // !(CONFIG_EXT_RECUR_PARTITIONS && !KEEP_PARTITION_SPLIT)
-            search_state.do_rectangular_split = 0;
-          }
-        }
-
-#if !CONFIG_EXT_RECUR_PARTITIONS
-        if (cpi->sf.simple_motion_search_early_term_none && cm->show_frame &&
-            !frame_is_intra_only(cm) && bsize >= BLOCK_16X16 &&
-            mi_row + blk_params->mi_step_h < cm->mi_rows &&
-            mi_col + blk_params->mi_step_w < cm->mi_cols &&
-            this_rdc.rdcost < INT64_MAX && this_rdc.rdcost >= 0 &&
-            this_rdc.rate < INT_MAX && this_rdc.rate >= 0 &&
-            (search_state.do_square_split ||
-             search_state.do_rectangular_split)) {
-          av1_simple_motion_search_early_term_none(
-              cpi, x, sms_tree, mi_row, mi_col, bsize, &this_rdc,
-              &search_state.terminate_partition_search);
-        }
-#endif  // !CONFIG_EXT_RECUR_PARTITIONS
-      }
-    }
-
-    restore_context(cm, x, &x_ctx, mi_row, mi_col, bsize, num_planes);
-  }
+  search_partition_none(&search_state, cpi, td, tile_data, &best_rdc, pc_tree,
+                        sms_tree, &x_ctx, &pb_source_variance, none_rd,
+                        &part_none_rd);
 
 #if !(CONFIG_EXT_RECUR_PARTITIONS && !KEEP_PARTITION_SPLIT)
   // PARTITION_SPLIT
@@ -3868,7 +3920,7 @@ BEGIN_PARTITION_SEARCH:
       sum_rdc.rdcost = RDCOST(x->rdmult, sum_rdc.rate, sum_rdc.dist);
       if (sum_rdc.rdcost < best_rdc.rdcost) {
         best_rdc = sum_rdc;
-        found_best_partition = true;
+        search_state.found_best_partition = true;
         pc_tree->partitioning = PARTITION_SPLIT;
       }
     } else if (cpi->sf.less_rectangular_check_level > 0) {
@@ -4057,7 +4109,7 @@ BEGIN_PARTITION_SEARCH:
       sum_rdc.rdcost = RDCOST(x->rdmult, sum_rdc.rate, sum_rdc.dist);
       if (sum_rdc.rdcost < best_rdc.rdcost) {
         best_rdc = sum_rdc;
-        found_best_partition = true;
+        search_state.found_best_partition = true;
         pc_tree->partitioning = PARTITION_HORZ;
       }
     }
@@ -4204,7 +4256,7 @@ BEGIN_PARTITION_SEARCH:
     av1_rd_cost_update(x->rdmult, &sum_rdc);
     if (sum_rdc.rdcost < best_rdc.rdcost) {
       best_rdc = sum_rdc;
-      found_best_partition = true;
+      search_state.found_best_partition = true;
       pc_tree->partitioning = PARTITION_VERT;
     }
 
@@ -4400,7 +4452,7 @@ BEGIN_PARTITION_SEARCH:
       }
     }
 #endif
-    found_best_partition |= rd_test_partition3(
+    search_state.found_best_partition |= rd_test_partition3(
         cpi, td, tile_data, tp, pc_tree, &best_rdc, pc_tree->horizontala,
         mi_row, mi_col, bsize, PARTITION_HORZ_A, mi_row, mi_col, bsize2, mi_row,
         mi_col + blk_params->mi_step_w, bsize2, mi_row + blk_params->mi_step_h,
@@ -4454,7 +4506,7 @@ BEGIN_PARTITION_SEARCH:
       }
     }
 #endif
-    found_best_partition |= rd_test_partition3(
+    search_state.found_best_partition |= rd_test_partition3(
         cpi, td, tile_data, tp, pc_tree, &best_rdc, pc_tree->horizontalb,
         mi_row, mi_col, bsize, PARTITION_HORZ_B, mi_row, mi_col, subsize,
         mi_row + blk_params->mi_step_h, mi_col, bsize2,
@@ -4510,7 +4562,7 @@ BEGIN_PARTITION_SEARCH:
       }
     }
 #endif
-    found_best_partition |= rd_test_partition3(
+    search_state.found_best_partition |= rd_test_partition3(
         cpi, td, tile_data, tp, pc_tree, &best_rdc, pc_tree->verticala, mi_row,
         mi_col, bsize, PARTITION_VERT_A, mi_row, mi_col, bsize2,
         mi_row + blk_params->mi_step_h, mi_col, bsize2, mi_row,
@@ -4565,7 +4617,7 @@ BEGIN_PARTITION_SEARCH:
       }
     }
 #endif
-    found_best_partition |= rd_test_partition3(
+    search_state.found_best_partition |= rd_test_partition3(
         cpi, td, tile_data, tp, pc_tree, &best_rdc, pc_tree->verticalb, mi_row,
         mi_col, bsize, PARTITION_VERT_B, mi_row, mi_col, subsize, mi_row,
         mi_col + blk_params->mi_step_w, bsize2, mi_row + blk_params->mi_step_h,
@@ -4742,7 +4794,7 @@ BEGIN_PARTITION_SEARCH:
     av1_rd_cost_update(x->rdmult, &sum_rdc);
     if (sum_rdc.rdcost < best_rdc.rdcost) {
       best_rdc = sum_rdc;
-      found_best_partition = true;
+      search_state.found_best_partition = true;
       pc_tree->partitioning = PARTITION_HORZ_3;
     }
 
@@ -4858,7 +4910,7 @@ BEGIN_PARTITION_SEARCH:
     av1_rd_cost_update(x->rdmult, &sum_rdc);
     if (sum_rdc.rdcost < best_rdc.rdcost) {
       best_rdc = sum_rdc;
-      found_best_partition = true;
+      search_state.found_best_partition = true;
       pc_tree->partitioning = PARTITION_VERT_3;
     }
 #if CONFIG_COLLECT_PARTITION_STATS
@@ -4977,7 +5029,7 @@ BEGIN_PARTITION_SEARCH:
     av1_rd_cost_update(x->rdmult, &sum_rdc);
     if (sum_rdc.rdcost < best_rdc.rdcost) {
       best_rdc = sum_rdc;
-      found_best_partition = true;
+      search_state.found_best_partition = true;
       pc_tree->partitioning = PARTITION_HORZ_4;
     }
 
@@ -5039,7 +5091,7 @@ BEGIN_PARTITION_SEARCH:
     av1_rd_cost_update(x->rdmult, &sum_rdc);
     if (sum_rdc.rdcost < best_rdc.rdcost) {
       best_rdc = sum_rdc;
-      found_best_partition = true;
+      search_state.found_best_partition = true;
       pc_tree->partitioning = PARTITION_VERT_4;
     }
 #if CONFIG_COLLECT_PARTITION_STATS
@@ -5058,7 +5110,7 @@ BEGIN_PARTITION_SEARCH:
   if (sms_tree)
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
     sms_tree->partitioning = pc_tree->partitioning;
-  if (bsize == cm->seq_params.sb_size && !found_best_partition) {
+  if (bsize == cm->seq_params.sb_size && !search_state.found_best_partition) {
     // Did not find a valid partition, go back and search again, with less
     // constraint on which partition types to search.
     x->must_find_valid_partition = 1;
@@ -5070,7 +5122,8 @@ BEGIN_PARTITION_SEARCH:
 
   *rd_cost = best_rdc;
   pc_tree->rd_cost = best_rdc;
-  if (!found_best_partition) av1_invalid_rd_stats(&pc_tree->rd_cost);
+  if (!search_state.found_best_partition)
+    av1_invalid_rd_stats(&pc_tree->rd_cost);
 
 #if CONFIG_COLLECT_PARTITION_STATS
   if (best_rdc.rate < INT_MAX && best_rdc.dist < INT64_MAX) {
@@ -5115,7 +5168,7 @@ BEGIN_PARTITION_SEARCH:
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
     sms_tree->partitioning = pc_tree->partitioning;
   int pc_tree_dealloc = 0;
-  if (found_best_partition) {
+  if (search_state.found_best_partition) {
 #if CONFIG_EXT_RECUR_PARTITIONS && !KEEP_PARTITION_SPLIT
     assert(pc_tree->partitioning != PARTITION_SPLIT);
 #endif  // CONFIG_EXT_RECUR_PARTITIONS && !KEEP_PARTITION_SPLIT
@@ -5148,7 +5201,7 @@ BEGIN_PARTITION_SEARCH:
   }
 
   x->rdmult = orig_rdmult;
-  return found_best_partition;
+  return search_state.found_best_partition;
 }
 #endif  // !CONFIG_REALTIME_ONLY
 #undef NUM_SIMPLE_MOTION_FEATURES
