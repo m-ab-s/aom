@@ -1563,12 +1563,20 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
         cpi, &frame_params, frame_update_type, cpi->gf_group.index,
         cur_frame_disp, ref_frame_map_pairs, &cpi->ref_buffer_stack);
 
-    frame_params.existing_fb_idx_to_show =
-        frame_params.show_existing_frame
-            ? (frame_update_type == INTNL_OVERLAY_UPDATE
-                   ? get_ref_frame_map_idx(cm, BWDREF_FRAME)
-                   : get_ref_frame_map_idx(cm, ALTREF_FRAME))
-            : INVALID_IDX;
+    frame_params.existing_fb_idx_to_show = INVALID_IDX;
+    // Find the frame buffer to show based on display order
+    if (frame_params.show_existing_frame) {
+      for (int frame = LAST_FRAME; frame <= ALTREF_FRAME; frame++) {
+        // Get reference frame buffer
+        const RefCntBuffer *const buf = get_ref_frame_buf(&cpi->common, frame);
+        if (buf == NULL) continue;
+        const int frame_order = (int)buf->display_order_hint;
+        if (frame_order == cur_frame_disp) {
+          frame_params.existing_fb_idx_to_show =
+              get_ref_frame_map_idx(cm, frame);
+        }
+      }
+    }
   }
 
   // The way frame_params->remapped_ref_idx is setup is a placeholder.
