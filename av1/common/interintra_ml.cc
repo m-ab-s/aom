@@ -116,6 +116,20 @@ void copy_blank_square(uint8_t *dst, int stride, BLOCK_SIZE bsize,
   }
 }
 
+void superscale_pred(uint8_t dst[400], const uint8_t *pred, int stride) {
+  const int dst_stride = 20;
+  for (int j = 0; j < 20; j += 2) {
+    for (int i = 0; i < 20; i += 2) {
+      int scaled_i = i / 2;
+      int scaled_j = j / 2;
+      dst[i + j * dst_stride] = pred[scaled_i + scaled_j * stride];
+      dst[i + j * dst_stride + 1] = pred[scaled_i + scaled_j * stride];
+      dst[i + (j + 1) * dst_stride] = pred[scaled_i + scaled_j * stride];
+      dst[i + (j + 1) * dst_stride + 1] = pred[scaled_i + scaled_j * stride];
+    }
+  }
+}
+
 // Load the inputs (inter-predictor + border, intra-predictor border)
 // into the interpreter.
 void load_inputs(tflite::Interpreter *interpreter, INTERINTRA_MODE mode,
@@ -153,19 +167,62 @@ void load_inputs(tflite::Interpreter *interpreter, INTERINTRA_MODE mode,
   *mode_input = mode - II_ML_PRED0 + 1;  // Normalize so 1 is the first mode.
 }
 
-// Copy the output of the interpreter into the destination buffer.
+// Copy the output of the interpreter into the destination buffer. If
+// subsample == true, takes a weighted average of 2x2 blocks for each point
+// (creating an 8x8 block).
 void copy_to_output(tflite::Interpreter *interpreter, BLOCK_SIZE bsize,
-                    uint8_t *comp_pred, int comp_stride) {
+                    uint8_t *comp_pred, int comp_stride, bool subsample) {
   const int bw = block_size_wide[bsize];
   const int bh = block_size_high[bsize];
   float *output = interpreter->typed_output_tensor<float>(0);
+
   for (int j = 0; j < bh; ++j) {
     for (int i = 0; i < bw; ++i) {
-      comp_pred[i + j * comp_stride] =
-          // + 0.5 to round to nearest integer when casting to uint8.
-          static_cast<uint8_t>(fclamp(output[i + j * bw] + 0.5f, 0, 255));
+      if (!subsample) {
+        comp_pred[i + j * comp_stride] =
+            // + 0.5 to round to nearest integer when casting to uint8.
+            static_cast<uint8_t>(fclamp(output[i + j * bw] + 0.5f, 0, 255));
+        continue;
+      }
+      // Weighted average.
+      const int scaled_i = 2 * i;
+      const int scaled_j = 2 * j;
+      const int output_stride = 16;
+      float total = output[scaled_i + output_stride * scaled_j] +
+                    output[scaled_i + output_stride * scaled_j + 1] +
+                    output[scaled_i + output_stride * (scaled_j + 1)] +
+                    output[scaled_i + output_stride * (scaled_j + 1) + 1] +
+                    2.0f;  // +2 to round to nearest int when dividing by 4.
+      comp_pred[j * comp_stride + i] =
+          static_cast<uint8_t>(fclamp(total / 4.0f, 0, 255));
     }
   }
+}
+
+void scale_load_inputs(tflite::Interpreter *interpreter, INTERINTRA_MODE mode,
+                       const uint8_t *inter_pred, int inter_stride,
+                       const uint8_t *intra_pred, int intra_stride) {
+  uint8_t scaled_inter_pred[400];
+  const int scaled_inter_stride = 20;
+  assert(INTERINTRA_ML_BORDER % 2 == 0);
+  superscale_pred(scaled_inter_pred,
+                  inter_pred - INTERINTRA_ML_BORDER * inter_stride / 2 -
+                      INTERINTRA_ML_BORDER / 2,
+                  inter_stride);
+
+  uint8_t scaled_intra_pred[400];
+  const int scaled_intra_stride = 20;
+  superscale_pred(scaled_intra_pred,
+                  intra_pred - INTERINTRA_ML_BORDER * intra_stride / 2 -
+                      INTERINTRA_ML_BORDER / 2,
+                  intra_stride);
+  load_inputs(interpreter, mode, BLOCK_16X16,
+              scaled_inter_pred + INTERINTRA_ML_BORDER * scaled_inter_stride +
+                  INTERINTRA_ML_BORDER,
+              scaled_inter_stride,
+              scaled_intra_pred + INTERINTRA_ML_BORDER * scaled_intra_stride +
+                  INTERINTRA_ML_BORDER,
+              scaled_intra_stride);
 }
 
 }  // namespace
@@ -177,21 +234,29 @@ void av1_combine_interintra_ml(INTERINTRA_MODE mode, BLOCK_SIZE plane_bsize,
                                int border) {
   (void)border;
   assert(border >= INTERINTRA_ML_BORDER);
-  if (plane_bsize != BLOCK_16X16) {
+  if (plane_bsize != BLOCK_16X16 && plane_bsize != BLOCK_8X8) {
     // Not yet implemented. Just copy a blank square into the predictor.
     copy_blank_square(comp_pred, comp_stride, plane_bsize, false);
     return;
   }
   tflite::Interpreter *interpreter = get_interpreter();
-  load_inputs(interpreter, mode, plane_bsize, inter_pred, inter_stride,
-              intra_pred, intra_stride);
+  if (plane_bsize == BLOCK_16X16) {
+    load_inputs(interpreter, mode, plane_bsize, inter_pred, inter_stride,
+                intra_pred, intra_stride);
+  } else {
+    assert(plane_bsize == BLOCK_8X8);
+    scale_load_inputs(interpreter, mode, inter_pred, inter_stride, intra_pred,
+                      intra_stride);
+  }
   auto status = interpreter->Invoke();
   if (status != kTfLiteOk) {
     tflite::ErrorReporter *reporter = get_reporter();
     reporter->Report("Failed to run inference");
     assert(false);
   }
-  copy_to_output(interpreter, plane_bsize, comp_pred, comp_stride);
+
+  const bool subsample = plane_bsize == BLOCK_8X8;
+  copy_to_output(interpreter, plane_bsize, comp_pred, comp_stride, subsample);
 }
 
 void av1_combine_interintra_ml_highbd(

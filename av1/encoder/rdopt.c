@@ -10865,6 +10865,11 @@ static int handle_inter_intra_mode(const AV1_COMP *const cpi,
   const int left = xd->left_mbmi && xd->left_mbmi->use_derived_intra_mode[0];
   const int *derived_intra_mode_cost =
       x->derived_intra_mode_cost[1][above + left];
+#elif CONFIG_INTERINTRA_ML
+  // Only search the ML model predictors if the block size is 16x16.
+  const int total_modes = bsize == BLOCK_16X16 ? INTERINTRA_MODES : II_ML_PRED0;
+  const int *derived_intra_mode_cost = NULL;
+  int pick_derived_intra_mode = 0;
 #else
   const int total_modes = INTERINTRA_MODES;
   const int *derived_intra_mode_cost = NULL;
