@@ -53,6 +53,10 @@
 #include "av1/encoder/segmentation.h"
 #include "av1/encoder/tokenize.h"
 
+#if CONFIG_INTERINTRA_ML
+#include "av1/common/interintra_ml.h"
+#endif
+
 #define ENC_MISMATCH_DEBUG 0
 
 static INLINE void write_uniform(aom_writer *w, int n, int v) {
@@ -1656,9 +1660,21 @@ static void pack_inter_mode_mvs(AV1_COMP *cpi, const int mi_row,
         if (!mbmi->use_derived_intra_mode[0])
 #endif  // CONFIG_DERIVED_INTRA_MODE
         {
+#if CONFIG_INTERINTRA_ML
+          if (is_interintra_ml_supported(bsize)) {
+            aom_write_symbol(w, mbmi->interintra_mode,
+                             ec_ctx->interintra_ml_mode_cdf[bsize_group],
+                             INTERINTRA_MODES);
+          } else {
+            aom_write_symbol(w, mbmi->interintra_mode,
+                             ec_ctx->interintra_mode_cdf[bsize_group],
+                             II_ML_PRED0);
+          }
+#else
           aom_write_symbol(w, mbmi->interintra_mode,
                            ec_ctx->interintra_mode_cdf[bsize_group],
                            INTERINTRA_MODES);
+#endif  // CONFIG_INTERINTRA_ML
         }
         if (is_interintra_wedge_used(bsize)) {
           aom_write_symbol(w, mbmi->use_wedge_interintra,

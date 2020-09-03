@@ -116,7 +116,12 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
   RESET_CDF_COUNTER(fc->wedge_idx_cdf, 16);
   RESET_CDF_COUNTER(fc->interintra_cdf, 2);
   RESET_CDF_COUNTER(fc->wedge_interintra_cdf, 2);
+#if CONFIG_INTERINTRA_ML
+  RESET_CDF_COUNTER(fc->interintra_mode_cdf, II_ML_PRED0);
+  RESET_CDF_COUNTER(fc->interintra_ml_mode_cdf, INTERINTRA_MODES);
+#else
   RESET_CDF_COUNTER(fc->interintra_mode_cdf, INTERINTRA_MODES);
+#endif  // CONFIG_INTERINTRA_ML
   RESET_CDF_COUNTER(fc->motion_mode_cdf, MOTION_MODES);
   RESET_CDF_COUNTER(fc->obmc_cdf, 2);
   RESET_CDF_COUNTER(fc->palette_y_size_cdf, PALETTE_SIZES);

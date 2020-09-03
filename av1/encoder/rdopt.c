@@ -67,6 +67,10 @@
 #include "av1/encoder/tokenize.h"
 #include "av1/encoder/tx_prune_model_weights.h"
 
+#if CONFIG_INTERINTRA_ML
+#include "av1/common/interintra_ml.h"
+#endif
+
 // Set this macro as 1 to collect data about tx size selection.
 #define COLLECT_TX_SIZE_DATA 0
 
@@ -10680,6 +10684,18 @@ static INLINE bool enable_smooth_interintra_search(const AV1_COMP *const cpi) {
          !cpi->sf.disable_smooth_interintra;
 }
 
+// Calculate the cost of the inter-intra mode. Use this instead of the
+// direct variable in the macroblock structure.
+static int interintra_mode_cost(MACROBLOCK *const x, BLOCK_SIZE bsize,
+                                int mode) {
+#if CONFIG_INTERINTRA_ML
+  if (is_interintra_ml_supported(bsize)) {
+    return x->interintra_ml_mode_cost_[size_group_lookup[bsize]][mode];
+  }
+#endif  // CONFIG_INTERINTRA_ML
+  return x->interintra_mode_cost_[size_group_lookup[bsize]][mode];
+}
+
 // Special value indicating that the inter-intra mode is so bad, it should be
 // ignored. This value must be non-zero.
 #define IGNORE_MODE -1
@@ -10698,8 +10714,6 @@ static int handle_smooth_inter_intra_mode(
   MACROBLOCKD *xd = &x->e_mbd;
   const int mi_row = xd->mi_row;
   const int mi_col = xd->mi_col;
-  const int *const interintra_mode_cost =
-      x->interintra_mode_cost[size_group_lookup[bsize]];
   mbmi->use_wedge_interintra = 0;
   int j = 0;
   if (cpi->sf.reuse_inter_intra_mode == 0 ||
@@ -10720,11 +10734,11 @@ static int handle_smooth_inter_intra_mode(
         *rmode = derived_intra_mode_cost[1];
       } else {
         *rmode = derived_intra_mode_cost[0] +
-                 interintra_mode_cost[mbmi->interintra_mode];
+                 interintra_mode_cost(x, bsize, mbmi->interintra_mode);
       }
 #else
       (void)derived_intra_mode_cost;
-      *rmode = interintra_mode_cost[mbmi->interintra_mode];
+      *rmode = interintra_mode_cost(x, bsize, mbmi->interintra_mode);
 #endif  // CONFIG_DERIVED_INTRA_MODE
       av1_build_intra_predictors_for_interintra(
           cm, xd, bsize, 0, orig_dst, intrapred, intrapred_stride, border);
@@ -10757,10 +10771,10 @@ static int handle_smooth_inter_intra_mode(
     *rmode = derived_intra_mode_cost[1];
   } else {
     *rmode = derived_intra_mode_cost[0] +
-             interintra_mode_cost[*best_interintra_mode];
+             interintra_mode_cost(x, bsize, *best_interintra_mode);
   }
 #else
-  *rmode = interintra_mode_cost[*best_interintra_mode];
+  *rmode = interintra_mode_cost(x, bsize, *best_interintra_mode);
 #endif  // CONFIG_DERIVED_INTRA_MODE
   if (j == 0 || CONFIG_DERIVED_INTRA_MODE ||
       *best_interintra_mode != INTERINTRA_MODES - 1) {
@@ -10831,8 +10845,6 @@ static int handle_inter_intra_mode(const AV1_COMP *const cpi,
   uint8_t *intrapred_ = aligned_buf2_ + border * stride + border;
   uint8_t *tmp_buf = get_buf_by_bd(xd, tmp_buf_);
   uint8_t *intrapred = get_buf_by_bd(xd, intrapred_);
-  const int *const interintra_mode_cost =
-      x->interintra_mode_cost[size_group_lookup[bsize]];
   const int_mv mv0 = mbmi->mv[0];
   const int is_wedge_used = is_interintra_wedge_used(bsize);
   int rwedge = is_wedge_used ? x->wedge_interintra_cost[bsize][0] : 0;
@@ -10929,10 +10941,10 @@ static int handle_inter_intra_mode(const AV1_COMP *const cpi,
           rmode = derived_intra_mode_cost[1];
         } else {
           rmode = derived_intra_mode_cost[0] +
-                  interintra_mode_cost[mbmi->interintra_mode];
+                  interintra_mode_cost(x, bsize, mbmi->interintra_mode);
         }
 #else
-        rmode = interintra_mode_cost[mbmi->interintra_mode];
+        rmode = interintra_mode_cost(x, bsize, mbmi->interintra_mode);
 #endif  // CONFIG_DERIVED_INTRA_MODE
         av1_build_intra_predictors_for_interintra(cm, xd, bsize, 0, orig_dst,
                                                   intrapred, stride, border);
@@ -10967,10 +10979,10 @@ static int handle_inter_intra_mode(const AV1_COMP *const cpi,
       rmode = derived_intra_mode_cost[1];
     } else {
       rmode = derived_intra_mode_cost[0] +
-              interintra_mode_cost[mbmi->interintra_mode];
+              interintra_mode_cost(x, bsize, mbmi->interintra_mode);
     }
 #else
-    rmode = interintra_mode_cost[mbmi->interintra_mode];
+    rmode = interintra_mode_cost(x, bsize, mbmi->interintra_mode);
 #endif  // CONFIG_DERIVED_INTRA_MODE
     rwedge = x->wedge_idx_cost[bsize][mbmi->interintra_wedge_index] +
              x->wedge_interintra_cost[bsize][1];
@@ -11392,7 +11404,7 @@ static int64_t motion_mode_rd(
 #endif  // CONFIG_DERIVED_INTRA_MODE
         {
           rd_stats->rate +=
-              x->interintra_mode_cost[size_group][mbmi->interintra_mode];
+              interintra_mode_cost(x, bsize, mbmi->interintra_mode);
         }
         if (is_interintra_wedge_used(bsize)) {
           rd_stats->rate +=

@@ -227,6 +227,10 @@ void scale_load_inputs(tflite::Interpreter *interpreter, INTERINTRA_MODE mode,
 
 }  // namespace
 
+bool is_interintra_ml_supported(BLOCK_SIZE bsize) {
+  return bsize == BLOCK_16X16;
+}
+
 void av1_combine_interintra_ml(INTERINTRA_MODE mode, BLOCK_SIZE plane_bsize,
                                uint8_t *comp_pred, int comp_stride,
                                const uint8_t *inter_pred, int inter_stride,

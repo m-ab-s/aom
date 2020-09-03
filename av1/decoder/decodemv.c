@@ -28,6 +28,10 @@
 
 #include "aom_dsp/aom_dsp_common.h"
 
+#if CONFIG_INTERINTRA_ML
+#include "av1/common/interintra_ml.h"
+#endif
+
 #define ACCT_STR __func__
 
 #define DEC_MISMATCH_DEBUG 0
@@ -170,10 +174,21 @@ static uint8_t read_cfl_alphas(FRAME_CONTEXT *const ec_ctx, aom_reader *r,
 
 static INTERINTRA_MODE read_interintra_mode(MACROBLOCKD *xd, aom_reader *r,
                                             int size_group) {
+#if CONFIG_INTERINTRA_ML
+  const BLOCK_SIZE bsize = xd->mi[0]->sb_type;
+  if (is_interintra_ml_supported(bsize)) {
+    return (INTERINTRA_MODE)aom_read_symbol(
+        r, xd->tile_ctx->interintra_ml_mode_cdf[size_group], INTERINTRA_MODES,
+        ACCT_STR);
+  }
+  return (INTERINTRA_MODE)aom_read_symbol(
+      r, xd->tile_ctx->interintra_mode_cdf[size_group], II_ML_PRED0, ACCT_STR);
+#else
   const INTERINTRA_MODE ii_mode = (INTERINTRA_MODE)aom_read_symbol(
       r, xd->tile_ctx->interintra_mode_cdf[size_group], INTERINTRA_MODES,
       ACCT_STR);
   return ii_mode;
+#endif  // CONFIG_INTERINTRA_ML
 }
 
 static PREDICTION_MODE read_inter_mode(FRAME_CONTEXT *ec_ctx, aom_reader *r,

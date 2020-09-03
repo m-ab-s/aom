@@ -21,6 +21,10 @@ extern "C" {
 
 #define INTERINTRA_ML_BORDER 4
 
+// Returns whether the interintra ML modes are supported for the
+// given block size.
+bool is_interintra_ml_supported(BLOCK_SIZE bsize);
+
 // Entry point. Checks if the right block size is passed in.
 // Invokes the ML model and stores the output in comp_pred. Note
 // that border must be greater than or equal to INTERINTRA_ML_BORDER,
