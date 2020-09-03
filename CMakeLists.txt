@@ -32,6 +32,7 @@ if("${AOM_ROOT}" STREQUAL "${AOM_CONFIG_DIR}")
                 "And re-run CMake from the aom_build directory.")
 endif()
 
+include("${AOM_ROOT}/build/cmake/tensorflow_lite.cmake")
 include("${AOM_ROOT}/build/cmake/aom_configure.cmake")
 include("${AOM_ROOT}/aom_dsp/aom_dsp.cmake")
 include("${AOM_ROOT}/aom_mem/aom_mem.cmake")
@@ -561,11 +562,9 @@ if(XCODE)
 endif()
 
 if(CONFIG_TENSORFLOW_LITE)
-  include("${AOM_ROOT}/build/cmake/tensorflow_lite.cmake")
   setup_tensorflow_lite()
-
-  # CONFIG_TENSORFLOW_LITE may have been set to 0 by the setup command above (if
-  # an unsupported use case is invoked). Check again.
+  # setup_tensorflow_lite may set CONFIG_TENSORFLOW_LITE == 0 if TF Lite cannot
+  # be enabled. Re-check.
   if(CONFIG_TENSORFLOW_LITE AND ENABLE_EXAMPLES)
     add_executable(tf_lite_model "${AOM_ROOT}/examples/tf_lite_model.cc")
     list(APPEND AOM_EXAMPLE_TARGETS tf_lite_model)

@@ -96,3 +96,20 @@ function(setup_tensorflow_lite)
   checkout_submodules_()
   add_tensorflow_lite_dependency_()
 endfunction()
+
+function(add_tf_lite_dependency experiment_name)
+  # Experiment is not enabled, no need to include TF-Lite in the build.
+  if(${${experiment_name}} EQUAL "0")
+    return()
+  endif()
+  # Disable the experiment so Gerrit will not test this case.
+  if(CMAKE_TOOLCHAIN_FILE)
+    message(WARNING "--- Cross-compile support not implemented for TF-Lite. "
+                    "Disabling ${experiment_name}.")
+    set(${experiment_name} 0 PARENT_SCOPE)
+    return()
+  endif()
+  if(NOT CONFIG_TENSORFLOW_LITE)
+    set(CONFIG_TENSORFLOW_LITE 1 PARENT_SCOPE)
+  endif()
+endfunction()
