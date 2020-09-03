@@ -435,11 +435,6 @@ typedef struct SPEED_FEATURES {
   // frame's partitioning. Only used if use_lastframe_partitioning is set.
   int adjust_partitioning_from_last_frame;
 
-  // TODO(jingning): combine the related motion search speed features
-  // This allows us to use motion search at other sizes as a starting
-  // point for this motion search and limits the search range around it.
-  int adaptive_motion_search;
-
   // Flag for allowing some use of exhaustive searches;
   int allow_exhaustive_searches;
 

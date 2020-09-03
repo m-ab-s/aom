@@ -809,7 +809,6 @@ void av1_set_speed_features_framesize_independent(AV1_COMP *cpi, int speed) {
   sf->model_based_post_interp_filter_breakout = 0;
   sf->reduce_inter_modes = 0;
   sf->selective_ref_gm = 1;
-  sf->adaptive_motion_search = 0;
   sf->adaptive_mode_search = 0;
   sf->alt_ref_search_fp = 0;
   sf->partition_search_type = SEARCH_PARTITION;
