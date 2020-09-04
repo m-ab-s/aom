@@ -1133,14 +1133,13 @@ static void cnn_filter_stripe(const RestorationUnitInfo *rui, int stripe_width,
   assert(bit_depth == 8);
 
   (void)tmpbuf;  // Unused.
-  if (rui->cnn_info.base_qindex > MIN_CNN_Q_INDEX) {
-    for (int j = 0; j < stripe_width; j += procunit_width) {
-      int w = AOMMIN(procunit_width, stripe_width - j);
-      av1_restore_cnn_img_tflite(rui->cnn_info.base_qindex, src + j, w,
-                                 stripe_height, src_stride, dst + j, dst_stride,
-                                 1 /* num_threads */,
-                                 is_frame_intra_only(rui->cnn_info.frame_type));
-    }
+  assert(rui->cnn_info.base_qindex > MIN_CNN_Q_INDEX);
+  for (int j = 0; j < stripe_width; j += procunit_width) {
+    int w = AOMMIN(procunit_width, stripe_width - j);
+    av1_restore_cnn_img_tflite(rui->cnn_info.base_qindex, src + j, w,
+                               stripe_height, src_stride, dst + j, dst_stride,
+                               1 /* num_threads */,
+                               is_frame_intra_only(rui->cnn_info.frame_type));
   }
 }
 
@@ -1151,15 +1150,14 @@ static void cnn_filter_stripe_highbd(const RestorationUnitInfo *rui,
                                      int dst_stride, int32_t *tmpbuf,
                                      int bit_depth) {
   (void)tmpbuf;  // Unused.
-  if (rui->cnn_info.base_qindex > MIN_CNN_Q_INDEX) {
-    for (int j = 0; j < stripe_width; j += procunit_width) {
-      int w = AOMMIN(procunit_width, stripe_width - j);
-      av1_restore_cnn_img_tflite_highbd(
-          rui->cnn_info.base_qindex, (const uint16_t *)(src + j), w,
-          stripe_height, src_stride, (uint16_t *)(dst + j), dst_stride,
-          1 /* num_threads */, bit_depth,
-          is_frame_intra_only(rui->cnn_info.frame_type));
-    }
+  assert(rui->cnn_info.base_qindex > MIN_CNN_Q_INDEX);
+  for (int j = 0; j < stripe_width; j += procunit_width) {
+    int w = AOMMIN(procunit_width, stripe_width - j);
+    av1_restore_cnn_img_tflite_highbd(
+        rui->cnn_info.base_qindex, (const uint16_t *)(src + j), w,
+        stripe_height, src_stride, (uint16_t *)(dst + j), dst_stride,
+        1 /* num_threads */, bit_depth,
+        is_frame_intra_only(rui->cnn_info.frame_type));
   }
 }
 

@@ -1440,22 +1440,25 @@ static void search_cnn(const RestorationTileLimits *limits,
   RestUnitSearchInfo *rusi = &rsc->rusi[rest_unit_idx];
   const AV1_COMMON *cm = rsc->cm;
 
-  // Add condition to filter out U and V planes from CNN.
-  // TODO(urvang): Use av1_use_cnn_encode()?
-  if (av1_use_cnn(cm) && rsc->plane == AOM_PLANE_Y) {
-    RestorationUnitInfo rui;
-    memset(&rui, 0, sizeof(rui));
-    rui.restoration_type = RESTORE_CNN;
-    rui.cnn_info.base_qindex = cm->base_qindex;
-    rui.cnn_info.frame_type = cm->current_frame.frame_type;
-    rusi->sse[RESTORE_CNN] = try_restoration_unit(rsc, limits, tile_rect, &rui);
-  } else {
-    rusi->sse[RESTORE_CNN] = rusi->sse[RESTORE_NONE];
-  }
-
   const MACROBLOCK *const x = rsc->x;
   const int64_t bits_none = x->cnn_restore_cost[0];
   const int64_t bits_cnn = x->cnn_restore_cost[1];
+
+  // TODO(urvang): Use av1_use_cnn_encode()?
+  if (!av1_use_cnn(cm) || rsc->plane != AOM_PLANE_Y) {
+    rusi->sse[RESTORE_CNN] = INT64_MAX;
+    rusi->best_rtype[RESTORE_CNN - 1] = RESTORE_NONE;
+    rsc->sse += rusi->sse[RESTORE_NONE];
+    rsc->bits += bits_none;
+    return;
+  }
+
+  RestorationUnitInfo rui;
+  memset(&rui, 0, sizeof(rui));
+  rui.restoration_type = RESTORE_CNN;
+  rui.cnn_info.base_qindex = cm->base_qindex;
+  rui.cnn_info.frame_type = cm->current_frame.frame_type;
+  rusi->sse[RESTORE_CNN] = try_restoration_unit(rsc, limits, tile_rect, &rui);
 
   double cost_none =
       RDCOST_DBL(x->rdmult, bits_none >> 4, rusi->sse[RESTORE_NONE]);
