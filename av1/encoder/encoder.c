@@ -41,6 +41,9 @@
 #include "av1/common/cdef.h"
 #include "av1/common/filter.h"
 #include "av1/common/idct.h"
+#if CONFIG_MFQE_RESTORATION
+#include "av1/common/mfqe.h"
+#endif  // CONFIG_MFQE_RESTORATION
 #include "av1/common/reconinter.h"
 #include "av1/common/reconintra.h"
 #include "av1/common/resize.h"
@@ -4753,6 +4756,13 @@ static void cdef_restoration_frame_planes(AV1_COMP *cpi, AV1_COMMON *cm,
   }
 
   superres_post_encode(cpi);
+
+#if CONFIG_MFQE_RESTORATION
+  int use_mfqe = 0;
+  av1_search_rest_mfqe(cpi->source, &cm->cur_frame->buf, cm, &use_mfqe,
+                       is_cur_buf_hbd(xd));
+  cm->use_mfqe = use_mfqe;
+#endif  // CONFIG_MFQE_RESTORATION
 
 #if CONFIG_COLLECT_COMPONENT_TIMING
   start_timing(cpi, loop_restoration_time);

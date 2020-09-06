@@ -73,7 +73,7 @@ static INLINE int cmpref(const void *a, const void *b) {
   return ref1->base_qindex - ref2->base_qindex;
 }
 
-// Calculate the alpha weight value based on the current mse.
+// Calculate the alpha value for weighted blending based on the current mse.
 static INLINE double get_alpha_weight(double mse) {
   return (MFQE_MSE_THRESHOLD - mse) / (MFQE_MSE_THRESHOLD + 1);
 }
@@ -85,8 +85,14 @@ static INLINE double get_alpha_weight(double mse) {
 void av1_apply_loop_mfqe(Y_BUFFER_CONFIG *tmp, RefCntBuffer *ref_frames[],
                          BLOCK_SIZE bsize, int scale, int high_bd, int bd);
 
+// Wrapper function for In-Loop Multi-Frame Quality Enhancement. There are two
+// different code paths for low bit depth and high bit depth.
+void av1_search_rest_mfqe(const YV12_BUFFER_CONFIG *src,
+                          YV12_BUFFER_CONFIG *cur, AV1_COMMON *cm,
+                          int *use_mfqe, int high_bd);
+
 // Apply In-Loop Multi-Frame Quality Enhancement from the decoder side.
-void av1_decode_restore_mfqe(AV1_COMMON *cm, int scale, BLOCK_SIZE bsize);
+void av1_decode_restore_mfqe(AV1_COMMON *cm, int high_bd);
 
 #ifdef __cplusplus
 }  // extern "C"

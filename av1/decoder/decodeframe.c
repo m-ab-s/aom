@@ -5944,15 +5944,13 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
       if (do_cdef) av1_cdef_frame(&pbi->common.cur_frame->buf, cm, &pbi->mb);
 
       superres_post_decode(pbi);
-
 #if CONFIG_MFQE_RESTORATION
-      if (cm->use_mfqe)
-        av1_decode_restore_mfqe(cm, MFQE_SCALE_SIZE, MFQE_BLOCK_SIZE);
+      if (cm->use_mfqe) av1_decode_restore_mfqe(cm, is_cur_buf_hbd(xd));
 #endif  // CONFIG_MFQE_RESTORATION
-
       if (do_loop_restoration) {
         av1_loop_restoration_save_boundary_lines(&pbi->common.cur_frame->buf,
                                                  cm, 1);
+
         if (pbi->num_workers > 1) {
 #if CONFIG_EXT_LOOP_RESTORATION
           assert(false);  // MT loop restoration is not supported here!
