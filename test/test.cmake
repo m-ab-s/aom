@@ -138,6 +138,10 @@ if(NOT BUILD_SHARED_LIBS)
       list(REMOVE_ITEM AOM_UNIT_TEST_COMMON_SOURCES
                        "${AOM_ROOT}/test/yuv_temporal_filter_test.cc")
     endif()
+
+    if(CONFIG_MFQE_RESTORATION)
+      list(APPEND AOM_UNIT_TEST_COMMON_SOURCES "${AOM_ROOT}/test/mfqe_test.cc")
+    endif()
   endif()
 
   list(APPEND AOM_UNIT_TEST_COMMON_INTRIN_NEON
