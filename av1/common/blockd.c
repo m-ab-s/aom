@@ -18,12 +18,18 @@
 
 PREDICTION_MODE av1_left_block_mode(const MB_MODE_INFO *left_mi) {
   if (!left_mi) return DC_PRED;
+#if CONFIG_DERIVED_INTRA_MODE
+  if (left_mi->use_derived_intra_mode[0]) return DC_PRED;
+#endif  // CONFIG_DERIVED_INTRA_MODE
   assert(!is_inter_block(left_mi) || is_intrabc_block(left_mi));
   return left_mi->mode;
 }
 
 PREDICTION_MODE av1_above_block_mode(const MB_MODE_INFO *above_mi) {
   if (!above_mi) return DC_PRED;
+#if CONFIG_DERIVED_INTRA_MODE
+  if (above_mi->use_derived_intra_mode[0]) return DC_PRED;
+#endif  // CONFIG_DERIVED_INTRA_MODE
   assert(!is_inter_block(above_mi) || is_intrabc_block(above_mi));
   return above_mi->mode;
 }
@@ -469,11 +475,16 @@ void av1_get_recon_var(const MACROBLOCKD *const xd, MB_MODE_INFO *const mbmi,
 #endif  // CONFIG_INTRA_ENTROPY && !CONFIG_USE_SMALL_MODEL
 
 #if CONFIG_DERIVED_INTRA_MODE
+// BIN_WIDTH * BINS should be equal to 180.
 #define BINS 36
-
-static int get_bin_index_angle(int angle) {
+#define BIN_WIDTH 5
+static int get_bin_index_from_angle(int angle) {
   angle = AOMMAX(0, AOMMIN(angle, 179));
-  return (angle + 2) / 5;
+  return angle / BIN_WIDTH;
+}
+
+static INLINE int get_angle_from_index(int index) {
+  return index * BIN_WIDTH + (BIN_WIDTH >> 1);
 }
 
 static void get_gradient_hist(const uint8_t *src, int src_stride, int rows,
@@ -500,7 +511,7 @@ static void get_gradient_hist(const uint8_t *src, int src_stride, int rows,
       if (int_angle >= 180) int_angle = 0;
       int_angle = AOMMAX(int_angle, 0);
       const int temp = abs(dx) + abs(dy);
-      const int bin_index = get_bin_index_angle(int_angle);
+      const int bin_index = get_bin_index_from_angle(int_angle);
       hist[bin_index] += temp;
       if (bin_index > 0) hist[bin_index - 1] += temp / 2;
       if (bin_index < BINS - 1) hist[bin_index + 1] += temp / 2;
@@ -535,7 +546,10 @@ static void get_highbd_gradient_hist(const uint8_t *src8, int src_stride,
       if (int_angle >= 180) int_angle = 0;
       int_angle = AOMMAX(int_angle, 0);
       const int temp = abs(dx) + abs(dy);
-      hist[get_bin_index_angle(int_angle)] += temp;
+      const int bin_index = get_bin_index_from_angle(int_angle);
+      hist[bin_index] += temp;
+      if (bin_index > 0) hist[bin_index - 1] += temp / 2;
+      if (bin_index < BINS - 1) hist[bin_index + 1] += temp / 2;
     }
     src += src_stride;
   }
@@ -581,33 +595,9 @@ static void generate_hog(const MACROBLOCKD *xd, int *hist) {
   }
 }
 
-static int derive_intra_mode_from_hog(const MACROBLOCKD *xd) {
-  aom_clear_system_state();
-
-  int hist[BINS] = { 0 };
-  generate_hog(xd, hist);
-
-  int max_score = 0;
-  int best_idx = 0;
-  for (int i = 0; i < BINS; ++i) {
-    const int this_score = hist[i];
-    if (this_score > max_score) {
-      max_score = this_score;
-      best_idx = i;
-    }
-  }
-
-  aom_clear_system_state();
-
-  return best_idx;
-}
-
 int av1_enable_derived_intra_mode(const MACROBLOCKD *xd, int bsize) {
   return bsize >= BLOCK_8X8 && (xd->above_mbmi || xd->left_mbmi);
 }
-#undef BINS
-
-static int get_angle_from_index(int index) { return index * 5; }
 
 static int angle_to_mode(int angle) {
   if (angle < 56) return D45_PRED;
@@ -621,15 +611,63 @@ static int angle_to_mode(int angle) {
 }
 
 int av1_get_derived_intra_mode(const MACROBLOCKD *xd, int bsize,
-                               uint8_t *derived_angle) {
+                               MB_MODE_INFO *mbmi) {
   if (av1_enable_derived_intra_mode(xd, bsize)) {
-    const int idx = derive_intra_mode_from_hog(xd);
-    int angle = get_angle_from_index(idx);
+    int hist[BINS] = { 0 };
+    aom_clear_system_state();
+    generate_hog(xd, hist);
+    aom_clear_system_state();
+#if FUSION_MODE
+    int total_weight = 1;
+    for (int i = 0; i < NUM_DERIVED_INTRA_MODES; ++i) {
+      int max_score = 0;
+      int best_idx = 0;
+      for (int idx = 0; idx < BINS; ++idx) {
+        const int this_score = hist[idx];
+        if (this_score > max_score) {
+          max_score = this_score;
+          best_idx = idx;
+        }
+      }
+      int angle = get_angle_from_index(best_idx);
+      if (angle < 36) angle += 180;
+      mbmi->derived_intra_angles[i] = angle;
+      mbmi->derived_intra_weights[i] = max_score;
+      total_weight += max_score;
+      hist[best_idx] = 0;
+    }
+
+    const int scale = 1 << DERIVED_INTRA_FUSION_SHIFT;
+    int sub_total_weight = 0;
+    for (int i = NUM_DERIVED_INTRA_MODES - 1; i > 0; --i) {
+      const int weight = mbmi->derived_intra_weights[i];
+      mbmi->derived_intra_weights[i] =
+          (weight * scale + (total_weight >> 1)) / total_weight;
+      sub_total_weight += mbmi->derived_intra_weights[i];
+    }
+    mbmi->derived_intra_weights[0] = scale - sub_total_weight;
+    mbmi->derived_angle = mbmi->derived_intra_angles[0];
+    return angle_to_mode(mbmi->derived_angle);
+#else
+    int max_score = 0;
+    int best_idx = 0;
+    for (int i = 0; i < BINS; ++i) {
+      const int this_score = hist[i];
+      if (this_score > max_score) {
+        max_score = this_score;
+        best_idx = i;
+      }
+    }
+    int angle = get_angle_from_index(best_idx);
     if (angle < 36) angle += 180;
-    *derived_angle = angle;
+    mbmi->derived_angle = angle;
     const int mode = angle_to_mode(angle);
     return mode;
+#endif
   }
   return INTRA_MODES;
 }
+
+#undef BINS
+#undef BIN_WIDTH
 #endif  // CONFIG_DERIVED_INTRA_MODE

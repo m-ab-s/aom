@@ -1200,6 +1200,7 @@ static void write_intra_uv_mode(const AV1_COMMON *const cm,
         2);
   }
   if (mbmi->use_derived_intra_mode[1]) return;
+  if (mbmi->use_derived_intra_mode[0]) y_mode = DC_PRED;
 #endif  // CONFIG_DERIVED_INTRA_MODE
   const int cfl_allowed = is_cfl_allowed(xd);
   aom_write_symbol(w, uv_mode, frame_ctx->uv_mode_cdf[cfl_allowed][y_mode],

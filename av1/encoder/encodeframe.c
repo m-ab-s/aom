@@ -7819,16 +7819,12 @@ static void encode_superblock(const AV1_COMP *const cpi, TileDataEnc *tile_data,
   if (!is_inter) {
 #if CONFIG_DERIVED_INTRA_MODE
     if (mbmi->use_derived_intra_mode[0] || mbmi->use_derived_intra_mode[1]) {
-      uint8_t derived_angle;
-      const int derived_mode =
-          av1_get_derived_intra_mode(xd, bsize, &derived_angle);
+      const int derived_mode = av1_get_derived_intra_mode(xd, bsize, mbmi);
       if (mbmi->use_derived_intra_mode[0]) {
         mbmi->mode = derived_mode;
-        mbmi->derived_angle = derived_angle;
       }
       if (mbmi->use_derived_intra_mode[1]) {
         mbmi->uv_mode = derived_mode;
-        mbmi->derived_angle = derived_angle;
       }
     }
 #endif  // CONFIG_DERIVED_INTRA_MODE

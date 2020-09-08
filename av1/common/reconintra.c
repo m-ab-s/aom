@@ -2797,6 +2797,40 @@ void av1_predict_intra_block_facade(const AV1_COMMON *cm, MACROBLOCKD *xd,
     cfl_predict_block(xd, dst, dst_stride, tx_size, plane);
     return;
   }
+
+#if CONFIG_DERIVED_INTRA_MODE && FUSION_MODE
+  if (mbmi->use_derived_intra_mode[plane != 0]) {
+    int buf[MAX_SB_SQUARE] = { 0 };
+    const int bw = tx_size_wide[tx_size];
+    const int bh = tx_size_high[tx_size];
+    for (int i = 0; i < NUM_DERIVED_INTRA_MODES; ++i) {
+      av1_predict_intra_block(cm, xd, pd->width, pd->height, tx_size, mode,
+                              angle_delta, use_palette, filter_intra_mode,
+#if CONFIG_ADAPT_FILTER_INTRA
+                              adapt_filter_intra_mode,
+#endif
+                              mbmi->derived_intra_angles[i], dst, dst_stride,
+                              dst, dst_stride, blk_col, blk_row, plane);
+      const int wt = mbmi->derived_intra_weights[i];
+      for (int r = 0; r < bh; ++r) {
+        for (int c = 0; c < bw; ++c) {
+          buf[r * MAX_SB_SIZE + c] += wt * dst[r * dst_stride + c];
+        }
+      }
+    }
+
+    for (int r = 0; r < bh; ++r) {
+      for (int c = 0; c < bw; ++c) {
+        const int temp = ROUND_POWER_OF_TWO(buf[r * MAX_SB_SIZE + c],
+                                            DERIVED_INTRA_FUSION_SHIFT);
+        dst[r * dst_stride + c] = clip_pixel(temp);
+      }
+    }
+
+    return;
+  }
+#endif  // CONFIG_DERIVED_INTRA_MODE
+
   av1_predict_intra_block(
       cm, xd, pd->width, pd->height, tx_size, mode, angle_delta, use_palette,
       filter_intra_mode,

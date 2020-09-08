@@ -2917,9 +2917,8 @@ void av1_build_intra_predictors_for_interintra(
 #if CONFIG_DERIVED_INTRA_MODE
   const int use_derived_mode = mbmi->use_derived_intra_mode[0];
   const PREDICTION_MODE mode =
-      use_derived_mode
-          ? av1_get_derived_intra_mode(xd, bsize, &mbmi->derived_angle)
-          : interintra_to_intra_mode[mbmi->interintra_mode];
+      use_derived_mode ? av1_get_derived_intra_mode(xd, bsize, mbmi)
+                       : interintra_to_intra_mode[mbmi->interintra_mode];
 #else
   const PREDICTION_MODE mode = interintra_to_intra_mode[mbmi->interintra_mode];
 #endif

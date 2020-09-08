@@ -138,8 +138,9 @@ static UV_PREDICTION_MODE read_intra_mode_uv(FRAME_CONTEXT *ec_ctx,
         2, ACCT_STR);
   }
   if (mbmi->use_derived_intra_mode[1]) {
-    return av1_get_derived_intra_mode(xd, bsize, &mbmi->derived_angle);
+    return av1_get_derived_intra_mode(xd, bsize, mbmi);
   }
+  if (mbmi->use_derived_intra_mode[0]) y_mode = DC_PRED;
 #endif  // CONFIG_DERIVED_INTRA_MODE
   const UV_PREDICTION_MODE uv_mode =
       aom_read_symbol(r, ec_ctx->uv_mode_cdf[cfl_allowed][y_mode],
@@ -1009,7 +1010,7 @@ static void read_intra_frame_mode_info(AV1_COMMON *const cm,
           2, ACCT_STR);
     }
     if (mbmi->use_derived_intra_mode[0]) {
-      mbmi->mode = av1_get_derived_intra_mode(xd, bsize, &mbmi->derived_angle);
+      mbmi->mode = av1_get_derived_intra_mode(xd, bsize, mbmi);
     }
     if (!mbmi->use_derived_intra_mode[0]) {
       const int index = aom_read_symbol(
@@ -1385,7 +1386,7 @@ static void read_intra_block_mode_info(AV1_COMMON *const cm,
           2, ACCT_STR);
     }
     if (mbmi->use_derived_intra_mode[0]) {
-      mbmi->mode = av1_get_derived_intra_mode(xd, bsize, &mbmi->derived_angle);
+      mbmi->mode = av1_get_derived_intra_mode(xd, bsize, mbmi);
     } else {
       const int index = aom_read_symbol(r, ec_ctx->bf_dr_mode_cdf[ctx],
                                         DIRECTIONAL_MODES, ACCT_STR);

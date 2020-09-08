@@ -5225,7 +5225,7 @@ static int rd_pick_derived_intra_mode_sby(
 
   RD_STATS tokenonly_rd_stats;
   mbmi->use_derived_intra_mode[0] = 1;
-  mbmi->mode = av1_get_derived_intra_mode(xd, bsize, &mbmi->derived_angle);
+  mbmi->mode = av1_get_derived_intra_mode(xd, bsize, mbmi);
   super_block_yrd(cpi, x, &tokenonly_rd_stats, bsize, *best_rd);
   if (tokenonly_rd_stats.rate == INT_MAX) return 0;
   const int this_rate = tokenonly_rd_stats.rate +
@@ -7618,7 +7618,7 @@ static int rd_pick_derived_intra_mode_sbuv(const AV1_COMP *const cpi,
 
   RD_STATS tokenonly_rd_stats;
   mbmi->use_derived_intra_mode[1] = 1;
-  mbmi->uv_mode = av1_get_derived_intra_mode(xd, bsize, &mbmi->derived_angle);
+  mbmi->uv_mode = av1_get_derived_intra_mode(xd, bsize, mbmi);
   if (!super_block_uvrd(cpi, x, &tokenonly_rd_stats, bsize, *best_rd)) {
     return 0;
   }
@@ -14284,7 +14284,7 @@ static void search_derived_intra_mode(const AV1_COMP *cpi, MACROBLOCK *x,
 #endif
   RD_STATS rd_stats_y;
   mbmi->use_derived_intra_mode[0] = 1;
-  mbmi->mode = av1_get_derived_intra_mode(xd, bsize, &mbmi->derived_angle);
+  mbmi->mode = av1_get_derived_intra_mode(xd, bsize, mbmi);
   super_block_yrd(cpi, x, &rd_stats_y, bsize, search_state->best_rd);
   if (rd_stats_y.rate == INT_MAX) return;
   RD_STATS rd_stats = rd_stats_y;

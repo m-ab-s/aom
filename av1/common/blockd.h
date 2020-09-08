@@ -629,6 +629,14 @@ static INLINE void set_chroma_ref_info(int mi_row, int mi_col, int index,
   }
 }
 
+#if CONFIG_DERIVED_INTRA_MODE
+#define FUSION_MODE 0
+#if FUSION_MODE
+#define NUM_DERIVED_INTRA_MODES 1
+#define DERIVED_INTRA_FUSION_SHIFT 7
+#endif  // FUSION_MODE
+#endif  // CONFIG_DERIVED_INTRA_MODE
+
 // This structure now relates to 4x4 block regions.
 typedef struct MB_MODE_INFO {
   // interinter members
@@ -718,6 +726,10 @@ typedef struct MB_MODE_INFO {
 #if CONFIG_DERIVED_INTRA_MODE
   uint8_t use_derived_intra_mode[2];
   uint8_t derived_angle;
+#if FUSION_MODE
+  uint8_t derived_intra_angles[NUM_DERIVED_INTRA_MODES];
+  uint8_t derived_intra_weights[NUM_DERIVED_INTRA_MODES];
+#endif  // FUSION_MODE
 #endif  // CONFIG_DERIVED_INTRA_MODE
 #if CONFIG_DERIVED_MV
   int derived_mv_allowed;
@@ -1961,7 +1973,7 @@ void av1_get_uv_mode_cdf_ml(const MACROBLOCKD *xd, PREDICTION_MODE y_mode,
 #if CONFIG_DERIVED_INTRA_MODE
 int av1_enable_derived_intra_mode(const MACROBLOCKD *xd, int bsize);
 int av1_get_derived_intra_mode(const MACROBLOCKD *xd, int bsize,
-                               uint8_t *derived_angle);
+                               MB_MODE_INFO *mbmi);
 #endif  // CONFIG_DERIVED_INTRA_MODE
 
 #if CONFIG_MODE_DEP_INTRA_TX || CONFIG_MODE_DEP_INTER_TX
