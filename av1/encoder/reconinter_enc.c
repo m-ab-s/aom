@@ -145,6 +145,20 @@ static void build_inter_predictors_for_plane(const AV1_COMMON *cm,
   }
 }
 
+#if CONFIG_INTERINTRA_ML_DATA_COLLECT
+void av1_enc_build_border_only_inter_predictor(const AV1_COMMON *cm,
+                                               MACROBLOCKD *xd, int mi_row,
+                                               int mi_col, int plane) {
+  const struct macroblockd_plane *pd = &xd->plane[plane];
+  const int mi_x = mi_col * MI_SIZE;
+  const int mi_y = mi_row * MI_SIZE;
+  const int build_for_obmc = 0;
+  const bool store_border = true;
+  enc_build_inter_predictors(cm, xd, plane, xd->mi[0], build_for_obmc,
+                             pd->width, pd->height, mi_x, mi_y, store_border);
+}
+#endif  // CONFIG_INTERINTRA_ML_DATA_COLLECT
+
 void av1_enc_build_inter_predictor(const AV1_COMMON *cm, MACROBLOCKD *xd,
                                    int mi_row, int mi_col,
                                    const BUFFER_SET *ctx, BLOCK_SIZE bsize,

@@ -86,6 +86,11 @@ if(CONFIG_INTERINTRA_ML)
   endif()
 endif()
 
+if(CONFIG_INTERINTRA_ML_DATA_COLLECT AND NOT CONFIG_INTERINTRA_BORDER)
+  change_config_and_warn(CONFIG_INTERINTRA_BORDER 1
+                         "CONFIG_INTERINTRA_ML_DATA_COLLECT")
+endif()
+
 # Generate the user config settings.
 list(APPEND aom_build_vars ${AOM_CONFIG_VARS} ${AOM_OPTION_VARS})
 foreach(cache_var ${aom_build_vars})

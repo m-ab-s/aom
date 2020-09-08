@@ -246,6 +246,13 @@ list(APPEND AOM_AV1_ENCODER_SOURCES
             "${AOM_ROOT}/av1/encoder/dwt.c"
             "${AOM_ROOT}/av1/encoder/dwt.h")
 
+if(CONFIG_INTERINTRA_ML_DATA_COLLECT)
+  list(APPEND AOM_AV1_ENCODER_SOURCES
+              "${AOM_ROOT}/av1/encoder/interintra_ml_data_collect.h"
+              "${AOM_ROOT}/av1/encoder/interintra_ml_data_collect.c")
+
+endif()
+
 if(CONFIG_SEGMENT_BASED_PARTITIONING)
   list(APPEND AOM_AV1_ENCODER_SOURCES "${AOM_ROOT}/av1/encoder/segment_patch.cc"
               "${AOM_ROOT}/av1/encoder/segment_patch.h")

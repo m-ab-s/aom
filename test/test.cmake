@@ -221,7 +221,8 @@ if(NOT BUILD_SHARED_LIBS)
               "${AOM_ROOT}/test/warp_filter_test.cc"
               "${AOM_ROOT}/test/warp_filter_test_util.cc"
               "${AOM_ROOT}/test/warp_filter_test_util.h"
-              "${AOM_ROOT}/test/illum_mcomp_test.cc")
+              "${AOM_ROOT}/test/illum_mcomp_test.cc"
+              "${AOM_ROOT}/test/interintra_ml_data_collect_test.cc")
 
   if(CONFIG_SEGMENT_BASED_PARTITIONING)
     list(APPEND AOM_UNIT_TEST_ENCODER_SOURCES

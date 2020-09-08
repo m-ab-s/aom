@@ -121,6 +121,15 @@ void av1_build_wedge_inter_predictor_from_buf(MACROBLOCKD *xd, BLOCK_SIZE bsize,
                                               uint8_t *ext_dst1[3],
                                               int ext_dst_stride1[3]);
 
+#if CONFIG_INTERINTRA_ML_DATA_COLLECT
+// Build the inter-predictor *only* (do not combine with the intra-predictor
+// if an inter-intra mode). Also builds a border around the predictor.
+// xd must have its buffers modified to support this border region.
+void av1_enc_build_border_only_inter_predictor(const AV1_COMMON *cm,
+                                               MACROBLOCKD *xd, int mi_row,
+                                               int mi_col, int plane);
+#endif  // CONFIG_INTERINTRA_ML_DATA_COLLECT
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif

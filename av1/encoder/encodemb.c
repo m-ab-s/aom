@@ -35,6 +35,10 @@
 #include "av1/encoder/rd.h"
 #include "av1/encoder/rdopt.h"
 
+#if CONFIG_INTERINTRA_ML_DATA_COLLECT
+#include "av1/encoder/interintra_ml_data_collect.h"
+#endif
+
 // Check if one needs to use c version subtraction.
 static int check_subtract_block_size(int w, int h) { return w < 4 || h < 4; }
 
@@ -314,6 +318,14 @@ static void encode_block(int plane, int block, int blk_row, int blk_col,
 #if CONFIG_SUPERRES_TX64
 #define GET_SUPERRES_TX64_TRAINING_DATA 0
 #endif  // CONFIG_SUPERRES_TX64
+
+#if CONFIG_INTERINTRA_ML_DATA_COLLECT
+  if (p->eobs[block] == 0 && dry_run == OUTPUT_ENABLED) {
+    // This turned out to be a skip block. Ignore it.
+    av1_interintra_ml_data_collect_abandon();
+  }
+#endif
+
   if (p->eobs[block]) {
     *(args->skip) = 0;
 
@@ -335,6 +347,14 @@ static void encode_block(int plane, int block, int blk_row, int blk_col,
     av1_inverse_transform_block(xd, dqcoeff, plane, tx_type, tx_size, dst,
                                 pd->dst.stride, p->eobs[block],
                                 cm->reduced_tx_set_used);
+
+#if CONFIG_INTERINTRA_ML_DATA_COLLECT
+    if (dry_run == OUTPUT_ENABLED) {
+      // This is not a skip block. Record it.
+      av1_interintra_ml_data_collect_finalize();
+    }
+#endif
+
 #if CONFIG_SUPERRES_TX64 && GET_SUPERRES_TX64_TRAINING_DATA
     if (dry_run == OUTPUT_ENABLED && txsize_sqr_up_map[tx_size] == TX_64X64 &&
         p->eobs[block] > 1) {
