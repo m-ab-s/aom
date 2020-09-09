@@ -137,16 +137,22 @@ SimpleMotionData *av1_get_sms_data(AV1_COMP *const cpi,
                                    CHROMA_REF_INFO *chr_ref_info, int mi_row,
                                    int mi_col, BLOCK_SIZE bsize);
 
+typedef struct SMSPartitionStats {
+  const SimpleMotionData *sms_data[3];
+  int num_sub_parts;
+  int part_rate;
+} SMSPartitionStats;
+
+static INLINE void init_sms_partition_stats(SMSPartitionStats *stats) {
+  memset(stats->sms_data, 0, sizeof(stats->sms_data));
+  stats->num_sub_parts = 0;
+  stats->part_rate = INT_MAX;
+}
+
 // Returns 1 if we think the old part is better and we should prune new
 // partition, 0 otherwise.
-int av1_prune_new_part(const SimpleMotionData **part_old, int part_old_size,
-                       int part_old_rate, const SimpleMotionData **part_new,
-                       int part_new_size, int part_new_rate, int rdmult);
-
-void av1_copy_sms_part(const SimpleMotionData **part_dst, int *part_size_dst,
-                       int *part_rate_dst,
-                       const SimpleMotionData *const *part_src,
-                       int part_size_src, int part_rate_src);
+int av1_prune_new_part(const SMSPartitionStats *old_part,
+                       const SMSPartitionStats *new_part, int rdmult);
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 
 // A simplified version of set_offsets meant to be used for

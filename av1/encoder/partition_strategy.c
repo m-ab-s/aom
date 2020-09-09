@@ -1718,46 +1718,31 @@ SimpleMotionData *av1_get_sms_data(AV1_COMP *const cpi,
   return cur_block;
 }
 
-static INLINE void gather_part_stats(RD_STATS *rd_stats,
-                                     const SimpleMotionData **part_data,
-                                     int part_size, int part_rate, int rdmult) {
+static INLINE void gather_part_rd_stats(RD_STATS *rd_stats,
+                                        const SMSPartitionStats *stat,
+                                        int rdmult) {
   av1_init_rd_stats(rd_stats);
-  if (part_rate < INT_MAX) {
+  if (stat->part_rate < INT_MAX) {
     // rd_stats->rate += part_rate;
   } else {
     rd_stats->rate = INT_MAX;
     rd_stats->rdcost = INT64_MAX;
     return;
   }
-  for (int idx = 0; idx < part_size; idx++) {
-    rd_stats->rate += part_data[idx]->rate;
-    rd_stats->dist += part_data[idx]->dist;
+  for (int idx = 0; idx < stat->num_sub_parts; idx++) {
+    rd_stats->rate += stat->sms_data[idx]->rate;
+    rd_stats->dist += stat->sms_data[idx]->dist;
   }
   rd_stats->rdcost = RDCOST(rdmult, rd_stats->rate, rd_stats->dist);
 }
 
-int av1_prune_new_part(const SimpleMotionData **part_old, int part_old_size,
-                       int part_old_rate, const SimpleMotionData **part_new,
-                       int part_new_size, int part_new_rate, int rdmult) {
+int av1_prune_new_part(const SMSPartitionStats *old_part,
+                       const SMSPartitionStats *new_part, int rdmult) {
   RD_STATS old_rd_stat, new_rd_stat;
-  gather_part_stats(&old_rd_stat, part_old, part_old_size, part_old_rate,
-                    rdmult);
-  gather_part_stats(&new_rd_stat, part_new, part_new_size, part_new_rate,
-                    rdmult);
+  gather_part_rd_stats(&old_rd_stat, old_part, rdmult);
+  gather_part_rd_stats(&new_rd_stat, new_part, rdmult);
 
   return old_rd_stat.rdcost < new_rd_stat.rdcost;
-}
-
-void av1_copy_sms_part(const SimpleMotionData **part_dst, int *part_size_dst,
-                       int *part_rate_dst,
-                       const SimpleMotionData *const *part_src,
-                       int part_size_src, int part_rate_src) {
-  *part_size_dst = part_size_src;
-  *part_rate_dst = part_rate_src;
-
-  for (int idx = 0; idx < part_size_src; idx++) {
-    part_dst[idx] = part_src[idx];
-  }
 }
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 #endif  // !CONFIG_REALTIME_ONLY
