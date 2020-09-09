@@ -199,7 +199,11 @@ static int64_t try_restoration_unit(const RestSearchCtxt *rsc,
   const int optimized_lr = 0;
 
   av1_loop_restoration_filter_unit(
-      limits, rui, &rsi->boundaries, &rlbs, tile_rect, rsc->tile_stripe0,
+      limits, rui, &rsi->boundaries,
+#if CONFIG_LOOP_RESTORE_CNN
+      rsi->restoration_unit_size,
+#endif  // CONFIG_LOOP_RESTORE_CNN
+      &rlbs, tile_rect, rsc->tile_stripe0,
       is_uv && cm->seq_params.subsampling_x,
       is_uv && cm->seq_params.subsampling_y, highbd, bit_depth,
       fts->buffers[plane], fts->strides[is_uv], rsc->dst->buffers[plane],

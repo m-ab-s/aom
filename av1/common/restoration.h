@@ -463,12 +463,18 @@ void av1_decode_xq(const int *xqd, int *xq, const sgr_params_type *params);
 //
 // Finally tmpbuf is a scratch buffer used by the sgrproj filter which should
 // be at least SGRPROJ_TMPBUF_SIZE big.
-void av1_loop_restoration_filter_unit(
-    const RestorationTileLimits *limits, const RestorationUnitInfo *rui,
-    const RestorationStripeBoundaries *rsb, RestorationLineBuffers *rlbs,
-    const AV1PixelRect *tile_rect, int tile_stripe0, int ss_x, int ss_y,
-    int highbd, int bit_depth, uint8_t *data8, int stride, uint8_t *dst8,
-    int dst_stride, int32_t *tmpbuf, int optimized_lr);
+void av1_loop_restoration_filter_unit(const RestorationTileLimits *limits,
+                                      const RestorationUnitInfo *rui,
+                                      const RestorationStripeBoundaries *rsb,
+#if CONFIG_LOOP_RESTORE_CNN
+                                      int restoration_unit_size,
+#endif  // CONFIG_LOOP_RESTORE_CNN
+                                      RestorationLineBuffers *rlbs,
+                                      const AV1PixelRect *tile_rect,
+                                      int tile_stripe0, int ss_x, int ss_y,
+                                      int highbd, int bit_depth, uint8_t *data8,
+                                      int stride, uint8_t *dst8, int dst_stride,
+                                      int32_t *tmpbuf, int optimized_lr);
 
 void av1_loop_restoration_filter_frame(YV12_BUFFER_CONFIG *frame,
                                        struct AV1Common *cm, int optimized_lr,
