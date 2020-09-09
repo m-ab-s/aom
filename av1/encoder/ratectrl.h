@@ -266,9 +266,9 @@ typedef struct {
 
   /*!\endcond */
   /*!
-   * Q index used for ALT frame
+   * Q index used for frame(s) at pyramid level 1, such as an ALTREF frame.
    */
-  int arf_q;
+  int level1_qp;
   /*!
    * Proposed maximum alloed Q for current frame
    */
@@ -392,7 +392,7 @@ void av1_rc_compute_frame_size_bounds(const struct AV1_COMP *cpi,
  * \param[out]      bottom_index Bottom bound for q index (best quality)
  * \param[out]      top_index    Top bound for q index (worst quality)
  * \return Returns selected q index to be used for encoding this frame.
- * Also, updates \c rc->arf_q.
+ * Also, updates \c rc->level1_qp.
  */
 int av1_rc_pick_q_and_bounds(const struct AV1_COMP *cpi, RATE_CONTROL *rc,
                              int width, int height, int gf_index,

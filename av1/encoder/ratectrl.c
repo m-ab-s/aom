@@ -1490,7 +1490,7 @@ static int get_q(const AV1_COMP *cpi, const int width, const int height,
 // adjust_active_best_and_worst_quality().
 static int get_active_best_quality(const AV1_COMP *const cpi,
                                    const int active_worst_quality, const int qp,
-                                   const int gf_index) {
+                                   const int gf_index, int *const level1_qp) {
   const AV1_COMMON *const cm = &cpi->common;
   const int bit_depth = cm->seq_params.bit_depth;
   const RATE_CONTROL *const rc = &cpi->rc;
@@ -1540,7 +1540,23 @@ static int get_active_best_quality(const AV1_COMP *const cpi,
   active_best_quality = min_boost - (int)(boost * rc->arf_boost_factor);
   if (!is_intrl_arf_boost && !is_leaf_frame) return active_best_quality;
 
-  if (rc_mode == AOM_Q || rc_mode == AOM_CQ) active_best_quality = rc->arf_q;
+  if (rc_mode == AOM_Q || rc_mode == AOM_CQ) {
+    if (rc->level1_qp == -1) {  // Uninitialized
+      // We are coding frames in display order, but potentially with different
+      // 'pyramid' levels. In this case, there is no ARF_UPDATE frame, and
+      // rc->level1_qp may not be set yet. So, we set that now, to be used for
+      // the subsequent frames in this GF group.
+      assert(is_leaf_frame && !is_bottom_leaf_frame);
+      *level1_qp = active_best_quality;
+    } else {
+      // rc->level1_qp was set from:
+      // - ARF_UPDATE frame earlier, in case of out-of-order coding, OR
+      // - by a previous leaf frame through the 'if' above, in case of coding
+      // frames in display order. So, we use that as a base and then tweak it
+      // below, based on the pyramid level of this frame.
+      active_best_quality = rc->level1_qp;
+    }
+  }
   int this_height = gf_group_pyramid_level(gf_group, gf_index);
   while (this_height > 1) {
     active_best_quality = (active_best_quality + active_worst_quality + 1) / 2;
@@ -1562,11 +1578,12 @@ static int get_active_best_quality(const AV1_COMP *const cpi,
  * \param[in]       gf_index     Index of this frame in the golden frame group
  * \param[out]      bottom_index Bottom bound for q index (best quality)
  * \param[out]      top_index    Top bound for q index (worst quality)
+ * \param[out]      level1_qp     Quality for frame(s) at pyramid level 1
  * \return Returns selected q index to be used for encoding this frame.
  */
 static int rc_pick_q_and_bounds(const AV1_COMP *cpi, int width, int height,
-                                int gf_index, int *bottom_index,
-                                int *top_index) {
+                                int gf_index, int *bottom_index, int *top_index,
+                                int *level1_qp) {
   const AV1_COMMON *const cm = &cpi->common;
   const RATE_CONTROL *const rc = &cpi->rc;
   const AV1EncoderConfig *const oxcf = &cpi->oxcf;
@@ -1607,8 +1624,8 @@ static int rc_pick_q_and_bounds(const AV1_COMP *cpi, int width, int height,
 
     if ((pyramid_level <= 1) || (pyramid_level > MAX_ARF_LAYERS) ||
         (oxcf->rc_cfg.mode == AOM_Q)) {
-      active_best_quality =
-          get_active_best_quality(cpi, active_worst_quality, qp, gf_index);
+      active_best_quality = get_active_best_quality(cpi, active_worst_quality,
+                                                    qp, gf_index, level1_qp);
     } else {
       active_best_quality = rc->active_best_quality[pyramid_level - 1] + 1;
       active_best_quality = AOMMIN(active_best_quality, active_worst_quality);
@@ -1678,11 +1695,11 @@ int av1_rc_pick_q_and_bounds(const AV1_COMP *cpi, RATE_CONTROL *rc, int width,
     }
   } else {
     q = rc_pick_q_and_bounds(cpi, width, height, gf_index, bottom_index,
-                             top_index);
+                             top_index, &rc->level1_qp);
   }
   if (gf_group->update_type[gf_index] == ARF_UPDATE ||
       gf_group->update_type[gf_index] == KFFLT_UPDATE)
-    rc->arf_q = q;
+    rc->level1_qp = q;
 
   return q;
 }
