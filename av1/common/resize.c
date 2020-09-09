@@ -170,6 +170,354 @@ static const InterpKernel filteredinterp_filters875[(1 << RS_SUBPEL_BITS)] = {
   { -1, 3, -9, 17, 112, 10, -7, 3 },  { -1, 3, -8, 15, 112, 12, -7, 2 },
 };
 
+#define SUBPEL_TAPS_LONG 12
+#define FILTER_BITS_LONG 10
+
+// Filters for interpolation (0.875-band)
+static const int16_t
+    longinterp_filters875[(1 << RS_SUBPEL_BITS)][SUBPEL_TAPS_LONG] = {
+      { 0, 0, 0, 0, 0, 1024, 0, 0, 0, 0, 0, 0 },
+      { -1, 2, -3, 7, -15, 1023, 16, -8, 5, -3, 2, -1 },
+      { -2, 4, -7, 13, -29, 1022, 33, -15, 9, -6, 4, -2 },
+      { -3, 6, -11, 20, -43, 1019, 51, -23, 14, -8, 5, -3 },
+      { -4, 8, -14, 26, -56, 1016, 68, -31, 19, -11, 7, -4 },
+      { -5, 11, -17, 32, -69, 1012, 86, -39, 23, -14, 9, -5 },
+      { -6, 12, -21, 38, -81, 1007, 105, -47, 28, -17, 11, -5 },
+      { -7, 14, -24, 44, -93, 1001, 124, -55, 33, -19, 12, -6 },
+      { -8, 16, -27, 49, -104, 995, 143, -62, 37, -22, 14, -7 },
+      { -9, 18, -30, 55, -114, 988, 162, -71, 42, -25, 16, -8 },
+      { -10, 20, -33, 60, -124, 980, 182, -78, 46, -28, 18, -9 },
+      { -11, 22, -36, 65, -134, 971, 203, -86, 51, -30, 19, -10 },
+      { -12, 23, -38, 70, -142, 962, 223, -94, 55, -33, 21, -11 },
+      { -12, 25, -41, 74, -151, 952, 244, -101, 59, -35, 22, -12 },
+      { -13, 26, -44, 78, -158, 941, 265, -109, 63, -37, 24, -12 },
+      { -14, 28, -46, 82, -165, 930, 286, -116, 67, -40, 25, -13 },
+      { -15, 29, -48, 86, -172, 918, 307, -123, 71, -42, 27, -14 },
+      { -15, 30, -50, 89, -178, 905, 328, -130, 75, -44, 28, -14 },
+      { -16, 32, -52, 93, -184, 891, 350, -137, 79, -46, 29, -15 },
+      { -16, 33, -54, 96, -188, 877, 371, -144, 82, -48, 31, -16 },
+      { -17, 34, -55, 98, -193, 863, 393, -150, 85, -50, 32, -16 },
+      { -18, 35, -57, 101, -196, 847, 415, -156, 89, -52, 33, -17 },
+      { -18, 36, -58, 103, -200, 832, 436, -162, 92, -54, 34, -17 },
+      { -18, 37, -59, 105, -202, 815, 458, -168, 94, -55, 35, -18 },
+      { -19, 37, -61, 107, -204, 799, 480, -173, 97, -57, 36, -18 },
+      { -19, 38, -61, 108, -206, 781, 502, -178, 99, -58, 36, -18 },
+      { -19, 38, -62, 109, -207, 764, 523, -183, 102, -59, 37, -19 },
+      { -20, 39, -63, 110, -207, 745, 544, -187, 104, -60, 38, -19 },
+      { -20, 39, -63, 110, -207, 727, 566, -191, 105, -61, 38, -19 },
+      { -20, 39, -63, 111, -207, 708, 587, -195, 107, -62, 39, -20 },
+      { -20, 39, -63, 111, -206, 688, 608, -198, 108, -62, 39, -20 },
+      { -20, 39, -63, 111, -205, 669, 628, -200, 109, -63, 39, -20 },
+      { -20, 39, -63, 110, -203, 649, 649, -203, 110, -63, 39, -20 },
+      { -20, 39, -63, 109, -200, 628, 669, -205, 111, -63, 39, -20 },
+      { -20, 39, -62, 108, -198, 608, 688, -206, 111, -63, 39, -20 },
+      { -20, 39, -62, 107, -195, 587, 708, -207, 111, -63, 39, -20 },
+      { -19, 38, -61, 105, -191, 566, 727, -207, 110, -63, 39, -20 },
+      { -19, 38, -60, 104, -187, 544, 745, -207, 110, -63, 39, -20 },
+      { -19, 37, -59, 102, -183, 523, 764, -207, 109, -62, 38, -19 },
+      { -18, 36, -58, 99, -178, 502, 781, -206, 108, -61, 38, -19 },
+      { -18, 36, -57, 97, -173, 480, 799, -204, 107, -61, 37, -19 },
+      { -18, 35, -55, 94, -168, 458, 815, -202, 105, -59, 37, -18 },
+      { -17, 34, -54, 92, -162, 436, 832, -200, 103, -58, 36, -18 },
+      { -17, 33, -52, 89, -156, 415, 847, -196, 101, -57, 35, -18 },
+      { -16, 32, -50, 85, -150, 393, 863, -193, 98, -55, 34, -17 },
+      { -16, 31, -48, 82, -144, 371, 877, -188, 96, -54, 33, -16 },
+      { -15, 29, -46, 79, -137, 350, 891, -184, 93, -52, 32, -16 },
+      { -14, 28, -44, 75, -130, 328, 905, -178, 89, -50, 30, -15 },
+      { -14, 27, -42, 71, -123, 307, 918, -172, 86, -48, 29, -15 },
+      { -13, 25, -40, 67, -116, 286, 930, -165, 82, -46, 28, -14 },
+      { -12, 24, -37, 63, -109, 265, 941, -158, 78, -44, 26, -13 },
+      { -12, 22, -35, 59, -101, 244, 952, -151, 74, -41, 25, -12 },
+      { -11, 21, -33, 55, -94, 223, 962, -142, 70, -38, 23, -12 },
+      { -10, 19, -30, 51, -86, 203, 971, -134, 65, -36, 22, -11 },
+      { -9, 18, -28, 46, -78, 182, 980, -124, 60, -33, 20, -10 },
+      { -8, 16, -25, 42, -71, 162, 988, -114, 55, -30, 18, -9 },
+      { -7, 14, -22, 37, -62, 143, 995, -104, 49, -27, 16, -8 },
+      { -6, 12, -19, 33, -55, 124, 1001, -93, 44, -24, 14, -7 },
+      { -5, 11, -17, 28, -47, 105, 1007, -81, 38, -21, 12, -6 },
+      { -5, 9, -14, 23, -39, 86, 1012, -69, 32, -17, 11, -5 },
+      { -4, 7, -11, 19, -31, 68, 1016, -56, 26, -14, 8, -4 },
+      { -3, 5, -8, 14, -23, 51, 1019, -43, 20, -11, 6, -3 },
+      { -2, 4, -6, 9, -15, 33, 1022, -29, 13, -7, 4, -2 },
+      { -1, 2, -3, 5, -8, 16, 1023, -15, 7, -3, 2, -1 },
+    };
+
+// Filters for interpolation (0.75-band)
+static const int16_t
+    longinterp_filters750[(1 << RS_SUBPEL_BITS)][SUBPEL_TAPS_LONG] = {
+      { 0, 0, 0, 0, 0, 1024, 0, 0, 0, 0, 0, 0 },
+      { 0, 1, -2, 5, -14, 1022, 16, -7, 4, -2, 1, 0 },
+      { -1, 2, -5, 11, -27, 1020, 33, -14, 7, -4, 2, 0 },
+      { -1, 3, -7, 16, -40, 1018, 50, -22, 11, -5, 2, -1 },
+      { -1, 4, -9, 21, -53, 1014, 68, -29, 15, -8, 3, -1 },
+      { -1, 5, -12, 26, -65, 1009, 86, -37, 19, -9, 4, -1 },
+      { -2, 6, -14, 31, -76, 1004, 104, -44, 22, -11, 5, -1 },
+      { -2, 7, -16, 35, -87, 998, 123, -51, 26, -13, 6, -2 },
+      { -2, 7, -18, 40, -97, 991, 142, -59, 30, -14, 6, -2 },
+      { -2, 8, -20, 44, -107, 984, 161, -66, 33, -16, 7, -2 },
+      { -3, 9, -22, 48, -116, 975, 181, -73, 37, -18, 8, -2 },
+      { -3, 10, -23, 52, -125, 966, 201, -81, 41, -20, 9, -3 },
+      { -3, 10, -25, 56, -133, 957, 221, -88, 44, -21, 9, -3 },
+      { -3, 11, -27, 60, -141, 946, 242, -95, 47, -23, 10, -3 },
+      { -3, 12, -29, 63, -148, 935, 262, -102, 51, -25, 11, -3 },
+      { -4, 13, -30, 66, -155, 924, 283, -109, 54, -26, 11, -3 },
+      { -4, 13, -31, 69, -161, 911, 304, -115, 57, -28, 12, -3 },
+      { -4, 14, -33, 72, -166, 898, 325, -122, 60, -29, 13, -4 },
+      { -4, 14, -34, 75, -172, 885, 347, -128, 63, -31, 13, -4 },
+      { -4, 15, -36, 77, -176, 871, 368, -135, 66, -32, 14, -4 },
+      { -5, 15, -37, 79, -180, 856, 390, -140, 69, -33, 14, -4 },
+      { -5, 16, -38, 81, -184, 841, 411, -146, 71, -34, 15, -4 },
+      { -5, 16, -38, 83, -186, 825, 432, -152, 74, -35, 15, -5 },
+      { -5, 16, -39, 84, -189, 809, 454, -157, 76, -36, 16, -5 },
+      { -5, 17, -40, 86, -191, 792, 475, -162, 78, -37, 16, -5 },
+      { -5, 17, -41, 87, -192, 774, 497, -166, 80, -38, 16, -5 },
+      { -5, 17, -41, 88, -193, 757, 518, -171, 81, -39, 17, -5 },
+      { -5, 17, -41, 88, -194, 739, 539, -175, 83, -39, 17, -5 },
+      { -5, 17, -42, 89, -194, 720, 560, -178, 85, -40, 17, -5 },
+      { -5, 18, -42, 89, -193, 701, 581, -182, 86, -41, 17, -5 },
+      { -5, 17, -42, 89, -192, 682, 602, -185, 87, -41, 17, -5 },
+      { -5, 18, -42, 89, -191, 662, 622, -187, 88, -42, 17, -5 },
+      { -5, 18, -42, 88, -189, 642, 642, -189, 88, -42, 18, -5 },
+      { -5, 17, -42, 88, -187, 622, 662, -191, 89, -42, 18, -5 },
+      { -5, 17, -41, 87, -185, 602, 682, -192, 89, -42, 17, -5 },
+      { -5, 17, -41, 86, -182, 581, 701, -193, 89, -42, 18, -5 },
+      { -5, 17, -40, 85, -178, 560, 720, -194, 89, -42, 17, -5 },
+      { -5, 17, -39, 83, -175, 539, 739, -194, 88, -41, 17, -5 },
+      { -5, 17, -39, 81, -171, 518, 757, -193, 88, -41, 17, -5 },
+      { -5, 16, -38, 80, -166, 497, 774, -192, 87, -41, 17, -5 },
+      { -5, 16, -37, 78, -162, 475, 792, -191, 86, -40, 17, -5 },
+      { -5, 16, -36, 76, -157, 454, 809, -189, 84, -39, 16, -5 },
+      { -5, 15, -35, 74, -152, 432, 825, -186, 83, -38, 16, -5 },
+      { -4, 15, -34, 71, -146, 411, 841, -184, 81, -38, 16, -5 },
+      { -4, 14, -33, 69, -140, 390, 856, -180, 79, -37, 15, -5 },
+      { -4, 14, -32, 66, -135, 368, 871, -176, 77, -36, 15, -4 },
+      { -4, 13, -31, 63, -128, 347, 885, -172, 75, -34, 14, -4 },
+      { -4, 13, -29, 60, -122, 325, 898, -166, 72, -33, 14, -4 },
+      { -3, 12, -28, 57, -115, 304, 911, -161, 69, -31, 13, -4 },
+      { -3, 11, -26, 54, -109, 283, 924, -155, 66, -30, 13, -4 },
+      { -3, 11, -25, 51, -102, 262, 935, -148, 63, -29, 12, -3 },
+      { -3, 10, -23, 47, -95, 242, 946, -141, 60, -27, 11, -3 },
+      { -3, 9, -21, 44, -88, 221, 957, -133, 56, -25, 10, -3 },
+      { -3, 9, -20, 41, -81, 201, 966, -125, 52, -23, 10, -3 },
+      { -2, 8, -18, 37, -73, 181, 975, -116, 48, -22, 9, -3 },
+      { -2, 7, -16, 33, -66, 161, 984, -107, 44, -20, 8, -2 },
+      { -2, 6, -14, 30, -59, 142, 991, -97, 40, -18, 7, -2 },
+      { -2, 6, -13, 26, -51, 123, 998, -87, 35, -16, 7, -2 },
+      { -1, 5, -11, 22, -44, 104, 1004, -76, 31, -14, 6, -2 },
+      { -1, 4, -9, 19, -37, 86, 1009, -65, 26, -12, 5, -1 },
+      { -1, 3, -8, 15, -29, 68, 1014, -53, 21, -9, 4, -1 },
+      { -1, 2, -5, 11, -22, 50, 1018, -40, 16, -7, 3, -1 },
+      { 0, 2, -4, 7, -14, 33, 1020, -27, 11, -5, 2, -1 },
+      { 0, 1, -2, 4, -7, 16, 1022, -14, 5, -2, 1, 0 },
+    };
+
+// Filters for interpolation (0.625-band)
+static const int16_t
+    longinterp_filters625[(1 << RS_SUBPEL_BITS)][SUBPEL_TAPS_LONG] = {
+      { 0, 0, 0, 0, 0, 1024, 0, 0, 0, 0, 0, 0 },
+      { 0, 1, -2, 5, -13, 1022, 16, -7, 3, -1, 0, 0 },
+      { 0, 1, -3, 9, -26, 1020, 33, -14, 6, -3, 1, 0 },
+      { 0, 2, -5, 13, -38, 1016, 50, -20, 9, -4, 1, 0 },
+      { 0, 2, -6, 17, -50, 1012, 68, -27, 12, -5, 1, 0 },
+      { 0, 2, -8, 21, -61, 1007, 86, -34, 15, -6, 2, 0 },
+      { -1, 3, -9, 25, -71, 1001, 104, -41, 19, -8, 2, 0 },
+      { -1, 3, -11, 29, -82, 995, 123, -48, 22, -9, 3, 0 },
+      { -1, 4, -12, 33, -91, 988, 141, -55, 25, -10, 3, -1 },
+      { -1, 4, -14, 37, -101, 980, 161, -62, 28, -11, 4, -1 },
+      { -1, 4, -15, 40, -109, 972, 180, -69, 31, -12, 4, -1 },
+      { -1, 5, -16, 43, -117, 962, 200, -76, 34, -13, 4, -1 },
+      { -1, 5, -17, 47, -125, 952, 220, -82, 36, -15, 5, -1 },
+      { -1, 6, -18, 49, -132, 942, 240, -89, 39, -16, 5, -1 },
+      { -1, 6, -20, 52, -139, 931, 261, -95, 42, -17, 5, -1 },
+      { -1, 6, -21, 55, -145, 919, 281, -102, 45, -18, 6, -1 },
+      { -1, 7, -21, 57, -151, 906, 302, -108, 47, -19, 6, -1 },
+      { -1, 7, -23, 60, -156, 893, 323, -114, 50, -20, 6, -1 },
+      { -1, 7, -23, 62, -161, 879, 345, -120, 52, -21, 6, -1 },
+      { -1, 7, -24, 64, -165, 865, 366, -126, 54, -22, 7, -1 },
+      { -1, 8, -25, 65, -169, 850, 387, -132, 57, -22, 7, -1 },
+      { -2, 8, -25, 67, -172, 835, 408, -137, 59, -23, 7, -1 },
+      { -1, 8, -26, 68, -175, 819, 429, -142, 61, -24, 8, -1 },
+      { -2, 8, -27, 70, -177, 803, 451, -147, 63, -25, 8, -1 },
+      { -2, 8, -27, 71, -179, 786, 472, -151, 64, -25, 8, -1 },
+      { -2, 8, -27, 72, -180, 769, 493, -156, 66, -26, 8, -1 },
+      { -1, 9, -28, 72, -181, 751, 514, -160, 67, -26, 8, -1 },
+      { -2, 9, -28, 73, -181, 733, 535, -163, 69, -27, 8, -2 },
+      { -2, 9, -28, 73, -181, 715, 556, -167, 70, -27, 8, -2 },
+      { -2, 9, -28, 73, -181, 696, 577, -170, 71, -28, 9, -2 },
+      { -2, 9, -28, 73, -180, 677, 597, -173, 72, -28, 9, -2 },
+      { -2, 9, -28, 73, -179, 657, 618, -175, 72, -28, 9, -2 },
+      { -2, 9, -28, 73, -177, 637, 637, -177, 73, -28, 9, -2 },
+      { -2, 9, -28, 72, -175, 618, 657, -179, 73, -28, 9, -2 },
+      { -2, 9, -28, 72, -173, 597, 677, -180, 73, -28, 9, -2 },
+      { -2, 9, -28, 71, -170, 577, 696, -181, 73, -28, 9, -2 },
+      { -2, 8, -27, 70, -167, 556, 715, -181, 73, -28, 9, -2 },
+      { -2, 8, -27, 69, -163, 535, 733, -181, 73, -28, 9, -2 },
+      { -1, 8, -26, 67, -160, 514, 751, -181, 72, -28, 9, -1 },
+      { -1, 8, -26, 66, -156, 493, 769, -180, 72, -27, 8, -2 },
+      { -1, 8, -25, 64, -151, 472, 786, -179, 71, -27, 8, -2 },
+      { -1, 8, -25, 63, -147, 451, 803, -177, 70, -27, 8, -2 },
+      { -1, 8, -24, 61, -142, 429, 819, -175, 68, -26, 8, -1 },
+      { -1, 7, -23, 59, -137, 408, 835, -172, 67, -25, 8, -2 },
+      { -1, 7, -22, 57, -132, 387, 850, -169, 65, -25, 8, -1 },
+      { -1, 7, -22, 54, -126, 366, 865, -165, 64, -24, 7, -1 },
+      { -1, 6, -21, 52, -120, 345, 879, -161, 62, -23, 7, -1 },
+      { -1, 6, -20, 50, -114, 323, 893, -156, 60, -23, 7, -1 },
+      { -1, 6, -19, 47, -108, 302, 906, -151, 57, -21, 7, -1 },
+      { -1, 6, -18, 45, -102, 281, 919, -145, 55, -21, 6, -1 },
+      { -1, 5, -17, 42, -95, 261, 931, -139, 52, -20, 6, -1 },
+      { -1, 5, -16, 39, -89, 240, 942, -132, 49, -18, 6, -1 },
+      { -1, 5, -15, 36, -82, 220, 952, -125, 47, -17, 5, -1 },
+      { -1, 4, -13, 34, -76, 200, 962, -117, 43, -16, 5, -1 },
+      { -1, 4, -12, 31, -69, 180, 972, -109, 40, -15, 4, -1 },
+      { -1, 4, -11, 28, -62, 161, 980, -101, 37, -14, 4, -1 },
+      { -1, 3, -10, 25, -55, 141, 988, -91, 33, -12, 4, -1 },
+      { 0, 3, -9, 22, -48, 123, 995, -82, 29, -11, 3, -1 },
+      { 0, 2, -8, 19, -41, 104, 1001, -71, 25, -9, 3, -1 },
+      { 0, 2, -6, 15, -34, 86, 1007, -61, 21, -8, 2, 0 },
+      { 0, 1, -5, 12, -27, 68, 1012, -50, 17, -6, 2, 0 },
+      { 0, 1, -4, 9, -20, 50, 1016, -38, 13, -5, 2, 0 },
+      { 0, 1, -3, 6, -14, 33, 1020, -26, 9, -3, 1, 0 },
+      { 0, 0, -1, 3, -7, 16, 1022, -13, 5, -2, 1, 0 },
+    };
+
+// Filters for interpolation (0.50-band)
+static const int16_t
+    longinterp_filters500[(1 << RS_SUBPEL_BITS)][SUBPEL_TAPS_LONG] = {
+      { 0, 0, 0, 0, 0, 1024, 0, 0, 0, 0, 0, 0 },
+      { 0, 0, -1, 4, -13, 1022, 16, -6, 3, -1, 0, 0 },
+      { 0, 0, -2, 8, -24, 1019, 33, -13, 5, -2, 0, 0 },
+      { 0, 1, -4, 11, -36, 1015, 50, -19, 8, -3, 1, 0 },
+      { 0, 1, -5, 15, -47, 1010, 68, -26, 11, -4, 1, 0 },
+      { 0, 1, -6, 18, -57, 1005, 85, -32, 13, -4, 1, 0 },
+      { 0, 2, -7, 22, -68, 999, 103, -39, 16, -5, 1, 0 },
+      { 0, 2, -8, 25, -77, 993, 122, -46, 18, -6, 1, 0 },
+      { 0, 2, -9, 28, -87, 985, 141, -52, 21, -7, 2, 0 },
+      { 0, 2, -10, 31, -95, 977, 160, -59, 24, -8, 2, 0 },
+      { 0, 2, -11, 34, -103, 968, 180, -65, 26, -9, 2, 0 },
+      { 0, 3, -12, 37, -111, 959, 199, -71, 28, -10, 2, 0 },
+      { 0, 3, -12, 39, -118, 949, 219, -78, 31, -11, 2, 0 },
+      { -1, 3, -13, 42, -125, 938, 239, -84, 33, -11, 3, 0 },
+      { 0, 3, -14, 44, -131, 926, 260, -90, 35, -12, 3, 0 },
+      { 0, 3, -15, 46, -137, 915, 280, -96, 38, -13, 3, 0 },
+      { -1, 4, -15, 49, -143, 902, 301, -102, 40, -13, 3, -1 },
+      { -1, 4, -16, 51, -147, 889, 322, -108, 42, -14, 3, -1 },
+      { -1, 4, -17, 52, -152, 875, 343, -113, 44, -15, 4, 0 },
+      { -1, 4, -17, 54, -156, 861, 364, -119, 46, -15, 4, -1 },
+      { -1, 4, -18, 55, -159, 846, 385, -124, 48, -16, 4, 0 },
+      { -1, 4, -18, 57, -162, 830, 406, -129, 50, -17, 4, 0 },
+      { -1, 5, -19, 58, -165, 815, 427, -134, 51, -17, 4, 0 },
+      { -1, 5, -19, 59, -167, 798, 448, -138, 53, -17, 4, -1 },
+      { -1, 5, -19, 60, -168, 781, 469, -143, 54, -18, 4, 0 },
+      { -1, 5, -20, 61, -170, 764, 490, -147, 56, -18, 5, -1 },
+      { -1, 5, -20, 61, -170, 747, 511, -151, 57, -19, 5, -1 },
+      { -1, 5, -20, 62, -171, 728, 532, -154, 58, -19, 5, -1 },
+      { -1, 5, -20, 62, -171, 710, 552, -157, 59, -19, 5, -1 },
+      { -1, 5, -20, 62, -170, 691, 573, -160, 60, -20, 5, -1 },
+      { -1, 5, -20, 62, -170, 672, 593, -163, 61, -20, 5, 0 },
+      { -1, 5, -20, 62, -168, 653, 613, -165, 61, -20, 5, -1 },
+      { -1, 5, -20, 62, -167, 633, 633, -167, 62, -20, 5, -1 },
+      { -1, 5, -20, 61, -165, 613, 653, -168, 62, -20, 5, -1 },
+      { 0, 5, -20, 61, -163, 593, 672, -170, 62, -20, 5, -1 },
+      { -1, 5, -20, 60, -160, 573, 691, -170, 62, -20, 5, -1 },
+      { -1, 5, -19, 59, -157, 552, 710, -171, 62, -20, 5, -1 },
+      { -1, 5, -19, 58, -154, 532, 728, -171, 62, -20, 5, -1 },
+      { -1, 5, -19, 57, -151, 511, 747, -170, 61, -20, 5, -1 },
+      { -1, 5, -18, 56, -147, 490, 764, -170, 61, -20, 5, -1 },
+      { 0, 4, -18, 54, -143, 469, 781, -168, 60, -19, 5, -1 },
+      { -1, 4, -17, 53, -138, 448, 798, -167, 59, -19, 5, -1 },
+      { 0, 4, -17, 51, -134, 427, 815, -165, 58, -19, 5, -1 },
+      { 0, 4, -17, 50, -129, 406, 830, -162, 57, -18, 4, -1 },
+      { 0, 4, -16, 48, -124, 385, 846, -159, 55, -18, 4, -1 },
+      { -1, 4, -15, 46, -119, 364, 861, -156, 54, -17, 4, -1 },
+      { 0, 4, -15, 44, -113, 343, 875, -152, 52, -17, 4, -1 },
+      { -1, 3, -14, 42, -108, 322, 889, -147, 51, -16, 4, -1 },
+      { -1, 3, -13, 40, -102, 301, 902, -143, 49, -15, 4, -1 },
+      { 0, 3, -13, 38, -96, 280, 915, -137, 46, -15, 3, 0 },
+      { 0, 3, -12, 35, -90, 260, 926, -131, 44, -14, 3, 0 },
+      { 0, 3, -11, 33, -84, 239, 938, -125, 42, -13, 3, -1 },
+      { 0, 2, -11, 31, -78, 219, 949, -118, 39, -12, 3, 0 },
+      { 0, 2, -10, 28, -71, 199, 959, -111, 37, -12, 3, 0 },
+      { 0, 2, -9, 26, -65, 180, 968, -103, 34, -11, 2, 0 },
+      { 0, 2, -8, 24, -59, 160, 977, -95, 31, -10, 2, 0 },
+      { 0, 2, -7, 21, -52, 141, 985, -87, 28, -9, 2, 0 },
+      { 0, 1, -6, 18, -46, 122, 993, -77, 25, -8, 2, 0 },
+      { 0, 1, -5, 16, -39, 103, 999, -68, 22, -7, 2, 0 },
+      { 0, 1, -4, 13, -32, 85, 1005, -57, 18, -6, 1, 0 },
+      { 0, 1, -4, 11, -26, 68, 1010, -47, 15, -5, 1, 0 },
+      { 0, 1, -3, 8, -19, 50, 1015, -36, 11, -4, 1, 0 },
+      { 0, 0, -2, 5, -13, 33, 1019, -24, 8, -2, 0, 0 },
+      { 0, 0, -1, 3, -6, 16, 1022, -13, 4, -1, 0, 0 },
+    };
+
+// Filters for interpolation (Lanczos a=6)
+static const int16_t
+    longinterp_filterslanczos6[(1 << RS_SUBPEL_BITS)][SUBPEL_TAPS_LONG] = {
+      { 0, 0, 0, 0, 0, 1024, 0, 0, 0, 0, 0, 0 },
+      { -1, 2, -3, 7, -15, 1024, 15, -7, 3, -2, 1, 0 },
+      { -1, 3, -7, 13, -29, 1022, 32, -14, 7, -3, 1, 0 },
+      { -2, 5, -10, 19, -43, 1020, 48, -20, 10, -5, 2, 0 },
+      { -2, 6, -13, 25, -57, 1017, 65, -27, 14, -7, 3, 0 },
+      { -3, 8, -16, 31, -70, 1014, 83, -35, 18, -9, 3, 0 },
+      { -3, 9, -19, 37, -82, 1009, 101, -42, 21, -11, 4, 0 },
+      { -4, 10, -22, 42, -93, 1003, 119, -49, 25, -12, 5, 0 },
+      { -4, 12, -24, 47, -105, 997, 138, -56, 29, -14, 5, -1 },
+      { -4, 13, -27, 52, -115, 990, 157, -64, 33, -16, 6, -1 },
+      { -5, 14, -29, 57, -125, 982, 176, -71, 36, -18, 7, 0 },
+      { -5, 15, -32, 62, -134, 973, 196, -78, 40, -20, 8, -1 },
+      { -5, 16, -34, 66, -143, 964, 216, -86, 44, -22, 9, -1 },
+      { -6, 17, -36, 70, -151, 954, 237, -93, 47, -24, 10, -1 },
+      { -6, 18, -38, 73, -158, 943, 257, -100, 51, -25, 10, -1 },
+      { -6, 19, -40, 77, -165, 931, 278, -107, 54, -27, 11, -1 },
+      { -6, 19, -41, 80, -171, 919, 299, -114, 58, -29, 12, -2 },
+      { -6, 20, -43, 83, -177, 906, 321, -121, 61, -31, 13, -2 },
+      { -6, 21, -44, 86, -182, 892, 342, -128, 64, -32, 13, -2 },
+      { -6, 21, -45, 88, -187, 878, 364, -134, 67, -34, 14, -2 },
+      { -6, 21, -47, 91, -191, 863, 386, -140, 71, -36, 15, -3 },
+      { -6, 22, -47, 92, -194, 847, 407, -147, 74, -37, 16, -3 },
+      { -6, 22, -48, 94, -197, 831, 429, -152, 77, -39, 16, -3 },
+      { -6, 22, -49, 95, -199, 815, 451, -158, 79, -40, 17, -3 },
+      { -6, 23, -50, 96, -200, 797, 473, -164, 82, -41, 18, -4 },
+      { -6, 23, -50, 97, -201, 780, 495, -169, 84, -43, 18, -4 },
+      { -6, 23, -50, 98, -202, 761, 517, -174, 86, -44, 19, -4 },
+      { -6, 23, -50, 98, -202, 743, 538, -178, 88, -45, 19, -4 },
+      { -6, 23, -50, 98, -202, 724, 560, -182, 90, -46, 20, -5 },
+      { -6, 23, -50, 98, -201, 704, 581, -186, 92, -47, 21, -5 },
+      { -6, 22, -50, 98, -199, 685, 602, -190, 94, -48, 21, -5 },
+      { -5, 22, -49, 97, -198, 664, 623, -193, 95, -48, 21, -5 },
+      { -5, 22, -49, 96, -196, 644, 644, -196, 96, -49, 22, -5 },
+      { -5, 21, -48, 95, -193, 623, 664, -198, 97, -49, 22, -5 },
+      { -5, 21, -48, 94, -190, 602, 685, -199, 98, -50, 22, -6 },
+      { -5, 21, -47, 92, -186, 581, 704, -201, 98, -50, 23, -6 },
+      { -5, 20, -46, 90, -182, 560, 724, -202, 98, -50, 23, -6 },
+      { -4, 19, -45, 88, -178, 538, 743, -202, 98, -50, 23, -6 },
+      { -4, 19, -44, 86, -174, 517, 761, -202, 98, -50, 23, -6 },
+      { -4, 18, -43, 84, -169, 495, 780, -201, 97, -50, 23, -6 },
+      { -4, 18, -41, 82, -164, 473, 797, -200, 96, -50, 23, -6 },
+      { -3, 17, -40, 79, -158, 451, 815, -199, 95, -49, 22, -6 },
+      { -3, 16, -39, 77, -152, 429, 831, -197, 94, -48, 22, -6 },
+      { -3, 16, -37, 74, -147, 407, 847, -194, 92, -47, 22, -6 },
+      { -3, 15, -36, 71, -140, 386, 863, -191, 91, -47, 21, -6 },
+      { -2, 14, -34, 67, -134, 364, 878, -187, 88, -45, 21, -6 },
+      { -2, 13, -32, 64, -128, 342, 892, -182, 86, -44, 21, -6 },
+      { -2, 13, -31, 61, -121, 321, 906, -177, 83, -43, 20, -6 },
+      { -2, 12, -29, 58, -114, 299, 919, -171, 80, -41, 19, -6 },
+      { -1, 11, -27, 54, -107, 278, 931, -165, 77, -40, 19, -6 },
+      { -1, 10, -25, 51, -100, 257, 943, -158, 73, -38, 18, -6 },
+      { -1, 10, -24, 47, -93, 237, 954, -151, 70, -36, 17, -6 },
+      { -1, 9, -22, 44, -86, 216, 964, -143, 66, -34, 16, -5 },
+      { -1, 8, -20, 40, -78, 196, 973, -134, 62, -32, 15, -5 },
+      { 0, 7, -18, 36, -71, 176, 982, -125, 57, -29, 14, -5 },
+      { -1, 6, -16, 33, -64, 157, 990, -115, 52, -27, 13, -4 },
+      { -1, 5, -14, 29, -56, 138, 997, -105, 47, -24, 12, -4 },
+      { 0, 5, -12, 25, -49, 119, 1003, -93, 42, -22, 10, -4 },
+      { 0, 4, -11, 21, -42, 101, 1009, -82, 37, -19, 9, -3 },
+      { 0, 3, -9, 18, -35, 83, 1014, -70, 31, -16, 8, -3 },
+      { 0, 3, -7, 14, -27, 65, 1017, -57, 25, -13, 6, -2 },
+      { 0, 2, -5, 10, -20, 48, 1020, -43, 19, -10, 5, -2 },
+      { 0, 1, -3, 7, -14, 32, 1022, -29, 13, -7, 3, -1 },
+      { 0, 1, -2, 3, -7, 15, 1024, -15, 7, -3, 2, -1 },
+    };
+
 const int16_t av1_resize_filter_normative[(
     1 << RS_SUBPEL_BITS)][UPSCALE_NORMATIVE_TAPS] = {
 #if UPSCALE_NORMATIVE_TAPS == 8
@@ -217,23 +565,46 @@ const int16_t av1_resize_filter_normative[(
 static const int16_t av1_down2_symeven_half_filter[] = { 56, 12, -3, -1 };
 static const int16_t av1_down2_symodd_half_filter[] = { 64, 35, 0, -3 };
 
-static const InterpKernel *choose_interp_filter(int in_length, int out_length) {
-  int out_length16 = out_length * 16;
-  if (out_length16 >= in_length * 16)
-    return filteredinterp_filters1000;
-  else if (out_length16 >= in_length * 13)
-    return filteredinterp_filters875;
-  else if (out_length16 >= in_length * 11)
-    return filteredinterp_filters750;
-  else if (out_length16 >= in_length * 9)
-    return filteredinterp_filters625;
-  else
-    return filteredinterp_filters500;
+static const int16_t *choose_interp_filter(int in_length, int out_length,
+                                           int longfilt, int *subpel_taps,
+                                           int *filter_bits) {
+  const int out_length16 = out_length * 16;
+  (void)longinterp_filterslanczos6;
+  (void)longinterp_filters875;
+  (void)longinterp_filters750;
+  (void)longinterp_filters625;
+  (void)longinterp_filters500;
+  if (longfilt) {
+    *subpel_taps = SUBPEL_TAPS_LONG;
+    *filter_bits = FILTER_BITS_LONG;
+    if (out_length16 >= in_length * 13)
+      return longinterp_filters875[0];
+    else if (out_length16 >= in_length * 11)
+      return longinterp_filters750[0];
+    else if (out_length16 >= in_length * 9)
+      return longinterp_filters625[0];
+    else
+      return longinterp_filters500[0];
+  } else {
+    *subpel_taps = SUBPEL_TAPS;
+    *filter_bits = FILTER_BITS;
+    if (out_length16 >= in_length * 16)
+      return filteredinterp_filters1000[0];
+    else if (out_length16 >= in_length * 13)
+      return filteredinterp_filters875[0];
+    else if (out_length16 >= in_length * 11)
+      return filteredinterp_filters750[0];
+    else if (out_length16 >= in_length * 9)
+      return filteredinterp_filters625[0];
+    else
+      return filteredinterp_filters500[0];
+  }
 }
 
 static void interpolate_core(const uint8_t *const input, int in_length,
                              uint8_t *output, int out_length,
-                             const int16_t *interp_filters, int interp_taps) {
+                             const int16_t *interp_filters, int interp_taps,
+                             int filter_bits) {
   const int32_t delta =
       (((uint32_t)in_length << RS_SCALE_SUBPEL_BITS) + out_length / 2) /
       out_length;
@@ -276,7 +647,7 @@ static void interpolate_core(const uint8_t *const input, int in_length,
         const int pk = int_pel - interp_taps / 2 + 1 + k;
         sum += filter[k] * input[AOMMAX(AOMMIN(pk, in_length - 1), 0)];
       }
-      *optr++ = clip_pixel(ROUND_POWER_OF_TWO(sum, FILTER_BITS));
+      *optr++ = clip_pixel(ROUND_POWER_OF_TWO(sum, filter_bits));
     }
   } else {
     // Initial part.
@@ -287,7 +658,7 @@ static void interpolate_core(const uint8_t *const input, int in_length,
       sum = 0;
       for (k = 0; k < interp_taps; ++k)
         sum += filter[k] * input[AOMMAX(int_pel - interp_taps / 2 + 1 + k, 0)];
-      *optr++ = clip_pixel(ROUND_POWER_OF_TWO(sum, FILTER_BITS));
+      *optr++ = clip_pixel(ROUND_POWER_OF_TWO(sum, filter_bits));
     }
     // Middle part.
     for (; x <= x2; ++x, y += delta) {
@@ -297,7 +668,7 @@ static void interpolate_core(const uint8_t *const input, int in_length,
       sum = 0;
       for (k = 0; k < interp_taps; ++k)
         sum += filter[k] * input[int_pel - interp_taps / 2 + 1 + k];
-      *optr++ = clip_pixel(ROUND_POWER_OF_TWO(sum, FILTER_BITS));
+      *optr++ = clip_pixel(ROUND_POWER_OF_TWO(sum, filter_bits));
     }
     // End part.
     for (; x < out_length; ++x, y += delta) {
@@ -308,7 +679,7 @@ static void interpolate_core(const uint8_t *const input, int in_length,
       for (k = 0; k < interp_taps; ++k)
         sum += filter[k] *
                input[AOMMIN(int_pel - interp_taps / 2 + 1 + k, in_length - 1)];
-      *optr++ = clip_pixel(ROUND_POWER_OF_TWO(sum, FILTER_BITS));
+      *optr++ = clip_pixel(ROUND_POWER_OF_TWO(sum, filter_bits));
     }
   }
 }
@@ -317,7 +688,7 @@ static void interpolate_core_double_prec(const double *const input,
                                          int in_length, double *output,
                                          int out_length,
                                          const int16_t *interp_filters,
-                                         int interp_taps) {
+                                         int interp_taps, int filter_bits) {
   const int32_t delta =
       (((uint32_t)in_length << RS_SCALE_SUBPEL_BITS) + out_length / 2) /
       out_length;
@@ -361,7 +732,7 @@ static void interpolate_core_double_prec(const double *const input,
         const int pk = int_pel - interp_taps / 2 + 1 + k;
         sum += filter[k] * input[AOMMAX(AOMMIN(pk, in_length - 1), 0)];
       }
-      *optr++ = sum / (1 << FILTER_BITS);
+      *optr++ = sum / (1 << filter_bits);
     }
   } else {
     // Initial part.
@@ -372,7 +743,7 @@ static void interpolate_core_double_prec(const double *const input,
       sum = 0;
       for (k = 0; k < interp_taps; ++k)
         sum += filter[k] * input[AOMMAX(int_pel - interp_taps / 2 + 1 + k, 0)];
-      *optr++ = sum / (1 << FILTER_BITS);
+      *optr++ = sum / (1 << filter_bits);
     }
     // Middle part.
     for (; x <= x2; ++x, y += delta) {
@@ -382,7 +753,7 @@ static void interpolate_core_double_prec(const double *const input,
       sum = 0;
       for (k = 0; k < interp_taps; ++k)
         sum += filter[k] * input[int_pel - interp_taps / 2 + 1 + k];
-      *optr++ = sum / (1 << FILTER_BITS);
+      *optr++ = sum / (1 << filter_bits);
     }
     // End part.
     for (; x < out_length; ++x, y += delta) {
@@ -393,27 +764,32 @@ static void interpolate_core_double_prec(const double *const input,
       for (k = 0; k < interp_taps; ++k)
         sum += filter[k] *
                input[AOMMIN(int_pel - interp_taps / 2 + 1 + k, in_length - 1)];
-      *optr++ = sum / (1 << FILTER_BITS);
+      *optr++ = sum / (1 << filter_bits);
     }
   }
 }
 
 static void interpolate(const uint8_t *const input, int in_length,
-                        uint8_t *output, int out_length) {
-  const InterpKernel *interp_filters =
-      choose_interp_filter(in_length, out_length);
+                        uint8_t *output, int out_length, int longfilt) {
+  int subpel_taps;
+  int filter_bits;
+  const int16_t *interp_filters = choose_interp_filter(
+      in_length, out_length, longfilt, &subpel_taps, &filter_bits);
 
-  interpolate_core(input, in_length, output, out_length, &interp_filters[0][0],
-                   SUBPEL_TAPS);
+  interpolate_core(input, in_length, output, out_length, interp_filters,
+                   subpel_taps, filter_bits);
 }
 
 static void interpolate_double_prec(const double *const input, int in_length,
-                                    double *output, int out_length) {
-  const InterpKernel *interp_filters =
-      choose_interp_filter(in_length, out_length);
+                                    double *output, int out_length,
+                                    int longfilt) {
+  int subpel_taps;
+  int filter_bits;
+  const int16_t *interp_filters = choose_interp_filter(
+      in_length, out_length, longfilt, &subpel_taps, &filter_bits);
 
   interpolate_core_double_prec(input, in_length, output, out_length,
-                               &interp_filters[0][0], SUBPEL_TAPS);
+                               interp_filters, subpel_taps, filter_bits);
 }
 
 int32_t av1_get_upscale_convolve_step(int in_length, int out_length) {
@@ -563,7 +939,8 @@ static int get_down2_steps(int in_length, int out_length) {
 }
 
 static void resize_multistep(const uint8_t *const input, int length,
-                             uint8_t *output, int olength, uint8_t *otmp) {
+                             uint8_t *output, int olength, uint8_t *otmp,
+                             int longfilt) {
   if (length == olength) {
     memcpy(output, input, sizeof(output[0]) * length);
     return;
@@ -590,17 +967,18 @@ static void resize_multistep(const uint8_t *const input, int length,
       filteredlength = proj_filteredlength;
     }
     if (filteredlength != olength) {
-      interpolate(out, filteredlength, output, olength);
+      interpolate(out, filteredlength, output, olength, longfilt);
     }
   } else {
-    interpolate(input, length, output, olength);
+    interpolate(input, length, output, olength, longfilt);
   }
 }
 
 static void upscale_multistep_double_prec(const double *const input, int length,
-                                          double *output, int olength) {
+                                          double *output, int olength,
+                                          int longfilt) {
   assert(length <= olength);
-  interpolate_double_prec(input, length, output, olength);
+  interpolate_double_prec(input, length, output, olength, longfilt);
 }
 
 static void fill_col_to_arr(uint8_t *img, int stride, int len, uint8_t *arr) {
@@ -644,6 +1022,7 @@ static void fill_arr_to_col_double_prec(double *img, int stride, int len,
 void av1_resize_plane(const uint8_t *const input, int height, int width,
                       int in_stride, uint8_t *output, int height2, int width2,
                       int out_stride) {
+  const int longfilt = 1;
   int i;
   uint8_t *intbuf = (uint8_t *)aom_malloc(sizeof(uint8_t) * width2 * height);
   uint8_t *tmpbuf =
@@ -656,13 +1035,20 @@ void av1_resize_plane(const uint8_t *const input, int height, int width,
   assert(height > 0);
   assert(width2 > 0);
   assert(height2 > 0);
-  for (i = 0; i < height; ++i)
-    resize_multistep(input + in_stride * i, width, intbuf + width2 * i, width2,
-                     tmpbuf);
-  for (i = 0; i < width2; ++i) {
-    fill_col_to_arr(intbuf + i, width2, height, arrbuf);
-    resize_multistep(arrbuf, height, arrbuf2, height2, tmpbuf);
-    fill_arr_to_col(output + i, out_stride, height2, arrbuf2);
+  if (height == height2) {
+    // horizontal only resizing
+    for (i = 0; i < height; ++i)
+      resize_multistep(input + in_stride * i, width, output + out_stride * i,
+                       width2, tmpbuf, longfilt);
+  } else {
+    for (i = 0; i < height; ++i)
+      resize_multistep(input + in_stride * i, width, intbuf + width2 * i,
+                       width2, tmpbuf, longfilt);
+    for (i = 0; i < width2; ++i) {
+      fill_col_to_arr(intbuf + i, width2, height, arrbuf);
+      resize_multistep(arrbuf, height, arrbuf2, height2, tmpbuf, longfilt);
+      fill_arr_to_col(output + i, out_stride, height2, arrbuf2);
+    }
   }
 
 Error:
@@ -686,10 +1072,10 @@ void av1_upscale_plane_double_prec(const double *const input, int height,
   assert(height2 > 0);
   for (i = 0; i < height; ++i)
     upscale_multistep_double_prec(input + in_stride * i, width,
-                                  intbuf + width2 * i, width2);
+                                  intbuf + width2 * i, width2, 0);
   for (i = 0; i < width2; ++i) {
     fill_col_to_arr_double_prec(intbuf + i, width2, height, arrbuf);
-    upscale_multistep_double_prec(arrbuf, height, arrbuf2, height2);
+    upscale_multistep_double_prec(arrbuf, height, arrbuf2, height2, 0);
     fill_arr_to_col_double_prec(output + i, out_stride, height2, arrbuf2);
   }
 
@@ -761,7 +1147,7 @@ static void upscale_normative_rect(const uint8_t *const input, int height,
 static void highbd_interpolate_core(const uint16_t *const input, int in_length,
                                     uint16_t *output, int out_length, int bd,
                                     const int16_t *interp_filters,
-                                    int interp_taps) {
+                                    int interp_taps, int filter_bits) {
   const int32_t delta =
       (((uint32_t)in_length << RS_SCALE_SUBPEL_BITS) + out_length / 2) /
       out_length;
@@ -804,7 +1190,7 @@ static void highbd_interpolate_core(const uint16_t *const input, int in_length,
         const int pk = int_pel - interp_taps / 2 + 1 + k;
         sum += filter[k] * input[AOMMAX(AOMMIN(pk, in_length - 1), 0)];
       }
-      *optr++ = clip_pixel_highbd(ROUND_POWER_OF_TWO(sum, FILTER_BITS), bd);
+      *optr++ = clip_pixel_highbd(ROUND_POWER_OF_TWO(sum, filter_bits), bd);
     }
   } else {
     // Initial part.
@@ -815,7 +1201,7 @@ static void highbd_interpolate_core(const uint16_t *const input, int in_length,
       sum = 0;
       for (k = 0; k < interp_taps; ++k)
         sum += filter[k] * input[AOMMAX(int_pel - interp_taps / 2 + 1 + k, 0)];
-      *optr++ = clip_pixel_highbd(ROUND_POWER_OF_TWO(sum, FILTER_BITS), bd);
+      *optr++ = clip_pixel_highbd(ROUND_POWER_OF_TWO(sum, filter_bits), bd);
     }
     // Middle part.
     for (; x <= x2; ++x, y += delta) {
@@ -825,7 +1211,7 @@ static void highbd_interpolate_core(const uint16_t *const input, int in_length,
       sum = 0;
       for (k = 0; k < interp_taps; ++k)
         sum += filter[k] * input[int_pel - interp_taps / 2 + 1 + k];
-      *optr++ = clip_pixel_highbd(ROUND_POWER_OF_TWO(sum, FILTER_BITS), bd);
+      *optr++ = clip_pixel_highbd(ROUND_POWER_OF_TWO(sum, filter_bits), bd);
     }
     // End part.
     for (; x < out_length; ++x, y += delta) {
@@ -836,18 +1222,21 @@ static void highbd_interpolate_core(const uint16_t *const input, int in_length,
       for (k = 0; k < interp_taps; ++k)
         sum += filter[k] *
                input[AOMMIN(int_pel - interp_taps / 2 + 1 + k, in_length - 1)];
-      *optr++ = clip_pixel_highbd(ROUND_POWER_OF_TWO(sum, FILTER_BITS), bd);
+      *optr++ = clip_pixel_highbd(ROUND_POWER_OF_TWO(sum, filter_bits), bd);
     }
   }
 }
 
 static void highbd_interpolate(const uint16_t *const input, int in_length,
-                               uint16_t *output, int out_length, int bd) {
-  const InterpKernel *interp_filters =
-      choose_interp_filter(in_length, out_length);
+                               uint16_t *output, int out_length, int bd,
+                               int longfilt) {
+  int subpel_taps;
+  int filter_bits;
+  const int16_t *interp_filters = choose_interp_filter(
+      in_length, out_length, longfilt, &subpel_taps, &filter_bits);
 
   highbd_interpolate_core(input, in_length, output, out_length, bd,
-                          &interp_filters[0][0], SUBPEL_TAPS);
+                          interp_filters, subpel_taps, filter_bits);
 }
 
 static void highbd_down2_symeven(const uint16_t *const input, int length,
@@ -960,7 +1349,7 @@ static void highbd_down2_symodd(const uint16_t *const input, int length,
 
 static void highbd_resize_multistep(const uint16_t *const input, int length,
                                     uint16_t *output, int olength,
-                                    uint16_t *otmp, int bd) {
+                                    uint16_t *otmp, int bd, int longfilt) {
   if (length == olength) {
     memcpy(output, input, sizeof(output[0]) * length);
     return;
@@ -987,10 +1376,10 @@ static void highbd_resize_multistep(const uint16_t *const input, int length,
       filteredlength = proj_filteredlength;
     }
     if (filteredlength != olength) {
-      highbd_interpolate(out, filteredlength, output, olength, bd);
+      highbd_interpolate(out, filteredlength, output, olength, bd, longfilt);
     }
   } else {
-    highbd_interpolate(input, length, output, olength, bd);
+    highbd_interpolate(input, length, output, olength, bd, longfilt);
   }
 }
 
@@ -1017,6 +1406,7 @@ static void highbd_fill_arr_to_col(uint16_t *img, int stride, int len,
 void av1_highbd_resize_plane(const uint8_t *const input, int height, int width,
                              int in_stride, uint8_t *output, int height2,
                              int width2, int out_stride, int bd) {
+  const int longfilt = 1;
   int i;
   uint16_t *intbuf = (uint16_t *)aom_malloc(sizeof(uint16_t) * width2 * height);
   uint16_t *tmpbuf =
@@ -1025,15 +1415,25 @@ void av1_highbd_resize_plane(const uint8_t *const input, int height, int width,
   uint16_t *arrbuf2 = (uint16_t *)aom_malloc(sizeof(uint16_t) * height2);
   if (intbuf == NULL || tmpbuf == NULL || arrbuf == NULL || arrbuf2 == NULL)
     goto Error;
-  for (i = 0; i < height; ++i) {
-    highbd_resize_multistep(CONVERT_TO_SHORTPTR(input + in_stride * i), width,
-                            intbuf + width2 * i, width2, tmpbuf, bd);
-  }
-  for (i = 0; i < width2; ++i) {
-    highbd_fill_col_to_arr(intbuf + i, width2, height, arrbuf);
-    highbd_resize_multistep(arrbuf, height, arrbuf2, height2, tmpbuf, bd);
-    highbd_fill_arr_to_col(CONVERT_TO_SHORTPTR(output + i), out_stride, height2,
-                           arrbuf2);
+  if (height == height2) {
+    // horizontal only resizing
+    for (i = 0; i < height; ++i)
+      highbd_resize_multistep(CONVERT_TO_SHORTPTR(input + in_stride * i), width,
+                              CONVERT_TO_SHORTPTR(output + out_stride * i),
+                              width2, tmpbuf, bd, longfilt);
+  } else {
+    for (i = 0; i < height; ++i) {
+      highbd_resize_multistep(CONVERT_TO_SHORTPTR(input + in_stride * i), width,
+                              intbuf + width2 * i, width2, tmpbuf, bd,
+                              longfilt);
+    }
+    for (i = 0; i < width2; ++i) {
+      highbd_fill_col_to_arr(intbuf + i, width2, height, arrbuf);
+      highbd_resize_multistep(arrbuf, height, arrbuf2, height2, tmpbuf, bd,
+                              longfilt);
+      highbd_fill_arr_to_col(CONVERT_TO_SHORTPTR(output + i), out_stride,
+                             height2, arrbuf2);
+    }
   }
 
 Error:
