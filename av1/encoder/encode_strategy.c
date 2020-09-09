@@ -1212,6 +1212,9 @@ static int denoise_and_encode(AV1_COMP *const cpi, uint8_t *const dest,
         get_frame_update_type(&cpi->gf_group) == KFFLT_UPDATE) {
       cpi->show_existing_alt_ref = show_existing_alt_ref;
     }
+  } else if (get_frame_update_type(&cpi->gf_group) == ARF_UPDATE ||
+             get_frame_update_type(&cpi->gf_group) == KFFLT_UPDATE) {
+    cpi->show_existing_alt_ref = 1;
   }
 
   // perform tpl after filtering
