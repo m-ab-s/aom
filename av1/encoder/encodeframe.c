@@ -3172,9 +3172,11 @@ typedef struct {
   int terminate_partition_search;
   int partition_none_allowed;
   int partition_rect_allowed[NUM_RECT_PARTS];
-#if !CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_EXT_RECUR_PARTITIONS
+  int partition_3_allowed[NUM_RECT_PARTS];
+#else
   int partition_ab_allowed[NUM_RECT_PARTS][NUM_AB_TYPES];
-#endif  // !CONFIG_EXT_RECUR_PARTITIONS
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   int do_rectangular_split;
 #if !(CONFIG_EXT_RECUR_PARTITIONS && !KEEP_PARTITION_SPLIT)
   int do_square_split;
@@ -4401,6 +4403,323 @@ static INLINE void search_partition_vertb(PartitionSearchState *search_state,
 
   restore_context(cm, x, x_ctx, mi_row, mi_col, bsize, num_planes);
 }
+#else
+static INLINE void prune_partition_3(AV1_COMP *cpi, PC_TREE *pc_tree,
+                                     PartitionSearchState *search_state,
+                                     MACROBLOCK *x, const RD_STATS *best_rdc,
+                                     unsigned int pb_source_variance,
+                                     int ext_partition_allowed) {
+  const PartitionBlkParams *blk_params = &search_state->part_blk_params;
+  const BLOCK_SIZE bsize = blk_params->bsize;
+  const int mi_row = blk_params->mi_row, mi_col = blk_params->mi_col;
+
+  // partition3_allowed is 1 if we can use a PARTITION_HORZ_3 or
+  // PARTITION_VERT_3 for this block. This is almost the same as
+  // ext_partition_allowed, except that we don't allow 128x32 or 32x128
+  // blocks, so we require that bsize is not BLOCK_128X128.
+  int partition3_allowed = cpi->oxcf.enable_1to3_partitions &&
+                           ext_partition_allowed && bsize != BLOCK_128X128;
+
+  const int is_chroma_size_valid_horz3 =
+      check_is_chroma_size_valid(PARTITION_HORZ_3, bsize, mi_row, mi_col,
+                                 blk_params->ss_x, blk_params->ss_y, pc_tree);
+
+  const int is_chroma_size_valid_vert3 =
+      check_is_chroma_size_valid(PARTITION_VERT_3, bsize, mi_row, mi_col,
+                                 blk_params->ss_x, blk_params->ss_y, pc_tree);
+
+  search_state->partition_3_allowed[HORZ] =
+      partition3_allowed && search_state->partition_rect_allowed[HORZ] &&
+      is_chroma_size_valid_horz3;
+  search_state->partition_3_allowed[VERT] =
+      partition3_allowed && search_state->partition_rect_allowed[VERT] &&
+      is_chroma_size_valid_vert3;
+  if (cpi->sf.prune_ext_partition_types_search_level == 2) {
+    search_state->partition_3_allowed[HORZ] &=
+        (pc_tree->partitioning == PARTITION_HORZ ||
+         pc_tree->partitioning == PARTITION_SPLIT ||
+         pc_tree->partitioning == PARTITION_NONE);
+    search_state->partition_3_allowed[VERT] &=
+        (pc_tree->partitioning == PARTITION_VERT ||
+         pc_tree->partitioning == PARTITION_SPLIT ||
+         pc_tree->partitioning == PARTITION_NONE);
+  }
+
+  partition3_allowed &= (search_state->partition_3_allowed[HORZ] ||
+                         search_state->partition_3_allowed[VERT]);
+
+  // TODO(urvang): Rename speed feature, and change behavior / make it work.
+  // currently, it's a hack (still dividing into 4 subparts to get score).
+  if (cpi->sf.ml_prune_4_partition && partition3_allowed &&
+      is_square_block(bsize) && search_state->partition_rect_allowed[HORZ] &&
+      search_state->partition_rect_allowed[VERT]) {
+    clip_partition_search_state_rd(search_state);
+    av1_ml_prune_4_partition(
+        cpi, x, bsize, pc_tree->partitioning, best_rdc->rdcost,
+        search_state->rect_part_rd[HORZ], search_state->rect_part_rd[VERT],
+        search_state->split_rd, &search_state->partition_3_allowed[HORZ],
+        &search_state->partition_3_allowed[VERT], pb_source_variance, mi_row,
+        mi_col);
+  }
+
+#if CONFIG_DIST_8X8
+  if (x->using_dist_8x8) {
+    if (block_size_high[bsize] <= 16 || block_size_wide[bsize] <= 16) {
+      search_state->partition_3_allowed[HORZ] = 0;
+      search_state->partition_3_allowed[VERT] = 0;
+    }
+  }
+#endif
+
+  if (blk_params->width < (blk_params->min_partition_size_1d << 2)) {
+    search_state->partition_3_allowed[HORZ] = 0;
+    search_state->partition_3_allowed[VERT] = 0;
+  }
+}
+
+static INLINE void search_partition_horz_3(PartitionSearchState *search_state,
+                                           AV1_COMP *const cpi, ThreadData *td,
+                                           TileDataEnc *tile_data,
+                                           TOKENEXTRA **tp, RD_STATS *best_rdc,
+                                           PC_TREE *pc_tree,
+                                           RD_SEARCH_MACROBLOCK_CONTEXT *x_ctx,
+                                           SB_MULTI_PASS_MODE multi_pass_mode) {
+  const AV1_COMMON *const cm = &cpi->common;
+  TileInfo *const tile_info = &tile_data->tile_info;
+  MACROBLOCK *const x = &td->mb;
+  const int num_planes = av1_num_planes(cm);
+
+  const PartitionBlkParams *blk_params = &search_state->part_blk_params;
+  const int mi_row = blk_params->mi_row, mi_col = blk_params->mi_col;
+  const BLOCK_SIZE bsize = blk_params->bsize;
+
+  const BLOCK_SIZE sml_subsize = get_partition_subsize(bsize, PARTITION_HORZ_3);
+  const BLOCK_SIZE big_subsize = get_partition_subsize(bsize, PARTITION_HORZ);
+
+  assert(IMPLIES(!cpi->oxcf.enable_rect_partitions,
+                 !search_state->partition_3_allowed[HORZ]));
+
+  if (search_state->terminate_partition_search ||
+      !search_state->partition_3_allowed[HORZ] || !blk_params->has_rows ||
+      !is_partition_valid(bsize, PARTITION_HORZ_3) ||
+      !(search_state->do_rectangular_split ||
+        active_h_edge(cpi, mi_row, blk_params->mi_step_h)) ||
+      blk_params->is_gt_max_sq_part) {
+    return;
+  }
+
+  const int part_h3_rate = search_state->partition_cost[PARTITION_HORZ_3];
+  if (part_h3_rate == INT_MAX ||
+      RDCOST(x->rdmult, part_h3_rate, 0) >= best_rdc->rdcost) {
+    return;
+  }
+  RD_STATS sum_rdc;
+  av1_init_rd_stats(&sum_rdc);
+  const int quarter_step = mi_size_high[bsize] / 4;
+
+  sum_rdc.rate = search_state->partition_cost[PARTITION_HORZ_3];
+  sum_rdc.rdcost = RDCOST(x->rdmult, sum_rdc.rate, 0);
+
+  const int step_multipliers[3] = { 0, 1, 2 };
+  const BLOCK_SIZE subblock_sizes[3] = { sml_subsize, big_subsize,
+                                         sml_subsize };
+
+  pc_tree->horizontal3[0] = av1_alloc_pc_tree_node(
+      mi_row, mi_col, subblock_sizes[0], pc_tree, PARTITION_HORZ_3, 0, 0,
+      blk_params->ss_x, blk_params->ss_y);
+  pc_tree->horizontal3[1] = av1_alloc_pc_tree_node(
+      mi_row + quarter_step, mi_col, subblock_sizes[1], pc_tree,
+      PARTITION_HORZ_3, 1, 0, blk_params->ss_x, blk_params->ss_y);
+  pc_tree->horizontal3[2] = av1_alloc_pc_tree_node(
+      mi_row + quarter_step * 3, mi_col, subblock_sizes[2], pc_tree,
+      PARTITION_HORZ_3, 2, 1, blk_params->ss_x, blk_params->ss_y);
+
+  // TODO(chiyotsai@google.com): Pruning horz/vert3 gives a significant loss
+  // on certain clips (e.g. galleon_cif.y4m). Need to investigate before we
+  // we enable it.
+  if (ENABLE_FAST_RECUR_PARTITION == 2 && !frame_is_intra_only(cm) &&
+      !x->must_find_valid_partition) {
+    const SimpleMotionData *up = av1_get_sms_data(
+        cpi, tile_info, x, &pc_tree->horizontal3[0]->chroma_ref_info, mi_row,
+        mi_col, subblock_sizes[0]);
+    const SimpleMotionData *middle = av1_get_sms_data(
+        cpi, tile_info, x, &pc_tree->horizontal3[1]->chroma_ref_info,
+        mi_row + quarter_step, mi_col, subblock_sizes[1]);
+    const SimpleMotionData *down = av1_get_sms_data(
+        cpi, tile_info, x, &pc_tree->horizontal3[2]->chroma_ref_info,
+        mi_row + 3 * quarter_step, mi_col, subblock_sizes[2]);
+
+    SMSPartitionStats part_data;
+    part_data.sms_data[0] = up;
+    part_data.sms_data[1] = middle;
+    part_data.sms_data[2] = down;
+    part_data.num_sub_parts = 3;
+    part_data.part_rate = part_h3_rate;
+
+    if (search_state->none_rd > 0 && search_state->none_rd < INT64_MAX &&
+        (mi_row + 2 * blk_params->mi_step_h <= cm->mi_rows) &&
+        (mi_col + 2 * blk_params->mi_step_w <= cm->mi_cols) &&
+        av1_prune_new_part(&search_state->none_data, &part_data, x->rdmult)) {
+      return;
+    }
+  }
+
+  int this_mi_row = mi_row;
+  for (int i = 0; i < 3; ++i) {
+    this_mi_row += quarter_step * step_multipliers[i];
+
+    if (i > 0 && this_mi_row >= cm->mi_rows) break;
+
+    SUBBLOCK_RDO_DATA rdo_data = { NULL,
+                                   pc_tree->horizontal3[i],
+                                   NULL,
+                                   this_mi_row,
+                                   mi_col,
+                                   subblock_sizes[i],
+                                   PARTITION_HORZ_3,
+                                   i == 2,
+                                   1,
+                                   blk_params->max_sq_part,
+                                   blk_params->min_sq_part };
+
+    if (!rd_try_subblock_new(cpi, td, tile_data, tp, &rdo_data, *best_rdc,
+                             &sum_rdc, multi_pass_mode)) {
+      av1_invalid_rd_stats(&sum_rdc);
+      break;
+    }
+  }
+
+  av1_rd_cost_update(x->rdmult, &sum_rdc);
+  if (sum_rdc.rdcost < best_rdc->rdcost) {
+    *best_rdc = sum_rdc;
+    search_state->found_best_partition = true;
+    pc_tree->partitioning = PARTITION_HORZ_3;
+  }
+
+  restore_context(cm, x, x_ctx, mi_row, mi_col, bsize, num_planes);
+}
+
+static INLINE void search_partition_vert_3(PartitionSearchState *search_state,
+                                           AV1_COMP *const cpi, ThreadData *td,
+                                           TileDataEnc *tile_data,
+                                           TOKENEXTRA **tp, RD_STATS *best_rdc,
+                                           PC_TREE *pc_tree,
+                                           RD_SEARCH_MACROBLOCK_CONTEXT *x_ctx,
+                                           SB_MULTI_PASS_MODE multi_pass_mode) {
+  const AV1_COMMON *const cm = &cpi->common;
+  TileInfo *const tile_info = &tile_data->tile_info;
+  MACROBLOCK *const x = &td->mb;
+  const int num_planes = av1_num_planes(cm);
+
+  const PartitionBlkParams *blk_params = &search_state->part_blk_params;
+  const int mi_row = blk_params->mi_row, mi_col = blk_params->mi_col;
+  const BLOCK_SIZE bsize = blk_params->bsize;
+
+  const BLOCK_SIZE sml_subsize = get_partition_subsize(bsize, PARTITION_VERT_3);
+  const BLOCK_SIZE big_subsize = get_partition_subsize(bsize, PARTITION_VERT);
+
+  assert(IMPLIES(!cpi->oxcf.enable_rect_partitions,
+                 !search_state->partition_3_allowed[VERT]));
+
+  if (search_state->terminate_partition_search ||
+      !search_state->partition_3_allowed[VERT] || !blk_params->has_cols ||
+      !is_partition_valid(bsize, PARTITION_VERT_3) ||
+      !(search_state->do_rectangular_split ||
+        active_v_edge(cpi, mi_row, blk_params->mi_step_h)) ||
+      blk_params->is_gt_max_sq_part) {
+    return;
+  }
+
+  const int part_v3_rate = search_state->partition_cost[PARTITION_VERT_3];
+  if (part_v3_rate == INT_MAX ||
+      RDCOST(x->rdmult, part_v3_rate, 0) >= best_rdc->rdcost) {
+    return;
+  }
+
+  RD_STATS sum_rdc;
+  av1_init_rd_stats(&sum_rdc);
+  const int quarter_step = mi_size_wide[bsize] / 4;
+
+  sum_rdc.rate = search_state->partition_cost[PARTITION_VERT_3];
+  sum_rdc.rdcost = RDCOST(x->rdmult, sum_rdc.rate, 0);
+
+  const int step_multipliers[3] = { 0, 1, 2 };
+  const BLOCK_SIZE subblock_sizes[3] = { sml_subsize, big_subsize,
+                                         sml_subsize };
+
+  pc_tree->vertical3[0] = av1_alloc_pc_tree_node(
+      mi_row, mi_col, subblock_sizes[0], pc_tree, PARTITION_VERT_3, 0, 0,
+      blk_params->ss_x, blk_params->ss_y);
+  pc_tree->vertical3[1] = av1_alloc_pc_tree_node(
+      mi_row, mi_col + quarter_step, subblock_sizes[1], pc_tree,
+      PARTITION_VERT_3, 1, 0, blk_params->ss_x, blk_params->ss_y);
+  pc_tree->vertical3[2] = av1_alloc_pc_tree_node(
+      mi_row, mi_col + quarter_step * 3, subblock_sizes[2], pc_tree,
+      PARTITION_VERT_3, 2, 1, blk_params->ss_x, blk_params->ss_y);
+
+  // TODO(chiyotsai@google.com): Pruning horz/vert3 gives a significant loss
+  // on certain clips (e.g. galleon_cif.y4m). Need to investigate before we
+  // we enable it.
+  if (ENABLE_FAST_RECUR_PARTITION == 2 && !frame_is_intra_only(cm) &&
+      !x->must_find_valid_partition) {
+    const SimpleMotionData *left = av1_get_sms_data(
+        cpi, tile_info, x, &pc_tree->vertical3[0]->chroma_ref_info, mi_row,
+        mi_col, subblock_sizes[0]);
+    const SimpleMotionData *middle = av1_get_sms_data(
+        cpi, tile_info, x, &pc_tree->vertical3[1]->chroma_ref_info, mi_row,
+        mi_col + quarter_step, subblock_sizes[1]);
+    const SimpleMotionData *right = av1_get_sms_data(
+        cpi, tile_info, x, &pc_tree->vertical3[2]->chroma_ref_info, mi_row,
+        mi_col + 3 * quarter_step, subblock_sizes[2]);
+
+    SMSPartitionStats part_data;
+    part_data.sms_data[0] = left;
+    part_data.sms_data[1] = middle;
+    part_data.sms_data[2] = right;
+    part_data.num_sub_parts = 3;
+    part_data.part_rate = part_v3_rate;
+
+    if (search_state->none_rd > 0 && search_state->none_rd < INT64_MAX &&
+        (mi_row + 2 * blk_params->mi_step_h <= cm->mi_rows) &&
+        (mi_col + 2 * blk_params->mi_step_w <= cm->mi_cols) &&
+        av1_prune_new_part(&search_state->none_data, &part_data, x->rdmult)) {
+      return;
+    }
+  }
+
+  int this_mi_col = mi_col;
+  for (int i = 0; i < 3; ++i) {
+    this_mi_col += quarter_step * step_multipliers[i];
+
+    if (i > 0 && this_mi_col >= cm->mi_cols) break;
+
+    SUBBLOCK_RDO_DATA rdo_data = { NULL,
+                                   pc_tree->vertical3[i],
+                                   NULL,
+                                   mi_row,
+                                   this_mi_col,
+                                   subblock_sizes[i],
+                                   PARTITION_VERT_3,
+                                   i == 2,
+                                   1,
+                                   blk_params->max_sq_part,
+                                   blk_params->min_sq_part };
+
+    if (!rd_try_subblock_new(cpi, td, tile_data, tp, &rdo_data, *best_rdc,
+                             &sum_rdc, multi_pass_mode)) {
+      av1_invalid_rd_stats(&sum_rdc);
+      break;
+    }
+  }
+
+  av1_rd_cost_update(x->rdmult, &sum_rdc);
+  if (sum_rdc.rdcost < best_rdc->rdcost) {
+    *best_rdc = sum_rdc;
+    search_state->found_best_partition = true;
+    pc_tree->partitioning = PARTITION_VERT_3;
+  }
+  restore_context(cm, x, x_ctx, mi_row, mi_col, bsize, num_planes);
+}
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 
 // TODO(jinging,jimbankoski,rbultje): properly skip partition types that are
@@ -4419,8 +4738,6 @@ static bool rd_pick_partition(
   MACROBLOCKD *const xd = &x->e_mbd;
   RD_SEARCH_MACROBLOCK_CONTEXT x_ctx;
   const TOKENEXTRA *const tp_orig = *tp;
-  BLOCK_SIZE subsize;
-  RD_STATS this_rdc, sum_rdc;
   PartitionSearchState search_state;
   init_partition_search_state(&search_state, x, cpi, pc_tree, mi_row, mi_col,
                               bsize, max_sq_part, min_sq_part);
@@ -4501,8 +4818,6 @@ static bool rd_pick_partition(
 #if !CONFIG_EXT_RECUR_PARTITIONS
   assert(block_size_wide[bsize] == block_size_high[bsize]);
 #endif  // !CONFIG_EXT_RECUR_PARTITIONS
-
-  av1_init_rd_stats(&this_rdc);
 
   av1_enc_set_offsets(cpi, tile_info, x, mi_row, mi_col, bsize,
                       &pc_tree->chroma_ref_info);
@@ -4756,295 +5071,16 @@ BEGIN_PARTITION_SEARCH:
 #endif  // !CONFIG_EXT_RECUR_PARTITIONS
 
 #if CONFIG_EXT_RECUR_PARTITIONS
-  // partition3_allowed is 1 if we can use a PARTITION_HORZ_3 or
-  // PARTITION_VERT_3 for this block. This is almost the same as
-  // ext_partition_allowed, except that we don't allow 128x32 or 32x128
-  // blocks, so we require that bsize is not BLOCK_128X128.
-  int partition3_allowed = cpi->oxcf.enable_1to3_partitions &&
-                           ext_partition_allowed && bsize != BLOCK_128X128;
-
-  const int is_chroma_size_valid_horz3 =
-      check_is_chroma_size_valid(PARTITION_HORZ_3, bsize, mi_row, mi_col,
-                                 blk_params->ss_x, blk_params->ss_y, pc_tree);
-
-  const int is_chroma_size_valid_vert3 =
-      check_is_chroma_size_valid(PARTITION_VERT_3, bsize, mi_row, mi_col,
-                                 blk_params->ss_x, blk_params->ss_y, pc_tree);
-
-  int partition_horz3_allowed = partition3_allowed &&
-                                search_state.partition_rect_allowed[HORZ] &&
-                                is_chroma_size_valid_horz3;
-  int partition_vert3_allowed = partition3_allowed &&
-                                search_state.partition_rect_allowed[VERT] &&
-                                is_chroma_size_valid_vert3;
-  if (cpi->sf.prune_ext_partition_types_search_level == 2) {
-    partition_horz3_allowed &= (pc_tree->partitioning == PARTITION_HORZ ||
-                                pc_tree->partitioning == PARTITION_SPLIT ||
-                                pc_tree->partitioning == PARTITION_NONE);
-    partition_vert3_allowed &= (pc_tree->partitioning == PARTITION_VERT ||
-                                pc_tree->partitioning == PARTITION_SPLIT ||
-                                pc_tree->partitioning == PARTITION_NONE);
-  }
-
-  partition3_allowed &= (partition_horz3_allowed || partition_vert3_allowed);
-
-  // TODO(urvang): Rename speed feature, and change behavior / make it work.
-  // currently, it's a hack (still dividing into 4 subparts to get score).
-  if (cpi->sf.ml_prune_4_partition && partition3_allowed &&
-      is_square_block(bsize) && search_state.partition_rect_allowed[HORZ] &&
-      search_state.partition_rect_allowed[VERT]) {
-    clip_partition_search_state_rd(&search_state);
-    av1_ml_prune_4_partition(
-        cpi, x, bsize, pc_tree->partitioning, best_rdc.rdcost,
-        search_state.rect_part_rd[HORZ], search_state.rect_part_rd[VERT],
-        search_state.split_rd, &partition_horz3_allowed,
-        &partition_vert3_allowed, pb_source_variance, mi_row, mi_col);
-  }
-
-#if CONFIG_DIST_8X8
-  if (x->using_dist_8x8) {
-    if (block_size_high[bsize] <= 16 || block_size_wide[bsize] <= 16) {
-      partition_horz3_allowed = 0;
-      partition_vert3_allowed = 0;
-    }
-  }
-#endif
-
-  if (blk_params->width < (blk_params->min_partition_size_1d << 2)) {
-    partition_horz3_allowed = 0;
-    partition_vert3_allowed = 0;
-  }
+  prune_partition_3(cpi, pc_tree, &search_state, x, &best_rdc,
+                    pb_source_variance, ext_partition_allowed);
 
   // PARTITION_HORZ_3
-  assert(IMPLIES(!cpi->oxcf.enable_rect_partitions, !partition_horz3_allowed));
-  for (int idx = 0; idx < 1 && !search_state.terminate_partition_search &&
-                    partition_horz3_allowed && blk_params->has_rows &&
-                    is_partition_valid(bsize, PARTITION_HORZ_3) &&
-                    (search_state.do_rectangular_split ||
-                     active_h_edge(cpi, mi_row, blk_params->mi_step_h)) &&
-                    !blk_params->is_gt_max_sq_part;
-       idx++) {
-    const int part_h3_rate = search_state.partition_cost[PARTITION_HORZ_3];
-    if (part_h3_rate == INT_MAX ||
-        RDCOST(x->rdmult, part_h3_rate, 0) >= best_rdc.rdcost) {
-      break;
-    }
-    av1_init_rd_stats(&sum_rdc);
-    const int quarter_step = mi_size_high[bsize] / 4;
-
-    subsize = get_partition_subsize(bsize, PARTITION_HORZ_3);
-
-    sum_rdc.rate = search_state.partition_cost[PARTITION_HORZ_3];
-    sum_rdc.rdcost = RDCOST(x->rdmult, sum_rdc.rate, 0);
-
-#if CONFIG_COLLECT_PARTITION_STATS
-    if (best_rdc.rdcost - sum_rdc.rdcost >= 0) {
-      partition_attempts[PARTITION_HORZ_3] += 1;
-      aom_usec_timer_start(&partition_timer);
-      partition_timer_on = 1;
-    }
-#endif
-    const BLOCK_SIZE bsize3 = get_partition_subsize(bsize, PARTITION_HORZ);
-    const int step_multipliers[3] = { 0, 1, 2 };
-    const BLOCK_SIZE subblock_sizes[3] = { subsize, bsize3, subsize };
-
-    pc_tree->horizontal3[0] = av1_alloc_pc_tree_node(
-        mi_row, mi_col, subblock_sizes[0], pc_tree, PARTITION_HORZ_3, 0, 0,
-        blk_params->ss_x, blk_params->ss_y);
-    pc_tree->horizontal3[1] = av1_alloc_pc_tree_node(
-        mi_row + quarter_step, mi_col, subblock_sizes[1], pc_tree,
-        PARTITION_HORZ_3, 1, 0, blk_params->ss_x, blk_params->ss_y);
-    pc_tree->horizontal3[2] = av1_alloc_pc_tree_node(
-        mi_row + quarter_step * 3, mi_col, subblock_sizes[2], pc_tree,
-        PARTITION_HORZ_3, 2, 1, blk_params->ss_x, blk_params->ss_y);
-
-    // TODO(chiyotsai@google.com): Pruning horz/vert3 gives a significant loss
-    // on certain clips (e.g. galleon_cif.y4m). Need to investigate before we
-    // we enable it.
-    if (ENABLE_FAST_RECUR_PARTITION == 2 && !frame_is_intra_only(cm) &&
-        !x->must_find_valid_partition) {
-      const SimpleMotionData *up = av1_get_sms_data(
-          cpi, tile_info, x, &pc_tree->horizontal3[0]->chroma_ref_info, mi_row,
-          mi_col, subblock_sizes[0]);
-      const SimpleMotionData *middle = av1_get_sms_data(
-          cpi, tile_info, x, &pc_tree->horizontal3[1]->chroma_ref_info,
-          mi_row + quarter_step, mi_col, subblock_sizes[1]);
-      const SimpleMotionData *down = av1_get_sms_data(
-          cpi, tile_info, x, &pc_tree->horizontal3[2]->chroma_ref_info,
-          mi_row + 3 * quarter_step, mi_col, subblock_sizes[2]);
-
-      SMSPartitionStats part_data;
-      part_data.sms_data[0] = up;
-      part_data.sms_data[1] = middle;
-      part_data.sms_data[2] = down;
-      part_data.num_sub_parts = 3;
-      part_data.part_rate = part_h3_rate;
-
-      if (search_state.none_rd > 0 && search_state.none_rd < INT64_MAX &&
-          (mi_row + 2 * blk_params->mi_step_h <= cm->mi_rows) &&
-          (mi_col + 2 * blk_params->mi_step_w <= cm->mi_cols) &&
-          av1_prune_new_part(&search_state.none_data, &part_data, x->rdmult)) {
-        break;
-      }
-    }
-
-    int this_mi_row = mi_row;
-    for (int i = 0; i < 3; ++i) {
-      this_mi_row += quarter_step * step_multipliers[i];
-
-      if (i > 0 && this_mi_row >= cm->mi_rows) break;
-
-      SUBBLOCK_RDO_DATA rdo_data = { NULL,
-                                     pc_tree->horizontal3[i],
-                                     NULL,
-                                     this_mi_row,
-                                     mi_col,
-                                     subblock_sizes[i],
-                                     PARTITION_HORZ_3,
-                                     i == 2,
-                                     1,
-                                     max_sq_part,
-                                     min_sq_part };
-
-      if (!rd_try_subblock_new(cpi, td, tile_data, tp, &rdo_data, best_rdc,
-                               &sum_rdc, multi_pass_mode)) {
-        av1_invalid_rd_stats(&sum_rdc);
-        break;
-      }
-    }
-
-    av1_rd_cost_update(x->rdmult, &sum_rdc);
-    if (sum_rdc.rdcost < best_rdc.rdcost) {
-      best_rdc = sum_rdc;
-      search_state.found_best_partition = true;
-      pc_tree->partitioning = PARTITION_HORZ_3;
-    }
-
-#if CONFIG_COLLECT_PARTITION_STATS
-    if (partition_timer_on) {
-      aom_usec_timer_mark(&partition_timer);
-      int64_t time = aom_usec_timer_elapsed(&partition_timer);
-      partition_times[PARTITION_HORZ_3] += time;
-      partition_timer_on = 0;
-    }
-#endif
-    restore_context(cm, x, &x_ctx, mi_row, mi_col, bsize, num_planes);
-  }
+  search_partition_horz_3(&search_state, cpi, td, tile_data, tp, &best_rdc,
+                          pc_tree, &x_ctx, multi_pass_mode);
 
   // PARTITION_VERT_3
-  assert(IMPLIES(!cpi->oxcf.enable_rect_partitions, !partition_vert3_allowed));
-  for (int idx = 0; idx < 1 && !search_state.terminate_partition_search &&
-                    partition_vert3_allowed && blk_params->has_cols &&
-                    is_partition_valid(bsize, PARTITION_VERT_3) &&
-                    (search_state.do_rectangular_split ||
-                     active_v_edge(cpi, mi_row, blk_params->mi_step_h)) &&
-                    !blk_params->is_gt_max_sq_part;
-       idx++) {
-    const int part_v3_rate = search_state.partition_cost[PARTITION_VERT_3];
-    if (part_v3_rate == INT_MAX ||
-        RDCOST(x->rdmult, part_v3_rate, 0) >= best_rdc.rdcost) {
-      break;
-    }
-    av1_init_rd_stats(&sum_rdc);
-    const int quarter_step = mi_size_wide[bsize] / 4;
-
-    subsize = get_partition_subsize(bsize, PARTITION_VERT_3);
-    sum_rdc.rate = search_state.partition_cost[PARTITION_VERT_3];
-    sum_rdc.rdcost = RDCOST(x->rdmult, sum_rdc.rate, 0);
-
-#if CONFIG_COLLECT_PARTITION_STATS
-    if (best_rdc.rdcost - sum_rdc.rdcost >= 0) {
-      partition_attempts[PARTITION_VERT_3] += 1;
-      aom_usec_timer_start(&partition_timer);
-      partition_timer_on = 1;
-    }
-#endif
-
-    const BLOCK_SIZE bsize3 = get_partition_subsize(bsize, PARTITION_VERT);
-    const int step_multipliers[3] = { 0, 1, 2 };
-    const BLOCK_SIZE subblock_sizes[3] = { subsize, bsize3, subsize };
-
-    pc_tree->vertical3[0] = av1_alloc_pc_tree_node(
-        mi_row, mi_col, subblock_sizes[0], pc_tree, PARTITION_VERT_3, 0, 0,
-        blk_params->ss_x, blk_params->ss_y);
-    pc_tree->vertical3[1] = av1_alloc_pc_tree_node(
-        mi_row, mi_col + quarter_step, subblock_sizes[1], pc_tree,
-        PARTITION_VERT_3, 1, 0, blk_params->ss_x, blk_params->ss_y);
-    pc_tree->vertical3[2] = av1_alloc_pc_tree_node(
-        mi_row, mi_col + quarter_step * 3, subblock_sizes[2], pc_tree,
-        PARTITION_VERT_3, 2, 1, blk_params->ss_x, blk_params->ss_y);
-
-    // TODO(chiyotsai@google.com): Pruning horz/vert3 gives a significant loss
-    // on certain clips (e.g. galleon_cif.y4m). Need to investigate before we
-    // we enable it.
-    if (ENABLE_FAST_RECUR_PARTITION == 2 && !frame_is_intra_only(cm) &&
-        !x->must_find_valid_partition) {
-      const SimpleMotionData *left = av1_get_sms_data(
-          cpi, tile_info, x, &pc_tree->vertical3[0]->chroma_ref_info, mi_row,
-          mi_col, subblock_sizes[0]);
-      const SimpleMotionData *middle = av1_get_sms_data(
-          cpi, tile_info, x, &pc_tree->vertical3[1]->chroma_ref_info, mi_row,
-          mi_col + quarter_step, subblock_sizes[1]);
-      const SimpleMotionData *right = av1_get_sms_data(
-          cpi, tile_info, x, &pc_tree->vertical3[2]->chroma_ref_info, mi_row,
-          mi_col + 3 * quarter_step, subblock_sizes[2]);
-
-      SMSPartitionStats part_data;
-      part_data.sms_data[0] = left;
-      part_data.sms_data[1] = middle;
-      part_data.sms_data[2] = right;
-      part_data.num_sub_parts = 3;
-      part_data.part_rate = part_v3_rate;
-
-      if (search_state.none_rd > 0 && search_state.none_rd < INT64_MAX &&
-          (mi_row + 2 * blk_params->mi_step_h <= cm->mi_rows) &&
-          (mi_col + 2 * blk_params->mi_step_w <= cm->mi_cols) &&
-          av1_prune_new_part(&search_state.none_data, &part_data, x->rdmult)) {
-        break;
-      }
-    }
-
-    int this_mi_col = mi_col;
-    for (int i = 0; i < 3; ++i) {
-      this_mi_col += quarter_step * step_multipliers[i];
-
-      if (i > 0 && this_mi_col >= cm->mi_cols) break;
-
-      SUBBLOCK_RDO_DATA rdo_data = { NULL,
-                                     pc_tree->vertical3[i],
-                                     NULL,
-                                     mi_row,
-                                     this_mi_col,
-                                     subblock_sizes[i],
-                                     PARTITION_VERT_3,
-                                     i == 2,
-                                     1,
-                                     max_sq_part,
-                                     min_sq_part };
-
-      if (!rd_try_subblock_new(cpi, td, tile_data, tp, &rdo_data, best_rdc,
-                               &sum_rdc, multi_pass_mode)) {
-        av1_invalid_rd_stats(&sum_rdc);
-        break;
-      }
-    }
-
-    av1_rd_cost_update(x->rdmult, &sum_rdc);
-    if (sum_rdc.rdcost < best_rdc.rdcost) {
-      best_rdc = sum_rdc;
-      search_state.found_best_partition = true;
-      pc_tree->partitioning = PARTITION_VERT_3;
-    }
-#if CONFIG_COLLECT_PARTITION_STATS
-    if (partition_timer_on) {
-      aom_usec_timer_mark(&partition_timer);
-      int64_t time = aom_usec_timer_elapsed(&partition_timer);
-      partition_times[PARTITION_VERT_3] += time;
-      partition_timer_on = 0;
-    }
-#endif
-    restore_context(cm, x, &x_ctx, mi_row, mi_col, bsize, num_planes);
-  }
+  search_partition_vert_3(&search_state, cpi, td, tile_data, tp, &best_rdc,
+                          pc_tree, &x_ctx, multi_pass_mode);
 #else
   // partition4_allowed is 1 if we can use a PARTITION_HORZ_4 or
   // PARTITION_VERT_4 for this block. This is almost the same as
@@ -5106,6 +5142,8 @@ BEGIN_PARTITION_SEARCH:
 
   // PARTITION_HORZ_4
   assert(IMPLIES(!cpi->oxcf.enable_rect_partitions, !partition_horz4_allowed));
+  RD_STATS sum_rdc;
+  BLOCK_SIZE subsize;
   if (!search_state.terminate_partition_search && partition_horz4_allowed &&
       blk_params->has_rows &&
       (search_state.do_rectangular_split ||
