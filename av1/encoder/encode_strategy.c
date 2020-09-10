@@ -1582,15 +1582,12 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
     frame_params.existing_fb_idx_to_show = INVALID_IDX;
     // Find the frame buffer to show based on display order
     if (frame_params.show_existing_frame) {
-      for (int frame = LAST_FRAME; frame <= ALTREF_FRAME; frame++) {
-        // Get reference frame buffer
-        const RefCntBuffer *const buf = get_ref_frame_buf(&cpi->common, frame);
+      for (int frame = 0; frame < REF_FRAMES; frame++) {
+        const RefCntBuffer *const buf = cm->ref_frame_map[frame];
         if (buf == NULL) continue;
         const int frame_order = (int)buf->display_order_hint;
-        if (frame_order == cur_frame_disp) {
-          frame_params.existing_fb_idx_to_show =
-              get_ref_frame_map_idx(cm, frame);
-        }
+        if (frame_order == cur_frame_disp)
+          frame_params.existing_fb_idx_to_show = frame;
       }
     }
   }

@@ -99,7 +99,8 @@ class ForwardKeyTest
   double psnr_;
 };
 
-TEST_P(ForwardKeyTest, ForwardKeyEncodeTest) {
+// TODO(sarahparker) Re-enable test when aomedia:2823 is resolved
+TEST_P(ForwardKeyTest, DISABLED_ForwardKeyEncodeTest) {
   libaom_test::I420VideoSource video("hantro_collage_w352h288.yuv", 352, 288,
                                      cfg_.g_timebase.den, cfg_.g_timebase.num,
                                      0, 20);
@@ -178,7 +179,8 @@ class ForwardKeyPresenceTestLarge
   aom_rc_mode end_usage_check_;
 };
 
-TEST_P(ForwardKeyPresenceTestLarge, ForwardKeyEncodePresenceTest) {
+// TODO(sarahparker) Re-enable test when aomedia:2823 is resolved
+TEST_P(ForwardKeyPresenceTestLarge, DISABLED_ForwardKeyEncodePresenceTest) {
   is_fwd_kf_present_ = 0;
   libaom_test::I420VideoSource video("hantro_collage_w352h288.yuv", 352, 288,
                                      cfg_.g_timebase.den, cfg_.g_timebase.num,
