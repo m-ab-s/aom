@@ -546,6 +546,183 @@ static void process_single_ref_mv_candidate(
   }
 }
 
+#if CONFIG_DBSCAN_FEATURE
+// To measure the similarity of two MVs (square dist)
+static int calc_square_dist(const int_mv *const ma, const int_mv *const mb) {
+  return (ma->as_mv.row - mb->as_mv.row) * (ma->as_mv.row - mb->as_mv.row) +
+         (ma->as_mv.col - mb->as_mv.col) * (ma->as_mv.col - mb->as_mv.col);
+}
+static void mv_dbscan(CANDIDATE_MV ref_mv_stack[MAX_REF_MV_STACK_SIZE],
+                      const int start, const int end, const int min_points,
+                      const float dist_threshold, int *cluster_num,
+                      int cluster_label[MAX_REF_MV_STACK_SIZE],
+                      bool is_single_frame) {
+  //  Clustering run in [start, end), start included but end excluded
+  const int mv_num = end - start;
+  float point_distances[MAX_REF_MV_STACK_SIZE][MAX_REF_MV_STACK_SIZE];
+  for (int i = 0; i < mv_num; i++) {
+    for (int j = i + 1; j < mv_num; j++) {
+      const int i_idx = i + start;
+      const int j_idx = j + start;
+      if (is_single_frame) {
+        point_distances[i][j] = point_distances[j][i] = calc_square_dist(
+            &(ref_mv_stack[i_idx].this_mv), &(ref_mv_stack[j_idx].this_mv));
+      } else {
+        float dist = calc_square_dist(&(ref_mv_stack[i_idx].this_mv),
+                                      &(ref_mv_stack[j_idx].this_mv)) +
+                     calc_square_dist(&(ref_mv_stack[i_idx].comp_mv),
+                                      &(ref_mv_stack[j_idx].comp_mv));
+        point_distances[i][j] = point_distances[j][i] = dist / 2.0f;
+      }
+    }
+    point_distances[i][i] = 0;
+  }
+  int ele_count[MAX_REF_MV_STACK_SIZE];
+  bool neighborhood[MAX_REF_MV_STACK_SIZE][MAX_REF_MV_STACK_SIZE];
+  for (int i = 0; i < mv_num; i++) {
+    int i_idx = i + start;
+    // Initial: Every one is set as  a noise point
+    ele_count[i] = 0;
+    cluster_label[i_idx] = -1;
+    // Check: Are there enough points (>= min_points) in the neighborhood of Pi
+    for (int j = 0; j < mv_num; j++) {
+      neighborhood[i][j] = false;
+    }
+    for (int j = 0; j < mv_num; j++) {
+      if (point_distances[i][j] <= dist_threshold) {
+        neighborhood[i][j] = true;
+        ele_count[i]++;
+      }
+    }
+  }
+  bool is_centriods[MAX_REF_MV_STACK_SIZE];
+  *cluster_num = 0;
+  for (int i = 0; i < mv_num; i++) {
+    is_centriods[i] = false;
+    if (ele_count[i] >= min_points) {
+      // This can be identified as a temporal cluster centriod
+      is_centriods[i] = true;
+
+      (*cluster_num)++;
+    }
+  }
+
+  bool should_stop = true;
+  while (1) {
+    should_stop = true;
+    for (int i = 0; i < mv_num; i++) {
+      if (is_centriods[i]) {
+        for (int j = 0; j < mv_num; j++) {
+          if (i != j && is_centriods[j] && neighborhood[i][j]) {
+            // Centroid j is also in Centriod i's neighborhood, so combine them
+            // Put all centroid j's element in centriod i's cluster
+            (*cluster_num)--;
+            is_centriods[j] = false;
+            for (int k = 0; k < mv_num; k++) {
+              if (neighborhood[j][k]) {
+                neighborhood[i][k] = true;
+              }
+            }
+            should_stop = false;
+          }
+        }
+      }
+    }
+    if (should_stop) {
+      break;
+    }
+  }
+  // Label
+  for (int i = 0; i < mv_num; i++) {
+    if (is_centriods[i]) {
+      int i_idx = i + start;
+      for (int j = 0; j < mv_num; j++) {
+        if (neighborhood[i][j]) {
+          int j_idx = j + start;
+          cluster_label[j_idx] = i_idx;
+        }
+      }
+    }
+  }
+}
+
+void merge_mv(CANDIDATE_MV ref_mv_stack[MAX_REF_MV_STACK_SIZE],
+              uint16_t ref_mv_weight[MAX_REF_MV_STACK_SIZE],
+              int cluster_label[MAX_REF_MV_STACK_SIZE], int start, int end,
+              int cluster_idx_to_merge, int *new_slot) {
+  // centriod
+  int64_t this_mv_row, this_mv_col, comp_mv_row, comp_mv_col, temp;
+  uint64_t total_weight = 0U;
+  this_mv_row = this_mv_col = comp_mv_row = comp_mv_col = temp = 0U;
+  int cluster_points = 0;
+  // Choose whether weighted average or arithmetic average
+  bool use_weighted_avg = true;
+
+  for (int j = start; j < end; j++) {
+    if (cluster_label[j] == cluster_idx_to_merge) {
+      if (use_weighted_avg) {
+        // Weighted Average
+        const int64_t weight = ref_mv_weight[j];
+        this_mv_row += ref_mv_stack[j].this_mv.as_mv.row * weight;
+        this_mv_col += ref_mv_stack[j].this_mv.as_mv.col * weight;
+        comp_mv_row += ref_mv_stack[j].comp_mv.as_mv.row * weight;
+        comp_mv_col += ref_mv_stack[j].comp_mv.as_mv.col * weight;
+        total_weight += ref_mv_weight[j];
+        cluster_points++;
+      } else {
+        // Arithmetic Average
+        this_mv_row += ref_mv_stack[j].this_mv.as_mv.row;
+        this_mv_col += ref_mv_stack[j].this_mv.as_mv.col;
+        comp_mv_row += ref_mv_stack[j].comp_mv.as_mv.row;
+        comp_mv_col += ref_mv_stack[j].comp_mv.as_mv.col;
+        cluster_points++;
+      }
+    }
+  }
+
+  if (use_weighted_avg) {
+    // Weighted Avg
+    this_mv_row = (this_mv_row + (total_weight >> 1)) / total_weight;
+    this_mv_col = (this_mv_col + (total_weight >> 1)) / total_weight;
+    comp_mv_row = (comp_mv_row + (total_weight >> 1)) / total_weight;
+    comp_mv_col = (comp_mv_col + (total_weight >> 1)) / total_weight;
+  } else {
+    // Arithmetic Avg
+    this_mv_row = (this_mv_row + (cluster_points >> 1)) / cluster_points;
+    this_mv_col = (this_mv_col + (cluster_points >> 1)) / cluster_points;
+    comp_mv_row = (comp_mv_row + (cluster_points >> 1)) / cluster_points;
+    comp_mv_col = (comp_mv_col + (cluster_points >> 1)) / cluster_points;
+  }
+
+  this_mv_row = clamp64(this_mv_row, INT16_MIN, INT16_MAX);
+  this_mv_col = clamp64(this_mv_col, INT16_MIN, INT16_MAX);
+  comp_mv_row = clamp64(comp_mv_row, INT16_MIN, INT16_MAX);
+  comp_mv_col = clamp64(comp_mv_col, INT16_MIN, INT16_MAX);
+
+  // De-Duplication
+  bool duplicated = false;
+  for (int j = start; j < end; j++) {
+    if (this_mv_row == ref_mv_stack[j].this_mv.as_mv.row &&
+        this_mv_col == ref_mv_stack[j].this_mv.as_mv.col) {
+      duplicated = true;
+    }
+  }
+  if (!duplicated && (*new_slot) < MAX_REF_MV_STACK_SIZE &&
+      cluster_points > 1) {
+    // ref_mv_weight[*new_slot] = (this_weight > UINT16_MAX) ? UINT16_MAX :
+    // this_weight; Give it a very small weight (smaller than all the others),
+    // so that it will not come to the front of the other existing MVs
+    ref_mv_weight[*new_slot] = 1U;
+    ref_mv_stack[*new_slot].this_mv.as_mv.row = this_mv_row;
+    ref_mv_stack[*new_slot].this_mv.as_mv.col = this_mv_col;
+    ref_mv_stack[*new_slot].comp_mv.as_mv.row = comp_mv_row;
+    ref_mv_stack[*new_slot].comp_mv.as_mv.col = comp_mv_col;
+    cluster_label[*new_slot] = cluster_idx_to_merge;
+    (*new_slot)++;
+  }
+}
+#endif
+
 static void setup_ref_mv_list(const AV1_COMMON *cm, const MACROBLOCKD *xd,
                               MV_REFERENCE_FRAME ref_frame,
                               uint8_t *const refmv_count,
@@ -609,7 +786,11 @@ static void setup_ref_mv_list(const AV1_COMMON *cm, const MACROBLOCKD *xd,
                   gm_mv_candidates, refmv_count);
 
   const uint8_t nearest_match = (row_match_count > 0) + (col_match_count > 0);
+#if CONFIG_DBSCAN_FEATURE
+  uint8_t nearest_refmv_count = *refmv_count;
+#else
   const uint8_t nearest_refmv_count = *refmv_count;
+#endif
 
   // TODO(yunqing): for comp_search, do it for all 3 cases.
   for (int idx = 0; idx < nearest_refmv_count; ++idx)
@@ -715,7 +896,87 @@ static void setup_ref_mv_list(const AV1_COMMON *cm, const MACROBLOCKD *xd,
       mode_context[ref_frame] |= (5 << REFMV_OFFSET);
       break;
   }
+#if CONFIG_DBSCAN_FEATURE
+  // Clustering for 2 Parts Seperately, with nearest_refmv_count as the
+  // borderline (because the following sorting is conducted in two parts)
+  {
+    // DBSCAN Parameters
+    const int min_points = 3;
+    const int dist_threshold = 1;
+    int cluster_num1 = 0;
+    int cluster_num2 = 0;
+    int cluster_label[MAX_REF_MV_STACK_SIZE];
+    for (int i = 0; i < (*refmv_count); i++) {
+      cluster_label[i] = -1;
+    }
+    int new_slot = (*refmv_count);
+    // If the spatial mvs can not even fill the MAX_MV_REF_CANDIDATES, we will
+    // not cluster them
+    if (nearest_refmv_count > MAX_MV_REF_CANDIDATES) {
+      mv_dbscan(ref_mv_stack, 0, nearest_refmv_count, min_points,
+                dist_threshold, &cluster_num1, cluster_label,
+                (rf[1] == NONE_FRAME));
+      // Merge MVs
+      for (int i = 0; i < nearest_refmv_count; i++) {
+        if (cluster_label[i] == i) {
+          // centriod update (no merge any more, only add new mvs)
+          merge_mv(ref_mv_stack, ref_mv_weight, cluster_label, 0,
+                   nearest_refmv_count, i, &new_slot);
+        }
+      }
+    }
+    // If there are too few mv candidates remaining, do not cluster them
+    if ((*refmv_count) - nearest_refmv_count > 2) {
+      mv_dbscan(ref_mv_stack, nearest_refmv_count, (*refmv_count), min_points,
+                dist_threshold, &cluster_num2, cluster_label,
+                (rf[1] == NONE_FRAME));
+      // Merge MVs
+      for (int i = nearest_refmv_count; i < (*refmv_count); i++) {
+        if (cluster_label[i] == i) {
+          merge_mv(ref_mv_stack, ref_mv_weight, cluster_label,
+                   nearest_refmv_count, (*refmv_count), i, &new_slot);
+        }
+      }
+    }
 
+    (*refmv_count) =
+        (new_slot < MAX_REF_MV_STACK_SIZE ? new_slot : MAX_REF_MV_STACK_SIZE);
+
+    // Shrink MV list
+    {
+      CANDIDATE_MV tmp[MAX_REF_MV_STACK_SIZE];
+      uint16_t tmp_weight[MAX_REF_MV_STACK_SIZE];
+      int count = 0;
+      uint8_t old_nearest_refmv_count = nearest_refmv_count;
+      for (int i = 0; i < old_nearest_refmv_count; i++) {
+        if (cluster_label[i] == -1 || cluster_label[i] == i) {
+          // Only keep outliers and cluster centriods
+          tmp[count].this_mv.as_int = ref_mv_stack[i].this_mv.as_int;
+          tmp[count].comp_mv.as_int = ref_mv_stack[i].comp_mv.as_int;
+          tmp_weight[count] = ref_mv_weight[i];
+          count++;
+        }
+      }
+      nearest_refmv_count = count;
+      for (int i = old_nearest_refmv_count; i < (*refmv_count); i++) {
+        if (cluster_label[i] == -1 || cluster_label[i] == i) {
+          // Only keep outliers and cluster centriods
+          tmp[count].this_mv.as_int = ref_mv_stack[i].this_mv.as_int;
+          tmp[count].comp_mv.as_int = ref_mv_stack[i].comp_mv.as_int;
+          tmp_weight[count] = ref_mv_weight[i];
+          count++;
+        }
+      }
+      (*refmv_count) = count;
+      for (int i = 0; i < count; i++) {
+        ref_mv_stack[i].this_mv.as_int = tmp[i].this_mv.as_int;
+        ref_mv_stack[i].comp_mv.as_int = tmp[i].comp_mv.as_int;
+        ref_mv_weight[i] = tmp_weight[i];
+      }
+    }
+  }
+
+#endif
   // Rank the likelihood and assign nearest and near mvs.
   int len = nearest_refmv_count;
   while (len > 0) {
