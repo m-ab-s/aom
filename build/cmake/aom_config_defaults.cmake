@@ -233,6 +233,8 @@ set_aom_config_var(CONFIG_INTERINTRA_ML_DATA_COLLECT 0 NUMBER
                    "AV2 ML-based interintra data collection flag")
 set_aom_config_var(CONFIG_MFQE_RESTORATION 0 NUMBER
                    "AV2 multi-frame quality enhancement experiment flag")
+set_aom_config_var(CONFIG_EXT_REFMV 0 NUMBER
+                   "AV2 new mv generation for better encoding estimation")
 
 set_aom_config_var(CONFIG_DBSCAN_FEATURE 0 NUMBER
                    "AV2 dbscan clustering for mv reduction")
