@@ -180,8 +180,8 @@ const char subgop_config_str_def[] =
 // An enhanced config where the last subgop uses a shorter dist to arf
 const char subgop_config_str_enh[] =
     // TODO(any): Uncomment when existing issues are fixed
-    // "6:0:6U1/4U2/2U3/1V4/2S/3V4/4S/5V4/6S,"
-    // "6:1:5U1/3U2/1V3/2V3/3S/4V3/5S/6V3,"
+    "6:0:6U1/4U2/2U3/1V4/2S/3V4/4S/5V4/6S,"
+    "6:1:5U1/3U2/1V3/2V3/3S/4V3/5S/6V3,"
 
     "8:0:8F1/4U2/2U3/1V4/2S/3V4/4S/6U3/5V4/6S/7V4/8R1,"
     "8:1:7F1/3U2/1V4/2V4/3S/5U3/4V4/5S/6V4/7R1/8V4,"
