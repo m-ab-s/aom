@@ -266,8 +266,10 @@ typedef struct {
 #endif  // CONFIG_LOOP_RESTORE_CNN
 #if CONFIG_WIENER_NONSEP
   WienerNonsepInfo wiener_nonsep_info;
+#if CONFIG_WIENER_NONSEP_CROSS_FILT
   const uint8_t *luma;
   int luma_stride;
+#endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
   int plane;
 #endif  // CONFIG_WIENER_NONSEP
 } RestorationUnitInfo;
@@ -419,8 +421,10 @@ typedef struct FilterFrameCtxt {
   FRAME_TYPE frame_type;
 #if CONFIG_WIENER_NONSEP
   int plane;
+#if CONFIG_WIENER_NONSEP_CROSS_FILT
   const uint8_t *luma;
   int luma_stride;
+#endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
 #endif  // CONFIG_WIENER_NONSEP
 } FilterFrameCtxt;
 

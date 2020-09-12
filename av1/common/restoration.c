@@ -1022,6 +1022,8 @@ static void sgrproj_filter_stripe(const RestorationUnitInfo *rui,
 void apply_wiener_nonsep(const uint8_t *dgd, int width, int height, int stride,
                          const int16_t *filter, uint8_t *dst, int dst_stride,
                          int plane, const uint8_t *luma, int luma_stride) {
+  (void)luma;
+  (void)luma_stride;
   int is_uv = (plane != AOM_PLANE_Y);
   NonsepFilterConfig nsfilter = {
     wienerns_prec_bits,
@@ -1035,8 +1037,12 @@ void apply_wiener_nonsep(const uint8_t *dgd, int width, int height, int stride,
     av1_convolve_nonsep(dgd, width, height, stride, &nsfilter, filter_, dst,
                         dst_stride);
   } else {
+#if CONFIG_WIENER_NONSEP_CROSS_FILT
     av1_convolve_nonsep_dual(dgd, width, height, stride, luma, luma_stride,
                              &nsfilter, filter_, dst, dst_stride);
+#else
+    assert(0 && "Incompatible CONFIG_WIENER_NONSEP config");
+#endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
   }
   return;
 }
@@ -1054,7 +1060,13 @@ static void wiener_nsfilter_stripe(const RestorationUnitInfo *rui,
     int w = AOMMIN(procunit_width, stripe_width - j);
     apply_wiener_nonsep(src + j, w, stripe_height, src_stride,
                         rui->wiener_nonsep_info.nsfilter, dst + j, dst_stride,
-                        rui->plane, rui->luma, rui->luma_stride);
+                        rui->plane,
+#if CONFIG_WIENER_NONSEP_CROSS_FILT
+                        rui->luma, rui->luma_stride
+#else
+                        NULL, -1
+#endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
+    );
   }
 }
 
@@ -1063,6 +1075,8 @@ void apply_wiener_nonsep_highbd(const uint8_t *dgd8, int width, int height,
                                 uint8_t *dst8, int dst_stride, int plane,
                                 const uint8_t *luma8, int luma_stride,
                                 int bit_depth) {
+  (void)luma8;
+  (void)luma_stride;
   int is_uv = (plane != AOM_PLANE_Y);
   NonsepFilterConfig nsfilter = {
     wienerns_prec_bits,
@@ -1076,9 +1090,13 @@ void apply_wiener_nonsep_highbd(const uint8_t *dgd8, int width, int height,
     av1_convolve_nonsep_highbd(dgd8, width, height, stride, &nsfilter, filter_,
                                dst8, dst_stride, bit_depth);
   } else {
+#if CONFIG_WIENER_NONSEP_CROSS_FILT
     av1_convolve_nonsep_dual_highbd(dgd8, width, height, stride, luma8,
                                     luma_stride, &nsfilter, filter_, dst8,
                                     dst_stride, bit_depth);
+#else
+    assert(0 && "Incompatible CONFIG_WIENER_NONSEP config");
+#endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
   }
   return;
 }
@@ -1096,8 +1114,13 @@ static void wiener_nsfilter_stripe_highbd(const RestorationUnitInfo *rui,
     int w = AOMMIN(procunit_width, stripe_width - j);
     apply_wiener_nonsep_highbd(src + j, w, stripe_height, src_stride,
                                rui->wiener_nonsep_info.nsfilter, dst + j,
-                               dst_stride, rui->plane, rui->luma,
-                               rui->luma_stride, bit_depth);
+                               dst_stride, rui->plane,
+#if CONFIG_WIENER_NONSEP_CROSS_FILT
+                               rui->luma, rui->luma_stride,
+#else
+                               NULL, -1,
+#endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
+                               bit_depth);
   }
 }
 
@@ -1363,9 +1386,11 @@ static void filter_frame_on_unit(const RestorationTileLimits *limits,
 #endif  // CONFIG_LOOP_RESTORE_CNN
 #if CONFIG_WIENER_NONSEP
   rsi->unit_info[rest_unit_idx].plane = ctxt->plane;
-  int is_uv = (ctxt->plane != AOM_PLANE_Y);
+#if CONFIG_WIENER_NONSEP_CROSS_FILT
+  const int is_uv = (ctxt->plane != AOM_PLANE_Y);
   rsi->unit_info[rest_unit_idx].luma = is_uv ? ctxt->luma : NULL;
   rsi->unit_info[rest_unit_idx].luma_stride = is_uv ? ctxt->luma_stride : -1;
+#endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
 #endif  // CONFIG_WIENER_NONSEP
 
   av1_loop_restoration_filter_unit(
@@ -1453,20 +1478,16 @@ static void foreach_rest_unit_in_planes(AV1LrStruct *lr_ctxt, AV1_COMMON *cm,
                                         int num_planes) {
   FilterFrameCtxt *ctxt = lr_ctxt->ctxt;
 
-#if CONFIG_WIENER_NONSEP
+#if CONFIG_WIENER_NONSEP_CROSS_FILT
+  uint8_t *luma = NULL;
   const YV12_BUFFER_CONFIG *dgd = &cm->cur_frame->buf;
   int luma_stride = dgd->crop_widths[1] + 2 * WIENERNS_UV_BRD;
-
-  uint8_t *luma = NULL;
-#if CONFIG_WIENER_NONSEP_CROSS_FILT
   uint8_t *luma_buf = wienerns_copy_luma(
       dgd->buffers[AOM_PLANE_Y], dgd->crop_heights[AOM_PLANE_Y],
       dgd->crop_widths[AOM_PLANE_Y], dgd->strides[AOM_PLANE_Y], &luma,
       dgd->crop_heights[1], dgd->crop_widths[1], WIENERNS_UV_BRD, luma_stride);
   assert(luma_buf != NULL);
 #endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
-
-#endif  // CONFIG_WIENER_NONSEP
 
   for (int plane = 0; plane < num_planes; ++plane) {
     if (cm->rst_info[plane].frame_restoration_type == RESTORE_NONE) {
@@ -1475,9 +1496,11 @@ static void foreach_rest_unit_in_planes(AV1LrStruct *lr_ctxt, AV1_COMMON *cm,
 
 #if CONFIG_WIENER_NONSEP
     ctxt[plane].plane = plane;
-    int is_uv = (plane != AOM_PLANE_Y);
+#if CONFIG_WIENER_NONSEP_CROSS_FILT
+    const int is_uv = (plane != AOM_PLANE_Y);
     ctxt[plane].luma = is_uv ? luma : NULL;
     ctxt[plane].luma_stride = is_uv ? luma_stride : -1;
+#endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
 #endif  // CONFIG_WIENER_NONSEP
 
     av1_foreach_rest_unit_in_plane(cm, plane, lr_ctxt->on_rest_unit,

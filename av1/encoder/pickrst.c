@@ -135,8 +135,10 @@ typedef struct {
   WienerInfo wiener;
 #if CONFIG_WIENER_NONSEP
   WienerNonsepInfo wiener_nonsep;
+#if CONFIG_WIENER_NONSEP_CROSS_FILT
   const uint8_t *luma;
   int luma_stride;
+#endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
 #endif  // CONFIG_WIENER_NONSEP
   AV1PixelRect tile_rect;
 } RestSearchCtxt;
@@ -1522,7 +1524,9 @@ static int compute_quantized_wienerns_filter(const uint8_t *dgd,
                                              int use_hbd, int bit_depth) {
   const uint16_t *src_hbd = CONVERT_TO_SHORTPTR(src);
   const uint16_t *dgd_hbd = CONVERT_TO_SHORTPTR(dgd);
+#if CONFIG_WIENER_NONSEP_CROSS_FILT
   const uint16_t *luma_hbd = CONVERT_TO_SHORTPTR(rui->luma);
+#endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
   double A[WIENERNS_MAX * WIENERNS_MAX];
   double b[WIENERNS_MAX];
   double x[WIENERNS_MAX];
@@ -1541,7 +1545,9 @@ static int compute_quantized_wienerns_filter(const uint8_t *dgd,
     for (int j = h_beg; j < h_end; ++j) {
       int dgd_id = i * dgd_stride + j;
       int src_id = i * src_stride + j;
+#if CONFIG_WIENER_NONSEP_CROSS_FILT
       int luma_id = i * rui->luma_stride + j;
+#endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
       memset(buf, 0, sizeof(buf));
       for (int k = 0; k < end_pixel; ++k) {
         int pos = wienerns_config[k][WIENERNS_BUF_POS];
@@ -1557,6 +1563,7 @@ static int compute_quantized_wienerns_filter(const uint8_t *dgd,
                                   (int16_t)dgd[dgd_id],
                               bit_depth);
         } else {
+#if CONFIG_WIENER_NONSEP_CROSS_FILT
           buf[pos] +=
               use_hbd
                   ? clip_base(
@@ -1569,6 +1576,9 @@ static int compute_quantized_wienerns_filter(const uint8_t *dgd,
                                 ->luma[(i + r) * rui->luma_stride + (j + c)] -
                             (int16_t)rui->luma[luma_id],
                         bit_depth);
+#else
+          assert(0 && "Incorrect CONFIG_WIENER_NONSEP configuration");
+#endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
         }
       }
       for (int k = 0; k < num_feat; ++k) {
@@ -1667,8 +1677,10 @@ static void search_wiener_nonsep(const RestorationTileLimits *limits,
   RestorationUnitInfo rui;
   memset(&rui, 0, sizeof(rui));
   rui.restoration_type = RESTORE_WIENER_NONSEP;
+#if CONFIG_WIENER_NONSEP_CROSS_FILT
   rui.luma = rsc->luma;
   rui.luma_stride = rsc->luma_stride;
+#endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
   rui.plane = rsc->plane;
 
   if (compute_quantized_wienerns_filter(
@@ -1937,19 +1949,18 @@ void av1_pick_filter_restoration(const YV12_BUFFER_CONFIG *src, AV1_COMP *cpi) {
 #endif  // CONFIG_DUMP_MFQE_DATA
 
 #if CONFIG_WIENER_NONSEP
+#if CONFIG_WIENER_NONSEP_CROSS_FILT
+  uint8_t *luma = NULL;
   const YV12_BUFFER_CONFIG *dgd = &cpi->common.cur_frame->buf;
   rsc.luma_stride = dgd->crop_widths[1] + 2 * WIENERNS_UV_BRD;
-
-  uint8_t *luma = NULL;
-#if CONFIG_WIENER_NONSEP_CROSS_FILT
   uint8_t *luma_buf = wienerns_copy_luma(
       dgd->buffers[AOM_PLANE_Y], dgd->crop_heights[AOM_PLANE_Y],
       dgd->crop_widths[AOM_PLANE_Y], dgd->strides[AOM_PLANE_Y], &luma,
       dgd->crop_heights[1], dgd->crop_widths[1], WIENERNS_UV_BRD,
       rsc.luma_stride);
   assert(luma_buf != NULL);
-#endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
   rsc.luma = luma;
+#endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
 #endif  // CONFIG_WIENER_NONSEP
 
   for (int plane = plane_start; plane <= plane_end; ++plane) {
