@@ -157,8 +157,8 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
   RESET_CDF_COUNTER(fc->intrabc_cdf, 2);
 #if CONFIG_EXT_IBC_MODES
   RESET_CDF_COUNTER(fc->intrabc_mode_cdf, 8);
-  // RESET_CDF_COUNTER(fc->intrabcplus_cdf, 2);
-  // RESET_CDF_COUNTER(fc->intrabcplus_mode_cdf, 4);
+  // RESET_CDF_COUNTER(fc->intrabc_mode_cdf, 6);
+  // RESET_CDF_COUNTER(fc->intrabc_mode_cdf, 4);
 #endif  // CONFIG_EXT_IBC_MODES
   RESET_CDF_COUNTER(fc->seg.tree_cdf, MAX_SEGMENTS);
   RESET_CDF_COUNTER(fc->seg.pred_cdf, 2);

@@ -622,7 +622,8 @@ typedef struct AV1Common {
   int coded_frame_idx;
 #endif  // CONFIG_COLLECT_FRAME_INFO
 #if CONFIG_EXT_IBC_MODES
-  int ext_IBC_config;
+  int ext_ibc_config;
+  IBC_MODE max_ibc_mode;
 #endif  // CONFIG_EXT_IBC_MODES
 } AV1_COMMON;
 

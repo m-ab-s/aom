@@ -1725,9 +1725,11 @@ static void pack_inter_mode_mvs(AV1_COMP *cpi, const int mi_row,
   }
 }
 
-static void write_intrabc_info(MACROBLOCKD *xd,
-                               const MB_MODE_INFO_EXT *mbmi_ext,
-                               aom_writer *w) {
+static void write_intrabc_info(
+#if CONFIG_EXT_IBC_MODES
+    const AV1_COMMON *cm,
+#endif  // CONFIG_EXT_IBC_MODES
+    MACROBLOCKD *xd, const MB_MODE_INFO_EXT *mbmi_ext, aom_writer *w) {
   const MB_MODE_INFO *const mbmi = xd->mi[0];
   int use_intrabc = is_intrabc_block(mbmi);
   FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
@@ -1737,12 +1739,12 @@ static void write_intrabc_info(MACROBLOCKD *xd,
     assert(mbmi->uv_mode == UV_DC_PRED);
     assert(mbmi->motion_mode == SIMPLE_TRANSLATION);
 #if CONFIG_EXT_IBC_MODES
-    aom_write_symbol(w, mbmi->ibc_mode, ec_ctx->intrabc_mode_cdf, 8);
-    // aom_write_symbol(w, mbmi->is_ibcplus, ec_ctx->intrabcplus_cdf, 2);
-    /*if(mbmi->is_ibcplus) {
-            aom_write_symbol(w, mbmi->ibcplus_mode,
-    ec_ctx->intrabcplus_mode_cdf, 4);
-    }*/
+    if (cm->ext_ibc_config == CONFIG_EXT_IBC_ALLMODES)
+      aom_write_symbol(w, mbmi->ibc_mode, ec_ctx->intrabc_mode_cdf, 8);
+    else if (cm->ext_ibc_config == CONFIG_EXT_IBC_TOP5MODES)
+      aom_write_symbol(w, mbmi->ibc_mode, ec_ctx->intrabc_mode_cdf, 6);
+    else if (cm->ext_ibc_config == CONFIG_EXT_IBC_TOP3MODES)
+      aom_write_symbol(w, mbmi->ibc_mode, ec_ctx->intrabc_mode_cdf, 4);
 #endif  // CONFIG_EXT_IBC_MODES
     int_mv dv_ref = mbmi_ext->ref_mv_stack[INTRA_FRAME][0].this_mv;
     av1_encode_dv(w, &mbmi->mv[0].as_mv, &dv_ref.as_mv, &ec_ctx->ndvc);
@@ -1772,7 +1774,11 @@ static void write_mb_modes_kf(AV1_COMP *cpi, MACROBLOCKD *xd,
   write_delta_q_params(cpi, mi_row, mi_col, skip, w);
 
   if (av1_allow_intrabc(cm)) {
+#if CONFIG_EXT_IBC_MODES
+    write_intrabc_info(cm, xd, mbmi_ext, w);
+#else
     write_intrabc_info(xd, mbmi_ext, w);
+#endif  // CONFIG_EXT_IBC_MODES
     if (is_intrabc_block(mbmi)) return;
   }
 

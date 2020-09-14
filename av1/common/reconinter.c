@@ -1235,7 +1235,6 @@ static void build_inter_predictors(
       // IBC+ Winners Only : Extract Predicted block & translate accordingly
       if (is_intrabc && mi->ibc_mode) {
         uint8_t ibcWinMode = mi->ibc_mode;
-        // uint8_t ibcWinMode = mi->is_ibcplus ? (0x1 + mi->ibcplus_mode) : 0x0;
 
         // Allocate & Extract/Fetch predicted block
         uint16_t *pred_block = NULL;

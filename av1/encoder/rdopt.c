@@ -13140,8 +13140,7 @@ static int64_t rd_pick_intrabc_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x,
   rd_intrabc_allocate_sb(&src_block, w, h);
   rd_intrabc_extract_source_sb(x, src_block, w, h);
 
-  for (IBC_MODE ibcMode = ROTATION_0; ibcMode <= ROTATION_270 /*ROTATION_90*/;
-       ++ibcMode) {
+  for (IBC_MODE ibcMode = ROTATION_0; ibcMode <= cm->max_ibc_mode; ++ibcMode) {
     // Translate Source Block & Update Source Pointer for search
     switch (ibcMode) {
       case ROTATION_0: rd_intrabc_copy_sb(x->ibc_src, src_block, w, h); break;
@@ -13299,8 +13298,6 @@ static int64_t rd_pick_intrabc_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x,
 #endif  // CONFIG_NN_RECON
 #if CONFIG_EXT_IBC_MODES
       mbmi->ibc_mode = ibcMode;
-      // mbmi->is_ibcplus = (ibcMode != ROTATION_0) ? 0x1 : 0x0;
-      // mbmi->ibcplus_mode = mbmi->is_ibcplus ? (ibcMode-MIRROR_90) : 0x0;
 #endif  // CONFIG_EXT_IBC_MODES
 #if CONFIG_DERIVED_MV
       mbmi->derived_mv_allowed = mbmi->use_derived_mv = 0;
@@ -13385,8 +13382,6 @@ void av1_rd_pick_intra_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x,
   mbmi->use_intrabc = 0;
 #if CONFIG_EXT_IBC_MODES
   mbmi->ibc_mode = 0;
-  // mbmi->is_ibcplus = 0;
-  // mbmi->ibcplus_mode = 0;
 #endif  // CONFIG_EXT_IBC_MODES
   mbmi->mv[0].as_int = 0;
 #if CONFIG_DSPL_RESIDUAL

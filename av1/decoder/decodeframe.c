@@ -5380,7 +5380,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       cm->allow_intrabc = aom_rb_read_bit(rb);
 
 #if CONFIG_EXT_IBC_MODES
-    if (cm->allow_intrabc) cm->ext_IBC_config = CONFIG_EXT_IBC_ALLMODES;
+    if (cm->allow_intrabc) cm->ext_ibc_config = CONFIG_EXT_IBC_ALLMODES;
 #endif  // CONFIG_EXT_IBC_MODES
 
     cm->allow_ref_frame_mvs = 0;
@@ -5395,7 +5395,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       if (cm->allow_screen_content_tools && !av1_superres_scaled(cm))
         cm->allow_intrabc = aom_rb_read_bit(rb);
 #if CONFIG_EXT_IBC_MODES
-      if (cm->allow_intrabc) cm->ext_IBC_config = CONFIG_EXT_IBC_ALLMODES;
+      if (cm->allow_intrabc) cm->ext_ibc_config = CONFIG_EXT_IBC_ALLMODES;
 #endif  // CONFIG_EXT_IBC_MODES
 
     } else if (pbi->need_resync != 1) { /* Skip if need resync */

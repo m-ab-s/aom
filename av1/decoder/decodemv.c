@@ -853,13 +853,15 @@ static void read_intrabc_info(AV1_COMMON *const cm, MACROBLOCKD *const xd,
     mbmi->max_mv_precision = MV_SUBPEL_NONE;
     mbmi->pb_mv_precision = mbmi->max_mv_precision;
 #if CONFIG_EXT_IBC_MODES
-    mbmi->ibc_mode = aom_read_symbol(r, ec_ctx->intrabc_mode_cdf, 8, ACCT_STR);
-    // mbmi->is_ibcplus = aom_read_symbol(r, ec_ctx->intrabcplus_cdf, 2,
-    // ACCT_STR);
-    /*if(mbmi->is_ibcplus) {
-            mbmi->ibcplus_mode = aom_read_symbol(r,
-    ec_ctx->intrabcplus_mode_cdf, 4, ACCT_STR);
-    }*/
+    if (cm->ext_ibc_config == CONFIG_EXT_IBC_ALLMODES)
+      mbmi->ibc_mode =
+          aom_read_symbol(r, ec_ctx->intrabc_mode_cdf, 8, ACCT_STR);
+    else if (cm->ext_ibc_config == CONFIG_EXT_IBC_TOP5MODES)
+      mbmi->ibc_mode =
+          aom_read_symbol(r, ec_ctx->intrabc_mode_cdf, 6, ACCT_STR);
+    else if (cm->ext_ibc_config == CONFIG_EXT_IBC_TOP3MODES)
+      mbmi->ibc_mode =
+          aom_read_symbol(r, ec_ctx->intrabc_mode_cdf, 4, ACCT_STR);
 #endif  // CONFIG_EXT_IBC_MODES
     int16_t inter_mode_ctx[MODE_CTX_REF_FRAMES];
     int_mv ref_mvs[INTRA_FRAME + 1][MAX_MV_REF_CANDIDATES];
@@ -985,8 +987,6 @@ static void read_intra_frame_mode_info(AV1_COMMON *const cm,
   if (av1_allow_intrabc(cm)) {
 #if CONFIG_EXT_IBC_MODES
     mbmi->ibc_mode = 0;
-    // mbmi->is_ibcplus = 0;
-    // mbmi->ibcplus_mode = 0;
 #endif  // CONFIG_EXT_IBC_MODES
     read_intrabc_info(cm, xd, mi_row, mi_col, r);
     if (is_intrabc_block(mbmi)) return;
@@ -2154,8 +2154,6 @@ void av1_read_mode_info(AV1Decoder *const pbi, MACROBLOCKD *xd, int mi_row,
 
 #if CONFIG_EXT_IBC_MODES
   mi->ibc_mode = 0;
-  // mi->is_ibcplus = 0;
-  // mi->ibcplus_mode = 0;
 #endif  // CONFIG_EXT_IBC_MODES
 
 #if CONFIG_DERIVED_INTRA_MODE
