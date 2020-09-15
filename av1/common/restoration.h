@@ -171,7 +171,7 @@ extern "C" {
 
 #if CONFIG_WIENER_NONSEP
 #define WIENERNS_PREC_BITS_Y 8
-#define WIENERNS_PREC_BITS_UV 8
+#define WIENERNS_PREC_BITS_UV 7
 
 #if CONFIG_WIENER_NONSEP_CROSS_FILT
 #define WIENERNS_UV_BRD 2  // Max offset for luma used for chorma
