@@ -773,8 +773,15 @@ static AOM_INLINE void restore_all_coding_context(AV1_COMP *cpi) {
 // Refresh reference frame buffers according to refresh_frame_flags.
 static AOM_INLINE void refresh_reference_frames(AV1_COMP *cpi) {
   AV1_COMMON *const cm = &cpi->common;
-  // All buffers are refreshed for shown keyframes and S-frames.
 
+  // Reset display order hint for forward keyframe
+  // TODO(sarahparker): Find a way to also reset order_hint without causing
+  // a crash.
+  if (cm->cur_frame->frame_type == KEY_FRAME && cm->show_existing_frame) {
+    cm->cur_frame->display_order_hint = 0;
+  }
+
+  // All buffers are refreshed for shown keyframes and S-frames.
   for (int ref_frame = 0; ref_frame < REF_FRAMES; ref_frame++) {
     if (((cm->current_frame.refresh_frame_flags >> ref_frame) & 1) == 1) {
       assign_frame_buffer_p(&cm->ref_frame_map[ref_frame], cm->cur_frame);
