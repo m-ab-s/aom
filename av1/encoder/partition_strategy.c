@@ -29,6 +29,7 @@
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 #include "av1/encoder/encoder.h"
 
+#include "av1/encoder/partition_search_utils.h"
 #include "av1/encoder/partition_strategy.h"
 #include "av1/encoder/rdopt.h"
 
@@ -1745,4 +1746,44 @@ int av1_prune_new_part(const SMSPartitionStats *old_part,
   return old_rd_stat.rdcost < new_rd_stat.rdcost;
 }
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
+
+void av1_get_max_min_partition_size(AV1_COMP *cpi, ThreadData *td,
+                                    BLOCK_SIZE *max_sq_size,
+                                    BLOCK_SIZE *min_sq_size, int mi_row,
+                                    int mi_col) {
+  const AV1_COMMON *cm = &cpi->common;
+  MACROBLOCK *x = &td->mb;
+  const BLOCK_SIZE sb_size = cm->seq_params.sb_size;
+
+  switch (cpi->oxcf.max_partition_size) {
+    case 4: *max_sq_size = BLOCK_4X4; break;
+    case 8: *max_sq_size = BLOCK_8X8; break;
+    case 16: *max_sq_size = BLOCK_16X16; break;
+    case 32: *max_sq_size = BLOCK_32X32; break;
+    case 64: *max_sq_size = BLOCK_64X64; break;
+    case 128: *max_sq_size = BLOCK_128X128; break;
+    default: assert(0); break;
+  }
+  *max_sq_size = AOMMIN(*max_sq_size, sb_size);
+
+  switch (cpi->oxcf.min_partition_size) {
+    case 4: *min_sq_size = BLOCK_4X4; break;
+    case 8: *min_sq_size = BLOCK_8X8; break;
+    case 16: *min_sq_size = BLOCK_16X16; break;
+    case 32: *min_sq_size = BLOCK_32X32; break;
+    case 64: *min_sq_size = BLOCK_64X64; break;
+    case 128: *min_sq_size = BLOCK_128X128; break;
+    default: assert(0); break;
+  }
+
+  if (use_auto_max_partition(cpi, sb_size, mi_row, mi_col)) {
+    float features[FEATURE_SIZE_MAX_MIN_PART_PRED] = { 0.0f };
+
+    av1_get_max_min_partition_features(cpi, x, mi_row, mi_col, features);
+    *max_sq_size =
+        AOMMIN(av1_predict_max_partition(cpi, x, features), *max_sq_size);
+  }
+
+  *min_sq_size = AOMMIN(*min_sq_size, *max_sq_size);
+}
 #endif  // !CONFIG_REALTIME_ONLY

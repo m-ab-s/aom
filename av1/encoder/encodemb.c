@@ -614,8 +614,8 @@ void av1_encode_sby_pass1(AV1_COMMON *cm, MACROBLOCK *x, BLOCK_SIZE bsize) {
                                          encode_block_pass1, &args);
 }
 
-void av1_encode_sb(const struct AV1_COMP *cpi, MACROBLOCK *x, int mi_row,
-                   int mi_col, RUN_TYPE dry_run) {
+void av1_encode_inter_txfm_block(const struct AV1_COMP *cpi, MACROBLOCK *x,
+                                 int mi_row, int mi_col, RUN_TYPE dry_run) {
   (void)dry_run;
   const AV1_COMMON *const cm = &cpi->common;
   const int num_planes = av1_num_planes(cm);

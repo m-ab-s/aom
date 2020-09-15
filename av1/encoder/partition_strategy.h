@@ -129,6 +129,11 @@ int av1_ml_predict_breakout(const AV1_COMP *const cpi, BLOCK_SIZE bsize,
                             const MACROBLOCK *const x,
                             const RD_STATS *const rd_stats,
                             unsigned int pb_source_variance);
+
+void av1_get_max_min_partition_size(AV1_COMP *cpi, ThreadData *td,
+                                    BLOCK_SIZE *max_sq_size,
+                                    BLOCK_SIZE *min_sq_size, int mi_row,
+                                    int mi_col);
 #endif  // !CONFIG_REALTIME_ONLY
 
 #if CONFIG_EXT_RECUR_PARTITIONS

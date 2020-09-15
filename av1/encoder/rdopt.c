@@ -16957,3 +16957,17 @@ EdgeInfo av1_edge_exists(const uint8_t *src, int src_stride, int w, int h,
   }
   return prob;
 }
+
+EdgeInfo av1_get_edge_info(const struct buf_2d *ref, const BLOCK_SIZE bsize,
+                           const bool high_bd, const int bd) {
+  const int width = block_size_wide[bsize];
+  const int height = block_size_high[bsize];
+  // Implementation requires width to be a multiple of 8. It also requires
+  // height to be a multiple of 4, but this is always the case.
+  assert(height % 4 == 0);
+  if (width % 8 != 0) {
+    EdgeInfo ei = { .magnitude = 0, .x = 0, .y = 0 };
+    return ei;
+  }
+  return av1_edge_exists(ref->buf, ref->stride, width, height, high_bd, bd);
+}

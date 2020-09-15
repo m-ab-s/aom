@@ -162,6 +162,9 @@ typedef struct {
 EdgeInfo av1_edge_exists(const uint8_t *src, int src_stride, int w, int h,
                          bool high_bd, int bd);
 
+EdgeInfo av1_get_edge_info(const struct buf_2d *ref, const BLOCK_SIZE bsize,
+                           const bool high_bd, const int bd);
+
 /** Applies a Gaussian blur with sigma = 1.3. Used by av1_edge_exists and
  * tests.
  */

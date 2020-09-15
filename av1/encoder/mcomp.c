@@ -27,6 +27,7 @@
 #include "av1/common/pred_common.h"
 #include "av1/common/reconinter.h"
 
+#include "av1/encoder/encodeframe_utils.h"
 #include "av1/encoder/encoder.h"
 #include "av1/encoder/encodemv.h"
 #include "av1/encoder/mcomp.h"
