@@ -1087,8 +1087,9 @@ void av1_inv_txfm2d_add_64x64_c(const int32_t *input, uint16_t *output,
       }
     }
     DECLARE_ALIGNED(32, uint8_t, cls[64 * 64]);
-    NonsepFilterConfig nsfilter = { 10, STX64X64_FILTER_TAPS, 0,
-                                    stx64x64_config, 1 };
+    NonsepFilterConfig nsfilter = { 10,   STX64X64_FILTER_TAPS,
+                                    0,    stx64x64_config,
+                                    NULL, 1 };
     edge_based_classify((const uint16_t *)output_up, 64, 64, 64, cls, 64, bd);
     av1_convolve_nonsep_cls_highbd((const uint16_t *)output_up, 64, 64, 64,
                                    &nsfilter, cls, 64, stx64x64_filters, 16,
@@ -1144,8 +1145,9 @@ void av1_inv_txfm2d_add_32x64_c(const int32_t *input, uint16_t *output,
       }
     }
     DECLARE_ALIGNED(32, uint8_t, cls[32 * 64]);
-    NonsepFilterConfig nsfilter = { 10, STXNX64_FILTER_TAPS, 0, stxnx64_config,
-                                    1 };
+    NonsepFilterConfig nsfilter = { 10,   STXNX64_FILTER_TAPS,
+                                    0,    stxnx64_config,
+                                    NULL, 1 };
     edge_based_classify((const uint16_t *)output_up, 32, 64, 32, cls, 32, bd);
     av1_convolve_nonsep_cls_highbd((const uint16_t *)output_up, 32, 64, 32,
                                    &nsfilter, cls, 32, stxnx64_filters, 10,
@@ -1202,8 +1204,9 @@ void av1_inv_txfm2d_add_64x32_c(const int32_t *input, uint16_t *output,
       }
     }
     DECLARE_ALIGNED(32, uint8_t, cls[32 * 64]);
-    NonsepFilterConfig nsfilter = { 10, STX64XN_FILTER_TAPS, 0, stx64xn_config,
-                                    1 };
+    NonsepFilterConfig nsfilter = { 10,   STX64XN_FILTER_TAPS,
+                                    0,    stx64xn_config,
+                                    NULL, 1 };
     edge_based_classify((const uint16_t *)output_up, 64, 32, 64, cls, 64, bd);
     av1_convolve_nonsep_cls_highbd((const uint16_t *)output_up, 64, 32, 64,
                                    &nsfilter, cls, 64, stx64xn_filters, 10,
@@ -1260,8 +1263,9 @@ void av1_inv_txfm2d_add_16x64_c(const int32_t *input, uint16_t *output,
       }
     }
     DECLARE_ALIGNED(32, uint8_t, cls[16 * 64]);
-    NonsepFilterConfig nsfilter = { 10, STXNX64_FILTER_TAPS, 0, stxnx64_config,
-                                    1 };
+    NonsepFilterConfig nsfilter = { 10,   STXNX64_FILTER_TAPS,
+                                    0,    stxnx64_config,
+                                    NULL, 1 };
     edge_based_classify((const uint16_t *)output_up, 16, 64, 16, cls, 16, bd);
     av1_convolve_nonsep_cls_highbd((const uint16_t *)output_up, 16, 64, 16,
                                    &nsfilter, cls, 16, stxnx64_filters, 10,
@@ -1318,8 +1322,9 @@ void av1_inv_txfm2d_add_64x16_c(const int32_t *input, uint16_t *output,
       }
     }
     DECLARE_ALIGNED(32, uint8_t, cls[16 * 64]);
-    NonsepFilterConfig nsfilter = { 10, STX64XN_FILTER_TAPS, 0, stx64xn_config,
-                                    1 };
+    NonsepFilterConfig nsfilter = { 10,   STX64XN_FILTER_TAPS,
+                                    0,    stx64xn_config,
+                                    NULL, 1 };
     edge_based_classify((const uint16_t *)output_up, 64, 16, 64, cls, 64, bd);
     av1_convolve_nonsep_cls_highbd((const uint16_t *)output_up, 64, 16, 64,
                                    &nsfilter, cls, 64, stx64xn_filters, 10,

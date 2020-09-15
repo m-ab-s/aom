@@ -50,6 +50,7 @@ typedef struct NonsepFilterConfig {
   int num_pixels;
   int num_pixels2;
   const int (*config)[3];
+  const int (*config2)[3];
   int strict_bounds;
 } NonsepFilterConfig;
 

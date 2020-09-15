@@ -34,15 +34,6 @@
 #define AOM_WIENERNS_COEFF(b, m, k) \
   { (b) + WIENERNS_PREC_BITS_MINUS8, (m) * (1 << WIENERNS_PREC_BITS_MINUS8), k }
 
-const int wienerns_prec_bits = WIENERNS_PREC_BITS;
-const int wienerns_y_pixel = WIENERNS_Y_PIXEL;
-const int wienerns_yuv_pixel = WIENERNS_YUV_PIXEL;
-const int wienerns_uv_inter_pixel = WIENERNS_UV_INTER_PIXEL;
-const int wienerns_uv_pixel = WIENERNS_UV_PIXEL;
-const int wienerns_y = WIENERNS_Y;
-const int wienerns_uv = WIENERNS_UV;
-const int wienerns_yuv = WIENERNS_YUV;
-
 const int wienerns_config_y[][3] = {
   { 1, 0, 0 },  { -1, 0, 0 },   { 0, 1, 1 },   { 0, -1, 1 },  { 2, 0, 2 },
   { -2, 0, 2 }, { 0, 2, 3 },    { 0, -2, 3 },  { 1, 1, 4 },   { -1, -1, 4 },
@@ -51,16 +42,22 @@ const int wienerns_config_y[][3] = {
   { 3, 3, 10 }, { -3, -3, 10 }, { 3, -3, 11 }, { -3, 3, 11 },
 };
 
-const int wienerns_config_uv[][3] = {
+const int wienerns_config_uv_from_uv[][3] = {
   { 1, 0, 0 }, { -1, 0, 0 },  { 0, 1, 1 },  { 0, -1, 1 },
   { 2, 0, 2 }, { -2, 0, 2 },  { 0, 2, 3 },  { 0, -2, 3 },
   { 1, 1, 4 }, { -1, -1, 4 }, { -1, 1, 5 }, { 1, -1, 5 },
+};
+const int wienerns_uv_from_uv_pixel =
+    sizeof(wienerns_config_uv_from_uv) / sizeof(wienerns_config_uv_from_uv[0]);
 
 #if CONFIG_WIENER_NONSEP_CROSS_FILT
-  { 1, 0, 6 }, { -1, 0, 6 },  { 0, 1, 6 },  { 0, -1, 6 },
-  { 2, 0, 7 }, { -2, 0, 7 },  { 0, 2, 7 },  { 0, -2, 7 },
-#endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
+const int wienerns_config_uv_from_y[][3] = {
+  { 1, 0, 6 }, { -1, 0, 6 }, { 0, 1, 6 }, { 0, -1, 6 },
+  { 2, 0, 7 }, { -2, 0, 7 }, { 0, 2, 7 }, { 0, -2, 7 },
 };
+const int wienerns_uv_from_y_pixel =
+    sizeof(wienerns_config_uv_from_y) / sizeof(wienerns_config_uv_from_y[0]);
+#endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
 
 const int wienerns_coeff_y[][3] = {
   AOM_WIENERNS_COEFF(7, -48, 3), AOM_WIENERNS_COEFF(7, -48, 3),
@@ -78,6 +75,15 @@ const int wienerns_coeff_uv[][3] = {
   AOM_WIENERNS_COEFF(6, -32, 3), AOM_WIENERNS_COEFF(6, -32, 3),
 #endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
 };
+
+const int wienerns_prec_bits = WIENERNS_PREC_BITS;
+
+const int wienerns_y_pixel =
+    sizeof(wienerns_config_y) / sizeof(wienerns_config_y[0]);
+const int wienerns_y = sizeof(wienerns_coeff_y) / sizeof(wienerns_coeff_y[0]);
+const int wienerns_uv =
+    sizeof(wienerns_coeff_uv) / sizeof(wienerns_coeff_uv[0]);
+
 #endif  // CONFIG_WIENER_NONSEP
 
 // The 's' values are calculated based on original 'r' and 'e' values in the
@@ -1027,13 +1033,26 @@ void apply_wiener_nonsep(const uint8_t *dgd, int width, int height, int stride,
   int is_uv = (plane != AOM_PLANE_Y);
   NonsepFilterConfig nsfilter = {
     wienerns_prec_bits,
-    is_uv ? wienerns_uv_inter_pixel : wienerns_y_pixel,
-    is_uv ? wienerns_uv_pixel - wienerns_uv_inter_pixel : 0,
-    is_uv ? wienerns_config_uv : wienerns_config_y,
+    is_uv ? wienerns_uv_from_uv_pixel : wienerns_y_pixel,
+#if CONFIG_WIENER_NONSEP_CROSS_FILT
+    is_uv ? wienerns_uv_from_y_pixel : 0,
+#else
+    0,
+#endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
+    is_uv ? wienerns_config_uv_from_uv : wienerns_config_y,
+#if CONFIG_WIENER_NONSEP_CROSS_FILT
+    is_uv ? wienerns_config_uv_from_y : NULL,
+#else
+    NULL,
+#endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
     0,
   };
   const int16_t *filter_ = is_uv ? filter + wienerns_y : filter;
-  if (!is_uv || wienerns_uv_pixel == wienerns_uv_inter_pixel) {
+  if (!is_uv
+#if CONFIG_WIENER_NONSEP_CROSS_FILT
+      || wienerns_uv_from_y_pixel == 0
+#endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
+  ) {
     av1_convolve_nonsep(dgd, width, height, stride, &nsfilter, filter_, dst,
                         dst_stride);
   } else {
@@ -1080,13 +1099,26 @@ void apply_wiener_nonsep_highbd(const uint8_t *dgd8, int width, int height,
   int is_uv = (plane != AOM_PLANE_Y);
   NonsepFilterConfig nsfilter = {
     wienerns_prec_bits,
-    is_uv ? wienerns_uv_inter_pixel : wienerns_y_pixel,
-    is_uv ? wienerns_uv_pixel - wienerns_uv_inter_pixel : 0,
-    is_uv ? wienerns_config_uv : wienerns_config_y,
+    is_uv ? wienerns_uv_from_uv_pixel : wienerns_y_pixel,
+#if CONFIG_WIENER_NONSEP_CROSS_FILT
+    is_uv ? wienerns_uv_from_y_pixel : 0,
+#else
+    0,
+#endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
+    is_uv ? wienerns_config_uv_from_uv : wienerns_config_y,
+#if CONFIG_WIENER_NONSEP_CROSS_FILT
+    is_uv ? wienerns_config_uv_from_y : NULL,
+#else
+    NULL,
+#endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
     0,
   };
   const int16_t *filter_ = is_uv ? filter + wienerns_y : filter;
-  if (!is_uv || wienerns_uv_pixel == wienerns_uv_inter_pixel) {
+  if (!is_uv
+#if CONFIG_WIENER_NONSEP_CROSS_FILT
+      || wienerns_uv_from_y_pixel == 0
+#endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
+  ) {
     av1_convolve_nonsep_highbd(dgd8, width, height, stride, &nsfilter, filter_,
                                dst8, dst_stride, bit_depth);
   } else {

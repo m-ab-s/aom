@@ -1536,9 +1536,15 @@ static int compute_quantized_wienerns_filter(const uint8_t *dgd,
 
   int is_uv = (rui->plane != AOM_PLANE_Y);
   const int(*wienerns_config)[3] =
-      is_uv ? wienerns_config_uv : wienerns_config_y;
+      is_uv ? wienerns_config_uv_from_uv : wienerns_config_y;
+#if CONFIG_WIENER_NONSEP_CROSS_FILT
+  const int(*wienerns_config2)[3] = is_uv ? wienerns_config_uv_from_y : NULL;
+  int end_pixel = is_uv ? wienerns_uv_from_uv_pixel + wienerns_uv_from_y_pixel
+                        : wienerns_y_pixel;
+#else
+  int end_pixel = is_uv ? wienerns_uv_from_uv_pixel : wienerns_y_pixel;
+#endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
   const int(*wienerns_coeffs)[3] = is_uv ? wienerns_coeff_uv : wienerns_coeff_y;
-  int end_pixel = is_uv ? wienerns_uv_pixel : wienerns_y_pixel;
   int num_feat = is_uv ? wienerns_uv : wienerns_y;
 
   for (int i = v_beg; i < v_end; ++i) {
@@ -1550,10 +1556,15 @@ static int compute_quantized_wienerns_filter(const uint8_t *dgd,
 #endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
       memset(buf, 0, sizeof(buf));
       for (int k = 0; k < end_pixel; ++k) {
-        int pos = wienerns_config[k][WIENERNS_BUF_POS];
-        int r = wienerns_config[k][WIENERNS_ROW_ID];
-        int c = wienerns_config[k][WIENERNS_COL_ID];
-        if (!is_uv || k < wienerns_uv_inter_pixel) {
+#if CONFIG_WIENER_NONSEP_CROSS_FILT
+        const int cross = (is_uv && k >= wienerns_uv_from_uv_pixel);
+#else
+        const int cross = 0;
+#endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
+        if (!cross) {
+          const int pos = wienerns_config[k][WIENERNS_BUF_POS];
+          const int r = wienerns_config[k][WIENERNS_ROW_ID];
+          const int c = wienerns_config[k][WIENERNS_COL_ID];
           buf[pos] +=
               use_hbd
                   ? clip_base((int16_t)dgd_hbd[(i + r) * dgd_stride + (j + c)] -
@@ -1564,6 +1575,10 @@ static int compute_quantized_wienerns_filter(const uint8_t *dgd,
                               bit_depth);
         } else {
 #if CONFIG_WIENER_NONSEP_CROSS_FILT
+          const int k2 = k - wienerns_uv_from_uv_pixel;
+          const int pos = wienerns_config2[k2][WIENERNS_BUF_POS];
+          const int r = wienerns_config2[k2][WIENERNS_ROW_ID];
+          const int c = wienerns_config2[k2][WIENERNS_COL_ID];
           buf[pos] +=
               use_hbd
                   ? clip_base(
@@ -1598,7 +1613,7 @@ static int compute_quantized_wienerns_filter(const uint8_t *dgd,
   }
   if (linsolve(num_feat, A, num_feat, b, x)) {
     int beg_feat = is_uv ? wienerns_y : 0;
-    int end_feat = is_uv ? wienerns_yuv : wienerns_y;
+    int end_feat = is_uv ? wienerns_y + wienerns_uv : wienerns_y;
     for (int k = beg_feat; k < end_feat; ++k) {
       rui->wiener_nonsep_info.nsfilter[k] = quantize(
           x[k - beg_feat], wienerns_coeffs[k - beg_feat][WIENERNS_MIN_ID],
@@ -1622,7 +1637,7 @@ static int64_t finer_tile_search_wienerns(const RestSearchCtxt *rsc,
 
   int is_uv = (rui->plane != AOM_PLANE_Y);
   int beg_feat = is_uv ? wienerns_y : 0;
-  int end_feat = is_uv ? wienerns_yuv : wienerns_y;
+  int end_feat = is_uv ? wienerns_y + wienerns_uv : wienerns_y;
   const int(*wienerns_coeffs)[3] = is_uv ? wienerns_coeff_uv : wienerns_coeff_y;
 
   int iter_step = 10;

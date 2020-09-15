@@ -2157,7 +2157,7 @@ static void read_wiener_nsfilter(int is_uv, WienerNonsepInfo *wienerns_info,
   }
 #endif  // CONFIG_EXT_LOOP_RESTORATION
   int beg_feat = is_uv ? wienerns_y : 0;
-  int end_feat = is_uv ? wienerns_yuv : wienerns_y;
+  int end_feat = is_uv ? wienerns_y + wienerns_uv : wienerns_y;
   const int(*wienerns_coeffs)[3] = is_uv ? wienerns_coeff_uv : wienerns_coeff_y;
 
   set_default_wiener_nonsep(wienerns_info);
