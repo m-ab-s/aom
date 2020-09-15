@@ -55,7 +55,11 @@ static INLINE uint16_t find_average_highbd(const uint16_t *src, int h_start,
   return (uint16_t)avg;
 }
 
-void av1_pick_filter_restoration(const YV12_BUFFER_CONFIG *sd, AV1_COMP *cpi);
+void av1_pick_filter_restoration(const YV12_BUFFER_CONFIG *sd,
+#if CONFIG_LOOP_RESTORE_CNN
+                                 bool allow_restore_cnn_y,
+#endif  // CONFIG_LOOP_RESTORE_CNN
+                                 AV1_COMP *cpi);
 
 #ifdef __cplusplus
 }  // extern "C"

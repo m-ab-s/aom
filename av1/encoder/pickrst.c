@@ -140,6 +140,11 @@ typedef struct {
   int luma_stride;
 #endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
 #endif  // CONFIG_WIENER_NONSEP
+
+#if CONFIG_LOOP_RESTORE_CNN
+  bool allow_restore_cnn_y;
+#endif  // CONFIG_LOOP_RESTORE_CNN
+
   AV1PixelRect tile_rect;
 } RestSearchCtxt;
 
@@ -161,6 +166,9 @@ static void reset_rsc(RestSearchCtxt *rsc) {
 static void init_rsc(const YV12_BUFFER_CONFIG *src, const AV1_COMMON *cm,
                      const MACROBLOCK *x, const SPEED_FEATURES *sf, int plane,
                      RestUnitSearchInfo *rusi, YV12_BUFFER_CONFIG *dst,
+#if CONFIG_LOOP_RESTORE_CNN
+                     bool allow_restore_cnn_y,
+#endif  // CONFIG_LOOP_RESTORE_CNN
                      RestSearchCtxt *rsc) {
   rsc->src = src;
   rsc->dst = dst;
@@ -181,6 +189,9 @@ static void init_rsc(const YV12_BUFFER_CONFIG *src, const AV1_COMMON *cm,
   rsc->tile_rect = av1_whole_frame_rect(cm, is_uv);
   assert(src->crop_widths[is_uv] == dgd->crop_widths[is_uv]);
   assert(src->crop_heights[is_uv] == dgd->crop_heights[is_uv]);
+#if CONFIG_LOOP_RESTORE_CNN
+  rsc->allow_restore_cnn_y = allow_restore_cnn_y || (plane != AOM_PLANE_Y);
+#endif  // CONFIG_LOOP_RESTORE_CNN
 }
 
 static int64_t try_restoration_unit(const RestSearchCtxt *rsc,
@@ -1448,7 +1459,8 @@ static void search_cnn(const RestorationTileLimits *limits,
   const int64_t bits_cnn = x->cnn_restore_cost[1];
 
   // TODO(urvang): Use av1_use_cnn_encode()?
-  if (!av1_use_cnn(cm) || rsc->plane != AOM_PLANE_Y) {
+  if (!av1_use_cnn(cm) || rsc->plane != AOM_PLANE_Y ||
+      !rsc->allow_restore_cnn_y) {
     rusi->sse[RESTORE_CNN] = INT64_MAX;
     rusi->best_rtype[RESTORE_CNN - 1] = RESTORE_NONE;
     rsc->sse += rusi->sse[RESTORE_NONE];
@@ -1935,7 +1947,11 @@ static void dump_frame_data(const YV12_BUFFER_CONFIG *src,
 }
 #endif  // CONFIG_DUMP_MFQE_DATA
 
-void av1_pick_filter_restoration(const YV12_BUFFER_CONFIG *src, AV1_COMP *cpi) {
+void av1_pick_filter_restoration(const YV12_BUFFER_CONFIG *src,
+#if CONFIG_LOOP_RESTORE_CNN
+                                 bool allow_restore_cnn_y,
+#endif  // CONFIG_LOOP_RESTORE_CNN
+                                 AV1_COMP *cpi) {
   AV1_COMMON *const cm = &cpi->common;
   const int num_planes = av1_num_planes(cm);
   assert(!cm->all_lossless);
@@ -1981,7 +1997,11 @@ void av1_pick_filter_restoration(const YV12_BUFFER_CONFIG *src, AV1_COMP *cpi) {
 
   for (int plane = plane_start; plane <= plane_end; ++plane) {
     init_rsc(src, &cpi->common, &cpi->td.mb, &cpi->sf, plane, rusi,
-             &cpi->trial_frame_rst, &rsc);
+             &cpi->trial_frame_rst,
+#if CONFIG_LOOP_RESTORE_CNN
+             allow_restore_cnn_y,
+#endif  // CONFIG_LOOP_RESTORE_CNN
+             &rsc);
 
     const int plane_ntiles = ntiles[plane > 0];
     const RestorationType num_rtypes =
