@@ -1509,8 +1509,8 @@ static int count_wienerns_bits(int plane, WienerNonsepInfo *wienerns_info,
   return bits;
 }
 
-static int16_t quantize(double x, int16_t minv, int16_t n) {
-  int scale_x = (int)round(x * (1 << wienerns_prec_bits));
+static int16_t quantize(double x, int16_t minv, int16_t n, int prec_bits) {
+  int scale_x = (int)round(x * (1 << prec_bits));
   scale_x = AOMMAX(scale_x, minv);
   scale_x = AOMMIN(scale_x, minv + n - 1);
   return (int16_t)scale_x;
@@ -1617,7 +1617,8 @@ static int compute_quantized_wienerns_filter(const uint8_t *dgd,
     for (int k = beg_feat; k < end_feat; ++k) {
       rui->wiener_nonsep_info.nsfilter[k] = quantize(
           x[k - beg_feat], wienerns_coeffs[k - beg_feat][WIENERNS_MIN_ID],
-          (1 << wienerns_coeffs[k - beg_feat][WIENERNS_BIT_ID]));
+          (1 << wienerns_coeffs[k - beg_feat][WIENERNS_BIT_ID]),
+          (is_uv ? wienerns_prec_bits_uv : wienerns_prec_bits_y));
     }
     return 1;
   } else {

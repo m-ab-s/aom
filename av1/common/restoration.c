@@ -30,9 +30,18 @@
 #include "aom_ports/mem.h"
 
 #if CONFIG_WIENER_NONSEP
-#define WIENERNS_PREC_BITS_MINUS8 (WIENERNS_PREC_BITS - 8)
-#define AOM_WIENERNS_COEFF(b, m, k) \
-  { (b) + WIENERNS_PREC_BITS_MINUS8, (m) * (1 << WIENERNS_PREC_BITS_MINUS8), k }
+#define WIENERNS_PREC_BITS_Y_MINUS7 (WIENERNS_PREC_BITS_Y - 7)
+#define AOM_WIENERNS_COEFF_Y(b, m, k)               \
+  {                                                 \
+    (b) + WIENERNS_PREC_BITS_Y_MINUS7,              \
+        (m) * (1 << WIENERNS_PREC_BITS_Y_MINUS7), k \
+  }
+#define WIENERNS_PREC_BITS_UV_MINUS7 (WIENERNS_PREC_BITS_UV - 7)
+#define AOM_WIENERNS_COEFF_UV(b, m, k)               \
+  {                                                  \
+    (b) + WIENERNS_PREC_BITS_UV_MINUS7,              \
+        (m) * (1 << WIENERNS_PREC_BITS_UV_MINUS7), k \
+  }
 
 const int wienerns_config_y[][3] = {
   { 1, 0, 0 },  { -1, 0, 0 },   { 0, 1, 1 },   { 0, -1, 1 },  { 2, 0, 2 },
@@ -60,30 +69,30 @@ const int wienerns_uv_from_y_pixel =
 #endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
 
 const int wienerns_coeff_y[][3] = {
-  AOM_WIENERNS_COEFF(7, -48, 3), AOM_WIENERNS_COEFF(7, -48, 3),
-  AOM_WIENERNS_COEFF(6, -32, 3), AOM_WIENERNS_COEFF(6, -32, 3),
-  AOM_WIENERNS_COEFF(6, -48, 3), AOM_WIENERNS_COEFF(6, -48, 3),
-  AOM_WIENERNS_COEFF(5, -12, 3), AOM_WIENERNS_COEFF(5, -12, 3),
-  AOM_WIENERNS_COEFF(5, -14, 3), AOM_WIENERNS_COEFF(5, -14, 3),
-  AOM_WIENERNS_COEFF(4, -8, 3),  AOM_WIENERNS_COEFF(4, -8, 3),
+  AOM_WIENERNS_COEFF_Y(6, -24, 3), AOM_WIENERNS_COEFF_Y(6, -24, 3),
+  AOM_WIENERNS_COEFF_Y(5, -16, 3), AOM_WIENERNS_COEFF_Y(5, -16, 3),
+  AOM_WIENERNS_COEFF_Y(5, -24, 3), AOM_WIENERNS_COEFF_Y(5, -24, 3),
+  AOM_WIENERNS_COEFF_Y(4, -6, 3),  AOM_WIENERNS_COEFF_Y(4, -6, 3),
+  AOM_WIENERNS_COEFF_Y(4, -7, 3),  AOM_WIENERNS_COEFF_Y(4, -7, 3),
+  AOM_WIENERNS_COEFF_Y(3, -4, 3),  AOM_WIENERNS_COEFF_Y(3, -4, 3),
 };
 const int wienerns_coeff_uv[][3] = {
-  AOM_WIENERNS_COEFF(7, -28, 3), AOM_WIENERNS_COEFF(7, -28, 3),
-  AOM_WIENERNS_COEFF(6, -40, 3), AOM_WIENERNS_COEFF(6, -40, 3),
-  AOM_WIENERNS_COEFF(7, -64, 3), AOM_WIENERNS_COEFF(7, -64, 3),
+  AOM_WIENERNS_COEFF_UV(6, -14, 3), AOM_WIENERNS_COEFF_UV(6, -14, 3),
+  AOM_WIENERNS_COEFF_UV(5, -20, 3), AOM_WIENERNS_COEFF_UV(5, -20, 3),
+  AOM_WIENERNS_COEFF_UV(6, -32, 3), AOM_WIENERNS_COEFF_UV(6, -32, 3),
 #if CONFIG_WIENER_NONSEP_CROSS_FILT
-  AOM_WIENERNS_COEFF(6, -32, 3), AOM_WIENERNS_COEFF(6, -32, 3),
+  AOM_WIENERNS_COEFF_UV(5, -16, 3), AOM_WIENERNS_COEFF_UV(5, -16, 3),
 #endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
 };
 
-const int wienerns_prec_bits = WIENERNS_PREC_BITS;
+const int wienerns_prec_bits_y = WIENERNS_PREC_BITS_Y;
+const int wienerns_prec_bits_uv = WIENERNS_PREC_BITS_UV;
 
 const int wienerns_y_pixel =
     sizeof(wienerns_config_y) / sizeof(wienerns_config_y[0]);
 const int wienerns_y = sizeof(wienerns_coeff_y) / sizeof(wienerns_coeff_y[0]);
 const int wienerns_uv =
     sizeof(wienerns_coeff_uv) / sizeof(wienerns_coeff_uv[0]);
-
 #endif  // CONFIG_WIENER_NONSEP
 
 // The 's' values are calculated based on original 'r' and 'e' values in the
@@ -1031,34 +1040,39 @@ void apply_wiener_nonsep(const uint8_t *dgd, int width, int height, int stride,
   (void)luma;
   (void)luma_stride;
   int is_uv = (plane != AOM_PLANE_Y);
-  NonsepFilterConfig nsfilter = {
-    wienerns_prec_bits,
-    is_uv ? wienerns_uv_from_uv_pixel : wienerns_y_pixel,
+
+  const NonsepFilterConfig nsfilter_y = {
+    wienerns_prec_bits_y, wienerns_y_pixel, 0, wienerns_config_y, NULL, 0,
+  };
+  const NonsepFilterConfig nsfilter_uv = {
+    wienerns_prec_bits_uv,
+    wienerns_uv_from_uv_pixel,
 #if CONFIG_WIENER_NONSEP_CROSS_FILT
-    is_uv ? wienerns_uv_from_y_pixel : 0,
+    wienerns_uv_from_y_pixel,
 #else
     0,
 #endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
-    is_uv ? wienerns_config_uv_from_uv : wienerns_config_y,
+    wienerns_config_uv_from_uv,
 #if CONFIG_WIENER_NONSEP_CROSS_FILT
-    is_uv ? wienerns_config_uv_from_y : NULL,
+    wienerns_config_uv_from_y,
 #else
     NULL,
 #endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
     0,
   };
+  const NonsepFilterConfig *nsfilter = is_uv ? &nsfilter_uv : &nsfilter_y;
   const int16_t *filter_ = is_uv ? filter + wienerns_y : filter;
   if (!is_uv
 #if CONFIG_WIENER_NONSEP_CROSS_FILT
       || wienerns_uv_from_y_pixel == 0
 #endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
   ) {
-    av1_convolve_nonsep(dgd, width, height, stride, &nsfilter, filter_, dst,
+    av1_convolve_nonsep(dgd, width, height, stride, nsfilter, filter_, dst,
                         dst_stride);
   } else {
 #if CONFIG_WIENER_NONSEP_CROSS_FILT
     av1_convolve_nonsep_dual(dgd, width, height, stride, luma, luma_stride,
-                             &nsfilter, filter_, dst, dst_stride);
+                             nsfilter, filter_, dst, dst_stride);
 #else
     assert(0 && "Incompatible CONFIG_WIENER_NONSEP config");
 #endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
@@ -1097,34 +1111,39 @@ void apply_wiener_nonsep_highbd(const uint8_t *dgd8, int width, int height,
   (void)luma8;
   (void)luma_stride;
   int is_uv = (plane != AOM_PLANE_Y);
-  NonsepFilterConfig nsfilter = {
-    wienerns_prec_bits,
-    is_uv ? wienerns_uv_from_uv_pixel : wienerns_y_pixel,
+
+  const NonsepFilterConfig nsfilter_y = {
+    wienerns_prec_bits_y, wienerns_y_pixel, 0, wienerns_config_y, NULL, 0,
+  };
+  const NonsepFilterConfig nsfilter_uv = {
+    wienerns_prec_bits_uv,
+    wienerns_uv_from_uv_pixel,
 #if CONFIG_WIENER_NONSEP_CROSS_FILT
-    is_uv ? wienerns_uv_from_y_pixel : 0,
+    wienerns_uv_from_y_pixel,
 #else
     0,
 #endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
-    is_uv ? wienerns_config_uv_from_uv : wienerns_config_y,
+    wienerns_config_uv_from_uv,
 #if CONFIG_WIENER_NONSEP_CROSS_FILT
-    is_uv ? wienerns_config_uv_from_y : NULL,
+    wienerns_config_uv_from_y,
 #else
     NULL,
 #endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
     0,
   };
+  const NonsepFilterConfig *nsfilter = is_uv ? &nsfilter_uv : &nsfilter_y;
   const int16_t *filter_ = is_uv ? filter + wienerns_y : filter;
   if (!is_uv
 #if CONFIG_WIENER_NONSEP_CROSS_FILT
       || wienerns_uv_from_y_pixel == 0
 #endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
   ) {
-    av1_convolve_nonsep_highbd(dgd8, width, height, stride, &nsfilter, filter_,
+    av1_convolve_nonsep_highbd(dgd8, width, height, stride, nsfilter, filter_,
                                dst8, dst_stride, bit_depth);
   } else {
 #if CONFIG_WIENER_NONSEP_CROSS_FILT
     av1_convolve_nonsep_dual_highbd(dgd8, width, height, stride, luma8,
-                                    luma_stride, &nsfilter, filter_, dst8,
+                                    luma_stride, nsfilter, filter_, dst8,
                                     dst_stride, bit_depth);
 #else
     assert(0 && "Incompatible CONFIG_WIENER_NONSEP config");

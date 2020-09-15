@@ -170,7 +170,8 @@ extern "C" {
 #define WIENER_FILT_TAP2_SUBEXP_K (3 + (WIENER_FILT_PREC_BITS - FILTER_BITS))
 
 #if CONFIG_WIENER_NONSEP
-#define WIENERNS_PREC_BITS 8
+#define WIENERNS_PREC_BITS_Y 8
+#define WIENERNS_PREC_BITS_UV 8
 
 #if CONFIG_WIENER_NONSEP_CROSS_FILT
 #define WIENERNS_UV_BRD 2  // Max offset for luma used for chorma
@@ -188,7 +189,8 @@ extern "C" {
 #define WIENERNS_MIN_ID 1
 #define WIENERNS_SUBEXP_K_ID 2
 #define WIENERNS_STEP_ID 3
-extern const int wienerns_prec_bits;
+extern const int wienerns_prec_bits_y;
+extern const int wienerns_prec_bits_uv;
 extern const int wienerns_y_pixel;  // Number of pixels used for filtering luma
 extern const int wienerns_uv_from_uv_pixel;  // Number of pixels used for
                                              // filtering uv from uv only
