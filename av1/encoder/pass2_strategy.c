@@ -1449,6 +1449,9 @@ static void define_gf_group_pass0(AV1_COMP *cpi,
     rc->baseline_gf_interval = rc->frames_to_key;
 
   rc->gfu_boost = DEFAULT_GF_BOOST;
+  // This will effectively use qindex returned by 'get_gf_high_motion_quality()'
+  // for level 1 frames.
+  rc->arf_boost_factor = 0.0f;
   rc->constrained_gf_group =
       (rc->baseline_gf_interval >= rc->frames_to_key) ? 1 : 0;
 
