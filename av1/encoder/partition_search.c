@@ -16,12 +16,14 @@
 #include "av1/common/reconintra.h"
 #include "av1/encoder/aq_complexity.h"
 #include "av1/encoder/aq_variance.h"
+#include "av1/encoder/block.h"
 #include "av1/encoder/context_tree.h"
 #include "av1/encoder/encoder.h"
 #include "av1/encoder/encodeframe.h"
 #include "av1/encoder/encodemv.h"
 #include "av1/encoder/partition_search.h"
 #include "av1/encoder/partition_search_utils.h"
+#include "av1/encoder/partition_strategy.h"
 #include "av1/encoder/reconinter_enc.h"
 #include "av1/encoder/tokenize.h"
 #include "av1/encoder/var_based_part.h"
@@ -2465,6 +2467,9 @@ static INLINE void search_partition_vert_3(PartitionSearchState *search_state,
 }
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 
+#define PRUNE_WITH_PREV_PARTITION(cur_partition) \
+  (prev_partition != PARTITION_INVALID && prev_partition != (cur_partition))
+
 bool av1_rd_pick_partition(AV1_COMP *const cpi, ThreadData *td,
                            TileDataEnc *tile_data, TOKENEXTRA **tp, int mi_row,
                            int mi_col, BLOCK_SIZE bsize, BLOCK_SIZE max_sq_part,
@@ -2483,6 +2488,12 @@ bool av1_rd_pick_partition(AV1_COMP *const cpi, ThreadData *td,
   av1_init_partition_search_state(&search_state, x, cpi, pc_tree, mi_row,
                                   mi_col, bsize, max_sq_part, min_sq_part);
   const PartitionBlkParams *blk_params = &search_state.part_blk_params;
+  const PARTITION_TYPE prev_partition =
+#if CONFIG_EXT_RECUR_PARTITIONS
+      av1_get_prev_partition(cpi, x, mi_row, mi_col, bsize);
+#else
+      PARTITION_INVALID;
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
 #if CONFIG_EXT_RECUR_PARTITIONS
   if (sms_tree != NULL)
@@ -2714,9 +2725,11 @@ BEGIN_PARTITION_SEARCH:
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
   int64_t part_none_rd = INT64_MAX;
 
-  search_partition_none(&search_state, cpi, td, tile_data, &best_rdc, pc_tree,
-                        sms_tree, &x_ctx, &pb_source_variance, none_rd,
-                        &part_none_rd);
+  if (!PRUNE_WITH_PREV_PARTITION(PARTITION_NONE)) {
+    search_partition_none(&search_state, cpi, td, tile_data, &best_rdc, pc_tree,
+                          sms_tree, &x_ctx, &pb_source_variance, none_rd,
+                          &part_none_rd);
+  }
 
   // PARTITION_SPLIT
 #if !(CONFIG_EXT_RECUR_PARTITIONS && !KEEP_PARTITION_SPLIT)
@@ -2758,12 +2771,16 @@ BEGIN_PARTITION_SEARCH:
   }
 
   // PARTITION_HORZ
-  search_partition_horz(&search_state, cpi, td, tile_data, tp, &best_rdc,
-                        pc_tree, &x_ctx, multi_pass_mode);
+  if (!PRUNE_WITH_PREV_PARTITION(PARTITION_HORZ)) {
+    search_partition_horz(&search_state, cpi, td, tile_data, tp, &best_rdc,
+                          pc_tree, &x_ctx, multi_pass_mode);
+  }
 
   // PARTITION_VERT
-  search_partition_vert(&search_state, cpi, td, tile_data, tp, &best_rdc,
-                        pc_tree, &x_ctx, multi_pass_mode);
+  if (!PRUNE_WITH_PREV_PARTITION(PARTITION_VERT)) {
+    search_partition_vert(&search_state, cpi, td, tile_data, tp, &best_rdc,
+                          pc_tree, &x_ctx, multi_pass_mode);
+  }
 
   if (pb_source_variance == UINT_MAX) {
     av1_setup_src_planes(x, cpi->source, mi_row, mi_col, num_planes,
@@ -2812,12 +2829,16 @@ BEGIN_PARTITION_SEARCH:
                     pb_source_variance, ext_partition_allowed);
 
   // PARTITION_HORZ_3
-  search_partition_horz_3(&search_state, cpi, td, tile_data, tp, &best_rdc,
-                          pc_tree, &x_ctx, multi_pass_mode);
+  if (!PRUNE_WITH_PREV_PARTITION(PARTITION_HORZ_3)) {
+    search_partition_horz_3(&search_state, cpi, td, tile_data, tp, &best_rdc,
+                            pc_tree, &x_ctx, multi_pass_mode);
+  }
 
   // PARTITION_VERT_3
-  search_partition_vert_3(&search_state, cpi, td, tile_data, tp, &best_rdc,
-                          pc_tree, &x_ctx, multi_pass_mode);
+  if (!PRUNE_WITH_PREV_PARTITION(PARTITION_VERT_3)) {
+    search_partition_vert_3(&search_state, cpi, td, tile_data, tp, &best_rdc,
+                            pc_tree, &x_ctx, multi_pass_mode);
+  }
 #else
   prune_partition_4(cpi, pc_tree, &search_state, x, &best_rdc,
                     pb_source_variance, ext_partition_allowed);
@@ -2847,8 +2868,14 @@ BEGIN_PARTITION_SEARCH:
 
   *rd_cost = best_rdc;
   pc_tree->rd_cost = best_rdc;
-  if (!search_state.found_best_partition)
+  if (!search_state.found_best_partition) {
     av1_invalid_rd_stats(&pc_tree->rd_cost);
+  } else {
+#if CONFIG_EXT_RECUR_PARTITIONS
+    av1_cache_best_partition(x->sms_bufs, mi_row, mi_col, bsize,
+                             cm->seq_params.sb_size, pc_tree->partitioning);
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+  }
 
 #if CONFIG_COLLECT_PARTITION_STATS
   if (best_rdc.rate < INT_MAX && best_rdc.dist < INT64_MAX) {

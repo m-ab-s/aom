@@ -1444,9 +1444,9 @@ static INLINE SimpleMotionData *get_sms_arr(SimpleMotionDataBufs *sms_bufs,
 #undef MAKE_SMS_ARR_SWITCH_CASE
 
 // Retrieves the SimpleMotionData from SimpleMotionDataBufs
-static AOM_INLINE SimpleMotionData *get_sms_data_entry(
-    SimpleMotionDataBufs *sms_bufs, int mi_row, int mi_col, BLOCK_SIZE bsize,
-    BLOCK_SIZE sb_size) {
+SimpleMotionData *av1_get_sms_data_entry(SimpleMotionDataBufs *sms_bufs,
+                                         int mi_row, int mi_col,
+                                         BLOCK_SIZE bsize, BLOCK_SIZE sb_size) {
   assert(mi_size_high[sb_size] == mi_size_wide[sb_size]);
   const int mi_in_sb = mi_size_high[sb_size];
   const int mi_row_in_sb = mi_row % mi_in_sb;
@@ -1461,6 +1461,15 @@ static AOM_INLINE SimpleMotionData *get_sms_data_entry(
   SimpleMotionData *sms_arr = get_sms_arr(sms_bufs, bsize);
 
   return &sms_arr[idx_row_in_sb * arr_stride + idx_col_in_sb];
+}
+
+void av1_cache_best_partition(SimpleMotionDataBufs *sms_bufs, int mi_row,
+                              int mi_col, BLOCK_SIZE bsize, BLOCK_SIZE sb_size,
+                              PARTITION_TYPE partition) {
+  SimpleMotionData *cur_block =
+      av1_get_sms_data_entry(sms_bufs, mi_row, mi_col, bsize, sb_size);
+  cur_block->has_prev_partition = 1;
+  cur_block->prev_partition = partition;
 }
 
 static AOM_INLINE void compute_sms_txfm_data(
@@ -1689,7 +1698,7 @@ static INLINE void add_start_mv_to_partition(
     const int sub_col =
         mi_col + step_multiplier[partition][idx][1] * quarter_step_w / 4;
     SimpleMotionData *subblock =
-        get_sms_data_entry(sms_bufs, sub_row, sub_col, subsize, sb_size);
+        av1_get_sms_data_entry(sms_bufs, sub_row, sub_col, subsize, sb_size);
     add_start_mv_to_block(subblock, start_mv);
   }
 }
@@ -1704,7 +1713,7 @@ SimpleMotionData *av1_get_sms_data(AV1_COMP *const cpi,
   const BLOCK_SIZE sb_size = cm->seq_params.sb_size;
   SimpleMotionDataBufs *sms_bufs = x->sms_bufs;
   SimpleMotionData *cur_block =
-      get_sms_data_entry(sms_bufs, mi_row, mi_col, bsize, sb_size);
+      av1_get_sms_data_entry(sms_bufs, mi_row, mi_col, bsize, sb_size);
   const int valid = cur_block->valid;
   if (!valid) {
     compute_sms_data(cpi, tile, x, chr_ref_info, cur_block, mi_row, mi_col,
@@ -1717,6 +1726,23 @@ SimpleMotionData *av1_get_sms_data(AV1_COMP *const cpi,
     }
   }
   return cur_block;
+}
+
+PARTITION_TYPE av1_get_prev_partition(AV1_COMP *const cpi, MACROBLOCK *x,
+                                      int mi_row, int mi_col,
+                                      BLOCK_SIZE bsize) {
+  const AV1_COMMON *const cm = &cpi->common;
+  const BLOCK_SIZE sb_size = cm->seq_params.sb_size;
+
+  SimpleMotionDataBufs *sms_bufs = x->sms_bufs;
+  const SimpleMotionData *cur_block =
+      av1_get_sms_data_entry(sms_bufs, mi_row, mi_col, bsize, sb_size);
+
+  if (cur_block->has_prev_partition) {
+    return cur_block->prev_partition;
+  } else {
+    return PARTITION_INVALID;
+  }
 }
 
 static INLINE void gather_part_rd_stats(RD_STATS *rd_stats,

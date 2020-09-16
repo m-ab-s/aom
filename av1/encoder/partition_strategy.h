@@ -12,6 +12,7 @@
 #ifndef AOM_AV1_ENCODER_PARTITION_STRATEGY_H_
 #define AOM_AV1_ENCODER_PARTITION_STRATEGY_H_
 
+#include "av1/encoder/block.h"
 #include "av1/encoder/encodeframe.h"
 #include "av1/encoder/encodemb.h"
 #include "av1/encoder/encoder.h"
@@ -137,10 +138,18 @@ void av1_get_max_min_partition_size(AV1_COMP *cpi, ThreadData *td,
 #endif  // !CONFIG_REALTIME_ONLY
 
 #if CONFIG_EXT_RECUR_PARTITIONS
+SimpleMotionData *av1_get_sms_data_entry(SimpleMotionDataBufs *sms_bufs,
+                                         int mi_row, int mi_col,
+                                         BLOCK_SIZE bsize, BLOCK_SIZE sb_size);
+
 SimpleMotionData *av1_get_sms_data(AV1_COMP *const cpi,
                                    const TileInfo *const tile, MACROBLOCK *x,
                                    CHROMA_REF_INFO *chr_ref_info, int mi_row,
                                    int mi_col, BLOCK_SIZE bsize);
+
+void av1_cache_best_partition(SimpleMotionDataBufs *sms_bufs, int mi_row,
+                              int mi_col, BLOCK_SIZE bsize, BLOCK_SIZE sb_size,
+                              PARTITION_TYPE partition);
 
 typedef struct SMSPartitionStats {
   const SimpleMotionData *sms_data[3];
@@ -219,6 +228,9 @@ static INLINE void init_simple_motion_search_mvs(
     init_simple_motion_search_mvs(sms_tree->split[3]);
   }
 }
+
+PARTITION_TYPE av1_get_prev_partition(AV1_COMP *const cpi, MACROBLOCK *x,
+                                      int mi_row, int mi_col, BLOCK_SIZE bsize);
 
 #if CONFIG_EXT_RECUR_PARTITIONS
 static INLINE void av1_init_sms_data_bufs(SimpleMotionDataBufs *data_bufs) {

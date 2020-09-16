@@ -250,6 +250,9 @@ typedef struct SimpleMotionData {
   int sadpb, errorperbit;
   MV start_mv_list[kSMSMaxStartMVs];
   int num_start_mvs;
+
+  int has_prev_partition;
+  PARTITION_TYPE prev_partition;
 } SimpleMotionData;
 
 #define BLOCK_128_COUNT 1
