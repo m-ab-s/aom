@@ -1096,6 +1096,12 @@ static AOM_INLINE void init_gop_frames_for_tpl(
     av1_update_ref_frame_map(cpi, frame_update_type, frame_params.frame_type,
                              -1, frame_params.show_existing_frame,
                              refresh_frame_map_index, &ref_buffer_stack);
+    if (refresh_frame_map_index < REF_FRAMES) {
+      ref_frame_map_pairs[refresh_frame_map_index].disp_order =
+          AOMMAX(0, true_disp);
+      ref_frame_map_pairs[refresh_frame_map_index].pyr_level =
+          gf_group->layer_depth[gf_index];
+    }
 
     for (int i = LAST_FRAME; i <= ALTREF_FRAME; ++i)
       tpl_frame->ref_map_index[i - LAST_FRAME] =

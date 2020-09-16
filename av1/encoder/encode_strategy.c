@@ -1045,71 +1045,23 @@ int av1_get_refresh_frame_flags(const AV1_COMP *const cpi,
                                               ref_frame_map_pairs, refresh_mask,
                                               free_fb_index);
   }
-  switch (frame_update_type) {
-    case KF_UPDATE:
-    case GF_UPDATE:
-      if (free_fb_index != INVALID_IDX) {
-        refresh_mask = 1 << free_fb_index;
-      } else {
-        if (ref_buffer_stack->gld_stack_size)
-          refresh_mask =
-              1 << ref_buffer_stack
-                       ->gld_stack[ref_buffer_stack->gld_stack_size - 1];
-        else
-          refresh_mask =
-              1 << ref_buffer_stack
-                       ->lst_stack[ref_buffer_stack->lst_stack_size - 1];
-      }
-      break;
-    case LF_UPDATE:
-      if (free_fb_index != INVALID_IDX) {
-        refresh_mask = 1 << free_fb_index;
-      } else {
-        if (ref_buffer_stack->lst_stack_size >= 2)
-          refresh_mask =
-              1 << ref_buffer_stack
-                       ->lst_stack[ref_buffer_stack->lst_stack_size - 1];
-        else if (ref_buffer_stack->gld_stack_size >= 2)
-          refresh_mask =
-              1 << ref_buffer_stack
-                       ->gld_stack[ref_buffer_stack->gld_stack_size - 1];
-        else
-          assert(0 && "No ref map index found");
-      }
-      break;
-    case ARF_UPDATE:
-    case KFFLT_UPDATE:
-      if (free_fb_index != INVALID_IDX) {
-        refresh_mask = 1 << free_fb_index;
-      } else {
-        if (ref_buffer_stack->gld_stack_size >= 3)
-          refresh_mask =
-              1 << ref_buffer_stack
-                       ->gld_stack[ref_buffer_stack->gld_stack_size - 1];
-        else if (ref_buffer_stack->lst_stack_size >= 2)
-          refresh_mask =
-              1 << ref_buffer_stack
-                       ->lst_stack[ref_buffer_stack->lst_stack_size - 1];
-        else
-          assert(0 && "No ref map index found");
-      }
-      break;
-    case INTNL_ARF_UPDATE:
-      if (free_fb_index != INVALID_IDX) {
-        refresh_mask = 1 << free_fb_index;
-      } else {
-        refresh_mask =
-            1 << ref_buffer_stack
-                     ->lst_stack[ref_buffer_stack->lst_stack_size - 1];
-      }
-      break;
-    case OVERLAY_UPDATE: break;
-    case KFFLT_OVERLAY_UPDATE: break;
-    case INTNL_OVERLAY_UPDATE: break;
-    default: assert(0); break;
+
+  // No refresh necessary for these frame types
+  if (frame_update_type == OVERLAY_UPDATE ||
+      frame_update_type == KFFLT_OVERLAY_UPDATE ||
+      frame_update_type == INTNL_OVERLAY_UPDATE)
+    return refresh_mask;
+
+  // If there is an open slot, refresh that one instead of replacing a reference
+  if (free_fb_index != INVALID_IDX) {
+    refresh_mask = 1 << free_fb_index;
+    return refresh_mask;
   }
 
-  return refresh_mask;
+  const int update_arf = frame_update_type == ARF_UPDATE;
+  const int refresh_idx =
+      get_refresh_idx(update_arf, -1, cur_disp_order, ref_frame_map_pairs);
+  return 1 << refresh_idx;
 }
 
 #if !CONFIG_REALTIME_ONLY
