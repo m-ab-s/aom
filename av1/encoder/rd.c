@@ -329,8 +329,15 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, MACROBLOCK *x,
     av1_cost_tokens_from_cdf(x->angle_delta_cost[i], fc->angle_delta_cdf[i],
                              NULL);
   }
+#if CONFIG_LOOP_RESTORE_CNN
+  for (i = 0; i < 2; ++i) {
+    av1_cost_tokens_from_cdf(x->switchable_restore_cost[i],
+                             fc->switchable_restore_cdf[i], NULL);
+  }
+#else
   av1_cost_tokens_from_cdf(x->switchable_restore_cost,
                            fc->switchable_restore_cdf, NULL);
+#endif  // CONFIG_LOOP_RESTORE_CNN
   av1_cost_tokens_from_cdf(x->wiener_restore_cost, fc->wiener_restore_cdf,
                            NULL);
 #if CONFIG_EXT_LOOP_RESTORATION

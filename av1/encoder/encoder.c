@@ -79,9 +79,9 @@
 #include "av1/encoder/reconinter_enc.h"
 #include "av1/encoder/var_based_part.h"
 
-#if CONFIG_CNN_RESTORATION && !CONFIG_LOOP_RESTORE_CNN
+#if CONFIG_CNN_RESTORATION || CONFIG_LOOP_RESTORE_CNN
 #include "av1/common/cnn_tflite.h"
-#endif  // CONFIG_CNN_RESTORATION && !CONFIG_LOOP_RESTORE_CNN
+#endif  // CONFIG_CNN_RESTORATION || CONFIG_LOOP_RESTORE_CNN
 
 #define DEFAULT_EXPLICIT_ORDER_HINT_BITS 7
 
@@ -4821,14 +4821,15 @@ static void cdef_restoration_frame_planes(AV1_COMP *cpi, AV1_COMMON *cm,
 #endif
 }
 
-#if !CONFIG_LOOP_RESTORE_CNN
 static void cdef_restoration_frame(AV1_COMP *cpi, AV1_COMMON *cm,
                                    MACROBLOCKD *xd, bool use_restoration,
                                    bool use_cdef) {
   return cdef_restoration_frame_planes(cpi, cm, xd, use_restoration, use_cdef,
+#if CONFIG_LOOP_RESTORE_CNN
+                                       false /*allow_restore_cnn_y*/,
+#endif  // CONFIG_LOOP_RESTORE_CNN
                                        true, true, true);
 }
-#endif  // !CONFIG_LOOP_RESTORE_CNN
 
 static void loopfilter_frame(AV1_COMP *cpi, AV1_COMMON *cm) {
   const int num_planes = av1_num_planes(cm);
@@ -4931,68 +4932,70 @@ static void loopfilter_frame(AV1_COMP *cpi, AV1_COMMON *cm) {
     cdef_restoration_frame(cpi, cm, xd, use_restoration, use_cdef);
   }
 #elif CONFIG_LOOP_RESTORE_CNN
-  bool use_restore_cnn_y;
-  bool use_cdef_y;
-  if (use_restoration && use_cdef) {
-    // Save.
-    aom_yv12_copy_y(&cm->cur_frame->buf, &cpi->last_frame_uf);
-    // TODO(urvang): For some unknown reason, saving/restoring U, V planes is
-    // required to avoid encoder / decoder mismatch.
-    if (num_planes > 1)
-      aom_yv12_copy_u(&cm->cur_frame->buf, &cpi->last_frame_uf);
-    if (num_planes > 2)
-      aom_yv12_copy_v(&cm->cur_frame->buf, &cpi->last_frame_uf);
+  cm->use_cnn = 0;
+  if (av1_use_cnn_encode(cm, cpi->gf_group.update_type[cpi->gf_group.index])) {
+    if (use_restoration && use_cdef) {
+      // Save.
+      aom_yv12_copy_y(&cm->cur_frame->buf, &cpi->last_frame_uf);
+      // TODO(urvang): For some unknown reason, saving/restoring U, V planes is
+      // required to avoid encoder / decoder mismatch.
+      if (num_planes > 1)
+        aom_yv12_copy_u(&cm->cur_frame->buf, &cpi->last_frame_uf);
+      if (num_planes > 2)
+        aom_yv12_copy_v(&cm->cur_frame->buf, &cpi->last_frame_uf);
 
-    // Find best option for Y plane.
-    // Option 1: CDEF off + LR with 4 options including RESTORE_CNN.
-    cdef_restoration_frame_planes(
-        cpi, cm, xd, use_restoration, false /*use_cdef*/,
-        true /*allow_restore_cnn*/, true /*filter_y_plane_restoration*/,
-        false /*filter_y_plane_cdef*/, false /*filter_uv_planes*/);
-    const int64_t option1_err =
-        aom_get_sse_plane(cpi->source, &cm->cur_frame->buf, AOM_PLANE_Y,
-                          cm->seq_params.use_highbitdepth);
-    // Restore.
-    aom_yv12_copy_y(&cpi->last_frame_uf, &cm->cur_frame->buf);
-    if (num_planes > 1)
-      aom_yv12_copy_u(&cpi->last_frame_uf, &cm->cur_frame->buf);
-    if (num_planes > 2)
-      aom_yv12_copy_v(&cpi->last_frame_uf, &cm->cur_frame->buf);
+      // Find best option for Y plane.
+      // Option 1: CDEF off + LR with 4 options including RESTORE_CNN.
+      cm->use_cnn = 1;
+      cdef_restoration_frame_planes(
+          cpi, cm, xd, use_restoration, false /*use_cdef*/,
+          true /*allow_restore_cnn*/, true /*filter_y_plane_restoration*/,
+          false /*filter_y_plane_cdef*/, false /*filter_uv_planes*/);
+      const int64_t option1_err =
+          aom_get_sse_plane(cpi->source, &cm->cur_frame->buf, AOM_PLANE_Y,
+                            cm->seq_params.use_highbitdepth);
+      // Restore.
+      aom_yv12_copy_y(&cpi->last_frame_uf, &cm->cur_frame->buf);
+      if (num_planes > 1)
+        aom_yv12_copy_u(&cpi->last_frame_uf, &cm->cur_frame->buf);
+      if (num_planes > 2)
+        aom_yv12_copy_v(&cpi->last_frame_uf, &cm->cur_frame->buf);
 
-    // Option 2: CDEF on + LR with 3 options excluding RESTORE_CNN.
-    cdef_restoration_frame_planes(
-        cpi, cm, xd, use_restoration, true /*use_cdef*/,
-        false /*allow_restore_cnn*/, true /*filter_y_plane_restoration*/,
-        true /*filter_y_plane_cdef*/, false /*filter_uv_planes*/);
-    const int64_t option2_err =
-        aom_get_sse_plane(cpi->source, &cm->cur_frame->buf, AOM_PLANE_Y,
-                          cm->seq_params.use_highbitdepth);
-    // Restore.
-    aom_yv12_copy_y(&cpi->last_frame_uf, &cm->cur_frame->buf);
-    if (num_planes > 1)
-      aom_yv12_copy_u(&cpi->last_frame_uf, &cm->cur_frame->buf);
-    if (num_planes > 2)
-      aom_yv12_copy_v(&cpi->last_frame_uf, &cm->cur_frame->buf);
+      // Option 2: CDEF on + LR with 3 options excluding RESTORE_CNN.
+      cm->use_cnn = 0;
+      cdef_restoration_frame_planes(
+          cpi, cm, xd, use_restoration, true /*use_cdef*/,
+          false /*allow_restore_cnn*/, true /*filter_y_plane_restoration*/,
+          true /*filter_y_plane_cdef*/, false /*filter_uv_planes*/);
+      const int64_t option2_err =
+          aom_get_sse_plane(cpi->source, &cm->cur_frame->buf, AOM_PLANE_Y,
+                            cm->seq_params.use_highbitdepth);
+      // Restore.
+      aom_yv12_copy_y(&cpi->last_frame_uf, &cm->cur_frame->buf);
+      if (num_planes > 1)
+        aom_yv12_copy_u(&cpi->last_frame_uf, &cm->cur_frame->buf);
+      if (num_planes > 2)
+        aom_yv12_copy_v(&cpi->last_frame_uf, &cm->cur_frame->buf);
 
-    // Pick best option for Y plane.
-    // TODO(urvang): Maybe better to use RDCOST here.
-    use_restore_cnn_y = (option1_err <= option2_err);
-    use_cdef_y = !use_restore_cnn_y;
-  } else if (!use_restoration) {
-    use_restore_cnn_y = false;
-    use_cdef_y = true;
+      // Pick best option for Y plane.
+      // TODO(urvang): Maybe better to use RDCOST here.
+      cm->use_cnn = (option1_err <= option2_err);
+    } else if (!use_restoration) {
+      cm->use_cnn = 0;
+    } else {
+      assert(!use_cdef);
+      cm->use_cnn = 1;
+    }
+
+    // With the best option selected for Y plane, filter all planes (U and V
+    // planes always have CDEF on, and exclude RESTORE_CNN).
+    cdef_restoration_frame_planes(cpi, cm, xd, use_restoration,
+                                  true /*use_cdef*/, cm->use_cnn,
+                                  true /*filter_y_plane_restoration*/,
+                                  !cm->use_cnn, true /*filter_uv_planes*/);
   } else {
-    assert(!use_cdef);
-    use_restore_cnn_y = true;
-    use_cdef_y = false;
+    cdef_restoration_frame(cpi, cm, xd, use_restoration, use_cdef);
   }
-
-  // With the best option selected for Y plane, filter all planes (U and V
-  // planes always have CDEF on, and exclude RESTORE_CNN).
-  cdef_restoration_frame_planes(cpi, cm, xd, use_restoration, true /*use_cdef*/,
-                                use_restore_cnn_y,
-                                true /*filter_y_plane_restoration*/, use_cdef_y,
-                                true /*filter_uv_planes*/);
 #else
   cdef_restoration_frame(cpi, cm, xd, use_restoration, use_cdef);
 #endif  // CONFIG_CNN_RESTORATION

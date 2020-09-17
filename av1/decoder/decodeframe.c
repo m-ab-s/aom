@@ -68,9 +68,9 @@
 #include "av1/decoder/decodetxb.h"
 #include "av1/decoder/detokenize.h"
 
-#if CONFIG_CNN_RESTORATION && !CONFIG_LOOP_RESTORE_CNN
+#if CONFIG_CNN_RESTORATION || CONFIG_LOOP_RESTORE_CNN
 #include "av1/common/cnn_tflite.h"
-#endif  // CONFIG_CNN_RESTORATION && !CONFIG_LOOP_RESTORE_CNN
+#endif  // CONFIG_CNN_RESTORATION || CONFIG_LOOP_RESTORE_CNN
 
 #define ACCT_STR __func__
 
@@ -1933,7 +1933,7 @@ static void setup_segmentation(AV1_COMMON *const cm,
   segfeatures_copy(&cm->cur_frame->seg, seg);
 }
 
-#if CONFIG_CNN_RESTORATION && !CONFIG_LOOP_RESTORE_CNN
+#if CONFIG_CNN_RESTORATION || CONFIG_LOOP_RESTORE_CNN
 static void decode_cnn(AV1_COMMON *cm, struct aom_read_bit_buffer *rb) {
   if (av1_use_cnn(cm)) {
     cm->use_cnn = aom_rb_read_bit(rb);
@@ -1941,7 +1941,7 @@ static void decode_cnn(AV1_COMMON *cm, struct aom_read_bit_buffer *rb) {
     cm->use_cnn = 0;
   }
 }
-#endif  // CONFIG_CNN_RESTORATION && !CONFIG_LOOP_RESTORE_CNN
+#endif  // CONFIG_CNN_RESTORATION || CONFIG_LOOP_RESTORE_CNN
 
 #if CONFIG_MFQE_RESTORATION
 static void decode_mfqe(AV1_COMMON *cm, struct aom_read_bit_buffer *rb) {
@@ -1970,12 +1970,12 @@ static void decode_restoration_mode(AV1_COMMON *cm,
     RestorationInfo *rsi = &cm->rst_info[p];
     if (aom_rb_read_bit(rb)) {
       if (aom_rb_read_bit(rb)) {
-#if CONFIG_LOOP_RESTORE_CNN && CONFIG_WIENER_NONSEP
+#if CONFIG_LOOP_RESTORE_CNN
         rsi->frame_restoration_type =
-            aom_rb_read_bit(rb) ? RESTORE_WIENER_NONSEP : RESTORE_SGRPROJ;
+            cm->use_cnn ? RESTORE_CNN : RESTORE_SGRPROJ;
 #else
         rsi->frame_restoration_type = RESTORE_SGRPROJ;
-#endif  // CONFIG_LOOP_RESTORE_CNN && CONFIG_WIENER_NONSEP
+#endif  // CONFIG_LOOP_RESTORE_CNN
       } else {
         rsi->frame_restoration_type = RESTORE_WIENER;
       }
@@ -1985,13 +1985,13 @@ static void decode_restoration_mode(AV1_COMMON *cm,
       } else {
 #if CONFIG_LOOP_RESTORE_CNN
         rsi->frame_restoration_type =
-            aom_rb_read_bit(rb) ? RESTORE_CNN : RESTORE_NONE;
+            cm->use_cnn && aom_rb_read_bit(rb) ? RESTORE_SGRPROJ : RESTORE_NONE;
 #elif CONFIG_WIENER_NONSEP
         rsi->frame_restoration_type =
             aom_rb_read_bit(rb) ? RESTORE_WIENER_NONSEP : RESTORE_NONE;
 #else
         rsi->frame_restoration_type = RESTORE_NONE;
-#endif  // CONFIG_LOOP_RESTORE_CNN || CONFIG_WIENER_NONSEP
+#endif  // CONFIG_LOOP_RESTORE_CNN
       }
     }
     if (rsi->frame_restoration_type != RESTORE_NONE) {
@@ -2194,9 +2194,17 @@ static void loop_restoration_read_sb_coeffs(const AV1_COMMON *const cm,
 #endif  // CONFIG_WIENER_NONSEP
 
   if (rsi->frame_restoration_type == RESTORE_SWITCHABLE) {
+#if CONFIG_LOOP_RESTORE_CNN
+    const int switchable_types =
+        cm->use_cnn ? RESTORE_SWITCHABLE_TYPES : RESTORE_SWITCHABLE_TYPES - 1;
+    rui->restoration_type =
+        aom_read_symbol(r, xd->tile_ctx->switchable_restore_cdf[cm->use_cnn],
+                        switchable_types, ACCT_STR);
+#else
     rui->restoration_type =
         aom_read_symbol(r, xd->tile_ctx->switchable_restore_cdf,
                         RESTORE_SWITCHABLE_TYPES, ACCT_STR);
+#endif  // CONFIG_LOOP_RESTORE_CNN
     switch (rui->restoration_type) {
       case RESTORE_WIENER:
         read_wiener_filter(wiener_win, &rui->wiener_info, wiener_info, r);
@@ -2310,11 +2318,11 @@ static void setup_cdef(AV1_COMMON *cm, struct aom_read_bit_buffer *rb) {
 
   if (cm->allow_intrabc) return;
 
-#if CONFIG_CNN_RESTORATION && !CONFIG_LOOP_RESTORE_CNN
+#if CONFIG_CNN_RESTORATION || CONFIG_LOOP_RESTORE_CNN
   const bool filter_y_plane = !cm->use_cnn;
 #else
   const bool filter_y_plane = true;
-#endif  // CONFIG_CNN_RESTORATION && !CONFIG_LOOP_RESTORE_CNN
+#endif  // CONFIG_CNN_RESTORATION || CONFIG_LOOP_RESTORE_CNN
 
   cdef_info->cdef_damping = aom_rb_read_literal(rb, 2) + 3;
   cdef_info->cdef_bits = aom_rb_read_literal(rb, 2);
@@ -5682,7 +5690,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
   }
 
   setup_loopfilter(cm, rb);
-#if CONFIG_CNN_RESTORATION && !CONFIG_LOOP_RESTORE_CNN
+#if CONFIG_CNN_RESTORATION || CONFIG_LOOP_RESTORE_CNN
   cm->use_cnn = 0;
   if (!cm->coded_lossless) decode_cnn(cm, rb);
 #endif  // CONFIG_CNN_RESTORATION && !CONFIG_LOOP_RESTORE_CNN

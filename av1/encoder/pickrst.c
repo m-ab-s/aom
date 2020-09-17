@@ -1457,16 +1457,15 @@ static void search_cnn(const RestorationTileLimits *limits,
   const MACROBLOCK *const x = rsc->x;
   const int64_t bits_none = x->cnn_restore_cost[0];
   const int64_t bits_cnn = x->cnn_restore_cost[1];
-
-  // TODO(urvang): Use av1_use_cnn_encode()?
-  if (!av1_use_cnn(cm) || rsc->plane != AOM_PLANE_Y ||
-      !rsc->allow_restore_cnn_y) {
+  if (!cm->use_cnn || rsc->plane != AOM_PLANE_Y || !rsc->allow_restore_cnn_y) {
     rusi->sse[RESTORE_CNN] = INT64_MAX;
     rusi->best_rtype[RESTORE_CNN - 1] = RESTORE_NONE;
     rsc->sse += rusi->sse[RESTORE_NONE];
     rsc->bits += bits_none;
     return;
   }
+
+  assert(av1_use_cnn(cm));
 
   RestorationUnitInfo rui;
   memset(&rui, 0, sizeof(rui));
@@ -1820,6 +1819,9 @@ static void search_switchable(const RestorationTileLimits *limits,
         x->switchable_restore_cost[r] + coeff_bits + rusi->is_shared
             ? x->shared_param_cost[1]
             : x->shared_param_cost[0];
+#elif CONFIG_LOOP_RESTORE_CNN
+    const int64_t bits =
+        x->switchable_restore_cost[rsc->cm->use_cnn][r] + coeff_bits;
 #else
     const int64_t bits = x->switchable_restore_cost[r] + coeff_bits;
 #endif  // CONFIG_EXT_LOOP_RESTORATION
@@ -2039,6 +2041,26 @@ void av1_pick_filter_restoration(const YV12_BUFFER_CONFIG *src,
         copy_unit_info(best_rtype, &rusi[u], &cm->rst_info[plane].unit_info[u]);
       }
     }
+
+#if CONFIG_LOOP_RESTORE_CNN
+    if (cm->use_cnn && plane == 0) {
+      // Check if RESTORE_CNN was used for any restoration units, and set
+      // cm->use_cnn value based on that.
+      bool restore_cnn_used =
+          (cm->rst_info[plane].frame_restoration_type == RESTORE_CNN);
+      if (!restore_cnn_used &&
+          cm->rst_info[plane].frame_restoration_type == RESTORE_SWITCHABLE) {
+        for (int u = 0; u < plane_ntiles; ++u) {
+          if (cm->rst_info[plane].unit_info[u].restoration_type ==
+              RESTORE_CNN) {
+            restore_cnn_used = true;
+            break;
+          }
+        }
+      }
+      cm->use_cnn = restore_cnn_used;
+    }
+#endif  // CONFIG_LOOP_RESTORE_CNN
   }
 
 #if CONFIG_WIENER_NONSEP && CONFIG_WIENER_NONSEP_CROSS_FILT

@@ -25,9 +25,9 @@
 #include "aom_util/debug_util.h"
 #endif  // CONFIG_BITSTREAM_DEBUG
 
-#if CONFIG_CNN_RESTORATION && !CONFIG_LOOP_RESTORE_CNN
+#if CONFIG_CNN_RESTORATION || CONFIG_LOOP_RESTORE_CNN
 #include "av1/common/cnn_tflite.h"
-#endif  // CONFIG_CNN_RESTORATION && !CONFIG_LOOP_RESTORE_CNN
+#endif  // CONFIG_CNN_RESTORATION || CONFIG_LOOP_RESTORE_CNN
 
 #include "av1/common/cdef.h"
 #include "av1/common/cfl.h"
@@ -2371,37 +2371,45 @@ static void encode_restoration_mode(AV1_COMMON *cm,
     }
     switch (rsi->frame_restoration_type) {
       case RESTORE_NONE: aom_wb_write_bit(wb, 0); aom_wb_write_bit(wb, 0);
-#if CONFIG_LOOP_RESTORE_CNN || CONFIG_WIENER_NONSEP
+#if CONFIG_LOOP_RESTORE_CNN
+        if (cm->use_cnn) aom_wb_write_bit(wb, 0);
+#elif CONFIG_WIENER_NONSEP
         aom_wb_write_bit(wb, 0);
-#endif  // CONFIG_LOOP_RESTORE_CNN || CONFIG_WIENER_NONSEP
+#endif  // CONFIG_LOOP_RESTORE_CNN
         break;
       case RESTORE_WIENER:
         aom_wb_write_bit(wb, 1);
         aom_wb_write_bit(wb, 0);
         break;
-      case RESTORE_SGRPROJ: aom_wb_write_bit(wb, 1); aom_wb_write_bit(wb, 1);
-#if CONFIG_LOOP_RESTORE_CNN && CONFIG_WIENER_NONSEP
-        aom_wb_write_bit(wb, 0);
-        break;
-      case CONFIG_WIENER_NONSEP:
-        aom_wb_write_bit(wb, 1);
-        aom_wb_write_bit(wb, 1);
-        aom_wb_write_bit(wb, 1);
-#endif  // CONFIG_LOOP_RESTORE_CNN && CONFIG_WIENER_NONSEP
-        break;
 #if CONFIG_LOOP_RESTORE_CNN
+      case RESTORE_SGRPROJ:
+        if (cm->use_cnn) {
+          aom_wb_write_bit(wb, 0);
+          aom_wb_write_bit(wb, 0);
+          aom_wb_write_bit(wb, 1);
+        } else {
+          aom_wb_write_bit(wb, 1);
+          aom_wb_write_bit(wb, 1);
+        }
+        break;
       case RESTORE_CNN:
-        aom_wb_write_bit(wb, 0);
-        aom_wb_write_bit(wb, 0);
+        assert(cm->use_cnn);
+        aom_wb_write_bit(wb, 1);
         aom_wb_write_bit(wb, 1);
         break;
-#elif CONFIG_WIENER_NONSEP
+#else
+      case RESTORE_SGRPROJ:
+        aom_wb_write_bit(wb, 1);
+        aom_wb_write_bit(wb, 1);
+        break;
+#endif  // CONFIG_LOOP_RESTORE_CNN
+#if CONFIG_WIENER_NONSEP
       case RESTORE_WIENER_NONSEP:
         aom_wb_write_bit(wb, 0);
         aom_wb_write_bit(wb, 0);
         aom_wb_write_bit(wb, 1);
         break;
-#endif  // CONFIG_LOOP_RESTORE_CNN || CONFIG_WIENER_NONSEP
+#endif  // CONFIG_WIENER_NONSEP
       case RESTORE_SWITCHABLE:
         aom_wb_write_bit(wb, 0);
         aom_wb_write_bit(wb, 1);
@@ -2593,11 +2601,31 @@ static void loop_restoration_write_sb_coeffs(const AV1_COMMON *const cm,
   RestorationType unit_rtype = rui->restoration_type;
 
   if (frame_rtype == RESTORE_SWITCHABLE) {
+#if CONFIG_LOOP_RESTORE_CNN
+    const int switchable_types =
+        cm->use_cnn ? RESTORE_SWITCHABLE_TYPES : RESTORE_SWITCHABLE_TYPES - 1;
+    aom_write_symbol(w, unit_rtype,
+                     xd->tile_ctx->switchable_restore_cdf[cm->use_cnn],
+                     switchable_types);
+#if CONFIG_ENTROPY_STATS
+#if CONFIG_LOOP_RESTORE_CNN
+    ++counts->switchable_restore[cm->use_cnn][unit_rtype];
+#else
+    ++counts->switchable_restore[unit_rtype];
+#endif  // CONFIG_LOOP_RESTORE_CNN
+#endif  // CONFIG_ENTROPY_STATS
+#else
     aom_write_symbol(w, unit_rtype, xd->tile_ctx->switchable_restore_cdf,
                      RESTORE_SWITCHABLE_TYPES);
 #if CONFIG_ENTROPY_STATS
+#if CONFIG_LOOP_RESTORE_CNN
+    ++counts->switchable_restore[cm->use_cnn][unit_rtype];
+#else
     ++counts->switchable_restore[unit_rtype];
-#endif
+#endif  // CONFIG_LOOP_RESTORE_CNN
+#endif  // CONFIG_ENTROPY_STATS
+#endif  // CONFIG_LOOP_RESTORE_CNN
+
     switch (unit_rtype) {
       case RESTORE_WIENER:
         write_wiener_filter(wiener_win, &rui->wiener_info, ref_wiener_info, w);
@@ -2659,7 +2687,7 @@ static void loop_restoration_write_sb_coeffs(const AV1_COMMON *const cm,
 #endif  // CONFIG_WIENER_NONSEP
 }
 
-#if CONFIG_CNN_RESTORATION && !CONFIG_LOOP_RESTORE_CNN
+#if CONFIG_CNN_RESTORATION || CONFIG_LOOP_RESTORE_CNN
 static void encode_cnn(AV1_COMMON *cm, struct aom_write_bit_buffer *wb) {
   if (av1_use_cnn(cm)) {
     aom_wb_write_bit(wb, cm->use_cnn);
@@ -2667,7 +2695,7 @@ static void encode_cnn(AV1_COMMON *cm, struct aom_write_bit_buffer *wb) {
     assert(!cm->use_cnn);
   }
 }
-#endif  // CONFIG_CNN_RESTORATION && !CONFIG_LOOP_RESTORE_CNN
+#endif  // CONFIG_CNN_RESTORATION || CONFIG_LOOP_RESTORE_CNN
 
 #if CONFIG_MFQE_RESTORATION
 static void encode_mfqe(AV1_COMMON *cm, struct aom_write_bit_buffer *wb) {
@@ -2736,11 +2764,11 @@ static void encode_cdef(const AV1_COMMON *cm, struct aom_write_bit_buffer *wb) {
   if (!cm->seq_params.enable_cdef) return;
   if (cm->allow_intrabc) return;
 
-#if CONFIG_CNN_RESTORATION && !CONFIG_LOOP_RESTORE_CNN
+#if CONFIG_CNN_RESTORATION || CONFIG_LOOP_RESTORE_CNN
   const bool filter_y_plane = !cm->use_cnn;
 #else
   const bool filter_y_plane = true;
-#endif  // CONFIG_CNN_RESTORATION && !CONFIG_LOOP_RESTORE_CNN
+#endif  // CONFIG_CNN_RESTORATION || CONFIG_LOOP_RESTORE_CNN
 
   const int num_planes = av1_num_planes(cm);
   int i;
@@ -3869,26 +3897,17 @@ static void write_uncompressed_header_obu(AV1_COMP *cpi,
   if (cm->all_lossless) {
     assert(!av1_superres_scaled(cm));
   } else {
-#if CONFIG_CNN_RESTORATION && !CONFIG_LOOP_RESTORE_CNN
     if (!cm->coded_lossless) {
       encode_loopfilter(cm, wb);
+#if CONFIG_CNN_RESTORATION || CONFIG_LOOP_RESTORE_CNN
       encode_cnn(cm, wb);
+#endif  // CONFIG_CNN_RESTORATION || CONFIG_LOOP_RESTORE_CNN
       encode_cdef(cm, wb);
     }
 #if CONFIG_MFQE_RESTORATION
     encode_mfqe(cm, wb);
 #endif  // CONFIG_MFQE_RESTORATION
     encode_restoration_mode(cm, wb);
-#else
-    if (!cm->coded_lossless) {
-      encode_loopfilter(cm, wb);
-      encode_cdef(cm, wb);
-    }
-#if CONFIG_MFQE_RESTORATION
-    encode_mfqe(cm, wb);
-#endif  // CONFIG_MFQE_RESTORATION
-    encode_restoration_mode(cm, wb);
-#endif  // CONFIG_CNN_RESTORATION && !CONFIG_LOOP_RESTORE_CNN
   }
 
   // Write TX mode

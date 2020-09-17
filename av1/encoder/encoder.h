@@ -560,7 +560,11 @@ typedef struct FRAME_COUNTS {
   unsigned int adapt_filter_intra_mode[USED_ADAPT_FILTER_INTRA_MODES];
   unsigned int adapt_filter_intra[BLOCK_SIZES_ALL][2];
 #endif  // CONFIG_ADAPT_FILTER_INTRA
+#if CONFIG_LOOP_RESTORE_CNN
+  unsigned int switchable_restore[2][RESTORE_SWITCHABLE_TYPES];
+#else
   unsigned int switchable_restore[RESTORE_SWITCHABLE_TYPES];
+#endif  // CONFIG_LOOP_RESTORE_CNN
   unsigned int wiener_restore[2];
   unsigned int sgrproj_restore[2];
 #if CONFIG_LOOP_RESTORE_CNN

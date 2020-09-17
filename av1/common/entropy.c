@@ -170,7 +170,13 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
   RESET_CDF_COUNTER(fc->adapt_filter_intra_mode_cdf,
                     USED_ADAPT_FILTER_INTRA_MODES);
 #endif  // CONFIG_ADAPT_FILTER_INTRA
+#if CONFIG_LOOP_RESTORE_CNN
+  RESET_CDF_COUNTER(fc->switchable_restore_cdf[0],
+                    RESTORE_SWITCHABLE_TYPES - 1);
+  RESET_CDF_COUNTER(fc->switchable_restore_cdf[1], RESTORE_SWITCHABLE_TYPES);
+#else
   RESET_CDF_COUNTER(fc->switchable_restore_cdf, RESTORE_SWITCHABLE_TYPES);
+#endif  // CONFIG_LOOP_RESTORE_CNN
   RESET_CDF_COUNTER(fc->wiener_restore_cdf, 2);
   RESET_CDF_COUNTER(fc->sgrproj_restore_cdf, 2);
 #if CONFIG_LOOP_RESTORE_CNN

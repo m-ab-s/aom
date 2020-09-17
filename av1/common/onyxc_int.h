@@ -609,9 +609,9 @@ typedef struct AV1Common {
   int64_t txcoeff_cost_count;
 #endif
   int is_decoding;
-#if CONFIG_CNN_RESTORATION
+#if CONFIG_CNN_RESTORATION || CONFIG_LOOP_RESTORE_CNN
   int use_cnn;
-#endif  // CONFIG_CNN_RESTORATION
+#endif  // CONFIG_CNN_RESTORATION || CONFIG_LOOP_RESTORE_CNN
 #if CONFIG_MFQE_RESTORATION
   int use_mfqe;
 #endif  // CONFIG_MFQE_RESTORATION

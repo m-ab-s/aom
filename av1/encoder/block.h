@@ -560,7 +560,11 @@ struct macroblock {
                          [TX_TYPES];
 #endif  // CONFIG_MODE_DEP_INTRA_TX || CONFIG_MODE_DEP_INTER_TX
   int angle_delta_cost[DIRECTIONAL_MODES][2 * MAX_ANGLE_DELTA + 1];
+#if CONFIG_LOOP_RESTORE_CNN
+  int switchable_restore_cost[2][RESTORE_SWITCHABLE_TYPES];
+#else
   int switchable_restore_cost[RESTORE_SWITCHABLE_TYPES];
+#endif  // CONFIG_LOOP_RESTORE_CNN
   int wiener_restore_cost[2];
 #if CONFIG_EXT_LOOP_RESTORATION
   int shared_param_cost[2];
