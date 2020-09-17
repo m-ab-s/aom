@@ -1056,6 +1056,17 @@ typedef struct dist_wtd_comp_params {
 
 struct scale_factors;
 
+typedef struct {
+  uint8_t count[MODE_CTX_REF_FRAMES];
+  CANDIDATE_MV stack[MODE_CTX_REF_FRAMES][MAX_REF_MV_STACK_SIZE];
+  uint16_t weight[MODE_CTX_REF_FRAMES][MAX_REF_MV_STACK_SIZE];
+#if CONFIG_FLEX_MVRES
+  uint8_t count_adj;
+  CANDIDATE_MV stack_adj[MAX_REF_MV_STACK_SIZE];
+  uint16_t weight_adj[MAX_REF_MV_STACK_SIZE];
+#endif  // CONFIG_FLEX_MVRES
+} REF_MV_INFO;
+
 // Most/all of the pointers are mere pointers to actual arrays are allocated
 // elsewhere. This is mostly for coding convenience.
 typedef struct macroblockd {
@@ -1123,14 +1134,8 @@ typedef struct macroblockd {
   // block dimension in the unit of mode_info.
   uint8_t n4_w, n4_h;
 
-  uint8_t ref_mv_count[MODE_CTX_REF_FRAMES];
-  CANDIDATE_MV ref_mv_stack[MODE_CTX_REF_FRAMES][MAX_REF_MV_STACK_SIZE];
-  uint16_t weight[MODE_CTX_REF_FRAMES][MAX_REF_MV_STACK_SIZE];
-#if CONFIG_FLEX_MVRES
-  uint8_t ref_mv_count_adj;
-  CANDIDATE_MV ref_mv_stack_adj[MAX_REF_MV_STACK_SIZE];
-  uint16_t weight_adj[MAX_REF_MV_STACK_SIZE];
-#endif  // CONFIG_FLEX_MVRES
+  REF_MV_INFO ref_mv_info;
+
   uint8_t is_sec_rect;
 
   // Counts of each reference frame in the above and left neighboring blocks.

@@ -1424,9 +1424,9 @@ MV av1_derive_mv(const AV1_COMMON *const cm, MACROBLOCKD *xd,
   int16_t inter_mode_ctx[MODE_CTX_REF_FRAMES];
   int_mv ref_mvs[MODE_CTX_REF_FRAMES][MAX_MV_REF_CANDIDATES] = { { { 0 } } };
   MV_REFERENCE_FRAME ref_frame = av1_ref_frame_type(mbmi->ref_frame);
-  av1_find_mv_refs(cm, xd, mbmi, ref_frame, xd->ref_mv_count, xd->ref_mv_stack,
-                   xd->weight, ref_mvs, /*global_mvs=*/NULL, inter_mode_ctx);
-  MV best_mv = xd->ref_mv_stack[ref_frame][0].this_mv.as_mv;
+  av1_find_mv_refs(cm, xd, mbmi, ref_frame, &xd->ref_mv_info, ref_mvs, NULL,
+                   inter_mode_ctx);
+  MV best_mv = xd->ref_mv_info.stack[ref_frame][0].this_mv.as_mv;
   int step = 1;
   if (cm->fr_mv_precision == MV_SUBPEL_NONE) {
     step = 8;
@@ -1440,9 +1440,10 @@ MV av1_derive_mv(const AV1_COMMON *const cm, MACROBLOCKD *xd,
   const int bw = block_size_wide[bsize];
   const int bh = block_size_high[bsize];
   // Motion search around each reference MV.
-  for (int i = 0; i < AOMMIN(DERIVED_MV_IDX_RANGE, xd->ref_mv_count[ref_frame]);
+  for (int i = 0;
+       i < AOMMIN(DERIVED_MV_IDX_RANGE, xd->ref_mv_info.count[ref_frame]);
        ++i) {
-    MV ref_mv = xd->ref_mv_stack[ref_frame][i].this_mv.as_mv;
+    MV ref_mv = xd->ref_mv_info.stack[ref_frame][i].this_mv.as_mv;
     // Full pel MV search.
     ref_mv = full_pel_refine(cm, xd, bsize, ref_mv, recon_top, recon_left,
                              recon_top_left, recon_stride);

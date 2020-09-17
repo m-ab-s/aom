@@ -1090,12 +1090,12 @@ static void update_drl_index_stats(FRAME_CONTEXT *fc, FRAME_COUNTS *counts,
 #if CONFIG_FLEX_MVRES && ADJUST_DRL_FLEX_MVRES
   if (mbmi->pb_mv_precision < mbmi->max_mv_precision &&
       (mbmi->mode == NEWMV || mbmi->mode == NEW_NEWMV)) {
-    assert(mbmi->ref_mv_idx_adj < mbmi_ext->ref_mv_count_adj);
+    assert(mbmi->ref_mv_idx_adj < mbmi_ext->ref_mv_info.count_adj);
     assert(mbmi->ref_mv_idx_adj < MAX_DRL_BITS + 1);
-    int range_adj = AOMMIN(mbmi_ext->ref_mv_count_adj - 1, MAX_DRL_BITS);
+    int range_adj = AOMMIN(mbmi_ext->ref_mv_info.count_adj - 1, MAX_DRL_BITS);
     for (int idx = 0; idx < range_adj; ++idx) {
-      aom_cdf_prob *drl_cdf =
-          av1_get_drl_cdf(mode_ctx, fc, mbmi->mode, mbmi_ext->weight_adj, idx);
+      aom_cdf_prob *drl_cdf = av1_get_drl_cdf(
+          mode_ctx, fc, mbmi->mode, mbmi_ext->ref_mv_info.weight_adj, idx);
       if (allow_update_cdf) update_cdf(drl_cdf, mbmi->ref_mv_idx_adj != idx, 2);
       if (mbmi->ref_mv_idx_adj == idx) break;
     }
@@ -1103,10 +1103,12 @@ static void update_drl_index_stats(FRAME_CONTEXT *fc, FRAME_COUNTS *counts,
   }
 #endif  // CONFIG_FLEX_MVRES && ADJUST_DRL_FLEX_MVRES
   assert(mbmi->ref_mv_idx < MAX_DRL_BITS + 1);
-  int range = AOMMIN(mbmi_ext->ref_mv_count[ref_frame_type] - 1, MAX_DRL_BITS);
+  int range =
+      AOMMIN(mbmi_ext->ref_mv_info.count[ref_frame_type] - 1, MAX_DRL_BITS);
   for (int idx = 0; idx < range; ++idx) {
-    aom_cdf_prob *drl_cdf = av1_get_drl_cdf(
-        mode_ctx, fc, mbmi->mode, mbmi_ext->weight[ref_frame_type], idx);
+    aom_cdf_prob *drl_cdf =
+        av1_get_drl_cdf(mode_ctx, fc, mbmi->mode,
+                        mbmi_ext->ref_mv_info.weight[ref_frame_type], idx);
 #if CONFIG_ENTROPY_STATS
     int drl_ctx = av1_drl_ctx(mbmi_ext->weight[ref_frame_type], idx);
     switch (mbmi->ref_mv_idx) {

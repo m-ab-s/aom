@@ -45,7 +45,7 @@ static AOM_INLINE int_mv get_ref_mv_for_mv_stats(
   const MV_REFERENCE_FRAME *ref_frames = mbmi->ref_frame;
   const int8_t ref_frame_type = av1_ref_frame_type(ref_frames);
   const CANDIDATE_MV *curr_ref_mv_stack =
-      mbmi_ext->ref_mv_stack[ref_frame_type];
+      mbmi_ext->ref_mv_info.stack[ref_frame_type];
 
   if (ref_frames[1] > INTRA_FRAME) {
     assert(ref_idx == 0 || ref_idx == 1);
@@ -54,7 +54,7 @@ static AOM_INLINE int_mv get_ref_mv_for_mv_stats(
   }
 
   assert(ref_idx == 0);
-  return ref_mv_idx < mbmi_ext->ref_mv_count[ref_frame_type]
+  return ref_mv_idx < mbmi_ext->ref_mv_info.count[ref_frame_type]
              ? curr_ref_mv_stack[ref_mv_idx].this_mv
              : mbmi_ext->global_mvs[ref_frame_type];
 }

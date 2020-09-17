@@ -102,17 +102,10 @@ typedef struct {
 
 typedef struct {
   // TODO(angiebird): Reduce the buffer size according to sb_type
-  CANDIDATE_MV ref_mv_stack[MODE_CTX_REF_FRAMES][MAX_REF_MV_STACK_SIZE];
-  uint16_t weight[MODE_CTX_REF_FRAMES][MAX_REF_MV_STACK_SIZE];
   int_mv global_mvs[REF_FRAMES];
   int cb_offset;
   int16_t mode_context[MODE_CTX_REF_FRAMES];
-  uint8_t ref_mv_count[MODE_CTX_REF_FRAMES];
-#if CONFIG_FLEX_MVRES
-  CANDIDATE_MV ref_mv_stack_adj[MAX_REF_MV_STACK_SIZE];
-  uint16_t weight_adj[MAX_REF_MV_STACK_SIZE];
-  uint8_t ref_mv_count_adj;
-#endif  // CONFIG_FLEX_MVRES
+  REF_MV_INFO ref_mv_info;
 } MB_MODE_INFO_EXT;
 
 typedef struct {

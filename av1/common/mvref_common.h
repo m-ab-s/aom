@@ -270,9 +270,7 @@ void av1_copy_frame_mvs(const AV1_COMMON *const cm,
 // output.
 void av1_find_mv_refs(const AV1_COMMON *cm, const MACROBLOCKD *xd,
                       MB_MODE_INFO *mi, MV_REFERENCE_FRAME ref_frame,
-                      uint8_t ref_mv_count[MODE_CTX_REF_FRAMES],
-                      CANDIDATE_MV ref_mv_stack[][MAX_REF_MV_STACK_SIZE],
-                      uint16_t ref_mv_weight[][MAX_REF_MV_STACK_SIZE],
+                      REF_MV_INFO *ref_mv_info,
                       int_mv mv_ref_list[][MAX_MV_REF_CANDIDATES],
                       int_mv *global_mvs, int16_t *mode_context);
 
@@ -370,19 +368,11 @@ static INLINE int av1_is_dv_valid(const MV dv, const AV1_COMMON *cm,
 
 #if CONFIG_FLEX_MVRES
 #if ADJUST_DRL_FLEX_MVRES
-void av1_get_mv_refs_adj(CANDIDATE_MV ref_mv_stack_orig[MAX_REF_MV_STACK_SIZE],
-                         uint16_t weight_orig[MAX_REF_MV_STACK_SIZE],
-                         uint8_t ref_mv_count_orig, int is_compound,
-                         MvSubpelPrecision precision,
-                         CANDIDATE_MV ref_mv_stack_adj[MAX_REF_MV_STACK_SIZE],
-                         uint16_t weight_adj[MAX_REF_MV_STACK_SIZE],
-                         uint8_t *ref_mv_count_adj);
-int av1_get_ref_mv_idx_adj(
-    CANDIDATE_MV ref_mv_stack_orig[MAX_REF_MV_STACK_SIZE],
-    uint8_t ref_mv_count_orig, int ref_mv_idx_orig, int is_compound,
-    MvSubpelPrecision precision,
-    CANDIDATE_MV ref_mv_stack_adj[MAX_REF_MV_STACK_SIZE],
-    uint8_t ref_mv_count_adj);
+void av1_get_mv_refs_adj(REF_MV_INFO *ref_mv_info, int ref_frame,
+                         int is_compound, MvSubpelPrecision precision);
+int av1_get_ref_mv_idx_adj(REF_MV_INFO *ref_mv_info, int ref_frame,
+                           int is_compound, MvSubpelPrecision precision,
+                           int ref_mv_idx_orig);
 #endif  // ADJUST_DRL_FLEX_MVRES
 #endif  // CONFIG_FLEX_MVRES
 #ifdef __cplusplus
