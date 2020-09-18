@@ -336,7 +336,7 @@ int_mv av1_get_ref_mv_from_stack(int ref_idx,
                                  const MB_MODE_INFO_EXT *mbmi_ext) {
   const int8_t ref_frame_type = av1_ref_frame_type(ref_frame);
   const CANDIDATE_MV *curr_ref_mv_stack =
-      mbmi_ext->ref_mv_info.stack[ref_frame_type];
+      mbmi_ext->ref_mv_info.ref_mv_stack[ref_frame_type];
 
   if (ref_frame[1] > INTRA_FRAME) {
     assert(ref_idx == 0 || ref_idx == 1);
@@ -345,7 +345,7 @@ int_mv av1_get_ref_mv_from_stack(int ref_idx,
   }
 
   assert(ref_idx == 0);
-  return ref_mv_idx < mbmi_ext->ref_mv_info.count[ref_frame_type]
+  return ref_mv_idx < mbmi_ext->ref_mv_info.ref_mv_count[ref_frame_type]
              ? curr_ref_mv_stack[ref_mv_idx].this_mv
              : mbmi_ext->global_mvs[ref_frame_type];
 }
@@ -382,8 +382,8 @@ int_mv av1_find_best_ref_mv_from_stack(MvSubpelPrecision precision,
   int_mv mv;
   bool found_ref_mv = false;
   MV_REFERENCE_FRAME ref_frames[2] = { ref_frame, NONE_FRAME };
-  int range =
-      AOMMIN(mbmi_ext->ref_mv_info.count[ref_frame], MAX_REF_MV_STACK_SIZE);
+  int range = AOMMIN(mbmi_ext->ref_mv_info.ref_mv_count[ref_frame],
+                     MAX_REF_MV_STACK_SIZE);
   for (int i = 0; i < range; i++) {
     mv = av1_get_ref_mv_from_stack(0, ref_frames, i, mbmi_ext);
     if (mv.as_int != 0 && mv.as_int != INVALID_MV) {

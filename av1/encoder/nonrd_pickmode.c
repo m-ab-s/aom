@@ -265,7 +265,7 @@ static int search_new_mv(AV1_COMP *cpi, MACROBLOCK *x,
 
     tmp_sad = av1_int_pro_motion_estimation(
         cpi, x, bsize, mi_row, mi_col,
-        &x->mbmi_ext->ref_mv_info.stack[ref_frame][0].this_mv.as_mv);
+        &x->mbmi_ext->ref_mv_info.ref_mv_stack[ref_frame][0].this_mv.as_mv);
 
     if (tmp_sad > x->pred_mv_sad[LAST_FRAME]) return -1;
     if (tmp_sad + (num_pels_log2_lookup[bsize] << 4) > best_pred_sad) return -1;

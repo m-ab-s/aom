@@ -168,9 +168,9 @@ static void add_ref_mv_candidate(
   if (!is_inter_block(candidate)) return;
   assert(weight % 2 == 0);
   int index, ref;
-  uint8_t *refmv_count = &ref_mv_info->count[ref_frame];
-  CANDIDATE_MV *ref_mv_stack = ref_mv_info->stack[ref_frame];
-  uint16_t *ref_mv_weight = ref_mv_info->weight[ref_frame];
+  uint8_t *refmv_count = &ref_mv_info->ref_mv_count[ref_frame];
+  CANDIDATE_MV *ref_mv_stack = ref_mv_info->ref_mv_stack[ref_frame];
+  uint16_t *ref_mv_weight = ref_mv_info->ref_mv_weight[ref_frame];
 
   if (rf[1] == NONE_FRAME) {
     // single reference frame
@@ -500,9 +500,9 @@ static int add_tpl_ref_mv(const AV1_COMMON *cm, const MACROBLOCKD *xd,
 
   if (!is_inside(&xd->tile, mi_col, mi_row, &mi_pos)) return 0;
 
-  uint8_t *refmv_count = &ref_mv_info->count[ref_frame];
-  CANDIDATE_MV *ref_mv_stack = ref_mv_info->stack[ref_frame];
-  uint16_t *ref_mv_weight = ref_mv_info->weight[ref_frame];
+  uint8_t *refmv_count = &ref_mv_info->ref_mv_count[ref_frame];
+  CANDIDATE_MV *ref_mv_stack = ref_mv_info->ref_mv_stack[ref_frame];
+  uint16_t *ref_mv_weight = ref_mv_info->ref_mv_weight[ref_frame];
 
   const TPL_MV_REF *prev_frame_mvs =
       cm->tpl_mvs + ((mi_row + mi_pos.row) >> 1) * (cm->mi_stride >> 1) +
@@ -1309,9 +1309,9 @@ static void setup_ref_mv_list(const AV1_COMMON *cm, const MACROBLOCKD *xd,
   const int col_adj = (xd->n4_w < mi_size_wide[BLOCK_8X8]) && (mi_col & 0x01);
   int processed_rows = 0;
   int processed_cols = 0;
-  uint8_t *refmv_count = &ref_mv_info->count[ref_frame];
-  CANDIDATE_MV *ref_mv_stack = ref_mv_info->stack[ref_frame];
-  uint16_t *ref_mv_weight = ref_mv_info->weight[ref_frame];
+  uint8_t *refmv_count = &ref_mv_info->ref_mv_count[ref_frame];
+  CANDIDATE_MV *ref_mv_stack = ref_mv_info->ref_mv_stack[ref_frame];
+  uint16_t *ref_mv_weight = ref_mv_info->ref_mv_weight[ref_frame];
 
   av1_set_ref_frame(rf, ref_frame);
   mode_context[ref_frame] = 0;
@@ -2641,39 +2641,43 @@ void av1_set_frame_refs(AV1_COMMON *const cm, int *remapped_ref_idx,
 #if ADJUST_DRL_FLEX_MVRES
 void av1_get_mv_refs_adj(REF_MV_INFO *ref_mv_info, int ref_frame,
                          int is_compound, MvSubpelPrecision precision) {
-  CANDIDATE_MV *ref_mv_stack_orig = ref_mv_info->stack[ref_frame];
-  uint16_t *weight_orig = ref_mv_info->weight[ref_frame];
-  const uint8_t ref_mv_count_orig = ref_mv_info->count[ref_frame];
-  CANDIDATE_MV *stack_adj = ref_mv_info->stack_adj;
-  uint16_t *weight_adj = ref_mv_info->weight_adj;
-  uint8_t *count_adj = &ref_mv_info->count_adj;
-  *count_adj = 0;
+  CANDIDATE_MV *ref_mv_stack_orig = ref_mv_info->ref_mv_stack[ref_frame];
+  uint16_t *weight_orig = ref_mv_info->ref_mv_weight[ref_frame];
+  const uint8_t ref_mv_count_orig = ref_mv_info->ref_mv_count[ref_frame];
+  CANDIDATE_MV *ref_mv_stack_adj = ref_mv_info->ref_mv_stack_adj;
+  uint16_t *ref_mv_weight_adj = ref_mv_info->ref_mv_weight_adj;
+  uint8_t *ref_mv_count_adj = &ref_mv_info->ref_mv_count_adj;
+  *ref_mv_count_adj = 0;
 
   for (int i = 0; i < ref_mv_count_orig; ++i) {
-    stack_adj[*count_adj] = ref_mv_stack_orig[i];
-    lower_mv_precision(&stack_adj[*count_adj].this_mv.as_mv, precision);
+    ref_mv_stack_adj[*ref_mv_count_adj] = ref_mv_stack_orig[i];
+    lower_mv_precision(&ref_mv_stack_adj[*ref_mv_count_adj].this_mv.as_mv,
+                       precision);
     if (is_compound) {
-      lower_mv_precision(&stack_adj[*count_adj].comp_mv.as_mv, precision);
+      lower_mv_precision(&ref_mv_stack_adj[*ref_mv_count_adj].comp_mv.as_mv,
+                         precision);
     }
-    weight_adj[*count_adj] = weight_orig[i];
+    ref_mv_weight_adj[*ref_mv_count_adj] = weight_orig[i];
     int k;
     if (is_compound) {
-      for (k = 0; k < *count_adj; ++k) {
-        if (stack_adj[*count_adj].this_mv.as_int ==
-                stack_adj[k].this_mv.as_int &&
-            stack_adj[*count_adj].comp_mv.as_int == stack_adj[k].comp_mv.as_int)
+      for (k = 0; k < *ref_mv_count_adj; ++k) {
+        if (ref_mv_stack_adj[*ref_mv_count_adj].this_mv.as_int ==
+                ref_mv_stack_adj[k].this_mv.as_int &&
+            ref_mv_stack_adj[*ref_mv_count_adj].comp_mv.as_int ==
+                ref_mv_stack_adj[k].comp_mv.as_int)
           break;
       }
     } else {
-      for (k = 0; k < *count_adj; ++k) {
-        if (stack_adj[*count_adj].this_mv.as_int == stack_adj[k].this_mv.as_int)
+      for (k = 0; k < *ref_mv_count_adj; ++k) {
+        if (ref_mv_stack_adj[*ref_mv_count_adj].this_mv.as_int ==
+            ref_mv_stack_adj[k].this_mv.as_int)
           break;
       }
     }
-    if (k == *count_adj) {
-      ++(*count_adj);
+    if (k == *ref_mv_count_adj) {
+      ++(*ref_mv_count_adj);
     } else {
-      weight_adj[k] += weight_adj[*count_adj];
+      ref_mv_weight_adj[k] += ref_mv_weight_adj[*ref_mv_count_adj];
     }
   }
 }
@@ -2681,10 +2685,10 @@ void av1_get_mv_refs_adj(REF_MV_INFO *ref_mv_info, int ref_frame,
 int av1_get_ref_mv_idx_adj(REF_MV_INFO *ref_mv_info, int ref_frame,
                            int is_compound, MvSubpelPrecision precision,
                            int ref_mv_idx_orig) {
-  CANDIDATE_MV *ref_mv_stack_orig = ref_mv_info->stack[ref_frame];
-  const uint8_t ref_mv_count_orig = ref_mv_info->count[ref_frame];
-  CANDIDATE_MV *stack_adj = ref_mv_info->stack_adj;
-  const uint8_t count_adj = ref_mv_info->count_adj;
+  CANDIDATE_MV *ref_mv_stack_orig = ref_mv_info->ref_mv_stack[ref_frame];
+  const uint8_t ref_mv_count_orig = ref_mv_info->ref_mv_count[ref_frame];
+  CANDIDATE_MV *ref_mv_stack_adj = ref_mv_info->ref_mv_stack_adj;
+  const uint8_t ref_mv_count_adj = ref_mv_info->ref_mv_count_adj;
   assert(IMPLIES(ref_mv_count_orig > 0, ref_mv_idx_orig < ref_mv_count_orig));
   if (ref_mv_count_orig == 0) return 0;
   CANDIDATE_MV ref_mv = ref_mv_stack_orig[ref_mv_idx_orig];
@@ -2692,13 +2696,13 @@ int av1_get_ref_mv_idx_adj(REF_MV_INFO *ref_mv_info, int ref_frame,
   if (is_compound) {
     lower_mv_precision(&ref_mv.comp_mv.as_mv, precision);
   }
-  for (int i = 0; i < count_adj; ++i) {
+  for (int i = 0; i < ref_mv_count_adj; ++i) {
     if (is_compound) {
-      if (stack_adj[i].this_mv.as_int == ref_mv.this_mv.as_int &&
-          stack_adj[i].comp_mv.as_int == ref_mv.comp_mv.as_int)
+      if (ref_mv_stack_adj[i].this_mv.as_int == ref_mv.this_mv.as_int &&
+          ref_mv_stack_adj[i].comp_mv.as_int == ref_mv.comp_mv.as_int)
         return i;
     } else {
-      if (stack_adj[i].this_mv.as_int == ref_mv.this_mv.as_int) return i;
+      if (ref_mv_stack_adj[i].this_mv.as_int == ref_mv.this_mv.as_int) return i;
     }
   }
   assert(0);
