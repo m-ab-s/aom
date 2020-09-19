@@ -834,16 +834,20 @@ void av1_update_ref_frame_map(AV1_COMP *cpi,
       break;
     case OVERLAY_UPDATE:
     case KFFLT_OVERLAY_UPDATE:
-      ref_map_index = stack_pop(ref_buffer_stack->arf_stack,
-                                &ref_buffer_stack->arf_stack_size);
-      stack_push(ref_buffer_stack->gld_stack, &ref_buffer_stack->gld_stack_size,
-                 ref_map_index);
+      if (ref_buffer_stack->arf_stack_size) {
+        ref_map_index = stack_pop(ref_buffer_stack->arf_stack,
+                                  &ref_buffer_stack->arf_stack_size);
+        stack_push(ref_buffer_stack->gld_stack,
+                   &ref_buffer_stack->gld_stack_size, ref_map_index);
+      }
       break;
     case INTNL_OVERLAY_UPDATE:
-      ref_map_index = stack_pop(ref_buffer_stack->arf_stack,
-                                &ref_buffer_stack->arf_stack_size);
-      stack_push(ref_buffer_stack->lst_stack, &ref_buffer_stack->lst_stack_size,
-                 ref_map_index);
+      if (ref_buffer_stack->arf_stack_size) {
+        ref_map_index = stack_pop(ref_buffer_stack->arf_stack,
+                                  &ref_buffer_stack->arf_stack_size);
+        stack_push(ref_buffer_stack->lst_stack,
+                   &ref_buffer_stack->lst_stack_size, ref_map_index);
+      }
       break;
     default: assert(0 && "unknown type");
   }
@@ -1348,6 +1352,7 @@ void av1_get_ref_frames(AV1_COMP *const cpi, RefBufferStack *ref_buffer_stack) {
     } else {
       remapped_ref_idx[idx] = ref_buffer_stack->gld_stack[0];
     }
+    assert(remapped_ref_idx[idx] != INVALID_IDX);
   }
 }
 
