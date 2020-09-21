@@ -44,7 +44,7 @@
 
 #define RD_THRESH_POW 1.25
 
-#if CONFIG_DELTA_DCQUANT
+#if CONFIG_EXTQUANT
 #define RD_THRESH_MUL 4.40
 #define RDMULT_FROM_Q2_NUM 96
 #define RDMULT_FROM_Q2_DEN 32
@@ -52,7 +52,7 @@
 #define RD_THRESH_MUL 5.12
 #define RDMULT_FROM_Q2_NUM 88
 #define RDMULT_FROM_Q2_DEN 24
-#endif  // CONFIG_DELTA_DCQUANT
+#endif  // CONFIG_EXTQUANT
 
 // The baseline rd thresholds for breaking out of the rd loop for
 // certain modes are assumed to be based on 8x8 blocks.
@@ -526,7 +526,7 @@ static void init_me_luts_bd(int *bit16lut, int *bit4lut, int range,
 }
 
 void av1_init_me_luts(void) {
-#if CONFIG_EXTQUANT_HBD
+#if CONFIG_EXTQUANT
   init_me_luts_bd(sad_per_bit16lut_8, sad_per_bit4lut_8, QINDEX_RANGE_8_BITS,
                   AOM_BITS_8);
   init_me_luts_bd(sad_per_bit16lut_10, sad_per_bit4lut_10, QINDEX_RANGE_10_BITS,
@@ -551,9 +551,9 @@ static const int rd_frame_type_factor[FRAME_UPDATE_TYPES] = { 128, 144, 128,
 
 int av1_compute_rd_mult_based_on_qindex(const AV1_COMP *cpi, int qindex) {
   const int64_t q = av1_dc_quant_QTX(qindex, 0,
-#if CONFIG_DELTA_DCQUANT
+#if CONFIG_EXTQUANT
                                      cpi->common.seq_params.base_y_dc_delta_q,
-#endif  // CONFIG_DELTA_DCQUANT
+#endif  // CONFIG_EXTQUANT
                                      cpi->common.seq_params.bit_depth);
   int64_t rdmult = ROUND_POWER_OF_TWO_64(
       (int64_t)((int64_t)q * q * RDMULT_FROM_Q2_NUM / RDMULT_FROM_Q2_DEN),
@@ -586,9 +586,9 @@ int av1_compute_rd_mult(const AV1_COMP *cpi, int qindex) {
 int av1_get_deltaq_offset(const AV1_COMP *cpi, int qindex, double beta) {
   assert(beta > 0.0);
   int q = av1_dc_quant_QTX(qindex, 0,
-#if CONFIG_DELTA_DCQUANT
+#if CONFIG_EXTQUANT
                            cpi->common.seq_params.base_y_dc_delta_q,
-#endif  // CONFIG_DELTA_DCQUANT
+#endif  // CONFIG_EXTQUANT
                            cpi->common.seq_params.bit_depth);
   int newq = (int)rint(q / sqrt(beta));
   int orig_qindex = qindex;
@@ -596,20 +596,20 @@ int av1_get_deltaq_offset(const AV1_COMP *cpi, int qindex, double beta) {
     do {
       qindex--;
       q = av1_dc_quant_QTX(qindex, 0,
-#if CONFIG_DELTA_DCQUANT
+#if CONFIG_EXTQUANT
                            cpi->common.seq_params.base_y_dc_delta_q,
-#endif  // CONFIG_DELTA_DCQUANT
+#endif  // CONFIG_EXTQUANT
                            cpi->common.seq_params.bit_depth);
     } while (newq < q && qindex > 0);
   } else {
     do {
       qindex++;
       q = av1_dc_quant_QTX(qindex, 0,
-#if CONFIG_DELTA_DCQUANT
+#if CONFIG_EXTQUANT
                            cpi->common.seq_params.base_y_dc_delta_q,
-#endif  // CONFIG_DELTA_DCQUANT
+#endif  // CONFIG_EXTQUANT
                            cpi->common.seq_params.bit_depth);
-#if CONFIG_EXTQUANT_HBD
+#if CONFIG_EXTQUANT
     } while (newq > q &&
              (qindex < (cpi->common.seq_params.bit_depth == AOM_BITS_8
                             ? MAXQ_8_BITS
@@ -627,9 +627,9 @@ int av1_get_adaptive_rdmult(const AV1_COMP *cpi, double beta) {
   assert(beta > 0.0);
   const AV1_COMMON *cm = &cpi->common;
   int64_t q = av1_dc_quant_QTX(cm->base_qindex, 0,
-#if CONFIG_DELTA_DCQUANT
+#if CONFIG_EXTQUANT
                                cm->seq_params.base_y_dc_delta_q,
-#endif  // CONFIG_DELTA_DCQUANT
+#endif  // CONFIG_EXTQUANT
                                cm->seq_params.bit_depth);
   int64_t rdmult;
 
@@ -670,33 +670,33 @@ int av1_get_adaptive_rdmult(const AV1_COMP *cpi, double beta) {
 }
 
 static int compute_rd_thresh_factor(int qindex,
-#if CONFIG_DELTA_DCQUANT
+#if CONFIG_EXTQUANT
                                     int base_y_dc_delta_q,
-#endif  // CONFIG_DELTA_DCQUANT
+#endif  // CONFIG_EXTQUANT
                                     aom_bit_depth_t bit_depth) {
   double q;
   switch (bit_depth) {
     case AOM_BITS_8:
       q = av1_dc_quant_QTX(qindex, 0,
-#if CONFIG_DELTA_DCQUANT
+#if CONFIG_EXTQUANT
                            base_y_dc_delta_q,
-#endif  // CONFIG_DELTA_DCQUANT
+#endif  // CONFIG_EXTQUANT
                            AOM_BITS_8) /
           4.0;
       break;
     case AOM_BITS_10:
       q = av1_dc_quant_QTX(qindex, 0,
-#if CONFIG_DELTA_DCQUANT
+#if CONFIG_EXTQUANT
                            base_y_dc_delta_q,
-#endif  // CONFIG_DELTA_DCQUANT
+#endif  // CONFIG_EXTQUANT
                            AOM_BITS_10) /
           16.0;
       break;
     case AOM_BITS_12:
       q = av1_dc_quant_QTX(qindex, 0,
-#if CONFIG_DELTA_DCQUANT
+#if CONFIG_EXTQUANT
                            base_y_dc_delta_q,
-#endif  // CONFIG_DELTA_DCQUANT
+#endif  // CONFIG_EXTQUANT
                            AOM_BITS_12) /
           64.0;
       break;
@@ -732,7 +732,7 @@ static void set_block_thresholds(const AV1_COMMON *cm, RD_OPT *rd) {
   int i, bsize, segment_id;
 
   for (segment_id = 0; segment_id < MAX_SEGMENTS; ++segment_id) {
-#if CONFIG_EXTQUANT_HBD
+#if CONFIG_EXTQUANT
     const int qindex = clamp(
         av1_get_qindex(&cm->seg, segment_id, cm->base_qindex,
                        cm->seq_params.bit_depth) +
@@ -748,9 +748,9 @@ static void set_block_thresholds(const AV1_COMMON *cm, RD_OPT *rd) {
               0, MAXQ);
 #endif
     const int q = compute_rd_thresh_factor(qindex,
-#if CONFIG_DELTA_DCQUANT
+#if CONFIG_EXTQUANT
                                            cm->seq_params.base_y_dc_delta_q,
-#endif  // CONFIG_DELTA_DCQUANT
+#endif  // CONFIG_EXTQUANT
                                            cm->seq_params.bit_depth);
 
     for (bsize = 0; bsize < BLOCK_SIZES_ALL; ++bsize) {
@@ -1819,21 +1819,21 @@ void av1_update_rd_thresh_fact(const AV1_COMMON *const cm,
   }
 }
 
-#if CONFIG_DELTA_DCQUANT
+#if CONFIG_EXTQUANT
 #define INTRA_COST_PENALTY_Q_FACTOR 8
 #else
 #define INTRA_COST_PENALTY_Q_FACTOR 20
-#endif  // CONFIG_DELTA_DCQUANT
+#endif  // CONFIG_EXTQUANT
 
 int av1_get_intra_cost_penalty(int qindex, int qdelta,
-#if CONFIG_DELTA_DCQUANT
+#if CONFIG_EXTQUANT
                                int base_y_dc_delta_q,
-#endif  // CONFIG_DELTA_DCQUANT
+#endif  // CONFIG_EXTQUANT
                                aom_bit_depth_t bit_depth) {
   const int q = av1_dc_quant_QTX(qindex, qdelta,
-#if CONFIG_DELTA_DCQUANT
+#if CONFIG_EXTQUANT
                                  base_y_dc_delta_q,
-#endif  // CONFIG_DELTA_DCQUANT
+#endif  // CONFIG_EXTQUANT
                                  bit_depth);
   switch (bit_depth) {
     case AOM_BITS_8:

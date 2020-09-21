@@ -309,7 +309,7 @@ static void pick_cdef_from_qp(AV1_COMMON *const cm) {
   CdefInfo *const cdef_info = &cm->cdef_info;
   cdef_info->cdef_bits = 0;
   cdef_info->nb_cdef_strengths = 1;
-#if CONFIG_EXTQUANT_HBD
+#if CONFIG_EXTQUANT
   int damping_offset =
       clamp(cm->base_qindex - (cm->seq_params.bit_depth == AOM_BITS_8
                                    ? 0
@@ -386,7 +386,7 @@ void av1_cdef_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
   const int nvfb = (cm->mi_rows + MI_SIZE_64X64 - 1) / MI_SIZE_64X64;
   const int nhfb = (cm->mi_cols + MI_SIZE_64X64 - 1) / MI_SIZE_64X64;
   int *sb_index = aom_malloc(nvfb * nhfb * sizeof(*sb_index));
-#if CONFIG_EXTQUANT_HBD
+#if CONFIG_EXTQUANT
   int damping_offset =
       clamp(cm->base_qindex - (cm->seq_params.bit_depth == AOM_BITS_8
                                    ? 0

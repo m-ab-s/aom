@@ -393,7 +393,7 @@ uint8_t av1_read_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCKD *const xd,
 #else
       dq_coeff = (tran_low_t)(
           (int64_t)level * get_dqv(dequant, scan[c], iqmatrix) & 0xffffff);
-#endif  // CONFIG_EXTQUANT_HP
+#endif  // QUANT_TABLE_BITS
       dq_coeff = dq_coeff >> shift;
       if (sign) {
         dq_coeff = -dq_coeff;

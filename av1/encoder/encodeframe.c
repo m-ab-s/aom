@@ -1442,14 +1442,14 @@ static void encode_frame_internal(AV1_COMP *cpi) {
 
   for (i = 0; i < MAX_SEGMENTS; ++i) {
     const int qindex = cm->seg.enabled
-#if CONFIG_EXTQUANT_HBD
+#if CONFIG_EXTQUANT
                            ? av1_get_qindex(&cm->seg, i, cm->base_qindex,
                                             cm->seq_params.bit_depth)
 #else
                            ? av1_get_qindex(&cm->seg, i, cm->base_qindex)
 #endif
                            : cm->base_qindex;
-#if CONFIG_DELTA_DCQUANT
+#if CONFIG_EXTQUANT
 #if CONFIG_LOWQP_QUANT_CLIP
     xd->lossless[i] =
         qindex == 0 &&
@@ -1477,7 +1477,7 @@ static void encode_frame_internal(AV1_COMP *cpi) {
                       cm->u_dc_delta_q == 0 && cm->u_ac_delta_q == 0 &&
                       cm->v_dc_delta_q == 0 && cm->v_ac_delta_q == 0;
 #endif
-#endif  // CONFIG_DELTA_DCQUANT
+#endif  // CONFIG_EXTQUANT
     if (xd->lossless[i]) cpi->has_lossless_segment = 1;
     xd->qindex[i] = qindex;
     if (xd->lossless[i]) {

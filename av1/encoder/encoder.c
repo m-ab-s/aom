@@ -1128,7 +1128,7 @@ static void init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
       seq->operating_point_idc[i] =
           (~(~0u << (seq->operating_points_cnt_minus_1 + 1 - i)) << 8) | 1;
   }
-#if CONFIG_DELTA_DCQUANT
+#if CONFIG_EXTQUANT
   const int is_360p_or_larger =
       AOMMIN(seq->max_frame_width, seq->max_frame_height) >= 360;
   const int is_720p_or_larger =
@@ -1143,7 +1143,7 @@ static void init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
     seq->base_y_dc_delta_q = 4;
     seq->base_uv_dc_delta_q = 3;
   }
-#endif  // CONFIG_DELTA_DCQUANT
+#endif  // CONFIG_EXTQUANT
 }
 
 static void init_config(struct AV1_COMP *cpi, AV1EncoderConfig *oxcf) {
@@ -2713,7 +2713,7 @@ static void realloc_segmentation_maps(AV1_COMP *cpi) {
 
   // Create a map used for cyclic background refresh.
   if (cpi->cyclic_refresh) av1_cyclic_refresh_free(cpi->cyclic_refresh);
-#if CONFIG_EXTQUANT_HBD
+#if CONFIG_EXTQUANT
   CHECK_MEM_ERROR(cm, cpi->cyclic_refresh,
                   av1_cyclic_refresh_alloc(cm->mi_rows, cm->mi_cols,
                                            cm->seq_params.bit_depth));

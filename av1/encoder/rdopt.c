@@ -4346,22 +4346,15 @@ static const TX_SIZE max_predict_sf_tx_size[BLOCK_SIZES_ALL] = {
 static int predict_skip_flag(const AV1_COMMON *const cm, MACROBLOCK *x,
                              BLOCK_SIZE bsize, int64_t *dist,
                              int reduced_tx_set) {
-  (void)cm;  // Only needed in CONFIG_DELTA_DCQUANT experiment
+  (void)cm;  // Only needed in CONFIG_EXTQUANT experiment
   const int bw = block_size_wide[bsize];
   const int bh = block_size_high[bsize];
   const MACROBLOCKD *xd = &x->e_mbd;
 #if CONFIG_EXTQUANT
-  const int32_t dc_q = av1_dc_quant_QTX(x->qindex, 0,
-#if CONFIG_DELTA_DCQUANT
-                                        cm->seq_params.base_y_dc_delta_q,
-#endif  // CONFIG_DELTA_DCQUANT
-                                        xd->bd);
+  const int32_t dc_q =
+      av1_dc_quant_QTX(x->qindex, 0, cm->seq_params.base_y_dc_delta_q, xd->bd);
 #else
-  const int16_t dc_q = av1_dc_quant_QTX(x->qindex, 0,
-#if CONFIG_DELTA_DCQUANT
-                                        cm->seq_params.base_y_dc_delta_q,
-#endif  // CONFIG_DELTA_DCQUANT
-                                        xd->bd);
+  const int16_t dc_q = av1_dc_quant_QTX(x->qindex, 0, xd->bd);
 #endif
 
   *dist = pixel_diff_dist(x, 0, 0, 0, bsize, bsize, NULL);
@@ -14303,9 +14296,9 @@ static void search_derived_intra_mode(const AV1_COMP *cpi, MACROBLOCK *x,
   const AV1_COMMON *const cm = &cpi->common;
   const int intra_cost_penalty =
       av1_get_intra_cost_penalty(cm->base_qindex, cm->y_dc_delta_q,
-#if CONFIG_DELTA_DCQUANT
+#if CONFIG_EXTQUANT
                                  cm->seq_params.base_y_dc_delta_q,
-#endif  // CONFIG_DELTA_DCQUANT
+#endif  // CONFIG_EXTQUANT
                                  cm->seq_params.bit_depth);
   rd_stats.rate += intra_cost_penalty;
 
@@ -14670,9 +14663,9 @@ static int64_t handle_intra_mode(InterModeSearchState *search_state,
 #endif
   const int intra_cost_penalty =
       av1_get_intra_cost_penalty(cm->base_qindex, cm->y_dc_delta_q,
-#if CONFIG_DELTA_DCQUANT
+#if CONFIG_EXTQUANT
                                  cm->seq_params.base_y_dc_delta_q,
-#endif  // CONFIG_DELTA_DCQUANT
+#endif  // CONFIG_EXTQUANT
                                  cm->seq_params.bit_depth);
   const int skip_ctx = av1_get_skip_context(xd);
 

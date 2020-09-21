@@ -106,7 +106,7 @@ static int get_minq_index(double maxq, double x3, double x2, double x1,
   // Special case handling to deal with the step from q2.0
   // down to lossless mode represented by q 1.0.
   if (minqtarget <= 2.0) return 0;
-#if CONFIG_EXTQUANT_HBD
+#if CONFIG_EXTQUANT
   return av1_find_qindex(minqtarget, bit_depth, 0,
                          bit_depth == AOM_BITS_8
                              ? QINDEX_RANGE_8_BITS - 1
@@ -122,7 +122,7 @@ static void init_minq_luts(int *kf_low_m, int *kf_high_m, int *arfgf_low,
                            int *arfgf_high, int *inter, int *rtc,
                            aom_bit_depth_t bit_depth) {
   int i;
-#if CONFIG_EXTQUANT_HBD
+#if CONFIG_EXTQUANT
   for (i = 0; i < (bit_depth == AOM_BITS_8
                        ? QINDEX_RANGE_8_BITS
                        : bit_depth == AOM_BITS_10 ? QINDEX_RANGE_10_BITS

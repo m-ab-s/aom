@@ -33,7 +33,7 @@ struct CYCLIC_REFRESH;
 typedef struct CYCLIC_REFRESH CYCLIC_REFRESH;
 
 CYCLIC_REFRESH *av1_cyclic_refresh_alloc(int mi_rows, int mi_cols
-#if CONFIG_EXTQUANT_HBD
+#if CONFIG_EXTQUANT
                                          ,
                                          aom_bit_depth_t bit_depth
 #endif

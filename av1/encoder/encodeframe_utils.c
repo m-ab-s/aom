@@ -200,7 +200,7 @@ static int get_q_for_deltaq_objective(AV1_COMP *const cpi, BLOCK_SIZE bsize,
   offset = AOMMIN(offset, delta_q_info->delta_q_res * 9 - 1);
   offset = AOMMAX(offset, -delta_q_info->delta_q_res * 9 + 1);
   int qindex = cm->base_qindex + offset;
-#if CONFIG_EXTQUANT_HBD
+#if CONFIG_EXTQUANT
   qindex = AOMMIN(qindex, cm->seq_params.bit_depth == AOM_BITS_8
                               ? MAXQ_8_BITS
                               : cm->seq_params.bit_depth == AOM_BITS_10

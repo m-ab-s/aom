@@ -141,9 +141,9 @@ void av1_setup_dspl_quantizer(const struct AV1_COMP *cpi, MACROBLOCK *x,
 void av1_build_quantizer(aom_bit_depth_t bit_depth, int y_dc_delta_q,
                          int u_dc_delta_q, int u_ac_delta_q, int v_dc_delta_q,
                          int v_ac_delta_q,
-#if CONFIG_DELTA_DCQUANT
+#if CONFIG_EXTQUANT
                          int base_y_dc_delta_q, int base_uv_dc_delta_q,
-#endif  // CONFIG_DELTA_DCQUANT
+#endif  // CONFIG_EXTQUANT
                          QUANTS *const quants, Dequants *const deq);
 
 void av1_init_quantizer(struct AV1_COMP *cpi);
@@ -151,14 +151,14 @@ void av1_init_quantizer(struct AV1_COMP *cpi);
 void av1_set_quantizer(struct AV1Common *cm, int q);
 
 int av1_quantizer_to_qindex(int quantizer
-#if CONFIG_EXTQUANT_HBD
+#if CONFIG_EXTQUANT
                             ,
                             aom_bit_depth_t bit_depth
 #endif
 );
 
 int av1_qindex_to_quantizer(int qindex
-#if CONFIG_EXTQUANT_HBD
+#if CONFIG_EXTQUANT
                             ,
                             aom_bit_depth_t bit_depth
 #endif

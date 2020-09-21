@@ -111,9 +111,9 @@ class QuantizeTest : public ::testing::TestWithParam<QuantizeParam> {
 
   void InitQuantizer() {
     av1_build_quantizer(bd_, 0, 0, 0, 0, 0,
-#if CONFIG_DELTA_DCQUANT
+#if CONFIG_EXTQUANT
                         0, 0,
-#endif  // CONFIG_DELTA_DCQUANT
+#endif  // CONFIG_EXTQUANT
                         &qtab_->quant, &qtab_->dequant);
   }
 

@@ -906,7 +906,7 @@ static void read_delta_q_params(AV1_COMMON *const cm, MACROBLOCKD *const xd,
     xd->current_qindex += read_delta_qindex(cm, xd, r, mbmi, mi_col, mi_row) *
                           delta_q_info->delta_q_res;
     /* Normative: Clamp to [1,MAXQ] to not interfere with lossless mode */
-#if CONFIG_EXTQUANT_HBD
+#if CONFIG_EXTQUANT
     xd->current_qindex = clamp(
         xd->current_qindex, 1,
         cm->seq_params.bit_depth == AOM_BITS_8

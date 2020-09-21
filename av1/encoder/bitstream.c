@@ -80,7 +80,7 @@ static void write_intra_y_mode_kf(const AV1_COMMON *const cm,
                                   aom_writer *w) {
   assert(!is_intrabc_block(mi));
   (void)mi;
-  (void)cm;  // Only needed in CONFIG_DELTA_DCQUANT experiment
+  (void)cm;  // Only needed in CONFIG_EXTQUANT experiment
 
 #if CONFIG_INTRA_ENTROPY
   aom_cdf_prob cdf[INTRA_MODES];
@@ -130,9 +130,9 @@ static void write_intra_y_mode_kf(const AV1_COMMON *const cm,
 
     const int dc_q =
         av1_dc_quant_QTX(xd->current_qindex, 0,
-#if CONFIG_DELTA_DCQUANT
+#if CONFIG_EXTQUANT
                          cm->seq_params.base_y_dc_delta_q,
-#endif  // CONFIG_DELTA_DCQUANT
+#endif  // CONFIG_EXTQUANT
                          xd->bd) >> (xd->bd - 8);
     fprintf(fp, "%d,%d,%d,%d,",
             mode,
@@ -1189,7 +1189,7 @@ static void write_intra_uv_mode(const AV1_COMMON *const cm,
                                 const MACROBLOCKD *xd, FRAME_CONTEXT *frame_ctx,
                                 UV_PREDICTION_MODE uv_mode,
                                 PREDICTION_MODE y_mode, aom_writer *w) {
-  (void)cm;  // Only needed in CONFIG_DELTA_DCQUANT experiment only for
+  (void)cm;  // Only needed in CONFIG_EXTQUANT experiment only for
              // training data collection
 #if CONFIG_INTRA_ENTROPY
   aom_cdf_prob cdf[UV_INTRA_MODES];
@@ -1222,9 +1222,9 @@ static void write_intra_uv_mode(const AV1_COMMON *const cm,
 
     const int dc_q =
         av1_dc_quant_QTX(xd->current_qindex, 0,
-#if CONFIG_DELTA_DCQUANT
+#if CONFIG_EXTQUANT
                          cm->seq_params.base_y_dc_delta_q,
-#endif  // CONFIG_DELTA_DCQUANT
+#endif  // CONFIG_EXTQUANT
                          xd->bd) >> (xd->bd - 8);
     fprintf(fp, "%d,%d,%d,%d,%d,%d,",
             uv_mode,
@@ -2800,7 +2800,7 @@ static void encode_quantization(const AV1_COMMON *const cm,
                                 struct aom_write_bit_buffer *wb) {
   const int num_planes = av1_num_planes(cm);
 
-#if CONFIG_EXTQUANT_HBD
+#if CONFIG_EXTQUANT
   aom_wb_write_literal(
       wb, cm->base_qindex,
       cm->seq_params.bit_depth == AOM_BITS_8 ? QINDEX_BITS_UNEXT : QINDEX_BITS);
@@ -3194,7 +3194,7 @@ static void write_color_config(const SequenceHeader *const seq_params,
     }
   }
   aom_wb_write_bit(wb, seq_params->separate_uv_delta_q);
-#if CONFIG_DELTA_DCQUANT
+#if CONFIG_EXTQUANT
   assert(seq_params->base_y_dc_delta_q <= DELTA_DCQUANT_MAX);
   assert(seq_params->base_uv_dc_delta_q >= DELTA_DCQUANT_MIN);
   aom_wb_write_unsigned_literal(
@@ -3203,7 +3203,7 @@ static void write_color_config(const SequenceHeader *const seq_params,
   aom_wb_write_unsigned_literal(
       wb, seq_params->base_uv_dc_delta_q - DELTA_DCQUANT_MIN,
       DELTA_DCQUANT_BITS);
-#endif  // CONFIG_DELTA_DCQUANT
+#endif  // CONFIG_EXTQUANT
 }
 
 static void write_timing_info_header(AV1_COMMON *const cm,
