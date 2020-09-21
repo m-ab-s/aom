@@ -1056,6 +1056,16 @@ typedef struct dist_wtd_comp_params {
 
 struct scale_factors;
 
+#if CONFIG_EXT_REFMV
+#define MAX_REF_LOC_STACK_SIZE (MAX_REF_MV_STACK_SIZE << 1)
+
+typedef struct location_info {
+  int16_t x;
+  int16_t y;
+  int_mv this_mv;  // Only used for single frame prediction
+} LOCATION_INFO;
+#endif  // CONFIG_EXT_REFMV
+
 typedef struct {
   uint8_t ref_mv_count[MODE_CTX_REF_FRAMES];
   CANDIDATE_MV ref_mv_stack[MODE_CTX_REF_FRAMES][MAX_REF_MV_STACK_SIZE];
@@ -1065,6 +1075,11 @@ typedef struct {
   CANDIDATE_MV ref_mv_stack_adj[MAX_REF_MV_STACK_SIZE];
   uint16_t ref_mv_weight_adj[MAX_REF_MV_STACK_SIZE];
 #endif  // CONFIG_FLEX_MVRES
+#if CONFIG_EXT_REFMV
+  LOCATION_INFO ref_mv_location_stack[MODE_CTX_REF_FRAMES]
+                                     [MAX_REF_LOC_STACK_SIZE];
+  uint8_t ref_mv_location_count[MODE_CTX_REF_FRAMES];
+#endif  // CONFIG_EXT_REFMV
 } REF_MV_INFO;
 
 // Most/all of the pointers are mere pointers to actual arrays are allocated
