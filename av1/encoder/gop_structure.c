@@ -223,6 +223,11 @@ static int construct_multi_layer_gf_structure(
     gf_group->layer_depth[frame_index] =
         first_frame_update_type == OVERLAY_UPDATE ? MAX_ARF_LAYERS + 1 : 0;
     gf_group->max_layer_depth = 0;
+    if (gf_group->last_step_prev != NULL &&
+        first_frame_update_type == GF_UPDATE) {
+      gf_group->layer_depth[frame_index] = gf_group->last_step_prev->pyr_level;
+      gf_group->max_layer_depth = gf_group->layer_depth[frame_index];
+    }
     ++frame_index;
     ++cur_frame_index;
   }
