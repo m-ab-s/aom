@@ -152,9 +152,9 @@ static void add_ref_mv_candidate(
     const MB_MODE_INFO *const candidate, MV_REFERENCE_FRAME ref_frame,
     REF_MV_INFO *ref_mv_info, const MV_REFERENCE_FRAME rf[2],
     uint8_t *ref_match_count, uint8_t *newmv_count,
-#if CONFIG_EXT_REFMV
+#if CONFIG_EXT_REFMV || CONFIG_ENHANCED_WARPED_MOTION
     int mi_row, int mi_col, int candidate_row_offset, int candidate_col_offset,
-#endif  // CONFIG_EXT_REFMV
+#endif  // CONFIG_EXT_REFMV || CONFIG_ENHANCED_WARPED_MOTION
     int_mv *gm_mv_candidates, const WarpedMotionParams *gm_params, int col,
     uint16_t weight) {
   if (!is_inter_block(candidate)) return;
@@ -163,10 +163,10 @@ static void add_ref_mv_candidate(
   uint8_t *refmv_count = &ref_mv_info->ref_mv_count[ref_frame];
   CANDIDATE_MV *ref_mv_stack = ref_mv_info->ref_mv_stack[ref_frame];
   uint16_t *ref_mv_weight = ref_mv_info->ref_mv_weight[ref_frame];
-#if CONFIG_EXT_REFMV
+#if CONFIG_EXT_REFMV || CONFIG_ENHANCED_WARPED_MOTION
   LOCATION_INFO *location_stack = ref_mv_info->ref_mv_location_stack[ref_frame];
   uint8_t *location_count = &ref_mv_info->ref_mv_location_count[ref_frame];
-#endif  // CONFIG_EXT_REFMV
+#endif  // CONFIG_EXT_REFMV || CONFIG_ENHANCED_WARPED_MOTION
 
   if (rf[1] == NONE_FRAME) {
     // single reference frame
@@ -178,7 +178,7 @@ static void add_ref_mv_candidate(
                                       ? gm_mv_candidates[0]
                                       : get_sub_block_mv(candidate, ref, col);
 
-#if CONFIG_EXT_REFMV
+#if CONFIG_EXT_REFMV || CONFIG_ENHANCED_WARPED_MOTION
         if (*location_count < MAX_REF_LOC_STACK_SIZE) {
           // Record the location of the mv
           const int candidate_mi_row = mi_row + candidate_row_offset;
@@ -209,15 +209,16 @@ static void add_ref_mv_candidate(
             }
           }
 
-          if (loc_index == (*location_count) &&
+          if (loc_index == *location_count &&
               loc_index < MAX_REF_LOC_STACK_SIZE) {
-            location_stack[(*location_count)].x = superblock_center_x;
-            location_stack[(*location_count)].y = superblock_center_y;
-            location_stack[(*location_count)].this_mv = this_refmv;
+            location_stack[*location_count].x = superblock_center_x;
+            location_stack[*location_count].y = superblock_center_y;
+            location_stack[*location_count].this_mv =
+                get_sub_block_mv(candidate, ref, col);
             (*location_count)++;
           }
         }
-#endif
+#endif  // CONFIG_EXT_REFMV || CONFIG_ENHANCED_WARPED_MOTION
 
         for (index = 0; index < *refmv_count; ++index) {
           if (ref_mv_stack[index].this_mv.as_int == this_refmv.as_int) {
@@ -329,9 +330,9 @@ static void scan_row_mbmi(const AV1_COMMON *cm, const MACROBLOCKD *xd,
 
     add_ref_mv_candidate(
         candidate, ref_frame, ref_mv_info, rf, ref_match_count, newmv_count,
-#if CONFIG_EXT_REFMV
-        xd->mi_row, xd->mi_col, row_offset, col_offset,
-#endif  // CONFIG_EXT_REFMV
+#if CONFIG_EXT_REFMV || CONFIG_ENHANCED_WARPED_MOTION
+        xd->mi_row, xd->mi_col, row_offset, col_offset + i,
+#endif  // CONFIG_EXT_REFMV || CONFIG_ENHANCED_WARPED_MOTION
         gm_mv_candidates, cm->global_motion, col_offset + i, len * weight);
 
     i += len;
@@ -394,9 +395,9 @@ static void scan_col_mbmi(const AV1_COMMON *cm, const MACROBLOCKD *xd,
 
     add_ref_mv_candidate(
         candidate, ref_frame, ref_mv_info, rf, ref_match_count, newmv_count,
-#if CONFIG_EXT_REFMV
-        xd->mi_row, xd->mi_col, row_offset, col_offset,
-#endif  // CONFIG_EXT_REFMV
+#if CONFIG_EXT_REFMV || CONFIG_ENHANCED_WARPED_MOTION
+        xd->mi_row, xd->mi_col, row_offset + i, col_offset,
+#endif  // CONFIG_EXT_REFMV || CONFIG_ENHANCED_WARPED_MOTION
         gm_mv_candidates, cm->global_motion, col_offset, len * weight);
 
     i += len;
@@ -423,9 +424,9 @@ static void scan_blk_mbmi(const AV1_COMMON *cm, const MACROBLOCKD *xd,
 
     add_ref_mv_candidate(
         candidate, ref_frame, ref_mv_info, rf, ref_match_count, newmv_count,
-#if CONFIG_EXT_REFMV
+#if CONFIG_EXT_REFMV || CONFIG_ENHANCED_WARPED_MOTION
         xd->mi_row, xd->mi_col, row_offset, col_offset,
-#endif  // CONFIG_EXT_REFMV
+#endif  // CONFIG_EXT_REFMV || CONFIG_ENHANCED_WARPED_MOTION
         gm_mv_candidates, cm->global_motion, mi_pos.col, 2 * len);
   }  // Analyze a single 8x8 block motion information.
 }
@@ -1319,9 +1320,9 @@ static void setup_ref_mv_list(const AV1_COMMON *cm, const MACROBLOCKD *xd,
   uint8_t col_match_count = 0;
   uint8_t row_match_count = 0;
   uint8_t newmv_count = 0;
-#if CONFIG_EXT_REFMV
+#if CONFIG_EXT_REFMV || CONFIG_ENHANCED_WARPED_MOTION
   ref_mv_info->ref_mv_location_count[ref_frame] = 0;
-#endif  // CONFIG_EXT_REFMV
+#endif  // CONFIG_EXT_REFMV || CONFIG_ENHANCED_WARPED_MOTION
 
   // Scan the first above row mode info. row_offset = -1;
   if (abs(max_row_offset) >= 1)
@@ -2131,9 +2132,29 @@ uint8_t av1_selectSamples(MV *mv, int *pts, int *pts_inref, int len,
 // Note: Samples returned are at 1/8-pel precision
 // Sample are the neighbor block center point's coordinates relative to the
 // left-top pixel of current block.
-uint8_t av1_findSamples(const AV1_COMMON *cm, MACROBLOCKD *xd, int *pts,
-                        int *pts_inref) {
+uint8_t av1_findSamples(const AV1_COMMON *cm, MACROBLOCKD *xd,
+#if CONFIG_ENHANCED_WARPED_MOTION
+                        const REF_MV_INFO *ref_mv_info,
+#endif  // CONFIG_ENHANCED_WARPED_MOTION
+                        int *pts, int *pts_inref) {
   const MB_MODE_INFO *const mbmi0 = xd->mi[0];
+#if CONFIG_ENHANCED_WARPED_MOTION
+  const MV_REFERENCE_FRAME ref_frame_type =
+      av1_ref_frame_type(mbmi0->ref_frame);
+  const uint8_t n = AOMMIN(LEAST_SQUARES_SAMPLES_MAX,
+                           ref_mv_info->ref_mv_location_count[ref_frame_type]);
+  const LOCATION_INFO *location_stack =
+      ref_mv_info->ref_mv_location_stack[ref_frame_type];
+  for (int i = 0; i < n; ++i) {
+    pts[0] = location_stack[i].x;
+    pts[1] = location_stack[i].y;
+    pts_inref[0] = pts[0] + location_stack[i].this_mv.as_mv.col;
+    pts_inref[1] = pts[1] + location_stack[i].this_mv.as_mv.row;
+    pts += 2;
+    pts_inref += 2;
+  }
+  return n;
+#endif  // CONFIG_ENHANCED_WARPED_MOTION
   const int ref_frame = mbmi0->ref_frame[0];
   const int up_available = xd->up_available;
   const int left_available = xd->left_available;

@@ -1993,8 +1993,13 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
 
   mbmi->motion_mode = SIMPLE_TRANSLATION;
   if (is_motion_variation_allowed_bsize(mbmi->sb_type, mi_row, mi_col) &&
-      !mbmi->skip_mode && !has_second_ref(mbmi))
-    mbmi->num_proj_ref = av1_findSamples(cm, xd, pts, pts_inref);
+      !mbmi->skip_mode && !has_second_ref(mbmi)) {
+    mbmi->num_proj_ref = av1_findSamples(cm, xd,
+#if CONFIG_ENHANCED_WARPED_MOTION
+                                         &xd->ref_mv_info,
+#endif  // CONFIG_ENHANCED_WARPED_MOTION
+                                         pts, pts_inref);
+  }
   av1_count_overlappable_neighbors(cm, xd);
 
   if (mbmi->ref_frame[1] != INTRA_FRAME)

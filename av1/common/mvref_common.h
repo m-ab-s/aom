@@ -282,8 +282,11 @@ void av1_find_best_ref_mvs(MvSubpelPrecision precision, int_mv *mvlist,
 
 uint8_t av1_selectSamples(MV *mv, int *pts, int *pts_inref, int len,
                           BLOCK_SIZE bsize);
-uint8_t av1_findSamples(const AV1_COMMON *cm, MACROBLOCKD *xd, int *pts,
-                        int *pts_inref);
+uint8_t av1_findSamples(const AV1_COMMON *cm, MACROBLOCKD *xd,
+#if CONFIG_ENHANCED_WARPED_MOTION
+                        const REF_MV_INFO *ref_mv_info,
+#endif  // CONFIG_ENHANCED_WARPED_MOTION
+                        int *pts, int *pts_inref);
 
 #define INTRABC_DELAY_PIXELS 256  //  Delay of 256 pixels
 #define INTRABC_DELAY_SB64 (INTRABC_DELAY_PIXELS / 64)

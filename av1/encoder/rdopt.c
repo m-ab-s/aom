@@ -11182,7 +11182,11 @@ static int64_t motion_mode_rd(
   }
 
   if (last_motion_mode_allowed == WARPED_CAUSAL) {
-    mbmi->num_proj_ref = av1_findSamples(cm, xd, pts0, pts_inref0);
+    mbmi->num_proj_ref = av1_findSamples(cm, xd,
+#if CONFIG_ENHANCED_WARPED_MOTION
+                                         &x->mbmi_ext->ref_mv_info,
+#endif  // CONFIG_ENHANCED_WARPED_MOTION
+                                         pts0, pts_inref0);
   }
   const int total_samples = mbmi->num_proj_ref;
   if (total_samples == 0) {
@@ -16585,7 +16589,11 @@ void av1_rd_pick_inter_mode_sb_seg_skip(const AV1_COMP *cpi,
   if (is_motion_variation_allowed_bsize(bsize, mi_row, mi_col) &&
       !has_second_ref(mbmi)) {
     int pts[SAMPLES_ARRAY_SIZE], pts_inref[SAMPLES_ARRAY_SIZE];
-    mbmi->num_proj_ref = av1_findSamples(cm, xd, pts, pts_inref);
+    mbmi->num_proj_ref = av1_findSamples(cm, xd,
+#if CONFIG_ENHANCED_WARPED_MOTION
+                                         &x->mbmi_ext->ref_mv_info,
+#endif  // CONFIG_ENHANCED_WARPED_MOTION
+                                         pts, pts_inref);
     // Select the samples according to motion vector difference
     if (mbmi->num_proj_ref > 1)
       mbmi->num_proj_ref = av1_selectSamples(&mbmi->mv[0].as_mv, pts, pts_inref,
