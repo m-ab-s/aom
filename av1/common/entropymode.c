@@ -1069,7 +1069,26 @@ static const aom_cdf_prob default_interintra_cdf[BLOCK_SIZE_GROUPS][CDF_SIZE(
             { AOM_CDF2(27597) },
             { AOM_CDF2(30237) } };
 
-#if CONFIG_ILLUM_MCOMP
+#if CONFIG_ILLUM_MCOMP && CONFIG_INTERINTRA_ML
+static const aom_cdf_prob
+    default_interintra_mode_cdf[BLOCK_SIZE_GROUPS][CDF_SIZE(
+        INTERINTRA_MODES)] = { { AOM_CDF5(8192, 16384, 24576, 31000) },
+                               { AOM_CDF5(1875, 11082, 27332, 31000) },
+                               { AOM_CDF5(2473, 9996, 26388, 31000) },
+                               { AOM_CDF5(4238, 11537, 25926, 31000) } };
+static const aom_cdf_prob
+    default_interintra_ml_mode_cdf[BLOCK_SIZE_GROUPS][CDF_SIZE(
+        INTERINTRA_MODES)] = {
+      { AOM_CDF15(1082, 4372, 11544, 14335, 16384, 18024, 19664, 21304, 22944,
+                  24584, 26224, 27864, 29504, 31144) },
+      { AOM_CDF15(1082, 4372, 11544, 14335, 16384, 18024, 19664, 21304, 22944,
+                  24584, 26224, 27864, 29504, 31144) },
+      { AOM_CDF15(1082, 4372, 11544, 14335, 16384, 18024, 19664, 21304, 22944,
+                  24584, 26224, 27864, 29504, 31144) },
+      { AOM_CDF15(1082, 4372, 11544, 14335, 16384, 18024, 19664, 21304, 22944,
+                  24584, 26224, 27864, 29504, 31144) }
+    };
+#elif CONFIG_ILLUM_MCOMP
 static const aom_cdf_prob
     default_interintra_mode_cdf[BLOCK_SIZE_GROUPS][CDF_SIZE(
         INTERINTRA_MODES)] = { { AOM_CDF5(8192, 16384, 24576, 31000) },
