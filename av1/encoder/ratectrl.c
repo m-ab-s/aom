@@ -1529,18 +1529,19 @@ static int get_active_best_quality(const AV1_COMP *const cpi,
   const RATE_CONTROL *const rc = &cpi->rc;
   const AV1EncoderConfig *const oxcf = &cpi->oxcf;
   const RefreshFrameFlagsInfo *const refresh_frame_flags = &cpi->refresh_frame;
+  (void)refresh_frame_flags;
   const GF_GROUP *gf_group = &cpi->gf_group;
   const enum aom_rc_mode rc_mode = oxcf->rc_cfg.mode;
   int *inter_minq;
   ASSIGN_MINQ_TABLE(bit_depth, inter_minq);
   int active_best_quality = 0;
-  const int is_intrl_arf_boost =
-      gf_group->update_type[gf_index] == INTNL_ARF_UPDATE;
-  const int is_leaf_frame =
-      !(refresh_frame_flags->golden_frame ||
-        refresh_frame_flags->alt_ref_frame || is_intrl_arf_boost);
+  const int is_level1_frame = (gf_group->layer_depth[gf_index] <= 1);
+  assert(IMPLIES(
+      gf_group->layer_depth[gf_index] == 1,
+      refresh_frame_flags->golden_frame || refresh_frame_flags->alt_ref_frame));
   const int is_bottom_leaf_frame =
-      is_leaf_frame && (gf_group->layer_depth[gf_index] == MAX_ARF_LAYERS);
+      (gf_group->layer_depth[gf_index] == MAX_ARF_LAYERS);
+  assert(IMPLIES(is_bottom_leaf_frame, !is_level1_frame));
   const int is_overlay_frame = rc->is_src_frame_alt_ref;
 
   if (is_bottom_leaf_frame || is_overlay_frame) {
@@ -1573,7 +1574,7 @@ static int get_active_best_quality(const AV1_COMP *const cpi,
       q, cpi->oxcf.gf_cfg.lag_in_frames == 0, bit_depth);
   const int boost = min_boost - active_best_quality;
   active_best_quality = min_boost - (int)(boost * rc->arf_boost_factor);
-  if (!is_intrl_arf_boost && !is_leaf_frame) return active_best_quality;
+  if (is_level1_frame) return active_best_quality;
 
   if (rc_mode == AOM_Q || rc_mode == AOM_CQ) {
     if (rc->level1_qp == -1) {  // Uninitialized
@@ -1581,7 +1582,7 @@ static int get_active_best_quality(const AV1_COMP *const cpi,
       // 'pyramid' levels. In this case, there is no ARF_UPDATE frame, and
       // rc->level1_qp may not be set yet. So, we set that now, to be used for
       // the subsequent frames in this GF group.
-      assert(is_leaf_frame && !is_bottom_leaf_frame);
+      assert(!is_level1_frame && !is_bottom_leaf_frame);
       *level1_qp = active_best_quality;
     } else {
       // rc->level1_qp was set from:

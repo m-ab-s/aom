@@ -254,7 +254,7 @@ const char subgop_config_str_ld[] =
     "9V5/10V4/11V5/12V3/13V5/14V4/15V5/16V1,"
 
     "16:1:1V5/2V4/3V5/4V3/5V5/6V4/7V5/8V2/"
-    "9V5/10V4/11V5/12V3/13V5/14V1/15V5/16V5";
+    "9V5/10V4/11V5/12V3/13V5/14V4/15V5/16V5";
 
 typedef struct {
   const char *preset_tag;
