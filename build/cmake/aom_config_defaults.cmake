@@ -185,18 +185,20 @@ set_aom_config_var(CONFIG_EXT_IBC_MODES 0 NUMBER
                    "AV2 enhanced IBC coding modes experiment flag")
 set_aom_config_var(CONFIG_WIENER_NONSEP 0 NUMBER
                    "AV2 nonsep Wiener filter experiment flag")
+set_aom_config_var(CONFIG_WIENER_NONSEP_CROSS_FILT 0 NUMBER
+                   "AV2 nonsep Wiener cross filter experiment flag")
 set_aom_config_var(CONFIG_SUPERRES_TX64 0 NUMBER
                    "AV2 64-length superres tx experiment flag")
 set_aom_config_var(CONFIG_SUPERRES_TX64_DIRFILTER 0 NUMBER
                    "AV2 64-length superres tx w/ dir filter experiment flag")
+set_aom_config_var(CONFIG_SUPERRES_EXT 0 NUMBER
+                   "AV2 superres mode extensions experiment flag")
 set_aom_config_var(CONFIG_DIFFWTD_42 0 NUMBER
                    "AV2 diffwtd mask experiment flag")
 set_aom_config_var(CONFIG_ILLUM_MCOMP 0 NUMBER
                    "AV2 illumination compensation motion estimation flag")
 set_aom_config_var(CONFIG_COMPANDED_MV 0 NUMBER
                    "AV2 companded MV experiment flag")
-set_aom_config_var(CONFIG_WIENER_NONSEP_CROSS_FILT 0 NUMBER
-                   "AV2 nonsep Wiener cross filter experiment flag")
 set_aom_config_var(CONFIG_NEW_INTER_MODES 0 NUMBER
                    "AV2 inter mode consolidation experiment flag")
 set_aom_config_var(CONFIG_WIENER_SEP_HIPREC 0 NUMBER

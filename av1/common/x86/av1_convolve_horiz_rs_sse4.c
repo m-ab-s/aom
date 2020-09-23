@@ -27,10 +27,12 @@ void av1_convolve_horiz_rs_sse4_1(const uint8_t *src, int src_stride,
                                   const int16_t *x_filters, int x0_qn,
                                   int x_step_qn) {
   assert(UPSCALE_NORMATIVE_TAPS == 8);
+  assert(UPSCALE_NORMATIVE_FILTER_BITS == FILTER_BITS);
 
   src -= UPSCALE_NORMATIVE_TAPS / 2 - 1;
 
-  const __m128i round_add = _mm_set1_epi32((1 << FILTER_BITS) >> 1);
+  const __m128i round_add =
+      _mm_set1_epi32((1 << UPSCALE_NORMATIVE_FILTER_BITS) >> 1);
   const __m128i zero = _mm_setzero_si128();
 
   const uint8_t *src_y;
@@ -107,9 +109,10 @@ void av1_convolve_horiz_rs_sse4_1(const uint8_t *src, int src_stride,
 
       const __m128i conv0123_32 = _mm_hadd_epi32(conv01_32, conv23_32);
 
-      // Divide down by (1 << FILTER_BITS), rounding to nearest.
-      const __m128i shifted_32 =
-          _mm_srai_epi32(_mm_add_epi32(conv0123_32, round_add), FILTER_BITS);
+      // Divide down by (1 << UPSCALE_NORMATIVE_FILTER_BITS), rounding to
+      // nearest.
+      const __m128i shifted_32 = _mm_srai_epi32(
+          _mm_add_epi32(conv0123_32, round_add), UPSCALE_NORMATIVE_FILTER_BITS);
 
       // Pack 32-bit values into 16-bit values, i.e.
       // ([ D C B A ], [ 0 0 0 0 ]) -> [ 0 0 0 0 D C B A ]
@@ -135,11 +138,13 @@ void av1_highbd_convolve_horiz_rs_sse4_1(const uint16_t *src, int src_stride,
                                          int h, const int16_t *x_filters,
                                          int x0_qn, int x_step_qn, int bd) {
   assert(UPSCALE_NORMATIVE_TAPS == 8);
+  assert(UPSCALE_NORMATIVE_FILTER_BITS == FILTER_BITS);
   assert(bd == 8 || bd == 10 || bd == 12);
 
   src -= UPSCALE_NORMATIVE_TAPS / 2 - 1;
 
-  const __m128i round_add = _mm_set1_epi32((1 << FILTER_BITS) >> 1);
+  const __m128i round_add =
+      _mm_set1_epi32((1 << UPSCALE_NORMATIVE_FILTER_BITS) >> 1);
   const __m128i zero = _mm_setzero_si128();
   const __m128i clip_maximum = _mm_set1_epi16((1 << bd) - 1);
 
@@ -210,9 +215,10 @@ void av1_highbd_convolve_horiz_rs_sse4_1(const uint16_t *src, int src_stride,
 
       const __m128i conv0123_32 = _mm_hadd_epi32(conv01_32, conv23_32);
 
-      // Divide down by (1 << FILTER_BITS), rounding to nearest.
-      const __m128i shifted_32 =
-          _mm_srai_epi32(_mm_add_epi32(conv0123_32, round_add), FILTER_BITS);
+      // Divide down by (1 << UPSCALE_NORMATIVE_FILTER_BITS), rounding to
+      // nearest.
+      const __m128i shifted_32 = _mm_srai_epi32(
+          _mm_add_epi32(conv0123_32, round_add), UPSCALE_NORMATIVE_FILTER_BITS);
 
       // Pack 32-bit values into 16-bit values, i.e.
       // ([ D C B A ], [ 0 0 0 0 ]) -> [ 0 0 0 0 D C B A ]

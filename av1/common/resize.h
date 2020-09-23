@@ -108,7 +108,13 @@ static INLINE int av1_coded_to_superres_mi(int mi_col, int denom) {
   return mi_col_sr;
 }
 
+#if CONFIG_SUPERRES_EXT
+#define UPSCALE_NORMATIVE_TAPS 12
+#define UPSCALE_NORMATIVE_FILTER_BITS 10
+#else
 #define UPSCALE_NORMATIVE_TAPS 8
+#define UPSCALE_NORMATIVE_FILTER_BITS (FILTER_BITS)
+#endif  // CONFIG_SUPERRES_EXT
 extern const int16_t av1_resize_filter_normative[1 << RS_SUBPEL_BITS]
                                                 [UPSCALE_NORMATIVE_TAPS];
 

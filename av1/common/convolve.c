@@ -47,7 +47,8 @@ void av1_convolve_horiz_rs_c(const uint8_t *src, int src_stride, uint8_t *dst,
       int sum = 0;
       for (int k = 0; k < UPSCALE_NORMATIVE_TAPS; ++k)
         sum += src_x[k] * x_filter[k];
-      dst[x] = clip_pixel(ROUND_POWER_OF_TWO(sum, FILTER_BITS));
+      dst[x] =
+          clip_pixel(ROUND_POWER_OF_TWO(sum, UPSCALE_NORMATIVE_FILTER_BITS));
       x_qn += x_step_qn;
     }
     src += src_stride;
@@ -72,7 +73,8 @@ void av1_highbd_convolve_horiz_rs_c(const uint16_t *src, int src_stride,
       int sum = 0;
       for (int k = 0; k < UPSCALE_NORMATIVE_TAPS; ++k)
         sum += src_x[k] * x_filter[k];
-      dst[x] = clip_pixel_highbd(ROUND_POWER_OF_TWO(sum, FILTER_BITS), bd);
+      dst[x] = clip_pixel_highbd(
+          ROUND_POWER_OF_TWO(sum, UPSCALE_NORMATIVE_FILTER_BITS), bd);
       x_qn += x_step_qn;
     }
     src += src_stride;
