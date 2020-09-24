@@ -205,8 +205,6 @@ set_aom_config_var(CONFIG_WIENER_SEP_HIPREC 0 NUMBER
                    "AV2 high-prec separable Wiener filter experiment flag")
 set_aom_config_var(CONFIG_EXTQUANT 0 NUMBER
                    "AV2 extended quantization experiment flag")
-set_aom_config_var(CONFIG_LOWQP_QUANT_CLIP 0 NUMBER
-                   "AV2 quantization index clip experiment flag")
 set_aom_config_var(CONFIG_EXT_LOOP_RESTORATION 0 NUMBER
                    "AV2 extensions to loop restoration")
 set_aom_config_var(CONFIG_SEGMENT_BASED_PARTITIONING 0 NUMBER
