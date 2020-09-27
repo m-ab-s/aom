@@ -31,11 +31,18 @@ static void cleanup_fp() {
 
 // Function called on every invocation of data collection. Initializes
 // the file output and registers the cleanup function (if not already done).
+// The output file name is "interintra_ml_data_collect.bin" by default.
+// The file name can be changed by setting INTERINTRA_ML_DATA_COLLECT
+// environment variable.
 static void init_first_run() {
   if (FP != NULL) {
     return;
   }
-  FP = fopen("interintra_ml_data_collect.bin", "wb");
+  const char *filename = getenv("INTERINTRA_ML_DATA_COLLECT");
+  if (filename == NULL) {
+    filename = "interintra_ml_data_collect.bin";
+  }
+  FP = fopen(filename, "wb");
   assert(FP != NULL);
   int r = atexit(cleanup_fp);
   assert(r == 0);
