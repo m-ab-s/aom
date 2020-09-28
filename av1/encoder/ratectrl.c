@@ -1536,9 +1536,6 @@ static int get_active_best_quality(const AV1_COMP *const cpi,
   ASSIGN_MINQ_TABLE(bit_depth, inter_minq);
   int active_best_quality = 0;
   const int is_level1_frame = (gf_group->layer_depth[gf_index] <= 1);
-  assert(IMPLIES(
-      gf_group->layer_depth[gf_index] == 1,
-      refresh_frame_flags->golden_frame || refresh_frame_flags->alt_ref_frame));
   const int is_bottom_leaf_frame =
       (gf_group->layer_depth[gf_index] == MAX_ARF_LAYERS);
   assert(IMPLIES(is_bottom_leaf_frame, !is_level1_frame));
