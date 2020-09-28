@@ -200,7 +200,6 @@ void AV1HiprecConvolveTest::RunSpeedTest(hiprec_convolve_func test_impl) {
 }
 }  // namespace AV1HiprecConvolve
 
-#if CONFIG_AV1_HIGHBITDEPTH
 namespace AV1HighbdHiprecConvolve {
 
 ::testing::internal::ParamGenerator<HighbdHiprecConvolveParam> BuildParams(
@@ -346,5 +345,4 @@ void AV1HighbdHiprecConvolveTest::RunSpeedTest(
   delete[] output2;
 }
 }  // namespace AV1HighbdHiprecConvolve
-#endif  // CONFIG_AV1_HIGHBITDEPTH
 }  // namespace libaom_test

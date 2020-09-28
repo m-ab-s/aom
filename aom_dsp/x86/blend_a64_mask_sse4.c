@@ -423,7 +423,6 @@ void aom_blend_a64_mask_sse4_1(uint8_t *dst, uint32_t dst_stride,
   }
 }
 
-#if CONFIG_AV1_HIGHBITDEPTH
 //////////////////////////////////////////////////////////////////////////////
 // No sub-sampling
 //////////////////////////////////////////////////////////////////////////////
@@ -870,7 +869,6 @@ void aom_highbd_blend_a64_mask_sse4_1(uint8_t *dst_8, uint32_t dst_stride,
         mask_stride, w, h);
   }
 }
-#endif  // CONFIG_AV1_HIGHBITDEPTH
 
 static INLINE void blend_a64_d16_mask_w16_sse41(
     uint8_t *dst, const CONV_BUF_TYPE *src0, const CONV_BUF_TYPE *src1,
@@ -1112,7 +1110,6 @@ void aom_lowbd_blend_a64_d16_mask_sse4_1(
 //////////////////////////////////////////////////////////////////////////////
 // aom_highbd_blend_a64_d16_mask_sse4_1()
 //////////////////////////////////////////////////////////////////////////////
-#if CONFIG_AV1_HIGHBITDEPTH
 static INLINE void highbd_blend_a64_d16_mask_w4_sse4_1(
     uint16_t *dst, int dst_stride, const CONV_BUF_TYPE *src0, int src0_stride,
     const CONV_BUF_TYPE *src1, int src1_stride, const __m128i *mask0a,
@@ -1557,4 +1554,3 @@ void aom_highbd_blend_a64_d16_mask_sse4_1(
                                     subh, conv_params, bd);
   }
 }
-#endif  // CONFIG_AV1_HIGHBITDEPTH

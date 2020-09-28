@@ -879,7 +879,6 @@ INTRA_PRED_TEST(AVX2_6, TX_64X16, aom_dc_predictor_64x16_avx2,
                 NULL, aom_paeth_predictor_64x16_avx2, NULL, NULL, NULL)
 #endif
 
-#if CONFIG_AV1_HIGHBITDEPTH
 // -----------------------------------------------------------------------------
 // High Bitdepth
 namespace {
@@ -1462,6 +1461,5 @@ HIGHBD_INTRA_PRED_TEST(
     aom_highbd_smooth_h_predictor_64x16_c)
 
 // -----------------------------------------------------------------------------
-#endif  // CONFIG_AV1_HIGHBITDEPTH
 
 #include "test/test_libaom.cc"

@@ -101,7 +101,7 @@ class InvalidFileTest : public ::libaom_test::DecoderTest,
 
   void RunTest() {
     const DecodeParam input = GET_PARAM(1);
-    aom_codec_dec_cfg_t cfg = { 0, 0, 0, !FORCE_HIGHBITDEPTH_DECODING };
+    aom_codec_dec_cfg_t cfg = { 0, 0, 0, 0 };
     cfg.threads = input.threads;
     const std::string filename = input.filename;
     libaom_test::IVFVideoSource decode_video(filename);
@@ -137,7 +137,6 @@ const DecodeParam kAV1InvalidFileTests[] = {
   { 1, "invalid-oss-fuzz-11523.ivf", "invalid-oss-fuzz-11523.ivf.res.2" },
   { 4, "invalid-oss-fuzz-15363.ivf", NULL },
   { 1, "invalid-oss-fuzz-16437.ivf", NULL },
-#if CONFIG_AV1_HIGHBITDEPTH
   // These test vectors contain 10-bit or 12-bit video.
   { 1, "invalid-oss-fuzz-9288.ivf", NULL },
   { 1, "invalid-oss-fuzz-9482.ivf", NULL },
@@ -150,7 +149,6 @@ const DecodeParam kAV1InvalidFileTests[] = {
   { 1, "invalid-oss-fuzz-10779.ivf", NULL },
   { 1, "invalid-oss-fuzz-11477.ivf", NULL },
   { 1, "invalid-oss-fuzz-11479.ivf", "invalid-oss-fuzz-11479.ivf.res.2" },
-#endif
 };
 
 AV1_INSTANTIATE_TEST_SUITE(InvalidFileTest,

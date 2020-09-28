@@ -123,7 +123,6 @@ static INLINE void compute_stats_win7_opt_avx2(
   }
 }
 
-#if CONFIG_AV1_HIGHBITDEPTH
 static INLINE void acc_stat_highbd_avx2(int64_t *dst, const uint16_t *dgd,
                                         const __m256i *shuffle,
                                         const __m256i *dgd_ijkl) {
@@ -380,7 +379,6 @@ void av1_compute_stats_highbd_avx2(int wiener_win, const uint8_t *dgd8,
                                v_end, dgd_stride, src_stride, M, H, bit_depth);
   }
 }
-#endif  // CONFIG_AV1_HIGHBITDEPTH
 
 static INLINE void acc_stat_win5_one_line_avx2(
     const uint8_t *dgd, const uint8_t *src, int h_start, int h_end,
@@ -860,7 +858,6 @@ void av1_calc_proj_params_avx2(const uint8_t *src8, int width, int height,
   }
 }
 
-#if CONFIG_AV1_HIGHBITDEPTH
 int64_t av1_highbd_pixel_proj_error_avx2(
     const uint8_t *src8, int width, int height, int src_stride,
     const uint8_t *dat8, int dat_stride, int32_t *flt0, int flt0_stride,
@@ -1080,4 +1077,3 @@ int64_t av1_highbd_pixel_proj_error_avx2(
   err += sum[0] + sum[1] + sum[2] + sum[3];
   return err;
 }
-#endif  // CONFIG_AV1_HIGHBITDEPTH

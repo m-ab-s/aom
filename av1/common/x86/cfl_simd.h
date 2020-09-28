@@ -98,7 +98,6 @@ void cfl_subsample_lbd_444_16x16_ssse3(const uint8_t *cfl_type,
 void cfl_subsample_lbd_444_16x32_ssse3(const uint8_t *cfl_type,
                                        int input_stride, uint16_t *output_q3);
 
-#if CONFIG_AV1_HIGHBITDEPTH
 void cfl_subsample_hbd_420_4x4_ssse3(const uint16_t *cfl_type, int input_stride,
                                      uint16_t *output_q3);
 void cfl_subsample_hbd_420_4x8_ssse3(const uint16_t *cfl_type, int input_stride,
@@ -179,7 +178,6 @@ void cfl_subsample_hbd_444_16x16_ssse3(const uint16_t *cfl_type,
                                        int input_stride, uint16_t *output_q3);
 void cfl_subsample_hbd_444_16x32_ssse3(const uint16_t *cfl_type,
                                        int input_stride, uint16_t *output_q3);
-#endif  // CONFIG_AV1_HIGHBITDEPTH
 
 // SSE2 version is optimal for with == 4, we reuse them in AVX2
 void cfl_subtract_average_4x4_sse2(const uint16_t *src, int16_t *dst);
@@ -217,7 +215,6 @@ void cfl_predict_lbd_16x16_ssse3(const int16_t *pred_buf_q3, uint8_t *dst,
 void cfl_predict_lbd_16x32_ssse3(const int16_t *pred_buf_q3, uint8_t *dst,
                                  int dst_stride, int alpha_q3);
 
-#if CONFIG_AV1_HIGHBITDEPTH
 void cfl_predict_hbd_4x4_ssse3(const int16_t *pred_buf_q3, uint16_t *dst,
                                int dst_stride, int alpha_q3, int bd);
 void cfl_predict_hbd_4x8_ssse3(const int16_t *pred_buf_q3, uint16_t *dst,
@@ -242,5 +239,4 @@ void cfl_predict_hbd_16x16_ssse3(const int16_t *pred_buf_q3, uint16_t *dst,
                                  int dst_stride, int alpha_q3, int bd);
 void cfl_predict_hbd_16x32_ssse3(const int16_t *pred_buf_q3, uint16_t *dst,
                                  int dst_stride, int alpha_q3, int bd);
-#endif  // CONFIG_AV1_HIGHBITDEPTH
 #endif  // AOM_AV1_COMMON_X86_CFL_SIMD_H_

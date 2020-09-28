@@ -276,7 +276,6 @@ INSTANTIATE_TEST_SUITE_P(
 
 #endif  // ifndef aom_comp_mask_pred
 
-#if CONFIG_AV1_HIGHBITDEPTH
 typedef void (*highbd_comp_mask_pred_func)(uint8_t *comp_pred8,
                                            const uint8_t *pred8, int width,
                                            int height, const uint8_t *ref8,
@@ -575,5 +574,4 @@ INSTANTIATE_TEST_SUITE_P(
 #endif
 
 #endif  // ifndef aom_highbd_comp_mask_pred
-#endif  // CONFIG_AV1_HIGHBITDEPTH
 }  // namespace AV1CompMaskVariance

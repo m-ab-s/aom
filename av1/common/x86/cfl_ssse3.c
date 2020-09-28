@@ -168,7 +168,6 @@ static INLINE void cfl_luma_subsampling_444_lbd_ssse3(const uint8_t *input,
   } while (pred_buf_m128i < end);
 }
 
-#if CONFIG_AV1_HIGHBITDEPTH
 /**
  * Adds 4 pixels (in a 2x2 grid) and multiplies them by 2. Resulting in a more
  * precise version of a box filter 4:2:0 pixel subsampling in Q3.
@@ -297,7 +296,6 @@ static INLINE void cfl_luma_subsampling_444_hbd_ssse3(const uint16_t *input,
     pred_buf_q3 += CFL_BUF_LINE;
   } while (pred_buf_q3 < end);
 }
-#endif  // CONFIG_AV1_HIGHBITDEPTH
 
 CFL_GET_SUBSAMPLE_FUNCTION(ssse3)
 
@@ -343,7 +341,6 @@ static INLINE void cfl_predict_lbd_ssse3(const int16_t *pred_buf_q3,
 
 CFL_PREDICT_FN(ssse3, lbd)
 
-#if CONFIG_AV1_HIGHBITDEPTH
 static INLINE __m128i highbd_max_epi16(int bd) {
   const __m128i neg_one = _mm_set1_epi16(-1);
   // (1 << bd) - 1 => -(-1 << bd) -1 => -1 - (-1 << bd) => -1 ^ (-1 << bd)
@@ -394,4 +391,3 @@ static INLINE void cfl_predict_hbd_ssse3(const int16_t *pred_buf_q3,
 }
 
 CFL_PREDICT_FN(ssse3, hbd)
-#endif  // CONFIG_AV1_HIGHBITDEPTH

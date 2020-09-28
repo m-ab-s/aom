@@ -145,7 +145,6 @@ class LoopTestParam : public ::testing::TestWithParam<params_t> {
   func_type_t ref_loopfilter_op_;
 };
 
-#if CONFIG_AV1_HIGHBITDEPTH
 void call_filter(uint16_t *s, LOOP_PARAM, int bd, hbdloop_op_t op) {
   op(s, p, blimit, limit, thresh, bd);
 }
@@ -153,7 +152,7 @@ void call_dualfilter(uint16_t *s, DUAL_LOOP_PARAM, int bd,
                      hbddual_loop_op_t op) {
   op(s, p, blimit0, limit0, thresh0, blimit1, limit1, thresh1, bd);
 }
-#endif
+
 void call_filter(uint8_t *s, LOOP_PARAM, int bd, loop_op_t op) {
   (void)bd;
   op(s, p, blimit, limit, thresh);
@@ -163,13 +162,11 @@ void call_dualfilter(uint8_t *s, DUAL_LOOP_PARAM, int bd, dual_loop_op_t op) {
   op(s, p, blimit0, limit0, thresh0, blimit1, limit1, thresh1);
 };
 
-#if CONFIG_AV1_HIGHBITDEPTH
 typedef LoopTestParam<hbdloop_op_t, hbdloop_param_t> Loop8Test6Param_hbd;
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(Loop8Test6Param_hbd);
 typedef LoopTestParam<hbddual_loop_op_t, hbddual_loop_param_t>
     Loop8Test9Param_hbd;
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(Loop8Test9Param_hbd);
-#endif
 typedef LoopTestParam<loop_op_t, loop_param_t> Loop8Test6Param_lbd;
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(Loop8Test6Param_lbd);
 typedef LoopTestParam<dual_loop_op_t, dual_loop_param_t> Loop8Test9Param_lbd;
@@ -215,9 +212,7 @@ GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(Loop8Test9Param_lbd);
          "loopfilter output. "                                                 \
       << "First failed at test case " << first_failure;
 
-#if CONFIG_AV1_HIGHBITDEPTH
 TEST_P(Loop8Test6Param_hbd, OperationCheck) { OPCHECK(uint16_t, 16); }
-#endif
 TEST_P(Loop8Test6Param_lbd, OperationCheck) { OPCHECK(uint8_t, 8); }
 
 #define VALCHECK(a, b)                                                         \
@@ -263,9 +258,7 @@ TEST_P(Loop8Test6Param_lbd, OperationCheck) { OPCHECK(uint8_t, 8); }
          "loopfilter output. "                                                 \
       << "First failed at test case " << first_failure;
 
-#if CONFIG_AV1_HIGHBITDEPTH
 TEST_P(Loop8Test6Param_hbd, ValueCheck) { VALCHECK(uint16_t, 16); }
-#endif
 TEST_P(Loop8Test6Param_lbd, ValueCheck) { VALCHECK(uint8_t, 8); }
 
 #define SPEEDCHECK(a, b)                                                      \
@@ -293,9 +286,7 @@ TEST_P(Loop8Test6Param_lbd, ValueCheck) { VALCHECK(uint8_t, 8); }
     call_filter(s + 8 + p * 8, p, blimit, limit, thresh, bd, loopfilter_op_); \
   }
 
-#if CONFIG_AV1_HIGHBITDEPTH
 TEST_P(Loop8Test6Param_hbd, DISABLED_Speed) { SPEEDCHECK(uint16_t, 16); }
-#endif
 TEST_P(Loop8Test6Param_lbd, DISABLED_Speed) { SPEEDCHECK(uint8_t, 8); }
 
 #define OPCHECKd(a, b)                                                         \
@@ -352,9 +343,7 @@ TEST_P(Loop8Test6Param_lbd, DISABLED_Speed) { SPEEDCHECK(uint8_t, 8); }
          "loopfilter output. "                                                 \
       << "First failed at test case " << first_failure;
 
-#if CONFIG_AV1_HIGHBITDEPTH
 TEST_P(Loop8Test9Param_hbd, OperationCheck) { OPCHECKd(uint16_t, 16); }
-#endif
 TEST_P(Loop8Test9Param_lbd, OperationCheck) { OPCHECKd(uint8_t, 8); }
 
 #define VALCHECKd(a, b)                                                        \
@@ -413,9 +402,7 @@ TEST_P(Loop8Test9Param_lbd, OperationCheck) { OPCHECKd(uint8_t, 8); }
          "loopfilter output. "                                                 \
       << "First failed at test case " << first_failure;
 
-#if CONFIG_AV1_HIGHBITDEPTH
 TEST_P(Loop8Test9Param_hbd, ValueCheck) { VALCHECKd(uint16_t, 16); }
-#endif
 TEST_P(Loop8Test9Param_lbd, ValueCheck) { VALCHECKd(uint8_t, 8); }
 
 #define SPEEDCHECKd(a, b)                                                    \
@@ -455,15 +442,12 @@ TEST_P(Loop8Test9Param_lbd, ValueCheck) { VALCHECKd(uint8_t, 8); }
                     limit1, thresh1, bit_depth_, loopfilter_op_);            \
   }
 
-#if CONFIG_AV1_HIGHBITDEPTH
 TEST_P(Loop8Test9Param_hbd, DISABLED_Speed) { SPEEDCHECKd(uint16_t, 16); }
-#endif
 TEST_P(Loop8Test9Param_lbd, DISABLED_Speed) { SPEEDCHECKd(uint8_t, 8); }
 
 using std::make_tuple;
 
 #if HAVE_SSE2
-#if CONFIG_AV1_HIGHBITDEPTH
 const hbdloop_param_t kHbdLoop8Test6[] = {
   make_tuple(&aom_highbd_lpf_horizontal_4_sse2, &aom_highbd_lpf_horizontal_4_c,
              8),
@@ -509,7 +493,6 @@ const hbdloop_param_t kHbdLoop8Test6[] = {
 
 INSTANTIATE_TEST_SUITE_P(SSE2, Loop8Test6Param_hbd,
                          ::testing::ValuesIn(kHbdLoop8Test6));
-#endif  // CONFIG_AV1_HIGHBITDEPTH
 
 const loop_param_t kLoop8Test6[] = {
   make_tuple(&aom_lpf_horizontal_4_sse2, &aom_lpf_horizontal_4_c, 8),
@@ -542,7 +525,7 @@ INSTANTIATE_TEST_SUITE_P(SSE2, Loop8Test9Param_lbd,
 
 #endif  // HAVE_SSE2
 
-#if HAVE_SSE2 && CONFIG_AV1_HIGHBITDEPTH
+#if HAVE_SSE2
 const hbddual_loop_param_t kHbdLoop8Test9[] = {
   make_tuple(&aom_highbd_lpf_horizontal_4_dual_sse2,
              &aom_highbd_lpf_horizontal_4_dual_c, 8),
@@ -597,7 +580,7 @@ const hbddual_loop_param_t kHbdLoop8Test9[] = {
 INSTANTIATE_TEST_SUITE_P(SSE2, Loop8Test9Param_hbd,
                          ::testing::ValuesIn(kHbdLoop8Test9));
 
-#endif  // HAVE_SSE2 && CONFIG_AV1_HIGHBITDEPTH
+#endif  // HAVE_SSE2
 
 #if HAVE_NEON
 const loop_param_t kLoop8Test6[] = {
@@ -615,7 +598,7 @@ INSTANTIATE_TEST_SUITE_P(NEON, Loop8Test6Param_lbd,
                          ::testing::ValuesIn(kLoop8Test6));
 #endif  // HAVE_NEON
 
-#if HAVE_AVX2 && CONFIG_AV1_HIGHBITDEPTH
+#if HAVE_AVX2
 const hbddual_loop_param_t kHbdLoop8Test9Avx2[] = {
   make_tuple(&aom_highbd_lpf_horizontal_4_dual_avx2,
              &aom_highbd_lpf_horizontal_4_dual_c, 8),

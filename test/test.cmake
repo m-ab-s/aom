@@ -141,10 +141,6 @@ if(NOT BUILD_SHARED_LIBS)
       list(REMOVE_ITEM AOM_UNIT_TEST_COMMON_SOURCES
                        "${AOM_ROOT}/test/cnn_test.cc")
     endif()
-    if(NOT CONFIG_AV1_HIGHBITDEPTH)
-      list(REMOVE_ITEM AOM_UNIT_TEST_COMMON_SOURCES
-                       "${AOM_ROOT}/test/coding_path_sync.cc")
-    endif()
   endif()
 
   list(APPEND AOM_UNIT_TEST_COMMON_INTRIN_NEON
@@ -242,11 +238,6 @@ if(NOT BUILD_SHARED_LIBS)
               "${AOM_ROOT}/test/av1_quantize_test.cc"
               "${AOM_ROOT}/test/corner_match_test.cc"
               "${AOM_ROOT}/test/simd_cmp_sse4.cc")
-
-  if(NOT CONFIG_AV1_HIGHBITDEPTH)
-    list(REMOVE_ITEM AOM_UNIT_TEST_ENCODER_INTRIN_SSE4_1
-                     "${AOM_ROOT}/test/av1_quantize_test.cc")
-  endif()
 
   if(NOT (HAVE_SSE2 OR HAVE_NEON))
     list(REMOVE_ITEM AOM_UNIT_TEST_ENCODER_SOURCES

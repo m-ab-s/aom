@@ -422,7 +422,6 @@ void aom_dist_wtd_comp_avg_upsampled_pred_c(
   }
 }
 
-#if CONFIG_AV1_HIGHBITDEPTH
 static void highbd_variance64(const uint8_t *a8, int a_stride,
                               const uint8_t *b8, int b_stride, int w, int h,
                               uint64_t *sse, int64_t *sum) {
@@ -979,7 +978,6 @@ void aom_highbd_dist_wtd_comp_avg_upsampled_pred_c(
     pred += width;
   }
 }
-#endif  // CONFIG_AV1_HIGHBITDEPTH
 
 void aom_comp_mask_pred_c(uint8_t *comp_pred, const uint8_t *pred, int width,
                           int height, const uint8_t *ref, int ref_stride,
@@ -1063,7 +1061,6 @@ MASK_SUBPIX_VAR(32, 8)
 MASK_SUBPIX_VAR(16, 64)
 MASK_SUBPIX_VAR(64, 16)
 
-#if CONFIG_AV1_HIGHBITDEPTH
 void aom_highbd_comp_mask_pred_c(uint8_t *comp_pred8, const uint8_t *pred8,
                                  int width, int height, const uint8_t *ref8,
                                  int ref_stride, const uint8_t *mask,
@@ -1188,7 +1185,6 @@ HIGHBD_MASK_SUBPIX_VAR(8, 32)
 HIGHBD_MASK_SUBPIX_VAR(32, 8)
 HIGHBD_MASK_SUBPIX_VAR(16, 64)
 HIGHBD_MASK_SUBPIX_VAR(64, 16)
-#endif  // CONFIG_AV1_HIGHBITDEPTH
 
 static INLINE void obmc_variance(const uint8_t *pre, int pre_stride,
                                  const int32_t *wsrc, const int32_t *mask,
@@ -1296,7 +1292,6 @@ OBMC_SUBPIX_VAR(16, 64)
 OBMC_VAR(64, 16)
 OBMC_SUBPIX_VAR(64, 16)
 
-#if CONFIG_AV1_HIGHBITDEPTH
 static INLINE void highbd_obmc_variance64(const uint8_t *pre8, int pre_stride,
                                           const int32_t *wsrc,
                                           const int32_t *mask, int w, int h,
@@ -1488,7 +1483,6 @@ HIGHBD_OBMC_VAR(16, 64)
 HIGHBD_OBMC_SUBPIX_VAR(16, 64)
 HIGHBD_OBMC_VAR(64, 16)
 HIGHBD_OBMC_SUBPIX_VAR(64, 16)
-#endif  // CONFIG_AV1_HIGHBITDEPTH
 
 uint64_t aom_mse_wxh_16bit_c(uint8_t *dst, int dstride, uint16_t *src,
                              int sstride, int w, int h) {

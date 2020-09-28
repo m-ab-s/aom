@@ -209,17 +209,13 @@ static int64_t pick_wedge(const AV1_COMP *const cpi, const MACROBLOCK *const x,
   const int bd_round = hbd ? (xd->bd - 8) * 2 : 0;
 
   DECLARE_ALIGNED(32, int16_t, residual0[MAX_SB_SQUARE]);  // src - pred0
-#if CONFIG_AV1_HIGHBITDEPTH
+
   if (hbd) {
     aom_highbd_subtract_block(bh, bw, residual0, bw, src->buf, src->stride,
                               CONVERT_TO_BYTEPTR(p0), bw, xd->bd);
   } else {
     aom_subtract_block(bh, bw, residual0, bw, src->buf, src->stride, p0, bw);
   }
-#else
-  (void)hbd;
-  aom_subtract_block(bh, bw, residual0, bw, src->buf, src->stride, p0, bw);
-#endif
 
   int64_t sign_limit = ((int64_t)aom_sum_squares_i16(residual0, N) -
                         (int64_t)aom_sum_squares_i16(residual1, N)) *
@@ -403,7 +399,7 @@ static int64_t pick_interintra_wedge(const AV1_COMP *const cpi,
   const int bh = block_size_high[bsize];
   DECLARE_ALIGNED(32, int16_t, residual1[MAX_SB_SQUARE]);  // src - pred1
   DECLARE_ALIGNED(32, int16_t, diff10[MAX_SB_SQUARE]);     // pred1 - pred0
-#if CONFIG_AV1_HIGHBITDEPTH
+
   if (is_cur_buf_hbd(xd)) {
     aom_highbd_subtract_block(bh, bw, residual1, bw, src->buf, src->stride,
                               CONVERT_TO_BYTEPTR(p1), bw, xd->bd);
@@ -413,10 +409,7 @@ static int64_t pick_interintra_wedge(const AV1_COMP *const cpi,
     aom_subtract_block(bh, bw, residual1, bw, src->buf, src->stride, p1, bw);
     aom_subtract_block(bh, bw, diff10, bw, p1, bw, p0, bw);
   }
-#else
-  aom_subtract_block(bh, bw, residual1, bw, src->buf, src->stride, p1, bw);
-  aom_subtract_block(bh, bw, diff10, bw, p1, bw, p0, bw);
-#endif
+
   int8_t wedge_index = -1;
   uint64_t sse;
   int64_t rd = pick_wedge_fixed_sign(cpi, x, bsize, residual1, diff10, 0,
@@ -438,7 +431,7 @@ static AOM_INLINE void get_inter_predictors_masked_compound(
   av1_build_inter_predictors_for_planes_single_buf(xd, bsize, 0, 0, 1, preds1,
                                                    strides);
   const struct buf_2d *const src = &x->plane[0].src;
-#if CONFIG_AV1_HIGHBITDEPTH
+
   if (is_cur_buf_hbd(xd)) {
     aom_highbd_subtract_block(bh, bw, residual1, bw, src->buf, src->stride,
                               CONVERT_TO_BYTEPTR(*preds1), bw, xd->bd);
@@ -449,10 +442,6 @@ static AOM_INLINE void get_inter_predictors_masked_compound(
                        bw);
     aom_subtract_block(bh, bw, diff10, bw, *preds1, bw, *preds0, bw);
   }
-#else
-  aom_subtract_block(bh, bw, residual1, bw, src->buf, src->stride, *preds1, bw);
-  aom_subtract_block(bh, bw, diff10, bw, *preds1, bw, *preds0, bw);
-#endif
 }
 
 // Computes the rd cost for the given interintra mode and updates the best

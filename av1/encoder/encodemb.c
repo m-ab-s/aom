@@ -40,14 +40,11 @@ void av1_subtract_block(const MACROBLOCKD *xd, int rows, int cols,
                         const uint8_t *src8, ptrdiff_t src_stride,
                         const uint8_t *pred8, ptrdiff_t pred_stride) {
   assert(rows >= 4 && cols >= 4);
-#if CONFIG_AV1_HIGHBITDEPTH
   if (is_cur_buf_hbd(xd)) {
     aom_highbd_subtract_block(rows, cols, diff, diff_stride, src8, src_stride,
                               pred8, pred_stride, xd->bd);
     return;
   }
-#endif
-  (void)xd;
   aom_subtract_block(rows, cols, diff, diff_stride, src8, src_stride, pred8,
                      pred_stride);
 }
@@ -245,7 +242,6 @@ enum {
   QUANT_FUNC_TYPES = 2
 } UENUM1BYTE(QUANT_FUNC);
 
-#if CONFIG_AV1_HIGHBITDEPTH
 static AV1_QUANT_FACADE
     quant_func_list[AV1_XFORM_QUANT_TYPES][QUANT_FUNC_TYPES] = {
       { av1_quantize_fp_facade, av1_highbd_quantize_fp_facade },
@@ -253,11 +249,6 @@ static AV1_QUANT_FACADE
       { av1_quantize_dc_facade, av1_highbd_quantize_dc_facade },
       { NULL, NULL }
     };
-#else
-static AV1_QUANT_FACADE quant_func_list[AV1_XFORM_QUANT_TYPES] = {
-  av1_quantize_fp_facade, av1_quantize_b_facade, av1_quantize_dc_facade, NULL
-};
-#endif
 
 // Computes the transform for DC only blocks
 void av1_xform_dc_only(MACROBLOCK *x, int plane, int block,
@@ -306,13 +297,8 @@ void av1_quant(MACROBLOCK *x, int plane, int block, TxfmParam *txfm_param,
   if (qparam->xform_quant_idx != AV1_XFORM_QUANT_SKIP_QUANT) {
     const int n_coeffs = av1_get_max_eob(txfm_param->tx_size);
     if (LIKELY(!x->seg_skip_block)) {
-#if CONFIG_AV1_HIGHBITDEPTH
       quant_func_list[qparam->xform_quant_idx][txfm_param->is_hbd](
           coeff, n_coeffs, p, qcoeff, dqcoeff, eob, scan_order, qparam);
-#else
-      quant_func_list[qparam->xform_quant_idx](
-          coeff, n_coeffs, p, qcoeff, dqcoeff, eob, scan_order, qparam);
-#endif
     } else {
       av1_quantize_skip(n_coeffs, qcoeff, dqcoeff, eob);
     }

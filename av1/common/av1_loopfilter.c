@@ -376,7 +376,6 @@ void av1_filter_block_plane_vert(const AV1_COMMON *const cm,
         tx_size = TX_4X4;
       }
 
-#if CONFIG_AV1_HIGHBITDEPTH
       const int use_highbitdepth = cm->seq_params.use_highbitdepth;
       const aom_bit_depth_t bit_depth = cm->seq_params.bit_depth;
       switch (params.filter_length) {
@@ -423,32 +422,7 @@ void av1_filter_block_plane_vert(const AV1_COMMON *const cm,
         // no filtering
         default: break;
       }
-#else
-      switch (params.filter_length) {
-        // apply 4-tap filtering
-        case 4:
-          aom_lpf_vertical_4(p, dst_stride, params.mblim, params.lim,
-                             params.hev_thr);
-          break;
-        case 6:  // apply 6-tap filter for chroma plane only
-          assert(plane != 0);
-          aom_lpf_vertical_6(p, dst_stride, params.mblim, params.lim,
-                             params.hev_thr);
-          break;
-        // apply 8-tap filtering
-        case 8:
-          aom_lpf_vertical_8(p, dst_stride, params.mblim, params.lim,
-                             params.hev_thr);
-          break;
-        // apply 14-tap filtering
-        case 14:
-          aom_lpf_vertical_14(p, dst_stride, params.mblim, params.lim,
-                              params.hev_thr);
-          break;
-        // no filtering
-        default: break;
-      }
-#endif  // CONFIG_AV1_HIGHBITDEPTH
+
       // advance the destination pointer
       advance_units = tx_size_wide_unit[tx_size];
       x += advance_units;
@@ -489,7 +463,6 @@ void av1_filter_block_plane_horz(const AV1_COMMON *const cm,
         tx_size = TX_4X4;
       }
 
-#if CONFIG_AV1_HIGHBITDEPTH
       const int use_highbitdepth = cm->seq_params.use_highbitdepth;
       const aom_bit_depth_t bit_depth = cm->seq_params.bit_depth;
       switch (params.filter_length) {
@@ -537,33 +510,6 @@ void av1_filter_block_plane_horz(const AV1_COMMON *const cm,
         // no filtering
         default: break;
       }
-#else
-      switch (params.filter_length) {
-        // apply 4-tap filtering
-        case 4:
-          aom_lpf_horizontal_4(p, dst_stride, params.mblim, params.lim,
-                               params.hev_thr);
-          break;
-        // apply 6-tap filtering
-        case 6:
-          assert(plane != 0);
-          aom_lpf_horizontal_6(p, dst_stride, params.mblim, params.lim,
-                               params.hev_thr);
-          break;
-        // apply 8-tap filtering
-        case 8:
-          aom_lpf_horizontal_8(p, dst_stride, params.mblim, params.lim,
-                               params.hev_thr);
-          break;
-        // apply 14-tap filtering
-        case 14:
-          aom_lpf_horizontal_14(p, dst_stride, params.mblim, params.lim,
-                                params.hev_thr);
-          break;
-        // no filtering
-        default: break;
-      }
-#endif  // CONFIG_AV1_HIGHBITDEPTH
 
       // advance the destination pointer
       advance_units = tx_size_high_unit[tx_size];

@@ -21,7 +21,6 @@ static INLINE int8_t signed_char_clamp(int t) {
   return (int8_t)clamp(t, -128, 127);
 }
 
-#if CONFIG_AV1_HIGHBITDEPTH
 static INLINE int16_t signed_char_clamp_high(int t, int bd) {
   switch (bd) {
     case 10: return (int16_t)clamp(t, -128 * 4, 128 * 4 - 1);
@@ -30,7 +29,6 @@ static INLINE int16_t signed_char_clamp_high(int t, int bd) {
     default: return (int16_t)clamp(t, -128, 128 - 1);
   }
 }
-#endif
 
 // should we apply any filter at all: 11111111 yes, 00000000 no
 static INLINE int8_t filter_mask2(uint8_t limit, uint8_t blimit, uint8_t p1,
@@ -444,7 +442,6 @@ void aom_lpf_vertical_14_dual_c(uint8_t *s, int pitch, const uint8_t *blimit0,
   mb_lpf_vertical_edge_w(s + 4 * pitch, pitch, blimit1, limit1, thresh1, 4);
 }
 
-#if CONFIG_AV1_HIGHBITDEPTH
 // Should we apply any filter at all: 11111111 yes, 00000000 no ?
 static INLINE int8_t highbd_filter_mask2(uint8_t limit, uint8_t blimit,
                                          uint16_t p1, uint16_t p0, uint16_t q0,
@@ -926,4 +923,3 @@ void aom_highbd_lpf_vertical_14_dual_c(
   highbd_mb_lpf_vertical_edge_w(s + 4 * pitch, pitch, blimit1, limit1, thresh1,
                                 4, bd);
 }
-#endif  // CONFIG_AV1_HIGHBITDEPTH

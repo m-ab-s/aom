@@ -106,7 +106,6 @@ INSTANTIATE_TEST_SUITE_P(MSA, AV1SubtractBlockTest,
                          ::testing::Values(aom_subtract_block_msa));
 #endif
 
-#if CONFIG_AV1_HIGHBITDEPTH
 typedef void (*HBDSubtractFunc)(int rows, int cols, int16_t *diff_ptr,
                                 ptrdiff_t diff_stride, const uint8_t *src_ptr,
                                 ptrdiff_t src_stride, const uint8_t *pred_ptr,
@@ -249,5 +248,4 @@ const Params kAV1HBDSubtractBlock_sse2[] = {
 INSTANTIATE_TEST_SUITE_P(SSE2, AV1HBDSubtractBlockTest,
                          ::testing::ValuesIn(kAV1HBDSubtractBlock_sse2));
 #endif  // HAVE_SSE2
-#endif  // CONFIG_AV1_HIGHBITDEPTH
 }  // namespace

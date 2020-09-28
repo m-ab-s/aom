@@ -226,7 +226,6 @@ typedef uint64_t (*compute_cdef_dist_t)(void *dst, int dstride, uint16_t *src,
                                         BLOCK_SIZE bsize, int coeff_shift,
                                         int row, int col);
 
-#if CONFIG_AV1_HIGHBITDEPTH
 static void copy_sb16_16_highbd(uint16_t *dst, int dstride, const void *src,
                                 int src_voffset, int src_hoffset, int sstride,
                                 int vsize, int hsize) {
@@ -236,7 +235,6 @@ static void copy_sb16_16_highbd(uint16_t *dst, int dstride, const void *src,
   for (r = 0; r < vsize; r++)
     memcpy(dst + r * dstride, base + r * sstride, hsize * sizeof(*base));
 }
-#endif
 
 static void copy_sb16_16(uint16_t *dst, int dstride, const void *src,
                          int src_voffset, int src_hoffset, int sstride,
@@ -258,7 +256,7 @@ static INLINE void init_src_params(int *src_stride, int *width, int *height,
   *width_log2 = MI_SIZE_LOG2 + mi_size_wide_log2[bsize];
   *height_log2 = MI_SIZE_LOG2 + mi_size_wide_log2[bsize];
 }
-#if CONFIG_AV1_HIGHBITDEPTH
+
 /* Compute MSE only on the blocks we filtered. */
 static uint64_t compute_cdef_dist_highbd(void *dst, int dstride, uint16_t *src,
                                          cdef_list *dlist, int cdef_count,
@@ -282,7 +280,7 @@ static uint64_t compute_cdef_dist_highbd(void *dst, int dstride, uint16_t *src,
   }
   return sum >> 2 * coeff_shift;
 }
-#endif
+
 static uint64_t compute_cdef_dist(void *dst, int dstride, uint16_t *src,
                                   cdef_list *dlist, int cdef_count,
                                   BLOCK_SIZE bsize, int coeff_shift, int row,
@@ -425,7 +423,7 @@ void av1_cdef_search(const YV12_BUFFER_CONFIG *frame,
 
   copy_fn_t copy_fn;
   compute_cdef_dist_t compute_cdef_dist_fn;
-#if CONFIG_AV1_HIGHBITDEPTH
+
   if (cm->seq_params.use_highbitdepth) {
     copy_fn = copy_sb16_16_highbd;
     compute_cdef_dist_fn = compute_cdef_dist_highbd;
@@ -433,10 +431,6 @@ void av1_cdef_search(const YV12_BUFFER_CONFIG *frame,
     copy_fn = copy_sb16_16;
     compute_cdef_dist_fn = compute_cdef_dist;
   }
-#else
-  copy_fn = copy_sb16_16;
-  compute_cdef_dist_fn = compute_cdef_dist;
-#endif
 
   DECLARE_ALIGNED(32, uint16_t, inbuf[CDEF_INBUF_SIZE]);
   uint16_t *const in = inbuf + CDEF_VBORDER * CDEF_BSTRIDE + CDEF_HBORDER;

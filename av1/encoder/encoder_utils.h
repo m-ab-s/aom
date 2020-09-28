@@ -226,7 +226,6 @@ static AOM_INLINE void init_buffer_indices(
            4;                                                               \
   }
 
-#if CONFIG_AV1_HIGHBITDEPTH
 MAKE_BFP_SAD_WRAPPER(aom_highbd_sad128x128)
 MAKE_BFP_SADAVG_WRAPPER(aom_highbd_sad128x128_avg)
 MAKE_BFP_SAD4D_WRAPPER(aom_highbd_sad128x128x4d)
@@ -317,7 +316,6 @@ MAKE_BFP_JSADAVG_WRAPPER(aom_highbd_dist_wtd_sad8x32_avg)
 MAKE_BFP_JSADAVG_WRAPPER(aom_highbd_dist_wtd_sad32x8_avg)
 MAKE_BFP_JSADAVG_WRAPPER(aom_highbd_dist_wtd_sad16x64_avg)
 MAKE_BFP_JSADAVG_WRAPPER(aom_highbd_dist_wtd_sad64x16_avg)
-#endif  // CONFIG_AV1_HIGHBITDEPTH
 
 #define HIGHBD_MBFP(BT, MCSDF, MCSVF) \
   cpi->fn_ptr[BT].msdf = MCSDF;       \
@@ -353,7 +351,6 @@ MAKE_BFP_JSADAVG_WRAPPER(aom_highbd_dist_wtd_sad64x16_avg)
            4;                                                            \
   }
 
-#if CONFIG_AV1_HIGHBITDEPTH
 MAKE_MBFP_COMPOUND_SAD_WRAPPER(aom_highbd_masked_sad128x128)
 MAKE_MBFP_COMPOUND_SAD_WRAPPER(aom_highbd_masked_sad128x64)
 MAKE_MBFP_COMPOUND_SAD_WRAPPER(aom_highbd_masked_sad64x128)
@@ -376,7 +373,6 @@ MAKE_MBFP_COMPOUND_SAD_WRAPPER(aom_highbd_masked_sad8x32)
 MAKE_MBFP_COMPOUND_SAD_WRAPPER(aom_highbd_masked_sad32x8)
 MAKE_MBFP_COMPOUND_SAD_WRAPPER(aom_highbd_masked_sad16x64)
 MAKE_MBFP_COMPOUND_SAD_WRAPPER(aom_highbd_masked_sad64x16)
-#endif
 
 #define HIGHBD_SDSFP(BT, SDSF, SDSX4DF) \
   cpi->fn_ptr[BT].sdsf = SDSF;          \
@@ -422,7 +418,6 @@ MAKE_MBFP_COMPOUND_SAD_WRAPPER(aom_highbd_masked_sad64x16)
     for (i = 0; i < 4; i++) sad_array[i] >>= 4;                               \
   }
 
-#if CONFIG_AV1_HIGHBITDEPTH
 MAKE_SDSF_SKIP_SAD_WRAPPER(aom_highbd_sad_skip_128x128)
 MAKE_SDSF_SKIP_SAD_WRAPPER(aom_highbd_sad_skip_128x64)
 MAKE_SDSF_SKIP_SAD_WRAPPER(aom_highbd_sad_skip_64x128)
@@ -462,7 +457,6 @@ MAKE_SDSF_SKIP_SAD_4D_WRAPPER(aom_highbd_sad_skip_8x8x4d)
 MAKE_SDSF_SKIP_SAD_4D_WRAPPER(aom_highbd_sad_skip_4x16x4d)
 MAKE_SDSF_SKIP_SAD_4D_WRAPPER(aom_highbd_sad_skip_4x8x4d)
 MAKE_SDSF_SKIP_SAD_4D_WRAPPER(aom_highbd_sad_skip_8x32x4d)
-#endif
 
 #define HIGHBD_OBFP(BT, OSDF, OVF, OSVF) \
   cpi->fn_ptr[BT].osdf = OSDF;           \
@@ -498,7 +492,6 @@ MAKE_SDSF_SKIP_SAD_4D_WRAPPER(aom_highbd_sad_skip_8x32x4d)
     return fnname(ref, ref_stride, wsrc, msk) >> 4;                       \
   }
 
-#if CONFIG_AV1_HIGHBITDEPTH
 MAKE_OBFP_SAD_WRAPPER(aom_highbd_obmc_sad128x128)
 MAKE_OBFP_SAD_WRAPPER(aom_highbd_obmc_sad128x64)
 MAKE_OBFP_SAD_WRAPPER(aom_highbd_obmc_sad64x128)
@@ -806,7 +799,6 @@ static AOM_INLINE void highbd_set_var_fns(AV1_COMP *const cpi) {
     }
   }
 }
-#endif  // CONFIG_AV1_HIGHBITDEPTH
 
 static AOM_INLINE void copy_frame_prob_info(AV1_COMP *cpi) {
   FrameProbInfo *const frame_probs = &cpi->frame_probs;

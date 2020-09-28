@@ -193,7 +193,6 @@ class AV1IntraPredTest
   IntraPredFunc<FuncType> params_;
 };
 
-#if CONFIG_AV1_HIGHBITDEPTH
 class HighbdIntraPredTest : public AV1IntraPredTest<HighbdIntraPred, uint16_t> {
  protected:
   void Predict() {
@@ -217,8 +216,6 @@ class HighbdIntraPredTest : public AV1IntraPredTest<HighbdIntraPred, uint16_t> {
 };
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(HighbdIntraPredTest);
 
-#endif
-
 class LowbdIntraPredTest : public AV1IntraPredTest<IntraPred, uint8_t> {
  protected:
   void Predict() {
@@ -239,7 +236,6 @@ class LowbdIntraPredTest : public AV1IntraPredTest<IntraPred, uint8_t> {
 };
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(LowbdIntraPredTest);
 
-#if CONFIG_AV1_HIGHBITDEPTH
 // Suppress an unitialized warning. Once there are implementations to test then
 // this can be restored.
 TEST_P(HighbdIntraPredTest, Bitexact) {
@@ -252,7 +248,6 @@ TEST_P(HighbdIntraPredTest, Bitexact) {
   av1_zero(above_data);
   RunTest(left_col, above_data, dst, ref_dst);
 }
-#endif
 
 TEST_P(LowbdIntraPredTest, Bitexact) {
   // max block size is 64
@@ -275,7 +270,6 @@ TEST_P(LowbdIntraPredTest, DISABLED_Speed) {
   RunSpeedTest(left_col, above_data, dst, ref_dst);
 }
 
-#if CONFIG_AV1_HIGHBITDEPTH
 // -----------------------------------------------------------------------------
 // High Bit Depth Tests
 #define highbd_entry(type, width, height, opt, bd)                          \
@@ -293,7 +287,6 @@ TEST_P(LowbdIntraPredTest, DISABLED_Speed) {
       highbd_entry(type, 16, 32, opt, bd),                                    \
       highbd_entry(type, 32, 16, opt, bd), highbd_entry(type, 32, 32, opt, bd)
 #endif
-#endif  // CONFIG_AV1_HIGHBITDEPTH
 // ---------------------------------------------------------------------------
 // Low Bit Depth Tests
 
@@ -366,7 +359,6 @@ INSTANTIATE_TEST_SUITE_P(AVX2, LowbdIntraPredTest,
 
 #endif  // HAVE_AVX2
 
-#if CONFIG_AV1_HIGHBITDEPTH
 #if HAVE_NEON
 const IntraPredFunc<HighbdIntraPred> HighbdIntraPredTestVectorNeon[] = {
   highbd_entry(dc, 4, 4, neon, 8),   highbd_entry(dc, 8, 8, neon, 8),
@@ -378,5 +370,4 @@ INSTANTIATE_TEST_SUITE_P(NEON, HighbdIntraPredTest,
                          ::testing::ValuesIn(HighbdIntraPredTestVectorNeon));
 
 #endif  // HAVE_NEON
-#endif  // CONFIG_AV1_HIGHBITDEPTH
 }  // namespace

@@ -15,10 +15,8 @@
 #include "test/hiprec_convolve_test_util.h"
 
 using libaom_test::ACMRandom;
-#if CONFIG_AV1_HIGHBITDEPTH
 using libaom_test::AV1HighbdHiprecConvolve::AV1HighbdHiprecConvolveTest;
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(AV1HighbdHiprecConvolveTest);
-#endif
 using libaom_test::AV1HiprecConvolve::AV1HiprecConvolveTest;
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(AV1HiprecConvolveTest);
 using std::make_tuple;
@@ -46,7 +44,6 @@ INSTANTIATE_TEST_SUITE_P(NEON, AV1HiprecConvolveTest,
                              av1_wiener_convolve_add_src_neon));
 #endif
 
-#if CONFIG_AV1_HIGHBITDEPTH
 #if HAVE_SSSE3 || HAVE_AVX2
 TEST_P(AV1HighbdHiprecConvolveTest, CheckOutput) {
   RunCheckOutput(GET_PARAM(4));
@@ -65,6 +62,5 @@ INSTANTIATE_TEST_SUITE_P(AVX2, AV1HighbdHiprecConvolveTest,
                              av1_highbd_wiener_convolve_add_src_avx2));
 #endif
 #endif
-#endif  // CONFIG_AV1_HIGHBITDEPTH
 
 }  // namespace

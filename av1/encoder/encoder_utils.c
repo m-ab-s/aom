@@ -554,21 +554,12 @@ void av1_scale_references(AV1_COMP *cpi, const InterpFilter filter,
             aom_internal_error(&cm->error, AOM_CODEC_MEM_ERROR,
                                "Failed to allocate frame buffer");
           }
-#if CONFIG_AV1_HIGHBITDEPTH
           if (use_optimized_scaler && cm->seq_params.bit_depth == AOM_BITS_8)
             av1_resize_and_extend_frame(ref, &new_fb->buf, filter, phase,
                                         num_planes);
           else
             av1_resize_and_extend_frame_nonnormative(
                 ref, &new_fb->buf, (int)cm->seq_params.bit_depth, num_planes);
-#else
-          if (use_optimized_scaler)
-            av1_resize_and_extend_frame(ref, &new_fb->buf, filter, phase,
-                                        num_planes);
-          else
-            av1_resize_and_extend_frame_nonnormative(
-                ref, &new_fb->buf, (int)cm->seq_params.bit_depth, num_planes);
-#endif
           cpi->scaled_ref_buf[ref_frame - 1] = new_fb;
           alloc_frame_mvs(cm, new_fb);
         }
@@ -716,14 +707,12 @@ static void screen_content_tools_determination(
   AV1_COMMON *const cm = &cpi->common;
   FeatureFlags *const features = &cm->features;
   projected_size_pass[pass] = cpi->rc.projected_frame_size;
-#if CONFIG_AV1_HIGHBITDEPTH
+
   const uint32_t in_bit_depth = cpi->oxcf.input_cfg.input_bit_depth;
   const uint32_t bit_depth = cpi->td.mb.e_mbd.bd;
   aom_calc_highbd_psnr(cpi->source, &cpi->common.cur_frame->buf, &psnr[pass],
                        bit_depth, in_bit_depth);
-#else
-  aom_calc_psnr(cpi->source, &cpi->common.cur_frame->buf, &psnr[pass]);
-#endif
+
   if (pass != 1) return;
 
   const double psnr_diff = psnr[1].psnr[0] - psnr[0].psnr[0];

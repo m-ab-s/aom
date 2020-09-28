@@ -254,12 +254,8 @@ class SSETest : public ::testing::TestWithParam<SSETestParam> {
   virtual void SetUp() {
     params_ = GET_PARAM(0);
     width_ = GET_PARAM(1);
-    isHbd_ =
-#if CONFIG_AV1_HIGHBITDEPTH
-        params_.ref_func == aom_highbd_sse_c;
-#else
-        0;
-#endif
+    isHbd_ = params_.ref_func == aom_highbd_sse_c;
+
     rnd_.Reset(ACMRandom::DeterministicSeed());
     src_ = reinterpret_cast<uint8_t *>(aom_memalign(32, 256 * 256 * 2));
     ref_ = reinterpret_cast<uint8_t *>(aom_memalign(32, 256 * 256 * 2));
@@ -399,35 +395,26 @@ TEST_P(SSETest, DISABLED_Speed) {
 }
 
 #if HAVE_NEON
-TestSSEFuncs sse_neon[] = {
-  TestSSEFuncs(&aom_sse_c, &aom_sse_neon),
-#if CONFIG_AV1_HIGHBITDEPTH
-  TestSSEFuncs(&aom_highbd_sse_c, &aom_highbd_sse_neon)
-#endif
-};
+TestSSEFuncs sse_neon[] = { TestSSEFuncs(&aom_sse_c, &aom_sse_neon),
+                            TestSSEFuncs(&aom_highbd_sse_c,
+                                         &aom_highbd_sse_neon) };
 INSTANTIATE_TEST_SUITE_P(NEON, SSETest,
                          Combine(ValuesIn(sse_neon), Range(4, 129, 4)));
 #endif  // HAVE_NEON
 
 #if HAVE_SSE4_1
-TestSSEFuncs sse_sse4[] = {
-  TestSSEFuncs(&aom_sse_c, &aom_sse_sse4_1),
-#if CONFIG_AV1_HIGHBITDEPTH
-  TestSSEFuncs(&aom_highbd_sse_c, &aom_highbd_sse_sse4_1)
-#endif
-};
+TestSSEFuncs sse_sse4[] = { TestSSEFuncs(&aom_sse_c, &aom_sse_sse4_1),
+                            TestSSEFuncs(&aom_highbd_sse_c,
+                                         &aom_highbd_sse_sse4_1) };
 INSTANTIATE_TEST_SUITE_P(SSE4_1, SSETest,
                          Combine(ValuesIn(sse_sse4), Range(4, 129, 4)));
 #endif  // HAVE_SSE4_1
 
 #if HAVE_AVX2
 
-TestSSEFuncs sse_avx2[] = {
-  TestSSEFuncs(&aom_sse_c, &aom_sse_avx2),
-#if CONFIG_AV1_HIGHBITDEPTH
-  TestSSEFuncs(&aom_highbd_sse_c, &aom_highbd_sse_avx2)
-#endif
-};
+TestSSEFuncs sse_avx2[] = { TestSSEFuncs(&aom_sse_c, &aom_sse_avx2),
+                            TestSSEFuncs(&aom_highbd_sse_c,
+                                         &aom_highbd_sse_avx2) };
 INSTANTIATE_TEST_SUITE_P(AVX2, SSETest,
                          Combine(ValuesIn(sse_avx2), Range(4, 129, 4)));
 #endif  // HAVE_AVX2

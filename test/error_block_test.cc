@@ -238,14 +238,12 @@ using std::make_tuple;
 
 #if (HAVE_SSE2)
 const ErrorBlockParam kErrorBlockTestParamsSse2[] = {
-#if CONFIG_AV1_HIGHBITDEPTH
   make_tuple(&av1_highbd_block_error_sse2, &av1_highbd_block_error_c,
              AOM_BITS_10),
   make_tuple(&av1_highbd_block_error_sse2, &av1_highbd_block_error_c,
              AOM_BITS_12),
   make_tuple(&av1_highbd_block_error_sse2, &av1_highbd_block_error_c,
              AOM_BITS_8),
-#endif
   make_tuple(&BlockError8BitWrapper<av1_block_error_sse2>,
              &BlockError8BitWrapper<av1_block_error_c>, AOM_BITS_8)
 };
@@ -256,14 +254,12 @@ INSTANTIATE_TEST_SUITE_P(SSE2, ErrorBlockTest,
 
 #if (HAVE_AVX2)
 const ErrorBlockParam kErrorBlockTestParamsAvx2[] = {
-#if CONFIG_AV1_HIGHBITDEPTH
   make_tuple(&av1_highbd_block_error_avx2, &av1_highbd_block_error_c,
              AOM_BITS_10),
   make_tuple(&av1_highbd_block_error_avx2, &av1_highbd_block_error_c,
              AOM_BITS_12),
   make_tuple(&av1_highbd_block_error_avx2, &av1_highbd_block_error_c,
              AOM_BITS_8),
-#endif
   make_tuple(&BlockError8BitWrapper<av1_block_error_avx2>,
              &BlockError8BitWrapper<av1_block_error_c>, AOM_BITS_8)
 };

@@ -92,14 +92,10 @@ static int encode_frame(aom_codec_ctx_t *ctx, const aom_image_t *img,
 
 static void get_raw_image(aom_image_t **frame_to_encode, aom_image_t *raw,
                           aom_image_t *raw_shift) {
-  if (FORCE_HIGHBITDEPTH_DECODING) {
-    // Need to allocate larger buffer to use hbd internal.
-    int input_shift = 0;
-    aom_img_upshift(raw_shift, raw, input_shift);
-    *frame_to_encode = raw_shift;
-  } else {
-    *frame_to_encode = raw;
-  }
+  // Need to allocate larger buffer to use hbd internal.
+  int input_shift = 0;
+  aom_img_upshift(raw_shift, raw, input_shift);
+  *frame_to_encode = raw_shift;
 }
 
 static void pass1(aom_image_t *raw, FILE *infile, const char *outfile_name,
@@ -160,7 +156,7 @@ static void pass1(aom_image_t *raw, FILE *infile, const char *outfile_name,
                         reference_image_num - 1))
     die_codec(&codec, "Failed to set max gf interval");
   aom_img_fmt_t ref_fmt = AOM_IMG_FMT_I420;
-  if (FORCE_HIGHBITDEPTH_DECODING) ref_fmt |= AOM_IMG_FMT_HIGHBITDEPTH;
+  ref_fmt |= AOM_IMG_FMT_HIGHBITDEPTH;
   // Allocate memory with the border so that it can be used as a reference.
   int border_in_pixels =
       (codec.config.enc->rc_resize_mode || codec.config.enc->rc_superres_mode)
@@ -342,11 +338,9 @@ int main(int argc, char **argv) {
   if (!aom_img_alloc(&raw, AOM_IMG_FMT_I420, w, h, 32)) {
     die("Failed to allocate image.");
   }
-  if (FORCE_HIGHBITDEPTH_DECODING) {
-    // Need to allocate larger buffer to use hbd internal.
-    aom_img_alloc(&raw_shift, AOM_IMG_FMT_I420 | AOM_IMG_FMT_HIGHBITDEPTH, w, h,
-                  32);
-  }
+  // Need to allocate larger buffer to use hbd internal.
+  aom_img_alloc(&raw_shift, AOM_IMG_FMT_I420 | AOM_IMG_FMT_HIGHBITDEPTH, w, h,
+                32);
 
   printf("Using %s\n", aom_codec_iface_name(encoder));
 
@@ -364,9 +358,7 @@ int main(int argc, char **argv) {
   cfg.kf_mode = AOM_KF_DISABLED;
   cfg.large_scale_tile = 0;  // Only set it to 1 for camera frame encoding.
   cfg.g_bit_depth = AOM_BITS_8;
-  flags |= (cfg.g_bit_depth > AOM_BITS_8 || FORCE_HIGHBITDEPTH_DECODING)
-               ? AOM_CODEC_USE_HIGHBITDEPTH
-               : 0;
+  flags |= AOM_CODEC_USE_HIGHBITDEPTH;
 
   if (!(infile = fopen(infile_arg, "rb")))
     die("Failed to open %s for reading", infile_arg);
@@ -376,7 +368,7 @@ int main(int argc, char **argv) {
   pass1(&raw, infile, outfile_arg, encoder, &cfg, lf_width, lf_height,
         lf_blocksize, flags, &raw_shift);
 
-  if (FORCE_HIGHBITDEPTH_DECODING) aom_img_free(&raw_shift);
+  aom_img_free(&raw_shift);
   aom_img_free(&raw);
   fclose(infile);
 

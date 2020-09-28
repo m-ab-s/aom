@@ -2272,14 +2272,11 @@ static aom_codec_frame_flags_t get_frame_pkt_flags(const AV1_COMP *cpi,
 static void calculate_psnr(AV1_COMP *cpi, PSNR_STATS *psnr) {
   int i;
   PSNR_STATS stats;
-#if CONFIG_AV1_HIGHBITDEPTH
+
   const uint32_t in_bit_depth = cpi->oxcf.input_cfg.input_bit_depth;
   const uint32_t bit_depth = cpi->td.mb.e_mbd.bd;
   aom_calc_highbd_psnr(cpi->unfiltered_source, &cpi->common.cur_frame->buf,
                        &stats, bit_depth, in_bit_depth);
-#else
-  aom_calc_psnr(cpi->unfiltered_source, &cpi->common.cur_frame->buf, psnr);
-#endif
 
   for (i = 0; i < 4; ++i) {
     psnr->psnr[i] = stats.psnr[i];

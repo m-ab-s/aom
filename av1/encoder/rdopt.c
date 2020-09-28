@@ -648,7 +648,6 @@ int64_t av1_block_error_lp_c(const int16_t *coeff, const int16_t *dqcoeff,
   return error;
 }
 
-#if CONFIG_AV1_HIGHBITDEPTH
 int64_t av1_highbd_block_error_c(const tran_low_t *coeff,
                                  const tran_low_t *dqcoeff, intptr_t block_size,
                                  int64_t *ssz, int bd) {
@@ -669,7 +668,6 @@ int64_t av1_highbd_block_error_c(const tran_low_t *coeff,
   *ssz = sqcoeff;
   return error;
 }
-#endif
 
 static int conditional_skipintra(PREDICTION_MODE mode,
                                  PREDICTION_MODE best_intra_mode) {
@@ -5828,7 +5826,6 @@ void av1_gaussian_blur(const uint8_t *src, int src_stride, int w, int h,
   assert(w % 8 == 0);
   // Because we use an eight tap filter, the stride should be at least 7 + w.
   assert(src_stride >= w + 7);
-#if CONFIG_AV1_HIGHBITDEPTH
   if (high_bd) {
     av1_highbd_convolve_2d_sr(CONVERT_TO_SHORTPTR(src), src_stride,
                               CONVERT_TO_SHORTPTR(dst), w, w, h, &filter,
@@ -5837,11 +5834,6 @@ void av1_gaussian_blur(const uint8_t *src, int src_stride, int w, int h,
     av1_convolve_2d_sr(src, src_stride, dst, w, w, h, &filter, &filter, 0, 0,
                        &conv_params);
   }
-#else
-  (void)high_bd;
-  av1_convolve_2d_sr(src, src_stride, dst, w, w, h, &filter, &filter, 0, 0,
-                     &conv_params);
-#endif
 }
 
 static EdgeInfo edge_probability(const uint8_t *input, int w, int h,

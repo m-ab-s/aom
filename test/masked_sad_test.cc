@@ -236,7 +236,6 @@ TEST_P(MaskedSADx4Test, OperationCheck) { runMaskedSADTest(1); }
 
 TEST_P(MaskedSADx4Test, DISABLED_Speed) { runMaskedSADTest(2000000); }
 
-#if CONFIG_AV1_HIGHBITDEPTH
 typedef unsigned int (*HighbdMaskedSADFunc)(const uint8_t *src, int src_stride,
                                             const uint8_t *ref, int ref_stride,
                                             const uint8_t *second_pred,
@@ -330,7 +329,6 @@ void HighbdMaskedSADTest::runHighbdMaskedSADTest(int run_times) {
 TEST_P(HighbdMaskedSADTest, OperationCheck) { runHighbdMaskedSADTest(1); }
 
 TEST_P(HighbdMaskedSADTest, DISABLED_Speed) { runHighbdMaskedSADTest(1000000); }
-#endif  // CONFIG_AV1_HIGHBITDEPTH
 
 using std::make_tuple;
 
@@ -390,7 +388,6 @@ const MaskedSADx4Param msadx4_test[] = {
 INSTANTIATE_TEST_SUITE_P(SSSE3, MaskedSADx4Test,
                          ::testing::ValuesIn(msadx4_test));
 
-#if CONFIG_AV1_HIGHBITDEPTH
 const HighbdMaskedSADParam hbd_msad_test[] = {
   make_tuple(&aom_highbd_masked_sad4x4_ssse3, &aom_highbd_masked_sad4x4_c),
   make_tuple(&aom_highbd_masked_sad4x8_ssse3, &aom_highbd_masked_sad4x8_c),
@@ -421,7 +418,6 @@ const HighbdMaskedSADParam hbd_msad_test[] = {
 
 INSTANTIATE_TEST_SUITE_P(SSSE3, HighbdMaskedSADTest,
                          ::testing::ValuesIn(hbd_msad_test));
-#endif  // CONFIG_AV1_HIGHBITDEPTH
 #endif  // HAVE_SSSE3
 
 #if HAVE_AVX2
@@ -453,7 +449,6 @@ const MaskedSADParam msad_avx2_test[] = {
 INSTANTIATE_TEST_SUITE_P(AVX2, MaskedSADTest,
                          ::testing::ValuesIn(msad_avx2_test));
 
-#if CONFIG_AV1_HIGHBITDEPTH
 const HighbdMaskedSADParam hbd_msad_avx2_test[] = {
   make_tuple(&aom_highbd_masked_sad4x4_avx2, &aom_highbd_masked_sad4x4_ssse3),
   make_tuple(&aom_highbd_masked_sad4x8_avx2, &aom_highbd_masked_sad4x8_ssse3),
@@ -493,7 +488,6 @@ const HighbdMaskedSADParam hbd_msad_avx2_test[] = {
 
 INSTANTIATE_TEST_SUITE_P(AVX2, HighbdMaskedSADTest,
                          ::testing::ValuesIn(hbd_msad_avx2_test));
-#endif  // CONFIG_AV1_HIGHBITDEPTH
 #endif  // HAVE_AVX2
 
 }  // namespace

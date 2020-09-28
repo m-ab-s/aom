@@ -1376,7 +1376,6 @@ INSTANTIATE_TEST_SUITE_P(
         ObmcSubpelVarianceParams(4, 2, &aom_obmc_sub_pixel_variance16x4_c, 0),
         ObmcSubpelVarianceParams(2, 4, &aom_obmc_sub_pixel_variance4x16_c, 0)));
 
-#if CONFIG_AV1_HIGHBITDEPTH
 typedef uint64_t (*MseHBDWxH16bitFunc)(uint16_t *dst, int dstride,
                                        uint16_t *src, int sstride, int w,
                                        int h);
@@ -1903,7 +1902,6 @@ const ObmcSubpelVarianceParams kArrayHBDObmcSubpelVariance_c[] = {
 };
 INSTANTIATE_TEST_SUITE_P(C, AvxHBDObmcSubpelVarianceTest,
                          ::testing::ValuesIn(kArrayHBDObmcSubpelVariance_c));
-#endif  // CONFIG_AV1_HIGHBITDEPTH
 
 #if HAVE_SSE2
 INSTANTIATE_TEST_SUITE_P(
@@ -2005,7 +2003,6 @@ INSTANTIATE_TEST_SUITE_P(
         SubpelAvgVarianceParams(2, 4, &aom_sub_pixel_avg_variance4x16_sse2,
                                 0)));
 
-#if CONFIG_AV1_HIGHBITDEPTH
 #if HAVE_SSE2
 INSTANTIATE_TEST_SUITE_P(
     SSE2, MseHBDWxHTest,
@@ -2344,7 +2341,6 @@ const SubpelAvgVarianceParams kArrayHBDSubpelAvgVariance_sse2[] = {
 INSTANTIATE_TEST_SUITE_P(SSE2, AvxHBDSubpelAvgVarianceTest,
                          ::testing::ValuesIn(kArrayHBDSubpelAvgVariance_sse2));
 #endif  // HAVE_SSE2
-#endif  // CONFIG_AV1_HIGHBITDEPTH
 
 #if HAVE_SSSE3
 INSTANTIATE_TEST_SUITE_P(

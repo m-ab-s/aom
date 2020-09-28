@@ -167,7 +167,6 @@ void aom_quantize_b_helper_c(const tran_low_t *coeff_ptr, intptr_t n_coeffs,
   *eob_ptr = eob + 1;
 }
 
-#if CONFIG_AV1_HIGHBITDEPTH
 void aom_highbd_quantize_b_adaptive_helper_c(
     const tran_low_t *coeff_ptr, intptr_t n_coeffs, const int16_t *zbin_ptr,
     const int16_t *round_ptr, const int16_t *quant_ptr,
@@ -311,7 +310,6 @@ void aom_highbd_quantize_b_helper_c(
   }
   *eob_ptr = eob + 1;
 }
-#endif  // CONFIG_AV1_HIGHBITDEPTH
 
 /* These functions should only be called when quantisation matrices
    are not used. */
@@ -353,7 +351,6 @@ void aom_quantize_b_64x64_adaptive_c(
                                    iscan, NULL, NULL, 2);
 }
 
-#if CONFIG_AV1_HIGHBITDEPTH
 void aom_highbd_quantize_b_adaptive_c(
     const tran_low_t *coeff_ptr, intptr_t n_coeffs, const int16_t *zbin_ptr,
     const int16_t *round_ptr, const int16_t *quant_ptr,
@@ -389,7 +386,6 @@ void aom_highbd_quantize_b_64x64_adaptive_c(
                                           qcoeff_ptr, dqcoeff_ptr, dequant_ptr,
                                           eob_ptr, scan, iscan, NULL, NULL, 2);
 }
-#endif  // CONFIG_AV1_HIGHBITDEPTH
 
 void aom_quantize_b_c(const tran_low_t *coeff_ptr, intptr_t n_coeffs,
                       const int16_t *zbin_ptr, const int16_t *round_ptr,
@@ -426,7 +422,6 @@ void aom_quantize_b_64x64_c(const tran_low_t *coeff_ptr, intptr_t n_coeffs,
                           eob_ptr, scan, iscan, NULL, NULL, 2);
 }
 
-#if CONFIG_AV1_HIGHBITDEPTH
 void aom_highbd_quantize_b_c(const tran_low_t *coeff_ptr, intptr_t n_coeffs,
                              const int16_t *zbin_ptr, const int16_t *round_ptr,
                              const int16_t *quant_ptr,
@@ -463,4 +458,3 @@ void aom_highbd_quantize_b_64x64_c(
                                  dqcoeff_ptr, dequant_ptr, eob_ptr, scan, iscan,
                                  NULL, NULL, 2);
 }
-#endif  // CONFIG_AV1_HIGHBITDEPTH

@@ -55,7 +55,6 @@ static int64_t calculate_sse(MACROBLOCKD *const xd,
                              const int bh) {
   int64_t sse = 0;
   const int shift = xd->bd - 8;
-#if CONFIG_AV1_HIGHBITDEPTH
   if (is_cur_buf_hbd(xd)) {
     sse = aom_highbd_sse(p->src.buf, p->src.stride, pd->dst.buf, pd->dst.stride,
                          bw, bh);
@@ -63,9 +62,6 @@ static int64_t calculate_sse(MACROBLOCKD *const xd,
     sse =
         aom_sse(p->src.buf, p->src.stride, pd->dst.buf, pd->dst.stride, bw, bh);
   }
-#else
-  sse = aom_sse(p->src.buf, p->src.stride, pd->dst.buf, pd->dst.stride, bw, bh);
-#endif
   sse = ROUND_POWER_OF_TWO(sse, shift * 2);
   return sse;
 }

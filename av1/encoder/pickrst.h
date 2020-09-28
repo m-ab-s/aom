@@ -42,7 +42,6 @@ static INLINE uint8_t find_average(const uint8_t *src, int h_start, int h_end,
   return (uint8_t)avg;
 }
 
-#if CONFIG_AV1_HIGHBITDEPTH
 static INLINE uint16_t find_average_highbd(const uint16_t *src, int h_start,
                                            int h_end, int v_start, int v_end,
                                            int stride) {
@@ -55,7 +54,6 @@ static INLINE uint16_t find_average_highbd(const uint16_t *src, int h_start,
   uint64_t avg = sum / ((v_end - v_start) * (h_end - h_start));
   return (uint16_t)avg;
 }
-#endif
 
 /*!\brief Algorithm for AV1 loop restoration search and estimation.
  *

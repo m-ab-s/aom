@@ -234,7 +234,6 @@ INSTANTIATE_TEST_SUITE_P(SSE2, TemporalFilterTest,
                          Combine(ValuesIn(temporal_filter_test_sse2),
                                  Range(64, 65, 4)));
 #endif  // HAVE_SSE2
-#if CONFIG_AV1_HIGHBITDEPTH
 
 typedef void (*HBDTemporalFilterFunc)(
     const YV12_BUFFER_CONFIG *ref_frame, const MACROBLOCKD *mbd,
@@ -450,6 +449,5 @@ INSTANTIATE_TEST_SUITE_P(SSE2, HBDTemporalFilterTest,
                          Combine(ValuesIn(HBDtemporal_filter_test_sse2),
                                  Range(64, 65, 4)));
 #endif  // HAVE_SSE2
-#endif  // CONFIG_AV1_HIGHBITDEPTH
 }  // namespace
 #endif

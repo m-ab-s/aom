@@ -1582,10 +1582,8 @@ static int parse_stream_params(struct AvxEncoderConfig *global,
     } else if (arg_match(&arg, &full_still_picture_hdr, argi)) {
       config->cfg.full_still_picture_hdr = 1;
     } else if (arg_match(&arg, &use_16bit_internal, argi)) {
-      config->use_16bit_internal = CONFIG_AV1_HIGHBITDEPTH;
-      if (!config->use_16bit_internal) {
-        warn("%s option ignored with CONFIG_AV1_HIGHBITDEPTH=0.\n", arg.name);
-      }
+      config->use_16bit_internal = 1;
+      warn("%s option deprecated. default to 1 always.\n", arg.name);
     } else if (arg_match(&arg, &dropframe_thresh, argi)) {
       config->cfg.rc_dropframe_thresh = arg_parse_uint(&arg);
     } else if (arg_match(&arg, &resize_mode, argi)) {
@@ -2547,11 +2545,7 @@ int main(int argc, const char **argv_) {
                   stream->config.cfg.g_input_bit_depth);
         }
       }
-#if !CONFIG_AV1_HIGHBITDEPTH
-      if (stream->config.cfg.g_bit_depth > 8) {
-        fatal("Unsupported bit-depth with CONFIG_AV1_HIGHBITDEPTH=0\n");
-      }
-#endif  // CONFIG_AV1_HIGHBITDEPTH
+
       if (stream->config.cfg.g_bit_depth > 10) {
         switch (stream->config.cfg.g_profile) {
           case 0:

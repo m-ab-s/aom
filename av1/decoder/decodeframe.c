@@ -391,7 +391,6 @@ typedef struct PadBlock {
   int y1;
 } PadBlock;
 
-#if CONFIG_AV1_HIGHBITDEPTH
 static AOM_INLINE void highbd_build_mc_border(const uint8_t *src8,
                                               int src_stride, uint8_t *dst8,
                                               int dst_stride, int x, int y,
@@ -430,7 +429,6 @@ static AOM_INLINE void highbd_build_mc_border(const uint8_t *src8,
     if (y > 0 && y < h) ref_row += src_stride;
   } while (--b_h);
 }
-#endif  // CONFIG_AV1_HIGHBITDEPTH
 
 static AOM_INLINE void build_mc_border(const uint8_t *src, int src_stride,
                                        uint8_t *dst, int dst_stride, int x,
@@ -521,7 +519,6 @@ static INLINE void extend_mc_border(const struct scale_factors *const sf,
     const int b_w = block.x1 - block.x0;
     const int b_h = block.y1 - block.y0;
 
-#if CONFIG_AV1_HIGHBITDEPTH
     // Extend the border.
     if (highbd) {
       highbd_build_mc_border(buf_ptr, buf_stride, mc_buf, b_w, block.x0,
@@ -531,11 +528,7 @@ static INLINE void extend_mc_border(const struct scale_factors *const sf,
       build_mc_border(buf_ptr, buf_stride, mc_buf, b_w, block.x0, block.y0, b_w,
                       b_h, pre_buf->width, pre_buf->height);
     }
-#else
-    (void)highbd;
-    build_mc_border(buf_ptr, buf_stride, mc_buf, b_w, block.x0, block.y0, b_w,
-                    b_h, pre_buf->width, pre_buf->height);
-#endif
+
     *src_stride = b_w;
     *pre = mc_buf + y_pad * (AOM_INTERP_EXTEND - 1) * b_w +
            x_pad * (AOM_INTERP_EXTEND - 1);
@@ -3841,12 +3834,6 @@ static AOM_INLINE void read_bitdepth(
     aom_internal_error(error_info, AOM_CODEC_UNSUP_BITSTREAM,
                        "Unsupported profile/bit-depth combination");
   }
-#if !CONFIG_AV1_HIGHBITDEPTH
-  if (seq_params->bit_depth > AOM_BITS_8) {
-    aom_internal_error(error_info, AOM_CODEC_UNSUP_BITSTREAM,
-                       "Bit-depth %d not supported", seq_params->bit_depth);
-  }
-#endif
 }
 
 void av1_read_film_grain_params(AV1_COMMON *cm,

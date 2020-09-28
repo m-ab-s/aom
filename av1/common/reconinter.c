@@ -143,7 +143,6 @@ void av1_make_inter_predictor(const uint8_t *src, int src_stride, uint8_t *dst,
         dst_stride, inter_pred_params->subsampling_x,
         inter_pred_params->subsampling_y, &inter_pred_params->conv_params);
   } else if (inter_pred_params->mode == TRANSLATION_PRED) {
-#if CONFIG_AV1_HIGHBITDEPTH
     if (inter_pred_params->use_hbd_buf) {
       highbd_inter_predictor(src, src_stride, dst, dst_stride, subpel_params,
                              inter_pred_params->block_width,
@@ -158,13 +157,6 @@ void av1_make_inter_predictor(const uint8_t *src, int src_stride, uint8_t *dst,
                       &inter_pred_params->conv_params,
                       inter_pred_params->interp_filter_params);
     }
-#else
-    inter_predictor(src, src_stride, dst, dst_stride, subpel_params,
-                    inter_pred_params->block_width,
-                    inter_pred_params->block_height,
-                    &inter_pred_params->conv_params,
-                    inter_pred_params->interp_filter_params);
-#endif
   }
 }
 
@@ -648,7 +640,6 @@ static AOM_INLINE void build_masked_compound_no_round(
   const int ssx = inter_pred_params->subsampling_x;
   const uint8_t *mask = av1_get_compound_type_mask(comp_data, sb_type);
   const int mask_stride = block_size_wide[sb_type];
-#if CONFIG_AV1_HIGHBITDEPTH
   if (inter_pred_params->use_hbd_buf) {
     aom_highbd_blend_a64_d16_mask(dst, dst_stride, src0, src0_stride, src1,
                                   src1_stride, mask, mask_stride, w, h, ssx,
@@ -659,11 +650,6 @@ static AOM_INLINE void build_masked_compound_no_round(
                                  src1_stride, mask, mask_stride, w, h, ssx, ssy,
                                  &inter_pred_params->conv_params);
   }
-#else
-  aom_lowbd_blend_a64_d16_mask(dst, dst_stride, src0, src0_stride, src1,
-                               src1_stride, mask, mask_stride, w, h, ssx, ssy,
-                               &inter_pred_params->conv_params);
-#endif
 }
 
 static void make_masked_inter_predictor(const uint8_t *pre, int pre_stride,
@@ -1135,7 +1121,6 @@ static INLINE void build_obmc_inter_pred_above(
     const int tmp_stride = ctxt->adjacent_stride[plane];
     const uint8_t *const tmp = &ctxt->adjacent[plane][plane_col];
     const uint8_t *const mask = av1_get_obmc_mask(bh);
-#if CONFIG_AV1_HIGHBITDEPTH
     const int is_hbd = is_cur_buf_hbd(xd);
     if (is_hbd)
       aom_highbd_blend_a64_vmask(dst, dst_stride, dst, dst_stride, tmp,
@@ -1143,10 +1128,6 @@ static INLINE void build_obmc_inter_pred_above(
     else
       aom_blend_a64_vmask(dst, dst_stride, dst, dst_stride, tmp, tmp_stride,
                           mask, bw, bh);
-#else
-    aom_blend_a64_vmask(dst, dst_stride, dst, dst_stride, tmp, tmp_stride, mask,
-                        bw, bh);
-#endif
   }
 }
 
@@ -1175,7 +1156,6 @@ static INLINE void build_obmc_inter_pred_left(
     const uint8_t *const tmp = &ctxt->adjacent[plane][plane_row * tmp_stride];
     const uint8_t *const mask = av1_get_obmc_mask(bw);
 
-#if CONFIG_AV1_HIGHBITDEPTH
     const int is_hbd = is_cur_buf_hbd(xd);
     if (is_hbd)
       aom_highbd_blend_a64_hmask(dst, dst_stride, dst, dst_stride, tmp,
@@ -1183,10 +1163,6 @@ static INLINE void build_obmc_inter_pred_left(
     else
       aom_blend_a64_hmask(dst, dst_stride, dst, dst_stride, tmp, tmp_stride,
                           mask, bw, bh);
-#else
-    aom_blend_a64_hmask(dst, dst_stride, dst, dst_stride, tmp, tmp_stride, mask,
-                        bw, bh);
-#endif
   }
 }
 
@@ -1216,7 +1192,6 @@ void av1_build_obmc_inter_prediction(const AV1_COMMON *cm, MACROBLOCKD *xd,
 
 void av1_setup_obmc_dst_bufs(MACROBLOCKD *xd, uint8_t **dst_buf1,
                              uint8_t **dst_buf2) {
-#if CONFIG_AV1_HIGHBITDEPTH
   if (is_cur_buf_hbd(xd)) {
     int len = sizeof(uint16_t);
     dst_buf1[0] = CONVERT_TO_BYTEPTR(xd->tmp_obmc_bufs[0]);
@@ -1230,16 +1205,13 @@ void av1_setup_obmc_dst_bufs(MACROBLOCKD *xd, uint8_t **dst_buf1,
     dst_buf2[2] =
         CONVERT_TO_BYTEPTR(xd->tmp_obmc_bufs[1] + MAX_SB_SQUARE * 2 * len);
   } else {
-#endif  // CONFIG_AV1_HIGHBITDEPTH
     dst_buf1[0] = xd->tmp_obmc_bufs[0];
     dst_buf1[1] = xd->tmp_obmc_bufs[0] + MAX_SB_SQUARE;
     dst_buf1[2] = xd->tmp_obmc_bufs[0] + MAX_SB_SQUARE * 2;
     dst_buf2[0] = xd->tmp_obmc_bufs[1];
     dst_buf2[1] = xd->tmp_obmc_bufs[1] + MAX_SB_SQUARE;
     dst_buf2[2] = xd->tmp_obmc_bufs[1] + MAX_SB_SQUARE * 2;
-#if CONFIG_AV1_HIGHBITDEPTH
   }
-#endif  // CONFIG_AV1_HIGHBITDEPTH
 }
 
 void av1_setup_build_prediction_by_above_pred(
@@ -1346,7 +1318,6 @@ static AOM_INLINE void combine_interintra(
                      interstride, mask, bw, bw, bh, 0, 0);
 }
 
-#if CONFIG_AV1_HIGHBITDEPTH
 static AOM_INLINE void combine_interintra_highbd(
     INTERINTRA_MODE mode, int8_t use_wedge_interintra, int8_t wedge_index,
     int8_t wedge_sign, BLOCK_SIZE bsize, BLOCK_SIZE plane_bsize,
@@ -1374,7 +1345,6 @@ static AOM_INLINE void combine_interintra_highbd(
                             interpred8, interstride, mask, bw, bw, bh, 0, 0,
                             bd);
 }
-#endif
 
 void av1_build_intra_predictors_for_interintra(const AV1_COMMON *cm,
                                                MACROBLOCKD *xd,
@@ -1403,7 +1373,7 @@ void av1_combine_interintra(MACROBLOCKD *xd, BLOCK_SIZE bsize, int plane,
   const int ssx = xd->plane[plane].subsampling_x;
   const int ssy = xd->plane[plane].subsampling_y;
   const BLOCK_SIZE plane_bsize = get_plane_block_size(bsize, ssx, ssy);
-#if CONFIG_AV1_HIGHBITDEPTH
+
   if (is_cur_buf_hbd(xd)) {
     combine_interintra_highbd(
         xd->mi[0]->interintra_mode, xd->mi[0]->use_wedge_interintra,
@@ -1412,7 +1382,7 @@ void av1_combine_interintra(MACROBLOCKD *xd, BLOCK_SIZE bsize, int plane,
         inter_pred, inter_stride, intra_pred, intra_stride, xd->bd);
     return;
   }
-#endif
+
   combine_interintra(
       xd->mi[0]->interintra_mode, xd->mi[0]->use_wedge_interintra,
       xd->mi[0]->interintra_wedge_index, INTERINTRA_WEDGE_SIGN, bsize,

@@ -96,9 +96,6 @@ set_aom_config_var(CONFIG_DENOISE 1
                    "Denoise/noise modeling support in encoder.")
 set_aom_config_var(CONFIG_INSPECTION 0 "Enables bitstream inspection.")
 set_aom_config_var(CONFIG_INTERNAL_STATS 0 "Enables internal encoder stats.")
-set_aom_config_var(FORCE_HIGHBITDEPTH_DECODING 0
-                   "Force high bitdepth decoding pipeline on 8-bit input.")
-mark_as_advanced(FORCE_HIGHBITDEPTH_DECODING)
 set_aom_config_var(CONFIG_MAX_DECODE_PROFILE 2
                    "Max profile to support decoding.")
 set_aom_config_var(CONFIG_NORMAL_TILE_MODE 0 "Only enables normal tile mode.")
@@ -129,8 +126,6 @@ set_aom_config_var(CONFIG_LPF_MASK 0
                    "Enable the use loop filter bitmasks for optimizations.")
 set_aom_config_var(CONFIG_REALTIME_ONLY 0
                    "Build for RTC-only to reduce binary size.")
-set_aom_config_var(CONFIG_AV1_HIGHBITDEPTH 1
-                   "Build with high bitdepth support.")
 set_aom_config_var(CONFIG_AV1_TEMPORAL_DENOISING 0
                    "Build with temporal denoising support.")
 set_aom_config_var(CONFIG_NN_V2 0 "Fully-connected neural nets ver.2.")

@@ -217,7 +217,6 @@ TEST_P(EdgeDetectBrightnessTest, DetectUniformBrightness) {
              .magnitude);
 }
 
-#if CONFIG_AV1_HIGHBITDEPTH
 INSTANTIATE_TEST_SUITE_P(ImageBrightnessTests, EdgeDetectBrightnessTest,
                          ::testing::Combine(
                              // Brightness
@@ -232,22 +231,6 @@ INSTANTIATE_TEST_SUITE_P(ImageBrightnessTests, EdgeDetectBrightnessTest,
                              ::testing::Bool(),
                              // Bit depth
                              ::testing::Values(8, 10, 12)));
-#else
-INSTANTIATE_TEST_SUITE_P(ImageBrightnessTests, EdgeDetectBrightnessTest,
-                         ::testing::Combine(
-                             // Brightness
-                             ::testing::Values(0, 1, 2, 127, 128, 129, 254, 255,
-                                               256, 511, 512, 1023, 1024, 2048,
-                                               4095),
-                             // Width
-                             ::testing::Values(8, 16, 32),
-                             // Height
-                             ::testing::Values(4, 8, 12, 32),
-                             // High bit depth representation
-                             ::testing::Values(false),
-                             // Bit depth
-                             ::testing::Values(8)));
-#endif
 
 class EdgeDetectImageTest :
     // Parameters are (width, height, high bit depth representation, bit depth).
@@ -353,9 +336,7 @@ static void hardcoded_blur_test_aux(const bool high_bd) {
 
 TEST(EdgeDetectImageTest, HardcodedBlurTest) {
   hardcoded_blur_test_aux(false);
-#if CONFIG_AV1_HIGHBITDEPTH
   hardcoded_blur_test_aux(true);
-#endif
 }
 
 TEST(EdgeDetectImageTest, SobelTest) {
@@ -367,7 +348,6 @@ TEST(EdgeDetectImageTest, SobelTest) {
   ASSERT_EQ(234, result.x);
   ASSERT_EQ(140, result.y);
 
-#if CONFIG_AV1_HIGHBITDEPTH
   // Verify it works for 8-bit values in a high bit-depth buffer.
   const uint16_t buf8_16[9] = { 241, 147, 7, 90, 184, 103, 28, 186, 2 };
   high_bd = true;
@@ -380,10 +360,8 @@ TEST(EdgeDetectImageTest, SobelTest) {
   result = av1_sobel(CONVERT_TO_BYTEPTR(buf16), stride, 1, 1, high_bd);
   ASSERT_EQ(-2566, result.x);
   ASSERT_EQ(-860, result.y);
-#endif
 }
 
-#if CONFIG_AV1_HIGHBITDEPTH
 INSTANTIATE_TEST_SUITE_P(EdgeDetectImages, EdgeDetectImageTest,
                          ::testing::Combine(
                              // Width
@@ -394,16 +372,4 @@ INSTANTIATE_TEST_SUITE_P(EdgeDetectImages, EdgeDetectImageTest,
                              ::testing::Bool(),
                              // Bit depth
                              ::testing::Values(8, 10, 12)));
-#else
-INSTANTIATE_TEST_SUITE_P(EdgeDetectImages, EdgeDetectImageTest,
-                         ::testing::Combine(
-                             // Width
-                             ::testing::Values(8, 16, 32),
-                             // Height
-                             ::testing::Values(4, 8, 12, 32),
-                             // High bit depth representation
-                             ::testing::Values(false),
-                             // Bit depth
-                             ::testing::Values(8)));
-#endif
 }  // namespace

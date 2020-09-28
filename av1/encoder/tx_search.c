@@ -1185,16 +1185,13 @@ static unsigned pixel_dist_visible_only(
     return sse;
   }
 
-#if CONFIG_AV1_HIGHBITDEPTH
   const MACROBLOCKD *xd = &x->e_mbd;
   if (is_cur_buf_hbd(xd)) {
     uint64_t sse64 = aom_highbd_sse_odd_size(src, src_stride, dst, dst_stride,
                                              visible_cols, visible_rows);
     return (unsigned int)ROUND_POWER_OF_TWO(sse64, (xd->bd - 8) * 2);
   }
-#else
-  (void)x;
-#endif
+
   sse = aom_sse_odd_size(src, src_stride, dst, dst_stride, visible_cols,
                          visible_rows);
   return sse;
@@ -1249,7 +1246,6 @@ static INLINE int64_t dist_block_px_domain(const AV1_COMP *cpi, MACROBLOCK *x,
   uint8_t *recon;
   DECLARE_ALIGNED(16, uint16_t, recon16[MAX_TX_SQUARE]);
 
-#if CONFIG_AV1_HIGHBITDEPTH
   if (is_cur_buf_hbd(xd)) {
     recon = CONVERT_TO_BYTEPTR(recon16);
     aom_highbd_convolve_copy(CONVERT_TO_SHORTPTR(dst), dst_stride,
@@ -1258,10 +1254,6 @@ static INLINE int64_t dist_block_px_domain(const AV1_COMP *cpi, MACROBLOCK *x,
     recon = (uint8_t *)recon16;
     aom_convolve_copy(dst, dst_stride, recon, MAX_TX_SIZE, bsw, bsh);
   }
-#else
-  recon = (uint8_t *)recon16;
-  aom_convolve_copy(dst, dst_stride, recon, MAX_TX_SIZE, bsw, bsh);
-#endif
 
   const PLANE_TYPE plane_type = get_plane_type(plane);
   TX_TYPE tx_type = av1_get_tx_type(xd, plane_type, blk_row, blk_col, tx_size,
@@ -1372,13 +1364,11 @@ static INLINE void dist_block_tx_domain(MACROBLOCK *x, int plane, int block,
   const int block_offset = BLOCK_OFFSET(block);
   tran_low_t *const coeff = p->coeff + block_offset;
   tran_low_t *const dqcoeff = p->dqcoeff + block_offset;
-#if CONFIG_AV1_HIGHBITDEPTH
   MACROBLOCKD *const xd = &x->e_mbd;
   if (is_cur_buf_hbd(xd))
     *out_dist = av1_highbd_block_error(coeff, dqcoeff, buffer_length, &this_sse,
                                        xd->bd);
   else
-#endif
     *out_dist = av1_block_error(coeff, dqcoeff, buffer_length, &this_sse);
 
   *out_dist = RIGHT_SIGNED_SHIFT(*out_dist, shift);

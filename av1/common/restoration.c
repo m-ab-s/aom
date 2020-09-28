@@ -153,7 +153,6 @@ static void extend_frame_lowbd(uint8_t *data, int width, int height, int stride,
   }
 }
 
-#if CONFIG_AV1_HIGHBITDEPTH
 static void extend_frame_highbd(uint16_t *data, int width, int height,
                                 int stride, int border_horz, int border_vert) {
   uint16_t *data_p;
@@ -179,17 +178,14 @@ static void copy_tile_highbd(int width, int height, const uint16_t *src,
   for (int i = 0; i < height; ++i)
     memcpy(dst + i * dst_stride, src + i * src_stride, width * sizeof(*dst));
 }
-#endif
 
 void av1_extend_frame(uint8_t *data, int width, int height, int stride,
                       int border_horz, int border_vert, int highbd) {
-#if CONFIG_AV1_HIGHBITDEPTH
   if (highbd) {
     extend_frame_highbd(CONVERT_TO_SHORTPTR(data), width, height, stride,
                         border_horz, border_vert);
     return;
   }
-#endif
   (void)highbd;
   extend_frame_lowbd(data, width, height, stride, border_horz, border_vert);
 }
@@ -202,13 +198,11 @@ static void copy_tile_lowbd(int width, int height, const uint8_t *src,
 
 static void copy_tile(int width, int height, const uint8_t *src, int src_stride,
                       uint8_t *dst, int dst_stride, int highbd) {
-#if CONFIG_AV1_HIGHBITDEPTH
   if (highbd) {
     copy_tile_highbd(width, height, CONVERT_TO_SHORTPTR(src), src_stride,
                      CONVERT_TO_SHORTPTR(dst), dst_stride);
     return;
   }
-#endif
   (void)highbd;
   copy_tile_lowbd(width, height, src, src_stride, dst, dst_stride);
 }
@@ -965,7 +959,6 @@ static void sgrproj_filter_stripe(const RestorationUnitInfo *rui,
   }
 }
 
-#if CONFIG_AV1_HIGHBITDEPTH
 static void wiener_filter_stripe_highbd(const RestorationUnitInfo *rui,
                                         int stripe_width, int stripe_height,
                                         int procunit_width, const uint8_t *src8,
@@ -999,7 +992,6 @@ static void sgrproj_filter_stripe_highbd(const RestorationUnitInfo *rui,
         rui->sgrproj_info.xqd, dst8 + j, dst_stride, tmpbuf, bit_depth, 1);
   }
 }
-#endif  // CONFIG_AV1_HIGHBITDEPTH
 
 typedef void (*stripe_filter_fun)(const RestorationUnitInfo *rui,
                                   int stripe_width, int stripe_height,
@@ -1007,18 +999,11 @@ typedef void (*stripe_filter_fun)(const RestorationUnitInfo *rui,
                                   int src_stride, uint8_t *dst, int dst_stride,
                                   int32_t *tmpbuf, int bit_depth);
 
-#if CONFIG_AV1_HIGHBITDEPTH
 #define NUM_STRIPE_FILTERS 4
 static const stripe_filter_fun stripe_filters[NUM_STRIPE_FILTERS] = {
   wiener_filter_stripe, sgrproj_filter_stripe, wiener_filter_stripe_highbd,
   sgrproj_filter_stripe_highbd
 };
-#else
-#define NUM_STRIPE_FILTERS 2
-static const stripe_filter_fun stripe_filters[NUM_STRIPE_FILTERS] = {
-  wiener_filter_stripe, sgrproj_filter_stripe
-};
-#endif  // CONFIG_AV1_HIGHBITDEPTH
 
 // Filter one restoration unit
 void av1_loop_restoration_filter_unit(

@@ -28,12 +28,8 @@
 #undef FDCT4x4_2D_LP
 #undef FDCT8x8_2D
 
-#if CONFIG_AV1_HIGHBITDEPTH
-
 #undef DCT_HIGH_BIT_DEPTH
 #define DCT_HIGH_BIT_DEPTH 1
 #define FDCT8x8_2D aom_highbd_fdct8x8_sse2
 #include "aom_dsp/x86/fwd_txfm_impl_sse2.h"  // NOLINT
 #undef FDCT8x8_2D
-
-#endif

@@ -160,7 +160,6 @@ static unsigned int get_prediction_error(BLOCK_SIZE bsize,
   return sse;
 }
 
-#if CONFIG_AV1_HIGHBITDEPTH
 static aom_variance_fn_t highbd_get_block_variance_fn(BLOCK_SIZE bsize,
                                                       int bd) {
   switch (bd) {
@@ -200,7 +199,6 @@ static unsigned int highbd_get_prediction_error(BLOCK_SIZE bsize,
   fn(src->buf, src->stride, ref->buf, ref->stride, &sse);
   return sse;
 }
-#endif  // CONFIG_AV1_HIGHBITDEPTH
 
 // Refine the motion search range according to the frame dimension
 // for first pass test.
@@ -443,13 +441,9 @@ static int get_prediction_error_bitdepth(const int is_high_bitdepth,
                                          const BLOCK_SIZE block_size,
                                          const struct buf_2d *src,
                                          const struct buf_2d *ref) {
-  (void)is_high_bitdepth;
-  (void)bitdepth;
-#if CONFIG_AV1_HIGHBITDEPTH
   if (is_high_bitdepth) {
     return highbd_get_prediction_error(block_size, src, ref, bitdepth);
   }
-#endif  // CONFIG_AV1_HIGHBITDEPTH
   return get_prediction_error(block_size, src, ref);
 }
 

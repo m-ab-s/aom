@@ -45,7 +45,6 @@ typedef std::tuple<distwtdcompavg_func, BLOCK_SIZE> DISTWTDCOMPAVGParam;
 typedef std::tuple<distwtdcompavgupsampled_func, BLOCK_SIZE>
     DISTWTDCOMPAVGUPSAMPLEDParam;
 
-#if CONFIG_AV1_HIGHBITDEPTH
 typedef void (*highbddistwtdcompavgupsampled_func)(
     MACROBLOCKD *xd, const struct AV1Common *const cm, int mi_row, int mi_col,
     const MV *const mv, uint8_t *comp_pred8, const uint8_t *pred8, int width,
@@ -73,7 +72,6 @@ BuildParams(highbddistwtdcompavgupsampled_func filter) {
                             ::testing::Values(filter),
                             ::testing::Range(BLOCK_4X4, BLOCK_SIZES_ALL));
 }
-#endif  // CONFIG_AV1_HIGHBITDEPTH
 
 ::testing::internal::ParamGenerator<DISTWTDCOMPAVGParam> BuildParams(
     distwtdcompavg_func filter) {
@@ -319,7 +317,6 @@ class AV1DISTWTDCOMPAVGUPSAMPLEDTest
   libaom_test::ACMRandom rnd_;
 };  // class AV1DISTWTDCOMPAVGUPSAMPLEDTest
 
-#if CONFIG_AV1_HIGHBITDEPTH
 class AV1HighBDDISTWTDCOMPAVGTest
     : public ::testing::TestWithParam<HighbdDISTWTDCOMPAVGParam> {
  public:
@@ -560,8 +557,7 @@ class AV1HighBDDISTWTDCOMPAVGUPSAMPLEDTest
   }
 
   libaom_test::ACMRandom rnd_;
-};      // class AV1HighBDDISTWTDCOMPAVGUPSAMPLEDTest
-#endif  // CONFIG_AV1_HIGHBITDEPTH
+};  // class AV1HighBDDISTWTDCOMPAVGUPSAMPLEDTest
 
 }  // namespace AV1DISTWTDCOMPAVG
 }  // namespace libaom_test

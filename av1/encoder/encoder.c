@@ -785,9 +785,7 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
     cpi->ext_flags.refresh_frame.update_pending = 0;
   cpi->ext_flags.refresh_frame_context_pending = 0;
 
-#if CONFIG_AV1_HIGHBITDEPTH
   highbd_set_var_fns(cpi);
-#endif
 
   // Init sequence level coding tools
   // This should not be called after the first key frame.
@@ -1316,9 +1314,7 @@ AV1_COMP *av1_create_compressor(AV1EncoderConfig *oxcf, BufferPool *const pool,
   SDSFP(BLOCK_8X32, aom_sad_skip_8x32, aom_sad_skip_8x32x4d);
 #undef SDSFP
 
-#if CONFIG_AV1_HIGHBITDEPTH
   highbd_set_var_fns(cpi);
-#endif
 
   /* av1_init_quantizer() is first called here. Add check in
    * av1_frame_init_quantizer() so that av1_init_quantizer is only
@@ -1555,14 +1551,10 @@ static void generate_psnr_packet(AV1_COMP *cpi) {
   struct aom_codec_cx_pkt pkt;
   int i;
   PSNR_STATS psnr;
-#if CONFIG_AV1_HIGHBITDEPTH
   const uint32_t in_bit_depth = cpi->oxcf.input_cfg.input_bit_depth;
   const uint32_t bit_depth = cpi->td.mb.e_mbd.bd;
   aom_calc_highbd_psnr(cpi->source, &cpi->common.cur_frame->buf, &psnr,
                        bit_depth, in_bit_depth);
-#else
-  aom_calc_psnr(cpi->source, &cpi->common.cur_frame->buf, &psnr);
-#endif
 
   for (i = 0; i < 4; ++i) {
     pkt.data.psnr.samples[i] = psnr.samples[i];
@@ -2589,15 +2581,11 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
   // fixed interval. Note the reconstruction error if it is the frame before
   // the force key frame
   if (cpi->rc.next_key_frame_forced && cpi->rc.frames_to_key == 1) {
-#if CONFIG_AV1_HIGHBITDEPTH
     if (seq_params->use_highbitdepth) {
       cpi->ambient_err = aom_highbd_get_y_sse(cpi->source, &cm->cur_frame->buf);
     } else {
       cpi->ambient_err = aom_get_y_sse(cpi->source, &cm->cur_frame->buf);
     }
-#else
-    cpi->ambient_err = aom_get_y_sse(cpi->source, &cm->cur_frame->buf);
-#endif
   }
 
   cm->cur_frame->buf.color_primaries = seq_params->color_primaries;
@@ -2647,13 +2635,9 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
 
   // Compute sse and rate.
   if (sse != NULL) {
-#if CONFIG_AV1_HIGHBITDEPTH
     *sse = (seq_params->use_highbitdepth)
                ? aom_highbd_get_y_sse(cpi->source, &cm->cur_frame->buf)
                : aom_get_y_sse(cpi->source, &cm->cur_frame->buf);
-#else
-    *sse = aom_get_y_sse(cpi->source, &cm->cur_frame->buf);
-#endif
   }
   if (rate != NULL) {
     const int64_t bits = (*size << 3);
@@ -3354,11 +3338,7 @@ static void compute_internal_stats(AV1_COMP *cpi, int frame_bytes) {
       PSNR_STATS psnr;
       double frame_ssim2 = 0.0, weight = 0.0;
       aom_clear_system_state();
-#if CONFIG_AV1_HIGHBITDEPTH
       aom_calc_highbd_psnr(orig, recon, &psnr, bit_depth, in_bit_depth);
-#else
-      aom_calc_psnr(orig, recon, &psnr);
-#endif
       adjust_image_stat(psnr.psnr[1], psnr.psnr[2], psnr.psnr[3], psnr.psnr[0],
                         &cpi->psnr);
       cpi->total_sq_error += psnr.sse[0];

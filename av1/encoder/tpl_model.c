@@ -48,7 +48,6 @@ static AOM_INLINE void get_quantize_error(const MACROBLOCK *x, int plane,
   QUANT_PARAM quant_param;
   av1_setup_quant(tx_size, 0, AV1_XFORM_QUANT_FP, 0, &quant_param);
 
-#if CONFIG_AV1_HIGHBITDEPTH
   if (is_cur_buf_hbd(xd)) {
     av1_highbd_quantize_fp_facade(coeff, pix_num, p, qcoeff, dqcoeff, eob,
                                   scan_order, &quant_param);
@@ -59,12 +58,6 @@ static AOM_INLINE void get_quantize_error(const MACROBLOCK *x, int plane,
                            &quant_param);
     *recon_error = av1_block_error(coeff, dqcoeff, pix_num, sse) >> shift;
   }
-#else
-  (void)xd;
-  av1_quantize_fp_facade(coeff, pix_num, p, qcoeff, dqcoeff, eob, scan_order,
-                         &quant_param);
-  *recon_error = av1_block_error(coeff, dqcoeff, pix_num, sse) >> shift;
-#endif  // CONFIG_AV1_HIGHBITDEPTH
 
   *recon_error = AOMMAX(*recon_error, 1);
 
@@ -291,7 +284,6 @@ static AOM_INLINE void mode_estimation(AV1_COMP *cpi, MACROBLOCK *x, int mi_row,
   // Pre-load the bottom left line.
   if (xd->left_available &&
       mi_row + tx_size_high_unit[tx_size] < xd->tile.mi_row_end) {
-#if CONFIG_AV1_HIGHBITDEPTH
     if (is_cur_buf_hbd(xd)) {
       uint16_t *dst = CONVERT_TO_SHORTPTR(dst_buffer);
       for (int i = 0; i < bw; ++i)
@@ -302,11 +294,6 @@ static AOM_INLINE void mode_estimation(AV1_COMP *cpi, MACROBLOCK *x, int mi_row,
         dst_buffer[(bw + i) * dst_buffer_stride - 1] =
             dst_buffer[(bw - 1) * dst_buffer_stride - 1];
     }
-#else
-    for (int i = 0; i < bw; ++i)
-      dst_buffer[(bw + i) * dst_buffer_stride - 1] =
-          dst_buffer[(bw - 1) * dst_buffer_stride - 1];
-#endif
   }
 
   // if cpi->sf.tpl_sf.prune_intra_modes is on, then search only DC_PRED,

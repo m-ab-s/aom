@@ -197,7 +197,6 @@ INSTANTIATE_TEST_SUITE_P(NEON, PixelProjErrorTest,
 
 }  // namespace pickrst_test_lowbd
 
-#if CONFIG_AV1_HIGHBITDEPTH
 namespace pickrst_test_highbd {
 static const int kIterations = 100;
 
@@ -540,4 +539,3 @@ INSTANTIATE_TEST_SUITE_P(AVX2, GetProjSubspaceTest,
 #endif  // HAVE_AVX2
 
 }  // namespace get_proj_subspace_test_lowbd
-#endif  // CONFIG_AV1_HIGHBITDEPTH

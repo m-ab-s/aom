@@ -181,7 +181,6 @@ int64_t aom_sse_neon(const uint8_t *a, int a_stride, const uint8_t *b,
   return sse;
 }
 
-#if CONFIG_AV1_HIGHBITDEPTH
 static INLINE uint32_t highbd_sse_W8x1_neon(uint16x8_t q2, uint16x8_t q3) {
   uint32_t sse;
   const uint32_t sse1 = 0;
@@ -443,4 +442,3 @@ int64_t aom_highbd_sse_neon(const uint8_t *a8, int a_stride, const uint8_t *b8,
   }
   return (int64_t)sse;
 }
-#endif

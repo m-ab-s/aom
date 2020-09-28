@@ -154,7 +154,6 @@ void aom_convolve_copy_c(const uint8_t *src, ptrdiff_t src_stride, uint8_t *dst,
   }
 }
 
-#if CONFIG_AV1_HIGHBITDEPTH
 static INLINE int highbd_vert_scalar_product(const uint16_t *a,
                                              ptrdiff_t a_stride,
                                              const int16_t *b) {
@@ -250,4 +249,3 @@ void aom_highbd_convolve_copy_c(const uint16_t *src, ptrdiff_t src_stride,
     dst += dst_stride;
   }
 }
-#endif  // CONFIG_AV1_HIGHBITDEPTH

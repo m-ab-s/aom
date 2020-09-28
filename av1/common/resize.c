@@ -759,7 +759,6 @@ static void upscale_normative_rect(const uint8_t *const input, int height,
   }
 }
 
-#if CONFIG_AV1_HIGHBITDEPTH
 static void highbd_interpolate_core(const uint16_t *const input, int in_length,
                                     uint16_t *output, int out_length, int bd,
                                     const int16_t *interp_filters,
@@ -1107,7 +1106,6 @@ static void highbd_upscale_normative_rect(const uint8_t *const input,
     aom_free(tmp_right);
   }
 }
-#endif  // CONFIG_AV1_HIGHBITDEPTH
 
 void av1_resize_frame420(const uint8_t *const y, int y_stride,
                          const uint8_t *const u, const uint8_t *const v,
@@ -1145,7 +1143,6 @@ void av1_resize_frame444(const uint8_t *const y, int y_stride,
                    ouv_stride);
 }
 
-#if CONFIG_AV1_HIGHBITDEPTH
 void av1_highbd_resize_frame420(const uint8_t *const y, int y_stride,
                                 const uint8_t *const u, const uint8_t *const v,
                                 int uv_stride, int height, int width,
@@ -1187,7 +1184,6 @@ void av1_highbd_resize_frame444(const uint8_t *const y, int y_stride,
   av1_highbd_resize_plane(v, height, width, uv_stride, ov, oheight, owidth,
                           ouv_stride, bd);
 }
-#endif  // CONFIG_AV1_HIGHBITDEPTH
 
 void av1_resize_and_extend_frame_c(const YV12_BUFFER_CONFIG *src,
                                    YV12_BUFFER_CONFIG *dst,
@@ -1237,7 +1233,6 @@ void av1_resize_and_extend_frame_nonnormative(const YV12_BUFFER_CONFIG *src,
   // the static analysis warnings.
   for (int i = 0; i < AOMMIN(num_planes, MAX_MB_PLANE); ++i) {
     const int is_uv = i > 0;
-#if CONFIG_AV1_HIGHBITDEPTH
     if (src->flags & YV12_FLAG_HIGHBITDEPTH)
       av1_highbd_resize_plane(src->buffers[i], src->crop_heights[is_uv],
                               src->crop_widths[is_uv], src->strides[is_uv],
@@ -1248,13 +1243,6 @@ void av1_resize_and_extend_frame_nonnormative(const YV12_BUFFER_CONFIG *src,
                        src->crop_widths[is_uv], src->strides[is_uv],
                        dst->buffers[i], dst->crop_heights[is_uv],
                        dst->crop_widths[is_uv], dst->strides[is_uv]);
-#else
-    (void)bd;
-    av1_resize_plane(src->buffers[i], src->crop_heights[is_uv],
-                     src->crop_widths[is_uv], src->strides[is_uv],
-                     dst->buffers[i], dst->crop_heights[is_uv],
-                     dst->crop_widths[is_uv], dst->strides[is_uv]);
-#endif
   }
   aom_extend_frame_borders(dst, num_planes);
 }
@@ -1304,7 +1292,6 @@ void av1_upscale_normative_rows(const AV1_COMMON *cm, const uint8_t *src,
     const int pad_left = (j == 0);
     const int pad_right = (j == cm->tiles.cols - 1);
 
-#if CONFIG_AV1_HIGHBITDEPTH
     if (cm->seq_params.use_highbitdepth)
       highbd_upscale_normative_rect(src_ptr, rows, src_width, src_stride,
                                     dst_ptr, rows, dst_width, dst_stride,
@@ -1314,11 +1301,7 @@ void av1_upscale_normative_rows(const AV1_COMMON *cm, const uint8_t *src,
       upscale_normative_rect(src_ptr, rows, src_width, src_stride, dst_ptr,
                              rows, dst_width, dst_stride, x_step_qn, x0_qn,
                              pad_left, pad_right);
-#else
-    upscale_normative_rect(src_ptr, rows, src_width, src_stride, dst_ptr, rows,
-                           dst_width, dst_stride, x_step_qn, x0_qn, pad_left,
-                           pad_right);
-#endif
+
     // Update the fractional pixel offset to prepare for the next tile column.
     x0_qn += (dst_width * x_step_qn) - (src_width << RS_SCALE_SUBPEL_BITS);
   }
@@ -1353,21 +1336,12 @@ YV12_BUFFER_CONFIG *av1_scale_if_required(
 
   if (scaling_required) {
     const int num_planes = av1_num_planes(cm);
-#if CONFIG_AV1_HIGHBITDEPTH
     if (use_optimized_scaler && cm->seq_params.bit_depth == AOM_BITS_8) {
       av1_resize_and_extend_frame(unscaled, scaled, filter, phase, num_planes);
     } else {
       av1_resize_and_extend_frame_nonnormative(
           unscaled, scaled, (int)cm->seq_params.bit_depth, num_planes);
     }
-#else
-    if (use_optimized_scaler) {
-      av1_resize_and_extend_frame(unscaled, scaled, filter, phase, num_planes);
-    } else {
-      av1_resize_and_extend_frame_nonnormative(
-          unscaled, scaled, (int)cm->seq_params.bit_depth, num_planes);
-    }
-#endif
     return scaled;
   } else {
     return unscaled;

@@ -16,6 +16,7 @@ namespace libaom_test {
 #define NELEMENTS(x) static_cast<int>(sizeof(x) / sizeof(x[0]))
 
 #if CONFIG_AV1_DECODER
+/* clang-format off */
 const char *const kAV1TestVectors[] = { "av1-1-b8-00-quantizer-00.ivf",
                                         "av1-1-b8-00-quantizer-01.ivf",
                                         "av1-1-b8-00-quantizer-02.ivf",
@@ -80,7 +81,6 @@ const char *const kAV1TestVectors[] = { "av1-1-b8-00-quantizer-00.ivf",
                                         "av1-1-b8-00-quantizer-61.ivf",
                                         "av1-1-b8-00-quantizer-62.ivf",
                                         "av1-1-b8-00-quantizer-63.ivf",
-#if CONFIG_AV1_HIGHBITDEPTH
                                         "av1-1-b10-00-quantizer-00.ivf",
                                         "av1-1-b10-00-quantizer-01.ivf",
                                         "av1-1-b10-00-quantizer-02.ivf",
@@ -146,7 +146,6 @@ const char *const kAV1TestVectors[] = { "av1-1-b8-00-quantizer-00.ivf",
                                         "av1-1-b10-00-quantizer-62.ivf",
                                         "av1-1-b10-00-quantizer-63.ivf",
                                         "av1-1-b10-23-film_grain-50.ivf",
-#endif  // CONFIG_AV1_HIGHBITDEPTH
                                         "av1-1-b8-01-size-16x16.ivf",
                                         "av1-1-b8-01-size-16x18.ivf",
                                         "av1-1-b8-01-size-16x32.ivf",
@@ -257,6 +256,7 @@ const char *const kAV1TestVectors[] = { "av1-1-b8-00-quantizer-00.ivf",
                                         "av1-1-b8-22-svc-L2T1.ivf",
                                         "av1-1-b8-22-svc-L2T2.ivf",
                                         "av1-1-b8-23-film_grain-50.ivf" };
+/* clang-format on */
 const int kNumAV1TestVectors = NELEMENTS(kAV1TestVectors);
 #endif  // CONFIG_AV1_DECODER
 
