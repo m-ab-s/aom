@@ -61,33 +61,6 @@ static double calculate_active_area(const FRAME_INFO *frame_info,
 // Calculate a modified Error used in distributing bits between easier and
 // harder frames.
 #define ACT_AREA_CORRECTION 0.5
-#if !CONFIG_SINGLEPASS
-static double calculate_modified_err(const FRAME_INFO *frame_info,
-                                     const TWO_PASS *twopass,
-                                     const AV1EncoderConfig *oxcf,
-                                     const FIRSTPASS_STATS *this_frame) {
-  const FIRSTPASS_STATS *const stats = twopass->stats_buf_ctx->total_stats;
-  if (stats == NULL) return 0;
-  assert(stats->count);
-  const double av_weight = stats->weight / stats->count;
-  const double av_err = (stats->coded_error * av_weight) / stats->count;
-  double modified_error =
-      av_err * pow(this_frame->coded_error * this_frame->weight /
-                       DOUBLE_DIVIDE_CHECK(av_err),
-                   oxcf->rc_cfg.vbrbias / 100.0);
-
-  // Correction for active area. Frames with a reduced active area
-  // (eg due to formatting bars) have a higher error per mb for the
-  // remaining active MBs. The correction here assumes that coding
-  // 0.5N blocks of complexity 2X is a little easier than coding N
-  // blocks of complexity X.
-  modified_error *=
-      pow(calculate_active_area(frame_info, this_frame), ACT_AREA_CORRECTION);
-
-  return fclamp(modified_error, twopass->modified_error_min,
-                twopass->modified_error_max);
-}
-#endif  // !CONFIG_SINGLEPASS
 
 // Resets the first pass file to the given position using a relative seek from
 // the current position.
@@ -1490,12 +1463,7 @@ static void define_gf_group_pass0(AV1_COMP *cpi,
 
 static INLINE void set_baseline_gf_interval(AV1_COMP *cpi, int arf_position,
                                             int active_max_gf_interval,
-                                            int use_alt_ref
-#if !CONFIG_SINGLEPASS
-                                            ,
-                                            int is_final_pass
-#endif  // !CONFIG_SINGLEPASS
-) {
+                                            int use_alt_ref) {
   RATE_CONTROL *const rc = &cpi->rc;
   TWO_PASS *const twopass = &cpi->twopass;
   // Set the interval until the next gf.
@@ -1516,18 +1484,12 @@ static INLINE void set_baseline_gf_interval(AV1_COMP *cpi, int arf_position,
       // if possible, merge the last two gf groups
       if (rc->frames_to_key <= active_max_gf_interval) {
         rc->baseline_gf_interval = rc->frames_to_key;
-#if !CONFIG_SINGLEPASS
-        if (is_final_pass)
-#endif  // !CONFIG_SINGLEPASS
-          rc->intervals_till_gf_calculate_due = 0;
+        rc->intervals_till_gf_calculate_due = 0;
         // if merging the last two gf groups creates a group that is too long,
         // split them and force the last gf group to be the MIN_FWD_KF_INTERVAL
       } else {
         rc->baseline_gf_interval = rc->frames_to_key - MIN_FWD_KF_INTERVAL;
-#if !CONFIG_SINGLEPASS
-        if (is_final_pass)
-#endif  // !CONFIG_SINGLEPASS
-          rc->intervals_till_gf_calculate_due = 0;
+        rc->intervals_till_gf_calculate_due = 0;
       }
     } else {
       rc->baseline_gf_interval = arf_position - rc->source_alt_ref_pending;
@@ -1576,19 +1538,12 @@ static void init_gf_stats(GF_GROUP_STATS *gf_stats) {
  * \param[in]    this_frame      First pass statistics structure
  * \param[in]    frame_params    Structure with frame parameters
  * \param[in]    max_gop_length  Maximum length of the GF group
- * \param[in]    is_final_pass   Whether this is the final pass for the
- *                               GF group, or a trial (non-zero)
  *
  * \return Nothing is returned. Instead, cpi->gf_group is changed.
  */
 static void define_gf_group(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
                             const EncodeFrameParams *const frame_params,
-                            int max_gop_length
-#if !CONFIG_SINGLEPASS
-                            ,
-                            int is_final_pass
-#endif  // !CONFIG_SINGLEPASS
-) {
+                            int max_gop_length) {
   AV1_COMMON *const cm = &cpi->common;
   RATE_CONTROL *const rc = &cpi->rc;
   const AV1EncoderConfig *const oxcf = &cpi->oxcf;
@@ -1640,12 +1595,7 @@ static void define_gf_group(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
   const int can_disable_arf = !gf_cfg->gf_min_pyr_height;
 
   // Load stats for the current frame.
-  double mod_frame_err =
-#if CONFIG_SINGLEPASS
-      0.0;
-#else
-      calculate_modified_err(frame_info, twopass, oxcf, this_frame);
-#endif  // CONFIG_SINGLEPASS
+  double mod_frame_err = 0.0;
 
   // Note the error of the frame at the start of the group. This will be
   // the GF frame error if we code a normal gf.
@@ -1675,12 +1625,7 @@ static void define_gf_group(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
   while (i < rc->gf_intervals[rc->cur_gf_index]) {
     ++i;
     // Accumulate error score of frames in this gf group.
-    mod_frame_err =
-#if CONFIG_SINGLEPASS
-        0.0;
-#else
-        calculate_modified_err(frame_info, twopass, oxcf, this_frame);
-#endif  // CONFIG_SINGLEPASS
+    mod_frame_err = 0.0;
     // accumulate stats for this frame
     accumulate_this_frame_stats(this_frame, mod_frame_err, &gf_stats);
 
@@ -1702,15 +1647,8 @@ static void define_gf_group(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
   last_frame_stats.frame_sr_coded_error = next_frame.sr_coded_error;
   last_frame_stats.frame_tr_coded_error = next_frame.tr_coded_error;
 
-#if CONFIG_SINGLEPASS
   rc->intervals_till_gf_calculate_due--;
   rc->cur_gf_index++;
-#else
-  if (is_final_pass) {
-    rc->intervals_till_gf_calculate_due--;
-    rc->cur_gf_index++;
-  }
-#endif  // CONFIG_SINGLEPASS
 
   // Was the group length constrained by the requirement for a new KF?
   rc->constrained_gf_group = (i >= rc->frames_to_key) ? 1 : 0;
@@ -1795,10 +1733,7 @@ static void define_gf_group(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
       if (i - roll_back >= active_min_gf_interval + 1) {
         alt_offset = -roll_back;
         i -= roll_back;
-#if !CONFIG_SINGLEPASS
-        if (is_final_pass)
-#endif  // !CONFIG_SINGLEPASS
-          rc->intervals_till_gf_calculate_due = 0;
+        rc->intervals_till_gf_calculate_due = 0;
       }
     }
   }
@@ -1807,12 +1742,7 @@ static void define_gf_group(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
   if (use_alt_ref) {
     rc->source_alt_ref_pending = 1;
     gf_group->max_layer_depth_allowed = gf_cfg->gf_max_pyr_height;
-#if CONFIG_SINGLEPASS
     set_baseline_gf_interval(cpi, i, active_max_gf_interval, use_alt_ref);
-#else
-    set_baseline_gf_interval(cpi, i, active_max_gf_interval, use_alt_ref,
-                             is_final_pass);
-#endif  // CONFIG_SINGLEPASS
 
     const int forward_frames = (rc->frames_to_key - i >= i - 1)
                                    ? i - 1
@@ -1827,12 +1757,7 @@ static void define_gf_group(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
     reset_fpf_position(twopass, start_pos);
     rc->source_alt_ref_pending = 0;
     gf_group->max_layer_depth_allowed = 0;
-#if CONFIG_SINGLEPASS
     set_baseline_gf_interval(cpi, i, active_max_gf_interval, use_alt_ref);
-#else
-    set_baseline_gf_interval(cpi, i, active_max_gf_interval, use_alt_ref,
-                             is_final_pass);
-#endif  // CONFIG_SINGLEPASS
 
     rc->gfu_boost = AOMMIN(
         MAX_GF_BOOST,
@@ -1847,17 +1772,10 @@ static void define_gf_group(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
   // the next gf group.
   // TODO(bohanli): should incorporate the usage of alt_ref into
   // calculate_gf_length
-#if CONFIG_SINGLEPASS
   if (rc->source_alt_ref_pending == 0 &&
       rc->intervals_till_gf_calculate_due > 0) {
     rc->gf_intervals[rc->cur_gf_index]--;
   }
-#else
-  if (is_final_pass && rc->source_alt_ref_pending == 0 &&
-      rc->intervals_till_gf_calculate_due > 0) {
-    rc->gf_intervals[rc->cur_gf_index]--;
-  }
-#endif  // CONFIG_SINGLEPASS
 
 #define LAST_ALR_BOOST_FACTOR 0.2f
   rc->arf_boost_factor = 1.0;
@@ -1926,10 +1844,7 @@ static void define_gf_group(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
 #endif
 
   // Adjust KF group bits and error remaining.
-#if !CONFIG_SINGLEPASS
-  if (is_final_pass)
-#endif  // !CONFIG_SINGLEPASS
-    twopass->kf_group_error_left -= (int64_t)gf_stats.gf_group_err;
+  twopass->kf_group_error_left -= (int64_t)gf_stats.gf_group_err;
 
   // Set up the structure of this Group-Of-Pictures (same as GF_GROUP)
   av1_gop_setup_structure(cpi, frame_params);
@@ -2206,13 +2121,6 @@ static int define_kf_interval(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
     // Accumulate total number of stats available till next key frame
     num_stats_used_for_kf_boost++;
 
-#if !CONFIG_SINGLEPASS
-    // Accumulate kf group error.
-    if (kf_group_err != NULL)
-      *kf_group_err +=
-          calculate_modified_err(frame_info, twopass, oxcf, this_frame);
-#endif  // !CONFIG_SINGLEPASS
-
     // Load the next frame's stats.
     last_frame = *this_frame;
     input_stats(twopass, this_frame);
@@ -2446,9 +2354,6 @@ static void find_next_key_frame(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame) {
   RATE_CONTROL *const rc = &cpi->rc;
   TWO_PASS *const twopass = &cpi->twopass;
   GF_GROUP *const gf_group = &cpi->gf_group;
-#if !CONFIG_SINGLEPASS
-  FRAME_INFO *const frame_info = &cpi->frame_info;
-#endif  // !CONFIG_SINGLEPASS
   AV1_COMMON *const cm = &cpi->common;
   CurrentFrame *const current_frame = &cm->current_frame;
   const AV1EncoderConfig *const oxcf = &cpi->oxcf;
@@ -2508,12 +2413,7 @@ static void find_next_key_frame(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame) {
   twopass->kf_group_error_left = 0;  // Group modified error score.
 
   kf_raw_err = this_frame->intra_error;
-  kf_mod_err =
-#if CONFIG_SINGLEPASS
-      0.0;
-#else
-      calculate_modified_err(frame_info, twopass, oxcf, this_frame);
-#endif  // CONFIG_SINGLEPASS
+  kf_mod_err = 0.0;
 
   frames_to_key =
       define_kf_interval(cpi, this_frame, &kf_group_err, kf_cfg->key_freq_max);
@@ -2541,23 +2441,12 @@ static void find_next_key_frame(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame) {
 
     // Rescan to get the correct error data for the forced kf group.
     for (i = 0; i < rc->frames_to_key; ++i) {
-#if !CONFIG_SINGLEPASS
-      kf_group_err +=
-          calculate_modified_err(frame_info, twopass, oxcf, &tmp_frame);
-#endif  // !CONFIG_SINGLEPASS
       if (EOF == input_stats(twopass, &tmp_frame)) break;
     }
     rc->next_key_frame_forced = 1;
 
-#if CONFIG_SINGLEPASS
   } else if (rc->frames_to_key >= kf_cfg->key_freq_max) {
     rc->next_key_frame_forced = 1;
-#else
-  } else if ((twopass->stats_in == twopass->stats_buf_ctx->stats_in_end &&
-              is_stat_consumption_stage_twopass(cpi)) ||
-             rc->frames_to_key >= kf_cfg->key_freq_max) {
-    rc->next_key_frame_forced = 1;
-#endif  // CONFIG_SINGLEPASS
   } else {
     rc->next_key_frame_forced = 0;
   }
@@ -2567,10 +2456,6 @@ static void find_next_key_frame(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame) {
   // Special case for the last key frame of the file.
   if (twopass->stats_in >= twopass->stats_buf_ctx->stats_in_end) {
     // Accumulate kf group error.
-#if !CONFIG_SINGLEPASS
-    kf_group_err +=
-        calculate_modified_err(frame_info, twopass, oxcf, this_frame);
-#endif  // !CONFIG_SINGLEPASS
   }
 
   // Calculate the number of bits that should be assigned to the kf group.
@@ -2822,9 +2707,6 @@ static void setup_target_rate(AV1_COMP *cpi) {
 
 void av1_get_second_pass_params(AV1_COMP *cpi,
                                 EncodeFrameParams *const frame_params,
-#if !CONFIG_SINGLEPASS
-                                const EncodeFrameInput *const frame_input,
-#endif  // !CONFIG_SINGLEPASS
                                 unsigned int frame_flags) {
   RATE_CONTROL *const rc = &cpi->rc;
   TWO_PASS *const twopass = &cpi->twopass;
@@ -2942,46 +2824,14 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
 
     reset_fpf_position(twopass, start_position);
 
-#if CONFIG_SINGLEPASS
     int max_gop_length = MAX_GF_LENGTH_LAP;
-#else
-    int max_gop_length =
-        (oxcf->gf_cfg.lag_in_frames >= 32 &&
-         is_stat_consumption_stage_twopass(cpi))
-            ? AOMMIN(MAX_GF_INTERVAL, oxcf->gf_cfg.lag_in_frames -
-                                          oxcf->algo_cfg.arnr_max_frames / 2)
-            : MAX_GF_LENGTH_LAP;
-#endif  // CONFIG_SINGLEPASS
     if (rc->intervals_till_gf_calculate_due == 0) {
       calculate_gf_length(cpi, max_gop_length, MAX_NUM_GF_INTERVALS);
     }
 
-#if CONFIG_SINGLEPASS
     // Note max_gop_length = MAX_GF_LENGTH_LAP (16) in 1-pass case
     assert(max_gop_length == MAX_GF_LENGTH_LAP);
     define_gf_group(cpi, &this_frame, frame_params, max_gop_length);
-#else
-    if (max_gop_length > 16 && oxcf->algo_cfg.enable_tpl_model &&
-        !cpi->sf.tpl_sf.disable_gop_length_decision) {
-      if (rc->gf_intervals[rc->cur_gf_index] - 1 > 16) {
-        // The calculate_gf_length function is previously used with
-        // max_gop_length = 32 with look-ahead gf intervals.
-        define_gf_group(cpi, &this_frame, frame_params, max_gop_length, 0);
-        if (!av1_tpl_setup_stats(cpi, 1, frame_params, frame_input)) {
-          // Tpl decides that a shorter gf interval is better.
-          // TODO(jingning): Remove redundant computations here.
-          max_gop_length = 16;
-          calculate_gf_length(cpi, max_gop_length, 1);
-        }
-      } else {
-        // Even based on 32 we still decide to use a short gf interval.
-        // Better to re-decide based on 16 then
-        max_gop_length = 16;
-        calculate_gf_length(cpi, max_gop_length, 1);
-      }
-    }
-    define_gf_group(cpi, &this_frame, frame_params, max_gop_length, 1);
-#endif  // CONFIG_SINGLEPASS
     rc->frames_till_gf_update_due = rc->baseline_gf_interval;
     assert(gf_group->index == 0);
 
@@ -3009,72 +2859,6 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
 
   setup_target_rate(cpi);
 }
-
-#if !CONFIG_SINGLEPASS
-void av1_init_second_pass(AV1_COMP *cpi) {
-  const AV1EncoderConfig *const oxcf = &cpi->oxcf;
-  TWO_PASS *const twopass = &cpi->twopass;
-  FRAME_INFO *const frame_info = &cpi->frame_info;
-  double frame_rate;
-  FIRSTPASS_STATS *stats;
-
-  if (!twopass->stats_buf_ctx->stats_in_end) return;
-
-  stats = twopass->stats_buf_ctx->total_stats;
-
-  *stats = *twopass->stats_buf_ctx->stats_in_end;
-  *twopass->stats_buf_ctx->total_left_stats = *stats;
-
-  frame_rate = 10000000.0 * stats->count / stats->duration;
-  // Each frame can have a different duration, as the frame rate in the source
-  // isn't guaranteed to be constant. The frame rate prior to the first frame
-  // encoded in the second pass is a guess. However, the sum duration is not.
-  // It is calculated based on the actual durations of all frames from the
-  // first pass.
-  av1_new_framerate(cpi, frame_rate);
-  twopass->bits_left =
-      (int64_t)(stats->duration * oxcf->rc_cfg.target_bandwidth / 10000000.0);
-
-  // This variable monitors how far behind the second ref update is lagging.
-  twopass->sr_update_lag = 1;
-
-  // Scan the first pass file and calculate a modified total error based upon
-  // the bias/power function used to allocate bits.
-  {
-    const double avg_error =
-        stats->coded_error / DOUBLE_DIVIDE_CHECK(stats->count);
-    const FIRSTPASS_STATS *s = twopass->stats_in;
-    double modified_error_total = 0.0;
-    twopass->modified_error_min =
-        (avg_error * oxcf->rc_cfg.vbrmin_section) / 100;
-    twopass->modified_error_max =
-        (avg_error * oxcf->rc_cfg.vbrmax_section) / 100;
-    while (s < twopass->stats_buf_ctx->stats_in_end) {
-      modified_error_total +=
-          calculate_modified_err(frame_info, twopass, oxcf, s);
-      ++s;
-    }
-    twopass->modified_error_left = modified_error_total;
-  }
-
-  // Reset the vbr bits off target counters
-  cpi->rc.vbr_bits_off_target = 0;
-  cpi->rc.vbr_bits_off_target_fast = 0;
-
-  cpi->rc.rate_error_estimate = 0;
-
-  // Static sequence monitor variables.
-  twopass->kf_zeromotion_pct = 100;
-  twopass->last_kfgroup_zeromotion_pct = 100;
-
-  // Initialize bits per macro_block estimate correction factor.
-  twopass->bpm_factor = 1.0;
-  // Initialize actual and target bits counters for ARF groups so that
-  // at the start we have a neutral bpm adjustment.
-  twopass->rolling_arf_group_target_bits = 1;
-  twopass->rolling_arf_group_actual_bits = 1;
-}
-#endif  // !CONFIG_SINGLEPASS
 
 void av1_init_single_pass_lap(AV1_COMP *cpi) {
   TWO_PASS *const twopass = &cpi->twopass;

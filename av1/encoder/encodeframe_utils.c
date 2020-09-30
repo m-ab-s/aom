@@ -729,23 +729,6 @@ int av1_active_h_edge(const AV1_COMP *cpi, int mi_row, int mi_step) {
   int bottom_edge = cpi->common.mi_params.mi_rows;
   int is_active_h_edge = 0;
 
-#if !CONFIG_SINGLEPASS
-  // For two pass account for any formatting bars detected.
-  if (is_stat_consumption_stage_twopass(cpi)) {
-    const AV1_COMMON *const cm = &cpi->common;
-    const FIRSTPASS_STATS *const this_frame_stats = read_one_frame_stats(
-        &cpi->twopass, cm->current_frame.display_order_hint);
-    if (this_frame_stats == NULL) return AOM_CODEC_ERROR;
-
-    // The inactive region is specified in MBs not mi units.
-    // The image edge is in the following MB row.
-    top_edge += (int)(this_frame_stats->inactive_zone_rows * 4);
-
-    bottom_edge -= (int)(this_frame_stats->inactive_zone_rows * 4);
-    bottom_edge = AOMMAX(top_edge, bottom_edge);
-  }
-#endif  // !CONFIG_SINGLEPASS
-
   if (((top_edge >= mi_row) && (top_edge < (mi_row + mi_step))) ||
       ((bottom_edge >= mi_row) && (bottom_edge < (mi_row + mi_step)))) {
     is_active_h_edge = 1;
@@ -760,23 +743,6 @@ int av1_active_v_edge(const AV1_COMP *cpi, int mi_col, int mi_step) {
   int left_edge = 0;
   int right_edge = cpi->common.mi_params.mi_cols;
   int is_active_v_edge = 0;
-
-#if !CONFIG_SINGLEPASS
-  // For two pass account for any formatting bars detected.
-  if (is_stat_consumption_stage_twopass(cpi)) {
-    const AV1_COMMON *const cm = &cpi->common;
-    const FIRSTPASS_STATS *const this_frame_stats = read_one_frame_stats(
-        &cpi->twopass, cm->current_frame.display_order_hint);
-    if (this_frame_stats == NULL) return AOM_CODEC_ERROR;
-
-    // The inactive region is specified in MBs not mi units.
-    // The image edge is in the following MB row.
-    left_edge += (int)(this_frame_stats->inactive_zone_cols * 4);
-
-    right_edge -= (int)(this_frame_stats->inactive_zone_cols * 4);
-    right_edge = AOMMAX(left_edge, right_edge);
-  }
-#endif  // !CONFIG_SINGLEPASS
 
   if (((left_edge >= mi_col) && (left_edge < (mi_col + mi_step))) ||
       ((right_edge >= mi_col) && (right_edge < (mi_col + mi_step)))) {

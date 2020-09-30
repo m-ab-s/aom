@@ -137,7 +137,6 @@ encoder and referenced elsewhere in this overview document:
     - \ref RateControlCfg.maximum_buffer_size_ms
     - \ref RateControlCfg.starting_buffer_level_ms
     - \ref RateControlCfg.optimal_buffer_level_ms
-    - \ref RateControlCfg.vbrbias
     - \ref RateControlCfg.vbrmin_section
     - \ref RateControlCfg.vbrmax_section
 
@@ -539,7 +538,6 @@ control configuration data structures.
 
 The following control aspects of vbr encoding
 
-- <b>--bias-pct</b> (\ref RateControlCfg.vbrbias)
 - <b>--minsection-pct</b> ((\ref RateControlCfg.vbrmin_section)
 - <b>--maxsection-pct</b> ((\ref RateControlCfg.vbrmax_section)
 

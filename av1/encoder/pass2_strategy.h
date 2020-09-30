@@ -64,10 +64,6 @@ typedef struct {
 } GF_FRAME_STATS;
 /*!cond */
 
-#if !CONFIG_SINGLEPASS
-void av1_init_second_pass(struct AV1_COMP *cpi);
-#endif  // !CONFIG_SINGLEPASS
-
 void av1_init_single_pass_lap(AV1_COMP *cpi);
 
 /*!\endcond */
@@ -85,7 +81,6 @@ void av1_init_single_pass_lap(AV1_COMP *cpi);
  *
  * \param[in]    cpi           Top - level encoder instance structure
  * \param[in]    frame_params  Per frame encoding parameters
- * \param[in]    frame_input   Current and last input frame buffers
  * \param[in]    frame_flags   Frame type and coding flags
  *
  * \return No return but analyses first pass stats and assigns a target
@@ -93,9 +88,6 @@ void av1_init_single_pass_lap(AV1_COMP *cpi);
  */
 void av1_get_second_pass_params(struct AV1_COMP *cpi,
                                 struct EncodeFrameParams *const frame_params,
-#if !CONFIG_SINGLEPASS
-                                const EncodeFrameInput *const frame_input,
-#endif  // !CONFIG_SINGLEPASS
                                 unsigned int frame_flags);
 
 /*!\brief Adjustments to two pass and rate control after each frame.

@@ -878,15 +878,9 @@ AV1_COMP *av1_create_compressor(AV1EncoderConfig *oxcf, BufferPool *const pool,
   CommonModeInfoParams *const mi_params = &cm->mi_params;
   mi_params->free_mi = enc_free_mi;
   mi_params->setup_mi = enc_setup_mi;
-#if CONFIG_SINGLEPASS
   mi_params->set_mb_mi = (cpi->compressor_stage == LAP_STAGE)
                              ? stat_stage_set_mb_mi
                              : enc_set_mb_mi;
-#else
-  mi_params->set_mb_mi = (oxcf->pass == 1 || cpi->compressor_stage == LAP_STAGE)
-                             ? stat_stage_set_mb_mi
-                             : enc_set_mb_mi;
-#endif  // CONFIG_SINGLEPASS
 
   mi_params->mi_alloc_bsize = BLOCK_4X4;
 
@@ -907,11 +901,7 @@ AV1_COMP *av1_create_compressor(AV1EncoderConfig *oxcf, BufferPool *const pool,
 
   cpi->frames_left = cpi->oxcf.input_cfg.limit;
 
-#if CONFIG_SINGLEPASS
   av1_rc_init(&cpi->oxcf, 0, &cpi->rc);
-#else
-  av1_rc_init(&cpi->oxcf, oxcf->pass, &cpi->rc);
-#endif  // CONFIG_SINGLEPASS
 
   // For two pass and lag_in_frames > 33 in LAP.
   cpi->rc.enable_scenecut_detection = ENABLE_SCENECUT_MODE_2;
@@ -1000,24 +990,7 @@ AV1_COMP *av1_create_compressor(AV1EncoderConfig *oxcf, BufferPool *const pool,
 
 #if !CONFIG_REALTIME_ONLY
   if (is_stat_consumption_stage(cpi)) {
-#if CONFIG_SINGLEPASS
     av1_init_single_pass_lap(cpi);
-#else
-    const size_t packet_sz = sizeof(FIRSTPASS_STATS);
-    const int packets = (int)(oxcf->twopass_stats_in.sz / packet_sz);
-
-    if (!cpi->lap_enabled) {
-      /*Re-initialize to stats buffer, populated by application in the case of
-       * two pass*/
-      cpi->twopass.stats_buf_ctx->stats_in_start = oxcf->twopass_stats_in.buf;
-      cpi->twopass.stats_in = cpi->twopass.stats_buf_ctx->stats_in_start;
-      cpi->twopass.stats_buf_ctx->stats_in_end =
-          &cpi->twopass.stats_buf_ctx->stats_in_start[packets - 1];
-      av1_init_second_pass(cpi);
-    } else {
-      av1_init_single_pass_lap(cpi);
-    }
-#endif  // CONFIG_SINGLEPASS
   }
 #endif  // !CONFIG_REALTIME_ONLY
 
@@ -2325,12 +2298,6 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
   assert(IMPLIES(oxcf->rc_cfg.min_cr > 0, allow_recode));
 
   set_size_independent_vars(cpi);
-#if !CONFIG_SINGLEPASS
-  if (is_stat_consumption_stage_twopass(cpi) &&
-      cpi->sf.interp_sf.adaptive_interp_filter_search)
-    cpi->interp_search_flags.interp_filter_search_mask =
-        av1_setup_interp_filter_search_mask(cpi);
-#endif  // !CONFIG_SINGLEPASS
   cpi->source->buf_8bit_valid = 0;
 
   av1_setup_frame_size(cpi);
@@ -3215,7 +3182,6 @@ int av1_encode(AV1_COMP *const cpi, uint8_t *const dest,
   current_frame->order_hint %=
       (1 << (cm->seq_params.order_hint_info.order_hint_bits_minus_1 + 1));
 
-#if CONFIG_SINGLEPASS
   if (is_stat_generation_stage(cpi)) {
 #if !CONFIG_REALTIME_ONLY
     av1_first_pass(cpi, frame_input->ts_duration);
@@ -3226,21 +3192,6 @@ int av1_encode(AV1_COMP *const cpi, uint8_t *const dest,
       return AOM_CODEC_ERROR;
     }
   }
-#else  // CONFIG_SINGLEPASS
-  if (is_stat_generation_stage(cpi)) {
-#if !CONFIG_REALTIME_ONLY
-    av1_first_pass(cpi, frame_input->ts_duration);
-#endif
-  } else if (cpi->oxcf.pass == 0 || cpi->oxcf.pass == 2) {
-    if (encode_frame_to_data_rate(cpi, &frame_results->size, dest) !=
-        AOM_CODEC_OK) {
-      return AOM_CODEC_ERROR;
-    }
-  } else {
-    return AOM_CODEC_ERROR;
-  }
-#endif  // CONFIG_SINGLEPASS
-
   return AOM_CODEC_OK;
 }
 

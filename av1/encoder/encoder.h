@@ -495,15 +495,6 @@ typedef struct {
    * constant quality.
    */
   enum aom_rc_mode mode;
-#if !CONFIG_SINGLEPASS
-  /*!
-   * Indicates the bias (expressed on a scale of 0 to 100) for determining
-   * target size for the current frame. The value 0 indicates the optimal CBR
-   * mode value should be used, and 100 indicates the optimal VBR mode value
-   * should be used.
-   */
-  int vbrbias;
-#endif  // !CONFIG_SINGLEPASS
   /*!
    * Indicates the minimum bitrate to be used for a single frame as a percentage
    * of the target bitrate.
@@ -890,16 +881,6 @@ typedef struct AV1EncoderConfig {
 
   // Frame Super-Resolution size scaling.
   SuperResCfg superres_cfg;
-
-#if !CONFIG_SINGLEPASS
-  /*!\endcond */
-  /*!
-   * stats_in buffer contains all of the stats packets produced in the first
-   * pass, concatenated.
-   */
-  aom_fixed_buf_t twopass_stats_in;
-  /*!\cond */
-#endif  // !CONFIG_SINGLEPASS
 
   // SubGOP config.
   const char *subgop_config_str;
@@ -2984,29 +2965,12 @@ static INLINE int is_altref_enabled(int lag_in_frames, bool enable_auto_arf) {
 static INLINE int is_stat_generation_stage(const AV1_COMP *const cpi) {
   assert(IMPLIES(cpi->compressor_stage == LAP_STAGE,
                  cpi->oxcf.pass == 0 && cpi->lap_enabled));
-#if CONFIG_SINGLEPASS
   return (cpi->compressor_stage == LAP_STAGE);
-#else
-  return (cpi->oxcf.pass == 1 || (cpi->compressor_stage == LAP_STAGE));
-#endif  // CONFIG_SINGLEPASS
 }
-
-#if !CONFIG_SINGLEPASS
-// Check if statistics consumption stage
-static INLINE int is_stat_consumption_stage_twopass(const AV1_COMP *const cpi) {
-  return (cpi->oxcf.pass == 2);
-}
-#endif  // !CONFIG_SINGLEPASS
 
 // Check if statistics consumption stage
 static INLINE int is_stat_consumption_stage(const AV1_COMP *const cpi) {
-#if CONFIG_SINGLEPASS
   return (cpi->compressor_stage == ENCODE_STAGE && cpi->lap_enabled);
-#else
-  return (is_stat_consumption_stage_twopass(cpi) ||
-          (cpi->oxcf.pass == 0 && (cpi->compressor_stage == ENCODE_STAGE) &&
-           cpi->lap_enabled));
-#endif  // CONFIG_SINGLEPASS
 }
 
 /*!\endcond */
@@ -3020,11 +2984,7 @@ static INLINE int is_stat_consumption_stage(const AV1_COMP *const cpi) {
  */
 static INLINE int has_no_stats_stage(const AV1_COMP *const cpi) {
   assert(IMPLIES(!cpi->lap_enabled, cpi->compressor_stage == ENCODE_STAGE));
-#if CONFIG_SINGLEPASS
   return (!cpi->lap_enabled);
-#else
-  return (cpi->oxcf.pass == 0 && !cpi->lap_enabled);
-#endif  // CONFIG_SINGLEPASS
 }
 /*!\cond */
 

@@ -32,9 +32,6 @@ void Encoder::InitEncoder(VideoSource *video) {
     cfg_.g_w = img->d_w;
     cfg_.g_h = img->d_h;
     cfg_.g_timebase = video->timebase();
-#if !CONFIG_SINGLEPASS
-    cfg_.rc_twopass_stats_in = stats_->buf();
-#endif  // !CONFIG_SINGLEPASS
 
     res = aom_codec_enc_init(&encoder_, CodecInterface(), &cfg_, init_flags_);
     ASSERT_EQ(AOM_CODEC_OK, res) << EncoderError();
@@ -46,17 +43,6 @@ void Encoder::EncodeFrame(VideoSource *video, const unsigned long frame_flags) {
     EncodeFrameInternal(*video, frame_flags);
   else
     Flush();
-
-#if !CONFIG_SINGLEPASS
-  // Handle twopass stats
-  CxDataIterator iter = GetCxData();
-
-  while (const aom_codec_cx_pkt_t *pkt = iter.Next()) {
-    if (pkt->kind != AOM_CODEC_STATS_PKT) continue;
-
-    stats_->Append(*pkt);
-  }
-#endif  // !CONFIG_SINGLEPASS
 }
 
 void Encoder::EncodeFrameInternal(const VideoSource &video,
@@ -95,9 +81,6 @@ void EncoderTest::InitializeConfig() {
 void EncoderTest::SetMode(TestMode mode) {
   switch (mode) {
     case kOnePassGood: break;
-#if !CONFIG_SINGLEPASS
-    case kTwoPassGood: break;
-#endif  // !CONFIG_SINGLEPASS
     case kRealTime: {
       cfg_.g_lag_in_frames = 0;
       cfg_.g_usage = AOM_USAGE_REALTIME;
@@ -106,14 +89,7 @@ void EncoderTest::SetMode(TestMode mode) {
     default: ASSERT_TRUE(false) << "Unexpected mode " << mode;
   }
   mode_ = mode;
-#if CONFIG_SINGLEPASS
   passes_ = 1;
-#else
-  if (mode == kTwoPassGood)
-    passes_ = 2;
-  else
-    passes_ = 1;
-#endif  // CONFIG_SINGLEPASS
 }
 
 static bool compare_plane(const uint8_t *const buf1, int stride1,
@@ -193,15 +169,7 @@ void EncoderTest::RunLoop(VideoSource *video) {
   aom_codec_dec_cfg_t dec_cfg = aom_codec_dec_cfg_t();
   dec_cfg.allow_lowbitdepth = 1;
 
-#if !CONFIG_SINGLEPASS
-  stats_.Reset();
-#endif  // !CONFIG_SINGLEPASS
-
-#if CONFIG_SINGLEPASS
   ASSERT_EQ(1, (int)passes_);
-#else
-  ASSERT_TRUE(passes_ == 1 || passes_ == 2);
-#endif  // CONFIG_SINGLEPASS
   for (unsigned int pass = 0; pass < passes_; pass++) {
     last_pts_ = 0;
 
@@ -213,12 +181,7 @@ void EncoderTest::RunLoop(VideoSource *video) {
       cfg_.g_pass = AOM_RC_LAST_PASS;
 
     BeginPassHook(pass);
-#if CONFIG_SINGLEPASS
     std::unique_ptr<Encoder> encoder(codec_->CreateEncoder(cfg_, init_flags_));
-#else
-    std::unique_ptr<Encoder> encoder(
-        codec_->CreateEncoder(cfg_, init_flags_, &stats_));
-#endif  // CONFIG_SINGLEPASS
     ASSERT_TRUE(encoder.get() != NULL);
 
     ASSERT_NO_FATAL_FAILURE(video->Begin());
@@ -286,10 +249,6 @@ void EncoderTest::RunLoop(VideoSource *video) {
               break;
 
             case AOM_CODEC_PSNR_PKT: PSNRPktHook(pkt); break;
-
-#if !CONFIG_SINGLEPASS
-            case AOM_CODEC_STATS_PKT: StatsPktHook(pkt); break;
-#endif  // !CONFIG_SINGLEPASS
 
             default: break;
           }

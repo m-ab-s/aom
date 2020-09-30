@@ -64,33 +64,6 @@ static int img_size_bytes(aom_image_t *img) {
   return image_size_bytes;
 }
 
-#if !CONFIG_SINGLEPASS
-static int get_frame_stats(aom_codec_ctx_t *ctx, const aom_image_t *img,
-                           aom_codec_pts_t pts, unsigned int duration,
-                           aom_enc_frame_flags_t flags,
-                           aom_fixed_buf_t *stats) {
-  int got_pkts = 0;
-  aom_codec_iter_t iter = NULL;
-  const aom_codec_cx_pkt_t *pkt = NULL;
-  const aom_codec_err_t res = aom_codec_encode(ctx, img, pts, duration, flags);
-  if (res != AOM_CODEC_OK) die_codec(ctx, "Failed to get frame stats.");
-
-  while ((pkt = aom_codec_get_cx_data(ctx, &iter)) != NULL) {
-    got_pkts = 1;
-
-    if (pkt->kind == AOM_CODEC_STATS_PKT) {
-      const uint8_t *const pkt_buf = pkt->data.twopass_stats.buf;
-      const size_t pkt_size = pkt->data.twopass_stats.sz;
-      stats->buf = realloc(stats->buf, stats->sz + pkt_size);
-      memcpy((uint8_t *)stats->buf + stats->sz, pkt_buf, pkt_size);
-      stats->sz += pkt_size;
-    }
-  }
-
-  return got_pkts;
-}
-#endif  // !CONFIG_SINGLEPASS
-
 static int encode_frame(aom_codec_ctx_t *ctx, const aom_image_t *img,
                         aom_codec_pts_t pts, unsigned int duration,
                         aom_enc_frame_flags_t flags, AvxVideoWriter *writer) {
@@ -128,111 +101,6 @@ static void get_raw_image(aom_image_t **frame_to_encode, aom_image_t *raw,
     *frame_to_encode = raw;
   }
 }
-
-#if !CONFIG_SINGLEPASS
-static aom_fixed_buf_t pass0(aom_image_t *raw, FILE *infile,
-                             aom_codec_iface_t *encoder,
-                             const aom_codec_enc_cfg_t *cfg, int lf_width,
-                             int lf_height, int lf_blocksize, int flags,
-                             aom_image_t *raw_shift) {
-  aom_codec_ctx_t codec;
-  int frame_count = 0;
-  int image_size_bytes = img_size_bytes(raw);
-  int u_blocks, v_blocks;
-  int bu, bv;
-  aom_fixed_buf_t stats = { NULL, 0 };
-  aom_image_t *frame_to_encode;
-
-  if (aom_codec_enc_init(&codec, encoder, cfg, flags))
-    die("Failed to initialize encoder");
-  if (aom_codec_control(&codec, AOME_SET_ENABLEAUTOALTREF, 0))
-    die_codec(&codec, "Failed to turn off auto altref");
-  if (aom_codec_control(&codec, AV1E_SET_FRAME_PARALLEL_DECODING, 0))
-    die_codec(&codec, "Failed to set frame parallel decoding");
-
-  // How many reference images we need to encode.
-  u_blocks = (lf_width + lf_blocksize - 1) / lf_blocksize;
-  v_blocks = (lf_height + lf_blocksize - 1) / lf_blocksize;
-
-  printf("\n First pass: ");
-
-  for (bv = 0; bv < v_blocks; ++bv) {
-    for (bu = 0; bu < u_blocks; ++bu) {
-      const int block_u_min = bu * lf_blocksize;
-      const int block_v_min = bv * lf_blocksize;
-      int block_u_end = (bu + 1) * lf_blocksize;
-      int block_v_end = (bv + 1) * lf_blocksize;
-      int u_block_size, v_block_size;
-      int block_ref_u, block_ref_v;
-
-      block_u_end = block_u_end < lf_width ? block_u_end : lf_width;
-      block_v_end = block_v_end < lf_height ? block_v_end : lf_height;
-      u_block_size = block_u_end - block_u_min;
-      v_block_size = block_v_end - block_v_min;
-      block_ref_u = block_u_min + u_block_size / 2;
-      block_ref_v = block_v_min + v_block_size / 2;
-
-      printf("A%d, ", (block_ref_u + block_ref_v * lf_width));
-      fseek(infile, (block_ref_u + block_ref_v * lf_width) * image_size_bytes,
-            SEEK_SET);
-      aom_img_read(raw, infile);
-      get_raw_image(&frame_to_encode, raw, raw_shift);
-
-      // Reference frames can be encoded encoded without tiles.
-      ++frame_count;
-      get_frame_stats(&codec, frame_to_encode, frame_count, 1,
-                      AOM_EFLAG_NO_REF_LAST2 | AOM_EFLAG_NO_REF_LAST3 |
-                          AOM_EFLAG_NO_REF_GF | AOM_EFLAG_NO_REF_ARF |
-                          AOM_EFLAG_NO_REF_BWD | AOM_EFLAG_NO_REF_ARF2 |
-                          AOM_EFLAG_NO_UPD_LAST | AOM_EFLAG_NO_UPD_GF |
-                          AOM_EFLAG_NO_UPD_ARF,
-                      &stats);
-    }
-  }
-
-  if (aom_codec_control(&codec, AV1E_SET_FRAME_PARALLEL_DECODING, 1))
-    die_codec(&codec, "Failed to set frame parallel decoding");
-
-  for (bv = 0; bv < v_blocks; ++bv) {
-    for (bu = 0; bu < u_blocks; ++bu) {
-      const int block_u_min = bu * lf_blocksize;
-      const int block_v_min = bv * lf_blocksize;
-      int block_u_end = (bu + 1) * lf_blocksize;
-      int block_v_end = (bv + 1) * lf_blocksize;
-      int u, v;
-      block_u_end = block_u_end < lf_width ? block_u_end : lf_width;
-      block_v_end = block_v_end < lf_height ? block_v_end : lf_height;
-      for (v = block_v_min; v < block_v_end; ++v) {
-        for (u = block_u_min; u < block_u_end; ++u) {
-          printf("C%d, ", (u + v * lf_width));
-          fseek(infile, (u + v * lf_width) * image_size_bytes, SEEK_SET);
-          aom_img_read(raw, infile);
-          get_raw_image(&frame_to_encode, raw, raw_shift);
-
-          ++frame_count;
-          get_frame_stats(&codec, frame_to_encode, frame_count, 1,
-                          AOM_EFLAG_NO_REF_LAST2 | AOM_EFLAG_NO_REF_LAST3 |
-                              AOM_EFLAG_NO_REF_GF | AOM_EFLAG_NO_REF_ARF |
-                              AOM_EFLAG_NO_REF_BWD | AOM_EFLAG_NO_REF_ARF2 |
-                              AOM_EFLAG_NO_UPD_LAST | AOM_EFLAG_NO_UPD_GF |
-                              AOM_EFLAG_NO_UPD_ARF | AOM_EFLAG_NO_UPD_ENTROPY,
-                          &stats);
-        }
-      }
-    }
-  }
-  // Flush encoder.
-  // No ARF, this should not be needed.
-  while (get_frame_stats(&codec, NULL, frame_count, 1, 0, &stats)) {
-  }
-
-  if (aom_codec_destroy(&codec)) die_codec(&codec, "Failed to destroy codec.");
-
-  printf("\nFirst pass complete. Processed %d frames.\n", frame_count);
-
-  return stats;
-}
-#endif  // !CONFIG_SINGLEPASS
 
 static void pass1(aom_image_t *raw, FILE *infile, const char *outfile_name,
                   aom_codec_iface_t *encoder, aom_codec_enc_cfg_t *cfg,
@@ -439,9 +307,6 @@ int main(int argc, char **argv) {
   aom_image_t raw;
   aom_image_t raw_shift;
   aom_codec_err_t res;
-#if !CONFIG_SINGLEPASS
-  aom_fixed_buf_t stats;
-#endif  // !CONFIG_SINGLEPASS
   int flags = 0;
 
   const int fps = 30;
@@ -506,25 +371,10 @@ int main(int argc, char **argv) {
   if (!(infile = fopen(infile_arg, "rb")))
     die("Failed to open %s for reading", infile_arg);
 
-#if CONFIG_SINGLEPASS
   // Pass 1
   cfg.g_pass = AOM_RC_ONE_PASS;
   pass1(&raw, infile, outfile_arg, encoder, &cfg, lf_width, lf_height,
         lf_blocksize, flags, &raw_shift);
-#else
-  // Pass 0
-  cfg.g_pass = AOM_RC_FIRST_PASS;
-  stats = pass0(&raw, infile, encoder, &cfg, lf_width, lf_height, lf_blocksize,
-                flags, &raw_shift);
-
-  // Pass 1
-  rewind(infile);
-  cfg.g_pass = AOM_RC_LAST_PASS;
-  cfg.rc_twopass_stats_in = stats;
-  pass1(&raw, infile, outfile_arg, encoder, &cfg, lf_width, lf_height,
-        lf_blocksize, flags, &raw_shift);
-  free(stats.buf);
-#endif  // CONFIG_SINGLEPASS
 
   if (FORCE_HIGHBITDEPTH_DECODING) aom_img_free(&raw_shift);
   aom_img_free(&raw);

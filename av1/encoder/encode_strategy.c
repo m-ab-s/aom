@@ -1428,11 +1428,7 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
   if (use_one_pass_rt_params) {
     av1_get_one_pass_rt_params(cpi, &frame_params, *frame_flags);
   } else if (!is_stat_generation_stage(cpi)) {
-    av1_get_second_pass_params(cpi, &frame_params,
-#if !CONFIG_SINGLEPASS
-                               &frame_input,
-#endif  // !CONFIG_SINGLEPASS
-                               *frame_flags);
+    av1_get_second_pass_params(cpi, &frame_params, *frame_flags);
   }
 #endif
   FRAME_UPDATE_TYPE frame_update_type = get_frame_update_type(gf_group);

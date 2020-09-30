@@ -45,10 +45,6 @@ class AVxFirstPassEncoderThreadTest
 
     cfg_.g_lag_in_frames = 35;
     cfg_.rc_end_usage = AOM_VBR;
-#if !CONFIG_SINGLEPASS
-    cfg_.rc_2pass_vbr_minsection_pct = 5;
-    cfg_.rc_2pass_vbr_maxsection_pct = 2000;
-#endif  // !CONFIG_SINGLEPASS
     cfg_.rc_max_quantizer = 224;
     cfg_.rc_min_quantizer = 0;
   }
@@ -234,10 +230,6 @@ class AVxEncoderThreadTest
     if (encoding_mode_ != ::libaom_test::kRealTime) {
       cfg_.g_lag_in_frames = 5;
       cfg_.rc_end_usage = AOM_VBR;
-#if !CONFIG_SINGLEPASS
-      cfg_.rc_2pass_vbr_minsection_pct = 5;
-      cfg_.rc_2pass_vbr_maxsection_pct = 2000;
-#endif  // !CONFIG_SINGLEPASS
     } else {
       cfg_.g_lag_in_frames = 0;
       cfg_.rc_end_usage = AOM_CBR;
@@ -442,39 +434,16 @@ TEST_P(AVxEncoderThreadTestLarge, EncoderResultTest) {
   DoTest();
 }
 
-#if CONFIG_SINGLEPASS
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(AVxFirstPassEncoderThreadTest);
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(AVxEncoderThreadTest);
-#else
-// first pass stats test
-AV1_INSTANTIATE_TEST_SUITE(AVxFirstPassEncoderThreadTest,
-                           ::testing::Values(::libaom_test::kTwoPassGood),
-                           ::testing::Range(0, 6, 2), ::testing::Range(0, 2),
-                           ::testing::Range(1, 3));
-
-// For AV1, test speed 0, 1, 2, 3, 5.
-// Only test cpu_used 2 here.
-AV1_INSTANTIATE_TEST_SUITE(AVxEncoderThreadTest,
-                           ::testing::Values(::libaom_test::kTwoPassGood),
-                           ::testing::Values(2), ::testing::Values(0, 2),
-                           ::testing::Values(0, 2), ::testing::Values(0, 1));
-#endif  // CONFIG_SINGLEPASS
 
 // Test cpu_used 0, 1, 3 and 5.
-#if CONFIG_SINGLEPASS
 AV1_INSTANTIATE_TEST_SUITE(AVxEncoderThreadTestLarge,
                            ::testing::Values(::libaom_test::kOnePassGood),
                            ::testing::Values(0, 1, 3, 5),
                            ::testing::Values(0, 1, 2, 6),
                            ::testing::Values(0, 1, 2, 6),
                            ::testing::Values(0, 1));
-#else
-AV1_INSTANTIATE_TEST_SUITE(
-    AVxEncoderThreadTestLarge,
-    ::testing::Values(::libaom_test::kTwoPassGood, ::libaom_test::kOnePassGood),
-    ::testing::Values(0, 1, 3, 5), ::testing::Values(0, 1, 2, 6),
-    ::testing::Values(0, 1, 2, 6), ::testing::Values(0, 1));
-#endif  // CONFIG_SINGLEPASS
 
 class AVxEncoderThreadLSTest : public AVxEncoderThreadTest {
   virtual void SetTileSize(libaom_test::Encoder *encoder) {

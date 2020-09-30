@@ -28,7 +28,6 @@ namespace libaom_test {
 class CodecFactory;
 class VideoSource;
 
-#if CONFIG_SINGLEPASS
 enum TestMode { kRealTime, kOnePassGood };
 #define ALL_TEST_MODES \
   ::testing::Values(::libaom_test::kRealTime, ::libaom_test::kOnePassGood)
@@ -39,20 +38,6 @@ enum TestMode { kRealTime, kOnePassGood };
 #define TWO_PASS_TEST_MODES ::testing::Values()
 
 #define NONREALTIME_TEST_MODES ::testing::Values(::libaom_test::kOnePassGood)
-#else
-enum TestMode { kRealTime, kOnePassGood, kTwoPassGood };
-#define ALL_TEST_MODES                                                     \
-  ::testing::Values(::libaom_test::kRealTime, ::libaom_test::kOnePassGood, \
-                    ::libaom_test::kTwoPassGood)
-
-#define ONE_PASS_TEST_MODES \
-  ::testing::Values(::libaom_test::kRealTime, ::libaom_test::kOnePassGood)
-
-#define TWO_PASS_TEST_MODES ::testing::Values(::libaom_test::kTwoPassGood)
-
-#define NONREALTIME_TEST_MODES \
-  ::testing::Values(::libaom_test::kOnePassGood, ::libaom_test::kTwoPassGood)
-#endif  // CONFIG_SINGLEPASS
 
 // Provides an object to handle the libaom get_cx_data() iteration pattern
 class CxDataIterator {
@@ -95,18 +80,10 @@ class TwopassStatsStore {
 // level of abstraction will be fleshed out as more tests are written.
 class Encoder {
  public:
-#if CONFIG_SINGLEPASS
   Encoder(aom_codec_enc_cfg_t cfg, const aom_codec_flags_t init_flags)
       : cfg_(cfg), init_flags_(init_flags) {
     memset(&encoder_, 0, sizeof(encoder_));
   }
-#else
-  Encoder(aom_codec_enc_cfg_t cfg, const aom_codec_flags_t init_flags,
-          TwopassStatsStore *stats)
-      : cfg_(cfg), init_flags_(init_flags), stats_(stats) {
-    memset(&encoder_, 0, sizeof(encoder_));
-  }
-#endif  // !CONFIG_SINGLEPASS
 
   virtual ~Encoder() { aom_codec_destroy(&encoder_); }
 
@@ -185,9 +162,6 @@ class Encoder {
   aom_codec_ctx_t encoder_;
   aom_codec_enc_cfg_t cfg_;
   aom_codec_flags_t init_flags_;
-#if !CONFIG_SINGLEPASS
-  TwopassStatsStore *stats_;
-#endif  // !CONFIG_SINGLEPASS
 };
 
 // Common test functionality for all Encoder tests.
@@ -277,9 +251,6 @@ class EncoderTest {
   bool abort_;
   aom_codec_enc_cfg_t cfg_;
   unsigned int passes_;
-#if !CONFIG_SINGLEPASS
-  TwopassStatsStore stats_;
-#endif  // !CONFIG_SINGLEPASS
   aom_codec_flags_t init_flags_;
   unsigned long frame_flags_;
   aom_codec_pts_t last_pts_;

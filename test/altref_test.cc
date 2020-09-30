@@ -31,14 +31,6 @@ static const AltRefTestParams TestParams[] = {
   { 0, 60, 12, 20, 25, ::libaom_test::kOnePassGood },
   { 60, 60, 16, 28, 30, ::libaom_test::kOnePassGood },
   { 0, 100, 16, 32, 35, ::libaom_test::kOnePassGood },
-#if !CONFIG_SINGLEPASS
-  { 0, 10, 4, 8, 10, ::libaom_test::kTwoPassGood },
-  { 0, 30, 8, 12, 16, ::libaom_test::kTwoPassGood },
-  { 30, 30, 12, 16, 25, ::libaom_test::kTwoPassGood },
-  { 0, 60, 16, 24, 25, ::libaom_test::kTwoPassGood },
-  { 60, 60, 20, 28, 30, ::libaom_test::kTwoPassGood },
-  { 0, 100, 24, 32, 35, ::libaom_test::kTwoPassGood },
-#endif
 };
 
 std::ostream &operator<<(std::ostream &os, const AltRefTestParams &test_arg) {
@@ -129,18 +121,6 @@ const gfIntervalParam gfTestParams[] = {
   { ::libaom_test::kOnePassGood, 5, 10 },
   { ::libaom_test::kOnePassGood, 8, 16 },
   { ::libaom_test::kOnePassGood, 16, 16 },
-
-#if !CONFIG_SINGLEPASS
-  // two pass
-  { ::libaom_test::kTwoPassGood, 0, 6 },
-  { ::libaom_test::kTwoPassGood, 0, 8 },
-  { ::libaom_test::kTwoPassGood, 5, 10 },
-  { ::libaom_test::kTwoPassGood, 8, 16 },
-  { ::libaom_test::kTwoPassGood, 16, 32 },
-// disabled below test case because it causes failure
-// TODO(anyone): enable below test case once issue is fixed.
-// { ::libaom_test::kTwoPassGood, 20, 32 },
-#endif
 };
 
 // This class is used to test if the gf interval bounds configured by the user
