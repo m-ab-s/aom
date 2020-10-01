@@ -951,6 +951,9 @@ static int get_refresh_frame_flags_subgop_cfg(
   assert(step_gop_cfg != NULL);
   const int pyr_level = step_gop_cfg->pyr_level;
   const FRAME_TYPE_CODE type_code = step_gop_cfg->type_code;
+  const int refresh_level = step_gop_cfg->refresh;
+  if (refresh_level == 0) return 0;
+
   // No refresh necessary for these frame types
   if (type_code == FRAME_TYPE_INO_REPEAT ||
       type_code == FRAME_TYPE_INO_SHOWEXISTING)
@@ -962,7 +965,6 @@ static int get_refresh_frame_flags_subgop_cfg(
   }
 
   const int update_arf = type_code == FRAME_TYPE_OOO_FILTERED && pyr_level == 1;
-  const int refresh_level = step_gop_cfg->refresh;
   const int refresh_idx = get_refresh_idx(update_arf, refresh_level,
                                           cur_disp_order, ref_frame_map_pairs);
   return 1 << refresh_idx;

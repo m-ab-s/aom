@@ -128,10 +128,11 @@ static int process_subgop_step(char *str, SubGOPStepCfg *step) {
   }
   assert(ptr != NULL);
 
+  step->refresh = -1;
   if (*ptr == 'X') {
     ptr++;
     step->refresh = (int8_t)strtol(ptr, NULL, 10);
-    if (step->refresh <= 0) return 0;
+    if (step->refresh < 0) return 0;
   } else if (*ptr == 0) {
     // no refresh data preceded by X provided
     return 1;
@@ -349,11 +350,12 @@ static int process_subgop_config_fromfile(FILE *fp, SubGOPCfg *config) {
         step->num_references++;
       }
     }
+    step->refresh = -1;
     token = read_token_after(str, "refresh:", &str);
     if (!token) continue;
     if (strlen(token) == 0) continue;
     const int refresh = atoi(token);
-    if (refresh == 0) return 0;
+    if (refresh < 0) return 0;
     step->refresh = refresh;
   }
   return 1;
@@ -422,7 +424,7 @@ void av1_print_subgop_config_set(SubGOPSetCfg *config_set) {
           printf("%d", config->step[j].references[r]);
         }
       }
-      if (config->step[j].refresh)
+      if (config->step[j].refresh >= 0)
         printf(" refresh:%d", config->step[j].refresh);
       printf("\n");
     }
