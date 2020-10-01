@@ -196,6 +196,10 @@ static void read_coeffs_tx_intra_block(const AV1_COMMON *const cm,
     cm->txcoeff_timer += elapsed_time;
     ++cm->txb_count;
 #endif
+  } else {
+    // all tx blocks are skipped.
+    av1_update_txk_skip_array(cm, xd->mi_row, xd->mi_col, plane, row, col,
+                              tx_size, cm->fDecTxSkipLog);
   }
 }
 
@@ -1031,6 +1035,9 @@ static void decode_token_recon_block(AV1Decoder *const pbi,
   CFL_CTX *const cfl = &xd->cfl;
   cfl->is_chroma_reference = mbmi->chroma_ref_info.is_chroma_ref;
 
+  av1_init_txk_skip_array(cm, mbmi, mi_row, mi_col, bsize, 0,
+                          cm->fDecTxSkipLog);
+
   if (!is_inter_block(mbmi)) {
     int row, col;
     const int max_blocks_wide = max_block_wide(xd, bsize, 0);
@@ -1135,6 +1142,9 @@ static void decode_token_recon_block(AV1Decoder *const pbi,
           }
         }
       }
+    } else {
+      av1_init_txk_skip_array(cm, mbmi, mi_row, mi_col, bsize, 1,
+                              cm->fDecTxSkipLog);
     }
     td->cfl_store_inter_block_visit(cm, xd);
   }

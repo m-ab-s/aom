@@ -671,3 +671,145 @@ int av1_get_derived_intra_mode(const MACROBLOCKD *xd, int bsize,
 #undef BINS
 #undef BIN_WIDTH
 #endif  // CONFIG_DERIVED_INTRA_MODE
+
+void av1_alloc_txk_skip_array(AV1_COMMON *cm) {
+  // allocate based on the MIN_TX_SIZE, which is 4x4 block
+  for (int plane = 0; plane < MAX_MB_PLANE; plane++) {
+    int w = cm->mi_cols << MI_SIZE_LOG2;
+    int h = cm->mi_rows << MI_SIZE_LOG2;
+    w = ((w + MAX_SB_SIZE - 1) >> MAX_SB_SIZE_LOG2) << MAX_SB_SIZE_LOG2;
+    h = ((h + MAX_SB_SIZE - 1) >> MAX_SB_SIZE_LOG2) << MAX_SB_SIZE_LOG2;
+    w >>= ((plane == 0) ? 0 : cm->seq_params.subsampling_x);
+    h >>= ((plane == 0) ? 0 : cm->seq_params.subsampling_y);
+    int stride = (w + MIN_TX_SIZE - 1) >> MIN_TX_SIZE_LOG2;
+    int rows = (h + MIN_TX_SIZE - 1) >> MIN_TX_SIZE_LOG2;
+    cm->tx_skip[plane] = aom_calloc(rows * stride, sizeof(uint8_t));
+    cm->tx_skip_buf_size[plane] = rows * stride;
+  }
+}
+
+void av1_dealloc_txk_skip_array(AV1_COMMON *cm) {
+  for (int plane = 0; plane < MAX_MB_PLANE; plane++) {
+    aom_free(cm->tx_skip[plane]);
+    cm->tx_skip[plane] = NULL;
+  }
+}
+
+void av1_reset_txk_skip_array(AV1_COMMON *cm) {
+  // allocate based on the MIN_TX_SIZE, which is 4x4 block
+  for (int plane = 0; plane < MAX_MB_PLANE; plane++) {
+    int w = cm->mi_cols << MI_SIZE_LOG2;
+    int h = cm->mi_rows << MI_SIZE_LOG2;
+    w = ((w + MAX_SB_SIZE - 1) >> MAX_SB_SIZE_LOG2) << MAX_SB_SIZE_LOG2;
+    h = ((h + MAX_SB_SIZE - 1) >> MAX_SB_SIZE_LOG2) << MAX_SB_SIZE_LOG2;
+    w >>= ((plane == 0) ? 0 : cm->seq_params.subsampling_x);
+    h >>= ((plane == 0) ? 0 : cm->seq_params.subsampling_y);
+    int stride = (w + MIN_TX_SIZE - 1) >> MIN_TX_SIZE_LOG2;
+    int rows = (h + MIN_TX_SIZE - 1) >> MIN_TX_SIZE_LOG2;
+    memset(cm->tx_skip[plane], 0, rows * stride);
+  }
+}
+
+void av1_init_txk_skip_array(const AV1_COMMON *cm, MB_MODE_INFO *mbmi,
+                             int mi_row, int mi_col, BLOCK_SIZE bsize,
+                             uint8_t value, FILE *fLog) {
+  for (int plane = 0; plane < MAX_MB_PLANE; plane++) {
+    int w = ((cm->width + MAX_SB_SIZE - 1) >> MAX_SB_SIZE_LOG2)
+            << MAX_SB_SIZE_LOG2;
+    w >>= ((plane == 0) ? 0 : cm->seq_params.subsampling_x);
+    int stride = (w + MIN_TX_SIZE - 1) >> MIN_TX_SIZE_LOG2;
+    int x = (mi_col << MI_SIZE_LOG2) >>
+            ((plane == 0) ? 0 : cm->seq_params.subsampling_x);
+    int y = (mi_row << MI_SIZE_LOG2) >>
+            ((plane == 0) ? 0 : cm->seq_params.subsampling_y);
+    int row = y >> MIN_TX_SIZE_LOG2;
+    int col = x >> MIN_TX_SIZE_LOG2;
+    int blk_w = block_size_wide[bsize] >>
+                ((plane == 0) ? 0 : cm->seq_params.subsampling_x);
+    int blk_h = block_size_high[bsize] >>
+                ((plane == 0) ? 0 : cm->seq_params.subsampling_y);
+    blk_w >>= MIN_TX_SIZE_LOG2;
+    blk_h >>= MIN_TX_SIZE_LOG2;
+
+    for (int r = 0; r < blk_h; r++) {
+      for (int c = 0; c < blk_w; c++) {
+        uint32_t idx = (row + r) * stride + col + c;
+        assert(idx < cm->tx_skip_buf_size[plane]);
+        cm->tx_skip[plane][idx] = value;
+      }
+    }
+  }
+
+  if (fLog) {
+    int row = (mi_row << MI_SIZE_LOG2);
+    int col = (mi_col << MI_SIZE_LOG2);
+    int w = block_size_wide[bsize];
+    int h = block_size_high[bsize];
+    if (value != 0) {
+      fprintf(fLog,
+              "\n\tSkipped TxBlock: row = %d, col = %d, blk_width = %d, "
+              "blk_height = %d",
+              row, col, w, h);
+    } else {
+      fprintf(
+          fLog,
+          "\nrow = %d, col = %d, width = %d, height = %d, %s, blk skipped = %d",
+          row, col, w, h, is_inter_block(mbmi) ? "INTER" : "INTRA", value);
+    }
+  }
+}
+
+void av1_update_txk_skip_array(const AV1_COMMON *cm, int mi_row, int mi_col,
+                               int plane, int blk_row, int blk_col,
+                               TX_SIZE tx_size, FILE *fLog) {
+  blk_row *= 4;
+  blk_col *= 4;
+  int w = ((cm->width + MAX_SB_SIZE - 1) >> MAX_SB_SIZE_LOG2)
+          << MAX_SB_SIZE_LOG2;
+  w >>= ((plane == 0) ? 0 : cm->seq_params.subsampling_x);
+  int stride = (w + MIN_TX_SIZE - 1) >> MIN_TX_SIZE_LOG2;
+  int tx_w = tx_size_wide[tx_size];
+  int tx_h = tx_size_high[tx_size];
+  int cols = tx_w >> MIN_TX_SIZE_LOG2;
+  int rows = tx_h >> MIN_TX_SIZE_LOG2;
+  int x = (mi_col << MI_SIZE_LOG2) >>
+          ((plane == 0) ? 0 : cm->seq_params.subsampling_x);
+  int y = (mi_row << MI_SIZE_LOG2) >>
+          ((plane == 0) ? 0 : cm->seq_params.subsampling_y);
+  x = (x + blk_col) >> MIN_TX_SIZE_LOG2;
+  y = (y + blk_row) >> MIN_TX_SIZE_LOG2;
+  for (int r = 0; r < rows; r++) {
+    for (int c = 0; c < cols; c++) {
+      uint32_t idx = (y + r) * stride + x + c;
+      assert(idx < cm->tx_skip_buf_size[plane]);
+      cm->tx_skip[plane][idx] = 1;
+    }
+  }
+  if (fLog) {
+    fprintf(fLog,
+            "\n\tSkipped TxBlock: row = %d, col = %d, tx_width = %d, tx_height"
+            "= %d, plane = %d",
+            ((mi_row << MI_SIZE_LOG2) + blk_row),
+            ((mi_col << MI_SIZE_LOG2) + blk_col), tx_size_wide[tx_size],
+            tx_size_high[tx_size], plane);
+  }
+}
+
+uint8_t av1_get_txk_skip(const AV1_COMMON *cm, int mi_row, int mi_col,
+                         int plane, int blk_row, int blk_col) {
+  blk_row *= 4;
+  blk_col *= 4;
+  int w = ((cm->width + MAX_SB_SIZE - 1) >> MAX_SB_SIZE_LOG2)
+          << MAX_SB_SIZE_LOG2;
+  w >>= ((plane == 0) ? 0 : cm->seq_params.subsampling_x);
+  int stride = (w + MIN_TX_SIZE - 1) >> MIN_TX_SIZE_LOG2;
+  int x = (mi_col << MI_SIZE_LOG2) >>
+          ((plane == 0) ? 0 : cm->seq_params.subsampling_x);
+  int y = (mi_row << MI_SIZE_LOG2) >>
+          ((plane == 0) ? 0 : cm->seq_params.subsampling_y);
+  x = (x + blk_col) >> MIN_TX_SIZE_LOG2;
+  y = (y + blk_row) >> MIN_TX_SIZE_LOG2;
+  uint32_t idx = y * stride + x;
+  assert(idx < cm->tx_skip_buf_size[plane]);
+  return cm->tx_skip[plane][idx];
+}

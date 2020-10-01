@@ -170,6 +170,8 @@ uint8_t av1_read_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCKD *const xd,
           av1_get_txk_type_index(mbmi->sb_type, blk_row, blk_col);
       mbmi->txk_type[txk_type_idx] = DCT_DCT;
     }
+    av1_update_txk_skip_array(cm, xd->mi_row, xd->mi_col, plane, blk_row,
+                              blk_col, tx_size, cm->fDecTxSkipLog);
     return 0;
   }
 

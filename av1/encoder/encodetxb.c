@@ -578,6 +578,10 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCKD *xd,
   FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
   aom_write_symbol(w, eob == 0,
                    ec_ctx->txb_skip_cdf[txs_ctx][txb_ctx->txb_skip_ctx], 2);
+
+  assert((eob == 0) ==
+         av1_get_txk_skip(cm, xd->mi_row, xd->mi_col, plane, blk_row, blk_col));
+
   if (eob == 0) return;
   const PLANE_TYPE plane_type = get_plane_type(plane);
   const TX_TYPE tx_type = av1_get_tx_type(plane_type, xd, blk_row, blk_col,

@@ -2061,6 +2061,8 @@ void av1_encode_b(const AV1_COMP *const cpi, TileDataEnc *tile_data,
     x->mbmi_ext->cb_offset = x->cb_offset;
     assert(x->cb_offset <
            (1 << num_pels_log2_lookup[cpi->common.seq_params.sb_size]));
+    av1_init_txk_skip_array(&cpi->common, mbmi, mi_row, mi_col, bsize, 0,
+                            cpi->common.fEncTxSkipLog);
   }
 
   av1_encode_superblock(cpi, tile_data, td, tp, dry_run, bsize, rate);

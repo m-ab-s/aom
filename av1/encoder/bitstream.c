@@ -2088,8 +2088,9 @@ static void write_modes_b(AV1_COMP *cpi, const TileInfo *const tile,
 
   if (!mbmi->skip) {
     write_tokens_b(cpi, w, tok, tok_end);
+  } else {
+    assert(1 == av1_get_txk_skip(cm, xd->mi_row, xd->mi_col, 0, 0, 0));
   }
-
   av1_mark_block_as_coded(xd, mi_row, mi_col, bsize, cm->seq_params.sb_size);
 }
 

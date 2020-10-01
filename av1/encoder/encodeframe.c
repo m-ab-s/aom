@@ -1511,6 +1511,8 @@ static void encode_frame_internal(AV1_COMP *cpi) {
   av1_initialize_rd_consts(cpi);
   av1_initialize_me_consts(cpi, x, cm->base_qindex);
 
+  av1_reset_txk_skip_array(cm);
+
   init_encode_frame_mb_context(cpi);
   set_default_interp_skip_flags(cpi);
   if (cm->prev_frame)
