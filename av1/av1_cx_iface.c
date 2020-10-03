@@ -1182,8 +1182,6 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
 #if !CONFIG_REMOVE_DIST_WTD_COMP
   comp_type_cfg->enable_dist_wtd_comp =
       extra_cfg->enable_dist_wtd_comp & extra_cfg->enable_order_hint;
-#else
-  comp_type_cfg->enable_dist_wtd_comp = 0;
 #endif  // !CONFIG_REMOVE_DIST_WTD_COMP
   comp_type_cfg->enable_masked_comp = extra_cfg->enable_masked_comp;
   comp_type_cfg->enable_diff_wtd_comp =

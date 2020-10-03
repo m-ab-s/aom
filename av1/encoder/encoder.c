@@ -427,10 +427,12 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
   seq->delta_frame_id_length = DELTA_FRAME_ID_LENGTH;
 
   seq->enable_dual_filter = tool_cfg->enable_dual_filter;
+#if !CONFIG_REMOVE_DIST_WTD_COMP
   seq->order_hint_info.enable_dist_wtd_comp =
       oxcf->comp_type_cfg.enable_dist_wtd_comp;
   seq->order_hint_info.enable_dist_wtd_comp &=
       seq->order_hint_info.enable_order_hint;
+#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
   seq->order_hint_info.enable_ref_frame_mvs = tool_cfg->ref_frame_mvs_present;
   seq->order_hint_info.enable_ref_frame_mvs &=
       seq->order_hint_info.enable_order_hint;

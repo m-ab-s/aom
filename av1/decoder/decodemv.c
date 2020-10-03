@@ -1433,6 +1433,7 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
     }
 
     if (mbmi->comp_group_idx == 0) {
+#if !CONFIG_REMOVE_DIST_WTD_COMP
       if (cm->seq_params.order_hint_info.enable_dist_wtd_comp) {
         const int comp_index_ctx = get_comp_index_context(cm, xd);
         mbmi->compound_idx = (uint8_t)aom_read_symbol(
@@ -1440,10 +1441,13 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
         mbmi->interinter_comp.type =
             mbmi->compound_idx ? COMPOUND_AVERAGE : COMPOUND_DISTWTD;
       } else {
+#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
         // Distance-weighted compound is disabled, so always use average
         mbmi->compound_idx = 1;
         mbmi->interinter_comp.type = COMPOUND_AVERAGE;
+#if !CONFIG_REMOVE_DIST_WTD_COMP
       }
+#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
     } else {
       assert(cm->current_frame.reference_mode != SINGLE_REFERENCE &&
              is_inter_compound_mode(mbmi->mode) &&

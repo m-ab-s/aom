@@ -291,10 +291,12 @@ typedef struct {
  * \brief Encoder flags for compound prediction modes.
  */
 typedef struct {
+#if !CONFIG_REMOVE_DIST_WTD_COMP
   /*!
    * Flag to indicate if distance-weighted compound type should be enabled.
    */
   bool enable_dist_wtd_comp;
+#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
   /*!
    * Flag to indicate if masked (wedge/diff-wtd) compound type should be
    * enabled.

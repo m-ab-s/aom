@@ -224,10 +224,12 @@ typedef struct {
                                 // frame_sign_bias
                                 // if 0, enable_dist_wtd_comp and
                                 // enable_ref_frame_mvs must be set as 0.
-  int enable_dist_wtd_comp;     // 0 - disable dist-wtd compound modes
-                                // 1 - enable it
-  int enable_ref_frame_mvs;     // 0 - disable ref frame mvs
-                                // 1 - enable it
+#if !CONFIG_REMOVE_DIST_WTD_COMP
+  int enable_dist_wtd_comp;  // 0 - disable dist-wtd compound modes
+                             // 1 - enable it
+#endif                       // !CONFIG_REMOVE_DIST_WTD_COMP
+  int enable_ref_frame_mvs;  // 0 - disable ref frame mvs
+                             // 1 - enable it
 } OrderHintInfo;
 
 // Sequence header structure.

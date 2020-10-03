@@ -1195,13 +1195,17 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
         if (mbmi->compound_idx)
           assert(mbmi->interinter_comp.type == COMPOUND_AVERAGE);
 
+#if !CONFIG_REMOVE_DIST_WTD_COMP
         if (cm->seq_params.order_hint_info.enable_dist_wtd_comp) {
           const int comp_index_ctx = get_comp_index_context(cm, xd);
           aom_write_symbol(w, mbmi->compound_idx,
                            ec_ctx->compound_index_cdf[comp_index_ctx], 2);
         } else {
+#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
           assert(mbmi->compound_idx == 1);
+#if !CONFIG_REMOVE_DIST_WTD_COMP
         }
+#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
       } else {
         assert(cpi->common.current_frame.reference_mode != SINGLE_REFERENCE &&
                is_inter_compound_mode(mbmi->mode) &&
@@ -2637,7 +2641,9 @@ static AOM_INLINE void write_sequence_header(
     aom_wb_write_bit(wb, seq_params->order_hint_info.enable_order_hint);
 
     if (seq_params->order_hint_info.enable_order_hint) {
+#if !CONFIG_REMOVE_DIST_WTD_COMP
       aom_wb_write_bit(wb, seq_params->order_hint_info.enable_dist_wtd_comp);
+#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
       aom_wb_write_bit(wb, seq_params->order_hint_info.enable_ref_frame_mvs);
     }
     if (seq_params->force_screen_content_tools == 2) {

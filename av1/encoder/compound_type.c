@@ -848,16 +848,20 @@ static INLINE int compute_valid_comp_types(
     MACROBLOCK *x, const AV1_COMP *const cpi, int *try_average_and_distwtd_comp,
     BLOCK_SIZE bsize, int masked_compound_used, int mode_search_mask,
     COMPOUND_TYPE *valid_comp_types) {
-  const AV1_COMMON *cm = &cpi->common;
   int valid_type_count = 0;
   int comp_type, valid_check;
   int8_t enable_masked_type[MASKED_COMPOUND_TYPES] = { 0, 0 };
 
   const int try_average_comp = (mode_search_mask & (1 << COMPOUND_AVERAGE));
+#if !CONFIG_REMOVE_DIST_WTD_COMP
+  const AV1_COMMON *cm = &cpi->common;
   const int try_distwtd_comp =
       ((mode_search_mask & (1 << COMPOUND_DISTWTD)) &&
        cm->seq_params.order_hint_info.enable_dist_wtd_comp == 1 &&
        cpi->sf.inter_sf.use_dist_wtd_comp_flag != DIST_WTD_COMP_DISABLED);
+#else
+  const int try_distwtd_comp = 0;
+#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
   *try_average_and_distwtd_comp = try_average_comp && try_distwtd_comp;
 
   // Check if COMPOUND_AVERAGE and COMPOUND_DISTWTD are valid cases
