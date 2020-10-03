@@ -108,8 +108,10 @@ struct av1_extracfg {
   int enable_order_hint;         // enable order hint for sequence
   int enable_tx64;               // enable 64-pt transform usage for sequence
   int enable_flip_idtx;          // enable flip and identity transform types
-  int enable_dist_wtd_comp;      // enable dist wtd compound for sequence
-  int max_reference_frames;      // maximum number of references per frame
+#if !CONFIG_REMOVE_DIST_WTD_COMP
+  int enable_dist_wtd_comp;          // enable dist wtd compound for sequence
+#endif                               // !CONFIG_REMOVE_DIST_WTD_COMP
+  int max_reference_frames;          // maximum number of references per frame
   int enable_reduced_reference_set;  // enable reduced set of references
   int enable_ref_frame_mvs;          // sequence level
   int allow_ref_frame_mvs;           // frame level
@@ -341,30 +343,32 @@ static struct av1_extracfg default_extra_cfg = {
   1,                            // frame order hint
   1,                            // enable 64-pt transform usage
   1,                            // enable flip and identity transform
-  1,                            // dist-wtd compound
-  7,                            // max_reference_frames
-  0,                            // enable_reduced_reference_set
-  1,                            // enable_ref_frame_mvs sequence level
-  1,                            // allow ref_frame_mvs frame level
-  1,                            // enable masked compound at sequence level
-  1,                            // enable one sided compound at sequence level
-  1,                            // enable interintra compound at sequence level
-  1,                            // enable smooth interintra mode
-  1,                            // enable difference-weighted compound
-  1,                            // enable interinter wedge compound
-  1,                            // enable interintra wedge compound
-  1,                            // enable_global_motion usage
-  1,                            // enable_warped_motion at sequence level
-  1,                            // allow_warped_motion at frame level
-  1,                            // enable filter intra at sequence level
-  1,                            // enable smooth intra modes usage for sequence
-  1,                            // enable Paeth intra mode usage for sequence
-  1,                            // enable CFL uv intra mode usage for sequence
-  1,                            // superres
-  1,                            // enable overlay
-  1,                            // enable palette
-  !CONFIG_SHARP_SETTINGS,       // enable intrabc
-  1,                            // enable angle delta
+#if !CONFIG_REMOVE_DIST_WTD_COMP
+  1,                       // dist-wtd compound
+#endif                     // !CONFIG_REMOVE_DIST_WTD_COMP
+  7,                       // max_reference_frames
+  0,                       // enable_reduced_reference_set
+  1,                       // enable_ref_frame_mvs sequence level
+  1,                       // allow ref_frame_mvs frame level
+  1,                       // enable masked compound at sequence level
+  1,                       // enable one sided compound at sequence level
+  1,                       // enable interintra compound at sequence level
+  1,                       // enable smooth interintra mode
+  1,                       // enable difference-weighted compound
+  1,                       // enable interinter wedge compound
+  1,                       // enable interintra wedge compound
+  1,                       // enable_global_motion usage
+  1,                       // enable_warped_motion at sequence level
+  1,                       // allow_warped_motion at frame level
+  1,                       // enable filter intra at sequence level
+  1,                       // enable smooth intra modes usage for sequence
+  1,                       // enable Paeth intra mode usage for sequence
+  1,                       // enable CFL uv intra mode usage for sequence
+  1,                       // superres
+  1,                       // enable overlay
+  1,                       // enable palette
+  !CONFIG_SHARP_SETTINGS,  // enable intrabc
+  1,                       // enable angle delta
 #if CONFIG_DENOISE
   0,   // noise_level
   32,  // noise_block_size
@@ -732,7 +736,9 @@ static void update_encoder_config(cfg_options_t *cfg,
           : (extra_cfg->superblock_size == AOM_SUPERBLOCK_SIZE_128X128) ? 128
                                                                         : 0;
   cfg->enable_warped_motion = extra_cfg->enable_warped_motion;
+#if !CONFIG_REMOVE_DIST_WTD_COMP
   cfg->enable_dist_wtd_comp = extra_cfg->enable_dist_wtd_comp;
+#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
   cfg->enable_diff_wtd_comp = extra_cfg->enable_diff_wtd_comp;
   cfg->enable_dual_filter = extra_cfg->enable_dual_filter;
   cfg->enable_angle_delta = extra_cfg->enable_angle_delta;
@@ -775,7 +781,9 @@ static void update_default_encoder_config(const cfg_options_t *cfg,
                                          ? AOM_SUPERBLOCK_SIZE_128X128
                                          : AOM_SUPERBLOCK_SIZE_DYNAMIC;
   extra_cfg->enable_warped_motion = cfg->enable_warped_motion;
+#if !CONFIG_REMOVE_DIST_WTD_COMP
   extra_cfg->enable_dist_wtd_comp = cfg->enable_dist_wtd_comp;
+#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
   extra_cfg->enable_diff_wtd_comp = cfg->enable_diff_wtd_comp;
   extra_cfg->enable_dual_filter = cfg->enable_dual_filter;
   extra_cfg->enable_angle_delta = cfg->enable_angle_delta;
@@ -1171,8 +1179,12 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   txfm_cfg->use_intra_default_tx_only = extra_cfg->use_intra_default_tx_only;
 
   // Set compound type configuration.
+#if !CONFIG_REMOVE_DIST_WTD_COMP
   comp_type_cfg->enable_dist_wtd_comp =
       extra_cfg->enable_dist_wtd_comp & extra_cfg->enable_order_hint;
+#else
+  comp_type_cfg->enable_dist_wtd_comp = 0;
+#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
   comp_type_cfg->enable_masked_comp = extra_cfg->enable_masked_comp;
   comp_type_cfg->enable_diff_wtd_comp =
       extra_cfg->enable_masked_comp & extra_cfg->enable_diff_wtd_comp;
@@ -1625,12 +1637,14 @@ static aom_codec_err_t ctrl_set_enable_flip_idtx(aom_codec_alg_priv_t *ctx,
   return update_extra_cfg(ctx, &extra_cfg);
 }
 
+#if !CONFIG_REMOVE_DIST_WTD_COMP
 static aom_codec_err_t ctrl_set_enable_dist_wtd_comp(aom_codec_alg_priv_t *ctx,
                                                      va_list args) {
   struct av1_extracfg extra_cfg = ctx->extra_cfg;
   extra_cfg.enable_dist_wtd_comp = CAST(AV1E_SET_ENABLE_DIST_WTD_COMP, args);
   return update_extra_cfg(ctx, &extra_cfg);
 }
+#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
 
 static aom_codec_err_t ctrl_set_max_reference_frames(aom_codec_alg_priv_t *ctx,
                                                      va_list args) {
@@ -3044,7 +3058,9 @@ static aom_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {
   { AV1E_SET_ENABLE_ORDER_HINT, ctrl_set_enable_order_hint },
   { AV1E_SET_ENABLE_TX64, ctrl_set_enable_tx64 },
   { AV1E_SET_ENABLE_FLIP_IDTX, ctrl_set_enable_flip_idtx },
+#if !CONFIG_REMOVE_DIST_WTD_COMP
   { AV1E_SET_ENABLE_DIST_WTD_COMP, ctrl_set_enable_dist_wtd_comp },
+#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
   { AV1E_SET_MAX_REFERENCE_FRAMES, ctrl_set_max_reference_frames },
   { AV1E_SET_REDUCED_REFERENCE_SET, ctrl_set_enable_reduced_reference_set },
   { AV1E_SET_ENABLE_REF_FRAME_MVS, ctrl_set_enable_ref_frame_mvs },
@@ -3193,8 +3209,13 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = {
       { 0 },                   // tile_heights
       0,                       // use_fixed_qp_offsets
       { -1, -1, -1, -1, -1 },  // fixed_qp_offsets
+#if !CONFIG_REMOVE_DIST_WTD_COMP
       { 0, 128, 128, 4, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0,
         0, 1,   1,   1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0 },  // cfg
+#else
+      { 0, 128, 128, 4, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0,
+        0, 1,   1,   1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0 },  // cfg
+#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
   },
   {
       // NOLINT
@@ -3261,8 +3282,13 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = {
       { 0 },                   // tile_heights
       0,                       // use_fixed_qp_offsets
       { -1, -1, -1, -1, -1 },  // fixed_qp_offsets
+#if !CONFIG_REMOVE_DIST_WTD_COMP
       { 0, 128, 128, 4, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0,
         0, 1,   1,   1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0 },  // cfg
+#else
+      { 0, 128, 128, 4, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0,
+        0, 1,   1,   1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0 },  // cfg
+#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
   },
 };
 

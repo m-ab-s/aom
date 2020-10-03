@@ -258,10 +258,12 @@ typedef struct cfg_options {
    *
    */
   unsigned int enable_global_motion;
+#if !CONFIG_REMOVE_DIST_WTD_COMP
   /*!\brief enable dist weighted compound
    *
    */
   unsigned int enable_dist_wtd_comp;
+#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
   /*!\brief enable diff weighted compound
    *
    */
