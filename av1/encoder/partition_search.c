@@ -1028,12 +1028,16 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
         }
 
         if (mbmi->comp_group_idx == 0) {
+#if !CONFIG_REMOVE_DIST_WTD_COMP
           const int comp_index_ctx = get_comp_index_context(cm, xd);
 #if CONFIG_ENTROPY_STATS
           ++counts->compound_index[comp_index_ctx][mbmi->compound_idx];
 #endif
           update_cdf(fc->compound_index_cdf[comp_index_ctx], mbmi->compound_idx,
                      2);
+#else
+          assert(mbmi->compound_idx == 1);
+#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
         } else {
           assert(masked_compound_used);
           if (is_interinter_compound_used(COMPOUND_WEDGE, bsize)) {

@@ -685,8 +685,10 @@ typedef struct {
    * \name Inter Costs: Compound Masks
    ****************************************************************************/
   /**@{*/
+#if !CONFIG_REMOVE_DIST_WTD_COMP
   //! comp_idx_cost
   int comp_idx_cost[COMP_INDEX_CONTEXTS][2];
+#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
   //! comp_group_idx_cost
   int comp_group_idx_cost[COMP_GROUP_IDX_CONTEXTS][2];
   /**@}*/

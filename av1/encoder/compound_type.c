@@ -891,9 +891,14 @@ static INLINE int compute_valid_comp_types(
 }
 
 // Calculates the cost for compound type mask
-static INLINE void calc_masked_type_cost(
-    const ModeCosts *mode_costs, BLOCK_SIZE bsize, int comp_group_idx_ctx,
-    int comp_index_ctx, int masked_compound_used, int *masked_type_cost) {
+static INLINE void calc_masked_type_cost(const ModeCosts *mode_costs,
+                                         BLOCK_SIZE bsize,
+                                         int comp_group_idx_ctx,
+#if !CONFIG_REMOVE_DIST_WTD_COMP
+                                         int comp_index_ctx,
+#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
+                                         int masked_compound_used,
+                                         int *masked_type_cost) {
   av1_zero_array(masked_type_cost, COMPOUND_TYPES);
   // Account for group index cost when wedge and/or diffwtd prediction are
   // enabled
@@ -909,10 +914,12 @@ static INLINE void calc_masked_type_cost(
   }
 
   // Compute the cost to signal compound index/type
+#if !CONFIG_REMOVE_DIST_WTD_COMP
   masked_type_cost[COMPOUND_AVERAGE] +=
       mode_costs->comp_idx_cost[comp_index_ctx][1];
   masked_type_cost[COMPOUND_DISTWTD] +=
       mode_costs->comp_idx_cost[comp_index_ctx][0];
+#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
   masked_type_cost[COMPOUND_WEDGE] += mode_costs->compound_type_cost[bsize][0];
   masked_type_cost[COMPOUND_DIFFWTD] +=
       mode_costs->compound_type_cost[bsize][1];
@@ -1322,11 +1329,17 @@ int av1_compound_type_rd(const AV1_COMP *const cpi, MACROBLOCK *x,
 
   // The following context indices are independent of compound type
   const int comp_group_idx_ctx = get_comp_group_idx_context(xd);
+#if !CONFIG_REMOVE_DIST_WTD_COMP
   const int comp_index_ctx = get_comp_index_context(cm, xd);
 
   // Populates masked_type_cost local array for the 4 compound types
   calc_masked_type_cost(&x->mode_costs, bsize, comp_group_idx_ctx,
                         comp_index_ctx, masked_compound_used, masked_type_cost);
+#else
+  // Populates masked_type_cost local array for the 4 compound types
+  calc_masked_type_cost(&x->mode_costs, bsize, comp_group_idx_ctx,
+                        masked_compound_used, masked_type_cost);
+#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
 
   int64_t comp_model_rd_cur = INT64_MAX;
   int64_t best_rd_cur = INT64_MAX;

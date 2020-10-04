@@ -96,6 +96,7 @@ static INLINE int av1_get_pred_context_seg_id(const MACROBLOCKD *xd) {
   return above_sip + left_sip;
 }
 
+#if !CONFIG_REMOVE_DIST_WTD_COMP
 static INLINE int get_comp_index_context(const AV1_COMMON *cm,
                                          const MACROBLOCKD *xd) {
   MB_MODE_INFO *mbmi = xd->mi[0];
@@ -134,6 +135,7 @@ static INLINE int get_comp_index_context(const AV1_COMMON *cm,
 
   return above_ctx + left_ctx + 3 * offset;
 }
+#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
 
 static INLINE int get_comp_group_idx_context(const MACROBLOCKD *xd) {
   const MB_MODE_INFO *const above_mi = xd->above_mbmi;

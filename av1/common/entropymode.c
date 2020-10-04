@@ -800,11 +800,13 @@ static const aom_cdf_prob default_skip_txfm_cdfs[SKIP_CONTEXTS][CDF_SIZE(2)] = {
 static const aom_cdf_prob default_skip_mode_cdfs[SKIP_MODE_CONTEXTS][CDF_SIZE(
     2)] = { { AOM_CDF2(32621) }, { AOM_CDF2(20708) }, { AOM_CDF2(8127) } };
 
+#if !CONFIG_REMOVE_DIST_WTD_COMP
 static const aom_cdf_prob
     default_compound_idx_cdfs[COMP_INDEX_CONTEXTS][CDF_SIZE(2)] = {
       { AOM_CDF2(18244) }, { AOM_CDF2(12865) }, { AOM_CDF2(7053) },
       { AOM_CDF2(13259) }, { AOM_CDF2(9334) },  { AOM_CDF2(4644) }
     };
+#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
 
 static const aom_cdf_prob
     default_comp_group_idx_cdfs[COMP_GROUP_IDX_CONTEXTS][CDF_SIZE(2)] = {
@@ -1099,7 +1101,9 @@ static void init_mode_probs(FRAME_CONTEXT *fc) {
   av1_copy(fc->comp_bwdref_cdf, default_comp_bwdref_cdf);
   av1_copy(fc->single_ref_cdf, default_single_ref_cdf);
   av1_copy(fc->txfm_partition_cdf, default_txfm_partition_cdf);
+#if !CONFIG_REMOVE_DIST_WTD_COMP
   av1_copy(fc->compound_index_cdf, default_compound_idx_cdfs);
+#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
   av1_copy(fc->comp_group_idx_cdf, default_comp_group_idx_cdfs);
   av1_copy(fc->newmv_cdf, default_newmv_cdf);
   av1_copy(fc->zeromv_cdf, default_zeromv_cdf);

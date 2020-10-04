@@ -304,10 +304,12 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, ModeCosts *mode_costs,
       av1_cost_tokens_from_cdf(mode_costs->motion_mode_cost1[i],
                                fc->obmc_cdf[i], NULL);
     }
+#if !CONFIG_REMOVE_DIST_WTD_COMP
     for (i = 0; i < COMP_INDEX_CONTEXTS; ++i) {
       av1_cost_tokens_from_cdf(mode_costs->comp_idx_cost[i],
                                fc->compound_index_cdf[i], NULL);
     }
+#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
     for (i = 0; i < COMP_GROUP_IDX_CONTEXTS; ++i) {
       av1_cost_tokens_from_cdf(mode_costs->comp_group_idx_cost[i],
                                fc->comp_group_idx_cdf[i], NULL);
