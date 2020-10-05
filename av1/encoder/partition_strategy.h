@@ -14,6 +14,7 @@
 
 #include "av1/encoder/block.h"
 #include "av1/encoder/encodeframe.h"
+#include "av1/encoder/encodeframe_utils.h"
 #include "av1/encoder/encodemb.h"
 #include "av1/encoder/encoder.h"
 
@@ -146,6 +147,23 @@ SimpleMotionData *av1_get_sms_data(AV1_COMP *const cpi,
                                    const TileInfo *const tile, MACROBLOCK *x,
                                    CHROMA_REF_INFO *chr_ref_info, int mi_row,
                                    int mi_col, BLOCK_SIZE bsize);
+
+static AOM_INLINE void av1_add_mode_search_context_to_cache(
+    SimpleMotionData *sms_data, PICK_MODE_CONTEXT *ctx) {
+  if (!sms_data->mode_cache[0] ||
+      sms_data->mode_cache[0]->rd_stats.rdcost > ctx->rd_stats.rdcost) {
+    sms_data->mode_cache[0] = ctx;
+  }
+}
+
+static INLINE void av1_set_best_mode_cache(MACROBLOCK *x,
+                                           PICK_MODE_CONTEXT *mode_cache[1]) {
+  if (mode_cache[0] && mode_cache[0]->rd_stats.rate != INT_MAX) {
+    x->inter_mode_cache = &mode_cache[0]->mic;
+  } else {
+    x->inter_mode_cache = NULL;
+  }
+}
 
 void av1_cache_best_partition(SimpleMotionDataBufs *sms_bufs, int mi_row,
                               int mi_col, BLOCK_SIZE bsize, BLOCK_SIZE sb_size,

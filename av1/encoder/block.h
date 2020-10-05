@@ -246,6 +246,8 @@ typedef struct SimpleMotionData {
 
   int has_prev_partition;
   PARTITION_TYPE prev_partition;
+
+  struct PICK_MODE_CONTEXT *mode_cache[1];
 } SimpleMotionData;
 
 #define BLOCK_128_COUNT 1
@@ -658,6 +660,8 @@ struct macroblock {
 
 #if CONFIG_EXT_RECUR_PARTITIONS
   SimpleMotionDataBufs *sms_bufs;
+
+  MB_MODE_INFO *inter_mode_cache;
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 };
 

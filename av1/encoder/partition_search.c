@@ -906,31 +906,44 @@ static int rd_try_subblock_new(AV1_COMP *const cpi, ThreadData *td,
                                rdo_data->sms_tree, NULL, multi_pass_mode))
       return 0;
   } else {
-    pick_sb_modes(cpi, tile_data, x, mi_row, mi_col, &this_rdc,
-                  rdo_data->partition, bsize, rdo_data->ctx, rdcost_remaining,
-                  PICK_MODE_RD);
+#if USE_OLD_PREDICTION_MODE
+    const BLOCK_SIZE sb_size = cpi->common.seq_params.sb_size;
+    SimpleMotionData *sms_data =
+        av1_get_sms_data_entry(x->sms_bufs, mi_row, mi_col, bsize, sb_size);
+    av1_set_best_mode_cache(x, sms_data->mode_cache);
   }
-
-  if (this_rdc.rate == INT_MAX) {
-    sum_rdc->rdcost = INT64_MAX;
-  } else {
-    sum_rdc->rate += this_rdc.rate;
-    sum_rdc->dist += this_rdc.dist;
-    av1_rd_cost_update(x->rdmult, sum_rdc);
+#endif  // USE_OLD_PREDICTION_MODE
+  pick_sb_modes(cpi, tile_data, x, mi_row, mi_col, &this_rdc,
+                rdo_data->partition, bsize, rdo_data->ctx, rdcost_remaining,
+                PICK_MODE_RD);
+#if USE_OLD_PREDICTION_MODE
+  x->inter_mode_cache = NULL;
+  if (this_rdc.rate != INT_MAX) {
+    av1_add_mode_search_context_to_cache(sms_data, rdo_data->ctx);
   }
+#endif  // USE_OLD_PREDICTION_MODE
+}
 
-  if (sum_rdc->rdcost >= best_rdcost.rdcost) {
-    x->rdmult = orig_mult;
-    return 0;
-  }
+if (this_rdc.rate == INT_MAX) {
+  sum_rdc->rdcost = INT64_MAX;
+} else {
+  sum_rdc->rate += this_rdc.rate;
+  sum_rdc->dist += this_rdc.dist;
+  av1_rd_cost_update(x->rdmult, sum_rdc);
+}
 
-  if (!rdo_data->is_last_subblock && !rdo_data->is_splittable) {
-    av1_update_state(cpi, td, rdo_data->ctx, mi_row, mi_col, bsize, 1);
-    av1_encode_superblock(cpi, tile_data, td, tp, DRY_RUN_NORMAL, bsize, NULL);
-  }
-
+if (sum_rdc->rdcost >= best_rdcost.rdcost) {
   x->rdmult = orig_mult;
-  return 1;
+  return 0;
+}
+
+if (!rdo_data->is_last_subblock && !rdo_data->is_splittable) {
+  av1_update_state(cpi, td, rdo_data->ctx, mi_row, mi_col, bsize, 1);
+  av1_encode_superblock(cpi, tile_data, td, tp, DRY_RUN_NORMAL, bsize, NULL);
+}
+
+x->rdmult = orig_mult;
+return 1;
 }
 #else   // !CONFIG_EXT_RECUR_PARTITIONS
 static bool rd_test_partition3(AV1_COMP *const cpi, ThreadData *td,
@@ -1100,8 +1113,19 @@ static INLINE void search_partition_none(
     partition_timer_on = 1;
   }
 #endif
+#if USE_OLD_PREDICTION_MODE
+  SimpleMotionData *sms_data = av1_get_sms_data_entry(
+      x->sms_bufs, mi_row, mi_col, bsize, cm->seq_params.sb_size);
+  av1_set_best_mode_cache(x, sms_data->mode_cache);
+#endif  // USE_OLD_PREDICTION_MODE
   pick_sb_modes(cpi, tile_data, x, mi_row, mi_col, &this_rdc, PARTITION_NONE,
                 bsize, ctx_none, best_remain_rdcost, PICK_MODE_RD);
+#if USE_OLD_PREDICTION_MODE
+  x->inter_mode_cache = NULL;
+  if (this_rdc.rate != INT_MAX) {
+    av1_add_mode_search_context_to_cache(sms_data, ctx_none);
+  }
+#endif  // USE_OLD_PREDICTION_MODE
   av1_rd_cost_update(x->rdmult, &this_rdc);
 #if CONFIG_COLLECT_PARTITION_STATS
   if (partition_timer_on) {
@@ -2465,6 +2489,7 @@ static INLINE void search_partition_vert_3(PartitionSearchState *search_state,
   }
   av1_restore_context(cm, x, x_ctx, mi_row, mi_col, bsize, num_planes);
 }
+
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 
 #define PRUNE_WITH_PREV_PARTITION(cur_partition) \
@@ -2941,7 +2966,7 @@ BEGIN_PARTITION_SEARCH:
     }
   }
 
-  if (!pc_tree_dealloc) {
+  if (!pc_tree_dealloc && !USE_OLD_PREDICTION_MODE) {
     av1_free_pc_tree_recursive(pc_tree, num_planes, 1, 1);
   }
 
