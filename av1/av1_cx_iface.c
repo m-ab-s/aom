@@ -75,7 +75,9 @@ struct av1_extracfg {
 
   aom_timing_info_type_t timing_info_type;
   unsigned int frame_parallel_decoding_mode;
+#if !CONFIG_REMOVE_DUAL_FILTER
   int enable_dual_filter;
+#endif  // !CONFIG_REMOVE_DUAL_FILTER
   unsigned int enable_chroma_deltaq;
   AQ_MODE aq_mode;
   DELTAQ_MODE deltaq_mode;
@@ -309,9 +311,11 @@ static struct av1_extracfg default_extra_cfg = {
   DEFAULT_QM_LAST,                           // qm_max
   1,                                         // max number of tile groups
   0,                                         // mtu_size
-  AOM_TIMING_UNSPECIFIED,       // No picture timing signaling in bitstream
-  0,                            // frame_parallel_decoding_mode
+  AOM_TIMING_UNSPECIFIED,  // No picture timing signaling in bitstream
+  0,                       // frame_parallel_decoding_mode
+#if !CONFIG_REMOVE_DUAL_FILTER
   1,                            // enable dual filter
+#endif                          // !CONFIG_REMOVE_DUAL_FILTER
   0,                            // enable delta quant in chroma planes
   NO_AQ,                        // aq_mode
   DELTA_Q_OBJECTIVE,            // deltaq_mode
@@ -740,7 +744,9 @@ static void update_encoder_config(cfg_options_t *cfg,
   cfg->enable_dist_wtd_comp = extra_cfg->enable_dist_wtd_comp;
 #endif  // !CONFIG_REMOVE_DIST_WTD_COMP
   cfg->enable_diff_wtd_comp = extra_cfg->enable_diff_wtd_comp;
+#if !CONFIG_REMOVE_DUAL_FILTER
   cfg->enable_dual_filter = extra_cfg->enable_dual_filter;
+#endif  // !CONFIG_REMOVE_DUAL_FILTER
   cfg->enable_angle_delta = extra_cfg->enable_angle_delta;
   cfg->enable_rect_partitions = extra_cfg->enable_rect_partitions;
   cfg->enable_ab_partitions = extra_cfg->enable_ab_partitions;
@@ -785,7 +791,9 @@ static void update_default_encoder_config(const cfg_options_t *cfg,
   extra_cfg->enable_dist_wtd_comp = cfg->enable_dist_wtd_comp;
 #endif  // !CONFIG_REMOVE_DIST_WTD_COMP
   extra_cfg->enable_diff_wtd_comp = cfg->enable_diff_wtd_comp;
+#if !CONFIG_REMOVE_DUAL_FILTER
   extra_cfg->enable_dual_filter = cfg->enable_dual_filter;
+#endif  // !CONFIG_REMOVE_DUAL_FILTER
   extra_cfg->enable_angle_delta = cfg->enable_angle_delta;
   extra_cfg->enable_rect_partitions = cfg->enable_rect_partitions;
   extra_cfg->enable_ab_partitions = cfg->enable_ab_partitions;
@@ -978,7 +986,9 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   tool_cfg->superblock_size = extra_cfg->superblock_size;
   tool_cfg->enable_monochrome = cfg->monochrome;
   tool_cfg->full_still_picture_hdr = cfg->full_still_picture_hdr;
+#if !CONFIG_REMOVE_DUAL_FILTER
   tool_cfg->enable_dual_filter = extra_cfg->enable_dual_filter;
+#endif  // !CONFIG_REMOVE_DUAL_FILTER
   tool_cfg->enable_order_hint = extra_cfg->enable_order_hint;
   tool_cfg->enable_interintra_comp = extra_cfg->enable_interintra_comp;
   tool_cfg->ref_frame_mvs_present =
@@ -1555,12 +1565,14 @@ static aom_codec_err_t ctrl_set_timing_info_type(aom_codec_alg_priv_t *ctx,
   return update_extra_cfg(ctx, &extra_cfg);
 }
 
+#if !CONFIG_REMOVE_DUAL_FILTER
 static aom_codec_err_t ctrl_set_enable_dual_filter(aom_codec_alg_priv_t *ctx,
                                                    va_list args) {
   struct av1_extracfg extra_cfg = ctx->extra_cfg;
   extra_cfg.enable_dual_filter = CAST(AV1E_SET_ENABLE_DUAL_FILTER, args);
   return update_extra_cfg(ctx, &extra_cfg);
 }
+#endif  // !CONFIG_REMOVE_DUAL_FILTER
 
 static aom_codec_err_t ctrl_set_enable_chroma_deltaq(aom_codec_alg_priv_t *ctx,
                                                      va_list args) {
@@ -3050,7 +3062,9 @@ static aom_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {
   { AV1E_SET_ENABLE_1TO4_PARTITIONS, ctrl_set_enable_1to4_partitions },
   { AV1E_SET_MIN_PARTITION_SIZE, ctrl_set_min_partition_size },
   { AV1E_SET_MAX_PARTITION_SIZE, ctrl_set_max_partition_size },
+#if !CONFIG_REMOVE_DUAL_FILTER
   { AV1E_SET_ENABLE_DUAL_FILTER, ctrl_set_enable_dual_filter },
+#endif  // !CONFIG_REMOVE_DUAL_FILTER
   { AV1E_SET_ENABLE_CHROMA_DELTAQ, ctrl_set_enable_chroma_deltaq },
   { AV1E_SET_ENABLE_INTRA_EDGE_FILTER, ctrl_set_enable_intra_edge_filter },
   { AV1E_SET_ENABLE_ORDER_HINT, ctrl_set_enable_order_hint },
@@ -3207,13 +3221,15 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = {
       { 0 },                   // tile_heights
       0,                       // use_fixed_qp_offsets
       { -1, -1, -1, -1, -1 },  // fixed_qp_offsets
+      { 0, 128, 128, 4, 1, 1, 1, 1, 1, 1, 1, 1, 1,
 #if !CONFIG_REMOVE_DIST_WTD_COMP
-      { 0, 128, 128, 4, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0,
-        0, 1,   1,   1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0 },  // cfg
-#else
-      { 0, 128, 128, 4, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0,
-        0, 1,   1,   1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0 },  // cfg
+        1,
 #endif  // !CONFIG_REMOVE_DIST_WTD_COMP
+        1, 1,   1,   0, 0, 1, 1, 1, 1,
+#if !CONFIG_REMOVE_DUAL_FILTER
+        1,
+#endif                                          // !CONFIG_REMOVE_DUAL_FILTER
+        1, 1,   1,   1, 1, 1, 1, 1, 1, 1, 0 },  // cfg
   },
   {
       // NOLINT
@@ -3280,13 +3296,15 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = {
       { 0 },                   // tile_heights
       0,                       // use_fixed_qp_offsets
       { -1, -1, -1, -1, -1 },  // fixed_qp_offsets
+      { 0, 128, 128, 4, 1, 1, 1, 1, 1, 1, 1, 1, 1,
 #if !CONFIG_REMOVE_DIST_WTD_COMP
-      { 0, 128, 128, 4, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0,
-        0, 1,   1,   1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0 },  // cfg
-#else
-      { 0, 128, 128, 4, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0,
-        0, 1,   1,   1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0 },  // cfg
+        1,
 #endif  // !CONFIG_REMOVE_DIST_WTD_COMP
+        1, 1,   1,   0, 0, 1, 1, 1, 1,
+#if !CONFIG_REMOVE_DUAL_FILTER
+        1,
+#endif                                          // !CONFIG_REMOVE_DUAL_FILTER
+        1, 1,   1,   1, 1, 1, 1, 1, 1, 1, 0 },  // cfg
   },
 };
 

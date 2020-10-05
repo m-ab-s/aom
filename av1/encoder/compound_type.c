@@ -35,7 +35,11 @@ static INLINE int is_comp_rd_match(const AV1_COMP *const cpi,
   // TODO(ranjit): Ensure that compound type search use regular filter always
   // and check if following check can be removed
   // Check if interp filter matches with previous case
+#if CONFIG_REMOVE_DUAL_FILTER
+  if (st->interp_fltr != mi->interp_fltr) return 0;
+#else
   if (st->filter.as_int != mi->interp_filters.as_int) return 0;
+#endif  // CONFIG_REMOVE_DUAL_FILTER
 
   const MACROBLOCKD *const xd = &x->e_mbd;
   // Match MV and reference indices
@@ -1030,7 +1034,11 @@ static INLINE void save_comp_rd_search_stat(
     memcpy(rd_stats->mv, cur_mv, sizeof(rd_stats->mv));
     memcpy(rd_stats->ref_frames, mbmi->ref_frame, sizeof(rd_stats->ref_frames));
     rd_stats->mode = mbmi->mode;
+#if CONFIG_REMOVE_DUAL_FILTER
+    rd_stats->interp_fltr = mbmi->interp_fltr;
+#else
     rd_stats->filter = mbmi->interp_filters;
+#endif  // CONFIG_REMOVE_DUAL_FILTER
     rd_stats->ref_mv_idx = mbmi->ref_mv_idx;
     const MACROBLOCKD *const xd = &x->e_mbd;
     for (int i = 0; i < 2; ++i) {

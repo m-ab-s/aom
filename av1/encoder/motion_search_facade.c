@@ -337,12 +337,6 @@ void av1_joint_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
   const MvCosts *mv_costs = &x->mv_costs;
   int_mv ref_mv[2];
   int ite, ref;
-
-  // Get the prediction block from the 'other' reference frame.
-  const int_interpfilters interp_filters =
-      av1_broadcast_interp_filter(EIGHTTAP_REGULAR);
-
-  InterPredParams inter_pred_params;
   const int mi_row = xd->mi_row;
   const int mi_col = xd->mi_col;
 
@@ -406,6 +400,13 @@ void av1_joint_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
     ref_yv12[0] = xd->plane[plane].pre[0];
     ref_yv12[1] = xd->plane[plane].pre[1];
 
+    InterPredParams inter_pred_params;
+#if CONFIG_REMOVE_DUAL_FILTER
+    const InterpFilter interp_filters = EIGHTTAP_REGULAR;
+#else
+    const int_interpfilters interp_filters =
+        av1_broadcast_interp_filter(EIGHTTAP_REGULAR);
+#endif  // CONFIG_REMOVE_DUAL_FILTER
     av1_init_inter_params(&inter_pred_params, pw, ph, mi_row * MI_SIZE,
                           mi_col * MI_SIZE, 0, 0, xd->bd, is_cur_buf_hbd(xd), 0,
                           &cm->sf_identity, &ref_yv12[!id], interp_filters);
@@ -634,7 +635,12 @@ static AOM_INLINE void build_second_inter_pred(const AV1_COMP *cpi,
   av1_init_inter_params(&inter_pred_params, pw, ph, p_row, p_col,
                         pd->subsampling_x, pd->subsampling_y, xd->bd,
                         is_cur_buf_hbd(xd), 0, &sf, &ref_yv12,
-                        mbmi->interp_filters);
+#if CONFIG_REMOVE_DUAL_FILTER
+                        mbmi->interp_fltr
+#else
+                        mbmi->interp_filters
+#endif  // CONFIG_REMOVE_DUAL_FILTER
+  );
   inter_pred_params.conv_params = get_conv_params(0, plane, xd->bd);
 
   // Get the prediction block from the 'other' reference frame.
@@ -735,7 +741,11 @@ int_mv av1_simple_motion_search(AV1_COMP *const cpi, MACROBLOCK *x, int mi_row,
   mbmi->ref_frame[0] = ref;
   mbmi->ref_frame[1] = NONE_FRAME;
   mbmi->motion_mode = SIMPLE_TRANSLATION;
+#if CONFIG_REMOVE_DUAL_FILTER
+  mbmi->interp_fltr = EIGHTTAP_REGULAR;
+#else
   mbmi->interp_filters = av1_broadcast_interp_filter(EIGHTTAP_REGULAR);
+#endif  // CONFIG_REMOVE_DUAL_FILTER
 
   const YV12_BUFFER_CONFIG *yv12 = get_ref_frame_yv12_buf(cm, ref);
   const YV12_BUFFER_CONFIG *scaled_ref_frame =

@@ -25,7 +25,11 @@ extern "C" {
 #define DUAL_FILTER_SET_SIZE (SWITCHABLE_FILTERS * SWITCHABLE_FILTERS)
 
 typedef struct {
+#if CONFIG_REMOVE_DUAL_FILTER
+  InterpFilter interp_fltr;
+#else
   int_interpfilters filters;
+#endif  // CONFIG_REMOVE_DUAL_FILTER
   int_mv mv[2];
   int8_t ref_frames[2];
   COMPOUND_TYPE comp_type;
@@ -126,11 +130,13 @@ typedef struct {
 } HandleInterModeArgs;
 
 /*!\cond */
+#if !CONFIG_REMOVE_DUAL_FILTER
 static const int_interpfilters filter_sets[DUAL_FILTER_SET_SIZE] = {
   { 0x00000000 }, { 0x00010000 }, { 0x00020000 },  // y = 0
   { 0x00000001 }, { 0x00010001 }, { 0x00020001 },  // y = 1
   { 0x00000002 }, { 0x00010002 }, { 0x00020002 },  // y = 2
 };
+#endif  // !CONFIG_REMOVE_DUAL_FILTER
 
 int av1_find_interp_filter_match(
     MB_MODE_INFO *const mbmi, const AV1_COMP *const cpi,

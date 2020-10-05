@@ -767,7 +767,11 @@ static void setup_planes(AV1_COMP *cpi, MACROBLOCK *x, unsigned int *y_sad,
   mi->ref_frame[1] = NONE_FRAME;
   mi->sb_type = cm->seq_params.sb_size;
   mi->mv[0].as_int = 0;
+#if CONFIG_REMOVE_DUAL_FILTER
+  mi->interp_fltr = BILINEAR;
+#else
   mi->interp_filters = av1_broadcast_interp_filter(BILINEAR);
+#endif  // CONFIG_REMOVE_DUAL_FILTER
   if (cpi->sf.rt_sf.estimate_motion_for_var_based_partition) {
     if (xd->mb_to_right_edge >= 0 && xd->mb_to_bottom_edge >= 0) {
       const MV dummy_mv = { 0, 0 };

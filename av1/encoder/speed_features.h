@@ -724,6 +724,7 @@ typedef struct INTER_MODE_SPEED_FEATURES {
 } INTER_MODE_SPEED_FEATURES;
 
 typedef struct INTERP_FILTER_SPEED_FEATURES {
+#if !CONFIG_REMOVE_DUAL_FILTER
   // Do limited interpolation filter search for dual filters, since best choice
   // usually includes EIGHTTAP_REGULAR.
   int use_fast_interpolation_filter_search;
@@ -731,19 +732,20 @@ typedef struct INTERP_FILTER_SPEED_FEATURES {
   // Disable dual filter
   int disable_dual_filter;
 
+  // skip sharp_filter evaluation based on regular and smooth filter rd for
+  // dual_filter=0 case
+  int skip_sharp_interp_filter_search;
+
+  // adaptive interp_filter search to allow skip of certain filter types.
+  int adaptive_interp_filter_search;
+#endif  // !CONFIG_REMOVE_DUAL_FILTER
+
   // Save results of av1_interpolation_filter_search for a block
   // Check mv and ref_frames before search, if they are very close with previous
   // saved results, filter search can be skipped.
   int use_interp_filter;
 
-  // skip sharp_filter evaluation based on regular and smooth filter rd for
-  // dual_filter=0 case
-  int skip_sharp_interp_filter_search;
-
   int cb_pred_filter_search;
-
-  // adaptive interp_filter search to allow skip of certain filter types.
-  int adaptive_interp_filter_search;
 } INTERP_FILTER_SPEED_FEATURES;
 
 typedef struct INTRA_MODE_SPEED_FEATURES {

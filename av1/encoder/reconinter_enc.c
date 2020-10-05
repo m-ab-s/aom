@@ -102,7 +102,12 @@ void av1_enc_build_inter_predictor_y(MACROBLOCKD *xd, int mi_row, int mi_col) {
   av1_init_inter_params(&inter_pred_params, pd->width, pd->height, mi_y, mi_x,
                         pd->subsampling_x, pd->subsampling_y, xd->bd,
                         is_cur_buf_hbd(xd), false, sf, pd->pre,
-                        xd->mi[0]->interp_filters);
+#if CONFIG_REMOVE_DUAL_FILTER
+                        xd->mi[0]->interp_fltr
+#else
+                        xd->mi[0]->interp_filters
+#endif  // CONFIG_REMOVE_DUAL_FILTER
+  );
 
   inter_pred_params.conv_params = get_conv_params_no_round(
       0, AOM_PLANE_Y, xd->tmp_conv_dst, MAX_SB_SIZE, false, xd->bd);
@@ -210,7 +215,12 @@ static INLINE void build_obmc_prediction(MACROBLOCKD *xd, int rel_mi_row,
                           mi_x >> pd->subsampling_x, pd->subsampling_x,
                           pd->subsampling_y, xd->bd, is_cur_buf_hbd(xd), 0,
                           xd->block_ref_scale_factors[0], pre_buf,
-                          above_mbmi->interp_filters);
+#if CONFIG_REMOVE_DUAL_FILTER
+                          above_mbmi->interp_fltr
+#else
+                          above_mbmi->interp_filters
+#endif  // CONFIG_REMOVE_DUAL_FILTER
+    );
     inter_pred_params.conv_params = get_conv_params(0, j, xd->bd);
 
     av1_enc_build_one_inter_predictor(pd->dst.buf, pd->dst.stride, &mv,
@@ -299,7 +309,12 @@ void av1_build_inter_predictors_for_planes_single_buf(
                           mi_x >> pd->subsampling_x, pd->subsampling_x,
                           pd->subsampling_y, xd->bd, is_cur_buf_hbd(xd), 0,
                           xd->block_ref_scale_factors[ref], &pd->pre[ref],
-                          mi->interp_filters);
+#if CONFIG_REMOVE_DUAL_FILTER
+                          mi->interp_fltr
+#else
+                          mi->interp_filters
+#endif  // CONFIG_REMOVE_DUAL_FILTER
+    );
     inter_pred_params.conv_params = get_conv_params(0, plane, xd->bd);
     av1_init_warp_params(&inter_pred_params, &warp_types, ref, xd, mi);
 

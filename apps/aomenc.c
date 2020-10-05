@@ -468,10 +468,12 @@ static const arg_def_t max_partition_size =
     ARG_DEF(NULL, "max-partition-size", 128,
             "Set max partition size "
             "(4:4x4, 8:8x8, 16:16x16, 32:32x32, 64:64x64, 128:128x128)");
+#if !CONFIG_REMOVE_DUAL_FILTER
 static const arg_def_t enable_dual_filter =
     ARG_DEF(NULL, "enable-dual-filter", 1,
             "Enable dual filter "
             "(0: false, 1: true (default))");
+#endif  // !CONFIG_REMOVE_DUAL_FILTER
 static const arg_def_t enable_chroma_deltaq =
     ARG_DEF(NULL, "enable-chroma-deltaq", 1,
             "Enable chroma delta quant "
@@ -870,7 +872,9 @@ static const arg_def_t *av1_args[] = { &cpu_used_av1,
                                        &enable_1to4_partitions,
                                        &min_partition_size,
                                        &max_partition_size,
+#if !CONFIG_REMOVE_DUAL_FILTER
                                        &enable_dual_filter,
+#endif  // !CONFIG_REMOVE_DUAL_FILTER
                                        &enable_chroma_deltaq,
                                        &enable_intra_edge_filter,
                                        &enable_order_hint,
@@ -974,7 +978,9 @@ static const int av1_arg_ctrl_map[] = { AOME_SET_CPUUSED,
                                         AV1E_SET_ENABLE_1TO4_PARTITIONS,
                                         AV1E_SET_MIN_PARTITION_SIZE,
                                         AV1E_SET_MAX_PARTITION_SIZE,
+#if !CONFIG_REMOVE_DUAL_FILTER
                                         AV1E_SET_ENABLE_DUAL_FILTER,
+#endif  // !CONFIG_REMOVE_DUAL_FILTER
                                         AV1E_SET_ENABLE_CHROMA_DELTAQ,
                                         AV1E_SET_ENABLE_INTRA_EDGE_FILTER,
                                         AV1E_SET_ENABLE_ORDER_HINT,
@@ -1867,10 +1873,15 @@ static void show_stream_config(struct stream_state *stream,
           "FilterIntra (%d)\n",
           encoder_cfg->enable_smooth_intra, encoder_cfg->enable_cfl_intra,
           encoder_cfg->enable_filter_intra);
+#if CONFIG_REMOVE_DUAL_FILTER
+  fprintf(stdout, "                               : IntraDeltaAngle (%d)\n",
+          encoder_cfg->enable_angle_delta);
+#else
   fprintf(stdout,
           "                               : DualFilter (%d), IntraDeltaAngle "
           "(%d)\n",
           encoder_cfg->enable_dual_filter, encoder_cfg->enable_angle_delta);
+#endif  // CONFIG_REMOVE_DUAL_FILTER
   fprintf(stdout,
           "                               : "
           "EdgeFilter (%d), PaethPredictor (%d)\n",

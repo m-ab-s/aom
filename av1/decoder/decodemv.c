@@ -697,7 +697,11 @@ static void read_intrabc_info(AV1_COMMON *const cm, DecoderCodingBlock *dcb,
     BLOCK_SIZE bsize = mbmi->sb_type;
     mbmi->mode = DC_PRED;
     mbmi->uv_mode = UV_DC_PRED;
+#if CONFIG_REMOVE_DUAL_FILTER
+    mbmi->interp_fltr = BILINEAR;
+#else
     mbmi->interp_filters = av1_broadcast_interp_filter(BILINEAR);
+#endif  // CONFIG_REMOVE_DUAL_FILTER
     mbmi->motion_mode = SIMPLE_TRANSLATION;
 
     int16_t inter_mode_ctx[MODE_CTX_REF_FRAMES];
@@ -1030,7 +1034,9 @@ static void read_ref_frames(AV1_COMMON *const cm, MACROBLOCKD *const xd,
 
 static INLINE void read_mb_interp_filter(const MACROBLOCKD *const xd,
                                          InterpFilter interp_filter,
+#if !CONFIG_REMOVE_DUAL_FILTER
                                          bool enable_dual_filter,
+#endif  // !CONFIG_REMOVE_DUAL_FILTER
                                          MB_MODE_INFO *const mbmi,
                                          aom_reader *r) {
   FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
@@ -1041,8 +1047,18 @@ static INLINE void read_mb_interp_filter(const MACROBLOCKD *const xd,
   }
 
   if (interp_filter != SWITCHABLE) {
+#if CONFIG_REMOVE_DUAL_FILTER
+    mbmi->interp_fltr = interp_filter;
+#else
     mbmi->interp_filters = av1_broadcast_interp_filter(interp_filter);
+#endif  // CONFIG_REMOVE_DUAL_FILTER
   } else {
+#if CONFIG_REMOVE_DUAL_FILTER
+    const int ctx = av1_get_pred_context_switchable_interp(xd, 0);
+    const InterpFilter filter = (InterpFilter)aom_read_symbol(
+        r, ec_ctx->switchable_interp_cdf[ctx], SWITCHABLE_FILTERS, ACCT_STR);
+    mbmi->interp_fltr = filter;
+#else
     InterpFilter ref0_filter[2] = { EIGHTTAP_REGULAR, EIGHTTAP_REGULAR };
     for (int dir = 0; dir < 2; ++dir) {
       const int ctx = av1_get_pred_context_switchable_interp(xd, dir);
@@ -1056,6 +1072,7 @@ static INLINE void read_mb_interp_filter(const MACROBLOCKD *const xd,
     // The index system works as: (0, 1) -> (vertical, horizontal) filter types
     mbmi->interp_filters.as_filters.x_filter = ref0_filter[1];
     mbmi->interp_filters.as_filters.y_filter = ref0_filter[0];
+#endif  // CONFIG_REMOVE_DUAL_FILTER
   }
 }
 
@@ -1478,7 +1495,10 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
   }
 
   read_mb_interp_filter(xd, features->interp_filter,
-                        cm->seq_params.enable_dual_filter, mbmi, r);
+#if !CONFIG_REMOVE_DUAL_FILTER
+                        cm->seq_params.enable_dual_filter,
+#endif  // !CONFIG_REMOVE_DUAL_FILTER
+                        mbmi, r);
 
   const int mi_row = xd->mi_row;
   const int mi_col = xd->mi_col;

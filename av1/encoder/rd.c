@@ -1085,15 +1085,19 @@ int av1_get_switchable_rate(const MACROBLOCK *x, const MACROBLOCKD *xd,
                             InterpFilter interp_filter) {
   if (interp_filter == SWITCHABLE) {
     const MB_MODE_INFO *const mbmi = xd->mi[0];
+#if CONFIG_REMOVE_DUAL_FILTER
+    const int ctx = av1_get_pred_context_switchable_interp(xd, 0);
+    const int inter_filter_cost =
+        x->mode_costs.switchable_interp_costs[ctx][mbmi->interp_fltr];
+#else
     int inter_filter_cost = 0;
-    int dir;
-
-    for (dir = 0; dir < 2; ++dir) {
+    for (int dir = 0; dir < 2; ++dir) {
       const int ctx = av1_get_pred_context_switchable_interp(xd, dir);
       const InterpFilter filter =
           av1_extract_interp_filter(mbmi->interp_filters, dir);
       inter_filter_cost += x->mode_costs.switchable_interp_costs[ctx][filter];
     }
+#endif  // CONFIG_REMOVE_DUAL_FILTER
     return SWITCHABLE_INTERP_RATE_FACTOR * inter_filter_cost;
   } else {
     return 0;

@@ -1391,8 +1391,12 @@ static int64_t motion_mode_rd(
       int pts[SAMPLES_ARRAY_SIZE], pts_inref[SAMPLES_ARRAY_SIZE];
       mbmi->motion_mode = WARPED_CAUSAL;
       mbmi->wm_params.wmtype = DEFAULT_WMTYPE;
+#if CONFIG_REMOVE_DUAL_FILTER
+      mbmi->interp_fltr = av1_unswitchable_filter(interp_filter);
+#else
       mbmi->interp_filters =
           av1_broadcast_interp_filter(av1_unswitchable_filter(interp_filter));
+#endif  // CONFIG_REMOVE_DUAL_FILTER
 
       memcpy(pts, pts0, total_samples * 2 * sizeof(*pts0));
       memcpy(pts_inref, pts_inref0, total_samples * 2 * sizeof(*pts_inref0));
@@ -1571,8 +1575,12 @@ static int64_t motion_mode_rd(
 
     if (this_mode == GLOBALMV || this_mode == GLOBAL_GLOBALMV) {
       if (is_nontrans_global_motion(xd, xd->mi[0])) {
+#if CONFIG_REMOVE_DUAL_FILTER
+        mbmi->interp_fltr = av1_unswitchable_filter(interp_filter);
+#else
         mbmi->interp_filters =
             av1_broadcast_interp_filter(av1_unswitchable_filter(interp_filter));
+#endif  // CONFIG_REMOVE_DUAL_FILTER
       }
     }
 
@@ -3026,7 +3034,11 @@ static int64_t rd_pick_intrabc_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x,
     mbmi->uv_mode = UV_DC_PRED;
     mbmi->motion_mode = SIMPLE_TRANSLATION;
     mbmi->mv[0].as_mv = dv;
+#if CONFIG_REMOVE_DUAL_FILTER
+    mbmi->interp_fltr = BILINEAR;
+#else
     mbmi->interp_filters = av1_broadcast_interp_filter(BILINEAR);
+#endif  // CONFIG_REMOVE_DUAL_FILTER
     mbmi->skip_txfm = 0;
     av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize, 0,
                                   av1_num_planes(cm) - 1);
@@ -4865,22 +4877,27 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
     INTERINTRA_MODES, INTERINTRA_MODES, INTERINTRA_MODES, INTERINTRA_MODES,
     INTERINTRA_MODES, INTERINTRA_MODES, INTERINTRA_MODES, INTERINTRA_MODES
   };
-  HandleInterModeArgs args = { { NULL },
-                               { MAX_SB_SIZE, MAX_SB_SIZE, MAX_SB_SIZE },
-                               { NULL },
-                               { MAX_SB_SIZE >> 1, MAX_SB_SIZE >> 1,
-                                 MAX_SB_SIZE >> 1 },
-                               NULL,
-                               NULL,
-                               NULL,
-                               search_state.modelled_rd,
-                               INT_MAX,
-                               INT_MAX,
-                               search_state.simple_rd,
-                               0,
-                               interintra_modes,
-                               { { { 0 }, { { 0 } }, { 0 }, 0, 0, 0, 0 } },
-                               0 };
+  HandleInterModeArgs args = {
+    { NULL },
+    { MAX_SB_SIZE, MAX_SB_SIZE, MAX_SB_SIZE },
+    { NULL },
+    { MAX_SB_SIZE >> 1, MAX_SB_SIZE >> 1, MAX_SB_SIZE >> 1 },
+    NULL,
+    NULL,
+    NULL,
+    search_state.modelled_rd,
+    INT_MAX,
+    INT_MAX,
+    search_state.simple_rd,
+    0,
+    interintra_modes,
+#if CONFIG_REMOVE_DUAL_FILTER
+    { { 0, { { 0 } }, { 0 }, 0, 0, 0, 0 } },
+#else
+    { { { 0 }, { { 0 } }, { 0 }, 0, 0, 0, 0 } },
+#endif  // CONFIG_REMOVE_DUAL_FILTER
+    0
+  };
   // Indicates the appropriate number of simple translation winner modes for
   // exhaustive motion mode evaluation
   const int max_winner_motion_mode_cand =
@@ -5326,6 +5343,12 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
   }
 
   const InterpFilter interp_filter = features->interp_filter;
+#if CONFIG_REMOVE_DUAL_FILTER
+  (void)interp_filter;
+  assert((interp_filter == SWITCHABLE) ||
+         (interp_filter == search_state.best_mbmode.interp_fltr) ||
+         !is_inter_block(&search_state.best_mbmode));
+#else
   assert((interp_filter == SWITCHABLE) ||
          (interp_filter ==
           search_state.best_mbmode.interp_filters.as_filters.y_filter) ||
@@ -5334,6 +5357,7 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
          (interp_filter ==
           search_state.best_mbmode.interp_filters.as_filters.x_filter) ||
          !is_inter_block(&search_state.best_mbmode));
+#endif  // CONFIG_REMOVE_DUAL_FILTER
 
   if (!cpi->rc.is_src_frame_alt_ref && cpi->sf.inter_sf.adaptive_rd_thresh) {
     av1_update_rd_thresh_fact(cm, x->thresh_freq_fact,
@@ -5350,10 +5374,14 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
   if (mbmi->mode == GLOBALMV || mbmi->mode == GLOBAL_GLOBALMV) {
     // Correct the interp filters for GLOBALMV
     if (is_nontrans_global_motion(xd, xd->mi[0])) {
+#if CONFIG_REMOVE_DUAL_FILTER
+      assert(mbmi->interp_fltr == av1_unswitchable_filter(interp_filter));
+#else
       int_interpfilters filters =
           av1_broadcast_interp_filter(av1_unswitchable_filter(interp_filter));
       assert(mbmi->interp_filters.as_int == filters.as_int);
       (void)filters;
+#endif  // CONFIG_REMOVE_DUAL_FILTER
     }
   }
 
@@ -5468,17 +5496,25 @@ void av1_rd_pick_inter_mode_sb_seg_skip(const AV1_COMP *cpi,
       int rs;
       int best_rs = INT_MAX;
       for (i = 0; i < SWITCHABLE_FILTERS; ++i) {
+#if CONFIG_REMOVE_DUAL_FILTER
+        mbmi->interp_fltr = i;
+#else
         mbmi->interp_filters = av1_broadcast_interp_filter(i);
+#endif  // CONFIG_REMOVE_DUAL_FILTER
         rs = av1_get_switchable_rate(x, xd, interp_filter);
         if (rs < best_rs) {
           best_rs = rs;
-          best_filter = mbmi->interp_filters.as_filters.y_filter;
+          best_filter = i;
         }
       }
     }
   }
   // Set the appropriate filter
+#if CONFIG_REMOVE_DUAL_FILTER
+  mbmi->interp_fltr = best_filter;
+#else
   mbmi->interp_filters = av1_broadcast_interp_filter(best_filter);
+#endif  // CONFIG_REMOVE_DUAL_FILTER
   rate2 += av1_get_switchable_rate(x, xd, interp_filter);
 
   if (cm->current_frame.reference_mode == REFERENCE_MODE_SELECT)
@@ -5499,8 +5535,12 @@ void av1_rd_pick_inter_mode_sb_seg_skip(const AV1_COMP *cpi,
     return;
   }
 
+#if CONFIG_REMOVE_DUAL_FILTER
+  assert((interp_filter == SWITCHABLE) || (interp_filter == mbmi->interp_fltr));
+#else
   assert((interp_filter == SWITCHABLE) ||
          (interp_filter == mbmi->interp_filters.as_filters.y_filter));
+#endif  // CONFIG_REMOVE_DUAL_FILTER
 
   if (cpi->sf.inter_sf.adaptive_rd_thresh) {
     av1_update_rd_thresh_fact(cm, x->thresh_freq_fact,

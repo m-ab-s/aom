@@ -223,7 +223,11 @@ typedef struct MB_MODE_INFO {
   // q index for the current coding block.
   int current_qindex;
   // Only for INTER blocks
+#if CONFIG_REMOVE_DUAL_FILTER
+  int interp_fltr;
+#else
   int_interpfilters interp_filters;
+#endif  // CONFIG_REMOVE_DUAL_FILTER
   // TODO(debargha): Consolidate these flags
 #if CONFIG_RD_DEBUG
   RD_STATS rd_stats;

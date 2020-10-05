@@ -114,12 +114,16 @@ int av1_get_hier_tpl_rdmult(const AV1_COMP *const cpi, MACROBLOCK *const x,
 static AOM_INLINE void update_filter_type_count(FRAME_COUNTS *counts,
                                                 const MACROBLOCKD *xd,
                                                 const MB_MODE_INFO *mbmi) {
-  int dir;
-  for (dir = 0; dir < 2; ++dir) {
+#if CONFIG_REMOVE_DUAL_FILTER
+  const int ctx = av1_get_pred_context_switchable_interp(xd, 0);
+  ++counts->switchable_interp[ctx][mbmi->interp_fltr];
+#else
+  for (int dir = 0; dir < 2; ++dir) {
     const int ctx = av1_get_pred_context_switchable_interp(xd, dir);
     InterpFilter filter = av1_extract_interp_filter(mbmi->interp_filters, dir);
     ++counts->switchable_interp[ctx][filter];
   }
+#endif  // CONFIG_REMOVE_DUAL_FILTER
 }
 
 static void reset_tx_size(MACROBLOCK *x, MB_MODE_INFO *mbmi,

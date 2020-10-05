@@ -659,6 +659,7 @@ void av1_setup_frame(AV1_COMP *cpi) {
 }
 
 #if !CONFIG_REALTIME_ONLY
+#if !CONFIG_REMOVE_DUAL_FILTER
 static int get_interp_filter_selected(const AV1_COMMON *const cm,
                                       MV_REFERENCE_FRAME ref,
                                       InterpFilter ifilter) {
@@ -704,6 +705,7 @@ uint16_t av1_setup_interp_filter_search_mask(AV1_COMP *cpi) {
   }
   return mask;
 }
+#endif  // !CONFIG_REMOVE_DUAL_FILTER
 
 #define STRICT_PSNR_DIFF_THRESH 0.9
 // Encode key frame with/without screen content tools to determine whether

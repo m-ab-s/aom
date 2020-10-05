@@ -50,7 +50,11 @@ typedef struct {
   MV_REFERENCE_FRAME best_ref_frame;
   uint8_t best_mode_skip_txfm;
   uint8_t best_mode_initial_skip_flag;
+#if CONFIG_REMOVE_DUAL_FILTER
+  InterpFilter best_pred_filter;
+#else
   int_interpfilters best_pred_filter;
+#endif  // CONFIG_REMOVE_DUAL_FILTER
 } BEST_PICKMODE;
 
 typedef struct {
@@ -109,7 +113,11 @@ static INLINE void init_best_pickmode(BEST_PICKMODE *bp) {
   bp->best_mode = NEARESTMV;
   bp->best_ref_frame = LAST_FRAME;
   bp->best_tx_size = TX_8X8;
+#if CONFIG_REMOVE_DUAL_FILTER
+  bp->best_pred_filter = EIGHTTAP_REGULAR;
+#else
   bp->best_pred_filter = av1_broadcast_interp_filter(EIGHTTAP_REGULAR);
+#endif  // CONFIG_REMOVE_DUAL_FILTER
   bp->best_mode_skip_txfm = 0;
   bp->best_mode_initial_skip_flag = 0;
   bp->best_pred = NULL;
@@ -1473,7 +1481,11 @@ static void search_filter_ref(AV1_COMP *cpi, MACROBLOCK *x, RD_STATS *this_rdc,
   for (i = 0; i < FILTER_SEARCH_SIZE; ++i) {
     int64_t cost;
     InterpFilter filter = filters[i];
+#if CONFIG_REMOVE_DUAL_FILTER
+    mi->interp_fltr = filter;
+#else
     mi->interp_filters = av1_broadcast_interp_filter(filter);
+#endif  // CONFIG_REMOVE_DUAL_FILTER
     av1_enc_build_inter_predictor_y(xd, mi_row, mi_col);
     if (use_model_yrd_large)
       model_skip_for_sb_y_large(cpi, bsize, mi_row, mi_col, x, xd,
@@ -1504,7 +1516,11 @@ static void search_filter_ref(AV1_COMP *cpi, MACROBLOCK *x, RD_STATS *this_rdc,
   if (reuse_inter_pred && *this_mode_pred != current_pred)
     free_pred_buffer(current_pred);
 
+#if CONFIG_REMOVE_DUAL_FILTER
+  mi->interp_fltr = filters[best_filter_index];
+#else
   mi->interp_filters = av1_broadcast_interp_filter(filters[best_filter_index]);
+#endif  // CONFIG_REMOVE_DUAL_FILTER
   mi->tx_size = pf_tx_size[best_filter_index];
   this_rdc->rate = pf_rd_stats[best_filter_index].rate;
   this_rdc->dist = pf_rd_stats[best_filter_index].dist;
@@ -2207,10 +2223,15 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
                         reuse_inter_pred, &this_mode_pred, &this_early_term,
                         use_model_yrd_large);
     } else {
+#if CONFIG_REMOVE_DUAL_FILTER
+      mi->interp_fltr =
+          (filter_ref == SWITCHABLE) ? default_interp_filter : filter_ref;
+#else
       mi->interp_filters =
           (filter_ref == SWITCHABLE)
               ? av1_broadcast_interp_filter(default_interp_filter)
               : av1_broadcast_interp_filter(filter_ref);
+#endif  // CONFIG_REMOVE_DUAL_FILTER
       av1_enc_build_inter_predictor_y(xd, mi_row, mi_col);
       if (use_model_yrd_large) {
         model_skip_for_sb_y_large(cpi, bsize, mi_row, mi_col, x, xd, &this_rdc,
@@ -2309,7 +2330,11 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
       best_rdc = this_rdc;
       best_early_term = this_early_term;
       best_pickmode.best_mode = this_mode;
+#if CONFIG_REMOVE_DUAL_FILTER
+      best_pickmode.best_pred_filter = mi->interp_fltr;
+#else
       best_pickmode.best_pred_filter = mi->interp_filters;
+#endif  // CONFIG_REMOVE_DUAL_FILTER
       best_pickmode.best_tx_size = mi->tx_size;
       best_pickmode.best_ref_frame = ref_frame;
       best_pickmode.best_mode_skip_txfm = this_rdc.skip_txfm;
@@ -2330,7 +2355,11 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
   }
 
   mi->mode = best_pickmode.best_mode;
+#if CONFIG_REMOVE_DUAL_FILTER
+  mi->interp_fltr = best_pickmode.best_pred_filter;
+#else
   mi->interp_filters = best_pickmode.best_pred_filter;
+#endif  // CONFIG_REMOVE_DUAL_FILTER
   mi->tx_size = best_pickmode.best_tx_size;
   memset(mi->inter_tx_size, mi->tx_size, sizeof(mi->inter_tx_size));
   mi->ref_frame[0] = best_pickmode.best_ref_frame;
@@ -2354,7 +2383,11 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
   txfm_info->skip_txfm = best_rdc.skip_txfm;
 
   if (!is_inter_block(mi)) {
+#if CONFIG_REMOVE_DUAL_FILTER
+    mi->interp_fltr = SWITCHABLE_FILTERS;
+#else
     mi->interp_filters = av1_broadcast_interp_filter(SWITCHABLE_FILTERS);
+#endif  // CONFIG_REMOVE_DUAL_FILTER
   }
 
   if (reuse_inter_pred && best_pickmode.best_pred != NULL) {

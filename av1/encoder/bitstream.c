@@ -613,13 +613,25 @@ static AOM_INLINE void write_mb_interp_filter(AV1_COMMON *const cm,
   FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
 
   if (!av1_is_interp_needed(xd)) {
+#if CONFIG_REMOVE_DUAL_FILTER
+    assert(mbmi->interp_fltr ==
+           av1_unswitchable_filter(cm->features.interp_filter));
+#else
     int_interpfilters filters = av1_broadcast_interp_filter(
         av1_unswitchable_filter(cm->features.interp_filter));
     assert(mbmi->interp_filters.as_int == filters.as_int);
     (void)filters;
+#endif  // CONFIG_REMOVE_DUAL_FILTER
     return;
   }
   if (cm->features.interp_filter == SWITCHABLE) {
+#if CONFIG_REMOVE_DUAL_FILTER
+    const int ctx = av1_get_pred_context_switchable_interp(xd, 0);
+    const InterpFilter filter = mbmi->interp_fltr;
+    aom_write_symbol(w, filter, ec_ctx->switchable_interp_cdf[ctx],
+                     SWITCHABLE_FILTERS);
+    ++cm->cur_frame->interp_filter_selected[filter];
+#else
     int dir;
     for (dir = 0; dir < 2; ++dir) {
       const int ctx = av1_get_pred_context_switchable_interp(xd, dir);
@@ -630,6 +642,7 @@ static AOM_INLINE void write_mb_interp_filter(AV1_COMMON *const cm,
       ++cm->cur_frame->interp_filter_selected[filter];
       if (cm->seq_params.enable_dual_filter == 0) return;
     }
+#endif  // CONFIG_REMOVE_DUAL_FILTER
   }
 }
 
@@ -2636,7 +2649,9 @@ static AOM_INLINE void write_sequence_header(
     aom_wb_write_bit(wb, seq_params->enable_interintra_compound);
     aom_wb_write_bit(wb, seq_params->enable_masked_compound);
     aom_wb_write_bit(wb, seq_params->enable_warped_motion);
+#if !CONFIG_REMOVE_DUAL_FILTER
     aom_wb_write_bit(wb, seq_params->enable_dual_filter);
+#endif  // !CONFIG_REMOVE_DUAL_FILTER
 
     aom_wb_write_bit(wb, seq_params->order_hint_info.enable_order_hint);
 

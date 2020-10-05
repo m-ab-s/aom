@@ -426,7 +426,9 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
   seq->frame_id_length = FRAME_ID_LENGTH;
   seq->delta_frame_id_length = DELTA_FRAME_ID_LENGTH;
 
+#if !CONFIG_REMOVE_DUAL_FILTER
   seq->enable_dual_filter = tool_cfg->enable_dual_filter;
+#endif  // !CONFIG_REMOVE_DUAL_FILTER
 #if !CONFIG_REMOVE_DIST_WTD_COMP
   seq->order_hint_info.enable_dist_wtd_comp =
       oxcf->comp_type_cfg.enable_dist_wtd_comp;

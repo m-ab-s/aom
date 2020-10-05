@@ -143,6 +143,8 @@ set_aom_config_var(CONFIG_OPTICAL_FLOW_API 0
 # AV2 experiment flags.
 set_aom_config_var(CONFIG_REMOVE_DIST_WTD_COMP 0
                    "AV2 experiment flag to remove dist_wtd_comp tool.")
+set_aom_config_var(CONFIG_REMOVE_DUAL_FILTER 0
+                   "AV2 experiment flag to remove dual filter.")
 
 #
 # Variables in this section control optional features of the build system.

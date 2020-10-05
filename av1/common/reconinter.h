@@ -129,7 +129,12 @@ void av1_init_inter_params(InterPredParams *inter_pred_params, int block_width,
                            int use_hbd_buf, int is_intrabc,
                            const struct scale_factors *sf,
                            const struct buf_2d *ref_buf,
-                           int_interpfilters interp_filters);
+#if CONFIG_REMOVE_DUAL_FILTER
+                           InterpFilter interp_filter
+#else
+                           int_interpfilters interp_filters
+#endif  // CONFIG_REMOVE_DUAL_FILTER
+);
 
 void av1_init_comp_mode(InterPredParams *inter_pred_params);
 
@@ -323,8 +328,12 @@ void av1_setup_pre_planes(MACROBLOCKD *xd, int idx,
 
 static INLINE void set_default_interp_filters(
     MB_MODE_INFO *const mbmi, InterpFilter frame_interp_filter) {
+#if CONFIG_REMOVE_DUAL_FILTER
+  mbmi->interp_fltr = av1_unswitchable_filter(frame_interp_filter);
+#else
   mbmi->interp_filters =
       av1_broadcast_interp_filter(av1_unswitchable_filter(frame_interp_filter));
+#endif  // CONFIG_REMOVE_DUAL_FILTER
 }
 
 static INLINE int av1_is_interp_needed(const MACROBLOCKD *const xd) {

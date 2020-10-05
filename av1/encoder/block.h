@@ -322,7 +322,11 @@ typedef struct {
   //! Current prediction mode.
   PREDICTION_MODE mode;
   //! Current interpolation filter.
+#if CONFIG_REMOVE_DUAL_FILTER
+  InterpFilter interp_fltr;
+#else
   int_interpfilters filter;
+#endif  // CONFIG_REMOVE_DUAL_FILTER
   //! Refmv index in the drl.
   int ref_mv_idx;
   //! Whether the predictors are GLOBALMV.

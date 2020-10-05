@@ -238,8 +238,12 @@ static AOM_INLINE void mode_estimation(AV1_COMP *cpi, MACROBLOCK *x, int mi_row,
 
   const int bw = 4 << mi_size_wide_log2[bsize];
   const int bh = 4 << mi_size_high_log2[bsize];
+#if CONFIG_REMOVE_DUAL_FILTER
+  const InterpFilter kernel = EIGHTTAP_REGULAR;
+#else
   const int_interpfilters kernel =
       av1_broadcast_interp_filter(EIGHTTAP_REGULAR);
+#endif  // !CONFIG_REMOVE_DUAL_FILTER
 
   int64_t best_intra_cost = INT64_MAX;
   int64_t intra_cost;

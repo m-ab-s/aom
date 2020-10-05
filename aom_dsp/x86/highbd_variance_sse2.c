@@ -640,8 +640,12 @@ void aom_highbd_upsampled_pred_sse2(MACROBLOCKD *xd,
 
       InterPredParams inter_pred_params;
       inter_pred_params.conv_params = get_conv_params(0, plane, xd->bd);
+#if CONFIG_REMOVE_DUAL_FILTER
+      const InterpFilter filters = EIGHTTAP_REGULAR;
+#else
       const int_interpfilters filters =
           av1_broadcast_interp_filter(EIGHTTAP_REGULAR);
+#endif  // CONFIG_REMOVE_DUAL_FILTER
       av1_init_inter_params(
           &inter_pred_params, width, height, mi_y >> pd->subsampling_y,
           mi_x >> pd->subsampling_x, pd->subsampling_x, pd->subsampling_y,

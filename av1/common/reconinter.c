@@ -62,7 +62,12 @@ void av1_init_inter_params(InterPredParams *inter_pred_params, int block_width,
                            int use_hbd_buf, int is_intrabc,
                            const struct scale_factors *sf,
                            const struct buf_2d *ref_buf,
-                           int_interpfilters interp_filters) {
+#if CONFIG_REMOVE_DUAL_FILTER
+                           InterpFilter interp_filter
+#else
+                           int_interpfilters interp_filters
+#endif  // CONFIG_REMOVE_DUAL_FILTER
+) {
   inter_pred_params->block_width = block_width;
   inter_pred_params->block_height = block_height;
   inter_pred_params->pix_row = pix_row;
@@ -83,10 +88,20 @@ void av1_init_inter_params(InterPredParams *inter_pred_params, int block_width,
   } else {
     inter_pred_params->interp_filter_params[0] =
         av1_get_interp_filter_params_with_block_size(
-            interp_filters.as_filters.x_filter, block_width);
+#if CONFIG_REMOVE_DUAL_FILTER
+            interp_filter,
+#else
+            interp_filters.as_filters.x_filter,
+#endif  // CONFIG_REMOVE_DUAL_FILTER
+            block_width);
     inter_pred_params->interp_filter_params[1] =
         av1_get_interp_filter_params_with_block_size(
-            interp_filters.as_filters.y_filter, block_height);
+#if CONFIG_REMOVE_DUAL_FILTER
+            interp_filter,
+#else
+            interp_filters.as_filters.y_filter,
+#endif  // CONFIG_REMOVE_DUAL_FILTER
+            block_height);
   }
 }
 
@@ -849,7 +864,13 @@ static void build_inter_predictors_sub8x8(
       av1_init_inter_params(&inter_pred_params, b4_w, b4_h, pre_y + y,
                             pre_x + x, pd->subsampling_x, pd->subsampling_y,
                             xd->bd, is_cur_buf_hbd(xd), mi->use_intrabc, sf,
-                            &pre_buf, this_mbmi->interp_filters);
+                            &pre_buf,
+#if CONFIG_REMOVE_DUAL_FILTER
+                            this_mbmi->interp_fltr
+#else
+                            this_mbmi->interp_filters
+#endif  // CONFIG_REMOVE_DUAL_FILTER
+      );
       inter_pred_params.conv_params =
           get_conv_params_no_round(ref, plane, NULL, 0, is_compound, xd->bd);
 
@@ -902,7 +923,12 @@ static void build_inter_predictors_8x8_and_bigger(
     av1_init_inter_params(&inter_pred_params, bw, bh, pre_y, pre_x,
                           pd->subsampling_x, pd->subsampling_y, xd->bd,
                           is_cur_buf_hbd(xd), mi->use_intrabc, sf, pre_buf,
-                          mi->interp_filters);
+#if CONFIG_REMOVE_DUAL_FILTER
+                          mi->interp_fltr
+#else
+                          mi->interp_filters
+#endif  // CONFIG_REMOVE_DUAL_FILTER
+    );
     if (is_compound) av1_init_comp_mode(&inter_pred_params);
     inter_pred_params.conv_params = get_conv_params_no_round(
         ref, plane, xd->tmp_conv_dst, MAX_SB_SIZE, is_compound, xd->bd);

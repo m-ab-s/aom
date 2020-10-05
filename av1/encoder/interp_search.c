@@ -44,14 +44,19 @@ static INLINE int save_interp_filter_search_stat(
     INTERPOLATION_FILTER_STATS *interp_filter_stats,
     int interp_filter_stats_idx) {
   if (interp_filter_stats_idx < MAX_INTERP_FILTER_STATS) {
-    INTERPOLATION_FILTER_STATS stat = { mbmi->interp_filters,
-                                        { mbmi->mv[0], mbmi->mv[1] },
-                                        { mbmi->ref_frame[0],
-                                          mbmi->ref_frame[1] },
-                                        mbmi->interinter_comp.type,
-                                        mbmi->compound_idx,
-                                        rd,
-                                        pred_sse };
+    INTERPOLATION_FILTER_STATS stat = {
+#if CONFIG_REMOVE_DUAL_FILTER
+      mbmi->interp_fltr,
+#else
+      mbmi->interp_filters,
+#endif  // CONFIG_REMOVE_DUAL_FILTER
+      { mbmi->mv[0], mbmi->mv[1] },
+      { mbmi->ref_frame[0], mbmi->ref_frame[1] },
+      mbmi->interinter_comp.type,
+      mbmi->compound_idx,
+      rd,
+      pred_sse
+    };
     interp_filter_stats[interp_filter_stats_idx] = stat;
     interp_filter_stats_idx++;
   }
@@ -84,7 +89,11 @@ static INLINE int find_interp_filter_in_stats(
   }
 
   if (match != -1) {
+#if CONFIG_REMOVE_DUAL_FILTER
+    mbmi->interp_fltr = interp_filter_stats[match].interp_fltr;
+#else
     mbmi->interp_filters = interp_filter_stats[match].filters;
+#endif  // CONFIG_REMOVE_DUAL_FILTER
     return match;
   }
   return -1;  // no match result found
@@ -114,6 +123,15 @@ static INLINE void swap_dst_buf(MACROBLOCKD *xd, const BUFFER_SET *dst_bufs[2],
   restore_dst_buf(xd, *dst_bufs[0], num_planes);
 }
 
+#if CONFIG_REMOVE_DUAL_FILTER
+static INLINE int get_switchable_rate(MACROBLOCK *const x,
+                                      const InterpFilter interp_fltr,
+                                      const int ctx[2]) {
+  const int inter_filter_cost =
+      x->mode_costs.switchable_interp_costs[ctx[0]][interp_fltr];
+  return SWITCHABLE_INTERP_RATE_FACTOR * inter_filter_cost;
+}
+#else
 static INLINE int get_switchable_rate(MACROBLOCK *const x,
                                       const int_interpfilters filters,
                                       const int ctx[2]) {
@@ -124,6 +142,7 @@ static INLINE int get_switchable_rate(MACROBLOCK *const x,
   inter_filter_cost += x->mode_costs.switchable_interp_costs[ctx[1]][filter1];
   return SWITCHABLE_INTERP_RATE_FACTOR * inter_filter_cost;
 }
+#endif  // CONFIG_REMOVE_DUAL_FILTER
 
 // Build inter predictor and calculate model rd
 // for a given plane.
@@ -172,14 +191,28 @@ static INLINE int64_t interpolation_filter_rd(
   // Initialize rd_stats structures to default values.
   av1_init_rd_stats(&this_rd_stats_luma);
   this_rd_stats = *rd_stats_luma;
+#if CONFIG_REMOVE_DUAL_FILTER
+  const InterpFilter last_best = mbmi->interp_fltr;
+  mbmi->interp_fltr = filter_idx;
+#else
   const int_interpfilters last_best = mbmi->interp_filters;
   mbmi->interp_filters = filter_sets[filter_idx];
-  const int tmp_rs =
-      get_switchable_rate(x, mbmi->interp_filters, switchable_ctx);
+#endif  // CONFIG_REMOVE_DUAL_FILTER
+  const int tmp_rs = get_switchable_rate(x,
+#if CONFIG_REMOVE_DUAL_FILTER
+                                         mbmi->interp_fltr,
+#else
+                                         mbmi->interp_filters,
+#endif  // CONFIG_REMOVE_DUAL_FILTER
+                                         switchable_ctx);
 
   int64_t min_rd = RDCOST(x->rdmult, tmp_rs, 0);
   if (min_rd > *rd) {
+#if CONFIG_REMOVE_DUAL_FILTER
+    mbmi->interp_fltr = last_best;
+#else
     mbmi->interp_filters = last_best;
+#endif  // CONFIG_REMOVE_DUAL_FILTER
     return 0;
   }
 
@@ -227,7 +260,11 @@ static INLINE int64_t interpolation_filter_rd(
         int64_t tmp_rd =
             RDCOST(x->rdmult, tmp_rs + this_rd_stats.rate, this_rd_stats.dist);
         if (tmp_rd >= *rd) {
+#if CONFIG_REMOVE_DUAL_FILTER
+          mbmi->interp_fltr = last_best;
+#else
           mbmi->interp_filters = last_best;
+#endif  // CONFIG_REMOVE_DUAL_FILTER
           return 0;
         }
         interp_model_rd_eval(x, cpi, bsize, orig_dst, plane, plane,
@@ -267,10 +304,15 @@ static INLINE int64_t interpolation_filter_rd(
     }
     return 1;
   }
+#if CONFIG_REMOVE_DUAL_FILTER
+  mbmi->interp_fltr = last_best;
+#else
   mbmi->interp_filters = last_best;
+#endif  // CONFIG_REMOVE_DUAL_FILTER
   return 0;
 }
 
+#if !CONFIG_REMOVE_DUAL_FILTER
 static INLINE INTERP_PRED_TYPE is_pred_filter_search_allowed(
     const AV1_COMP *const cpi, MACROBLOCKD *xd, BLOCK_SIZE bsize,
     int_interpfilters *af, int_interpfilters *lf) {
@@ -373,6 +415,7 @@ static INLINE void pred_dual_interp_filter_rd(
                              rd_stats, switchable_rate, dst_bufs,
                              switchable_ctx, skip_pred, allowed_interp_mask, 0);
 }
+
 // Evaluate dual filter type
 // a) Using above, left block interp filter
 // b) Find the best horizontal filter and
@@ -428,6 +471,7 @@ static INLINE void fast_dual_interp_filter_rd(
     }
   }
 }
+#endif  // !CONFIG_REMOVE_DUAL_FILTER
 
 // Find the best interp filter if dual_interp_filter = 0
 static INLINE void find_best_non_dual_interp_filter(
@@ -437,11 +481,18 @@ static INLINE void find_best_non_dual_interp_filter(
     RD_STATS *rd_stats, int *const switchable_rate,
     const BUFFER_SET *dst_bufs[2], const int switchable_ctx[2],
     const int skip_ver, const int skip_hor) {
+#if CONFIG_REMOVE_DUAL_FILTER
+  const int skip_pred = (skip_hor & skip_ver);
+  for (int i = EIGHTTAP_REGULAR + 1; i < SWITCHABLE_FILTERS; ++i) {
+    interpolation_filter_rd(x, cpi, tile_data, bsize, orig_dst, rd, rd_stats_y,
+                            rd_stats, switchable_rate, dst_bufs, i,
+                            switchable_ctx, skip_pred);
+  }
+#else
   const InterpSearchFlags *interp_search_flags = &cpi->interp_search_flags;
   int8_t i;
   MACROBLOCKD *const xd = &x->e_mbd;
   MB_MODE_INFO *const mbmi = xd->mi[0];
-
   uint16_t interp_filter_search_mask =
       interp_search_flags->interp_filter_search_mask;
 
@@ -496,6 +547,7 @@ static INLINE void find_best_non_dual_interp_filter(
       return;
     }
   }
+
   // Reuse regular filter's modeled rd data for sharp filter for following
   // cases
   // 1) When bsize is 4x4
@@ -550,6 +602,7 @@ static INLINE void find_best_non_dual_interp_filter(
       }
     }
   }
+#endif  // CONFIG_REMOVE_DUAL_FILTER
 }
 
 static INLINE void calc_interp_skip_pred_flag(MACROBLOCK *const x,
@@ -678,8 +731,13 @@ int64_t av1_interpolation_filter_search(
   int switchable_ctx[2];
   switchable_ctx[0] = av1_get_pred_context_switchable_interp(xd, 0);
   switchable_ctx[1] = av1_get_pred_context_switchable_interp(xd, 1);
-  *switchable_rate =
-      get_switchable_rate(x, mbmi->interp_filters, switchable_ctx);
+  *switchable_rate = get_switchable_rate(x,
+#if CONFIG_REMOVE_DUAL_FILTER
+                                         mbmi->interp_fltr,
+#else
+                                         mbmi->interp_filters,
+#endif  // CONFIG_REMOVE_DUAL_FILTER
+                                         switchable_ctx);
 
   // Do MC evaluation for default filter_type.
   // Luma MC
@@ -709,9 +767,14 @@ int64_t av1_interpolation_filter_search(
     return 0;
   }
   if (!need_search) {
-    int_interpfilters filters = av1_broadcast_interp_filter(EIGHTTAP_REGULAR);
+#if CONFIG_REMOVE_DUAL_FILTER
+    assert(mbmi->interp_fltr == EIGHTTAP_REGULAR);
+#else
+    const int_interpfilters filters =
+        av1_broadcast_interp_filter(EIGHTTAP_REGULAR);
     assert(mbmi->interp_filters.as_int == filters.as_int);
     (void)filters;
+#endif  // CONFIG_REMOVE_DUAL_FILTER
     return 0;
   }
   if (args->modelled_rd != NULL) {
@@ -742,6 +805,11 @@ int64_t av1_interpolation_filter_search(
   // do interp_filter search
   restore_dst_buf(xd, *tmp_dst, num_planes);
   const BUFFER_SET *dst_bufs[2] = { tmp_dst, orig_dst };
+#if CONFIG_REMOVE_DUAL_FILTER
+  find_best_non_dual_interp_filter(
+      x, cpi, tile_data, bsize, orig_dst, rd, &rd_stats_luma, &rd_stats,
+      switchable_rate, dst_bufs, switchable_ctx, skip_ver, skip_hor);
+#else
   // Evaluate dual interp filters
   if (cm->seq_params.enable_dual_filter) {
     if (cpi->sf.interp_sf.use_fast_interpolation_filter_search) {
@@ -765,6 +833,7 @@ int64_t av1_interpolation_filter_search(
         x, cpi, tile_data, bsize, orig_dst, rd, &rd_stats_luma, &rd_stats,
         switchable_rate, dst_bufs, switchable_ctx, skip_ver, skip_hor);
   }
+#endif  // CONFIG_REMOVE_DUAL_FILTER
   swap_dst_buf(xd, dst_bufs, num_planes);
   // Recompute final MC data if required
   if (x->recalc_luma_mc_data == 1) {

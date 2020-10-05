@@ -324,8 +324,12 @@ static void tf_build_predictor(const YV12_BUFFER_CONFIG *ref_frame,
   const int is_high_bitdepth = is_frame_high_bitdepth(ref_frame);
 
   // Default interpolation filters.
+#if CONFIG_REMOVE_DUAL_FILTER
+  const InterpFilter interp_filters = MULTITAP_SHARP;
+#else
   const int_interpfilters interp_filters =
       av1_broadcast_interp_filter(MULTITAP_SHARP);
+#endif  // !CONFIG_REMOVE_DUAL_FILTER
 
   // Handle Y-plane, U-plane and V-plane (if needed) in sequence.
   int plane_offset = 0;

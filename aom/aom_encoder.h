@@ -300,10 +300,12 @@ typedef struct cfg_options {
    *
    */
   unsigned int enable_filter_intra;
+#if !CONFIG_REMOVE_DUAL_FILTER
   /*!\brief enable dual filter
    *
    */
   unsigned int enable_dual_filter;
+#endif  // !CONFIG_REMOVE_DUAL_FILTER
   /*!\brief enable intra angle delta
    *
    */

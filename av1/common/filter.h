@@ -53,6 +53,7 @@ enum {
   INTERP_SKIP_LUMA_SKIP_CHROMA,
 } UENUM1BYTE(INTERP_EVAL_PLANE);
 
+#if !CONFIG_REMOVE_DUAL_FILTER
 enum {
   INTERP_HORZ_NEQ_VERT_NEQ = 0,
   INTERP_HORZ_EQ_VERT_NEQ,
@@ -60,6 +61,17 @@ enum {
   INTERP_HORZ_EQ_VERT_EQ,
   INTERP_PRED_TYPE_ALL,
 } UENUM1BYTE(INTERP_PRED_TYPE);
+
+static const uint16_t
+    av1_interp_dual_filt_mask[INTERP_PRED_TYPE_ALL - 2][SWITCHABLE_FILTERS] = {
+      { (1 << REG_REG) | (1 << SMOOTH_REG) | (1 << SHARP_REG),
+        (1 << REG_SMOOTH) | (1 << SMOOTH_SMOOTH) | (1 << SHARP_SMOOTH),
+        (1 << REG_SHARP) | (1 << SMOOTH_SHARP) | (1 << SHARP_SHARP) },
+      { (1 << REG_REG) | (1 << REG_SMOOTH) | (1 << REG_SHARP),
+        (1 << SMOOTH_REG) | (1 << SMOOTH_SMOOTH) | (1 << SMOOTH_SHARP),
+        (1 << SHARP_REG) | (1 << SHARP_SMOOTH) | (1 << SHARP_SHARP) }
+    };
+
 // Pack two InterpFilter's into a uint32_t: since there are at most 10 filters,
 // we can use 16 bits for each and have more than enough space. This reduces
 // argument passing and unifies the operation of setting a (pair of) filters.
@@ -86,6 +98,7 @@ av1_broadcast_interp_filter(InterpFilter filter) {
   filters.as_filters.y_filter = filter;
   return filters;
 }
+#endif  // !CONFIG_REMOVE_DUAL_FILTER
 
 static INLINE InterpFilter av1_unswitchable_filter(InterpFilter filter) {
   return filter == SWITCHABLE ? EIGHTTAP_REGULAR : filter;
@@ -198,16 +211,6 @@ DECLARE_ALIGNED(256, static const InterpKernel,
   { 0, 0, 4, 36, 62, 26, 0, 0 },  { 0, 0, 2, 34, 62, 30, 0, 0 }
 };
 
-static const uint16_t
-    av1_interp_dual_filt_mask[INTERP_PRED_TYPE_ALL - 2][SWITCHABLE_FILTERS] = {
-      { (1 << REG_REG) | (1 << SMOOTH_REG) | (1 << SHARP_REG),
-        (1 << REG_SMOOTH) | (1 << SMOOTH_SMOOTH) | (1 << SHARP_SMOOTH),
-        (1 << REG_SHARP) | (1 << SMOOTH_SHARP) | (1 << SHARP_SHARP) },
-      { (1 << REG_REG) | (1 << REG_SMOOTH) | (1 << REG_SHARP),
-        (1 << SMOOTH_REG) | (1 << SMOOTH_SMOOTH) | (1 << SMOOTH_SHARP),
-        (1 << SHARP_REG) | (1 << SHARP_SMOOTH) | (1 << SHARP_SHARP) }
-    };
-
 // For w<=4, MULTITAP_SHARP is the same as EIGHTTAP_REGULAR
 static const InterpFilterParams av1_interp_4tap[SWITCHABLE_FILTERS + 1] = {
   { (const int16_t *)av1_sub_pel_filters_4, SUBPEL_TAPS, EIGHTTAP_REGULAR },
@@ -250,6 +253,7 @@ static INLINE const InterpFilterParams *av1_get_filter(int subpel_search) {
   }
 }
 
+#if !CONFIG_REMOVE_DUAL_FILTER
 static INLINE void reset_interp_filter_allowed_mask(
     uint16_t *allow_interp_mask, DUAL_FILTER_TYPE filt_type) {
   uint16_t tmp = (~(1 << filt_type)) & 0xffff;
@@ -265,6 +269,7 @@ static INLINE uint8_t get_interp_filter_allowed_mask(
     uint16_t allow_interp_mask, DUAL_FILTER_TYPE filt_type) {
   return (allow_interp_mask >> filt_type) & 1;
 }
+#endif  // !CONFIG_REMOVE_DUAL_FILTER
 
 #ifdef __cplusplus
 }  // extern "C"

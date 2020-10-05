@@ -1442,6 +1442,7 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
         (frame_probs->warped_probs[update_type] + new_prob) >> 1;
   }
 
+#if !CONFIG_REMOVE_DUAL_FILTER
   if (cm->current_frame.frame_type != KEY_FRAME &&
       cpi->sf.interp_sf.adaptive_interp_filter_search == 2 &&
       features->interp_filter == SWITCHABLE) {
@@ -1469,6 +1470,7 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
       }
     }
   }
+#endif  // !CONFIG_REMOVE_DUAL_FILTER
 
   if ((!is_stat_generation_stage(cpi) && av1_use_hash_me(cpi) &&
        !cpi->sf.rt_sf.use_nonrd_pick_mode) ||

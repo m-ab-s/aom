@@ -887,6 +887,7 @@ enum aome_enc_control_id {
    */
   AV1E_SET_ALLOW_REF_FRAME_MVS = 85,
 
+#if !CONFIG_REMOVE_DUAL_FILTER
   /*!\brief Codec control function to turn on / off dual interpolation filter
    * for a sequence, int parameter
    *
@@ -894,6 +895,9 @@ enum aome_enc_control_id {
    * - 1 = enable
    */
   AV1E_SET_ENABLE_DUAL_FILTER = 86,
+#else
+/* Note: enum value 86 unused */
+#endif  // !CONFIG_REMOVE_DUAL_FILTER
 
   /*!\brief Codec control function to turn on / off delta quantization in chroma
    * planes usage for a sequence, int parameter
@@ -1576,8 +1580,10 @@ AOM_CTRL_USE_TYPE(AV1E_SET_ENABLE_REF_FRAME_MVS, int)
 AOM_CTRL_USE_TYPE(AV1E_SET_ALLOW_REF_FRAME_MVS, int)
 #define AOM_CTRL_AV1E_SET_ALLOW_REF_FRAME_MVS
 
+#if !CONFIG_REMOVE_DUAL_FILTER
 AOM_CTRL_USE_TYPE(AV1E_SET_ENABLE_DUAL_FILTER, int)
 #define AOM_CTRL_AV1E_SET_ENABLE_DUAL_FILTER
+#endif  // !CONFIG_REMOVE_DUAL_FILTER
 
 AOM_CTRL_USE_TYPE(AV1E_SET_ENABLE_CHROMA_DELTAQ, int)
 #define AOM_CTRL_AV1E_SET_ENABLE_CHROMA_DELTAQ
