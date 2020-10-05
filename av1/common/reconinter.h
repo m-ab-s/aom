@@ -202,7 +202,9 @@ static INLINE int is_interinter_compound_used(COMPOUND_TYPE type,
   const int comp_allowed = is_comp_ref_allowed(sb_type);
   switch (type) {
     case COMPOUND_AVERAGE:
+#if !CONFIG_REMOVE_DIST_WTD_COMP
     case COMPOUND_DISTWTD:
+#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
     case COMPOUND_DIFFWTD: return comp_allowed;
     case COMPOUND_WEDGE:
       return comp_allowed && av1_wedge_params_lookup[sb_type].wedge_types > 0;

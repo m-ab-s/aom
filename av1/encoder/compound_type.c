@@ -49,7 +49,7 @@ static INLINE int is_comp_rd_match(const AV1_COMP *const cpi,
   }
 
   // Store the stats for COMPOUND_AVERAGE and COMPOUND_DISTWTD
-  for (int comp_type = COMPOUND_AVERAGE; comp_type <= COMPOUND_DISTWTD;
+  for (int comp_type = COMPOUND_AVERAGE; comp_type < COMPOUND_WEDGE;
        comp_type++) {
     comp_rate[comp_type] = st->rate[comp_type];
     comp_dist[comp_type] = st->dist[comp_type];
@@ -859,16 +859,19 @@ static INLINE int compute_valid_comp_types(
       ((mode_search_mask & (1 << COMPOUND_DISTWTD)) &&
        cm->seq_params.order_hint_info.enable_dist_wtd_comp == 1 &&
        cpi->sf.inter_sf.use_dist_wtd_comp_flag != DIST_WTD_COMP_DISABLED);
-#else
-  const int try_distwtd_comp = 0;
-#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
   *try_average_and_distwtd_comp = try_average_comp && try_distwtd_comp;
+#else
+  *try_average_and_distwtd_comp = 0;
+#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
 
   // Check if COMPOUND_AVERAGE and COMPOUND_DISTWTD are valid cases
-  for (comp_type = COMPOUND_AVERAGE; comp_type <= COMPOUND_DISTWTD;
-       comp_type++) {
+  for (comp_type = COMPOUND_AVERAGE; comp_type < COMPOUND_WEDGE; comp_type++) {
     valid_check =
+#if !CONFIG_REMOVE_DIST_WTD_COMP
         (comp_type == COMPOUND_AVERAGE) ? try_average_comp : try_distwtd_comp;
+#else
+        (comp_type == COMPOUND_AVERAGE) ? try_average_comp : 0;
+#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
     if (!*try_average_and_distwtd_comp && valid_check &&
         is_interinter_compound_used(comp_type, bsize))
       valid_comp_types[valid_type_count++] = comp_type;
@@ -907,7 +910,9 @@ static INLINE void calc_masked_type_cost(const ModeCosts *mode_costs,
     // Compound group index of wedge and diffwtd is 1
     masked_type_cost[COMPOUND_AVERAGE] +=
         mode_costs->comp_group_idx_cost[comp_group_idx_ctx][0];
+#if !CONFIG_REMOVE_DIST_WTD_COMP
     masked_type_cost[COMPOUND_DISTWTD] += masked_type_cost[COMPOUND_AVERAGE];
+#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
     masked_type_cost[COMPOUND_WEDGE] +=
         mode_costs->comp_group_idx_cost[comp_group_idx_ctx][1];
     masked_type_cost[COMPOUND_DIFFWTD] += masked_type_cost[COMPOUND_WEDGE];
@@ -930,7 +935,11 @@ static INLINE void update_mbmi_for_compound_type(MB_MODE_INFO *mbmi,
                                                  COMPOUND_TYPE cur_type) {
   mbmi->interinter_comp.type = cur_type;
   mbmi->comp_group_idx = (cur_type >= COMPOUND_WEDGE);
+#if !CONFIG_REMOVE_DIST_WTD_COMP
   mbmi->compound_idx = (cur_type != COMPOUND_DISTWTD);
+#else
+  mbmi->compound_idx = 1;
+#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
 }
 
 // When match is found, populate the compound type data
@@ -985,6 +994,7 @@ static INLINE void update_mask_best_mv(const MB_MODE_INFO *const mbmi,
   }
 }
 
+#if !CONFIG_REMOVE_DIST_WTD_COMP
 // Choose the better of the two COMPOUND_AVERAGE,
 // COMPOUND_DISTWTD based on modeled cost
 static int find_best_avg_distwtd_comp_type(MACROBLOCK *x, int *comp_model_rate,
@@ -1003,6 +1013,7 @@ static int find_best_avg_distwtd_comp_type(MACROBLOCK *x, int *comp_model_rate,
   *best_rd = est_rd[best_type];
   return best_type;
 }
+#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
 
 static INLINE void save_comp_rd_search_stat(
     MACROBLOCK *x, const MB_MODE_INFO *const mbmi, const int32_t *comp_rate,
@@ -1295,6 +1306,7 @@ int av1_compound_type_rd(const AV1_COMP *const cpi, MACROBLOCK *x,
   int masked_type_cost[COMPOUND_TYPES];
 
   int calc_pred_masked_compound = 1;
+#if !CONFIG_REMOVE_DIST_WTD_COMP
   int64_t comp_dist[COMPOUND_TYPES] = { INT64_MAX, INT64_MAX, INT64_MAX,
                                         INT64_MAX };
   int32_t comp_rate[COMPOUND_TYPES] = { INT_MAX, INT_MAX, INT_MAX, INT_MAX };
@@ -1303,6 +1315,13 @@ int av1_compound_type_rd(const AV1_COMP *const cpi, MACROBLOCK *x,
                                               INT_MAX };
   int64_t comp_model_dist[COMPOUND_TYPES] = { INT64_MAX, INT64_MAX, INT64_MAX,
                                               INT64_MAX };
+#else
+  int64_t comp_dist[COMPOUND_TYPES] = { INT64_MAX, INT64_MAX, INT64_MAX };
+  int32_t comp_rate[COMPOUND_TYPES] = { INT_MAX, INT_MAX, INT_MAX };
+  int comp_rs2[COMPOUND_TYPES] = { INT_MAX, INT_MAX, INT_MAX };
+  int32_t comp_model_rate[COMPOUND_TYPES] = { INT_MAX, INT_MAX, INT_MAX };
+  int64_t comp_model_dist[COMPOUND_TYPES] = { INT64_MAX, INT64_MAX, INT64_MAX };
+#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
   int match_index = 0;
   const int match_found =
       find_comp_rd_in_stats(cpi, x, mbmi, comp_rate, comp_dist, comp_model_rate,
@@ -1316,7 +1335,16 @@ int av1_compound_type_rd(const AV1_COMP *const cpi, MACROBLOCK *x,
   // Local array to store the valid compound types to be evaluated in the core
   // loop
   COMPOUND_TYPE valid_comp_types[COMPOUND_TYPES] = {
-    COMPOUND_AVERAGE, COMPOUND_DISTWTD, COMPOUND_WEDGE, COMPOUND_DIFFWTD
+#if !CONFIG_REMOVE_DIST_WTD_COMP
+    COMPOUND_AVERAGE,
+    COMPOUND_DISTWTD,
+    COMPOUND_WEDGE,
+    COMPOUND_DIFFWTD
+#else
+    COMPOUND_AVERAGE,
+    COMPOUND_WEDGE,
+    COMPOUND_DIFFWTD
+#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
   };
   int valid_type_count = 0;
   int try_average_and_distwtd_comp = 0;
@@ -1353,6 +1381,7 @@ int av1_compound_type_rd(const AV1_COMP *const cpi, MACROBLOCK *x,
                                          comp_rate, comp_dist, comp_rs2,
                                          rate_mv, rd, match_index);
   }
+#if !CONFIG_REMOVE_DIST_WTD_COMP
   // Special handling if both compound_average and compound_distwtd
   // are to be searched. In this case, first estimate between the two
   // modes and then call estimate_yrd_for_sb() only for the better of
@@ -1445,6 +1474,7 @@ int av1_compound_type_rd(const AV1_COMP *const cpi, MACROBLOCK *x,
       }
     }
   }
+#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
 
   // If COMPOUND_AVERAGE is not valid, use the spare buffer
   if (valid_comp_types[0] != COMPOUND_AVERAGE) restore_dst_buf(xd, *tmp_dst, 1);
@@ -1559,8 +1589,12 @@ int av1_compound_type_rd(const AV1_COMP *const cpi, MACROBLOCK *x,
   if (mbmi->interinter_comp.type != best_type_stats.best_compound_data.type) {
     mbmi->comp_group_idx =
         (best_type_stats.best_compound_data.type < COMPOUND_WEDGE) ? 0 : 1;
+#if !CONFIG_REMOVE_DIST_WTD_COMP
     mbmi->compound_idx =
         !(best_type_stats.best_compound_data.type == COMPOUND_DISTWTD);
+#else
+    mbmi->compound_idx = 1;
+#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
     mbmi->interinter_comp = best_type_stats.best_compound_data;
     memcpy(xd->seg_mask, buffers->tmp_best_mask_buf, mask_len);
   }

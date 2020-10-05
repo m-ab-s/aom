@@ -2394,7 +2394,10 @@ static int process_compound_inter_mode(
   const AV1_COMMON *cm = &cpi->common;
   const int masked_compound_used = is_any_masked_compound_used(bsize) &&
                                    cm->seq_params.enable_masked_compound;
-  int mode_search_mask = (1 << COMPOUND_AVERAGE) | (1 << COMPOUND_DISTWTD) |
+  int mode_search_mask = (1 << COMPOUND_AVERAGE) |
+#if !CONFIG_REMOVE_DIST_WTD_COMP
+                         (1 << COMPOUND_DISTWTD) |
+#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
                          (1 << COMPOUND_WEDGE) | (1 << COMPOUND_DIFFWTD);
 
   const int num_planes = av1_num_planes(cm);
