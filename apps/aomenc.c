@@ -1885,9 +1885,15 @@ static void show_stream_config(struct stream_state *stream,
 
 #if !CONFIG_REMOVE_DIST_WTD_COMP
   fprintf(stdout,
-          "                               : DistCompound (%d), DiCompound "
+          "                               : DistCompound (%d), DiffCompound "
           "(%d), InterIntra (%d)\n",
           encoder_cfg->enable_dist_wtd_comp, encoder_cfg->enable_diff_wtd_comp,
+          encoder_cfg->enable_interintra_comp);
+#else
+  fprintf(stdout,
+          "                               : DiffCompound "
+          "(%d), InterIntra (%d)\n",
+          encoder_cfg->enable_diff_wtd_comp,
           encoder_cfg->enable_interintra_comp);
 #endif  // !CONFIG_REMOVE_DIST_WTD_COMP
 
