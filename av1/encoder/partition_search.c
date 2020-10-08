@@ -1019,7 +1019,7 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
         const int masked_compound_used = is_any_masked_compound_used(bsize) &&
                                          cm->seq_params.enable_masked_compound;
         if (masked_compound_used) {
-          const int comp_group_idx_ctx = get_comp_group_idx_context(xd);
+          const int comp_group_idx_ctx = get_comp_group_idx_context(cm, xd);
 #if CONFIG_ENTROPY_STATS
           ++counts->comp_group_idx[comp_group_idx_ctx][mbmi->comp_group_idx];
 #endif

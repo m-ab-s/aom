@@ -1197,7 +1197,7 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
                                        cm->seq_params.enable_masked_compound;
 
       if (masked_compound_used) {
-        const int ctx_comp_group_idx = get_comp_group_idx_context(xd);
+        const int ctx_comp_group_idx = get_comp_group_idx_context(cm, xd);
         aom_write_symbol(w, mbmi->comp_group_idx,
                          ec_ctx->comp_group_idx_cdf[ctx_comp_group_idx], 2);
       } else {

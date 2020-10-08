@@ -1353,7 +1353,7 @@ int av1_compound_type_rd(const AV1_COMP *const cpi, MACROBLOCK *x,
       mode_search_mask, valid_comp_types);
 
   // The following context indices are independent of compound type
-  const int comp_group_idx_ctx = get_comp_group_idx_context(xd);
+  const int comp_group_idx_ctx = get_comp_group_idx_context(cm, xd);
 #if !CONFIG_REMOVE_DIST_WTD_COMP
   const int comp_index_ctx = get_comp_index_context(cm, xd);
 

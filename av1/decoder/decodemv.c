@@ -1444,7 +1444,7 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
                                      cm->seq_params.enable_masked_compound;
 
     if (masked_compound_used) {
-      const int ctx_comp_group_idx = get_comp_group_idx_context(xd);
+      const int ctx_comp_group_idx = get_comp_group_idx_context(cm, xd);
       mbmi->comp_group_idx = (uint8_t)aom_read_symbol(
           r, ec_ctx->comp_group_idx_cdf[ctx_comp_group_idx], 2, ACCT_STR);
     }

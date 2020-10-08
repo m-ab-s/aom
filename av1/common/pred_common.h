@@ -135,9 +135,10 @@ static INLINE int get_comp_index_context(const AV1_COMMON *cm,
 
   return above_ctx + left_ctx + 3 * offset;
 }
-#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
 
-static INLINE int get_comp_group_idx_context(const MACROBLOCKD *xd) {
+static INLINE int get_comp_group_idx_context(const AV1_COMMON *cm,
+                                             const MACROBLOCKD *xd) {
+  (void)cm;
   const MB_MODE_INFO *const above_mi = xd->above_mbmi;
   const MB_MODE_INFO *const left_mi = xd->left_mbmi;
   int above_ctx = 0, left_ctx = 0;
@@ -157,6 +158,46 @@ static INLINE int get_comp_group_idx_context(const MACROBLOCKD *xd) {
 
   return AOMMIN(5, above_ctx + left_ctx);
 }
+#else
+static INLINE int get_comp_group_idx_context(const AV1_COMMON *cm,
+                                             const MACROBLOCKD *xd) {
+  (void)cm;
+  MB_MODE_INFO *mbmi = xd->mi[0];
+  const RefCntBuffer *const bck_buf = get_ref_frame_buf(cm, mbmi->ref_frame[0]);
+  const RefCntBuffer *const fwd_buf = get_ref_frame_buf(cm, mbmi->ref_frame[1]);
+  int bck_frame_index = 0, fwd_frame_index = 0;
+  int cur_frame_index = cm->cur_frame->order_hint;
+
+  if (bck_buf != NULL) bck_frame_index = bck_buf->order_hint;
+  if (fwd_buf != NULL) fwd_frame_index = fwd_buf->order_hint;
+
+  int fwd = abs(get_relative_dist(&cm->seq_params.order_hint_info,
+                                  fwd_frame_index, cur_frame_index));
+  int bck = abs(get_relative_dist(&cm->seq_params.order_hint_info,
+                                  cur_frame_index, bck_frame_index));
+  const int offset = (fwd == bck);
+
+  const MB_MODE_INFO *const above_mi = xd->above_mbmi;
+  const MB_MODE_INFO *const left_mi = xd->left_mbmi;
+  int above_ctx = 0, left_ctx = 0;
+
+  if (above_mi) {
+    if (has_second_ref(above_mi))
+      above_ctx = above_mi->comp_group_idx;
+    else if (above_mi->ref_frame[0] == ALTREF_FRAME)
+      above_ctx = 2;
+  }
+  if (left_mi) {
+    if (has_second_ref(left_mi))
+      left_ctx = left_mi->comp_group_idx;
+    else if (left_mi->ref_frame[0] == ALTREF_FRAME)
+      left_ctx = 2;
+  }
+  const int ctxmap[3 * 3] = { 0, 1, 2, 1, 3, 4, 2, 4, 5 };
+
+  return ctxmap[3 * above_ctx + left_ctx] + offset * 6;
+}
+#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
 
 static INLINE aom_cdf_prob *av1_get_pred_cdf_seg_id(
     struct segmentation_probs *segp, const MACROBLOCKD *xd) {
