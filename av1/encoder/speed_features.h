@@ -38,11 +38,13 @@ enum {
   GM_DISABLE_SEARCH
 } UENUM1BYTE(GM_SEARCH_TYPE);
 
+#if !CONFIG_REMOVE_DIST_WTD_COMP
 enum {
   DIST_WTD_COMP_ENABLED,
   DIST_WTD_COMP_SKIP_MV_SEARCH,
   DIST_WTD_COMP_DISABLED,
 } UENUM1BYTE(DIST_WTD_COMP_FLAG);
+#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
 
 enum {
   INTRA_ALL = (1 << DC_PRED) | (1 << V_PRED) | (1 << H_PRED) | (1 << D45_PRED) |
@@ -693,8 +695,10 @@ typedef struct INTER_MODE_SPEED_FEATURES {
   // Disable interinter_wedge
   int disable_interinter_wedge;
 
+#if !CONFIG_REMOVE_DIST_WTD_COMP
   // Decide when and how to use joint_comp.
   DIST_WTD_COMP_FLAG use_dist_wtd_comp_flag;
+#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
 
   // Whether to override and disable sb level coeff cost updates, if
   // cpi->oxcf.cost_upd_freq.coeff = COST_UPD_SB (i.e. set at SB level)
