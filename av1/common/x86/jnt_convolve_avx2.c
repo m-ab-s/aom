@@ -47,7 +47,11 @@ void av1_dist_wtd_convolve_x_avx2(const uint8_t *src, int src_stride,
   const int bits = FILTER_BITS - conv_params->round_1;
   const __m256i wt = unpack_weights_avx2(conv_params);
   const int do_average = conv_params->do_average;
+#if !CONFIG_REMOVE_DIST_WTD_COMP
   const int use_dist_wtd_comp_avg = conv_params->use_dist_wtd_comp_avg;
+#else
+  const int use_dist_wtd_comp_avg = 0;
+#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
   const int offset_0 =
       bd + 2 * FILTER_BITS - conv_params->round_0 - conv_params->round_1;
   const int offset = (1 << offset_0) + (1 << (offset_0 - 1));
@@ -199,7 +203,11 @@ void av1_dist_wtd_convolve_y_avx2(const uint8_t *src, int src_stride,
   const __m128i round_shift = _mm_cvtsi32_si128(conv_params->round_1);
   const __m256i wt = unpack_weights_avx2(conv_params);
   const int do_average = conv_params->do_average;
+#if !CONFIG_REMOVE_DIST_WTD_COMP
   const int use_dist_wtd_comp_avg = conv_params->use_dist_wtd_comp_avg;
+#else
+  const int use_dist_wtd_comp_avg = 0;
+#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
   const int offset_0 =
       bd + 2 * FILTER_BITS - conv_params->round_0 - conv_params->round_1;
   const int offset = (1 << offset_0) + (1 << (offset_0 - 1));
@@ -599,7 +607,11 @@ void av1_dist_wtd_convolve_2d_avx2(const uint8_t *src, int src_stride,
   int i, is_horiz_4tap = 0, is_vert_4tap = 0;
   const __m256i wt = unpack_weights_avx2(conv_params);
   const int do_average = conv_params->do_average;
+#if !CONFIG_REMOVE_DIST_WTD_COMP
   const int use_dist_wtd_comp_avg = conv_params->use_dist_wtd_comp_avg;
+#else
+  const int use_dist_wtd_comp_avg = 0;
+#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
   const int offset_0 =
       bd + 2 * FILTER_BITS - conv_params->round_0 - conv_params->round_1;
   const int offset = (1 << offset_0) + (1 << (offset_0 - 1));
@@ -804,7 +816,11 @@ void av1_dist_wtd_convolve_2d_copy_avx2(const uint8_t *src, int src_stride,
       FILTER_BITS * 2 - conv_params->round_1 - conv_params->round_0;
   const __m128i left_shift = _mm_cvtsi32_si128(bits);
   const int do_average = conv_params->do_average;
+#if !CONFIG_REMOVE_DIST_WTD_COMP
   const int use_dist_wtd_comp_avg = conv_params->use_dist_wtd_comp_avg;
+#else
+  const int use_dist_wtd_comp_avg = 0;
+#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
   const __m256i wt = unpack_weights_avx2(conv_params);
   const __m256i zero = _mm256_setzero_si256();
 

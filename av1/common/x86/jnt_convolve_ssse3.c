@@ -33,7 +33,11 @@ void av1_dist_wtd_convolve_2d_ssse3(
   const int fo_vert = filter_params_y->taps / 2 - 1;
   const int fo_horiz = filter_params_x->taps / 2 - 1;
   const int do_average = conv_params->do_average;
+#if !CONFIG_REMOVE_DIST_WTD_COMP
   const int use_dist_wtd_comp_avg = conv_params->use_dist_wtd_comp_avg;
+#else
+  const int use_dist_wtd_comp_avg = 0;
+#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
   const uint8_t *const src_ptr = src - fo_vert * src_stride - fo_horiz;
 
   const __m128i zero = _mm_setzero_si128();

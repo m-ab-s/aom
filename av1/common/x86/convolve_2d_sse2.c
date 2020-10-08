@@ -226,7 +226,11 @@ void av1_dist_wtd_convolve_2d_copy_sse2(const uint8_t *src, int src_stride,
   const int bits =
       FILTER_BITS * 2 - conv_params->round_1 - conv_params->round_0;
   const int do_average = conv_params->do_average;
+#if !CONFIG_REMOVE_DIST_WTD_COMP
   const int use_dist_wtd_comp_avg = conv_params->use_dist_wtd_comp_avg;
+#else
+  const int use_dist_wtd_comp_avg = 0;
+#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
   const __m128i zero = _mm_setzero_si128();
   const __m128i left_shift = _mm_cvtsi32_si128(bits);
   int i, j;

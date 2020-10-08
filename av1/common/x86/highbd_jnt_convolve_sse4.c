@@ -30,7 +30,11 @@ void av1_highbd_dist_wtd_convolve_y_sse4_1(
   assert(bits >= 0);
   int i, j;
   const int do_average = conv_params->do_average;
+#if !CONFIG_REMOVE_DIST_WTD_COMP
   const int use_dist_wtd_comp_avg = conv_params->use_dist_wtd_comp_avg;
+#else
+  const int use_dist_wtd_comp_avg = 0;
+#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
 
   const int w0 = conv_params->fwd_offset;
   const int w1 = conv_params->bck_offset;
@@ -270,7 +274,11 @@ void av1_highbd_dist_wtd_convolve_x_sse4_1(
   __m128i s[4], coeffs_x[4];
 
   const int do_average = conv_params->do_average;
+#if !CONFIG_REMOVE_DIST_WTD_COMP
   const int use_dist_wtd_comp_avg = conv_params->use_dist_wtd_comp_avg;
+#else
+  const int use_dist_wtd_comp_avg = 0;
+#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
   const int w0 = conv_params->fwd_offset;
   const int w1 = conv_params->bck_offset;
   const __m128i wt0 = _mm_set1_epi32(w0);
