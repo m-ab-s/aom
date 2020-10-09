@@ -757,6 +757,8 @@ typedef struct {
   aom_superblock_size_t superblock_size;
   // Indicates if loopfilter modulation should be enabled.
   bool enable_deltalf_mode;
+  // Indicates if deblocking should be enabled.
+  bool enable_deblocking;
   // Indicates if CDEF should be enabled.
   bool enable_cdef;
   // Indicates if loop restoration filter should be enabled.

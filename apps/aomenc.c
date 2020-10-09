@@ -439,6 +439,9 @@ static const arg_def_t tile_height =
     ARG_DEF(NULL, "tile-height", 1, "Tile heights (command separated)");
 static const arg_def_t lossless =
     ARG_DEF(NULL, "lossless", 1, "Lossless mode (0: false (default), 1: true)");
+static const arg_def_t enable_deblocking =
+    ARG_DEF(NULL, "enable-deblocking", 1,
+            "Enable the deblocking filter (0: false, 1: true (default))");
 static const arg_def_t enable_cdef =
     ARG_DEF(NULL, "enable-cdef", 1,
             "Enable the constrained directional enhancement filter (0: false, "
@@ -865,6 +868,7 @@ static const arg_def_t *av1_args[] = { &cpu_used_av1,
                                        &max_inter_rate_pct,
                                        &gf_cbr_boost_pct,
                                        &lossless,
+                                       &enable_deblocking,
                                        &enable_cdef,
                                        &enable_restoration,
                                        &enable_rect_partitions,
@@ -971,6 +975,7 @@ static const int av1_arg_ctrl_map[] = { AOME_SET_CPUUSED,
                                         AV1E_SET_MAX_INTER_BITRATE_PCT,
                                         AV1E_SET_GF_CBR_BOOST_PCT,
                                         AV1E_SET_LOSSLESS,
+                                        AV1E_SET_ENABLE_DEBLOCKING,
                                         AV1E_SET_ENABLE_CDEF,
                                         AV1E_SET_ENABLE_RESTORATION,
                                         AV1E_SET_ENABLE_RECT_PARTITIONS,
@@ -1926,8 +1931,10 @@ static void show_stream_config(struct stream_state *stream,
           encoder_cfg->enable_flip_idtx, encoder_cfg->enable_tx64);
 
   fprintf(stdout,
-          "Tool setting (Loop filter)     : CDEF (%d), LoopRestortion (%d)\n",
-          encoder_cfg->enable_cdef, encoder_cfg->enable_restoration);
+          "Tool setting (Loop filter)     : Deblocking (%d), CDEF (%d), "
+          "LoopRestortion (%d)\n",
+          encoder_cfg->enable_deblocking, encoder_cfg->enable_cdef,
+          encoder_cfg->enable_restoration);
 
   fprintf(stdout,
           "Tool setting (Others)          : Palette (%d), IntraBC (%d)\n",

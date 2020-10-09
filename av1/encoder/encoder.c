@@ -2047,8 +2047,9 @@ static void loopfilter_frame(AV1_COMP *cpi, AV1_COMMON *cm) {
   assert(IMPLIES(is_lossless_requested(&cpi->oxcf.rc_cfg),
                  cm->features.coded_lossless && cm->features.all_lossless));
 
-  const int use_loopfilter =
-      !cm->features.coded_lossless && !cm->tiles.large_scale;
+  const int use_loopfilter = !cm->features.coded_lossless &&
+                             !cm->tiles.large_scale &&
+                             cpi->oxcf.tool_cfg.enable_deblocking;
   const int use_cdef = cm->seq_params.enable_cdef &&
                        !cm->features.coded_lossless && !cm->tiles.large_scale;
   const int use_restoration = cm->seq_params.enable_restoration &&

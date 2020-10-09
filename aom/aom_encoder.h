@@ -238,6 +238,10 @@ typedef struct cfg_options {
    *
    */
   unsigned int enable_flip_idtx;
+  /*!\brief enable deblocking filter
+   *
+   */
+  unsigned int enable_deblocking;
   /*!\brief enable CDEF filter
    *
    */

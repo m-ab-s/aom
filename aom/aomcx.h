@@ -1281,6 +1281,16 @@ enum aome_enc_control_id {
   /*!\brief Control to get baseline gf interval
    */
   AV1E_GET_BASELINE_GF_INTERVAL = 160,
+
+  /*!\brief Codec control function to encode with deblocking, unsigned int
+   * parameter
+   *
+   * deblocking is the in-loop filter aiming to smooth blocky artifacts
+   *
+   * - 0 = disable
+   * - 1 = enable (default)
+   */
+  AV1E_SET_ENABLE_DEBLOCKING = 161,
 };
 
 /*!\brief aom 1-D scaling mode
@@ -1496,6 +1506,9 @@ AOM_CTRL_USE_TYPE(AV1E_SET_GF_CBR_BOOST_PCT, unsigned int)
 
 AOM_CTRL_USE_TYPE(AV1E_SET_LOSSLESS, unsigned int)
 #define AOM_CTRL_AV1E_SET_LOSSLESS
+
+AOM_CTRL_USE_TYPE(AV1E_SET_ENABLE_DEBLOCKING, unsigned int)
+#define AOM_CTRL_AV1E_SET_ENABLE_DEBLOCKING
 
 AOM_CTRL_USE_TYPE(AV1E_SET_ENABLE_CDEF, unsigned int)
 #define AOM_CTRL_AV1E_SET_ENABLE_CDEF

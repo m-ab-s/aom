@@ -93,6 +93,7 @@ int parse_cfg(const char *file, cfg_options_t *config) {
     GET_PARAMS(enable_rect_partitions);
     GET_PARAMS(enable_1to4_partitions);
     GET_PARAMS(enable_flip_idtx);
+    GET_PARAMS(enable_deblocking);
     GET_PARAMS(enable_cdef);
     GET_PARAMS(enable_restoration);
     GET_PARAMS(enable_obmc);
