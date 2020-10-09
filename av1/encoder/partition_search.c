@@ -911,39 +911,38 @@ static int rd_try_subblock_new(AV1_COMP *const cpi, ThreadData *td,
     SimpleMotionData *sms_data =
         av1_get_sms_data_entry(x->sms_bufs, mi_row, mi_col, bsize, sb_size);
     av1_set_best_mode_cache(x, sms_data->mode_cache);
-  }
 #endif  // USE_OLD_PREDICTION_MODE
-  pick_sb_modes(cpi, tile_data, x, mi_row, mi_col, &this_rdc,
-                rdo_data->partition, bsize, rdo_data->ctx, rdcost_remaining,
-                PICK_MODE_RD);
+    pick_sb_modes(cpi, tile_data, x, mi_row, mi_col, &this_rdc,
+                  rdo_data->partition, bsize, rdo_data->ctx, rdcost_remaining,
+                  PICK_MODE_RD);
 #if USE_OLD_PREDICTION_MODE
-  x->inter_mode_cache = NULL;
-  if (this_rdc.rate != INT_MAX) {
-    av1_add_mode_search_context_to_cache(sms_data, rdo_data->ctx);
-  }
+    x->inter_mode_cache = NULL;
+    if (this_rdc.rate != INT_MAX) {
+      av1_add_mode_search_context_to_cache(sms_data, rdo_data->ctx);
+    }
 #endif  // USE_OLD_PREDICTION_MODE
-}
+  }
 
-if (this_rdc.rate == INT_MAX) {
-  sum_rdc->rdcost = INT64_MAX;
-} else {
-  sum_rdc->rate += this_rdc.rate;
-  sum_rdc->dist += this_rdc.dist;
-  av1_rd_cost_update(x->rdmult, sum_rdc);
-}
+  if (this_rdc.rate == INT_MAX) {
+    sum_rdc->rdcost = INT64_MAX;
+  } else {
+    sum_rdc->rate += this_rdc.rate;
+    sum_rdc->dist += this_rdc.dist;
+    av1_rd_cost_update(x->rdmult, sum_rdc);
+  }
 
-if (sum_rdc->rdcost >= best_rdcost.rdcost) {
+  if (sum_rdc->rdcost >= best_rdcost.rdcost) {
+    x->rdmult = orig_mult;
+    return 0;
+  }
+
+  if (!rdo_data->is_last_subblock && !rdo_data->is_splittable) {
+    av1_update_state(cpi, td, rdo_data->ctx, mi_row, mi_col, bsize, 1);
+    av1_encode_superblock(cpi, tile_data, td, tp, DRY_RUN_NORMAL, bsize, NULL);
+  }
+
   x->rdmult = orig_mult;
-  return 0;
-}
-
-if (!rdo_data->is_last_subblock && !rdo_data->is_splittable) {
-  av1_update_state(cpi, td, rdo_data->ctx, mi_row, mi_col, bsize, 1);
-  av1_encode_superblock(cpi, tile_data, td, tp, DRY_RUN_NORMAL, bsize, NULL);
-}
-
-x->rdmult = orig_mult;
-return 1;
+  return 1;
 }
 #else   // !CONFIG_EXT_RECUR_PARTITIONS
 static bool rd_test_partition3(AV1_COMP *const cpi, ThreadData *td,

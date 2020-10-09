@@ -167,7 +167,6 @@ typedef enum {
 // 4X4, 8X8, 16X16, 32X32, 64X64, 128X128
 #define SQR_BLOCK_SIZES 6
 
-#define USE_OLD_PREDICTION_MODE 0
 #if CONFIG_EXT_RECUR_PARTITIONS
 #define KEEP_PARTITION_SPLIT 0
 // Whether to cache the old prediction mode from earlier partitions and reuse
@@ -177,6 +176,8 @@ typedef enum {
 // Whether to use simple_motion_search to prune partitioning
 #define ENABLE_FAST_RECUR_PARTITION 0
 #define USE_EST_TXFM 0
+#else  // !CONFIG_EXT_RECUR_PARTITIONS
+#define USE_OLD_PREDICTION_MODE 0
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 
 //  Block partition types.  R: Recursive
