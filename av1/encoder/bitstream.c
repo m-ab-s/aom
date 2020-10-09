@@ -1510,6 +1510,70 @@ static void write_pb_mv_precision(const AV1_COMMON *const cm,
 }
 #endif  // CONFIG_FLEX_MVRES
 
+static void write_interintra_wedge_bits(const MB_MODE_INFO *mbmi,
+                                        BLOCK_SIZE bsize, aom_writer *w,
+                                        FRAME_CONTEXT *ec_ctx) {
+  if (is_interintra_wedge_used(bsize)) {
+    aom_write_symbol(w, mbmi->use_wedge_interintra,
+                     ec_ctx->wedge_interintra_cdf[bsize], 2);
+    if (mbmi->use_wedge_interintra) {
+      aom_write_symbol(w, mbmi->interintra_wedge_index,
+                       ec_ctx->wedge_idx_cdf[bsize], 16);
+    }
+  }
+}
+
+static void write_interintra_mode_bits(MACROBLOCKD const *xd,
+                                       const MB_MODE_INFO *mbmi,
+                                       BLOCK_SIZE bsize, aom_writer *w,
+                                       FRAME_CONTEXT *ec_ctx) {
+#if CONFIG_DERIVED_INTRA_MODE
+  if (av1_enable_derived_intra_mode(xd, bsize)) {
+    aom_write_symbol(
+        w, mbmi->use_derived_intra_mode[0],
+        get_derived_intra_mode_cdf(ec_ctx, xd->above_mbmi, xd->left_mbmi, 1),
+        2);
+  } else {
+    assert(!mbmi->use_derived_intra_mode[0]);
+  }
+  if (mbmi->use_derived_intra_mode[0]) {
+    return;
+  }
+#endif  // CONFIG_DERIVED_INTRA_MODE
+
+  const int bsize_group = size_group_lookup[bsize];
+
+#if CONFIG_INTERINTRA_ML
+  if (is_interintra_ml_supported(xd, mbmi->use_wedge_interintra)) {
+    aom_write_symbol(w, mbmi->interintra_mode,
+                     ec_ctx->interintra_ml_mode_cdf[bsize_group],
+                     INTERINTRA_MODES);
+  } else {
+    aom_write_symbol(w, mbmi->interintra_mode,
+                     ec_ctx->interintra_mode_cdf[bsize_group], II_ML_PRED0);
+  }
+#else
+  (void)xd;
+  aom_write_symbol(w, mbmi->interintra_mode,
+                   ec_ctx->interintra_mode_cdf[bsize_group], INTERINTRA_MODES);
+#endif  // CONFIG_INTERINTRA_ML
+}
+
+static void write_interintra_mode_and_wedge_bits(MACROBLOCKD *const xd,
+                                                 const MB_MODE_INFO *const mbmi,
+                                                 BLOCK_SIZE bsize,
+                                                 aom_writer *w,
+                                                 FRAME_CONTEXT *ec_ctx) {
+  // If interintra-ML modes are enabled, wedge is written first, then the mode.
+#if CONFIG_INTERINTRA_ML
+  write_interintra_wedge_bits(mbmi, bsize, w, ec_ctx);
+  write_interintra_mode_bits(xd, mbmi, bsize, w, ec_ctx);
+#else
+  write_interintra_mode_bits(xd, mbmi, bsize, w, ec_ctx);
+  write_interintra_wedge_bits(mbmi, bsize, w, ec_ctx);
+#endif  // CONFIG_INTERINTRA_ML
+}
+
 static void pack_inter_mode_mvs(AV1_COMP *cpi, const int mi_row,
                                 const int mi_col, aom_writer *w) {
   AV1_COMMON *const cm = &cpi->common;
@@ -1648,42 +1712,7 @@ static void pack_inter_mode_mvs(AV1_COMP *cpi, const int mi_row,
       const int bsize_group = size_group_lookup[bsize];
       aom_write_symbol(w, interintra, ec_ctx->interintra_cdf[bsize_group], 2);
       if (interintra) {
-#if CONFIG_DERIVED_INTRA_MODE
-        if (av1_enable_derived_intra_mode(xd, bsize)) {
-          aom_write_symbol(w, mbmi->use_derived_intra_mode[0],
-                           get_derived_intra_mode_cdf(ec_ctx, xd->above_mbmi,
-                                                      xd->left_mbmi, 1),
-                           2);
-        } else {
-          assert(!mbmi->use_derived_intra_mode[0]);
-        }
-        if (!mbmi->use_derived_intra_mode[0])
-#endif  // CONFIG_DERIVED_INTRA_MODE
-        {
-#if CONFIG_INTERINTRA_ML
-          if (is_interintra_ml_supported(bsize)) {
-            aom_write_symbol(w, mbmi->interintra_mode,
-                             ec_ctx->interintra_ml_mode_cdf[bsize_group],
-                             INTERINTRA_MODES);
-          } else {
-            aom_write_symbol(w, mbmi->interintra_mode,
-                             ec_ctx->interintra_mode_cdf[bsize_group],
-                             II_ML_PRED0);
-          }
-#else
-          aom_write_symbol(w, mbmi->interintra_mode,
-                           ec_ctx->interintra_mode_cdf[bsize_group],
-                           INTERINTRA_MODES);
-#endif  // CONFIG_INTERINTRA_ML
-        }
-        if (is_interintra_wedge_used(bsize)) {
-          aom_write_symbol(w, mbmi->use_wedge_interintra,
-                           ec_ctx->wedge_interintra_cdf[bsize], 2);
-          if (mbmi->use_wedge_interintra) {
-            aom_write_symbol(w, mbmi->interintra_wedge_index,
-                             ec_ctx->wedge_idx_cdf[bsize], 16);
-          }
-        }
+        write_interintra_mode_and_wedge_bits(xd, mbmi, bsize, w, ec_ctx);
       }
     }
 

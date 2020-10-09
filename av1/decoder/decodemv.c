@@ -172,25 +172,6 @@ static uint8_t read_cfl_alphas(FRAME_CONTEXT *const ec_ctx, aom_reader *r,
   return idx;
 }
 
-static INTERINTRA_MODE read_interintra_mode(MACROBLOCKD *xd, aom_reader *r,
-                                            int size_group) {
-#if CONFIG_INTERINTRA_ML
-  const BLOCK_SIZE bsize = xd->mi[0]->sb_type;
-  if (is_interintra_ml_supported(bsize)) {
-    return (INTERINTRA_MODE)aom_read_symbol(
-        r, xd->tile_ctx->interintra_ml_mode_cdf[size_group], INTERINTRA_MODES,
-        ACCT_STR);
-  }
-  return (INTERINTRA_MODE)aom_read_symbol(
-      r, xd->tile_ctx->interintra_mode_cdf[size_group], II_ML_PRED0, ACCT_STR);
-#else
-  const INTERINTRA_MODE ii_mode = (INTERINTRA_MODE)aom_read_symbol(
-      r, xd->tile_ctx->interintra_mode_cdf[size_group], INTERINTRA_MODES,
-      ACCT_STR);
-  return ii_mode;
-#endif  // CONFIG_INTERINTRA_ML
-}
-
 static PREDICTION_MODE read_inter_mode(FRAME_CONTEXT *ec_ctx, aom_reader *r,
                                        int16_t ctx) {
   int16_t mode_ctx = ctx & NEWMV_CTX_MASK;
@@ -1711,6 +1692,71 @@ MvSubpelPrecision av1_read_pb_mv_precision(AV1_COMMON *const cm,
 }
 #endif  //  CONFIG_FLEX_MVRES
 
+static void read_interintra_wedge_bits(MB_MODE_INFO *const mbmi,
+                                       BLOCK_SIZE bsize, aom_reader *r,
+                                       FRAME_CONTEXT *ec_ctx) {
+  if (is_interintra_wedge_used(bsize)) {
+    mbmi->use_wedge_interintra =
+        aom_read_symbol(r, ec_ctx->wedge_interintra_cdf[bsize], 2, ACCT_STR);
+    if (mbmi->use_wedge_interintra) {
+      mbmi->interintra_wedge_index = (int8_t)aom_read_symbol(
+          r, ec_ctx->wedge_idx_cdf[bsize], 16, ACCT_STR);
+    }
+  }
+}
+
+static void read_interintra_mode_bits(MACROBLOCKD *const xd,
+                                      MB_MODE_INFO *const mbmi,
+                                      BLOCK_SIZE bsize, aom_reader *r,
+                                      FRAME_CONTEXT *ec_ctx) {
+#if CONFIG_DERIVED_INTRA_MODE
+  mbmi->use_derived_intra_mode[0] = 0;
+  mbmi->use_derived_intra_mode[1] = 0;
+  if (av1_enable_derived_intra_mode(xd, bsize)) {
+    mbmi->use_derived_intra_mode[0] = aom_read_symbol(
+        r, get_derived_intra_mode_cdf(ec_ctx, xd->above_mbmi, xd->left_mbmi, 1),
+        2, ACCT_STR);
+  }
+  if (mbmi->use_derived_intra_mode[0]) {
+    mbmi->interintra_mode = 0;
+    return;
+  }
+#else
+  (void)ec_ctx;
+#endif  // CONFIG_DERIVED_INTRA_MODE
+  const int size_group = size_group_lookup[bsize];
+
+#if CONFIG_INTERINTRA_ML
+  if (is_interintra_ml_supported(xd, mbmi->use_wedge_interintra)) {
+    mbmi->interintra_mode =
+        aom_read_symbol(r, xd->tile_ctx->interintra_ml_mode_cdf[size_group],
+                        INTERINTRA_MODES, ACCT_STR);
+  } else {
+    mbmi->interintra_mode =
+        aom_read_symbol(r, xd->tile_ctx->interintra_mode_cdf[size_group],
+                        II_ML_PRED0, ACCT_STR);
+  }
+#else
+  mbmi->interintra_mode =
+      aom_read_symbol(r, xd->tile_ctx->interintra_mode_cdf[size_group],
+                      INTERINTRA_MODES, ACCT_STR);
+#endif  // CONFIG_INTERINTRA_ML
+}
+
+static void read_interintra_mode_and_wedge_bits(MACROBLOCKD *const xd,
+                                                MB_MODE_INFO *const mbmi,
+                                                BLOCK_SIZE bsize, aom_reader *r,
+                                                FRAME_CONTEXT *ec_ctx) {
+  // If interintra-ML modes are enabled, wedge is read first, then the mode.
+#if CONFIG_INTERINTRA_ML
+  read_interintra_wedge_bits(mbmi, bsize, r, ec_ctx);
+  read_interintra_mode_bits(xd, mbmi, bsize, r, ec_ctx);
+#else
+  read_interintra_mode_bits(xd, mbmi, bsize, r, ec_ctx);
+  read_interintra_wedge_bits(mbmi, bsize, r, ec_ctx);
+#endif  // CONFIG_INTERINTRA_ML
+}
+
 static void read_inter_block_mode_info(AV1Decoder *const pbi,
                                        MACROBLOCKD *const xd,
                                        MB_MODE_INFO *const mbmi, int mi_row,
@@ -1949,40 +1995,14 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
         aom_read_symbol(r, ec_ctx->interintra_cdf[bsize_group], 2, ACCT_STR);
     assert(mbmi->ref_frame[1] == NONE_FRAME);
     if (interintra) {
-#if CONFIG_DERIVED_INTRA_MODE
-      mbmi->use_derived_intra_mode[0] = 0;
-      mbmi->use_derived_intra_mode[1] = 0;
-      if (av1_enable_derived_intra_mode(xd, bsize)) {
-        mbmi->use_derived_intra_mode[0] =
-            aom_read_symbol(r,
-                            get_derived_intra_mode_cdf(ec_ctx, xd->above_mbmi,
-                                                       xd->left_mbmi, 1),
-                            2, ACCT_STR);
-      }
-      const INTERINTRA_MODE interintra_mode =
-          mbmi->use_derived_intra_mode[0]
-              ? 0
-              : read_interintra_mode(xd, r, bsize_group);
-#else
-      const INTERINTRA_MODE interintra_mode =
-          read_interintra_mode(xd, r, bsize_group);
-#endif  // CONFIG_DERIVED_INTRA_MODE
       mbmi->ref_frame[1] = INTRA_FRAME;
-      mbmi->interintra_mode = interintra_mode;
       mbmi->angle_delta[PLANE_TYPE_Y] = 0;
       mbmi->angle_delta[PLANE_TYPE_UV] = 0;
       mbmi->filter_intra_mode_info.use_filter_intra = 0;
 #if CONFIG_ADAPT_FILTER_INTRA
       mbmi->adapt_filter_intra_mode_info.use_adapt_filter_intra = 0;
 #endif
-      if (is_interintra_wedge_used(bsize)) {
-        mbmi->use_wedge_interintra = aom_read_symbol(
-            r, ec_ctx->wedge_interintra_cdf[bsize], 2, ACCT_STR);
-        if (mbmi->use_wedge_interintra) {
-          mbmi->interintra_wedge_index = (int8_t)aom_read_symbol(
-              r, ec_ctx->wedge_idx_cdf[bsize], 16, ACCT_STR);
-        }
-      }
+      read_interintra_mode_and_wedge_bits(xd, mbmi, bsize, r, ec_ctx);
     }
   }
 

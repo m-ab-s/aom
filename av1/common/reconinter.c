@@ -2827,6 +2827,7 @@ static void combine_interintra(INTERINTRA_MODE mode,
 #endif  // CONFIG_ILLUM_MCOMP
 #if CONFIG_INTERINTRA_ML
   if (mode >= II_ML_PRED0 && mode <= II_ML_PRED9) {
+    assert(!use_wedge_interintra);
     av1_combine_interintra_ml(mode, plane_bsize, comppred, compstride,
                               interpred, interstride, intrapred, intrastride,
                               border);
@@ -2875,6 +2876,7 @@ static void combine_interintra_highbd(
 #endif  // CONFIG_ILLUM_MCOMP
 #if CONFIG_INTERINTRA_ML
   if (mode >= II_ML_PRED0 && mode <= II_ML_PRED9) {
+    assert(!use_wedge_interintra);
     av1_combine_interintra_ml_highbd(mode, plane_bsize, comppred8, compstride,
                                      interpred8, interstride, intrapred8,
                                      intrastride, bd, border);

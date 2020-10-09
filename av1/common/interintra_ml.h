@@ -12,8 +12,10 @@
 #ifndef AOM_AV1_COMMON_INTERINTRA_ML_H_
 #define AOM_AV1_COMMON_INTERINTRA_ML_H_
 
+#include <stdbool.h>
 #include <stddef.h>
 #include "av1/common/enums.h"
+#include "av1/common/blockd.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -21,9 +23,8 @@ extern "C" {
 
 #define INTERINTRA_ML_BORDER 4
 
-// Returns whether the interintra ML modes are supported for the
-// given block size.
-bool is_interintra_ml_supported(BLOCK_SIZE bsize);
+// Returns whether the interintra ML modes are supported.
+bool is_interintra_ml_supported(const MACROBLOCKD *xd, bool wedge);
 
 // Entry point. Checks if the right block size is passed in.
 // Invokes the ML model and stores the output in comp_pred. Note

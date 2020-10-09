@@ -15,6 +15,7 @@
 #include "aom_dsp/aom_dsp_common.h"
 #include "av1/common/interintra_ml.h"
 #include "av1/common/interintra_ml_model.h"
+#include "av1/common/reconinter.h"
 #include "av1/common/reconintra.h"
 #include "common/tf_lite_includes.h"
 
@@ -227,8 +228,23 @@ void scale_load_inputs(tflite::Interpreter *interpreter, INTERINTRA_MODE mode,
 
 }  // namespace
 
-bool is_interintra_ml_supported(BLOCK_SIZE bsize) {
-  return bsize == BLOCK_16X16;
+bool is_interintra_ml_supported(const MACROBLOCKD *xd, bool wedge) {
+  // Not supported in wedge mode.
+  if (wedge) {
+    return false;
+  }
+  // Only supported for block-sizes of 16x16.
+  const BLOCK_SIZE bsize = xd->mi[0]->sb_type;
+  if (bsize != BLOCK_16X16) {
+    return false;
+  }
+  // build-for-obmc is just used to check whether this is a sub-8x8 block or
+  // not. Any value will do for it, since block size must be 16x16.
+  const bool build_for_obmc = true;
+  int border = av1_calc_border(xd, AOM_PLANE_Y, build_for_obmc);
+  border = AOMMIN(border, av1_calc_border(xd, AOM_PLANE_U, build_for_obmc));
+  border = AOMMIN(border, av1_calc_border(xd, AOM_PLANE_V, build_for_obmc));
+  return border >= INTERINTRA_ML_BORDER;
 }
 
 void av1_combine_interintra_ml(INTERINTRA_MODE mode, BLOCK_SIZE plane_bsize,
