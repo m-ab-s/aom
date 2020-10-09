@@ -228,18 +228,20 @@ void av1_dist_wtd_convolve_2d_copy_sse2(const uint8_t *src, int src_stride,
   const int do_average = conv_params->do_average;
 #if !CONFIG_REMOVE_DIST_WTD_COMP
   const int use_dist_wtd_comp_avg = conv_params->use_dist_wtd_comp_avg;
-#else
-  const int use_dist_wtd_comp_avg = 0;
-#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
-  const __m128i zero = _mm_setzero_si128();
-  const __m128i left_shift = _mm_cvtsi32_si128(bits);
-  int i, j;
-
   const int w0 = conv_params->fwd_offset;
   const int w1 = conv_params->bck_offset;
   const __m128i wt0 = _mm_set1_epi16(w0);
   const __m128i wt1 = _mm_set1_epi16(w1);
   const __m128i wt = _mm_unpacklo_epi16(wt0, wt1);
+#else
+  const __m128i wt0 = _mm_set1_epi16(1 << (DIST_PRECISION_BITS - 1));
+  const __m128i wt1 = _mm_set1_epi16(1 << (DIST_PRECISION_BITS - 1));
+  const __m128i wt = _mm_unpacklo_epi16(wt0, wt1);
+  const int use_dist_wtd_comp_avg = 0;
+#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
+  const __m128i zero = _mm_setzero_si128();
+  const __m128i left_shift = _mm_cvtsi32_si128(bits);
+  int i, j;
 
   const int offset_0 =
       bd + 2 * FILTER_BITS - conv_params->round_0 - conv_params->round_1;

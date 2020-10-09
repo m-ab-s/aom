@@ -35,13 +35,15 @@ void av1_highbd_dist_wtd_convolve_2d_copy_sse4_1(const uint16_t *src,
   const int do_average = conv_params->do_average;
 #if !CONFIG_REMOVE_DIST_WTD_COMP
   const int use_dist_wtd_comp_avg = conv_params->use_dist_wtd_comp_avg;
-#else
-  const int use_dist_wtd_comp_avg = 0;
-#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
   const int w0 = conv_params->fwd_offset;
   const int w1 = conv_params->bck_offset;
   const __m128i wt0 = _mm_set1_epi32(w0);
   const __m128i wt1 = _mm_set1_epi32(w1);
+#else
+  const __m128i wt0 = _mm_set1_epi32(1 << (DIST_PRECISION_BITS - 1));
+  const __m128i wt1 = _mm_set1_epi32(1 << (DIST_PRECISION_BITS - 1));
+  const int use_dist_wtd_comp_avg = 0;
+#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
   const __m128i zero = _mm_setzero_si128();
   int i, j;
 
@@ -183,17 +185,18 @@ void av1_highbd_dist_wtd_convolve_2d_sse4_1(
   const int do_average = conv_params->do_average;
 #if !CONFIG_REMOVE_DIST_WTD_COMP
   const int use_dist_wtd_comp_avg = conv_params->use_dist_wtd_comp_avg;
-#else
-  const int use_dist_wtd_comp_avg = 0;
-#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
-  const int fo_vert = filter_params_y->taps / 2 - 1;
-  const int fo_horiz = filter_params_x->taps / 2 - 1;
-  const uint16_t *const src_ptr = src - fo_vert * src_stride - fo_horiz;
-
   const int w0 = conv_params->fwd_offset;
   const int w1 = conv_params->bck_offset;
   const __m128i wt0 = _mm_set1_epi32(w0);
   const __m128i wt1 = _mm_set1_epi32(w1);
+#else
+  const int use_dist_wtd_comp_avg = 0;
+  const __m128i wt0 = _mm_set1_epi32(1 << (DIST_PRECISION_BITS - 1));
+  const __m128i wt1 = _mm_set1_epi32(1 << (DIST_PRECISION_BITS - 1));
+#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
+  const int fo_vert = filter_params_y->taps / 2 - 1;
+  const int fo_horiz = filter_params_x->taps / 2 - 1;
+  const uint16_t *const src_ptr = src - fo_vert * src_stride - fo_horiz;
 
   const int offset_0 =
       bd + 2 * FILTER_BITS - conv_params->round_0 - conv_params->round_1;

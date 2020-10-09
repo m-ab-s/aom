@@ -431,15 +431,23 @@ static INLINE void warp_horizontal_filter_alpha0_beta0_avx2(
 static INLINE void unpack_weights_and_set_round_const_avx2(
     ConvolveParams *conv_params, const int round_bits, const int offset_bits,
     __m256i *res_sub_const, __m256i *round_bits_const, __m256i *wt) {
+  (void)wt;
   *res_sub_const =
       _mm256_set1_epi16(-(1 << (offset_bits - conv_params->round_1)) -
                         (1 << (offset_bits - conv_params->round_1 - 1)));
   *round_bits_const = _mm256_set1_epi16(((1 << round_bits) >> 1));
 
+#if !CONFIG_REMOVE_DIST_WTD_COMP
   const int w0 = conv_params->fwd_offset;
   const int w1 = conv_params->bck_offset;
   const __m256i wt0 = _mm256_set1_epi16((short)w0);
   const __m256i wt1 = _mm256_set1_epi16((short)w1);
+#else
+  const __m256i wt0 =
+      _mm256_set1_epi16((int16_t)(1 << (DIST_PRECISION_BITS - 1)));
+  const __m256i wt1 =
+      _mm256_set1_epi16((int16_t)(1 << (DIST_PRECISION_BITS - 1)));
+#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
   *wt = _mm256_unpacklo_epi16(wt0, wt1);
 }
 

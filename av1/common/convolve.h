@@ -28,9 +28,9 @@ typedef struct ConvolveParams {
   int is_compound;
 #if !CONFIG_REMOVE_DIST_WTD_COMP
   int use_dist_wtd_comp_avg;
-#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
   int fwd_offset;
   int bck_offset;
+#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
 } ConvolveParams;
 
 #define ROUND0_BITS 3

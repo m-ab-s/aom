@@ -906,11 +906,12 @@ ConvolveParams GetConvolveParams(int do_average, CONV_BUF_TYPE *conv_buf,
                                  const CompoundParam &compound) {
   ConvolveParams conv_params =
       get_conv_params_no_round(do_average, 0, conv_buf, width, 1, bit_depth);
+  (void)compound;
 #if !CONFIG_REMOVE_DIST_WTD_COMP
   conv_params.use_dist_wtd_comp_avg = compound.UseDistWtdCompAvg();
-#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
   conv_params.fwd_offset = compound.FwdOffset();
   conv_params.bck_offset = compound.BckOffset();
+#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
   return conv_params;
 }
 

@@ -36,13 +36,15 @@ void av1_highbd_dist_wtd_convolve_2d_copy_avx2(const uint16_t *src,
   const int do_average = conv_params->do_average;
 #if !CONFIG_REMOVE_DIST_WTD_COMP
   const int use_dist_wtd_comp_avg = conv_params->use_dist_wtd_comp_avg;
-#else
-  const int use_dist_wtd_comp_avg = 0;
-#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
   const int w0 = conv_params->fwd_offset;
   const int w1 = conv_params->bck_offset;
   const __m256i wt0 = _mm256_set1_epi32(w0);
   const __m256i wt1 = _mm256_set1_epi32(w1);
+#else
+  const int use_dist_wtd_comp_avg = 0;
+  const __m256i wt0 = _mm256_set1_epi32(1 << (DIST_PRECISION_BITS - 1));
+  const __m256i wt1 = _mm256_set1_epi32(1 << (DIST_PRECISION_BITS - 1));
+#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
   const __m256i zero = _mm256_setzero_si256();
   int i, j;
 
@@ -251,14 +253,16 @@ void av1_highbd_dist_wtd_convolve_2d_avx2(
   const int do_average = conv_params->do_average;
 #if !CONFIG_REMOVE_DIST_WTD_COMP
   const int use_dist_wtd_comp_avg = conv_params->use_dist_wtd_comp_avg;
-#else
-  const int use_dist_wtd_comp_avg = 0;
-#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
-
   const int w0 = conv_params->fwd_offset;
   const int w1 = conv_params->bck_offset;
   const __m256i wt0 = _mm256_set1_epi32(w0);
   const __m256i wt1 = _mm256_set1_epi32(w1);
+#else
+  const int use_dist_wtd_comp_avg = 0;
+  const __m256i wt0 = _mm256_set1_epi32(1 << (DIST_PRECISION_BITS - 1));
+  const __m256i wt1 = _mm256_set1_epi32(1 << (DIST_PRECISION_BITS - 1));
+#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
+
   const __m256i zero = _mm256_setzero_si256();
 
   const __m256i round_const_x = _mm256_set1_epi32(
@@ -484,13 +488,15 @@ void av1_highbd_dist_wtd_convolve_x_avx2(
   const int do_average = conv_params->do_average;
 #if !CONFIG_REMOVE_DIST_WTD_COMP
   const int use_dist_wtd_comp_avg = conv_params->use_dist_wtd_comp_avg;
-#else
-  const int use_dist_wtd_comp_avg = 0;
-#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
   const int w0 = conv_params->fwd_offset;
   const int w1 = conv_params->bck_offset;
   const __m256i wt0 = _mm256_set1_epi32(w0);
   const __m256i wt1 = _mm256_set1_epi32(w1);
+#else
+  const int use_dist_wtd_comp_avg = 0;
+  const __m256i wt0 = _mm256_set1_epi32(1 << (DIST_PRECISION_BITS - 1));
+  const __m256i wt1 = _mm256_set1_epi32(1 << (DIST_PRECISION_BITS - 1));
+#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
   const __m256i zero = _mm256_setzero_si256();
 
   const __m256i round_const_x =
@@ -654,14 +660,16 @@ void av1_highbd_dist_wtd_convolve_y_avx2(
   const int do_average = conv_params->do_average;
 #if !CONFIG_REMOVE_DIST_WTD_COMP
   const int use_dist_wtd_comp_avg = conv_params->use_dist_wtd_comp_avg;
-#else
-  const int use_dist_wtd_comp_avg = 0;
-#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
-
   const int w0 = conv_params->fwd_offset;
   const int w1 = conv_params->bck_offset;
   const __m256i wt0 = _mm256_set1_epi32(w0);
   const __m256i wt1 = _mm256_set1_epi32(w1);
+#else
+  const int use_dist_wtd_comp_avg = 0;
+  const __m256i wt0 = _mm256_set1_epi32(1 << (DIST_PRECISION_BITS - 1));
+  const __m256i wt1 = _mm256_set1_epi32(1 << (DIST_PRECISION_BITS - 1));
+#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
+
   const __m256i round_const_y =
       _mm256_set1_epi32(((1 << conv_params->round_1) >> 1));
   const __m128i round_shift_y = _mm_cvtsi32_si128(conv_params->round_1);
