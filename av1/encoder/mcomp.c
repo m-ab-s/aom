@@ -641,9 +641,9 @@ static INLINE int get_mvpred_compound_var_cost(
   int bestsme;
 
   if (mask) {
-    bestsme = vfp->msvf(src_buf, src_stride, 0, 0,
-                        get_buf_from_fullmv(ref, this_mv), ref_stride,
-                        second_pred, mask, mask_stride, invert_mask, &unused);
+    bestsme = vfp->msvf(get_buf_from_fullmv(ref, this_mv), ref_stride, 0, 0,
+                        src_buf, src_stride, second_pred, mask, mask_stride,
+                        invert_mask, &unused);
   } else if (second_pred) {
     bestsme = vfp->svaf(get_buf_from_fullmv(ref, this_mv), ref_stride, 0, 0,
                         src_buf, src_stride, &unused, second_pred);
@@ -3644,9 +3644,9 @@ static INLINE int get_mvpred_mask_var(
   const MV mv = get_mv_from_fullmv(&best_mv);
   unsigned int unused;
 
-  return vfp->msvf(src->buf, src->stride, 0, 0,
-                   get_buf_from_fullmv(pre, &best_mv), pre->stride, second_pred,
-                   mask, mask_stride, invert_mask, &unused) +
+  return vfp->msvf(get_buf_from_fullmv(pre, &best_mv), pre->stride, 0, 0,
+                   src->buf, src->stride, second_pred, mask, mask_stride,
+                   invert_mask, &unused) +
          mv_err_cost_(&mv, mv_cost_params);
 }
 

@@ -378,6 +378,14 @@ static INLINE const uint8_t *av1_get_contiguous_soft_mask(int8_t wedge_index,
   return av1_wedge_params_lookup[sb_type].masks[wedge_sign][wedge_index];
 }
 
+#if !CONFIG_REMOVE_DIST_WTD_COMP
+void av1_dist_wtd_comp_weight_assign(const AV1_COMMON *cm,
+                                     const MB_MODE_INFO *mbmi, int order_idx,
+                                     int *fwd_offset, int *bck_offset,
+                                     int *use_dist_wtd_comp_avg,
+                                     int is_compound);
+#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
+
 const uint8_t *av1_get_compound_type_mask(
     const INTERINTER_COMPOUND_DATA *const comp_data, BLOCK_SIZE sb_type);
 
