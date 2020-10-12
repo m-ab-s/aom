@@ -785,7 +785,7 @@ static AV1LrMTInfo *get_lr_job_info(AV1LrSync *lr_sync) {
   return cur_job_info;
 }
 
-#if !CONFIG_EXT_LOOP_RESTORATION
+#if !CONFIG_EXT_LOOP_RESTORATION || !CONFIG_RST_MERGECOEFFS
 // Implement row loop restoration for each thread.
 static int loop_restoration_row_worker(void *arg1, void *arg2) {
   AV1LrSync *const lr_sync = (AV1LrSync *)arg1;
@@ -921,4 +921,4 @@ void av1_loop_restoration_filter_frame_mt(YV12_BUFFER_CONFIG *frame,
   foreach_rest_unit_in_planes_mt(loop_rest_ctxt, workers, num_workers, lr_sync,
                                  cm);
 }
-#endif  // !CONFIG_EXT_LOOP_RESTORATION
+#endif  // !CONFIG_EXT_LOOP_RESTORATION || !CONFIG_RST_MERGECOEFFS

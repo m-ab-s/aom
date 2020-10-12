@@ -5954,14 +5954,14 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
                                                  cm, 1);
 
         if (pbi->num_workers > 1) {
-#if CONFIG_EXT_LOOP_RESTORATION
+#if CONFIG_EXT_LOOP_RESTORATION || CONFIG_RST_MERGECOEFFS
           assert(false);  // MT loop restoration is not supported here!
 #else
           av1_loop_restoration_filter_frame_mt(
               (YV12_BUFFER_CONFIG *)xd->cur_buf, cm, optimized_loop_restoration,
               pbi->tile_workers, pbi->num_workers, &pbi->lr_row_sync,
               &pbi->lr_ctxt);
-#endif  // CONFIG_EXT_LOOP_RESTORATION
+#endif  // CONFIG_EXT_LOOP_RESTORATION || CONFIG_RST_MERGECOEFFS
         } else {
           av1_loop_restoration_filter_frame((YV12_BUFFER_CONFIG *)xd->cur_buf,
                                             cm, optimized_loop_restoration,
@@ -5973,14 +5973,14 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
       // loop_restoration_filter.
       if (do_loop_restoration) {
         if (pbi->num_workers > 1) {
-#if CONFIG_EXT_LOOP_RESTORATION
+#if CONFIG_EXT_LOOP_RESTORATION || CONFIG_RST_MERGECOEFFS
           assert(false);  // MT loop restoration is not supported here!
 #else
           av1_loop_restoration_filter_frame_mt(
               (YV12_BUFFER_CONFIG *)xd->cur_buf, cm, optimized_loop_restoration,
               pbi->tile_workers, pbi->num_workers, &pbi->lr_row_sync,
               &pbi->lr_ctxt);
-#endif  // CONFIG_EXT_LOOP_RESTORATION
+#endif  // CONFIG_EXT_LOOP_RESTORATION || CONFIG_RST_MERGECOEFFS
         } else {
           av1_loop_restoration_filter_frame((YV12_BUFFER_CONFIG *)xd->cur_buf,
                                             cm, optimized_loop_restoration,
