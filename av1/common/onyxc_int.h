@@ -1860,6 +1860,10 @@ void av1_update_txk_skip_array(const AV1_COMMON *cm, int mi_row, int mi_col,
                                TX_SIZE tx_size, FILE *fLog);
 uint8_t av1_get_txk_skip(const AV1_COMMON *cm, int mi_row, int mi_col,
                          int plane, int blk_row, int blk_col);
+#if CONFIG_DBLK_TXSKIP
+uint8_t av1_lpf_get_txk_skip(const AV1_COMMON *cm, int px, int py, int plane);
+#endif
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif

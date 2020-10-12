@@ -291,7 +291,12 @@ static TX_SIZE set_lpf_parameters(
     {
       const uint32_t curr_level =
           av1_get_filter_level(cm, &cm->lf_info, edge_dir, plane, mbmi);
+#if CONFIG_DBLK_TXSKIP
+      const int curr_skipped =
+          av1_lpf_get_txk_skip(cm, x, y, plane) && is_inter_block(mbmi);
+#else
       const int curr_skipped = mbmi->skip && is_inter_block(mbmi);
+#endif
       uint32_t level = curr_level;
       if (coord) {
         {
@@ -306,8 +311,14 @@ static TX_SIZE set_lpf_parameters(
 
           const uint32_t pv_lvl =
               av1_get_filter_level(cm, &cm->lf_info, edge_dir, plane, mi_prev);
-
+#if CONFIG_DBLK_TXSKIP
+          const uint32_t pv_x = (VERT_EDGE == edge_dir) ? (x - 1) : x;
+          const uint32_t pv_y = (VERT_EDGE == edge_dir) ? y : (y - 1);
+          const int pv_skip = av1_lpf_get_txk_skip(cm, pv_x, pv_y, plane) &&
+                              is_inter_block(mi_prev);
+#else
           const int pv_skip = mi_prev->skip && is_inter_block(mi_prev);
+#endif
           const BLOCK_SIZE bsize_base =
               plane ? mbmi->chroma_ref_info.bsize_base : mbmi->sb_type;
           const BLOCK_SIZE bsize = get_plane_block_size(

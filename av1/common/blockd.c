@@ -813,3 +813,17 @@ uint8_t av1_get_txk_skip(const AV1_COMMON *cm, int mi_row, int mi_col,
   assert(idx < cm->tx_skip_buf_size[plane]);
   return cm->tx_skip[plane][idx];
 }
+
+#if CONFIG_DBLK_TXSKIP
+uint8_t av1_lpf_get_txk_skip(const AV1_COMMON *cm, int px, int py, int plane) {
+  int w = ((cm->width + MAX_SB_SIZE - 1) >> MAX_SB_SIZE_LOG2)
+          << MAX_SB_SIZE_LOG2;
+  w >>= ((plane == 0) ? 0 : cm->seq_params.subsampling_x);
+  int stride = (w + MIN_TX_SIZE - 1) >> MIN_TX_SIZE_LOG2;
+  px >>= MIN_TX_SIZE_LOG2;
+  py >>= MIN_TX_SIZE_LOG2;
+  uint32_t idx = py * stride + px;
+  assert(idx < cm->tx_skip_buf_size[plane]);
+  return cm->tx_skip[plane][idx];
+}
+#endif
