@@ -1435,9 +1435,7 @@ static void get_ref_frames_subgop(
 
 void av1_get_ref_frames(AV1_COMP *const cpi, RefBufferStack *ref_buffer_stack,
                         RefFrameMapPair ref_frame_map_pairs[REF_FRAMES]) {
-  // TODO(sarahparker) Fix compatibility with tpl model
-  if (!cpi->oxcf.algo_cfg.enable_tpl_model &&
-      use_subgop_cfg(&cpi->gf_group, cpi->gf_group.index)) {
+  if (use_subgop_cfg(&cpi->gf_group, cpi->gf_group.index)) {
     get_ref_frames_subgop(cpi, ref_frame_map_pairs);
     return;
   }
