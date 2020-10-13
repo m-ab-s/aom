@@ -82,6 +82,7 @@ void av1_update_ref_frame_map(AV1_COMP *cpi,
                               RefBufferStack *ref_buffer_stack);
 
 void av1_get_ref_frames(AV1_COMP *const cpi, RefBufferStack *ref_buffer_stack,
+                        int cur_frame_disp,
                         RefFrameMapPair ref_frame_map_pairs[REF_FRAMES]);
 
 int is_forced_keyframe_pending(struct lookahead_ctx *lookahead,

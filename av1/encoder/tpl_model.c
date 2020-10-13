@@ -1028,9 +1028,10 @@ static AOM_INLINE void init_gop_frames_for_tpl(
       ++process_frame_count;
     }
 
-    av1_get_ref_frames(cpi, &ref_buffer_stack, ref_frame_map_pairs);
     const int true_disp =
-        (int)(tpl_frame->frame_display_index) - frame_params.show_frame;
+        (int)(tpl_frame->frame_display_index) -
+        (gf_group->subgop_cfg != NULL && frame_params.show_frame);
+    av1_get_ref_frames(cpi, &ref_buffer_stack, true_disp, ref_frame_map_pairs);
     int refresh_mask = av1_get_refresh_frame_flags(
         cpi, &frame_params, frame_update_type, gf_index, true_disp,
         ref_frame_map_pairs, &ref_buffer_stack);
@@ -1044,7 +1045,8 @@ static AOM_INLINE void init_gop_frames_for_tpl(
       ref_frame_map_pairs[refresh_frame_map_index].disp_order =
           AOMMAX(0, true_disp);
       ref_frame_map_pairs[refresh_frame_map_index].pyr_level =
-          gf_group->layer_depth[gf_index];
+          get_true_pyr_level(gf_group->layer_depth[gf_index], true_disp,
+                             cpi->gf_group.max_layer_depth);
     }
 
     for (int i = LAST_FRAME; i <= ALTREF_FRAME; ++i)
@@ -1100,13 +1102,14 @@ static AOM_INLINE void init_gop_frames_for_tpl(
     gf_group->update_type[gf_index] = LF_UPDATE;
     gf_group->q_val[gf_index] = *pframe_qindex;
 
-    av1_get_ref_frames(cpi, &ref_buffer_stack, ref_frame_map_pairs);
+    const int true_disp =
+        (int)(tpl_frame->frame_display_index) -
+        (gf_group->subgop_cfg != NULL && frame_params.show_frame);
+    av1_get_ref_frames(cpi, &ref_buffer_stack, true_disp, ref_frame_map_pairs);
     // TODO(sarahparker) av1_get_refresh_frame_flags() and
     // av1_update_ref_frame_map() will execute default behavior even when
     // subgop cfg is enabled. This should be addressed if we ever remove the
     // frame_update_type.
-    const int true_disp =
-        (int)(tpl_frame->frame_display_index) - frame_params.show_frame;
     int refresh_mask = av1_get_refresh_frame_flags(
         cpi, &frame_params, frame_update_type, -1, true_disp,
         ref_frame_map_pairs, &ref_buffer_stack);
@@ -1118,7 +1121,8 @@ static AOM_INLINE void init_gop_frames_for_tpl(
       ref_frame_map_pairs[refresh_frame_map_index].disp_order =
           AOMMAX(0, true_disp);
       ref_frame_map_pairs[refresh_frame_map_index].pyr_level =
-          gf_group->layer_depth[gf_index];
+          get_true_pyr_level(gf_group->layer_depth[gf_index], true_disp,
+                             cpi->gf_group.max_layer_depth);
     }
 
     for (int i = LAST_FRAME; i <= ALTREF_FRAME; ++i)
@@ -1137,7 +1141,13 @@ static AOM_INLINE void init_gop_frames_for_tpl(
     ++frame_display_index;
   }
 
-  av1_get_ref_frames(cpi, &cpi->ref_buffer_stack, ref_frame_map_pairs);
+  TplDepFrame *tpl_frame = &tpl_data->tpl_frame[cur_frame_idx];
+  const int true_disp =
+      (int)(tpl_frame->frame_display_index) -
+      (gf_group->subgop_cfg != NULL && init_frame_params->show_frame);
+  init_ref_map_pair(cpi, ref_frame_map_pairs);
+  av1_get_ref_frames(cpi, &cpi->ref_buffer_stack, true_disp,
+                     ref_frame_map_pairs);
 }
 
 static AOM_INLINE void init_tpl_stats(TplParams *const tpl_data) {
