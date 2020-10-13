@@ -296,12 +296,18 @@ typedef struct SimpleMotionDataBufs {
 
 #if CONFIG_FLEX_PARTITION
   // 1:8 blocks
+  MAKE_SM_DATA_BUF(8, 64);
+  MAKE_SM_DATA_BUF(4, 32);
+
+  // 8:1 blocks
   MAKE_SM_DATA_BUF(64, 8);
   MAKE_SM_DATA_BUF(32, 4);
 
-  // 8:1 blocks
-  MAKE_SM_DATA_BUF(8, 64);
-  MAKE_SM_DATA_BUF(4, 32);
+  // 1:16 blocks
+  MAKE_SM_DATA_BUF(4, 64);
+
+  // 16:1 blocks
+  MAKE_SM_DATA_BUF(64, 4);
 #endif  // CONFIG_FLEX_PARTITION
 } SimpleMotionDataBufs;
 

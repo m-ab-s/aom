@@ -1430,12 +1430,18 @@ static INLINE SimpleMotionData *get_sms_arr(SimpleMotionDataBufs *sms_bufs,
 
 #if CONFIG_FLEX_PARTITION
     // 1:8 blocks
+    MAKE_SMS_ARR_SWITCH_CASE(8, 64);
+    MAKE_SMS_ARR_SWITCH_CASE(4, 32);
+
+    // 8:1 blocks
     MAKE_SMS_ARR_SWITCH_CASE(64, 8);
     MAKE_SMS_ARR_SWITCH_CASE(32, 4);
 
-    // 8:1 blocks
-    MAKE_SMS_ARR_SWITCH_CASE(8, 64);
-    MAKE_SMS_ARR_SWITCH_CASE(4, 32);
+    // 16:1 blocks
+    MAKE_SMS_ARR_SWITCH_CASE(64, 4);
+
+    // 1:16 blocks
+    MAKE_SMS_ARR_SWITCH_CASE(4, 64);
 #endif  // CONFIG_FLEX_PARTITION
 
     default: assert(0 && "Invalid bsize"); return NULL;
