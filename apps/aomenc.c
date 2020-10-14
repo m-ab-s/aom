@@ -573,11 +573,12 @@ static const arg_def_t enable_intrabc =
 static const arg_def_t enable_angle_delta =
     ARG_DEF(NULL, "enable-angle-delta", 1,
             "Enable intra angle delta (0: false, 1: true (default))");
-static const arg_def_t disable_trellis_quant =
-    ARG_DEF(NULL, "disable-trellis-quant", 1,
-            "Disable trellis optimization of quantized coefficients (0: false "
-            "1: true  2: true for rd search 3: true for estimate yrd serch "
-            "(default))");
+static const arg_def_t enable_trellis_quant =
+    ARG_DEF(NULL, "enable-trellis-quant", 1,
+            "Enable trellis optimization of quantized coefficients "
+            "(0: no trellis, 1: enable trellis for all encoding stages, "
+            "2: enable trellis only in the last encoding pass, 3: disable "
+            "trellis in estimate_yrd_for_sb (default))");
 static const arg_def_t enable_qm =
     ARG_DEF(NULL, "enable-qm", 1,
             "Enable quantisation matrices (0: false (default), 1: true)");
@@ -906,7 +907,7 @@ static const arg_def_t *av1_args[] = { &cpu_used_av1,
                                        &enable_palette,
                                        &enable_intrabc,
                                        &enable_angle_delta,
-                                       &disable_trellis_quant,
+                                       &enable_trellis_quant,
                                        &enable_qm,
                                        &qm_min,
                                        &qm_max,
@@ -1013,7 +1014,7 @@ static const int av1_arg_ctrl_map[] = { AOME_SET_CPUUSED,
                                         AV1E_SET_ENABLE_PALETTE,
                                         AV1E_SET_ENABLE_INTRABC,
                                         AV1E_SET_ENABLE_ANGLE_DELTA,
-                                        AV1E_SET_DISABLE_TRELLIS_QUANT,
+                                        AV1E_SET_ENABLE_TRELLIS_QUANT,
                                         AV1E_SET_ENABLE_QM,
                                         AV1E_SET_QM_MIN,
                                         AV1E_SET_QM_MAX,
@@ -1183,7 +1184,7 @@ static void init_config(cfg_options_t *config) {
   config->superblock_size = 0;  // Dynamic
   config->max_partition_size = 128;
   config->min_partition_size = 4;
-  config->disable_trellis_quant = 3;
+  config->enable_trellis_quant = 3;
 }
 
 /* Parses global config arguments into the AvxEncoderConfig. Note that
@@ -1863,7 +1864,7 @@ static void show_stream_config(struct stream_state *stream,
   fprintf(stdout, "\nEncoder speed setting          : %d (cpu-used)\n",
           cpu_used);
   fprintf(stdout, "Trellis quantization           : %d\n",
-          !encoder_cfg->disable_trellis_quant);
+          encoder_cfg->enable_trellis_quant);
   fprintf(stdout, "Reduced reference frame set    : %d\n",
           encoder_cfg->enable_reduced_reference_set);
   fprintf(stdout, "Reduced transform set          : %d\n",

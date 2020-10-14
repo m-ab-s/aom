@@ -64,7 +64,7 @@ struct av1_extracfg {
   unsigned int enable_restoration;
   unsigned int force_video_mode;
   unsigned int enable_obmc;
-  unsigned int disable_trellis_quant;
+  unsigned int enable_trellis_quant;
   unsigned int enable_qm;
   unsigned int qm_y;
   unsigned int qm_u;
@@ -304,7 +304,7 @@ static struct av1_extracfg default_extra_cfg = {
   1,                                         // enable_restoration
   0,                                         // force_video_mode
   1,                                         // enable_obmc
-  3,                                         // disable_trellis_quant
+  3,                                         // enable_trellis_quant
   0,                                         // enable_qm
   DEFAULT_QM_Y,                              // qm_y
   DEFAULT_QM_U,                              // qm_u
@@ -656,7 +656,7 @@ static aom_codec_err_t validate_config(aom_codec_alg_priv_t *ctx,
   RANGE_CHECK_HI(extra_cfg, chroma_subsampling_x, 1);
   RANGE_CHECK_HI(extra_cfg, chroma_subsampling_y, 1);
 
-  RANGE_CHECK_HI(extra_cfg, disable_trellis_quant, 3);
+  RANGE_CHECK_HI(extra_cfg, enable_trellis_quant, 3);
   RANGE_CHECK(extra_cfg, coeff_cost_upd_freq, 0, 2);
   RANGE_CHECK(extra_cfg, mode_cost_upd_freq, 0, 2);
   RANGE_CHECK(extra_cfg, mv_cost_upd_freq, 0, 3);
@@ -772,7 +772,7 @@ static void update_encoder_config(cfg_options_t *cfg,
   cfg->enable_obmc = extra_cfg->enable_obmc;
   cfg->enable_palette = extra_cfg->enable_palette;
   cfg->enable_intrabc = extra_cfg->enable_intrabc;
-  cfg->disable_trellis_quant = extra_cfg->disable_trellis_quant;
+  cfg->enable_trellis_quant = extra_cfg->enable_trellis_quant;
   cfg->enable_ref_frame_mvs =
       (extra_cfg->allow_ref_frame_mvs || extra_cfg->enable_ref_frame_mvs);
   cfg->enable_onesided_comp = extra_cfg->enable_onesided_comp;
@@ -820,7 +820,7 @@ static void update_default_encoder_config(const cfg_options_t *cfg,
   extra_cfg->enable_obmc = cfg->enable_obmc;
   extra_cfg->enable_palette = cfg->enable_palette;
   extra_cfg->enable_intrabc = cfg->enable_intrabc;
-  extra_cfg->disable_trellis_quant = cfg->disable_trellis_quant;
+  extra_cfg->enable_trellis_quant = cfg->enable_trellis_quant;
   extra_cfg->enable_ref_frame_mvs = cfg->enable_ref_frame_mvs;
   extra_cfg->enable_onesided_comp = cfg->enable_onesided_comp;
   extra_cfg->enable_reduced_reference_set = cfg->enable_reduced_reference_set;
@@ -1048,7 +1048,7 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
 
   // Set encoder algorithm related configuration.
   algo_cfg->enable_overlay = extra_cfg->enable_overlay;
-  algo_cfg->disable_trellis_quant = extra_cfg->disable_trellis_quant;
+  algo_cfg->enable_trellis_quant = extra_cfg->enable_trellis_quant;
   algo_cfg->sharpness = extra_cfg->sharpness;
   algo_cfg->arnr_max_frames = extra_cfg->arnr_max_frames;
   algo_cfg->arnr_strength = extra_cfg->arnr_strength;
@@ -1516,10 +1516,10 @@ static aom_codec_err_t ctrl_set_enable_obmc(aom_codec_alg_priv_t *ctx,
   return update_extra_cfg(ctx, &extra_cfg);
 }
 
-static aom_codec_err_t ctrl_set_disable_trellis_quant(aom_codec_alg_priv_t *ctx,
-                                                      va_list args) {
+static aom_codec_err_t ctrl_set_enable_trellis_quant(aom_codec_alg_priv_t *ctx,
+                                                     va_list args) {
   struct av1_extracfg extra_cfg = ctx->extra_cfg;
-  extra_cfg.disable_trellis_quant = CAST(AV1E_SET_DISABLE_TRELLIS_QUANT, args);
+  extra_cfg.enable_trellis_quant = CAST(AV1E_SET_ENABLE_TRELLIS_QUANT, args);
   return update_extra_cfg(ctx, &extra_cfg);
 }
 
@@ -3057,7 +3057,7 @@ static aom_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {
   { AV1E_SET_ENABLE_RESTORATION, ctrl_set_enable_restoration },
   { AV1E_SET_FORCE_VIDEO_MODE, ctrl_set_force_video_mode },
   { AV1E_SET_ENABLE_OBMC, ctrl_set_enable_obmc },
-  { AV1E_SET_DISABLE_TRELLIS_QUANT, ctrl_set_disable_trellis_quant },
+  { AV1E_SET_ENABLE_TRELLIS_QUANT, ctrl_set_enable_trellis_quant },
   { AV1E_SET_ENABLE_QM, ctrl_set_enable_qm },
   { AV1E_SET_QM_Y, ctrl_set_qm_y },
   { AV1E_SET_QM_U, ctrl_set_qm_u },
@@ -3242,7 +3242,7 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = {
 #if !CONFIG_REMOVE_DUAL_FILTER
         1,
 #endif                                          // !CONFIG_REMOVE_DUAL_FILTER
-        1, 1,   1,   1, 1, 1, 1, 1, 1, 1, 0 },  // cfg
+        1, 1,   1,   1, 1, 1, 1, 3, 1, 1, 0 },  // cfg
   },
   {
       // NOLINT
@@ -3317,7 +3317,7 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = {
 #if !CONFIG_REMOVE_DUAL_FILTER
         1,
 #endif                                          // !CONFIG_REMOVE_DUAL_FILTER
-        1, 1,   1,   1, 1, 1, 1, 1, 1, 1, 0 },  // cfg
+        1, 1,   1,   1, 1, 1, 1, 3, 1, 1, 0 },  // cfg
   },
 };
 

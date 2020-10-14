@@ -94,7 +94,7 @@ aom_codec_err_t aom_codec_enc_config_default(aom_codec_iface_t *iface,
     cfg->encoder_cfg.superblock_size = 0;  // Dynamic
     cfg->encoder_cfg.max_partition_size = 128;
     cfg->encoder_cfg.min_partition_size = 4;
-    cfg->encoder_cfg.disable_trellis_quant = 3;
+    cfg->encoder_cfg.enable_trellis_quant = 3;
   }
   return res;
 }

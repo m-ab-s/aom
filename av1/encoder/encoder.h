@@ -713,11 +713,11 @@ typedef struct {
   /*!
    * Indicates the trellis optimization mode of quantized coefficients.
    * 0: disabled
-   * 1: enabled
-   * 2: enabled for rd search
-   * 3: true for estimate yrd search
+   * 1: enabled for all stages
+   * 2: enabled only for the last encoding pass
+   * 3: disable trellis for estimate_yrd_for_sb
    */
-  int disable_trellis_quant;
+  int enable_trellis_quant;
 
   /*!
    * The maximum number of frames used to create an arf.

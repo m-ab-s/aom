@@ -121,7 +121,7 @@ int parse_cfg(const char *file, cfg_options_t *config) {
     GET_PARAMS(enable_interinter_wedge);
     GET_PARAMS(enable_interintra_wedge);
     GET_PARAMS(enable_paeth_intra);
-    GET_PARAMS(disable_trellis_quant);
+    GET_PARAMS(enable_trellis_quant);
     GET_PARAMS(enable_ref_frame_mvs);
     GET_PARAMS(enable_reduced_reference_set);
     GET_PARAMS(reduced_tx_type_set);

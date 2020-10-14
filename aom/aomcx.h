@@ -644,15 +644,15 @@ enum aome_enc_control_id {
    */
   AV1E_SET_ENABLE_OBMC = 61,
 
-  /*!\brief Codec control function to encode without trellis quantization,
+  /*!\brief Codec control function to enable trellis quantization,
    * unsigned int parameter
    *
-   * - 0 = apply trellis quantization (default)
-   * - 1 = do not apply trellis quantization
-   * - 2 = disable trellis quantization in rd search
-   * - 3 = disable trellis quantization in estimate yrd
+   * - 0 = do not apply trellis quantization
+   * - 1 = apply trellis quantization in all stages
+   * - 2 = apply trellis quantization in only the final encode pass
+   * - 3 = disable trellis quantization in estimate_yrd_for_sb
    */
-  AV1E_SET_DISABLE_TRELLIS_QUANT = 62,
+  AV1E_SET_ENABLE_TRELLIS_QUANT = 62,
 
   /*!\brief Codec control function to encode with quantisation matrices,
    * unsigned int parameter
@@ -1522,8 +1522,8 @@ AOM_CTRL_USE_TYPE(AV1E_SET_FORCE_VIDEO_MODE, unsigned int)
 AOM_CTRL_USE_TYPE(AV1E_SET_ENABLE_OBMC, unsigned int)
 #define AOM_CTRL_AV1E_SET_ENABLE_OBMC
 
-AOM_CTRL_USE_TYPE(AV1E_SET_DISABLE_TRELLIS_QUANT, unsigned int)
-#define AOM_CTRL_AV1E_SET_DISABLE_TRELLIS_QUANT
+AOM_CTRL_USE_TYPE(AV1E_SET_ENABLE_TRELLIS_QUANT, unsigned int)
+#define AOM_CTRL_AV1E_SET_ENABLE_TRELLIS_QUANT
 
 AOM_CTRL_USE_TYPE(AV1E_SET_ENABLE_QM, unsigned int)
 #define AOM_CTRL_AV1E_SET_ENABLE_QM

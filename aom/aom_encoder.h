@@ -341,7 +341,7 @@ typedef struct cfg_options {
   /*!\brief enable trellis quantization
    *
    */
-  unsigned int disable_trellis_quant;
+  unsigned int enable_trellis_quant;
   /*!\brief enable ref frame MV
    *
    */
