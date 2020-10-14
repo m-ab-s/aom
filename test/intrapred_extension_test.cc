@@ -318,7 +318,7 @@ TEST_P(IntrapredExtensionTest, TopRows) {
   }
 
   // The rows that could be copied, should be copied.
-  const int valid_height = std::min(p.Border(), p.TopAvailable());
+  const int valid_height = AOMMIN(p.Border(), p.TopAvailable());
   const int valid_width = p.Width() - p.RightUnavailable();
   ExpectBufEq(Dst() - valid_height * DstStride(), DstStride(),
               Ref() - valid_height * RefStride(), RefStride(), valid_width,
@@ -350,7 +350,7 @@ TEST_P(IntrapredExtensionTest, LeftCols) {
 
   // The columns that could be copied, should be copied.
   const int valid_height = p.Height() - p.BottomUnavailable();
-  const int valid_width = std::min(p.Border(), p.LeftAvailable());
+  const int valid_width = AOMMIN(p.Border(), p.LeftAvailable());
   ExpectBufEq(Dst() - valid_width, DstStride(), Ref() - valid_width,
               RefStride(), valid_width, valid_height);
 
@@ -381,7 +381,7 @@ TEST_P(IntrapredExtensionTest, TopLeftCorner) {
   }
   // Any data that can be copied, should be copied.
   int viable_corner =
-      std::min(p.TopAvailable(), std::min(p.Border(), p.LeftAvailable()));
+      AOMMIN(p.TopAvailable(), AOMMIN(p.Border(), p.LeftAvailable()));
   ExpectBufEq(Dst() - viable_corner * DstStride() - viable_corner, DstStride(),
               Ref() - viable_corner * RefStride() - viable_corner, RefStride(),
               viable_corner, viable_corner);
