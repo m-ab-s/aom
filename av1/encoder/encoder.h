@@ -1950,15 +1950,6 @@ typedef struct {
 /*!\cond */
 
 typedef struct {
-  int arf_stack[FRAME_BUFFERS];
-  int arf_stack_size;
-  int lst_stack[FRAME_BUFFERS];
-  int lst_stack_size;
-  int gld_stack[FRAME_BUFFERS];
-  int gld_stack_size;
-} RefBufferStack;
-
-typedef struct {
   // Some misc info
   int high_prec;
   int q;
@@ -2318,11 +2309,6 @@ typedef struct AV1_COMP {
    * Information related to a gf group.
    */
   GF_GROUP gf_group;
-
-  /*!
-   * To control the reference frame buffer and selection.
-   */
-  RefBufferStack ref_buffer_stack;
 
   /*!
    * Frame buffer holding the temporally filtered source frame. It can be KEY
@@ -2865,37 +2851,6 @@ static INLINE void init_ref_map_pair(
     ref_frame_map_pairs[map_idx].disp_order = (int)buf->display_order_hint;
     ref_frame_map_pairs[map_idx].pyr_level = buf->pyramid_level;
   }
-}
-
-// TODO(jingning): Move these functions as primitive members for the new cpi
-// class.
-static INLINE void stack_push(int *stack, int *stack_size, int item) {
-  for (int i = *stack_size - 1; i >= 0; --i) stack[i + 1] = stack[i];
-  stack[0] = item;
-  ++*stack_size;
-}
-
-static INLINE int stack_pop(int *stack, int *stack_size) {
-  if (*stack_size <= 0) return -1;
-
-  int item = stack[0];
-  for (int i = 0; i < *stack_size; ++i) stack[i] = stack[i + 1];
-  --*stack_size;
-
-  return item;
-}
-
-static INLINE int stack_pop_end(int *stack, int *stack_size) {
-  int item = stack[*stack_size - 1];
-  stack[*stack_size - 1] = -1;
-  --*stack_size;
-
-  return item;
-}
-
-static INLINE void stack_reset(int *stack, int *stack_size) {
-  for (int i = 0; i < *stack_size; ++i) stack[i] = INVALID_IDX;
-  *stack_size = 0;
 }
 
 // av1 uses 10,000,000 ticks/second as time stamp

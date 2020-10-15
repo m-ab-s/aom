@@ -935,7 +935,6 @@ static AOM_INLINE void init_gop_frames_for_tpl(
   RefFrameMapPair ref_frame_map_pairs[REF_FRAMES];
   init_ref_map_pair(cpi, ref_frame_map_pairs);
 
-  RefBufferStack ref_buffer_stack = cpi->ref_buffer_stack;
   EncodeFrameParams frame_params = *init_frame_params;
   TplParams *const tpl_data = &cpi->tpl_data;
 
@@ -1018,15 +1017,12 @@ static AOM_INLINE void init_gop_frames_for_tpl(
     const int true_disp =
         (int)(tpl_frame->frame_display_index) -
         (gf_group->subgop_cfg != NULL && frame_params.show_frame);
-    av1_get_ref_frames(cpi, &ref_buffer_stack, true_disp, ref_frame_map_pairs);
-    int refresh_mask = av1_get_refresh_frame_flags(
-        cpi, &frame_params, frame_update_type, gf_index, true_disp,
-        ref_frame_map_pairs, &ref_buffer_stack);
+    av1_get_ref_frames(cpi, true_disp, ref_frame_map_pairs);
+    int refresh_mask =
+        av1_get_refresh_frame_flags(cpi, &frame_params, frame_update_type,
+                                    gf_index, true_disp, ref_frame_map_pairs);
 
     int refresh_frame_map_index = av1_get_refresh_ref_frame_map(refresh_mask);
-    av1_update_ref_frame_map(cpi, frame_update_type, frame_params.frame_type,
-                             gf_index, frame_params.show_existing_frame,
-                             refresh_frame_map_index, &ref_buffer_stack);
 
     if (refresh_frame_map_index < REF_FRAMES) {
       ref_frame_map_pairs[refresh_frame_map_index].disp_order =
@@ -1092,18 +1088,15 @@ static AOM_INLINE void init_gop_frames_for_tpl(
     const int true_disp =
         (int)(tpl_frame->frame_display_index) -
         (gf_group->subgop_cfg != NULL && frame_params.show_frame);
-    av1_get_ref_frames(cpi, &ref_buffer_stack, true_disp, ref_frame_map_pairs);
-    // TODO(sarahparker) av1_get_refresh_frame_flags() and
-    // av1_update_ref_frame_map() will execute default behavior even when
+    av1_get_ref_frames(cpi, true_disp, ref_frame_map_pairs);
+    // TODO(sarahparker) av1_get_refresh_frame_flags()
+    // will execute default behavior even when
     // subgop cfg is enabled. This should be addressed if we ever remove the
     // frame_update_type.
-    int refresh_mask = av1_get_refresh_frame_flags(
-        cpi, &frame_params, frame_update_type, -1, true_disp,
-        ref_frame_map_pairs, &ref_buffer_stack);
+    int refresh_mask =
+        av1_get_refresh_frame_flags(cpi, &frame_params, frame_update_type, -1,
+                                    true_disp, ref_frame_map_pairs);
     int refresh_frame_map_index = av1_get_refresh_ref_frame_map(refresh_mask);
-    av1_update_ref_frame_map(cpi, frame_update_type, frame_params.frame_type,
-                             -1, frame_params.show_existing_frame,
-                             refresh_frame_map_index, &ref_buffer_stack);
     if (refresh_frame_map_index < REF_FRAMES) {
       ref_frame_map_pairs[refresh_frame_map_index].disp_order =
           AOMMAX(0, true_disp);
@@ -1133,8 +1126,7 @@ static AOM_INLINE void init_gop_frames_for_tpl(
       (int)(tpl_frame->frame_display_index) -
       (gf_group->subgop_cfg != NULL && init_frame_params->show_frame);
   init_ref_map_pair(cpi, ref_frame_map_pairs);
-  av1_get_ref_frames(cpi, &cpi->ref_buffer_stack, true_disp,
-                     ref_frame_map_pairs);
+  av1_get_ref_frames(cpi, true_disp, ref_frame_map_pairs);
 }
 
 void av1_init_tpl_stats(TplParams *const tpl_data) {
