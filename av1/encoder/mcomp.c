@@ -3786,7 +3786,7 @@ static int refining_search_var(const AV1_COMMON *cm, MACROBLOCK *x, MV *ref_mv,
   const MV neighbors[4] = { { -1, 0 }, { 0, -1 }, { 0, 1 }, { 1, 0 } };
   const MV fcenter_mv = { center_mv->row >> 3, center_mv->col >> 3 };
   unsigned int bestvar =
-      av1_get_mvpred_var(cm, x, center_mv, ref_mv, fn_ptr, 1);
+      av1_get_mvpred_var(cm, x, &fcenter_mv, ref_mv, fn_ptr, 1);
   int i, j;
 
   for (i = 0; i < search_range; i++) {
