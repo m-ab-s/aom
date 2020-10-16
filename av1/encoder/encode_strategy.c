@@ -853,31 +853,22 @@ void av1_update_ref_frame_map(AV1_COMP *cpi,
   return;
 }
 
-static int get_free_ref_map_index(const RefBufferStack *ref_buffer_stack) {
-  for (int idx = 0; idx < REF_FRAMES; ++idx) {
-    int is_free = 1;
-    for (int i = 0; i < ref_buffer_stack->arf_stack_size; ++i) {
-      if (ref_buffer_stack->arf_stack[i] == idx) {
-        is_free = 0;
-        break;
+static int get_free_ref_map_index(const AV1_COMMON *const cm) {
+  for (int idx = 0; idx < REF_FRAMES - 1; ++idx) {
+    // Get reference frame buffer
+    const RefCntBuffer *const buf = cm->ref_frame_map[idx];
+    if (buf == NULL) return idx;
+    // Once the keyframe is coded, the slots in ref_frame_map will all
+    // point to the same frame. In that case, all subsequent pointers
+    // matching the current are considered "free" slots. This will find
+    // the next occurance of the current pointer if ref_count indicates
+    // there are multiple instances of it.
+    if (buf->ref_count > 1) {
+      for (int idx2 = idx + 1; idx2 < REF_FRAMES; ++idx2) {
+        const RefCntBuffer *const buf2 = cm->ref_frame_map[idx2];
+        if (buf2 == buf) return idx2;
       }
     }
-
-    for (int i = 0; i < ref_buffer_stack->lst_stack_size; ++i) {
-      if (ref_buffer_stack->lst_stack[i] == idx) {
-        is_free = 0;
-        break;
-      }
-    }
-
-    for (int i = 0; i < ref_buffer_stack->gld_stack_size; ++i) {
-      if (ref_buffer_stack->gld_stack[i] == idx) {
-        is_free = 0;
-        break;
-      }
-    }
-
-    if (is_free) return idx;
   }
   return INVALID_IDX;
 }
@@ -974,6 +965,8 @@ int av1_get_refresh_frame_flags(const AV1_COMP *const cpi,
   const AV1_COMMON *const cm = &cpi->common;
   const ExtRefreshFrameFlagsInfo *const ext_refresh_frame_flags =
       &cpi->ext_flags.refresh_frame;
+  // TODO(sarahparker) This will be removed in a followup stack removal change
+  (void)ref_buffer_stack;
 
   const SVC *const svc = &cpi->svc;
   // Switch frames and shown key-frames overwrite all reference slots
@@ -1039,7 +1032,7 @@ int av1_get_refresh_frame_flags(const AV1_COMP *const cpi,
   }
 
   // Search for the open slot to store the current frame.
-  int free_fb_index = get_free_ref_map_index(ref_buffer_stack);
+  int free_fb_index = get_free_ref_map_index(cm);
 
   if (use_subgop_cfg(&cpi->gf_group, gf_index)) {
     return get_refresh_frame_flags_subgop_cfg(cpi, gf_index, cur_disp_order,
