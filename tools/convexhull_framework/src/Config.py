@@ -115,6 +115,7 @@ QualityEvalMethods = ['VMAF', 'HDRTools', 'HDRTools', 'HDRTools', 'HDRTools',
                       'HDRTools']
 VMAF = os.path.join(BinPath, 'vmafossexec.exe')
 HDRTool = os.path.join(BinPath, 'HDRMetrics.exe')
+CalcBDRateInExcel = False
 
 ######################## config for exporting data to excel  #################
 #https://xlsxwriter.readthedocs.io/working_with_colors.html#colors

@@ -14,9 +14,10 @@ import os
 import xlsxwriter
 import xlrd
 from Config import QPs, DnScaleRatio, QualityList, VbaBinFile, CvxH_WtRows,\
-    CvxH_WtLastCol, LoggerName
+    CvxH_WtLastCol, LoggerName, CalcBDRateInExcel, CvxH_WtCols
 from Utils import GetShortContentName, CalcRowsClassAndContentDict,\
     SweepScalingAlgosInOneResultFile
+from CalcBDRate import BD_RATE
 import logging
 
 subloggername = "PostAnalysisSummary"
@@ -30,8 +31,9 @@ logger = logging.getLogger(loggername)
 ################################################################################
 ### Helper Functions ###########################################################
 def GetSummaryFileName(encMethod, codecName, preset, path):
-    name = 'ConvexHullSummary_ScaleAlgosNum_%d_%s_%s_%s.xlsm'\
-           % (len(DnScaleRatio), encMethod, codecName, preset)
+    filetype = 'xlsm' if CalcBDRateInExcel else 'xlsx'
+    name = 'ConvexHullSummary_ScaleAlgosNum_%d_%s_%s_%s.%s'\
+           % (len(DnScaleRatio), encMethod, codecName, preset, filetype)
     return os.path.join(path, name)
 
 def GetConvexHullRDFileName(encMethod, codecName, preset, path):
@@ -77,7 +79,7 @@ def CopyResultDataToSummaryFile_Onesheet(sht, wt_cols, contentsdict, rows_class,
                 logger.warning("not find convex hull result file for content:%s"
                                % content)
 
-def CalBDRate_OneSheet(sht,  cols, contentsdict, rows_class, cols_bdmtrs, cellformat):
+def CalBDRateWithExcel_OneSheet(sht, cols, contentsdict, rows_class, cols_bdmtrs, cellformat):
     row_refst = 0
     bdstep = 3
     for cols_bd, residx in zip(cols_bdmtrs, range(1, len(DnScaleRatio))):
@@ -97,16 +99,16 @@ def CalBDRate_OneSheet(sht,  cols, contentsdict, rows_class, cols_bdmtrs, cellfo
                     refq_e = xlrd.cellnameabs(row_class + row_cont + row_refst
                                               + bdstep, cols[0] + 1 + y)
 
-                    testbr_b = xlrd.cellnameabs(row_class + row_cont,
+                    testbr_b = xlrd.cellnameabs(row_class + row_cont + row_refst,
                                                 cols[residx])
-                    testbr_e = xlrd.cellnameabs(row_class + row_cont + bdstep,
-                                                cols[residx])
-                    testq_b = xlrd.cellnameabs(row_class + row_cont,
+                    testbr_e = xlrd.cellnameabs(row_class + row_cont + row_refst
+                                             + bdstep, cols[residx])
+                    testq_b = xlrd.cellnameabs(row_class + row_cont + row_refst,
                                                cols[residx] + 1 + y)
-                    testq_e = xlrd.cellnameabs(row_class + row_cont + bdstep,
-                                               cols[residx] + 1 + y)
+                    testq_e = xlrd.cellnameabs(row_class + row_cont + row_refst
+                                              + bdstep, cols[residx] + 1 + y)
 
-                    #formula = '=-bdrate(%s:%s,%s:%s,%s:%s,%s:%s)' % (
+                    #formula = '=bdrate(%s:%s,%s:%s,%s:%s,%s:%s)' % (
                     #refbr_b, refbr_e, refq_b, refq_e, testbr_b, testbr_e,
                     # testq_b, testq_e)
                     formula = '=bdRateExtend(%s:%s,%s:%s,%s:%s,%s:%s)'\
@@ -114,6 +116,36 @@ def CalBDRate_OneSheet(sht,  cols, contentsdict, rows_class, cols_bdmtrs, cellfo
                                  testbr_e, testq_b, testq_e)
                     sht.write_formula(row_class + row_cont, cols_bd + y, formula,
                                       cellformat)
+
+
+def CalBDRateWithPython_OneSheet(sht, contentsdict, rows_class, cols_bdmtrs, infile_path, cellformat):
+    row_refst = 0
+    bdstep = 3
+    assert row_refst + bdstep < len(CvxH_WtRows)
+    resultfiles = os.listdir(infile_path)
+    shtname = sht.get_name()
+    rdrows = CvxH_WtRows
+    rdcols = CvxH_WtCols
+    for cols_bd, residx in zip(cols_bdmtrs, range(1, len(DnScaleRatio))):
+        sht.write(0, cols_bd, 'BD-Rate %.2f vs. %.2f' % (DnScaleRatio[residx],
+                                                         DnScaleRatio[0]))
+        sht.write_row(1, cols_bd, QualityList)
+        for (cls, contents), row_class in zip(contentsdict.items(), rows_class):
+            rows_content = [i * len(QPs) for i in range(len(contents))]
+            for row_cont, content in zip(rows_content, contents):
+                key = GetShortContentName(content)
+                for resfile in resultfiles:
+                    if key in resfile:
+                        rdwb = xlrd.open_workbook(os.path.join(infile_path, resfile))
+                        rdsht = rdwb.sheet_by_name(shtname)
+                        break
+                for y in range(len(QualityList)):
+                    refbrs = rdsht.col_values(rdcols[0], rdrows[row_refst], rdrows[row_refst + bdstep] + 1)
+                    refqtys = rdsht.col_values(rdcols[0] + 1 + y, rdrows[row_refst], rdrows[row_refst + bdstep] + 1)
+                    testbrs = rdsht.col_values(rdcols[residx], rdrows[row_refst], rdrows[row_refst + bdstep] + 1)
+                    testqtys = rdsht.col_values(rdcols[residx] + 1 + y, rdrows[row_refst], rdrows[row_refst + bdstep] + 1)
+                    bdrate = BD_RATE(refbrs, refqtys, testbrs, testqtys) / 100.0
+                    sht.write(row_class + row_cont, cols_bd + y, bdrate, cellformat)
 
 def GenerateFormula_SumRows(shtname, rows, col):
     cells = ''
@@ -334,8 +366,8 @@ def GenerateSummaryExcelFile(encMethod, codecName, preset, summary_outpath,
     contentsdict, rows_class = CalcRowsClassAndContentDict(rowstart,
                                                            content_path,
                                                            clips, len(QPs))
-
-    wb.add_vba_project(VbaBinFile)
+    if CalcBDRateInExcel:
+        wb.add_vba_project(VbaBinFile)
     cellformat = wb.add_format()
     cellformat.set_num_format('0.00%')
     #cols_bdmtrs is the column number to write the bdrate data
@@ -348,8 +380,12 @@ def GenerateSummaryExcelFile(encMethod, codecName, preset, summary_outpath,
         CopyResultDataToSummaryFile_Onesheet(sht, sum_wtcols, contentsdict,
                                              rows_class, infile_path)
         # calculate bd rate in each scaling sheet
-        CalBDRate_OneSheet(sht, sum_wtcols, contentsdict, rows_class,
-                           cols_bdmtrs, cellformat)
+        if CalcBDRateInExcel:
+            CalBDRateWithExcel_OneSheet(sht, sum_wtcols, contentsdict, rows_class,
+                                        cols_bdmtrs, cellformat)
+        else:
+            CalBDRateWithPython_OneSheet(sht, contentsdict, rows_class, cols_bdmtrs,
+                                         infile_path, cellformat)
 
     # calculate average bitrate and quality metrics for each category and
     # write to "average" sheet
