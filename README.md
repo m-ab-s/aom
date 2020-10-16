@@ -43,7 +43,7 @@
 
 ### Prerequisites
 
- 1. [CMake](https://cmake.org) version 3.5 or higher.
+ 1. [CMake](https://cmake.org) version 3.16 or higher.
  2. [Git](https://git-scm.com/).
  3. [Perl](https://www.perl.org/).
  4. For x86 targets, [yasm](http://yasm.tortall.net/), which is preferred, or a
@@ -211,12 +211,12 @@ compiler documentation to determine which, if any, are available.
 ### Microsoft Visual Studio builds
 
 Building the AV1 codec library in Microsoft Visual Studio is supported. Visual
-Studio 2015 (14.0) or later is required. The following example demonstrates
+Studio 2019 (16.7) or later is required. The following example demonstrates
 generating projects and a solution for the Microsoft IDE:
 
 ~~~
     # This does not require a bash shell; command.exe is fine.
-    $ cmake path/to/aom -G "Visual Studio 15 2017"
+    $ cmake path/to/aom -G "Visual Studio 16 2019"
 ~~~
 
 NOTE: The build system targets Windows 7 or later by compiling files with

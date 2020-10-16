@@ -17,8 +17,3 @@
 *.vcp        -crlf
 *.inf        -crlf
 /av1/tflite_models/intra_frame_model/qp*.cc -diff
-# fft2d is not available through git, and the code
-# is checked in verbatim. Do not apply diffing to
-# it, otherwise it fails the 'git diff HEAD^ --check'
-# test.
-third_party/tensorflow_dependencies/fft2d/** -diff

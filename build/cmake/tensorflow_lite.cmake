@@ -13,31 +13,22 @@ if(AOM_BUILD_CMAKE_TENSORFLOW_LITE_CMAKE_)
 endif() # AOM_BUILD_CMAKE_TENSORFLOW_LITE_CMAKE_
 set(AOM_BUILD_CMAKE_TENSORFLOW_LITE_CMAKE_ 1)
 
+include(ExternalProject)
 include(FindGit)
 
-# Checks if the dependencies on Tensorflow Lite are already checked out -- if
-# not, uses the git submodule command to fetch them.
-function(checkout_submodules_)
+# Checks if Tensorflow has been checked out -- if not, uses the git submodule
+# command to fetch it.
+function(checkout_submodule_)
   # As a quick sanity check, see if at least 1 expected file or directory is
   # present in each submodule. If so, assume they are all checked out (if they
   # are not, then the base directory will be empty).
-  if(
-    (EXISTS "${AOM_ROOT}/third_party/tensorflow/tensorflow")
-    AND (EXISTS
-         "${AOM_ROOT}/third_party/tensorflow_dependencies/neon_2_sse/ReadMe.md")
-    AND (EXISTS "${AOM_ROOT}/third_party/tensorflow_aom/absl/absl")
-    AND (EXISTS "${AOM_ROOT}/third_party/tensorflow_aom/eigen/Eigen")
-    AND (EXISTS "${AOM_ROOT}/third_party/tensorflow_aom/farmhash/Makefile.am")
-    AND (EXISTS "${AOM_ROOT}/third_party/tensorflow_aom/flatbuffers/BUILD")
-    AND (EXISTS "${AOM_ROOT}/third_party/tensorflow_aom/fp16/CMakeLists.txt")
-    AND (EXISTS "${AOM_ROOT}/third_party/tensorflow_aom/gemmlowp/BUILD")
-    AND (EXISTS "${AOM_ROOT}/third_party/tensorflow_aom/ruy/BUILD"))
+  if(EXISTS "${AOM_ROOT}/third_party/tensorflow/tensorflow")
     return()
   endif()
   if(NOT GIT_FOUND)
     message(
       FATAL_ERROR
-        "Tensorflow-Lite/dependencies not present; " "git could not be found; "
+        "Tensorflow-Lite not present; " "git could not be found; "
         "please check out submodules with 'git submodule update --init'")
   endif()
   # Note that "git submodule update --init" must be run from inside the git
@@ -55,61 +46,183 @@ function(checkout_submodules_)
   endif()
 endfunction()
 
-function(add_tensorflow_lite_dependency_)
-  if(NOT AOM_APP_TARGETS)
-    message(FATAL_ERROR "AOM_APP_TARGETS variable must not be empty.")
+# Add the TF-lite link-related library to the named target (e.g., an executable
+# or library). This function handles the different naming conventions of
+# operating systems.
+function(target_link_tf_lite_dep_ named_target subdir libname)
+  if(NOT (("${subdir}" STREQUAL "") OR ("${subdir}" MATCHES "/$")))
+    message(
+      FATAL_ERROR "sub-directory must be empty or end with a slash: ${subdir}")
   endif()
-  # Build the library.
-  add_custom_command(
-    OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/libtensorflow-lite.a"
-    COMMAND "${AOM_ROOT}/third_party/tensorflow_dependencies/build.pl"
-            "${AOM_ROOT}" "${CMAKE_CURRENT_BINARY_DIR}"
-    WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
-  add_custom_target(tensorflowlite_a ALL
-                    DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/libtensorflow-lite.a")
-  include_directories("${AOM_ROOT}/third_party/tensorflow")
-  include_directories(
-    "${AOM_ROOT}/third_party/tensorflow_dependencies/flatbuffers/include/")
-  # Add tensorflow-lite as a dependency on all AOM applications.
-  foreach(aom_app ${AOM_APP_TARGETS})
-    add_dependencies(${aom_app} tensorflowlite_a)
-    target_link_libraries(
-      ${aom_app}
-      PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/libtensorflow-lite.a"
-              ${AOM_LIB_LINK_TYPE} Threads::Threads
-      PRIVATE ${CMAKE_DL_LIBS})
-  endforeach()
+
+  set(STATIC_LIBRARY_DIR "")
+  if(MSVC)
+    set(STATIC_LIBRARY_DIR "$<CONFIG>/")
+  endif()
+  target_link_libraries(
+    ${named_target}
+    PRIVATE
+      "${CMAKE_BINARY_DIR}/tensorflow_lite/${subdir}${STATIC_LIBRARY_DIR}${CMAKE_STATIC_LIBRARY_PREFIX}${libname}${CMAKE_STATIC_LIBRARY_SUFFIX}"
+    )
 endfunction()
 
-# If Tensorflow-Lite should be enabled, adds appropriate build rules / targets.
-function(setup_tensorflow_lite)
-  if("${AOM_ROOT}" STREQUAL "")
-    message(FATAL_ERROR "AOM_ROOT variable must not be empty.")
-  endif()
+# Add TF-lite libraries onto the named target at link time (e.g., an executable
+# or library). For enabling TF-lite for experiments, prefer the
+# "experiment_requires_tf_lite" function.
+function(target_link_tf_lite_libraries named_target)
+  target_link_libraries(${named_target} ${AOM_LIB_LINK_TYPE} Threads::Threads)
+  target_link_libraries(${named_target} PRIVATE ${CMAKE_DL_LIBS})
+  target_link_tf_lite_dep_(${named_target} "" tensorflow-lite)
+  target_link_tf_lite_dep_(${named_target} _deps/abseil-cpp-build/absl/flags/
+                           absl_flags)
+  target_link_tf_lite_dep_(${named_target} _deps/abseil-cpp-build/absl/flags/
+                           absl_flags_internal)
+  target_link_tf_lite_dep_(${named_target} _deps/abseil-cpp-build/absl/flags/
+                           absl_flags_registry)
+  target_link_tf_lite_dep_(${named_target} _deps/abseil-cpp-build/absl/flags/
+                           absl_flags_config)
+  target_link_tf_lite_dep_(${named_target} _deps/abseil-cpp-build/absl/flags/
+                           absl_flags_program_name)
+  target_link_tf_lite_dep_(${named_target} _deps/abseil-cpp-build/absl/flags/
+                           absl_flags_marshalling)
+  target_link_tf_lite_dep_(${named_target} _deps/abseil-cpp-build/absl/hash/
+                           absl_hash)
+  target_link_tf_lite_dep_(${named_target} _deps/abseil-cpp-build/absl/hash/
+                           absl_city)
+  target_link_tf_lite_dep_(${named_target} _deps/abseil-cpp-build/absl/status/
+                           absl_status)
+  target_link_tf_lite_dep_(${named_target} _deps/abseil-cpp-build/absl/types/
+                           absl_bad_optional_access)
+  target_link_tf_lite_dep_(${named_target} _deps/abseil-cpp-build/absl/strings/
+                           absl_cord)
+  target_link_tf_lite_dep_(${named_target} _deps/abseil-cpp-build/absl/strings/
+                           absl_str_format_internal)
+  target_link_tf_lite_dep_(${named_target}
+                           _deps/abseil-cpp-build/absl/synchronization/
+                           absl_synchronization)
+  target_link_tf_lite_dep_(${named_target}
+                           _deps/abseil-cpp-build/absl/debugging/
+                           absl_stacktrace)
+  target_link_tf_lite_dep_(${named_target}
+                           _deps/abseil-cpp-build/absl/debugging/
+                           absl_symbolize)
+  target_link_tf_lite_dep_(${named_target}
+                           _deps/abseil-cpp-build/absl/debugging/
+                           absl_debugging_internal)
+  target_link_tf_lite_dep_(${named_target}
+                           _deps/abseil-cpp-build/absl/debugging/
+                           absl_demangle_internal)
+  target_link_tf_lite_dep_(${named_target}
+                           _deps/abseil-cpp-build/absl/synchronization/
+                           absl_graphcycles_internal)
+  target_link_tf_lite_dep_(${named_target} _deps/abseil-cpp-build/absl/base/
+                           absl_malloc_internal)
+  target_link_tf_lite_dep_(${named_target} _deps/abseil-cpp-build/absl/time/
+                           absl_time)
+  target_link_tf_lite_dep_(${named_target} _deps/abseil-cpp-build/absl/strings/
+                           absl_strings)
+  target_link_tf_lite_dep_(${named_target} _deps/abseil-cpp-build/absl/strings/
+                           absl_strings_internal)
+  target_link_tf_lite_dep_(${named_target} _deps/abseil-cpp-build/absl/base/
+                           absl_throw_delegate)
+  target_link_tf_lite_dep_(${named_target} _deps/abseil-cpp-build/absl/base/
+                           absl_base)
+  target_link_tf_lite_dep_(${named_target} _deps/abseil-cpp-build/absl/base/
+                           absl_dynamic_annotations)
+  target_link_tf_lite_dep_(${named_target} _deps/abseil-cpp-build/absl/base/
+                           absl_spinlock_wait)
+  target_link_tf_lite_dep_(${named_target} _deps/abseil-cpp-build/absl/numeric/
+                           absl_int128)
+  target_link_tf_lite_dep_(${named_target} _deps/abseil-cpp-build/absl/time/
+                           absl_civil_time)
+  target_link_tf_lite_dep_(${named_target} _deps/abseil-cpp-build/absl/time/
+                           absl_time_zone)
+  target_link_tf_lite_dep_(${named_target} _deps/abseil-cpp-build/absl/types/
+                           absl_bad_variant_access)
+  target_link_tf_lite_dep_(${named_target} _deps/abseil-cpp-build/absl/base/
+                           absl_raw_logging_internal)
+  target_link_tf_lite_dep_(${named_target} _deps/abseil-cpp-build/absl/base/
+                           absl_log_severity)
+  target_link_tf_lite_dep_(${named_target} _deps/farmhash-build/ farmhash)
+  target_link_tf_lite_dep_(${named_target} _deps/fft2d-build/ fft2d_fftsg2d)
+  target_link_tf_lite_dep_(${named_target} _deps/fft2d-build/ fft2d_fftsg)
+  target_link_tf_lite_dep_(${named_target} _deps/flatbuffers-build/ flatbuffers)
+  target_link_tf_lite_dep_(${named_target} _deps/ruy-build/ ruy)
+endfunction()
+
+# Can Tensorflow-Lite be enabled with the current build system? Sets the
+# variable with either 0 or 1 as the value. If 0, also prints an explanatory
+# message.
+function(is_tflite_supported result)
   # Cross-compile is not currently implemented.
   if(CMAKE_TOOLCHAIN_FILE)
     message("TOOLCHAIN: ${CMAKE_TOOLCHAIN_FILE}")
     message(WARNING "No cross-compile support for TensorFlow Lite; disabling")
+    set(${result} 0 PARENT_SCOPE)
+    return()
+  endif()
+  # TF-Lite specifies a minimum CMake version of 3.16, but Jenkins uses 3.7.2.
+  # Until Jenkins is upgraded, disable TF-Lite if a lower version of CMake is
+  # detected.
+  if(${CMAKE_VERSION} VERSION_LESS "3.16")
+    message(
+      WARNING "Tensorflow Lite requres CMake version 3.16 or higher; version "
+              "${CMAKE_VERSION} detected; disabling")
+    set(${result} 0 PARENT_SCOPE)
+    return()
+  endif()
+  set(${result} 1 PARENT_SCOPE)
+endfunction()
+
+# Adds appropriate build rules / targets. Only invoke this function if
+# is_tf_lite_supported returns true.
+function(setup_tensorflow_lite)
+  if("${AOM_ROOT}" STREQUAL "")
+    message(FATAL_ERROR "AOM_ROOT variable must not be empty.")
+  endif()
+
+  if(MSVC)
+    add_compile_definitions(NOMINMAX=1)
+  endif()
+  checkout_submodule_()
+
+  # Allow code to reference TF.
+  include_directories("${AOM_ROOT}/third_party/tensorflow")
+
+  externalproject_add(
+    tensorflow_lite
+    SOURCE_DIR "${AOM_ROOT}/third_party/tensorflow/tensorflow/lite"
+    PREFIX "${CMAKE_BINARY_DIR}/tensorflow_lite"
+    BINARY_DIR "${CMAKE_BINARY_DIR}/tensorflow_lite"
+    DOWNLOAD_DIR "${CMAKE_BINARY_DIR}/tensorflow_lite"
+    LOG_BUILD 1)
+
+  # TF-Lite depends on this, and downloads it during compilation.
+  include_directories(
+    "${CMAKE_CURRENT_BINARY_DIR}/tensorflow_lite/flatbuffers/include/")
+
+  add_dependencies(aom_av1_common tensorflow_lite)
+  foreach(aom_app ${AOM_APP_TARGETS})
+    add_dependencies(${aom_app} tensorflow_lite)
+    target_link_tf_lite_libraries(${aom_app})
+  endforeach()
+endfunction()
+
+# Signal that the experiment needs TF-lite enabled.
+function(experiment_requires_tf_lite experiment_name)
+  # Experiment is not enabled, no need to include TF-Lite in the build.
+  if(NOT ${${experiment_name}})
+    return()
+  endif()
+  set(supported 0)
+  is_tflite_supported(supported)
+  if(NOT ${supported})
+    # Disable the experiment so Gerrit will not test this case.
+    message(WARNING "Disabling ${experiment_name}.")
+    set(${experiment_name} 0 PARENT_SCOPE)
     set(CONFIG_TENSORFLOW_LITE 0 PARENT_SCOPE)
     return()
   endif()
-  checkout_submodules_()
-  add_tensorflow_lite_dependency_()
-endfunction()
-
-function(add_tf_lite_dependency experiment_name)
-  # Experiment is not enabled, no need to include TF-Lite in the build.
-  if(${${experiment_name}} EQUAL "0")
-    return()
-  endif()
-  # Disable the experiment so Gerrit will not test this case.
-  if(CMAKE_TOOLCHAIN_FILE)
-    message(WARNING "--- Cross-compile support not implemented for TF-Lite. "
-                    "Disabling ${experiment_name}.")
-    set(${experiment_name} 0 PARENT_SCOPE)
-    return()
-  endif()
-  if(NOT CONFIG_TENSORFLOW_LITE)
-    set(CONFIG_TENSORFLOW_LITE 1 PARENT_SCOPE)
-  endif()
+  # Otherwise, enable TF-lite.
+  set(CONFIG_TENSORFLOW_LITE 1 PARENT_SCOPE)
 endfunction()

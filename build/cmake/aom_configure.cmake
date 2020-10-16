@@ -40,11 +40,11 @@ if(FORCE_HIGHBITDEPTH_DECODING AND NOT CONFIG_AV1_HIGHBITDEPTH)
                          "FORCE_HIGHBITDEPTH_DECODING")
 endif()
 
-add_tf_lite_dependency(CONFIG_CNN_RESTORATION)
-add_tf_lite_dependency(CONFIG_LOOP_RESTORE_CNN)
-add_tf_lite_dependency(CONFIG_CNN_RESTORATION_SMALL_MODELS)
+experiment_requires_tf_lite(CONFIG_CNN_RESTORATION)
+experiment_requires_tf_lite(CONFIG_LOOP_RESTORE_CNN)
+experiment_requires_tf_lite(CONFIG_CNN_RESTORATION_SMALL_MODELS)
 
-add_tf_lite_dependency(CONFIG_NN_RECON)
+experiment_requires_tf_lite(CONFIG_NN_RECON)
 
 if(CONFIG_ILLUM_MCOMP)
   if(NOT CONFIG_INTERINTRA_BORDER)
@@ -52,7 +52,7 @@ if(CONFIG_ILLUM_MCOMP)
   endif()
 endif()
 
-add_tf_lite_dependency(CONFIG_INTERINTRA_ML)
+experiment_requires_tf_lite(CONFIG_INTERINTRA_ML)
 
 if(CONFIG_INTERINTRA_ML)
   if(NOT CONFIG_INTERINTRA_BORDER)
