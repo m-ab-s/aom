@@ -123,6 +123,10 @@ CalcBDRateInExcel = False
 LineColors = ['blue', 'red', 'green', 'orange', 'pink', 'yellow']
 ConvexHullColor = 'white'
 
+# find out QP/Resolution with specified qty metrics
+TargetQtyMetrics = {'VMAF_Y': [60, 70, 80, 90],
+                    'PSNR_Y': [30, 35, 38, 40, 41]}
+
 # format for exported excel of convexhull test
 # if to modify below 3 variables, need to modify function
 # SaveConvexHullResultsToExcel accordingly
@@ -132,6 +136,10 @@ CvxH_WtCols = [(CvxH_colInterval + 1 + len(QualityList)) * i + CvxH_startCol
 CvxH_WtRows = [CvxH_startRow + i for i in range(len(QPs))]
 CvxH_WtLastCol = CvxH_WtCols[-1] + len(QualityList)
 CvxH_WtLastRow = CvxH_WtRows[-1]
+
+# format for writing convexhull curve data
+CvxHDataStartCol = 0
+
 ######################## post analysis #########################################
 PostAnalysis_Path = os.path.join(RootPath, 'analysis')
 Path_RDResults = os.path.join(PostAnalysis_Path, 'rdresult')

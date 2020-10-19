@@ -28,7 +28,8 @@ import Utils
 from Config import LogLevels, FrameNum, DnScaleRatio, QPs, CvxH_WtCols,\
      CvxH_WtRows, QualityList, LineColors, DnScalingAlgos, UpScalingAlgos,\
      ContentPath, SummaryOutPath, WorkPath, Path_RDResults, Clips, \
-     ConvexHullColor, EncodeMethods, CodecNames, LoggerName, LogCmdOnly
+     ConvexHullColor, EncodeMethods, CodecNames, LoggerName, LogCmdOnly, \
+     TargetQtyMetrics, CvxHDataStartCol
 
 ###############################################################################
 ##### Helper Functions ########################################################
@@ -105,14 +106,29 @@ def convex_hull(points):
 
     return lower, upper
 
+
+def LookUpQPAndResolutionInConvexHull(qtyvals, qtyhull, qtycvhQPs, qtycvhRes):
+    cvhqtys = [h[1] for h in qtyhull]
+    qtyQPs = []; qtyRes = []
+    for val in qtyvals:
+        closest_idx = min(range(len(cvhqtys)), key=lambda i: abs(cvhqtys[i] - val))
+        if (closest_idx == 0 and val > cvhqtys[0]) or (closest_idx == (len(qtyvals) - 1) and val < cvhqtys[-1]):
+            Utils.Logger.info("the give value of quality metric is out of range of convex hull test quality values.")
+
+        qtyQPs.append(qtycvhQPs[closest_idx])
+        qtyRes.append(qtycvhRes[closest_idx])
+
+    return qtyQPs, qtyRes
+
+
 def AddConvexHullCurveToCharts(sht, startrow, startcol, charts, rdPoints,
-                               dnScaledRes, sum_sht, sum_start_row):
+                               dnScaledRes, sum_sht, sum_start_row, tgtqmetrics):
     shtname = sht.get_name()
     sht.write(startrow, startcol, "ConvexHull Data")
     numitems = 5  # qty, bitrate, qp, resolution, 1 empty row as internal
     rows = [startrow + 1 + numitems * i for i in range(len(QualityList))]
 
-    hull = {}
+    hull = {}; cvh_QPs = {}; cvh_Res_txt = {}
     max_len = 0
 
     for qty, idx, row in zip(QualityList, range(len(QualityList)), rows):
@@ -131,17 +147,41 @@ def AddConvexHullCurveToCharts(sht, startrow, startcol, charts, rdPoints,
 
         rdpnts_qtys = [rd[1] for rd in rdPoints[idx]]
         cvh_qidxs = [rdpnts_qtys.index(qty) for qty in qtys]
-        cvh_QPs = [QPs[i % len(QPs)] for i in cvh_qidxs]
+        cvh_QPs[qty] = [QPs[i % len(QPs)] for i in cvh_qidxs]
         cvh_Res = [dnScaledRes[i // len(QPs)] for i in cvh_qidxs]
-        cvh_Res_txt = ["%sx%s" % (x, y) for (x, y) in cvh_Res]
-        sht.write_row(row + 2, startcol + 1, cvh_QPs)
-        sht.write_row(row + 3, startcol + 1, cvh_Res_txt)
+        cvh_Res_txt[qty] = ["%sx%s" % (x, y) for (x, y) in cvh_Res]
+        sht.write_row(row + 2, startcol + 1, cvh_QPs[qty])
+        sht.write_row(row + 3, startcol + 1, cvh_Res_txt[qty])
 
         cols = [startcol + 1 + i for i in range(len(hull[qty]))]
         AddSeriesToChart_Scatter_Rows(shtname, cols, row, row + 1, charts[idx],
                                       'ConvexHull', ConvexHullColor)
 
     endrow = rows[-1] + numitems
+
+    # find out QP/resolution for given qty metric and qty value
+    startrow_fdout = endrow + 1
+    sht.write(startrow_fdout, CvxHDataStartCol, "  Find out QP/resolution for given quality metrics:")
+    numitem_fdout = 4  # qtymetric values, QP, resolution, one empty row
+    startrows_fdout = [startrow_fdout + 1 + i * numitem_fdout for i in range(len(tgtqmetrics))]
+
+    for metric, idx in zip(tgtqmetrics, range(len(tgtqmetrics))):
+        if metric not in QualityList:
+            Utils.Logger.error("wrong qty metric name. should be one of the name in QualityList.")
+            return endrow
+
+        qtyvals = tgtqmetrics[metric]
+        qtyQPs, qtyRes = LookUpQPAndResolutionInConvexHull(qtyvals, hull[metric],
+                                                       cvh_QPs[metric], cvh_Res_txt[metric])
+        # write the look up result into excel file
+        startrow = startrows_fdout[idx]
+        sht.write(startrow, CvxHDataStartCol, metric)
+        sht.write_row(startrow, 1, qtyvals)
+        sht.write(startrow + 1, CvxHDataStartCol, 'QP')
+        sht.write_row(startrow + 1, CvxHDataStartCol + 1, qtyQPs)
+        sht.write(startrow + 2, CvxHDataStartCol, 'Resolution')
+        sht.write_row(startrow + 2, CvxHDataStartCol + 1, qtyRes)
+        endrow = startrow + 3
 
     #add convex hull data into summary sheet. the length of each convex hull
     #could be different
@@ -287,7 +327,7 @@ def SaveConvexHullResultsToExcel(content, dnScAlgos, upScAlgos, sum_wb,
         endrow, sum_end_row = AddConvexHullCurveToCharts(sht, startrow, startcol,
                                                          charts, RDPoints,
                                                          DnScaledRes, sum_sht,
-                                                         sum_startrow)
+                                                         sum_startrow, TargetQtyMetrics)
         sum_start_row[shtname] = sum_end_row + 1
 
         #update RD chart with approprate y axis range
