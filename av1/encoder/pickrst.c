@@ -37,6 +37,10 @@
 #include "av1/encoder/pickrst.h"
 #include "av1/encoder/rdopt.h"
 
+#if CONFIG_RST_MERGECOEFFS
+#include "third_party/vector/vector.h"
+#endif  // CONFIG_RST_MERGECOEFFS
+
 // When set to RESTORE_WIENER or RESTORE_SGRPROJ only those are allowed.
 // When set to RESTORE_TYPES we allow switchable.
 #if CONFIG_RST_MERGECOEFFS
@@ -721,7 +725,14 @@ static void search_sgrproj(const RestorationTileLimits *limits,
 #if CONFIG_EXT_LOOP_RESTORATION
                            RestorationUnitInfo *previous_rui,
 #endif  // CONFIG_EXT_LOOP_RESTORATION
+#if CONFIG_RST_MERGECOEFFS
+                           Vector *current_unit_stack,
+#endif  // CONFIG_RST_MERGECOEFFS
                            RestorationLineBuffers *rlbs) {
+#if CONFIG_RST_MERGECOEFFS
+  // required in function signature but not needed in this function
+  (void)current_unit_stack;
+#endif  // CONFIG_RST_MERGECOEFFS
   (void)rlbs;
   RestSearchCtxt *rsc = (RestSearchCtxt *)priv;
   RestUnitSearchInfo *rusi = &rsc->rusi[rest_unit_idx];
@@ -1065,6 +1076,7 @@ static int wiener_decompose_sep_sym(int wiener_win, int64_t *M, int64_t *H,
   return 1;
 }
 
+#if !CONFIG_RST_MERGECOEFFS
 // Computes the function x'*H*x - x'*M for the learned 2D filter x, and compares
 // against identity filters; Final score is defined as the difference between
 // the function values
@@ -1108,6 +1120,7 @@ static int64_t compute_score(int wiener_win, int64_t *M, int64_t *H,
 
   return Score - iScore;
 }
+#endif  // !CONFIG_RST_MERGECOEFFS
 
 static void finalize_sym_filter(int wiener_win, int32_t *f, InterpKernel fi) {
   int i;
@@ -1299,8 +1312,15 @@ static void search_wiener(const RestorationTileLimits *limits,
 #if CONFIG_EXT_LOOP_RESTORATION
                           RestorationUnitInfo *previous_rui,
 #endif  // CONFIG_EXT_LOOP_RESTORATION
+#if CONFIG_RST_MERGECOEFFS
+                          Vector *current_unit_stack,
+#endif  // CONFIG_RST_MERGECOEFFS
                           RestorationLineBuffers *rlbs) {
   (void)tmpbuf;
+#if CONFIG_RST_MERGECOEFFS
+  // required in function signature but not needed in this function
+  (void)current_unit_stack;
+#endif  // CONFIG_RST_MERGECOEFFS
   (void)rlbs;
   RestSearchCtxt *rsc = (RestSearchCtxt *)priv;
   RestUnitSearchInfo *rusi = &rsc->rusi[rest_unit_idx];
@@ -1350,7 +1370,8 @@ static void search_wiener(const RestorationTileLimits *limits,
   finalize_sym_filter(reduced_wiener_win, vfilter, rui.wiener_info.vfilter);
   finalize_sym_filter(reduced_wiener_win, hfilter, rui.wiener_info.hfilter);
 
-#if !CONFIG_EXT_LOOP_RESTORATION || !CONFIG_RST_MERGECOEFFS
+#if !CONFIG_RST_MERGECOEFFS
+#if !CONFIG_EXT_LOOP_RESTORATION
   // Disabled for experiment because it doesn't factor reduced bit count
   // into calculations.
   // Filter score computes the value of the function x'*A*x - x'*b for the
@@ -1364,7 +1385,8 @@ static void search_wiener(const RestorationTileLimits *limits,
     rusi->sse[RESTORE_WIENER] = INT64_MAX;
     return;
   }
-#endif  // !CONFIG_EXT_LOOP_RESTORATION || CONFIG_RST_MERGECOEFFS
+#endif  // !CONFIG_EXT_LOOP_RESTORATION
+#endif  // !CONFIG_RST_MERGECOEFFS
 
   aom_clear_system_state();
 
@@ -1447,9 +1469,16 @@ static void search_norestore(const RestorationTileLimits *limits,
 #if CONFIG_EXT_LOOP_RESTORATION
                              RestorationUnitInfo *previous_rui,
 #endif  // CONFIG_EXT_LOOP_RESTORATION
+#if CONFIG_RST_MERGECOEFFS
+                             Vector *current_unit_stack,
+#endif  // CONFIG_RST_MERGECOEFFS
                              RestorationLineBuffers *rlbs) {
   (void)tile_rect;
   (void)tmpbuf;
+#if CONFIG_RST_MERGECOEFFS
+  // required in function signature but not needed in this function
+  (void)current_unit_stack;
+#endif  // CONFIG_RST_MERGECOEFFS
   (void)rlbs;
 
   RestSearchCtxt *rsc = (RestSearchCtxt *)priv;
@@ -1775,10 +1804,17 @@ static void search_switchable(const RestorationTileLimits *limits,
 #if CONFIG_EXT_LOOP_RESTORATION
                               RestorationUnitInfo *previous_rui,
 #endif  // CONFIG_EXT_LOOP_RESTORATION
+#if CONFIG_RST_MERGECOEFFS
+                              Vector *current_unit_stack,
+#endif  // CONFIG_RST_MERGECOEFFS
                               RestorationLineBuffers *rlbs) {
   (void)limits;
   (void)tile_rect;
   (void)tmpbuf;
+#if CONFIG_RST_MERGECOEFFS
+  // required in function signature but not needed in this function
+  (void)current_unit_stack;
+#endif  // CONFIG_RST_MERGECOEFFS
   (void)rlbs;
   RestSearchCtxt *rsc = (RestSearchCtxt *)priv;
   RestUnitSearchInfo *rusi = &rsc->rusi[rest_unit_idx];

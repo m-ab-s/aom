@@ -18,6 +18,10 @@
 #include "av1/common/blockd.h"
 #include "av1/common/enums.h"
 
+#if CONFIG_RST_MERGECOEFFS
+#include "third_party/vector/vector.h"
+#endif  // CONFIG_RST_MERGECOEFFS
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -394,6 +398,9 @@ typedef void (*rest_unit_visitor_t)(const RestorationTileLimits *limits,
 #if CONFIG_EXT_LOOP_RESTORATION
                                     RestorationUnitInfo *previous_rui,
 #endif  // CONFIG_EXT_LOOP_RESTORATION
+#if CONFIG_RST_MERGECOEFFS
+                                    Vector *current_unit_stack,
+#endif  // CONFIG_RST_MERGECOEFFS
                                     RestorationLineBuffers *rlbs);
 
 typedef struct FilterFrameCtxt {
@@ -519,6 +526,9 @@ void av1_foreach_rest_unit_in_row(
 #if CONFIG_EXT_LOOP_RESTORATION
     RestorationUnitInfo *previous_rui,
 #endif  // CONFIG_EXT_LOOP_RESTORATION
+#if CONFIG_RST_MERGECOEFFS
+    Vector *current_unit_stack,
+#endif  // CONFIG_RST_MERGECOEFFS
     RestorationLineBuffers *rlbs, sync_read_fn_t on_sync_read,
     sync_write_fn_t on_sync_write, struct AV1LrSyncData *const lr_sync);
 AV1PixelRect av1_whole_frame_rect(const struct AV1Common *cm, int is_uv);
