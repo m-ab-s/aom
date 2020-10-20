@@ -310,7 +310,9 @@ void av1_gop_setup_structure(AV1_COMP *cpi,
   const int key_frame = (frame_params->frame_type == KEY_FRAME);
   const FRAME_UPDATE_TYPE first_frame_update_type =
       key_frame ? KF_UPDATE
-                : rc->source_alt_ref_active ? OVERLAY_UPDATE : GF_UPDATE;
+                : rc->source_alt_ref_active || (rc->baseline_gf_interval == 1)
+                      ? OVERLAY_UPDATE
+                      : GF_UPDATE;
   gf_group->is_user_specified = 0;
   gf_group->has_overlay_for_key_frame = 0;
   if (cpi->print_per_frame_stats) {
