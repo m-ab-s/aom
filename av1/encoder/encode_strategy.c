@@ -1436,8 +1436,12 @@ static void get_ref_frames_subgop(
 void av1_get_ref_frames(AV1_COMP *const cpi, RefBufferStack *ref_buffer_stack,
                         int cur_frame_disp,
                         RefFrameMapPair ref_frame_map_pairs[REF_FRAMES]) {
-  get_ref_frames_subgop(cpi, cur_frame_disp, ref_frame_map_pairs);
-  return;
+  // TODO(sarahparker) Enable this for low delay once the performance drop is
+  // addressed
+  if (cpi->oxcf.gf_cfg.lag_in_frames > 0) {
+    get_ref_frames_subgop(cpi, cur_frame_disp, ref_frame_map_pairs);
+    return;
+  }
 
   // TODO(sarahparker) Delete this all with stack deletion
   AV1_COMMON *cm = &cpi->common;
