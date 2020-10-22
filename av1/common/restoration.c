@@ -1066,21 +1066,18 @@ void apply_wiener_nonsep(const uint8_t *dgd, int width, int height, int stride,
   };
   const NonsepFilterConfig *nsfilter = is_uv ? &nsfilter_uv : &nsfilter_y;
   const int16_t *filter_ = is_uv ? filter + wienerns_y : filter;
-  if (!is_uv
 #if CONFIG_WIENER_NONSEP_CROSS_FILT
-      || wienerns_uv_from_y_pixel == 0
-#endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
-  ) {
+  if (!is_uv || wienerns_uv_from_y_pixel == 0) {
     av1_convolve_nonsep(dgd, width, height, stride, nsfilter, filter_, dst,
                         dst_stride);
   } else {
-#if CONFIG_WIENER_NONSEP_CROSS_FILT
     av1_convolve_nonsep_dual(dgd, width, height, stride, luma, luma_stride,
                              nsfilter, filter_, dst, dst_stride);
-#else
-    assert(0 && "Incompatible CONFIG_WIENER_NONSEP config");
-#endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
   }
+#else
+  av1_convolve_nonsep(dgd, width, height, stride, nsfilter, filter_, dst,
+                      dst_stride);
+#endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
   return;
 }
 
@@ -1137,22 +1134,19 @@ void apply_wiener_nonsep_highbd(const uint8_t *dgd8, int width, int height,
   };
   const NonsepFilterConfig *nsfilter = is_uv ? &nsfilter_uv : &nsfilter_y;
   const int16_t *filter_ = is_uv ? filter + wienerns_y : filter;
-  if (!is_uv
 #if CONFIG_WIENER_NONSEP_CROSS_FILT
-      || wienerns_uv_from_y_pixel == 0
-#endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
-  ) {
+  if (!is_uv || wienerns_uv_from_y_pixel == 0) {
     av1_convolve_nonsep_highbd(dgd8, width, height, stride, nsfilter, filter_,
                                dst8, dst_stride, bit_depth);
   } else {
-#if CONFIG_WIENER_NONSEP_CROSS_FILT
     av1_convolve_nonsep_dual_highbd(dgd8, width, height, stride, luma8,
                                     luma_stride, nsfilter, filter_, dst8,
                                     dst_stride, bit_depth);
-#else
-    assert(0 && "Incompatible CONFIG_WIENER_NONSEP config");
-#endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
   }
+#else
+  av1_convolve_nonsep_highbd(dgd8, width, height, stride, nsfilter, filter_,
+                             dst8, dst_stride, bit_depth);
+#endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
   return;
 }
 
