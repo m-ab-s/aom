@@ -1721,12 +1721,14 @@ void av1_foreach_rest_unit_in_plane(const struct AV1Common *cm, int plane,
   memset(&current_unit_stack, 0, sizeof(Vector));
   // no object to use for setup exists, so we can use size of an existing
   // pointer value
-  aom_vector_setup(&current_unit_stack, 1, sizeof(&current_unit_stack));
+  aom_vector_setup(&current_unit_stack, 1, sizeof(struct RstUnitSnapshot));
   foreach_rest_unit_in_tile(tile_rect, LR_TILE_ROW, LR_TILE_COL, LR_TILE_COLS,
                             rsi->horz_units_per_tile, rsi->vert_units_per_tile,
                             rsi->units_per_tile, rsi->restoration_unit_size,
                             ss_y, plane, on_rest_unit, priv, tmpbuf,
                             &current_unit_stack, rlbs);
+  aom_vector_clear(&current_unit_stack);
+  aom_vector_destroy(&current_unit_stack);
 #else
   foreach_rest_unit_in_tile(tile_rect, LR_TILE_ROW, LR_TILE_COL, LR_TILE_COLS,
                             rsi->horz_units_per_tile, rsi->vert_units_per_tile,
