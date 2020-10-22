@@ -1271,6 +1271,10 @@ static void add_ref_to_slot(RefBufMapData *ref, int *const remapped_ref_idx,
   ref->used = 1;
 }
 
+// Threshold dictating when we are allowed to start considering
+// leaving lowest level frames unmapped
+#define LOW_LEVEL_FRAMES_TR 5
+
 // Find which reference buffer should be left out of the named mapping.
 // This is because there are 8 reference buffers and only 7 named slots.
 static void set_unmapped_ref(RefBufMapData *buffer_map, int n_bufs,
@@ -1281,7 +1285,8 @@ static void set_unmapped_ref(RefBufMapData *buffer_map, int n_bufs,
   if (n_bufs <= ALTREF_FRAME) return;
   for (int i = 0; i < n_bufs; i++) {
     if (buffer_map[i].used) continue;
-    if (buffer_map[i].pyr_level != min_level || n_bufs == n_min_level_refs) {
+    if (buffer_map[i].pyr_level != min_level ||
+        n_min_level_refs >= LOW_LEVEL_FRAMES_TR) {
       int dist = abs(cur_frame_disp - buffer_map[i].disp_order);
       if (dist > max_dist) {
         max_dist = dist;
@@ -1338,6 +1343,8 @@ static void get_ref_frames_subgop(
   int n_min_level_refs = 0;
   int n_past_high_level = 0;
   int closest_past_ref = -1;
+  int golden_idx = -1;
+  int altref_idx = -1;
 
   // Find the GOLDEN_FRAME and BWDREF_FRAME.
   // Also collect various stats about the reference frames for the remaining
@@ -1346,10 +1353,15 @@ static void get_ref_frames_subgop(
     if (buffer_map[i].pyr_level == min_level) {
       // Keep track of the number of lowest level frames
       n_min_level_refs++;
-      if (buffer_map[i].disp_order < cur_frame_disp &&
+      if (buffer_map[i].disp_order < cur_frame_disp && golden_idx == -1 &&
           remapped_ref_idx[GOLDEN_FRAME - LAST_FRAME] == INVALID_IDX) {
-        // Map the GOLDEN_FRAME
-        add_ref_to_slot(&buffer_map[i], remapped_ref_idx, GOLDEN_FRAME);
+        // Save index for GOLDEN
+        golden_idx = i;
+      } else if (buffer_map[i].disp_order > cur_frame_disp &&
+                 altref_idx == -1 &&
+                 remapped_ref_idx[ALTREF_FRAME - LAST_FRAME] == INVALID_IDX) {
+        // Save index for ALTREF
+        altref_idx = i;
       }
     } else if (buffer_map[i].disp_order == cur_frame_disp) {
       // Map the BWDREF_FRAME if this is the show_existing_frame
@@ -1365,6 +1377,17 @@ static void get_ref_frames_subgop(
     // frames
     if (buffer_map[i].disp_order < cur_frame_disp && closest_past_ref < 0)
       closest_past_ref = i;
+  }
+
+  // Do not map GOLDEN and ALTREF based on their pyramid level if all reference
+  // frames have the same level
+  if (n_min_level_refs < n_bufs) {
+    // Map the GOLDEN_FRAME
+    if (golden_idx > -1)
+      add_ref_to_slot(&buffer_map[golden_idx], remapped_ref_idx, GOLDEN_FRAME);
+    // Map the ALTREF_FRAME
+    if (altref_idx > -1)
+      add_ref_to_slot(&buffer_map[altref_idx], remapped_ref_idx, ALTREF_FRAME);
   }
 
   // Find the buffer to be excluded from the mapping
@@ -1383,21 +1406,6 @@ static void get_ref_frames_subgop(
         break;
       }
     }
-  }
-
-  // Assign low level frames
-  buf_map_idx = n_bufs - 1;
-  for (int frame = ALTREF_FRAME; frame >= LAST_FRAME; frame--) {
-    // Continue if the current ref slot is already full
-    if (remapped_ref_idx[frame - LAST_FRAME] != INVALID_IDX) continue;
-    // Find the next unmapped low level reference buffer
-    for (; buf_map_idx >= 0; buf_map_idx--) {
-      if (buffer_map[buf_map_idx].pyr_level != min_level) continue;
-      if (!buffer_map[buf_map_idx].used) break;
-    }
-    if (buf_map_idx < 0) break;
-    if (buffer_map[buf_map_idx].used) break;
-    add_ref_to_slot(&buffer_map[buf_map_idx], remapped_ref_idx, frame);
   }
 
   // Place remaining past frames
@@ -1436,12 +1444,8 @@ static void get_ref_frames_subgop(
 void av1_get_ref_frames(AV1_COMP *const cpi, RefBufferStack *ref_buffer_stack,
                         int cur_frame_disp,
                         RefFrameMapPair ref_frame_map_pairs[REF_FRAMES]) {
-  // TODO(sarahparker) Enable this for low delay once the performance drop is
-  // addressed
-  if (cpi->oxcf.gf_cfg.lag_in_frames > 0) {
-    get_ref_frames_subgop(cpi, cur_frame_disp, ref_frame_map_pairs);
-    return;
-  }
+  get_ref_frames_subgop(cpi, cur_frame_disp, ref_frame_map_pairs);
+  return;
 
   // TODO(sarahparker) Delete this all with stack deletion
   AV1_COMMON *cm = &cpi->common;
