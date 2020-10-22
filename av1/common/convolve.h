@@ -62,6 +62,17 @@ void av1_convolve_nonsep_highbd(const uint8_t *dgd, int width, int height,
                                 int stride, const NonsepFilterConfig *config,
                                 const int16_t *filter, uint8_t *dst,
                                 int dst_stride, int bit_depth);
+void av1_convolve_nonsep_mask(const uint8_t *dgd, int width, int height,
+                              int stride, const NonsepFilterConfig *config,
+                              const int16_t *filter, uint8_t *dst,
+                              int dst_stride, const uint8_t *skip_mask,
+                              int mask_stride);
+void av1_convolve_nonsep_mask_highbd(const uint8_t *dgd, int width, int height,
+                                     int stride,
+                                     const NonsepFilterConfig *config,
+                                     const int16_t *filter, uint8_t *dst,
+                                     int dst_stride, int bit_depth,
+                                     const uint8_t *skip_mask, int mask_stride);
 
 // Nonseparable convolution with dual input planes - used for cross component
 // filtering
@@ -76,6 +87,17 @@ void av1_convolve_nonsep_dual_highbd(const uint8_t *dgd, int width, int height,
                                      const NonsepFilterConfig *config,
                                      const int16_t *filter, uint8_t *dst,
                                      int dst_stride, int bit_depth);
+void av1_convolve_nonsep_dual_mask(const uint8_t *dgd, int width, int height,
+                                   int stride, const uint8_t *dgd2, int stride2,
+                                   const NonsepFilterConfig *config,
+                                   const int16_t *filter, uint8_t *dst,
+                                   int dst_stride, const uint8_t *skip_mask,
+                                   int mask_stride);
+void av1_convolve_nonsep_dual_mask_highbd(
+    const uint8_t *dgd, int width, int height, int stride, const uint8_t *dgd2,
+    int stride2, const NonsepFilterConfig *config, const int16_t *filter,
+    uint8_t *dst, int dst_stride, int bit_depth, const uint8_t *skip_mask,
+    int mask_stride);
 
 #if CONFIG_SUPERRES_TX64
 // Nonseparable classified convolution with different filters used for each
