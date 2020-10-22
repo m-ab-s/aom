@@ -206,7 +206,7 @@ static void init_rsc(const YV12_BUFFER_CONFIG *src, const AV1_COMMON *cm,
 static int64_t try_restoration_unit(const RestSearchCtxt *rsc,
                                     const RestorationTileLimits *limits,
                                     const AV1PixelRect *tile_rect,
-                                    const RestorationUnitInfo *rui) {
+                                    RestorationUnitInfo *rui) {
   const AV1_COMMON *const cm = rsc->cm;
   const int plane = rsc->plane;
   const int is_uv = plane > 0;
