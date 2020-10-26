@@ -1367,7 +1367,9 @@ void av1_loop_restoration_filter_unit(const RestorationTileLimits *limits,
   const int procunit_width = RESTORATION_PROC_UNIT_SIZE >> ss_x;
 
 #if CONFIG_WIENER_NONSEP_CROSS_FILT
-  const uint8_t *luma_in_ru = rui->luma;
+  const uint8_t *luma_in_plane = rui->luma;
+  const uint8_t *luma_in_ru =
+      luma_in_plane + limits->v_start * rui->luma_stride + limits->h_start;
 #endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
 
   // Convolve the whole tile one stripe at a time
@@ -1422,7 +1424,7 @@ void av1_loop_restoration_filter_unit(const RestorationTileLimits *limits,
     i += h;
   }
 #if CONFIG_WIENER_NONSEP_CROSS_FILT
-  rui->luma = luma_in_ru;
+  rui->luma = luma_in_plane;
 #endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
 }
 
