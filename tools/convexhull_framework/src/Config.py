@@ -19,7 +19,7 @@ RootPath = "..\\"
 BinPath = os.path.join(RootPath, 'bin')
 WorkPath = os.path.join(RootPath, 'test')
 SMOKE_TEST = False  # override some parameters to do a quick smoke test
-FrameNum = 60
+FrameNum = 10
 
 if SMOKE_TEST:
     FrameNum = 2
@@ -34,8 +34,9 @@ Clips = {
 #    basename           class      width   height  framerate   bitdepth    fmt
     #"CrowdRun":         ["ClassB",  1920,   1080,   30,     8,      "yuv420p"],
     #"BasketballDrive":  ["ClassB",  1920,   1080,   30,     8,      "yuv420p"],
-    "NetflixCrosswalk_1920x1080_60fps_8bit_420_60f":    ["ClassB",  1920,   1080,
-     30,         8,          "yuv420p"],
+    #"NetflixCrosswalk_1920x1080_60fps_8bit_420_60f":    ["ClassB",  1920,   1080,
+    #30,         8,          "yuv420p"],
+    "CrowdRun_1920x1080":    ["ClassB",  1920,   1080,   30,  8,    "yuv420p"],
 }
 '''
     "aspen_1080p_60f":  ["ClassB",  1920,   1080,   30,         8,
@@ -85,10 +86,10 @@ Clips = {
 '''
 ############## Scaling settings ############################################
 # down scaling ratio
-DnScaleRatio = [1.0, 1.5, 2.0, 3.0, 4.0] #, 6.0]  # downscale ratio
+DnScaleRatio = [1.0, 1.5, 2.0, 2.5, 3.0, 4.0] #, 6.0]  # downscale ratio
 #down and up scaling algorithm, the 2 lists should be of same size
-DnScalingAlgos = ['bicubic', 'bilinear', 'gauss', 'lanczos', 'sinc']
-UpScalingAlgos = ['bicubic', 'bilinear', 'gauss', 'lanczos', 'sinc']
+DnScalingAlgos = ['lanczos'] #['bicubic', 'bilinear', 'gauss', 'lanczos', 'sinc']
+UpScalingAlgos = ['lanczos'] #['bicubic', 'bilinear', 'gauss', 'lanczos', 'sinc']
 
 if SMOKE_TEST:
     DnScalingAlgos = ['bicubic', 'lanczos', 'sinc']

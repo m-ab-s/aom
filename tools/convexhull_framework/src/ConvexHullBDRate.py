@@ -221,9 +221,9 @@ def FindContent(name, rd_data):
 # main
 ######################################
 if __name__ == "__main__":
-    #sys.argv = ["","-i1","ConvexHullRD_ScaleAlgosNum_6_aom_av1_1.xlsx",
-    #"-i2","ConvexHullRD_ScaleAlgosNum_6_aom_av1_6.xlsx",
-    # "-o","ConvexHullBDRate.xlsm"]
+    #sys.argv = ["","-i1","ConvexHullData_ScaleAlgosNum_6_aom_av1_1.xlsx",
+    #"-i2","ConvexHullData_ScaleAlgosNum_6_aom_av1_6.xlsx",
+    #"-o","ConvexHullBDRate.xlsm"]
     ParseArguments(sys.argv)
 
     base_shts, base_rd_data = ParseConvexHullRD(InputBase)

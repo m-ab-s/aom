@@ -31,7 +31,8 @@ def ValidAlgo_ffmpeg(algo):
 #use ffmpeg to do image rescaling for yuv420 8bit
 def RescaleWithFfmpeg(infile, inw, inh, outw, outh, algo, outfile, num, app_path):
     args = " -y -s:v %dx%d -i %s -vf scale=%dx%d -c:v rawvideo -pix_fmt yuv420p" \
-           " -sws_flags %s+accurate_rnd+full_chroma_int -sws_dither none" \
+           " -sws_flags %s+accurate_rnd+full_chroma_int+full_chroma_inp+bitexact"\
+           "+print_info -sws_dither none" \
            % (inw, inh, infile, outw, outh, algo)
     if (algo == 'lanczos'):
         args += " -param0 5 "

@@ -369,9 +369,11 @@ def ParseArguments(raw_args):
 # main
 ######################################
 if __name__ == "__main__":
-    #sys.argv = ["", "-f", "encode", "-c", "hevc", "-m", "ffmpeg", "-p", "medium"]
-    #sys.argv = ["","-f","convexhull","-c","hevc","-m","ffmpeg","-p","medium"]
-    #sys.argv = ["", "-f", "summary", "-c", "hevc", "-m", "ffmpeg", "-p", "medium"]
+    #sys.argv = ["","-f","scaling"]
+    #sys.argv = ["", "-f", "sumscaling"]
+    #sys.argv = ["", "-f", "encode","-c","av1","-m","aom","-p","1"]
+    #sys.argv = ["", "-f", "convexhull","-c","av1","-m","aom","-p","6"]
+    #sys.argv = ["", "-f", "summary", "-c", "av1", "-m", "aom", "-p", "6"]
     ParseArguments(sys.argv)
 
     # preparation for executing functions
