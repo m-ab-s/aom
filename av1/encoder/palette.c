@@ -187,6 +187,7 @@ static AOM_INLINE void extend_palette_color_map(uint8_t *const color_map,
 
 // Bias toward using colors in the cache.
 // TODO(huisu): Try other schemes to improve compression.
+#define PALETTE_CACHE_BIAS_THRESH 4
 static AOM_INLINE void optimize_palette_colors(uint16_t *color_cache,
                                                int n_cache, int n_colors,
                                                int stride, int *centroids,
@@ -202,7 +203,7 @@ static AOM_INLINE void optimize_palette_colors(uint16_t *color_cache,
         idx = j;
       }
     }
-    int min_threshold = (1 << (bit_depth - 8));
+    const int min_threshold = (PALETTE_CACHE_BIAS_THRESH) << (bit_depth - 8);
     if (min_diff <= min_threshold) centroids[i] = color_cache[idx];
   }
 }
