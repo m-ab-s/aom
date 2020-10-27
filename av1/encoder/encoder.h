@@ -2839,14 +2839,31 @@ typedef struct {
 
 static INLINE void init_ref_map_pair(
     AV1_COMP *cpi, RefFrameMapPair ref_frame_map_pairs[REF_FRAMES]) {
-  memset(ref_frame_map_pairs, -1, sizeof(*ref_frame_map_pairs) * REF_FRAMES);
+  memset(ref_frame_map_pairs, 0, sizeof(*ref_frame_map_pairs) * REF_FRAMES);
   for (int map_idx = 0; map_idx < REF_FRAMES; map_idx++) {
     // Get reference frame buffer
     const RefCntBuffer *const buf = cpi->common.ref_frame_map[map_idx];
-    if (buf == NULL) continue;
+    if (ref_frame_map_pairs[map_idx].disp_order == -1) continue;
+    if (buf == NULL) {
+      ref_frame_map_pairs[map_idx].disp_order = -1;
+      ref_frame_map_pairs[map_idx].pyr_level = -1;
+      continue;
+    } else if (buf->ref_count > 1) {
+      // Once the keyframe is coded, the slots in ref_frame_map will all
+      // point to the same frame. In that case, all subsequent pointers
+      // matching the current are considered "free" slots. This will find
+      // the next occurance of the current pointer if ref_count indicates
+      // there are multiple instances of it and mark it as free.
+      for (int idx2 = map_idx + 1; idx2 < REF_FRAMES; ++idx2) {
+        const RefCntBuffer *const buf2 = cpi->common.ref_frame_map[idx2];
+        if (buf2 == buf) {
+          ref_frame_map_pairs[idx2].disp_order = -1;
+          ref_frame_map_pairs[idx2].pyr_level = -1;
+        }
+      }
+    }
     ref_frame_map_pairs[map_idx].disp_order = (int)buf->display_order_hint;
-    const int reference_frame_level = buf->pyramid_level;
-    ref_frame_map_pairs[map_idx].pyr_level = reference_frame_level;
+    ref_frame_map_pairs[map_idx].pyr_level = buf->pyramid_level;
   }
 }
 
