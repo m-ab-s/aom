@@ -49,9 +49,6 @@ void av1_backup_sb_state(SB_FIRST_PASS_STATS *sb_fp_stats, const AV1_COMP *cpi,
   memcpy(sb_fp_stats->thresh_freq_fact, x->thresh_freq_fact,
          sizeof(sb_fp_stats->thresh_freq_fact));
 
-  sb_fp_stats->m_search_count = *x->m_search_count_ptr;
-  sb_fp_stats->ex_search_count = *x->ex_search_count_ptr;
-
   const int mi_idx = get_mi_grid_idx(cm, mi_row, mi_col);
   sb_fp_stats->current_qindex = cm->mi[mi_idx].current_qindex;
 
@@ -82,9 +79,6 @@ void av1_restore_sb_state(const SB_FIRST_PASS_STATS *sb_fp_stats, AV1_COMP *cpi,
          sizeof(sb_fp_stats->inter_mode_rd_models));
   memcpy(x->thresh_freq_fact, sb_fp_stats->thresh_freq_fact,
          sizeof(sb_fp_stats->thresh_freq_fact));
-
-  *x->m_search_count_ptr = sb_fp_stats->m_search_count;
-  *x->ex_search_count_ptr = sb_fp_stats->ex_search_count;
 
   const int mi_idx = get_mi_grid_idx(cm, mi_row, mi_col);
   cm->mi[mi_idx].current_qindex = sb_fp_stats->current_qindex;

@@ -2210,9 +2210,6 @@ static int full_pixel_exhaustive(const AV1_COMP *const cpi, MACROBLOCK *x,
   int range = sf->mesh_patterns[0].range;
   int baseline_interval_divisor;
 
-  // Keep track of number of exhaustive calls (this frame in this thread).
-  if (x->ex_search_count_ptr != NULL) ++(*x->ex_search_count_ptr);
-
   // Trap illegal values for interval and range for this function.
   if ((range < MIN_RANGE) || (range > MAX_RANGE) || (interval < MIN_INTERVAL) ||
       (interval > range))
@@ -2350,21 +2347,6 @@ int av1_refining_search_8p_c(const AV1_COMMON *const cm, MACROBLOCK *x,
     }
   }
   return best_sad;
-}
-
-#define MIN_EX_SEARCH_LIMIT 128
-static int is_exhaustive_allowed(const AV1_COMP *const cpi, MACROBLOCK *x) {
-  const SPEED_FEATURES *const sf = &cpi->sf;
-  int is_allowed = sf->allow_exhaustive_searches &&
-                   (sf->exhaustive_searches_thresh < INT_MAX) &&
-                   !cpi->rc.is_src_frame_alt_ref;
-  if (x->m_search_count_ptr != NULL && x->ex_search_count_ptr != NULL) {
-    const int max_ex =
-        AOMMAX(MIN_EX_SEARCH_LIMIT,
-               (*x->m_search_count_ptr * sf->max_exaustive_pct) / 100);
-    is_allowed = *x->ex_search_count_ptr <= max_ex && is_allowed;
-  }
-  return is_allowed;
 }
 
 static int vector_match(int16_t *ref, int16_t *src, int bwl) {
@@ -2644,9 +2626,6 @@ int av1_full_pixel_search(const AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
     cost_list[4] = INT_MAX;
   }
 
-  // Keep track of number of searches (this frame in this thread).
-  if (x->m_search_count_ptr != NULL) ++(*x->m_search_count_ptr);
-
   switch (method) {
     case FAST_DIAMOND:
       var = fast_dia_search(cpi, x, mvp_full, step_param, error_per_bit, 0,
@@ -2677,8 +2656,7 @@ int av1_full_pixel_search(const AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
   }
 
   // Should we allow a follow on exhaustive search?
-  if (!run_mesh_search && method == NSTEP && use_var &&
-      is_exhaustive_allowed(cpi, x)) {
+  if (!run_mesh_search && method == NSTEP && use_var) {
     int exhuastive_thr = sf->exhaustive_searches_thresh;
     exhuastive_thr >>=
         10 - (mi_size_wide_log2[bsize] + mi_size_high_log2[bsize]);
@@ -3956,14 +3934,12 @@ int av1_full_pixel_search_var(const AV1_COMP *cpi, MACROBLOCK *x,
 
   // Should we allow a follow on exhaustive search?
   bool run_exhaustive_search = false;
-  if (is_exhaustive_allowed(cpi, x)) {
-    int exhuastive_thr = sf->exhaustive_searches_thresh;
-    exhuastive_thr >>=
-        10 - (mi_size_wide_log2[bsize] + mi_size_high_log2[bsize]);
+  int exhuastive_thr = sf->exhaustive_searches_thresh;
+  exhuastive_thr >>= 10 - (mi_size_wide_log2[bsize] + mi_size_high_log2[bsize]);
 
-    // Threshold variance for an exhaustive full search.
-    run_exhaustive_search = var > exhuastive_thr;
-  }
+  // Threshold variance for an exhaustive full search.
+  run_exhaustive_search = var > exhuastive_thr;
+
   if (run_exhaustive_search) {
     int var_ex;
     MV tmp_mv_ex;

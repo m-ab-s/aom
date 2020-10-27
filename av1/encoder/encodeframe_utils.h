@@ -52,8 +52,6 @@ typedef struct SB_FIRST_PASS_STATS {
   FRAME_COUNTS fc;
   InterModeRdModel inter_mode_rd_models[BLOCK_SIZES_ALL];
   int thresh_freq_fact[BLOCK_SIZES_ALL][MAX_MODES];
-  int m_search_count;
-  int ex_search_count;
   int current_qindex;
 
 #if CONFIG_INTERNAL_STATS
