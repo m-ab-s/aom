@@ -302,36 +302,19 @@ static MOTION_MODE read_motion_mode(AV1_COMMON *cm, MACROBLOCKD *xd,
   if (cm->switchable_motion_mode == 0) return SIMPLE_TRANSLATION;
   if (mbmi->skip_mode) return SIMPLE_TRANSLATION;
 
-  const MOTION_MODE last_motion_mode_allowed =
-      motion_mode_allowed(xd->global_motion, xd, mbmi, cm->allow_warped_motion);
   int motion_mode;
-
-  if (last_motion_mode_allowed == SIMPLE_TRANSLATION) return SIMPLE_TRANSLATION;
-
-  if (last_motion_mode_allowed == OBMC_CAUSAL) {
-    motion_mode =
-        aom_read_symbol(r, xd->tile_ctx->obmc_cdf[mbmi->sb_type], 2, ACCT_STR);
-    return (MOTION_MODE)(SIMPLE_TRANSLATION + motion_mode);
-  } else {
+  const MOTION_MODE_SET motion_mode_set = av1_get_allowed_motion_mode_set(
+      xd->global_motion, xd, mbmi, cm->allow_warped_motion);
+  if (motion_mode_set == ONLY_SIMPLE_TRANSLATION) return SIMPLE_TRANSLATION;
+  int num_modes = 0;
+  aom_cdf_prob *cdf = av1_get_motion_mode_cdf(xd, motion_mode_set, &num_modes);
+  motion_mode = aom_read_symbol(r, cdf, num_modes, ACCT_STR);
 #if CONFIG_EXT_WARP && CONFIG_SUB8X8_WARP
-    BLOCK_SIZE bsize = mbmi->sb_type;
-    int is_bs_sub8 = AOMMIN(block_size_wide[bsize], block_size_high[bsize]) < 8;
-    if (is_bs_sub8) {
-      motion_mode = aom_read_symbol(r, xd->tile_ctx->warp_cdf[mbmi->sb_type], 2,
-                                    ACCT_STR);
-      motion_mode = (motion_mode == 0) ? SIMPLE_TRANSLATION : WARPED_CAUSAL;
-    } else {
-      motion_mode =
-          aom_read_symbol(r, xd->tile_ctx->motion_mode_cdf[mbmi->sb_type],
-                          MOTION_MODES, ACCT_STR);
-    }
-#else
-    motion_mode =
-        aom_read_symbol(r, xd->tile_ctx->motion_mode_cdf[mbmi->sb_type],
-                        MOTION_MODES, ACCT_STR);
-#endif  // CONFIG_EXT_WARP && CONFIG_SUB8X8_WARP
-    return (MOTION_MODE)(SIMPLE_TRANSLATION + motion_mode);
+  if (motion_mode_set == ALLOW_WARPED_CAUSAL && motion_mode == 1) {
+    motion_mode = WARPED_CAUSAL;
   }
+#endif  // CONFIG_EXT_WARP && CONFIG_SUB8X8_WARP
+  return motion_mode;
 }
 
 static PREDICTION_MODE read_inter_compound_mode(MACROBLOCKD *xd, aom_reader *r,

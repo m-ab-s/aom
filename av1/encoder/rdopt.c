@@ -11225,13 +11225,13 @@ static int64_t motion_mode_rd(
   av1_invalid_rd_stats(&best_rd_stats);
   aom_clear_system_state();
   mbmi->num_proj_ref = 1;  // assume num_proj_ref >=1
-  MOTION_MODE last_motion_mode_allowed = SIMPLE_TRANSLATION;
+  MOTION_MODE_SET motion_mode_set = ONLY_SIMPLE_TRANSLATION;
   if (cm->switchable_motion_mode) {
-    last_motion_mode_allowed = motion_mode_allowed(xd->global_motion, xd, mbmi,
-                                                   cm->allow_warped_motion);
+    motion_mode_set = av1_get_allowed_motion_mode_set(
+        xd->global_motion, xd, mbmi, cm->allow_warped_motion);
   }
 
-  if (last_motion_mode_allowed == WARPED_CAUSAL) {
+  if ((1 << (WARPED_CAUSAL - 1)) & motion_mode_set) {
     mbmi->num_proj_ref = av1_findSamples(cm, xd,
 #if CONFIG_ENHANCED_WARPED_MOTION
                                          &x->mbmi_ext->ref_mv_info,
@@ -11240,7 +11240,7 @@ static int64_t motion_mode_rd(
   }
   const int total_samples = mbmi->num_proj_ref;
   if (total_samples == 0) {
-    last_motion_mode_allowed = OBMC_CAUSAL;
+    motion_mode_set &= ~(1 << (WARPED_CAUSAL - 1));
   }
 #if CONFIG_DERIVED_INTRA_MODE
   mbmi->use_derived_intra_mode[0] = 0;
@@ -11261,15 +11261,17 @@ static int64_t motion_mode_rd(
           : 0;
   const int mi_row = xd->mi_row;
   const int mi_col = xd->mi_col;
-  for (int mode_index = (int)SIMPLE_TRANSLATION;
-       mode_index <= (int)last_motion_mode_allowed + interintra_allowed;
+  for (int mode_index = 0; mode_index < MOTION_MODES + interintra_allowed;
        mode_index++) {
+    if (mode_index > 0 && mode_index < MOTION_MODES) {
+      if (!(motion_mode_set & (1 << (mode_index - 1)))) continue;
+    }
     if (args->skip_motion_mode && mode_index) continue;
     if (cpi->sf.prune_single_motion_modes_by_simple_trans &&
         args->single_ref_first_pass && mode_index)
       break;
     int tmp_rate2 = rate2_nocoeff;
-    const int is_interintra_mode = mode_index > (int)last_motion_mode_allowed;
+    const int is_interintra_mode = mode_index >= MOTION_MODES;
     int tmp_rate_mv = rate_mv0;
 
     *mbmi = base_mbmi;
@@ -11283,13 +11285,6 @@ static int64_t motion_mode_rd(
     if ((cpi->oxcf.enable_obmc == 0 || cpi->sf.use_fast_nonrd_pick_mode) &&
         mbmi->motion_mode == OBMC_CAUSAL)
       continue;
-
-#if CONFIG_EXT_WARP && CONFIG_SUB8X8_WARP
-    const int is_motion_variation_allowed =
-        is_motion_variation_allowed_bsize(mbmi->sb_type, mi_row, mi_col);
-    if (mbmi->motion_mode == OBMC_CAUSAL && !is_motion_variation_allowed)
-      continue;
-#endif  // CONFIG_EXT_WARP && CONFIG_SUB8X8_WARP
 
     if (identical_obmc_mv_field_detected) {
       if (cpi->sf.skip_obmc_in_uniform_mv_field &&
@@ -11477,24 +11472,26 @@ static int64_t motion_mode_rd(
         }
       }
     }
-    if ((last_motion_mode_allowed > SIMPLE_TRANSLATION) &&
-        (mbmi->ref_frame[1] != INTRA_FRAME)) {
-      if (last_motion_mode_allowed == WARPED_CAUSAL) {
+
+    if (mbmi->ref_frame[1] != INTRA_FRAME) {
+      switch (motion_mode_set) {
+        case ONLY_SIMPLE_TRANSLATION: break;
+        case ALLOW_OBMC_CAUSAL:
+          rd_stats->rate +=
+              x->motion_mode_cost1[bsize][mbmi->motion_mode == OBMC_CAUSAL];
+          break;
 #if CONFIG_EXT_WARP && CONFIG_SUB8X8_WARP
-        int is_bs_sub8 =
-            AOMMIN(block_size_wide[bsize], block_size_high[bsize]) < 8;
-        if (is_bs_sub8) {
+        case ALLOW_WARPED_CAUSAL:
           assert(mbmi->motion_mode != OBMC_CAUSAL);
-          int motion_mode_idx = (mbmi->motion_mode == 0) ? 0 : 1;
-          rd_stats->rate += x->motion_mode_cost_low_bs[bsize][motion_mode_idx];
-        } else {
+          rd_stats->rate +=
+              x->motion_mode_cost_low_bs[bsize]
+                                        [mbmi->motion_mode == WARPED_CAUSAL];
+          break;
+#endif  // CONFIG_EXT_WARP && CONFIG_SUB8X8_WARP
+        case ALLOW_OBMC_WARPED_CAUSAL:
           rd_stats->rate += x->motion_mode_cost[bsize][mbmi->motion_mode];
-        }
-#else
-        rd_stats->rate += x->motion_mode_cost[bsize][mbmi->motion_mode];
-#endif  // CONFIG_EXT_WARP
-      } else {
-        rd_stats->rate += x->motion_mode_cost1[bsize][mbmi->motion_mode];
+          break;
+        default: assert(0);
       }
     }
 

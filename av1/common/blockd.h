@@ -1783,59 +1783,30 @@ static INLINE int check_num_overlappable_neighbors(const MB_MODE_INFO *mbmi) {
            mbmi->overlappable_neighbors[1] == 0);
 }
 
-static INLINE MOTION_MODE
-motion_mode_allowed(const WarpedMotionParams *gm_params, const MACROBLOCKD *xd,
-                    const MB_MODE_INFO *mbmi, int allow_warped_motion) {
+static INLINE MOTION_MODE_SET av1_get_allowed_motion_mode_set(
+    const WarpedMotionParams *gm_params, const MACROBLOCKD *xd,
+    const MB_MODE_INFO *mbmi, int allow_warped_motion) {
   if (xd->cur_frame_force_integer_mv == 0) {
     const TransformationType gm_type = gm_params[mbmi->ref_frame[0]].wmtype;
-    if (is_global_mv_block(mbmi, gm_type)) return SIMPLE_TRANSLATION;
+    if (is_global_mv_block(mbmi, gm_type)) return ONLY_SIMPLE_TRANSLATION;
+  }
+  if (!is_inter_mode(mbmi->mode) || mbmi->ref_frame[1] == INTRA_FRAME ||
+      !is_motion_variation_allowed_compound(mbmi) ||
+      !check_num_overlappable_neighbors(mbmi)) {
+    return ONLY_SIMPLE_TRANSLATION;
   }
   const int mi_row = -xd->mb_to_top_edge >> (3 + MI_SIZE_LOG2);
   const int mi_col = -xd->mb_to_left_edge >> (3 + MI_SIZE_LOG2);
-#if CONFIG_EXT_WARP && CONFIG_SUB8X8_WARP
   const int is_motion_variation_allowed =
       is_motion_variation_allowed_bsize(mbmi->sb_type, mi_row, mi_col);
-  if (is_inter_mode(mbmi->mode) && mbmi->ref_frame[1] != INTRA_FRAME &&
-      is_motion_variation_allowed_compound(mbmi)) {
-    if (!check_num_overlappable_neighbors(mbmi)) return SIMPLE_TRANSLATION;
-    assert(!has_second_ref(mbmi));
-    if (mbmi->num_proj_ref >= 1 &&
-        (allow_warped_motion &&
-         !av1_is_scaled(xd->block_ref_scale_factors[0]))) {
-      if (xd->cur_frame_force_integer_mv && is_motion_variation_allowed) {
-        return OBMC_CAUSAL;
-      } else if (!xd->cur_frame_force_integer_mv) {
-        return WARPED_CAUSAL;
-      } else {
-        return SIMPLE_TRANSLATION;
-      }
-    }
-    if (is_motion_variation_allowed)
-      return OBMC_CAUSAL;
-    else
-      return SIMPLE_TRANSLATION;
-  } else {
-    return SIMPLE_TRANSLATION;
-  }
-#else
-  if (is_motion_variation_allowed_bsize(mbmi->sb_type, mi_row, mi_col) &&
-      is_inter_mode(mbmi->mode) && mbmi->ref_frame[1] != INTRA_FRAME &&
-      is_motion_variation_allowed_compound(mbmi)) {
-    if (!check_num_overlappable_neighbors(mbmi)) return SIMPLE_TRANSLATION;
-    assert(!has_second_ref(mbmi));
-    if (mbmi->num_proj_ref >= 1 &&
-        (allow_warped_motion &&
-         !av1_is_scaled(xd->block_ref_scale_factors[0]))) {
-      if (xd->cur_frame_force_integer_mv) {
-        return OBMC_CAUSAL;
-      }
-      return WARPED_CAUSAL;
-    }
-    return OBMC_CAUSAL;
-  } else {
-    return SIMPLE_TRANSLATION;
-  }
+  const int allow_obmc = is_motion_variation_allowed;
+  int allow_warp = allow_warped_motion && mbmi->num_proj_ref >= 1;
+#if !CONFIG_EXT_WARP && CONFIG_SUB8X8_WARP
+  allow_warp = allow_warp && is_motion_variation_allowed;
 #endif  // CONFIG_EXT_WARP && CONFIG_SUB8X8_WARP
+  allow_warp = allow_warp && !av1_is_scaled(xd->block_ref_scale_factors[0]) &&
+               !xd->cur_frame_force_integer_mv;
+  return (allow_warp << 1) | allow_obmc;
 }
 
 static INLINE void assert_motion_mode_valid(MOTION_MODE mode,
@@ -1843,12 +1814,12 @@ static INLINE void assert_motion_mode_valid(MOTION_MODE mode,
                                             const MACROBLOCKD *xd,
                                             const MB_MODE_INFO *mbmi,
                                             int allow_warped_motion) {
-  const MOTION_MODE last_motion_mode_allowed =
-      motion_mode_allowed(gm_params, xd, mbmi, allow_warped_motion);
+  if (mode == SIMPLE_TRANSLATION) return;
 
-  // Check that the input mode is not illegal
-  if (last_motion_mode_allowed < mode)
-    assert(0 && "Illegal motion mode selected");
+  const MOTION_MODE_SET mode_set =
+      av1_get_allowed_motion_mode_set(gm_params, xd, mbmi, allow_warped_motion);
+  (void)mode_set;
+  assert((1 << (mode - 1)) & mode_set);
 }
 
 static INLINE int is_neighbor_overlappable(const MB_MODE_INFO *mbmi) {

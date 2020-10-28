@@ -482,45 +482,18 @@ static void write_is_inter(const AV1_COMMON *cm, const MACROBLOCKD *xd,
 
 static void write_motion_mode(const AV1_COMMON *cm, MACROBLOCKD *xd,
                               const MB_MODE_INFO *mbmi, aom_writer *w) {
-  MOTION_MODE last_motion_mode_allowed =
-      cm->switchable_motion_mode
-          ? motion_mode_allowed(cm->global_motion, xd, mbmi,
-                                cm->allow_warped_motion)
-          : SIMPLE_TRANSLATION;
-  assert(mbmi->motion_mode <= last_motion_mode_allowed);
-  switch (last_motion_mode_allowed) {
-    case SIMPLE_TRANSLATION: break;
-    case OBMC_CAUSAL:
-      aom_write_symbol(w, mbmi->motion_mode == OBMC_CAUSAL,
-                       xd->tile_ctx->obmc_cdf[mbmi->sb_type], 2);
-      break;
-    default: {
+  const MOTION_MODE_SET motion_mode_set = av1_get_allowed_motion_mode_set(
+      xd->global_motion, xd, mbmi, cm->allow_warped_motion);
+  if (motion_mode_set == ONLY_SIMPLE_TRANSLATION) return;
+  int num_modes = 0;
+  aom_cdf_prob *cdf = av1_get_motion_mode_cdf(xd, motion_mode_set, &num_modes);
+  int symbol = mbmi->motion_mode;
 #if CONFIG_EXT_WARP && CONFIG_SUB8X8_WARP
-      BLOCK_SIZE bsize = mbmi->sb_type;
-      int is_bs_sub8 =
-          AOMMIN(block_size_wide[bsize], block_size_high[bsize]) < 8;
-      if (is_bs_sub8) {
-        // If  AOMMIN(block_size_wide[bsize], block_size_high[bsize]) < 8 only
-        // SIMPLE_TRANSLATION and WARPED_CAUSAL are the valid motion modes.
-        assert(mbmi->motion_mode == SIMPLE_TRANSLATION ||
-               mbmi->motion_mode == WARPED_CAUSAL);
-        // If mbmi->motion_mode = SIMPLE_TRANSLATION signal 0
-        // If mbmi->motion_mode = WARPED_CAUSAL signal 1
-        int motion_mode_signal = (mbmi->motion_mode == 0) ? 0 : 1;
-        aom_write_symbol(w, motion_mode_signal,
-                         xd->tile_ctx->warp_cdf[mbmi->sb_type], 2);
-      } else {
-        aom_write_symbol(w, mbmi->motion_mode,
-                         xd->tile_ctx->motion_mode_cdf[mbmi->sb_type],
-                         MOTION_MODES);
-      }
-#else
-      aom_write_symbol(w, mbmi->motion_mode,
-                       xd->tile_ctx->motion_mode_cdf[mbmi->sb_type],
-                       MOTION_MODES);
-#endif  // CONFIG_EXT_WARP && CONFIG_SUB8X8_WARP
-    }
+  if (motion_mode_set == ALLOW_WARPED_CAUSAL) {
+    symbol = mbmi->motion_mode == WARPED_CAUSAL;
   }
+#endif  // CONFIG_EXT_WARP && CONFIG_SUB8X8_WARP
+  aom_write_symbol(w, symbol, cdf, num_modes);
 }
 
 static void write_delta_qindex(const MACROBLOCKD *xd, int delta_qindex,

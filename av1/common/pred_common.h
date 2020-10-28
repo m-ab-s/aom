@@ -375,6 +375,31 @@ static INLINE int get_tx_size_context(const MACROBLOCKD *xd) {
     return 0;
 }
 
+static INLINE aom_cdf_prob *av1_get_motion_mode_cdf(
+    const MACROBLOCKD *xd, MOTION_MODE_SET motion_mode_set, int *num_modes) {
+  aom_cdf_prob *cdf = NULL;
+  const MB_MODE_INFO *const mbmi = xd->mi[0];
+  const BLOCK_SIZE bsize = mbmi->sb_type;
+  switch (motion_mode_set) {
+    case ALLOW_OBMC_CAUSAL:
+      cdf = xd->tile_ctx->obmc_cdf[bsize];
+      *num_modes = 2;
+      break;
+#if CONFIG_EXT_WARP && CONFIG_SUB8X8_WARP
+    case ALLOW_WARPED_CAUSAL:
+      cdf = xd->tile_ctx->warp_cdf[bsize];
+      *num_modes = 2;
+      break;
+#endif  // CONFIG_EXT_WARP && CONFIG_SUB8X8_WARP
+    case ALLOW_OBMC_WARPED_CAUSAL:
+      cdf = xd->tile_ctx->motion_mode_cdf[bsize];
+      *num_modes = 3;
+      break;
+    default: assert(0 && "invalid motion mode set");
+  }
+  return cdf;
+}
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif

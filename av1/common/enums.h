@@ -724,6 +724,14 @@ enum {
   MOTION_MODES
 } UENUM1BYTE(MOTION_MODE);
 
+// The 2 LSBs indicate if obmc and warped motion is allowed, respectively.
+enum {
+  ONLY_SIMPLE_TRANSLATION,
+  ALLOW_OBMC_CAUSAL,
+  ALLOW_WARPED_CAUSAL,
+  ALLOW_OBMC_WARPED_CAUSAL
+} UENUM1BYTE(MOTION_MODE_SET);
+
 enum {
   II_DC_PRED,
   II_V_PRED,

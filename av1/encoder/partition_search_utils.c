@@ -1714,42 +1714,24 @@ static INLINE void update_inter_stats(const AV1_COMMON *const cm,
       }
 
       set_ref_ptrs(cm, xd, mbmi->ref_frame[0], mbmi->ref_frame[1]);
-      const MOTION_MODE motion_allowed =
-          cm->switchable_motion_mode
-              ? motion_mode_allowed(xd->global_motion, xd, mbmi,
-                                    cm->allow_warped_motion)
-              : SIMPLE_TRANSLATION;
-      if (mbmi->ref_frame[1] != INTRA_FRAME) {
-        if (motion_allowed == WARPED_CAUSAL) {
-#if CONFIG_ENTROPY_STATS
-          counts->motion_mode[bsize][mbmi->motion_mode]++;
-#endif  // CONFIG_ENTROPY_STATS
-          if (allow_update_cdf) {
+
+      if (allow_update_cdf) {
+        const MOTION_MODE_SET motion_mode_set =
+            cm->switchable_motion_mode
+                ? av1_get_allowed_motion_mode_set(xd->global_motion, xd, mbmi,
+                                                  cm->allow_warped_motion)
+                : ONLY_SIMPLE_TRANSLATION;
+        if (motion_mode_set != ONLY_SIMPLE_TRANSLATION) {
+          int num_modes = 0;
+          aom_cdf_prob *cdf =
+              av1_get_motion_mode_cdf(xd, motion_mode_set, &num_modes);
+          int symbol = mbmi->motion_mode;
 #if CONFIG_EXT_WARP && CONFIG_SUB8X8_WARP
-            int is_bs_sub8 =
-                AOMMIN(block_size_wide[bsize], block_size_high[bsize]) < 8;
-            if (is_bs_sub8) {
-              assert(mbmi->motion_mode == SIMPLE_TRANSLATION ||
-                     mbmi->motion_mode == WARPED_CAUSAL);
-              update_cdf(fc->warp_cdf[bsize], (mbmi->motion_mode == 0) ? 0 : 1,
-                         2);
-            } else {
-              update_cdf(fc->motion_mode_cdf[bsize], mbmi->motion_mode,
-                         MOTION_MODES);
-            }
-#else
-            update_cdf(fc->motion_mode_cdf[bsize], mbmi->motion_mode,
-                       MOTION_MODES);
+          if (motion_mode_set == ALLOW_WARPED_CAUSAL) {
+            symbol = mbmi->motion_mode == WARPED_CAUSAL;
+          }
 #endif  // CONFIG_EXT_WARP && CONFIG_SUB8X8_WARP
-          }
-        } else if (motion_allowed == OBMC_CAUSAL) {
-#if CONFIG_ENTROPY_STATS
-          counts->obmc[bsize][mbmi->motion_mode == OBMC_CAUSAL]++;
-#endif  // CONFIG_ENTROPY_STATS
-          if (allow_update_cdf) {
-            update_cdf(fc->obmc_cdf[bsize], mbmi->motion_mode == OBMC_CAUSAL,
-                       2);
-          }
+          update_cdf(cdf, symbol, num_modes);
         }
       }
 
