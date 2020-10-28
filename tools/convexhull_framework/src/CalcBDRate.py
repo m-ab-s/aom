@@ -31,6 +31,7 @@ def BD_RATE(br1, qtyMtrc1, br2, qtyMtrc2):
         logger.info("one of input lists is empty!")
         return 0.0
 
+    # sort the pair based on quality metric values increasing order
     brqtypairs1.sort(key=lambda tup: tup[1])
     brqtypairs2.sort(key=lambda tup: tup[1])
 
@@ -39,16 +40,29 @@ def BD_RATE(br1, qtyMtrc1, br2, qtyMtrc2):
     logbr2 = [math.log(x[0]) for x in brqtypairs2]
     qmetrics2 = [100.0 if x[1] == float('inf') else x[1] for x in brqtypairs2]
 
+    # remove duplicated quality metric value
+    dup_idx = [i for i in range(1, len(qmetrics1)) if qmetrics1[i - 1] == qmetrics1[i]]
+    for idx in sorted(dup_idx, reverse=True):
+        del qmetrics1[idx]
+        del logbr1[idx]
+    dup_idx = [i for i in range(1, len(qmetrics2)) if qmetrics2[i - 1] == qmetrics2[i]]
+    for idx in sorted(dup_idx, reverse=True):
+        del qmetrics2[idx]
+        del logbr2[idx]
+
+    # find max and min of quality metrics
     min_int = max(min(qmetrics1), min(qmetrics2))
     max_int = min(max(qmetrics1), max(qmetrics2))
     if min_int >= max_int:
         logger.info("no overlap from input 2 lists of quality metrics!")
         return 0.0
 
+    # generate samples between max and min of quality metrics
     lin = numpy.linspace(min_int, max_int, num=100, retstep=True)
     interval = lin[1]
     samples = lin[0]
 
+    # interpolation
     v1 = scipy.interpolate.pchip_interpolate(qmetrics1, logbr1, samples)
     v2 = scipy.interpolate.pchip_interpolate(qmetrics2, logbr2, samples)
 
@@ -61,3 +75,14 @@ def BD_RATE(br1, qtyMtrc1, br2, qtyMtrc2):
     avg_diff = (math.exp(avg_exp_diff) - 1) * 100
 
     return avg_diff
+
+'''
+if __name__ == "__main__":
+    brs1 = [64052.664, 6468.096, 4673.424, 3179.4, 2298.384, 1361.184]
+    qtys1 = [1, 1, 0.99999, 0.99998, 0.99996, 0.99992]
+    brs2 = [68461.896, 7554.96, 4827.432, 3294.024, 2380.128, 1401.744]
+    qtys2 = [1, 1, 0.99999, 0.99998, 0.99996, 0.99992]
+
+    bdrate = BD_RATE(brs1, qtys1, brs2, qtys2)
+    print("bdrate calculated is %3.3f%%" % bdrate)
+'''
