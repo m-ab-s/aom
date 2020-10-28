@@ -14,7 +14,8 @@ import os
 import xlsxwriter
 import xlrd
 from Config import QPs, DnScaleRatio, QualityList, VbaBinFile, CvxH_WtRows,\
-    CvxH_WtLastCol, LoggerName, CalcBDRateInExcel, CvxH_WtCols
+    CvxH_WtLastCol, LoggerName, CalcBDRateInExcel, CvxH_WtCols, CvxHDataRows, CvxHDataStartRow, \
+    CvxHDataStartCol
 from Utils import GetShortContentName, CalcRowsClassAndContentDict,\
     SweepScalingAlgosInOneResultFile
 from CalcBDRate import BD_RATE
@@ -30,19 +31,18 @@ logger = logging.getLogger(loggername)
 
 ################################################################################
 ### Helper Functions ###########################################################
-def GetSummaryFileName(encMethod, codecName, preset, path):
+def GetRDSummaryFileName(encMethod, codecName, preset, path):
     filetype = 'xlsm' if CalcBDRateInExcel else 'xlsx'
-    name = 'ConvexHullSummary_ScaleAlgosNum_%d_%s_%s_%s.%s'\
+    name = 'ConvexHullRDSummary_ScaleAlgosNum_%d_%s_%s_%s.%s'\
            % (len(DnScaleRatio), encMethod, codecName, preset, filetype)
     return os.path.join(path, name)
 
-def GetConvexHullRDFileName(encMethod, codecName, preset, path):
-    name = 'ConvexHullRD_ScaleAlgosNum_%d_%s_%s_%s.xlsx'\
+def GetConvexHullDataSummaryFileName(encMethod, codecName, preset, path):
+    name = 'ConvexHullData_ScaleAlgosNum_%d_%s_%s_%s.xlsx'\
            % (len(DnScaleRatio), encMethod, codecName, preset)
     return os.path.join(path, name)
 
-def CopyResultDataToSummaryFile_Onesheet(sht, wt_cols, contentsdict, rows_class,
-                                         infile_path):
+def CopyResultDataToSummaryFile_Onesheet(sht, wt_cols, infile_path):
     rdrows = CvxH_WtRows
     rd_endcol = CvxH_WtLastCol
 
@@ -59,7 +59,7 @@ def CopyResultDataToSummaryFile_Onesheet(sht, wt_cols, contentsdict, rows_class,
     # copy the results data from each content's result file to corresponding
     # location in summary excel file
     resultfiles = os.listdir(infile_path)
-    for (cls, contents), row_class in zip(contentsdict.items(), rows_class):
+    for (cls, contents), row_class in zip(ContentsDict.items(), Rows_Class):
         sht.write(row_class, 0, cls)
         rows_content = [i * len(QPs) for i in range(len(contents))]
         for content, row_cont in zip(contents, rows_content):
@@ -79,14 +79,14 @@ def CopyResultDataToSummaryFile_Onesheet(sht, wt_cols, contentsdict, rows_class,
                 logger.warning("not find convex hull result file for content:%s"
                                % content)
 
-def CalBDRateWithExcel_OneSheet(sht, cols, contentsdict, rows_class, cols_bdmtrs, cellformat):
+def CalBDRateWithExcel_OneSheet(sht, cols, cols_bdmtrs, cellformat):
     row_refst = 0
     bdstep = 3
     for cols_bd, residx in zip(cols_bdmtrs, range(1, len(DnScaleRatio))):
         sht.write(0, cols_bd, 'BD-Rate %.2f vs. %.2f' % (DnScaleRatio[residx],
                                                          DnScaleRatio[0]))
         sht.write_row(1, cols_bd, QualityList)
-        for (cls, contents), row_class in zip(contentsdict.items(), rows_class):
+        for (cls, contents), row_class in zip(ContentsDict.items(), Rows_Class):
             rows_content = [i * len(QPs) for i in range(len(contents))]
             for row_cont in rows_content:
                 for y in range(len(QualityList)):
@@ -118,7 +118,7 @@ def CalBDRateWithExcel_OneSheet(sht, cols, contentsdict, rows_class, cols_bdmtrs
                                       cellformat)
 
 
-def CalBDRateWithPython_OneSheet(sht, contentsdict, rows_class, cols_bdmtrs, infile_path, cellformat):
+def CalBDRateWithPython_OneSheet(sht, cols_bdmtrs, infile_path, cellformat):
     row_refst = 0
     bdstep = 3
     assert row_refst + bdstep < len(CvxH_WtRows)
@@ -130,7 +130,7 @@ def CalBDRateWithPython_OneSheet(sht, contentsdict, rows_class, cols_bdmtrs, inf
         sht.write(0, cols_bd, 'BD-Rate %.2f vs. %.2f' % (DnScaleRatio[residx],
                                                          DnScaleRatio[0]))
         sht.write_row(1, cols_bd, QualityList)
-        for (cls, contents), row_class in zip(contentsdict.items(), rows_class):
+        for (cls, contents), row_class in zip(ContentsDict.items(), Rows_Class):
             rows_content = [i * len(QPs) for i in range(len(contents))]
             for row_cont, content in zip(rows_content, contents):
                 key = GetShortContentName(content)
@@ -166,7 +166,7 @@ def GenerateFormula_SumRows_Weighted(rows, col, weight_rows, weight_col, num):
     formula = '=SUM(%s)/%d' % (cells, num)
     return formula
 
-def WriteBitrateQtyAverageSheet(wb, rdshts, contentsdict, rd_rows_class, rdcols):
+def WriteBitrateQtyAverageSheet(wb, rdshts, rdcols):
     avg_sht = wb.add_worksheet('Average')
     avg_sht.write(2, 0, 'Content Class')
     avg_sht.write(2, 1, 'Content Number')
@@ -194,11 +194,11 @@ def WriteBitrateQtyAverageSheet(wb, rdshts, contentsdict, rd_rows_class, rdcols)
 
     startrow = 3
     step = len(QPs)
-    rows_class_avg = [startrow + step * i for i in range(len(contentsdict))]
+    rows_class_avg = [startrow + step * i for i in range(len(ContentsDict))]
     totalnum_content = 0
-    for (cls, contents), row_class, rdclassrow in zip(contentsdict.items(),
+    for (cls, contents), row_class, rdclassrow in zip(ContentsDict.items(),
                                                       rows_class_avg,
-                                                      rd_rows_class):
+                                                      Rows_Class):
         avg_sht.write(row_class, 0, cls)
         totalnum_content = totalnum_content + len(contents)
         avg_sht.write(row_class, 1, len(contents))
@@ -258,8 +258,7 @@ def WriteBitrateQtyAverageSheet(wb, rdshts, contentsdict, rd_rows_class, rdcols)
                 if residx == 0:
                     break
 
-def WriteBDRateAverageSheet(wb, rdshts, contentsdict, rd_rows_class,
-                            rd_cols_bdmtrs, cellformat):
+def WriteBDRateAverageSheet(wb, rdshts, rd_cols_bdmtrs, cellformat):
     # write bdrate average sheet
     bdavg_sht = wb.add_worksheet('Average_BDRate')
     bdavg_sht.write(2, 0, 'Content Class')
@@ -274,7 +273,7 @@ def WriteBDRateAverageSheet(wb, rdshts, contentsdict, rd_rows_class,
     cols_upscl_bd = [step_upscl * i for i in range(len(upScalAlgos))]
     step_res = len(upScalAlgos) * step_upscl + colintval_dnscalres
     cols_res_bd = [step_res * i + startcol for i in range(len(DnScaleRatio) - 1)]
-    rows_class_rdavg = [startrow + i for i in range(len(contentsdict))]
+    rows_class_rdavg = [startrow + i for i in range(len(ContentsDict))]
 
     for residx, col_res_bd in zip(range(1, len(DnScaleRatio)), cols_res_bd):
         bdavg_sht.write(0, col_res_bd, 'BD-Rate %.2f vs. %.2f'
@@ -284,9 +283,9 @@ def WriteBDRateAverageSheet(wb, rdshts, contentsdict, rd_rows_class,
             bdavg_sht.write_row(2, col_res_bd + col_upscl_bd, QualityList)
 
     totalnum_content = 0
-    for (cls, contents), row_class, rdclassrow in zip(contentsdict.items(),
+    for (cls, contents), row_class, rdclassrow in zip(ContentsDict.items(),
                                                       rows_class_rdavg,
-                                                      rd_rows_class):
+                                                      Rows_Class):
         bdavg_sht.write(row_class, 0, cls)
         totalnum_content = totalnum_content + len(contents)
         bdavg_sht.write(row_class, 1, len(contents))
@@ -333,7 +332,7 @@ def WriteBDRateAverageSheet(wb, rdshts, contentsdict, rd_rows_class,
 # summary_outpath  is the folder where output summary file will be
 # note: all results files under infile_path should have exactly same test items
 # before running this summary script
-def GenerateSummaryExcelFile(encMethod, codecName, preset, summary_outpath,
+def GenerateSummaryRDDataExcelFile(encMethod, codecName, preset, summary_outpath,
                              infile_path, content_path, clips):
     global dnScalAlgos, upScalAlgos
     # find all scaling algos tested in results file, expect they are the same
@@ -342,7 +341,7 @@ def GenerateSummaryExcelFile(encMethod, codecName, preset, summary_outpath,
 
     if not os.path.exists(summary_outpath):
         os.makedirs(summary_outpath)
-    smfile = GetSummaryFileName(encMethod, codecName, preset, summary_outpath)
+    smfile = GetRDSummaryFileName(encMethod, codecName, preset, summary_outpath)
     wb = xlsxwriter.Workbook(smfile)
 
     # shts is for all scaling algorithms' convex hull test results
@@ -358,14 +357,15 @@ def GenerateSummaryExcelFile(encMethod, codecName, preset, summary_outpath,
     colstart = 3
     colInterval = 2
     rowstart = 2
-
+    # to generate rows number of starting of each class: Rows_Class
+    global ContentsDict, Rows_Class
+    ContentsDict, Rows_Class = CalcRowsClassAndContentDict(rowstart,
+                                                           content_path,
+                                                           clips, len(QPs))
     # cols is column number of results files
     step = colInterval + 1 + len(QualityList)  # 1 is for bitrate
     sum_wtcols = [step * i + colstart for i in range(len(DnScaleRatio))]
-    # to generate rows number of starting of each class: rows_class
-    contentsdict, rows_class = CalcRowsClassAndContentDict(rowstart,
-                                                           content_path,
-                                                           clips, len(QPs))
+
     if CalcBDRateInExcel:
         wb.add_vba_project(VbaBinFile)
     cellformat = wb.add_format()
@@ -377,49 +377,98 @@ def GenerateSummaryExcelFile(encMethod, codecName, preset, summary_outpath,
     # -1 because first resolution is used as reference
 
     for sht in shts:
-        CopyResultDataToSummaryFile_Onesheet(sht, sum_wtcols, contentsdict,
-                                             rows_class, infile_path)
+        CopyResultDataToSummaryFile_Onesheet(sht, sum_wtcols, infile_path)
         # calculate bd rate in each scaling sheet
         if CalcBDRateInExcel:
-            CalBDRateWithExcel_OneSheet(sht, sum_wtcols, contentsdict, rows_class,
-                                        cols_bdmtrs, cellformat)
+            CalBDRateWithExcel_OneSheet(sht, sum_wtcols, cols_bdmtrs, cellformat)
         else:
-            CalBDRateWithPython_OneSheet(sht, contentsdict, rows_class, cols_bdmtrs,
-                                         infile_path, cellformat)
+            CalBDRateWithPython_OneSheet(sht, cols_bdmtrs, infile_path, cellformat)
 
     # calculate average bitrate and quality metrics for each category and
     # write to "average" sheet
-    WriteBitrateQtyAverageSheet(wb, shts, contentsdict, rows_class, sum_wtcols)
+    WriteBitrateQtyAverageSheet(wb, shts, sum_wtcols)
 
     # calculate average bd metrics and write to a new sheet
-    WriteBDRateAverageSheet(wb, shts, contentsdict, rows_class, cols_bdmtrs,
-                            cellformat)
+    WriteBDRateAverageSheet(wb, shts, cols_bdmtrs, cellformat)
 
     wb.close()
     return smfile
 
 def GenerateSummaryConvexHullExcelFile(encMethod, codecName, preset,
-                                       summary_outpath, DnScalingAlgos,
-                                       UpScalingAlgos):
+                                       summary_outpath, infile_path):
     if not os.path.exists(summary_outpath):
         os.makedirs(summary_outpath)
-    smfile = GetConvexHullRDFileName(encMethod, codecName, preset,
+    smfile = GetConvexHullDataSummaryFileName(encMethod, codecName, preset,
                                      summary_outpath)
-    sum_wb = xlsxwriter.Workbook(smfile)
+    wb = xlsxwriter.Workbook(smfile)
 
     # shts is for all scaling algorithms' convex hull test results
-    sum_start_row = {}
-    #write the header in each sheet
-    for dnsc, upsc in zip(DnScalingAlgos, UpScalingAlgos):
+    shts = []
+    cols = [3 + i * 4 for i in range(len(QualityList))]
+    for dnsc, upsc in zip(dnScalAlgos, upScalAlgos):
         shtname = dnsc + '--' + upsc
-        sht = sum_wb.add_worksheet(shtname)
+        sht = wb.add_worksheet(shtname)
+        shts.append(sht)
+        # write headers
         sht.write(0, 0, 'Content Class')
         sht.write(0, 1, 'Content Name')
         sht.write(0, 2, 'Num RD Points')
-        col = 3
-        for qty in QualityList:
-            sht.write(0, col, 'Bitrate(kbps)')
-            sht.write(0, col + 1, qty)
-            col += 2
-        sum_start_row[shtname] = 1
-    return sum_wb, sum_start_row
+
+        for qty, col in zip(QualityList, cols):
+            sht.write(0, col,     'Resolution')
+            sht.write(0, col + 1, 'QP')
+            sht.write(0, col + 2, 'Bitrate(kbps)')
+            sht.write(0, col + 3,  qty)
+
+        # copy convexhull data from each content's result file to corresponding
+        # location in summary excel file
+        resultfiles = os.listdir(infile_path)
+        row = 1
+        for (cls, contents) in ContentsDict.items():
+            sht.write(row, 0, cls)
+            for content in contents:
+                key = GetShortContentName(content)
+                sht.write(row, 1, key)
+                for resfile in resultfiles:
+                    if key in resfile:
+                        rdwb = xlrd.open_workbook(os.path.join(infile_path, resfile))
+                        rdsht = rdwb.sheet_by_name(shtname)
+                        maxNumQty = 0
+                        for rdrow, col in zip(CvxHDataRows, cols):
+                            qtys = []; brs = []; qps = []; ress = []
+                            numQty = 0
+                            for qty in rdsht.row_values(rdrow)[1:]:
+                                if qty == '':
+                                    break
+                                else:
+                                    qtys.append(qty)
+                                    numQty = numQty + 1
+                            maxNumQty = max(maxNumQty, numQty)
+
+                            for br in rdsht.row_values(rdrow + 1)[1:]:
+                                if br == '':
+                                    break
+                                else:
+                                    brs.append(br)
+                            for qp in rdsht.row_values(rdrow + 2)[1:]:
+                                if qp == '':
+                                    break
+                                else:
+                                    qps.append(qp)
+                            for res in rdsht.row_values(rdrow + 3)[1:]:
+                                if res == '':
+                                    break
+                                else:
+                                    ress.append(res)
+
+                            sht.write_column(row, col, ress)
+                            sht.write_column(row, col + 1, qps)
+                            sht.write_column(row, col + 2, brs)
+                            sht.write_column(row, col + 3, qtys)
+
+                        sht.write(row, 2, maxNumQty)
+                        row = row + maxNumQty
+                        break
+
+    wb.close()
+    return smfile

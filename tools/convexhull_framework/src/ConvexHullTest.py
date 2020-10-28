@@ -21,7 +21,7 @@ from Utils import GetShortContentName, GetVideoInfo, CreateChart_Scatter,\
      AddSeriesToChart_Scatter, InsertChartsToSheet, CreateNewSubfolder,\
      GetContents, SetupLogging, UpdateChart, AddSeriesToChart_Scatter_Rows,\
      Cleanfolder
-from PostAnalysis_Summary import GenerateSummaryExcelFile,\
+from PostAnalysis_Summary import GenerateSummaryRDDataExcelFile,\
      GenerateSummaryConvexHullExcelFile
 from ScalingTest import Run_Scaling_Test, SaveScalingResultsToExcel
 import Utils
@@ -29,7 +29,7 @@ from Config import LogLevels, FrameNum, DnScaleRatio, QPs, CvxH_WtCols,\
      CvxH_WtRows, QualityList, LineColors, DnScalingAlgos, UpScalingAlgos,\
      ContentPath, SummaryOutPath, WorkPath, Path_RDResults, Clips, \
      ConvexHullColor, EncodeMethods, CodecNames, LoggerName, LogCmdOnly, \
-     TargetQtyMetrics, CvxHDataStartCol
+     TargetQtyMetrics, CvxHDataRows, CvxHDataStartRow, CvxHDataStartCol, CvxHDataNum
 
 ###############################################################################
 ##### Helper Functions ########################################################
@@ -121,43 +121,39 @@ def LookUpQPAndResolutionInConvexHull(qtyvals, qtyhull, qtycvhQPs, qtycvhRes):
     return qtyQPs, qtyRes
 
 
-def AddConvexHullCurveToCharts(sht, startrow, startcol, charts, rdPoints,
-                               dnScaledRes, sum_sht, sum_start_row, tgtqmetrics):
+def AddConvexHullCurveToCharts(sht, charts, rdPoints, dnScaledRes, tgtqmetrics):
     shtname = sht.get_name()
-    sht.write(startrow, startcol, "ConvexHull Data")
-    numitems = 5  # qty, bitrate, qp, resolution, 1 empty row as internal
-    rows = [startrow + 1 + numitems * i for i in range(len(QualityList))]
+    sht.write(CvxHDataStartRow, CvxHDataStartCol, "ConvexHull Data")
 
     hull = {}; cvh_QPs = {}; cvh_Res_txt = {}
     max_len = 0
 
-    for qty, idx, row in zip(QualityList, range(len(QualityList)), rows):
+    for qty, idx, row in zip(QualityList, range(len(QualityList)), CvxHDataRows):
         lower, upper = convex_hull(rdPoints[idx])
         hull[qty] = upper
         max_len = max(max_len, len(upper))
-        sht.write(row, startcol, qty)
-        sht.write(row + 1, startcol, "Bitrate(kbps)")
-        sht.write(row + 2, startcol, "QP")
-        sht.write(row + 3, startcol, 'Resolution')
+        sht.write(row, CvxHDataStartCol, qty)
+        sht.write(row + 1, CvxHDataStartCol, "Bitrate(kbps)")
+        sht.write(row + 2, CvxHDataStartCol, "QP")
+        sht.write(row + 3, CvxHDataStartCol, 'Resolution')
 
         brts = [h[0] for h in hull[qty]]
         qtys = [h[1] for h in hull[qty]]
-        sht.write_row(row, startcol + 1, qtys)
-        sht.write_row(row + 1, startcol + 1, brts)
+        sht.write_row(row, CvxHDataStartCol + 1, qtys)
+        sht.write_row(row + 1, CvxHDataStartCol + 1, brts)
 
         rdpnts_qtys = [rd[1] for rd in rdPoints[idx]]
         cvh_qidxs = [rdpnts_qtys.index(qty) for qty in qtys]
         cvh_QPs[qty] = [QPs[i % len(QPs)] for i in cvh_qidxs]
         cvh_Res = [dnScaledRes[i // len(QPs)] for i in cvh_qidxs]
         cvh_Res_txt[qty] = ["%sx%s" % (x, y) for (x, y) in cvh_Res]
-        sht.write_row(row + 2, startcol + 1, cvh_QPs[qty])
-        sht.write_row(row + 3, startcol + 1, cvh_Res_txt[qty])
+        sht.write_row(row + 2, CvxHDataStartCol + 1, cvh_QPs[qty])
+        sht.write_row(row + 3, CvxHDataStartCol + 1, cvh_Res_txt[qty])
 
-        cols = [startcol + 1 + i for i in range(len(hull[qty]))]
+        cols = [CvxHDataStartCol + 1 + i for i in range(len(hull[qty]))]
         AddSeriesToChart_Scatter_Rows(shtname, cols, row, row + 1, charts[idx],
                                       'ConvexHull', ConvexHullColor)
-
-    endrow = rows[-1] + numitems
+    endrow = CvxHDataRows[-1] + CvxHDataNum
 
     # find out QP/resolution for given qty metric and qty value
     startrow_fdout = endrow + 1
@@ -183,20 +179,7 @@ def AddConvexHullCurveToCharts(sht, startrow, startcol, charts, rdPoints,
         sht.write_row(startrow + 2, CvxHDataStartCol + 1, qtyRes)
         endrow = startrow + 3
 
-    #add convex hull data into summary sheet. the length of each convex hull
-    #could be different
-    sum_row = sum_start_row
-    sum_sht.write(sum_row, 2, max_len)
-    sum_col = 3
-    for qty in QualityList:
-        row = sum_row
-        for point in hull[qty]:
-            sum_sht.write(row, sum_col, point[0])
-            sum_sht.write(row, sum_col + 1, point[1])
-            row += 1
-        sum_col += 2
-
-    return endrow, sum_start_row + max_len - 1
+    return endrow
 
 ###############################################################################
 ######### Major Functions #####################################################
@@ -251,8 +234,7 @@ def Run_ConvexHull_Test(content, dnScalAlgo, upScalAlgo):
 
     Utils.Logger.info("finish running encode test.")
 
-def SaveConvexHullResultsToExcel(content, dnScAlgos, upScAlgos, sum_wb,
-                                 sum_start_row):
+def SaveConvexHullResultsToExcel(content, dnScAlgos, upScAlgos):
     Utils.Logger.info("start saving RD results to excel file.......")
     if not os.path.exists(Path_RDResults):
         os.makedirs(Path_RDResults)
@@ -271,7 +253,6 @@ def SaveConvexHullResultsToExcel(content, dnScAlgos, upScAlgos, sum_wb,
         sht.write(1, 0, "QP")
         sht.write_column(CvxH_WtRows[0], 0, QPs)
         shtname = sht.get_name()
-        sum_sht = sum_wb.get_worksheet_by_name(shtname)
 
         charts = [];  y_mins = {}; y_maxs = {}; RDPoints = {}
         for qty, x in zip(QualityList, range(len(QualityList))):
@@ -319,16 +300,8 @@ def SaveConvexHullResultsToExcel(content, dnScAlgos, upScAlgos, sum_wb,
                 RDPoints[x] = RDPoints[x] + rdpnts
 
         # add convexhull curve to charts
-        startrow = CvxH_WtRows[-1] + 2; startcol = 0
-
-        sum_startrow = sum_start_row[shtname]
-        sum_sht.write(sum_startrow, 0, cls)
-        sum_sht.write(sum_startrow, 1, contentname)
-        endrow, sum_end_row = AddConvexHullCurveToCharts(sht, startrow, startcol,
-                                                         charts, RDPoints,
-                                                         DnScaledRes, sum_sht,
-                                                         sum_startrow, TargetQtyMetrics)
-        sum_start_row[shtname] = sum_end_row + 1
+        endrow = AddConvexHullCurveToCharts(sht, charts, RDPoints, DnScaledRes,
+                                            TargetQtyMetrics)
 
         #update RD chart with approprate y axis range
         for qty, x in zip(QualityList, range(len(QualityList))):
@@ -343,6 +316,7 @@ def SaveConvexHullResultsToExcel(content, dnScAlgos, upScAlgos, sum_wb,
 
     wb.close()
     Utils.Logger.info("finish export convex hull results to excel file.")
+
 
 def ParseArguments(raw_args):
     parser = argparse.ArgumentParser(prog='ConvexHullTest.py',
@@ -423,20 +397,17 @@ if __name__ == "__main__":
             for dnScalAlgo, upScalAlgo in zip(DnScalingAlgos, UpScalingAlgos):
                 Run_ConvexHull_Test(content, dnScalAlgo, upScalAlgo)
     elif Function == 'convexhull':
-        sum_wb, sum_start_row = GenerateSummaryConvexHullExcelFile(EncodeMethod,
-                                                                   CodecName,
-                                                                   EncodePreset,
-                                                                   SummaryOutPath,
-                                                                   DnScalingAlgos,
-                                                                   UpScalingAlgos)
         for content in Contents:
-            SaveConvexHullResultsToExcel(content, DnScalingAlgos, UpScalingAlgos,
-                                         sum_wb, sum_start_row)
-        sum_wb.close()
+            SaveConvexHullResultsToExcel(content, DnScalingAlgos, UpScalingAlgos)
+
     elif Function == 'summary':
-        smfile = GenerateSummaryExcelFile(EncodeMethod, CodecName, EncodePreset,
-                                          SummaryOutPath, Path_RDResults,
-                                          ContentPath, Clips)
-        Utils.Logger.info("summary file generated: %s" % smfile)
+        RDsmfile = GenerateSummaryRDDataExcelFile(EncodeMethod, CodecName, EncodePreset,
+                                                  SummaryOutPath, Path_RDResults,
+                                                  ContentPath, Clips)
+        Utils.Logger.info("RD data summary file generated: %s" % RDsmfile)
+
+        CvxHsmfile = GenerateSummaryConvexHullExcelFile(EncodeMethod, CodecName, EncodePreset,
+                                                       SummaryOutPath, Path_RDResults)
+        Utils.Logger.info("Convel hull summary file generated: %s" % CvxHsmfile)
     else:
         Utils.Logger.error("invalid parameter value of Function")

@@ -138,7 +138,9 @@ CvxH_WtLastCol = CvxH_WtCols[-1] + len(QualityList)
 CvxH_WtLastRow = CvxH_WtRows[-1]
 
 # format for writing convexhull curve data
-CvxHDataStartCol = 0
+CvxHDataStartRow = CvxH_WtRows[-1] + 2; CvxHDataStartCol = 0
+CvxHDataNum = 5  # qty, bitrate, qp, resolution, 1 empty row as internal
+CvxHDataRows = [CvxHDataStartRow + 1 + CvxHDataNum * i for i in range(len(QualityList))]
 
 ######################## post analysis #########################################
 PostAnalysis_Path = os.path.join(RootPath, 'analysis')

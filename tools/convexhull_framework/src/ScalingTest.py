@@ -156,8 +156,7 @@ def GeneratePerContentExcelFile(dnScalAlgos, upScalAlgos, content, scaleRatios,
     wb.close()
     logger.info("finish export scaling quality results to excel file.")
 
-def GenerateSummarySheet(wb, dnScalAlgos, upScalAlgos, ratio, contentsdict,
-                         rows_class, path_log):
+def GenerateSummarySheet(wb, dnScalAlgos, upScalAlgos, ratio, path_log):
     logger.info("start generate summary sheet for ratio %2.2f" % ratio)
 
     shts = []
@@ -176,7 +175,7 @@ def GenerateSummarySheet(wb, dnScalAlgos, upScalAlgos, ratio, contentsdict,
         sht.write_row(1, col, QualityList)
 
     content_infos = {}; totalnum_contents = 0
-    for (clss, contents), row_clss in zip(contentsdict.items(), rows_class):
+    for (clss, contents), row_clss in zip(ContentsDict.items(), Rows_Class):
         sht.write(row_clss, 0, clss)
         totalnum_contents = totalnum_contents + len(contents)
         for content, row_cont in zip(contents, range(len(contents))):
@@ -203,7 +202,7 @@ def GenerateSummarySheet(wb, dnScalAlgos, upScalAlgos, ratio, contentsdict,
                                         range(len(dnScalAlgos))):
         qualities = []
         seriname = dn_algo + '--' + up_algo
-        for (clss, contents), row_clss in zip(contentsdict.items(), rows_class):
+        for (clss, contents), row_clss in zip(ContentsDict.items(), Rows_Class):
             for content, row_cont in zip(contents, range(len(contents))):
                 key = GetShortContentName(content)
                 w = content_infos[key][0]
@@ -241,8 +240,7 @@ def GenerateSummarySheet(wb, dnScalAlgos, upScalAlgos, ratio, contentsdict,
 
     return sht
 
-def GenerateAverageSheet(wb, sumsht, dnScalAlgos, upScalAlgos, ratio,
-                         contentsdict, rows_class):
+def GenerateAverageSheet(wb, sumsht, dnScalAlgos, upScalAlgos, ratio):
     logger.info("start generate average sheet for ratio %2.2f" % ratio)
 
     rdsht = sumsht
@@ -262,7 +260,7 @@ def GenerateAverageSheet(wb, sumsht, dnScalAlgos, upScalAlgos, ratio,
         sht.write(0, col, algos)
         sht.write_row(1, col, StatsMetrics)
 
-    step = len(contentsdict) + 1  # 1 extra row for total of each class
+    step = len(ContentsDict) + 1  # 1 extra row for total of each class
     startrow = 2
     rows_qtymtr = [startrow + step * i for i in range(len(QualityList))]
     for qty, row_qm, y in zip(QualityList, rows_qtymtr, range(len(QualityList))):
@@ -274,9 +272,9 @@ def GenerateAverageSheet(wb, sumsht, dnScalAlgos, upScalAlgos, ratio,
         #charts.append(chart)
 
         totalnum_contents = 0
-        for (cls, contents), idx, rdrow_cls in zip(contentsdict.items(),
-                                                   range(len(contentsdict)),
-                                                   rows_class):
+        for (cls, contents), idx, rdrow_cls in zip(ContentsDict.items(),
+                                                   range(len(ContentsDict)),
+                                                   Rows_Class):
             sht.write(row_qm + idx, 1, cls)
             num_content = len(contents)
             totalnum_contents = totalnum_contents + num_content
@@ -304,7 +302,7 @@ def GenerateAverageSheet(wb, sumsht, dnScalAlgos, upScalAlgos, ratio,
                 sht.write(row_qm + idx, wtcol + 3, formula)
 
         #write total contents statistics
-        wtrow = row_qm + len(contentsdict)
+        wtrow = row_qm + len(ContentsDict)
         sht.write(wtrow, 1, 'Total')
         sht.write(wtrow, 2, totalnum_contents)
         for rdcol, wtcol in zip(ScalSumQty_WtCols, cols_avg):
@@ -349,18 +347,17 @@ def SaveScalingResultsToExcel(dnScalAlgos, upScalAlgos, path_log):
     logger.info("start generating scaling quality summary excel file.......")
     sumexcFile = GetScalingResultExcelFile(len(scaleRatios), len(DnScaleRatio))
     wb = xlsxwriter.Workbook(sumexcFile)
-    # to generate rows number of starting of each class: rows_class
-    contentsdict, rows_class = CalcRowsClassAndContentDict(ScalQty_startRow,
+    # to generate rows number of starting of each class: Rows_Class
+    global ContentsDict, Rows_Class
+    ContentsDict, Rows_Class = CalcRowsClassAndContentDict(ScalQty_startRow,
                                                            ContentPath, Clips)
 
     sumShts = []
     for ratio in scaleRatios:
-        sht = GenerateSummarySheet(wb, dnScalAlgos, upScalAlgos, ratio,
-                                   contentsdict, rows_class, path_log)
+        sht = GenerateSummarySheet(wb, dnScalAlgos, upScalAlgos, ratio, path_log)
         sumShts.append(sht)
     for ratio, sumsht in zip(scaleRatios, sumShts):
-        GenerateAverageSheet(wb, sumsht, dnScalAlgos, upScalAlgos, ratio,
-                             contentsdict, rows_class)
+        GenerateAverageSheet(wb, sumsht, dnScalAlgos, upScalAlgos, ratio)
 
     wb.close()
     logger.info("finish saving scaling quality results to excel files.......")

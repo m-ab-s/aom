@@ -26,7 +26,7 @@ def Cleanfolder(folder):
                 os.remove(file)
 
 def CreateNewSubfolder(parent, name):
-    if name == '' or name == None:
+    if name == '' or name is None:
         return None
     folder = os.path.join(parent, name)
     if not os.path.exists(folder):

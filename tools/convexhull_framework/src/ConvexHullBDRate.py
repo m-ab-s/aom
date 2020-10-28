@@ -14,18 +14,22 @@ import sys
 import xlsxwriter
 import xlrd
 import argparse
-from Config import VbaBinFile, QualityList
+from Config import VbaBinFile, QualityList, CalcBDRateInExcel
+from CalcBDRate import BD_RATE
+
 
 class ConvexHullData:
     ContentName = ""
     ContentClass = ""
     NumRDPoints = 0
     RDPoints = {}
+
     def __init__(self, Name="", Class="", num=0):
         self.ContentName = Name
         self.ContentClass = Class
         self.NumRDPoints = num
         self.RDPoints = {}
+
 
 def ParseArguments(raw_args):
     parser = argparse.ArgumentParser(prog='ConvexHullBDRate.py',
@@ -50,12 +54,14 @@ def ParseArguments(raw_args):
     InputTarget = args.Input2
     Output = args.Output
 
+
 def read_cell_as_str(sht, row, col):
     cell_val = sht.cell(row, col).value
     if cell_val == '':
         return ''
     else:
         return str(cell_val)
+
 
 def read_cell_as_float(sht, row, col):
     cell_val = sht.cell(row, col).value
@@ -64,6 +70,7 @@ def read_cell_as_float(sht, row, col):
     else:
         return float(cell_val)
 
+
 def read_cell_as_int(sht, row, col):
     cell_val = sht.cell(row, col).value
     if cell_val == '':
@@ -71,49 +78,50 @@ def read_cell_as_int(sht, row, col):
     else:
         return int(cell_val)
 
+
 def ParseConvexHullRD(xls):
     wb = xlrd.open_workbook(xls)
     shts = wb.sheet_names()   #list of sheet names
     data = {}   #dict of data, key is the sheet name
 
+    cols = [3 + i * 4 for i in range(len(QualityList))]
     for sht_name in shts:
         sht = wb.sheet_by_name(sht_name)
         #skip the title row
         rows = sht.nrows
-        cols = sht.ncols
         start_row = 1
         while start_row < rows:
             row = start_row
             cls = read_cell_as_str(sht, row, 0)
             name = read_cell_as_str(sht, row, 1)
             num = read_cell_as_int(sht, row, 2)
-            if (cls == '' or name == '' or num == ''):
+            if cls == '' or name == '' or num == '':
                 print("Error: read empty cells")
                 exit()
 
             point = ConvexHullData(name, cls, num)
-
             rd_data = {}
             for row in range(num):
-                col = 3
-                for qty in QualityList:
-                    br = read_cell_as_float(sht, start_row+row, col)
-                    q = read_cell_as_float(sht, start_row+row, col + 1)
-                    if (br != '' and q != ''):
-                        if (qty in rd_data.keys()):
-                            rd_data[qty].append((br, q))
+                for qty, col in zip(QualityList, cols):
+                    res = read_cell_as_str(sht, start_row+row, col)         #Resolution
+                    qp  = read_cell_as_int(sht, start_row+row, col + 1)     #QP
+                    br  = read_cell_as_float(sht, start_row+row, col + 2)   #Bitrate
+                    q   = read_cell_as_float(sht, start_row+row, col + 3)   #Quality
+                    if br != '' and q != '':
+                        if qty in rd_data:
+                            rd_data[qty].append((res, qp, br, q))
                         else:
-                            rd_data.update({qty:[(br, q)]})
-                    col += 2
+                            rd_data.update({qty: [(res, qp, br, q)]})
+
             start_row += num
             point.RDPoints = rd_data
-            if (sht_name in data.keys()):
+            if sht_name in data:
                 data[sht_name].append(point)
             else:
                 data.update({sht_name: [point]})
 
-    #wb.close()
     return shts, data
+
 
 def WriteOutputHeaderRow(sht):
     sht.write(0, 0, 'Content Class')
@@ -121,17 +129,22 @@ def WriteOutputHeaderRow(sht):
     sht.write(0, 2, 'Num RD Points')
     col = 3
     for qty in QualityList:
-        sht.write(0, col, 'Bitrate(kbps)')
-        sht.write(0, col + 1, qty)
-        col += 2
+        sht.write(0, col, 'Resolution')
+        sht.write(0, col + 1, 'QP')
+        sht.write(0, col + 2, 'Bitrate(kbps)')
+        sht.write(0, col + 3, qty)
+        col += 4
     col += 1
     for qty in QualityList:
-        sht.write(0, col, 'Bitrate(kbps)')
-        sht.write(0, col + 1, qty)
-        col += 2
+        sht.write(0, col, 'Resolution')
+        sht.write(0, col + 1, 'QP')
+        sht.write(0, col + 2, 'Bitrate(kbps)')
+        sht.write(0, col + 3, qty)
+        col += 4
     col += 1
     for (idx, qty) in zip(range(len(QualityList)), QualityList):
-        sht.write(0, col + idx, "BDRATE-%s"%qty)
+        sht.write(0, col + idx, "BDRATE-%s" % qty)
+
 
 def WriteRDData(sht, rd_data, start_row, start_col, format):
     col = start_col
@@ -140,11 +153,14 @@ def WriteRDData(sht, rd_data, start_row, start_col, format):
         row = start_row
         for (line, point) in zip(range(len(rd_data.RDPoints[qty])),
                                  rd_data.RDPoints[qty]):
-            sht.write_number(row + line, col, point[0], format)
-            sht.write_number(row + line, col + 1, point[1], format)
-        col += 2
+            sht.write_string(row + line, col, point[0])                #Resolution
+            sht.write_number(row + line, col + 1, point[1])            #QP
+            sht.write_number(row + line, col + 2, point[2], format)    #Bitrate
+            sht.write_number(row + line, col + 3, point[3], format)    #Quality
+        col += 4
         max_rows = max(max_rows, len(rd_data.RDPoints[qty]))
     return max_rows
+
 
 def WriteRDRecord(sht, base_data, target_data, start_row, bdrate_fmt, float_fmt):
     sht.write(start_row, 0, base_data.ContentClass)
@@ -156,39 +172,48 @@ def WriteRDRecord(sht, base_data, target_data, start_row, bdrate_fmt, float_fmt)
                                 float_fmt)
 
     #write target data
-    target_start_col = base_start_col + 2 * len(QualityList) + 1
+    target_start_col = base_start_col + 4 * len(QualityList) + 1
     target_max_rows = WriteRDData(sht, target_data, start_row, target_start_col,
                                   float_fmt)
 
     #write bdrate formula
-    bdrate_start_col = target_start_col + 2 * len(QualityList) + 1
+    bdrate_start_col = target_start_col + 4 * len(QualityList) + 1
     total_rows = max(base_max_rows, target_max_rows)
     sht.write(start_row, 2, total_rows)
     for (qty, col) in zip(QualityList, range(len(QualityList))):
-        refbr_b = xlrd.cellnameabs(start_row, base_start_col + col * 2)
-        refbr_e = xlrd.cellnameabs(start_row + total_rows - 1,
-                                   base_start_col + col * 2)
-        refq_b = xlrd.cellnameabs(start_row, base_start_col + col * 2 + 1)
-        refq_e = xlrd.cellnameabs(start_row + total_rows - 1,
-                                  base_start_col + col * 2 + 1)
+        if CalcBDRateInExcel:
+            refbr_b = xlrd.cellnameabs(start_row, base_start_col + col * 4 + 2)
+            refbr_e = xlrd.cellnameabs(start_row + total_rows - 1,
+                                       base_start_col + col * 4 + 2)
+            refq_b = xlrd.cellnameabs(start_row, base_start_col + col * 4 + 3)
+            refq_e = xlrd.cellnameabs(start_row + total_rows - 1,
+                                      base_start_col + col * 4 + 3)
 
-        testbr_b = xlrd.cellnameabs(start_row, target_start_col + col * 2)
-        testbr_e = xlrd.cellnameabs(start_row + total_rows - 1,
-                                    target_start_col + col * 2)
-        testq_b = xlrd.cellnameabs(start_row, target_start_col + col * 2 + 1)
-        testq_e = xlrd.cellnameabs(start_row + total_rows - 1,
-                                   target_start_col + col * 2 + 1)
+            testbr_b = xlrd.cellnameabs(start_row, target_start_col + col * 4 + 2)
+            testbr_e = xlrd.cellnameabs(start_row + total_rows - 1,
+                                        target_start_col + col * 4 + 2)
+            testq_b = xlrd.cellnameabs(start_row, target_start_col + col * 4 + 3)
+            testq_e = xlrd.cellnameabs(start_row + total_rows - 1,
+                                       target_start_col + col * 4 + 3)
 
-        # formula = '=-bdrate(%s:%s,%s:%s,%s:%s,%s:%s)' % (
-        # refbr_b, refbr_e, refq_b, refq_e, testbr_b, testbr_e, testq_b, testq_e)
-        formula = '=bdRateExtend(%s:%s,%s:%s,%s:%s,%s:%s)'\
-            % (refbr_b, refbr_e, refq_b, refq_e, testbr_b, testbr_e, testq_b, testq_e)
-        sht.write_formula(start_row, bdrate_start_col + col, formula, bdrate_fmt)
+            # formula = '=-bdrate(%s:%s,%s:%s,%s:%s,%s:%s)' % (
+            # refbr_b, refbr_e, refq_b, refq_e, testbr_b, testbr_e, testq_b, testq_e)
+            formula = '=bdRateExtend(%s:%s,%s:%s,%s:%s,%s:%s)'\
+                % (refbr_b, refbr_e, refq_b, refq_e, testbr_b, testbr_e, testq_b, testq_e)
+            sht.write_formula(start_row, bdrate_start_col + col, formula, bdrate_fmt)
+        else:
+            refbrs   = [base_data.RDPoints[qty][i][2] for i in range(len(base_data.RDPoints[qty]))]
+            refqtys  = [base_data.RDPoints[qty][i][3] for i in range(len(base_data.RDPoints[qty]))]
+            testbrs  = [target_data.RDPoints[qty][i][2] for i in range(len(target_data.RDPoints[qty]))]
+            testqtys = [target_data.RDPoints[qty][i][3] for i in range(len(target_data.RDPoints[qty]))]
+            bdrate = BD_RATE(refbrs, refqtys, testbrs, testqtys) / 100.0
+            sht.write_number(start_row, bdrate_start_col + col, bdrate, bdrate_fmt)
     return total_rows
+
 
 def FindContent(name, rd_data):
     for data in rd_data:
-        if (name == data.ContentName):
+        if name == data.ContentName:
             return data
     return ''
 
@@ -196,9 +221,9 @@ def FindContent(name, rd_data):
 # main
 ######################################
 if __name__ == "__main__":
-    sys.argv = ["","-i1","ConvexHullRD_ScaleAlgosNum_5_ffmpeg_hevc_medium.xlsx",
-     "-i2","ConvexHullRD_ScaleAlgosNum_5_ffmpeg_hevc_veryslow.xlsx",
-     "-o","ConvexHullBDRate.xlsm"]
+    #sys.argv = ["","-i1","ConvexHullRD_ScaleAlgosNum_6_aom_av1_1.xlsx",
+    #"-i2","ConvexHullRD_ScaleAlgosNum_6_aom_av1_6.xlsx",
+    # "-o","ConvexHullBDRate.xlsm"]
     ParseArguments(sys.argv)
 
     base_shts, base_rd_data = ParseConvexHullRD(InputBase)
@@ -220,8 +245,9 @@ if __name__ == "__main__":
             for base_data in base_rd_data[sht_name]:
                 ContentName = base_data.ContentName
                 target_data = FindContent(ContentName, target_rd_data[sht_name])
-                if (target_data != ''):
+                if target_data != '':
                     total_rows = WriteRDRecord(sht, base_data, target_data,
                                                start_row, bdrate_fmt, float_fmt)
                     start_row += total_rows
+
     output_wb.close()
