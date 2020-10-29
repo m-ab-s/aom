@@ -1431,9 +1431,6 @@ void av1_loop_restoration_filter_unit(const RestorationTileLimits *limits,
 static void filter_frame_on_unit(const RestorationTileLimits *limits,
                                  const AV1PixelRect *tile_rect,
                                  int rest_unit_idx, void *priv, int32_t *tmpbuf,
-#if CONFIG_EXT_LOOP_RESTORATION
-                                 RestorationUnitInfo *shared_params,
-#endif  // CONFIG_EXT_LOOP_RESTORATION
 #if CONFIG_RST_MERGECOEFFS
                                  Vector *current_unit_stack,
 #endif  // CONFIG_RST_MERGECOEFFS
@@ -1603,9 +1600,6 @@ void av1_foreach_rest_unit_in_row(
     rest_unit_visitor_t on_rest_unit, int row_number, int unit_size,
     int unit_idx0, int hunits_per_tile, int vunits_per_tile, int plane,
     void *priv, int32_t *tmpbuf,
-#if CONFIG_EXT_LOOP_RESTORATION
-    RestorationUnitInfo *previous_rui,
-#endif  // CONFIG_EXT_LOOP_RESTORATION
 #if CONFIG_RST_MERGECOEFFS
     Vector *current_unit_stack,
 #endif  // CONFIG_RST_MERGECOEFFS
@@ -1633,14 +1627,12 @@ void av1_foreach_rest_unit_in_row(
     if ((row_number + 1) < vunits_per_tile)
       // bottom-right sync
       on_sync_read(lr_sync, row_number + 2, j, plane);
-#if CONFIG_EXT_LOOP_RESTORATION
-    on_rest_unit(limits, tile_rect, unit_idx, priv, tmpbuf, previous_rui, rlbs);
-#elif CONFIG_RST_MERGECOEFFS
+#if CONFIG_RST_MERGECOEFFS
     on_rest_unit(limits, tile_rect, unit_idx, priv, tmpbuf, current_unit_stack,
                  rlbs);
 #else
     on_rest_unit(limits, tile_rect, unit_idx, priv, tmpbuf, rlbs);
-#endif  // CONFIG_EXT_LOOP_RESTORATION, CONFIG_RST_MERGECOEFFS
+#endif  // CONFIG_RST_MERGECOEFFS
 
     on_sync_write(lr_sync, row_number, j, hunits_per_tile, plane);
 
@@ -1672,9 +1664,6 @@ static void foreach_rest_unit_in_tile(const AV1PixelRect *tile_rect,
                                       int ss_y, int plane,
                                       rest_unit_visitor_t on_rest_unit,
                                       void *priv, int32_t *tmpbuf,
-#if CONFIG_EXT_LOOP_RESTORATION
-                                      RestorationUnitInfo *previous_rui,
-#endif  // CONFIG_EXT_LOOP_RESTORATION
 #if CONFIG_RST_MERGECOEFFS
                                       Vector *current_unit_stack,
 #endif  // CONFIG_RST_MERGECOEFFS
@@ -1698,12 +1687,7 @@ static void foreach_rest_unit_in_tile(const AV1PixelRect *tile_rect,
     const int voffset = RESTORATION_UNIT_OFFSET >> ss_y;
     limits.v_start = AOMMAX(tile_rect->top, limits.v_start - voffset);
     if (limits.v_end < tile_rect->bottom) limits.v_end -= voffset;
-#if CONFIG_EXT_LOOP_RESTORATION
-    av1_foreach_rest_unit_in_row(
-        &limits, tile_rect, on_rest_unit, i, unit_size, unit_idx0,
-        hunits_per_tile, vunits_per_tile, plane, priv, tmpbuf, previous_rui,
-        rlbs, av1_lr_sync_read_dummy, av1_lr_sync_write_dummy, NULL);
-#elif CONFIG_RST_MERGECOEFFS
+#if CONFIG_RST_MERGECOEFFS
     av1_foreach_rest_unit_in_row(&limits, tile_rect, on_rest_unit, i, unit_size,
                                  unit_idx0, hunits_per_tile, vunits_per_tile,
                                  plane, priv, tmpbuf, current_unit_stack, rlbs,
@@ -1714,7 +1698,7 @@ static void foreach_rest_unit_in_tile(const AV1PixelRect *tile_rect,
         &limits, tile_rect, on_rest_unit, i, unit_size, unit_idx0,
         hunits_per_tile, vunits_per_tile, plane, priv, tmpbuf, rlbs,
         av1_lr_sync_read_dummy, av1_lr_sync_write_dummy, NULL);
-#endif  // CONFIG_EXT_LOOP_RESTORATION, CONFIG_RST_MERGECOEFFS
+#endif  // CONFIG_RST_MERGECOEFFS
 
     y0 += h;
     ++i;
@@ -1731,15 +1715,7 @@ void av1_foreach_rest_unit_in_plane(const struct AV1Common *cm, int plane,
 
   const RestorationInfo *rsi = &cm->rst_info[plane];
 
-#if CONFIG_EXT_LOOP_RESTORATION
-  SharedParams param_buf;
-  memset(&param_buf, 0, sizeof(SharedParams));
-  foreach_rest_unit_in_tile(tile_rect, LR_TILE_ROW, LR_TILE_COL, LR_TILE_COLS,
-                            rsi->horz_units_per_tile, rsi->vert_units_per_tile,
-                            rsi->units_per_tile, rsi->restoration_unit_size,
-                            ss_y, plane, on_rest_unit, priv, tmpbuf, &param_buf,
-                            rlbs);
-#elif CONFIG_RST_MERGECOEFFS
+#if CONFIG_RST_MERGECOEFFS
   // this vector holds the most recent list of units with merged coefficients
   Vector current_unit_stack;
   memset(&current_unit_stack, 0, sizeof(Vector));
@@ -1756,7 +1732,7 @@ void av1_foreach_rest_unit_in_plane(const struct AV1Common *cm, int plane,
                             rsi->horz_units_per_tile, rsi->vert_units_per_tile,
                             rsi->units_per_tile, rsi->restoration_unit_size,
                             ss_y, plane, on_rest_unit, priv, tmpbuf, rlbs);
-#endif  // CONFIG_EXT_LOOP_RESTORATION, CONFIG_RST_MERGECOEFFS
+#endif  // CONFIG_RST_MERGECOEFFS
 }
 
 int av1_loop_restoration_corners_in_sb(const struct AV1Common *cm, int plane,

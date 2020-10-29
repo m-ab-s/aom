@@ -583,9 +583,6 @@ struct macroblock {
   int switchable_restore_cost[RESTORE_SWITCHABLE_TYPES];
 #endif  // CONFIG_LOOP_RESTORE_CNN
   int wiener_restore_cost[2];
-#if CONFIG_EXT_LOOP_RESTORATION
-  int shared_param_cost[2];
-#endif  // CONFIG_EXT_LOOP_RESTORATION
   int sgrproj_restore_cost[2];
 #if CONFIG_LOOP_RESTORE_CNN
   int cnn_restore_cost[2];

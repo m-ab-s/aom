@@ -236,13 +236,6 @@ extern const int wienerns_coeff_uv[][3];
 #define LR_TILE_COL 0
 #define LR_TILE_COLS 1
 
-#if CONFIG_EXT_LOOP_RESTORATION
-typedef struct {
-  int64_t vfilter[WIENER_WIN2];
-  int64_t hfilter[WIENER_WIN2];
-} SharedParams;
-#endif  // CONFIG_EXT_LOOP_RESTORATION
-
 typedef struct {
   int r[2];  // radii
   int s[2];  // sgr parameters for r[0] and r[1], based on GenSgrprojVtable()
@@ -326,7 +319,7 @@ static INLINE void set_default_wiener(WienerInfo *wiener_info) {
   wiener_info->vfilter[6] = wiener_info->hfilter[6] = WIENER_FILT_TAP0_MIDV;
 }
 
-#if CONFIG_EXT_LOOP_RESTORATION
+#if CONFIG_RST_MERGECOEFFS
 static INLINE int check_wiener_eq(int chroma, const WienerInfo *info,
                                   const WienerInfo *ref) {
   if (!chroma) {
@@ -350,7 +343,7 @@ static INLINE int check_sgrproj_eq(const SgrprojInfo *info,
   if (!memcmp(info, ref, sizeof(*info))) return 1;
   return 0;
 }
-#endif  // CONFIG_EXT_LOOP_RESTORATION
+#endif  // CONFIG_RST_MERGECOEFFS
 
 #if CONFIG_WIENER_NONSEP
 static INLINE void set_default_wiener_nonsep(WienerNonsepInfo *wienerns_info) {
@@ -363,7 +356,7 @@ static INLINE void set_default_wiener_nonsep(WienerNonsepInfo *wienerns_info) {
   }
 }
 
-#if CONFIG_EXT_LOOP_RESTORATION
+#if CONFIG_RST_MERGECOEFFS
 static INLINE int check_wienerns_eq(int chroma, const WienerNonsepInfo *info,
                                     const WienerNonsepInfo *ref) {
   if (!chroma) {
@@ -377,7 +370,7 @@ static INLINE int check_wienerns_eq(int chroma, const WienerNonsepInfo *info,
   }
   return 0;
 }
-#endif  // CONFIG_EXT_LOOP_RESTORATION
+#endif  // CONFIG_RST_MERGECOEFFS
 
 #if CONFIG_WIENER_NONSEP_CROSS_FILT
 uint8_t *wienerns_copy_luma(const uint8_t *dgd, int height_y, int width_y,
@@ -395,9 +388,6 @@ typedef void (*rest_unit_visitor_t)(const RestorationTileLimits *limits,
                                     const AV1PixelRect *tile_rect,
                                     int rest_unit_idx, void *priv,
                                     int32_t *tmpbuf,
-#if CONFIG_EXT_LOOP_RESTORATION
-                                    RestorationUnitInfo *previous_rui,
-#endif  // CONFIG_EXT_LOOP_RESTORATION
 #if CONFIG_RST_MERGECOEFFS
                                     Vector *current_unit_stack,
 #endif  // CONFIG_RST_MERGECOEFFS
@@ -523,9 +513,6 @@ void av1_foreach_rest_unit_in_row(
     rest_unit_visitor_t on_rest_unit, int row_number, int unit_size,
     int unit_idx0, int hunits_per_tile, int vunits_per_tile, int plane,
     void *priv, int32_t *tmpbuf,
-#if CONFIG_EXT_LOOP_RESTORATION
-    RestorationUnitInfo *previous_rui,
-#endif  // CONFIG_EXT_LOOP_RESTORATION
 #if CONFIG_RST_MERGECOEFFS
     Vector *current_unit_stack,
 #endif  // CONFIG_RST_MERGECOEFFS

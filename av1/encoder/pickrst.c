@@ -105,10 +105,6 @@ typedef struct {
   // The sum of squared errors for this rtype.
   int64_t sse[RESTORE_SWITCHABLE_TYPES];
 
-#if CONFIG_EXT_LOOP_RESTORATION
-  bool is_shared;
-#endif  // CONFIG_EXT_LOOP_RESTORATION
-
   // The rtype to use for this unit given a frame rtype as
   // index. Indices: WIENER, SGRPROJ, CNN, WIENER_NONSEP, SWITCHABLE.
   RestorationType best_rtype[RESTORE_TYPES - 1];
@@ -699,11 +695,11 @@ static SgrprojInfo search_selfguided_restoration(
 static int count_sgrproj_bits(SgrprojInfo *sgrproj_info,
                               SgrprojInfo *ref_sgrproj_info) {
   int bits = 0;
-#if CONFIG_EXT_LOOP_RESTORATION
+#if CONFIG_RST_MERGECOEFFS
   const int equal = check_sgrproj_eq(sgrproj_info, ref_sgrproj_info);
   bits++;
   if (equal) return bits;
-#endif  // CONFIG_EXT_LOOP_RESTORATION
+#endif  // CONFIG_RST_MERGECOEFFS
   bits += SGRPROJ_PARAMS_BITS;
   const sgr_params_type *params = &av1_sgr_params[sgrproj_info->ep];
   if (params->r[0] > 0)
@@ -722,9 +718,6 @@ static int count_sgrproj_bits(SgrprojInfo *sgrproj_info,
 static void search_sgrproj(const RestorationTileLimits *limits,
                            const AV1PixelRect *tile, int rest_unit_idx,
                            void *priv, int32_t *tmpbuf,
-#if CONFIG_EXT_LOOP_RESTORATION
-                           RestorationUnitInfo *previous_rui,
-#endif  // CONFIG_EXT_LOOP_RESTORATION
 #if CONFIG_RST_MERGECOEFFS
                            Vector *current_unit_stack,
 #endif  // CONFIG_RST_MERGECOEFFS
@@ -1157,12 +1150,12 @@ static void finalize_sym_filter(int wiener_win, int32_t *f, InterpKernel fi) {
 static int count_wiener_bits(int wiener_win, WienerInfo *wiener_info,
                              WienerInfo *ref_wiener_info) {
   int bits = 0;
-#if CONFIG_EXT_LOOP_RESTORATION
+#if CONFIG_RST_MERGECOEFFS
   const int equal =
       check_wiener_eq(wiener_win != WIENER_WIN, wiener_info, ref_wiener_info);
   bits++;
   if (equal) return bits;
-#endif  // CONFIG_EXT_LOOP_RESTORATION
+#endif  // CONFIG_RST_MERGECOEFFS
   if (wiener_win == WIENER_WIN)
     bits += aom_count_primitive_refsubexpfin(
         WIENER_FILT_TAP0_MAXV - WIENER_FILT_TAP0_MINV + 1,
@@ -1309,9 +1302,6 @@ static int64_t finer_tile_search_wiener(const RestSearchCtxt *rsc,
 static void search_wiener(const RestorationTileLimits *limits,
                           const AV1PixelRect *tile_rect, int rest_unit_idx,
                           void *priv, int32_t *tmpbuf,
-#if CONFIG_EXT_LOOP_RESTORATION
-                          RestorationUnitInfo *previous_rui,
-#endif  // CONFIG_EXT_LOOP_RESTORATION
 #if CONFIG_RST_MERGECOEFFS
                           Vector *current_unit_stack,
 #endif  // CONFIG_RST_MERGECOEFFS
@@ -1371,7 +1361,6 @@ static void search_wiener(const RestorationTileLimits *limits,
   finalize_sym_filter(reduced_wiener_win, hfilter, rui.wiener_info.hfilter);
 
 #if !CONFIG_RST_MERGECOEFFS
-#if !CONFIG_EXT_LOOP_RESTORATION
   // Disabled for experiment because it doesn't factor reduced bit count
   // into calculations.
   // Filter score computes the value of the function x'*A*x - x'*b for the
@@ -1385,20 +1374,12 @@ static void search_wiener(const RestorationTileLimits *limits,
     rusi->sse[RESTORE_WIENER] = INT64_MAX;
     return;
   }
-#endif  // !CONFIG_EXT_LOOP_RESTORATION
 #endif  // !CONFIG_RST_MERGECOEFFS
 
   aom_clear_system_state();
 
   rusi->sse[RESTORE_WIENER] = finer_tile_search_wiener(
       rsc, limits, tile_rect, &rui, reduced_wiener_win);
-#if CONFIG_EXT_LOOP_RESTORATION
-  // We can configure previous_rui's restoration type to be RESTORE_WIENER
-  // because we only care about the parameters it's storing.
-  previous_rui->restoration_type = RESTORE_WIENER;
-  int64_t shared_sse =
-      try_restoration_unit(rsc, limits, tile_rect, previous_rui);
-#endif  // CONFIG_EXT_LOOP_RESTORATION
   rusi->wiener = rui.wiener_info;
 
   if (reduced_wiener_win != WIENER_WIN) {
@@ -1408,19 +1389,10 @@ static void search_wiener(const RestorationTileLimits *limits,
            rui.wiener_info.hfilter[WIENER_WIN - 1] == 0);
   }
 
-#if CONFIG_EXT_LOOP_RESTORATION
-  const int64_t bits_wiener =
-      x->wiener_restore_cost[1] + x->shared_param_cost[0] +
-      (count_wiener_bits(wiener_win, &rusi->wiener, &rsc->wiener)
-       << AV1_PROB_COST_SHIFT);
-  const int64_t bits_shared = x->shared_param_cost[1];
-  double cost_shared = RDCOST_DBL(x->rdmult, bits_shared >> 4, shared_sse);
-#else
   const int64_t bits_wiener =
       x->wiener_restore_cost[1] +
       (count_wiener_bits(wiener_win, &rusi->wiener, &rsc->wiener)
        << AV1_PROB_COST_SHIFT);
-#endif  // CONFIG_EXT_LOOP_RESTORATION
 #if !CONFIG_RST_MERGECOEFFS
   // temporarily suspending cost calculations for RESTORE_NONE vs RESTORE_WIENER
   double cost_none =
@@ -1428,17 +1400,6 @@ static void search_wiener(const RestorationTileLimits *limits,
   double cost_wiener =
       RDCOST_DBL(x->rdmult, bits_wiener >> 4, rusi->sse[RESTORE_WIENER]);
 #endif  // CONFIG_RST_MERGECOEFFS
-
-#if CONFIG_EXT_LOOP_RESTORATION
-  if (cost_shared < cost_wiener) {
-    cost_wiener = cost_shared;
-    rusi->sse[RESTORE_WIENER] = shared_sse;
-    rusi->is_shared = 1;
-    rusi->wiener = previous_rui->wiener_info;
-  } else {
-    rusi->is_shared = 0;
-  }
-#endif  // CONFIG_EXT_LOOP_RESTORATION
 
 #if CONFIG_RST_MERGECOEFFS
   // force all units to RESTORE_WIENER to ensure we have coefficients to share
@@ -1451,11 +1412,6 @@ static void search_wiener(const RestorationTileLimits *limits,
   RestorationType rtype =
       (cost_wiener < cost_none) ? RESTORE_WIENER : RESTORE_NONE;
   rusi->best_rtype[RESTORE_WIENER - 1] = rtype;
-#if CONFIG_EXT_LOOP_RESTORATION
-  if (!rusi->is_shared && rtype == RESTORE_WIENER) {
-    previous_rui->wiener_info = rui.wiener_info;
-  }
-#endif  // CONFIG_EXT_LOOP_RESTORATION
 
   rsc->sse += rusi->sse[rtype];
   rsc->bits += (cost_wiener < cost_none) ? bits_wiener : bits_none;
@@ -1466,9 +1422,6 @@ static void search_wiener(const RestorationTileLimits *limits,
 static void search_norestore(const RestorationTileLimits *limits,
                              const AV1PixelRect *tile_rect, int rest_unit_idx,
                              void *priv, int32_t *tmpbuf,
-#if CONFIG_EXT_LOOP_RESTORATION
-                             RestorationUnitInfo *previous_rui,
-#endif  // CONFIG_EXT_LOOP_RESTORATION
 #if CONFIG_RST_MERGECOEFFS
                              Vector *current_unit_stack,
 #endif  // CONFIG_RST_MERGECOEFFS
@@ -1541,11 +1494,11 @@ static int count_wienerns_bits(int plane, WienerNonsepInfo *wienerns_info,
   int is_uv = (plane != AOM_PLANE_Y);
 
   int bits = 0;
-#if CONFIG_EXT_LOOP_RESTORATION
+#if CONFIG_RST_MERGECOEFFS
   const int equal = check_wienerns_eq(is_uv, wienerns_info, ref_wienerns_info);
   bits++;
   if (equal) return bits;
-#endif  // CONFIG_EXT_LOOP_RESTORATION
+#endif  // CONFIG_RST_MERGECOEFFS
   if (is_uv) {
     for (int i = 0; i < wienerns_uv; ++i) {
       bits += aom_count_primitive_refsubexpfin(
@@ -1801,9 +1754,6 @@ static void search_wiener_nonsep(const RestorationTileLimits *limits,
 static void search_switchable(const RestorationTileLimits *limits,
                               const AV1PixelRect *tile_rect, int rest_unit_idx,
                               void *priv, int32_t *tmpbuf,
-#if CONFIG_EXT_LOOP_RESTORATION
-                              RestorationUnitInfo *previous_rui,
-#endif  // CONFIG_EXT_LOOP_RESTORATION
 #if CONFIG_RST_MERGECOEFFS
                               Vector *current_unit_stack,
 #endif  // CONFIG_RST_MERGECOEFFS
@@ -1847,15 +1797,9 @@ static void search_switchable(const RestorationTileLimits *limits,
         coeff_pcost = 0;
         break;
       case RESTORE_WIENER:
-#if CONFIG_EXT_LOOP_RESTORATION
-        coeff_pcost =
-            rusi->is_shared
-                ? 0
-                : count_wiener_bits(wiener_win, &rusi->wiener, &rsc->wiener);
-#else
+        // TODO(susannad): if unit has merged coefficients, equals 0.
         coeff_pcost =
             count_wiener_bits(wiener_win, &rusi->wiener, &rsc->wiener);
-#endif
         break;
       case RESTORE_SGRPROJ:
         coeff_pcost = count_sgrproj_bits(&rusi->sgrproj, &rsc->sgrproj);
@@ -1869,17 +1813,15 @@ static void search_switchable(const RestorationTileLimits *limits,
       default: assert(0); break;
     }
     const int64_t coeff_bits = coeff_pcost << AV1_PROB_COST_SHIFT;
-#if CONFIG_EXT_LOOP_RESTORATION
-    const int64_t bits =
-        x->switchable_restore_cost[r] + coeff_bits + rusi->is_shared
-            ? x->shared_param_cost[1]
-            : x->shared_param_cost[0];
-#elif CONFIG_LOOP_RESTORE_CNN
+#if CONFIG_LOOP_RESTORE_CNN
     const int64_t bits =
         x->switchable_restore_cost[rsc->cm->use_cnn][r] + coeff_bits;
 #else
+    // TODO(susannad): If RST_MERGECOEFFS flag is set, check if unit
+    // has merged coefficients and set bits to x->merged_param_cost
+    // [0] or [1].
     const int64_t bits = x->switchable_restore_cost[r] + coeff_bits;
-#endif  // CONFIG_EXT_LOOP_RESTORATION
+#endif  // CONFIG_LOOP_RESTORE_CNN
     double cost = RDCOST_DBL(x->rdmult, bits >> 4, sse);
     if (r == RESTORE_SGRPROJ && rusi->sgrproj.ep < 10)
       cost *= (1 + DUAL_SGR_PENALTY_MULT * rsc->sf->dual_sgr_penalty_level);

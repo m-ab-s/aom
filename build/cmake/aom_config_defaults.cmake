@@ -207,8 +207,6 @@ set_aom_config_var(CONFIG_EXTQUANT 0 NUMBER
                    "AV2 extended quantization experiment flag")
 set_aom_config_var(CONFIG_DBLK_TXSKIP 0 NUMBER
                    "AV2 deblock based on transform skip experiment flag")
-set_aom_config_var(CONFIG_EXT_LOOP_RESTORATION 0 NUMBER
-                   "AV2 extensions to loop restoration")
 set_aom_config_var(CONFIG_SEGMENT_BASED_PARTITIONING 0 NUMBER
                    "AV2 segment based partitioning experiment flag")
 set_aom_config_var(CONFIG_EXT_WARP 0 NUMBER
