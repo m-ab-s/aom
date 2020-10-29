@@ -238,6 +238,9 @@ set_aom_config_var(CONFIG_EXT_COMP_REFMV 0 NUMBER
 set_aom_config_var(
   CONFIG_RST_MERGECOEFFS 0 NUMBER
   "AV2 in-loop restoration merging coefficients experiment flag")
+set_aom_config_var(
+  CONFIG_FORCE_WIENER 0 NUMBER
+  "AV2 in-loop restoration - force restoration type to WIENER or RESTORE_NONE")
 
 # To include Tensorflow, make sure to build tensorflow locally using
 # tensorflow/contrib/makefile/build_all_linux.sh and then providing the correct
