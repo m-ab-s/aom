@@ -12,7 +12,6 @@ __author__ = "maggie.sun@intel.com, ryan.lei@intel.com"
 
 import os
 import re
-import xlrd
 import subprocess
 import time
 import logging
@@ -114,27 +113,6 @@ def CalcRowsClassAndContentDict(rowstart, content_path, clips, times=1):
 
     return contentsdict, rows_class
 
-def SweepScalingAlgosInOneResultFile(infile_path):
-    dnscls = []
-    upscls = []
-    resultfiles = os.listdir(infile_path)
-    # here assume all result files includes same combinations of dn and up
-    # scaling algos
-    file = os.path.join(infile_path, resultfiles[0])
-    if os.path.isfile(file):
-        rdwb = xlrd.open_workbook(os.path.join(infile_path, resultfiles[0]))
-    else:
-        return dnscls, upscls
-    if rdwb is not None:
-        shtnms = rdwb.sheet_names()
-        for shtname in shtnms:
-            item = re.findall(r"(.+)\-\-(.+)", shtname)
-            dnsl = item[0][0]
-            upsl = item[0][1]
-            dnscls.append(dnsl)
-            upscls.append(upsl)
-
-    return dnscls, upscls
 
 def CreateChart_Scatter(wb, title, xaxis_name, yaxis_name):
     chart = wb.add_chart({'type': 'scatter', 'subtype': 'straight_with_markers'})

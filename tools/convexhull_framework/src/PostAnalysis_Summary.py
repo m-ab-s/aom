@@ -13,11 +13,10 @@ __author__ = "maggie.sun@intel.com, ryan.lei@intel.com"
 import os
 import xlsxwriter
 import xlrd
+import re
 from Config import QPs, DnScaleRatio, QualityList, VbaBinFile, CvxH_WtRows,\
-    CvxH_WtLastCol, LoggerName, CalcBDRateInExcel, CvxH_WtCols, CvxHDataRows, CvxHDataStartRow, \
-    CvxHDataStartCol
-from Utils import GetShortContentName, CalcRowsClassAndContentDict,\
-    SweepScalingAlgosInOneResultFile
+    CvxH_WtLastCol, LoggerName, CalcBDRateInExcel, CvxH_WtCols, CvxHDataRows, CvxHDataStartCol
+from Utils import GetShortContentName, CalcRowsClassAndContentDict
 from CalcBDRate import BD_RATE
 import logging
 
@@ -42,7 +41,29 @@ def GetConvexHullDataSummaryFileName(encMethod, codecName, preset, path):
            % (len(DnScaleRatio), encMethod, codecName, preset)
     return os.path.join(path, name)
 
-def CopyResultDataToSummaryFile_Onesheet(sht, wt_cols, infile_path):
+def SweepScalingAlgosInOneResultFile(resultfiles):
+    dnscls = []
+    upscls = []
+
+    # here assume all result files includes same combinations of dn and up scaling algos
+    # that is, same number of sheet and sheet names
+    file = resultfiles[0]
+    if os.path.isfile(file):
+        rdwb = xlrd.open_workbook(file)
+    else:
+        return dnscls, upscls
+    if rdwb is not None:
+        shtnms = rdwb.sheet_names()
+        for shtname in shtnms:
+            item = re.findall(r"(.+)\-\-(.+)", shtname)
+            dnsl = item[0][0]
+            upsl = item[0][1]
+            dnscls.append(dnsl)
+            upscls.append(upsl)
+
+    return dnscls, upscls
+
+def CopyResultDataToSummaryFile_Onesheet(sht, wt_cols, resultfiles):
     rdrows = CvxH_WtRows
     rd_endcol = CvxH_WtLastCol
 
@@ -58,7 +79,6 @@ def CopyResultDataToSummaryFile_Onesheet(sht, wt_cols, infile_path):
 
     # copy the results data from each content's result file to corresponding
     # location in summary excel file
-    resultfiles = os.listdir(infile_path)
     for (cls, contents), row_class in zip(ContentsDict.items(), Rows_Class):
         sht.write(row_class, 0, cls)
         rows_content = [i * len(QPs) for i in range(len(contents))]
@@ -68,7 +88,7 @@ def CopyResultDataToSummaryFile_Onesheet(sht, wt_cols, infile_path):
             rdwb = None
             for resfile in resultfiles:
                 if key in resfile:
-                    rdwb = xlrd.open_workbook(os.path.join(infile_path, resfile))
+                    rdwb = xlrd.open_workbook(resfile)
                     rdsht = rdwb.sheet_by_name(shtname)
                     for i, rdrow in zip(range(len(QPs)), rdrows):
                         data = rdsht.row_values(rdrow, 0, rd_endcol + 1)
@@ -81,7 +101,7 @@ def CopyResultDataToSummaryFile_Onesheet(sht, wt_cols, infile_path):
 
 def CalBDRateWithExcel_OneSheet(sht, cols, cols_bdmtrs, cellformat):
     row_refst = 0
-    bdstep = 3
+    bdstep = len(QPs) - 1
     for cols_bd, residx in zip(cols_bdmtrs, range(1, len(DnScaleRatio))):
         sht.write(0, cols_bd, 'BD-Rate %.2f vs. %.2f' % (DnScaleRatio[residx],
                                                          DnScaleRatio[0]))
@@ -118,11 +138,11 @@ def CalBDRateWithExcel_OneSheet(sht, cols, cols_bdmtrs, cellformat):
                                       cellformat)
 
 
-def CalBDRateWithPython_OneSheet(sht, cols_bdmtrs, infile_path, cellformat):
+def CalBDRateWithPython_OneSheet(sht, cols_bdmtrs, resultfiles, cellformat):
     row_refst = 0
-    bdstep = 3
+    bdstep = len(QPs) - 1
     assert row_refst + bdstep < len(CvxH_WtRows)
-    resultfiles = os.listdir(infile_path)
+
     shtname = sht.get_name()
     rdrows = CvxH_WtRows
     rdcols = CvxH_WtCols
@@ -136,7 +156,7 @@ def CalBDRateWithPython_OneSheet(sht, cols_bdmtrs, infile_path, cellformat):
                 key = GetShortContentName(content)
                 for resfile in resultfiles:
                     if key in resfile:
-                        rdwb = xlrd.open_workbook(os.path.join(infile_path, resfile))
+                        rdwb = xlrd.open_workbook(resfile)
                         rdsht = rdwb.sheet_by_name(shtname)
                         break
                 for y in range(len(QualityList)):
@@ -315,6 +335,7 @@ def WriteBDRateAverageSheet(wb, rdshts, rd_cols_bdmtrs, cellformat):
                 bdavg_sht.write_formula(last_row, col_res + col_upscl + j,
                                         formula, cellformat)
 
+
 #######################################################################
 #######################################################################
 # GenerateSummaryExcelFile is to
@@ -326,18 +347,16 @@ def WriteBDRateAverageSheet(wb, rdshts, rd_cols_bdmtrs, cellformat):
 # Arguments description:
 # content_paths is where test contents located, which used for generating convex
 #               hull results.
-# infile_path   is where convex hull results excel files located.
-# classes       is the content classes and  here it requires contents are located
-#               in corresponding subfolder named with its belonged class
+# resultfiles   is a list of all convex hull RD result files generated by
+#                runninging '-f convexhull'
 # summary_outpath  is the folder where output summary file will be
-# note: all results files under infile_path should have exactly same test items
-# before running this summary script
 def GenerateSummaryRDDataExcelFile(encMethod, codecName, preset, summary_outpath,
-                             infile_path, content_path, clips):
+                             resultfiles, content_path, clips):
+
     global dnScalAlgos, upScalAlgos
-    # find all scaling algos tested in results file, expect they are the same
-    # for every content
-    dnScalAlgos, upScalAlgos = SweepScalingAlgosInOneResultFile(infile_path)
+    # find all scaling algos tested in results file,
+    # IMPORTANT: expect up and down scaling algos are the same for every content
+    dnScalAlgos, upScalAlgos = SweepScalingAlgosInOneResultFile(resultfiles)
 
     if not os.path.exists(summary_outpath):
         os.makedirs(summary_outpath)
@@ -377,12 +396,12 @@ def GenerateSummaryRDDataExcelFile(encMethod, codecName, preset, summary_outpath
     # -1 because first resolution is used as reference
 
     for sht in shts:
-        CopyResultDataToSummaryFile_Onesheet(sht, sum_wtcols, infile_path)
+        CopyResultDataToSummaryFile_Onesheet(sht, sum_wtcols, resultfiles)
         # calculate bd rate in each scaling sheet
         if CalcBDRateInExcel:
             CalBDRateWithExcel_OneSheet(sht, sum_wtcols, cols_bdmtrs, cellformat)
         else:
-            CalBDRateWithPython_OneSheet(sht, cols_bdmtrs, infile_path, cellformat)
+            CalBDRateWithPython_OneSheet(sht, cols_bdmtrs, resultfiles, cellformat)
 
     # calculate average bitrate and quality metrics for each category and
     # write to "average" sheet
@@ -395,7 +414,7 @@ def GenerateSummaryRDDataExcelFile(encMethod, codecName, preset, summary_outpath
     return smfile
 
 def GenerateSummaryConvexHullExcelFile(encMethod, codecName, preset,
-                                       summary_outpath, infile_path):
+                                       summary_outpath, resultfiles):
     if not os.path.exists(summary_outpath):
         os.makedirs(summary_outpath)
     smfile = GetConvexHullDataSummaryFileName(encMethod, codecName, preset,
@@ -422,8 +441,8 @@ def GenerateSummaryConvexHullExcelFile(encMethod, codecName, preset,
 
         # copy convexhull data from each content's result file to corresponding
         # location in summary excel file
-        resultfiles = os.listdir(infile_path)
         row = 1
+        rdcolstart = CvxHDataStartCol + 1
         for (cls, contents) in ContentsDict.items():
             sht.write(row, 0, cls)
             for content in contents:
@@ -431,13 +450,13 @@ def GenerateSummaryConvexHullExcelFile(encMethod, codecName, preset,
                 sht.write(row, 1, key)
                 for resfile in resultfiles:
                     if key in resfile:
-                        rdwb = xlrd.open_workbook(os.path.join(infile_path, resfile))
+                        rdwb = xlrd.open_workbook(resfile)
                         rdsht = rdwb.sheet_by_name(shtname)
                         maxNumQty = 0
                         for rdrow, col in zip(CvxHDataRows, cols):
                             qtys = []; brs = []; qps = []; ress = []
                             numQty = 0
-                            for qty in rdsht.row_values(rdrow)[1:]:
+                            for qty in rdsht.row_values(rdrow)[rdcolstart:]:
                                 if qty == '':
                                     break
                                 else:
@@ -445,17 +464,17 @@ def GenerateSummaryConvexHullExcelFile(encMethod, codecName, preset,
                                     numQty = numQty + 1
                             maxNumQty = max(maxNumQty, numQty)
 
-                            for br in rdsht.row_values(rdrow + 1)[1:]:
+                            for br in rdsht.row_values(rdrow + 1)[rdcolstart:]:
                                 if br == '':
                                     break
                                 else:
                                     brs.append(br)
-                            for qp in rdsht.row_values(rdrow + 2)[1:]:
+                            for qp in rdsht.row_values(rdrow + 2)[rdcolstart:]:
                                 if qp == '':
                                     break
                                 else:
                                     qps.append(qp)
-                            for res in rdsht.row_values(rdrow + 3)[1:]:
+                            for res in rdsht.row_values(rdrow + 3)[rdcolstart:]:
                                 if res == '':
                                     break
                                 else:

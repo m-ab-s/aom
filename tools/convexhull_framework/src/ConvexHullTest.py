@@ -142,10 +142,9 @@ def AddConvexHullCurveToCharts(sht, charts, rdPoints, dnScaledRes, tgtqmetrics):
         sht.write_row(row, CvxHDataStartCol + 1, qtys)
         sht.write_row(row + 1, CvxHDataStartCol + 1, brts)
 
-        rdpnts_qtys = [rd[1] for rd in rdPoints[idx]]
-        cvh_qidxs = [rdpnts_qtys.index(qty) for qty in qtys]
-        cvh_QPs[qty] = [QPs[i % len(QPs)] for i in cvh_qidxs]
-        cvh_Res = [dnScaledRes[i // len(QPs)] for i in cvh_qidxs]
+        cvh_idxs = [rdPoints[idx].index((brt, qty)) for brt, qty in zip(brts, qtys)]
+        cvh_QPs[qty] = [QPs[i % len(QPs)] for i in cvh_idxs]
+        cvh_Res = [dnScaledRes[i // len(QPs)] for i in cvh_idxs]
         cvh_Res_txt[qty] = ["%sx%s" % (x, y) for (x, y) in cvh_Res]
         sht.write_row(row + 2, CvxHDataStartCol + 1, cvh_QPs[qty])
         sht.write_row(row + 3, CvxHDataStartCol + 1, cvh_Res_txt[qty])
@@ -401,13 +400,17 @@ if __name__ == "__main__":
             SaveConvexHullResultsToExcel(content, DnScalingAlgos, UpScalingAlgos)
 
     elif Function == 'summary':
+        RDResultFilesGenerated = []
+        for content in Contents:
+            RDResultFilesGenerated.append(GetRDResultExcelFile(content))
+
         RDsmfile = GenerateSummaryRDDataExcelFile(EncodeMethod, CodecName, EncodePreset,
-                                                  SummaryOutPath, Path_RDResults,
+                                                  SummaryOutPath, RDResultFilesGenerated,
                                                   ContentPath, Clips)
         Utils.Logger.info("RD data summary file generated: %s" % RDsmfile)
 
         CvxHsmfile = GenerateSummaryConvexHullExcelFile(EncodeMethod, CodecName, EncodePreset,
-                                                       SummaryOutPath, Path_RDResults)
+                                                       SummaryOutPath, RDResultFilesGenerated)
         Utils.Logger.info("Convel hull summary file generated: %s" % CvxHsmfile)
     else:
         Utils.Logger.error("invalid parameter value of Function")
