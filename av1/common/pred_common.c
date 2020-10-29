@@ -20,11 +20,16 @@ static InterpFilter get_ref_filter_type(const MB_MODE_INFO *ref_mbmi,
                                         const MACROBLOCKD *xd, int dir,
                                         MV_REFERENCE_FRAME ref_frame) {
   (void)xd;
+  if (ref_mbmi->ref_frame[0] != ref_frame &&
+      ref_mbmi->ref_frame[1] != ref_frame) {
+    return SWITCHABLE_FILTERS;
+  }
 
-  return ((ref_mbmi->ref_frame[0] == ref_frame ||
-           ref_mbmi->ref_frame[1] == ref_frame)
-              ? av1_extract_interp_filter(ref_mbmi->interp_filters, dir & 0x01)
-              : SWITCHABLE_FILTERS);
+#if CONFIG_SKIP_INTERP_FILTER
+  if (!av1_mv_has_subpel(ref_mbmi, dir, 1)) return SWITCHABLE_FILTERS;
+#endif  // CONFIG_SKIP_INTERP_FILTER
+
+  return av1_extract_interp_filter(ref_mbmi->interp_filters, dir & 0x01);
 }
 
 int av1_get_pred_context_switchable_interp(const MACROBLOCKD *xd, int dir) {

@@ -161,6 +161,9 @@ set_aom_config_var(CONFIG_DERIVED_MV 0 NUMBER
                    "AV2 derived motion vector experiment flag")
 set_aom_config_var(CONFIG_DERIVED_MV_NO_PD 0 NUMBER
                    "AV2 derived MV without parsing dependency experiment flag")
+set_aom_config_var(CONFIG_SKIP_INTERP_FILTER 0 NUMBER
+                   "AV2 experiment to skip interp filter signaling for"
+                   "full pel MV")
 set_aom_config_var(CONFIG_NEW_TX_PARTITION 0 NUMBER
                    "AV2 new transform partitions experiment flag")
 set_aom_config_var(CONFIG_EXT_COMPOUND 0 NUMBER

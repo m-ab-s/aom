@@ -1344,14 +1344,18 @@ static INLINE void read_mb_interp_filter(AV1_COMMON *const cm,
     mbmi->interp_filters = av1_broadcast_interp_filter(cm->interp_filter);
   } else {
     InterpFilter ref0_filter[2] = { EIGHTTAP_REGULAR, EIGHTTAP_REGULAR };
+    const int enable_dual_filter = cm->seq_params.enable_dual_filter;
     for (int dir = 0; dir < 2; ++dir) {
-      const int ctx = av1_get_pred_context_switchable_interp(xd, dir);
-      ref0_filter[dir] = (InterpFilter)aom_read_symbol(
-          r, ec_ctx->switchable_interp_cdf[ctx], SWITCHABLE_FILTERS, ACCT_STR);
-      if (cm->seq_params.enable_dual_filter == 0) {
+      if (dir && !enable_dual_filter) {
         ref0_filter[1] = ref0_filter[0];
         break;
       }
+#if CONFIG_SKIP_INTERP_FILTER
+      if (!av1_mv_has_subpel(mbmi, dir, enable_dual_filter)) continue;
+#endif  // CONFIG_SKIP_INTERP_FILTER
+      const int ctx = av1_get_pred_context_switchable_interp(xd, dir);
+      ref0_filter[dir] = (InterpFilter)aom_read_symbol(
+          r, ec_ctx->switchable_interp_cdf[ctx], SWITCHABLE_FILTERS, ACCT_STR);
     }
     // The index system works as: (0, 1) -> (vertical, horizontal) filter types
     mbmi->interp_filters.as_filters.x_filter = ref0_filter[1];

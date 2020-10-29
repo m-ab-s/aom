@@ -235,6 +235,16 @@ static int mv_err_cost(const MV *mv, MV ref, MvSubpelPrecision max_precision,
 #endif  // DISALLOW_ONE_DOWN_FLEX_MVRES
           cost += flex_mv_costs[max_precision - MV_SUBPEL_QTR_PRECISION][down];
         }
+
+#if CONFIG_SKIP_INTERP_FILTER && 0
+        // Add penalty for MVs with subpel component.
+        // TODO(huisu): currently no gains. Try more experiments.
+        unsigned int bias = 0;
+        if (mv->row & 7) bias += (1 << AV1_PROB_COST_SHIFT) >> 3;
+        if (mv->col & 7) bias += (1 << AV1_PROB_COST_SHIFT) >> 3;
+        cost += bias;
+#endif  // CONFIG_SKIP_INTERP_FILTER
+
         return (int)ROUND_POWER_OF_TWO_64((int64_t)cost * error_per_bit,
                                           RDDIV_BITS + AV1_PROB_COST_SHIFT -
                                               RD_EPB_SHIFT +

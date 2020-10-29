@@ -910,15 +910,18 @@ static void write_mb_interp_filter(AV1_COMP *cpi, const MACROBLOCKD *xd,
     return;
   }
   if (cm->interp_filter == SWITCHABLE) {
-    int dir;
-    for (dir = 0; dir < 2; ++dir) {
+    const int enable_dual_filter = cm->seq_params.enable_dual_filter;
+    for (int dir = 0; dir < 2; ++dir) {
+      if (dir && !enable_dual_filter) return;
+#if CONFIG_SKIP_INTERP_FILTER
+      if (!av1_mv_has_subpel(mbmi, dir, enable_dual_filter)) continue;
+#endif  // CONFIG_SKIP_INTERP_FILTER
       const int ctx = av1_get_pred_context_switchable_interp(xd, dir);
       InterpFilter filter =
           av1_extract_interp_filter(mbmi->interp_filters, dir);
       aom_write_symbol(w, filter, ec_ctx->switchable_interp_cdf[ctx],
                        SWITCHABLE_FILTERS);
       ++cm->cur_frame->interp_filter_selected[filter];
-      if (cm->seq_params.enable_dual_filter == 0) return;
     }
   }
 }

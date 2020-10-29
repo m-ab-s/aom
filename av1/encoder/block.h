@@ -781,6 +781,25 @@ static INLINE int is_blk_skip(MACROBLOCK *x, int plane, int blk_idx) {
   return (x->blk_skip[blk_idx] >> plane) & 1;
 }
 
+#if CONFIG_SKIP_INTERP_FILTER
+static INLINE void av1_validate_interp_filter(const AV1_COMMON *cm,
+                                              MB_MODE_INFO *mbmi) {
+  const int enable_dual_filter = cm->seq_params.enable_dual_filter;
+  if (!av1_mv_has_subpel(mbmi, 0, enable_dual_filter)) {
+    mbmi->interp_filters.as_filters.y_filter =
+        av1_unswitchable_filter(cm->interp_filter);
+    if (!cm->seq_params.enable_dual_filter) {
+      mbmi->interp_filters.as_filters.x_filter =
+          mbmi->interp_filters.as_filters.y_filter;
+    }
+  }
+  if (!av1_mv_has_subpel(mbmi, 1, enable_dual_filter)) {
+    mbmi->interp_filters.as_filters.x_filter =
+        av1_unswitchable_filter(cm->interp_filter);
+  }
+}
+#endif  // CONFIG_SKIP_INTERP_FILTER
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif

@@ -9749,14 +9749,27 @@ static INLINE void swap_dst_buf(MACROBLOCKD *xd, const BUFFER_SET *dst_bufs[2],
   restore_dst_buf(xd, *dst_bufs[0], num_planes);
 }
 
-static INLINE int get_switchable_rate(MACROBLOCK *const x,
-                                      const int_interpfilters filters,
-                                      const int ctx[2]) {
-  int inter_filter_cost;
-  const InterpFilter filter0 = filters.as_filters.y_filter;
-  const InterpFilter filter1 = filters.as_filters.x_filter;
-  inter_filter_cost = x->switchable_interp_costs[ctx[0]][filter0];
-  inter_filter_cost += x->switchable_interp_costs[ctx[1]][filter1];
+static INLINE int get_switchable_rate(const MACROBLOCK *const x,
+                                      const MB_MODE_INFO *const mbmi,
+                                      const int ctx[2],
+                                      int enable_dual_filter) {
+  int inter_filter_cost = 0;
+#if CONFIG_SKIP_INTERP_FILTER
+  if (av1_mv_has_subpel(mbmi, 0, enable_dual_filter)) {
+    const InterpFilter filter = mbmi->interp_filters.as_filters.y_filter;
+    inter_filter_cost += x->switchable_interp_costs[ctx[0]][filter];
+  }
+  if (enable_dual_filter && av1_mv_has_subpel(mbmi, 1, enable_dual_filter)) {
+    const InterpFilter filter = mbmi->interp_filters.as_filters.x_filter;
+    inter_filter_cost += x->switchable_interp_costs[ctx[1]][filter];
+  }
+#else
+  const InterpFilters filter = mbmi->interp_filters.as_filters;
+  inter_filter_cost += x->switchable_interp_costs[ctx[0]][filter.y_filter];
+  if (enable_dual_filter) {
+    inter_filter_cost += x->switchable_interp_costs[ctx[1]][filter.x_filter];
+  }
+#endif  // CONFIG_SKIP_INTERP_FILTER
   return SWITCHABLE_INTERP_RATE_FACTOR * inter_filter_cost;
 }
 
@@ -9806,8 +9819,8 @@ static INLINE int64_t interpolation_filter_rd(
   this_rd_stats = *rd_stats_luma;
   const int_interpfilters last_best = mbmi->interp_filters;
   mbmi->interp_filters = filter_sets[filter_idx];
-  const int tmp_rs =
-      get_switchable_rate(x, mbmi->interp_filters, switchable_ctx);
+  const int tmp_rs = get_switchable_rate(x, mbmi, switchable_ctx,
+                                         cm->seq_params.enable_dual_filter);
 
   int64_t min_rd = RDCOST(x->rdmult, tmp_rs, 0);
   if (min_rd > *rd) {
@@ -10407,8 +10420,8 @@ static int64_t interpolation_filter_search(
   int switchable_ctx[2];
   switchable_ctx[0] = av1_get_pred_context_switchable_interp(xd, 0);
   switchable_ctx[1] = av1_get_pred_context_switchable_interp(xd, 1);
-  *switchable_rate =
-      get_switchable_rate(x, mbmi->interp_filters, switchable_ctx);
+  *switchable_rate = get_switchable_rate(x, mbmi, switchable_ctx,
+                                         cm->seq_params.enable_dual_filter);
 
   // Do MC evaluation for default filter_type.
   // Luma MC
@@ -11249,8 +11262,10 @@ static int64_t motion_mode_rd(
   const MB_MODE_INFO base_mbmi = *mbmi;
   MB_MODE_INFO best_mbmi;
   SimpleRDState *const simple_states = &args->simple_rd_state[mbmi->ref_mv_idx];
+#if !CONFIG_SKIP_INTERP_FILTER
   const int switchable_rate =
       av1_is_interp_needed(xd) ? av1_get_switchable_rate(cm, x, xd) : 0;
+#endif  // !CONFIG_SKIP_INTERP_FILTER
   int64_t best_rd = INT64_MAX;
   int best_rate_mv = rate_mv0;
   const int identical_obmc_mv_field_detected =
@@ -11431,12 +11446,22 @@ static int64_t motion_mode_rd(
     // current mode
     if (!av1_check_newmv_joint_nonzero(cm, x)) continue;
 
+#if CONFIG_SKIP_INTERP_FILTER
+    av1_validate_interp_filter(cm, mbmi);
+#endif  // CONFIG_SKIP_INTERP_FILTER
+
     x->skip = 0;
     rd_stats->dist = 0;
     rd_stats->sse = 0;
     rd_stats->skip = 1;
     rd_stats->rate = tmp_rate2;
+#if CONFIG_SKIP_INTERP_FILTER
+    if (av1_is_interp_needed(xd)) {
+      rd_stats->rate += av1_get_switchable_rate(cm, x, xd);
+    }
+#else
     if (mbmi->motion_mode != WARPED_CAUSAL) rd_stats->rate += switchable_rate;
+#endif  // CONFIG_SKIP_INTERP_FILTER
     if (interintra_allowed) {
       const int is_interintra = mbmi->ref_frame[1] == INTRA_FRAME;
       const int size_group = size_group_lookup[bsize];
@@ -12936,6 +12961,10 @@ static int64_t handle_inter_mode(AV1_COMP *const cpi, TileDataEnc *tile_data,
       ret_val = interpolation_filter_search(
           x, cpi, tile_data, bsize, &tmp_dst, &orig_dst, args->single_filter,
           &rd, &rs, &skip_build_pred, args, ref_best_rd);
+
+#if CONFIG_SKIP_INTERP_FILTER
+      av1_validate_interp_filter(cm, mbmi);
+#endif  // CONFIG_SKIP_INTERP_FILTER
 
 #if CONFIG_COLLECT_COMPONENT_TIMING
       end_timing(cpi, interpolation_filter_search_time);
