@@ -13,7 +13,6 @@
 #include <math.h>
 #include <stdbool.h>
 
-#include "av1/common/enums.h"
 #include "config/aom_dsp_rtcd.h"
 #include "config/av1_rtcd.h"
 
@@ -27,6 +26,7 @@
 #include "av1/common/cfl.h"
 #include "av1/common/common.h"
 #include "av1/common/common_data.h"
+#include "av1/common/enums.h"
 #include "av1/common/entropy.h"
 #include "av1/common/entropymode.h"
 #include "av1/common/idct.h"
@@ -14158,7 +14158,7 @@ static AOM_INLINE int is_ref_frame_used_by_compound_ref(
 }
 
 #if !CONFIG_REALTIME_ONLY
-#if USE_OLD_PREDICTION_MODE
+#if CONFIG_EXT_RECUR_PARTITIONS
 static AOM_INLINE int is_ref_frame_used_in_cache(MV_REFERENCE_FRAME ref_frame,
                                                  const MB_MODE_INFO *mi_cache) {
   if (!mi_cache) {
@@ -14174,7 +14174,7 @@ static AOM_INLINE int is_ref_frame_used_in_cache(MV_REFERENCE_FRAME ref_frame,
   MV_REFERENCE_FRAME cached_ref_type = av1_ref_frame_type(mi_cache->ref_frame);
   return ref_frame == cached_ref_type;
 }
-#endif  // USE_OLD_PREDICTION_MODE
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
 // Please add/modify parameter setting in this function, making it consistent
 // and easy to read and maintain.
@@ -14232,9 +14232,10 @@ static void set_params_rd_pick_inter_mode(
       // compound ref.
       if (skip_ref_frame_mask & (1 << ref_frame) &&
           !is_ref_frame_used_by_compound_ref(ref_frame, skip_ref_frame_mask)
-#if USE_OLD_PREDICTION_MODE
-          && !is_ref_frame_used_in_cache(ref_frame, x->inter_mode_cache)
-#endif  // USE_OLD_PREDICTION_MODE
+#if CONFIG_EXT_RECUR_PARTITIONS
+          && !(should_reuse_mode(x, REUSE_INTER_MODE_IN_INTERFRAME_FLAG) &&
+               is_ref_frame_used_in_cache(ref_frame, x->inter_mode_cache))
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
       ) {
         continue;
       }
@@ -14259,9 +14260,10 @@ static void set_params_rd_pick_inter_mode(
     }
 
     if (skip_ref_frame_mask & (1 << ref_frame)
-#if USE_OLD_PREDICTION_MODE
-        && !is_ref_frame_used_in_cache(ref_frame, x->inter_mode_cache)
-#endif  // USE_OLD_PREDICTION_MODE
+#if CONFIG_EXT_RECUR_PARTITIONS
+        && !(should_reuse_mode(x, REUSE_INTER_MODE_IN_INTERFRAME_FLAG) &&
+             is_ref_frame_used_in_cache(ref_frame, x->inter_mode_cache))
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
     ) {
       continue;
     }
@@ -14687,11 +14689,76 @@ static int fetch_picked_ref_frames_mask(const MACROBLOCK *const x,
   return picked_ref_frames_mask;
 }
 
-#if USE_OLD_PREDICTION_MODE
+#if CONFIG_EXT_RECUR_PARTITIONS
 static INLINE int is_mode_intra(PREDICTION_MODE mode) {
   return mode < INTRA_MODE_END;
 }
-#endif  // USE_OLD_PREDICTION_MODE
+
+// Reuse the prediction mode in cache.
+// Returns 0 if no pruning is done, 1 if we are skipping the current mod
+// completely, 2 if we skip compound only, but still try single motion modes
+static INLINE int skip_inter_mode_with_cached_mode(
+    const MACROBLOCK *x, PREDICTION_MODE mode,
+    const MV_REFERENCE_FRAME *ref_frame) {
+  const MB_MODE_INFO *cached_mi = x->inter_mode_cache;
+
+  // If there is no cache, then no pruning is possible.
+  if (!cached_mi) {
+    return 0;
+  }
+
+  const PREDICTION_MODE cached_mode = cached_mi->mode;
+  const MV_REFERENCE_FRAME *cached_frame = cached_mi->ref_frame;
+  const int cached_mode_is_single = cached_frame[1] <= INTRA_FRAME;
+
+  // If the cached mode is intra, then we just need to match the mode.
+  if (should_reuse_mode(x, REUSE_INTRA_MODE_IN_INTERFRAME_FLAG) &&
+      is_mode_intra(cached_mode) && mode != cached_mode) {
+    return 1;
+  }
+
+  // Returns 0 here if we are not reusing inter_modes
+  if (!should_reuse_mode(x, REUSE_INTER_MODE_IN_INTERFRAME_FLAG) ||
+      !cached_mi) {
+    return 0;
+  }
+
+  // If the cached mode is single inter mode, then we match the mode and
+  // reference frame.
+  if (cached_mode_is_single) {
+    if (mode != cached_mode || ref_frame[0] != cached_frame[0]) {
+      return 1;
+    }
+  } else {
+    // If the cached mode is compound, then we need to consider several cases.
+    const int mode_is_single = ref_frame[1] <= INTRA_FRAME;
+    if (mode_is_single) {
+      // If the mode is single, we know the modes can't match. But we might
+      // still want to search it if compound mode depends on the current mode.
+      int skip_motion_mode_only = 0;
+      if (cached_mode == NEW_NEARMV || cached_mode == NEW_NEARESTMV) {
+        skip_motion_mode_only = (ref_frame[0] == cached_frame[0]);
+      } else if (cached_mode == NEAR_NEWMV || cached_mode == NEAREST_NEWMV) {
+        skip_motion_mode_only = (ref_frame[0] == cached_frame[1]);
+      } else if (cached_mode == NEW_NEWMV) {
+        skip_motion_mode_only = (ref_frame[0] == cached_frame[0] ||
+                                 ref_frame[0] == cached_frame[1]);
+      }
+
+      return 1 + skip_motion_mode_only;
+    } else {
+      // If both modes are compound, then everything must match.
+      if (mode != cached_mode || ref_frame[0] != cached_frame[0] ||
+          ref_frame[1] != cached_frame[1]) {
+        return 1;
+      }
+    }
+  }
+
+  return 0;
+}
+
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
 // Case 1: return 0, means don't skip this mode
 // Case 2: return 1, means skip this mode completely
@@ -14715,52 +14782,13 @@ static int inter_mode_search_order_independent_skip(
   }
 #endif  // !CONFIG_NEW_INTER_MODES
 
-#if USE_OLD_PREDICTION_MODE
-  // Reuse the prediction mode in cache
-  const MB_MODE_INFO *cached_mi = x->inter_mode_cache;
-  if (x->inter_mode_cache) {
-    const PREDICTION_MODE cached_mode = cached_mi->mode;
-    const MV_REFERENCE_FRAME *cached_frame = cached_mi->ref_frame;
-    const int cached_mode_is_single = cached_frame[1] <= INTRA_FRAME;
-
-    // If the cached mode is intra, then we just need to match the mode.
-    if (is_mode_intra(cached_mode) && mode != cached_mode) {
-      return 1;
-    }
-
-    // If the cached mode is single inter mode, then we match the mode and
-    // reference frame.
-    if (cached_mode_is_single) {
-      if (mode != cached_mode || ref_frame[0] != cached_frame[0]) {
-        return 1;
-      }
-    } else {
-      // If the cached mode is compound, then we need to consider several cases.
-      const int mode_is_single = ref_frame[1] <= INTRA_FRAME;
-      if (mode_is_single) {
-        // If the mode is single, we know the modes can't match. But we might
-        // still want to search it if compound mode depends on the current mode.
-        int skip_motion_mode_only = 0;
-        if (cached_mode == NEW_NEARMV || cached_mode == NEW_NEARESTMV) {
-          skip_motion_mode_only = (ref_frame[0] == cached_frame[0]);
-        } else if (cached_mode == NEAR_NEWMV || cached_mode == NEAREST_NEWMV) {
-          skip_motion_mode_only = (ref_frame[0] == cached_frame[1]);
-        } else if (cached_mode == NEW_NEWMV) {
-          skip_motion_mode_only = (ref_frame[0] == cached_frame[0] ||
-                                   ref_frame[0] == cached_frame[1]);
-        }
-
-        return 1 + skip_motion_mode_only;
-      } else {
-        // If both modes are compound, then everything must match.
-        if (mode != cached_mode || ref_frame[0] != cached_frame[0] ||
-            ref_frame[1] != cached_frame[1]) {
-          return 1;
-        }
-      }
-    }
+#if CONFIG_EXT_RECUR_PARTITIONS
+  const int cached_skip_ret =
+      skip_inter_mode_with_cached_mode(x, mode, ref_frame);
+  if (cached_skip_ret > 0) {
+    return cached_skip_ret;
   }
-#endif  // USE_OLD_PREDICTION_MODE
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
   const int comp_pred = ref_frame[1] > INTRA_FRAME;
   if (!cpi->oxcf.enable_onesided_comp && comp_pred && cpi->all_one_sided_refs) {
@@ -14792,17 +14820,18 @@ static int inter_mode_search_order_independent_skip(
         skip_ref = 0;
       }
     }
-#if USE_OLD_PREDICTION_MODE
+#if CONFIG_EXT_RECUR_PARTITIONS
     // If we are reusing the prediction from cache, and the current frame is
     // required by the cache, then we cannot prune it.
-    if (is_ref_frame_used_in_cache(ref_type, x->inter_mode_cache)) {
+    if (should_reuse_mode(x, REUSE_INTER_MODE_IN_INTERFRAME_FLAG) &&
+        is_ref_frame_used_in_cache(ref_type, x->inter_mode_cache)) {
       skip_ref = 0;
       // If the cache only needs the current reference type for compound
       // prediction, then we can skip motion mode search.
       skip_motion_mode = (ref_type <= ALTREF_FRAME &&
                           x->inter_mode_cache->ref_frame[1] > INTRA_FRAME);
     }
-#endif  // USE_OLD_PREDICTION_MODE
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
     if (skip_ref) return 1;
   }
 
@@ -14947,16 +14976,17 @@ static int64_t handle_intra_mode(InterModeSearchState *search_state,
     } else {
       try_filter_intra = !search_state->best_mbmode.skip;
     }
-#if CONFIG_EXT_RECUR_PARTITIONS && USE_OLD_PREDICTION_MODE
+#if CONFIG_EXT_RECUR_PARTITIONS
     const MB_MODE_INFO *cached_mode = x->inter_mode_cache;
     const FILTER_INTRA_MODE_INFO *cached_fi_mode =
         cached_mode ? &cached_mode->filter_intra_mode_info : NULL;
-    if (!frame_is_intra_only(cm) && cached_fi_mode &&
+    if (should_reuse_mode(x, REUSE_INTRA_MODE_IN_INTERFRAME_FLAG) &&
+        !frame_is_intra_only(cm) && cached_fi_mode &&
         !cached_fi_mode->use_filter_intra) {
       assert(cached_mode->mode == DC_PRED);
       try_filter_intra = 0;
     }
-#endif  // CONFIG_EXT_RECUR_PARTITIONS && USE_OLD_PREDICTION_MODE
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
     if (try_filter_intra) {
       RD_STATS rd_stats_y_fi;
@@ -16041,13 +16071,15 @@ void av1_rd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
       av1_allow_palette(cm->allow_screen_content_tools, mbmi->sb_type) &&
       !is_inter_mode(search_state.best_mbmode.mode) && rd_cost->rate < INT_MAX;
 
-#if CONFIG_EXT_RECUR_PARTITIONS && USE_OLD_PREDICTION_MODE
+#if CONFIG_EXT_RECUR_PARTITIONS
   const MB_MODE_INFO *cached_mode = x->inter_mode_cache;
-  if (cached_mode && !(cached_mode->mode == DC_PRED &&
-                       cached_mode->palette_mode_info.palette_size[0] > 0)) {
+  if (should_reuse_mode(x, REUSE_INTRA_MODE_IN_INTERFRAME_FLAG) &&
+      cached_mode &&
+      !(cached_mode->mode == DC_PRED &&
+        cached_mode->palette_mode_info.palette_size[0] > 0)) {
     try_palette = 0;
   }
-#endif  // CONFIG_EXT_RECUR_PARTITIONS && USE_OLD_PREDICTION_MODE
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
   PALETTE_MODE_INFO *const pmi = &mbmi->palette_mode_info;
   if (try_palette) {

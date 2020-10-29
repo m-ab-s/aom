@@ -668,6 +668,10 @@ struct macroblock {
 #if CONFIG_EXT_RECUR_PARTITIONS
   SimpleMotionDataBufs *sms_bufs;
 
+  /*! \brief Determines what encoding decision should be reused. */
+  int reuse_inter_mode_cache_type;
+
+  /*! \brief The mode to reuse during \ref av1_rd_pick_inter_mode_sb. */
   MB_MODE_INFO *inter_mode_cache;
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 };
@@ -799,6 +803,12 @@ static INLINE void av1_validate_interp_filter(const AV1_COMMON *cm,
   }
 }
 #endif  // CONFIG_SKIP_INTERP_FILTER
+
+#if CONFIG_EXT_RECUR_PARTITIONS
+static INLINE int should_reuse_mode(const MACROBLOCK *x, int mode_flag) {
+  return x->reuse_inter_mode_cache_type & mode_flag;
+}
+#endif  // CONFIG_EXT_RECUR_PARTITIONS && CONFIG_FLEX_PARTITION
 
 #ifdef __cplusplus
 }  // extern "C"

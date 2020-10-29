@@ -173,11 +173,25 @@ typedef enum {
 // them in later partition search.
 #define USE_OLD_PREDICTION_MODE 0
 
+/*! \brief Used with \ref MACROBLOCK::reuse_inter_mode_cache_type to determine
+ * whether partition mode is reused. */
+#define REUSE_PARTITION_MODE_FLAG (1 << 0)
+
+/*! \brief Used with \ref MACROBLOCK::reuse_inter_mode_cache_type to determine
+ * whether the intra prediction_mode is reused. */
+#define REUSE_INTRA_MODE_IN_INTERFRAME_FLAG (1 << 1)
+
+/*! \brief Used with \ref MACROBLOCK::reuse_inter_mode_cache_type to determine
+ * whether the inter prediction_mode and ref frame are reused. */
+#define REUSE_INTER_MODE_IN_INTERFRAME_FLAG (1 << 2)
+
+#define REUSE_MODE_FLAG                                             \
+  REUSE_PARTITION_MODE_FLAG | REUSE_INTRA_MODE_IN_INTERFRAME_FLAG | \
+      REUSE_INTER_MODE_IN_INTERFRAME_FLAG
+
 // Whether to use simple_motion_search to prune partitioning
 #define ENABLE_FAST_RECUR_PARTITION 0
 #define USE_EST_TXFM 0
-#else  // !CONFIG_EXT_RECUR_PARTITIONS
-#define USE_OLD_PREDICTION_MODE 0
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 
 //  Block partition types.  R: Recursive

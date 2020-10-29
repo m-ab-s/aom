@@ -160,8 +160,10 @@ static INLINE void av1_set_best_mode_cache(MACROBLOCK *x,
                                            PICK_MODE_CONTEXT *mode_cache[1]) {
   if (mode_cache[0] && mode_cache[0]->rd_stats.rate != INT_MAX) {
     x->inter_mode_cache = &mode_cache[0]->mic;
+    x->reuse_inter_mode_cache_type = REUSE_MODE_FLAG;
   } else {
     x->inter_mode_cache = NULL;
+    x->reuse_inter_mode_cache_type = 0;
   }
 }
 
