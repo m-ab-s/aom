@@ -202,11 +202,13 @@ def WriteRDRecord(sht, base_data, target_data, start_row, bdrate_fmt, float_fmt)
                 % (refbr_b, refbr_e, refq_b, refq_e, testbr_b, testbr_e, testq_b, testq_e)
             sht.write_formula(start_row, bdrate_start_col + col, formula, bdrate_fmt)
         else:
+            refqps   = [base_data.RDPoints[qty][i][1] for i in range(len(base_data.RDPoints[qty]))]
             refbrs   = [base_data.RDPoints[qty][i][2] for i in range(len(base_data.RDPoints[qty]))]
             refqtys  = [base_data.RDPoints[qty][i][3] for i in range(len(base_data.RDPoints[qty]))]
+            testqps  = [target_data.RDPoints[qty][i][1] for i in range(len(target_data.RDPoints[qty]))]
             testbrs  = [target_data.RDPoints[qty][i][2] for i in range(len(target_data.RDPoints[qty]))]
             testqtys = [target_data.RDPoints[qty][i][3] for i in range(len(target_data.RDPoints[qty]))]
-            bdrate = BD_RATE(refbrs, refqtys, testbrs, testqtys) / 100.0
+            bdrate = BD_RATE(refbrs, refqtys, testbrs, testqtys, refqps, testqps, False) / 100.0
             sht.write_number(start_row, bdrate_start_col + col, bdrate, bdrate_fmt)
     return total_rows
 

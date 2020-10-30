@@ -15,32 +15,92 @@ import math
 import scipy.interpolate
 import logging
 from Config import LoggerName
+from operator import itemgetter
 
 subloggername = "CalcBDRate"
 loggername = LoggerName + '.' + '%s' % subloggername
 logger = logging.getLogger(loggername)
 
+
+def Interpolate(qp, logbr, qty):
+    '''
+    generate interpolated RD sampling point based on QP values.
+    using bilinear interpolation. bit rate are in the log domain
+    incoming logbr and qty should be in the increasing order
+    incoming qp could be in any order
+    '''
+    int_qp = []; int_logbr = []; int_qty = []
+    for i in range(0, len(qp)):
+        int_qp.append(qp[i])
+        int_logbr.append(logbr[i])
+        int_qty.append(qty[i])
+        #handle duplicated qp
+        if (i<len(qp)-1) and (qp[i] == qp[i+1]):
+            continue
+        #interpolate logbr and quality point between qp[i] and qp[i+1]
+        #qp order is non-determinstics, because it could come from different resolution
+        if (i<len(qp)-1) and ((qp[i] != qp[i + 1] + 1) or (qp[i] != qp[i + 1] - 1)):
+            qlist = []
+            if (qp[i+1] > qp[i]):
+                qlist = range(qp[i] + 1, qp[i+1], 1)
+            else:
+                qlist = range(qp[i] - 1, qp[i+1], -1)
+            for q in qlist:
+                # bitrate(qp_target) = (bitrate(qp0) - bitrate(qp1)) / (qp0 - qp1) * (qp_target - qp0) + bitrate(qp0)
+                # quality(qp_target) = (quality(qp0) - quality(qp1)) / (qp0 - qp1) * (qp_target - qp0) + quality(qp0)
+                # result int_logbr and int_qty will always be in non-decreasing order.
+                # but order of int_qp is similar as input qp
+                br = (logbr[i] - logbr[i + 1]) / (qp[i] - qp[i + 1]) * (q - qp[i]) + logbr[i]
+                qt = (qty[i] - qty[i + 1]) / (qp[i] - qp[i + 1]) * (q - qp[i]) + qty[i]
+                int_qp.append(q)
+                int_logbr.append(br)
+                int_qty.append(qt)
+    '''
+    print("before interpolation:")
+    for i in range(len(qp)):
+        print("%d,  %f, %f"%(qp[i], logbr[i], qty[i]))
+    print("after interpolation:")
+    for i in range(len(int_qp)):
+        print("%d,  %f, %f"%(int_qp[i], int_logbr[i], int_qty[i]))
+    '''
+    return int_qp, int_logbr, int_qty
+
 # BJONTEGAARD    Bjontegaard metric
 # Calculation is adapted from Google implementation
 # PCHIP method - Piecewise Cubic Hermite Interpolating Polynomial interpolation
-def BD_RATE(br1, qtyMtrc1, br2, qtyMtrc2):
-    brqtypairs1 = [(br1[i], qtyMtrc1[i]) for i in range(min(len(qtyMtrc1), len(br1)))]
-    brqtypairs2 = [(br2[i], qtyMtrc2[i]) for i in range(min(len(qtyMtrc2), len(br2)))]
+def BD_RATE(br1, qtyMtrc1, br2, qtyMtrc2, qp1=None, qp2=None, EnablePreInterpolation=False):
+    brqtypairs1 = []; brqtypairs2=[]
+    if (EnablePreInterpolation):
+        assert(qp1 is not None and qp2 is not None)
+        brqtypairs1 = [(br1[i], qtyMtrc1[i], qp1[i]) for i in range(min(len(qp1), len(qtyMtrc1), len(br1)))]
+        brqtypairs2 = [(br2[i], qtyMtrc2[i], qp2[i]) for i in range(min(len(qp2), len(qtyMtrc2), len(br2)))]
+    else:
+        brqtypairs1 = [(br1[i], qtyMtrc1[i]) for i in range(min(len(qtyMtrc1), len(br1)))]
+        brqtypairs2 = [(br2[i], qtyMtrc2[i]) for i in range(min(len(qtyMtrc2), len(br2)))]
 
-    if not brqtypairs1 or not brqtypairs2:
-        logger.info("one of input lists is empty!")
-        return 0.0
-
-    # sort the pair based on quality metric values increasing order
-    brqtypairs1.sort(key=lambda tup: tup[1])
-    brqtypairs2.sort(key=lambda tup: tup[1])
+    # sort the pair based on quality metric values in increasing order
+    # if quality metric values are the same, then sort the bit rate in increasing order
+    brqtypairs1.sort(key = itemgetter(1, 0))
+    brqtypairs2.sort(key = itemgetter(1, 0))
 
     logbr1 = [math.log(x[0]) for x in brqtypairs1]
     qmetrics1 = [100.0 if x[1] == float('inf') else x[1] for x in brqtypairs1]
     logbr2 = [math.log(x[0]) for x in brqtypairs2]
     qmetrics2 = [100.0 if x[1] == float('inf') else x[1] for x in brqtypairs2]
+    if (EnablePreInterpolation):
+        qp1 = [x[2] for x in brqtypairs1]
+        qp2 = [x[2] for x in brqtypairs2]
 
-    # remove duplicated quality metric value
+    if not brqtypairs1 or not brqtypairs2:
+        logger.info("one of input lists is empty!")
+        return 0.0
+
+    # perform an bi-linear interpolation based on QP
+    if EnablePreInterpolation:
+        qp1, logbr1, qmetrics1 = Interpolate(qp1, logbr1, qmetrics1)
+        qp2, logbr2, qmetrics2 = Interpolate(qp2, logbr2, qmetrics2)
+
+    # remove duplicated quality metric value, the RD point with higher bit rate is removed
     dup_idx = [i for i in range(1, len(qmetrics1)) if qmetrics1[i - 1] == qmetrics1[i]]
     for idx in sorted(dup_idx, reverse=True):
         del qmetrics1[idx]
