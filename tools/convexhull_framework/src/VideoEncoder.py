@@ -28,11 +28,14 @@ def EncodeWithFfmpeg_HEVC(infile, QP, num,fr, width, height, outfile, preset):
 
 def EncodeWithAOM_AV1(infile, QP, framenum, framerate, width, height, outfile,
                       preset):
-    args = " --codec=av1 -v --psnr --ivf  --frame-parallel=0 --cpu-used=%s" \
-           " --limit=%d --auto-alt-ref=1 --passes=2  " \
-           "--threads=1 --lag-in-frames=25 --end-usage=q --cq-level=%d" \
-           " -w %d -h %d -o %s %s"\
-           % (preset, framenum, QP, width, height, outfile, infile)
+    args = " --verbose --codec=av1 -v --psnr --ivf  --frame-parallel=0 --cpu-used=%s" \
+           " --limit=%d --auto-alt-ref=1 --passes=1 --end-usage=q --i420" \
+           " --min-gf-interval=16 --max-gf-interval=16 --gf-min-pyr-height=4 " \
+           " --gf-max-pyr-height=4 --threads=1 --lag-in-frames=19 --end-usage=q " \
+           " --kf-min-dist=65 --kf-max-dist=65 --use-fixed-qp-offsets=1 --deltaq-mode=0 " \
+           " --enable-tpl-model=0  --enable-keyframe-filtering=0 " \
+           " --fps=60/1 --input-bit-depth=8 --qp=%d -w %d -h %d -o %s %s"\
+           % (preset, framenum, 4*QP, width, height, outfile, infile)
     cmd = AOMENC + args
     ExecuteCmd(cmd, LogCmdOnly)
 

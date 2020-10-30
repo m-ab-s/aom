@@ -19,7 +19,7 @@ RootPath = "..\\"
 BinPath = os.path.join(RootPath, 'bin')
 WorkPath = os.path.join(RootPath, 'test')
 SMOKE_TEST = False  # override some parameters to do a quick smoke test
-FrameNum = 60
+FrameNum = 10
 
 if SMOKE_TEST:
     FrameNum = 2
@@ -34,8 +34,9 @@ Clips = {
 #    basename           class      width   height  framerate   bitdepth    fmt
     #"CrowdRun":         ["ClassB",  1920,   1080,   30,     8,      "yuv420p"],
     #"BasketballDrive":  ["ClassB",  1920,   1080,   30,     8,      "yuv420p"],
-    "NetflixCrosswalk_1920x1080_60fps_8bit_420_60f":    ["ClassB",  1920,   1080,
-     30,         8,          "yuv420p"],
+    #"NetflixCrosswalk_1920x1080_60fps_8bit_420_60f":    ["ClassB",  1920,   1080,
+    #30,         8,          "yuv420p"],
+    "CrowdRun_1920x1080":    ["ClassB",  1920,   1080,   30,  8,    "yuv420p"],
 }
 '''
     "aspen_1080p_60f":  ["ClassB",  1920,   1080,   30,         8,
@@ -85,10 +86,10 @@ Clips = {
 '''
 ############## Scaling settings ############################################
 # down scaling ratio
-DnScaleRatio = [1.0, 1.5, 2.0, 3.0, 4.0] #, 6.0]  # downscale ratio
+DnScaleRatio = [1.0, 1.5, 2.0, 2.5, 3.0, 4.0] #, 6.0]  # downscale ratio
 #down and up scaling algorithm, the 2 lists should be of same size
-DnScalingAlgos = ['bicubic', 'bilinear', 'gauss', 'lanczos', 'sinc']
-UpScalingAlgos = ['bicubic', 'bilinear', 'gauss', 'lanczos', 'sinc']
+DnScalingAlgos = ['lanczos'] #['bicubic', 'bilinear', 'gauss', 'lanczos', 'sinc']
+UpScalingAlgos = ['lanczos'] #['bicubic', 'bilinear', 'gauss', 'lanczos', 'sinc']
 
 if SMOKE_TEST:
     DnScalingAlgos = ['bicubic', 'lanczos', 'sinc']
@@ -115,12 +116,17 @@ QualityEvalMethods = ['VMAF', 'HDRTools', 'HDRTools', 'HDRTools', 'HDRTools',
                       'HDRTools']
 VMAF = os.path.join(BinPath, 'vmafossexec.exe')
 HDRTool = os.path.join(BinPath, 'HDRMetrics.exe')
+CalcBDRateInExcel = False
 
 ######################## config for exporting data to excel  #################
 #https://xlsxwriter.readthedocs.io/working_with_colors.html#colors
 # line color used, number of colors >= len(DnScaledRes)
 LineColors = ['blue', 'red', 'green', 'orange', 'pink', 'yellow']
 ConvexHullColor = 'white'
+
+# find out QP/Resolution with specified qty metrics
+TargetQtyMetrics = {'VMAF_Y': [60, 70, 80, 90],
+                    'PSNR_Y': [30, 35, 38, 40, 41]}
 
 # format for exported excel of convexhull test
 # if to modify below 3 variables, need to modify function
@@ -131,6 +137,12 @@ CvxH_WtCols = [(CvxH_colInterval + 1 + len(QualityList)) * i + CvxH_startCol
 CvxH_WtRows = [CvxH_startRow + i for i in range(len(QPs))]
 CvxH_WtLastCol = CvxH_WtCols[-1] + len(QualityList)
 CvxH_WtLastRow = CvxH_WtRows[-1]
+
+# format for writing convexhull curve data
+CvxHDataStartRow = CvxH_WtRows[-1] + 2; CvxHDataStartCol = 0
+CvxHDataNum = 5  # qty, bitrate, qp, resolution, 1 empty row as internal
+CvxHDataRows = [CvxHDataStartRow + 1 + CvxHDataNum * i for i in range(len(QualityList))]
+
 ######################## post analysis #########################################
 PostAnalysis_Path = os.path.join(RootPath, 'analysis')
 Path_RDResults = os.path.join(PostAnalysis_Path, 'rdresult')
