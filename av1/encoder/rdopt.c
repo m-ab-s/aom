@@ -14659,16 +14659,14 @@ static int inter_mode_search_order_independent_skip(
 #if USE_OLD_PREDICTION_MODE
   // Reuse the prediction mode in cache
   const MB_MODE_INFO *cached_mi = x->inter_mode_cache;
-  if (x->inter_mode_cache && !is_mode_intra(cached_mi->mode)) {
+  if (x->inter_mode_cache) {
     const PREDICTION_MODE cached_mode = cached_mi->mode;
     const MV_REFERENCE_FRAME *cached_frame = cached_mi->ref_frame;
     const int cached_mode_is_single = cached_frame[1] <= INTRA_FRAME;
 
     // If the cached mode is intra, then we just need to match the mode.
     if (is_mode_intra(cached_mode) && mode != cached_mode) {
-      // TODO(chiyotsai@google.com): we need to make sure that the contexts are
-      // available if we want to copy intra mode.
-      assert(0);
+      return 1;
     }
 
     // If the cached mode is single inter mode, then we match the mode and
@@ -15972,7 +15970,7 @@ void av1_rd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
   const int try_palette =
       cpi->oxcf.enable_palette &&
       av1_allow_palette(cm->allow_screen_content_tools, mbmi->sb_type) &&
-      !is_inter_mode(search_state.best_mbmode.mode);
+      !is_inter_mode(search_state.best_mbmode.mode) && rd_cost->rate < INT_MAX;
   PALETTE_MODE_INFO *const pmi = &mbmi->palette_mode_info;
   if (try_palette) {
     search_palette_mode(cpi, x, mi_row, mi_col, rd_cost, ctx, bsize, mbmi, pmi,
