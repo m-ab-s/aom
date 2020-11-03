@@ -707,6 +707,14 @@ void av1_encode_superblock(const AV1_COMP *const cpi, TileDataEnc *tile_data,
         if (mbmi->motion_mode == WARPED_CAUSAL) {
           mbmi->motion_mode = SIMPLE_TRANSLATION;
         }
+        // Update the frame MV buffers.
+        if (!dry_run && cm->seq_params.order_hint_info.enable_ref_frame_mvs) {
+          const int bw = mi_size_wide[bsize];
+          const int bh = mi_size_high[bsize];
+          const int x_mis = AOMMIN(bw, cm->mi_cols - mi_col);
+          const int y_mis = AOMMIN(bh, cm->mi_rows - mi_row);
+          av1_copy_frame_mvs(cm, mbmi, mi_row, mi_col, x_mis, y_mis);
+        }
       }
 #else
       // In rare cases the derived_mv may have changed and is different from

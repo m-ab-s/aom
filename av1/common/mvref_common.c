@@ -72,7 +72,15 @@ void av1_copy_frame_mvs(const AV1_COMMON *const cm,
               (abs(mi->mv[idx].as_mv.col) > REFMVS_LIMIT))
             continue;
           mv->ref_frame = ref_frame;
+#if CONFIG_DERIVED_MV
+          if (mi->derived_mv_allowed && mi->use_derived_mv) {
+            mv->mv.as_mv = mi->derived_mv;
+          } else {
+            mv->mv.as_int = mi->mv[idx].as_int;
+          }
+#else
           mv->mv.as_int = mi->mv[idx].as_int;
+#endif  // CONFIG_DERIVED_MV
         }
       }
       mv++;
