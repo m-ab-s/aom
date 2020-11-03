@@ -2825,6 +2825,10 @@ typedef struct {
 
 static INLINE void init_ref_map_pair(
     AV1_COMP *cpi, RefFrameMapPair ref_frame_map_pairs[REF_FRAMES]) {
+  if (cpi->gf_group.update_type[cpi->gf_group.index] == KF_UPDATE) {
+    memset(ref_frame_map_pairs, -1, sizeof(*ref_frame_map_pairs) * REF_FRAMES);
+    return;
+  }
   memset(ref_frame_map_pairs, 0, sizeof(*ref_frame_map_pairs) * REF_FRAMES);
   for (int map_idx = 0; map_idx < REF_FRAMES; map_idx++) {
     // Get reference frame buffer
