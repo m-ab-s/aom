@@ -13,6 +13,9 @@
 #include "aom_ports/system_state.h"
 
 #include "av1/common/cfl.h"
+#if CONFIG_INTERINTRA_ML
+#include "av1/common/interintra_ml.h"
+#endif  // CONFIG_INTERINTRA_ML
 #include "av1/common/pred_common.h"
 #include "av1/common/reconinter.h"
 #include "av1/common/reconintra.h"
@@ -1690,8 +1693,18 @@ static INLINE void update_inter_stats(const AV1_COMMON *const cm,
             if (!mbmi->use_derived_intra_mode[0])
 #endif  // CONFIG_DERIVED_INTRA_MODE
             {
+#if CONFIG_INTERINTRA_ML
+              if (is_interintra_ml_supported(xd, mbmi->use_wedge_interintra)) {
+                update_cdf(fc->interintra_ml_mode_cdf[bsize_group],
+                           mbmi->interintra_mode, INTERINTRA_MODES);
+              } else {
+                update_cdf(fc->interintra_mode_cdf[bsize_group],
+                           mbmi->interintra_mode, II_ML_PRED0);
+              }
+#else
               update_cdf(fc->interintra_mode_cdf[bsize_group],
                          mbmi->interintra_mode, INTERINTRA_MODES);
+#endif  // CONFIG_INTERINTRA_ML
             }
           }
           if (is_interintra_wedge_used(bsize)) {
