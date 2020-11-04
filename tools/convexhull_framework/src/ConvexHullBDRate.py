@@ -79,12 +79,16 @@ def read_cell_as_int(sht, row, col):
         return int(cell_val)
 
 
-def ParseConvexHullRD(xls):
+def ParseConvexHullRD(xls, EnablePreInterpolation = False):
     wb = xlrd.open_workbook(xls)
     shts = wb.sheet_names()   #list of sheet names
     data = {}   #dict of data, key is the sheet name
 
-    cols = [3 + i * 4 for i in range(len(QualityList))]
+    cvx_cols = 4
+    if EnablePreInterpolation:
+        cvx_cols = 6
+
+    cols = [3 + i * cvx_cols for i in range(len(QualityList))]
     for sht_name in shts:
         sht = wb.sheet_by_name(sht_name)
         #skip the title row
@@ -107,11 +111,20 @@ def ParseConvexHullRD(xls):
                     qp  = read_cell_as_int(sht, start_row+row, col + 1)     #QP
                     br  = read_cell_as_float(sht, start_row+row, col + 2)   #Bitrate
                     q   = read_cell_as_float(sht, start_row+row, col + 3)   #Quality
-                    if br != '' and q != '':
-                        if qty in rd_data:
-                            rd_data[qty].append((res, qp, br, q))
-                        else:
-                            rd_data.update({qty: [(res, qp, br, q)]})
+                    if EnablePreInterpolation:
+                        int_br = read_cell_as_float(sht, start_row+row, col + 4)   #Int_Bitrate
+                        int_q = read_cell_as_float(sht, start_row+row, col + 5)  # Int_Quality
+                        if int_br != '' and int_q != '':
+                            if qty in rd_data:
+                                rd_data[qty].append((br, q, int_br, int_q))
+                            else:
+                                rd_data.update({qty: [(br, q, int_br, int_q)]})
+                    else:
+                        if br != '' and q != '':
+                            if qty in rd_data:
+                                rd_data[qty].append((br, q))
+                            else:
+                                rd_data.update({qty: [(br, q)]})
 
             start_row += num
             point.RDPoints = rd_data
@@ -123,93 +136,147 @@ def ParseConvexHullRD(xls):
     return shts, data
 
 
-def WriteOutputHeaderRow(sht):
+def WriteOutputHeaderRow(sht, EnablePreInterpolation = False):
     sht.write(0, 0, 'Content Class')
     sht.write(0, 1, 'Content Name')
     sht.write(0, 2, 'Num RD Points')
     col = 3
     for qty in QualityList:
-        sht.write(0, col, 'Resolution')
-        sht.write(0, col + 1, 'QP')
-        sht.write(0, col + 2, 'Bitrate(kbps)')
-        sht.write(0, col + 3, qty)
-        col += 4
+        sht.write(0, col, 'Bitrate(kbps)')
+        sht.write(0, col + 1, qty)
+        if EnablePreInterpolation:
+            sht.write(0, col + 2, 'Int_Bitrate(kbps)')
+            sht.write(0, col + 3, 'Int_' + qty)
+            col += 4
+        else:
+            col += 2
+
     col += 1
     for qty in QualityList:
-        sht.write(0, col, 'Resolution')
-        sht.write(0, col + 1, 'QP')
-        sht.write(0, col + 2, 'Bitrate(kbps)')
-        sht.write(0, col + 3, qty)
-        col += 4
+        sht.write(0, col, 'Bitrate(kbps)')
+        sht.write(0, col + 1, qty)
+        if EnablePreInterpolation:
+            sht.write(0, col + 2, 'Int_Bitrate(kbps)')
+            sht.write(0, col + 3, 'Int_' + qty)
+            col += 4
+        else:
+            col += 2
     col += 1
     for (idx, qty) in zip(range(len(QualityList)), QualityList):
         sht.write(0, col + idx, "BDRATE-%s" % qty)
 
 
-def WriteRDData(sht, rd_data, start_row, start_col, format):
+def WriteRDData(sht, rd_data, start_row, start_col, format,
+                EnablePreInterpolation = False):
     col = start_col
     max_rows = 0
     for qty in QualityList:
         row = start_row
         for (line, point) in zip(range(len(rd_data.RDPoints[qty])),
                                  rd_data.RDPoints[qty]):
-            sht.write_string(row + line, col, point[0])                #Resolution
-            sht.write_number(row + line, col + 1, point[1])            #QP
-            sht.write_number(row + line, col + 2, point[2], format)    #Bitrate
-            sht.write_number(row + line, col + 3, point[3], format)    #Quality
-        col += 4
+            if point[0] != '':
+                sht.write_number(row + line, col, point[0], format)        #Bitrate
+            if point[1] != '':
+                sht.write_number(row + line, col + 1, point[1], format)    #Quality
+            if EnablePreInterpolation:
+                if point[2] != '':
+                    sht.write_number(row + line, col + 2, point[2], format)  # Int_Bitrate
+                if point[3] != '':
+                    sht.write_number(row + line, col + 3, point[3], format)  # Int_Quality
+        if EnablePreInterpolation:
+            col += 4
+        else:
+            col += 2
         max_rows = max(max_rows, len(rd_data.RDPoints[qty]))
     return max_rows
 
 
-def WriteRDRecord(sht, base_data, target_data, start_row, bdrate_fmt, float_fmt):
+def WriteRDRecord(sht, base_data, target_data, start_row, bdrate_fmt, float_fmt,
+                  EnablePreInterpolation = False):
     sht.write(start_row, 0, base_data.ContentClass)
     sht.write(start_row, 1, base_data.ContentName)
 
     #write base data
     base_start_col = 3
+    cvx_cols = 2
+    if EnablePreInterpolation:
+        cvx_cols = 4
+
     base_max_rows = WriteRDData(sht, base_data, start_row, base_start_col,
-                                float_fmt)
+                                float_fmt, EnablePreInterpolation)
 
     #write target data
-    target_start_col = base_start_col + 4 * len(QualityList) + 1
+    target_start_col = base_start_col + cvx_cols * len(QualityList) + 1
     target_max_rows = WriteRDData(sht, target_data, start_row, target_start_col,
-                                  float_fmt)
+                                  float_fmt, EnablePreInterpolation)
 
     #write bdrate formula
-    bdrate_start_col = target_start_col + 4 * len(QualityList) + 1
+    bdrate_start_col = target_start_col + cvx_cols * len(QualityList) + 1
     total_rows = max(base_max_rows, target_max_rows)
     sht.write(start_row, 2, total_rows)
     for (qty, col) in zip(QualityList, range(len(QualityList))):
         if CalcBDRateInExcel:
-            refbr_b = xlrd.cellnameabs(start_row, base_start_col + col * 4 + 2)
+            refbr_b = xlrd.cellnameabs(start_row,
+                                       base_start_col + col * cvx_cols)
             refbr_e = xlrd.cellnameabs(start_row + total_rows - 1,
-                                       base_start_col + col * 4 + 2)
-            refq_b = xlrd.cellnameabs(start_row, base_start_col + col * 4 + 3)
+                                       base_start_col + col * cvx_cols)
+            refq_b = xlrd.cellnameabs(start_row,
+                                      base_start_col + col * cvx_cols + 1)
             refq_e = xlrd.cellnameabs(start_row + total_rows - 1,
-                                      base_start_col + col * 4 + 3)
+                                      base_start_col + col * cvx_cols + 1)
 
-            testbr_b = xlrd.cellnameabs(start_row, target_start_col + col * 4 + 2)
+            testbr_b = xlrd.cellnameabs(start_row,
+                                        target_start_col + col * cvx_cols)
             testbr_e = xlrd.cellnameabs(start_row + total_rows - 1,
-                                        target_start_col + col * 4 + 2)
-            testq_b = xlrd.cellnameabs(start_row, target_start_col + col * 4 + 3)
+                                        target_start_col + col * cvx_cols)
+            testq_b = xlrd.cellnameabs(start_row,
+                                       target_start_col + col * cvx_cols + 1)
             testq_e = xlrd.cellnameabs(start_row + total_rows - 1,
-                                       target_start_col + col * 4 + 3)
+                                       target_start_col + col * cvx_cols + 1)
 
             # formula = '=-bdrate(%s:%s,%s:%s,%s:%s,%s:%s)' % (
             # refbr_b, refbr_e, refq_b, refq_e, testbr_b, testbr_e, testq_b, testq_e)
             formula = '=bdRateExtend(%s:%s,%s:%s,%s:%s,%s:%s)'\
                 % (refbr_b, refbr_e, refq_b, refq_e, testbr_b, testbr_e, testq_b, testq_e)
             sht.write_formula(start_row, bdrate_start_col + col, formula, bdrate_fmt)
+
+            if EnablePreInterpolation:
+                refbr_b = xlrd.cellnameabs(start_row,
+                                           base_start_col + col * cvx_cols + 2)
+                refbr_e = xlrd.cellnameabs(start_row + total_rows - 1,
+                                           base_start_col + col * cvx_cols + 2)
+                refq_b = xlrd.cellnameabs(start_row,
+                                          base_start_col + col * cvx_cols + 3)
+                refq_e = xlrd.cellnameabs(start_row + total_rows - 1,
+                                          base_start_col + col * cvx_cols + 3)
+
+                testbr_b = xlrd.cellnameabs(start_row,
+                                            target_start_col + col * cvx_cols + 2)
+                testbr_e = xlrd.cellnameabs(start_row + total_rows - 1,
+                                            target_start_col + col * cvx_cols + 2)
+                testq_b = xlrd.cellnameabs(start_row,
+                                           target_start_col + col * cvx_cols + 3)
+                testq_e = xlrd.cellnameabs(start_row + total_rows - 1,
+                                           target_start_col + col * cvx_cols + 3)
+                formula = '=bdRateExtend(%s:%s,%s:%s,%s:%s,%s:%s)' \
+                    % (refbr_b, refbr_e, refq_b, refq_e, testbr_b, testbr_e, testq_b,
+                       testq_e)
+
+                sht.write_formula(start_row + 1, bdrate_start_col + col, formula, bdrate_fmt)
         else:
-            refqps   = [base_data.RDPoints[qty][i][1] for i in range(len(base_data.RDPoints[qty]))]
-            refbrs   = [base_data.RDPoints[qty][i][2] for i in range(len(base_data.RDPoints[qty]))]
-            refqtys  = [base_data.RDPoints[qty][i][3] for i in range(len(base_data.RDPoints[qty]))]
-            testqps  = [target_data.RDPoints[qty][i][1] for i in range(len(target_data.RDPoints[qty]))]
-            testbrs  = [target_data.RDPoints[qty][i][2] for i in range(len(target_data.RDPoints[qty]))]
-            testqtys = [target_data.RDPoints[qty][i][3] for i in range(len(target_data.RDPoints[qty]))]
-            bdrate = BD_RATE(refbrs, refqtys, testbrs, testqtys, refqps, testqps, False) / 100.0
+            refbrs   = [base_data.RDPoints[qty][i][0] for i in range(len(base_data.RDPoints[qty]))]
+            refqtys  = [base_data.RDPoints[qty][i][1] for i in range(len(base_data.RDPoints[qty]))]
+            testbrs  = [target_data.RDPoints[qty][i][0] for i in range(len(target_data.RDPoints[qty]))]
+            testqtys = [target_data.RDPoints[qty][i][1] for i in range(len(target_data.RDPoints[qty]))]
+            bdrate = BD_RATE(refbrs, refqtys, testbrs, testqtys) / 100.0
             sht.write_number(start_row, bdrate_start_col + col, bdrate, bdrate_fmt)
+            if EnablePreInterpolation:
+                refbrs = [base_data.RDPoints[qty][i][2] for i in range(len(base_data.RDPoints[qty]))]
+                refqtys = [base_data.RDPoints[qty][i][3] for i in range(len(base_data.RDPoints[qty]))]
+                testbrs = [target_data.RDPoints[qty][i][2] for i in range(len(target_data.RDPoints[qty]))]
+                testqtys = [target_data.RDPoints[qty][i][3] for i in range(len(target_data.RDPoints[qty]))]
+                bdrate = BD_RATE(refbrs, refqtys, testbrs, testqtys) / 100.0
+                sht.write_number(start_row + 1, bdrate_start_col + col, bdrate, bdrate_fmt)
     return total_rows
 
 
@@ -228,8 +295,8 @@ if __name__ == "__main__":
     #"-o","ConvexHullBDRate.xlsm"]
     ParseArguments(sys.argv)
 
-    base_shts, base_rd_data = ParseConvexHullRD(InputBase)
-    target_shts, target_rd_data = ParseConvexHullRD(InputTarget)
+    base_shts, base_rd_data = ParseConvexHullRD(InputBase, True)
+    target_shts, target_rd_data = ParseConvexHullRD(InputTarget, True)
 
     output_wb = xlsxwriter.Workbook(Output)
     # vba file needed when to calculate bdrate
@@ -242,14 +309,14 @@ if __name__ == "__main__":
     for sht_name in base_shts:
         if sht_name in target_shts:
             sht = output_wb.add_worksheet(sht_name)
-            WriteOutputHeaderRow(sht)
+            WriteOutputHeaderRow(sht, True)
             start_row = 1
             for base_data in base_rd_data[sht_name]:
                 ContentName = base_data.ContentName
                 target_data = FindContent(ContentName, target_rd_data[sht_name])
                 if target_data != '':
                     total_rows = WriteRDRecord(sht, base_data, target_data,
-                                               start_row, bdrate_fmt, float_fmt)
+                                               start_row, bdrate_fmt, float_fmt, True)
                     start_row += total_rows
 
     output_wb.close()

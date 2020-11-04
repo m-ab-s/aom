@@ -414,16 +414,19 @@ def GenerateSummaryRDDataExcelFile(encMethod, codecName, preset, summary_outpath
     return smfile
 
 def GenerateSummaryConvexHullExcelFile(encMethod, codecName, preset,
-                                       summary_outpath, resultfiles):
+                                       summary_outpath, resultfiles,
+                                       EnablePreInterpolation = False):
     if not os.path.exists(summary_outpath):
         os.makedirs(summary_outpath)
     smfile = GetConvexHullDataSummaryFileName(encMethod, codecName, preset,
                                      summary_outpath)
     wb = xlsxwriter.Workbook(smfile)
-
+    cvx_cols = 4
+    if EnablePreInterpolation:
+        cvx_cols = 6
     # shts is for all scaling algorithms' convex hull test results
     shts = []
-    cols = [3 + i * 4 for i in range(len(QualityList))]
+    cols = [3 + i * cvx_cols for i in range(len(QualityList))]
     for dnsc, upsc in zip(dnScalAlgos, upScalAlgos):
         shtname = dnsc + '--' + upsc
         sht = wb.add_worksheet(shtname)
@@ -438,6 +441,9 @@ def GenerateSummaryConvexHullExcelFile(encMethod, codecName, preset,
             sht.write(0, col + 1, 'QP')
             sht.write(0, col + 2, 'Bitrate(kbps)')
             sht.write(0, col + 3,  qty)
+            if EnablePreInterpolation:
+                sht.write(0, col + 4, 'Int_Bitrate(kbps)')
+                sht.write(0, col + 5, 'Int_' + qty)
 
         # copy convexhull data from each content's result file to corresponding
         # location in summary excel file
@@ -452,9 +458,10 @@ def GenerateSummaryConvexHullExcelFile(encMethod, codecName, preset,
                     if key in resfile:
                         rdwb = xlrd.open_workbook(resfile)
                         rdsht = rdwb.sheet_by_name(shtname)
-                        maxNumQty = 0
+                        maxNumQty = 0; maxNumIntQty = 0
                         for rdrow, col in zip(CvxHDataRows, cols):
                             qtys = []; brs = []; qps = []; ress = []
+                            int_qtys = []; int_brs = []
                             numQty = 0
                             for qty in rdsht.row_values(rdrow)[rdcolstart:]:
                                 if qty == '':
@@ -479,14 +486,32 @@ def GenerateSummaryConvexHullExcelFile(encMethod, codecName, preset,
                                     break
                                 else:
                                     ress.append(res)
+                            if EnablePreInterpolation:
+                                numQty = 0
+                                for qty in rdsht.row_values(rdrow + 4)[
+                                           rdcolstart:]:
+                                    if qty == '':
+                                        break
+                                    else:
+                                        int_qtys.append(qty)
+                                        numQty = numQty + 1
+                                maxNumIntQty = max(maxNumIntQty, numQty)
+                                for br in rdsht.row_values(rdrow + 5)[rdcolstart:]:
+                                    if br == '':
+                                        break
+                                    else:
+                                        int_brs.append(br)
 
                             sht.write_column(row, col, ress)
                             sht.write_column(row, col + 1, qps)
                             sht.write_column(row, col + 2, brs)
                             sht.write_column(row, col + 3, qtys)
+                            if EnablePreInterpolation:
+                                sht.write_column(row, col + 4, int_brs)
+                                sht.write_column(row, col + 5, int_qtys)
 
-                        sht.write(row, 2, maxNumQty)
-                        row = row + maxNumQty
+                        sht.write(row, 2, max(maxNumQty, maxNumIntQty))
+                        row = row + max(maxNumQty, maxNumIntQty)
                         break
 
     wb.close()

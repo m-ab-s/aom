@@ -10,7 +10,7 @@
 ##
 __author__ = "maggie.sun@intel.com, ryan.lei@intel.com"
 
-import numpy
+import numpy as np
 import math
 import scipy.interpolate
 import logging
@@ -68,15 +68,14 @@ def Interpolate(qp, logbr, qty):
 # BJONTEGAARD    Bjontegaard metric
 # Calculation is adapted from Google implementation
 # PCHIP method - Piecewise Cubic Hermite Interpolating Polynomial interpolation
-def BD_RATE(br1, qtyMtrc1, br2, qtyMtrc2, qp1=None, qp2=None, EnablePreInterpolation=False):
-    brqtypairs1 = []; brqtypairs2=[]
-    if (EnablePreInterpolation):
-        assert(qp1 is not None and qp2 is not None)
-        brqtypairs1 = [(br1[i], qtyMtrc1[i], qp1[i]) for i in range(min(len(qp1), len(qtyMtrc1), len(br1)))]
-        brqtypairs2 = [(br2[i], qtyMtrc2[i], qp2[i]) for i in range(min(len(qp2), len(qtyMtrc2), len(br2)))]
-    else:
-        brqtypairs1 = [(br1[i], qtyMtrc1[i]) for i in range(min(len(qtyMtrc1), len(br1)))]
-        brqtypairs2 = [(br2[i], qtyMtrc2[i]) for i in range(min(len(qtyMtrc2), len(br2)))]
+def BD_RATE(br1, qtyMtrc1, br2, qtyMtrc2):
+    brqtypairs1 = []; brqtypairs2 = []
+    for i in range(min(len(qtyMtrc1), len(br1))):
+        if (br1[i] != '' and qtyMtrc1[i] != ''):
+            brqtypairs1.append((br1[i], qtyMtrc1[i]))
+    for i in range(min(len(qtyMtrc2), len(br2))):
+        if (br2[i] != '' and qtyMtrc2[i] != ''):
+            brqtypairs2.append((br2[i], qtyMtrc2[i]))
 
     # sort the pair based on quality metric values in increasing order
     # if quality metric values are the same, then sort the bit rate in increasing order
@@ -87,18 +86,10 @@ def BD_RATE(br1, qtyMtrc1, br2, qtyMtrc2, qp1=None, qp2=None, EnablePreInterpola
     qmetrics1 = [100.0 if x[1] == float('inf') else x[1] for x in brqtypairs1]
     logbr2 = [math.log(x[0]) for x in brqtypairs2]
     qmetrics2 = [100.0 if x[1] == float('inf') else x[1] for x in brqtypairs2]
-    if (EnablePreInterpolation):
-        qp1 = [x[2] for x in brqtypairs1]
-        qp2 = [x[2] for x in brqtypairs2]
 
     if not brqtypairs1 or not brqtypairs2:
         logger.info("one of input lists is empty!")
         return 0.0
-
-    # perform an bi-linear interpolation based on QP
-    if EnablePreInterpolation:
-        qp1, logbr1, qmetrics1 = Interpolate(qp1, logbr1, qmetrics1)
-        qp2, logbr2, qmetrics2 = Interpolate(qp2, logbr2, qmetrics2)
 
     # remove duplicated quality metric value, the RD point with higher bit rate is removed
     dup_idx = [i for i in range(1, len(qmetrics1)) if qmetrics1[i - 1] == qmetrics1[i]]
@@ -118,7 +109,7 @@ def BD_RATE(br1, qtyMtrc1, br2, qtyMtrc2, qp1=None, qp2=None, EnablePreInterpola
         return 0.0
 
     # generate samples between max and min of quality metrics
-    lin = numpy.linspace(min_int, max_int, num=100, retstep=True)
+    lin = np.linspace(min_int, max_int, num=100, retstep=True)
     interval = lin[1]
     samples = lin[0]
 
@@ -127,8 +118,8 @@ def BD_RATE(br1, qtyMtrc1, br2, qtyMtrc2, qp1=None, qp2=None, EnablePreInterpola
     v2 = scipy.interpolate.pchip_interpolate(qmetrics2, logbr2, samples)
 
     # Calculate the integral using the trapezoid method on the samples.
-    int1 = numpy.trapz(v1, dx=interval)
-    int2 = numpy.trapz(v2, dx=interval)
+    int1 = np.trapz(v1, dx=interval)
+    int2 = np.trapz(v2, dx=interval)
 
     # find avg diff
     avg_exp_diff = (int2 - int1) / (max_int - min_int)
