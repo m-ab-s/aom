@@ -238,6 +238,8 @@ set_aom_config_var(CONFIG_DBSCAN_FEATURE 0 NUMBER
                    "AV2 dbscan clustering for mv reduction")
 set_aom_config_var(CONFIG_EXT_COMP_REFMV 0 NUMBER
                    "AV2 extended compound ref MV experiment flag")
+set_aom_config_var(CONFIG_REF_MV_BANK 0 NUMBER
+                   "AV2 ref mv bank experiment flag")
 set_aom_config_var(
   CONFIG_RST_MERGECOEFFS 0 NUMBER
   "AV2 in-loop restoration merging coefficients experiment flag")

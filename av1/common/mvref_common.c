@@ -1833,6 +1833,76 @@ static void setup_ref_mv_list(const AV1_COMMON *cm, const MACROBLOCKD *xd,
   }
 #endif  // CONFIG_EXT_COMP_REFMV
 
+#if CONFIG_REF_MV_BANK
+  // If open slots are available, fetch reference MVs from the ref mv banks.
+  if (*refmv_count < MAX_REF_MV_STACK_SIZE && ref_frame != INTRA_FRAME) {
+    const REF_MV_BANK *ref_mv_bank_left = xd->ref_mv_bank_left_pt
+                                              ? xd->ref_mv_bank_left_pt
+                                              : &xd->ref_mv_bank_left;
+    const CANDIDATE_MV *queue_left =
+        ref_mv_bank_left->rmb_queue_buffer[ref_frame];
+    const int count_left = ref_mv_bank_left->rmb_queue_count[ref_frame];
+    const int start_idx_left = ref_mv_bank_left->rmb_queue_start_idx[ref_frame];
+    const int sb_col = xd->mi_col / cm->seq_params.mib_size;
+    const REF_MV_BANK *ref_mv_bank_above =
+        xd->ref_mv_bank_above_pt ? &xd->ref_mv_bank_above_pt[sb_col]
+                                 : &xd->ref_mv_bank_above[sb_col];
+    const int count_above = ref_mv_bank_above->rmb_queue_count[ref_frame];
+    const CANDIDATE_MV *queue_above =
+        ref_mv_bank_above->rmb_queue_buffer[ref_frame];
+    const int start_idx_above =
+        ref_mv_bank_above->rmb_queue_start_idx[ref_frame];
+
+    const int is_comp = rf[1] > INTRA_FRAME;
+    int idx_left = 0, idx_above = 0;
+    do {
+      for (; idx_left < count_left && *refmv_count < MAX_REF_MV_STACK_SIZE;
+           ++idx_left) {
+        const int idx =
+            (start_idx_left + count_left - 1 - idx_left) % REF_MV_BANK_SIZE;
+        int existing = 0;
+        for (int j = 0; j < *refmv_count; ++j) {
+          if (ref_mv_stack[j].this_mv.as_int ==
+                  queue_left[idx].this_mv.as_int &&
+              (!is_comp || ref_mv_stack[j].comp_mv.as_int ==
+                               queue_left[idx].comp_mv.as_int)) {
+            existing = 1;
+            break;
+          }
+        }
+        if (existing) continue;
+        ref_mv_stack[*refmv_count] = queue_left[idx];
+        ref_mv_weight[*refmv_count] = 1;
+        ++*refmv_count;
+        break;
+      }
+
+      for (; idx_above < count_above && *refmv_count < MAX_REF_MV_STACK_SIZE;
+           ++idx_above) {
+        const int idx =
+            (start_idx_above + count_above - 1 - idx_above) % REF_MV_BANK_SIZE;
+        int existing = 0;
+        for (int j = 0; j < *refmv_count; ++j) {
+          if (ref_mv_stack[j].this_mv.as_int ==
+                  queue_above[idx].this_mv.as_int &&
+              (!is_comp || ref_mv_stack[j].comp_mv.as_int ==
+                               queue_above[idx].comp_mv.as_int)) {
+            existing = 1;
+            break;
+          }
+        }
+        if (existing) continue;
+        ref_mv_stack[*refmv_count] = queue_above[idx];
+        ref_mv_weight[*refmv_count] = 1;
+        ++*refmv_count;
+        break;
+      }
+
+      if (idx_left >= count_left && idx_above >= count_above) break;
+    } while (*refmv_count < MAX_REF_MV_STACK_SIZE);
+  }
+#endif  // CONFIG_REF_MV_BANK
+
   int mi_width = AOMMIN(mi_size_wide[BLOCK_64X64], xd->n4_w);
   mi_width = AOMMIN(mi_width, cm->mi_cols - mi_col);
   int mi_height = AOMMIN(mi_size_high[BLOCK_64X64], xd->n4_h);
@@ -1957,6 +2027,60 @@ static void setup_ref_mv_list(const AV1_COMMON *cm, const MACROBLOCKD *xd,
 #endif  // CONFIG_NEW_INTER_MODES
   }
 }
+
+#if CONFIG_REF_MV_BANK
+static INLINE void update_ref_mv_bank(const MB_MODE_INFO *const mbmi,
+                                      REF_MV_BANK *ref_mv_bank) {
+  const MV_REFERENCE_FRAME ref_frame = av1_ref_frame_type(mbmi->ref_frame);
+  CANDIDATE_MV *queue = ref_mv_bank->rmb_queue_buffer[ref_frame];
+  const int is_comp = has_second_ref(mbmi);
+  const int start_idx = ref_mv_bank->rmb_queue_start_idx[ref_frame];
+  const int count = ref_mv_bank->rmb_queue_count[ref_frame];
+  int found = -1;
+
+  // Check if current MV is already existing in the buffer.
+  for (int i = 0; i < count; ++i) {
+    const int idx = (start_idx + i) % REF_MV_BANK_SIZE;
+    if (mbmi->mv[0].as_int == queue[idx].this_mv.as_int &&
+        (!is_comp || mbmi->mv[1].as_int == queue[idx].comp_mv.as_int)) {
+      found = i;
+      break;
+    }
+  }
+
+  // If current MV is found in the buffer, move it to the end of the buffer.
+  if (found >= 0) {
+    const int idx = (start_idx + found) % REF_MV_BANK_SIZE;
+    const CANDIDATE_MV cand = queue[idx];
+    for (int i = found; i < count - 1; ++i) {
+      const int idx0 = (start_idx + i) % REF_MV_BANK_SIZE;
+      const int idx1 = (start_idx + i + 1) % REF_MV_BANK_SIZE;
+      queue[idx0] = queue[idx1];
+    }
+    const int tail = (start_idx + count - 1) % REF_MV_BANK_SIZE;
+    queue[tail] = cand;
+    return;
+  }
+
+  // If current MV is not found in the buffer, append it to the end of the
+  // buffer, and update the count/start_idx accordingly.
+  const int idx = (start_idx + count) % REF_MV_BANK_SIZE;
+  queue[idx].this_mv = mbmi->mv[0];
+  if (is_comp) queue[idx].comp_mv = mbmi->mv[1];
+  if (count < REF_MV_BANK_SIZE) {
+    ++ref_mv_bank->rmb_queue_count[ref_frame];
+  } else {
+    ++ref_mv_bank->rmb_queue_start_idx[ref_frame];
+  }
+}
+
+void av1_update_ref_mv_bank(MACROBLOCKD *const xd,
+                            const MB_MODE_INFO *const mbmi, int mib_size) {
+  update_ref_mv_bank(mbmi, &xd->ref_mv_bank_left);
+  const int sb_col = (xd->mi_col / mib_size);
+  update_ref_mv_bank(mbmi, &xd->ref_mv_bank_above[sb_col]);
+}
+#endif  // CONFIG_REF_MV_BANK
 
 void av1_find_mv_refs(const AV1_COMMON *cm, const MACROBLOCKD *xd,
                       MB_MODE_INFO *mi, MV_REFERENCE_FRAME ref_frame,

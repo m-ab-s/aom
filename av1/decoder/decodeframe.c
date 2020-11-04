@@ -3280,29 +3280,50 @@ static void decode_tile(AV1Decoder *pbi, ThreadData *const td, int tile_row,
 
   av1_tile_set_row(&tile_info, cm, tile_row);
   av1_tile_set_col(&tile_info, cm, tile_col);
-  av1_zero_above_context(cm, &td->xd, tile_info.mi_col_start,
-                         tile_info.mi_col_end, tile_row);
-  av1_reset_loop_filter_delta(&td->xd, num_planes);
-  av1_reset_loop_restoration(&td->xd, num_planes);
+  MACROBLOCKD *const xd = &td->xd;
+  av1_zero_above_context(cm, xd, tile_info.mi_col_start, tile_info.mi_col_end,
+                         tile_row);
+  av1_reset_loop_filter_delta(xd, num_planes);
+  av1_reset_loop_restoration(xd, num_planes);
+#if CONFIG_REF_MV_BANK
+  av1_zero(xd->ref_mv_bank_above);
+  xd->ref_mv_bank_above_pt = NULL;
+  av1_zero(xd->ref_mv_bank_left);
+  xd->ref_mv_bank_left_pt = NULL;
+#endif  // CONFIG_REF_MV_BANK
 
   for (int mi_row = tile_info.mi_row_start; mi_row < tile_info.mi_row_end;
        mi_row += cm->seq_params.mib_size) {
-    av1_zero_left_context(&td->xd);
+    av1_zero_left_context(xd);
+#if CONFIG_REF_MV_BANK
+    // td->ref_mv_bank_above is initialized as xd->ref_mv_bank_above, and used
+    // for MV referencing during decoding the tile row.
+    // xd->ref_mv_bank_above is updated as decoding goes.
+    av1_copy(td->ref_mv_bank_above, xd->ref_mv_bank_above);
+    xd->ref_mv_bank_above_pt = td->ref_mv_bank_above;
+#endif  // CONFIG_REF_MV_BANK
 
     for (int mi_col = tile_info.mi_col_start; mi_col < tile_info.mi_col_end;
          mi_col += cm->seq_params.mib_size) {
-      av1_reset_is_mi_coded_map(&td->xd, cm->seq_params.mib_size);
-      av1_set_sb_info(cm, &td->xd, mi_row, mi_col);
-      av1_reset_ptree_in_sbi(td->xd.sbi);
-      set_cb_buffer(pbi, &td->xd, &td->cb_buffer_base, num_planes, 0, 0);
+      av1_reset_is_mi_coded_map(xd, cm->seq_params.mib_size);
+      av1_set_sb_info(cm, xd, mi_row, mi_col);
+      av1_reset_ptree_in_sbi(xd->sbi);
+      set_cb_buffer(pbi, xd, &td->cb_buffer_base, num_planes, 0, 0);
+#if CONFIG_REF_MV_BANK
+      // td->ref_mv_bank_left is initialized as xd->ref_mv_bank_left, and used
+      // for MV referencing during decoding the tile.
+      // xd->ref_mv_bank_left is updated as decoding goes.
+      td->ref_mv_bank_left = xd->ref_mv_bank_left;
+      xd->ref_mv_bank_left_pt = &td->ref_mv_bank_left;
+#endif  // CONFIG_REF_MV_BANK
 
       // Bit-stream parsing and decoding of the superblock
       decode_partition(pbi, td, mi_row, mi_col, td->bit_reader,
-                       cm->seq_params.sb_size, td->xd.sbi,
-                       td->xd.sbi->ptree_root, 0x3);
+                       cm->seq_params.sb_size, xd->sbi, xd->sbi->ptree_root,
+                       0x3);
 
       if (aom_reader_has_overflowed(td->bit_reader)) {
-        aom_merge_corrupted_flag(&td->xd.corrupted, 1);
+        aom_merge_corrupted_flag(&xd->corrupted, 1);
         return;
       }
     }
@@ -3310,7 +3331,7 @@ static void decode_tile(AV1Decoder *pbi, ThreadData *const td, int tile_row,
 
   int corrupted =
       (check_trailing_bits_after_symbol_coder(td->bit_reader)) ? 1 : 0;
-  aom_merge_corrupted_flag(&td->xd.corrupted, corrupted);
+  aom_merge_corrupted_flag(&xd->corrupted, corrupted);
 }
 
 static const uint8_t *decode_tiles(AV1Decoder *pbi, const uint8_t *data,

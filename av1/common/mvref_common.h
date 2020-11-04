@@ -378,6 +378,12 @@ int av1_get_ref_mv_idx_adj(REF_MV_INFO *ref_mv_info, int ref_frame,
                            int ref_mv_idx_orig);
 #endif  // ADJUST_DRL_FLEX_MVRES
 #endif  // CONFIG_FLEX_MVRES
+
+#if CONFIG_REF_MV_BANK
+void av1_update_ref_mv_bank(MACROBLOCKD *const xd,
+                            const MB_MODE_INFO *const mbmi, int mib_size);
+#endif  // CONFIG_REF_MV_BANK
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif

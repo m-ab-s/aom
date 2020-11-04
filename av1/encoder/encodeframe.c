@@ -1055,13 +1055,19 @@ void av1_encode_tile(AV1_COMP *cpi, ThreadData *td, int tile_row,
 
   av1_inter_mode_data_init(this_tile);
 
-  av1_zero_above_context(cm, &td->mb.e_mbd, tile_info->mi_col_start,
-                         tile_info->mi_col_end, tile_row);
-  av1_init_above_context(cm, &td->mb.e_mbd, tile_row);
-
-  cfl_init(&td->mb.e_mbd.cfl, &cm->seq_params);
-
+  MACROBLOCKD *const xd = &td->mb.e_mbd;
+  av1_zero_above_context(cm, xd, tile_info->mi_col_start, tile_info->mi_col_end,
+                         tile_row);
+  av1_init_above_context(cm, xd, tile_row);
+  cfl_init(&xd->cfl, &cm->seq_params);
   av1_crc32c_calculator_init(&td->mb.mb_rd_record.crc_calculator);
+
+#if CONFIG_REF_MV_BANK
+  av1_zero(xd->ref_mv_bank_above);
+  xd->ref_mv_bank_above_pt = NULL;
+  av1_zero(xd->ref_mv_bank_left);
+  xd->ref_mv_bank_left_pt = NULL;
+#endif  // CONFIG_REF_MV_BANK
 
   for (mi_row = tile_info->mi_row_start; mi_row < tile_info->mi_row_end;
        mi_row += cm->seq_params.mib_size) {

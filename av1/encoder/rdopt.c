@@ -12301,7 +12301,9 @@ static bool ref_mv_idx_early_breakout(MACROBLOCK *x,
   const MB_MODE_INFO_EXT *const mbmi_ext = x->mbmi_ext;
   const int8_t ref_frame = av1_ref_frame_type(mbmi->ref_frame);
 #if CONFIG_NEW_INTER_MODES
-  if (sf->reduce_inter_modes) {
+  // This speed feature is turned off when CONFIG_REF_MV_BANK is enabled because
+  // it causes too much compression performance loss.
+  if (sf->reduce_inter_modes && !CONFIG_REF_MV_BANK) {
     if (mbmi->ref_frame[0] == LAST2_FRAME ||
         mbmi->ref_frame[0] == LAST3_FRAME ||
         mbmi->ref_frame[1] == LAST2_FRAME ||

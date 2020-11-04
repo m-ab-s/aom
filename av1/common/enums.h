@@ -868,7 +868,11 @@ enum {
 #define NEWMV_MODE_CONTEXTS 6
 #define GLOBALMV_MODE_CONTEXTS 2
 #if CONFIG_NEW_INTER_MODES
+#if CONFIG_REF_MV_BANK
+#define MAX_DRL_BITS 7
+#else
 #define MAX_DRL_BITS 5
+#endif  // CONFIG_REF_MV_BANK
 #else
 // This constant can't be changed to tweak the DRL search size without
 // NEW_INTER_MODES

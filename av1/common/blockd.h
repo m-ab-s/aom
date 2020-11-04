@@ -1091,6 +1091,15 @@ typedef struct {
 #endif  // CONFIG_EXT_REFMV || CONFIG_ENHANCED_WARPED_MOTION
 } REF_MV_INFO;
 
+#if CONFIG_REF_MV_BANK
+#define REF_MV_BANK_SIZE 8
+typedef struct {
+  int rmb_queue_count[MODE_CTX_REF_FRAMES];
+  int rmb_queue_start_idx[MODE_CTX_REF_FRAMES];
+  CANDIDATE_MV rmb_queue_buffer[MODE_CTX_REF_FRAMES][REF_MV_BANK_SIZE];
+} REF_MV_BANK;
+#endif  // CONFIG_REF_MV_BANK
+
 // Most/all of the pointers are mere pointers to actual arrays are allocated
 // elsewhere. This is mostly for coding convenience.
 typedef struct macroblockd {
@@ -1159,6 +1168,15 @@ typedef struct macroblockd {
   uint8_t n4_w, n4_h;
 
   REF_MV_INFO ref_mv_info;
+
+#if CONFIG_REF_MV_BANK
+  REF_MV_BANK ref_mv_bank_left;
+  // TODO(huisu): 32 is enough to support frame width up to 32 * 64 = 2048.
+  // Ideally this should be allocated dynamically based on frame size.
+  REF_MV_BANK ref_mv_bank_above[32];
+  REF_MV_BANK *ref_mv_bank_left_pt;
+  REF_MV_BANK *ref_mv_bank_above_pt;
+#endif  // CONFIG_REF_MV_BANK
 
   uint8_t is_sec_rect;
 
