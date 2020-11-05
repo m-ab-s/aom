@@ -1676,6 +1676,11 @@ static int compute_quantized_wienerns_filter(const uint8_t *dgd,
 
   for (int i = v_beg; i < v_end; ++i) {
     for (int j = h_beg; j < h_end; ++j) {
+#if WIENER_NONSEP_MASK
+      if (rui->txskip_mask[(i >> MIN_TX_SIZE_LOG2) * rui->mask_stride +
+                           (j >> MIN_TX_SIZE_LOG2)])
+        continue;
+#endif  // WIENER_NONSEP_MASK
       int dgd_id = i * dgd_stride + j;
       int src_id = i * src_stride + j;
 #if CONFIG_WIENER_NONSEP_CROSS_FILT
@@ -1825,6 +1830,13 @@ static void search_wiener_nonsep(const RestorationTileLimits *limits,
   rui.luma_stride = rsc->luma_stride;
 #endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
   rui.plane = rsc->plane;
+#if WIENER_NONSEP_MASK
+  int w = ((rsc->cm->width + MAX_SB_SIZE - 1) >> MAX_SB_SIZE_LOG2)
+          << MAX_SB_SIZE_LOG2;
+  w >>= ((rui.plane == 0) ? 0 : rsc->cm->seq_params.subsampling_x);
+  rui.mask_stride = (w + MIN_TX_SIZE - 1) >> MIN_TX_SIZE_LOG2;
+  rui.txskip_mask = rsc->cm->tx_skip[rui.plane];
+#endif  // WIENER_NONSEP_MASK
 
   if (compute_quantized_wienerns_filter(
           rsc->dgd_buffer, rsc->src_buffer, limits->h_start, limits->h_end,
