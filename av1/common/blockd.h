@@ -1955,6 +1955,11 @@ static INLINE int av1_pixels_to_mi(int pixels) {
   return ALIGN_POWER_OF_TWO(pixels, 3) >> MI_SIZE_LOG2;
 }
 
+static INLINE int is_cfl_allowed_bsize(BLOCK_SIZE bsize) {
+  return (CFL_ALLOWED_TYPE)(block_size_wide[bsize] <= 32 &&
+                            block_size_high[bsize] <= 32);
+}
+
 // Can we use CfL for the current block?
 static INLINE CFL_ALLOWED_TYPE is_cfl_allowed(const MACROBLOCKD *xd) {
   const MB_MODE_INFO *mbmi = xd->mi[0];
@@ -1970,8 +1975,7 @@ static INLINE CFL_ALLOWED_TYPE is_cfl_allowed(const MACROBLOCKD *xd) {
     return (CFL_ALLOWED_TYPE)(plane_bsize == BLOCK_4X4);
   }
   // Spec: CfL is available to luma partitions lesser than or equal to 32x32
-  return (CFL_ALLOWED_TYPE)(block_size_wide[bsize] <= 32 &&
-                            block_size_high[bsize] <= 32);
+  return is_cfl_allowed_bsize(bsize);
 }
 
 // Calculate unit width and height for processing coefficients this plane, to

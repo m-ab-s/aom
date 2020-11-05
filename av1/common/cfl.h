@@ -23,7 +23,7 @@ static INLINE CFL_ALLOWED_TYPE store_cfl_required(const AV1_COMMON *cm,
 
   if (cm->seq_params.monochrome) return CFL_DISALLOWED;
 
-  if (!xd->cfl.is_chroma_reference) {
+  if (!xd->cfl.is_chroma_reference && is_cfl_allowed_bsize(mbmi->sb_type)) {
     // For non-chroma-reference blocks, we should always store the luma pixels,
     // in case the corresponding chroma-reference block uses CfL.
     // Note that this can only happen for block sizes which are <8 on
