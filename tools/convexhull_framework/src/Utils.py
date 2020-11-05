@@ -12,10 +12,36 @@ __author__ = "maggie.sun@intel.com, ryan.lei@intel.com"
 
 import os
 import re
+import sys
 import subprocess
 import time
 import logging
-from Config import LogLevels, Have_Class_Subfolder
+from Config import LogLevels, ContentPath
+from AV2CTCVideo import Y4M_CLIPs, CTC_TEST_SET, AS_TEST_SET
+
+class Clip:
+    file_name = ""
+    file_path = ""
+    file_class = ""
+    width = 0
+    height = 0
+    fmt = ""
+    fps_num = 0
+    fps_denom = 0
+    fps = 0
+    bit_depth = 0
+
+    def __init__(self, Name="", Path = "", Class="", Width=0, Height=0, Fmt="", FPS_num=0, FPS_denom=0, Bit_depth=0):
+        self.file_name = Name
+        self.file_path = Path
+        self.file_class = Class
+        self.width = Width
+        self.height = Height
+        self.fmt = Fmt
+        self.fps_num = FPS_num
+        self.fps_denom = FPS_denom
+        self.fps = round(self.fps_num / self.fps_denom)
+        self.bit_depth = Bit_depth
 
 def Cleanfolder(folder):
     if os.path.isdir(folder):
@@ -44,73 +70,64 @@ def GetShortContentName(content, isshort=True):
         name = basename
     return name
 
-def GetContents(contentpath, clips):
-    contents = []
-    for key, val in clips.items():
-        folder = contentpath
-        if Have_Class_Subfolder:
-            cls = val[0]
-            folder = os.path.join(contentpath, cls)
+def parseY4MHeader(y4m):
+    """
+    Parse y4m information from its header.
+    """
+    w = 0; h = 0; fps_num = 0; fps_denom = 0; fr = 0; fmt = "420"; bit_depth = 8;
+    #print("parsing " + y4m)
+    with open(y4m, 'rb') as f:
+        line = f.readline().decode('utf-8')
+        #YUV4MPEG2 W4096 H2160 F30000:1001 Ip A0:0 C420p10 XYSCSS=420P10
+        m = re.search(r"W([0-9]+) H([0-9]+) F([0-9]+)\:([0-9]+)", line)
+        if m:
+            w = int(m.group(1))
+            h = int(m.group(2))
+            fps_num = float(m.group(3))
+            fps_denom = float(m.group(4))
+            fps = round(fps_num / fps_denom)
+        m = re.search(r"C([0-9]+)p([0-9]+)", line)
+        if m:
+            fmt = m.group(1)
+            bit_depth = int(m.group(2))
+    if w == 0 or h == 0 or fps == 0:
+        print("Failed to parse the input y4m file!\n")
+        sys.exit()
+    return (w, h, fps_num, fps_denom, fps, fmt, bit_depth)
 
-        file = os.path.join(folder, key) + ".yuv"
-        if os.path.isfile(file):
-            contents.append(file)
+def CreateClipList(test_cfg):
+    clip_list = []; test_set = []
+    #[filename, class, width, height, fps_num, fps_denom, bitdepth, fmt]
+    test_set = AS_TEST_SET if (test_cfg == 'AS') else CTC_TEST_SET
 
-    return contents
+    for cls in test_set:
+        for file in Y4M_CLIPs[cls]:
+            y4m = os.path.join(ContentPath, cls, file)
+            w, h, fps_num, fps_denom, fps, fmt, bit_depth = parseY4MHeader(y4m)
+            clip = Clip(file, y4m, cls, w, h, fmt, fps_num, fps_denom, bit_depth)
+            clip_list.append(clip)
+    return clip_list
 
-def GetVideoInfo(content, Clips):
-    basename = GetShortContentName(content, False)
-    cls = Clips[basename][0]
-    width = Clips[basename][1]
-    height = Clips[basename][2]
-    fr = Clips[basename][3]
-    bitdepth = Clips[basename][4]
-    fmt = Clips[basename][5]
-
-    #default for 8 bit 420
-    RatioForFrameSize = 3/2
-    if fmt == 'yuv422p':
-        RatioForFrameSize = 2
-    elif fmt == 'yuv444p':
-        RatioForFrameSize = 3
-    if bitdepth > 8:
-        RatioForFrameSize *= 2
-
-    totalnum = os.path.getsize(content) / (width * height * RatioForFrameSize)
-
-    return cls, width, height, fr, bitdepth, fmt, totalnum
-
-def GetContentDict(contentpath, clips):
+def GetContentDict(clip_list):
     dict = {}
-
-    if Have_Class_Subfolder:
-        for key, val in clips.items():
-            cls = val[0]
-            folder = os.path.join(contentpath, cls)
-            file = os.path.join(folder, key) + ".yuv"
-            if os.path.isfile(file):
-                if cls in dict:
-                    if file not in dict[cls]:
-                        dict[cls].append(file)
-                else:
-                    dict[cls] = [file]
-    else:
-        # this is for case no subfolder/class. As * is forbidden for folder name,
-        # no folder will be same as this
-        cls = "*All"
-        dict[cls] = GetContents(contentpath, clips)
-
+    for clip in clip_list:
+        cls = clip.file_class
+        file = clip.file_path
+        if os.path.isfile(file):
+            if cls in dict:
+                if clip not in dict[cls]:
+                    dict[cls].append(clip)
+            else:
+                dict[cls] = [clip]
     return dict
 
-def CalcRowsClassAndContentDict(rowstart, content_path, clips, times=1):
-    contentsdict = GetContentDict(content_path, clips)
-
+def CalcRowsClassAndContentDict(rowstart, clip_list, times=1):
+    contentsdict = GetContentDict(clip_list)
     ofstc = rowstart
     rows_class = []
-    for cls, contents in contentsdict.items():
+    for cls, clips in contentsdict.items():
         rows_class.append(ofstc)
-        ofstc = ofstc + len(contents) * times
-
+        ofstc = ofstc + len(clips) * times
     return contentsdict, rows_class
 
 
@@ -223,13 +240,13 @@ def SetupLogging(level, logcmdonly, name, path):
 
     if logcmdonly or level != 0:
         global CmdLogger
-        logfilename = os.path.join(path, 'ConvexHullTestCmd_%s.log'
-                                   % time.strftime("%Y%m%d-%H%M%S"))
+        logfilename = os.path.join(path, '%s_TestCmd_%s.log'
+                                   % (name, time.strftime("%Y%m%d-%H%M%S")))
         CmdLogger = open(logfilename, 'w')
 
     if level != 0:
-        logfilename = os.path.join(path, 'ConvexHullTest_%s.log'
-                                   % time.strftime("%Y%m%d-%H%M%S"))
+        logfilename = os.path.join(path, '%s_Test_%s.log'
+                                   % (name, time.strftime("%Y%m%d-%H%M%S")))
         hdlr = logging.FileHandler(logfilename)
         formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
         hdlr.setFormatter(formatter)

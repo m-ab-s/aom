@@ -13,77 +13,124 @@ __author__ = "maggie.sun@intel.com, ryan.lei@intel.com"
 import os
 import Utils
 import logging
-from Config import BinPath, LogCmdOnly, LoggerName, FFMPEG
+import fileinput
+from shutil import copyfile
+from Config import LoggerName, FFMPEG, HDRToolsConfigFileTemplate, HDRConvert
 from Utils import GetShortContentName, ExecuteCmd
 
 subloggername = "VideoScaler"
 loggername = LoggerName + '.' + '%s' % subloggername
 logger = logging.getLogger(loggername)
 
-def ValidAlgo_ffmpeg(algo):
-    if (algo == 'bicubic' or algo == 'lanczos' or algo == 'sinc' or
-        algo == 'bilinear' or algo == 'spline' or algo == 'gauss' or
-        algo == 'bicublin' or algo == 'neighbor'):
-        return True
-    else:
-        return False
+def GenerateCfgFile(clip, outw, outh, algo, outfile, num, configpath):
+    contentBaseName = GetShortContentName(clip.file_name, False)
+    cfg_filename = contentBaseName + ('_Scaled_%s_%dx%d.cfg'% (algo, outw, outh))
+    fmt = 1
+    if (clip.fmt == '400'):
+        fmt = 0
+    elif (clip.fmt == '420'):
+        fmt = 1
+    elif (clip.fmt == '422'):
+        fmt = 2
+    elif (clip.fmt == '444'):
+        fmt = 3
 
-#use ffmpeg to do image rescaling for yuv420 8bit
-def RescaleWithFfmpeg(infile, inw, inh, outw, outh, algo, outfile, num, app_path):
-    args = " -y -s:v %dx%d -i %s -vf scale=%dx%d -c:v rawvideo -pix_fmt yuv420p" \
-           " -sws_flags %s+accurate_rnd+full_chroma_int+full_chroma_inp+bitexact"\
-           "+print_info -sws_dither none" \
-           % (inw, inh, infile, outw, outh, algo)
-    if (algo == 'lanczos'):
-        args += " -param0 5 "
-    args += " -frames %d %s" % (num, outfile)
-    cmd = FFMPEG + args
+    cfgfile = os.path.join(configpath, cfg_filename)
+    copyfile(HDRToolsConfigFileTemplate, cfgfile)
+    fp = fileinput.input(cfgfile, inplace=1)
+    for line in fp:
+        if 'SourceFile=' in line:
+            line = 'SourceFile="%s"\n' % clip.file_path
+        if 'OutputFile=' in line:
+            line = 'OutputFile="%s"\n' % outfile
+        if 'SourceWidth=' in line:
+            line = 'SourceWidth=%d\n' % clip.width
+        if 'SourceHeight=' in line:
+            line = 'SourceHeight=%d\n' % clip.height
+        if 'OutputWidth=' in line:
+            line = 'OutputWidth=%d\n' % outw
+        if 'OutputHeight=' in line:
+            line = 'OutputHeight=%d\n' % outh
+        if 'ScalingMode=' in line:
+            line = 'ScalingMode=3\n'
+        if 'LanczosLobes=' in line:
+            line = 'LanczosLobes=5\n'
+        if 'SourceRate=' in line:
+            line = 'SourceRate=%4.4f\n' % (float)(clip.fps_num / clip.fps_denom)
+        if 'SourceChromaFormat=' in line:
+            line = 'SourceChromaFormat=%d\n' % fmt
+        if 'SourceBitDepthCmp0=' in line:
+            line = 'SourceBitDepthCmp0=%d\n' % clip.bit_depth
+        if 'SourceBitDepthCmp1=' in line:
+            line = 'SourceBitDepthCmp1=%d\n' % clip.bit_depth
+        if 'SourceBitDepthCmp2=' in line:
+            line = 'SourceBitDepthCmp2=%d\n' % clip.bit_depth
+        if 'OutputRate=' in line:
+            line = 'OutputRate=%4.4f\n' % (float)(clip.fps_num / clip.fps_denom)
+        if 'OutputChromaFormat=' in line:
+            line = 'OutputChromaFormat=%d\n' % fmt
+        if 'OutputBitDepthCmp0=' in line:
+            line = 'OutputBitDepthCmp0=%d\n' % clip.bit_depth
+        if 'OutputBitDepthCmp1=' in line:
+            line = 'OutputBitDepthCmp1=%d\n' % clip.bit_depth
+        if 'OutputBitDepthCmp2=' in line:
+            line = 'OutputBitDepthCmp2=%d\n' % clip.bit_depth
+        if 'NumberOfFrames=' in line:
+            line = 'NumberOfFrames=%d\n' % num
+        print(line, end='')
+    fp.close()
+    return cfgfile
+
+def RescaleWithHDRTool(clip, outw, outh, algo, outfile, num, cfg_path,
+                       LogCmdOnly = False):
+    cfg_file = GenerateCfgFile(clip, outw, outh, algo, outfile, num, cfg_path)
+    args = " -f %s" % cfg_file
+    cmd = HDRConvert + args
     ExecuteCmd(cmd, LogCmdOnly)
 
-def VideoRescaling(infile, num, inw, inh, outw, outh, outfile, algo):
-    if ValidAlgo_ffmpeg(algo):
-        RescaleWithFfmpeg(infile, inw, inh, outw, outh, algo, outfile, num, BinPath)
+def VideoRescaling(clip, num, outw, outh, outfile, algo, cfg_path,
+                   LogCmdOnly = False):
+    RescaleWithHDRTool(clip, outw, outh, algo, outfile, num, cfg_path, LogCmdOnly)
     # add other tools for scaling here later
-    else:
-        logger.error("unsupported scaling algorithm.")
 
 ####################################################################################
 ##################### Major Functions ################################################
-def GetDownScaledOutFile(input, inw, inh, dnw, dnh, path, algo):
-    contentBaseName = GetShortContentName(input)
-    actual_algo = 'None' if inw == dnw and inh == dnh else algo
-    filename = contentBaseName + ('_DnScaled_%s_%dx%d.yuv' % (actual_algo, dnw,
+def GetDownScaledOutFile(clip, dnw, dnh, path, algo):
+    contentBaseName = GetShortContentName(clip.file_name, False)
+    actual_algo = 'None' if clip.width == dnw and clip.height == dnh else algo
+    filename = contentBaseName + ('_Scaled_%s_%dx%d.y4m' % (actual_algo, dnw,
                                                               dnh))
     dnscaledout = os.path.join(path, filename)
     return dnscaledout
 
-def GetUpScaledOutFile(infile, inw, inh, outw, outh, path, algo):
-    actual_algo = 'None' if inw == outw and inh == outh else algo
-    filename = GetShortContentName(infile, False) + ('_UpScaled_%s_%dx%d.yuv'
-                                                     % (actual_algo, outw, outh))
+def GetUpScaledOutFile(clip, outw, outh, algo, path):
+    actual_algo = 'None' if clip.width == outw and clip.height == outh else algo
+    filename = GetShortContentName(clip.file_name, False) + \
+               ('_Scaled_%s_%dx%d.y4m' % (actual_algo, outw, outh))
     upscaledout = os.path.join(path, filename)
     return upscaledout
 
-def DownScaling(input, num, inw, inh, outw, outh, path, algo):
-    dnScalOut = GetDownScaledOutFile(input, inw, inh, outw, outh, path, algo)
+def DownScaling(clip, num, outw, outh, path, cfg_path, algo, LogCmdOnly = False):
+    dnScalOut = GetDownScaledOutFile(clip, outw, outh, path, algo)
 
     Utils.CmdLogger.write("::Downscaling\n")
-    if (inw == outw and inh == outh):
-        cmd = "copy %s %s" % (input, dnScalOut)
+    if (clip.width == outw and clip.height == outh):
+        cmd = "copy %s %s" % (clip.file_path, dnScalOut)
         ExecuteCmd(cmd, LogCmdOnly)
     else:
         # call separate process to do the downscaling
-        VideoRescaling(input, num, inw, inh, outw, outh, dnScalOut, algo)
+        VideoRescaling(clip, num, outw, outh, dnScalOut, algo, cfg_path,
+                       LogCmdOnly)
     return dnScalOut
 
-def UpScaling(infile, num, inw, inh, outw, outh, path, algo):
-    upScaleOut = GetUpScaledOutFile(infile, inw, inh, outw, outh, path, algo)
-
+def UpScaling(clip, num, outw, outh, path, cfg_path, algo, LogCmdOnly = False):
+    upScaleOut = GetUpScaledOutFile(clip, outw, outh, algo, path)
     Utils.CmdLogger.write("::Upscaling\n")
-    if (inw == outw and inh == outh):
-        cmd = "copy %s %s" % (infile, upScaleOut)
+    if (clip.width == outw and clip.height == outh):
+        cmd = "copy %s %s" % (clip.file_path, upScaleOut)
         ExecuteCmd(cmd, LogCmdOnly)
     else:
         # call separate process to do the upscaling
-        VideoRescaling(infile, num, inw, inh, outw, outh, upScaleOut, algo)
+        VideoRescaling(clip, num, outw, outh, upScaleOut, algo, cfg_path,
+                       LogCmdOnly)
     return upScaleOut

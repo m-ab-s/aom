@@ -15,11 +15,14 @@ import xlsxwriter
 import xlrd
 import logging
 from CalculateQualityMetrics import CalculateQualityMetric, GatherQualityMetrics
-from VideoScaler import GetDownScaledOutFile, DownScaling, UpScaling, GetUpScaledOutFile
-from Config import DnScaleRatio, FrameNum, Clips, QualityList, LoggerName, Path_ScalingResults, ScalQty_WtCols, \
-    ScalQty_startRow, LineColors, ScalSumQty_WtCols, ContentPath
-from Utils import GetVideoInfo, Cleanfolder, GetShortContentName, CreateChart_Scatter, AddSeriesToChart_Scatter, UpdateChart, \
-    InsertChartsToSheet, CalcRowsClassAndContentDict, GetContents, CreateChart_Line, AddSeriesToChart_Line
+from VideoScaler import GetDownScaledOutFile, DownScaling, UpScaling,\
+     GetUpScaledOutFile
+from Config import DnScaleRatio, FrameNum, QualityList, LoggerName,\
+     Path_ScalingResults, ScalQty_WtCols, ScalQty_startRow, LineColors, \
+     ScalSumQty_WtCols
+from Utils import Cleanfolder, GetShortContentName, CreateChart_Scatter, \
+     AddSeriesToChart_Scatter, UpdateChart, InsertChartsToSheet, \
+     CalcRowsClassAndContentDict, Clip
 
 subloggername = "ScalingTest"
 loggername = LoggerName + '.' + '%s' % subloggername
@@ -34,22 +37,17 @@ def GetScalingResultExcelFile(rationum, scalAlgoNum):
     return file
 
 def GetScalingResultExcelFile_PerContent(content):
-    filename = GetShortContentName(content)
+    filename = GetShortContentName(content, False)
     filename = "ScalingResults_%s.xlsx" % filename
     file = os.path.join(Path_ScalingResults, filename)
     return file
 
-def Run_Scaling_Test(content, dnScalAlgo, upScalAlgo, path_dnscl, path_upscl,
-                     path_log, path_cfg, savememory, keepupscaledyuv):
+def Run_Scaling_Test(clip, dnScalAlgo, upScalAlgo, path_dnscl, path_upscl,
+                     path_log, path_cfg, savememory, keepupscaledyuv,
+                     LogCmdOnly=False):
     logger.info("start running scaling tests with content %s"
-                % os.path.basename(content))
-    cls, width, height, fr, bitdepth, fmt, totalnum = GetVideoInfo(content, Clips)
-    if totalnum < FrameNum:
-        logger.error("content %s includes total %d frames < specified % frames!"
-                     % (content, totalnum, FrameNum))
-        return
-
-    DnScaledRes = [(int(width / ratio), int(height / ratio))
+                % os.path.basename(clip.file_name))
+    DnScaledRes = [(int(clip.width / ratio), int(clip.height / ratio))
                    for ratio in DnScaleRatio]
     for i in range(len(DnScaledRes)):
         if savememory:
@@ -59,39 +57,38 @@ def Run_Scaling_Test(content, dnScalAlgo, upScalAlgo, path_dnscl, path_upscl,
 
         DnScaledW = DnScaledRes[i][0]
         DnScaledH = DnScaledRes[i][1]
-        logger.info("start downscaling content to %dx%d"
-                    % (DnScaledW, DnScaledH))
+        logger.info("start downscaling content to %dx%d" % (DnScaledW, DnScaledH))
         # downscaling
-        dnscalyuv = GetDownScaledOutFile(content, width, height, DnScaledW,
-                                         DnScaledH, path_dnscl, dnScalAlgo)
+        dnscalyuv = GetDownScaledOutFile(clip, DnScaledW, DnScaledH,
+                                         path_dnscl, dnScalAlgo)
         if not os.path.isfile(dnscalyuv):
-            dnscalyuv = DownScaling(content, FrameNum, width, height, DnScaledW,
-                                    DnScaledH, path_dnscl, dnScalAlgo)
-
-        upscaleyuv = UpScaling(dnscalyuv, FrameNum, DnScaledW, DnScaledH, width,
-                               height, path_upscl, upScalAlgo)
-
-        CalculateQualityMetric(content, FrameNum, upscaleyuv, width, height,
-                               path_log, path_cfg)
-
+            dnscalyuv = DownScaling(clip, FrameNum, DnScaledW, DnScaledH,
+                                    path_dnscl, path_cfg, dnScalAlgo, LogCmdOnly)
+        dnscaled_clip = Clip(GetShortContentName(dnscalyuv, False)+'.y4m',
+                             dnscalyuv, "", DnScaledW, DnScaledH,
+                             clip.fmt, clip.fps_num, clip.fps_denom,
+                             clip.bit_depth)
+        upscaleyuv = UpScaling(dnscaled_clip, FrameNum, clip.width, clip.height,
+                               path_upscl, path_cfg, upScalAlgo, LogCmdOnly)
+        CalculateQualityMetric(clip.file_path, FrameNum, upscaleyuv, clip.fmt,
+                               clip.width, clip.height, clip.bit_depth,
+                               path_log, LogCmdOnly)
     if savememory:
         Cleanfolder(path_dnscl)
 
     logger.info("finish running scaling test.")
 
-def GeneratePerContentExcelFile(dnScalAlgos, upScalAlgos, content, scaleRatios,
-                                path_log):
-    contshortname = GetShortContentName(content)
-    logger.info("start generate excel file for content :%s" % contshortname)
-    excFile = GetScalingResultExcelFile_PerContent(content)
+def GeneratePerClipExcelFile(dnScalAlgos, upScalAlgos, clip, path_log):
+    logger.info("start generate excel file for content :%s" % clip.file_name)
+    excFile = GetScalingResultExcelFile_PerContent(clip.file_name)
     wb = xlsxwriter.Workbook(excFile)
-    shtname = contshortname
+    shtname = GetShortContentName(clip.file_name)
     sht = wb.add_worksheet(shtname)
 
     sht.write(1, 0, 'Content Name')
-    sht.write(2, 0, contshortname)
+    sht.write(2, 0, clip.file_name)
     sht.write(1, 1, 'Scaling Ratio')
-    sht.write_column(2, 1, scaleRatios)
+    sht.write_column(2, 1, DnScaleRatio)
     pre_title = ['Width', 'Height', 'DnScaledWidth', 'DnScaledHeight']
     sht.write_row(1, 2, pre_title)
     for dn_algo, up_algo, col in zip(dnScalAlgos, upScalAlgos, ScalQty_WtCols):
@@ -99,13 +96,12 @@ def GeneratePerContentExcelFile(dnScalAlgos, upScalAlgos, content, scaleRatios,
         sht.write(0, col, algos)
         sht.write_row(1, col, QualityList)
 
-    cls, w, h, fr, bitdepth, fmt, totalnum = GetVideoInfo(content, Clips)
-    rows = [ScalQty_startRow + i for i in range(len(scaleRatios))]
+    rows = [ScalQty_startRow + i for i in range(len(DnScaleRatio))]
     continfos = []
-    for ratio, row in zip(scaleRatios, rows):
-        dw = int(w / ratio)
-        dh = int(h / ratio)
-        info = [w, h, dw, dh]
+    for ratio, row in zip(DnScaleRatio, rows):
+        dw = int(clip.width / ratio)
+        dh = int(clip.height / ratio)
+        info = [clip.width, clip.height, dw, dh]
         sht.write_row(row, 2, info)
         continfos.append(info)
 
@@ -121,15 +117,17 @@ def GeneratePerContentExcelFile(dnScalAlgos, upScalAlgos, content, scaleRatios,
                                         range(len(dnScalAlgos))):
         qualities = []
         seriname = dn_algo + '--' + up_algo
-        for ratio, row, idx in zip(scaleRatios, rows, range(len(scaleRatios))):
+        for ratio, row, idx in zip(DnScaleRatio, rows, range(len(DnScaleRatio))):
             w = continfos[idx][0]
             h = continfos[idx][1]
             dw = continfos[idx][2]
             dh = continfos[idx][3]
-            dnScalOut = GetDownScaledOutFile(content, w, h, dw, dh,
-                                             path_log, dn_algo)
-            upScalOut = GetUpScaledOutFile(dnScalOut, dw, dh, w, h,
-                                           path_log, up_algo)
+            dnScalOut = GetDownScaledOutFile(clip, dw, dh, path_log, dn_algo)
+            ds_clip = Clip(GetShortContentName(dnScalOut, False) + '.y4m',
+                 dnScalOut, "", dw, dh, clip.fmt, clip.fps_num, clip.fps_denom,
+                 clip.bit_depth)
+            upScalOut = GetUpScaledOutFile(ds_clip, clip.width, clip.height,
+                                           up_algo, path_log)
             qtys = GatherQualityMetrics(upScalOut, path_log)
             sht.write_row(row, col, qtys)
             qualities.append(qtys)
@@ -175,16 +173,15 @@ def GenerateSummarySheet(wb, dnScalAlgos, upScalAlgos, ratio, path_log):
         sht.write_row(1, col, QualityList)
 
     content_infos = {}; totalnum_contents = 0
-    for (clss, contents), row_clss in zip(ContentsDict.items(), Rows_Class):
+    for (clss, clip_list), row_clss in zip(ClipDict.items(), Rows_Class):
         sht.write(row_clss, 0, clss)
-        totalnum_contents = totalnum_contents + len(contents)
-        for content, row_cont in zip(contents, range(len(contents))):
-            cl, w, h, fr, bitdepth, fmt, totalnum = GetVideoInfo(content, Clips)
-            dw = int(w / ratio)
-            dh = int(h / ratio)
-            shortcntname = GetShortContentName(content)
+        totalnum_contents = totalnum_contents + len(clip_list)
+        for clip, row_cont in zip(clip_list, range(len(clip_list))):
+            dw = int(clip.width / ratio)
+            dh = int(clip.height / ratio)
+            shortcntname = GetShortContentName(clip.file_name, False)
             sht.write(row_clss + row_cont, 2, shortcntname)
-            infos = [w, h, dw, dh]
+            infos = [clip.width, clip.height, dw, dh]
             sht.write_row(row_clss + row_cont, 3, infos)
             content_infos[shortcntname] = infos
 
@@ -202,17 +199,18 @@ def GenerateSummarySheet(wb, dnScalAlgos, upScalAlgos, ratio, path_log):
                                         range(len(dnScalAlgos))):
         qualities = []
         seriname = dn_algo + '--' + up_algo
-        for (clss, contents), row_clss in zip(ContentsDict.items(), Rows_Class):
-            for content, row_cont in zip(contents, range(len(contents))):
-                key = GetShortContentName(content)
+        for (clss, clip_list), row_clss in zip(ClipDict.items(), Rows_Class):
+            for clip, row_cont in zip(clip_list, range(len(clip_list))):
+                key = GetShortContentName(clip.file_name, False)
                 w = content_infos[key][0]
                 h = content_infos[key][1]
                 dw = content_infos[key][2]
                 dh = content_infos[key][3]
-                dnScalOut = GetDownScaledOutFile(content, w, h, dw, dh,
-                                                 path_log, dn_algo)
-                upScalOut = GetUpScaledOutFile(dnScalOut, dw, dh, w, h,
-                                               path_log, up_algo)
+                dnScalOut = GetDownScaledOutFile(clip, dw, dh, path_log, dn_algo)
+                ds_clip = Clip(GetShortContentName(dnScalOut, False) + '.y4m',
+                               dnScalOut, clss, dw, dh, clip.fmt, clip.fps_num,
+                               clip.fps_denom, clip.bit_depth)
+                upScalOut = GetUpScaledOutFile(ds_clip, w, h, up_algo, path_log)
                 qtys = GatherQualityMetrics(upScalOut, path_log)
                 sht.write_row(row_clss + row_cont, col, qtys)
                 qualities.append(qtys)
@@ -260,7 +258,7 @@ def GenerateAverageSheet(wb, sumsht, dnScalAlgos, upScalAlgos, ratio):
         sht.write(0, col, algos)
         sht.write_row(1, col, StatsMetrics)
 
-    step = len(ContentsDict) + 1  # 1 extra row for total of each class
+    step = len(ClipDict) + 1  # 1 extra row for total of each class
     startrow = 2
     rows_qtymtr = [startrow + step * i for i in range(len(QualityList))]
     for qty, row_qm, y in zip(QualityList, rows_qtymtr, range(len(QualityList))):
@@ -272,11 +270,11 @@ def GenerateAverageSheet(wb, sumsht, dnScalAlgos, upScalAlgos, ratio):
         #charts.append(chart)
 
         totalnum_contents = 0
-        for (cls, contents), idx, rdrow_cls in zip(ContentsDict.items(),
-                                                   range(len(ContentsDict)),
+        for (cls, clip_list), idx, rdrow_cls in zip(ClipDict.items(),
+                                                   range(len(ClipDict)),
                                                    Rows_Class):
             sht.write(row_qm + idx, 1, cls)
-            num_content = len(contents)
+            num_content = len(clip_list)
             totalnum_contents = totalnum_contents + num_content
             sht.write(row_qm + idx, 2, num_content)
             for rdcol, wtcol in zip(ScalSumQty_WtCols, cols_avg):
@@ -302,7 +300,7 @@ def GenerateAverageSheet(wb, sumsht, dnScalAlgos, upScalAlgos, ratio):
                 sht.write(row_qm + idx, wtcol + 3, formula)
 
         #write total contents statistics
-        wtrow = row_qm + len(ContentsDict)
+        wtrow = row_qm + len(ClipDict)
         sht.write(wtrow, 1, 'Total')
         sht.write(wtrow, 2, totalnum_contents)
         for rdcol, wtcol in zip(ScalSumQty_WtCols, cols_avg):
@@ -330,28 +328,25 @@ def GenerateAverageSheet(wb, sumsht, dnScalAlgos, upScalAlgos, ratio):
 
     logger.info("finish average sheet for ratio:%2.2f." % ratio)
 
-
-def SaveScalingResultsToExcel(dnScalAlgos, upScalAlgos, path_log):
+def SaveScalingResultsToExcel(dnScalAlgos, upScalAlgos, clip_list, path_log):
     logger.info("start saving scaling quality results to excel files.......")
     if not os.path.exists(Path_ScalingResults):
         os.makedirs(Path_ScalingResults)
 
     logger.info("start generating per content scaling quality excel file.......")
-    contents = GetContents(ContentPath, Clips)
-    for content in contents:
-        GeneratePerContentExcelFile(dnScalAlgos, upScalAlgos, content,
-                                    DnScaleRatio, path_log)
+    for clip in clip_list:
+        GeneratePerClipExcelFile(dnScalAlgos, upScalAlgos, clip, path_log)
 
     scaleRatios = DnScaleRatio
-    scaleRatios.remove(1.0)
+    if (1.0 in scaleRatios):
+        scaleRatios.remove(1.0)
     logger.info("start generating scaling quality summary excel file.......")
-    sumexcFile = GetScalingResultExcelFile(len(scaleRatios), len(DnScaleRatio))
+    sumexcFile = GetScalingResultExcelFile(len(scaleRatios), len(dnScalAlgos))
     wb = xlsxwriter.Workbook(sumexcFile)
     # to generate rows number of starting of each class: Rows_Class
-    global ContentsDict, Rows_Class
-    ContentsDict, Rows_Class = CalcRowsClassAndContentDict(ScalQty_startRow,
-                                                           ContentPath, Clips)
-
+    global ClipDict, Rows_Class
+    ClipDict, Rows_Class = CalcRowsClassAndContentDict(ScalQty_startRow,
+                                                       clip_list)
     sumShts = []
     for ratio in scaleRatios:
         sht = GenerateSummarySheet(wb, dnScalAlgos, upScalAlgos, ratio, path_log)

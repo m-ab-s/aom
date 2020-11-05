@@ -10,13 +10,11 @@ use it for different studies.
 
 Prerequisites
 1. Inside ./bin folder, make sure you have executables for all external tools,
-   such as vmafossexec, ffmpeg, HDRMetrics, encoder, decoder, etc. You can get
-   the pre-build binary or source code for the following tools that are needed:
-   ffmpeg: https://ffmpeg.org/download.html
+   such as vmaf_rc, HDRConvert, encoder, decoder, etc. You can get the pre-build
+   binaries or source code for the following tools that are needed:
    vmaf tools: https://github.com/Netflix/vmaf
-   HDRMetrics: https://gitlab.com/standards/HDRTools
+   HDRConvert: https://gitlab.com/standards/HDRTools
    libaom AV1 encoder/decoder: https://aomedia.googlesource.com/aom/
-   SVT HEVC encoder: https://github.com/OpenVisualCloud/SVT-HEVC
    SVT AV1 encoder: https://github.com/OpenVisualCloud/SVT-AV1
    Please always follow the manual of these tools to update the command
    parameters used in the script
@@ -25,9 +23,10 @@ Prerequisites
    (vmaf_v0.6.1.pkl.model, vmaf_v0.6.1.pkl) are used and stored under the ./bin
    folder.
 
-3. HDRMetrics requires a template config file (HDRMetricsYUV420_template.cfg).
-   It is also located under the ./bin folder. Test framework will generate
-   individual config file based on this template.
+3. HDRConvert is used to perform downscale and upscale operation. It requires
+   a template config file (HDRConvScalerY4MFile.cfg). It is also located under
+   the ./bin folder. Test framework will generate individual config file based
+   on this template.
 
 4. VBA macro binary file (vbaProject-AV2.bin) for bdrate calculation is also
    stored under ./bin folder, which is needed for BDRATE calculation inside the
@@ -36,45 +35,42 @@ Prerequisites
 5. Test framework is implemented in python 3. It requires few extra python
    packages, such as xlrd, xlsxwriter, argparse, etc.
 
-Things you need to update inside ./src/Config.py to configure the test.
-1. Update the Clips table following the existing example to provide the list of
-   video sequences that you want to test. The first value is the yuv file name
-   without .yuv suffix. All test video sequences should be in the folder
-   specified by ContentPath. Test framework will extract the string before the
-   first "_" as the short name to identify the test sequence and use that to
-   generate file name of other intermediate files, so please make sure the short
-   name of the test sequence is unique. Currently only 8 bit yuv sequences in
-   yuv420p format are supported.
+Things you need to update to configure the test.
+1. Update the test clips table in AV2CTCVideo.py file following the existing
+   example to provide the list and classes of video sequences that you want to
+   test. Currently, only .y4m files are supported. Test script will parse the
+   y4m file header to get the basic information of the video clip, such as
+   resolution, frame rate, bit depth and color format, etc.
 
-2. Update FrameNum to specify number of frames you want to process.
+2. Update the test configuration list in ./src/Config.py to specify the test
+   configurations. Currently, supported test configurations include Random Access
+   (RA), Low Delay (LD) and Adaptive Streaming (AS).
 
-3. Update DnScaleRatio list to provide the list of downscaling ratios.
+3. Update FrameNum in ./src/Config.py to specify number of frames you want to
+   process.
 
-4. Update DnScalingAlgos and UpScalingAlgos list to specify downscaling/upscaling
-   filter types that you want to test. The name of the filter types is that
-   supported by ffmpeg. The size of these two lists must be the same. Filter
-   types for downscaling and upscaling can be different.
+4. Update DnScaleRatio list in ./src/Config.py to provide the list of downscaling
+   ratios used for adaptive streaming (convex hull) test configuration.
 
-5. Update QPs list to specify the list of QPs you want to test for different
-   codecs. QPs must be in the valid QP range for different coding standards.
-   For example, [0, 51] for hevc and [0, 63] for AV1
+5. Update DnScalingAlgos and UpScalingAlgos list in ./src/Config.py to specify
+   downscaling/upscaling filter types that you want to test. The name of the
+   filter types is that supported by HDRConvert. The size of these two lists
+   must be the same. Filter types for downscaling and upscaling can be different.
+   Right now, only the lanczos filter is supported.
 
-6. Update QualityEvalMethods to specify tools you want to use to calculate
-   quality metrics in the QualityList. Currently, only VMAF and HDRTools are
-   supported. You also need to update QualityList and QualityEvalMethods to
-   specify what quality metrics you want to calculate. Test framework will filter
-   out other metrics and only report the metrics that are specified.
+6. Update QPs list in ./src/Config.py to specify the list of QPs you want to
+   test for different codecs. QPs must be in the valid QP range for different
+   coding standards. For example, [0, 63] for AV1.
 
-7. Update LogCmdOnly flag. When it is set to True, the test framework will only
-   capture all process command sequences into a log file (under ./test/testLogs
-   folder with time stamp) without actually running it on your system. This
-   feature is to support the use case in which actual processing tasks need to
-   distributed on to a server cluster and executed in parallel.
+7. Update QualityList in ./src/Config.py to specify quality metrics you want to
+   calculate. Currently, only VMAF_RC is supported for quality metrics calculation.
+   It supports PSNR (for Y, U, V planes), SSIM, MS-SSIM and VMAF for Y plane only.
 
 8. Update SMOKE_TEST flag, It is used for sanity check purpose, in which only
    few frames are processed to reduce the test time.
 
-Command lines for running the tests:
+Sample command lines for running the adaptive streaming (convex hull) test:
+"python ConvexHullTest.py [options]"
 below is the full command line options in help message:
   -h, --help                   show this help message and exit
   -f, --function               function to run: clean, scaling, sumscaling,
@@ -84,12 +80,20 @@ below is the full command line options in help message:
   -s, --SaveMemory             [0|1] save memory mode will delete most files in
                                intermediate steps and keeps only necessary ones
                                for RD calculation. It is false by default
+  -CmdOnly, --LogCmdOnly       LogCmdOnly mode will only capture the command
+                               sequences in the command log file instead of
+                               actually run it. It is false by default
   -l, --LoggingLevel           logging level: 0:No Logging, 1: Critical, 2: Error,
                                3:Warning, 4: Info, 5: Debug
-  -c, --CodecName              CodecName: av1 or hevc
-  -m, --EncodeMethod           EncodeMethod: ffmpeg, aom, svt
-  -p, --EncodePreset           EncodePreset: medium, slow, fast, etc for ffmpeg,
-                               0,1,2... for aom and svt
+  -c, --CodecName              CodecName: av1
+  -m, --EncodeMethod           EncodeMethod: aom, svt
+  -p, --EncodePreset           EncodePreset: 0,1,2... for aom and svt
+
+when LogCmdOnly is set to True, the test framework will only capture all process
+command sequences into a log file (under ./test/testLogs folder with time stamp)
+without actually running it on your system. This feature is to support the use
+case in which actual processing tasks need to distributed on to a server cluster
+and executed in parallel.
 
 Sample command for typical operations:
 1.  python ConvexHullTest.py -f clean
@@ -97,14 +101,13 @@ Sample command for typical operations:
 
 2.  python ConvexHullTest.py -f scaling
     This command will run the standalone downscaling and upscaling tests.
-    Downscaled YUV files are stored under
-    ./test/downscaledYUVs folder. Upscaled YUV files are stored under
-    ./test/upscaledYUVs folder. Quality metrics log files are stored under
-    ./test/qualityLogs folder. Other processing logs and command logs are stored
-    under ./test/testLogs folder. In case HDRMetric is used, individual config
-    files are generated and stored under ./test/configFiles folder. All
-    intermediate file names indicate the input, output resolution and filter types
-    that are used.
+    Downscaled YUV files are stored under ./test/downscaledYUVs folder.
+    Upscaled YUV files are stored under ./test/upscaledYUVs folder.
+    Quality metrics log files are stored under ./test/qualityLogs folder.
+    Other processing logs and command logs are stored under ./test/testLogs folder.
+    For using HDRConvert, individual config files are generated and stored under
+    ./test/configFiles folder. All intermediate file names indicate the input,
+    output resolution and filter types that are used.
 
 3.  python ConvexHullTest.py -f sumscaling
     This command will summarize the quality metrics for the scaling test into
@@ -112,18 +115,17 @@ Sample command for typical operations:
     each individual test sequence and also excel file that summarizes quality
     result for all test sequences based on classes.
 
-4.  python ConvexHullTest.py -f encode -c hevc -m ffmpeg -p medium
+4.  python ConvexHullTest.py -f encode -c av1 -m aom -p 1
     This command will run the encoding test. It actually contains downscale
-    (optional), encode, decode, upscale, quality metrics steps. Different
-    encoding method and codec name can be specified. For a particular encoder,
-    encoding preset should also be specified. Downscale step will be skipped if
-    downscaled yuv files already generated in ./test/downscaledYUVs. Encoded
+    (optional), encode, decode, upscale, quality metrics steps. Right now, only
+    av1 encoding/decoding with libaom is supported. Downscale step will be skipped
+    if downscaled yuv files already generated in ./test/downscaledYUVs. Encoded
     bitstreams are stored under ./test/bitstreams folder. Decoded YUV files are
     stored under ./test/decodedYUVs folder. Decoded and then upscaled YUV files
     are stored under ./test/decUpscaledYUVs folder. Quality logs are stored under
     ./test/qualityLogs folder.
 
-5.  python ConvexHullTest.py -f convexhull -c hevc -m ffmpeg -p medium
+5.  python ConvexHullTest.py -f convexhull -c av1 -m aom -p 1
     This command will summarize the per sequence quality result based on
     different scaling ratios and scaling filter types.
     Please make sure the same encoding method/codec name/preset are used as the
@@ -139,7 +141,7 @@ Sample command for typical operations:
     calculate bdrate between two encoding runs to evaluate the quality impact on
     overall convex hull from a coding tool.
 
-6.  python ConvexHullTest.py -f summary -c hevc -m ffmpeg -p medium
+6.  python ConvexHullTest.py -f summary -c av1 -m aom -p 1
     This command will summarize the quality metrics across all test sequences
     into an excel file stored under the ./analysis/summary folder. BDRATE between
     different resolutions will be calculated. Average result based on content
@@ -165,3 +167,35 @@ the bdrate between two convex hulls.
 a sample command is:
 python ConvexHullBDRate.py -i1 ConvexHullRD_ffmpeg_hevc_medium.xlsx
 -i2 ConvexHullRD_ffmpeg_hevc_veryslow.xlsx -o ConvexHullBDRate.xlsm
+
+Sample command lines for running the regular AV2 CTC test:
+"python AV2CTCTest.py [options]"
+
+below is the full command line options in help message:
+
+  -h, --help                   show this help message and exit
+  -f, --function               function to run: clean, encode, summary
+  -s, --SaveMemory             [0|1] save memory mode will delete most files in
+                               intermediate steps and keeps only necessary ones
+                               for RD calculation. It is false by default
+  -CmdOnly, --LogCmdOnly       LogCmdOnly mode will only capture the command
+                               sequences in the command log file instead of
+                               actually run it. It is false by default
+  -l, --LoggingLevel           logging level: 0:No Logging, 1: Critical, 2: Error,
+                               3:Warning, 4: Info, 5: Debug
+  -p, --EncodePreset           EncodePreset: 0,1,2... for aom
+
+Sample command for typical operations:
+1.  python AV2CTCTest.py -f clean
+    This command will clean up all intermediate files under ./test folder
+
+2.  python AV2CTCTest.py -f encode -p 1
+    This command will run the encoding test. It actually contains encode, decode,
+    and quality metrics steps. Right now, only av1 encoding/decoding with libaom
+    is supported. Encoded bitstreams are stored under ./test/bitstreams folder.
+    Decoded YUV files are stored under ./test/decodedYUVs folder. Quality logs
+    are stored under ./test/qualityLogs folder.
+
+3.  python AV2CTCTest.py -f summary -p 1
+    This command will summarize the quality metrics across all test sequences
+    into an csv file stored under the ./analysis/summary folder.

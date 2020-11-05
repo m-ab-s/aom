@@ -11,63 +11,30 @@
 __author__ = "maggie.sun@intel.com, ryan.lei@intel.com"
 
 import logging
-from Config import QualityList, LoggerName, QualityEvalMethods
+from Config import QualityList, LoggerName
 import Utils
 from CalcQtyWithVmafTool import VMAF_CalQualityMetrics, VMAF_GatherQualityMetrics,\
      VMAFMetricsFullList
-from CalcQtyWithHdrTools import HDRTool_CalQualityMetrics, HDRToolsMetricsFullList,\
-     HDRTool_GatherQualityMetrics
-from CalcQtyWithFfmpeg import FFMPEG_GatherQualityMetrics, FFMPEGMetricsFullList,\
-     FFMPEG_CalQualityMetrics
 
 subloggername = "CalcQtyMetrics"
 loggername = LoggerName + '.' + '%s' % subloggername
 logger = logging.getLogger(loggername)
 
-MetricsFullDict = {'VMAF': VMAFMetricsFullList, 'HDRTools': HDRToolsMetricsFullList,
-                   'FFMPEG': FFMPEGMetricsFullList}
-
-def CalculateQualityMetric(content, framenum, reconYUV, width, height, logfilePath,
-                           cfgfilePath):
+def CalculateQualityMetric(src_file, framenum, reconYUV, fmt, width, height,
+                           bit_depth, logfilePath, LogCmdOnly=False):
     Utils.CmdLogger.write("::Quality Metrics\n")
-
-    methods_torun = list(set(QualityEvalMethods))  # remove duplicate items
-    for method in methods_torun:
-        if method == 'VMAF':
-            VMAF_CalQualityMetrics(content, reconYUV, framenum, width, height,
-                                   logfilePath)
-        elif method == 'HDRTools':
-            HDRTool_CalQualityMetrics(content, reconYUV, framenum, width, height,
-                                      logfilePath, cfgfilePath)
-        elif method == 'FFMPEG':
-            FFMPEG_CalQualityMetrics(content, reconYUV, framenum, width, height,
-                                     logfilePath)
-        else:
-            logger.error("invalid quality evaluation method: %s !" % method)
-            return
+    VMAF_CalQualityMetrics(src_file, reconYUV, fmt, framenum, width, height,
+                           bit_depth, logfilePath, LogCmdOnly)
 
 def GatherQualityMetrics(reconYUV, logfilePath):
-    methods_torun = list(set(QualityEvalMethods))  # remove duplicate items
-    qresult_dict = {}
-    for method in methods_torun:
-        if method == 'VMAF':
-            qresult_dict[method] = VMAF_GatherQualityMetrics(reconYUV, logfilePath)
-        elif method == 'HDRTools':
-            qresult_dict[method] = HDRTool_GatherQualityMetrics(reconYUV, logfilePath)
-        elif method == 'FFMPEG':
-            qresult_dict[method] = FFMPEG_GatherQualityMetrics(reconYUV, logfilePath)
-        else:
-            logger.error("invalid quality evaluation method: %s !" % method)
-            return
-
+    qresult = VMAF_GatherQualityMetrics(reconYUV, logfilePath)
     results = []
-    for metric, method in zip(QualityList, QualityEvalMethods):
-        mfullList = MetricsFullDict[method]
-        if metric in mfullList:
-            indx = mfullList.index(metric)
-            results.append(qresult_dict[method][indx])
+    for metric in QualityList:
+        if metric in VMAFMetricsFullList:
+            indx = VMAFMetricsFullList.index(metric)
+            results.append(qresult[indx])
         else:
             logger.error("invalid quality metrics in QualityList")
-            results.append('none')
+            results.append(0.0)
 
     return results

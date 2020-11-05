@@ -13,7 +13,7 @@ __author__ = "maggie.sun@intel.com, ryan.lei@intel.com"
 import os
 import re
 import logging
-from Config import BinPath, LoggerName, LogCmdOnly, VMAF
+from Config import BinPath, LoggerName, VMAF
 from Utils import GetShortContentName, ExecuteCmd
 
 subloggername = "CalcQtyMetrics_VMAFTool"
@@ -21,24 +21,43 @@ loggername = LoggerName + '.' + '%s' % subloggername
 logger = logging.getLogger(loggername)
 
 Model_Pkg_File = os.path.join(BinPath, 'vmaf_v0.6.1.pkl')
-VMAFMetricsFullList = ['VMAF_Y', 'PSNR_Y', 'SSIM_Y', 'MS-SSIM_Y']
+VMAFMetricsFullList = ['VMAF_Y', 'PSNR_Y', 'PSNR_U', 'PSNR_V', 'SSIM_Y', 'MS-SSIM_Y']
 
 def ParseVMAFLogFile(vmaf_log):
     floats = len(VMAFMetricsFullList) * [0.0]
     flog = open(vmaf_log, 'r')
     for line in flog:
+        '''
         if 'aggregateVMAF' in line:
-            item = re.findall(r"aggregateVMAF=\"(\d+\.?\d*)\"", line)
+            item = re.findall(r"aggregateVMAF=\"([+|-]?\d+\.?\d*)\"", line)
             floats[0] = 0 if len(item) == 0 else item[0]
-            item = re.findall(r"aggregatePSNR=\"(\d+\.?\d*)\"", line)
+            item = re.findall(r"aggregatePSNR=\"([+|-]?\d+\.?\d*)\"", line)
             floats[1] = 0 if len(item) == 0 else item[0]
-            item = re.findall(r"aggregateSSIM=\"(\d+\.?\d*)\"", line)
+            item = re.findall(r"aggregateSSIM=\"([+|-]?\d+\.?\d*)\"", line)
             floats[2] = 0 if len(item) == 0 else item[0]
-            item = re.findall(r"aggregateMS_SSIM=\"(\d+\.?\d*)\"", line)
+            item = re.findall(r"aggregateMS_SSIM=\"([+|-]?\d+\.?\d*)\"", line)
             floats[3] = 0 if len(item) == 0 else item[0]
             break
+        '''
+        m = re.search(r"\"vmaf\".*mean=\"(\d+\.?\d*)\"\s+",line)
+        if m:
+            floats[0] = m.group(1)
+        m = re.search(r"\"psnr_y\".*mean=\"(\d+\.?\d*)\"\s+", line)
+        if m:
+            floats[1] = m.group(1)
+        m = re.search(r"\"psnr_cb\".*mean=\"(\d+\.?\d*)\"\s+", line)
+        if m:
+            floats[2] = m.group(1)
+        m = re.search(r"\"psnr_cr\".*mean=\"(\d+\.?\d*)\"\s+", line)
+        if m:
+            floats[3] = m.group(1)
+        m = re.search(r"\"float_ssim\".*mean=\"(\d+\.?\d*)\"\s+", line)
+        if m:
+            floats[4] = m.group(1)
+        m = re.search(r"\"float_ms_ssim\".*mean=\"(\d+\.?\d*)\"\s+", line)
+        if m:
+            floats[5] = m.group(1)
     flog.close()
-
     floats = [float(i) for i in floats]
 
     print_str = "VMAF quality metrics: "
@@ -56,10 +75,13 @@ def GetVMAFLogFile(recfile, path):
 
 ################################################################################
 ##################### Exposed Functions ########################################
-def VMAF_CalQualityMetrics(origfile, recfile, num, w, h, logfilePath):
+def VMAF_CalQualityMetrics(origfile, recfile, fmt, num, w, h, bit_depth,
+                           logfilePath, LogCmdOnly=False):
     vmaf_log = GetVMAFLogFile(recfile, logfilePath)
-    args = " yuv420p %d %d %s %s %s --log %s --psnr --ssim --ms-ssim "\
-           % (w, h, origfile, recfile, Model_Pkg_File, vmaf_log)
+    args = " -r %s -d %s --feature psnr --feature float_ssim " \
+           " --feature float_ms_ssim -q --xml" \
+           " --model path=%s:name=vmaf -o %s"\
+           % (origfile, recfile, Model_Pkg_File, vmaf_log)
     cmd = VMAF + args
     ExecuteCmd(cmd, LogCmdOnly)
 

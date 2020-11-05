@@ -79,11 +79,11 @@ def CopyResultDataToSummaryFile_Onesheet(sht, wt_cols, resultfiles):
 
     # copy the results data from each content's result file to corresponding
     # location in summary excel file
-    for (cls, contents), row_class in zip(ContentsDict.items(), Rows_Class):
+    for (cls, clip_list), row_class in zip(ClipDict.items(), Rows_Class):
         sht.write(row_class, 0, cls)
-        rows_content = [i * len(QPs) for i in range(len(contents))]
-        for content, row_cont in zip(contents, rows_content):
-            key = GetShortContentName(content)
+        rows_content = [i * len(QPs) for i in range(len(clip_list))]
+        for clip, row_cont in zip(clip_list, rows_content):
+            key = GetShortContentName(clip.file_name)
             sht.write(row_class + row_cont, 1, key)
             rdwb = None
             for resfile in resultfiles:
@@ -97,7 +97,7 @@ def CopyResultDataToSummaryFile_Onesheet(sht, wt_cols, resultfiles):
             assert rdwb is not None
             if rdwb is None:
                 logger.warning("not find convex hull result file for content:%s"
-                               % content)
+                               % clip.file_name)
 
 def CalBDRateWithExcel_OneSheet(sht, cols, cols_bdmtrs, cellformat):
     row_refst = 0
@@ -106,8 +106,8 @@ def CalBDRateWithExcel_OneSheet(sht, cols, cols_bdmtrs, cellformat):
         sht.write(0, cols_bd, 'BD-Rate %.2f vs. %.2f' % (DnScaleRatio[residx],
                                                          DnScaleRatio[0]))
         sht.write_row(1, cols_bd, QualityList)
-        for (cls, contents), row_class in zip(ContentsDict.items(), Rows_Class):
-            rows_content = [i * len(QPs) for i in range(len(contents))]
+        for (cls, clip_list), row_class in zip(ClipDict.items(), Rows_Class):
+            rows_content = [i * len(QPs) for i in range(len(clip_list))]
             for row_cont in rows_content:
                 for y in range(len(QualityList)):
                     refbr_b = xlrd.cellnameabs(row_class + row_cont + row_refst,
@@ -150,10 +150,10 @@ def CalBDRateWithPython_OneSheet(sht, cols_bdmtrs, resultfiles, cellformat):
         sht.write(0, cols_bd, 'BD-Rate %.2f vs. %.2f' % (DnScaleRatio[residx],
                                                          DnScaleRatio[0]))
         sht.write_row(1, cols_bd, QualityList)
-        for (cls, contents), row_class in zip(ContentsDict.items(), Rows_Class):
-            rows_content = [i * len(QPs) for i in range(len(contents))]
-            for row_cont, content in zip(rows_content, contents):
-                key = GetShortContentName(content)
+        for (cls, clip_list), row_class in zip(ClipDict.items(), Rows_Class):
+            rows_content = [i * len(QPs) for i in range(len(clip_list))]
+            for row_cont, clip in zip(rows_content, clip_list):
+                key = GetShortContentName(clip.file_name)
                 for resfile in resultfiles:
                     if key in resfile:
                         rdwb = xlrd.open_workbook(resfile)
@@ -214,16 +214,16 @@ def WriteBitrateQtyAverageSheet(wb, rdshts, rdcols):
 
     startrow = 3
     step = len(QPs)
-    rows_class_avg = [startrow + step * i for i in range(len(ContentsDict))]
+    rows_class_avg = [startrow + step * i for i in range(len(ClipDict))]
     totalnum_content = 0
-    for (cls, contents), row_class, rdclassrow in zip(ContentsDict.items(),
+    for (cls, clip_list), row_class, rdclassrow in zip(ClipDict.items(),
                                                       rows_class_avg,
                                                       Rows_Class):
         avg_sht.write(row_class, 0, cls)
-        totalnum_content = totalnum_content + len(contents)
-        avg_sht.write(row_class, 1, len(contents))
+        totalnum_content = totalnum_content + len(clip_list)
+        avg_sht.write(row_class, 1, len(clip_list))
         avg_sht.write_column(row_class, 2, QPs)
-        rows_content = [i * len(QPs) for i in range(len(contents))]
+        rows_content = [i * len(QPs) for i in range(len(clip_list))]
 
         for rdcol, col_res, residx in zip(rdcols, cols_res, range(len(DnScaleRatio))):
             for i in range(len(QPs)):
@@ -293,7 +293,7 @@ def WriteBDRateAverageSheet(wb, rdshts, rd_cols_bdmtrs, cellformat):
     cols_upscl_bd = [step_upscl * i for i in range(len(upScalAlgos))]
     step_res = len(upScalAlgos) * step_upscl + colintval_dnscalres
     cols_res_bd = [step_res * i + startcol for i in range(len(DnScaleRatio) - 1)]
-    rows_class_rdavg = [startrow + i for i in range(len(ContentsDict))]
+    rows_class_rdavg = [startrow + i for i in range(len(ClipDict))]
 
     for residx, col_res_bd in zip(range(1, len(DnScaleRatio)), cols_res_bd):
         bdavg_sht.write(0, col_res_bd, 'BD-Rate %.2f vs. %.2f'
@@ -303,13 +303,13 @@ def WriteBDRateAverageSheet(wb, rdshts, rd_cols_bdmtrs, cellformat):
             bdavg_sht.write_row(2, col_res_bd + col_upscl_bd, QualityList)
 
     totalnum_content = 0
-    for (cls, contents), row_class, rdclassrow in zip(ContentsDict.items(),
+    for (cls, clip_list), row_class, rdclassrow in zip(ClipDict.items(),
                                                       rows_class_rdavg,
                                                       Rows_Class):
         bdavg_sht.write(row_class, 0, cls)
-        totalnum_content = totalnum_content + len(contents)
-        bdavg_sht.write(row_class, 1, len(contents))
-        rows_content = [i * len(QPs) for i in range(len(contents))]
+        totalnum_content = totalnum_content + len(clip_list)
+        bdavg_sht.write(row_class, 1, len(clip_list))
+        rows_content = [i * len(QPs) for i in range(len(clip_list))]
         sum_rows = [rdclassrow + row_cont for row_cont in rows_content]
         for rdcol, col_res in zip(rd_cols_bdmtrs, cols_res_bd):
             # write average bd rate
@@ -350,8 +350,8 @@ def WriteBDRateAverageSheet(wb, rdshts, rd_cols_bdmtrs, cellformat):
 # resultfiles   is a list of all convex hull RD result files generated by
 #                runninging '-f convexhull'
 # summary_outpath  is the folder where output summary file will be
-def GenerateSummaryRDDataExcelFile(encMethod, codecName, preset, summary_outpath,
-                             resultfiles, content_path, clips):
+def GenerateSumRDExcelFile(encMethod, codecName, preset, summary_outpath,
+                           resultfiles, clip_list):
 
     global dnScalAlgos, upScalAlgos
     # find all scaling algos tested in results file,
@@ -377,10 +377,8 @@ def GenerateSummaryRDDataExcelFile(encMethod, codecName, preset, summary_outpath
     colInterval = 2
     rowstart = 2
     # to generate rows number of starting of each class: Rows_Class
-    global ContentsDict, Rows_Class
-    ContentsDict, Rows_Class = CalcRowsClassAndContentDict(rowstart,
-                                                           content_path,
-                                                           clips, len(QPs))
+    global ClipDict, Rows_Class
+    ClipDict, Rows_Class = CalcRowsClassAndContentDict(rowstart, clip_list, len(QPs))
     # cols is column number of results files
     step = colInterval + 1 + len(QualityList)  # 1 is for bitrate
     sum_wtcols = [step * i + colstart for i in range(len(DnScaleRatio))]
@@ -413,9 +411,8 @@ def GenerateSummaryRDDataExcelFile(encMethod, codecName, preset, summary_outpath
     wb.close()
     return smfile
 
-def GenerateSummaryConvexHullExcelFile(encMethod, codecName, preset,
-                                       summary_outpath, resultfiles,
-                                       EnablePreInterpolation = False):
+def GenerateSumCvxHullExcelFile(encMethod, codecName, preset, summary_outpath,
+                                resultfiles, EnablePreInterpolation = False):
     if not os.path.exists(summary_outpath):
         os.makedirs(summary_outpath)
     smfile = GetConvexHullDataSummaryFileName(encMethod, codecName, preset,
@@ -449,10 +446,10 @@ def GenerateSummaryConvexHullExcelFile(encMethod, codecName, preset,
         # location in summary excel file
         row = 1
         rdcolstart = CvxHDataStartCol + 1
-        for (cls, contents) in ContentsDict.items():
+        for (cls, clip_list) in ClipDict.items():
             sht.write(row, 0, cls)
-            for content in contents:
-                key = GetShortContentName(content)
+            for clip in clip_list:
+                key = GetShortContentName(clip.file_name)
                 sht.write(row, 1, key)
                 for resfile in resultfiles:
                     if key in resfile:

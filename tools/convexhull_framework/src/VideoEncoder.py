@@ -11,72 +11,53 @@
 __author__ = "maggie.sun@intel.com, ryan.lei@intel.com"
 
 import Utils
-from Config import BinPath, LogCmdOnly, FFMPEG, AOMENC, SVTAV1, SVTHEVC
+from Config import AOMENC, SVTAV1
 from Utils import ExecuteCmd
 
-#use ffmpeg to encode video
-def EncodeWithFfmpeg_HEVC(infile, QP, num,fr, width, height, outfile, preset):
-    EncodeProfile = 'main'
-    args = " -y -s %dx%d -pix_fmt yuv420p  -r %s -i %s -frames:v %d -g %d -bf 7" \
-           " -bsf:v hevc_mp4toannexb -c:v libx265 -preset %s -profile:v %s " \
-           "-x265-params \"qp=%d:aq-mode=0:b-adapt=0:bframes=7:b-pyramid=1:" \
-           "no-scenecut=1:no-open-gop=1:input-depth=8:output-depth=8\" %s" % (
-            width, height, fr, infile, num, int(2 * fr),  # gop size = 2 seconds
-            preset, EncodeProfile, (QP+3), outfile)
-    cmd = FFMPEG + args
-    ExecuteCmd(cmd, LogCmdOnly)
+def EncodeWithAOM_AV1(clip, test_cfg, QP, framenum, outfile, preset,
+                      LogCmdOnly=False):
+    args = " --verbose --codec=av1 -v --psnr --obu --frame-parallel=0" \
+           " --cpu-used=%s --limit=%d --auto-alt-ref=1 --passes=1" \
+           " --end-usage=q --i%s --threads=1  --end-usage=q" \
+           " --use-fixed-qp-offsets=1 --deltaq-mode=0 --enable-tpl-model=0" \
+           " --enable-keyframe-filtering=0 --fps=%d/%d --input-bit-depth=%d" \
+           " --bit-depth=%d --qp=%d -w %d -h %d" \
+           % (preset, framenum, clip.fmt, clip.fps_num, clip.fps_denom, clip.bit_depth,
+              clip.bit_depth, 4*QP, clip.width, clip.height)
 
-def EncodeWithAOM_AV1(infile, QP, framenum, framerate, width, height, outfile,
-                      preset):
-    args = " --verbose --codec=av1 -v --psnr --ivf  --frame-parallel=0 --cpu-used=%s" \
-           " --limit=%d --auto-alt-ref=1 --passes=1 --end-usage=q --i420" \
-           " --min-gf-interval=16 --max-gf-interval=16 --gf-min-pyr-height=4 " \
-           " --gf-max-pyr-height=4 --threads=1 --lag-in-frames=19 --end-usage=q " \
-           " --kf-min-dist=65 --kf-max-dist=65 --use-fixed-qp-offsets=1 --deltaq-mode=0 " \
-           " --enable-tpl-model=0  --enable-keyframe-filtering=0 " \
-           " --fps=60/1 --input-bit-depth=8 --qp=%d -w %d -h %d -o %s %s"\
-           % (preset, framenum, 4*QP, width, height, outfile, infile)
+    if test_cfg == "RA" or test_cfg == "AS":
+        args += " --min-gf-interval=16 --max-gf-interval=16 --gf-min-pyr-height=4" \
+                " --gf-max-pyr-height=4 --kf-min-dist=65 --kf-max-dist=65" \
+                " --lag-in-frames=19"
+    elif test_cfg == "LD":
+        args += " --kf-min-dist=9999 --kf-max-dist=9999 --lag-in-frames=0" \
+                " --subgop-config-str=ld"
+    else:
+        print("Unsupported Test Configuration %s" % test_cfg)
+    args += " -o %s %s" % (outfile, clip.file_path)
     cmd = AOMENC + args
     ExecuteCmd(cmd, LogCmdOnly)
 
-def EncodeWithSVT_AV1(infile, QP, framenum, framerate, width, height, outfile,
-                      preset):
+def EncodeWithSVT_AV1(clip, test_cfg, QP, framenum, outfile, preset,
+                      LogCmdOnly=False):
+    #TODO: update svt parameters
     args = " --preset %s --scm 2 --lookahead 0 --hierarchical-levels 3 -n %d" \
            " --keyint 255 -rc 0 -q %d -w %d -h %d -b %s -i %s"\
-           % (str(preset), framenum, QP, width, height, outfile, infile)
+           % (str(preset), framenum, QP, clip.width, clip.height, outfile,
+              clip.file_path)
     cmd = SVTAV1 + args
     ExecuteCmd(cmd, LogCmdOnly)
 
-def EncodeWithSVT_HEVC(infile, QP, framenum, framerate, width, height, outfile,
-                       preset):
-    args = " -i %s  -w %d -h %d -encMode %s -hierarchical-levels 3" \
-           " -intra-period 100 -scd 0 -rc 0 -q %d -n %d -b %s"\
-           % (infile, width, height, preset, QP, framenum, outfile)
-    cmd = SVTHEVC + args
-    ExecuteCmd(cmd, LogCmdOnly)
-
-def VideoEncode(EncodeMethod, CodecName, infile, QP, framenum, framerate, width,
-                height, outfile, preset):
+def VideoEncode(EncodeMethod, CodecName, clip, test_cfg, QP, framenum, outfile,
+                preset, LogCmdOnly=False):
     Utils.CmdLogger.write("::Encode\n")
-    if EncodeMethod == "ffmpeg":
-        if CodecName == 'hevc':
-            EncodeWithFfmpeg_HEVC(infile, QP, framenum, framerate, width, height,
-                                  outfile, preset)
-        else:
-            raise ValueError("invalid parameter for encode.")
-    elif EncodeMethod == "aom":
-        if CodecName == 'av1':
-            EncodeWithAOM_AV1(infile, QP, framenum, framerate, width, height,
-                              outfile, preset)
-        else:
-            raise ValueError("invalid parameter for encode.")
-    elif EncodeMethod == "svt":
-        if CodecName == 'av1':
-            EncodeWithSVT_AV1(infile, QP, framenum, framerate, width, height,
-                              outfile, preset)
-        elif CodecName == 'hevc':
-            EncodeWithSVT_HEVC(infile, QP, framenum, framerate, width, height,
-                               outfile, preset)
+    if CodecName == 'av1':
+        if EncodeMethod == "aom":
+            EncodeWithAOM_AV1(clip, test_cfg, QP, framenum, outfile, preset,
+                              LogCmdOnly)
+        elif EncodeMethod == "svt":
+            EncodeWithSVT_AV1(clip, test_cfg, QP, framenum, outfile, preset,
+                              LogCmdOnly)
         else:
             raise ValueError("invalid parameter for encode.")
     else:

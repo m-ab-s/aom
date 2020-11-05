@@ -11,23 +11,17 @@
 __author__ = "maggie.sun@intel.com, ryan.lei@intel.com"
 
 import Utils
-from Config import BinPath, LogCmdOnly, FFMPEG, AOMDEC
+from Config import AOMDEC
 from Utils import ExecuteCmd
 
-#use ffmpeg to decode bitstream
-def DecodeWithFfmpeg(infile, outfile):
-    args = " -y -i %s -pix_fmt yuv420p -c:v rawvideo %s" % (infile, outfile)
-    cmd = FFMPEG + args
-    ExecuteCmd(cmd, LogCmdOnly)
-
-def DecodeWithAOM(infile, outfile):
-    args = " --codec=av1 --i420 --rawvideo --summary -o %s %s" % (outfile, infile)
+def DecodeWithAOM(infile, outfile, LogCmdOnly=False):
+    args = " --codec=av1 --summary -o %s %s" % (outfile, infile)
     cmd = AOMDEC + args
     ExecuteCmd(cmd, LogCmdOnly)
 
-def VideoDecode(codec, infile, outfile):
+def VideoDecode(codec, infile, outfile, LogCmdOnly=False):
     Utils.CmdLogger.write("::Decode\n")
-    if codec == 'AV1':
-        DecodeWithAOM(infile, outfile)
+    if codec == 'av1':
+        DecodeWithAOM(infile, outfile, LogCmdOnly)
     else:
-        DecodeWithFfmpeg(infile, outfile)
+        raise ValueError("invalid parameter for decode.")
