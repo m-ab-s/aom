@@ -82,6 +82,22 @@ typedef struct {
   int stride[MAX_MB_PLANE];
 } BUFFER_SET;
 
+static INLINE int is_square_block(BLOCK_SIZE bsize) {
+  return block_size_high[bsize] == block_size_wide[bsize];
+}
+
+static INLINE int is_partition_point(BLOCK_SIZE bsize) {
+#if CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_FLEX_PARTITION
+  return bsize != BLOCK_4X4;
+#else   // CONFIG_FLEX_PARTITION
+  return bsize != BLOCK_4X4 && bsize < BLOCK_SIZES;
+#endif  // CONFIG_FLEX_PARTITION
+#else
+  return is_square_block(bsize) && bsize >= BLOCK_8X8 && bsize < BLOCK_SIZES;
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+}
+
 static INLINE int get_sqr_bsize_idx(BLOCK_SIZE bsize) {
   switch (bsize) {
     case BLOCK_4X4: return 0;
@@ -107,7 +123,7 @@ static INLINE BLOCK_SIZE get_partition_subsize(BLOCK_SIZE bsize,
     return BLOCK_INVALID;
   } else {
 #if CONFIG_EXT_RECUR_PARTITIONS
-    if (bsize < BLOCK_SIZES)
+    if (is_partition_point(bsize))
       return subsize_lookup[partition][bsize];
     else
       return partition == PARTITION_NONE ? bsize : BLOCK_INVALID;
@@ -118,6 +134,16 @@ static INLINE BLOCK_SIZE get_partition_subsize(BLOCK_SIZE bsize,
                : subsize_lookup[partition][sqr_bsize_idx];
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
   }
+}
+
+static INLINE int is_partition_valid(BLOCK_SIZE bsize, PARTITION_TYPE p) {
+#if CONFIG_EXT_RECUR_PARTITIONS && !KEEP_PARTITION_SPLIT
+  if (p == PARTITION_SPLIT) return 0;
+#endif  // CONFIG_EXT_RECUR_PARTITIONS && !KEEP_PARTITION_SPLIT
+  if (is_partition_point(bsize))
+    return get_partition_subsize(bsize, p) < BLOCK_SIZES_ALL;
+  else
+    return p == PARTITION_NONE;
 }
 
 static INLINE int is_inter_singleref_mode(PREDICTION_MODE mode) {
@@ -795,32 +821,6 @@ static INLINE PARTITION_TYPE_REC get_symbol_from_partition_rec_block(
     return PARTITION_INVALID_REC;
 }
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
-
-static INLINE int is_square_block(BLOCK_SIZE bsize) {
-  return block_size_high[bsize] == block_size_wide[bsize];
-}
-
-static INLINE int is_partition_point(BLOCK_SIZE bsize) {
-#if CONFIG_EXT_RECUR_PARTITIONS
-#if CONFIG_FLEX_PARTITION
-  return bsize != BLOCK_4X4;
-#else   // CONFIG_FLEX_PARTITION
-  return bsize != BLOCK_4X4 && bsize < BLOCK_SIZES;
-#endif  // CONFIG_FLEX_PARTITION
-#else
-  return is_square_block(bsize) && bsize >= BLOCK_8X8 && bsize < BLOCK_SIZES;
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
-}
-
-static INLINE int is_partition_valid(BLOCK_SIZE bsize, PARTITION_TYPE p) {
-#if CONFIG_EXT_RECUR_PARTITIONS && !KEEP_PARTITION_SPLIT
-  if (p == PARTITION_SPLIT) return 0;
-#endif  // CONFIG_EXT_RECUR_PARTITIONS && !KEEP_PARTITION_SPLIT
-  if (is_partition_point(bsize))
-    return get_partition_subsize(bsize, p) < BLOCK_SIZES_ALL;
-  else
-    return p == PARTITION_NONE;
-}
 
 static INLINE int has_second_ref(const MB_MODE_INFO *mbmi) {
   return mbmi->ref_frame[1] > INTRA_FRAME;
