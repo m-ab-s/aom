@@ -1082,6 +1082,9 @@ YV12_BUFFER_CONFIG *av1_get_scaled_ref_frame(const AV1_COMP *cpi,
 }
 
 int av1_get_switchable_rate(const MACROBLOCK *x, const MACROBLOCKD *xd,
+#if !CONFIG_REMOVE_DUAL_FILTER
+                            int dual_filter,
+#endif  // !CONFIG_REMOVE_DUAL_FILTER
                             InterpFilter interp_filter) {
   if (interp_filter == SWITCHABLE) {
     const MB_MODE_INFO *const mbmi = xd->mi[0];
@@ -1092,6 +1095,7 @@ int av1_get_switchable_rate(const MACROBLOCK *x, const MACROBLOCKD *xd,
 #else
     int inter_filter_cost = 0;
     for (int dir = 0; dir < 2; ++dir) {
+      if (dir && !dual_filter) break;
       const int ctx = av1_get_pred_context_switchable_interp(xd, dir);
       const InterpFilter filter =
           av1_extract_interp_filter(mbmi->interp_filters, dir);

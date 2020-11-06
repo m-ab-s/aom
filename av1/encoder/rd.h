@@ -243,6 +243,9 @@ void av1_model_rd_surffit(BLOCK_SIZE bsize, double sse_norm, double xm,
                           double yl, double *rate_f, double *distbysse_f);
 
 int av1_get_switchable_rate(const MACROBLOCK *x, const MACROBLOCKD *xd,
+#if !CONFIG_REMOVE_DUAL_FILTER
+                            int dual_filter,
+#endif  // !CONFIG_REMOVE_DUAL_FILTER
                             InterpFilter interp_filter);
 
 YV12_BUFFER_CONFIG *av1_get_scaled_ref_frame(const struct AV1_COMP *cpi,

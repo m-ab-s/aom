@@ -1066,7 +1066,11 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
   if (inter_block && cm->features.interp_filter == SWITCHABLE &&
       mbmi->motion_mode != WARPED_CAUSAL &&
       !is_nontrans_global_motion(xd, mbmi)) {
-    update_filter_type_cdf(xd, mbmi);
+    update_filter_type_cdf(xd,
+#if !CONFIG_REMOVE_DUAL_FILTER
+                           cm->seq_params.enable_dual_filter,
+#endif  // CONFIG_REMOVE_DUAL_FILTER
+                           mbmi);
   }
   if (inter_block &&
       !segfeature_active(&cm->seg, mbmi->segment_id, SEG_LVL_SKIP)) {

@@ -1430,8 +1430,7 @@ static void search_filter_ref(AV1_COMP *cpi, MACROBLOCK *x, RD_STATS *this_rdc,
   int best_filter_index = -1;
   InterpFilter filters[FILTER_SEARCH_SIZE] = { EIGHTTAP_REGULAR,
                                                EIGHTTAP_SMOOTH };
-  int i;
-  for (i = 0; i < FILTER_SEARCH_SIZE; ++i) {
+  for (int i = 0; i < FILTER_SEARCH_SIZE; ++i) {
     int64_t cost;
     InterpFilter filter = filters[i];
 #if CONFIG_REMOVE_DUAL_FILTER
@@ -1446,7 +1445,11 @@ static void search_filter_ref(AV1_COMP *cpi, MACROBLOCK *x, RD_STATS *this_rdc,
     else
       model_rd_for_sb_y(cpi, bsize, x, xd, &pf_rd_stats[i], 1);
     pf_rd_stats[i].rate +=
-        av1_get_switchable_rate(x, xd, cm->features.interp_filter);
+        av1_get_switchable_rate(x, xd,
+#if !CONFIG_REMOVE_DUAL_FILTER
+                                cm->seq_params.enable_dual_filter,
+#endif  // !CONFIG_REMOVE_DUAL_FILTER
+                                cm->features.interp_filter);
     cost = RDCOST(x->rdmult, pf_rd_stats[i].rate, pf_rd_stats[i].dist);
     pf_tx_size[i] = mi->tx_size;
     if (cost < best_cost) {

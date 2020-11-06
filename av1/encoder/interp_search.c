@@ -134,12 +134,14 @@ static INLINE int get_switchable_rate(MACROBLOCK *const x,
 #else
 static INLINE int get_switchable_rate(MACROBLOCK *const x,
                                       const int_interpfilters filters,
-                                      const int ctx[2]) {
-  int inter_filter_cost;
+                                      int dual_filter, const int ctx[2]) {
   const InterpFilter filter0 = filters.as_filters.y_filter;
-  const InterpFilter filter1 = filters.as_filters.x_filter;
-  inter_filter_cost = x->mode_costs.switchable_interp_costs[ctx[0]][filter0];
-  inter_filter_cost += x->mode_costs.switchable_interp_costs[ctx[1]][filter1];
+  int inter_filter_cost =
+      x->mode_costs.switchable_interp_costs[ctx[0]][filter0];
+  if (dual_filter) {
+    const InterpFilter filter1 = filters.as_filters.x_filter;
+    inter_filter_cost += x->mode_costs.switchable_interp_costs[ctx[1]][filter1];
+  }
   return SWITCHABLE_INTERP_RATE_FACTOR * inter_filter_cost;
 }
 #endif  // CONFIG_REMOVE_DUAL_FILTER
@@ -203,6 +205,7 @@ static INLINE int64_t interpolation_filter_rd(
                                          mbmi->interp_fltr,
 #else
                                          mbmi->interp_filters,
+                                         cm->seq_params.enable_dual_filter,
 #endif  // CONFIG_REMOVE_DUAL_FILTER
                                          switchable_ctx);
 
@@ -736,6 +739,7 @@ int64_t av1_interpolation_filter_search(
                                          mbmi->interp_fltr,
 #else
                                          mbmi->interp_filters,
+                                         cm->seq_params.enable_dual_filter,
 #endif  // CONFIG_REMOVE_DUAL_FILTER
                                          switchable_ctx);
 
