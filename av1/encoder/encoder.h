@@ -840,6 +840,9 @@ typedef struct {
   int arf_boost[MAX_STATIC_GF_GROUP_LENGTH];
   int max_layer_depth;
   int max_layer_depth_allowed;
+  // Flag to indicate if the frame of type OVERLAY_UPDATE in the current GF
+  // interval shows existing alt-ref frame
+  int show_existing_alt_ref;
   // This is currently only populated for AOM_Q mode
   unsigned char q_val[MAX_STATIC_GF_GROUP_LENGTH];
   int bit_allocation[MAX_STATIC_GF_GROUP_LENGTH];
@@ -2315,11 +2318,6 @@ typedef struct AV1_COMP {
    * frame or ARF frame.
    */
   YV12_BUFFER_CONFIG alt_ref_buffer;
-
-  /*!
-   * Tell if OVERLAY frame shows existing alt_ref frame.
-   */
-  int show_existing_alt_ref;
 
 #if CONFIG_INTERNAL_STATS
   /*!\cond */

@@ -191,6 +191,22 @@ static INLINE void update_gf_group_index(AV1_COMP *cpi) {
   }
 }
 
+// Update show_existing_frame flag for frames of type OVERLAY_UPDATE in the
+// current GF interval
+static INLINE void set_show_existing_alt_ref(GF_GROUP *const gf_group,
+                                             int apply_filtering,
+                                             int enable_overlay,
+                                             int show_existing_alt_ref) {
+  if (get_frame_update_type(gf_group) != ARF_UPDATE &&
+      get_frame_update_type(gf_group) != KFFLT_UPDATE)
+    return;
+  if (!enable_overlay)
+    gf_group->show_existing_alt_ref = 1;
+  else
+    gf_group->show_existing_alt_ref =
+        apply_filtering ? show_existing_alt_ref : 1;
+}
+
 static void update_rc_counts(AV1_COMP *cpi) {
   update_keyframe_counters(cpi);
   update_frames_till_gf_update(cpi);
@@ -947,8 +963,8 @@ static int denoise_and_encode(AV1_COMP *const cpi, uint8_t *const dest,
   // Save the pointer to the original source image.
   YV12_BUFFER_CONFIG *source_buffer = frame_input->source;
   // apply filtering to frame
+  int show_existing_alt_ref = 0;
   if (apply_filtering) {
-    int show_existing_alt_ref = 0;
     // TODO(bohanli): figure out why we need frame_type in cm here.
     cm->current_frame.frame_type = frame_params->frame_type;
     const int code_arf =
@@ -959,14 +975,10 @@ static int denoise_and_encode(AV1_COMP *const cpi, uint8_t *const dest,
       aom_copy_metadata_to_frame_buffer(frame_input->source,
                                         source_buffer->metadata);
     }
-    if (get_frame_update_type(&cpi->gf_group) == ARF_UPDATE ||
-        get_frame_update_type(&cpi->gf_group) == KFFLT_UPDATE) {
-      cpi->show_existing_alt_ref = show_existing_alt_ref;
-    }
-  } else if (get_frame_update_type(&cpi->gf_group) == ARF_UPDATE ||
-             get_frame_update_type(&cpi->gf_group) == KFFLT_UPDATE) {
-    cpi->show_existing_alt_ref = 1;
   }
+  set_show_existing_alt_ref(&cpi->gf_group, apply_filtering,
+                            oxcf->algo_cfg.enable_overlay,
+                            show_existing_alt_ref);
 
   // perform tpl after filtering
   int allow_tpl = oxcf->gf_cfg.lag_in_frames > 1 &&
@@ -1254,7 +1266,7 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
       frame_params.show_existing_frame = 1;
     } else {
       frame_params.show_existing_frame =
-          ((oxcf->algo_cfg.enable_overlay == 0 || cpi->show_existing_alt_ref) &&
+          (gf_group->show_existing_alt_ref &&
            (gf_group->update_type[gf_group->index] == OVERLAY_UPDATE ||
             gf_group->update_type[gf_group->index] == KFFLT_OVERLAY_UPDATE)) ||
           gf_group->update_type[gf_group->index] == INTNL_OVERLAY_UPDATE;
@@ -1264,7 +1276,7 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
     // Reset show_existing_alt_ref decision to 0 after it is used.
     if (gf_group->update_type[gf_group->index] == OVERLAY_UPDATE ||
         gf_group->update_type[gf_group->index] == KFFLT_OVERLAY_UPDATE) {
-      cpi->show_existing_alt_ref = 0;
+      gf_group->show_existing_alt_ref = 0;
     }
   } else {
     frame_params.show_existing_frame = 0;
