@@ -381,6 +381,9 @@ typedef struct RstUnitSnapshot {
   int64_t H[WIENER_WIN2 * WIENER_WIN2];
   int64_t current_sse;
   int64_t current_bits;
+  int64_t merge_sse;
+  int64_t merge_bits;
+  WienerInfo ref_wiener;
 } RstUnitSnapshot;
 #endif  // CONFIG_RST_MERGECOEFFS
 

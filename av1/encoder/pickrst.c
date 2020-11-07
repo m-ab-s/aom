@@ -1391,6 +1391,8 @@ static void search_wiener(const RestorationTileLimits *limits,
   unit_snapshot.rest_unit_idx = rest_unit_idx;
   memcpy(unit_snapshot.M, M, WIENER_WIN2 * sizeof(*M));
   memcpy(unit_snapshot.H, H, WIENER_WIN2 * WIENER_WIN2 * sizeof(*H));
+  // Only matters for first unit in stack.
+  unit_snapshot.ref_wiener = rsc->wiener;
   RestorationType rtype = RESTORE_WIENER;
   rusi->best_rtype[RESTORE_WIENER - 1] = rtype;
   // If current_unit_stack is empty, we can leave early.
@@ -1436,6 +1438,10 @@ static void search_wiener(const RestorationTileLimits *limits,
     for (int index = 0; index < WIENER_WIN2 * WIENER_WIN2; ++index) {
       H_AVG[index] += old_unit->H[index];
     }
+    // Merge SSE and bits must be recalculated every time we create a new merge
+    // filter.
+    old_unit->merge_sse = 0;
+    old_unit->merge_bits = 0;
   }
   // Divide M and H by vector size + 1 to get average.
   for (int index = 0; index < WIENER_WIN2; ++index) {
@@ -1459,21 +1465,23 @@ static void search_wiener(const RestorationTileLimits *limits,
   double cost_merge = 0;
   VECTOR_FOR_EACH(current_unit_stack, listed_unit) {
     RstUnitSnapshot *old_unit = (RstUnitSnapshot *)(listed_unit.pointer);
-    int64_t unit_sse =
+    old_unit->merge_sse =
         try_restoration_unit(rsc, old_unit->limits, tile_rect, &rui_temp);
     // First unit in stack has larger unit_bits because the merged coeffs are
     // linked to it.
-    int64_t unit_bits;
     Iterator begin = aom_vector_begin((current_unit_stack));
     if (aom_iterator_equals(&(listed_unit), &begin)) {
-      unit_bits =
+      old_unit->merge_bits =
           x->wiener_restore_cost[1] + x->merged_param_cost[0] +
-          (count_wiener_bits(wiener_win, &rui_temp.wiener_info, &rsc->wiener)
+          (count_wiener_bits(wiener_win, &rui_temp.wiener_info,
+                             &old_unit->ref_wiener)
            << AV1_PROB_COST_SHIFT);
     } else {
-      unit_bits = x->wiener_restore_cost[1] + x->merged_param_cost[1];
+      old_unit->merge_bits =
+          x->wiener_restore_cost[1] + x->merged_param_cost[1];
     }
-    cost_merge += RDCOST_DBL(x->rdmult, unit_bits >> 4, unit_sse);
+    cost_merge +=
+        RDCOST_DBL(x->rdmult, old_unit->merge_bits >> 4, old_unit->merge_sse);
   }
   // Add to cost_merge cost of potentially merged unit.
   int64_t new_unit_sse =
@@ -1487,29 +1495,13 @@ static void search_wiener(const RestorationTileLimits *limits,
       RstUnitSnapshot *old_unit = (RstUnitSnapshot *)(listed_unit.pointer);
       RestUnitSearchInfo *old_rusi = &rsc->rusi[old_unit->rest_unit_idx];
       old_rusi->wiener = rui_temp.wiener_info;
-      // TODO(susannad): Implement more efficient sse/bits storage so
-      // recalculation isn't necessary.
-      int64_t unit_sse =
-          try_restoration_unit(rsc, old_unit->limits, tile_rect, &rui_temp);
-      // First unit in stack has larger unit_bits bc the merged coeffs are
-      // linked to it.
-      int64_t unit_bits;
-      Iterator begin = aom_vector_begin((current_unit_stack));
-      if (aom_iterator_equals(&(listed_unit), &begin)) {
-        unit_bits =
-            x->wiener_restore_cost[1] + x->merged_param_cost[0] +
-            (count_wiener_bits(wiener_win, &rui_temp.wiener_info, &rsc->wiener)
-             << AV1_PROB_COST_SHIFT);
-      } else {
-        unit_bits = x->wiener_restore_cost[1] + x->merged_param_cost[1];
-      }
-      old_rusi->sse[RESTORE_WIENER] = unit_sse;
+      old_rusi->sse[RESTORE_WIENER] = old_unit->merge_sse;
       rsc->sse -= old_unit->current_sse;
-      rsc->sse += unit_sse;
+      rsc->sse += old_unit->merge_sse;
       rsc->bits -= old_unit->current_bits;
-      rsc->bits += unit_bits;
-      old_unit->current_sse = unit_sse;
-      old_unit->current_bits = unit_bits;
+      rsc->bits += old_unit->merge_bits;
+      old_unit->current_sse = old_unit->merge_sse;
+      old_unit->current_bits = old_unit->merge_bits;
     }
     // Finalize data for newly merged unit.
     rusi->sse[rtype] = new_unit_sse;
