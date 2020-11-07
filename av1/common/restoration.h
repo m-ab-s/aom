@@ -320,22 +320,12 @@ static INLINE void set_default_wiener(WienerInfo *wiener_info) {
 }
 
 #if CONFIG_RST_MERGECOEFFS
-static INLINE int check_wiener_eq(int chroma, const WienerInfo *info,
+static INLINE int check_wiener_eq(const WienerInfo *info,
                                   const WienerInfo *ref) {
-  if (!chroma) {
-    if (!memcmp(info->vfilter, ref->vfilter,
-                WIENER_HALFWIN * sizeof(info->vfilter[0])) &&
-        !memcmp(info->hfilter, ref->hfilter,
-                WIENER_HALFWIN * sizeof(info->hfilter[0])))
-      return 1;
-  } else {
-    if (!memcmp(&info->vfilter[1], &ref->vfilter[1],
-                WIENER_HALFWIN_CHROMA * sizeof(info->vfilter[1])) &&
-        !memcmp(&info->hfilter[1], &ref->hfilter[1],
-                WIENER_HALFWIN_CHROMA * sizeof(info->hfilter[1])))
-      return 1;
-  }
-  return 0;
+  return !memcmp(info->vfilter, ref->vfilter,
+                 WIENER_HALFWIN * sizeof(info->vfilter[0])) &&
+         !memcmp(info->hfilter, ref->hfilter,
+                 WIENER_HALFWIN * sizeof(info->hfilter[0]));
 }
 static INLINE int check_sgrproj_eq(const SgrprojInfo *info,
                                    const SgrprojInfo *ref) {

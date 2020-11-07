@@ -2499,8 +2499,7 @@ static void encode_restoration_mode(AV1_COMMON *cm,
 static void write_wiener_filter(int wiener_win, const WienerInfo *wiener_info,
                                 WienerInfo *ref_wiener_info, aom_writer *wb) {
 #if CONFIG_RST_MERGECOEFFS
-  const int equal =
-      check_wiener_eq(wiener_win != WIENER_WIN, wiener_info, ref_wiener_info);
+  const int equal = check_wiener_eq(wiener_info, ref_wiener_info);
   aom_write_bit(wb, equal);
   if (equal) {
     memcpy(ref_wiener_info, wiener_info, sizeof(*wiener_info));

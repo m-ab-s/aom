@@ -694,11 +694,6 @@ static SgrprojInfo search_selfguided_restoration(
 static int count_sgrproj_bits(SgrprojInfo *sgrproj_info,
                               SgrprojInfo *ref_sgrproj_info) {
   int bits = 0;
-#if CONFIG_RST_MERGECOEFFS
-  const int equal = check_sgrproj_eq(sgrproj_info, ref_sgrproj_info);
-  bits++;
-  if (equal) return bits;
-#endif  // CONFIG_RST_MERGECOEFFS
   bits += SGRPROJ_PARAMS_BITS;
   const sgr_params_type *params = &av1_sgr_params[sgrproj_info->ep];
   if (params->r[0] > 0)
@@ -1068,7 +1063,7 @@ static int wiener_decompose_sep_sym(int wiener_win, int64_t *M, int64_t *H,
   return 1;
 }
 
-#if !CONFIG_RST_MERGECOEFFS
+#if !CONFIG_FORCE_WIENER
 // Computes the function x'*H*x - x'*M for the learned 2D filter x, and compares
 // against identity filters; Final score is defined as the difference between
 // the function values
@@ -1112,7 +1107,7 @@ static int64_t compute_score(int wiener_win, int64_t *M, int64_t *H,
 
   return Score - iScore;
 }
-#endif  // !CONFIG_RST_MERGECOEFFS
+#endif  // !CONFIG_FORCE_WIENER
 
 static void finalize_sym_filter(int wiener_win, int32_t *f, InterpKernel fi) {
   int i;
@@ -1149,12 +1144,6 @@ static void finalize_sym_filter(int wiener_win, int32_t *f, InterpKernel fi) {
 static int count_wiener_bits(int wiener_win, WienerInfo *wiener_info,
                              WienerInfo *ref_wiener_info) {
   int bits = 0;
-#if CONFIG_RST_MERGECOEFFS
-  const int equal =
-      check_wiener_eq(wiener_win != WIENER_WIN, wiener_info, ref_wiener_info);
-  bits++;
-  if (equal) return bits;
-#endif  // CONFIG_RST_MERGECOEFFS
   if (wiener_win == WIENER_WIN)
     bits += aom_count_primitive_refsubexpfin(
         WIENER_FILT_TAP0_MAXV - WIENER_FILT_TAP0_MINV + 1,
@@ -1359,7 +1348,7 @@ static void search_wiener(const RestorationTileLimits *limits,
   finalize_sym_filter(reduced_wiener_win, vfilter, rui.wiener_info.vfilter);
   finalize_sym_filter(reduced_wiener_win, hfilter, rui.wiener_info.hfilter);
 
-#if !CONFIG_RST_MERGECOEFFS
+#if !CONFIG_FORCE_WIENER
   // Disabled for experiment because it doesn't factor reduced bit count
   // into calculations.
   // Filter score computes the value of the function x'*A*x - x'*b for the
@@ -1373,7 +1362,7 @@ static void search_wiener(const RestorationTileLimits *limits,
     rusi->sse[RESTORE_WIENER] = INT64_MAX;
     return;
   }
-#endif  // !CONFIG_RST_MERGECOEFFS
+#endif  // !CONFIG_FORCE_WIENER
 
   aom_clear_system_state();
 
@@ -1395,15 +1384,49 @@ static void search_wiener(const RestorationTileLimits *limits,
        << AV1_PROB_COST_SHIFT);
   double cost_nomerge =
       RDCOST_DBL(x->rdmult, bits_nomerge >> 4, rusi->sse[RESTORE_WIENER]);
+
+  RstUnitSnapshot unit_snapshot;
+  memset(&unit_snapshot, 0, sizeof(unit_snapshot));
+  unit_snapshot.limits = limits;
+  unit_snapshot.rest_unit_idx = rest_unit_idx;
+  memcpy(unit_snapshot.M, M, WIENER_WIN2 * sizeof(*M));
+  memcpy(unit_snapshot.H, H, WIENER_WIN2 * WIENER_WIN2 * sizeof(*H));
+  RestorationType rtype = RESTORE_WIENER;
+  rusi->best_rtype[RESTORE_WIENER - 1] = rtype;
+  // If current_unit_stack is empty, we can leave early.
+  if (aom_vector_is_empty(current_unit_stack)) {
+    rsc->sse += rusi->sse[rtype];
+    rsc->bits += bits_nomerge;
+    rsc->wiener = rusi->wiener;
+    unit_snapshot.current_sse = rusi->sse[rtype];
+    unit_snapshot.current_bits = bits_nomerge;
+    aom_vector_push_back(current_unit_stack, &unit_snapshot);
+    return;
+  }
+  // Handles special case where no-merge filter is equal to merged
+  // filter for the stack - we don't want to perform another merge and
+  // get a less optimal filter, but we want to continue building the stack.
+  RstUnitSnapshot *sample_merge_unit =
+      (RstUnitSnapshot *)aom_vector_get(current_unit_stack, 0);
+  RestUnitSearchInfo *sample_rusi =
+      &rsc->rusi[sample_merge_unit->rest_unit_idx];
+  if (check_wiener_eq(&rusi->wiener, &sample_rusi->wiener)) {
+    rsc->sse += rusi->sse[rtype];
+    rsc->bits += x->wiener_restore_cost[1] + x->merged_param_cost[1];
+    rsc->wiener = rusi->wiener;
+    unit_snapshot.current_sse = rusi->sse[rtype];
+    unit_snapshot.current_bits =
+        x->wiener_restore_cost[1] + x->merged_param_cost[1];
+    aom_vector_push_back(current_unit_stack, &unit_snapshot);
+    return;
+  }
+
   int64_t M_AVG[WIENER_WIN2];
-  memcpy(M_AVG, M, WIENER_WIN2);
+  memcpy(M_AVG, M, WIENER_WIN2 * sizeof(*M));
   int64_t H_AVG[WIENER_WIN2 * WIENER_WIN2];
-  memcpy(H_AVG, H, WIENER_WIN2 * WIENER_WIN2);
+  memcpy(H_AVG, H, WIENER_WIN2 * WIENER_WIN2 * sizeof(*H));
   // Iterate through vector to get current cost and the sum of M and H so far.
-  for (Iterator listed_unit = aom_vector_begin((current_unit_stack)),
-                end = aom_vector_end((current_unit_stack));
-       !aom_iterator_equals(&(listed_unit), &end);
-       aom_iterator_increment(&(listed_unit))) {
+  VECTOR_FOR_EACH(current_unit_stack, listed_unit) {
     RstUnitSnapshot *old_unit = (RstUnitSnapshot *)(listed_unit.pointer);
     cost_nomerge += RDCOST_DBL(x->rdmult, old_unit->current_bits >> 4,
                                old_unit->current_sse);
@@ -1434,13 +1457,10 @@ static void search_wiener(const RestorationTileLimits *limits,
                       rui_temp.wiener_info.hfilter);
   // Iterate through vector to get sse and bits for each on the new filter.
   double cost_merge = 0;
-  for (Iterator listed_unit = aom_vector_begin((current_unit_stack)),
-                end = aom_vector_end((current_unit_stack));
-       !aom_iterator_equals(&(listed_unit), &end);
-       aom_iterator_increment(&(listed_unit))) {
+  VECTOR_FOR_EACH(current_unit_stack, listed_unit) {
     RstUnitSnapshot *old_unit = (RstUnitSnapshot *)(listed_unit.pointer);
-    int64_t unit_sse = finer_tile_search_wiener(
-        rsc, old_unit->limits, tile_rect, &rui_temp, reduced_wiener_win);
+    int64_t unit_sse =
+        try_restoration_unit(rsc, old_unit->limits, tile_rect, &rui_temp);
     // First unit in stack has larger unit_bits because the merged coeffs are
     // linked to it.
     int64_t unit_bits;
@@ -1448,47 +1468,40 @@ static void search_wiener(const RestorationTileLimits *limits,
     if (aom_iterator_equals(&(listed_unit), &begin)) {
       unit_bits =
           x->wiener_restore_cost[1] + x->merged_param_cost[0] +
-          (count_wiener_bits(wiener_win, &rui_temp.wiener_info, &rsc->wiener));
+          (count_wiener_bits(wiener_win, &rui_temp.wiener_info, &rsc->wiener)
+           << AV1_PROB_COST_SHIFT);
     } else {
-      unit_bits = x->merged_param_cost[1];
+      unit_bits = x->wiener_restore_cost[1] + x->merged_param_cost[1];
     }
     cost_merge += RDCOST_DBL(x->rdmult, unit_bits >> 4, unit_sse);
   }
   // Add to cost_merge cost of potentially merged unit.
-  int64_t new_unit_sse = finer_tile_search_wiener(
-      rsc, limits, tile_rect, &rui_temp, reduced_wiener_win);
-  int64_t new_unit_bits = x->merged_param_cost[1];
+  int64_t new_unit_sse =
+      try_restoration_unit(rsc, limits, tile_rect, &rui_temp);
+  int64_t new_unit_bits = x->wiener_restore_cost[1] + x->merged_param_cost[1];
   cost_merge += RDCOST_DBL(x->rdmult, new_unit_bits >> 4, new_unit_sse);
 
-  RstUnitSnapshot unit_snapshot;
-  memset(&unit_snapshot, 0, sizeof(unit_snapshot));
-  unit_snapshot.limits = limits;
-  unit_snapshot.rest_unit_idx = rest_unit_idx;
-  memcpy(unit_snapshot.M, M, WIENER_WIN2);
-  memcpy(unit_snapshot.H, H, WIENER_WIN2 * WIENER_WIN2);
   if (cost_merge < cost_nomerge) {
     // Update data within the stack.
-    for (Iterator listed_unit = aom_vector_begin((current_unit_stack)),
-                  end = aom_vector_end((current_unit_stack));
-         !aom_iterator_equals(&(listed_unit), &end);
-         aom_iterator_increment(&(listed_unit))) {
+    VECTOR_FOR_EACH(current_unit_stack, listed_unit) {
       RstUnitSnapshot *old_unit = (RstUnitSnapshot *)(listed_unit.pointer);
       RestUnitSearchInfo *old_rusi = &rsc->rusi[old_unit->rest_unit_idx];
       old_rusi->wiener = rui_temp.wiener_info;
       // TODO(susannad): Implement more efficient sse/bits storage so
       // recalculation isn't necessary.
-      int64_t unit_sse = finer_tile_search_wiener(
-          rsc, old_unit->limits, tile_rect, &rui_temp, reduced_wiener_win);
+      int64_t unit_sse =
+          try_restoration_unit(rsc, old_unit->limits, tile_rect, &rui_temp);
       // First unit in stack has larger unit_bits bc the merged coeffs are
       // linked to it.
       int64_t unit_bits;
       Iterator begin = aom_vector_begin((current_unit_stack));
       if (aom_iterator_equals(&(listed_unit), &begin)) {
-        unit_bits = x->wiener_restore_cost[1] + x->merged_param_cost[0] +
-                    (count_wiener_bits(wiener_win, &rui_temp.wiener_info,
-                                       &rsc->wiener));
+        unit_bits =
+            x->wiener_restore_cost[1] + x->merged_param_cost[0] +
+            (count_wiener_bits(wiener_win, &rui_temp.wiener_info, &rsc->wiener)
+             << AV1_PROB_COST_SHIFT);
       } else {
-        unit_bits = x->merged_param_cost[1];
+        unit_bits = x->wiener_restore_cost[1] + x->merged_param_cost[1];
       }
       old_rusi->sse[RESTORE_WIENER] = unit_sse;
       rsc->sse -= old_unit->current_sse;
@@ -1499,8 +1512,6 @@ static void search_wiener(const RestorationTileLimits *limits,
       old_unit->current_bits = unit_bits;
     }
     // Finalize data for newly merged unit.
-    RestorationType rtype = RESTORE_WIENER;
-    rusi->best_rtype[RESTORE_WIENER - 1] = rtype;
     rusi->sse[rtype] = new_unit_sse;
     rusi->wiener = rui_temp.wiener_info;
     rsc->sse += rusi->sse[rtype];
@@ -1512,8 +1523,6 @@ static void search_wiener(const RestorationTileLimits *limits,
     aom_vector_push_back(current_unit_stack, &unit_snapshot);
   } else {
     // Finalize data for new unit.
-    RestorationType rtype = RESTORE_WIENER;
-    rusi->best_rtype[RESTORE_WIENER - 1] = rtype;
     rsc->sse += rusi->sse[rtype];
     rsc->bits += bits_nomerge;
     rsc->wiener = rusi->wiener;
@@ -1627,11 +1636,6 @@ static int count_wienerns_bits(int plane, WienerNonsepInfo *wienerns_info,
   int is_uv = (plane != AOM_PLANE_Y);
 
   int bits = 0;
-#if CONFIG_RST_MERGECOEFFS
-  const int equal = check_wienerns_eq(is_uv, wienerns_info, ref_wienerns_info);
-  bits++;
-  if (equal) return bits;
-#endif  // CONFIG_RST_MERGECOEFFS
   if (is_uv) {
     for (int i = 0; i < wienerns_uv; ++i) {
       bits += aom_count_primitive_refsubexpfin(
