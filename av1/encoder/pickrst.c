@@ -149,6 +149,11 @@ typedef struct {
   bool allow_restore_cnn_y;
 #endif  // CONFIG_LOOP_RESTORE_CNN
 
+#if CONFIG_RST_MERGECOEFFS
+  // This vector holds the most recent list of units with merged coefficients.
+  Vector *unit_stack;
+#endif  // CONFIG_RST_MERGECOEFFS
+
   AV1PixelRect tile_rect;
 } RestSearchCtxt;
 
@@ -165,6 +170,10 @@ static void rsc_on_tile(void *priv) {
 static void reset_rsc(RestSearchCtxt *rsc) {
   rsc->sse = 0;
   rsc->bits = 0;
+
+#if CONFIG_RST_MERGECOEFFS
+  aom_vector_clear(rsc->unit_stack);
+#endif  // CONFIG_RST_MERGECOEFFS
 }
 
 static void init_rsc(const YV12_BUFFER_CONFIG *src, const AV1_COMMON *cm,
@@ -196,6 +205,14 @@ static void init_rsc(const YV12_BUFFER_CONFIG *src, const AV1_COMMON *cm,
 #if CONFIG_LOOP_RESTORE_CNN
   rsc->allow_restore_cnn_y = allow_restore_cnn_y || (plane != AOM_PLANE_Y);
 #endif  // CONFIG_LOOP_RESTORE_CNN
+
+#if CONFIG_RST_MERGECOEFFS
+  Vector stack_pointer;
+  aom_vector_setup(&stack_pointer,
+                   1,                                // resizable capacity
+                   sizeof(struct RstUnitSnapshot));  // element size
+  rsc->unit_stack = &stack_pointer;
+#endif  // CONFIG_RST_MERGECOEFFS
 }
 
 static int64_t try_restoration_unit(const RestSearchCtxt *rsc,
@@ -712,14 +729,7 @@ static int count_sgrproj_bits(SgrprojInfo *sgrproj_info,
 static void search_sgrproj(const RestorationTileLimits *limits,
                            const AV1PixelRect *tile, int rest_unit_idx,
                            void *priv, int32_t *tmpbuf,
-#if CONFIG_RST_MERGECOEFFS
-                           Vector *current_unit_stack,
-#endif  // CONFIG_RST_MERGECOEFFS
                            RestorationLineBuffers *rlbs) {
-#if CONFIG_RST_MERGECOEFFS
-  // required in function signature but not needed in this function
-  (void)current_unit_stack;
-#endif  // CONFIG_RST_MERGECOEFFS
   (void)rlbs;
   RestSearchCtxt *rsc = (RestSearchCtxt *)priv;
   RestUnitSearchInfo *rusi = &rsc->rusi[rest_unit_idx];
@@ -1290,15 +1300,8 @@ static int64_t finer_tile_search_wiener(const RestSearchCtxt *rsc,
 static void search_wiener(const RestorationTileLimits *limits,
                           const AV1PixelRect *tile_rect, int rest_unit_idx,
                           void *priv, int32_t *tmpbuf,
-#if CONFIG_RST_MERGECOEFFS
-                          Vector *current_unit_stack,
-#endif  // CONFIG_RST_MERGECOEFFS
                           RestorationLineBuffers *rlbs) {
   (void)tmpbuf;
-#if CONFIG_RST_MERGECOEFFS
-  // required in function signature but not needed in this function
-  (void)current_unit_stack;
-#endif  // CONFIG_RST_MERGECOEFFS
   (void)rlbs;
   RestSearchCtxt *rsc = (RestSearchCtxt *)priv;
   RestUnitSearchInfo *rusi = &rsc->rusi[rest_unit_idx];
@@ -1378,6 +1381,7 @@ static void search_wiener(const RestorationTileLimits *limits,
   }
 
 #if CONFIG_RST_MERGECOEFFS
+  Vector *current_unit_stack = rsc->unit_stack;
   const int64_t bits_nomerge =
       x->wiener_restore_cost[1] + x->merged_param_cost[0] +
       (count_wiener_bits(wiener_win, &rusi->wiener, &rsc->wiener)
@@ -1556,16 +1560,9 @@ static void search_wiener(const RestorationTileLimits *limits,
 static void search_norestore(const RestorationTileLimits *limits,
                              const AV1PixelRect *tile_rect, int rest_unit_idx,
                              void *priv, int32_t *tmpbuf,
-#if CONFIG_RST_MERGECOEFFS
-                             Vector *current_unit_stack,
-#endif  // CONFIG_RST_MERGECOEFFS
                              RestorationLineBuffers *rlbs) {
   (void)tile_rect;
   (void)tmpbuf;
-#if CONFIG_RST_MERGECOEFFS
-  // required in function signature but not needed in this function
-  (void)current_unit_stack;
-#endif  // CONFIG_RST_MERGECOEFFS
   (void)rlbs;
 
   RestSearchCtxt *rsc = (RestSearchCtxt *)priv;
@@ -1883,17 +1880,10 @@ static void search_wiener_nonsep(const RestorationTileLimits *limits,
 static void search_switchable(const RestorationTileLimits *limits,
                               const AV1PixelRect *tile_rect, int rest_unit_idx,
                               void *priv, int32_t *tmpbuf,
-#if CONFIG_RST_MERGECOEFFS
-                              Vector *current_unit_stack,
-#endif  // CONFIG_RST_MERGECOEFFS
                               RestorationLineBuffers *rlbs) {
   (void)limits;
   (void)tile_rect;
   (void)tmpbuf;
-#if CONFIG_RST_MERGECOEFFS
-  // required in function signature but not needed in this function
-  (void)current_unit_stack;
-#endif  // CONFIG_RST_MERGECOEFFS
   (void)rlbs;
   RestSearchCtxt *rsc = (RestSearchCtxt *)priv;
   RestUnitSearchInfo *rusi = &rsc->rusi[rest_unit_idx];
@@ -2187,6 +2177,10 @@ void av1_pick_filter_restoration(const YV12_BUFFER_CONFIG *src,
       cm->use_cnn = restore_cnn_used;
     }
 #endif  // CONFIG_LOOP_RESTORE_CNN
+
+#if CONFIG_RST_MERGECOEFFS
+    aom_vector_destroy(rsc.unit_stack);
+#endif  // CONFIG_RST_MERGECOEFFS
   }
 
 #if CONFIG_WIENER_NONSEP && CONFIG_WIENER_NONSEP_CROSS_FILT
