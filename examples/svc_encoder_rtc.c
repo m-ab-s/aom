@@ -212,7 +212,7 @@ static void printout_rate_control_summary(struct RateControlMetrics *rc,
   int tot_num_frames = 0;
   double perc_fluctuation = 0.0;
   printf("Total number of processed frames: %d\n\n", frame_cnt - 1);
-  printf("Rate control layer stats for %d layer(s):\n\n", ts_number_layers);
+  printf("Rate control layer stats for %u layer(s):\n\n", ts_number_layers);
   for (unsigned int sl = 0; sl < ss_number_layers; ++sl) {
     tot_num_frames = 0;
     for (unsigned int tl = 0; tl < ts_number_layers; ++tl) {
@@ -228,7 +228,7 @@ static void printout_rate_control_summary(struct RateControlMetrics *rc,
           rc->layer_avg_frame_size[i] / rc->layer_enc_frames[tl];
       rc->layer_avg_rate_mismatch[i] =
           100.0 * rc->layer_avg_rate_mismatch[i] / rc->layer_enc_frames[tl];
-      printf("For layer#: %d %d \n", sl, tl);
+      printf("For layer#: %u %u \n", sl, tl);
       printf("Bitrate (target vs actual): %d %f\n", rc->layer_target_bitrate[i],
              rc->layer_encoding_bitrate[i]);
       printf("Average frame size (target vs actual): %f %f\n", rc->layer_pfb[i],
