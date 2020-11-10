@@ -462,7 +462,7 @@ int av1_allow_warp(const MB_MODE_INFO *const mbmi,
 #if CONFIG_DERIVED_MV
 int av1_derived_mv_allowed(MACROBLOCKD *const xd, MB_MODE_INFO *const mbmi);
 
-MV av1_derive_mv(const AV1_COMMON *const cm, MACROBLOCKD *xd,
+MV av1_derive_mv(const AV1_COMMON *const cm, MACROBLOCKD *xd, int ref,
                  MB_MODE_INFO *mbmi, uint8_t *recon_buf, int recon_stride);
 #endif  // CONFIG_DERIVED_MV
 

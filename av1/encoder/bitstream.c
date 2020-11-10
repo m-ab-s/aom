@@ -1635,7 +1635,7 @@ static void pack_inter_mode_mvs(AV1_COMP *cpi, const int mi_row,
 #if CONFIG_DERIVED_MV
       if (mbmi->derived_mv_allowed) {
         aom_write_symbol(w, mbmi->use_derived_mv,
-                         ec_ctx->use_derived_mv_cdf[bsize], 2);
+                         ec_ctx->use_derived_mv_cdf[is_compound][bsize], 2);
       }
 #endif  // CONFIG_DERIVED_MV
 

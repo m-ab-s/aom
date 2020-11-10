@@ -701,31 +701,31 @@ void av1_encode_superblock(const AV1_COMP *const cpi, TileDataEnc *tile_data,
 #if CONFIG_DERIVED_MV
     assert(mbmi->derived_mv_allowed == av1_derived_mv_allowed(xd, mbmi));
     if (mbmi->derived_mv_allowed && mbmi->use_derived_mv) {
-      const MV derived_mv = av1_derive_mv(cm, xd, mbmi, xd->plane[0].dst.buf,
-                                          xd->plane[0].dst.stride);
+      MV derived_mv[2];
+      int need_update = 0;
+      for (ref = 0; ref < 1 + is_compound; ++ref) {
+        derived_mv[ref] = av1_derive_mv(cm, xd, ref, mbmi, xd->plane[0].dst.buf,
+                                        xd->plane[0].dst.stride);
 #if CONFIG_DERIVED_MV_NO_PD
-      if (mbmi->derived_mv.row != derived_mv.row ||
-          mbmi->derived_mv.col != derived_mv.col) {
-        mbmi->derived_mv = derived_mv;
-        if (mbmi->motion_mode == WARPED_CAUSAL) {
-          mbmi->motion_mode = SIMPLE_TRANSLATION;
+        if (mbmi->derived_mv[ref].row != derived_mv[ref].row ||
+            mbmi->derived_mv[ref].col != derived_mv[ref].col) {
+          need_update = 1;
         }
-        // Update the frame MV buffers.
-        if (!dry_run && cm->seq_params.order_hint_info.enable_ref_frame_mvs) {
-          const int bw = mi_size_wide[bsize];
-          const int bh = mi_size_high[bsize];
-          const int x_mis = AOMMIN(bw, cm->mi_cols - mi_col);
-          const int y_mis = AOMMIN(bh, cm->mi_rows - mi_row);
-          av1_copy_frame_mvs(cm, mbmi, mi_row, mi_col, x_mis, y_mis);
-        }
-      }
 #else
-      // In rare cases the derived_mv may have changed and is different from
-      // the values obtained during RDO.
-      mbmi->derived_mv = derived_mv;
-      if (mbmi->mv[0].as_mv.row != derived_mv.row ||
-          mbmi->mv[0].as_mv.col != derived_mv.col) {
-        mbmi->mv[0].as_mv = derived_mv;
+        if (mbmi->mv[ref].as_mv.row != derived_mv[ref].row ||
+            mbmi->mv[ref].as_mv.col != derived_mv[ref].col) {
+          need_update = 1;
+        }
+#endif  // CONFIG_DERIVED_MV_NO_PD
+      }
+
+      if (need_update) {
+        mbmi->derived_mv[0] = derived_mv[0];
+        if (is_compound) mbmi->derived_mv[1] = derived_mv[1];
+#if !CONFIG_DERIVED_MV_NO_PD
+        mbmi->mv[0].as_mv = derived_mv[0];
+        if (is_compound) mbmi->mv[1].as_mv = derived_mv[1];
+#endif  // !CONFIG_DERIVED_MV_NO_PD
         // Do not use warped motion because the warped motion coefficients may
         // have become invalid due to the MV change.
         if (mbmi->motion_mode == WARPED_CAUSAL) {
@@ -740,7 +740,6 @@ void av1_encode_superblock(const AV1_COMP *const cpi, TileDataEnc *tile_data,
           av1_copy_frame_mvs(cm, mbmi, mi_row, mi_col, x_mis, y_mis);
         }
       }
-#endif  // CONFIG_DERIVED_MV_NO_PD
     }
 #endif  // CONFIG_DERIVED_MV
 
@@ -1676,7 +1675,8 @@ static INLINE void update_inter_stats(const AV1_COMMON *const cm,
 
 #if CONFIG_DERIVED_MV
       if (mbmi->derived_mv_allowed) {
-        update_cdf(fc->use_derived_mv_cdf[bsize], mbmi->use_derived_mv, 2);
+        update_cdf(fc->use_derived_mv_cdf[has_second_ref(mbmi)][bsize],
+                   mbmi->use_derived_mv, 2);
       }
 #endif  // CONFIG_DERIVED_MV
 

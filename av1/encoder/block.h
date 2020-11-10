@@ -599,7 +599,7 @@ struct macroblock {
   int uv_derived_intra_mode_cost[2][2];
 #endif  // CONFIG_DERIVED_INTRA_MODE
 #if CONFIG_DERIVED_MV
-  int use_derived_mv_cost[BLOCK_SIZES_ALL][2];
+  int use_derived_mv_cost[2][BLOCK_SIZES_ALL][2];
 #endif  // CONFIG_DERIVED_MV
 
 #if CONFIG_DSPL_RESIDUAL

@@ -74,7 +74,7 @@ void av1_copy_frame_mvs(const AV1_COMMON *const cm,
           mv->ref_frame = ref_frame;
 #if CONFIG_DERIVED_MV
           if (mi->derived_mv_allowed && mi->use_derived_mv) {
-            mv->mv.as_mv = mi->derived_mv;
+            mv->mv.as_mv = mi->derived_mv[idx];
           } else {
             mv->mv.as_int = mi->mv[idx].as_int;
           }
@@ -2362,8 +2362,8 @@ static INLINE void record_samples(const MB_MODE_INFO *mbmi,
 #endif  // CONFIG_ENHANCED_WARPED_MOTION
 #if CONFIG_DERIVED_MV
   if (mbmi->derived_mv_allowed && mbmi->use_derived_mv) {
-    pts_inref[0] = (x * 8) + mbmi->derived_mv.col;
-    pts_inref[1] = (y * 8) + mbmi->derived_mv.row;
+    pts_inref[0] = (x * 8) + mbmi->derived_mv[ref].col;
+    pts_inref[1] = (y * 8) + mbmi->derived_mv[ref].row;
   } else {
     pts_inref[0] = (x * 8) + mbmi->mv[ref].as_mv.col;
     pts_inref[1] = (y * 8) + mbmi->mv[ref].as_mv.row;

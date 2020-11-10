@@ -355,7 +355,7 @@ typedef struct frame_contexts {
   aom_cdf_prob uv_derived_intra_mode_cdf[2][CDF_SIZE(2)];
 #endif  // CONFIG_DERIVED_INTRA_MODE
 #if CONFIG_DERIVED_MV
-  aom_cdf_prob use_derived_mv_cdf[BLOCK_SIZES_ALL][CDF_SIZE(2)];
+  aom_cdf_prob use_derived_mv_cdf[2][BLOCK_SIZES_ALL][CDF_SIZE(2)];
 #endif  // CONFIG_DERIVED_MV
   int initialized;
 } FRAME_CONTEXT;

@@ -1828,8 +1828,8 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
 #if CONFIG_DERIVED_MV
       mbmi->derived_mv_allowed = av1_derived_mv_allowed(xd, mbmi);
       if (mbmi->derived_mv_allowed) {
-        mbmi->use_derived_mv =
-            aom_read_symbol(r, ec_ctx->use_derived_mv_cdf[bsize], 2, ACCT_STR);
+        mbmi->use_derived_mv = aom_read_symbol(
+            r, ec_ctx->use_derived_mv_cdf[is_compound][bsize], 2, ACCT_STR);
       }
 #endif  // CONFIG_DERIVED_MV
 
@@ -1965,26 +1965,19 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
     const int num_planes = av1_num_planes(cm);
     for (int ref = 0; ref < 1 + has_second_ref(mbmi); ++ref) {
       const MV_REFERENCE_FRAME frame = mbmi->ref_frame[ref];
-      if (frame < LAST_FRAME) {
-        assert(is_intrabc_block(mbmi));
-        assert(frame == INTRA_FRAME);
-        assert(ref == 0);
-      } else {
-        const RefCntBuffer *ref_buf = get_ref_frame_buf(cm, frame);
-        const struct scale_factors *ref_scale_factors =
-            get_ref_scale_factors_const(cm, frame);
-
-        xd->block_ref_scale_factors[ref] = ref_scale_factors;
-        av1_setup_pre_planes(xd, ref, &ref_buf->buf, mi_row, mi_col,
-                             ref_scale_factors, num_planes,
-                             &mbmi->chroma_ref_info);
-      }
-    }
-    mbmi->derived_mv = av1_derive_mv(cm, xd, mbmi, xd->plane[0].dst.buf,
-                                     xd->plane[0].dst.stride);
+      const RefCntBuffer *ref_buf = get_ref_frame_buf(cm, frame);
+      const struct scale_factors *ref_scale_factors =
+          get_ref_scale_factors_const(cm, frame);
+      xd->block_ref_scale_factors[ref] = ref_scale_factors;
+      av1_setup_pre_planes(xd, ref, &ref_buf->buf, mi_row, mi_col,
+                           ref_scale_factors, num_planes,
+                           &mbmi->chroma_ref_info);
+      mbmi->derived_mv[ref] = av1_derive_mv(
+          cm, xd, ref, mbmi, xd->plane[0].dst.buf, xd->plane[0].dst.stride);
 #if !CONFIG_DERIVED_MV_NO_PD
-    mbmi->mv[0].as_mv = mbmi->derived_mv;
+      mbmi->mv[ref].as_mv = mbmi->derived_mv[ref];
 #endif  // !CONFIG_DERIVED_MV_NO_PD
+    }
   }
 #endif  // CONFIG_DERIVED_MV
 
@@ -2105,8 +2098,9 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
     mbmi->wm_params.invalid = 0;
     MV mv = mbmi->mv[0].as_mv;
 #if CONFIG_DERIVED_MV
+    // TODO(huisu): this introduces parsing depenency for warped motion.
     if (mbmi->derived_mv_allowed && mbmi->use_derived_mv) {
-      mv = mbmi->derived_mv;
+      mv = mbmi->derived_mv[0];
     }
 #endif  // CONFIG_DERIVED_MV
     if (mbmi->num_proj_ref > 1) {

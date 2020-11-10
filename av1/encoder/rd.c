@@ -388,9 +388,11 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, MACROBLOCK *x,
 #endif  // CONFIG_DERIVED_INTRA_MODE
 
 #if CONFIG_DERIVED_MV
-  for (i = 0; i < BLOCK_SIZES_ALL; ++i) {
-    av1_cost_tokens_from_cdf(x->use_derived_mv_cost[i],
-                             fc->use_derived_mv_cdf[i], NULL);
+  for (j = 0; j < 2; ++j) {
+    for (i = 0; i < BLOCK_SIZES_ALL; ++i) {
+      av1_cost_tokens_from_cdf(x->use_derived_mv_cost[j][i],
+                               fc->use_derived_mv_cdf[j][i], NULL);
+    }
   }
 #endif  // CONFIG_DERIVED_MV
 

@@ -1008,7 +1008,7 @@ static void build_inter_predictors_sub8x8(
 
 #if CONFIG_DERIVED_MV
       const MV mv = (this_mbmi->derived_mv_allowed && this_mbmi->use_derived_mv)
-                        ? this_mbmi->derived_mv
+                        ? this_mbmi->derived_mv[0]
                         : this_mbmi->mv[0].as_mv;
 #else
       const MV mv = this_mbmi->mv[0].as_mv;
@@ -1185,7 +1185,7 @@ static void build_inter_predictors(
     struct buf_2d *const pre_buf = is_intrabc ? dst_buf : &pd->pre[ref];
 #if CONFIG_DERIVED_MV
     const MV mv = (mi->derived_mv_allowed && mi->use_derived_mv)
-                      ? mi->derived_mv
+                      ? mi->derived_mv[ref]
                       : mi->mv[ref].as_mv;
 #else
     const MV mv = mi->mv[ref].as_mv;
@@ -1345,7 +1345,8 @@ int av1_derived_mv_allowed(MACROBLOCKD *const xd, MB_MODE_INFO *const mbmi) {
   const BLOCK_SIZE bsize = mbmi->sb_type;
   const int bw = block_size_wide[bsize];
   const int bh = block_size_high[bsize];
-  return !is_cur_buf_hbd(xd) && !has_second_ref(mbmi) && mbmi->mode == NEARMV &&
+  return !is_cur_buf_hbd(xd) && !mbmi->skip_mode &&
+         (mbmi->mode == NEARMV || mbmi->mode == NEAR_NEARMV) &&
          bw <= DERIVED_MV_MAX_BSIZE && bh <= DERIVED_MV_MAX_BSIZE &&
          bw >= DERIVED_MV_MIN_BSIZE && bh >= DERIVED_MV_MIN_BSIZE &&
          xd->mi_row + mi_size_high[bsize] <= xd->tile.mi_row_end &&
@@ -1355,15 +1356,15 @@ int av1_derived_mv_allowed(MACROBLOCKD *const xd, MB_MODE_INFO *const mbmi) {
 }
 
 // A mesh full pel search around the reference MV.
-static MV full_pel_refine(const AV1_COMMON *const cm, MACROBLOCKD *xd,
+static MV full_pel_refine(const AV1_COMMON *const cm, MACROBLOCKD *xd, int ref,
                           BLOCK_SIZE bsize, MV ref_mv, const uint8_t *top,
                           const uint8_t *left, const uint8_t *top_left,
                           int stride, aom_subpixvariance_fn_t svp_fn_top,
                           aom_subpixvariance_fn_t svp_fn_left,
                           uint32_t *best_error) {
   struct macroblockd_plane *const pd = &xd->plane[0];
-  const uint8_t *ref_buf = pd->pre[0].buf;
-  const int ref_stride = pd->pre[0].stride;
+  const uint8_t *ref_buf = pd->pre[ref].buf;
+  const int ref_stride = pd->pre[ref].stride;
   *best_error = UINT32_MAX;
   uint32_t sse;
   MV best_mv = ref_mv;
@@ -1408,11 +1409,11 @@ static MV full_pel_refine(const AV1_COMMON *const cm, MACROBLOCKD *xd,
   return best_mv;
 }
 
-MV av1_derive_mv(const AV1_COMMON *const cm, MACROBLOCKD *xd,
+MV av1_derive_mv(const AV1_COMMON *const cm, MACROBLOCKD *xd, int ref,
                  MB_MODE_INFO *mbmi, uint8_t *recon_buf, int recon_stride) {
   struct macroblockd_plane *const pd = &xd->plane[0];
-  const uint8_t *ref_buf = pd->pre[0].buf;
-  const int ref_stride = pd->pre[0].stride;
+  const uint8_t *ref_buf = pd->pre[ref].buf;
+  const int ref_stride = pd->pre[ref].stride;
   const uint8_t *recon_top = recon_buf - DERIVED_MV_REF_LINES * recon_stride;
   const uint8_t *recon_left = recon_buf - DERIVED_MV_REF_LINES;
   const uint8_t *recon_top_left =
@@ -1442,7 +1443,8 @@ MV av1_derive_mv(const AV1_COMMON *const cm, MACROBLOCKD *xd,
   MV_REFERENCE_FRAME ref_frame = av1_ref_frame_type(mbmi->ref_frame);
   av1_find_mv_refs(cm, xd, mbmi, ref_frame, &xd->ref_mv_info, ref_mvs, NULL,
                    inter_mode_ctx);
-  MV best_mv = xd->ref_mv_info.ref_mv_stack[ref_frame][0].this_mv.as_mv;
+  MV best_mv = ref ? xd->ref_mv_info.ref_mv_stack[ref_frame][0].comp_mv.as_mv
+                   : xd->ref_mv_info.ref_mv_stack[ref_frame][0].this_mv.as_mv;
   int step = 1;
   if (cm->fr_mv_precision == MV_SUBPEL_NONE) {
     step = 8;
@@ -1459,10 +1461,11 @@ MV av1_derive_mv(const AV1_COMMON *const cm, MACROBLOCKD *xd,
   for (int i = 0; i < AOMMIN(DERIVED_MV_IDX_RANGE,
                              xd->ref_mv_info.ref_mv_count[ref_frame]);
        ++i) {
-    MV ref_mv = xd->ref_mv_info.ref_mv_stack[ref_frame][i].this_mv.as_mv;
+    MV ref_mv = ref ? xd->ref_mv_info.ref_mv_stack[ref_frame][i].comp_mv.as_mv
+                    : xd->ref_mv_info.ref_mv_stack[ref_frame][i].this_mv.as_mv;
     uint32_t full_pel_error;
     // Search the full pel locations around the ref_mv.
-    ref_mv = full_pel_refine(cm, xd, bsize, ref_mv, recon_top, recon_left,
+    ref_mv = full_pel_refine(cm, xd, ref, bsize, ref_mv, recon_top, recon_left,
                              recon_top_left, recon_stride, svp_fn_top,
                              svp_fn_left, &full_pel_error);
     if (full_pel_error < best_error) {
