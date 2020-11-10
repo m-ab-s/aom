@@ -16,6 +16,9 @@
 #include "config/aom_config.h"
 #include "config/aom_dsp_rtcd.h"
 #include "config/aom_scale_rtcd.h"
+#if CONFIG_DERIVED_MV
+#include "config/av1_rtcd.h"
+#endif  // CONFIG_DERIVED_MV
 
 #include "aom/aom_integer.h"
 #include "aom_dsp/blend.h"
@@ -1331,7 +1334,7 @@ static void build_inter_predictors(
 
 #if CONFIG_DERIVED_MV
 #define DERIVED_MV_REF_LINES 4
-#define REFINE_SUBPEL_RANGE 16
+#define REFINE_SUBPEL_RANGE 8
 #define REFINE_FULLPEL_RANGE 4
 #define REFINE_FULLPEL_STEP 1
 #define DERIVED_MV_IDX_RANGE 8
@@ -1351,28 +1354,17 @@ int av1_derived_mv_allowed(MACROBLOCKD *const xd, MB_MODE_INFO *const mbmi) {
          xd->mi_col > xd->tile.mi_col_start;
 }
 
-static const aom_subpixvariance_fn_t svp_top[] = {
-  aom_sub_pixel_variance4x4_c,  aom_sub_pixel_variance8x4_c,
-  aom_sub_pixel_variance16x4_c, aom_sub_pixel_variance32x4_c,
-  aom_sub_pixel_variance64x4_c, aom_sub_pixel_variance64x4_c,
-};
-static const aom_subpixvariance_fn_t svp_left[] = {
-  aom_sub_pixel_variance4x4_c,  aom_sub_pixel_variance4x8_c,
-  aom_sub_pixel_variance4x16_c, aom_sub_pixel_variance4x32_c,
-  aom_sub_pixel_variance4x64_c, aom_sub_pixel_variance4x64_c
-};
-
 // A mesh full pel search around the reference MV.
 static MV full_pel_refine(const AV1_COMMON *const cm, MACROBLOCKD *xd,
                           BLOCK_SIZE bsize, MV ref_mv, const uint8_t *top,
                           const uint8_t *left, const uint8_t *top_left,
-                          int stride) {
+                          int stride, aom_subpixvariance_fn_t svp_fn_top,
+                          aom_subpixvariance_fn_t svp_fn_left,
+                          uint32_t *best_error) {
   struct macroblockd_plane *const pd = &xd->plane[0];
   const uint8_t *ref_buf = pd->pre[0].buf;
   const int ref_stride = pd->pre[0].stride;
-  const int bwl = mi_size_wide_log2[bsize];
-  const int bhl = mi_size_high_log2[bsize];
-  uint32_t best_error = UINT32_MAX;
+  *best_error = UINT32_MAX;
   uint32_t sse;
   MV best_mv = ref_mv;
   ref_mv.row = ref_mv.row >> 3;
@@ -1400,14 +1392,14 @@ static MV full_pel_refine(const AV1_COMMON *const cm, MACROBLOCKD *xd,
                                     (r - DERIVED_MV_REF_LINES) * ref_stride +
                                     c - DERIVED_MV_REF_LINES;
       const uint32_t top_error =
-          svp_top[bwl](pre_top, ref_stride, 0, 0, top, stride, &sse);
+          svp_fn_top(pre_top, ref_stride, 0, 0, top, stride, &sse);
       const uint32_t left_error =
-          svp_left[bhl](pre_left, ref_stride, 0, 0, left, stride, &sse);
-      const uint32_t top_left_error = aom_sub_pixel_variance4x4_c(
+          svp_fn_left(pre_left, ref_stride, 0, 0, left, stride, &sse);
+      const uint32_t top_left_error = aom_sub_pixel_variance4x4(
           pre_top_left, ref_stride, 0, 0, top_left, stride, &sse);
       const uint32_t this_error = top_error + left_error + top_left_error;
-      if (this_error < best_error) {
-        best_error = this_error;
+      if (this_error < *best_error) {
+        *best_error = this_error;
         best_mv.row = r * 8;
         best_mv.col = c * 8;
       }
@@ -1428,6 +1420,21 @@ MV av1_derive_mv(const AV1_COMMON *const cm, MACROBLOCKD *xd,
   const BLOCK_SIZE bsize = mbmi->sb_type;
   const int bwl = mi_size_wide_log2[bsize];
   const int bhl = mi_size_high_log2[bsize];
+  aom_subpixvariance_fn_t svp_fn_top, svp_fn_left;
+  switch (bwl) {
+    case 0: svp_fn_top = aom_sub_pixel_variance4x4; break;
+    case 1: svp_fn_top = aom_sub_pixel_variance8x4; break;
+    case 2: svp_fn_top = aom_sub_pixel_variance16x4; break;
+    case 3: svp_fn_top = aom_sub_pixel_variance32x4; break;
+    default: svp_fn_top = aom_sub_pixel_variance64x4; break;
+  }
+  switch (bhl) {
+    case 0: svp_fn_left = aom_sub_pixel_variance4x4; break;
+    case 1: svp_fn_left = aom_sub_pixel_variance4x8; break;
+    case 2: svp_fn_left = aom_sub_pixel_variance4x16; break;
+    case 3: svp_fn_left = aom_sub_pixel_variance4x32; break;
+    default: svp_fn_left = aom_sub_pixel_variance4x64; break;
+  }
   uint32_t best_error = UINT32_MAX;
   uint32_t sse;
   int16_t inter_mode_ctx[MODE_CTX_REF_FRAMES];
@@ -1448,48 +1455,57 @@ MV av1_derive_mv(const AV1_COMMON *const cm, MACROBLOCKD *xd,
   const int y = xd->mi_row * 4 * 8;
   const int bw = block_size_wide[bsize];
   const int bh = block_size_high[bsize];
-  // Motion search around each reference MV.
+  // Full pixel motion search around each reference MV.
   for (int i = 0; i < AOMMIN(DERIVED_MV_IDX_RANGE,
                              xd->ref_mv_info.ref_mv_count[ref_frame]);
        ++i) {
     MV ref_mv = xd->ref_mv_info.ref_mv_stack[ref_frame][i].this_mv.as_mv;
-    // Full pel MV search.
+    uint32_t full_pel_error;
+    // Search the full pel locations around the ref_mv.
     ref_mv = full_pel_refine(cm, xd, bsize, ref_mv, recon_top, recon_left,
-                             recon_top_left, recon_stride);
-    for (int r = ref_mv.row - REFINE_SUBPEL_RANGE;
-         r <= ref_mv.row + REFINE_SUBPEL_RANGE; r += step) {
-      for (int c = ref_mv.col - REFINE_SUBPEL_RANGE;
-           c <= ref_mv.col + REFINE_SUBPEL_RANGE; c += step) {
-        if (x + c - DERIVED_MV_REF_LINES * 8 < 0 ||
-            y + r - DERIVED_MV_REF_LINES * 8 < 0 ||
-            (xd->mi_col * 4 + bw) * 8 + c >= cm->width * 8 ||
-            (xd->mi_row * 4 + bh) * 8 + r >= cm->height * 8) {
-          continue;
-        }
-        const int r_int = r >> 3;
-        const int c_int = c >> 3;
-        const int r_sub = r & 7;
-        const int c_sub = c & 7;
-        const uint8_t *pre_top =
-            ref_buf + (r_int - DERIVED_MV_REF_LINES) * ref_stride + c_int;
-        const uint8_t *pre_left =
-            ref_buf + r_int * ref_stride + c_int - DERIVED_MV_REF_LINES;
-        const uint8_t *pre_top_left =
-            ref_buf + (r_int - DERIVED_MV_REF_LINES) * ref_stride + c_int -
-            DERIVED_MV_REF_LINES;
-        const uint32_t top_error = svp_top[bwl](
-            pre_top, ref_stride, c_sub, r_sub, recon_top, recon_stride, &sse);
-        const uint32_t left_error = svp_left[bhl](
-            pre_left, ref_stride, c_sub, r_sub, recon_left, recon_stride, &sse);
-        const uint32_t top_left_error =
-            aom_sub_pixel_variance4x4_c(pre_top_left, ref_stride, c_sub, r_sub,
-                                        recon_top_left, recon_stride, &sse);
-        const uint32_t this_error = top_error + left_error + top_left_error;
-        if (this_error < best_error) {
-          best_error = this_error;
-          best_mv.row = r;
-          best_mv.col = c;
-        }
+                             recon_top_left, recon_stride, svp_fn_top,
+                             svp_fn_left, &full_pel_error);
+    if (full_pel_error < best_error) {
+      best_error = full_pel_error;
+      best_mv = ref_mv;
+    }
+  }
+
+  const MV best_full_pel_mv = best_mv;
+  // Subpel search around the best full pel MV.
+  for (int r = best_full_pel_mv.row - REFINE_SUBPEL_RANGE;
+       r <= best_full_pel_mv.row + REFINE_SUBPEL_RANGE; r += step) {
+    for (int c = best_full_pel_mv.col - REFINE_SUBPEL_RANGE;
+         c <= best_full_pel_mv.col + REFINE_SUBPEL_RANGE; c += step) {
+      if (x + c - DERIVED_MV_REF_LINES * 8 < 0 ||
+          y + r - DERIVED_MV_REF_LINES * 8 < 0 ||
+          (xd->mi_col * 4 + bw) * 8 + c >= cm->width * 8 ||
+          (xd->mi_row * 4 + bh) * 8 + r >= cm->height * 8) {
+        continue;
+      }
+      const int r_int = r >> 3;
+      const int c_int = c >> 3;
+      const int r_sub = r & 7;
+      const int c_sub = c & 7;
+      const uint8_t *pre_top =
+          ref_buf + (r_int - DERIVED_MV_REF_LINES) * ref_stride + c_int;
+      const uint8_t *pre_left =
+          ref_buf + r_int * ref_stride + c_int - DERIVED_MV_REF_LINES;
+      const uint8_t *pre_top_left =
+          ref_buf + (r_int - DERIVED_MV_REF_LINES) * ref_stride + c_int -
+          DERIVED_MV_REF_LINES;
+      const uint32_t top_error = svp_fn_top(pre_top, ref_stride, c_sub, r_sub,
+                                            recon_top, recon_stride, &sse);
+      const uint32_t left_error = svp_fn_left(
+          pre_left, ref_stride, c_sub, r_sub, recon_left, recon_stride, &sse);
+      const uint32_t top_left_error =
+          aom_sub_pixel_variance4x4(pre_top_left, ref_stride, c_sub, r_sub,
+                                    recon_top_left, recon_stride, &sse);
+      const uint32_t this_error = top_error + left_error + top_left_error;
+      if (this_error < best_error) {
+        best_error = this_error;
+        best_mv.row = r;
+        best_mv.col = c;
       }
     }
   }
