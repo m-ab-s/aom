@@ -182,6 +182,9 @@ static void init_rsc(const YV12_BUFFER_CONFIG *src, const AV1_COMMON *cm,
 #if CONFIG_LOOP_RESTORE_CNN
                      bool allow_restore_cnn_y,
 #endif  // CONFIG_LOOP_RESTORE_CNN
+#if CONFIG_RST_MERGECOEFFS
+                     Vector *unit_stack,
+#endif  // CONFIG_RST_MERGECOEFFS
                      RestSearchCtxt *rsc) {
   rsc->src = src;
   rsc->dst = dst;
@@ -207,11 +210,7 @@ static void init_rsc(const YV12_BUFFER_CONFIG *src, const AV1_COMMON *cm,
 #endif  // CONFIG_LOOP_RESTORE_CNN
 
 #if CONFIG_RST_MERGECOEFFS
-  Vector stack_pointer;
-  aom_vector_setup(&stack_pointer,
-                   1,                                // resizable capacity
-                   sizeof(struct RstUnitSnapshot));  // element size
-  rsc->unit_stack = &stack_pointer;
+  rsc->unit_stack = unit_stack;
 #endif  // CONFIG_RST_MERGECOEFFS
 }
 
@@ -2090,6 +2089,13 @@ void av1_pick_filter_restoration(const YV12_BUFFER_CONFIG *src,
   memset(rusi, 0, sizeof(*rusi) * ntiles[0]);
   cpi->td.mb.rdmult = cpi->rd.RDMULT;
 
+#if CONFIG_RST_MERGECOEFFS
+  Vector unit_stack;
+  aom_vector_setup(&unit_stack,
+                   1,                                // resizable capacity
+                   sizeof(struct RstUnitSnapshot));  // element size
+#endif                                               // CONFIG_RST_MERGECOEFFS
+
   RestSearchCtxt rsc;
   const int plane_start = AOM_PLANE_Y;
   const int plane_end = num_planes > 1 ? AOM_PLANE_V : AOM_PLANE_Y;
@@ -2119,6 +2125,9 @@ void av1_pick_filter_restoration(const YV12_BUFFER_CONFIG *src,
 #if CONFIG_LOOP_RESTORE_CNN
              allow_restore_cnn_y,
 #endif  // CONFIG_LOOP_RESTORE_CNN
+#if CONFIG_RST_MERGECOEFFS
+             &unit_stack,
+#endif  // CONFIG_RST_MERGECOEFFS
              &rsc);
 
     const int plane_ntiles = ntiles[plane > 0];
@@ -2177,10 +2186,6 @@ void av1_pick_filter_restoration(const YV12_BUFFER_CONFIG *src,
       cm->use_cnn = restore_cnn_used;
     }
 #endif  // CONFIG_LOOP_RESTORE_CNN
-
-#if CONFIG_RST_MERGECOEFFS
-    aom_vector_destroy(rsc.unit_stack);
-#endif  // CONFIG_RST_MERGECOEFFS
   }
 
 #if CONFIG_WIENER_NONSEP && CONFIG_WIENER_NONSEP_CROSS_FILT
@@ -2188,4 +2193,7 @@ void av1_pick_filter_restoration(const YV12_BUFFER_CONFIG *src,
 #endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
 
   aom_free(rusi);
+#if CONFIG_RST_MERGECOEFFS
+  aom_vector_destroy(&unit_stack);
+#endif  // CONFIG_RST_MERGECOEFFS
 }
