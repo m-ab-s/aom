@@ -9680,7 +9680,7 @@ static int64_t handle_newmv(const AV1_COMP *const cpi, MACROBLOCK *const x,
       }
 #if CONFIG_EXT_COMPOUND
       if (this_mode == SCALED_NEWMV)
-        av1_get_scaled_mv(&cpi->common, cur_mv[1], 0, mbmi->ref_frame,
+        av1_get_scaled_mv(&cpi->common, cur_mv[1], 1, mbmi->ref_frame,
                           &cur_mv[0], bsize, xd->mi_row, xd->mi_col);
 #endif  // CONFIG_EXT_COMPOUND
     } else {
@@ -9714,7 +9714,7 @@ static int64_t handle_newmv(const AV1_COMP *const cpi, MACROBLOCK *const x,
       }
 #if CONFIG_EXT_COMPOUND
       if (this_mode == NEW_SCALEDMV)
-        av1_get_scaled_mv(&cpi->common, cur_mv[0], 1, mbmi->ref_frame,
+        av1_get_scaled_mv(&cpi->common, cur_mv[0], 0, mbmi->ref_frame,
                           &cur_mv[1], bsize, xd->mi_row, xd->mi_col);
 #endif  // CONFIG_EXT_COMPOUND
     }
@@ -11717,7 +11717,7 @@ static INLINE void get_this_mv(const AV1_COMMON *cm, int_mv *mv,
 #if CONFIG_EXT_COMPOUND
   } else if (single_mode == MB_MODE_COUNT) {
     assert(this_mode > NEW_NEWMV);
-    av1_get_scaled_mv(cm, mv[!ref_idx], ref_idx, ref_frame, this_mv, bsize,
+    av1_get_scaled_mv(cm, mv[!ref_idx], !ref_idx, ref_frame, this_mv, bsize,
                       mi_row, mi_col);
 #endif
   } else {

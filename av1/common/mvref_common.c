@@ -113,6 +113,7 @@ static void scale_mv(const int_mv this_refmv, int this_ref, int r1_dist,
                      int r2_dist, MvSubpelPrecision precision,
                      int_mv *scaled_mv) {
   assert(r1_dist != 0 && r2_dist != 0);
+  // this_ref refers to the reference corresponding with this_refmv
   const float ratio =
       this_ref ? (float)r1_dist / r2_dist : (float)r2_dist / r1_dist;
   // Value to add before casting to int16_t to round to the nearest
