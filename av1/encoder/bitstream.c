@@ -2505,7 +2505,6 @@ static void write_wiener_filter(int wiener_win, const WienerInfo *wiener_info,
   const int equal = check_wiener_eq(wiener_info, ref_wiener_info);
   aom_write_bit(wb, equal);
   if (equal) {
-    memcpy(ref_wiener_info, wiener_info, sizeof(*wiener_info));
     return;
   }
 #endif  // CONFIG_RST_MERGECOEFFS

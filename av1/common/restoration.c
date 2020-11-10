@@ -29,10 +29,6 @@
 
 #include "aom_ports/mem.h"
 
-#if CONFIG_RST_MERGECOEFFS
-#include "third_party/vector/vector.h"
-#endif  // CONFIG_RST_MERGECOEFFS
-
 #if CONFIG_WIENER_NONSEP
 #define WIENERNS_PREC_BITS_Y_MINUS7 (WIENERNS_PREC_BITS_Y - 7)
 #define AOM_WIENERNS_COEFF_Y(b, m, k)               \
