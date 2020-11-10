@@ -714,19 +714,26 @@ void av1_init_txk_skip_array(const AV1_COMMON *cm, MB_MODE_INFO *mbmi,
                              int mi_row, int mi_col, BLOCK_SIZE bsize,
                              uint8_t value, FILE *fLog) {
   for (int plane = 0; plane < MAX_MB_PLANE; plane++) {
+    const int is_chroma_ref = plane && mbmi->chroma_ref_info.is_chroma_ref;
+    int mi_row_plane =
+        is_chroma_ref ? mbmi->chroma_ref_info.mi_row_chroma_base : mi_row;
+    int mi_col_plane =
+        is_chroma_ref ? mbmi->chroma_ref_info.mi_col_chroma_base : mi_col;
+    BLOCK_SIZE bsize_plane =
+        is_chroma_ref ? mbmi->chroma_ref_info.bsize_base : bsize;
     int w = ((cm->width + MAX_SB_SIZE - 1) >> MAX_SB_SIZE_LOG2)
             << MAX_SB_SIZE_LOG2;
     w >>= ((plane == 0) ? 0 : cm->seq_params.subsampling_x);
     int stride = (w + MIN_TX_SIZE - 1) >> MIN_TX_SIZE_LOG2;
-    int x = (mi_col << MI_SIZE_LOG2) >>
+    int x = (mi_col_plane << MI_SIZE_LOG2) >>
             ((plane == 0) ? 0 : cm->seq_params.subsampling_x);
-    int y = (mi_row << MI_SIZE_LOG2) >>
+    int y = (mi_row_plane << MI_SIZE_LOG2) >>
             ((plane == 0) ? 0 : cm->seq_params.subsampling_y);
     int row = y >> MIN_TX_SIZE_LOG2;
     int col = x >> MIN_TX_SIZE_LOG2;
-    int blk_w = block_size_wide[bsize] >>
+    int blk_w = block_size_wide[bsize_plane] >>
                 ((plane == 0) ? 0 : cm->seq_params.subsampling_x);
-    int blk_h = block_size_high[bsize] >>
+    int blk_h = block_size_high[bsize_plane] >>
                 ((plane == 0) ? 0 : cm->seq_params.subsampling_y);
     blk_w >>= MIN_TX_SIZE_LOG2;
     blk_h >>= MIN_TX_SIZE_LOG2;
