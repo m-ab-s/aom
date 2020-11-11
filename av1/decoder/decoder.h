@@ -218,6 +218,17 @@ typedef struct AV1DecTileMTData {
   int alloc_tile_cols;
 } AV1DecTileMT;
 
+/*!
+ * \Holds subgop related info.
+ */
+typedef struct {
+  unsigned char disp_frame_idx[MAX_SUBGOP_STATS_SIZE];
+  int show_existing_frame[MAX_SUBGOP_STATS_SIZE];
+  int show_frame[MAX_SUBGOP_STATS_SIZE];
+  int refresh_frame_flags[MAX_SUBGOP_STATS_SIZE];
+  unsigned char stat_count;
+} SubGOPStatsDec;
+
 typedef struct AV1Decoder {
   DecoderCodingBlock dcb;
 
@@ -330,6 +341,8 @@ typedef struct AV1Decoder {
   int is_arf_frame_present;
   int num_tile_groups;
   aom_s_frame_info sframe_info;
+  unsigned int enable_subgop_stats;
+  SubGOPStatsDec subgop_stats;
 } AV1Decoder;
 
 // Returns 0 on success. Sets pbi->common.error.error_code to a nonzero error

@@ -71,6 +71,8 @@ struct aom_codec_alg_priv {
   aom_get_frame_buffer_cb_fn_t get_ext_fb_cb;
   aom_release_frame_buffer_cb_fn_t release_ext_fb_cb;
 
+  // To collect stats for sub-gop unit test case
+  unsigned int enable_subgop_stats;
 #if CONFIG_INSPECTION
   aom_inspect_cb inspect_cb;
   void *inspect_ctx;
@@ -468,6 +470,7 @@ static aom_codec_err_t init_decoder(aom_codec_alg_priv_t *ctx) {
   frame_worker_data->pbi->ext_tile_debug = ctx->ext_tile_debug;
   frame_worker_data->pbi->row_mt = ctx->row_mt;
   frame_worker_data->pbi->is_fwd_kf_present = 0;
+  frame_worker_data->pbi->enable_subgop_stats = ctx->enable_subgop_stats;
   frame_worker_data->pbi->is_arf_frame_present = 0;
   worker->hook = frame_worker_hook;
 
@@ -593,6 +596,8 @@ static aom_codec_err_t decoder_decode(aom_codec_alg_priv_t *ctx,
     AVxWorker *const worker = ctx->frame_worker;
     FrameWorkerData *const frame_worker_data = (FrameWorkerData *)worker->data1;
     struct AV1Decoder *pbi = frame_worker_data->pbi;
+    if (ctx->enable_subgop_stats)
+      memset(&pbi->subgop_stats, 0, sizeof(pbi->subgop_stats));
     for (size_t j = 0; j < pbi->num_output_frames; j++) {
       decrease_ref_count(pbi->output_frames[j], pool);
     }
@@ -1148,6 +1153,37 @@ static aom_codec_err_t ctrl_get_s_frame_info(aom_codec_alg_priv_t *ctx,
   return AOM_CODEC_OK;
 }
 
+static aom_codec_err_t ctrl_enable_subgop_stats(aom_codec_alg_priv_t *ctx,
+                                                va_list args) {
+  const unsigned int arg = va_arg(args, unsigned int);
+  ctx->enable_subgop_stats = arg;
+  return AOM_CODEC_OK;
+}
+
+static aom_codec_err_t ctrl_get_dec_frame_info(aom_codec_alg_priv_t *ctx,
+                                               va_list args) {
+  SubGOPData *subgop_data = va_arg(args, SubGOPData *);
+  if (!ctx->frame_worker) return AOM_CODEC_ERROR;
+  const AVxWorker *const worker = ctx->frame_worker;
+  FrameWorkerData *const frame_worker_data = (FrameWorkerData *)worker->data1;
+  const AV1Decoder *const pbi = frame_worker_data->pbi;
+  const SubGOPStatsDec *const subgop_stats = &pbi->subgop_stats;
+  SubGOPStepData *step_data = subgop_data->step;
+  const int stat_count = subgop_stats->stat_count;
+
+  // Collects already decoded out of order frames info along with in-order
+  // frame
+  step_data += subgop_data->step_idx_dec;
+  for (int step_idx = 0; step_idx < stat_count; step_idx++) {
+    step_data[step_idx].disp_frame_idx = subgop_stats->disp_frame_idx[step_idx];
+    step_data[step_idx].show_existing_frame =
+        subgop_stats->show_existing_frame[step_idx];
+    step_data[step_idx].show_frame = subgop_stats->show_frame[step_idx];
+    subgop_data->step_idx_dec++;
+  }
+  return AOM_CODEC_OK;
+}
+
 static aom_codec_err_t ctrl_get_frame_corrupted(aom_codec_alg_priv_t *ctx,
                                                 va_list args) {
   int *corrupted = va_arg(args, int *);
@@ -1523,6 +1559,7 @@ static aom_codec_ctrl_fn_map_t decoder_ctrl_maps[] = {
   { AV1D_SET_ROW_MT, ctrl_set_row_mt },
   { AV1D_SET_EXT_REF_PTR, ctrl_set_ext_ref_ptr },
   { AV1D_SET_SKIP_FILM_GRAIN, ctrl_set_skip_film_grain },
+  { AV1D_ENABLE_SUBGOP_STATS, ctrl_enable_subgop_stats },
 
   // Getters
   { AOMD_GET_FRAME_CORRUPTED, ctrl_get_frame_corrupted },
@@ -1549,6 +1586,7 @@ static aom_codec_ctrl_fn_map_t decoder_ctrl_maps[] = {
   { AOMD_GET_SB_SIZE, ctrl_get_sb_size },
   { AOMD_GET_SHOW_EXISTING_FRAME_FLAG, ctrl_get_show_existing_frame_flag },
   { AOMD_GET_S_FRAME_INFO, ctrl_get_s_frame_info },
+  { AOMD_GET_FRAME_INFO, ctrl_get_dec_frame_info },
 
   CTRL_MAP_END,
 };

@@ -426,6 +426,14 @@ enum aom_dec_control_id {
   /*!\brief Codec control function to get the S_FRAME coding information
    */
   AOMD_GET_S_FRAME_INFO,
+
+  /*!\brief Codec control function to get the frame information
+   */
+  AOMD_GET_FRAME_INFO,
+
+  /*!\brief Codec control function to enable subgop stats
+   */
+  AV1D_ENABLE_SUBGOP_STATS,
 };
 
 /*!\cond */
@@ -479,6 +487,12 @@ AOM_CTRL_USE_TYPE(AOMD_GET_SHOW_EXISTING_FRAME_FLAG, int *)
 
 AOM_CTRL_USE_TYPE(AOMD_GET_S_FRAME_INFO, aom_s_frame_info *)
 #define AOMD_CTRL_AOMD_GET_S_FRAME_INFO
+
+AOM_CTRL_USE_TYPE(AOMD_GET_FRAME_INFO, void *)
+#define AOMD_CTRL_AOMD_GET_FRAME_INFO
+
+AOM_CTRL_USE_TYPE(AV1D_ENABLE_SUBGOP_STATS, unsigned int)
+#define AOMD_CTRL_AV1D_ENABLE_SUBGOP_STATS
 
 AOM_CTRL_USE_TYPE(AV1D_GET_DISPLAY_SIZE, int *)
 #define AOM_CTRL_AV1D_GET_DISPLAY_SIZE
