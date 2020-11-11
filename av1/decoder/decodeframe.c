@@ -2051,14 +2051,18 @@ static void decode_restoration_mode(AV1_COMMON *cm,
   }
 }
 
-static void read_wiener_filter(int wiener_win, WienerInfo *wiener_info,
+static void read_wiener_filter(MACROBLOCKD *xd, int wiener_win,
+                               WienerInfo *wiener_info,
                                WienerInfo *ref_wiener_info, aom_reader *rb) {
 #if CONFIG_RST_MERGECOEFFS
-  const int equal = aom_read_bit(rb, ACCT_STR);
+  const int equal =
+      aom_read_symbol(rb, xd->tile_ctx->merged_param_cdf, 2, ACCT_STR);
   if (equal) {
     memcpy(wiener_info, ref_wiener_info, sizeof(*wiener_info));
     return;
   }
+#else
+  (void)xd;
 #endif  // CONFIG_RST_MERGECOEFFS
   memset(wiener_info->vfilter, 0, sizeof(wiener_info->vfilter));
   memset(wiener_info->hfilter, 0, sizeof(wiener_info->hfilter));
@@ -2221,7 +2225,7 @@ static void loop_restoration_read_sb_coeffs(const AV1_COMMON *const cm,
 #endif  // CONFIG_LOOP_RESTORE_CNN
     switch (rui->restoration_type) {
       case RESTORE_WIENER:
-        read_wiener_filter(wiener_win, &rui->wiener_info, wiener_info, r);
+        read_wiener_filter(xd, wiener_win, &rui->wiener_info, wiener_info, r);
         break;
       case RESTORE_SGRPROJ:
         read_sgrproj_filter(&rui->sgrproj_info, sgrproj_info, r);
@@ -2240,7 +2244,7 @@ static void loop_restoration_read_sb_coeffs(const AV1_COMMON *const cm,
   } else if (rsi->frame_restoration_type == RESTORE_WIENER) {
     if (aom_read_symbol(r, xd->tile_ctx->wiener_restore_cdf, 2, ACCT_STR)) {
       rui->restoration_type = RESTORE_WIENER;
-      read_wiener_filter(wiener_win, &rui->wiener_info, wiener_info, r);
+      read_wiener_filter(xd, wiener_win, &rui->wiener_info, wiener_info, r);
     } else {
       rui->restoration_type = RESTORE_NONE;
     }

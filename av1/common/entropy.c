@@ -193,6 +193,9 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
 #if CONFIG_WIENER_NONSEP
   RESET_CDF_COUNTER(fc->wiener_nonsep_restore_cdf, 2);
 #endif  // CONFIG_WIENER_NONSEP
+#if CONFIG_RST_MERGECOEFFS
+  RESET_CDF_COUNTER(fc->merged_param_cdf, 2);
+#endif  // CONFIG_RST_MERGECOEFFS
 #if CONFIG_DERIVED_INTRA_MODE
   RESET_CDF_COUNTER(fc->derived_intra_mode_cdf, 2);
   RESET_CDF_COUNTER(fc->uv_derived_intra_mode_cdf, 2);

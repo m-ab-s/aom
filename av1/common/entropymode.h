@@ -227,6 +227,9 @@ typedef struct frame_contexts {
 #if CONFIG_WIENER_NONSEP
   aom_cdf_prob wiener_nonsep_restore_cdf[CDF_SIZE(2)];
 #endif  // CONFIG_WIENER_NONSEP
+#if CONFIG_RST_MERGECOEFFS
+  aom_cdf_prob merged_param_cdf[CDF_SIZE(2)];
+#endif  // CONFIG_RST_MERGECOEFFS
 #if CONFIG_DERIVED_INTRA_MODE
   aom_cdf_prob bf_is_dr_mode_cdf[BLOCK_SIZE_GROUPS][CDF_SIZE(2)];
   aom_cdf_prob bf_dr_mode_cdf[BLOCK_SIZE_GROUPS][CDF_SIZE(DIRECTIONAL_MODES)];
