@@ -639,6 +639,8 @@ typedef struct {
   unsigned int motion_vector_unit_test;
   // Indicates if superblock multipass unit test should be enabled or not.
   unsigned int sb_multipass_unit_test;
+  // Indicates if subgop unit test is enabled or not.
+  unsigned int enable_subgop_stats;
 } UnitTestCfg;
 
 typedef struct {
@@ -819,6 +821,24 @@ typedef struct {
   int8_t num_steps;
   SubGOPStepCfg step[MAX_SUBGOP_STEPS];
 } SubGOPCfg;
+
+typedef struct {
+  bool is_user_specified;
+  int frames_to_key;
+  int gf_interval;
+  unsigned int size;
+  SUBGOP_IN_GOP_CODE pos_code;
+  SubGOPCfg subgop_cfg;
+} SubGOPInfo;
+
+/*!
+ * \Holds subgop related info.
+ */
+typedef struct {
+  unsigned char is_filtered[MAX_SUBGOP_STATS_SIZE];
+  unsigned int pyramid_level[MAX_SUBGOP_STATS_SIZE];
+  unsigned char stat_count;
+} SubGOPStatsEnc;
 
 /*!\endcond */
 /*!
@@ -2314,8 +2334,13 @@ typedef struct AV1_COMP {
   GF_GROUP gf_group;
 
   /*!
-   * Frame buffer holding the temporally filtered source frame. It can be KEY
-   * frame or ARF frame.
+   * Information related to a subgop.
+   */
+  SubGOPStatsEnc subgop_stats;
+
+  /*!
+   * Frame buffer holding the temporally filtered source frame. It can be
+   * KEY frame or ARF frame.
    */
   YV12_BUFFER_CONFIG alt_ref_buffer;
 

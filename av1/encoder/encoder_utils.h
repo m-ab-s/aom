@@ -916,6 +916,18 @@ static AOM_INLINE void refresh_reference_frames(AV1_COMP *cpi) {
   }
 }
 
+static AOM_INLINE void update_subgop_stats(const GF_GROUP *const gf_group,
+                                           SubGOPStatsEnc *const subgop_stats,
+                                           unsigned int enable_subgop_stats) {
+  if (!enable_subgop_stats) return;
+  subgop_stats->pyramid_level[subgop_stats->stat_count] =
+      gf_group->layer_depth[gf_group->index];
+  subgop_stats->is_filtered[subgop_stats->stat_count] =
+      gf_group->is_filtered[gf_group->index];
+  assert(subgop_stats->stat_count < MAX_SUBGOP_STATS_SIZE);
+  subgop_stats->stat_count++;
+}
+
 void av1_update_film_grain_parameters(struct AV1_COMP *cpi,
                                       const AV1EncoderConfig *oxcf);
 

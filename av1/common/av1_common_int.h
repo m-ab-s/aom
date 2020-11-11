@@ -52,6 +52,8 @@ extern "C" {
 #endif
 
 #define CDEF_MAX_STRENGTHS 16
+/* Constant value specifying size of subgop stats*/
+#define MAX_SUBGOP_STATS_SIZE 32
 
 /* Constant values while waiting for the sequence header */
 #define FRAME_ID_LENGTH 15

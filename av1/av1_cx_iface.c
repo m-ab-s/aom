@@ -161,6 +161,7 @@ struct av1_extracfg {
   COST_UPDATE_TYPE mv_cost_upd_freq;
   unsigned int ext_tile_debug;
   unsigned int sb_multipass_unit_test;
+  unsigned int enable_subgop_stats;
 };
 
 // Example subgop configs. Currently not used by default.
@@ -403,6 +404,7 @@ static struct av1_extracfg default_extra_cfg = {
   COST_UPD_SB,  // mv_cost_upd_freq
   0,            // ext_tile_debug
   0,            // sb_multipass_unit_test
+  0,            // enable_subgop_stats
 };
 
 struct aom_codec_alg_priv {
@@ -1251,6 +1253,7 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
       extra_cfg->motion_vector_unit_test;
   oxcf->unit_test_cfg.sb_multipass_unit_test =
       extra_cfg->sb_multipass_unit_test;
+  oxcf->unit_test_cfg.enable_subgop_stats = extra_cfg->enable_subgop_stats;
 
   oxcf->border_in_pixels =
       (resize_cfg->resize_mode || superres_cfg->superres_mode)
@@ -1329,6 +1332,59 @@ static aom_codec_err_t ctrl_get_baseline_gf_interval(aom_codec_alg_priv_t *ctx,
   int *const arg = va_arg(args, int *);
   if (arg == NULL) return AOM_CODEC_INVALID_PARAM;
   *arg = ctx->cpi->rc.baseline_gf_interval;
+  return AOM_CODEC_OK;
+}
+
+static aom_codec_err_t ctrl_get_frame_type(aom_codec_alg_priv_t *ctx,
+                                           va_list args) {
+  FRAME_TYPE *const arg = va_arg(args, FRAME_TYPE *);
+  if (arg == NULL) return AOM_CODEC_INVALID_PARAM;
+  *arg = ctx->cpi->common.current_frame.frame_type;
+  return AOM_CODEC_OK;
+}
+
+static aom_codec_err_t ctrl_get_enc_sub_gop_config(aom_codec_alg_priv_t *ctx,
+                                                   va_list args) {
+  SubGOPInfo *const subgop_info = va_arg(args, SubGOPInfo *);
+  const AV1_COMP *const cpi = ctx->cpi;
+  const GF_GROUP *const gf_group = &cpi->gf_group;
+  const SubGOPCfg *const subgop_cfg = gf_group->subgop_cfg;
+  subgop_info->gf_interval = cpi->rc.baseline_gf_interval;
+  subgop_info->frames_to_key = cpi->rc.frames_to_key;
+
+  // As key frame is not part of sub-gop configuration,
+  // parameters are assigned separately.
+  if (cpi->common.current_frame.frame_type == KEY_FRAME) {
+    subgop_info->size = 1;
+    subgop_info->is_user_specified = 0;
+    return AOM_CODEC_OK;
+  }
+  // In case of user specified sub-gop structure, whole info is
+  // collected from gf_group structure.
+  subgop_info->is_user_specified = gf_group->is_user_specified;
+  subgop_info->size = cpi->rc.baseline_gf_interval;
+  if (subgop_cfg) {
+    memcpy(&subgop_info->subgop_cfg, subgop_cfg, sizeof(*subgop_cfg));
+    subgop_info->pos_code = subgop_cfg->subgop_in_gop_code;
+  }
+  return AOM_CODEC_OK;
+}
+
+static aom_codec_err_t ctrl_get_enc_frame_info(aom_codec_alg_priv_t *ctx,
+                                               va_list args) {
+  SubGOPData *const sub_gop_data = va_arg(args, SubGOPData *);
+  const AV1_COMP *const cpi = ctx->cpi;
+  const SubGOPStatsEnc *const subgop_stats = &cpi->subgop_stats;
+  SubGOPStepData *step_data = sub_gop_data->step;
+  const int curr_step_idx = subgop_stats->stat_count;
+
+  // Collects already encoded out of order frames info along with in-order frame
+  step_data += sub_gop_data->step_idx_enc;
+  for (int step_idx = 0; step_idx < curr_step_idx; step_idx++) {
+    step_data[step_idx].pyramid_level = subgop_stats->pyramid_level[step_idx];
+    step_data[step_idx].is_filtered = subgop_stats->is_filtered[step_idx];
+    sub_gop_data->step_idx_enc++;
+  }
   return AOM_CODEC_OK;
 }
 
@@ -2096,6 +2152,14 @@ static aom_codec_err_t ctrl_enable_sb_multipass_unit_test(
   return update_extra_cfg(ctx, &extra_cfg);
 }
 
+static aom_codec_err_t ctrl_enable_subgop_stats(aom_codec_alg_priv_t *ctx,
+                                                va_list args) {
+  struct av1_extracfg extra_cfg = ctx->extra_cfg;
+  extra_cfg.enable_subgop_stats = CAST(AV1E_ENABLE_SUBGOP_STATS, args);
+  return update_extra_cfg(ctx, &extra_cfg);
+  return AOM_CODEC_OK;
+}
+
 #if !CONFIG_REALTIME_ONLY
 static aom_codec_err_t create_stats_buffer(FIRSTPASS_STATS **frame_stats_buffer,
                                            STATS_BUFFER_CTX *stats_buf_context,
@@ -2549,6 +2613,10 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
     int64_t dst_time_stamp;
     int64_t dst_end_time_stamp;
     struct aom_usec_timer timer;
+    if (cpi->compressor_stage == ENCODE_STAGE) {
+      if (ctx->oxcf.unit_test_cfg.enable_subgop_stats)
+        memset(&cpi->subgop_stats, 0, sizeof(cpi->subgop_stats));
+    }
     while (cx_data_sz - index_size >= ctx->cx_data_sz / 2 &&
            !is_frame_visible) {
       uint64_t cx_time = 0;
@@ -3150,6 +3218,7 @@ static aom_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {
   { AV1E_SET_SVC_REF_FRAME_CONFIG, ctrl_set_svc_ref_frame_config },
   { AV1E_SET_VBR_CORPUS_COMPLEXITY_LAP, ctrl_set_vbr_corpus_complexity_lap },
   { AV1E_ENABLE_SB_MULTIPASS_UNIT_TEST, ctrl_enable_sb_multipass_unit_test },
+  { AV1E_ENABLE_SUBGOP_STATS, ctrl_enable_subgop_stats },
 
   // Getters
   { AOME_GET_LAST_QUANTIZER, ctrl_get_quantizer },
@@ -3161,6 +3230,9 @@ static aom_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {
   { AV1E_SET_CHROMA_SUBSAMPLING_Y, ctrl_set_chroma_subsampling_y },
   { AV1E_GET_SEQ_LEVEL_IDX, ctrl_get_seq_level_idx },
   { AV1E_GET_BASELINE_GF_INTERVAL, ctrl_get_baseline_gf_interval },
+  { AV1E_GET_SUB_GOP_CONFIG, ctrl_get_enc_sub_gop_config },
+  { AV1E_GET_FRAME_TYPE, ctrl_get_frame_type },
+  { AV1E_GET_FRAME_INFO, ctrl_get_enc_frame_info },
 
   CTRL_MAP_END,
 };

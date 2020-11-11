@@ -16,6 +16,23 @@
 #include "aom_ports/mem.h"
 #include "aom_scale/yv12config.h"
 
+/* Constant value specifying size of subgop*/
+#define MAX_SUBGOP_SIZE 32
+typedef struct {
+  int disp_frame_idx;
+  int is_filtered;
+  int show_frame;
+  int show_existing_frame;
+  int pyramid_level;
+} SubGOPStepData;
+
+typedef struct {
+  int num_steps;
+  int step_idx_enc;
+  int step_idx_dec;
+  SubGOPStepData step[MAX_SUBGOP_SIZE];
+} SubGOPData;
+
 static void yuvconfig2image(aom_image_t *img, const YV12_BUFFER_CONFIG *yv12,
                             void *user_priv) {
   /* aom_img_wrap() doesn't allow specifying independent strides for

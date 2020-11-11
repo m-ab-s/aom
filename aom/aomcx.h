@@ -1291,6 +1291,22 @@ enum aome_enc_control_id {
    * - 1 = enable (default)
    */
   AV1E_SET_ENABLE_DEBLOCKING = 161,
+
+  /*!\brief Control to get frame type
+   */
+  AV1E_GET_FRAME_TYPE = 162,
+
+  /*!\brief Control to enable subgop stats
+   */
+  AV1E_ENABLE_SUBGOP_STATS = 163,
+
+  /*!\brief Control to get sub gop config
+   */
+  AV1E_GET_SUB_GOP_CONFIG = 164,
+
+  /*!\brief Control to get frame info
+   */
+  AV1E_GET_FRAME_INFO = 165,
 };
 
 /*!\brief aom 1-D scaling mode
@@ -1720,6 +1736,18 @@ AOM_CTRL_USE_TYPE(AV1E_GET_SEQ_LEVEL_IDX, int *)
 
 AOM_CTRL_USE_TYPE(AV1E_GET_BASELINE_GF_INTERVAL, int *)
 #define AOM_CTRL_AV1E_GET_BASELINE_GF_INTERVAL
+
+AOM_CTRL_USE_TYPE(AV1E_GET_SUB_GOP_CONFIG, void *)
+#define AOM_CTRL_AV1E_GET_SUB_GOP_CONFIG
+
+AOM_CTRL_USE_TYPE(AV1E_GET_FRAME_TYPE, void *)
+#define AOM_CTRL_AV1E_GET_FRAME_TYPE
+
+AOM_CTRL_USE_TYPE(AV1E_GET_FRAME_INFO, void *)
+#define AOM_CTRL_AV1E_GET_FRAME_INFO
+
+AOM_CTRL_USE_TYPE(AV1E_ENABLE_SUBGOP_STATS, unsigned int)
+#define AOM_CTRL_AV1E_ENABLE_SUBGOP_INFO
 
 AOM_CTRL_USE_TYPE(AV1E_SET_SINGLE_TILE_DECODING, unsigned int)
 #define AOM_CTRL_AV1E_SET_SINGLE_TILE_DECODING

@@ -39,6 +39,7 @@
 #include "av1/encoder/tpl_model.h"
 #include "av1/encoder/use_flat_gop_model_params.h"
 #include "av1/encoder/encode_strategy.h"
+#include "av1/encoder/encoder_utils.h"
 
 #define DEFAULT_KF_BOOST 2300
 #define DEFAULT_GF_BOOST 2000
@@ -2732,6 +2733,10 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
         frame_params->frame_type = INTER_FRAME;
       }
 
+      if (frame_params->frame_type != KEY_FRAME)
+        update_subgop_stats(&cpi->gf_group, &cpi->subgop_stats,
+                            oxcf->unit_test_cfg.enable_subgop_stats);
+
       // Do the firstpass stats indicate that this frame is skippable for the
       // partition search?
       if (cpi->sf.part_sf.allow_partition_search_skip && oxcf->pass == 2) {
@@ -2770,6 +2775,8 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
     this_frame = this_frame_copy;
   } else {
     frame_params->frame_type = INTER_FRAME;
+    update_subgop_stats(&cpi->gf_group, &cpi->subgop_stats,
+                        oxcf->unit_test_cfg.enable_subgop_stats);
     const int altref_enabled = is_altref_enabled(oxcf->gf_cfg.lag_in_frames,
                                                  oxcf->gf_cfg.enable_auto_arf);
     const int sframe_dist = oxcf->kf_cfg.sframe_dist;
