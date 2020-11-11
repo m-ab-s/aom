@@ -1039,8 +1039,8 @@ static void update_b_sep_sym(int wiener_win, int64_t **Mc, int64_t **Hc,
   }
 }
 
-static int wiener_decompose_sep_sym(int wiener_win, int64_t *M, int64_t *H,
-                                    int32_t *a, int32_t *b) {
+static void wiener_decompose_sep_sym(int wiener_win, int64_t *M, int64_t *H,
+                                     int32_t *a, int32_t *b) {
   static const int32_t init_filt[WIENER_WIN] = {
     WIENER_FILT_TAP0_MIDV, WIENER_FILT_TAP1_MIDV, WIENER_FILT_TAP2_MIDV,
     WIENER_FILT_TAP3_MIDV, WIENER_FILT_TAP2_MIDV, WIENER_FILT_TAP1_MIDV,
@@ -1069,7 +1069,6 @@ static int wiener_decompose_sep_sym(int wiener_win, int64_t *M, int64_t *H,
     update_b_sep_sym(wiener_win, Mc, Hc, a, b);
     iter++;
   }
-  return 1;
 }
 
 #if !CONFIG_FORCE_WIENER
@@ -1331,18 +1330,8 @@ static void search_wiener(const RestorationTileLimits *limits,
   }
 
   const MACROBLOCK *const x = rsc->x;
-  const int64_t bits_none = x->wiener_restore_cost[0];
 
-  // TODO(anybody): What is this code designed to do?  Early-stop if
-  // factorization fails? wiener_decompose_sep_sym cannot return 0, so it
-  // currently does not do anything.
-  if (!wiener_decompose_sep_sym(reduced_wiener_win, M, H, vfilter, hfilter)) {
-    rsc->bits += bits_none;
-    rsc->sse += rusi->sse[RESTORE_NONE];
-    rusi->best_rtype[RESTORE_WIENER - 1] = RESTORE_NONE;
-    rusi->sse[RESTORE_WIENER] = INT64_MAX;
-    return;
-  }
+  wiener_decompose_sep_sym(reduced_wiener_win, M, H, vfilter, hfilter);
 
   RestorationUnitInfo rui;
   memset(&rui, 0, sizeof(rui));
@@ -1351,6 +1340,7 @@ static void search_wiener(const RestorationTileLimits *limits,
   finalize_sym_filter(reduced_wiener_win, hfilter, rui.wiener_info.hfilter);
 
 #if !CONFIG_FORCE_WIENER
+  const int64_t bits_none = x->wiener_restore_cost[0];
   // Disabled for experiment because it doesn't factor reduced bit count
   // into calculations.
   // Filter score computes the value of the function x'*A*x - x'*b for the
