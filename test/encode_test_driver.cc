@@ -215,10 +215,11 @@ void EncoderTest::RunLoop(VideoSource *video) {
       for (int sl = 0; sl < number_spatial_layers_; sl++) {
         PreEncodeFrameHook(video);
         PreEncodeFrameHook(video, encoder.get());
+        PreDecodeFrameHook(video, decoder.get());
         encoder->EncodeFrame(video, frame_flags_);
 
         CxDataIterator iter = encoder->GetCxData();
-
+        if (!HandleEncodeResult(video, encoder.get())) break;
         bool has_cxdata = false;
         bool has_dxdata = false;
         while (const aom_codec_cx_pkt_t *pkt = iter.Next()) {

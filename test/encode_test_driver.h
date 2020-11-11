@@ -136,6 +136,11 @@ class Encoder {
     ASSERT_EQ(AOM_CODEC_OK, res) << EncoderError();
   }
 
+  void Control(int ctrl_id, const void *arg) {
+    const aom_codec_err_t res = aom_codec_control(&encoder_, ctrl_id, arg);
+    ASSERT_EQ(AOM_CODEC_OK, res) << EncoderError();
+  }
+
 #if CONFIG_AV1_ENCODER
   void Control(int ctrl_id, aom_active_map_t *arg) {
     const aom_codec_err_t res = aom_codec_control(&encoder_, ctrl_id, arg);
@@ -224,6 +229,10 @@ class EncoderTest {
     return !(::testing::Test::HasFatalFailure() || abort_);
   }
 
+  // Hook to call before decoding a frame.
+  virtual void PreDecodeFrameHook(VideoSource * /*video*/,
+                                  Decoder * /*decoder*/) {}
+
   // Hook to determine whether to decode frame after encoding
   virtual bool DoDecode() const { return true; }
 
@@ -242,6 +251,12 @@ class EncoderTest {
                                   Decoder *decoder) {
     EXPECT_EQ(AOM_CODEC_OK, res_dec) << decoder->DecodeError();
     return AOM_CODEC_OK == res_dec;
+  }
+
+  // Hook to be called to handle encode result. Return true to continue.
+  virtual bool HandleEncodeResult(VideoSource * /*video*/,
+                                  Encoder * /*encoder*/) {
+    return 1;
   }
 
   virtual int GetNumSpatialLayers() { return 1; }
