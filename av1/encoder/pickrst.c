@@ -1390,7 +1390,7 @@ static void search_wiener(const RestorationTileLimits *limits,
 
   RstUnitSnapshot unit_snapshot;
   memset(&unit_snapshot, 0, sizeof(unit_snapshot));
-  unit_snapshot.limits = limits;
+  unit_snapshot.limits = *limits;
   unit_snapshot.rest_unit_idx = rest_unit_idx;
   memcpy(unit_snapshot.M, M, WIENER_WIN2 * sizeof(*M));
   memcpy(unit_snapshot.H, H, WIENER_WIN2 * WIENER_WIN2 * sizeof(*H));
@@ -1469,7 +1469,7 @@ static void search_wiener(const RestorationTileLimits *limits,
   VECTOR_FOR_EACH(current_unit_stack, listed_unit) {
     RstUnitSnapshot *old_unit = (RstUnitSnapshot *)(listed_unit.pointer);
     old_unit->merge_sse =
-        try_restoration_unit(rsc, old_unit->limits, tile_rect, &rui_temp);
+        try_restoration_unit(rsc, &old_unit->limits, tile_rect, &rui_temp);
     // First unit in stack has larger unit_bits because the merged coeffs are
     // linked to it.
     Iterator begin = aom_vector_begin((current_unit_stack));

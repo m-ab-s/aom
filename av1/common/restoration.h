@@ -375,7 +375,7 @@ typedef struct {
 
 #if CONFIG_RST_MERGECOEFFS
 typedef struct RstUnitSnapshot {
-  const RestorationTileLimits *limits;
+  RestorationTileLimits limits;
   int rest_unit_idx;  // update filter value and sse as needed
   int64_t M[WIENER_WIN2];
   int64_t H[WIENER_WIN2 * WIENER_WIN2];
