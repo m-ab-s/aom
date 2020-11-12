@@ -1131,7 +1131,8 @@ static void update_drl_index_stats(FRAME_CONTEXT *fc, FRAME_COUNTS *counts,
         mode_ctx, fc, mbmi->mode,
         mbmi_ext->ref_mv_info.ref_mv_weight[ref_frame_type], idx);
 #if CONFIG_ENTROPY_STATS
-    int drl_ctx = av1_drl_ctx(mbmi_ext->weight[ref_frame_type], idx);
+    int drl_ctx =
+        av1_drl_ctx(mbmi_ext->ref_mv_info.ref_mv_weight[ref_frame_type], idx);
     switch (mbmi->ref_mv_idx) {
       case 0: counts->drl0_mode[drl_ctx][mbmi->ref_mv_idx != idx]++; break;
       case 1: counts->drl1_mode[drl_ctx][mbmi->ref_mv_idx != idx]++; break;
