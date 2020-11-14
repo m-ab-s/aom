@@ -55,8 +55,8 @@ QPs = [23, 31, 39, 47, 55, 63]
 ######################## quality evalution config #############################
 QualityList = ['VMAF_Y', 'PSNR_Y', 'PSNR_U', 'PSNR_V', 'SSIM_Y', 'MS-SSIM_Y']
 VMAF = os.path.join(BinPath, 'vmaf_rc.exe')
-CalcBDRateInExcel = True
-EnablePreInterpolation = True
+CalcBDRateInExcel = False
+EnablePreInterpolation = False
 
 ######################## config for exporting data to excel  #################
 #https://xlsxwriter.readthedocs.io/working_with_colors.html#colors

@@ -65,6 +65,20 @@ def Interpolate(qp, logbr, qty):
     '''
     return int_qp, int_logbr, int_qty
 
+
+def non_decreasing(L):
+    return all(x<=y for x, y in zip(L, L[1:]))
+
+def check_monotonicity(RDPoints):
+    '''
+    check if the input list of RD points are monotonic, assuming the input
+    has been sorted in the quality value ono-decreasing order. expect the bit
+    rate should also be in the non-decreasing
+    '''
+    br = [RDPoints[i][0] for i in range(len(RDPoints))]
+    qty = [RDPoints[i][1] for i in range(len(RDPoints))]
+    return non_decreasing(br) and non_decreasing(qty)
+
 # BJONTEGAARD    Bjontegaard metric
 # Calculation is adapted from Google implementation
 # PCHIP method - Piecewise Cubic Hermite Interpolating Polynomial interpolation
@@ -81,6 +95,11 @@ def BD_RATE(br1, qtyMtrc1, br2, qtyMtrc2):
     # if quality metric values are the same, then sort the bit rate in increasing order
     brqtypairs1.sort(key = itemgetter(1, 0))
     brqtypairs2.sort(key = itemgetter(1, 0))
+
+    rd1_monotonic = check_monotonicity(brqtypairs1)
+    rd2_monotonic = check_monotonicity(brqtypairs2)
+    if (not rd1_monotonic or not rd2_monotonic):
+        return "Error"
 
     logbr1 = [math.log(x[0]) for x in brqtypairs1]
     qmetrics1 = [100.0 if x[1] == float('inf') else x[1] for x in brqtypairs1]
@@ -129,11 +148,14 @@ def BD_RATE(br1, qtyMtrc1, br2, qtyMtrc2):
 
 '''
 if __name__ == "__main__":
-    brs1 = [64052.664, 6468.096, 4673.424, 3179.4, 2298.384, 1361.184]
-    qtys1 = [1, 1, 0.99999, 0.99998, 0.99996, 0.99992]
-    brs2 = [68461.896, 7554.96, 4827.432, 3294.024, 2380.128, 1401.744]
-    qtys2 = [1, 1, 0.99999, 0.99998, 0.99996, 0.99992]
+    brs1 = [9563.04, 6923.28, 4894.8, 3304.32, 2108.4, 1299.84]
+    qtys1 = [50.0198, 46.9709, 43.4791, 39.6659, 35.8063, 32.3055]
+    brs2 = [9758.88, 7111.68, 5073.36, 3446.4, 2178, 1306.56]
+    qtys2 = [49.6767, 46.7027, 43.2038, 39.297, 35.2944, 31.5938]
 
     bdrate = BD_RATE(brs1, qtys1, brs2, qtys2)
-    print("bdrate calculated is %3.3f%%" % bdrate)
+    if bdrate != 'Error':
+        print("bdrate calculated is %3.3f%%" % bdrate)
+    else:
+        print("there is error in bdrate calculation")
 '''
