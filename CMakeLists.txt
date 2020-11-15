@@ -37,6 +37,7 @@ endif()
 set(SO_VERSION 2)
 set(SO_FILE_VERSION 2.0.0)
 
+include("${AOM_ROOT}/build/cmake/tensorflow_lite.cmake")
 include("${AOM_ROOT}/build/cmake/aom_configure.cmake")
 include("${AOM_ROOT}/aom_dsp/aom_dsp.cmake")
 include("${AOM_ROOT}/aom_mem/aom_mem.cmake")
@@ -629,19 +630,19 @@ if(XCODE)
 endif()
 
 if(CONFIG_TENSORFLOW_LITE)
-  include("${AOM_ROOT}/build/cmake/tensorflow_lite.cmake")
-  setup_tensorflow_lite()
-
-  if(ENABLE_EXAMPLES)
-    add_executable(tf_lite_model "${AOM_ROOT}/examples/tf_lite_model.cc")
-    list(APPEND AOM_EXAMPLE_TARGETS tf_lite_model)
-    list(APPEND AOM_APP_TARGETS tf_lite_model)
-    add_dependencies(tf_lite_model tensorflowlite_a)
-    target_link_libraries(
-      tf_lite_model
-      PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/libtensorflow-lite.a"
-      PRIVATE Threads::Threads
-      PRIVATE ${CMAKE_DL_LIBS})
+  set(tflite_supported 0)
+  is_tflite_supported(tflite_supported)
+  if(NOT ${tflite_supported})
+    set(CONFIG_TENSORFLOW_LITE 0)
+  else()
+    setup_tensorflow_lite()
+    if(ENABLE_EXAMPLES)
+      add_executable(tf_lite_model "${AOM_ROOT}/examples/tf_lite_model.cc")
+      list(APPEND AOM_EXAMPLE_TARGETS tf_lite_model)
+      list(APPEND AOM_APP_TARGETS tf_lite_model)
+      target_link_tf_lite_libraries(tf_lite_model)
+      add_dependencies(tf_lite_model tensorflow_lite)
+    endif()
   endif()
 endif()
 
