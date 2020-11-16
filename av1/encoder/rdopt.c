@@ -14947,6 +14947,16 @@ static int64_t handle_intra_mode(InterModeSearchState *search_state,
     } else {
       try_filter_intra = !search_state->best_mbmode.skip;
     }
+#if CONFIG_EXT_RECUR_PARTITIONS && USE_OLD_PREDICTION_MODE
+    const MB_MODE_INFO *cached_mode = x->inter_mode_cache;
+    const FILTER_INTRA_MODE_INFO *cached_fi_mode =
+        cached_mode ? &cached_mode->filter_intra_mode_info : NULL;
+    if (!frame_is_intra_only(cm) && cached_fi_mode &&
+        !cached_fi_mode->use_filter_intra) {
+      assert(cached_mode->mode == DC_PRED);
+      try_filter_intra = 0;
+    }
+#endif  // CONFIG_EXT_RECUR_PARTITIONS && USE_OLD_PREDICTION_MODE
 
     if (try_filter_intra) {
       RD_STATS rd_stats_y_fi;
@@ -16026,10 +16036,19 @@ void av1_rd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
       get_rd_opt_coeff_thresh(cpi->coeff_opt_dist_threshold, 0, 0);
 
   // Only try palette mode when the best mode so far is an intra mode.
-  const int try_palette =
+  int try_palette =
       cpi->oxcf.enable_palette &&
       av1_allow_palette(cm->allow_screen_content_tools, mbmi->sb_type) &&
       !is_inter_mode(search_state.best_mbmode.mode) && rd_cost->rate < INT_MAX;
+
+#if CONFIG_EXT_RECUR_PARTITIONS && USE_OLD_PREDICTION_MODE
+  const MB_MODE_INFO *cached_mode = x->inter_mode_cache;
+  if (cached_mode && !(cached_mode->mode == DC_PRED &&
+                       cached_mode->palette_mode_info.palette_size[0] > 0)) {
+    try_palette = 0;
+  }
+#endif  // CONFIG_EXT_RECUR_PARTITIONS && USE_OLD_PREDICTION_MODE
+
   PALETTE_MODE_INFO *const pmi = &mbmi->palette_mode_info;
   if (try_palette) {
     search_palette_mode(cpi, x, mi_row, mi_col, rd_cost, ctx, bsize, mbmi, pmi,
