@@ -1345,7 +1345,7 @@ int av1_derived_mv_allowed(MACROBLOCKD *const xd, MB_MODE_INFO *const mbmi) {
   const BLOCK_SIZE bsize = mbmi->sb_type;
   const int bw = block_size_wide[bsize];
   const int bh = block_size_high[bsize];
-  return !is_cur_buf_hbd(xd) && !mbmi->skip_mode &&
+  return !is_cur_buf_hbd(xd) &&
          (mbmi->mode == NEARMV || mbmi->mode == NEAR_NEARMV) &&
          bw <= DERIVED_MV_MAX_BSIZE && bh <= DERIVED_MV_MAX_BSIZE &&
          bw >= DERIVED_MV_MIN_BSIZE && bh >= DERIVED_MV_MIN_BSIZE &&

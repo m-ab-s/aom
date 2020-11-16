@@ -1593,6 +1593,13 @@ static void pack_inter_mode_mvs(AV1_COMP *cpi, const int mi_row,
 
   write_skip_mode(cm, xd, segment_id, mbmi, w);
 
+#if CONFIG_DERIVED_MV
+  if (mbmi->skip_mode && mbmi->derived_mv_allowed) {
+    aom_write_symbol(w, mbmi->use_derived_mv,
+                     ec_ctx->use_derived_mv_cdf[2][bsize], 2);
+  }
+#endif  // CONFIG_DERIVED_MV
+
   assert(IMPLIES(mbmi->skip_mode, mbmi->skip));
   const int skip =
       mbmi->skip_mode ? 1 : write_skip(cm, xd, segment_id, mbmi, w);

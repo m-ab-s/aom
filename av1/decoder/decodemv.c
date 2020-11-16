@@ -1786,10 +1786,6 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
 
   int mode_ctx = av1_mode_context_analyzer(inter_mode_ctx, mbmi->ref_frame);
   mbmi->ref_mv_idx = 0;
-#if CONFIG_DERIVED_MV
-  mbmi->derived_mv_allowed = 0;
-  mbmi->use_derived_mv = 0;
-#endif  // CONFIG_DERIVED_MV
 
   if (mbmi->skip_mode) {
     assert(is_compound);
@@ -2145,6 +2141,17 @@ static void read_inter_frame_mode_info(AV1Decoder *const pbi,
   mbmi->derived_mv_allowed = mbmi->use_derived_mv = 0;
 #endif  // CONFIG_DERIVED_MV
   mbmi->skip_mode = read_skip_mode(cm, xd, mbmi->segment_id, r);
+
+#if CONFIG_DERIVED_MV
+  if (mbmi->skip_mode) {
+    mbmi->mode = NEAR_NEARMV;
+    mbmi->derived_mv_allowed = av1_derived_mv_allowed(xd, mbmi);
+    if (mbmi->derived_mv_allowed) {
+      mbmi->use_derived_mv = aom_read_symbol(
+          r, xd->tile_ctx->use_derived_mv_cdf[2][mbmi->sb_type], 2, ACCT_STR);
+    }
+  }
+#endif  // CONFIG_DERIVED_MV
 
   if (mbmi->skip_mode)
     mbmi->skip = 1;

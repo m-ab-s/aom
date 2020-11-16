@@ -11678,6 +11678,7 @@ static int64_t skip_mode_rd(RD_STATS *rd_stats, const AV1_COMP *const cpi,
   const AV1_COMMON *cm = &cpi->common;
   const int num_planes = av1_num_planes(cm);
   MACROBLOCKD *const xd = &x->e_mbd;
+  const MB_MODE_INFO *mbmi = xd->mi[0];
   const int mi_row = xd->mi_row;
   const int mi_col = xd->mi_col;
   av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, orig_dst, bsize, 0,
@@ -11688,7 +11689,7 @@ static int64_t skip_mode_rd(RD_STATS *rd_stats, const AV1_COMP *const cpi,
     const struct macroblock_plane *const p = &x->plane[plane];
     const struct macroblockd_plane *const pd = &xd->plane[plane];
     const BLOCK_SIZE bsize_base =
-        plane ? xd->mi[0]->chroma_ref_info.bsize_base : bsize;
+        plane ? mbmi->chroma_ref_info.bsize_base : bsize;
     const BLOCK_SIZE plane_bsize =
         get_plane_block_size(bsize_base, pd->subsampling_x, pd->subsampling_y);
     assert(plane_bsize < BLOCK_SIZES_ALL);
@@ -11702,6 +11703,11 @@ static int64_t skip_mode_rd(RD_STATS *rd_stats, const AV1_COMP *const cpi,
   const int skip_mode_ctx = av1_get_skip_mode_context(xd);
   rd_stats->dist = rd_stats->sse = total_sse;
   rd_stats->rate = x->skip_mode_cost[skip_mode_ctx][1];
+#if CONFIG_DERIVED_MV
+  if (mbmi->derived_mv_allowed) {
+    rd_stats->rate += x->use_derived_mv_cost[2][bsize][mbmi->use_derived_mv];
+  }
+#endif  // CONFIG_DERIVED_MV
   rd_stats->rdcost = RDCOST(x->rdmult, rd_stats->rate, rd_stats->dist);
 
   restore_dst_buf(xd, *orig_dst, num_planes);
@@ -13733,7 +13739,8 @@ static void rd_pick_skip_mode(RD_STATS *rd_cost,
   mbmi->dspl_type = DSPL_NONE;
 #endif  // CONFIG_DSPL_RESIDUAL
 #if CONFIG_DERIVED_MV
-  mbmi->derived_mv_allowed = mbmi->use_derived_mv = 0;
+  mbmi->derived_mv_allowed = av1_derived_mv_allowed(xd, mbmi);
+  mbmi->use_derived_mv = 0;
 #endif  // CONFIG_DERIVED_MV
 
   set_default_interp_filters(mbmi, cm->interp_filter);
@@ -13750,8 +13757,37 @@ static void rd_pick_skip_mode(RD_STATS *rd_cost,
     orig_dst.stride[i] = xd->plane[i].dst.stride;
   }
 
+#if CONFIG_DERIVED_MV
+  if (mbmi->derived_mv_allowed) {
+    for (int ref = 0; ref < 2; ++ref) {
+      mbmi->derived_mv[ref] = av1_derive_mv(
+          cm, xd, ref, mbmi, orig_dst.plane[0], orig_dst.stride[0]);
+    }
+  }
+
+  MB_MODE_INFO best_mbmi = *mbmi;
+  for (int i = 0; i < 1 + mbmi->derived_mv_allowed; ++i) {
+    RD_STATS tmp_rd_stats;
+    av1_invalid_rd_stats(&tmp_rd_stats);
+    mbmi->use_derived_mv = i;
+#if !CONFIG_DERIVED_MV_NO_PD
+    if (mbmi->derived_mv_allowed && mbmi->use_derived_mv) {
+      for (int ref = 0; ref < 2; ++ref) {
+        mbmi->mv[ref].as_mv = mbmi->derived_mv[ref];
+      }
+    }
+#endif  // CONFIG_DERIVED_MV_NO_PD
+    skip_mode_rd(&tmp_rd_stats, cpi, x, bsize, &orig_dst);
+    if (i == 0 || tmp_rd_stats.rdcost < skip_mode_rd_stats.rdcost) {
+      skip_mode_rd_stats = tmp_rd_stats;
+      best_mbmi = *mbmi;
+    }
+  }
+  *mbmi = best_mbmi;
+#else
   // Obtain the rdcost for skip_mode.
   skip_mode_rd(&skip_mode_rd_stats, cpi, x, bsize, &orig_dst);
+#endif  // CONFIG_DERIVED_MV
 
   // Compare the use of skip_mode with the best intra/inter mode obtained.
   const int skip_mode_ctx = av1_get_skip_mode_context(xd);

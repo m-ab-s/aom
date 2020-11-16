@@ -1962,8 +1962,14 @@ static void update_stats(const AV1_COMMON *const cm, TileDataEnc *tile_data,
 #if CONFIG_ENTROPY_STATS
     td->counts->skip_mode[skip_mode_ctx][mbmi->skip_mode]++;
 #endif  // CONFIG_ENTROPY_STATS
-    if (allow_update_cdf)
+    if (allow_update_cdf) {
       update_cdf(fc->skip_mode_cdfs[skip_mode_ctx], mbmi->skip_mode, 2);
+#if CONFIG_DERIVED_MV
+      if (mbmi->skip_mode && mbmi->derived_mv_allowed) {
+        update_cdf(fc->use_derived_mv_cdf[2][bsize], mbmi->use_derived_mv, 2);
+      }
+#endif  // CONFIG_DERIVED_MV
+    }
   }
 
   if (!mbmi->skip_mode) {
