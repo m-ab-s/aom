@@ -171,7 +171,11 @@ TEST_F(InterIntraMLDataCollectTest, SerializeLowbd) {
                           45, 46, 47, 48, 49,
                           50, 51, 52, 53, 54,
                           55, 56, 57, 58, 59 };
-  uint8_t expected[73] = { 4 /* width */,
+  uint8_t predictor[] = { 60, 61, 62, 63,
+                          64, 65, 66, 67,
+                          68, 69, 70, 71,
+                          72, 73, 74, 75 };
+  uint8_t expected[91] = { 4 /* width */,
                            4 /* height */,
                            2 /* plane */,
                            8 /* bitdepth */,
@@ -180,7 +184,6 @@ TEST_F(InterIntraMLDataCollectTest, SerializeLowbd) {
                            26, 0, 0, 0, /* y */
                            7, 0, 0, 0, /* frame_order_hint */
                            57, 48, 0, 0, /* lambda */
-                           25 /* ref_q */,
                            13 /* base_q */,
                            /* source_image */
                            16, 17, 18, 19,
@@ -193,12 +196,20 @@ TEST_F(InterIntraMLDataCollectTest, SerializeLowbd) {
                            97,
                            98,
                            99,
+                           1 /* prediction type */,
+                           /* predictor */
+                           60, 61, 62, 63,
+                           64, 65, 66, 67,
+                           68, 69, 70, 71,
+                           72, 73, 74, 75,
+                           25 /* ref_q */,
                            /* interpred */
                            35, 36, 37, 38, 39,
                            40, 41, 42, 43, 44,
                            45, 46, 47, 48, 49,
                            50, 51, 52, 53, 54,
-                           55, 56, 57, 58, 59 };
+                           55, 56, 57, 58, 59,
+                           12 /* interintra bias */};
   /* clang-format on */
   IIMLPlaneInfo info = { .width = 4,
                          .height = 4,
@@ -209,15 +220,18 @@ TEST_F(InterIntraMLDataCollectTest, SerializeLowbd) {
                          .y = 26,
                          .frame_order_hint = 7,
                          .lambda = 12345,
-                         .ref_q = 25,
                          .base_q = 13,
                          .source_image = source_image,
                          .intrapred_lshape = intrapred_lshape,
-                         .interpred = interpred };
+                         .prediction_type = 1,
+                         .predictor = predictor,
+                         .ref_q = 25,
+                         .interpred = interpred,
+                         .interintra_bias = 12 };
   uint8_t *buf;
   size_t buf_size;
   av1_interintra_ml_data_collect_serialize(&info, &buf, &buf_size);
-  ASSERT_EQ(73U, buf_size);
+  ASSERT_EQ(91U, buf_size);
   ASSERT_EQ(0, memcmp(expected, buf, buf_size));
   free(buf);
 }
@@ -238,34 +252,45 @@ TEST_F(InterIntraMLDataCollectTest, SerializeHighbd) {
                           45, 46, 470,
                           50, 51, 520,
                            55, 56, 57 };
-  uint8_t expected[83] = { 2 /* width */,
-                           4 /* height */,
-                           0 /* plane */,
-                           10 /* bitdepth */,
-                           1 /* border */,
-                           43, 2, 0, 0, /* x */
-                           26, 0, 0, 0, /* y */
-                           7, 0, 0, 0, /* frame_order_hint */
-                           57, 48, 0, 0, /* lambda */
-                           25 /* ref_q */,
-                           13 /* base_q */,
-                           /* source_image */
-                           160, 0, 170, 0,
-                           200, 0, 210, 0,
-                           240, 0, 250, 0,
-                           24, 1,  34, 1,
-                           /* intrapred_lshape */
-                           91, 0, 92, 0, 162, 3,
-                           192, 3,
-                           202, 3,
-                           212, 3,
-                           99, 0,
-                           /* interpred */
-                           35, 0, 36, 0, 37, 0,
-                           40, 0, 41, 0, 42, 0,
-                           45, 0, 46, 0, 214, 1,
-                           50, 0, 51, 0, 8, 2,
-                           55, 0, 56, 0, 57, 0 };
+  uint16_t predictor[] = { 300, 310,
+                           320, 330,
+                           340, 350,
+                           360, 370 };
+  uint8_t expected[101] = { 2 /* width */,
+                            4 /* height */,
+                            0 /* plane */,
+                            10 /* bitdepth */,
+                            1 /* border */,
+                            43, 2, 0, 0, /* x */
+                            26, 0, 0, 0, /* y */
+                            7, 0, 0, 0, /* frame_order_hint */
+                            57, 48, 0, 0, /* lambda */
+                            13 /* base_q */,
+                            /* source_image */
+                            160, 0, 170, 0,
+                            200, 0, 210, 0,
+                            240, 0, 250, 0,
+                            24, 1,  34, 1,
+                            /* intrapred_lshape */
+                            91, 0, 92, 0, 162, 3,
+                            192, 3,
+                            202, 3,
+                            212, 3,
+                            99, 0,
+                            2 /* prediction type */,
+                            /* predictor */
+                            44, 1, 54, 1,
+                            64, 1, 74, 1,
+                            84, 1, 94, 1,
+                            104, 1, 114, 1,
+                            25 /* ref_q */,
+                            /* interpred */
+                            35, 0, 36, 0, 37, 0,
+                            40, 0, 41, 0, 42, 0,
+                            45, 0, 46, 0, 214, 1,
+                            50, 0, 51, 0, 8, 2,
+                            55, 0, 56, 0, 57, 0,
+                            0 /* interintra-bias */};
   /* clang-format on */
   IIMLPlaneInfo info = { .width = 2,
                          .height = 4,
@@ -276,17 +301,20 @@ TEST_F(InterIntraMLDataCollectTest, SerializeHighbd) {
                          .y = 26,
                          .frame_order_hint = 7,
                          .lambda = 12345,
-                         .ref_q = 25,
                          .base_q = 13,
                          .source_image =
                              reinterpret_cast<uint8_t *>(source_image),
                          .intrapred_lshape =
                              reinterpret_cast<uint8_t *>(intrapred_lshape),
-                         .interpred = reinterpret_cast<uint8_t *>(interpred) };
+                         .prediction_type = 2,
+                         .predictor = reinterpret_cast<uint8_t *>(predictor),
+                         .ref_q = 25,
+                         .interpred = reinterpret_cast<uint8_t *>(interpred),
+                         .interintra_bias = 0 };
   uint8_t *buf;
   size_t buf_size;
   av1_interintra_ml_data_collect_serialize(&info, &buf, &buf_size);
-  ASSERT_EQ(83U, buf_size);
+  ASSERT_EQ(101U, buf_size);
   ASSERT_EQ(0, memcmp(expected, buf, buf_size));
   free(buf);
 }

@@ -28,6 +28,10 @@
 #include "av1/encoder/partition_search_utils.h"
 #include "av1/encoder/reconinter_enc.h"
 
+#if CONFIG_INTERINTRA_ML_DATA_COLLECT
+#include "av1/encoder/interintra_ml_data_collect.h"
+#endif  // CONFIG_INTERINTRA_ML_DATA_COLLECT
+
 #if !CONFIG_REALTIME_ONLY
 static const FIRSTPASS_STATS *read_one_frame_stats(const TWO_PASS *p, int frm) {
   assert(frm >= 0);

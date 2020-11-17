@@ -29,6 +29,28 @@ static void cleanup_fp() {
   }
 }
 
+static uint8_t read_interintra_bias() {
+  const char *bias = getenv("INTERINTRA_BIAS");
+  if (bias == NULL) {
+    return 100;
+  }
+  int i = atoi(bias);
+  if (i < 0 || i > 100) {
+    fprintf(stderr, "INTERINTRA_BIAS must be between 0 and 100.\n");
+    exit(1);
+  }
+  return (uint8_t)i;
+}
+
+static uint8_t INTERINTRA_BIAS = 255;
+
+uint8_t av1_interintra_bias() {
+  if (INTERINTRA_BIAS == 255) {
+    INTERINTRA_BIAS = read_interintra_bias();
+  }
+  return INTERINTRA_BIAS;
+}
+
 // Function called on every invocation of data collection. Initializes
 // the file output and registers the cleanup function (if not already done).
 // The output file name is "interintra_ml_data_collect.bin" by default.
@@ -165,6 +187,42 @@ static void copy_interpred(IIMLPlaneInfo *info, const AV1_COMP *const cpi,
                            is_cur_buf_hbd(xd));
 }
 
+static void copy_predictor(IIMLPlaneInfo *info, const AV1_COMP *const cpi,
+                           MACROBLOCK *const x, BLOCK_SIZE bsize) {
+  info->predictor = malloc(sizeof(uint16_t) * info->width * info->height);
+
+  const AV1_COMMON *const cm = &cpi->common;
+  MACROBLOCKD *const xd = &x->e_mbd;
+
+  uint8_t *orig_buf = xd->plane[info->plane].dst.buf;
+  int orig_stride = xd->plane[info->plane].dst.stride;
+
+  uint8_t *predictor;
+  int predictor_stride;
+  const int border =
+      av1_calc_border(xd, AOM_PLANE_Y, false /* build for obmc */);
+  assert(border >= BORDER_SIZE);
+  av1_alloc_buf_with_border(&predictor, &predictor_stride, border,
+                            is_cur_buf_hbd(xd));
+
+  xd->plane[info->plane].dst.buf = predictor;
+  xd->plane[info->plane].dst.stride = predictor_stride;
+
+  av1_enc_build_inter_predictor(cm, xd, xd->mi_row, xd->mi_col, NULL, bsize,
+                                info->plane, info->plane);
+  int info_i = 0;
+  for (int j = 0; j < info->height; ++j) {
+    for (int i = 0; i < info->width; ++i) {
+      copy_value(info->predictor, info_i++, predictor, j * predictor_stride + i,
+                 info->bitdepth, is_cur_buf_hbd(xd));
+    }
+  }
+  xd->plane[info->plane].dst.buf = orig_buf;
+  xd->plane[info->plane].dst.stride = orig_stride;
+  av1_free_buf_with_border(predictor, predictor_stride, border,
+                           is_cur_buf_hbd(xd));
+}
+
 // Initializes the IIMLPlaneInfo structure.
 static IIMLPlaneInfo *init_plane_info(const AV1_COMP *const cpi,
                                       MACROBLOCK *const x, BLOCK_SIZE bsize,
@@ -207,6 +265,9 @@ static IIMLPlaneInfo *init_plane_info(const AV1_COMP *const cpi,
   copy_source_image(info, x);
   copy_intrapred_lshape(info, x);
   copy_interpred(info, cpi, x);
+  info->prediction_type = is_interintra_pred(mbmi) ? 2 : 1;
+  copy_predictor(info, cpi, x, bsize);
+  info->interintra_bias = av1_interintra_bias();
   return info;
 }
 
@@ -253,13 +314,16 @@ void av1_interintra_ml_data_collect_serialize(IIMLPlaneInfo *info,
        info->border * info->height);
   const size_t interpred_size =
       ((info->border + info->width) * (info->border + info->height));
-  *buf_size = 1 /* width */ + 1 /* height */ + 1 /* plane */ +
-              1 /* bitdepth */ + 1 /* border */ + sizeof(int32_t) /* x */ +
-              sizeof(int32_t) /* y */ + sizeof(int32_t) /* frame order hint */ +
-              sizeof(int32_t) /* lambda */ + 1 /* ref_q */ + 1 /* base_q */ +
-              bytes_per_pixel * source_size +
-              bytes_per_pixel * intrapred_lshape_size +
-              bytes_per_pixel * interpred_size;
+  *buf_size =
+      1 /* width */ + 1 /* height */ + 1 /* plane */ + 1 /* bitdepth */ +
+      1 /* border */ + sizeof(int32_t) /* x */ + sizeof(int32_t) /* y */ +
+      sizeof(int32_t) /* frame order hint */ + sizeof(int32_t) /* lambda */ +
+      1 /* base_q */ + bytes_per_pixel * source_size /* source image */ +
+      bytes_per_pixel * intrapred_lshape_size /* reconstruction border */ +
+      1 /* prediction_type */ + bytes_per_pixel * source_size /* predictor */ +
+      1 /* ref_q */ +
+      bytes_per_pixel * interpred_size /* inter-predictor + border */ +
+      1 /* interintra_bias */;
   *buf = malloc(*buf_size);
   assert(*buf != NULL);
   uint8_t *start = *buf;
@@ -273,15 +337,17 @@ void av1_interintra_ml_data_collect_serialize(IIMLPlaneInfo *info,
   write_int32_and_advance(buf, info->y);
   write_int32_and_advance(buf, info->frame_order_hint);
   write_int32_and_advance(buf, info->lambda);
-  write_uint8_and_advance(buf, info->ref_q);
   write_uint8_and_advance(buf, info->base_q);
   write_buffer_and_advance(buf, info->source_image, source_size,
                            info->bitdepth);
   write_buffer_and_advance(buf, info->intrapred_lshape, intrapred_lshape_size,
                            info->bitdepth);
+  write_uint8_and_advance(buf, info->prediction_type);
+  write_buffer_and_advance(buf, info->predictor, source_size, info->bitdepth);
+  write_uint8_and_advance(buf, info->ref_q);
   write_buffer_and_advance(buf, info->interpred, interpred_size,
                            info->bitdepth);
-
+  write_uint8_and_advance(buf, info->interintra_bias);
   assert(start + *buf_size == *buf);
   *buf = start;
 }

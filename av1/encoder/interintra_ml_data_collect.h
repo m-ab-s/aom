@@ -30,6 +30,10 @@ void av1_interintra_ml_data_collect_abandon();
 bool av1_interintra_ml_data_collect_valid(MACROBLOCK *const x,
                                           BLOCK_SIZE bsize);
 
+// RD-cost of inter-intra modes should be multiplied by this number (and divided
+// by 100) to bias the results into picking inter-intra modes more often.
+uint8_t av1_interintra_bias();
+
 // These functions / data structures are internal implementation details, but
 // are exposed for testing.
 
@@ -68,6 +72,18 @@ typedef struct IIMLPlaneInfo {
   // The inter-predictor starts at the (width * border + border) offset.
   // If bit-depth is 10 or 12, actually a uint16_t pointer.
   uint8_t *interpred;
+  // 0 == intra, 1 == inter, 2 == inter-intra; currently only inter and
+  // inter-intra are output.
+  uint8_t prediction_type;
+  // The (width * height) final predictor. If bit-depth is 10 or 12, actually
+  // a uint16_t pointer.
+  uint8_t *predictor;
+  // If an inter-intra-predictor, this value represents a bias -- the percent
+  // that the RD-cost for inter-intra-predictors was shifted down by, to
+  // bias the data into using the inter-intra predictor more often. E.g.,
+  // 90 means that the RD-cost is multiplied by 0.9, 80 means it is multiplied
+  // by 0.8, etc.
+  uint8_t interintra_bias;
 } IIMLPlaneInfo;
 
 // Serialize the plane info data structure into a byte array. Allocates

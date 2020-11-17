@@ -70,10 +70,6 @@
 #include "av1/encoder/var_based_part.h"
 #include "av1/encoder/tpl_model.h"
 
-#if CONFIG_INTERINTRA_ML_DATA_COLLECT
-#include "av1/encoder/interintra_ml_data_collect.h"
-#endif
-
 // This is used as a reference when computing the source variance for the
 //  purposes of activity masking.
 // Eventually this should be replaced by custom no-reference routines,

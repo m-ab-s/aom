@@ -72,6 +72,10 @@
 #include "av1/common/interintra_ml.h"
 #endif
 
+#if CONFIG_INTERINTRA_ML_DATA_COLLECT
+#include "av1/encoder/interintra_ml_data_collect.h"
+#endif  // CONFIG_INTERINTRA_ML_DATA_COLLECT
+
 // Set this macro as 1 to collect data about tx size selection.
 #define COLLECT_TX_SIZE_DATA 0
 
@@ -10853,6 +10857,13 @@ static int handle_smooth_inter_intra_mode(
                  rd_stats.dist);
   }
   *best_interintra_rd = *rd;
+#if CONFIG_INTERINTRA_ML_DATA_COLLECT
+  if (*best_interintra_rd < INT64_MAX / 100) {
+    *best_interintra_rd *= av1_interintra_bias();
+    *best_interintra_rd /= 100;
+  }
+#endif
+
   if (ref_best_rd < INT64_MAX &&
       ((((*best_interintra_rd >> INTER_INTRA_RD_THRESH_SHIFT) *
          INTER_INTRA_RD_THRESH_SCALE) > ref_best_rd) ||
@@ -11095,6 +11106,12 @@ static int handle_inter_intra_mode(const AV1_COMP *const cpi,
                   rd_stats.dist);
     }
     best_interintra_rd_wedge = rd;
+#if CONFIG_INTERINTRA_ML_DATA_COLLECT
+    if (best_interintra_rd_wedge < INT64_MAX / 100) {
+      best_interintra_rd_wedge *= av1_interintra_bias();
+      best_interintra_rd_wedge /= 100;
+    }
+#endif  // CONFIG_INTERINTRA_ML_DATA_COLLECT
     if ((!enable_smooth_interintra_search(cpi) ||
          best_interintra_rd_nowedge == INT64_MAX) &&
         best_interintra_rd_wedge == INT64_MAX)
@@ -11495,6 +11512,10 @@ static int64_t motion_mode_rd(
                 x->wedge_idx_cost[bsize][mbmi->interintra_wedge_index];
           }
         }
+#if CONFIG_INTERINTRA_ML_DATA_COLLECT
+        rd_stats->rate *= av1_interintra_bias();
+        rd_stats->rate /= 100;
+#endif
       }
     }
 
