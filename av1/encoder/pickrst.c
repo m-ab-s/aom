@@ -43,11 +43,7 @@
 
 // When set to RESTORE_WIENER or RESTORE_SGRPROJ only those are allowed.
 // When set to RESTORE_TYPES we allow switchable.
-#if CONFIG_FORCE_WIENER
-static const RestorationType force_restore_type = RESTORE_WIENER;
-#else
 static const RestorationType force_restore_type = RESTORE_TYPES;
-#endif  // CONFIG_FORCE_WIENER
 
 // Number of Wiener iterations
 #define NUM_WIENER_ITERS 5
@@ -1071,7 +1067,7 @@ static void wiener_decompose_sep_sym(int wiener_win, int64_t *M, int64_t *H,
   }
 }
 
-#if !CONFIG_FORCE_WIENER
+#if !CONFIG_RST_MERGECOEFFS
 // Computes the function x'*H*x - x'*M for the learned 2D filter x, and compares
 // against identity filters; Final score is defined as the difference between
 // the function values
@@ -1115,7 +1111,7 @@ static int64_t compute_score(int wiener_win, int64_t *M, int64_t *H,
 
   return Score - iScore;
 }
-#endif  // !CONFIG_FORCE_WIENER
+#endif  // !CONFIG_RST_MERGECOEFFS
 
 static void finalize_sym_filter(int wiener_win, int32_t *f, InterpKernel fi) {
   int i;
@@ -1340,7 +1336,7 @@ static void search_wiener(const RestorationTileLimits *limits,
   finalize_sym_filter(reduced_wiener_win, hfilter, rui.wiener_info.hfilter);
 
   const int64_t bits_none = x->wiener_restore_cost[0];
-#if !CONFIG_FORCE_WIENER
+#if !CONFIG_RST_MERGECOEFFS
   // Disabled for experiment because it doesn't factor reduced bit count
   // into calculations.
   // Filter score computes the value of the function x'*A*x - x'*b for the
@@ -1354,7 +1350,7 @@ static void search_wiener(const RestorationTileLimits *limits,
     rusi->sse[RESTORE_WIENER] = INT64_MAX;
     return;
   }
-#endif  // !CONFIG_FORCE_WIENER
+#endif  // !CONFIG_RST_MERGECOEFFS
 
   aom_clear_system_state();
 
@@ -1531,19 +1527,11 @@ static void search_wiener(const RestorationTileLimits *limits,
     aom_vector_push_back(current_unit_stack, &unit_snapshot);
   }
 
-#else  // CONFIG_RST_MERGECOEFFS
+#else   // CONFIG_RST_MERGECOEFFS
   const int64_t bits_wiener =
       x->wiener_restore_cost[1] +
       (count_wiener_bits(wiener_win, &rusi->wiener, &rsc->wiener)
        << AV1_PROB_COST_SHIFT);
-#if CONFIG_FORCE_WIENER
-  // force all units to RESTORE_WIENER to ensure we have coefficients to share
-  RestorationType rtype = RESTORE_WIENER;
-  rusi->best_rtype[RESTORE_WIENER - 1] = rtype;
-  rsc->sse += rusi->sse[rtype];
-  rsc->bits += bits_wiener;
-  rsc->wiener = rusi->wiener;
-#else
   double cost_none =
       RDCOST_DBL(x->rdmult, bits_none >> 4, rusi->sse[RESTORE_NONE]);
   double cost_wiener =
@@ -1555,7 +1543,6 @@ static void search_wiener(const RestorationTileLimits *limits,
   rsc->sse += rusi->sse[rtype];
   rsc->bits += (cost_wiener < cost_none) ? bits_wiener : bits_none;
   if (cost_wiener < cost_none) rsc->wiener = rusi->wiener;
-#endif  // CONFIG_FORCE_WIENER
 #endif  // CONFIG_RST_MERGECOEFFS
 }
 

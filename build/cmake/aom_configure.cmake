@@ -70,10 +70,6 @@ if(CONFIG_INTERINTRA_ML_DATA_COLLECT AND NOT CONFIG_INTERINTRA_BORDER)
                          "CONFIG_INTERINTRA_ML_DATA_COLLECT")
 endif()
 
-if(CONFIG_RST_MERGECOEFFS AND NOT CONFIG_FORCE_WIENER)
-  change_config_and_warn(CONFIG_FORCE_WIENER 1 "CONFIG_RST_MERGECOEFFS")
-endif()
-
 # Generate the user config settings.
 list(APPEND aom_build_vars ${AOM_CONFIG_VARS} ${AOM_OPTION_VARS})
 foreach(cache_var ${aom_build_vars})

@@ -2120,14 +2120,17 @@ static void read_wiener_filter(MACROBLOCKD *xd, int wiener_win,
   memcpy(ref_wiener_info, wiener_info, sizeof(*wiener_info));
 }
 
-static void read_sgrproj_filter(SgrprojInfo *sgrproj_info,
+static void read_sgrproj_filter(MACROBLOCKD *xd, SgrprojInfo *sgrproj_info,
                                 SgrprojInfo *ref_sgrproj_info, aom_reader *rb) {
 #if CONFIG_RST_MERGECOEFFS
-  const int equal = aom_read_bit(rb, ACCT_STR);
+  const int equal =
+      aom_read_symbol(rb, xd->tile_ctx->merged_param_cdf, 2, ACCT_STR);
   if (equal) {
     memcpy(sgrproj_info, ref_sgrproj_info, sizeof(*sgrproj_info));
     return;
   }
+#else
+  (void)xd;
 #endif  // CONFIG_RST_MERGECOEFFS
   sgrproj_info->ep = aom_read_literal(rb, SGRPROJ_PARAMS_BITS, ACCT_STR);
   const sgr_params_type *params = &av1_sgr_params[sgrproj_info->ep];
@@ -2164,15 +2167,19 @@ static void read_sgrproj_filter(SgrprojInfo *sgrproj_info,
 }
 
 #if CONFIG_WIENER_NONSEP
-static void read_wiener_nsfilter(int is_uv, WienerNonsepInfo *wienerns_info,
+static void read_wiener_nsfilter(MACROBLOCKD *xd, int is_uv,
+                                 WienerNonsepInfo *wienerns_info,
                                  WienerNonsepInfo *ref_wienerns_info,
                                  aom_reader *rb) {
 #if CONFIG_RST_MERGECOEFFS
-  const int equal = aom_read_bit(rb, ACCT_STR);
+  const int equal =
+      aom_read_symbol(rb, xd->tile_ctx->merged_param_cdf, 2, ACCT_STR);
   if (equal) {
     memcpy(wienerns_info, ref_wienerns_info, sizeof(*wienerns_info));
     return;
   }
+#else
+  (void)xd;
 #endif  // CONFIG_RST_MERGECOEFFS
   int beg_feat = is_uv ? wienerns_y : 0;
   int end_feat = is_uv ? wienerns_y + wienerns_uv : wienerns_y;
@@ -2228,14 +2235,14 @@ static void loop_restoration_read_sb_coeffs(const AV1_COMMON *const cm,
         read_wiener_filter(xd, wiener_win, &rui->wiener_info, wiener_info, r);
         break;
       case RESTORE_SGRPROJ:
-        read_sgrproj_filter(&rui->sgrproj_info, sgrproj_info, r);
+        read_sgrproj_filter(xd, &rui->sgrproj_info, sgrproj_info, r);
         break;
 #if CONFIG_LOOP_RESTORE_CNN
       case RESTORE_CNN: break;
 #endif  // CONFIG_LOOP_RESTORE_CNN
 #if CONFIG_WIENER_NONSEP
       case RESTORE_WIENER_NONSEP:
-        read_wiener_nsfilter(is_uv, &rui->wiener_nonsep_info,
+        read_wiener_nsfilter(xd, is_uv, &rui->wiener_nonsep_info,
                              wiener_nonsep_info, r);
         break;
 #endif  // CONFIG_WIENER_NONSEP
@@ -2251,7 +2258,7 @@ static void loop_restoration_read_sb_coeffs(const AV1_COMMON *const cm,
   } else if (rsi->frame_restoration_type == RESTORE_SGRPROJ) {
     if (aom_read_symbol(r, xd->tile_ctx->sgrproj_restore_cdf, 2, ACCT_STR)) {
       rui->restoration_type = RESTORE_SGRPROJ;
-      read_sgrproj_filter(&rui->sgrproj_info, sgrproj_info, r);
+      read_sgrproj_filter(xd, &rui->sgrproj_info, sgrproj_info, r);
     } else {
       rui->restoration_type = RESTORE_NONE;
     }
@@ -2270,8 +2277,8 @@ static void loop_restoration_read_sb_coeffs(const AV1_COMMON *const cm,
     if (aom_read_symbol(r, xd->tile_ctx->wiener_nonsep_restore_cdf, 2,
                         ACCT_STR)) {
       rui->restoration_type = RESTORE_WIENER_NONSEP;
-      read_wiener_nsfilter(is_uv, &rui->wiener_nonsep_info, wiener_nonsep_info,
-                           r);
+      read_wiener_nsfilter(xd, is_uv, &rui->wiener_nonsep_info,
+                           wiener_nonsep_info, r);
     } else {
       rui->restoration_type = RESTORE_NONE;
     }
