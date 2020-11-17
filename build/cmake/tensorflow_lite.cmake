@@ -71,7 +71,6 @@ endfunction()
 # "experiment_requires_tf_lite" function.
 function(target_link_tf_lite_libraries named_target)
   target_link_libraries(${named_target} ${AOM_LIB_LINK_TYPE} Threads::Threads)
-  target_link_libraries(${named_target} PRIVATE ${CMAKE_DL_LIBS})
   target_link_tf_lite_dep_(${named_target} "" tensorflow-lite)
   target_link_tf_lite_dep_(${named_target} _deps/abseil-cpp-build/absl/flags/
                            absl_flags)
@@ -147,6 +146,7 @@ function(target_link_tf_lite_libraries named_target)
   target_link_tf_lite_dep_(${named_target} _deps/fft2d-build/ fft2d_fftsg2d)
   target_link_tf_lite_dep_(${named_target} _deps/fft2d-build/ fft2d_fftsg)
   target_link_tf_lite_dep_(${named_target} _deps/flatbuffers-build/ flatbuffers)
+  target_link_tf_lite_dep_(${named_target} _deps/xnnpack-build/ XNNPACK)
   target_link_tf_lite_dep_(${named_target} _deps/ruy-build/ ruy)
 endfunction()
 
@@ -195,6 +195,7 @@ function(setup_tensorflow_lite)
     PREFIX "${CMAKE_BINARY_DIR}/tensorflow_lite"
     BINARY_DIR "${CMAKE_BINARY_DIR}/tensorflow_lite"
     DOWNLOAD_DIR "${CMAKE_BINARY_DIR}/tensorflow_lite"
+    CMAKE_ARGS "-DCMAKE_BUILD_TYPE=Release"
     LOG_BUILD 1)
 
   # TF-Lite depends on this, and downloads it during compilation.
