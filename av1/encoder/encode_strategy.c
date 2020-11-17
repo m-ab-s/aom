@@ -53,10 +53,11 @@ static INLINE void set_refresh_frame_flags(
 const SubGOPStepCfg *get_subgop_step(const GF_GROUP *const gf_group,
                                      int index) {
   const SubGOPCfg *subgop_cfg = gf_group->subgop_cfg;
-  const int offset = gf_group->has_overlay_for_key_frame ? 2 : 1;
   if (subgop_cfg == NULL) return NULL;
-  return index == 0 ? gf_group->last_step_prev
-                    : &subgop_cfg->step[index - offset];
+  const int is_first_gop = (gf_group->update_type[0] == KF_UPDATE);
+  const int offset =
+      gf_group->has_overlay_for_key_frame ? 2 : (is_first_gop ? 1 : 0);
+  return &subgop_cfg->step[index - offset];
 }
 
 void av1_configure_buffer_updates(
@@ -139,14 +140,8 @@ static void set_additional_frame_flags(const AV1_COMMON *const cm,
 
 static INLINE void update_keyframe_counters(AV1_COMP *cpi) {
   if (cpi->common.show_frame) {
-    if (!cpi->common.show_existing_frame || cpi->rc.is_src_frame_alt_ref ||
-        cpi->common.current_frame.frame_type == KEY_FRAME) {
-      // If this is a show_existing_frame with a source other than altref,
-      // or if it is not a displayed forward keyframe, the keyframe update
-      // counters were incremented when it was originally encoded.
-      cpi->rc.frames_since_key++;
-      cpi->rc.frames_to_key--;
-    }
+    cpi->rc.frames_since_key++;
+    cpi->rc.frames_to_key--;
   }
 }
 
@@ -683,7 +678,6 @@ int av1_get_refresh_ref_frame_map(int refresh_frame_flags) {
 int use_subgop_cfg(const GF_GROUP *const gf_group, int gf_index) {
   if (gf_index < 0) return 0;
   if (gf_group->subgop_cfg == NULL) return 0;
-  if (gf_index == 0) return gf_group->last_step_prev != NULL;
   if (gf_index == 1) return !gf_group->has_overlay_for_key_frame;
   return 1;
 }
@@ -1248,6 +1242,26 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
   memset(&frame_params, 0, sizeof(frame_params));
   memset(&frame_results, 0, sizeof(frame_results));
 
+  // Check if we need to stuff more src frames
+  if (flush == 0) {
+    int srcbuf_size =
+        av1_lookahead_depth(cpi->lookahead, cpi->compressor_stage);
+    int pop_size = av1_lookahead_pop_sz(cpi->lookahead, cpi->compressor_stage);
+
+    // Continue buffering look ahead buffer.
+    if (srcbuf_size < pop_size) return -1;
+  }
+
+  if (!av1_lookahead_peek(cpi->lookahead, 0, cpi->compressor_stage)) {
+#if !CONFIG_REALTIME_ONLY
+    if (flush && oxcf->pass == 1 && !cpi->twopass.first_pass_done) {
+      av1_end_first_pass(cpi); /* get last stats packet */
+      cpi->twopass.first_pass_done = 1;
+    }
+#endif
+    return -1;
+  }
+
   // TODO(sarahparker) finish bit allocation for one pass pyramid
   if (has_no_stats_stage(cpi)) {
     gf_cfg->gf_max_pyr_height =
@@ -1255,6 +1269,15 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
     gf_cfg->gf_min_pyr_height =
         AOMMIN(gf_cfg->gf_min_pyr_height, gf_cfg->gf_max_pyr_height);
   }
+
+#if !CONFIG_REALTIME_ONLY
+  const int use_one_pass_rt_params = has_no_stats_stage(cpi) &&
+                                     oxcf->mode == REALTIME &&
+                                     gf_cfg->lag_in_frames == 0;
+  if (!use_one_pass_rt_params && !is_stat_generation_stage(cpi)) {
+    av1_get_second_pass_params(cpi, &frame_params, *frame_flags);
+  }
+#endif
 
   if (!is_stat_generation_stage(cpi)) {
     // If this is a forward keyframe, mark as a show_existing_frame
@@ -1340,13 +1363,8 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
 #if CONFIG_REALTIME_ONLY
   av1_get_one_pass_rt_params(cpi, &frame_params, *frame_flags);
 #else
-  const int use_one_pass_rt_params = has_no_stats_stage(cpi) &&
-                                     oxcf->mode == REALTIME &&
-                                     gf_cfg->lag_in_frames == 0;
   if (use_one_pass_rt_params) {
     av1_get_one_pass_rt_params(cpi, &frame_params, *frame_flags);
-  } else if (!is_stat_generation_stage(cpi)) {
-    av1_get_second_pass_params(cpi, &frame_params, *frame_flags);
   }
 #endif
   FRAME_UPDATE_TYPE frame_update_type = get_frame_update_type(gf_group);
@@ -1445,7 +1463,8 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
     frame_params.order_offset = gf_group->arf_src_offset[gf_group->index];
 
     if (!is_stat_generation_stage(cpi) &&
-        use_subgop_cfg(&cpi->gf_group, cpi->gf_group.index)) {
+        use_subgop_cfg(&cpi->gf_group, cpi->gf_group.index) &&
+        frame_update_type != KF_UPDATE) {
       get_gop_cfg_enabled_refs(cpi, &frame_params.ref_frame_flags,
                                frame_params.order_offset);
     }
