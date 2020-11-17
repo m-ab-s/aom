@@ -136,6 +136,7 @@ static void set_multi_layer_params_from_subgop_cfg(
     FRAME_TYPE_CODE type = frame->type_code;
     int pyr_level = frame->pyr_level;
     int disp_idx = frame->disp_frame_idx;
+    gf_group->cur_frame_idx[*frame_index] = *cur_frame_idx;
 
     if (type == FRAME_TYPE_OOO_FILTERED ||
         type == FRAME_TYPE_OOO_UNFILTERED) {  // ARF
@@ -174,7 +175,6 @@ static void set_multi_layer_params_from_subgop_cfg(
       (*cur_frame_idx)++;
     }
     gf_group->is_filtered[*frame_index] = (type == FRAME_TYPE_OOO_FILTERED);
-    gf_group->cur_frame_idx[*frame_index] = *cur_frame_idx;
     gf_group->layer_depth[*frame_index] = pyr_level;
     gf_group->max_layer_depth = AOMMAX(gf_group->max_layer_depth, pyr_level);
 
