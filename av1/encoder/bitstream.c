@@ -3057,9 +3057,38 @@ static AOM_INLINE void write_uncompressed_header_obu(
         aom_wb_write_literal(wb, gld_ref, REF_FRAMES_LOG2);
       }
 
+#if CONFIG_NEW_REF_SIGNALING
+      if (!current_frame->frame_refs_short_signaling &&
+          seq_params->order_hint_info.enable_order_hint) {
+        aom_wb_write_bit(wb, cpi->oxcf.mode == REALTIME);
+        if (cpi->oxcf.mode != REALTIME) {
+          // Find the lowest level of all of the references
+          unsigned int min_level = INT_MAX;
+          for (int map_idx = 0; map_idx < REF_FRAMES; map_idx++) {
+            // Get reference frame buffer
+            const RefCntBuffer *const buf = cm->ref_frame_map[map_idx];
+            if (buf == NULL) continue;
+            if (buf->pyramid_level < min_level) min_level = buf->pyramid_level;
+          }
+          aom_wb_write_bit(
+              wb, cpi->common.current_frame.pyramid_level == min_level);
+          if (cpi->common.current_frame.pyramid_level != min_level) {
+            aom_wb_write_bit(wb, (int)cpi->common.current_frame.pyramid_level ==
+                                     cpi->gf_group.max_layer_depth);
+          }
+        }
+      }
+#endif  // CONFIG_NEW_REF_SIGNALING
+
       for (ref_frame = LAST_FRAME; ref_frame <= ALTREF_FRAME; ++ref_frame) {
         assert(get_ref_frame_map_idx(cm, ref_frame) != INVALID_IDX);
+#if CONFIG_NEW_REF_SIGNALING
+        if (!current_frame->frame_refs_short_signaling &&
+            (!seq_params->order_hint_info.enable_order_hint ||
+             cpi->oxcf.mode == REALTIME))
+#else
         if (!current_frame->frame_refs_short_signaling)
+#endif  // CONFIG_NEW_REF_SIGNALING
           aom_wb_write_literal(wb, get_ref_frame_map_idx(cm, ref_frame),
                                REF_FRAMES_LOG2);
         if (seq_params->frame_id_numbers_present_flag) {
