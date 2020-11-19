@@ -73,9 +73,6 @@ int av1_get_refresh_frame_flags(
 
 int av1_get_refresh_ref_frame_map(int refresh_frame_flags);
 
-void av1_get_ref_frames(AV1_COMP *const cpi, int cur_frame_disp,
-                        RefFrameMapPair ref_frame_map_pairs[REF_FRAMES]);
-
 int is_forced_keyframe_pending(struct lookahead_ctx *lookahead,
                                const int up_to_index,
                                const COMPRESSOR_STAGE compressor_stage);

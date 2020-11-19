@@ -27,6 +27,7 @@
 #include "av1/common/blockd.h"
 #include "av1/common/entropymode.h"
 #include "av1/common/enums.h"
+#include "av1/common/pred_common.h"
 #include "av1/common/resize.h"
 #include "av1/common/thread_common.h"
 #include "av1/common/timing.h"
@@ -2840,45 +2841,6 @@ int av1_convert_sect5obus_to_annexb(uint8_t *buffer, size_t *input_size);
 // content tools is employed later. See av1_determine_sc_tools_with_encoding().
 void av1_set_screen_content_options(const struct AV1_COMP *cpi,
                                     FeatureFlags *features);
-
-typedef struct {
-  int pyr_level;
-  int disp_order;
-} RefFrameMapPair;
-
-static INLINE void init_ref_map_pair(
-    AV1_COMP *cpi, RefFrameMapPair ref_frame_map_pairs[REF_FRAMES]) {
-  if (cpi->gf_group.update_type[cpi->gf_group.index] == KF_UPDATE) {
-    memset(ref_frame_map_pairs, -1, sizeof(*ref_frame_map_pairs) * REF_FRAMES);
-    return;
-  }
-  memset(ref_frame_map_pairs, 0, sizeof(*ref_frame_map_pairs) * REF_FRAMES);
-  for (int map_idx = 0; map_idx < REF_FRAMES; map_idx++) {
-    // Get reference frame buffer
-    const RefCntBuffer *const buf = cpi->common.ref_frame_map[map_idx];
-    if (ref_frame_map_pairs[map_idx].disp_order == -1) continue;
-    if (buf == NULL) {
-      ref_frame_map_pairs[map_idx].disp_order = -1;
-      ref_frame_map_pairs[map_idx].pyr_level = -1;
-      continue;
-    } else if (buf->ref_count > 1) {
-      // Once the keyframe is coded, the slots in ref_frame_map will all
-      // point to the same frame. In that case, all subsequent pointers
-      // matching the current are considered "free" slots. This will find
-      // the next occurance of the current pointer if ref_count indicates
-      // there are multiple instances of it and mark it as free.
-      for (int idx2 = map_idx + 1; idx2 < REF_FRAMES; ++idx2) {
-        const RefCntBuffer *const buf2 = cpi->common.ref_frame_map[idx2];
-        if (buf2 == buf) {
-          ref_frame_map_pairs[idx2].disp_order = -1;
-          ref_frame_map_pairs[idx2].pyr_level = -1;
-        }
-      }
-    }
-    ref_frame_map_pairs[map_idx].disp_order = (int)buf->display_order_hint;
-    ref_frame_map_pairs[map_idx].pyr_level = buf->pyramid_level;
-  }
-}
 
 // av1 uses 10,000,000 ticks/second as time stamp
 #define TICKS_PER_SEC 10000000LL

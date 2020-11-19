@@ -933,7 +933,9 @@ static AOM_INLINE void init_gop_frames_for_tpl(
   int cur_frame_idx = gf_group->index;
   *pframe_qindex = 0;
   RefFrameMapPair ref_frame_map_pairs[REF_FRAMES];
-  init_ref_map_pair(cpi, ref_frame_map_pairs);
+  init_ref_map_pair(
+      cm, ref_frame_map_pairs,
+      cpi->gf_group.update_type[cpi->gf_group.index] == KEY_FRAME);
 
   EncodeFrameParams frame_params = *init_frame_params;
   TplParams *const tpl_data = &cpi->tpl_data;
@@ -1017,7 +1019,7 @@ static AOM_INLINE void init_gop_frames_for_tpl(
     const int true_disp =
         (int)(tpl_frame->frame_display_index) -
         (gf_group->subgop_cfg != NULL && frame_params.show_frame);
-    av1_get_ref_frames(cpi, true_disp, ref_frame_map_pairs);
+    av1_get_ref_frames(cm, true_disp, ref_frame_map_pairs);
     int refresh_mask =
         av1_get_refresh_frame_flags(cpi, &frame_params, frame_update_type,
                                     gf_index, true_disp, ref_frame_map_pairs);
@@ -1088,7 +1090,7 @@ static AOM_INLINE void init_gop_frames_for_tpl(
     const int true_disp =
         (int)(tpl_frame->frame_display_index) -
         (gf_group->subgop_cfg != NULL && frame_params.show_frame);
-    av1_get_ref_frames(cpi, true_disp, ref_frame_map_pairs);
+    av1_get_ref_frames(cm, true_disp, ref_frame_map_pairs);
     // TODO(sarahparker) av1_get_refresh_frame_flags()
     // will execute default behavior even when
     // subgop cfg is enabled. This should be addressed if we ever remove the
@@ -1125,8 +1127,10 @@ static AOM_INLINE void init_gop_frames_for_tpl(
   const int true_disp =
       (int)(tpl_frame->frame_display_index) -
       (gf_group->subgop_cfg != NULL && init_frame_params->show_frame);
-  init_ref_map_pair(cpi, ref_frame_map_pairs);
-  av1_get_ref_frames(cpi, true_disp, ref_frame_map_pairs);
+  init_ref_map_pair(
+      cm, ref_frame_map_pairs,
+      cpi->gf_group.update_type[cpi->gf_group.index] == KEY_FRAME);
+  av1_get_ref_frames(cm, true_disp, ref_frame_map_pairs);
 }
 
 void av1_init_tpl_stats(TplParams *const tpl_data) {
