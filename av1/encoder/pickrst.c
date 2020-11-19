@@ -1183,6 +1183,29 @@ static int count_wiener_bits(int wiener_win, WienerInfo *wiener_info,
   return bits;
 }
 
+// If limits != NULL, calculates error for current restoration unit.
+// Otherwise, calculates error for all units in the stack using stored limits.
+static int64_t calc_finer_tile_search_error(const RestSearchCtxt *rsc,
+                                            const RestorationTileLimits *limits,
+                                            const AV1PixelRect *tile,
+                                            RestorationUnitInfo *rui) {
+  int64_t err = 0;
+#if CONFIG_RST_MERGECOEFFS
+  if (limits != NULL) {
+    err = try_restoration_unit(rsc, limits, tile, rui);
+  } else {
+    Vector *current_unit_stack = rsc->unit_stack;
+    VECTOR_FOR_EACH(current_unit_stack, listed_unit) {
+      RstUnitSnapshot *old_unit = (RstUnitSnapshot *)(listed_unit.pointer);
+      err += try_restoration_unit(rsc, &old_unit->limits, tile, rui);
+    }
+  }
+#else   // CONFIG_RST_MERGECOEFFS
+  err = try_restoration_unit(rsc, limits, tile, rui);
+#endif  // CONFIG_RST_MERGECOEFFS
+  return err;
+}
+
 #define USE_WIENER_REFINEMENT_SEARCH 1
 static int64_t finer_tile_search_wiener(const RestSearchCtxt *rsc,
                                         const RestorationTileLimits *limits,
@@ -1190,7 +1213,7 @@ static int64_t finer_tile_search_wiener(const RestSearchCtxt *rsc,
                                         RestorationUnitInfo *rui,
                                         int wiener_win) {
   const int plane_off = (WIENER_WIN - wiener_win) >> 1;
-  int64_t err = try_restoration_unit(rsc, limits, tile, rui);
+  int64_t err = calc_finer_tile_search_error(rsc, limits, tile, rui);
 #if USE_WIENER_REFINEMENT_SEARCH
   int64_t err2;
   int tap_min[] = { WIENER_FILT_TAP0_MINV, WIENER_FILT_TAP1_MINV,
@@ -1210,7 +1233,7 @@ static int64_t finer_tile_search_wiener(const RestSearchCtxt *rsc,
           plane_wiener->hfilter[p] -= s;
           plane_wiener->hfilter[WIENER_WIN - p - 1] -= s;
           plane_wiener->hfilter[WIENER_HALFWIN] += 2 * s;
-          err2 = try_restoration_unit(rsc, limits, tile, rui);
+          err2 = calc_finer_tile_search_error(rsc, limits, tile, rui);
           if (err2 > err) {
             plane_wiener->hfilter[p] += s;
             plane_wiener->hfilter[WIENER_WIN - p - 1] += s;
@@ -1230,7 +1253,7 @@ static int64_t finer_tile_search_wiener(const RestSearchCtxt *rsc,
           plane_wiener->hfilter[p] += s;
           plane_wiener->hfilter[WIENER_WIN - p - 1] += s;
           plane_wiener->hfilter[WIENER_HALFWIN] -= 2 * s;
-          err2 = try_restoration_unit(rsc, limits, tile, rui);
+          err2 = calc_finer_tile_search_error(rsc, limits, tile, rui);
           if (err2 > err) {
             plane_wiener->hfilter[p] -= s;
             plane_wiener->hfilter[WIENER_WIN - p - 1] -= s;
@@ -1251,7 +1274,7 @@ static int64_t finer_tile_search_wiener(const RestSearchCtxt *rsc,
           plane_wiener->vfilter[p] -= s;
           plane_wiener->vfilter[WIENER_WIN - p - 1] -= s;
           plane_wiener->vfilter[WIENER_HALFWIN] += 2 * s;
-          err2 = try_restoration_unit(rsc, limits, tile, rui);
+          err2 = calc_finer_tile_search_error(rsc, limits, tile, rui);
           if (err2 > err) {
             plane_wiener->vfilter[p] += s;
             plane_wiener->vfilter[WIENER_WIN - p - 1] += s;
@@ -1271,7 +1294,7 @@ static int64_t finer_tile_search_wiener(const RestSearchCtxt *rsc,
           plane_wiener->vfilter[p] += s;
           plane_wiener->vfilter[WIENER_WIN - p - 1] += s;
           plane_wiener->vfilter[WIENER_HALFWIN] -= 2 * s;
-          err2 = try_restoration_unit(rsc, limits, tile, rui);
+          err2 = calc_finer_tile_search_error(rsc, limits, tile, rui);
           if (err2 > err) {
             plane_wiener->vfilter[p] -= s;
             plane_wiener->vfilter[WIENER_WIN - p - 1] -= s;
@@ -1439,6 +1462,8 @@ static void search_wiener(const RestorationTileLimits *limits,
   for (int index = 0; index < WIENER_WIN2 * WIENER_WIN2; ++index) {
     H_AVG[index] = DIVIDE_AND_ROUND(H_AVG[index], current_unit_stack->size + 1);
   }
+  // Push current unit onto stack.
+  aom_vector_push_back(current_unit_stack, &unit_snapshot);
   // Generate new filter.
   RestorationUnitInfo rui_temp;
   memset(&rui_temp, 0, sizeof(rui_temp));
@@ -1450,8 +1475,7 @@ static void search_wiener(const RestorationTileLimits *limits,
                       rui_temp.wiener_info.vfilter);
   finalize_sym_filter(reduced_wiener_win, hfilter_merge,
                       rui_temp.wiener_info.hfilter);
-  // Push current unit onto stack.
-  aom_vector_push_back(current_unit_stack, &unit_snapshot);
+  finer_tile_search_wiener(rsc, NULL, tile_rect, &rui_temp, reduced_wiener_win);
   // Iterate through vector to get sse and bits for each on the new filter.
   double cost_merge = 0;
   VECTOR_FOR_EACH(current_unit_stack, listed_unit) {
