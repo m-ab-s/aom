@@ -1645,23 +1645,19 @@ static int16_t quantize(double x, int16_t minv, int16_t n, int prec_bits) {
   return (int16_t)scale_x;
 }
 
-static int compute_quantized_wienerns_filter(const uint8_t *dgd,
-                                             const uint8_t *src, int h_beg,
-                                             int h_end, int v_beg, int v_end,
-                                             int dgd_stride, int src_stride,
-                                             RestorationUnitInfo *rui,
-                                             int use_hbd, int bit_depth) {
+static int compute_quantized_wienerns_filter(
+    const uint8_t *dgd, const uint8_t *src, int h_beg, int h_end, int v_beg,
+    int v_end, int dgd_stride, int src_stride, RestorationUnitInfo *rui,
+    int use_hbd, int bit_depth, double *A, double *b) {
   const uint16_t *src_hbd = CONVERT_TO_SHORTPTR(src);
   const uint16_t *dgd_hbd = CONVERT_TO_SHORTPTR(dgd);
 #if CONFIG_WIENER_NONSEP_CROSS_FILT
   const uint16_t *luma_hbd = CONVERT_TO_SHORTPTR(rui->luma);
 #endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
-  double A[WIENERNS_MAX * WIENERNS_MAX];
-  double b[WIENERNS_MAX];
   double x[WIENERNS_MAX];
   double buf[WIENERNS_MAX];
-  memset(A, 0, sizeof(A));
-  memset(b, 0, sizeof(b));
+  memset(A, 0, sizeof(*A) * WIENERNS_MAX * WIENERNS_MAX);
+  memset(b, 0, sizeof(*b) * WIENERNS_MAX);
 
   int is_uv = (rui->plane != AOM_PLANE_Y);
   const int(*wienerns_config)[3] =
@@ -1776,7 +1772,7 @@ static int64_t finer_tile_search_wienerns(const RestSearchCtxt *rsc,
                                           const AV1PixelRect *tile_rect,
                                           RestorationUnitInfo *rui) {
   assert(rsc->plane == rui->plane);
-  int64_t best_err = try_restoration_unit(rsc, limits, tile_rect, rui);
+  int64_t best_err = calc_finer_tile_search_error(rsc, limits, tile_rect, rui);
 
   int is_uv = (rui->plane != AOM_PLANE_Y);
   int beg_feat = is_uv ? wienerns_y : 0;
@@ -1801,7 +1797,7 @@ static int64_t finer_tile_search_wienerns(const RestSearchCtxt *rsc,
           continue;
         }
         rui->wiener_nonsep_info.nsfilter[i] = ci;
-        int64_t err = try_restoration_unit(rsc, limits, tile_rect, rui);
+        int64_t err = calc_finer_tile_search_error(rsc, limits, tile_rect, rui);
         if (err < best_err) {
           no_improv = 0;
           best_err = err;
@@ -1832,6 +1828,8 @@ static void search_wiener_nonsep(const RestorationTileLimits *limits,
 
   const MACROBLOCK *const x = rsc->x;
   const int64_t bits_none = x->wiener_nonsep_restore_cost[0];
+  double cost_none =
+      RDCOST_DBL(x->rdmult, bits_none >> 4, rusi->sse[RESTORE_NONE]);
   RestorationUnitInfo rui;
   memset(&rui, 0, sizeof(rui));
   rui.restoration_type = RESTORE_WIENER_NONSEP;
@@ -1852,11 +1850,13 @@ static void search_wiener_nonsep(const RestorationTileLimits *limits,
   rui.txskip_mask = rsc->cm->tx_skip[rui.plane];
 #endif  // WIENER_NONSEP_MASK
 
+  double A[WIENERNS_MAX * WIENERNS_MAX];
+  double b[WIENERNS_MAX];
   if (compute_quantized_wienerns_filter(
           rsc->dgd_buffer, rsc->src_buffer, limits->h_start, limits->h_end,
           limits->v_start, limits->v_end, rsc->dgd_stride, rsc->src_stride,
           &rui, rsc->cm->seq_params.use_highbitdepth,
-          rsc->cm->seq_params.bit_depth)) {
+          rsc->cm->seq_params.bit_depth, A, b)) {
     aom_clear_system_state();
 
     rusi->sse[RESTORE_WIENER_NONSEP] =
@@ -1864,13 +1864,172 @@ static void search_wiener_nonsep(const RestorationTileLimits *limits,
     rusi->wiener_nonsep = rui.wiener_nonsep_info;
     assert(rusi->sse[RESTORE_WIENER_NONSEP] != INT64_MAX);
 
+#if CONFIG_RST_MERGECOEFFS
+    int is_uv = (rsc->plane != AOM_PLANE_Y);
+    Vector *current_unit_stack = rsc->unit_stack;
+    int64_t bits_nomerge =
+        x->wiener_nonsep_restore_cost[1] + x->merged_param_cost[0] +
+        (count_wienerns_bits(is_uv, &rusi->wiener_nonsep, &rsc->wiener_nonsep)
+         << AV1_PROB_COST_SHIFT);
+    double cost_nomerge = RDCOST_DBL(x->rdmult, bits_nomerge >> 4,
+                                     rusi->sse[RESTORE_WIENER_NONSEP]);
+    RestorationType rtype =
+        (cost_none <= cost_nomerge) ? RESTORE_NONE : RESTORE_WIENER_NONSEP;
+    if (cost_none <= cost_nomerge) {
+      bits_nomerge = bits_none;
+      cost_nomerge = cost_none;
+    }
+
+    RstUnitSnapshot unit_snapshot;
+    memset(&unit_snapshot, 0, sizeof(unit_snapshot));
+    unit_snapshot.limits = *limits;
+    unit_snapshot.rest_unit_idx = rest_unit_idx;
+    memcpy(unit_snapshot.A, A, WIENERNS_MAX * WIENERNS_MAX * sizeof(*A));
+    memcpy(unit_snapshot.b, b, WIENERNS_MAX * sizeof(*b));
+    rusi->best_rtype[RESTORE_WIENER_NONSEP - 1] = rtype;
+    rsc->sse += rusi->sse[rtype];
+    rsc->bits += bits_nomerge;
+    unit_snapshot.current_sse = rusi->sse[rtype];
+    unit_snapshot.current_bits = bits_nomerge;
+    // Only matters for first unit in stack.
+    unit_snapshot.ref_wiener_nonsep = rsc->wiener_nonsep;
+    // If current_unit_stack is empty, we can leave early.
+    if (aom_vector_is_empty(current_unit_stack)) {
+      if (rtype == RESTORE_WIENER_NONSEP)
+        rsc->wiener_nonsep = rusi->wiener_nonsep;
+      aom_vector_push_back(current_unit_stack, &unit_snapshot);
+      return;
+    }
+    // Handles special case where no-merge filter is equal to merged
+    // filter for the stack - we don't want to perform another merge and
+    // get a less optimal filter, but we want to continue building the stack.
+    if (rtype == RESTORE_WIENER_NONSEP &&
+        check_wienerns_eq(is_uv, &rusi->wiener_nonsep, &rsc->wiener_nonsep)) {
+      rsc->bits -= bits_nomerge;
+      rsc->bits += x->wiener_nonsep_restore_cost[1] + x->merged_param_cost[1];
+      rsc->wiener_nonsep = rusi->wiener_nonsep;
+      unit_snapshot.current_bits =
+          x->wiener_nonsep_restore_cost[1] + x->merged_param_cost[1];
+      aom_vector_push_back(current_unit_stack, &unit_snapshot);
+      return;
+    }
+
+    double A_AVG[WIENERNS_MAX * WIENERNS_MAX];
+    memcpy(A_AVG, A, WIENERNS_MAX * WIENERNS_MAX * sizeof(*A));
+    double b_AVG[WIENERNS_MAX];
+    memcpy(b_AVG, b, WIENERNS_MAX * sizeof(*b));
+    double merge_filter_stats[WIENERNS_MAX];
+    // Iterate through vector to get current cost and the sum of A and b so far.
+    VECTOR_FOR_EACH(current_unit_stack, listed_unit) {
+      RstUnitSnapshot *old_unit = (RstUnitSnapshot *)(listed_unit.pointer);
+      cost_nomerge += RDCOST_DBL(x->rdmult, old_unit->current_bits >> 4,
+                                 old_unit->current_sse);
+      for (int index = 0; index < WIENERNS_MAX * WIENERNS_MAX; ++index) {
+        A_AVG[index] += old_unit->A[index];
+      }
+      for (int index = 0; index < WIENERNS_MAX; ++index) {
+        b_AVG[index] += old_unit->b[index];
+      }
+      // Merge SSE and bits must be recalculated every time we create a new
+      // merge filter.
+      old_unit->merge_sse = 0;
+      old_unit->merge_bits = 0;
+    }
+    // Divide M and H by vector size + 1 to get average.
+    for (int index = 0; index < WIENERNS_MAX * WIENERNS_MAX; ++index) {
+      A_AVG[index] =
+          DIVIDE_AND_ROUND(A_AVG[index], current_unit_stack->size + 1);
+    }
+    for (int index = 0; index < WIENERNS_MAX; ++index) {
+      b_AVG[index] =
+          DIVIDE_AND_ROUND(b_AVG[index], current_unit_stack->size + 1);
+    }
+    // Push current unit onto stack.
+    aom_vector_push_back(current_unit_stack, &unit_snapshot);
+    // Generate new filter.
+    RestorationUnitInfo rui_temp;
+    memset(&rui_temp, 0, sizeof(rui_temp));
+    rui_temp.restoration_type = RESTORE_WIENER_NONSEP;
+    int num_feat = is_uv ? wienerns_uv : wienerns_y;
+    if (linsolve(num_feat, A_AVG, num_feat, b_AVG, merge_filter_stats)) {
+      int beg_feat = is_uv ? wienerns_y : 0;
+      int end_feat = is_uv ? wienerns_y + wienerns_uv : wienerns_y;
+      const int(*wienerns_coeffs)[3] =
+          is_uv ? wienerns_coeff_uv : wienerns_coeff_y;
+      for (int k = beg_feat; k < end_feat; ++k) {
+        rui_temp.wiener_nonsep_info.nsfilter[k] =
+            quantize(merge_filter_stats[k - beg_feat],
+                     wienerns_coeffs[k - beg_feat][WIENERNS_MIN_ID],
+                     (1 << wienerns_coeffs[k - beg_feat][WIENERNS_BIT_ID]),
+                     (is_uv ? wienerns_prec_bits_uv : wienerns_prec_bits_y));
+      }
+    } else {
+      rsc->bits += bits_none;
+      rsc->sse += rusi->sse[RESTORE_NONE];
+      rusi->best_rtype[RESTORE_WIENER_NONSEP - 1] = RESTORE_NONE;
+      rusi->sse[RESTORE_WIENER_NONSEP] = INT64_MAX;
+      return;
+    }
+    aom_clear_system_state();
+    finer_tile_search_wienerns(rsc, NULL, tile_rect, &rui_temp);
+    // Iterate through vector to get sse and bits for each on the new filter.
+    double cost_merge = 0;
+    VECTOR_FOR_EACH(current_unit_stack, listed_unit) {
+      RstUnitSnapshot *old_unit = (RstUnitSnapshot *)(listed_unit.pointer);
+      old_unit->merge_sse =
+          try_restoration_unit(rsc, &old_unit->limits, tile_rect, &rui_temp);
+      // First unit in stack has larger unit_bits because the
+      // merged coeffs are linked to it.
+      Iterator begin = aom_vector_begin((current_unit_stack));
+      if (aom_iterator_equals(&(listed_unit), &begin)) {
+        old_unit->merge_bits =
+            x->wiener_nonsep_restore_cost[1] + x->merged_param_cost[0] +
+            (count_wienerns_bits(is_uv, &rui_temp.wiener_nonsep_info,
+                                 &old_unit->ref_wiener_nonsep)
+             << AV1_PROB_COST_SHIFT);
+      } else {
+        old_unit->merge_bits =
+            x->wiener_nonsep_restore_cost[1] + x->merged_param_cost[1];
+      }
+      cost_merge +=
+          RDCOST_DBL(x->rdmult, old_unit->merge_bits >> 4, old_unit->merge_sse);
+    }
+    if (cost_merge < cost_nomerge) {
+      // Update data within the stack.
+      VECTOR_FOR_EACH(current_unit_stack, listed_unit) {
+        RstUnitSnapshot *old_unit = (RstUnitSnapshot *)(listed_unit.pointer);
+        RestUnitSearchInfo *old_rusi = &rsc->rusi[old_unit->rest_unit_idx];
+        old_rusi->best_rtype[RESTORE_WIENER_NONSEP - 1] = RESTORE_WIENER_NONSEP;
+        old_rusi->wiener_nonsep = rui_temp.wiener_nonsep_info;
+        old_rusi->sse[RESTORE_WIENER_NONSEP] = old_unit->merge_sse;
+        rsc->sse -= old_unit->current_sse;
+        rsc->sse += old_unit->merge_sse;
+        rsc->bits -= old_unit->current_bits;
+        rsc->bits += old_unit->merge_bits;
+        old_unit->current_sse = old_unit->merge_sse;
+        old_unit->current_bits = old_unit->merge_bits;
+      }
+      rsc->wiener_nonsep = rui_temp.wiener_nonsep_info;
+    } else {
+      // Copy current unit from the top of the stack.
+      memset(&unit_snapshot, 0, sizeof(unit_snapshot));
+      unit_snapshot = *(RstUnitSnapshot *)aom_vector_back(current_unit_stack);
+      // RESTORE_WIENER_NONSEP units become start of new stack, and
+      // RESTORE_NONE units are discarded.
+      if (rtype == RESTORE_WIENER_NONSEP) {
+        rsc->wiener_nonsep = rusi->wiener_nonsep;
+        aom_vector_clear(current_unit_stack);
+        aom_vector_push_back(current_unit_stack, &unit_snapshot);
+      } else {
+        aom_vector_pop_back(current_unit_stack);
+      }
+    }
+#else   // CONFIG_RST_MERGECOEFFS
     const int64_t bits_wienerns =
         x->wiener_nonsep_restore_cost[1] +
         (count_wienerns_bits(rui.plane, &rusi->wiener_nonsep,
                              &rsc->wiener_nonsep)
          << AV1_PROB_COST_SHIFT);
-    double cost_none =
-        RDCOST_DBL(x->rdmult, bits_none >> 4, rusi->sse[RESTORE_NONE]);
     double cost_wienerns = RDCOST_DBL(x->rdmult, bits_wienerns >> 4,
                                       rusi->sse[RESTORE_WIENER_NONSEP]);
     if (cost_wienerns < cost_none) {
@@ -1883,6 +2042,7 @@ static void search_wiener_nonsep(const RestorationTileLimits *limits,
       rsc->sse += rusi->sse[RESTORE_NONE];
       rusi->best_rtype[RESTORE_WIENER_NONSEP - 1] = RESTORE_NONE;
     }
+#endif  // CONFIG_RST_MERGECOEFFS
   } else {
     rsc->bits += bits_none;
     rsc->sse += rusi->sse[RESTORE_NONE];
