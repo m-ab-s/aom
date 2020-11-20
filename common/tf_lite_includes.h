@@ -30,31 +30,4 @@
 
 #pragma GCC diagnostic pop
 
-// TensorFlow Lite uses dlsym and dlopen when using delegates,
-// e.g., GPU or TPU processing. Static builds of the AOM encoder
-// do not support linking with -ldl. Define dummy functions
-// to allow linking. Do not use delegation with TensorFlow Lite.
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-void *dlopen(const char *filename, int flags) {
-  (void)filename;
-  (void)flags;
-  assert(0);
-  return NULL;
-}
-
-void *dlsym(void *handle, const char *symbol) {
-  (void)handle;
-  (void)symbol;
-  assert(0);
-  return NULL;
-}
-
-#ifdef __cplusplus
-}  // extern "C"
-#endif
-
 #endif  // AOM_COMMON_TF_LITE_INCLUDES_H_
