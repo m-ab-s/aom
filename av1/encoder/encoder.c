@@ -808,6 +808,7 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
   bool subgop_config_changed = false;
   if (aom_strcmp(cpi->subgop_config_path, oxcf->subgop_config_path)) {
     aom_free(cpi->subgop_config_path);
+    cpi->subgop_config_path = NULL;
     if (oxcf->subgop_config_path != NULL) {
       cpi->subgop_config_path =
           (char *)aom_malloc((strlen(oxcf->subgop_config_path) + 1) *
@@ -818,6 +819,7 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
   }
   if (aom_strcmp(cpi->subgop_config_str, oxcf->subgop_config_str)) {
     aom_free(cpi->subgop_config_str);
+    cpi->subgop_config_str = NULL;
     if (oxcf->subgop_config_str != NULL) {
       cpi->subgop_config_str =
           (char *)aom_malloc((strlen(oxcf->subgop_config_str) + 1) *
