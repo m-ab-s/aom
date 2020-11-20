@@ -312,6 +312,15 @@ if((CONFIG_AV1_DECODER OR CONFIG_AV1_ENCODER) AND ENABLE_EXAMPLES)
   add_executable(resize_util "${AOM_ROOT}/examples/resize_util.c"
                              $<TARGET_OBJECTS:aom_common_app_util>)
   list(APPEND AOM_APP_TARGETS resize_util)
+  add_executable(lanczos_resample_y4m
+                 "${AOM_ROOT}/tools/lanczos/lanczos_resample.c"
+                 "${AOM_ROOT}/tools/lanczos/lanczos_resample.h"
+                 "${AOM_ROOT}/tools/lanczos/lanczos_resample_y4m.c")
+  add_executable(lanczos_resample_yuv
+                 "${AOM_ROOT}/tools/lanczos/lanczos_resample.c"
+                 "${AOM_ROOT}/tools/lanczos/lanczos_resample.h"
+                 "${AOM_ROOT}/tools/lanczos/lanczos_resample_yuv.c")
+  list(APPEND AOM_APP_TARGETS lanczos_resample_y4m lanczos_resample_yuv)
 endif()
 
 if(CONFIG_AV1_DECODER AND ENABLE_EXAMPLES)
