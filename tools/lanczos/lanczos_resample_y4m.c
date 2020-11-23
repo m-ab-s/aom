@@ -219,8 +219,7 @@ int main(int argc, char *argv[]) {
   const int ruvsize = ruvwidth * ruvheight;
 
   const int bits = COEFF_PREC_BITS;
-  const int horz_downshift = bits - INT_EXTRA_PREC_BITS;
-  const int vert_downshift = bits + INT_EXTRA_PREC_BITS;
+  const int int_extra_bits = INT_EXTRA_PREC_BITS;
 
   get_resample_filter(horz_p, horz_q, horz_a, horz_x0, bits, &horz_rf);
   // show_resample_filter(&horz_rf);
@@ -258,18 +257,16 @@ int main(int argc, char *argv[]) {
     }
     s = src;
     r = res;
-    resample_2d(s, ywidth, yheight, ywidth, &horz_rf, &vert_rf, horz_downshift,
-                vert_downshift, &clip, r, rywidth, ryheight, rywidth);
+    resample_2d(s, ywidth, yheight, ywidth, &horz_rf, &vert_rf, int_extra_bits,
+                &clip, r, rywidth, ryheight, rywidth);
     s += ysize;
     r += rysize;
     resample_2d(s, uvwidth, uvheight, uvwidth, &horz_rf, &vert_rf,
-                horz_downshift, vert_downshift, &clip, r, ruvwidth, ruvheight,
-                ruvwidth);
+                int_extra_bits, &clip, r, ruvwidth, ruvheight, ruvwidth);
     s += uvsize;
     r += ruvsize;
     resample_2d(s, uvwidth, uvheight, uvwidth, &horz_rf, &vert_rf,
-                horz_downshift, vert_downshift, &clip, r, ruvwidth, ruvheight,
-                ruvwidth);
+                int_extra_bits, &clip, r, ruvwidth, ruvheight, ruvwidth);
     if (bytes_per_pel == 1) {
       uint8_t *d = outbuf;
       r = res;

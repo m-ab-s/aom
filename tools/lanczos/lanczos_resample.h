@@ -25,6 +25,7 @@ typedef struct {
   int length;
   int start;
   int steps[MAX_RATIONAL_FACTOR];
+  int filter_bits;
   int16_t filter[MAX_RATIONAL_FACTOR][MAX_FILTER_LEN];
   double phases[MAX_RATIONAL_FACTOR];
 } RationalResampleFilter;
@@ -69,12 +70,15 @@ void resample_1d_core(const int16_t *x, int inlen, RationalResampleFilter *rf,
 
 void resample_2d(const int16_t *x, int inwidth, int inheight, int instride,
                  RationalResampleFilter *rfh, RationalResampleFilter *rfv,
-                 int downshifth, int downshiftv, ClipProfile *clip, int16_t *y,
+                 int int_extra_bits, ClipProfile *clip, int16_t *y,
                  int outwidth, int outheight, int outstride);
 
-void resample_hor(const int16_t *x, int inwidth, int inheight, int instride,
-                  RationalResampleFilter *rfh, int downshifth,
-                  ClipProfile *clip, int16_t *y, int outwidth, int outstride);
+void resample_horz(const int16_t *x, int inwidth, int inheight, int instride,
+                   RationalResampleFilter *rfh, ClipProfile *clip, int16_t *y,
+                   int outwidth, int outstride);
+void resample_vert(const int16_t *x, int inwidth, int inheight, int instride,
+                   RationalResampleFilter *rfv, ClipProfile *clip, int16_t *y,
+                   int outheight, int outstride);
 
 void show_resample_filter(RationalResampleFilter *rf);
 

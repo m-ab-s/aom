@@ -187,6 +187,7 @@ void get_resample_filter(int p, int q, int a, double x0, int bits,
   rf->p = p / g;
   rf->q = q / g;
   if (x0 == (double)('c')) x0 = get_centered_x0(rf->p, rf->q);
+  rf->filter_bits = bits;
   for (int i = 0; i < rf->p; ++i) {
     offset[i] = (double)rf->q / (double)rf->p * i + x0;
     intpel[i] = (int)floor(offset[i]);
@@ -272,19 +273,21 @@ void resample_1d(const int16_t *x, int inlen, RationalResampleFilter *rf,
   free(xext_);
 }
 
-static void fill_col_to_arr(int16_t *img, int stride, int len, int16_t *arr) {
+static void fill_col_to_arr(const int16_t *img, int stride, int len,
+                            int16_t *arr) {
   int i;
-  int16_t *iptr = img;
+  const int16_t *iptr = img;
   int16_t *aptr = arr;
   for (i = 0; i < len; ++i, iptr += stride) {
     *aptr++ = *iptr;
   }
 }
 
-static void fill_arr_to_col(int16_t *img, int stride, int len, int16_t *arr) {
+static void fill_arr_to_col(int16_t *img, int stride, int len,
+                            const int16_t *arr) {
   int i;
   int16_t *iptr = img;
-  int16_t *aptr = arr;
+  const int16_t *aptr = arr;
   for (i = 0; i < len; ++i, iptr += stride) {
     *iptr = *aptr++;
   }
@@ -292,18 +295,30 @@ static void fill_arr_to_col(int16_t *img, int stride, int len, int16_t *arr) {
 
 void resample_2d(const int16_t *x, int inwidth, int inheight, int instride,
                  RationalResampleFilter *rfh, RationalResampleFilter *rfv,
-                 int downshifth, int downshiftv, ClipProfile *clip, int16_t *y,
+                 int int_extra_bits, ClipProfile *clip, int16_t *y,
                  int outwidth, int outheight, int outstride) {
+  if (rfv == NULL || is_resampler_noop(rfv)) {
+    resample_horz(x, inwidth, inheight, instride, rfh, clip, y, outwidth,
+                  outstride);
+    return;
+  }
+  if (rfh == NULL || is_resampler_noop(rfh)) {
+    resample_vert(x, inwidth, inheight, instride, rfv, clip, y, outheight,
+                  outstride);
+    return;
+  }
   int16_t *tmpbuf = (int16_t *)malloc(sizeof(int16_t) * outwidth * inheight);
   const int arrsize =
       outheight + ((inheight + rfv->length > inwidth + rfh->length)
                        ? (inheight + rfv->length)
                        : (inwidth + rfh->length));
-  int16_t *tmparr_ = (int16_t *)malloc(sizeof(int16_t) * arrsize);
+  int16_t *tmparr_ = (int16_t *)calloc(arrsize, sizeof(int16_t));
   int16_t *tmparrh = tmparr_ + outheight + rfh->length / 2;
   int16_t *tmparrv = tmparr_ + outheight + rfv->length / 2;
   int16_t *tmparro = tmparr_;
   int tmpstride = outwidth;
+  const int downshifth = rfh->filter_bits - int_extra_bits;
+  const int downshiftv = rfh->filter_bits + int_extra_bits;
   for (int i = 0; i < inheight; ++i) {
     resample_1d_xc(x + instride * i, inwidth, rfh, downshifth, NULL,
                    tmpbuf + i * tmpstride, outwidth, tmparrh);
@@ -318,15 +333,31 @@ void resample_2d(const int16_t *x, int inwidth, int inheight, int instride,
   free(tmparr_);
 }
 
-void resample_hor(const int16_t *x, int inwidth, int inheight, int instride,
-                  RationalResampleFilter *rfh, int downshifth,
-                  ClipProfile *clip, int16_t *y, int outwidth, int outstride) {
-  int16_t *tmparr_ =
-      (int16_t *)malloc(sizeof(int16_t) * (inwidth + rfh->length));
+void resample_horz(const int16_t *x, int inwidth, int inheight, int instride,
+                   RationalResampleFilter *rfh, ClipProfile *clip, int16_t *y,
+                   int outwidth, int outstride) {
+  const int arrsize = inwidth + rfh->length;
+  int16_t *tmparr_ = (int16_t *)calloc(arrsize, sizeof(int16_t));
   int16_t *tmparrh = tmparr_ + rfh->length / 2;
   for (int i = 0; i < inheight; ++i) {
-    resample_1d_xc(x + instride * i, inwidth, rfh, downshifth, clip,
+    resample_1d_xc(x + instride * i, inwidth, rfh, rfh->filter_bits, clip,
                    y + i * outstride, outwidth, tmparrh);
+  }
+  free(tmparr_);
+}
+
+void resample_vert(const int16_t *x, int inwidth, int inheight, int instride,
+                   RationalResampleFilter *rfv, ClipProfile *clip, int16_t *y,
+                   int outheight, int outstride) {
+  const int arrsize = outheight + inheight + rfv->length;
+  int16_t *tmparr_ = (int16_t *)calloc(arrsize, sizeof(int16_t));
+  int16_t *tmparrv = tmparr_ + outheight + rfv->length / 2;
+  int16_t *tmparro = tmparr_;
+  for (int i = 0; i < inwidth; ++i) {
+    fill_col_to_arr(x + i, instride, inheight, tmparrv);
+    resample_1d_xt(tmparrv, inheight, rfv, rfv->filter_bits, clip, tmparro,
+                   outheight);
+    fill_arr_to_col(y + i, outstride, outheight, tmparro);
   }
   free(tmparr_);
 }

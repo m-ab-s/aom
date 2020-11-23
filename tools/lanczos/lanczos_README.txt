@@ -45,6 +45,8 @@ The usage of lanczos_resample_y4m is:
                    or 'c' meaning centered
       <outwidth>x<outheight> is output video dimensions
                              only needed in case of upsampling
+      Resampling config string of 1:1:1:0 horizontally or vertically
+          is regarded as a no-op in that direction.
 
 Example usages:
 
@@ -111,6 +113,8 @@ arguments to specify the input format:
                    or 'c' meaning centered
       <outwidth>x<outheight> is output video dimensions
                              only needed in case of upsampling
+      Resampling config string of 1:1:1:0 horizontally or vertically
+          is regarded as a no-op in that direction.
 
 
 
