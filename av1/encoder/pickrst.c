@@ -50,6 +50,8 @@ static const RestorationType force_restore_type = RESTORE_TYPES;
 
 // Penalty factor for use of dual sgr
 #define DUAL_SGR_PENALTY_MULT 0.01
+// Threshold for applying penalty factor
+#define DUAL_SGR_EP_PENALTY_THRESHOLD 10
 
 // Working precision for Wiener filter coefficients
 #define WIENER_TAP_SCALE_FACTOR ((int64_t)1 << 16)
@@ -733,6 +735,8 @@ static void search_sgrproj(const RestorationTileLimits *limits,
   const AV1_COMMON *const cm = rsc->cm;
   const int highbd = cm->seq_params.use_highbitdepth;
   const int bit_depth = cm->seq_params.bit_depth;
+  const double dual_sgr_penalty_sf_mult =
+      1 + DUAL_SGR_PENALTY_MULT * rsc->sf->dual_sgr_penalty_level;
 
   uint8_t *dgd_start =
       rsc->dgd_buffer + limits->v_start * rsc->dgd_stride + limits->h_start;
@@ -758,16 +762,147 @@ static void search_sgrproj(const RestorationTileLimits *limits,
   rusi->sse[RESTORE_SGRPROJ] = try_restoration_unit(rsc, limits, tile, &rui);
 
   const int64_t bits_none = x->sgrproj_restore_cost[0];
+  double cost_none =
+      RDCOST_DBL(x->rdmult, bits_none >> 4, rusi->sse[RESTORE_NONE]);
+
+#if CONFIG_RST_MERGECOEFFS
+  Vector *current_unit_stack = rsc->unit_stack;
+  int64_t bits_nomerge = x->sgrproj_restore_cost[1] + x->merged_param_cost[0] +
+                         (count_sgrproj_bits(&rusi->sgrproj, &rsc->sgrproj)
+                          << AV1_PROB_COST_SHIFT);
+  double cost_nomerge =
+      RDCOST_DBL(x->rdmult, bits_nomerge >> 4, rusi->sse[RESTORE_SGRPROJ]);
+  if (rusi->sgrproj.ep < DUAL_SGR_EP_PENALTY_THRESHOLD)
+    cost_nomerge *= dual_sgr_penalty_sf_mult;
+  RestorationType rtype =
+      (cost_none <= cost_nomerge) ? RESTORE_NONE : RESTORE_SGRPROJ;
+  if (cost_none <= cost_nomerge) {
+    bits_nomerge = bits_none;
+    cost_nomerge = cost_none;
+  }
+
+  RstUnitSnapshot unit_snapshot;
+  memset(&unit_snapshot, 0, sizeof(unit_snapshot));
+  unit_snapshot.limits = *limits;
+  unit_snapshot.rest_unit_idx = rest_unit_idx;
+  unit_snapshot.unit_sgrproj = rusi->sgrproj;
+  rusi->best_rtype[RESTORE_SGRPROJ - 1] = rtype;
+  rsc->sse += rusi->sse[rtype];
+  rsc->bits += bits_nomerge;
+  unit_snapshot.current_sse = rusi->sse[rtype];
+  unit_snapshot.current_bits = bits_nomerge;
+  // Only matters for first unit in stack.
+  unit_snapshot.ref_sgrproj = rsc->sgrproj;
+  // If current_unit_stack is empty, we can leave early.
+  if (aom_vector_is_empty(current_unit_stack)) {
+    if (rtype == RESTORE_SGRPROJ) rsc->sgrproj = rusi->sgrproj;
+    aom_vector_push_back(current_unit_stack, &unit_snapshot);
+    return;
+  }
+  // Handles special case where no-merge filter is equal to merged
+  // filter for the stack - we don't want to perform another merge and
+  // get a less optimal filter, but we want to continue building the stack.
+  if (rtype == RESTORE_SGRPROJ &&
+      check_sgrproj_eq(&rusi->sgrproj, &rsc->sgrproj)) {
+    rsc->bits -= bits_nomerge;
+    rsc->bits += x->sgrproj_restore_cost[1] + x->merged_param_cost[1];
+    unit_snapshot.current_bits =
+        x->sgrproj_restore_cost[1] + x->merged_param_cost[1];
+    aom_vector_push_back(current_unit_stack, &unit_snapshot);
+    return;
+  }
+
+  SgrprojInfo filter_avg = rusi->sgrproj;
+  // Iterate through vector to get current cost and the sum of A and b so far.
+  VECTOR_FOR_EACH(current_unit_stack, listed_unit) {
+    RstUnitSnapshot *old_unit = (RstUnitSnapshot *)(listed_unit.pointer);
+    cost_nomerge += RDCOST_DBL(x->rdmult, old_unit->current_bits >> 4,
+                               old_unit->current_sse);
+    filter_avg.ep += old_unit->unit_sgrproj.ep;
+    for (int index = 0; index < 2; ++index) {
+      filter_avg.xqd[index] += old_unit->unit_sgrproj.xqd[index];
+    }
+    // Merge SSE and bits must be recalculated every time we create a new
+    // merge filter.
+    old_unit->merge_sse = 0;
+    old_unit->merge_bits = 0;
+  }
+  // Divide ep and xqd by vector size + 1 to get average.
+  filter_avg.ep =
+      (int)DIVIDE_AND_ROUND(filter_avg.ep, current_unit_stack->size + 1);
+  for (int index = 0; index < 2; ++index) {
+    filter_avg.xqd[index] = (int)DIVIDE_AND_ROUND(filter_avg.xqd[index],
+                                                  current_unit_stack->size + 1);
+  }
+  // Push current unit onto stack.
+  aom_vector_push_back(current_unit_stack, &unit_snapshot);
+  // Generate new filter.
+  RestorationUnitInfo rui_temp;
+  memset(&rui_temp, 0, sizeof(rui_temp));
+  rui_temp.restoration_type = RESTORE_SGRPROJ;
+  rui_temp.sgrproj_info = filter_avg;
+  // Iterate through vector to get sse and bits for each on the new filter.
+  double cost_merge = 0;
+  VECTOR_FOR_EACH(current_unit_stack, listed_unit) {
+    RstUnitSnapshot *old_unit = (RstUnitSnapshot *)(listed_unit.pointer);
+    old_unit->merge_sse =
+        try_restoration_unit(rsc, &old_unit->limits, tile, &rui_temp);
+    // First unit in stack has larger unit_bits because the
+    // merged coeffs are linked to it.
+    Iterator begin = aom_vector_begin((current_unit_stack));
+    if (aom_iterator_equals(&(listed_unit), &begin)) {
+      old_unit->merge_bits =
+          x->sgrproj_restore_cost[1] + x->merged_param_cost[0] +
+          (count_sgrproj_bits(&rui_temp.sgrproj_info, &old_unit->ref_sgrproj)
+           << AV1_PROB_COST_SHIFT);
+    } else {
+      old_unit->merge_bits =
+          x->sgrproj_restore_cost[1] + x->merged_param_cost[1];
+    }
+    cost_merge +=
+        RDCOST_DBL(x->rdmult, old_unit->merge_bits >> 4, old_unit->merge_sse);
+  }
+  if (rui_temp.sgrproj_info.ep < DUAL_SGR_EP_PENALTY_THRESHOLD) {
+    cost_merge *= dual_sgr_penalty_sf_mult;
+  }
+  if (cost_merge < cost_nomerge) {
+    // Update data within the stack.
+    VECTOR_FOR_EACH(current_unit_stack, listed_unit) {
+      RstUnitSnapshot *old_unit = (RstUnitSnapshot *)(listed_unit.pointer);
+      RestUnitSearchInfo *old_rusi = &rsc->rusi[old_unit->rest_unit_idx];
+      old_rusi->best_rtype[RESTORE_SGRPROJ - 1] = RESTORE_SGRPROJ;
+      old_rusi->sgrproj = rui_temp.sgrproj_info;
+      old_rusi->sse[RESTORE_SGRPROJ] = old_unit->merge_sse;
+      rsc->sse -= old_unit->current_sse;
+      rsc->sse += old_unit->merge_sse;
+      rsc->bits -= old_unit->current_bits;
+      rsc->bits += old_unit->merge_bits;
+      old_unit->current_sse = old_unit->merge_sse;
+      old_unit->current_bits = old_unit->merge_bits;
+    }
+    rsc->sgrproj = rui_temp.sgrproj_info;
+  } else {
+    // Copy current unit from the top of the stack.
+    memset(&unit_snapshot, 0, sizeof(unit_snapshot));
+    unit_snapshot = *(RstUnitSnapshot *)aom_vector_back(current_unit_stack);
+    // RESTORE_SGRPROJ units become start of new stack, and
+    // RESTORE_NONE units are discarded.
+    if (rtype == RESTORE_SGRPROJ) {
+      rsc->sgrproj = rusi->sgrproj;
+      aom_vector_clear(current_unit_stack);
+      aom_vector_push_back(current_unit_stack, &unit_snapshot);
+    } else {
+      aom_vector_pop_back(current_unit_stack);
+    }
+  }
+#else   // CONFIG_RST_MERGECOEFFS
   const int64_t bits_sgr = x->sgrproj_restore_cost[1] +
                            (count_sgrproj_bits(&rusi->sgrproj, &rsc->sgrproj)
                             << AV1_PROB_COST_SHIFT);
-
-  double cost_none =
-      RDCOST_DBL(x->rdmult, bits_none >> 4, rusi->sse[RESTORE_NONE]);
   double cost_sgr =
       RDCOST_DBL(x->rdmult, bits_sgr >> 4, rusi->sse[RESTORE_SGRPROJ]);
-  if (rusi->sgrproj.ep < 10)
-    cost_sgr *= (1 + DUAL_SGR_PENALTY_MULT * rsc->sf->dual_sgr_penalty_level);
+  if (rusi->sgrproj.ep < DUAL_SGR_EP_PENALTY_THRESHOLD)
+    cost_sgr *= dual_sgr_penalty_sf_mult;
 
   RestorationType rtype =
       (cost_sgr < cost_none) ? RESTORE_SGRPROJ : RESTORE_NONE;
@@ -776,6 +911,7 @@ static void search_sgrproj(const RestorationTileLimits *limits,
   rsc->sse += rusi->sse[rtype];
   rsc->bits += (cost_sgr < cost_none) ? bits_sgr : bits_none;
   if (cost_sgr < cost_none) rsc->sgrproj = rusi->sgrproj;
+#endif  // CONFIG_RST_MERGECOEFFS
 }
 
 void av1_compute_stats_c(int wiener_win, const uint8_t *dgd, const uint8_t *src,

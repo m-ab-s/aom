@@ -407,6 +407,9 @@ typedef struct RstUnitSnapshot {
   double b[WIENERNS_MAX];
   WienerNonsepInfo ref_wiener_nonsep;
 #endif  // CONFIG_WIENER_NONSEP
+  // Sgrproj filter info
+  SgrprojInfo unit_sgrproj;
+  SgrprojInfo ref_sgrproj;
 } RstUnitSnapshot;
 #endif  // CONFIG_RST_MERGECOEFFS
 
