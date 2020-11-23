@@ -2166,16 +2166,12 @@ static void search_wiener_nonsep(const RestorationTileLimits *limits,
          << AV1_PROB_COST_SHIFT);
     double cost_wienerns = RDCOST_DBL(x->rdmult, bits_wienerns >> 4,
                                       rusi->sse[RESTORE_WIENER_NONSEP]);
-    if (cost_wienerns < cost_none) {
-      rsc->wiener_nonsep = rusi->wiener_nonsep;
-      rsc->bits += bits_wienerns;
-      rsc->sse += rusi->sse[RESTORE_WIENER_NONSEP];
-      rusi->best_rtype[RESTORE_WIENER_NONSEP - 1] = RESTORE_WIENER_NONSEP;
-    } else {
-      rsc->bits += bits_none;
-      rsc->sse += rusi->sse[RESTORE_NONE];
-      rusi->best_rtype[RESTORE_WIENER_NONSEP - 1] = RESTORE_NONE;
-    }
+    RestorationType rtype =
+        (cost_wienerns < cost_none) ? RESTORE_WIENER_NONSEP : RESTORE_NONE;
+    rusi->best_rtype[RESTORE_WIENER_NONSEP - 1] = rtype;
+    rsc->sse = rusi->sse[rtype];
+    rsc->bits += (cost_wienerns < cost_none) ? bits_wienerns : bits_none;
+    if (cost_wienerns < cost_none) rsc->wiener_nonsep = rusi->wiener_nonsep;
 #endif  // CONFIG_RST_MERGECOEFFS
   } else {
     rsc->bits += bits_none;
