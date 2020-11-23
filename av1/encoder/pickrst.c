@@ -1359,6 +1359,8 @@ static void search_wiener(const RestorationTileLimits *limits,
   finalize_sym_filter(reduced_wiener_win, hfilter, rui.wiener_info.hfilter);
 
   const int64_t bits_none = x->wiener_restore_cost[0];
+  double cost_none =
+      RDCOST_DBL(x->rdmult, bits_none >> 4, rusi->sse[RESTORE_NONE]);
 #if !CONFIG_RST_MERGECOEFFS
   // Disabled for experiment because it doesn't factor reduced bit count
   // into calculations.
@@ -1390,8 +1392,6 @@ static void search_wiener(const RestorationTileLimits *limits,
 
 #if CONFIG_RST_MERGECOEFFS
   Vector *current_unit_stack = rsc->unit_stack;
-  double cost_none =
-      RDCOST_DBL(x->rdmult, bits_none >> 4, rusi->sse[RESTORE_NONE]);
   int64_t bits_nomerge =
       x->wiener_restore_cost[1] + x->merged_param_cost[0] +
       (count_wiener_bits(wiener_win, &rusi->wiener, &rsc->wiener)
@@ -1399,9 +1399,11 @@ static void search_wiener(const RestorationTileLimits *limits,
   double cost_nomerge =
       RDCOST_DBL(x->rdmult, bits_nomerge >> 4, rusi->sse[RESTORE_WIENER]);
   RestorationType rtype =
-      (cost_nomerge < cost_none) ? RESTORE_WIENER : RESTORE_NONE;
-  bits_nomerge = (cost_nomerge < cost_none) ? bits_nomerge : bits_none;
-  cost_nomerge = (cost_nomerge < cost_none) ? cost_nomerge : cost_none;
+      (cost_none <= cost_nomerge) ? RESTORE_NONE : RESTORE_WIENER;
+  if (cost_none <= cost_nomerge) {
+    bits_nomerge = bits_none;
+    cost_nomerge = cost_none;
+  }
 
   RstUnitSnapshot unit_snapshot;
   memset(&unit_snapshot, 0, sizeof(unit_snapshot));
@@ -1428,7 +1430,6 @@ static void search_wiener(const RestorationTileLimits *limits,
   if (rtype == RESTORE_WIENER && check_wiener_eq(&rusi->wiener, &rsc->wiener)) {
     rsc->bits -= bits_nomerge;
     rsc->bits += x->wiener_restore_cost[1] + x->merged_param_cost[1];
-    rsc->wiener = rusi->wiener;
     unit_snapshot.current_bits =
         x->wiener_restore_cost[1] + x->merged_param_cost[1];
     aom_vector_push_back(current_unit_stack, &unit_snapshot);
@@ -1534,8 +1535,6 @@ static void search_wiener(const RestorationTileLimits *limits,
       x->wiener_restore_cost[1] +
       (count_wiener_bits(wiener_win, &rusi->wiener, &rsc->wiener)
        << AV1_PROB_COST_SHIFT);
-  double cost_none =
-      RDCOST_DBL(x->rdmult, bits_none >> 4, rusi->sse[RESTORE_NONE]);
   double cost_wiener =
       RDCOST_DBL(x->rdmult, bits_wiener >> 4, rusi->sse[RESTORE_WIENER]);
   RestorationType rtype =
@@ -1907,7 +1906,6 @@ static void search_wiener_nonsep(const RestorationTileLimits *limits,
         check_wienerns_eq(is_uv, &rusi->wiener_nonsep, &rsc->wiener_nonsep)) {
       rsc->bits -= bits_nomerge;
       rsc->bits += x->wiener_nonsep_restore_cost[1] + x->merged_param_cost[1];
-      rsc->wiener_nonsep = rusi->wiener_nonsep;
       unit_snapshot.current_bits =
           x->wiener_nonsep_restore_cost[1] + x->merged_param_cost[1];
       aom_vector_push_back(current_unit_stack, &unit_snapshot);
@@ -1935,7 +1933,7 @@ static void search_wiener_nonsep(const RestorationTileLimits *limits,
       old_unit->merge_sse = 0;
       old_unit->merge_bits = 0;
     }
-    // Divide M and H by vector size + 1 to get average.
+    // Divide A and b by vector size + 1 to get average.
     for (int index = 0; index < WIENERNS_MAX * WIENERNS_MAX; ++index) {
       A_AVG[index] =
           DIVIDE_AND_ROUND(A_AVG[index], current_unit_stack->size + 1);
