@@ -15,15 +15,24 @@ related to super-resolution and Adaptive Streaming use cases.
 
 For questions and technical support, please contact debargha@google.com
 
+LIBRARY
+#######
+
 The main library source and header files are:
 lanczos_resample.c
 lanczos_resample.h
+
+
+UTILITIES
+#########
 
 In addition, two utilities are provided to resample y4m and yuv videos
 respectively:
 lanczos_resample_y4m (built using source lanczos_resample_y4m.c)
 lanczos_resample_y4m (built using source lanczos_resample_yuv.c)
 
+lanczos_resample_y4m
+--------------------
 The usage of lanczos_resample_y4m is:
   lanczos_resample_y4m
       <y4m_input>
@@ -85,6 +94,8 @@ Example usages:
     lanczos_resample_y4m /tmp/down.y4m 10 3:2:6:i0.125 4:3:6 /tmp/downup.y4m \
                          1920x1080
 
+lanczos_resample_yuv
+--------------------
 The usage of lanczos_resample_yuv is similar but with two extra
 arguments to specify the input format:
   lanczos_resample_yuv
@@ -117,10 +128,20 @@ arguments to specify the input format:
           is regarded as a no-op in that direction.
 
 
+SCRIPTS
+#######
 
-In addition to these utilities, a script lanczos_downup.sh is provided
-downsample a video with specified parameters and then reversing the
-process using two lanczos_resample_y4m commands. The usage for the script is:
+In addition to these utilities, two convenience scripts are provided:
+lanczos_downup.sh
+lanczos_downcompup.sh
+They can be invoked from the build directory directly after a build that
+produces lanczos_resample_y4m, aomenc and aomdec applications.
+
+lanczos_downup.sh
+-----------------
+The script lanczos_downup.sh resamples a video with specified parameters
+and then reverses the process using two lanczos_resample_y4m commands.
+The usage for the script is:
 
   lanczos_downup.sh
       <y4m_input>
@@ -140,5 +161,67 @@ process using two lanczos_resample_y4m commands. The usage for the script is:
               <vert_p>:<vert_q>:<Lanczos_vert_a>[:vert_x0]
           similar to what is used by lanczos_resample_y4m utility.
       <downup_y4m> is the output y4m video.
-      <down_y4m> is optional. If skipped the intermediate resolution
+      <down_y4m> provides the intermedite resampled file as an
+          optional parameter. If skipped the intermediate resampled
           file is deleted.
+
+lanczos_downcompup.sh
+---------------------
+The script lanczos_downcompup.sh resamples a video with specified parameters
+using lanczos_resample_y4m, then comprsses and decompresses using aomenc and
+aomdec respectively, and finally reverse resamples the decompressed video to
+the source resolution using another lanczos_resample_y4m command.
+The usage for the script is:
+
+  lanczos_downcompup.sh <input_y4m> <num_frames>
+                        <resample_config_horz>
+                        <resample_config_vert>
+                        <cq_level>[:<cpu_used>]
+                        <downcompup_y4m>
+                        [[<down_y4m>]:[<downcomp_bit>]:[<downcomp_y4m]]
+
+  Notes:
+      <y4m_input> is input y4m video
+      <num_frames> is number of frames to process
+      <horz_resampling_config> is in the format:
+              <horz_p>:<horz_q>:<Lanczos_horz_a>[:horz_x0]
+          similar to what is used by lanczos_resample_y4m utility.
+      <vert_resampling_config> is in the format:
+              <vert_p>:<vert_q>:<Lanczos_vert_a>[:vert_x0]
+          similar to what is used by lanczos_resample_y4m utility.
+      <cq_level>[:<cpu_used>] provides the cq_level parameter of
+          compression along with an optional cpu_used parameter.
+      <downcompup_y4m> is the output y4m video.
+      The last param [[<down_y4m>]:[<downcomp_bit>]:[<downcomp_y4m]]
+          provides names of intermediate files where:
+	      down_y4m is the resampled source
+	      downcomp_bit is the compressed resampled bitstream
+	      downcomp_y4m is the reconstructed bitstream.
+          This parameter string is entirely optional.
+          Besides if provided, each of down_y4m, downcomp_bit and
+          downcomp_y4m are optional by themselves where each can be
+          either provided or empty. If empty the corresponding
+	  intermediate file is deleted.
+
+Example usages:
+4. Similar to use case 1a and 1b above with a compression step in between.
+
+  From build directory run:
+  /path/to/script/lanczos_downcompup.sh Boat_1920x1080_60fps_10bit_420.y4m \
+      20 2:3:6 3:4:6 40:5 /tmp/downup.y4m
+          [Here no intermediate files are stored]
+
+  From build directory run:
+  /path/to/script/lanczos_downcompup.sh Boat_1920x1080_60fps_10bit_420.y4m \
+      20 2:3:6 3:4:6 40:5 /tmp/downup.y4m i\
+      /tmp/down.y4m::/tmp/downrec.y4m
+          [Here the resampled source and its compressed reconstruction are
+           stoted in /tmp/down.y4m and /tmp/downrec.y4m respectively].
+
+  From build directory run:
+  /path/to/script/lanczos_downcompup.sh Boat_1920x1080_60fps_10bit_420.y4m \
+      20 2:3:6 3:4:6 40:5 /tmp/downup.y4m \
+      /tmp/down.y4m:/tmp/down.bit:/tmp/downrec.y4m
+          [Here the resampled source, its compressed bitstream, and the
+	   conpressed reconstruction are stoted in /tmp/down.y4m,
+	   /tmp/downcomp.bit and /tmp/downrec.y4m respectively].
