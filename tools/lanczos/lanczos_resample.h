@@ -49,24 +49,11 @@ void get_resample_filter_inv(int p, int q, int a, double x0, int bits,
 // whether the resampler filter is a no-op
 int is_resampler_noop(RationalResampleFilter *rf);
 
+// 16-bit versions of high-level resampling functions
+
 // Assume no extension of the input x buffer
 void resample_1d(const int16_t *x, int inlen, RationalResampleFilter *rf,
                  int downshift, ClipProfile *clip, int16_t *y, int outlen);
-
-// Assume a scratch buffer xext of size inlen + rf->length is provided
-void resample_1d_xc(const int16_t *x, int inlen, RationalResampleFilter *rf,
-                    int downshift, ClipProfile *clip, int16_t *y, int outlen,
-                    int16_t *xext);
-
-// Assume x buffer is already extended on both sides with x pointing to the
-// leftmost pixel, but the extension values are not filled up.
-void resample_1d_xt(int16_t *x, int inlen, RationalResampleFilter *rf,
-                    int downshift, ClipProfile *clip, int16_t *y, int outlen);
-
-// Assume x buffer is already extended on both sides with x pointing to the
-// leftmost pixel, and the extension values are already filled up.
-void resample_1d_core(const int16_t *x, int inlen, RationalResampleFilter *rf,
-                      int downshift, ClipProfile *clip, int16_t *y, int outlen);
 
 void resample_2d(const int16_t *x, int inwidth, int inheight, int instride,
                  RationalResampleFilter *rfh, RationalResampleFilter *rfv,
@@ -76,9 +63,29 @@ void resample_2d(const int16_t *x, int inwidth, int inheight, int instride,
 void resample_horz(const int16_t *x, int inwidth, int inheight, int instride,
                    RationalResampleFilter *rfh, ClipProfile *clip, int16_t *y,
                    int outwidth, int outstride);
+
 void resample_vert(const int16_t *x, int inwidth, int inheight, int instride,
                    RationalResampleFilter *rfv, ClipProfile *clip, int16_t *y,
                    int outheight, int outstride);
+
+// 8-bit versions of high-level resampling functions
+
+// Assume no extension of the input x buffer
+void resample_1d_8b(const uint8_t *x, int inlen, RationalResampleFilter *rf,
+                    int downshift, ClipProfile *clip, uint8_t *y, int outlen);
+
+void resample_2d_8b(const uint8_t *x, int inwidth, int inheight, int instride,
+                    RationalResampleFilter *rfh, RationalResampleFilter *rfv,
+                    int int_extra_bits, ClipProfile *clip, uint8_t *y,
+                    int outwidth, int outheight, int outstride);
+
+void resample_horz_8b(const uint8_t *x, int inwidth, int inheight, int instride,
+                      RationalResampleFilter *rfh, ClipProfile *clip,
+                      uint8_t *y, int outwidth, int outstride);
+
+void resample_vert_8b(const uint8_t *x, int inwidth, int inheight, int instride,
+                      RationalResampleFilter *rfv, ClipProfile *clip,
+                      uint8_t *y, int outheight, int outstride);
 
 void show_resample_filter(RationalResampleFilter *rf);
 

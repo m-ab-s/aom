@@ -230,8 +230,6 @@ int main(int argc, char *argv[]) {
       (uint8_t *)malloc((ysize + 2 * uvsize) * bytes_per_pel * sizeof(uint8_t));
   uint8_t *outbuf = (uint8_t *)malloc((rysize + 2 * ruvsize) * bytes_per_pel *
                                       sizeof(uint8_t));
-  int16_t *src = (int16_t *)malloc((ysize + 2 * uvsize) * sizeof(int16_t));
-  int16_t *res = (int16_t *)malloc((rysize + 2 * ruvsize) * sizeof(int16_t));
 
   ClipProfile clip = { bitdepth, 0 };
 
@@ -245,45 +243,38 @@ int main(int argc, char *argv[]) {
       break;
     }
     if (fread(inbuf, (ysize + 2 * uvsize) * bytes_per_pel, 1, fin) != 1) break;
-    int16_t *s, *r;
     if (bytes_per_pel == 1) {
-      uint8_t *d = inbuf;
-      s = src;
-      for (int i = 0; i < ysize + 2 * uvsize; ++i) *s++ = (int16_t)(*d++);
+      uint8_t *s = inbuf;
+      uint8_t *r = outbuf;
+      resample_2d_8b(s, ywidth, yheight, ywidth, &horz_rf, &vert_rf,
+                     int_extra_bits, &clip, r, rywidth, ryheight, rywidth);
+      s += ysize;
+      r += rysize;
+      resample_2d_8b(s, uvwidth, uvheight, uvwidth, &horz_rf, &vert_rf,
+                     int_extra_bits, &clip, r, ruvwidth, ruvheight, ruvwidth);
+      s += uvsize;
+      r += ruvsize;
+      resample_2d_8b(s, uvwidth, uvheight, uvwidth, &horz_rf, &vert_rf,
+                     int_extra_bits, &clip, r, ruvwidth, ruvheight, ruvwidth);
     } else {
-      uint16_t *d = (uint16_t *)inbuf;
-      s = src;
-      for (int i = 0; i < ysize + 2 * uvsize; ++i) *s++ = (int16_t)(*d++);
-    }
-    s = src;
-    r = res;
-    resample_2d(s, ywidth, yheight, ywidth, &horz_rf, &vert_rf, int_extra_bits,
-                &clip, r, rywidth, ryheight, rywidth);
-    s += ysize;
-    r += rysize;
-    resample_2d(s, uvwidth, uvheight, uvwidth, &horz_rf, &vert_rf,
-                int_extra_bits, &clip, r, ruvwidth, ruvheight, ruvwidth);
-    s += uvsize;
-    r += ruvsize;
-    resample_2d(s, uvwidth, uvheight, uvwidth, &horz_rf, &vert_rf,
-                int_extra_bits, &clip, r, ruvwidth, ruvheight, ruvwidth);
-    if (bytes_per_pel == 1) {
-      uint8_t *d = outbuf;
-      r = res;
-      for (int i = 0; i < rysize + 2 * ruvsize; ++i) *d++ = (uint8_t)(*r++);
-    } else {
-      uint16_t *d = (uint16_t *)outbuf;
-      r = res;
-      for (int i = 0; i < rysize + 2 * ruvsize; ++i) *d++ = (uint16_t)(*r++);
+      int16_t *s = (int16_t *)inbuf;
+      int16_t *r = (int16_t *)outbuf;
+      resample_2d(s, ywidth, yheight, ywidth, &horz_rf, &vert_rf,
+                  int_extra_bits, &clip, r, rywidth, ryheight, rywidth);
+      s += ysize;
+      r += rysize;
+      resample_2d(s, uvwidth, uvheight, uvwidth, &horz_rf, &vert_rf,
+                  int_extra_bits, &clip, r, ruvwidth, ruvheight, ruvwidth);
+      s += uvsize;
+      r += ruvsize;
+      resample_2d(s, uvwidth, uvheight, uvwidth, &horz_rf, &vert_rf,
+                  int_extra_bits, &clip, r, ruvwidth, ruvheight, ruvwidth);
     }
     fwrite(frametag, 6, 1, fout);
     fwrite(outbuf, (rysize + 2 * ruvsize) * bytes_per_pel, 1, fout);
   }
   fclose(fin);
   fclose(fout);
-
   free(inbuf);
   free(outbuf);
-  free(src);
-  free(res);
 }
