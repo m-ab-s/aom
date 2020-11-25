@@ -165,6 +165,20 @@ The usage for the script is:
           optional parameter. If skipped the intermediate resampled
           file is deleted.
 
+Example usages:
+4. Similar to use case 1a and 1b above.
+
+  From build directory run:
+  /path/to/script/lanczos_downup.sh Boat_1920x1080_60fps_10bit_420.y4m \
+      20 2:3:6 3:4:6 /tmp/downup.y4m
+          [Here the intermediate resampled files is not stored]
+
+  From build directory run:
+  /path/to/script/lanczos_downup.sh Boat_1920x1080_60fps_10bit_420.y4m \
+      20 2:3:6 3:4:6 /tmp/downup.y4m \
+      /tmp/down.y4m
+          [Here the intermediate resampled files is stored in /tmp/down.y4m]
+
 lanczos_downcompup.sh
 ---------------------
 The script lanczos_downcompup.sh resamples a video with specified parameters
@@ -204,7 +218,7 @@ The usage for the script is:
 	  intermediate file is deleted.
 
 Example usages:
-4. Similar to use case 1a and 1b above with a compression step in between.
+5. Similar to use case 1a and 1b above with a compression step in between.
 
   From build directory run:
   /path/to/script/lanczos_downcompup.sh Boat_1920x1080_60fps_10bit_420.y4m \
@@ -213,7 +227,7 @@ Example usages:
 
   From build directory run:
   /path/to/script/lanczos_downcompup.sh Boat_1920x1080_60fps_10bit_420.y4m \
-      20 2:3:6 3:4:6 40:5 /tmp/downup.y4m i\
+      20 2:3:6 3:4:6 40:5 /tmp/downup.y4m \
       /tmp/down.y4m::/tmp/downrec.y4m
           [Here the resampled source and its compressed reconstruction are
            stoted in /tmp/down.y4m and /tmp/downrec.y4m respectively].
