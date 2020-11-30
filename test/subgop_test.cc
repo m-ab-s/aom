@@ -435,4 +435,142 @@ TEST_P(SubGopTestLarge, SubGopTest) {
 //                           ::testing::Values(AOM_Q, AOM_VBR, AOM_CQ,
 //                           AOM_CBR));
 
+typedef struct {
+  const char *subgop_str;
+  const char *input_file;
+  int frame_w;
+  int frame_h;
+  int cpu_used;
+} SubgopPsnrTestParams;
+
+static const SubgopPsnrTestParams SubGopPsnrTestVectors[] = {
+  { subgop_config_str_preset_map[DEFAULT].preset_tag,
+    "hantro_collage_w352h288.yuv", 352, 288, 3 },
+  { subgop_config_str_preset_map[DEFAULT].preset_tag, "desktop1.320_180.yuv",
+    320, 180, 5 },
+
+  { subgop_config_str_preset_map[ENHANCE].preset_tag,
+    "hantro_collage_w352h288.yuv", 352, 288, 3 },
+  { subgop_config_str_preset_map[ENHANCE].preset_tag,
+    "pixel_capture_w320h240.yuv", 320, 240, 5 },
+  // TODO(any): Enable after fix
+  /* { subgop_config_str_preset_map[ENHANCE].preset_tag, "paris_352_288_30.y4m",
+     352, 288, 3 },
+     { subgop_config_str_preset_map[ENHANCE].preset_tag, "screendata.y4m", 640,
+     480, 5 },
+     { subgop_config_str_preset_map[ENHANCE].preset_tag, "paris_352_288_30.y4m",
+     352, 288, 5 }, */
+
+  { subgop_config_str_preset_map[ASYMMETRIC].preset_tag,
+    "pixel_capture_w320h240.yuv", 320, 240, 5 },
+  // TODO(any): Enable after fix
+  /* { subgop_config_str_preset_map[ASYMMETRIC].preset_tag,
+    "desktop1.320_180.yuv", 320, 180, 3 }, */
+
+  { subgop_config_str_preset_map[TEMPORAL_SCALABLE].preset_tag,
+    "hantro_collage_w352h288.yuv", 352, 288, 5 },
+
+  // TODO(any) : Enable ld config
+  /* { subgop_config_str_preset_map[LOW_DELAY].preset_tag,
+     "paris_352_288_30.y4m", 352, 288, 5 },
+     { subgop_config_str_preset_map[LOW_DELAY].preset_tag,
+     "desktop1.320_180.yuv", 320, 180, 3 }, */
+};
+
+std::ostream &operator<<(std::ostream &os,
+                         const SubgopPsnrTestParams &test_arg) {
+  return os << "SubgopPsnrTestParams { sub_gop_config:" << test_arg.subgop_str
+            << " source_file:" << test_arg.input_file
+            << " frame_width:" << test_arg.frame_w
+            << " frame_height:" << test_arg.frame_h
+            << " cpu_used:" << test_arg.cpu_used << " }";
+}
+
+class SubGopPSNRCheckTest
+    : public ::libaom_test::CodecTestWith2Params<SubgopPsnrTestParams,
+                                                 aom_rc_mode>,
+      public ::libaom_test::EncoderTest {
+ protected:
+  SubGopPSNRCheckTest()
+      : EncoderTest(GET_PARAM(0)), test_params_(GET_PARAM(1)),
+        rc_end_usage_(GET_PARAM(2)) {
+    Reset();
+  }
+  virtual ~SubGopPSNRCheckTest() {}
+
+  void Reset() {
+    frame_num_ = 0;
+    total_psnr_ = 0.0;
+    enable_subgop_ = 0;
+  }
+
+  virtual void SetUp() {
+    InitializeConfig();
+    SetMode(::libaom_test::kOnePassGood);
+    cfg_.g_threads = 1;
+    cfg_.g_lag_in_frames = 35;
+    cfg_.rc_end_usage = rc_end_usage_;
+    init_flags_ = AOM_CODEC_USE_PSNR;
+  }
+
+  virtual void PSNRPktHook(const aom_codec_cx_pkt_t *pkt) {
+    // Accumulate total psnr
+    total_psnr_ += pkt->data.psnr.psnr[0];
+    frame_num_++;
+  }
+
+  double GetAveragePsnr() const {
+    if (frame_num_) return total_psnr_ / frame_num_;
+    return 0.0;
+  }
+
+  virtual void PreEncodeFrameHook(::libaom_test::VideoSource *video,
+                                  ::libaom_test::Encoder *encoder) {
+    if (video->frame() == 0) {
+      encoder->Control(AOME_SET_CPUUSED, test_params_.cpu_used);
+      if (enable_subgop_)
+        encoder->Control(AV1E_SET_SUBGOP_CONFIG_STR, test_params_.subgop_str);
+    }
+  }
+  unsigned int enable_subgop_;
+  SubgopPsnrTestParams test_params_;
+
+ private:
+  aom_rc_mode rc_end_usage_;
+  double total_psnr_;
+  unsigned int frame_num_;
+};
+
+TEST_P(SubGopPSNRCheckTest, SubGopPSNRCheck) {
+  std::unique_ptr<libaom_test::VideoSource> video;
+  const unsigned int kFrames = 100;
+  const double psnr_diff_thresh = 0.2;
+  if (is_extension_y4m(test_params_.input_file)) {
+    video.reset(
+        new libaom_test::Y4mVideoSource(test_params_.input_file, 0, kFrames));
+  } else {
+    video.reset(new libaom_test::YUVVideoSource(
+        test_params_.input_file, AOM_IMG_FMT_I420, test_params_.frame_w,
+        test_params_.frame_h, 30, 1, 0, kFrames));
+  }
+
+  // Encode with no sub-gop configuration
+  ASSERT_NO_FATAL_FAILURE(RunLoop(video.get()));
+  const double psnr_no_subgop_ = GetAveragePsnr();
+  Reset();
+
+  // Encode with default sub-gop configuration
+  enable_subgop_ = 1;
+  ASSERT_NO_FATAL_FAILURE(RunLoop(video.get()));
+  const double psnr_subgop_ = GetAveragePsnr();
+
+  const double psnr_diff = psnr_subgop_ - psnr_no_subgop_;
+  EXPECT_LE(abs(psnr_diff), psnr_diff_thresh);
+}
+
+// TODO(any) : Enable AOM_CBR after fix
+AV1_INSTANTIATE_TEST_SUITE(SubGopPSNRCheckTest,
+                           ::testing::ValuesIn(SubGopPsnrTestVectors),
+                           ::testing::Values(AOM_Q, AOM_VBR,
+                                             AOM_CQ /*, AOM_CBR*/));
 }  // namespace
