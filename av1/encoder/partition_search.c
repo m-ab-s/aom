@@ -906,22 +906,19 @@ static int rd_try_subblock_new(AV1_COMP *const cpi, ThreadData *td,
                                rdo_data->sms_tree, NULL, multi_pass_mode))
       return 0;
   } else {
-#if USE_OLD_PREDICTION_MODE
     const BLOCK_SIZE sb_size = cpi->common.seq_params.sb_size;
     SimpleMotionData *sms_data =
         av1_get_sms_data_entry(x->sms_bufs, mi_row, mi_col, bsize, sb_size);
     av1_set_best_mode_cache(x, sms_data->mode_cache);
-#endif  // USE_OLD_PREDICTION_MODE
+
     pick_sb_modes(cpi, tile_data, x, mi_row, mi_col, &this_rdc,
                   rdo_data->partition, bsize, rdo_data->ctx, rdcost_remaining,
                   PICK_MODE_RD);
-#if USE_OLD_PREDICTION_MODE
+
     x->inter_mode_cache = NULL;
-    x->reuse_inter_mode_cache_type = 0;
     if (this_rdc.rate != INT_MAX) {
       av1_add_mode_search_context_to_cache(sms_data, rdo_data->ctx);
     }
-#endif  // USE_OLD_PREDICTION_MODE
   }
 
   if (this_rdc.rate == INT_MAX) {
@@ -1113,20 +1110,19 @@ static INLINE void search_partition_none(
     partition_timer_on = 1;
   }
 #endif
-#if CONFIG_EXT_RECUR_PARTITIONS && USE_OLD_PREDICTION_MODE
+#if CONFIG_EXT_RECUR_PARTITIONS
   SimpleMotionData *sms_data = av1_get_sms_data_entry(
       x->sms_bufs, mi_row, mi_col, bsize, cm->seq_params.sb_size);
   av1_set_best_mode_cache(x, sms_data->mode_cache);
-#endif  // CONFIG_EXT_RECUR_PARTITIONS && USE_OLD_PREDICTION_MODE
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   pick_sb_modes(cpi, tile_data, x, mi_row, mi_col, &this_rdc, PARTITION_NONE,
                 bsize, ctx_none, best_remain_rdcost, PICK_MODE_RD);
-#if CONFIG_EXT_RECUR_PARTITIONS && USE_OLD_PREDICTION_MODE
+#if CONFIG_EXT_RECUR_PARTITIONS
   x->inter_mode_cache = NULL;
-  x->reuse_inter_mode_cache_type = 0;
   if (this_rdc.rate != INT_MAX) {
     av1_add_mode_search_context_to_cache(sms_data, ctx_none);
   }
-#endif  // CONFIG_EXT_RECUR_PARTITIONS && USE_OLD_PREDICTION_MODE
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   av1_rd_cost_update(x->rdmult, &this_rdc);
 #if CONFIG_COLLECT_PARTITION_STATS
   if (partition_timer_on) {
@@ -2483,10 +2479,9 @@ static INLINE void search_partition_vert_3(PartitionSearchState *search_state,
   av1_restore_context(cm, x, x_ctx, mi_row, mi_col, bsize, num_planes);
 }
 
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
-
 #define PRUNE_WITH_PREV_PARTITION(cur_partition) \
   (prev_partition != PARTITION_INVALID && prev_partition != (cur_partition))
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
 bool av1_rd_pick_partition(AV1_COMP *const cpi, ThreadData *td,
                            TileDataEnc *tile_data, TOKENEXTRA **tp, int mi_row,
@@ -2506,14 +2501,10 @@ bool av1_rd_pick_partition(AV1_COMP *const cpi, ThreadData *td,
   av1_init_partition_search_state(&search_state, x, cpi, pc_tree, mi_row,
                                   mi_col, bsize, max_sq_part, min_sq_part);
   const PartitionBlkParams *blk_params = &search_state.part_blk_params;
+#if CONFIG_EXT_RECUR_PARTITIONS
   const PARTITION_TYPE prev_partition =
-#if CONFIG_EXT_RECUR_PARTITIONS
       av1_get_prev_partition(cpi, x, mi_row, mi_col, bsize);
-#else
-      PARTITION_INVALID;
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
-#if CONFIG_EXT_RECUR_PARTITIONS
   if (sms_tree != NULL)
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
     sms_tree->partitioning = PARTITION_NONE;
@@ -2743,11 +2734,16 @@ BEGIN_PARTITION_SEARCH:
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
   int64_t part_none_rd = INT64_MAX;
 
-  if (!PRUNE_WITH_PREV_PARTITION(PARTITION_NONE)) {
+#if CONFIG_EXT_RECUR_PARTITIONS
+  if (IMPLIES(should_reuse_mode(x, REUSE_PARTITION_MODE_FLAG),
+              !PRUNE_WITH_PREV_PARTITION(PARTITION_NONE))) {
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
     search_partition_none(&search_state, cpi, td, tile_data, &best_rdc, pc_tree,
                           sms_tree, &x_ctx, &pb_source_variance, none_rd,
                           &part_none_rd);
+#if CONFIG_EXT_RECUR_PARTITIONS
   }
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
   // PARTITION_SPLIT
 #if !(CONFIG_EXT_RECUR_PARTITIONS && !KEEP_PARTITION_SPLIT)
@@ -2789,16 +2785,26 @@ BEGIN_PARTITION_SEARCH:
   }
 
   // PARTITION_HORZ
-  if (!PRUNE_WITH_PREV_PARTITION(PARTITION_HORZ)) {
+#if CONFIG_EXT_RECUR_PARTITIONS
+  if (IMPLIES(should_reuse_mode(x, REUSE_PARTITION_MODE_FLAG),
+              !PRUNE_WITH_PREV_PARTITION(PARTITION_HORZ))) {
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
     search_partition_horz(&search_state, cpi, td, tile_data, tp, &best_rdc,
                           pc_tree, &x_ctx, multi_pass_mode);
+#if CONFIG_EXT_RECUR_PARTITIONS
   }
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
   // PARTITION_VERT
-  if (!PRUNE_WITH_PREV_PARTITION(PARTITION_VERT)) {
+#if CONFIG_EXT_RECUR_PARTITIONS
+  if (IMPLIES(should_reuse_mode(x, REUSE_PARTITION_MODE_FLAG),
+              !PRUNE_WITH_PREV_PARTITION(PARTITION_VERT))) {
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
     search_partition_vert(&search_state, cpi, td, tile_data, tp, &best_rdc,
                           pc_tree, &x_ctx, multi_pass_mode);
+#if CONFIG_EXT_RECUR_PARTITIONS
   }
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
   if (pb_source_variance == UINT_MAX) {
     av1_setup_src_planes(x, cpi->source, mi_row, mi_col, num_planes,
@@ -2847,13 +2853,15 @@ BEGIN_PARTITION_SEARCH:
                     pb_source_variance, ext_partition_allowed);
 
   // PARTITION_HORZ_3
-  if (!PRUNE_WITH_PREV_PARTITION(PARTITION_HORZ_3)) {
+  if (IMPLIES(should_reuse_mode(x, REUSE_PARTITION_MODE_FLAG),
+              !PRUNE_WITH_PREV_PARTITION(PARTITION_HORZ_3))) {
     search_partition_horz_3(&search_state, cpi, td, tile_data, tp, &best_rdc,
                             pc_tree, &x_ctx, multi_pass_mode);
   }
 
   // PARTITION_VERT_3
-  if (!PRUNE_WITH_PREV_PARTITION(PARTITION_VERT_3)) {
+  if (IMPLIES(should_reuse_mode(x, REUSE_PARTITION_MODE_FLAG),
+              !PRUNE_WITH_PREV_PARTITION(PARTITION_VERT_3))) {
     search_partition_vert_3(&search_state, cpi, td, tile_data, tp, &best_rdc,
                             pc_tree, &x_ctx, multi_pass_mode);
   }
@@ -2960,9 +2968,10 @@ BEGIN_PARTITION_SEARCH:
   }
 
   int keep_tree = 0;
-#if CONFIG_EXT_RECUR_PARTITIONS && USE_OLD_PREDICTION_MODE
-  keep_tree = 1;
-#endif  // CONFIG_EXT_RECUR_PARTITIONS && USE_OLD_PREDICTION_MODE
+#if CONFIG_EXT_RECUR_PARTITIONS
+  keep_tree = should_reuse_mode(x, REUSE_INTER_MODE_IN_INTERFRAME_FLAG |
+                                       REUSE_INTRA_MODE_IN_INTERFRAME_FLAG);
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
   if (!pc_tree_dealloc && !keep_tree) {
     av1_free_pc_tree_recursive(pc_tree, num_planes, 1, 1);
