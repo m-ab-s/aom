@@ -15,8 +15,6 @@
 #include "test/util.h"
 #include "third_party/googletest/src/googletest/include/gtest/gtest.h"
 
-#if CONFIG_INTERINTRA_ML_DATA_COLLECT
-
 namespace {
 
 // Testing infrastructure for the L-shape copy function. In all test
@@ -320,5 +318,3 @@ TEST_F(InterIntraMLDataCollectTest, SerializeHighbd) {
 }
 
 }  // namespace
-
-#endif  // CONFIG_INTERINTRA_ML_DATA_COLLECT
