@@ -737,7 +737,7 @@ void make_inter_pred_of_nxn(
   for (int j = 0; j <= h - n; j += n) {
     for (int i = 0; i <= w - n; i += n) {
       calc_subpel_params_func(xd, sf, &(mv_refined[n_blocks * 2 + ref].as_mv),
-                              plane, pre_x, pre_y, j, i, pre_buf, 8, 8,
+                              plane, pre_x, pre_y, i, j, pre_buf, n, n,
                               warp_types, ref, 1, calc_subpel_params_func_args,
                               &pre, subpel_params, &src_stride);
       av1_make_inter_predictor_aux(
