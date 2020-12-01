@@ -612,13 +612,14 @@ static void apply_sgr(int sgr_params_idx, const uint8_t *dat8, int width,
   }
 }
 
-static void compute_sgrproj_err(const uint8_t *dat8, const int width,
-                                const int height, const int dat_stride,
-                                const uint8_t *src8, const int src_stride,
-                                const int use_highbitdepth, const int bit_depth,
-                                const int pu_width, const int pu_height,
-                                const int ep, int32_t *flt0, int32_t *flt1,
-                                const int flt_stride, int *exqd, int64_t *err) {
+static int64_t compute_sgrproj_err(const uint8_t *dat8, const int width,
+                                   const int height, const int dat_stride,
+                                   const uint8_t *src8, const int src_stride,
+                                   const int use_highbitdepth,
+                                   const int bit_depth, const int pu_width,
+                                   const int pu_height, const int ep,
+                                   int32_t *flt0, int32_t *flt1,
+                                   const int flt_stride, int *exqd) {
   int exq[2];
   apply_sgr(ep, dat8, width, height, dat_stride, use_highbitdepth, bit_depth,
             pu_width, pu_height, flt0, flt1, flt_stride);
@@ -629,9 +630,10 @@ static void compute_sgrproj_err(const uint8_t *dat8, const int width,
                     params);
   aom_clear_system_state();
   encode_xq(exq, exqd, params);
-  *err = finer_search_pixel_proj_error(
+  int64_t err = finer_search_pixel_proj_error(
       src8, width, height, src_stride, dat8, dat_stride, use_highbitdepth, flt0,
       flt_stride, flt1, flt_stride, 2, exqd, params);
+  return err;
 }
 
 static void get_best_error(int64_t *besterr, const int64_t err, const int *exqd,
@@ -644,36 +646,81 @@ static void get_best_error(int64_t *besterr, const int64_t err, const int *exqd,
   }
 }
 
+// If limits != NULL, calculates error for current restoration unit.
+// Otherwise, calculates error for all units in the stack using stored limits.
+static int64_t calc_sgrproj_err(const RestSearchCtxt *rsc,
+                                const RestorationTileLimits *limits,
+                                const int use_highbitdepth, const int bit_depth,
+                                const int pu_width, const int pu_height,
+                                const int ep, int32_t *flt0, int32_t *flt1,
+                                int *exqd) {
+  int64_t err = 0;
+
+  uint8_t *dat8;
+  const uint8_t *src8;
+  int width, height, dat_stride, src_stride, flt_stride;
+  dat_stride = rsc->dgd_stride;
+  src_stride = rsc->src_stride;
+  if (limits != NULL) {
+    dat8 =
+        rsc->dgd_buffer + limits->v_start * rsc->dgd_stride + limits->h_start;
+    src8 =
+        rsc->src_buffer + limits->v_start * rsc->src_stride + limits->h_start;
+    width = limits->h_end - limits->h_start;
+    height = limits->v_end - limits->v_start;
+    flt_stride = ((width + 7) & ~7) + 8;
+    err = compute_sgrproj_err(dat8, width, height, dat_stride, src8, src_stride,
+                              use_highbitdepth, bit_depth, pu_width, pu_height,
+                              ep, flt0, flt1, flt_stride, exqd);
+  } else {
+#if CONFIG_RST_MERGECOEFFS
+    Vector *current_unit_stack = rsc->unit_stack;
+    VECTOR_FOR_EACH(current_unit_stack, listed_unit) {
+      RstUnitSnapshot *old_unit = (RstUnitSnapshot *)(listed_unit.pointer);
+      RestorationTileLimits old_limits = old_unit->limits;
+      dat8 = rsc->dgd_buffer + old_limits.v_start * rsc->dgd_stride +
+             old_limits.h_start;
+      src8 = rsc->src_buffer + old_limits.v_start * rsc->src_stride +
+             old_limits.h_start;
+      width = old_limits.h_end - old_limits.h_start;
+      height = old_limits.v_end - old_limits.v_start;
+      flt_stride = ((width + 7) & ~7) + 8;
+      err += compute_sgrproj_err(
+          dat8, width, height, dat_stride, src8, src_stride, use_highbitdepth,
+          bit_depth, pu_width, pu_height, ep, flt0, flt1, flt_stride, exqd);
+    }
+#else   // CONFIG_RST_MERGECOEFFS
+    assert(0 && "Tile limits should not be NULL.");
+#endif  // CONFIG_RST_MERGECOEFFS
+  }
+  return err;
+}
+
 static SgrprojInfo search_selfguided_restoration(
-    const uint8_t *dat8, int width, int height, int dat_stride,
-    const uint8_t *src8, int src_stride, int use_highbitdepth, int bit_depth,
-    int pu_width, int pu_height, int32_t *rstbuf, int enable_sgr_ep_pruning) {
+    const RestSearchCtxt *rsc, const RestorationTileLimits *limits,
+    int use_highbitdepth, int bit_depth, int pu_width, int pu_height,
+    int32_t *rstbuf, int enable_sgr_ep_pruning) {
   int32_t *flt0 = rstbuf;
   int32_t *flt1 = flt0 + RESTORATION_UNITPELS_MAX;
   int ep, idx, bestep = 0;
   int64_t besterr = -1;
   int exqd[2], bestxqd[2] = { 0, 0 };
-  int flt_stride = ((width + 7) & ~7) + 8;
   assert(pu_width == (RESTORATION_PROC_UNIT_SIZE >> 1) ||
          pu_width == RESTORATION_PROC_UNIT_SIZE);
   assert(pu_height == (RESTORATION_PROC_UNIT_SIZE >> 1) ||
          pu_height == RESTORATION_PROC_UNIT_SIZE);
   if (!enable_sgr_ep_pruning) {
     for (ep = 0; ep < SGRPROJ_PARAMS; ep++) {
-      int64_t err;
-      compute_sgrproj_err(dat8, width, height, dat_stride, src8, src_stride,
-                          use_highbitdepth, bit_depth, pu_width, pu_height, ep,
-                          flt0, flt1, flt_stride, exqd, &err);
+      int64_t err = calc_sgrproj_err(rsc, limits, use_highbitdepth, bit_depth,
+                                     pu_width, pu_height, ep, flt0, flt1, exqd);
       get_best_error(&besterr, err, exqd, bestxqd, &bestep, ep);
     }
   } else {
     // evaluate first four seed ep in first group
     for (idx = 0; idx < SGRPROJ_EP_GRP1_SEARCH_COUNT; idx++) {
       ep = sgproj_ep_grp1_seed[idx];
-      int64_t err;
-      compute_sgrproj_err(dat8, width, height, dat_stride, src8, src_stride,
-                          use_highbitdepth, bit_depth, pu_width, pu_height, ep,
-                          flt0, flt1, flt_stride, exqd, &err);
+      int64_t err = calc_sgrproj_err(rsc, limits, use_highbitdepth, bit_depth,
+                                     pu_width, pu_height, ep, flt0, flt1, exqd);
       get_best_error(&besterr, err, exqd, bestxqd, &bestep, ep);
     }
     // evaluate left and right ep of winner in seed ep
@@ -681,19 +728,15 @@ static SgrprojInfo search_selfguided_restoration(
     for (ep = bestep_ref - 1; ep < bestep_ref + 2; ep += 2) {
       if (ep < SGRPROJ_EP_GRP1_START_IDX || ep > SGRPROJ_EP_GRP1_END_IDX)
         continue;
-      int64_t err;
-      compute_sgrproj_err(dat8, width, height, dat_stride, src8, src_stride,
-                          use_highbitdepth, bit_depth, pu_width, pu_height, ep,
-                          flt0, flt1, flt_stride, exqd, &err);
+      int64_t err = calc_sgrproj_err(rsc, limits, use_highbitdepth, bit_depth,
+                                     pu_width, pu_height, ep, flt0, flt1, exqd);
       get_best_error(&besterr, err, exqd, bestxqd, &bestep, ep);
     }
     // evaluate last two group
     for (idx = 0; idx < SGRPROJ_EP_GRP2_3_SEARCH_COUNT; idx++) {
       ep = sgproj_ep_grp2_3[idx][bestep];
-      int64_t err;
-      compute_sgrproj_err(dat8, width, height, dat_stride, src8, src_stride,
-                          use_highbitdepth, bit_depth, pu_width, pu_height, ep,
-                          flt0, flt1, flt_stride, exqd, &err);
+      int64_t err = calc_sgrproj_err(rsc, limits, use_highbitdepth, bit_depth,
+                                     pu_width, pu_height, ep, flt0, flt1, exqd);
       get_best_error(&besterr, err, exqd, bestxqd, &bestep, ep);
     }
   }
@@ -738,11 +781,6 @@ static void search_sgrproj(const RestorationTileLimits *limits,
   const double dual_sgr_penalty_sf_mult =
       1 + DUAL_SGR_PENALTY_MULT * rsc->sf->dual_sgr_penalty_level;
 
-  uint8_t *dgd_start =
-      rsc->dgd_buffer + limits->v_start * rsc->dgd_stride + limits->h_start;
-  const uint8_t *src_start =
-      rsc->src_buffer + limits->v_start * rsc->src_stride + limits->h_start;
-
   const int is_uv = rsc->plane > 0;
   const int ss_x = is_uv && cm->seq_params.subsampling_x;
   const int ss_y = is_uv && cm->seq_params.subsampling_y;
@@ -750,10 +788,8 @@ static void search_sgrproj(const RestorationTileLimits *limits,
   const int procunit_height = RESTORATION_PROC_UNIT_SIZE >> ss_y;
 
   rusi->sgrproj = search_selfguided_restoration(
-      dgd_start, limits->h_end - limits->h_start,
-      limits->v_end - limits->v_start, rsc->dgd_stride, src_start,
-      rsc->src_stride, highbd, bit_depth, procunit_width, procunit_height,
-      tmpbuf, rsc->sf->enable_sgr_ep_pruning);
+      rsc, limits, highbd, bit_depth, procunit_width, procunit_height, tmpbuf,
+      rsc->sf->enable_sgr_ep_pruning);
 
   RestorationUnitInfo rui;
   rui.restoration_type = RESTORE_SGRPROJ;
@@ -812,27 +848,15 @@ static void search_sgrproj(const RestorationTileLimits *limits,
     return;
   }
 
-  SgrprojInfo filter_avg = rusi->sgrproj;
   // Iterate through vector to get current cost and the sum of A and b so far.
   VECTOR_FOR_EACH(current_unit_stack, listed_unit) {
     RstUnitSnapshot *old_unit = (RstUnitSnapshot *)(listed_unit.pointer);
     cost_nomerge += RDCOST_DBL(x->rdmult, old_unit->current_bits >> 4,
                                old_unit->current_sse);
-    filter_avg.ep += old_unit->unit_sgrproj.ep;
-    for (int index = 0; index < 2; ++index) {
-      filter_avg.xqd[index] += old_unit->unit_sgrproj.xqd[index];
-    }
     // Merge SSE and bits must be recalculated every time we create a new
     // merge filter.
     old_unit->merge_sse = 0;
     old_unit->merge_bits = 0;
-  }
-  // Divide ep and xqd by vector size + 1 to get average.
-  filter_avg.ep =
-      (int)DIVIDE_AND_ROUND(filter_avg.ep, current_unit_stack->size + 1);
-  for (int index = 0; index < 2; ++index) {
-    filter_avg.xqd[index] = (int)DIVIDE_AND_ROUND(filter_avg.xqd[index],
-                                                  current_unit_stack->size + 1);
   }
   // Push current unit onto stack.
   aom_vector_push_back(current_unit_stack, &unit_snapshot);
@@ -840,7 +864,9 @@ static void search_sgrproj(const RestorationTileLimits *limits,
   RestorationUnitInfo rui_temp;
   memset(&rui_temp, 0, sizeof(rui_temp));
   rui_temp.restoration_type = RESTORE_SGRPROJ;
-  rui_temp.sgrproj_info = filter_avg;
+  rui_temp.sgrproj_info = search_selfguided_restoration(
+      rsc, NULL, highbd, bit_depth, procunit_width, procunit_height, tmpbuf,
+      rsc->sf->enable_sgr_ep_pruning);
   // Iterate through vector to get sse and bits for each on the new filter.
   double cost_merge = 0;
   VECTOR_FOR_EACH(current_unit_stack, listed_unit) {
