@@ -2754,8 +2754,6 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
     this_frame = this_frame_copy;
   } else {
     frame_params->frame_type = INTER_FRAME;
-    update_subgop_stats(&cpi->gf_group, &cpi->subgop_stats,
-                        oxcf->unit_test_cfg.enable_subgop_stats);
     const int altref_enabled = is_altref_enabled(oxcf->gf_cfg.lag_in_frames,
                                                  oxcf->gf_cfg.enable_auto_arf);
     const int sframe_dist = oxcf->kf_cfg.sframe_dist;
@@ -2841,6 +2839,9 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
 #endif
   }
   assert(gf_group->index < gf_group->size);
+  if (frame_params->frame_type != KEY_FRAME)
+    update_subgop_stats(&cpi->gf_group, &cpi->subgop_stats,
+                        oxcf->unit_test_cfg.enable_subgop_stats);
 
   // Do the firstpass stats indicate that this frame is skippable for the
   // partition search?

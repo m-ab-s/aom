@@ -80,59 +80,56 @@ int is_extension_y4m(const char *filename) {
     return !strcmp(dot, ".y4m");
 }
 
-// TODO(vishnu): Uncomment when unit test is enabled
-/*
 static const SubgopTestParams SubGopTestVectors[] = {
-// Default sub-gop config
-{ subgop_config_str_preset_map[DEFAULT].preset_tag,
-"hantro_collage_w352h288.yuv", 0, 16, 352, 288, 3 },
-{ subgop_config_str_preset_map[DEFAULT].preset_tag, "desktop1.320_180.yuv", 0,
-16, 320, 180, 5 },
-{ subgop_config_str_preset_map[DEFAULT].preset_tag,
-"pixel_capture_w320h240.yuv", 0, 16, 320, 240, 3 },
+  // Default subgop config
+  { subgop_config_str_preset_map[DEFAULT].preset_tag,
+    "hantro_collage_w352h288.yuv", 0, 16, 352, 288, 3 },
+  { subgop_config_str_preset_map[DEFAULT].preset_tag, "desktop1.320_180.yuv", 0,
+    16, 320, 180, 5 },
+  { subgop_config_str_preset_map[DEFAULT].preset_tag,
+    "pixel_capture_w320h240.yuv", 0, 16, 320, 240, 3 },
 
-{ subgop_config_str_preset_map[ENHANCE].preset_tag, "niklas_640_480_30.yuv",
-0, 15, 640, 480, 5 },
-{ subgop_config_str_preset_map[ENHANCE].preset_tag, "paris_352_288_30.y4m", 0,
-6, 352, 288, 3 },
-{ subgop_config_str_preset_map[ENHANCE].preset_tag,
-"hantro_collage_w352h288.yuv", 0, 16, 352, 288, 3 },
-{ subgop_config_str_preset_map[ENHANCE].preset_tag,
-"pixel_capture_w320h240.yuv", 0, 12, 320, 240, 3 },
-{ subgop_config_str_preset_map[ENHANCE].preset_tag, "niklas_1280_720_30.y4m",
-0, 11, 1280, 720, 5 },
-{ subgop_config_str_preset_map[ENHANCE].preset_tag, "screendata.y4m", 0, 16,
-640, 480, 5 },
-{ subgop_config_str_preset_map[ENHANCE].preset_tag,
-"pixel_capture_w320h240.yuv", 0, 14, 320, 240, 3 },
-{ subgop_config_str_preset_map[ENHANCE].preset_tag, "desktop1.320_180.yuv", 0,
-10, 320, 180, 3 },
-{ subgop_config_str_preset_map[ENHANCE].preset_tag, "paris_352_288_30.y4m", 0,
-13, 352, 288, 5 },
-{ subgop_config_str_preset_map[ENHANCE].preset_tag,
-"pixel_capture_w320h240.yuv", 0, 8, 320, 240, 5 },
+  { subgop_config_str_preset_map[ENHANCE].preset_tag, "niklas_640_480_30.yuv",
+    0, 15, 640, 480, 5 },
+  { subgop_config_str_preset_map[ENHANCE].preset_tag, "paris_352_288_30.y4m", 0,
+    6, 352, 288, 3 },
+  { subgop_config_str_preset_map[ENHANCE].preset_tag,
+    "hantro_collage_w352h288.yuv", 0, 16, 352, 288, 3 },
+  { subgop_config_str_preset_map[ENHANCE].preset_tag,
+    "pixel_capture_w320h240.yuv", 0, 12, 320, 240, 3 },
+  { subgop_config_str_preset_map[ENHANCE].preset_tag, "niklas_1280_720_30.y4m",
+    0, 11, 1280, 720, 5 },
+  { subgop_config_str_preset_map[ENHANCE].preset_tag, "screendata.y4m", 0, 16,
+    640, 480, 5 },
+  { subgop_config_str_preset_map[ENHANCE].preset_tag,
+    "pixel_capture_w320h240.yuv", 0, 14, 320, 240, 3 },
+  { subgop_config_str_preset_map[ENHANCE].preset_tag, "desktop1.320_180.yuv", 0,
+    10, 320, 180, 3 },
+  { subgop_config_str_preset_map[ENHANCE].preset_tag, "paris_352_288_30.y4m", 0,
+    13, 352, 288, 5 },
+  { subgop_config_str_preset_map[ENHANCE].preset_tag,
+    "pixel_capture_w320h240.yuv", 0, 8, 320, 240, 5 },
 
-{ subgop_config_str_preset_map[ASYMMETRIC].preset_tag,
-"pixel_capture_w320h240.yuv", 0, 16, 320, 240, 5 },
-{ subgop_config_str_preset_map[ASYMMETRIC].preset_tag, "desktop1.320_180.yuv",
-0, 16, 320, 180, 3 },
+  { subgop_config_str_preset_map[ASYMMETRIC].preset_tag,
+    "pixel_capture_w320h240.yuv", 0, 16, 320, 240, 5 },
+  { subgop_config_str_preset_map[ASYMMETRIC].preset_tag, "desktop1.320_180.yuv",
+    0, 16, 320, 180, 3 },
 
-{ subgop_config_str_preset_map[TEMPORAL_SCALABLE].preset_tag,
-"pixel_capture_w320h240.yuv", 0, 16, 320, 240, 3 },
-{ subgop_config_str_preset_map[TEMPORAL_SCALABLE].preset_tag,
-"hantro_collage_w352h288.yuv", 0, 16, 352, 288, 5 },
+  { subgop_config_str_preset_map[TEMPORAL_SCALABLE].preset_tag,
+    "pixel_capture_w320h240.yuv", 0, 16, 320, 240, 3 },
+  { subgop_config_str_preset_map[TEMPORAL_SCALABLE].preset_tag,
+    "hantro_collage_w352h288.yuv", 0, 16, 352, 288, 5 },
 
-// TODO(vishnu) : Enable ld config
-// { subgop_config_str_preset_map[LOW_DELAY].preset_tag,
-// "paris_352_288_30.y4m",
-//   0, 16, 352, 288, 5 },
-// { subgop_config_str_preset_map[LOW_DELAY].preset_tag,
-// "desktop1.320_180.yuv",
-//   0, 16, 320, 180, 3 },
+  // TODO(vishnu) : Enable ld config
+  // { subgop_config_str_preset_map[LOW_DELAY].preset_tag,
+  // "paris_352_288_30.y4m",
+  //   0, 16, 352, 288, 5 },
+  // { subgop_config_str_preset_map[LOW_DELAY].preset_tag,
+  // "desktop1.320_180.yuv",
+  //   0, 16, 320, 180, 3 },
 
-// TODO(vishnu) : Add non-default subgop config
+  // TODO(vishnu) : Add non-default subgop config
 };
-*/
 
 std::ostream &operator<<(std::ostream &os, const SubgopTestParams &test_arg) {
   return os << "SubgopTestParams { sub_gop_config:" << test_arg.subgop_str
@@ -214,7 +211,7 @@ class SubGopTestLarge
     memset(&user_cfg_set_, 0, sizeof(user_cfg_set_));
     subgop_data_.num_steps = MAX_SUBGOP_STATS_SIZE;
     ResetSubgop();
-    is_prev_frame_key_ = 0;
+    is_first_frame_in_subgop_key_ = 0;
     frames_from_key_ = 0;
     frame_num_ = 0;
     // TODO(any): Extend this unit test for 'CONFIG_REALTIME_ONLY'
@@ -246,19 +243,19 @@ class SubGopTestLarge
   void DetermineSubgopCode(libaom_test::Encoder *encoder) {
     encoder->Control(AV1E_GET_FRAME_TYPE, &frame_type_test_);
     if (frame_type_test_ == KEY_FRAME) {
-      is_prev_frame_key_ = 1;
+      is_first_frame_in_subgop_key_ = 1;
       return;
     }
     const int is_last_subgop =
         subgop_info_.frames_to_key <= (subgop_info_.gf_interval + 1);
-    const int is_first_subgop = is_prev_frame_key_;
+    const int is_first_subgop = is_first_frame_in_subgop_key_;
     if (is_last_subgop)
       subgop_code_test_ = SUBGOP_IN_GOP_LAST;
     else if (is_first_subgop)
       subgop_code_test_ = SUBGOP_IN_GOP_FIRST;
     else
       subgop_code_test_ = SUBGOP_IN_GOP_GENERIC;
-    is_prev_frame_key_ = 0;
+    is_first_frame_in_subgop_key_ = 0;
     subgop_size_ = subgop_info_.gf_interval;
   }
 
@@ -282,21 +279,21 @@ class SubGopTestLarge
     int filtered_frames[REF_FRAMES] = { 0 }, buf_idx = 0;
     if (frame_type_test_ == KEY_FRAME) return;
 
-    subgop_cfg_test_.num_frames = subgop_info_.size;
-    subgop_cfg_test_.num_steps = subgop_data_.num_steps;
+    subgop_cfg_test_.num_frames = (int8_t)subgop_info_.size;
+    subgop_cfg_test_.num_steps = (int8_t)subgop_data_.num_steps;
     subgop_cfg_test_.subgop_in_gop_code = subgop_info_.pos_code;
     // Populating the filter-type of out-of-order frames appropriately for all
     // steps in sub-gop.
     for (int idx = 0; idx < subgop_data_.num_steps; idx++) {
       subgop_cfg_test_.step[idx].disp_frame_idx =
-          subgop_data_.step[idx].disp_frame_idx - frames_from_key_;
+          (int8_t)(subgop_data_.step[idx].disp_frame_idx - frames_from_key_);
       if (subgop_data_.step[idx].is_filtered) {
         filtered_frames[buf_idx++] =
             subgop_data_.step[idx].disp_frame_idx - frames_from_key_;
       } else {
         for (int ref_frame = 0; ref_frame < buf_idx; ref_frame++) {
           if (subgop_cfg_test_.step[idx].disp_frame_idx ==
-              filtered_frames[ref_frame])
+              (int8_t)filtered_frames[ref_frame])
             subgop_data_.step[idx].is_filtered = 1;
         }
       }
@@ -332,7 +329,7 @@ class SubGopTestLarge
     unsigned int cfg_count = 0;
 
     for (int idx = 0; idx < user_cfg_set_.num_configs; idx++) {
-      if (subgop_cfg[idx].num_frames == subgop_size_) {
+      if (subgop_cfg[idx].num_frames == (int8_t)subgop_size_) {
         if (subgop_cfg[idx].subgop_in_gop_code == subgop_code_test_)
           return &subgop_cfg[idx];
         else
@@ -385,7 +382,7 @@ class SubGopTestLarge
     if (frame_type_test_ == KEY_FRAME) return;
     subgop_cfg_ref_ = DetermineSubgopConfig();
     if (subgop_cfg_ref_) {
-      EXPECT_EQ(subgop_size_, subgop_cfg_ref_->num_frames)
+      EXPECT_EQ((int8_t)subgop_size_, subgop_cfg_ref_->num_frames)
           << "Error:subgop config selection wrong";
       subgop_info_.is_user_specified = 1;
     }
@@ -429,9 +426,9 @@ class SubGopTestLarge
   FRAME_TYPE frame_type_test_;
   aom_rc_mode rc_end_usage_;
   int subgop_size_;
-  bool is_prev_frame_key_;
+  bool is_first_frame_in_subgop_key_;
   int frames_from_key_;
-  unsigned int frame_num_in_subgop_;
+  int frame_num_in_subgop_;
   unsigned int frame_num_;
   unsigned int enable_subgop_stats_;
 };
@@ -449,12 +446,9 @@ TEST_P(SubGopTestLarge, SubGopTest) {
   }
 }
 
-// TODO(vishnu): Uncomment when overlay frame movement from first step of
-// next subgop to last step of current subgop is completed
-// AV1_INSTANTIATE_TEST_SUITE(SubGopTestLarge,
-//                           ::testing::ValuesIn(SubGopTestVectors),
-//                           ::testing::Values(AOM_Q, AOM_VBR, AOM_CQ,
-//                           AOM_CBR));
+AV1_INSTANTIATE_TEST_SUITE(SubGopTestLarge,
+                           ::testing::ValuesIn(SubGopTestVectors),
+                           ::testing::Values(AOM_Q, AOM_VBR, AOM_CQ, AOM_CBR));
 
 typedef struct {
   const char *subgop_str;

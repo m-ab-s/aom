@@ -535,19 +535,6 @@ static INLINE void extend_mc_border(const struct scale_factors *const sf,
   }
 }
 
-static AOM_INLINE void update_subgop_stats(const AV1_COMMON *const cm,
-                                           SubGOPStatsDec *const subgop_stats,
-                                           unsigned int display_order_hint,
-                                           unsigned int enable_subgop_stats) {
-  if (!enable_subgop_stats) return;
-  subgop_stats->disp_frame_idx[subgop_stats->stat_count] = display_order_hint;
-  subgop_stats->show_existing_frame[subgop_stats->stat_count] =
-      cm->show_existing_frame;
-  subgop_stats->show_frame[subgop_stats->stat_count] = cm->show_frame;
-  assert(subgop_stats->stat_count < MAX_SUBGOP_STATS_SIZE);
-  subgop_stats->stat_count++;
-}
-
 static void dec_calc_subpel_params(const MV *const src_mv,
                                    InterPredParams *const inter_pred_params,
                                    const MACROBLOCKD *const xd, int mi_x,
@@ -4519,9 +4506,6 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       cm->lf.filter_level[1] = 0;
       cm->show_frame = 1;
 
-      update_subgop_stats(cm, &pbi->subgop_stats, frame_to_show->order_hint,
-                          pbi->enable_subgop_stats);
-
       // Section 6.8.2: It is a requirement of bitstream conformance that when
       // show_existing_frame is used to show a previous frame, that the value
       // of showable_frame for the previous frame was equal to 1.
@@ -4920,9 +4904,6 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       }
     }
   }
-
-  update_subgop_stats(cm, &pbi->subgop_stats, cm->current_frame.order_hint,
-                      pbi->enable_subgop_stats);
 
   av1_setup_frame_buf_refs(cm);
 
