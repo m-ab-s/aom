@@ -271,9 +271,7 @@ class SubGopTestLarge
       DetermineSubgopCode(encoder);
       // Validation of user specified subgop structure adoption in encoder path.
       ValidateSubgopConfig();
-      if (subgop_cfg_ref_)
-        subgop_data_.num_steps =
-            (frame_type_test_ == KEY_FRAME) ? 0 : subgop_cfg_ref_->num_steps;
+      subgop_data_.num_steps = subgop_info_.num_steps;
     }
     if (subgop_info_.is_user_specified)
       encoder->Control(AV1E_GET_FRAME_INFO, &subgop_data_);
@@ -363,14 +361,33 @@ class SubGopTestLarge
     return 1;
   }
 
+  bool IsInputSubgopCfgUsed() {
+    int num_ooo_frames_ref = 0;
+    int num_ooo_frames_test = 0;
+    // Encoder may choose to opt out input sub-gop config when use_altref is 0
+    // for the given sub-gop
+    for (int idx = 0; idx < subgop_cfg_ref_->num_steps; idx++) {
+      // Count number out-of-order frames in reference config
+      num_ooo_frames_ref +=
+          subgop_cfg_ref_->step[idx].type_code == FRAME_TYPE_OOO_FILTERED;
+      num_ooo_frames_ref +=
+          subgop_cfg_ref_->step[idx].type_code == FRAME_TYPE_OOO_UNFILTERED;
+      // Count number out-of-order frames in test config
+      num_ooo_frames_test +=
+          subgop_cfg_test_.step[idx].type_code == FRAME_TYPE_OOO_FILTERED;
+      num_ooo_frames_test +=
+          subgop_cfg_test_.step[idx].type_code == FRAME_TYPE_OOO_UNFILTERED;
+    }
+    return num_ooo_frames_ref == num_ooo_frames_test;
+  }
+
   void ValidateSubgopConfig() {
     if (frame_type_test_ == KEY_FRAME) return;
     subgop_cfg_ref_ = DetermineSubgopConfig();
-    if (subgop_info_.is_user_specified) {
+    if (subgop_cfg_ref_) {
       EXPECT_EQ(subgop_size_, subgop_cfg_ref_->num_frames)
           << "Error:subgop config selection wrong";
-      EXPECT_EQ(subgop_code_test_, subgop_info_.pos_code)
-          << "Error:subgop code doesn't match";
+      subgop_info_.is_user_specified = 1;
     }
   }
 
@@ -388,7 +405,11 @@ class SubGopTestLarge
       // Validation of sub-gop structure propagation to decoder.
       if (subgop_info_.is_user_specified) {
         FillTestSubgopConfig();
-        ValidateSubgopFrametype();
+        if ((subgop_info_.is_user_specified = IsInputSubgopCfgUsed())) {
+          EXPECT_EQ(subgop_code_test_, subgop_info_.pos_code)
+              << "Error:subgop code doesn't match";
+          ValidateSubgopFrametype();
+        }
       }
       frames_from_key_ += subgop_info_.size;
       if (frame_type_test_ == KEY_FRAME) frames_from_key_ = 0;

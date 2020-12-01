@@ -1363,6 +1363,10 @@ static aom_codec_err_t ctrl_get_enc_sub_gop_config(aom_codec_alg_priv_t *ctx,
   // collected from gf_group structure.
   subgop_info->is_user_specified = gf_group->is_user_specified;
   subgop_info->size = cpi->rc.baseline_gf_interval;
+  // In case of subgop associated with key-frame, num_steps in
+  // subgop is calculated by excluding key-frame.
+  const int offset = gf_group->update_type[0] == KF_UPDATE ? 1 : 0;
+  subgop_info->num_steps = gf_group->size - offset;
   if (subgop_cfg) {
     memcpy(&subgop_info->subgop_cfg, subgop_cfg, sizeof(*subgop_cfg));
     subgop_info->pos_code = subgop_cfg->subgop_in_gop_code;

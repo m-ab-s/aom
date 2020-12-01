@@ -827,6 +827,7 @@ typedef struct {
   int frames_to_key;
   int gf_interval;
   unsigned int size;
+  int num_steps;
   SUBGOP_IN_GOP_CODE pos_code;
   SubGOPCfg subgop_cfg;
 } SubGOPInfo;
