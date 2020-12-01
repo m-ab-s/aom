@@ -96,7 +96,7 @@ void av1_set_offsets_without_segment_id(const struct AV1_COMP *const cpi,
 
 void av1_enc_set_offsets(const AV1_COMP *const cpi, const TileInfo *const tile,
                          struct macroblock *const x, int mi_row, int mi_col,
-                         BLOCK_SIZE bsize, CHROMA_REF_INFO *chr_ref_info);
+                         BLOCK_SIZE bsize, const CHROMA_REF_INFO *chr_ref_info);
 
 #ifdef __cplusplus
 }  // extern "C"

@@ -182,15 +182,13 @@ typedef enum {
  * whether the inter prediction_mode and ref frame are reused. */
 #define REUSE_INTER_MODE_IN_INTERFRAME_FLAG (1 << 2)
 
-#define REUSE_MODE_FLAG REUSE_PARTITION_MODE_FLAG
+#define REUSE_INTERFRAME_FLAG \
+  (REUSE_INTRA_MODE_IN_INTERFRAME_FLAG | REUSE_INTER_MODE_IN_INTERFRAME_FLAG)
 
-/*
- * #define REUSE_MODE_FLAG                                             \
- *   (REUSE_PARTITION_MODE_FLAG | REUSE_INTRA_MODE_IN_INTERFRAME_FLAG | \
- *       REUSE_INTER_MODE_IN_INTERFRAME_FLAG)
- */
+#define REUSE_MODE_FLAG (REUSE_PARTITION_MODE_FLAG)
+// #define REUSE_MODE_FLAG (REUSE_PARTITION_MODE_FLAG | REUSE_INTERFRAME_FLAG)
 
-// Whether to use simple_motion_search to prune partitioning
+/*! \brief Whether to use simple_motion_search to prune partitions. */
 #define ENABLE_FAST_RECUR_PARTITION 0
 #define USE_EST_TXFM 0
 #endif  // CONFIG_EXT_RECUR_PARTITIONS

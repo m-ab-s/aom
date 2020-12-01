@@ -1300,6 +1300,17 @@ static INLINE void search_partition_split(
 }
 #endif  // !(CONFIG_EXT_RECUR_PARTITIONS && !KEEP_PARTITION_SPLIT)
 
+#if CONFIG_EXT_RECUR_PARTITIONS
+static INLINE int is_bsize_pruning_cand(BLOCK_SIZE bsize) {
+  if (bsize == BLOCK_INVALID) {
+    return 0;
+  }
+
+  const int avg_bsize = (block_size_wide[bsize] + block_size_high[bsize]) / 2;
+  return avg_bsize <= 32;
+}
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+
 static INLINE void search_partition_horz(PartitionSearchState *search_state,
                                          AV1_COMP *const cpi, ThreadData *td,
                                          TileDataEnc *tile_data,
@@ -1355,7 +1366,7 @@ static INLINE void search_partition_horz(PartitionSearchState *search_state,
       1, 1, blk_params->ss_x, blk_params->ss_y);
 
   if (ENABLE_FAST_RECUR_PARTITION && !frame_is_intra_only(cm) &&
-      !x->must_find_valid_partition) {
+      !x->must_find_valid_partition && is_bsize_pruning_cand(bsize)) {
     SMSPartitionStats part_data;
     const SimpleMotionData *up =
         av1_get_sms_data(cpi, tile_info, x, mi_row, mi_col, subsize);
@@ -1370,7 +1381,35 @@ static INLINE void search_partition_horz(PartitionSearchState *search_state,
         (mi_row + 2 * blk_params->mi_step_h <= cm->mi_rows) &&
         (mi_col + 2 * blk_params->mi_step_w <= cm->mi_cols) &&
         av1_prune_new_part(&search_state->none_data, &part_data, x->rdmult)) {
-      return;
+      const BLOCK_SIZE subsubsize =
+          get_partition_subsize(subsize, PARTITION_VERT);
+      if (subsubsize == BLOCK_INVALID) {
+        return;
+      }
+
+      // Do one more check to deal with recursion
+      SMSPartitionStats subpart_data;
+      const SimpleMotionData *upleft =
+          av1_get_sms_data(cpi, tile_info, x, mi_row, mi_col, subsubsize);
+      const SimpleMotionData *upright =
+          av1_get_sms_data(cpi, tile_info, x, mi_row,
+                           mi_col + blk_params->mi_step_w, subsubsize);
+      const SimpleMotionData *downleft =
+          av1_get_sms_data(cpi, tile_info, x, mi_row + blk_params->mi_step_h,
+                           mi_col, subsubsize);
+      const SimpleMotionData *downright =
+          av1_get_sms_data(cpi, tile_info, x, mi_row + blk_params->mi_step_h,
+                           mi_col + blk_params->mi_step_w, subsubsize);
+      subpart_data.sms_data[0] = upleft;
+      subpart_data.sms_data[1] = upright;
+      subpart_data.sms_data[2] = downleft;
+      subpart_data.sms_data[3] = downright;
+      subpart_data.num_sub_parts = 4;
+      subpart_data.part_rate = 0;
+      if (av1_prune_new_part(&search_state->none_data, &subpart_data,
+                             x->rdmult)) {
+        return;
+      }
     }
   }
 #else
@@ -1517,7 +1556,7 @@ static INLINE void search_partition_vert(PartitionSearchState *search_state,
       1, 1, blk_params->ss_x, blk_params->ss_y);
 
   if (ENABLE_FAST_RECUR_PARTITION && !frame_is_intra_only(cm) &&
-      !x->must_find_valid_partition) {
+      !x->must_find_valid_partition && is_bsize_pruning_cand(bsize)) {
     const SimpleMotionData *left =
         av1_get_sms_data(cpi, tile_info, x, mi_row, mi_col, subsize);
     const SimpleMotionData *right = av1_get_sms_data(
@@ -1533,7 +1572,36 @@ static INLINE void search_partition_vert(PartitionSearchState *search_state,
         (mi_row + 2 * blk_params->mi_step_h <= cm->mi_rows) &&
         (mi_col + 2 * blk_params->mi_step_w <= cm->mi_cols) &&
         av1_prune_new_part(&search_state->none_data, &part_data, x->rdmult)) {
-      return;
+      const BLOCK_SIZE subsubsize =
+          get_partition_subsize(subsize, PARTITION_HORZ);
+      if (subsubsize == BLOCK_INVALID) {
+        return;
+      }
+
+      // Do one more check to deal with recursion
+
+      SMSPartitionStats subpart_data;
+      const SimpleMotionData *upleft =
+          av1_get_sms_data(cpi, tile_info, x, mi_row, mi_col, subsubsize);
+      const SimpleMotionData *upright =
+          av1_get_sms_data(cpi, tile_info, x, mi_row,
+                           mi_col + blk_params->mi_step_w, subsubsize);
+      const SimpleMotionData *downleft =
+          av1_get_sms_data(cpi, tile_info, x, mi_row + blk_params->mi_step_h,
+                           mi_col, subsubsize);
+      const SimpleMotionData *downright =
+          av1_get_sms_data(cpi, tile_info, x, mi_row + blk_params->mi_step_h,
+                           mi_col + blk_params->mi_step_w, subsubsize);
+      subpart_data.sms_data[0] = upleft;
+      subpart_data.sms_data[1] = upright;
+      subpart_data.sms_data[2] = downleft;
+      subpart_data.sms_data[3] = downright;
+      subpart_data.num_sub_parts = 4;
+      subpart_data.part_rate = 0;
+      if (av1_prune_new_part(&search_state->none_data, &subpart_data,
+                             x->rdmult)) {
+        return;
+      }
     }
   }
 #else
@@ -2296,11 +2364,8 @@ static INLINE void search_partition_horz_3(PartitionSearchState *search_state,
       mi_row + quarter_step * 3, mi_col, subblock_sizes[2], pc_tree,
       PARTITION_HORZ_3, 2, 1, blk_params->ss_x, blk_params->ss_y);
 
-  // TODO(chiyotsai@google.com): Pruning horz/vert3 gives a significant loss
-  // on certain clips (e.g. galleon_cif.y4m). Need to investigate before we
-  // we enable it.
-  if (ENABLE_FAST_RECUR_PARTITION == 2 && !frame_is_intra_only(cm) &&
-      !x->must_find_valid_partition) {
+  if (ENABLE_FAST_RECUR_PARTITION && !frame_is_intra_only(cm) &&
+      !x->must_find_valid_partition && is_bsize_pruning_cand(bsize)) {
     const SimpleMotionData *up =
         av1_get_sms_data(cpi, tile_info, x, mi_row, mi_col, subblock_sizes[0]);
     const SimpleMotionData *middle = av1_get_sms_data(
@@ -2320,7 +2385,31 @@ static INLINE void search_partition_horz_3(PartitionSearchState *search_state,
         (mi_row + 2 * blk_params->mi_step_h <= cm->mi_rows) &&
         (mi_col + 2 * blk_params->mi_step_w <= cm->mi_cols) &&
         av1_prune_new_part(&search_state->none_data, &part_data, x->rdmult)) {
-      return;
+      const BLOCK_SIZE midsize = subblock_sizes[1];
+      const BLOCK_SIZE subsubsize =
+          get_partition_subsize(midsize, PARTITION_VERT);
+      if (subsubsize == BLOCK_INVALID) {
+        return;
+      }
+
+      // Do one more check to deal with recursion
+      SMSPartitionStats subpart_data;
+      const SimpleMotionData *midleft =
+          av1_get_sms_data(cpi, tile_info, x, mi_row + quarter_step,
+                           mi_col + 2 * quarter_step, subsubsize);
+      const SimpleMotionData *midright =
+          av1_get_sms_data(cpi, tile_info, x, mi_row + quarter_step,
+                           mi_col + 2 * quarter_step, subsubsize);
+      subpart_data.sms_data[0] = up;
+      subpart_data.sms_data[1] = midleft;
+      subpart_data.sms_data[2] = midright;
+      subpart_data.sms_data[3] = down;
+      subpart_data.num_sub_parts = 4;
+      subpart_data.part_rate = 0;
+      if (av1_prune_new_part(&search_state->none_data, &subpart_data,
+                             x->rdmult)) {
+        return;
+      }
     }
   }
 
@@ -2417,11 +2506,8 @@ static INLINE void search_partition_vert_3(PartitionSearchState *search_state,
       mi_row, mi_col + quarter_step * 3, subblock_sizes[2], pc_tree,
       PARTITION_VERT_3, 2, 1, blk_params->ss_x, blk_params->ss_y);
 
-  // TODO(chiyotsai@google.com): Pruning horz/vert3 gives a significant loss
-  // on certain clips (e.g. galleon_cif.y4m). Need to investigate before we
-  // we enable it.
-  if (ENABLE_FAST_RECUR_PARTITION == 2 && !frame_is_intra_only(cm) &&
-      !x->must_find_valid_partition) {
+  if (ENABLE_FAST_RECUR_PARTITION && !frame_is_intra_only(cm) &&
+      !x->must_find_valid_partition && is_bsize_pruning_cand(bsize)) {
     const SimpleMotionData *left =
         av1_get_sms_data(cpi, tile_info, x, mi_row, mi_col, subblock_sizes[0]);
     const SimpleMotionData *middle = av1_get_sms_data(
@@ -2441,7 +2527,30 @@ static INLINE void search_partition_vert_3(PartitionSearchState *search_state,
         (mi_row + 2 * blk_params->mi_step_h <= cm->mi_rows) &&
         (mi_col + 2 * blk_params->mi_step_w <= cm->mi_cols) &&
         av1_prune_new_part(&search_state->none_data, &part_data, x->rdmult)) {
-      return;
+      const BLOCK_SIZE midsize = subblock_sizes[1];
+      const BLOCK_SIZE subsubsize =
+          get_partition_subsize(midsize, PARTITION_HORZ);
+      if (subsubsize == BLOCK_INVALID) {
+        return;
+      }
+
+      // Do one more check to deal with recursion
+      SMSPartitionStats subpart_data;
+      const SimpleMotionData *leftmid = av1_get_sms_data(
+          cpi, tile_info, x, mi_row, mi_col + quarter_step, subsubsize);
+      const SimpleMotionData *rightmid =
+          av1_get_sms_data(cpi, tile_info, x, mi_row + 2 * quarter_step,
+                           mi_col + quarter_step, subsubsize);
+      subpart_data.sms_data[0] = left;
+      subpart_data.sms_data[1] = leftmid;
+      subpart_data.sms_data[2] = rightmid;
+      subpart_data.sms_data[3] = right;
+      subpart_data.num_sub_parts = 4;
+      subpart_data.part_rate = 0;
+      if (av1_prune_new_part(&search_state->none_data, &subpart_data,
+                             x->rdmult)) {
+        return;
+      }
     }
   }
 

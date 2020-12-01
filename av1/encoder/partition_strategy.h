@@ -169,7 +169,7 @@ void av1_cache_best_partition(SimpleMotionDataBufs *sms_bufs, int mi_row,
                               PARTITION_TYPE partition);
 
 typedef struct SMSPartitionStats {
-  const SimpleMotionData *sms_data[3];
+  const SimpleMotionData *sms_data[4];
   int num_sub_parts;
   int part_rate;
 } SMSPartitionStats;

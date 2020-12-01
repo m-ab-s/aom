@@ -1627,6 +1627,8 @@ static void compute_sms_data(AV1_COMP *const cpi, const TileInfo *const tile,
         best_data = *sms_data;
       }
     }
+
+    *sms_data = best_data;
   }
 
   sms_data->valid = 1;
