@@ -150,13 +150,13 @@ static int parse_info(char *hdrwords[], int nhdrwords, int *width, int *height,
 int main(int argc, char *argv[]) {
   RationalResampleFilter horz_rf, vert_rf;
   int ywidth, yheight;
-  if (!strcmp(argv[1], "-help") || !strcmp(argv[1], "-h") ||
-      !strcmp(argv[1], "--help") || !strcmp(argv[1], "--h"))
-    usage_and_exit(argv[0]);
   if (argc < 6) {
     printf("Not enough arguments\n");
     usage_and_exit(argv[0]);
   }
+  if (!strcmp(argv[1], "-help") || !strcmp(argv[1], "-h") ||
+      !strcmp(argv[1], "--help") || !strcmp(argv[1], "--h"))
+    usage_and_exit(argv[0]);
   char *y4m_input = argv[1];
   char *y4m_output = argv[5];
 
@@ -196,6 +196,10 @@ int main(int argc, char *argv[]) {
 
   int rywidth = 0, ryheight = 0;
   if (horz_p > horz_q || vert_p > vert_q) {
+    if (argc < 7) {
+      printf("Upsampled output dimensions must be provided\n");
+      usage_and_exit(argv[0]);
+    }
     // Read output dim if one of the dimensions use upscaling
     if (!parse_dim(argv[6], &rywidth, &ryheight)) usage_and_exit(argv[0]);
   }

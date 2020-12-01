@@ -144,13 +144,13 @@ static int parse_rational_factor(char *factor, int *p, int *q, int *a,
 int main(int argc, char *argv[]) {
   RationalResampleFilter horz_rf, vert_rf;
   int ywidth, yheight;
-  if (!strcmp(argv[1], "-help") || !strcmp(argv[1], "-h") ||
-      !strcmp(argv[1], "--help") || !strcmp(argv[1], "--h"))
-    usage_and_exit(argv[0]);
   if (argc < 8) {
     printf("Not enough arguments\n");
     usage_and_exit(argv[0]);
   }
+  if (!strcmp(argv[1], "-help") || !strcmp(argv[1], "-h") ||
+      !strcmp(argv[1], "--help") || !strcmp(argv[1], "--h"))
+    usage_and_exit(argv[0]);
   if (!parse_dim(argv[2], &ywidth, &yheight)) usage_and_exit(argv[0]);
 
   int subx, suby;
@@ -179,6 +179,10 @@ int main(int argc, char *argv[]) {
 
   int rywidth = 0, ryheight = 0;
   if (horz_p > horz_q || vert_p > vert_q) {
+    if (argc < 9) {
+      printf("Upsampled output dimensions must be provided\n");
+      usage_and_exit(argv[0]);
+    }
     // Read output dim if one of the dimensions use upscaling
     if (!parse_dim(argv[8], &rywidth, &ryheight)) usage_and_exit(argv[0]);
   }
