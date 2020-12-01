@@ -110,19 +110,22 @@ enum {
   FRAMEFLAGS_ERROR_RESILIENT = 1 << 6,
 } UENUM1BYTE(FRAMETYPE_FLAGS);
 
+// 0 level frames are sometimes used for rate control purposes, but for
+// refernece mapping purposes, the minimum level should be 1.
+#define MIN_PYR_LEVEL 1
 static INLINE int get_true_pyr_level(int frame_level, int frame_order,
                                      int max_layer_depth) {
   if (frame_order == 0) {
     // Keyframe case
-    return 1;
+    return MIN_PYR_LEVEL;
   } else if (frame_level == MAX_ARF_LAYERS) {
     // Leaves
     return max_layer_depth;
   } else if (frame_level == (MAX_ARF_LAYERS + 1)) {
     // Altrefs
-    return 1;
+    return MIN_PYR_LEVEL;
   }
-  return frame_level;
+  return AOMMAX(MIN_PYR_LEVEL, frame_level);
 }
 
 enum {
