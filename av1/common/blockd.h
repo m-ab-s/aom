@@ -186,12 +186,9 @@ static INLINE PREDICTION_MODE compound_ref0_mode(PREDICTION_MODE mode) {
     NEWMV,                   // NEW_NEARMV
     GLOBALMV,                // GLOBAL_GLOBALMV
     NEWMV,                   // NEW_NEWMV
-#if CONFIG_EXT_COMPOUND
-    NEARMV,         // NEAR_SCALED
-    MB_MODE_COUNT,  // SCALED_NEAR
-    NEWMV,          // NEW_SCALED
-    MB_MODE_COUNT,  // SCALED_NEW
-#endif              // CONFIG_EXT_COMPOUND
+#if CONFIG_OPTFLOW_REFINEMENT
+    NEARMV,  // NEAR_NEARMV_OPTFLOW
+#endif       // CONFIG_OPTFLOW_REFINEMENT
   };
   assert(NELEMENTS(lut) == MB_MODE_COUNT);
   assert(is_inter_compound_mode(mode));
@@ -231,12 +228,9 @@ static INLINE PREDICTION_MODE compound_ref1_mode(PREDICTION_MODE mode) {
     NEARMV,                  // NEW_NEARMV
     GLOBALMV,                // GLOBAL_GLOBALMV
     NEWMV,                   // NEW_NEWMV
-#if CONFIG_EXT_COMPOUND
-    MB_MODE_COUNT,  // NEAR_SCALED
-    NEARMV,         // SCALED_NEAR
-    MB_MODE_COUNT,  // NEW_SCALED
-    NEWMV,          // SCALED_NEW
-#endif              // CONFIG_EXT_COMPOUND
+#if CONFIG_OPTFLOW_REFINEMENT
+    NEARMV,  // NEAR_NEARMV_OPTFLOW
+#endif       // CONFIG_OPTFLOW_REFINEMENT
   };
   assert(NELEMENTS(lut) == MB_MODE_COUNT);
   assert(is_inter_compound_mode(mode));
@@ -244,24 +238,24 @@ static INLINE PREDICTION_MODE compound_ref1_mode(PREDICTION_MODE mode) {
 }
 
 static INLINE int have_nearmv_in_inter_mode(PREDICTION_MODE mode) {
-#if CONFIG_EXT_COMPOUND
+#if CONFIG_OPTFLOW_REFINEMENT
   return (mode == NEARMV || mode == NEAR_NEARMV || mode == NEAR_NEWMV ||
-          mode == NEW_NEARMV || mode == NEAR_SCALEDMV || mode == SCALED_NEARMV);
+          mode == NEW_NEARMV || mode == NEAR_NEARMV_OPTFLOW);
 #else
   return (mode == NEARMV || mode == NEAR_NEARMV || mode == NEAR_NEWMV ||
           mode == NEW_NEARMV);
-#endif  // CONFIG_EXT_COMPOUND
+#endif  // CONFIG_OPTFLOW_REFINEMENT
 }
 
 #if CONFIG_NEW_INTER_MODES
 static INLINE int have_newmv_in_inter_mode(PREDICTION_MODE mode) {
-#if CONFIG_EXT_COMPOUND
+#if CONFIG_OPTFLOW_REFINEMENT
   return (mode == NEWMV || mode == NEW_NEWMV || mode == NEAR_NEWMV ||
-          mode == NEW_NEARMV || mode == SCALED_NEWMV || mode == NEW_SCALEDMV);
+          mode == NEW_NEARMV);
 #else
   return (mode == NEWMV || mode == NEW_NEWMV || mode == NEAR_NEWMV ||
           mode == NEW_NEARMV);
-#endif  // CONFIG_EXT_COMPOUND
+#endif  // CONFIG_OPTFLOW_REFINEMENT
 }
 static INLINE int have_drl_index(PREDICTION_MODE mode) {
   return have_nearmv_in_inter_mode(mode) || have_newmv_in_inter_mode(mode);

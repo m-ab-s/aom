@@ -267,7 +267,7 @@ void av1_intrabc_mirror135_sb(uint16_t *DstBlock, uint16_t *SrcBlock,
 }
 #endif  // CONFIG_EXT_IBC_MODES
 
-#if CONFIG_EXT_COMPOUND
+#if CONFIG_OPTFLOW_REFINEMENT
 int av1_compute_subpel_gradients(const AV1_COMMON *cm, MACROBLOCKD *xd,
                                  int plane, const MB_MODE_INFO *mi,
                                  int build_for_obmc, int bw, int bh, int mi_x,
@@ -628,7 +628,7 @@ int av1_get_optflow_based_mv(const AV1_COMMON *cm, MACROBLOCKD *xd,
       // Reverse sign of d0 to indicate to opfl function that it is before
       // current frame
       d0 *= -1;
-#if CONFIG_OPTFLOW_REFINEMENT && USE_OF_NXN
+#if USE_OF_NXN
       n_blocks = opfl_mv_refinement_nxn_lowbd(dst0, bw, dst1, bw, gx0, gy0, gx1,
                                               gy1, bw, bw, bh, d0, d1,
                                               target_prec, vx0, vy0, vx1, vy1);
@@ -644,7 +644,7 @@ int av1_get_optflow_based_mv(const AV1_COMMON *cm, MACROBLOCKD *xd,
       // Reverse sign of d1 to indicate to opfl function that it is before
       // current frame
       d1 *= -1;
-#if CONFIG_OPTFLOW_REFINEMENT && USE_OF_NXN
+#if USE_OF_NXN
       n_blocks = opfl_mv_refinement_nxn_lowbd(dst1, bw, dst0, bw, gx1, gy1, gx0,
                                               gy0, bw, bw, bh, d1, d0,
                                               target_prec, vx1, vy1, vx0, vy0);
@@ -670,7 +670,7 @@ exit_refinement:
   aom_free(dst1);
   return target_prec;
 }
-#endif  // CONFIG_EXT_COMPOUND
+#endif  // CONFIG_OPTFLOW_REFINEMENT
 
 static void av1_make_inter_predictor_aux(
     const uint8_t *src, int src_stride, uint8_t *dst, int dst_stride,
@@ -988,9 +988,9 @@ static void build_inter_predictors_sub8x8(
       int src_stride;
       calc_subpel_params_func(xd, sf, &mv, plane, pre_x, pre_y, x, y, pre_buf,
                               bw, bh, &warp_types, 0 /* ref */,
-#if CONFIG_EXT_COMPOUND
+#if CONFIG_OPTFLOW_REFINEMENT
                               0,
-#endif  // CONFIG_EXT_COMPOUND
+#endif  // CONFIG_OPTFLOW_REFINEMENT
                               calc_subpel_params_func_args, &pre,
                               &subpel_params, &src_stride);
 
@@ -1129,21 +1129,21 @@ static void build_inter_predictors(
   const int pre_x = (mi_x + MI_SIZE * col_start) >> ss_x;
   const int pre_y = (mi_y + MI_SIZE * row_start) >> ss_y;
 
-#if CONFIG_EXT_COMPOUND
+#if CONFIG_OPTFLOW_REFINEMENT
   int_mv mv_refined[2 * N_OF_OFFSETS];
   // Initialize refined mv
   for (int mvi = 0; mvi < N_OF_OFFSETS; mvi++) {
     mv_refined[mvi * 2].as_mv = mi->mv[0].as_mv;
     mv_refined[mvi * 2 + 1].as_mv = mi->mv[1].as_mv;
   }
-  const int use_optflow_prec = (mi->mode > NEW_NEWMV) && is_compound &&
-                               CONFIG_OPTFLOW_REFINEMENT && plane == 0;
+  const int use_optflow_prec =
+      (mi->mode > NEW_NEWMV) && is_compound && plane == 0;
   if (use_optflow_prec) {
     av1_get_optflow_based_mv(cm, xd, mi, mv_refined, bw, bh, mi_x, mi_y,
                              build_for_obmc, calc_subpel_params_func,
                              calc_subpel_params_func_args);
   }
-#endif  // CONFIG_EXT_COMPOUND
+#endif  // CONFIG_OPTFLOW_REFINEMENT
   assert(IMPLIES(is_intrabc || is_compound, dst == dst_buf->buf));
   for (int ref = 0; ref < 1 + is_compound; ++ref) {
     const struct scale_factors *const sf =
@@ -1161,10 +1161,10 @@ static void build_inter_predictors(
     uint8_t *pre;
     SubpelParams subpel_params;
     int src_stride;
-#if CONFIG_EXT_COMPOUND
+#if CONFIG_OPTFLOW_REFINEMENT
     if (use_optflow_prec) {
       conv_params.do_average = ref;
-#if CONFIG_OPTFLOW_REFINEMENT && USE_OF_NXN
+#if USE_OF_NXN
       make_inter_pred_of_nxn(
           dst, dst_buf->stride, &subpel_params, sf, bw, bh, &conv_params,
           mi->interp_filters, &warp_types, mi_x >> pd->subsampling_x,
@@ -1182,7 +1182,7 @@ static void build_inter_predictors(
           &conv_params, mi->interp_filters, &warp_types,
           mi_x >> pd->subsampling_x, mi_y >> pd->subsampling_y, plane, ref, mi,
           build_for_obmc, xd, cm->allow_warped_motion, 0 /* border */);
-#endif  // CONFIG_OPTFLOW_REFINEMENT && USE_OF_NXN
+#endif  // USE_OF_NXN
       // Predictor already built
       continue;
     } else {
@@ -1195,7 +1195,7 @@ static void build_inter_predictors(
     calc_subpel_params_func(xd, sf, &mv, plane, pre_x, pre_y, 0, 0, pre_buf, bw,
                             bh, &warp_types, ref, calc_subpel_params_func_args,
                             &pre, &subpel_params, &src_stride);
-#endif  // CONFIG_EXT_COMPOUND
+#endif  // CONFIG_OPTFLOW_REFINEMENT
 
     if (ref && is_masked_compound_type(mi->interinter_comp.type)) {
       // masked compound type has its own average mechanism

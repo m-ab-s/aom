@@ -1671,19 +1671,6 @@ static void pack_inter_mode_mvs(AV1_COMP *cpi, const int mi_row,
                       mbmi->pb_mv_precision);
       }
 #if CONFIG_NEW_INTER_MODES
-#if CONFIG_EXT_COMPOUND
-    } else if (mode == NEAR_NEWMV || mode == SCALED_NEWMV) {
-      nmv_context *nmvc = &ec_ctx->nmvc;
-      const int_mv ref_mv = av1_get_ref_mv(x, 1);
-      av1_encode_mv(cpi, w, &mbmi->mv[1].as_mv, &ref_mv.as_mv, nmvc,
-                    mbmi->pb_mv_precision);
-    } else if (mode == NEW_NEARMV || mode == NEW_SCALEDMV) {
-      nmv_context *nmvc = &ec_ctx->nmvc;
-      const int_mv ref_mv = av1_get_ref_mv(x, 0);
-      av1_encode_mv(cpi, w, &mbmi->mv[0].as_mv, &ref_mv.as_mv, nmvc,
-                    mbmi->pb_mv_precision);
-    }
-#else   // !CONFIG_EXT_COMPOUND
     } else if (mode == NEAR_NEWMV) {
       nmv_context *nmvc = &ec_ctx->nmvc;
       const int_mv ref_mv = av1_get_ref_mv(x, 1);
@@ -1695,7 +1682,6 @@ static void pack_inter_mode_mvs(AV1_COMP *cpi, const int mi_row,
       av1_encode_mv(cpi, w, &mbmi->mv[0].as_mv, &ref_mv.as_mv, nmvc,
                     mbmi->pb_mv_precision);
     }
-#endif  // CONFIG_EXT_COMPOUND
 #else
     } else if (mode == NEAREST_NEWMV || mode == NEAR_NEWMV) {
       nmv_context *nmvc = &ec_ctx->nmvc;
@@ -1726,11 +1712,11 @@ static void pack_inter_mode_mvs(AV1_COMP *cpi, const int mi_row,
       // First write idx to indicate current compound inter prediction mode
       // group Group A (0): dist_wtd_comp, compound_average Group B (1):
       // interintra, compound_diffwtd, wedge
-#if CONFIG_EXT_COMPOUND
+#if CONFIG_OPTFLOW_REFINEMENT
     if (has_second_ref(mbmi) && (mbmi->mode <= NEW_NEWMV)) {
 #else
     if (has_second_ref(mbmi)) {
-#endif  // CONFIG_EXT_COMPOUND
+#endif  // CONFIG_OPTFLOW_REFINEMENT
       int masked_compound_used = is_any_masked_compound_used(bsize) &&
                                  cm->seq_params.enable_masked_compound;
       if (masked_compound_used) {

@@ -37,9 +37,9 @@ static const int mode_lf_lut[] = {
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  // INTRA_MODES
   1, 0, 1,                                // INTER_MODES (GLOBALMV == 0)
   1, 1, 1, 0, 1,  // INTER_COMPOUND_MODES (GLOBAL_GLOBALMV == 0)
-#if CONFIG_EXT_COMPOUND
-  1, 1, 1, 1
-#endif  // CONFIG_EXT_COMPOUND
+#if CONFIG_OPTFLOW_REFINEMENT
+  1,
+#endif  // CONFIG_OPTFLOW_REFINEMENT
 };
 #else
 static const int mode_lf_lut[] = {

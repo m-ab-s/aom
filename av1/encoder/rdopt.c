@@ -263,177 +263,129 @@ static const MODE_DEFINITION av1_mode_order[MAX_MODES] = {
   { NEAR_NEWMV, { LAST_FRAME, ALTREF_FRAME } },
   { NEW_NEWMV, { LAST_FRAME, ALTREF_FRAME } },
   { GLOBAL_GLOBALMV, { LAST_FRAME, ALTREF_FRAME } },
-#if CONFIG_EXT_COMPOUND
-  { NEAR_SCALEDMV, { LAST_FRAME, ALTREF_FRAME } },
-  { SCALED_NEARMV, { LAST_FRAME, ALTREF_FRAME } },
-  { NEW_SCALEDMV, { LAST_FRAME, ALTREF_FRAME } },
-  { SCALED_NEWMV, { LAST_FRAME, ALTREF_FRAME } },
-#endif  // CONFIG_EXT_COMPOUND
+#if CONFIG_OPTFLOW_REFINEMENT
+  { NEAR_NEARMV_OPTFLOW, { LAST_FRAME, ALTREF_FRAME } },
+#endif  // CONFIG_OPTFLOW_REFINEMENT
 
   { NEW_NEARMV, { LAST2_FRAME, ALTREF_FRAME } },
   { NEAR_NEWMV, { LAST2_FRAME, ALTREF_FRAME } },
   { NEW_NEWMV, { LAST2_FRAME, ALTREF_FRAME } },
   { GLOBAL_GLOBALMV, { LAST2_FRAME, ALTREF_FRAME } },
-#if CONFIG_EXT_COMPOUND
-  { NEAR_SCALEDMV, { LAST2_FRAME, ALTREF_FRAME } },
-  { SCALED_NEARMV, { LAST2_FRAME, ALTREF_FRAME } },
-  { NEW_SCALEDMV, { LAST2_FRAME, ALTREF_FRAME } },
-  { SCALED_NEWMV, { LAST2_FRAME, ALTREF_FRAME } },
-#endif  // CONFIG_EXT_COMPOUND
+#if CONFIG_OPTFLOW_REFINEMENT
+  { NEAR_NEARMV_OPTFLOW, { LAST2_FRAME, ALTREF_FRAME } },
+#endif  // CONFIG_OPTFLOW_REFINEMENT
 
   { NEW_NEARMV, { LAST3_FRAME, ALTREF_FRAME } },
   { NEAR_NEWMV, { LAST3_FRAME, ALTREF_FRAME } },
   { NEW_NEWMV, { LAST3_FRAME, ALTREF_FRAME } },
   { GLOBAL_GLOBALMV, { LAST3_FRAME, ALTREF_FRAME } },
-#if CONFIG_EXT_COMPOUND
-  { NEAR_SCALEDMV, { LAST3_FRAME, ALTREF_FRAME } },
-  { SCALED_NEARMV, { LAST3_FRAME, ALTREF_FRAME } },
-  { NEW_SCALEDMV, { LAST3_FRAME, ALTREF_FRAME } },
-  { SCALED_NEWMV, { LAST3_FRAME, ALTREF_FRAME } },
-#endif  // CONFIG_EXT_COMPOUND
+#if CONFIG_OPTFLOW_REFINEMENT
+  { NEAR_NEARMV_OPTFLOW, { LAST3_FRAME, ALTREF_FRAME } },
+#endif  // CONFIG_OPTFLOW_REFINEMENT
 
   { NEW_NEARMV, { GOLDEN_FRAME, ALTREF_FRAME } },
   { NEAR_NEWMV, { GOLDEN_FRAME, ALTREF_FRAME } },
   { NEW_NEWMV, { GOLDEN_FRAME, ALTREF_FRAME } },
   { GLOBAL_GLOBALMV, { GOLDEN_FRAME, ALTREF_FRAME } },
-#if CONFIG_EXT_COMPOUND
-  { NEAR_SCALEDMV, { GOLDEN_FRAME, ALTREF_FRAME } },
-  { SCALED_NEARMV, { GOLDEN_FRAME, ALTREF_FRAME } },
-  { NEW_SCALEDMV, { GOLDEN_FRAME, ALTREF_FRAME } },
-  { SCALED_NEWMV, { GOLDEN_FRAME, ALTREF_FRAME } },
-#endif  // CONFIG_EXT_COMPOUND
+#if CONFIG_OPTFLOW_REFINEMENT
+  { NEAR_NEARMV_OPTFLOW, { GOLDEN_FRAME, ALTREF_FRAME } },
+#endif  // CONFIG_OPTFLOW_REFINEMENT
 
   { NEW_NEARMV, { LAST_FRAME, BWDREF_FRAME } },
   { NEAR_NEWMV, { LAST_FRAME, BWDREF_FRAME } },
   { NEW_NEWMV, { LAST_FRAME, BWDREF_FRAME } },
   { GLOBAL_GLOBALMV, { LAST_FRAME, BWDREF_FRAME } },
-#if CONFIG_EXT_COMPOUND
-  { NEAR_SCALEDMV, { LAST_FRAME, BWDREF_FRAME } },
-  { SCALED_NEARMV, { LAST_FRAME, BWDREF_FRAME } },
-  { NEW_SCALEDMV, { LAST_FRAME, BWDREF_FRAME } },
-  { SCALED_NEWMV, { LAST_FRAME, BWDREF_FRAME } },
-#endif  // CONFIG_EXT_COMPOUND
+#if CONFIG_OPTFLOW_REFINEMENT
+  { NEAR_NEARMV_OPTFLOW, { LAST_FRAME, BWDREF_FRAME } },
+#endif  // CONFIG_OPTFLOW_REFINEMENT
 
   { NEW_NEARMV, { LAST2_FRAME, BWDREF_FRAME } },
   { NEAR_NEWMV, { LAST2_FRAME, BWDREF_FRAME } },
   { NEW_NEWMV, { LAST2_FRAME, BWDREF_FRAME } },
   { GLOBAL_GLOBALMV, { LAST2_FRAME, BWDREF_FRAME } },
-#if CONFIG_EXT_COMPOUND
-  { NEAR_SCALEDMV, { LAST2_FRAME, BWDREF_FRAME } },
-  { SCALED_NEARMV, { LAST2_FRAME, BWDREF_FRAME } },
-  { NEW_SCALEDMV, { LAST2_FRAME, BWDREF_FRAME } },
-  { SCALED_NEWMV, { LAST2_FRAME, BWDREF_FRAME } },
-#endif  // CONFIG_EXT_COMPOUND
+#if CONFIG_OPTFLOW_REFINEMENT
+  { NEAR_NEARMV_OPTFLOW, { LAST2_FRAME, BWDREF_FRAME } },
+#endif  // CONFIG_OPTFLOW_REFINEMENT
 
   { NEW_NEARMV, { LAST3_FRAME, BWDREF_FRAME } },
   { NEAR_NEWMV, { LAST3_FRAME, BWDREF_FRAME } },
   { NEW_NEWMV, { LAST3_FRAME, BWDREF_FRAME } },
   { GLOBAL_GLOBALMV, { LAST3_FRAME, BWDREF_FRAME } },
-#if CONFIG_EXT_COMPOUND
-  { NEAR_SCALEDMV, { LAST3_FRAME, BWDREF_FRAME } },
-  { SCALED_NEARMV, { LAST3_FRAME, BWDREF_FRAME } },
-  { NEW_SCALEDMV, { LAST3_FRAME, BWDREF_FRAME } },
-  { SCALED_NEWMV, { LAST3_FRAME, BWDREF_FRAME } },
-#endif  // CONFIG_EXT_COMPOUND
+#if CONFIG_OPTFLOW_REFINEMENT
+  { NEAR_NEARMV_OPTFLOW, { LAST3_FRAME, BWDREF_FRAME } },
+#endif  // CONFIG_OPTFLOW_REFINEMENT
 
   { NEW_NEARMV, { GOLDEN_FRAME, BWDREF_FRAME } },
   { NEAR_NEWMV, { GOLDEN_FRAME, BWDREF_FRAME } },
   { NEW_NEWMV, { GOLDEN_FRAME, BWDREF_FRAME } },
   { GLOBAL_GLOBALMV, { GOLDEN_FRAME, BWDREF_FRAME } },
-#if CONFIG_EXT_COMPOUND
-  { NEAR_SCALEDMV, { GOLDEN_FRAME, BWDREF_FRAME } },
-  { SCALED_NEARMV, { GOLDEN_FRAME, BWDREF_FRAME } },
-  { NEW_SCALEDMV, { GOLDEN_FRAME, BWDREF_FRAME } },
-  { SCALED_NEWMV, { GOLDEN_FRAME, BWDREF_FRAME } },
-#endif  // CONFIG_EXT_COMPOUND
+#if CONFIG_OPTFLOW_REFINEMENT
+  { NEAR_NEARMV_OPTFLOW, { GOLDEN_FRAME, BWDREF_FRAME } },
+#endif  // CONFIG_OPTFLOW_REFINEMENT
 
   { NEW_NEARMV, { LAST_FRAME, ALTREF2_FRAME } },
   { NEAR_NEWMV, { LAST_FRAME, ALTREF2_FRAME } },
   { NEW_NEWMV, { LAST_FRAME, ALTREF2_FRAME } },
   { GLOBAL_GLOBALMV, { LAST_FRAME, ALTREF2_FRAME } },
-#if CONFIG_EXT_COMPOUND
-  { NEAR_SCALEDMV, { LAST_FRAME, ALTREF2_FRAME } },
-  { SCALED_NEARMV, { LAST_FRAME, ALTREF2_FRAME } },
-  { NEW_SCALEDMV, { LAST_FRAME, ALTREF2_FRAME } },
-  { SCALED_NEWMV, { LAST_FRAME, ALTREF2_FRAME } },
-#endif  // CONFIG_EXT_COMPOUND
+#if CONFIG_OPTFLOW_REFINEMENT
+  { NEAR_NEARMV_OPTFLOW, { LAST_FRAME, ALTREF2_FRAME } },
+#endif  // CONFIG_OPTFLOW_REFINEMENT
 
   { NEW_NEARMV, { LAST2_FRAME, ALTREF2_FRAME } },
   { NEAR_NEWMV, { LAST2_FRAME, ALTREF2_FRAME } },
   { NEW_NEWMV, { LAST2_FRAME, ALTREF2_FRAME } },
   { GLOBAL_GLOBALMV, { LAST2_FRAME, ALTREF2_FRAME } },
-#if CONFIG_EXT_COMPOUND
-  { NEAR_SCALEDMV, { LAST2_FRAME, ALTREF2_FRAME } },
-  { SCALED_NEARMV, { LAST2_FRAME, ALTREF2_FRAME } },
-  { NEW_SCALEDMV, { LAST2_FRAME, ALTREF2_FRAME } },
-  { SCALED_NEWMV, { LAST2_FRAME, ALTREF2_FRAME } },
-#endif  // CONFIG_EXT_COMPOUND
+#if CONFIG_OPTFLOW_REFINEMENT
+  { NEAR_NEARMV_OPTFLOW, { LAST2_FRAME, ALTREF2_FRAME } },
+#endif  // CONFIG_OPTFLOW_REFINEMENT
 
   { NEW_NEARMV, { LAST3_FRAME, ALTREF2_FRAME } },
   { NEAR_NEWMV, { LAST3_FRAME, ALTREF2_FRAME } },
   { NEW_NEWMV, { LAST3_FRAME, ALTREF2_FRAME } },
   { GLOBAL_GLOBALMV, { LAST3_FRAME, ALTREF2_FRAME } },
-#if CONFIG_EXT_COMPOUND
-  { NEAR_SCALEDMV, { LAST3_FRAME, ALTREF2_FRAME } },
-  { SCALED_NEARMV, { LAST3_FRAME, ALTREF2_FRAME } },
-  { NEW_SCALEDMV, { LAST3_FRAME, ALTREF2_FRAME } },
-  { SCALED_NEWMV, { LAST3_FRAME, ALTREF2_FRAME } },
-#endif  // CONFIG_EXT_COMPOUND
+#if CONFIG_OPTFLOW_REFINEMENT
+  { NEAR_NEARMV_OPTFLOW, { LAST3_FRAME, ALTREF2_FRAME } },
+#endif  // CONFIG_OPTFLOW_REFINEMENT
 
   { NEW_NEARMV, { GOLDEN_FRAME, ALTREF2_FRAME } },
   { NEAR_NEWMV, { GOLDEN_FRAME, ALTREF2_FRAME } },
   { NEW_NEWMV, { GOLDEN_FRAME, ALTREF2_FRAME } },
   { GLOBAL_GLOBALMV, { GOLDEN_FRAME, ALTREF2_FRAME } },
-#if CONFIG_EXT_COMPOUND
-  { NEAR_SCALEDMV, { GOLDEN_FRAME, ALTREF2_FRAME } },
-  { SCALED_NEARMV, { GOLDEN_FRAME, ALTREF2_FRAME } },
-  { NEW_SCALEDMV, { GOLDEN_FRAME, ALTREF2_FRAME } },
-  { SCALED_NEWMV, { GOLDEN_FRAME, ALTREF2_FRAME } },
-#endif  // CONFIG_EXT_COMPOUND
+#if CONFIG_OPTFLOW_REFINEMENT
+  { NEAR_NEARMV_OPTFLOW, { GOLDEN_FRAME, ALTREF2_FRAME } },
+#endif  // CONFIG_OPTFLOW_REFINEMENT
 
   { NEW_NEARMV, { LAST_FRAME, LAST2_FRAME } },
   { NEAR_NEWMV, { LAST_FRAME, LAST2_FRAME } },
   { NEW_NEWMV, { LAST_FRAME, LAST2_FRAME } },
   { GLOBAL_GLOBALMV, { LAST_FRAME, LAST2_FRAME } },
-#if CONFIG_EXT_COMPOUND
-  { NEAR_SCALEDMV, { LAST_FRAME, LAST2_FRAME } },
-  { SCALED_NEARMV, { LAST_FRAME, LAST2_FRAME } },
-  { NEW_SCALEDMV, { LAST_FRAME, LAST2_FRAME } },
-  { SCALED_NEWMV, { LAST_FRAME, LAST2_FRAME } },
-#endif  // CONFIG_EXT_COMPOUND
+#if CONFIG_OPTFLOW_REFINEMENT
+  { NEAR_NEARMV_OPTFLOW, { LAST_FRAME, LAST2_FRAME } },
+#endif  // CONFIG_OPTFLOW_REFINEMENT
 
   { NEW_NEARMV, { LAST_FRAME, LAST3_FRAME } },
   { NEAR_NEWMV, { LAST_FRAME, LAST3_FRAME } },
   { NEW_NEWMV, { LAST_FRAME, LAST3_FRAME } },
   { GLOBAL_GLOBALMV, { LAST_FRAME, LAST3_FRAME } },
-#if CONFIG_EXT_COMPOUND
-  { NEAR_SCALEDMV, { LAST_FRAME, LAST3_FRAME } },
-  { SCALED_NEARMV, { LAST_FRAME, LAST3_FRAME } },
-  { NEW_SCALEDMV, { LAST_FRAME, LAST3_FRAME } },
-  { SCALED_NEWMV, { LAST_FRAME, LAST3_FRAME } },
-#endif  // CONFIG_EXT_COMPOUND
+#if CONFIG_OPTFLOW_REFINEMENT
+  { NEAR_NEARMV_OPTFLOW, { LAST_FRAME, LAST3_FRAME } },
+#endif  // CONFIG_OPTFLOW_REFINEMENT
 
   { NEW_NEARMV, { LAST_FRAME, GOLDEN_FRAME } },
   { NEAR_NEWMV, { LAST_FRAME, GOLDEN_FRAME } },
   { NEW_NEWMV, { LAST_FRAME, GOLDEN_FRAME } },
   { GLOBAL_GLOBALMV, { LAST_FRAME, GOLDEN_FRAME } },
-#if CONFIG_EXT_COMPOUND
-  { NEAR_SCALEDMV, { LAST_FRAME, GOLDEN_FRAME } },
-  { SCALED_NEARMV, { LAST_FRAME, GOLDEN_FRAME } },
-  { NEW_SCALEDMV, { LAST_FRAME, GOLDEN_FRAME } },
-  { SCALED_NEWMV, { LAST_FRAME, GOLDEN_FRAME } },
-#endif  // CONFIG_EXT_COMPOUND
+#if CONFIG_OPTFLOW_REFINEMENT
+  { NEAR_NEARMV_OPTFLOW, { LAST_FRAME, GOLDEN_FRAME } },
+#endif  // CONFIG_OPTFLOW_REFINEMENT
 
   { NEW_NEARMV, { BWDREF_FRAME, ALTREF_FRAME } },
   { NEAR_NEWMV, { BWDREF_FRAME, ALTREF_FRAME } },
   { NEW_NEWMV, { BWDREF_FRAME, ALTREF_FRAME } },
   { GLOBAL_GLOBALMV, { BWDREF_FRAME, ALTREF_FRAME } },
-#if CONFIG_EXT_COMPOUND
-  { NEAR_SCALEDMV, { BWDREF_FRAME, ALTREF_FRAME } },
-  { SCALED_NEARMV, { BWDREF_FRAME, ALTREF_FRAME } },
-  { NEW_SCALEDMV, { BWDREF_FRAME, ALTREF_FRAME } },
-  { SCALED_NEWMV, { BWDREF_FRAME, ALTREF_FRAME } },
-#endif  // CONFIG_EXT_COMPOUND
+#if CONFIG_OPTFLOW_REFINEMENT
+  { NEAR_NEARMV_OPTFLOW, { BWDREF_FRAME, ALTREF_FRAME } },
+#endif  // CONFIG_OPTFLOW_REFINEMENT
 
   // intra modes
   { DC_PRED, { INTRA_FRAME, NONE_FRAME } },
@@ -900,112 +852,34 @@ static const int16_t comp_inter_to_mode_idx[COMP_INTER_MODE_NUM][REF_FRAMES]
     { -1, -1, -1, -1, -1, -1, -1, -1, },
     { -1, -1, -1, -1, -1, -1, -1, -1, },
   },
-#if CONFIG_EXT_COMPOUND
-  // NEAR_SCALEDMV,
+#if CONFIG_OPTFLOW_REFINEMENT
+  // NEAR_NEARMV_OPTFLOW,
   {
     { -1, -1, -1, -1, -1, -1, -1, -1, },
     { -1, -1,
-      THR_COMP_NEAR_SCALEDLL2, THR_COMP_NEAR_SCALEDLL3,
-      THR_COMP_NEAR_SCALEDLG, THR_COMP_NEAR_SCALEDLB,
-      THR_COMP_NEAR_SCALEDLA2, THR_COMP_NEAR_SCALEDLA, },
+      THR_COMP_NEAR_NEAR_OPTFLOWLL2, THR_COMP_NEAR_NEAR_OPTFLOWLL3,
+      THR_COMP_NEAR_NEAR_OPTFLOWLG, THR_COMP_NEAR_NEAR_OPTFLOWLB,
+      THR_COMP_NEAR_NEAR_OPTFLOWLA2, THR_COMP_NEAR_NEAR_OPTFLOWLA, },
     { -1, -1,
       -1, -1,
-      -1, THR_COMP_NEAR_SCALEDL2B,
-      THR_COMP_NEAR_SCALEDL2A2, THR_COMP_NEAR_SCALEDL2A, },
+      -1, THR_COMP_NEAR_NEAR_OPTFLOWL2B,
+      THR_COMP_NEAR_NEAR_OPTFLOWL2A2, THR_COMP_NEAR_NEAR_OPTFLOWL2A, },
     { -1, -1,
       -1, -1,
-      -1, THR_COMP_NEAR_SCALEDL3B,
-      THR_COMP_NEAR_SCALEDL3A2, THR_COMP_NEAR_SCALEDL3A, },
+      -1, THR_COMP_NEAR_NEAR_OPTFLOWL3B,
+      THR_COMP_NEAR_NEAR_OPTFLOWL3A2, THR_COMP_NEAR_NEAR_OPTFLOWL3A, },
     { -1, -1,
       -1, -1,
-      -1, THR_COMP_NEAR_SCALEDGB,
-      THR_COMP_NEAR_SCALEDGA2, THR_COMP_NEAR_SCALEDGA, },
+      -1, THR_COMP_NEAR_NEAR_OPTFLOWGB,
+      THR_COMP_NEAR_NEAR_OPTFLOWGA2, THR_COMP_NEAR_NEAR_OPTFLOWGA, },
     { -1, -1,
       -1, -1,
       -1, -1,
-      -1, THR_COMP_NEAR_SCALEDBA, },
+      -1, THR_COMP_NEAR_NEAR_OPTFLOWBA, },
     { -1, -1, -1, -1, -1, -1, -1, -1, },
     { -1, -1, -1, -1, -1, -1, -1, -1, },
   },
-  // SCALED_NEARMV,
-  {
-    { -1, -1, -1, -1, -1, -1, -1, -1, },
-    { -1, -1,
-      THR_COMP_SCALED_NEARLL2, THR_COMP_SCALED_NEARLL3,
-      THR_COMP_SCALED_NEARLG, THR_COMP_SCALED_NEARLB,
-      THR_COMP_SCALED_NEARLA2, THR_COMP_SCALED_NEARLA, },
-    { -1, -1,
-      -1, -1,
-      -1, THR_COMP_SCALED_NEARL2B,
-      THR_COMP_SCALED_NEARL2A2, THR_COMP_SCALED_NEARL2A, },
-    { -1, -1,
-      -1, -1,
-      -1, THR_COMP_SCALED_NEARL3B,
-      THR_COMP_SCALED_NEARL3A2, THR_COMP_SCALED_NEARL3A, },
-    { -1, -1,
-      -1, -1,
-      -1, THR_COMP_SCALED_NEARGB,
-      THR_COMP_SCALED_NEARGA2, THR_COMP_SCALED_NEARGA, },
-    { -1, -1,
-      -1, -1,
-      -1, -1,
-      -1, THR_COMP_SCALED_NEARBA, },
-    { -1, -1, -1, -1, -1, -1, -1, -1, },
-    { -1, -1, -1, -1, -1, -1, -1, -1, },
-  },
-  // NEW_SCALEDMV,
-  {
-    { -1, -1, -1, -1, -1, -1, -1, -1, },
-    { -1, -1,
-      THR_COMP_NEW_SCALEDLL2, THR_COMP_NEW_SCALEDLL3,
-      THR_COMP_NEW_SCALEDLG, THR_COMP_NEW_SCALEDLB,
-      THR_COMP_NEW_SCALEDLA2, THR_COMP_NEW_SCALEDLA, },
-    { -1, -1,
-      -1, -1,
-      -1, THR_COMP_NEW_SCALEDL2B,
-      THR_COMP_NEW_SCALEDL2A2, THR_COMP_NEW_SCALEDL2A, },
-    { -1, -1,
-      -1, -1,
-      -1, THR_COMP_NEW_SCALEDL3B,
-      THR_COMP_NEW_SCALEDL3A2, THR_COMP_NEW_SCALEDL3A, },
-    { -1, -1,
-      -1, -1,
-      -1, THR_COMP_NEW_SCALEDGB,
-      THR_COMP_NEW_SCALEDGA2, THR_COMP_NEW_SCALEDGA, },
-    { -1, -1,
-      -1, -1,
-      -1, -1,
-      -1, THR_COMP_NEW_SCALEDBA, },
-    { -1, -1, -1, -1, -1, -1, -1, -1, },
-    { -1, -1, -1, -1, -1, -1, -1, -1, },
-  },
-  // SCALED_NEWMV,
-  {
-    { -1, -1, -1, -1, -1, -1, -1, -1, },
-    { -1, -1,
-      THR_COMP_SCALED_NEWLL2, THR_COMP_SCALED_NEWLL3,
-      THR_COMP_SCALED_NEWLG, THR_COMP_SCALED_NEWLB,
-      THR_COMP_SCALED_NEWLA2, THR_COMP_SCALED_NEWLA, },
-    { -1, -1,
-      -1, -1,
-      -1, THR_COMP_SCALED_NEWL2B,
-      THR_COMP_SCALED_NEWL2A2, THR_COMP_SCALED_NEWL2A, },
-    { -1, -1,
-      -1, -1,
-      -1, THR_COMP_SCALED_NEWL3B,
-      THR_COMP_SCALED_NEWL3A2, THR_COMP_SCALED_NEWL3A, },
-    { -1, -1,
-      -1, -1,
-      -1, THR_COMP_SCALED_NEWGB,
-      THR_COMP_SCALED_NEWGA2, THR_COMP_SCALED_NEWGA, },
-    { -1, -1,
-      -1, -1,
-      -1, -1,
-      -1, THR_COMP_SCALED_NEWBA, },
-    { -1, -1, -1, -1, -1, -1, -1, -1, },
-    { -1, -1, -1, -1, -1, -1, -1, -1, },
-  },
-#endif  // CONFIG_EXT_COMPOUND
+#endif  // CONFIG_OPTFLOW_REFINEMENT
 };
 /* clang-format on */
 // Calculate rd threshold based on ref best rd and relevant scaling factors
@@ -8766,9 +8640,6 @@ static INLINE void get_this_mv(const AV1_COMMON *cm, int_mv *mv,
                                PREDICTION_MODE this_mode, int ref_idx,
                                int ref_mv_idx,
                                const MV_REFERENCE_FRAME *ref_frame,
-#if CONFIG_EXT_COMPOUND
-                               BLOCK_SIZE bsize, int mi_row, int mi_col,
-#endif
                                const MB_MODE_INFO_EXT *mbmi_ext);
 static int discount_newmv_test(const AV1_COMP *const cpi, const MACROBLOCK *x,
                                PREDICTION_MODE this_mode, int_mv this_mv) {
@@ -8783,29 +8654,18 @@ static int discount_newmv_test(const AV1_COMP *const cpi, const MACROBLOCK *x,
                                                    NONE_FRAME };
     const uint8_t ref_frame_type = av1_ref_frame_type(tmp_ref_frames);
     int_mv nearest_mv[2];
-    get_this_mv(cm, nearest_mv, NEARESTMV, 0, 0, tmp_ref_frames,
-#if CONFIG_EXT_COMPOUND
-                mbmi->sb_type, xd->mi_row, xd->mi_col,
-#endif
-                x->mbmi_ext);
+    get_this_mv(cm, nearest_mv, NEARESTMV, 0, 0, tmp_ref_frames, x->mbmi_ext);
     int ret = nearest_mv[0].as_int == 0;
     for (int ref_mv_idx = 0;
          ref_mv_idx < x->mbmi_ext->ref_mv_count[ref_frame_type]; ++ref_mv_idx) {
       int_mv near_mv[2];
       get_this_mv(cm, near_mv, NEARMV, 0, ref_mv_idx, tmp_ref_frames,
-#if CONFIG_EXT_COMPOUND
-                  mbmi->sb_type, xd->mi_row, xd->mi_col,
-#endif
                   x->mbmi_ext);
       ret &= near_mv[0].as_int == 0;
     }
     if (cm->global_motion[tmp_ref_frames[0]].wmtype <= TRANSLATION) {
       int_mv global_mv[2];
-      get_this_mv(cm, global_mv, GLOBALMV, 0, 0, tmp_ref_frames,
-#if CONFIG_EXT_COMPOUND
-                  mbmi->sb_type, xd->mi_row, xd->mi_col,
-#endif
-                  x->mbmi_ext);
+      get_this_mv(cm, global_mv, GLOBALMV, 0, 0, tmp_ref_frames, x->mbmi_ext);
       ret &= global_mv[0].as_int != this_mv.as_int;
     }
     return ret;
@@ -9228,12 +9088,7 @@ static int interinter_compound_motion_search(const AV1_COMP *const cpi,
   const INTERINTER_COMPOUND_DATA *compound_data = &mbmi->interinter_comp;
 
 #if CONFIG_NEW_INTER_MODES
-#if CONFIG_EXT_COMPOUND
-  const int mixed_new = this_mode == NEAR_NEWMV || this_mode == NEW_NEARMV ||
-                        this_mode == SCALED_NEWMV || this_mode == NEW_SCALEDMV;
-#else
   const int mixed_new = this_mode == NEAR_NEWMV || this_mode == NEW_NEARMV;
-#endif  // CONFIG_EXT_COMPOUND
 #else
   const int mixed_new = this_mode >= NEAREST_NEWMV && this_mode <= NEW_NEARMV;
 #endif  // CONFIG_NEW_INTER_MODES
@@ -9656,11 +9511,7 @@ static int64_t handle_newmv(const AV1_COMP *const cpi, MACROBLOCK *const x,
                                          MV_COST_WEIGHT);
       }
 #if CONFIG_NEW_INTER_MODES
-#if CONFIG_EXT_COMPOUND
-    } else if (this_mode == NEAR_NEWMV || this_mode == SCALED_NEWMV) {
-#else
     } else if (this_mode == NEAR_NEWMV) {
-#endif  // CONFIG_EXT_COMPOUND
 #else
     } else if (this_mode == NEAREST_NEWMV || this_mode == NEAR_NEWMV) {
 #endif  // CONFIG_NEW_INTER_MODES
@@ -9683,18 +9534,9 @@ static int64_t handle_newmv(const AV1_COMP *const cpi, MACROBLOCK *const x,
 #endif  // CONFIG_FLEX_MVRES
                                 MV_COST_WEIGHT);
       }
-#if CONFIG_EXT_COMPOUND
-      if (this_mode == SCALED_NEWMV)
-        av1_get_scaled_mv(&cpi->common, cur_mv[1], 1, mbmi->ref_frame,
-                          &cur_mv[0], bsize, xd->mi_row, xd->mi_col);
-#endif  // CONFIG_EXT_COMPOUND
     } else {
 #if CONFIG_NEW_INTER_MODES
-#if CONFIG_EXT_COMPOUND
-      assert(this_mode == NEW_NEARMV || this_mode == NEW_SCALEDMV);
-#else
       assert(this_mode == NEW_NEARMV);
-#endif  // CONFIG_EXT_COMPOUND
 #else
       assert(this_mode == NEW_NEARESTMV || this_mode == NEW_NEARMV);
 #endif  // CONFIG_NEW_INTER_MODES
@@ -9717,11 +9559,6 @@ static int64_t handle_newmv(const AV1_COMP *const cpi, MACROBLOCK *const x,
 #endif  // CONFIG_FLEX_MVRES
                                 MV_COST_WEIGHT);
       }
-#if CONFIG_EXT_COMPOUND
-      if (this_mode == NEW_SCALEDMV)
-        av1_get_scaled_mv(&cpi->common, cur_mv[0], 0, mbmi->ref_frame,
-                          &cur_mv[1], bsize, xd->mi_row, xd->mi_col);
-#endif  // CONFIG_EXT_COMPOUND
     }
   } else {
     single_motion_search(cpi, x, bsize, 0, rate_mv, false);
@@ -10359,9 +10196,9 @@ static INLINE void calc_interp_skip_pred_flag(MACROBLOCK *const x,
       const int bh = pd->height;
       const MV mv_q4 =
           clamp_mv_to_umv_border_sb(xd, &mv, bw, bh,
-#if CONFIG_EXT_COMPOUND
+#if CONFIG_OPTFLOW_REFINEMENT
                                     0,
-#endif  // CONFIG_EXT_COMPOUND
+#endif  // CONFIG_OPTFLOW_REFINEMENT
                                     pd->subsampling_x, pd->subsampling_y);
       const int sub_x = (mv_q4.col & SUBPEL_MASK) << SCALE_EXTRA_BITS;
       const int sub_y = (mv_q4.row & SUBPEL_MASK) << SCALE_EXTRA_BITS;
@@ -10462,11 +10299,11 @@ static int64_t interpolation_filter_search(
     return 0;
   }
   if (args->modelled_rd != NULL) {
-#if CONFIG_EXT_COMPOUND
+#if CONFIG_OPTFLOW_REFINEMENT
     if (has_second_ref(mbmi) && mbmi->mode <= NEW_NEWMV) {
 #else
     if (has_second_ref(mbmi)) {
-#endif  // CONFIG_EXT_COMPOUND
+#endif  // CONFIG_OPTFLOW_REFINEMENT
       const int ref_mv_idx = mbmi->ref_mv_idx;
       MV_REFERENCE_FRAME *refs = mbmi->ref_frame;
       const int mode0 = compound_ref0_mode(mbmi->mode);
@@ -11718,36 +11555,17 @@ static INLINE void get_this_mv(const AV1_COMMON *cm, int_mv *mv,
                                PREDICTION_MODE this_mode, int ref_idx,
                                int ref_mv_idx,
                                const MV_REFERENCE_FRAME *ref_frame,
-#if CONFIG_EXT_COMPOUND
-                               BLOCK_SIZE bsize, int mi_row, int mi_col,
-#endif
                                const MB_MODE_INFO_EXT *mbmi_ext) {
   (void)cm;
   int_mv *this_mv = &mv[ref_idx];
   const int is_comp_pred = ref_frame[1] > INTRA_FRAME;
   const PREDICTION_MODE single_mode =
       get_single_mode(this_mode, ref_idx, is_comp_pred);
-#if CONFIG_EXT_COMPOUND
-  assert(is_inter_singleref_mode(single_mode) ||
-         (this_mode > NEW_NEWMV && single_mode == MB_MODE_COUNT));
-#else
   assert(is_inter_singleref_mode(single_mode));
-#endif  // CONFIG_EXT_COMPOUND
-#if CONFIG_EXT_COMPOUND
-  if (single_mode == NEWMV || this_mode == NEW_SCALEDMV ||
-      this_mode == SCALED_NEWMV) {
-#else
   if (single_mode == NEWMV) {
-#endif  // CONFIG_EXT_COMPOUND
     this_mv->as_int = INVALID_MV;
   } else if (single_mode == GLOBALMV) {
     *this_mv = mbmi_ext->global_mvs[ref_frame[ref_idx]];
-#if CONFIG_EXT_COMPOUND
-  } else if (single_mode == MB_MODE_COUNT) {
-    assert(this_mode > NEW_NEWMV);
-    av1_get_scaled_mv(cm, mv[!ref_idx], !ref_idx, ref_frame, this_mv, bsize,
-                      mi_row, mi_col);
-#endif
   } else {
     assert(single_mode == NEARMV);
     const uint8_t ref_frame_type = av1_ref_frame_type(ref_frame);
@@ -11813,21 +11631,6 @@ static INLINE int build_cur_mv(int_mv *cur_mv, PREDICTION_MODE this_mode,
   const int is_comp_pred = has_second_ref(mbmi);
   int ret = 1;
   for (int i = 0; i < is_comp_pred + 1; ++i) {
-#if CONFIG_EXT_COMPOUND
-    int index = i;
-    // Reverse mv assignment order so derived mv is computed second
-    if (this_mode == SCALED_NEWMV || this_mode == SCALED_NEARMV) index = !i;
-    get_this_mv(cm, cur_mv, this_mode, index, mbmi->ref_mv_idx, mbmi->ref_frame,
-                mbmi->sb_type, xd->mi_row, xd->mi_col, x->mbmi_ext);
-    const PREDICTION_MODE single_mode =
-        get_single_mode(this_mode, index, is_comp_pred);
-    // NEWMV motion vectors will be assigned later
-    if (single_mode != NEWMV && this_mode != NEW_SCALEDMV &&
-        this_mode != SCALED_NEWMV) {
-      ret &= clamp_and_check_mv(cur_mv + index, cur_mv[index], cm, x);
-    }
-  }
-#else
     get_this_mv(cm, cur_mv, this_mode, i, mbmi->ref_mv_idx, mbmi->ref_frame,
                 x->mbmi_ext);
     const PREDICTION_MODE single_mode =
@@ -11837,7 +11640,6 @@ static INLINE int build_cur_mv(int_mv *cur_mv, PREDICTION_MODE this_mode,
       ret &= clamp_and_check_mv(cur_mv + i, cur_mv[i], cm, x);
     }
   }
-#endif  // CONFIG_EXT_COMPOUND
   return ret;
 }
 
@@ -11918,13 +11720,13 @@ static INLINE void calc_masked_type_cost(MACROBLOCK *x, BLOCK_SIZE bsize,
                                          int masked_compound_used,
                                          int *masked_type_cost) {
   av1_zero_array(masked_type_cost, COMPOUND_TYPES);
-#if CONFIG_EXT_COMPOUND
+#if CONFIG_OPTFLOW_REFINEMENT
   MACROBLOCKD *xd = &x->e_mbd;
   MB_MODE_INFO *mbmi = xd->mi[0];
   const PREDICTION_MODE this_mode = mbmi->mode;
-  // masked type not signalled with the EXT_COMPOUND modes
+  // masked type not signalled with the OPTFLOW_REFINEMENT modes
   if (this_mode > NEW_NEWMV) return;
-#endif  // CONFIG_EXT_COMPOUND
+#endif  // CONFIG_OPTFLOW_REFINEMENT
   // Account for group index cost when wedge and/or diffwtd prediction are
   // enabled
   if (masked_compound_used) {
@@ -11987,7 +11789,7 @@ static INLINE int compute_valid_comp_types(
   const AV1_COMMON *cm = &cpi->common;
   int valid_type_count = 0;
   int comp_type, valid_check;
-#if CONFIG_EXT_COMPOUND
+#if CONFIG_OPTFLOW_REFINEMENT
   MACROBLOCKD *xd = &x->e_mbd;
   MB_MODE_INFO *mbmi = xd->mi[0];
   const PREDICTION_MODE this_mode = mbmi->mode;
@@ -11997,7 +11799,7 @@ static INLINE int compute_valid_comp_types(
     valid_comp_types[0] = COMPOUND_AVERAGE;
     return 1;
   }
-#endif  // CONFIG_EXT_COMPOUND
+#endif  // CONFIG_OPTFLOW_REFINEMENT
   int8_t enable_masked_type[MASKED_COMPOUND_TYPES] = { 0, 0 };
 
   const int try_average_comp = (mode_search_mask & (1 << COMPOUND_AVERAGE));
@@ -13023,11 +12825,11 @@ static int64_t handle_inter_mode(AV1_COMP *const cpi, TileDataEnc *tile_data,
             mbmi->interp_filters.as_filters.y_filter;
 
       if (args->modelled_rd != NULL) {
-#if CONFIG_EXT_COMPOUND
+#if CONFIG_OPTFLOW_REFINEMENT
         if (is_comp_pred && this_mode <= NEW_NEWMV) {
 #else
         if (is_comp_pred) {
-#endif  // CONFIG_EXT_COMPOUND
+#endif  // CONFIG_OPTFLOW_REFINEMENT
           const int mode0 = compound_ref0_mode(this_mode);
           const int mode1 = compound_ref1_mode(this_mode);
           const int64_t mrd =
@@ -14123,16 +13925,8 @@ static void init_mode_skip_mask(mode_skip_mask_t *mask, const AV1_COMP *cpi,
 #if !CONFIG_NEW_INTER_MODES
       get_this_mv(cm, nearest_mv, NEARESTMV, 0, 0, tmp_ref_frames, x->mbmi_ext);
 #endif  // !CONFIG_NEW_INTER_MODES
-      get_this_mv(cm, near_mv, NEARMV, 0, 0, tmp_ref_frames,
-#if CONFIG_EXT_COMPOUND
-                  mbmi->sb_type, xd->mi_row, xd->mi_col,
-#endif
-                  x->mbmi_ext);
-      get_this_mv(cm, global_mv, GLOBALMV, 0, 0, tmp_ref_frames,
-#if CONFIG_EXT_COMPOUND
-                  mbmi->sb_type, xd->mi_row, xd->mi_col,
-#endif
-                  x->mbmi_ext);
+      get_this_mv(cm, near_mv, NEARMV, 0, 0, tmp_ref_frames, x->mbmi_ext);
+      get_this_mv(cm, global_mv, GLOBALMV, 0, 0, tmp_ref_frames, x->mbmi_ext);
 
       if (near_mv[0].as_int != global_mv[0].as_int)
         mask->pred_modes[ALTREF_FRAME] |= (1 << NEARMV);
@@ -15433,11 +15227,6 @@ static int compound_skip_by_single_states(
     const AV1_COMP *cpi, const InterModeSearchState *search_state,
     const PREDICTION_MODE this_mode, const MV_REFERENCE_FRAME ref_frame,
     const MV_REFERENCE_FRAME second_ref_frame, const MACROBLOCK *x) {
-#if CONFIG_EXT_COMPOUND
-  assert(this_mode <= NEW_NEWMV);
-  const MACROBLOCKD *const xd = &x->e_mbd;
-  const MB_MODE_INFO *const mbmi = xd->mi[0];
-#endif
   const MV_REFERENCE_FRAME refs[2] = { ref_frame, second_ref_frame };
   const int mode[2] = { compound_ref0_mode(this_mode),
                         compound_ref1_mode(this_mode) };
@@ -15477,14 +15266,8 @@ static int compound_skip_by_single_states(
       int_mv single_mv[2];
       int_mv comp_mv[2];
       get_this_mv(&cpi->common, single_mv, mode[i], 0, ref_mv_idx, single_refs,
-#if CONFIG_EXT_COMPOUND
-                  mbmi->sb_type, xd->mi_row, xd->mi_col,
-#endif
                   x->mbmi_ext);
       get_this_mv(&cpi->common, comp_mv, this_mode, i, ref_mv_idx, refs,
-#if CONFIG_EXT_COMPOUND
-                  mbmi->sb_type, xd->mi_row, xd->mi_col,
-#endif
                   x->mbmi_ext);
       if (single_mv[0].as_int != comp_mv[i].as_int) {
         ref_mv_match[i] = 0;
@@ -15750,12 +15533,12 @@ void av1_rd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
 
     const MODE_DEFINITION *mode_order = &av1_mode_order[midx];
     const PREDICTION_MODE this_mode = mode_order->mode;
-#if CONFIG_EXT_COMPOUND
+#if CONFIG_OPTFLOW_REFINEMENT
     // New compound modes only enabled with enable_order_hint
     if (this_mode > NEW_NEWMV &&
         !cm->seq_params.order_hint_info.enable_order_hint)
       continue;
-#endif  // CONFIG_EXT_COMPOUND
+#endif  // CONFIG_OPTFLOW_REFINEMENT
     const int ret = inter_mode_search_order_independent_skip(
         cpi, x, &mode_skip_mask, &search_state, skip_ref_frame_mask, this_mode,
         mode_order->ref_frame);
@@ -15792,12 +15575,12 @@ void av1_rd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
 
     if (search_state.best_rd < search_state.mode_threshold[midx]) continue;
 
-#if CONFIG_EXT_COMPOUND
+#if CONFIG_OPTFLOW_REFINEMENT
     if (sf->prune_comp_search_by_single_result > 0 && comp_pred &&
         this_mode <= NEW_NEWMV) {
 #else
     if (sf->prune_comp_search_by_single_result > 0 && comp_pred) {
-#endif  // CONFIG_EXT_COMPOUND
+#endif  // CONFIG_OPTFLOW_REFINEMENT
       if (compound_skip_by_single_states(cpi, &search_state, this_mode,
                                          ref_frame, second_ref_frame, x))
         continue;
@@ -16145,10 +15928,8 @@ void av1_rd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
   if (search_state.best_mbmode.ref_mv_idx != 0 &&
       !(search_state.best_mbmode.mode == NEWMV ||
         search_state.best_mbmode.mode == NEW_NEWMV ||
-#if CONFIG_EXT_COMPOUND
-        search_state.best_mbmode.mode == SCALED_NEWMV ||
-        search_state.best_mbmode.mode == NEW_SCALEDMV ||
-#endif  // CONFIG_EXT_COMPOUND
+#if CONFIG_OPTFLOW_REFINEMENT
+#endif  // CONFIG_OPTFLOW_REFINEMENT
         have_nearmv_in_inter_mode(search_state.best_mbmode.mode))) {
     search_state.best_mbmode.ref_mv_idx = 0;
   }
@@ -16414,12 +16195,12 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
 
     const MODE_DEFINITION *mode_order = &av1_mode_order[midx];
     this_mode = mode_order->mode;
-#if CONFIG_EXT_COMPOUND
+#if CONFIG_OPTFLOW_REFINEMENT
     // New compound modes only enabled with enable_order_hint
     if (this_mode > NEW_NEWMV &&
         !cm->seq_params.order_hint_info.enable_order_hint)
       continue;
-#endif  // CONFIG_EXT_COMPOUND
+#endif  // CONFIG_OPTFLOW_REFINEMENT
     const int ret = inter_mode_search_order_independent_skip(
         cpi, x, &mode_skip_mask, &search_state, skip_ref_frame_mask, this_mode,
         mode_order->ref_frame);
@@ -16485,12 +16266,12 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
 
     if (search_state.best_rd < search_state.mode_threshold[midx]) continue;
 
-#if CONFIG_EXT_COMPOUND
+#if CONFIG_OPTFLOW_REFINEMENT
     if (sf->prune_comp_search_by_single_result > 0 && comp_pred &&
         this_mode <= NEW_NEWMV) {
 #else
     if (sf->prune_comp_search_by_single_result > 0 && comp_pred) {
-#endif  // CONFIG_EXT_COMPOUND
+#endif  // CONFIG_OPTFLOW_REFINEMENT
       if (compound_skip_by_single_states(cpi, &search_state, this_mode,
                                          ref_frame, second_ref_frame, x))
         continue;

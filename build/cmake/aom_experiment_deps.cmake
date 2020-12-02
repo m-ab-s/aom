@@ -30,11 +30,7 @@ macro(fix_experiment_configs)
   endif()
 
   if(CONFIG_OPTFLOW_REFINEMENT)
-    change_config_and_warn(CONFIG_EXT_COMPOUND 1 CONFIG_OPTFLOW_REFINEMENT)
-  endif()
-
-  if(CONFIG_EXT_COMPOUND)
-    change_config_and_warn(CONFIG_NEW_INTER_MODES 1 CONFIG_EXT_COMPOUND)
+    change_config_and_warn(CONFIG_NEW_INTER_MODES 1 CONFIG_OPTFLOW_REFINEMENT)
   endif()
 
   if(CONFIG_SB_FLEX_MVRES)

@@ -1519,7 +1519,11 @@ static INLINE int assign_mv(AV1_COMMON *cm, MACROBLOCKD *xd,
       break;
     }
 #endif  // !CONFIG_NEW_INTER_MODES
-    case NEAR_NEARMV: {
+    case NEAR_NEARMV:
+#if CONFIG_OPTFLOW_REFINEMENT
+    case NEAR_NEARMV_OPTFLOW:
+#endif  // CONFIG_OPTFLOW_REFINEMENT
+    {
       assert(is_compound);
       mv[0].as_int = near_mv[0].as_int;
       mv[1].as_int = near_mv[1].as_int;
@@ -1567,38 +1571,6 @@ static INLINE int assign_mv(AV1_COMMON *cm, MACROBLOCKD *xd,
               .as_int;
       break;
     }
-#if CONFIG_EXT_COMPOUND
-    case NEAR_SCALEDMV: {
-      mv[0].as_int = near_mv[0].as_int;
-      av1_get_scaled_mv(cm, mv[0], 0, mbmi->ref_frame, &mv[1], mbmi->sb_type,
-                        xd->mi_row, xd->mi_col);
-      assert(is_compound);
-      break;
-    }
-    case SCALED_NEARMV: {
-      mv[1].as_int = near_mv[1].as_int;
-      av1_get_scaled_mv(cm, mv[1], 1, mbmi->ref_frame, &mv[0], mbmi->sb_type,
-                        xd->mi_row, xd->mi_col);
-      assert(is_compound);
-      break;
-    }
-    case NEW_SCALEDMV: {
-      nmv_context *const nmvc = &ec_ctx->nmvc;
-      read_mv(r, &mv[0].as_mv, &ref_mv[0].as_mv, nmvc, precision);
-      av1_get_scaled_mv(cm, mv[0], 0, mbmi->ref_frame, &mv[1], mbmi->sb_type,
-                        xd->mi_row, xd->mi_col);
-      assert(is_compound);
-      break;
-    }
-    case SCALED_NEWMV: {
-      nmv_context *const nmvc = &ec_ctx->nmvc;
-      read_mv(r, &mv[1].as_mv, &ref_mv[1].as_mv, nmvc, precision);
-      av1_get_scaled_mv(cm, mv[1], 1, mbmi->ref_frame, &mv[0], mbmi->sb_type,
-                        xd->mi_row, xd->mi_col);
-      assert(is_compound);
-      break;
-    }
-#endif  // CONFIG_EXT_COMPOUND
     default: { return 0; }
   }
   int ret = is_mv_valid(&mv[0].as_mv);
@@ -2032,11 +2004,11 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
   mbmi->compound_idx = 1;
   mbmi->interinter_comp.type = COMPOUND_AVERAGE;
 
-#if CONFIG_EXT_COMPOUND
+#if CONFIG_OPTFLOW_REFINEMENT
   if (has_second_ref(mbmi) && !mbmi->skip_mode && mbmi->mode <= NEW_NEWMV) {
 #else
   if (has_second_ref(mbmi) && !mbmi->skip_mode) {
-#endif  // CONFIG_EXT_COMPOUND
+#endif  // CONFIG_OPTFLOW_REFINEMENT
     // Read idx to indicate current compound inter prediction mode group
     const int masked_compound_used = is_any_masked_compound_used(bsize) &&
                                      cm->seq_params.enable_masked_compound;
