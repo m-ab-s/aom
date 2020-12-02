@@ -19,6 +19,9 @@
 
 #include "tools/lanczos/lanczos_resample.h"
 
+#define Y4M_HDR_MAX_LEN 256
+#define Y4M_HDR_MAX_WORDS 16
+
 #define COEFF_PREC_BITS 12
 #define INT_EXTRA_PREC_BITS 2
 
@@ -106,10 +109,9 @@ static int split_words(char *buf, char **words) {
 }
 
 static void join_words(char *dest, int len, char **words, int nwords) {
-  (void)len;
   for (int i = 0; i < nwords; ++i) {
-    strncat(dest, " ", 1);
-    strncat(dest, words[i], strlen(words[i]));
+    strncat(dest, " ", len - strlen(dest));
+    strncat(dest, words[i], len - strlen(dest));
   }
 }
 
@@ -160,9 +162,9 @@ int main(int argc, char *argv[]) {
   char *y4m_input = argv[1];
   char *y4m_output = argv[5];
 
-  char hdr[256];
+  char hdr[Y4M_HDR_MAX_LEN];
   int nhdrwords;
-  char *hdrwords[16];
+  char *hdrwords[Y4M_HDR_MAX_WORDS];
   FILE *fin = fopen(y4m_input, "rb");
   if (!fgets(hdr, sizeof(hdr), fin)) {
     printf("Invalid y4m file %s\n", y4m_input);
@@ -211,8 +213,9 @@ int main(int argc, char *argv[]) {
   printf("InputSize: %dx%d -> OutputSize: %dx%d\n", ywidth, yheight, rywidth,
          ryheight);
 
-  char rhdr[256];
-  get_resampled_hdr(rhdr, 256, hdrwords, nhdrwords, rywidth, ryheight);
+  char rhdr[Y4M_HDR_MAX_LEN];
+  get_resampled_hdr(rhdr, Y4M_HDR_MAX_LEN, hdrwords, nhdrwords, rywidth,
+                    ryheight);
   // printf("Resampled header = %s\n", rhdr);
   FILE *fout = fopen(y4m_output, "wb");
   fwrite(rhdr, strlen(rhdr), 1, fout);
