@@ -267,7 +267,6 @@ enum {
   DCT_ADST_TX_MASK = 0x000F,  // Either DCT or ADST in each direction
 } UENUM1BYTE(TX_TYPE);
 
-#if !CONFIG_REMOVE_DUAL_FILTER
 enum {
   REG_REG,
   REG_SMOOTH,
@@ -279,7 +278,6 @@ enum {
   SHARP_SMOOTH,
   SHARP_SHARP,
 } UENUM1BYTE(DUAL_FILTER_TYPE);
-#endif  // !CONFIG_REMOVE_DUAL_FILTER
 
 enum {
   // DCT only
