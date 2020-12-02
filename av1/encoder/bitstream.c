@@ -1663,7 +1663,11 @@ static void pack_inter_mode_mvs(AV1_COMP *cpi, const int mi_row,
         assert(mbmi->ref_mv_idx == 0);
     }
 
+#if CONFIG_OPTFLOW_REFINEMENT
+    if (mode == NEWMV || mode == NEW_NEWMV || mode == NEW_NEWMV_OPTFLOW) {
+#else
     if (mode == NEWMV || mode == NEW_NEWMV) {
+#endif
       for (ref = 0; ref < 1 + is_compound; ++ref) {
         nmv_context *nmvc = &ec_ctx->nmvc;
         const int_mv ref_mv = av1_get_ref_mv(x, ref);
@@ -1671,12 +1675,20 @@ static void pack_inter_mode_mvs(AV1_COMP *cpi, const int mi_row,
                       mbmi->pb_mv_precision);
       }
 #if CONFIG_NEW_INTER_MODES
+#if CONFIG_OPTFLOW_REFINEMENT
+    } else if (mode == NEAR_NEWMV || mode == NEAR_NEWMV_OPTFLOW) {
+#else  // !CONFIG_OPTFLOW_REFINEMENT
     } else if (mode == NEAR_NEWMV) {
+#endif
       nmv_context *nmvc = &ec_ctx->nmvc;
       const int_mv ref_mv = av1_get_ref_mv(x, 1);
       av1_encode_mv(cpi, w, &mbmi->mv[1].as_mv, &ref_mv.as_mv, nmvc,
                     mbmi->pb_mv_precision);
+#if CONFIG_OPTFLOW_REFINEMENT
+    } else if (mode == NEW_NEARMV || mode == NEW_NEARMV_OPTFLOW) {
+#else
     } else if (mode == NEW_NEARMV) {
+#endif
       nmv_context *nmvc = &ec_ctx->nmvc;
       const int_mv ref_mv = av1_get_ref_mv(x, 0);
       av1_encode_mv(cpi, w, &mbmi->mv[0].as_mv, &ref_mv.as_mv, nmvc,

@@ -72,7 +72,11 @@ static INLINE int av1_check_newmv_joint_nonzero(const AV1_COMMON *cm,
   if (is_pb_mv_precision_active(cm, this_mode, mbmi->max_mv_precision))
     precision = av1_get_mbmi_mv_precision(cm, mbmi);
 #endif  // CONFIG_FLEX_MVRES
+#if CONFIG_OPTFLOW_REFINEMENT
+  if (this_mode == NEW_NEWMV || this_mode == NEW_NEWMV_OPTFLOW) {
+#else
   if (this_mode == NEW_NEWMV) {
+#endif
     int_mv ref_mv_0 = av1_get_ref_mv(x, 0);
     int_mv ref_mv_1 = av1_get_ref_mv(x, 1);
     lower_mv_precision(&ref_mv_0.as_mv, precision);
@@ -82,7 +86,11 @@ static INLINE int av1_check_newmv_joint_nonzero(const AV1_COMMON *cm,
       return 0;
     }
 #if CONFIG_NEW_INTER_MODES
+#if CONFIG_OPTFLOW_REFINEMENT
+  } else if (this_mode == NEAR_NEWMV || this_mode == NEAR_NEWMV_OPTFLOW) {
+#else
   } else if (this_mode == NEAR_NEWMV) {
+#endif
 #else
   } else if (this_mode == NEAREST_NEWMV || this_mode == NEAR_NEWMV) {
 #endif  // CONFIG_NEW_INTER_MODES
@@ -92,7 +100,11 @@ static INLINE int av1_check_newmv_joint_nonzero(const AV1_COMMON *cm,
       return 0;
     }
 #if CONFIG_NEW_INTER_MODES
+#if CONFIG_OPTFLOW_REFINEMENT
+  } else if (this_mode == NEW_NEARMV || this_mode == NEW_NEARMV_OPTFLOW) {
+#else
   } else if (this_mode == NEW_NEARMV) {
+#endif
 #else
   } else if (this_mode == NEW_NEARESTMV || this_mode == NEW_NEARMV) {
 #endif  // CONFIG_NEW_INTER_MODES
