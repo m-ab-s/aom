@@ -256,8 +256,17 @@ class SubGopTestLarge
       subgop_data_.step[idx].pyramid_level = 0;
       subgop_data_.step[idx].qindex = 0;
       subgop_data_.step[idx].refresh_frame_flags = 0;
+      subgop_data_.step[idx].num_references = -1;
+      memset(subgop_data_.step[idx].ref_frame_pyr_level, 0,
+             sizeof(subgop_data_.step[idx].ref_frame_pyr_level));
+      memset(subgop_data_.step[idx].is_valid_ref_frame, 0,
+             sizeof(subgop_data_.step[idx].is_valid_ref_frame));
       memset(subgop_data_.step[idx].ref_frame_map, 0,
              sizeof(subgop_data_.step[idx].ref_frame_map));
+      for (int ref = 0; ref < INTER_REFS_PER_FRAME; ref++) {
+        subgop_data_.step[idx].ref_frame_disp_order[ref] = -1;
+        display_order_test_[idx][ref] = -1;
+      }
     }
     subgop_data_.num_steps = 0;
     subgop_data_.step_idx_enc = 0;
@@ -316,6 +325,14 @@ class SubGopTestLarge
           (int8_t)(subgop_data_.step[idx].disp_frame_idx - frames_from_key_);
       subgop_cfg_test_.step[idx].pyr_level =
           (int8_t)subgop_data_.step[idx].pyramid_level;
+      subgop_cfg_test_.step[idx].num_references =
+          (int8_t)subgop_data_.step[idx].num_references;
+      for (int ref = 0; ref < INTER_REFS_PER_FRAME; ref++) {
+        subgop_cfg_test_.step[idx].references[ref] =
+            (int8_t)subgop_data_.step[idx].ref_frame_pyr_level[ref];
+        display_order_test_[idx][ref] =
+            subgop_data_.step[idx].ref_frame_disp_order[ref];
+      }
       if (subgop_data_.step[idx].is_filtered) {
         filtered_frames[buf_idx++] =
             subgop_data_.step[idx].disp_frame_idx - frames_from_key_;
@@ -472,6 +489,35 @@ class SubGopTestLarge
     }
   }
 
+  void ValidateRefFrames() {
+    int start_idx = is_first_frame_in_subgop_key_;
+    for (int idx = start_idx; idx < subgop_cfg_ref_->num_steps; idx++) {
+      unsigned int *ref_frame_map =
+          (idx > 0) ? subgop_data_.step[idx - 1].ref_frame_map
+                    : subgop_last_step_.ref_frame_map;
+      if (!subgop_data_.step[idx].show_existing_frame) {
+        EXPECT_EQ(subgop_cfg_ref_->step[idx].num_references,
+                  subgop_cfg_test_.step[idx].num_references)
+            << "Error:Reference frames count doesn't match";
+      }
+      // To validate the count of ref_frames and their management with user
+      // config.
+      for (int ref = 0; ref < subgop_cfg_test_.step[idx].num_references;
+           ref++) {
+        if (subgop_data_.step[idx].is_valid_ref_frame[ref]) {
+          EXPECT_EQ(subgop_cfg_ref_->step[idx].references[ref],
+                    subgop_cfg_test_.step[idx].references[ref])
+              << "Error:Reference frame level doesn't match";
+          for (int buf = 0; buf < REF_FRAMES; buf++) {
+            if (display_order_test_[idx][ref] == (int)ref_frame_map[buf]) break;
+            EXPECT_NE(buf, REF_FRAMES - 1)
+                << "Error:Ref frame isn't part of ref_picture_buf";
+          }
+        }
+      }
+    }
+  }
+
   bool IsInputSubgopCfgUsed() {
     int num_ooo_frames_ref = 0;
     int num_ooo_frames_test = 0;
@@ -526,6 +572,7 @@ class SubGopTestLarge
           ValidatePyramidLevel();
           if (rc_end_usage_ == AOM_Q) ValidatePyramidLevelQIndex();
           ValidateRefBufRefresh();
+          ValidateRefFrames();
         }
       }
       frames_from_key_ += subgop_info_.size;
@@ -555,6 +602,7 @@ class SubGopTestLarge
   SUBGOP_IN_GOP_CODE subgop_code_test_;
   FRAME_TYPE frame_type_test_;
   aom_rc_mode rc_end_usage_;
+  int display_order_test_[MAX_SUBGOP_SIZE][REF_FRAMES];
   int subgop_size_;
   bool is_first_frame_in_subgop_key_;
   int frames_from_key_;

@@ -935,6 +935,19 @@ static AOM_INLINE void update_subgop_stats(
   subgop_stats->stat_count++;
 }
 
+static AOM_INLINE void update_subgop_ref_stats(
+    SubGOPStatsEnc *const subgop_stats, unsigned int enable_subgop_stats,
+    int ref_frame, int is_valid_ref_frame, int pyramid_level, int disp_order,
+    int num_references) {
+  if (!enable_subgop_stats) return;
+  assert(subgop_stats->stat_count < MAX_SUBGOP_STATS_SIZE);
+  int stat_idx = subgop_stats->stat_count - 1;
+  subgop_stats->is_valid_ref_frame[stat_idx][ref_frame] = is_valid_ref_frame;
+  subgop_stats->ref_frame_pyr_level[stat_idx][ref_frame] = pyramid_level;
+  subgop_stats->ref_frame_disp_order[stat_idx][ref_frame] = disp_order;
+  subgop_stats->num_references[stat_idx] = num_references;
+}
+
 void av1_update_film_grain_parameters(struct AV1_COMP *cpi,
                                       const AV1EncoderConfig *oxcf);
 

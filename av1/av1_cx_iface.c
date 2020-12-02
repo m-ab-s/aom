@@ -1387,6 +1387,16 @@ static aom_codec_err_t ctrl_get_enc_frame_info(aom_codec_alg_priv_t *ctx,
   for (int step_idx = 0; step_idx < curr_step_idx; step_idx++) {
     step_data[step_idx].pyramid_level = subgop_stats->pyramid_level[step_idx];
     step_data[step_idx].is_filtered = subgop_stats->is_filtered[step_idx];
+    step_data[step_idx].num_references = subgop_stats->num_references[step_idx];
+    memcpy(step_data[step_idx].ref_frame_pyr_level,
+           subgop_stats->ref_frame_pyr_level[step_idx],
+           sizeof(subgop_stats->ref_frame_pyr_level[step_idx]));
+    memcpy(step_data[step_idx].ref_frame_disp_order,
+           subgop_stats->ref_frame_disp_order[step_idx],
+           sizeof(subgop_stats->ref_frame_disp_order[step_idx]));
+    memcpy(step_data[step_idx].is_valid_ref_frame,
+           subgop_stats->is_valid_ref_frame[step_idx],
+           sizeof(subgop_stats->is_valid_ref_frame[step_idx]));
     sub_gop_data->step_idx_enc++;
   }
   return AOM_CODEC_OK;
@@ -2618,8 +2628,11 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
     int64_t dst_end_time_stamp;
     struct aom_usec_timer timer;
     if (cpi->compressor_stage == ENCODE_STAGE) {
-      if (ctx->oxcf.unit_test_cfg.enable_subgop_stats)
+      if (ctx->oxcf.unit_test_cfg.enable_subgop_stats) {
         memset(&cpi->subgop_stats, 0, sizeof(cpi->subgop_stats));
+        for (int stat_idx = 0; stat_idx < MAX_SUBGOP_STATS_SIZE; stat_idx++)
+          cpi->subgop_stats.num_references[stat_idx] = -1;
+      }
     }
     while (cx_data_sz - index_size >= ctx->cx_data_sz / 2 &&
            !is_frame_visible) {
