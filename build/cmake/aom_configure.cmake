@@ -266,7 +266,6 @@ else()
   add_compiler_flag_if_supported("-Wdisabled-optimization")
   add_compiler_flag_if_supported("-Wextra")
   add_compiler_flag_if_supported("-Wfloat-conversion")
-  add_compiler_flag_if_supported("-Wimplicit-function-declaration")
   add_compiler_flag_if_supported("-Wlogical-op")
   add_compiler_flag_if_supported("-Wpointer-arith")
   add_compiler_flag_if_supported("-Wshorten-64-to-32")
@@ -291,6 +290,9 @@ else()
     add_c_flag_if_supported("-Wstack-usage=100000")
     add_cxx_flag_if_supported("-Wstack-usage=240000")
   endif()
+
+  # Flags valid for C, but not for C++.
+  add_c_flag_if_supported("-Wimplicit-function-declaration")
 
   # Add -Wshadow only for C files to avoid massive gtest warning spam.
   add_c_flag_if_supported("-Wshadow")
