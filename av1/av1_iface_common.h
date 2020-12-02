@@ -15,6 +15,7 @@
 
 #include "aom_ports/mem.h"
 #include "aom_scale/yv12config.h"
+#include "av1/common/enums.h"
 
 /* Constant value specifying size of subgop*/
 #define MAX_SUBGOP_SIZE 32
@@ -25,6 +26,8 @@ typedef struct {
   int show_existing_frame;
   int pyramid_level;
   int qindex;
+  int refresh_frame_flags;
+  unsigned int ref_frame_map[REF_FRAMES];
 } SubGOPStepData;
 
 typedef struct {

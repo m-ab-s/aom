@@ -2728,6 +2728,8 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
 
       if (frame_params->frame_type != KEY_FRAME)
         update_subgop_stats(&cpi->gf_group, &cpi->subgop_stats,
+                            &cpi->common.seq_params.order_hint_info,
+                            cpi->oxcf.kf_cfg.key_freq_max,
                             oxcf->unit_test_cfg.enable_subgop_stats);
 
       // Do the firstpass stats indicate that this frame is skippable for the
@@ -2880,6 +2882,8 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
   assert(gf_group->index < gf_group->size);
   if (frame_params->frame_type != KEY_FRAME)
     update_subgop_stats(&cpi->gf_group, &cpi->subgop_stats,
+                        &cpi->common.seq_params.order_hint_info,
+                        cpi->oxcf.kf_cfg.key_freq_max,
                         oxcf->unit_test_cfg.enable_subgop_stats);
 
   // Do the firstpass stats indicate that this frame is skippable for the

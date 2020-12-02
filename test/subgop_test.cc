@@ -238,6 +238,7 @@ class SubGopTestLarge
     frame_num_ = 0;
     // TODO(any): Extend this unit test for 'CONFIG_REALTIME_ONLY'
     enable_subgop_stats_ = 1;
+    memset(&subgop_last_step_, 0, sizeof(subgop_last_step_));
   }
 
   void ResetSubgop() {
@@ -254,6 +255,9 @@ class SubGopTestLarge
       subgop_data_.step[idx].is_filtered = -1;
       subgop_data_.step[idx].pyramid_level = 0;
       subgop_data_.step[idx].qindex = 0;
+      subgop_data_.step[idx].refresh_frame_flags = 0;
+      memset(subgop_data_.step[idx].ref_frame_map, 0,
+             sizeof(subgop_data_.step[idx].ref_frame_map));
     }
     subgop_data_.num_steps = 0;
     subgop_data_.step_idx_enc = 0;
@@ -279,7 +283,6 @@ class SubGopTestLarge
       subgop_code_test_ = SUBGOP_IN_GOP_FIRST;
     else
       subgop_code_test_ = SUBGOP_IN_GOP_GENERIC;
-    is_first_frame_in_subgop_key_ = 0;
     subgop_size_ = subgop_info_.gf_interval;
   }
 
@@ -425,6 +428,50 @@ class SubGopTestLarge
     }
   }
 
+  // Validates reference buffer refresh
+  void ValidateRefBufRefresh() {
+    int start_idx = 0;
+    SubGOPStepData *prev_step_data = &subgop_last_step_;
+    if (is_first_frame_in_subgop_key_) {
+      start_idx = 1;
+      prev_step_data = &subgop_data_.step[0];
+    }
+
+    for (int idx = start_idx; idx < subgop_cfg_ref_->num_steps; idx++) {
+      SubGOPStepData *curr_step_data = &subgop_data_.step[idx];
+      int ref_count = 0;
+      int refresh_frame_flags = curr_step_data->refresh_frame_flags;
+      // Validates user-defined refresh_flag with decoder
+      if (subgop_cfg_ref_->step[idx].refresh != -1 &&
+          !curr_step_data->show_existing_frame) {
+        EXPECT_EQ(subgop_cfg_ref_->step[idx].refresh,
+                  (int8_t)refresh_frame_flags)
+            << "Error: refresh flag mismatch";
+      }
+      // Validates reference picture management w.r.t refresh_flags
+      if (refresh_frame_flags && !curr_step_data->show_existing_frame) {
+        for (int mask = refresh_frame_flags; mask; mask >>= 1) {
+          if (mask & 1)
+            EXPECT_EQ(curr_step_data->disp_frame_idx,
+                      (int)curr_step_data->ref_frame_map[ref_count])
+                << "Error: reference buffer refresh failed";
+          else
+            EXPECT_EQ(prev_step_data->ref_frame_map[ref_count],
+                      curr_step_data->ref_frame_map[ref_count])
+                << "Error: reference buffer refresh failed";
+          assert(ref_count < REF_FRAMES);
+          ref_count++;
+        }
+      }
+
+      for (int ref_idx = ref_count; ref_idx < REF_FRAMES; ref_idx++)
+        EXPECT_EQ(prev_step_data->ref_frame_map[ref_idx],
+                  curr_step_data->ref_frame_map[ref_idx])
+            << "Error: reference buffer refresh failed";
+      prev_step_data = curr_step_data;
+    }
+  }
+
   bool IsInputSubgopCfgUsed() {
     int num_ooo_frames_ref = 0;
     int num_ooo_frames_test = 0;
@@ -461,11 +508,14 @@ class SubGopTestLarge
     if (AOM_CODEC_OK != res_dec) return 0;
     aom_codec_ctx_t *ctx_dec = decoder->GetDecoder();
     frame_num_in_subgop_++;
+    int is_last_frame_in_subgop = (frame_num_in_subgop_ == subgop_info_.size);
 
-    if (subgop_info_.is_user_specified)
+    if (subgop_info_.is_user_specified ||
+        is_last_frame_in_subgop)  // To collect last step info of subgop in
+                                  // encoder defined config
       AOM_CODEC_CONTROL_TYPECHECKED(ctx_dec, AOMD_GET_FRAME_INFO,
                                     &subgop_data_);
-    if (frame_num_in_subgop_ == subgop_info_.size) {
+    if (is_last_frame_in_subgop) {
       // Validation of sub-gop structure propagation to decoder.
       if (subgop_info_.is_user_specified) {
         FillTestSubgopConfig();
@@ -475,10 +525,20 @@ class SubGopTestLarge
           ValidateSubgopFrametype();
           ValidatePyramidLevel();
           if (rc_end_usage_ == AOM_Q) ValidatePyramidLevelQIndex();
+          ValidateRefBufRefresh();
         }
       }
       frames_from_key_ += subgop_info_.size;
-      if (frame_type_test_ == KEY_FRAME) frames_from_key_ = 0;
+      if (frame_type_test_ == KEY_FRAME) {
+        frames_from_key_ = 0;
+      } else {
+        is_first_frame_in_subgop_key_ = 0;
+        // To collect last step info of subgop.
+        assert(subgop_data_.step_idx_dec >= 0);
+        memcpy(&subgop_last_step_,
+               &subgop_data_.step[subgop_data_.step_idx_dec - 1],
+               sizeof(subgop_last_step_));
+      }
       ResetSubgop();
     }
     frame_num_++;
@@ -491,6 +551,7 @@ class SubGopTestLarge
   SubGOPCfg *subgop_cfg_ref_;
   SubGOPInfo subgop_info_;
   SubGOPData subgop_data_;
+  SubGOPStepData subgop_last_step_;
   SUBGOP_IN_GOP_CODE subgop_code_test_;
   FRAME_TYPE frame_type_test_;
   aom_rc_mode rc_end_usage_;

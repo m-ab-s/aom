@@ -916,10 +916,17 @@ static AOM_INLINE void refresh_reference_frames(AV1_COMP *cpi) {
   }
 }
 
-static AOM_INLINE void update_subgop_stats(const GF_GROUP *const gf_group,
-                                           SubGOPStatsEnc *const subgop_stats,
-                                           unsigned int enable_subgop_stats) {
+static AOM_INLINE void update_subgop_stats(
+    const GF_GROUP *const gf_group, SubGOPStatsEnc *const subgop_stats,
+    const OrderHintInfo *const order_hint_info, int key_freq_max,
+    unsigned int enable_subgop_stats) {
+  (void)key_freq_max;
   if (!enable_subgop_stats) return;
+  if (order_hint_info->enable_order_hint) {
+    int max_order_hint = 1 << (order_hint_info->order_hint_bits_minus_1 + 1);
+    (void)max_order_hint;
+    assert(key_freq_max <= max_order_hint + 1);
+  }
   subgop_stats->pyramid_level[subgop_stats->stat_count] =
       gf_group->layer_depth[gf_group->index];
   subgop_stats->is_filtered[subgop_stats->stat_count] =
