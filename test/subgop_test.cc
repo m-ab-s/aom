@@ -252,6 +252,8 @@ class SubGopTestLarge
       subgop_data_.step[idx].show_existing_frame = -1;
       subgop_data_.step[idx].show_frame = -1;
       subgop_data_.step[idx].is_filtered = -1;
+      subgop_data_.step[idx].pyramid_level = 0;
+      subgop_data_.step[idx].qindex = 0;
     }
     subgop_data_.num_steps = 0;
     subgop_data_.step_idx_enc = 0;
@@ -309,6 +311,8 @@ class SubGopTestLarge
     for (int idx = 0; idx < subgop_data_.num_steps; idx++) {
       subgop_cfg_test_.step[idx].disp_frame_idx =
           (int8_t)(subgop_data_.step[idx].disp_frame_idx - frames_from_key_);
+      subgop_cfg_test_.step[idx].pyr_level =
+          (int8_t)subgop_data_.step[idx].pyramid_level;
       if (subgop_data_.step[idx].is_filtered) {
         filtered_frames[buf_idx++] =
             subgop_data_.step[idx].disp_frame_idx - frames_from_key_;
@@ -380,6 +384,47 @@ class SubGopTestLarge
     return 1;
   }
 
+  // Validates Pyramid level with user config
+  void ValidatePyramidLevel() {
+    int8_t max_pyramid_level = 0;
+    for (int idx = 0; idx < subgop_cfg_ref_->num_steps; idx++) {
+      if (max_pyramid_level < subgop_cfg_ref_->step[idx].pyr_level)
+        max_pyramid_level = subgop_cfg_ref_->step[idx].pyr_level;
+    }
+    for (int idx = 0; idx < subgop_cfg_ref_->num_steps; idx++) {
+      int8_t ref_pyramid_level =
+          (subgop_cfg_ref_->step[idx].pyr_level == max_pyramid_level)
+              ? 6
+              : subgop_cfg_ref_->step[idx].pyr_level;
+      EXPECT_EQ(subgop_cfg_test_.step[idx].pyr_level, ref_pyramid_level)
+          << "Error:pyramid level doesn't match";
+    }
+  }
+
+  // Validates Pyramid level along with qindex assignment
+  void ValidatePyramidLevelQIndex() {
+    int level_qindex[REF_FRAMES] = { 0 };
+    int8_t pyramid_level;
+    for (int idx = 0; idx < subgop_cfg_ref_->num_steps; idx++) {
+      pyramid_level = subgop_cfg_test_.step[idx].pyr_level;
+      if (!level_qindex[pyramid_level]) {
+        level_qindex[pyramid_level] = subgop_data_.step[idx].qindex;
+      } else if (!subgop_data_.step[idx].show_existing_frame &&
+                 !subgop_data_.step[idx].is_filtered) {
+        EXPECT_EQ(level_qindex[pyramid_level], subgop_data_.step[idx].qindex)
+            << "Error:qindex in a pyramid level doesn't match";
+      }
+    }
+    pyramid_level = 1;
+    for (int idx = 1; idx < REF_FRAMES; idx++) {
+      if (level_qindex[pyramid_level]) {
+        EXPECT_LT(level_qindex[pyramid_level - 1], level_qindex[pyramid_level])
+            << "Error:qindex should be higher in hierarchical pyramid level";
+        pyramid_level++;
+      }
+    }
+  }
+
   bool IsInputSubgopCfgUsed() {
     int num_ooo_frames_ref = 0;
     int num_ooo_frames_test = 0;
@@ -428,6 +473,8 @@ class SubGopTestLarge
           EXPECT_EQ(subgop_code_test_, subgop_info_.pos_code)
               << "Error:subgop code doesn't match";
           ValidateSubgopFrametype();
+          ValidatePyramidLevel();
+          if (rc_end_usage_ == AOM_Q) ValidatePyramidLevelQIndex();
         }
       }
       frames_from_key_ += subgop_info_.size;
