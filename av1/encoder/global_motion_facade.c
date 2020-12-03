@@ -312,7 +312,7 @@ static AOM_INLINE void update_valid_ref_frames_for_gm(
     const MV_REFERENCE_FRAME ref_frame[2] = { frame, NONE_FRAME };
     RefCntBuffer *buf = get_ref_frame_buf(cm, frame);
     const int ref_disabled =
-        !(cpi->ref_frame_flags & av1_ref_frame_flag_list[frame]);
+        !(cpi->common.ref_frame_flags & av1_ref_frame_flag_list[frame]);
     ref_buf[frame] = NULL;
     cm->global_motion[frame] = default_warp_params;
     // Skip global motion estimation for invalid ref frames

@@ -717,7 +717,7 @@ static void setup_planes(AV1_COMP *cpi, MACROBLOCK *x, unsigned int *y_sad,
 
   // For non-SVC GOLDEN is another temporal reference. Check if it should be
   // used as reference for partitioning.
-  if (!cpi->use_svc && (cpi->ref_frame_flags & AOM_GOLD_FLAG) &&
+  if (!cpi->use_svc && (cpi->common.ref_frame_flags & AOM_GOLD_FLAG) &&
       cpi->sf.rt_sf.use_nonrd_pick_mode) {
     yv12_g = get_ref_frame_yv12_buf(cm, GOLDEN_FRAME);
     if (yv12_g && yv12_g != yv12) {

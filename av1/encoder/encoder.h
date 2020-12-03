@@ -2264,11 +2264,6 @@ typedef struct AV1_COMP {
   struct aom_codec_pkt_list *output_pkt_list;
 
   /*!
-   * Bitmask indicating which reference buffers may be referenced by this frame.
-   */
-  int ref_frame_flags;
-
-  /*!
    * speed is passed as a per-frame parameter into the encoder.
    */
   int speed;

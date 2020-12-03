@@ -1069,8 +1069,8 @@ static int check_skip_mode_enabled(AV1_COMP *const cpi) {
     cm->current_frame.skip_mode_info.ref_frame_idx_0 + LAST_FRAME,
     cm->current_frame.skip_mode_info.ref_frame_idx_1 + LAST_FRAME
   };
-  if (!(cpi->ref_frame_flags & flag_list[ref_frame[0]]) ||
-      !(cpi->ref_frame_flags & flag_list[ref_frame[1]]))
+  if (!(cpi->common.ref_frame_flags & flag_list[ref_frame[0]]) ||
+      !(cpi->common.ref_frame_flags & flag_list[ref_frame[1]]))
     return 0;
 
   return 1;
@@ -1107,8 +1107,8 @@ static AOM_INLINE void setup_prune_ref_frame_mask(AV1_COMP *cpi) {
     for (int ref_idx = REF_FRAMES; ref_idx < MODE_CTX_REF_FRAMES; ++ref_idx) {
       MV_REFERENCE_FRAME rf[2];
       av1_set_ref_frame(rf, ref_idx);
-      if (!(cpi->ref_frame_flags & av1_ref_frame_flag_list[rf[0]]) ||
-          !(cpi->ref_frame_flags & av1_ref_frame_flag_list[rf[1]])) {
+      if (!(cpi->common.ref_frame_flags & av1_ref_frame_flag_list[rf[0]]) ||
+          !(cpi->common.ref_frame_flags & av1_ref_frame_flag_list[rf[1]])) {
         continue;
       }
 
@@ -1129,7 +1129,8 @@ static AOM_INLINE void setup_prune_ref_frame_mask(AV1_COMP *cpi) {
 
       if (cpi->sf.inter_sf.selective_ref_frame >= 4 &&
           (rf[0] == ALTREF2_FRAME || rf[1] == ALTREF2_FRAME) &&
-          (cpi->ref_frame_flags & av1_ref_frame_flag_list[BWDREF_FRAME])) {
+          (cpi->common.ref_frame_flags &
+           av1_ref_frame_flag_list[BWDREF_FRAME])) {
         // Check if both ALTREF2_FRAME and BWDREF_FRAME are future references.
         if (arf2_dist > 0 && bwd_dist > 0 && bwd_dist <= arf2_dist) {
           // Drop ALTREF2_FRAME as a reference if BWDREF_FRAME is a closer
@@ -1512,9 +1513,9 @@ void av1_encode_frame(AV1_COMP *cpi) {
   }
 
   av1_setup_frame_buf_refs(cm);
-  enforce_max_ref_frames(cpi, &cpi->ref_frame_flags);
+  enforce_max_ref_frames(cpi, &cpi->common.ref_frame_flags);
   set_rel_frame_dist(&cpi->common, &cpi->ref_frame_dist_info,
-                     cpi->ref_frame_flags);
+                     cpi->common.ref_frame_flags);
   av1_setup_frame_sign_bias(cm);
 
 #if CONFIG_MISMATCH_DEBUG

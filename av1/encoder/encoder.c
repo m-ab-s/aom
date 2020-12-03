@@ -570,7 +570,7 @@ static void init_config(struct AV1_COMP *cpi, AV1EncoderConfig *oxcf) {
   // change includes all joint functionality
   av1_change_config(cpi, oxcf);
 
-  cpi->ref_frame_flags = 0;
+  cpi->common.ref_frame_flags = 0;
 
   // Reset resize pending flags
   resize_pending_params->width = 0;
@@ -2185,17 +2185,17 @@ static int encode_without_recode(AV1_COMP *cpi) {
   // resized frame and ALTREF will be refreshed ~4 frames later, so both
   // references become available again after few frames.
   if (svc->number_spatial_layers == 1) {
-    if (cpi->ref_frame_flags & av1_ref_frame_flag_list[GOLDEN_FRAME]) {
+    if (cpi->common.ref_frame_flags & av1_ref_frame_flag_list[GOLDEN_FRAME]) {
       const YV12_BUFFER_CONFIG *const ref =
           get_ref_frame_yv12_buf(cm, GOLDEN_FRAME);
       if (ref->y_crop_width != cm->width || ref->y_crop_height != cm->height)
-        cpi->ref_frame_flags ^= AOM_GOLD_FLAG;
+        cpi->common.ref_frame_flags ^= AOM_GOLD_FLAG;
     }
-    if (cpi->ref_frame_flags & av1_ref_frame_flag_list[ALTREF_FRAME]) {
+    if (cpi->common.ref_frame_flags & av1_ref_frame_flag_list[ALTREF_FRAME]) {
       const YV12_BUFFER_CONFIG *const ref =
           get_ref_frame_yv12_buf(cm, ALTREF_FRAME);
       if (ref->y_crop_width != cm->width || ref->y_crop_height != cm->height)
-        cpi->ref_frame_flags ^= AOM_ALT_FLAG;
+        cpi->common.ref_frame_flags ^= AOM_ALT_FLAG;
     }
   }
 
@@ -3169,7 +3169,7 @@ int av1_encode(AV1_COMP *const cpi, uint8_t *const dest,
   cm->features.primary_ref_frame = frame_params->primary_ref_frame;
   cm->current_frame.frame_type = frame_params->frame_type;
   cm->show_frame = frame_params->show_frame;
-  cpi->ref_frame_flags = frame_params->ref_frame_flags;
+  cpi->common.ref_frame_flags = frame_params->ref_frame_flags;
   cpi->speed = frame_params->speed;
   cm->show_existing_frame = frame_params->show_existing_frame;
   cpi->existing_fb_idx_to_show = frame_params->existing_fb_idx_to_show;
