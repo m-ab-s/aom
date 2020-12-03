@@ -461,9 +461,9 @@ void av1_opfl_mv_refinement_lowbd(const uint8_t *p0, int pstride0,
   int64_t svw = 0;
   for (int i = 0; i < bh; ++i) {
     for (int j = 0; j < bw; ++j) {
-      const int u = d0 * gx0[i * gstride + j] + d1 * gx1[i * gstride + j];
-      const int v = d0 * gy0[i * gstride + j] + d1 * gy1[i * gstride + j];
-      const int w = d0 * (p1[i * pstride1 + j] - p0[i * pstride0 + j]);
+      const int u = d0 * gx0[i * gstride + j] - d1 * gx1[i * gstride + j];
+      const int v = d0 * gy0[i * gstride + j] - d1 * gy1[i * gstride + j];
+      const int w = d0 * (p0[i * pstride1 + j] - p1[i * pstride0 + j]);
       su2 += (u * u);
       suv += (u * v);
       sv2 += (v * v);
@@ -473,14 +473,14 @@ void av1_opfl_mv_refinement_lowbd(const uint8_t *p0, int pstride0,
   }
   int bits = MV_REFINE_PREC_BITS + MV_REFINE_SCALE_BITS;
   const int64_t D = su2 * sv2 - suv * suv;
-  const int64_t Px = (sv2 * suw - suv * svw) * (1 << bits);
-  const int64_t Py = (su2 * svw - suv * suw) * (1 << bits);
+  const int64_t Px = (suv * svw - sv2 * suw) * (1 << bits);
+  const int64_t Py = (suv * suw - su2 * svw) * (1 << bits);
 
   if (D == 0) return;
   *vx0 = (int)DIVIDE_AND_ROUND_SIGNED(Px, D);
   *vy0 = (int)DIVIDE_AND_ROUND_SIGNED(Py, D);
-  const int tx1 = -(*vx0) * d1;
-  const int ty1 = -(*vy0) * d1;
+  const int tx1 = (*vx0) * d1;
+  const int ty1 = (*vy0) * d1;
   *vx1 = (int)DIVIDE_AND_ROUND_SIGNED(tx1, d0);
   *vy1 = (int)DIVIDE_AND_ROUND_SIGNED(ty1, d0);
 }
@@ -500,9 +500,9 @@ void av1_opfl_mv_refinement_highbd(const uint16_t *p0, int pstride0,
   int64_t svw = 0;
   for (int i = 0; i < bh; ++i) {
     for (int j = 0; j < bw; ++j) {
-      const int u = d0 * gx0[i * gstride + j] + d1 * gx1[i * gstride + j];
-      const int v = d0 * gy0[i * gstride + j] + d1 * gy1[i * gstride + j];
-      const int w = d0 * (p1[i * pstride1 + j] - p0[i * pstride0 + j]);
+      const int u = d0 * gx0[i * gstride + j] - d1 * gx1[i * gstride + j];
+      const int v = d0 * gy0[i * gstride + j] - d1 * gy1[i * gstride + j];
+      const int w = d0 * (p0[i * pstride1 + j] - p1[i * pstride0 + j]);
       su2 += (u * u);
       suv += (u * v);
       sv2 += (v * v);
@@ -512,14 +512,14 @@ void av1_opfl_mv_refinement_highbd(const uint16_t *p0, int pstride0,
   }
   int bits = MV_REFINE_PREC_BITS + MV_REFINE_SCALE_BITS;
   const int64_t D = su2 * sv2 - suv * suv;
-  const int64_t Px = (sv2 * suw - suv * svw) * (1 << bits);
-  const int64_t Py = (su2 * svw - suv * suw) * (1 << bits);
+  const int64_t Px = (suv * svw - sv2 * suw) * (1 << bits);
+  const int64_t Py = (suv * suw - su2 * svw) * (1 << bits);
 
   if (D == 0) return;
   *vx0 = (int)DIVIDE_AND_ROUND_SIGNED(Px, D);
   *vy0 = (int)DIVIDE_AND_ROUND_SIGNED(Py, D);
-  const int tx1 = -(*vx0) * d1;
-  const int ty1 = -(*vy0) * d1;
+  const int tx1 = (*vx0) * d1;
+  const int ty1 = (*vy0) * d1;
   *vx1 = (int)DIVIDE_AND_ROUND_SIGNED(tx1, d0);
   *vy1 = (int)DIVIDE_AND_ROUND_SIGNED(ty1, d0);
 }
@@ -623,37 +623,14 @@ int av1_get_optflow_based_mv(const AV1_COMMON *cm, MACROBLOCKD *xd,
         gy1);
     if (d1 == 0) goto exit_refinement;
 
-    // P0 is before current frame or both are after current frame
-    if ((d0 < 0) || ((d0 > 0) && (d1 > 0))) {
-      // Reverse sign of d0 to indicate to opfl function that it is before
-      // current frame
-      d0 *= -1;
 #if USE_OF_NXN
-      n_blocks = opfl_mv_refinement_nxn_lowbd(dst0, bw, dst1, bw, gx0, gy0, gx1,
-                                              gy1, bw, bw, bh, d0, d1,
-                                              target_prec, vx0, vy0, vx1, vy1);
+    n_blocks = opfl_mv_refinement_nxn_lowbd(dst0, bw, dst1, bw, gx0, gy0, gx1,
+                                            gy1, bw, bw, bh, d0, d1,
+                                            target_prec, vx0, vy0, vx1, vy1);
 #else
-      av1_opfl_mv_refinement_lowbd(dst0, bw, dst1, bw, gx0, gy0, gx1, gy1, bw,
-                                   bw, bh, d0, d1, target_prec, vx0, vy0, vx1,
-                                   vy1);
+    av1_opfl_mv_refinement_lowbd(dst0, bw, dst1, bw, gx0, gy0, gx1, gy1, bw, bw,
+                                 bh, d0, d1, target_prec, vx0, vy0, vx1, vy1);
 #endif
-
-      // P1 before current frame and P0 is after current frame
-    } else {
-      assert(d1 < 0);
-      // Reverse sign of d1 to indicate to opfl function that it is before
-      // current frame
-      d1 *= -1;
-#if USE_OF_NXN
-      n_blocks = opfl_mv_refinement_nxn_lowbd(dst1, bw, dst0, bw, gx1, gy1, gx0,
-                                              gy0, bw, bw, bh, d1, d0,
-                                              target_prec, vx1, vy1, vx0, vy0);
-#else
-      av1_opfl_mv_refinement_lowbd(dst1, bw, dst0, bw, gx1, gy1, gx0, gy0, bw,
-                                   bw, bh, d1, d0, target_prec, vx1, vy1, vx0,
-                                   vy0);
-#endif
-    }
   }
 
   for (int i = 0; i < n_blocks; i++) {
