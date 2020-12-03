@@ -526,8 +526,7 @@ void av1_opfl_mv_refinement_highbd(const uint16_t *p0, int pstride0,
 
 // Macros for optical flow experiment where offsets are added in nXn blocks
 // rather than adding a single offset to the entire prediction unit.
-// Off by default.
-#define USE_OF_NXN 0
+#define USE_OF_NXN 1
 #if USE_OF_NXN
 #define OF_BSIZE_LOG2 3
 // Block size to use to divide up the prediction unit
@@ -629,7 +628,7 @@ int av1_get_optflow_based_mv(const AV1_COMMON *cm, MACROBLOCKD *xd,
       // Reverse sign of d0 to indicate to opfl function that it is before
       // current frame
       d0 *= -1;
-#if USE_OF_NXN
+#if CONFIG_OPTFLOW_REFINEMENT && USE_OF_NXN
       n_blocks = opfl_mv_refinement_nxn_lowbd(dst0, bw, dst1, bw, gx0, gy0, gx1,
                                               gy1, bw, bw, bh, d0, d1,
                                               target_prec, vx0, vy0, vx1, vy1);
@@ -645,7 +644,7 @@ int av1_get_optflow_based_mv(const AV1_COMMON *cm, MACROBLOCKD *xd,
       // Reverse sign of d1 to indicate to opfl function that it is before
       // current frame
       d1 *= -1;
-#if USE_OF_NXN
+#if CONFIG_OPTFLOW_REFINEMENT && USE_OF_NXN
       n_blocks = opfl_mv_refinement_nxn_lowbd(dst1, bw, dst0, bw, gx1, gy1, gx0,
                                               gy0, bw, bw, bh, d1, d0,
                                               target_prec, vx1, vy1, vx0, vy0);
@@ -1165,7 +1164,7 @@ static void build_inter_predictors(
 #if CONFIG_EXT_COMPOUND
     if (use_optflow_prec) {
       conv_params.do_average = ref;
-#if USE_OF_NXN
+#if CONFIG_OPTFLOW_REFINEMENT && USE_OF_NXN
       make_inter_pred_of_nxn(
           dst, dst_buf->stride, &subpel_params, sf, bw, bh, &conv_params,
           mi->interp_filters, &warp_types, mi_x >> pd->subsampling_x,
@@ -1183,7 +1182,7 @@ static void build_inter_predictors(
           &conv_params, mi->interp_filters, &warp_types,
           mi_x >> pd->subsampling_x, mi_y >> pd->subsampling_y, plane, ref, mi,
           build_for_obmc, xd, cm->allow_warped_motion, 0 /* border */);
-#endif  // USE_OF_NXN
+#endif  // CONFIG_OPTFLOW_REFINEMENT && USE_OF_NXN
       // Predictor already built
       continue;
     } else {
