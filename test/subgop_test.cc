@@ -594,4 +594,174 @@ AV1_INSTANTIATE_TEST_SUITE(SubGopPSNRCheckTest,
                            ::testing::ValuesIn(SubGopPsnrTestVectors),
                            ::testing::Values(AOM_Q, AOM_VBR,
                                              AOM_CQ /*, AOM_CBR*/));
+
+typedef struct {
+  const char *subgop_str;
+  const char *input_file;
+  int frame_w;
+  int frame_h;
+  int cpu_used;
+} SubGopSwitchTestParams;
+
+static const SubGopSwitchTestParams SubgopSwitchTestVectors[] = {
+  { subgop_config_str_preset_map[DEFAULT].preset_tag, "niklas_640_480_30.yuv",
+    640, 480, 5 },
+  { subgop_config_str_preset_map[ENHANCE].preset_tag, "desktop1.320_180.yuv",
+    320, 180, 3 },
+  { subgop_config_str_preset_map[ENHANCE].preset_tag,
+    "hantro_collage_w352h288.yuv", 352, 288, 5 },
+  { subgop_config_str_preset_map[ASYMMETRIC].preset_tag,
+    "pixel_capture_w320h240.yuv", 320, 240, 3 },
+  { subgop_config_str_preset_map[TEMPORAL_SCALABLE].preset_tag,
+    "paris_352_288_30.y4m", 352, 288, 3 },
+  { subgop_config_str_preset_map[LOW_DELAY].preset_tag, "screendata.y4m", 640,
+    480, 5 },
+  // TODO(any) : Extend the test case for ld config
+};
+
+using libaom_test::ACMRandom;
+class SubGopSwitchingTest
+    : public ::libaom_test::CodecTestWith2Params<SubGopSwitchTestParams,
+                                                 aom_rc_mode>,
+      public ::libaom_test::EncoderTest {
+ protected:
+  SubGopSwitchingTest()
+      : EncoderTest(GET_PARAM(0)), test_params_(GET_PARAM(1)),
+        rc_end_usage_(GET_PARAM(2)) {
+    last_subgop_str_ = NULL;
+    num_subgop_cfg_used_ = 0;
+    rnd_.Reset(ACMRandom::DeterministicSeed());
+    ResetSubgop();
+  }
+  virtual ~SubGopSwitchingTest() {}
+
+  virtual void SetUp() {
+    InitializeConfig();
+    SetMode(::libaom_test::kOnePassGood);
+    cfg_.g_threads = 1;
+    cfg_.rc_end_usage = rc_end_usage_;
+    cfg_.g_lag_in_frames = 35;
+  }
+
+  void ResetSubgop() {
+    frame_num_in_subgop_ = 0;
+    subgop_size_ = 0;
+    memset(&subgop_info_, 0, sizeof(subgop_info_));
+  }
+
+  bool GetRandSwitch() { return !(rnd_.Rand8() & 1); }
+
+  int GetRandGFIntervalEnh() {
+    const int subgop_size_enh[] = { 6, 8, 10, 11, 12, 13, 14, 15, 16 };
+    const int length = sizeof(subgop_size_enh) / sizeof(subgop_size_enh[0]);
+    const int idx = rnd_.Rand8() % length;
+
+    return subgop_size_enh[idx];
+  }
+
+  void set_subgop_config(::libaom_test::Encoder *encoder) {
+    const bool switch_subgop_cfg = GetRandSwitch();
+    if (!switch_subgop_cfg) return;
+
+    // Switch between input sub-gop and no sub-gop config and configure the
+    // encoder
+    const char *subgop_str = last_subgop_str_ ? NULL : test_params_.subgop_str;
+    int max_gf_interval = 16;
+    // Get max gf interval for enh config
+    if (subgop_str && !strcmp(subgop_str, "enh"))
+      max_gf_interval = GetRandGFIntervalEnh();
+
+    // Set subgop config string
+    encoder->Control(AV1E_SET_SUBGOP_CONFIG_STR, subgop_str);
+
+    // Set max gf interval
+    if (subgop_str) encoder->Control(AV1E_SET_MAX_GF_INTERVAL, max_gf_interval);
+
+    last_subgop_str_ = subgop_str;
+  }
+
+  virtual void PreEncodeFrameHook(::libaom_test::VideoSource *video,
+                                  ::libaom_test::Encoder *encoder) {
+    if (video->frame() == 0) {
+      encoder->Control(AOME_SET_CPUUSED, test_params_.cpu_used);
+      // Set min gf interval
+      encoder->Control(AV1E_SET_MIN_GF_INTERVAL, 6);
+      set_subgop_config(encoder);
+    }
+
+    // Configure sub-gop string before sub-gop decision
+    if (frame_num_in_subgop_ == subgop_size_) {
+      ResetSubgop();
+      set_subgop_config(encoder);
+    }
+  }
+
+  virtual bool HandleEncodeResult(::libaom_test::VideoSource *video,
+                                  libaom_test::Encoder *encoder) {
+    (void)video;
+    // Get sub-gop info at beginning of the sub-gop
+    if (!frame_num_in_subgop_) {
+      FRAME_TYPE frame_type = FRAME_TYPES;
+
+      // Get current frame type
+      encoder->Control(AV1E_GET_FRAME_TYPE, &frame_type);
+      assert(frame_type != FRAME_TYPES);
+      // Get subgop config
+      encoder->Control(AV1E_GET_SUB_GOP_CONFIG, &subgop_info_);
+
+      // Compute sub-gop size
+      subgop_size_ = subgop_info_.gf_interval;
+      // Include KF in sub-gop size
+      if (frame_type == KEY_FRAME) subgop_size_++;
+
+      // Update count of subgop cfg usage by the encoder
+      num_subgop_cfg_used_ += subgop_info_.is_user_specified;
+    }
+    return 1;
+  }
+
+  virtual bool HandleDecodeResult(const aom_codec_err_t res_dec,
+                                  libaom_test::Decoder *decoder) {
+    EXPECT_EQ(AOM_CODEC_OK, res_dec) << decoder->DecodeError();
+    if (AOM_CODEC_OK != res_dec) return 0;
+
+    frame_num_in_subgop_++;
+
+    return AOM_CODEC_OK == res_dec;
+  }
+  SubGopSwitchTestParams test_params_;
+  unsigned int num_subgop_cfg_used_;
+
+ private:
+  ACMRandom rnd_;
+  aom_rc_mode rc_end_usage_;
+  SubGOPInfo subgop_info_;
+  unsigned int frame_num_in_subgop_;
+  unsigned int subgop_size_;
+  const char *last_subgop_str_;
+};
+
+// TODO(aomedia:2889): Enable this unit test after fix
+TEST_P(SubGopSwitchingTest, DISABLED_SubGopSwitching) {
+  std::unique_ptr<libaom_test::VideoSource> video;
+  const unsigned int kFrames = 200;
+
+  if (is_extension_y4m(test_params_.input_file)) {
+    video.reset(
+        new libaom_test::Y4mVideoSource(test_params_.input_file, 0, kFrames));
+  } else {
+    video.reset(new libaom_test::YUVVideoSource(
+        test_params_.input_file, AOM_IMG_FMT_I420, test_params_.frame_w,
+        test_params_.frame_h, 30, 1, 0, kFrames));
+  }
+
+  ASSERT_NO_FATAL_FAILURE(RunLoop(video.get()));
+
+  // Check input config is used by the encoder
+  EXPECT_TRUE(num_subgop_cfg_used_);
+}
+
+AV1_INSTANTIATE_TEST_SUITE(SubGopSwitchingTest,
+                           ::testing::ValuesIn(SubgopSwitchTestVectors),
+                           ::testing::Values(AOM_Q, AOM_VBR, AOM_CQ, AOM_CBR));
 }  // namespace
