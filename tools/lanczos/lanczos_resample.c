@@ -44,6 +44,7 @@ static inline int16_t doclip(int16_t x, int low, int high) {
 void show_resample_filter(RationalResampleFilter *rf) {
   printf("------------------\n");
   printf("Resample factor %d / %d\n", rf->p, rf->q);
+  printf("Extension type %c\n", (char)rf->ext_type);
   printf("Start = %d\n", rf->start);
   printf("Steps = ");
   for (int i = 0; i < rf->p; ++i) {
@@ -176,8 +177,8 @@ static int gcd(int p, int q) {
   return q1;
 }
 
-void get_resample_filter(int p, int q, int a, double x0, int bits,
-                         RationalResampleFilter *rf) {
+void get_resample_filter(int p, int q, int a, double x0, EXT_TYPE ext_type,
+                         int bits, RationalResampleFilter *rf) {
   double offset[MAX_RATIONAL_FACTOR + 1];
   int intpel[MAX_RATIONAL_FACTOR];
   assert(p > 0 && p <= MAX_RATIONAL_FACTOR);
@@ -186,6 +187,7 @@ void get_resample_filter(int p, int q, int a, double x0, int bits,
   assert(g > 0);
   rf->p = p / g;
   rf->q = q / g;
+  rf->ext_type = ext_type;
   if (x0 == (double)('c')) x0 = get_centered_x0(rf->p, rf->q);
   rf->filter_bits = bits;
   for (int i = 0; i < rf->p; ++i) {
@@ -217,10 +219,10 @@ int is_resampler_noop(RationalResampleFilter *rf) {
   return (rf->p == 1 && rf->q == 1 && rf->phases[0] == 0.0);
 }
 
-void get_resample_filter_inv(int p, int q, int a, double x0, int bits,
-                             RationalResampleFilter *rf) {
+void get_resample_filter_inv(int p, int q, int a, double x0, EXT_TYPE ext_type,
+                             int bits, RationalResampleFilter *rf) {
   double y0 = get_inverse_x0(p, q, x0);
-  get_resample_filter(q, p, a, y0, bits, rf);
+  get_resample_filter(q, p, a, y0, ext_type, bits, rf);
 }
 
 // Assume x buffer is already extended on both sides with x pointing to the
@@ -247,9 +249,25 @@ static void resample_1d_core(const int16_t *x, int inlen,
   }
 }
 
-static void extend_border(int16_t *x, int inlen, int border) {
-  for (int i = -border; i < 0; ++i) x[i] = x[0];
-  for (int i = 0; i < border; ++i) x[i + inlen] = x[inlen - 1];
+static void extend_border(int16_t *x, int inlen, EXT_TYPE ext_type,
+                          int border) {
+  switch (ext_type) {
+    case EXT_REPEAT:
+      for (int i = -border; i < 0; ++i) x[i] = x[0];
+      for (int i = 0; i < border; ++i) x[i + inlen] = x[inlen - 1];
+      break;
+    case EXT_SYMMETRIC:
+      if (inlen > border) {
+        for (int i = -border; i < 0; ++i) x[i] = x[-i];
+        for (int i = 0; i < border; ++i) x[i + inlen] = x[inlen - 2 - i];
+      } else {
+        for (int i = -border; i < 0; ++i)
+          x[i] = x[(-i > inlen - 1 ? inlen - 1 : -i)];
+        for (int i = 0; i < border; ++i)
+          x[i + inlen] = x[(inlen - 2 - i < 0 ? 0 : inlen - 2 - i)];
+      }
+      break;
+  }
 }
 
 // Assume x buffer is already extended on both sides with x pointing to the
@@ -257,7 +275,7 @@ static void extend_border(int16_t *x, int inlen, int border) {
 static void resample_1d_xt(int16_t *x, int inlen, RationalResampleFilter *rf,
                            int downshift, ClipProfile *clip, int16_t *y,
                            int outlen) {
-  extend_border(x, inlen, rf->length / 2);
+  extend_border(x, inlen, rf->ext_type, rf->length / 2);
   resample_1d_core(x, inlen, rf, downshift, clip, y, outlen);
 }
 
@@ -419,15 +437,31 @@ static void resample_1d_core_8b(const uint8_t *x, int inlen,
   }
 }
 
-static void extend_border_8b(uint8_t *x, int inlen, int border) {
-  for (int i = -border; i < 0; ++i) x[i] = x[0];
-  for (int i = 0; i < border; ++i) x[i + inlen] = x[inlen - 1];
+static void extend_border_8b(uint8_t *x, int inlen, EXT_TYPE ext_type,
+                             int border) {
+  switch (ext_type) {
+    case EXT_REPEAT:
+      for (int i = -border; i < 0; ++i) x[i] = x[0];
+      for (int i = 0; i < border; ++i) x[i + inlen] = x[inlen - 1];
+      break;
+    case EXT_SYMMETRIC:
+      if (inlen > border) {
+        for (int i = -border; i < 0; ++i) x[i] = x[-i];
+        for (int i = 0; i < border; ++i) x[i + inlen] = x[inlen - 2 - i];
+      } else {
+        for (int i = -border; i < 0; ++i)
+          x[i] = x[(-i > inlen - 1 ? inlen - 1 : -i)];
+        for (int i = 0; i < border; ++i)
+          x[i + inlen] = x[(inlen - 2 - i < 0 ? 0 : inlen - 2 - i)];
+      }
+      break;
+  }
 }
 
 static void resample_1d_xt_8b(uint8_t *x, int inlen, RationalResampleFilter *rf,
                               int downshift, ClipProfile *clip, uint8_t *y,
                               int outlen) {
-  extend_border_8b(x, inlen, rf->length / 2);
+  extend_border_8b(x, inlen, rf->ext_type, rf->length / 2);
   resample_1d_core_8b(x, inlen, rf, downshift, clip, y, outlen);
 }
 
@@ -443,7 +477,7 @@ static void resample_1d_xc_8b(const uint8_t *x, int inlen,
 static void resample_1d_xt_in8b(uint8_t *x, int inlen,
                                 RationalResampleFilter *rf, int downshift,
                                 ClipProfile *clip, int16_t *y, int outlen) {
-  extend_border_8b(x, inlen, rf->length / 2);
+  extend_border_8b(x, inlen, rf->ext_type, rf->length / 2);
   resample_1d_core_in8b(x, inlen, rf, downshift, clip, y, outlen);
 }
 

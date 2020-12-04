@@ -19,10 +19,13 @@
 #define MAX_RATIONAL_FACTOR 16
 #define MAX_FILTER_LEN 32
 
+typedef enum { EXT_REPEAT = 'R', EXT_SYMMETRIC = 'S' } EXT_TYPE;
+
 typedef struct {
   int p;
   int q;
   int length;
+  EXT_TYPE ext_type;
   int start;
   int steps[MAX_RATIONAL_FACTOR];
   int filter_bits;
@@ -41,10 +44,10 @@ double get_centered_x0(int p, int q);
 // x0 is assumed to be in (-1, 1) or 99 (ascii value of 'c') meaning centered
 double get_inverse_x0(int p, int q, double x0);
 
-void get_resample_filter(int p, int q, int a, double x0, int prec,
-                         RationalResampleFilter *rf);
-void get_resample_filter_inv(int p, int q, int a, double x0, int bits,
-                             RationalResampleFilter *rf);
+void get_resample_filter(int p, int q, int a, double x0, EXT_TYPE ext_type,
+                         int bits, RationalResampleFilter *rf);
+void get_resample_filter_inv(int p, int q, int a, double x0, EXT_TYPE ext_type,
+                             int bits, RationalResampleFilter *rf);
 
 // whether the resampler filter is a no-op
 int is_resampler_noop(RationalResampleFilter *rf);

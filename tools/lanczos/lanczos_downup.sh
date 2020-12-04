@@ -11,10 +11,10 @@
 #       <y4m_input> is input y4m video
 #       <num_frames> is number of frames to process
 #       <horz_resampling_config> is in the format:
-#               <horz_p>:<horz_q>:<Lanczos_horz_a>[:horz_x0]
+#               <horz_p>:<horz_q>:<Lanczos_horz_a>[:<horz_x0>:<horz_ext>]
 #           similar to what is used by lanczos_resample_y4m utility.
 #       <vert_resampling_config> is in the format:
-#               <vert_p>:<vert_q>:<Lanczos_vert_a>[:vert_x0]
+#               <vert_p>:<vert_q>:<Lanczos_vert_a>[:<vert_x0>:<vert_ext>]
 #           similar to what is used by lanczos_resample_y4m utility.
 #       <downup_y4m> is the output y4m video.
 #       <down_y4m> provides the intermedite resampled file as an
@@ -60,10 +60,16 @@ huconfig="${hdconfig_arr[1]}:${hdconfig_arr[0]}:${hdconfig_arr[2]}"
 if [[ -n ${hdconfig_arr[3]} ]]; then
   huconfig="${huconfig}:i${hdconfig_arr[3]}"
 fi
+if [[ -n ${hdconfig_arr[4]} ]]; then
+  huconfig="${huconfig}:${hdconfig_arr[4]}"
+fi
 vdconfig_arr=(${vdconfig//:/ })
 vuconfig="${vdconfig_arr[1]}:${vdconfig_arr[0]}:${vdconfig_arr[2]}"
 if [[ -n ${vdconfig_arr[3]} ]]; then
   vuconfig="${vuconfig}:i${vdconfig_arr[3]}"
+fi
+if [[ -n ${vdconfig_arr[4]} ]]; then
+  vuconfig="${vuconfig}:${vdconfig_arr[4]}"
 fi
 
 $RESAMPLE $input_y4m $nframes $hdconfig $vdconfig $down_y4m &&

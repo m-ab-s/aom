@@ -28,8 +28,8 @@
 //       <width>x<height>
 //       <pix_format>
 //       <num_frames>
-//       <horz_p>:<horz_q>:<Lanczos_horz_a>[:horz_x0]
-//       <vert_p>:<vert_q>:<Lanczos_vert_a>[:vert_x0]
+//       <horz_p>:<horz_q>:<Lanczos_horz_a>[:<horz_x0>:<horz_ext>]
+//       <vert_p>:<vert_q>:<Lanczos_vert_a>[:<vert_x0>:<vert_ext>]
 //       <yuv_output>
 //       [<outwidth>x<outheight>]
 
@@ -40,8 +40,8 @@ void usage_and_exit(char *prog) {
   printf("      <width>x<height>\n");
   printf("      <pix_format>\n");
   printf("      <num_frames>\n");
-  printf("      <horz_p>:<horz_q>:<Lanczos_horz_a>[:horz_x0]\n");
-  printf("      <vert_p>:<vert_q>:<Lanczos_vert_a>[:vert_x0]\n");
+  printf("      <horz_p>:<horz_q>:<Lanczos_horz_a>[:<horz_x0>:<horz_ext>]\n");
+  printf("      <vert_p>:<vert_q>:<Lanczos_vert_a>[:<vert_x0>:<vert_ext>]\n");
   printf("      <yuv_output>\n");
   printf("      [<outwidth>x<outheight>]\n");
   printf("  Notes:\n");
@@ -59,6 +59,8 @@ void usage_and_exit(char *prog) {
   printf("                   or a number in (-1, 1) prefixed by 'i' meaning\n");
   printf("                       using the inverse of the number provided,\n");
   printf("                   or 'c' meaning centered\n");
+  printf("      <horz_ext>, <vert_ext> are optional extension types:\n");
+  printf("                   'r' (Repeat) or 's' (Symmetric) [default: 'r']\n");
   printf("      <outwidth>x<outheight> is output video dimensions\n");
   printf("                             only needed in case of upsampling\n");
   exit(1);
@@ -118,7 +120,7 @@ static int parse_pix_format(char *pix_fmt, int *bitdepth, int *subx,
 }
 
 static int parse_rational_factor(char *factor, int *p, int *q, int *a,
-                                 double *x0) {
+                                 double *x0, EXT_TYPE *ext_type) {
   const char delim = ':';
   *p = atoi(factor);
   char *x = strchr(factor, delim);
@@ -135,10 +137,18 @@ static int parse_rational_factor(char *factor, int *p, int *q, int *a,
     *x0 = get_inverse_x0(*q, *p, atof(&z[2]));
   else
     *x0 = atof(&z[1]);
-  if (*p <= 0 || *q <= 0 || *a <= 0)
-    return 0;
+  if (*p <= 0 || *q <= 0 || *a <= 0) return 0;
+  *ext_type = EXT_REPEAT;
+  if (z == NULL) return 1;
+  char *e = strchr(&z[1], delim);
+  if (e == NULL) return 1;
+  if (!strcmp(e + 1, "S") || !strcmp(e + 1, "s"))
+    *ext_type = EXT_SYMMETRIC;
+  else if (!strcmp(e + 1, "R") || !strcmp(e + 1, "r"))
+    *ext_type = EXT_REPEAT;
   else
-    return 1;
+    return 0;
+  return 1;
 }
 
 int main(int argc, char *argv[]) {
@@ -163,10 +173,13 @@ int main(int argc, char *argv[]) {
 
   int horz_p, horz_q, vert_p, vert_q;
   int horz_a, vert_a;
+  EXT_TYPE horz_ext = EXT_REPEAT, vert_ext = EXT_REPEAT;
   double horz_x0, vert_x0;
-  if (!parse_rational_factor(argv[5], &horz_p, &horz_q, &horz_a, &horz_x0))
+  if (!parse_rational_factor(argv[5], &horz_p, &horz_q, &horz_a, &horz_x0,
+                             &horz_ext))
     usage_and_exit(argv[0]);
-  if (!parse_rational_factor(argv[6], &vert_p, &vert_q, &vert_a, &vert_x0))
+  if (!parse_rational_factor(argv[6], &vert_p, &vert_q, &vert_a, &vert_x0,
+                             &vert_ext))
     usage_and_exit(argv[0]);
 
   char *yuv_input = argv[1];
@@ -202,9 +215,11 @@ int main(int argc, char *argv[]) {
   const int bits = COEFF_PREC_BITS;
   const int int_extra_bits = INT_EXTRA_PREC_BITS;
 
-  get_resample_filter(horz_p, horz_q, horz_a, horz_x0, bits, &horz_rf);
+  get_resample_filter(horz_p, horz_q, horz_a, horz_x0, horz_ext, bits,
+                      &horz_rf);
   // show_resample_filter(&horz_rf);
-  get_resample_filter(vert_p, vert_q, vert_a, vert_x0, bits, &vert_rf);
+  get_resample_filter(vert_p, vert_q, vert_a, vert_x0, vert_ext, bits,
+                      &vert_rf);
   // show_resample_filter(&vert_rf);
 
   uint8_t *inbuf =
