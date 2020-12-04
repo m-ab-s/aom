@@ -29,6 +29,21 @@ static aom_codec_err_t image2yuvconfig(const aom_image_t *img,
 
 #define MAX_SUBGOP_CODES 3
 
+static const char *subgop_config_str_nondef[] = {
+  // enh, subgop size = 4
+  "4:0:4U1/2U2/1V3/2S/3V3/4S,"
+  "4:1:3U1/2U2/1V3/2S/3S/4V3,"
+  // enh, subgop size = 5
+  "5:0:5U1/3U2/1V3/2V3/3S/4V3/5S,"
+  "5:1:4U1/2U2/1V3/2S/3V3/4S/5V3,"
+  // enh, subgop size = 7
+  "7:0:7U1/3U2/1V4/2V4/3S/5U3/4V4/5S/6V4/7S,"
+  "7:1:6U1/3U2/2U3/1V4/2S/3S/5U3/4V4/5S/6S/7V4,"
+  // enh, subgop size = 9
+  "9:0:9F1/4U2/2U3/1V4/2S/3V4/4S/7U3/5V4/6V5/7S/8V5/9R1,"
+  "9:1:7F1/3U2/1V4/2V4/3S/5U3/4V4/5S/6V4/7R1/9U3/8V4/9S,",
+};
+
 namespace {
 // Default config
 extern "C" const char subgop_config_str_def[];
@@ -128,7 +143,14 @@ static const SubgopTestParams SubGopTestVectors[] = {
   // "desktop1.320_180.yuv",
   //   0, 16, 320, 180, 3 },
 
-  // TODO(vishnu) : Add non-default subgop config
+  // Non-default subgop config
+  { subgop_config_str_nondef[0], "pixel_capture_w320h240.yuv", 0, 4, 320, 240,
+    3 },
+  { subgop_config_str_nondef[0], "desktop1.320_180.yuv", 0, 5, 320, 180, 5 },
+  { subgop_config_str_nondef[0], "pixel_capture_w320h240.yuv", 0, 7, 320, 240,
+    5 },
+  { subgop_config_str_nondef[0], "hantro_collage_w352h288.yuv", 0, 9, 352, 288,
+    3 },
 };
 
 std::ostream &operator<<(std::ostream &os, const SubgopTestParams &test_arg) {
