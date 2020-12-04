@@ -99,7 +99,11 @@ class TestVectorTest : public ::libaom_test::DecoderTest,
 // The md5 checksums are computed for each frame in the video file. If md5
 // checksums match the correct md5 data, then the test is passed. Otherwise,
 // the test failed.
+#if !CONFIG_REMOVE_DIST_WTD_COMP && !CONFIG_REMOVE_DUAL_FILTER
 TEST_P(TestVectorTest, MD5Match) {
+#else
+TEST_P(TestVectorTest, DISABLED_MD5Match) {
+#endif  // !CONFIG_REMOVE_DIST_WTD_COMP && !CONFIG_REMOVE_DUAL_FILTER
   const DecodeParam input = GET_PARAM(1);
   const std::string filename = std::get<kFileName>(input);
   aom_codec_flags_t flags = 0;
