@@ -22,12 +22,12 @@
 #       <downcompup_y4m> is the output y4m video.
 #       The last param [[<down_y4m>]:[<downcomp_bit>]:[<downcomp_y4m]]
 #           provides names of intermediate files where:
-#               down_y4m is the resampled source
-#               downcomp_bit is the compressed resampled bitstream
-#               downcomp_y4m is the reconstructed bitstream.
+#               <down_y4m> is the resampled source
+#               <downcomp_bit> is the compressed resampled bitstream
+#               <downcomp_y4m> is the reconstructed bitstream.
 #           This parameter string is entirely optional.
-#           Besides if provided, each of down_y4m, downcomp_bit and
-#           downcomp_y4m are optional by themselves where each can be
+#           Besides if provided, each of <down_y4m>, <downcomp_bit> and
+#           <downcomp_y4m> are optional by themselves where each can be
 #           either provided or empty. If empty the corresponding
 #           intermediate file is deleted.
 #
@@ -119,7 +119,8 @@ $AOMENC -o $downcomp_bit $down_y4m \
 $AOMDEC --progress -S --codec=av1 -o $downcomp_y4m $downcomp_bit
 
 #Upsample
-$RESAMPLE $downcomp_y4m $nframes $huconfig $vuconfig $downcompup_y4m ${width}x${height}
+$RESAMPLE $downcomp_y4m $nframes $huconfig $vuconfig $downcompup_y4m \
+          ${width}x${height}
 
 #Compute metrics
 #tiny_ssim_highbd $input_y4m $downcompup_y4m

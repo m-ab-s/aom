@@ -44,7 +44,7 @@ static inline int16_t doclip(int16_t x, int low, int high) {
 void show_resample_filter(RationalResampleFilter *rf) {
   printf("------------------\n");
   printf("Resample factor %d / %d\n", rf->p, rf->q);
-  printf("Extension type %c\n", (char)rf->ext_type);
+  printf("Extension type %s\n", ext2str(rf->ext_type));
   printf("Start = %d\n", rf->start);
   printf("Steps = ");
   for (int i = 0; i < rf->p; ++i) {
@@ -177,6 +177,9 @@ static int gcd(int p, int q) {
   return q1;
 }
 
+const char *ext_names[] = { "Repeat", "Symmetric", "Reflect", "Gradient" };
+const char *ext2str(EXT_TYPE ext_type) { return ext_names[(int)ext_type]; }
+
 void get_resample_filter(int p, int q, int a, double x0, EXT_TYPE ext_type,
                          int bits, RationalResampleFilter *rf) {
   double offset[MAX_RATIONAL_FACTOR + 1];
@@ -257,6 +260,17 @@ static void extend_border(int16_t *x, int inlen, EXT_TYPE ext_type,
       for (int i = 0; i < border; ++i) x[i + inlen] = x[inlen - 1];
       break;
     case EXT_SYMMETRIC:
+      if (inlen >= border) {
+        for (int i = -border; i < 0; ++i) x[i] = x[-i - 1];
+        for (int i = 0; i < border; ++i) x[i + inlen] = x[inlen - 1 - i];
+      } else {
+        for (int i = -border; i < 0; ++i)
+          x[i] = x[(-i - 1 > inlen - 1 ? inlen - 1 : -i - 1)];
+        for (int i = 0; i < border; ++i)
+          x[i + inlen] = x[(inlen - 1 - i < 0 ? 0 : inlen - 1 - i)];
+      }
+      break;
+    case EXT_REFLECT:
       if (inlen > border) {
         for (int i = -border; i < 0; ++i) x[i] = x[-i];
         for (int i = 0; i < border; ++i) x[i + inlen] = x[inlen - 2 - i];
@@ -265,6 +279,19 @@ static void extend_border(int16_t *x, int inlen, EXT_TYPE ext_type,
           x[i] = x[(-i > inlen - 1 ? inlen - 1 : -i)];
         for (int i = 0; i < border; ++i)
           x[i + inlen] = x[(inlen - 2 - i < 0 ? 0 : inlen - 2 - i)];
+      }
+      break;
+    case EXT_GRADIENT:
+      if (inlen > border) {
+        for (int i = -border; i < 0; ++i) x[i] = 2 * x[0] - x[-i];
+        for (int i = 0; i < border; ++i)
+          x[i + inlen] = 2 * x[inlen - 1] - x[inlen - 2 - i];
+      } else {
+        for (int i = -border; i < 0; ++i)
+          x[i] = 2 * x[0] - x[(-i > inlen - 1 ? inlen - 1 : -i)];
+        for (int i = 0; i < border; ++i)
+          x[i + inlen] =
+              2 * x[inlen - 1] - x[(inlen - 2 - i < 0 ? 0 : inlen - 2 - i)];
       }
       break;
   }
@@ -445,6 +472,17 @@ static void extend_border_8b(uint8_t *x, int inlen, EXT_TYPE ext_type,
       for (int i = 0; i < border; ++i) x[i + inlen] = x[inlen - 1];
       break;
     case EXT_SYMMETRIC:
+      if (inlen >= border) {
+        for (int i = -border; i < 0; ++i) x[i] = x[-i - 1];
+        for (int i = 0; i < border; ++i) x[i + inlen] = x[inlen - 1 - i];
+      } else {
+        for (int i = -border; i < 0; ++i)
+          x[i] = x[(-i - 1 > inlen - 1 ? inlen - 1 : -i - 1)];
+        for (int i = 0; i < border; ++i)
+          x[i + inlen] = x[(inlen - 1 - i < 0 ? 0 : inlen - 1 - i)];
+      }
+      break;
+    case EXT_REFLECT:
       if (inlen > border) {
         for (int i = -border; i < 0; ++i) x[i] = x[-i];
         for (int i = 0; i < border; ++i) x[i + inlen] = x[inlen - 2 - i];
@@ -453,6 +491,28 @@ static void extend_border_8b(uint8_t *x, int inlen, EXT_TYPE ext_type,
           x[i] = x[(-i > inlen - 1 ? inlen - 1 : -i)];
         for (int i = 0; i < border; ++i)
           x[i + inlen] = x[(inlen - 2 - i < 0 ? 0 : inlen - 2 - i)];
+      }
+      break;
+    case EXT_GRADIENT:
+      if (inlen > border) {
+        for (int i = -border; i < 0; ++i) {
+          const int16_t t = 2 * x[0] - x[-i];
+          x[i] = doclip(t, 0, 255);
+        }
+        for (int i = 0; i < border; ++i) {
+          const int16_t t = 2 * x[inlen - 1] - x[inlen - 2 - i];
+          x[i + inlen] = doclip(t, 0, 255);
+        }
+      } else {
+        for (int i = -border; i < 0; ++i) {
+          const int16_t t = 2 * x[0] - x[(-i > inlen - 1 ? inlen - 1 : -i)];
+          x[i] = doclip(t, 0, 255);
+        }
+        for (int i = 0; i < border; ++i) {
+          const int16_t t =
+              2 * x[inlen - 1] - x[(inlen - 2 - i < 0 ? 0 : inlen - 2 - i)];
+          x[i + inlen] = doclip(t, 0, 255);
+        }
       }
       break;
   }

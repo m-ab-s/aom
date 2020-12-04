@@ -19,7 +19,7 @@
 #define MAX_RATIONAL_FACTOR 16
 #define MAX_FILTER_LEN 32
 
-typedef enum { EXT_REPEAT = 'R', EXT_SYMMETRIC = 'S' } EXT_TYPE;
+typedef enum { EXT_REPEAT, EXT_SYMMETRIC, EXT_REFLECT, EXT_GRADIENT } EXT_TYPE;
 
 typedef struct {
   int p;
@@ -93,3 +93,4 @@ void resample_vert_8b(const uint8_t *x, int inwidth, int inheight, int instride,
 void show_resample_filter(RationalResampleFilter *rf);
 
 int get_resampled_output_length(int inlen, int p, int q, int force_even);
+const char *ext2str(EXT_TYPE ext_type);

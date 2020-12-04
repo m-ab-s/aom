@@ -60,7 +60,11 @@ void usage_and_exit(char *prog) {
   printf("                       using the inverse of the number provided,\n");
   printf("                   or 'c' meaning centered\n");
   printf("      <horz_ext>, <vert_ext> are optional extension types:\n");
-  printf("                   'r' (Repeat) or 's' (Symmetric) [default: 'r']\n");
+  printf("                   'r' or 'rep' (Repeat)\n");
+  printf("                   's' or 'sym' (Symmetric)\n");
+  printf("                   'f' or 'ref' (Reflect/Mirror-whole)\n");
+  printf("                   'g' or 'gra' (Grafient preserving)\n");
+  printf("                                [default: 'r']\n");
   printf("      <outwidth>x<outheight> is output video dimensions\n");
   printf("                             only needed in case of upsampling\n");
   exit(1);
@@ -142,10 +146,14 @@ static int parse_rational_factor(char *factor, int *p, int *q, int *a,
   if (z == NULL) return 1;
   char *e = strchr(&z[1], delim);
   if (e == NULL) return 1;
-  if (!strcmp(e + 1, "S") || !strcmp(e + 1, "s"))
+  if (!strcmp(e + 1, "S") || !strcmp(e + 1, "s") || !strcmp(e + 1, "sym"))
     *ext_type = EXT_SYMMETRIC;
-  else if (!strcmp(e + 1, "R") || !strcmp(e + 1, "r"))
+  else if (!strcmp(e + 1, "F") || !strcmp(e + 1, "f") || !strcmp(e + 1, "ref"))
+    *ext_type = EXT_REFLECT;
+  else if (!strcmp(e + 1, "R") || !strcmp(e + 1, "r") || !strcmp(e + 1, "rep"))
     *ext_type = EXT_REPEAT;
+  else if (!strcmp(e + 1, "G") || !strcmp(e + 1, "g") || !strcmp(e + 1, "gra"))
+    *ext_type = EXT_GRADIENT;
   else
     return 0;
   return 1;
