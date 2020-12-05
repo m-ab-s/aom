@@ -2281,6 +2281,88 @@ static int64_t count_switchable_bits(int rest_type, RestSearchCtxt *rsc,
   return bits;
 }
 
+#if CONFIG_RST_MERGECOEFFS
+// src_idx : start of path
+// dest_idx : destination of path
+// max_out_nodes: max outgoing edges from node
+// graph: pointer to adjacency matrix to indicate edges between nodes. If no
+//  edge is present between nodes, element is set to INFINITY.
+// best_path : pointer to Vector storing best path from start to destination
+//  as int indexes of nodes
+// subsets : indicates whether graph needs to be organized into subsets
+// cost_fn : function to dynamically determine edge cost
+// info : pointer to unspecified structure type cast in function, holds any
+//  information needed to calculate edge cost
+// Returns cost of min-cost path.
+double min_cost_graphsearch(int src_idx, int dest_idx, int max_out_nodes,
+                            const double *graph, Vector *best_path,
+                            bool subsets, graph_edge_cost_t cost_fn,
+                            const void *info) {
+  Vector node_best_path;
+  aom_vector_setup(&node_best_path, 1, sizeof(int));
+  aom_vector_push_back(best_path, &src_idx);
+  double node_dest_cost = INFINITY;
+  if (src_idx == dest_idx) {
+    aom_vector_destroy(&node_best_path);
+    return 0;
+  }
+
+  // Shortest path from this node to dest.
+  for (int out_edge = 0; out_edge < max_out_nodes; ++out_edge) {
+    int out_idx;
+    if (!subsets) {
+      out_idx = out_edge;
+    } else {
+      out_idx =
+          (((src_idx - 1 + max_out_nodes) / max_out_nodes) * max_out_nodes) +
+          out_edge + 1;
+    }
+    bool revisiting = false;
+    // Confirm this isn't a cycle.
+    VECTOR_FOR_EACH(best_path, listed_unit) {
+      int visited_idx = *(int *)(listed_unit.pointer);
+      if (visited_idx == out_idx) revisiting = true;
+    }
+    // Adjacency matrix blank fields are set to INFINITY.
+    if (graph[src_idx * max_out_nodes + out_edge] != INFINITY && !revisiting) {
+      Vector out_best_path;
+      aom_vector_setup(&out_best_path, 1, sizeof(int));
+      aom_vector_copy_assign(&out_best_path, best_path);
+      double out_dest_cost =
+          min_cost_graphsearch(out_idx, dest_idx, max_out_nodes, graph,
+                               &out_best_path, subsets, cost_fn, info);
+      // If path with retrieved cost reaches destination, apply min cost.
+      if (out_dest_cost < INFINITY) {
+        out_dest_cost +=
+            cost_fn(info, best_path, src_idx, max_out_nodes, out_edge);
+        if (out_dest_cost < node_dest_cost) {
+          node_dest_cost = out_dest_cost;
+          aom_vector_copy_assign(&node_best_path, &out_best_path);
+        }
+      }
+      aom_vector_destroy(&out_best_path);
+    }
+  }
+  aom_vector_copy_assign(best_path, &node_best_path);
+  aom_vector_destroy(&node_best_path);
+  return node_dest_cost;
+}
+
+double min_cost_type_path(int src_idx, int dest_idx, int max_out_nodes,
+                          const double *graph, Vector *best_path,
+                          graph_edge_cost_t cost_fn, const void *info) {
+  return min_cost_graphsearch(src_idx, dest_idx, max_out_nodes, graph,
+                              best_path, true, cost_fn, info);
+}
+
+double min_cost_path(int src_idx, int dest_idx, int max_out_nodes,
+                     const double *graph, Vector *best_path,
+                     graph_edge_cost_t cost_fn, const void *info) {
+  return min_cost_graphsearch(src_idx, dest_idx, max_out_nodes, graph,
+                              best_path, false, cost_fn, info);
+}
+#endif  // CONFIG_RST_MERGECOEFFS
+
 static void search_switchable(const RestorationTileLimits *limits,
                               const AV1PixelRect *tile_rect, int rest_unit_idx,
                               void *priv, int32_t *tmpbuf,
@@ -2291,6 +2373,14 @@ static void search_switchable(const RestorationTileLimits *limits,
   (void)rlbs;
   RestSearchCtxt *rsc = (RestSearchCtxt *)priv;
   RestUnitSearchInfo *rusi = &rsc->rusi[rest_unit_idx];
+
+#if CONFIG_RST_MERGECOEFFS
+  // Temporary to avoid uninitialized function error.
+  double graph[] = { 0 };
+  Vector best_path;
+  aom_vector_setup(&best_path, 1, sizeof(int));
+  min_cost_path(0, 0, 0, graph, &best_path, NULL, NULL);
+#endif
 
   const MACROBLOCK *const x = rsc->x;
 

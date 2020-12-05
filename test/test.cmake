@@ -139,6 +139,11 @@ if(NOT BUILD_SHARED_LIBS)
                   "${AOM_ROOT}/test/tensorflow_link_test.cc")
     endif()
 
+    if(CONFIG_RST_MERGECOEFFS)
+      list(APPEND AOM_UNIT_TEST_COMMON_SOURCES
+                  "${AOM_ROOT}/test/rst_mergecoeffs_test.cc")
+    endif()
+
     if(CONFIG_REALTIME_ONLY)
       list(REMOVE_ITEM AOM_UNIT_TEST_COMMON_SOURCES
                        "${AOM_ROOT}/test/yuv_temporal_filter_test.cc")
