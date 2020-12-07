@@ -565,7 +565,7 @@ TEST_P(SubGopPSNRCheckTest, SubGopPSNRCheck) {
   const double psnr_subgop_ = GetAveragePsnr();
 
   const double psnr_diff = psnr_subgop_ - psnr_no_subgop_;
-  EXPECT_LE(abs(psnr_diff), psnr_diff_thresh);
+  EXPECT_LE(fabs(psnr_diff), psnr_diff_thresh);
 }
 
 // TODO(any) : Enable AOM_CBR after fix
