@@ -42,6 +42,8 @@ The usage of lanczos_resample_y4m is:
       <y4m_output>
       [<outwidth>x<outheight>]
   Notes:
+      <y4m_input> is the input video in Y4M format
+      <y4m_output> is the output video in Y4M format
       <num_frames> is number of frames to be processed
       <horz_p>/<horz_q> gives the horz resampling ratio.
       <vert_p>/<vert_q> gives the vert resampling ratio.
@@ -53,11 +55,15 @@ The usage of lanczos_resample_y4m is:
                        using the inverse of the number provided,
                    or 'c' meaning centered
       <horz_ext>, <vert_ext> are optional extension types:
-                   'r' or 'rep' (Repeat)
+                   'r' or 'rep' (Repeat) [default]
+                       [ ... x0 x0 x0 | x0 x1 x2 ... ]
                    's' or 'sym' (Symmetric)
+                       [ ... x2 x1 x0 | x0 x1 x2 ... ]
                    'f' or 'ref' (Reflect/Mirror-whole)
+                       [ ... x3 x2 x1 | x0 x1 x2 ... ]
                    'g' or 'gra' (Gradient preserving)
-                                [default: 'r']
+                       [ ... y3 y2 y1 | x0 x1 x2 ... ] with:
+		       yi = 2 * x0 - xi, i = 1, 2, 3, ...
       <outwidth>x<outheight> is output video dimensions
                              only needed in case of upsampling
       Resampling config string of 1:1:1:0 horizontally or vertically
@@ -125,30 +131,14 @@ arguments to specify the input format:
       <yuv_output>
       [<outwidth>x<outheight>]
   Notes:
+      <yuv_input> is the input video in raw YUV format
+      <yuv_output> is the output video in raw YUV format
       <width>x<height> is input video dimensions.
       <pix_format> is one of { yuv420p, yuv420p10, yuv420p12,
                                yuv422p, yuv422p10, yuv422p12,
                                yuv444p, yuv444p10, yuv444p12 }
-      <num_frames> is number of frames to be processed
-      <horz_p>/<horz_q> gives the horz resampling ratio.
-      <vert_p>/<vert_q> gives the vert resampling ratio.
-      <Lanczos_horz_a>, <Lanczos_vert_a> are Lanczos parameters.
-      <horz_x0>, <vert_x0> are optional initial offsets
-                                        [default centered].
-          If used, they can be a number in (-1, 1),
-                   or a number in (-1, 1) prefixed by 'i' meaning
-                       using the inverse of the number provided,
-                   or 'c' meaning centered
-      <horz_ext>, <vert_ext> are optional extension types:
-                   'r' or 'rep' (Repeat)
-                   's' or 'sym' (Symmetric)
-                   'f' or 'ref' (Reflect/Mirror-whole)
-                   'g' or 'gra' (Gradient preserving)
-                                [default: 'r']
-      <outwidth>x<outheight> is output video dimensions
-                             only needed in case of upsampling
-      Resampling config string of 1:1:1:0 horizontally or vertically
-          is regarded as a no-op in that direction.
+      All other parameters are the same as the ones used for
+      lanczos_resample_y4m described above.
 
 
 SCRIPTS
