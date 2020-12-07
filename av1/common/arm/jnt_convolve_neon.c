@@ -580,10 +580,16 @@ static INLINE void dist_wtd_convolve_2d_vert_neon(
   const int32x4_t round_shift_vec = vdupq_n_s32(-(conv_params->round_1));
   const int32x4_t offset_const = vdupq_n_s32(1 << offset);
   const int16x4_t sub_const_vec = vdup_n_s16(sub_const);
+#if !CONFIG_REMOVE_DIST_WTD_COMP
   const uint16_t fwd_offset = conv_params->fwd_offset;
   const uint16_t bck_offset = conv_params->bck_offset;
-  const int do_average = conv_params->do_average;
   const int use_dist_wtd_comp_avg = conv_params->use_dist_wtd_comp_avg;
+#else
+  const uint16_t fwd_offset = (1 << (DIST_PRECISION_BITS - 1));
+  const uint16_t bck_offset = (1 << (DIST_PRECISION_BITS - 1));
+  const int use_dist_wtd_comp_avg = 0;
+#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
+  const int do_average = conv_params->do_average;
 
   int16x4_t s0, s1, s2, s3, s4, s5, s6, s7;
   uint16x4_t res4, d0;
@@ -773,6 +779,15 @@ void av1_dist_wtd_convolve_2d_copy_neon(const uint8_t *src, int src_stride,
   const uint16x8_t dup_round_offset16x8 = vdupq_n_u16((uint16_t)round_offset);
   const int16x4_t dup_bits16x4 = vdup_n_s16(bits);
   const int16x8_t dup_bits16x8 = vdupq_n_s16(bits);
+#if !CONFIG_REMOVE_DIST_WTD_COMP
+  const uint16_t fwd_offset = conv_params->fwd_offset;
+  const uint16_t bck_offset = conv_params->bck_offset;
+  const int use_dist_wtd_comp_avg = conv_params->use_dist_wtd_comp_avg;
+#else
+  const uint16_t fwd_offset = (1 << (DIST_PRECISION_BITS - 1));
+  const uint16_t bck_offset = (1 << (DIST_PRECISION_BITS - 1));
+  const int use_dist_wtd_comp_avg = 0;
+#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
 
   if (!(w & 0x07)) {
     for (y = 0; y < (h >> 2); ++y) {
@@ -797,10 +812,9 @@ void av1_dist_wtd_convolve_2d_copy_neon(const uint8_t *src, int src_stride,
           load_u16_8x4(dst_2, dst_stride, &tmp_q0, &tmp_q1, &tmp_q2, &tmp_q3);
 
           compute_avg_8x4(tmp_q0, tmp_q1, tmp_q2, tmp_q3, res_q0, res_q1,
-                          res_q2, res_q3, conv_params->fwd_offset,
-                          conv_params->bck_offset, sub_const_vec, bits,
-                          conv_params->use_dist_wtd_comp_avg, &tmp_shift0,
-                          &tmp_shift1, &tmp_shift2, &tmp_shift3);
+                          res_q2, res_q3, fwd_offset, bck_offset, sub_const_vec,
+                          bits, use_dist_wtd_comp_avg, &tmp_shift0, &tmp_shift1,
+                          &tmp_shift2, &tmp_shift3);
 
           vst1_u8(dst8_1 + (0 * dst8_stride), tmp_shift0);
           vst1_u8(dst8_1 + (1 * dst8_stride), tmp_shift1);
@@ -841,9 +855,8 @@ void av1_dist_wtd_convolve_2d_copy_neon(const uint8_t *src, int src_stride,
         load_u16_4x4(dst_1, dst_stride, &tmp4, &tmp5, &tmp6, &tmp7);
 
         compute_avg_4x4(tmp4, tmp5, tmp6, tmp7, res4, res5, res6, res7,
-                        conv_params->fwd_offset, conv_params->bck_offset,
-                        sub_const_vec, bits, conv_params->use_dist_wtd_comp_avg,
-                        &tmp_shift0, &tmp_shift1);
+                        fwd_offset, bck_offset, sub_const_vec, bits,
+                        use_dist_wtd_comp_avg, &tmp_shift0, &tmp_shift1);
 
         vst1_lane_u32((uint32_t *)(dst8_1), vreinterpret_u32_u8(tmp_shift0), 0);
         dst8_1 += dst8_stride;
@@ -887,9 +900,15 @@ void av1_dist_wtd_convolve_x_neon(const uint8_t *src, int src_stride,
                            (1 << (offset_bits - conv_params->round_1 - 1));
   const int round_bits =
       2 * FILTER_BITS - conv_params->round_0 - conv_params->round_1;
+#if !CONFIG_REMOVE_DIST_WTD_COMP
   const uint16_t fwd_offset = conv_params->fwd_offset;
   const uint16_t bck_offset = conv_params->bck_offset;
   const int use_dist_wtd_comp_avg = conv_params->use_dist_wtd_comp_avg;
+#else
+  const uint16_t fwd_offset = (1 << (DIST_PRECISION_BITS - 1));
+  const uint16_t bck_offset = (1 << (DIST_PRECISION_BITS - 1));
+  const int use_dist_wtd_comp_avg = 0;
+#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
 
   // horizontal filter
   const int16_t *x_filter = av1_get_interp_filter_subpel_kernel(
@@ -1346,9 +1365,15 @@ void av1_dist_wtd_convolve_y_neon(const uint8_t *src, int src_stride,
                            (1 << (offset_bits - conv_params->round_1 - 1));
   const int round_bits =
       2 * FILTER_BITS - conv_params->round_0 - conv_params->round_1;
+#if !CONFIG_REMOVE_DIST_WTD_COMP
   const uint16_t fwd_offset = conv_params->fwd_offset;
   const uint16_t bck_offset = conv_params->bck_offset;
   const int use_dist_wtd_comp_avg = conv_params->use_dist_wtd_comp_avg;
+#else
+  const uint16_t fwd_offset = (1 << (DIST_PRECISION_BITS - 1));
+  const uint16_t bck_offset = (1 << (DIST_PRECISION_BITS - 1));
+  const int use_dist_wtd_comp_avg = 0;
+#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
   const int shift_value = (conv_params->round_1 - 1 - bits);
 
   // vertical filter

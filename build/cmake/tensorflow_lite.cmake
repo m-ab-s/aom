@@ -71,6 +71,7 @@ endfunction()
 # "experiment_requires_tf_lite" function.
 function(target_link_tf_lite_libraries named_target)
   target_link_libraries(${named_target} ${AOM_LIB_LINK_TYPE} Threads::Threads)
+  target_link_libraries(${named_target} PRIVATE fake_dl)
   target_link_tf_lite_dep_(${named_target} "" tensorflow-lite)
   target_link_tf_lite_dep_(${named_target} _deps/abseil-cpp-build/absl/flags/
                            absl_flags)
@@ -198,13 +199,19 @@ function(setup_tensorflow_lite)
     CMAKE_ARGS "-DCMAKE_BUILD_TYPE=Release"
     LOG_BUILD 1)
 
+  # TF-Lite uses dlsym and dlopen for delegation, but linking with -ldl is not
+  # supported in static builds. Use a dummy implementation (callers must not use
+  # delegation).
+  add_library(fake_dl OBJECT "${AOM_ROOT}/common/fake_dl.h"
+                      "${AOM_ROOT}/common/fake_dl.cc")
+
   # TF-Lite depends on this, and downloads it during compilation.
   include_directories(
     "${CMAKE_CURRENT_BINARY_DIR}/tensorflow_lite/flatbuffers/include/")
 
-  add_dependencies(aom_av1_common tensorflow_lite)
+  add_dependencies(aom_av1_common tensorflow_lite fake_dl)
   foreach(aom_app ${AOM_APP_TARGETS})
-    add_dependencies(${aom_app} tensorflow_lite)
+    add_dependencies(${aom_app} tensorflow_lite fake_dl)
     target_link_tf_lite_libraries(${aom_app})
   endforeach()
 endfunction()

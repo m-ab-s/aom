@@ -164,8 +164,12 @@ def CalBDRateWithPython_OneSheet(sht, cols_bdmtrs, resultfiles, cellformat):
                     refqtys = rdsht.col_values(rdcols[0] + 1 + y, rdrows[row_refst], rdrows[row_refst + bdstep] + 1)
                     testbrs = rdsht.col_values(rdcols[residx], rdrows[row_refst], rdrows[row_refst + bdstep] + 1)
                     testqtys = rdsht.col_values(rdcols[residx] + 1 + y, rdrows[row_refst], rdrows[row_refst + bdstep] + 1)
-                    bdrate = BD_RATE(refbrs, refqtys, testbrs, testqtys) / 100.0
-                    sht.write(row_class + row_cont, cols_bd + y, bdrate, cellformat)
+                    bdrate = BD_RATE(refbrs, refqtys, testbrs, testqtys)
+                    if (bdrate != 'Error'):
+                        bdrate /= 100.0
+                        sht.write(row_class + row_cont, cols_bd + y, bdrate, cellformat)
+                    else:
+                        sht.write(row_class + row_cont, cols_bd + y, bdrate)
 
 def GenerateFormula_SumRows(shtname, rows, col):
     cells = ''

@@ -341,11 +341,15 @@ static int parse_sequence_header(const uint8_t *const buffer, size_t length,
     AV1C_READ_BIT_OR_RETURN_ERROR(enable_interintra_compound);
     AV1C_READ_BIT_OR_RETURN_ERROR(enable_masked_compound);
     AV1C_READ_BIT_OR_RETURN_ERROR(enable_warped_motion);
+#if !CONFIG_REMOVE_DUAL_FILTER
     AV1C_READ_BIT_OR_RETURN_ERROR(enable_dual_filter);
+#endif  // !CONFIG_REMOVE_DUAL_FILTER
 
     AV1C_READ_BIT_OR_RETURN_ERROR(enable_order_hint);
     if (enable_order_hint) {
+#if !CONFIG_REMOVE_DIST_WTD_COMP
       AV1C_READ_BIT_OR_RETURN_ERROR(enable_dist_wtd_comp);
+#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
       AV1C_READ_BIT_OR_RETURN_ERROR(enable_ref_frame_mvs);
     }
 

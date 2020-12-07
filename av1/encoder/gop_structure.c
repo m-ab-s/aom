@@ -32,16 +32,14 @@ static void set_multi_layer_params(const TWO_PASS *twopass,
                                    FRAME_INFO *frame_info, int start, int end,
                                    int *cur_frame_idx, int *frame_ind,
                                    int layer_depth) {
-  const int num_frames_to_process = end - start - 1;
-  assert(num_frames_to_process >= 0);
-  if (num_frames_to_process == 0) return;
+  const int num_frames_to_process = end - start;
 
   // Either we are at the last level of the pyramid, or we don't have enough
   // frames between 'l' and 'r' to create one more level.
   if (layer_depth > gf_group->max_layer_depth_allowed ||
       num_frames_to_process < 3) {
     // Leaf nodes.
-    while (++start < end) {
+    while (start < end) {
       gf_group->update_type[*frame_ind] = LF_UPDATE;
       gf_group->arf_src_offset[*frame_ind] = 0;
       gf_group->cur_frame_idx[*frame_ind] = *cur_frame_idx;
@@ -52,13 +50,14 @@ static void set_multi_layer_params(const TWO_PASS *twopass,
           AOMMAX(gf_group->max_layer_depth, layer_depth);
       ++(*frame_ind);
       ++(*cur_frame_idx);
+      ++start;
     }
   } else {
-    const int m = (start + end) / 2;
+    const int m = (start + end - 1) / 2;
 
     // Internal ARF.
     gf_group->update_type[*frame_ind] = INTNL_ARF_UPDATE;
-    gf_group->arf_src_offset[*frame_ind] = m - start - 1;
+    gf_group->arf_src_offset[*frame_ind] = m - start;
     gf_group->cur_frame_idx[*frame_ind] = *cur_frame_idx;
     gf_group->layer_depth[*frame_ind] = layer_depth;
 
@@ -81,7 +80,7 @@ static void set_multi_layer_params(const TWO_PASS *twopass,
     ++(*cur_frame_idx);
 
     // Frames displayed after this internal ARF.
-    set_multi_layer_params(twopass, gf_group, rc, frame_info, m, end,
+    set_multi_layer_params(twopass, gf_group, rc, frame_info, m + 1, end,
                            cur_frame_idx, frame_ind, layer_depth + 1);
   }
 }
@@ -180,10 +179,40 @@ static void set_multi_layer_params_from_subgop_cfg(
 
     if (idx != (subgop_cfg->num_steps - 1)) (*frame_index)++;
   }
-  for (int idx = 1; idx <= *frame_index; idx++) {
+  for (int idx = 0; idx <= *frame_index; idx++) {
     if (gf_group->layer_depth[idx] == gf_group->max_layer_depth)
       gf_group->layer_depth[idx] = MAX_ARF_LAYERS;
   }
+}
+
+static const SubGOPCfg *get_subgop_config(SubGOPSetCfg *config_set,
+                                          int num_frames, int is_last_subgop,
+                                          int is_first_subgop,
+                                          int use_alt_ref) {
+  int is_ld_map = 1;
+  const SubGOPCfg *cfg = av1_find_subgop_config(
+      config_set, num_frames, is_last_subgop, is_first_subgop);
+  if (!cfg) return NULL;
+
+  // Check if the configuration map is low-delay
+  for (int idx = 0; idx < cfg->num_steps; ++idx) {
+    const SubGOPStepCfg *frame = &cfg->step[idx];
+    FRAME_TYPE_CODE type = frame->type_code;
+    if (type == FRAME_TYPE_OOO_FILTERED || type == FRAME_TYPE_OOO_UNFILTERED) {
+      is_ld_map = 0;
+      break;
+    }
+  }
+
+  /*
+   * Enable subgop configuration path only when altrefs are
+   * enabled for non low-delay configurations and for low-delay
+   * configurations.
+   */
+  if (cfg && (use_alt_ref || is_ld_map))
+    return cfg;
+  else
+    return NULL;
 }
 
 static int construct_multi_layer_gf_structure(
@@ -193,11 +222,10 @@ static int construct_multi_layer_gf_structure(
   int frame_index = 0;
   int cur_frame_index = 0;
 
-  // Keyframe / Overlay frame / Golden frame.
-  assert(gf_interval >= 1);
   assert(first_frame_update_type == KF_UPDATE ||
-         first_frame_update_type == OVERLAY_UPDATE ||
+         first_frame_update_type == ARF_UPDATE ||
          first_frame_update_type == GF_UPDATE);
+  const int use_altref = gf_group->max_layer_depth_allowed > 0;
 
   if (first_frame_update_type == KF_UPDATE &&
       cpi->oxcf.kf_cfg.enable_keyframe_filtering > 1) {
@@ -216,18 +244,12 @@ static int construct_multi_layer_gf_structure(
     gf_group->max_layer_depth = 0;
     ++frame_index;
     cur_frame_index++;
-  } else {
+  } else if (first_frame_update_type != ARF_UPDATE) {
     gf_group->update_type[frame_index] = first_frame_update_type;
     gf_group->arf_src_offset[frame_index] = 0;
     gf_group->cur_frame_idx[frame_index] = cur_frame_index;
-    gf_group->layer_depth[frame_index] =
-        first_frame_update_type == OVERLAY_UPDATE ? MAX_ARF_LAYERS + 1 : 0;
+    gf_group->layer_depth[frame_index] = 0;
     gf_group->max_layer_depth = 0;
-    if (gf_group->last_step_prev != NULL &&
-        first_frame_update_type == GF_UPDATE) {
-      gf_group->layer_depth[frame_index] = gf_group->last_step_prev->pyr_level;
-      gf_group->max_layer_depth = gf_group->layer_depth[frame_index];
-    }
     ++frame_index;
     ++cur_frame_index;
   }
@@ -237,22 +259,23 @@ static int construct_multi_layer_gf_structure(
   gf_group->subgop_cfg = NULL;
   gf_group->is_user_specified = 0;
   const SubGOPCfg *subgop_cfg;
-  subgop_cfg = av1_find_subgop_config(subgop_cfg_set, gf_interval,
-                                      rc->frames_to_key - 1 <= gf_interval + 2,
-                                      first_frame_update_type == KF_UPDATE);
+  if (first_frame_update_type == KF_UPDATE) gf_interval++;
+  subgop_cfg =
+      get_subgop_config(subgop_cfg_set, gf_interval - frame_index,
+                        rc->frames_to_key <= gf_interval + 2,
+                        first_frame_update_type == KF_UPDATE, use_altref);
   if (subgop_cfg) {
     gf_group->subgop_cfg = subgop_cfg;
     gf_group->is_user_specified = 1;
     set_multi_layer_params_from_subgop_cfg(twopass, gf_group, subgop_cfg, rc,
                                            frame_info, &cur_frame_index,
                                            &frame_index);
+    frame_index++;
   } else {
     // ALTREF.
-    const int use_altref = gf_group->max_layer_depth_allowed > 0;
-
     if (use_altref) {
       gf_group->update_type[frame_index] = ARF_UPDATE;
-      gf_group->arf_src_offset[frame_index] = gf_interval - 1;
+      gf_group->arf_src_offset[frame_index] = gf_interval - cur_frame_index - 1;
       gf_group->cur_frame_idx[frame_index] = cur_frame_index;
       gf_group->layer_depth[frame_index] = 1;
       gf_group->arf_boost[frame_index] = cpi->rc.gfu_boost;
@@ -262,13 +285,27 @@ static int construct_multi_layer_gf_structure(
     } else {
       gf_group->arf_index = -1;
     }
-    set_multi_layer_params(twopass, gf_group, rc, frame_info, 0, gf_interval,
-                           &cur_frame_index, &frame_index, use_altref + 1);
-    // The end frame will be Overlay frame for an ARF GOP; otherwise set it to
-    // be GF, for consistency, which will be updated in the next GOP.
-    gf_group->update_type[frame_index] =
-        use_altref ? OVERLAY_UPDATE : GF_UPDATE;
-    gf_group->arf_src_offset[frame_index] = 0;
+    set_multi_layer_params(twopass, gf_group, rc, frame_info, cur_frame_index,
+                           gf_interval - 1, &cur_frame_index, &frame_index,
+                           use_altref + 1);
+    if (use_altref) {
+      gf_group->update_type[frame_index] = OVERLAY_UPDATE;
+      gf_group->arf_src_offset[frame_index] = 0;
+      gf_group->cur_frame_idx[frame_index] = cur_frame_index;
+      gf_group->layer_depth[frame_index] = MAX_ARF_LAYERS;
+      gf_group->arf_boost[frame_index] = NORMAL_BOOST;
+      ++frame_index;
+    } else {
+      for (; cur_frame_index < gf_interval; ++cur_frame_index) {
+        gf_group->update_type[frame_index] = LF_UPDATE;
+        gf_group->arf_src_offset[frame_index] = 0;
+        gf_group->cur_frame_idx[frame_index] = cur_frame_index;
+        gf_group->layer_depth[frame_index] = MAX_ARF_LAYERS;
+        gf_group->arf_boost[frame_index] = NORMAL_BOOST;
+        gf_group->max_layer_depth = AOMMAX(gf_group->max_layer_depth, 2);
+        ++frame_index;
+      }
+    }
   }
 
   return frame_index;
@@ -301,18 +338,17 @@ void check_frame_params(GF_GROUP *const gf_group, int gf_interval) {
 }
 #endif  // CHECK_GF_PARAMETER
 
-void av1_gop_setup_structure(AV1_COMP *cpi,
-                             const EncodeFrameParams *const frame_params) {
+void av1_gop_setup_structure(AV1_COMP *cpi) {
   RATE_CONTROL *const rc = &cpi->rc;
   GF_GROUP *const gf_group = &cpi->gf_group;
   TWO_PASS *const twopass = &cpi->twopass;
   FRAME_INFO *const frame_info = &cpi->frame_info;
-  const int key_frame = (frame_params->frame_type == KEY_FRAME);
+  const int key_frame = rc->frames_since_key == 0;
+  const int use_altref = gf_group->max_layer_depth_allowed > 0;
   const FRAME_UPDATE_TYPE first_frame_update_type =
       key_frame ? KF_UPDATE
-                : rc->source_alt_ref_active || (rc->baseline_gf_interval == 1)
-                      ? OVERLAY_UPDATE
-                      : GF_UPDATE;
+                : use_altref || (rc->baseline_gf_interval == 1) ? ARF_UPDATE
+                                                                : GF_UPDATE;
   gf_group->is_user_specified = 0;
   gf_group->has_overlay_for_key_frame = 0;
   if (cpi->print_per_frame_stats) {

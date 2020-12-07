@@ -14,6 +14,18 @@ import Utils
 from Config import AOMENC, SVTAV1
 from Utils import ExecuteCmd
 
+def get_qindex_from_QP(QP):
+    quantizer_to_qindex = [
+    0,   4,   8,   12,  16,  20,  24,  28,  32,  36,  40,  44,  48,
+    52,  56,  60,  64,  68,  72,  76,  80,  84,  88,  92,  96,  100,
+    104, 108, 112, 116, 120, 124, 128, 132, 136, 140, 144, 148, 152,
+    156, 160, 164, 168, 172, 176, 180, 184, 188, 192, 196, 200, 204,
+    208, 212, 216, 220, 224, 228, 232, 236, 240, 244, 249, 255]
+    if (QP > 63):
+        print(" QP %d is out of range (0 to 63), clamp to 63", QP)
+        return quantizer_to_qindex[63]
+    return quantizer_to_qindex[QP]
+
 def EncodeWithAOM_AV1(clip, test_cfg, QP, framenum, outfile, preset,
                       LogCmdOnly=False):
     args = " --verbose --codec=av1 -v --psnr --obu --frame-parallel=0" \
@@ -22,8 +34,9 @@ def EncodeWithAOM_AV1(clip, test_cfg, QP, framenum, outfile, preset,
            " --use-fixed-qp-offsets=1 --deltaq-mode=0 --enable-tpl-model=0" \
            " --enable-keyframe-filtering=0 --fps=%d/%d --input-bit-depth=%d" \
            " --bit-depth=%d --qp=%d -w %d -h %d" \
-           % (preset, framenum, clip.fmt, clip.fps_num, clip.fps_denom, clip.bit_depth,
-              clip.bit_depth, 4*QP, clip.width, clip.height)
+           % (preset, framenum, clip.fmt, clip.fps_num, clip.fps_denom,
+              clip.bit_depth, clip.bit_depth, get_qindex_from_QP(QP),
+              clip.width, clip.height)
 
     if test_cfg == "RA" or test_cfg == "AS":
         args += " --min-gf-interval=16 --max-gf-interval=16 --gf-min-pyr-height=4" \

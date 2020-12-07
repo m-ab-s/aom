@@ -808,6 +808,7 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
   bool subgop_config_changed = false;
   if (aom_strcmp(cpi->subgop_config_path, oxcf->subgop_config_path)) {
     aom_free(cpi->subgop_config_path);
+    cpi->subgop_config_path = NULL;
     if (oxcf->subgop_config_path != NULL) {
       cpi->subgop_config_path =
           (char *)aom_malloc((strlen(oxcf->subgop_config_path) + 1) *
@@ -818,6 +819,7 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
   }
   if (aom_strcmp(cpi->subgop_config_str, oxcf->subgop_config_str)) {
     aom_free(cpi->subgop_config_str);
+    cpi->subgop_config_str = NULL;
     if (oxcf->subgop_config_str != NULL) {
       cpi->subgop_config_str =
           (char *)aom_malloc((strlen(oxcf->subgop_config_str) + 1) *
@@ -2854,11 +2856,9 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
 
   if (frame_is_sframe(cm)) {
     GF_GROUP *gf_group = &cpi->gf_group;
-    RATE_CONTROL *const rc = &cpi->rc;
     // S frame will wipe out any previously encoded altref so we cannot place
     // an overlay frame
     gf_group->update_type[gf_group->size] = GF_UPDATE;
-    rc->source_alt_ref_active = 0;
   }
 
   if (encode_show_existing_frame(cm)) {
@@ -2939,9 +2939,6 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
       seg->update_map = 1;
       seg->update_data = 1;
     }
-
-    // The alternate reference frame cannot be active for a key frame.
-    cpi->rc.source_alt_ref_active = 0;
   }
   if (tile_cfg->mtu == 0) {
     cpi->num_tg = tile_cfg->num_tile_groups;

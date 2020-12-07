@@ -14,7 +14,8 @@ import sys
 import xlsxwriter
 import xlrd
 import argparse
-from Config import VbaBinFile, QualityList, CalcBDRateInExcel
+from Config import VbaBinFile, QualityList, CalcBDRateInExcel, \
+     EnablePreInterpolation
 from CalcBDRate import BD_RATE
 
 
@@ -268,15 +269,23 @@ def WriteRDRecord(sht, base_data, target_data, start_row, bdrate_fmt, float_fmt,
             refqtys  = [base_data.RDPoints[qty][i][1] for i in range(len(base_data.RDPoints[qty]))]
             testbrs  = [target_data.RDPoints[qty][i][0] for i in range(len(target_data.RDPoints[qty]))]
             testqtys = [target_data.RDPoints[qty][i][1] for i in range(len(target_data.RDPoints[qty]))]
-            bdrate = BD_RATE(refbrs, refqtys, testbrs, testqtys) / 100.0
-            sht.write_number(start_row, bdrate_start_col + col, bdrate, bdrate_fmt)
+            bdrate = BD_RATE(refbrs, refqtys, testbrs, testqtys)
+            if (bdrate != 'Error'):
+                bdrate /=  100.0
+                sht.write_number(start_row, bdrate_start_col + col, bdrate, bdrate_fmt)
+            else:
+                sht.write(start_row, bdrate_start_col + col, bdrate)
             if EnablePreInterpolation:
                 refbrs = [base_data.RDPoints[qty][i][2] for i in range(len(base_data.RDPoints[qty]))]
                 refqtys = [base_data.RDPoints[qty][i][3] for i in range(len(base_data.RDPoints[qty]))]
                 testbrs = [target_data.RDPoints[qty][i][2] for i in range(len(target_data.RDPoints[qty]))]
                 testqtys = [target_data.RDPoints[qty][i][3] for i in range(len(target_data.RDPoints[qty]))]
-                bdrate = BD_RATE(refbrs, refqtys, testbrs, testqtys) / 100.0
-                sht.write_number(start_row + 1, bdrate_start_col + col, bdrate, bdrate_fmt)
+                bdrate = BD_RATE(refbrs, refqtys, testbrs, testqtys)
+                if (bdrate != 'Error'):
+                    bdrate /= 100.0
+                    sht.write_number(start_row + 1, bdrate_start_col + col, bdrate, bdrate_fmt)
+                else:
+                    sht.write(start_row + 1, bdrate_start_col + col, bdrate)
     return total_rows
 
 
@@ -295,8 +304,8 @@ if __name__ == "__main__":
     #"-o","ConvexHullBDRate.xlsm"]
     ParseArguments(sys.argv)
 
-    base_shts, base_rd_data = ParseConvexHullRD(InputBase, True)
-    target_shts, target_rd_data = ParseConvexHullRD(InputTarget, True)
+    base_shts, base_rd_data = ParseConvexHullRD(InputBase, EnablePreInterpolation)
+    target_shts, target_rd_data = ParseConvexHullRD(InputTarget, EnablePreInterpolation)
 
     output_wb = xlsxwriter.Workbook(Output)
     # vba file needed when to calculate bdrate
@@ -309,14 +318,15 @@ if __name__ == "__main__":
     for sht_name in base_shts:
         if sht_name in target_shts:
             sht = output_wb.add_worksheet(sht_name)
-            WriteOutputHeaderRow(sht, True)
+            WriteOutputHeaderRow(sht, False)
             start_row = 1
             for base_data in base_rd_data[sht_name]:
                 ContentName = base_data.ContentName
                 target_data = FindContent(ContentName, target_rd_data[sht_name])
                 if target_data != '':
                     total_rows = WriteRDRecord(sht, base_data, target_data,
-                                               start_row, bdrate_fmt, float_fmt, True)
+                                               start_row, bdrate_fmt, float_fmt,
+                                               EnablePreInterpolation)
                     start_row += total_rows
 
     output_wb.close()

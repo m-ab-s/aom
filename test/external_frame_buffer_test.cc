@@ -397,7 +397,11 @@ class ExternalFrameBufferNonRefTest : public ExternalFrameBufferTest {
 // needed. The md5 checksums are computed for each frame in the video file.
 // If md5 checksums match the correct md5 data, then the test is passed.
 // Otherwise, the test failed.
+#if !CONFIG_REMOVE_DIST_WTD_COMP && !CONFIG_REMOVE_DUAL_FILTER
 TEST_P(ExternalFrameBufferMD5Test, ExtFBMD5Match) {
+#else
+TEST_P(ExternalFrameBufferMD5Test, DISABLED_ExtFBMD5Match) {
+#endif  // !CONFIG_REMOVE_DIST_WTD_COMP && !CONFIG_REMOVE_DUAL_FILTER
   const std::string filename = GET_PARAM(kVideoNameParam);
   aom_codec_dec_cfg_t cfg = aom_codec_dec_cfg_t();
 
