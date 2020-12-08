@@ -120,7 +120,11 @@ class InvalidFileTest : public ::libaom_test::DecoderTest,
   FILE *res_file_;
 };
 
+#if !CONFIG_REMOVE_DIST_WTD_COMP && !CONFIG_REMOVE_DUAL_FILTER
 TEST_P(InvalidFileTest, ReturnCode) { RunTest(); }
+#else
+TEST_P(InvalidFileTest, DISABLED_ReturnCode) { RunTest(); }
+#endif  // !CONFIG_REMOVE_DIST_WTD_COMP && !COMP_REMOVE_DUAL_FILTER
 
 // If res_filename (the third field) is NULL, then the result filename is
 // filename + ".res" by default. Set res_filename to a string if the result
