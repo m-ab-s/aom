@@ -408,7 +408,11 @@ typedef struct macroblockd_plane {
   // The dequantizers below are true dequantizers used only in the
   // dequantization process.  They have the same coefficient
   // shift/scale as TX.
+#if CONFIG_EXTQUANT
+  int32_t seg_dequant_QTX[MAX_SEGMENTS][2];
+#else
   int16_t seg_dequant_QTX[MAX_SEGMENTS][2];
+#endif
   // Pointer to color index map of:
   // - Current coding block, on encoder side.
   // - Current superblock, on decoder side.

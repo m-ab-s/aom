@@ -29,9 +29,15 @@ static INLINE void update_qp(__m256i *qp) {
   }
 }
 
+#if CONFIG_EXTQUANT
+static INLINE void init_qp(const int32_t *zbin_ptr, const int32_t *round_ptr,
+                           const int32_t *quant_ptr, const int32_t *dequant_ptr,
+                           const int32_t *quant_shift_ptr, __m256i *qp) {
+#else
 static INLINE void init_qp(const int16_t *zbin_ptr, const int16_t *round_ptr,
                            const int16_t *quant_ptr, const int16_t *dequant_ptr,
                            const int16_t *quant_shift_ptr, __m256i *qp) {
+#endif
   const __m128i zbin = _mm_loadu_si128((const __m128i *)zbin_ptr);
   const __m128i round = _mm_loadu_si128((const __m128i *)round_ptr);
   const __m128i quant = _mm_loadu_si128((const __m128i *)quant_ptr);
@@ -109,6 +115,16 @@ static INLINE void quantize(const __m256i *qp, __m256i *c,
   }
 }
 
+#if CONFIG_EXTQUANT
+void aom_highbd_quantize_b_avx2(const tran_low_t *coeff_ptr, intptr_t n_coeffs,
+                                const int32_t *zbin_ptr,
+                                const int32_t *round_ptr,
+                                const int32_t *quant_ptr,
+                                const int32_t *quant_shift_ptr,
+                                tran_low_t *qcoeff_ptr, tran_low_t *dqcoeff_ptr,
+                                const int32_t *dequant_ptr, uint16_t *eob_ptr,
+                                const int16_t *scan, const int16_t *iscan) {
+#else
 void aom_highbd_quantize_b_avx2(const tran_low_t *coeff_ptr, intptr_t n_coeffs,
                                 const int16_t *zbin_ptr,
                                 const int16_t *round_ptr,
@@ -117,6 +133,7 @@ void aom_highbd_quantize_b_avx2(const tran_low_t *coeff_ptr, intptr_t n_coeffs,
                                 tran_low_t *qcoeff_ptr, tran_low_t *dqcoeff_ptr,
                                 const int16_t *dequant_ptr, uint16_t *eob_ptr,
                                 const int16_t *scan, const int16_t *iscan) {
+#endif
   (void)scan;
   const unsigned int step = 8;
 

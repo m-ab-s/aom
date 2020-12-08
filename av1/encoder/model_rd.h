@@ -94,7 +94,12 @@ static AOM_INLINE void model_rd_from_sse(const AV1_COMP *const cpi,
   // Fast approximate the modelling function.
   if (cpi->sf.rd_sf.simple_model_rd_from_var) {
     const int64_t square_error = sse;
+#if CONFIG_EXTQUANT
+    int quantizer = ROUND_POWER_OF_TWO(p->dequant_QTX[1], QUANT_TABLE_BITS) >>
+                    dequant_shift;
+#else
     int quantizer = p->dequant_QTX[1] >> dequant_shift;
+#endif
     if (quantizer < 120)
       *rate = (int)AOMMIN(
           (square_error * (280 - quantizer)) >> (16 - AV1_PROB_COST_SHIFT),
@@ -123,7 +128,13 @@ static AOM_INLINE void model_rd_with_curvfit(const AV1_COMP *const cpi,
   const MACROBLOCKD *const xd = &x->e_mbd;
   const struct macroblock_plane *const p = &x->plane[plane];
   const int dequant_shift = (is_cur_buf_hbd(xd)) ? xd->bd - 5 : 3;
+#if CONFIG_EXTQUANT
+  const int qstep = AOMMAX(
+      ROUND_POWER_OF_TWO(p->dequant_QTX[1], QUANT_TABLE_BITS) >> dequant_shift,
+      1);
+#else
   const int qstep = AOMMAX(p->dequant_QTX[1] >> dequant_shift, 1);
+#endif
 
   if (sse == 0) {
     if (rate) *rate = 0;

@@ -436,20 +436,31 @@ static INLINE int64_t pixel_diff_stats(
 // Uses simple features on top of DCT coefficients to quickly predict
 // whether optimal RD decision is to skip encoding the residual.
 // The sse value is stored in dist.
-static int predict_skip_txfm(MACROBLOCK *x, BLOCK_SIZE bsize, int64_t *dist,
+static int predict_skip_txfm(const AV1_COMMON *cm, MACROBLOCK *x,
+                             BLOCK_SIZE bsize, int64_t *dist,
                              int reduced_tx_set) {
   const TxfmSearchParams *txfm_params = &x->txfm_search_params;
   const int bw = block_size_wide[bsize];
   const int bh = block_size_high[bsize];
   const MACROBLOCKD *xd = &x->e_mbd;
-  const int16_t dc_q = av1_dc_quant_QTX(x->qindex, 0, xd->bd);
+  (void)cm;
+  const int16_t dc_q = av1_dc_quant_QTX(x->qindex, 0,
+#if CONFIG_EXTQUANT
+                                        cm->seq_params.base_y_dc_delta_q,
+#endif
+                                        xd->bd);
 
   *dist = pixel_diff_dist(x, 0, 0, 0, bsize, bsize, NULL);
 
   const int64_t mse = *dist / bw / bh;
   // Normalized quantizer takes the transform upscaling factor (8 for tx size
   // smaller than 32) into account.
+#if CONFIG_EXTQUANT
+  const int16_t normalized_dc_q =
+      ROUND_POWER_OF_TWO(dc_q, (3 + QUANT_TABLE_BITS));
+#else
   const int16_t normalized_dc_q = dc_q >> 3;
+#endif
   const int64_t mse_thresh = (int64_t)normalized_dc_q * normalized_dc_q / 8;
   // For faster early skip decision, use dist to compare against threshold so
   // that quality risk is less for the skip=1 decision. Otherwise, use mse
@@ -479,8 +490,15 @@ static int predict_skip_txfm(MACROBLOCK *x, BLOCK_SIZE bsize, int64_t *dist,
   const int16_t *src_diff = x->plane[0].src_diff;
   const int n_coeff = tx_w * tx_h;
   const int16_t ac_q = av1_ac_quant_QTX(x->qindex, 0, xd->bd);
+#if CONFIG_EXTQUANT
+  const uint32_t dc_thresh =
+      ROUND_POWER_OF_TWO((max_qcoef_thresh * dc_q), QUANT_TABLE_BITS);
+  const uint32_t ac_thresh =
+      ROUND_POWER_OF_TWO((max_qcoef_thresh * ac_q), QUANT_TABLE_BITS);
+#else
   const uint32_t dc_thresh = max_qcoef_thresh * dc_q;
   const uint32_t ac_thresh = max_qcoef_thresh * ac_q;
+#endif
   for (int row = 0; row < bh; row += tx_h) {
     for (int col = 0; col < bw; col += tx_w) {
       av1_fwd_txfm(src_diff + col, coefs, bw, &param);
@@ -815,7 +833,12 @@ static AOM_INLINE void PrintTransformUnitStats(
   const int txw = tx_size_wide[tx_size];
   const int txh = tx_size_high[tx_size];
   const int dequant_shift = (is_cur_buf_hbd(xd)) ? xd->bd - 5 : 3;
+#if CONFIG_EXTQUANT
+  const int q_step =
+      ROUND_POWER_OF_TWO(p->dequant_QTX[1], QUANT_TABLE_BITS) >> dequant_shift;
+#else
   const int q_step = p->dequant_QTX[1] >> dequant_shift;
+#endif
   const int num_samples = txw * txh;
 
   const double rate_norm = (double)rd_stats->rate / num_samples;
@@ -1008,7 +1031,12 @@ static AOM_INLINE void PrintPredictionUnitStats(const AV1_COMP *const cpi,
                      &bh);
   const int num_samples = bw * bh;
   const int dequant_shift = (is_cur_buf_hbd(xd)) ? xd->bd - 5 : 3;
+#if CONFIG_EXTQUANT
+  const int q_step =
+      ROUND_POWER_OF_TWO(p->dequant_QTX[1], QUANT_TABLE_BITS) >> dequant_shift;
+#else
   const int q_step = p->dequant_QTX[1] >> dequant_shift;
+#endif
   const int shift = (xd->bd - 8);
 
   const double rate_norm = (double)rd_stats->rate / num_samples;
@@ -2163,9 +2191,18 @@ static INLINE void predict_dc_only_block(
   MACROBLOCKD *xd = &x->e_mbd;
   MB_MODE_INFO *mbmi = xd->mi[0];
   const int dequant_shift = (is_cur_buf_hbd(xd)) ? xd->bd - 5 : 3;
+#if CONFIG_EXTQUANT
+  const int qstep =
+      ROUND_POWER_OF_TWO(x->plane[plane].dequant_QTX[1], QUANT_TABLE_BITS) >>
+      dequant_shift;
+  const int dc_qstep =
+      ROUND_POWER_OF_TWO(x->plane[plane].dequant_QTX[0], QUANT_TABLE_BITS) >>
+      dequant_shift;
+#else
   const int qstep = x->plane[plane].dequant_QTX[1] >> dequant_shift;
-  uint64_t block_var = UINT64_MAX;
   const int dc_qstep = x->plane[plane].dequant_QTX[0] >> 3;
+#endif
+  uint64_t block_var = UINT64_MAX;
   *block_sse = pixel_diff_stats(x, plane, blk_row, blk_col, plane_bsize,
                                 txsize_to_bsize[tx_size], block_mse_q8,
                                 per_px_mean, &block_var);
@@ -2290,8 +2327,13 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
     0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15
   };
   const int dequant_shift = (is_cur_buf_hbd(xd)) ? xd->bd - 5 : 3;
+#if CONFIG_EXTQUANT
+  const int qstep =
+      ROUND_POWER_OF_TWO(x->plane[plane].dequant_QTX[1], QUANT_TABLE_BITS) >>
+      dequant_shift;
+#else
   const int qstep = x->plane[plane].dequant_QTX[1] >> dequant_shift;
-
+#endif
   const uint8_t txw = tx_size_wide[tx_size];
   const uint8_t txh = tx_size_high[tx_size];
   int64_t block_sse;
@@ -3430,7 +3472,7 @@ void av1_pick_recursive_tx_size_type_yrd(const AV1_COMP *cpi, MACROBLOCK *x,
   // context and terminate early.
   int64_t dist;
   if (txfm_params->skip_txfm_level &&
-      predict_skip_txfm(x, bsize, &dist,
+      predict_skip_txfm(&cpi->common, x, bsize, &dist,
                         cpi->common.features.reduced_tx_set_used)) {
     set_skip_txfm(x, rd_stats, bsize, dist);
     // Save the RD search results into tx_rd_record.
@@ -3514,7 +3556,7 @@ void av1_pick_uniform_tx_size_type_yrd(const AV1_COMP *const cpi, MACROBLOCK *x,
   int64_t dist;
   if (tx_params->skip_txfm_level && is_inter &&
       !xd->lossless[mbmi->segment_id] &&
-      predict_skip_txfm(x, bs, &dist,
+      predict_skip_txfm(&cpi->common, x, bs, &dist,
                         cpi->common.features.reduced_tx_set_used)) {
     // Populate rdstats as per skip decision
     set_skip_txfm(x, rd_stats, bs, dist);

@@ -1445,6 +1445,9 @@ static AOM_INLINE void search_wiener(const RestorationTileLimits *limits,
     const int scale[3] = { 0, 1, 2 };
     // Obtain the normalized Qscale
     const int qs = av1_dc_quant_QTX(rsc->cm->quant_params.base_qindex, 0,
+#if CONFIG_EXTQUANT
+                                    rsc->cm->seq_params.base_y_dc_delta_q,
+#endif
                                     rsc->cm->seq_params.bit_depth) >>
                    3;
     // Derive threshold as sqr(normalized Qscale) * scale / 16,

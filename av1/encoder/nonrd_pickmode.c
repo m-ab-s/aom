@@ -649,8 +649,15 @@ static void model_skip_for_sb_y_large(AV1_COMP *cpi, BLOCK_SIZE bsize,
   unsigned int sse;
   struct macroblock_plane *const p = &x->plane[0];
   struct macroblockd_plane *const pd = &xd->plane[0];
+#if CONFIG_EXTQUANT
+  const uint32_t dc_quant =
+      ROUND_POWER_OF_TWO(p->dequant_QTX[0], QUANT_TABLE_BITS);
+  const uint32_t ac_quant =
+      ROUND_POWER_OF_TWO(p->dequant_QTX[1], QUANT_TABLE_BITS);
+#else
   const uint32_t dc_quant = p->dequant_QTX[0];
   const uint32_t ac_quant = p->dequant_QTX[1];
+#endif
   const int64_t dc_thr = dc_quant * dc_quant >> 6;
   int64_t ac_thr = ac_quant * ac_quant >> 6;
   unsigned int var;
@@ -1134,8 +1141,15 @@ static void model_rd_for_sb_uv(AV1_COMP *cpi, BLOCK_SIZE plane_bsize,
   for (i = start_plane; i <= stop_plane; ++i) {
     struct macroblock_plane *const p = &x->plane[i];
     struct macroblockd_plane *const pd = &xd->plane[i];
+#if CONFIG_EXTQUANT
+    const uint32_t dc_quant =
+        ROUND_POWER_OF_TWO(p->dequant_QTX[0], QUANT_TABLE_BITS);
+    const uint32_t ac_quant =
+        ROUND_POWER_OF_TWO(p->dequant_QTX[1], QUANT_TABLE_BITS);
+#else
     const uint32_t dc_quant = p->dequant_QTX[0];
     const uint32_t ac_quant = p->dequant_QTX[1];
+#endif
     const BLOCK_SIZE bs = plane_bsize;
     unsigned int var;
     if (!x->color_sensitivity[i - 1]) continue;
@@ -1716,6 +1730,9 @@ static void estimate_intra_mode(
 
   int intra_cost_penalty = av1_get_intra_cost_penalty(
       quant_params->base_qindex, quant_params->y_dc_delta_q,
+#if CONFIG_EXTQUANT
+      cm->seq_params.base_y_dc_delta_q,
+#endif  // CONFIG_EXTQUANT
       cm->seq_params.bit_depth);
   int64_t inter_mode_thresh = RDCOST(x->rdmult, intra_cost_penalty, 0);
   int perform_intra_pred = cpi->sf.rt_sf.check_intra_pred_nonrd;

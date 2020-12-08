@@ -207,7 +207,7 @@ GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(AV1QuantizeTest);
 TEST_P(AV1QuantizeTest, BitExactCheck) { RunQuantizeTest(); }
 TEST_P(AV1QuantizeTest, EobVerify) { RunEobTest(); }
 
-#if HAVE_SSE4_1
+#if HAVE_SSE4_1 && !CONFIG_EXTQUANT
 const QuantizeFuncParams qfps[4] = {
   QuantizeFuncParams(&av1_highbd_quantize_fp_sse4_1, &av1_highbd_quantize_fp_c,
                      16),
@@ -222,7 +222,7 @@ const QuantizeFuncParams qfps[4] = {
 INSTANTIATE_TEST_SUITE_P(SSE4_1, AV1QuantizeTest, ::testing::ValuesIn(qfps));
 #endif  // HAVE_SSE4_1
 
-#if HAVE_AVX2
+#if HAVE_AVX2 && !CONFIG_EXTQUANT
 const QuantizeFuncParams qfps_avx2[4] = {
   QuantizeFuncParams(&av1_highbd_quantize_fp_avx2, &av1_highbd_quantize_fp_c,
                      16),

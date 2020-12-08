@@ -742,7 +742,15 @@ static void read_delta_q_params(AV1_COMMON *const cm, MACROBLOCKD *const xd,
     xd->current_base_qindex +=
         read_delta_qindex(cm, xd, r, mbmi) * delta_q_info->delta_q_res;
     /* Normative: Clamp to [1,MAXQ] to not interfere with lossless mode */
+#if CONFIG_EXTQUANT
+    xd->current_base_qindex = clamp(
+        xd->current_base_qindex, 1,
+        cm->seq_params.bit_depth == AOM_BITS_8
+            ? MAXQ_8_BITS
+            : cm->seq_params.bit_depth == AOM_BITS_10 ? MAXQ_10_BITS : MAXQ);
+#else
     xd->current_base_qindex = clamp(xd->current_base_qindex, 1, MAXQ);
+#endif
     FRAME_CONTEXT *const ec_ctx = xd->tile_ctx;
     if (delta_q_info->delta_lf_present_flag) {
       const int mi_row = xd->mi_row;

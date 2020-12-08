@@ -863,6 +863,9 @@ int64_t av1_handle_intra_mode(IntraModeSearchState *intra_search_state,
       mode_costs->mbmode_cost[size_group_lookup[bsize]][mode] + ref_frame_cost;
   const int intra_cost_penalty = av1_get_intra_cost_penalty(
       cm->quant_params.base_qindex, cm->quant_params.y_dc_delta_q,
+#if CONFIG_EXTQUANT
+      cm->seq_params.base_y_dc_delta_q,
+#endif  // CONFIG_EXTQUANT
       cm->seq_params.bit_depth);
   const int skip_ctx = av1_get_skip_txfm_context(xd);
 

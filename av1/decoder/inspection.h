@@ -72,9 +72,15 @@ struct insp_frame_data {
   int mi_cols;
   int tile_mi_rows;
   int tile_mi_cols;
+#if CONFIG_EXTQUANT
+  int32_t y_dequant[MAX_SEGMENTS][2];
+  int32_t u_dequant[MAX_SEGMENTS][2];
+  int32_t v_dequant[MAX_SEGMENTS][2];
+#else
   int16_t y_dequant[MAX_SEGMENTS][2];
   int16_t u_dequant[MAX_SEGMENTS][2];
   int16_t v_dequant[MAX_SEGMENTS][2];
+#endif
   // TODO(negge): add per frame CDEF data
   int delta_q_present_flag;
   int delta_q_res;

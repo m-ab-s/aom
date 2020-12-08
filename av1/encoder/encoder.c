@@ -469,6 +469,22 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
       }
     }
   }
+#if CONFIG_EXTQUANT
+  const int is_360p_or_larger =
+      AOMMIN(seq->max_frame_width, seq->max_frame_height) >= 360;
+  const int is_720p_or_larger =
+      AOMMIN(seq->max_frame_width, seq->max_frame_height) >= 720;
+  if (!is_360p_or_larger) {
+    seq->base_y_dc_delta_q = 7;
+    seq->base_uv_dc_delta_q = 6;
+  } else if (!is_720p_or_larger) {
+    seq->base_y_dc_delta_q = 5;
+    seq->base_uv_dc_delta_q = 4;
+  } else {
+    seq->base_y_dc_delta_q = 4;
+    seq->base_uv_dc_delta_q = 3;
+  }
+#endif  // CONFIG_EXTQUANT
 }
 
 static void init_config(struct AV1_COMP *cpi, AV1EncoderConfig *oxcf) {
@@ -881,6 +897,10 @@ AV1_COMP *av1_create_compressor(AV1EncoderConfig *oxcf, BufferPool *const pool,
     av1_remove_compressor(cpi);
     return 0;
   }
+
+#if DEBUG_EXTQUANT
+  cm->fEncCoeffLog = fopen("EncCoeffLog.txt", "wt");
+#endif
 
   cm->error.setjmp = 1;
   cpi->lap_enabled = num_lap_buffers > 0;
@@ -1323,8 +1343,8 @@ AV1_COMP *av1_create_compressor(AV1EncoderConfig *oxcf, BufferPool *const pool,
    * called later when needed. This will avoid unnecessary calls of
    * av1_init_quantizer() for every frame.
    */
-  av1_init_quantizer(&cpi->enc_quant_dequant_params, &cm->quant_params,
-                     cm->seq_params.bit_depth);
+  av1_init_quantizer(&cm->seq_params, &cpi->enc_quant_dequant_params,
+                     &cm->quant_params);
   av1_qm_init(&cm->quant_params, av1_num_planes(cm));
 
   av1_loop_filter_init(cm);
@@ -1539,6 +1559,12 @@ void av1_remove_compressor(AV1_COMP *cpi) {
 
   av1_remove_common(cm);
   av1_free_ref_frame_buffers(cm->buffer_pool);
+
+#if DEBUG_EXTQUANT
+  if (cpi->common.fEncCoeffLog != NULL) {
+    fclose(cpi->common.fEncCoeffLog);
+  }
+#endif
 
   aom_free(cpi->subgop_config_str);
   aom_free(cpi->subgop_config_path);
@@ -2210,8 +2236,8 @@ static int encode_without_recode(AV1_COMP *cpi) {
                     q_cfg->enable_chroma_deltaq);
   av1_set_speed_features_qindex_dependent(cpi, cpi->oxcf.speed);
   if (q_cfg->deltaq_mode != NO_DELTA_Q)
-    av1_init_quantizer(&cpi->enc_quant_dequant_params, &cm->quant_params,
-                       cm->seq_params.bit_depth);
+    av1_init_quantizer(&cm->seq_params, &cpi->enc_quant_dequant_params,
+                       &cm->quant_params);
   av1_set_variance_partition_thresholds(cpi, q, 0);
   av1_setup_frame(cpi);
 
@@ -2225,8 +2251,8 @@ static int encode_without_recode(AV1_COMP *cpi) {
                         q_cfg->enable_chroma_deltaq);
       av1_set_speed_features_qindex_dependent(cpi, cpi->oxcf.speed);
       if (q_cfg->deltaq_mode != NO_DELTA_Q)
-        av1_init_quantizer(&cpi->enc_quant_dequant_params, &cm->quant_params,
-                           cm->seq_params.bit_depth);
+        av1_init_quantizer(&cm->seq_params, &cpi->enc_quant_dequant_params,
+                           &cm->quant_params);
       av1_set_variance_partition_thresholds(cpi, q, 0);
       if (frame_is_intra_only(cm) || cm->features.error_resilient_mode)
         av1_setup_frame(cpi);
@@ -2391,8 +2417,8 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
     av1_set_speed_features_qindex_dependent(cpi, oxcf->speed);
 
     if (q_cfg->deltaq_mode != NO_DELTA_Q)
-      av1_init_quantizer(&cpi->enc_quant_dequant_params, &cm->quant_params,
-                         cm->seq_params.bit_depth);
+      av1_init_quantizer(&cm->seq_params, &cpi->enc_quant_dequant_params,
+                         &cm->quant_params);
 
     av1_set_variance_partition_thresholds(cpi, q, 0);
 

@@ -320,12 +320,29 @@ static int sb_all_skip(const CommonModeInfoParams *const mi_params, int mi_row,
 
 static void pick_cdef_from_qp(AV1_COMMON *const cm) {
   const int bd = cm->seq_params.bit_depth;
+#if CONFIG_EXTQUANT
+  const int q = av1_ac_quant_QTX(cm->quant_params.base_qindex, 0, bd) >>
+                (bd - 8 + QUANT_TABLE_BITS);
+#else
   const int q =
       av1_ac_quant_QTX(cm->quant_params.base_qindex, 0, bd) >> (bd - 8);
+#endif
   CdefInfo *const cdef_info = &cm->cdef_info;
   cdef_info->cdef_bits = 0;
   cdef_info->nb_cdef_strengths = 1;
+#if CONFIG_EXTQUANT
+  int damping_offset = clamp(cm->quant_params.base_qindex -
+                                 (cm->seq_params.bit_depth == AOM_BITS_8
+                                      ? 0
+                                      : cm->seq_params.bit_depth == AOM_BITS_10
+                                            ? 2 * MAXQ_OFFSET
+                                            : 4 * MAXQ_OFFSET),
+                             MINQ, MAXQ_8_BITS) >>
+                       6;
+  cdef_info->cdef_damping = AOMMIN(3 + damping_offset, 6);
+#else
   cdef_info->cdef_damping = 3 + (cm->quant_params.base_qindex >> 6);
+#endif
 
   int predicted_y_f1 = 0;
   int predicted_y_f2 = 0;
@@ -392,7 +409,19 @@ void av1_cdef_search(const YV12_BUFFER_CONFIG *frame,
   const int nvfb = (mi_params->mi_rows + MI_SIZE_64X64 - 1) / MI_SIZE_64X64;
   const int nhfb = (mi_params->mi_cols + MI_SIZE_64X64 - 1) / MI_SIZE_64X64;
   int *sb_index = aom_malloc(nvfb * nhfb * sizeof(*sb_index));
+#if CONFIG_EXTQUANT
+  int damping_offset = clamp(cm->quant_params.base_qindex -
+                                 (cm->seq_params.bit_depth == AOM_BITS_8
+                                      ? 0
+                                      : cm->seq_params.bit_depth == AOM_BITS_10
+                                            ? 2 * MAXQ_OFFSET
+                                            : 4 * MAXQ_OFFSET),
+                             MINQ, MAXQ_8_BITS) >>
+                       6;
+  const int damping = AOMMIN(3 + damping_offset, 6);
+#else
   const int damping = 3 + (cm->quant_params.base_qindex >> 6);
+#endif
   const int fast = (pick_method >= CDEF_FAST_SEARCH_LVL1 &&
                     pick_method <= CDEF_FAST_SEARCH_LVL3);
   const int total_strengths = nb_cdef_strengths[pick_method];

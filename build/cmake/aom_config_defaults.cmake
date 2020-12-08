@@ -139,6 +139,8 @@ set_aom_config_var(CONFIG_REMOVE_DUAL_FILTER 1
                    "AV2 experiment flag to remove dual filter.")
 set_aom_config_var(CONFIG_NEW_REF_SIGNALING 0
                    "AV2 experiment flag for the new reference syntax.")
+set_aom_config_var(CONFIG_EXTQUANT 0
+                   "AV2 extended quantization experiment flag")
 
 #
 # Variables in this section control optional features of the build system.

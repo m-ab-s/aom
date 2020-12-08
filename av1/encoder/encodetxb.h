@@ -34,7 +34,11 @@ typedef struct TxbInfo {
   uint8_t *levels;  // absolute values and clamped to 255.
   tran_low_t *dqcoeff;
   const tran_low_t *tcoeff;
+#if CONFIG_EXTQUANT
+  const int32_t *dequant;
+#else
   const int16_t *dequant;
+#endif
   int shift;
   TX_SIZE tx_size;
   TX_SIZE txs_ctx;
