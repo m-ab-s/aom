@@ -169,10 +169,16 @@ The usage for the script is:
       <num_frames> is number of frames to process
       <horz_resampling_config> is in the format:
               <horz_p>:<horz_q>:<Lanczos_horz_a>[:<horz_x0>:<horz_ext>]
-          similar to what is used by lanczos_resample_y4m utility.
+          similar to what is used by lanczos_resample_y4m utility,
+          with the optional enhancement that for <Lanczos_horz_a> two
+          comma-separated values of 'a' could be provided instead of one
+          for down and up-sampling operations respectively if different.
       <vert_resampling_config> is in the format:
               <vert_p>:<vert_q>:<Lanczos_vert_a>[:<vert_x0>:<vert_ext>]
-          similar to what is used by lanczos_resample_y4m utility.
+          similar to what is used by lanczos_resample_y4m utility,
+          with the optional enhancement that for <Lanczos_vert_a> two
+          comma-separated values of 'a' could be provided instead of one
+          for down and up-sampling operations respectively if different.
       <downup_y4m> is the output y4m video.
       <down_y4m> provides the intermedite resampled file as an
           optional parameter. If skipped the intermediate resampled
@@ -181,16 +187,22 @@ The usage for the script is:
 Example usages:
 5. Similar to use case 1a and 1b above.
 
-  From build directory run:
-  /path/to/script/lanczos_downup.sh Boat_1920x1080_60fps_10bit_420.y4m \
-      20 2:3:6 3:4:6 /tmp/downup.y4m
-          [Here the intermediate resampled files is not stored]
+(a) From build directory run:
+    /path/to/script/lanczos_downup.sh Boat_1920x1080_60fps_10bit_420.y4m \
+        20 2:3:6 3:4:6 /tmp/downup.y4m
+            [Here the intermediate resampled files is not stored]
 
-  From build directory run:
-  /path/to/script/lanczos_downup.sh Boat_1920x1080_60fps_10bit_420.y4m \
-      20 2:3:6 3:4:6 /tmp/downup.y4m \
-      /tmp/down.y4m
-          [Here the intermediate resampled files is stored in /tmp/down.y4m]
+(b) From build directory run:
+    /path/to/script/lanczos_downup.sh Boat_1920x1080_60fps_10bit_420.y4m \
+        20 2:3:6 3:4:6 /tmp/downup.y4m \
+        /tmp/down.y4m
+            [Here the intermediate resampled files is stored in /tmp/down.y4m]
+
+(c) From build directory run:
+    /path/to/script/lanczos_downup.sh Boat_1920x1080_60fps_10bit_420.y4m \
+        20 2:3:4,8 3:4:4,8 /tmp/downup.y4m
+            [Here Lanczos parameters 4 and 8 are used for down and upscaling
+             respectively]
 
 lanczos_downcompup.sh
 ---------------------
@@ -212,10 +224,16 @@ The usage for the script is:
       <num_frames> is number of frames to process
       <horz_resampling_config> is in the format:
               <horz_p>:<horz_q>:<Lanczos_horz_a>[:<horz_x0>:<horz_ext>]
-          similar to what is used by lanczos_resample_y4m utility.
+          similar to what is used by lanczos_resample_y4m utility,
+          with the optional enhancement that for <Lanczos_horz_a> two
+          comma-separated values of 'a' could be provided instead of one
+          for down and up-sampling operations respectively if different.
       <vert_resampling_config> is in the format:
               <vert_p>:<vert_q>:<Lanczos_vert_a>[:<vert_x0>:<vert_ext>]
-          similar to what is used by lanczos_resample_y4m utility.
+          similar to what is used by lanczos_resample_y4m utility,
+          with the optional enhancement that for <Lanczos_vert_a> two
+          comma-separated values of 'a' could be provided instead of one
+          for down and up-sampling operations respectively if different.
       <cq_level>[:<cpu_used>] provides the cq_level parameter of
           compression along with an optional cpu_used parameter.
       <downcompup_y4m> is the output y4m video.
@@ -233,22 +251,28 @@ The usage for the script is:
 Example usages:
 6. Similar to use case 1a and 1b above with a compression step in between.
 
-  From build directory run:
-  /path/to/script/lanczos_downcompup.sh Boat_1920x1080_60fps_10bit_420.y4m \
-      20 2:3:6 3:4:6 40:5 /tmp/downup.y4m
-          [Here no intermediate files are stored]
+(a) From build directory run:
+    /path/to/script/lanczos_downcompup.sh Boat_1920x1080_60fps_10bit_420.y4m \
+        20 2:3:6 3:4:6 40:5 /tmp/downup.y4m
+            [Here no intermediate files are stored]
 
-  From build directory run:
-  /path/to/script/lanczos_downcompup.sh Boat_1920x1080_60fps_10bit_420.y4m \
-      20 2:3:6 3:4:6 40:5 /tmp/downup.y4m \
-      /tmp/down.y4m::/tmp/downrec.y4m
-          [Here the resampled source and its compressed reconstruction are
-           stoted in /tmp/down.y4m and /tmp/downrec.y4m respectively].
+(b) From build directory run:
+    /path/to/script/lanczos_downcompup.sh Boat_1920x1080_60fps_10bit_420.y4m \
+        20 2:3:6 3:4:6 40:5 /tmp/downup.y4m \
+        /tmp/down.y4m::/tmp/downrec.y4m
+            [Here the resampled source and its compressed reconstruction are
+             stoted in /tmp/down.y4m and /tmp/downrec.y4m respectively].
 
-  From build directory run:
-  /path/to/script/lanczos_downcompup.sh Boat_1920x1080_60fps_10bit_420.y4m \
-      20 2:3:6 3:4:6 40:5 /tmp/downup.y4m \
-      /tmp/down.y4m:/tmp/down.bit:/tmp/downrec.y4m
-          [Here the resampled source, its compressed bitstream, and the
-	   conpressed reconstruction are stoted in /tmp/down.y4m,
-	   /tmp/downcomp.bit and /tmp/downrec.y4m respectively].
+(c) From build directory run:
+    /path/to/script/lanczos_downcompup.sh Boat_1920x1080_60fps_10bit_420.y4m \
+        20 2:3:6 3:4:6 40:5 /tmp/downup.y4m \
+        /tmp/down.y4m:/tmp/down.bit:/tmp/downrec.y4m
+            [Here the resampled source, its compressed bitstream, and the
+             conpressed reconstruction are stoted in /tmp/down.y4m,
+             /tmp/downcomp.bit and /tmp/downrec.y4m respectively].
+
+(d) From build directory run:
+    /path/to/script/lanczos_downcompup.sh Boat_1920x1080_60fps_10bit_420.y4m \
+        20 2:3:6,8 3:4:6,8 40:5 /tmp/downup.y4m
+            [Here Lanczos parameters 4 and 8 are used for down and upscaling
+             respectively]
