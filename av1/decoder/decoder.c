@@ -357,6 +357,13 @@ static void update_frame_buffers(AV1Decoder *pbi, int frame_decoded) {
   AV1_COMMON *const cm = &pbi->common;
   BufferPool *const pool = cm->buffer_pool;
 
+  // Reset display order hint for forward keyframe
+  // TODO(sarahparker): Find a way to also reset order_hint without causing
+  // a crash.
+  if (cm->cur_frame->frame_type == KEY_FRAME && cm->show_existing_frame) {
+    cm->cur_frame->display_order_hint = 0;
+  }
+
   if (frame_decoded) {
     lock_buffer_pool(pool);
 
