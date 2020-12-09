@@ -422,6 +422,10 @@ int av1_compute_subpel_gradients(const AV1_COMMON *cm, MACROBLOCKD *xd,
           (int16_t)tmp_buf2[i * bw + j] - (int16_t)tmp_buf1[i * bw + j];
     }
   }
+  // The actual numerical gradient is given by (tmp_buf2 - tmp_buf1) / 2.
+  // The factor 0.5 will be applied later via MV_REFINE_SCALE_BITS in
+  // av1_opfl_mv_refinement functions so MV offsets are computed at a higher
+  // precision.
   return r_dist;
 }
 
@@ -443,7 +447,12 @@ int av1_compute_subpel_gradients(const AV1_COMMON *cm, MACROBLOCKD *xd,
 
 // 1/8 to 1/16 precision
 #define MV_REFINE_PREC_BITS 1
-// An extra scaling factor of 2
+
+// An extra scaling factor of 2. This is required because the previously
+// computed gradient values are missing a factor of 0.5. By applying this
+// 2x factor in av1_opfl_mv_refinement functions instead of 0.5x in
+// av1_compute_subpel_gradients, MV offsets can be computed in a high
+// precision.
 #define MV_REFINE_SCALE_BITS 1
 
 void av1_opfl_mv_refinement_lowbd(const uint8_t *p0, int pstride0,
