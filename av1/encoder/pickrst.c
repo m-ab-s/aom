@@ -2030,7 +2030,8 @@ static void search_wiener_nonsep(const RestorationTileLimits *limits,
     Vector *current_unit_stack = rsc->unit_stack;
     int64_t bits_nomerge =
         x->wiener_nonsep_restore_cost[1] + x->merged_param_cost[0] +
-        (count_wienerns_bits(is_uv, &rusi->wiener_nonsep, &rsc->wiener_nonsep)
+        (count_wienerns_bits(rsc->plane, &rusi->wiener_nonsep,
+                             &rsc->wiener_nonsep)
          << AV1_PROB_COST_SHIFT);
     double cost_nomerge = RDCOST_DBL(x->rdmult, bits_nomerge >> 4,
                                      rusi->sse[RESTORE_WIENER_NONSEP]);
@@ -2144,7 +2145,7 @@ static void search_wiener_nonsep(const RestorationTileLimits *limits,
       if (aom_iterator_equals(&(listed_unit), &begin)) {
         old_unit->merge_bits =
             x->wiener_nonsep_restore_cost[1] + x->merged_param_cost[0] +
-            (count_wienerns_bits(is_uv, &rui_temp.wiener_nonsep_info,
+            (count_wienerns_bits(rsc->plane, &rui_temp.wiener_nonsep_info,
                                  &old_unit->ref_wiener_nonsep)
              << AV1_PROB_COST_SHIFT);
       } else {
