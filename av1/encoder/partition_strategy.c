@@ -1564,9 +1564,8 @@ static AOM_INLINE void compute_sms_txfm_data(
 
 // Performs a simple motion search and store the result in sms_data.
 static void compute_sms_data(AV1_COMP *const cpi, const TileInfo *const tile,
-                             MACROBLOCK *x, CHROMA_REF_INFO *chr_ref_info,
-                             SimpleMotionData *sms_data, int mi_row, int mi_col,
-                             BLOCK_SIZE bsize) {
+                             MACROBLOCK *x, SimpleMotionData *sms_data,
+                             int mi_row, int mi_col, BLOCK_SIZE bsize) {
   const AV1_COMMON *const cm = &cpi->common;
   const int ref_frame =
       cpi->rc.is_src_frame_alt_ref ? ALTREF_FRAME : LAST_FRAME;
@@ -1583,7 +1582,7 @@ static void compute_sms_data(AV1_COMP *const cpi, const TileInfo *const tile,
     return;
   }
 
-  av1_enc_set_offsets(cpi, tile, x, mi_row, mi_col, bsize, chr_ref_info);
+  av1_enc_set_offsets(cpi, tile, x, mi_row, mi_col, bsize, NULL);
 
   // We need to update the rd-mult here to in case we are doing simple motion
   // search on a subblock of the current coding block.
@@ -1609,8 +1608,8 @@ static void compute_sms_data(AV1_COMP *const cpi, const TileInfo *const tile,
 
     for (int idx = 0; idx < sms_data->num_start_mvs; idx++) {
       const MV start_mv = sms_data->start_mv_list[idx];
-      av1_simple_motion_search_ext(cpi, tile, x, chr_ref_info, mi_row, mi_col,
-                                   bsize, ref_frame, start_mv, sms_data);
+      av1_simple_motion_search_ext(cpi, tile, x, mi_row, mi_col, bsize,
+                                   ref_frame, start_mv, sms_data);
       sms_data->var = cpi->fn_ptr[bsize].vf(src_buf, src_stride, dst_buf,
                                             dst_stride, &sms_data->sse);
 
@@ -1713,8 +1712,7 @@ static INLINE void add_start_mv_to_partition(
 // mi_col with block size bsize.
 SimpleMotionData *av1_get_sms_data(AV1_COMP *const cpi,
                                    const TileInfo *const tile, MACROBLOCK *x,
-                                   CHROMA_REF_INFO *chr_ref_info, int mi_row,
-                                   int mi_col, BLOCK_SIZE bsize) {
+                                   int mi_row, int mi_col, BLOCK_SIZE bsize) {
   const AV1_COMMON *const cm = &cpi->common;
   const BLOCK_SIZE sb_size = cm->seq_params.sb_size;
   SimpleMotionDataBufs *sms_bufs = x->sms_bufs;
@@ -1722,8 +1720,7 @@ SimpleMotionData *av1_get_sms_data(AV1_COMP *const cpi,
       av1_get_sms_data_entry(sms_bufs, mi_row, mi_col, bsize, sb_size);
   const int valid = cur_block->valid;
   if (!valid) {
-    compute_sms_data(cpi, tile, x, chr_ref_info, cur_block, mi_row, mi_col,
-                     bsize);
+    compute_sms_data(cpi, tile, x, cur_block, mi_row, mi_col, bsize);
 
     for (PARTITION_TYPE partition = PARTITION_NONE;
          partition < EXT_PARTITION_TYPES; partition++) {

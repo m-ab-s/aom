@@ -1361,12 +1361,10 @@ static INLINE void search_partition_horz(PartitionSearchState *search_state,
   if (ENABLE_FAST_RECUR_PARTITION && !frame_is_intra_only(cm) &&
       !x->must_find_valid_partition) {
     SMSPartitionStats part_data;
-    const SimpleMotionData *up = av1_get_sms_data(
-        cpi, tile_info, x, &pc_tree->horizontal[0]->chroma_ref_info, mi_row,
-        mi_col, subsize);
+    const SimpleMotionData *up =
+        av1_get_sms_data(cpi, tile_info, x, mi_row, mi_col, subsize);
     const SimpleMotionData *down = av1_get_sms_data(
-        cpi, tile_info, x, &pc_tree->horizontal[1]->chroma_ref_info,
-        mi_row + blk_params->mi_step_h, mi_col, subsize);
+        cpi, tile_info, x, mi_row + blk_params->mi_step_h, mi_col, subsize);
     part_data.sms_data[0] = up;
     part_data.sms_data[1] = down;
     part_data.num_sub_parts = 2;
@@ -1524,12 +1522,10 @@ static INLINE void search_partition_vert(PartitionSearchState *search_state,
 
   if (ENABLE_FAST_RECUR_PARTITION && !frame_is_intra_only(cm) &&
       !x->must_find_valid_partition) {
-    const SimpleMotionData *left = av1_get_sms_data(
-        cpi, tile_info, x, &pc_tree->vertical[0]->chroma_ref_info, mi_row,
-        mi_col, subsize);
+    const SimpleMotionData *left =
+        av1_get_sms_data(cpi, tile_info, x, mi_row, mi_col, subsize);
     const SimpleMotionData *right = av1_get_sms_data(
-        cpi, tile_info, x, &pc_tree->vertical[1]->chroma_ref_info, mi_row,
-        mi_col + blk_params->mi_step_w, subsize);
+        cpi, tile_info, x, mi_row, mi_col + blk_params->mi_step_w, subsize);
 
     SMSPartitionStats part_data;
     part_data.sms_data[0] = left;
@@ -2309,15 +2305,13 @@ static INLINE void search_partition_horz_3(PartitionSearchState *search_state,
   // we enable it.
   if (ENABLE_FAST_RECUR_PARTITION == 2 && !frame_is_intra_only(cm) &&
       !x->must_find_valid_partition) {
-    const SimpleMotionData *up = av1_get_sms_data(
-        cpi, tile_info, x, &pc_tree->horizontal3[0]->chroma_ref_info, mi_row,
-        mi_col, subblock_sizes[0]);
+    const SimpleMotionData *up =
+        av1_get_sms_data(cpi, tile_info, x, mi_row, mi_col, subblock_sizes[0]);
     const SimpleMotionData *middle = av1_get_sms_data(
-        cpi, tile_info, x, &pc_tree->horizontal3[1]->chroma_ref_info,
-        mi_row + quarter_step, mi_col, subblock_sizes[1]);
-    const SimpleMotionData *down = av1_get_sms_data(
-        cpi, tile_info, x, &pc_tree->horizontal3[2]->chroma_ref_info,
-        mi_row + 3 * quarter_step, mi_col, subblock_sizes[2]);
+        cpi, tile_info, x, mi_row + quarter_step, mi_col, subblock_sizes[1]);
+    const SimpleMotionData *down =
+        av1_get_sms_data(cpi, tile_info, x, mi_row + 3 * quarter_step, mi_col,
+                         subblock_sizes[2]);
 
     SMSPartitionStats part_data;
     part_data.sms_data[0] = up;
@@ -2432,15 +2426,13 @@ static INLINE void search_partition_vert_3(PartitionSearchState *search_state,
   // we enable it.
   if (ENABLE_FAST_RECUR_PARTITION == 2 && !frame_is_intra_only(cm) &&
       !x->must_find_valid_partition) {
-    const SimpleMotionData *left = av1_get_sms_data(
-        cpi, tile_info, x, &pc_tree->vertical3[0]->chroma_ref_info, mi_row,
-        mi_col, subblock_sizes[0]);
+    const SimpleMotionData *left =
+        av1_get_sms_data(cpi, tile_info, x, mi_row, mi_col, subblock_sizes[0]);
     const SimpleMotionData *middle = av1_get_sms_data(
-        cpi, tile_info, x, &pc_tree->vertical3[1]->chroma_ref_info, mi_row,
-        mi_col + quarter_step, subblock_sizes[1]);
-    const SimpleMotionData *right = av1_get_sms_data(
-        cpi, tile_info, x, &pc_tree->vertical3[2]->chroma_ref_info, mi_row,
-        mi_col + 3 * quarter_step, subblock_sizes[2]);
+        cpi, tile_info, x, mi_row, mi_col + quarter_step, subblock_sizes[1]);
+    const SimpleMotionData *right =
+        av1_get_sms_data(cpi, tile_info, x, mi_row, mi_col + 3 * quarter_step,
+                         subblock_sizes[2]);
 
     SMSPartitionStats part_data;
     part_data.sms_data[0] = left;
@@ -2741,8 +2733,8 @@ BEGIN_PARTITION_SEARCH:
   // PARTITION_NONE
 #if CONFIG_EXT_RECUR_PARTITIONS
   if (ENABLE_FAST_RECUR_PARTITION && !frame_is_intra_only(cm)) {
-    const SimpleMotionData *whole = av1_get_sms_data(
-        cpi, tile_info, x, &pc_tree->chroma_ref_info, mi_row, mi_col, bsize);
+    const SimpleMotionData *whole =
+        av1_get_sms_data(cpi, tile_info, x, mi_row, mi_col, bsize);
     search_state.none_data.sms_data[0] = whole;
     search_state.none_data.num_sub_parts = 1;
     search_state.none_data.part_rate =

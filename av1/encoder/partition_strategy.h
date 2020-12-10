@@ -145,8 +145,7 @@ SimpleMotionData *av1_get_sms_data_entry(SimpleMotionDataBufs *sms_bufs,
 
 SimpleMotionData *av1_get_sms_data(AV1_COMP *const cpi,
                                    const TileInfo *const tile, MACROBLOCK *x,
-                                   CHROMA_REF_INFO *chr_ref_info, int mi_row,
-                                   int mi_col, BLOCK_SIZE bsize);
+                                   int mi_row, int mi_col, BLOCK_SIZE bsize);
 
 static AOM_INLINE void av1_add_mode_search_context_to_cache(
     SimpleMotionData *sms_data, PICK_MODE_CONTEXT *ctx) {

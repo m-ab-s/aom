@@ -463,7 +463,7 @@ void av1_set_offsets_without_segment_id(const AV1_COMP *const cpi,
                                         int mi_col, BLOCK_SIZE bsize,
                                         const CHROMA_REF_INFO *chr_ref_info) {
   const AV1_COMMON *const cm = &cpi->common;
-  const int num_planes = av1_num_planes(cm);
+  const int num_planes = chr_ref_info ? av1_num_planes(cm) : 1;
   MACROBLOCKD *const xd = &x->e_mbd;
   assert(bsize < BLOCK_SIZES_ALL);
   const int mi_width = mi_size_wide[bsize];

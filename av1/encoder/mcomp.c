@@ -3523,15 +3523,15 @@ void av1_simple_motion_search(AV1_COMP *const cpi, MACROBLOCK *x, int mi_row,
 #if CONFIG_EXT_RECUR_PARTITIONS
 void av1_simple_motion_search_ext(AV1_COMP *const cpi,
                                   const TileInfo *const tile, MACROBLOCK *x,
-                                  CHROMA_REF_INFO *chr_ref_info, int mi_row,
-                                  int mi_col, BLOCK_SIZE bsize, int ref_frame,
-                                  MV start_mv, SimpleMotionData *sms_data) {
+                                  int mi_row, int mi_col, BLOCK_SIZE bsize,
+                                  int ref_frame, MV start_mv,
+                                  SimpleMotionData *sms_data) {
   assert(!frame_is_intra_only(&cpi->common) &&
          "Simple motion search only enabled for non-key frames");
   AV1_COMMON *const cm = &cpi->common;
   MACROBLOCKD *xd = &x->e_mbd;
 
-  av1_enc_set_offsets(cpi, tile, x, mi_row, mi_col, bsize, chr_ref_info);
+  av1_enc_set_offsets(cpi, tile, x, mi_row, mi_col, bsize, NULL);
 
   MB_MODE_INFO *mbmi = xd->mi[0];
   mbmi->sb_type = bsize;
@@ -3561,13 +3561,12 @@ void av1_simple_motion_search_ext(AV1_COMP *const cpi,
   int var;
 
   av1_setup_pre_planes(xd, ref_idx, yv12, mi_row, mi_col,
-                       get_ref_scale_factors(cm, ref_frame), num_planes,
-                       chr_ref_info);
+                       get_ref_scale_factors(cm, ref_frame), num_planes, NULL);
   set_ref_ptrs(cm, xd, mbmi->ref_frame[0], mbmi->ref_frame[1]);
   if (scaled_ref_frame) {
     backup_yv12 = xd->plane[AOM_PLANE_Y].pre[ref_idx];
     av1_setup_pre_planes(xd, ref_idx, scaled_ref_frame, mi_row, mi_col, NULL,
-                         num_planes, chr_ref_info);
+                         num_planes, NULL);
   }
 
   // This overwrites the mv_limits so we will need to restore it later.
