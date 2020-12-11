@@ -10,6 +10,7 @@
  */
 
 #include "av1/tflite_models/intra_frame_model/qp63.h"
+#include "config/aom_config.h"
 
 #if CONFIG_CNN_RESTORATION_SMALL_MODELS
 const unsigned char qp63_model_tflite_data[] = {
