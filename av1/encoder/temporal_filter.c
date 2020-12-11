@@ -325,10 +325,10 @@ static void tf_build_predictor(const YV12_BUFFER_CONFIG *ref_frame,
 
   // Default interpolation filters.
 #if CONFIG_REMOVE_DUAL_FILTER
-  const InterpFilter interp_filters = MULTITAP_SHARP;
+  const InterpFilter interp_filters = MULTITAP_SHARP2;
 #else
   const int_interpfilters interp_filters =
-      av1_broadcast_interp_filter(MULTITAP_SHARP);
+      av1_broadcast_interp_filter(MULTITAP_SHARP2);
 #endif  // !CONFIG_REMOVE_DUAL_FILTER
 
   // Handle Y-plane, U-plane and V-plane (if needed) in sequence.

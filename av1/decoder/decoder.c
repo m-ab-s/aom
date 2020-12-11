@@ -45,6 +45,20 @@ static void initialize_dec(void) {
   av1_init_wedge_masks();
 }
 
+static void update_subgop_stats(const AV1_COMMON *const cm,
+                                SubGOPStatsDec *const subgop_stats,
+                                unsigned int display_order_hint,
+                                unsigned int enable_subgop_stats) {
+  if (!enable_subgop_stats) return;
+  // Update subgop related frame data.
+  subgop_stats->disp_frame_idx[subgop_stats->stat_count] = display_order_hint;
+  subgop_stats->show_existing_frame[subgop_stats->stat_count] =
+      cm->show_existing_frame;
+  subgop_stats->show_frame[subgop_stats->stat_count] = cm->show_frame;
+  assert(subgop_stats->stat_count < MAX_SUBGOP_STATS_SIZE);
+  subgop_stats->stat_count++;
+}
+
 static void dec_set_mb_mi(CommonModeInfoParams *mi_params, int width,
                           int height) {
   // Ensure that the decoded width and height are both multiples of
@@ -381,6 +395,8 @@ static void update_frame_buffers(AV1Decoder *pbi, int frame_decoded) {
         }
         ++ref_index;
       }
+      update_subgop_stats(cm, &pbi->subgop_stats, cm->cur_frame->order_hint,
+                          pbi->enable_subgop_stats);
     }
 
     if (cm->show_existing_frame || cm->show_frame) {

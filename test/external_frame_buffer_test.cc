@@ -441,7 +441,11 @@ TEST_P(ExternalFrameBufferMD5Test, DISABLED_ExtFBMD5Match) {
 }
 
 #if CONFIG_WEBM_IO
+#if !CONFIG_REMOVE_DIST_WTD_COMP && !CONFIG_REMOVE_DUAL_FILTER
 TEST_F(ExternalFrameBufferTest, MinFrameBuffers) {
+#else
+TEST_F(ExternalFrameBufferTest, DISABLED_MinFrameBuffers) {
+#endif  // CONFIG_REMOVE_DIST_WTD_COMP && !CONFIG_REMOVE_DUAL_FILTER
   // Minimum number of external frame buffers for AV1 is
   // #AOM_MAXIMUM_REF_BUFFERS + #AOM_MAXIMUM_WORK_BUFFERS.
   const int num_buffers = AOM_MAXIMUM_REF_BUFFERS + AOM_MAXIMUM_WORK_BUFFERS;
@@ -451,7 +455,11 @@ TEST_F(ExternalFrameBufferTest, MinFrameBuffers) {
   ASSERT_EQ(AOM_CODEC_OK, DecodeRemainingFrames());
 }
 
+#if !CONFIG_REMOVE_DIST_WTD_COMP && !CONFIG_REMOVE_DUAL_FILTER
 TEST_F(ExternalFrameBufferTest, EightJitterBuffers) {
+#else
+TEST_F(ExternalFrameBufferTest, DISABLED_EightJitterBuffers) {
+#endif  // CONFIG_REMOVE_DIST_WTD_COMP && !CONFIG_REMOVE_DUAL_FILTER
   // Number of buffers equals #AOM_MAXIMUM_REF_BUFFERS +
   // #AOM_MAXIMUM_WORK_BUFFERS + eight jitter buffers.
   const int jitter_buffers = 8;
@@ -463,7 +471,11 @@ TEST_F(ExternalFrameBufferTest, EightJitterBuffers) {
   ASSERT_EQ(AOM_CODEC_OK, DecodeRemainingFrames());
 }
 
+#if !CONFIG_REMOVE_DIST_WTD_COMP && !CONFIG_REMOVE_DUAL_FILTER
 TEST_F(ExternalFrameBufferTest, NotEnoughBuffers) {
+#else
+TEST_F(ExternalFrameBufferTest, DISABLED_NotEnoughBuffers) {
+#endif  // CONFIG_REMOVE_DIST_WTD_COMP && !CONFIG_REMOVE_DUAL_FILTER
   // Minimum number of external frame buffers for AV1 is
   // #AOM_MAXIMUM_REF_BUFFERS + #AOM_MAXIMUM_WORK_BUFFERS. Most files will
   // only use 5 frame buffers at one time.
@@ -477,7 +489,11 @@ TEST_F(ExternalFrameBufferTest, NotEnoughBuffers) {
   ASSERT_EQ(AOM_CODEC_MEM_ERROR, DecodeRemainingFrames());
 }
 
+#if !CONFIG_REMOVE_DIST_WTD_COMP && !CONFIG_REMOVE_DUAL_FILTER
 TEST_F(ExternalFrameBufferTest, NoRelease) {
+#else
+TEST_F(ExternalFrameBufferTest, DISABLED_NoRelease) {
+#endif  // CONFIG_REMOVE_DIST_WTD_COMP && !CONFIG_REMOVE_DUAL_FILTER
   const int num_buffers = AOM_MAXIMUM_REF_BUFFERS + AOM_MAXIMUM_WORK_BUFFERS;
   ASSERT_EQ(AOM_CODEC_OK,
             SetFrameBufferFunctions(num_buffers, get_aom_frame_buffer,
@@ -486,7 +502,11 @@ TEST_F(ExternalFrameBufferTest, NoRelease) {
   ASSERT_EQ(AOM_CODEC_MEM_ERROR, DecodeRemainingFrames());
 }
 
+#if !CONFIG_REMOVE_DIST_WTD_COMP && !CONFIG_REMOVE_DUAL_FILTER
 TEST_F(ExternalFrameBufferTest, NullRealloc) {
+#else
+TEST_F(ExternalFrameBufferTest, DISABLED_NullRealloc) {
+#endif  // CONFIG_REMOVE_DIST_WTD_COMP && !CONFIG_REMOVE_DUAL_FILTER
   const int num_buffers = AOM_MAXIMUM_REF_BUFFERS + AOM_MAXIMUM_WORK_BUFFERS;
   ASSERT_EQ(AOM_CODEC_OK,
             SetFrameBufferFunctions(num_buffers, get_aom_zero_frame_buffer,
@@ -494,7 +514,11 @@ TEST_F(ExternalFrameBufferTest, NullRealloc) {
   ASSERT_EQ(AOM_CODEC_MEM_ERROR, DecodeOneFrame());
 }
 
+#if !CONFIG_REMOVE_DIST_WTD_COMP && !CONFIG_REMOVE_DUAL_FILTER
 TEST_F(ExternalFrameBufferTest, ReallocOneLessByte) {
+#else
+TEST_F(ExternalFrameBufferTest, DISABLED_ReallocOneLessByte) {
+#endif  // CONFIG_REMOVE_DIST_WTD_COMP && !CONFIG_REMOVE_DUAL_FILTER
   const int num_buffers = AOM_MAXIMUM_REF_BUFFERS + AOM_MAXIMUM_WORK_BUFFERS;
   ASSERT_EQ(AOM_CODEC_OK, SetFrameBufferFunctions(
                               num_buffers, get_aom_one_less_byte_frame_buffer,
@@ -515,7 +539,11 @@ TEST_F(ExternalFrameBufferTest, NullReleaseFunction) {
             SetFrameBufferFunctions(num_buffers, get_aom_frame_buffer, NULL));
 }
 
+#if !CONFIG_REMOVE_DIST_WTD_COMP && !CONFIG_REMOVE_DUAL_FILTER
 TEST_F(ExternalFrameBufferTest, SetAfterDecode) {
+#else
+TEST_F(ExternalFrameBufferTest, DISABLED_SetAfterDecode) {
+#endif  // CONFIG_REMOVE_DIST_WTD_COMP && !CONFIG_REMOVE_DUAL_FILTER
   const int num_buffers = AOM_MAXIMUM_REF_BUFFERS + AOM_MAXIMUM_WORK_BUFFERS;
   ASSERT_EQ(AOM_CODEC_OK, DecodeOneFrame());
   ASSERT_EQ(AOM_CODEC_ERROR,

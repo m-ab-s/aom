@@ -29,6 +29,21 @@ static aom_codec_err_t image2yuvconfig(const aom_image_t *img,
 
 #define MAX_SUBGOP_CODES 3
 
+static const char *subgop_config_str_nondef[] = {
+  // enh, subgop size = 4
+  "4:0:4U1/2U2/1V3/2S/3V3/4S,"
+  "4:1:3U1/2U2/1V3/2S/3S/4V3,"
+  // enh, subgop size = 5
+  "5:0:5U1/3U2/1V3/2V3/3S/4V3/5S,"
+  "5:1:4U1/2U2/1V3/2S/3V3/4S/5V3,"
+  // enh, subgop size = 7
+  "7:0:7U1/3U2/1V4/2V4/3S/5U3/4V4/5S/6V4/7S,"
+  "7:1:6U1/3U2/2U3/1V4/2S/3S/5U3/4V4/5S/6S/7V4,"
+  // enh, subgop size = 9
+  "9:0:9F1/4U2/2U3/1V4/2S/3V4/4S/7U3/5V4/6V5/7S/8V5/9R1,"
+  "9:1:7F1/3U2/1V4/2V4/3S/5U3/4V4/5S/6V4/7R1/9U3/8V4/9S,",
+};
+
 namespace {
 // Default config
 extern "C" const char subgop_config_str_def[];
@@ -80,59 +95,63 @@ int is_extension_y4m(const char *filename) {
     return !strcmp(dot, ".y4m");
 }
 
-// TODO(vishnu): Uncomment when unit test is enabled
-/*
 static const SubgopTestParams SubGopTestVectors[] = {
-// Default sub-gop config
-{ subgop_config_str_preset_map[DEFAULT].preset_tag,
-"hantro_collage_w352h288.yuv", 0, 16, 352, 288, 3 },
-{ subgop_config_str_preset_map[DEFAULT].preset_tag, "desktop1.320_180.yuv", 0,
-16, 320, 180, 5 },
-{ subgop_config_str_preset_map[DEFAULT].preset_tag,
-"pixel_capture_w320h240.yuv", 0, 16, 320, 240, 3 },
+  // Default subgop config
+  { subgop_config_str_preset_map[DEFAULT].preset_tag,
+    "hantro_collage_w352h288.yuv", 0, 16, 352, 288, 3 },
+  { subgop_config_str_preset_map[DEFAULT].preset_tag, "desktop1.320_180.yuv", 0,
+    16, 320, 180, 5 },
+  { subgop_config_str_preset_map[DEFAULT].preset_tag,
+    "pixel_capture_w320h240.yuv", 0, 16, 320, 240, 3 },
 
-{ subgop_config_str_preset_map[ENHANCE].preset_tag, "niklas_640_480_30.yuv",
-0, 15, 640, 480, 5 },
-{ subgop_config_str_preset_map[ENHANCE].preset_tag, "paris_352_288_30.y4m", 0,
-6, 352, 288, 3 },
-{ subgop_config_str_preset_map[ENHANCE].preset_tag,
-"hantro_collage_w352h288.yuv", 0, 16, 352, 288, 3 },
-{ subgop_config_str_preset_map[ENHANCE].preset_tag,
-"pixel_capture_w320h240.yuv", 0, 12, 320, 240, 3 },
-{ subgop_config_str_preset_map[ENHANCE].preset_tag, "niklas_1280_720_30.y4m",
-0, 11, 1280, 720, 5 },
-{ subgop_config_str_preset_map[ENHANCE].preset_tag, "screendata.y4m", 0, 16,
-640, 480, 5 },
-{ subgop_config_str_preset_map[ENHANCE].preset_tag,
-"pixel_capture_w320h240.yuv", 0, 14, 320, 240, 3 },
-{ subgop_config_str_preset_map[ENHANCE].preset_tag, "desktop1.320_180.yuv", 0,
-10, 320, 180, 3 },
-{ subgop_config_str_preset_map[ENHANCE].preset_tag, "paris_352_288_30.y4m", 0,
-13, 352, 288, 5 },
-{ subgop_config_str_preset_map[ENHANCE].preset_tag,
-"pixel_capture_w320h240.yuv", 0, 8, 320, 240, 5 },
+  { subgop_config_str_preset_map[ENHANCE].preset_tag, "niklas_640_480_30.yuv",
+    0, 15, 640, 480, 5 },
+  { subgop_config_str_preset_map[ENHANCE].preset_tag, "paris_352_288_30.y4m", 0,
+    6, 352, 288, 3 },
+  { subgop_config_str_preset_map[ENHANCE].preset_tag,
+    "hantro_collage_w352h288.yuv", 0, 16, 352, 288, 3 },
+  { subgop_config_str_preset_map[ENHANCE].preset_tag,
+    "pixel_capture_w320h240.yuv", 0, 12, 320, 240, 3 },
+  { subgop_config_str_preset_map[ENHANCE].preset_tag, "niklas_1280_720_30.y4m",
+    0, 11, 1280, 720, 5 },
+  { subgop_config_str_preset_map[ENHANCE].preset_tag, "screendata.y4m", 0, 16,
+    640, 480, 5 },
+  { subgop_config_str_preset_map[ENHANCE].preset_tag,
+    "pixel_capture_w320h240.yuv", 0, 14, 320, 240, 3 },
+  { subgop_config_str_preset_map[ENHANCE].preset_tag, "desktop1.320_180.yuv", 0,
+    10, 320, 180, 3 },
+  { subgop_config_str_preset_map[ENHANCE].preset_tag, "paris_352_288_30.y4m", 0,
+    13, 352, 288, 5 },
+  { subgop_config_str_preset_map[ENHANCE].preset_tag,
+    "pixel_capture_w320h240.yuv", 0, 8, 320, 240, 5 },
 
-{ subgop_config_str_preset_map[ASYMMETRIC].preset_tag,
-"pixel_capture_w320h240.yuv", 0, 16, 320, 240, 5 },
-{ subgop_config_str_preset_map[ASYMMETRIC].preset_tag, "desktop1.320_180.yuv",
-0, 16, 320, 180, 3 },
+  { subgop_config_str_preset_map[ASYMMETRIC].preset_tag,
+    "pixel_capture_w320h240.yuv", 0, 16, 320, 240, 5 },
+  { subgop_config_str_preset_map[ASYMMETRIC].preset_tag, "desktop1.320_180.yuv",
+    0, 16, 320, 180, 3 },
 
-{ subgop_config_str_preset_map[TEMPORAL_SCALABLE].preset_tag,
-"pixel_capture_w320h240.yuv", 0, 16, 320, 240, 3 },
-{ subgop_config_str_preset_map[TEMPORAL_SCALABLE].preset_tag,
-"hantro_collage_w352h288.yuv", 0, 16, 352, 288, 5 },
+  { subgop_config_str_preset_map[TEMPORAL_SCALABLE].preset_tag,
+    "pixel_capture_w320h240.yuv", 0, 16, 320, 240, 3 },
+  { subgop_config_str_preset_map[TEMPORAL_SCALABLE].preset_tag,
+    "hantro_collage_w352h288.yuv", 0, 16, 352, 288, 5 },
 
-// TODO(vishnu) : Enable ld config
-// { subgop_config_str_preset_map[LOW_DELAY].preset_tag,
-// "paris_352_288_30.y4m",
-//   0, 16, 352, 288, 5 },
-// { subgop_config_str_preset_map[LOW_DELAY].preset_tag,
-// "desktop1.320_180.yuv",
-//   0, 16, 320, 180, 3 },
+  // TODO(vishnu) : Enable ld config
+  // { subgop_config_str_preset_map[LOW_DELAY].preset_tag,
+  // "paris_352_288_30.y4m",
+  //   0, 16, 352, 288, 5 },
+  // { subgop_config_str_preset_map[LOW_DELAY].preset_tag,
+  // "desktop1.320_180.yuv",
+  //   0, 16, 320, 180, 3 },
 
-// TODO(vishnu) : Add non-default subgop config
+  // Non-default subgop config
+  { subgop_config_str_nondef[0], "pixel_capture_w320h240.yuv", 0, 4, 320, 240,
+    3 },
+  { subgop_config_str_nondef[0], "desktop1.320_180.yuv", 0, 5, 320, 180, 5 },
+  { subgop_config_str_nondef[0], "pixel_capture_w320h240.yuv", 0, 7, 320, 240,
+    5 },
+  { subgop_config_str_nondef[0], "hantro_collage_w352h288.yuv", 0, 9, 352, 288,
+    3 },
 };
-*/
 
 std::ostream &operator<<(std::ostream &os, const SubgopTestParams &test_arg) {
   return os << "SubgopTestParams { sub_gop_config:" << test_arg.subgop_str
@@ -214,7 +233,7 @@ class SubGopTestLarge
     memset(&user_cfg_set_, 0, sizeof(user_cfg_set_));
     subgop_data_.num_steps = MAX_SUBGOP_STATS_SIZE;
     ResetSubgop();
-    is_prev_frame_key_ = 0;
+    is_first_frame_in_subgop_key_ = 0;
     frames_from_key_ = 0;
     frame_num_ = 0;
     // TODO(any): Extend this unit test for 'CONFIG_REALTIME_ONLY'
@@ -246,19 +265,19 @@ class SubGopTestLarge
   void DetermineSubgopCode(libaom_test::Encoder *encoder) {
     encoder->Control(AV1E_GET_FRAME_TYPE, &frame_type_test_);
     if (frame_type_test_ == KEY_FRAME) {
-      is_prev_frame_key_ = 1;
+      is_first_frame_in_subgop_key_ = 1;
       return;
     }
     const int is_last_subgop =
         subgop_info_.frames_to_key <= (subgop_info_.gf_interval + 1);
-    const int is_first_subgop = is_prev_frame_key_;
+    const int is_first_subgop = is_first_frame_in_subgop_key_;
     if (is_last_subgop)
       subgop_code_test_ = SUBGOP_IN_GOP_LAST;
     else if (is_first_subgop)
       subgop_code_test_ = SUBGOP_IN_GOP_FIRST;
     else
       subgop_code_test_ = SUBGOP_IN_GOP_GENERIC;
-    is_prev_frame_key_ = 0;
+    is_first_frame_in_subgop_key_ = 0;
     subgop_size_ = subgop_info_.gf_interval;
   }
 
@@ -271,9 +290,7 @@ class SubGopTestLarge
       DetermineSubgopCode(encoder);
       // Validation of user specified subgop structure adoption in encoder path.
       ValidateSubgopConfig();
-      if (subgop_cfg_ref_)
-        subgop_data_.num_steps =
-            (frame_type_test_ == KEY_FRAME) ? 0 : subgop_cfg_ref_->num_steps;
+      subgop_data_.num_steps = subgop_info_.num_steps;
     }
     if (subgop_info_.is_user_specified)
       encoder->Control(AV1E_GET_FRAME_INFO, &subgop_data_);
@@ -284,21 +301,21 @@ class SubGopTestLarge
     int filtered_frames[REF_FRAMES] = { 0 }, buf_idx = 0;
     if (frame_type_test_ == KEY_FRAME) return;
 
-    subgop_cfg_test_.num_frames = subgop_info_.size;
-    subgop_cfg_test_.num_steps = subgop_data_.num_steps;
+    subgop_cfg_test_.num_frames = (int8_t)subgop_info_.size;
+    subgop_cfg_test_.num_steps = (int8_t)subgop_data_.num_steps;
     subgop_cfg_test_.subgop_in_gop_code = subgop_info_.pos_code;
     // Populating the filter-type of out-of-order frames appropriately for all
     // steps in sub-gop.
     for (int idx = 0; idx < subgop_data_.num_steps; idx++) {
       subgop_cfg_test_.step[idx].disp_frame_idx =
-          subgop_data_.step[idx].disp_frame_idx - frames_from_key_;
+          (int8_t)(subgop_data_.step[idx].disp_frame_idx - frames_from_key_);
       if (subgop_data_.step[idx].is_filtered) {
         filtered_frames[buf_idx++] =
             subgop_data_.step[idx].disp_frame_idx - frames_from_key_;
       } else {
         for (int ref_frame = 0; ref_frame < buf_idx; ref_frame++) {
           if (subgop_cfg_test_.step[idx].disp_frame_idx ==
-              filtered_frames[ref_frame])
+              (int8_t)filtered_frames[ref_frame])
             subgop_data_.step[idx].is_filtered = 1;
         }
       }
@@ -334,7 +351,7 @@ class SubGopTestLarge
     unsigned int cfg_count = 0;
 
     for (int idx = 0; idx < user_cfg_set_.num_configs; idx++) {
-      if (subgop_cfg[idx].num_frames == subgop_size_) {
+      if (subgop_cfg[idx].num_frames == (int8_t)subgop_size_) {
         if (subgop_cfg[idx].subgop_in_gop_code == subgop_code_test_)
           return &subgop_cfg[idx];
         else
@@ -363,14 +380,33 @@ class SubGopTestLarge
     return 1;
   }
 
+  bool IsInputSubgopCfgUsed() {
+    int num_ooo_frames_ref = 0;
+    int num_ooo_frames_test = 0;
+    // Encoder may choose to opt out input sub-gop config when use_altref is 0
+    // for the given sub-gop
+    for (int idx = 0; idx < subgop_cfg_ref_->num_steps; idx++) {
+      // Count number out-of-order frames in reference config
+      num_ooo_frames_ref +=
+          subgop_cfg_ref_->step[idx].type_code == FRAME_TYPE_OOO_FILTERED;
+      num_ooo_frames_ref +=
+          subgop_cfg_ref_->step[idx].type_code == FRAME_TYPE_OOO_UNFILTERED;
+      // Count number out-of-order frames in test config
+      num_ooo_frames_test +=
+          subgop_cfg_test_.step[idx].type_code == FRAME_TYPE_OOO_FILTERED;
+      num_ooo_frames_test +=
+          subgop_cfg_test_.step[idx].type_code == FRAME_TYPE_OOO_UNFILTERED;
+    }
+    return num_ooo_frames_ref == num_ooo_frames_test;
+  }
+
   void ValidateSubgopConfig() {
     if (frame_type_test_ == KEY_FRAME) return;
     subgop_cfg_ref_ = DetermineSubgopConfig();
-    if (subgop_info_.is_user_specified) {
-      EXPECT_EQ(subgop_size_, subgop_cfg_ref_->num_frames)
+    if (subgop_cfg_ref_) {
+      EXPECT_EQ((int8_t)subgop_size_, subgop_cfg_ref_->num_frames)
           << "Error:subgop config selection wrong";
-      EXPECT_EQ(subgop_code_test_, subgop_info_.pos_code)
-          << "Error:subgop code doesn't match";
+      subgop_info_.is_user_specified = 1;
     }
   }
 
@@ -388,7 +424,11 @@ class SubGopTestLarge
       // Validation of sub-gop structure propagation to decoder.
       if (subgop_info_.is_user_specified) {
         FillTestSubgopConfig();
-        ValidateSubgopFrametype();
+        if ((subgop_info_.is_user_specified = IsInputSubgopCfgUsed())) {
+          EXPECT_EQ(subgop_code_test_, subgop_info_.pos_code)
+              << "Error:subgop code doesn't match";
+          ValidateSubgopFrametype();
+        }
       }
       frames_from_key_ += subgop_info_.size;
       if (frame_type_test_ == KEY_FRAME) frames_from_key_ = 0;
@@ -408,9 +448,9 @@ class SubGopTestLarge
   FRAME_TYPE frame_type_test_;
   aom_rc_mode rc_end_usage_;
   int subgop_size_;
-  bool is_prev_frame_key_;
+  bool is_first_frame_in_subgop_key_;
   int frames_from_key_;
-  unsigned int frame_num_in_subgop_;
+  int frame_num_in_subgop_;
   unsigned int frame_num_;
   unsigned int enable_subgop_stats_;
 };
@@ -428,12 +468,9 @@ TEST_P(SubGopTestLarge, SubGopTest) {
   }
 }
 
-// TODO(vishnu): Uncomment when overlay frame movement from first step of
-// next subgop to last step of current subgop is completed
-// AV1_INSTANTIATE_TEST_SUITE(SubGopTestLarge,
-//                           ::testing::ValuesIn(SubGopTestVectors),
-//                           ::testing::Values(AOM_Q, AOM_VBR, AOM_CQ,
-//                           AOM_CBR));
+AV1_INSTANTIATE_TEST_SUITE(SubGopTestLarge,
+                           ::testing::ValuesIn(SubGopTestVectors),
+                           ::testing::Values(AOM_Q, AOM_VBR, AOM_CQ, AOM_CBR));
 
 typedef struct {
   const char *subgop_str;
@@ -565,7 +602,7 @@ TEST_P(SubGopPSNRCheckTest, SubGopPSNRCheck) {
   const double psnr_subgop_ = GetAveragePsnr();
 
   const double psnr_diff = psnr_subgop_ - psnr_no_subgop_;
-  EXPECT_LE(abs(psnr_diff), psnr_diff_thresh);
+  EXPECT_LE(fabs(psnr_diff), psnr_diff_thresh);
 }
 
 // TODO(any) : Enable AOM_CBR after fix
@@ -573,4 +610,174 @@ AV1_INSTANTIATE_TEST_SUITE(SubGopPSNRCheckTest,
                            ::testing::ValuesIn(SubGopPsnrTestVectors),
                            ::testing::Values(AOM_Q, AOM_VBR,
                                              AOM_CQ /*, AOM_CBR*/));
+
+typedef struct {
+  const char *subgop_str;
+  const char *input_file;
+  int frame_w;
+  int frame_h;
+  int cpu_used;
+} SubGopSwitchTestParams;
+
+static const SubGopSwitchTestParams SubgopSwitchTestVectors[] = {
+  { subgop_config_str_preset_map[DEFAULT].preset_tag, "niklas_640_480_30.yuv",
+    640, 480, 5 },
+  { subgop_config_str_preset_map[ENHANCE].preset_tag, "desktop1.320_180.yuv",
+    320, 180, 3 },
+  { subgop_config_str_preset_map[ENHANCE].preset_tag,
+    "hantro_collage_w352h288.yuv", 352, 288, 5 },
+  { subgop_config_str_preset_map[ASYMMETRIC].preset_tag,
+    "pixel_capture_w320h240.yuv", 320, 240, 3 },
+  { subgop_config_str_preset_map[TEMPORAL_SCALABLE].preset_tag,
+    "paris_352_288_30.y4m", 352, 288, 3 },
+  { subgop_config_str_preset_map[LOW_DELAY].preset_tag, "screendata.y4m", 640,
+    480, 5 },
+  // TODO(any) : Extend the test case for ld config
+};
+
+using libaom_test::ACMRandom;
+class SubGopSwitchingTest
+    : public ::libaom_test::CodecTestWith2Params<SubGopSwitchTestParams,
+                                                 aom_rc_mode>,
+      public ::libaom_test::EncoderTest {
+ protected:
+  SubGopSwitchingTest()
+      : EncoderTest(GET_PARAM(0)), test_params_(GET_PARAM(1)),
+        rc_end_usage_(GET_PARAM(2)) {
+    last_subgop_str_ = NULL;
+    num_subgop_cfg_used_ = 0;
+    rnd_.Reset(ACMRandom::DeterministicSeed());
+    ResetSubgop();
+  }
+  virtual ~SubGopSwitchingTest() {}
+
+  virtual void SetUp() {
+    InitializeConfig();
+    SetMode(::libaom_test::kOnePassGood);
+    cfg_.g_threads = 1;
+    cfg_.rc_end_usage = rc_end_usage_;
+    cfg_.g_lag_in_frames = 35;
+  }
+
+  void ResetSubgop() {
+    frame_num_in_subgop_ = 0;
+    subgop_size_ = 0;
+    memset(&subgop_info_, 0, sizeof(subgop_info_));
+  }
+
+  bool GetRandSwitch() { return !(rnd_.Rand8() & 1); }
+
+  int GetRandGFIntervalEnh() {
+    const int subgop_size_enh[] = { 6, 8, 10, 11, 12, 13, 14, 15, 16 };
+    const int length = sizeof(subgop_size_enh) / sizeof(subgop_size_enh[0]);
+    const int idx = rnd_.Rand8() % length;
+
+    return subgop_size_enh[idx];
+  }
+
+  void set_subgop_config(::libaom_test::Encoder *encoder) {
+    const bool switch_subgop_cfg = GetRandSwitch();
+    if (!switch_subgop_cfg) return;
+
+    // Switch between input sub-gop and no sub-gop config and configure the
+    // encoder
+    const char *subgop_str = last_subgop_str_ ? NULL : test_params_.subgop_str;
+    int max_gf_interval = 16;
+    // Get max gf interval for enh config
+    if (subgop_str && !strcmp(subgop_str, "enh"))
+      max_gf_interval = GetRandGFIntervalEnh();
+
+    // Set subgop config string
+    encoder->Control(AV1E_SET_SUBGOP_CONFIG_STR, subgop_str);
+
+    // Set max gf interval
+    if (subgop_str) encoder->Control(AV1E_SET_MAX_GF_INTERVAL, max_gf_interval);
+
+    last_subgop_str_ = subgop_str;
+  }
+
+  virtual void PreEncodeFrameHook(::libaom_test::VideoSource *video,
+                                  ::libaom_test::Encoder *encoder) {
+    if (video->frame() == 0) {
+      encoder->Control(AOME_SET_CPUUSED, test_params_.cpu_used);
+      // Set min gf interval
+      encoder->Control(AV1E_SET_MIN_GF_INTERVAL, 6);
+      set_subgop_config(encoder);
+    }
+
+    // Configure sub-gop string before sub-gop decision
+    if (frame_num_in_subgop_ == subgop_size_) {
+      ResetSubgop();
+      set_subgop_config(encoder);
+    }
+  }
+
+  virtual bool HandleEncodeResult(::libaom_test::VideoSource *video,
+                                  libaom_test::Encoder *encoder) {
+    (void)video;
+    // Get sub-gop info at beginning of the sub-gop
+    if (!frame_num_in_subgop_) {
+      FRAME_TYPE frame_type = FRAME_TYPES;
+
+      // Get current frame type
+      encoder->Control(AV1E_GET_FRAME_TYPE, &frame_type);
+      assert(frame_type != FRAME_TYPES);
+      // Get subgop config
+      encoder->Control(AV1E_GET_SUB_GOP_CONFIG, &subgop_info_);
+
+      // Compute sub-gop size
+      subgop_size_ = subgop_info_.gf_interval;
+      // Include KF in sub-gop size
+      if (frame_type == KEY_FRAME) subgop_size_++;
+
+      // Update count of subgop cfg usage by the encoder
+      num_subgop_cfg_used_ += subgop_info_.is_user_specified;
+    }
+    return 1;
+  }
+
+  virtual bool HandleDecodeResult(const aom_codec_err_t res_dec,
+                                  libaom_test::Decoder *decoder) {
+    EXPECT_EQ(AOM_CODEC_OK, res_dec) << decoder->DecodeError();
+    if (AOM_CODEC_OK != res_dec) return 0;
+
+    frame_num_in_subgop_++;
+
+    return AOM_CODEC_OK == res_dec;
+  }
+  SubGopSwitchTestParams test_params_;
+  unsigned int num_subgop_cfg_used_;
+
+ private:
+  ACMRandom rnd_;
+  aom_rc_mode rc_end_usage_;
+  SubGOPInfo subgop_info_;
+  unsigned int frame_num_in_subgop_;
+  unsigned int subgop_size_;
+  const char *last_subgop_str_;
+};
+
+// TODO(aomedia:2889): Enable this unit test after fix
+TEST_P(SubGopSwitchingTest, DISABLED_SubGopSwitching) {
+  std::unique_ptr<libaom_test::VideoSource> video;
+  const unsigned int kFrames = 200;
+
+  if (is_extension_y4m(test_params_.input_file)) {
+    video.reset(
+        new libaom_test::Y4mVideoSource(test_params_.input_file, 0, kFrames));
+  } else {
+    video.reset(new libaom_test::YUVVideoSource(
+        test_params_.input_file, AOM_IMG_FMT_I420, test_params_.frame_w,
+        test_params_.frame_h, 30, 1, 0, kFrames));
+  }
+
+  ASSERT_NO_FATAL_FAILURE(RunLoop(video.get()));
+
+  // Check input config is used by the encoder
+  EXPECT_TRUE(num_subgop_cfg_used_);
+}
+
+AV1_INSTANTIATE_TEST_SUITE(SubGopSwitchingTest,
+                           ::testing::ValuesIn(SubgopSwitchTestVectors),
+                           ::testing::Values(AOM_Q, AOM_VBR, AOM_CQ, AOM_CBR));
 }  // namespace

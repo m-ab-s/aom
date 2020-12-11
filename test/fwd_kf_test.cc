@@ -178,7 +178,8 @@ class ForwardKeyPresenceTestLarge
   aom_rc_mode end_usage_check_;
 };
 
-TEST_P(ForwardKeyPresenceTestLarge, ForwardKeyEncodePresenceTest) {
+// TODO(BUG=aomedia:2891): Fix and re-enable the test.
+TEST_P(ForwardKeyPresenceTestLarge, DISABLED_ForwardKeyEncodePresenceTest) {
   is_fwd_kf_present_ = 0;
   libaom_test::I420VideoSource video("hantro_collage_w352h288.yuv", 352, 288,
                                      cfg_.g_timebase.den, cfg_.g_timebase.num,
