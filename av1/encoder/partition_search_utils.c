@@ -1769,7 +1769,11 @@ static INLINE void update_inter_stats(const AV1_COMMON *const cm,
         }
       }
 
+#if CONFIG_OPTFLOW_REFINEMENT
+      if (has_second_ref(mbmi) && mbmi->mode <= NEW_NEWMV) {
+#else
       if (has_second_ref(mbmi)) {
+#endif
         assert(current_frame->reference_mode != SINGLE_REFERENCE &&
                is_inter_compound_mode(mbmi->mode) &&
                mbmi->motion_mode == SIMPLE_TRANSLATION);
