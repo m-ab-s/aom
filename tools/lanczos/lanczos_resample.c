@@ -497,21 +497,21 @@ static void extend_border_8b(uint8_t *x, int inlen, EXT_TYPE ext_type,
       if (inlen > border) {
         for (int i = -border; i < 0; ++i) {
           const int16_t t = 2 * x[0] - x[-i];
-          x[i] = doclip(t, 0, 255);
+          x[i] = (uint8_t)doclip(t, 0, 255);
         }
         for (int i = 0; i < border; ++i) {
           const int16_t t = 2 * x[inlen - 1] - x[inlen - 2 - i];
-          x[i + inlen] = doclip(t, 0, 255);
+          x[i + inlen] = (uint8_t)doclip(t, 0, 255);
         }
       } else {
         for (int i = -border; i < 0; ++i) {
           const int16_t t = 2 * x[0] - x[(-i > inlen - 1 ? inlen - 1 : -i)];
-          x[i] = doclip(t, 0, 255);
+          x[i] = (uint8_t)doclip(t, 0, 255);
         }
         for (int i = 0; i < border; ++i) {
           const int16_t t =
               2 * x[inlen - 1] - x[(inlen - 2 - i < 0 ? 0 : inlen - 2 - i)];
-          x[i + inlen] = doclip(t, 0, 255);
+          x[i + inlen] = (uint8_t)doclip(t, 0, 255);
         }
       }
       break;
