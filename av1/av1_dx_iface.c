@@ -1168,17 +1168,20 @@ static aom_codec_err_t ctrl_get_dec_frame_info(aom_codec_alg_priv_t *ctx,
   FrameWorkerData *const frame_worker_data = (FrameWorkerData *)worker->data1;
   const AV1Decoder *const pbi = frame_worker_data->pbi;
   const SubGOPStatsDec *const subgop_stats = &pbi->subgop_stats;
-  SubGOPStepData *step_data = subgop_data->step;
+  SubGOPStepData *subgop_step = subgop_data->step;
   const int stat_count = subgop_stats->stat_count;
 
   // Collects already decoded out of order frames info along with in-order
   // frame
-  step_data += subgop_data->step_idx_dec;
+  subgop_step += subgop_data->step_idx_dec;
   for (int step_idx = 0; step_idx < stat_count; step_idx++) {
-    step_data[step_idx].disp_frame_idx = subgop_stats->disp_frame_idx[step_idx];
-    step_data[step_idx].show_existing_frame =
+    SubGOPStepData *step_data = &subgop_step[step_idx];
+    step_data->disp_frame_idx = subgop_stats->disp_frame_idx[step_idx];
+    step_data->show_existing_frame =
         subgop_stats->show_existing_frame[step_idx];
-    step_data[step_idx].show_frame = subgop_stats->show_frame[step_idx];
+    step_data->show_frame = subgop_stats->show_frame[step_idx];
+    step_data->qindex = subgop_stats->qindex[step_idx];
+
     subgop_data->step_idx_dec++;
   }
   return AOM_CODEC_OK;

@@ -225,6 +225,7 @@ typedef struct {
   unsigned char disp_frame_idx[MAX_SUBGOP_STATS_SIZE];
   int show_existing_frame[MAX_SUBGOP_STATS_SIZE];
   int show_frame[MAX_SUBGOP_STATS_SIZE];
+  int qindex[MAX_SUBGOP_STATS_SIZE];
   int refresh_frame_flags[MAX_SUBGOP_STATS_SIZE];
   unsigned char stat_count;
 } SubGOPStatsDec;

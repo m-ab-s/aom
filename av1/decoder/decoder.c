@@ -55,6 +55,7 @@ static void update_subgop_stats(const AV1_COMMON *const cm,
   subgop_stats->show_existing_frame[subgop_stats->stat_count] =
       cm->show_existing_frame;
   subgop_stats->show_frame[subgop_stats->stat_count] = cm->show_frame;
+  subgop_stats->qindex[subgop_stats->stat_count] = cm->quant_params.base_qindex;
   assert(subgop_stats->stat_count < MAX_SUBGOP_STATS_SIZE);
   subgop_stats->stat_count++;
 }
