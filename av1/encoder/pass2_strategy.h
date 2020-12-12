@@ -81,14 +81,12 @@ void av1_init_single_pass_lap(AV1_COMP *cpi);
  *
  * \param[in]    cpi           Top - level encoder instance structure
  * \param[in]    frame_params  Per frame encoding parameters
- * \param[in]    frame_flags   Frame type and coding flags
  *
  * \return No return but analyses first pass stats and assigns a target
  *         number of bits to the current frame and a target Q range.
  */
 void av1_get_second_pass_params(struct AV1_COMP *cpi,
-                                struct EncodeFrameParams *const frame_params,
-                                unsigned int frame_flags);
+                                struct EncodeFrameParams *const frame_params);
 
 /*!\brief Adjustments to two pass and rate control after each frame.
  *

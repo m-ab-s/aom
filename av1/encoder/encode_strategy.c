@@ -479,7 +479,7 @@ int is_forced_keyframe_pending(struct lookahead_ctx *lookahead,
       // so there isn't a forced key-frame pending.
       return -1;
     } else if (e->flags == AOM_EFLAG_FORCE_KF) {
-      return (i + 1);
+      return i;
     } else {
       continue;
     }
@@ -541,10 +541,6 @@ static struct lookahead_entry *choose_frame_source(
     // no show frames are arf frames
     source =
         av1_lookahead_peek(cpi->lookahead, src_index, cpi->compressor_stage);
-    // When src_index == rc->frames_to_key, it indicates a fwd_kf
-    if (src_index == cpi->rc.frames_to_key && src_index != 0) {
-      cpi->no_show_fwd_kf = 1;
-    }
     if (source != NULL) {
       cm->showable_frame = 1;
     }
@@ -929,7 +925,9 @@ static int denoise_and_encode(AV1_COMP *const cpi, uint8_t *const dest,
       av1_frame_init_quantizer(cpi);
       av1_setup_past_independence(cm);
 
-      if (gf_group->index == 0) cm->current_frame.frame_number = 0;
+      if (gf_group->update_type[gf_group->index] == KEY_FRAME &&
+          !cpi->no_show_fwd_kf)
+        cm->current_frame.frame_number = 0;
 
       if (!frame_params->show_frame && cpi->no_show_fwd_kf) {
         // fwd kf
@@ -1061,19 +1059,11 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
         AOMMIN(gf_cfg->gf_min_pyr_height, gf_cfg->gf_max_pyr_height);
   }
 
-#if !CONFIG_REALTIME_ONLY
-  const int use_one_pass_rt_params = has_no_stats_stage(cpi) &&
-                                     oxcf->mode == REALTIME &&
-                                     gf_cfg->lag_in_frames == 0;
-  if (!use_one_pass_rt_params && !is_stat_generation_stage(cpi)) {
-    av1_get_second_pass_params(cpi, &frame_params, *frame_flags);
-  }
-#endif
-
   if (!is_stat_generation_stage(cpi)) {
     // If this is a forward keyframe, mark as a show_existing_frame
     // TODO(bohanli): find a consistent condition for fwd keyframes
-    if (oxcf->kf_cfg.fwd_kf_enabled && (gf_group->index == gf_group->size) &&
+    if (oxcf->kf_cfg.fwd_kf_enabled &&
+        (gf_group->index == (gf_group->size - 1)) &&
         (gf_group->update_type[gf_group->index] == OVERLAY_UPDATE ||
          gf_group->update_type[gf_group->index] == KFFLT_OVERLAY_UPDATE) &&
         gf_group->arf_index >= 0 && cpi->rc.frames_to_key == 0) {
@@ -1095,6 +1085,15 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
   } else {
     frame_params.show_existing_frame = 0;
   }
+
+#if !CONFIG_REALTIME_ONLY
+  const int use_one_pass_rt_params = has_no_stats_stage(cpi) &&
+                                     oxcf->mode == REALTIME &&
+                                     gf_cfg->lag_in_frames == 0;
+  if (!use_one_pass_rt_params && !is_stat_generation_stage(cpi)) {
+    av1_get_second_pass_params(cpi, &frame_params);
+  }
+#endif
 
   struct lookahead_entry *source = NULL;
   struct lookahead_entry *last_source = NULL;
