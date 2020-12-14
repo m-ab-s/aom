@@ -141,6 +141,8 @@ set_aom_config_var(CONFIG_NEW_REF_SIGNALING 0
                    "AV2 experiment flag for the new reference syntax.")
 set_aom_config_var(CONFIG_EXTQUANT 0
                    "AV2 extended quantization experiment flag")
+set_aom_config_var(CONFIG_GM_MODEL_CODING 0
+                   "AV2 global motion model compression flag.")
 
 #
 # Variables in this section control optional features of the build system.

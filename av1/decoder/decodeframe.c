@@ -4348,10 +4348,23 @@ static int read_global_motion_params(WarpedMotionParams *params,
 
 static AOM_INLINE void read_global_motion(AV1_COMMON *cm,
                                           struct aom_read_bit_buffer *rb) {
+#if CONFIG_GM_MODEL_CODING
+  const int base = calculate_gm_ref_params_scaling_distance(cm, LAST_FRAME);
+#endif  // CONFIG_GM_MODEL_CODING
   for (int frame = LAST_FRAME; frame <= ALTREF_FRAME; ++frame) {
-    const WarpedMotionParams *ref_params =
-        cm->prev_frame ? &cm->prev_frame->global_motion[frame]
-                       : &default_warp_params;
+    const WarpedMotionParams *ref_params;
+#if CONFIG_GM_MODEL_CODING
+    if (frame != LAST_FRAME) {
+      const int distance = calculate_gm_ref_params_scaling_distance(cm, frame);
+      ref_params = find_gm_ref_params(cm, distance, base);
+    } else {
+      ref_params = cm->prev_frame ? &cm->prev_frame->global_motion[frame]
+                                  : &default_warp_params;
+    }
+#else
+    ref_params = cm->prev_frame ? &cm->prev_frame->global_motion[frame]
+                                : &default_warp_params;
+#endif  // CONFIG_GM_MODEL_CODING
     int good_params =
         read_global_motion_params(&cm->global_motion[frame], ref_params, rb,
                                   cm->features.allow_high_precision_mv);
