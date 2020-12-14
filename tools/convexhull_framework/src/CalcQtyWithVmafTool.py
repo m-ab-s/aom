@@ -21,24 +21,14 @@ loggername = LoggerName + '.' + '%s' % subloggername
 logger = logging.getLogger(loggername)
 
 Model_Pkg_File = os.path.join(BinPath, 'vmaf_v0.6.1.pkl')
-VMAFMetricsFullList = ['VMAF_Y', 'PSNR_Y', 'PSNR_U', 'PSNR_V', 'SSIM_Y', 'MS-SSIM_Y']
+VMAFMetricsFullList = ['VMAF_Y', 'PSNR_Y', 'PSNR_U', 'PSNR_V', 'SSIM_Y(dB)',
+                       'MS-SSIM_Y(dB)', 'PSNR-HVS', 'CIEDE2000','APSNR_Y',
+                       'APSNR_U','APSNR_V']
 
 def ParseVMAFLogFile(vmaf_log):
     floats = len(VMAFMetricsFullList) * [0.0]
     flog = open(vmaf_log, 'r')
     for line in flog:
-        '''
-        if 'aggregateVMAF' in line:
-            item = re.findall(r"aggregateVMAF=\"([+|-]?\d+\.?\d*)\"", line)
-            floats[0] = 0 if len(item) == 0 else item[0]
-            item = re.findall(r"aggregatePSNR=\"([+|-]?\d+\.?\d*)\"", line)
-            floats[1] = 0 if len(item) == 0 else item[0]
-            item = re.findall(r"aggregateSSIM=\"([+|-]?\d+\.?\d*)\"", line)
-            floats[2] = 0 if len(item) == 0 else item[0]
-            item = re.findall(r"aggregateMS_SSIM=\"([+|-]?\d+\.?\d*)\"", line)
-            floats[3] = 0 if len(item) == 0 else item[0]
-            break
-        '''
         m = re.search(r"\"vmaf\".*mean=\"(\d+\.?\d*)\"\s+",line)
         if m:
             floats[0] = m.group(1)
@@ -57,6 +47,18 @@ def ParseVMAFLogFile(vmaf_log):
         m = re.search(r"\"float_ms_ssim\".*mean=\"(\d+\.?\d*)\"\s+", line)
         if m:
             floats[5] = m.group(1)
+        m = re.search(r"\"psnr_hvs\".*mean=\"(\d+\.?\d*)\"\s+", line)
+        if m:
+            floats[6] = m.group(1)
+        m = re.search(r"\"ciede2000\".*mean=\"(\d+\.?\d*)\"\s+", line)
+        if m:
+            floats[7] = m.group(1)
+        #<aggregate_metrics apsnr_y="46.817276" apsnr_cb="49.092538" apsnr_cr="50.014785" />
+        m = re.search(r"aggregate_metrics\s+apsnr_y=\"(\d+\.?\d*)\"\s+apsnr_cb=\"(\d+\.?\d*)\"\s+apsnr_cr=\"(\d+\.?\d*)\"", line)
+        if m:
+            floats[8] = m.group(1)
+            floats[9] = m.group(2)
+            floats[10] = m.group(3)
     flog.close()
     floats = [float(i) for i in floats]
 
@@ -78,10 +80,9 @@ def GetVMAFLogFile(recfile, path):
 def VMAF_CalQualityMetrics(origfile, recfile, fmt, num, w, h, bit_depth,
                            logfilePath, LogCmdOnly=False):
     vmaf_log = GetVMAFLogFile(recfile, logfilePath)
-    args = " -r %s -d %s --feature psnr --feature float_ssim " \
-           " --feature float_ms_ssim -q --xml" \
-           " --model path=%s:name=vmaf -o %s"\
-           % (origfile, recfile, Model_Pkg_File, vmaf_log)
+    args = " -r %s -d %s --aom_ctc proposed --cpumask -1 "\
+           " -q --xml --model version=vmaf_v0.6.1 -o %s" \
+           % (origfile, recfile, vmaf_log)
     cmd = VMAF + args
     ExecuteCmd(cmd, LogCmdOnly)
 

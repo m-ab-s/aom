@@ -30,13 +30,20 @@ def EncodeWithAOM_AV1(clip, test_cfg, QP, framenum, outfile, preset,
                       LogCmdOnly=False):
     args = " --verbose --codec=av1 -v --psnr --obu --frame-parallel=0" \
            " --cpu-used=%s --limit=%d --auto-alt-ref=1 --passes=1" \
-           " --end-usage=q --i%s --threads=1  --end-usage=q" \
+           " --end-usage=q --i%s --end-usage=q" \
            " --use-fixed-qp-offsets=1 --deltaq-mode=0 --enable-tpl-model=0" \
            " --enable-keyframe-filtering=0 --fps=%d/%d --input-bit-depth=%d" \
            " --bit-depth=%d --qp=%d -w %d -h %d" \
            % (preset, framenum, clip.fmt, clip.fps_num, clip.fps_denom,
               clip.bit_depth, clip.bit_depth, get_qindex_from_QP(QP),
               clip.width, clip.height)
+
+    # For 4K clip, encode with 2 tile columns using two threads.
+    # --tile-columns value is in log2.
+    if (clip.width >= 3840 and clip.height >= 2160):
+        args += " --tile-columns=1 --threads=2 --row-mt=0 "
+    else:
+        args += " --threads=1 "
 
     if test_cfg == "RA" or test_cfg == "AS":
         args += " --min-gf-interval=16 --max-gf-interval=16 --gf-min-pyr-height=4" \

@@ -70,7 +70,7 @@ def Run_Encode_Test(test_cfg, clip, preset, LogCmdOnly = False):
         Utils.Logger.info("start encode with QP %d" % (QP))
         #encode
         if LogCmdOnly:
-            Utils.CmdLogger.write("============== Job Start =================n")
+            Utils.CmdLogger.write("============== Job Start =================\n")
         bsFile = Encode('aom', 'av1', preset, clip, test_cfg, QP, FrameNum,
                         Path_Bitstreams, LogCmdOnly)
         Utils.Logger.info("start decode file %s" % os.path.basename(bsFile))
@@ -95,10 +95,11 @@ def GenerateSummaryRDDataFile(EncodeMethod, CodecName, EncodePreset,
 
     csv_file = GetRDResultCsvFile(EncodeMethod, CodecName, EncodePreset, test_cfg)
     csv = open(csv_file, 'wt')
-    csv.write("File,Class,Width,Height,TestCfg,EncodeMethod,CodecName,"\
-              "EncodePreset,QP,Bitrate(kbps)")
+    csv.write("TestCfg,EncodeMethod,CodecName,EncodePreset,Class,Res,Name,FPS,"\
+              "Bit Depth,QP,Bitrate(kbps)")
     for qty in QualityList:
         csv.write(',' + qty)
+    csv.write(",EncT[s],DecT[s],EncT[h]")
     csv.write('\n')
 
     for clip in clip_list:
@@ -108,12 +109,13 @@ def GenerateSummaryRDDataFile(EncodeMethod, CodecName, EncodePreset,
             bitrate = (os.path.getsize(bs) * 8 * (clip.fps_num / clip.fps_denom)
                        / FrameNum) / 1000.0
             quality = GatherQualityMetrics(dec, Path_QualityLog)
-            csv.write("%s,%s,%d,%d,%s,%s,%s,%s,%d,%.4f"
-                      %(clip.file_name, clip.file_class, clip.width, clip.height,
-                      test_cfg, EncodeMethod, CodecName,EncodePreset,qp,bitrate))
+            csv.write("%s,%s,%s,%s,%s,%s,%s,%.2f,%d,%d,%.4f"
+                      %(test_cfg,EncodeMethod,CodecName,EncodePreset,clip.file_class,
+                        str(clip.width)+'x'+str(clip.height), clip.file_name,
+                        clip.fps,clip.bit_depth,qp,bitrate))
             for qty in quality:
                 csv.write(",%.4f"%qty)
-            csv.write("\n")
+            csv.write(",,,,\n")
 
     Utils.Logger.info("finish export RD results to file.")
     return

@@ -14,7 +14,7 @@ import os
 import AV2CTCVideo
 
 #TEST_CONFIGURATIONS = ["RA","LD", "AS"]
-TEST_CONFIGURATIONS = ["RA"]
+TEST_CONFIGURATIONS = ["LD", "RA"]
 
 ######################################
 # configuration settings
@@ -53,8 +53,9 @@ SVTAV1 = os.path.join(BinPath, 'SvtAv1EncApp.exe')
 AOMDEC = os.path.join(BinPath, 'aomdec.exe')
 QPs = [23, 31, 39, 47, 55, 63]
 ######################## quality evalution config #############################
-QualityList = ['VMAF_Y', 'PSNR_Y', 'PSNR_U', 'PSNR_V', 'SSIM_Y', 'MS-SSIM_Y']
-VMAF = os.path.join(BinPath, 'vmaf_rc.exe')
+QualityList = ['PSNR_Y', 'PSNR_U', 'PSNR_V','SSIM_Y(dB)','MS-SSIM_Y(dB)','VMAF_Y',
+               'PSNR-HVS','CIEDE2000','APSNR_Y','APSNR_U','APSNR_V']
+VMAF = os.path.join(BinPath, 'vmaf.exe')
 CalcBDRateInExcel = False
 EnablePreInterpolation = False
 
