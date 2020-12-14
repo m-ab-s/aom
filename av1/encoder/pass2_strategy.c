@@ -996,8 +996,8 @@ int determine_high_err_gf(double *errs, int *is_high, double *si, int len,
       prev_mean_high += errs[i];
     }
   }
-  prev_mean_low /= count_low;
-  prev_mean_high /= count_high;
+  prev_mean_low /= AOMMAX(1, count_low);
+  prev_mean_high /= AOMMAX(1, count_high);
   // kmeans to refine
   int count = 0;
   while (count < 10) {
@@ -1018,8 +1018,8 @@ int determine_high_err_gf(double *errs, int *is_high, double *si, int len,
         mean_high += errs[i];
       }
     }
-    mean_low /= count_low;
-    mean_high /= count_high;
+    mean_low /= AOMMAX(1, count_low);
+    mean_high /= AOMMAX(1, count_high);
 
     // break if not changed much
     if (fabs((mean_low - prev_mean_low) / (prev_mean_low + 0.00001)) <

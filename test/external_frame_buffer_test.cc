@@ -551,7 +551,11 @@ TEST_F(ExternalFrameBufferTest, DISABLED_SetAfterDecode) {
                                     release_aom_frame_buffer));
 }
 
+#if !CONFIG_REMOVE_DIST_WTD_COMP && !CONFIG_REMOVE_DUAL_FILTER
 TEST_F(ExternalFrameBufferNonRefTest, ReleaseNonRefFrameBuffer) {
+#else
+TEST_F(ExternalFrameBufferNonRefTest, DISABLED_ReleaseNonRefFrameBuffer) {
+#endif  // !CONFIG_REMOVE_DIST_WTD_COMP && !CONFIG_REMOVE_DUAL_FILTER
   const int num_buffers = AOM_MAXIMUM_REF_BUFFERS + AOM_MAXIMUM_WORK_BUFFERS;
   ASSERT_EQ(AOM_CODEC_OK,
             SetFrameBufferFunctions(num_buffers, get_aom_frame_buffer,
