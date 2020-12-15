@@ -212,6 +212,11 @@ static void init_rsc(const YV12_BUFFER_CONFIG *src, const AV1_COMMON *cm,
 #endif  // CONFIG_RST_MERGECOEFFS
 }
 
+static int rest_tiles_in_plane(const AV1_COMMON *cm, int plane) {
+  const RestorationInfo *rsi = &cm->rst_info[plane];
+  return rsi->units_per_tile;
+}
+
 static int64_t try_restoration_unit(const RestSearchCtxt *rsc,
                                     const RestorationTileLimits *limits,
                                     const AV1PixelRect *tile_rect,
@@ -2282,6 +2287,102 @@ static int64_t count_switchable_bits(int rest_type, RestSearchCtxt *rsc,
 }
 
 #if CONFIG_RST_MERGECOEFFS
+// Given a path of node indices, where node index can be used to derive
+//  restoration unit index and restoration type of unit, this function
+//  duplicates current RestSearchCtxt and updates reference filters/SSE/
+//  bitcount/indicated restoration types for RESTORE_SWITCHABLE according
+//  to traversed nodes.
+// path : pointer to Vector storing path as int indices of nodes
+// rsc : current RestSearchCtxt, will not be altered
+// collect_stats : indicates if SSE/bitcount/indicated restoration types
+//  should be updated
+// Returns updated RestSearchCtxt
+RestSearchCtxt switchable_update_refs(Vector *path, const RestSearchCtxt *rsc,
+                                      bool collect_stats) {
+  // Duplicate rsc to avoid overwriting
+  RestSearchCtxt rsc_dup = *rsc;
+
+  int is_uv = (rsc->plane != AOM_PLANE_Y);
+  int nunits = rest_tiles_in_plane(rsc->cm, is_uv);
+  int max_out = RESTORE_SWITCHABLE_TYPES;
+  int num_nodes = nunits * max_out + 2;
+  VECTOR_FOR_EACH(path, listed_unit) {
+    int visited_node = *(int *)(listed_unit.pointer);
+    // Ignore src and dest nodes.
+    if (visited_node == 0 || visited_node == num_nodes - 1) continue;
+    int unit_idx = (((visited_node - 1 + max_out) / max_out) - 1);
+    int visited_rtype = (visited_node - 1) % max_out;
+    RestUnitSearchInfo *visited_rusi = &rsc_dup.rusi[unit_idx];
+    if (visited_rtype > RESTORE_NONE) {
+      if (visited_rusi->best_rtype[visited_rtype - 1] == RESTORE_NONE)
+        visited_rtype = RESTORE_NONE;
+    }
+    // Collect sse/bits for rtype evaluation.
+    if (collect_stats) {
+      rsc_dup.sse += visited_rusi->sse[visited_rtype];
+      rsc_dup.bits +=
+          count_switchable_bits(visited_rtype, &rsc_dup, visited_rusi);
+      visited_rusi->best_rtype[RESTORE_SWITCHABLE - 1] = visited_rtype;
+    }
+    switch (visited_rtype) {
+      case RESTORE_NONE:
+#if CONFIG_LOOP_RESTORE_CNN
+      case RESTORE_CNN:
+#endif  // CONFIG_LOOP_RESTORE_CNN
+        break;
+      case RESTORE_WIENER: rsc_dup.wiener = visited_rusi->wiener; break;
+      case RESTORE_SGRPROJ: rsc_dup.sgrproj = visited_rusi->sgrproj; break;
+#if CONFIG_WIENER_NONSEP
+      case RESTORE_WIENER_NONSEP:
+        rsc_dup.wiener_nonsep = visited_rusi->wiener_nonsep;
+        break;
+#endif  // CONFIG_WIENER_NONSEP
+      default: assert(0); break;
+    }
+  }
+  return rsc_dup;
+}
+
+// Given a path of node indices, where node index can be used to derive
+//  restoration unit index, this function calculates the cost of choosing
+//  the restoration type indicated by out_edge for the next unit in
+//  RESTORE_SWITCHABLE.
+// info: pointer to RestSearchCtxt
+// path : pointer to Vector storing path as int indices of nodes
+// node_idx : node where path ends and edge starts
+// max_out_nodes: max outgoing edges from node
+// out_edge: proposed restoration type for the next unit in
+//  RESTORE_SWITCHABLE.
+// Returns cost of choosing specified restoration type.
+double switchable_edge_cost(const void *info, Vector *path, int node_idx,
+                            int max_out_nodes, int out_edge) {
+  RestSearchCtxt *rsc = (RestSearchCtxt *)info;
+  const MACROBLOCK *const x = rsc->x;
+  const double dual_sgr_penalty_sf_mult =
+      1 + DUAL_SGR_PENALTY_MULT * rsc->sf->dual_sgr_penalty_level;
+  int is_uv = (rsc->plane != AOM_PLANE_Y);
+  int nunits = rest_tiles_in_plane(rsc->cm, is_uv);
+  int start_unit_idx = (((node_idx - 1 + max_out_nodes) / max_out_nodes) - 1);
+  // If edge is from last unit to dest, cost is 0.
+  if (start_unit_idx >= nunits - 1) return 0;
+
+  int end_unit_idx = start_unit_idx + 1;
+  int end_rtype = out_edge;
+  RestUnitSearchInfo *rusi = &rsc->rusi[end_unit_idx];
+  // Update reference values based on path.
+  RestSearchCtxt path_rsc = switchable_update_refs(path, rsc, false);
+
+  int64_t end_unit_sse = (end_rtype == RESTORE_NONE)
+                             ? rusi->sse[RESTORE_NONE]
+                             : rusi->sse[rusi->best_rtype[end_rtype - 1]];
+  int64_t end_unit_bits = count_switchable_bits(end_rtype, &path_rsc, rusi);
+  double edge_cost = RDCOST_DBL(x->rdmult, end_unit_bits >> 4, end_unit_sse);
+  if (end_rtype == RESTORE_SGRPROJ &&
+      rusi->sgrproj.ep < DUAL_SGR_EP_PENALTY_THRESHOLD)
+    edge_cost *= dual_sgr_penalty_sf_mult;
+  return edge_cost;
+}
+
 // src_idx : start of path
 // dest_idx : destination of path
 // max_out_nodes: max outgoing edges from node
@@ -2372,17 +2473,37 @@ static void search_switchable(const RestorationTileLimits *limits,
   (void)tmpbuf;
   (void)rlbs;
   RestSearchCtxt *rsc = (RestSearchCtxt *)priv;
-  RestUnitSearchInfo *rusi = &rsc->rusi[rest_unit_idx];
 
 #if CONFIG_RST_MERGECOEFFS
-  // Temporary to avoid uninitialized function error.
-  double graph[] = { 0 };
+  (void)rest_unit_idx;
+  int is_uv = (rsc->plane != AOM_PLANE_Y);
+  int nunits = rest_tiles_in_plane(rsc->cm, is_uv);
+  int max_out = RESTORE_SWITCHABLE_TYPES;
+  int num_nodes = nunits * max_out + 2;
+
+  double *graph = (double *)calloc(num_nodes * max_out, sizeof(double));
+  // Last subset only has one outgoing edge, dst has none - set corresponding
+  // edges to INFINITY.
+  int rm_edge = ((nunits - 1) * max_out + 1) * max_out;
+  for (; rm_edge < num_nodes * max_out; ++rm_edge) {
+    if (rm_edge % max_out != 0 || rm_edge / max_out >= num_nodes - 1) {
+      graph[rm_edge] = INFINITY;
+    }
+  }
+
   Vector best_path;
   aom_vector_setup(&best_path, 1, sizeof(int));
-  min_cost_path(0, 0, 0, graph, &best_path, NULL, NULL);
-#endif
+  min_cost_type_path(0, num_nodes - 1, max_out, graph, &best_path,
+                     switchable_edge_cost, rsc);
+
+  // Update restoration type, SSE, and bits in rsc.
+  *rsc = switchable_update_refs(&best_path, rsc, true);
+  free(graph);
+  aom_vector_destroy(&best_path);
+#else  // CONFIG_RST_MERGECOEFFS
 
   const MACROBLOCK *const x = rsc->x;
+  RestUnitSearchInfo *rusi = &rsc->rusi[rest_unit_idx];
 
   double best_cost = 0;
   int64_t best_bits = 0;
@@ -2419,6 +2540,7 @@ static void search_switchable(const RestorationTileLimits *limits,
   if (best_rtype == RESTORE_WIENER_NONSEP)
     rsc->wiener_nonsep = rusi->wiener_nonsep;
 #endif  // CONFIG_WIENER_NONSEP
+#endif  // CONFIG_RST_MERGECOEFFS
 }
 
 static void copy_unit_info(RestorationType frame_rtype,
@@ -2452,14 +2574,16 @@ static double search_rest_type(RestSearchCtxt *rsc, RestorationType rtype) {
   reset_rsc(rsc);
   rsc_on_tile(rsc);
 
+#if CONFIG_RST_MERGECOEFFS
+  if (rtype == RESTORE_SWITCHABLE) {
+    search_switchable(NULL, NULL, 0, rsc, NULL, NULL);
+    return RDCOST_DBL(rsc->x->rdmult, rsc->bits >> 4, rsc->sse);
+  }
+#endif  // CONFIG_RST_MERGECOEFFS
+
   av1_foreach_rest_unit_in_plane(rsc->cm, rsc->plane, funs[rtype], rsc,
                                  &rsc->tile_rect, rsc->cm->rst_tmpbuf, NULL);
   return RDCOST_DBL(rsc->x->rdmult, rsc->bits >> 4, rsc->sse);
-}
-
-static int rest_tiles_in_plane(const AV1_COMMON *cm, int plane) {
-  const RestorationInfo *rsi = &cm->rst_info[plane];
-  return rsi->units_per_tile;
 }
 
 #if CONFIG_DUMP_MFQE_DATA
