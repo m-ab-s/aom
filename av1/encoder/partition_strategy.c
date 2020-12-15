@@ -1768,13 +1768,29 @@ static INLINE void gather_part_rd_stats(RD_STATS *rd_stats,
   rd_stats->rdcost = RDCOST(rdmult, rd_stats->rate, rd_stats->dist);
 }
 
+/*! \brief Checks if the average linear dimension of bsize is greater than or
+ * equal to dim. */
+static INLINE int is_avg_dim_greater_than(BLOCK_SIZE bsize, int dim) {
+  if (bsize == BLOCK_INVALID) {
+    return 0;
+  }
+
+  const int avg_dim = (block_size_wide[bsize] + block_size_high[bsize]) / 2;
+  return avg_dim > dim;
+}
+
 int av1_prune_new_part(const SMSPartitionStats *old_part,
-                       const SMSPartitionStats *new_part, int rdmult) {
+                       const SMSPartitionStats *new_part, int rdmult,
+                       BLOCK_SIZE bsize) {
   RD_STATS old_rd_stat, new_rd_stat;
   gather_part_rd_stats(&old_rd_stat, old_part, rdmult);
   gather_part_rd_stats(&new_rd_stat, new_part, rdmult);
 
-  return old_rd_stat.rdcost < new_rd_stat.rdcost;
+  if (ENABLE_FAST_RECUR_PARTITION < 2 && is_avg_dim_greater_than(bsize, 32)) {
+    return old_rd_stat.rdcost < new_rd_stat.rdcost;
+  }
+
+  return old_rd_stat.rdcost < (int)(1.001 * new_rd_stat.rdcost);
 }
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 

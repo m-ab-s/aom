@@ -183,7 +183,8 @@ static INLINE void init_sms_partition_stats(SMSPartitionStats *stats) {
 // Returns 1 if we think the old part is better and we should prune new
 // partition, 0 otherwise.
 int av1_prune_new_part(const SMSPartitionStats *old_part,
-                       const SMSPartitionStats *new_part, int rdmult);
+                       const SMSPartitionStats *new_part, int rdmult,
+                       BLOCK_SIZE bsize);
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 
 // A simplified version of set_offsets meant to be used for

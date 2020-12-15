@@ -1380,7 +1380,8 @@ static INLINE void search_partition_horz(PartitionSearchState *search_state,
     if (search_state->none_rd > 0 && search_state->none_rd < INT64_MAX &&
         (mi_row + 2 * blk_params->mi_step_h <= cm->mi_rows) &&
         (mi_col + 2 * blk_params->mi_step_w <= cm->mi_cols) &&
-        av1_prune_new_part(&search_state->none_data, &part_data, x->rdmult)) {
+        av1_prune_new_part(&search_state->none_data, &part_data, x->rdmult,
+                           bsize)) {
       const BLOCK_SIZE subsubsize =
           get_partition_subsize(subsize, PARTITION_VERT);
       if (subsubsize == BLOCK_INVALID) {
@@ -1406,8 +1407,8 @@ static INLINE void search_partition_horz(PartitionSearchState *search_state,
       subpart_data.sms_data[3] = downright;
       subpart_data.num_sub_parts = 4;
       subpart_data.part_rate = 0;
-      if (av1_prune_new_part(&search_state->none_data, &subpart_data,
-                             x->rdmult)) {
+      if (av1_prune_new_part(&search_state->none_data, &subpart_data, x->rdmult,
+                             bsize)) {
         return;
       }
     }
@@ -1571,7 +1572,8 @@ static INLINE void search_partition_vert(PartitionSearchState *search_state,
     if (search_state->none_rd > 0 && search_state->none_rd < INT64_MAX &&
         (mi_row + 2 * blk_params->mi_step_h <= cm->mi_rows) &&
         (mi_col + 2 * blk_params->mi_step_w <= cm->mi_cols) &&
-        av1_prune_new_part(&search_state->none_data, &part_data, x->rdmult)) {
+        av1_prune_new_part(&search_state->none_data, &part_data, x->rdmult,
+                           bsize)) {
       const BLOCK_SIZE subsubsize =
           get_partition_subsize(subsize, PARTITION_HORZ);
       if (subsubsize == BLOCK_INVALID) {
@@ -1598,8 +1600,8 @@ static INLINE void search_partition_vert(PartitionSearchState *search_state,
       subpart_data.sms_data[3] = downright;
       subpart_data.num_sub_parts = 4;
       subpart_data.part_rate = 0;
-      if (av1_prune_new_part(&search_state->none_data, &subpart_data,
-                             x->rdmult)) {
+      if (av1_prune_new_part(&search_state->none_data, &subpart_data, x->rdmult,
+                             bsize)) {
         return;
       }
     }
@@ -2384,7 +2386,8 @@ static INLINE void search_partition_horz_3(PartitionSearchState *search_state,
     if (search_state->none_rd > 0 && search_state->none_rd < INT64_MAX &&
         (mi_row + 2 * blk_params->mi_step_h <= cm->mi_rows) &&
         (mi_col + 2 * blk_params->mi_step_w <= cm->mi_cols) &&
-        av1_prune_new_part(&search_state->none_data, &part_data, x->rdmult)) {
+        av1_prune_new_part(&search_state->none_data, &part_data, x->rdmult,
+                           bsize)) {
       const BLOCK_SIZE midsize = subblock_sizes[1];
       const BLOCK_SIZE subsubsize =
           get_partition_subsize(midsize, PARTITION_VERT);
@@ -2406,8 +2409,8 @@ static INLINE void search_partition_horz_3(PartitionSearchState *search_state,
       subpart_data.sms_data[3] = down;
       subpart_data.num_sub_parts = 4;
       subpart_data.part_rate = 0;
-      if (av1_prune_new_part(&search_state->none_data, &subpart_data,
-                             x->rdmult)) {
+      if (av1_prune_new_part(&search_state->none_data, &subpart_data, x->rdmult,
+                             bsize)) {
         return;
       }
     }
@@ -2526,7 +2529,8 @@ static INLINE void search_partition_vert_3(PartitionSearchState *search_state,
     if (search_state->none_rd > 0 && search_state->none_rd < INT64_MAX &&
         (mi_row + 2 * blk_params->mi_step_h <= cm->mi_rows) &&
         (mi_col + 2 * blk_params->mi_step_w <= cm->mi_cols) &&
-        av1_prune_new_part(&search_state->none_data, &part_data, x->rdmult)) {
+        av1_prune_new_part(&search_state->none_data, &part_data, x->rdmult,
+                           bsize)) {
       const BLOCK_SIZE midsize = subblock_sizes[1];
       const BLOCK_SIZE subsubsize =
           get_partition_subsize(midsize, PARTITION_HORZ);
@@ -2547,8 +2551,8 @@ static INLINE void search_partition_vert_3(PartitionSearchState *search_state,
       subpart_data.sms_data[3] = right;
       subpart_data.num_sub_parts = 4;
       subpart_data.part_rate = 0;
-      if (av1_prune_new_part(&search_state->none_data, &subpart_data,
-                             x->rdmult)) {
+      if (av1_prune_new_part(&search_state->none_data, &subpart_data, x->rdmult,
+                             bsize)) {
         return;
       }
     }
