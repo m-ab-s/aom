@@ -2691,6 +2691,9 @@ TEST_P(InterIntraMLTest, Sample) {
       /*inter_stride=*/param.InterPredictorWidth(), param.IntraPredictor(),
       // Intra-predictor has same dimensions as inter-.
       /*intra_stride=*/param.InterPredictorWidth(), param.Border());
+  // Note that in future, this may fail if there are small errors due to
+  // floating point errors or TF lite backend choices. For now, though, it
+  // should be an exact match.
   if (0 != memcmp(comp_pred.get(), param.Expected(),
                   sizeof(uint8_t) * param.PredictorWidth() *
                       param.PredictorHeight())) {
