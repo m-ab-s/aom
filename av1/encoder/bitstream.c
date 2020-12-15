@@ -2663,21 +2663,13 @@ static void loop_restoration_write_sb_coeffs(const AV1_COMMON *const cm,
                      xd->tile_ctx->switchable_restore_cdf[cm->use_cnn],
                      switchable_types);
 #if CONFIG_ENTROPY_STATS
-#if CONFIG_LOOP_RESTORE_CNN
     ++counts->switchable_restore[cm->use_cnn][unit_rtype];
-#else
-    ++counts->switchable_restore[unit_rtype];
-#endif  // CONFIG_LOOP_RESTORE_CNN
 #endif  // CONFIG_ENTROPY_STATS
-#else
+#else   // CONFIG_LOOP_RESTORE_CNN
     aom_write_symbol(w, unit_rtype, xd->tile_ctx->switchable_restore_cdf,
                      RESTORE_SWITCHABLE_TYPES);
 #if CONFIG_ENTROPY_STATS
-#if CONFIG_LOOP_RESTORE_CNN
-    ++counts->switchable_restore[cm->use_cnn][unit_rtype];
-#else
     ++counts->switchable_restore[unit_rtype];
-#endif  // CONFIG_LOOP_RESTORE_CNN
 #endif  // CONFIG_ENTROPY_STATS
 #endif  // CONFIG_LOOP_RESTORE_CNN
 
