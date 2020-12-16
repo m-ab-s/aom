@@ -14,8 +14,13 @@ __author__ = "maggie.sun@intel.com, ryan.lei@intel.com"
 Python file for definition of AV2 CTC testing clips/sets
 """
 
-CTC_TEST_SET = ["a1_4k", "a2_2k", "a3_720p", "a4_360p", "a5_270p", "b1_syn", "hdr1_4k", "hdr2_2k"]
-AS_TEST_SET = ["a1_4k"]
+CTC_TEST_SET = {
+    "AI": ["a1_4k", "a2_2k", "a3_720p", "a4_360p", "a5_270p","b1_syn"],
+    "RA": ["a1_4k", "a2_2k", "a3_720p", "a4_360p", "a5_270p", "b1_syn"],
+    "LD": ["a2_2k", "a3_720p", "a4_360p", "a5_270p", "b1_syn"],
+    "AS": ["a1_4k"]
+}
+
 Y4M_CLIPs = {
 "a1_4k"         : ["BoxingPractice_3840x2160_5994fps_10bit_420.y4m",
                    "Crosswalk_3840x2160_5994fps_10bit_420.y4m",

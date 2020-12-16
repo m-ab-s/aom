@@ -14,7 +14,7 @@ import os
 import AV2CTCVideo
 
 #TEST_CONFIGURATIONS = ["RA","LD", "AS"]
-TEST_CONFIGURATIONS = ["LD", "RA"]
+TEST_CONFIGURATIONS = ["LD", "RA", "AI"]
 
 ######################################
 # configuration settings
@@ -23,10 +23,12 @@ RootPath = "..\\"
 BinPath = os.path.join(RootPath, 'bin')
 WorkPath = os.path.join(RootPath, 'test')
 SMOKE_TEST = False  # override some parameters to do a quick smoke test
-FrameNum = 2
-
-if SMOKE_TEST:
-    FrameNum = 2
+FrameNum = {
+    "LD" : 130,
+    "RA" : 130,
+    "AI" : 30,
+    "AS" : 130,
+}
 
 ############ test contents #######################################
 ContentPath = "D:\\YUVs\\AV2-CTC"
@@ -51,7 +53,13 @@ FFMPEG = os.path.join(BinPath, 'ffmpeg.exe')
 AOMENC = os.path.join(BinPath, 'aomenc.exe')
 SVTAV1 = os.path.join(BinPath, 'SvtAv1EncApp.exe')
 AOMDEC = os.path.join(BinPath, 'aomdec.exe')
-QPs = [23, 31, 39, 47, 55, 63]
+QPs = {
+    "LD" : [23, 31, 39, 47, 55, 63],
+    "RA" : [23, 31, 39, 47, 55, 63],
+    "AI" : [18, 27, 36, 45, 54, 63],
+    "AS" : [23, 31, 39, 47, 55, 63],
+}
+
 ######################## quality evalution config #############################
 QualityList = ['PSNR_Y', 'PSNR_U', 'PSNR_V','SSIM_Y(dB)','MS-SSIM_Y(dB)','VMAF_Y',
                'PSNR-HVS','CIEDE2000','APSNR_Y','APSNR_U','APSNR_V']

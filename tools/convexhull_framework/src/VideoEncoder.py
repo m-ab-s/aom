@@ -29,29 +29,30 @@ def get_qindex_from_QP(QP):
 def EncodeWithAOM_AV1(clip, test_cfg, QP, framenum, outfile, preset,
                       LogCmdOnly=False):
     args = " --verbose --codec=av1 -v --psnr --obu --frame-parallel=0" \
-           " --cpu-used=%s --limit=%d --auto-alt-ref=1 --passes=1" \
-           " --end-usage=q --i%s --end-usage=q" \
-           " --use-fixed-qp-offsets=1 --deltaq-mode=0 --enable-tpl-model=0" \
-           " --enable-keyframe-filtering=0 --fps=%d/%d --input-bit-depth=%d" \
-           " --bit-depth=%d --qp=%d -w %d -h %d" \
+           " --cpu-used=%s --limit=%d --passes=1 --end-usage=q --i%s " \
+           " --end-usage=q --use-fixed-qp-offsets=1 --deltaq-mode=0 " \
+           " --enable-tpl-model=0 --enable-keyframe-filtering=0 --fps=%d/%d " \
+           " --input-bit-depth=%d --bit-depth=%d --cq-level=%d -w %d -h %d" \
            % (preset, framenum, clip.fmt, clip.fps_num, clip.fps_denom,
-              clip.bit_depth, clip.bit_depth, get_qindex_from_QP(QP),
-              clip.width, clip.height)
+              clip.bit_depth, clip.bit_depth, QP, clip.width, clip.height)
 
     # For 4K clip, encode with 2 tile columns using two threads.
     # --tile-columns value is in log2.
     if (clip.width >= 3840 and clip.height >= 2160):
         args += " --tile-columns=1 --threads=2 --row-mt=0 "
     else:
-        args += " --threads=1 "
+        args += " --tile-columns=0 --threads=1 "
 
-    if test_cfg == "RA" or test_cfg == "AS":
+    if test_cfg == "AI":
+        args += " --kf-min-dist=0 --kf-max-dist=0 "
+    elif test_cfg == "RA" or test_cfg == "AS":
         args += " --min-gf-interval=16 --max-gf-interval=16 --gf-min-pyr-height=4" \
                 " --gf-max-pyr-height=4 --kf-min-dist=65 --kf-max-dist=65" \
-                " --lag-in-frames=19"
+                " --lag-in-frames=19 --auto-alt-ref=1 "
     elif test_cfg == "LD":
         args += " --kf-min-dist=9999 --kf-max-dist=9999 --lag-in-frames=0" \
-                " --subgop-config-str=ld"
+                " --min-gf-interval=16 --max-gf-interval=16 --gf-min-pyr-height=4 " \
+                " --gf-max-pyr-height=4 --subgop-config-str=ld "
     else:
         print("Unsupported Test Configuration %s" % test_cfg)
     args += " -o %s %s" % (outfile, clip.file_path)
