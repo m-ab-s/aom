@@ -2836,6 +2836,14 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
 
     define_gf_group(cpi, &this_frame, frame_params, max_gop_length);
 
+    /*
+     * If last frame is OVERLAY_UDPATE then it is good quality frame.
+     * This flag is an indicator to not set another good quality frame
+     * consecutively in next gop.
+     */
+    cpi->gf_state.arf_gf_boost_lst =
+        gf_group->update_type[gf_group->size - 1] == OVERLAY_UPDATE;
+
     cpi->no_show_fwd_kf = 0;
     int src_index = gf_group->arf_src_offset[gf_group->index];
     if (src_index == cpi->rc.frames_to_key && src_index != 0 &&

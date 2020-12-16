@@ -880,6 +880,11 @@ typedef struct {
 /*!\cond */
 
 typedef struct {
+  // Track if the last frame in a GOP has higher quality.
+  int arf_gf_boost_lst;
+} GF_STATE;
+
+typedef struct {
   int8_t num_configs;
   SubGOPCfg config[MAX_SUBGOP_CONFIGS];
 } SubGOPSetCfg;
@@ -2335,6 +2340,11 @@ typedef struct AV1_COMP {
    * Information related to a gf group.
    */
   GF_GROUP gf_group;
+
+  /*!
+   * Track prior gf group state.
+   */
+  GF_STATE gf_state;
 
   /*!
    * Information related to a subgop.

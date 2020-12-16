@@ -256,11 +256,14 @@ const char subgop_config_str_asym[] =
 
 // low delay config without references
 const char subgop_config_str_ld[] =
-    "16:0:1V5/2V4/3V5/4V3/5V5/6V4/7V5/8V2/"
-    "9V5/10V4/11V5/12V3/13V5/14V4/15V5/16V1,"
+    "16:2:1V5/2V4/3V5/4V3/5V5/6V4/7V5/8V2/"
+    "9V5/10V4/11V5/12V3/13V5/14V4/15V5/16V4,"
 
-    "16:1:1V5/2V4/3V5/4V3/5V5/6V4/7V5/8V2/"
-    "9V5/10V4/11V5/12V3/13V5/14V4/15V5/16V5";
+    "16:0:1V1/2V5/3V4/4V5/5V3/6V5/7V4/8V5/"
+    "9V2/10V5/11V4/12V5/13V3/14V5/15V4/16V5,"
+
+    "16:1:1V1/2V5/3V4/4V5/5V3/6V5/7V4/8V5/"
+    "9V2/10V5/11V4/12V5/13V3/14V4/15V5/16V5";
 
 typedef struct {
   const char *preset_tag;
