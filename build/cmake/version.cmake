@@ -21,16 +21,27 @@ endforeach()
 
 include("${AOM_ROOT}/build/cmake/util.cmake")
 
-# Generate the version string for this run.
+# Generate the version string for this run. Allow optional prefix like 'foo-'
+# before the version string 'v*'.
 unset(aom_version)
 if(EXISTS "${GIT_EXECUTABLE}")
-  execute_process(COMMAND ${GIT_EXECUTABLE} --git-dir=${AOM_ROOT}/.git describe
+  execute_process(COMMAND ${GIT_EXECUTABLE}
+                          --git-dir=${AOM_ROOT}/.git describe
+                          --match "*-v[0-9]*"
+                          --match "v[0-9]*"
                   OUTPUT_VARIABLE aom_version
                   ERROR_QUIET
                   RESULT_VARIABLE version_check_result)
 
   if(${version_check_result} EQUAL 0)
     string(STRIP "${aom_version}" aom_version)
+
+    # Remove the optional prefix before version.
+    string(FIND "${aom_version}" "-v" dash_pos)
+    if(NOT ${dash_pos} EQUAL -1)
+      math(EXPR start_pos "${dash_pos}+1")
+      string(SUBSTRING "${aom_version}" ${start_pos} -1 aom_version)
+    endif()
 
     # Remove the leading 'v' from the version string.
     string(FIND "${aom_version}" "v" v_pos)
