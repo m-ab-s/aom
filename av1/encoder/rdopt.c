@@ -16177,9 +16177,10 @@ void av1_rd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
     av1_get_mv_refs_adj(&mbmi_ext->ref_mv_info, ref_frame_type,
                         is_inter_compound_mode(mbmi->mode),
                         mbmi->pb_mv_precision);
-    mbmi->ref_mv_idx_adj = av1_get_ref_mv_idx_adj(
-        &mbmi_ext->ref_mv_info, ref_frame_type, mbmi->ref_mv_idx,
-        is_inter_compound_mode(mbmi->mode), mbmi->pb_mv_precision);
+    mbmi->ref_mv_idx_adj =
+        av1_get_ref_mv_idx_adj(&mbmi_ext->ref_mv_info, ref_frame_type,
+                               is_inter_compound_mode(mbmi->mode),
+                               mbmi->pb_mv_precision, mbmi->ref_mv_idx);
   }
 #endif  // ADJUST_DRL_FLEX_MVRES
   assert(check_mv_precision(mbmi));
