@@ -748,10 +748,6 @@ void av1_encode_block_intra(int plane, int block, int blk_row, int blk_col,
                     &quant_param);
 #if DEBUG_EXTQUANT
     if (args->dry_run == OUTPUT_ENABLED) {
-      const struct macroblock_plane *const p = &x->plane[plane];
-      const int block_offset = BLOCK_OFFSET(block);
-      tran_low_t *const dqcoeff = p->dqcoeff + block_offset;
-      uint16_t *const eob = &p->eobs[block];
       fprintf(cm->fEncCoeffLog, "tx_type = %d, eob = %d\n", tx_type, *eob);
       for (int c = 0; c < tx_size_wide[tx_size] * tx_size_high[tx_size]; c++) {
         fprintf(cm->fEncCoeffLog, "%d  ", dqcoeff[c]);

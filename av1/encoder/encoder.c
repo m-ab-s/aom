@@ -2233,7 +2233,7 @@ static int encode_without_recode(AV1_COMP *cpi) {
     av1_scale_references(cpi, filter_scaler, phase_scaler, 1);
 
   av1_set_quantizer(cm, q_cfg->qm_minlevel, q_cfg->qm_maxlevel, q,
-                    q_cfg->enable_chroma_deltaq);
+                    q_cfg->enable_chroma_deltaq, q_cfg->deltaq_mode);
   av1_set_speed_features_qindex_dependent(cpi, cpi->oxcf.speed);
   if (q_cfg->deltaq_mode != NO_DELTA_Q)
     av1_init_quantizer(&cm->seq_params, &cpi->enc_quant_dequant_params,
@@ -2248,7 +2248,7 @@ static int encode_without_recode(AV1_COMP *cpi) {
       cpi->rc.high_source_sad) {
     if (av1_encodedframe_overshoot_cbr(cpi, &q)) {
       av1_set_quantizer(cm, q_cfg->qm_minlevel, q_cfg->qm_maxlevel, q,
-                        q_cfg->enable_chroma_deltaq);
+                        q_cfg->enable_chroma_deltaq, q_cfg->deltaq_mode);
       av1_set_speed_features_qindex_dependent(cpi, cpi->oxcf.speed);
       if (q_cfg->deltaq_mode != NO_DELTA_Q)
         av1_init_quantizer(&cm->seq_params, &cpi->enc_quant_dequant_params,
@@ -2413,7 +2413,7 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
     }
 #endif
     av1_set_quantizer(cm, q_cfg->qm_minlevel, q_cfg->qm_maxlevel, q,
-                      q_cfg->enable_chroma_deltaq);
+                      q_cfg->enable_chroma_deltaq, q_cfg->deltaq_mode);
     av1_set_speed_features_qindex_dependent(cpi, oxcf->speed);
 
     if (q_cfg->deltaq_mode != NO_DELTA_Q)

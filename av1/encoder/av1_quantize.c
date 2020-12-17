@@ -1066,17 +1066,19 @@ void set_frame_dc_delta_q(const AV1_COMMON *const cm, int *y_dc_delta_q,
 }
 
 void av1_set_quantizer(AV1_COMMON *const cm, int min_qmlevel, int max_qmlevel,
-                       int q, int enable_chroma_deltaq) {
+                       int q, int enable_chroma_deltaq, int deltaq_mode) {
   // quantizer has to be reinitialized with av1_init_quantizer() if any
   // delta_q changes.
   CommonQuantParams *quant_params = &cm->quant_params;
   quant_params->base_qindex = AOMMAX(cm->delta_q_info.delta_q_present_flag, q);
 #if CONFIG_EXTQUANT
   (void)enable_chroma_deltaq;
-  set_frame_dc_delta_q(cm, &quant_params->y_dc_delta_q,
-                       &quant_params->u_dc_delta_q,
-                       &quant_params->v_dc_delta_q);
+  if (deltaq_mode != NO_DELTA_Q)
+    set_frame_dc_delta_q(cm, &quant_params->y_dc_delta_q,
+                         &quant_params->u_dc_delta_q,
+                         &quant_params->v_dc_delta_q);
 #else
+  (void)deltaq_mode;
   quant_params->y_dc_delta_q = 0;
   if (enable_chroma_deltaq) {
     // TODO(aomedia:2717): need to design better delta
