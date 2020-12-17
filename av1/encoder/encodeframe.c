@@ -499,12 +499,31 @@ static AOM_INLINE void encode_nonrd_sb(AV1_COMP *cpi, ThreadData *td,
   assert(sf->part_sf.partition_search_type == FIXED_PARTITION || seg_skip ||
          cpi->partition_search_skippable_frame ||
          sf->part_sf.partition_search_type == VAR_BASED_PARTITION);
+#if !CONFIG_SDP
   td->mb.cb_offset = 0;
+#endif
 
   // Adjust and encode the superblock
   PC_TREE *const pc_root = av1_alloc_pc_tree_node(sb_size);
+#if CONFIG_SDP
+  int totalLoopNum =
+      (frame_is_intra_only(cm) && !cm->seq_params.monochrome) ? 2 : 1;
+  MACROBLOCKD *const xd = &x->e_mbd;
+  for (int loopIdx = 0; loopIdx < totalLoopNum; loopIdx++) {
+    cm->tree_type =
+        (totalLoopNum == 1 ? SHARED_PART
+                           : (loopIdx == 0 ? LUMA_PART : CHROMA_PART));
+    xd->tree_type = cm->tree_type;
+    td->mb.cb_offset[cm->tree_type == CHROMA_PART] = 0;
+    av1_nonrd_use_partition(cpi, td, tile_data, mi, tp, mi_row, mi_col, sb_size,
+                            pc_root);
+  }
+  cm->tree_type = SHARED_PART;
+  xd->tree_type = SHARED_PART;
+#else
   av1_nonrd_use_partition(cpi, td, tile_data, mi, tp, mi_row, mi_col, sb_size,
                           pc_root);
+#endif
   av1_free_pc_tree_recursive(pc_root, av1_num_planes(cm), 0, 0);
 }
 
@@ -582,7 +601,13 @@ static AOM_INLINE void encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
   MB_MODE_INFO **mi = cm->mi_params.mi_grid_base +
                       get_mi_grid_idx(&cm->mi_params, mi_row, mi_col);
   const BLOCK_SIZE sb_size = cm->seq_params.sb_size;
+#if CONFIG_SDP
+  int totalLoopNum =
+      (frame_is_intra_only(cm) && !cm->seq_params.monochrome) ? 2 : 1;
+  MACROBLOCKD *const xd = &x->e_mbd;
+#else
   const int num_planes = av1_num_planes(cm);
+#endif
   int dummy_rate;
   int64_t dummy_dist;
   RD_STATS dummy_rdc;
@@ -592,99 +617,114 @@ static AOM_INLINE void encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
   (void)seg_skip;
 #endif  // CONFIG_REALTIME_ONLY
 
-  init_encode_rd_sb(cpi, td, tile_data, sms_root, &dummy_rdc, mi_row, mi_col,
-                    1);
-
-  // Encode the superblock
-  if (sf->part_sf.partition_search_type == VAR_BASED_PARTITION) {
-    // partition search starting from a variance-based partition
-    av1_set_offsets_without_segment_id(cpi, tile_info, x, mi_row, mi_col,
-                                       sb_size);
-    av1_choose_var_based_partitioning(cpi, tile_info, td, x, mi_row, mi_col);
-    PC_TREE *const pc_root = av1_alloc_pc_tree_node(sb_size);
-    av1_rd_use_partition(cpi, td, tile_data, mi, tp, mi_row, mi_col, sb_size,
-                         &dummy_rate, &dummy_dist, 1, pc_root);
-    av1_free_pc_tree_recursive(pc_root, num_planes, 0, 0);
-  }
-#if !CONFIG_REALTIME_ONLY
-  else if (sf->part_sf.partition_search_type == FIXED_PARTITION || seg_skip) {
-    // partition search by adjusting a fixed-size partition
-    av1_set_offsets(cpi, tile_info, x, mi_row, mi_col, sb_size);
-    const BLOCK_SIZE bsize =
-        seg_skip ? sb_size : sf->part_sf.fixed_partition_size;
-    av1_set_fixed_partitioning(cpi, tile_info, mi, mi_row, mi_col, bsize);
-    PC_TREE *const pc_root = av1_alloc_pc_tree_node(sb_size);
-    av1_rd_use_partition(cpi, td, tile_data, mi, tp, mi_row, mi_col, sb_size,
-                         &dummy_rate, &dummy_dist, 1, pc_root);
-    av1_free_pc_tree_recursive(pc_root, num_planes, 0, 0);
-  } else if (cpi->partition_search_skippable_frame) {
-    // partition search by adjusting a fixed-size partition for which the size
-    // is determined by the source variance
-    av1_set_offsets(cpi, tile_info, x, mi_row, mi_col, sb_size);
-    const BLOCK_SIZE bsize =
-        get_rd_var_based_fixed_partition(cpi, x, mi_row, mi_col);
-    av1_set_fixed_partitioning(cpi, tile_info, mi, mi_row, mi_col, bsize);
-    PC_TREE *const pc_root = av1_alloc_pc_tree_node(sb_size);
-    av1_rd_use_partition(cpi, td, tile_data, mi, tp, mi_row, mi_col, sb_size,
-                         &dummy_rate, &dummy_dist, 1, pc_root);
-    av1_free_pc_tree_recursive(pc_root, num_planes, 0, 0);
-  } else {
-    // The most exhaustive recursive partition search
-    SuperBlockEnc *sb_enc = &x->sb_enc;
-    // No stats for overlay frames. Exclude key frame.
-    av1_get_tpl_stats_sb(cpi, sb_size, mi_row, mi_col, sb_enc);
-
-    // Reset the tree for simple motion search data
-    av1_reset_simple_motion_tree_partition(sms_root, sb_size);
-
-#if CONFIG_COLLECT_COMPONENT_TIMING
-    start_timing(cpi, rd_pick_partition_time);
+#if CONFIG_SDP
+  for (int loopIdx = 0; loopIdx < totalLoopNum; loopIdx++) {
+    cm->tree_type =
+        (totalLoopNum == 1 ? SHARED_PART
+                           : (loopIdx == 0 ? LUMA_PART : CHROMA_PART));
+    xd->tree_type = cm->tree_type;
+    int num_planes = av1_num_planes(cm);
 #endif
+    init_encode_rd_sb(cpi, td, tile_data, sms_root, &dummy_rdc, mi_row, mi_col,
+                      1);
 
-    // Estimate the maximum square partition block size, which will be used
-    // as the starting block size for partitioning the sb
-    set_max_min_partition_size(sb_enc, cpi, x, sf, sb_size, mi_row, mi_col);
-
-    // The superblock can be searched only once, or twice consecutively for
-    // better quality. Note that the meaning of passes here is different from
-    // the general concept of 1-pass/2-pass encoders.
-    const int num_passes =
-        cpi->oxcf.unit_test_cfg.sb_multipass_unit_test ? 2 : 1;
-
-    if (num_passes == 1) {
+    // Encode the superblock
+    if (sf->part_sf.partition_search_type == VAR_BASED_PARTITION) {
+      // partition search starting from a variance-based partition
+      av1_set_offsets_without_segment_id(cpi, tile_info, x, mi_row, mi_col,
+                                         sb_size);
+      av1_choose_var_based_partitioning(cpi, tile_info, td, x, mi_row, mi_col);
       PC_TREE *const pc_root = av1_alloc_pc_tree_node(sb_size);
-      av1_rd_pick_partition(cpi, td, tile_data, tp, mi_row, mi_col, sb_size,
-                            &dummy_rdc, dummy_rdc, pc_root, sms_root, NULL,
-                            SB_SINGLE_PASS, NULL);
+      av1_rd_use_partition(cpi, td, tile_data, mi, tp, mi_row, mi_col, sb_size,
+                           &dummy_rate, &dummy_dist, 1, pc_root);
+      av1_free_pc_tree_recursive(pc_root, num_planes, 0, 0);
+    }
+#if !CONFIG_REALTIME_ONLY
+    else if (sf->part_sf.partition_search_type == FIXED_PARTITION || seg_skip) {
+      // partition search by adjusting a fixed-size partition
+      av1_set_offsets(cpi, tile_info, x, mi_row, mi_col, sb_size);
+      const BLOCK_SIZE bsize =
+          seg_skip ? sb_size : sf->part_sf.fixed_partition_size;
+      av1_set_fixed_partitioning(cpi, tile_info, mi, mi_row, mi_col, bsize);
+      PC_TREE *const pc_root = av1_alloc_pc_tree_node(sb_size);
+      av1_rd_use_partition(cpi, td, tile_data, mi, tp, mi_row, mi_col, sb_size,
+                           &dummy_rate, &dummy_dist, 1, pc_root);
+      av1_free_pc_tree_recursive(pc_root, num_planes, 0, 0);
+    } else if (cpi->partition_search_skippable_frame) {
+      // partition search by adjusting a fixed-size partition for which the size
+      // is determined by the source variance
+      av1_set_offsets(cpi, tile_info, x, mi_row, mi_col, sb_size);
+      const BLOCK_SIZE bsize =
+          get_rd_var_based_fixed_partition(cpi, x, mi_row, mi_col);
+      av1_set_fixed_partitioning(cpi, tile_info, mi, mi_row, mi_col, bsize);
+      PC_TREE *const pc_root = av1_alloc_pc_tree_node(sb_size);
+      av1_rd_use_partition(cpi, td, tile_data, mi, tp, mi_row, mi_col, sb_size,
+                           &dummy_rate, &dummy_dist, 1, pc_root);
+      av1_free_pc_tree_recursive(pc_root, num_planes, 0, 0);
     } else {
-      // First pass
-      SB_FIRST_PASS_STATS sb_fp_stats;
-      av1_backup_sb_state(&sb_fp_stats, cpi, td, tile_data, mi_row, mi_col);
-      PC_TREE *const pc_root_p0 = av1_alloc_pc_tree_node(sb_size);
-      av1_rd_pick_partition(cpi, td, tile_data, tp, mi_row, mi_col, sb_size,
-                            &dummy_rdc, dummy_rdc, pc_root_p0, sms_root, NULL,
-                            SB_DRY_PASS, NULL);
+      // The most exhaustive recursive partition search
+      SuperBlockEnc *sb_enc = &x->sb_enc;
+      // No stats for overlay frames. Exclude key frame.
+      av1_get_tpl_stats_sb(cpi, sb_size, mi_row, mi_col, sb_enc);
 
-      // Second pass
-      init_encode_rd_sb(cpi, td, tile_data, sms_root, &dummy_rdc, mi_row,
-                        mi_col, 0);
-      av1_reset_mbmi(&cm->mi_params, sb_size, mi_row, mi_col);
+      // Reset the tree for simple motion search data
       av1_reset_simple_motion_tree_partition(sms_root, sb_size);
 
-      av1_restore_sb_state(&sb_fp_stats, cpi, td, tile_data, mi_row, mi_col);
-
-      PC_TREE *const pc_root_p1 = av1_alloc_pc_tree_node(sb_size);
-      av1_rd_pick_partition(cpi, td, tile_data, tp, mi_row, mi_col, sb_size,
-                            &dummy_rdc, dummy_rdc, pc_root_p1, sms_root, NULL,
-                            SB_WET_PASS, NULL);
-    }
-    // Reset to 0 so that it wouldn't be used elsewhere mistakenly.
-    sb_enc->tpl_data_count = 0;
 #if CONFIG_COLLECT_COMPONENT_TIMING
-    end_timing(cpi, rd_pick_partition_time);
+      start_timing(cpi, rd_pick_partition_time);
 #endif
-  }
+
+      // Estimate the maximum square partition block size, which will be used
+      // as the starting block size for partitioning the sb
+      set_max_min_partition_size(sb_enc, cpi, x, sf, sb_size, mi_row, mi_col);
+
+      // The superblock can be searched only once, or twice consecutively for
+      // better quality. Note that the meaning of passes here is different from
+      // the general concept of 1-pass/2-pass encoders.
+      const int num_passes =
+          cpi->oxcf.unit_test_cfg.sb_multipass_unit_test ? 2 : 1;
+
+      if (num_passes == 1) {
+        PC_TREE *const pc_root = av1_alloc_pc_tree_node(sb_size);
+        av1_rd_pick_partition(cpi, td, tile_data, tp, mi_row, mi_col, sb_size,
+                              &dummy_rdc, dummy_rdc, pc_root, sms_root, NULL,
+                              SB_SINGLE_PASS, NULL);
+      } else {
+        // First pass
+        SB_FIRST_PASS_STATS sb_fp_stats;
+        av1_backup_sb_state(&sb_fp_stats, cpi, td, tile_data, mi_row, mi_col);
+        PC_TREE *const pc_root_p0 = av1_alloc_pc_tree_node(sb_size);
+        av1_rd_pick_partition(cpi, td, tile_data, tp, mi_row, mi_col, sb_size,
+                              &dummy_rdc, dummy_rdc, pc_root_p0, sms_root, NULL,
+                              SB_DRY_PASS, NULL);
+
+        // Second pass
+        init_encode_rd_sb(cpi, td, tile_data, sms_root, &dummy_rdc, mi_row,
+                          mi_col, 0);
+        av1_reset_mbmi(&cm->mi_params, sb_size, mi_row, mi_col);
+        av1_reset_simple_motion_tree_partition(sms_root, sb_size);
+
+        av1_restore_sb_state(&sb_fp_stats, cpi, td, tile_data, mi_row, mi_col);
+
+        PC_TREE *const pc_root_p1 = av1_alloc_pc_tree_node(sb_size);
+        av1_rd_pick_partition(cpi, td, tile_data, tp, mi_row, mi_col, sb_size,
+                              &dummy_rdc, dummy_rdc, pc_root_p1, sms_root, NULL,
+                              SB_WET_PASS, NULL);
+      }
+      // Reset to 0 so that it wouldn't be used elsewhere mistakenly.
+      sb_enc->tpl_data_count = 0;
+#if CONFIG_COLLECT_COMPONENT_TIMING
+      end_timing(cpi, rd_pick_partition_time);
+#endif
+    }
 #endif  // !CONFIG_REALTIME_ONLY
+#if CONFIG_SDP
+  }
+#endif
+#if CONFIG_SDP
+  cm->tree_type = SHARED_PART;
+  xd->tree_type = SHARED_PART;
+#endif
 
   // Update the inter rd model
   // TODO(angiebird): Let inter_mode_rd_model_estimation support multi-tile.

@@ -802,7 +802,11 @@ static void build_inter_predictors_sub8x8(
     const AV1_COMMON *cm, MACROBLOCKD *xd, int plane, const MB_MODE_INFO *mi,
     int mi_x, int mi_y, uint8_t **mc_buf,
     CalcSubpelParamsFunc calc_subpel_params_func) {
+#if CONFIG_SDP
+  const BLOCK_SIZE bsize = mi->sb_type[PLANE_TYPE_Y];
+#else
   const BLOCK_SIZE bsize = mi->sb_type;
+#endif
   struct macroblockd_plane *const pd = &xd->plane[plane];
   const bool ss_x = pd->subsampling_x;
   const bool ss_y = pd->subsampling_y;
@@ -850,7 +854,11 @@ static void build_inter_predictors_sub8x8(
       InterPredParams inter_pred_params;
       av1_init_inter_params(&inter_pred_params, b4_w, b4_h, pre_y + y,
                             pre_x + x, pd->subsampling_x, pd->subsampling_y,
+#if CONFIG_SDP
+                            xd->bd, is_cur_buf_hbd(xd), mi->use_intrabc[0], sf,
+#else
                             xd->bd, is_cur_buf_hbd(xd), mi->use_intrabc, sf,
+#endif
                             &pre_buf,
 #if CONFIG_REMOVE_DUAL_FILTER
                             this_mbmi->interp_fltr
@@ -887,8 +895,11 @@ static void build_inter_predictors_8x8_and_bigger(
     const WarpedMotionParams *const wm = &xd->global_motion[mi->ref_frame[ref]];
     is_global[ref] = is_global_mv_block(mi, wm->wmtype);
   }
-
+#if CONFIG_SDP
+  const BLOCK_SIZE bsize = mi->sb_type[PLANE_TYPE_Y];
+#else
   const BLOCK_SIZE bsize = mi->sb_type;
+#endif
   const int ss_x = pd->subsampling_x;
   const int ss_y = pd->subsampling_y;
   const int row_start =
@@ -909,7 +920,11 @@ static void build_inter_predictors_8x8_and_bigger(
     InterPredParams inter_pred_params;
     av1_init_inter_params(&inter_pred_params, bw, bh, pre_y, pre_x,
                           pd->subsampling_x, pd->subsampling_y, xd->bd,
+#if CONFIG_SDP
+                          is_cur_buf_hbd(xd), mi->use_intrabc[0], sf, pre_buf,
+#else
                           is_cur_buf_hbd(xd), mi->use_intrabc, sf, pre_buf,
+#endif
 #if CONFIG_REMOVE_DUAL_FILTER
                           mi->interp_fltr
 #else
@@ -930,7 +945,11 @@ static void build_inter_predictors_8x8_and_bigger(
       av1_init_warp_params(&inter_pred_params, &warp_types, ref, xd, mi);
 
     if (is_masked_compound_type(mi->interinter_comp.type)) {
+#if CONFIG_SDP
+      inter_pred_params.sb_type = mi->sb_type[PLANE_TYPE_Y];
+#else
       inter_pred_params.sb_type = mi->sb_type;
+#endif
       inter_pred_params.mask_comp = mi->interinter_comp;
       if (ref == 1) {
         inter_pred_params.conv_params.do_average = 0;
@@ -951,8 +970,13 @@ void av1_build_inter_predictors(const AV1_COMMON *cm, MACROBLOCKD *xd,
                                 int build_for_obmc, int bw, int bh, int mi_x,
                                 int mi_y, uint8_t **mc_buf,
                                 CalcSubpelParamsFunc calc_subpel_params_func) {
+#if CONFIG_SDP
+  if (is_sub8x8_inter(xd, plane, mi->sb_type[PLANE_TYPE_Y],
+                      is_intrabc_block(mi), build_for_obmc)) {
+#else
   if (is_sub8x8_inter(xd, plane, mi->sb_type, is_intrabc_block(mi),
                       build_for_obmc)) {
+#endif
     assert(bw < 8 || bh < 8);
     build_inter_predictors_sub8x8(cm, xd, plane, mi, mi_x, mi_y, mc_buf,
                                   calc_subpel_params_func);
@@ -986,10 +1010,17 @@ void av1_setup_pre_planes(MACROBLOCKD *xd, int idx,
     for (int i = 0; i < AOMMIN(num_planes, MAX_MB_PLANE); ++i) {
       struct macroblockd_plane *const pd = &xd->plane[i];
       const int is_uv = i > 0;
+#if CONFIG_SDP
+      setup_pred_plane(&pd->pre[idx], xd->mi[0]->sb_type[PLANE_TYPE_Y],
+                       src->buffers[i], src->crop_widths[is_uv],
+                       src->crop_heights[is_uv], src->strides[is_uv], mi_row,
+                       mi_col, sf, pd->subsampling_x, pd->subsampling_y);
+#else
       setup_pred_plane(&pd->pre[idx], xd->mi[0]->sb_type, src->buffers[i],
                        src->crop_widths[is_uv], src->crop_heights[is_uv],
                        src->strides[is_uv], mi_row, mi_col, sf,
                        pd->subsampling_x, pd->subsampling_y);
+#endif
     }
   }
 }
@@ -1049,8 +1080,11 @@ void av1_count_overlappable_neighbors(const AV1_COMMON *cm, MACROBLOCKD *xd) {
 
   mbmi->overlappable_neighbors[0] = 0;
   mbmi->overlappable_neighbors[1] = 0;
-
+#if CONFIG_SDP
+  if (!is_motion_variation_allowed_bsize(mbmi->sb_type[PLANE_TYPE_Y])) return;
+#else
   if (!is_motion_variation_allowed_bsize(mbmi->sb_type)) return;
+#endif
 
   foreach_overlappable_nb_above(cm, xd, INT_MAX, increment_int_ptr,
                                 &mbmi->overlappable_neighbors[0]);
@@ -1102,7 +1136,11 @@ static INLINE void build_obmc_inter_pred_above(
   (void)rel_mi_row;
   (void)dir;
   struct obmc_inter_pred_ctxt *ctxt = (struct obmc_inter_pred_ctxt *)fun_ctxt;
+#if CONFIG_SDP
+  const BLOCK_SIZE bsize = xd->mi[0]->sb_type[PLANE_TYPE_Y];
+#else
   const BLOCK_SIZE bsize = xd->mi[0]->sb_type;
+#endif
   const int overlap =
       AOMMIN(block_size_high[bsize], block_size_high[BLOCK_64X64]) >> 1;
 
@@ -1136,7 +1174,11 @@ static INLINE void build_obmc_inter_pred_left(
   (void)rel_mi_col;
   (void)dir;
   struct obmc_inter_pred_ctxt *ctxt = (struct obmc_inter_pred_ctxt *)fun_ctxt;
+#if CONFIG_SDP
+  const BLOCK_SIZE bsize = xd->mi[0]->sb_type[PLANE_TYPE_Y];
+#else
   const BLOCK_SIZE bsize = xd->mi[0]->sb_type;
+#endif
   const int overlap =
       AOMMIN(block_size_wide[bsize], block_size_wide[BLOCK_64X64]) >> 1;
 
@@ -1173,7 +1215,11 @@ void av1_build_obmc_inter_prediction(const AV1_COMMON *cm, MACROBLOCKD *xd,
                                      int above_stride[MAX_MB_PLANE],
                                      uint8_t *left[MAX_MB_PLANE],
                                      int left_stride[MAX_MB_PLANE]) {
+#if CONFIG_SDP
+  const BLOCK_SIZE bsize = xd->mi[0]->sb_type[PLANE_TYPE_Y];
+#else
   const BLOCK_SIZE bsize = xd->mi[0]->sb_type;
+#endif
 
   // handle above row
   struct obmc_inter_pred_ctxt ctxt_above = { above, above_stride };
@@ -1216,7 +1262,12 @@ void av1_setup_build_prediction_by_above_pred(
     MACROBLOCKD *xd, int rel_mi_col, uint8_t above_mi_width,
     MB_MODE_INFO *above_mbmi, struct build_prediction_ctxt *ctxt,
     const int num_planes) {
+#if CONFIG_SDP
+  const BLOCK_SIZE a_bsize =
+      AOMMAX(BLOCK_8X8, above_mbmi->sb_type[PLANE_TYPE_Y]);
+#else
   const BLOCK_SIZE a_bsize = AOMMAX(BLOCK_8X8, above_mbmi->sb_type);
+#endif
   const int above_mi_col = xd->mi_col + rel_mi_col;
 
   av1_modify_neighbor_predictor_for_obmc(above_mbmi);
@@ -1255,7 +1306,12 @@ void av1_setup_build_prediction_by_left_pred(MACROBLOCKD *xd, int rel_mi_row,
                                              MB_MODE_INFO *left_mbmi,
                                              struct build_prediction_ctxt *ctxt,
                                              const int num_planes) {
+#if CONFIG_SDP
+  const BLOCK_SIZE l_bsize =
+      AOMMAX(BLOCK_8X8, left_mbmi->sb_type[PLANE_TYPE_Y]);
+#else
   const BLOCK_SIZE l_bsize = AOMMAX(BLOCK_8X8, left_mbmi->sb_type);
+#endif
   const int left_mi_row = xd->mi_row + rel_mi_row;
 
   av1_modify_neighbor_predictor_for_obmc(left_mbmi);
@@ -1357,7 +1413,11 @@ void av1_build_intra_predictors_for_interintra(const AV1_COMMON *cm,
   assert(xd->mi[0]->angle_delta[PLANE_TYPE_Y] == 0);
   assert(xd->mi[0]->angle_delta[PLANE_TYPE_UV] == 0);
   assert(xd->mi[0]->filter_intra_mode_info.use_filter_intra == 0);
+#if CONFIG_SDP
+  assert(xd->mi[0]->use_intrabc[PLANE_TYPE_Y] == 0);
+#else
   assert(xd->mi[0]->use_intrabc == 0);
+#endif
 
   av1_predict_intra_block(cm, xd, pd->width, pd->height,
                           max_txsize_rect_lookup[plane_bsize], mode, 0, 0,

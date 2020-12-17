@@ -54,8 +54,13 @@ static INLINE int av1_use_angle_delta(BLOCK_SIZE bsize) {
 }
 
 static INLINE int av1_allow_intrabc(const AV1_COMMON *const cm) {
+#if CONFIG_SDP
+  return frame_is_intra_only(cm) && cm->features.allow_screen_content_tools &&
+         cm->features.allow_intrabc && cm->tree_type != CHROMA_PART;
+#else
   return frame_is_intra_only(cm) && cm->features.allow_screen_content_tools &&
          cm->features.allow_intrabc;
+#endif
 }
 
 static INLINE int av1_filter_intra_allowed_bsize(const AV1_COMMON *const cm,
@@ -67,9 +72,15 @@ static INLINE int av1_filter_intra_allowed_bsize(const AV1_COMMON *const cm,
 
 static INLINE int av1_filter_intra_allowed(const AV1_COMMON *const cm,
                                            const MB_MODE_INFO *mbmi) {
+#if CONFIG_SDP
+  return mbmi->mode == DC_PRED &&
+         mbmi->palette_mode_info.palette_size[0] == 0 &&
+         av1_filter_intra_allowed_bsize(cm, mbmi->sb_type[PLANE_TYPE_Y]);
+#else
   return mbmi->mode == DC_PRED &&
          mbmi->palette_mode_info.palette_size[0] == 0 &&
          av1_filter_intra_allowed_bsize(cm, mbmi->sb_type);
+#endif
 }
 
 extern const int8_t av1_filter_intra_taps[FILTER_INTRA_MODES][8][8];

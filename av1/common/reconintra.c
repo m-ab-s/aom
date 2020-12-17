@@ -1596,8 +1596,11 @@ void av1_predict_intra_block(
       (yd > 0) && (mi_row + ((row_off + txh) << ss_y) < xd->tile.mi_row_end);
 
   const PARTITION_TYPE partition = mbmi->partition;
-
+#if CONFIG_SDP
+  BLOCK_SIZE bsize = mbmi->sb_type[plane > 0];
+#else
   BLOCK_SIZE bsize = mbmi->sb_type;
+#endif
   // force 4x4 chroma component block size.
   if (ss_x || ss_y) {
     bsize = scale_chroma_bsize(bsize, ss_x, ss_y);
@@ -1652,7 +1655,12 @@ void av1_predict_intra_block_facade(const AV1_COMMON *cm, MACROBLOCKD *xd,
 #if CONFIG_DEBUG
     assert(is_cfl_allowed(xd));
     const BLOCK_SIZE plane_bsize = get_plane_block_size(
+#if CONFIG_SDP
+        mbmi->sb_type[xd->tree_type == CHROMA_PART], pd->subsampling_x,
+        pd->subsampling_y);
+#else
         mbmi->sb_type, pd->subsampling_x, pd->subsampling_y);
+#endif
     (void)plane_bsize;
     assert(plane_bsize < BLOCK_SIZES_ALL);
     if (!xd->lossless[mbmi->segment_id]) {
@@ -1676,6 +1684,10 @@ void av1_predict_intra_block_facade(const AV1_COMMON *cm, MACROBLOCKD *xd,
     } else {
       cfl_load_dc_pred(xd, dst, dst_stride, tx_size, pred_plane);
     }
+#if CONFIG_SDP
+    if (xd->tree_type == CHROMA_PART)
+      cfl_store_tx(xd, blk_row, blk_col, tx_size, mbmi->sb_type[PLANE_TYPE_UV]);
+#endif
     cfl_predict_block(xd, dst, dst_stride, tx_size, plane);
     return;
   }

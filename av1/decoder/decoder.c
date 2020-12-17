@@ -254,8 +254,13 @@ void av1_decoder_remove(AV1Decoder *pbi) {
 void av1_visit_palette(AV1Decoder *const pbi, MACROBLOCKD *const xd,
                        aom_reader *r, palette_visitor_fn_t visit) {
   if (!is_inter_block(xd->mi[0])) {
+#if CONFIG_SDP
+    for (int plane = (xd->tree_type == CHROMA_PART);
+         plane < AOMMIN(2, av1_num_planes(&pbi->common)); ++plane) {
+#else
     for (int plane = 0; plane < AOMMIN(2, av1_num_planes(&pbi->common));
          ++plane) {
+#endif
       if (plane == 0 || xd->is_chroma_ref) {
         if (xd->mi[0]->palette_mode_info.palette_size[plane])
           visit(xd, plane, r);

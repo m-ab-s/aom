@@ -476,12 +476,19 @@ static void encode_block_inter(int plane, int block, int blk_row, int blk_col,
   const int max_blocks_wide = max_block_wide(xd, plane_bsize, plane);
 
   if (blk_row >= max_blocks_high || blk_col >= max_blocks_wide) return;
-
+#if CONFIG_SDP
+  const TX_SIZE plane_tx_size =
+      plane ? av1_get_max_uv_txsize(mbmi->sb_type[xd->tree_type == CHROMA_PART],
+                                    pd->subsampling_x, pd->subsampling_y)
+            : mbmi->inter_tx_size[av1_get_txb_size_index(plane_bsize, blk_row,
+                                                         blk_col)];
+#else
   const TX_SIZE plane_tx_size =
       plane ? av1_get_max_uv_txsize(mbmi->sb_type, pd->subsampling_x,
                                     pd->subsampling_y)
             : mbmi->inter_tx_size[av1_get_txb_size_index(plane_bsize, blk_row,
                                                          blk_col)];
+#endif
   if (!plane) {
     assert(tx_size_wide[tx_size] >= tx_size_wide[plane_tx_size] &&
            tx_size_high[tx_size] >= tx_size_high[plane_tx_size]);
@@ -612,13 +619,30 @@ void av1_encode_sb(const struct AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
   assert(bsize < BLOCK_SIZES_ALL);
   MACROBLOCKD *const xd = &x->e_mbd;
   MB_MODE_INFO *mbmi = xd->mi[0];
+#if CONFIG_SDP
+  mbmi->skip_txfm[xd->tree_type == CHROMA_PART] = 1;
+#else
   mbmi->skip_txfm = 1;
+#endif
   if (x->txfm_search_info.skip_txfm) return;
 
   struct optimize_ctx ctx;
   struct encode_b_args arg = {
-    cpi,  x,    &ctx,    &mbmi->skip_txfm,
-    NULL, NULL, dry_run, cpi->optimize_seg_arr[mbmi->segment_id]
+#if CONFIG_SDP
+    cpi,
+    x,
+    &ctx,
+    &mbmi->skip_txfm[xd->tree_type == CHROMA_PART],
+#else
+    cpi,
+    x,
+    &ctx,
+    &mbmi->skip_txfm,
+#endif
+    NULL,
+    NULL,
+    dry_run,
+    cpi->optimize_seg_arr[mbmi->segment_id]
   };
   const AV1_COMMON *const cm = &cpi->common;
   const int num_planes = av1_num_planes(cm);
@@ -785,8 +809,11 @@ void av1_encode_block_intra(int plane, int block, int blk_row, int blk_col,
   // For intra mode, skipped blocks are so rare that transmitting skip=1 is
   // very expensive.
   *(args->skip) = 0;
-
+#if CONFIG_SDP
+  if (plane == AOM_PLANE_Y && xd->cfl.store_y && xd->tree_type == SHARED_PART) {
+#else
   if (plane == AOM_PLANE_Y && xd->cfl.store_y) {
+#endif
     cfl_store_tx(xd, blk_row, blk_col, tx_size, plane_bsize);
   }
 }
@@ -803,8 +830,21 @@ void av1_encode_intra_block_plane(const struct AV1_COMP *cpi, MACROBLOCK *x,
   const int ss_y = pd->subsampling_y;
   ENTROPY_CONTEXT ta[MAX_MIB_SIZE] = { 0 };
   ENTROPY_CONTEXT tl[MAX_MIB_SIZE] = { 0 };
-  struct encode_b_args arg = { cpi, x,  NULL,    &(xd->mi[0]->skip_txfm),
-                               ta,  tl, dry_run, enable_optimize_b };
+#if CONFIG_SDP
+  struct encode_b_args arg = {
+    cpi,
+    x,
+    NULL,
+    &(xd->mi[0]->skip_txfm[xd->tree_type == CHROMA_PART]),
+#else
+  struct encode_b_args arg = {
+    cpi, x,  NULL,    &(xd->mi[0]->skip_txfm),
+#endif
+    ta,
+    tl,
+    dry_run,
+    enable_optimize_b
+  };
   const BLOCK_SIZE plane_bsize = get_plane_block_size(bsize, ss_x, ss_y);
   if (enable_optimize_b) {
     av1_get_entropy_contexts(plane_bsize, pd, ta, tl);

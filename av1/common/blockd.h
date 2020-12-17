@@ -239,7 +239,12 @@ typedef struct MB_MODE_INFO {
 #endif
   PALETTE_MODE_INFO palette_mode_info;
   // Common for both INTER and INTRA blocks
+#if CONFIG_SDP
+  BLOCK_SIZE sb_type[2];
+  TREE_TYPE tree_type;
+#else
   BLOCK_SIZE sb_type;
+#endif
   PREDICTION_MODE mode;
   // Only for INTRA blocks
   UV_PREDICTION_MODE uv_mode;
@@ -249,7 +254,11 @@ typedef struct MB_MODE_INFO {
   PARTITION_TYPE partition;
   MV_REFERENCE_FRAME ref_frame[2];
   FILTER_INTRA_MODE_INFO filter_intra_mode_info;
+#if CONFIG_SDP
+  int8_t skip_txfm[2];
+#else
   int8_t skip_txfm;
+#endif
   uint8_t inter_tx_size[INTER_TX_SIZE_BUF_LEN];
   TX_SIZE tx_size;
   int8_t delta_lf_from_base;
@@ -270,7 +279,11 @@ typedef struct MB_MODE_INFO {
   uint8_t segment_id : 3;
   uint8_t seg_id_predicted : 1;  // valid only when temporal_update is enabled
   uint8_t skip_mode : 1;
+#if CONFIG_SDP
+  uint8_t use_intrabc[2];
+#else
   uint8_t use_intrabc : 1;
+#endif
   uint8_t ref_mv_idx : 2;
   // Indicate if masked compound is used(1) or not(0).
   uint8_t comp_group_idx : 1;
@@ -278,7 +291,11 @@ typedef struct MB_MODE_INFO {
 } MB_MODE_INFO;
 
 static INLINE int is_intrabc_block(const MB_MODE_INFO *mbmi) {
+#if CONFIG_SDP
+  return mbmi->use_intrabc[mbmi->tree_type != CHROMA_PART ? 0 : 1];
+#else
   return mbmi->use_intrabc;
+#endif
 }
 
 static INLINE PREDICTION_MODE get_uv_mode(UV_PREDICTION_MODE mode) {
@@ -356,7 +373,11 @@ PREDICTION_MODE av1_above_block_mode(const MB_MODE_INFO *above_mi);
 static INLINE int is_global_mv_block(const MB_MODE_INFO *const mbmi,
                                      TransformationType type) {
   const PREDICTION_MODE mode = mbmi->mode;
+#if CONFIG_SDP
+  const BLOCK_SIZE bsize = mbmi->sb_type[PLANE_TYPE_Y];
+#else
   const BLOCK_SIZE bsize = mbmi->sb_type;
+#endif
   const int block_size_allowed =
       AOMMIN(block_size_wide[bsize], block_size_high[bsize]) >= 8;
   return (mode == GLOBALMV || mode == GLOBAL_GLOBALMV) && type > TRANSLATION &&
@@ -622,6 +643,14 @@ typedef struct macroblockd {
   int mb_to_bottom_edge; /*!< Distance from bottom edge */
   /**@}*/
 
+#if CONFIG_SDP
+  /*!
+   * tree_type specifies whether luma and chroma component in current coded
+   * block shares the same tree or not.
+   */
+  TREE_TYPE tree_type;
+#endif
+
   /*!
    * Scale factors for reference frames of the current block.
    * These are pointers into 'cm->ref_scale_factors'.
@@ -651,6 +680,22 @@ typedef struct macroblockd {
    */
   ENTROPY_CONTEXT left_entropy_context[MAX_MB_PLANE][MAX_MIB_SIZE];
 
+#if CONFIG_SDP
+  /*!
+   * Partition contexts for the above blocks.
+   * above_partition_context[p][i] corresponds to above partition context for
+   * ith mi column of the plane pth in this *frame*, wrt current 'mi_row'. This
+   * is a pointer into 'cm->above_contexts.partition'.
+   */
+  PARTITION_CONTEXT *above_partition_context[MAX_MB_PLANE];
+  /*!
+   * Partition contexts for the left blocks.
+   * left_partition_context[p][i] corresponds to left partition context for ith
+   * mi row of pth plane in this *superblock*, wrt current 'mi_col'.
+   * Note: These contain actual data, NOT pointers.
+   */
+  PARTITION_CONTEXT left_partition_context[MAX_MB_PLANE][MAX_MIB_SIZE];
+#else
   /*!
    * Partition contexts for the above blocks.
    * above_partition_context[i] corresponds to above partition context for ith
@@ -665,7 +710,7 @@ typedef struct macroblockd {
    * Note: These contain actual data, NOT pointers.
    */
   PARTITION_CONTEXT left_partition_context[MAX_MIB_SIZE];
-
+#endif
   /*!
    * Transform contexts for the above blocks.
    * above_txfm_context[i] corresponds to above transform context for ith mi col
@@ -1274,8 +1319,13 @@ static INLINE TX_SIZE av1_get_tx_size(int plane, const MACROBLOCKD *xd) {
   if (xd->lossless[mbmi->segment_id]) return TX_4X4;
   if (plane == 0) return mbmi->tx_size;
   const MACROBLOCKD_PLANE *pd = &xd->plane[plane];
+#if CONFIG_SDP
+  return av1_get_max_uv_txsize(mbmi->sb_type[PLANE_TYPE_UV], pd->subsampling_x,
+                               pd->subsampling_y);
+#else
   return av1_get_max_uv_txsize(mbmi->sb_type, pd->subsampling_x,
                                pd->subsampling_y);
+#endif
 }
 
 void av1_reset_entropy_context(MACROBLOCKD *xd, BLOCK_SIZE bsize,
@@ -1314,9 +1364,15 @@ static INLINE int is_interintra_allowed_ref(const MV_REFERENCE_FRAME rf[2]) {
 }
 
 static INLINE int is_interintra_allowed(const MB_MODE_INFO *mbmi) {
+#if CONFIG_SDP
+  return is_interintra_allowed_bsize(mbmi->sb_type[PLANE_TYPE_Y]) &&
+         is_interintra_allowed_mode(mbmi->mode) &&
+         is_interintra_allowed_ref(mbmi->ref_frame);
+#else
   return is_interintra_allowed_bsize(mbmi->sb_type) &&
          is_interintra_allowed_mode(mbmi->mode) &&
          is_interintra_allowed_ref(mbmi->ref_frame);
+#endif
 }
 
 static INLINE int is_interintra_allowed_bsize_group(int group) {
@@ -1368,7 +1424,11 @@ motion_mode_allowed(const WarpedMotionParams *gm_params, const MACROBLOCKD *xd,
     const TransformationType gm_type = gm_params[mbmi->ref_frame[0]].wmtype;
     if (is_global_mv_block(mbmi, gm_type)) return SIMPLE_TRANSLATION;
   }
+#if CONFIG_SDP
+  if (is_motion_variation_allowed_bsize(mbmi->sb_type[PLANE_TYPE_Y]) &&
+#else
   if (is_motion_variation_allowed_bsize(mbmi->sb_type) &&
+#endif
       is_inter_mode(mbmi->mode) && mbmi->ref_frame[1] != INTRA_FRAME &&
       is_motion_variation_allowed_compound(mbmi)) {
     if (!check_num_overlappable_neighbors(mbmi)) return SIMPLE_TRANSLATION;
@@ -1470,8 +1530,12 @@ static INLINE int is_nontrans_global_motion(const MACROBLOCKD *xd,
 
   // First check if all modes are GLOBALMV
   if (mbmi->mode != GLOBALMV && mbmi->mode != GLOBAL_GLOBALMV) return 0;
-
+#if CONFIG_SDP
+  if (AOMMIN(mi_size_wide[mbmi->sb_type[PLANE_TYPE_Y]],
+             mi_size_high[mbmi->sb_type[PLANE_TYPE_Y]]) < 2)
+#else
   if (AOMMIN(mi_size_wide[mbmi->sb_type], mi_size_high[mbmi->sb_type]) < 2)
+#endif
     return 0;
 
   // Now check if all global motion is non translational

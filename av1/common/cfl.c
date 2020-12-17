@@ -314,9 +314,39 @@ static INLINE cfl_subsample_lbd_fn cfl_subsampling_lbd(TX_SIZE tx_size,
   }
   return cfl_get_luma_subsampling_444_lbd(tx_size);
 }
-
+#if CONFIG_SDP
+static void cfl_store(MACROBLOCKD *const xd, CFL_CTX *cfl, const uint8_t *input,
+                      int input_stride, int row, int col, TX_SIZE tx_size,
+                      int use_hbd) {
+  if (xd->tree_type == CHROMA_PART) {
+    const int parents_tx_size[] = {
+      TX_8X8,      // 8x8 transform
+      TX_16X16,    // 16x16 transform
+      TX_32X32,    // 32x32 transform
+      TX_64X64,    // 64x64 transform
+      TX_INVALID,  // Invalid transform size
+      TX_8X16,     // 8x16 transform
+      TX_16X8,     // 16x8 transform
+      TX_16X32,    // 16x32 transform
+      TX_32X16,    // 32x16 transform
+      TX_32X64,    // 32x64 transform
+      TX_64X32,    // 64x32 transform
+      TX_INVALID,  // Invalid transform size
+      TX_INVALID,  // Invalid transform size
+      TX_8X32,     // 8x32 transform
+      TX_32X8,     // 32x8 transform
+      TX_16X64,    // 16x64 transform
+      TX_64X16,    // 64x16 transform
+      TX_INVALID,  // Invalid transform size
+      TX_INVALID,  // Invalid transform size
+    };
+    tx_size = parents_tx_size[tx_size];
+    assert(tx_size != 255);
+  }
+#else
 static void cfl_store(CFL_CTX *cfl, const uint8_t *input, int input_stride,
                       int row, int col, TX_SIZE tx_size, int use_hbd) {
+#endif
   const int width = tx_size_wide[tx_size];
   const int height = tx_size_high[tx_size];
   const int tx_off_log2 = MI_SIZE_LOG2;
@@ -340,6 +370,16 @@ static void cfl_store(CFL_CTX *cfl, const uint8_t *input, int input_stride,
     cfl->buf_width = OD_MAXI(store_col + store_width, cfl->buf_width);
     cfl->buf_height = OD_MAXI(store_row + store_height, cfl->buf_height);
   }
+
+#if CONFIG_SDP
+  if (xd->tree_type == CHROMA_PART) {
+    const struct macroblockd_plane *const pd = &xd->plane[PLANE_TYPE_UV];
+    if (xd->mb_to_right_edge < 0)
+      cfl->buf_width += xd->mb_to_right_edge >> (3 + pd->subsampling_x);
+    if (xd->mb_to_bottom_edge < 0)
+      cfl->buf_height += xd->mb_to_bottom_edge >> (3 + pd->subsampling_y);
+  }
+#endif
 
   // Check that we will remain inside the pixel buffer.
   assert(store_row + store_height <= CFL_BUF_LINE);
@@ -387,7 +427,12 @@ void cfl_store_tx(MACROBLOCKD *const xd, int row, int col, TX_SIZE tx_size,
     assert(!((row & 1) && tx_size_high[tx_size] != 4));
     sub8x8_adjust_offset(cfl, xd->mi_row, xd->mi_col, &row, &col);
   }
+#if CONFIG_SDP
+  cfl_store(xd, cfl, dst, pd->dst.stride, row, col, tx_size,
+            is_cur_buf_hbd(xd));
+#else
   cfl_store(cfl, dst, pd->dst.stride, row, col, tx_size, is_cur_buf_hbd(xd));
+#endif
 }
 
 static INLINE int max_intra_block_width(const MACROBLOCKD *xd,
@@ -418,6 +463,11 @@ void cfl_store_block(MACROBLOCKD *const xd, BLOCK_SIZE bsize, TX_SIZE tx_size) {
   const int width = max_intra_block_width(xd, bsize, AOM_PLANE_Y, tx_size);
   const int height = max_intra_block_height(xd, bsize, AOM_PLANE_Y, tx_size);
   tx_size = get_tx_size(width, height);
+#if CONFIG_SDP
+  cfl_store(xd, cfl, pd->dst.buf, pd->dst.stride, row, col, tx_size,
+            is_cur_buf_hbd(xd));
+#else
   cfl_store(cfl, pd->dst.buf, pd->dst.stride, row, col, tx_size,
             is_cur_buf_hbd(xd));
+#endif
 }

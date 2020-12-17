@@ -26,7 +26,11 @@ static int is_8x8_block_skip(MB_MODE_INFO **grid, int mi_row, int mi_col,
   MB_MODE_INFO **mbmi = grid + mi_row * mi_stride + mi_col;
   for (int r = 0; r < mi_size_high[BLOCK_8X8]; ++r, mbmi += mi_stride) {
     for (int c = 0; c < mi_size_wide[BLOCK_8X8]; ++c) {
+#if CONFIG_SDP
+      if (!mbmi[c]->skip_txfm[PLANE_TYPE_Y]) return 0;
+#else
       if (!mbmi[c]->skip_txfm) return 0;
+#endif
     }
   }
 
