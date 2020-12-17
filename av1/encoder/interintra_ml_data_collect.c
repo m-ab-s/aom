@@ -223,13 +223,22 @@ static void copy_predictor(IIMLPlaneInfo *info, const AV1_COMP *const cpi,
                            is_cur_buf_hbd(xd));
 }
 
+// 1 == inter, 2 == inter-intra (smooth), 3 == inter-intra (wedge)
+static int get_prediction_type(MB_MODE_INFO *mbmi, BLOCK_SIZE bsize) {
+  if (!is_interintra_pred(mbmi)) {
+    return 1;
+  }
+  const bool wedge_case =
+      mbmi->use_wedge_interintra && is_interintra_wedge_used(bsize);
+  return wedge_case ? 3 : 2;
+}
+
 // Initializes the IIMLPlaneInfo structure.
 static IIMLPlaneInfo *init_plane_info(const AV1_COMP *const cpi,
                                       MACROBLOCK *const x, BLOCK_SIZE bsize,
                                       int plane) {
   MACROBLOCKD *const xd = &x->e_mbd;
   MB_MODE_INFO *mbmi = xd->mi[0];
-  (void)mbmi;  // Used for asserts.
   const AV1_COMMON *const cm = &cpi->common;
   const struct macroblockd_plane *const pd = &xd->plane[plane];
   const BLOCK_SIZE plane_bsize =
@@ -265,7 +274,7 @@ static IIMLPlaneInfo *init_plane_info(const AV1_COMP *const cpi,
   copy_source_image(info, x);
   copy_intrapred_lshape(info, x);
   copy_interpred(info, cpi, x);
-  info->prediction_type = is_interintra_pred(mbmi) ? 2 : 1;
+  info->prediction_type = get_prediction_type(mbmi, bsize);
   copy_predictor(info, cpi, x, bsize);
   info->interintra_bias = av1_interintra_bias();
   return info;

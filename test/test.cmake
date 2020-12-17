@@ -239,7 +239,7 @@ if(NOT BUILD_SHARED_LIBS)
 
   if(CONFIG_INTERINTRA_ML_DATA_COLLECT)
     list(APPEND AOM_UNIT_TEST_ENCODER_SOURCES
-                "${AOM_ROOT}/test/interintra_ml_data_collect.cc")
+                "${AOM_ROOT}/test/interintra_ml_data_collect_test.cc")
   endif()
 
   if(CONFIG_SEGMENT_BASED_PARTITIONING)

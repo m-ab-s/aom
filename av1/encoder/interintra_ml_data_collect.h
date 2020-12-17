@@ -72,8 +72,8 @@ typedef struct IIMLPlaneInfo {
   // The inter-predictor starts at the (width * border + border) offset.
   // If bit-depth is 10 or 12, actually a uint16_t pointer.
   uint8_t *interpred;
-  // 0 == intra, 1 == inter, 2 == inter-intra; currently only inter and
-  // inter-intra are output.
+  // 0 == intra, 1 == inter, 2 == inter-intra (smooth),
+  // 3 == inter-intra (wedge); currently only inter and inter-intra are output.
   uint8_t prediction_type;
   // The (width * height) final predictor. If bit-depth is 10 or 12, actually
   // a uint16_t pointer.
