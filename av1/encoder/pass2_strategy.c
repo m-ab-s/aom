@@ -1217,6 +1217,7 @@ static void calculate_gf_length(AV1_COMP *cpi, int max_gop_length,
   FIRSTPASS_STATS next_frame;
   const FIRSTPASS_STATS *const start_pos = twopass->stats_in;
   FRAME_INFO *frame_info = &cpi->frame_info;
+  const KeyFrameCfg *const kf_cfg = &cpi->oxcf.kf_cfg;
   int i;
 
   int flash_detected;
@@ -1227,7 +1228,8 @@ static void calculate_gf_length(AV1_COMP *cpi, int max_gop_length,
   if (has_no_stats_stage(cpi)) {
     for (i = 0; i < MAX_NUM_GF_INTERVALS; i++) {
       rc->gf_intervals[i] = AOMMIN(rc->max_gf_interval, max_gop_length);
-      if (cpi->oxcf.gf_cfg.lag_in_frames > cpi->oxcf.kf_cfg.key_freq_max)
+      if (cpi->oxcf.gf_cfg.lag_in_frames > cpi->oxcf.kf_cfg.key_freq_max &&
+          (kf_cfg->key_freq_max > 1))
         rc->gf_intervals[i] = rc->gf_intervals[i] - 1;
     }
     rc->cur_gf_index = 0;
@@ -1256,7 +1258,8 @@ static void calculate_gf_length(AV1_COMP *cpi, int max_gop_length,
     // reaches next key frame, break here
     if (i >= rc->frames_to_key) {
       cut_pos[count_cuts] = AOMMIN(i, active_max_gf_interval);
-      if (cpi->oxcf.gf_cfg.lag_in_frames > cpi->oxcf.kf_cfg.key_freq_max)
+      if (cpi->oxcf.gf_cfg.lag_in_frames > cpi->oxcf.kf_cfg.key_freq_max &&
+          (kf_cfg->key_freq_max > 1))
         cut_pos[count_cuts] = cut_pos[count_cuts] - 1;
       count_cuts++;
       break;
@@ -2821,7 +2824,10 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
 
     reset_fpf_position(twopass, start_position);
 
-    int max_gop_length = AOMMIN(MAX_GF_LENGTH_LAP, cpi->rc.frames_to_key);
+    const KeyFrameCfg *const kf_cfg = &cpi->oxcf.kf_cfg;
+    int max_gop_length = (kf_cfg->key_freq_max > 1)
+                             ? AOMMIN(MAX_GF_LENGTH_LAP, cpi->rc.frames_to_key)
+                             : 1;
     if (rc->intervals_till_gf_calculate_due == 0 || 1) {
       calculate_gf_length(cpi, max_gop_length, MAX_NUM_GF_INTERVALS);
     }
