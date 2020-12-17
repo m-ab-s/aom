@@ -184,12 +184,13 @@ void copy_inter(const uint8_t *inter_pred, int inter_stride, uint8_t *comp_pred,
 }  // namespace
 
 bool is_interintra_ml_supported(const MACROBLOCKD *xd, bool wedge) {
-  // Not supported in wedge mode.
-  if (wedge) {
+  const BLOCK_SIZE bsize = xd->mi[0]->sb_type;
+  // Not supported in wedge mode, but wedge bit is only valid if the
+  // block size supports the wedge case.
+  if (wedge && is_interintra_wedge_used(bsize)) {
     return false;
   }
   // Only supported for block-sizes of 16x16.
-  const BLOCK_SIZE bsize = xd->mi[0]->sb_type;
   if (bsize != BLOCK_16X16) {
     return false;
   }
