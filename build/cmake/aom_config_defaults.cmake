@@ -137,6 +137,8 @@ set_aom_config_var(CONFIG_REMOVE_DIST_WTD_COMP 1
                    "AV2 experiment flag to remove dist_wtd_comp tool.")
 set_aom_config_var(CONFIG_REMOVE_DUAL_FILTER 1
                    "AV2 experiment flag to remove dual filter.")
+# Partitioning
+set_aom_config_var(CONFIG_SDP 0 NUMBER "AV2 Semi-Decoupled Partitioning.")
 
 #
 # Variables in this section control optional features of the build system.

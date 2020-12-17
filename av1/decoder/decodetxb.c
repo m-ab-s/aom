@@ -141,7 +141,11 @@ uint8_t av1_read_coeffs_txb(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
 #if CONFIG_INSPECTION
   if (plane == 0) {
     const int txk_type_idx =
+#if CONFIG_SDP
+        av1_get_txk_type_index(mbmi->sb_type[0], blk_row, blk_col);
+#else
         av1_get_txk_type_index(mbmi->sb_type, blk_row, blk_col);
+#endif
     mbmi->tx_skip[txk_type_idx] = all_zero;
   }
 #endif
@@ -332,8 +336,11 @@ void av1_read_coeffs_txb_facade(const AV1_COMMON *const cm,
   MACROBLOCKD *const xd = &dcb->xd;
   MB_MODE_INFO *const mbmi = xd->mi[0];
   struct macroblockd_plane *const pd = &xd->plane[plane];
-
+#if CONFIG_SDP
+  const BLOCK_SIZE bsize = mbmi->sb_type[plane > 0];
+#else
   const BLOCK_SIZE bsize = mbmi->sb_type;
+#endif
   assert(bsize < BLOCK_SIZES_ALL);
   const BLOCK_SIZE plane_bsize =
       get_plane_block_size(bsize, pd->subsampling_x, pd->subsampling_y);

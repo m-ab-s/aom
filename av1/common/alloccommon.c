@@ -140,9 +140,15 @@ void av1_free_above_context_buffers(CommonContexts *above_contexts) {
     for (i = 0; i < num_planes; i++) {
       aom_free(above_contexts->entropy[i][tile_row]);
       above_contexts->entropy[i][tile_row] = NULL;
+#if CONFIG_SDP
+      aom_free(above_contexts->partition[i][tile_row]);
+      above_contexts->partition[i][tile_row] = NULL;
+#endif
     }
+#if !CONFIG_SDP
     aom_free(above_contexts->partition[tile_row]);
     above_contexts->partition[tile_row] = NULL;
+#endif
 
     aom_free(above_contexts->txfm[tile_row]);
     above_contexts->txfm[tile_row] = NULL;
@@ -150,9 +156,15 @@ void av1_free_above_context_buffers(CommonContexts *above_contexts) {
   for (i = 0; i < num_planes; i++) {
     aom_free(above_contexts->entropy[i]);
     above_contexts->entropy[i] = NULL;
+#if CONFIG_SDP
+    aom_free(above_contexts->partition[i]);
+    above_contexts->partition[i] = NULL;
+#endif
   }
+#if !CONFIG_SDP
   aom_free(above_contexts->partition);
   above_contexts->partition = NULL;
+#endif
 
   aom_free(above_contexts->txfm);
   above_contexts->txfm = NULL;
@@ -186,11 +198,17 @@ int av1_alloc_above_context_buffers(CommonContexts *above_contexts,
     above_contexts->entropy[plane_idx] = (ENTROPY_CONTEXT **)aom_calloc(
         num_tile_rows, sizeof(above_contexts->entropy[0]));
     if (!above_contexts->entropy[plane_idx]) return 1;
+#if CONFIG_SDP
+    above_contexts->partition[plane_idx] = (PARTITION_CONTEXT **)aom_calloc(
+        num_tile_rows, sizeof(above_contexts->partition[plane_idx]));
+    if (!above_contexts->partition[plane_idx]) return 1;
+#endif
   }
-
+#if !CONFIG_SDP
   above_contexts->partition = (PARTITION_CONTEXT **)aom_calloc(
       num_tile_rows, sizeof(above_contexts->partition));
   if (!above_contexts->partition) return 1;
+#endif
 
   above_contexts->txfm =
       (TXFM_CONTEXT **)aom_calloc(num_tile_rows, sizeof(above_contexts->txfm));
@@ -202,11 +220,19 @@ int av1_alloc_above_context_buffers(CommonContexts *above_contexts,
           (ENTROPY_CONTEXT *)aom_calloc(
               aligned_mi_cols, sizeof(*above_contexts->entropy[0][tile_row]));
       if (!above_contexts->entropy[plane_idx][tile_row]) return 1;
+#if CONFIG_SDP
+      above_contexts->partition[plane_idx][tile_row] =
+          (PARTITION_CONTEXT *)aom_calloc(
+              aligned_mi_cols,
+              sizeof(*above_contexts->partition[plane_idx][tile_row]));
+      if (!above_contexts->partition[plane_idx][tile_row]) return 1;
+#endif
     }
-
+#if !CONFIG_SDP
     above_contexts->partition[tile_row] = (PARTITION_CONTEXT *)aom_calloc(
         aligned_mi_cols, sizeof(*above_contexts->partition[tile_row]));
     if (!above_contexts->partition[tile_row]) return 1;
+#endif
 
     above_contexts->txfm[tile_row] = (TXFM_CONTEXT *)aom_calloc(
         aligned_mi_cols, sizeof(*above_contexts->txfm[tile_row]));

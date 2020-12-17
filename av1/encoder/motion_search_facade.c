@@ -665,7 +665,11 @@ static AOM_INLINE void do_masked_motion_search_indexed(
   // NOTE: which values: 0 - 0 only, 1 - 1 only, 2 - both
   MACROBLOCKD *xd = &x->e_mbd;
   MB_MODE_INFO *mbmi = xd->mi[0];
+#if CONFIG_SDP
+  BLOCK_SIZE sb_type = mbmi->sb_type[PLANE_TYPE_Y];
+#else
   BLOCK_SIZE sb_type = mbmi->sb_type;
+#endif
   const uint8_t *mask;
   const int mask_stride = block_size_wide[bsize];
 
@@ -723,7 +727,11 @@ int_mv av1_simple_motion_search(AV1_COMP *const cpi, MACROBLOCK *x, int mi_row,
   set_offsets_for_motion_search(cpi, x, mi_row, mi_col, bsize);
 
   MB_MODE_INFO *mbmi = xd->mi[0];
+#if CONFIG_SDP
+  mbmi->sb_type[PLANE_TYPE_Y] = bsize;
+#else
   mbmi->sb_type = bsize;
+#endif
   mbmi->ref_frame[0] = ref;
   mbmi->ref_frame[1] = NONE_FRAME;
   mbmi->motion_mode = SIMPLE_TRANSLATION;

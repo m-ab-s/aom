@@ -1046,12 +1046,21 @@ static INLINE int get_interinter_compound_mask_rate(
   const COMPOUND_TYPE compound_type = mbmi->interinter_comp.type;
   // This function will be called only for COMPOUND_WEDGE and COMPOUND_DIFFWTD
   if (compound_type == COMPOUND_WEDGE) {
+#if CONFIG_SDP
+    return av1_is_wedge_used(mbmi->sb_type[PLANE_TYPE_Y])
+               ? av1_cost_literal(1) +
+                     mode_costs
+                         ->wedge_idx_cost[mbmi->sb_type[PLANE_TYPE_Y]]
+                                         [mbmi->interinter_comp.wedge_index]
+               : 0;
+#else
     return av1_is_wedge_used(mbmi->sb_type)
                ? av1_cost_literal(1) +
                      mode_costs
                          ->wedge_idx_cost[mbmi->sb_type]
                                          [mbmi->interinter_comp.wedge_index]
                : 0;
+#endif
   } else {
     assert(compound_type == COMPOUND_DIFFWTD);
     return av1_cost_literal(1);

@@ -62,7 +62,11 @@ static void count_segs(const AV1_COMMON *cm, MACROBLOCKD *xd,
 
   // Temporal prediction not allowed on key frames
   if (cm->current_frame.frame_type != KEY_FRAME) {
+#if CONFIG_SDP
+    const BLOCK_SIZE bsize = xd->mi[0]->sb_type[xd->tree_type == CHROMA_PART];
+#else
     const BLOCK_SIZE bsize = xd->mi[0]->sb_type;
+#endif
     // Test to see if the segment id matches the predicted value.
     const int pred_segment_id =
         cm->last_frame_seg_map

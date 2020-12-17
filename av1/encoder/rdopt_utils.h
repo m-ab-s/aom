@@ -646,7 +646,12 @@ static INLINE void store_winner_mode_stats(
     const MACROBLOCKD *xd = &x->e_mbd;
     const int skip_ctx = av1_get_skip_txfm_context(xd);
     const int is_intra_mode = av1_mode_defs[mode_index].mode < INTRA_MODE_END;
+#if CONFIG_SDP
+    const int skip_txfm =
+        mbmi->skip_txfm[xd->tree_type == CHROMA_PART] && !is_intra_mode;
+#else
     const int skip_txfm = mbmi->skip_txfm && !is_intra_mode;
+#endif
 
     winner_mode_stats[mode_idx].rd_cost = *rd_cost;
     if (txfm_search_done) {

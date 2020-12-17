@@ -71,8 +71,14 @@ static AOM_INLINE void update_delta_lf_for_row_mt(AV1_COMP *cpi) {
           const int idx_str = cm->mi_params.mi_stride * mi_row + mi_col;
           MB_MODE_INFO **mi = cm->mi_params.mi_grid_base + idx_str;
           MB_MODE_INFO *mbmi = mi[0];
+#if CONFIG_SDP
+          if (mbmi->skip_txfm[xd->tree_type == CHROMA_PART] == 1 &&
+              (mbmi->sb_type[xd->tree_type == CHROMA_PART] ==
+               cm->seq_params.sb_size)) {
+#else
           if (mbmi->skip_txfm == 1 &&
               (mbmi->sb_type == cm->seq_params.sb_size)) {
+#endif
             for (int lf_id = 0; lf_id < frame_lf_count; ++lf_id)
               mbmi->delta_lf[lf_id] = xd->delta_lf[lf_id];
             mbmi->delta_lf_from_base = xd->delta_lf_from_base;

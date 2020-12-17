@@ -157,10 +157,16 @@ static AOM_INLINE void scan_row_mbmi(
   }
   const int use_step_16 = (xd->width >= 16);
   MB_MODE_INFO **const candidate_mi0 = xd->mi + row_offset * xd->mi_stride;
-
+#if CONFIG_SDP
+  const int plane_type = (xd->tree_type == CHROMA_PART);
+#endif
   for (int i = 0; i < end_mi;) {
     const MB_MODE_INFO *const candidate = candidate_mi0[col_offset + i];
+#if CONFIG_SDP
+    const int candidate_bsize = candidate->sb_type[plane_type];
+#else
     const int candidate_bsize = candidate->sb_type;
+#endif
     const int n4_w = mi_size_wide[candidate_bsize];
     int len = AOMMIN(xd->width, n4_w);
     if (use_step_16)
@@ -207,7 +213,12 @@ static AOM_INLINE void scan_col_mbmi(
   for (i = 0; i < end_mi;) {
     const MB_MODE_INFO *const candidate =
         xd->mi[(row_offset + i) * xd->mi_stride + col_offset];
+#if CONFIG_SDP
+    const int candidate_bsize =
+        candidate->sb_type[xd->tree_type == CHROMA_PART];
+#else
     const int candidate_bsize = candidate->sb_type;
+#endif
     const int n4_h = mi_size_high[candidate_bsize];
     int len = AOMMIN(xd->height, n4_h);
     if (use_step_16)
@@ -688,14 +699,22 @@ static AOM_INLINE void setup_ref_mv_list(
         const MB_MODE_INFO *const candidate = xd->mi[-xd->mi_stride + idx];
         process_compound_ref_mv_candidate(
             candidate, cm, rf, ref_id, ref_id_count, ref_diff, ref_diff_count);
+#if CONFIG_SDP
+        idx += mi_size_wide[candidate->sb_type[PLANE_TYPE_Y]];
+#else
         idx += mi_size_wide[candidate->sb_type];
+#endif
       }
 
       for (int idx = 0; abs(max_col_offset) >= 1 && idx < mi_size;) {
         const MB_MODE_INFO *const candidate = xd->mi[idx * xd->mi_stride - 1];
         process_compound_ref_mv_candidate(
             candidate, cm, rf, ref_id, ref_id_count, ref_diff, ref_diff_count);
+#if CONFIG_SDP
+        idx += mi_size_high[candidate->sb_type[PLANE_TYPE_Y]];
+#else
         idx += mi_size_high[candidate->sb_type];
+#endif
       }
 
       // Build up the compound mv predictor
@@ -752,7 +771,11 @@ static AOM_INLINE void setup_ref_mv_list(
       const MB_MODE_INFO *const candidate = xd->mi[-xd->mi_stride + idx];
       process_single_ref_mv_candidate(candidate, cm, ref_frame, refmv_count,
                                       ref_mv_stack, ref_mv_weight);
+#if CONFIG_SDP
+      idx += mi_size_wide[candidate->sb_type[PLANE_TYPE_Y]];
+#else
       idx += mi_size_wide[candidate->sb_type];
+#endif
     }
 
     for (int idx = 0; abs(max_col_offset) >= 1 && idx < mi_size &&
@@ -760,7 +783,11 @@ static AOM_INLINE void setup_ref_mv_list(
       const MB_MODE_INFO *const candidate = xd->mi[idx * xd->mi_stride - 1];
       process_single_ref_mv_candidate(candidate, cm, ref_frame, refmv_count,
                                       ref_mv_stack, ref_mv_weight);
+#if CONFIG_SDP
+      idx += mi_size_high[candidate->sb_type[PLANE_TYPE_Y]];
+#else
       idx += mi_size_high[candidate->sb_type];
+#endif
     }
 
     for (int idx = 0; idx < *refmv_count; ++idx) {
@@ -797,7 +824,11 @@ void av1_find_mv_refs(const AV1_COMMON *cm, const MACROBLOCKD *xd,
       global_mvs[ref_frame].as_int = INVALID_MV;
     }
   } else {
+#if CONFIG_SDP
+    const BLOCK_SIZE bsize = mi->sb_type[PLANE_TYPE_Y];
+#else
     const BLOCK_SIZE bsize = mi->sb_type;
+#endif
     const int allow_high_precision_mv = cm->features.allow_high_precision_mv;
     const int force_integer_mv = cm->features.cur_frame_force_integer_mv;
     if (ref_frame < REF_FRAMES) {
@@ -1054,8 +1085,13 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
 static INLINE void record_samples(const MB_MODE_INFO *mbmi, int *pts,
                                   int *pts_inref, int row_offset, int sign_r,
                                   int col_offset, int sign_c) {
+#if CONFIG_SDP
+  int bw = block_size_wide[mbmi->sb_type[PLANE_TYPE_Y]];
+  int bh = block_size_high[mbmi->sb_type[PLANE_TYPE_Y]];
+#else
   int bw = block_size_wide[mbmi->sb_type];
   int bh = block_size_high[mbmi->sb_type];
+#endif
   int x = col_offset * MI_SIZE + sign_c * AOMMAX(bw, MI_SIZE) / 2 - 1;
   int y = row_offset * MI_SIZE + sign_r * AOMMAX(bh, MI_SIZE) / 2 - 1;
 
@@ -1132,7 +1168,11 @@ uint8_t av1_findSamples(const AV1_COMMON *cm, MACROBLOCKD *xd, int *pts,
   if (up_available) {
     const int mi_row_offset = -1;
     const MB_MODE_INFO *mbmi = xd->mi[mi_row_offset * mi_stride];
+#if CONFIG_SDP
+    uint8_t superblock_width = mi_size_wide[mbmi->sb_type[PLANE_TYPE_Y]];
+#else
     uint8_t superblock_width = mi_size_wide[mbmi->sb_type];
+#endif
 
     if (xd->width <= superblock_width) {
       // Handle "current block width <= above block width" case.
@@ -1153,7 +1193,11 @@ uint8_t av1_findSamples(const AV1_COMMON *cm, MACROBLOCKD *xd, int *pts,
       for (i = 0; i < AOMMIN(xd->width, cm->mi_params.mi_cols - mi_col);
            i += mi_step) {
         mbmi = xd->mi[i + mi_row_offset * mi_stride];
+#if CONFIG_SDP
+        superblock_width = mi_size_wide[mbmi->sb_type[PLANE_TYPE_Y]];
+#else
         superblock_width = mi_size_wide[mbmi->sb_type];
+#endif
         mi_step = AOMMIN(xd->width, superblock_width);
 
         if (mbmi->ref_frame[0] == ref_frame &&
@@ -1173,7 +1217,11 @@ uint8_t av1_findSamples(const AV1_COMMON *cm, MACROBLOCKD *xd, int *pts,
   if (left_available) {
     const int mi_col_offset = -1;
     const MB_MODE_INFO *mbmi = xd->mi[mi_col_offset];
+#if CONFIG_SDP
+    uint8_t superblock_height = mi_size_high[mbmi->sb_type[PLANE_TYPE_Y]];
+#else
     uint8_t superblock_height = mi_size_high[mbmi->sb_type];
+#endif
 
     if (xd->height <= superblock_height) {
       // Handle "current block height <= above block height" case.
@@ -1193,7 +1241,11 @@ uint8_t av1_findSamples(const AV1_COMMON *cm, MACROBLOCKD *xd, int *pts,
       for (i = 0; i < AOMMIN(xd->height, cm->mi_params.mi_rows - mi_row);
            i += mi_step) {
         mbmi = xd->mi[mi_col_offset + i * mi_stride];
+#if CONFIG_SDP
+        superblock_height = mi_size_high[mbmi->sb_type[PLANE_TYPE_Y]];
+#else
         superblock_height = mi_size_high[mbmi->sb_type];
+#endif
         mi_step = AOMMIN(xd->height, superblock_height);
 
         if (mbmi->ref_frame[0] == ref_frame &&

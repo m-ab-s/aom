@@ -275,7 +275,11 @@ static AOM_INLINE void mode_estimation(AV1_COMP *cpi, MACROBLOCK *x, int mi_row,
                  cm->mi_params.mi_rows, cm->mi_params.mi_cols);
   set_plane_n4(xd, mi_size_wide[bsize], mi_size_high[bsize],
                av1_num_planes(cm));
+#if CONFIG_SDP
+  xd->mi[0]->sb_type[xd->tree_type == CHROMA_PART] = bsize;
+#else
   xd->mi[0]->sb_type = bsize;
+#endif
   xd->mi[0]->motion_mode = SIMPLE_TRANSLATION;
 
   // Intra prediction search

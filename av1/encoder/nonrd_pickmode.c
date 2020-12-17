@@ -1009,8 +1009,15 @@ static void store_coding_context(MACROBLOCK *x, PICK_MODE_CONTEXT *ctx) {
 #endif  // CONFIG_INTERNAL_STATS
   ctx->mic = *xd->mi[0];
   ctx->skippable = txfm_info->skip_txfm;
-  av1_copy_mbmi_ext_to_mbmi_ext_frame(&ctx->mbmi_ext_best, x->mbmi_ext,
-                                      av1_ref_frame_type(xd->mi[0]->ref_frame));
+#if CONFIG_SDP
+  if (xd->tree_type != CHROMA_PART) {
+#endif
+    av1_copy_mbmi_ext_to_mbmi_ext_frame(
+        &ctx->mbmi_ext_best, x->mbmi_ext,
+        av1_ref_frame_type(xd->mi[0]->ref_frame));
+#if CONFIG_SDP
+  }
+#endif
   ctx->comp_pred_diff = 0;
   ctx->hybrid_pred_diff = 0;
   ctx->single_pred_diff = 0;
@@ -1829,10 +1836,17 @@ static void estimate_intra_mode(
 
     int mode_cost = 0;
     if (av1_is_directional_mode(this_mode) && av1_use_angle_delta(bsize)) {
+#if CONFIG_SDP
+      mode_cost +=
+          x->mode_costs.angle_delta_cost[PLANE_TYPE_Y][this_mode - V_PRED]
+                                        [MAX_ANGLE_DELTA +
+                                         mi->angle_delta[PLANE_TYPE_Y]];
+#else
       mode_cost +=
           x->mode_costs.angle_delta_cost[this_mode - V_PRED]
                                         [MAX_ANGLE_DELTA +
                                          mi->angle_delta[PLANE_TYPE_Y]];
+#endif
     }
     if (this_mode == DC_PRED && av1_filter_intra_allowed_bsize(cm, bsize)) {
       mode_cost += x->mode_costs.filter_intra_cost[bsize][0];
@@ -2016,7 +2030,11 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
   av1_invalid_rd_stats(&best_rdc);
   av1_invalid_rd_stats(&this_rdc);
   av1_invalid_rd_stats(rd_cost);
+#if CONFIG_SDP
+  mi->sb_type[PLANE_TYPE_Y] = bsize;
+#else
   mi->sb_type = bsize;
+#endif
   mi->ref_frame[0] = NONE_FRAME;
   mi->ref_frame[1] = NONE_FRAME;
 

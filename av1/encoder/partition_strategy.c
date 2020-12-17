@@ -500,8 +500,15 @@ static AOM_INLINE void simple_motion_search_prune_part_features(
   // Neighbor stuff
   const int has_above = !!xd->above_mbmi;
   const int has_left = !!xd->left_mbmi;
+#if CONFIG_SDP
+  const BLOCK_SIZE above_bsize =
+      has_above ? xd->above_mbmi->sb_type[xd->tree_type == CHROMA_PART] : bsize;
+  const BLOCK_SIZE left_bsize =
+      has_left ? xd->left_mbmi->sb_type[xd->tree_type == CHROMA_PART] : bsize;
+#else
   const BLOCK_SIZE above_bsize = has_above ? xd->above_mbmi->sb_type : bsize;
   const BLOCK_SIZE left_bsize = has_left ? xd->left_mbmi->sb_type : bsize;
+#endif
   features[f_idx++] = (float)has_above;
   features[f_idx++] = (float)mi_size_wide_log2[above_bsize];
   features[f_idx++] = (float)mi_size_high_log2[above_bsize];
@@ -1448,10 +1455,20 @@ void av1_prune_ab_partitions(
   const PartitionCfg *const part_cfg = &cpi->oxcf.part_cfg;
   // The standard AB partitions are allowed initially if ext-partition-types are
   // allowed.
+#if CONFIG_SDP
+  const MACROBLOCKD *xd = &x->e_mbd;
+  int horzab_partition_allowed =
+      ext_partition_allowed & part_cfg->enable_ab_partitions &&
+      (xd->tree_type != CHROMA_PART || bsize > BLOCK_8X8);
+  int vertab_partition_allowed =
+      ext_partition_allowed & part_cfg->enable_ab_partitions &&
+      (xd->tree_type != CHROMA_PART || bsize > BLOCK_8X8);
+#else
   int horzab_partition_allowed =
       ext_partition_allowed & part_cfg->enable_ab_partitions;
   int vertab_partition_allowed =
       ext_partition_allowed & part_cfg->enable_ab_partitions;
+#endif
 
   // Pruning: pruning out AB partitions on one main direction based on the
   // current best partition and source variance.

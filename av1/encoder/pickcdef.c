@@ -312,7 +312,11 @@ static int sb_all_skip(const CommonModeInfoParams *const mi_params, int mi_row,
   MB_MODE_INFO **mbmi = mi_params->mi_grid_base + mi_row * stride + mi_col;
   for (int r = 0; r < maxr; ++r, mbmi += stride) {
     for (int c = 0; c < maxc; ++c) {
+#if CONFIG_SDP
+      if (!mbmi[c]->skip_txfm[PLANE_TYPE_Y]) return 0;
+#else
       if (!mbmi[c]->skip_txfm) return 0;
+#endif
     }
   }
   return 1;
@@ -445,20 +449,35 @@ void av1_cdef_search(const YV12_BUFFER_CONFIG *frame,
       const MB_MODE_INFO *const mbmi =
           mi_params->mi_grid_base[MI_SIZE_64X64 * fbr * mi_params->mi_stride +
                                   MI_SIZE_64X64 * fbc];
+#if CONFIG_SDP
+      if (((fbc & 1) && (mbmi->sb_type[PLANE_TYPE_Y] == BLOCK_128X128 ||
+                         mbmi->sb_type[PLANE_TYPE_Y] == BLOCK_128X64)) ||
+          ((fbr & 1) && (mbmi->sb_type[PLANE_TYPE_Y] == BLOCK_128X128 ||
+                         mbmi->sb_type[PLANE_TYPE_Y] == BLOCK_64X128)))
+        continue;
+#else
       if (((fbc & 1) &&
            (mbmi->sb_type == BLOCK_128X128 || mbmi->sb_type == BLOCK_128X64)) ||
           ((fbr & 1) &&
            (mbmi->sb_type == BLOCK_128X128 || mbmi->sb_type == BLOCK_64X128)))
         continue;
+#endif
 
       int nhb = AOMMIN(MI_SIZE_64X64, mi_params->mi_cols - MI_SIZE_64X64 * fbc);
       int nvb = AOMMIN(MI_SIZE_64X64, mi_params->mi_rows - MI_SIZE_64X64 * fbr);
       int hb_step = 1;
       int vb_step = 1;
       BLOCK_SIZE bs;
+#if CONFIG_SDP
+      if (mbmi->sb_type[PLANE_TYPE_Y] == BLOCK_128X128 ||
+          mbmi->sb_type[PLANE_TYPE_Y] == BLOCK_128X64 ||
+          mbmi->sb_type[PLANE_TYPE_Y] == BLOCK_64X128) {
+        bs = mbmi->sb_type[PLANE_TYPE_Y];
+#else
       if (mbmi->sb_type == BLOCK_128X128 || mbmi->sb_type == BLOCK_128X64 ||
           mbmi->sb_type == BLOCK_64X128) {
         bs = mbmi->sb_type;
+#endif
         if (bs == BLOCK_128X128 || bs == BLOCK_128X64) {
           nhb =
               AOMMIN(MI_SIZE_128X128, mi_params->mi_cols - MI_SIZE_64X64 * fbc);
@@ -563,6 +582,29 @@ void av1_cdef_search(const YV12_BUFFER_CONFIG *frame,
       }
     }
     mi_params->mi_grid_base[sb_index[i]]->cdef_strength = best_gi;
+#if CONFIG_SDP
+    int bsize_y = mi_params->mi_grid_base[sb_index[i]]->sb_type[PLANE_TYPE_Y];
+    const int bh = mi_size_high[bsize_y];
+    const int bw = mi_size_wide[bsize_y];
+    int mi_row = sb_index[i] / mi_params->mi_stride;
+    int mi_col = sb_index[i] % mi_params->mi_stride;
+    if (mi_params->mi_grid_base[sb_index[i]]->sb_type[PLANE_TYPE_Y] ==
+            BLOCK_64X128 ||
+        mi_params->mi_grid_base[sb_index[i]]->sb_type[PLANE_TYPE_Y] ==
+            BLOCK_128X128 ||
+        mi_params->mi_grid_base[sb_index[i]]->sb_type[PLANE_TYPE_Y] ==
+            BLOCK_128X64) {
+      const int x_mis = AOMMIN(bw, mi_params->mi_cols - mi_col);
+      const int y_mis = AOMMIN(bh, mi_params->mi_rows - mi_row);
+      int idx = mi_params->mi_stride;
+      for (int y = 0; y < y_mis; ++y) {
+        for (int x = 0; x < x_mis; ++x) {
+          mi_params->mi_grid_base[sb_index[i] + y * idx + x]->cdef_strength =
+              best_gi;
+        }
+      }
+    }
+#endif
   }
 
   if (fast) {

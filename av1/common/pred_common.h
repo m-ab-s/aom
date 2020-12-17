@@ -215,8 +215,15 @@ static INLINE int av1_get_skip_mode_context(const MACROBLOCKD *xd) {
 static INLINE int av1_get_skip_txfm_context(const MACROBLOCKD *xd) {
   const MB_MODE_INFO *const above_mi = xd->above_mbmi;
   const MB_MODE_INFO *const left_mi = xd->left_mbmi;
+#if CONFIG_SDP
+  const int above_skip_txfm =
+      above_mi ? above_mi->skip_txfm[xd->tree_type == CHROMA_PART] : 0;
+  const int left_skip_txfm =
+      left_mi ? left_mi->skip_txfm[xd->tree_type == CHROMA_PART] : 0;
+#else
   const int above_skip_txfm = above_mi ? above_mi->skip_txfm : 0;
   const int left_skip_txfm = left_mi ? left_mi->skip_txfm : 0;
+#endif
   return above_skip_txfm + left_skip_txfm;
 }
 
@@ -383,7 +390,12 @@ static INLINE int get_tx_size_context(const MACROBLOCKD *xd) {
   const MB_MODE_INFO *mbmi = xd->mi[0];
   const MB_MODE_INFO *const above_mbmi = xd->above_mbmi;
   const MB_MODE_INFO *const left_mbmi = xd->left_mbmi;
+#if CONFIG_SDP
+  const TX_SIZE max_tx_size =
+      max_txsize_rect_lookup[mbmi->sb_type[PLANE_TYPE_Y]];
+#else
   const TX_SIZE max_tx_size = max_txsize_rect_lookup[mbmi->sb_type];
+#endif
   const int max_tx_wide = tx_size_wide[max_tx_size];
   const int max_tx_high = tx_size_high[max_tx_size];
   const int has_above = xd->up_available;
@@ -394,11 +406,19 @@ static INLINE int get_tx_size_context(const MACROBLOCKD *xd) {
 
   if (has_above)
     if (is_inter_block(above_mbmi))
+#if CONFIG_SDP
+      above = block_size_wide[above_mbmi->sb_type[PLANE_TYPE_Y]] >= max_tx_wide;
+#else
       above = block_size_wide[above_mbmi->sb_type] >= max_tx_wide;
+#endif
 
   if (has_left)
     if (is_inter_block(left_mbmi))
+#if CONFIG_SDP
+      left = block_size_high[left_mbmi->sb_type[PLANE_TYPE_Y]] >= max_tx_high;
+#else
       left = block_size_high[left_mbmi->sb_type] >= max_tx_high;
+#endif
 
   if (has_above && has_left)
     return (above + left);

@@ -85,7 +85,11 @@ int ifd_inspect(insp_frame_data *fd, void *decoder, int skip_not_transform) {
       mi->ref_frame[1] = mbmi->ref_frame[1];
       // Prediction Mode
       mi->mode = mbmi->mode;
+#if CONFIG_SDP
+      mi->intrabc = (int16_t)mbmi->use_intrabc[0];
+#else
       mi->intrabc = (int16_t)mbmi->use_intrabc;
+#endif
       mi->palette = (int16_t)mbmi->palette_mode_info.palette_size[0];
       mi->uv_palette = (int16_t)mbmi->palette_mode_info.palette_size[1];
       // Prediction Mode for Chromatic planes
@@ -99,9 +103,17 @@ int ifd_inspect(insp_frame_data *fd, void *decoder, int skip_not_transform) {
       mi->compound_type = mbmi->interinter_comp.type;
 
       // Block Size
+#if CONFIG_SDP
+      mi->sb_type = mbmi->sb_type[0];
+#else
       mi->sb_type = mbmi->sb_type;
+#endif
       // Skip Flag
+#if CONFIG_SDP
+      mi->skip = mbmi->skip_txfm[0];
+#else
       mi->skip = mbmi->skip_txfm;
+#endif
 #if CONFIG_REMOVE_DUAL_FILTER
       mi->filter[0] = mbmi->interp_fltr;
       mi->filter[1] = mbmi->interp_fltr;
@@ -113,8 +125,11 @@ int ifd_inspect(insp_frame_data *fd, void *decoder, int skip_not_transform) {
 
       // Transform
       // TODO(anyone): extract tx type info from mbmi->txk_type[].
-
+#if CONFIG_SDP
+      const BLOCK_SIZE bsize = mbmi->sb_type[0];
+#else
       const BLOCK_SIZE bsize = mbmi->sb_type;
+#endif
       const int c = i % mi_size_wide[bsize];
       const int r = j % mi_size_high[bsize];
       if (is_inter_block(mbmi) || is_intrabc_block(mbmi))

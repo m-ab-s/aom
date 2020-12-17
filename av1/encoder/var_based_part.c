@@ -130,7 +130,11 @@ static AOM_INLINE void set_block_size(AV1_COMP *const cpi, MACROBLOCK *const x,
       cpi->common.mi_params.mi_rows > mi_row) {
     set_mode_info_offsets(&cpi->common.mi_params, &cpi->mbmi_ext_info, x, xd,
                           mi_row, mi_col);
+#if CONFIG_SDP
+    xd->mi[0]->sb_type[xd->tree_type == CHROMA_PART] = bsize;
+#else
     xd->mi[0]->sb_type = bsize;
+#endif
   }
 }
 
@@ -405,15 +409,28 @@ static AOM_INLINE void set_low_temp_var_flag_64x64(
     CommonModeInfoParams *mi_params, PartitionSearchInfo *part_info,
     MACROBLOCKD *xd, VP64x64 *vt, const int64_t thresholds[], int mi_col,
     int mi_row) {
+#if CONFIG_SDP
+  int plane_type = (xd->tree_type == CHROMA_PART);
+  if (xd->mi[0]->sb_type[plane_type] == BLOCK_64X64) {
+#else
   if (xd->mi[0]->sb_type == BLOCK_64X64) {
+#endif
     if ((vt->part_variances).none.variance < (thresholds[0] >> 1))
       part_info->variance_low[0] = 1;
+#if CONFIG_SDP
+  } else if (xd->mi[0]->sb_type[plane_type] == BLOCK_64X32) {
+#else
   } else if (xd->mi[0]->sb_type == BLOCK_64X32) {
+#endif
     for (int i = 0; i < 2; i++) {
       if (vt->part_variances.horz[i].variance < (thresholds[0] >> 2))
         part_info->variance_low[i + 1] = 1;
     }
+#if CONFIG_SDP
+  } else if (xd->mi[0]->sb_type[plane_type] == BLOCK_32X64) {
+#else
   } else if (xd->mi[0]->sb_type == BLOCK_32X64) {
+#endif
     for (int i = 0; i < 2; i++) {
       if (vt->part_variances.vert[i].variance < (thresholds[0] >> 2))
         part_info->variance_low[i + 3] = 1;
@@ -430,17 +447,26 @@ static AOM_INLINE void set_low_temp_var_flag_64x64(
         continue;
 
       if (*this_mi == NULL) continue;
-
+#if CONFIG_SDP
+      if ((*this_mi)->sb_type[plane_type] == BLOCK_32X32) {
+#else
       if ((*this_mi)->sb_type == BLOCK_32X32) {
+#endif
         int64_t threshold_32x32 = (5 * thresholds[1]) >> 3;
         if (vt->split[i].part_variances.none.variance < threshold_32x32)
           part_info->variance_low[i + 5] = 1;
       } else {
         // For 32x16 and 16x32 blocks, the flag is set on each 16x16 block
         // inside.
+#if CONFIG_SDP
+        if ((*this_mi)->sb_type[plane_type] == BLOCK_16X16 ||
+            (*this_mi)->sb_type[plane_type] == BLOCK_32X16 ||
+            (*this_mi)->sb_type[plane_type] == BLOCK_16X32) {
+#else
         if ((*this_mi)->sb_type == BLOCK_16X16 ||
             (*this_mi)->sb_type == BLOCK_32X16 ||
             (*this_mi)->sb_type == BLOCK_16X32) {
+#endif
           for (int j = 0; j < 4; j++) {
             if (vt->split[i].split[j].part_variances.none.variance <
                 (thresholds[2] >> 8))
@@ -456,15 +482,28 @@ static AOM_INLINE void set_low_temp_var_flag_128x128(
     CommonModeInfoParams *mi_params, PartitionSearchInfo *part_info,
     MACROBLOCKD *xd, VP128x128 *vt, const int64_t thresholds[], int mi_col,
     int mi_row) {
+#if CONFIG_SDP
+  int plane_type = (xd->tree_type == CHROMA_PART);
+  if (xd->mi[0]->sb_type[plane_type] == BLOCK_128X128) {
+#else
   if (xd->mi[0]->sb_type == BLOCK_128X128) {
+#endif
     if (vt->part_variances.none.variance < (thresholds[0] >> 1))
       part_info->variance_low[0] = 1;
+#if CONFIG_SDP
+  } else if (xd->mi[0]->sb_type[plane_type] == BLOCK_128X64) {
+#else
   } else if (xd->mi[0]->sb_type == BLOCK_128X64) {
+#endif
     for (int i = 0; i < 2; i++) {
       if (vt->part_variances.horz[i].variance < (thresholds[0] >> 2))
         part_info->variance_low[i + 1] = 1;
     }
+#if CONFIG_SDP
+  } else if (xd->mi[0]->sb_type[plane_type] == BLOCK_64X128) {
+#else
   } else if (xd->mi[0]->sb_type == BLOCK_64X128) {
+#endif
     for (int i = 0; i < 2; i++) {
       if (vt->part_variances.vert[i].variance < (thresholds[0] >> 2))
         part_info->variance_low[i + 3] = 1;
@@ -483,15 +522,27 @@ static AOM_INLINE void set_low_temp_var_flag_128x128(
           mi_params->mi_rows <= mi_row + idx64[i][0])
         continue;
       const int64_t threshold_64x64 = (5 * thresholds[1]) >> 3;
+#if CONFIG_SDP
+      if ((*mi_64)->sb_type[plane_type] == BLOCK_64X64) {
+#else
       if ((*mi_64)->sb_type == BLOCK_64X64) {
+#endif
         if (vt->split[i].part_variances.none.variance < threshold_64x64)
           part_info->variance_low[5 + i] = 1;
+#if CONFIG_SDP
+      } else if ((*mi_64)->sb_type[plane_type] == BLOCK_64X32) {
+#else
       } else if ((*mi_64)->sb_type == BLOCK_64X32) {
+#endif
         for (int j = 0; j < 2; j++)
           if (vt->split[i].part_variances.horz[j].variance <
               (threshold_64x64 >> 1))
             part_info->variance_low[9 + (i << 1) + j] = 1;
+#if CONFIG_SDP
+      } else if ((*mi_64)->sb_type[plane_type] == BLOCK_32X64) {
+#else
       } else if ((*mi_64)->sb_type == BLOCK_32X64) {
+#endif
         for (int j = 0; j < 2; j++)
           if (vt->split[i].part_variances.vert[j].variance <
               (threshold_64x64 >> 1))
@@ -506,16 +557,26 @@ static AOM_INLINE void set_low_temp_var_flag_128x128(
               mi_params->mi_rows <= mi_row + idx64[i][0] + idx32[k][0])
             continue;
           const int64_t threshold_32x32 = (5 * thresholds[2]) >> 3;
+#if CONFIG_SDP
+          if ((*mi_32)->sb_type[plane_type] == BLOCK_32X32) {
+#else
           if ((*mi_32)->sb_type == BLOCK_32X32) {
+#endif
             if (vt->split[i].split[k].part_variances.none.variance <
                 threshold_32x32)
               part_info->variance_low[25 + (i << 2) + k] = 1;
           } else {
             // For 32x16 and 16x32 blocks, the flag is set on each 16x16 block
             // inside.
+#if CONFIG_SDP
+            if ((*mi_32)->sb_type[plane_type] == BLOCK_16X16 ||
+                (*mi_32)->sb_type[plane_type] == BLOCK_32X16 ||
+                (*mi_32)->sb_type[plane_type] == BLOCK_16X32) {
+#else
             if ((*mi_32)->sb_type == BLOCK_16X16 ||
                 (*mi_32)->sb_type == BLOCK_32X16 ||
                 (*mi_32)->sb_type == BLOCK_16X32) {
+#endif
               for (int j = 0; j < 4; j++) {
                 if (vt->split[i]
                         .split[k]
@@ -733,7 +794,11 @@ static void setup_planes(AV1_COMP *cpi, MACROBLOCK *x, unsigned int *y_sad,
                        get_ref_scale_factors(cm, LAST_FRAME), num_planes);
   mi->ref_frame[0] = LAST_FRAME;
   mi->ref_frame[1] = NONE_FRAME;
+#if CONFIG_SDP
+  mi->sb_type[xd->tree_type == CHROMA_PART] = cm->seq_params.sb_size;
+#else
   mi->sb_type = cm->seq_params.sb_size;
+#endif
   mi->mv[0].as_int = 0;
 #if CONFIG_REMOVE_DUAL_FILTER
   mi->interp_fltr = BILINEAR;

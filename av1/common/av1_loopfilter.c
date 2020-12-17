@@ -195,15 +195,29 @@ static TX_SIZE get_transform_size(const MACROBLOCKD *const xd,
                                   const struct macroblockd_plane *plane_ptr) {
   assert(mbmi != NULL);
   if (xd && xd->lossless[mbmi->segment_id]) return TX_4X4;
-
-  TX_SIZE tx_size =
-      (plane == AOM_PLANE_Y)
-          ? mbmi->tx_size
-          : av1_get_max_uv_txsize(mbmi->sb_type, plane_ptr->subsampling_x,
-                                  plane_ptr->subsampling_y);
+#if CONFIG_SDP
+  const int plane_type = (xd->tree_type == CHROMA_PART);
+#endif
+  TX_SIZE tx_size = (plane == AOM_PLANE_Y)
+                        ? mbmi->tx_size
+#if CONFIG_SDP
+                        : av1_get_max_uv_txsize(mbmi->sb_type[plane_type],
+                                                plane_ptr->subsampling_x,
+                                                plane_ptr->subsampling_y);
+#else
+                        : av1_get_max_uv_txsize(mbmi->sb_type,
+                                                plane_ptr->subsampling_x,
+                                                plane_ptr->subsampling_y);
+#endif
   assert(tx_size < TX_SIZES_ALL);
+#if CONFIG_SDP
+  if ((plane == AOM_PLANE_Y) && is_inter_block(mbmi) &&
+      !mbmi->skip_txfm[xd->tree_type == CHROMA_PART]) {
+    const BLOCK_SIZE sb_type = mbmi->sb_type[plane_type];
+#else
   if ((plane == AOM_PLANE_Y) && is_inter_block(mbmi) && !mbmi->skip_txfm) {
     const BLOCK_SIZE sb_type = mbmi->sb_type;
+#endif
     const int blk_row = mi_row & (mi_size_high[sb_type] - 1);
     const int blk_col = mi_col & (mi_size_wide[sb_type] - 1);
     const TX_SIZE mb_tx_size =
@@ -279,7 +293,12 @@ static TX_SIZE set_lpf_parameters(
     {
       const uint32_t curr_level =
           av1_get_filter_level(cm, &cm->lf_info, edge_dir, plane, mbmi);
+#if CONFIG_SDP
+      const int curr_skipped =
+          mbmi->skip_txfm[cm->tree_type == CHROMA_PART] && is_inter_block(mbmi);
+#else
       const int curr_skipped = mbmi->skip_txfm && is_inter_block(mbmi);
+#endif
       uint32_t level = curr_level;
       if (coord) {
         {
@@ -296,10 +315,21 @@ static TX_SIZE set_lpf_parameters(
               av1_get_filter_level(cm, &cm->lf_info, edge_dir, plane, mi_prev);
 
           const int pv_skip_txfm =
+#if CONFIG_SDP
+              mi_prev->skip_txfm[cm->tree_type == CHROMA_PART] &&
+              is_inter_block(mi_prev);
+#else
               mi_prev->skip_txfm && is_inter_block(mi_prev);
+#endif
+#if CONFIG_SDP
+          const BLOCK_SIZE bsize = get_plane_block_size(
+              mbmi->sb_type[cm->tree_type == CHROMA_PART],
+              plane_ptr->subsampling_x, plane_ptr->subsampling_y);
+#else
           const BLOCK_SIZE bsize =
               get_plane_block_size(mbmi->sb_type, plane_ptr->subsampling_x,
                                    plane_ptr->subsampling_y);
+#endif
           assert(bsize < BLOCK_SIZES_ALL);
           const int prediction_masks = edge_dir == VERT_EDGE
                                            ? block_size_wide[bsize] - 1

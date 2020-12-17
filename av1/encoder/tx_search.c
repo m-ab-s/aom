@@ -2753,8 +2753,14 @@ static AOM_INLINE void select_tx_block(
   assert(blk_row < max_block_high(xd, plane_bsize, 0) &&
          blk_col < max_block_wide(xd, plane_bsize, 0));
   MB_MODE_INFO *const mbmi = xd->mi[0];
+#if CONFIG_SDP
+  const int ctx = txfm_partition_context(
+      tx_above + blk_col, tx_left + blk_row,
+      mbmi->sb_type[xd->tree_type == CHROMA_PART], tx_size);
+#else
   const int ctx = txfm_partition_context(tx_above + blk_col, tx_left + blk_row,
                                          mbmi->sb_type, tx_size);
+#endif
   struct macroblock_plane *const p = &x->plane[0];
 
   const int try_no_split =
@@ -2997,8 +3003,11 @@ static AOM_INLINE void block_rd_txfm(int plane, int block, int blk_row,
   search_tx_type(cpi, x, plane, block, blk_row, blk_col, plane_bsize, tx_size,
                  &txb_ctx, args->ftxs_mode, args->skip_trellis,
                  args->best_rd - args->current_rd, &this_rd_stats);
-
+#if CONFIG_SDP
+  if (plane == AOM_PLANE_Y && xd->cfl.store_y && xd->tree_type == SHARED_PART) {
+#else
   if (plane == AOM_PLANE_Y && xd->cfl.store_y) {
+#endif
     assert(!is_inter || plane_bsize < BLOCK_8X8);
     cfl_store_tx(xd, blk_row, blk_col, tx_size, plane_bsize);
   }
@@ -3048,12 +3057,23 @@ int64_t av1_uniform_txfm_yrd(const AV1_COMP *const cpi, MACROBLOCK *x,
   const TxfmSearchParams *txfm_params = &x->txfm_search_params;
   const ModeCosts *mode_costs = &x->mode_costs;
   const int is_inter = is_inter_block(mbmi);
+#if CONFIG_SDP
+  const int tx_select = txfm_params->tx_mode_search_type == TX_MODE_SELECT &&
+                        block_signals_txsize(mbmi->sb_type[PLANE_TYPE_Y]);
+#else
   const int tx_select = txfm_params->tx_mode_search_type == TX_MODE_SELECT &&
                         block_signals_txsize(mbmi->sb_type);
+#endif
   int tx_size_rate = 0;
   if (tx_select) {
+#if CONFIG_SDP
+    const int ctx =
+        txfm_partition_context(xd->above_txfm_context, xd->left_txfm_context,
+                               mbmi->sb_type[PLANE_TYPE_Y], tx_size);
+#else
     const int ctx = txfm_partition_context(
         xd->above_txfm_context, xd->left_txfm_context, mbmi->sb_type, tx_size);
+#endif
     tx_size_rate = is_inter ? mode_costs->txfm_partition_cost[ctx][0]
                             : tx_size_cost(x, bs, tx_size);
   }
@@ -3119,8 +3139,13 @@ static AOM_INLINE void tx_block_yrd(
 
   const TX_SIZE plane_tx_size = mbmi->inter_tx_size[av1_get_txb_size_index(
       plane_bsize, blk_row, blk_col)];
+#if CONFIG_SDP
+  const int ctx = txfm_partition_context(tx_above + blk_col, tx_left + blk_row,
+                                         mbmi->sb_type[PLANE_TYPE_Y], tx_size);
+#else
   const int ctx = txfm_partition_context(tx_above + blk_col, tx_left + blk_row,
                                          mbmi->sb_type, tx_size);
+#endif
 
   av1_init_rd_stats(rd_stats);
   if (tx_size == plane_tx_size) {
@@ -3478,7 +3503,11 @@ void av1_pick_uniform_tx_size_type_yrd(const AV1_COMP *const cpi, MACROBLOCK *x,
   MACROBLOCKD *const xd = &x->e_mbd;
   MB_MODE_INFO *const mbmi = xd->mi[0];
   const TxfmSearchParams *tx_params = &x->txfm_search_params;
+#if CONFIG_SDP
+  assert(bs == mbmi->sb_type[PLANE_TYPE_Y]);
+#else
   assert(bs == mbmi->sb_type);
+#endif
   const int is_inter = is_inter_block(mbmi);
   const int mi_row = xd->mi_row;
   const int mi_col = xd->mi_col;
@@ -3737,14 +3766,22 @@ int av1_txfm_search(const AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
     rd_stats->dist = rd_stats->sse;
     rd_stats_y->dist = rd_stats_y->sse;
     rd_stats_uv->dist = rd_stats_uv->sse;
+#if CONFIG_SDP
+    mbmi->skip_txfm[xd->tree_type == CHROMA_PART] = 1;
+#else
     mbmi->skip_txfm = 1;
+#endif
     if (rd_stats->skip_txfm) {
       const int64_t tmprd = RDCOST(x->rdmult, rd_stats->rate, rd_stats->dist);
       if (tmprd > ref_best_rd) return 0;
     }
   } else {
     rd_stats->rate += skip_txfm_cost[0];
+#if CONFIG_SDP
+    mbmi->skip_txfm[xd->tree_type == CHROMA_PART] = 0;
+#else
     mbmi->skip_txfm = 0;
+#endif
   }
 
   return 1;

@@ -226,7 +226,11 @@ typedef struct {
   //! \copydoc MB_MODE_INFO_EXT::mode_context
   int16_t mode_context;
   //! Offset of current coding block's coeff buffer relative to the sb.
+#if CONFIG_SDP
+  int cb_offset[MAX_MB_PLANE];
+#else
   int cb_offset;
+#endif
 } MB_MODE_INFO_EXT_FRAME;
 
 /*! \brief Txfm search results for a partition
@@ -573,7 +577,11 @@ typedef struct {
    ****************************************************************************/
   /**@{*/
   //! Cost for coding the partition.
+#if CONFIG_SDP
+  int partition_cost[3][PARTITION_CONTEXTS][EXT_PARTITION_TYPES];
+#else
   int partition_cost[PARTITION_CONTEXTS][EXT_PARTITION_TYPES];
+#endif
   /**@}*/
 
   /*****************************************************************************
@@ -591,7 +599,11 @@ typedef struct {
   //! filter_intra_mode_cost
   int filter_intra_mode_cost[FILTER_INTRA_MODES];
   //! angle_delta_cost
+#if CONFIG_SDP
+  int angle_delta_cost[3][DIRECTIONAL_MODES][2 * MAX_ANGLE_DELTA + 1];
+#else
   int angle_delta_cost[DIRECTIONAL_MODES][2 * MAX_ANGLE_DELTA + 1];
+#endif
 
   //! Rate rate associated with each alpha codeword
   int cfl_cost[CFL_JOINT_SIGNS][CFL_PRED_PLANES][CFL_ALPHABET_SIZE];
@@ -855,7 +867,11 @@ typedef struct macroblock {
    */
   CB_COEFF_BUFFER *cb_coef_buff;
   //! Offset of current coding block's coeff buffer relative to the sb.
+#if CONFIG_SDP
+  int cb_offset[MAX_MB_PLANE];
+#else
   uint16_t cb_offset;
+#endif
 
   //! Modified source and masks used for fast OBMC search.
   OBMCBuffer obmc_buffer;
@@ -1178,8 +1194,14 @@ static INLINE int is_rect_tx_allowed_bsize(BLOCK_SIZE bsize) {
 
 static INLINE int is_rect_tx_allowed(const MACROBLOCKD *xd,
                                      const MB_MODE_INFO *mbmi) {
+#if CONFIG_SDP
+  return is_rect_tx_allowed_bsize(
+             mbmi->sb_type[xd->tree_type == CHROMA_PART]) &&
+         !xd->lossless[mbmi->segment_id];
+#else
   return is_rect_tx_allowed_bsize(mbmi->sb_type) &&
          !xd->lossless[mbmi->segment_id];
+#endif
 }
 
 static INLINE int tx_size_to_depth(TX_SIZE tx_size, BLOCK_SIZE bsize) {
