@@ -117,7 +117,7 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
   RESET_CDF_COUNTER(fc->interintra_cdf, 2);
   RESET_CDF_COUNTER(fc->wedge_interintra_cdf, 2);
 #if CONFIG_INTERINTRA_ML
-  RESET_CDF_COUNTER(fc->interintra_mode_cdf, II_ML_PRED0);
+  RESET_CDF_COUNTER(fc->interintra_mode_cdf, INTERINTRA_MODES);
   RESET_CDF_COUNTER(fc->interintra_ml_mode_cdf, INTERINTRA_MODES);
 #else
   RESET_CDF_COUNTER(fc->interintra_mode_cdf, INTERINTRA_MODES);

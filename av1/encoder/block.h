@@ -495,7 +495,7 @@ struct macroblock {
   // code should not access these directly; use interintra_mode_cost()
   // in rdopt.c.
 #if CONFIG_INTERINTRA_ML
-  int interintra_mode_cost_[BLOCK_SIZE_GROUPS][II_ML_PRED0];
+  int interintra_mode_cost_[BLOCK_SIZE_GROUPS][INTERINTRA_MODES];
   int interintra_ml_mode_cost_[BLOCK_SIZE_GROUPS][INTERINTRA_MODES];
 #else
   int interintra_mode_cost_[BLOCK_SIZE_GROUPS][INTERINTRA_MODES];

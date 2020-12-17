@@ -1713,7 +1713,7 @@ static INLINE void update_inter_stats(const AV1_COMMON *const cm,
                            mbmi->interintra_mode, INTERINTRA_MODES);
               } else {
                 update_cdf(fc->interintra_mode_cdf[bsize_group],
-                           mbmi->interintra_mode, II_ML_PRED0);
+                           mbmi->interintra_mode, INTERINTRA_MODES);
               }
 #else
               update_cdf(fc->interintra_mode_cdf[bsize_group],

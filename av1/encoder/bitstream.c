@@ -1547,7 +1547,8 @@ static void write_interintra_mode_bits(MACROBLOCKD const *xd,
                      INTERINTRA_MODES);
   } else {
     aom_write_symbol(w, mbmi->interintra_mode,
-                     ec_ctx->interintra_mode_cdf[bsize_group], II_ML_PRED0);
+                     ec_ctx->interintra_mode_cdf[bsize_group],
+                     INTERINTRA_MODES);
   }
 #else
   (void)xd;

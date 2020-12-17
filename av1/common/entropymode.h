@@ -154,7 +154,8 @@ typedef struct frame_contexts {
                                      [CDF_SIZE(INTERINTRA_MODES)];
   // For all other block sizes, the CDF only encompasses up to
   // the first ML mode.
-  aom_cdf_prob interintra_mode_cdf[BLOCK_SIZE_GROUPS][CDF_SIZE(II_ML_PRED0)];
+  aom_cdf_prob interintra_mode_cdf[BLOCK_SIZE_GROUPS]
+                                  [CDF_SIZE(INTERINTRA_MODES)];
 #else
   aom_cdf_prob interintra_mode_cdf[BLOCK_SIZE_GROUPS]
                                   [CDF_SIZE(INTERINTRA_MODES)];

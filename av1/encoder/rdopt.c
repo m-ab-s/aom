@@ -10939,7 +10939,13 @@ static int handle_inter_intra_mode(const AV1_COMP *const cpi,
   uint8_t *tmp_buf = get_buf_by_bd(xd, tmp_buf_);
   uint8_t *intrapred = get_buf_by_bd(xd, intrapred_);
   const int_mv mv0 = mbmi->mv[0];
+#if CONFIG_INTERINTRA_ML
+  const int is_wedge_used =
+      is_interintra_ml_supported(&x->e_mbd, /*wedge=*/false);
+#else
   const int is_wedge_used = is_interintra_wedge_used(bsize);
+#endif  // CONFIG_INTERINTRA_ML
+
   int rwedge = is_wedge_used ? x->wedge_interintra_cost[bsize][0] : 0;
   mbmi->ref_frame[1] = NONE_FRAME;
   xd->plane[0].dst.buf = tmp_buf;
@@ -10963,11 +10969,6 @@ static int handle_inter_intra_mode(const AV1_COMP *const cpi,
   const int left = xd->left_mbmi && xd->left_mbmi->use_derived_intra_mode[0];
   const int *derived_intra_mode_cost =
       x->derived_intra_mode_cost[1][above + left];
-#elif CONFIG_INTERINTRA_ML
-  // Only search the ML model predictors if the block size is 16x16.
-  const int total_modes = bsize == BLOCK_16X16 ? INTERINTRA_MODES : II_ML_PRED0;
-  const int *derived_intra_mode_cost = NULL;
-  int pick_derived_intra_mode = 0;
 #else
   const int total_modes = INTERINTRA_MODES;
   const int *derived_intra_mode_cost = NULL;
@@ -11022,13 +11023,6 @@ static int handle_inter_intra_mode(const AV1_COMP *const cpi,
       int best_wedge_index = 0;
       int64_t best_total_rd = INT64_MAX;
       for (int j = 0; j < total_modes; ++j) {
-#if CONFIG_INTERINTRA_ML
-        assert(mbmi->use_wedge_interintra);
-        // Wedge mode not supported for interintra-ML modes.
-        if (j >= II_ML_PRED0 && j <= II_ML_PRED9) {
-          continue;
-        }
-#endif  // CONFIG_INTERINTRA_ML
         mbmi->interintra_mode = (INTERINTRA_MODE)j;
 #if CONFIG_DERIVED_INTRA_MODE
         mbmi->use_derived_intra_mode[0] = 0;

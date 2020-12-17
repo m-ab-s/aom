@@ -31,17 +31,21 @@ bool is_interintra_ml_supported(const MACROBLOCKD *xd, bool wedge);
 // that border must be greater than or equal to INTERINTRA_ML_BORDER,
 // and represents the amount of border built for the interpredictor
 // and intrapredictor (only INTERINTRA_ML_BORDER will be used).
-void av1_combine_interintra_ml(INTERINTRA_MODE mode, BLOCK_SIZE plane_bsize,
+void av1_combine_interintra_ml(INTERINTRA_MODE mode, BLOCK_SIZE bsize,
+                               BLOCK_SIZE plane_bsize, int plane,
                                uint8_t *comp_pred, int comp_stride,
                                const uint8_t *inter_pred, int inter_stride,
                                const uint8_t *intra_pred, int intra_stride,
                                int border);
 
 // High bit-depth version of the entry point.
-void av1_combine_interintra_ml_highbd(
-    INTERINTRA_MODE mode, BLOCK_SIZE plane_bsize, uint8_t *comp_pred8,
-    int comp_stride, const uint8_t *inter_pred8, int inter_stride,
-    const uint8_t *intra_pred8, int intra_stride, int bd, int border);
+void av1_combine_interintra_ml_highbd(INTERINTRA_MODE mode, BLOCK_SIZE bsize,
+                                      BLOCK_SIZE plane_bsize, int plane,
+                                      uint8_t *comp_pred8, int comp_stride,
+                                      const uint8_t *inter_pred8,
+                                      int inter_stride,
+                                      const uint8_t *intra_pred8,
+                                      int intra_stride, int bd, int border);
 
 #ifdef __cplusplus
 }  // extern "C"
