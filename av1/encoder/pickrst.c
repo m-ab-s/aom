@@ -2196,7 +2196,7 @@ static void search_wiener_nonsep(const RestorationTileLimits *limits,
     RestorationType rtype =
         (cost_wienerns < cost_none) ? RESTORE_WIENER_NONSEP : RESTORE_NONE;
     rusi->best_rtype[RESTORE_WIENER_NONSEP - 1] = rtype;
-    rsc->sse = rusi->sse[rtype];
+    rsc->sse += rusi->sse[rtype];
     rsc->bits += (cost_wienerns < cost_none) ? bits_wienerns : bits_none;
     if (cost_wienerns < cost_none) rsc->wiener_nonsep = rusi->wiener_nonsep;
 #endif  // CONFIG_RST_MERGECOEFFS
