@@ -43,8 +43,8 @@ static inline int16_t doclip(int16_t x, int low, int high) {
 
 void show_resample_filter(RationalResampleFilter *rf) {
   printf("------------------\n");
-  printf("Resample factor %d / %d\n", rf->p, rf->q);
-  printf("Extension type %s\n", ext2str(rf->ext_type));
+  printf("Resample factor: %d / %d\n", rf->p, rf->q);
+  printf("Extension type: %s\n", ext2str(rf->ext_type));
   printf("Start = %d\n", rf->start);
   printf("Steps = ");
   for (int i = 0; i < rf->p; ++i) {
@@ -56,7 +56,7 @@ void show_resample_filter(RationalResampleFilter *rf) {
     printf("%f, ", rf->phases[i]);
   }
   printf("\n");
-  printf("Filters [length %d]:\n", rf->length);
+  printf("Filters [length %d, bits %d]:\n", rf->length, rf->filter_bits);
   for (int i = 0; i < rf->p; ++i) {
     printf("  { ");
     for (int j = 0; j < rf->length; ++j) printf("%d, ", rf->filter[i][j]);

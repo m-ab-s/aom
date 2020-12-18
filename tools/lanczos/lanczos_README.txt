@@ -26,10 +26,13 @@ lanczos_resample.h
 UTILITIES
 #########
 
-In addition, two utilities are provided to resample y4m and yuv videos
-respectively:
+Two utilities are provided to resample y4m and yuv videos respectively:
 lanczos_resample_y4m (built using source lanczos_resample_y4m.c)
 lanczos_resample_y4m (built using source lanczos_resample_yuv.c)
+
+Another utility simply returns the filter parameters for a given
+resampling configuration:
+lanczos_resample_filter (built using source lanczos_resample_filter.c)
 
 lanczos_resample_y4m
 --------------------
@@ -139,6 +142,32 @@ arguments to specify the input format:
                                yuv444p, yuv444p10, yuv444p12 }
       All other parameters are the same as the ones used for
       lanczos_resample_y4m described above.
+
+
+lanczos_resample_filter
+-----------------------
+The usage of lanczos_resample_filter is:
+  lanczos_resample_filter
+      <p>:<q>:<Lanczos_a>[:<x0>]
+      [<filter_bits>]
+  Notes:
+      <p>/<q> gives the resampling ratio.
+      <Lanczos_a> is Lanczos parameter.
+      <x0> is optional initial offset [default centered].
+          If used, it can be a number in (-1, 1),
+                   or a number in (-1, 1) prefixed by 'i' meaning
+                       using the inverse of the number provided,
+                   or 'c' meaning centered
+      <filter_bits> is the bits for the filter [default 12].
+
+Example usages:
+
+    lanczos_resample_filter 2:3:6 14
+        (shows 14-bit a = 6 filter for 2/3 resampling, x0 = centered)
+    lanczos_resample_filter 1:2:5:0.125 12
+        (shows 12-bit a = 5 filter for 1/2 resampling, x0 = 0.125)
+    lanczos_resample_filter 3:2:6:i0.125 12
+        (shows 12-bit a = 5 filter for 3/2 resampling, x0 = inverse of 0.125)
 
 
 SCRIPTS
