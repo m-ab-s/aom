@@ -159,7 +159,7 @@ def ParseArguments(raw_args):
 ######################################
 if __name__ == "__main__":
     #sys.argv = ["", "-f", "encode", "-p","1"]
-    sys.argv = ["", "-f", "summary", "-p", "1"]
+    #sys.argv = ["", "-f", "summary", "-p", "1"]
     ParseArguments(sys.argv)
 
     # preparation for executing functions
