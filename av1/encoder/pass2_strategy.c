@@ -2040,7 +2040,7 @@ static int test_candidate_kf(TWO_PASS *twopass,
 
 static int detect_app_forced_key(AV1_COMP *cpi) {
   if (cpi->oxcf.kf_cfg.fwd_kf_enabled) cpi->rc.next_is_fwd_key = 1;
-  int num_frames_to_app_forced_key = is_forced_keyframe_pending(
+  int num_frames_to_app_forced_key = get_forced_keyframe_position(
       cpi->lookahead, cpi->lookahead->max_sz, cpi->compressor_stage);
   if (num_frames_to_app_forced_key != -1) cpi->rc.next_is_fwd_key = 0;
   return num_frames_to_app_forced_key;
