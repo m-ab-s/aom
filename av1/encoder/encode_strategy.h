@@ -73,9 +73,9 @@ int av1_get_refresh_frame_flags(
 
 int av1_get_refresh_ref_frame_map(int refresh_frame_flags);
 
-int is_forced_keyframe_pending(struct lookahead_ctx *lookahead,
-                               const int up_to_index,
-                               const COMPRESSOR_STAGE compressor_stage);
+int get_forced_keyframe_position(struct lookahead_ctx *lookahead,
+                                 const int up_to_index,
+                                 const COMPRESSOR_STAGE compressor_stage);
 
 int av1_check_keyframe_arf(int gf_index, GF_GROUP *gf_group,
                            int frame_since_key);
