@@ -209,10 +209,20 @@ void av1_compute_gm_for_valid_ref_frames(
     int segment_map_h) {
   AV1_COMMON *const cm = &cpi->common;
   GlobalMotionInfo *const gm_info = &cpi->gm_info;
-  const WarpedMotionParams *ref_params =
-      cm->prev_frame ? &cm->prev_frame->global_motion[frame]
-                     : &default_warp_params;
-
+  const WarpedMotionParams *ref_params;
+#if CONFIG_GM_MODEL_CODING
+  if (frame != LAST_FRAME) {
+    const int base = calculate_gm_ref_params_scaling_distance(cm, LAST_FRAME);
+    const int distance = calculate_gm_ref_params_scaling_distance(cm, frame);
+    ref_params = find_gm_ref_params(cm, distance, base);
+  } else {
+    ref_params = cm->prev_frame ? &cm->prev_frame->global_motion[frame]
+                                : &default_warp_params;
+  }
+#else
+  ref_params = cm->prev_frame ? &cm->prev_frame->global_motion[frame]
+                              : &default_warp_params;
+#endif  // CONFIG_GM_MODEL_CODING
   compute_global_motion_for_ref_frame(
       cpi, ref_buf, frame, num_src_corners, src_corners, src_buffer,
       params_by_motion, segment_map, segment_map_w, segment_map_h, ref_params);
