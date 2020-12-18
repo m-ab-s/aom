@@ -321,6 +321,11 @@ if((CONFIG_AV1_DECODER OR CONFIG_AV1_ENCODER) AND ENABLE_EXAMPLES)
                  "${AOM_ROOT}/tools/lanczos/lanczos_resample.h"
                  "${AOM_ROOT}/tools/lanczos/lanczos_resample_yuv.c")
   list(APPEND AOM_APP_TARGETS lanczos_resample_y4m lanczos_resample_yuv)
+  add_executable(lanczos_resample_filter
+                 "${AOM_ROOT}/tools/lanczos/lanczos_resample.c"
+                 "${AOM_ROOT}/tools/lanczos/lanczos_resample.h"
+                 "${AOM_ROOT}/tools/lanczos/lanczos_resample_filter.c")
+  list(APPEND AOM_APP_TARGETS lanczos_resample_filter)
 endif()
 
 if(CONFIG_AV1_DECODER AND ENABLE_EXAMPLES)
