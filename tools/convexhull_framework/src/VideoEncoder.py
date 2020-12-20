@@ -11,7 +11,7 @@
 __author__ = "maggie.sun@intel.com, ryan.lei@intel.com"
 
 import Utils
-from Config import AOMENC, SVTAV1
+from Config import AOMENC, SVTAV1, EnableTimingInfo, Platform
 from Utils import ExecuteCmd
 
 def get_qindex_from_QP(QP):
@@ -26,7 +26,7 @@ def get_qindex_from_QP(QP):
         return quantizer_to_qindex[63]
     return quantizer_to_qindex[QP]
 
-def EncodeWithAOM_AV1(clip, test_cfg, QP, framenum, outfile, preset,
+def EncodeWithAOM_AV1(clip, test_cfg, QP, framenum, outfile, preset, enc_perf,
                       LogCmdOnly=False):
     args = " --verbose --codec=av1 -v --psnr --obu --frame-parallel=0" \
            " --cpu-used=%s --limit=%d --passes=1 --end-usage=q --i%s " \
@@ -57,9 +57,14 @@ def EncodeWithAOM_AV1(clip, test_cfg, QP, framenum, outfile, preset,
         print("Unsupported Test Configuration %s" % test_cfg)
     args += " -o %s %s" % (outfile, clip.file_path)
     cmd = AOMENC + args
+    if (EnableTimingInfo):
+        if Platform == "Windows":
+            cmd = "ptime " + cmd + " >%s"%enc_perf
+        else:
+            cmd = "/usr/bin/time --verbose --output=%s "%enc_perf + cmd
     ExecuteCmd(cmd, LogCmdOnly)
 
-def EncodeWithSVT_AV1(clip, test_cfg, QP, framenum, outfile, preset,
+def EncodeWithSVT_AV1(clip, test_cfg, QP, framenum, outfile, preset, enc_perf,
                       LogCmdOnly=False):
     #TODO: update svt parameters
     args = " --preset %s --scm 2 --lookahead 0 --hierarchical-levels 3 -n %d" \
@@ -67,18 +72,23 @@ def EncodeWithSVT_AV1(clip, test_cfg, QP, framenum, outfile, preset,
            % (str(preset), framenum, QP, clip.width, clip.height, outfile,
               clip.file_path)
     cmd = SVTAV1 + args
+    if EnableTimingInfo:
+        if Platform == "Windows":
+            cmd = "ptime " + cmd + " >%s"%enc_perf
+        else:
+            cmd = "/usr/bin/time --verbose --output=%s"%enc_perf + cmd
     ExecuteCmd(cmd, LogCmdOnly)
 
 def VideoEncode(EncodeMethod, CodecName, clip, test_cfg, QP, framenum, outfile,
-                preset, LogCmdOnly=False):
+                preset, enc_perf, LogCmdOnly=False):
     Utils.CmdLogger.write("::Encode\n")
     if CodecName == 'av1':
         if EncodeMethod == "aom":
             EncodeWithAOM_AV1(clip, test_cfg, QP, framenum, outfile, preset,
-                              LogCmdOnly)
+                              enc_perf, LogCmdOnly)
         elif EncodeMethod == "svt":
             EncodeWithSVT_AV1(clip, test_cfg, QP, framenum, outfile, preset,
-                              LogCmdOnly)
+                              enc_perf, LogCmdOnly)
         else:
             raise ValueError("invalid parameter for encode.")
     else:

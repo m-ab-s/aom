@@ -17,7 +17,7 @@ import subprocess
 import time
 import logging
 from Config import LogLevels, ContentPath
-from AV2CTCVideo import Y4M_CLIPs, CTC_TEST_SET, AS_TEST_SET
+from AV2CTCVideo import Y4M_CLIPs, CTC_TEST_SET
 
 class Clip:
     file_name = ""

@@ -11,6 +11,7 @@
 __author__ = "maggie.sun@intel.com, ryan.lei@intel.com"
 
 import os
+import platform
 import AV2CTCVideo
 
 #TEST_CONFIGURATIONS = ["RA","LD", "AS"]
@@ -29,6 +30,8 @@ FrameNum = {
     "AI" : 30,
     "AS" : 130,
 }
+EnableTimingInfo = True
+Platform = platform.system()
 
 ############ test contents #######################################
 ContentPath = "D:\\YUVs\\AV2-CTC"

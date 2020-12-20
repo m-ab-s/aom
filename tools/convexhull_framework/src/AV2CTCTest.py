@@ -11,6 +11,7 @@
 __author__ = "maggie.sun@intel.com, ryan.lei@intel.com"
 
 import os
+import re
 import sys
 import argparse
 from CalculateQualityMetrics import CalculateQualityMetric, GatherQualityMetrics
@@ -18,8 +19,8 @@ from Utils import GetShortContentName, CreateNewSubfolder, SetupLogging, \
      Cleanfolder, CreateClipList
 import Utils
 from Config import LogLevels, FrameNum, TEST_CONFIGURATIONS, QPs, WorkPath, \
-     Path_RDResults, LoggerName,QualityList
-from EncDecUpscale import Encode, Decode
+     Path_RDResults, LoggerName, QualityList, Platform
+from EncDecUpscale import Encode, Decode, GetEncPerfFile, GetDecPerfFile
 
 ###############################################################################
 ##### Helper Functions ########################################################
@@ -47,18 +48,19 @@ def GetBsReconFileName(EncodeMethod, CodecName, EncodePreset, test_cfg, clip, QP
 
 def setupWorkFolderStructure():
     global Path_Bitstreams, Path_DecodedYuv, Path_QualityLog, Path_TestLog,\
-           Path_CfgFiles
+           Path_CfgFiles, Path_TimingLog
     Path_Bitstreams = CreateNewSubfolder(WorkPath, "bistreams")
     Path_DecodedYuv = CreateNewSubfolder(WorkPath, "decodedYUVs")
     Path_QualityLog = CreateNewSubfolder(WorkPath, "qualityLogs")
-    Path_TestLog = CreateNewSubfolder(WorkPath, 'testLogs')
+    Path_TestLog = CreateNewSubfolder(WorkPath, "testLogs")
     Path_CfgFiles = CreateNewSubfolder(WorkPath, "configFiles")
+    Path_TimingLog = CreateNewSubfolder(WorkPath, "perfLogs")
 
 ###############################################################################
 ######### Major Functions #####################################################
 def CleanUp_workfolders():
     folders = [Path_Bitstreams, Path_DecodedYuv, Path_QualityLog,
-               Path_TestLog, Path_CfgFiles]
+               Path_TestLog, Path_CfgFiles, Path_TimingLog]
     for folder in folders:
         Cleanfolder(folder)
 
@@ -71,10 +73,12 @@ def Run_Encode_Test(test_cfg, clip, preset, LogCmdOnly = False):
         if LogCmdOnly:
             Utils.CmdLogger.write("============== Job Start =================\n")
         bsFile = Encode('aom', 'av1', preset, clip, test_cfg, QP,
-                        FrameNum[test_cfg], Path_Bitstreams, LogCmdOnly)
+                        FrameNum[test_cfg], Path_Bitstreams, Path_TimingLog,
+                        LogCmdOnly)
         Utils.Logger.info("start decode file %s" % os.path.basename(bsFile))
         #decode
-        decodedYUV = Decode('av1', bsFile, Path_DecodedYuv, LogCmdOnly)
+        decodedYUV = Decode('av1', bsFile, Path_DecodedYuv, Path_TimingLog,
+                            LogCmdOnly)
         #calcualte quality distortion
         Utils.Logger.info("start quality metric calculation")
         CalculateQualityMetric(clip.file_path, FrameNum[test_cfg], decodedYUV,
@@ -85,6 +89,31 @@ def Run_Encode_Test(test_cfg, clip, preset, LogCmdOnly = False):
         Utils.Logger.info("finish running encode with QP %d" % (QP))
         if LogCmdOnly:
             Utils.CmdLogger.write("============== Job End ===================\n\n")
+
+def GatherPerfInfo(bsfile, Path_TimingLog):
+    enc_perf = GetEncPerfFile(bsfile, Path_TimingLog)
+    dec_perf = GetDecPerfFile(bsfile, Path_TimingLog)
+    enc_time = 0.0; dec_time = 0.0
+    flog = open(enc_perf, 'r')
+    for line in flog:
+        if Platform == "Windows":
+            m = re.search(r"Execution time:\s+(\d+\.?\d*)", line)
+        else:
+            m = re.search(r"User time (seconds):\s+(\d+\.?\d*)", line)
+        if m:
+            enc_time = float(m.group(1))
+    flog.close()
+
+    flog = open(dec_perf, 'r')
+    for line in flog:
+        if Platform == "Windows":
+            m = re.search(r"Execution time:\s+(\d+\.?\d*)", line)
+        else:
+            m = re.search(r"User time (seconds):\s+(\d+\.?\d*)", line)
+        if m:
+            dec_time = float(m.group(1))
+    flog.close()
+    return enc_time, dec_time
 
 def GenerateSummaryRDDataFile(EncodeMethod, CodecName, EncodePreset,
                               test_cfg, clip_list):
@@ -114,7 +143,9 @@ def GenerateSummaryRDDataFile(EncodeMethod, CodecName, EncodePreset,
                         clip.fps,clip.bit_depth,qp,bitrate))
             for qty in quality:
                 csv.write(",%.4f"%qty)
-            csv.write(",,,,\n")
+            enc_time, dec_time = GatherPerfInfo(bs, Path_TimingLog)
+            enc_hour = (enc_time / 3600.0)
+            csv.write(",%.2f,%.2f,%.2f,\n"%(enc_time,dec_time,enc_hour))
 
     Utils.Logger.info("finish export RD results to file.")
     return
