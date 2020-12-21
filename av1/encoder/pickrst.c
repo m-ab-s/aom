@@ -2116,6 +2116,11 @@ static void search_wiener_nonsep(const RestorationTileLimits *limits,
     RestorationUnitInfo rui_temp;
     memset(&rui_temp, 0, sizeof(rui_temp));
     rui_temp.restoration_type = RESTORE_WIENER_NONSEP;
+    rui_temp.plane = rsc->plane;
+#if CONFIG_WIENER_NONSEP_CROSS_FILT
+    rui_temp.luma = rsc->luma;
+    rui_temp.luma_stride = rsc->luma_stride;
+#endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
     int num_feat = is_uv ? wienerns_uv : wienerns_y;
     if (linsolve(num_feat, A_AVG, num_feat, b_AVG, merge_filter_stats)) {
       int beg_feat = is_uv ? wienerns_y : 0;
