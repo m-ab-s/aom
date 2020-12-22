@@ -4368,8 +4368,18 @@ void av1_read_sequence_header(AV1_COMMON *cm, struct aom_read_bit_buffer *rb,
 
 static int read_global_motion_params(WarpedMotionParams *params,
                                      const WarpedMotionParams *ref_params,
+#if CONFIG_GM_MODEL_CODING
+                                     int frame,
+#endif  // CONFIG_GM_MODEL_CODING
                                      struct aom_read_bit_buffer *rb,
                                      int allow_hp) {
+  uint16_t k;
+#if CONFIG_GM_MODEL_CODING
+  k = (frame != LAST_FRAME) ? GM_DIFF_SUBEXPFIN_K : SUBEXPFIN_K;
+#else
+  k = SUBEXPFIN_K;
+#endif  // CONFIG_GM_MODEL_CODING
+
   TransformationType type = aom_rb_read_bit(rb);
   if (type != IDENTITY) {
     if (aom_rb_read_bit(rb))
@@ -4383,24 +4393,24 @@ static int read_global_motion_params(WarpedMotionParams *params,
 
   if (type >= ROTZOOM) {
     params->wmmat[2] = aom_rb_read_signed_primitive_refsubexpfin(
-                           rb, GM_ALPHA_MAX + 1, SUBEXPFIN_K,
+                           rb, GM_ALPHA_MAX + 1, k,
                            (ref_params->wmmat[2] >> GM_ALPHA_PREC_DIFF) -
                                (1 << GM_ALPHA_PREC_BITS)) *
                            GM_ALPHA_DECODE_FACTOR +
                        (1 << WARPEDMODEL_PREC_BITS);
     params->wmmat[3] = aom_rb_read_signed_primitive_refsubexpfin(
-                           rb, GM_ALPHA_MAX + 1, SUBEXPFIN_K,
+                           rb, GM_ALPHA_MAX + 1, k,
                            (ref_params->wmmat[3] >> GM_ALPHA_PREC_DIFF)) *
                        GM_ALPHA_DECODE_FACTOR;
   }
 
   if (type >= AFFINE) {
     params->wmmat[4] = aom_rb_read_signed_primitive_refsubexpfin(
-                           rb, GM_ALPHA_MAX + 1, SUBEXPFIN_K,
+                           rb, GM_ALPHA_MAX + 1, k,
                            (ref_params->wmmat[4] >> GM_ALPHA_PREC_DIFF)) *
                        GM_ALPHA_DECODE_FACTOR;
     params->wmmat[5] = aom_rb_read_signed_primitive_refsubexpfin(
-                           rb, GM_ALPHA_MAX + 1, SUBEXPFIN_K,
+                           rb, GM_ALPHA_MAX + 1, k,
                            (ref_params->wmmat[5] >> GM_ALPHA_PREC_DIFF) -
                                (1 << GM_ALPHA_PREC_BITS)) *
                            GM_ALPHA_DECODE_FACTOR +
@@ -4421,11 +4431,11 @@ static int read_global_motion_params(WarpedMotionParams *params,
                                     ? GM_TRANS_ONLY_PREC_DIFF + !allow_hp
                                     : GM_TRANS_PREC_DIFF;
     params->wmmat[0] = aom_rb_read_signed_primitive_refsubexpfin(
-                           rb, (1 << trans_bits) + 1, SUBEXPFIN_K,
+                           rb, (1 << trans_bits) + 1, k,
                            (ref_params->wmmat[0] >> trans_prec_diff)) *
                        trans_dec_factor;
     params->wmmat[1] = aom_rb_read_signed_primitive_refsubexpfin(
-                           rb, (1 << trans_bits) + 1, SUBEXPFIN_K,
+                           rb, (1 << trans_bits) + 1, k,
                            (ref_params->wmmat[1] >> trans_prec_diff)) *
                        trans_dec_factor;
   }
@@ -4459,8 +4469,11 @@ static AOM_INLINE void read_global_motion(AV1_COMMON *cm,
                                 : &default_warp_params;
 #endif  // CONFIG_GM_MODEL_CODING
     int good_params =
-        read_global_motion_params(&cm->global_motion[frame], ref_params, rb,
-                                  cm->features.allow_high_precision_mv);
+        read_global_motion_params(&cm->global_motion[frame], ref_params,
+#if CONFIG_GM_MODEL_CODING
+                                  frame,
+#endif  // CONFIG_GM_MODEL_CODING
+                                  rb, cm->features.allow_high_precision_mv);
     if (!good_params) {
 #if WARPED_MOTION_DEBUG
       printf("Warning: unexpected global motion shear params from aomenc\n");

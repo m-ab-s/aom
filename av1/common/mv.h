@@ -208,6 +208,11 @@ static const WarpedMotionParams default_warp_params = {
 #define GM_ALPHA_MIN -GM_ALPHA_MAX
 #define GM_ROW3HOMO_MIN -GM_ROW3HOMO_MAX
 
+// parameters for GM_MODEL_CODING
+#if CONFIG_GM_MODEL_CODING
+#define GM_DIFF_SUBEXPFIN_K 0
+#endif  // CONFIG_GM_MODEL_CODING
+
 static INLINE int block_center_x(int mi_col, BLOCK_SIZE bs) {
   const int bw = block_size_wide[bs];
   return mi_col * MI_SIZE + bw / 2 - 1;
