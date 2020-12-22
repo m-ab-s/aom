@@ -46,6 +46,70 @@ static int is_in_ref_map(RefBufMapData *map, int disp_order, int n_frames) {
   return 0;
 }
 
+#if CONFIG_NEW_REF_SIGNALING
+typedef struct {
+  int score;
+  int index;
+  int distance;
+  MV_REFERENCE_FRAME named_ref;
+} RefScoreData;
+/*!\endcond */
+
+// Comparison function to sort reference frames in ascending display order
+static int compare_score_data_asc(const void *a, const void *b) {
+  if (((RefScoreData *)a)->score == ((RefScoreData *)b)->score) {
+    return 0;
+  } else if (((const RefScoreData *)a)->score >
+             ((const RefScoreData *)b)->score) {
+    return 1;
+  } else {
+    return -1;
+  }
+}
+void av1_init_new_ref_frame_map(AV1_COMMON *const cm,
+                                RefFrameMapPair *ref_frame_map_pairs,
+                                int cur_frame_disp) {
+  RefScoreData scores[REF_FRAMES];
+  int n_ranked = 0;
+  // Compute a score for each reference buffer
+  for (int i = 0; i < REF_FRAMES; i++) {
+    // Get reference frame buffer
+
+    RefFrameMapPair cur_ref = ref_frame_map_pairs[i];
+    if (cur_ref.disp_order == -1) continue;
+    const int ref_disp = cur_ref.disp_order;
+
+    // Sort frames based on distance from current frame
+    const int disp_diff = cur_frame_disp - ref_disp;
+    const int score = abs(disp_diff);
+    scores[n_ranked].index = i;
+    scores[n_ranked].score = score;
+    scores[n_ranked].distance = disp_diff;
+    n_ranked++;
+  }
+
+  // Sort the references according to their score
+  qsort(scores, n_ranked, sizeof(scores[0]), compare_score_data_asc);
+
+  // Fill in NewRefFramesData struct according to computed mapping
+  cm->new_ref_frame_data.n_total_refs = n_ranked;
+  int n_future = 0;
+  int n_past = 0;
+  for (int i = 0; i < n_ranked; i++) {
+    cm->new_ref_frame_data.ref_frame_score_map[i] = scores[i].index;
+    if (scores[i].distance < 0) {
+      cm->new_ref_frame_data.future_refs[n_future] = i;
+      n_future++;
+    } else {
+      cm->new_ref_frame_data.past_refs[n_past] = i;
+      n_past++;
+    }
+  }
+  cm->new_ref_frame_data.n_past_refs = n_past;
+  cm->new_ref_frame_data.n_future_refs = n_future;
+}
+#endif  // CONFIG_NEW_REF_SIGNALING
+
 // Add a reference buffer index to a named reference slot
 static void add_ref_to_slot(RefBufMapData *ref, int *const remapped_ref_idx,
                             int frame) {
@@ -220,6 +284,7 @@ void av1_get_ref_frames(AV1_COMMON *const cm, int cur_frame_disp,
   for (int i = 0; i < REF_FRAMES; ++i)
     if (remapped_ref_idx[i] == INVALID_IDX) remapped_ref_idx[i] = 0;
 }
+
 // Returns a context number for the given MB prediction signal
 static InterpFilter get_ref_filter_type(const MB_MODE_INFO *ref_mbmi,
                                         const MACROBLOCKD *xd, int dir,

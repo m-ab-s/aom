@@ -5003,6 +5003,10 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       }
 
 #if CONFIG_NEW_REF_SIGNALING
+      RefFrameMapPair ref_frame_map_pairs[REF_FRAMES];
+      // initialize without pyramid levels
+      init_ref_map_pair(cm, ref_frame_map_pairs,
+                        current_frame->frame_type == KEY_FRAME);
       int is_realtime = 1;
       if (!frame_refs_short_signaling &&
           seq_params->order_hint_info.enable_order_hint) {
@@ -5018,7 +5022,6 @@ static int read_uncompressed_header(AV1Decoder *pbi,
           int is_lowest_level = aom_rb_read_bit(rb);
           cm->current_frame.pyramid_level =
               is_lowest_level ? 1 : (aom_rb_read_bit(rb) ? 3 : 2);
-          RefFrameMapPair ref_frame_map_pairs[REF_FRAMES];
           init_ref_map_pair(cm, ref_frame_map_pairs,
                             current_frame->frame_type == KEY_FRAME);
           // Derive the reference frame mapping
@@ -5079,6 +5082,10 @@ static int read_uncompressed_header(AV1Decoder *pbi,
                                "Reference buffer frame ID mismatch");
         }
       }
+#if CONFIG_NEW_REF_SIGNALING
+      av1_init_new_ref_frame_map(cm, ref_frame_map_pairs,
+                                 current_frame->display_order_hint);
+#endif  // CONFIG_NEW_REF_SIGNALING
 
       if (!features->error_resilient_mode && frame_size_override_flag) {
         setup_frame_size_with_refs(cm, rb);

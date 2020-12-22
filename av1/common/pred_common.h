@@ -64,6 +64,12 @@ static INLINE void init_ref_map_pair(
 void av1_get_ref_frames(AV1_COMMON *const cm, int cur_frame_disp,
                         RefFrameMapPair ref_frame_map_pairs[REF_FRAMES]);
 
+#if CONFIG_NEW_REF_SIGNALING
+void av1_init_new_ref_frame_map(AV1_COMMON *const cm,
+                                RefFrameMapPair *ref_frame_map_pairs,
+                                int cur_frame_disp);
+#endif  // NEW_REF_SIGNALING
+
 static INLINE int get_segment_id(const CommonModeInfoParams *const mi_params,
                                  const uint8_t *segment_ids, BLOCK_SIZE bsize,
                                  int mi_row, int mi_col) {

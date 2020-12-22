@@ -1222,18 +1222,21 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
                                frame_update_type, frame_params.frame_type,
                                force_refresh_all);
 
+  const int order_offset = gf_group->arf_src_offset[gf_group->index];
+  const int cur_frame_disp =
+      cpi->common.current_frame.frame_number + order_offset;
   RefFrameMapPair ref_frame_map_pairs[REF_FRAMES];
   init_ref_map_pair(&cpi->common, ref_frame_map_pairs,
                     gf_group->update_type[gf_group->index] == KEY_FRAME);
+#if CONFIG_NEW_REF_SIGNALING
+  av1_init_new_ref_frame_map(&cpi->common, ref_frame_map_pairs, cur_frame_disp);
+#endif  // CONFIG_NEW_REF_SIGNALING
 
   if (!is_stat_generation_stage(cpi)) {
     const RefCntBuffer *ref_frames[INTER_REFS_PER_FRAME];
     const YV12_BUFFER_CONFIG *ref_frame_buf[INTER_REFS_PER_FRAME];
 
     if (!ext_flags->refresh_frame.update_pending) {
-      const int order_offset = gf_group->arf_src_offset[gf_group->index];
-      const int cur_frame_disp =
-          cpi->common.current_frame.frame_number + order_offset;
       av1_get_ref_frames(cm, cur_frame_disp, ref_frame_map_pairs);
     } else if (cpi->svc.external_ref_frame_config) {
       for (unsigned int i = 0; i < INTER_REFS_PER_FRAME; i++)
@@ -1268,9 +1271,6 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
       get_gop_cfg_enabled_refs(cpi, &frame_params.ref_frame_flags,
                                frame_params.order_offset);
     }
-
-    const int cur_frame_disp =
-        cpi->common.current_frame.frame_number + frame_params.order_offset;
 
     frame_params.refresh_frame_flags = av1_get_refresh_frame_flags(
         cpi, &frame_params, frame_update_type, cpi->gf_group.index,

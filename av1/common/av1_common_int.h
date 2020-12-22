@@ -751,6 +751,43 @@ struct CommonContexts {
   int num_mi_cols;   /*!< Corresponds to cm->mi_params.mi_cols */
 };
 
+#if CONFIG_NEW_REF_SIGNALING
+/*!
+ * \brief Structure to contain information about the reference frame mapping
+ * scheme.
+ */
+typedef struct {
+  /*!
+   * Maps reference slot to ref_frame_map buffer slot based on
+   * a usefulness score. This map sorts reference frames from most
+   * useful to least useful.
+   */
+  int ref_frame_score_map[REF_FRAMES];
+  /*!
+   * Total number of reference buffers available to the current frame.
+   */
+  int n_total_refs;
+  /*!
+   * Contains the indices of the frames in ref_frame_map that are future
+   * references.
+   */
+  int future_refs[REF_FRAMES];
+  /*!
+   * Number of future references.
+   */
+  int n_future_refs;
+  /*!
+   * Contains the indices of the frames in ref_frame_map that are past
+   * references.
+   */
+  int past_refs[REF_FRAMES];
+  /*!
+   * Number of past references.
+   */
+  int n_past_refs;
+} NewRefFramesData;
+#endif  // CONFIG_NEW_REF_SIGNALING
+
 /*!
  * \brief Top level common structure used by both encoder and decoder.
  */
@@ -867,6 +904,15 @@ typedef struct AV1Common {
    * have a remapped index for the same.
    */
   int remapped_ref_idx[REF_FRAMES];
+
+#if CONFIG_NEW_REF_SIGNALING
+  /*!
+   * An alternative to remapped_ref_idx (above) which contains a mapping to
+   * ref_frame_map[] according to a "usefulness" score. It also contains all
+   * other relevant data to aid the reference mapping and signaling.
+   */
+  NewRefFramesData new_ref_frame_data;
+#endif
 
   /*!
    * Scale of the current frame with respect to itself.
