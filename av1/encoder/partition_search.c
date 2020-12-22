@@ -1377,7 +1377,7 @@ static INLINE void search_partition_horz(PartitionSearchState *search_state,
     part_data.num_sub_parts = 2;
     part_data.part_rate = part_h_rate;
 
-    if (search_state->none_rd > 0 && search_state->none_rd < INT64_MAX &&
+    if (best_rdc->rdcost < INT64_MAX &&
         (mi_row + 2 * blk_params->mi_step_h <= cm->mi_rows) &&
         (mi_col + 2 * blk_params->mi_step_w <= cm->mi_cols) &&
         av1_prune_new_part(&search_state->none_data, &part_data, x->rdmult,
@@ -1569,7 +1569,7 @@ static INLINE void search_partition_vert(PartitionSearchState *search_state,
     part_data.num_sub_parts = 2;
     part_data.part_rate = part_v_rate;
 
-    if (search_state->none_rd > 0 && search_state->none_rd < INT64_MAX &&
+    if (best_rdc->rdcost < INT64_MAX &&
         (mi_row + 2 * blk_params->mi_step_h <= cm->mi_rows) &&
         (mi_col + 2 * blk_params->mi_step_w <= cm->mi_cols) &&
         av1_prune_new_part(&search_state->none_data, &part_data, x->rdmult,
@@ -2383,7 +2383,7 @@ static INLINE void search_partition_horz_3(PartitionSearchState *search_state,
     part_data.num_sub_parts = 3;
     part_data.part_rate = part_h3_rate;
 
-    if (search_state->none_rd > 0 && search_state->none_rd < INT64_MAX &&
+    if (best_rdc->rdcost < INT64_MAX &&
         (mi_row + 2 * blk_params->mi_step_h <= cm->mi_rows) &&
         (mi_col + 2 * blk_params->mi_step_w <= cm->mi_cols) &&
         av1_prune_new_part(&search_state->none_data, &part_data, x->rdmult,
@@ -2526,7 +2526,7 @@ static INLINE void search_partition_vert_3(PartitionSearchState *search_state,
     part_data.num_sub_parts = 3;
     part_data.part_rate = part_v3_rate;
 
-    if (search_state->none_rd > 0 && search_state->none_rd < INT64_MAX &&
+    if (best_rdc->rdcost < INT64_MAX &&
         (mi_row + 2 * blk_params->mi_step_h <= cm->mi_rows) &&
         (mi_col + 2 * blk_params->mi_step_w <= cm->mi_cols) &&
         av1_prune_new_part(&search_state->none_data, &part_data, x->rdmult,
