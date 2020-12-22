@@ -693,6 +693,11 @@ typedef struct ThreadData {
   int intrabc_used;
   int deltaq_used;
   FRAME_CONTEXT *tctx;
+#if CONFIG_REF_MV_BANK
+  // TODO(huisu): the ref_mv_bank experiment does not support multi thread yet.
+  REF_MV_BANK ref_mv_bank_left;
+  REF_MV_BANK ref_mv_bank_above[32];
+#endif  // CONFIG_REF_MV_BANK
 } ThreadData;
 
 struct EncWorkerData;

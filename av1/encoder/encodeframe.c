@@ -830,6 +830,13 @@ static void encode_sb_row(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
   // Code each SB in the row
   for (int mi_col = tile_info->mi_col_start, sb_col_in_tile = 0;
        mi_col < tile_info->mi_col_end; mi_col += mib_size, sb_col_in_tile++) {
+#if CONFIG_REF_MV_BANK
+    // td->ref_mv_bank_left is initialized as xd->ref_mv_bank_left, and used
+    // for MV referencing during decoding the tile.
+    // xd->ref_mv_bank_left is updated as encoding goes.
+    td->ref_mv_bank_left = xd->ref_mv_bank_left;
+    xd->ref_mv_bank_left_pt = &td->ref_mv_bank_left;
+#endif  // CONFIG_REF_MV_BANK
     (*(cpi->row_mt_sync_read_ptr))(&tile_data->row_mt_sync, sb_row,
                                    sb_col_in_tile);
 
@@ -1067,6 +1074,13 @@ void av1_encode_tile(AV1_COMP *cpi, ThreadData *td, int tile_row,
 
   for (mi_row = tile_info->mi_row_start; mi_row < tile_info->mi_row_end;
        mi_row += cm->seq_params.mib_size) {
+#if CONFIG_REF_MV_BANK
+    // td->ref_mv_bank_above is initialized as xd->ref_mv_bank_above, and used
+    // for MV referencing during decoding the tile row.
+    // xd->ref_mv_bank_above is updated as encoding goes.
+    av1_copy(td->ref_mv_bank_above, xd->ref_mv_bank_above);
+    xd->ref_mv_bank_above_pt = td->ref_mv_bank_above;
+#endif  // CONFIG_REF_MV_BANK
     av1_encode_sb_row(cpi, td, tile_row, tile_col, mi_row);
   }
 }
