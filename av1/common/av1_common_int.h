@@ -603,6 +603,33 @@ struct CommonModeInfoParams {
   /**@}*/
 };
 
+typedef struct CommonSBInfoParams CommonSBInfoParams;
+/*!
+ * \brief Params related to SB_INFO arrays and related info.
+ */
+struct CommonSBInfoParams {
+  /*!
+   * Grid of pointers to SB_INFO structs.
+   */
+  SB_INFO *sbi_grid_base;
+  /*!
+   * Stride for 'sbi_grid_base'.
+   */
+  int sbi_stride;
+  /*!
+   * Number of superblocks in the vertical direction.
+   */
+  int sb_rows;
+  /*!
+   * Number of superblocks in the horizontal direction.
+   */
+  int sb_cols;
+  /*!
+   * Number of SB_INFO structs that are currently allocated.
+   */
+  int sbi_alloc_size;
+};
+
 typedef struct CommonQuantParams CommonQuantParams;
 /*!
  * \brief Parameters related to quantization at the frame level.
@@ -969,6 +996,11 @@ typedef struct AV1Common {
    * Params related to MB_MODE_INFO arrays and related info.
    */
   CommonModeInfoParams mi_params;
+
+  /*!
+   * Params related to SB_INFO arrays and related info.
+   */
+  CommonSBInfoParams sbi_params;
 
 #if CONFIG_ENTROPY_STATS
   /*!
@@ -2055,6 +2087,21 @@ static INLINE void set_sb_size(SequenceHeader *const seq_params,
   seq_params->sb_size = sb_size;
   seq_params->mib_size = mi_size_wide[seq_params->sb_size];
   seq_params->mib_size_log2 = mi_size_wide_log2[seq_params->sb_size];
+}
+
+static INLINE SB_INFO *av1_get_sb_info(AV1_COMMON *cm, int mi_row, int mi_col) {
+  const int sb_row = mi_row >> cm->seq_params.mib_size_log2;
+  const int sb_col = mi_col >> cm->seq_params.mib_size_log2;
+  return cm->sbi_params.sbi_grid_base + sb_row * cm->sbi_params.sbi_stride +
+         sb_col;
+}
+
+static INLINE void av1_set_sb_info(AV1_COMMON *cm, MACROBLOCKD *xd, int mi_row,
+                                   int mi_col) {
+  xd->sbi = av1_get_sb_info(cm, mi_row, mi_col);
+
+  xd->sbi->mi_row = mi_row;
+  xd->sbi->mi_col = mi_col;
 }
 
 // Returns true if the frame is fully lossless at the coded resolution.

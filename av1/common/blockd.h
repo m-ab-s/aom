@@ -280,6 +280,26 @@ typedef struct MB_MODE_INFO {
   int8_t cdef_strength : 4;
 } MB_MODE_INFO;
 
+typedef struct PARTITION_TREE {
+  struct PARTITION_TREE *sub_tree[4];
+  PARTITION_TYPE partition;
+  BLOCK_SIZE bsize;
+  int is_settled;
+  int mi_row;
+  int mi_col;
+} PARTITION_TREE;
+
+PARTITION_TREE *av1_alloc_ptree_node(void);
+void av1_free_ptree_recursive(PARTITION_TREE *ptree);
+
+typedef struct SB_INFO {
+  int mi_row;
+  int mi_col;
+  PARTITION_TREE *ptree_root;
+} SB_INFO;
+
+void av1_reset_ptree_in_sbi(SB_INFO *sbi);
+
 static INLINE int is_intrabc_block(const MB_MODE_INFO *mbmi) {
   return mbmi->use_intrabc;
 }
@@ -607,6 +627,11 @@ typedef struct macroblockd {
    * one luma blocks in set_mi_row_col().
    */
   MB_MODE_INFO *chroma_above_mbmi;
+
+  /*!
+   * SB_INFO for the superblock that the current coding block is located in
+   */
+  SB_INFO *sbi;
 
   /*!
    * Appropriate offset based on current 'mi_row' and 'mi_col', inside
