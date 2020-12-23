@@ -32,9 +32,16 @@
 
 double get_centered_x0(int p, int q) { return (double)(q - p) / (2 * p); }
 
-double get_inverse_x0(int p, int q, double x0) {
-  if (x0 == (double)('c')) x0 = get_centered_x0(p, q);
-  return -x0 * p / q;
+double get_cosited_chroma_x0(int p, int q) { return (double)(q - p) / (4 * p); }
+
+double get_inverse_x0_numeric(int p, int q, double x0) { return -x0 * p / q; }
+
+double get_inverse_x0(int p, int q, double x0, int subsampled) {
+  if (x0 == (double)('c'))
+    x0 = get_centered_x0(p, q);
+  else if (x0 == (double)('d'))
+    x0 = subsampled ? get_cosited_chroma_x0(p, q) : get_centered_x0(p, q);
+  return get_inverse_x0_numeric(p, q, x0);
 }
 
 static inline int16_t doclip(int16_t x, int low, int high) {
@@ -42,7 +49,6 @@ static inline int16_t doclip(int16_t x, int low, int high) {
 }
 
 void show_resample_filter(RationalResampleFilter *rf) {
-  printf("------------------\n");
   printf("Resample factor: %d / %d\n", rf->p, rf->q);
   printf("Extension type: %s\n", ext2str(rf->ext_type));
   printf("Start = %d\n", rf->start);
@@ -62,7 +68,7 @@ void show_resample_filter(RationalResampleFilter *rf) {
     for (int j = 0; j < rf->length; ++j) printf("%d, ", rf->filter[i][j]);
     printf("  }\n");
   }
-  printf("------------------\n");
+  printf("\n");
 }
 
 static double sinc(double x) {
@@ -181,7 +187,7 @@ const char *ext_names[] = { "Repeat", "Symmetric", "Reflect", "Gradient" };
 const char *ext2str(EXT_TYPE ext_type) { return ext_names[(int)ext_type]; }
 
 void get_resample_filter(int p, int q, int a, double x0, EXT_TYPE ext_type,
-                         int bits, RationalResampleFilter *rf) {
+                         int subsampled, int bits, RationalResampleFilter *rf) {
   double offset[MAX_RATIONAL_FACTOR + 1];
   int intpel[MAX_RATIONAL_FACTOR];
   assert(p > 0 && p <= MAX_RATIONAL_FACTOR);
@@ -191,7 +197,11 @@ void get_resample_filter(int p, int q, int a, double x0, EXT_TYPE ext_type,
   rf->p = p / g;
   rf->q = q / g;
   rf->ext_type = ext_type;
-  if (x0 == (double)('c')) x0 = get_centered_x0(rf->p, rf->q);
+  if (x0 == (double)('c'))
+    x0 = get_centered_x0(rf->p, rf->q);
+  else if (x0 == (double)('d'))
+    x0 = subsampled ? get_cosited_chroma_x0(rf->p, rf->q)
+                    : get_centered_x0(rf->p, rf->q);
   rf->filter_bits = bits;
   for (int i = 0; i < rf->p; ++i) {
     offset[i] = (double)rf->q / (double)rf->p * i + x0;
@@ -223,9 +233,10 @@ int is_resampler_noop(RationalResampleFilter *rf) {
 }
 
 void get_resample_filter_inv(int p, int q, int a, double x0, EXT_TYPE ext_type,
-                             int bits, RationalResampleFilter *rf) {
-  double y0 = get_inverse_x0(p, q, x0);
-  get_resample_filter(q, p, a, y0, ext_type, bits, rf);
+                             int subsampled, int bits,
+                             RationalResampleFilter *rf) {
+  double y0 = get_inverse_x0(p, q, x0, subsampled);
+  get_resample_filter(q, p, a, y0, ext_type, subsampled, bits, rf);
 }
 
 // Assume x buffer is already extended on both sides with x pointing to the

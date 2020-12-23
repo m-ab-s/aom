@@ -17,7 +17,7 @@
 #include <math.h>
 
 #define MAX_RATIONAL_FACTOR 16
-#define MAX_FILTER_LEN 32
+#define MAX_FILTER_LEN 320
 
 typedef enum { EXT_REPEAT, EXT_SYMMETRIC, EXT_REFLECT, EXT_GRADIENT } EXT_TYPE;
 
@@ -40,14 +40,21 @@ typedef struct {
 
 double get_centered_x0(int p, int q);
 
+// x0 is assumed to be in (-1, 1)
+double get_inverse_x0_numeric(int p, int q, double x0);
+
 // In the functions below using x0 as an argument,
-// x0 is assumed to be in (-1, 1) or 99 (ascii value of 'c') meaning centered
-double get_inverse_x0(int p, int q, double x0);
+// x0 is assumed to be in (-1, 1);
+//                        or 99 (ascii value of 'c') meaning centered;
+//                        or 100 (ascii value of 'd') meaning co-sited chroma
+//                        if the chroma plane is subsampled.
+double get_inverse_x0(int p, int q, double x0, int subsampled);
 
 void get_resample_filter(int p, int q, int a, double x0, EXT_TYPE ext_type,
-                         int bits, RationalResampleFilter *rf);
+                         int subsampled, int bits, RationalResampleFilter *rf);
 void get_resample_filter_inv(int p, int q, int a, double x0, EXT_TYPE ext_type,
-                             int bits, RationalResampleFilter *rf);
+                             int subsampled, int bits,
+                             RationalResampleFilter *rf);
 
 // whether the resampler filter is a no-op
 int is_resampler_noop(RationalResampleFilter *rf);

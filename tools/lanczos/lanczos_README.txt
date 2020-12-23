@@ -40,36 +40,47 @@ The usage of lanczos_resample_y4m is:
   lanczos_resample_y4m
       <y4m_input>
       <num_frames>
-      <horz_p>:<horz_q>:<Lanczos_horz_a>[:<horz_x0>:<horz_ext>]
-      <vert_p>:<vert_q>:<Lanczos_vert_a>[:<vert_x0>:<vert_ext>]
+      <horz_resampling_config>
+      <vert_resampling_config>
       <y4m_output>
       [<outwidth>x<outheight>]
   Notes:
       <y4m_input> is the input video in Y4M format
       <y4m_output> is the output video in Y4M format
       <num_frames> is number of frames to be processed
-      <horz_p>/<horz_q> gives the horz resampling ratio.
-      <vert_p>/<vert_q> gives the vert resampling ratio.
-      <Lanczos_horz_a>, <Lanczos_vert_a> are Lanczos parameters.
-      <horz_x0>, <vert_x0> are optional initial offsets
-                                        [default centered].
-          If used, they can be a number in (-1, 1),
-                   or a number in (-1, 1) prefixed by 'i' meaning
-                       using the inverse of the number provided,
-                   or 'c' meaning centered
-      <horz_ext>, <vert_ext> are optional extension types:
-                   'r' or 'rep' (Repeat) [default]
-                       [ ... x0 x0 x0 | x0 x1 x2 ... ]
-                   's' or 'sym' (Symmetric)
-                       [ ... x2 x1 x0 | x0 x1 x2 ... ]
-                   'f' or 'ref' (Reflect/Mirror-whole)
-                       [ ... x3 x2 x1 | x0 x1 x2 ... ]
-                   'g' or 'gra' (Gradient preserving)
-                       [ ... y3 y2 y1 | x0 x1 x2 ... ] with:
-		       yi = 2 * x0 - xi, i = 1, 2, 3, ...
+      <horz_resampling_config> and <vert_resampling_config>
+              are of the form:
+          <p>:<q>:<Lanczos_a>[:<x0>:<ext>] where:
+              <p>/<q> gives the resampling ratio.
+              <Lanczos_a> is Lanczos parameter.
+              <x0> is the optional initial offset
+                                 [default: centered]
+                  If used, it can be a number in (-1, 1),
+                  or 'c' meaning centered.
+                      which is a shortcut for x0 = (q-p)/(2p)
+                  or 'd' meaning co-sited chroma with centered
+                      luma for use only on sub-sampled chroma,
+                      which is a shortcut for x0 = (q-p)/(4p)
+                  The field can be prefixed by 'i' meaning
+                      using the inverse of the number provided,
+              <ext> is the optional extension type:
+                    'r' or 'rep' (Repeat)
+                    's' or 'sym' (Symmetric)
+                    'f' or 'ref' (Reflect/Mirror-whole)
+                    'g' or 'gra' (Grafient preserving)
+                                 [default: 'r']
+          If it is desired to provide different config parameters
+          for luma and chroma, the <Lanczos_a> and <x0> fields
+          could be optionally converted to a pair of
+          comma-separated parameters as follows:
+          <p>:<q>:<Lanczos_al>,<lanczos_ac>[:<x0l>,<x0c>:<ext>]
+              where <Lanczos_al> and <lanczos_ac> are
+                        luma and chroma lanczos parameters
+                    <x0l> and <x0c> are
+                        luma and chroma initial offsets
       <outwidth>x<outheight> is output video dimensions
                              only needed in case of upsampling
-      Resampling config string of 1:1:1:0 horizontally or vertically
+      Resampling config of 1:1:1:0 horizontally or vertically
           is regarded as a no-op in that direction.
 
 Example usages:
@@ -78,7 +89,7 @@ Example usages:
     ratio 3/2 horizontally and 4/3 vertically with Lanczos parameter
     6 for both and centered sampling.
 
-    lanczos_resample_y4m Boat_1920x1080_60fps_10bit_420.y4m 20 \
+    lanczos_resample_y4m Boat_1920x1080_60fps_10bit_420.y4m 10 \
                          2:3:6 3:4:6 /tmp/down.y4m
 
 1b. Reverse the process in 1a. That is, upsample 10 frames from
@@ -90,7 +101,7 @@ Example usages:
 
 2a. Similar to 1a, except using left-aligned sampling
 
-    lanczos_resample_y4m Boat_1920x1080_60fps_10bit_420.y4m 20 \
+    lanczos_resample_y4m Boat_1920x1080_60fps_10bit_420.y4m 10 \
                          2:3:6:0 3:4:6:0 /tmp/down.y4m
 
 2b. Reversing the process in 2a.
@@ -101,7 +112,7 @@ Example usages:
 3a. Similar to 1a, except using a specified initial offset of 0.125 horizontally
     and center aligned sampling vertically
 
-    lanczos_resample_y4m Boat_1920x1080_60fps_10bit_420.y4m 20 \
+    lanczos_resample_y4m Boat_1920x1080_60fps_10bit_420.y4m 10 \
                          2:3:6:0.125 3:4:6 /tmp/down.y4m
 
 3b. Reversing the process in 3a.
@@ -112,7 +123,7 @@ Example usages:
 4a. Similar to 3a, except using symmetric border extension for vertical
     resampling instead of default repeat.
 
-    lanczos_resample_y4m Boat_1920x1080_60fps_10bit_420.y4m 20 \
+    lanczos_resample_y4m Boat_1920x1080_60fps_10bit_420.y4m 10 \
                          2:3:6:0.125 3:4:6:c:s /tmp/down.y4m
 
 4b. Reversing the process in 4a.
@@ -120,17 +131,31 @@ Example usages:
     lanczos_resample_y4m /tmp/down.y4m 10 3:2:6:i0.125 4:3:6:c:s \
                          /tmp/downup.y4m 1920x1080
 
+5a. Downsample 10 frames from Boat_1920x1080_60fps_10bit_420.y4m by
+    ratio 3/2 horizontally and vertically with Lanczos parameter
+    6 for both, centered sampling for luma, co-sited chroma horizontally
+    and centered chroma vertically.
+
+    lanczos_resample_y4m Boat_1920x1080_60fps_10bit_420.y4m 10 \
+                         2:3:6:c,d 2:3:6 /tmp/down.y4m
+
+5b. Reversing the process in 5a.
+
+    lanczos_resample_y4m /tmp/down.y4m 10 3:2:6:ic,id 3:2:6 \
+                         /tmp/downup.y4m 1920x1080
+
+
 lanczos_resample_yuv
 --------------------
 The usage of lanczos_resample_yuv is similar but with two extra
 arguments to specify the input format:
-  lanczos_resample_yuv
+    lanczos_resample_yuv
       <yuv_input>
       <width>x<height>
       <pix_format>
       <num_frames>
-      <horz_p>:<horz_q>:<Lanczos_horz_a>[:<horz_x0>:<horz_ext>]
-      <vert_p>:<vert_q>:<Lanczos_vert_a>[:<vert_x0>:<vert_ext>]
+      <horz_resampling_config>
+      <vert_resampling_config>
       <yuv_output>
       [<outwidth>x<outheight>]
   Notes:
@@ -146,18 +171,15 @@ arguments to specify the input format:
 
 lanczos_resample_filter
 -----------------------
+Utility to show the filter parameters used for both luma and chroma.
 The usage of lanczos_resample_filter is:
   lanczos_resample_filter
-      <p>:<q>:<Lanczos_a>[:<x0>]
+      <resampling_config>
       [<filter_bits>]
   Notes:
-      <p>/<q> gives the resampling ratio.
-      <Lanczos_a> is Lanczos parameter.
-      <x0> is optional initial offset [default centered].
-          If used, it can be a number in (-1, 1),
-                   or a number in (-1, 1) prefixed by 'i' meaning
-                       using the inverse of the number provided,
-                   or 'c' meaning centered
+      <resampling_config> is in the same format as one specified
+          in lanczos_resample_y4m above for <horz_resampling_config>
+	  or <vert_resampling_config>.
       <filter_bits> is the bits for the filter [default 12].
 
 Example usages:
@@ -166,6 +188,9 @@ Example usages:
         (shows 14-bit a = 6 filter for 2/3 resampling, x0 = centered)
     lanczos_resample_filter 1:2:5:0.125 12
         (shows 12-bit a = 5 filter for 1/2 resampling, x0 = 0.125)
+    lanczos_resample_filter 1:2:5:c,d 12
+        (shows 12-bit a = 5 filter for 1/2 resampling,
+	 x0 = centered for luma, co-sited for chroma)
     lanczos_resample_filter 3:2:6:i0.125 12
         (shows 12-bit a = 5 filter for 3/2 resampling, x0 = inverse of 0.125)
 
@@ -185,53 +210,61 @@ The script lanczos_downup.sh resamples a video with specified parameters
 and then reverses the process using two lanczos_resample_y4m commands.
 The usage for the script is:
 
-  lanczos_downup.sh
-      <y4m_input>
-      <num_frames>
-      <horz_resampling_config>
-      <vert_resampling_config>
-      <downup_y4m>
-      [<down_y4m>]
+  Usage:
+    lanczos_downup.sh <input_y4m> <num_frames>
+                      <horz_resampling_config>
+                      <vert_resampling_config>
+                      <downup_y4m>
+                      [<down_y4m>]
 
   Notes:
       <y4m_input> is input y4m video
       <num_frames> is number of frames to process
-      <horz_resampling_config> is in the format:
-              <horz_p>:<horz_q>:<Lanczos_horz_a>[:<horz_x0>:<horz_ext>]
-          similar to what is used by lanczos_resample_y4m utility,
-          with the optional enhancement that for <Lanczos_horz_a> two
-          comma-separated values of 'a' could be provided instead of one
-          for down and up-sampling operations respectively if different.
-      <vert_resampling_config> is in the format:
-              <vert_p>:<vert_q>:<Lanczos_vert_a>[:<vert_x0>:<vert_ext>]
-          similar to what is used by lanczos_resample_y4m utility,
-          with the optional enhancement that for <Lanczos_vert_a> two
-          comma-separated values of 'a' could be provided instead of one
-          for down and up-sampling operations respectively if different.
+      <horz_resampling_config> and <vert_resampling_config> are in format:
+              <p>:<q>:<Lanczos_a_str>[:<x0>:<ext>]
+          similar to what is used by lanczos_resample_y4m utility, with the
+          enhancement that for <Lanczos_a_str> optionally
+          two '^'-separated strings for 'a' could be provided instead
+          of one for down and up-sampling operations respectively if different.
+          Note each string separated by '^' could have two values for luma
+          and chroma separated by ','.
+          So <Lanczos_a_str> could be of the form:
+              <a_luma_down>,<a_chroma_down>^<a_luma_up>,<a_chroma_up>
+            if down and up operations use different parameters, or
+              <a_luma_down>,<a_chroma_down>
+            if down and up operations use the same parameters.
       <downup_y4m> is the output y4m video.
-      <down_y4m> provides the intermedite resampled file as an
+      <down_y4m> provides the intermediate resampled file as an
           optional parameter. If skipped the intermediate resampled
           file is deleted.
 
 Example usages:
-5. Similar to use case 1a and 1b above.
+Similar to use case 1a and 1b above.
 
-(a) From build directory run:
+6a. From build directory run:
     /path/to/script/lanczos_downup.sh Boat_1920x1080_60fps_10bit_420.y4m \
-        20 2:3:6 3:4:6 /tmp/downup.y4m
+        10 2:3:6 3:4:6 /tmp/downup.y4m
             [Here the intermediate resampled files is not stored]
 
-(b) From build directory run:
+6b. From build directory run:
     /path/to/script/lanczos_downup.sh Boat_1920x1080_60fps_10bit_420.y4m \
-        20 2:3:6 3:4:6 /tmp/downup.y4m \
+        10 2:3:6 3:4:6 /tmp/downup.y4m \
         /tmp/down.y4m
             [Here the intermediate resampled files is stored in /tmp/down.y4m]
 
-(c) From build directory run:
+6c. From build directory run:
     /path/to/script/lanczos_downup.sh Boat_1920x1080_60fps_10bit_420.y4m \
-        20 2:3:4,8 3:4:4,8 /tmp/downup.y4m
+        10 2:3:4^8 3:4:4^8 /tmp/downup.y4m
             [Here Lanczos parameters 4 and 8 are used for down and upscaling
              respectively]
+
+6d. From build directory run:
+    /path/to/script/lanczos_downup.sh Boat_1920x1080_60fps_10bit_420.y4m \
+        10 2:3:6,4^6,4:c,d 3:4:6,4^6,4 /tmp/downup.y4m
+            [Here Lanczos parameters 6 and 4 are used for luma and chroma
+	     respectively for both down and upscaling. Further centered
+	     luma and co-sited chroma are used horizontally, while centered
+	     luma and chroma sampling are used vertically.]
 
 lanczos_downcompup.sh
 ---------------------
@@ -241,67 +274,82 @@ aomdec respectively, and finally reverse resamples the decompressed video to
 the source resolution using another lanczos_resample_y4m command.
 The usage for the script is:
 
-  lanczos_downcompup.sh <input_y4m> <num_frames>
-                        <resample_config_horz>
-                        <resample_config_vert>
-                        <cq_level>[:<cpu_used>]
-                        <downcompup_y4m>
-                        [[<down_y4m>]:[<downcomp_bit>]:[<downcomp_y4m]]
+  Usage:
+    lanczos_downcompup.sh <input_y4m> <num_frames>
+                          <horz_resampling_config>
+                          <vert_resampling_config>
+                          <cq_level>[:<cpu_used>]
+                          <downcompup_y4m>
+                          [[<down_y4m>]:[<downcomp_bit>]:[<downcomp_y4m]]
 
-  Notes:
-      <y4m_input> is input y4m video
-      <num_frames> is number of frames to process
-      <horz_resampling_config> is in the format:
-              <horz_p>:<horz_q>:<Lanczos_horz_a>[:<horz_x0>:<horz_ext>]
-          similar to what is used by lanczos_resample_y4m utility,
-          with the optional enhancement that for <Lanczos_horz_a> two
-          comma-separated values of 'a' could be provided instead of one
-          for down and up-sampling operations respectively if different.
-      <vert_resampling_config> is in the format:
-              <vert_p>:<vert_q>:<Lanczos_vert_a>[:<vert_x0>:<vert_ext>]
-          similar to what is used by lanczos_resample_y4m utility,
-          with the optional enhancement that for <Lanczos_vert_a> two
-          comma-separated values of 'a' could be provided instead of one
-          for down and up-sampling operations respectively if different.
-      <cq_level>[:<cpu_used>] provides the cq_level parameter of
-          compression along with an optional cpu_used parameter.
-      <downcompup_y4m> is the output y4m video.
-      The last param [[<down_y4m>]:[<downcomp_bit>]:[<downcomp_y4m]]
-          provides names of intermediate files where:
-	      down_y4m is the resampled source
-	      downcomp_bit is the compressed resampled bitstream
-	      downcomp_y4m is the reconstructed bitstream.
-          This parameter string is entirely optional.
-          Besides if provided, each of down_y4m, downcomp_bit and
-          downcomp_y4m are optional by themselves where each can be
-          either provided or empty. If empty the corresponding
-	  intermediate file is deleted.
+    Notes:
+        <y4m_input> is input y4m video
+        <num_frames> is number of frames to process
+        <horz_resampling_config> and <vert_resampling_config> are in format:
+                <p>:<q>:<Lanczos_a_str>[:<x0>:<ext>]
+            similar to what is used by lanczos_resample_y4m utility, with the
+            enhancement that for <Lanczos_a_str> optionally
+            two '^'-separated strings for 'a' could be provided instead
+            of one for down and up-sampling operations respectively if different.
+            Note each string separated by '^' could have two values for luma
+            and chroma separated by ','.
+            So <Lanczos_a_str> could be of the form:
+                <a_luma_down>,<a_chroma_down>^<a_luma_up>,<a_chroma_up>
+              if down and up operations use different parameters, or
+                <a_luma_down>,<a_chroma_down>
+              if down and up operations use the same parameters.
+        <cq_level>[:<cpu_used>] provides the cq_level parameter of
+            compression along with an optional cpu_used parameter.
+        <downcompup_y4m> is the output y4m video.
+        The last param [[<down_y4m>]:[<downcomp_bit>]:[<downcomp_y4m]]
+            provides names of intermediate files where:
+                <down_y4m> is the resampled source
+                <downcomp_bit> is the compressed resampled bitstream
+                <downcomp_y4m> is the reconstructed bitstream.
+            This parameter string is entirely optional.
+            Besides if provided, each of <down_y4m>, <downcomp_bit> and
+            <downcomp_y4m> are optional by themselves where each can be
+            either provided or empty. If empty the corresponding
+            intermediate file is deleted.
 
 Example usages:
-6. Similar to use case 1a and 1b above with a compression step in between.
+7. Similar to use cases 6 above with a compression step in between.
 
-(a) From build directory run:
+7a. From build directory run:
     /path/to/script/lanczos_downcompup.sh Boat_1920x1080_60fps_10bit_420.y4m \
-        20 2:3:6 3:4:6 40:5 /tmp/downup.y4m
-            [Here no intermediate files are stored]
+        10 2:3:6 3:4:6 40:5 /tmp/downup.y4m
+            [Here no intermediate files are stored.
+	     Compression is at cq_level 40 and cpu_used=5]
 
-(b) From build directory run:
+7b. From build directory run:
     /path/to/script/lanczos_downcompup.sh Boat_1920x1080_60fps_10bit_420.y4m \
-        20 2:3:6 3:4:6 40:5 /tmp/downup.y4m \
+        10 2:3:6 3:4:6 40:5 /tmp/downup.y4m \
         /tmp/down.y4m::/tmp/downrec.y4m
             [Here the resampled source and its compressed reconstruction are
-             stoted in /tmp/down.y4m and /tmp/downrec.y4m respectively].
+             stoted in /tmp/down.y4m and /tmp/downrec.y4m respectively.
+	     Compression is at cq_level 40 and cpu_used=5].
 
-(c) From build directory run:
+7c. From build directory run:
     /path/to/script/lanczos_downcompup.sh Boat_1920x1080_60fps_10bit_420.y4m \
-        20 2:3:6 3:4:6 40:5 /tmp/downup.y4m \
+        10 2:3:6 3:4:6 40:5 /tmp/downup.y4m \
         /tmp/down.y4m:/tmp/down.bit:/tmp/downrec.y4m
             [Here the resampled source, its compressed bitstream, and the
              conpressed reconstruction are stoted in /tmp/down.y4m,
-             /tmp/downcomp.bit and /tmp/downrec.y4m respectively].
+             /tmp/downcomp.bit and /tmp/downrec.y4m respectively.
+	     Compression is at cq_level 40 and cpu_used=5].
 
-(d) From build directory run:
+7d. From build directory run:
     /path/to/script/lanczos_downcompup.sh Boat_1920x1080_60fps_10bit_420.y4m \
-        20 2:3:6,8 3:4:6,8 40:5 /tmp/downup.y4m
+        10 2:3:4^8 3:4:4,8 40:5 /tmp/downup.y4m
             [Here Lanczos parameters 4 and 8 are used for down and upscaling
-             respectively]
+             respectively.
+	     Compression is at cq_level 40 and cpu_used=5].
+
+7e. From build directory run:
+    /path/to/script/lanczos_downcompup.sh Boat_1920x1080_60fps_10bit_420.y4m \
+        10 2:3:6,4^6,4:c,d 3:4:6,4^6,4 40:5 /tmp/downup.y4m
+            [Here Lanczos parameters 6 and 4 are used for luma and chroma
+	     respectively for both down and upscaling. Further centered
+	     luma and co-sited chroma are used horizontally, while centered
+	     luma and chroma sampling are used vertically.
+	     Compression is at cq_level 40 and cpu_used=5].
