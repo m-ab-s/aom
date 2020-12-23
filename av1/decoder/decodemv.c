@@ -216,11 +216,13 @@ static void read_drl_idx(FRAME_CONTEXT *ec_ctx, const AV1_COMMON *cm,
   uint8_t ref_frame_type = av1_ref_frame_type(mbmi->ref_frame);
   mbmi->ref_mv_idx = 0;
   assert(!mbmi->skip_mode);
+#if CONFIG_FLEX_MVRES && ADJUST_DRL_FLEX_MVRES
+  mbmi->ref_mv_idx_adj = 0;
+#endif  // CONFIG_FLEX_MVRES && ADJUST_DRL_FLEX_MVRES
 #if CONFIG_DERIVED_MV
   if (mbmi->derived_mv_allowed && mbmi->use_derived_mv) return;
 #endif  // CONFIG_DERIVED_MV
 #if CONFIG_FLEX_MVRES && ADJUST_DRL_FLEX_MVRES
-  mbmi->ref_mv_idx_adj = 0;
   if (mbmi->pb_mv_precision < mbmi->max_mv_precision &&
       (mbmi->mode == NEWMV || mbmi->mode == NEW_NEWMV)) {
     int range_adj = AOMMIN(xd->ref_mv_info.ref_mv_count_adj - 1, MAX_DRL_BITS);
