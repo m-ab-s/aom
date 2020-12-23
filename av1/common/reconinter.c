@@ -1115,16 +1115,26 @@ static void build_inter_predictors(
   const int pre_x = (mi_x + MI_SIZE * col_start) >> ss_x;
   const int pre_y = (mi_y + MI_SIZE * row_start) >> ss_y;
 
+#if CONFIG_DERIVED_MV
+  const int use_derived_mv = mi->derived_mv_allowed && mi->use_derived_mv;
+#endif  // CONFIG_DERIVED_MV
 #if CONFIG_OPTFLOW_REFINEMENT
   int_mv mv_refined[2 * N_OF_OFFSETS];
-  // Initialize refined mv
-  for (int mvi = 0; mvi < N_OF_OFFSETS; mvi++) {
-    mv_refined[mvi * 2].as_mv = mi->mv[0].as_mv;
-    mv_refined[mvi * 2 + 1].as_mv = mi->mv[1].as_mv;
-  }
   const int use_optflow_prec =
       (mi->mode > NEW_NEWMV) && is_compound && plane == 0;
   if (use_optflow_prec) {
+    // Initialize refined mv
+#if CONFIG_DERIVED_MV
+    const MV mv0 = use_derived_mv ? mi->derived_mv[0] : mi->mv[0].as_mv;
+    const MV mv1 = use_derived_mv ? mi->derived_mv[1] : mi->mv[1].as_mv;
+#else
+    const MV mv0 = mi->mv[0].as_mv;
+    const MV mv1 = mi->mv[1].as_mv;
+#endif  // CONFIG_DERIVED_MV
+    for (int mvi = 0; mvi < N_OF_OFFSETS; mvi++) {
+      mv_refined[mvi * 2].as_mv = mv0;
+      mv_refined[mvi * 2 + 1].as_mv = mv1;
+    }
     av1_get_optflow_based_mv(cm, xd, mi, mv_refined, bw, bh, mi_x, mi_y,
                              build_for_obmc, calc_subpel_params_func,
                              calc_subpel_params_func_args);
@@ -1136,9 +1146,7 @@ static void build_inter_predictors(
         is_intrabc ? &cm->sf_identity : xd->block_ref_scale_factors[ref];
     struct buf_2d *const pre_buf = is_intrabc ? dst_buf : &pd->pre[ref];
 #if CONFIG_DERIVED_MV
-    const MV mv = (mi->derived_mv_allowed && mi->use_derived_mv)
-                      ? mi->derived_mv[ref]
-                      : mi->mv[ref].as_mv;
+    const MV mv = use_derived_mv ? mi->derived_mv[ref] : mi->mv[ref].as_mv;
 #else
     const MV mv = mi->mv[ref].as_mv;
 #endif  // CONFIG_DERIVED_MV
@@ -1298,7 +1306,11 @@ int av1_derived_mv_allowed(MACROBLOCKD *const xd, MB_MODE_INFO *const mbmi) {
   const int bw = block_size_wide[bsize];
   const int bh = block_size_high[bsize];
   return !is_cur_buf_hbd(xd) &&
-         (mbmi->mode == NEARMV || mbmi->mode == NEAR_NEARMV) &&
+         (mbmi->mode == NEARMV ||
+#if CONFIG_OPTFLOW_REFINEMENT
+          mbmi->mode == NEAR_NEARMV_OPTFLOW ||
+#endif  // CONFIG_OPTFLOW_REFINEMENT
+          mbmi->mode == NEAR_NEARMV) &&
          bw <= DERIVED_MV_MAX_BSIZE && bh <= DERIVED_MV_MAX_BSIZE &&
          bw >= DERIVED_MV_MIN_BSIZE && bh >= DERIVED_MV_MIN_BSIZE &&
          xd->mi_row + mi_size_high[bsize] <= xd->tile.mi_row_end &&
