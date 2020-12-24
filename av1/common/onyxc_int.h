@@ -1835,19 +1835,20 @@ static INLINE int is_pb_mv_precision_active(
 
 static INLINE MvSubpelPrecision av1_get_mbmi_mv_precision(
     const AV1_COMMON *const cm, const MB_MODE_INFO *mbmi) {
+  const PREDICTION_MODE mode = mbmi->mode;
   if (is_pb_mv_precision_active(cm, mbmi->mode, mbmi->max_mv_precision)) {
     MvSubpelPrecision precision;
-    if (mbmi->mode == NEWMV) {
+    if (mode == NEWMV) {
       precision = get_mv_precision(mbmi->mv[0].as_mv, mbmi->max_mv_precision);
-    } else if (mbmi->mode == NEW_NEWMV) {
+#if CONFIG_OPTFLOW_REFINEMENT
+    } else if (mode == NEW_NEWMV || mode == NEW_NEWMV_OPTFLOW) {
+#else   // !CONFIG_OPTFLOW_REFINEMENT
+    } else if (mode == NEW_NEWMV) {
+#endif  // CONFIG_OPTFLOW_REFINEMENT
       precision = get_mv_precision2(mbmi->mv[0].as_mv, mbmi->mv[1].as_mv,
                                     mbmi->max_mv_precision);
     } else {
-#if CONFIG_NEW_INTER_MODES
-      const int i = (mbmi->mode == NEAR_NEWMV);
-#else
-      const int i = (mbmi->mode == NEAREST_NEWMV || mbmi->mode == NEAR_NEWMV);
-#endif  // CONFIG_NEW_INTER_MODES
+      const int i = compound_ref1_mode(mode) == NEWMV;
       precision = get_mv_precision(mbmi->mv[i].as_mv, mbmi->max_mv_precision);
     }
     return (MvSubpelPrecision)AOMMIN(precision, mbmi->max_mv_precision);

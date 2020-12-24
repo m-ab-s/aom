@@ -9608,8 +9608,13 @@ static int check_mbmi_mv_companding(const MACROBLOCK *x,
 static int check_mv_precision(const MB_MODE_INFO *const mbmi) {
   const int is_comp_pred = mbmi->ref_frame[1] > INTRA_FRAME;
   assert(mbmi->pb_mv_precision <= mbmi->max_mv_precision);
-  if (have_newmv_in_inter_mode(mbmi->mode)) {
-    if (mbmi->mode == NEWMV || mbmi->mode == NEW_NEWMV) {
+  const PREDICTION_MODE mode = mbmi->mode;
+  if (have_newmv_in_inter_mode(mode)) {
+#if CONFIG_OPTFLOW_REFINEMENT
+    if (mode == NEWMV || mode == NEW_NEWMV || mode == NEW_NEWMV_OPTFLOW) {
+#else
+    if (mode == NEWMV || mode == NEW_NEWMV) {
+#endif  // CONFIG_OPTFLOW_REFINEMENT
       for (int i = 0; i < is_comp_pred + 1; ++i) {
         if ((mbmi->mv[i].as_mv.row &
              ((1 << (MV_SUBPEL_EIGHTH_PRECISION - mbmi->pb_mv_precision)) - 1)))
@@ -9619,11 +9624,7 @@ static int check_mv_precision(const MB_MODE_INFO *const mbmi) {
           return 0;
       }
     } else {
-#if CONFIG_NEW_INTER_MODES
-      const int i = (mbmi->mode == NEAR_NEWMV);
-#else
-      const int i = (mbmi->mode == NEAREST_NEWMV || mbmi->mode == NEAR_NEWMV);
-#endif  // CONFIG_NEW_INTER_MODES
+      const int i = compound_ref1_mode(mode) == NEWMV;
       if ((mbmi->mv[i].as_mv.row &
            ((1 << (MV_SUBPEL_EIGHTH_PRECISION - mbmi->pb_mv_precision)) - 1)))
         return 0;
@@ -16170,8 +16171,7 @@ void av1_rd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
     mbmi->pb_mv_precision = mbmi->max_mv_precision;
   }
 #if ADJUST_DRL_FLEX_MVRES
-  if (mbmi->pb_mv_precision < mbmi->max_mv_precision &&
-      (mbmi->mode == NEWMV || mbmi->mode == NEW_NEWMV)) {
+  if (av1_use_adjust_drl(mbmi)) {
     const int8_t ref_frame_type = av1_ref_frame_type(mbmi->ref_frame);
     MB_MODE_INFO_EXT *const mbmi_ext = x->mbmi_ext;
     av1_get_mv_refs_adj(&mbmi_ext->ref_mv_info, ref_frame_type,

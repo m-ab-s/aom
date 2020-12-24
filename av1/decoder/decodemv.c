@@ -223,8 +223,7 @@ static void read_drl_idx(FRAME_CONTEXT *ec_ctx, const AV1_COMMON *cm,
   if (mbmi->derived_mv_allowed && mbmi->use_derived_mv) return;
 #endif  // CONFIG_DERIVED_MV
 #if CONFIG_FLEX_MVRES && ADJUST_DRL_FLEX_MVRES
-  if (mbmi->pb_mv_precision < mbmi->max_mv_precision &&
-      (mbmi->mode == NEWMV || mbmi->mode == NEW_NEWMV)) {
+  if (av1_use_adjust_drl(mbmi)) {
     int range_adj = AOMMIN(xd->ref_mv_info.ref_mv_count_adj - 1, MAX_DRL_BITS);
     for (int idx = 0; idx < range_adj; ++idx) {
       aom_cdf_prob *drl_cdf = av1_get_drl_cdf(
@@ -1802,8 +1801,7 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
         mbmi->pb_mv_precision = av1_read_pb_mv_precision(cm, xd, r);
       }
 #if ADJUST_DRL_FLEX_MVRES
-      if (mbmi->pb_mv_precision < mbmi->max_mv_precision &&
-          (mbmi->mode == NEWMV || mbmi->mode == NEW_NEWMV)) {
+      if (av1_use_adjust_drl(mbmi)) {
         av1_get_mv_refs_adj(&xd->ref_mv_info, ref_frame,
                             is_inter_compound_mode(mbmi->mode),
                             mbmi->pb_mv_precision);
@@ -1847,8 +1845,7 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
     int ref_mv_idx = mbmi->ref_mv_idx + 1;
 #endif  // CONFIG_NEW_INTER_MODES
 #if CONFIG_FLEX_MVRES && ADJUST_DRL_FLEX_MVRES
-    if (mbmi->pb_mv_precision < mbmi->max_mv_precision &&
-        mbmi->mode == NEW_NEWMV) {
+    if (av1_use_adjust_drl(mbmi)) {
       ref_mv_idx = mbmi->ref_mv_idx_adj;
       nearestmv[0] = xd->ref_mv_info.ref_mv_stack_adj[0].this_mv;
       nearestmv[1] = xd->ref_mv_info.ref_mv_stack_adj[0].comp_mv;
@@ -1897,8 +1894,7 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
       ref_mv_idx = 1 + mbmi->ref_mv_idx;
 #endif  // !CONFIG_NEW_INTER_MODES
 #if CONFIG_FLEX_MVRES && ADJUST_DRL_FLEX_MVRES
-    if (mbmi->pb_mv_precision < mbmi->max_mv_precision &&
-        mbmi->mode == NEW_NEWMV) {
+    if (av1_use_adjust_drl(mbmi)) {
       ref_mv_idx = mbmi->ref_mv_idx_adj;
       ref_mv[0] = xd->ref_mv_info.ref_mv_stack_adj[ref_mv_idx].this_mv;
       ref_mv[1] = xd->ref_mv_info.ref_mv_stack_adj[ref_mv_idx].comp_mv;
@@ -1916,7 +1912,7 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
   } else {
     if (mbmi->mode == NEWMV) {
 #if CONFIG_FLEX_MVRES && ADJUST_DRL_FLEX_MVRES
-      if (mbmi->pb_mv_precision < mbmi->max_mv_precision) {
+      if (av1_use_adjust_drl(mbmi)) {
         if (xd->ref_mv_info.ref_mv_count_adj > 0)
           ref_mv[0] =
               xd->ref_mv_info.ref_mv_stack_adj[mbmi->ref_mv_idx_adj].this_mv;

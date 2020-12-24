@@ -2080,6 +2080,18 @@ static INLINE int av1_mv_has_subpel(const MB_MODE_INFO *mbmi, int dir,
 }
 #endif  // CONFIG_SKIP_INTERP_FILTER
 
+#if CONFIG_FLEX_MVRES && ADJUST_DRL_FLEX_MVRES
+static INLINE int av1_use_adjust_drl(const MB_MODE_INFO *mbmi) {
+  if (mbmi->pb_mv_precision >= mbmi->max_mv_precision) return 0;
+  const PREDICTION_MODE mode = mbmi->mode;
+  return mode == NEWMV ||
+#if CONFIG_OPTFLOW_REFINEMENT
+         mode == NEW_NEWMV_OPTFLOW ||
+#endif  // CONFIG_OPTFLOW_REFINEMENT
+         mode == NEW_NEWMV;
+}
+#endif  // CONFIG_FLEX_MVRES && ADJUST_DRL_FLEX_MVRES
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif

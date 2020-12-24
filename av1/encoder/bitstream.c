@@ -202,8 +202,7 @@ static void write_drl_idx(FRAME_CONTEXT *ec_ctx, const AV1_COMMON *cm,
   // Also use the number of reference MVs for a frame type to reduce the
   // number of bits written if there are less than 4 valid DRL indices.
 #if CONFIG_FLEX_MVRES && ADJUST_DRL_FLEX_MVRES
-  if (mbmi->pb_mv_precision < mbmi->max_mv_precision &&
-      (mbmi->mode == NEWMV || mbmi->mode == NEW_NEWMV)) {
+  if (av1_use_adjust_drl(mbmi)) {
     assert(mbmi->ref_mv_idx_adj < mbmi_ext->ref_mv_info.ref_mv_count_adj);
     assert(mbmi->ref_mv_idx_adj < MAX_DRL_BITS + 1);
     int range_adj =

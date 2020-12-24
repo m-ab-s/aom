@@ -1122,6 +1122,7 @@ static void build_inter_predictors(
   int_mv mv_refined[2 * N_OF_OFFSETS];
   const int use_optflow_prec =
       (mi->mode > NEW_NEWMV) && is_compound && plane == 0;
+
   if (use_optflow_prec) {
     // Initialize refined mv
 #if CONFIG_DERIVED_MV
@@ -1139,6 +1140,7 @@ static void build_inter_predictors(
                              build_for_obmc, calc_subpel_params_func,
                              calc_subpel_params_func_args);
   }
+
 #endif  // CONFIG_OPTFLOW_REFINEMENT
   assert(IMPLIES(is_intrabc || is_compound, dst == dst_buf->buf));
   for (int ref = 0; ref < 1 + is_compound; ++ref) {

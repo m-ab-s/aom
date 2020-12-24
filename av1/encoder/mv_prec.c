@@ -223,6 +223,7 @@ static AOM_INLINE void keep_one_mv_stat(MV_STATS *mv_stats, const MV *ref_mv,
   }
 }
 
+// TODO(kslu@): add support for CONFIG_OPTFLOW_REFINEMENT
 static AOM_INLINE void collect_mv_stats_b(MV_STATS *mv_stats,
                                           const AV1_COMP *cpi, int mi_row,
                                           int mi_col) {

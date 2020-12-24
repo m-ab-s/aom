@@ -1112,8 +1112,7 @@ static void update_drl_index_stats(FRAME_CONTEXT *fc, FRAME_COUNTS *counts,
   assert(have_drl_index(mbmi->mode));
   uint8_t ref_frame_type = av1_ref_frame_type(mbmi->ref_frame);
 #if CONFIG_FLEX_MVRES && ADJUST_DRL_FLEX_MVRES
-  if (mbmi->pb_mv_precision < mbmi->max_mv_precision &&
-      (mbmi->mode == NEWMV || mbmi->mode == NEW_NEWMV)) {
+  if (av1_use_adjust_drl(mbmi)) {
     assert(mbmi->ref_mv_idx_adj < mbmi_ext->ref_mv_info.ref_mv_count_adj);
     assert(mbmi->ref_mv_idx_adj < MAX_DRL_BITS + 1);
     const int range_adj =
