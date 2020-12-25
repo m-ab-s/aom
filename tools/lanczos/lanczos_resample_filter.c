@@ -161,7 +161,10 @@ int main(int argc, char *argv[]) {
   if (argc > 2) bits = atoi(argv[2]);
 
   for (int k = 0; k < 2; ++k) {
-    get_resample_filter(p, q, a[k], x0[k], ext, 1, bits, &rf[k]);
+    if (!get_resample_filter(p, q, a[k], x0[k], ext, 1, bits, &rf[k])) {
+      fprintf(stderr, "Cannot generate filter, exiting!\n");
+      exit(1);
+    }
     printf("------------------\n");
     if (k == 0)
       printf("LUMA Filter:\n");

@@ -186,16 +186,28 @@ static int gcd(int p, int q) {
 const char *ext_names[] = { "Repeat", "Symmetric", "Reflect", "Gradient" };
 const char *ext2str(EXT_TYPE ext_type) { return ext_names[(int)ext_type]; }
 
-void get_resample_filter(int p, int q, int a, double x0, EXT_TYPE ext_type,
-                         int subsampled, int bits, RationalResampleFilter *rf) {
+int get_resample_filter(int p, int q, int a, double x0, EXT_TYPE ext_type,
+                        int subsampled, int bits, RationalResampleFilter *rf) {
   double offset[MAX_RATIONAL_FACTOR + 1];
   int intpel[MAX_RATIONAL_FACTOR];
-  assert(p > 0 && p <= MAX_RATIONAL_FACTOR);
-  assert(q > 0 && q <= MAX_RATIONAL_FACTOR);
+  if (p <= 0 || q <= 0) {
+    fprintf(stderr, "Resampling numerator or denominator must be positive\n");
+    return 0;
+  }
   const int g = gcd(p, q);
   assert(g > 0);
   rf->p = p / g;
   rf->q = q / g;
+  if (rf->p <= 0 || rf->p > MAX_RATIONAL_FACTOR) {
+    fprintf(stderr, "Resampling numerator %d ratio exceeds maximum allowed\n",
+            rf->p);
+    return 0;
+  }
+  if (rf->q <= 0 || rf->q > MAX_RATIONAL_FACTOR) {
+    fprintf(stderr, "Resampling denominator %d ratio exceeds maximum allowed\n",
+            rf->q);
+    return 0;
+  }
   rf->ext_type = ext_type;
   if (x0 == (double)('c'))
     x0 = get_centered_x0(rf->p, rf->q);
@@ -215,28 +227,39 @@ void get_resample_filter(int p, int q, int a, double x0, EXT_TYPE ext_type,
   for (int i = 0; i < rf->p; ++i) rf->steps[i] = intpel[i + 1] - intpel[i];
   if (rf->p < rf->q) {  // downsampling
     rf->length = get_lanczos_downsampler_filter_length(rf->p, rf->q, a);
+    if (rf->length > MAX_FILTER_LEN) {
+      fprintf(stderr, "Filter length %d ratio exceeds maximum allowed\n",
+              rf->length);
+      return 0;
+    }
     for (int i = 0; i < rf->p; ++i) {
       get_lanczos_downsampler(rf->phases[i], rf->p, rf->q, a, bits,
                               rf->filter[i]);
     }
   } else if (rf->p >= rf->q) {  // upsampling
     rf->length = get_lanczos_upsampler_filter_length(rf->p, rf->q, a);
+    if (rf->length > MAX_FILTER_LEN) {
+      fprintf(stderr, "Filter length %d ratio exceeds maximum allowed\n",
+              rf->length);
+      return 0;
+    }
     for (int i = 0; i < rf->p; ++i) {
       get_lanczos_upsampler(rf->phases[i], rf->p, rf->q, a, bits,
                             rf->filter[i]);
     }
   }
+  return 1;
 }
 
 int is_resampler_noop(RationalResampleFilter *rf) {
   return (rf->p == 1 && rf->q == 1 && rf->phases[0] == 0.0);
 }
 
-void get_resample_filter_inv(int p, int q, int a, double x0, EXT_TYPE ext_type,
-                             int subsampled, int bits,
-                             RationalResampleFilter *rf) {
+int get_resample_filter_inv(int p, int q, int a, double x0, EXT_TYPE ext_type,
+                            int subsampled, int bits,
+                            RationalResampleFilter *rf) {
   double y0 = get_inverse_x0(p, q, x0, subsampled);
-  get_resample_filter(q, p, a, y0, ext_type, subsampled, bits, rf);
+  return get_resample_filter(q, p, a, y0, ext_type, subsampled, bits, rf);
 }
 
 // Assume x buffer is already extended on both sides with x pointing to the

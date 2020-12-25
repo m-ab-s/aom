@@ -50,11 +50,11 @@ double get_inverse_x0_numeric(int p, int q, double x0);
 //                        if the chroma plane is subsampled.
 double get_inverse_x0(int p, int q, double x0, int subsampled);
 
-void get_resample_filter(int p, int q, int a, double x0, EXT_TYPE ext_type,
-                         int subsampled, int bits, RationalResampleFilter *rf);
-void get_resample_filter_inv(int p, int q, int a, double x0, EXT_TYPE ext_type,
-                             int subsampled, int bits,
-                             RationalResampleFilter *rf);
+int get_resample_filter(int p, int q, int a, double x0, EXT_TYPE ext_type,
+                        int subsampled, int bits, RationalResampleFilter *rf);
+int get_resample_filter_inv(int p, int q, int a, double x0, EXT_TYPE ext_type,
+                            int subsampled, int bits,
+                            RationalResampleFilter *rf);
 
 // whether the resampler filter is a no-op
 int is_resampler_noop(RationalResampleFilter *rf);

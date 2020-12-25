@@ -301,12 +301,18 @@ int main(int argc, char *argv[]) {
   const int int_extra_bits = INT_EXTRA_PREC_BITS;
 
   for (int k = 0; k < 2; ++k) {
-    get_resample_filter(horz_p, horz_q, horz_a[k], horz_x0[k], horz_ext, subx,
-                        bits, &horz_rf[k]);
+    if (!get_resample_filter(horz_p, horz_q, horz_a[k], horz_x0[k], horz_ext,
+                             subx, bits, &horz_rf[k])) {
+      fprintf(stderr, "Cannot generate filter, exiting!\n");
+      exit(1);
+    }
     // show_resample_filter(&horz_rf[k]);
-    get_resample_filter(vert_p, vert_q, vert_a[k], vert_x0[k], vert_ext, suby,
-                        bits, &vert_rf[k]);
-    // show_resample_filter(&vert_rf[1]);
+    if (!get_resample_filter(vert_p, vert_q, vert_a[k], vert_x0[k], vert_ext,
+                             suby, bits, &vert_rf[k])) {
+      fprintf(stderr, "Cannot generate filter, exiting!\n");
+      exit(1);
+    }
+    // show_resample_filter(&vert_rf[k]);
   }
 
   uint8_t *inbuf =
