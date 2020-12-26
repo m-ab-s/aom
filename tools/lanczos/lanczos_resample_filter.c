@@ -23,6 +23,7 @@
 #define CFG_MAX_WORDS 5
 
 #define DEF_COEFF_PREC_BITS 14
+#define DEF_WIN_TYPE (WIN_LANCZOS)
 
 // Usage:
 //   lanczos_resample_filter <resampling_config> [<filter_bits>]
@@ -161,7 +162,8 @@ int main(int argc, char *argv[]) {
   if (argc > 2) bits = atoi(argv[2]);
 
   for (int k = 0; k < 2; ++k) {
-    if (!get_resample_filter(p, q, a[k], x0[k], ext, 1, bits, &rf[k])) {
+    if (!get_resample_filter(p, q, a[k], x0[k], ext, DEF_WIN_TYPE, 1, bits,
+                             &rf[k])) {
       fprintf(stderr, "Cannot generate filter, exiting!\n");
       exit(1);
     }

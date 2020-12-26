@@ -76,10 +76,74 @@ static double sinc(double x) {
   return sin(M_PI * x) / (M_PI * x);
 }
 
-static double lanczos(double x, int a) {
+static double mod_bessel_first(double x) {
+  const double t = 0.25 * x * x;
+  double fact = 1.0;
+  double tpow = 1.0;
+  double v = 1.0;
+  double dv;
+  int k = 1;
+  do {
+    fact *= k;
+    tpow *= t;
+    dv = tpow / (fact * fact);
+    v += dv;
+    k++;
+  } while (fabs(dv) > fabs(v) * 1e-8);
+  return v;
+}
+
+// This is a window function assumed to be defined between [-1, 1] and
+// with the value at y=0 being 1.
+static double window(double y, WIN_TYPE win) {
+  switch (win) {
+    case WIN_LANCZOS: {
+      return sinc(y);
+    }
+    case WIN_LANCZOS_DIL: {
+      return sinc(y * 0.95);
+    }
+    case WIN_GAUSSIAN: {
+      const double sigma = 0.66;
+      const double sigma2 = sigma * sigma;
+      return exp(-y * y / sigma2);
+    }
+    case WIN_GENGAUSSIAN: {
+      const double alpha = 4;
+      const double sigma = 0.78;
+      return exp(-pow(fabs(y / sigma), alpha));
+    }
+    case WIN_COSINE: {
+      return cos(M_PI * y / 2);
+    }
+    case WIN_HAMMING: {
+      const double a0 = 25.0 / 46.0;
+      const double a1 = 1.0 - a0;
+      return (a0 + a1 * cos(M_PI * y));
+    }
+    case WIN_BLACKMAN: {
+      const double a0 = 0.42659;
+      const double a1 = 0.49656;
+      const double a2 = 1.0 - a0 - a1;
+      return a0 + a1 * cos(M_PI * y) + a2 * cos(2 * M_PI * y);
+    }
+    case WIN_KAISER: {
+      const double alpha = 1.32;
+      const double u = M_PI * alpha;
+      const double v = M_PI * alpha * sqrt(1 - y * y);
+      return mod_bessel_first(v) / mod_bessel_first(u);
+    }
+    default: {
+      assert(0 && "Unknown window type");
+      return 0;
+    }
+  }
+}
+
+static double kernel(double x, int a, WIN_TYPE win_type) {
   const double absx = fabs(x);
   if (absx < (double)a) {
-    return sinc(x) * sinc(x / a);
+    return sinc(x) * window(x / a, win_type);
   } else {
     return 0.0;
   }
@@ -137,13 +201,13 @@ static void integerize_array(double *x, int len, int bits, int16_t *y) {
 }
 
 static void get_lanczos_downsampler(double x, int p, int q, int a, int bits,
-                                    int16_t *ifilter) {
+                                    WIN_TYPE win_type, int16_t *ifilter) {
   double filter[MAX_FILTER_LEN] = { 0.0 };
   int tapsby2 = get_lanczos_downsampler_filter_length(p, q, a) / 2;
   assert(tapsby2 * 2 <= MAX_FILTER_LEN);
   double filter_sum = 0;
   for (int i = -tapsby2 + 1; i <= tapsby2; ++i) {
-    const double tap = lanczos((i - x) * p / q, a);
+    const double tap = kernel((i - x) * p / q, a, win_type);
     filter[i + tapsby2 - 1] = tap;
     filter_sum += tap;
   }
@@ -155,13 +219,13 @@ static void get_lanczos_downsampler(double x, int p, int q, int a, int bits,
 }
 
 static void get_lanczos_upsampler(double x, int p, int q, int a, int bits,
-                                  int16_t *ifilter) {
+                                  WIN_TYPE win_type, int16_t *ifilter) {
   double filter[MAX_FILTER_LEN] = { 0.0 };
   int tapsby2 = get_lanczos_upsampler_filter_length(p, q, a) / 2;
   assert(tapsby2 * 2 <= MAX_FILTER_LEN);
   double filter_sum = 0;
   for (int i = -tapsby2 + 1; i <= tapsby2; ++i) {
-    const double tap = lanczos(i - x, a);
+    const double tap = kernel(i - x, a, win_type);
     filter[i + tapsby2 - 1] = tap;
     filter_sum += tap;
   }
@@ -187,7 +251,8 @@ const char *ext_names[] = { "Repeat", "Symmetric", "Reflect", "Gradient" };
 const char *ext2str(EXT_TYPE ext_type) { return ext_names[(int)ext_type]; }
 
 int get_resample_filter(int p, int q, int a, double x0, EXT_TYPE ext_type,
-                        int subsampled, int bits, RationalResampleFilter *rf) {
+                        WIN_TYPE win_type, int subsampled, int bits,
+                        RationalResampleFilter *rf) {
   double offset[MAX_RATIONAL_FACTOR + 1];
   int intpel[MAX_RATIONAL_FACTOR];
   if (p <= 0 || q <= 0) {
@@ -209,6 +274,7 @@ int get_resample_filter(int p, int q, int a, double x0, EXT_TYPE ext_type,
     return 0;
   }
   rf->ext_type = ext_type;
+  rf->win_type = win_type;
   if (x0 == (double)('c'))
     x0 = get_centered_x0(rf->p, rf->q);
   else if (x0 == (double)('d'))
@@ -233,8 +299,8 @@ int get_resample_filter(int p, int q, int a, double x0, EXT_TYPE ext_type,
       return 0;
     }
     for (int i = 0; i < rf->p; ++i) {
-      get_lanczos_downsampler(rf->phases[i], rf->p, rf->q, a, bits,
-                              rf->filter[i]);
+      get_lanczos_downsampler(rf->phases[i], rf->p, rf->q, a, rf->filter_bits,
+                              rf->win_type, rf->filter[i]);
     }
   } else if (rf->p >= rf->q) {  // upsampling
     rf->length = get_lanczos_upsampler_filter_length(rf->p, rf->q, a);
@@ -244,8 +310,8 @@ int get_resample_filter(int p, int q, int a, double x0, EXT_TYPE ext_type,
       return 0;
     }
     for (int i = 0; i < rf->p; ++i) {
-      get_lanczos_upsampler(rf->phases[i], rf->p, rf->q, a, bits,
-                            rf->filter[i]);
+      get_lanczos_upsampler(rf->phases[i], rf->p, rf->q, a, rf->filter_bits,
+                            rf->win_type, rf->filter[i]);
     }
   }
   return 1;
@@ -256,10 +322,11 @@ int is_resampler_noop(RationalResampleFilter *rf) {
 }
 
 int get_resample_filter_inv(int p, int q, int a, double x0, EXT_TYPE ext_type,
-                            int subsampled, int bits,
+                            WIN_TYPE win_type, int subsampled, int bits,
                             RationalResampleFilter *rf) {
   double y0 = get_inverse_x0(p, q, x0, subsampled);
-  return get_resample_filter(q, p, a, y0, ext_type, subsampled, bits, rf);
+  return get_resample_filter(q, p, a, y0, ext_type, win_type, subsampled, bits,
+                             rf);
 }
 
 // Assume x buffer is already extended on both sides with x pointing to the

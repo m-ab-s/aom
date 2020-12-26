@@ -19,6 +19,19 @@
 #define MAX_RATIONAL_FACTOR 16
 #define MAX_FILTER_LEN 320
 
+// Note: check window() function implementation for values of any
+// other params used by these windowing functions.
+typedef enum {
+  WIN_LANCZOS,      // Sinc window (i.e. Lanczos)
+  WIN_LANCZOS_DIL,  // Dilated Lanczos window
+  WIN_GAUSSIAN,     // Gaussian window
+  WIN_GENGAUSSIAN,  // Gaussian window
+  WIN_COSINE,       // Cosine window
+  WIN_HAMMING,      // Hamming Window
+  WIN_BLACKMAN,     // Blackman window
+  WIN_KAISER,       // Kaiser window
+} WIN_TYPE;
+
 typedef enum { EXT_REPEAT, EXT_SYMMETRIC, EXT_REFLECT, EXT_GRADIENT } EXT_TYPE;
 
 typedef struct {
@@ -26,9 +39,10 @@ typedef struct {
   int q;
   int length;
   EXT_TYPE ext_type;
+  WIN_TYPE win_type;
+  int filter_bits;
   int start;
   int steps[MAX_RATIONAL_FACTOR];
-  int filter_bits;
   int16_t filter[MAX_RATIONAL_FACTOR][MAX_FILTER_LEN];
   double phases[MAX_RATIONAL_FACTOR];
 } RationalResampleFilter;
@@ -51,9 +65,10 @@ double get_inverse_x0_numeric(int p, int q, double x0);
 double get_inverse_x0(int p, int q, double x0, int subsampled);
 
 int get_resample_filter(int p, int q, int a, double x0, EXT_TYPE ext_type,
-                        int subsampled, int bits, RationalResampleFilter *rf);
+                        WIN_TYPE win_type, int subsampled, int bits,
+                        RationalResampleFilter *rf);
 int get_resample_filter_inv(int p, int q, int a, double x0, EXT_TYPE ext_type,
-                            int subsampled, int bits,
+                            WIN_TYPE win_type, int subsampled, int bits,
                             RationalResampleFilter *rf);
 
 // whether the resampler filter is a no-op

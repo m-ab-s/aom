@@ -25,6 +25,8 @@
 #define COEFF_PREC_BITS 14
 #define INT_EXTRA_PREC_BITS 2
 
+#define DEF_WIN_TYPE (WIN_LANCZOS)
+
 // Usage:
 //   lanczos_resample_yuv
 //       <yuv_input>
@@ -290,13 +292,13 @@ int main(int argc, char *argv[]) {
 
   for (int k = 0; k < 2; ++k) {
     if (!get_resample_filter(horz_p, horz_q, horz_a[k], horz_x0[k], horz_ext,
-                             subx, bits, &horz_rf[k])) {
+                             DEF_WIN_TYPE, subx, bits, &horz_rf[k])) {
       fprintf(stderr, "Cannot generate filter, exiting!\n");
       exit(1);
     }
     // show_resample_filter(&horz_rf[k]);
     if (!get_resample_filter(vert_p, vert_q, vert_a[k], vert_x0[k], vert_ext,
-                             suby, bits, &vert_rf[k])) {
+                             DEF_WIN_TYPE, suby, bits, &vert_rf[k])) {
       fprintf(stderr, "Cannot generate filter, exiting!\n");
       exit(1);
     }
