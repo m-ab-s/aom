@@ -1304,14 +1304,16 @@ static INLINE int calculate_gm_ref_params_scaling_distance(
 }
 
 static INLINE bool find_gm_ref_params(WarpedMotionParams *ref_params,
-                                      const AV1_COMMON *const cm, int distance,
-                                      int base) {
-  if (cm->global_motion[LAST_FRAME].wmtype == IDENTITY) return false;
-  // TODO(raynewang): Change base ref_params instead of always using LAST_FRAME
-  memcpy(ref_params, &cm->global_motion[LAST_FRAME],
+                                      const AV1_COMMON *const cm, int cur_frame,
+                                      int base_frame) {
+  if (cm->global_motion[base_frame].wmtype == IDENTITY) return false;
+
+  memcpy(ref_params, &cm->global_motion[base_frame],
          sizeof(WarpedMotionParams));
 
   double scale_factor;
+  const int distance = calculate_gm_ref_params_scaling_distance(cm, cur_frame);
+  const int base = calculate_gm_ref_params_scaling_distance(cm, base_frame);
   if (base != 0 && distance != 0)
     scale_factor = (double)distance / base;
   else
