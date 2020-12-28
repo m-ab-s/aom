@@ -631,6 +631,15 @@ typedef struct macroblockd {
   /**@}*/
 
   /*!
+   * An array for recording whether an mi(4x4) is coded. Reset at sb level.
+   */
+  uint8_t is_mi_coded[1024];
+  /*!
+   * Stride of the is_mi_coded array.
+   */
+  int is_mi_coded_stride;
+
+  /*!
    * Scale factors for reference frames of the current block.
    * These are pointers into 'cm->ref_scale_factors'.
    */
@@ -1317,6 +1326,12 @@ void av1_set_entropy_contexts(const MACROBLOCKD *xd,
                               struct macroblockd_plane *pd, int plane,
                               BLOCK_SIZE plane_bsize, TX_SIZE tx_size,
                               int has_eob, int aoff, int loff);
+
+void av1_reset_is_mi_coded_map(MACROBLOCKD *xd, int stride);
+void av1_mark_block_as_coded(MACROBLOCKD *xd, BLOCK_SIZE bsize,
+                             BLOCK_SIZE sb_size);
+void av1_mark_block_as_not_coded(MACROBLOCKD *xd, int mi_row, int mi_col,
+                                 BLOCK_SIZE bsize, BLOCK_SIZE sb_size);
 
 #define MAX_INTERINTRA_SB_SQUARE 32 * 32
 static INLINE int is_interintra_mode(const MB_MODE_INFO *mbmi) {

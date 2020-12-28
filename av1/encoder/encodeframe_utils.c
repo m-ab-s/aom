@@ -529,9 +529,9 @@ void av1_sum_intra_stats(const AV1_COMMON *const cm, FRAME_COUNTS *counts,
   }
 }
 
-void av1_restore_context(MACROBLOCK *x, const RD_SEARCH_MACROBLOCK_CONTEXT *ctx,
-                         int mi_row, int mi_col, BLOCK_SIZE bsize,
-                         const int num_planes) {
+void av1_restore_context(const AV1_COMMON *cm, MACROBLOCK *x,
+                         const RD_SEARCH_MACROBLOCK_CONTEXT *ctx, int mi_row,
+                         int mi_col, BLOCK_SIZE bsize, const int num_planes) {
   MACROBLOCKD *xd = &x->e_mbd;
   int p;
   const int num_4x4_blocks_wide = mi_size_wide[bsize];
@@ -561,6 +561,9 @@ void av1_restore_context(MACROBLOCK *x, const RD_SEARCH_MACROBLOCK_CONTEXT *ctx,
          sizeof(*xd->above_txfm_context) * mi_width);
   memcpy(xd->left_txfm_context, ctx->tl,
          sizeof(*xd->left_txfm_context) * mi_height);
+
+  av1_mark_block_as_not_coded(xd, mi_row, mi_col, bsize,
+                              cm->seq_params.sb_size);
 }
 
 void av1_save_context(const MACROBLOCK *x, RD_SEARCH_MACROBLOCK_CONTEXT *ctx,
@@ -1262,7 +1265,7 @@ void av1_restore_sb_state(const SB_FIRST_PASS_STATS *sb_fp_stats, AV1_COMP *cpi,
   const int num_planes = av1_num_planes(cm);
   const BLOCK_SIZE sb_size = cm->seq_params.sb_size;
 
-  av1_restore_context(x, &sb_fp_stats->x_ctx, mi_row, mi_col, sb_size,
+  av1_restore_context(cm, x, &sb_fp_stats->x_ctx, mi_row, mi_col, sb_size,
                       num_planes);
 
   cpi->td.rd_counts = sb_fp_stats->rd_count;

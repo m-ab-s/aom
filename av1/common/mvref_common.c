@@ -257,52 +257,33 @@ static AOM_INLINE void scan_blk_mbmi(
 }
 
 static int has_top_right(const AV1_COMMON *cm, const MACROBLOCKD *xd,
-                         int mi_row, int mi_col, int bs) {
+                         int mi_row, int mi_col, int n4_w) {
   const int sb_mi_size = mi_size_wide[cm->seq_params.sb_size];
   const int mask_row = mi_row & (sb_mi_size - 1);
   const int mask_col = mi_col & (sb_mi_size - 1);
 
-  if (bs > mi_size_wide[BLOCK_64X64]) return 0;
+  if (n4_w > mi_size_wide[BLOCK_64X64]) return 0;
 
-  // In a split partition all apart from the bottom right has a top right
-  int has_tr = !((mask_row & bs) && (mask_col & bs));
+  const int tr_mask_row = mask_row - 1;
+  const int tr_mask_col = mask_col + n4_w;
+  int has_tr;
 
-  // bs > 0 and bs is a power of 2
-  assert(bs > 0 && !(bs & (bs - 1)));
+  if (tr_mask_row < 0) {
+    // The top-right block is in a superblock above the current sb row. If it is
+    // in the current tile or a previously coded one, it has been coded.
+    // Otherwise later the tile boundary checker will figure out whether it is
+    // available.
+    has_tr = 1;
+  } else if (tr_mask_col >= sb_mi_size) {
+    // The top-right block is in the superblock on the right side, therefore it
+    // is not coded yet.
+    has_tr = 0;
+  } else {
+    // For a general case, we use is_mi_coded array for the current superblock
+    // to figure out the availability.
+    const int tr_offset = tr_mask_row * xd->is_mi_coded_stride + tr_mask_col;
 
-  // For each 4x4 group of blocks, when the bottom right is decoded the blocks
-  // to the right have not been decoded therefore the bottom right does
-  // not have a top right
-  while (bs < sb_mi_size) {
-    if (mask_col & bs) {
-      if ((mask_col & (2 * bs)) && (mask_row & (2 * bs))) {
-        has_tr = 0;
-        break;
-      }
-    } else {
-      break;
-    }
-    bs <<= 1;
-  }
-
-  // In a VERTICAL or VERTICAL_4 partition, all partition before the last one
-  // always have a top right (as the block above will have been decoded).
-  if (xd->width < xd->height) {
-    if (!xd->is_last_vertical_rect) has_tr = 1;
-  }
-
-  // In a HORIZONTAL or HORIZONTAL_4 partition, partitions after the first one
-  // never have a top right (as the block to the right won't have been decoded).
-  if (xd->width > xd->height) {
-    if (!xd->is_first_horizontal_rect) has_tr = 0;
-  }
-
-  // The bottom left square of a Vertical A (in the old format) does
-  // not have a top right as it is decoded before the right hand
-  // rectangle of the partition
-  if (xd->mi[0]->partition == PARTITION_VERT_A) {
-    if (xd->width == xd->height)
-      if (mask_row & bs) has_tr = 0;
+    has_tr = xd->is_mi_coded[tr_offset];
   }
 
   return has_tr;
@@ -478,8 +459,7 @@ static AOM_INLINE void setup_ref_mv_list(
     uint16_t ref_mv_weight[MAX_REF_MV_STACK_SIZE],
     int_mv mv_ref_list[MAX_MV_REF_CANDIDATES], int_mv *gm_mv_candidates,
     int mi_row, int mi_col, int16_t *mode_context) {
-  const int bs = AOMMAX(xd->width, xd->height);
-  const int has_tr = has_top_right(cm, xd, mi_row, mi_col, bs);
+  const int has_tr = has_top_right(cm, xd, mi_row, mi_col, xd->width);
   MV_REFERENCE_FRAME rf[2];
 
   const TileInfo *const tile = &xd->tile;
@@ -1290,8 +1270,7 @@ uint8_t av1_findSamples(const AV1_COMMON *cm, MACROBLOCKD *xd, int *pts,
   assert(np <= LEAST_SQUARES_SAMPLES_MAX);
 
   // Top-right block
-  if (do_tr &&
-      has_top_right(cm, xd, mi_row, mi_col, AOMMAX(xd->width, xd->height))) {
+  if (do_tr && has_top_right(cm, xd, mi_row, mi_col, xd->width)) {
     const POSITION trb_pos = { -1, xd->width };
     const TileInfo *const tile = &xd->tile;
     if (is_inside(tile, mi_col, mi_row, &trb_pos)) {

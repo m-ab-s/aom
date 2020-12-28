@@ -293,9 +293,9 @@ void av1_sum_intra_stats(const AV1_COMMON *const cm, FRAME_COUNTS *counts,
                          const MB_MODE_INFO *above_mi,
                          const MB_MODE_INFO *left_mi, const int intraonly);
 
-void av1_restore_context(MACROBLOCK *x, const RD_SEARCH_MACROBLOCK_CONTEXT *ctx,
-                         int mi_row, int mi_col, BLOCK_SIZE bsize,
-                         const int num_planes);
+void av1_restore_context(const AV1_COMMON *cm, MACROBLOCK *x,
+                         const RD_SEARCH_MACROBLOCK_CONTEXT *ctx, int mi_row,
+                         int mi_col, BLOCK_SIZE bsize, const int num_planes);
 
 void av1_save_context(const MACROBLOCK *x, RD_SEARCH_MACROBLOCK_CONTEXT *ctx,
                       int mi_row, int mi_col, BLOCK_SIZE bsize,
