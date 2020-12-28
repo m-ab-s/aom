@@ -24,13 +24,14 @@
 #define CFG_MAX_LEN 256
 #define CFG_MAX_WORDS 5
 
-#define COEFF_PREC_BITS 14
-#define INT_EXTRA_PREC_BITS 2
-
+#define DEF_EXTRA_PREC_BITS 2
+#define DEF_COEFF_PREC_BITS 14
+#define DEF_EXT_TYPE (EXT_REPEAT)
 #define DEF_WIN_TYPE (WIN_LANCZOS)
 
 // Usage:
 //   lanczos_resample_y4m
+//       [<Options>]
 //       <y4m_input>
 //       <num_frames>
 //       <horz_resampling_config>
@@ -41,19 +42,46 @@
 static void usage_and_exit(char *prog) {
   printf("Usage:\n");
   printf("  %s\n", prog);
+  printf("      [<Options>]\n");
   printf("      <y4m_input>\n");
   printf("      <num_frames>\n");
   printf("      <horz_resampling_config>\n");
   printf("      <vert_resampling_config>\n");
   printf("      <y4m_output>\n");
   printf("      [<outwidth>x<outheight>]\n");
+  printf("      \n");
   printf("  Notes:\n");
+  printf("      <Options> are optional switches prefixed by '-' as follows:\n");
+  printf("          -bit:<n>        - providing bits for filter taps\n");
+  printf("                                 [default: 14]\n");
+  printf("          -ieb:<n>        - providing intermediate extra bits of\n");
+  printf("                            prec between horz and vert filtering\n");
+  printf("                                 [default: 2]\n");
+  printf("          -ext:<ext_type> - providing the extension type\n");
+  printf("               <ext_type> is one of:\n");
+  printf("                    'r' or 'rep' (Repeat)\n");
+  printf("                    's' or 'sym' (Symmetric)\n");
+  printf("                    'f' or 'ref' (Reflect/Mirror-whole)\n");
+  printf("                    'g' or 'gra' (Grafient preserving)\n");
+  printf("                                 [default: 'r']\n");
+  printf("          -win:<win_type> - providing the windowing function type\n");
+  printf("               <win_type> is one of:\n");
+  printf("                    'lanczos'     (Repeat)\n");
+  printf("                    'lanczos_dil' (Symmetric)\n");
+  printf("                    'gaussian'    (Gaussian)\n");
+  printf("                    'gengaussian' (Generalized Gaussian)\n");
+  printf("                    'cosine'      (Cosine)\n");
+  printf("                    'hamming      (Hamming)\n");
+  printf("                    'blackman     (Blackman)\n");
+  printf("                    'kaiser       (Kaiser)\n");
+  printf("                                  [default: 'lanczos']\n");
+  printf("      \n");
   printf("      <y4m_input> is the input video in Y4M format\n");
   printf("      <y4m_output> is the output video in Y4M format\n");
   printf("      <num_frames> is number of frames to be processed\n");
   printf("      <horz_resampling_config> and <vert_resampling_config>\n");
   printf("              are of the form:\n");
-  printf("          <p>:<q>:<Lanczos_a>[:<x0>:<ext>] where:\n");
+  printf("          <p>:<q>:<Lanczos_a>[:<x0>] where:\n");
   printf("              <p>/<q> gives the resampling ratio.\n");
   printf("              <Lanczos_a> is Lanczos parameter.\n");
   printf("              <x0> is the optional initial offset\n");
@@ -66,17 +94,11 @@ static void usage_and_exit(char *prog) {
   printf("                      which is a shortcut for x0 = (q-p)/(4p)\n");
   printf("                  The field can be prefixed by 'i' meaning\n");
   printf("                      using the inverse of the number provided,\n");
-  printf("              <ext> is the optional extension type:\n");
-  printf("                    'r' or 'rep' (Repeat)\n");
-  printf("                    's' or 'sym' (Symmetric)\n");
-  printf("                    'f' or 'ref' (Reflect/Mirror-whole)\n");
-  printf("                    'g' or 'gra' (Grafient preserving)\n");
-  printf("                                 [default: 'r']\n");
   printf("          If it is desired to provide different config parameters\n");
   printf("          for luma and chroma, the <Lanczos_a> and <x0> fields\n");
   printf("          could be optionally converted to a pair of\n");
   printf("          comma-separated parameters as follows:\n");
-  printf("          <p>:<q>:<Lanczos_al>,<lanczos_ac>[:<x0l>,<x0c>:<ext>]\n");
+  printf("          <p>:<q>:<Lanczos_al>,<lanczos_ac>[:<x0l>,<x0c>]\n");
   printf("              where <Lanczos_al> and <lanczos_ac> are\n");
   printf("                        luma and chroma lanczos parameters\n");
   printf("                    <x0l> and <x0c> are\n");
@@ -122,8 +144,8 @@ static void join_words(char *dest, int len, char **words, int nwords) {
   }
 }
 
-static int parse_rational_config(char *cfg, int *p, int *q, int *a, double *x0,
-                                 EXT_TYPE *ext_type) {
+static int parse_rational_config(char *cfg, int *p, int *q, int *a,
+                                 double *x0) {
   char cfgbuf[CFG_MAX_LEN];
   strncpy(cfgbuf, cfg, CFG_MAX_LEN - 1);
 
@@ -146,7 +168,6 @@ static int parse_rational_config(char *cfg, int *p, int *q, int *a, double *x0,
 
   // Set defaults
   x0[0] = x0[1] = (double)('c');
-  *ext_type = EXT_REPEAT;
 
   if (ncfgwords > 3) {
     char *x0params[2];
@@ -163,23 +184,55 @@ static int parse_rational_config(char *cfg, int *p, int *q, int *a, double *x0,
     }
     if (nx0params == 1) x0[1] = x0[0];
   }
-  if (ncfgwords > 4) {
-    if (!strcmp(cfgwords[4], "S") || !strcmp(cfgwords[4], "s") ||
-        !strcmp(cfgwords[4], "sym"))
-      *ext_type = EXT_SYMMETRIC;
-    else if (!strcmp(cfgwords[4], "F") || !strcmp(cfgwords[4], "f") ||
-             !strcmp(cfgwords[4], "ref"))
-      *ext_type = EXT_REFLECT;
-    else if (!strcmp(cfgwords[4], "R") || !strcmp(cfgwords[4], "r") ||
-             !strcmp(cfgwords[4], "rep"))
-      *ext_type = EXT_REPEAT;
-    else if (!strcmp(cfgwords[4], "G") || !strcmp(cfgwords[4], "g") ||
-             !strcmp(cfgwords[4], "gra"))
-      *ext_type = EXT_GRADIENT;
-    else
-      return 0;
-  }
   return 1;
+}
+
+static int get_options(char *argv[], int *bit, int *ebit, EXT_TYPE *ext_type,
+                       WIN_TYPE *win_type) {
+  int n = 1;
+  while (argv[n][0] == '-') {
+    if (!strncmp(argv[n], "-bit:", 5)) {
+      *bit = atoi(argv[n] + 5);
+    } else if (!strncmp(argv[n], "-ieb:", 5)) {
+      *ebit = atoi(argv[n] + 5);
+    } else if (!strncmp(argv[n], "-ext:", 5)) {
+      *ext_type = EXT_REPEAT;
+      const char *word = argv[n] + 5;
+      if (!strcmp(word, "S") || !strcmp(word, "s") || !strcmp(word, "sym"))
+        *ext_type = EXT_SYMMETRIC;
+      else if (!strcmp(word, "F") || !strcmp(word, "f") || !strcmp(word, "ref"))
+        *ext_type = EXT_REFLECT;
+      else if (!strcmp(word, "R") || !strcmp(word, "r") || !strcmp(word, "rep"))
+        *ext_type = EXT_REPEAT;
+      else if (!strcmp(word, "G") || !strcmp(word, "g") || !strcmp(word, "gra"))
+        *ext_type = EXT_GRADIENT;
+      else
+        fprintf(stderr, "Unknown extension type, using default\n");
+    } else if (!strncmp(argv[n], "-win:", 5)) {
+      *win_type = WIN_LANCZOS;
+      const char *word = argv[n] + 5;
+      if (!strcmp(word, "lanczos"))
+        *win_type = WIN_LANCZOS;
+      else if (!strcmp(word, "lanczos_dil"))
+        *win_type = WIN_LANCZOS_DIL;
+      else if (!strcmp(word, "gaussian"))
+        *win_type = WIN_GAUSSIAN;
+      else if (!strcmp(word, "gengaussian"))
+        *win_type = WIN_GENGAUSSIAN;
+      else if (!strcmp(word, "cosine"))
+        *win_type = WIN_COSINE;
+      else if (!strcmp(word, "hamming"))
+        *win_type = WIN_HAMMING;
+      else if (!strcmp(word, "blackman"))
+        *win_type = WIN_BLACKMAN;
+      else if (!strcmp(word, "kaiser"))
+        *win_type = WIN_KAISER;
+      else
+        fprintf(stderr, "Unknown window type, using default\n");
+    }
+    n++;
+  }
+  return n - 1;
 }
 
 static void get_resampled_hdr(char *dest, int len, char **words, int nwords,
@@ -217,8 +270,14 @@ static int parse_info(char *hdrwords[], int nhdrwords, int *width, int *height,
 }
 
 int main(int argc, char *argv[]) {
+  int extra_bits = DEF_EXTRA_PREC_BITS;
+  int bits = DEF_COEFF_PREC_BITS;
+  EXT_TYPE ext = DEF_EXT_TYPE;
+  WIN_TYPE win = DEF_WIN_TYPE;
+
   RationalResampleFilter horz_rf[2], vert_rf[2];
   int ywidth, yheight;
+
   if (argc < 6) {
     printf("Not enough arguments\n");
     usage_and_exit(argv[0]);
@@ -226,8 +285,13 @@ int main(int argc, char *argv[]) {
   if (!strcmp(argv[1], "-help") || !strcmp(argv[1], "-h") ||
       !strcmp(argv[1], "--help") || !strcmp(argv[1], "--h"))
     usage_and_exit(argv[0]);
-  char *y4m_input = argv[1];
-  char *y4m_output = argv[5];
+  const int opts = get_options(argv, &bits, &extra_bits, &ext, &win);
+  if (argc < 6 + opts) {
+    printf("Not enough arguments\n");
+    usage_and_exit(argv[0]);
+  }
+  char *y4m_input = argv[opts + 1];
+  char *y4m_output = argv[opts + 5];
 
   char hdr[Y4M_HDR_MAX_LEN];
   int nhdrwords;
@@ -248,19 +312,18 @@ int main(int argc, char *argv[]) {
     usage_and_exit(argv[0]);
   }
   const int bytes_per_pel = (bitdepth + 7) / 8;
-  int num_frames = atoi(argv[2]);
+  int num_frames = atoi(argv[opts + 2]);
 
   int horz_p, horz_q, vert_p, vert_q;
   int horz_a[2], vert_a[2];
   double horz_x0[2], vert_x0[2];
-  EXT_TYPE horz_ext, vert_ext;
-  if (!parse_rational_config(argv[3], &horz_p, &horz_q, horz_a, horz_x0,
-                             &horz_ext)) {
+  if (!parse_rational_config(argv[opts + 3], &horz_p, &horz_q, horz_a,
+                             horz_x0)) {
     printf("Could not parse horz resampling config\n");
     usage_and_exit(argv[0]);
   }
-  if (!parse_rational_config(argv[4], &vert_p, &vert_q, vert_a, vert_x0,
-                             &vert_ext)) {
+  if (!parse_rational_config(argv[opts + 4], &vert_p, &vert_q, vert_a,
+                             vert_x0)) {
     printf("Could not parse vert resampling config\n");
     usage_and_exit(argv[0]);
   }
@@ -272,12 +335,13 @@ int main(int argc, char *argv[]) {
 
   int rywidth = 0, ryheight = 0;
   if (horz_p > horz_q || vert_p > vert_q) {
-    if (argc < 7) {
+    if (argc < 7 + opts) {
       printf("Upsampled output dimensions must be provided\n");
       usage_and_exit(argv[0]);
     }
     // Read output dim if one of the dimensions use upscaling
-    if (!parse_dim(argv[6], &rywidth, &ryheight)) usage_and_exit(argv[0]);
+    if (!parse_dim(argv[opts + 6], &rywidth, &ryheight))
+      usage_and_exit(argv[0]);
   }
   if (horz_p <= horz_q)
     rywidth = get_resampled_output_length(ywidth, horz_p, horz_q, subx);
@@ -299,18 +363,15 @@ int main(int argc, char *argv[]) {
   const int rysize = rywidth * ryheight;
   const int ruvsize = ruvwidth * ruvheight;
 
-  const int bits = COEFF_PREC_BITS;
-  const int int_extra_bits = INT_EXTRA_PREC_BITS;
-
   for (int k = 0; k < 2; ++k) {
-    if (!get_resample_filter(horz_p, horz_q, horz_a[k], horz_x0[k], horz_ext,
-                             DEF_WIN_TYPE, subx, bits, &horz_rf[k])) {
+    if (!get_resample_filter(horz_p, horz_q, horz_a[k], horz_x0[k], ext, win,
+                             subx, bits, &horz_rf[k])) {
       fprintf(stderr, "Cannot generate filter, exiting!\n");
       exit(1);
     }
     // show_resample_filter(&horz_rf[k]);
-    if (!get_resample_filter(vert_p, vert_q, vert_a[k], vert_x0[k], vert_ext,
-                             DEF_WIN_TYPE, suby, bits, &vert_rf[k])) {
+    if (!get_resample_filter(vert_p, vert_q, vert_a[k], vert_x0[k], ext, win,
+                             suby, bits, &vert_rf[k])) {
       fprintf(stderr, "Cannot generate filter, exiting!\n");
       exit(1);
     }
@@ -338,28 +399,28 @@ int main(int argc, char *argv[]) {
       uint8_t *s = inbuf;
       uint8_t *r = outbuf;
       resample_2d_8b(s, ywidth, yheight, ywidth, &horz_rf[0], &vert_rf[0],
-                     int_extra_bits, &clip, r, rywidth, ryheight, rywidth);
+                     extra_bits, &clip, r, rywidth, ryheight, rywidth);
       s += ysize;
       r += rysize;
       resample_2d_8b(s, uvwidth, uvheight, uvwidth, &horz_rf[1], &vert_rf[1],
-                     int_extra_bits, &clip, r, ruvwidth, ruvheight, ruvwidth);
+                     extra_bits, &clip, r, ruvwidth, ruvheight, ruvwidth);
       s += uvsize;
       r += ruvsize;
       resample_2d_8b(s, uvwidth, uvheight, uvwidth, &horz_rf[1], &vert_rf[1],
-                     int_extra_bits, &clip, r, ruvwidth, ruvheight, ruvwidth);
+                     extra_bits, &clip, r, ruvwidth, ruvheight, ruvwidth);
     } else {
       int16_t *s = (int16_t *)inbuf;
       int16_t *r = (int16_t *)outbuf;
       resample_2d(s, ywidth, yheight, ywidth, &horz_rf[0], &vert_rf[0],
-                  int_extra_bits, &clip, r, rywidth, ryheight, rywidth);
+                  extra_bits, &clip, r, rywidth, ryheight, rywidth);
       s += ysize;
       r += rysize;
       resample_2d(s, uvwidth, uvheight, uvwidth, &horz_rf[1], &vert_rf[1],
-                  int_extra_bits, &clip, r, ruvwidth, ruvheight, ruvwidth);
+                  extra_bits, &clip, r, ruvwidth, ruvheight, ruvwidth);
       s += uvsize;
       r += ruvsize;
       resample_2d(s, uvwidth, uvheight, uvwidth, &horz_rf[1], &vert_rf[1],
-                  int_extra_bits, &clip, r, ruvwidth, ruvheight, ruvwidth);
+                  extra_bits, &clip, r, ruvwidth, ruvheight, ruvwidth);
     }
     fwrite(frametag, 6, 1, fout);
     fwrite(outbuf, (rysize + 2 * ruvsize) * bytes_per_pel, 1, fout);

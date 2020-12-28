@@ -1,7 +1,9 @@
 #!/bin/bash
 #
 # Usage:
-#   lanczos_downcompup.sh <input_y4m> <num_frames>
+#   lanczos_downcompup.sh [<Options>]
+#                         <input_y4m>
+#                         <num_frames>
 #                         <horz_resampling_config>
 #                         <vert_resampling_config>
 #                         <cq_level>[:<cpu_used>]
@@ -9,10 +11,12 @@
 #                         [[<down_y4m>]:[<downcomp_bit>]:[<downcomp_y4m]]
 #
 #   Notes:
+#       <Options> are optional switches similar to what is used by
+#           lanczos_resample_y4m utility
 #       <y4m_input> is input y4m video
 #       <num_frames> is number of frames to process
 #       <horz_resampling_config> and <vert_resampling_config> are in format:
-#               <p>:<q>:<Lanczos_a_str>[:<x0>:<ext>]
+#               <p>:<q>:<Lanczos_a_str>[:<x0>]
 #           similar to what is used by lanczos_resample_y4m utility, with the
 #           enhancement that for <Lanczos_a_str> optionally
 #           two '^'-separated strings for 'a' could be provided instead
@@ -41,11 +45,6 @@
 
 set -e
 
-if [[ $# -lt "6" ]]; then
-  echo "Too few parameters $#"
-  exit 1;
-fi
-
 tmpdir="/tmp"
 AOMENC="${tmpdir}/aomenc_$$"
 AOMDEC="${tmpdir}/aomdec_$$"
@@ -58,13 +57,24 @@ trap 'echo "Exiting..."; rm -f ${AOMENC} ${AOMDEC} ${RESAMPLE}' EXIT
 
 extra=""
 
-input_y4m=$1
-nframes=$2
-hdconfig=$3
-vdconfig=$4
-codecparams=$5
-downcompup_y4m=$6
-intfiles=$7
+opts=0
+options=""
+while [[ "${@:$((opts+1)):1}" == -* ]]; do
+  options="$options ${@:$((opts+1)):1}"
+  ((opts=opts+1))
+done
+if [[ $# -lt "((opts+6))" ]]; then
+  echo "Too few parameters $(($#-opts))"
+  exit 1;
+fi
+
+input_y4m=${@:$((opts+1)):1}
+nframes=${@:$((opts+2)):1}
+hdconfig=${@:$((opts+3)):1}
+vdconfig=${@:$((opts+4)):1}
+codecparams=${@:$((opts+5)):1}
+downcompup_y4m=${@:$((opts+6)):1}
+intfiles=${@:$((opts+7)):1}
 
 #Get codec params cq_level and cpu_used
 OIFS="$IFS"; IFS=':' codecparams_arr=($codecparams); IFS="$OIFS"
@@ -136,7 +146,7 @@ if [[ -n ${vdconfig_arr[4]} ]]; then
 fi
 
 #Downsample
-$RESAMPLE $input_y4m $nframes $hdconfig $vdconfig $down_y4m
+$RESAMPLE $options $input_y4m $nframes $hdconfig $vdconfig $down_y4m
 
 #Compress
 $AOMENC -o $downcomp_bit $down_y4m \
@@ -150,7 +160,7 @@ $AOMENC -o $downcomp_bit $down_y4m \
 $AOMDEC --progress -S --codec=av1 -o $downcomp_y4m $downcomp_bit
 
 #Upsample
-$RESAMPLE $downcomp_y4m $nframes $huconfig $vuconfig $downcompup_y4m \
+$RESAMPLE $options $downcomp_y4m $nframes $huconfig $vuconfig $downcompup_y4m \
           ${width}x${height}
 
 #Compute metrics
