@@ -85,6 +85,7 @@ typedef struct {
   int frame_w;
   int frame_h;
   int cpu_used;
+  int lag_in_frames;
 } SubgopTestParams;
 
 int is_extension_y4m(const char *filename) {
@@ -98,59 +99,61 @@ int is_extension_y4m(const char *filename) {
 static const SubgopTestParams SubGopTestVectors[] = {
   // Default subgop config
   { subgop_config_str_preset_map[DEFAULT].preset_tag,
-    "hantro_collage_w352h288.yuv", 0, 16, 352, 288, 3 },
+    "hantro_collage_w352h288.yuv", 0, 16, 352, 288, 3, 35 },
   { subgop_config_str_preset_map[DEFAULT].preset_tag, "desktop1.320_180.yuv", 0,
-    16, 320, 180, 5 },
+    16, 320, 180, 5, 35 },
   { subgop_config_str_preset_map[DEFAULT].preset_tag,
-    "pixel_capture_w320h240.yuv", 0, 16, 320, 240, 3 },
+    "pixel_capture_w320h240.yuv", 0, 16, 320, 240, 3, 35 },
 
+  // Enhanced subgop config
   { subgop_config_str_preset_map[ENHANCE].preset_tag, "niklas_640_480_30.yuv",
-    0, 15, 640, 480, 5 },
+    0, 15, 640, 480, 5, 35 },
   { subgop_config_str_preset_map[ENHANCE].preset_tag, "paris_352_288_30.y4m", 0,
-    6, 352, 288, 3 },
+    6, 352, 288, 3, 35 },
   { subgop_config_str_preset_map[ENHANCE].preset_tag,
-    "hantro_collage_w352h288.yuv", 0, 16, 352, 288, 3 },
+    "hantro_collage_w352h288.yuv", 0, 16, 352, 288, 3, 35 },
   { subgop_config_str_preset_map[ENHANCE].preset_tag,
-    "pixel_capture_w320h240.yuv", 0, 12, 320, 240, 3 },
+    "pixel_capture_w320h240.yuv", 0, 12, 320, 240, 3, 35 },
   { subgop_config_str_preset_map[ENHANCE].preset_tag, "niklas_1280_720_30.y4m",
-    0, 11, 1280, 720, 5 },
+    0, 11, 1280, 720, 5, 35 },
   { subgop_config_str_preset_map[ENHANCE].preset_tag, "screendata.y4m", 0, 16,
-    640, 480, 5 },
+    640, 480, 5, 35 },
   { subgop_config_str_preset_map[ENHANCE].preset_tag,
-    "pixel_capture_w320h240.yuv", 0, 14, 320, 240, 3 },
+    "pixel_capture_w320h240.yuv", 0, 14, 320, 240, 3, 35 },
   { subgop_config_str_preset_map[ENHANCE].preset_tag, "desktop1.320_180.yuv", 0,
-    10, 320, 180, 3 },
+    10, 320, 180, 3, 35 },
   { subgop_config_str_preset_map[ENHANCE].preset_tag, "paris_352_288_30.y4m", 0,
-    13, 352, 288, 5 },
+    13, 352, 288, 5, 35 },
   { subgop_config_str_preset_map[ENHANCE].preset_tag,
-    "pixel_capture_w320h240.yuv", 0, 8, 320, 240, 5 },
+    "pixel_capture_w320h240.yuv", 0, 8, 320, 240, 5, 35 },
 
+  // Asymmetric subgop config
   { subgop_config_str_preset_map[ASYMMETRIC].preset_tag,
-    "pixel_capture_w320h240.yuv", 0, 16, 320, 240, 5 },
+    "pixel_capture_w320h240.yuv", 0, 16, 320, 240, 5, 35 },
   { subgop_config_str_preset_map[ASYMMETRIC].preset_tag, "desktop1.320_180.yuv",
-    0, 16, 320, 180, 3 },
+    0, 16, 320, 180, 3, 35 },
 
+  // Temporal scalable subgop config
   { subgop_config_str_preset_map[TEMPORAL_SCALABLE].preset_tag,
-    "pixel_capture_w320h240.yuv", 0, 16, 320, 240, 3 },
+    "pixel_capture_w320h240.yuv", 0, 16, 320, 240, 3, 35 },
   { subgop_config_str_preset_map[TEMPORAL_SCALABLE].preset_tag,
-    "hantro_collage_w352h288.yuv", 0, 16, 352, 288, 5 },
+    "hantro_collage_w352h288.yuv", 0, 16, 352, 288, 5, 35 },
 
-  // TODO(vishnu) : Enable ld config
-  // { subgop_config_str_preset_map[LOW_DELAY].preset_tag,
-  // "paris_352_288_30.y4m",
-  //   0, 16, 352, 288, 5 },
-  // { subgop_config_str_preset_map[LOW_DELAY].preset_tag,
-  // "desktop1.320_180.yuv",
-  //   0, 16, 320, 180, 3 },
+  // Low delay subgop config
+  { subgop_config_str_preset_map[LOW_DELAY].preset_tag, "paris_352_288_30.y4m",
+    0, 16, 352, 288, 5, 0 },
+  { subgop_config_str_preset_map[LOW_DELAY].preset_tag, "desktop1.320_180.yuv",
+    0, 16, 320, 180, 3, 0 },
 
   // Non-default subgop config
   { subgop_config_str_nondef[0], "pixel_capture_w320h240.yuv", 0, 4, 320, 240,
-    3 },
-  { subgop_config_str_nondef[0], "desktop1.320_180.yuv", 0, 5, 320, 180, 5 },
+    3, 35 },
+  { subgop_config_str_nondef[0], "desktop1.320_180.yuv", 0, 5, 320, 180, 5,
+    35 },
   { subgop_config_str_nondef[0], "pixel_capture_w320h240.yuv", 0, 7, 320, 240,
-    5 },
+    5, 35 },
   { subgop_config_str_nondef[0], "hantro_collage_w352h288.yuv", 0, 9, 352, 288,
-    3 },
+    3, 35 },
 };
 
 std::ostream &operator<<(std::ostream &os, const SubgopTestParams &test_arg) {
@@ -160,7 +163,8 @@ std::ostream &operator<<(std::ostream &os, const SubgopTestParams &test_arg) {
             << " max_gf_interval:" << test_arg.max_gf_interval
             << " frame_width:" << test_arg.frame_w
             << " frame_height:" << test_arg.frame_h
-            << " cpu_used:" << test_arg.cpu_used << " }";
+            << " cpu_used:" << test_arg.cpu_used
+            << " lag_in_frames:" << test_arg.lag_in_frames << " }";
 }
 // This class is used to validate the subgop config in a gop.
 class SubGopTestLarge
@@ -185,7 +189,7 @@ class SubGopTestLarge
     // parameters
     cfg_.kf_min_dist = 65;
     cfg_.kf_max_dist = 65;
-    cfg_.g_lag_in_frames = 35;
+    cfg_.g_lag_in_frames = subgop_test_params_.lag_in_frames;
   }
 
   // check if subgop_config_str is a preset tag
@@ -634,40 +638,41 @@ typedef struct {
   int frame_w;
   int frame_h;
   int cpu_used;
+  int lag_in_frames;
 } SubgopPsnrTestParams;
 
 static const SubgopPsnrTestParams SubGopPsnrTestVectors[] = {
   { subgop_config_str_preset_map[DEFAULT].preset_tag,
-    "hantro_collage_w352h288.yuv", 352, 288, 3 },
+    "hantro_collage_w352h288.yuv", 352, 288, 3, 35 },
   { subgop_config_str_preset_map[DEFAULT].preset_tag, "desktop1.320_180.yuv",
-    320, 180, 5 },
+    320, 180, 5, 35 },
 
   { subgop_config_str_preset_map[ENHANCE].preset_tag,
-    "hantro_collage_w352h288.yuv", 352, 288, 3 },
+    "hantro_collage_w352h288.yuv", 352, 288, 3, 35 },
   { subgop_config_str_preset_map[ENHANCE].preset_tag,
-    "pixel_capture_w320h240.yuv", 320, 240, 5 },
+    "pixel_capture_w320h240.yuv", 320, 240, 5, 35 },
   // TODO(any): Enable after fix
   /* { subgop_config_str_preset_map[ENHANCE].preset_tag, "paris_352_288_30.y4m",
-     352, 288, 3 },
+     352, 288, 3, 35 },
      { subgop_config_str_preset_map[ENHANCE].preset_tag, "screendata.y4m", 640,
-     480, 5 },
+     480, 5, 35 },
      { subgop_config_str_preset_map[ENHANCE].preset_tag, "paris_352_288_30.y4m",
-     352, 288, 5 }, */
+     352, 288, 5, 35 }, */
 
   { subgop_config_str_preset_map[ASYMMETRIC].preset_tag,
-    "pixel_capture_w320h240.yuv", 320, 240, 5 },
+    "pixel_capture_w320h240.yuv", 320, 240, 5, 35 },
   // TODO(any): Enable after fix
   /* { subgop_config_str_preset_map[ASYMMETRIC].preset_tag,
-    "desktop1.320_180.yuv", 320, 180, 3 }, */
+    "desktop1.320_180.yuv", 320, 180, 3, 35 }, */
 
   { subgop_config_str_preset_map[TEMPORAL_SCALABLE].preset_tag,
-    "hantro_collage_w352h288.yuv", 352, 288, 5 },
+    "hantro_collage_w352h288.yuv", 352, 288, 5, 35 },
 
-  // TODO(any) : Enable ld config
+  // TODO(any): Enable after fix
   /* { subgop_config_str_preset_map[LOW_DELAY].preset_tag,
-     "paris_352_288_30.y4m", 352, 288, 5 },
+     "paris_352_288_30.y4m", 352, 288, 5, 0 },
      { subgop_config_str_preset_map[LOW_DELAY].preset_tag,
-     "desktop1.320_180.yuv", 320, 180, 3 }, */
+     "desktop1.320_180.yuv", 320, 180, 3, 0 }, */
 };
 
 std::ostream &operator<<(std::ostream &os,
@@ -676,7 +681,8 @@ std::ostream &operator<<(std::ostream &os,
             << " source_file:" << test_arg.input_file
             << " frame_width:" << test_arg.frame_w
             << " frame_height:" << test_arg.frame_h
-            << " cpu_used:" << test_arg.cpu_used << " }";
+            << " cpu_used:" << test_arg.cpu_used
+            << " lag_in_frames:" << test_arg.lag_in_frames << " }";
 }
 
 class SubGopPSNRCheckTest
@@ -701,7 +707,7 @@ class SubGopPSNRCheckTest
     InitializeConfig();
     SetMode(::libaom_test::kOnePassGood);
     cfg_.g_threads = 1;
-    cfg_.g_lag_in_frames = 35;
+    cfg_.g_lag_in_frames = test_params_.lag_in_frames;
     cfg_.rc_end_usage = rc_end_usage_;
     init_flags_ = AOM_CODEC_USE_PSNR;
   }
@@ -773,22 +779,22 @@ typedef struct {
   int frame_w;
   int frame_h;
   int cpu_used;
+  int lag_in_frames;
 } SubGopSwitchTestParams;
 
 static const SubGopSwitchTestParams SubgopSwitchTestVectors[] = {
   { subgop_config_str_preset_map[DEFAULT].preset_tag, "niklas_640_480_30.yuv",
-    640, 480, 5 },
+    640, 480, 5, 35 },
   { subgop_config_str_preset_map[ENHANCE].preset_tag, "desktop1.320_180.yuv",
-    320, 180, 3 },
+    320, 180, 3, 35 },
   { subgop_config_str_preset_map[ENHANCE].preset_tag,
-    "hantro_collage_w352h288.yuv", 352, 288, 5 },
+    "hantro_collage_w352h288.yuv", 352, 288, 5, 35 },
   { subgop_config_str_preset_map[ASYMMETRIC].preset_tag,
-    "pixel_capture_w320h240.yuv", 320, 240, 3 },
+    "pixel_capture_w320h240.yuv", 320, 240, 3, 35 },
   { subgop_config_str_preset_map[TEMPORAL_SCALABLE].preset_tag,
-    "paris_352_288_30.y4m", 352, 288, 3 },
+    "paris_352_288_30.y4m", 352, 288, 3, 35 },
   { subgop_config_str_preset_map[LOW_DELAY].preset_tag, "screendata.y4m", 640,
-    480, 5 },
-  // TODO(any) : Extend the test case for ld config
+    480, 5, 0 },
 };
 
 using libaom_test::ACMRandom;
@@ -812,7 +818,7 @@ class SubGopSwitchingTest
     SetMode(::libaom_test::kOnePassGood);
     cfg_.g_threads = 1;
     cfg_.rc_end_usage = rc_end_usage_;
-    cfg_.g_lag_in_frames = 35;
+    cfg_.g_lag_in_frames = test_params_.lag_in_frames;
   }
 
   void ResetSubgop() {
@@ -913,8 +919,7 @@ class SubGopSwitchingTest
   const char *last_subgop_str_;
 };
 
-// TODO(aomedia:2889): Enable this unit test after fix
-TEST_P(SubGopSwitchingTest, DISABLED_SubGopSwitching) {
+TEST_P(SubGopSwitchingTest, SubGopSwitching) {
   std::unique_ptr<libaom_test::VideoSource> video;
   const unsigned int kFrames = 200;
 
