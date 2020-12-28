@@ -1288,6 +1288,7 @@ static void inter_modes_info_push(InterModesInfo *inter_modes_info,
                                   const MB_MODE_INFO *mbmi) {
   const int num = inter_modes_info->num;
   assert(num < MAX_INTER_MODES);
+  if (num >= MAX_INTER_MODES) return;
   inter_modes_info->mbmi_arr[num] = *mbmi;
   inter_modes_info->mode_rate_arr[num] = mode_rate;
   inter_modes_info->sse_arr[num] = sse;
