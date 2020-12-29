@@ -64,11 +64,11 @@ QPs = {
 }
 
 ######################## quality evalution config #############################
-QualityList = ['PSNR_Y', 'PSNR_U', 'PSNR_V','SSIM_Y(dB)','MS-SSIM_Y(dB)','VMAF_Y',
-               'PSNR-HVS','CIEDE2000','APSNR_Y','APSNR_U','APSNR_V']
+QualityList = ['PSNR_Y','PSNR_U','PSNR_V','SSIM_Y(dB)','MS-SSIM_Y(dB)','VMAF_Y',
+               'VMAF_Y-NEG','PSNR-HVS','CIEDE2000','APSNR_Y','APSNR_U','APSNR_V']
 VMAF = os.path.join(BinPath, 'vmaf.exe')
-CalcBDRateInExcel = False
-EnablePreInterpolation = False
+CalcBDRateInExcel = True
+EnablePreInterpolation = True
 
 ######################## config for exporting data to excel  #################
 #https://xlsxwriter.readthedocs.io/working_with_colors.html#colors
@@ -87,7 +87,7 @@ TargetQtyMetrics = {'VMAF_Y': [60, 70, 80, 90],
 CvxH_startCol = 1; CvxH_startRow = 2; CvxH_colInterval = 2
 CvxH_WtCols = [(CvxH_colInterval + 1 + len(QualityList)) * i + CvxH_startCol
                for i in range(len(DnScaleRatio))]
-CvxH_WtRows = [CvxH_startRow + i for i in range(len(QPs))]
+CvxH_WtRows = [CvxH_startRow + i for i in range(len(QPs['AS']))]
 CvxH_WtLastCol = CvxH_WtCols[-1] + len(QualityList)
 CvxH_WtLastRow = CvxH_WtRows[-1]
 

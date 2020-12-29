@@ -55,15 +55,16 @@ def GetRDResultExcelFile(clip):
 
 def setupWorkFolderStructure():
     global Path_Bitstreams, Path_DecodedYuv, Path_UpScaleYuv, Path_DnScaleYuv, \
-    Path_QualityLog, Path_TestLog, Path_CfgFiles, Path_DecUpScaleYuv
+    Path_QualityLog, Path_TestLog, Path_CfgFiles, Path_DecUpScaleYuv, Path_PerfLog
     Path_Bitstreams = CreateNewSubfolder(WorkPath, "bistreams")
     Path_DecodedYuv = CreateNewSubfolder(WorkPath, "decodedYUVs")
     Path_UpScaleYuv = CreateNewSubfolder(WorkPath, "upscaledYUVs")
     Path_DecUpScaleYuv = CreateNewSubfolder(WorkPath, "decUpscaledYUVs")
     Path_DnScaleYuv = CreateNewSubfolder(WorkPath, "downscaledYUVs")
     Path_QualityLog = CreateNewSubfolder(WorkPath, "qualityLogs")
-    Path_TestLog = CreateNewSubfolder(WorkPath, 'testLogs')
+    Path_TestLog = CreateNewSubfolder(WorkPath, "testLogs")
     Path_CfgFiles = CreateNewSubfolder(WorkPath, "configFiles")
+    Path_PerfLog = CreateNewSubfolder(WorkPath, "perfLogs")
 
 '''
 The convex_hull function is adapted based on the original python implementation
@@ -214,7 +215,7 @@ def AddConvexHullCurveToCharts(sht, charts, rdPoints, dnScaledRes, tgtqmetrics,
 ######### Major Functions #####################################################
 def CleanUp_workfolders():
     folders = [Path_DnScaleYuv, Path_Bitstreams, Path_DecodedYuv, Path_QualityLog,
-               Path_TestLog, Path_CfgFiles]
+               Path_TestLog, Path_CfgFiles, Path_PerfLog]
     if not KeepUpscaledOutput:
         folders += [Path_UpScaleYuv, Path_DecUpScaleYuv]
 
@@ -246,7 +247,7 @@ def Run_ConvexHull_Test(clip, dnScalAlgo, upScalAlgo, LogCmdOnly = False):
                                           ds_clip, 'AS', QP, FrameNum['AS'],
                                           clip.width, clip.height, Path_Bitstreams,
                                           Path_DecodedYuv, Path_DecUpScaleYuv,
-                                          Path_CfgFiles, upScalAlgo, LogCmdOnly)
+                                          Path_CfgFiles, Path_PerfLog, upScalAlgo, LogCmdOnly)
             #calcualte quality distortion
             Utils.Logger.info("start quality metric calculation")
             CalculateQualityMetric(clip.file_path, FrameNum['AS'], reconyuv,
