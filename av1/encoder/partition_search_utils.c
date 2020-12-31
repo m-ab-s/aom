@@ -754,6 +754,8 @@ void av1_encode_superblock(const AV1_COMP *const cpi, TileDataEnc *tile_data,
 #if CONFIG_INTERINTRA_ML_DATA_COLLECT
     if (dry_run == OUTPUT_ENABLED &&
         av1_interintra_ml_data_collect_valid(x, bsize)) {
+      // Writes out data into xd->plane[0/1/2].dst.buf, as it re-builds
+      // the inter-predictor. No differences noted with this behavior.
       av1_interintra_ml_data_collect(cpi, x, bsize);
     }
 #endif  // CONFIG_INTERINTRA_ML_DATA_COLLECT

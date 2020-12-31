@@ -194,33 +194,20 @@ static void copy_predictor(IIMLPlaneInfo *info, const AV1_COMP *const cpi,
   const AV1_COMMON *const cm = &cpi->common;
   MACROBLOCKD *const xd = &x->e_mbd;
 
-  uint8_t *orig_buf = xd->plane[info->plane].dst.buf;
-  int orig_stride = xd->plane[info->plane].dst.stride;
-
-  uint8_t *predictor;
-  int predictor_stride;
-  const int border =
-      av1_calc_border(xd, AOM_PLANE_Y, false /* build for obmc */);
-  assert(border >= BORDER_SIZE);
-  av1_alloc_buf_with_border(&predictor, &predictor_stride, border,
-                            is_cur_buf_hbd(xd));
-
-  xd->plane[info->plane].dst.buf = predictor;
-  xd->plane[info->plane].dst.stride = predictor_stride;
-
+  // Assumes that xd->plane[info->plane].dst.buf can be overwritten in
+  // the inter-predictor part.
   av1_enc_build_inter_predictor(cm, xd, xd->mi_row, xd->mi_col, NULL, bsize,
                                 info->plane, info->plane);
+
+  uint8_t *predictor = xd->plane[info->plane].dst.buf;
+  int stride = xd->plane[info->plane].dst.stride;
   int info_i = 0;
   for (int j = 0; j < info->height; ++j) {
     for (int i = 0; i < info->width; ++i) {
-      copy_value(info->predictor, info_i++, predictor, j * predictor_stride + i,
+      copy_value(info->predictor, info_i++, predictor, j * stride + i,
                  info->bitdepth, is_cur_buf_hbd(xd));
     }
   }
-  xd->plane[info->plane].dst.buf = orig_buf;
-  xd->plane[info->plane].dst.stride = orig_stride;
-  av1_free_buf_with_border(predictor, predictor_stride, border,
-                           is_cur_buf_hbd(xd));
 }
 
 // 1 == inter, 2 == inter-intra (smooth), 3 == inter-intra (wedge)
@@ -395,7 +382,6 @@ void av1_interintra_ml_data_collect_finalize() {
   av1_interintra_ml_data_collect_serialize(INFO_Y, &buf, &buf_size);
   size_t written = fwrite(buf, sizeof(*buf), buf_size, FP);
   assert(written == buf_size);
-  (void)written;
   free(buf);
 
   if (INFO_U != NULL) {
