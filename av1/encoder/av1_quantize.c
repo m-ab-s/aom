@@ -1135,17 +1135,6 @@ static const int quantizer_to_qindex[] = {
 };
 // clang-format on
 
-#if CONFIG_EXTQUANT
-static const int qindex_10b_offset[] = {
-  0,
-  48,
-};
-static const int qindex_12b_offset[] = {
-  0,
-  96,
-};
-#endif
-
 int av1_quantizer_to_qindex(int quantizer
 #if CONFIG_EXTQUANT
                             ,

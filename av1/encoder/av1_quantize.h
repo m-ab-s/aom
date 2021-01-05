@@ -44,6 +44,14 @@ typedef void (*AV1_QUANT_FACADE)(const tran_low_t *coeff_ptr, intptr_t n_coeffs,
 
 #if CONFIG_EXTQUANT
 #define QUANT_FP_BITS 4
+static const int qindex_10b_offset[] = {
+  0,
+  48,
+};
+static const int qindex_12b_offset[] = {
+  0,
+  96,
+};
 #else
 #define QUANT_FP_BITS 0
 #endif  // CONFIG_EXTQUANT

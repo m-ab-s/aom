@@ -960,9 +960,41 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   rc_cfg->gf_cbr_boost_pct = extra_cfg->gf_cbr_boost_pct;
   rc_cfg->mode = cfg->rc_end_usage;
   rc_cfg->min_cr = extra_cfg->min_cr;
+
   rc_cfg->best_allowed_q = extra_cfg->lossless ? 0 : cfg->rc_min_quantizer;
   rc_cfg->worst_allowed_q = extra_cfg->lossless ? 0 : cfg->rc_max_quantizer;
   rc_cfg->qp = extra_cfg->qp;
+
+#if CONFIG_EXTQUANT
+  int offset_best_allowed_q;
+  int offset_worst_allowed_q;
+  int offset_qp;
+  switch (cfg->g_bit_depth) {
+    case AOM_BITS_8:
+      offset_best_allowed_q = 0;
+      offset_worst_allowed_q = 0;
+      offset_qp = 0;
+      break;
+    case AOM_BITS_10:
+      offset_best_allowed_q = qindex_10b_offset[rc_cfg->best_allowed_q != 0];
+      offset_worst_allowed_q = qindex_10b_offset[rc_cfg->worst_allowed_q != 0];
+      offset_qp = qindex_10b_offset[rc_cfg->qp != 0];
+      break;
+    case AOM_BITS_12:
+      offset_best_allowed_q = qindex_12b_offset[rc_cfg->best_allowed_q != 0];
+      offset_worst_allowed_q = qindex_12b_offset[rc_cfg->worst_allowed_q != 0];
+      offset_qp = qindex_12b_offset[rc_cfg->qp != 0];
+      break;
+    default:
+      offset_best_allowed_q = 0;
+      offset_worst_allowed_q = 0;
+      offset_qp = 0;
+      break;
+  }
+  rc_cfg->best_allowed_q += offset_best_allowed_q;
+  rc_cfg->worst_allowed_q += offset_worst_allowed_q;
+  rc_cfg->qp += offset_qp;
+#endif
 
   rc_cfg->under_shoot_pct = cfg->rc_undershoot_pct;
   rc_cfg->over_shoot_pct = cfg->rc_overshoot_pct;
@@ -1221,6 +1253,34 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
         (uint8_t)cfg->rc_superres_kf_denominator;
     superres_cfg->superres_qthresh = cfg->rc_superres_qthresh;
     superres_cfg->superres_kf_qthresh = cfg->rc_superres_kf_qthresh;
+#if CONFIG_EXTQUANT
+    int offset_superres_qthresh;
+    int offset_superres_kf_qthresh;
+    switch (cfg->g_bit_depth) {
+      case AOM_BITS_8:
+        offset_superres_qthresh = 0;
+        offset_superres_kf_qthresh = 0;
+        break;
+      case AOM_BITS_10:
+        offset_superres_qthresh =
+            qindex_10b_offset[superres_cfg->superres_qthresh != 0];
+        offset_superres_kf_qthresh =
+            qindex_10b_offset[superres_cfg->superres_kf_qthresh != 0];
+        break;
+      case AOM_BITS_12:
+        offset_superres_qthresh =
+            qindex_12b_offset[superres_cfg->superres_qthresh != 0];
+        offset_superres_kf_qthresh =
+            qindex_12b_offset[superres_cfg->superres_kf_qthresh != 0];
+        break;
+      default:
+        offset_superres_qthresh = 0;
+        offset_superres_kf_qthresh = 0;
+        break;
+    }
+    superres_cfg->superres_qthresh += offset_superres_qthresh;
+    superres_cfg->superres_kf_qthresh += offset_superres_kf_qthresh;
+#endif
     if (superres_cfg->superres_mode == AOM_SUPERRES_FIXED &&
         superres_cfg->superres_scale_denominator == SCALE_NUMERATOR &&
         superres_cfg->superres_kf_scale_denominator == SCALE_NUMERATOR) {
