@@ -26,6 +26,9 @@
   (((value) < 0) ? -ROUND_POWER_OF_TWO(-(value), (n)) \
                  : ROUND_POWER_OF_TWO((value), (n)))
 
+#define MAX(a, b) ((a) < (b) ? (b) : (a))
+#define MIN(a, b) ((a) < (b) ? (a) : (b))
+
 #ifndef M_PI
 #define M_PI (3.14159265358979323846)
 #endif
@@ -343,11 +346,13 @@ static void resample_1d_core(const int16_t *x, int inlen,
     for (int j = -tapsby2 + 1; j <= tapsby2; ++j) {
       sum += (int)rf->filter[p][j + tapsby2 - 1] * (int)xext[j];
     }
-    y[i] = ROUND_POWER_OF_TWO_SIGNED(sum, downshift);
+    sum = ROUND_POWER_OF_TWO_SIGNED(sum, downshift);
     if (clip) {
-      y[i] = (int16_t)clip->issigned ? doclip(y[i], -(1 << (clip->bits - 1)),
+      y[i] = (int16_t)clip->issigned ? doclip(sum, -(1 << (clip->bits - 1)),
                                               (1 << (clip->bits - 1)) - 1)
-                                     : doclip(y[i], 0, (1 << clip->bits) - 1);
+                                     : doclip(sum, 0, (1 << clip->bits) - 1);
+    } else {
+      y[i] = (int16_t)sum;
     }
     xext += rf->steps[p];
   }
@@ -472,6 +477,8 @@ void resample_2d(const int16_t *x, int inwidth, int inheight, int instride,
   int16_t *tmparrv = tmparr_ + outheight + rfv->length / 2;
   int16_t *tmparro = tmparr_;
   int tmpstride = outwidth;
+  // intermediate data is stored in 16 bit buffers, so limit int_extra_bits
+  int_extra_bits = MIN(int_extra_bits, 15 - clip->bits);
   const int downshifth = rfh->filter_bits - int_extra_bits;
   const int downshiftv = rfh->filter_bits + int_extra_bits;
   for (int i = 0; i < inheight; ++i) {
@@ -531,11 +538,13 @@ static void resample_1d_core_in8b(const uint8_t *x, int inlen,
     for (int j = -tapsby2 + 1; j <= tapsby2; ++j) {
       sum += (int)rf->filter[p][j + tapsby2 - 1] * (int)xext[j];
     }
-    y[i] = (int16_t)ROUND_POWER_OF_TWO_SIGNED(sum, downshift);
+    sum = ROUND_POWER_OF_TWO_SIGNED(sum, downshift);
     if (clip) {
-      y[i] = (int16_t)clip->issigned ? doclip(y[i], -(1 << (clip->bits - 1)),
+      y[i] = (int16_t)clip->issigned ? doclip(sum, -(1 << (clip->bits - 1)),
                                               (1 << (clip->bits - 1)) - 1)
-                                     : doclip(y[i], 0, (1 << clip->bits) - 1);
+                                     : doclip(sum, 0, (1 << clip->bits) - 1);
+    } else {
+      y[i] = (int16_t)sum;
     }
     xext += rf->steps[p];
   }
@@ -555,11 +564,13 @@ static void resample_1d_core_8b(const uint8_t *x, int inlen,
     for (int j = -tapsby2 + 1; j <= tapsby2; ++j) {
       sum += (int)rf->filter[p][j + tapsby2 - 1] * (int)xext[j];
     }
-    y[i] = (uint8_t)ROUND_POWER_OF_TWO_SIGNED(sum, downshift);
+    sum = ROUND_POWER_OF_TWO_SIGNED(sum, downshift);
     if (clip) {
-      y[i] = (uint8_t)clip->issigned ? doclip(y[i], -(1 << (clip->bits - 1)),
+      y[i] = (uint8_t)clip->issigned ? doclip(sum, -(1 << (clip->bits - 1)),
                                               (1 << (clip->bits - 1)) - 1)
-                                     : doclip(y[i], 0, (1 << clip->bits) - 1);
+                                     : doclip(sum, 0, (1 << clip->bits) - 1);
+    } else {
+      y[i] = (uint8_t)sum;
     }
     xext += rf->steps[p];
   }
@@ -706,6 +717,8 @@ void resample_2d_8b(const uint8_t *x, int inwidth, int inheight, int instride,
   int16_t *tmparrv = tmparr_ + outheight + rfv->length / 2;
   int16_t *tmparro = tmparr_;
   int tmpstride = outwidth;
+  // intermediate data is stored in 16 bit buffers, so limit int_extra_bits
+  int_extra_bits = MIN(int_extra_bits, 15 - clip->bits);
   const int downshifth = rfh->filter_bits - int_extra_bits;
   const int downshiftv = rfh->filter_bits + int_extra_bits;
   for (int i = 0; i < inheight; ++i) {

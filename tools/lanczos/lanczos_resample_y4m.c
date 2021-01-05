@@ -56,6 +56,7 @@ static void usage_and_exit(char *prog) {
   printf("                                 [default: 14]\n");
   printf("          -ieb:<n>        - providing intermediate extra bits of\n");
   printf("                            prec between horz and vert filtering\n");
+  printf("                            clamped to maximum of (15 - bitdepth)\n");
   printf("                                 [default: 2]\n");
   printf("          -ext:<ext_type> - providing the extension type\n");
   printf("               <ext_type> is one of:\n");

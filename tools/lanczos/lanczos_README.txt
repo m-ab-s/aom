@@ -52,6 +52,7 @@ The usage of lanczos_resample_y4m is:
                                  [default: 14]
           -ieb:<n>        - providing intermediate extra bits of
                             prec between horz and vert filtering
+                            clamped to maximum of (15 - bitdepth)
                                  [default: 2]
           -ext:<ext_type> - providing the extension type
                <ext_type> is one of:
