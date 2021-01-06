@@ -85,6 +85,13 @@ void av1_init_new_ref_frame_map(AV1_COMMON *const cm,
     scores[n_ranked].index = i;
     scores[n_ranked].score = score;
     scores[n_ranked].distance = disp_diff;
+    for (MV_REFERENCE_FRAME named_ref = LAST_FRAME; named_ref <= ALTREF_FRAME;
+         named_ref++) {
+      const RefCntBuffer *const buf = get_ref_frame_buf(cm, named_ref);
+      if (buf == NULL) continue;
+      if ((int)buf->display_order_hint == ref_disp)
+        scores[n_ranked].named_ref = named_ref;
+    }
     n_ranked++;
   }
 
@@ -97,6 +104,8 @@ void av1_init_new_ref_frame_map(AV1_COMMON *const cm,
   int n_past = 0;
   for (int i = 0; i < n_ranked; i++) {
     cm->new_ref_frame_data.ref_frame_score_map[i] = scores[i].index;
+    cm->new_ref_frame_data.named_to_ranked_refs[scores[i].named_ref] = i;
+    cm->new_ref_frame_data.ranked_to_named_refs[i] = scores[i].named_ref;
     if (scores[i].distance < 0) {
       cm->new_ref_frame_data.future_refs[n_future] = i;
       n_future++;

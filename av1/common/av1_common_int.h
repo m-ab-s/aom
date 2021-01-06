@@ -812,6 +812,20 @@ typedef struct {
    * Number of past references.
    */
   int n_past_refs;
+
+  // TODO(sarahparker) Remove these members once named references are removed.
+  /*!
+   * Maps named references to the new reference map ordering. This allows
+   * an easy conversion between the two schemes while the removal of the named
+   * reference scheme is in progress. It is temporary and will be removed.
+   */
+  int named_to_ranked_refs[REF_FRAMES];
+  /*!
+   * Maps the new reference scheme to the old named reference map. This allows
+   *  the easy conversion between the two schemes while the removal of the named
+   * reference scheme is in progress. It is temporary and will be removed.
+   */
+  int ranked_to_named_refs[REF_FRAMES];
 } NewRefFramesData;
 #endif  // CONFIG_NEW_REF_SIGNALING
 
