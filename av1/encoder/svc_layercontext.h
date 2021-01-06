@@ -50,7 +50,11 @@ typedef struct {
   /*!
    * Segmentation map for last coded quantization paramters.
    */
+#if CONFIG_EXTQUANT
+  uint16_t *last_coded_q_map;
+#else
   uint8_t *last_coded_q_map;
+#endif  // CONFIG_EXTQUANT
 
   /*!
    * Number of blocks on segment 1

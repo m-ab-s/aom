@@ -118,7 +118,16 @@ static int get_minq_index(double maxq, double x3, double x2, double x1,
   // down to lossless mode represented by q 1.0.
   if (minqtarget <= 2.0) return 0;
 
+#if CONFIG_EXTQUANT
+  return av1_find_qindex(minqtarget, bit_depth, 0,
+                         bit_depth == AOM_BITS_8
+                             ? QINDEX_RANGE_8_BITS - 1
+                             : bit_depth == AOM_BITS_10
+                                   ? QINDEX_RANGE_10_BITS - 1
+                                   : QINDEX_RANGE - 1);
+#else
   return av1_find_qindex(minqtarget, bit_depth, 0, QINDEX_RANGE - 1);
+#endif
 }
 
 static void init_minq_luts(int *kf_low_m, int *kf_high_m, int *arfgf_low,
@@ -126,7 +135,15 @@ static void init_minq_luts(int *kf_low_m, int *kf_high_m, int *arfgf_low,
                            int *arfgf_ld_high, int *inter, int *rtc,
                            aom_bit_depth_t bit_depth) {
   int i;
+#if CONFIG_EXTQUANT
+  for (i = 0; i < (bit_depth == AOM_BITS_8
+                       ? QINDEX_RANGE_8_BITS
+                       : bit_depth == AOM_BITS_10 ? QINDEX_RANGE_10_BITS
+                                                  : QINDEX_RANGE);
+       i++) {
+#else
   for (i = 0; i < QINDEX_RANGE; i++) {
+#endif
     const double maxq = av1_convert_qindex_to_q(i, bit_depth);
     kf_low_m[i] = get_minq_index(maxq, 0.000001, -0.0004, 0.150, bit_depth);
     kf_high_m[i] = get_minq_index(maxq, 0.0000021, -0.00125, 0.45, bit_depth);
@@ -161,9 +178,21 @@ void av1_rc_init_minq_luts(void) {
 double av1_convert_qindex_to_q(int qindex, aom_bit_depth_t bit_depth) {
   // Convert the index to a real Q value (scaled down to match old Q values)
   switch (bit_depth) {
+#if CONFIG_EXTQUANT
+    case AOM_BITS_8:
+      return av1_ac_quant_QTX(qindex, 0, bit_depth) /
+             (4.0 * (1 << QUANT_TABLE_BITS));
+    case AOM_BITS_10:
+      return av1_ac_quant_QTX(qindex, 0, bit_depth) /
+             (16.0 * (1 << QUANT_TABLE_BITS));
+    case AOM_BITS_12:
+      return av1_ac_quant_QTX(qindex, 0, bit_depth) /
+             (64.0 * (1 << QUANT_TABLE_BITS));
+#else
     case AOM_BITS_8: return av1_ac_quant_QTX(qindex, 0, bit_depth) / 4.0;
     case AOM_BITS_10: return av1_ac_quant_QTX(qindex, 0, bit_depth) / 16.0;
     case AOM_BITS_12: return av1_ac_quant_QTX(qindex, 0, bit_depth) / 64.0;
+#endif
     default:
       assert(0 && "bit_depth should be AOM_BITS_8, AOM_BITS_10 or AOM_BITS_12");
       return -1.0;

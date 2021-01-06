@@ -76,7 +76,11 @@ struct CYCLIC_REFRESH {
   /*!
    * Map of the last q a block was coded at.
    */
+#if CONFIG_EXTQUANT
+  uint16_t *last_coded_q_map;
+#else
   uint8_t *last_coded_q_map;
+#endif  // CONFIG_EXTQUANT
   /*!
    * Threshold applied to the projected rate of the coding block,
    * when deciding whether block should be refreshed.
@@ -115,7 +119,12 @@ struct AV1_COMP;
 
 typedef struct CYCLIC_REFRESH CYCLIC_REFRESH;
 
-CYCLIC_REFRESH *av1_cyclic_refresh_alloc(int mi_rows, int mi_cols);
+CYCLIC_REFRESH *av1_cyclic_refresh_alloc(int mi_rows, int mi_cols
+#if CONFIG_EXTQUANT
+                                         ,
+                                         aom_bit_depth_t bit_depth
+#endif
+);
 
 void av1_cyclic_refresh_free(CYCLIC_REFRESH *cr);
 
