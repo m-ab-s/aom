@@ -106,9 +106,18 @@ void av1_intra_mode_cnn_partition(const AV1_COMMON *const cm, MACROBLOCK *x,
     // Prepare the input
     const MACROBLOCKD *xd = &x->e_mbd;
     const int bit_depth = xd->bd;
+#if CONFIG_EXTQUANT
+    const int dc_q =
+        av1_dc_quant_QTX(x->qindex, 0, cm->seq_params.base_y_dc_delta_q,
+                         bit_depth) >>
+        (bit_depth - 8);
+    part_info->log_q = logf(1.0f + (float)((int64_t)dc_q * (int64_t)dc_q) /
+                                       (256 << (2 * QUANT_TABLE_BITS)));
+#else
     const int dc_q =
         av1_dc_quant_QTX(x->qindex, 0, bit_depth) >> (bit_depth - 8);
     part_info->log_q = logf(1.0f + (float)(dc_q * dc_q) / 256.0f);
+#endif
     part_info->log_q =
         (part_info->log_q - av1_intra_mode_cnn_partition_mean[0]) /
         av1_intra_mode_cnn_partition_std[0];
@@ -494,9 +503,17 @@ static AOM_INLINE void simple_motion_search_prune_part_features(
   set_offsets_for_motion_search(cpi, x, mi_row, mi_col, bsize);
 
   // Q_INDEX
+#if CONFIG_EXTQUANT
+  const int dc_q =
+      av1_dc_quant_QTX(x->qindex, 0, cpi->common.seq_params.base_y_dc_delta_q,
+                       xd->bd) >>
+      (xd->bd - 8);
+  features[f_idx++] = logf(1.0f + (float)((int64_t)dc_q * (int64_t)dc_q) /
+                                      (256 << (2 * QUANT_TABLE_BITS)));
+#else
   const int dc_q = av1_dc_quant_QTX(x->qindex, 0, xd->bd) >> (xd->bd - 8);
   features[f_idx++] = logf(1.0f + (float)(dc_q * dc_q) / 256.0f);
-
+#endif
   // Neighbor stuff
   const int has_above = !!xd->above_mbmi;
   const int has_left = !!xd->left_mbmi;
@@ -640,10 +657,18 @@ void av1_get_max_min_partition_features(AV1_COMP *const cpi, MACROBLOCK *x,
   assert(sb_size == BLOCK_128X128);
 
   int f_idx = 0;
-
+#if CONFIG_EXTQUANT
+  const int dc_q = av1_dc_quant_QTX(x->qindex, 0,
+                                    cm->seq_params.base_y_dc_delta_q, xd->bd) >>
+                   (xd->bd - 8);
+  aom_clear_system_state();
+  const float log_q_sq = logf(1.0f + (float)((int64_t)dc_q * (int64_t)dc_q) /
+                                         (256 << (2 * QUANT_TABLE_BITS)));
+#else
   const int dc_q = av1_dc_quant_QTX(x->qindex, 0, xd->bd) >> (xd->bd - 8);
   aom_clear_system_state();
   const float log_q_sq = logf(1.0f + (float)(dc_q * dc_q) / 256.0f);
+#endif
 
   // Perform full-pixel single motion search in Y plane of 16x16 mbs in the sb
   float sum_mv_row_sq = 0;
@@ -870,14 +895,23 @@ void av1_ml_early_term_after_split(AV1_COMP *const cpi, MACROBLOCK *const x,
   if (cpi->sf.part_sf.ml_early_term_after_part_split_level < 2) thresh -= 0.3f;
 
   const MACROBLOCKD *const xd = &x->e_mbd;
+#if CONFIG_EXTQUANT
+  const int dc_q = av1_dc_quant_QTX(x->qindex, 0,
+                                    cm->seq_params.base_y_dc_delta_q, xd->bd) >>
+                   (xd->bd - 8);
+#else
   const int dc_q = av1_dc_quant_QTX(x->qindex, 0, xd->bd) >> (xd->bd - 8);
+#endif
   const int bs = block_size_wide[bsize];
   int f_idx = 0;
   float features[FEATURES] = { 0.0f };
 
   aom_clear_system_state();
-
+#if CONFIG_EXTQUANT
+  features[f_idx++] = logf(1.0f + (float)dc_q / (4 << QUANT_TABLE_BITS));
+#else
   features[f_idx++] = logf(1.0f + (float)dc_q / 4.0f);
+#endif
   features[f_idx++] = logf(1.0f + (float)best_rd / bs / bs / 1024.0f);
 
   add_rd_feature(part_none_rd, best_rd, features, &f_idx);
@@ -1286,7 +1320,12 @@ int av1_ml_predict_breakout(const AV1_COMP *const cpi, BLOCK_SIZE bsize,
   features[feature_index++] = (float)pb_source_variance;
 
   const int dc_q = (int)x->plane[0].dequant_QTX[0];
+#if CONFIG_EXTQUANT
+  features[feature_index++] =
+      (float)(dc_q * dc_q) / (256 << (2 * QUANT_TABLE_BITS));
+#else
   features[feature_index++] = (float)(dc_q * dc_q) / 256.0f;
+#endif
   assert(feature_index == FEATURES);
 
   // Calculate score using the NN model.

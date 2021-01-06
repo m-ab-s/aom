@@ -41,7 +41,11 @@ typedef struct LevelDownStats {
   int new_eob;
 } LevelDownStats;
 
+#if CONFIG_EXTQUANT
+static INLINE int get_dqv(const int32_t *dequant, int coeff_idx,
+#else
 static INLINE int get_dqv(const int16_t *dequant, int coeff_idx,
+#endif
                           const qm_val_t *iqmatrix) {
   int dqv = dequant[!!coeff_idx];
   if (iqmatrix != NULL)
@@ -345,6 +349,11 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
     av1_write_tx_type(cm, xd, tx_type, tx_size, w);
   }
 
+#if DEBUG_EXTQUANT
+  fprintf(cm->fEncCoeffLog, "\nblk_row=%d,blk_col=%d,plane=%d,tx_size=%d",
+          blk_row, blk_col, plane, tx_size);
+#endif
+
   int eob_extra;
   const int eob_pt = get_eob_pos_token(eob, &eob_extra);
   const int eob_multi_size = txsize_log2_minus4[tx_size];
@@ -395,6 +404,10 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
     }
   }
 
+#if DEBUG_EXTQUANT
+  fprintf(cm->fEncCoeffLog, "tx_type=%d, eob=%d\n", tx_type, eob);
+#endif
+
   const int width = get_txb_wide(tx_size);
   const int height = get_txb_high(tx_size);
   uint8_t levels_buf[TX_PAD_2D];
@@ -437,6 +450,15 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
       }
     }
   }
+
+#if DEBUG_EXTQUANT
+  for (int c = 0; c < eob; ++c) {
+    const tran_low_t v = tcoeff[scan[c]];
+    const tran_low_t level = abs(v);
+    fprintf(cm->fEncCoeffLog, "c=%d,pos=%d,level=%d,dq_coeff=%d\n", c, scan[c],
+            level, v);
+  }
+#endif
 
   // Loop to code all signs in the transform block,
   // starting with the sign of DC (if applicable)
@@ -543,16 +565,26 @@ static int get_tx_type_cost(const MACROBLOCK *x, const MACROBLOCKD *xd,
 }
 
 static INLINE void update_coeff_eob_fast(int *eob, int shift,
+#if CONFIG_EXTQUANT
+                                         const int32_t *dequant_ptr,
+#else
                                          const int16_t *dequant_ptr,
+#endif
                                          const int16_t *scan,
                                          const tran_low_t *coeff_ptr,
                                          tran_low_t *qcoeff_ptr,
                                          tran_low_t *dqcoeff_ptr) {
   // TODO(sarahparker) make this work for aomqm
   int eob_out = *eob;
+#if CONFIG_EXTQUANT
+  int zbin[2] = { dequant_ptr[0] + ROUND_POWER_OF_TWO(dequant_ptr[0] * 70,
+                                                      7 + QUANT_TABLE_BITS),
+                  dequant_ptr[1] + ROUND_POWER_OF_TWO(dequant_ptr[1] * 70,
+                                                      7 + QUANT_TABLE_BITS) };
+#else
   int zbin[2] = { dequant_ptr[0] + ROUND_POWER_OF_TWO(dequant_ptr[0] * 70, 7),
                   dequant_ptr[1] + ROUND_POWER_OF_TWO(dequant_ptr[1] * 70, 7) };
-
+#endif
   for (int i = *eob - 1; i >= 0; i--) {
     const int rc = scan[i];
     const int qcoeff = qcoeff_ptr[rc];
@@ -872,7 +904,13 @@ static INLINE void get_qc_dqc_low(tran_low_t abs_qc, int sign, int dqv,
   tran_low_t abs_qc_low = abs_qc - 1;
   *qc_low = (-sign ^ abs_qc_low) + sign;
   assert((sign ? -abs_qc_low : abs_qc_low) == *qc_low);
+#if CONFIG_EXTQUANT
+  tran_low_t abs_dqc_low = (tran_low_t)(
+      ROUND_POWER_OF_TWO_64((tran_high_t)abs_qc_low * dqv, QUANT_TABLE_BITS) >>
+      shift);
+#else
   tran_low_t abs_dqc_low = (abs_qc_low * dqv) >> shift;
+#endif  // CONFIG_EXTQUANT
   *dqc_low = (-sign ^ abs_dqc_low) + sign;
   assert((sign ? -abs_dqc_low : abs_dqc_low) == *dqc_low);
 }
@@ -880,7 +918,11 @@ static INLINE void get_qc_dqc_low(tran_low_t abs_qc, int sign, int dqv,
 static INLINE void update_coeff_general(
     int *accu_rate, int64_t *accu_dist, int si, int eob, TX_SIZE tx_size,
     TX_CLASS tx_class, int bwl, int height, int64_t rdmult, int shift,
+#if CONFIG_EXTQUANT
+    int dc_sign_ctx, const int32_t *dequant, const int16_t *scan,
+#else
     int dc_sign_ctx, const int16_t *dequant, const int16_t *scan,
+#endif
     const LV_MAP_COEFF_COST *txb_costs, const tran_low_t *tcoeff,
     tran_low_t *qcoeff, tran_low_t *dqcoeff, uint8_t *levels,
     const qm_val_t *iqmatrix) {
@@ -937,7 +979,11 @@ static INLINE void update_coeff_general(
 
 static AOM_FORCE_INLINE void update_coeff_simple(
     int *accu_rate, int si, int eob, TX_SIZE tx_size, TX_CLASS tx_class,
+#if CONFIG_EXTQUANT
+    int bwl, int64_t rdmult, int shift, const int32_t *dequant,
+#else
     int bwl, int64_t rdmult, int shift, const int16_t *dequant,
+#endif
     const int16_t *scan, const LV_MAP_COEFF_COST *txb_costs,
     const tran_low_t *tcoeff, tran_low_t *qcoeff, tran_low_t *dqcoeff,
     uint8_t *levels, const qm_val_t *iqmatrix) {
@@ -969,7 +1015,14 @@ static AOM_FORCE_INLINE void update_coeff_simple(
     const int64_t rd = RDCOST(rdmult, rate, dist);
 
     const tran_low_t abs_qc_low = abs_qc - 1;
+#if CONFIG_EXTQUANT
+    const tran_low_t abs_dqc_low =
+        (tran_low_t)ROUND_POWER_OF_TWO_64((tran_high_t)abs_qc_low * dqv,
+                                          QUANT_TABLE_BITS) >>
+        shift;
+#else
     const tran_low_t abs_dqc_low = (abs_qc_low * dqv) >> shift;
+#endif  // CONFIG_EXTQUANT
     const int64_t dist_low = get_coeff_dist(abs_tqc, abs_dqc_low, shift);
     const int64_t rd_low = RDCOST(rdmult, rate_low, dist_low);
 
@@ -988,7 +1041,11 @@ static AOM_FORCE_INLINE void update_coeff_simple(
 static AOM_FORCE_INLINE void update_coeff_eob(
     int *accu_rate, int64_t *accu_dist, int *eob, int *nz_num, int *nz_ci,
     int si, TX_SIZE tx_size, TX_CLASS tx_class, int bwl, int height,
+#if CONFIG_EXTQUANT
+    int dc_sign_ctx, int64_t rdmult, int shift, const int32_t *dequant,
+#else
     int dc_sign_ctx, int64_t rdmult, int shift, const int16_t *dequant,
+#endif
     const int16_t *scan, const LV_MAP_EOB_COST *txb_eob_costs,
     const LV_MAP_COEFF_COST *txb_costs, const tran_low_t *tcoeff,
     tran_low_t *qcoeff, tran_low_t *dqcoeff, uint8_t *levels, int sharpness,
@@ -1128,7 +1185,11 @@ int av1_optimize_txb_new(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
   const int16_t *scan = scan_order->scan;
   const int shift = av1_get_tx_scale(tx_size);
   int eob = p->eobs[block];
+#if CONFIG_EXTQUANT
+  const int32_t *dequant = p->dequant_QTX;
+#else
   const int16_t *dequant = p->dequant_QTX;
+#endif
   const qm_val_t *iqmatrix =
       av1_get_iqmatrix(&cpi->common.quant_params, xd, plane, tx_size, tx_type);
   const int block_offset = BLOCK_OFFSET(block);

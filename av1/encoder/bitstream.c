@@ -2066,8 +2066,16 @@ static AOM_INLINE void write_delta_q(struct aom_write_bit_buffer *wb,
 
 static AOM_INLINE void encode_quantization(
     const CommonQuantParams *const quant_params, int num_planes,
-    bool separate_uv_delta_q, struct aom_write_bit_buffer *wb) {
+    aom_bit_depth_t bit_depth, bool separate_uv_delta_q,
+    struct aom_write_bit_buffer *wb) {
+#if CONFIG_EXTQUANT
+  aom_wb_write_literal(
+      wb, quant_params->base_qindex,
+      bit_depth == AOM_BITS_8 ? QINDEX_BITS_UNEXT : QINDEX_BITS);
+#else
+  (void)bit_depth;
   aom_wb_write_literal(wb, quant_params->base_qindex, QINDEX_BITS);
+#endif
   write_delta_q(wb, quant_params->y_dc_delta_q);
   if (num_planes > 1) {
     int diff_uv_delta =
@@ -2458,6 +2466,16 @@ static AOM_INLINE void write_color_config(
     }
   }
   aom_wb_write_bit(wb, seq_params->separate_uv_delta_q);
+#if CONFIG_EXTQUANT
+  assert(seq_params->base_y_dc_delta_q <= DELTA_DCQUANT_MAX);
+  assert(seq_params->base_uv_dc_delta_q >= DELTA_DCQUANT_MIN);
+  aom_wb_write_unsigned_literal(
+      wb, seq_params->base_y_dc_delta_q - DELTA_DCQUANT_MIN,
+      DELTA_DCQUANT_BITS);
+  aom_wb_write_unsigned_literal(
+      wb, seq_params->base_uv_dc_delta_q - DELTA_DCQUANT_MIN,
+      DELTA_DCQUANT_BITS);
+#endif  // CONFIG_EXTQUANT
 }
 
 static AOM_INLINE void write_timing_info_header(
@@ -3092,6 +3110,7 @@ static AOM_INLINE void write_uncompressed_header_obu(
 
   write_tile_info(cm, saved_wb, wb);
   encode_quantization(quant_params, av1_num_planes(cm),
+                      cm->seq_params.bit_depth,
                       cm->seq_params.separate_uv_delta_q, wb);
   encode_segmentation(cm, xd, wb);
 

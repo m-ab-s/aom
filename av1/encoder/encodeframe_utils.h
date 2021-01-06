@@ -190,8 +190,14 @@ static AOM_INLINE int set_segment_rdmult(const AV1_COMP *const cpi,
   const AV1_COMMON *const cm = &cpi->common;
   av1_init_plane_quantizers(cpi, x, segment_id);
   aom_clear_system_state();
+#if CONFIG_EXTQUANT
+  int segment_qindex =
+      av1_get_qindex(&cm->seg, segment_id, cm->quant_params.base_qindex,
+                     cm->seq_params.bit_depth);
+#else
   const int segment_qindex =
       av1_get_qindex(&cm->seg, segment_id, cm->quant_params.base_qindex);
+#endif
   return av1_compute_rd_mult(cpi,
                              segment_qindex + cm->quant_params.y_dc_delta_q);
 }

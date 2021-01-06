@@ -495,7 +495,7 @@ typedef struct {
    */
   int best_allowed_q;
   /*!
-   * Indicates the Constant/Constrained Quality level.
+   * Indicates the Constant/Constrained Quality level in [0, 255] range.
    */
   int qp;
   /*!

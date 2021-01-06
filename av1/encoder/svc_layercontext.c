@@ -75,8 +75,13 @@ void av1_init_layer_context(AV1_COMP *const cpi) {
         if (lc->last_coded_q_map) aom_free(lc->last_coded_q_map);
         CHECK_MEM_ERROR(cm, lc->last_coded_q_map,
                         aom_malloc(last_coded_q_map_size));
+#if CONFIG_EXTQUANT
+        for (int i = 0; i < mi_rows * mi_cols; ++i)
+          lc->last_coded_q_map[i] = MAXQ;
+#else
         assert(MAXQ <= 255);
         memset(lc->last_coded_q_map, MAXQ, last_coded_q_map_size);
+#endif  // CONFIG_EXTQUANT
       }
     }
     svc->downsample_filter_type[sl] = BILINEAR;
@@ -227,7 +232,11 @@ void av1_save_layer_context(AV1_COMP *const cpi) {
       cpi->svc.number_spatial_layers > 1 && svc->temporal_layer_id == 0) {
     CYCLIC_REFRESH *const cr = cpi->cyclic_refresh;
     signed char *temp = lc->map;
+#if CONFIG_EXTQUANT
+    uint16_t *temp2 = lc->last_coded_q_map;
+#else
     uint8_t *temp2 = lc->last_coded_q_map;
+#endif  // CONFIG_EXTQUANT
     lc->map = cr->map;
     cr->map = temp;
     lc->last_coded_q_map = cr->last_coded_q_map;

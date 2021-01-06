@@ -1252,12 +1252,29 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
   const CommonQuantParams *quant_params = &cm->quant_params;
   for (i = 0; i < MAX_SEGMENTS; ++i) {
     const int qindex =
-        cm->seg.enabled ? av1_get_qindex(&cm->seg, i, quant_params->base_qindex)
-                        : quant_params->base_qindex;
+        cm->seg.enabled
+#if CONFIG_EXTQUANT
+            ? av1_get_qindex(&cm->seg, i, quant_params->base_qindex,
+                             cm->seq_params.bit_depth)
+#else
+            ? av1_get_qindex(&cm->seg, i, quant_params->base_qindex)
+#endif
+            : quant_params->base_qindex;
+
+#if CONFIG_EXTQUANT
+    xd->lossless[i] =
+        qindex == 0 &&
+        (quant_params->y_dc_delta_q - cm->seq_params.base_y_dc_delta_q <= 0) &&
+        (quant_params->u_dc_delta_q - cm->seq_params.base_uv_dc_delta_q <= 0) &&
+        quant_params->u_ac_delta_q <= 0 &&
+        (quant_params->v_dc_delta_q - cm->seq_params.base_uv_dc_delta_q <= 0) &&
+        quant_params->v_ac_delta_q <= 0;
+#else
     xd->lossless[i] =
         qindex == 0 && quant_params->y_dc_delta_q == 0 &&
         quant_params->u_dc_delta_q == 0 && quant_params->u_ac_delta_q == 0 &&
         quant_params->v_dc_delta_q == 0 && quant_params->v_ac_delta_q == 0;
+#endif
     if (xd->lossless[i]) cpi->enc_seg.has_lossless_segment = 1;
     xd->qindex[i] = qindex;
     if (xd->lossless[i]) {

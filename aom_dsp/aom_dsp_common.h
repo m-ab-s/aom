@@ -55,6 +55,12 @@ extern "C" {
 typedef uint8_t qm_val_t;
 #define AOM_QM_BITS 5
 
+#if CONFIG_EXTQUANT
+#define QUANT_TABLE_BITS 3
+#else
+#define QUANT_TABLE_BITS 0
+#endif  // CONFIG_EXTQUANT
+
 // Note:
 // tran_low_t  is the datatype used for final transform coefficients.
 // tran_high_t is the datatype used for intermediate transform stages.

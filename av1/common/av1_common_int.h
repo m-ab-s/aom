@@ -59,6 +59,14 @@ extern "C" {
 #define FRAME_ID_LENGTH 15
 #define DELTA_FRAME_ID_LENGTH 14
 
+#if CONFIG_EXTQUANT
+#define DELTA_DCQUANT_BITS 5
+#define DELTA_DCQUANT_MIN (-(1 << (DELTA_DCQUANT_BITS - 2)))
+#define DELTA_DCQUANT_MAX (DELTA_DCQUANT_MIN + (1 << DELTA_DCQUANT_BITS) - 1)
+#endif  // CONFIG_EXTQUANT
+
+#define DEBUG_EXTQUANT 0
+
 #define FRAME_CONTEXTS (FRAME_BUFFERS + 1)
 // Extra frame context which is always kept at default values
 #define FRAME_CONTEXT_DEFAULTS (FRAME_CONTEXTS - 1)
@@ -297,6 +305,10 @@ typedef struct SequenceHeader {
   int subsampling_y;  // Chroma subsampling for y
   aom_chroma_sample_position_t chroma_sample_position;
   uint8_t separate_uv_delta_q;
+#if CONFIG_EXTQUANT
+  int8_t base_y_dc_delta_q;
+  int8_t base_uv_dc_delta_q;
+#endif  // CONFIG_EXTQUANT
   uint8_t film_grain_params_present;
 
   // Operating point info.
@@ -636,9 +648,15 @@ struct CommonQuantParams {
    * shift/scale as TX.
    */
   /**@{*/
+#if CONFIG_EXTQUANT
+  int32_t y_dequant_QTX[MAX_SEGMENTS][2]; /*!< Dequant for Y plane */
+  int32_t u_dequant_QTX[MAX_SEGMENTS][2]; /*!< Dequant for U plane */
+  int32_t v_dequant_QTX[MAX_SEGMENTS][2]; /*!< Dequant for V plane */
+#else
   int16_t y_dequant_QTX[MAX_SEGMENTS][2]; /*!< Dequant for Y plane */
   int16_t u_dequant_QTX[MAX_SEGMENTS][2]; /*!< Dequant for U plane */
   int16_t v_dequant_QTX[MAX_SEGMENTS][2]; /*!< Dequant for V plane */
+#endif
   /**@}*/
 
   /**
@@ -1061,6 +1079,11 @@ typedef struct AV1Common {
 #if CONFIG_LPF_MASK
   int is_decoding;
 #endif  // CONFIG_LPF_MASK
+
+#if DEBUG_EXTQUANT
+  FILE *fEncCoeffLog;
+  FILE *fDecCoeffLog;
+#endif
 } AV1_COMMON;
 
 /*!\cond */

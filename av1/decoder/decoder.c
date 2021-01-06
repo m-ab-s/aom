@@ -171,6 +171,10 @@ AV1Decoder *av1_decoder_create(BufferPool *const pool) {
   aom_get_worker_interface()->init(&pbi->lf_worker);
   pbi->lf_worker.thread_name = "aom lf worker";
 
+#if DEBUG_EXTQUANT
+  cm->fDecCoeffLog = fopen("DecCoeffLog.txt", "wt");
+#endif
+
   return pbi;
 }
 
@@ -248,6 +252,13 @@ void av1_decoder_remove(AV1Decoder *pbi) {
 #endif
   av1_free_mc_tmp_buf(&pbi->td);
   aom_img_metadata_array_free(pbi->metadata);
+
+#if DEBUG_EXTQUANT
+  if (pbi->common.fDecCoeffLog != NULL) {
+    fclose(pbi->common.fDecCoeffLog);
+  }
+#endif
+
   aom_free(pbi);
 }
 
