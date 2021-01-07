@@ -140,6 +140,9 @@ set_aom_config_var(CONFIG_DST_32X32 0 NUMBER "AV2 DST7 32x32 experiment flag.")
 set_aom_config_var(CONFIG_LGT 0 NUMBER "AV2 LGT experiment flag.")
 set_aom_config_var(CONFIG_LGT32 0 NUMBER "AV2 LGT 32x32 experiment flag.")
 
+set_aom_config_var(CONFIG_CFL_SEARCH_VERSION_1_SIMPLIFIED 0 NUMBER
+                   "AV2 experiment flag for CfL search version 1 simplified.")
+
 set_aom_config_var(CONFIG_CNN_RESTORATION 0 NUMBER
                    "AV2 CNN Restoration experiment flag")
 set_aom_config_var(CONFIG_LOOP_RESTORE_CNN 0 NUMBER
