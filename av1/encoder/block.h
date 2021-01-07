@@ -728,10 +728,17 @@ typedef struct {
   /**@{*/
   //! skip_txfm_cost
   int skip_txfm_cost[SKIP_CONTEXTS][2];
+#if CONFIG_NEW_TX_PARTITION
+  //! tx_size_cost
+  int tx_size_cost[2][TX_SIZE_CONTEXTS][TX_PARTITION_TYPES_INTRA];
+  //! txfm_partition_cost
+  int txfm_partition_cost[2][TXFM_PARTITION_CONTEXTS][TX_PARTITION_TYPES];
+#else   // CONFIG_NEW_TX_PARTITION
   //! tx_size_cost
   int tx_size_cost[TX_SIZES - 1][TX_SIZE_CONTEXTS][TX_SIZES];
   //! txfm_partition_cost
   int txfm_partition_cost[TXFM_PARTITION_CONTEXTS][2];
+#endif  // CONFIG_NEW_TX_PARTITION
   //! inter_tx_type_costs
   int inter_tx_type_costs[EXT_TX_SETS_INTER][EXT_TX_SIZES][TX_TYPES];
   //! intra_tx_type_costs
@@ -1165,6 +1172,30 @@ typedef struct macroblock {
 /*!\cond */
 static INLINE int is_rect_tx_allowed_bsize(BLOCK_SIZE bsize) {
   static const char LUT[BLOCK_SIZES_ALL] = {
+#if CONFIG_NEW_TX_PARTITION
+    0,  // BLOCK_4X4
+    1,  // BLOCK_4X8
+    1,  // BLOCK_8X4
+    1,  // BLOCK_8X8
+    1,  // BLOCK_8X16
+    1,  // BLOCK_16X8
+    1,  // BLOCK_16X16
+    1,  // BLOCK_16X32
+    1,  // BLOCK_32X16
+    1,  // BLOCK_32X32
+    1,  // BLOCK_32X64
+    1,  // BLOCK_64X32
+    1,  // BLOCK_64X64
+    1,  // BLOCK_64X128
+    1,  // BLOCK_128X64
+    1,  // BLOCK_128X128
+    1,  // BLOCK_4X16
+    1,  // BLOCK_16X4
+    1,  // BLOCK_8X32
+    1,  // BLOCK_32X8
+    1,  // BLOCK_16X64
+    1,  // BLOCK_64X16
+#else
     0,  // BLOCK_4X4
     1,  // BLOCK_4X8
     1,  // BLOCK_8X4
@@ -1187,6 +1218,7 @@ static INLINE int is_rect_tx_allowed_bsize(BLOCK_SIZE bsize) {
     1,  // BLOCK_32X8
     1,  // BLOCK_16X64
     1,  // BLOCK_64X16
+#endif  // CONFIG_NEW_TX_PARTITION
   };
 
   return LUT[bsize];

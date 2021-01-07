@@ -245,6 +245,9 @@ typedef struct MB_MODE_INFO {
   UV_PREDICTION_MODE uv_mode;
   // interintra members
   INTERINTRA_MODE interintra_mode;
+#if CONFIG_NEW_TX_PARTITION
+  TX_PARTITION_TYPE partition_type[INTER_TX_SIZE_BUF_LEN];
+#endif  // CONFIG_NEW_TX_PARTITION
   MOTION_MODE motion_mode;
   PARTITION_TYPE partition;
   MV_REFERENCE_FRAME ref_frame[2];
@@ -1131,6 +1134,21 @@ static INLINE int av1_get_txb_size_index(BLOCK_SIZE bsize, int blk_row,
  */
 static INLINE int av1_get_txk_type_index(BLOCK_SIZE bsize, int blk_row,
                                          int blk_col) {
+#if CONFIG_NEW_TX_PARTITION
+  // TODO(sarahparker) Generate lookup table for NEW_TX_PARTITION
+  assert(bsize < BLOCK_SIZES_ALL);
+  TX_SIZE txs = max_txsize_rect_lookup[bsize];
+  // Get smallest possible sub_tx size
+  txs = smallest_sub_tx_size_map[txs];
+  const int tx_w_log2 = tx_size_wide_log2[txs] - MI_SIZE_LOG2;
+  const int tx_h_log2 = tx_size_high_log2[txs] - MI_SIZE_LOG2;
+  const int bw_uint_log2 = mi_size_wide_log2[bsize];
+  const int stride_log2 = bw_uint_log2 - tx_w_log2;
+  const int index =
+      ((blk_row >> tx_h_log2) << stride_log2) + (blk_col >> tx_w_log2);
+  assert(index < TXK_TYPE_BUF_LEN);
+  return index;
+#endif  // CONFIG_NEW_TX_PARTITION
   static const uint8_t tw_w_log2_table[BLOCK_SIZES_ALL] = {
     0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 2, 2, 2, 2, 2, 2, 0, 0, 1, 1, 2, 2,
   };

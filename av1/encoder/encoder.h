@@ -1143,8 +1143,13 @@ typedef struct FRAME_COUNTS {
   unsigned int comp_bwdref[REF_CONTEXTS][BWD_REFS - 1][2];
   unsigned int intrabc[2];
 
+#if CONFIG_NEW_TX_PARTITION
+  unsigned int intra_tx_size[2][TX_SIZE_CONTEXTS][TX_PARTITION_TYPES_INTRA];
+  unsigned int txfm_partition[2][TXFM_PARTITION_CONTEXTS][TX_PARTITION_TYPES];
+#else   // CONFIG_NEW_TX_PARTITION
   unsigned int txfm_partition[TXFM_PARTITION_CONTEXTS][2];
   unsigned int intra_tx_size[MAX_TX_CATS][TX_SIZE_CONTEXTS][MAX_TX_DEPTH + 1];
+#endif  // CONFIG_NEW_TX_PARTITION
   unsigned int skip_mode[SKIP_MODE_CONTEXTS][2];
   unsigned int skip_txfm[SKIP_CONTEXTS][2];
   unsigned int compound_index[COMP_INDEX_CONTEXTS][2];

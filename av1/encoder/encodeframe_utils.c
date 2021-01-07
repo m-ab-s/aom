@@ -1067,7 +1067,16 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
   AVERAGE_CDF(ctx_left->uni_comp_ref_cdf, ctx_tr->uni_comp_ref_cdf, 2);
   AVERAGE_CDF(ctx_left->comp_ref_cdf, ctx_tr->comp_ref_cdf, 2);
   AVERAGE_CDF(ctx_left->comp_bwdref_cdf, ctx_tr->comp_bwdref_cdf, 2);
+#if CONFIG_NEW_TX_PARTITION
+  // Square blocks
+  AVERAGE_CDF(ctx_left->txfm_partition_cdf[0], ctx_tr->txfm_partition_cdf[0],
+              TX_PARTITION_TYPES);
+  // Rectangular blocks
+  AVERAGE_CDF(ctx_left->txfm_partition_cdf[1], ctx_tr->txfm_partition_cdf[1],
+              TX_PARTITION_TYPES);
+#else   // CONFIG_NEW_TX_PARTITION
   AVERAGE_CDF(ctx_left->txfm_partition_cdf, ctx_tr->txfm_partition_cdf, 2);
+#endif  // CONFIG_NEW_TX_PARTITION
 #if !CONFIG_REMOVE_DIST_WTD_COMP
   AVERAGE_CDF(ctx_left->compound_index_cdf, ctx_tr->compound_index_cdf, 2);
 #endif  // !CONFIG_REMOVE_DIST_WTD_COMP
@@ -1109,6 +1118,12 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
   AVERAGE_CDF(ctx_left->kf_y_cdf, ctx_tr->kf_y_cdf, INTRA_MODES);
   AVERAGE_CDF(ctx_left->angle_delta_cdf, ctx_tr->angle_delta_cdf,
               2 * MAX_ANGLE_DELTA + 1);
+#if CONFIG_NEW_TX_PARTITION
+  AVERAGE_CDF(ctx_left->tx_size_cdf[0], ctx_tr->tx_size_cdf[0],
+              TX_PARTITION_TYPES_INTRA);
+  AVERAGE_CDF(ctx_left->tx_size_cdf[1], ctx_tr->tx_size_cdf[1],
+              TX_PARTITION_TYPES_INTRA);
+#else
   AVG_CDF_STRIDE(ctx_left->tx_size_cdf[0], ctx_tr->tx_size_cdf[0], MAX_TX_DEPTH,
                  CDF_SIZE(MAX_TX_DEPTH + 1));
   AVERAGE_CDF(ctx_left->tx_size_cdf[1], ctx_tr->tx_size_cdf[1],
@@ -1117,6 +1132,7 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
               MAX_TX_DEPTH + 1);
   AVERAGE_CDF(ctx_left->tx_size_cdf[3], ctx_tr->tx_size_cdf[3],
               MAX_TX_DEPTH + 1);
+#endif  // CONFIG_NEW_TX_PARTITION
   AVERAGE_CDF(ctx_left->delta_q_cdf, ctx_tr->delta_q_cdf, DELTA_Q_PROBS + 1);
   AVERAGE_CDF(ctx_left->delta_lf_cdf, ctx_tr->delta_lf_cdf, DELTA_LF_PROBS + 1);
   for (int i = 0; i < FRAME_LF_COUNT; i++) {

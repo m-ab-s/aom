@@ -44,11 +44,36 @@ static void update_txfm_count(MACROBLOCK *x, MACROBLOCKD *xd,
                                    xd->left_txfm_context + blk_row,
                                    mbmi->sb_type, tx_size);
   const int txb_size_index = av1_get_txb_size_index(bsize, blk_row, blk_col);
-  const TX_SIZE plane_tx_size = mbmi->inter_tx_size[txb_size_index];
 
   if (blk_row >= max_blocks_high || blk_col >= max_blocks_wide) return;
   assert(tx_size > TX_4X4);
+#if CONFIG_NEW_TX_PARTITION
+  (void)depth;
+  (void)counts;
+  TX_SIZE sub_txs[MAX_TX_PARTITIONS] = { 0 };
+  get_tx_partition_sizes(mbmi->partition_type[txb_size_index], tx_size,
+                         sub_txs);
+  // TODO(sarahparker) This assumes all of the tx sizes in the partition scheme
+  // are the same size. This will need to be adjusted to deal with the case
+  // where they can be different.
+  TX_SIZE this_size = sub_txs[0];
+  assert(mbmi->inter_tx_size[txb_size_index] == this_size);
+  if (mbmi->partition_type[txb_size_index] != TX_PARTITION_NONE)
+    ++x->txfm_search_info.txb_split_count;
 
+  const int is_rect = is_rect_tx(tx_size);
+#if CONFIG_ENTROPY_STATS
+  ++counts->txfm_partition[is_rect][ctx][mbmi->partition_type[txb_size_index]];
+#endif  // CONFIG_ENTROPY_STATS
+  if (allow_update_cdf)
+    update_cdf(xd->tile_ctx->txfm_partition_cdf[is_rect][ctx],
+               mbmi->partition_type[txb_size_index], TX_PARTITION_TYPES);
+
+  mbmi->tx_size = this_size;
+  txfm_partition_update(xd->above_txfm_context + blk_col,
+                        xd->left_txfm_context + blk_row, this_size, tx_size);
+#else  // CONFIG_NEW_TX_PARTITION
+  const TX_SIZE plane_tx_size = mbmi->inter_tx_size[txb_size_index];
   if (depth == MAX_VARTX_DEPTH) {
     // Don't add to counts in this case
     mbmi->tx_size = tx_size;
@@ -96,6 +121,7 @@ static void update_txfm_count(MACROBLOCK *x, MACROBLOCKD *xd,
       }
     }
   }
+#endif  // CONFIG_NEW_TX_PARTITION
 }
 
 static void tx_partition_count_update(const AV1_COMMON *const cm, MACROBLOCK *x,
@@ -139,6 +165,27 @@ static void set_txfm_context(MACROBLOCKD *xd, TX_SIZE tx_size, int blk_row,
                           xd->left_txfm_context + blk_row, tx_size, tx_size);
 
   } else {
+#if CONFIG_NEW_TX_PARTITION
+    TX_SIZE sub_txs[MAX_TX_PARTITIONS] = { 0 };
+    const int index = av1_get_txb_size_index(bsize, blk_row, blk_col);
+    get_tx_partition_sizes(mbmi->partition_type[index], tx_size, sub_txs);
+    int cur_partition = 0;
+    int bsw = 0, bsh = 0;
+    for (int r = 0; r < tx_size_high_unit[tx_size]; r += bsh) {
+      for (int c = 0; c < tx_size_wide_unit[tx_size]; c += bsw) {
+        const TX_SIZE sub_tx = sub_txs[cur_partition];
+        bsw = tx_size_wide_unit[sub_tx];
+        bsh = tx_size_high_unit[sub_tx];
+        const int offsetr = blk_row + r;
+        const int offsetc = blk_col + c;
+        if (offsetr >= max_blocks_high || offsetc >= max_blocks_wide) continue;
+        mbmi->tx_size = sub_tx;
+        txfm_partition_update(xd->above_txfm_context + blk_col,
+                              xd->left_txfm_context + blk_row, sub_tx, sub_tx);
+        cur_partition++;
+      }
+    }
+#else
     if (tx_size == TX_8X8) {
       mbmi->inter_tx_size[txb_size_index] = TX_4X4;
       mbmi->tx_size = TX_4X4;
@@ -157,6 +204,7 @@ static void set_txfm_context(MACROBLOCKD *xd, TX_SIZE tx_size, int blk_row,
         set_txfm_context(xd, sub_txs, offsetr, offsetc);
       }
     }
+#endif  // CONFIG_NEW_TX_PARTITION
   }
 }
 
@@ -305,8 +353,8 @@ static void encode_superblock(const AV1_COMP *const cpi, TileDataEnc *tile_data,
 #endif
 
     av1_encode_sb(cpi, x, bsize, dry_run);
-    av1_tokenize_sb_vartx(cpi, td, dry_run, bsize, rate,
-                          tile_data->allow_update_cdf);
+    av1_tokenize_sb_tx_size(cpi, td, dry_run, bsize, rate,
+                            tile_data->allow_update_cdf);
   }
 
   if (!dry_run) {
@@ -318,10 +366,20 @@ static void encode_superblock(const AV1_COMP *const cpi, TileDataEnc *tile_data,
         tx_partition_count_update(cm, x, bsize, td->counts,
                                   tile_data->allow_update_cdf);
       } else {
-        if (mbmi->tx_size != max_txsize_rect_lookup[bsize])
-          ++x->txfm_search_info.txb_split_count;
+        const TX_SIZE max_tx_size = max_txsize_rect_lookup[bsize];
+        if (mbmi->tx_size != max_tx_size) ++x->txfm_search_info.txb_split_count;
         if (block_signals_txsize(bsize)) {
           const int tx_size_ctx = get_tx_size_context(xd);
+#if CONFIG_NEW_TX_PARTITION
+          const int is_rect = is_rect_tx(max_tx_size);
+          if (tile_data->allow_update_cdf)
+            update_cdf(xd->tile_ctx->tx_size_cdf[is_rect][tx_size_ctx],
+                       mbmi->partition_type[0], TX_PARTITION_TYPES_INTRA);
+#if CONFIG_ENTROPY_STATS
+          ++td->counts
+                ->intra_tx_size[is_rect][tx_size_ctx][mbmi->partition_type[0]];
+#endif
+#else  // CONFIG_NEW_TX_PARTITION
           const int32_t tx_size_cat = bsize_to_tx_size_cat(bsize);
           const int depth = tx_size_to_depth(mbmi->tx_size, bsize);
           const int max_depths = bsize_to_max_depth(bsize);
@@ -332,6 +390,7 @@ static void encode_superblock(const AV1_COMP *const cpi, TileDataEnc *tile_data,
 #if CONFIG_ENTROPY_STATS
           ++td->counts->intra_tx_size[tx_size_cat][tx_size_ctx][depth];
 #endif
+#endif  // CONFIG_NEW_TX_PARTITION
         }
       }
       assert(IMPLIES(is_rect_tx(mbmi->tx_size), is_rect_tx_allowed(xd, mbmi)));

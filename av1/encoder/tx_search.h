@@ -39,12 +39,22 @@ static AOM_INLINE int tx_size_cost(const MACROBLOCK *const x, BLOCK_SIZE bsize,
   if (x->txfm_search_params.tx_mode_search_type != TX_MODE_SELECT ||
       !block_signals_txsize(bsize))
     return 0;
+  const MACROBLOCKD *const xd = &x->e_mbd;
 
+#if CONFIG_NEW_TX_PARTITION
+  (void)tx_size;
+  MB_MODE_INFO *const mbmi = xd->mi[0];
+  const TX_SIZE max_tx_size = max_txsize_rect_lookup[bsize];
+  const int is_rect = is_rect_tx(max_tx_size);
+  const int tx_size_ctx = get_tx_size_context(xd);
+  return x->mode_costs
+      .tx_size_cost[is_rect][tx_size_ctx][mbmi->partition_type[0]];
+#else
   const int32_t tx_size_cat = bsize_to_tx_size_cat(bsize);
   const int depth = tx_size_to_depth(tx_size, bsize);
-  const MACROBLOCKD *const xd = &x->e_mbd;
   const int tx_size_ctx = get_tx_size_context(xd);
   return x->mode_costs.tx_size_cost[tx_size_cat][tx_size_ctx][depth];
+#endif  // CONFIG_NEW_TX_PARTITION
 }
 
 /*!\brief Transform type search for luma macroblock with fixed transform size.

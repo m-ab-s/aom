@@ -198,6 +198,60 @@ enum {
   TX_INVALID = 255  // Invalid transform size
 } UENUM1BYTE(TX_SIZE);
 
+#if CONFIG_NEW_TX_PARTITION
+//  Baseline transform partition types
+//
+//  Square:
+//  NONE           SPLIT
+//  +-------+      +---+---+
+//  |       |      |   |   |
+//  |       |      +---+---+
+//  |       |      |   |   |
+//  +-------+      +---+---+
+//
+//
+//  Rectangular:
+//  NONE                  SPLIT
+//  +--------------+      +-------+-------+
+//  |              |      |       |       |
+//  |              |      +       +       +
+//  |              |      |       |       |
+//  +--------------+      +-------+-------+
+//
+//  Extended transform partition types (square and rect are the same)
+//
+//  NONE           SPLIT
+//  +-------+      +---+---+
+//  |       |      |   |   |
+//  |       |      +---+---+
+//  |       |      |   |   |
+//  +-------+      +---+---+
+//
+//  HORZ                 VERT
+//  +-------+      +---+---+
+//  |       |      |   |   |
+//  +-------+      |   |   |
+//  |       |      |   |   |
+//  +-------+      +---+---+
+//
+//  HORZ4              VERT4
+//  +-------+      +-+-+-+-+
+//  +-------+      | | | | |
+//  +-------+      | | | | |
+//  +-------+      | | | | |
+//  +-------+      +-+-+-+-+
+enum {
+  TX_PARTITION_NONE,
+  TX_PARTITION_SPLIT,
+  TX_PARTITION_HORZ,
+  TX_PARTITION_VERT,
+  TX_PARTITION_HORZ4,
+  TX_PARTITION_VERT4,
+  TX_PARTITION_TYPES,
+  TX_PARTITION_TYPES_INTRA = TX_PARTITION_VERT4 + 1,
+} UENUM1BYTE(TX_PARTITION_TYPE);
+#endif  // CONFIG_NEW_TX_PARTITION
+
 #define TX_SIZE_LUMA_MIN (TX_4X4)
 /* We don't need to code a transform size unless the allowed size is at least
    one more than the minimum. */
