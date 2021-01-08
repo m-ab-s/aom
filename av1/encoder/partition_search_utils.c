@@ -1853,7 +1853,11 @@ static INLINE void update_inter_stats(const AV1_COMMON *const cm,
     } else {
       update_inter_mode_stats(fc, counts, mode, mode_ctx, allow_update_cdf);
     }
-    const int new_mv = mbmi->mode == NEWMV || mbmi->mode == NEW_NEWMV;
+    const int new_mv = mbmi->mode == NEWMV ||
+#if CONFIG_OPTFLOW_REFINEMENT
+                       mbmi->mode == NEW_NEWMV_OPTFLOW ||
+#endif  // CONFIG_OPTFLOW_REFINEMENT
+                       mbmi->mode == NEW_NEWMV;
 
 #if CONFIG_NEW_INTER_MODES
     if (have_drl_index(mbmi->mode)) {
@@ -1891,6 +1895,9 @@ static INLINE void update_inter_stats(const AV1_COMMON *const cm,
         }
       } else {
         const int ref =
+#if CONFIG_OPTFLOW_REFINEMENT
+            mbmi->mode == NEAR_NEWMV_OPTFLOW ||
+#endif                                 // CONFIG_OPTFLOW_REFINEMENT
             mbmi->mode == NEAR_NEWMV;  // Find which half of the compound
                                        // reference has NEWMV
         const int_mv ref_mv = av1_get_ref_mv(x, ref);
