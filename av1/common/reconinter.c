@@ -1299,7 +1299,7 @@ static void build_inter_predictors(
 #define REFINE_SUBPEL_RANGE 8
 #define REFINE_FULLPEL_RANGE 4
 #define REFINE_FULLPEL_STEP 1
-#define DERIVED_MV_IDX_RANGE 8
+#define DERIVED_MV_IDX_RANGE 1
 #define DERIVED_MV_MAX_BSIZE 64
 #define DERIVED_MV_MIN_BSIZE 4
 
