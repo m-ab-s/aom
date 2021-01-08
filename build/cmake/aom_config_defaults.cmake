@@ -162,7 +162,7 @@ set_aom_config_var(CONFIG_DERIVED_INTRA_MODE 0 NUMBER
                    "AV2 derived intra mode experiment flag")
 set_aom_config_var(CONFIG_DERIVED_MV 0 NUMBER
                    "AV2 derived motion vector experiment flag")
-set_aom_config_var(CONFIG_DERIVED_MV_NO_PD 0 NUMBER
+set_aom_config_var(CONFIG_DERIVED_MV_NO_PD 1 NUMBER
                    "AV2 derived MV without parsing dependency experiment flag")
 set_aom_config_var(CONFIG_SKIP_INTERP_FILTER 0 NUMBER
                    "AV2 experiment to skip interp filter signaling for"
