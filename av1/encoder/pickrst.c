@@ -53,6 +53,9 @@ static const RestorationType force_restore_type = RESTORE_TYPES;
 // Threshold for applying penalty factor
 #define DUAL_SGR_EP_PENALTY_THRESHOLD 10
 
+// Max number of units to perform graph search for switchable rest types.
+#define MAX_UNITS_FOR_GRAPH_SWITCHABLE 10
+
 // Working precision for Wiener filter coefficients
 #define WIENER_TAP_SCALE_FACTOR ((int64_t)1 << 16)
 
@@ -2480,72 +2483,76 @@ static void search_switchable(const RestorationTileLimits *limits,
   RestSearchCtxt *rsc = (RestSearchCtxt *)priv;
 
 #if CONFIG_RST_MERGECOEFFS
-  (void)rest_unit_idx;
   int is_uv = (rsc->plane != AOM_PLANE_Y);
   int nunits = rest_tiles_in_plane(rsc->cm, is_uv);
-  int max_out = RESTORE_SWITCHABLE_TYPES;
-  int num_nodes = nunits * max_out + 2;
+  if (nunits < MAX_UNITS_FOR_GRAPH_SWITCHABLE) {
+    (void)rest_unit_idx;
+    int max_out = RESTORE_SWITCHABLE_TYPES;
+    int num_nodes = nunits * max_out + 2;
 
-  double *graph = (double *)calloc(num_nodes * max_out, sizeof(double));
-  // Last subset only has one outgoing edge, dst has none - set corresponding
-  // edges to INFINITY.
-  int rm_edge = ((nunits - 1) * max_out + 1) * max_out;
-  for (; rm_edge < num_nodes * max_out; ++rm_edge) {
-    if (rm_edge % max_out != 0 || rm_edge / max_out >= num_nodes - 1) {
-      graph[rm_edge] = INFINITY;
-    }
-  }
-
-  Vector best_path;
-  aom_vector_setup(&best_path, 1, sizeof(int));
-  min_cost_type_path(0, num_nodes - 1, max_out, graph, &best_path,
-                     switchable_edge_cost, rsc);
-
-  // Update restoration type, SSE, and bits in rsc.
-  *rsc = switchable_update_refs(&best_path, rsc, true);
-  free(graph);
-  aom_vector_destroy(&best_path);
-#else  // CONFIG_RST_MERGECOEFFS
-
-  const MACROBLOCK *const x = rsc->x;
-  RestUnitSearchInfo *rusi = &rsc->rusi[rest_unit_idx];
-
-  double best_cost = 0;
-  int64_t best_bits = 0;
-  RestorationType best_rtype = RESTORE_NONE;
-
-  for (RestorationType r = 0; r < RESTORE_SWITCHABLE_TYPES; ++r) {
-    // Check for the condition that wiener or sgrproj search could not
-    // find a solution or the solution was worse than RESTORE_NONE.
-    // In either case the best_rtype will be set as RESTORE_NONE. These
-    // should be skipped from the test below.
-    if (r > RESTORE_NONE) {
-      if (rusi->best_rtype[r - 1] == RESTORE_NONE) continue;
+    double *graph = (double *)calloc(num_nodes * max_out, sizeof(double));
+    // Last subset only has one outgoing edge, dst has none - set corresponding
+    // edges to INFINITY.
+    int rm_edge = ((nunits - 1) * max_out + 1) * max_out;
+    for (; rm_edge < num_nodes * max_out; ++rm_edge) {
+      if (rm_edge % max_out != 0 || rm_edge / max_out >= num_nodes - 1) {
+        graph[rm_edge] = INFINITY;
+      }
     }
 
-    const int64_t sse = rusi->sse[r];
-    int64_t bits = count_switchable_bits(r, rsc, rusi);
-    double cost = RDCOST_DBL(x->rdmult, bits >> 4, sse);
-    if (r == RESTORE_SGRPROJ && rusi->sgrproj.ep < 10)
-      cost *= (1 + DUAL_SGR_PENALTY_MULT * rsc->sf->dual_sgr_penalty_level);
-    if (r == 0 || cost < best_cost) {
-      best_cost = cost;
-      best_bits = bits;
-      best_rtype = r;
-    }
-  }
+    Vector best_path;
+    aom_vector_setup(&best_path, 1, sizeof(int));
+    min_cost_type_path(0, num_nodes - 1, max_out, graph, &best_path,
+                       switchable_edge_cost, rsc);
 
-  rusi->best_rtype[RESTORE_SWITCHABLE - 1] = best_rtype;
-
-  rsc->sse += rusi->sse[best_rtype];
-  rsc->bits += best_bits;
-  if (best_rtype == RESTORE_WIENER) rsc->wiener = rusi->wiener;
-  if (best_rtype == RESTORE_SGRPROJ) rsc->sgrproj = rusi->sgrproj;
-#if CONFIG_WIENER_NONSEP
-  if (best_rtype == RESTORE_WIENER_NONSEP)
-    rsc->wiener_nonsep = rusi->wiener_nonsep;
-#endif  // CONFIG_WIENER_NONSEP
+    // Update restoration type, SSE, and bits in rsc.
+    *rsc = switchable_update_refs(&best_path, rsc, true);
+    free(graph);
+    aom_vector_destroy(&best_path);
+#else   // CONFIG_RST_MERGECOEFFS
+  if (false) {
+    // Purposefully empty to simplify flag use.
 #endif  // CONFIG_RST_MERGECOEFFS
+  } else {
+    const MACROBLOCK *const x = rsc->x;
+    RestUnitSearchInfo *rusi = &rsc->rusi[rest_unit_idx];
+
+    double best_cost = 0;
+    int64_t best_bits = 0;
+    RestorationType best_rtype = RESTORE_NONE;
+
+    for (RestorationType r = 0; r < RESTORE_SWITCHABLE_TYPES; ++r) {
+      // Check for the condition that wiener or sgrproj search could not
+      // find a solution or the solution was worse than RESTORE_NONE.
+      // In either case the best_rtype will be set as RESTORE_NONE. These
+      // should be skipped from the test below.
+      if (r > RESTORE_NONE) {
+        if (rusi->best_rtype[r - 1] == RESTORE_NONE) continue;
+      }
+
+      const int64_t sse = rusi->sse[r];
+      int64_t bits = count_switchable_bits(r, rsc, rusi);
+      double cost = RDCOST_DBL(x->rdmult, bits >> 4, sse);
+      if (r == RESTORE_SGRPROJ && rusi->sgrproj.ep < 10)
+        cost *= (1 + DUAL_SGR_PENALTY_MULT * rsc->sf->dual_sgr_penalty_level);
+      if (r == 0 || cost < best_cost) {
+        best_cost = cost;
+        best_bits = bits;
+        best_rtype = r;
+      }
+    }
+
+    rusi->best_rtype[RESTORE_SWITCHABLE - 1] = best_rtype;
+
+    rsc->sse += rusi->sse[best_rtype];
+    rsc->bits += best_bits;
+    if (best_rtype == RESTORE_WIENER) rsc->wiener = rusi->wiener;
+    if (best_rtype == RESTORE_SGRPROJ) rsc->sgrproj = rusi->sgrproj;
+#if CONFIG_WIENER_NONSEP
+    if (best_rtype == RESTORE_WIENER_NONSEP)
+      rsc->wiener_nonsep = rusi->wiener_nonsep;
+#endif  // CONFIG_WIENER_NONSEP
+  }
 }
 
 static void copy_unit_info(RestorationType frame_rtype,
@@ -2580,7 +2587,10 @@ static double search_rest_type(RestSearchCtxt *rsc, RestorationType rtype) {
   rsc_on_tile(rsc);
 
 #if CONFIG_RST_MERGECOEFFS
-  if (rtype == RESTORE_SWITCHABLE) {
+  int is_uv = (rsc->plane != AOM_PLANE_Y);
+  int nunits = rest_tiles_in_plane(rsc->cm, is_uv);
+  // Limiting number of units for graph search to prevent hanging.
+  if (rtype == RESTORE_SWITCHABLE && nunits < MAX_UNITS_FOR_GRAPH_SWITCHABLE) {
     search_switchable(NULL, NULL, 0, rsc, NULL, NULL);
     return RDCOST_DBL(rsc->x->rdmult, rsc->bits >> 4, rsc->sse);
   }
