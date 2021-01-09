@@ -472,7 +472,7 @@ void av1_opfl_mv_refinement_lowbd(const uint8_t *p0, int pstride0,
     for (int j = 0; j < bw; ++j) {
       const int u = d0 * gx0[i * gstride + j] - d1 * gx1[i * gstride + j];
       const int v = d0 * gy0[i * gstride + j] - d1 * gy1[i * gstride + j];
-      const int w = d0 * (p0[i * pstride1 + j] - p1[i * pstride0 + j]);
+      const int w = d0 * (p0[i * pstride0 + j] - p1[i * pstride1 + j]);
       su2 += (u * u);
       suv += (u * v);
       sv2 += (v * v);
@@ -511,7 +511,7 @@ void av1_opfl_mv_refinement_highbd(const uint16_t *p0, int pstride0,
     for (int j = 0; j < bw; ++j) {
       const int u = d0 * gx0[i * gstride + j] - d1 * gx1[i * gstride + j];
       const int v = d0 * gy0[i * gstride + j] - d1 * gy1[i * gstride + j];
-      const int w = d0 * (p0[i * pstride1 + j] - p1[i * pstride0 + j]);
+      const int w = d0 * (p0[i * pstride0 + j] - p1[i * pstride1 + j]);
       su2 += (u * u);
       suv += (u * v);
       sv2 += (v * v);
