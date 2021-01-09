@@ -2524,7 +2524,11 @@ void av1_dist_wtd_comp_weight_assign(const AV1_COMMON *cm,
                                      int *use_dist_wtd_comp_avg,
                                      int is_compound) {
   assert(fwd_offset != NULL && bck_offset != NULL);
+#if CONFIG_OPTFLOW_REFINEMENT
+  if (!is_compound || (mbmi->compound_idx && mbmi->mode <= NEW_NEWMV)) {
+#else
   if (!is_compound || mbmi->compound_idx) {
+#endif
     *use_dist_wtd_comp_avg = 0;
     return;
   }
@@ -2552,6 +2556,20 @@ void av1_dist_wtd_comp_weight_assign(const AV1_COMMON *cm,
     *bck_offset = quant_dist_lookup_table[order_idx][3][1 - order];
     return;
   }
+
+#if CONFIG_OPTFLOW_REFINEMENT
+  // Typically in COMPOUND_DISTWTD, when d0 and d1 are equal, weights are still
+  // chosen to be different (7/16 for ref1 and 9/16 for ref0) because the case
+  // where equal weights are applied can be signaled in COMPOUND_AVERAGE
+  // anyway. However, in CONFIG_OPTFLOW_REFINEMENT we always apply
+  // COMPOUND_DISTWTD without signaling other compound types, so d0 == d1
+  // is handled as a special case
+  if (mbmi->mode > NEW_NEWMV && d0 == d1) {
+    *fwd_offset = 8;
+    *bck_offset = 8;
+    return;
+  }
+#endif  // CONFIG_OPTFLOW_REFINEMENT
 
   int i;
   for (i = 0; i < 3; ++i) {

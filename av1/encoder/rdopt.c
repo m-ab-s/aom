@@ -11985,7 +11985,9 @@ static INLINE int compute_valid_comp_types(
   MACROBLOCKD *xd = &x->e_mbd;
   MB_MODE_INFO *mbmi = xd->mi[0];
   const PREDICTION_MODE this_mode = mbmi->mode;
-  // Extended compound types can only use COMPOUND_AVERAGE
+  // For implementation simplicity, set compound type to COMPOUND_AVERAGE for
+  // now to avoid compound type RD search. In practice, dist_wtd will always
+  // be applied instead.
   if (this_mode > NEW_NEWMV) {
     *try_average_and_distwtd_comp = 0;
     valid_comp_types[0] = COMPOUND_AVERAGE;
