@@ -2859,7 +2859,6 @@ static AOM_INLINE void write_global_motion(AV1_COMP *cpi,
     ref_params = cm->prev_frame ? &cm->prev_frame->global_motion[frame]
                                 : &default_warp_params;
 #endif  // CONFIG_GM_MODEL_CODING
-
     write_global_motion_params(&cm->global_motion[frame], ref_params, wb,
                                cm->features.allow_high_precision_mv);
     // TODO(sarahparker, debargha): The logic in the commented out code below
