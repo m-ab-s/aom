@@ -56,6 +56,13 @@ static void update_subgop_stats(const AV1_COMMON *const cm,
       cm->show_existing_frame;
   subgop_stats->show_frame[subgop_stats->stat_count] = cm->show_frame;
   subgop_stats->qindex[subgop_stats->stat_count] = cm->quant_params.base_qindex;
+  subgop_stats->refresh_frame_flags[subgop_stats->stat_count] =
+      cm->current_frame.refresh_frame_flags;
+
+  for (MV_REFERENCE_FRAME ref_frame = 0; ref_frame < REF_FRAMES; ++ref_frame)
+    subgop_stats->ref_frame_map[subgop_stats->stat_count][ref_frame] =
+        cm->ref_frame_map[ref_frame]->order_hint;
+
   assert(subgop_stats->stat_count < MAX_SUBGOP_STATS_SIZE);
   subgop_stats->stat_count++;
 }

@@ -81,7 +81,7 @@ def CopyResultDataToSummaryFile_Onesheet(sht, wt_cols, resultfiles):
     # location in summary excel file
     for (cls, clip_list), row_class in zip(ClipDict.items(), Rows_Class):
         sht.write(row_class, 0, cls)
-        rows_content = [i * len(QPs) for i in range(len(clip_list))]
+        rows_content = [i * len(QPs['AS']) for i in range(len(clip_list))]
         for clip, row_cont in zip(clip_list, rows_content):
             key = GetShortContentName(clip.file_name)
             sht.write(row_class + row_cont, 1, key)
@@ -90,7 +90,7 @@ def CopyResultDataToSummaryFile_Onesheet(sht, wt_cols, resultfiles):
                 if key in resfile:
                     rdwb = xlrd.open_workbook(resfile)
                     rdsht = rdwb.sheet_by_name(shtname)
-                    for i, rdrow in zip(range(len(QPs)), rdrows):
+                    for i, rdrow in zip(range(len(QPs['AS'])), rdrows):
                         data = rdsht.row_values(rdrow, 0, rd_endcol + 1)
                         sht.write_row(row_class + row_cont + i, 2, data)
                     break
@@ -101,13 +101,13 @@ def CopyResultDataToSummaryFile_Onesheet(sht, wt_cols, resultfiles):
 
 def CalBDRateWithExcel_OneSheet(sht, cols, cols_bdmtrs, cellformat):
     row_refst = 0
-    bdstep = len(QPs) - 1
+    bdstep = len(QPs['AS']) - 1
     for cols_bd, residx in zip(cols_bdmtrs, range(1, len(DnScaleRatio))):
         sht.write(0, cols_bd, 'BD-Rate %.2f vs. %.2f' % (DnScaleRatio[residx],
                                                          DnScaleRatio[0]))
         sht.write_row(1, cols_bd, QualityList)
         for (cls, clip_list), row_class in zip(ClipDict.items(), Rows_Class):
-            rows_content = [i * len(QPs) for i in range(len(clip_list))]
+            rows_content = [i * len(QPs['AS']) for i in range(len(clip_list))]
             for row_cont in rows_content:
                 for y in range(len(QualityList)):
                     refbr_b = xlrd.cellnameabs(row_class + row_cont + row_refst,
@@ -140,7 +140,7 @@ def CalBDRateWithExcel_OneSheet(sht, cols, cols_bdmtrs, cellformat):
 
 def CalBDRateWithPython_OneSheet(sht, cols_bdmtrs, resultfiles, cellformat):
     row_refst = 0
-    bdstep = len(QPs) - 1
+    bdstep = len(QPs['AS']) - 1
     assert row_refst + bdstep < len(CvxH_WtRows)
 
     shtname = sht.get_name()
@@ -151,7 +151,7 @@ def CalBDRateWithPython_OneSheet(sht, cols_bdmtrs, resultfiles, cellformat):
                                                          DnScaleRatio[0]))
         sht.write_row(1, cols_bd, QualityList)
         for (cls, clip_list), row_class in zip(ClipDict.items(), Rows_Class):
-            rows_content = [i * len(QPs) for i in range(len(clip_list))]
+            rows_content = [i * len(QPs['AS']) for i in range(len(clip_list))]
             for row_cont, clip in zip(rows_content, clip_list):
                 key = GetShortContentName(clip.file_name)
                 for resfile in resultfiles:
@@ -217,7 +217,7 @@ def WriteBitrateQtyAverageSheet(wb, rdshts, rdcols):
                 avg_sht.write_row(2, col_res + col_upscl + 1, QualityList)
 
     startrow = 3
-    step = len(QPs)
+    step = len(QPs['AS'])
     rows_class_avg = [startrow + step * i for i in range(len(ClipDict))]
     totalnum_content = 0
     for (cls, clip_list), row_class, rdclassrow in zip(ClipDict.items(),
@@ -226,11 +226,11 @@ def WriteBitrateQtyAverageSheet(wb, rdshts, rdcols):
         avg_sht.write(row_class, 0, cls)
         totalnum_content = totalnum_content + len(clip_list)
         avg_sht.write(row_class, 1, len(clip_list))
-        avg_sht.write_column(row_class, 2, QPs)
-        rows_content = [i * len(QPs) for i in range(len(clip_list))]
+        avg_sht.write_column(row_class, 2, QPs['AS'])
+        rows_content = [i * len(QPs['AS']) for i in range(len(clip_list))]
 
         for rdcol, col_res, residx in zip(rdcols, cols_res, range(len(DnScaleRatio))):
-            for i in range(len(QPs)):
+            for i in range(len(QPs['AS'])):
                 sum_rows = [rdclassrow + row_cont + i for row_cont in rows_content]
                 for col_upscl, sht in zip(cols_upscl, rdshts):
                     shtname = sht.get_name()
@@ -252,13 +252,13 @@ def WriteBitrateQtyAverageSheet(wb, rdshts, rdcols):
                         break
 
     # write total average
-    last_class_row = rows_class_avg[-1] + len(QPs) + 1  # 1 for 1 row of interval
+    last_class_row = rows_class_avg[-1] + len(QPs['AS']) + 1  # 1 for 1 row of interval
     avg_sht.write(last_class_row, 0, 'Total')
     avg_sht.write(last_class_row, 1, totalnum_content)
-    avg_sht.write_column(last_class_row, 2, QPs)
+    avg_sht.write_column(last_class_row, 2, QPs['AS'])
     weight_rows = [row_class for row_class in rows_class_avg]
     for col_res, residx in zip(cols_res, range(len(DnScaleRatio))):
-        for i in range(len(QPs)):
+        for i in range(len(QPs['AS'])):
             sum_rows = [row_class + i for row_class in rows_class_avg]
             for col_upscl in cols_upscl:
                 # bitrate average
@@ -313,7 +313,7 @@ def WriteBDRateAverageSheet(wb, rdshts, rd_cols_bdmtrs, cellformat):
         bdavg_sht.write(row_class, 0, cls)
         totalnum_content = totalnum_content + len(clip_list)
         bdavg_sht.write(row_class, 1, len(clip_list))
-        rows_content = [i * len(QPs) for i in range(len(clip_list))]
+        rows_content = [i * len(QPs['AS']) for i in range(len(clip_list))]
         sum_rows = [rdclassrow + row_cont for row_cont in rows_content]
         for rdcol, col_res in zip(rd_cols_bdmtrs, cols_res_bd):
             # write average bd rate
@@ -382,7 +382,8 @@ def GenerateSumRDExcelFile(encMethod, codecName, preset, summary_outpath,
     rowstart = 2
     # to generate rows number of starting of each class: Rows_Class
     global ClipDict, Rows_Class
-    ClipDict, Rows_Class = CalcRowsClassAndContentDict(rowstart, clip_list, len(QPs))
+    ClipDict, Rows_Class = CalcRowsClassAndContentDict(rowstart, clip_list,
+                                                       len(QPs['AS']))
     # cols is column number of results files
     step = colInterval + 1 + len(QualityList)  # 1 is for bitrate
     sum_wtcols = [step * i + colstart for i in range(len(DnScaleRatio))]

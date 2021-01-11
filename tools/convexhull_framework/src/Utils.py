@@ -17,7 +17,7 @@ import subprocess
 import time
 import logging
 from Config import LogLevels, ContentPath
-from AV2CTCVideo import Y4M_CLIPs, CTC_TEST_SET, AS_TEST_SET
+from AV2CTCVideo import Y4M_CLIPs, CTC_TEST_SET
 
 class Clip:
     file_name = ""
@@ -98,7 +98,7 @@ def parseY4MHeader(y4m):
 def CreateClipList(test_cfg):
     clip_list = []; test_set = []
     #[filename, class, width, height, fps_num, fps_denom, bitdepth, fmt]
-    test_set = AS_TEST_SET if (test_cfg == 'AS') else CTC_TEST_SET
+    test_set = CTC_TEST_SET[test_cfg]
 
     for cls in test_set:
         for file in Y4M_CLIPs[cls]:

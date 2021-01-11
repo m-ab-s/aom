@@ -1203,15 +1203,16 @@ void set_last_prev_low_err(int *cur_start_ptr, int *cur_last_ptr, int *cut_pos,
  * \ingroup gf_group_algo
  * This function decides the gf group length of future frames in batch
  *
- * \param[in]    cpi              Top-level encoder structure
- * \param[in]    max_gop_length   Maximum length of the GF group
- * \param[in]    max_intervals    Maximum number of intervals to decide
+ * \param[in]    cpi                 Top-level encoder structure
+ * \param[in]    max_gop_length      Maximum length of the GF group
+ * \param[in]    max_intervals       Maximum number of intervals to decide
+ * \param[in]    curr_frame_type     Frame type of the current frame in subgop
  *
  * \return Nothing is returned. Instead, cpi->rc.gf_intervals is
  * changed to store the decided GF group lengths.
  */
 static void calculate_gf_length(AV1_COMP *cpi, int max_gop_length,
-                                int max_intervals) {
+                                int max_intervals, FRAME_TYPE curr_frame_type) {
   RATE_CONTROL *const rc = &cpi->rc;
   TWO_PASS *const twopass = &cpi->twopass;
   FIRSTPASS_STATS next_frame;
@@ -1227,7 +1228,9 @@ static void calculate_gf_length(AV1_COMP *cpi, int max_gop_length,
   if (has_no_stats_stage(cpi)) {
     for (i = 0; i < MAX_NUM_GF_INTERVALS; i++) {
       rc->gf_intervals[i] = AOMMIN(rc->max_gf_interval, max_gop_length);
-      if (cpi->oxcf.gf_cfg.lag_in_frames > cpi->oxcf.kf_cfg.key_freq_max)
+      if (curr_frame_type == KEY_FRAME &&
+          rc->gf_intervals[i] >= rc->frames_to_key &&
+          !(rc->frames_to_key <= 1 && curr_frame_type == KEY_FRAME))
         rc->gf_intervals[i] = rc->gf_intervals[i] - 1;
     }
     rc->cur_gf_index = 0;
@@ -1256,7 +1259,21 @@ static void calculate_gf_length(AV1_COMP *cpi, int max_gop_length,
     // reaches next key frame, break here
     if (i >= rc->frames_to_key) {
       cut_pos[count_cuts] = AOMMIN(i, active_max_gf_interval);
-      if (cpi->oxcf.gf_cfg.lag_in_frames > cpi->oxcf.kf_cfg.key_freq_max)
+      /*
+       * When there exist single subgop in a kf-interval correct the
+       * gf_interval appropriately. gf-interval always accounts only
+       * for the total number of inter frames in the sub-gop.
+       *
+       * Special conditions - when KEY_FRAME is accounted in gf-interval:
+       * If all intra case: kf-min-dist=kf-max-dist=0, then frames_to_key
+       * is 0. Hence gf-interval will account for KEY_FRAME.
+       * Similarly if frames_to_key is 1 due to kf-min-dist=0/1, kf-max-dist=1
+       * or scenecut or application forced key, also if the
+       * curr_frame_type == KEY_FRAME, which is the only frame in subgop, then
+       * gf-interval will account for KEY_FRAME.
+       */
+      if (curr_frame_type == KEY_FRAME &&
+          !(rc->frames_to_key <= 1 && curr_frame_type == KEY_FRAME))
         cut_pos[count_cuts] = cut_pos[count_cuts] - 1;
       count_cuts++;
       break;
@@ -1396,6 +1413,17 @@ static void correct_frames_to_key(AV1_COMP *cpi) {
   }
 }
 
+static int is_last_subgop(AV1_COMP *cpi) {
+  int is_last_sub = 0;
+  int lookahead_size =
+      (int)av1_lookahead_depth(cpi->lookahead, cpi->compressor_stage);
+  // Check if last subgop in the clip.
+  if (cpi->oxcf.gf_cfg.lag_in_frames > lookahead_size &&
+      lookahead_size == cpi->rc.frames_to_key)
+    is_last_sub = 1;
+  return is_last_sub;
+}
+
 /*!\brief Define a GF group in one pass mode when no look ahead stats are
  * available.
  *
@@ -1404,11 +1432,12 @@ static void correct_frames_to_key(AV1_COMP *cpi) {
  * parameters regarding bit-allocation and quality setup in the special
  * case of one pass encoding where no lookahead stats are avialable.
  *
- * \param[in]    cpi             Top-level encoder structure
+ * \param[in]    cpi               Top-level encoder structure
+ * \param[in]    curr_frame_type   Frame type of the current frame in subgop
  *
  * \return Nothing is returned. Instead, cpi->gf_group is changed.
  */
-static void define_gf_group_pass0(AV1_COMP *cpi) {
+static void define_gf_group_pass0(AV1_COMP *cpi, FRAME_TYPE curr_frame_type) {
   RATE_CONTROL *const rc = &cpi->rc;
   GF_GROUP *const gf_group = &cpi->gf_group;
   const AV1EncoderConfig *const oxcf = &cpi->oxcf;
@@ -1430,8 +1459,9 @@ static void define_gf_group_pass0(AV1_COMP *cpi) {
     rc->baseline_gf_interval = rc->frames_to_key;
   }
   if (cpi->oxcf.kf_cfg.fwd_kf_enabled && cpi->rc.next_is_fwd_key &&
-      ((cpi->oxcf.gf_cfg.lag_in_frames > cpi->oxcf.kf_cfg.key_freq_max) ||
-       (rc->baseline_gf_interval == rc->frames_to_key)))
+      (curr_frame_type != KEY_FRAME ||
+       rc->baseline_gf_interval + 1 == rc->frames_to_key) &&
+      !is_last_subgop(cpi))
     rc->baseline_gf_interval++;
   rc->gfu_boost = DEFAULT_GF_BOOST;
   // This will effectively use qindex returned by 'get_gf_high_motion_quality()'
@@ -1475,7 +1505,8 @@ static void define_gf_group_pass0(AV1_COMP *cpi) {
 
 static INLINE void set_baseline_gf_interval(AV1_COMP *cpi, int arf_position,
                                             int active_max_gf_interval,
-                                            int use_alt_ref) {
+                                            int use_alt_ref,
+                                            FRAME_TYPE curr_frame_type) {
   RATE_CONTROL *const rc = &cpi->rc;
   TWO_PASS *const twopass = &cpi->twopass;
   // Set the interval until the next gf.
@@ -1489,7 +1520,7 @@ static INLINE void set_baseline_gf_interval(AV1_COMP *cpi, int arf_position,
       cpi->rc.next_is_fwd_key) {
     if (arf_position == rc->frames_to_key) {
       rc->baseline_gf_interval = arf_position;
-      if (cpi->oxcf.gf_cfg.lag_in_frames < cpi->oxcf.kf_cfg.key_freq_max)
+      if (curr_frame_type != KEY_FRAME)
         rc->baseline_gf_interval = rc->baseline_gf_interval + 1;
       // if the last gf group will be smaller than MIN_FWD_KF_INTERVAL
     } else if ((rc->frames_to_key - arf_position <
@@ -1498,7 +1529,7 @@ static INLINE void set_baseline_gf_interval(AV1_COMP *cpi, int arf_position,
       // if possible, merge the last two gf groups
       if (rc->frames_to_key <= active_max_gf_interval) {
         rc->baseline_gf_interval = rc->frames_to_key;
-        if (cpi->oxcf.gf_cfg.lag_in_frames < cpi->oxcf.kf_cfg.key_freq_max)
+        if (curr_frame_type != KEY_FRAME)
           rc->baseline_gf_interval = rc->baseline_gf_interval + 1;
         rc->intervals_till_gf_calculate_due = 0;
         // if merging the last two gf groups creates a group that is too long,
@@ -1513,6 +1544,7 @@ static INLINE void set_baseline_gf_interval(AV1_COMP *cpi, int arf_position,
   } else {
     rc->baseline_gf_interval = arf_position;
   }
+  assert(rc->baseline_gf_interval > 0);
 }
 
 // initialize GF_GROUP_STATS
@@ -1588,7 +1620,7 @@ static void define_gf_group(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
   av1_zero(next_frame);
 
   if (has_no_stats_stage(cpi)) {
-    define_gf_group_pass0(cpi);
+    define_gf_group_pass0(cpi, frame_params->frame_type);
     return;
   }
 
@@ -1628,7 +1660,11 @@ static void define_gf_group(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
     accumulate_this_frame_stats(this_frame, mod_frame_err, &gf_stats);
 
     // read in the next frame
-    if (EOF == input_stats(twopass, &next_frame)) break;
+    if (EOF == input_stats(twopass, &next_frame)) {
+      // Avoid baseline_gf_interval being set as 0 at EOF
+      if (rc->frames_to_key <= 1 && i == 1) i++;
+      break;
+    }
 
     // Test for the case where there is a brief flash but the prediction
     // quality back to an earlier frame is then restored.
@@ -1737,7 +1773,8 @@ static void define_gf_group(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
   // Should we use the alternate reference frame.
   if (use_alt_ref) {
     gf_group->max_layer_depth_allowed = gf_cfg->gf_max_pyr_height;
-    set_baseline_gf_interval(cpi, (i - 1), active_max_gf_interval, use_alt_ref);
+    set_baseline_gf_interval(cpi, (i - 1), active_max_gf_interval, use_alt_ref,
+                             frame_params->frame_type);
 
     const int forward_frames = (rc->frames_to_key - i + 1 >= (i - 1))
                                    ? (i - 1)
@@ -1751,7 +1788,8 @@ static void define_gf_group(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
   } else {
     reset_fpf_position(twopass, start_pos);
     gf_group->max_layer_depth_allowed = 0;
-    set_baseline_gf_interval(cpi, (i - 1), active_max_gf_interval, use_alt_ref);
+    set_baseline_gf_interval(cpi, (i - 1), active_max_gf_interval, use_alt_ref,
+                             frame_params->frame_type);
 
     rc->gfu_boost = AOMMIN(
         MAX_GF_BOOST,
@@ -2725,6 +2763,8 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
 
       if (frame_params->frame_type != KEY_FRAME)
         update_subgop_stats(&cpi->gf_group, &cpi->subgop_stats,
+                            &cpi->common.seq_params.order_hint_info,
+                            cpi->oxcf.kf_cfg.key_freq_max,
                             oxcf->unit_test_cfg.enable_subgop_stats);
 
       // Do the firstpass stats indicate that this frame is skippable for the
@@ -2821,12 +2861,24 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
 
     reset_fpf_position(twopass, start_position);
 
-    int max_gop_length = AOMMIN(MAX_GF_LENGTH_LAP, cpi->rc.frames_to_key);
+    const KeyFrameCfg *const kf_cfg = &cpi->oxcf.kf_cfg;
+    int max_gop_length = (kf_cfg->key_freq_max > 1)
+                             ? AOMMIN(MAX_GF_LENGTH_LAP, cpi->rc.frames_to_key)
+                             : 1;
     if (rc->intervals_till_gf_calculate_due == 0 || 1) {
-      calculate_gf_length(cpi, max_gop_length, MAX_NUM_GF_INTERVALS);
+      calculate_gf_length(cpi, max_gop_length, MAX_NUM_GF_INTERVALS,
+                          frame_params->frame_type);
     }
 
     define_gf_group(cpi, &this_frame, frame_params, max_gop_length);
+
+    /*
+     * If last frame is OVERLAY_UDPATE then it is good quality frame.
+     * This flag is an indicator to not set another good quality frame
+     * consecutively in next gop.
+     */
+    cpi->gf_state.arf_gf_boost_lst =
+        gf_group->update_type[gf_group->size - 1] == OVERLAY_UPDATE;
 
     cpi->no_show_fwd_kf = 0;
     int src_index = gf_group->arf_src_offset[gf_group->index];
@@ -2874,6 +2926,8 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
   assert(gf_group->index < gf_group->size);
   if (frame_params->frame_type != KEY_FRAME)
     update_subgop_stats(&cpi->gf_group, &cpi->subgop_stats,
+                        &cpi->common.seq_params.order_hint_info,
+                        cpi->oxcf.kf_cfg.key_freq_max,
                         oxcf->unit_test_cfg.enable_subgop_stats);
 
   // Do the firstpass stats indicate that this frame is skippable for the

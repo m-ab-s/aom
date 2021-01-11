@@ -916,16 +916,36 @@ static AOM_INLINE void refresh_reference_frames(AV1_COMP *cpi) {
   }
 }
 
-static AOM_INLINE void update_subgop_stats(const GF_GROUP *const gf_group,
-                                           SubGOPStatsEnc *const subgop_stats,
-                                           unsigned int enable_subgop_stats) {
+static AOM_INLINE void update_subgop_stats(
+    const GF_GROUP *const gf_group, SubGOPStatsEnc *const subgop_stats,
+    const OrderHintInfo *const order_hint_info, int key_freq_max,
+    unsigned int enable_subgop_stats) {
+  (void)key_freq_max;
   if (!enable_subgop_stats) return;
+  if (order_hint_info->enable_order_hint) {
+    int max_order_hint = 1 << (order_hint_info->order_hint_bits_minus_1 + 1);
+    (void)max_order_hint;
+    assert(key_freq_max <= max_order_hint + 1);
+  }
   subgop_stats->pyramid_level[subgop_stats->stat_count] =
       gf_group->layer_depth[gf_group->index];
   subgop_stats->is_filtered[subgop_stats->stat_count] =
       gf_group->is_filtered[gf_group->index];
   assert(subgop_stats->stat_count < MAX_SUBGOP_STATS_SIZE);
   subgop_stats->stat_count++;
+}
+
+static AOM_INLINE void update_subgop_ref_stats(
+    SubGOPStatsEnc *const subgop_stats, unsigned int enable_subgop_stats,
+    int ref_frame, int is_valid_ref_frame, int pyramid_level, int disp_order,
+    int num_references) {
+  if (!enable_subgop_stats) return;
+  assert(subgop_stats->stat_count < MAX_SUBGOP_STATS_SIZE);
+  int stat_idx = subgop_stats->stat_count - 1;
+  subgop_stats->is_valid_ref_frame[stat_idx][ref_frame] = is_valid_ref_frame;
+  subgop_stats->ref_frame_pyr_level[stat_idx][ref_frame] = pyramid_level;
+  subgop_stats->ref_frame_disp_order[stat_idx][ref_frame] = disp_order;
+  subgop_stats->num_references[stat_idx] = num_references;
 }
 
 void av1_update_film_grain_parameters(struct AV1_COMP *cpi,
