@@ -1259,19 +1259,17 @@ static void calculate_gf_length(AV1_COMP *cpi, int max_gop_length,
     // reaches next key frame, break here
     if (i >= rc->frames_to_key) {
       cut_pos[count_cuts] = AOMMIN(i, active_max_gf_interval);
-      /*
-       * When there exist single subgop in a kf-interval correct the
-       * gf_interval appropriately. gf-interval always accounts only
-       * for the total number of inter frames in the sub-gop.
-       *
-       * Special conditions - when KEY_FRAME is accounted in gf-interval:
-       * If all intra case: kf-min-dist=kf-max-dist=0, then frames_to_key
-       * is 0. Hence gf-interval will account for KEY_FRAME.
-       * Similarly if frames_to_key is 1 due to kf-min-dist=0/1, kf-max-dist=1
-       * or scenecut or application forced key, also if the
-       * curr_frame_type == KEY_FRAME, which is the only frame in subgop, then
-       * gf-interval will account for KEY_FRAME.
-       */
+      // When there exists a single subgop in a kf-interval, correct the
+      // gf_interval appropriately. gf-interval always accounts only for the
+      // total number of inter frames in the sub-gop.
+      //
+      // Special conditions - when KEY_FRAME is accounted in gf-interval:
+      // If all intra case: kf-min-dist = kf-max-dist = 0, then frames_to_key
+      // is 0. Hence gf-interval will account for KEY_FRAME.
+      // Similarly if frames_to_key is 1 due to kf-min-dist = 0 or 1,
+      // kf-max-dist = 1 or scenecut or application forced key, also if the
+      // curr_frame_type == KEY_FRAME, which is the only frame in subgop,
+      // then gf-interval will account for KEY_FRAME.
       if (curr_frame_type == KEY_FRAME &&
           !(rc->frames_to_key <= 1 && curr_frame_type == KEY_FRAME))
         cut_pos[count_cuts] = cut_pos[count_cuts] - 1;
@@ -1414,13 +1412,11 @@ static void correct_frames_to_key(AV1_COMP *cpi) {
 }
 
 static int is_last_subgop(AV1_COMP *cpi) {
-  int is_last_sub = 0;
-  int lookahead_size =
+  const int lookahead_size =
       (int)av1_lookahead_depth(cpi->lookahead, cpi->compressor_stage);
   // Check if last subgop in the clip.
-  if (cpi->oxcf.gf_cfg.lag_in_frames > lookahead_size &&
-      lookahead_size == cpi->rc.frames_to_key)
-    is_last_sub = 1;
+  const int is_last_sub = (cpi->oxcf.gf_cfg.lag_in_frames > lookahead_size) &&
+                          (lookahead_size == cpi->rc.frames_to_key);
   return is_last_sub;
 }
 
