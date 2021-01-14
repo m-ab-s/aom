@@ -841,8 +841,10 @@ void av1_opfl_mv_refinement4_highbd(const uint16_t *p0, int pstride0,
 // rather than adding a single offset to the entire prediction unit.
 #define USE_OF_NXN 1
 #if USE_OF_NXN
+#define OF_MIN_BSIZE_LOG2 2
 #define OF_BSIZE_LOG2 3
 // Block size to use to divide up the prediction unit
+#define OF_MIN_BSIZE (1 << OF_MIN_BSIZE_LOG2)
 #define OF_BSIZE (1 << OF_BSIZE_LOG2)
 #define N_OF_OFFSETS_1D (1 << (MAX_SB_SIZE_LOG2 - OF_BSIZE_LOG2))
 // Maximum number of offsets to be computed
@@ -852,25 +854,24 @@ void av1_opfl_mv_refinement4_highbd(const uint16_t *p0, int pstride0,
 #endif  // USE_OF_NXN
 
 #if USE_OF_NXN
-// Function to compute optical flow offsets in nxn blocks, where n is
-// OF_BSIZE
+// Function to compute optical flow offsets in nxn blocks
 int opfl_mv_refinement_nxn_lowbd(const uint8_t *p0, int pstride0,
                                  const uint8_t *p1, int pstride1,
                                  const int16_t *gx0, const int16_t *gy0,
                                  const int16_t *gx1, const int16_t *gy1,
-                                 int gstride, int bw, int bh, int d0, int d1,
-                                 int grad_prec_bits, int mv_prec_bits, int *vx0,
-                                 int *vy0, int *vx1, int *vy1) {
-  assert(bw % OF_BSIZE == 0 && bh % OF_BSIZE == 0);
+                                 int gstride, int bw, int bh, int n, int d0,
+                                 int d1, int grad_prec_bits, int mv_prec_bits,
+                                 int *vx0, int *vy0, int *vx1, int *vy1) {
+  assert(bw % n == 0 && bh % n == 0);
   int n_blocks = 0;
-  for (int i = 0; i < bh; i += OF_BSIZE) {
-    for (int j = 0; j < bw; j += OF_BSIZE) {
+  for (int i = 0; i < bh; i += n) {
+    for (int j = 0; j < bw; j += n) {
       av1_opfl_mv_refinement_lowbd(
           p0 + (i * pstride0 + j), pstride0, p1 + (i * pstride1 + j), pstride1,
           gx0 + (i * gstride + j), gy0 + (i * gstride + j),
-          gx1 + (i * gstride + j), gy1 + (i * gstride + j), gstride, OF_BSIZE,
-          OF_BSIZE, d0, d1, grad_prec_bits, mv_prec_bits, vx0 + n_blocks,
-          vy0 + n_blocks, vx1 + n_blocks, vy1 + n_blocks);
+          gx1 + (i * gstride + j), gy1 + (i * gstride + j), gstride, n, n, d0,
+          d1, grad_prec_bits, mv_prec_bits, vx0 + n_blocks, vy0 + n_blocks,
+          vx1 + n_blocks, vy1 + n_blocks);
       n_blocks++;
     }
   }
@@ -937,8 +938,9 @@ int av1_get_optflow_based_mv(const AV1_COMMON *cm, MACROBLOCKD *xd,
     if (d1 == 0) goto exit_refinement;
 
 #if USE_OF_NXN
+    int n = (bh <= 16 && bw <= 16) ? OF_MIN_BSIZE : OF_BSIZE;
     n_blocks = opfl_mv_refinement_nxn_lowbd(
-        dst0, bw, dst1, bw, gx0, gy0, gx1, gy1, bw, bw, bh, d0, d1,
+        dst0, bw, dst1, bw, gx0, gy0, gx1, gy1, bw, bw, bh, n, d0, d1,
         grad_prec_bits, target_prec, vx0, vy0, vx1, vy1);
 #else
     av1_opfl_mv_refinement_lowbd(dst0, bw, dst1, bw, gx0, gy0, gx1, gy1, bw, bw,
@@ -1466,11 +1468,12 @@ static void build_inter_predictors(
     if (use_optflow_prec) {
       conv_params.do_average = ref;
 #if USE_OF_NXN
+      int n = (bh <= 16 && bw <= 16) ? OF_MIN_BSIZE : OF_BSIZE;
       make_inter_pred_of_nxn(
           dst, dst_buf->stride, &subpel_params, sf, bw, bh, &conv_params,
           mi->interp_filters, &warp_types, mi_x >> pd->subsampling_x,
           mi_y >> pd->subsampling_y, plane, ref, mi, build_for_obmc, xd,
-          cm->allow_warped_motion, OF_BSIZE, mv_refined, pre_x, pre_y, pre_buf,
+          cm->allow_warped_motion, n, mv_refined, pre_x, pre_y, pre_buf,
           calc_subpel_params_func, calc_subpel_params_func_args);
 #else
       // Compute subpel params with refined mv
