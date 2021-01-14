@@ -51,10 +51,6 @@ def GenerateCfgFile(clip, outw, outh, algo, outfile, num, configpath):
             line = 'OutputWidth=%d\n' % outw
         if 'OutputHeight=' in line:
             line = 'OutputHeight=%d\n' % outh
-        if 'ScalingMode=' in line:
-            line = 'ScalingMode=3\n'
-        if 'LanczosLobes=' in line:
-            line = 'LanczosLobes=5\n'
         if 'SourceRate=' in line:
             line = 'SourceRate=%4.4f\n' % (float)(clip.fps_num / clip.fps_denom)
         if 'SourceChromaFormat=' in line:
