@@ -661,14 +661,15 @@ void av1_get_max_min_partition_features(AV1_COMP *const cpi, MACROBLOCK *x,
   const int dc_q = av1_dc_quant_QTX(x->qindex, 0,
                                     cm->seq_params.base_y_dc_delta_q, xd->bd) >>
                    (xd->bd - 8);
+  aom_clear_system_state();
   const float log_q_sq = logf(1.0f + (float)((int64_t)dc_q * (int64_t)dc_q) /
                                          (256 << (2 * QUANT_TABLE_BITS)));
 #else
   const int dc_q = av1_dc_quant_QTX(x->qindex, 0, xd->bd) >> (xd->bd - 8);
+  aom_clear_system_state();
   const float log_q_sq = logf(1.0f + (float)(dc_q * dc_q) / 256.0f);
 #endif
 
-  aom_clear_system_state();
   // Perform full-pixel single motion search in Y plane of 16x16 mbs in the sb
   float sum_mv_row_sq = 0;
   float sum_mv_row = 0;
