@@ -212,9 +212,11 @@ void av1_compute_gm_for_valid_ref_frames(
   const WarpedMotionParams *ref_params;
 #if CONFIG_GM_MODEL_CODING
   if (frame != LAST_FRAME) {
+    WarpedMotionParams params = default_warp_params;
     const int base = calculate_gm_ref_params_scaling_distance(cm, LAST_FRAME);
     const int distance = calculate_gm_ref_params_scaling_distance(cm, frame);
-    ref_params = find_gm_ref_params(cm, distance, base);
+    find_gm_ref_params(&params, cm, distance, base);
+    ref_params = &params;
   } else {
     ref_params = cm->prev_frame ? &cm->prev_frame->global_motion[frame]
                                 : &default_warp_params;

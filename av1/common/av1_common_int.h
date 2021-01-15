@@ -1239,12 +1239,13 @@ static INLINE int calculate_gm_ref_params_scaling_distance(AV1_COMMON *const cm,
   return ref_poc - cur_poc;
 }
 
-static INLINE const WarpedMotionParams *find_gm_ref_params(AV1_COMMON *const cm,
-                                                           int distance,
-                                                           int base) {
-  WarpedMotionParams *ref_params = &cm->global_motion[LAST_FRAME];
+static INLINE void find_gm_ref_params(WarpedMotionParams *ref_params,
+                                      AV1_COMMON *const cm, int distance,
+                                      int base) {
+  if (cm->global_motion[LAST_FRAME].wmtype == IDENTITY) return;
   // TODO(raynewang): Change base ref_params instead of always using LAST_FRAME
-  if (ref_params->wmtype == IDENTITY) return &default_warp_params;
+  memcpy(ref_params, &cm->global_motion[LAST_FRAME],
+         sizeof(WarpedMotionParams));
   // TODO(raynewang): Change to floating number for better precision
   const int scale_factor = (base != 0 && distance != 0) ? (distance / base) : 1;
   for (int i = 0; i < 8; ++i) {
@@ -1254,7 +1255,6 @@ static INLINE const WarpedMotionParams *find_gm_ref_params(AV1_COMMON *const cm,
   ref_params->beta *= scale_factor;
   ref_params->gamma *= scale_factor;
   ref_params->delta *= scale_factor;
-  return ref_params;
 }
 #endif  // CONFIG_GM_MODEL_CODING
 
