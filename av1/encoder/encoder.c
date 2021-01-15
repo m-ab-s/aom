@@ -602,6 +602,10 @@ static void init_config(struct AV1_COMP *cpi, AV1EncoderConfig *oxcf) {
 
   init_buffer_indices(&cpi->force_intpel_info, cm->remapped_ref_idx);
 
+#if CONFIG_NEW_REF_SIGNALING
+  init_ranked_buffer_indices(&cm->new_ref_frame_data);
+#endif  // CONFIG_NEW_REF_SIGNALING
+
   av1_noise_estimate_init(&cpi->noise_estimate, cm->width, cm->height);
 }
 

@@ -1192,9 +1192,15 @@ void av1_first_pass(AV1_COMP *cpi, const int64_t ts_duration) {
        ((this_frame_stats->intra_error /
          DOUBLE_DIVIDE_CHECK(this_frame_stats->coded_error)) > 2.0))) {
     if (golden_frame != NULL) {
+#if CONFIG_NEW_REF_SIGNALING
+      assign_frame_buffer_p(
+          &cm->ref_frame_map[get_ref_frame_map_idx(cm, GOLDEN_FRAME, 1)],
+          cm->ref_frame_map[get_ref_frame_map_idx(cm, LAST_FRAME, 1)]);
+#else
       assign_frame_buffer_p(
           &cm->ref_frame_map[get_ref_frame_map_idx(cm, GOLDEN_FRAME)],
           cm->ref_frame_map[get_ref_frame_map_idx(cm, LAST_FRAME)]);
+#endif  // CONFIG_NEW_REF_SIGNALING
     }
     twopass->sr_update_lag = 1;
   } else {
@@ -1204,17 +1210,31 @@ void av1_first_pass(AV1_COMP *cpi, const int64_t ts_duration) {
   aom_extend_frame_borders(this_frame, num_planes);
 
   // The frame we just compressed now becomes the last frame.
+#if CONFIG_NEW_REF_SIGNALING
+  assign_frame_buffer_p(
+      &cm->ref_frame_map[get_ref_frame_map_idx(cm, LAST_FRAME, 1)],
+      cm->cur_frame);
+#else
   assign_frame_buffer_p(
       &cm->ref_frame_map[get_ref_frame_map_idx(cm, LAST_FRAME)], cm->cur_frame);
-
+#endif  // CONFIG_NEW_REF_SIGNALING
   // Special case for the first frame. Copy into the GF buffer as a second
   // reference.
+#if CONFIG_NEW_REF_SIGNALING
+  if (current_frame->frame_number == 0 &&
+      get_ref_frame_map_idx(cm, GOLDEN_FRAME, 1) != INVALID_IDX) {
+    assign_frame_buffer_p(
+        &cm->ref_frame_map[get_ref_frame_map_idx(cm, GOLDEN_FRAME, 1)],
+        cm->ref_frame_map[get_ref_frame_map_idx(cm, LAST_FRAME, 1)]);
+  }
+#else
   if (current_frame->frame_number == 0 &&
       get_ref_frame_map_idx(cm, GOLDEN_FRAME) != INVALID_IDX) {
     assign_frame_buffer_p(
         &cm->ref_frame_map[get_ref_frame_map_idx(cm, GOLDEN_FRAME)],
         cm->ref_frame_map[get_ref_frame_map_idx(cm, LAST_FRAME)]);
   }
+#endif  // CONFIG_NEW_REF_SIGNALING
 
   print_reconstruction_frame(last_frame, current_frame->frame_number,
                              /*do_print=*/0);

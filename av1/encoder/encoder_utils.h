@@ -114,6 +114,18 @@ static AOM_INLINE void enc_setup_mi(CommonModeInfoParams *mi_params) {
          mi_grid_size * sizeof(*mi_params->tx_type_map));
 }
 
+#if CONFIG_NEW_REF_SIGNALING
+static AOM_INLINE void init_ranked_buffer_indices(
+    NewRefFramesData *frame_data) {
+  frame_data->n_total_refs = REF_FRAMES - 1;
+  for (int i = 0; i < REF_FRAMES; i++) {
+    frame_data->ref_frame_score_map[i] = i;
+    frame_data->named_to_ranked_refs[i] = i - 1;
+    frame_data->ranked_to_named_refs[i] = i - 1;
+  }
+}
+#endif  // CONFIG_NEW_REF_SIGNALING
+
 static AOM_INLINE void init_buffer_indices(
     ForceIntegerMVInfo *const force_intpel_info, int *const remapped_ref_idx) {
   int fb_idx;

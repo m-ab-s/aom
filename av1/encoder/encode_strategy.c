@@ -282,11 +282,21 @@ static int choose_primary_ref_frame(
   int wanted_fb = cpi->fb_of_context_type[current_ref_type];
 
   int primary_ref_frame = PRIMARY_REF_NONE;
+#if CONFIG_NEW_REF_SIGNALING
+  const int n_refs = cm->new_ref_frame_data.n_total_refs;
+  for (int ref_frame = 0; ref_frame < n_refs; ref_frame++) {
+    if (get_ref_frame_map_idx(cm, ref_frame, 0) == wanted_fb) {
+      primary_ref_frame =
+          cm->new_ref_frame_data.ranked_to_named_refs[ref_frame] - LAST_FRAME;
+    }
+  }
+#else
   for (int ref_frame = LAST_FRAME; ref_frame <= ALTREF_FRAME; ref_frame++) {
     if (get_ref_frame_map_idx(cm, ref_frame) == wanted_fb) {
       primary_ref_frame = ref_frame - LAST_FRAME;
     }
   }
+#endif  // CONFIG_NEW_REF_SIGNALING
 
   return primary_ref_frame;
 }
@@ -400,9 +410,15 @@ static void update_fb_of_context_type(
     for (int i = 0; i < REF_FRAMES; i++) {
       fb_of_context_type[i] = -1;
     }
+#if CONFIG_NEW_REF_SIGNALING
+    fb_of_context_type[current_frame_ref_type] =
+        cm->show_frame ? get_ref_frame_map_idx(cm, GOLDEN_FRAME, 1)
+                       : get_ref_frame_map_idx(cm, ALTREF_FRAME, 1);
+#else
     fb_of_context_type[current_frame_ref_type] =
         cm->show_frame ? get_ref_frame_map_idx(cm, GOLDEN_FRAME)
                        : get_ref_frame_map_idx(cm, ALTREF_FRAME);
+#endif  // CONFIG_NEW_REF_SIGNALING
   }
 
   if (!encode_show_existing_frame(cm)) {
@@ -811,33 +827,57 @@ int av1_get_refresh_frame_flags(
     // Unfortunately the encoder interface reflects the old refresh_*_frame
     // flags so we have to replicate the old refresh_frame_flags logic here in
     // order to preserve the behaviour of the flag overrides.
+#if CONFIG_NEW_REF_SIGNALING
+    int ref_frame_map_idx = get_ref_frame_map_idx(cm, LAST_FRAME, 1);
+#else
     int ref_frame_map_idx = get_ref_frame_map_idx(cm, LAST_FRAME);
+#endif  // CONFIG_NEW_REF_SIGNALING
     if (ref_frame_map_idx != INVALID_IDX)
       refresh_mask |= ext_refresh_frame_flags->last_frame << ref_frame_map_idx;
 
+#if CONFIG_NEW_REF_SIGNALING
+    ref_frame_map_idx = get_ref_frame_map_idx(cm, EXTREF_FRAME, 1);
+#else
     ref_frame_map_idx = get_ref_frame_map_idx(cm, EXTREF_FRAME);
+#endif  // CONFIG_NEW_REF_SIGNALING
     if (ref_frame_map_idx != INVALID_IDX)
       refresh_mask |= ext_refresh_frame_flags->bwd_ref_frame
                       << ref_frame_map_idx;
 
+#if CONFIG_NEW_REF_SIGNALING
+    ref_frame_map_idx = get_ref_frame_map_idx(cm, ALTREF2_FRAME, 1);
+#else
     ref_frame_map_idx = get_ref_frame_map_idx(cm, ALTREF2_FRAME);
+#endif  // CONFIG_NEW_REF_SIGNALING
     if (ref_frame_map_idx != INVALID_IDX)
       refresh_mask |= ext_refresh_frame_flags->alt2_ref_frame
                       << ref_frame_map_idx;
 
     if (frame_update_type == OVERLAY_UPDATE ||
         frame_update_type == KFFLT_OVERLAY_UPDATE) {
+#if CONFIG_NEW_REF_SIGNALING
+      ref_frame_map_idx = get_ref_frame_map_idx(cm, ALTREF_FRAME, 1);
+#else
       ref_frame_map_idx = get_ref_frame_map_idx(cm, ALTREF_FRAME);
+#endif  // CONFIG_NEW_REF_SIGNALING
       if (ref_frame_map_idx != INVALID_IDX)
         refresh_mask |= ext_refresh_frame_flags->golden_frame
                         << ref_frame_map_idx;
     } else {
+#if CONFIG_NEW_REF_SIGNALING
+      ref_frame_map_idx = get_ref_frame_map_idx(cm, GOLDEN_FRAME, 1);
+#else
       ref_frame_map_idx = get_ref_frame_map_idx(cm, GOLDEN_FRAME);
+#endif  // CONFIG_NEW_REF_SIGNALING
       if (ref_frame_map_idx != INVALID_IDX)
         refresh_mask |= ext_refresh_frame_flags->golden_frame
                         << ref_frame_map_idx;
 
+#if CONFIG_NEW_REF_SIGNALING
+      ref_frame_map_idx = get_ref_frame_map_idx(cm, ALTREF_FRAME, 1);
+#else
       ref_frame_map_idx = get_ref_frame_map_idx(cm, ALTREF_FRAME);
+#endif  // CONFIG_NEW_REF_SIGNALING
       if (ref_frame_map_idx != INVALID_IDX)
         refresh_mask |= ext_refresh_frame_flags->alt_ref_frame
                         << ref_frame_map_idx;
@@ -1258,6 +1298,10 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
           &cpi->sf, ref_frame_buf, ext_flags->ref_frame_flags);
     }
 
+#if CONFIG_NEW_REF_SIGNALING
+    av1_init_new_ref_frame_map(&cpi->common, ref_frame_map_pairs,
+                               cur_frame_disp);
+#endif  // CONFIG_NEW_REF_SIGNALING
     frame_params.primary_ref_frame =
         choose_primary_ref_frame(cpi, &frame_params);
     frame_params.order_offset = gf_group->arf_src_offset[gf_group->index];
@@ -1296,9 +1340,6 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
   // cm->remapped_ref_idx then update_ref_frame_map() will have no effect.
   memcpy(frame_params.remapped_ref_idx, cm->remapped_ref_idx,
          REF_FRAMES * sizeof(*cm->remapped_ref_idx));
-#if CONFIG_NEW_REF_SIGNALING
-  av1_init_new_ref_frame_map(&cpi->common, ref_frame_map_pairs, cur_frame_disp);
-#endif  // CONFIG_NEW_REF_SIGNALING
 
   cpi->td.mb.delta_qindex = 0;
 

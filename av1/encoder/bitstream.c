@@ -2931,7 +2931,11 @@ static AOM_INLINE void write_film_grain_params(
   if (!pars->update_parameters) {
     int ref_frame, ref_idx;
     for (ref_frame = LAST_FRAME; ref_frame < REF_FRAMES; ref_frame++) {
+#if CONFIG_NEW_REF_SIGNALING
+      ref_idx = get_ref_frame_map_idx(cm, ref_frame, 1);
+#else
       ref_idx = get_ref_frame_map_idx(cm, ref_frame);
+#endif  // CONFIG_NEW_REF_SIGNALING
       assert(ref_idx != INVALID_IDX);
       const RefCntBuffer *const buf = cm->ref_frame_map[ref_idx];
       if (buf->film_grain_params_present &&
@@ -3248,8 +3252,13 @@ static int check_frame_refs_short_signaling(AV1_COMMON *const cm) {
   // be derived at the decoder side.
   int remapped_ref_idx_decoder[REF_FRAMES];
 
+#if CONFIG_NEW_REF_SIGNALING
+  const int lst_map_idx = get_ref_frame_map_idx(cm, LAST_FRAME, 1);
+  const int gld_map_idx = get_ref_frame_map_idx(cm, GOLDEN_FRAME, 1);
+#else
   const int lst_map_idx = get_ref_frame_map_idx(cm, LAST_FRAME);
   const int gld_map_idx = get_ref_frame_map_idx(cm, GOLDEN_FRAME);
+#endif  // CONFIG_NEW_REF_SIGNALING
 
   // Set up the frame refs mapping indexes according to the
   // frame_refs_short_signaling policy.
@@ -3475,10 +3484,14 @@ static AOM_INLINE void write_uncompressed_header_obu(
         aom_wb_write_bit(wb, current_frame->frame_refs_short_signaling);
 
       if (current_frame->frame_refs_short_signaling) {
+#if CONFIG_NEW_REF_SIGNALING
+        const int lst_ref = get_ref_frame_map_idx(cm, LAST_FRAME, 1);
+        const int gld_ref = get_ref_frame_map_idx(cm, GOLDEN_FRAME, 1);
+#else
         const int lst_ref = get_ref_frame_map_idx(cm, LAST_FRAME);
-        aom_wb_write_literal(wb, lst_ref, REF_FRAMES_LOG2);
-
         const int gld_ref = get_ref_frame_map_idx(cm, GOLDEN_FRAME);
+#endif  // CONFIG_NEW_REF_SIGNALING
+        aom_wb_write_literal(wb, lst_ref, REF_FRAMES_LOG2);
         aom_wb_write_literal(wb, gld_ref, REF_FRAMES_LOG2);
       }
 
@@ -3506,18 +3519,25 @@ static AOM_INLINE void write_uncompressed_header_obu(
 #endif  // CONFIG_NEW_REF_SIGNALING
 
       for (ref_frame = LAST_FRAME; ref_frame <= ALTREF_FRAME; ++ref_frame) {
-        assert(get_ref_frame_map_idx(cm, ref_frame) != INVALID_IDX);
 #if CONFIG_NEW_REF_SIGNALING
+        assert(get_ref_frame_map_idx(cm, ref_frame, 1) != INVALID_IDX);
         if (!current_frame->frame_refs_short_signaling &&
             (!seq_params->order_hint_info.enable_order_hint ||
              cpi->oxcf.mode == REALTIME))
+          aom_wb_write_literal(wb, get_ref_frame_map_idx(cm, ref_frame, 1),
+                               REF_FRAMES_LOG2);
 #else
+        assert(get_ref_frame_map_idx(cm, ref_frame) != INVALID_IDX);
         if (!current_frame->frame_refs_short_signaling)
-#endif  // CONFIG_NEW_REF_SIGNALING
           aom_wb_write_literal(wb, get_ref_frame_map_idx(cm, ref_frame),
                                REF_FRAMES_LOG2);
+#endif  // CONFIG_NEW_REF_SIGNALING
         if (seq_params->frame_id_numbers_present_flag) {
+#if CONFIG_NEW_REF_SIGNALING
+          int i = get_ref_frame_map_idx(cm, ref_frame, 1);
+#else
           int i = get_ref_frame_map_idx(cm, ref_frame);
+#endif  // CONFIG_NEW_REF_SIGNALING
           int frame_id_len = seq_params->frame_id_length;
           int diff_len = seq_params->delta_frame_id_length;
           int delta_frame_id_minus_1 =

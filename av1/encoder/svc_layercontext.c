@@ -286,12 +286,22 @@ int av1_svc_primary_ref_frame(const AV1_COMP *const cpi) {
     }
   }
   if (wanted_fb != -1) {
+#if CONFIG_NEW_REF_SIGNALING
+    const int n_refs = cm->new_ref_frame_data.n_total_refs;
+    for (int ref_frame = 0; ref_frame < n_refs; ref_frame++) {
+      if (get_ref_frame_map_idx(cm, ref_frame, 0) == wanted_fb) {
+        primary_ref_frame =
+            cm->new_ref_frame_data.ranked_to_named_refs[ref_frame] - LAST_FRAME;
+      }
+    }
+#else
     for (int ref_frame = LAST_FRAME; ref_frame <= ALTREF_FRAME; ref_frame++) {
       if (get_ref_frame_map_idx(cm, ref_frame) == wanted_fb) {
         primary_ref_frame = ref_frame - LAST_FRAME;
         break;
       }
     }
+#endif  // CONFIG_NEW_REF_SIGNALING
   }
   return primary_ref_frame;
 }

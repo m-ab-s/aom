@@ -66,7 +66,7 @@ static int compare_score_data_asc(const void *a, const void *b) {
     return -1;
   }
 }
-void av1_init_new_ref_frame_map(AV1_COMMON *const cm,
+void av1_init_new_ref_frame_map(AV1_COMMON *cm,
                                 RefFrameMapPair *ref_frame_map_pairs,
                                 int cur_frame_disp) {
   RefScoreData scores[MAX_REF_FRAMES_NRS];
