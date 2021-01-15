@@ -52,7 +52,7 @@ def GenerateCfgFile(clip, outw, outh, algo, outfile, num, configpath):
         if 'OutputHeight=' in line:
             line = 'OutputHeight=%d\n' % outh
         if 'SourceRate=' in line:
-            line = 'SourceRate=%4.4f\n' % (float)(clip.fps_num / clip.fps_denom)
+            line = 'SourceRate=%4.3f\n' % (float)(clip.fps_num / clip.fps_denom)
         if 'SourceChromaFormat=' in line:
             line = 'SourceChromaFormat=%d\n' % fmt
         if 'SourceBitDepthCmp0=' in line:
@@ -62,7 +62,7 @@ def GenerateCfgFile(clip, outw, outh, algo, outfile, num, configpath):
         if 'SourceBitDepthCmp2=' in line:
             line = 'SourceBitDepthCmp2=%d\n' % clip.bit_depth
         if 'OutputRate=' in line:
-            line = 'OutputRate=%4.4f\n' % (float)(clip.fps_num / clip.fps_denom)
+            line = 'OutputRate=%4.3f\n' % (float)(clip.fps_num / clip.fps_denom)
         if 'OutputChromaFormat=' in line:
             line = 'OutputChromaFormat=%d\n' % fmt
         if 'OutputBitDepthCmp0=' in line:
