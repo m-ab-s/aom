@@ -34,21 +34,6 @@ typedef struct position {
 // clamp_mv_ref
 #define MV_BORDER (16 << 3)  // Allow 16 pels in 1/8th pel units
 
-static INLINE int get_relative_dist(const OrderHintInfo *oh, int a, int b) {
-  if (!oh->enable_order_hint) return 0;
-
-  const int bits = oh->order_hint_bits_minus_1 + 1;
-
-  assert(bits >= 1);
-  assert(a >= 0 && a < (1 << bits));
-  assert(b >= 0 && b < (1 << bits));
-
-  int diff = a - b;
-  const int m = 1 << (bits - 1);
-  diff = (diff & (m - 1)) - (diff & m);
-  return diff;
-}
-
 static INLINE void clamp_mv_ref(MV *mv, int bw, int bh, const MACROBLOCKD *xd) {
   const SubpelMvLimits mv_limits = {
     xd->mb_to_left_edge - GET_MV_SUBPEL(bw) - MV_BORDER,

@@ -1278,14 +1278,29 @@ static INLINE RefCntBuffer *get_primary_ref_frame_buf(
   return (map_idx != INVALID_IDX) ? cm->ref_frame_map[map_idx] : NULL;
 }
 
+static INLINE int get_relative_dist(const OrderHintInfo *oh, int a, int b) {
+  if (!oh->enable_order_hint) return 0;
+
+  const int bits = oh->order_hint_bits_minus_1 + 1;
+
+  assert(bits >= 1);
+  assert(a >= 0 && a < (1 << bits));
+  assert(b >= 0 && b < (1 << bits));
+
+  int diff = a - b;
+  const int m = 1 << (bits - 1);
+  diff = (diff & (m - 1)) - (diff & m);
+  return diff;
+}
+
 #if CONFIG_GM_MODEL_CODING
 static INLINE int calculate_gm_ref_params_scaling_distance(AV1_COMMON *const cm,
                                                            int frame) {
   const RefCntBuffer *const buf = get_ref_frame_buf(cm, frame);
-  const int ref_poc = buf ? (int)buf->order_hint : -1;
-  if (ref_poc < 0) return 0;
-  const int cur_poc = cm->cur_frame->order_hint;
-  return ref_poc - cur_poc;
+  const int ref_order_hint = buf ? (int)buf->order_hint : -1;
+  if (ref_order_hint < 0) return 0;
+  return get_relative_dist(&cm->seq_params.order_hint_info, ref_order_hint,
+                           cm->cur_frame->order_hint);
 }
 
 static INLINE void find_gm_ref_params(WarpedMotionParams *ref_params,
