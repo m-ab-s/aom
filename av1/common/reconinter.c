@@ -292,8 +292,6 @@ int av1_compute_subpel_gradients_highbd(
     const void *const calc_subpel_params_func_args, int ref,
     uint16_t *pred_dst16, int *grad_prec_bits, int16_t *x_grad,
     int16_t *y_grad) {
-  // Only do this for luma
-  assert(plane == 0);
   assert(cm->seq_params.order_hint_info.enable_order_hint);
   *grad_prec_bits = INT_MAX;
 
@@ -465,8 +463,6 @@ int av1_compute_subpel_gradients_lowbd(
     CalcSubpelParamsFunc calc_subpel_params_func,
     const void *const calc_subpel_params_func_args, int ref, uint8_t *pred_dst,
     int *grad_prec_bits, int16_t *x_grad, int16_t *y_grad) {
-  // Only do this for luma
-  assert(plane == 0);
   assert(cm->seq_params.order_hint_info.enable_order_hint);
   *grad_prec_bits = INT_MAX;
 
@@ -837,6 +833,7 @@ void av1_opfl_mv_refinement4_highbd(const uint16_t *p0, int pstride0,
 // Macros for optical flow experiment where offsets are added in nXn blocks
 // rather than adding a single offset to the entire prediction unit.
 #define USE_OF_NXN 1
+#define USE_OF_CHROMA 1
 #if USE_OF_NXN
 #define OF_MIN_BSIZE_LOG2 2
 #define OF_BSIZE_LOG2 3
@@ -900,7 +897,7 @@ int opfl_mv_refinement_nxn_lowbd(const uint8_t *p0, int pstride0,
 #endif  // USE_OF_NXN
 
 static int get_optflow_based_mv_highbd(
-    const AV1_COMMON *cm, MACROBLOCKD *xd, const MB_MODE_INFO *mbmi,
+    const AV1_COMMON *cm, MACROBLOCKD *xd, int plane, const MB_MODE_INFO *mbmi,
     int_mv *mv_refined, int bw, int bh, int mi_x, int mi_y, int build_for_obmc,
     CalcSubpelParamsFunc calc_subpel_params_func,
     const void *const calc_subpel_params_func_args) {
@@ -938,14 +935,14 @@ static int get_optflow_based_mv_highbd(
 
   // Compute gradients and predictor for P0
   int d0 = av1_compute_subpel_gradients_highbd(
-      cm, xd, 0, mbmi, build_for_obmc, bw, bh, mi_x, mi_y,
+      cm, xd, plane, mbmi, build_for_obmc, bw, bh, mi_x, mi_y,
       calc_subpel_params_func, calc_subpel_params_func_args, 0, dst0,
       &grad_prec_bits, gx0, gy0);
   if (d0 == 0) goto exit_refinement;
 
   // Compute gradients and predictor for P1
   int d1 = av1_compute_subpel_gradients_highbd(
-      cm, xd, 0, mbmi, build_for_obmc, bw, bh, mi_x, mi_y,
+      cm, xd, plane, mbmi, build_for_obmc, bw, bh, mi_x, mi_y,
       calc_subpel_params_func, calc_subpel_params_func_args, 1, dst1,
       &grad_prec_bits, gx1, gy1);
   if (d1 == 0) goto exit_refinement;
@@ -977,7 +974,7 @@ exit_refinement:
 }
 
 static int get_optflow_based_mv_lowbd(
-    const AV1_COMMON *cm, MACROBLOCKD *xd, const MB_MODE_INFO *mbmi,
+    const AV1_COMMON *cm, MACROBLOCKD *xd, int plane, const MB_MODE_INFO *mbmi,
     int_mv *mv_refined, int bw, int bh, int mi_x, int mi_y, int build_for_obmc,
     CalcSubpelParamsFunc calc_subpel_params_func,
     const void *const calc_subpel_params_func_args) {
@@ -1015,14 +1012,14 @@ static int get_optflow_based_mv_lowbd(
 
   // Compute gradients and predictor for P0
   int d0 = av1_compute_subpel_gradients_lowbd(
-      cm, xd, 0, mbmi, build_for_obmc, bw, bh, mi_x, mi_y,
+      cm, xd, plane, mbmi, build_for_obmc, bw, bh, mi_x, mi_y,
       calc_subpel_params_func, calc_subpel_params_func_args, 0, dst0,
       &grad_prec_bits, gx0, gy0);
   if (d0 == 0) goto exit_refinement;
 
   // Compute gradients and predictor for P1
   int d1 = av1_compute_subpel_gradients_lowbd(
-      cm, xd, 0, mbmi, build_for_obmc, bw, bh, mi_x, mi_y,
+      cm, xd, plane, mbmi, build_for_obmc, bw, bh, mi_x, mi_y,
       calc_subpel_params_func, calc_subpel_params_func_args, 1, dst1,
       &grad_prec_bits, gx1, gy1);
   if (d1 == 0) goto exit_refinement;
@@ -1055,7 +1052,7 @@ exit_refinement:
 
 // Refine MV using optical flow. The final output MV will be in 1/16
 // precision.
-int av1_get_optflow_based_mv(const AV1_COMMON *cm, MACROBLOCKD *xd,
+int av1_get_optflow_based_mv(const AV1_COMMON *cm, MACROBLOCKD *xd, int plane,
                              const MB_MODE_INFO *mbmi, int_mv *mv_refined,
                              int bw, int bh, int mi_x, int mi_y,
                              int build_for_obmc,
@@ -1063,10 +1060,10 @@ int av1_get_optflow_based_mv(const AV1_COMMON *cm, MACROBLOCKD *xd,
                              const void *const calc_subpel_params_func_args) {
   if (is_cur_buf_hbd(xd))
     return get_optflow_based_mv_highbd(
-        cm, xd, mbmi, mv_refined, bw, bh, mi_x, mi_y, build_for_obmc,
+        cm, xd, plane, mbmi, mv_refined, bw, bh, mi_x, mi_y, build_for_obmc,
         calc_subpel_params_func, calc_subpel_params_func_args);
   return get_optflow_based_mv_lowbd(
-      cm, xd, mbmi, mv_refined, bw, bh, mi_x, mi_y, build_for_obmc,
+      cm, xd, plane, mbmi, mv_refined, bw, bh, mi_x, mi_y, build_for_obmc,
       calc_subpel_params_func, calc_subpel_params_func_args);
 }
 #endif  // CONFIG_OPTFLOW_REFINEMENT
@@ -1533,8 +1530,12 @@ static void build_inter_predictors(
 #endif  // CONFIG_DERIVED_MV
 #if CONFIG_OPTFLOW_REFINEMENT
   int_mv mv_refined[2 * N_OF_OFFSETS];
+#if USE_OF_CHROMA
+  const int use_optflow_prec = (mi->mode > NEW_NEWMV) && is_compound;
+#else
   const int use_optflow_prec =
       (mi->mode > NEW_NEWMV) && is_compound && plane == 0;
+#endif
 
   if (use_optflow_prec) {
     // Initialize refined mv
@@ -1549,7 +1550,7 @@ static void build_inter_predictors(
       mv_refined[mvi * 2].as_mv = mv0;
       mv_refined[mvi * 2 + 1].as_mv = mv1;
     }
-    av1_get_optflow_based_mv(cm, xd, mi, mv_refined, bw, bh, mi_x, mi_y,
+    av1_get_optflow_based_mv(cm, xd, plane, mi, mv_refined, bw, bh, mi_x, mi_y,
                              build_for_obmc, calc_subpel_params_func,
                              calc_subpel_params_func_args);
   }
