@@ -1295,17 +1295,21 @@ static INLINE void find_gm_ref_params(WarpedMotionParams *ref_params,
   // TODO(raynewang): Change base ref_params instead of always using LAST_FRAME
   memcpy(ref_params, &cm->global_motion[LAST_FRAME],
          sizeof(WarpedMotionParams));
-  // TODO(raynewang): Change to floating number for better precision
-  const int scale_factor = (base != 0 && distance != 0) ? (distance / base) : 1;
+
+  double scale_factor;
+  if (base != 0 && distance != 0)
+    scale_factor = (double)distance / base;
+  else
+    scale_factor = 1.0;
   double params[8];
   for (int i = 0; i < 8; ++i) {
     params[i] = ref_params->wmmat[i] * scale_factor;
   }
   av1_convert_model_to_params(params, ref_params);
-  ref_params->alpha *= scale_factor;
-  ref_params->beta *= scale_factor;
-  ref_params->gamma *= scale_factor;
-  ref_params->delta *= scale_factor;
+  ref_params->alpha = (int16_t)(ref_params->alpha * scale_factor);
+  ref_params->beta = (int16_t)(ref_params->beta * scale_factor);
+  ref_params->gamma = (int16_t)(ref_params->gamma * scale_factor);
+  ref_params->delta = (int16_t)(ref_params->delta * scale_factor);
 }
 #endif  // CONFIG_GM_MODEL_CODING
 
