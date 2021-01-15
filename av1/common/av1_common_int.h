@@ -31,6 +31,9 @@
 #include "av1/common/timing.h"
 #include "av1/common/odintrin.h"
 #include "av1/encoder/hash_motion.h"
+#if CONFIG_GM_MODEL_CODING
+#include "av1/encoder/global_motion.h"
+#endif  // CONFIG_GM_MODEL_CODING
 #include "aom_dsp/grain_synthesis.h"
 #include "aom_dsp/grain_table.h"
 #ifdef __cplusplus
@@ -1248,9 +1251,11 @@ static INLINE void find_gm_ref_params(WarpedMotionParams *ref_params,
          sizeof(WarpedMotionParams));
   // TODO(raynewang): Change to floating number for better precision
   const int scale_factor = (base != 0 && distance != 0) ? (distance / base) : 1;
+  double params[8];
   for (int i = 0; i < 8; ++i) {
-    ref_params->wmmat[i] *= scale_factor;
+    params[i] = ref_params->wmmat[i] * scale_factor;
   }
+  av1_convert_model_to_params(params, ref_params);
   ref_params->alpha *= scale_factor;
   ref_params->beta *= scale_factor;
   ref_params->gamma *= scale_factor;
