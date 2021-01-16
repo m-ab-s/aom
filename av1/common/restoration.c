@@ -1303,16 +1303,16 @@ static void cnn_filter_stripe(const RestorationUnitInfo *rui, int stripe_width,
 
 static void cnn_filter_stripe_highbd(const RestorationUnitInfo *rui,
                                      int stripe_width, int stripe_height,
-                                     int procunit_width, const uint8_t *src,
-                                     int src_stride, uint8_t *dst,
+                                     int procunit_width, const uint8_t *src8,
+                                     int src_stride, uint8_t *dst8,
                                      int dst_stride, int32_t *tmpbuf,
                                      int bit_depth) {
   (void)procunit_width;
   (void)tmpbuf;  // Unused.
   assert(rui->cnn_info.base_qindex > MIN_CNN_Q_INDEX);
   av1_restore_cnn_img_tflite_highbd(
-      rui->cnn_info.base_qindex, (const uint16_t *)src, stripe_width,
-      stripe_height, src_stride, (uint16_t *)dst, dst_stride,
+      rui->cnn_info.base_qindex, CONVERT_TO_SHORTPTR(src8), stripe_width,
+      stripe_height, src_stride, CONVERT_TO_SHORTPTR(dst8), dst_stride,
       1 /* num_threads */, bit_depth,
       is_frame_intra_only(rui->cnn_info.frame_type));
 }
