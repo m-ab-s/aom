@@ -236,7 +236,7 @@ def Run_ConvexHull_Test(clip, dnScalAlgo, upScalAlgo, LogCmdOnly = False):
                                          Path_DnScaleYuv, dnScalAlgo)
         if not os.path.isfile(dnscalyuv):
             dnscalyuv = DownScaling(clip, FrameNum['AS'], DnScaledW, DnScaledH,
-                                    Path_DnScaleYuv, dnScalAlgo, LogCmdOnly)
+                                    Path_DnScaleYuv, Path_CfgFiles, dnScalAlgo, LogCmdOnly)
         ds_clip = Clip(GetShortContentName(dnscalyuv, False)+'.y4m', dnscalyuv,
                        "", DnScaledW, DnScaledH, clip.fmt, clip.fps_num,
                        clip.fps_denom, clip.bit_depth)
