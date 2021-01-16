@@ -542,6 +542,126 @@ void av1_opfl_mv_refinement_highbd(const uint16_t *p0, int pstride0,
   *vy1 = (int)DIVIDE_AND_ROUND_SIGNED(ty1, d0);
 }
 
+void getsub_4D(int64_t *sub, int64_t *mat, int64_t *vec) {
+  *(sub++) = *(mat) * *(mat + 5) - *(mat + 1) * *(mat + 4);
+  *(sub++) = *(mat) * *(mat + 6) - *(mat + 2) * *(mat + 4);
+  *(sub++) = *(mat) * *(mat + 7) - *(mat + 3) * *(mat + 4);
+  *(sub++) = *(mat) * *(vec + 1) - *(vec) * *(mat + 4);
+  *(sub++) = *(mat + 1) * *(mat + 6) - *(mat + 2) * *(mat + 5);
+  *(sub++) = *(mat + 1) * *(mat + 7) - *(mat + 3) * *(mat + 5);
+  *(sub++) = *(mat + 1) * *(vec + 1) - *(vec) * *(mat + 5);
+  *(sub++) = *(mat + 2) * *(mat + 7) - *(mat + 3) * *(mat + 6);
+  *(sub++) = *(mat + 2) * *(vec + 1) - *(vec) * *(mat + 6);
+  *(sub) = *(mat + 3) * *(vec + 1) - *(vec) * *(mat + 7);
+}
+
+int solver_4D(int64_t *mat, int64_t *vec, int precbits, int64_t *sol) {
+  int64_t a[10], b[10];  // values of 20 specific 2D subdeterminants
+
+  getsub_4D(&a[0], mat, vec);
+  getsub_4D(&b[0], mat + 8, vec + 2);
+  int64_t D = (a[0] * b[7] + a[7] * b[0] + a[2] * b[4] + a[4] * b[2] -
+               a[5] * b[1] - a[1] * b[5]);
+  if (D == 0) return 0;
+
+  sol[0] = (a[5] * b[8] + a[8] * b[5] - a[6] * b[7] - a[7] * b[6] -
+            a[4] * b[9] - a[9] * b[4])
+           << precbits;
+  sol[1] = (a[1] * b[9] + a[9] * b[1] + a[3] * b[7] + a[7] * b[3] -
+            a[2] * b[8] - a[8] * b[2])
+           << precbits;
+  sol[2] = (a[2] * b[6] + a[6] * b[2] - a[0] * b[9] - a[9] * b[0] -
+            a[3] * b[5] - a[5] * b[3])
+           << precbits;
+  sol[3] = (a[0] * b[8] + a[8] * b[0] + a[3] * b[4] + a[4] * b[3] -
+            a[6] * b[1] - a[1] * b[6])
+           << precbits;
+
+  sol[0] = DIVIDE_AND_ROUND_SIGNED(sol[0], D);
+  sol[1] = DIVIDE_AND_ROUND_SIGNED(sol[1], D);
+  sol[2] = DIVIDE_AND_ROUND_SIGNED(sol[2], D);
+  sol[3] = DIVIDE_AND_ROUND_SIGNED(sol[3], D);
+  return 1;
+}
+
+void av1_opfl_mv_refinement4_lowbd(const uint8_t *p0, int pstride0,
+                                   const uint8_t *p1, int pstride1,
+                                   const int16_t *gx0, const int16_t *gy0,
+                                   const int16_t *gx1, const int16_t *gy1,
+                                   int gstride, int bw, int bh, int d0, int d1,
+                                   int grad_prec_bits, int mv_prec_bits,
+                                   int *vx0, int *vy0, int *vx1, int *vy1) {
+  (void)d0;
+  (void)d1;
+  int64_t A[4 * 4] = { 0 };
+  int64_t B[4] = { 0 };
+  int64_t X[4];
+  for (int i = 0; i < bh; ++i) {
+    for (int j = 0; j < bw; ++j) {
+      int a[4];
+      a[0] = gx0[i * gstride + j];
+      a[1] = gy0[i * gstride + j];
+      a[2] = gx1[i * gstride + j];
+      a[3] = gy1[i * gstride + j];
+      const int d = p1[i * pstride1 + j] - p0[i * pstride0 + j];
+      for (int s = 0; s < 4; ++s) {
+        for (int t = 0; t <= s; ++t) A[s * 4 + t] += (a[s] * a[t]);
+        B[s] += (a[s] * d);
+      }
+    }
+  }
+  for (int s = 0; s < 4; ++s) {
+    for (int t = s + 1; t < 4; ++t) A[s * 4 + t] = A[t * 4 + s];
+  }
+
+  int bits = mv_prec_bits + grad_prec_bits;
+
+  if (!solver_4D(A, B, bits, X)) return;
+  *vx0 = (int)X[0];
+  *vy0 = (int)X[1];
+  *vx1 = (int)X[2];
+  *vy1 = (int)X[3];
+}
+
+void av1_opfl_mv_refinement4_highbd(const uint16_t *p0, int pstride0,
+                                    const uint16_t *p1, int pstride1,
+                                    const int16_t *gx0, const int16_t *gy0,
+                                    const int16_t *gx1, const int16_t *gy1,
+                                    int gstride, int bw, int bh, int d0, int d1,
+                                    int grad_prec_bits, int mv_prec_bits,
+                                    int *vx0, int *vy0, int *vx1, int *vy1) {
+  (void)d0;
+  (void)d1;
+  int64_t A[4 * 4] = { 0 };
+  int64_t B[4] = { 0 };
+  int64_t X[4];
+  for (int i = 0; i < bh; ++i) {
+    for (int j = 0; j < bw; ++j) {
+      int a[4];
+      a[0] = gx0[i * gstride + j];
+      a[1] = gy0[i * gstride + j];
+      a[2] = gx1[i * gstride + j];
+      a[3] = gy1[i * gstride + j];
+      const int d = p1[i * pstride1 + j] - p0[i * pstride0 + j];
+      for (int s = 0; s < 4; ++s) {
+        for (int t = 0; t <= s; ++t) A[s * 4 + t] += (a[s] * a[t]);
+        B[s] += (a[s] * d);
+      }
+    }
+  }
+  for (int s = 0; s < 4; ++s) {
+    for (int t = s + 1; t < 4; ++t) A[s * 4 + t] = A[t * 4 + s];
+  }
+
+  int bits = mv_prec_bits + grad_prec_bits;
+  if (!solver_4D(A, B, bits, X)) return;
+
+  *vx0 = (int)X[0];
+  *vy0 = (int)X[1];
+  *vx1 = (int)X[2];
+  *vy1 = (int)X[3];
+}
+
 // Macros for optical flow experiment where offsets are added in nXn blocks
 // rather than adding a single offset to the entire prediction unit.
 #define USE_OF_NXN 1
@@ -591,8 +711,8 @@ int av1_get_optflow_based_mv(const AV1_COMMON *cm, MACROBLOCKD *xd,
                              int build_for_obmc,
                              CalcSubpelParamsFunc calc_subpel_params_func,
                              const void *const calc_subpel_params_func_args) {
-  // Arrays to hold optical flow offsets. If the experiment USE_OF_NXN is off,
-  // these will only be length 1
+  // Arrays to hold optical flow offsets. If the experiment USE_OF_NXN is
+  // off, these will only be length 1
   int vx0[N_OF_OFFSETS] = { 0 };
   int vx1[N_OF_OFFSETS] = { 0 };
   int vy0[N_OF_OFFSETS] = { 0 };
@@ -780,8 +900,8 @@ void make_inter_pred_8x8(const uint8_t *src, int src_stride, uint8_t *dst,
     conv_params->dst = orig_conv_dst;
     return;
   }
-  // There may be a small region left along the bottom. Compute using smaller
-  // blocks.
+  // There may be a small region left along the bottom. Compute using
+  // smaller blocks.
   int h_offset = h % 8;
   for (int i = 0; i <= w - 8; i += 8) {
     av1_make_inter_predictor_aux(
@@ -846,8 +966,8 @@ void av1_make_inter_predictor(
 static void av1_make_inter_predictor_aux(
     const uint8_t *src, int src_stride, uint8_t *dst, int dst_stride,
     const SubpelParams *subpel_params, const struct scale_factors *sf, int w,
-    // orig_w and orig_h refer to the width and height of the predictor without
-    // the extended region.
+    // orig_w and orig_h refer to the width and height of the predictor
+    // without the extended region.
     int h, int orig_w, int orig_h, ConvolveParams *conv_params,
     int_interpfilters interp_filters, const WarpTypesAllowed *warp_types,
     int p_col, int p_row, int plane, int ref, const MB_MODE_INFO *mi,
@@ -911,8 +1031,8 @@ static void build_inter_predictors_sub8x8(
   assert(!is_intrabc_block(mi));
 
   // For sub8x8 chroma blocks, we may be covering more than one luma block's
-  // worth of pixels. Thus (mi_x, mi_y) may not be the correct coordinates for
-  // the top-left corner of the prediction source - the correct top-left
+  // worth of pixels. Thus (mi_x, mi_y) may not be the correct coordinates
+  // for the top-left corner of the prediction source - the correct top-left
   // corner is at (pre_x, pre_y).
   const int mi_row = -xd->mb_to_top_edge >> (3 + MI_SIZE_LOG2);
   const int mi_col = -xd->mb_to_left_edge >> (3 + MI_SIZE_LOG2);
@@ -1189,7 +1309,7 @@ static void build_inter_predictors(
           mi_x >> pd->subsampling_x, mi_y >> pd->subsampling_y, plane, ref, mi,
           build_for_obmc, xd, cm->allow_warped_motion, 0 /* border */);
 #endif  // USE_OF_NXN
-      // Predictor already built
+        // Predictor already built
       continue;
     } else {
       calc_subpel_params_func(xd, sf, &mv, plane, pre_x, pre_y, 0, 0, pre_buf,
@@ -1535,10 +1655,10 @@ static bool is_sub8x8_inter(const MACROBLOCKD *xd, int plane,
 int av1_calc_border(const MACROBLOCKD *xd, int plane, int build_for_obmc) {
 #if CONFIG_INTERINTRA_BORDER
   // Intra-block copy will set the source pointer to a different location in
-  // the destination buffer. It's possible that the border pixels around that
-  // region have not been initialized.
-  // Compound mode does not currently work as the masked inter-predictor needs
-  // to increase its region used for the mask.
+  // the destination buffer. It's possible that the border pixels around
+  // that region have not been initialized. Compound mode does not currently
+  // work as the masked inter-predictor needs to increase its region used
+  // for the mask.
   const MB_MODE_INFO *mi = xd->mi[0];
   const bool is_compound = has_second_ref(mi);
   const bool intra_bc = mi->use_intrabc;
@@ -2071,8 +2191,8 @@ static void init_wedge_signs() {
         //   we need to flip the sign and return index [0] instead.
         // If default sign is 0:
         //   If sign requested is 0, we need to return index [0] the master
-        //   if sign requested is 1, we need to return the complement index [1]
-        //   instead.
+        //   if sign requested is 1, we need to return the complement index
+        //   [1] instead.
         wedge_params.signflip[w] = (avg < 32);
       }
     }
@@ -2186,8 +2306,8 @@ void av1_setup_pre_planes(MACROBLOCKD *xd, int idx,
                           const struct scale_factors *sf, const int num_planes,
                           const CHROMA_REF_INFO *chr_ref_info) {
   if (src != NULL) {
-    // We use AOMMIN(num_planes, MAX_MB_PLANE) instead of num_planes to quiet
-    // the static analysis warnings.
+    // We use AOMMIN(num_planes, MAX_MB_PLANE) instead of num_planes to
+    // quiet the static analysis warnings.
     for (int i = 0; i < AOMMIN(num_planes, MAX_MB_PLANE); ++i) {
       struct macroblockd_plane *const pd = &xd->plane[i];
       const int is_uv = i > 0;
@@ -2388,8 +2508,8 @@ static INLINE void build_obmc_inter_pred_left(MACROBLOCKD *xd, int rel_mi_row,
   }
 }
 
-// This function combines motion compensated predictions that are generated by
-// top/left neighboring blocks' inter predictors with the regular inter
+// This function combines motion compensated predictions that are generated
+// by top/left neighboring blocks' inter predictors with the regular inter
 // prediction. We assume the original prediction (bmc) is stored in
 // xd->plane[].dst.buf
 void av1_build_obmc_inter_prediction(const AV1_COMMON *cm, MACROBLOCKD *xd,
