@@ -92,7 +92,9 @@ typedef struct {
   //! The color map needed to reconstruct palette mode.
   uint8_t color_index_map[MAX_SB_SQUARE];
   //! The current winner mode.
-  THR_MODES mode_index;
+  REFERENCE_MODE mode;
+  //! Reference frame(s) for winner mode.
+  int refs[2];
 } WinnerModeStats;
 
 /*! \brief Each source plane of the current macroblock

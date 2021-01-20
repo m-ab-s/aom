@@ -479,8 +479,9 @@ enum {
   COMP_INTER_MODE_NUM = COMP_INTER_MODE_END - COMP_INTER_MODE_START,
   INTER_MODE_START = NEARESTMV,
   INTER_MODE_END = MB_MODE_COUNT,
-  INTRA_MODES = PAETH_PRED + 1,  // PAETH_PRED has to be the last intra mode.
-  INTRA_INVALID = MB_MODE_COUNT  // For uv_mode in inter blocks
+  INTRA_MODES = PAETH_PRED + 1,   // PAETH_PRED has to be the last intra mode.
+  INTRA_INVALID = MB_MODE_COUNT,  // For uv_mode in inter blocks
+  MODE_INVALID = 255
 } UENUM1BYTE(PREDICTION_MODE);
 
 // TODO(ltrudeau) Do we really want to pack this?

@@ -600,8 +600,8 @@ static AOM_INLINE void init_sbuv_mode(MB_MODE_INFO *const mbmi) {
 static INLINE void store_winner_mode_stats(
     const AV1_COMMON *const cm, MACROBLOCK *x, const MB_MODE_INFO *mbmi,
     RD_STATS *rd_cost, RD_STATS *rd_cost_y, RD_STATS *rd_cost_uv,
-    THR_MODES mode_index, uint8_t *color_map, BLOCK_SIZE bsize, int64_t this_rd,
-    int multi_winner_mode_type, int txfm_search_done) {
+    const int *refs, PREDICTION_MODE mode, uint8_t *color_map, BLOCK_SIZE bsize,
+    int64_t this_rd, int multi_winner_mode_type, int txfm_search_done) {
   WinnerModeStats *winner_mode_stats = x->winner_mode_stats;
   int mode_idx = 0;
   int is_palette_mode = mbmi->palette_mode_info.palette_size[PLANE_TYPE_Y] > 0;
@@ -640,13 +640,15 @@ static INLINE void store_winner_mode_stats(
   // Add a mode stat for winner mode processing
   winner_mode_stats[mode_idx].mbmi = *mbmi;
   winner_mode_stats[mode_idx].rd = this_rd;
-  winner_mode_stats[mode_idx].mode_index = mode_index;
+  winner_mode_stats[mode_idx].mode = mode;
+  winner_mode_stats[mode_idx].refs[0] = refs[0];
+  winner_mode_stats[mode_idx].refs[1] = refs[1];
 
   // Update rd stats required for inter frame
   if (!frame_is_intra_only(cm) && rd_cost && rd_cost_y && rd_cost_uv) {
     const MACROBLOCKD *xd = &x->e_mbd;
     const int skip_ctx = av1_get_skip_txfm_context(xd);
-    const int is_intra_mode = av1_mode_defs[mode_index].mode < INTRA_MODE_END;
+    const int is_intra_mode = mode < INTRA_MODE_END;
     const int skip_txfm = mbmi->skip_txfm && !is_intra_mode;
 
     winner_mode_stats[mode_idx].rd_cost = *rd_cost;
