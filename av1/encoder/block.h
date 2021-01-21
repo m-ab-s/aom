@@ -1056,7 +1056,11 @@ typedef struct macroblock {
    * current mode. If the current best rd is already <= threshold, then we skip
    * the current mode.
    */
+#if CONFIG_NEW_REF_SIGNALING
+  int thresh_freq_fact[BLOCK_SIZES_ALL][MB_MODE_COUNT];
+#else
   int thresh_freq_fact[BLOCK_SIZES_ALL][MAX_MODES];
+#endif  // CONFIG_NEW_REF_SIGNALING
 
   /*! \brief Tracks the winner modes in the current coding block.
    *
