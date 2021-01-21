@@ -1294,8 +1294,8 @@ static INLINE int get_relative_dist(const OrderHintInfo *oh, int a, int b) {
 }
 
 #if CONFIG_GM_MODEL_CODING
-static INLINE int calculate_gm_ref_params_scaling_distance(AV1_COMMON *const cm,
-                                                           int frame) {
+static INLINE int calculate_gm_ref_params_scaling_distance(
+    const AV1_COMMON *const cm, int frame) {
   const RefCntBuffer *const buf = get_ref_frame_buf(cm, frame);
   const int ref_order_hint = buf ? (int)buf->order_hint : -1;
   if (ref_order_hint < 0) return 0;
@@ -1303,10 +1303,10 @@ static INLINE int calculate_gm_ref_params_scaling_distance(AV1_COMMON *const cm,
                            cm->cur_frame->order_hint);
 }
 
-static INLINE void find_gm_ref_params(WarpedMotionParams *ref_params,
-                                      AV1_COMMON *const cm, int distance,
+static INLINE bool find_gm_ref_params(WarpedMotionParams *ref_params,
+                                      const AV1_COMMON *const cm, int distance,
                                       int base) {
-  if (cm->global_motion[LAST_FRAME].wmtype == IDENTITY) return;
+  if (cm->global_motion[LAST_FRAME].wmtype == IDENTITY) return false;
   // TODO(raynewang): Change base ref_params instead of always using LAST_FRAME
   memcpy(ref_params, &cm->global_motion[LAST_FRAME],
          sizeof(WarpedMotionParams));
@@ -1325,6 +1325,7 @@ static INLINE void find_gm_ref_params(WarpedMotionParams *ref_params,
   ref_params->beta = (int16_t)(ref_params->beta * scale_factor);
   ref_params->gamma = (int16_t)(ref_params->gamma * scale_factor);
   ref_params->delta = (int16_t)(ref_params->delta * scale_factor);
+  return true;
 }
 #endif  // CONFIG_GM_MODEL_CODING
 
