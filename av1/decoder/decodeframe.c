@@ -26,6 +26,9 @@
 #include "aom_ports/aom_timer.h"
 #include "aom_ports/mem.h"
 #include "aom_ports/mem_ops.h"
+#if CONFIG_GM_MODEL_CODING
+#include "aom_ports/system_state.h"
+#endif  // CONFIG_GM_MODEL_CODING
 #include "aom_scale/aom_scale.h"
 #include "aom_util/aom_thread.h"
 
@@ -4477,6 +4480,7 @@ static AOM_INLINE void read_global_motion(AV1_COMMON *cm,
                                   : &default_warp_params;
     } else {
       WarpedMotionParams params;
+      aom_clear_system_state();
       const bool updated_params =
           (frame <= BWDREF_FRAME)
               ? find_gm_ref_params(&params, cm, frame, LAST_FRAME)
