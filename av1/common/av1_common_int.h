@@ -1471,18 +1471,17 @@ static INLINE void av1_init_macroblockd(AV1_COMMON *cm, MACROBLOCKD *xd) {
 }
 
 static INLINE void set_entropy_context(MACROBLOCKD *xd, int mi_row, int mi_col,
-                                       const int num_planes) {
-  int i;
-  int row_offset = mi_row;
-  int col_offset = mi_col;
-  for (i = 0; i < num_planes; ++i) {
+                                       const int num_planes,
+                                       const CHROMA_REF_INFO *chr_ref_info) {
+  for (int i = 0; i < num_planes; ++i) {
     struct macroblockd_plane *const pd = &xd->plane[i];
     // Offset the buffer pointer
-    const BLOCK_SIZE bsize = xd->mi[0]->sb_type;
-    if (pd->subsampling_y && (mi_row & 0x01) && (mi_size_high[bsize] == 1))
-      row_offset = mi_row - 1;
-    if (pd->subsampling_x && (mi_col & 0x01) && (mi_size_wide[bsize] == 1))
-      col_offset = mi_col - 1;
+    const int row_offset =
+        i && chr_ref_info ? chr_ref_info->mi_row_chroma_base : mi_row;
+    const int col_offset =
+        i && chr_ref_info ? chr_ref_info->mi_col_chroma_base : mi_col;
+    assert(row_offset >= 0);
+    assert(col_offset >= 0);
     int above_idx = col_offset;
     int left_idx = row_offset & MAX_MIB_MASK;
     pd->above_entropy_context =
@@ -1498,11 +1497,21 @@ static INLINE int calc_mi_size(int len) {
 }
 
 static INLINE void set_plane_n4(MACROBLOCKD *const xd, int bw, int bh,
-                                const int num_planes) {
+                                const int num_planes,
+                                const CHROMA_REF_INFO *chr_ref_info) {
   int i;
   for (i = 0; i < num_planes; i++) {
-    xd->plane[i].width = (bw * MI_SIZE) >> xd->plane[i].subsampling_x;
-    xd->plane[i].height = (bh * MI_SIZE) >> xd->plane[i].subsampling_y;
+    if (chr_ref_info && i > 0) {
+      const BLOCK_SIZE plane_bsize = chr_ref_info->bsize_base;
+
+      xd->plane[i].width =
+          block_size_wide[plane_bsize] >> xd->plane[i].subsampling_x;
+      xd->plane[i].height =
+          block_size_high[plane_bsize] >> xd->plane[i].subsampling_y;
+    } else {
+      xd->plane[i].width = (bw * MI_SIZE) >> xd->plane[i].subsampling_x;
+      xd->plane[i].height = (bh * MI_SIZE) >> xd->plane[i].subsampling_y;
+    }
 
     xd->plane[i].width = AOMMAX(xd->plane[i].width, 4);
     xd->plane[i].height = AOMMAX(xd->plane[i].height, 4);
@@ -1511,7 +1520,8 @@ static INLINE void set_plane_n4(MACROBLOCKD *const xd, int bw, int bh,
 
 static INLINE void set_mi_row_col(MACROBLOCKD *xd, const TileInfo *const tile,
                                   int mi_row, int bh, int mi_col, int bw,
-                                  int mi_rows, int mi_cols) {
+                                  int mi_rows, int mi_cols,
+                                  const CHROMA_REF_INFO *chr_ref_info) {
   xd->mb_to_top_edge = -GET_MV_SUBPEL(mi_row * MI_SIZE);
   xd->mb_to_bottom_edge = GET_MV_SUBPEL((mi_rows - bh - mi_row) * MI_SIZE);
   xd->mb_to_left_edge = -GET_MV_SUBPEL((mi_col * MI_SIZE));
@@ -1522,17 +1532,9 @@ static INLINE void set_mi_row_col(MACROBLOCKD *xd, const TileInfo *const tile,
 
   // Are edges available for intra prediction?
   xd->up_available = (mi_row > tile->mi_row_start);
-
-  const int ss_x = xd->plane[1].subsampling_x;
-  const int ss_y = xd->plane[1].subsampling_y;
-
   xd->left_available = (mi_col > tile->mi_col_start);
   xd->chroma_up_available = xd->up_available;
   xd->chroma_left_available = xd->left_available;
-  if (ss_x && bw < mi_size_wide[BLOCK_8X8])
-    xd->chroma_left_available = (mi_col - 1) > tile->mi_col_start;
-  if (ss_y && bh < mi_size_high[BLOCK_8X8])
-    xd->chroma_up_available = (mi_row - 1) > tile->mi_row_start;
   if (xd->up_available) {
     xd->above_mbmi = xd->mi[-xd->mi_stride];
   } else {
@@ -1545,28 +1547,38 @@ static INLINE void set_mi_row_col(MACROBLOCKD *xd, const TileInfo *const tile,
     xd->left_mbmi = NULL;
   }
 
-  const int chroma_ref = ((mi_row & 0x01) || !(bh & 0x01) || !ss_y) &&
-                         ((mi_col & 0x01) || !(bw & 0x01) || !ss_x);
-  xd->is_chroma_ref = chroma_ref;
-  if (chroma_ref) {
-    // To help calculate the "above" and "left" chroma blocks, note that the
-    // current block may cover multiple luma blocks (eg, if partitioned into
-    // 4x4 luma blocks).
-    // First, find the top-left-most luma block covered by this chroma block
-    MB_MODE_INFO **base_mi =
-        &xd->mi[-(mi_row & ss_y) * xd->mi_stride - (mi_col & ss_x)];
+  if (chr_ref_info) {
+    xd->is_chroma_ref = chr_ref_info->is_chroma_ref;
+    xd->chroma_left_available =
+        chr_ref_info->mi_col_chroma_base > tile->mi_col_start;
+    xd->chroma_up_available =
+        chr_ref_info->mi_row_chroma_base > tile->mi_row_start;
+    if (xd->is_chroma_ref) {
+      // To help calculate the "above" and "left" chroma blocks, note that the
+      // current block may cover multiple luma blocks (eg, if partitioned into
+      // 4x4 luma blocks).
+      // First, find the top-left-most luma block covered by this chroma block
+      const int ss_x = xd->plane[1].subsampling_x;
+      const int ss_y = xd->plane[1].subsampling_y;
+      const int mi_row_offset = mi_row - chr_ref_info->mi_row_chroma_base;
+      const int mi_col_offset = mi_col - chr_ref_info->mi_col_chroma_base;
+      MB_MODE_INFO **base_mi =
+          &xd->mi[-mi_row_offset * xd->mi_stride - mi_col_offset];
 
-    // Then, we consider the luma region covered by the left or above 4x4 chroma
-    // prediction. We want to point to the chroma reference block in that
-    // region, which is the bottom-right-most mi unit.
-    // This leads to the following offsets:
-    MB_MODE_INFO *chroma_above_mi =
-        xd->chroma_up_available ? base_mi[-xd->mi_stride + ss_x] : NULL;
-    xd->chroma_above_mbmi = chroma_above_mi;
+      // Then, we consider the luma region covered by the left or above 4x4
+      // chroma prediction. We want to point to the chroma reference block in
+      // that region, which is the bottom-right-most mi unit. This leads to the
+      // following offsets:
+      MB_MODE_INFO *chroma_above_mi =
+          xd->chroma_up_available ? base_mi[-xd->mi_stride + ss_x] : NULL;
+      xd->chroma_above_mbmi = chroma_above_mi;
 
-    MB_MODE_INFO *chroma_left_mi =
-        xd->chroma_left_available ? base_mi[ss_y * xd->mi_stride - 1] : NULL;
-    xd->chroma_left_mbmi = chroma_left_mi;
+      MB_MODE_INFO *chroma_left_mi =
+          xd->chroma_left_available ? base_mi[ss_y * xd->mi_stride - 1] : NULL;
+      xd->chroma_left_mbmi = chroma_left_mi;
+    }
+  } else {
+    xd->is_chroma_ref = 1;
   }
 
   xd->height = bh;

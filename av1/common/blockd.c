@@ -63,15 +63,16 @@ void av1_mark_block_as_not_coded(MACROBLOCKD *xd, int mi_row, int mi_col,
   }
 }
 
-PARTITION_TREE *av1_alloc_ptree_node(void) {
+PARTITION_TREE *av1_alloc_ptree_node(PARTITION_TREE *parent, int index) {
   PARTITION_TREE *ptree = NULL;
   struct aom_internal_error_info error;
 
   AOM_CHECK_MEM_ERROR(&error, ptree, aom_calloc(1, sizeof(*ptree)));
 
+  ptree->parent = parent;
+  ptree->index = index;
   ptree->partition = PARTITION_NONE;
   ptree->is_settled = 0;
-
   for (int i = 0; i < 4; ++i) ptree->sub_tree[i] = NULL;
 
   return ptree;
@@ -91,7 +92,7 @@ void av1_free_ptree_recursive(PARTITION_TREE *ptree) {
 void av1_reset_ptree_in_sbi(SB_INFO *sbi) {
   if (sbi->ptree_root) av1_free_ptree_recursive(sbi->ptree_root);
 
-  sbi->ptree_root = av1_alloc_ptree_node();
+  sbi->ptree_root = av1_alloc_ptree_node(NULL, 0);
 }
 
 void av1_set_entropy_contexts(const MACROBLOCKD *xd,

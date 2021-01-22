@@ -64,13 +64,23 @@ void av1_free_shared_coeff_buffer(PC_TREE_SHARED_BUFFERS *shared_bufs) {
   }
 }
 
-PICK_MODE_CONTEXT *av1_alloc_pmc(const AV1_COMMON *cm, BLOCK_SIZE bsize,
+PICK_MODE_CONTEXT *av1_alloc_pmc(const AV1_COMMON *cm, int mi_row, int mi_col,
+                                 BLOCK_SIZE bsize, PC_TREE *parent,
+                                 PARTITION_TYPE parent_partition, int index,
+                                 int subsampling_x, int subsampling_y,
                                  PC_TREE_SHARED_BUFFERS *shared_bufs) {
   PICK_MODE_CONTEXT *ctx = NULL;
   struct aom_internal_error_info error;
 
   AOM_CHECK_MEM_ERROR(&error, ctx, aom_calloc(1, sizeof(*ctx)));
   ctx->rd_mode_is_ready = 0;
+  ctx->parent = parent;
+  ctx->index = index;
+  set_chroma_ref_info(mi_row, mi_col, index, bsize, &ctx->chroma_ref_info,
+                      parent ? &parent->chroma_ref_info : NULL,
+                      parent ? parent->block_size : BLOCK_INVALID,
+                      parent_partition, subsampling_x, subsampling_y);
+  ctx->mic.chroma_ref_info = ctx->chroma_ref_info;
 
   const int num_planes = av1_num_planes(cm);
   const int num_pix = block_size_wide[bsize] * block_size_high[bsize];
@@ -128,15 +138,28 @@ void av1_free_pmc(PICK_MODE_CONTEXT *ctx, int num_planes) {
   aom_free(ctx);
 }
 
-PC_TREE *av1_alloc_pc_tree_node(BLOCK_SIZE bsize) {
+PC_TREE *av1_alloc_pc_tree_node(int mi_row, int mi_col, BLOCK_SIZE bsize,
+                                PC_TREE *parent,
+                                PARTITION_TYPE parent_partition, int index,
+                                int is_last, int subsampling_x,
+                                int subsampling_y) {
   PC_TREE *pc_tree = NULL;
   struct aom_internal_error_info error;
 
   AOM_CHECK_MEM_ERROR(&error, pc_tree, aom_calloc(1, sizeof(*pc_tree)));
 
+  pc_tree->mi_row = mi_row;
+  pc_tree->mi_col = mi_col;
+  pc_tree->parent = parent;
+  pc_tree->index = index;
   pc_tree->partitioning = PARTITION_NONE;
   pc_tree->block_size = bsize;
   pc_tree->index = 0;
+  pc_tree->is_last_subblock = is_last;
+  set_chroma_ref_info(mi_row, mi_col, index, bsize, &pc_tree->chroma_ref_info,
+                      parent ? &parent->chroma_ref_info : NULL,
+                      parent ? parent->block_size : BLOCK_INVALID,
+                      parent_partition, subsampling_x, subsampling_y);
 
   pc_tree->none = NULL;
   for (int i = 0; i < 2; ++i) {

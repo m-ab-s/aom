@@ -150,16 +150,15 @@ static void setup_address_for_obmc(MACROBLOCKD *xd, int mi_row_offset,
                                    int mi_col_offset, MB_MODE_INFO *ref_mbmi,
                                    struct build_prediction_ctxt *ctxt,
                                    const int num_planes) {
-  const BLOCK_SIZE ref_bsize = AOMMAX(BLOCK_8X8, ref_mbmi->sb_type);
   const int ref_mi_row = xd->mi_row + mi_row_offset;
   const int ref_mi_col = xd->mi_col + mi_col_offset;
 
   for (int plane = 0; plane < num_planes; ++plane) {
     struct macroblockd_plane *const pd = &xd->plane[plane];
-    setup_pred_plane(&pd->dst, ref_bsize, ctxt->tmp_buf[plane],
-                     ctxt->tmp_width[plane], ctxt->tmp_height[plane],
-                     ctxt->tmp_stride[plane], mi_row_offset, mi_col_offset,
-                     NULL, pd->subsampling_x, pd->subsampling_y);
+    setup_pred_plane(&pd->dst, ctxt->tmp_buf[plane], ctxt->tmp_width[plane],
+                     ctxt->tmp_height[plane], ctxt->tmp_stride[plane],
+                     mi_row_offset, mi_col_offset, NULL, pd->subsampling_x,
+                     pd->subsampling_y, NULL);
   }
 
   const MV_REFERENCE_FRAME frame = ref_mbmi->ref_frame[0];
@@ -174,7 +173,7 @@ static void setup_address_for_obmc(MACROBLOCKD *xd, int mi_row_offset,
                        "Reference frame has invalid dimensions");
 
   av1_setup_pre_planes(xd, 0, &ref_buf->buf, ref_mi_row, ref_mi_col, sf,
-                       num_planes);
+                       num_planes, NULL);
 }
 
 static INLINE void build_obmc_prediction(MACROBLOCKD *xd, int rel_mi_row,
@@ -278,8 +277,8 @@ void av1_build_obmc_inter_predictors_sb(const AV1_COMMON *cm, MACROBLOCKD *xd) {
                                       dst_stride1);
   av1_build_prediction_by_left_preds(cm, xd, dst_buf2, dst_width2, dst_height2,
                                      dst_stride2);
-  av1_setup_dst_planes(xd->plane, xd->mi[0]->sb_type, &cm->cur_frame->buf,
-                       mi_row, mi_col, 0, num_planes);
+  av1_setup_dst_planes(xd->plane, &cm->cur_frame->buf, mi_row, mi_col, 0,
+                       num_planes, &xd->mi[0]->chroma_ref_info);
   av1_build_obmc_inter_prediction(cm, xd, dst_buf1, dst_stride1, dst_buf2,
                                   dst_stride2);
 }

@@ -3444,7 +3444,7 @@ static AOM_INLINE void refine_winner_mode_tx(
       }
 
       if (num_planes > 1) {
-        av1_txfm_uvrd(cpi, x, &rd_stats_uv, bsize, INT64_MAX);
+        av1_txfm_uvrd(cpi, x, &rd_stats_uv, INT64_MAX);
       } else {
         av1_init_rd_stats(&rd_stats_uv);
       }
@@ -3832,8 +3832,8 @@ static AOM_INLINE void set_params_rd_pick_inter_mode(
                                          dst_width2, dst_height2,
                                          args->left_pred_stride);
       const int num_planes = av1_num_planes(cm);
-      av1_setup_dst_planes(xd->plane, bsize, &cm->cur_frame->buf, mi_row,
-                           mi_col, 0, num_planes);
+      av1_setup_dst_planes(xd->plane, &cm->cur_frame->buf, mi_row, mi_col, 0,
+                           num_planes, &mbmi->chroma_ref_info);
       calc_target_weighted_pred(
           cm, x, xd, args->above_pred_buf[0], args->above_pred_stride[0],
           args->left_pred_buf[0], args->left_pred_stride[0]);

@@ -3871,7 +3871,7 @@ void av1_pick_uniform_tx_size_type_yrd(const AV1_COMP *const cpi, MACROBLOCK *x,
 }
 
 int av1_txfm_uvrd(const AV1_COMP *const cpi, MACROBLOCK *x, RD_STATS *rd_stats,
-                  BLOCK_SIZE bsize, int64_t ref_best_rd) {
+                  int64_t ref_best_rd) {
   av1_init_rd_stats(rd_stats);
   if (ref_best_rd < 0) return 0;
   if (!x->e_mbd.is_chroma_ref) return 1;
@@ -3881,8 +3881,8 @@ int av1_txfm_uvrd(const AV1_COMP *const cpi, MACROBLOCK *x, RD_STATS *rd_stats,
   struct macroblockd_plane *const pd = &xd->plane[AOM_PLANE_U];
   const int is_inter = is_inter_block(mbmi);
   int64_t this_rd = 0, skip_txfm_rd = 0;
-  const BLOCK_SIZE plane_bsize =
-      get_plane_block_size(bsize, pd->subsampling_x, pd->subsampling_y);
+  const BLOCK_SIZE plane_bsize = get_plane_block_size(
+      mbmi->chroma_ref_info.bsize_base, pd->subsampling_x, pd->subsampling_y);
 
   if (is_inter) {
     for (int plane = 1; plane < MAX_MB_PLANE; ++plane)
@@ -4046,7 +4046,7 @@ int av1_txfm_search(const AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
                             AOMMIN(non_skip_txfm_rdcosty, skip_txfm_rdcosty));
     }
     const int is_cost_valid_uv =
-        av1_txfm_uvrd(cpi, x, rd_stats_uv, bsize, ref_best_chroma_rd);
+        av1_txfm_uvrd(cpi, x, rd_stats_uv, ref_best_chroma_rd);
     if (!is_cost_valid_uv) return 0;
     av1_merge_rd_stats(rd_stats, rd_stats_uv);
   }

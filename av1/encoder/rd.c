@@ -1208,11 +1208,11 @@ void av1_setup_pred_block(const MACROBLOCKD *xd,
   const int mi_row = xd->mi_row;
   const int mi_col = xd->mi_col;
   for (int i = 0; i < num_planes; ++i) {
-    setup_pred_plane(dst + i, xd->mi[0]->sb_type, dst[i].buf,
-                     i ? src->uv_crop_width : src->y_crop_width,
-                     i ? src->uv_crop_height : src->y_crop_height,
-                     dst[i].stride, mi_row, mi_col, i ? scale_uv : scale,
-                     xd->plane[i].subsampling_x, xd->plane[i].subsampling_y);
+    setup_pred_plane(
+        dst + i, dst[i].buf, i ? src->uv_crop_width : src->y_crop_width,
+        i ? src->uv_crop_height : src->y_crop_height, dst[i].stride, mi_row,
+        mi_col, i ? scale_uv : scale, xd->plane[i].subsampling_x,
+        xd->plane[i].subsampling_y, &xd->mi[0]->chroma_ref_info);
   }
 }
 

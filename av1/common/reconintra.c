@@ -1275,57 +1275,6 @@ static void build_intra_predictors(const MACROBLOCKD *xd, const uint8_t *ref,
   }
 }
 
-static INLINE BLOCK_SIZE scale_chroma_bsize(BLOCK_SIZE bsize, int subsampling_x,
-                                            int subsampling_y) {
-  assert(subsampling_x >= 0 && subsampling_x < 2);
-  assert(subsampling_y >= 0 && subsampling_y < 2);
-  BLOCK_SIZE bs = bsize;
-  switch (bsize) {
-    case BLOCK_4X4:
-      if (subsampling_x == 1 && subsampling_y == 1)
-        bs = BLOCK_8X8;
-      else if (subsampling_x == 1)
-        bs = BLOCK_8X4;
-      else if (subsampling_y == 1)
-        bs = BLOCK_4X8;
-      break;
-    case BLOCK_4X8:
-      if (subsampling_x == 1 && subsampling_y == 1)
-        bs = BLOCK_8X8;
-      else if (subsampling_x == 1)
-        bs = BLOCK_8X8;
-      else if (subsampling_y == 1)
-        bs = BLOCK_4X8;
-      break;
-    case BLOCK_8X4:
-      if (subsampling_x == 1 && subsampling_y == 1)
-        bs = BLOCK_8X8;
-      else if (subsampling_x == 1)
-        bs = BLOCK_8X4;
-      else if (subsampling_y == 1)
-        bs = BLOCK_8X8;
-      break;
-    case BLOCK_4X16:
-      if (subsampling_x == 1 && subsampling_y == 1)
-        bs = BLOCK_8X16;
-      else if (subsampling_x == 1)
-        bs = BLOCK_8X16;
-      else if (subsampling_y == 1)
-        bs = BLOCK_4X16;
-      break;
-    case BLOCK_16X4:
-      if (subsampling_x == 1 && subsampling_y == 1)
-        bs = BLOCK_16X8;
-      else if (subsampling_x == 1)
-        bs = BLOCK_16X4;
-      else if (subsampling_y == 1)
-        bs = BLOCK_16X8;
-      break;
-    default: break;
-  }
-  return bs;
-}
-
 void av1_predict_intra_block(
     const AV1_COMMON *cm, const MACROBLOCKD *xd, int wpx, int hpx,
     TX_SIZE tx_size, PREDICTION_MODE mode, int angle_delta, int use_palette,
@@ -1387,7 +1336,7 @@ void av1_predict_intra_block(
   BLOCK_SIZE bsize = mbmi->sb_type;
   // force 4x4 chroma component block size.
   if (ss_x || ss_y) {
-    bsize = scale_chroma_bsize(bsize, ss_x, ss_y);
+    bsize = mbmi->chroma_ref_info.bsize_base;
   }
 
   int px_top_right = 0;

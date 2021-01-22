@@ -247,8 +247,7 @@ static int64_t pick_intra_angle_routine_sbuv(
   int64_t this_rd;
   RD_STATS tokenonly_rd_stats;
 
-  if (!av1_txfm_uvrd(cpi, x, &tokenonly_rd_stats, bsize, best_rd_in))
-    return INT64_MAX;
+  if (!av1_txfm_uvrd(cpi, x, &tokenonly_rd_stats, best_rd_in)) return INT64_MAX;
   this_rate = tokenonly_rd_stats.rate +
               intra_mode_info_cost_uv(cpi, x, mbmi, bsize, rate_overhead);
   this_rd = RDCOST(x->rdmult, this_rate, tokenonly_rd_stats.dist);
@@ -527,7 +526,7 @@ int64_t av1_rd_pick_intra_sbuv_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
         continue;
     } else {
       // Predict directly if we don't need to search for angle delta.
-      if (!av1_txfm_uvrd(cpi, x, &tokenonly_rd_stats, bsize, best_rd)) {
+      if (!av1_txfm_uvrd(cpi, x, &tokenonly_rd_stats, best_rd)) {
         continue;
       }
     }

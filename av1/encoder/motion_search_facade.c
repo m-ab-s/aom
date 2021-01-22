@@ -72,7 +72,7 @@ void av1_single_motion_search(const AV1_COMP *const cpi, MACROBLOCK *x,
       backup_yv12[i] = xd->plane[i].pre[ref_idx];
     }
     av1_setup_pre_planes(xd, ref_idx, scaled_ref_frame, mi_row, mi_col, NULL,
-                         num_planes);
+                         num_planes, &mbmi->chroma_ref_info);
   }
 
   // Work out the size of the first step in the mv step search.
@@ -386,7 +386,7 @@ void av1_joint_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
         for (i = 0; i < num_planes; i++)
           backup_yv12[ref][i] = xd->plane[i].pre[ref];
         av1_setup_pre_planes(xd, ref, scaled_ref_frame[ref], mi_row, mi_col,
-                             NULL, num_planes);
+                             NULL, num_planes, &mbmi->chroma_ref_info);
       }
     }
 
@@ -533,7 +533,7 @@ void av1_compound_single_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
     const int mi_row = xd->mi_row;
     const int mi_col = xd->mi_col;
     av1_setup_pre_planes(xd, ref_idx, scaled_ref_frame, mi_row, mi_col, NULL,
-                         num_planes);
+                         num_planes, &mbmi->chroma_ref_info);
   }
 
   int bestsme = INT_MAX;
@@ -753,12 +753,12 @@ int_mv av1_simple_motion_search(AV1_COMP *const cpi, MACROBLOCK *x, int mi_row,
   int_mv best_mv;
 
   av1_setup_pre_planes(xd, ref_idx, yv12, mi_row, mi_col,
-                       get_ref_scale_factors(cm, ref), num_planes);
+                       get_ref_scale_factors(cm, ref), num_planes, NULL);
   set_ref_ptrs(cm, xd, mbmi->ref_frame[0], mbmi->ref_frame[1]);
   if (scaled_ref_frame) {
     backup_yv12 = xd->plane[AOM_PLANE_Y].pre[ref_idx];
     av1_setup_pre_planes(xd, ref_idx, scaled_ref_frame, mi_row, mi_col, NULL,
-                         num_planes);
+                         num_planes, NULL);
   }
 
   // Allow more mesh searches for screen content type on the ARF.

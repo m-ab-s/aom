@@ -728,7 +728,8 @@ static void setup_planes(AV1_COMP *cpi, MACROBLOCK *x, unsigned int *y_sad,
     yv12_g = get_ref_frame_yv12_buf(cm, GOLDEN_FRAME);
     if (yv12_g && yv12_g != yv12) {
       av1_setup_pre_planes(xd, 0, yv12_g, mi_row, mi_col,
-                           get_ref_scale_factors(cm, GOLDEN_FRAME), num_planes);
+                           get_ref_scale_factors(cm, GOLDEN_FRAME), num_planes,
+                           NULL);
       *y_sad_g = cpi->fn_ptr[bsize].sdf(
           x->plane[0].src.buf, x->plane[0].src.stride, xd->plane[0].pre[0].buf,
           xd->plane[0].pre[0].stride);
@@ -736,7 +737,7 @@ static void setup_planes(AV1_COMP *cpi, MACROBLOCK *x, unsigned int *y_sad,
   }
 
   av1_setup_pre_planes(xd, 0, yv12, mi_row, mi_col,
-                       get_ref_scale_factors(cm, LAST_FRAME), num_planes);
+                       get_ref_scale_factors(cm, LAST_FRAME), num_planes, NULL);
   mi->ref_frame[0] = LAST_FRAME;
   mi->ref_frame[1] = NONE_FRAME;
   mi->sb_type = cm->seq_params.sb_size;
@@ -763,7 +764,8 @@ static void setup_planes(AV1_COMP *cpi, MACROBLOCK *x, unsigned int *y_sad,
   // lower sad.
   if (*y_sad_g < 0.9 * *y_sad) {
     av1_setup_pre_planes(xd, 0, yv12_g, mi_row, mi_col,
-                         get_ref_scale_factors(cm, GOLDEN_FRAME), num_planes);
+                         get_ref_scale_factors(cm, GOLDEN_FRAME), num_planes,
+                         NULL);
     mi->ref_frame[0] = GOLDEN_FRAME;
     mi->mv[0].as_int = 0;
     *y_sad = *y_sad_g;
