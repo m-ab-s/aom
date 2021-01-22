@@ -657,6 +657,11 @@ if(CONFIG_TENSORFLOW_LITE)
       target_link_tf_lite_libraries(tf_lite_model)
       add_dependencies(tf_lite_model tensorflow_lite fake_dl)
     endif()
+    add_executable(cnn_restore_y4m
+                   "${AOM_ROOT}/examples/cnn_restore/cnn_restore_y4m.cc")
+    list(APPEND AOM_APP_TARGETS cnn_restore_y4m)
+    target_link_tf_lite_libraries(cnn_restore_y4m)
+    add_dependencies(cnn_restore_y4m tensorflow_lite fake_dl)
   endif()
 endif()
 
