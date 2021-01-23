@@ -517,9 +517,8 @@ typedef struct MV_SPEED_FEATURES {
   // When to stop subpel search in simple motion search.
   SUBPEL_FORCE_STOP simple_motion_subpel_force_stop;
 
-  // If true, sub-pixel search uses the exact convolve function used for final
-  // encoding and decoding; otherwise, it uses bilinear interpolation.
-  SUBPEL_SEARCH_TYPE use_accurate_subpel_search;
+  // The type of interpolation filter used in motion search.
+  SUBPEL_SEARCH_TYPE subpel_search_type;
 
   // Threshold for allowing exhaustive motion search.
   int exhaustive_searches_thresh;

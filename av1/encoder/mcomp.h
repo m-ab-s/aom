@@ -74,12 +74,11 @@ typedef struct {
   // The reference mv used to compute the mv cost
   const MV *ref_mv;
   FULLPEL_MV full_ref_mv;
+
+  // Stores the entropy table needed to signal an mv. Includes the joint-mv cost
+  // and the diff cost.
+  const MvCosts *mv_costs;
   MV_COST_TYPE mv_cost_type;
-  const int *mvjcost;
-  const int *mvcost[2];
-  int error_per_bit;
-  // A multiplier used to convert rate to sad cost
-  int sad_per_bit;
 } MV_COST_PARAMS;
 
 int av1_mv_bit_cost(const MV *mv, const MV *ref_mv, const int *mvjcost,

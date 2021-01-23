@@ -419,7 +419,7 @@ static void set_good_speed_features_framesize_independent(
 
     sf->mv_sf.exhaustive_searches_thresh <<= 1;
     sf->mv_sf.obmc_full_pixel_search_level = 1;
-    sf->mv_sf.use_accurate_subpel_search = USE_4_TAPS;
+    sf->mv_sf.subpel_search_type = USE_4_TAPS;
 
     sf->inter_sf.disable_interinter_wedge_newmv_search = boosted ? 0 : 1;
     sf->inter_sf.prune_comp_search_by_single_result = boosted ? 2 : 1;
@@ -767,7 +767,7 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
     sf->part_sf.simple_motion_search_prune_rect = 1;
 
     sf->mv_sf.obmc_full_pixel_search_level = 1;
-    sf->mv_sf.use_accurate_subpel_search = USE_4_TAPS;
+    sf->mv_sf.subpel_search_type = USE_4_TAPS;
 
     sf->inter_sf.prune_comp_search_by_single_result = 1;
     sf->inter_sf.reuse_inter_intra_mode = 1;
@@ -834,7 +834,7 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
 
     sf->part_sf.less_rectangular_check_level = 2;
 
-    sf->mv_sf.use_accurate_subpel_search = USE_2_TAPS;
+    sf->mv_sf.subpel_search_type = USE_2_TAPS;
     // adaptive_motion_search breaks encoder multi-thread tests.
     // The values in x->pred_mv[] differ for single and multi-thread cases.
     // See aomedia:1778.
@@ -1087,7 +1087,7 @@ static AOM_INLINE void init_mv_sf(MV_SPEED_FEATURES *mv_sf) {
   mv_sf->subpel_force_stop = EIGHTH_PEL;
   mv_sf->subpel_iters_per_step = 2;
   mv_sf->subpel_search_method = SUBPEL_TREE;
-  mv_sf->use_accurate_subpel_search = USE_8_TAPS;
+  mv_sf->subpel_search_type = USE_8_TAPS;
   mv_sf->use_bsize_dependent_search_method = 0;
   mv_sf->use_fullpel_costlist = 0;
   mv_sf->use_downsampled_sad = 0;
