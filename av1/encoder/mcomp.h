@@ -328,7 +328,7 @@ typedef struct {
 // during the search
 typedef struct {
   // High level motion search settings
-  int allow_hp;
+  MvSubpelPrecision mv_precision;
   const int *cost_list;
   SUBPEL_FORCE_STOP forced_stop;
   int iters_per_step;

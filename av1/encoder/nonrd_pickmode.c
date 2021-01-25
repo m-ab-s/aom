@@ -361,8 +361,8 @@ static INLINE void find_predictors(AV1_COMP *cpi, MACROBLOCK *x,
     // mbmi_ext->weight[ref_frame][4] inside av1_find_mv_refs.
     av1_copy_usable_ref_mv_stack_and_weight(xd, mbmi_ext, ref_frame);
     av1_find_best_ref_mvs_from_stack(
-        cm->features.allow_high_precision_mv, mbmi_ext, ref_frame,
-        &frame_mv[NEARESTMV][ref_frame], &frame_mv[NEARMV][ref_frame], 0);
+        mbmi_ext, ref_frame, &frame_mv[NEARESTMV][ref_frame],
+        &frame_mv[NEARMV][ref_frame], cm->features.fr_mv_precision);
     // Early exit for non-LAST frame if force_skip_low_temp_var is set.
     if (!av1_is_scaled(sf) && bsize >= BLOCK_8X8 &&
         !(force_skip_low_temp_var && ref_frame != LAST_FRAME)) {

@@ -739,7 +739,7 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
 
   av1_reset_segment_features(cm);
 
-  av1_set_high_precision_mv(cpi, 1, 0);
+  av1_set_high_precision_mv(cpi, MV_SUBPEL_EIGHTH_PRECISION);
 
   set_rc_buffer_sizes(rc, rc_cfg);
 
@@ -2283,7 +2283,14 @@ static int encode_without_recode(AV1_COMP *cpi) {
 
   // Set the motion vector precision based on mv stats from the last coded
   // frame.
-  if (!frame_is_intra_only(cm)) av1_pick_and_set_high_precision_mv(cpi, q);
+  if (!frame_is_intra_only(cm)) {
+    av1_pick_and_set_high_precision_mv(cpi, q);
+  } else {
+    // TODO(chiyotsai@google.com): The frame level mv precision should be set to
+    // MV_SUBPEL_NONE for more accurate intrabc search. But doing this right now
+    // will cause an unwanted STATS_CHANGED. Fix this upstream instead.
+    // av1_set_high_precision_mv(cpi, MV_SUBPEL_NONE);
+  }
 
   // transform / motion compensation build reconstruction frame
   av1_encode_frame(cpi);
@@ -2375,7 +2382,7 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
   int overshoot_seen = 0;
   int undershoot_seen = 0;
   int low_cr_seen = 0;
-  int last_loop_allow_hp = 0;
+  MvSubpelPrecision last_loop_mv_prec = cm->features.fr_mv_precision;
 
   do {
     loop = 0;
@@ -2464,11 +2471,15 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
 
       // If the precision has changed during different iteration of the loop,
       // then we need to reset the global motion vectors
-      if (loop_count > 0 &&
-          cm->features.allow_high_precision_mv != last_loop_allow_hp) {
+      if (loop_count > 0 && cm->features.fr_mv_precision != last_loop_mv_prec) {
         gm_info->search_done = 0;
       }
-      last_loop_allow_hp = cm->features.allow_high_precision_mv;
+      last_loop_mv_prec = cm->features.fr_mv_precision;
+    } else {
+      // TODO(chiyotsai@google.com): The frame level mv precision should be set
+      // to MV_SUBPEL_NONE for more accurate intrabc search. But doing this
+      // right now will cause an unwanted STATS_CHANGED. Fix this upstream
+      // instead. av1_set_high_precision_mv(cpi, MV_SUBPEL_NONE);
     }
 
     // transform / motion compensation build reconstruction frame
@@ -3465,7 +3476,7 @@ int av1_get_compressed_data(AV1_COMP *cpi, unsigned int *frame_flags,
   struct aom_usec_timer cmptimer;
   aom_usec_timer_start(&cmptimer);
 #endif
-  av1_set_high_precision_mv(cpi, 1, 0);
+  av1_set_high_precision_mv(cpi, MV_SUBPEL_EIGHTH_PRECISION);
 
   // Normal defaults
   cm->features.refresh_frame_context =

@@ -777,27 +777,22 @@ typedef struct {
   /*****************************************************************************
    * \name Encoding Costs
    * Here are the entropy costs needed to encode a given mv.
-   * \ref nmv_cost_alloc and \ref nmv_cost_hp_alloc are two arrays that holds
-   * the memory for holding the mv cost. But since the motion vectors can be
-   * negative, we shift them to the middle and store the resulting pointer in
-   * \ref nmv_cost and \ref nmv_cost_hp for easier referencing. Finally, \ref
-   * mv_cost_stack points to the \ref nmv_cost with the mv precision we are
-   * currently working with. In essence, only \ref mv_cost_stack is needed for
+   * \ref nmv_costs_alloc is an array that holds the memory for mv cost. Since
+   * the motion vectors can be negative, we save a pointer to the middle of the
+   * array in \ref nmv_costs for easier referencing. Finally, \ref
+   * mv_cost_stack points to the \ref nmv_cost with the mv precision currently
+   * in use. In essence, only \ref mv_cost_stack is needed for
    * motion search, the other can be considered private.
    ****************************************************************************/
   /**@{*/
-  //! Costs for coding the zero components.
+  /*! Costs for coding the zero components. */
   int nmv_joint_cost[MV_JOINTS];
 
-  //! Allocates memory for 1/4-pel motion vector costs.
-  int nmv_cost_alloc[2][MV_VALS];
-  //! Allocates memory for 1/8-pel motion vector costs.
-  int nmv_cost_hp_alloc[2][MV_VALS];
-  //! Points to the middle of \ref nmv_cost_alloc
-  int *nmv_cost[2];
-  //! Points to the middle of \ref nmv_cost_hp_alloc
-  int *nmv_cost_hp[2];
-  //! Points to the nmv_cost_hp in use.
+  /*! Allocates memory for motion vector costs. */
+  int nmv_costs_alloc[MV_SUBPEL_PRECISIONS][2][MV_VALS];
+  /*! Points to the middle of \ref nmv_costs_alloc. */
+  int *nmv_costs[MV_SUBPEL_PRECISIONS][2];
+  /*! Points to the current mv_cost in use. */
   int **mv_cost_stack;
   /**@}*/
 } MvCosts;

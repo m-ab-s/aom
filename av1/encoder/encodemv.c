@@ -53,7 +53,7 @@ static void update_mv_component_stats(int comp, nmv_component *mvcomp,
   }
 
   // High precision bit
-  if (precision > MV_SUBPEL_LOW_PRECISION) {
+  if (precision > MV_SUBPEL_QTR_PRECISION) {
     aom_cdf_prob *hp_cdf =
         mv_class == MV_CLASS_0 ? mvcomp->class0_hp_cdf : mvcomp->hp_cdf;
     update_cdf(hp_cdf, hp, 2);
@@ -109,7 +109,7 @@ static void encode_mv_component(aom_writer *w, int comp, nmv_component *mvcomp,
   }
 
   // High precision bit
-  if (precision > MV_SUBPEL_LOW_PRECISION)
+  if (precision > MV_SUBPEL_QTR_PRECISION)
     aom_write_symbol(
         w, hp, mv_class == MV_CLASS_0 ? mvcomp->class0_hp_cdf : mvcomp->hp_cdf,
         2);
@@ -135,7 +135,7 @@ static void build_nmv_component_cost_table(int *mvcost,
     av1_cost_tokens_from_cdf(class0_fp_cost[i], mvcomp->class0_fp_cdf[i], NULL);
   av1_cost_tokens_from_cdf(fp_cost, mvcomp->fp_cdf, NULL);
 
-  if (precision > MV_SUBPEL_LOW_PRECISION) {
+  if (precision > MV_SUBPEL_QTR_PRECISION) {
     av1_cost_tokens_from_cdf(class0_hp_cost, mvcomp->class0_hp_cdf, NULL);
     av1_cost_tokens_from_cdf(hp_cost, mvcomp->hp_cdf, NULL);
   }
@@ -160,7 +160,7 @@ static void build_nmv_component_cost_table(int *mvcost,
       } else {
         cost += fp_cost[f];
       }
-      if (precision > MV_SUBPEL_LOW_PRECISION) {
+      if (precision > MV_SUBPEL_QTR_PRECISION) {
         if (c == MV_CLASS_0) {
           cost += class0_hp_cost[e];
         } else {
@@ -174,20 +174,20 @@ static void build_nmv_component_cost_table(int *mvcost,
 }
 
 void av1_encode_mv(AV1_COMP *cpi, aom_writer *w, const MV *mv, const MV *ref,
-                   nmv_context *mvctx, int usehp) {
+                   nmv_context *mvctx, MvSubpelPrecision precision) {
   const MV diff = { mv->row - ref->row, mv->col - ref->col };
   const MV_JOINT_TYPE j = av1_get_mv_joint(&diff);
   // If the mv_diff is zero, then we should have used near or nearest instead.
   assert(j != MV_JOINT_ZERO);
   if (cpi->common.features.cur_frame_force_integer_mv) {
-    usehp = MV_SUBPEL_NONE;
+    precision = MV_SUBPEL_NONE;
   }
   aom_write_symbol(w, j, mvctx->joints_cdf, MV_JOINTS);
   if (mv_joint_vertical(j))
-    encode_mv_component(w, diff.row, &mvctx->comps[0], usehp);
+    encode_mv_component(w, diff.row, &mvctx->comps[0], precision);
 
   if (mv_joint_horizontal(j))
-    encode_mv_component(w, diff.col, &mvctx->comps[1], usehp);
+    encode_mv_component(w, diff.col, &mvctx->comps[1], precision);
 
   // If auto_mv_step_size is enabled then keep track of the largest
   // motion vector component used.
@@ -256,15 +256,14 @@ int_mv av1_get_ref_mv(const MACROBLOCK *x, int ref_idx) {
                                    x->mbmi_ext);
 }
 
-void av1_find_best_ref_mvs_from_stack(int allow_hp,
-                                      const MB_MODE_INFO_EXT *mbmi_ext,
+void av1_find_best_ref_mvs_from_stack(const MB_MODE_INFO_EXT *mbmi_ext,
                                       MV_REFERENCE_FRAME ref_frame,
                                       int_mv *nearest_mv, int_mv *near_mv,
-                                      int is_integer) {
+                                      MvSubpelPrecision precision) {
   const int ref_idx = 0;
   MV_REFERENCE_FRAME ref_frames[2] = { ref_frame, NONE_FRAME };
   *nearest_mv = av1_get_ref_mv_from_stack(ref_idx, ref_frames, 0, mbmi_ext);
-  lower_mv_precision(&nearest_mv->as_mv, allow_hp, is_integer);
+  lower_mv_precision(&nearest_mv->as_mv, precision);
   *near_mv = av1_get_ref_mv_from_stack(ref_idx, ref_frames, 1, mbmi_ext);
-  lower_mv_precision(&near_mv->as_mv, allow_hp, is_integer);
+  lower_mv_precision(&near_mv->as_mv, precision);
 }

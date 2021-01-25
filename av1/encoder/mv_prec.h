@@ -30,19 +30,24 @@ static AOM_INLINE int av1_frame_allows_smart_mv(const AV1_COMP *cpi) {
 }
 #endif  // !CONFIG_REALTIME_ONLY
 
-static AOM_INLINE void av1_set_high_precision_mv(
-    AV1_COMP *cpi, int allow_high_precision_mv,
-    int cur_frame_force_integer_mv) {
+static AOM_INLINE void av1_set_high_precision_mv(AV1_COMP *cpi,
+                                                 MvSubpelPrecision precision) {
+  FeatureFlags *features = &cpi->common.features;
+  features->fr_mv_precision = precision;
+  assert(IMPLIES(features->cur_frame_force_integer_mv,
+                 precision == MV_SUBPEL_NONE));
   MvCosts *const mv_costs = &cpi->td.mb.mv_costs;
-  const int copy_hp = cpi->common.features.allow_high_precision_mv =
-      allow_high_precision_mv && !cur_frame_force_integer_mv;
 
-  mv_costs->nmv_cost[0] = &mv_costs->nmv_cost_alloc[0][MV_MAX];
-  mv_costs->nmv_cost[1] = &mv_costs->nmv_cost_alloc[1][MV_MAX];
-  mv_costs->nmv_cost_hp[0] = &mv_costs->nmv_cost_hp_alloc[0][MV_MAX];
-  mv_costs->nmv_cost_hp[1] = &mv_costs->nmv_cost_hp_alloc[1][MV_MAX];
+  for (MvSubpelPrecision prec = MV_SUBPEL_NONE; prec < MV_SUBPEL_PRECISIONS;
+       prec++) {
+    mv_costs->nmv_costs[prec][0] = &mv_costs->nmv_costs_alloc[prec][0][MV_MAX];
+    mv_costs->nmv_costs[prec][1] = &mv_costs->nmv_costs_alloc[prec][1][MV_MAX];
+  }
+
+  const int usehp = precision > MV_SUBPEL_QTR_PRECISION;
   mv_costs->mv_cost_stack =
-      copy_hp ? mv_costs->nmv_cost_hp : mv_costs->nmv_cost;
+      usehp ? mv_costs->nmv_costs[MV_SUBPEL_EIGHTH_PRECISION]
+            : mv_costs->nmv_costs[MV_SUBPEL_QTR_PRECISION];
 }
 
 void av1_pick_and_set_high_precision_mv(AV1_COMP *cpi, int qindex);

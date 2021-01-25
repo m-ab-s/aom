@@ -91,12 +91,6 @@ typedef struct {
   nmv_component comps[2];
 } nmv_context;
 
-enum {
-  MV_SUBPEL_NONE = -1,
-  MV_SUBPEL_LOW_PRECISION = 0,
-  MV_SUBPEL_HIGH_PRECISION,
-} SENUM1BYTE(MvSubpelPrecision);
-
 #ifdef __cplusplus
 }  // extern "C"
 #endif

@@ -13,6 +13,7 @@
 
 #include "av1/common/av1_common_int.h"
 #include "av1/common/blockd.h"
+#include "av1/common/mv.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -68,17 +69,6 @@ static INLINE int find_valid_col_offset(const TileInfo *const tile, int mi_col,
                                         int col_offset) {
   return clamp(col_offset, tile->mi_col_start - mi_col,
                tile->mi_col_end - mi_col - 1);
-}
-
-static INLINE void lower_mv_precision(MV *mv, int allow_hp, int is_integer) {
-  if (is_integer) {
-    integer_mv_precision(mv);
-  } else {
-    if (!allow_hp) {
-      if (mv->row & 1) mv->row += (mv->row > 0 ? -1 : 1);
-      if (mv->col & 1) mv->col += (mv->col > 0 ? -1 : 1);
-    }
-  }
 }
 
 static INLINE int8_t get_uni_comp_ref_idx(const MV_REFERENCE_FRAME *const rf) {
@@ -235,8 +225,8 @@ void av1_find_mv_refs(const AV1_COMMON *cm, const MACROBLOCKD *xd,
 // check a list of motion vectors by sad score using a number rows of pixels
 // above and a number cols of pixels in the left to select the one with best
 // score to use as ref motion vector
-void av1_find_best_ref_mvs(int allow_hp, int_mv *mvlist, int_mv *nearest_mv,
-                           int_mv *near_mv, int is_integer);
+void av1_find_best_ref_mvs(int_mv *mvlist, int_mv *nearest_mv, int_mv *near_mv,
+                           MvSubpelPrecision precision);
 
 uint8_t av1_selectSamples(MV *mv, int *pts, int *pts_inref, int len,
                           BLOCK_SIZE bsize);

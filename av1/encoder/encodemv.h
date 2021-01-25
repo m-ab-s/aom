@@ -19,7 +19,7 @@ extern "C" {
 #endif
 
 void av1_encode_mv(AV1_COMP *cpi, aom_writer *w, const MV *mv, const MV *ref,
-                   nmv_context *mvctx, int usehp);
+                   nmv_context *mvctx, MvSubpelPrecision precision);
 
 void av1_update_mv_stats(const MV *mv, const MV *ref, nmv_context *mvctx,
                          MvSubpelPrecision precision);
@@ -37,11 +37,10 @@ int_mv av1_get_ref_mv_from_stack(int ref_idx,
                                  const MV_REFERENCE_FRAME *ref_frame,
                                  int ref_mv_idx,
                                  const MB_MODE_INFO_EXT *mbmi_ext);
-void av1_find_best_ref_mvs_from_stack(int allow_hp,
-                                      const MB_MODE_INFO_EXT *mbmi_ext,
+void av1_find_best_ref_mvs_from_stack(const MB_MODE_INFO_EXT *mbmi_ext,
                                       MV_REFERENCE_FRAME ref_frame,
                                       int_mv *nearest_mv, int_mv *near_mv,
-                                      int is_integer);
+                                      MvSubpelPrecision precision);
 
 static INLINE MV_JOINT_TYPE av1_get_mv_joint(const MV *mv) {
   // row:  Z  col:  Z  | MV_JOINT_ZERO   (0)

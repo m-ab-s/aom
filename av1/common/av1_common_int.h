@@ -365,10 +365,9 @@ typedef struct {
    */
   bool disable_cdf_update;
   /*!
-   * If true, motion vectors are specified to eighth pel precision; and
-   * if false, motion vectors are specified to quarter pel precision.
+   * The maximum allowable mv precision of the current frame.
    */
-  bool allow_high_precision_mv;
+  MvSubpelPrecision fr_mv_precision;
   /*!
    * If true, force integer motion vectors; if false, use the default.
    */

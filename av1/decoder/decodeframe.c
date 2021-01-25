@@ -4394,7 +4394,7 @@ static int read_global_motion_params(WarpedMotionParams *params,
                                      int frame,
 #endif  // CONFIG_GM_MODEL_CODING
                                      struct aom_read_bit_buffer *rb,
-                                     int allow_hp) {
+                                     MvSubpelPrecision precision) {
   uint16_t k;
 #if CONFIG_GM_MODEL_CODING
   k = (frame != LAST_FRAME && ref_params->wmtype != IDENTITY)
@@ -4404,6 +4404,7 @@ static int read_global_motion_params(WarpedMotionParams *params,
   k = SUBEXPFIN_K;
 #endif  // CONFIG_GM_MODEL_CODING
 
+  const int precision_loss = get_gm_precision_loss(precision);
   TransformationType type = aom_rb_read_bit(rb);
   if (type != IDENTITY) {
     if (aom_rb_read_bit(rb))
@@ -4446,13 +4447,14 @@ static int read_global_motion_params(WarpedMotionParams *params,
 
   if (type >= TRANSLATION) {
     const int trans_bits = (type == TRANSLATION)
-                               ? GM_ABS_TRANS_ONLY_BITS - !allow_hp
+                               ? GM_ABS_TRANS_ONLY_BITS - precision_loss
                                : GM_ABS_TRANS_BITS;
     const int trans_dec_factor =
-        (type == TRANSLATION) ? GM_TRANS_ONLY_DECODE_FACTOR * (1 << !allow_hp)
-                              : GM_TRANS_DECODE_FACTOR;
+        (type == TRANSLATION)
+            ? GM_TRANS_ONLY_DECODE_FACTOR * (1 << precision_loss)
+            : GM_TRANS_DECODE_FACTOR;
     const int trans_prec_diff = (type == TRANSLATION)
-                                    ? GM_TRANS_ONLY_PREC_DIFF + !allow_hp
+                                    ? GM_TRANS_ONLY_PREC_DIFF + precision_loss
                                     : GM_TRANS_PREC_DIFF;
     params->wmmat[0] = aom_rb_read_signed_primitive_refsubexpfin(
                            rb, (1 << trans_bits) + 1, k,
@@ -4500,7 +4502,7 @@ static AOM_INLINE void read_global_motion(AV1_COMMON *cm,
 #if CONFIG_GM_MODEL_CODING
                                   frame,
 #endif  // CONFIG_GM_MODEL_CODING
-                                  rb, cm->features.allow_high_precision_mv);
+                                  rb, cm->features.fr_mv_precision);
     if (!good_params) {
 #if WARPED_MOTION_DEBUG
       printf("Warning: unexpected global motion shear params from aomenc\n");
@@ -5138,9 +5140,11 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       }
 
       if (features->cur_frame_force_integer_mv) {
-        features->allow_high_precision_mv = 0;
+        features->fr_mv_precision = MV_SUBPEL_NONE;
       } else {
-        features->allow_high_precision_mv = aom_rb_read_bit(rb);
+        features->fr_mv_precision = aom_rb_read_bit(rb)
+                                        ? MV_SUBPEL_EIGHTH_PRECISION
+                                        : MV_SUBPEL_QTR_PRECISION;
       }
       features->interp_filter = read_frame_interp_filter(rb);
       features->switchable_motion_mode = aom_rb_read_bit(rb);

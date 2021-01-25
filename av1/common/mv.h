@@ -56,6 +56,14 @@ typedef struct mv32 {
   int32_t col;
 } MV32;
 
+enum {
+  MV_SUBPEL_NONE = 0,
+  MV_SUBPEL_HALF_PRECISION = 1,
+  MV_SUBPEL_QTR_PRECISION = 2,
+  MV_SUBPEL_EIGHTH_PRECISION = 3,
+  MV_SUBPEL_PRECISIONS,
+} SENUM1BYTE(MvSubpelPrecision);
+
 // The mv limit for fullpel mvs
 typedef struct {
   int col_min;
@@ -86,6 +94,36 @@ static AOM_INLINE MV get_mv_from_fullmv(const FULLPEL_MV *full_mv) {
 
 static AOM_INLINE void convert_fullmv_to_mv(int_mv *mv) {
   mv->as_mv = get_mv_from_fullmv(&mv->as_fullmv);
+}
+
+#define ABS(x) (((x) >= 0) ? (x) : (-(x)))
+
+static INLINE void lower_mv_precision(MV *mv, MvSubpelPrecision precision) {
+  const int radix = (1 << (MV_SUBPEL_EIGHTH_PRECISION - precision));
+  if (radix == 1) return;
+  int mod = (mv->row % radix);
+  if (mod != 0) {
+    mv->row -= mod;
+    if (ABS(mod) > radix / 2) {
+      if (mod > 0) {
+        mv->row += radix;
+      } else {
+        mv->row -= radix;
+      }
+    }
+  }
+
+  mod = (mv->col % radix);
+  if (mod != 0) {
+    mv->col -= mod;
+    if (ABS(mod) > radix / 2) {
+      if (mod > 0) {
+        mv->col += radix;
+      } else {
+        mv->col -= radix;
+      }
+    }
+  }
 }
 
 // Bits of precision used for the model
@@ -223,48 +261,36 @@ static INLINE int block_center_y(int mi_row, BLOCK_SIZE bs) {
   return mi_row * MI_SIZE + bh / 2 - 1;
 }
 
-static INLINE int convert_to_trans_prec(int allow_hp, int coor) {
-  if (allow_hp)
+static INLINE int convert_to_trans_prec(MvSubpelPrecision precision, int coor) {
+  if (precision > MV_SUBPEL_QTR_PRECISION)
     return ROUND_POWER_OF_TWO_SIGNED(coor, WARPEDMODEL_PREC_BITS - 3);
   else
     return ROUND_POWER_OF_TWO_SIGNED(coor, WARPEDMODEL_PREC_BITS - 2) * 2;
 }
-static INLINE void integer_mv_precision(MV *mv) {
-  int mod = (mv->row % 8);
-  if (mod != 0) {
-    mv->row -= mod;
-    if (abs(mod) > 4) {
-      if (mod > 0) {
-        mv->row += 8;
-      } else {
-        mv->row -= 8;
-      }
-    }
-  }
 
-  mod = (mv->col % 8);
-  if (mod != 0) {
-    mv->col -= mod;
-    if (abs(mod) > 4) {
-      if (mod > 0) {
-        mv->col += 8;
-      } else {
-        mv->col -= 8;
-      }
-    }
-  }
+// Returns how many bits do not need to be signaled relative to
+// MV_SUBPEL_EIGHTH_PRECISION
+static INLINE int get_gm_precision_loss(MvSubpelPrecision precision) {
+  // NOTE: there is a bit of an anomaly in AV1 that the translation-only
+  // global parameters are sent only at 1/4 or 1/8 pel resolution depending
+  // on whether the allow_high_precision_mv flag is 0 or 1, but the
+  // cur_frame_force_integer_mv is ignored. Hence the AOMMIN(1, ...)
+  // below, but in CONFIG_FLEX_MVRES we correct that so that translation-
+  // only global parameters are sent at the MV resolution of the frame.
+  return AOMMIN(1, MV_SUBPEL_EIGHTH_PRECISION - precision);
 }
+
 // Convert a global motion vector into a motion vector at the centre of the
 // given block.
 //
 // The resulting motion vector will have three fractional bits of precision. If
-// allow_hp is zero, the bottom bit will always be zero. If CONFIG_AMVR and
-// is_integer is true, the bottom three bits will be zero (so the motion vector
-// represents an integer)
+// precision < MV_SUBPEL_EIGHTH, the bottom bit will always be zero. If
+// CONFIG_AMVR and precision == MV_SUBPEL_NONE, the bottom three bits will be
+// zero (so the motion vector represents an integer)
 static INLINE int_mv gm_get_motion_vector(const WarpedMotionParams *gm,
-                                          int allow_hp, BLOCK_SIZE bsize,
-                                          int mi_col, int mi_row,
-                                          int is_integer) {
+                                          MvSubpelPrecision precision,
+                                          BLOCK_SIZE bsize, int mi_col,
+                                          int mi_row) {
   int_mv res;
 
   if (gm->wmtype == IDENTITY) {
@@ -279,18 +305,17 @@ static INLINE int_mv gm_get_motion_vector(const WarpedMotionParams *gm,
     // All global motion vectors are stored with WARPEDMODEL_PREC_BITS (16)
     // bits of fractional precision. The offset for a translation is stored in
     // entries 0 and 1. For translations, all but the top three (two if
-    // cm->features.allow_high_precision_mv is false) fractional bits are always
+    // precision < MV_SUBPEL_EIGHTH) fractional bits are always
     // zero.
     //
     // After the right shifts, there are 3 fractional bits of precision. If
-    // allow_hp is false, the bottom bit is always zero (so we don't need a
-    // call to convert_to_trans_prec here)
+    // precision < MV_SUBPEL_EIGHTH is false, the bottom bit is always zero
+    // (so we don't need a call to convert_to_trans_prec here)
     res.as_mv.row = gm->wmmat[0] >> GM_TRANS_ONLY_PREC_DIFF;
     res.as_mv.col = gm->wmmat[1] >> GM_TRANS_ONLY_PREC_DIFF;
-    assert(IMPLIES(1 & (res.as_mv.row | res.as_mv.col), allow_hp));
-    if (is_integer) {
-      integer_mv_precision(&res.as_mv);
-    }
+    assert(IMPLIES(1 & (res.as_mv.row | res.as_mv.col),
+                   precision > MV_SUBPEL_EIGHTH_PRECISION));
+    lower_mv_precision(&res.as_mv, precision);
     return res;
   }
 
@@ -306,15 +331,14 @@ static INLINE int_mv gm_get_motion_vector(const WarpedMotionParams *gm,
       (mat[2] - (1 << WARPEDMODEL_PREC_BITS)) * x + mat[3] * y + mat[0];
   const int yc =
       mat[4] * x + (mat[5] - (1 << WARPEDMODEL_PREC_BITS)) * y + mat[1];
-  tx = convert_to_trans_prec(allow_hp, xc);
-  ty = convert_to_trans_prec(allow_hp, yc);
+  tx = convert_to_trans_prec(precision, xc);
+  ty = convert_to_trans_prec(precision, yc);
 
   res.as_mv.row = ty;
   res.as_mv.col = tx;
 
-  if (is_integer) {
-    integer_mv_precision(&res.as_mv);
-  }
+  lower_mv_precision(&res.as_mv, precision);
+
   return res;
 }
 

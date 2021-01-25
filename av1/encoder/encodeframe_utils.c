@@ -1341,7 +1341,7 @@ void av1_set_cost_upd_freq(AV1_COMP *cpi, ThreadData *td,
           mi_col != tile_info->mi_col_start)
         break;
       av1_fill_mv_costs(xd->tile_ctx, cm->features.cur_frame_force_integer_mv,
-                        cm->features.allow_high_precision_mv, &x->mv_costs);
+                        cm->features.fr_mv_precision, &x->mv_costs);
       break;
     default: assert(0);
   }

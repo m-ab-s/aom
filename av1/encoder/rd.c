@@ -714,21 +714,25 @@ void av1_fill_coeff_costs(CoeffCosts *coeff_costs, FRAME_CONTEXT *fc,
   }
 }
 
-void av1_fill_mv_costs(const FRAME_CONTEXT *fc, int integer_mv, int usehp,
-                       MvCosts *mv_costs) {
-  mv_costs->nmv_cost[0] = &mv_costs->nmv_cost_alloc[0][MV_MAX];
-  mv_costs->nmv_cost[1] = &mv_costs->nmv_cost_alloc[1][MV_MAX];
-  mv_costs->nmv_cost_hp[0] = &mv_costs->nmv_cost_hp_alloc[0][MV_MAX];
-  mv_costs->nmv_cost_hp[1] = &mv_costs->nmv_cost_hp_alloc[1][MV_MAX];
+void av1_fill_mv_costs(const FRAME_CONTEXT *fc, int integer_mv,
+                       MvSubpelPrecision precision, MvCosts *mv_costs) {
+  for (MvSubpelPrecision prec = MV_SUBPEL_NONE; prec < MV_SUBPEL_PRECISIONS;
+       prec++) {
+    mv_costs->nmv_costs[prec][0] = &mv_costs->nmv_costs_alloc[prec][0][MV_MAX];
+    mv_costs->nmv_costs[prec][1] = &mv_costs->nmv_costs_alloc[prec][1][MV_MAX];
+  }
+
   if (integer_mv) {
-    mv_costs->mv_cost_stack = (int **)&mv_costs->nmv_cost;
+    mv_costs->mv_cost_stack = mv_costs->nmv_costs[MV_SUBPEL_NONE];
     av1_build_nmv_cost_table(mv_costs->nmv_joint_cost, mv_costs->mv_cost_stack,
                              &fc->nmvc, MV_SUBPEL_NONE);
   } else {
+    const int usehp = precision > MV_SUBPEL_QTR_PRECISION;
     mv_costs->mv_cost_stack =
-        usehp ? mv_costs->nmv_cost_hp : mv_costs->nmv_cost;
+        usehp ? mv_costs->nmv_costs[MV_SUBPEL_EIGHTH_PRECISION]
+              : mv_costs->nmv_costs[MV_SUBPEL_QTR_PRECISION];
     av1_build_nmv_cost_table(mv_costs->nmv_joint_cost, mv_costs->mv_cost_stack,
-                             &fc->nmvc, usehp);
+                             &fc->nmvc, precision);
   }
 }
 
@@ -749,9 +753,10 @@ void av1_initialize_rd_consts(AV1_COMP *cpi) {
 
   if ((!cpi->sf.rt_sf.use_nonrd_pick_mode &&
        cpi->oxcf.cost_upd_freq.mv != COST_UPD_OFF) ||
-      frame_is_intra_only(cm) || (cm->current_frame.frame_number & 0x07) == 1)
+      frame_is_intra_only(cm) || (cm->current_frame.frame_number & 0x07) == 1) {
     av1_fill_mv_costs(cm->fc, cm->features.cur_frame_force_integer_mv,
-                      cm->features.allow_high_precision_mv, mv_costs);
+                      cm->features.fr_mv_precision, mv_costs);
+  }
 
   if (!cpi->sf.rt_sf.use_nonrd_pick_mode && frame_is_intra_only(cm) &&
       cm->features.allow_screen_content_tools &&

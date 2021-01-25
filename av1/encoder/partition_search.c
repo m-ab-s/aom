@@ -1179,25 +1179,25 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
       }
     }
     if (have_newmv_in_inter_mode(mbmi->mode)) {
-      const int allow_hp = cm->features.cur_frame_force_integer_mv
-                               ? MV_SUBPEL_NONE
-                               : cm->features.allow_high_precision_mv;
+      const int fr_mv_precision = cm->features.cur_frame_force_integer_mv
+                                      ? MV_SUBPEL_NONE
+                                      : cm->features.fr_mv_precision;
       if (new_mv) {
         for (int ref = 0; ref < 1 + has_second_ref(mbmi); ++ref) {
           const int_mv ref_mv = av1_get_ref_mv(x, ref);
           av1_update_mv_stats(&mbmi->mv[ref].as_mv, &ref_mv.as_mv, &fc->nmvc,
-                              allow_hp);
+                              fr_mv_precision);
         }
       } else if (mbmi->mode == NEAREST_NEWMV || mbmi->mode == NEAR_NEWMV) {
         const int ref = 1;
         const int_mv ref_mv = av1_get_ref_mv(x, ref);
         av1_update_mv_stats(&mbmi->mv[ref].as_mv, &ref_mv.as_mv, &fc->nmvc,
-                            allow_hp);
+                            fr_mv_precision);
       } else if (mbmi->mode == NEW_NEARESTMV || mbmi->mode == NEW_NEARMV) {
         const int ref = 0;
         const int_mv ref_mv = av1_get_ref_mv(x, ref);
         av1_update_mv_stats(&mbmi->mv[ref].as_mv, &ref_mv.as_mv, &fc->nmvc,
-                            allow_hp);
+                            fr_mv_precision);
       }
     }
   }
