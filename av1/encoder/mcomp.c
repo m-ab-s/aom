@@ -34,11 +34,13 @@
 
 static INLINE void init_mv_cost_params(MV_COST_PARAMS *mv_cost_params,
                                        const MvCosts *mv_costs,
-                                       const MV *ref_mv) {
+                                       const MV *ref_mv,
+                                       MvSubpelPrecision precision) {
   mv_cost_params->ref_mv = ref_mv;
   mv_cost_params->full_ref_mv = get_fullmv_from_mv(ref_mv);
   mv_cost_params->mv_cost_type = MV_COST_ENTROPY;
   mv_cost_params->mv_costs = mv_costs;
+  mv_cost_params->mv_precision = precision;
 }
 
 static INLINE void init_ms_buffers(MSBuffers *ms_buffers, const MACROBLOCK *x) {
@@ -120,7 +122,8 @@ void av1_make_default_fullpel_ms_params(
   av1_set_mv_search_range(&ms_params->mv_limits, ref_mv);
 
   // Mvcost params
-  init_mv_cost_params(&ms_params->mv_cost_params, &x->mv_costs, ref_mv);
+  init_mv_cost_params(&ms_params->mv_cost_params, &x->mv_costs, ref_mv,
+                      cpi->common.features.fr_mv_precision);
 }
 
 void av1_make_default_subpel_ms_params(SUBPEL_MOTION_SEARCH_PARAMS *ms_params,
@@ -129,7 +132,6 @@ void av1_make_default_subpel_ms_params(SUBPEL_MOTION_SEARCH_PARAMS *ms_params,
                                        const MV *ref_mv, const int *cost_list) {
   const AV1_COMMON *cm = &cpi->common;
   // High level params
-  ms_params->mv_precision = cm->features.fr_mv_precision;
   ms_params->forced_stop = cpi->sf.mv_sf.subpel_force_stop;
   ms_params->iters_per_step = cpi->sf.mv_sf.subpel_iters_per_step;
   ms_params->cost_list = cond_cost_list_const(cpi, cost_list);
@@ -137,7 +139,8 @@ void av1_make_default_subpel_ms_params(SUBPEL_MOTION_SEARCH_PARAMS *ms_params,
   av1_set_subpel_mv_search_range(&ms_params->mv_limits, &x->mv_limits, ref_mv);
 
   // Mvcost params
-  init_mv_cost_params(&ms_params->mv_cost_params, &x->mv_costs, ref_mv);
+  init_mv_cost_params(&ms_params->mv_cost_params, &x->mv_costs, ref_mv,
+                      cm->features.fr_mv_precision);
 
   // Subpel variance params
   ms_params->var_params.vfp = &cpi->fn_ptr[bsize];
@@ -223,23 +226,14 @@ static INLINE int mv_cost(const MV *mv, const int *joint_cost,
 }
 
 #define CONVERT_TO_CONST_MVCOST(ptr) ((const int *const *)(ptr))
-// Returns the cost of encoding the motion vector diff := *mv - *ref. The cost
-// is defined as the rate required to encode diff * weight, rounded to the
-// nearest 2 ** 7.
-// This is NOT used during motion compensation.
-int av1_mv_bit_cost(const MV *mv, const MV *ref_mv, const int *mvjcost,
-                    int *mvcost[2], int weight) {
-  const MV diff = { mv->row - ref_mv->row, mv->col - ref_mv->col };
-  return ROUND_POWER_OF_TWO(
-      mv_cost(&diff, mvjcost, CONVERT_TO_CONST_MVCOST(mvcost)) * weight, 7);
-}
 
-static INLINE int get_mv_cost_with_precision(const MV mv, const MV ref_mv,
+static INLINE int get_mv_cost_with_precision(const MV mv, MV ref_mv,
+                                             const MvSubpelPrecision precision,
                                              const MvCosts *mv_costs,
                                              int weight, int round_bits) {
   const int *mvjcost = mv_costs->nmv_joint_cost;
-  const int *const *mvcost = (const int *const *)mv_costs->mv_cost_stack;
-
+  const int *const *mvcost =
+      CONVERT_TO_CONST_MVCOST(mv_costs->nmv_costs[precision]);
   const MV diff = { mv.row - ref_mv.row, mv.col - ref_mv.col };
 
   if (mvcost) {
@@ -247,6 +241,35 @@ static INLINE int get_mv_cost_with_precision(const MV mv, const MV ref_mv,
         (int64_t)mv_cost(&diff, mvjcost, mvcost) * weight, round_bits);
   }
   return 0;
+}
+
+static INLINE int get_intrabc_mv_cost_with_precision(
+    const MV diff, const IntraBCMvCosts *dv_costs, int weight, int round_bits) {
+  const int *dvjcost = dv_costs->joint_mv;
+  const int *const *dvcost = CONVERT_TO_CONST_MVCOST(dv_costs->dv_costs);
+
+  if (dv_costs) {
+    return (int)ROUND_POWER_OF_TWO_64(
+        (int64_t)mv_cost(&diff, dvjcost, dvcost) * weight, round_bits);
+  }
+  return 0;
+}
+
+// Returns the cost of encoding the motion vector diff := *mv - *ref. The cost
+// is defined as the rate required to encode diff * weight, rounded to the
+// nearest 2 ** 7.
+// This is NOT used during motion compensation.
+int av1_mv_bit_cost(const MV *mv, const MV *ref_mv,
+                    const MvSubpelPrecision precision, const MvCosts *mv_costs,
+                    int weight) {
+  return get_mv_cost_with_precision(*mv, *ref_mv, precision, mv_costs, weight,
+                                    7);
+}
+
+int av1_intrabc_mv_bit_cost(const MV *mv, const MV *ref_mv,
+                            const IntraBCMvCosts *mv_costs, int weight) {
+  const MV diff = { mv->row - ref_mv->row, mv->col - ref_mv->col };
+  return get_intrabc_mv_cost_with_precision(diff, mv_costs, weight, 7);
 }
 
 // Returns the cost of using the current mv during the motion search. This is
@@ -258,13 +281,14 @@ static INLINE int mv_err_cost(const MV mv,
   const MV diff = { mv.row - ref_mv.row, mv.col - ref_mv.col };
   const MV abs_diff = { abs(diff.row), abs(diff.col) };
 
+  const MvSubpelPrecision precision = mv_cost_params->mv_precision;
   const MV_COST_TYPE mv_cost_type = mv_cost_params->mv_cost_type;
   const MvCosts *mv_costs = mv_cost_params->mv_costs;
 
   switch (mv_cost_type) {
     case MV_COST_ENTROPY:
       return get_mv_cost_with_precision(
-          mv, ref_mv, mv_costs, mv_costs->errorperbit,
+          mv, ref_mv, precision, mv_costs, mv_costs->errorperbit,
           RDDIV_BITS + AV1_PROB_COST_SHIFT - RD_EPB_SHIFT +
               PIXEL_TRANSFORM_ERROR_SCALE);
     case MV_COST_L1_LOWRES:
@@ -288,17 +312,18 @@ static INLINE int mvsad_err_cost(const FULLPEL_MV mv,
                     GET_MV_SUBPEL(mv.col - ref_mv.col) };
   const MV abs_diff = { abs(diff.row), abs(diff.col) };
 
+  const MvSubpelPrecision precision = mv_cost_params->mv_precision;
   const MvCosts *mv_costs = mv_cost_params->mv_costs;
   const int *mvjcost = mv_costs->nmv_joint_cost;
-  const int *const *mvcost = (const int *const *)mv_costs->mv_cost_stack;
+  const int *const *mvcost =
+      CONVERT_TO_CONST_MVCOST(mv_costs->nmv_costs[precision]);
   const int sad_per_bit = mv_costs->sadperbit;
 
   const MV_COST_TYPE mv_cost_type = mv_cost_params->mv_cost_type;
   switch (mv_cost_type) {
     case MV_COST_ENTROPY:
       return ROUND_POWER_OF_TWO(
-          (unsigned)mv_cost(&diff, mvjcost, CONVERT_TO_CONST_MVCOST(mvcost)) *
-              sad_per_bit,
+          (unsigned)mv_cost(&diff, mvjcost, mvcost) * sad_per_bit,
           AV1_PROB_COST_SHIFT);
     case MV_COST_L1_LOWRES:
       return (SAD_LAMBDA_LOWRES * (abs_diff.row + abs_diff.col)) >> 3;
@@ -2734,7 +2759,8 @@ int av1_find_best_sub_pixel_tree_pruned_evenmore(
     const SUBPEL_MOTION_SEARCH_PARAMS *ms_params, MV start_mv, MV *bestmv,
     int *distortion, unsigned int *sse1, int_mv *last_mv_search_list) {
   (void)cm;
-  const int allow_hp = ms_params->mv_precision > MV_SUBPEL_QTR_PRECISION;
+  const int allow_hp =
+      ms_params->mv_cost_params.mv_precision > MV_SUBPEL_QTR_PRECISION;
   const int forced_stop = ms_params->forced_stop;
   const int iters_per_step = ms_params->iters_per_step;
   const int *cost_list = ms_params->cost_list;
@@ -2818,7 +2844,8 @@ int av1_find_best_sub_pixel_tree_pruned_more(
     const SUBPEL_MOTION_SEARCH_PARAMS *ms_params, MV start_mv, MV *bestmv,
     int *distortion, unsigned int *sse1, int_mv *last_mv_search_list) {
   (void)cm;
-  const int allow_hp = ms_params->mv_precision > MV_SUBPEL_QTR_PRECISION;
+  const int allow_hp =
+      ms_params->mv_cost_params.mv_precision > MV_SUBPEL_QTR_PRECISION;
   const int forced_stop = ms_params->forced_stop;
   const int iters_per_step = ms_params->iters_per_step;
   const int *cost_list = ms_params->cost_list;
@@ -2903,7 +2930,8 @@ int av1_find_best_sub_pixel_tree_pruned(
     const SUBPEL_MOTION_SEARCH_PARAMS *ms_params, MV start_mv, MV *bestmv,
     int *distortion, unsigned int *sse1, int_mv *last_mv_search_list) {
   (void)cm;
-  const int allow_hp = ms_params->mv_precision > MV_SUBPEL_QTR_PRECISION;
+  const int allow_hp =
+      ms_params->mv_cost_params.mv_precision > MV_SUBPEL_QTR_PRECISION;
   const int forced_stop = ms_params->forced_stop;
   const int iters_per_step = ms_params->iters_per_step;
   const int *cost_list = ms_params->cost_list;
@@ -3039,7 +3067,8 @@ int av1_find_best_sub_pixel_tree(MACROBLOCKD *xd, const AV1_COMMON *const cm,
                                  MV start_mv, MV *bestmv, int *distortion,
                                  unsigned int *sse1,
                                  int_mv *last_mv_search_list) {
-  const int allow_hp = ms_params->mv_precision > MV_SUBPEL_QTR_PRECISION;
+  const int allow_hp =
+      ms_params->mv_cost_params.mv_precision > MV_SUBPEL_QTR_PRECISION;
   const int forced_stop = ms_params->forced_stop;
   const int iters_per_step = ms_params->iters_per_step;
   const MV_COST_PARAMS *mv_cost_params = &ms_params->mv_cost_params;
@@ -3111,7 +3140,7 @@ int av1_return_max_sub_pixel_mv(MACROBLOCKD *xd, const AV1_COMMON *const cm,
 
   // In the sub-pel motion search, if hp is not used, then the last bit of mv
   // has to be 0.
-  lower_mv_precision(bestmv, ms_params->mv_precision);
+  lower_mv_precision(bestmv, ms_params->mv_cost_params.mv_precision);
   return besterr;
 }
 
@@ -3136,7 +3165,7 @@ int av1_return_min_sub_pixel_mv(MACROBLOCKD *xd, const AV1_COMMON *const cm,
   unsigned int besterr = 0;
   // In the sub-pel motion search, if hp is not used, then the last bit of mv
   // has to be 0.
-  lower_mv_precision(bestmv, ms_params->mv_precision);
+  lower_mv_precision(bestmv, ms_params->mv_cost_params.mv_precision);
   return besterr;
 }
 
@@ -3186,7 +3215,9 @@ unsigned int av1_refine_warped_mv(MACROBLOCKD *xd, const AV1_COMMON *const cm,
   unsigned int bestmse;
   const SubpelMvLimits *mv_limits = &ms_params->mv_limits;
 
-  const int start = (ms_params->mv_precision > MV_SUBPEL_QTR_PRECISION) ? 0 : 4;
+  const int start =
+      (ms_params->mv_cost_params.mv_precision > MV_SUBPEL_QTR_PRECISION) ? 0
+                                                                         : 4;
 
   // Calculate the center position's error
   assert(av1_is_subpelmv_in_range(mv_limits, *best_mv));
@@ -3400,7 +3431,8 @@ int av1_find_best_obmc_sub_pixel_tree_up(
     const SUBPEL_MOTION_SEARCH_PARAMS *ms_params, MV start_mv, MV *bestmv,
     int *distortion, unsigned int *sse1, int_mv *last_mv_search_list) {
   (void)last_mv_search_list;
-  const int allow_hp = ms_params->mv_precision > MV_SUBPEL_QTR_PRECISION;
+  const int allow_hp =
+      ms_params->mv_cost_params.mv_precision > MV_SUBPEL_QTR_PRECISION;
   const int forced_stop = ms_params->forced_stop;
   const int iters_per_step = ms_params->iters_per_step;
   const MV_COST_PARAMS *mv_cost_params = &ms_params->mv_cost_params;

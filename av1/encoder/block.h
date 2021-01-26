@@ -779,10 +779,7 @@ typedef struct {
    * Here are the entropy costs needed to encode a given mv.
    * \ref nmv_costs_alloc is an array that holds the memory for mv cost. Since
    * the motion vectors can be negative, we save a pointer to the middle of the
-   * array in \ref nmv_costs for easier referencing. Finally, \ref
-   * mv_cost_stack points to the \ref nmv_cost with the mv precision currently
-   * in use. In essence, only \ref mv_cost_stack is needed for
-   * motion search, the other can be considered private.
+   * array in \ref nmv_costs for easier referencing.
    ****************************************************************************/
   /**@{*/
   /*! Costs for coding the zero components. */
@@ -792,10 +789,26 @@ typedef struct {
   int nmv_costs_alloc[MV_SUBPEL_PRECISIONS][2][MV_VALS];
   /*! Points to the middle of \ref nmv_costs_alloc. */
   int *nmv_costs[MV_SUBPEL_PRECISIONS][2];
-  /*! Points to the current mv_cost in use. */
-  int **mv_cost_stack;
   /**@}*/
 } MvCosts;
+
+/*! \brief Holds mv costs for intrabc.
+ */
+typedef struct {
+  /*! Costs for coding the joint mv. */
+  // TODO(huisu@google.com): we can update dv_joint_cost per SB.
+  int joint_mv[MV_JOINTS];
+
+  /*! \brief Cost of transmitting the actual motion vector.
+   *  mv_costs_alloc[0][i] is the cost of motion vector with horizontal
+   * component (mv_row) equal to i - MV_MAX. mv_costs_alloc[1][i] is the cost of
+   * motion vector with vertical component (mv_col) equal to i - MV_MAX.
+   */
+  int dv_costs_alloc[2][MV_VALS];
+
+  /*! Points to the middle of \ref dv_costs_alloc. */
+  int *dv_costs[2];
+} IntraBCMvCosts;
 
 /*! \brief Holds the costs needed to encode the coefficients
  */

@@ -238,8 +238,8 @@ void av1_single_motion_search(const AV1_COMP *const cpi, MACROBLOCK *x,
     this_mv.as_mv = get_mv_from_fullmv(&best_mv->as_fullmv);
     const int ref_mv_idx = mbmi->ref_mv_idx;
     const int this_mv_rate =
-        av1_mv_bit_cost(&this_mv.as_mv, &ref_mv, mv_costs->nmv_joint_cost,
-                        mv_costs->mv_cost_stack, MV_COST_WEIGHT);
+        av1_mv_bit_cost(&this_mv.as_mv, &ref_mv, cm->features.fr_mv_precision,
+                        mv_costs, MV_COST_WEIGHT);
     mode_info[ref_mv_idx].full_search_mv.as_int = this_mv.as_int;
     mode_info[ref_mv_idx].full_mv_rate = this_mv_rate;
 
@@ -315,8 +315,9 @@ void av1_single_motion_search(const AV1_COMP *const cpi, MACROBLOCK *x,
       default: assert(0 && "Invalid motion mode!\n");
     }
   }
-  *rate_mv = av1_mv_bit_cost(&best_mv->as_mv, &ref_mv, mv_costs->nmv_joint_cost,
-                             mv_costs->mv_cost_stack, MV_COST_WEIGHT);
+  *rate_mv =
+      av1_mv_bit_cost(&best_mv->as_mv, &ref_mv, cm->features.fr_mv_precision,
+                      mv_costs, MV_COST_WEIGHT);
 }
 
 void av1_joint_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
@@ -485,9 +486,9 @@ void av1_joint_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
 
   for (ref = 0; ref < 2; ++ref) {
     const int_mv curr_ref_mv = av1_get_ref_mv(x, ref);
-    *rate_mv += av1_mv_bit_cost(&cur_mv[ref].as_mv, &curr_ref_mv.as_mv,
-                                mv_costs->nmv_joint_cost,
-                                mv_costs->mv_cost_stack, MV_COST_WEIGHT);
+    *rate_mv +=
+        av1_mv_bit_cost(&cur_mv[ref].as_mv, &curr_ref_mv.as_mv,
+                        cm->features.fr_mv_precision, mv_costs, MV_COST_WEIGHT);
   }
 }
 
@@ -587,8 +588,9 @@ void av1_compound_single_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
 
   *rate_mv = 0;
 
-  *rate_mv += av1_mv_bit_cost(this_mv, &ref_mv.as_mv, mv_costs->nmv_joint_cost,
-                              mv_costs->mv_cost_stack, MV_COST_WEIGHT);
+  *rate_mv +=
+      av1_mv_bit_cost(this_mv, &ref_mv.as_mv, cm->features.fr_mv_precision,
+                      mv_costs, MV_COST_WEIGHT);
 }
 
 static AOM_INLINE void build_second_inter_pred(const AV1_COMP *cpi,

@@ -74,6 +74,7 @@ typedef struct {
   // The reference mv used to compute the mv cost
   const MV *ref_mv;
   FULLPEL_MV full_ref_mv;
+  MvSubpelPrecision mv_precision;
 
   // Stores the entropy table needed to signal an mv. Includes the joint-mv cost
   // and the diff cost.
@@ -81,8 +82,12 @@ typedef struct {
   MV_COST_TYPE mv_cost_type;
 } MV_COST_PARAMS;
 
-int av1_mv_bit_cost(const MV *mv, const MV *ref_mv, const int *mvjcost,
-                    int *mvcost[2], int weight);
+int av1_mv_bit_cost(const MV *mv, const MV *ref_mv,
+                    const MvSubpelPrecision mv_precision,
+                    const MvCosts *mv_costs, int weight);
+
+int av1_intrabc_mv_bit_cost(const MV *mv, const MV *ref_mv,
+                            const IntraBCMvCosts *mv_costs, int weight);
 
 int av1_get_mvpred_sse(const MV_COST_PARAMS *mv_cost_params,
                        const FULLPEL_MV best_mv,
@@ -328,7 +333,6 @@ typedef struct {
 // during the search
 typedef struct {
   // High level motion search settings
-  MvSubpelPrecision mv_precision;
   const int *cost_list;
   SUBPEL_FORCE_STOP forced_stop;
   int iters_per_step;

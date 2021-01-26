@@ -723,17 +723,22 @@ void av1_fill_mv_costs(const FRAME_CONTEXT *fc, int integer_mv,
   }
 
   if (integer_mv) {
-    mv_costs->mv_cost_stack = mv_costs->nmv_costs[MV_SUBPEL_NONE];
-    av1_build_nmv_cost_table(mv_costs->nmv_joint_cost, mv_costs->mv_cost_stack,
-                             &fc->nmvc, MV_SUBPEL_NONE);
+    av1_build_nmv_cost_table(mv_costs->nmv_joint_cost,
+                             mv_costs->nmv_costs[MV_SUBPEL_NONE], &fc->nmvc,
+                             MV_SUBPEL_NONE);
   } else {
-    const int usehp = precision > MV_SUBPEL_QTR_PRECISION;
-    mv_costs->mv_cost_stack =
-        usehp ? mv_costs->nmv_costs[MV_SUBPEL_EIGHTH_PRECISION]
-              : mv_costs->nmv_costs[MV_SUBPEL_QTR_PRECISION];
-    av1_build_nmv_cost_table(mv_costs->nmv_joint_cost, mv_costs->mv_cost_stack,
-                             &fc->nmvc, precision);
+    av1_build_nmv_cost_table(mv_costs->nmv_joint_cost,
+                             mv_costs->nmv_costs[precision], &fc->nmvc,
+                             precision);
   }
+}
+
+static INLINE void fill_dv_costs(IntraBCMvCosts *dv_costs,
+                                 const FRAME_CONTEXT *fc) {
+  dv_costs->dv_costs[0] = &dv_costs->dv_costs_alloc[0][MV_MAX];
+  dv_costs->dv_costs[1] = &dv_costs->dv_costs_alloc[1][MV_MAX];
+  av1_build_nmv_cost_table(dv_costs->joint_mv, dv_costs->dv_costs, &fc->ndvc,
+                           MV_SUBPEL_NONE);
 }
 
 void av1_initialize_rd_consts(AV1_COMP *cpi) {
@@ -761,11 +766,7 @@ void av1_initialize_rd_consts(AV1_COMP *cpi) {
   if (!cpi->sf.rt_sf.use_nonrd_pick_mode && frame_is_intra_only(cm) &&
       cm->features.allow_screen_content_tools &&
       !is_stat_generation_stage(cpi)) {
-    IntraBCMVCosts *const dv_costs = &cpi->dv_costs;
-    int *dvcost[2] = { &dv_costs->mv_component[0][MV_MAX],
-                       &dv_costs->mv_component[1][MV_MAX] };
-    av1_build_nmv_cost_table(dv_costs->joint_mv, dvcost, &cm->fc->ndvc,
-                             MV_SUBPEL_NONE);
+    fill_dv_costs(&cpi->dv_costs, cm->fc);
   }
 
   if (!is_stat_generation_stage(cpi)) {

@@ -2503,7 +2503,7 @@ typedef struct AV1_COMP {
   /*!
    * Tables to calculate IntraBC MV cost.
    */
-  IntraBCMVCosts dv_costs;
+  IntraBCMvCosts dv_costs;
 
   /*!
    * Mark which ref frames can be skipped for encoding current frame during RDO.

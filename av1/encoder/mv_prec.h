@@ -36,18 +36,6 @@ static AOM_INLINE void av1_set_high_precision_mv(AV1_COMP *cpi,
   features->fr_mv_precision = precision;
   assert(IMPLIES(features->cur_frame_force_integer_mv,
                  precision == MV_SUBPEL_NONE));
-  MvCosts *const mv_costs = &cpi->td.mb.mv_costs;
-
-  for (MvSubpelPrecision prec = MV_SUBPEL_NONE; prec < MV_SUBPEL_PRECISIONS;
-       prec++) {
-    mv_costs->nmv_costs[prec][0] = &mv_costs->nmv_costs_alloc[prec][0][MV_MAX];
-    mv_costs->nmv_costs[prec][1] = &mv_costs->nmv_costs_alloc[prec][1][MV_MAX];
-  }
-
-  const int usehp = precision > MV_SUBPEL_QTR_PRECISION;
-  mv_costs->mv_cost_stack =
-      usehp ? mv_costs->nmv_costs[MV_SUBPEL_EIGHTH_PRECISION]
-            : mv_costs->nmv_costs[MV_SUBPEL_QTR_PRECISION];
 }
 
 void av1_pick_and_set_high_precision_mv(AV1_COMP *cpi, int qindex);
