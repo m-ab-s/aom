@@ -11,10 +11,11 @@
 __author__ = "maggie.sun@intel.com, ryan.lei@intel.com"
 
 import os
+import platform
 import AV2CTCVideo
 
 #TEST_CONFIGURATIONS = ["RA","LD", "AS"]
-TEST_CONFIGURATIONS = ["RA"]
+TEST_CONFIGURATIONS = ["LD", "RA", "AI"]
 
 ######################################
 # configuration settings
@@ -23,10 +24,14 @@ RootPath = "..\\"
 BinPath = os.path.join(RootPath, 'bin')
 WorkPath = os.path.join(RootPath, 'test')
 SMOKE_TEST = False  # override some parameters to do a quick smoke test
-FrameNum = 2
-
-if SMOKE_TEST:
-    FrameNum = 2
+FrameNum = {
+    "LD" : 130,
+    "RA" : 130,
+    "AI" : 30,
+    "AS" : 130,
+}
+EnableTimingInfo = True
+Platform = platform.system()
 
 ############ test contents #######################################
 ContentPath = "D:\\YUVs\\AV2-CTC"
@@ -51,12 +56,19 @@ FFMPEG = os.path.join(BinPath, 'ffmpeg.exe')
 AOMENC = os.path.join(BinPath, 'aomenc.exe')
 SVTAV1 = os.path.join(BinPath, 'SvtAv1EncApp.exe')
 AOMDEC = os.path.join(BinPath, 'aomdec.exe')
-QPs = [23, 31, 39, 47, 55, 63]
+QPs = {
+    "LD" : [23, 31, 39, 47, 55, 63],
+    "RA" : [23, 31, 39, 47, 55, 63],
+    "AI" : [15, 23, 31, 39, 47, 55],
+    "AS" : [23, 31, 39, 47, 55, 63],
+}
+
 ######################## quality evalution config #############################
-QualityList = ['VMAF_Y', 'PSNR_Y', 'PSNR_U', 'PSNR_V', 'SSIM_Y', 'MS-SSIM_Y']
-VMAF = os.path.join(BinPath, 'vmaf_rc.exe')
-CalcBDRateInExcel = False
-EnablePreInterpolation = False
+QualityList = ['PSNR_Y','PSNR_U','PSNR_V','SSIM_Y(dB)','MS-SSIM_Y(dB)','VMAF_Y',
+               'VMAF_Y-NEG','PSNR-HVS','CIEDE2000','APSNR_Y','APSNR_U','APSNR_V']
+VMAF = os.path.join(BinPath, 'vmaf.exe')
+CalcBDRateInExcel = True
+EnablePreInterpolation = True
 
 ######################## config for exporting data to excel  #################
 #https://xlsxwriter.readthedocs.io/working_with_colors.html#colors
@@ -75,7 +87,7 @@ TargetQtyMetrics = {'VMAF_Y': [60, 70, 80, 90],
 CvxH_startCol = 1; CvxH_startRow = 2; CvxH_colInterval = 2
 CvxH_WtCols = [(CvxH_colInterval + 1 + len(QualityList)) * i + CvxH_startCol
                for i in range(len(DnScaleRatio))]
-CvxH_WtRows = [CvxH_startRow + i for i in range(len(QPs))]
+CvxH_WtRows = [CvxH_startRow + i for i in range(len(QPs['AS']))]
 CvxH_WtLastCol = CvxH_WtCols[-1] + len(QualityList)
 CvxH_WtLastRow = CvxH_WtRows[-1]
 

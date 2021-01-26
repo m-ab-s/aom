@@ -62,15 +62,15 @@ def Run_Scaling_Test(clip, dnScalAlgo, upScalAlgo, path_dnscl, path_upscl,
         dnscalyuv = GetDownScaledOutFile(clip, DnScaledW, DnScaledH,
                                          path_dnscl, dnScalAlgo)
         if not os.path.isfile(dnscalyuv):
-            dnscalyuv = DownScaling(clip, FrameNum, DnScaledW, DnScaledH,
+            dnscalyuv = DownScaling(clip, FrameNum['AS'], DnScaledW, DnScaledH,
                                     path_dnscl, path_cfg, dnScalAlgo, LogCmdOnly)
         dnscaled_clip = Clip(GetShortContentName(dnscalyuv, False)+'.y4m',
                              dnscalyuv, "", DnScaledW, DnScaledH,
                              clip.fmt, clip.fps_num, clip.fps_denom,
                              clip.bit_depth)
-        upscaleyuv = UpScaling(dnscaled_clip, FrameNum, clip.width, clip.height,
+        upscaleyuv = UpScaling(dnscaled_clip, FrameNum['AS'], clip.width, clip.height,
                                path_upscl, path_cfg, upScalAlgo, LogCmdOnly)
-        CalculateQualityMetric(clip.file_path, FrameNum, upscaleyuv, clip.fmt,
+        CalculateQualityMetric(clip.file_path, FrameNum['AS'], upscaleyuv, clip.fmt,
                                clip.width, clip.height, clip.bit_depth,
                                path_log, LogCmdOnly)
     if savememory:

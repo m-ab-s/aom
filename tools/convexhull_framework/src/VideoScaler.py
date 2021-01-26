@@ -16,7 +16,7 @@ import logging
 import fileinput
 from shutil import copyfile
 from Config import LoggerName, FFMPEG, HDRToolsConfigFileTemplate, HDRConvert
-from Utils import GetShortContentName, ExecuteCmd
+from Utils import GetShortContentName, ExecuteCmd, md5
 
 subloggername = "VideoScaler"
 loggername = LoggerName + '.' + '%s' % subloggername
@@ -51,12 +51,8 @@ def GenerateCfgFile(clip, outw, outh, algo, outfile, num, configpath):
             line = 'OutputWidth=%d\n' % outw
         if 'OutputHeight=' in line:
             line = 'OutputHeight=%d\n' % outh
-        if 'ScalingMode=' in line:
-            line = 'ScalingMode=3\n'
-        if 'LanczosLobes=' in line:
-            line = 'LanczosLobes=5\n'
         if 'SourceRate=' in line:
-            line = 'SourceRate=%4.4f\n' % (float)(clip.fps_num / clip.fps_denom)
+            line = 'SourceRate=%4.3f\n' % (float)(clip.fps_num / clip.fps_denom)
         if 'SourceChromaFormat=' in line:
             line = 'SourceChromaFormat=%d\n' % fmt
         if 'SourceBitDepthCmp0=' in line:
@@ -66,7 +62,7 @@ def GenerateCfgFile(clip, outw, outh, algo, outfile, num, configpath):
         if 'SourceBitDepthCmp2=' in line:
             line = 'SourceBitDepthCmp2=%d\n' % clip.bit_depth
         if 'OutputRate=' in line:
-            line = 'OutputRate=%4.4f\n' % (float)(clip.fps_num / clip.fps_denom)
+            line = 'OutputRate=%4.3f\n' % (float)(clip.fps_num / clip.fps_denom)
         if 'OutputChromaFormat=' in line:
             line = 'OutputChromaFormat=%d\n' % fmt
         if 'OutputBitDepthCmp0=' in line:
@@ -110,18 +106,31 @@ def GetUpScaledOutFile(clip, outw, outh, algo, path):
     upscaledout = os.path.join(path, filename)
     return upscaledout
 
+def GetDownScaledMD5File(clip, dnw, dnh, path, algo):
+    contentBaseName = GetShortContentName(clip.file_name, False)
+    actual_algo = 'None' if clip.width == dnw and clip.height == dnh else algo
+    filename = contentBaseName + ('_Scaled_%s_%dx%d.md5' % (actual_algo, dnw,
+                                                              dnh))
+    dnscaledmd5 = os.path.join(path, filename)
+    return dnscaledmd5
+
 def DownScaling(clip, num, outw, outh, path, cfg_path, algo, LogCmdOnly = False):
-    dnScalOut = GetDownScaledOutFile(clip, outw, outh, path, algo)
+    dnScaledOut = GetDownScaledOutFile(clip, outw, outh, path, algo)
 
     Utils.CmdLogger.write("::Downscaling\n")
     if (clip.width == outw and clip.height == outh):
-        cmd = "copy %s %s" % (clip.file_path, dnScalOut)
+        cmd = "copy %s %s" % (clip.file_path, dnScaledOut)
         ExecuteCmd(cmd, LogCmdOnly)
     else:
         # call separate process to do the downscaling
-        VideoRescaling(clip, num, outw, outh, dnScalOut, algo, cfg_path,
+        VideoRescaling(clip, num, outw, outh, dnScaledOut, algo, cfg_path,
                        LogCmdOnly)
-    return dnScalOut
+    dnScaleMD5 = GetDownScaledMD5File(clip, outw, outh, path, algo)
+    f = open(dnScaleMD5, 'wt')
+    MD5 = md5(dnScaledOut)
+    f.write(MD5)
+    f.close()
+    return dnScaledOut
 
 def UpScaling(clip, num, outw, outh, path, cfg_path, algo, LogCmdOnly = False):
     upScaleOut = GetUpScaledOutFile(clip, outw, outh, algo, path)

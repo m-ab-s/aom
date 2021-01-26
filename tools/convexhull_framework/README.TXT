@@ -10,18 +10,21 @@ use it for different studies.
 
 Prerequisites
 1. Inside ./bin folder, make sure you have executables for all external tools,
-   such as vmaf_rc, HDRConvert, encoder, decoder, etc. You can get the pre-build
-   binaries or source code for the following tools that are needed:
-   vmaf tools: https://github.com/Netflix/vmaf
-   HDRConvert: https://gitlab.com/standards/HDRTools
-   libaom AV1 encoder/decoder: https://aomedia.googlesource.com/aom/
+   such as vmaf(version v2.1.1+), HDRConvert, encoder, decoder, etc. You can get
+   the pre-build binaries or source code for the following tools that are needed:
+   vmaf tools: https://github.com/Netflix/vmaf/releases/tag/v2.1.1
+   HDRConvert: https://gitlab.com/standards/HDRTools 0.20-dev branch
+   libaom research branch encoder/decoder: https://aomedia.googlesource.com/aom/
    SVT AV1 encoder: https://github.com/OpenVisualCloud/SVT-AV1
    Please always follow the manual of these tools to update the command
-   parameters used in the script
+   parameters used in the script.
+   when EnableTimingInfo is enabled, ptime utility is used on Windows to capture
+   the run time information for encode and decode. On Linux, time utility from
+   Linux system is used to capture run time information.
 
-2. VMAF requires a model file to run. currently, vmaf_v0.6.1 model files
-   (vmaf_v0.6.1.pkl.model, vmaf_v0.6.1.pkl) are used and stored under the ./bin
-   folder.
+2. AV2 CTC has adopted VMAF tool as the reference implementation of all quality
+   metrics required. Using the versioned '--aom_ctc v1.0' at the command line
+   will generate all quality metrics for AV2 CTC.
 
 3. HDRConvert is used to perform downscale and upscale operation. It requires
    a template config file (HDRConvScalerY4MFile.cfg). It is also located under
@@ -44,10 +47,10 @@ Things you need to update to configure the test.
 
 2. Update the test configuration list in ./src/Config.py to specify the test
    configurations. Currently, supported test configurations include Random Access
-   (RA), Low Delay (LD) and Adaptive Streaming (AS).
+   (RA), Low Delay (LD), All Intra(AI) and Adaptive Streaming (AS).
 
 3. Update FrameNum in ./src/Config.py to specify number of frames you want to
-   process.
+   process for different test configurations.
 
 4. Update DnScaleRatio list in ./src/Config.py to provide the list of downscaling
    ratios used for adaptive streaming (convex hull) test configuration.
@@ -59,12 +62,11 @@ Things you need to update to configure the test.
    Right now, only the lanczos filter is supported.
 
 6. Update QPs list in ./src/Config.py to specify the list of QPs you want to
-   test for different codecs. QPs must be in the valid QP range for different
-   coding standards. For example, [0, 63] for AV1.
+   test for different test configurations. QPs must be in the valid QP range for
+   different coding standards. For example, [0, 63] for AV1.
 
 7. Update QualityList in ./src/Config.py to specify quality metrics you want to
-   calculate. Currently, only VMAF_RC is supported for quality metrics calculation.
-   It supports PSNR (for Y, U, V planes), SSIM, MS-SSIM and VMAF for Y plane only.
+   calculate. Currently, only VMAF is supported for quality metrics calculation.
 
 8. Update SMOKE_TEST flag, It is used for sanity check purpose, in which only
    few frames are processed to reduce the test time.
@@ -168,7 +170,8 @@ a sample command is:
 python ConvexHullBDRate.py -i1 ConvexHullRD_ffmpeg_hevc_medium.xlsx
 -i2 ConvexHullRD_ffmpeg_hevc_veryslow.xlsx -o ConvexHullBDRate.xlsm
 
-Sample command lines for running the regular AV2 CTC test:
+Sample command lines for running the regular AV2 CTC test for All Intra(AI),
+Low Delay(LD) and Random Access (RA) configurations:
 "python AV2CTCTest.py [options]"
 
 below is the full command line options in help message:
@@ -194,8 +197,14 @@ Sample command for typical operations:
     and quality metrics steps. Right now, only av1 encoding/decoding with libaom
     is supported. Encoded bitstreams are stored under ./test/bitstreams folder.
     Decoded YUV files are stored under ./test/decodedYUVs folder. Quality logs
-    are stored under ./test/qualityLogs folder.
+    are stored under ./test/qualityLogs folder. Timing information logs are stored
+    under ./test/perfLogs floder.
 
 3.  python AV2CTCTest.py -f summary -p 1
     This command will summarize the quality metrics across all test sequences
     into an csv file stored under the ./analysis/summary folder.
+
+4.  after getting the csv file for two tests (reference and target), content of
+    the csv files can be directly copied into the excel template
+    (AV2Template_Vx.xlsm under the bin folder), which can calculate the BDRATE
+    of the two tests.

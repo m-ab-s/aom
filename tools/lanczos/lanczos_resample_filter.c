@@ -28,29 +28,13 @@
 #define DEF_WIN_TYPE (WIN_LANCZOS)
 
 // Usage:
-//   lanczos_resample_yuv
-//       [<Options>]
-//       <yuv_input>
-//       <width>x<height>
-//       <pix_format>
-//       <num_frames>
-//       <horz_resampling_config>
-//       <vert_resampling_config>
-//       <yuv_output>
-//       [<outwidth>x<outheight>]
+//   lanczos_resample_filter [<Options>] <resampling_config>
 
-void usage_and_exit(char *prog) {
+static void usage_and_exit(char *prog) {
   printf("Usage:\n");
   printf("  %s\n", prog);
   printf("      [<Options>]\n");
-  printf("      <yuv_input>\n");
-  printf("      <width>x<height>\n");
-  printf("      <pix_format>\n");
-  printf("      <num_frames>\n");
-  printf("      <horz_resampling_config>\n");
-  printf("      <vert_resampling_config>\n");
-  printf("      <yuv_output>\n");
-  printf("      [<outwidth>x<outheight>]\n");
+  printf("      <resampling_config>\n");
   printf("      \n");
   printf("  Notes:\n");
   printf("      <Options> are optional switches prefixed by '-' as follows:\n");
@@ -79,15 +63,7 @@ void usage_and_exit(char *prog) {
   printf("                    'kaiser       (Kaiser)\n");
   printf("                                  [default: 'lanczos']\n");
   printf("      \n");
-  printf("      <yuv_input> is the input video in raw YUV format\n");
-  printf("      <yuv_output> is the output video in raw YUV format\n");
-  printf("      <width>x<height> is input video dimensions.\n");
-  printf("      <pix_format> is one of { yuv420p, yuv420p10, yuv420p12,\n");
-  printf("                               yuv422p, yuv422p10, yuv422p12,\n");
-  printf("                               yuv444p, yuv444p10, yuv444p12 }\n");
-  printf("      <num_frames> is number of frames to be processed\n");
-  printf("      <horz_resampling_config> and <vert_resampling_config>\n");
-  printf("              are of the form:\n");
+  printf("      <resampling_config> is of the form:\n");
   printf("          <p>:<q>:<Lanczos_a>[:<x0>] where:\n");
   printf("              <p>/<q> gives the resampling ratio.\n");
   printf("              <Lanczos_a> is Lanczos parameter.\n");
@@ -110,64 +86,8 @@ void usage_and_exit(char *prog) {
   printf("                        luma and chroma lanczos parameters\n");
   printf("                    <x0l> and <x0c> are\n");
   printf("                        luma and chroma initial offsets\n");
-  printf("      <outwidth>x<outheight> is output video dimensions\n");
-  printf("                             only needed in case of upsampling\n");
-  printf("      Resampling config of 1:1:1:0 horizontally or vertically\n");
-  printf("          is regarded as a no-op in that direction\n");
+  printf("      Resampling config of 1:1:1:0 is regarded as a no-op\n");
   exit(1);
-}
-
-static int parse_dim(char *v, int *width, int *height) {
-  char *x = strchr(v, 'x');
-  if (x == NULL) x = strchr(v, 'X');
-  if (x == NULL) return 0;
-  *width = atoi(v);
-  *height = atoi(&x[1]);
-  if (*width <= 0 || *height <= 0)
-    return 0;
-  else
-    return 1;
-}
-
-static int parse_pix_format(char *pix_fmt, int *bitdepth, int *subx,
-                            int *suby) {
-  *bitdepth = 8;
-  if (!strncmp(pix_fmt, "yuv420p", 7)) {
-    *subx = *suby = 1;
-    if (pix_fmt[7] == 0)
-      *bitdepth = 8;
-    else if (!strncmp(pix_fmt, "yuv420p10", 9))
-      *bitdepth = 10;
-    else if (!strncmp(pix_fmt, "yuv420p12", 9))
-      *bitdepth = 12;
-    else
-      *bitdepth = atoi(&pix_fmt[7]);
-  } else if (!strncmp(pix_fmt, "yuv422p", 7)) {
-    *subx = 1;
-    *suby = 0;
-    if (pix_fmt[7] == 0)
-      *bitdepth = 8;
-    else if (!strncmp(pix_fmt, "yuv422p10", 9))
-      *bitdepth = 10;
-    else if (!strncmp(pix_fmt, "yuv422p12", 9))
-      *bitdepth = 12;
-    else
-      *bitdepth = atoi(&pix_fmt[7]);
-  } else if (!strncmp(pix_fmt, "yuv444p", 7)) {
-    *subx = 0;
-    *suby = 0;
-    if (pix_fmt[7] == 0)
-      *bitdepth = 8;
-    else if (!strncmp(pix_fmt, "yuv444p10", 9))
-      *bitdepth = 10;
-    else if (!strncmp(pix_fmt, "yuv444p12", 9))
-      *bitdepth = 12;
-    else
-      *bitdepth = atoi(&pix_fmt[7]);
-  } else {
-    return 0;
-  }
-  return 1;
 }
 
 static int split_words(char *buf, char delim, int nmax, char **words) {
@@ -281,10 +201,8 @@ int main(int argc, char *argv[]) {
   int bits = DEF_COEFF_PREC_BITS;
   EXT_TYPE ext = DEF_EXT_TYPE;
   WIN_TYPE win = DEF_WIN_TYPE;
-
-  RationalResampleFilter horz_rf[2], vert_rf[2];
-  int ywidth, yheight;
-  if (argc < 8) {
+  RationalResampleFilter rf[2];
+  if (argc < 2) {
     printf("Not enough arguments\n");
     usage_and_exit(argv[0]);
   }
@@ -292,124 +210,27 @@ int main(int argc, char *argv[]) {
       !strcmp(argv[1], "--help") || !strcmp(argv[1], "--h"))
     usage_and_exit(argv[0]);
   const int opts = get_options(argv, &bits, &extra_bits, &ext, &win);
-  if (argc < 8 + opts) {
+  if (argc < 2 + opts) {
     printf("Not enough arguments\n");
     usage_and_exit(argv[0]);
   }
 
-  if (!parse_dim(argv[opts + 2], &ywidth, &yheight)) usage_and_exit(argv[0]);
-
-  int subx, suby;
-  int bitdepth;
-  if (!parse_pix_format(argv[opts + 3], &bitdepth, &subx, &suby))
+  int p, q, a[2];
+  double x0[2];
+  if (!parse_rational_config(argv[opts + 1], &p, &q, a, x0))
     usage_and_exit(argv[0]);
-
-  const int bytes_per_pel = (bitdepth + 7) / 8;
-  int num_frames = atoi(argv[opts + 4]);
-
-  int horz_p, horz_q, vert_p, vert_q;
-  int horz_a[2], vert_a[2];
-  double horz_x0[2], vert_x0[2];
-  if (!parse_rational_config(argv[opts + 5], &horz_p, &horz_q, horz_a,
-                             horz_x0)) {
-    printf("Could not parse horz resampling config\n");
-    usage_and_exit(argv[0]);
-  }
-  if (!parse_rational_config(argv[opts + 6], &vert_p, &vert_q, vert_a,
-                             vert_x0)) {
-    printf("Could not parse vert resampling config\n");
-    usage_and_exit(argv[0]);
-  }
-
-  char *yuv_input = argv[opts + 1];
-  char *yuv_output = argv[opts + 7];
-
-  const int uvwidth = subx ? (ywidth + 1) >> 1 : ywidth;
-  const int uvheight = suby ? (yheight + 1) >> 1 : yheight;
-  const int ysize = ywidth * yheight;
-  const int uvsize = uvwidth * uvheight;
-
-  int rywidth = 0, ryheight = 0;
-  if (horz_p > horz_q || vert_p > vert_q) {
-    if (argc < 9 + opts) {
-      printf("Upsampled output dimensions must be provided\n");
-      usage_and_exit(argv[0]);
-    }
-    // Read output dim if one of the dimensions use upscaling
-    if (!parse_dim(argv[opts + 8], &rywidth, &ryheight))
-      usage_and_exit(argv[0]);
-  }
-  if (horz_p <= horz_q)
-    rywidth = get_resampled_output_length(ywidth, horz_p, horz_q, subx);
-  if (vert_p <= vert_q)
-    ryheight = get_resampled_output_length(yheight, vert_p, vert_q, suby);
-
-  printf("InputSize: %dx%d -> OutputSize: %dx%d\n", ywidth, yheight, rywidth,
-         ryheight);
-
-  const int ruvwidth = subx ? (rywidth + 1) >> 1 : rywidth;
-  const int ruvheight = suby ? (ryheight + 1) >> 1 : ryheight;
-  const int rysize = rywidth * ryheight;
-  const int ruvsize = ruvwidth * ruvheight;
 
   for (int k = 0; k < 2; ++k) {
-    if (!get_resample_filter(horz_p, horz_q, horz_a[k], horz_x0[k], ext, win,
-                             subx, bits, &horz_rf[k])) {
+    if (!get_resample_filter(p, q, a[k], x0[k], ext, win, 1, bits, &rf[k])) {
       fprintf(stderr, "Cannot generate filter, exiting!\n");
       exit(1);
     }
-    // show_resample_filter(&horz_rf[k]);
-    if (!get_resample_filter(vert_p, vert_q, vert_a[k], vert_x0[k], ext, win,
-                             suby, bits, &vert_rf[k])) {
-      fprintf(stderr, "Cannot generate filter, exiting!\n");
-      exit(1);
-    }
-    // show_resample_filter(&vert_rf[k]);
+    printf("------------------\n");
+    if (k == 0)
+      printf("LUMA Filter:\n");
+    else
+      printf("CHROMA Filter:\n");
+    printf("------------------\n");
+    show_resample_filter(&rf[k]);
   }
-
-  uint8_t *inbuf =
-      (uint8_t *)malloc((ysize + 2 * uvsize) * bytes_per_pel * sizeof(uint8_t));
-  uint8_t *outbuf = (uint8_t *)malloc((rysize + 2 * ruvsize) * bytes_per_pel *
-                                      sizeof(uint8_t));
-
-  FILE *fin = fopen(yuv_input, "rb");
-  FILE *fout = fopen(yuv_output, "wb");
-
-  ClipProfile clip = { bitdepth, 0 };
-
-  for (int n = 0; n < num_frames; ++n) {
-    if (fread(inbuf, (ysize + 2 * uvsize) * bytes_per_pel, 1, fin) != 1) break;
-    if (bytes_per_pel == 1) {
-      uint8_t *s = inbuf;
-      uint8_t *r = outbuf;
-      resample_2d_8b(s, ywidth, yheight, ywidth, &horz_rf[0], &vert_rf[0],
-                     extra_bits, &clip, r, rywidth, ryheight, rywidth);
-      s += ysize;
-      r += rysize;
-      resample_2d_8b(s, uvwidth, uvheight, uvwidth, &horz_rf[1], &vert_rf[1],
-                     extra_bits, &clip, r, ruvwidth, ruvheight, ruvwidth);
-      s += uvsize;
-      r += ruvsize;
-      resample_2d_8b(s, uvwidth, uvheight, uvwidth, &horz_rf[1], &vert_rf[1],
-                     extra_bits, &clip, r, ruvwidth, ruvheight, ruvwidth);
-    } else {
-      int16_t *s = (int16_t *)inbuf;
-      int16_t *r = (int16_t *)outbuf;
-      resample_2d(s, ywidth, yheight, ywidth, &horz_rf[0], &vert_rf[0],
-                  extra_bits, &clip, r, rywidth, ryheight, rywidth);
-      s += ysize;
-      r += rysize;
-      resample_2d(s, uvwidth, uvheight, uvwidth, &horz_rf[1], &vert_rf[1],
-                  extra_bits, &clip, r, ruvwidth, ruvheight, ruvwidth);
-      s += uvsize;
-      r += ruvsize;
-      resample_2d(s, uvwidth, uvheight, uvwidth, &horz_rf[1], &vert_rf[1],
-                  extra_bits, &clip, r, ruvwidth, ruvheight, ruvwidth);
-    }
-    fwrite(outbuf, (rysize + 2 * ruvsize) * bytes_per_pel, 1, fout);
-  }
-  fclose(fin);
-  fclose(fout);
-  free(inbuf);
-  free(outbuf);
 }

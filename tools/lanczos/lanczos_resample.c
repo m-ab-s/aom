@@ -26,15 +26,25 @@
   (((value) < 0) ? -ROUND_POWER_OF_TWO(-(value), (n)) \
                  : ROUND_POWER_OF_TWO((value), (n)))
 
+#define MAX(a, b) ((a) < (b) ? (b) : (a))
+#define MIN(a, b) ((a) < (b) ? (a) : (b))
+
 #ifndef M_PI
 #define M_PI (3.14159265358979323846)
 #endif
 
 double get_centered_x0(int p, int q) { return (double)(q - p) / (2 * p); }
 
-double get_inverse_x0(int p, int q, double x0) {
-  if (x0 == (double)('c')) x0 = get_centered_x0(p, q);
-  return -x0 * p / q;
+double get_cosited_chroma_x0(int p, int q) { return (double)(q - p) / (4 * p); }
+
+double get_inverse_x0_numeric(int p, int q, double x0) { return -x0 * p / q; }
+
+double get_inverse_x0(int p, int q, double x0, int subsampled) {
+  if (x0 == (double)('c'))
+    x0 = get_centered_x0(p, q);
+  else if (x0 == (double)('d'))
+    x0 = subsampled ? get_cosited_chroma_x0(p, q) : get_centered_x0(p, q);
+  return get_inverse_x0_numeric(p, q, x0);
 }
 
 static inline int16_t doclip(int16_t x, int low, int high) {
@@ -42,9 +52,8 @@ static inline int16_t doclip(int16_t x, int low, int high) {
 }
 
 void show_resample_filter(RationalResampleFilter *rf) {
-  printf("------------------\n");
-  printf("Resample factor %d / %d\n", rf->p, rf->q);
-  printf("Extension type %s\n", ext2str(rf->ext_type));
+  printf("Resample factor: %d / %d\n", rf->p, rf->q);
+  printf("Extension type: %s\n", ext2str(rf->ext_type));
   printf("Start = %d\n", rf->start);
   printf("Steps = ");
   for (int i = 0; i < rf->p; ++i) {
@@ -56,13 +65,13 @@ void show_resample_filter(RationalResampleFilter *rf) {
     printf("%f, ", rf->phases[i]);
   }
   printf("\n");
-  printf("Filters [length %d]:\n", rf->length);
+  printf("Filters [length %d, bits %d]:\n", rf->length, rf->filter_bits);
   for (int i = 0; i < rf->p; ++i) {
     printf("  { ");
     for (int j = 0; j < rf->length; ++j) printf("%d, ", rf->filter[i][j]);
     printf("  }\n");
   }
-  printf("------------------\n");
+  printf("\n");
 }
 
 static double sinc(double x) {
@@ -70,10 +79,74 @@ static double sinc(double x) {
   return sin(M_PI * x) / (M_PI * x);
 }
 
-static double lanczos(double x, int a) {
+static double mod_bessel_first(double x) {
+  const double t = 0.25 * x * x;
+  double fact = 1.0;
+  double tpow = 1.0;
+  double v = 1.0;
+  double dv;
+  int k = 1;
+  do {
+    fact *= k;
+    tpow *= t;
+    dv = tpow / (fact * fact);
+    v += dv;
+    k++;
+  } while (fabs(dv) > fabs(v) * 1e-8);
+  return v;
+}
+
+// This is a window function assumed to be defined between [-1, 1] and
+// with the value at y=0 being 1.
+static double window(double y, WIN_TYPE win) {
+  switch (win) {
+    case WIN_LANCZOS: {
+      return sinc(y);
+    }
+    case WIN_LANCZOS_DIL: {
+      return sinc(y * 0.95);
+    }
+    case WIN_GAUSSIAN: {
+      const double sigma = 0.66;
+      const double sigma2 = sigma * sigma;
+      return exp(-y * y / sigma2);
+    }
+    case WIN_GENGAUSSIAN: {
+      const double alpha = 4;
+      const double sigma = 0.78;
+      return exp(-pow(fabs(y / sigma), alpha));
+    }
+    case WIN_COSINE: {
+      return cos(M_PI * y / 2);
+    }
+    case WIN_HAMMING: {
+      const double a0 = 25.0 / 46.0;
+      const double a1 = 1.0 - a0;
+      return (a0 + a1 * cos(M_PI * y));
+    }
+    case WIN_BLACKMAN: {
+      const double a0 = 0.42659;
+      const double a1 = 0.49656;
+      const double a2 = 1.0 - a0 - a1;
+      return a0 + a1 * cos(M_PI * y) + a2 * cos(2 * M_PI * y);
+    }
+    case WIN_KAISER: {
+      const double alpha = 1.32;
+      const double u = M_PI * alpha;
+      const double v = M_PI * alpha * sqrt(1 - y * y);
+      return mod_bessel_first(v) / mod_bessel_first(u);
+    }
+    default: {
+      assert(0 && "Unknown window type");
+      return 0;
+    }
+  }
+}
+
+static double kernel(double x, int a, WIN_TYPE win_type) {
   const double absx = fabs(x);
   if (absx < (double)a) {
-    return sinc(x) * sinc(x / a);
+    return sinc(x) * window(x / a, win_type);
   } else {
     return 0.0;
   }
@@ -131,13 +204,13 @@ static void integerize_array(double *x, int len, int bits, int16_t *y) {
 }
 
 static void get_lanczos_downsampler(double x, int p, int q, int a, int bits,
-                                    int16_t *ifilter) {
+                                    WIN_TYPE win_type, int16_t *ifilter) {
   double filter[MAX_FILTER_LEN] = { 0.0 };
   int tapsby2 = get_lanczos_downsampler_filter_length(p, q, a) / 2;
   assert(tapsby2 * 2 <= MAX_FILTER_LEN);
   double filter_sum = 0;
   for (int i = -tapsby2 + 1; i <= tapsby2; ++i) {
-    const double tap = lanczos((i - x) * p / q, a);
+    const double tap = kernel((i - x) * p / q, a, win_type);
     filter[i + tapsby2 - 1] = tap;
     filter_sum += tap;
   }
@@ -149,13 +222,13 @@ static void get_lanczos_downsampler(double x, int p, int q, int a, int bits,
 }
 
 static void get_lanczos_upsampler(double x, int p, int q, int a, int bits,
-                                  int16_t *ifilter) {
+                                  WIN_TYPE win_type, int16_t *ifilter) {
   double filter[MAX_FILTER_LEN] = { 0.0 };
   int tapsby2 = get_lanczos_upsampler_filter_length(p, q, a) / 2;
   assert(tapsby2 * 2 <= MAX_FILTER_LEN);
   double filter_sum = 0;
   for (int i = -tapsby2 + 1; i <= tapsby2; ++i) {
-    const double tap = lanczos(i - x, a);
+    const double tap = kernel(i - x, a, win_type);
     filter[i + tapsby2 - 1] = tap;
     filter_sum += tap;
   }
@@ -180,18 +253,36 @@ static int gcd(int p, int q) {
 const char *ext_names[] = { "Repeat", "Symmetric", "Reflect", "Gradient" };
 const char *ext2str(EXT_TYPE ext_type) { return ext_names[(int)ext_type]; }
 
-void get_resample_filter(int p, int q, int a, double x0, EXT_TYPE ext_type,
-                         int bits, RationalResampleFilter *rf) {
+int get_resample_filter(int p, int q, int a, double x0, EXT_TYPE ext_type,
+                        WIN_TYPE win_type, int subsampled, int bits,
+                        RationalResampleFilter *rf) {
   double offset[MAX_RATIONAL_FACTOR + 1];
   int intpel[MAX_RATIONAL_FACTOR];
-  assert(p > 0 && p <= MAX_RATIONAL_FACTOR);
-  assert(q > 0 && q <= MAX_RATIONAL_FACTOR);
+  if (p <= 0 || q <= 0) {
+    fprintf(stderr, "Resampling numerator or denominator must be positive\n");
+    return 0;
+  }
   const int g = gcd(p, q);
   assert(g > 0);
   rf->p = p / g;
   rf->q = q / g;
+  if (rf->p <= 0 || rf->p > MAX_RATIONAL_FACTOR) {
+    fprintf(stderr, "Resampling numerator %d ratio exceeds maximum allowed\n",
+            rf->p);
+    return 0;
+  }
+  if (rf->q <= 0 || rf->q > MAX_RATIONAL_FACTOR) {
+    fprintf(stderr, "Resampling denominator %d ratio exceeds maximum allowed\n",
+            rf->q);
+    return 0;
+  }
   rf->ext_type = ext_type;
-  if (x0 == (double)('c')) x0 = get_centered_x0(rf->p, rf->q);
+  rf->win_type = win_type;
+  if (x0 == (double)('c'))
+    x0 = get_centered_x0(rf->p, rf->q);
+  else if (x0 == (double)('d'))
+    x0 = subsampled ? get_cosited_chroma_x0(rf->p, rf->q)
+                    : get_centered_x0(rf->p, rf->q);
   rf->filter_bits = bits;
   for (int i = 0; i < rf->p; ++i) {
     offset[i] = (double)rf->q / (double)rf->p * i + x0;
@@ -205,27 +296,40 @@ void get_resample_filter(int p, int q, int a, double x0, EXT_TYPE ext_type,
   for (int i = 0; i < rf->p; ++i) rf->steps[i] = intpel[i + 1] - intpel[i];
   if (rf->p < rf->q) {  // downsampling
     rf->length = get_lanczos_downsampler_filter_length(rf->p, rf->q, a);
+    if (rf->length > MAX_FILTER_LEN) {
+      fprintf(stderr, "Filter length %d ratio exceeds maximum allowed\n",
+              rf->length);
+      return 0;
+    }
     for (int i = 0; i < rf->p; ++i) {
-      get_lanczos_downsampler(rf->phases[i], rf->p, rf->q, a, bits,
-                              rf->filter[i]);
+      get_lanczos_downsampler(rf->phases[i], rf->p, rf->q, a, rf->filter_bits,
+                              rf->win_type, rf->filter[i]);
     }
   } else if (rf->p >= rf->q) {  // upsampling
     rf->length = get_lanczos_upsampler_filter_length(rf->p, rf->q, a);
+    if (rf->length > MAX_FILTER_LEN) {
+      fprintf(stderr, "Filter length %d ratio exceeds maximum allowed\n",
+              rf->length);
+      return 0;
+    }
     for (int i = 0; i < rf->p; ++i) {
-      get_lanczos_upsampler(rf->phases[i], rf->p, rf->q, a, bits,
-                            rf->filter[i]);
+      get_lanczos_upsampler(rf->phases[i], rf->p, rf->q, a, rf->filter_bits,
+                            rf->win_type, rf->filter[i]);
     }
   }
+  return 1;
 }
 
 int is_resampler_noop(RationalResampleFilter *rf) {
   return (rf->p == 1 && rf->q == 1 && rf->phases[0] == 0.0);
 }
 
-void get_resample_filter_inv(int p, int q, int a, double x0, EXT_TYPE ext_type,
-                             int bits, RationalResampleFilter *rf) {
-  double y0 = get_inverse_x0(p, q, x0);
-  get_resample_filter(q, p, a, y0, ext_type, bits, rf);
+int get_resample_filter_inv(int p, int q, int a, double x0, EXT_TYPE ext_type,
+                            WIN_TYPE win_type, int subsampled, int bits,
+                            RationalResampleFilter *rf) {
+  double y0 = get_inverse_x0(p, q, x0, subsampled);
+  return get_resample_filter(q, p, a, y0, ext_type, win_type, subsampled, bits,
+                             rf);
 }
 
 // Assume x buffer is already extended on both sides with x pointing to the
@@ -242,11 +346,13 @@ static void resample_1d_core(const int16_t *x, int inlen,
     for (int j = -tapsby2 + 1; j <= tapsby2; ++j) {
       sum += (int)rf->filter[p][j + tapsby2 - 1] * (int)xext[j];
     }
-    y[i] = ROUND_POWER_OF_TWO_SIGNED(sum, downshift);
+    sum = ROUND_POWER_OF_TWO_SIGNED(sum, downshift);
     if (clip) {
-      y[i] = (int16_t)clip->issigned ? doclip(y[i], -(1 << (clip->bits - 1)),
+      y[i] = (int16_t)clip->issigned ? doclip(sum, -(1 << (clip->bits - 1)),
                                               (1 << (clip->bits - 1)) - 1)
-                                     : doclip(y[i], 0, (1 << clip->bits) - 1);
+                                     : doclip(sum, 0, (1 << clip->bits) - 1);
+    } else {
+      y[i] = (int16_t)sum;
     }
     xext += rf->steps[p];
   }
@@ -371,6 +477,8 @@ void resample_2d(const int16_t *x, int inwidth, int inheight, int instride,
   int16_t *tmparrv = tmparr_ + outheight + rfv->length / 2;
   int16_t *tmparro = tmparr_;
   int tmpstride = outwidth;
+  // intermediate data is stored in 16 bit buffers, so limit int_extra_bits
+  int_extra_bits = MIN(int_extra_bits, 15 - clip->bits);
   const int downshifth = rfh->filter_bits - int_extra_bits;
   const int downshiftv = rfh->filter_bits + int_extra_bits;
   for (int i = 0; i < inheight; ++i) {
@@ -430,11 +538,13 @@ static void resample_1d_core_in8b(const uint8_t *x, int inlen,
     for (int j = -tapsby2 + 1; j <= tapsby2; ++j) {
       sum += (int)rf->filter[p][j + tapsby2 - 1] * (int)xext[j];
     }
-    y[i] = (int16_t)ROUND_POWER_OF_TWO_SIGNED(sum, downshift);
+    sum = ROUND_POWER_OF_TWO_SIGNED(sum, downshift);
     if (clip) {
-      y[i] = (int16_t)clip->issigned ? doclip(y[i], -(1 << (clip->bits - 1)),
+      y[i] = (int16_t)clip->issigned ? doclip(sum, -(1 << (clip->bits - 1)),
                                               (1 << (clip->bits - 1)) - 1)
-                                     : doclip(y[i], 0, (1 << clip->bits) - 1);
+                                     : doclip(sum, 0, (1 << clip->bits) - 1);
+    } else {
+      y[i] = (int16_t)sum;
     }
     xext += rf->steps[p];
   }
@@ -454,11 +564,13 @@ static void resample_1d_core_8b(const uint8_t *x, int inlen,
     for (int j = -tapsby2 + 1; j <= tapsby2; ++j) {
       sum += (int)rf->filter[p][j + tapsby2 - 1] * (int)xext[j];
     }
-    y[i] = (uint8_t)ROUND_POWER_OF_TWO_SIGNED(sum, downshift);
+    sum = ROUND_POWER_OF_TWO_SIGNED(sum, downshift);
     if (clip) {
-      y[i] = (uint8_t)clip->issigned ? doclip(y[i], -(1 << (clip->bits - 1)),
+      y[i] = (uint8_t)clip->issigned ? doclip(sum, -(1 << (clip->bits - 1)),
                                               (1 << (clip->bits - 1)) - 1)
-                                     : doclip(y[i], 0, (1 << clip->bits) - 1);
+                                     : doclip(sum, 0, (1 << clip->bits) - 1);
+    } else {
+      y[i] = (uint8_t)sum;
     }
     xext += rf->steps[p];
   }
@@ -605,6 +717,8 @@ void resample_2d_8b(const uint8_t *x, int inwidth, int inheight, int instride,
   int16_t *tmparrv = tmparr_ + outheight + rfv->length / 2;
   int16_t *tmparro = tmparr_;
   int tmpstride = outwidth;
+  // intermediate data is stored in 16 bit buffers, so limit int_extra_bits
+  int_extra_bits = MIN(int_extra_bits, 15 - clip->bits);
   const int downshifth = rfh->filter_bits - int_extra_bits;
   const int downshiftv = rfh->filter_bits + int_extra_bits;
   for (int i = 0; i < inheight; ++i) {

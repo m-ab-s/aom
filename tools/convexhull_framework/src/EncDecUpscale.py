@@ -37,36 +37,48 @@ def GetDecodedFile(bsfile, outpath):
     decodedfile = os.path.join(outpath, filename)
     return decodedfile
 
+def GetEncPerfFile(bsfile, perfpath):
+    filename = GetShortContentName(bsfile, False) + '_EncTime.txt'
+    return os.path.join(perfpath, filename)
+
+def GetDecPerfFile(bsfile, perfpath):
+    filename = GetShortContentName(bsfile, False) + '_DecTime.txt'
+    return os.path.join(perfpath, filename)
+
 ################################################################################
 ##################### Major Functions ##########################################
-def Encode(method, codec, preset, clip, test_cfg, qp, num, path,
+def Encode(method, codec, preset, clip, test_cfg, qp, num, bs_path, perf_path,
            LogCmdOnly=False):
     bsfile = GetBitstreamFile(method, codec, test_cfg, preset, clip.file_path,
-                              qp, path)
+                              qp, bs_path)
+    enc_perf = GetEncPerfFile(bsfile, perf_path)
     # call VideoEncoder to do the encoding
-    VideoEncode(method, codec, clip, test_cfg, qp, num, bsfile, preset,
+    VideoEncode(method, codec, clip, test_cfg, qp, num, bsfile, preset, enc_perf,
                 LogCmdOnly)
     return bsfile
 
-def Decode(codec, bsfile, path, LogCmdOnly=False):
+def Decode(codec, bsfile, path, perf_path, LogCmdOnly=False):
     decodedfile = GetDecodedFile(bsfile, path)
+    dec_perf = GetDecPerfFile(bsfile, perf_path)
     #call VideoDecoder to do the decoding
-    VideoDecode(codec, bsfile, decodedfile, LogCmdOnly)
+    VideoDecode(codec, bsfile, decodedfile, dec_perf, LogCmdOnly)
     return decodedfile
 
 def Run_EncDec_Upscale(method, codec, preset, clip, test_cfg, QP, num, outw,
                        outh, path_bs, path_decoded, path_upscaled, path_cfg,
-                       upscale_algo, LogCmdOnly = False):
+                       path_perf, upscale_algo, LogCmdOnly = False):
     logger.info("%s %s start encode file %s with QP = %d" %
                 (method, codec, clip.file_name, QP))
     bsFile = Encode(method, codec, preset, clip, test_cfg, QP, num, path_bs,
-                    LogCmdOnly)
+                    path_perf, LogCmdOnly)
     logger.info("start decode file %s" % os.path.basename(bsFile))
-    decodedYUV = Decode(codec, bsFile, path_decoded, LogCmdOnly)
+    decodedYUV = Decode(codec, bsFile, path_decoded, path_perf, LogCmdOnly)
     logger.info("start upscale file %s" % os.path.basename(decodedYUV))
+    #hard code frame rate to 30fps to match with decoder output for now.
+    #TODO: change to real frame rate after decoder fix the issue
     dec_clip = Clip(GetShortContentName(decodedYUV, False) + '.y4m',
                     decodedYUV, clip.file_class, clip.width, clip.height,
-                    clip.fmt, clip.fps_num, clip.fps_denom, clip.bit_depth)
+                    clip.fmt, 30, 1, clip.bit_depth)
     upscaledYUV = UpScaling(dec_clip, num, outw, outh, path_upscaled, path_cfg,
                             upscale_algo, LogCmdOnly)
     logger.info("finish Run Encode, Decode and Upscale")

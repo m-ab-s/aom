@@ -837,7 +837,11 @@ typedef struct {
  */
 typedef struct {
   unsigned char is_filtered[MAX_SUBGOP_STATS_SIZE];
-  unsigned int pyramid_level[MAX_SUBGOP_STATS_SIZE];
+  int pyramid_level[MAX_SUBGOP_STATS_SIZE];
+  int ref_frame_pyr_level[MAX_SUBGOP_STATS_SIZE][INTER_REFS_PER_FRAME];
+  int ref_frame_disp_order[MAX_SUBGOP_STATS_SIZE][INTER_REFS_PER_FRAME];
+  int is_valid_ref_frame[MAX_SUBGOP_STATS_SIZE][INTER_REFS_PER_FRAME];
+  int num_references[MAX_SUBGOP_STATS_SIZE];
   unsigned char stat_count;
 } SubGOPStatsEnc;
 
@@ -874,6 +878,11 @@ typedef struct {
   /*!\endcond */
 } GF_GROUP;
 /*!\cond */
+
+typedef struct {
+  // Track if the last frame in a GOP has higher quality.
+  int arf_gf_boost_lst;
+} GF_STATE;
 
 typedef struct {
   int8_t num_configs;
@@ -2331,6 +2340,11 @@ typedef struct AV1_COMP {
    * Information related to a gf group.
    */
   GF_GROUP gf_group;
+
+  /*!
+   * Track prior gf group state.
+   */
+  GF_STATE gf_state;
 
   /*!
    * Information related to a subgop.

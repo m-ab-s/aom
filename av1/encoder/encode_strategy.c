@@ -33,6 +33,7 @@
 #include "av1/encoder/pass2_strategy.h"
 #include "av1/encoder/temporal_filter.h"
 #include "av1/encoder/tpl_model.h"
+#include "av1/encoder/encoder_utils.h"
 
 #if CONFIG_TUNE_VMAF
 #include "av1/encoder/tune_vmaf.h"
@@ -365,6 +366,10 @@ static void get_gop_cfg_enabled_refs(AV1_COMP *const cpi, int *ref_frame_flags,
         best_disp_order = disp_order;
       }
     }
+    update_subgop_ref_stats(&cpi->subgop_stats,
+                            cpi->oxcf.unit_test_cfg.enable_subgop_stats, i,
+                            (best_frame < 0) ? 0 : 1, level, best_disp_order,
+                            (int)step_gop_cfg->num_references);
     if (best_frame == -1) {
       fprintf(stderr,
               "Warning [Subgop cfg]: "

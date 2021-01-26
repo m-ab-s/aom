@@ -13,6 +13,7 @@ __author__ = "maggie.sun@intel.com, ryan.lei@intel.com"
 import numpy as np
 import math
 import scipy.interpolate
+import matplotlib.pyplot as plt
 import logging
 from Config import LoggerName
 from operator import itemgetter
@@ -21,50 +22,27 @@ subloggername = "CalcBDRate"
 loggername = LoggerName + '.' + '%s' % subloggername
 logger = logging.getLogger(loggername)
 
-
-def Interpolate(qp, logbr, qty):
+def plot_rd_curve(br, qty, qty_str, line_color=None, line_style=None, marker_format=None):
+    # generate samples between max and min of quality metrics
     '''
-    generate interpolated RD sampling point based on QP values.
-    using bilinear interpolation. bit rate are in the log domain
-    incoming logbr and qty should be in the increasing order
-    incoming qp could be in any order
+    brqtypairs = []
+    for i in range(min(len(qty), len(br))):
+        brqtypairs.append((br[i], qty[i]))
+    brqtypairs.sort(key = itemgetter(0, 1))
+    new_br = [brqtypairs[i][0] for i in range(len(brqtypairs))]
+    new_qty = [brqtypairs[i][1] for i in range(len(brqtypairs))]
+    min_br = min(new_br)
+    max_br = max(new_br)
+    lin = np.linspace(min_br, max_br, num=100, retstep=True)
+    samples = lin[0]
+    v = scipy.interpolate.pchip_interpolate(new_br, new_qty, samples)
+    plt.plot(samples, v, linestyle=line_style, color=line_color)
+    plt.scatter(new_br, new_qty, color=line_color, marker=marker_format)
     '''
-    int_qp = []; int_logbr = []; int_qty = []
-    for i in range(0, len(qp)):
-        int_qp.append(qp[i])
-        int_logbr.append(logbr[i])
-        int_qty.append(qty[i])
-        #handle duplicated qp
-        if (i<len(qp)-1) and (qp[i] == qp[i+1]):
-            continue
-        #interpolate logbr and quality point between qp[i] and qp[i+1]
-        #qp order is non-determinstics, because it could come from different resolution
-        if (i<len(qp)-1) and ((qp[i] != qp[i + 1] + 1) or (qp[i] != qp[i + 1] - 1)):
-            qlist = []
-            if (qp[i+1] > qp[i]):
-                qlist = range(qp[i] + 1, qp[i+1], 1)
-            else:
-                qlist = range(qp[i] - 1, qp[i+1], -1)
-            for q in qlist:
-                # bitrate(qp_target) = (bitrate(qp0) - bitrate(qp1)) / (qp0 - qp1) * (qp_target - qp0) + bitrate(qp0)
-                # quality(qp_target) = (quality(qp0) - quality(qp1)) / (qp0 - qp1) * (qp_target - qp0) + quality(qp0)
-                # result int_logbr and int_qty will always be in non-decreasing order.
-                # but order of int_qp is similar as input qp
-                br = (logbr[i] - logbr[i + 1]) / (qp[i] - qp[i + 1]) * (q - qp[i]) + logbr[i]
-                qt = (qty[i] - qty[i + 1]) / (qp[i] - qp[i + 1]) * (q - qp[i]) + qty[i]
-                int_qp.append(q)
-                int_logbr.append(br)
-                int_qty.append(qt)
-    '''
-    print("before interpolation:")
-    for i in range(len(qp)):
-        print("%d,  %f, %f"%(qp[i], logbr[i], qty[i]))
-    print("after interpolation:")
-    for i in range(len(int_qp)):
-        print("%d,  %f, %f"%(int_qp[i], int_logbr[i], int_qty[i]))
-    '''
-    return int_qp, int_logbr, int_qty
-
+    plt.plot(br, qty, linestyle=line_style, color=line_color)
+    plt.scatter(br, qty, color=line_color, marker=marker_format)
+    plt.xlabel('bdrate(Kbps)')
+    plt.ylabel(qty_str)
 
 def non_decreasing(L):
     return all(x<=y for x, y in zip(L, L[1:]))
@@ -72,17 +50,39 @@ def non_decreasing(L):
 def check_monotonicity(RDPoints):
     '''
     check if the input list of RD points are monotonic, assuming the input
-    has been sorted in the quality value ono-decreasing order. expect the bit
-    rate should also be in the non-decreasing
+    has been sorted in the quality value non-decreasing order. expect the bit
+    rate should also be in the non-decreasing order
     '''
     br = [RDPoints[i][0] for i in range(len(RDPoints))]
     qty = [RDPoints[i][1] for i in range(len(RDPoints))]
     return non_decreasing(br) and non_decreasing(qty)
 
+def filter_vmaf_non_monotonic(br_qty_pairs):
+    '''
+    To solve the problem with VMAF non-monotonicity in a flat (saturated)
+    region of the curve, if VMAF non-monotonicity happens at VMAF value
+    99.5 or above, the non-monotonic value and the values corresponding
+    to bitrates higher than the non-monotonic value are excluded from the
+    BD-rate calculation. The VMAF BD-rate number is still reported and
+    used in the VMAF metric average.
+    '''
+    #first sort input RD pairs by bit rate
+    out_br_qty_pairs = []
+    br_qty_pairs.sort(key = itemgetter(0, 1))
+    for i in range(len(br_qty_pairs)):
+        if (i != 0 and
+            br_qty_pairs[i][0] >= out_br_qty_pairs[-1][0] and
+            br_qty_pairs[i][1] < out_br_qty_pairs[-1][1] and
+            out_br_qty_pairs[-1][1] >= 99.5):
+            break
+        else:
+            out_br_qty_pairs.append(br_qty_pairs[i])
+    return out_br_qty_pairs
+
 # BJONTEGAARD    Bjontegaard metric
 # Calculation is adapted from Google implementation
 # PCHIP method - Piecewise Cubic Hermite Interpolating Polynomial interpolation
-def BD_RATE(br1, qtyMtrc1, br2, qtyMtrc2):
+def BD_RATE(qty_type, br1, qtyMtrc1, br2, qtyMtrc2):
     brqtypairs1 = []; brqtypairs2 = []
     for i in range(min(len(qtyMtrc1), len(br1))):
         if (br1[i] != '' and qtyMtrc1[i] != ''):
@@ -91,6 +91,10 @@ def BD_RATE(br1, qtyMtrc1, br2, qtyMtrc2):
         if (br2[i] != '' and qtyMtrc2[i] != ''):
             brqtypairs2.append((br2[i], qtyMtrc2[i]))
 
+    if (qty_type == 'VMAF_Y' or qty_type == 'VMAF_Y-NEG'):
+        brqtypairs1 = filter_vmaf_non_monotonic(brqtypairs1)
+        brqtypairs2 = filter_vmaf_non_monotonic(brqtypairs2)
+
     # sort the pair based on quality metric values in increasing order
     # if quality metric values are the same, then sort the bit rate in increasing order
     brqtypairs1.sort(key = itemgetter(1, 0))
@@ -98,8 +102,8 @@ def BD_RATE(br1, qtyMtrc1, br2, qtyMtrc2):
 
     rd1_monotonic = check_monotonicity(brqtypairs1)
     rd2_monotonic = check_monotonicity(brqtypairs2)
-    if (not rd1_monotonic or not rd2_monotonic):
-        return "Error"
+    if (rd1_monotonic == False or rd2_monotonic == False):
+        return "Non-monotonic Error"
 
     logbr1 = [math.log(x[0]) for x in brqtypairs1]
     qmetrics1 = [100.0 if x[1] == float('inf') else x[1] for x in brqtypairs1]
@@ -148,14 +152,22 @@ def BD_RATE(br1, qtyMtrc1, br2, qtyMtrc2):
 
 '''
 if __name__ == "__main__":
-    brs1 = [9563.04, 6923.28, 4894.8, 3304.32, 2108.4, 1299.84]
-    qtys1 = [50.0198, 46.9709, 43.4791, 39.6659, 35.8063, 32.3055]
-    brs2 = [9758.88, 7111.68, 5073.36, 3446.4, 2178, 1306.56]
-    qtys2 = [49.6767, 46.7027, 43.2038, 39.297, 35.2944, 31.5938]
+    br1 = [9563.04, 6923.28, 4894.8, 3304.32, 2108.4, 1299.84]
+    #qty1 = [50.0198, 46.9709, 43.4791, 39.6659, 35.8063, 32.3055]
+    #qty1 = [50.0198, 46.9709, 43.4791, 48.0000, 35.8063, 32.3055]
+    qty1 = [99.8198, 99.7709, 98.4791, 99.5000, 98.8063, 98.3055]
+    br2 = [9758.88, 7111.68, 5073.36, 3446.4, 2178, 1306.56]
+    #qty2 = [49.6767, 46.7027, 43.2038, 39.297, 35.2944, 31.5938]
+    qty2 = [99.8767, 99.7027, 99.2038, 99.200, 98.2944, 97.5938]
+    qty_type = 'VMAF-Y'
 
-    bdrate = BD_RATE(brs1, qtys1, brs2, qtys2)
-    if bdrate != 'Error':
+    plot_rd_curve(br1, qty1, qty_type, 'r', '-', 'o')
+    plot_rd_curve(br2, qty2, qty_type, 'b', '-', '*')
+    plt.show()
+
+    bdrate = BD_RATE('VMAF_Y', br1, qty1, br2, qty2)
+    if bdrate != 'Non-monotonic Error':
         print("bdrate calculated is %3.3f%%" % bdrate)
     else:
-        print("there is error in bdrate calculation")
+        print("there is Non-monotonic Error in bdrate calculation")
 '''

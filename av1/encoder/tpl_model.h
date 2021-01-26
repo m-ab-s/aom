@@ -197,11 +197,10 @@ typedef struct TplParams {
  * \param[in]    frame_params  Per frame encoding parameters
  * \param[in]    frame_input   Input frame buffers
  *
- * \return Indicates whether or not we should use a longer GOP length.
  */
-int av1_tpl_setup_stats(struct AV1_COMP *cpi, int gop_eval,
-                        const struct EncodeFrameParams *const frame_params,
-                        const struct EncodeFrameInput *const frame_input);
+void av1_tpl_setup_stats(struct AV1_COMP *cpi, int gop_eval,
+                         const struct EncodeFrameParams *const frame_params,
+                         const struct EncodeFrameInput *const frame_input);
 
 /*!\cond */
 

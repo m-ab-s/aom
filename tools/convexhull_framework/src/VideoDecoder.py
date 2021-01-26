@@ -11,17 +11,22 @@
 __author__ = "maggie.sun@intel.com, ryan.lei@intel.com"
 
 import Utils
-from Config import AOMDEC
+from Config import AOMDEC, EnableTimingInfo, Platform
 from Utils import ExecuteCmd
 
-def DecodeWithAOM(infile, outfile, LogCmdOnly=False):
+def DecodeWithAOM(infile, outfile, dec_perf, LogCmdOnly=False):
     args = " --codec=av1 --summary -o %s %s" % (outfile, infile)
     cmd = AOMDEC + args
+    if EnableTimingInfo:
+        if Platform == "Windows":
+            cmd = "ptime " + cmd + " >%s"%dec_perf
+        else:
+            cmd = "/usr/bin/time --verbose --output=%s "%dec_perf + cmd
     ExecuteCmd(cmd, LogCmdOnly)
 
-def VideoDecode(codec, infile, outfile, LogCmdOnly=False):
+def VideoDecode(codec, infile, outfile, dec_perf, LogCmdOnly=False):
     Utils.CmdLogger.write("::Decode\n")
     if codec == 'av1':
-        DecodeWithAOM(infile, outfile, LogCmdOnly)
+        DecodeWithAOM(infile, outfile, dec_perf, LogCmdOnly)
     else:
         raise ValueError("invalid parameter for decode.")

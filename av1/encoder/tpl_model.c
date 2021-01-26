@@ -1138,9 +1138,9 @@ void av1_init_tpl_stats(TplParams *const tpl_data) {
   }
 }
 
-int av1_tpl_setup_stats(AV1_COMP *cpi, int gop_eval,
-                        const EncodeFrameParams *const frame_params,
-                        const EncodeFrameInput *const frame_input) {
+void av1_tpl_setup_stats(AV1_COMP *cpi, int gop_eval,
+                         const EncodeFrameParams *const frame_params,
+                         const EncodeFrameInput *const frame_input) {
   AV1_COMMON *cm = &cpi->common;
   MultiThreadInfo *const mt_info = &cpi->mt_info;
   AV1TplRowMultiThreadInfo *const tpl_row_mt = &mt_info->tpl_row_mt;
@@ -1151,7 +1151,7 @@ int av1_tpl_setup_stats(AV1_COMP *cpi, int gop_eval,
 
   if (cpi->superres_mode != AOM_SUPERRES_NONE) {
     assert(cpi->superres_mode != AOM_SUPERRES_AUTO);
-    return 0;
+    return;
   }
 
   cm->current_frame.frame_type = frame_params->frame_type;
@@ -1223,46 +1223,6 @@ int av1_tpl_setup_stats(AV1_COMP *cpi, int gop_eval,
                                frame_params->frame_type, 0);
   cm->current_frame.frame_type = frame_params->frame_type;
   cm->show_frame = frame_params->show_frame;
-
-  if (cpi->common.tiles.large_scale) return 0;
-  if (gf_group->max_layer_depth_allowed == 0) return 1;
-  assert(gf_group->arf_index >= 0);
-
-  double beta[2] = { 0.0 };
-  for (int frame_idx = gf_group->arf_index;
-       frame_idx <= AOMMIN(tpl_gf_group_frames - 1, gf_group->arf_index + 1);
-       ++frame_idx) {
-    TplDepFrame *tpl_frame = &tpl_data->tpl_frame[frame_idx];
-    TplDepStats *tpl_stats = tpl_frame->tpl_stats_ptr;
-    int tpl_stride = tpl_frame->stride;
-    int64_t intra_cost_base = 0;
-    int64_t mc_dep_cost_base = 0;
-    const int step = 1 << tpl_data->tpl_stats_block_mis_log2;
-    const int row_step = step;
-    const int col_step_sr =
-        coded_to_superres_mi(step, cm->superres_scale_denominator);
-    const int mi_cols_sr = av1_pixels_to_mi(cm->superres_upscaled_width);
-
-    for (int row = 0; row < cm->mi_params.mi_rows; row += row_step) {
-      for (int col = 0; col < mi_cols_sr; col += col_step_sr) {
-        TplDepStats *this_stats = &tpl_stats[av1_tpl_ptr_pos(
-            row, col, tpl_stride, tpl_data->tpl_stats_block_mis_log2)];
-        int64_t mc_dep_delta =
-            RDCOST(tpl_frame->base_rdmult, this_stats->mc_dep_rate,
-                   this_stats->mc_dep_dist);
-        intra_cost_base += (this_stats->recrf_dist << RDDIV_BITS);
-        mc_dep_cost_base +=
-            (this_stats->recrf_dist << RDDIV_BITS) + mc_dep_delta;
-      }
-    }
-    beta[frame_idx - gf_group->arf_index] =
-        (double)mc_dep_cost_base / intra_cost_base;
-  }
-
-  // Allow larger GOP size if the base layer ARF has higher dependency factor
-  // than the intermediate ARF and both ARFs have reasonably high dependency
-  // factors.
-  return (beta[0] >= beta[1] + 0.7) && beta[0] > 3.0;
 }
 
 void av1_tpl_rdmult_setup(AV1_COMP *cpi) {

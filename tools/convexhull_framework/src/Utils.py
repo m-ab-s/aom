@@ -16,8 +16,9 @@ import sys
 import subprocess
 import time
 import logging
+import hashlib
 from Config import LogLevels, ContentPath
-from AV2CTCVideo import Y4M_CLIPs, CTC_TEST_SET, AS_TEST_SET
+from AV2CTCVideo import Y4M_CLIPs, CTC_TEST_SET
 
 class Clip:
     file_name = ""
@@ -98,7 +99,7 @@ def parseY4MHeader(y4m):
 def CreateClipList(test_cfg):
     clip_list = []; test_set = []
     #[filename, class, width, height, fps_num, fps_denom, bitdepth, fmt]
-    test_set = AS_TEST_SET if (test_cfg == 'AS') else CTC_TEST_SET
+    test_set = CTC_TEST_SET[test_cfg]
 
     for cls in test_set:
         for file in Y4M_CLIPs[cls]:
@@ -259,3 +260,10 @@ def SetupLogging(level, logcmdonly, name, path):
             # if not valid, default set to 'INFO'
             levelname = logging.getLevelName('INFO')
         Logger.setLevel(levelname)
+
+def md5(fname):
+    hash_md5 = hashlib.md5()
+    with open(fname, "rb") as f:
+        for chunk in iter(lambda: f.read(4096), b""):
+            hash_md5.update(chunk)
+    return hash_md5.hexdigest()

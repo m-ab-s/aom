@@ -1181,7 +1181,12 @@ static aom_codec_err_t ctrl_get_dec_frame_info(aom_codec_alg_priv_t *ctx,
         subgop_stats->show_existing_frame[step_idx];
     step_data->show_frame = subgop_stats->show_frame[step_idx];
     step_data->qindex = subgop_stats->qindex[step_idx];
+    step_data->refresh_frame_flags =
+        subgop_stats->refresh_frame_flags[step_idx];
 
+    for (MV_REFERENCE_FRAME ref_frame = 0; ref_frame < REF_FRAMES; ++ref_frame)
+      step_data->ref_frame_map[ref_frame] =
+          subgop_stats->ref_frame_map[step_idx][ref_frame];
     subgop_data->step_idx_dec++;
   }
   return AOM_CODEC_OK;

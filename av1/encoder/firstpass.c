@@ -983,7 +983,7 @@ void av1_first_pass_row(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
       fp_block_size_height >> (this_frame->y_height > this_frame->uv_height);
 
   MV best_ref_mv = kZeroMv;
-  MV last_mv;
+  MV last_mv = { 0, 0 };
 
   // Reset above block coeffs.
   xd->up_available = (mb_row_in_tile != 0);
