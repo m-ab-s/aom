@@ -246,12 +246,6 @@ void av1_build_inter_predictors(const AV1_COMMON *cm, MACROBLOCKD *xd,
                                 uint8_t *dst, int dst_stride, int border);
 
 #if CONFIG_OPTFLOW_REFINEMENT
-int av1_compute_subpel_gradients(
-    const AV1_COMMON *cm, MACROBLOCKD *xd, int plane, const MB_MODE_INFO *mi,
-    int build_for_obmc, int bw, int bh, int mi_x, int mi_y,
-    CalcSubpelParamsFunc calc_subpel_params_func,
-    const void *const calc_subpel_params_func_args, int ref, uint8_t *pred_dst,
-    int *grad_prec_bits, int16_t *x_grad, int16_t *y_grad);
 void av1_opfl_mv_refinement_lowbd(const uint8_t *p0, int pstride0,
                                   const uint8_t *p1, int pstride1,
                                   const int16_t *gx0, const int16_t *gy0,
