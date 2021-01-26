@@ -81,9 +81,6 @@ extern "C" {
 double av1_estimate_noise_from_single_plane(const YV12_BUFFER_CONFIG *frame,
                                             const int plane,
                                             const int bit_depth);
-
-#define TF_QINDEX 128  // Q-index used in temporal filtering.
-
 /*!\endcond */
 /*!\brief Performs temporal filtering if needed on a source frame.
  * For example to create a filtered alternate reference frame (ARF)
