@@ -292,7 +292,8 @@ typedef struct MB_MODE_INFO {
 
 static INLINE int is_intrabc_block(const MB_MODE_INFO *mbmi) {
 #if CONFIG_SDP
-  return mbmi->use_intrabc[mbmi->tree_type != CHROMA_PART ? 0 : 1];
+  const int plane_type = (mbmi->tree_type == CHROMA_PART);
+  return mbmi->use_intrabc[plane_type];
 #else
   return mbmi->use_intrabc;
 #endif

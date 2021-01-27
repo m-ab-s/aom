@@ -2954,11 +2954,18 @@ static int64_t rd_pick_intrabc_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x,
                                        RD_STATS *rd_stats, BLOCK_SIZE bsize,
                                        int64_t best_rd) {
   const AV1_COMMON *const cm = &cpi->common;
+#if CONFIG_SDP
+  MACROBLOCKD *const xd = &x->e_mbd;
+  if (!av1_allow_intrabc(cm) || (xd->tree_type == CHROMA_PART) ||
+      !cpi->oxcf.kf_cfg.enable_intrabc)
+#else
   if (!av1_allow_intrabc(cm) || !cpi->oxcf.kf_cfg.enable_intrabc)
+#endif
     return INT64_MAX;
   const int num_planes = av1_num_planes(cm);
-
+#if !CONFIG_SDP
   MACROBLOCKD *const xd = &x->e_mbd;
+#endif
   const TileInfo *tile = &xd->tile;
   MB_MODE_INFO *mbmi = xd->mi[0];
   TxfmSearchInfo *txfm_info = &x->txfm_search_info;
@@ -5347,7 +5354,7 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
       float probs[2] = { 0.0f };
 #if CONFIG_SDP
       nn_features[0] = (float)search_state.best_mbmode
-                           .skip_txfm[cm->tree_type != CHROMA_PART ? 0 : 1];
+                           .skip_txfm[xd->tree_type != CHROMA_PART ? 0 : 1];
 #else
       nn_features[0] = (float)search_state.best_mbmode.skip_txfm;
 #endif
@@ -5366,7 +5373,7 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
       if (probs[1] > 0.8) search_state.intra_search_state.skip_intra_modes = 1;
 #if CONFIG_SDP
     } else if ((search_state.best_mbmode
-                    .skip_txfm[cm->tree_type == CHROMA_PART]) &&
+                    .skip_txfm[xd->tree_type == CHROMA_PART]) &&
                (sf->intra_sf.skip_intra_in_interframe >= 2)) {
 #else
     } else if ((search_state.best_mbmode.skip_txfm) &&

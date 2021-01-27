@@ -108,7 +108,12 @@ static void count_segs_sb(const AV1_COMMON *cm, MACROBLOCKD *xd,
   if (bsize == BLOCK_8X8)
     partition = PARTITION_NONE;
   else
+#if CONFIG_SDP
+    partition =
+        get_partition(cm, xd->tree_type == CHROMA_PART, mi_row, mi_col, bsize);
+#else
     partition = get_partition(cm, mi_row, mi_col, bsize);
+#endif
   switch (partition) {
     case PARTITION_NONE: CSEGS(bs, bs, 0, 0); break;
     case PARTITION_HORZ:

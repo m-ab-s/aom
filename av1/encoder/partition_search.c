@@ -247,7 +247,7 @@ static void encode_superblock(const AV1_COMP *const cpi, TileDataEnc *tile_data,
   const int mi_col = xd->mi_col;
   if (!is_inter) {
 #if CONFIG_SDP
-    if (cm->tree_type != LUMA_PART) {
+    if (xd->tree_type != LUMA_PART) {
       xd->cfl.store_y = store_cfl_required(cm, xd);
     }
 #else
@@ -259,8 +259,9 @@ static void encode_superblock(const AV1_COMP *const cpi, TileDataEnc *tile_data,
     mbmi->skip_txfm = 1;
 #endif
 #if CONFIG_SDP
-    for (int plane = (xd->tree_type == CHROMA_PART); plane < num_planes;
-         ++plane) {
+    const int plane_start = (xd->tree_type == CHROMA_PART);
+    const int plane_end = (xd->tree_type == LUMA_PART) ? 1 : num_planes;
+    for (int plane = plane_start; plane < plane_end; ++plane) {
 #else
     for (int plane = 0; plane < num_planes; ++plane) {
 #endif
@@ -282,8 +283,7 @@ static void encode_superblock(const AV1_COMP *const cpi, TileDataEnc *tile_data,
     xd->cfl.store_y = 0;
     if (av1_allow_palette(cm->features.allow_screen_content_tools, bsize)) {
 #if CONFIG_SDP
-      for (int plane = (cm->tree_type == CHROMA_PART);
-           plane < AOMMIN(2, av1_num_planes(cm)); ++plane) {
+      for (int plane = plane_start; plane < AOMMIN(2, plane_end); ++plane) {
 #else
       for (int plane = 0; plane < AOMMIN(2, num_planes); ++plane) {
 #endif
@@ -947,8 +947,11 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
     av1_sum_intra_stats(cm, td->counts, xd, mbmi, xd->above_mbmi, xd->left_mbmi,
                         frame_is_intra_only(cm));
   }
-
+#if CONFIG_SDP
+  if (av1_allow_intrabc(cm) && mbmi->tree_type != CHROMA_PART) {
+#else
   if (av1_allow_intrabc(cm)) {
+#endif
     update_cdf(fc->intrabc_cdf, is_intrabc_block(mbmi), 2);
 #if CONFIG_ENTROPY_STATS
     ++td->counts->intrabc[is_intrabc_block(mbmi)];
@@ -1538,10 +1541,9 @@ static void encode_sb(const AV1_COMP *const cpi, ThreadData *td,
       if (tile_data->allow_update_cdf) {
         FRAME_CONTEXT *fc = xd->tile_ctx;
 #if CONFIG_SDP
-#if CONFIG_SDP
         int luma_split_flag = 0;
         int parent_block_width = block_size_wide[bsize];
-        if (cm->tree_type == CHROMA_PART &&
+        if (xd->tree_type == CHROMA_PART &&
             parent_block_width >= SHARED_PART_SIZE) {
           luma_split_flag =
               get_luma_split_flag(bsize, mi_params, mi_row, mi_col);
@@ -1553,10 +1555,6 @@ static void encode_sb(const AV1_COMP *const cpi, ThreadData *td,
           // if luma blocks uses smaller blocks, then chroma will also split
           assert(partition == PARTITION_SPLIT);
         }
-#else
-        update_cdf(fc->partition_cdf[plane_index][ctx], partition,
-                   partition_cdf_length(bsize));
-#endif
 #else
         update_cdf(fc->partition_cdf[ctx], partition,
                    partition_cdf_length(bsize));
@@ -1703,7 +1701,12 @@ void av1_rd_use_partition(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
                      ? partition_plane_context(xd, mi_row, mi_col, bsize)
                      : 0;
   const PARTITION_TYPE partition =
+#if CONFIG_SDP
+      (bsize >= BLOCK_8X8) ? get_partition(cm, xd->tree_type == CHROMA_PART,
+                                           mi_row, mi_col, bsize)
+#else
       (bsize >= BLOCK_8X8) ? get_partition(cm, mi_row, mi_col, bsize)
+#endif
                            : PARTITION_NONE;
   const BLOCK_SIZE subsize = get_partition_subsize(bsize, partition);
   RD_SEARCH_MACROBLOCK_CONTEXT x_ctx;
@@ -2245,7 +2248,12 @@ void av1_nonrd_use_partition(AV1_COMP *cpi, ThreadData *td,
   const int bs = mi_size_wide[bsize];
   const int hbs = bs / 2;
   const PARTITION_TYPE partition =
+#if CONFIG_SDP
+      (bsize >= BLOCK_8X8) ? get_partition(cm, xd->tree_type == CHROMA_PART,
+                                           mi_row, mi_col, bsize)
+#else
       (bsize >= BLOCK_8X8) ? get_partition(cm, mi_row, mi_col, bsize)
+#endif
                            : PARTITION_NONE;
   BLOCK_SIZE subsize = get_partition_subsize(bsize, partition);
   assert(subsize <= BLOCK_LARGEST);
@@ -2398,7 +2406,11 @@ void av1_nonrd_use_partition(AV1_COMP *cpi, ThreadData *td,
         pc_tree->split[i]->index = i;
       }
       if (cpi->sf.rt_sf.nonrd_check_partition_merge_mode &&
+#if CONFIG_SDP
+          av1_is_leaf_split_partition(cm, xd, mi_row, mi_col, bsize) &&
+#else
           av1_is_leaf_split_partition(cm, mi_row, mi_col, bsize) &&
+#endif
           !frame_is_intra_only(cm) && bsize <= BLOCK_32X32) {
         RD_SEARCH_MACROBLOCK_CONTEXT x_ctx;
         RD_STATS split_rdc, none_rdc;
@@ -2738,11 +2750,16 @@ static void init_partition_search_state_params(
 
 // Override partition cost buffer for the edge blocks.
 static void set_partition_cost_for_edge_blk(
+#if CONFIG_SDP
+    AV1_COMMON const *cm, MACROBLOCKD *const xd,
+    PartitionSearchState *part_search_state) {
+#else
     AV1_COMMON const *cm, PartitionSearchState *part_search_state) {
+#endif
   PartitionBlkParams blk_params = part_search_state->part_blk_params;
   assert(blk_params.bsize_at_least_8x8 && part_search_state->pl_ctx_idx >= 0);
 #if CONFIG_SDP
-  const int plane = cm->tree_type == CHROMA_PART;
+  const int plane = xd->tree_type == CHROMA_PART;
   const aom_cdf_prob *partition_cdf =
       cm->fc->partition_cdf[plane][part_search_state->pl_ctx_idx];
 #else
@@ -3803,7 +3820,11 @@ bool av1_rd_pick_partition(AV1_COMP *const cpi, ThreadData *td,
   // Override partition costs at the edges of the frame in the same
   // way as in read_partition (see decodeframe.c).
   if (!(blk_params.has_rows && blk_params.has_cols))
+#if CONFIG_SDP
+    set_partition_cost_for_edge_blk(cm, xd, &part_search_state);
+#else
     set_partition_cost_for_edge_blk(cm, &part_search_state);
+#endif
 
   // Disable rectangular partitions for inner blocks when the current block is
   // forced to only use square partitions.
@@ -3867,7 +3888,7 @@ bool av1_rd_pick_partition(AV1_COMP *const cpi, ThreadData *td,
   int luma_split_flag = 0;
   int parent_block_width = block_size_wide[bsize];
   const CommonModeInfoParams *const mi_params = &cm->mi_params;
-  if (cm->tree_type == CHROMA_PART && parent_block_width >= SHARED_PART_SIZE) {
+  if (xd->tree_type == CHROMA_PART && parent_block_width >= SHARED_PART_SIZE) {
     luma_split_flag = get_luma_split_flag(bsize, mi_params, mi_row, mi_col);
   }
   // if luma blocks uses smaller blocks, then chroma will also split

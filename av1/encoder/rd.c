@@ -83,13 +83,17 @@ static const int av1_ext_tx_set_idx_to_type[2][AOMMAX(EXT_TX_SETS_INTRA,
       EXT_TX_SET_DCT_IDTX,
   },
 };
-
+#if CONFIG_SDP
+void av1_fill_mode_rates(AV1_COMMON *const cm, const MACROBLOCKD *xd,
+                         ModeCosts *mode_costs,
+#else
 void av1_fill_mode_rates(AV1_COMMON *const cm, ModeCosts *mode_costs,
+#endif
                          FRAME_CONTEXT *fc) {
   int i, j;
 #if CONFIG_SDP
   const int num_planes = av1_num_planes(cm);
-  for (int plane_index = (cm->tree_type == CHROMA_PART);
+  for (int plane_index = (xd->tree_type == CHROMA_PART);
        plane_index < num_planes; plane_index++) {
     for (i = 0; i < PARTITION_CONTEXTS; ++i)
       av1_cost_tokens_from_cdf(mode_costs->partition_cost[plane_index][i],

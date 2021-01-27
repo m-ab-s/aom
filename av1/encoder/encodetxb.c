@@ -496,8 +496,9 @@ void av1_write_intra_coeffs_mb(const AV1_COMMON *const cm, MACROBLOCK *x,
   for (row = 0; row < max_blocks_high; row += mu_blocks_high) {
     for (col = 0; col < max_blocks_wide; col += mu_blocks_wide) {
 #if CONFIG_SDP
-      for (int plane = (cm->tree_type == CHROMA_PART); plane < num_planes;
-           ++plane) {
+      const int plane_start = (xd->tree_type == CHROMA_PART);
+      const int plane_end = (xd->tree_type == LUMA_PART) ? 1 : num_planes;
+      for (int plane = plane_start; plane < plane_end; ++plane) {
 #else
       for (int plane = 0; plane < num_planes; ++plane) {
 #endif
@@ -1576,8 +1577,9 @@ void av1_update_intra_mb_txb_context(const AV1_COMP *cpi, ThreadData *td,
     return;
   }
 #if CONFIG_SDP
-  for (int plane = (xd->tree_type == CHROMA_PART); plane < num_planes;
-       ++plane) {
+  const int plane_start = (xd->tree_type == CHROMA_PART);
+  const int plane_end = (xd->tree_type == LUMA_PART) ? 1 : num_planes;
+  for (int plane = plane_start; plane < plane_end; ++plane) {
 #else
   for (int plane = 0; plane < num_planes; ++plane) {
 #endif

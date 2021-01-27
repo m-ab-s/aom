@@ -159,7 +159,7 @@ static AOM_INLINE void read_coeffs_tx_intra_block(
     const int plane, const int row, const int col, const TX_SIZE tx_size) {
   MB_MODE_INFO *mbmi = dcb->xd.mi[0];
 #if CONFIG_SDP
-  if (!mbmi->skip_txfm[cm->tree_type == CHROMA_PART]) {
+  if (!mbmi->skip_txfm[dcb->xd.tree_type == CHROMA_PART]) {
 #else
   if (!mbmi->skip_txfm) {
 #endif
@@ -950,12 +950,20 @@ static AOM_INLINE void set_color_index_map_offset(MACROBLOCKD *const xd,
 static AOM_INLINE void decode_token_recon_block(AV1Decoder *const pbi,
                                                 ThreadData *const td,
                                                 aom_reader *r,
+#if CONFIG_SDP
+                                                PARTITION_TYPE partition,
+#endif
                                                 BLOCK_SIZE bsize) {
   AV1_COMMON *const cm = &pbi->common;
   DecoderCodingBlock *const dcb = &td->dcb;
   MACROBLOCKD *const xd = &dcb->xd;
   const int num_planes = av1_num_planes(cm);
   MB_MODE_INFO *mbmi = xd->mi[0];
+#if CONFIG_SDP
+  xd->mi[0]->partition = partition;
+  const int plane_start = (xd->tree_type == CHROMA_PART);
+  const int plane_end = (xd->tree_type == LUMA_PART) ? 1 : num_planes;
+#endif
 
   if (!is_inter_block(mbmi)) {
     int row, col;
@@ -972,8 +980,7 @@ static AOM_INLINE void decode_token_recon_block(AV1Decoder *const pbi,
     for (row = 0; row < max_blocks_high; row += mu_blocks_high) {
       for (col = 0; col < max_blocks_wide; col += mu_blocks_wide) {
 #if CONFIG_SDP
-        for (int plane = (cm->tree_type == CHROMA_PART); plane < num_planes;
-             ++plane) {
+        for (int plane = plane_start; plane < plane_end; ++plane) {
 #else
         for (int plane = 0; plane < num_planes; ++plane) {
 #endif
@@ -1028,7 +1035,11 @@ static AOM_INLINE void decode_token_recon_block(AV1Decoder *const pbi,
 
       for (row = 0; row < max_blocks_high; row += mu_blocks_high) {
         for (col = 0; col < max_blocks_wide; col += mu_blocks_wide) {
+#if CONFIG_SDP
+          for (int plane = plane_start; plane < plane_end; ++plane) {
+#else
           for (int plane = 0; plane < num_planes; ++plane) {
+#endif
             if (plane && !xd->is_chroma_ref) break;
             const struct macroblockd_plane *const pd = &xd->plane[plane];
             const int ss_x = pd->subsampling_x;
@@ -1243,7 +1254,7 @@ static AOM_INLINE void parse_decode_block(AV1Decoder *const pbi,
   MB_MODE_INFO *mbmi = xd->mi[0];
   int inter_block_tx = is_inter_block(mbmi) || is_intrabc_block(mbmi);
 #if CONFIG_SDP
-  if (cm->tree_type != CHROMA_PART) {
+  if (xd->tree_type != CHROMA_PART) {
 #endif
     if (cm->features.tx_mode == TX_MODE_SELECT && block_signals_txsize(bsize) &&
 #if CONFIG_SDP
@@ -1341,8 +1352,11 @@ static AOM_INLINE void parse_decode_block(AV1Decoder *const pbi,
 #else
   if (mbmi->skip_txfm) av1_reset_entropy_context(xd, bsize, num_planes);
 #endif
-
+#if CONFIG_SDP
+  decode_token_recon_block(pbi, td, r, partition, bsize);
+#else
   decode_token_recon_block(pbi, td, r, bsize);
+#endif
 
 #if CONFIG_SDP
   if (xd->tree_type != SHARED_PART) {
@@ -1424,7 +1438,11 @@ static AOM_INLINE void decode_block(AV1Decoder *const pbi, ThreadData *const td,
                                     BLOCK_SIZE bsize) {
   (void)partition;
   set_offsets_for_pred_and_recon(pbi, td, mi_row, mi_col, bsize);
+#if CONFIG_SDP
+  decode_token_recon_block(pbi, td, r, partition, bsize);
+#else
   decode_token_recon_block(pbi, td, r, bsize);
+#endif
 }
 
 #if CONFIG_SDP
@@ -1503,10 +1521,6 @@ static AOM_INLINE void decode_partition(AV1Decoder *const pbi,
   if (mi_row >= cm->mi_params.mi_rows || mi_col >= cm->mi_params.mi_cols)
     return;
 
-#if CONFIG_SDP
-  xd->tree_type = cm->tree_type;
-#endif
-
   // parse_decode_flag takes the following values :
   // 01 - do parse only
   // 10 - do decode only
@@ -1518,8 +1532,9 @@ static AOM_INLINE void decode_partition(AV1Decoder *const pbi,
   if (parse_decode_flag & 1) {
     const int num_planes = av1_num_planes(cm);
 #if CONFIG_SDP
-    for (int plane = (cm->tree_type == CHROMA_PART); plane < num_planes;
-         ++plane) {
+    const int plane_start = (xd->tree_type == CHROMA_PART);
+    const int plane_end = (xd->tree_type == LUMA_PART) ? 1 : num_planes;
+    for (int plane = plane_start; plane < plane_end; ++plane) {
 #else
     for (int plane = 0; plane < num_planes; ++plane) {
 #endif
@@ -1546,7 +1561,12 @@ static AOM_INLINE void decode_partition(AV1Decoder *const pbi,
                                                      has_rows, has_cols, bsize);
 #endif
   } else {
+#if CONFIG_SDP
+    partition =
+        get_partition(cm, xd->tree_type == CHROMA_PART, mi_row, mi_col, bsize);
+#else
     partition = get_partition(cm, mi_row, mi_col, bsize);
+#endif
   }
   subsize = get_partition_subsize(bsize, partition);
   if (subsize == BLOCK_INVALID) {
@@ -2832,8 +2852,24 @@ static AOM_INLINE void decode_tile_sb_row(AV1Decoder *pbi, ThreadData *const td,
     sync_read(&tile_data->dec_row_mt_sync, sb_row_in_tile, sb_col_in_tile);
 
     // Decoding of the super-block
+#if CONFIG_SDP
+    DecoderCodingBlock *const dcb = &td->dcb;
+    MACROBLOCKD *const xd = &dcb->xd;
+    int totalLoopNum =
+        (frame_is_intra_only(cm) && !cm->seq_params.monochrome) ? 2 : 1;
+    xd->tree_type = (totalLoopNum == 1 ? SHARED_PART : LUMA_PART);
     decode_partition(pbi, td, mi_row, mi_col, td->bit_reader,
                      cm->seq_params.sb_size, 0x2);
+    if (totalLoopNum == 2) {
+      xd->tree_type = CHROMA_PART;
+      decode_partition(pbi, td, mi_row, mi_col, td->bit_reader,
+                       cm->seq_params.sb_size, 0x2);
+      xd->tree_type = SHARED_PART;
+    }
+#else
+    decode_partition(pbi, td, mi_row, mi_col, td->bit_reader,
+                     cm->seq_params.sb_size, 0x2);
+#endif
 
     sync_write(&tile_data->dec_row_mt_sync, sb_row_in_tile, sb_col_in_tile,
                sb_cols_in_tile);
@@ -2912,15 +2948,14 @@ static AOM_INLINE void decode_tile(AV1Decoder *pbi, ThreadData *const td,
 #if CONFIG_SDP
       int totalLoopNum =
           (frame_is_intra_only(cm) && !cm->seq_params.monochrome) ? 2 : 1;
-      cm->tree_type = (totalLoopNum == 1 ? SHARED_PART : LUMA_PART);
+      xd->tree_type = (totalLoopNum == 1 ? SHARED_PART : LUMA_PART);
       decode_partition(pbi, td, mi_row, mi_col, td->bit_reader,
                        cm->seq_params.sb_size, 0x3);
       if (totalLoopNum == 2) {
-        cm->tree_type = CHROMA_PART;
+        xd->tree_type = CHROMA_PART;
         decode_partition(pbi, td, mi_row, mi_col, td->bit_reader,
                          cm->seq_params.sb_size, 0x3);
-        cm->tree_type = SHARED_PART;
-        xd->tree_type = cm->tree_type;
+        xd->tree_type = SHARED_PART;
       }
 #else
       // Bit-stream parsing and decoding of the superblock
@@ -3361,8 +3396,22 @@ static AOM_INLINE void parse_tile_row_mt(AV1Decoder *pbi, ThreadData *const td,
       set_cb_buffer(pbi, dcb, pbi->cb_buffer_base, num_planes, mi_row, mi_col);
 
       // Bit-stream parsing of the superblock
+#if CONFIG_SDP
+      int totalLoopNum =
+          (frame_is_intra_only(cm) && !cm->seq_params.monochrome) ? 2 : 1;
+      xd->tree_type = (totalLoopNum == 1 ? SHARED_PART : LUMA_PART);
       decode_partition(pbi, td, mi_row, mi_col, td->bit_reader,
                        cm->seq_params.sb_size, 0x1);
+      if (totalLoopNum == 2) {
+        xd->tree_type = CHROMA_PART;
+        decode_partition(pbi, td, mi_row, mi_col, td->bit_reader,
+                         cm->seq_params.sb_size, 0x1);
+        xd->tree_type = SHARED_PART;
+      }
+#else
+      decode_partition(pbi, td, mi_row, mi_col, td->bit_reader,
+                       cm->seq_params.sb_size, 0x1);
+#endif
 
       if (aom_reader_has_overflowed(td->bit_reader)) {
         aom_merge_corrupted_flag(&dcb->corrupted, 1);
@@ -5361,7 +5410,11 @@ uint32_t av1_decode_frame_headers_and_setup(AV1Decoder *pbi,
       (uint32_t)aom_rb_bytes_read(rb);  // Size of the uncompressed header
   YV12_BUFFER_CONFIG *new_fb = &cm->cur_frame->buf;
   xd->cur_buf = new_fb;
+#if CONFIG_SDP
+  if (av1_allow_intrabc(cm) && xd->tree_type != CHROMA_PART) {
+#else
   if (av1_allow_intrabc(cm)) {
+#endif
     av1_setup_scale_factors_for_frame(
         &cm->sf_identity, xd->cur_buf->y_crop_width, xd->cur_buf->y_crop_height,
         xd->cur_buf->y_crop_width, xd->cur_buf->y_crop_height);
