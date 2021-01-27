@@ -813,9 +813,6 @@ typedef struct AV1Common {
    * is being decoded.
    */
   uint32_t frame_presentation_time;
-#if CONFIG_SDP
-  TREE_TYPE tree_type;
-#endif
 
   /*!
    * Buffer where previous frame is stored.
@@ -1260,13 +1257,7 @@ static INLINE void ensure_mv_buffer(RefCntBuffer *buf, AV1_COMMON *cm) {
 void cfl_init(CFL_CTX *cfl, const SequenceHeader *seq_params);
 
 static INLINE int av1_num_planes(const AV1_COMMON *cm) {
-#if CONFIG_SDP
-  return (cm->seq_params.monochrome || cm->tree_type == LUMA_PART)
-             ? 1
-             : MAX_MB_PLANE;
-#else
   return cm->seq_params.monochrome ? 1 : MAX_MB_PLANE;
-#endif
 }
 
 static INLINE void av1_init_above_context(CommonContexts *above_contexts,
@@ -1884,6 +1875,9 @@ static INLINE int txfm_partition_context(const TXFM_CONTEXT *const above_ctx,
 // Compute the next partition in the direction of the sb_type stored in the mi
 // array, starting with bsize.
 static INLINE PARTITION_TYPE get_partition(const AV1_COMMON *const cm,
+#if CONFIG_SDP
+                                           const int plane_type,
+#endif
                                            int mi_row, int mi_col,
                                            BLOCK_SIZE bsize) {
   const CommonModeInfoParams *const mi_params = &cm->mi_params;
@@ -1893,7 +1887,6 @@ static INLINE PARTITION_TYPE get_partition(const AV1_COMMON *const cm,
   const int offset = mi_row * mi_params->mi_stride + mi_col;
   MB_MODE_INFO **mi = mi_params->mi_grid_base + offset;
 #if CONFIG_SDP
-  const int plane_type = cm->tree_type == CHROMA_PART;
   const BLOCK_SIZE subsize = mi[0]->sb_type[plane_type];
 #else
   const BLOCK_SIZE subsize = mi[0]->sb_type;

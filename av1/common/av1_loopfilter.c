@@ -196,7 +196,7 @@ static TX_SIZE get_transform_size(const MACROBLOCKD *const xd,
   assert(mbmi != NULL);
   if (xd && xd->lossless[mbmi->segment_id]) return TX_4X4;
 #if CONFIG_SDP
-  const int plane_type = (xd->tree_type == CHROMA_PART);
+  const int plane_type = (plane > 0);
 #endif
   TX_SIZE tx_size = (plane == AOM_PLANE_Y)
                         ? mbmi->tx_size
@@ -295,7 +295,7 @@ static TX_SIZE set_lpf_parameters(
           av1_get_filter_level(cm, &cm->lf_info, edge_dir, plane, mbmi);
 #if CONFIG_SDP
       const int curr_skipped =
-          mbmi->skip_txfm[cm->tree_type == CHROMA_PART] && is_inter_block(mbmi);
+          mbmi->skip_txfm[plane > 0] && is_inter_block(mbmi);
 #else
       const int curr_skipped = mbmi->skip_txfm && is_inter_block(mbmi);
 #endif
@@ -316,15 +316,14 @@ static TX_SIZE set_lpf_parameters(
 
           const int pv_skip_txfm =
 #if CONFIG_SDP
-              mi_prev->skip_txfm[cm->tree_type == CHROMA_PART] &&
-              is_inter_block(mi_prev);
+              mi_prev->skip_txfm[plane > 0] && is_inter_block(mi_prev);
 #else
               mi_prev->skip_txfm && is_inter_block(mi_prev);
 #endif
 #if CONFIG_SDP
           const BLOCK_SIZE bsize = get_plane_block_size(
-              mbmi->sb_type[cm->tree_type == CHROMA_PART],
-              plane_ptr->subsampling_x, plane_ptr->subsampling_y);
+              mbmi->sb_type[plane > 0], plane_ptr->subsampling_x,
+              plane_ptr->subsampling_y);
 #else
           const BLOCK_SIZE bsize =
               get_plane_block_size(mbmi->sb_type, plane_ptr->subsampling_x,

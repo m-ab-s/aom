@@ -275,8 +275,12 @@ static AOM_INLINE void collect_mv_stats_sb(MV_STATS *mv_stats,
 
   if (mi_row >= cm->mi_params.mi_rows || mi_col >= cm->mi_params.mi_cols)
     return;
-
+#if CONFIG_SDP
+  const PARTITION_TYPE partition =
+      get_partition(cm, SHARED_PART, mi_row, mi_col, bsize);
+#else
   const PARTITION_TYPE partition = get_partition(cm, mi_row, mi_col, bsize);
+#endif
   const BLOCK_SIZE subsize = get_partition_subsize(bsize, partition);
 
   const int hbs = mi_size_wide[bsize] / 2;

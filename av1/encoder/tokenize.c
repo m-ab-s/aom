@@ -214,8 +214,12 @@ void av1_tokenize_sb_vartx(const AV1_COMP *cpi, ThreadData *td,
     av1_reset_entropy_context(xd, bsize, num_planes);
     return;
   }
-
+#if CONFIG_SDP
+  for (int plane = (xd->tree_type == CHROMA_PART);
+       plane < ((xd->tree_type == LUMA_PART) ? 1 : num_planes); ++plane) {
+#else
   for (int plane = 0; plane < num_planes; ++plane) {
+#endif
     if (plane && !xd->is_chroma_ref) break;
     const struct macroblockd_plane *const pd = &xd->plane[plane];
     const int ss_x = pd->subsampling_x;

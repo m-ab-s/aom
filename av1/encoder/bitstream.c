@@ -652,7 +652,7 @@ static AOM_INLINE void write_filter_intra_mode_info(
     const AV1_COMMON *cm, const MACROBLOCKD *xd, const MB_MODE_INFO *const mbmi,
     aom_writer *w) {
 #if CONFIG_SDP
-  if (av1_filter_intra_allowed(cm, mbmi) && cm->tree_type != CHROMA_PART) {
+  if (av1_filter_intra_allowed(cm, mbmi) && xd->tree_type != CHROMA_PART) {
 #else
   if (av1_filter_intra_allowed(cm, mbmi)) {
 #endif
@@ -869,7 +869,12 @@ static AOM_INLINE void write_palette_mode_info(const AV1_COMMON *cm,
   }
 
   const int uv_dc_pred =
+#if CONFIG_SDP
+      num_planes > 1 && xd->tree_type != LUMA_PART &&
+      mbmi->uv_mode == UV_DC_PRED && xd->is_chroma_ref;
+#else
       num_planes > 1 && mbmi->uv_mode == UV_DC_PRED && xd->is_chroma_ref;
+#endif
   if (uv_dc_pred) {
     const int n = pmi->palette_size[1];
     const int palette_uv_mode_ctx = (pmi->palette_size[0] > 0);
@@ -1111,7 +1116,7 @@ static AOM_INLINE void write_intra_prediction_modes(AV1_COMP *cpi,
   // Y mode.
 #if CONFIG_SDP
   const int use_angle_delta = av1_use_angle_delta(bsize);
-  if (cm->tree_type != CHROMA_PART) {
+  if (xd->tree_type != CHROMA_PART) {
 #endif
     if (is_keyframe) {
       const MB_MODE_INFO *const above_mi = xd->above_mbmi;
@@ -1141,7 +1146,7 @@ static AOM_INLINE void write_intra_prediction_modes(AV1_COMP *cpi,
   // UV mode and UV angle delta.
 #if CONFIG_SDP
   if (!cm->seq_params.monochrome && xd->is_chroma_ref &&
-      cm->tree_type != LUMA_PART) {
+      xd->tree_type != LUMA_PART) {
 #else
   if (!cm->seq_params.monochrome && xd->is_chroma_ref) {
 #endif
@@ -1425,7 +1430,11 @@ static AOM_INLINE void write_mb_modes_kf(
 
   write_delta_q_params(cpi, skip, w);
 
+#if CONFIG_SDP
+  if (av1_allow_intrabc(cm) && xd->tree_type != CHROMA_PART) {
+#else
   if (av1_allow_intrabc(cm)) {
+#endif
     write_intrabc_info(xd, mbmi_ext_frame, w);
     if (is_intrabc_block(mbmi)) return;
   }
@@ -1634,7 +1643,12 @@ static AOM_INLINE void write_tokens_b(AV1_COMP *cpi, aom_writer *w,
     const int num_planes = av1_num_planes(cm);
     for (int row = 0; row < num_4x4_h; row += mu_blocks_high) {
       for (int col = 0; col < num_4x4_w; col += mu_blocks_wide) {
+#if CONFIG_SDP
+        for (int plane = (xd->tree_type == CHROMA_PART);
+             plane < ((xd->tree_type == LUMA_PART) ? 1 : num_planes); ++plane) {
+#else
         for (int plane = 0; plane < num_planes; ++plane) {
+#endif
           if (plane && !xd->is_chroma_ref) break;
           write_inter_txb_coeff(cm, x, mbmi, w, tok, tok_end, &token_stats, row,
                                 col, &block[plane], plane);
@@ -1701,8 +1715,10 @@ static AOM_INLINE void write_modes_b(AV1_COMP *cpi, const TileInfo *const tile,
   write_mbmi_b(cpi, w);
 
 #if CONFIG_SDP
-  for (int plane = (cm->tree_type == CHROMA_PART);
-       plane < AOMMIN(2, av1_num_planes(cm)); ++plane) {
+  for (int plane = (xd->tree_type == CHROMA_PART);
+       plane <
+       AOMMIN(2, ((xd->tree_type == LUMA_PART) ? 1 : av1_num_planes(cm)));
+       ++plane) {
 #else
   for (int plane = 0; plane < AOMMIN(2, av1_num_planes(cm)); ++plane) {
 #endif
@@ -1743,7 +1759,7 @@ static AOM_INLINE void write_modes_b(AV1_COMP *cpi, const TileInfo *const tile,
 #endif
   const int segment_id = mbmi->segment_id;
 #if CONFIG_SDP
-  if (cm->tree_type != CHROMA_PART) {
+  if (xd->tree_type != CHROMA_PART) {
 #endif
     if (cm->features.tx_mode == TX_MODE_SELECT && block_signals_txsize(bsize) &&
         !(is_inter_tx && skip_txfm) && !xd->lossless[segment_id]) {
@@ -1860,16 +1876,20 @@ static AOM_INLINE void write_modes_sb(
   const int hbs = mi_size_wide[bsize] / 2;
   const int quarter_step = mi_size_wide[bsize] / 4;
   int i;
+#if CONFIG_SDP
+  const PARTITION_TYPE partition =
+      get_partition(cm, xd->tree_type == CHROMA_PART, mi_row, mi_col, bsize);
+#else
   const PARTITION_TYPE partition = get_partition(cm, mi_row, mi_col, bsize);
+#endif
   const BLOCK_SIZE subsize = get_partition_subsize(bsize, partition);
 
   if (mi_row >= mi_params->mi_rows || mi_col >= mi_params->mi_cols) return;
 
   const int num_planes = av1_num_planes(cm);
 #if CONFIG_SDP
-  xd->tree_type = cm->tree_type;
-  for (int plane = (cm->tree_type == CHROMA_PART); plane < num_planes;
-       ++plane) {
+  for (int plane = (xd->tree_type == CHROMA_PART);
+       plane < ((xd->tree_type == LUMA_PART) ? 1 : num_planes); ++plane) {
 #else
   for (int plane = 0; plane < num_planes; ++plane) {
 #endif
@@ -1993,17 +2013,16 @@ static AOM_INLINE void write_modes(AV1_COMP *const cpi,
 #if CONFIG_SDP
       int totalLoopNum =
           (frame_is_intra_only(cm) && !cm->seq_params.monochrome) ? 2 : 1;
-      cm->tree_type = (totalLoopNum == 1 ? SHARED_PART : LUMA_PART);
+      xd->tree_type = (totalLoopNum == 1 ? SHARED_PART : LUMA_PART);
 #endif
       write_modes_sb(cpi, tile, w, &tok, tok_end, mi_row, mi_col,
                      cm->seq_params.sb_size);
 #if CONFIG_SDP
       if (totalLoopNum == 2) {
-        cm->tree_type = CHROMA_PART;
+        xd->tree_type = CHROMA_PART;
         write_modes_sb(cpi, tile, w, &tok, tok_end, mi_row, mi_col,
                        cm->seq_params.sb_size);
-        cm->tree_type = SHARED_PART;
-        xd->tree_type = cm->tree_type;
+        xd->tree_type = SHARED_PART;
       }
 #endif
     }

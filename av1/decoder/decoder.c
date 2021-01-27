@@ -256,7 +256,10 @@ void av1_visit_palette(AV1Decoder *const pbi, MACROBLOCKD *const xd,
   if (!is_inter_block(xd->mi[0])) {
 #if CONFIG_SDP
     for (int plane = (xd->tree_type == CHROMA_PART);
-         plane < AOMMIN(2, av1_num_planes(&pbi->common)); ++plane) {
+         plane < (xd->tree_type == LUMA_PART
+                      ? 1
+                      : AOMMIN(2, av1_num_planes(&pbi->common)));
+         ++plane) {
 #else
     for (int plane = 0; plane < AOMMIN(2, av1_num_planes(&pbi->common));
          ++plane) {

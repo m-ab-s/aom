@@ -724,6 +724,9 @@ void av1_save_context(const MACROBLOCK *x, RD_SEARCH_MACROBLOCK_CONTEXT *ctx,
 }
 
 static void set_partial_sb_partition(const AV1_COMMON *const cm,
+#if CONFIG_SDP
+                                     MACROBLOCKD *const xd,
+#endif
                                      MB_MODE_INFO *mi, int bh_in, int bw_in,
                                      int mi_rows_remaining,
                                      int mi_cols_remaining, BLOCK_SIZE bsize,
@@ -737,7 +740,7 @@ static void set_partial_sb_partition(const AV1_COMMON *const cm,
       const int mi_index = get_alloc_mi_idx(&cm->mi_params, r, c);
       mib[grid_index] = mi + mi_index;
 #if CONFIG_SDP
-      mib[grid_index]->sb_type[cm->tree_type == CHROMA_PART] =
+      mib[grid_index]->sb_type[xd->tree_type == CHROMA_PART] =
           find_partition_size(bsize, mi_rows_remaining - r,
                               mi_cols_remaining - c, &bh, &bw);
 #else
@@ -754,6 +757,9 @@ static void set_partial_sb_partition(const AV1_COMMON *const cm,
 // may not be allowed in which case this code attempts to choose the largest
 // allowable partition.
 void av1_set_fixed_partitioning(AV1_COMP *cpi, const TileInfo *const tile,
+#if CONFIG_SDP
+                                MACROBLOCK *const x,
+#endif
                                 MB_MODE_INFO **mib, int mi_row, int mi_col,
                                 BLOCK_SIZE bsize) {
   AV1_COMMON *const cm = &cpi->common;
@@ -764,6 +770,10 @@ void av1_set_fixed_partitioning(AV1_COMP *cpi, const TileInfo *const tile,
       mi_params->mi_alloc + get_alloc_mi_idx(mi_params, mi_row, mi_col);
   int bh = mi_size_high[bsize];
   int bw = mi_size_wide[bsize];
+
+#if CONFIG_SDP
+  MACROBLOCKD *const xd = &x->e_mbd;
+#endif
 
   assert(bsize >= mi_params->mi_alloc_bsize &&
          "Attempted to use bsize < mi_params->mi_alloc_bsize");
@@ -780,7 +790,7 @@ void av1_set_fixed_partitioning(AV1_COMP *cpi, const TileInfo *const tile,
         const int mi_index = get_alloc_mi_idx(mi_params, block_row, block_col);
         mib[grid_index] = mi_upper_left + mi_index;
 #if CONFIG_SDP
-        mib[grid_index]->sb_type[cm->tree_type == CHROMA_PART] = bsize;
+        mib[grid_index]->sb_type[xd->tree_type == CHROMA_PART] = bsize;
 #else
         mib[grid_index]->sb_type = bsize;
 #endif
@@ -788,12 +798,20 @@ void av1_set_fixed_partitioning(AV1_COMP *cpi, const TileInfo *const tile,
     }
   } else {
     // Else this is a partial SB.
+#if CONFIG_SDP
+    set_partial_sb_partition(cm, xd, mi_upper_left, bh, bw, mi_rows_remaining,
+#else
     set_partial_sb_partition(cm, mi_upper_left, bh, bw, mi_rows_remaining,
+#endif
                              mi_cols_remaining, bsize, mib);
   }
 }
-
+#if CONFIG_SDP
+int av1_is_leaf_split_partition(AV1_COMMON *cm, MACROBLOCKD *const xd,
+                                int mi_row, int mi_col,
+#else
 int av1_is_leaf_split_partition(AV1_COMMON *cm, int mi_row, int mi_col,
+#endif
                                 BLOCK_SIZE bsize) {
   const int bs = mi_size_wide[bsize];
   const int hbs = bs / 2;
@@ -806,7 +824,12 @@ int av1_is_leaf_split_partition(AV1_COMMON *cm, int mi_row, int mi_col,
     if ((mi_row + y_idx >= cm->mi_params.mi_rows) ||
         (mi_col + x_idx >= cm->mi_params.mi_cols))
       return 0;
+#if CONFIG_SDP
+    if (get_partition(cm, xd->tree_type == CHROMA_PART, mi_row + y_idx,
+                      mi_col + x_idx, subsize) !=
+#else
     if (get_partition(cm, mi_row + y_idx, mi_col + x_idx, subsize) !=
+#endif
             PARTITION_NONE &&
         subsize != BLOCK_8X8)
       return 0;
@@ -1451,7 +1474,11 @@ void av1_set_cost_upd_freq(AV1_COMP *cpi, ThreadData *td,
       if (mi_col != tile_info->mi_col_start) break;
       AOM_FALLTHROUGH_INTENDED;
     case COST_UPD_SB:  // SB level
+#if CONFIG_SDP
+      av1_fill_mode_rates(cm, xd, &x->mode_costs, xd->tile_ctx);
+#else
       av1_fill_mode_rates(cm, &x->mode_costs, xd->tile_ctx);
+#endif
       break;
     default: assert(0);
   }
