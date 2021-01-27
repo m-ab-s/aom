@@ -314,8 +314,10 @@ void av1_update_state(const AV1_COMP *const cpi, ThreadData *td,
       };
       ++mode_chosen_counts[kf_mode_index[mi_addr->mode]];
     } else {
+#if CONFIG_INTERNAL_STATS && !CONFIG_NEW_REF_SIGNALING
       // Note how often each mode chosen as best
       ++mode_chosen_counts[ctx->best_mode_index];
+#endif  // CONFIG_INTERNAL_STATS && !CONFIG_NEW_REF_SIGNALING
     }
   }
 #endif

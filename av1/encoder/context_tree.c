@@ -23,9 +23,9 @@ void av1_copy_tree_context(PICK_MODE_CONTEXT *dst_ctx,
 
   dst_ctx->num_4x4_blk = src_ctx->num_4x4_blk;
   dst_ctx->skippable = src_ctx->skippable;
-#if CONFIG_INTERNAL_STATS
+#if CONFIG_INTERNAL_STATS && !CONFIG_NEW_REF_SIGNALING
   dst_ctx->best_mode_index = src_ctx->best_mode_index;
-#endif  // CONFIG_INTERNAL_STATS
+#endif  // CONFIG_INTERNAL_STATS && !CONFIG_NEW_REF_SIGNALING
 
   memcpy(dst_ctx->blk_skip, src_ctx->blk_skip,
          sizeof(uint8_t) * src_ctx->num_4x4_blk);

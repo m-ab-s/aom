@@ -886,11 +886,11 @@ static AOM_INLINE void estimate_ref_frame_costs(
 }
 
 static AOM_INLINE void store_coding_context(
-#if CONFIG_INTERNAL_STATS
+#if CONFIG_INTERNAL_STATS && !CONFIG_NEW_REF_SIGNALING
     MACROBLOCK *x, PICK_MODE_CONTEXT *ctx, int mode_index,
 #else
     MACROBLOCK *x, PICK_MODE_CONTEXT *ctx,
-#endif  // CONFIG_INTERNAL_STATS
+#endif  // CONFIG_INTERNAL_STATS && !CONFIG_NEW_REF_SIGNALING
     int64_t comp_pred_diff[REFERENCE_MODES], int skippable) {
   MACROBLOCKD *const xd = &x->e_mbd;
 
@@ -898,9 +898,9 @@ static AOM_INLINE void store_coding_context(
   // restored if we decide to encode this way
   ctx->rd_stats.skip_txfm = x->txfm_search_info.skip_txfm;
   ctx->skippable = skippable;
-#if CONFIG_INTERNAL_STATS
+#if CONFIG_INTERNAL_STATS && !CONFIG_NEW_REF_SIGNALING
   ctx->best_mode_index = mode_index;
-#endif  // CONFIG_INTERNAL_STATS
+#endif  // CONFIG_INTERNAL_STATS && !CONFIG_NEW_REF_SIGNALING
   ctx->mic = *xd->mi[0];
   av1_copy_mbmi_ext_to_mbmi_ext_frame(&ctx->mbmi_ext_best, x->mbmi_ext,
                                       av1_ref_frame_type(xd->mi[0]->ref_frame));
@@ -5424,14 +5424,14 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
 
   assert(search_state.best_mode_index != THR_INVALID);
 
-#if CONFIG_INTERNAL_STATS
+#if CONFIG_INTERNAL_STATS && !CONFIG_NEW_REF_SIGNALING
   store_coding_context(x, ctx, search_state.best_mode_index,
                        search_state.best_pred_diff,
                        search_state.best_mode_skippable);
 #else
   store_coding_context(x, ctx, search_state.best_pred_diff,
                        search_state.best_mode_skippable);
-#endif  // CONFIG_INTERNAL_STATS
+#endif  // CONFIG_INTERNAL_STATS && !CONFIG_NEW_REF_SIGNALING
 
   if (mbmi->palette_mode_info.palette_size[1] > 0) {
     assert(try_palette);
@@ -5583,11 +5583,11 @@ void av1_rd_pick_inter_mode_sb_seg_skip(const AV1_COMP *cpi,
 
   av1_zero(best_pred_diff);
 
-#if CONFIG_INTERNAL_STATS
+#if CONFIG_INTERNAL_STATS && !CONFIG_NEW_REF_SIGNALING
   store_coding_context(x, ctx, THR_GLOBALMV, best_pred_diff, 0);
 #else
   store_coding_context(x, ctx, best_pred_diff, 0);
-#endif  // CONFIG_INTERNAL_STATS
+#endif  // CONFIG_INTERNAL_STATS && !CONFIG_NEW_REF_SIGNALING
 }
 
 /*!\cond */

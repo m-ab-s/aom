@@ -994,12 +994,12 @@ static INLINE void init_mbmi(MB_MODE_INFO *mbmi, PREDICTION_MODE pred_mode,
   set_default_interp_filters(mbmi, cm->features.interp_filter);
 }
 
-#if CONFIG_INTERNAL_STATS
+#if CONFIG_INTERNAL_STATS && !CONFIG_NEW_REF_SIGNALING
 static void store_coding_context(MACROBLOCK *x, PICK_MODE_CONTEXT *ctx,
                                  int mode_index) {
 #else
 static void store_coding_context(MACROBLOCK *x, PICK_MODE_CONTEXT *ctx) {
-#endif  // CONFIG_INTERNAL_STATS
+#endif  // CONFIG_INTERNAL_STATS && !CONFIG_NEW_REF_SIGNALING
   MACROBLOCKD *const xd = &x->e_mbd;
   TxfmSearchInfo *txfm_info = &x->txfm_search_info;
 
@@ -1011,9 +1011,9 @@ static void store_coding_context(MACROBLOCK *x, PICK_MODE_CONTEXT *ctx) {
   memset(ctx->tx_type_map, DCT_DCT,
          sizeof(ctx->tx_type_map[0]) * ctx->num_4x4_blk);
   ctx->skippable = txfm_info->skip_txfm;
-#if CONFIG_INTERNAL_STATS
+#if CONFIG_INTERNAL_STATS && !CONFIG_NEW_REF_SIGNALING
   ctx->best_mode_index = mode_index;
-#endif  // CONFIG_INTERNAL_STATS
+#endif  // CONFIG_INTERNAL_STATS && !CONFIG_NEW_REF_SIGNALING
   ctx->mic = *xd->mi[0];
   ctx->skippable = txfm_info->skip_txfm;
   av1_copy_mbmi_ext_to_mbmi_ext_frame(&ctx->mbmi_ext_best, x->mbmi_ext,
@@ -1610,11 +1610,11 @@ void av1_nonrd_pick_intra_mode(AV1_COMP *cpi, MACROBLOCK *x, RD_STATS *rd_cost,
 
   *rd_cost = best_rdc;
 
-#if CONFIG_INTERNAL_STATS
+#if CONFIG_INTERNAL_STATS && !CONFIG_NEW_REF_SIGNALING
   store_coding_context(x, ctx, mi->mode);
 #else
   store_coding_context(x, ctx);
-#endif  // CONFIG_INTERNAL_STATS
+#endif  // CONFIG_INTERNAL_STATS && !CONFIG_NEW_REF_SIGNALING
 }
 
 static AOM_INLINE int is_same_gf_and_last_scale(AV1_COMMON *cm) {
@@ -2389,11 +2389,11 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
     }
   }
 
-#if CONFIG_INTERNAL_STATS
+#if CONFIG_INTERNAL_STATS && !CONFIG_NEW_REF_SIGNALING
   store_coding_context(x, ctx, mi->mode);
 #else
   store_coding_context(x, ctx);
-#endif  // CONFIG_INTERNAL_STATS
+#endif  // CONFIG_INTERNAL_STATS && !CONFIG_NEW_REF_SIGNALING
 #if COLLECT_PICK_MODE_STAT
   aom_usec_timer_mark(&ms_stat.timer2);
   ms_stat.avg_block_times[bsize] += aom_usec_timer_elapsed(&ms_stat.timer2);
