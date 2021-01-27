@@ -2759,14 +2759,14 @@ int av1_find_best_sub_pixel_tree_pruned_evenmore(
     const SUBPEL_MOTION_SEARCH_PARAMS *ms_params, MV start_mv, MV *bestmv,
     int *distortion, unsigned int *sse1, int_mv *last_mv_search_list) {
   (void)cm;
-  const int allow_hp =
-      ms_params->mv_cost_params.mv_precision > MV_SUBPEL_QTR_PRECISION;
-  const int forced_stop = ms_params->forced_stop;
   const int iters_per_step = ms_params->iters_per_step;
   const int *cost_list = ms_params->cost_list;
   const SubpelMvLimits *mv_limits = &ms_params->mv_limits;
   const MV_COST_PARAMS *mv_cost_params = &ms_params->mv_cost_params;
   const SUBPEL_SEARCH_VAR_PARAMS *var_params = &ms_params->var_params;
+  const MvSubpelPrecision precision = mv_cost_params->mv_precision;
+  const int forced_stop =
+      AOMMAX(ms_params->forced_stop, MV_SUBPEL_EIGHTH_PRECISION - precision);
 
   // The iteration we are current searching for. Iter 0 corresponds to fullpel
   // mv, iter 1 to half pel, and so on
@@ -2823,7 +2823,7 @@ int av1_find_best_sub_pixel_tree_pruned_evenmore(
     }
   }
 
-  if (allow_hp && forced_stop == EIGHTH_PEL) {
+  if (forced_stop == EIGHTH_PEL) {
     if (check_repeated_mv_and_update(last_mv_search_list, *bestmv, iter)) {
       return INT_MAX;
     }
@@ -2844,14 +2844,14 @@ int av1_find_best_sub_pixel_tree_pruned_more(
     const SUBPEL_MOTION_SEARCH_PARAMS *ms_params, MV start_mv, MV *bestmv,
     int *distortion, unsigned int *sse1, int_mv *last_mv_search_list) {
   (void)cm;
-  const int allow_hp =
-      ms_params->mv_cost_params.mv_precision > MV_SUBPEL_QTR_PRECISION;
-  const int forced_stop = ms_params->forced_stop;
   const int iters_per_step = ms_params->iters_per_step;
   const int *cost_list = ms_params->cost_list;
   const SubpelMvLimits *mv_limits = &ms_params->mv_limits;
   const MV_COST_PARAMS *mv_cost_params = &ms_params->mv_cost_params;
   const SUBPEL_SEARCH_VAR_PARAMS *var_params = &ms_params->var_params;
+  const MvSubpelPrecision precision = mv_cost_params->mv_precision;
+  const int forced_stop =
+      AOMMAX(ms_params->forced_stop, MV_SUBPEL_EIGHTH_PRECISION - precision);
 
   // The iteration we are current searching for. Iter 0 corresponds to fullpel
   // mv, iter 1 to half pel, and so on
@@ -2909,7 +2909,7 @@ int av1_find_best_sub_pixel_tree_pruned_more(
                           distortion, iters_per_step, is_scaled);
   }
 
-  if (allow_hp && forced_stop == EIGHTH_PEL) {
+  if (forced_stop == EIGHTH_PEL) {
     if (check_repeated_mv_and_update(last_mv_search_list, *bestmv, iter)) {
       return INT_MAX;
     }
@@ -2930,14 +2930,14 @@ int av1_find_best_sub_pixel_tree_pruned(
     const SUBPEL_MOTION_SEARCH_PARAMS *ms_params, MV start_mv, MV *bestmv,
     int *distortion, unsigned int *sse1, int_mv *last_mv_search_list) {
   (void)cm;
-  const int allow_hp =
-      ms_params->mv_cost_params.mv_precision > MV_SUBPEL_QTR_PRECISION;
-  const int forced_stop = ms_params->forced_stop;
   const int iters_per_step = ms_params->iters_per_step;
   const int *cost_list = ms_params->cost_list;
   const SubpelMvLimits *mv_limits = &ms_params->mv_limits;
   const MV_COST_PARAMS *mv_cost_params = &ms_params->mv_cost_params;
   const SUBPEL_SEARCH_VAR_PARAMS *var_params = &ms_params->var_params;
+  const MvSubpelPrecision precision = mv_cost_params->mv_precision;
+  const int forced_stop =
+      AOMMAX(ms_params->forced_stop, MV_SUBPEL_EIGHTH_PRECISION - precision);
 
   // The iteration we are current searching for. Iter 0 corresponds to fullpel
   // mv, iter 1 to half pel, and so on
@@ -3046,7 +3046,7 @@ int av1_find_best_sub_pixel_tree_pruned(
                           distortion, iters_per_step, is_scaled);
   }
 
-  if (allow_hp && forced_stop == EIGHTH_PEL) {
+  if (forced_stop == EIGHTH_PEL) {
     if (check_repeated_mv_and_update(last_mv_search_list, *bestmv, iter)) {
       return INT_MAX;
     }
@@ -3067,8 +3067,6 @@ int av1_find_best_sub_pixel_tree(MACROBLOCKD *xd, const AV1_COMMON *const cm,
                                  MV start_mv, MV *bestmv, int *distortion,
                                  unsigned int *sse1,
                                  int_mv *last_mv_search_list) {
-  const int allow_hp =
-      ms_params->mv_cost_params.mv_precision > MV_SUBPEL_QTR_PRECISION;
   const int forced_stop = ms_params->forced_stop;
   const int iters_per_step = ms_params->iters_per_step;
   const MV_COST_PARAMS *mv_cost_params = &ms_params->mv_cost_params;
@@ -3077,7 +3075,8 @@ int av1_find_best_sub_pixel_tree(MACROBLOCKD *xd, const AV1_COMMON *const cm,
 
   // How many steps to take. A round of 0 means fullpel search only, 1 means
   // half-pel, and so on.
-  const int round = AOMMIN(FULL_PEL - forced_stop, 3 - !allow_hp);
+  const int round =
+      AOMMIN(FULL_PEL - forced_stop, mv_cost_params->mv_precision);
   int hstep = INIT_SUBPEL_STEP_SIZE;  // Step size, initialized to 4/8=1/2 pel
 
   unsigned int besterr = INT_MAX;
@@ -3206,8 +3205,10 @@ unsigned int av1_refine_warped_mv(MACROBLOCKD *xd, const AV1_COMMON *const cm,
                                   BLOCK_SIZE bsize, const int *pts0,
                                   const int *pts_inref0, int total_samples) {
   MB_MODE_INFO *mbmi = xd->mi[0];
-  static const MV neighbors[8] = { { 0, -1 }, { 1, 0 }, { 0, 1 }, { -1, 0 },
-                                   { 0, -2 }, { 2, 0 }, { 0, 2 }, { -2, 0 } };
+  static const MV neighbors[16] = { { 0, -1 }, { 1, 0 }, { 0, 1 }, { -1, 0 },
+                                    { 0, -2 }, { 2, 0 }, { 0, 2 }, { -2, 0 },
+                                    { 0, -4 }, { 4, 0 }, { 0, 4 }, { -4, 0 },
+                                    { 0, -8 }, { 8, 0 }, { 0, 8 }, { -8, 0 } };
   MV *best_mv = &mbmi->mv[0].as_mv;
 
   WarpedMotionParams best_wm_params = mbmi->wm_params;
@@ -3216,8 +3217,7 @@ unsigned int av1_refine_warped_mv(MACROBLOCKD *xd, const AV1_COMMON *const cm,
   const SubpelMvLimits *mv_limits = &ms_params->mv_limits;
 
   const int start =
-      (ms_params->mv_cost_params.mv_precision > MV_SUBPEL_QTR_PRECISION) ? 0
-                                                                         : 4;
+      (MV_SUBPEL_EIGHTH_PRECISION - ms_params->mv_cost_params.mv_precision) * 4;
 
   // Calculate the center position's error
   assert(av1_is_subpelmv_in_range(mv_limits, *best_mv));
@@ -3431,8 +3431,6 @@ int av1_find_best_obmc_sub_pixel_tree_up(
     const SUBPEL_MOTION_SEARCH_PARAMS *ms_params, MV start_mv, MV *bestmv,
     int *distortion, unsigned int *sse1, int_mv *last_mv_search_list) {
   (void)last_mv_search_list;
-  const int allow_hp =
-      ms_params->mv_cost_params.mv_precision > MV_SUBPEL_QTR_PRECISION;
   const int forced_stop = ms_params->forced_stop;
   const int iters_per_step = ms_params->iters_per_step;
   const MV_COST_PARAMS *mv_cost_params = &ms_params->mv_cost_params;
@@ -3440,7 +3438,8 @@ int av1_find_best_obmc_sub_pixel_tree_up(
   const SubpelMvLimits *mv_limits = &ms_params->mv_limits;
 
   int hstep = INIT_SUBPEL_STEP_SIZE;
-  const int round = AOMMIN(FULL_PEL - forced_stop, 3 - !allow_hp);
+  const int round =
+      AOMMIN(FULL_PEL - forced_stop, mv_cost_params->mv_precision);
 
   unsigned int besterr = INT_MAX;
   *bestmv = start_mv;
