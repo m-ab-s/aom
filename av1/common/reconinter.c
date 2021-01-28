@@ -764,18 +764,16 @@ void av1_opfl_mv_refinement4_lowbd(const uint8_t *p0, int pstride0,
                                    int gstride, int bw, int bh, int d0, int d1,
                                    int grad_prec_bits, int mv_prec_bits,
                                    int *vx0, int *vy0, int *vx1, int *vy1) {
-  (void)d0;
-  (void)d1;
   int64_t A[4 * 4] = { 0 };
   int64_t B[4] = { 0 };
   int64_t X[4];
   for (int i = 0; i < bh; ++i) {
     for (int j = 0; j < bw; ++j) {
       int a[4];
-      a[0] = gx0[i * gstride + j];
-      a[1] = gy0[i * gstride + j];
-      a[2] = gx1[i * gstride + j];
-      a[3] = gy1[i * gstride + j];
+      a[0] = d0 * gx0[i * gstride + j];
+      a[1] = d0 * gy0[i * gstride + j];
+      a[2] = (-d1) * gx1[i * gstride + j];
+      a[3] = (-d1) * gy1[i * gstride + j];
       const int d = p1[i * pstride1 + j] - p0[i * pstride0 + j];
       for (int s = 0; s < 4; ++s) {
         for (int t = 0; t <= s; ++t) A[s * 4 + t] += (a[s] * a[t]);
@@ -790,10 +788,10 @@ void av1_opfl_mv_refinement4_lowbd(const uint8_t *p0, int pstride0,
   int bits = mv_prec_bits + grad_prec_bits;
 
   if (!solver_4D(A, B, bits, X)) return;
-  *vx0 = (int)X[0];
-  *vy0 = (int)X[1];
-  *vx1 = (int)X[2];
-  *vy1 = (int)X[3];
+  *vx0 = d0 * (int)X[0];
+  *vy0 = d0 * (int)X[1];
+  *vx1 = d1 * (int)X[2];
+  *vy1 = d1 * (int)X[3];
 }
 
 void av1_opfl_mv_refinement4_highbd(const uint16_t *p0, int pstride0,
@@ -803,18 +801,16 @@ void av1_opfl_mv_refinement4_highbd(const uint16_t *p0, int pstride0,
                                     int gstride, int bw, int bh, int d0, int d1,
                                     int grad_prec_bits, int mv_prec_bits,
                                     int *vx0, int *vy0, int *vx1, int *vy1) {
-  (void)d0;
-  (void)d1;
   int64_t A[4 * 4] = { 0 };
   int64_t B[4] = { 0 };
   int64_t X[4];
   for (int i = 0; i < bh; ++i) {
     for (int j = 0; j < bw; ++j) {
       int a[4];
-      a[0] = gx0[i * gstride + j];
-      a[1] = gy0[i * gstride + j];
-      a[2] = gx1[i * gstride + j];
-      a[3] = gy1[i * gstride + j];
+      a[0] = d0 * gx0[i * gstride + j];
+      a[1] = d0 * gy0[i * gstride + j];
+      a[2] = (-d1) * gx1[i * gstride + j];
+      a[3] = (-d1) * gy1[i * gstride + j];
       const int d = p1[i * pstride1 + j] - p0[i * pstride0 + j];
       for (int s = 0; s < 4; ++s) {
         for (int t = 0; t <= s; ++t) A[s * 4 + t] += (a[s] * a[t]);
@@ -829,10 +825,10 @@ void av1_opfl_mv_refinement4_highbd(const uint16_t *p0, int pstride0,
   int bits = mv_prec_bits + grad_prec_bits;
   if (!solver_4D(A, B, bits, X)) return;
 
-  *vx0 = (int)X[0];
-  *vy0 = (int)X[1];
-  *vx1 = (int)X[2];
-  *vy1 = (int)X[3];
+  *vx0 = d0 * (int)X[0];
+  *vy0 = d0 * (int)X[1];
+  *vx1 = d1 * (int)X[2];
+  *vy1 = d1 * (int)X[3];
 }
 
 // Macros for optical flow experiment where offsets are added in nXn blocks
