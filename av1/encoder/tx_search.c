@@ -3736,7 +3736,11 @@ int av1_txfm_search(const AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
 
   av1_init_rd_stats(rd_stats_uv);
   const int num_planes = av1_num_planes(cm);
+#if CONFIG_SDP
+  if (num_planes > 1 && xd->tree_type != LUMA_PART) {
+#else
   if (num_planes > 1) {
+#endif
     int64_t ref_best_chroma_rd = ref_best_rd;
     // Calculate best rd cost possible for chroma
     if (cpi->sf.inter_sf.perform_best_rd_based_gating_for_chroma &&
