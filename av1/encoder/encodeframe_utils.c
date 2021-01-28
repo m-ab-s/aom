@@ -291,7 +291,12 @@ void av1_update_state(const AV1_COMP *const cpi, ThreadData *td,
     }
     // Else for cyclic refresh mode update the segment map, set the segment id
     // and then update the quantizer.
+#if CONFIG_SDP
+    if (cpi->oxcf.q_cfg.aq_mode == CYCLIC_REFRESH_AQ &&
+        xd->tree_type == SHARED_PART) {
+#else
     if (cpi->oxcf.q_cfg.aq_mode == CYCLIC_REFRESH_AQ) {
+#endif
       av1_cyclic_refresh_update_segment(cpi, mi_addr, mi_row, mi_col, bsize,
                                         ctx->rd_stats.rate, ctx->rd_stats.dist,
                                         txfm_info->skip_txfm);
@@ -730,9 +735,6 @@ void av1_save_context(const MACROBLOCK *x, RD_SEARCH_MACROBLOCK_CONTEXT *ctx,
 }
 
 static void set_partial_sb_partition(const AV1_COMMON *const cm,
-#if CONFIG_SDP
-                                     MACROBLOCKD *const xd,
-#endif
                                      MB_MODE_INFO *mi, int bh_in, int bw_in,
                                      int mi_rows_remaining,
                                      int mi_cols_remaining, BLOCK_SIZE bsize,
@@ -746,9 +748,9 @@ static void set_partial_sb_partition(const AV1_COMMON *const cm,
       const int mi_index = get_alloc_mi_idx(&cm->mi_params, r, c);
       mib[grid_index] = mi + mi_index;
 #if CONFIG_SDP
-      mib[grid_index]->sb_type[xd->tree_type == CHROMA_PART] =
-          find_partition_size(bsize, mi_rows_remaining - r,
-                              mi_cols_remaining - c, &bh, &bw);
+      mib[grid_index]->sb_type[PLANE_TYPE_Y] =
+          mib[grid_index]->sb_type[PLANE_TYPE_UV] = find_partition_size(
+              bsize, mi_rows_remaining - r, mi_cols_remaining - c, &bh, &bw);
 #else
       mib[grid_index]->sb_type = find_partition_size(
           bsize, mi_rows_remaining - r, mi_cols_remaining - c, &bh, &bw);
@@ -763,9 +765,6 @@ static void set_partial_sb_partition(const AV1_COMMON *const cm,
 // may not be allowed in which case this code attempts to choose the largest
 // allowable partition.
 void av1_set_fixed_partitioning(AV1_COMP *cpi, const TileInfo *const tile,
-#if CONFIG_SDP
-                                MACROBLOCK *const x,
-#endif
                                 MB_MODE_INFO **mib, int mi_row, int mi_col,
                                 BLOCK_SIZE bsize) {
   AV1_COMMON *const cm = &cpi->common;
@@ -776,10 +775,6 @@ void av1_set_fixed_partitioning(AV1_COMP *cpi, const TileInfo *const tile,
       mi_params->mi_alloc + get_alloc_mi_idx(mi_params, mi_row, mi_col);
   int bh = mi_size_high[bsize];
   int bw = mi_size_wide[bsize];
-
-#if CONFIG_SDP
-  MACROBLOCKD *const xd = &x->e_mbd;
-#endif
 
   assert(bsize >= mi_params->mi_alloc_bsize &&
          "Attempted to use bsize < mi_params->mi_alloc_bsize");
@@ -796,7 +791,8 @@ void av1_set_fixed_partitioning(AV1_COMP *cpi, const TileInfo *const tile,
         const int mi_index = get_alloc_mi_idx(mi_params, block_row, block_col);
         mib[grid_index] = mi_upper_left + mi_index;
 #if CONFIG_SDP
-        mib[grid_index]->sb_type[xd->tree_type == CHROMA_PART] = bsize;
+        mib[grid_index]->sb_type[PLANE_TYPE_Y] = bsize;
+        mib[grid_index]->sb_type[PLANE_TYPE_UV] = bsize;
 #else
         mib[grid_index]->sb_type = bsize;
 #endif
@@ -804,11 +800,7 @@ void av1_set_fixed_partitioning(AV1_COMP *cpi, const TileInfo *const tile,
     }
   } else {
     // Else this is a partial SB.
-#if CONFIG_SDP
-    set_partial_sb_partition(cm, xd, mi_upper_left, bh, bw, mi_rows_remaining,
-#else
     set_partial_sb_partition(cm, mi_upper_left, bh, bw, mi_rows_remaining,
-#endif
                              mi_cols_remaining, bsize, mib);
   }
 }

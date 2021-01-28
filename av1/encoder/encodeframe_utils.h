@@ -301,9 +301,6 @@ void av1_save_context(const MACROBLOCK *x, RD_SEARCH_MACROBLOCK_CONTEXT *ctx,
                       const int num_planes);
 
 void av1_set_fixed_partitioning(AV1_COMP *cpi, const TileInfo *const tile,
-#if CONFIG_SDP
-                                MACROBLOCK *const x,
-#endif
                                 MB_MODE_INFO **mib, int mi_row, int mi_col,
                                 BLOCK_SIZE bsize);
 #if CONFIG_SDP

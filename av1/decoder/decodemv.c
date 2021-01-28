@@ -902,7 +902,10 @@ static void read_intra_frame_mode_info(AV1_COMMON *const cm,
 #endif
     mbmi->palette_mode_info.palette_size[0] = 0;
   mbmi->palette_mode_info.palette_size[1] = 0;
-  mbmi->filter_intra_mode_info.use_filter_intra = 0;
+#if CONFIG_SDP
+  if (xd->tree_type != CHROMA_PART)
+#endif
+    mbmi->filter_intra_mode_info.use_filter_intra = 0;
 
   const int mi_row = xd->mi_row;
   const int mi_col = xd->mi_col;
@@ -975,7 +978,10 @@ static void read_intra_frame_mode_info(AV1_COMMON *const cm,
   if (av1_allow_palette(cm->features.allow_screen_content_tools, bsize))
     read_palette_mode_info(cm, xd, r);
 
-  read_filter_intra_mode_info(cm, xd, r);
+#if CONFIG_SDP
+  if (xd->tree_type != CHROMA_PART)
+#endif
+    read_filter_intra_mode_info(cm, xd, r);
 }
 
 static int read_mv_component(aom_reader *r, nmv_component *mvcomp,
@@ -1281,7 +1287,10 @@ static void read_intra_block_mode_info(AV1_COMMON *const cm,
   if (av1_allow_palette(cm->features.allow_screen_content_tools, bsize))
     read_palette_mode_info(cm, xd, r);
 
-  read_filter_intra_mode_info(cm, xd, r);
+#if CONFIG_SDP
+  if (xd->tree_type != CHROMA_PART)
+#endif
+    read_filter_intra_mode_info(cm, xd, r);
 }
 
 static INLINE int is_mv_valid(const MV *mv) {

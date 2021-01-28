@@ -3206,7 +3206,11 @@ void av1_rd_pick_intra_mode_sb(const struct AV1_COMP *cpi, struct macroblock *x,
 
   if (intra_yrd < best_rd) {
     // Search intra modes for uv planes if needed
+#if CONFIG_SDP
+    if (num_planes > 1 && xd->tree_type != LUMA_PART) {
+#else
     if (num_planes > 1) {
+#endif
       // Set up the tx variables for reproducing the y predictions in case we
       // need it for chroma-from-luma.
       if (xd->is_chroma_ref && store_cfl_required_rdo(cm, x)) {

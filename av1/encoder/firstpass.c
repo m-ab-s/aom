@@ -1108,7 +1108,8 @@ void av1_first_pass(AV1_COMP *cpi, const int64_t ts_duration) {
 
   set_mi_offsets(mi_params, xd, 0, 0);
 #if CONFIG_SDP
-  xd->mi[0]->sb_type[xd->tree_type == CHROMA_PART] = fp_block_size;
+  xd->mi[0]->sb_type[PLANE_TYPE_Y] = fp_block_size;
+  xd->mi[0]->sb_type[PLANE_TYPE_UV] = fp_block_size;
 #else
   xd->mi[0]->sb_type = fp_block_size;
 #endif

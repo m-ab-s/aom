@@ -152,7 +152,7 @@ typedef struct frame_contexts {
                        [CDF_SIZE(INTRA_MODES)];
 
 #if CONFIG_SDP
-  aom_cdf_prob angle_delta_cdf[3][DIRECTIONAL_MODES]
+  aom_cdf_prob angle_delta_cdf[PARTITION_STRUCTURE_NUM][DIRECTIONAL_MODES]
                               [CDF_SIZE(2 * MAX_ANGLE_DELTA + 1)];
 #else
   aom_cdf_prob angle_delta_cdf[DIRECTIONAL_MODES]

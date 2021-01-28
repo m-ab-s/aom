@@ -1685,8 +1685,12 @@ void av1_predict_intra_block_facade(const AV1_COMMON *cm, MACROBLOCKD *xd,
       cfl_load_dc_pred(xd, dst, dst_stride, tx_size, pred_plane);
     }
 #if CONFIG_SDP
-    if (xd->tree_type == CHROMA_PART)
-      cfl_store_tx(xd, blk_row, blk_col, tx_size, mbmi->sb_type[PLANE_TYPE_UV]);
+    if (xd->tree_type == CHROMA_PART) {
+      const int luma_tx_size =
+          av1_get_max_uv_txsize(mbmi->sb_type[PLANE_TYPE_UV], 0, 0);
+      cfl_store_tx(xd, blk_row, blk_col, luma_tx_size,
+                   mbmi->sb_type[PLANE_TYPE_UV]);
+    }
 #endif
     cfl_predict_block(xd, dst, dst_stride, tx_size, plane);
     return;

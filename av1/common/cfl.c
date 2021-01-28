@@ -318,31 +318,6 @@ static INLINE cfl_subsample_lbd_fn cfl_subsampling_lbd(TX_SIZE tx_size,
 static void cfl_store(MACROBLOCKD *const xd, CFL_CTX *cfl, const uint8_t *input,
                       int input_stride, int row, int col, TX_SIZE tx_size,
                       int use_hbd) {
-  if (xd->tree_type == CHROMA_PART) {
-    const int parents_tx_size[] = {
-      TX_8X8,      // 8x8 transform
-      TX_16X16,    // 16x16 transform
-      TX_32X32,    // 32x32 transform
-      TX_64X64,    // 64x64 transform
-      TX_INVALID,  // Invalid transform size
-      TX_8X16,     // 8x16 transform
-      TX_16X8,     // 16x8 transform
-      TX_16X32,    // 16x32 transform
-      TX_32X16,    // 32x16 transform
-      TX_32X64,    // 32x64 transform
-      TX_64X32,    // 64x32 transform
-      TX_INVALID,  // Invalid transform size
-      TX_INVALID,  // Invalid transform size
-      TX_8X32,     // 8x32 transform
-      TX_32X8,     // 32x8 transform
-      TX_16X64,    // 16x64 transform
-      TX_64X16,    // 64x16 transform
-      TX_INVALID,  // Invalid transform size
-      TX_INVALID,  // Invalid transform size
-    };
-    tx_size = parents_tx_size[tx_size];
-    assert(tx_size != 255);
-  }
 #else
 static void cfl_store(CFL_CTX *cfl, const uint8_t *input, int input_stride,
                       int row, int col, TX_SIZE tx_size, int use_hbd) {

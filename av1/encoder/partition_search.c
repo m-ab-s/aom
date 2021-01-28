@@ -503,8 +503,12 @@ static void setup_block_rdmult(const AV1_COMP *const cpi, MACROBLOCK *const x,
                                int mi_row, int mi_col, BLOCK_SIZE bsize,
                                AQ_MODE aq_mode, MB_MODE_INFO *mbmi) {
   x->rdmult = cpi->rd.RDMULT;
-
+#if CONFIG_SDP
+  MACROBLOCKD *const xd = &x->e_mbd;
+  if (aq_mode != NO_AQ && xd->tree_type == SHARED_PART) {
+#else
   if (aq_mode != NO_AQ) {
+#endif
     assert(mbmi != NULL);
     if (aq_mode == VARIANCE_AQ) {
       if (cpi->vaq_refresh) {
@@ -638,7 +642,12 @@ static AOM_INLINE void hybrid_intra_mode_search(AV1_COMP *cpi,
                                                 PICK_MODE_CONTEXT *ctx) {
   // TODO(jianj): Investigate the failure of ScalabilityTest in AOM_Q mode,
   // which sets base_qindex to 0 on keyframe.
+#if CONFIG_SDP
+  MACROBLOCKD *const xd = &x->e_mbd;
+  if (cpi->oxcf.rc_cfg.mode != AOM_CBR || xd->tree_type != SHARED_PART ||
+#else
   if (cpi->oxcf.rc_cfg.mode != AOM_CBR ||
+#endif
       !cpi->sf.rt_sf.hybrid_intra_pickmode || bsize < BLOCK_16X16)
     av1_rd_pick_intra_mode_sb(cpi, x, rd_cost, bsize, ctx, INT64_MAX);
   else
@@ -2140,6 +2149,10 @@ static void pick_sb_modes_nonrd(AV1_COMP *const cpi, TileDataEnc *tile_data,
   // Sets up the tx_type_map buffer in MACROBLOCKD.
   xd->tx_type_map = txfm_info->tx_type_map_;
   xd->tx_type_map_stride = mi_size_wide[bsize];
+#if CONFIG_SDP
+  mbmi->tree_type = xd->tree_type;
+  if (xd->tree_type == SHARED_PART) mbmi->sb_type[PLANE_TYPE_UV] = bsize;
+#endif
 #if CONFIG_SDP
   for (i = (xd->tree_type == CHROMA_PART); i < num_planes; ++i) {
 #else

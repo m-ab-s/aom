@@ -131,7 +131,8 @@ static AOM_INLINE void set_block_size(AV1_COMP *const cpi, MACROBLOCK *const x,
     set_mode_info_offsets(&cpi->common.mi_params, &cpi->mbmi_ext_info, x, xd,
                           mi_row, mi_col);
 #if CONFIG_SDP
-    xd->mi[0]->sb_type[xd->tree_type == CHROMA_PART] = bsize;
+    xd->mi[0]->sb_type[PLANE_TYPE_Y] = bsize;
+    xd->mi[0]->sb_type[PLANE_TYPE_UV] = bsize;
 #else
     xd->mi[0]->sb_type = bsize;
 #endif

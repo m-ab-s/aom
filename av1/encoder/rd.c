@@ -92,9 +92,8 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, ModeCosts *mode_costs,
                          FRAME_CONTEXT *fc) {
   int i, j;
 #if CONFIG_SDP
-  const int num_planes = av1_num_planes(cm);
   for (int plane_index = (xd->tree_type == CHROMA_PART);
-       plane_index < num_planes; plane_index++) {
+       plane_index < PARTITION_STRUCTURE_NUM; plane_index++) {
     for (i = 0; i < PARTITION_CONTEXTS; ++i)
       av1_cost_tokens_from_cdf(mode_costs->partition_cost[plane_index][i],
                                fc->partition_cdf[plane_index][i], NULL);
@@ -219,7 +218,7 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, ModeCosts *mode_costs,
     }
   }
 #if CONFIG_SDP
-  for (i = 0; i < 3; ++i) {
+  for (i = 0; i < PARTITION_STRUCTURE_NUM; ++i) {
     for (j = 0; j < DIRECTIONAL_MODES; ++j) {
       av1_cost_tokens_from_cdf(mode_costs->angle_delta_cost[i][j],
                                fc->angle_delta_cdf[i][j], NULL);

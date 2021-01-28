@@ -973,7 +973,10 @@ static INLINE void init_mbmi(MB_MODE_INFO *mbmi, PREDICTION_MODE pred_mode,
                              const AV1_COMMON *cm) {
   PALETTE_MODE_INFO *const pmi = &mbmi->palette_mode_info;
   mbmi->ref_mv_idx = 0;
-  mbmi->mode = pred_mode;
+#if CONFIG_SDP
+  if (mbmi->tree_type != CHROMA_PART)
+#endif
+    mbmi->mode = pred_mode;
   mbmi->uv_mode = UV_DC_PRED;
   mbmi->ref_frame[0] = ref_frame0;
   mbmi->ref_frame[1] = ref_frame1;
@@ -1584,9 +1587,15 @@ void av1_nonrd_pick_intra_mode(AV1_COMP *cpi, MACROBLOCK *x, RD_STATS *rd_cost,
     args.mode = this_mode;
     args.skippable = 1;
     args.rdc = &this_rdc;
+#if CONFIG_SDP
+    if (mi->tree_type != CHROMA_PART) mi->tx_size = intra_tx_size;
+    av1_foreach_transformed_block_in_plane(
+        xd, bsize, mi->tree_type == CHROMA_PART, estimate_block_intra, &args);
+#else
     mi->tx_size = intra_tx_size;
     av1_foreach_transformed_block_in_plane(xd, bsize, 0, estimate_block_intra,
                                            &args);
+#endif
     if (args.skippable) {
       this_rdc.rate = av1_cost_symbol(av1_get_skip_txfm_cdf(xd)[1]);
     } else {
@@ -1597,7 +1606,14 @@ void av1_nonrd_pick_intra_mode(AV1_COMP *cpi, MACROBLOCK *x, RD_STATS *rd_cost,
 
     if (this_rdc.rdcost < best_rdc.rdcost) {
       best_rdc = this_rdc;
+#if CONFIG_SDP
+      if (xd->tree_type != CHROMA_PART)
+        mi->mode = this_mode;
+      else
+        mi->uv_mode = this_mode;
+#else
       mi->mode = this_mode;
+#endif
     }
   }
 

@@ -72,17 +72,9 @@ static const aom_cdf_prob
                     31355, 31802, 32593) } }
     };
 #if CONFIG_SDP
-static const aom_cdf_prob
-    default_angle_delta_cdf[3][DIRECTIONAL_MODES][CDF_SIZE(2 * MAX_ANGLE_DELTA +
-                                                           1)] = {
-      { { AOM_CDF7(2180, 5032, 7567, 22776, 26989, 30217) },
-        { AOM_CDF7(2301, 5608, 8801, 23487, 26974, 30330) },
-        { AOM_CDF7(3780, 11018, 13699, 19354, 23083, 31286) },
-        { AOM_CDF7(4581, 11226, 15147, 17138, 21834, 28397) },
-        { AOM_CDF7(1737, 10927, 14509, 19588, 22745, 28823) },
-        { AOM_CDF7(2664, 10176, 12485, 17650, 21600, 30495) },
-        { AOM_CDF7(2240, 11096, 15453, 20341, 22561, 28917) },
-        { AOM_CDF7(3605, 10428, 12459, 17676, 21244, 30655) } },
+static const aom_cdf_prob default_angle_delta_cdf
+    [PARTITION_STRUCTURE_NUM][DIRECTIONAL_MODES]
+    [CDF_SIZE(2 * MAX_ANGLE_DELTA + 1)] = {
       { { AOM_CDF7(2180, 5032, 7567, 22776, 26989, 30217) },
         { AOM_CDF7(2301, 5608, 8801, 23487, 26974, 30330) },
         { AOM_CDF7(3780, 11018, 13699, 19354, 23083, 31286) },
