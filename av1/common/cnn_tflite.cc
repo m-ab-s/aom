@@ -66,9 +66,17 @@ static const unsigned char *get_inter_model_from_qindex(int qindex) {
   }
 }
 
+static TfLiteDelegate *get_tflite_xnnpack_delegate(int num_threads) {
+  TfLiteXNNPackDelegateOptions xnnpack_options =
+      TfLiteXNNPackDelegateOptionsDefault();
+  xnnpack_options.num_threads = AOMMAX(num_threads, 1);
+  return TfLiteXNNPackDelegateCreate(&xnnpack_options);
+}
+
 // Builds and returns the TFlite interpreter.
 static std::unique_ptr<tflite::Interpreter> get_tflite_interpreter(
-    int qindex, int width, int height, int num_threads, int is_intra_only) {
+    int qindex, int width, int height, int num_threads, int is_intra_only,
+    TfLiteDelegate *xnnpack_delegate) {
   const unsigned char *const model_tflite_data =
       is_intra_only ? get_intra_model_from_qindex(qindex)
                     : get_inter_model_from_qindex(qindex);
@@ -99,6 +107,12 @@ static std::unique_ptr<tflite::Interpreter> get_tflite_interpreter(
     reporter->Report("Failed at tensor allocation");
     return nullptr;
   }
+
+  if (interpreter->ModifyGraphWithDelegate(xnnpack_delegate) != kTfLiteOk) {
+    reporter->Report("Failed at modifying graph with XNNPack delegate");
+    return nullptr;
+  }
+
   return interpreter;
 }
 
@@ -106,8 +120,9 @@ extern "C" int av1_restore_cnn_img_tflite(int qindex, const uint8_t *dgd,
                                           int width, int height, int dgd_stride,
                                           uint8_t *rst, int rst_stride,
                                           int num_threads, int is_intra_only) {
-  std::unique_ptr<tflite::Interpreter> interpreter =
-      get_tflite_interpreter(qindex, width, height, num_threads, is_intra_only);
+  TfLiteDelegate *xnnpack_delegate = get_tflite_xnnpack_delegate(num_threads);
+  std::unique_ptr<tflite::Interpreter> interpreter = get_tflite_interpreter(
+      qindex, width, height, num_threads, is_intra_only, xnnpack_delegate);
 
   // Prepare input.
   const float max_val = 255.0f;
@@ -140,6 +155,11 @@ extern "C" int av1_restore_cnn_img_tflite(int qindex, const uint8_t *dgd,
       rst[r * rst_stride + c] = clip_pixel(dgd[r * dgd_stride + c] + residue);
     }
   }
+
+  // IMPORTANT: release the interpreter before destroying the delegate.
+  interpreter.reset();
+  TfLiteXNNPackDelegateDelete(xnnpack_delegate);
+
   return 1;
 }
 
@@ -149,8 +169,9 @@ extern "C" int av1_restore_cnn_img_tflite_highbd(int qindex,
                                                  uint16_t *rst, int rst_stride,
                                                  int num_threads, int bit_depth,
                                                  int is_intra_only) {
-  std::unique_ptr<tflite::Interpreter> interpreter =
-      get_tflite_interpreter(qindex, width, height, num_threads, is_intra_only);
+  TfLiteDelegate *xnnpack_delegate = get_tflite_xnnpack_delegate(num_threads);
+  std::unique_ptr<tflite::Interpreter> interpreter = get_tflite_interpreter(
+      qindex, width, height, num_threads, is_intra_only, xnnpack_delegate);
 
   // Prepare input.
   const auto max_val = static_cast<float>((1 << bit_depth) - 1);
@@ -184,6 +205,11 @@ extern "C" int av1_restore_cnn_img_tflite_highbd(int qindex,
           clip_pixel_highbd(dgd[r * dgd_stride + c] + residue, bit_depth);
     }
   }
+
+  // IMPORTANT: release the interpreter before destroying the delegate.
+  interpreter.reset();
+  TfLiteXNNPackDelegateDelete(xnnpack_delegate);
+
   return 1;
 }
 

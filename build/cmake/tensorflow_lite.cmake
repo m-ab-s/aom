@@ -149,6 +149,9 @@ function(target_link_tf_lite_libraries named_target)
   target_link_tf_lite_dep_(${named_target} _deps/flatbuffers-build/ flatbuffers)
   target_link_tf_lite_dep_(${named_target} _deps/xnnpack-build/ XNNPACK)
   target_link_tf_lite_dep_(${named_target} _deps/ruy-build/ ruy)
+  target_link_tf_lite_dep_(${named_target} cpuinfo/ cpuinfo)
+  target_link_tf_lite_dep_(${named_target} clog/ clog)
+  target_link_tf_lite_dep_(${named_target} pthreadpool/ pthreadpool)
 endfunction()
 
 # Can Tensorflow-Lite be enabled with the current build system? Sets the
