@@ -64,11 +64,14 @@ QPs = {
 }
 
 ######################## quality evalution config #############################
-QualityList = ['PSNR_Y','PSNR_U','PSNR_V','SSIM_Y(dB)','MS-SSIM_Y(dB)','VMAF_Y',
-               'VMAF_Y-NEG','PSNR-HVS','CIEDE2000','APSNR_Y','APSNR_U','APSNR_V']
+QualityList = ['PSNR_Y','PSNR_U','PSNR_V','Overall_PSNR','SSIM_Y(dB)','MS-SSIM_Y(dB)','VMAF_Y',
+               'VMAF_Y-NEG','PSNR-HVS','CIEDE2000','APSNR_Y','APSNR_U','APSNR_V','Overall_APSNR']
 VMAF = os.path.join(BinPath, 'vmaf.exe')
 CalcBDRateInExcel = True
 EnablePreInterpolation = True
+PSNRY_WEIGHT = 6.0
+PSNRU_WEIGHT = 1.0
+PSNRV_WEIGHT = 1.0
 
 ######################## config for exporting data to excel  #################
 #https://xlsxwriter.readthedocs.io/working_with_colors.html#colors
