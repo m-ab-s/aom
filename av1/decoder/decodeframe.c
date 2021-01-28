@@ -4397,7 +4397,9 @@ static int read_global_motion_params(WarpedMotionParams *params,
                                      int allow_hp) {
   uint16_t k;
 #if CONFIG_GM_MODEL_CODING
-  k = (frame != LAST_FRAME) ? GM_DIFF_SUBEXPFIN_K : SUBEXPFIN_K;
+  k = (frame != LAST_FRAME && ref_params->wmtype != IDENTITY)
+          ? GM_DIFF_SUBEXPFIN_K
+          : SUBEXPFIN_K;
 #else
   k = SUBEXPFIN_K;
 #endif  // CONFIG_GM_MODEL_CODING
