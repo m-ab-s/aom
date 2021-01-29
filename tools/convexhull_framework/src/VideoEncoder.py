@@ -43,7 +43,7 @@ def EncodeWithAOM_AV1(clip, test_cfg, QP, framenum, outfile, preset, enc_perf,
     else:
         args += " --tile-columns=0 --threads=1 "
 
-    if test_cfg == "AI":
+    if test_cfg == "AI" or test_cfg == "STILL":
         args += " --kf-min-dist=0 --kf-max-dist=0 "
     elif test_cfg == "RA" or test_cfg == "AS":
         args += " --min-gf-interval=16 --max-gf-interval=16 --gf-min-pyr-height=4" \

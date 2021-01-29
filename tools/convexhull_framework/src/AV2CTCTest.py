@@ -124,7 +124,11 @@ def GenerateSummaryRDDataFile(EncodeMethod, CodecName, EncodePreset,
     csv_file = GetRDResultCsvFile(EncodeMethod, CodecName, EncodePreset, test_cfg)
     csv = open(csv_file, 'wt')
     csv.write("TestCfg,EncodeMethod,CodecName,EncodePreset,Class,Res,Name,FPS,"\
-              "Bit Depth,QP,Bitrate(kbps)")
+              "Bit Depth,QP,")
+    if (test_cfg == "STILL"):
+        csv.write("FileSize(bytes)")
+    else:
+        csv.write("Bitrate(kbps)")
     for qty in QualityList:
         csv.write(',' + qty)
     csv.write(",EncT[s],DecT[s],EncT[h]")
@@ -134,13 +138,19 @@ def GenerateSummaryRDDataFile(EncodeMethod, CodecName, EncodePreset,
         for qp in QPs[test_cfg]:
             bs, dec = GetBsReconFileName(EncodeMethod, CodecName, EncodePreset,
                                          test_cfg, clip, qp)
-            bitrate = (os.path.getsize(bs) * 8 * (clip.fps_num / clip.fps_denom)
+            filesize = os.path.getsize(bs)
+            bitrate = (filesize * 8 * (clip.fps_num / clip.fps_denom)
                        / FrameNum[test_cfg]) / 1000.0
             quality = GatherQualityMetrics(dec, Path_QualityLog)
-            csv.write("%s,%s,%s,%s,%s,%s,%s,%.2f,%d,%d,%.4f"
+            csv.write("%s,%s,%s,%s,%s,%s,%s,%.2f,%d,%d,"
                       %(test_cfg,EncodeMethod,CodecName,EncodePreset,clip.file_class,
                         str(clip.width)+'x'+str(clip.height), clip.file_name,
-                        clip.fps,clip.bit_depth,qp,bitrate))
+                        clip.fps,clip.bit_depth,qp))
+            if (test_cfg == "STILL"):
+                csv.write("%d"%filesize)
+            else:
+                csv.write("%.4f"%bitrate)
+
             for qty in quality:
                 csv.write(",%.4f"%qty)
             enc_time, dec_time = GatherPerfInfo(bs, Path_TimingLog)

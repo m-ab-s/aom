@@ -15,10 +15,11 @@ Python file for definition of AV2 CTC testing clips/sets
 """
 
 CTC_TEST_SET = {
-    "AI": ["A1", "A2", "A3", "A4", "A5", "B1", "F1", "F2", "G1", "G2"],
+    "AI": ["A1", "A2", "A3", "A4", "A5", "B1", "G1", "G2"],
     "RA": ["A1", "A2", "A3", "A4", "A5", "B1", "G1", "G2"],
     "LD": ["A2", "A3", "A4", "A5", "B1"],
-    "AS": ["A1"]
+    "AS": ["A1"],
+    "STILL": ["F1", "F2"],
 }
 
 Y4M_CLIPs = {

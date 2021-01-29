@@ -15,7 +15,7 @@ import platform
 import AV2CTCVideo
 
 #TEST_CONFIGURATIONS = ["RA","LD", "AS"]
-TEST_CONFIGURATIONS = ["LD", "RA", "AI"]
+TEST_CONFIGURATIONS = ["LD", "RA", "AI", "STILL"]
 
 ######################################
 # configuration settings
@@ -29,6 +29,7 @@ FrameNum = {
     "RA" : 130,
     "AI" : 30,
     "AS" : 130,
+    "STILL" : 1,
 }
 EnableTimingInfo = True
 Platform = platform.system()
@@ -61,6 +62,7 @@ QPs = {
     "RA" : [23, 31, 39, 47, 55, 63],
     "AI" : [15, 23, 31, 39, 47, 55],
     "AS" : [23, 31, 39, 47, 55, 63],
+    "STILL" : [15, 23, 31, 39, 47, 55],
 }
 
 ######################## quality evalution config #############################
