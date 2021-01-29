@@ -20,7 +20,8 @@
 
 #define Y4M_HDR_MAX_LEN 256
 #define Y4M_HDR_MAX_WORDS 16
-#define NUM_THREADS 4
+#define NUM_THREADS 8
+#define USE_XNNPACK 1
 
 #define MAX(a, b) ((a) < (b) ? (b) : (a))
 
@@ -122,9 +123,17 @@ static const unsigned char *get_model(int code) {
   }
 }
 
+static TfLiteDelegate *get_tflite_xnnpack_delegate(int num_threads) {
+  TfLiteXNNPackDelegateOptions xnnpack_options =
+      TfLiteXNNPackDelegateOptionsDefault();
+  xnnpack_options.num_threads = MAX(num_threads, 1);
+  return TfLiteXNNPackDelegateCreate(&xnnpack_options);
+}
+
 // Builds and returns the TFlite interpreter.
 static std::unique_ptr<tflite::Interpreter> get_tflite_interpreter(
-    int code, int width, int height, int num_threads) {
+    int code, int width, int height, int num_threads,
+    TfLiteDelegate *xnnpack_delegate) {
   const unsigned char *const model_tflite_data = get_model(code);
   if (model_tflite_data == NULL) return nullptr;
 
@@ -151,6 +160,12 @@ static std::unique_ptr<tflite::Interpreter> get_tflite_interpreter(
     reporter->Report("Failed at tensor allocation");
     return nullptr;
   }
+  if (xnnpack_delegate) {
+    if (interpreter->ModifyGraphWithDelegate(xnnpack_delegate) != kTfLiteOk) {
+      reporter->Report("Failed at modifying graph with XNNPack delegate");
+      return nullptr;
+    }
+  }
   return interpreter;
 }
 
@@ -163,12 +178,9 @@ static inline uint16_t clip_pixel_highbd(int x, int bd) {
   return (uint16_t)(x < 0 ? 0 : x > high ? high : x);
 }
 
-static int restore_cnn_img_tflite_lowbd(int code, const uint8_t *dgd, int width,
-                                        int height, int dgd_stride,
-                                        uint8_t *rst, int rst_stride,
-                                        int num_threads) {
-  std::unique_ptr<tflite::Interpreter> interpreter =
-      get_tflite_interpreter(code, width, height, num_threads);
+static int restore_cnn_img_tflite_lowbd(
+    const std::unique_ptr<tflite::Interpreter> &interpreter, const uint8_t *dgd,
+    int width, int height, int dgd_stride, uint8_t *rst, int rst_stride) {
   // Prepare input.
   const float max_val = 255.0f;
   const int in_stride = width;
@@ -201,12 +213,10 @@ static int restore_cnn_img_tflite_lowbd(int code, const uint8_t *dgd, int width,
   return 1;
 }
 
-static int restore_cnn_img_tflite_highbd(int code, const uint16_t *dgd,
-                                         int width, int height, int dgd_stride,
-                                         uint16_t *rst, int rst_stride,
-                                         int num_threads, int bit_depth) {
-  std::unique_ptr<tflite::Interpreter> interpreter =
-      get_tflite_interpreter(code, width, height, num_threads);
+static int restore_cnn_img_tflite_highbd(
+    const std::unique_ptr<tflite::Interpreter> &interpreter,
+    const uint16_t *dgd, int width, int height, int dgd_stride, uint16_t *rst,
+    int rst_stride, int bit_depth) {
   // Prepare input.
   const auto max_val = static_cast<float>((1 << bit_depth) - 1);
   const int in_stride = width;
@@ -241,6 +251,8 @@ static int restore_cnn_img_tflite_highbd(int code, const uint16_t *dgd,
 }
 
 int main(int argc, char *argv[]) {
+  static const int use_xnnpack = USE_XNNPACK;
+
   int ywidth, yheight;
 
   if (argc < 5) {
@@ -289,6 +301,11 @@ int main(int argc, char *argv[]) {
   uint8_t *outbuf =
       (uint8_t *)malloc((ysize + 2 * uvsize) * bytes_per_pel * sizeof(uint8_t));
 
+  TfLiteDelegate *xnnpack_delegate =
+      use_xnnpack ? get_tflite_xnnpack_delegate(NUM_THREADS) : nullptr;
+  std::unique_ptr<tflite::Interpreter> interpreter = get_tflite_interpreter(
+      restore_code, ywidth, yheight, NUM_THREADS, xnnpack_delegate);
+
   char frametag[] = "FRAME\n";
   for (int n = 0; n < num_frames; ++n) {
     char intag[8];
@@ -300,20 +317,24 @@ int main(int argc, char *argv[]) {
     }
     if (fread(inbuf, (ysize + 2 * uvsize) * bytes_per_pel, 1, fin) != 1) break;
     if (bytes_per_pel == 1) {
-      restore_cnn_img_tflite_lowbd(restore_code, inbuf, ywidth, yheight, ywidth,
-                                   outbuf, ywidth, NUM_THREADS);
+      restore_cnn_img_tflite_lowbd(interpreter, inbuf, ywidth, yheight, ywidth,
+                                   outbuf, ywidth);
       memcpy(outbuf + ysize * bytes_per_pel, inbuf + ysize * bytes_per_pel,
              2 * uvsize * bytes_per_pel);
     } else {
-      restore_cnn_img_tflite_highbd(restore_code, (uint16_t *)inbuf, ywidth,
+      restore_cnn_img_tflite_highbd(interpreter, (uint16_t *)inbuf, ywidth,
                                     yheight, ywidth, (uint16_t *)outbuf, ywidth,
-                                    NUM_THREADS, bitdepth);
+                                    bitdepth);
       memcpy(outbuf + ysize * bytes_per_pel, inbuf + ysize * bytes_per_pel,
              2 * uvsize * bytes_per_pel);
     }
     fwrite(frametag, 6, 1, fout);
     fwrite(outbuf, (ysize + 2 * uvsize) * bytes_per_pel, 1, fout);
   }
+  // IMPORTANT: release the interpreter before destroying the delegate.
+  interpreter.reset();
+  if (xnnpack_delegate) TfLiteXNNPackDelegateDelete(xnnpack_delegate);
+
   fclose(fin);
   fclose(fout);
   free(inbuf);
