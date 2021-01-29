@@ -600,8 +600,9 @@ static AOM_INLINE void init_sbuv_mode(MB_MODE_INFO *const mbmi) {
 static INLINE void store_winner_mode_stats(
     const AV1_COMMON *const cm, MACROBLOCK *x, const MB_MODE_INFO *mbmi,
     RD_STATS *rd_cost, RD_STATS *rd_cost_y, RD_STATS *rd_cost_uv,
-    const int *refs, PREDICTION_MODE mode, uint8_t *color_map, BLOCK_SIZE bsize,
-    int64_t this_rd, int multi_winner_mode_type, int txfm_search_done) {
+    const MV_REFERENCE_FRAME *refs, PREDICTION_MODE mode, uint8_t *color_map,
+    BLOCK_SIZE bsize, int64_t this_rd, int multi_winner_mode_type,
+    int txfm_search_done) {
   WinnerModeStats *winner_mode_stats = x->winner_mode_stats;
   int mode_idx = 0;
   int is_palette_mode = mbmi->palette_mode_info.palette_size[PLANE_TYPE_Y] > 0;

@@ -270,7 +270,7 @@ static AOM_INLINE void palette_rd_y(
   }
   // Collect mode stats for multiwinner mode processing
   const int txfm_search_done = 1;
-  const int refs[2] = { -1, -1 };
+  const MV_REFERENCE_FRAME refs[2] = { -1, -1 };
   store_winner_mode_stats(
       &cpi->common, x, mbmi, NULL, NULL, NULL, refs, DC_PRED, color_map, bsize,
       this_rd, cpi->sf.winner_mode_sf.multi_winner_mode_type, txfm_search_done);
