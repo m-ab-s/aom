@@ -71,6 +71,10 @@ def GetShortContentName(content, isshort=True):
         name = basename
     return name
 
+def GetEncLogFile(bsfile, logpath):
+    filename = GetShortContentName(bsfile, False) + '_EncLog.txt'
+    return os.path.join(logpath, filename)
+
 def parseY4MHeader(y4m):
     """
     Parse y4m information from its header.

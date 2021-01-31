@@ -15,7 +15,7 @@ from VideoEncoder import VideoEncode
 from VideoDecoder import VideoDecode
 from VideoScaler import UpScaling, GetDownScaledOutFile, GetUpScaledOutFile
 from Config import SUFFIX, LoggerName
-from Utils import GetShortContentName, Clip
+from Utils import GetShortContentName, Clip, GetEncLogFile
 import logging
 
 subloggername = "EncDecUpscale"
@@ -48,13 +48,14 @@ def GetDecPerfFile(bsfile, perfpath):
 ################################################################################
 ##################### Major Functions ##########################################
 def Encode(method, codec, preset, clip, test_cfg, qp, num, bs_path, perf_path,
-           LogCmdOnly=False):
+           log_path, LogCmdOnly=False):
     bsfile = GetBitstreamFile(method, codec, test_cfg, preset, clip.file_path,
                               qp, bs_path)
     enc_perf = GetEncPerfFile(bsfile, perf_path)
+    enc_log = GetEncLogFile(bsfile, log_path)
     # call VideoEncoder to do the encoding
     VideoEncode(method, codec, clip, test_cfg, qp, num, bsfile, preset, enc_perf,
-                LogCmdOnly)
+                enc_log, LogCmdOnly)
     return bsfile
 
 def Decode(codec, bsfile, path, perf_path, LogCmdOnly=False):
@@ -66,11 +67,11 @@ def Decode(codec, bsfile, path, perf_path, LogCmdOnly=False):
 
 def Run_EncDec_Upscale(method, codec, preset, clip, test_cfg, QP, num, outw,
                        outh, path_bs, path_decoded, path_upscaled, path_cfg,
-                       path_perf, upscale_algo, LogCmdOnly = False):
+                       path_perf, path_enc_log, upscale_algo, LogCmdOnly = False):
     logger.info("%s %s start encode file %s with QP = %d" %
                 (method, codec, clip.file_name, QP))
     bsFile = Encode(method, codec, preset, clip, test_cfg, QP, num, path_bs,
-                    path_perf, LogCmdOnly)
+                    path_perf, path_enc_log, LogCmdOnly)
     logger.info("start decode file %s" % os.path.basename(bsFile))
     decodedYUV = Decode(codec, bsFile, path_decoded, path_perf, LogCmdOnly)
     logger.info("start upscale file %s" % os.path.basename(decodedYUV))

@@ -20,6 +20,8 @@ def DecodeWithAOM(infile, outfile, dec_perf, LogCmdOnly=False):
     if EnableTimingInfo:
         if Platform == "Windows":
             cmd = "ptime " + cmd + " >%s"%dec_perf
+        elif Platform == "Darwin":
+            cmd = "gtime --verbose --output=%s "%dec_perf + cmd
         else:
             cmd = "/usr/bin/time --verbose --output=%s "%dec_perf + cmd
     ExecuteCmd(cmd, LogCmdOnly)

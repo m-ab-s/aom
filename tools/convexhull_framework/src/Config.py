@@ -20,7 +20,7 @@ TEST_CONFIGURATIONS = ["LD", "RA", "AI", "STILL"]
 ######################################
 # configuration settings
 ######################################
-RootPath = "..\\"
+RootPath = "..//"
 BinPath = os.path.join(RootPath, 'bin')
 WorkPath = os.path.join(RootPath, 'test')
 SMOKE_TEST = False  # override some parameters to do a quick smoke test
@@ -35,7 +35,7 @@ EnableTimingInfo = True
 Platform = platform.system()
 
 ############ test contents #######################################
-ContentPath = "D:\\YUVs\\AV2-CTC"
+ContentPath = "D://YUVs//AV2-CTC"
 ############## Scaling settings ############################################
 # down scaling ratio
 DnScaleRatio = [1.0, 1.5, 2.0, 3.0, 4.0, 6.0]  # downscale ratio
@@ -64,6 +64,7 @@ QPs = {
     "AS" : [23, 31, 39, 47, 55, 63],
     "STILL" : [15, 23, 31, 39, 47, 55],
 }
+MIN_GOP_LENGTH = 16
 
 ######################## quality evalution config #############################
 QualityList = ['PSNR_Y','PSNR_U','PSNR_V','Overall_PSNR','SSIM_Y(dB)','MS-SSIM_Y(dB)','VMAF_Y',

@@ -337,7 +337,7 @@ def SaveConvexHullResultsToExcel(content, dnScAlgos, upScAlgos,
                 bitrate = (os.path.getsize(bs) * 8 * (clip.fps_num / clip.fps_denom)
                            / FrameNum['AS']) / 1000.0
                 bitratesKbps.append(bitrate)
-                quality = GatherQualityMetrics(reconyuv, Path_QualityLog)
+                quality, perframe_vmaf_log = GatherQualityMetrics(reconyuv, Path_QualityLog)
                 qualities.append(quality)
 
             sht.write_column(CvxH_WtRows[0], col, bitratesKbps)
