@@ -1752,10 +1752,10 @@ static const aom_cdf_prob default_switchable_restore_cdf[CDF_SIZE(
 static const aom_cdf_prob default_switchable_restore_cdf[CDF_SIZE(
     RESTORE_SWITCHABLE_TYPES)] = { AOM_CDF4(6000, 14000, 22500) };
 #elif CONFIG_LOOP_RESTORE_CNN
-// Index 0: when use_cnn == 0, 3 options are allowed excluding RESTORE_CNN; and
-// CDEF is allowed.
-// Index 1: when use_cnn == 1, all 4 options are allowed including RESTORE_CNN;
-// and CDEF is off.
+// Index 0: when use_cnn_y/uv == 0, 3 options are allowed excluding RESTORE_CNN;
+// and CDEF is allowed.
+// Index 1: when use_cnn_y/uv == 1, all 4 options are allowed including
+// RESTORE_CNN; and CDEF is off.
 static const aom_cdf_prob default_switchable_restore_cdf[2][CDF_SIZE(
     RESTORE_SWITCHABLE_TYPES)] = { { AOM_CDF4(9413, 22581, CDF_PROB_TOP) },
                                    { AOM_CDF4(6000, 14000, 22500) } };

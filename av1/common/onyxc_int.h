@@ -610,7 +610,8 @@ typedef struct AV1Common {
 #endif
   int is_decoding;
 #if CONFIG_CNN_RESTORATION || CONFIG_LOOP_RESTORE_CNN
-  int use_cnn;
+  int use_cnn_y;
+  int use_cnn_uv;
 #endif  // CONFIG_CNN_RESTORATION || CONFIG_LOOP_RESTORE_CNN
 #if CONFIG_MFQE_RESTORATION
   int use_mfqe;

@@ -429,6 +429,9 @@ typedef struct FilterFrameCtxt {
   AV1PixelRect tile_rect;
   int base_qindex;
   FRAME_TYPE frame_type;
+#if CONFIG_LOOP_RESTORE_CNN
+  bool is_luma;
+#endif  // CONFIG_LOOP_RESTORE_CNN
 #if CONFIG_WIENER_NONSEP
   int plane;
 #if WIENER_NONSEP_MASK

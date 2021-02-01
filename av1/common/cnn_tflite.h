@@ -42,19 +42,20 @@ static INLINE int av1_use_cnn_encode(const AV1_COMMON *cm,
 int av1_restore_cnn_img_tflite(int qindex, const uint8_t *dgd, int width,
                                int height, int dgd_stride, uint8_t *rst,
                                int rst_stride, int num_threads,
-                               int is_intra_only);
+                               int is_intra_only, int is_luma);
 
 // Same as 'av1_restore_cnn_img_tflite' for highbd.
 int av1_restore_cnn_img_tflite_highbd(int qindex, const uint16_t *dgd,
                                       int width, int height, int dgd_stride,
                                       uint16_t *rst, int rst_stride,
                                       int num_threads, int bit_depth,
-                                      int is_intra_only);
+                                      int is_intra_only, int is_luma);
 
 struct AV1Common;
 
 // Restore current frame buffer in 'cm' in-place with a CNN model using TFlite.
-void av1_restore_cnn_tflite(const struct AV1Common *cm, int num_threads);
+void av1_restore_cnn_tflite(const struct AV1Common *cm, int num_threads,
+                            int plane_from, int plane_to);
 
 // Uses CNN model for txfm reconstruction
 int av1_cnn_recon_tflite(uint8_t *dst, int dst_stride, int height, int width);

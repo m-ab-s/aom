@@ -1298,10 +1298,10 @@ static void cnn_filter_stripe(const RestorationUnitInfo *rui, int stripe_width,
   (void)procunit_width;
   (void)tmpbuf;  // Unused.
   assert(rui->cnn_info.base_qindex > MIN_CNN_Q_INDEX);
-  av1_restore_cnn_img_tflite(rui->cnn_info.base_qindex, src, stripe_width,
-                             stripe_height, src_stride, dst, dst_stride,
-                             1 /* num_threads */,
-                             is_frame_intra_only(rui->cnn_info.frame_type));
+  av1_restore_cnn_img_tflite(
+      rui->cnn_info.base_qindex, src, stripe_width, stripe_height, src_stride,
+      dst, dst_stride, 1 /* num_threads */,
+      is_frame_intra_only(rui->cnn_info.frame_type), rui->cnn_info.is_luma);
 }
 
 static void cnn_filter_stripe_highbd(const RestorationUnitInfo *rui,
@@ -1317,7 +1317,7 @@ static void cnn_filter_stripe_highbd(const RestorationUnitInfo *rui,
       rui->cnn_info.base_qindex, CONVERT_TO_SHORTPTR(src8), stripe_width,
       stripe_height, src_stride, CONVERT_TO_SHORTPTR(dst8), dst_stride,
       1 /* num_threads */, bit_depth,
-      is_frame_intra_only(rui->cnn_info.frame_type));
+      is_frame_intra_only(rui->cnn_info.frame_type), rui->cnn_info.is_luma);
 }
 
 #endif  // CONFIG_LOOP_RESTORE_CNN
@@ -1525,6 +1525,7 @@ static void filter_frame_on_unit(const RestorationTileLimits *limits,
   if (rtype == RESTORE_CNN) {
     rsi->unit_info[rest_unit_idx].cnn_info.base_qindex = ctxt->base_qindex;
     rsi->unit_info[rest_unit_idx].cnn_info.frame_type = ctxt->frame_type;
+    rsi->unit_info[rest_unit_idx].cnn_info.is_luma = ctxt->is_luma;
   }
 #endif  // CONFIG_LOOP_RESTORE_CNN
 #if CONFIG_WIENER_NONSEP
@@ -1602,6 +1603,9 @@ void av1_loop_restoration_filter_frame_init(AV1LrStruct *lr_ctxt,
     lr_plane_ctxt->tile_stripe0 = 0;
     lr_plane_ctxt->base_qindex = cm->base_qindex;
     lr_plane_ctxt->frame_type = cm->current_frame.frame_type;
+#if CONFIG_LOOP_RESTORE_CNN
+    lr_plane_ctxt->is_luma = (plane == AOM_PLANE_Y);
+#endif  // CONFIG_LOOP_RESTORE_CNN
   }
 }
 

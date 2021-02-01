@@ -147,7 +147,7 @@ typedef struct {
 #endif  // CONFIG_WIENER_NONSEP
 
 #if CONFIG_LOOP_RESTORE_CNN
-  bool allow_restore_cnn_y;
+  bool allow_restore_cnn;
 #endif  // CONFIG_LOOP_RESTORE_CNN
 
 #if CONFIG_RST_MERGECOEFFS
@@ -181,7 +181,7 @@ static void init_rsc(const YV12_BUFFER_CONFIG *src, const AV1_COMMON *cm,
                      const MACROBLOCK *x, const SPEED_FEATURES *sf, int plane,
                      RestUnitSearchInfo *rusi, YV12_BUFFER_CONFIG *dst,
 #if CONFIG_LOOP_RESTORE_CNN
-                     bool allow_restore_cnn_y,
+                     bool allow_restore_cnn,
 #endif  // CONFIG_LOOP_RESTORE_CNN
 #if CONFIG_RST_MERGECOEFFS
                      Vector *unit_stack,
@@ -207,7 +207,7 @@ static void init_rsc(const YV12_BUFFER_CONFIG *src, const AV1_COMMON *cm,
   assert(src->crop_widths[is_uv] == dgd->crop_widths[is_uv]);
   assert(src->crop_heights[is_uv] == dgd->crop_heights[is_uv]);
 #if CONFIG_LOOP_RESTORE_CNN
-  rsc->allow_restore_cnn_y = allow_restore_cnn_y || (plane != AOM_PLANE_Y);
+  rsc->allow_restore_cnn = allow_restore_cnn;
 #endif  // CONFIG_LOOP_RESTORE_CNN
 
 #if CONFIG_RST_MERGECOEFFS
@@ -1748,7 +1748,9 @@ static void search_cnn(const RestorationTileLimits *limits,
   const MACROBLOCK *const x = rsc->x;
   const int64_t bits_none = x->cnn_restore_cost[0];
   const int64_t bits_cnn = x->cnn_restore_cost[1];
-  if (!cm->use_cnn || rsc->plane != AOM_PLANE_Y || !rsc->allow_restore_cnn_y) {
+  const bool is_luma = (rsc->plane == AOM_PLANE_Y);
+  const bool use_cnn_plane = is_luma ? cm->use_cnn_y : cm->use_cnn_uv;
+  if (!use_cnn_plane || !rsc->allow_restore_cnn) {
     rusi->sse[RESTORE_CNN] = INT64_MAX;
     rusi->best_rtype[RESTORE_CNN - 1] = RESTORE_NONE;
     rsc->sse += rusi->sse[RESTORE_NONE];
@@ -1763,6 +1765,7 @@ static void search_cnn(const RestorationTileLimits *limits,
   rui.restoration_type = RESTORE_CNN;
   rui.cnn_info.base_qindex = cm->base_qindex;
   rui.cnn_info.frame_type = cm->current_frame.frame_type;
+  rui.cnn_info.is_luma = is_luma;
   rusi->sse[RESTORE_CNN] = try_restoration_unit(rsc, limits, tile_rect, &rui);
 
   double cost_none =
@@ -2255,7 +2258,9 @@ static int64_t count_switchable_bits(int rest_type, RestSearchCtxt *rsc,
   const int64_t coeff_bits = coeff_pcost << AV1_PROB_COST_SHIFT;
   int64_t bits;
 #if CONFIG_LOOP_RESTORE_CNN
-  bits = x->switchable_restore_cost[rsc->cm->use_cnn][rest_type] + coeff_bits;
+  const bool use_cnn_plane =
+      (rsc->plane == AOM_PLANE_Y) ? rsc->cm->use_cnn_y : rsc->cm->use_cnn_uv;
+  bits = x->switchable_restore_cost[use_cnn_plane][rest_type] + coeff_bits;
 #else
   bits = x->switchable_restore_cost[rest_type] + coeff_bits;
 #endif  // CONFIG_LOOP_RESTORE_CNN
@@ -2664,6 +2669,7 @@ static void dump_frame_data(const YV12_BUFFER_CONFIG *src,
 void av1_pick_filter_restoration(const YV12_BUFFER_CONFIG *src,
 #if CONFIG_LOOP_RESTORE_CNN
                                  bool allow_restore_cnn_y,
+                                 bool allow_restore_cnn_uv,
 #endif  // CONFIG_LOOP_RESTORE_CNN
                                  AV1_COMP *cpi) {
   AV1_COMMON *const cm = &cpi->common;
@@ -2716,16 +2722,27 @@ void av1_pick_filter_restoration(const YV12_BUFFER_CONFIG *src,
 #endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
 #endif  // CONFIG_WIENER_NONSEP
 
+#if CONFIG_LOOP_RESTORE_CNN
+  bool restore_cnn_used = false;
+#endif  // CONFIG_LOOP_RESTORE_CNN
+
   for (int plane = plane_start; plane <= plane_end; ++plane) {
     init_rsc(src, &cpi->common, &cpi->td.mb, &cpi->sf, plane, rusi,
              &cpi->trial_frame_rst,
 #if CONFIG_LOOP_RESTORE_CNN
-             allow_restore_cnn_y,
+             plane == 0 ? allow_restore_cnn_y : allow_restore_cnn_uv,
 #endif  // CONFIG_LOOP_RESTORE_CNN
 #if CONFIG_RST_MERGECOEFFS
              &unit_stack,
 #endif  // CONFIG_RST_MERGECOEFFS
              &rsc);
+
+#if CONFIG_LOOP_RESTORE_CNN
+    // For Y, and U plane, reset this flag; but for V plane, keep the value we
+    // have from previous loop iteration (U plane), as we want to check if
+    // *either* U or V plane use RESTORE_CNN.
+    if (plane < AOM_PLANE_V) restore_cnn_used = false;
+#endif  // CONFIG_LOOP_RESTORE_CNN
 
     const int plane_ntiles = ntiles[plane > 0];
     const RestorationType num_rtypes =
@@ -2765,10 +2782,11 @@ void av1_pick_filter_restoration(const YV12_BUFFER_CONFIG *src,
     }
 
 #if CONFIG_LOOP_RESTORE_CNN
-    if (cm->use_cnn && plane == 0) {
+    if ((cm->use_cnn_y && plane == AOM_PLANE_Y) ||
+        (cm->use_cnn_uv && plane >= AOM_PLANE_U)) {
       // Check if RESTORE_CNN was used for any restoration units, and set
-      // cm->use_cnn value based on that.
-      bool restore_cnn_used =
+      // cm->use_cnn_y/uv value based on that.
+      restore_cnn_used |=
           (cm->rst_info[plane].frame_restoration_type == RESTORE_CNN);
       if (!restore_cnn_used &&
           cm->rst_info[plane].frame_restoration_type == RESTORE_SWITCHABLE) {
@@ -2780,7 +2798,11 @@ void av1_pick_filter_restoration(const YV12_BUFFER_CONFIG *src,
           }
         }
       }
-      cm->use_cnn = restore_cnn_used;
+      if (plane == AOM_PLANE_Y) {
+        cm->use_cnn_y = restore_cnn_used;
+      } else if (plane == AOM_PLANE_V) {
+        cm->use_cnn_uv = restore_cnn_used;
+      }
     }
 #endif  // CONFIG_LOOP_RESTORE_CNN
   }

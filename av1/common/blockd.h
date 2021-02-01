@@ -1006,6 +1006,7 @@ typedef struct {
 typedef struct {
   FRAME_TYPE frame_type;
   int base_qindex;
+  bool is_luma;
 } CNNInfo;
 #endif  // CONFIG_LOOP_RESTORE_CNN
 
