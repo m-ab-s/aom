@@ -61,8 +61,9 @@ const int wienerns_uv_from_uv_pixel =
 
 #if CONFIG_WIENER_NONSEP_CROSS_FILT
 const int wienerns_config_uv_from_y[][3] = {
-  { 1, 0, 6 }, { -1, 0, 6 }, { 0, 1, 6 }, { 0, -1, 6 },
-  { 2, 0, 7 }, { -2, 0, 7 }, { 0, 2, 7 }, { 0, -2, 7 },
+  { 1, 0, 6 },  { -1, 0, 6 },  { 0, 1, 7 },  { 0, -1, 7 },
+  { 1, 1, 8 },  { -1, -1, 8 }, { -1, 1, 9 }, { 1, -1, 9 },
+  { 2, 0, 10 }, { -2, 0, 10 }, { 0, 2, 11 }, { 0, -2, 11 },
 };
 const int wienerns_uv_from_y_pixel =
     sizeof(wienerns_config_uv_from_y) / sizeof(wienerns_config_uv_from_y[0]);
@@ -81,6 +82,8 @@ const int wienerns_coeff_uv[][3] = {
   AOM_WIENERNS_COEFF_UV(5, -20, 3), AOM_WIENERNS_COEFF_UV(5, -20, 3),
   AOM_WIENERNS_COEFF_UV(6, -32, 3), AOM_WIENERNS_COEFF_UV(6, -32, 3),
 #if CONFIG_WIENER_NONSEP_CROSS_FILT
+  AOM_WIENERNS_COEFF_UV(5, -16, 3), AOM_WIENERNS_COEFF_UV(5, -16, 3),
+  AOM_WIENERNS_COEFF_UV(5, -16, 3), AOM_WIENERNS_COEFF_UV(5, -16, 3),
   AOM_WIENERNS_COEFF_UV(5, -16, 3), AOM_WIENERNS_COEFF_UV(5, -16, 3),
 #endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
 };
