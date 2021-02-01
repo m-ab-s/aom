@@ -649,8 +649,7 @@ static void get_best_error(int64_t *besterr, const int64_t err, const int *exqd,
   if (*besterr == -1 || err < *besterr) {
     *bestep = ep;
     *besterr = err;
-    bestxqd[0] = exqd[0];
-    bestxqd[1] = exqd[1];
+    memcpy(bestxqd, exqd, sizeof(*bestxqd) * 2);
   }
 }
 
