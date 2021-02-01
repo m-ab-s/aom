@@ -214,6 +214,9 @@ static AOM_INLINE void compute_global_motion_for_ref_frame(
 // Computes global motion for the given reference frame.
 void av1_compute_gm_for_valid_ref_frames(
     AV1_COMP *cpi, YV12_BUFFER_CONFIG *ref_buf[REF_FRAMES], int frame,
+#if CONFIG_GM_MODEL_CODING
+    int *base_frame,
+#endif  // CONFIG_GM_MODEL_CODING
     int num_src_corners, int *src_corners, unsigned char *src_buffer,
     MotionModel *params_by_motion, uint8_t *segment_map, int segment_map_w,
     int segment_map_h) {
@@ -221,18 +224,17 @@ void av1_compute_gm_for_valid_ref_frames(
   GlobalMotionInfo *const gm_info = &cpi->gm_info;
   const WarpedMotionParams *ref_params;
 #if CONFIG_GM_MODEL_CODING
-  if (frame == LAST_FRAME) {
+  WarpedMotionParams params;
+  aom_clear_system_state();
+  const bool updated_params =
+      find_gm_ref_params(&params, cm, frame, *base_frame);
+  if (updated_params) {
+    ref_params = &params;
+  } else {
     ref_params = cm->prev_frame ? &cm->prev_frame->global_motion[frame]
                                 : &default_warp_params;
-  } else {
-    WarpedMotionParams params;
-    aom_clear_system_state();
-    const bool updated_params =
-        (frame <= BWDREF_FRAME)
-            ? find_gm_ref_params(&params, cm, frame, LAST_FRAME)
-            : find_gm_ref_params(&params, cm, frame, BWDREF_FRAME);
-    ref_params = updated_params ? &params : &default_warp_params;
   }
+  if (ref_params->wmtype != IDENTITY) *base_frame = frame;
 #else
   ref_params = cm->prev_frame ? &cm->prev_frame->global_motion[frame]
                               : &default_warp_params;
@@ -261,13 +263,20 @@ static AOM_INLINE void compute_global_motion_for_references(
   // Computation of frame corners for the source frame will be done already.
   assert(num_src_corners != -1);
   AV1_COMMON *const cm = &cpi->common;
+#if CONFIG_GM_MODEL_CODING
+  int base_frame = -1;
+#endif  // CONFIG_GM_MODEL_CODING
   // Compute global motion w.r.t. reference frames starting from the nearest ref
   // frame in a given direction.
   for (int frame = 0; frame < num_ref_frames; frame++) {
     int ref_frame = reference_frame[frame].frame;
     av1_compute_gm_for_valid_ref_frames(
-        cpi, ref_buf, ref_frame, num_src_corners, src_corners, src_buffer,
-        params_by_motion, segment_map, segment_map_w, segment_map_h);
+        cpi, ref_buf, ref_frame,
+#if CONFIG_GM_MODEL_CODING
+        &base_frame,
+#endif  // CONFIG_GM_MODEL_CODING
+        num_src_corners, src_corners, src_buffer, params_by_motion, segment_map,
+        segment_map_w, segment_map_h);
     // If global motion w.r.t. current ref frame is
     // INVALID/TRANSLATION/IDENTITY, skip the evaluation of global motion w.r.t
     // the remaining ref frames in that direction. The below exit is disabled

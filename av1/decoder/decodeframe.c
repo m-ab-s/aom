@@ -4474,21 +4474,23 @@ static int read_global_motion_params(WarpedMotionParams *params,
 
 static AOM_INLINE void read_global_motion(AV1_COMMON *cm,
                                           struct aom_read_bit_buffer *rb) {
+#if CONFIG_GM_MODEL_CODING
+  int base_frame = -1;
+#endif  // CONFIG_GM_MODEL_CODING
   for (int frame = LAST_FRAME; frame <= ALTREF_FRAME; ++frame) {
     const WarpedMotionParams *ref_params;
 #if CONFIG_GM_MODEL_CODING
-    if (frame == LAST_FRAME) {
+    WarpedMotionParams params;
+    aom_clear_system_state();
+    const bool updated_params =
+        find_gm_ref_params(&params, cm, frame, base_frame);
+    if (updated_params) {
+      ref_params = &params;
+    } else {
       ref_params = cm->prev_frame ? &cm->prev_frame->global_motion[frame]
                                   : &default_warp_params;
-    } else {
-      WarpedMotionParams params;
-      aom_clear_system_state();
-      const bool updated_params =
-          (frame <= BWDREF_FRAME)
-              ? find_gm_ref_params(&params, cm, frame, LAST_FRAME)
-              : find_gm_ref_params(&params, cm, frame, BWDREF_FRAME);
-      ref_params = updated_params ? &params : &default_warp_params;
     }
+    if (ref_params->wmtype != IDENTITY) base_frame = frame;
 #else
     ref_params = cm->prev_frame ? &cm->prev_frame->global_motion[frame]
                                 : &default_warp_params;

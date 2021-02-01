@@ -1352,7 +1352,7 @@ static INLINE int calculate_gm_ref_params_scaling_distance(
 static INLINE bool find_gm_ref_params(WarpedMotionParams *ref_params,
                                       const AV1_COMMON *const cm, int cur_frame,
                                       int base_frame) {
-  if (cm->global_motion[base_frame].wmtype == IDENTITY) return false;
+  if (base_frame < 0) return false;
 
   memcpy(ref_params, &cm->global_motion[base_frame],
          sizeof(WarpedMotionParams));
