@@ -1406,7 +1406,6 @@ static void correct_frames_to_key(AV1_COMP *cpi) {
       (int)av1_lookahead_depth(cpi->lookahead, cpi->compressor_stage);
   if (lookahead_size <
       av1_lookahead_pop_sz(cpi->lookahead, cpi->compressor_stage)) {
-    assert(IMPLIES(cpi->frames_left > 0, lookahead_size == cpi->frames_left));
     cpi->rc.frames_to_key = AOMMIN(cpi->rc.frames_to_key, lookahead_size);
   } else if (cpi->frames_left > 0) {
     // Correct frames to key based on limit
