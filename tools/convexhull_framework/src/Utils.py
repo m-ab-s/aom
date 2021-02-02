@@ -16,6 +16,7 @@ import sys
 import subprocess
 import time
 import logging
+import hashlib
 from Config import LogLevels, ContentPath
 from AV2CTCVideo import Y4M_CLIPs, CTC_TEST_SET
 
@@ -259,3 +260,10 @@ def SetupLogging(level, logcmdonly, name, path):
             # if not valid, default set to 'INFO'
             levelname = logging.getLevelName('INFO')
         Logger.setLevel(levelname)
+
+def md5(fname):
+    hash_md5 = hashlib.md5()
+    with open(fname, "rb") as f:
+        for chunk in iter(lambda: f.read(4096), b""):
+            hash_md5.update(chunk)
+    return hash_md5.hexdigest()

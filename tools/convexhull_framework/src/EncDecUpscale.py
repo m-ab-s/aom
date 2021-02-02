@@ -74,9 +74,11 @@ def Run_EncDec_Upscale(method, codec, preset, clip, test_cfg, QP, num, outw,
     logger.info("start decode file %s" % os.path.basename(bsFile))
     decodedYUV = Decode(codec, bsFile, path_decoded, path_perf, LogCmdOnly)
     logger.info("start upscale file %s" % os.path.basename(decodedYUV))
+    #hard code frame rate to 30fps to match with decoder output for now.
+    #TODO: change to real frame rate after decoder fix the issue
     dec_clip = Clip(GetShortContentName(decodedYUV, False) + '.y4m',
                     decodedYUV, clip.file_class, clip.width, clip.height,
-                    clip.fmt, clip.fps_num, clip.fps_denom, clip.bit_depth)
+                    clip.fmt, 30, 1, clip.bit_depth)
     upscaledYUV = UpScaling(dec_clip, num, outw, outh, path_upscaled, path_cfg,
                             upscale_algo, LogCmdOnly)
     logger.info("finish Run Encode, Decode and Upscale")

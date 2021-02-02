@@ -15,7 +15,7 @@ import platform
 import AV2CTCVideo
 
 #TEST_CONFIGURATIONS = ["RA","LD", "AS"]
-TEST_CONFIGURATIONS = ["LD", "RA", "AI"]
+TEST_CONFIGURATIONS = ["LD", "RA", "AI", "STILL"]
 
 ######################################
 # configuration settings
@@ -29,6 +29,7 @@ FrameNum = {
     "RA" : 130,
     "AI" : 30,
     "AS" : 130,
+    "STILL" : 1,
 }
 EnableTimingInfo = True
 Platform = platform.system()
@@ -59,16 +60,20 @@ AOMDEC = os.path.join(BinPath, 'aomdec.exe')
 QPs = {
     "LD" : [23, 31, 39, 47, 55, 63],
     "RA" : [23, 31, 39, 47, 55, 63],
-    "AI" : [18, 27, 36, 45, 54, 63],
+    "AI" : [15, 23, 31, 39, 47, 55],
     "AS" : [23, 31, 39, 47, 55, 63],
+    "STILL" : [15, 23, 31, 39, 47, 55],
 }
 
 ######################## quality evalution config #############################
-QualityList = ['PSNR_Y','PSNR_U','PSNR_V','SSIM_Y(dB)','MS-SSIM_Y(dB)','VMAF_Y',
-               'VMAF_Y-NEG','PSNR-HVS','CIEDE2000','APSNR_Y','APSNR_U','APSNR_V']
+QualityList = ['PSNR_Y','PSNR_U','PSNR_V','Overall_PSNR','SSIM_Y(dB)','MS-SSIM_Y(dB)','VMAF_Y',
+               'VMAF_Y-NEG','PSNR-HVS','CIEDE2000','APSNR_Y','APSNR_U','APSNR_V','Overall_APSNR']
 VMAF = os.path.join(BinPath, 'vmaf.exe')
 CalcBDRateInExcel = True
 EnablePreInterpolation = True
+PSNRY_WEIGHT = 6.0
+PSNRU_WEIGHT = 1.0
+PSNRV_WEIGHT = 1.0
 
 ######################## config for exporting data to excel  #################
 #https://xlsxwriter.readthedocs.io/working_with_colors.html#colors

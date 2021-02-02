@@ -1225,12 +1225,17 @@ static void calculate_gf_length(AV1_COMP *cpi, int max_gop_length,
   aom_clear_system_state();
   av1_zero(next_frame);
 
+  // Is current subgop the first subgop in kf-interval.
+  // This does not include special condition - all intra frames,
+  // where frames_to_key <=1 and subgop contains key frame.
+  const int is_keyframe_subgop =
+      rc->frames_to_key > 1 && curr_frame_type == KEY_FRAME;
   if (has_no_stats_stage(cpi)) {
     for (i = 0; i < MAX_NUM_GF_INTERVALS; i++) {
       rc->gf_intervals[i] = AOMMIN(rc->max_gf_interval, max_gop_length);
-      if (curr_frame_type == KEY_FRAME &&
-          rc->gf_intervals[i] >= rc->frames_to_key &&
-          !(rc->frames_to_key <= 1 && curr_frame_type == KEY_FRAME))
+      // When there exists a single subgop in a kf-interval, correct the
+      // gf_interval appropriately.
+      if (rc->gf_intervals[i] >= rc->frames_to_key && is_keyframe_subgop)
         rc->gf_intervals[i] = rc->gf_intervals[i] - 1;
     }
     rc->cur_gf_index = 0;
@@ -1259,22 +1264,18 @@ static void calculate_gf_length(AV1_COMP *cpi, int max_gop_length,
     // reaches next key frame, break here
     if (i >= rc->frames_to_key) {
       cut_pos[count_cuts] = AOMMIN(i, active_max_gf_interval);
-      /*
-       * When there exist single subgop in a kf-interval correct the
-       * gf_interval appropriately. gf-interval always accounts only
-       * for the total number of inter frames in the sub-gop.
-       *
-       * Special conditions - when KEY_FRAME is accounted in gf-interval:
-       * If all intra case: kf-min-dist=kf-max-dist=0, then frames_to_key
-       * is 0. Hence gf-interval will account for KEY_FRAME.
-       * Similarly if frames_to_key is 1 due to kf-min-dist=0/1, kf-max-dist=1
-       * or scenecut or application forced key, also if the
-       * curr_frame_type == KEY_FRAME, which is the only frame in subgop, then
-       * gf-interval will account for KEY_FRAME.
-       */
-      if (curr_frame_type == KEY_FRAME &&
-          !(rc->frames_to_key <= 1 && curr_frame_type == KEY_FRAME))
-        cut_pos[count_cuts] = cut_pos[count_cuts] - 1;
+      // When there exists a single subgop in a kf-interval, correct the
+      // gf_interval appropriately. gf-interval always accounts only for the
+      // total number of inter frames in the sub-gop.
+      //
+      // Special conditions - when KEY_FRAME is accounted in gf-interval:
+      // If all intra case: kf-min-dist = kf-max-dist = 0, then frames_to_key
+      // is 0. Hence gf-interval will account for KEY_FRAME.
+      // Similarly if frames_to_key is 1 due to kf-min-dist = 0 or 1,
+      // kf-max-dist = 1 or scenecut or application forced key, also if the
+      // curr_frame_type == KEY_FRAME, which is the only frame in subgop,
+      // then gf-interval will account for KEY_FRAME.
+      if (is_keyframe_subgop) cut_pos[count_cuts] = cut_pos[count_cuts] - 1;
       count_cuts++;
       break;
     }
@@ -1414,13 +1415,11 @@ static void correct_frames_to_key(AV1_COMP *cpi) {
 }
 
 static int is_last_subgop(AV1_COMP *cpi) {
-  int is_last_sub = 0;
-  int lookahead_size =
+  const int lookahead_size =
       (int)av1_lookahead_depth(cpi->lookahead, cpi->compressor_stage);
   // Check if last subgop in the clip.
-  if (cpi->oxcf.gf_cfg.lag_in_frames > lookahead_size &&
-      lookahead_size == cpi->rc.frames_to_key)
-    is_last_sub = 1;
+  const int is_last_sub = (cpi->oxcf.gf_cfg.lag_in_frames > lookahead_size) &&
+                          (lookahead_size == cpi->rc.frames_to_key);
   return is_last_sub;
 }
 
@@ -1458,6 +1457,18 @@ static void define_gf_group_pass0(AV1_COMP *cpi, FRAME_TYPE curr_frame_type) {
   if (rc->baseline_gf_interval > rc->frames_to_key) {
     rc->baseline_gf_interval = rc->frames_to_key;
   }
+
+  // To introduce forward kf, baseline_gf_interval needs to point to keyframe
+  // in the next subgop appropriately.
+  // However baseline_gf_intervals need not be incremented for following
+  // conditions.
+  // (1) When there exist single subgop in the kf-interval,
+  // rc->baseline_gf_interval is already pointing to the next key frame.
+  // (2) When more than one subgop exists in kf-interval, when rc->frames_to_key
+  // is not equal to baseline_gf_interval + 1.
+  // (3) When the current subgop is the end of the clip, next key frame will not
+  // be available.
+
   if (cpi->oxcf.kf_cfg.fwd_kf_enabled && cpi->rc.next_is_fwd_key &&
       (curr_frame_type != KEY_FRAME ||
        rc->baseline_gf_interval + 1 == rc->frames_to_key) &&

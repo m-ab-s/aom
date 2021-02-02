@@ -15,10 +15,11 @@ Python file for definition of AV2 CTC testing clips/sets
 """
 
 CTC_TEST_SET = {
-    "AI": ["A1", "A2", "A3", "A4", "A5", "B1", "F1", "F2", "G1", "G2"],
+    "AI": ["A1", "A2", "A3", "A4", "A5", "B1", "G1", "G2"],
     "RA": ["A1", "A2", "A3", "A4", "A5", "B1", "G1", "G2"],
     "LD": ["A2", "A3", "A4", "A5", "B1"],
-    "AS": ["A1"]
+    "AS": ["A1"],
+    "STILL": ["F1", "F2"],
 }
 
 Y4M_CLIPs = {
@@ -103,7 +104,6 @@ Y4M_CLIPs = {
                    "landscape_26.y4m",
                    "landscape_28.y4m",
                    "lodge.y4m",
-                   "Matinkaaren_silta.y4m",
                    "party.y4m",
                    "river.y4m",
                    "santa.y4m",
@@ -128,7 +128,6 @@ Y4M_CLIPs = {
                    "Fontaine_Place_Stanislas.y4m",
                    "Genmaicha_Tea.y4m",
                    "Homestead_in_Montana.y4m",
-                   "KellermanBallfieldMefisto.y4m",
                    "Madeira_151_Funchal_Mercado_dos_Lavradores.y4m",
                    "Madeira_159_Funchal_Mercado_dos_Lavradores.y4m",
                    "MagicKindom.y4m",
