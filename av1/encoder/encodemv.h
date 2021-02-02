@@ -37,11 +37,17 @@ int_mv av1_get_ref_mv_from_stack(int ref_idx,
                                  const MV_REFERENCE_FRAME *ref_frame,
                                  int ref_mv_idx,
                                  const MB_MODE_INFO_EXT *mbmi_ext);
+#if CONFIG_NEW_INTER_MODES
+int_mv av1_find_best_ref_mv_from_stack(int allow_hp,
+#else
 void av1_find_best_ref_mvs_from_stack(int allow_hp,
-                                      const MB_MODE_INFO_EXT *mbmi_ext,
-                                      MV_REFERENCE_FRAME ref_frame,
-                                      int_mv *nearest_mv, int_mv *near_mv,
-                                      int is_integer);
+#endif  // CONFIG_NEW_INTER_MODES
+                                       const MB_MODE_INFO_EXT *mbmi_ext,
+                                       MV_REFERENCE_FRAME ref_frame,
+#if !CONFIG_NEW_INTER_MODES
+                                       int_mv *nearest_mv, int_mv *near_mv,
+#endif  // CONFIG_NEW_INTER_MODES
+                                       int is_integer);
 
 static INLINE MV_JOINT_TYPE av1_get_mv_joint(const MV *mv) {
   // row:  Z  col:  Z  | MV_JOINT_ZERO   (0)
@@ -82,12 +88,20 @@ static INLINE int av1_check_newmv_joint_nonzero(const AV1_COMMON *cm,
         mbmi->mv[1].as_int == ref_mv_1.as_int) {
       return 0;
     }
+#if CONFIG_NEW_INTER_MODES
+  } else if (this_mode == NEAR_NEWMV) {
+#else
   } else if (this_mode == NEAREST_NEWMV || this_mode == NEAR_NEWMV) {
+#endif  // CONFIG_NEW_INTER_MODES
     const int_mv ref_mv_1 = av1_get_ref_mv(x, 1);
     if (mbmi->mv[1].as_int == ref_mv_1.as_int) {
       return 0;
     }
+#if CONFIG_NEW_INTER_MODES
+  } else if (this_mode == NEW_NEARMV) {
+#else
   } else if (this_mode == NEW_NEARESTMV || this_mode == NEW_NEARMV) {
+#endif  // CONFIG_NEW_INTER_MODES
     const int_mv ref_mv_0 = av1_get_ref_mv(x, 0);
     if (mbmi->mv[0].as_int == ref_mv_0.as_int) {
       return 0;

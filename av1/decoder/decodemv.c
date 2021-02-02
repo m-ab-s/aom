@@ -208,7 +208,18 @@ static INTERINTRA_MODE read_interintra_mode(MACROBLOCKD *xd, aom_reader *r,
 static PREDICTION_MODE read_inter_mode(FRAME_CONTEXT *ec_ctx, aom_reader *r,
                                        int16_t ctx) {
   int16_t mode_ctx = ctx & NEWMV_CTX_MASK;
+#if CONFIG_NEW_INTER_MODES
+  // TODO(siroh): For some frames, the DRL will be "empty."
+  // Under NEW_INTER_MODES, the frame GMV will be inserted to fix this.
+  // Under the old process, get_this_mv inserts the frame GMV on-the-fly.
+  // When this situation happens there's no actual need to signal the next
+  // bit, because it's either NEARMV 0 referencing the GMV or GLOBAL referencing
+  // the GMV.
+  // Implement this for NEW_INTER_MODES, possibly using a new context.
+  int is_newmv, is_zeromv;
+#else
   int is_newmv, is_zeromv, is_refmv;
+#endif  // CONFIG_NEW_INTER_MODES
   is_newmv = aom_read_symbol(r, ec_ctx->newmv_cdf[mode_ctx], 2, ACCT_STR) == 0;
   if (is_newmv) return NEWMV;
 
@@ -217,21 +228,43 @@ static PREDICTION_MODE read_inter_mode(FRAME_CONTEXT *ec_ctx, aom_reader *r,
       aom_read_symbol(r, ec_ctx->zeromv_cdf[mode_ctx], 2, ACCT_STR) == 0;
   if (is_zeromv) return GLOBALMV;
 
+#if CONFIG_NEW_INTER_MODES
+  return NEARMV;
+#else
   mode_ctx = (ctx >> REFMV_OFFSET) & REFMV_CTX_MASK;
   is_refmv = aom_read_symbol(r, ec_ctx->refmv_cdf[mode_ctx], 2, ACCT_STR) == 0;
   if (is_refmv)
     return NEARESTMV;
   else
     return NEARMV;
+#endif  // CONFIG_NEW_INTER_MODES
 }
 
+#if CONFIG_NEW_INTER_MODES
+static void read_drl_idx(FRAME_CONTEXT *ec_ctx, DecoderCodingBlock *dcb,
+                         MB_MODE_INFO *mbmi, aom_reader *r) {
+  MACROBLOCKD *const xd = &dcb->xd;
+  uint8_t ref_frame_type = av1_ref_frame_type(mbmi->ref_frame);
+  mbmi->ref_mv_idx = 0;
+  assert(!mbmi->skip_mode);
+  const int range = AOMMIN(dcb->ref_mv_count[ref_frame_type] - 1, MAX_DRL_BITS);
+  for (int idx = 0; idx < range; ++idx) {
+    aom_cdf_prob *drl_cdf =
+        av1_get_drl_cdf(ec_ctx, xd->weight[ref_frame_type], idx);
+    int drl_idx = aom_read_symbol(r, drl_cdf, 2, ACCT_STR);
+    mbmi->ref_mv_idx = idx + drl_idx;
+    if (!drl_idx) break;
+  }
+  assert(mbmi->ref_mv_idx < MAX_DRL_BITS + 1);
+}
+#else
 static void read_drl_idx(FRAME_CONTEXT *ec_ctx, DecoderCodingBlock *dcb,
                          MB_MODE_INFO *mbmi, aom_reader *r) {
   MACROBLOCKD *const xd = &dcb->xd;
   uint8_t ref_frame_type = av1_ref_frame_type(mbmi->ref_frame);
   mbmi->ref_mv_idx = 0;
   if (mbmi->mode == NEWMV || mbmi->mode == NEW_NEWMV) {
-    for (int idx = 0; idx < 2; ++idx) {
+    for (int idx = 0; idx < MAX_DRL_BITS; ++idx) {
       if (dcb->ref_mv_count[ref_frame_type] > idx + 1) {
         uint8_t drl_ctx = av1_drl_ctx(xd->weight[ref_frame_type], idx);
         int drl_idx = aom_read_symbol(r, ec_ctx->drl_cdf[drl_ctx], 2, ACCT_STR);
@@ -244,7 +277,7 @@ static void read_drl_idx(FRAME_CONTEXT *ec_ctx, DecoderCodingBlock *dcb,
     // Offset the NEARESTMV mode.
     // TODO(jingning): Unify the two syntax decoding loops after the NEARESTMV
     // mode is factored in.
-    for (int idx = 1; idx < 3; ++idx) {
+    for (int idx = 1; idx < MAX_DRL_BITS + 1; ++idx) {
       if (dcb->ref_mv_count[ref_frame_type] > idx + 1) {
         uint8_t drl_ctx = av1_drl_ctx(xd->weight[ref_frame_type], idx);
         int drl_idx = aom_read_symbol(r, ec_ctx->drl_cdf[drl_ctx], 2, ACCT_STR);
@@ -254,6 +287,7 @@ static void read_drl_idx(FRAME_CONTEXT *ec_ctx, DecoderCodingBlock *dcb,
     }
   }
 }
+#endif  // CONFIG_NEW_INTER_MODES
 
 static MOTION_MODE read_motion_mode(AV1_COMMON *cm, MACROBLOCKD *xd,
                                     MB_MODE_INFO *mbmi, aom_reader *r) {
@@ -294,8 +328,13 @@ static PREDICTION_MODE read_inter_compound_mode(MACROBLOCKD *xd, aom_reader *r,
   const int mode =
       aom_read_symbol(r, xd->tile_ctx->inter_compound_mode_cdf[ctx],
                       INTER_COMPOUND_MODES, ACCT_STR);
+#if CONFIG_NEW_INTER_MODES
+  assert(is_inter_compound_mode(NEAR_NEARMV + mode));
+  return NEAR_NEARMV + mode;
+#else
   assert(is_inter_compound_mode(NEAREST_NEARESTMV + mode));
   return NEAREST_NEARESTMV + mode;
+#endif  // CONFIG_NEW_INTER_MODES
 }
 
 int av1_neg_deinterleave(int diff, int ref, int max) {
@@ -1230,7 +1269,6 @@ static INLINE void read_mv(aom_reader *r, MV *mv, const MV *ref,
   MV diff = kZeroMv;
   const MV_JOINT_TYPE joint_type =
       (MV_JOINT_TYPE)aom_read_symbol(r, ctx->joints_cdf, MV_JOINTS, ACCT_STR);
-
   if (mv_joint_vertical(joint_type))
     diff.row = read_mv_component(r, &ctx->comps[0], precision > MV_SUBPEL_NONE,
                                  precision > MV_SUBPEL_LOW_PRECISION);
@@ -1558,6 +1596,10 @@ static INLINE int assign_mv(AV1_COMMON *cm, MACROBLOCKD *xd,
                             int_mv ref_mv[2], int_mv nearest_mv[2],
                             int_mv near_mv[2], int is_compound, int allow_hp,
                             aom_reader *r) {
+#if CONFIG_NEW_INTER_MODES
+  (void)nearest_mv;
+#endif  // CONFIG_NEW_INTER_MODES
+
   FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
   MB_MODE_INFO *mbmi = xd->mi[0];
 #if CONFIG_SDP
@@ -1575,10 +1617,12 @@ static INLINE int assign_mv(AV1_COMMON *cm, MACROBLOCKD *xd,
       read_mv(r, &mv[0].as_mv, &ref_mv[0].as_mv, nmvc, allow_hp);
       break;
     }
+#if !CONFIG_NEW_INTER_MODES
     case NEARESTMV: {
       mv[0].as_int = nearest_mv[0].as_int;
       break;
     }
+#endif  // !CONFIG_NEW_INTER_MODES
     case NEARMV: {
       mv[0].as_int = near_mv[0].as_int;
       break;
@@ -1599,18 +1643,21 @@ static INLINE int assign_mv(AV1_COMMON *cm, MACROBLOCKD *xd,
       }
       break;
     }
+#if !CONFIG_NEW_INTER_MODES
     case NEAREST_NEARESTMV: {
       assert(is_compound);
       mv[0].as_int = nearest_mv[0].as_int;
       mv[1].as_int = nearest_mv[1].as_int;
       break;
     }
+#endif  // !CONFIG_NEW_INTER_MODES
     case NEAR_NEARMV: {
       assert(is_compound);
       mv[0].as_int = near_mv[0].as_int;
       mv[1].as_int = near_mv[1].as_int;
       break;
     }
+#if !CONFIG_NEW_INTER_MODES
     case NEW_NEARESTMV: {
       nmv_context *const nmvc = &ec_ctx->nmvc;
       read_mv(r, &mv[0].as_mv, &ref_mv[0].as_mv, nmvc, allow_hp);
@@ -1625,6 +1672,7 @@ static INLINE int assign_mv(AV1_COMMON *cm, MACROBLOCKD *xd,
       assert(is_compound);
       break;
     }
+#endif  // !CONFIG_NEW_INTER_MODES
     case NEAR_NEWMV: {
       nmv_context *const nmvc = &ec_ctx->nmvc;
       mv[0].as_int = near_mv[0].as_int;
@@ -1749,7 +1797,12 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
 
   if (mbmi->skip_mode) {
     assert(is_compound);
+#if CONFIG_NEW_INTER_MODES
+    mbmi->mode = NEAR_NEARMV;
+    mbmi->ref_mv_idx = 0;
+#else
     mbmi->mode = NEAREST_NEARESTMV;
+#endif  // !CONFIG_NEW_INTER_MODES
   } else {
     if (segfeature_active(&cm->seg, mbmi->segment_id, SEG_LVL_SKIP) ||
         segfeature_active(&cm->seg, mbmi->segment_id, SEG_LVL_GLOBALMV)) {
@@ -1779,7 +1832,11 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
   }
 
   if (is_compound && mbmi->mode != GLOBAL_GLOBALMV) {
-    const int ref_mv_idx = mbmi->ref_mv_idx + 1;
+#if CONFIG_NEW_INTER_MODES
+    int ref_mv_idx = mbmi->ref_mv_idx;
+#else
+    int ref_mv_idx = mbmi->ref_mv_idx + 1;
+#endif  // CONFIG_NEW_INTER_MODES
     nearestmv[0] = xd->ref_mv_stack[ref_frame][0].this_mv;
     nearestmv[1] = xd->ref_mv_stack[ref_frame][0].comp_mv;
     nearmv[0] = xd->ref_mv_stack[ref_frame][ref_mv_idx].this_mv;
@@ -1792,21 +1849,28 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
                        features->cur_frame_force_integer_mv);
     lower_mv_precision(&nearmv[1].as_mv, allow_hp,
                        features->cur_frame_force_integer_mv);
+#if CONFIG_NEW_INTER_MODES
+  } else if (mbmi->mode == NEARMV) {
+    nearmv[0] = xd->ref_mv_stack[mbmi->ref_frame[0]][mbmi->ref_mv_idx].this_mv;
+  }
+#else
   } else if (mbmi->ref_mv_idx > 0 && mbmi->mode == NEARMV) {
     nearmv[0] =
         xd->ref_mv_stack[mbmi->ref_frame[0]][1 + mbmi->ref_mv_idx].this_mv;
   }
+#endif  // CONFIG_NEW_INTER_MODES
 
   int_mv ref_mv[2] = { nearestmv[0], nearestmv[1] };
 
   if (is_compound) {
     int ref_mv_idx = mbmi->ref_mv_idx;
+#if !CONFIG_NEW_INTER_MODES
     // Special case: NEAR_NEWMV and NEW_NEARMV modes use
     // 1 + mbmi->ref_mv_idx (like NEARMV) instead of
     // mbmi->ref_mv_idx (like NEWMV)
     if (mbmi->mode == NEAR_NEWMV || mbmi->mode == NEW_NEARMV)
       ref_mv_idx = 1 + mbmi->ref_mv_idx;
-
+#endif  // !CONFIG_NEW_INTER_MODES
     // TODO(jingning, yunqing): Do we need a lower_mv_precision() call here?
     if (compound_ref0_mode(mbmi->mode) == NEWMV)
       ref_mv[0] = xd->ref_mv_stack[ref_frame][ref_mv_idx].this_mv;
@@ -1819,8 +1883,14 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
         ref_mv[0] = xd->ref_mv_stack[ref_frame][mbmi->ref_mv_idx].this_mv;
     }
   }
-
+#if CONFIG_NEW_INTER_MODES
+  if (mbmi->skip_mode) {
+    assert(mbmi->mode == NEAR_NEARMV);
+    assert(mbmi->ref_mv_idx == 0);
+  }
+#else
   if (mbmi->skip_mode) assert(mbmi->mode == NEAREST_NEARESTMV);
+#endif  // CONFIG_NEW_INTER_MODES
 
   const int mv_corrupted_flag =
       !assign_mv(cm, xd, mbmi->mode, mbmi->ref_frame, mbmi->mv, ref_mv,

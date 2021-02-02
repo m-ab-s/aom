@@ -448,12 +448,13 @@ void av1_update_inter_mode_stats(FRAME_CONTEXT *fc, FRAME_COUNTS *counts,
   ++counts->zeromv_mode[mode_ctx][1];
 #endif
   update_cdf(fc->zeromv_cdf[mode_ctx], 1, 2);
-
+#if !CONFIG_NEW_INTER_MODES
   mode_ctx = (mode_context >> REFMV_OFFSET) & REFMV_CTX_MASK;
 #if CONFIG_ENTROPY_STATS
   ++counts->refmv_mode[mode_ctx][mode != NEARESTMV];
-#endif
+#endif  // CONFIG_ENTROPY_STATS
   update_cdf(fc->refmv_cdf[mode_ctx], mode != NEARESTMV, 2);
+#endif  // !CONFIG_NEW_INTER_MODES
 }
 
 static void update_palette_cdf(MACROBLOCKD *xd, const MB_MODE_INFO *const mbmi,
@@ -1225,8 +1226,14 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
   AVERAGE_CDF(ctx_left->coeff_br_cdf, ctx_tr->coeff_br_cdf, BR_CDF_SIZE);
   AVERAGE_CDF(ctx_left->newmv_cdf, ctx_tr->newmv_cdf, 2);
   AVERAGE_CDF(ctx_left->zeromv_cdf, ctx_tr->zeromv_cdf, 2);
+#if CONFIG_NEW_INTER_MODES
+  AVERAGE_CDF(ctx_left->drl_cdf[0], ctx_tr->drl_cdf[0], 2);
+  AVERAGE_CDF(ctx_left->drl_cdf[1], ctx_tr->drl_cdf[1], 2);
+  AVERAGE_CDF(ctx_left->drl_cdf[2], ctx_tr->drl_cdf[2], 2);
+#else
   AVERAGE_CDF(ctx_left->refmv_cdf, ctx_tr->refmv_cdf, 2);
   AVERAGE_CDF(ctx_left->drl_cdf, ctx_tr->drl_cdf, 2);
+#endif  // CONFIG_NEW_INTER_MODES
   AVERAGE_CDF(ctx_left->inter_compound_mode_cdf,
               ctx_tr->inter_compound_mode_cdf, INTER_COMPOUND_MODES);
   AVERAGE_CDF(ctx_left->compound_type_cdf, ctx_tr->compound_type_cdf,

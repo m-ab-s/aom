@@ -211,7 +211,31 @@ const map_entry dual_filter_map[] = { ENUM(REG_REG),       ENUM(REG_SMOOTH),
                                       ENUM(SMOOTH_SMOOTH), ENUM(SMOOTH_SHARP),
                                       ENUM(SHARP_REG),     ENUM(SHARP_SMOOTH),
                                       ENUM(SHARP_SHARP),   LAST_ENUM };
-
+#if CONFIG_NEW_INTER_MODES
+const map_entry prediction_mode_map[] = { ENUM(DC_PRED),
+                                          ENUM(V_PRED),
+                                          ENUM(H_PRED),
+                                          ENUM(D45_PRED),
+                                          ENUM(D135_PRED),
+                                          ENUM(D113_PRED),
+                                          ENUM(D157_PRED),
+                                          ENUM(D203_PRED),
+                                          ENUM(D67_PRED),
+                                          ENUM(SMOOTH_PRED),
+                                          ENUM(SMOOTH_V_PRED),
+                                          ENUM(SMOOTH_H_PRED),
+                                          ENUM(PAETH_PRED),
+                                          ENUM(NEARMV),
+                                          ENUM(GLOBALMV),
+                                          ENUM(NEWMV),
+                                          ENUM(NEAR_NEARMV),
+                                          ENUM(NEAR_NEWMV),
+                                          ENUM(NEW_NEARMV),
+                                          ENUM(GLOBAL_GLOBALMV),
+                                          ENUM(NEW_NEWMV),
+                                          ENUM(INTRA_INVALID),
+                                          LAST_ENUM };
+#else
 const map_entry prediction_mode_map[] = {
   ENUM(DC_PRED),     ENUM(V_PRED),        ENUM(H_PRED),
   ENUM(D45_PRED),    ENUM(D135_PRED),     ENUM(D113_PRED),
@@ -223,6 +247,7 @@ const map_entry prediction_mode_map[] = {
   ENUM(NEAR_NEWMV),  ENUM(NEW_NEARMV),    ENUM(GLOBAL_GLOBALMV),
   ENUM(NEW_NEWMV),   ENUM(INTRA_INVALID), LAST_ENUM
 };
+#endif  // CONFIG_NEW_INTER_MODES
 
 const map_entry motion_mode_map[] = { ENUM(SIMPLE_TRANSLATION),
                                       ENUM(OBMC_CAUSAL),    // 2-sided OBMC
