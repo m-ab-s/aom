@@ -26,9 +26,13 @@ extern "C" {
 
 #define TX_SIZE_CONTEXTS 3
 
+#if CONFIG_NEW_INTER_MODES
+#define INTER_OFFSET(mode) ((mode)-NEARMV)
+#define INTER_COMPOUND_OFFSET(mode) (uint8_t)((mode)-NEAR_NEARMV)
+#else
 #define INTER_OFFSET(mode) ((mode)-NEARESTMV)
 #define INTER_COMPOUND_OFFSET(mode) (uint8_t)((mode)-NEAREST_NEARESTMV)
-
+#endif  // CONFIG_NEW_INTER_MODES
 // Number of possible contexts for a color index.
 // As can be seen from av1_get_palette_color_index_context(), the possible
 // contexts are (2,0,0), (2,2,1), (3,2,0), (4,1,0), (5,0,0). These are mapped to
@@ -86,8 +90,14 @@ typedef struct frame_contexts {
 
   aom_cdf_prob newmv_cdf[NEWMV_MODE_CONTEXTS][CDF_SIZE(2)];
   aom_cdf_prob zeromv_cdf[GLOBALMV_MODE_CONTEXTS][CDF_SIZE(2)];
-  aom_cdf_prob refmv_cdf[REFMV_MODE_CONTEXTS][CDF_SIZE(2)];
+#if CONFIG_NEW_INTER_MODES
+  aom_cdf_prob drl0_cdf[DRL_MODE_CONTEXTS][CDF_SIZE(2)];
+  aom_cdf_prob drl1_cdf[DRL_MODE_CONTEXTS][CDF_SIZE(2)];
+  aom_cdf_prob drl2_cdf[DRL_MODE_CONTEXTS][CDF_SIZE(2)];
+#else
   aom_cdf_prob drl_cdf[DRL_MODE_CONTEXTS][CDF_SIZE(2)];
+  aom_cdf_prob refmv_cdf[REFMV_MODE_CONTEXTS][CDF_SIZE(2)];
+#endif  // CONFIG_NEW_INTER_MODES
 
   aom_cdf_prob inter_compound_mode_cdf[INTER_MODE_CONTEXTS]
                                       [CDF_SIZE(INTER_COMPOUND_MODES)];

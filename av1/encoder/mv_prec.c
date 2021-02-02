@@ -26,7 +26,9 @@ static AOM_INLINE int_mv get_ref_mv_for_mv_stats(
   int ref_mv_idx = mbmi->ref_mv_idx;
   if (mbmi->mode == NEAR_NEWMV || mbmi->mode == NEW_NEARMV) {
     assert(has_second_ref(mbmi));
+#if !CONFIG_NEW_INTER_MODES
     ref_mv_idx += 1;
+#endif  // !CONFIG_NEW_INTER_MODES
   }
 
   const MV_REFERENCE_FRAME *ref_frames = mbmi->ref_frame;
@@ -209,12 +211,19 @@ static AOM_INLINE void collect_mv_stats_b(MV_STATS *mv_stats,
       const MV cur_mv = mbmi->mv[ref_idx].as_mv;
       keep_one_mv_stat(mv_stats, &ref_mv, &cur_mv, cpi);
     }
+#if CONFIG_NEW_INTER_MODES
+  } else if (mode == NEAR_NEWMV || mode == NEW_NEARMV) {
+#else
   } else if (mode == NEAREST_NEWMV || mode == NEAR_NEWMV ||
              mode == NEW_NEARESTMV || mode == NEW_NEARMV) {
+#endif  // CONFIG_NEW_INTER_MODES
     // has exactly one new_mv
     mv_stats->default_mvs += 1;
-
+#if CONFIG_NEW_INTER_MODES
+    const int ref_idx = (mode == NEAR_NEWMV);
+#else
     const int ref_idx = (mode == NEAREST_NEWMV || mode == NEAR_NEWMV);
+#endif  // CONFIG_NEW_INTER_MODES
     const MV ref_mv =
         get_ref_mv_for_mv_stats(mbmi, mbmi_ext_frame, ref_idx).as_mv;
     const MV cur_mv = mbmi->mv[ref_idx].as_mv;

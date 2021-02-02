@@ -35,9 +35,11 @@ static const THR_MODES intra_to_mode_idx[INTRA_MODE_NUM] = {
 /* clang-format off */
 static const THR_MODES single_inter_to_mode_idx[SINGLE_INTER_MODE_NUM]
     [REF_FRAMES] = {
+#if !CONFIG_NEW_INTER_MODES
     // NEARESTMV,
         { THR_INVALID, THR_NEARESTMV, THR_NEARESTL2, THR_NEARESTL3,
         THR_NEARESTG, THR_NEARESTB, THR_NEARESTA2, THR_NEARESTA, },
+#endif  // !CONFIG_NEW_INTER_MODES
         // NEARMV,
         { THR_INVALID, THR_NEARMV, THR_NEARL2, THR_NEARL3,
         THR_NEARG, THR_NEARB, THR_NEARA2, THR_NEARA, },
@@ -53,6 +55,7 @@ static const THR_MODES single_inter_to_mode_idx[SINGLE_INTER_MODE_NUM]
 /* clang-format off */
 static const THR_MODES comp_inter_to_mode_idx[COMP_INTER_MODE_NUM][REF_FRAMES]
     [REF_FRAMES] = {
+#if !CONFIG_NEW_INTER_MODES
     // NEAREST_NEARESTMV,
         {
             { THR_INVALID, THR_INVALID, THR_INVALID, THR_INVALID, THR_INVALID,
@@ -82,6 +85,7 @@ static const THR_MODES comp_inter_to_mode_idx[COMP_INTER_MODE_NUM][REF_FRAMES]
             { THR_INVALID, THR_INVALID, THR_INVALID, THR_INVALID, THR_INVALID,
             THR_INVALID, THR_INVALID, THR_INVALID, },
         },
+#endif  // CONFIG_NEW_INTER_MODES
         // NEAR_NEARMV,
         {
             { THR_INVALID, THR_INVALID, THR_INVALID, THR_INVALID, THR_INVALID,
@@ -111,6 +115,7 @@ static const THR_MODES comp_inter_to_mode_idx[COMP_INTER_MODE_NUM][REF_FRAMES]
             { THR_INVALID, THR_INVALID, THR_INVALID, THR_INVALID, THR_INVALID,
             THR_INVALID, THR_INVALID, THR_INVALID, },
         },
+#if !CONFIG_NEW_INTER_MODES
         // NEAREST_NEWMV,
         {
             { THR_INVALID, THR_INVALID, THR_INVALID, THR_INVALID, THR_INVALID,
@@ -169,6 +174,7 @@ static const THR_MODES comp_inter_to_mode_idx[COMP_INTER_MODE_NUM][REF_FRAMES]
             { THR_INVALID, THR_INVALID, THR_INVALID, THR_INVALID, THR_INVALID,
             THR_INVALID, THR_INVALID, THR_INVALID, },
         },
+#endif  // CONFIG_NEW_INTER_MODES
         // NEAR_NEWMV,
         {
             { THR_INVALID, THR_INVALID, THR_INVALID, THR_INVALID, THR_INVALID,

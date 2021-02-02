@@ -147,6 +147,8 @@ set_aom_config_var(CONFIG_NEW_TX_PARTITION 0
                    "AV2 new transform partitions experiment flag.")
 set_aom_config_var(CONFIG_COMPOUND_WARP_SAMPLES 0 NUMBER
                    "AV2 compound warped motion samples experiment flag")
+set_aom_config_var(CONFIG_NEW_INTER_MODES 0 NUMBER
+                   "AV2 inter mode consolidation experiment flag")
 
 #
 # Variables in this section control optional features of the build system.

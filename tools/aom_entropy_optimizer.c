@@ -389,6 +389,19 @@ int main(int argc, const char **argv) {
                      "static const aom_cdf_prob "
                      "default_zeromv_cdf[GLOBALMV_MODE_CONTEXTS][CDF_SIZE(2)]");
 
+#if CONFIG_NEW_INTER_MODES
+  cts_each_dim[0] = DRL_MODE_CONTEXTS;
+  cts_each_dim[1] = 2;
+  optimize_cdf_table(&fc.drl0_mode[0][0], probsfile, 2, cts_each_dim,
+                     "static const aom_cdf_prob "
+                     "default_drl0_cdf[DRL_MODE_CONTEXTS][CDF_SIZE(2)]");
+  optimize_cdf_table(&fc.drl1_mode[0][0], probsfile, 2, cts_each_dim,
+                     "static const aom_cdf_prob "
+                     "default_drl1_cdf[DRL_MODE_CONTEXTS][CDF_SIZE(2)]");
+  optimize_cdf_table(&fc.drl2_mode[0][0], probsfile, 2, cts_each_dim,
+                     "static const aom_cdf_prob "
+                     "default_drl2_cdf[DRL_MODE_CONTEXTS][CDF_SIZE(2)]");
+#else
   cts_each_dim[0] = REFMV_MODE_CONTEXTS;
   cts_each_dim[1] = 2;
   optimize_cdf_table(&fc.refmv_mode[0][0], probsfile, 2, cts_each_dim,
@@ -400,6 +413,7 @@ int main(int argc, const char **argv) {
   optimize_cdf_table(&fc.drl_mode[0][0], probsfile, 2, cts_each_dim,
                      "static const aom_cdf_prob "
                      "default_drl_cdf[DRL_MODE_CONTEXTS][CDF_SIZE(2)]");
+#endif  // CONFIG_NEW_INTER_MODES
 
   /* ext_inter experiment */
   /* New compound mode */

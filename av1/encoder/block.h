@@ -648,10 +648,19 @@ typedef struct {
   int newmv_mode_cost[NEWMV_MODE_CONTEXTS][2];
   //! zeromv_mode_cost
   int zeromv_mode_cost[GLOBALMV_MODE_CONTEXTS][2];
+#if CONFIG_NEW_INTER_MODES
+  //! drl0_mode_cost
+  int drl0_mode_cost[DRL_MODE_CONTEXTS][2];
+  //! drl1_mode_cost
+  int drl1_mode_cost[DRL_MODE_CONTEXTS][2];
+  //! drl2_mode_cost
+  int drl2_mode_cost[DRL_MODE_CONTEXTS][2];
+#else
   //! refmv_mode_cost
   int refmv_mode_cost[REFMV_MODE_CONTEXTS][2];
   //! drl_mode_cost0
   int drl_mode_cost0[DRL_MODE_CONTEXTS][2];
+#endif  // CONFIG_NEW_INTER_MODES
   /**@}*/
 
   /*****************************************************************************

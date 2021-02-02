@@ -88,22 +88,44 @@ static AOM_INLINE void write_inter_mode(aom_writer *w, PREDICTION_MODE mode,
         (mode_ctx >> GLOBALMV_OFFSET) & GLOBALMV_CTX_MASK;
     aom_write_symbol(w, mode != GLOBALMV, ec_ctx->zeromv_cdf[zeromv_ctx], 2);
 
+#if !CONFIG_NEW_INTER_MODES
     if (mode != GLOBALMV) {
       int16_t refmv_ctx = (mode_ctx >> REFMV_OFFSET) & REFMV_CTX_MASK;
       aom_write_symbol(w, mode != NEARESTMV, ec_ctx->refmv_cdf[refmv_ctx], 2);
     }
+#endif  // !CONFIG_NEW_INTER_MODES
   }
 }
 
+#if CONFIG_NEW_INTER_MODES
+static void write_drl_idx(FRAME_CONTEXT *ec_ctx, const MB_MODE_INFO *mbmi,
+                          const MB_MODE_INFO_EXT_FRAME *mbmi_ext_frame,
+                          aom_writer *w) {
+  assert(!mbmi->skip_mode);
+  // Write the DRL index as a sequence of bits encoding a decision tree:
+  // 0 -> 0   10 -> 1   110 -> 2    111 -> 3
+  // Also use the number of reference MVs for a frame type to reduce the
+  // number of bits written if there are less than 4 valid DRL indices.
+  assert(mbmi->ref_mv_idx < mbmi_ext_frame->ref_mv_count);
+  assert(mbmi->ref_mv_idx < MAX_DRL_BITS + 1);
+  int range = AOMMIN(mbmi_ext_frame->ref_mv_count - 1, MAX_DRL_BITS);
+  for (int idx = 0; idx < range; ++idx) {
+    aom_cdf_prob *drl_cdf =
+        av1_get_drl_cdf(ec_ctx, mbmi_ext_frame->weight, idx);
+    aom_write_symbol(w, mbmi->ref_mv_idx != idx, drl_cdf, 2);
+    if (mbmi->ref_mv_idx == idx) break;
+  }
+}
+#else
 static AOM_INLINE void write_drl_idx(
     FRAME_CONTEXT *ec_ctx, const MB_MODE_INFO *mbmi,
     const MB_MODE_INFO_EXT_FRAME *mbmi_ext_frame, aom_writer *w) {
-  assert(mbmi->ref_mv_idx < 3);
+  assert(mbmi->ref_mv_idx < MAX_DRL_BITS + 1);
 
   const int new_mv = mbmi->mode == NEWMV || mbmi->mode == NEW_NEWMV;
   if (new_mv) {
     int idx;
-    for (idx = 0; idx < 2; ++idx) {
+    for (idx = 0; idx < MAX_DRL_BITS; ++idx) {
       if (mbmi_ext_frame->ref_mv_count > idx + 1) {
         uint8_t drl_ctx = av1_drl_ctx(mbmi_ext_frame->weight, idx);
 
@@ -118,7 +140,7 @@ static AOM_INLINE void write_drl_idx(
   if (have_nearmv_in_inter_mode(mbmi->mode)) {
     int idx;
     // TODO(jingning): Temporary solution to compensate the NEARESTMV offset.
-    for (idx = 1; idx < 3; ++idx) {
+    for (idx = 1; idx < MAX_DRL_BITS + 1; ++idx) {
       if (mbmi_ext_frame->ref_mv_count > idx + 1) {
         uint8_t drl_ctx = av1_drl_ctx(mbmi_ext_frame->weight, idx);
         aom_write_symbol(w, mbmi->ref_mv_idx != (idx - 1),
@@ -129,6 +151,7 @@ static AOM_INLINE void write_drl_idx(
     return;
   }
 }
+#endif  // CONFIG_NEW_INTER_MODES
 
 static AOM_INLINE void write_inter_compound_mode(MACROBLOCKD *xd, aom_writer *w,
                                                  PREDICTION_MODE mode,
@@ -1155,7 +1178,9 @@ static INLINE int_mv get_ref_mv(const MACROBLOCK *x, int ref_idx) {
   int ref_mv_idx = mbmi->ref_mv_idx;
   if (mbmi->mode == NEAR_NEWMV || mbmi->mode == NEW_NEARMV) {
     assert(has_second_ref(mbmi));
+#if !CONFIG_NEW_INTER_MODES
     ref_mv_idx += 1;
+#endif  // !CONFIG_NEW_INTER_MODES
   }
   return get_ref_mv_from_stack(ref_idx, mbmi->ref_frame, ref_mv_idx,
                                x->mbmi_ext_frame);
@@ -1228,6 +1253,19 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
         av1_encode_mv(cpi, w, &mbmi->mv[ref].as_mv, &ref_mv.as_mv, nmvc,
                       fr_mv_precision);
       }
+#if CONFIG_NEW_INTER_MODES
+    } else if (mode == NEAR_NEWMV) {
+      nmv_context *nmvc = &ec_ctx->nmvc;
+      const int_mv ref_mv = get_ref_mv(x, 1);
+      av1_encode_mv(cpi, w, &mbmi->mv[1].as_mv, &ref_mv.as_mv, nmvc,
+                    fr_mv_precision);
+    } else if (mode == NEW_NEARMV) {
+      nmv_context *nmvc = &ec_ctx->nmvc;
+      const int_mv ref_mv = get_ref_mv(x, 0);
+      av1_encode_mv(cpi, w, &mbmi->mv[0].as_mv, &ref_mv.as_mv, nmvc,
+                    fr_mv_precision);
+    }
+#else
     } else if (mode == NEAREST_NEWMV || mode == NEAR_NEWMV) {
       nmv_context *nmvc = &ec_ctx->nmvc;
       const int_mv ref_mv = get_ref_mv(x, 1);
@@ -1239,6 +1277,7 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
       av1_encode_mv(cpi, w, &mbmi->mv[0].as_mv, &ref_mv.as_mv, nmvc,
                     fr_mv_precision);
     }
+#endif  // CONFIG_NEW_INTER_MODES
 
     if (cpi->common.current_frame.reference_mode != COMPOUND_REFERENCE &&
         cpi->common.seq_params.enable_interintra_compound &&

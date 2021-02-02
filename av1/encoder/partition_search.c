@@ -793,6 +793,35 @@ static void pick_sb_modes(AV1_COMP *const cpi, TileDataEnc *tile_data,
 #endif
 }
 
+#if CONFIG_NEW_INTER_MODES
+static void update_drl_index_stats(FRAME_CONTEXT *fc, FRAME_COUNTS *counts,
+                                   const MB_MODE_INFO *mbmi,
+                                   const MB_MODE_INFO_EXT *mbmi_ext) {
+#if !CONFIG_ENTROPY_STATS
+  (void)counts;
+#endif  // !CONFIG_ENTROPY_STATS
+  assert(have_drl_index(mbmi->mode));
+  uint8_t ref_frame_type = av1_ref_frame_type(mbmi->ref_frame);
+  assert(mbmi->ref_mv_idx < MAX_DRL_BITS + 1);
+  const int range =
+      AOMMIN(mbmi_ext->ref_mv_count[ref_frame_type] - 1, MAX_DRL_BITS);
+  for (int idx = 0; idx < range; ++idx) {
+    aom_cdf_prob *drl_cdf =
+        av1_get_drl_cdf(fc, mbmi_ext->weight[ref_frame_type], idx);
+#if CONFIG_ENTROPY_STATS
+    int drl_ctx = av1_drl_ctx(mbmi_ext->weight[ref_frame_type], idx);
+    switch (mbmi->ref_mv_idx) {
+      case 0: counts->drl0_mode[drl_ctx][mbmi->ref_mv_idx != idx]++; break;
+      case 1: counts->drl1_mode[drl_ctx][mbmi->ref_mv_idx != idx]++; break;
+      default: counts->drl2_mode[drl_ctx][mbmi->ref_mv_idx != idx]++; break;
+    }
+#endif  // CONFIG_ENTROPY_STATS
+    update_cdf(drl_cdf, mbmi->ref_mv_idx != idx, 2);
+    if (mbmi->ref_mv_idx == idx) break;
+  }
+}
+#endif  // CONFIG_NEW_INTER_MODES
+
 static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
   MACROBLOCK *x = &td->mb;
   MACROBLOCKD *const xd = &x->e_mbd;
@@ -1153,6 +1182,11 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
     }
 
     const int new_mv = mbmi->mode == NEWMV || mbmi->mode == NEW_NEWMV;
+#if CONFIG_NEW_INTER_MODES
+    if (have_drl_index(mbmi->mode)) {
+      update_drl_index_stats(fc, counts, mbmi, mbmi_ext);
+    }
+#else
     if (new_mv) {
       const uint8_t ref_frame_type = av1_ref_frame_type(mbmi->ref_frame);
       for (int idx = 0; idx < 2; ++idx) {
@@ -1167,7 +1201,6 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
         }
       }
     }
-
     if (have_nearmv_in_inter_mode(mbmi->mode)) {
       const uint8_t ref_frame_type = av1_ref_frame_type(mbmi->ref_frame);
       for (int idx = 1; idx < 3; ++idx) {
@@ -1182,6 +1215,7 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
         }
       }
     }
+#endif  // CONFIG_NEW_INTER_MODES
     if (have_newmv_in_inter_mode(mbmi->mode)) {
       const int fr_mv_precision = cm->features.cur_frame_force_integer_mv
                                       ? MV_SUBPEL_NONE
@@ -1192,6 +1226,13 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
           av1_update_mv_stats(&mbmi->mv[ref].as_mv, &ref_mv.as_mv, &fc->nmvc,
                               fr_mv_precision);
         }
+#if CONFIG_NEW_INTER_MODES
+      } else if (mbmi->mode == NEAR_NEWMV || mbmi->mode == NEW_NEARMV) {
+        const int ref = mbmi->mode == NEAR_NEWMV;
+        const int_mv ref_mv = av1_get_ref_mv(x, ref);
+        av1_update_mv_stats(&mbmi->mv[ref].as_mv, &ref_mv.as_mv, &fc->nmvc,
+                            fr_mv_precision);
+#else
       } else if (mbmi->mode == NEAREST_NEWMV || mbmi->mode == NEAR_NEWMV) {
         const int ref = 1;
         const int_mv ref_mv = av1_get_ref_mv(x, ref);
@@ -1202,6 +1243,7 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
         const int_mv ref_mv = av1_get_ref_mv(x, ref);
         av1_update_mv_stats(&mbmi->mv[ref].as_mv, &ref_mv.as_mv, &fc->nmvc,
                             fr_mv_precision);
+#endif  // CONFIG_NEW_INTER_MODES
       }
     }
   }

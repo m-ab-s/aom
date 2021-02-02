@@ -695,12 +695,17 @@ int av1_interinter_compound_motion_search(const AV1_COMP *const cpi,
   mbmi->interinter_comp.seg_mask = xd->seg_mask;
   const INTERINTER_COMPOUND_DATA *compound_data = &mbmi->interinter_comp;
 
+#if CONFIG_NEW_INTER_MODES
+  const int mixed_new = this_mode == NEAR_NEWMV || this_mode == NEW_NEARMV;
+#else
+  const int mixed_new = this_mode >= NEAREST_NEWMV && this_mode <= NEW_NEARMV;
+#endif  // CONFIG_NEW_INTER_MODES
   if (this_mode == NEW_NEWMV) {
     do_masked_motion_search_indexed(cpi, x, cur_mv, compound_data, bsize,
                                     tmp_mv, &tmp_rate_mv, 2);
     mbmi->mv[0].as_int = tmp_mv[0].as_int;
     mbmi->mv[1].as_int = tmp_mv[1].as_int;
-  } else if (this_mode >= NEAREST_NEWMV && this_mode <= NEW_NEARMV) {
+  } else if (mixed_new) {
     // which = 1 if this_mode == NEAREST_NEWMV || this_mode == NEAR_NEWMV
     // which = 0 if this_mode == NEW_NEARESTMV || this_mode == NEW_NEARMV
     int which = (NEWMV == compound_ref1_mode(this_mode));

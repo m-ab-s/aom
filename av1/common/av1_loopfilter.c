@@ -31,12 +31,19 @@ static const SEG_LVL_FEATURES seg_lvl_lf_lut[MAX_MB_PLANE][2] = {
 static const int delta_lf_id_lut[MAX_MB_PLANE][2] = { { 0, 1 },
                                                       { 2, 2 },
                                                       { 3, 3 } };
-
+#if CONFIG_NEW_INTER_MODES
+static const int mode_lf_lut[] = {
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  // INTRA_MODES
+  1, 0, 1,                                // INTER_MODES (GLOBALMV == 0)
+  1, 1, 1, 0, 1,  // INTER_COMPOUND_MODES (GLOBAL_GLOBALMV == 0)
+};
+#else
 static const int mode_lf_lut[] = {
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  // INTRA_MODES
   1, 1, 0, 1,                             // INTER_MODES (GLOBALMV == 0)
   1, 1, 1, 1, 1, 1, 0, 1  // INTER_COMPOUND_MODES (GLOBAL_GLOBALMV == 0)
 };
+#endif  // CONFIG_NEW_INTER_MODES
 
 static void update_sharpness(loop_filter_info_n *lfi, int sharpness_lvl) {
   int lvl;

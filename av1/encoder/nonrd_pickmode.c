@@ -67,6 +67,20 @@ static const int pos_shift_16x16[4][4] = {
   { 9, 10, 13, 14 }, { 11, 12, 15, 16 }, { 17, 18, 21, 22 }, { 19, 20, 23, 24 }
 };
 
+#if CONFIG_NEW_INTER_MODES
+#define RT_INTER_MODES 6
+static const REF_MODE ref_mode_set[RT_INTER_MODES] = {
+  { LAST_FRAME, NEARMV },  { LAST_FRAME, NEWMV },    { GOLDEN_FRAME, NEARMV },
+  { GOLDEN_FRAME, NEWMV }, { ALTREF_FRAME, NEARMV }, { ALTREF_FRAME, NEWMV }
+};
+
+static const THR_MODES mode_idx[REF_FRAMES][4] = {
+  { THR_DC, THR_V_PRED, THR_H_PRED, THR_SMOOTH },
+  { THR_NEARMV, THR_NEARMV, THR_GLOBALMV, THR_NEWMV },
+  { THR_NEARG, THR_NEARG, THR_GLOBALMV, THR_NEWG },
+  { THR_NEARA, THR_NEARA, THR_GLOBALMV, THR_NEWA },
+};
+#else
 #define RT_INTER_MODES 9
 static const REF_MODE ref_mode_set[RT_INTER_MODES] = {
   { LAST_FRAME, NEARESTMV },   { LAST_FRAME, NEARMV },
@@ -85,12 +99,17 @@ static const THR_MODES mode_idx[REF_FRAMES][4] = {
   { THR_NEARESTG, THR_NEARG, THR_GLOBALMV, THR_NEWG },
 };
 #endif  // !CONFIG_NEW_REF_SIGNALING
+#endif  // CONFIG_NEW_INTER_MODES
 
 static const PREDICTION_MODE intra_mode_list[] = { DC_PRED, V_PRED, H_PRED,
                                                    SMOOTH_PRED };
 
 static INLINE int mode_offset(const PREDICTION_MODE mode) {
+#if CONFIG_NEW_INTER_MODES
+  if (mode >= NEARMV) {
+#else
   if (mode >= NEARESTMV) {
+#endif  // CONFIG_NEW_INTER_MODES
     return INTER_OFFSET(mode);
   } else {
     switch (mode) {
@@ -103,6 +122,13 @@ static INLINE int mode_offset(const PREDICTION_MODE mode) {
   }
 }
 
+#if CONFIG_NEW_INTER_MODES
+enum {
+  INTER_NEW = (1 << NEWMV),
+  INTER_NEAR = (1 << NEARMV),
+  INTER_NEAR_NEW = (1 << NEARMV) | (1 << NEWMV),
+};
+#else
 enum {
   //  INTER_ALL = (1 << NEARESTMV) | (1 << NEARMV) | (1 << NEWMV),
   INTER_NEAREST = (1 << NEARESTMV),
@@ -110,9 +136,14 @@ enum {
   INTER_NEAREST_NEAR = (1 << NEARESTMV) | (1 << NEARMV),
   INTER_NEAR_NEW = (1 << NEARMV) | (1 << NEWMV),
 };
+#endif  // CONFIG_NEW_INTER_MODES
 
 static INLINE void init_best_pickmode(BEST_PICKMODE *bp) {
+#if CONFIG_NEW_INTER_MODES
+  bp->best_mode = NEARMV;
+#else
   bp->best_mode = NEARESTMV;
+#endif  // CONFIG_NEW_INTER_MODES
   bp->best_ref_frame = LAST_FRAME;
   bp->best_tx_size = TX_8X8;
 #if CONFIG_REMOVE_DUAL_FILTER
@@ -362,9 +393,15 @@ static INLINE void find_predictors(AV1_COMP *cpi, MACROBLOCK *x,
     // TODO(Ravi): Populate mbmi_ext->ref_mv_stack[ref_frame][4] and
     // mbmi_ext->weight[ref_frame][4] inside av1_find_mv_refs.
     av1_copy_usable_ref_mv_stack_and_weight(xd, mbmi_ext, ref_frame);
+#if CONFIG_NEW_INTER_MODES
+    frame_mv[NEARMV][ref_frame] = av1_find_best_ref_mv_from_stack(
+        mbmi_ext, ref_frame, cm->features.fr_mv_precision);
+#else
     av1_find_best_ref_mvs_from_stack(
         mbmi_ext, ref_frame, &frame_mv[NEARESTMV][ref_frame],
         &frame_mv[NEARMV][ref_frame], cm->features.fr_mv_precision);
+#endif  // CONFIG_NEW_INTER_MODES
+
     // Early exit for non-LAST frame if force_skip_low_temp_var is set.
     if (!av1_is_scaled(sf) && bsize >= BLOCK_8X8 &&
         !(force_skip_low_temp_var && ref_frame != LAST_FRAME)) {
@@ -1064,7 +1101,9 @@ static int cost_mv_ref(const ModeCosts *const mode_costs, PREDICTION_MODE mode,
     } else {
       mode_cost += mode_costs->zeromv_mode_cost[mode_ctx][1];
       mode_ctx = (mode_context >> REFMV_OFFSET) & REFMV_CTX_MASK;
+#if !CONFIG_NEW_INTER_MODES
       mode_cost += mode_costs->refmv_mode_cost[mode_ctx][mode != NEARESTMV];
+#endif  // !CONFIG_NEW_INTER_MODES
       return mode_cost;
     }
   }
@@ -2186,7 +2225,11 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
         continue;
     }
 
+#if CONFIG_NEW_INTER_MODES
+    for (PREDICTION_MODE inter_mv_mode = NEARMV; inter_mv_mode <= NEWMV;
+#else
     for (PREDICTION_MODE inter_mv_mode = NEARESTMV; inter_mv_mode <= NEWMV;
+#endif  // CONFIG_NEW_INTER_MODES
          inter_mv_mode++) {
       if (inter_mv_mode == this_mode) continue;
       if (mode_checked[inter_mv_mode][ref_frame] &&
@@ -2405,7 +2448,11 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
       }
     } else {
       PREDICTION_MODE this_mode;
+#if CONFIG_NEW_INTER_MODES
+      for (this_mode = NEARMV; this_mode <= NEWMV; ++this_mode) {
+#else
       for (this_mode = NEARESTMV; this_mode <= NEWMV; ++this_mode) {
+#endif  // CONFIG_NEW_INTER_MODES
         update_thresh_freq_fact(cpi, x, bsize, best_pickmode.best_ref_frame,
                                 this_mode, best_pickmode.best_ref_frame,
                                 mi->mode);
