@@ -742,6 +742,7 @@ static void read_intrabc_info(AV1_COMMON *const cm, DecoderCodingBlock *dcb,
     mbmi->interp_filters = av1_broadcast_interp_filter(BILINEAR);
 #endif  // CONFIG_REMOVE_DUAL_FILTER
     mbmi->motion_mode = SIMPLE_TRANSLATION;
+    av1_set_mbmi_mv_precision(mbmi, MV_SUBPEL_NONE);
 
     int16_t inter_mode_ctx[MODE_CTX_REF_FRAMES];
     int_mv ref_mvs[INTRA_FRAME + 1][MAX_MV_REF_CANDIDATES];
@@ -754,7 +755,8 @@ static void read_intrabc_info(AV1_COMMON *const cm, DecoderCodingBlock *dcb,
 
     av1_find_best_ref_mvs(ref_mvs[INTRA_FRAME], &nearestmv, &nearmv,
                           cm->features.fr_mv_precision);
-    assert(cm->features.fr_mv_precision == MV_SUBPEL_NONE);
+    assert(cm->features.fr_mv_precision == MV_SUBPEL_NONE &&
+           mbmi->max_mv_precision == MV_SUBPEL_NONE);
     int_mv dv_ref = nearestmv.as_int == 0 ? nearmv : nearestmv;
     if (dv_ref.as_int == 0)
       av1_find_ref_dv(&dv_ref, &xd->tile, cm->seq_params.mib_size, xd->mi_row);
@@ -1186,9 +1188,8 @@ static INLINE int assign_mv(AV1_COMMON *cm, MACROBLOCKD *xd,
   MB_MODE_INFO *mbmi = xd->mi[0];
   BLOCK_SIZE bsize = mbmi->sb_type;
   FeatureFlags *const features = &cm->features;
-  if (features->cur_frame_force_integer_mv) {
-    precision = MV_SUBPEL_NONE;
-  }
+  assert(IMPLIES(features->cur_frame_force_integer_mv,
+                 precision == MV_SUBPEL_NONE));
   switch (mode) {
     case NEWMV: {
       nmv_context *const nmvc = &ec_ctx->nmvc;
@@ -1385,11 +1386,14 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
         mbmi->mode = read_inter_compound_mode(xd, r, mode_ctx);
       else
         mbmi->mode = read_inter_mode(ec_ctx, r, mode_ctx);
+      // TODO(chiyotsai@google.com): Remove the following line
+      av1_set_default_mbmi_mv_precision(mbmi, cm);
       if (mbmi->mode == NEWMV || mbmi->mode == NEW_NEWMV ||
           have_nearmv_in_inter_mode(mbmi->mode))
         read_drl_idx(ec_ctx, dcb, mbmi, r);
     }
   }
+  av1_set_default_mbmi_mv_precision(mbmi, cm);
 
   if (is_compound != is_inter_compound_mode(mbmi->mode)) {
     aom_internal_error(xd->error_info, AOM_CODEC_CORRUPT_FRAME,
@@ -1397,6 +1401,8 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
                        mbmi->mode, mbmi->ref_frame[0], mbmi->ref_frame[1]);
   }
 
+  // Note: the ref_mvs are constructed at frame level precision, but we may
+  // additionally down scale the precision later during assign_mv call.
   if (!is_compound && mbmi->mode != GLOBALMV) {
     av1_find_best_ref_mvs(ref_mvs[mbmi->ref_frame[0]], &nearestmv[0],
                           &nearmv[0], fr_mv_precision);
@@ -1461,7 +1467,7 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
 
   const int mv_corrupted_flag =
       !assign_mv(cm, xd, mbmi->mode, mbmi->ref_frame, mbmi->mv, ref_mv,
-                 nearestmv, nearmv, is_compound, fr_mv_precision, r);
+                 nearestmv, nearmv, is_compound, mbmi->pb_mv_precision, r);
   aom_merge_corrupted_flag(&dcb->corrupted, mv_corrupted_flag);
 
   mbmi->use_wedge_interintra = 0;

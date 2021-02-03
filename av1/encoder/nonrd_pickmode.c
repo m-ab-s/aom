@@ -221,9 +221,10 @@ static int combined_motion_search(AV1_COMP *cpi, MACROBLOCK *x,
     center_mv = tmp_mv->as_mv;
   const search_site_config *src_search_sites =
       cpi->mv_search_params.search_site_cfg[SS_CFG_SRC];
+  MvSubpelPrecision max_mv_precision = mi->max_mv_precision;
   FULLPEL_MOTION_SEARCH_PARAMS full_ms_params;
   av1_make_default_fullpel_ms_params(&full_ms_params, cpi, x, bsize, &center_mv,
-                                     src_search_sites,
+                                     max_mv_precision, src_search_sites,
                                      /*fine_search_interval=*/0);
 
   av1_full_pixel_search(start_mv, &full_ms_params, step_param,
@@ -233,8 +234,8 @@ static int combined_motion_search(AV1_COMP *cpi, MACROBLOCK *x,
   // calculate the bit cost on motion vector
   MV mvp_full = get_mv_from_fullmv(&tmp_mv->as_fullmv);
 
-  *rate_mv = av1_mv_bit_cost(&mvp_full, &ref_mv, cm->features.fr_mv_precision,
-                             &x->mv_costs, MV_COST_WEIGHT);
+  *rate_mv = av1_mv_bit_cost(&mvp_full, &ref_mv, max_mv_precision, &x->mv_costs,
+                             MV_COST_WEIGHT);
 
   // TODO(kyslov) Account for Rate Mode!
   rv = !(RDCOST(x->rdmult, (*rate_mv), 0) > best_rd_sofar);
@@ -242,15 +243,14 @@ static int combined_motion_search(AV1_COMP *cpi, MACROBLOCK *x,
   if (rv && search_subpel) {
     SUBPEL_MOTION_SEARCH_PARAMS ms_params;
     av1_make_default_subpel_ms_params(&ms_params, cpi, x, bsize, &ref_mv,
-                                      cost_list);
+                                      max_mv_precision, cost_list);
     MV subpel_start_mv = get_mv_from_fullmv(&tmp_mv->as_fullmv);
     cpi->mv_search_params.find_fractional_mv_step(
         xd, cm, &ms_params, subpel_start_mv, &tmp_mv->as_mv, &dis,
         &x->pred_sse[ref], NULL);
 
-    *rate_mv =
-        av1_mv_bit_cost(&tmp_mv->as_mv, &ref_mv, cm->features.fr_mv_precision,
-                        &x->mv_costs, MV_COST_WEIGHT);
+    *rate_mv = av1_mv_bit_cost(&tmp_mv->as_mv, &ref_mv, max_mv_precision,
+                               &x->mv_costs, MV_COST_WEIGHT);
   }
 
   if (scaled_ref_frame) {
@@ -296,6 +296,7 @@ static int search_new_mv(AV1_COMP *cpi, MACROBLOCK *x,
   MACROBLOCKD *const xd = &x->e_mbd;
   MB_MODE_INFO *const mi = xd->mi[0];
   AV1_COMMON *cm = &cpi->common;
+  MvSubpelPrecision max_mv_precision = mi->max_mv_precision;
   if (ref_frame > LAST_FRAME && cpi->oxcf.rc_cfg.mode == AOM_CBR &&
       gf_temporal_ref) {
     int tmp_sad;
@@ -317,14 +318,13 @@ static int search_new_mv(AV1_COMP *cpi, MACROBLOCK *x,
     MV ref_mv = av1_get_ref_mv(x, 0).as_mv;
 
     *rate_mv = av1_mv_bit_cost(&frame_mv[NEWMV][ref_frame].as_mv, &ref_mv,
-                               cm->features.fr_mv_precision, &x->mv_costs,
-                               MV_COST_WEIGHT);
+                               max_mv_precision, &x->mv_costs, MV_COST_WEIGHT);
     frame_mv[NEWMV][ref_frame].as_mv.row >>= 3;
     frame_mv[NEWMV][ref_frame].as_mv.col >>= 3;
 
     SUBPEL_MOTION_SEARCH_PARAMS ms_params;
     av1_make_default_subpel_ms_params(&ms_params, cpi, x, bsize, &ref_mv,
-                                      cost_list);
+                                      max_mv_precision, cost_list);
     MV start_mv = get_mv_from_fullmv(&best_mv.as_fullmv);
     cpi->mv_search_params.find_fractional_mv_step(
         xd, cm, &ms_params, start_mv, &best_mv.as_mv, &dis,
@@ -1031,6 +1031,7 @@ static INLINE void init_mbmi(MB_MODE_INFO *mbmi, PREDICTION_MODE pred_mode,
   mbmi->num_proj_ref = 1;
   mbmi->interintra_mode = 0;
   set_default_interp_filters(mbmi, cm->features.interp_filter);
+  av1_set_default_mbmi_mv_precision(mbmi, cm);
 }
 
 #if CONFIG_INTERNAL_STATS && !CONFIG_NEW_REF_SIGNALING

@@ -185,9 +185,11 @@ void av1_single_motion_search(const AV1_COMP *const cpi, MACROBLOCK *x,
   const int fine_search_interval = use_fine_search_interval(cpi);
   const search_site_config *src_search_sites =
       mv_search_params->search_site_cfg[SS_CFG_SRC];
+  const MvSubpelPrecision max_mv_precision = mbmi->max_mv_precision;
   FULLPEL_MOTION_SEARCH_PARAMS full_ms_params;
   av1_make_default_fullpel_ms_params(&full_ms_params, cpi, x, bsize, &ref_mv,
-                                     src_search_sites, fine_search_interval);
+                                     max_mv_precision, src_search_sites,
+                                     fine_search_interval);
 
   switch (mbmi->motion_mode) {
     case SIMPLE_TRANSLATION: {
@@ -237,9 +239,8 @@ void av1_single_motion_search(const AV1_COMP *const cpi, MACROBLOCK *x,
     int_mv this_mv;
     this_mv.as_mv = get_mv_from_fullmv(&best_mv->as_fullmv);
     const int ref_mv_idx = mbmi->ref_mv_idx;
-    const int this_mv_rate =
-        av1_mv_bit_cost(&this_mv.as_mv, &ref_mv, cm->features.fr_mv_precision,
-                        mv_costs, MV_COST_WEIGHT);
+    const int this_mv_rate = av1_mv_bit_cost(
+        &this_mv.as_mv, &ref_mv, max_mv_precision, mv_costs, MV_COST_WEIGHT);
     mode_info[ref_mv_idx].full_search_mv.as_int = this_mv.as_int;
     mode_info[ref_mv_idx].full_mv_rate = this_mv_rate;
 
@@ -278,7 +279,7 @@ void av1_single_motion_search(const AV1_COMP *const cpi, MACROBLOCK *x,
 
     SUBPEL_MOTION_SEARCH_PARAMS ms_params;
     av1_make_default_subpel_ms_params(&ms_params, cpi, x, bsize, &ref_mv,
-                                      cost_list);
+                                      max_mv_precision, cost_list);
     MV subpel_start_mv = get_mv_from_fullmv(&best_mv->as_fullmv);
 
     switch (mbmi->motion_mode) {
@@ -315,9 +316,8 @@ void av1_single_motion_search(const AV1_COMP *const cpi, MACROBLOCK *x,
       default: assert(0 && "Invalid motion mode!\n");
     }
   }
-  *rate_mv =
-      av1_mv_bit_cost(&best_mv->as_mv, &ref_mv, cm->features.fr_mv_precision,
-                      mv_costs, MV_COST_WEIGHT);
+  *rate_mv = av1_mv_bit_cost(&best_mv->as_mv, &ref_mv, max_mv_precision,
+                             mv_costs, MV_COST_WEIGHT);
 }
 
 void av1_joint_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
@@ -335,6 +335,7 @@ void av1_joint_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
   assert(has_second_ref(mbmi));
   const int_mv init_mv[2] = { cur_mv[0], cur_mv[1] };
   const int refs[2] = { mbmi->ref_frame[0], mbmi->ref_frame[1] };
+  MvSubpelPrecision max_mv_precision = mbmi->max_mv_precision;
   const MvCosts *mv_costs = &x->mv_costs;
   int_mv ref_mv[2];
   int ite, ref;
@@ -424,7 +425,8 @@ void av1_joint_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
     // Make motion search params
     FULLPEL_MOTION_SEARCH_PARAMS full_ms_params;
     av1_make_default_fullpel_ms_params(&full_ms_params, cpi, x, bsize,
-                                       &ref_mv[id].as_mv, NULL,
+                                       &ref_mv[id].as_mv, max_mv_precision,
+                                       NULL,
                                        /*fine_search_interval=*/0);
 
     av1_set_ms_compound_refs(&full_ms_params.ms_buffers, second_pred, mask,
@@ -462,8 +464,8 @@ void av1_joint_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
       int dis; /* TODO: use dis in distortion calculation later. */
       unsigned int sse;
       SUBPEL_MOTION_SEARCH_PARAMS ms_params;
-      av1_make_default_subpel_ms_params(&ms_params, cpi, x, bsize,
-                                        &ref_mv[id].as_mv, NULL);
+      av1_make_default_subpel_ms_params(
+          &ms_params, cpi, x, bsize, &ref_mv[id].as_mv, max_mv_precision, NULL);
       av1_set_ms_compound_refs(&ms_params.var_params.ms_buffers, second_pred,
                                mask, mask_stride, id);
       ms_params.forced_stop = EIGHTH_PEL;
@@ -486,9 +488,8 @@ void av1_joint_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
 
   for (ref = 0; ref < 2; ++ref) {
     const int_mv curr_ref_mv = av1_get_ref_mv(x, ref);
-    *rate_mv +=
-        av1_mv_bit_cost(&cur_mv[ref].as_mv, &curr_ref_mv.as_mv,
-                        cm->features.fr_mv_precision, mv_costs, MV_COST_WEIGHT);
+    *rate_mv += av1_mv_bit_cost(&cur_mv[ref].as_mv, &curr_ref_mv.as_mv,
+                                max_mv_precision, mv_costs, MV_COST_WEIGHT);
   }
 }
 
@@ -540,9 +541,10 @@ void av1_compound_single_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
   int_mv best_mv;
 
   // Make motion search params
+  MvSubpelPrecision max_mv_precision = mbmi->max_mv_precision;
   FULLPEL_MOTION_SEARCH_PARAMS full_ms_params;
   av1_make_default_fullpel_ms_params(&full_ms_params, cpi, x, bsize,
-                                     &ref_mv.as_mv, NULL,
+                                     &ref_mv.as_mv, max_mv_precision, NULL,
                                      /*fine_search_interval=*/0);
 
   av1_set_ms_compound_refs(&full_ms_params.ms_buffers, second_pred, mask,
@@ -572,7 +574,7 @@ void av1_compound_single_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
     unsigned int sse;
     SUBPEL_MOTION_SEARCH_PARAMS ms_params;
     av1_make_default_subpel_ms_params(&ms_params, cpi, x, bsize, &ref_mv.as_mv,
-                                      NULL);
+                                      max_mv_precision, NULL);
     av1_set_ms_compound_refs(&ms_params.var_params.ms_buffers, second_pred,
                              mask, mask_stride, ref_idx);
     ms_params.forced_stop = EIGHTH_PEL;
@@ -588,9 +590,8 @@ void av1_compound_single_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
 
   *rate_mv = 0;
 
-  *rate_mv +=
-      av1_mv_bit_cost(this_mv, &ref_mv.as_mv, cm->features.fr_mv_precision,
-                      mv_costs, MV_COST_WEIGHT);
+  *rate_mv += av1_mv_bit_cost(this_mv, &ref_mv.as_mv, max_mv_precision,
+                              mv_costs, MV_COST_WEIGHT);
 }
 
 static AOM_INLINE void build_second_inter_pred(const AV1_COMP *cpi,
@@ -739,6 +740,7 @@ int_mv av1_simple_motion_search(AV1_COMP *const cpi, MACROBLOCK *x, int mi_row,
 #else
   mbmi->interp_filters = av1_broadcast_interp_filter(EIGHTTAP_REGULAR);
 #endif  // CONFIG_REMOVE_DUAL_FILTER
+  av1_set_default_mbmi_mv_precision(mbmi, cm);
 
   const YV12_BUFFER_CONFIG *yv12 = get_ref_frame_yv12_buf(cm, ref);
   const YV12_BUFFER_CONFIG *scaled_ref_frame =
@@ -768,9 +770,11 @@ int_mv av1_simple_motion_search(AV1_COMP *const cpi, MACROBLOCK *x, int mi_row,
 
   // Allow more mesh searches for screen content type on the ARF.
   const int fine_search_interval = use_fine_search_interval(cpi);
+  const MvSubpelPrecision max_mv_precision = mbmi->max_mv_precision;
   FULLPEL_MOTION_SEARCH_PARAMS full_ms_params;
   av1_make_default_fullpel_ms_params(&full_ms_params, cpi, x, bsize, &ref_mv,
-                                     src_search_sites, fine_search_interval);
+                                     max_mv_precision, src_search_sites,
+                                     fine_search_interval);
 
   var = av1_full_pixel_search(start_mv, &full_ms_params, step_param,
                               cond_cost_list(cpi, cost_list),
@@ -787,7 +791,7 @@ int_mv av1_simple_motion_search(AV1_COMP *const cpi, MACROBLOCK *x, int mi_row,
 
     SUBPEL_MOTION_SEARCH_PARAMS ms_params;
     av1_make_default_subpel_ms_params(&ms_params, cpi, x, bsize, &ref_mv,
-                                      cost_list);
+                                      max_mv_precision, cost_list);
     // TODO(yunqing): integrate this into av1_make_default_subpel_ms_params().
     ms_params.forced_stop = cpi->sf.mv_sf.simple_motion_subpel_force_stop;
 

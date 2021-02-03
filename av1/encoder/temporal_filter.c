@@ -96,6 +96,7 @@ static void tf_motion_search(AV1_COMP *cpi,
   const int y_offset = mb_row * mb_height * y_stride + mb_col * mb_width;
 
   // Save input state.
+  const AV1_COMMON *cm = &cpi->common;
   MACROBLOCK *const mb = &cpi->td.mb;
   MACROBLOCKD *const mbd = &mb->e_mbd;
   const struct buf_2d ori_src_buf = mb->plane[0].src;
@@ -115,6 +116,8 @@ static void tf_motion_search(AV1_COMP *cpi,
       min_frame_size >= 720
           ? MV_COST_L1_HDRES
           : (min_frame_size >= 480 ? MV_COST_L1_MIDRES : MV_COST_L1_LOWRES);
+  const MvSubpelPrecision max_mv_precision = MV_SUBPEL_EIGHTH_PRECISION;
+  assert(cm->features.fr_mv_precision == MV_SUBPEL_EIGHTH_PRECISION);
 
   // Starting position for motion search.
   FULLPEL_MV start_mv = get_fullmv_from_mv(ref_mv);
@@ -137,7 +140,8 @@ static void tf_motion_search(AV1_COMP *cpi,
   MV block_mv = kZeroMv;
 
   av1_make_default_fullpel_ms_params(&full_ms_params, cpi, mb, block_size,
-                                     &baseline_mv, search_site_cfg,
+                                     &baseline_mv, max_mv_precision,
+                                     search_site_cfg,
                                      /*fine_search_interval=*/0);
   av1_set_mv_search_method(&full_ms_params, search_site_cfg, search_method);
   full_ms_params.run_mesh_search = 1;
@@ -160,7 +164,8 @@ static void tf_motion_search(AV1_COMP *cpi,
     block_mv = best_mv.as_mv;
   } else {  // Do fractional search on the entire block and all sub-blocks.
     av1_make_default_subpel_ms_params(&ms_params, cpi, mb, block_size,
-                                      &baseline_mv, cost_list);
+                                      &baseline_mv, max_mv_precision,
+                                      cost_list);
     ms_params.forced_stop = EIGHTH_PEL;
     ms_params.var_params.subpel_search_type = subpel_search_type;
     // Since we are merely refining the result from full pixel search, we don't
@@ -169,7 +174,7 @@ static void tf_motion_search(AV1_COMP *cpi,
 
     MV subpel_start_mv = get_mv_from_fullmv(&best_mv.as_fullmv);
     error = cpi->mv_search_params.find_fractional_mv_step(
-        &mb->e_mbd, &cpi->common, &ms_params, subpel_start_mv, &best_mv.as_mv,
+        &mb->e_mbd, cm, &ms_params, subpel_start_mv, &best_mv.as_mv,
         &distortion, &sse, NULL);
     block_mse = DIVIDE_AND_ROUND(error, mb_pels);
     block_mv = best_mv.as_mv;
@@ -189,7 +194,7 @@ static void tf_motion_search(AV1_COMP *cpi,
         mbd->plane[0].pre[0].buf = ref_frame->y_buffer + y_offset + offset;
         av1_make_default_fullpel_ms_params(&full_ms_params, cpi, mb,
                                            subblock_size, &baseline_mv,
-                                           search_site_cfg,
+                                           max_mv_precision, search_site_cfg,
                                            /*fine_search_interval=*/0);
         av1_set_mv_search_method(&full_ms_params, search_site_cfg,
                                  search_method);
@@ -201,7 +206,8 @@ static void tf_motion_search(AV1_COMP *cpi,
                               &best_mv.as_fullmv, NULL);
 
         av1_make_default_subpel_ms_params(&ms_params, cpi, mb, subblock_size,
-                                          &baseline_mv, cost_list);
+                                          &baseline_mv, max_mv_precision,
+                                          cost_list);
         ms_params.forced_stop = EIGHTH_PEL;
         ms_params.var_params.subpel_search_type = subpel_search_type;
         // Since we are merely refining the result from full pixel search, we
@@ -210,8 +216,8 @@ static void tf_motion_search(AV1_COMP *cpi,
 
         subpel_start_mv = get_mv_from_fullmv(&best_mv.as_fullmv);
         error = cpi->mv_search_params.find_fractional_mv_step(
-            &mb->e_mbd, &cpi->common, &ms_params, subpel_start_mv,
-            &best_mv.as_mv, &distortion, &sse, NULL);
+            &mb->e_mbd, cm, &ms_params, subpel_start_mv, &best_mv.as_mv,
+            &distortion, &sse, NULL);
         subblock_mses[subblock_idx] = DIVIDE_AND_ROUND(error, subblock_pels);
         subblock_mvs[subblock_idx] = best_mv.as_mv;
         ++subblock_idx;

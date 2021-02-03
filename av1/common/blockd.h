@@ -259,6 +259,10 @@ typedef struct MB_MODE_INFO {
 #else
   int_interpfilters interp_filters;
 #endif  // CONFIG_REMOVE_DUAL_FILTER
+  /*! The maximum mv_precision allowed for the given partition block. */
+  MvSubpelPrecision max_mv_precision;
+  /*! The mv_precision used by the given partition block. */
+  MvSubpelPrecision pb_mv_precision;
   // TODO(debargha): Consolidate these flags
 #if CONFIG_RD_DEBUG
   RD_STATS rd_stats;

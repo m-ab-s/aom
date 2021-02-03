@@ -2224,6 +2224,28 @@ static INLINE int is_valid_seq_level_idx(AV1_LEVEL seq_level_idx) {
 
 /*!\endcond */
 
+/*! Returns the maximum allowable mv_precision for the current partition block.
+ */
+static INLINE MvSubpelPrecision
+av1_get_mbmi_max_mv_precision(const AV1_COMMON *const cm) {
+  return cm->features.fr_mv_precision;
+}
+
+/*! Sets the pb_mv_precision and max_mv_precision to the value of precision.
+ */
+static INLINE void av1_set_mbmi_mv_precision(MB_MODE_INFO *mbmi,
+                                             MvSubpelPrecision precision) {
+  mbmi->pb_mv_precision = mbmi->max_mv_precision = precision;
+}
+
+/*! Sets the pb_mv_precision and max_mv_precision to the maximum value given by
+ *  \ref av1_get_mbmi_max_mv_precision.
+ */
+static INLINE void av1_set_default_mbmi_mv_precision(MB_MODE_INFO *mbmi,
+                                                     const AV1_COMMON *cm) {
+  av1_set_mbmi_mv_precision(mbmi, av1_get_mbmi_max_mv_precision(cm));
+}
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif

@@ -74,7 +74,7 @@ typedef struct {
   // The reference mv used to compute the mv cost
   const MV *ref_mv;
   FULLPEL_MV full_ref_mv;
-  MvSubpelPrecision mv_precision;
+  MvSubpelPrecision max_mv_precision;
 
   // Stores the entropy table needed to signal an mv. Includes the joint-mv cost
   // and the diff cost.
@@ -205,6 +205,7 @@ typedef struct {
 void av1_make_default_fullpel_ms_params(
     FULLPEL_MOTION_SEARCH_PARAMS *ms_params, const struct AV1_COMP *cpi,
     const MACROBLOCK *x, BLOCK_SIZE bsize, const MV *ref_mv,
+    MvSubpelPrecision max_mv_precision,
     const search_site_config search_sites[NUM_SEARCH_METHODS],
     int fine_search_interval);
 
@@ -348,7 +349,9 @@ typedef struct {
 void av1_make_default_subpel_ms_params(SUBPEL_MOTION_SEARCH_PARAMS *ms_params,
                                        const struct AV1_COMP *cpi,
                                        const MACROBLOCK *x, BLOCK_SIZE bsize,
-                                       const MV *ref_mv, const int *cost_list);
+                                       const MV *ref_mv,
+                                       MvSubpelPrecision max_mv_precision,
+                                       const int *cost_list);
 
 typedef int(fractional_mv_step_fp)(MACROBLOCKD *xd, const AV1_COMMON *const cm,
                                    const SUBPEL_MOTION_SEARCH_PARAMS *ms_params,

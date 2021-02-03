@@ -1209,7 +1209,7 @@ static int64_t handle_newmv(const AV1_COMP *const cpi, MACROBLOCK *const x,
   const int refs[2] = { mbmi->ref_frame[0],
                         mbmi->ref_frame[1] < 0 ? 0 : mbmi->ref_frame[1] };
   const int ref_mv_idx = mbmi->ref_mv_idx;
-  const MvSubpelPrecision precision = cpi->common.features.fr_mv_precision;
+  const MvSubpelPrecision max_mv_precision = mbmi->max_mv_precision;
 
   if (is_comp_pred) {
     const int valid_mv0 = args->single_newmv_valid[ref_mv_idx][refs[0]];
@@ -1246,8 +1246,9 @@ static int64_t handle_newmv(const AV1_COMP *const cpi, MACROBLOCK *const x,
         *rate_mv = 0;
         for (int i = 0; i < 2; ++i) {
           const int_mv ref_mv = av1_get_ref_mv(x, i);
-          *rate_mv += av1_mv_bit_cost(&cur_mv[i].as_mv, &ref_mv.as_mv,
-                                      precision, &x->mv_costs, MV_COST_WEIGHT);
+          *rate_mv +=
+              av1_mv_bit_cost(&cur_mv[i].as_mv, &ref_mv.as_mv, max_mv_precision,
+                              &x->mv_costs, MV_COST_WEIGHT);
         }
       }
 #if CONFIG_NEW_INTER_MODES
@@ -1267,8 +1268,9 @@ static int64_t handle_newmv(const AV1_COMP *const cpi, MACROBLOCK *const x,
                                                      NULL, 0, rate_mv, 1);
       } else {
         const int_mv ref_mv = av1_get_ref_mv(x, 1);
-        *rate_mv = av1_mv_bit_cost(&cur_mv[1].as_mv, &ref_mv.as_mv, precision,
-                                   &x->mv_costs, MV_COST_WEIGHT);
+        *rate_mv =
+            av1_mv_bit_cost(&cur_mv[1].as_mv, &ref_mv.as_mv, max_mv_precision,
+                            &x->mv_costs, MV_COST_WEIGHT);
       }
     } else {
 #if CONFIG_NEW_INTER_MODES
@@ -1288,8 +1290,9 @@ static int64_t handle_newmv(const AV1_COMP *const cpi, MACROBLOCK *const x,
                                                      NULL, 0, rate_mv, 0);
       } else {
         const int_mv ref_mv = av1_get_ref_mv(x, 0);
-        *rate_mv = av1_mv_bit_cost(&cur_mv[0].as_mv, &ref_mv.as_mv, precision,
-                                   &x->mv_costs, MV_COST_WEIGHT);
+        *rate_mv =
+            av1_mv_bit_cost(&cur_mv[0].as_mv, &ref_mv.as_mv, max_mv_precision,
+                            &x->mv_costs, MV_COST_WEIGHT);
       }
     }
   } else {
@@ -1590,9 +1593,10 @@ static int64_t motion_mode_rd(
           const int num_proj_ref0 = mbmi->num_proj_ref;
 
           const int_mv ref_mv = av1_get_ref_mv(x, 0);
+          const MvSubpelPrecision max_mv_precision = mbmi->max_mv_precision;
           SUBPEL_MOTION_SEARCH_PARAMS ms_params;
-          av1_make_default_subpel_ms_params(&ms_params, cpi, x, bsize,
-                                            &ref_mv.as_mv, NULL);
+          av1_make_default_subpel_ms_params(
+              &ms_params, cpi, x, bsize, &ref_mv.as_mv, max_mv_precision, NULL);
 
           // Refine MV in a small range.
           av1_refine_warped_mv(xd, cm, &ms_params, bsize, pts0, pts_inref0,
@@ -1600,9 +1604,9 @@ static int64_t motion_mode_rd(
 
           if (mv0.as_int != mbmi->mv[0].as_int) {
             // Keep the refined MV and WM parameters.
-            tmp_rate_mv = av1_mv_bit_cost(&mbmi->mv[0].as_mv, &ref_mv.as_mv,
-                                          cm->features.fr_mv_precision,
-                                          &x->mv_costs, MV_COST_WEIGHT);
+            tmp_rate_mv =
+                av1_mv_bit_cost(&mbmi->mv[0].as_mv, &ref_mv.as_mv,
+                                max_mv_precision, &x->mv_costs, MV_COST_WEIGHT);
             tmp_rate2 = rate2_nocoeff - rate_mv0 + tmp_rate_mv;
           } else {
             // Restore the old MV and WM parameters.
@@ -2542,8 +2546,9 @@ static AOM_INLINE int prune_modes_based_on_tpl_stats(
 static int skip_repeated_newmv(
     AV1_COMP *const cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
     const int do_tx_search, const PREDICTION_MODE this_mode,
-    MB_MODE_INFO *best_mbmi, motion_mode_candidate *motion_mode_cand,
-    int64_t *ref_best_rd, RD_STATS *best_rd_stats, RD_STATS *best_rd_stats_y,
+    const MvSubpelPrecision max_mv_precision, MB_MODE_INFO *best_mbmi,
+    motion_mode_candidate *motion_mode_cand, int64_t *ref_best_rd,
+    RD_STATS *best_rd_stats, RD_STATS *best_rd_stats_y,
     RD_STATS *best_rd_stats_uv, inter_mode_info *mode_info,
     HandleInterModeArgs *args, int drl_cost, const MV_REFERENCE_FRAME *refs,
     int_mv *cur_mv, int64_t *best_rd, const BUFFER_SET orig_dst,
@@ -2571,9 +2576,9 @@ static int skip_repeated_newmv(
       if (mode_info[i].mv.as_int != INVALID_MV) {
         const int compare_cost = mode_info[i].rate_mv + mode_info[i].drl_cost;
         const int_mv ref_mv = av1_get_ref_mv(x, 0);
-        this_rate_mv = av1_mv_bit_cost(&mode_info[i].mv.as_mv, &ref_mv.as_mv,
-                                       cm->features.fr_mv_precision,
-                                       &x->mv_costs, MV_COST_WEIGHT);
+        this_rate_mv =
+            av1_mv_bit_cost(&mode_info[i].mv.as_mv, &ref_mv.as_mv,
+                            max_mv_precision, &x->mv_costs, MV_COST_WEIGHT);
         const int this_cost = this_rate_mv + drl_cost;
 
         if (compare_cost <= this_cost) {
@@ -3004,11 +3009,11 @@ static int64_t handle_inter_mode(
       // skip NEWMV mode in drl if the motion search result is the same
       // as a previous result
       if (cpi->sf.inter_sf.skip_repeated_newmv &&
-          skip_repeated_newmv(cpi, x, bsize, do_tx_search, this_mode,
-                              &best_mbmi, motion_mode_cand, &ref_best_rd,
-                              &best_rd_stats, &best_rd_stats_y,
-                              &best_rd_stats_uv, mode_info, args, drl_cost,
-                              refs, cur_mv, &best_rd, orig_dst, ref_mv_idx))
+          skip_repeated_newmv(
+              cpi, x, bsize, do_tx_search, this_mode, mbmi->max_mv_precision,
+              &best_mbmi, motion_mode_cand, &ref_best_rd, &best_rd_stats,
+              &best_rd_stats_y, &best_rd_stats_uv, mode_info, args, drl_cost,
+              refs, cur_mv, &best_rd, orig_dst, ref_mv_idx))
         continue;
     }
     // Copy the motion vector for this mode into mbmi struct
@@ -3220,7 +3225,7 @@ static int64_t rd_pick_intrabc_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x,
 #else
   int_mv nearestmv, nearmv;
   av1_find_best_ref_mvs_from_stack(mbmi_ext, ref_frame, &nearestmv, &nearmv,
-                                   cm->features.fr_mv_precision);
+                                   MV_SUBPEL_NONE);
 
   if (nearestmv.as_int == INVALID_MV) {
     nearestmv.as_int = 0;
@@ -3260,9 +3265,12 @@ static int64_t rd_pick_intrabc_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x,
   FULLPEL_MOTION_SEARCH_PARAMS fullms_params;
   const search_site_config *lookahead_search_sites =
       cpi->mv_search_params.search_site_cfg[SS_CFG_LOOKAHEAD];
-  av1_make_default_fullpel_ms_params(&fullms_params, cpi, x, bsize,
-                                     &dv_ref.as_mv, lookahead_search_sites,
-                                     /*fine_search_interval=*/0);
+  // TODO(chiyotsai@google.com): Change the resolution here to MV_SUBPEL_NONE in
+  // a separate commit.
+  av1_make_default_fullpel_ms_params(
+      &fullms_params, cpi, x, bsize, &dv_ref.as_mv,
+      cm->features.fr_mv_precision, lookahead_search_sites,
+      /*fine_search_interval=*/0);
   fullms_params.is_intra_mode = 1;
 
   for (enum IntrabcMotionDirection dir = IBC_MOTION_ABOVE;
@@ -4418,6 +4426,7 @@ static INLINE void init_mbmi(MB_MODE_INFO *mbmi, PREDICTION_MODE curr_mode,
   mbmi->motion_mode = SIMPLE_TRANSLATION;
   mbmi->interintra_mode = (INTERINTRA_MODE)(II_DC_PRED - 1);
   set_default_interp_filters(mbmi, cm->features.interp_filter);
+  av1_set_default_mbmi_mv_precision(mbmi, cm);
 }
 
 static AOM_INLINE void collect_single_states(MACROBLOCK *x,
@@ -5881,6 +5890,7 @@ void av1_rd_pick_inter_mode_sb_seg_skip(const AV1_COMP *cpi,
   mbmi->ref_mv_idx = 0;
 
   mbmi->motion_mode = SIMPLE_TRANSLATION;
+  av1_set_default_mbmi_mv_precision(mbmi, cm);
   av1_count_overlappable_neighbors(cm, xd);
   if (is_motion_variation_allowed_bsize(bsize) && !has_second_ref(mbmi)) {
     int pts[SAMPLES_ARRAY_SIZE], pts_inref[SAMPLES_ARRAY_SIZE];

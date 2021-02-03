@@ -160,9 +160,10 @@ static uint32_t motion_estimation(AV1_COMP *cpi, MACROBLOCK *x,
     search_site_cfg = cpi->mv_search_params.search_site_cfg[SS_CFG_LOOKAHEAD];
   assert(search_site_cfg->stride == stride_ref);
 
+  const MvSubpelPrecision max_mv_precision = cm->features.fr_mv_precision;
   FULLPEL_MOTION_SEARCH_PARAMS full_ms_params;
   av1_make_default_fullpel_ms_params(&full_ms_params, cpi, x, bsize, &center_mv,
-                                     search_site_cfg,
+                                     max_mv_precision, search_site_cfg,
                                      /*fine_search_interval=*/0);
   av1_set_mv_search_method(&full_ms_params, search_site_cfg,
                            tpl_sf->search_method);
@@ -173,7 +174,7 @@ static uint32_t motion_estimation(AV1_COMP *cpi, MACROBLOCK *x,
 
   SUBPEL_MOTION_SEARCH_PARAMS ms_params;
   av1_make_default_subpel_ms_params(&ms_params, cpi, x, bsize, &center_mv,
-                                    cost_list);
+                                    max_mv_precision, cost_list);
   ms_params.forced_stop = tpl_sf->subpel_force_stop;
   ms_params.var_params.subpel_search_type = USE_2_TAPS;
   ms_params.mv_cost_params.mv_cost_type = MV_COST_NONE;

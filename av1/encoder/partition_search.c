@@ -1281,32 +1281,32 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
     }
 #endif  // CONFIG_NEW_INTER_MODES
     if (have_newmv_in_inter_mode(mbmi->mode)) {
-      const int fr_mv_precision = cm->features.cur_frame_force_integer_mv
-                                      ? MV_SUBPEL_NONE
-                                      : cm->features.fr_mv_precision;
+      const int pb_mv_precision = mbmi->pb_mv_precision;
+      assert(IMPLIES(cm->features.cur_frame_force_integer_mv,
+                     pb_mv_precision == MV_SUBPEL_NONE));
       if (new_mv) {
         for (int ref = 0; ref < 1 + has_second_ref(mbmi); ++ref) {
           const int_mv ref_mv = av1_get_ref_mv(x, ref);
           av1_update_mv_stats(&mbmi->mv[ref].as_mv, &ref_mv.as_mv, &fc->nmvc,
-                              fr_mv_precision);
+                              pb_mv_precision);
         }
 #if CONFIG_NEW_INTER_MODES
       } else if (mbmi->mode == NEAR_NEWMV || mbmi->mode == NEW_NEARMV) {
         const int ref = mbmi->mode == NEAR_NEWMV;
         const int_mv ref_mv = av1_get_ref_mv(x, ref);
         av1_update_mv_stats(&mbmi->mv[ref].as_mv, &ref_mv.as_mv, &fc->nmvc,
-                            fr_mv_precision);
+                            pb_mv_precision);
 #else
       } else if (mbmi->mode == NEAREST_NEWMV || mbmi->mode == NEAR_NEWMV) {
         const int ref = 1;
         const int_mv ref_mv = av1_get_ref_mv(x, ref);
         av1_update_mv_stats(&mbmi->mv[ref].as_mv, &ref_mv.as_mv, &fc->nmvc,
-                            fr_mv_precision);
+                            pb_mv_precision);
       } else if (mbmi->mode == NEW_NEARESTMV || mbmi->mode == NEW_NEARMV) {
         const int ref = 0;
         const int_mv ref_mv = av1_get_ref_mv(x, ref);
         av1_update_mv_stats(&mbmi->mv[ref].as_mv, &ref_mv.as_mv, &fc->nmvc,
-                            fr_mv_precision);
+                            pb_mv_precision);
 #endif  // CONFIG_NEW_INTER_MODES
       }
     }

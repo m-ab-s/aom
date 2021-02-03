@@ -35,12 +35,12 @@
 static INLINE void init_mv_cost_params(MV_COST_PARAMS *mv_cost_params,
                                        const MvCosts *mv_costs,
                                        const MV *ref_mv,
-                                       MvSubpelPrecision precision) {
+                                       MvSubpelPrecision max_mv_precision) {
   mv_cost_params->ref_mv = ref_mv;
   mv_cost_params->full_ref_mv = get_fullmv_from_mv(ref_mv);
   mv_cost_params->mv_cost_type = MV_COST_ENTROPY;
   mv_cost_params->mv_costs = mv_costs;
-  mv_cost_params->mv_precision = precision;
+  mv_cost_params->max_mv_precision = max_mv_precision;
 }
 
 static INLINE void init_ms_buffers(MSBuffers *ms_buffers, const MACROBLOCK *x) {
@@ -77,6 +77,7 @@ get_faster_search_method(SEARCH_METHODS search_method) {
 void av1_make_default_fullpel_ms_params(
     FULLPEL_MOTION_SEARCH_PARAMS *ms_params, const struct AV1_COMP *cpi,
     const MACROBLOCK *x, BLOCK_SIZE bsize, const MV *ref_mv,
+    MvSubpelPrecision max_mv_precision,
     const search_site_config search_sites[NUM_SEARCH_METHODS],
     int fine_search_interval) {
   const MV_SPEED_FEATURES *mv_sf = &cpi->sf.mv_sf;
@@ -123,14 +124,15 @@ void av1_make_default_fullpel_ms_params(
 
   // Mvcost params
   init_mv_cost_params(&ms_params->mv_cost_params, &x->mv_costs, ref_mv,
-                      cpi->common.features.fr_mv_precision);
+                      max_mv_precision);
 }
 
 void av1_make_default_subpel_ms_params(SUBPEL_MOTION_SEARCH_PARAMS *ms_params,
                                        const struct AV1_COMP *cpi,
                                        const MACROBLOCK *x, BLOCK_SIZE bsize,
-                                       const MV *ref_mv, const int *cost_list) {
-  const AV1_COMMON *cm = &cpi->common;
+                                       const MV *ref_mv,
+                                       MvSubpelPrecision max_mv_precision,
+                                       const int *cost_list) {
   // High level params
   ms_params->forced_stop = cpi->sf.mv_sf.subpel_force_stop;
   ms_params->iters_per_step = cpi->sf.mv_sf.subpel_iters_per_step;
@@ -140,7 +142,7 @@ void av1_make_default_subpel_ms_params(SUBPEL_MOTION_SEARCH_PARAMS *ms_params,
 
   // Mvcost params
   init_mv_cost_params(&ms_params->mv_cost_params, &x->mv_costs, ref_mv,
-                      cm->features.fr_mv_precision);
+                      max_mv_precision);
 
   // Subpel variance params
   ms_params->var_params.vfp = &cpi->fn_ptr[bsize];
@@ -281,7 +283,7 @@ static INLINE int mv_err_cost(const MV mv,
   const MV diff = { mv.row - ref_mv.row, mv.col - ref_mv.col };
   const MV abs_diff = { abs(diff.row), abs(diff.col) };
 
-  const MvSubpelPrecision precision = mv_cost_params->mv_precision;
+  const MvSubpelPrecision precision = mv_cost_params->max_mv_precision;
   const MV_COST_TYPE mv_cost_type = mv_cost_params->mv_cost_type;
   const MvCosts *mv_costs = mv_cost_params->mv_costs;
 
@@ -312,7 +314,7 @@ static INLINE int mvsad_err_cost(const FULLPEL_MV mv,
                     GET_MV_SUBPEL(mv.col - ref_mv.col) };
   const MV abs_diff = { abs(diff.row), abs(diff.col) };
 
-  const MvSubpelPrecision precision = mv_cost_params->mv_precision;
+  const MvSubpelPrecision precision = mv_cost_params->max_mv_precision;
   const MvCosts *mv_costs = mv_cost_params->mv_costs;
   const int *mvjcost = mv_costs->nmv_joint_cost;
   const int *const *mvcost =
@@ -2764,9 +2766,9 @@ int av1_find_best_sub_pixel_tree_pruned_evenmore(
   const SubpelMvLimits *mv_limits = &ms_params->mv_limits;
   const MV_COST_PARAMS *mv_cost_params = &ms_params->mv_cost_params;
   const SUBPEL_SEARCH_VAR_PARAMS *var_params = &ms_params->var_params;
-  const MvSubpelPrecision precision = mv_cost_params->mv_precision;
-  const int forced_stop =
-      AOMMAX(ms_params->forced_stop, MV_SUBPEL_EIGHTH_PRECISION - precision);
+  const MvSubpelPrecision max_mv_precision = mv_cost_params->max_mv_precision;
+  const int forced_stop = AOMMAX(ms_params->forced_stop,
+                                 MV_SUBPEL_EIGHTH_PRECISION - max_mv_precision);
 
   // The iteration we are current searching for. Iter 0 corresponds to fullpel
   // mv, iter 1 to half pel, and so on
@@ -2849,9 +2851,9 @@ int av1_find_best_sub_pixel_tree_pruned_more(
   const SubpelMvLimits *mv_limits = &ms_params->mv_limits;
   const MV_COST_PARAMS *mv_cost_params = &ms_params->mv_cost_params;
   const SUBPEL_SEARCH_VAR_PARAMS *var_params = &ms_params->var_params;
-  const MvSubpelPrecision precision = mv_cost_params->mv_precision;
-  const int forced_stop =
-      AOMMAX(ms_params->forced_stop, MV_SUBPEL_EIGHTH_PRECISION - precision);
+  const MvSubpelPrecision max_mv_precision = mv_cost_params->max_mv_precision;
+  const int forced_stop = AOMMAX(ms_params->forced_stop,
+                                 MV_SUBPEL_EIGHTH_PRECISION - max_mv_precision);
 
   // The iteration we are current searching for. Iter 0 corresponds to fullpel
   // mv, iter 1 to half pel, and so on
@@ -2935,9 +2937,9 @@ int av1_find_best_sub_pixel_tree_pruned(
   const SubpelMvLimits *mv_limits = &ms_params->mv_limits;
   const MV_COST_PARAMS *mv_cost_params = &ms_params->mv_cost_params;
   const SUBPEL_SEARCH_VAR_PARAMS *var_params = &ms_params->var_params;
-  const MvSubpelPrecision precision = mv_cost_params->mv_precision;
-  const int forced_stop =
-      AOMMAX(ms_params->forced_stop, MV_SUBPEL_EIGHTH_PRECISION - precision);
+  const MvSubpelPrecision max_mv_precision = mv_cost_params->max_mv_precision;
+  const int forced_stop = AOMMAX(ms_params->forced_stop,
+                                 MV_SUBPEL_EIGHTH_PRECISION - max_mv_precision);
 
   // The iteration we are current searching for. Iter 0 corresponds to fullpel
   // mv, iter 1 to half pel, and so on
@@ -3076,7 +3078,7 @@ int av1_find_best_sub_pixel_tree(MACROBLOCKD *xd, const AV1_COMMON *const cm,
   // How many steps to take. A round of 0 means fullpel search only, 1 means
   // half-pel, and so on.
   const int round =
-      AOMMIN(FULL_PEL - forced_stop, mv_cost_params->mv_precision);
+      AOMMIN(FULL_PEL - forced_stop, mv_cost_params->max_mv_precision);
   int hstep = INIT_SUBPEL_STEP_SIZE;  // Step size, initialized to 4/8=1/2 pel
 
   unsigned int besterr = INT_MAX;
@@ -3139,7 +3141,7 @@ int av1_return_max_sub_pixel_mv(MACROBLOCKD *xd, const AV1_COMMON *const cm,
 
   // In the sub-pel motion search, if hp is not used, then the last bit of mv
   // has to be 0.
-  lower_mv_precision(bestmv, ms_params->mv_cost_params.mv_precision);
+  lower_mv_precision(bestmv, ms_params->mv_cost_params.max_mv_precision);
   return besterr;
 }
 
@@ -3164,7 +3166,7 @@ int av1_return_min_sub_pixel_mv(MACROBLOCKD *xd, const AV1_COMMON *const cm,
   unsigned int besterr = 0;
   // In the sub-pel motion search, if hp is not used, then the last bit of mv
   // has to be 0.
-  lower_mv_precision(bestmv, ms_params->mv_cost_params.mv_precision);
+  lower_mv_precision(bestmv, ms_params->mv_cost_params.max_mv_precision);
   return besterr;
 }
 
@@ -3216,8 +3218,9 @@ unsigned int av1_refine_warped_mv(MACROBLOCKD *xd, const AV1_COMMON *const cm,
   unsigned int bestmse;
   const SubpelMvLimits *mv_limits = &ms_params->mv_limits;
 
-  const int start =
-      (MV_SUBPEL_EIGHTH_PRECISION - ms_params->mv_cost_params.mv_precision) * 4;
+  const int start = (MV_SUBPEL_EIGHTH_PRECISION -
+                     ms_params->mv_cost_params.max_mv_precision) *
+                    4;
 
   // Calculate the center position's error
   assert(av1_is_subpelmv_in_range(mv_limits, *best_mv));
@@ -3439,7 +3442,7 @@ int av1_find_best_obmc_sub_pixel_tree_up(
 
   int hstep = INIT_SUBPEL_STEP_SIZE;
   const int round =
-      AOMMIN(FULL_PEL - forced_stop, mv_cost_params->mv_precision);
+      AOMMIN(FULL_PEL - forced_stop, mv_cost_params->max_mv_precision);
 
   unsigned int besterr = INT_MAX;
   *bestmv = start_mv;
