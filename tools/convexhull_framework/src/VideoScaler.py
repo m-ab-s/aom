@@ -15,7 +15,7 @@ import Utils
 import logging
 import fileinput
 from shutil import copyfile
-from Config import LoggerName, FFMPEG, HDRToolsConfigFileTemplate, HDRConvert
+from Config import LoggerName, FFMPEG, HDRToolsConfigFileTemplate, HDRConvert, Platform
 from Utils import GetShortContentName, ExecuteCmd, md5
 
 subloggername = "VideoScaler"
@@ -114,29 +114,47 @@ def GetDownScaledMD5File(clip, dnw, dnh, path, algo):
     dnscaledmd5 = os.path.join(path, filename)
     return dnscaledmd5
 
+def CalculateDownScaledMD5(clip, dnw, dnh, path, algo, LogCmdOnly):
+    dnScaleMD5 = GetDownScaledMD5File(clip, dnw, dnh, path, algo)
+    if LogCmdOnly == 1:
+        if Platform == "Linux":
+            cmd = "md5sum %s &> %s" % (clip.file_path, dnScaleMD5)
+        ExecuteCmd(cmd, 1)
+    else:
+        f = open(dnScaleMD5, 'wt')
+        dnScaledOut = GetDownScaledOutFile(clip, dnw, dnh, path, algo)
+        MD5 = md5(dnScaledOut)
+        f.write(MD5)
+        f.close()
+
+
 def DownScaling(clip, num, outw, outh, path, cfg_path, algo, LogCmdOnly = False):
     dnScaledOut = GetDownScaledOutFile(clip, outw, outh, path, algo)
 
     Utils.CmdLogger.write("::Downscaling\n")
     if (clip.width == outw and clip.height == outh):
-        cmd = "copy %s %s" % (clip.file_path, dnScaledOut)
+        if Platform == "Windows":
+            cmd = "copy %s %s" % (clip.file_path, dnScaledOut)
+        else:
+            cmd = "cp %s %s" % (clip.file_path, dnScaledOut)
         ExecuteCmd(cmd, LogCmdOnly)
     else:
         # call separate process to do the downscaling
         VideoRescaling(clip, num, outw, outh, dnScaledOut, algo, cfg_path,
                        LogCmdOnly)
-    dnScaleMD5 = GetDownScaledMD5File(clip, outw, outh, path, algo)
-    f = open(dnScaleMD5, 'wt')
-    MD5 = md5(dnScaledOut)
-    f.write(MD5)
-    f.close()
+
+    CalculateDownScaledMD5(clip, outw, outh, path, algo, LogCmdOnly)
+
     return dnScaledOut
 
 def UpScaling(clip, num, outw, outh, path, cfg_path, algo, LogCmdOnly = False):
     upScaleOut = GetUpScaledOutFile(clip, outw, outh, algo, path)
     Utils.CmdLogger.write("::Upscaling\n")
     if (clip.width == outw and clip.height == outh):
-        cmd = "copy %s %s" % (clip.file_path, upScaleOut)
+        if Platform == "Windows":
+            cmd = "copy %s %s" % (clip.file_path, upScaleOut)
+        else:
+            cmd = "cp %s %s" % (clip.file_path, upScaleOut)
         ExecuteCmd(cmd, LogCmdOnly)
     else:
         # call separate process to do the upscaling

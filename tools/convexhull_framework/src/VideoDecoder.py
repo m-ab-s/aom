@@ -14,8 +14,11 @@ import Utils
 from Config import AOMDEC, EnableTimingInfo, Platform
 from Utils import ExecuteCmd
 
-def DecodeWithAOM(infile, outfile, dec_perf, LogCmdOnly=False):
-    args = " --codec=av1 --summary -o %s %s" % (outfile, infile)
+def DecodeWithAOM(test_cfg, infile, outfile, dec_perf, decode_to_yuv, LogCmdOnly=False):
+    if decode_to_yuv:
+        args = " --codec=av1 --summary --rawvideo -o %s %s" % (outfile, infile)
+    else:
+        args = " --codec=av1 --summary -o %s %s" % (outfile, infile)
     cmd = AOMDEC + args
     if EnableTimingInfo:
         if Platform == "Windows":
@@ -26,9 +29,9 @@ def DecodeWithAOM(infile, outfile, dec_perf, LogCmdOnly=False):
             cmd = "/usr/bin/time --verbose --output=%s "%dec_perf + cmd
     ExecuteCmd(cmd, LogCmdOnly)
 
-def VideoDecode(codec, infile, outfile, dec_perf, LogCmdOnly=False):
+def VideoDecode(test_cfg, codec, infile, outfile, dec_perf, decode_to_yuv, LogCmdOnly=False):
     Utils.CmdLogger.write("::Decode\n")
     if codec == 'av1':
-        DecodeWithAOM(infile, outfile, dec_perf, LogCmdOnly)
+        DecodeWithAOM(test_cfg, infile, outfile, dec_perf, decode_to_yuv, LogCmdOnly)
     else:
         raise ValueError("invalid parameter for decode.")

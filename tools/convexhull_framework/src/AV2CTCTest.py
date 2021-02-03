@@ -16,11 +16,12 @@ import sys
 import argparse
 from CalculateQualityMetrics import CalculateQualityMetric, GatherQualityMetrics
 from Utils import GetShortContentName, CreateNewSubfolder, SetupLogging, \
-     Cleanfolder, CreateClipList, GetEncLogFile
+     Cleanfolder, CreateClipList, GetEncLogFile, GatherPerfInfo, GetEncPerfFile, \
+     GetDecPerfFile, GetRDResultCsvFile, GatherPerframeStat
 import Utils
 from Config import LogLevels, FrameNum, TEST_CONFIGURATIONS, QPs, WorkPath, \
      Path_RDResults, LoggerName, QualityList, Platform, MIN_GOP_LENGTH
-from EncDecUpscale import Encode, Decode, GetEncPerfFile, GetDecPerfFile
+from EncDecUpscale import Encode, Decode
 
 ###############################################################################
 ##### Helper Functions ########################################################
@@ -29,18 +30,9 @@ def CleanIntermediateFiles():
     for folder in folders:
         Cleanfolder(folder)
 
-def GetRDResultCsvFile(EncodeMethod, CodecName, EncodePreset, test_cfg):
-    filename = "RDResults_%s_%s_%s_Preset_%s.csv" % \
-               (EncodeMethod, CodecName, test_cfg, EncodePreset)
-    avg_file = os.path.join(Path_RDResults, filename)
-    filename = "Perframe_RDResults_%s_%s_%s_Preset_%s.csv" % \
-               (EncodeMethod, CodecName, test_cfg, EncodePreset)
-    perframe_data = os.path.join(Path_RDResults, filename)
-    return avg_file, perframe_data
-
 def GetBsReconFileName(EncodeMethod, CodecName, EncodePreset, test_cfg, clip, QP):
     basename = GetShortContentName(clip.file_name, False)
-    filename = "%s_%s_%s_%s_Preset_%s_QP_%d.ivf" % \
+    filename = "%s_%s_%s_%s_Preset_%s_QP_%d.obu" % \
                (basename, EncodeMethod, CodecName, test_cfg, EncodePreset, QP)
     bs = os.path.join(Path_Bitstreams, filename)
     filename = "%s_%s_%s_%s_Preset_%s_QP_%d_Decoded.y4m" % \
@@ -80,8 +72,8 @@ def Run_Encode_Test(test_cfg, clip, preset, LogCmdOnly = False):
                         Path_EncLog, LogCmdOnly)
         Utils.Logger.info("start decode file %s" % os.path.basename(bsFile))
         #decode
-        decodedYUV = Decode('av1', bsFile, Path_DecodedYuv, Path_TimingLog,
-                            LogCmdOnly)
+        decodedYUV = Decode(test_cfg, 'av1', bsFile, Path_DecodedYuv, Path_TimingLog,
+                            False, LogCmdOnly)
         #calcualte quality distortion
         Utils.Logger.info("start quality metric calculation")
         CalculateQualityMetric(clip.file_path, FrameNum[test_cfg], decodedYUV,
@@ -92,31 +84,6 @@ def Run_Encode_Test(test_cfg, clip, preset, LogCmdOnly = False):
         Utils.Logger.info("finish running encode with QP %d" % (QP))
         if LogCmdOnly:
             Utils.CmdLogger.write("============== Job End ===================\n\n")
-
-def GatherPerfInfo(bsfile, Path_TimingLog):
-    enc_perf = GetEncPerfFile(bsfile, Path_TimingLog)
-    dec_perf = GetDecPerfFile(bsfile, Path_TimingLog)
-    enc_time = 0.0; dec_time = 0.0
-    flog = open(enc_perf, 'r')
-    for line in flog:
-        if Platform == "Windows":
-            m = re.search(r"Execution time:\s+(\d+\.?\d*)", line)
-        else:
-            m = re.search(r"User time \(seconds\):\s+(\d+\.?\d*)", line)
-        if m:
-            enc_time = float(m.group(1))
-    flog.close()
-
-    flog = open(dec_perf, 'r')
-    for line in flog:
-        if Platform == "Windows":
-            m = re.search(r"Execution time:\s+(\d+\.?\d*)", line)
-        else:
-            m = re.search(r"User time \(seconds\):\s+(\d+\.?\d*)", line)
-        if m:
-            dec_time = float(m.group(1))
-    flog.close()
-    return enc_time, dec_time
 
 #TODO: This function needs to be revised later
 def GetTempLayerID(poc):
@@ -133,27 +100,6 @@ def GetTempLayerID(poc):
         temp_layer_id = 5
     return temp_layer_id
 
-def GatherPerframeStat(test_cfg,EncodeMethod,CodecName,EncodePreset,clip,qp,enc_log,perframe_csv,perframe_vmaf_log):
-    enc_list = [''] * len(perframe_vmaf_log)
-    flog = open(enc_log, 'r')
-
-    for line in flog:
-        if line.startswith("POC"):
-            #POC:     0 [ KEY ][Q:143]:      40272 Bytes, 1282.9ms, 36.5632 dB(Y), 45.1323 dB(U), 46.6284 dB(V), 38.0736 dB(Avg)    [  0,  0,  0,  0,  0,  0,  0,]
-            m = re.search(r"POC:\s+(\d+)\s+\[( KEY |INTER)\]\[Q:\s*(\d+)\]:\s+(\d+)\s+Bytes,",line)
-            if m:
-                POC = m.group(1)
-                frame_type = m.group(2)
-                qindex = m.group(3)
-                frame_size = m.group(4)
-                if enc_list[int(POC)] == '':
-                    enc_list[int(POC)] = "%s,%s,%s,%s"%(POC,frame_type,qindex,frame_size)
-
-    for i in range(len(enc_list)):
-        #"TestCfg,EncodeMethod,CodecName,EncodePreset,Class,Res,Name,FPS,BitDepth,QP,POC,TempLayerId,FrameType,qindex,FrameSize")
-        perframe_csv.write("%s,%s,%s,%s,%s,%s,%s,%s,%d,%d,%s,%s\n"
-                           %(test_cfg,EncodeMethod,CodecName,EncodePreset,clip.file_class,str(clip.width)+"x"+str(clip.height),
-                             clip.file_name,clip.fps,clip.bit_depth,qp,enc_list[i],perframe_vmaf_log[i]))
 
 def GenerateSummaryRDDataFile(EncodeMethod, CodecName, EncodePreset,
                               test_cfg, clip_list, log_path):
@@ -206,8 +152,10 @@ def GenerateSummaryRDDataFile(EncodeMethod, CodecName, EncodePreset,
             csv.write(",%.2f,%.2f,%.2f,\n"%(enc_time,dec_time,enc_hour))
             if (EncodeMethod == 'aom'):
                 enc_log = GetEncLogFile(bs, log_path)
-                GatherPerframeStat(test_cfg,EncodeMethod,CodecName,EncodePreset,clip,qp,enc_log,perframe_csv,
-                                   perframe_vmaf_log)
+                GatherPerframeStat(test_cfg,EncodeMethod,CodecName,EncodePreset,clip,clip.file_name, clip.width,
+                                   clip.height, qp,enc_log,perframe_csv, perframe_vmaf_log)
+    csv.close()
+    perframe_csv.close()
     Utils.Logger.info("finish export RD results to file.")
     return
 
