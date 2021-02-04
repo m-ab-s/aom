@@ -239,7 +239,7 @@ extern "C" void av1_restore_cnn_tflite(const AV1_COMMON *cm, int num_threads) {
           av1_restore_cnn_img_tflite_highbd(
               cm->base_qindex, CONVERT_TO_SHORTPTR(buf->v_buffer),
               buf->uv_crop_width, buf->uv_crop_height, buf->uv_stride,
-              CONVERT_TO_SHORTPTR(buf->u_buffer), buf->uv_stride, num_threads,
+              CONVERT_TO_SHORTPTR(buf->v_buffer), buf->uv_stride, num_threads,
               cm->seq_params.bit_depth, is_intra_only);
           break;
         default: assert(0 && "Invalid plane index");
