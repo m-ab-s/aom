@@ -47,7 +47,7 @@ double get_inverse_x0(int p, int q, double x0, int subsampled) {
   return get_inverse_x0_numeric(p, q, x0);
 }
 
-static inline int16_t doclip(int16_t x, int low, int high) {
+static inline int doclip(int x, int low, int high) {
   return (x < low ? low : x > high ? high : x);
 }
 
@@ -348,11 +348,12 @@ static void resample_1d_core(const int16_t *x, int inlen,
     }
     sum = ROUND_POWER_OF_TWO_SIGNED(sum, downshift);
     if (clip) {
-      y[i] = (int16_t)clip->issigned ? doclip(sum, -(1 << (clip->bits - 1)),
-                                              (1 << (clip->bits - 1)) - 1)
-                                     : doclip(sum, 0, (1 << clip->bits) - 1);
+      y[i] = (int16_t)(clip->issigned
+                           ? doclip((int)sum, -(1 << (clip->bits - 1)),
+                                    (1 << (clip->bits - 1)) - 1)
+                           : doclip((int)sum, 0, (1 << clip->bits) - 1));
     } else {
-      y[i] = (int16_t)doclip(sum, -(1 << 15), (1 << 15) - 1);
+      y[i] = (int16_t)doclip((int)sum, -(1 << 15), (1 << 15) - 1);
     }
     xext += rf->steps[p];
   }
@@ -540,11 +541,12 @@ static void resample_1d_core_in8b(const uint8_t *x, int inlen,
     }
     sum = ROUND_POWER_OF_TWO_SIGNED(sum, downshift);
     if (clip) {
-      y[i] = (int16_t)clip->issigned ? doclip(sum, -(1 << (clip->bits - 1)),
-                                              (1 << (clip->bits - 1)) - 1)
-                                     : doclip(sum, 0, (1 << clip->bits) - 1);
+      y[i] = (int16_t)(clip->issigned
+                           ? doclip((int)sum, -(1 << (clip->bits - 1)),
+                                    (1 << (clip->bits - 1)) - 1)
+                           : doclip((int)sum, 0, (1 << clip->bits) - 1));
     } else {
-      y[i] = (int16_t)doclip(sum, -(1 << 15), (1 << 15) - 1);
+      y[i] = (int16_t)doclip((int)sum, -(1 << 15), (1 << 15) - 1);
     }
     xext += rf->steps[p];
   }
@@ -566,9 +568,10 @@ static void resample_1d_core_8b(const uint8_t *x, int inlen,
     }
     sum = ROUND_POWER_OF_TWO_SIGNED(sum, downshift);
     if (clip) {
-      y[i] = (uint8_t)clip->issigned ? doclip(sum, -(1 << (clip->bits - 1)),
-                                              (1 << (clip->bits - 1)) - 1)
-                                     : doclip(sum, 0, (1 << clip->bits) - 1);
+      y[i] = (uint8_t)(clip->issigned
+                           ? doclip((int)sum, -(1 << (clip->bits - 1)),
+                                    (1 << (clip->bits - 1)) - 1)
+                           : doclip((int)sum, 0, (1 << clip->bits) - 1));
     } else {
       y[i] = (uint8_t)sum;
     }
@@ -608,20 +611,20 @@ static void extend_border_8b(uint8_t *x, int inlen, EXT_TYPE ext_type,
     case EXT_GRADIENT:
       if (inlen > border) {
         for (int i = -border; i < 0; ++i) {
-          const int16_t t = 2 * x[0] - x[-i];
+          const int t = 2 * x[0] - x[-i];
           x[i] = (uint8_t)doclip(t, 0, 255);
         }
         for (int i = 0; i < border; ++i) {
-          const int16_t t = 2 * x[inlen - 1] - x[inlen - 2 - i];
+          const int t = 2 * x[inlen - 1] - x[inlen - 2 - i];
           x[i + inlen] = (uint8_t)doclip(t, 0, 255);
         }
       } else {
         for (int i = -border; i < 0; ++i) {
-          const int16_t t = 2 * x[0] - x[(-i > inlen - 1 ? inlen - 1 : -i)];
+          const int t = 2 * x[0] - x[(-i > inlen - 1 ? inlen - 1 : -i)];
           x[i] = (uint8_t)doclip(t, 0, 255);
         }
         for (int i = 0; i < border; ++i) {
-          const int16_t t =
+          const int t =
               2 * x[inlen - 1] - x[(inlen - 2 - i < 0 ? 0 : inlen - 2 - i)];
           x[i + inlen] = (uint8_t)doclip(t, 0, 255);
         }
