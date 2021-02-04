@@ -740,7 +740,7 @@ int_mv av1_simple_motion_search(AV1_COMP *const cpi, MACROBLOCK *x, int mi_row,
 #else
   mbmi->interp_filters = av1_broadcast_interp_filter(EIGHTTAP_REGULAR);
 #endif  // CONFIG_REMOVE_DUAL_FILTER
-  av1_set_default_mbmi_mv_precision(mbmi, cm);
+  av1_set_default_mbmi_mv_precision(mbmi, xd->sbi);
 
   const YV12_BUFFER_CONFIG *yv12 = get_ref_frame_yv12_buf(cm, ref);
   const YV12_BUFFER_CONFIG *scaled_ref_frame =

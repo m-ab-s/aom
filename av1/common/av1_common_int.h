@@ -2186,10 +2186,12 @@ static INLINE SB_INFO *av1_get_sb_info(AV1_COMMON *cm, int mi_row, int mi_col) {
 
 static INLINE void av1_set_sb_info(AV1_COMMON *cm, MACROBLOCKD *xd, int mi_row,
                                    int mi_col) {
-  xd->sbi = av1_get_sb_info(cm, mi_row, mi_col);
+  SB_INFO *sbi = xd->sbi = av1_get_sb_info(cm, mi_row, mi_col);
 
-  xd->sbi->mi_row = mi_row;
-  xd->sbi->mi_col = mi_col;
+  sbi->mi_row = mi_row;
+  sbi->mi_col = mi_col;
+
+  sbi->sb_mv_precision = cm->features.fr_mv_precision;
 }
 
 // Returns true if the frame is fully lossless at the coded resolution.
@@ -2227,8 +2229,8 @@ static INLINE int is_valid_seq_level_idx(AV1_LEVEL seq_level_idx) {
 /*! Returns the maximum allowable mv_precision for the current partition block.
  */
 static INLINE MvSubpelPrecision
-av1_get_mbmi_max_mv_precision(const AV1_COMMON *const cm) {
-  return cm->features.fr_mv_precision;
+av1_get_mbmi_max_mv_precision(const SB_INFO *const sbi) {
+  return sbi->sb_mv_precision;
 }
 
 /*! Sets the pb_mv_precision and max_mv_precision to the value of precision.
@@ -2242,8 +2244,8 @@ static INLINE void av1_set_mbmi_mv_precision(MB_MODE_INFO *mbmi,
  *  \ref av1_get_mbmi_max_mv_precision.
  */
 static INLINE void av1_set_default_mbmi_mv_precision(MB_MODE_INFO *mbmi,
-                                                     const AV1_COMMON *cm) {
-  av1_set_mbmi_mv_precision(mbmi, av1_get_mbmi_max_mv_precision(cm));
+                                                     const SB_INFO *sbi) {
+  av1_set_mbmi_mv_precision(mbmi, av1_get_mbmi_max_mv_precision(sbi));
 }
 
 #ifdef __cplusplus

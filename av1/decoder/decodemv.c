@@ -1350,6 +1350,7 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
   int16_t inter_mode_ctx[MODE_CTX_REF_FRAMES];
   int pts[SAMPLES_ARRAY_SIZE], pts_inref[SAMPLES_ARRAY_SIZE];
   MACROBLOCKD *const xd = &dcb->xd;
+  SB_INFO *sbi = xd->sbi;
   FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
 
   mbmi->uv_mode = UV_DC_PRED;
@@ -1387,13 +1388,13 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
       else
         mbmi->mode = read_inter_mode(ec_ctx, r, mode_ctx);
       // TODO(chiyotsai@google.com): Remove the following line
-      av1_set_default_mbmi_mv_precision(mbmi, cm);
+      av1_set_default_mbmi_mv_precision(mbmi, sbi);
       if (mbmi->mode == NEWMV || mbmi->mode == NEW_NEWMV ||
           have_nearmv_in_inter_mode(mbmi->mode))
         read_drl_idx(ec_ctx, dcb, mbmi, r);
     }
   }
-  av1_set_default_mbmi_mv_precision(mbmi, cm);
+  av1_set_default_mbmi_mv_precision(mbmi, sbi);
 
   if (is_compound != is_inter_compound_mode(mbmi->mode)) {
     aom_internal_error(xd->error_info, AOM_CODEC_CORRUPT_FRAME,

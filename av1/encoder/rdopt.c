@@ -4412,7 +4412,7 @@ static int inter_mode_search_order_independent_skip(
 
 static INLINE void init_mbmi(MB_MODE_INFO *mbmi, PREDICTION_MODE curr_mode,
                              const MV_REFERENCE_FRAME *ref_frames,
-                             const AV1_COMMON *cm) {
+                             const AV1_COMMON *cm, const SB_INFO *sbi) {
   PALETTE_MODE_INFO *const pmi = &mbmi->palette_mode_info;
   mbmi->ref_mv_idx = 0;
   mbmi->mode = curr_mode;
@@ -4426,7 +4426,7 @@ static INLINE void init_mbmi(MB_MODE_INFO *mbmi, PREDICTION_MODE curr_mode,
   mbmi->motion_mode = SIMPLE_TRANSLATION;
   mbmi->interintra_mode = (INTERINTRA_MODE)(II_DC_PRED - 1);
   set_default_interp_filters(mbmi, cm->features.interp_filter);
-  av1_set_default_mbmi_mv_precision(mbmi, cm);
+  av1_set_default_mbmi_mv_precision(mbmi, sbi);
 }
 
 static AOM_INLINE void collect_single_states(MACROBLOCK *x,
@@ -5469,7 +5469,7 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
         ref_frame > INTRA_FRAME && second_ref_frame == NONE_FRAME;
     const int comp_pred = second_ref_frame > INTRA_FRAME;
 
-    init_mbmi(mbmi, this_mode, ref_frames, cm);
+    init_mbmi(mbmi, this_mode, ref_frames, cm, xd->sbi);
 
     txfm_info->skip_txfm = 0;
     num_single_modes_processed += is_single_pred;
@@ -5640,7 +5640,7 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
 
     assert(refs[0] == INTRA_FRAME);
     assert(refs[1] == NONE_FRAME);
-    init_mbmi(mbmi, this_mode, refs, cm);
+    init_mbmi(mbmi, this_mode, refs, cm, xd->sbi);
 #else
     const THR_MODES mode_enum = intra_mode_idx_ls[j];
     const MODE_DEFINITION *mode_def = &av1_mode_defs[mode_enum];
@@ -5650,7 +5650,7 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
 
     assert(av1_mode_defs[mode_enum].ref_frame[0] == INTRA_FRAME);
     assert(av1_mode_defs[mode_enum].ref_frame[1] == NONE_FRAME);
-    init_mbmi(mbmi, this_mode, av1_mode_defs[mode_enum].ref_frame, cm);
+    init_mbmi(mbmi, this_mode, av1_mode_defs[mode_enum].ref_frame, cm, xd->sbi);
 #endif  // CONFIG_NEW_REF_SIGNALING
     txfm_info->skip_txfm = 0;
 
@@ -5890,7 +5890,7 @@ void av1_rd_pick_inter_mode_sb_seg_skip(const AV1_COMP *cpi,
   mbmi->ref_mv_idx = 0;
 
   mbmi->motion_mode = SIMPLE_TRANSLATION;
-  av1_set_default_mbmi_mv_precision(mbmi, cm);
+  av1_set_default_mbmi_mv_precision(mbmi, xd->sbi);
   av1_count_overlappable_neighbors(cm, xd);
   if (is_motion_variation_allowed_bsize(bsize) && !has_second_ref(mbmi)) {
     int pts[SAMPLES_ARRAY_SIZE], pts_inref[SAMPLES_ARRAY_SIZE];

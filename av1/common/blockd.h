@@ -339,6 +339,7 @@ typedef struct SB_INFO {
   int mi_row;
   int mi_col;
   PARTITION_TREE *ptree_root;
+  MvSubpelPrecision sb_mv_precision;
 } SB_INFO;
 
 void av1_reset_ptree_in_sbi(SB_INFO *sbi);

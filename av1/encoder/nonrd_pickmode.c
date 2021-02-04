@@ -1016,7 +1016,7 @@ static void block_yrd(AV1_COMP *cpi, MACROBLOCK *x, int mi_row, int mi_col,
 static INLINE void init_mbmi(MB_MODE_INFO *mbmi, PREDICTION_MODE pred_mode,
                              MV_REFERENCE_FRAME ref_frame0,
                              MV_REFERENCE_FRAME ref_frame1,
-                             const AV1_COMMON *cm) {
+                             const AV1_COMMON *cm, const SB_INFO *sbi) {
   PALETTE_MODE_INFO *const pmi = &mbmi->palette_mode_info;
   mbmi->ref_mv_idx = 0;
   mbmi->mode = pred_mode;
@@ -1031,7 +1031,7 @@ static INLINE void init_mbmi(MB_MODE_INFO *mbmi, PREDICTION_MODE pred_mode,
   mbmi->num_proj_ref = 1;
   mbmi->interintra_mode = 0;
   set_default_interp_filters(mbmi, cm->features.interp_filter);
-  av1_set_default_mbmi_mv_precision(mbmi, cm);
+  av1_set_default_mbmi_mv_precision(mbmi, sbi);
 }
 
 #if CONFIG_INTERNAL_STATS && !CONFIG_NEW_REF_SIGNALING
@@ -1629,7 +1629,7 @@ void av1_nonrd_pick_intra_mode(AV1_COMP *cpi, MACROBLOCK *x, RD_STATS *rd_cost,
   av1_invalid_rd_stats(&best_rdc);
   av1_invalid_rd_stats(&this_rdc);
 
-  init_mbmi(mi, DC_PRED, INTRA_FRAME, NONE_FRAME, cm);
+  init_mbmi(mi, DC_PRED, INTRA_FRAME, NONE_FRAME, cm, xd->sbi);
   mi->mv[0].as_int = mi->mv[1].as_int = INVALID_MV;
 
   // Change the limit of this loop to add other intra prediction
@@ -2140,7 +2140,7 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
 #if COLLECT_PICK_MODE_STAT
   ms_stat.num_blocks[bsize]++;
 #endif
-  init_mbmi(mi, DC_PRED, NONE_FRAME, NONE_FRAME, cm);
+  init_mbmi(mi, DC_PRED, NONE_FRAME, NONE_FRAME, cm, xd->sbi);
   mi->tx_size = AOMMIN(
       AOMMIN(max_txsize_lookup[bsize],
              tx_mode_to_biggest_tx_size[txfm_params->tx_mode_search_type]),
