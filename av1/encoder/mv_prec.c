@@ -441,4 +441,8 @@ void av1_pick_and_set_high_precision_mv(AV1_COMP *cpi, int qindex) {
     prec = MV_SUBPEL_NONE;
   }
   av1_set_high_precision_mv(cpi, prec);
+
+#if CONFIG_FLEX_MVRES
+  cpi->common.features.use_sb_mv_precision = 0;
+#endif  // CONFIG_FLEX_MVRES
 }

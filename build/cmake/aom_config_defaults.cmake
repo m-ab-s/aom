@@ -151,6 +151,8 @@ set_aom_config_var(CONFIG_NEW_INTER_MODES 0 NUMBER
                    "AV2 inter mode consolidation experiment flag")
 set_aom_config_var(CONFIG_EXT_ROTATION 0
                    "AV2 warping motion rotation experiment flag.")
+set_aom_config_var(CONFIG_FLEX_MVRES 0 NUMBER
+                   "AV2 flexible mv precision experiment flag")
 
 #
 # Variables in this section control optional features of the build system.

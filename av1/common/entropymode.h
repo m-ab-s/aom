@@ -183,6 +183,13 @@ typedef struct frame_contexts {
                                [CDF_SIZE(TX_TYPES)];
   aom_cdf_prob cfl_sign_cdf[CDF_SIZE(CFL_JOINT_SIGNS)];
   aom_cdf_prob cfl_alpha_cdf[CFL_ALPHA_CONTEXTS][CDF_SIZE(CFL_ALPHABET_SIZE)];
+
+#if CONFIG_FLEX_MVRES
+  aom_cdf_prob
+      sb_mv_precision_cdf[MV_SUBPEL_PRECISIONS - MV_SUBPEL_HALF_PRECISION]
+                         [CDF_SIZE(MV_SUBPEL_PRECISIONS)];
+#endif  // CONFIG_FLEX_MVRES
+
   int initialized;
 } FRAME_CONTEXT;
 

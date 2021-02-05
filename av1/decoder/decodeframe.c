@@ -1518,11 +1518,32 @@ static PARTITION_TYPE read_partition(MACROBLOCKD *xd, int mi_row, int mi_col,
   }
 }
 
+#if CONFIG_FLEX_MVRES
+static MvSubpelPrecision av1_read_sb_mv_precision(AV1_COMMON *const cm,
+                                                  MACROBLOCKD *const xd,
+                                                  aom_reader *r) {
+  const MvSubpelPrecision max_precision = cm->features.fr_mv_precision;
+  const int down = aom_read_symbol(
+      r,
+      xd->tile_ctx
+          ->sb_mv_precision_cdf[max_precision - MV_SUBPEL_HALF_PRECISION],
+      max_precision + 1, ACCT_STR);
+  return (MvSubpelPrecision)(max_precision - down);
+}
+#endif  // CONFIG_FLEX_MVRES
+
 // Read the superblock level parameters
 static void read_sb_info(SB_INFO *sbi, AV1Decoder *const pbi,
                          ThreadData *const td, aom_reader *reader) {
   AV1_COMMON *const cm = &pbi->common;
   sbi->sb_mv_precision = cm->features.fr_mv_precision;
+
+#if CONFIG_FLEX_MVRES
+  if (cm->features.use_sb_mv_precision) {
+    MACROBLOCKD *const xd = &td->dcb.xd;
+    sbi->sb_mv_precision = av1_read_sb_mv_precision(cm, xd, reader);
+  }
+#endif  // CONFIG_FLEX_MVRES
 
   (void)reader;
   (void)td;
@@ -5302,6 +5323,13 @@ static int read_uncompressed_header(AV1Decoder *pbi,
                                         ? MV_SUBPEL_EIGHTH_PRECISION
                                         : MV_SUBPEL_QTR_PRECISION;
       }
+#if CONFIG_FLEX_MVRES
+      if (features->fr_mv_precision == MV_SUBPEL_NONE) {
+        features->use_sb_mv_precision = 0;
+      } else {
+        features->use_sb_mv_precision = aom_rb_read_bit(rb);
+      }
+#endif  // CONFIG_FLEX_MVRES
       features->interp_filter = read_frame_interp_filter(rb);
       features->switchable_motion_mode = aom_rb_read_bit(rb);
     }

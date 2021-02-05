@@ -1800,6 +1800,23 @@ static AOM_INLINE void write_partition(const AV1_COMMON *const cm,
   }
 }
 
+#if CONFIG_FLEX_MVRES
+static void write_sb_mv_precision(const AV1_COMMON *const cm,
+                                  MACROBLOCKD *const xd, aom_writer *w) {
+  const MB_MODE_INFO *const mbmi = xd->mi[0];
+  const MvSubpelPrecision max_precision = cm->features.fr_mv_precision;
+  assert(mbmi->pb_mv_precision == mbmi->max_mv_precision);
+  assert(mbmi->max_mv_precision == xd->sbi->sb_mv_precision);
+  assert(xd->sbi->sb_mv_precision <= max_precision);
+  aom_write_symbol(
+      w, max_precision - xd->sbi->sb_mv_precision,
+      xd->tile_ctx
+          ->sb_mv_precision_cdf[max_precision - MV_SUBPEL_HALF_PRECISION],
+      max_precision + 1);
+  (void)mbmi;
+}
+#endif  // CONFIG_FLEX_MVRES
+
 static AOM_INLINE void write_modes_sb(
     AV1_COMP *const cpi, const TileInfo *const tile, aom_writer *const w,
     const TokenExtra **tok, const TokenExtra *const tok_end,
@@ -1817,6 +1834,15 @@ static AOM_INLINE void write_modes_sb(
   const BLOCK_SIZE subsize = get_partition_subsize(bsize, partition);
 
   if (mi_row >= mi_params->mi_rows || mi_col >= mi_params->mi_cols) return;
+
+#if CONFIG_FLEX_MVRES
+  if (bsize == cm->seq_params.sb_size && !frame_is_intra_only(cm) &&
+      cm->features.use_sb_mv_precision) {
+    const int grid_idx = get_mi_grid_idx(mi_params, mi_row, mi_col);
+    xd->mi = &mi_params->mi_grid_base[grid_idx];
+    write_sb_mv_precision(cm, xd, w);
+  }
+#endif  // CONFIG_FLEX_MVRES
 
   const int num_planes = av1_num_planes(cm);
   for (int plane = 0; plane < num_planes; ++plane) {
@@ -3335,9 +3361,20 @@ static AOM_INLINE void write_uncompressed_header_obu(
         write_frame_size(cm, frame_size_override_flag, wb);
       }
 
-      if (!features->cur_frame_force_integer_mv)
+      if (!features->cur_frame_force_integer_mv) {
         aom_wb_write_bit(wb,
                          features->fr_mv_precision > MV_SUBPEL_QTR_PRECISION);
+      }
+#if CONFIG_FLEX_MVRES
+      if (features->fr_mv_precision > MV_SUBPEL_NONE) {
+        aom_wb_write_bit(wb, features->use_sb_mv_precision);
+      } else {
+        assert(!features->use_sb_mv_precision);
+      }
+      assert(IMPLIES(features->cur_frame_force_integer_mv,
+                     features->fr_mv_precision == MV_SUBPEL_NONE));
+#endif  // CONFIG_FLEX_MVRES
+
       write_frame_interp_filter(features->interp_filter, wb);
       aom_wb_write_bit(wb, features->switchable_motion_mode);
       if (frame_might_allow_ref_frame_mvs(cm)) {

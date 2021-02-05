@@ -372,6 +372,12 @@ typedef struct {
    * If true, force integer motion vectors; if false, use the default.
    */
   bool cur_frame_force_integer_mv;
+#if CONFIG_FLEX_MVRES
+  /*!
+   * If true, allow the mv precision to be changed at the superblock level.
+   */
+  bool use_sb_mv_precision;
+#endif  // CONFIG_FLEX_MVRES
   /*!
    * If true, palette tool and/or intra block copy tools may be used.
    */

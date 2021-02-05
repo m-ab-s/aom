@@ -1106,6 +1106,10 @@ void av1_first_pass(AV1_COMP *cpi, const int64_t ts_duration) {
   assert(this_frame != NULL);
   assert(frame_is_intra_only(cm) || (last_frame != NULL));
 
+#if CONFIG_FLEX_MVRES
+  assert(!cm->features.use_sb_mv_precision);
+#endif  // CONFIG_FLEX_MVRES
+
   av1_setup_frame_size(cpi);
   aom_clear_system_state();
 

@@ -990,6 +990,16 @@ static const aom_cdf_prob default_tx_size_cdf[MAX_TX_CATS][TX_SIZE_CONTEXTS]
                                              };
 #endif
 
+#if CONFIG_FLEX_MVRES
+static const aom_cdf_prob
+    default_sb_mv_precision_cdf[MV_SUBPEL_PRECISIONS - 1]
+                               [CDF_SIZE(MV_SUBPEL_PRECISIONS)] = {
+                                 { AOM_CDF2(24000) },
+                                 { AOM_CDF3(24000, 29000) },
+                                 { AOM_CDF4(24000, 29000, 31000) },
+                               };
+#endif  // CONFIG_FLEX_MVRES
+
 #define MAX_COLOR_CONTEXT_HASH 8
 // Negative values are invalid
 static const int palette_color_index_context_lookup[MAX_COLOR_CONTEXT_HASH +
@@ -1265,6 +1275,9 @@ static void init_mode_probs(FRAME_CONTEXT *fc) {
   av1_copy(fc->cfl_sign_cdf, default_cfl_sign_cdf);
   av1_copy(fc->cfl_alpha_cdf, default_cfl_alpha_cdf);
   av1_copy(fc->intrabc_cdf, default_intrabc_cdf);
+#if CONFIG_FLEX_MVRES
+  av1_copy(fc->sb_mv_precision_cdf, default_sb_mv_precision_cdf);
+#endif  // CONFIG_FLEX_MVRES
 }
 
 void av1_set_default_ref_deltas(int8_t *ref_deltas) {
