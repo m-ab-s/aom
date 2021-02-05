@@ -45,14 +45,25 @@ static void update_mv_component_stats(int comp, nmv_component *mvcomp,
     for (int i = 0; i < n; ++i)
       update_cdf(mvcomp->bits_cdf[i], (d >> i) & 1, 2);
   }
-  // Fractional bits
+  // 1/2 and 1/4 pel bits
   if (precision > MV_SUBPEL_NONE) {
+#if CONFIG_FLEX_MVRES
+    aom_cdf_prob *fp_cdf = mv_class == MV_CLASS_0 ? mvcomp->class0_fp_cdf[d][0]
+                                                  : mvcomp->fp_cdf[0];
+    update_cdf(fp_cdf, fr >> 1, 2);
+    if (precision > MV_SUBPEL_HALF_PRECISION) {
+      fp_cdf = mv_class == MV_CLASS_0 ? mvcomp->class0_fp_cdf[d][1 + (fr >> 1)]
+                                      : mvcomp->fp_cdf[1 + (fr >> 1)];
+      update_cdf(fp_cdf, fr & 1, 2);
+    }
+#else
     aom_cdf_prob *fp_cdf =
         mv_class == MV_CLASS_0 ? mvcomp->class0_fp_cdf[d] : mvcomp->fp_cdf;
     update_cdf(fp_cdf, fr, MV_FP_SIZE);
+#endif  // CONFIG_FLEX_MVRES
   }
 
-  // High precision bit
+  // 1/8 pel bit
   if (precision > MV_SUBPEL_QTR_PRECISION) {
     aom_cdf_prob *hp_cdf =
         mv_class == MV_CLASS_0 ? mvcomp->class0_hp_cdf : mvcomp->hp_cdf;
@@ -100,15 +111,28 @@ static void encode_mv_component(aom_writer *w, int comp, nmv_component *mvcomp,
     for (i = 0; i < n; ++i)
       aom_write_symbol(w, (d >> i) & 1, mvcomp->bits_cdf[i], 2);
   }
-  // Fractional bits
+  // The 1/2 and 1/4 pel bits
   if (precision > MV_SUBPEL_NONE) {
+#if CONFIG_FLEX_MVRES
+    aom_write_symbol(w, fr >> 1,
+                     mv_class == MV_CLASS_0 ? mvcomp->class0_fp_cdf[d][0]
+                                            : mvcomp->fp_cdf[0],
+                     2);
+    if (precision > MV_SUBPEL_HALF_PRECISION)
+      aom_write_symbol(w, fr & 1,
+                       mv_class == MV_CLASS_0
+                           ? mvcomp->class0_fp_cdf[d][1 + (fr >> 1)]
+                           : mvcomp->fp_cdf[1 + (fr >> 1)],
+                       2);
+#else
     aom_write_symbol(
         w, fr,
         mv_class == MV_CLASS_0 ? mvcomp->class0_fp_cdf[d] : mvcomp->fp_cdf,
         MV_FP_SIZE);
+#endif
   }
 
-  // High precision bit
+  // The 1/8 pel bits
   if (precision > MV_SUBPEL_QTR_PRECISION)
     aom_write_symbol(
         w, hp, mv_class == MV_CLASS_0 ? mvcomp->class0_hp_cdf : mvcomp->hp_cdf,
@@ -121,7 +145,11 @@ static void build_nmv_component_cost_table(int *mvcost,
   int i, v;
   int sign_cost[2], class_cost[MV_CLASSES], class0_cost[CLASS0_SIZE];
   int bits_cost[MV_OFFSET_BITS][2];
+#if CONFIG_FLEX_MVRES
+  int class0_fp_cost[CLASS0_SIZE][3][2], fp_cost[3][2];
+#else
   int class0_fp_cost[CLASS0_SIZE][MV_FP_SIZE], fp_cost[MV_FP_SIZE];
+#endif  // CONFIG_FLEX_MVRES
   int class0_hp_cost[2], hp_cost[2];
 
   av1_cost_tokens_from_cdf(sign_cost, mvcomp->sign_cdf, NULL);
@@ -131,9 +159,19 @@ static void build_nmv_component_cost_table(int *mvcost,
     av1_cost_tokens_from_cdf(bits_cost[i], mvcomp->bits_cdf[i], NULL);
   }
 
+#if CONFIG_FLEX_MVRES
+  for (i = 0; i < CLASS0_SIZE; ++i) {
+    for (int j = 0; j < 3; ++j)
+      av1_cost_tokens_from_cdf(class0_fp_cost[i][j],
+                               mvcomp->class0_fp_cdf[i][j], NULL);
+  }
+  for (int j = 0; j < 3; ++j)
+    av1_cost_tokens_from_cdf(fp_cost[j], mvcomp->fp_cdf[j], NULL);
+#else
   for (i = 0; i < CLASS0_SIZE; ++i)
     av1_cost_tokens_from_cdf(class0_fp_cost[i], mvcomp->class0_fp_cdf[i], NULL);
   av1_cost_tokens_from_cdf(fp_cost, mvcomp->fp_cdf, NULL);
+#endif  // CONFIG_FLEX_MVRES
 
   if (precision > MV_SUBPEL_QTR_PRECISION) {
     av1_cost_tokens_from_cdf(class0_hp_cost, mvcomp->class0_hp_cdf, NULL);
@@ -142,6 +180,17 @@ static void build_nmv_component_cost_table(int *mvcost,
   mvcost[0] = 0;
   for (v = 1; v <= MV_MAX; ++v) {
     int z, c, o, d, e, f, cost = 0;
+#if CONFIG_DEBUG && CONFIG_FLEX_MVRES
+    // We are gating these debug statements under experiment flag because this
+    // exposes a bug in av1_find_best_sub_pixel_tree_pruned_more, where we might
+    // search precision higher than what is specified.
+    const int round = MV_SUBPEL_EIGHTH_PRECISION - precision;
+    int v_reduced = (v >> round) << round;
+    if (v != v_reduced) {
+      mvcost[v] = mvcost[-v] = INT_MAX;
+      continue;
+    }
+#endif  // CONFIG_DEBUG && CONFIG_FLEX_MVRES
     z = v - 1;
     c = av1_get_mv_class(z, &o);
     cost += class_cost[c];
@@ -155,11 +204,23 @@ static void build_nmv_component_cost_table(int *mvcost,
       for (i = 0; i < b; ++i) cost += bits_cost[i][((d >> i) & 1)];
     }
     if (precision > MV_SUBPEL_NONE) {
+#if CONFIG_FLEX_MVRES
+      if (c == MV_CLASS_0) {
+        cost += class0_fp_cost[d][0][f >> 1];
+        if (precision > MV_SUBPEL_HALF_PRECISION)
+          cost += class0_fp_cost[d][1 + (f >> 1)][f & 1];
+      } else {
+        cost += fp_cost[0][f >> 1];
+        if (precision > MV_SUBPEL_HALF_PRECISION)
+          cost += fp_cost[1 + (f >> 1)][f & 1];
+      }
+#else
       if (c == MV_CLASS_0) {
         cost += class0_fp_cost[d][f];
       } else {
         cost += fp_cost[f];
       }
+#endif  // CONFIG_FLEX_MVRES
       if (precision > MV_SUBPEL_QTR_PRECISION) {
         if (c == MV_CLASS_0) {
           cost += class0_hp_cost[e];

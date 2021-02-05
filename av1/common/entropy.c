@@ -72,9 +72,14 @@ static AOM_INLINE void reset_cdf_symbol_counter(aom_cdf_prob *cdf_ptr,
 static AOM_INLINE void reset_nmv_counter(nmv_context *nmv) {
   RESET_CDF_COUNTER(nmv->joints_cdf, 4);
   for (int i = 0; i < 2; i++) {
-    RESET_CDF_COUNTER(nmv->comps[i].classes_cdf, MV_CLASSES);
+#if CONFIG_FLEX_MVRES
+    RESET_CDF_COUNTER(nmv->comps[i].class0_fp_cdf, 2);
+    RESET_CDF_COUNTER(nmv->comps[i].fp_cdf, 2);
+#else
     RESET_CDF_COUNTER(nmv->comps[i].class0_fp_cdf, MV_FP_SIZE);
     RESET_CDF_COUNTER(nmv->comps[i].fp_cdf, MV_FP_SIZE);
+#endif  // CONFIG_FLEX_MVRES
+    RESET_CDF_COUNTER(nmv->comps[i].classes_cdf, MV_CLASSES);
     RESET_CDF_COUNTER(nmv->comps[i].sign_cdf, 2);
     RESET_CDF_COUNTER(nmv->comps[i].class0_hp_cdf, 2);
     RESET_CDF_COUNTER(nmv->comps[i].hp_cdf, 2);

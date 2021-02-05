@@ -81,9 +81,6 @@ static AOM_INLINE int keep_one_comp_stat(MV_STATS *mv_stats, int comp_val,
   aom_cdf_prob *class_cdf = cur_mvcomp_ctx->classes_cdf;
   aom_cdf_prob *class0_cdf = cur_mvcomp_ctx->class0_cdf;
   aom_cdf_prob(*bits_cdf)[3] = cur_mvcomp_ctx->bits_cdf;
-  aom_cdf_prob *frac_part_cdf = mv_class
-                                    ? (cur_mvcomp_ctx->fp_cdf)
-                                    : (cur_mvcomp_ctx->class0_fp_cdf[int_part]);
   aom_cdf_prob *high_part_cdf =
       mv_class ? (cur_mvcomp_ctx->hp_cdf) : (cur_mvcomp_ctx->class0_hp_cdf);
 
@@ -107,9 +104,35 @@ static AOM_INLINE int keep_one_comp_stat(MV_STATS *mv_stats, int comp_val,
     }
   }
   rates[r_idx++] = int_bit_rate;
+
+#if CONFIG_FLEX_MVRES
+  aom_cdf_prob *frac_part_cdf =
+      mv_class ? (cur_mvcomp_ctx->fp_cdf[0])
+               : (cur_mvcomp_ctx->class0_fp_cdf[int_part][0]);
+  int frac_part_rate = 0, frac_part_rate_hpel = 0, frac_part_rate_qpel = 0;
+  frac_part_rate = frac_part_rate_hpel =
+      get_symbol_cost(frac_part_cdf, frac_part);
+  update_cdf(frac_part_cdf, frac_part >> 1, 2);
+
+  if (cpi->common.features.fr_mv_precision > MV_SUBPEL_HALF_PRECISION) {
+    frac_part_cdf =
+        mv_class
+            ? (cur_mvcomp_ctx->fp_cdf[1 + (frac_part >> 1)])
+            : (cur_mvcomp_ctx->class0_fp_cdf[int_part][1 + (frac_part >> 1)]);
+    frac_part_rate_qpel = get_symbol_cost(frac_part_cdf, frac_part);
+    frac_part_rate += frac_part_rate_qpel;
+    update_cdf(frac_part_cdf, frac_part & 1, 2);
+  }
+  rates[r_idx++] = frac_part_rate;
+#else
+  aom_cdf_prob *frac_part_cdf = mv_class
+                                    ? (cur_mvcomp_ctx->fp_cdf)
+                                    : (cur_mvcomp_ctx->class0_fp_cdf[int_part]);
   const int frac_part_rate = get_symbol_cost(frac_part_cdf, frac_part);
   rates[r_idx++] = frac_part_rate;
   update_cdf(frac_part_cdf, frac_part, MV_FP_SIZE);
+#endif
+
   const int high_part_rate =
       use_hp ? get_symbol_cost(high_part_cdf, high_part) : 0;
   if (use_hp) {

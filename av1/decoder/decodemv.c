@@ -923,11 +923,24 @@ static int read_mv_component(aom_reader *r, nmv_component *mvcomp,
   }
 
   if (precision > MV_SUBPEL_NONE) {
-    // Fractional part
+    // 1/2 and 1/4 pel parts
+#if CONFIG_FLEX_MVRES
+    fr = aom_read_symbol(
+             r, class0 ? mvcomp->class0_fp_cdf[d][0] : mvcomp->fp_cdf[0], 2,
+             ACCT_STR)
+         << 1;
+    fr += precision > MV_SUBPEL_HALF_PRECISION
+              ? aom_read_symbol(r,
+                                class0 ? mvcomp->class0_fp_cdf[d][1 + (fr >> 1)]
+                                       : mvcomp->fp_cdf[1 + (fr >> 1)],
+                                2, ACCT_STR)
+              : 1;
+#else
     fr = aom_read_symbol(r, class0 ? mvcomp->class0_fp_cdf[d] : mvcomp->fp_cdf,
                          MV_FP_SIZE, ACCT_STR);
+#endif  // CONFIG_FLEX_MVRES
 
-    // High precision part (if hp is not used, the default value of the hp is 1)
+    // 1/8 pel part (if hp is not used, the default value of the hp is 1)
     hp = (precision > MV_SUBPEL_QTR_PRECISION)
              ? aom_read_symbol(r,
                                class0 ? mvcomp->class0_hp_cdf : mvcomp->hp_cdf,
