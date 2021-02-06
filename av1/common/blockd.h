@@ -1002,6 +1002,12 @@ typedef struct {
   int xqd[2];
 } SgrprojInfo;
 
+#if CONFIG_CNN_CRLC_GUIDED
+typedef struct {
+  int xqd[2];
+} CRLCUnitInfo;
+#endif  // CONFIG_CNN_CRLC_GUIDED
+
 #if CONFIG_LOOP_RESTORE_CNN
 typedef struct {
   FRAME_TYPE frame_type;
@@ -1165,6 +1171,10 @@ typedef struct macroblockd {
 
   WienerInfo wiener_info[MAX_MB_PLANE];
   SgrprojInfo sgrproj_info[MAX_MB_PLANE];
+
+#if CONFIG_CNN_CRLC_GUIDED
+  CRLCUnitInfo crlc_unitinfo[MAX_MB_PLANE];
+#endif  // CONFIG_CNN_CRLC_GUIDED
 #if CONFIG_WIENER_NONSEP
   WienerNonsepInfo wiener_nonsep_info[MAX_MB_PLANE];
 #endif  // CONFIG_WIENER_NONSEP

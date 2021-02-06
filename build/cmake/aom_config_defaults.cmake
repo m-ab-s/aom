@@ -149,6 +149,8 @@ set_aom_config_var(CONFIG_LOOP_RESTORE_CNN 0 NUMBER
                    "AV2 CNN in Loop Restoration experiment flag")
 set_aom_config_var(CONFIG_CNN_RESTORATION_SMALL_MODELS 0 NUMBER
                    "AV2 CNN restoration with smaller models experiment flag")
+set_aom_config_var(CONFIG_CNN_CRLC_GUIDED 0 NUMBER
+                   "AV2 CNN restoration with CRLC models experiment flag")
 
 set_aom_config_var(CONFIG_FLEX_PARTITION 0 NUMBER
                    "AV2 Flexible partition experiment flag")

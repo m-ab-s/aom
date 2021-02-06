@@ -2201,7 +2201,9 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
                            "Compressed data buffer too small");
       }
     }
-
+#if CONFIG_CNN_CRLC_GUIDED
+    cpi->common.use_guided_level = ctx->cfg.guided_cnn_level;
+#endif  // CONFIG_CNN_CRLC_GUIDED
     size_t frame_size = 0;
     unsigned int lib_flags = 0;
     int is_frame_visible = 0;
@@ -2817,10 +2819,13 @@ static aom_codec_enc_cfg_map_t encoder_usage_cfg_map[] = {
         2000,  // rc_two_pass_vbrmax_section
 
         // keyframing settings (kf)
-        0,                       // fwd_kf_enabled
-        AOM_KF_AUTO,             // g_kfmode
-        0,                       // kf_min_dist
-        9999,                    // kf_max_dist
+        0,            // fwd_kf_enabled
+        AOM_KF_AUTO,  // g_kfmode
+        0,            // kf_min_dist
+        9999,         // kf_max_dist
+#if CONFIG_CNN_CRLC_GUIDED
+        0,                       // guided_cnn_level
+#endif                           // CONFIG_CNN_CRLC_GUIDED
         0,                       // sframe_dist
         1,                       // sframe_mode
         0,                       // large_scale_tile
@@ -2888,10 +2893,13 @@ static aom_codec_enc_cfg_map_t encoder_usage_cfg_map[] = {
         2000,  // rc_two_pass_vbrmax_section
 
         // keyframing settings (kf)
-        0,                       // fwd_kf_enabled
-        AOM_KF_AUTO,             // g_kfmode
-        0,                       // kf_min_dist
-        9999,                    // kf_max_dist
+        0,            // fwd_kf_enabled
+        AOM_KF_AUTO,  // g_kfmode
+        0,            // kf_min_dist
+        9999,         // kf_max_dist
+#if CONFIG_CNN_CRLC_GUIDED
+        0,                       // guided_cnn_level
+#endif                           // CONFIG_CNN_CRLC_GUIDED
         0,                       // sframe_dist
         1,                       // sframe_mode
         0,                       // large_scale_tile

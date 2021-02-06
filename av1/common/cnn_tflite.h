@@ -57,6 +57,40 @@ struct AV1Common;
 void av1_restore_cnn_tflite(const struct AV1Common *cm, int num_threads,
                             int plane_from, int plane_to);
 
+#if CONFIG_CNN_CRLC_GUIDED
+int av1_restore_cnn_guided_img_tflite(int qindex, const uint8_t *dgd, int width,
+                                      int height, int dgd_stride, uint8_t *rst,
+                                      int rst_stride, int num_threads,
+                                      int is_intra_only, int is_luma,
+                                      const uint8_t *src, int src_stride,
+                                      CRLCInfo *ci, int frameType);
+
+int av1_restore_cnn_guided_img_tflite_highbd(
+    int qindex, const uint16_t *dgd, int width, int height, int dgd_stride,
+    uint16_t *rst, int rst_stride, int num_threads, int bit_depth,
+    int is_intra_only, int is_luma, const uint16_t *src, int src_stride,
+    CRLCInfo *ci, int frameType);
+
+void av1_restore_cnn_guided_tflite(AV1_COMMON *cm, int num_threads,
+                                   YV12_BUFFER_CONFIG *source_frame,
+                                   int plane_from, int plane_to);
+
+int av1_restore_cnn_guided_decode_img_tflite(int qindex, const uint8_t *dgd,
+                                             int width, int height,
+                                             int dgd_stride, uint8_t *rst,
+                                             int rst_stride, int num_threads,
+                                             int is_intra_only, int is_luma,
+                                             CRLCInfo *ci, int frameType);
+
+int av1_restore_cnn_guided_decode_img_tflite_highbd(
+    int qindex, const uint16_t *dgd, int width, int height, int dgd_stride,
+    uint16_t *rst, int rst_stride, int num_threads, int bit_depth,
+    int is_intra_only, int is_luma, CRLCInfo *ci, int frameType);
+
+void av1_restore_cnn_guided_decode_tflite(AV1_COMMON *cm, int num_threads,
+                                          int plane_from, int plane_to);
+#endif  // CONFIG_CNN_CRLC_GUIDED
+
 // Uses CNN model for txfm reconstruction
 int av1_cnn_recon_tflite(uint8_t *dst, int dst_stride, int height, int width);
 

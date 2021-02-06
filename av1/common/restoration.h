@@ -318,10 +318,27 @@ typedef struct {
   int optimized_lr;
 } RestorationInfo;
 
+#if CONFIG_CNN_CRLC_GUIDED
+typedef struct {
+  int crlc_unit_size;
+  int units_per_tile;
+  int num_crlc_unit;
+  int vert_units_per_tile, horz_units_per_tile;
+  CRLCUnitInfo *unit_info;
+} CRLCInfo;
+#endif  // CONFIG_CNN_CRLC_GUIDED
+
 static INLINE void set_default_sgrproj(SgrprojInfo *sgrproj_info) {
   sgrproj_info->xqd[0] = (SGRPROJ_PRJ_MIN0 + SGRPROJ_PRJ_MAX0) / 2;
   sgrproj_info->xqd[1] = (SGRPROJ_PRJ_MIN1 + SGRPROJ_PRJ_MAX1) / 2;
 }
+
+#if CONFIG_CNN_CRLC_GUIDED
+static INLINE void set_default_crlc(CRLCUnitInfo *cui) {
+  cui->xqd[0] = 16 / 2;
+  cui->xqd[1] = 16 / 2;
+}
+#endif  // CONFIG_CNN_CRLC_GUIDED
 
 static INLINE void set_default_wiener(WienerInfo *wiener_info) {
   wiener_info->vfilter[0] = wiener_info->hfilter[0] = WIENER_FILT_TAP0_MIDV;
@@ -463,6 +480,11 @@ void av1_alloc_restoration_struct(struct AV1Common *cm, RestorationInfo *rsi,
                                   int is_uv);
 void av1_free_restoration_struct(RestorationInfo *rst_info);
 
+#if CONFIG_CNN_CRLC_GUIDED
+void av1_alloc_CRLC_struct(struct AV1Common *cm, CRLCInfo *ci, int is_uv);
+void av1_free_CRLC_struct(CRLCInfo *crlc_info);
+#endif  // CONFIG_CNN_CRLC_GUIDED
+
 void av1_extend_frame(uint8_t *data, int width, int height, int stride,
                       int border_horz, int border_vert, int highbd);
 void av1_decode_xq(const int *xqd, int *xq, const sgr_params_type *params);
@@ -533,6 +555,11 @@ int av1_loop_restoration_corners_in_sb(const struct AV1Common *cm, int plane,
                                        int mi_row, int mi_col, BLOCK_SIZE bsize,
                                        int *rcol0, int *rcol1, int *rrow0,
                                        int *rrow1);
+#if CONFIG_CNN_CRLC_GUIDED
+int av1_CRLC_corners_in_sb(const struct AV1Common *cm, int plane, int mi_row,
+                           int mi_col, BLOCK_SIZE bsize, int *rcol0, int *rcol1,
+                           int *rrow0, int *rrow1);
+#endif  // CONFIG_CNN_CRLC_GUIDED
 
 void av1_loop_restoration_save_boundary_lines(const YV12_BUFFER_CONFIG *frame,
                                               struct AV1Common *cm,

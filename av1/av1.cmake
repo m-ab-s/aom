@@ -457,6 +457,24 @@ if(CONFIG_CNN_RESTORATION OR CONFIG_LOOP_RESTORE_CNN)
               "${AOM_ROOT}/av1/tflite_models/op_registrations.h")
 endif()
 
+if(CONFIG_CNN_CRLC_GUIDED)
+  list(APPEND AOM_AV1_COMMON_SOURCES
+              "${AOM_ROOT}/av1/tflite_models/crlc_model/qp12_crlc.cc"
+              "${AOM_ROOT}/av1/tflite_models/crlc_model/qp12_crlc.h"
+              "${AOM_ROOT}/av1/tflite_models/crlc_model/qp22_crlc.cc"
+              "${AOM_ROOT}/av1/tflite_models/crlc_model/qp22_crlc.h"
+              "${AOM_ROOT}/av1/tflite_models/crlc_model/qp28_crlc.cc"
+              "${AOM_ROOT}/av1/tflite_models/crlc_model/qp28_crlc.h"
+              "${AOM_ROOT}/av1/tflite_models/crlc_model/qp33_crlc.cc"
+              "${AOM_ROOT}/av1/tflite_models/crlc_model/qp33_crlc.h"
+              "${AOM_ROOT}/av1/tflite_models/crlc_model/qp43_crlc.cc"
+              "${AOM_ROOT}/av1/tflite_models/crlc_model/qp43_crlc.h"
+              "${AOM_ROOT}/av1/tflite_models/crlc_model/qp53_crlc.cc"
+              "${AOM_ROOT}/av1/tflite_models/crlc_model/qp53_crlc.h"
+              "${AOM_ROOT}/av1/tflite_models/crlc_model/qp63_crlc.cc"
+              "${AOM_ROOT}/av1/tflite_models/crlc_model/qp63_crlc.h")
+endif()
+
 if(CONFIG_NN_RECON)
   list(APPEND AOM_AV1_COMMON_SOURCES "${AOM_ROOT}/av1/common/cnn_tflite.cc"
               "${AOM_ROOT}/av1/common/cnn_tflite.h"

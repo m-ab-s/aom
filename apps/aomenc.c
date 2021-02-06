@@ -369,6 +369,10 @@ static const arg_def_t kf_min_dist =
     ARG_DEF(NULL, "kf-min-dist", 1, "Minimum keyframe interval (frames)");
 static const arg_def_t kf_max_dist =
     ARG_DEF(NULL, "kf-max-dist", 1, "Maximum keyframe interval (frames)");
+#if CONFIG_CNN_CRLC_GUIDED
+static const arg_def_t guided_cnn_level =
+    ARG_DEF(NULL, "guided-cnn-level", 1, "guided cnn level");
+#endif  // CONFIG_CNN_CRLC_GUIDED
 static const arg_def_t kf_disabled =
     ARG_DEF(NULL, "disable-kf", 0, "Disable keyframe placement");
 static const arg_def_t *kf_args[] = { &fwd_kf_enabled, &kf_min_dist,
@@ -1604,7 +1608,13 @@ static int parse_stream_params(struct AvxEncoderConfig *global,
       config->cfg.kf_min_dist = arg_parse_uint(&arg);
     } else if (arg_match(&arg, &kf_max_dist, argi)) {
       config->cfg.kf_max_dist = arg_parse_uint(&arg);
-    } else if (arg_match(&arg, &kf_disabled, argi)) {
+    }
+#if CONFIG_CNN_CRLC_GUIDED
+    else if (arg_match(&arg, &guided_cnn_level, argi)) {
+      config->cfg.guided_cnn_level = arg_parse_uint(&arg);
+    }
+#endif  // CONFIG_CNN_CRLC_GUIDED
+    else if (arg_match(&arg, &kf_disabled, argi)) {
       config->cfg.kf_mode = AOM_KF_DISABLED;
     } else if (arg_match(&arg, &sframe_dist, argi)) {
       config->cfg.sframe_dist = arg_parse_uint(&arg);

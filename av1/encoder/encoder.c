@@ -569,6 +569,11 @@ static void dealloc_compressor_data(AV1_COMP *cpi) {
 #if CONFIG_CNN_RESTORATION && !CONFIG_LOOP_RESTORE_CNN
   aom_free_frame_buffer(&cpi->cnn_buffer);
 #endif  // CONFIG_CNN_RESTORATION && !CONFIG_LOOP_RESTORE_CNN
+
+#if CONFIG_CNN_CRLC_GUIDED
+  av1_free_CRLC_buffers(cm);
+#endif  // CONFIG_CNN_CRLC_GUIDED
+
   av1_free_restoration_buffers(cm);
   aom_free_frame_buffer(&cpi->trial_frame_rst);
   aom_free_frame_buffer(&cpi->scaled_source);
@@ -4276,6 +4281,22 @@ static void set_restoration_unit_size(int width, int height, int sx, int sy,
   rst[2].restoration_unit_size = rst[1].restoration_unit_size;
 }
 
+#if CONFIG_CNN_CRLC_GUIDED
+static void set_CRLC_unit_size(int unit_size, int sx, int sy, CRLCInfo *ci) {
+#if COUPLED_CHROMA_FROM_LUMA_RESTORATION
+  int s = AOMMIN(sx, sy);
+#else
+  (void)sx;
+  (void)sy;
+  int s = 0;
+#endif  // COUPLED_CHROMA_FROM_LUMA_RESTORATION
+
+  ci[0].crlc_unit_size = unit_size;
+  ci[1].crlc_unit_size = ci[0].crlc_unit_size >> s;
+  ci[2].crlc_unit_size = ci[1].crlc_unit_size;
+}
+#endif  // CONFIG_CNN_CRLC_GUIDED
+
 static void init_ref_frame_bufs(AV1_COMP *cpi) {
   AV1_COMMON *const cm = &cpi->common;
   int i;
@@ -4395,9 +4416,15 @@ void av1_set_frame_size(AV1_COMP *cpi, int width, int height) {
     cm->rst_info[i].frame_restoration_type = RESTORE_NONE;
 
   av1_alloc_restoration_buffers(cm);
+#if CONFIG_CNN_CRLC_GUIDED
+  if (cm->use_guided_level > 1) cm->use_guided_level = 0;
+  const int guided_unit_size = (cm->use_guided_level == 1) ? 128 : 256;
+  set_CRLC_unit_size(guided_unit_size, seq_params->subsampling_x,
+                     seq_params->subsampling_y, cm->crlc_info);
+  av1_alloc_CRLC_buffers(cm);
+#endif  // CONFIG_CNN_CRLC_GUIDED
   alloc_util_frame_buffers(cpi);
   init_motion_estimation(cpi);
-
   for (ref_frame = LAST_FRAME; ref_frame <= ALTREF_FRAME; ++ref_frame) {
     RefCntBuffer *const buf = get_ref_frame_buf(cm, ref_frame);
     if (buf != NULL) {
@@ -4933,6 +4960,7 @@ static void loopfilter_frame(AV1_COMP *cpi, AV1_COMMON *cm) {
 #if CONFIG_CNN_RESTORATION
   cm->use_cnn_y = 0;
   cm->use_cnn_uv = 0;
+  cm->use_full_crlc = 0;
   if (av1_use_cnn_encode(cm, cpi->gf_group.update_type[cpi->gf_group.index])) {
     // Save unfiltered frame.
     yv12_copy_all_planes(&cm->cur_frame->buf, &cpi->last_frame_uf, num_planes);
@@ -4944,7 +4972,12 @@ static void loopfilter_frame(AV1_COMP *cpi, AV1_COMMON *cm) {
                         &dgd_error_uv, num_planes);
 
     // Try CNN restoration on all planes.
+#if CONFIG_CNN_CRLC_GUIDED
+    av1_restore_cnn_guided_tflite(cm, cpi->num_workers, cpi->source,
+                                  AOM_PLANE_Y, num_planes - 1);
+#else
     av1_restore_cnn_tflite(cm, cpi->num_workers, AOM_PLANE_Y, num_planes - 1);
+#endif  // CONFIG_CNN_CRLC_GUIDED
 
     // Calculate errors after applying cnn from source.
     int64_t cnn_error_y, cnn_error_uv;

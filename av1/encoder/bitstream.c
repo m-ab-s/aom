@@ -77,6 +77,14 @@ static void loop_restoration_write_sb_coeffs(const AV1_COMMON *const cm,
                                              aom_writer *const w, int plane,
                                              FRAME_COUNTS *counts);
 
+#if CONFIG_CNN_CRLC_GUIDED
+// Write crlc coeffs for one frame
+static void crlc_guided_write_coeffs(const AV1_COMMON *const cm,
+                                     MACROBLOCKD *xd,
+                                     const RestorationUnitInfo *rui,
+                                     aom_writer *const w, FRAME_COUNTS *counts);
+#endif  // CONFIG_CNN_CRLC_GUIDED
+
 static void write_intra_y_mode_kf(const AV1_COMMON *const cm,
                                   MACROBLOCKD *const xd,
                                   FRAME_CONTEXT *frame_ctx,
@@ -2195,7 +2203,7 @@ static void write_modes_sb(AV1_COMP *const cpi, const TileInfo *const tile,
                            BLOCK_SIZE bsize) {
   assert(bsize < BLOCK_SIZES_ALL);
   assert(ptree);
-  const AV1_COMMON *const cm = &cpi->common;
+  AV1_COMMON *const cm = &cpi->common;
   MACROBLOCKD *const xd = &cpi->td.mb.e_mbd;
   assert(bsize < BLOCK_SIZES_ALL);
   const int hbs_w = mi_size_wide[bsize] / 2;
@@ -2236,6 +2244,25 @@ static void write_modes_sb(AV1_COMP *const cpi, const TileInfo *const tile,
       }
     }
   }
+
+#if CONFIG_CNN_CRLC_GUIDED
+  int rcol0, rcol1, rrow0, rrow1;
+  if (av1_CRLC_corners_in_sb(cm, 0, mi_row, mi_col, bsize, &rcol0, &rcol1,
+                             &rrow0, &rrow1) &&
+      (mi_row == 0) && (mi_col == 0)) {
+    const int rstride = cm->crlc_info[0].horz_units_per_tile;
+    for (int rrow = rrow0; rrow < rrow1; ++rrow) {
+      for (int rcol = rcol0; rcol < rcol1; ++rcol) {
+        const int runit_idx = rcol + rrow * rstride;
+        const RestorationUnitInfo *rui = &cm->rst_info[0].unit_info[0];
+        if (cm->use_cnn_y && cm->use_full_crlc == 0) {
+          crlc_guided_write_coeffs(cm, xd, rui, w, cpi->td.counts);
+          cm->use_full_crlc = 1;  // only write once
+        }
+      }
+    }
+  }
+#endif  // CONFIG_CNN_CRLC_GUIDED
 
   write_partition(cm, xd, mi_row, mi_col, partition, bsize, w);
   switch (partition) {
@@ -2596,6 +2623,65 @@ static void write_sgrproj_filter(MACROBLOCKD *xd,
   memcpy(ref_sgrproj_info, sgrproj_info, sizeof(*sgrproj_info));
 }
 
+#if CONFIG_CNN_CRLC_GUIDED
+static void write_filter_crlc(MACROBLOCKD *xd, int QP, const CRLCInfo *ci,
+                              aom_writer *wb) {
+  QP /= 4;
+  int A0_min, A1_min, channels = 2;
+  if (QP < 17) {
+    A0_min = -7;
+    A1_min = -5;
+  } else if (17 <= QP && QP < 27) {
+    A0_min = -12;
+    A1_min = -7;
+  } else if (27 <= QP && QP < 31) {
+    A0_min = -12;
+    A1_min = -3;
+  } else if (31 <= QP && QP < 37) {
+    A0_min = -13;
+    A1_min = -10;
+  } else if (37 <= QP && QP < 47) {
+    A0_min = -13;
+    A1_min = -10;
+  } else if (47 <= QP && QP < 57) {
+    A0_min = -13;
+    A1_min = -10;
+  } else {
+    A0_min = -15;
+    A1_min = -6;
+  }
+
+  int a0;
+  int a1;
+  int b_a0;
+  int b_a1;
+  int ref_0 = 8;
+  int ref_1 = 8;
+  for (int i = 0; i < ci->units_per_tile; i++) {
+    a0 = ci->unit_info[i].xqd[0];
+    b_a0 = a0 - A0_min;
+    if (b_a0 < 0) {
+      b_a0 = 0;
+    }
+    if (b_a0 > 15) {
+      b_a0 = 15;
+    }
+    a1 = ci->unit_info[i].xqd[1];
+    b_a1 = a1 - A1_min;
+    if (b_a1 < 0) {
+      b_a1 = 0;
+    }
+    if (b_a1 > 15) {
+      b_a1 = 15;
+    }
+    aom_write_primitive_refsubexpfin(wb, 16, 1, ref_0, b_a0);
+    aom_write_primitive_refsubexpfin(wb, 16, 1, ref_1, b_a1);
+    ref_0 = b_a0;
+    ref_1 = b_a1;
+  }
+}
+#endif  // CONFIG_CNN_CRLC_GUIDED
+
 #if CONFIG_WIENER_NONSEP
 static void write_wiener_nsfilter(MACROBLOCKD *xd, int is_uv,
                                   const WienerNonsepInfo *wienerns_info,
@@ -2732,14 +2818,29 @@ static void loop_restoration_write_sb_coeffs(const AV1_COMMON *const cm,
                             ref_wiener_nonsep_info, w);
     }
   }
+
 #endif  // CONFIG_WIENER_NONSEP
 }
+
+#if CONFIG_CNN_CRLC_GUIDED
+static void crlc_guided_write_coeffs(const AV1_COMMON *const cm,
+                                     MACROBLOCKD *xd,
+                                     const RestorationUnitInfo *rui,
+                                     aom_writer *const w,
+                                     FRAME_COUNTS *counts) {
+  const CRLCInfo *ci = &cm->crlc_info[0];
+  write_filter_crlc(xd, cm->base_qindex, ci, w);
+}
+#endif  //  CONFIG_CNN_CRLC_GUIDED
 
 #if CONFIG_CNN_RESTORATION || CONFIG_LOOP_RESTORE_CNN
 static void encode_cnn(AV1_COMMON *cm, struct aom_write_bit_buffer *wb) {
   if (av1_use_cnn(cm)) {
     aom_wb_write_bit(wb, cm->use_cnn_y);
     aom_wb_write_bit(wb, cm->use_cnn_uv);
+#if CONFIG_CNN_CRLC_GUIDED
+    aom_wb_write_bit(wb, cm->use_guided_level);
+#endif  // CONFIG_CNN_CRLC_GUIDED
   } else {
     assert(!cm->use_cnn_y);
     assert(!cm->use_cnn_uv);

@@ -263,6 +263,9 @@ void av1_reset_loop_restoration(MACROBLOCKD *xd, const int num_planes) {
 #if CONFIG_WIENER_NONSEP
     set_default_wiener_nonsep(xd->wiener_nonsep_info + p);
 #endif  // CONFIG_WIENER_NONSEP
+#if CONFIG_CNN_CRLC_GUIDED
+    set_default_crlc(xd->crlc_unitinfo + p);
+#endif  // CONFIG_CNN_CRLC_GUIDED
   }
 }
 

@@ -191,6 +191,18 @@ void av1_free_restoration_buffers(AV1_COMMON *cm) {
   aom_free_frame_buffer(&cm->rst_frame);
 }
 
+#if CONFIG_CNN_CRLC_GUIDED
+void av1_alloc_CRLC_buffers(AV1_COMMON *cm) {
+  const int num_planes = av1_num_planes(cm);
+  for (int p = 0; p < num_planes; ++p)
+    av1_alloc_CRLC_struct(cm, &cm->crlc_info[p], p > 0);
+}
+void av1_free_CRLC_buffers(AV1_COMMON *cm) {
+  int p;
+  for (p = 0; p < MAX_MB_PLANE; ++p) av1_free_CRLC_struct(&cm->crlc_info[p]);
+}
+#endif  // CONFIG_CNN_CRLC_GUIDED
+
 void av1_free_above_context_buffers(AV1_COMMON *cm,
                                     int num_free_above_contexts) {
   int i;

@@ -788,6 +788,15 @@ typedef struct aom_codec_enc_cfg {
    */
   unsigned int sframe_dist;
 
+#if CONFIG_CNN_CRLC_GUIDED
+  /*!\used to guided cnn level
+   *
+   * This value, expressed as a blocksize of guided cnn frames,0 expressed
+   * blocksize is 128,1 expressed blocksizeis 256.
+   */
+  unsigned int guided_cnn_level;
+#endif  // CONFIG_CNN_CRLC_GUIDED
+
   /*!\brief sframe insertion mode
    *
    * This value must be set to 1 or 2, and tells the encoder how to insert

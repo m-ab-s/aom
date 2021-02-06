@@ -43,6 +43,7 @@ endif()
 experiment_requires_tf_lite(CONFIG_CNN_RESTORATION)
 experiment_requires_tf_lite(CONFIG_LOOP_RESTORE_CNN)
 experiment_requires_tf_lite(CONFIG_CNN_RESTORATION_SMALL_MODELS)
+experiment_requires_tf_lite(CONFIG_CNN_CRLC_GUIDED)
 
 experiment_requires_tf_lite(CONFIG_NN_RECON)
 

@@ -136,6 +136,12 @@ int av1_lr_count_units_in_tile(int unit_size, int tile_size) {
   return AOMMAX((tile_size + (unit_size >> 1)) / unit_size, 1);
 }
 
+#if CONFIG_CNN_CRLC_GUIDED
+int av1_CRLC_count_units_in_tile(int unit_size, int tile_size) {
+  return AOMMAX((tile_size - 1) / unit_size + 1, 1);
+}
+#endif  // CONFIG_CNN_CRLC_GUIDED
+
 void av1_alloc_restoration_struct(AV1_COMMON *cm, RestorationInfo *rsi,
                                   int is_uv) {
   // We need to allocate enough space for restoration units to cover the
@@ -175,6 +181,33 @@ void av1_free_restoration_struct(RestorationInfo *rst_info) {
   aom_free(rst_info->unit_info);
   rst_info->unit_info = NULL;
 }
+#if CONFIG_CNN_CRLC_GUIDED
+void av1_alloc_CRLC_struct(AV1_COMMON *cm, CRLCInfo *ci, int is_uv) {
+  const AV1PixelRect tile_rect = av1_whole_frame_rect(cm, is_uv);
+  const int max_tile_w = tile_rect.right - tile_rect.left;
+  const int max_tile_h = tile_rect.bottom - tile_rect.top;
+
+  const int unit_size = ci->crlc_unit_size;
+
+  const int hpertile = av1_CRLC_count_units_in_tile(unit_size, max_tile_w);
+  const int vpertile = av1_CRLC_count_units_in_tile(unit_size, max_tile_h);
+
+  ci->units_per_tile = hpertile * vpertile;
+  ci->horz_units_per_tile = hpertile;
+  ci->vert_units_per_tile = vpertile;
+
+  const int ntiles = 1;
+  const int nunits = ntiles * ci->units_per_tile;
+  aom_free(ci->unit_info);
+  CHECK_MEM_ERROR(
+      cm, ci->unit_info,
+      (CRLCUnitInfo *)aom_memalign(16, sizeof(*ci->unit_info) * nunits));
+}
+void av1_free_CRLC_struct(CRLCInfo *crlc_info) {
+  aom_free(crlc_info->unit_info);
+  crlc_info->unit_info = NULL;
+}
+#endif  // CONFIG_CNN_CRLC_GUIDED
 
 #if 0
 // Pair of values for each sgrproj parameter:
@@ -1867,9 +1900,91 @@ int av1_loop_restoration_corners_in_sb(const struct AV1Common *cm, int plane,
   // unit might not exist, in which case we'll clamp accordingly.
   *rcol1 = AOMMIN((mi_rel_col1 * mi_to_num_x + rnd_x) / denom_x, horz_units);
   *rrow1 = AOMMIN((mi_rel_row1 * mi_to_num_y + rnd_y) / denom_y, vert_units);
-
   return *rcol0 < *rcol1 && *rrow0 < *rrow1;
 }
+
+#if CONFIG_CNN_CRLC_GUIDED
+int av1_CRLC_corners_in_sb(const struct AV1Common *cm, int plane, int mi_row,
+                           int mi_col, BLOCK_SIZE bsize, int *rcol0, int *rcol1,
+                           int *rrow0, int *rrow1) {
+  assert(rcol0 && rcol1 && rrow0 && rrow1);
+
+  if (bsize != cm->seq_params.sb_size) return 0;
+
+  // TODO(urvang,dandan): Assumes only Y plane is using guided CNN, and UV
+  // planes are using regular CNN. Logic needs to change if UV planes also use
+  // guided CNN.
+  if (!cm->use_cnn_y) return 0;
+
+  assert(!cm->all_lossless);
+
+  const int is_uv = plane > 0;
+
+  const AV1PixelRect tile_rect = av1_whole_frame_rect(cm, is_uv);
+  const int tile_w = tile_rect.right - tile_rect.left;
+  const int tile_h = tile_rect.bottom - tile_rect.top;
+
+  const int mi_top = 0;
+  const int mi_left = 0;
+
+  // Compute the mi-unit corners of the superblock relative to the top-left of
+  // the tile
+  const int mi_rel_row0 = mi_row - mi_top;
+  const int mi_rel_col0 = mi_col - mi_left;
+  const int mi_rel_row1 = mi_rel_row0 + mi_size_high[bsize];
+  const int mi_rel_col1 = mi_rel_col0 + mi_size_wide[bsize];
+
+  // const RestorationInfo *rsi = &cm->rst_info[plane];
+  // const int size = rsi->restoration_unit_size;
+
+  const CRLCInfo *ci = &cm->crlc_info[plane];
+  const int size = 256;
+  // const int size = cm->crlc_info->crlc_unit_size;
+  // Calculate the number of restoration units in this tile (which might be
+  // strictly less than rsi->horz_units_per_tile and rsi->vert_units_per_tile)
+
+  const int horz_units = av1_CRLC_count_units_in_tile(size, tile_w);
+  const int vert_units = av1_CRLC_count_units_in_tile(size, tile_h);
+
+  // The size of an MI-unit on this plane of the image
+  const int ss_x = is_uv && cm->seq_params.subsampling_x;
+  const int ss_y = is_uv && cm->seq_params.subsampling_y;
+  const int mi_size_x = MI_SIZE >> ss_x;
+  const int mi_size_y = MI_SIZE >> ss_y;
+
+  // Write m for the relative mi column or row, D for the superres denominator
+  // and N for the superres numerator. If u is the upscaled pixel offset then
+  // we can write the downscaled pixel offset in two ways as:
+  //
+  //   MI_SIZE * m = N / D u
+  //
+  // from which we get u = D * MI_SIZE * m / N
+  const int mi_to_num_x = av1_superres_scaled(cm)
+                              ? mi_size_x * cm->superres_scale_denominator
+                              : mi_size_x;
+  const int mi_to_num_y = mi_size_y;
+  const int denom_x = av1_superres_scaled(cm) ? size * SCALE_NUMERATOR : size;
+  const int denom_y = size;
+
+  const int rnd_x = denom_x - 1;
+  const int rnd_y = denom_y - 1;
+
+  // rcol0/rrow0 should be the first column/row of restoration units (relative
+  // to the top-left of the tile) that doesn't start left/below of
+  // mi_col/mi_row. For this calculation, we need to round up the division (if
+  // the sb starts at runit column 10.1, the first matching runit has column
+  // index 11)
+  *rcol0 = (mi_rel_col0 * mi_to_num_x + rnd_x) / denom_x;
+  *rrow0 = (mi_rel_row0 * mi_to_num_y + rnd_y) / denom_y;
+
+  // rel_col1/rel_row1 is the equivalent calculation, but for the superblock
+  // below-right. If we're at the bottom or right of the tile, this restoration
+  // unit might not exist, in which case we'll clamp accordingly.
+  *rcol1 = AOMMIN((mi_rel_col1 * mi_to_num_x + rnd_x) / denom_x, horz_units);
+  *rrow1 = AOMMIN((mi_rel_row1 * mi_to_num_y + rnd_y) / denom_y, vert_units);
+  return *rcol0 < *rcol1 && *rrow0 < *rrow1;
+}
+#endif  // CONFIG_CNN_CRLC_GUIDED
 
 // Extend to left and right
 static void extend_lines(uint8_t *buf, int width, int height, int stride,

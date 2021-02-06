@@ -613,6 +613,13 @@ typedef struct AV1Common {
   int use_cnn_y;
   int use_cnn_uv;
 #endif  // CONFIG_CNN_RESTORATION || CONFIG_LOOP_RESTORE_CNN
+
+#if CONFIG_CNN_CRLC_GUIDED
+  int use_guided_level;
+  CRLCInfo crlc_info[MAX_MB_PLANE];
+  int use_full_crlc;
+#endif  // CONFIG_CNN_CRLC_GUIDED
+
 #if CONFIG_MFQE_RESTORATION
   int use_mfqe;
 #endif  // CONFIG_MFQE_RESTORATION
