@@ -22,6 +22,9 @@
 
 #include "aom_ports/mem.h"
 #include "aom_dsp/aom_dsp_common.h"
+#if CONFIG_EXT_ROTATION
+#include "av1/common/blockd.h"
+#endif  // CONFIG_EXT_ROTATION
 #include "av1/common/mv.h"
 #include "av1/common/convolve.h"
 
@@ -183,4 +186,10 @@ int av1_find_projection(int np, const int *pts1, const int *pts2,
                         WarpedMotionParams *wm_params, int mi_row, int mi_col);
 
 int av1_get_shear_params(WarpedMotionParams *wm);
+
+#if CONFIG_EXT_ROTATION
+// add rotation to a warping matrix
+void av1_warp_rotation(MB_MODE_INFO *mi, int8_t rotation, int center_x,
+                       int center_y);
+#endif  // CONFIG_EXT_ROTATION
 #endif  // AOM_AV1_COMMON_WARPED_MOTION_H_

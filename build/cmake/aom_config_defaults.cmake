@@ -149,6 +149,8 @@ set_aom_config_var(CONFIG_COMPOUND_WARP_SAMPLES 0 NUMBER
                    "AV2 compound warped motion samples experiment flag")
 set_aom_config_var(CONFIG_NEW_INTER_MODES 0 NUMBER
                    "AV2 inter mode consolidation experiment flag")
+set_aom_config_var(CONFIG_EXT_ROTATION 0
+                   "AV2 warping motion rotation experiment flag.")
 
 #
 # Variables in this section control optional features of the build system.

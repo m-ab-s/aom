@@ -223,6 +223,26 @@ static const uint16_t div_lut[DIV_LUT_NUM + 1] = {
   8240,  8224,  8208,  8192,
 };
 
+#if CONFIG_EXT_ROTATION
+#define SINE_PRECISION_BITS 12  // for both sine_values and cosine_values
+
+static const int sine_values[64] = {
+  0,   14,  29,  43,  51,  71,  86,  100, 114, 129, 143, 157, 172,
+  186, 200, 214, 229, 243, 257, 271, 286, 300, 314, 328, 343, 357,
+  371, 385, 400, 414, 428, 441, 457, 471, 485, 499, 513, 528, 542,
+  556, 570, 584, 598, 612, 627, 641, 655, 669, 683, 697, 711, 725,
+  739, 753, 768, 782, 796, 810, 824, 838, 852, 866, 880, 894
+};
+
+static const int cosine_values[64] = {
+  4096, 4096, 4096, 4096, 4096, 4095, 4095, 4095, 4094, 4094, 4094, 4093, 4092,
+  4092, 4091, 4090, 4090, 4089, 4088, 4087, 4086, 4085, 4084, 4083, 4082, 4080,
+  4079, 4078, 4076, 4075, 4074, 4072, 4070, 4069, 4067, 4065, 4064, 4062, 4060,
+  4058, 4056, 4054, 4052, 4050, 4048, 4046, 4043, 4041, 4039, 4036, 4034, 4031,
+  4029, 4026, 4023, 4020, 4018, 4015, 4012, 4009, 4006, 4003, 4000, 3997
+};
+#endif  // CONFIG_EXT_ROTATION
+
 // Decomposes a divisor D such that 1/D = y/2^shift, where y is returned
 // at precision of DIV_LUT_PREC_BITS along with the shift.
 static int16_t resolve_divisor_64(uint64_t D, int16_t *shift) {
@@ -1058,3 +1078,59 @@ int av1_find_projection(int np, const int *pts1, const int *pts2,
 
   return 0;
 }
+
+#if CONFIG_EXT_ROTATION
+void av1_warp_rotation(MB_MODE_INFO *mi, int8_t rotation, int center_x,
+                       int center_y) {
+  const int sine_val =
+      (rotation < 0) ? -sine_values[-rotation] : sine_values[rotation];
+  const int cosine_val =
+      (rotation < 0) ? cosine_values[-rotation] : cosine_values[rotation];
+
+  if (mi->wm_params.wmtype == IDENTITY) {
+    const MV mv = mi->mv[0].as_mv;
+    // mv is 1/8 pixel precision and wmmat is 1/(2^16) pixel precision
+    const int precision_value = WARPEDMODEL_PREC_BITS - SINE_PRECISION_BITS;
+    mi->wm_params.wmmat[0] = ((-center_x * cosine_val) + (center_y * sine_val) +
+                              (center_x << SINE_PRECISION_BITS) +
+                              (mv.col << (SINE_PRECISION_BITS - 3)))
+                             << precision_value;
+    mi->wm_params.wmmat[1] = ((-center_x * sine_val) - (center_y * cosine_val) +
+                              (center_y << SINE_PRECISION_BITS) +
+                              (mv.row << (SINE_PRECISION_BITS - 3)))
+                             << precision_value;
+    mi->wm_params.wmmat[2] = cosine_val << precision_value;
+    mi->wm_params.wmmat[3] = -sine_val << precision_value;
+    mi->wm_params.wmmat[4] = sine_val << precision_value;
+    mi->wm_params.wmmat[5] = cosine_val << precision_value;
+    mi->wm_params.wmmat[6] = mi->wm_params.wmmat[7] = 0;
+  } else {
+    int32_t matrix[8];
+    memcpy(matrix, mi->wm_params.wmmat, sizeof(int32_t) * 8);
+    mi->wm_params.wmmat[0] =
+        ROUND_POWER_OF_TWO_SIGNED(
+            (((matrix[2] * center_y) - (matrix[3] * center_x)) * sine_val) +
+                (((matrix[2] * center_x) + (matrix[3] * center_y)) *
+                 ((1 << SINE_PRECISION_BITS) - cosine_val)),
+            SINE_PRECISION_BITS) +
+        matrix[0];
+    mi->wm_params.wmmat[1] =
+        ROUND_POWER_OF_TWO_SIGNED(
+            (((matrix[4] * center_y) - (matrix[5] * center_x)) * sine_val) +
+                (((matrix[4] * center_x) + (matrix[5] * center_y)) *
+                 ((1 << SINE_PRECISION_BITS) - cosine_val)),
+            SINE_PRECISION_BITS) +
+        matrix[1];
+    mi->wm_params.wmmat[2] = ROUND_POWER_OF_TWO(
+        (matrix[2] * cosine_val) + (matrix[3] * sine_val), SINE_PRECISION_BITS);
+    mi->wm_params.wmmat[3] = ROUND_POWER_OF_TWO_SIGNED(
+        (-matrix[2] * sine_val) + (matrix[3] * cosine_val),
+        SINE_PRECISION_BITS);
+    mi->wm_params.wmmat[4] = ROUND_POWER_OF_TWO_SIGNED(
+        (matrix[4] * cosine_val) + (matrix[5] * sine_val), SINE_PRECISION_BITS);
+    mi->wm_params.wmmat[5] = ROUND_POWER_OF_TWO_SIGNED(
+        (-matrix[4] * sine_val) + (matrix[5] * cosine_val),
+        SINE_PRECISION_BITS);
+  }
+}
+#endif  // CONFIG_EXT_ROTATION
