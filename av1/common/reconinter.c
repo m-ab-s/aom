@@ -269,6 +269,9 @@ void av1_intrabc_mirror135_sb(uint16_t *DstBlock, uint16_t *SrcBlock,
 
 #if CONFIG_OPTFLOW_REFINEMENT
 
+// Apply distance based weighted compound average
+#define OPFL_DISTWTD_AVG 1
+
 // Precision of refined MV returned, 0 being integer pel.
 #define MV_REFINE_PREC_BITS 4  // (1/16-pel)
 
@@ -2524,7 +2527,7 @@ void av1_dist_wtd_comp_weight_assign(const AV1_COMMON *cm,
                                      int *use_dist_wtd_comp_avg,
                                      int is_compound) {
   assert(fwd_offset != NULL && bck_offset != NULL);
-#if CONFIG_OPTFLOW_REFINEMENT
+#if CONFIG_OPTFLOW_REFINEMENT && OPFL_DISTWTD_AVG
   if (!is_compound || (mbmi->compound_idx && mbmi->mode <= NEW_NEWMV)) {
 #else
   if (!is_compound || mbmi->compound_idx) {
@@ -2557,7 +2560,7 @@ void av1_dist_wtd_comp_weight_assign(const AV1_COMMON *cm,
     return;
   }
 
-#if CONFIG_OPTFLOW_REFINEMENT
+#if CONFIG_OPTFLOW_REFINEMENT && OPFL_DISTWTD_AVG
   // Typically in COMPOUND_DISTWTD, when d0 and d1 are equal, weights are still
   // chosen to be different (7/16 for ref1 and 9/16 for ref0) because the case
   // where equal weights are applied can be signaled in COMPOUND_AVERAGE
