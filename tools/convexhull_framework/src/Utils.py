@@ -41,7 +41,10 @@ class Clip:
         self.fmt = Fmt
         self.fps_num = FPS_num
         self.fps_denom = FPS_denom
-        self.fps = round(self.fps_num / self.fps_denom)
+        if (self.fps_num == 0):
+            self.fps = 0
+        else:
+            self.fps = round(self.fps_num / self.fps_denom)
         self.bit_depth = Bit_depth
 
 def Cleanfolder(folder):
