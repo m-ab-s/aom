@@ -127,6 +127,11 @@ typedef struct ThreadData {
   decode_block_visitor_fn_t inverse_tx_inter_block_visit;
   predict_inter_block_visitor_fn_t predict_inter_block_visit;
   cfl_store_inter_block_visitor_fn_t cfl_store_inter_block_visit;
+
+#if CONFIG_REF_MV_BANK
+  REF_MV_BANK ref_mv_bank_left;
+  REF_MV_BANK ref_mv_bank_above[32];
+#endif  // CONFIG_REF_MV_BANK
 } ThreadData;
 
 typedef struct AV1DecRowMTJobInfo {

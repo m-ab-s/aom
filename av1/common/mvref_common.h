@@ -318,6 +318,11 @@ static INLINE int av1_is_dv_valid(const MV dv, const AV1_COMMON *cm,
   return 1;
 }
 
+#if CONFIG_REF_MV_BANK
+void av1_update_ref_mv_bank(MACROBLOCKD *const xd,
+                            const MB_MODE_INFO *const mbmi, int mib_size);
+#endif  // CONFIG_REF_MV_BANK
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif

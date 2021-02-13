@@ -658,7 +658,11 @@ enum {
 #define GLOBALMV_MODE_CONTEXTS 2
 
 #if CONFIG_NEW_INTER_MODES
+#if CONFIG_REF_MV_BANK
+#define MAX_DRL_BITS 7
+#else
 #define MAX_DRL_BITS 5
+#endif  // CONFIG_REF_MV_BANK
 #else
 #define REFMV_MODE_CONTEXTS 6
 #define MAX_DRL_BITS 2

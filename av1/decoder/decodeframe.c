@@ -3094,10 +3094,23 @@ static AOM_INLINE void decode_tile(AV1Decoder *pbi, ThreadData *const td,
                          tile_row);
   av1_reset_loop_filter_delta(xd, num_planes);
   av1_reset_loop_restoration(xd, num_planes);
+#if CONFIG_REF_MV_BANK
+  av1_zero(xd->ref_mv_bank_above);
+  av1_zero(xd->ref_mv_bank_left);
+  xd->ref_mv_bank_above_pt = NULL;
+  xd->ref_mv_bank_left_pt = NULL;
+#endif  // CONFIG_REF_MV_BANK
 
   for (int mi_row = tile_info.mi_row_start; mi_row < tile_info.mi_row_end;
        mi_row += cm->seq_params.mib_size) {
     av1_zero_left_context(xd);
+#if CONFIG_REF_MV_BANK
+    // td->ref_mv_bank_above is initialized as xd->ref_mv_bank_above, and used
+    // for MV referencing during decoding the tile row.
+    // xd->ref_mv_bank_above is updated as decoding goes.
+    av1_copy(td->ref_mv_bank_above, xd->ref_mv_bank_above);
+    xd->ref_mv_bank_above_pt = td->ref_mv_bank_above;
+#endif  // CONFIG_REF_MV_BANK
 
     for (int mi_col = tile_info.mi_col_start; mi_col < tile_info.mi_col_end;
          mi_col += cm->seq_params.mib_size) {
@@ -3105,6 +3118,13 @@ static AOM_INLINE void decode_tile(AV1Decoder *pbi, ThreadData *const td,
       av1_set_sb_info(cm, xd, mi_row, mi_col);
       av1_reset_ptree_in_sbi(xd->sbi);
       set_cb_buffer(pbi, dcb, &td->cb_buffer_base, num_planes, 0, 0);
+#if CONFIG_REF_MV_BANK
+      // td->ref_mv_bank_left is initialized as xd->ref_mv_bank_left, and used
+      // for MV referencing during decoding the tile.
+      // xd->ref_mv_bank_left is updated as decoding goes.
+      td->ref_mv_bank_left = xd->ref_mv_bank_left;
+      xd->ref_mv_bank_left_pt = &td->ref_mv_bank_left;
+#endif  // CONFIG_REF_MV_BANK
 
       // Bit-stream parsing and decoding of the superblock
       decode_partition(pbi, td, mi_row, mi_col, td->bit_reader,

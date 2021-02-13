@@ -971,6 +971,13 @@ void av1_encode_tile(AV1_COMP *cpi, ThreadData *td, int tile_row,
   av1_crc32c_calculator_init(
       &td->mb.txfm_search_info.mb_rd_record.crc_calculator);
 
+#if CONFIG_REF_MV_BANK
+  av1_zero(td->mb.e_mbd.ref_mv_bank_above);
+  av1_zero(td->mb.e_mbd.ref_mv_bank_left);
+  td->mb.e_mbd.ref_mv_bank_above_pt = td->mb.e_mbd.ref_mv_bank_above;
+  td->mb.e_mbd.ref_mv_bank_left_pt = &td->mb.e_mbd.ref_mv_bank_left;
+#endif  // CONFIG_REF_MV_BANK
+
   for (int mi_row = tile_info->mi_row_start; mi_row < tile_info->mi_row_end;
        mi_row += cm->seq_params.mib_size) {
     av1_encode_sb_row(cpi, td, tile_row, tile_col, mi_row);

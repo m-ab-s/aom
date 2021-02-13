@@ -543,6 +543,10 @@ static void encode_superblock(const AV1_COMP *const cpi, TileDataEnc *tile_data,
       if (intra_tx_size != max_txsize_rect_lookup[bsize])
         ++x->txfm_search_info.txb_split_count;
     }
+
+#if CONFIG_REF_MV_BANK
+    if (is_inter) av1_update_ref_mv_bank(xd, mbmi, cm->seq_params.mib_size);
+#endif  // CONFIG_REF_MV_BANK
   }
 
   if (txfm_params->tx_mode_search_type == TX_MODE_SELECT &&
