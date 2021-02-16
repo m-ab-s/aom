@@ -600,7 +600,7 @@ typedef struct {
   int filter_intra_mode_cost[FILTER_INTRA_MODES];
   //! angle_delta_cost
 #if CONFIG_SDP
-  int angle_delta_cost[3][DIRECTIONAL_MODES][2 * MAX_ANGLE_DELTA + 1];
+  int angle_delta_cost[2][DIRECTIONAL_MODES][2 * MAX_ANGLE_DELTA + 1];
 #else
   int angle_delta_cost[DIRECTIONAL_MODES][2 * MAX_ANGLE_DELTA + 1];
 #endif

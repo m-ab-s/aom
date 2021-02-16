@@ -189,6 +189,9 @@ void av1_loop_filter_frame_init(AV1_COMMON *cm, int plane_start,
 }
 
 static TX_SIZE get_transform_size(const MACROBLOCKD *const xd,
+#if CONFIG_SDP
+                                  const AV1_COMMON *const cm,
+#endif
                                   const MB_MODE_INFO *const mbmi,
                                   const EDGE_DIR edge_dir, const int mi_row,
                                   const int mi_col, const int plane,
@@ -196,7 +199,7 @@ static TX_SIZE get_transform_size(const MACROBLOCKD *const xd,
   assert(mbmi != NULL);
   if (xd && xd->lossless[mbmi->segment_id]) return TX_4X4;
 #if CONFIG_SDP
-  const int plane_type = (plane > 0);
+  const int plane_type = (plane > 0 && cm->seq_params.enable_sdp);
 #endif
   TX_SIZE tx_size = (plane == AOM_PLANE_Y)
                         ? mbmi->tx_size
@@ -254,6 +257,10 @@ static TX_SIZE set_lpf_parameters(
   // reset to initial values
   params->filter_length = 0;
 
+#if CONFIG_SDP
+  int plane_type = (plane > 0 && cm->seq_params.enable_sdp);
+#endif
+
   // no deblocking is required
   const uint32_t width = plane_ptr->dst.width;
   const uint32_t height = plane_ptr->dst.height;
@@ -279,7 +286,12 @@ static TX_SIZE set_lpf_parameters(
   if (mbmi == NULL) return TX_INVALID;
 
   const TX_SIZE ts =
+#if CONFIG_SDP
+      get_transform_size(xd, cm, mi[0], edge_dir, mi_row, mi_col, plane,
+                         plane_ptr);
+#else
       get_transform_size(xd, mi[0], edge_dir, mi_row, mi_col, plane, plane_ptr);
+#endif
 
   {
     const uint32_t coord = (VERT_EDGE == edge_dir) ? (x) : (y);
@@ -295,7 +307,7 @@ static TX_SIZE set_lpf_parameters(
           av1_get_filter_level(cm, &cm->lf_info, edge_dir, plane, mbmi);
 #if CONFIG_SDP
       const int curr_skipped =
-          mbmi->skip_txfm[plane > 0] && is_inter_block(mbmi);
+          mbmi->skip_txfm[plane_type] && is_inter_block(mbmi);
 #else
       const int curr_skipped = mbmi->skip_txfm && is_inter_block(mbmi);
 #endif
@@ -309,14 +321,18 @@ static TX_SIZE set_lpf_parameters(
           const int pv_col =
               (VERT_EDGE == edge_dir) ? (mi_col - (1 << scale_horz)) : (mi_col);
           const TX_SIZE pv_ts = get_transform_size(
+#if CONFIG_SDP
+              xd, cm, mi_prev, edge_dir, pv_row, pv_col, plane, plane_ptr);
+#else
               xd, mi_prev, edge_dir, pv_row, pv_col, plane, plane_ptr);
+#endif
 
           const uint32_t pv_lvl =
               av1_get_filter_level(cm, &cm->lf_info, edge_dir, plane, mi_prev);
 
           const int pv_skip_txfm =
 #if CONFIG_SDP
-              mi_prev->skip_txfm[plane > 0] && is_inter_block(mi_prev);
+              mi_prev->skip_txfm[plane_type] && is_inter_block(mi_prev);
 #else
               mi_prev->skip_txfm && is_inter_block(mi_prev);
 #endif

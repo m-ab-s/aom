@@ -614,9 +614,14 @@ void av1_sum_intra_stats(const AV1_COMMON *const cm, FRAME_COUNTS *counts,
                            [mbmi->angle_delta[PLANE_TYPE_UV] + MAX_ANGLE_DELTA];
 #endif
 #if CONFIG_SDP
-      update_cdf(fc->angle_delta_cdf[PLANE_TYPE_UV][uv_mode - UV_V_PRED],
-                 mbmi->angle_delta[PLANE_TYPE_UV] + MAX_ANGLE_DELTA,
-                 2 * MAX_ANGLE_DELTA + 1);
+      if (cm->seq_params.enable_sdp)
+        update_cdf(fc->angle_delta_cdf[PLANE_TYPE_UV][uv_mode - UV_V_PRED],
+                   mbmi->angle_delta[PLANE_TYPE_UV] + MAX_ANGLE_DELTA,
+                   2 * MAX_ANGLE_DELTA + 1);
+      else
+        update_cdf(fc->angle_delta_cdf[PLANE_TYPE_Y][uv_mode - UV_V_PRED],
+                   mbmi->angle_delta[PLANE_TYPE_UV] + MAX_ANGLE_DELTA,
+                   2 * MAX_ANGLE_DELTA + 1);
 #else
     update_cdf(fc->angle_delta_cdf[uv_mode - UV_V_PRED],
                mbmi->angle_delta[PLANE_TYPE_UV] + MAX_ANGLE_DELTA,

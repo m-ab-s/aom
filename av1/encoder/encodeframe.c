@@ -514,8 +514,10 @@ static AOM_INLINE void encode_nonrd_sb(AV1_COMP *cpi, ThreadData *td,
   // Adjust and encode the superblock
   PC_TREE *const pc_root = av1_alloc_pc_tree_node(sb_size);
 #if CONFIG_SDP
-  int totalLoopNum =
-      (frame_is_intra_only(cm) && !cm->seq_params.monochrome) ? 2 : 1;
+  int totalLoopNum = (frame_is_intra_only(cm) && !cm->seq_params.monochrome &&
+                      cm->seq_params.enable_sdp)
+                         ? 2
+                         : 1;
   MACROBLOCKD *const xd = &x->e_mbd;
   for (int loopIdx = 0; loopIdx < totalLoopNum; loopIdx++) {
     xd->tree_type =
@@ -608,8 +610,10 @@ static AOM_INLINE void encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
                       get_mi_grid_idx(&cm->mi_params, mi_row, mi_col);
   const BLOCK_SIZE sb_size = cm->seq_params.sb_size;
 #if CONFIG_SDP
-  int totalLoopNum =
-      (frame_is_intra_only(cm) && !cm->seq_params.monochrome) ? 2 : 1;
+  int totalLoopNum = (frame_is_intra_only(cm) && !cm->seq_params.monochrome &&
+                      cm->seq_params.enable_sdp)
+                         ? 2
+                         : 1;
   MACROBLOCKD *const xd = &x->e_mbd;
 #else
   const int num_planes = av1_num_planes(cm);

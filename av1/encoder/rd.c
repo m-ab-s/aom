@@ -219,7 +219,7 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, ModeCosts *mode_costs,
     }
   }
 #if CONFIG_SDP
-  for (i = 0; i < 3; ++i) {
+  for (i = 0; i < PARTITION_STRUCTURE_NUM; ++i) {
     for (j = 0; j < DIRECTIONAL_MODES; ++j) {
       av1_cost_tokens_from_cdf(mode_costs->angle_delta_cost[i][j],
                                fc->angle_delta_cdf[i][j], NULL);
@@ -230,7 +230,7 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, ModeCosts *mode_costs,
     av1_cost_tokens_from_cdf(mode_costs->angle_delta_cost[i],
                              fc->angle_delta_cdf[i], NULL);
   }
-#endif
+#endif  // CONFIG_SDP
   av1_cost_tokens_from_cdf(mode_costs->intrabc_cost, fc->intrabc_cdf, NULL);
 
   if (!frame_is_intra_only(cm)) {

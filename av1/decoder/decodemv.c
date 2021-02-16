@@ -946,13 +946,23 @@ static void read_intra_frame_mode_info(AV1_COMMON *const cm,
             read_cfl_alphas(ec_ctx, r, &mbmi->cfl_alpha_signs);
       }
 #if CONFIG_SDP
-      mbmi->angle_delta[PLANE_TYPE_UV] =
-          (use_angle_delta &&
-           av1_is_directional_mode(get_uv_mode(mbmi->uv_mode)))
-              ? read_angle_delta(
-                    r, ec_ctx->angle_delta_cdf[PLANE_TYPE_UV]
-                                              [mbmi->uv_mode - V_PRED])
-              : 0;
+      if (cm->seq_params.enable_sdp) {
+        mbmi->angle_delta[PLANE_TYPE_UV] =
+            (use_angle_delta &&
+             av1_is_directional_mode(get_uv_mode(mbmi->uv_mode)))
+                ? read_angle_delta(
+                      r, ec_ctx->angle_delta_cdf[PLANE_TYPE_UV]
+                                                [mbmi->uv_mode - V_PRED])
+                : 0;
+      } else {
+        mbmi->angle_delta[PLANE_TYPE_UV] =
+            (use_angle_delta &&
+             av1_is_directional_mode(get_uv_mode(mbmi->uv_mode)))
+                ? read_angle_delta(
+                      r, ec_ctx->angle_delta_cdf[PLANE_TYPE_Y]
+                                                [mbmi->uv_mode - V_PRED])
+                : 0;
+      }
 #else
     mbmi->angle_delta[PLANE_TYPE_UV] =
         (use_angle_delta && av1_is_directional_mode(get_uv_mode(mbmi->uv_mode)))
@@ -1252,12 +1262,21 @@ static void read_intra_block_mode_info(AV1_COMMON *const cm,
           read_cfl_alphas(xd->tile_ctx, r, &mbmi->cfl_alpha_signs);
     }
 #if CONFIG_SDP
-    mbmi->angle_delta[PLANE_TYPE_UV] =
-        use_angle_delta && av1_is_directional_mode(get_uv_mode(mbmi->uv_mode))
-            ? read_angle_delta(r,
-                               ec_ctx->angle_delta_cdf[PLANE_TYPE_UV]
-                                                      [mbmi->uv_mode - V_PRED])
-            : 0;
+    if (cm->seq_params.enable_sdp) {
+      mbmi->angle_delta[PLANE_TYPE_UV] =
+          use_angle_delta && av1_is_directional_mode(get_uv_mode(mbmi->uv_mode))
+              ? read_angle_delta(
+                    r, ec_ctx->angle_delta_cdf[PLANE_TYPE_UV]
+                                              [mbmi->uv_mode - V_PRED])
+              : 0;
+    } else {
+      mbmi->angle_delta[PLANE_TYPE_UV] =
+          use_angle_delta && av1_is_directional_mode(get_uv_mode(mbmi->uv_mode))
+              ? read_angle_delta(
+                    r, ec_ctx->angle_delta_cdf[PLANE_TYPE_Y]
+                                              [mbmi->uv_mode - V_PRED])
+              : 0;
+    }
 #else
     mbmi->angle_delta[PLANE_TYPE_UV] =
         use_angle_delta && av1_is_directional_mode(get_uv_mode(mbmi->uv_mode))

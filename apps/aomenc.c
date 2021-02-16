@@ -461,6 +461,12 @@ static const arg_def_t enable_1to4_partitions =
     ARG_DEF(NULL, "enable-1to4-partitions", 1,
             "Enable 1:4 and 4:1 partitions "
             "(0: false, 1: true (default))");
+#if CONFIG_SDP
+static const arg_def_t enable_sdp =
+    ARG_DEF(NULL, "enable-sdp", 1,
+            "Enable semi-decoupled partitioning "
+            "(0: false, 1: true (default))");
+#endif  // CONFIG_SDP
 static const arg_def_t min_partition_size =
     ARG_DEF(NULL, "min-partition-size", 4,
             "Set min partition size "
@@ -875,6 +881,9 @@ static const arg_def_t *av1_args[] = { &cpu_used_av1,
                                        &enable_rect_partitions,
                                        &enable_ab_partitions,
                                        &enable_1to4_partitions,
+#if CONFIG_SDP
+                                       &enable_sdp,
+#endif
                                        &min_partition_size,
                                        &max_partition_size,
 #if !CONFIG_REMOVE_DUAL_FILTER
@@ -982,6 +991,9 @@ static const int av1_arg_ctrl_map[] = { AOME_SET_CPUUSED,
                                         AV1E_SET_ENABLE_RECT_PARTITIONS,
                                         AV1E_SET_ENABLE_AB_PARTITIONS,
                                         AV1E_SET_ENABLE_1TO4_PARTITIONS,
+#if CONFIG_SDP
+                                        AV1E_SET_ENABLE_SDP,
+#endif
                                         AV1E_SET_MIN_PARTITION_SIZE,
                                         AV1E_SET_MAX_PARTITION_SIZE,
 #if !CONFIG_REMOVE_DUAL_FILTER
@@ -1871,6 +1883,10 @@ static void show_stream_config(struct stream_state *stream,
   fprintf(
       stdout, "Tool setting (Partition)       : T-Type (%d), 4:1/1:4 (%d)\n",
       encoder_cfg->enable_ab_partitions, encoder_cfg->enable_1to4_partitions);
+#if CONFIG_SDP
+  fprintf(stdout, "                               : SDP (%d)\n",
+          encoder_cfg->enable_sdp);
+#endif
 
   fprintf(stdout,
           "Tool setting (Intra)           : SmoothIntra (%d), CfL (%d), "
