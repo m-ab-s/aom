@@ -35,7 +35,7 @@ from Config import LogLevels, FrameNum, QPs, CvxH_WtCols,\
      Path_RDResults, DnScalingAlgos, UpScalingAlgos, ConvexHullColor, \
      EncodeMethods, CodecNames, LoggerName, DnScaleRatio, TargetQtyMetrics, \
      CvxHDataRows, CvxHDataStartRow, CvxHDataStartCol, CvxHDataNum, \
-     Int_ConvexHullColor, EnablePreInterpolation
+     Int_ConvexHullColor, EnablePreInterpolation, AS_DOWNSCALE_ON_THE_FLY
 
 ###############################################################################
 ##### Helper Functions ########################################################
@@ -232,16 +232,17 @@ def Run_ConvexHull_Test(clip, dnScalAlgo, upScalAlgo, LogCmdOnly = False):
     for i in range(len(DnScaledRes)):
         if SaveMemory:
             CleanIntermediateFiles()
+
         DnScaledW = DnScaledRes[i][0]
         DnScaledH = DnScaledRes[i][1]
         # downscaling if the downscaled file does not exist
-        dnscalyuv = GetDownScaledOutFile(clip, DnScaledW, DnScaledH,
-                                         Path_DnScaleYuv, dnScalAlgo)
+        dnscalyuv = GetDownScaledOutFile(clip, DnScaledW, DnScaledH, Path_DnScaleYuv,
+                                         dnScalAlgo, AS_DOWNSCALE_ON_THE_FLY, i)
         if not os.path.isfile(dnscalyuv):
             dnscalyuv = DownScaling(clip, FrameNum['AS'], DnScaledW, DnScaledH,
                                     Path_DnScaleYuv, Path_CfgFiles, dnScalAlgo, LogCmdOnly)
         ds_clip = Clip(GetShortContentName(dnscalyuv, False)+'.y4m', dnscalyuv,
-                       "", DnScaledW, DnScaledH, clip.fmt, clip.fps_num,
+                       clip.file_class, DnScaledW, DnScaledH, clip.fmt, clip.fps_num,
                        clip.fps_denom, clip.bit_depth)
         for QP in QPs['AS']:
             Utils.Logger.info("start encode and upscale for QP %d" % QP)
@@ -336,22 +337,21 @@ def SaveConvexHullResultsToExcel(content, dnScAlgos, upScAlgos, csv, perframe_cs
                                                   EncodePreset, clip, DnScaledW,
                                                   DnScaledH, dnScAlgos[indx],
                                                   upScAlgos[indx], qp,
-                                                  Path_Bitstreams)
+                                                  Path_Bitstreams, False, i)
                 bitrate = (os.path.getsize(bs) * 8 * (clip.fps_num / clip.fps_denom)
                            / FrameNum['AS']) / 1000.0
                 bitratesKbps.append(bitrate)
                 quality, perframe_vmaf_log = GatherQualityMetrics(reconyuv, Path_QualityLog)
                 qualities.append(quality)
 
-                #"TestCfg,EncodeMethod,CodecName,EncodePreset,Class,Res,Name,FPS,Bit Depth,QP,Bitrate(kbps)")
-                csv.write("%s,%s,%s,%s,%s,%s,%s,%.4f,%d,%d,%.4f"%
-                          ("AS", EncodeMethod, CodecName, EncodePreset, clip.file_class,str(DnScaledW)+"x"+str(DnScaledH),
-                           contentname, clip.fps,clip.bit_depth,qp,bitrate))
+                #"TestCfg,EncodeMethod,CodecName,EncodePreset,Class,OrigRes,Name,FPS,Bit Depth,CodedRes,QP,Bitrate(kbps)")
+                csv.write("%s,%s,%s,%s,%s,%s,%s,%.4f,%d,%s,%d,%.4f"%
+                          ("AS", EncodeMethod, CodecName, EncodePreset, clip.file_class,str(clip.width)+"x"+str(clip.height),
+                           contentname, clip.fps,clip.bit_depth,str(DnScaledW)+"x"+str(DnScaledH),qp,bitrate))
                 for qty in quality:
                     csv.write(",%.4f"%qty)
                 enc_time, dec_time = GatherPerfInfo(bs, Path_PerfLog)
-                enc_hour = (enc_time / 3600.0)
-                csv.write(",%.2f,%.2f,%.2f,\n" % (enc_time, dec_time, enc_hour))
+                csv.write(",%.2f,%.2f,\n" % (enc_time, dec_time))
                 if (EncodeMethod == 'aom'):
                     enc_log = GetEncLogFile(bs, Path_EncLog)
                     GatherPerframeStat("AS", EncodeMethod, CodecName, EncodePreset, clip, GetShortContentName(bs),
@@ -487,17 +487,17 @@ if __name__ == "__main__":
     elif Function == 'convexhull':
         csv_file, perframe_csvfile = GetRDResultCsvFile(EncodeMethod, CodecName, EncodePreset, "AS")
         csv = open(csv_file, "wt")
-        csv.write("TestCfg,EncodeMethod,CodecName,EncodePreset,Class,Res,Name,FPS," \
-                  "Bit Depth,QP,Bitrate(kbps)")
+        csv.write("TestCfg,EncodeMethod,CodecName,EncodePreset,Class,OrigRes,Name,FPS," \
+                  "Bit Depth,CodedRes,QP,Bitrate(kbps)")
         for qty in QualityList:
             csv.write(',' + qty)
-        csv.write(",EncT[s],DecT[s],EncT[h]\n")
+        csv.write(",EncT[s],DecT[s]\n")
 
         perframe_csv = open(perframe_csvfile, 'wt')
-        perframe_csv.write("TestCfg,EncodeMethod,CodecName,EncodePreset,Class,Res,Name,FPS," \
-                           "Bit Depth,QP,POC,FrameType,qindex,FrameSize")
+        perframe_csv.write("TestCfg,EncodeMethod,CodecName,EncodePreset,Class,OrigRes,Name,FPS," \
+                           "Bit Depth,CodedRes,QP,POC,FrameType,qindex,FrameSize")
         for qty in QualityList:
-            if (qty != "Overall_PSNR" and qty != "Overall_APSNR" and not qty.startswith("APSNR")):
+            if not qty.startswith("APSNR"):
                 perframe_csv.write(',' + qty)
         perframe_csv.write('\n')
 

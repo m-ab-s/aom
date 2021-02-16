@@ -82,8 +82,8 @@ def Run_EncDec_Upscale(method, codec, preset, clip, test_cfg, QP, num, outw,
 
 
 def GetBsReconFileName(encmethod, codecname, test_cfg, preset, clip, dw, dh,
-                       dnScAlgo, upScAlgo, qp, path_bs):
-    dsyuv_name = GetDownScaledOutFile(clip, dw, dh, path_bs, dnScAlgo)
+                       dnScAlgo, upScAlgo, qp, path_bs, ds_on_the_fly=True, ratio_idx=0):
+    dsyuv_name = GetDownScaledOutFile(clip, dw, dh, path_bs, dnScAlgo, ds_on_the_fly, ratio_idx)
     # return bitstream file with absolute path
     bs = GetBitstreamFile(encmethod, codecname, test_cfg, preset, dsyuv_name,
                           qp, path_bs)

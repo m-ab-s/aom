@@ -15,8 +15,10 @@ import Utils
 import logging
 import fileinput
 from shutil import copyfile
-from Config import LoggerName, FFMPEG, HDRToolsConfigFileTemplate, HDRConvert, Platform
+from Config import LoggerName, FFMPEG, HDRToolsConfigFileTemplate, HDRConvert, Platform, \
+    ContentPath
 from Utils import GetShortContentName, ExecuteCmd, md5
+from AV2CTCVideo import AS_Downscaled_Clips
 
 subloggername = "VideoScaler"
 loggername = LoggerName + '.' + '%s' % subloggername
@@ -97,12 +99,17 @@ def VideoRescaling(clip, num, outw, outh, outfile, algo, cfg_path,
 
 ####################################################################################
 ##################### Major Functions ################################################
-def GetDownScaledOutFile(clip, dnw, dnh, path, algo):
+def GetDownScaledOutFile(clip, dnw, dnh, path, algo, ds_on_the_fly=True, ratio_idx=0):
     contentBaseName = GetShortContentName(clip.file_name, False)
     dnscaledout = clip.file_path
     if clip.width != dnw or clip.height != dnh:
-        filename = contentBaseName + ('_Scaled_%s_%dx%d.y4m' % (algo, dnw,  dnh))
-        dnscaledout = os.path.join(path, filename)
+        if ds_on_the_fly:
+            filename = contentBaseName + ('_Scaled_%s_%dx%d.y4m' % (algo, dnw, dnh))
+            dnscaledout = os.path.join(path, filename)
+        else:
+            dnscaledout = ContentPath + "/A1_downscaled/" + \
+                          AS_Downscaled_Clips[contentBaseName][ratio_idx-1]
+
     return dnscaledout
 
 def GetUpScaledOutFile(clip, outw, outh, algo, path):

@@ -337,6 +337,6 @@ def GatherPerframeStat(test_cfg,EncodeMethod,CodecName,EncodePreset,clip, name, 
 
     for i in range(len(enc_list)):
         #"TestCfg,EncodeMethod,CodecName,EncodePreset,Class,Res,Name,FPS,BitDepth,QP,POC,TempLayerId,FrameType,qindex,FrameSize")
-        perframe_csv.write("%s,%s,%s,%s,%s,%s,%s,%s,%d,%d,%s,%s\n"
-                           %(test_cfg,EncodeMethod,CodecName,EncodePreset,clip.file_class,str(width)+"x"+str(height),
-                             name,clip.fps,clip.bit_depth,qp,enc_list[i],perframe_vmaf_log[i]))
+        perframe_csv.write("%s,%s,%s,%s,%s,%s,%s,%s,%d,%s,%d,%s,%s\n"
+                           %(test_cfg,EncodeMethod,CodecName,EncodePreset,clip.file_class,str(clip.width)+"x"+str(clip.height),
+                             name,clip.fps,clip.bit_depth,str(width)+"x"+str(height),qp,enc_list[i],perframe_vmaf_log[i]))
