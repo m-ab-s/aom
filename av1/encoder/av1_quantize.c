@@ -1043,26 +1043,48 @@ void av1_frame_init_quantizer(AV1_COMP *cpi) {
 
 void set_frame_dc_delta_q(const AV1_COMMON *const cm, int *y_dc_delta_q,
                           int enable_chroma_deltaq, int *u_dc_delta_q,
-                          int *v_dc_delta_q) {
+                          int *v_dc_delta_q, int *u_ac_delta_q,
+                          int *v_ac_delta_q) {
   (void)cm;
-  (void)enable_chroma_deltaq;
   *y_dc_delta_q = 0;
   *u_dc_delta_q = 0;
   *v_dc_delta_q = 0;
+  *u_ac_delta_q = 0;
+  *v_ac_delta_q = 0;
 #if CONFIG_EXTQUANT
   if (frame_is_intra_only(cm)) {
+    enable_chroma_deltaq = 1;
     const int is_360p_or_larger = AOMMIN(cm->width, cm->height) >= 360;
     const int is_720p_or_larger = AOMMIN(cm->width, cm->height) >= 720;
     if (!is_360p_or_larger) {
       *y_dc_delta_q = 0;
-      *u_dc_delta_q = *v_dc_delta_q = 0;
+      if (enable_chroma_deltaq) {
+        *u_dc_delta_q = *v_dc_delta_q = 0;
+      }
     } else if (!is_720p_or_larger) {
       *y_dc_delta_q = -2;
-      *u_dc_delta_q = *v_dc_delta_q = -1;
+      if (enable_chroma_deltaq) {
+        *u_dc_delta_q = *v_dc_delta_q = -1;
+      }
     } else {
       *y_dc_delta_q = -4;
-      *u_dc_delta_q = *v_dc_delta_q = -2;
+      if (enable_chroma_deltaq) {
+        *u_dc_delta_q = *v_dc_delta_q = -2;
+      }
     }
+  }
+#else
+  if (enable_chroma_deltaq) {
+    // TODO(aomedia:2717): need to design better delta
+    *u_ac_delta_q = 2;
+    *v_ac_delta_q = 2;
+    *u_dc_delta_q = 2;
+    *v_dc_delta_q = 2;
+  } else {
+    *u_ac_delta_q = 0;
+    *v_ac_delta_q = 0;
+    *u_dc_delta_q = 0;
+    *v_dc_delta_q = 0;
   }
 #endif  // CONFIG_EXTQUANT
 }
@@ -1073,25 +1095,10 @@ void av1_set_quantizer(AV1_COMMON *const cm, int min_qmlevel, int max_qmlevel,
   // delta_q changes.
   CommonQuantParams *quant_params = &cm->quant_params;
   quant_params->base_qindex = AOMMAX(cm->delta_q_info.delta_q_present_flag, q);
-#if CONFIG_EXTQUANT
   set_frame_dc_delta_q(cm, &quant_params->y_dc_delta_q, enable_chroma_deltaq,
-                       &quant_params->u_dc_delta_q,
-                       &quant_params->v_dc_delta_q);
-#else
-  quant_params->y_dc_delta_q = 0;
-  if (enable_chroma_deltaq) {
-    // TODO(aomedia:2717): need to design better delta
-    quant_params->u_dc_delta_q = 2;
-    quant_params->u_ac_delta_q = 2;
-    quant_params->v_dc_delta_q = 2;
-    quant_params->v_ac_delta_q = 2;
-  } else {
-    quant_params->u_dc_delta_q = 0;
-    quant_params->u_ac_delta_q = 0;
-    quant_params->v_dc_delta_q = 0;
-    quant_params->v_ac_delta_q = 0;
-  }
-#endif
+                       &quant_params->u_dc_delta_q, &quant_params->v_dc_delta_q,
+                       &quant_params->u_ac_delta_q,
+                       &quant_params->v_ac_delta_q);
 
 #if CONFIG_EXTQUANT
   quant_params->qmatrix_level_y =

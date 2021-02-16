@@ -5046,10 +5046,10 @@ static int read_uncompressed_header(AV1Decoder *pbi,
                                       cm->seq_params.bit_depth);
     xd->lossless[i] =
         qindex == 0 &&
-        (quant_params->y_dc_delta_q - cm->seq_params.base_y_dc_delta_q <= 0) &&
-        (quant_params->u_dc_delta_q - cm->seq_params.base_uv_dc_delta_q <= 0) &&
+        (quant_params->y_dc_delta_q + cm->seq_params.base_y_dc_delta_q <= 0) &&
+        (quant_params->u_dc_delta_q + cm->seq_params.base_uv_dc_delta_q <= 0) &&
         quant_params->u_ac_delta_q <= 0 &&
-        (quant_params->v_dc_delta_q - cm->seq_params.base_uv_dc_delta_q <= 0) &&
+        (quant_params->v_dc_delta_q + cm->seq_params.base_uv_dc_delta_q <= 0) &&
         quant_params->v_ac_delta_q <= 0;
 #else
     const int qindex = av1_get_qindex(&cm->seg, i, quant_params->base_qindex);

@@ -1264,10 +1264,10 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
 #if CONFIG_EXTQUANT
     xd->lossless[i] =
         qindex == 0 &&
-        (quant_params->y_dc_delta_q - cm->seq_params.base_y_dc_delta_q <= 0) &&
-        (quant_params->u_dc_delta_q - cm->seq_params.base_uv_dc_delta_q <= 0) &&
+        (quant_params->y_dc_delta_q + cm->seq_params.base_y_dc_delta_q <= 0) &&
+        (quant_params->u_dc_delta_q + cm->seq_params.base_uv_dc_delta_q <= 0) &&
         quant_params->u_ac_delta_q <= 0 &&
-        (quant_params->v_dc_delta_q - cm->seq_params.base_uv_dc_delta_q <= 0) &&
+        (quant_params->v_dc_delta_q + cm->seq_params.base_uv_dc_delta_q <= 0) &&
         quant_params->v_ac_delta_q <= 0;
 #else
     xd->lossless[i] =
