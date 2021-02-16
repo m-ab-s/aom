@@ -381,10 +381,17 @@ static AOM_INLINE int intra_mode_info_cost_uv(const AV1_COMP *cpi,
   if (av1_is_directional_mode(get_uv_mode(mode))) {
     if (av1_use_angle_delta(bsize)) {
 #if CONFIG_SDP
-      total_rate +=
-          mode_costs->angle_delta_cost[PLANE_TYPE_UV][mode - V_PRED]
-                                      [mbmi->angle_delta[PLANE_TYPE_UV] +
-                                       MAX_ANGLE_DELTA];
+      if (cpi->common.seq_params.enable_sdp) {
+        total_rate +=
+            mode_costs->angle_delta_cost[PLANE_TYPE_UV][mode - V_PRED]
+                                        [mbmi->angle_delta[PLANE_TYPE_UV] +
+                                         MAX_ANGLE_DELTA];
+      } else {
+        total_rate +=
+            mode_costs->angle_delta_cost[PLANE_TYPE_Y][mode - V_PRED]
+                                        [mbmi->angle_delta[PLANE_TYPE_UV] +
+                                         MAX_ANGLE_DELTA];
+      }
 #else
       total_rate +=
           mode_costs->angle_delta_cost[mode - V_PRED]

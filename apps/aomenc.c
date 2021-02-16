@@ -430,6 +430,9 @@ const arg_def_t *av1_ctrl_args[] = {
 };
 
 const arg_def_t *av1_key_val_args[] = {
+#if CONFIG_SDP
+  &g_av1_codec_arg_defs.enable_sdp,
+#endif
   NULL,
 };
 
@@ -1349,6 +1352,10 @@ static void show_stream_config(struct stream_state *stream,
   fprintf(
       stdout, "Tool setting (Partition)       : T-Type (%d), 4:1/1:4 (%d)\n",
       encoder_cfg->enable_ab_partitions, encoder_cfg->enable_1to4_partitions);
+#if CONFIG_SDP
+  fprintf(stdout, "                               : SDP (%d)\n",
+          encoder_cfg->enable_sdp);
+#endif
 
   fprintf(stdout,
           "Tool setting (Intra)           : SmoothIntra (%d), CfL (%d), "

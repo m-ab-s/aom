@@ -1673,6 +1673,31 @@ static AOM_INLINE void setup_bool_decoder(
   r->allow_update_cdf = allow_update_cdf;
 }
 
+#if CONFIG_SDP
+static AOM_INLINE void decode_partition_sb(AV1Decoder *const pbi,
+                                           ThreadData *const td, int mi_row,
+                                           int mi_col, aom_reader *reader,
+                                           BLOCK_SIZE bsize,
+                                           int parse_decode_flag) {
+  assert(bsize < BLOCK_SIZES_ALL);
+  AV1_COMMON *const cm = &pbi->common;
+  DecoderCodingBlock *const dcb = &td->dcb;
+  MACROBLOCKD *const xd = &dcb->xd;
+  const int total_loop_num =
+      (frame_is_intra_only(cm) && !cm->seq_params.monochrome &&
+       cm->seq_params.enable_sdp)
+          ? 2
+          : 1;
+  xd->tree_type = (total_loop_num == 1 ? SHARED_PART : LUMA_PART);
+  decode_partition(pbi, td, mi_row, mi_col, reader, bsize, parse_decode_flag);
+  if (total_loop_num == 2) {
+    xd->tree_type = CHROMA_PART;
+    decode_partition(pbi, td, mi_row, mi_col, reader, bsize, parse_decode_flag);
+    xd->tree_type = SHARED_PART;
+  }
+}
+#endif
+
 static AOM_INLINE void setup_segmentation(AV1_COMMON *const cm,
                                           struct aom_read_bit_buffer *rb) {
   struct segmentation *const seg = &cm->seg;
@@ -2853,19 +2878,8 @@ static AOM_INLINE void decode_tile_sb_row(AV1Decoder *pbi, ThreadData *const td,
 
     // Decoding of the super-block
 #if CONFIG_SDP
-    DecoderCodingBlock *const dcb = &td->dcb;
-    MACROBLOCKD *const xd = &dcb->xd;
-    int totalLoopNum =
-        (frame_is_intra_only(cm) && !cm->seq_params.monochrome) ? 2 : 1;
-    xd->tree_type = (totalLoopNum == 1 ? SHARED_PART : LUMA_PART);
-    decode_partition(pbi, td, mi_row, mi_col, td->bit_reader,
-                     cm->seq_params.sb_size, 0x2);
-    if (totalLoopNum == 2) {
-      xd->tree_type = CHROMA_PART;
-      decode_partition(pbi, td, mi_row, mi_col, td->bit_reader,
-                       cm->seq_params.sb_size, 0x2);
-      xd->tree_type = SHARED_PART;
-    }
+    decode_partition_sb(pbi, td, mi_row, mi_col, td->bit_reader,
+                        cm->seq_params.sb_size, 0x2);
 #else
     decode_partition(pbi, td, mi_row, mi_col, td->bit_reader,
                      cm->seq_params.sb_size, 0x2);
@@ -2946,17 +2960,8 @@ static AOM_INLINE void decode_tile(AV1Decoder *pbi, ThreadData *const td,
          mi_col += cm->seq_params.mib_size) {
       set_cb_buffer(pbi, dcb, &td->cb_buffer_base, num_planes, 0, 0);
 #if CONFIG_SDP
-      int totalLoopNum =
-          (frame_is_intra_only(cm) && !cm->seq_params.monochrome) ? 2 : 1;
-      xd->tree_type = (totalLoopNum == 1 ? SHARED_PART : LUMA_PART);
-      decode_partition(pbi, td, mi_row, mi_col, td->bit_reader,
-                       cm->seq_params.sb_size, 0x3);
-      if (totalLoopNum == 2) {
-        xd->tree_type = CHROMA_PART;
-        decode_partition(pbi, td, mi_row, mi_col, td->bit_reader,
-                         cm->seq_params.sb_size, 0x3);
-        xd->tree_type = SHARED_PART;
-      }
+      decode_partition_sb(pbi, td, mi_row, mi_col, td->bit_reader,
+                          cm->seq_params.sb_size, 0x3);
 #else
       // Bit-stream parsing and decoding of the superblock
       decode_partition(pbi, td, mi_row, mi_col, td->bit_reader,
@@ -3397,17 +3402,8 @@ static AOM_INLINE void parse_tile_row_mt(AV1Decoder *pbi, ThreadData *const td,
 
       // Bit-stream parsing of the superblock
 #if CONFIG_SDP
-      int totalLoopNum =
-          (frame_is_intra_only(cm) && !cm->seq_params.monochrome) ? 2 : 1;
-      xd->tree_type = (totalLoopNum == 1 ? SHARED_PART : LUMA_PART);
-      decode_partition(pbi, td, mi_row, mi_col, td->bit_reader,
-                       cm->seq_params.sb_size, 0x1);
-      if (totalLoopNum == 2) {
-        xd->tree_type = CHROMA_PART;
-        decode_partition(pbi, td, mi_row, mi_col, td->bit_reader,
-                         cm->seq_params.sb_size, 0x1);
-        xd->tree_type = SHARED_PART;
-      }
+      decode_partition_sb(pbi, td, mi_row, mi_col, td->bit_reader,
+                          cm->seq_params.sb_size, 0x1);
 #else
       decode_partition(pbi, td, mi_row, mi_col, td->bit_reader,
                        cm->seq_params.sb_size, 0x1);
@@ -4446,6 +4442,9 @@ void av1_read_sequence_header(AV1_COMMON *cm, struct aom_read_bit_buffer *rb,
 
   setup_sb_size(seq_params, rb);
 
+#if CONFIG_SDP
+  seq_params->enable_sdp = aom_rb_read_bit(rb);
+#endif
   seq_params->enable_filter_intra = aom_rb_read_bit(rb);
   seq_params->enable_intra_edge_filter = aom_rb_read_bit(rb);
 

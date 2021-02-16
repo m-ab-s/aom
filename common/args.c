@@ -80,6 +80,9 @@ int parse_cfg(const char *file, cfg_options_t *config) {
     GET_PARAMS(enable_ab_partitions);
     GET_PARAMS(enable_rect_partitions);
     GET_PARAMS(enable_1to4_partitions);
+#if CONFIG_SDP
+    GET_PARAMS(enable_sdp);
+#endif
     GET_PARAMS(enable_flip_idtx);
     GET_PARAMS(enable_deblocking);
     GET_PARAMS(enable_cdef);

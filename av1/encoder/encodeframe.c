@@ -505,13 +505,16 @@ static AOM_INLINE void encode_nonrd_sb(AV1_COMP *cpi, ThreadData *td,
 
   // Adjust and encode the superblock
 #if CONFIG_SDP
-  int totalLoopNum =
-      (frame_is_intra_only(cm) && !cm->seq_params.monochrome) ? 2 : 1;
+  const int total_loop_num =
+      (frame_is_intra_only(cm) && !cm->seq_params.monochrome &&
+       cm->seq_params.enable_sdp)
+          ? 2
+          : 1;
   MACROBLOCKD *const xd = &x->e_mbd;
-  for (int loopIdx = 0; loopIdx < totalLoopNum; loopIdx++) {
+  for (int loop_idx = 0; loop_idx < total_loop_num; loop_idx++) {
     xd->tree_type =
-        (totalLoopNum == 1 ? SHARED_PART
-                           : (loopIdx == 0 ? LUMA_PART : CHROMA_PART));
+        (total_loop_num == 1 ? SHARED_PART
+                             : (loop_idx == 0 ? LUMA_PART : CHROMA_PART));
     td->mb.cb_offset[xd->tree_type == CHROMA_PART] = 0;
     PC_TREE *const pc_root = av1_alloc_pc_tree_node(sb_size);
     av1_nonrd_use_partition(cpi, td, tile_data, mi, tp, mi_row, mi_col, sb_size,
@@ -612,8 +615,11 @@ static AOM_INLINE void encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
 #endif  // CONFIG_REALTIME_ONLY
 
 #if CONFIG_SDP
-  int totalLoopNum =
-      (frame_is_intra_only(cm) && !cm->seq_params.monochrome) ? 2 : 1;
+  const int total_loop_num =
+      (frame_is_intra_only(cm) && !cm->seq_params.monochrome &&
+       cm->seq_params.enable_sdp)
+          ? 2
+          : 1;
   MACROBLOCKD *const xd = &x->e_mbd;
 #endif
 
@@ -627,10 +633,10 @@ static AOM_INLINE void encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
                                        sb_size);
     av1_choose_var_based_partitioning(cpi, tile_info, td, x, mi_row, mi_col);
 #if CONFIG_SDP
-    for (int loopIdx = 0; loopIdx < totalLoopNum; loopIdx++) {
+    for (int loop_idx = 0; loop_idx < total_loop_num; loop_idx++) {
       xd->tree_type =
-          (totalLoopNum == 1 ? SHARED_PART
-                             : (loopIdx == 0 ? LUMA_PART : CHROMA_PART));
+          (total_loop_num == 1 ? SHARED_PART
+                               : (loop_idx == 0 ? LUMA_PART : CHROMA_PART));
       init_encode_rd_sb(cpi, td, tile_data, sms_root, &dummy_rdc, mi_row,
                         mi_col, 1);
 #endif
@@ -651,10 +657,10 @@ static AOM_INLINE void encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
         seg_skip ? sb_size : sf->part_sf.fixed_partition_size;
     av1_set_fixed_partitioning(cpi, tile_info, mi, mi_row, mi_col, bsize);
 #if CONFIG_SDP
-    for (int loopIdx = 0; loopIdx < totalLoopNum; loopIdx++) {
+    for (int loop_idx = 0; loop_idx < total_loop_num; loop_idx++) {
       xd->tree_type =
-          (totalLoopNum == 1 ? SHARED_PART
-                             : (loopIdx == 0 ? LUMA_PART : CHROMA_PART));
+          (total_loop_num == 1 ? SHARED_PART
+                               : (loop_idx == 0 ? LUMA_PART : CHROMA_PART));
       init_encode_rd_sb(cpi, td, tile_data, sms_root, &dummy_rdc, mi_row,
                         mi_col, 1);
 #endif
@@ -674,10 +680,10 @@ static AOM_INLINE void encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
         get_rd_var_based_fixed_partition(cpi, x, mi_row, mi_col);
     av1_set_fixed_partitioning(cpi, tile_info, mi, mi_row, mi_col, bsize);
 #if CONFIG_SDP
-    for (int loopIdx = 0; loopIdx < totalLoopNum; loopIdx++) {
+    for (int loop_idx = 0; loop_idx < total_loop_num; loop_idx++) {
       xd->tree_type =
-          (totalLoopNum == 1 ? SHARED_PART
-                             : (loopIdx == 0 ? LUMA_PART : CHROMA_PART));
+          (total_loop_num == 1 ? SHARED_PART
+                               : (loop_idx == 0 ? LUMA_PART : CHROMA_PART));
       init_encode_rd_sb(cpi, td, tile_data, sms_root, &dummy_rdc, mi_row,
                         mi_col, 1);
 #endif
@@ -714,10 +720,10 @@ static AOM_INLINE void encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
 
     if (num_passes == 1) {
 #if CONFIG_SDP
-      for (int loopIdx = 0; loopIdx < totalLoopNum; loopIdx++) {
+      for (int loop_idx = 0; loop_idx < total_loop_num; loop_idx++) {
         xd->tree_type =
-            (totalLoopNum == 1 ? SHARED_PART
-                               : (loopIdx == 0 ? LUMA_PART : CHROMA_PART));
+            (total_loop_num == 1 ? SHARED_PART
+                                 : (loop_idx == 0 ? LUMA_PART : CHROMA_PART));
         init_encode_rd_sb(cpi, td, tile_data, sms_root, &dummy_rdc, mi_row,
                           mi_col, 1);
 #endif
@@ -734,10 +740,10 @@ static AOM_INLINE void encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
       SB_FIRST_PASS_STATS sb_fp_stats;
       av1_backup_sb_state(&sb_fp_stats, cpi, td, tile_data, mi_row, mi_col);
 #if CONFIG_SDP
-      for (int loopIdx = 0; loopIdx < totalLoopNum; loopIdx++) {
+      for (int loop_idx = 0; loop_idx < total_loop_num; loop_idx++) {
         xd->tree_type =
-            (totalLoopNum == 1 ? SHARED_PART
-                               : (loopIdx == 0 ? LUMA_PART : CHROMA_PART));
+            (total_loop_num == 1 ? SHARED_PART
+                                 : (loop_idx == 0 ? LUMA_PART : CHROMA_PART));
         init_encode_rd_sb(cpi, td, tile_data, sms_root, &dummy_rdc, mi_row,
                           mi_col, 1);
 #endif
@@ -758,10 +764,10 @@ static AOM_INLINE void encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
 
       av1_restore_sb_state(&sb_fp_stats, cpi, td, tile_data, mi_row, mi_col);
 #if CONFIG_SDP
-      for (int loopIdx = 0; loopIdx < totalLoopNum; loopIdx++) {
+      for (int loop_idx = 0; loop_idx < total_loop_num; loop_idx++) {
         xd->tree_type =
-            (totalLoopNum == 1 ? SHARED_PART
-                               : (loopIdx == 0 ? LUMA_PART : CHROMA_PART));
+            (total_loop_num == 1 ? SHARED_PART
+                                 : (loop_idx == 0 ? LUMA_PART : CHROMA_PART));
         init_encode_rd_sb(cpi, td, tile_data, sms_root, &dummy_rdc, mi_row,
                           mi_col, 1);
 #endif

@@ -234,6 +234,12 @@ typedef struct cfg_options {
    *
    */
   unsigned int enable_1to4_partitions;
+#if CONFIG_SDP
+  /*!\brief enable Semi-decoupled partitioning
+   *
+   */
+  unsigned int enable_sdp;
+#endif  // CONFIG_SDP
   /*!\brief enable flip and identity transform type
    *
    */

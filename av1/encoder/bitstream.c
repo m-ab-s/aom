@@ -1156,9 +1156,15 @@ static AOM_INLINE void write_intra_prediction_modes(AV1_COMP *cpi,
       write_cfl_alphas(ec_ctx, mbmi->cfl_alpha_idx, mbmi->cfl_alpha_signs, w);
     if (use_angle_delta && av1_is_directional_mode(get_uv_mode(uv_mode))) {
 #if CONFIG_SDP
-      write_angle_delta(
-          w, mbmi->angle_delta[PLANE_TYPE_UV],
-          ec_ctx->angle_delta_cdf[PLANE_TYPE_UV][uv_mode - V_PRED]);
+      if (cm->seq_params.enable_sdp) {
+        write_angle_delta(
+            w, mbmi->angle_delta[PLANE_TYPE_UV],
+            ec_ctx->angle_delta_cdf[PLANE_TYPE_UV][uv_mode - V_PRED]);
+      } else {
+        write_angle_delta(
+            w, mbmi->angle_delta[PLANE_TYPE_UV],
+            ec_ctx->angle_delta_cdf[PLANE_TYPE_Y][uv_mode - V_PRED]);
+      }
 #else
       write_angle_delta(w, mbmi->angle_delta[PLANE_TYPE_UV],
                         ec_ctx->angle_delta_cdf[uv_mode - V_PRED]);
@@ -2013,14 +2019,17 @@ static AOM_INLINE void write_modes(AV1_COMP *const cpi,
          mi_col += cm->seq_params.mib_size) {
       cpi->td.mb.cb_coef_buff = av1_get_cb_coeff_buffer(cpi, mi_row, mi_col);
 #if CONFIG_SDP
-      int totalLoopNum =
-          (frame_is_intra_only(cm) && !cm->seq_params.monochrome) ? 2 : 1;
-      xd->tree_type = (totalLoopNum == 1 ? SHARED_PART : LUMA_PART);
+      const int total_loop_num =
+          (frame_is_intra_only(cm) && !cm->seq_params.monochrome &&
+           cm->seq_params.enable_sdp)
+              ? 2
+              : 1;
+      xd->tree_type = (total_loop_num == 1 ? SHARED_PART : LUMA_PART);
 #endif
       write_modes_sb(cpi, tile, w, &tok, tok_end, mi_row, mi_col,
                      cm->seq_params.sb_size);
 #if CONFIG_SDP
-      if (totalLoopNum == 2) {
+      if (total_loop_num == 2) {
         xd->tree_type = CHROMA_PART;
         write_modes_sb(cpi, tile, w, &tok, tok_end, mi_row, mi_col,
                        cm->seq_params.sb_size);
@@ -2917,7 +2926,9 @@ static AOM_INLINE void write_sequence_header(
   }
 
   write_sb_size(seq_params, wb);
-
+#if CONFIG_SDP
+  aom_wb_write_bit(wb, seq_params->enable_sdp);
+#endif
   aom_wb_write_bit(wb, seq_params->enable_filter_intra);
   aom_wb_write_bit(wb, seq_params->enable_intra_edge_filter);
 

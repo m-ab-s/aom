@@ -215,6 +215,12 @@ typedef struct {
    * Flag to indicate if 1:4 / 4:1 partitions should be enabled.
    */
   bool enable_1to4_partitions;
+#if CONFIG_SDP
+  /*!
+   * Flag to indicate if semi-decoupled partitioning should be enabled.
+   */
+  bool enable_sdp;
+#endif
   /*!
    * Indicates the minimum partition size that should be allowed. Both width and
    * height of a partition cannot be smaller than the min_partition_size.
