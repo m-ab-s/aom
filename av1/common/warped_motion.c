@@ -1082,10 +1082,11 @@ int av1_find_projection(int np, const int *pts1, const int *pts2,
 #if CONFIG_EXT_ROTATION
 void av1_warp_rotation(MB_MODE_INFO *mi, int8_t rotation, int center_x,
                        int center_y) {
+  const int sine_index =
+      (rotation < 0) ? (int)(-rotation / 0.2) : (int)(rotation / 0.2);
   const int sine_val =
-      (rotation < 0) ? -sine_values[-rotation] : sine_values[rotation];
-  const int cosine_val =
-      (rotation < 0) ? cosine_values[-rotation] : cosine_values[rotation];
+      (rotation < 0) ? -sine_values[sine_index] : sine_values[sine_index];
+  const int cosine_val = cosine_values[sine_index];
 
   if (mi->wm_params.wmtype == IDENTITY) {
     const MV mv = mi->mv[0].as_mv;

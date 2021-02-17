@@ -276,6 +276,13 @@ static MOTION_MODE read_motion_mode(AV1_COMMON *cm, MACROBLOCKD *xd,
     motion_mode =
         aom_read_symbol(r, xd->tile_ctx->motion_mode_cdf[mbmi->sb_type],
                         MOTION_MODES, ACCT_STR);
+#if CONFIG_EXT_ROTATION
+    if (last_motion_mode_allowed == WARPED_CAUSAL) {
+      mbmi->rotation =
+          aom_read_literal(r, ROTATION_BITS, ACCT_STR) * ROTATION_STEP -
+          ROTATION_RANGE;
+    }
+#endif  // CONFIG_EXT_ROTATION
     return (MOTION_MODE)(SIMPLE_TRANSLATION + motion_mode);
   }
 }
@@ -1599,6 +1606,12 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
 #endif
       mbmi->wm_params.invalid = 1;
     }
+#if CONFIG_EXT_ROTATION
+    // add rotation
+    const int center_x = (mi_col + (xd->width / 2)) * MI_SIZE;
+    const int center_y = (mi_row + (xd->height / 2)) * MI_SIZE;
+    av1_warp_rotation(mbmi, mbmi->rotation, center_x, center_y);
+#endif  // CONFIG_EXT_ROTATION
   }
 
   xd->cfl.store_y = store_cfl_required(cm, xd);
