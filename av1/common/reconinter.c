@@ -288,10 +288,10 @@ const wedge_params_type av1_wedge_params_lookup[BLOCK_SIZES_ALL] = {
     wedge_masks[BLOCK_32X32] },
   { 0, NULL, NULL, NULL },
   { 0, NULL, NULL, NULL },
+  { CONFIG_ARBITRARY_WEDGE, NULL, NULL, NULL },
   { 0, NULL, NULL, NULL },
   { 0, NULL, NULL, NULL },
-  { 0, NULL, NULL, NULL },
-  { 0, NULL, NULL, NULL },
+  { CONFIG_ARBITRARY_WEDGE, NULL, NULL, NULL },
   { 0, NULL, NULL, NULL },
   { 0, NULL, NULL, NULL },
   { MAX_WEDGE_TYPES, wedge_codebook_16_hgtw, wedge_signflip_lookup[BLOCK_8X32],
@@ -328,6 +328,12 @@ const uint8_t *av1_get_compound_type_mask(
   (void)sb_type;
   switch (comp_data->type) {
     case COMPOUND_WEDGE:
+#if CONFIG_ARBITRARY_WEDGE
+      if (av1_wedge_params_lookup[sb_type].codebook == NULL) {
+        // We are using an arbitrary mask, stored earlier.
+        return comp_data->seg_mask;
+      }
+#endif  // CONFIG_ARBITRARY_WEDGE
       return av1_get_contiguous_soft_mask(comp_data->wedge_index,
                                           comp_data->wedge_sign, sb_type);
     case COMPOUND_DIFFWTD: return comp_data->seg_mask;
@@ -533,6 +539,9 @@ static AOM_INLINE void init_wedge_masks() {
     const wedge_params_type *wedge_params = &av1_wedge_params_lookup[bsize];
     const int wtypes = wedge_params->wedge_types;
     if (wtypes == 0) continue;
+#if CONFIG_ARBITRARY_WEDGE
+    if (wedge_params->codebook == NULL) continue;
+#endif  // CONFIG_ARBITRARY_WEDGE
     const uint8_t *mask;
     const int bw = block_size_wide[bsize];
     const int bh = block_size_high[bsize];

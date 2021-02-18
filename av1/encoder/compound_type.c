@@ -16,6 +16,9 @@
 #include "av1/encoder/motion_search_facade.h"
 #include "av1/encoder/rdopt_utils.h"
 #include "av1/encoder/reconinter_enc.h"
+#if CONFIG_ARBITRARY_WEDGE
+#include "av1/encoder/segment_patch.h"
+#endif  // CONFIG_ARBITRARY_WEDGE
 #include "av1/encoder/tx_search.h"
 
 typedef int64_t (*pick_interinter_mask_type)(
@@ -300,6 +303,70 @@ static int64_t pick_wedge_fixed_sign(
                 x->mode_costs.wedge_idx_cost[bsize][*best_wedge_index], 0);
 }
 
+#if CONFIG_ARBITRARY_WEDGE
+// Create an arbitrary binary mask using spacial segmentation of this block.
+// This is used for larger blocks, where we don't have pre-defined wedges.
+static int64_t pick_arbitrary_wedge(const AV1_COMP *const cpi,
+                                    MACROBLOCK *const x, const BLOCK_SIZE bsize,
+                                    const int16_t *const residual1,
+                                    const int16_t *const diff10,
+                                    uint8_t *seg_mask, uint64_t *best_sse) {
+  const int bw = block_size_wide[bsize];
+  const int bh = block_size_high[bsize];
+  const int N = bw * bh;
+  *best_sse = UINT64_MAX;
+
+#if DUMP_SEGMENT_MASKS
+  av1_dump_raw_y_plane(x->plane[0].src.buf, bw, bh, x->plane[0].src.stride,
+                       "/tmp/1.source.yuv");
+#endif  // DUMP_SEGMENT_MASKS
+
+  // Get segment mask from helper library.
+  Av1SegmentParams params;
+  av1_get_default_segment_params(&params);
+  params.k = 5000;  // TODO(urvang): Temporary hack to get 2 components.
+  int num_components = -1;
+  av1_get_segments(x->plane[0].src.buf, bw, bh, x->plane[0].src.stride, &params,
+                   seg_mask, &num_components);
+
+  if (num_components >= 2) {
+    // TODO(urvang): Convert more than 2 components to 2 components.
+    if (num_components == 2) {
+      // Convert binary mask with values {0, 1} to one with values {0, 64}.
+      av1_extend_binary_mask_range(seg_mask, bw, bh);
+#if DUMP_SEGMENT_MASKS
+      av1_dump_raw_y_plane(seg_mask, bw, bh, bw, "/tmp/2.binary_mask.yuv");
+#endif  // DUMP_SEGMENT_MASKS
+
+      // Get a smooth mask from the binary mask.
+      av1_apply_box_blur(seg_mask, bw, bh);
+#if DUMP_SEGMENT_MASKS
+      av1_dump_raw_y_plane(seg_mask, bw, bh, bw, "/tmp/3.smooth_mask.yuv");
+#endif  // DUMP_SEGMENT_MASKS
+
+      // Get RDCost
+      *best_sse =
+          av1_wedge_sse_from_residuals(residual1, diff10, seg_mask, N);
+      const MACROBLOCKD *const xd = &x->e_mbd;
+      const int hbd = is_cur_buf_hbd(xd);
+      const int bd_round = hbd ? (xd->bd - 8) * 2 : 0;
+      *best_sse =  ROUND_POWER_OF_TWO(*best_sse, bd_round);
+
+      int rate;
+      int64_t dist;
+      model_rd_sse_fn[MODELRD_TYPE_MASKED_COMPOUND](cpi, x, bsize, 0, *best_sse, N,
+                                                    &rate, &dist);
+      // TODO(urvang): Add cost of signaling wedge itself to 'rate'.
+      const int64_t rd = RDCOST(x->rdmult, rate, dist);
+      // TODO(urvang): Subtrack rate of signaling wedge (like pick_wedge)?
+      return rd;
+    }
+    return INT64_MAX;
+  }
+  return INT64_MAX;
+}
+#endif  // CONFIG_ARBITRARY_WEDGE
+
 static int64_t pick_interinter_wedge(
     const AV1_COMP *const cpi, MACROBLOCK *const x, const BLOCK_SIZE bsize,
     const uint8_t *const p0, const uint8_t *const p1,
@@ -315,6 +382,18 @@ static int64_t pick_interinter_wedge(
 
   assert(is_interinter_compound_used(COMPOUND_WEDGE, bsize));
   assert(cpi->common.seq_params.enable_masked_compound);
+
+#if CONFIG_ARBITRARY_WEDGE
+  if (av1_wedge_params_lookup[bsize].codebook == NULL) {
+    // TODO(urvang): Reuse seg_mask or have a different wedge_mask array?
+    mbmi->interinter_comp.seg_mask = xd->seg_mask;
+    rd = pick_arbitrary_wedge(cpi, x, bsize, residual1, diff10,
+                              mbmi->interinter_comp.seg_mask, best_sse);
+    mbmi->interinter_comp.wedge_sign = 0;
+    mbmi->interinter_comp.wedge_index = -1;
+    return rd;
+  }
+#endif  // CONFIG_ARBITRARY_WEDGE
 
   if (cpi->sf.inter_sf.fast_wedge_sign_estimate) {
     wedge_sign = estimate_wedge_sign(cpi, x, bsize, p0, bw, p1, bw);
@@ -1046,12 +1125,25 @@ static INLINE int get_interinter_compound_mask_rate(
   const COMPOUND_TYPE compound_type = mbmi->interinter_comp.type;
   // This function will be called only for COMPOUND_WEDGE and COMPOUND_DIFFWTD
   if (compound_type == COMPOUND_WEDGE) {
-    return av1_is_wedge_used(mbmi->sb_type)
-               ? av1_cost_literal(1) +
+    if (!av1_is_wedge_used(mbmi->sb_type)) return 0;
+#if CONFIG_ARBITRARY_WEDGE
+    if (av1_wedge_params_lookup[mbmi->sb_type].codebook == NULL) {
+      // We are using an arbitrary mask, so need to run RLE to compute rate.
+      const int bw = block_size_wide[mbmi->sb_type];
+      const int bh = block_size_high[mbmi->sb_type];
+      // For input of length n, max length of run-length encoded string is
+      // 3*n, as storing each length takes 2 bytes.
+      uint8_t rle_buf[3 * MAX_SB_SQUARE];
+      int rle_size = 0;
+      av1_run_length_encode(mbmi->interinter_comp.seg_mask, bw, bh, bw, rle_buf,
+                            &rle_size);
+      return rle_size;
+    }
+#endif  // CONFIG_ARBITRARY_WEDGE
+    return av1_cost_literal(1) +
                      mode_costs
                          ->wedge_idx_cost[mbmi->sb_type]
-                                         [mbmi->interinter_comp.wedge_index]
-               : 0;
+                                         [mbmi->interinter_comp.wedge_index];
   } else {
     assert(compound_type == COMPOUND_DIFFWTD);
     return av1_cost_literal(1);
@@ -1123,8 +1215,13 @@ static int64_t masked_compound_type_rd(
   uint64_t cur_sse = UINT64_MAX;
   best_rd_cur = pick_interinter_mask[compound_type - COMPOUND_WEDGE](
       cpi, x, bsize, *preds0, *preds1, residual1, diff10, &cur_sse);
+  if (best_rd_cur == INT64_MAX) {
+    *comp_model_rd_cur = INT64_MAX;
+    return INT64_MAX;
+  }
   *rs2 += get_interinter_compound_mask_rate(&x->mode_costs, mbmi);
   best_rd_cur += RDCOST(x->rdmult, *rs2 + rate_mv, 0);
+
   assert(cur_sse != UINT64_MAX);
   int64_t skip_rd_cur = RDCOST(x->rdmult, *rs2 + rate_mv, (cur_sse << 4));
 
