@@ -2236,7 +2236,7 @@ static int encode_without_recode(AV1_COMP *cpi) {
                     q_cfg->enable_chroma_deltaq);
   av1_set_speed_features_qindex_dependent(cpi, cpi->oxcf.speed);
 #if !CONFIG_EXTQUANT
-  if (q_cfg->deltaq_mode != NO_DELTA_Q)
+  if (q_cfg->deltaq_mode != NO_DELTA_Q || q_cfg->enable_chroma_deltaq)
 #endif
     av1_init_quantizer(&cm->seq_params, &cpi->enc_quant_dequant_params,
                        &cm->quant_params);
@@ -2253,7 +2253,7 @@ static int encode_without_recode(AV1_COMP *cpi) {
                         q_cfg->enable_chroma_deltaq);
       av1_set_speed_features_qindex_dependent(cpi, cpi->oxcf.speed);
 #if !CONFIG_EXTQUANT
-      if (q_cfg->deltaq_mode != NO_DELTA_Q)
+      if (q_cfg->deltaq_mode != NO_DELTA_Q || q_cfg->enable_chroma_deltaq)
 #endif
         av1_init_quantizer(&cm->seq_params, &cpi->enc_quant_dequant_params,
                            &cm->quant_params);
@@ -2421,7 +2421,7 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
     av1_set_speed_features_qindex_dependent(cpi, oxcf->speed);
 
 #if !CONFIG_EXTQUANT
-    if (q_cfg->deltaq_mode != NO_DELTA_Q)
+    if (q_cfg->deltaq_mode != NO_DELTA_Q || q_cfg->enable_chroma_deltaq)
 #endif
       av1_init_quantizer(&cm->seq_params, &cpi->enc_quant_dequant_params,
                          &cm->quant_params);

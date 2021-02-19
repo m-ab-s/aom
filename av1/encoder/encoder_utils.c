@@ -825,7 +825,7 @@ void av1_determine_sc_tools_with_encoding(AV1_COMP *cpi, const int q_orig) {
                       q_cfg->enable_chroma_deltaq);
     av1_set_speed_features_qindex_dependent(cpi, oxcf->speed);
 #if !CONFIG_EXTQUANT
-    if (q_cfg->deltaq_mode != NO_DELTA_Q)
+    if (q_cfg->deltaq_mode != NO_DELTA_Q || q_cfg->enable_chroma_deltaq)
 #endif
       av1_init_quantizer(&cm->seq_params, &cpi->enc_quant_dequant_params,
                          &cm->quant_params);
