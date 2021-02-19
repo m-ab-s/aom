@@ -29,6 +29,12 @@
 #include "av1/encoder/tune_vmaf.h"
 #endif
 
+#if CONFIG_FLEX_STEPS
+#include <ctype.h>
+#include <stdio.h>
+#include <string.h>
+#endif
+
 #define MIN_BOOST_COMBINE_FACTOR 4.0
 #define MAX_BOOST_COMBINE_FACTOR 12.0
 
@@ -451,6 +457,264 @@ static void reset_film_grain_chroma_params(aom_film_grain_t *pars) {
   memset(pars->scaling_points_cb, 0, sizeof(pars->scaling_points_cb));
   memset(pars->ar_coeffs_cb, 0, sizeof(pars->ar_coeffs_cb));
 }
+
+#if CONFIG_FLEX_STEPS
+/* Note the read_token_after and readline helper functions are same
+   to what is defined in subgop.c as static functins. This needs to be unified
+   <TBD> */
+static char *qStep_strtok_r(char *str, const char *delim, char **saveptr) {
+  if (str == NULL) return NULL;
+  if (strlen(str) == 0) return NULL;
+  char *ptr = str;
+  char *x = strstr(str, delim);
+  if (x) {
+    *x = 0;
+    if (saveptr) *saveptr = x + strlen(delim);
+  } else {
+    if (saveptr) *saveptr = NULL;
+    return ptr;
+  }
+  return ptr;
+}
+
+static char *qStep_read_token_after(char *str, const char *delim,
+                                    char **saveptr) {
+  if (str == NULL) return NULL;
+  if (strlen(str) == 0) return NULL;
+  char *ptr = str;
+  char *x = strstr(str, delim);
+  if (x) {
+    ptr = x + strlen(delim);
+    while (*x != 0 && !isspace(*x)) x++;
+    *x = 0;
+    if (saveptr) *saveptr = x + 1;
+    return ptr;
+  } else {
+    if (saveptr) *saveptr = str;
+    return NULL;
+  }
+}
+
+static bool qStep_readline(char *buf, int size, FILE *fp) {
+  buf[0] = '\0';
+  buf[size - 1] = '\0';
+  char *tmp;
+  while (1) {
+    if (fgets(buf, size, fp) == NULL) {
+      *buf = '\0';
+      return false;
+    } else {
+      if ((tmp = strrchr(buf, '\n')) != NULL) *tmp = '\0';
+      if ((tmp = strchr(buf, '#')) != NULL) *tmp = '\0';
+      for (int i = 0; i < (int)strlen(buf); ++i) {
+        if (!isspace(buf[i])) return true;
+      }
+    }
+  }
+  return true;
+}
+
+int process_qStep_config_from_file(const char *paramfile,
+                                   AV1EncoderConfig *oxcf) {
+  int qStepMode;
+  char *token;
+  char *str;
+  char line[8192];
+  int linesize = 8192;
+
+  if (!paramfile) {
+    return 1;
+  }
+
+  if (!strlen(paramfile)) {
+    return 1;
+  }
+
+  FILE *fp = fopen(paramfile, "r");
+  if (!fp) {
+    return 0;
+  }
+
+  oxcf->q_cfg.qStep_mode = 0;
+  while (qStep_readline(line, linesize, fp)) {
+    if (qStep_read_token_after(line, "qStepMode:", NULL)) {
+      str = line;
+      qStepMode = atoi(qStep_read_token_after(str, "qStepMode:", &str));
+      assert(qStepMode == 0 || qStepMode == 1 || qStepMode == 2 ||
+             qStepMode == 3);
+      oxcf->q_cfg.qStep_mode = qStepMode;
+    }
+
+    if (oxcf->q_cfg.qStep_mode == 1) {
+      int num_transition_interval_minus1 = 0;
+      if (qStep_read_token_after(line,
+                                 "num_transition_interval_minus1:", NULL)) {
+        str = line;
+        num_transition_interval_minus1 = atoi(qStep_read_token_after(
+            str, "num_transition_interval_minus1:", &str));
+        assert(num_transition_interval_minus1 >= 1);
+        oxcf->q_cfg.num_qStep_intervals = num_transition_interval_minus1;
+      }
+      if (qStep_read_token_after(line, "num_Qsteps_in_interval:", NULL)) {
+        int idx = 0;
+        str = line;
+        token = qStep_read_token_after(str, "num_Qsteps_in_interval:", &str);
+        char *token1 =
+            qStep_strtok_r(token, ",", &str);  // strtok(token, ","); //
+        while (token1) {
+          oxcf->q_cfg.num_qsteps_in_interval[idx++] = atoi(token1);
+          token1 = qStep_strtok_r(str, ",", &str);  // strtok(NULL,",");
+        }
+        assert((idx - 1) >= oxcf->q_cfg.num_qStep_intervals);
+      }
+    } else if (oxcf->q_cfg.qStep_mode == 2) {
+      int num_qStep_levels_minus1 = 0;
+      if (qStep_read_token_after(line, "num_q_step_periods_minus1:", NULL)) {
+        str = line;
+        num_qStep_levels_minus1 = atoi(
+            qStep_read_token_after(str, "num_q_step_periods_minus1:", &str));
+        assert(num_qStep_levels_minus1 >= 1);
+        oxcf->q_cfg.num_qStep_levels = num_qStep_levels_minus1;
+      }
+      if (qStep_read_token_after(line, "num_Qsteps_in_period:", NULL)) {
+        int idx = 0;
+        str = line;
+        token = qStep_read_token_after(str, "num_Qsteps_in_period:", &str);
+        char *token1 = qStep_strtok_r(token, ",", &str);  // strtok(token, ",");
+        while (token1) {
+          oxcf->q_cfg.qSteps_level[idx++] = atoi(token1);
+          token1 = qStep_strtok_r(str, ",", &str);  // strtok(NULL,",");
+        }
+        assert((idx - 1) >= oxcf->q_cfg.num_qStep_intervals);
+      }
+    } else if (oxcf->q_cfg.qStep_mode == 3) {
+      int num_table_templates_minus1 = 0;
+      if (qStep_read_token_after(line, "num_table_templates_minus1:", NULL)) {
+        str = line;
+        num_table_templates_minus1 = atoi(
+            qStep_read_token_after(str, "num_table_templates_minus1:", &str));
+        assert(num_table_templates_minus1 >= 1);
+        oxcf->q_cfg.num_table_templates_minus1 = num_table_templates_minus1;
+      }
+      if (qStep_read_token_after(line, "num_entries_in_table_minus1:", NULL)) {
+        int idx = 0;
+        str = line;
+        token =
+            qStep_read_token_after(str, "num_entries_in_table_minus1:", &str);
+        char *token1 = qStep_strtok_r(token, ",", &str);  // strtok(token, ",");
+        while (token1) {
+          oxcf->q_cfg.num_entries_in_table_minus1[idx++] = atoi(token1);
+          token1 = qStep_strtok_r(str, ",", &str);  // strtok(NULL,",");
+        }
+        assert((idx - 1) >= oxcf->q_cfg.num_table_templates_minus1);
+      }
+      for (int kk = 0; kk <= oxcf->q_cfg.num_table_templates_minus1; kk++) {
+        char buffer[100];
+        snprintf(buffer, sizeof(buffer), "qsteps_level_period_%d:", kk);
+        if (qStep_read_token_after(line, buffer, NULL)) {
+          int idx = 0;
+          str = line;
+          token = qStep_read_token_after(str, buffer, &str);
+          char *token1 =
+              qStep_strtok_r(token, ",", &str);  // strtok(token, ",");
+          while (token1) {
+            oxcf->q_cfg.qSteps_level_in_table[kk][idx++] = atoi(token1);
+            token1 = qStep_strtok_r(str, ",", &str);  // strtok(NULL,",");
+          }
+          assert((idx - 1) >= oxcf->q_cfg.num_entries_in_table_minus1[kk]);
+        }
+      }
+
+      int num_transition_interval_minus1 = 0;
+      if (qStep_read_token_after(line,
+                                 "num_transition_interval_minus1:", NULL)) {
+        str = line;
+        num_transition_interval_minus1 = atoi(qStep_read_token_after(
+            str, "num_transition_interval_minus1:", &str));
+        assert(num_transition_interval_minus1 >= 1);
+        oxcf->q_cfg.num_qStep_intervals = num_transition_interval_minus1;
+      }
+      if (qStep_read_token_after(line, "template_table_idx:", NULL)) {
+        int idx = 0;
+        str = line;
+        token = qStep_read_token_after(str, "template_table_idx:", &str);
+        char *token1 = qStep_strtok_r(token, ",", &str);  // strtok(token, ",");
+        while (token1) {
+          oxcf->q_cfg.template_table_idx[idx++] = atoi(token1);
+          token1 = qStep_strtok_r(str, ",", &str);  // strtok(NULL,",");
+        }
+        assert((idx - 1) >= oxcf->q_cfg.num_qStep_intervals);
+      }
+
+      if (qStep_read_token_after(line, "num_qsteps_in_interval:", NULL)) {
+        int idx = 0;
+        str = line;
+        token = qStep_read_token_after(str, "num_qsteps_in_interval:", &str);
+        char *token1 = qStep_strtok_r(token, ",", &str);  // strtok(token, ",");
+        while (token1) {
+          oxcf->q_cfg.num_qsteps_in_table[idx++] = atoi(token1);
+          token1 = qStep_strtok_r(str, ",", &str);  // strtok(NULL,",");
+        }
+        assert((idx - 1) >= oxcf->q_cfg.num_qStep_intervals);
+      }
+      if (qStep_read_token_after(line, "table_start_region_idx:", NULL)) {
+        int idx = 0;
+        str = line;
+        token = qStep_read_token_after(str, "table_start_region_idx:", &str);
+        char *token1 = qStep_strtok_r(token, ",", &str);  // strtok(token, ",");
+        while (token1) {
+          oxcf->q_cfg.table_start_region_idx[idx++] = atoi(token1);
+          token1 = qStep_strtok_r(str, ",", &str);  // strtok(NULL,",");
+        }
+        assert((idx - 1) >= oxcf->q_cfg.num_qStep_intervals);
+      }
+    }
+  }
+  fclose(fp);
+  return 1;
+}
+
+void update_qstep_parameters(struct AV1_COMP *cpi,
+                             const AV1EncoderConfig *oxcf) {
+  AV1_COMMON *const cm = &cpi->common;
+  SequenceHeader *seq_params = &cm->seq_params;
+  cpi->oxcf = *oxcf;
+
+  seq_params->qStep_mode = oxcf->q_cfg.qStep_mode;
+
+  if ((seq_params->qStep_mode == 0) || (seq_params->qStep_mode == 1)) {
+    seq_params->num_qStep_intervals = oxcf->q_cfg.num_qStep_intervals;
+    for (int idx = 0; idx <= seq_params->num_qStep_intervals; idx++) {
+      seq_params->num_qsteps_in_interval[idx] =
+          oxcf->q_cfg.num_qsteps_in_interval[idx];
+    }
+  } else if (seq_params->qStep_mode == 2) {
+    seq_params->num_qStep_levels = oxcf->q_cfg.num_qStep_levels;
+    for (int idx = 0; idx <= seq_params->num_qStep_levels; idx++) {
+      seq_params->qSteps_level[idx] = oxcf->q_cfg.qSteps_level[idx];
+    }
+  } else if (seq_params->qStep_mode == 3) {
+    seq_params->num_table_templates_minus1 =
+        oxcf->q_cfg.num_table_templates_minus1;
+    for (int idx = 0; idx <= seq_params->num_table_templates_minus1; idx++) {
+      seq_params->num_entries_in_table_minus1[idx] =
+          oxcf->q_cfg.num_entries_in_table_minus1[idx];
+      for (int i = 0; i <= seq_params->num_entries_in_table_minus1[idx]; i++) {
+        seq_params->qSteps_level_in_table[idx][i] =
+            oxcf->q_cfg.qSteps_level_in_table[idx][i];
+      }
+    }
+    seq_params->num_qStep_intervals = oxcf->q_cfg.num_qStep_intervals;
+    for (int idx = 0; idx <= seq_params->num_qStep_intervals; idx++) {
+      seq_params->template_table_idx[idx] = oxcf->q_cfg.template_table_idx[idx];
+      seq_params->table_start_region_idx[idx] =
+          oxcf->q_cfg.table_start_region_idx[idx];
+      seq_params->num_qsteps_in_table[idx] =
+          oxcf->q_cfg.num_qsteps_in_table[idx];
+    }
+  }
+}
+#endif
 
 void av1_update_film_grain_parameters(struct AV1_COMP *cpi,
                                       const AV1EncoderConfig *oxcf) {

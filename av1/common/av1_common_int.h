@@ -309,6 +309,26 @@ typedef struct SequenceHeader {
   int8_t base_y_dc_delta_q;
   int8_t base_uv_dc_delta_q;
 #endif  // CONFIG_EXTQUANT
+#if CONFIG_FLEX_STEPS
+  int qStep_mode;
+  // mode 0,1,2
+  int num_qStep_intervals;
+  // mode 0, 1
+  int num_qsteps_in_interval[MAX_NUM_Q_STEP_INTERVALS];
+  // mode 2
+  int num_qStep_levels;
+  int qSteps_level[MAX_NUM_Q_STEP_VAL];
+  // For mode 3
+  // template tables
+  int num_table_templates_minus1;
+  int num_entries_in_table_minus1[MAX_NUM_Q_STEP_VAL];
+  int qSteps_level_in_table[MAX_NUM_TABLES][MAX_NUM_Q_STEP_VAL];
+  // derivation
+  int template_table_idx[MAX_NUM_Q_STEP_INTERVALS];
+  int table_start_region_idx[MAX_NUM_Q_STEP_VAL];
+  int num_qsteps_in_table[MAX_NUM_Q_STEP_INTERVALS];
+#endif  // CONFIG_FLEX_STEPS
+
   uint8_t film_grain_params_present;
 
   // Operating point info.

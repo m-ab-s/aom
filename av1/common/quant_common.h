@@ -54,6 +54,23 @@ struct AV1Common;
 struct CommonQuantParams;
 struct macroblockd;
 
+#if CONFIG_FLEX_STEPS
+#define MAX_NUM_Q_STEP_INTERVALS 16
+#define MAX_NUM_TABLES 8
+#define MAX_NUM_Q_STEP_VAL 256
+
+void set_qStep_table_mode_0_1(int qStep_mode, int num_qStep_intervals,
+                              int *num_qsteps_in_interval);
+void set_qStep_table_mode_2(int qStep_mode, int num_qStep_levels,
+                            int *qSteps_level);
+void set_qStep_table_mode_3(int qStep_mode, int num_qStep_intervals,
+                            int *template_table_idx,
+                            int *table_start_region_idx,
+                            int *num_qsteps_in_table,
+                            int *qSteps_level_in_table);
+// void dump_qStep_table(int mode, int expt);  // kk delete
+#endif
+
 #if CONFIG_EXTQUANT
 int32_t av1_dc_quant_QTX(int qindex, int delta, int base_dc_delta_q,
                          aom_bit_depth_t bit_depth);

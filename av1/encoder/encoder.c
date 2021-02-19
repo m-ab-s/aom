@@ -569,6 +569,10 @@ static void init_config(struct AV1_COMP *cpi, AV1EncoderConfig *oxcf) {
 
   av1_update_film_grain_parameters(cpi, oxcf);
 
+#if CONFIG_FLEX_STEPS
+  update_qstep_parameters(cpi, oxcf);
+#endif
+
   // Single thread case: use counts in common.
   cpi->td.counts = &cpi->counts;
 
@@ -603,6 +607,31 @@ int aom_strcmp(const char *a, const char *b) {
   if (a != NULL && b == NULL) return 1;
   return strcmp(a, b);
 }
+
+#if CONFIG_FLEX_STEPS
+void set_enc_qstep_table(const AV1EncoderConfig *oxcf) {
+  QuantizationCfg *q_cfg = (QuantizationCfg *)&oxcf->q_cfg;
+
+  if ((q_cfg->qStep_mode == 0) || (q_cfg->qStep_mode == 1)) {
+    set_qStep_table_mode_0_1(q_cfg->qStep_mode, q_cfg->num_qStep_intervals,
+                             &q_cfg->num_qsteps_in_interval[0]);
+  } else if (q_cfg->qStep_mode == 2) {
+    set_qStep_table_mode_2(q_cfg->qStep_mode, q_cfg->num_qStep_levels,
+                           &q_cfg->qSteps_level[0]);
+  } else if (q_cfg->qStep_mode == 3) {
+    set_qStep_table_mode_3(
+        q_cfg->qStep_mode, q_cfg->num_qStep_intervals,
+        &q_cfg->template_table_idx[0], &q_cfg->table_start_region_idx[0],
+        &q_cfg->num_qsteps_in_table[0], (int *)q_cfg->qSteps_level_in_table);
+  }
+}
+
+void initialize_qstep_param(const char *qStep_fname, AV1EncoderConfig *oxcf) {
+  // Wrapper added to extend the custom initializations
+  // not in the qstep config file.
+  process_qStep_config_from_file(qStep_fname, oxcf);
+}
+#endif
 
 void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
   AV1_COMMON *const cm = &cpi->common;
@@ -665,6 +694,32 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
     seq_params->op_params[0].initial_display_delay =
         10;  // Default value (not signaled)
   }
+
+#if CONFIG_FLEX_STEPS
+  bool qstep_config_changed = false;
+  if (aom_strcmp(cpi->qstep_config_path, oxcf->qstep_config_path)) {
+    assert(1);  // kk hack
+    aom_free(cpi->qstep_config_path);
+    cpi->qstep_config_path = NULL;
+    if (oxcf->qstep_config_path != NULL) {
+      cpi->qstep_config_path =
+          (char *)aom_malloc((strlen(oxcf->qstep_config_path) + 1) *
+                             sizeof(*oxcf->qstep_config_path));
+      // strcpy(cpi->qstep_config_path, oxcf->qstep_config_path);
+      snprintf(cpi->qstep_config_path,
+               (strlen(oxcf->qstep_config_path) + 1) *
+                   sizeof(*oxcf->qstep_config_path),
+               "%s", oxcf->qstep_config_path);
+    }
+    qstep_config_changed = true;
+  }
+  if (qstep_config_changed) {
+    initialize_qstep_param(oxcf->qstep_config_path, (AV1EncoderConfig *)oxcf);
+    set_enc_qstep_table(oxcf);
+  }
+  update_qstep_parameters(cpi, oxcf);
+
+#endif
 
   av1_update_film_grain_parameters(cpi, oxcf);
 

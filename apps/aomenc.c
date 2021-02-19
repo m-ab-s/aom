@@ -51,6 +51,10 @@
 #include "third_party/libyuv/include/libyuv/scale.h"
 #endif
 
+#if CONFIG_FLEX_STEPS
+#include "aom_mem/aom_mem.h"
+#endif
+
 #if UINTPTR_MAX == 0xffffffff
 #define ENV_BITS "32 bit "
 #elif UINTPTR_MAX == 0xffffffffffffffff
@@ -853,6 +857,11 @@ static const arg_def_t subgop_config_path =
             "If this option is not specified (default), the configurations "
             "are chosen by the encoder using a default algorithm.");
 
+#if CONFIG_FLEX_STEPS
+static const arg_def_t qstep_config_path =
+    ARG_DEF(NULL, "qstep-config-path", 1, "Path to the qStep cofig file");
+#endif
+
 static const arg_def_t *av1_args[] = { &cpu_used_av1,
                                        &auto_altref,
                                        &sharpness,
@@ -959,6 +968,9 @@ static const arg_def_t *av1_args[] = { &cpu_used_av1,
 #endif
                                        &subgop_config_str,
                                        &subgop_config_path,
+#if CONFIG_FLEX_STEPS
+                                       &qstep_config_path,
+#endif
                                        NULL };
 static const int av1_arg_ctrl_map[] = { AOME_SET_CPUUSED,
                                         AOME_SET_ENABLEAUTOALTREF,
@@ -1066,6 +1078,9 @@ static const int av1_arg_ctrl_map[] = { AOME_SET_CPUUSED,
 #endif
                                         AV1E_SET_SUBGOP_CONFIG_STR,
                                         AV1E_SET_SUBGOP_CONFIG_PATH,
+#if CONFIG_FLEX_STEPS
+                                        AV1E_SET_QSTEP_CONFIG_PATH,
+#endif
                                         0 };
 #endif  // CONFIG_AV1_ENCODER
 
@@ -1143,6 +1158,9 @@ struct stream_config {
 #endif
   const char *subgop_config_str;
   const char *subgop_config_path;
+#if CONFIG_FLEX_STEPS
+  const char *qstep_config_path;
+#endif
 };
 
 struct stream_state {
@@ -1426,6 +1444,13 @@ static void set_config_arg_ctrls(struct stream_config *config, int key,
     config->subgop_config_path = arg->val;
     return;
   }
+
+#if CONFIG_FLEX_STEPS
+  if (key == AV1E_SET_QSTEP_CONFIG_PATH) {
+    config->qstep_config_path = arg->val;
+    return;
+  }
+#endif
 
   // For target level, the settings should accumulate rather than overwrite,
   // so we simply append it.
@@ -1935,7 +1960,10 @@ static void show_stream_config(struct stream_state *stream,
           "LoopRestortion (%d)\n",
           encoder_cfg->enable_deblocking, encoder_cfg->enable_cdef,
           encoder_cfg->enable_restoration);
-
+#if CONFIG_FLEX_STEPS
+  fprintf(stdout, "Tool setting (Quantization)    : Mode (%d)\n",
+          encoder_cfg->qstep_mode);
+#endif
   fprintf(stdout,
           "Tool setting (Others)          : Palette (%d), IntraBC (%d)\n",
           encoder_cfg->enable_palette, encoder_cfg->enable_intrabc);
@@ -2025,6 +2053,20 @@ static void initialize_encoder(struct stream_state *stream,
   flags |= stream->config.use_16bit_internal ? AOM_CODEC_USE_HIGHBITDEPTH : 0;
   flags |= global->quiet ? 0 : AOM_CODEC_USE_PER_FRAME_STATS;
 
+#if CONFIG_FLEX_STEPS
+  struct stream_config *sc_cfg = &stream->config;
+  if (sc_cfg->qstep_config_path != NULL) {
+    sc_cfg->cfg.encoder_cfg.qstep_config_path =
+        (char *)aom_malloc((strlen(sc_cfg->qstep_config_path) + 1) *
+                           sizeof(*sc_cfg->qstep_config_path));
+    // strcpy((char *)sc_cfg->cfg.encoder_cfg.qstep_config_path,
+    // sc_cfg->qstep_config_path);
+    snprintf((char *)sc_cfg->cfg.encoder_cfg.qstep_config_path,
+             (strlen(sc_cfg->qstep_config_path) + 1) *
+                 sizeof(*sc_cfg->qstep_config_path),
+             "%s", sc_cfg->qstep_config_path);
+  }
+#endif
   /* Construct Encoder Context */
   aom_codec_enc_init(&stream->encoder, global->codec, &stream->config.cfg,
                      flags);
@@ -2059,6 +2101,13 @@ static void initialize_encoder(struct stream_state *stream,
     AOM_CODEC_CONTROL_TYPECHECKED(&stream->encoder, AV1E_SET_SUBGOP_CONFIG_PATH,
                                   stream->config.subgop_config_path);
   }
+#if CONFIG_FLEX_STEPS
+  if (stream->config.qstep_config_path) {
+    AOM_CODEC_CONTROL_TYPECHECKED(&stream->encoder, AV1E_SET_QSTEP_CONFIG_PATH,
+                                  stream->config.qstep_config_path);
+  }
+#endif
+
 #if CONFIG_AV1_DECODER
   if (global->test_decode != TEST_DECODE_OFF) {
     aom_codec_iface_t *decoder = get_aom_decoder_by_short_name(

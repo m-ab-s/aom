@@ -240,6 +240,10 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
 
   av1_read_sequence_header(cm, rb, seq_params);
 
+#if CONFIG_FLEX_STEPS
+  av1_read_qStep_config(cm, rb, seq_params);
+#endif
+
   av1_read_color_config(rb, pbi->allow_lowbitdepth, seq_params, &cm->error);
   if (!(seq_params->subsampling_x == 0 && seq_params->subsampling_y == 0) &&
       !(seq_params->subsampling_x == 1 && seq_params->subsampling_y == 1) &&

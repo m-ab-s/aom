@@ -26,6 +26,13 @@ struct ThreadData;
 void av1_read_sequence_header(AV1_COMMON *cm, struct aom_read_bit_buffer *rb,
                               SequenceHeader *seq_params);
 
+#if CONFIG_FLEX_STEPS
+// Implements the qStep_config() function in the spec. Reports errors by
+// calling rb->error_handler() or aom_internal_error().
+void av1_read_qStep_config(AV1_COMMON *cm, struct aom_read_bit_buffer *rb,
+                           SequenceHeader *seq_params);
+#endif
+
 void av1_read_frame_size(struct aom_read_bit_buffer *rb, int num_bits_width,
                          int num_bits_height, int *width, int *height);
 BITSTREAM_PROFILE av1_read_profile(struct aom_read_bit_buffer *rb);

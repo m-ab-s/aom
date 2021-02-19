@@ -48,6 +48,10 @@
 #include "av1/encoder/tpl_model.h"
 #include "av1/encoder/av1_noise_estimate.h"
 
+#if CONFIG_FLEX_STEPS
+#include "av1/common/quant_common.h"
+#endif
+
 #if CONFIG_INTERNAL_STATS
 #include "aom_dsp/ssim.h"
 #endif
@@ -691,6 +695,25 @@ typedef struct {
   bool enable_chroma_deltaq;
   // Indicates if encoding with quantization matrices should be enabled.
   bool using_qm;
+#if CONFIG_FLEX_STEPS
+  int qStep_mode;
+  // mode 0 and mode 1
+  int num_qStep_intervals;
+  int num_qsteps_in_interval[MAX_NUM_Q_STEP_INTERVALS];
+  // mode 2
+  int num_qStep_levels;
+  int qSteps_level[MAX_NUM_Q_STEP_VAL];
+  // For mode 3
+  // template tables
+  int num_table_templates_minus1;
+  int num_entries_in_table_minus1[MAX_NUM_Q_STEP_VAL];
+  int qSteps_level_in_table[MAX_NUM_TABLES][MAX_NUM_Q_STEP_VAL];
+  // derivation
+  int template_table_idx[MAX_NUM_Q_STEP_INTERVALS];
+  int table_start_region_idx[MAX_NUM_Q_STEP_VAL];
+  int num_qsteps_in_table[MAX_NUM_Q_STEP_INTERVALS];
+
+#endif  // CONFIG_FLEX_STEPS
 } QuantizationCfg;
 
 /*!\endcond */
@@ -932,6 +955,11 @@ typedef struct AV1EncoderConfig {
 
   // SubGOP config.
   const char *subgop_config_path;
+
+#if CONFIG_FLEX_STEPS
+  // qStep config.
+  const char *qstep_config_path;
+#endif
 
   // Configuration related to encoder toolsets.
   ToolCfg tool_cfg;
@@ -2331,6 +2359,13 @@ typedef struct AV1_COMP {
    */
   char *subgop_config_path;
 
+#if CONFIG_FLEX_STEPS
+  /*!
+   * qStep configuration file path
+   */
+  char *qstep_config_path;
+#endif
+
   /*!
    * Information related to subGOP configuration if specified.
    */
@@ -2748,6 +2783,11 @@ void av1_check_initial_width(AV1_COMP *cpi, int use_highbitdepth,
 
 void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
                                const AV1EncoderConfig *oxcf, int use_svc);
+
+#if CONFIG_FLEX_STEPS
+void set_enc_qstep_table(const AV1EncoderConfig *oxcf);
+void initialize_qstep_param(const char *qStep_fname, AV1EncoderConfig *oxcf);
+#endif
 
 /*!\endcond */
 

@@ -4274,6 +4274,55 @@ void av1_read_sequence_header(AV1_COMMON *cm, struct aom_read_bit_buffer *rb,
   seq_params->enable_restoration = aom_rb_read_bit(rb);
 }
 
+#if CONFIG_FLEX_STEPS
+void av1_read_qStep_config(AV1_COMMON *cm, struct aom_read_bit_buffer *rb,
+                           SequenceHeader *seq_params) {
+  (void)cm;
+  seq_params->qStep_mode = aom_rb_read_literal(rb, 2);
+  if (seq_params->qStep_mode == 0 || seq_params->qStep_mode == 1) {
+    seq_params->num_qStep_intervals = aom_rb_read_literal(rb, 4);
+    seq_params->num_qsteps_in_interval[0] = aom_rb_read_uvlc(rb);
+    for (int idx = 1; idx <= seq_params->num_qStep_intervals; idx++) {
+      // int delta_qsteps_sign = aom_rb_read_bit(rb);
+      int delta_val = aom_rb_read_uvlc(rb);
+      assert(delta_val >= 0);
+      seq_params->num_qsteps_in_interval[idx] =
+          delta_val + seq_params->num_qsteps_in_interval[idx - 1];
+    }
+  } else if (seq_params->qStep_mode == 2) {
+    seq_params->num_qStep_levels = aom_rb_read_literal(rb, 8);
+    seq_params->qSteps_level[0] = aom_rb_read_uvlc(rb);
+    for (int idx = 1; idx <= seq_params->num_qStep_levels; idx++) {
+      int delta_qsteps_sign = aom_rb_read_bit(rb);
+      int delta_val = aom_rb_read_uvlc(rb);
+      seq_params->qSteps_level[idx] =
+          (delta_val * (delta_qsteps_sign ? -1 : 1)) +
+          seq_params->qSteps_level[idx - 1];
+    }
+  } else if (seq_params->qStep_mode == 3) {
+    seq_params->num_table_templates_minus1 = aom_rb_read_literal(rb, 2);
+    for (int i = 0; i <= seq_params->num_table_templates_minus1; i++) {
+      seq_params->num_entries_in_table_minus1[i] = aom_rb_read_literal(rb, 8);
+      seq_params->qSteps_level_in_table[i][0] = aom_rb_read_uvlc(rb);
+      for (int idx = 1; idx <= seq_params->num_entries_in_table_minus1[i];
+           idx++) {
+        int delta_qsteps_sign = aom_rb_read_bit(rb);
+        int delta_val = aom_rb_read_uvlc(rb);
+        seq_params->qSteps_level_in_table[i][idx] =
+            (delta_val * (delta_qsteps_sign ? -1 : 1)) +
+            seq_params->qSteps_level_in_table[i][idx - 1];
+      }
+    }
+    seq_params->num_qStep_intervals = aom_rb_read_literal(rb, 4);
+    for (int idx = 0; idx <= seq_params->num_qStep_intervals; idx++) {
+      seq_params->template_table_idx[idx] = aom_rb_read_literal(rb, 2);
+      seq_params->num_qsteps_in_table[idx] = aom_rb_read_literal(rb, 8);
+      seq_params->table_start_region_idx[idx] = aom_rb_read_literal(rb, 8);
+    }
+  }
+}
+#endif
+
 static int read_global_motion_params(WarpedMotionParams *params,
                                      const WarpedMotionParams *ref_params,
                                      struct aom_read_bit_buffer *rb,
@@ -5174,6 +5223,26 @@ uint32_t av1_decode_frame_headers_and_setup(AV1Decoder *pbi,
     cm->cur_frame->global_motion[i] = default_warp_params;
   }
   xd->global_motion = cm->global_motion;
+
+#if CONFIG_FLEX_STEPS
+  SequenceHeader *const seq_params = &cm->seq_params;
+  if ((seq_params->qStep_mode == 0) || (seq_params->qStep_mode == 1)) {
+    set_qStep_table_mode_0_1(seq_params->qStep_mode,
+                             seq_params->num_qStep_intervals,
+                             &seq_params->num_qsteps_in_interval[0]);
+  } else if (seq_params->qStep_mode == 2) {
+    set_qStep_table_mode_2(seq_params->qStep_mode, seq_params->num_qStep_levels,
+                           &seq_params->qSteps_level[0]);
+  } else if (seq_params->qStep_mode == 3) {
+    set_qStep_table_mode_3(seq_params->qStep_mode,
+                           seq_params->num_qStep_intervals,
+                           &seq_params->template_table_idx[0],
+                           &seq_params->table_start_region_idx[0],
+                           &seq_params->num_qsteps_in_table[0],
+                           (int *)seq_params->qSteps_level_in_table);
+  }
+  // dump_qStep_table(seq_params->qStep_mode, 1);
+#endif
 
   read_uncompressed_header(pbi, rb);
 

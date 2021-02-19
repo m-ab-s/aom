@@ -951,6 +951,13 @@ static AOM_INLINE void update_subgop_ref_stats(
 void av1_update_film_grain_parameters(struct AV1_COMP *cpi,
                                       const AV1EncoderConfig *oxcf);
 
+#if CONFIG_FLEX_STEPS
+int process_qStep_config_from_file(const char *paramfile,
+                                   AV1EncoderConfig *oxcf);
+void update_qstep_parameters(struct AV1_COMP *cpi,
+                             const AV1EncoderConfig *oxcf);
+#endif
+
 void av1_scale_references(AV1_COMP *cpi, const InterpFilter filter,
                           const int phase, const int use_optimized_scaler);
 
