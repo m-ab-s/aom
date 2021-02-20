@@ -1892,61 +1892,38 @@ static INLINE TX_SIZE get_tx_size(int width, int height) {
   if (width < height) {
     if (width + width == height) {
       switch (width) {
-        case 4: return TX_4X8; break;
-        case 8: return TX_8X16; break;
-        case 16: return TX_16X32; break;
-        case 32: return TX_32X64; break;
+        case 4: return (height == 8) ? TX_4X8 : TX_INVALID;
+        case 8: return (height == 16) ? TX_8X16 : TX_INVALID;
+        case 16: return (height == 32) ? TX_16X32 : TX_INVALID;
+        case 32: return (height == 64) ? TX_32X64 : TX_INVALID;
       }
     } else {
       switch (width) {
-        case 4: return TX_4X16; break;
-        case 8: return TX_8X32; break;
-        case 16: return TX_16X64; break;
+        case 4: return (height == 16) ? TX_4X16 : TX_INVALID;
+        case 8: return (height == 32) ? TX_8X32 : TX_INVALID;
+        case 16: return (height == 64) ? TX_16X64 : TX_INVALID;
       }
     }
   } else {
     if (height + height == width) {
       switch (height) {
-        case 4: return TX_8X4; break;
-        case 8: return TX_16X8; break;
-        case 16: return TX_32X16; break;
-        case 32: return TX_64X32; break;
+        case 4: return (width == 8) ? TX_8X4 : TX_INVALID;
+        case 8: return (width == 16) ? TX_16X8 : TX_INVALID;
+        case 16: return (width == 32) ? TX_32X16 : TX_INVALID;
+        case 32: return (width == 64) ? TX_64X32 : TX_INVALID;
       }
     } else {
       switch (height) {
-        case 4: return TX_16X4; break;
-        case 8: return TX_32X8; break;
-        case 16: return TX_64X16; break;
+        case 4: return (width == 16) ? TX_16X4 : TX_INVALID;
+        case 8: return (width == 32) ? TX_32X8 : TX_INVALID;
+        case 16: return (width == 64) ? TX_64X16 : TX_INVALID;
       }
     }
   }
-  assert(0);
-  return TX_4X4;
+  return TX_INVALID;
 }
 
 #if CONFIG_NEW_TX_PARTITION
-static const int new_tx_partition_used[TX_SIZES_ALL][TX_PARTITION_TYPES] = {
-  { 1, 0, 0, 0, 0, 0 },  // 4x4 transform
-  { 1, 1, 1, 1, 0, 0 },  // 8x8 transform
-  { 1, 1, 1, 1, 1, 1 },  // 16x16 transform
-  { 1, 1, 1, 1, 1, 1 },  // 32x32 transform
-  { 1, 1, 1, 1, 1, 1 },  // 64x64 transform
-  { 1, 0, 1, 0, 0, 0 },  // 4x8 transform
-  { 1, 0, 0, 1, 0, 0 },  // 8x4 transform
-  { 1, 1, 1, 1, 1, 0 },  // 8x16 transform
-  { 1, 1, 1, 1, 0, 1 },  // 16x8 transform
-  { 1, 1, 1, 1, 1, 0 },  // 16x32 transform
-  { 1, 1, 1, 1, 0, 1 },  // 32x16 transform
-  { 1, 1, 1, 1, 1, 0 },  // 32x64 transform
-  { 1, 1, 1, 1, 0, 1 },  // 64x32 transform
-  { 1, 0, 1, 0, 1, 0 },  // 4x16 transform
-  { 1, 0, 0, 1, 0, 1 },  // 16x4 transform
-  { 1, 1, 1, 0, 1, 0 },  // 8x32 transform
-  { 1, 1, 0, 1, 0, 1 },  // 32x8 transform
-  { 1, 1, 1, 0, 1, 0 },  // 16x64 transform
-  { 1, 1, 0, 1, 0, 1 },  // 64x16 transform
-};
-
 #define MAX_TX_PARTITIONS 4
 typedef struct {
   int rows[MAX_TX_PARTITIONS];
@@ -1994,13 +1971,56 @@ static INLINE int get_tx_partition_sizes(TX_PARTITION_TYPE partition,
     sub_txw = txw >> subtx_shift.cols[i];
     sub_txh = txh >> subtx_shift.rows[i];
     sub_txs[i] = get_tx_size(sub_txw, sub_txh);
+    assert(sub_txs[i] != TX_INVALID);
   }
   return n_partitions;
 }
 
+static INLINE int allow_tx_horz_split(TX_SIZE max_tx_size) {
+  const int sub_txw = tx_size_wide[max_tx_size];
+  const int sub_txh = tx_size_high[max_tx_size] >> 1;
+  const TX_SIZE sub_tx_size = get_tx_size(sub_txw, sub_txh);
+  return sub_tx_size != TX_INVALID;
+}
+
+static INLINE int allow_tx_vert_split(TX_SIZE max_tx_size) {
+  const int sub_txw = tx_size_wide[max_tx_size] >> 1;
+  const int sub_txh = tx_size_high[max_tx_size];
+  const TX_SIZE sub_tx_size = get_tx_size(sub_txw, sub_txh);
+  return sub_tx_size != TX_INVALID;
+}
+
+static INLINE int allow_tx_horz2_split(TX_SIZE max_tx_size) {
+  const int sub_txw = tx_size_wide[max_tx_size];
+  const int sub_txh = tx_size_high[max_tx_size] >> 2;
+  const TX_SIZE sub_tx_size = get_tx_size(sub_txw, sub_txh);
+  return sub_tx_size != TX_INVALID;
+}
+
+static INLINE int allow_tx_vert2_split(TX_SIZE max_tx_size) {
+  const int sub_txw = tx_size_wide[max_tx_size] >> 2;
+  const int sub_txh = tx_size_high[max_tx_size];
+  const TX_SIZE sub_tx_size = get_tx_size(sub_txw, sub_txh);
+  return sub_tx_size != TX_INVALID;
+}
+
 static INLINE int use_tx_partition(TX_PARTITION_TYPE partition,
                                    TX_SIZE max_tx_size) {
-  return new_tx_partition_used[max_tx_size][partition];
+  const int allow_horz = allow_tx_horz_split(max_tx_size);
+  const int allow_vert = allow_tx_vert_split(max_tx_size);
+  const int allow_horz2 = allow_tx_horz2_split(max_tx_size);
+  const int allow_vert2 = allow_tx_vert2_split(max_tx_size);
+  switch (partition) {
+    case TX_PARTITION_NONE: return 1;
+    case TX_PARTITION_SPLIT: return (allow_horz && allow_vert);
+    case TX_PARTITION_HORZ: return allow_horz;
+    case TX_PARTITION_VERT: return allow_vert;
+    case TX_PARTITION_HORZ4: return allow_horz2;
+    case TX_PARTITION_VERT4: return allow_vert2;
+    default: assert(0);
+  }
+  assert(0);
+  return 0;
 }
 #endif  // CONFIG_NEW_TX_PARTITION
 
