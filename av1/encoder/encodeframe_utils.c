@@ -1212,8 +1212,8 @@ void av1_source_content_sb(AV1_COMP *cpi, MACROBLOCK *x, int offset) {
 }
 
 // Memset the mbmis at the current superblock to 0
-void av1_reset_mbmi(CommonModeInfoParams *const mi_params, BLOCK_SIZE sb_size,
-                    int mi_row, int mi_col) {
+void av1_reset_mbmi(const CommonModeInfoParams *const mi_params,
+                    BLOCK_SIZE sb_size, int mi_row, int mi_col) {
   // size of sb in unit of mi (BLOCK_4X4)
   const int sb_size_mi = mi_size_wide[sb_size];
   const int mi_alloc_size_1d = mi_size_wide[mi_params->mi_alloc_bsize];

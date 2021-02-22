@@ -18,10 +18,10 @@
 extern "C" {
 #endif
 
-void av1_encode_mv(AV1_COMP *cpi, aom_writer *w, const MV *mv, const MV *ref,
+void av1_encode_mv(AV1_COMP *cpi, aom_writer *w, MV mv, MV ref,
                    nmv_context *mvctx, MvSubpelPrecision precision);
 
-void av1_update_mv_stats(const MV *mv, const MV *ref, nmv_context *mvctx,
+void av1_update_mv_stats(MV mv, MV ref, nmv_context *mvctx,
                          MvSubpelPrecision precision);
 
 void av1_build_nmv_cost_table(int *mvjoint, int *mvcost[2],
@@ -81,8 +81,8 @@ static INLINE int av1_check_newmv_joint_nonzero(const AV1_COMMON *cm,
   MB_MODE_INFO *mbmi = xd->mi[0];
   const PREDICTION_MODE this_mode = mbmi->mode;
   if (this_mode == NEW_NEWMV) {
-    const int_mv ref_mv_0 = av1_get_ref_mv(x, 0);
-    const int_mv ref_mv_1 = av1_get_ref_mv(x, 1);
+    int_mv ref_mv_0 = av1_get_ref_mv(x, 0);
+    int_mv ref_mv_1 = av1_get_ref_mv(x, 1);
     if (mbmi->mv[0].as_int == ref_mv_0.as_int ||
         mbmi->mv[1].as_int == ref_mv_1.as_int) {
       return 0;
@@ -92,7 +92,7 @@ static INLINE int av1_check_newmv_joint_nonzero(const AV1_COMMON *cm,
 #else
   } else if (this_mode == NEAREST_NEWMV || this_mode == NEAR_NEWMV) {
 #endif  // CONFIG_NEW_INTER_MODES
-    const int_mv ref_mv_1 = av1_get_ref_mv(x, 1);
+    int_mv ref_mv_1 = av1_get_ref_mv(x, 1);
     if (mbmi->mv[1].as_int == ref_mv_1.as_int) {
       return 0;
     }
@@ -101,12 +101,12 @@ static INLINE int av1_check_newmv_joint_nonzero(const AV1_COMMON *cm,
 #else
   } else if (this_mode == NEW_NEARESTMV || this_mode == NEW_NEARMV) {
 #endif  // CONFIG_NEW_INTER_MODES
-    const int_mv ref_mv_0 = av1_get_ref_mv(x, 0);
+    int_mv ref_mv_0 = av1_get_ref_mv(x, 0);
     if (mbmi->mv[0].as_int == ref_mv_0.as_int) {
       return 0;
     }
   } else if (this_mode == NEWMV) {
-    const int_mv ref_mv_0 = av1_get_ref_mv(x, 0);
+    int_mv ref_mv_0 = av1_get_ref_mv(x, 0);
     if (mbmi->mv[0].as_int == ref_mv_0.as_int) {
       return 0;
     }

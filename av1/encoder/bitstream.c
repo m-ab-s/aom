@@ -1313,31 +1313,31 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
       for (ref = 0; ref < 1 + is_compound; ++ref) {
         nmv_context *nmvc = &ec_ctx->nmvc;
         const int_mv ref_mv = get_ref_mv(x, ref);
-        av1_encode_mv(cpi, w, &mbmi->mv[ref].as_mv, &ref_mv.as_mv, nmvc,
+        av1_encode_mv(cpi, w, mbmi->mv[ref].as_mv, ref_mv.as_mv, nmvc,
                       pb_mv_precision);
       }
 #if CONFIG_NEW_INTER_MODES
     } else if (mode == NEAR_NEWMV) {
       nmv_context *nmvc = &ec_ctx->nmvc;
       const int_mv ref_mv = get_ref_mv(x, 1);
-      av1_encode_mv(cpi, w, &mbmi->mv[1].as_mv, &ref_mv.as_mv, nmvc,
+      av1_encode_mv(cpi, w, mbmi->mv[1].as_mv, ref_mv.as_mv, nmvc,
                     pb_mv_precision);
     } else if (mode == NEW_NEARMV) {
       nmv_context *nmvc = &ec_ctx->nmvc;
       const int_mv ref_mv = get_ref_mv(x, 0);
-      av1_encode_mv(cpi, w, &mbmi->mv[0].as_mv, &ref_mv.as_mv, nmvc,
+      av1_encode_mv(cpi, w, mbmi->mv[0].as_mv, ref_mv.as_mv, nmvc,
                     pb_mv_precision);
     }
 #else
     } else if (mode == NEAREST_NEWMV || mode == NEAR_NEWMV) {
       nmv_context *nmvc = &ec_ctx->nmvc;
       const int_mv ref_mv = get_ref_mv(x, 1);
-      av1_encode_mv(cpi, w, &mbmi->mv[1].as_mv, &ref_mv.as_mv, nmvc,
+      av1_encode_mv(cpi, w, mbmi->mv[1].as_mv, ref_mv.as_mv, nmvc,
                     pb_mv_precision);
     } else if (mode == NEW_NEARESTMV || mode == NEW_NEARMV) {
       nmv_context *nmvc = &ec_ctx->nmvc;
       const int_mv ref_mv = get_ref_mv(x, 0);
-      av1_encode_mv(cpi, w, &mbmi->mv[0].as_mv, &ref_mv.as_mv, nmvc,
+      av1_encode_mv(cpi, w, mbmi->mv[0].as_mv, ref_mv.as_mv, nmvc,
                     pb_mv_precision);
     }
 #endif  // CONFIG_NEW_INTER_MODES

@@ -71,9 +71,9 @@ static void update_mv_component_stats(int comp, nmv_component *mvcomp,
   }
 }
 
-void av1_update_mv_stats(const MV *mv, const MV *ref, nmv_context *mvctx,
+void av1_update_mv_stats(MV mv, MV ref, nmv_context *mvctx,
                          MvSubpelPrecision precision) {
-  const MV diff = { mv->row - ref->row, mv->col - ref->col };
+  const MV diff = { mv.row - ref.row, mv.col - ref.col };
   const MV_JOINT_TYPE j = av1_get_mv_joint(&diff);
 
   update_cdf(mvctx->joints_cdf, j, MV_JOINTS);
@@ -234,9 +234,9 @@ static void build_nmv_component_cost_table(int *mvcost,
   }
 }
 
-void av1_encode_mv(AV1_COMP *cpi, aom_writer *w, const MV *mv, const MV *ref,
+void av1_encode_mv(AV1_COMP *cpi, aom_writer *w, MV mv, MV ref,
                    nmv_context *mvctx, MvSubpelPrecision precision) {
-  const MV diff = { mv->row - ref->row, mv->col - ref->col };
+  const MV diff = { mv.row - ref.row, mv.col - ref.col };
   const MV_JOINT_TYPE j = av1_get_mv_joint(&diff);
   // If the mv_diff is zero, then we should have used near or nearest instead.
   assert(j != MV_JOINT_ZERO);
@@ -253,7 +253,7 @@ void av1_encode_mv(AV1_COMP *cpi, aom_writer *w, const MV *mv, const MV *ref,
   // If auto_mv_step_size is enabled then keep track of the largest
   // motion vector component used.
   if (cpi->sf.mv_sf.auto_mv_step_size) {
-    int maxv = AOMMAX(abs(mv->row), abs(mv->col)) >> 3;
+    int maxv = AOMMAX(abs(mv.row), abs(mv.col)) >> 3;
     cpi->mv_search_params.max_mv_magnitude =
         AOMMAX(maxv, cpi->mv_search_params.max_mv_magnitude);
   }
