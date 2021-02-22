@@ -71,8 +71,7 @@ void cfl_predict_block(MACROBLOCKD *const xd, uint8_t *dst, int dst_stride,
 
 void cfl_store_block(MACROBLOCKD *const xd, BLOCK_SIZE bsize, TX_SIZE tx_size);
 
-void cfl_store_tx(MACROBLOCKD *const xd, int row, int col, TX_SIZE tx_size,
-                  BLOCK_SIZE bsize);
+void cfl_store_tx(MACROBLOCKD *const xd, int row, int col, TX_SIZE tx_size);
 
 void cfl_store_dc_pred(MACROBLOCKD *const xd, const uint8_t *input,
                        CFL_PRED_TYPE pred_plane, int width);

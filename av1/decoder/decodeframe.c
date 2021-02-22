@@ -228,7 +228,7 @@ static AOM_INLINE void predict_and_reconstruct_intra_block(
     }
   }
   if (plane == AOM_PLANE_Y && store_cfl_required(cm, xd)) {
-    cfl_store_tx(xd, row, col, tx_size, mbmi->sb_type);
+    cfl_store_tx(xd, row, col, tx_size);
   }
 }
 
