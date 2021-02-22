@@ -112,9 +112,6 @@ void av1_enc_build_inter_predictor_y(MACROBLOCKD *xd, int mi_row, int mi_col) {
   inter_pred_params.conv_params = get_conv_params_no_round(
       0, AOM_PLANE_Y, xd->tmp_conv_dst, MAX_SB_SIZE, false, xd->bd);
 
-#if !CONFIG_REMOVE_DIST_WTD_COMP
-  inter_pred_params.conv_params.use_dist_wtd_comp_avg = 0;
-#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
   av1_enc_build_one_inter_predictor(dst, dst_buf->stride, &mv,
                                     &inter_pred_params);
 }

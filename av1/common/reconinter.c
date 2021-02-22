@@ -716,17 +716,14 @@ void av1_build_one_inter_predictor(
 void av1_dist_wtd_comp_weight_assign(const AV1_COMMON *cm,
                                      const MB_MODE_INFO *mbmi, int order_idx,
                                      int *fwd_offset, int *bck_offset,
-                                     int *use_dist_wtd_comp_avg,
                                      int is_compound) {
   assert(fwd_offset != NULL && bck_offset != NULL);
   if (!is_compound || mbmi->compound_idx) {
-    *fwd_offset = 8;
-    *bck_offset = 8;
-    *use_dist_wtd_comp_avg = 0;
+    *fwd_offset = 1 << (DIST_PRECISION_BITS - 1);
+    *bck_offset = 1 << (DIST_PRECISION_BITS - 1);
     return;
   }
 
-  *use_dist_wtd_comp_avg = 1;
   const RefCntBuffer *const bck_buf = get_ref_frame_buf(cm, mbmi->ref_frame[0]);
   const RefCntBuffer *const fwd_buf = get_ref_frame_buf(cm, mbmi->ref_frame[1]);
   const int cur_frame_index = cm->cur_frame->order_hint;
@@ -928,8 +925,7 @@ static void build_inter_predictors_8x8_and_bigger(
 #if !CONFIG_REMOVE_DIST_WTD_COMP
     av1_dist_wtd_comp_weight_assign(
         cm, mi, 0, &inter_pred_params.conv_params.fwd_offset,
-        &inter_pred_params.conv_params.bck_offset,
-        &inter_pred_params.conv_params.use_dist_wtd_comp_avg, is_compound);
+        &inter_pred_params.conv_params.bck_offset, is_compound);
 #endif  // !CONFIG_REMOVE_DIST_WTD_COMP
 
     if (!build_for_obmc)

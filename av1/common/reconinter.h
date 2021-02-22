@@ -389,7 +389,6 @@ static INLINE const uint8_t *av1_get_contiguous_soft_mask(int8_t wedge_index,
 void av1_dist_wtd_comp_weight_assign(const AV1_COMMON *cm,
                                      const MB_MODE_INFO *mbmi, int order_idx,
                                      int *fwd_offset, int *bck_offset,
-                                     int *use_dist_wtd_comp_avg,
                                      int is_compound);
 #endif  // !CONFIG_REMOVE_DIST_WTD_COMP
 
