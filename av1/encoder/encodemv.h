@@ -80,9 +80,16 @@ static INLINE int av1_check_newmv_joint_nonzero(const AV1_COMMON *cm,
   MACROBLOCKD *xd = &x->e_mbd;
   MB_MODE_INFO *mbmi = xd->mi[0];
   const PREDICTION_MODE this_mode = mbmi->mode;
+#if CONFIG_FLEX_MVRES
+  const MvSubpelPrecision precision = mbmi->pb_mv_precision;
+#endif  // CONFIG_FLEX_MVRES
   if (this_mode == NEW_NEWMV) {
     int_mv ref_mv_0 = av1_get_ref_mv(x, 0);
     int_mv ref_mv_1 = av1_get_ref_mv(x, 1);
+#if CONFIG_FLEX_MVRES
+    lower_mv_precision(&ref_mv_0.as_mv, precision);
+    lower_mv_precision(&ref_mv_1.as_mv, precision);
+#endif  // CONFIG_FLEX_MVRES
     if (mbmi->mv[0].as_int == ref_mv_0.as_int ||
         mbmi->mv[1].as_int == ref_mv_1.as_int) {
       return 0;
@@ -93,6 +100,9 @@ static INLINE int av1_check_newmv_joint_nonzero(const AV1_COMMON *cm,
   } else if (this_mode == NEAREST_NEWMV || this_mode == NEAR_NEWMV) {
 #endif  // CONFIG_NEW_INTER_MODES
     int_mv ref_mv_1 = av1_get_ref_mv(x, 1);
+#if CONFIG_FLEX_MVRES
+    lower_mv_precision(&ref_mv_1.as_mv, precision);
+#endif  // CONFIG_FLEX_MVRES
     if (mbmi->mv[1].as_int == ref_mv_1.as_int) {
       return 0;
     }
@@ -102,11 +112,17 @@ static INLINE int av1_check_newmv_joint_nonzero(const AV1_COMMON *cm,
   } else if (this_mode == NEW_NEARESTMV || this_mode == NEW_NEARMV) {
 #endif  // CONFIG_NEW_INTER_MODES
     int_mv ref_mv_0 = av1_get_ref_mv(x, 0);
+#if CONFIG_FLEX_MVRES
+    lower_mv_precision(&ref_mv_0.as_mv, precision);
+#endif  // CONFIG_FLEX_MVRES
     if (mbmi->mv[0].as_int == ref_mv_0.as_int) {
       return 0;
     }
   } else if (this_mode == NEWMV) {
     int_mv ref_mv_0 = av1_get_ref_mv(x, 0);
+#if CONFIG_FLEX_MVRES
+    lower_mv_precision(&ref_mv_0.as_mv, precision);
+#endif  // CONFIG_FLEX_MVRES
     if (mbmi->mv[0].as_int == ref_mv_0.as_int) {
       return 0;
     }

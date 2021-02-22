@@ -236,6 +236,9 @@ static INLINE int get_mv_cost_with_precision(const MV mv, MV ref_mv,
   const int *mvjcost = mv_costs->nmv_joint_cost;
   const int *const *mvcost =
       CONVERT_TO_CONST_MVCOST(mv_costs->nmv_costs[precision]);
+#if CONFIG_FLEX_MVRES
+  lower_mv_precision(&ref_mv, precision);
+#endif  // CONFIG_FLEX_MVRES
   const MV diff = { mv.row - ref_mv.row, mv.col - ref_mv.col };
 
   if (mvcost) {

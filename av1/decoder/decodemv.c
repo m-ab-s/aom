@@ -967,6 +967,10 @@ static INLINE void read_mv(aom_reader *r, MV *mv, MV ref, nmv_context *ctx,
   if (mv_joint_horizontal(joint_type))
     diff.col = read_mv_component(r, &ctx->comps[1], precision);
 
+#if CONFIG_FLEX_MVRES
+  lower_mv_precision(&ref, precision);
+#endif  // CONFIG_FLEX_MVRES
+
   mv->row = ref.row + diff.row;
   mv->col = ref.col + diff.col;
 }
