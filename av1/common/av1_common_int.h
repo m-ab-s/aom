@@ -1976,6 +1976,24 @@ static INLINE int get_tx_partition_sizes(TX_PARTITION_TYPE partition,
   return n_partitions;
 }
 
+/*
+Gets the type to signal for the 4 way split tree in the tx partition
+type signaling.
+*/
+static INLINE int get_split4_partition(TX_PARTITION_TYPE partition) {
+  switch (partition) {
+    case TX_PARTITION_NONE:
+    case TX_PARTITION_SPLIT:
+    case TX_PARTITION_VERT:
+    case TX_PARTITION_HORZ: return partition;
+    case TX_PARTITION_VERT4: return TX_PARTITION_VERT;
+    case TX_PARTITION_HORZ4: return TX_PARTITION_HORZ;
+    default: assert(0);
+  }
+  assert(0);
+  return 0;
+}
+
 static INLINE int allow_tx_horz_split(TX_SIZE max_tx_size) {
   const int sub_txw = tx_size_wide[max_tx_size];
   const int sub_txh = tx_size_high[max_tx_size] >> 1;
@@ -2022,8 +2040,32 @@ static INLINE int use_tx_partition(TX_PARTITION_TYPE partition,
   assert(0);
   return 0;
 }
-#endif  // CONFIG_NEW_TX_PARTITION
 
+static INLINE int txfm_partition_split4_inter_context(
+    const TXFM_CONTEXT *const above_ctx, const TXFM_CONTEXT *const left_ctx,
+    BLOCK_SIZE bsize, TX_SIZE tx_size) {
+  const uint8_t txw = tx_size_wide[tx_size];
+  const uint8_t txh = tx_size_high[tx_size];
+  const int above = *above_ctx < txw;
+  const int left = *left_ctx < txh;
+  int category = TXFM_PARTITION_INTER_CONTEXTS;
+
+  // dummy return, not used by others.
+  if (tx_size <= TX_4X4) return 0;
+
+  TX_SIZE max_tx_size =
+      get_sqr_tx_size(AOMMAX(block_size_wide[bsize], block_size_high[bsize]));
+
+  if (max_tx_size >= TX_8X8) {
+    category =
+        (txsize_sqr_up_map[tx_size] != max_tx_size && max_tx_size > TX_8X8) +
+        (TX_SIZES - 1 - max_tx_size) * 2;
+  }
+  assert(category != TXFM_PARTITION_INTER_CONTEXTS);
+  return category * 3 + above + left;
+}
+
+#else
 static INLINE int txfm_partition_context(const TXFM_CONTEXT *const above_ctx,
                                          const TXFM_CONTEXT *const left_ctx,
                                          BLOCK_SIZE bsize, TX_SIZE tx_size) {
@@ -2047,6 +2089,7 @@ static INLINE int txfm_partition_context(const TXFM_CONTEXT *const above_ctx,
   assert(category != TXFM_PARTITION_CONTEXTS);
   return category * 3 + above + left;
 }
+#endif  // CONFIG_NEW_TX_PARTITION
 
 // Compute the next partition in the direction of the sb_type stored in the mi
 // array, starting with bsize.

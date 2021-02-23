@@ -2801,8 +2801,6 @@ static void select_tx_partition_type(
   TX_PARTITION_TYPE best_partition = -1;
   uint8_t best_partition_entropy_ctxs[MAX_TX_PARTITIONS] = { 0 };
   uint8_t best_partition_tx_types[MAX_TX_PARTITIONS] = { 0 };
-  const int ctx_0 = txfm_partition_context(
-      tx_above + blk_col, tx_left + blk_row, mbmi->sb_type, max_tx_size);
   uint8_t full_blk_skip[MAX_TX_PARTITIONS] = { 0 };
 
   // TODO(sarahparker) Add back all of the tx search speed features.
@@ -2825,8 +2823,9 @@ static void select_tx_partition_type(
     // Add rate cost of signalling this partition type
     if (max_tx_size > TX_4X4) {
       const int is_rect = is_rect_tx(max_tx_size);
-      partition_rd_stats.rate +=
-          x->mode_costs.txfm_partition_cost[is_rect][ctx_0][type];
+      partition_rd_stats.rate += inter_tx_partition_cost(
+          x, is_rect, type, tx_above + blk_col, tx_left + blk_row,
+          mbmi->sb_type, max_tx_size);
     }
 
     // Get transform sizes created by this partition type
@@ -2857,14 +2856,10 @@ static void select_tx_partition_type(
         const int offsetr = blk_row + r;
         const int offsetc = blk_col + c;
         if (offsetr >= max_blocks_high || offsetc >= max_blocks_wide) continue;
-        const int ctx = txfm_partition_context(cur_tx_above + offsetc,
-                                               cur_tx_left + offsetr,
-                                               mbmi->sb_type, max_tx_size);
-
         // Try tx size and compute rd cost
         TxCandidateInfo no_split = { INT64_MAX, 0, TX_TYPES };
         try_tx_block_no_split(cpi, x, offsetr, offsetc, cur_block, sub_tx, 0,
-                              plane_bsize, cur_ta, cur_tl, ctx, &this_rd_stats,
+                              plane_bsize, cur_ta, cur_tl, -1, &this_rd_stats,
                               ref_best_rd - tmp_rd, ftxs_mode, rd_info_node,
                               &no_split);
         partition_entropy_ctxs[cur_partition] = no_split.txb_entropy_ctx;
@@ -3355,14 +3350,17 @@ int64_t av1_uniform_txfm_yrd(const AV1_COMP *const cpi, MACROBLOCK *x,
                         block_signals_txsize(mbmi->sb_type);
   int tx_size_rate = 0;
   if (tx_select) {
-    const int ctx = txfm_partition_context(
-        xd->above_txfm_context, xd->left_txfm_context, mbmi->sb_type, tx_size);
 #if CONFIG_NEW_TX_PARTITION
     const TX_SIZE max_tx_size = max_txsize_rect_lookup[bs];
     const int is_rect = is_rect_tx(max_tx_size);
-    tx_size_rate = is_inter ? mode_costs->txfm_partition_cost[is_rect][ctx][0]
-                            : tx_size_cost(x, bs, tx_size);
+    tx_size_rate = is_inter
+                       ? inter_tx_partition_cost(
+                             x, is_rect, 0, xd->above_txfm_context,
+                             xd->left_txfm_context, mbmi->sb_type, max_tx_size)
+                       : tx_size_cost(x, bs, tx_size);
 #else   // CONFIG_NEW_TX_PARTITION
+    const int ctx = txfm_partition_context(
+        xd->above_txfm_context, xd->left_txfm_context, mbmi->sb_type, tx_size);
     tx_size_rate = is_inter ? mode_costs->txfm_partition_cost[ctx][0]
                             : tx_size_cost(x, bs, tx_size);
 #endif  // CONFIG_NEW_TX_PARTITION

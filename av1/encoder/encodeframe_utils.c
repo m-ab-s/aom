@@ -1081,11 +1081,15 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
   AVERAGE_CDF(ctx_left->comp_bwdref_cdf, ctx_tr->comp_bwdref_cdf, 2);
 #if CONFIG_NEW_TX_PARTITION
   // Square blocks
-  AVERAGE_CDF(ctx_left->txfm_partition_cdf[0], ctx_tr->txfm_partition_cdf[0],
-              TX_PARTITION_TYPES);
+  AVERAGE_CDF(ctx_left->inter_4way_txfm_partition_cdf[0],
+              ctx_tr->inter_4way_txfm_partition_cdf[0], 4);
   // Rectangular blocks
-  AVERAGE_CDF(ctx_left->txfm_partition_cdf[1], ctx_tr->txfm_partition_cdf[1],
-              TX_PARTITION_TYPES);
+  AVERAGE_CDF(ctx_left->inter_4way_txfm_partition_cdf[1],
+              ctx_tr->inter_4way_txfm_partition_cdf[1], 4);
+  AVERAGE_CDF(ctx_left->inter_2way_txfm_partition_cdf,
+              ctx_tr->inter_2way_txfm_partition_cdf, 2);
+  AVERAGE_CDF(ctx_left->inter_2way_rect_txfm_partition_cdf,
+              ctx_tr->inter_2way_rect_txfm_partition_cdf, 2);
 #else   // CONFIG_NEW_TX_PARTITION
   AVERAGE_CDF(ctx_left->txfm_partition_cdf, ctx_tr->txfm_partition_cdf, 2);
 #endif  // CONFIG_NEW_TX_PARTITION

@@ -32,6 +32,77 @@
 #include "av1/encoder/tune_vmaf.h"
 #endif
 
+#if CONFIG_NEW_TX_PARTITION
+static void update_partition_cdfs_and_counts(MACROBLOCKD *xd, int blk_col,
+                                             int blk_row, TX_SIZE max_tx_size,
+                                             int allow_update_cdf,
+                                             FRAME_COUNTS *counts) {
+  (void)counts;
+  MB_MODE_INFO *mbmi = xd->mi[0];
+  const int txb_size_index =
+      av1_get_txb_size_index(mbmi->sb_type, blk_row, blk_col);
+  const int is_rect = is_rect_tx(max_tx_size);
+  const TX_PARTITION_TYPE partition = mbmi->partition_type[txb_size_index];
+  const int allow_horz = allow_tx_horz_split(max_tx_size);
+  const int allow_vert = allow_tx_vert_split(max_tx_size);
+  const int allow_horz2 = allow_tx_horz2_split(max_tx_size);
+  const int allow_vert2 = allow_tx_vert2_split(max_tx_size);
+  if (allow_horz && allow_vert) {
+    const TX_PARTITION_TYPE split4_partition = get_split4_partition(partition);
+    const int split4_ctx = txfm_partition_split4_inter_context(
+        xd->above_txfm_context + blk_col, xd->left_txfm_context + blk_row,
+        mbmi->sb_type, max_tx_size);
+    if (allow_update_cdf) {
+      update_cdf(
+          xd->tile_ctx->inter_4way_txfm_partition_cdf[is_rect][split4_ctx],
+          split4_partition, 4);
+    }
+#if CONFIG_ENTROPY_STATS
+    ++counts->inter_4way_txfm_partition[is_rect][split4_ctx][split4_partition];
+#endif  // CONFIG_ENTROPY_STATS
+
+    if (((split4_partition == TX_PARTITION_VERT) && allow_vert2) ||
+        ((split4_partition == TX_PARTITION_HORZ) && allow_horz2)) {
+      const int has_split = (partition == TX_PARTITION_HORZ4) ||
+                            (partition == TX_PARTITION_VERT4);
+      if (allow_update_cdf) {
+        update_cdf(xd->tile_ctx->inter_2way_rect_txfm_partition_cdf, has_split,
+                   2);
+      }
+#if CONFIG_ENTROPY_STATS
+      ++counts->inter_2way_rect_txfm_partition[has_split];
+#endif  // CONFIG_ENTROPY_STATS
+    }
+
+  } else if (allow_horz || allow_vert) {
+    const int has_first_split = partition != TX_PARTITION_NONE;
+    if (allow_update_cdf) {
+      update_cdf(xd->tile_ctx->inter_2way_txfm_partition_cdf, has_first_split,
+                 2);
+    }
+#if CONFIG_ENTROPY_STATS
+    ++counts->inter_2way_txfm_partition[has_first_split];
+#endif  // CONFIG_ENTROPY_STATS
+
+    if (has_first_split && (allow_horz2 || allow_vert2)) {
+      const int has_second_split = (partition == TX_PARTITION_VERT4) ||
+                                   (partition == TX_PARTITION_HORZ4);
+      if (allow_update_cdf) {
+        update_cdf(xd->tile_ctx->inter_2way_rect_txfm_partition_cdf,
+                   has_second_split, 2);
+      }
+#if CONFIG_ENTROPY_STATS
+      ++counts->inter_2way_txfm_partition[has_second_split];
+#endif  // CONFIG_ENTROPY_STATS
+    }
+
+  } else {
+    assert(!allow_horz && !allow_vert);
+    assert(partition == PARTITION_NONE);
+  }
+}
+#endif  // CONFIG_NEW_TX_PARTITION
+
 static void update_txfm_count(MACROBLOCK *x, MACROBLOCKD *xd,
                               FRAME_COUNTS *counts, TX_SIZE tx_size, int depth,
                               int blk_row, int blk_col,
@@ -40,16 +111,12 @@ static void update_txfm_count(MACROBLOCK *x, MACROBLOCKD *xd,
   const BLOCK_SIZE bsize = mbmi->sb_type;
   const int max_blocks_high = max_block_high(xd, bsize, 0);
   const int max_blocks_wide = max_block_wide(xd, bsize, 0);
-  int ctx = txfm_partition_context(xd->above_txfm_context + blk_col,
-                                   xd->left_txfm_context + blk_row,
-                                   mbmi->sb_type, tx_size);
   const int txb_size_index = av1_get_txb_size_index(bsize, blk_row, blk_col);
 
   if (blk_row >= max_blocks_high || blk_col >= max_blocks_wide) return;
   assert(tx_size > TX_4X4);
 #if CONFIG_NEW_TX_PARTITION
   (void)depth;
-  (void)counts;
   TX_SIZE sub_txs[MAX_TX_PARTITIONS] = { 0 };
   get_tx_partition_sizes(mbmi->partition_type[txb_size_index], tx_size,
                          sub_txs);
@@ -61,18 +128,15 @@ static void update_txfm_count(MACROBLOCK *x, MACROBLOCKD *xd,
   if (mbmi->partition_type[txb_size_index] != TX_PARTITION_NONE)
     ++x->txfm_search_info.txb_split_count;
 
-  const int is_rect = is_rect_tx(tx_size);
-#if CONFIG_ENTROPY_STATS
-  ++counts->txfm_partition[is_rect][ctx][mbmi->partition_type[txb_size_index]];
-#endif  // CONFIG_ENTROPY_STATS
-  if (allow_update_cdf)
-    update_cdf(xd->tile_ctx->txfm_partition_cdf[is_rect][ctx],
-               mbmi->partition_type[txb_size_index], TX_PARTITION_TYPES);
-
+  update_partition_cdfs_and_counts(xd, blk_col, blk_row, tx_size,
+                                   allow_update_cdf, counts);
   mbmi->tx_size = this_size;
   txfm_partition_update(xd->above_txfm_context + blk_col,
                         xd->left_txfm_context + blk_row, this_size, tx_size);
 #else  // CONFIG_NEW_TX_PARTITION
+  int ctx = txfm_partition_context(xd->above_txfm_context + blk_col,
+                                   xd->left_txfm_context + blk_row,
+                                   mbmi->sb_type, tx_size);
   const TX_SIZE plane_tx_size = mbmi->inter_tx_size[txb_size_index];
   if (depth == MAX_VARTX_DEPTH) {
     // Don't add to counts in this case
