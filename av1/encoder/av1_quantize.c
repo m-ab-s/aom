@@ -1046,6 +1046,7 @@ void set_frame_dc_delta_q(const AV1_COMMON *const cm, int *y_dc_delta_q,
                           int *v_dc_delta_q, int *u_ac_delta_q,
                           int *v_ac_delta_q) {
   (void)cm;
+  (void)enable_chroma_deltaq;
   *y_dc_delta_q = 0;
   *u_dc_delta_q = 0;
   *v_dc_delta_q = 0;
@@ -1053,25 +1054,8 @@ void set_frame_dc_delta_q(const AV1_COMMON *const cm, int *y_dc_delta_q,
   *v_ac_delta_q = 0;
 #if CONFIG_EXTQUANT
   if (frame_is_intra_only(cm)) {
-    enable_chroma_deltaq = 1;
-    const int is_360p_or_larger = AOMMIN(cm->width, cm->height) >= 360;
-    const int is_720p_or_larger = AOMMIN(cm->width, cm->height) >= 720;
-    if (!is_360p_or_larger) {
-      *y_dc_delta_q = 0;
-      if (enable_chroma_deltaq) {
-        *u_dc_delta_q = *v_dc_delta_q = 0;
-      }
-    } else if (!is_720p_or_larger) {
-      *y_dc_delta_q = -2;
-      if (enable_chroma_deltaq) {
-        *u_dc_delta_q = *v_dc_delta_q = -1;
-      }
-    } else {
-      *y_dc_delta_q = -4;
-      if (enable_chroma_deltaq) {
-        *u_dc_delta_q = *v_dc_delta_q = -2;
-      }
-    }
+    *y_dc_delta_q = 0;
+    *u_dc_delta_q = *v_dc_delta_q = -4;
   }
 #else
   if (enable_chroma_deltaq) {
