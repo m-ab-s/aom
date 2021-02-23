@@ -183,7 +183,11 @@ void av1_warp_plane(WarpedMotionParams *wm, int use_hbd, int bd,
 
 int av1_find_projection(int np, const int *pts1, const int *pts2,
                         BLOCK_SIZE bsize, int mvy, int mvx,
-                        WarpedMotionParams *wm_params, int mi_row, int mi_col);
+                        WarpedMotionParams *wm_params,
+#if CONFIG_EXT_ROTATION
+                        MACROBLOCKD *xd,
+#endif  // CONFIG_EXT_ROTATION
+                        int mi_row, int mi_col);
 
 int av1_get_shear_params(WarpedMotionParams *wm);
 

@@ -3250,6 +3250,9 @@ unsigned int av1_refine_warped_mv(MACROBLOCKD *xd, const AV1_COMMON *const cm,
 
         if (!av1_find_projection(mbmi->num_proj_ref, pts, pts_inref, bsize,
                                  this_mv.row, this_mv.col, &mbmi->wm_params,
+#if CONFIG_EXT_ROTATION
+                                 xd,
+#endif  // CONFIG_EXT_ROTATION
                                  mi_row, mi_col)) {
           thismse = compute_motion_cost(xd, cm, ms_params, bsize, &this_mv);
 

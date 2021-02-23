@@ -1066,12 +1066,23 @@ static int find_affine_int(int np, const int *pts1, const int *pts2,
 
 int av1_find_projection(int np, const int *pts1, const int *pts2,
                         BLOCK_SIZE bsize, int mvy, int mvx,
-                        WarpedMotionParams *wm_params, int mi_row, int mi_col) {
+                        WarpedMotionParams *wm_params,
+#if CONFIG_EXT_ROTATION
+                        MACROBLOCKD *xd,
+#endif  // CONFIG_EXT_ROTATION
+                        int mi_row, int mi_col) {
   assert(wm_params->wmtype == AFFINE);
 
   if (find_affine_int(np, pts1, pts2, bsize, mvy, mvx, wm_params, mi_row,
                       mi_col))
     return 1;
+
+#if CONFIG_EXT_ROTATION
+  MB_MODE_INFO *mbmi = xd->mi[0];
+  const int center_x = (mi_col + (xd->width / 2)) * MI_SIZE;
+  const int center_y = (mi_row + (xd->height / 2)) * MI_SIZE;
+  av1_warp_rotation(mbmi, mbmi->rotation, center_x, center_y);
+#endif  // CONFIG_EXT_ROTATION
 
   // check compatibility with the fast warp filter
   if (!av1_get_shear_params(wm_params)) return 1;

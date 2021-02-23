@@ -1618,18 +1618,16 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
 
     if (av1_find_projection(mbmi->num_proj_ref, pts, pts_inref, bsize,
                             mbmi->mv[0].as_mv.row, mbmi->mv[0].as_mv.col,
-                            &mbmi->wm_params, mi_row, mi_col)) {
+                            &mbmi->wm_params,
+#if CONFIG_EXT_ROTATION
+                            xd,
+#endif  // CONFIG_EXT_ROTATION
+                            mi_row, mi_col)) {
 #if WARPED_MOTION_DEBUG
       printf("Warning: unexpected warped model from aomenc\n");
 #endif
       mbmi->wm_params.invalid = 1;
     }
-#if CONFIG_EXT_ROTATION
-    // add rotation
-    const int center_x = (mi_col + (xd->width / 2)) * MI_SIZE;
-    const int center_y = (mi_row + (xd->height / 2)) * MI_SIZE;
-    av1_warp_rotation(mbmi, mbmi->rotation, center_x, center_y);
-#endif  // CONFIG_EXT_ROTATION
   }
 
   xd->cfl.store_y = store_cfl_required(cm, xd);
