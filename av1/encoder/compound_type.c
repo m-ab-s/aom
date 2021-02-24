@@ -306,11 +306,10 @@ static int64_t pick_wedge_fixed_sign(
 #if CONFIG_ARBITRARY_WEDGE
 // Create an arbitrary binary mask using spacial segmentation of this block.
 // This is used for larger blocks, where we don't have pre-defined wedges.
-static int64_t pick_arbitrary_wedge(const AV1_COMP *const cpi,
-                                    MACROBLOCK *const x, const BLOCK_SIZE bsize,
-                                    const int16_t *const residual1,
-                                    const int16_t *const diff10,
-                                    uint8_t *seg_mask, uint64_t *best_sse) {
+static int64_t pick_arbitrary_wedge(
+    const AV1_COMP *const cpi, MACROBLOCK *const x, const BLOCK_SIZE bsize,
+    const int16_t *const residual1, const int16_t *const diff10,
+    uint8_t *seg_mask, uint8_t *seg_mask_smoothed, uint64_t *best_sse) {
   const int bw = block_size_wide[bsize];
   const int bh = block_size_high[bsize];
   const int N = bw * bh;
@@ -327,38 +326,42 @@ static int64_t pick_arbitrary_wedge(const AV1_COMP *const cpi,
   params.k = 5000;  // TODO(urvang): Temporary hack to get 2 components.
   int num_components = -1;
   av1_get_segments(x->plane[0].src.buf, bw, bh, x->plane[0].src.stride, &params,
-                   seg_mask, &num_components);
+                   seg_mask_smoothed, &num_components);
 
   if (num_components >= 2) {
     // TODO(urvang): Convert more than 2 components to 2 components.
     if (num_components == 2) {
+      // Save the raw mask to 'seg_mask', as that is the one to be used for
+      // signaling in the bitstream.
+      memcpy(seg_mask, seg_mask_smoothed, N * sizeof(*seg_mask));
+
+      // TODO(urvang): Refactor part below.
+
       // Convert binary mask with values {0, 1} to one with values {0, 64}.
-      av1_extend_binary_mask_range(seg_mask, bw, bh);
+      av1_extend_binary_mask_range(seg_mask_smoothed, bw, bh);
 #if DUMP_SEGMENT_MASKS
-      av1_dump_raw_y_plane(seg_mask, bw, bh, bw, "/tmp/2.binary_mask.yuv");
+      av1_dump_raw_y_plane(seg_mask_smoothed, bw, bh, bw, "/tmp/2.binary_mask.yuv");
 #endif  // DUMP_SEGMENT_MASKS
 
       // Get a smooth mask from the binary mask.
-      av1_apply_box_blur(seg_mask, bw, bh);
+      av1_apply_box_blur(seg_mask_smoothed, bw, bh);
 #if DUMP_SEGMENT_MASKS
-      av1_dump_raw_y_plane(seg_mask, bw, bh, bw, "/tmp/3.smooth_mask.yuv");
+      av1_dump_raw_y_plane(seg_mask_smoothed, bw, bh, bw, "/tmp/3.smooth_mask.yuv");
 #endif  // DUMP_SEGMENT_MASKS
 
       // Get RDCost
       *best_sse =
-          av1_wedge_sse_from_residuals(residual1, diff10, seg_mask, N);
+          av1_wedge_sse_from_residuals(residual1, diff10, seg_mask_smoothed, N);
       const MACROBLOCKD *const xd = &x->e_mbd;
       const int hbd = is_cur_buf_hbd(xd);
       const int bd_round = hbd ? (xd->bd - 8) * 2 : 0;
-      *best_sse =  ROUND_POWER_OF_TWO(*best_sse, bd_round);
+      *best_sse = ROUND_POWER_OF_TWO(*best_sse, bd_round);
 
       int rate;
       int64_t dist;
-      model_rd_sse_fn[MODELRD_TYPE_MASKED_COMPOUND](cpi, x, bsize, 0, *best_sse, N,
-                                                    &rate, &dist);
-      // TODO(urvang): Add cost of signaling wedge itself to 'rate'.
+      model_rd_sse_fn[MODELRD_TYPE_MASKED_COMPOUND](cpi, x, bsize, 0, *best_sse,
+                                                    N, &rate, &dist);
       const int64_t rd = RDCOST(x->rdmult, rate, dist);
-      // TODO(urvang): Subtrack rate of signaling wedge (like pick_wedge)?
       return rd;
     }
     return INT64_MAX;
@@ -385,10 +388,11 @@ static int64_t pick_interinter_wedge(
 
 #if CONFIG_ARBITRARY_WEDGE
   if (av1_wedge_params_lookup[bsize].codebook == NULL) {
-    // TODO(urvang): Reuse seg_mask or have a different wedge_mask array?
     mbmi->interinter_comp.seg_mask = xd->seg_mask;
-    rd = pick_arbitrary_wedge(cpi, x, bsize, residual1, diff10,
-                              mbmi->interinter_comp.seg_mask, best_sse);
+    mbmi->interinter_comp.seg_mask_smoothed = xd->seg_mask_smoothed;
+    rd = pick_arbitrary_wedge(
+        cpi, x, bsize, residual1, diff10, mbmi->interinter_comp.seg_mask,
+        mbmi->interinter_comp.seg_mask_smoothed, best_sse);
     mbmi->interinter_comp.wedge_sign = 0;
     mbmi->interinter_comp.wedge_index = -1;
     return rd;
@@ -1135,15 +1139,15 @@ static INLINE int get_interinter_compound_mask_rate(
       // 3*n, as storing each length takes 2 bytes.
       uint8_t rle_buf[3 * MAX_SB_SQUARE];
       int rle_size = 0;
+      int rle_rate = INT_MAX;
       av1_run_length_encode(mbmi->interinter_comp.seg_mask, bw, bh, bw, rle_buf,
-                            &rle_size);
-      return rle_size;
+                            &rle_size, &rle_rate);
+      return rle_rate;
     }
 #endif  // CONFIG_ARBITRARY_WEDGE
     return av1_cost_literal(1) +
-                     mode_costs
-                         ->wedge_idx_cost[mbmi->sb_type]
-                                         [mbmi->interinter_comp.wedge_index];
+           mode_costs->wedge_idx_cost[mbmi->sb_type]
+                                     [mbmi->interinter_comp.wedge_index];
   } else {
     assert(compound_type == COMPOUND_DIFFWTD);
     return av1_cost_literal(1);

@@ -368,6 +368,9 @@ static void build_wedge_inter_predictor_from_buf(
   struct buf_2d *const dst_buf = &pd->dst;
   uint8_t *const dst = dst_buf->buf + dst_buf->stride * y + x;
   mbmi->interinter_comp.seg_mask = xd->seg_mask;
+#if CONFIG_ARBITRARY_WEDGE
+  mbmi->interinter_comp.seg_mask_smoothed = xd->seg_mask_smoothed;
+#endif  // CONFIG_ARBITRARY_WEDGE
   const INTERINTER_COMPOUND_DATA *comp_data = &mbmi->interinter_comp;
   const int is_hbd = is_cur_buf_hbd(xd);
 

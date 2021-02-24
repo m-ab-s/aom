@@ -206,6 +206,9 @@ typedef struct RD_STATS {
 // sent together in functions related to interinter compound modes
 typedef struct {
   uint8_t *seg_mask;
+#if CONFIG_ARBITRARY_WEDGE
+  uint8_t *seg_mask_smoothed;
+#endif  // CONFIG_ARBITRARY_WEDGE
   int8_t wedge_index;
   int8_t wedge_sign;
   DIFFWTD_MASK_TYPE mask_type;
@@ -830,6 +833,13 @@ typedef struct macroblockd {
    * Mask for this block used for compound prediction.
    */
   DECLARE_ALIGNED(16, uint8_t, seg_mask[2 * MAX_SB_SQUARE]);
+
+#if CONFIG_ARBITRARY_WEDGE
+  // Only used for arbitrary wedge. Derived from 'seg_mask' by extending binary
+  // mask range, and then smoothing to get a contiguous soft mask.
+  // TODO(urvang): Does size need to be 2 times?
+  DECLARE_ALIGNED(16, uint8_t, seg_mask_smoothed[2 * MAX_SB_SQUARE]);
+#endif  // CONFIG_ARBITRARY_WEDGE
 
   /*!
    * CFL (chroma from luma) related parameters.

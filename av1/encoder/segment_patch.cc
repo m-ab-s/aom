@@ -1,8 +1,12 @@
 #include <assert.h>
 #include <unordered_map>
+#if DUMP_SEGMENT_MASKS
+#include <fstream>
+#endif // DUMP_SEGMENT_MASKS
 
 #include "aom_mem/aom_mem.h"
 #include "av1/common/enums.h"
+#include "av1/encoder/cost.h"
 #include "av1/encoder/segment_patch.h"
 #include "third_party/segment/segment-image.h"
 
@@ -164,19 +168,29 @@ static void write_run_length(int run_len, uint8_t *out, int *out_idx) {
 }
 
 void av1_run_length_encode(const uint8_t *const img, int width, int height,
-                           int stride, uint8_t *out, int *out_size) {
+                           int stride, uint8_t *out, int *out_size,
+                           int *out_rate) {
   int out_idx = 0;
   uint8_t prev_val = img[0];
   int run_len = 1;
+  int num_bits = 0;
+  const int bits_per_symbol = 1;  // Assuming 2 segments exactly.
+  // Assuming 64x64 or 128x128 block sizes only.
+  assert((width == 64 && height == 64) || (width == 128 && height == 128));
+  const int bits_per_run_len =
+      (width == 128 && height == 128) ? 14 : 12;  // log2(width * height)
 
   for (int r = 0; r < height; ++r) {
     for (int c = (r == 0) ? 1 : 0; c < width; ++c) {
       const uint8_t curr_val = img[r * stride + c];
+      assert(curr_val < (1 << bits_per_symbol));
       if (curr_val == prev_val) {
         ++run_len;
       } else {
         out[out_idx++] = prev_val;
+        num_bits += bits_per_symbol;
         write_run_length(run_len, out, &out_idx);
+        num_bits += bits_per_run_len;
         run_len = 1;
         prev_val = curr_val;
       }
@@ -185,6 +199,7 @@ void av1_run_length_encode(const uint8_t *const img, int width, int height,
   out[out_idx++] = prev_val;
   write_run_length(run_len, out, &out_idx);
   *out_size = out_idx;
+  *out_rate = av1_cost_literal(num_bits);
 }
 
 #if DUMP_SEGMENT_MASKS

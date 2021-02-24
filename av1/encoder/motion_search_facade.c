@@ -691,6 +691,9 @@ int av1_interinter_compound_motion_search(const AV1_COMP *const cpi,
   int_mv tmp_mv[2];
   int tmp_rate_mv = 0;
   mbmi->interinter_comp.seg_mask = xd->seg_mask;
+#if CONFIG_ARBITRARY_WEDGE
+  mbmi->interinter_comp.seg_mask_smoothed = xd->seg_mask_smoothed;
+#endif  // CONFIG_ARBITRARY_WEDGE
   const INTERINTER_COMPOUND_DATA *compound_data = &mbmi->interinter_comp;
 
   if (this_mode == NEW_NEWMV) {

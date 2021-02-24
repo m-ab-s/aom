@@ -26,6 +26,10 @@
 #include "av1/common/obmc.h"
 #include "av1/common/reconinter.h"
 #include "av1/common/reconintra.h"
+// TODO(urvang): Move common parts to av1/common.
+#if CONFIG_ARBITRARY_WEDGE
+#include "av1/encoder/segment_patch.h"
+#endif  // CONFIG_ARBITRARY_WEDGE
 
 // This function will determine whether or not to create a warped
 // prediction.
@@ -330,8 +334,23 @@ const uint8_t *av1_get_compound_type_mask(
     case COMPOUND_WEDGE:
 #if CONFIG_ARBITRARY_WEDGE
       if (av1_wedge_params_lookup[sb_type].codebook == NULL) {
-        // We are using an arbitrary mask, stored earlier.
-        return comp_data->seg_mask;
+        // We are using an arbitrary mask, stored earlier. But we need to derive
+        // the smooth mask from raw binary mask.
+        const int bw = block_size_wide[sb_type];
+        const int bh = block_size_high[sb_type];
+        const int N = bw * bh;
+
+        memcpy(comp_data->seg_mask_smoothed, comp_data->seg_mask,
+               N * sizeof(*comp_data->seg_mask_smoothed));
+
+        // TODO(urvang): Refactor part below.
+
+        // Convert binary mask with values {0, 1} to one with values {0, 64}.
+        av1_extend_binary_mask_range(comp_data->seg_mask_smoothed, bw, bh);
+
+        // Get a smooth mask from the binary mask.
+        av1_apply_box_blur(comp_data->seg_mask_smoothed, bw, bh);
+        return comp_data->seg_mask_smoothed;
       }
 #endif  // CONFIG_ARBITRARY_WEDGE
       return av1_get_contiguous_soft_mask(comp_data->wedge_index,
@@ -951,6 +970,9 @@ static void build_inter_predictors_8x8_and_bigger(
       }
       // Assign physical buffer.
       inter_pred_params.mask_comp.seg_mask = xd->seg_mask;
+#if CONFIG_ARBITRARY_WEDGE
+      inter_pred_params.mask_comp.seg_mask_smoothed = xd->seg_mask_smoothed;
+#endif  // CONFIG_ARBITRARY_WEDGE
     }
 
     av1_build_one_inter_predictor(dst, dst_buf->stride, &mv, &inter_pred_params,

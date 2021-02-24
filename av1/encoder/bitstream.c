@@ -43,6 +43,9 @@
 #include "av1/encoder/encodetxb.h"
 #include "av1/encoder/mcomp.h"
 #include "av1/encoder/palette.h"
+#if CONFIG_ARBITRARY_WEDGE
+#include "av1/encoder/segment_patch.h"
+#endif  // CONFIG_ARBITRARY_WEDGE
 #include "av1/encoder/segmentation.h"
 #include "av1/encoder/tokenize.h"
 
@@ -1235,9 +1238,28 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
 
         if (mbmi->interinter_comp.type == COMPOUND_WEDGE) {
           assert(is_interinter_compound_used(COMPOUND_WEDGE, bsize));
-          aom_write_symbol(w, mbmi->interinter_comp.wedge_index,
-                           ec_ctx->wedge_idx_cdf[bsize], MAX_WEDGE_TYPES);
-          aom_write_bit(w, mbmi->interinter_comp.wedge_sign);
+          // TODO(urvang): Same on decoder side also.
+#if CONFIG_ARBITRARY_WEDGE
+          if (av1_wedge_params_lookup[bsize].codebook == NULL) {
+            // Arbirary wedge: run RLE and write the RLE output.
+            uint8_t rle_buf[3 * MAX_SB_SQUARE];
+            int rle_size = 0;
+            int rle_rate = 0;
+            av1_run_length_encode(mbmi->interinter_comp.seg_mask,
+                                  block_size_wide[bsize],
+                                  block_size_high[bsize],
+                                  block_size_wide[bsize], rle_buf, &rle_size,
+                                  &rle_rate);
+            // TODO(urvang): Write rle_buf.
+          } else {
+            // Transmit wedge index and sign only.
+#endif  // CONFIG_ARBITRARY_WEDGE
+            aom_write_symbol(w, mbmi->interinter_comp.wedge_index,
+                             ec_ctx->wedge_idx_cdf[bsize], MAX_WEDGE_TYPES);
+            aom_write_bit(w, mbmi->interinter_comp.wedge_sign);
+#if CONFIG_ARBITRARY_WEDGE
+          }
+#endif  // CONFIG_ARBITRARY_WEDGE
         } else {
           assert(mbmi->interinter_comp.type == COMPOUND_DIFFWTD);
           aom_write_literal(w, mbmi->interinter_comp.mask_type,

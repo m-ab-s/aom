@@ -56,9 +56,12 @@ void av1_apply_box_blur(uint8_t *const mask, int w, int h);
 // - stride: image stride
 // Outputs:
 // - out: run-length encoded image. Assumed to be already allocated.
-// - out_size: length of 'out'
+// - out_size: length of 'out' in bytes.
+// - out_rate: length of transmitting 'out' in bits, but scaled by 512.
+// TODO(urvang): Need to write in bits directly and consolidate last two.
 void av1_run_length_encode(const uint8_t *const img, int width, int height,
-                           int stride, uint8_t *out, int *out_size);
+                           int stride, uint8_t *out, int *out_size,
+                           int *out_rate);
 
 #define DUMP_SEGMENT_MASKS 0
 
