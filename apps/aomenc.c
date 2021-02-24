@@ -31,6 +31,7 @@
 #include "aom_dsp/aom_dsp_common.h"
 #include "aom_ports/aom_timer.h"
 #include "aom_ports/mem_ops.h"
+#include "av1/common/quant_common.h"
 #include "common/args.h"
 #include "common/ivfenc.h"
 #include "common/rawenc.h"
@@ -1155,7 +1156,7 @@ struct stream_state {
   uint64_t psnr_samples_total;
   double psnr_totals[4];
   int psnr_count;
-  int counts[256];
+  int counts[QINDEX_RANGE];
   aom_codec_ctx_t encoder;
   unsigned int frames_out;
   uint64_t cx_time;
