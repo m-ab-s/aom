@@ -20,7 +20,7 @@ TEST_CONFIGURATIONS = ["LD", "RA", "AI", "STILL"]
 ######################################
 # configuration settings
 ######################################
-RootPath = "..//"
+RootPath = ".."
 BinPath = os.path.join(RootPath, 'bin')
 WorkPath = os.path.join(RootPath, 'test')
 SMOKE_TEST = False  # override some parameters to do a quick smoke test
@@ -32,6 +32,7 @@ FrameNum = {
     "STILL" : 1,
 }
 EnableTimingInfo = True
+UsePerfUtil = False
 Platform = platform.system()
 
 ############ test contents #######################################
