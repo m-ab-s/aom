@@ -1150,7 +1150,9 @@ typedef struct FRAME_COUNTS {
   unsigned int intrabc[2];
 
 #if CONFIG_NEW_TX_PARTITION
-  unsigned int intra_tx_size[2][TX_SIZE_CONTEXTS][TX_PARTITION_TYPES_INTRA];
+  unsigned int intra_4way_txfm_partition[2][TX_SIZE_CONTEXTS][4];
+  unsigned int intra_2way_txfm_partition[2];
+  unsigned int intra_2way_rect_txfm_partition[2];
   unsigned int inter_4way_txfm_partition[2][TXFM_PARTITION_INTER_CONTEXTS][4];
   unsigned int inter_2way_txfm_partition[2];
   unsigned int inter_2way_rect_txfm_partition[2];

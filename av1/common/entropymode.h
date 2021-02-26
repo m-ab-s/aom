@@ -167,8 +167,9 @@ typedef struct frame_contexts {
                               [CDF_SIZE(2 * MAX_ANGLE_DELTA + 1)];
 
 #if CONFIG_NEW_TX_PARTITION
-  aom_cdf_prob tx_size_cdf[2][TX_SIZE_CONTEXTS]
-                          [CDF_SIZE(TX_PARTITION_TYPES_INTRA)];
+  aom_cdf_prob intra_4way_txfm_partition_cdf[2][TX_SIZE_CONTEXTS][CDF_SIZE(4)];
+  aom_cdf_prob intra_2way_txfm_partition_cdf[CDF_SIZE(2)];
+  aom_cdf_prob intra_2way_rect_txfm_partition_cdf[CDF_SIZE(2)];
 #else
   aom_cdf_prob tx_size_cdf[MAX_TX_CATS][TX_SIZE_CONTEXTS]
                           [CDF_SIZE(MAX_TX_DEPTH + 1)];

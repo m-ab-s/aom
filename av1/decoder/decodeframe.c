@@ -1138,11 +1138,67 @@ static void read_tx_partition(MACROBLOCKD *xd, MB_MODE_INFO *mbmi,
 
 static TX_SIZE read_tx_partition_intra(const MACROBLOCKD *const xd,
                                        aom_reader *r, TX_SIZE max_tx_size) {
-  const int ctx = get_tx_size_context(xd);
   FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
   const int is_rect = is_rect_tx(max_tx_size);
-  const TX_PARTITION_TYPE partition = aom_read_symbol(
-      r, ec_ctx->tx_size_cdf[is_rect][ctx], TX_PARTITION_TYPES_INTRA, ACCT_STR);
+  const int allow_horz = allow_tx_horz_split(max_tx_size);
+  const int allow_vert = allow_tx_vert_split(max_tx_size);
+  const int allow_horz2 = allow_tx_horz2_split(max_tx_size);
+  const int allow_vert2 = allow_tx_vert2_split(max_tx_size);
+  TX_PARTITION_TYPE partition = 0;
+  /*
+  If both horizontal and vertical splits are allowed for this block,
+  first signal using a 4 way tree to indicate TX_PARTITION_NONE,
+  TX_PARTITION_SPLIT, TX_PARTITION_HORZ or TX_PARTITION_VERT. If the
+  actual tx partition type is HORZ4 or VERT4, we read an additional
+  bit to indicate to split further.
+  */
+  if (allow_horz && allow_vert) {
+    // Read 4way tree type
+    const int split4_ctx = get_tx_size_context(xd);
+    const TX_PARTITION_TYPE split4_partition = aom_read_symbol(
+        r, ec_ctx->intra_4way_txfm_partition_cdf[is_rect][split4_ctx], 4,
+        ACCT_STR);
+    partition = split4_partition;
+    // If further split is allowed, read an additional bit to determine
+    // the final partition type
+    if (((split4_partition == TX_PARTITION_VERT) && allow_vert2) ||
+        ((split4_partition == TX_PARTITION_HORZ) && allow_horz2)) {
+      const int further_split = aom_read_symbol(
+          r, ec_ctx->intra_2way_rect_txfm_partition_cdf, 2, ACCT_STR);
+      if (further_split)
+        partition = (split4_partition == TX_PARTITION_VERT)
+                        ? TX_PARTITION_VERT4
+                        : TX_PARTITION_HORZ4;
+    }
+    /*
+    If only one split type (horizontal or vertical) is allowed for this block,
+    first signal a bit indicating whether there is any split at all. If
+    the partition has a split, and this block is able to be split further,
+    we send a second bit to indicate if the type should be HORZ4 or VERT4.
+    */
+  } else if (allow_horz || allow_vert) {
+    // Read bit to indicate if there is any split at all
+    const int has_first_split =
+        aom_read_symbol(r, ec_ctx->intra_2way_txfm_partition_cdf, 2, ACCT_STR);
+    if (has_first_split) {
+      // If further splitting is allowed, read a bit determine the fineal
+      // partition type
+      const int has_second_split =
+          (allow_horz2 || allow_vert2)
+              ? aom_read_symbol(r, ec_ctx->intra_2way_rect_txfm_partition_cdf,
+                                2, ACCT_STR)
+              : 0;
+      if (has_second_split)
+        partition = allow_horz ? TX_PARTITION_HORZ4 : TX_PARTITION_VERT4;
+      else
+        partition = allow_horz ? TX_PARTITION_HORZ : TX_PARTITION_VERT;
+    } else {
+      partition = TX_PARTITION_NONE;
+    }
+  } else {
+    assert(!allow_horz && !allow_vert);
+    partition = TX_PARTITION_NONE;
+  }
   TX_SIZE sub_txs[MAX_TX_PARTITIONS] = { 0 };
   get_tx_partition_sizes(partition, max_tx_size, sub_txs);
   return sub_txs[0];

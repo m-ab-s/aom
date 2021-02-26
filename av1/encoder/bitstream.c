@@ -219,12 +219,41 @@ static void write_tx_partition_intra(const MACROBLOCKD *xd, aom_writer *w,
   FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
   if (block_signals_txsize(bsize)) {
     const TX_PARTITION_TYPE partition = mbmi->partition_type[0];
-    const int tx_size_ctx = get_tx_size_context(xd);
     const int is_rect = is_rect_tx(max_tx_size);
     assert(!is_inter_block(mbmi));
 
-    aom_write_symbol(w, partition, ec_ctx->tx_size_cdf[is_rect][tx_size_ctx],
-                     TX_PARTITION_TYPES_INTRA);
+    const int allow_horz = allow_tx_horz_split(max_tx_size);
+    const int allow_vert = allow_tx_vert_split(max_tx_size);
+    const int allow_horz2 = allow_tx_horz2_split(max_tx_size);
+    const int allow_vert2 = allow_tx_vert2_split(max_tx_size);
+    if (allow_horz && allow_vert) {
+      const int split4_ctx = get_tx_size_context(xd);
+      const TX_PARTITION_TYPE split4_partition =
+          get_split4_partition(partition);
+      aom_write_symbol(
+          w, split4_partition,
+          ec_ctx->intra_4way_txfm_partition_cdf[is_rect][split4_ctx], 4);
+      if (((split4_partition == TX_PARTITION_VERT) && allow_vert2) ||
+          ((split4_partition == TX_PARTITION_HORZ) && allow_horz2)) {
+        const int has_split = (partition == TX_PARTITION_HORZ4) ||
+                              (partition == TX_PARTITION_VERT4);
+        aom_write_symbol(w, has_split,
+                         ec_ctx->intra_2way_rect_txfm_partition_cdf, 2);
+      }
+    } else if (allow_horz || allow_vert) {
+      const int has_first_split = partition != TX_PARTITION_NONE;
+      aom_write_symbol(w, has_first_split,
+                       ec_ctx->intra_2way_txfm_partition_cdf, 2);
+      if (has_first_split && (allow_horz2 || allow_vert2)) {
+        const int has_second_split = (partition == TX_PARTITION_VERT4) ||
+                                     (partition == TX_PARTITION_HORZ4);
+        aom_write_symbol(w, has_second_split,
+                         ec_ctx->intra_2way_rect_txfm_partition_cdf, 2);
+      }
+    } else {
+      assert(!allow_horz && !allow_vert);
+      assert(partition == PARTITION_NONE);
+    }
   }
 }
 #else

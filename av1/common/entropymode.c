@@ -958,15 +958,20 @@ static const aom_cdf_prob
     };
 
 #if CONFIG_NEW_TX_PARTITION
-static const aom_cdf_prob default_tx_size_cdf[2][TX_SIZE_CONTEXTS][CDF_SIZE(
-    TX_PARTITION_TYPES_INTRA)] = {
-  { { AOM_CDF6(19968, 20968, 21968, 22968, 23968) },
-    { AOM_CDF6(19968, 20968, 21968, 22968, 23968) },
-    { AOM_CDF6(24320, 25320, 26320, 27320, 28320) } },
-  { { AOM_CDF6(12272, 13272, 14272, 15272, 16272) },
-    { AOM_CDF6(12272, 13272, 14272, 15272, 16272) },
-    { AOM_CDF6(18677, 19677, 20677, 21677, 22677) } },
+static const aom_cdf_prob
+    default_intra_4way_txfm_partition_cdf[2][TX_SIZE_CONTEXTS][CDF_SIZE(4)] = {
+      { { AOM_CDF4(19968, 20968, 21968) },
+        { AOM_CDF4(19968, 20968, 21968) },
+        { AOM_CDF4(24320, 25320, 26320) } },
+      { { AOM_CDF4(12272, 13272, 14272) },
+        { AOM_CDF4(12272, 13272, 14272) },
+        { AOM_CDF4(18677, 19677, 20677) } },
+    };
+static const aom_cdf_prob default_intra_2way_txfm_partition_cdf[CDF_SIZE(2)] = {
+  AOM_CDF2(30531)
 };
+static const aom_cdf_prob default_intra_2way_rect_txfm_partition_cdf[CDF_SIZE(
+    2)] = { AOM_CDF2(30531) };
 #else  // CONFIG_NEW_TX_PARTITION
 static const aom_cdf_prob default_tx_size_cdf[MAX_TX_CATS][TX_SIZE_CONTEXTS]
                                              [CDF_SIZE(MAX_TX_DEPTH + 1)] = {
@@ -1244,7 +1249,16 @@ static void init_mode_probs(FRAME_CONTEXT *fc) {
   for (int i = 0; i < SPATIAL_PREDICTION_PROBS; i++)
     av1_copy(fc->seg.spatial_pred_seg_cdf[i],
              default_spatial_pred_seg_tree_cdf[i]);
+#if CONFIG_NEW_TX_PARTITION
+  av1_copy(fc->intra_4way_txfm_partition_cdf,
+           default_intra_4way_txfm_partition_cdf);
+  av1_copy(fc->intra_2way_txfm_partition_cdf,
+           default_intra_2way_txfm_partition_cdf);
+  av1_copy(fc->intra_2way_rect_txfm_partition_cdf,
+           default_intra_2way_rect_txfm_partition_cdf);
+#else
   av1_copy(fc->tx_size_cdf, default_tx_size_cdf);
+#endif  // CONFIG_NEW_TX_PARTITION
   av1_copy(fc->delta_q_cdf, default_delta_q_cdf);
   av1_copy(fc->delta_lf_cdf, default_delta_lf_cdf);
   av1_copy(fc->delta_lf_multi_cdf, default_delta_lf_multi_cdf);

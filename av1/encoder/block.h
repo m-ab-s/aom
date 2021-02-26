@@ -744,8 +744,12 @@ typedef struct {
   //! skip_txfm_cost
   int skip_txfm_cost[SKIP_CONTEXTS][2];
 #if CONFIG_NEW_TX_PARTITION
-  //! tx_size_cost
-  int tx_size_cost[2][TX_SIZE_CONTEXTS][TX_PARTITION_TYPES_INTRA];
+  //! intra_4way_txfm_partition_cost
+  int intra_4way_txfm_partition_cost[2][TX_SIZE_CONTEXTS][4];
+  //! intra_2way_txfm_partition_cost
+  int intra_2way_txfm_partition_cost[2];
+  //! intra_2way_rect_txfm_partition_cost
+  int intra_2way_rect_txfm_partition_cost[2];
   //! inter_4way_txfm_partition_cost
   int inter_4way_txfm_partition_cost[2][TXFM_PARTITION_INTER_CONTEXTS][4];
   //! inter_2way_txfm_partition_cost

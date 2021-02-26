@@ -187,13 +187,17 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, ModeCosts *mode_costs,
   }
 
 #if CONFIG_NEW_TX_PARTITION
+  av1_cost_tokens_from_cdf(mode_costs->intra_2way_txfm_partition_cost,
+                           fc->intra_2way_txfm_partition_cdf, NULL);
+  av1_cost_tokens_from_cdf(mode_costs->intra_2way_rect_txfm_partition_cost,
+                           fc->intra_2way_rect_txfm_partition_cdf, NULL);
   for (i = 0; i < TX_SIZE_CONTEXTS; ++i) {
     // Square
-    av1_cost_tokens_from_cdf(mode_costs->tx_size_cost[0][i],
-                             fc->tx_size_cdf[0][i], NULL);
+    av1_cost_tokens_from_cdf(mode_costs->intra_4way_txfm_partition_cost[0][i],
+                             fc->intra_4way_txfm_partition_cdf[0][i], NULL);
     // Rectangular
-    av1_cost_tokens_from_cdf(mode_costs->tx_size_cost[1][i],
-                             fc->tx_size_cdf[1][i], NULL);
+    av1_cost_tokens_from_cdf(mode_costs->intra_4way_txfm_partition_cost[1][i],
+                             fc->intra_4way_txfm_partition_cdf[1][i], NULL);
   }
 #else
   for (i = 0; i < MAX_TX_CATS; ++i)
