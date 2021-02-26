@@ -1180,11 +1180,7 @@ static AOM_INLINE void init_rd_sf(RD_CALC_SPEED_FEATURES *rd_sf,
   } else {
     assert(0 && "Invalid enable_trellis_quant value");
   }
-#if CONFIG_NEW_TX_PARTITION
-  rd_sf->use_mb_rd_hash = 0;
-#else
   rd_sf->use_mb_rd_hash = 1;
-#endif  // CONFIG_NEW_TX_PARTITION
   rd_sf->simple_model_rd_from_var = 0;
   rd_sf->tx_domain_dist_level = 0;
   rd_sf->tx_domain_dist_thres_level = 0;
