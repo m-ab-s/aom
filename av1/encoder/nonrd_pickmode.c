@@ -2164,6 +2164,12 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
 
     this_mode = ref_mode_set[idx].pred_mode;
     ref_frame = ref_mode_set[idx].ref_frame;
+#if CONFIG_OPTFLOW_REFINEMENT
+    // Optical modes only enabled with enable_order_hint
+    if (this_mode > NEW_NEWMV &&
+        !cm->seq_params.order_hint_info.enable_order_hint)
+      continue;
+#endif  // CONFIG_OPTFLOW_REFINEMENT
 
 #if COLLECT_PICK_MODE_STAT
     aom_usec_timer_start(&ms_stat.timer1);

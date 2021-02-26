@@ -24,7 +24,11 @@ static AOM_INLINE int_mv get_ref_mv_for_mv_stats(
     const MB_MODE_INFO *mbmi, const MB_MODE_INFO_EXT_FRAME *mbmi_ext_frame,
     int ref_idx) {
   int ref_mv_idx = mbmi->ref_mv_idx;
-  if (mbmi->mode == NEAR_NEWMV || mbmi->mode == NEW_NEARMV) {
+  if (mbmi->mode == NEAR_NEWMV ||
+#if CONFIG_OPTFLOW_REFINEMENT
+      mbmi->mode == NEAR_NEWMV_OPTFLOW || mbmi->mode == NEW_NEARMV_OPTFLOW ||
+#endif  // CONFIG_OPTFLOW_REFINEMENT
+      mbmi->mode == NEW_NEARMV) {
     assert(has_second_ref(mbmi));
 #if !CONFIG_NEW_INTER_MODES
     ref_mv_idx += 1;
@@ -226,7 +230,11 @@ static AOM_INLINE void collect_mv_stats_b(MV_STATS *mv_stats,
   const PREDICTION_MODE mode = mbmi->mode;
   const int is_compound = has_second_ref(mbmi);
 
-  if (mode == NEWMV || mode == NEW_NEWMV) {
+  if (mode == NEWMV ||
+#if CONFIG_OPTFLOW_REFINEMENT
+      mode == NEW_NEWMV_OPTFLOW ||
+#endif  // CONFIG_OPTFLOW_REFINEMENT
+      mode == NEW_NEWMV) {
     // All mvs are new
     for (int ref_idx = 0; ref_idx < 1 + is_compound; ++ref_idx) {
       const MV ref_mv =
@@ -235,7 +243,11 @@ static AOM_INLINE void collect_mv_stats_b(MV_STATS *mv_stats,
       keep_one_mv_stat(mv_stats, &ref_mv, &cur_mv, cpi);
     }
 #if CONFIG_NEW_INTER_MODES
-  } else if (mode == NEAR_NEWMV || mode == NEW_NEARMV) {
+  } else if (mode == NEAR_NEWMV ||
+#if CONFIG_OPTFLOW_REFINEMENT
+             mode == NEAR_NEWMV_OPTFLOW || mode == NEW_NEARMV_OPTFLOW ||
+#endif  // CONFIG_OPTFLOW_REFINEMENT
+             mode == NEW_NEARMV) {
 #else
   } else if (mode == NEAREST_NEWMV || mode == NEAR_NEWMV ||
              mode == NEW_NEARESTMV || mode == NEW_NEARMV) {
@@ -243,7 +255,11 @@ static AOM_INLINE void collect_mv_stats_b(MV_STATS *mv_stats,
     // has exactly one new_mv
     mv_stats->default_mvs += 1;
 #if CONFIG_NEW_INTER_MODES
+#if CONFIG_OPTFLOW_REFINEMENT
+    const int ref_idx = (mode == NEAR_NEWMV || mode == NEAR_NEWMV_OPTFLOW);
+#else
     const int ref_idx = (mode == NEAR_NEWMV);
+#endif  // CONFIG_OPTFLOW_REFINEMENT
 #else
     const int ref_idx = (mode == NEAREST_NEWMV || mode == NEAR_NEWMV);
 #endif  // CONFIG_NEW_INTER_MODES

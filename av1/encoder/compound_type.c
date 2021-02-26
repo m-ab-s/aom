@@ -842,6 +842,19 @@ static INLINE int compute_valid_comp_types(
     COMPOUND_TYPE *valid_comp_types) {
   int valid_type_count = 0;
   int comp_type, valid_check;
+#if CONFIG_OPTFLOW_REFINEMENT
+  MACROBLOCKD *xd = &x->e_mbd;
+  MB_MODE_INFO *mbmi = xd->mi[0];
+  const PREDICTION_MODE this_mode = mbmi->mode;
+  // For implementation simplicity, set compound type to COMPOUND_AVERAGE for
+  // now to avoid compound type RD search. In practice, dist_wtd will always
+  // be applied instead.
+  if (this_mode > NEW_NEWMV) {
+    *try_average_and_distwtd_comp = 0;
+    valid_comp_types[0] = COMPOUND_AVERAGE;
+    return 1;
+  }
+#endif  // CONFIG_OPTFLOW_REFINEMENT
   int8_t enable_masked_type[MASKED_COMPOUND_TYPES] = { 0, 0 };
 
   const int try_average_comp = (mode_search_mask & (1 << COMPOUND_AVERAGE));
@@ -1355,15 +1368,19 @@ int av1_compound_type_rd(const AV1_COMP *const cpi, MACROBLOCK *x,
   const int comp_group_idx_ctx = get_comp_group_idx_context(cm, xd);
 #if !CONFIG_REMOVE_DIST_WTD_COMP
   const int comp_index_ctx = get_comp_index_context(cm, xd);
-
-  // Populates masked_type_cost local array for the 4 compound types
-  calc_masked_type_cost(&x->mode_costs, bsize, comp_group_idx_ctx,
-                        comp_index_ctx, masked_compound_used, masked_type_cost);
-#else
-  // Populates masked_type_cost local array for the 4 compound types
-  calc_masked_type_cost(&x->mode_costs, bsize, comp_group_idx_ctx,
-                        masked_compound_used, masked_type_cost);
 #endif  // !CONFIG_REMOVE_DIST_WTD_COMP
+
+#if CONFIG_OPTFLOW_REFINEMENT
+  if (this_mode > NEW_NEWMV)
+    av1_zero_array(masked_type_cost, COMPOUND_TYPES);
+  else
+#endif
+    // Populates masked_type_cost local array for the 4 compound types
+    calc_masked_type_cost(&x->mode_costs, bsize, comp_group_idx_ctx,
+#if !CONFIG_REMOVE_DIST_WTD_COMP
+                          comp_index_ctx,
+#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
+                          masked_compound_used, masked_type_cost);
 
   int64_t comp_model_rd_cur = INT64_MAX;
   int64_t best_rd_cur = INT64_MAX;

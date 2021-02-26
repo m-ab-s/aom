@@ -782,7 +782,11 @@ int64_t av1_interpolation_filter_search(
     return 0;
   }
   if (args->modelled_rd != NULL) {
+#if CONFIG_OPTFLOW_REFINEMENT
+    if (has_second_ref(mbmi) && mbmi->mode <= NEW_NEWMV) {
+#else
     if (has_second_ref(mbmi)) {
+#endif  // CONFIG_OPTFLOW_REFINEMENT
       const int ref_mv_idx = mbmi->ref_mv_idx;
       MV_REFERENCE_FRAME *refs = mbmi->ref_frame;
       const int mode0 = compound_ref0_mode(mbmi->mode);

@@ -512,16 +512,22 @@ static INLINE int update_extend_mc_border_params(
     const struct scale_factors *const sf, struct buf_2d *const pre_buf,
     MV32 scaled_mv, PadBlock *block, int subpel_x_mv, int subpel_y_mv,
     int do_warp, int is_intrabc, int *x_pad, int *y_pad) {
-  const int is_scaled = av1_is_scaled(sf);
   // Get reference width and height.
   int frame_width = pre_buf->width;
   int frame_height = pre_buf->height;
 
   // Do border extension if there is motion or
   // width/height is not a multiple of 8 pixels.
+#if CONFIG_OPTFLOW_REFINEMENT
+  // Extension is needed in optical flow refinement to obtain MV offsets
+  (void)scaled_mv;
+  if (!is_intrabc && !do_warp) {
+#else
+  const int is_scaled = av1_is_scaled(sf);
   if ((!is_intrabc) && (!do_warp) &&
       (is_scaled || scaled_mv.col || scaled_mv.row || (frame_width & 0x7) ||
        (frame_height & 0x7))) {
+#endif  // CONFIG_OPTFLOW_REFINEMENT
     if (subpel_x_mv || (sf->x_step_q4 != SUBPEL_SHIFTS)) {
       block->x0 -= AOM_INTERP_EXTEND - 1;
       block->x1 += AOM_INTERP_EXTEND;

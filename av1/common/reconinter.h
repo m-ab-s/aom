@@ -261,6 +261,39 @@ void av1_build_inter_predictors(const AV1_COMMON *cm, MACROBLOCKD *xd,
                                 int mi_y, uint8_t **mc_buf,
                                 CalcSubpelParamsFunc calc_subpel_params_func);
 
+#if CONFIG_OPTFLOW_REFINEMENT
+// Precision of refined MV returned, 0 being integer pel.
+#define MV_REFINE_PREC_BITS 3  // (1/8-pel)
+void av1_opfl_mv_refinement_lowbd(const uint8_t *p0, int pstride0,
+                                  const uint8_t *p1, int pstride1,
+                                  const int16_t *gx0, const int16_t *gy0,
+                                  const int16_t *gx1, const int16_t *gy1,
+                                  int gstride, int bw, int bh, int d0, int d1,
+                                  int grad_prec_bits, int mv_prec_bits,
+                                  int *vx0, int *vy0, int *vx1, int *vy1);
+void av1_opfl_mv_refinement_highbd(const uint16_t *p0, int pstride0,
+                                   const uint16_t *p1, int pstride1,
+                                   const int16_t *gx0, const int16_t *gy0,
+                                   const int16_t *gx1, const int16_t *gy1,
+                                   int gstride, int bw, int bh, int d0, int d1,
+                                   int grad_prec_bits, int mv_prec_bits,
+                                   int *vx0, int *vy0, int *vx1, int *vy1);
+void av1_opfl_mv_refinement4_lowbd(const uint8_t *p0, int pstride0,
+                                   const uint8_t *p1, int pstride1,
+                                   const int16_t *gx0, const int16_t *gy0,
+                                   const int16_t *gx1, const int16_t *gy1,
+                                   int gstride, int bw, int bh, int d0, int d1,
+                                   int grad_prec_bits, int mv_prec_bits,
+                                   int *vx0, int *vy0, int *vx1, int *vy1);
+void av1_opfl_mv_refinement4_highbd(const uint16_t *p0, int pstride0,
+                                    const uint16_t *p1, int pstride1,
+                                    const int16_t *gx0, const int16_t *gy0,
+                                    const int16_t *gx1, const int16_t *gy1,
+                                    int gstride, int bw, int bh, int d0, int d1,
+                                    int grad_prec_bits, int mv_prec_bits,
+                                    int *vx0, int *vy0, int *vx1, int *vy1);
+#endif  // CONFIG_OPTFLOW_REFINEMENT
+
 // TODO(jkoleszar): yet another mv clamping function :-(
 static INLINE MV clamp_mv_to_umv_border_sb(const MACROBLOCKD *xd,
                                            const MV *src_mv, int bw, int bh,

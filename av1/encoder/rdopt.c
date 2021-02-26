@@ -150,81 +150,193 @@ static const THR_MODES av1_default_mode_order[MAX_MODES] = {
   THR_COMP_NEAR_NEWLA,
   THR_COMP_NEW_NEWLA,
   THR_COMP_GLOBAL_GLOBALLA,
+#if CONFIG_OPTFLOW_REFINEMENT
+  THR_COMP_NEAR_NEAR_OPTFLOWLA,
+  THR_COMP_NEAR_NEW_OPTFLOWLA,
+  THR_COMP_NEW_NEAR_OPTFLOWLA,
+  THR_COMP_GLOBAL_GLOBAL_OPTFLOWLA,
+  THR_COMP_NEW_NEW_OPTFLOWLA,
+#endif  // CONFIG_OPTFLOW_REFINEMENT
 
   THR_COMP_NEW_NEARL2A,
   THR_COMP_NEAR_NEWL2A,
   THR_COMP_NEW_NEWL2A,
   THR_COMP_GLOBAL_GLOBALL2A,
+#if CONFIG_OPTFLOW_REFINEMENT
+  THR_COMP_NEAR_NEAR_OPTFLOWL2A,
+  THR_COMP_NEAR_NEW_OPTFLOWL2A,
+  THR_COMP_NEW_NEAR_OPTFLOWL2A,
+  THR_COMP_GLOBAL_GLOBAL_OPTFLOWL2A,
+  THR_COMP_NEW_NEW_OPTFLOWL2A,
+#endif  // CONFIG_OPTFLOW_REFINEMENT
 
   THR_COMP_NEW_NEARL3A,
   THR_COMP_NEAR_NEWL3A,
   THR_COMP_NEW_NEWL3A,
   THR_COMP_GLOBAL_GLOBALL3A,
+#if CONFIG_OPTFLOW_REFINEMENT
+  THR_COMP_NEAR_NEAR_OPTFLOWL3A,
+  THR_COMP_NEAR_NEW_OPTFLOWL3A,
+  THR_COMP_NEW_NEAR_OPTFLOWL3A,
+  THR_COMP_GLOBAL_GLOBAL_OPTFLOWL3A,
+  THR_COMP_NEW_NEW_OPTFLOWL3A,
+#endif  // CONFIG_OPTFLOW_REFINEMENT
 
   THR_COMP_NEW_NEARGA,
   THR_COMP_NEAR_NEWGA,
   THR_COMP_NEW_NEWGA,
   THR_COMP_GLOBAL_GLOBALGA,
+#if CONFIG_OPTFLOW_REFINEMENT
+  THR_COMP_NEAR_NEAR_OPTFLOWGA,
+  THR_COMP_NEAR_NEW_OPTFLOWGA,
+  THR_COMP_NEW_NEAR_OPTFLOWGA,
+  THR_COMP_GLOBAL_GLOBAL_OPTFLOWGA,
+  THR_COMP_NEW_NEW_OPTFLOWGA,
+#endif  // CONFIG_OPTFLOW_REFINEMENT
 
   THR_COMP_NEW_NEARLB,
   THR_COMP_NEAR_NEWLB,
   THR_COMP_NEW_NEWLB,
   THR_COMP_GLOBAL_GLOBALLB,
+#if CONFIG_OPTFLOW_REFINEMENT
+  THR_COMP_NEAR_NEAR_OPTFLOWLB,
+  THR_COMP_NEAR_NEW_OPTFLOWLB,
+  THR_COMP_NEW_NEAR_OPTFLOWLB,
+  THR_COMP_GLOBAL_GLOBAL_OPTFLOWLB,
+  THR_COMP_NEW_NEW_OPTFLOWLB,
+#endif  // CONFIG_OPTFLOW_REFINEMENT
 
   THR_COMP_NEW_NEARL2B,
   THR_COMP_NEAR_NEWL2B,
   THR_COMP_NEW_NEWL2B,
   THR_COMP_GLOBAL_GLOBALL2B,
+#if CONFIG_OPTFLOW_REFINEMENT
+  THR_COMP_NEAR_NEAR_OPTFLOWL2B,
+  THR_COMP_NEAR_NEW_OPTFLOWL2B,
+  THR_COMP_NEW_NEAR_OPTFLOWL2B,
+  THR_COMP_GLOBAL_GLOBAL_OPTFLOWL2B,
+  THR_COMP_NEW_NEW_OPTFLOWL2B,
+#endif  // CONFIG_OPTFLOW_REFINEMENT
 
   THR_COMP_NEW_NEARL3B,
   THR_COMP_NEAR_NEWL3B,
   THR_COMP_NEW_NEWL3B,
   THR_COMP_GLOBAL_GLOBALL3B,
+#if CONFIG_OPTFLOW_REFINEMENT
+  THR_COMP_NEAR_NEAR_OPTFLOWL3B,
+  THR_COMP_NEAR_NEW_OPTFLOWL3B,
+  THR_COMP_NEW_NEAR_OPTFLOWL3B,
+  THR_COMP_GLOBAL_GLOBAL_OPTFLOWL3B,
+  THR_COMP_NEW_NEW_OPTFLOWL3B,
+#endif  // CONFIG_OPTFLOW_REFINEMENT
 
   THR_COMP_NEW_NEARGB,
   THR_COMP_NEAR_NEWGB,
   THR_COMP_NEW_NEWGB,
   THR_COMP_GLOBAL_GLOBALGB,
+#if CONFIG_OPTFLOW_REFINEMENT
+  THR_COMP_NEAR_NEAR_OPTFLOWGB,
+  THR_COMP_NEAR_NEW_OPTFLOWGB,
+  THR_COMP_NEW_NEAR_OPTFLOWGB,
+  THR_COMP_GLOBAL_GLOBAL_OPTFLOWGB,
+  THR_COMP_NEW_NEW_OPTFLOWGB,
+#endif  // CONFIG_OPTFLOW_REFINEMENT
 
   THR_COMP_NEW_NEARLA2,
   THR_COMP_NEAR_NEWLA2,
   THR_COMP_NEW_NEWLA2,
   THR_COMP_GLOBAL_GLOBALLA2,
+#if CONFIG_OPTFLOW_REFINEMENT
+  THR_COMP_NEAR_NEAR_OPTFLOWLA2,
+  THR_COMP_NEAR_NEW_OPTFLOWLA2,
+  THR_COMP_NEW_NEAR_OPTFLOWLA2,
+  THR_COMP_GLOBAL_GLOBAL_OPTFLOWLA2,
+  THR_COMP_NEW_NEW_OPTFLOWLA2,
+#endif  // CONFIG_OPTFLOW_REFINEMENT
 
   THR_COMP_NEW_NEARL2A2,
   THR_COMP_NEAR_NEWL2A2,
   THR_COMP_NEW_NEWL2A2,
   THR_COMP_GLOBAL_GLOBALL2A2,
+#if CONFIG_OPTFLOW_REFINEMENT
+  THR_COMP_NEAR_NEAR_OPTFLOWL2A2,
+  THR_COMP_NEAR_NEW_OPTFLOWL2A2,
+  THR_COMP_NEW_NEAR_OPTFLOWL2A2,
+  THR_COMP_GLOBAL_GLOBAL_OPTFLOWL2A2,
+  THR_COMP_NEW_NEW_OPTFLOWL2A2,
+#endif  // CONFIG_OPTFLOW_REFINEMENT
 
   THR_COMP_NEW_NEARL3A2,
   THR_COMP_NEAR_NEWL3A2,
   THR_COMP_NEW_NEWL3A2,
   THR_COMP_GLOBAL_GLOBALL3A2,
+#if CONFIG_OPTFLOW_REFINEMENT
+  THR_COMP_NEAR_NEAR_OPTFLOWL3A2,
+  THR_COMP_NEAR_NEW_OPTFLOWL3A2,
+  THR_COMP_NEW_NEAR_OPTFLOWL3A2,
+  THR_COMP_GLOBAL_GLOBAL_OPTFLOWL3A2,
+  THR_COMP_NEW_NEW_OPTFLOWL3A2,
+#endif  // CONFIG_OPTFLOW_REFINEMENT
 
   THR_COMP_NEW_NEARGA2,
   THR_COMP_NEAR_NEWGA2,
   THR_COMP_NEW_NEWGA2,
   THR_COMP_GLOBAL_GLOBALGA2,
+#if CONFIG_OPTFLOW_REFINEMENT
+  THR_COMP_NEAR_NEAR_OPTFLOWGA2,
+  THR_COMP_NEAR_NEW_OPTFLOWGA2,
+  THR_COMP_NEW_NEAR_OPTFLOWGA2,
+  THR_COMP_GLOBAL_GLOBAL_OPTFLOWGA2,
+  THR_COMP_NEW_NEW_OPTFLOWGA2,
+#endif  // CONFIG_OPTFLOW_REFINEMENT
 
   THR_COMP_NEW_NEARLL2,
   THR_COMP_NEAR_NEWLL2,
   THR_COMP_NEW_NEWLL2,
   THR_COMP_GLOBAL_GLOBALLL2,
+#if CONFIG_OPTFLOW_REFINEMENT
+  THR_COMP_NEAR_NEAR_OPTFLOWLL2,
+  THR_COMP_NEAR_NEW_OPTFLOWLL2,
+  THR_COMP_NEW_NEAR_OPTFLOWLL2,
+  THR_COMP_GLOBAL_GLOBAL_OPTFLOWLL2,
+  THR_COMP_NEW_NEW_OPTFLOWLL2,
+#endif  // CONFIG_OPTFLOW_REFINEMENT
 
   THR_COMP_NEW_NEARLL3,
   THR_COMP_NEAR_NEWLL3,
   THR_COMP_NEW_NEWLL3,
   THR_COMP_GLOBAL_GLOBALLL3,
+#if CONFIG_OPTFLOW_REFINEMENT
+  THR_COMP_NEAR_NEAR_OPTFLOWLL3,
+  THR_COMP_NEAR_NEW_OPTFLOWLL3,
+  THR_COMP_NEW_NEAR_OPTFLOWLL3,
+  THR_COMP_GLOBAL_GLOBAL_OPTFLOWLL3,
+  THR_COMP_NEW_NEW_OPTFLOWLL3,
+#endif  // CONFIG_OPTFLOW_REFINEMENT
 
   THR_COMP_NEW_NEARLG,
   THR_COMP_NEAR_NEWLG,
   THR_COMP_NEW_NEWLG,
   THR_COMP_GLOBAL_GLOBALLG,
+#if CONFIG_OPTFLOW_REFINEMENT
+  THR_COMP_NEAR_NEAR_OPTFLOWLG,
+  THR_COMP_NEAR_NEW_OPTFLOWLG,
+  THR_COMP_NEW_NEAR_OPTFLOWLG,
+  THR_COMP_GLOBAL_GLOBAL_OPTFLOWLG,
+  THR_COMP_NEW_NEW_OPTFLOWLG,
+#endif  // CONFIG_OPTFLOW_REFINEMENT
 
   THR_COMP_NEW_NEARBA,
   THR_COMP_NEAR_NEWBA,
   THR_COMP_NEW_NEWBA,
   THR_COMP_GLOBAL_GLOBALBA,
+#if CONFIG_OPTFLOW_REFINEMENT
+  THR_COMP_NEAR_NEAR_OPTFLOWBA,
+  THR_COMP_NEAR_NEW_OPTFLOWBA,
+  THR_COMP_NEW_NEAR_OPTFLOWBA,
+  THR_COMP_GLOBAL_GLOBAL_OPTFLOWBA,
+  THR_COMP_NEW_NEW_OPTFLOWBA,
+#endif  // CONFIG_OPTFLOW_REFINEMENT
 
   THR_DC,
   THR_PAETH,
@@ -1225,7 +1337,11 @@ static int64_t handle_newmv(const AV1_COMP *const cpi, MACROBLOCK *const x,
     const int valid_mv0 = args->single_newmv_valid[ref_mv_idx][refs[0]];
     const int valid_mv1 = args->single_newmv_valid[ref_mv_idx][refs[1]];
 
+#if CONFIG_OPTFLOW_REFINEMENT
+    if (this_mode == NEW_NEWMV || this_mode == NEW_NEWMV_OPTFLOW) {
+#else
     if (this_mode == NEW_NEWMV) {
+#endif
       if (valid_mv0) {
         cur_mv[0].as_int = args->single_newmv[ref_mv_idx][refs[0]].as_int;
         clamp_mv_in_range(x, &cur_mv[0], 0);
@@ -1262,7 +1378,11 @@ static int64_t handle_newmv(const AV1_COMP *const cpi, MACROBLOCK *const x,
         }
       }
 #if CONFIG_NEW_INTER_MODES
+#if CONFIG_OPTFLOW_REFINEMENT
+    } else if (this_mode == NEAR_NEWMV || this_mode == NEAR_NEWMV_OPTFLOW) {
+#else
     } else if (this_mode == NEAR_NEWMV) {
+#endif  // CONFIG_OPTFLOW_REFINEMENT
 #else
     } else if (this_mode == NEAREST_NEWMV || this_mode == NEAR_NEWMV) {
 #endif  // CONFIG_NEW_INTER_MODES
@@ -1284,7 +1404,11 @@ static int64_t handle_newmv(const AV1_COMP *const cpi, MACROBLOCK *const x,
       }
     } else {
 #if CONFIG_NEW_INTER_MODES
+#if CONFIG_OPTFLOW_REFINEMENT
+      assert(this_mode == NEW_NEARMV || this_mode == NEW_NEARMV_OPTFLOW);
+#else
       assert(this_mode == NEW_NEARMV);
+#endif  // CONFIG_OPTFLOW_REFINEMENT
 #else
       assert(this_mode == NEW_NEARESTMV || this_mode == NEW_NEARMV);
 #endif  // CONFIG_NEW_INTER_MODES
@@ -2145,7 +2269,11 @@ static int get_drl_refmv_count(int max_drl_bits, const MACROBLOCK *const x,
   MB_MODE_INFO_EXT *const mbmi_ext = x->mbmi_ext;
   int has_drl = have_drl_index(mode);
   if (!has_drl) {
-    assert(mode == GLOBALMV || mode == GLOBAL_GLOBALMV);
+    assert(mode == GLOBALMV ||
+#if CONFIG_OPTFLOW_REFINEMENT
+           mode == GLOBAL_GLOBALMV_OPTFLOW ||
+#endif  // CONFIG_OPTFLOW_REFINEMENT
+           mode == GLOBAL_GLOBALMV);
     return 1;
   }
   const int8_t ref_frame_type = av1_ref_frame_type(ref_frame);
@@ -3156,9 +3284,12 @@ static int64_t handle_inter_mode(
     }
 
 #if CONFIG_NEW_INTER_MODES
-    const int like_nearest =
-        (mbmi->mode == NEARMV || mbmi->mode == NEAR_NEARMV) &&
-        mbmi->ref_mv_idx == 0;
+    const int like_nearest = (mbmi->mode == NEARMV ||
+#if CONFIG_OPTFLOW_REFINEMENT
+                              mbmi->mode == NEAR_NEARMV_OPTFLOW ||
+#endif  // CONFIG_OPTFLOW_REFINEMENT
+                              mbmi->mode == NEAR_NEARMV) &&
+                             mbmi->ref_mv_idx == 0;
     if (RDCOST(x->rdmult, rd_stats->rate, 0) > ref_best_rd && !like_nearest) {
       continue;
     }
@@ -3222,7 +3353,11 @@ static int64_t handle_inter_mode(
 
     // Compute modelled RD if enabled
     if (args->modelled_rd != NULL) {
+#if CONFIG_OPTFLOW_REFINEMENT
+      if (is_comp_pred && this_mode <= NEW_NEWMV) {
+#else
       if (is_comp_pred) {
+#endif  // CONFIG_OPTFLOW_REFINEMENT
         const int mode0 = compound_ref0_mode(this_mode);
         const int mode1 = compound_ref1_mode(this_mode);
         const int64_t mrd =
@@ -5254,7 +5389,11 @@ static int skip_inter_mode(AV1_COMP *cpi, MACROBLOCK *x, const BLOCK_SIZE bsize,
 
   // Skip this compound mode based on the RD results from the single prediction
   // modes
-  if (sf->inter_sf.prune_comp_search_by_single_result > 0 && comp_pred) {
+  if (sf->inter_sf.prune_comp_search_by_single_result > 0 &&
+#if CONFIG_OPTFLOW_REFINEMENT
+      this_mode <= NEW_NEWMV &&
+#endif  // CONFIG_OPTFLOW_REFINEMENT
+      comp_pred) {
     if (compound_skip_by_single_states(cpi, args->search_state, this_mode,
                                        ref_frame, second_ref_frame, x))
       return 1;
@@ -5727,6 +5866,12 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
     const THR_MODES mode_enum = av1_default_mode_order[midx];
     const MODE_DEFINITION *mode_def = &av1_mode_defs[mode_enum];
     const PREDICTION_MODE this_mode = mode_def->mode;
+#if CONFIG_OPTFLOW_REFINEMENT
+    // Optical flow compound modes only enabled with enable_order_hint
+    if (this_mode > NEW_NEWMV &&
+        !cm->seq_params.order_hint_info.enable_order_hint)
+      continue;
+#endif  // CONFIG_OPTFLOW_REFINEMENT
     const MV_REFERENCE_FRAME *ref_frames = mode_def->ref_frame;
 
     const MV_REFERENCE_FRAME ref_frame = ref_frames[0];
@@ -6019,6 +6164,9 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
   if (search_state.best_mbmode.ref_mv_idx != 0 &&
       !(search_state.best_mbmode.mode == NEWMV ||
         search_state.best_mbmode.mode == NEW_NEWMV ||
+#if CONFIG_OPTFLOW_REFINEMENT
+        search_state.best_mbmode.mode == NEW_NEWMV_OPTFLOW ||
+#endif  // CONFIG_OPTFLOW_REFINEMENT
         have_nearmv_in_inter_mode(search_state.best_mbmode.mode))) {
     search_state.best_mbmode.ref_mv_idx = 0;
   }

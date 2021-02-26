@@ -1222,7 +1222,11 @@ typedef struct {
 } RdIdxPair;
 // TODO(angiebird): This is an estimated size. We still need to figure what is
 // the maximum number of modes.
+#if CONFIG_OPTFLOW_REFINEMENT
+#define MAX_INTER_MODES 1536
+#else
 #define MAX_INTER_MODES 1024
+#endif  // CONFIG_OPTFLOW_REFINEMENT
 // TODO(any): rename this struct to something else. There is already another
 // struct called inter_mode_info, which makes this terribly confusing.
 /*!\endcond */

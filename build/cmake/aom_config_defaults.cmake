@@ -157,6 +157,8 @@ set_aom_config_var(CONFIG_FLEX_MVRES 0 NUMBER
                    "AV2 flexible mv precision experiment flag")
 set_aom_config_var(CONFIG_EXT_RECUR_PARTITIONS 0 NUMBER
                    "AV2 Fully recursive partitions experiment flag")
+set_aom_config_var(CONFIG_OPTFLOW_REFINEMENT 0
+                   "AV2 optical flow based MV refinement experimental flag")
 
 #
 # Variables in this section control optional features of the build system.
