@@ -596,6 +596,10 @@ typedef struct {
   /**@{*/
   //! Cost for coding the partition.
   int partition_cost[PARTITION_CONTEXTS][EXT_PARTITION_TYPES];
+#if CONFIG_EXT_RECUR_PARTITIONS
+  //! Cost for coding the partition for rectangular blocks.
+  int partition_rec_cost[PARTITION_CONTEXTS_REC][PARTITION_TYPES_REC];
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   /**@}*/
 
   /*****************************************************************************

@@ -141,11 +141,14 @@ static AOM_INLINE void add_ref_mv_candidate(
 }
 
 static AOM_INLINE void scan_row_mbmi(
-    const AV1_COMMON *cm, const MACROBLOCKD *xd, int mi_col,
-    const MV_REFERENCE_FRAME rf[2], int row_offset, CANDIDATE_MV *ref_mv_stack,
-    uint16_t *ref_mv_weight, uint8_t *refmv_count, uint8_t *ref_match_count,
-    uint8_t *newmv_count, int_mv *gm_mv_candidates, int max_row_offset,
-    int *processed_rows) {
+    const AV1_COMMON *cm, const MACROBLOCKD *xd,
+#if CONFIG_EXT_RECUR_PARTITIONS
+    int mi_row,
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+    int mi_col, const MV_REFERENCE_FRAME rf[2], int row_offset,
+    CANDIDATE_MV *ref_mv_stack, uint16_t *ref_mv_weight, uint8_t *refmv_count,
+    uint8_t *ref_match_count, uint8_t *newmv_count, int_mv *gm_mv_candidates,
+    int max_row_offset, int *processed_rows) {
   int end_mi = AOMMIN(xd->width, cm->mi_params.mi_cols - mi_col);
   end_mi = AOMMIN(end_mi, mi_size_wide[BLOCK_64X64]);
   const int width_8x8 = mi_size_wide[BLOCK_8X8];
@@ -160,6 +163,20 @@ static AOM_INLINE void scan_row_mbmi(
   MB_MODE_INFO **const candidate_mi0 = xd->mi + row_offset * xd->mi_stride;
 
   for (int i = 0; i < end_mi;) {
+#if CONFIG_EXT_RECUR_PARTITIONS
+    const int sb_mi_size = mi_size_wide[cm->seq_params.sb_size];
+    const int mask_row = mi_row & (sb_mi_size - 1);
+    const int mask_col = mi_col & (sb_mi_size - 1);
+    const int ref_mask_row = mask_row + row_offset;
+    const int ref_mask_col = mask_col + col_offset + i;
+    if (ref_mask_row >= 0) {
+      if (ref_mask_col >= sb_mi_size) break;
+
+      const int ref_offset =
+          ref_mask_row * xd->is_mi_coded_stride + ref_mask_col;
+      if (!xd->is_mi_coded[ref_offset]) break;
+    }
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
     const MB_MODE_INFO *const candidate = candidate_mi0[col_offset + i];
     const int candidate_bsize = candidate->sb_type;
     const int n4_w = mi_size_wide[candidate_bsize];
@@ -189,6 +206,9 @@ static AOM_INLINE void scan_row_mbmi(
 
 static AOM_INLINE void scan_col_mbmi(
     const AV1_COMMON *cm, const MACROBLOCKD *xd, int mi_row,
+#if CONFIG_EXT_RECUR_PARTITIONS
+    int mi_col,
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
     const MV_REFERENCE_FRAME rf[2], int col_offset, CANDIDATE_MV *ref_mv_stack,
     uint16_t *ref_mv_weight, uint8_t *refmv_count, uint8_t *ref_match_count,
     uint8_t *newmv_count, int_mv *gm_mv_candidates, int max_col_offset,
@@ -206,6 +226,19 @@ static AOM_INLINE void scan_col_mbmi(
   const int use_step_16 = (xd->height >= 16);
 
   for (i = 0; i < end_mi;) {
+#if CONFIG_EXT_RECUR_PARTITIONS
+    const int sb_mi_size = mi_size_wide[cm->seq_params.sb_size];
+    const int mask_row = mi_row & (sb_mi_size - 1);
+    const int mask_col = mi_col & (sb_mi_size - 1);
+    const int ref_mask_row = mask_row + row_offset + i;
+    const int ref_mask_col = mask_col + col_offset;
+    if (ref_mask_col >= 0) {
+      if (ref_mask_row >= sb_mi_size) break;
+      const int ref_offset =
+          ref_mask_row * xd->is_mi_coded_stride + ref_mask_col;
+      if (!xd->is_mi_coded[ref_offset]) break;
+    }
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
     const MB_MODE_INFO *const candidate =
         xd->mi[(row_offset + i) * xd->mi_stride + col_offset];
     const int candidate_bsize = candidate->sb_type;
@@ -496,13 +529,21 @@ static AOM_INLINE void setup_ref_mv_list(
 
   // Scan the first above row mode info. row_offset = -1;
   if (abs(max_row_offset) >= 1)
-    scan_row_mbmi(cm, xd, mi_col, rf, -1, ref_mv_stack, ref_mv_weight,
-                  refmv_count, &row_match_count, &newmv_count, gm_mv_candidates,
+    scan_row_mbmi(cm, xd,
+#if CONFIG_EXT_RECUR_PARTITIONS
+                  mi_row,
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+                  mi_col, rf, -1, ref_mv_stack, ref_mv_weight, refmv_count,
+                  &row_match_count, &newmv_count, gm_mv_candidates,
                   max_row_offset, &processed_rows);
   // Scan the first left column mode info. col_offset = -1;
   if (abs(max_col_offset) >= 1)
-    scan_col_mbmi(cm, xd, mi_row, rf, -1, ref_mv_stack, ref_mv_weight,
-                  refmv_count, &col_match_count, &newmv_count, gm_mv_candidates,
+    scan_col_mbmi(cm, xd, mi_row,
+#if CONFIG_EXT_RECUR_PARTITIONS
+                  mi_col,
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+                  rf, -1, ref_mv_stack, ref_mv_weight, refmv_count,
+                  &col_match_count, &newmv_count, gm_mv_candidates,
                   max_col_offset, &processed_cols);
   // Check top-right boundary
   if (has_tr)
@@ -576,15 +617,23 @@ static AOM_INLINE void setup_ref_mv_list(
 
     if (abs(row_offset) <= abs(max_row_offset) &&
         abs(row_offset) > processed_rows)
-      scan_row_mbmi(cm, xd, mi_col, rf, row_offset, ref_mv_stack, ref_mv_weight,
+      scan_row_mbmi(cm, xd,
+#if CONFIG_EXT_RECUR_PARTITIONS
+                    mi_row,
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+                    mi_col, rf, row_offset, ref_mv_stack, ref_mv_weight,
                     refmv_count, &row_match_count, &dummy_newmv_count,
                     gm_mv_candidates, max_row_offset, &processed_rows);
 
     if (abs(col_offset) <= abs(max_col_offset) &&
         abs(col_offset) > processed_cols)
-      scan_col_mbmi(cm, xd, mi_row, rf, col_offset, ref_mv_stack, ref_mv_weight,
-                    refmv_count, &col_match_count, &dummy_newmv_count,
-                    gm_mv_candidates, max_col_offset, &processed_cols);
+      scan_col_mbmi(cm, xd, mi_row,
+#if CONFIG_EXT_RECUR_PARTITIONS
+                    mi_col,
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+                    rf, col_offset, ref_mv_stack, ref_mv_weight, refmv_count,
+                    &col_match_count, &dummy_newmv_count, gm_mv_candidates,
+                    max_col_offset, &processed_cols);
   }
 
   const uint8_t ref_match_count = (row_match_count > 0) + (col_match_count > 0);

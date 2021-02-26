@@ -208,6 +208,11 @@ typedef struct {
  */
 typedef struct {
   /*!
+   * Flag to indicate if ml-based speed-up for partition search should be
+   * disabled.
+   */
+  bool disable_ml_partition_speed_features;
+  /*!
    * Flag to indicate if rectanguar partitions should be enabled.
    */
   bool enable_rect_partitions;
@@ -1102,6 +1107,9 @@ typedef struct FRAME_COUNTS {
                                      [PALETTE_COLOR_INDEX_CONTEXTS]
                                      [PALETTE_COLORS];
   unsigned int partition[PARTITION_CONTEXTS][EXT_PARTITION_TYPES];
+#if CONFIG_EXT_RECUR_PARTITIONS
+  unsigned int partition_rec[PARTITION_CONTEXTS_REC][PARTITION_TYPES_REC];
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   unsigned int txb_skip[TOKEN_CDF_Q_CTXS][TX_SIZES][TXB_SKIP_CONTEXTS][2];
   unsigned int eob_extra[TOKEN_CDF_Q_CTXS][TX_SIZES][PLANE_TYPES]
                         [EOB_COEF_CONTEXTS][2];

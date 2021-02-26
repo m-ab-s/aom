@@ -808,8 +808,6 @@ static void build_inter_predictors_sub8x8(
   const BLOCK_SIZE plane_bsize = plane ? mi->chroma_ref_info.bsize_base : bsize;
   const int b8_w = block_size_wide[plane_bsize] >> ss_x;
   const int b8_h = block_size_high[plane_bsize] >> ss_y;
-  const int is_compound = has_second_ref(mi);
-  assert(!is_compound);
   assert(!is_intrabc_block(mi));
 
   // For sub8x8 chroma blocks, we may be covering more than one luma block's
@@ -830,6 +828,13 @@ static void build_inter_predictors_sub8x8(
     int col = col_start;
     for (int x = 0; x < b8_w; x += b4_w) {
       MB_MODE_INFO *this_mbmi = xd->mi[row * xd->mi_stride + col];
+#if CONFIG_EXT_RECUR_PARTITIONS
+      // TODO(yuec): enabling compound prediction in none sub8x8 mbs in the
+      // group
+      bool is_compound = 0;
+#else
+      bool is_compound = has_second_ref(this_mbmi);
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
       struct buf_2d *const dst_buf = &pd->dst;
       uint8_t *dst = dst_buf->buf + dst_buf->stride * y + x;
       int ref = 0;
@@ -954,7 +959,9 @@ void av1_build_inter_predictors(const AV1_COMMON *cm, MACROBLOCKD *xd,
                                 int mi_y, uint8_t **mc_buf,
                                 CalcSubpelParamsFunc calc_subpel_params_func) {
   if (is_sub8x8_inter(xd, mi, plane, is_intrabc_block(mi), build_for_obmc)) {
+#if !CONFIG_EXT_RECUR_PARTITIONS
     assert(bw < 8 || bh < 8);
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS
     build_inter_predictors_sub8x8(cm, xd, plane, mi, mi_x, mi_y, mc_buf,
                                   calc_subpel_params_func);
   } else {
@@ -1054,7 +1061,8 @@ void av1_count_overlappable_neighbors(const AV1_COMMON *cm, MACROBLOCKD *xd) {
   mbmi->overlappable_neighbors[0] = 0;
   mbmi->overlappable_neighbors[1] = 0;
 
-  if (!is_motion_variation_allowed_bsize(mbmi->sb_type)) return;
+  if (!is_motion_variation_allowed_bsize(mbmi->sb_type, xd->mi_row, xd->mi_col))
+    return;
 
   foreach_overlappable_nb_above(cm, xd, INT_MAX, increment_int_ptr,
                                 &mbmi->overlappable_neighbors[0]);
@@ -1069,8 +1077,6 @@ void av1_count_overlappable_neighbors(const AV1_COMMON *cm, MACROBLOCKD *xd) {
 
 int av1_skip_u4x4_pred_in_obmc(BLOCK_SIZE bsize,
                                const struct macroblockd_plane *pd, int dir) {
-  assert(is_motion_variation_allowed_bsize(bsize));
-
   const BLOCK_SIZE bsize_plane =
       get_plane_block_size(bsize, pd->subsampling_x, pd->subsampling_y);
   switch (bsize_plane) {

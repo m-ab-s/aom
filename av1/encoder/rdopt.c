@@ -4170,7 +4170,7 @@ static AOM_INLINE void set_params_rd_pick_inter_mode(
   if (cpi->oxcf.motion_mode_cfg.enable_obmc && !cpi->sf.inter_sf.disable_obmc &&
       !prune_obmc) {
     if (check_num_overlappable_neighbors(mbmi) &&
-        is_motion_variation_allowed_bsize(bsize)) {
+        is_motion_variation_allowed_bsize(bsize, mi_row, mi_col)) {
       int dst_width1[MAX_MB_PLANE] = { MAX_SB_SIZE, MAX_SB_SIZE, MAX_SB_SIZE };
       int dst_width2[MAX_MB_PLANE] = { MAX_SB_SIZE >> 1, MAX_SB_SIZE >> 1,
                                        MAX_SB_SIZE >> 1 };
@@ -5926,7 +5926,8 @@ void av1_rd_pick_inter_mode_sb_seg_skip(const AV1_COMP *cpi,
   mbmi->motion_mode = SIMPLE_TRANSLATION;
   av1_set_default_mbmi_mv_precision(mbmi, xd->sbi);
   av1_count_overlappable_neighbors(cm, xd);
-  if (is_motion_variation_allowed_bsize(bsize) && !has_second_ref(mbmi)) {
+  if (is_motion_variation_allowed_bsize(bsize, mi_row, mi_col) &&
+      !has_second_ref(mbmi)) {
     int pts[SAMPLES_ARRAY_SIZE], pts_inref[SAMPLES_ARRAY_SIZE];
     mbmi->num_proj_ref = av1_findSamples(cm, xd, pts, pts_inref);
     // Select the samples according to motion vector difference

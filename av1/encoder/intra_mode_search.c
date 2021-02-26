@@ -335,7 +335,12 @@ static int cfl_rd_pick_alpha(MACROBLOCK *const x, const AV1_COMP *const cpi,
   const MACROBLOCKD_PLANE *pd = &xd->plane[AOM_PLANE_U];
   const ModeCosts *mode_costs = &x->mode_costs;
   const BLOCK_SIZE plane_bsize =
+#if CONFIG_EXT_RECUR_PARTITIONS
+      get_plane_block_size(mbmi->chroma_ref_info.bsize_base, pd->subsampling_x,
+                           pd->subsampling_y);
+#else   // CONFIG_EXT_RECUR_PARTITIONS
       get_plane_block_size(mbmi->sb_type, pd->subsampling_x, pd->subsampling_y);
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
   assert(is_cfl_allowed(xd) && cpi->oxcf.intra_mode_cfg.enable_cfl_intra);
   assert(plane_bsize < BLOCK_SIZES_ALL);

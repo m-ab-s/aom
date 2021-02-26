@@ -957,13 +957,16 @@ void av1_reset_simple_motion_tree_partition(SIMPLE_MOTION_DATA_TREE *sms_tree,
 void av1_update_picked_ref_frames_mask(MACROBLOCK *const x, int ref_type,
                                        BLOCK_SIZE bsize, int mib_size,
                                        int mi_row, int mi_col) {
+#if !CONFIG_EXT_RECUR_PARTITIONS
   assert(mi_size_wide[bsize] == mi_size_high[bsize]);
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS
   const int sb_size_mask = mib_size - 1;
   const int mi_row_in_sb = mi_row & sb_size_mask;
   const int mi_col_in_sb = mi_col & sb_size_mask;
-  const int mi_size = mi_size_wide[bsize];
-  for (int i = mi_row_in_sb; i < mi_row_in_sb + mi_size; ++i) {
-    for (int j = mi_col_in_sb; j < mi_col_in_sb + mi_size; ++j) {
+  const int mi_size_h = mi_size_high[bsize];
+  const int mi_size_w = mi_size_wide[bsize];
+  for (int i = mi_row_in_sb; i < mi_row_in_sb + mi_size_h; ++i) {
+    for (int j = mi_col_in_sb; j < mi_col_in_sb + mi_size_w; ++j) {
       x->picked_ref_frames_mask[i * 32 + j] |= 1 << ref_type;
     }
   }
@@ -1135,6 +1138,12 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
                      CDF_SIZE(10));
     }
   }
+#if CONFIG_EXT_RECUR_PARTITIONS
+  for (int i = 0; i < PARTITION_CONTEXTS_REC; ++i) {
+    AVERAGE_CDF(ctx_left->partition_rec_cdf[i], ctx_tr->partition_rec_cdf[i],
+                4);
+  }
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   AVERAGE_CDF(ctx_left->switchable_interp_cdf, ctx_tr->switchable_interp_cdf,
               SWITCHABLE_FILTERS);
   AVERAGE_CDF(ctx_left->kf_y_cdf, ctx_tr->kf_y_cdf, INTRA_MODES);

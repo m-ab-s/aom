@@ -153,6 +153,8 @@ set_aom_config_var(CONFIG_EXT_ROTATION 0
                    "AV2 warping motion rotation experiment flag.")
 set_aom_config_var(CONFIG_FLEX_MVRES 0 NUMBER
                    "AV2 flexible mv precision experiment flag")
+set_aom_config_var(CONFIG_EXT_RECUR_PARTITIONS 0 NUMBER
+                   "AV2 Fully recursive partitions experiment flag")
 
 #
 # Variables in this section control optional features of the build system.

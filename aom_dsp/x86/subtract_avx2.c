@@ -101,8 +101,14 @@ void aom_subtract_block_avx2(int rows, int cols, int16_t *diff_ptr,
                                 src_stride, pred_ptr, pred_stride);
       break;
     default:
+#if CONFIG_EXT_RECUR_PARTITIONS
+      // sse2 version disabled for this experiment. Use C version instead.
+      aom_subtract_block_c(rows, cols, diff_ptr, diff_stride, src_ptr,
+                           src_stride, pred_ptr, pred_stride);
+#else   // CONFIG_EXT_RECUR_PARTITIONS
       aom_subtract_block_sse2(rows, cols, diff_ptr, diff_stride, src_ptr,
                               src_stride, pred_ptr, pred_stride);
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
       break;
   }
 }

@@ -1945,8 +1945,10 @@ INSTANTIATE_TEST_SUITE_P(
                       VarianceParams(5, 4, &aom_variance32x16_sse2),
                       VarianceParams(5, 3, &aom_variance32x8_sse2),
                       VarianceParams(4, 6, &aom_variance16x64_sse2),
+#if !CONFIG_EXT_RECUR_PARTITIONS
                       VarianceParams(4, 5, &aom_variance16x32_sse2),
                       VarianceParams(4, 4, &aom_variance16x16_sse2),
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS
                       VarianceParams(4, 3, &aom_variance16x8_sse2),
                       VarianceParams(4, 2, &aom_variance16x4_sse2),
                       VarianceParams(3, 5, &aom_variance8x32_sse2),
@@ -1963,6 +1965,7 @@ INSTANTIATE_TEST_SUITE_P(
         SubpelVarianceParams(7, 7, &aom_sub_pixel_variance128x128_sse2, 0),
         SubpelVarianceParams(7, 6, &aom_sub_pixel_variance128x64_sse2, 0),
         SubpelVarianceParams(6, 7, &aom_sub_pixel_variance64x128_sse2, 0),
+#if !CONFIG_EXT_RECUR_PARTITIONS
         SubpelVarianceParams(6, 6, &aom_sub_pixel_variance64x64_sse2, 0),
         SubpelVarianceParams(6, 5, &aom_sub_pixel_variance64x32_sse2, 0),
         SubpelVarianceParams(5, 6, &aom_sub_pixel_variance32x64_sse2, 0),
@@ -1971,6 +1974,7 @@ INSTANTIATE_TEST_SUITE_P(
         SubpelVarianceParams(4, 5, &aom_sub_pixel_variance16x32_sse2, 0),
         SubpelVarianceParams(4, 4, &aom_sub_pixel_variance16x16_sse2, 0),
         SubpelVarianceParams(4, 3, &aom_sub_pixel_variance16x8_sse2, 0),
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS
         SubpelVarianceParams(3, 4, &aom_sub_pixel_variance8x16_sse2, 0),
         SubpelVarianceParams(3, 3, &aom_sub_pixel_variance8x8_sse2, 0),
         SubpelVarianceParams(3, 2, &aom_sub_pixel_variance8x4_sse2, 0),
@@ -1993,6 +1997,7 @@ INSTANTIATE_TEST_SUITE_P(
                                 0),
         SubpelAvgVarianceParams(6, 7, &aom_sub_pixel_avg_variance64x128_sse2,
                                 0),
+#if !CONFIG_EXT_RECUR_PARTITIONS
         SubpelAvgVarianceParams(6, 6, &aom_sub_pixel_avg_variance64x64_sse2, 0),
         SubpelAvgVarianceParams(6, 5, &aom_sub_pixel_avg_variance64x32_sse2, 0),
         SubpelAvgVarianceParams(5, 6, &aom_sub_pixel_avg_variance32x64_sse2, 0),
@@ -2001,6 +2006,7 @@ INSTANTIATE_TEST_SUITE_P(
         SubpelAvgVarianceParams(4, 5, &aom_sub_pixel_avg_variance16x32_sse2, 0),
         SubpelAvgVarianceParams(4, 4, &aom_sub_pixel_avg_variance16x16_sse2, 0),
         SubpelAvgVarianceParams(4, 3, &aom_sub_pixel_avg_variance16x8_sse2, 0),
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS
         SubpelAvgVarianceParams(3, 4, &aom_sub_pixel_avg_variance8x16_sse2, 0),
         SubpelAvgVarianceParams(3, 3, &aom_sub_pixel_avg_variance8x8_sse2, 0),
         SubpelAvgVarianceParams(3, 2, &aom_sub_pixel_avg_variance8x4_sse2, 0),
@@ -2361,6 +2367,7 @@ INSTANTIATE_TEST_SUITE_P(
         SubpelVarianceParams(7, 7, &aom_sub_pixel_variance128x128_ssse3, 0),
         SubpelVarianceParams(7, 6, &aom_sub_pixel_variance128x64_ssse3, 0),
         SubpelVarianceParams(6, 7, &aom_sub_pixel_variance64x128_ssse3, 0),
+#if !CONFIG_EXT_RECUR_PARTITIONS
         SubpelVarianceParams(6, 6, &aom_sub_pixel_variance64x64_ssse3, 0),
         SubpelVarianceParams(6, 5, &aom_sub_pixel_variance64x32_ssse3, 0),
         SubpelVarianceParams(5, 6, &aom_sub_pixel_variance32x64_ssse3, 0),
@@ -2369,6 +2376,7 @@ INSTANTIATE_TEST_SUITE_P(
         SubpelVarianceParams(4, 5, &aom_sub_pixel_variance16x32_ssse3, 0),
         SubpelVarianceParams(4, 4, &aom_sub_pixel_variance16x16_ssse3, 0),
         SubpelVarianceParams(4, 3, &aom_sub_pixel_variance16x8_ssse3, 0),
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS
         SubpelVarianceParams(3, 4, &aom_sub_pixel_variance8x16_ssse3, 0),
         SubpelVarianceParams(3, 3, &aom_sub_pixel_variance8x8_ssse3, 0),
         SubpelVarianceParams(3, 2, &aom_sub_pixel_variance8x4_ssse3, 0),
@@ -2391,6 +2399,7 @@ INSTANTIATE_TEST_SUITE_P(
                                 0),
         SubpelAvgVarianceParams(6, 7, &aom_sub_pixel_avg_variance64x128_ssse3,
                                 0),
+#if !CONFIG_EXT_RECUR_PARTITIONS
         SubpelAvgVarianceParams(6, 6, &aom_sub_pixel_avg_variance64x64_ssse3,
                                 0),
         SubpelAvgVarianceParams(6, 5, &aom_sub_pixel_avg_variance64x32_ssse3,
@@ -2406,6 +2415,7 @@ INSTANTIATE_TEST_SUITE_P(
         SubpelAvgVarianceParams(4, 4, &aom_sub_pixel_avg_variance16x16_ssse3,
                                 0),
         SubpelAvgVarianceParams(4, 3, &aom_sub_pixel_avg_variance16x8_ssse3, 0),
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS
         SubpelAvgVarianceParams(3, 4, &aom_sub_pixel_avg_variance8x16_ssse3, 0),
         SubpelAvgVarianceParams(3, 3, &aom_sub_pixel_avg_variance8x8_ssse3, 0),
         SubpelAvgVarianceParams(3, 2, &aom_sub_pixel_avg_variance8x4_ssse3, 0),
@@ -2549,8 +2559,10 @@ INSTANTIATE_TEST_SUITE_P(
                       VarianceParams(5, 4, &aom_variance32x16_avx2),
                       VarianceParams(5, 3, &aom_variance32x8_avx2),
                       VarianceParams(4, 6, &aom_variance16x64_avx2),
+#if !CONFIG_EXT_RECUR_PARTITIONS
                       VarianceParams(4, 5, &aom_variance16x32_avx2),
                       VarianceParams(4, 4, &aom_variance16x16_avx2),
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS
                       VarianceParams(4, 3, &aom_variance16x8_avx2),
                       VarianceParams(4, 2, &aom_variance16x4_avx2)));
 
@@ -2560,6 +2572,7 @@ INSTANTIATE_TEST_SUITE_P(
         SubpelVarianceParams(7, 7, &aom_sub_pixel_variance128x128_avx2, 0),
         SubpelVarianceParams(7, 6, &aom_sub_pixel_variance128x64_avx2, 0),
         SubpelVarianceParams(6, 7, &aom_sub_pixel_variance64x128_avx2, 0),
+#if !CONFIG_EXT_RECUR_PARTITIONS
         SubpelVarianceParams(6, 6, &aom_sub_pixel_variance64x64_avx2, 0),
         SubpelVarianceParams(6, 5, &aom_sub_pixel_variance64x32_avx2, 0),
         SubpelVarianceParams(5, 6, &aom_sub_pixel_variance32x64_avx2, 0),
@@ -2569,6 +2582,7 @@ INSTANTIATE_TEST_SUITE_P(
         SubpelVarianceParams(4, 5, &aom_sub_pixel_variance16x32_avx2, 0),
         SubpelVarianceParams(4, 4, &aom_sub_pixel_variance16x16_avx2, 0),
         SubpelVarianceParams(4, 3, &aom_sub_pixel_variance16x8_avx2, 0),
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS
         SubpelVarianceParams(4, 2, &aom_sub_pixel_variance16x4_avx2, 0)));
 
 INSTANTIATE_TEST_SUITE_P(
@@ -2581,10 +2595,12 @@ INSTANTIATE_TEST_SUITE_P(
         SubpelAvgVarianceParams(6, 7, &aom_sub_pixel_avg_variance64x128_avx2,
                                 0),
         SubpelAvgVarianceParams(6, 6, &aom_sub_pixel_avg_variance64x64_avx2, 0),
+#if !CONFIG_EXT_RECUR_PARTITIONS
         SubpelAvgVarianceParams(6, 5, &aom_sub_pixel_avg_variance64x32_avx2, 0),
         SubpelAvgVarianceParams(5, 6, &aom_sub_pixel_avg_variance32x64_avx2, 0),
-        SubpelAvgVarianceParams(5, 5, &aom_sub_pixel_avg_variance32x32_avx2, 0),
-        SubpelAvgVarianceParams(5, 4, &aom_sub_pixel_avg_variance32x16_avx2,
+        SubpelAvgVarianceParams(5, 4, &aom_sub_pixel_avg_variance32x16_avx2, 0),
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS
+        SubpelAvgVarianceParams(5, 5, &aom_sub_pixel_avg_variance32x32_avx2,
                                 0)));
 #endif  // HAVE_AVX2
 
@@ -2617,6 +2633,7 @@ INSTANTIATE_TEST_SUITE_P(
                       VarianceParams(2, 3, &aom_variance4x8_neon),
                       VarianceParams(2, 2, &aom_variance4x4_neon)));
 
+#if !CONFIG_EXT_RECUR_PARTITIONS
 INSTANTIATE_TEST_SUITE_P(
     NEON, AvxSubpelVarianceTest,
     ::testing::Values(
@@ -2643,6 +2660,7 @@ INSTANTIATE_TEST_SUITE_P(
         SubpelVarianceParams(3, 5, &aom_sub_pixel_variance8x32_neon, 0),
         SubpelVarianceParams(4, 2, &aom_sub_pixel_variance16x4_neon, 0),
         SubpelVarianceParams(2, 4, &aom_sub_pixel_variance4x16_neon, 0)));
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS
 #endif  // HAVE_NEON
 
 #if HAVE_MSA

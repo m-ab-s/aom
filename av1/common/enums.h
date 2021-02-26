@@ -138,6 +138,17 @@ typedef enum ATTRIBUTE_PACKED {
 //  |       |     |       |     |   |   |     | R | R |
 //  +-------+     +-------+     +---+---+     +---+---+
 //
+#if CONFIG_EXT_RECUR_PARTITIONS
+//  HORZ_3                 VERT_3
+//  +--------------+       +---+------+---+
+//  |              |       |   |      |   |
+//  +--------------+       |   |      |   |
+//  |              |       |   |      |   |
+//  |              |       |   |      |   |
+//  +--------------+       |   |      |   |
+//  |              |       |   |      |   |
+//  +--------------+       +---+------+---+
+#else
 //  HORZ_A        HORZ_B        VERT_A        VERT_B
 //  +---+---+     +-------+     +---+---+     +---+---+
 //  |   |   |     |       |     |   |   |     |   |   |
@@ -150,6 +161,20 @@ typedef enum ATTRIBUTE_PACKED {
 //  +-----+       | | | |
 //  +-----+       | | | |
 //  +-----+       +-+-+-+
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_EXT_RECUR_PARTITIONS
+enum {
+  PARTITION_NONE,
+  PARTITION_HORZ,
+  PARTITION_VERT,
+  PARTITION_HORZ_3,  // 3 horizontal sub-partitions with ratios 4:1, 2:1 and 4:1
+  PARTITION_VERT_3,  // 3 vertical sub-partitions with ratios 4:1, 2:1 and 4:1
+  EXT_PARTITION_TYPES,
+  PARTITION_SPLIT = EXT_PARTITION_TYPES,
+  PARTITION_TYPES = PARTITION_VERT + 1,
+  PARTITION_INVALID = 255
+} UENUM1BYTE(PARTITION_TYPE);
+#else   // CONFIG_EXT_RECUR_PARTITIONS
 enum {
   PARTITION_NONE,
   PARTITION_HORZ,
@@ -165,11 +190,26 @@ enum {
   PARTITION_TYPES = PARTITION_SPLIT + 1,
   PARTITION_INVALID = 255
 } UENUM1BYTE(PARTITION_TYPE);
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
 typedef char PARTITION_CONTEXT;
 #define PARTITION_PLOFFSET 4  // number of probability models per block size
 #define PARTITION_BLOCK_SIZES 5
 #define PARTITION_CONTEXTS (PARTITION_BLOCK_SIZES * PARTITION_PLOFFSET)
+
+#if CONFIG_EXT_RECUR_PARTITIONS
+enum {
+  PARTITION_NONE_REC,
+  PARTITION_LONG_SIDE_2_REC,
+  PARTITION_LONG_SIDE_3_REC,
+  PARTITION_SHORT_SIDE_2_REC,
+  PARTITION_TYPES_REC = PARTITION_SHORT_SIDE_2_REC + 1,
+  PARTITION_INVALID_REC = 255
+} UENUM1BYTE(PARTITION_TYPE_REC);
+
+#define PARTITION_BLOCK_SIZES_REC 5  // 128x64, 64x32, 32x16, 16x8, 8x4
+#define PARTITION_CONTEXTS_REC (PARTITION_BLOCK_SIZES_REC * PARTITION_PLOFFSET)
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
 // block transform size
 enum {

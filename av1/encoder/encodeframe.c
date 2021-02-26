@@ -600,15 +600,19 @@ static AOM_INLINE void encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
   const int ss_x = cm->seq_params.subsampling_x;
   const int ss_y = cm->seq_params.subsampling_y;
 
-#if CONFIG_REALTIME_ONLY
+#if CONFIG_REALTIME_ONLY || CONFIG_EXT_RECUR_PARTITIONS
   (void)seg_skip;
-#endif  // CONFIG_REALTIME_ONLY
+#endif  // CONFIG_REALTIME_ONLY || CONFIG_EXT_RECUR_PARTITIONS
 
   init_encode_rd_sb(cpi, td, tile_data, sms_root, &dummy_rdc, mi_row, mi_col,
                     1);
 
   // Encode the superblock
+#if CONFIG_EXT_RECUR_PARTITIONS
+  if (0) {
+#else   // CONFIG_EXT_RECUR_PARTITIONS
   if (sf->part_sf.partition_search_type == VAR_BASED_PARTITION) {
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
     // partition search starting from a variance-based partition
     av1_set_offsets_without_segment_id(cpi, tile_info, x, mi_row, mi_col,
                                        sb_size, NULL);
@@ -619,7 +623,8 @@ static AOM_INLINE void encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
                          &dummy_rate, &dummy_dist, 1, pc_root);
     av1_free_pc_tree_recursive(pc_root, num_planes, 0, 0);
   }
-#if !CONFIG_REALTIME_ONLY
+#if !CONFIG_REALTIME_ONLY || CONFIG_EXT_RECUR_PARTITIONS
+#if !CONFIG_EXT_RECUR_PARTITIONS
   else if (sf->part_sf.partition_search_type == FIXED_PARTITION || seg_skip) {
     // partition search by adjusting a fixed-size partition
     av1_set_offsets(cpi, tile_info, x, mi_row, mi_col, sb_size, NULL);
@@ -643,7 +648,9 @@ static AOM_INLINE void encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
     av1_rd_use_partition(cpi, td, tile_data, mi, tp, mi_row, mi_col, sb_size,
                          &dummy_rate, &dummy_dist, 1, pc_root);
     av1_free_pc_tree_recursive(pc_root, num_planes, 0, 0);
-  } else {
+  }
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS
+  else {
     // The most exhaustive recursive partition search
     SuperBlockEnc *sb_enc = &x->sb_enc;
     // No stats for overlay frames. Exclude key frame.
@@ -702,7 +709,7 @@ static AOM_INLINE void encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
     end_timing(cpi, rd_pick_partition_time);
 #endif
   }
-#endif  // !CONFIG_REALTIME_ONLY
+#endif  // !CONFIG_REALTIME_ONLY || CONFIG_EXT_RECUR_PARTITIONS
 
   // Update the inter rd model
   // TODO(angiebird): Let inter_mode_rd_model_estimation support multi-tile.

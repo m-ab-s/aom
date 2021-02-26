@@ -610,6 +610,7 @@ INTRA_PRED_TEST(C_5, TX_16X64, aom_dc_predictor_16x64_c,
                 aom_smooth_h_predictor_16x64_c)
 
 #if HAVE_SSE2
+#if !CONFIG_EXT_RECUR_PARTITIONS
 INTRA_PRED_TEST(SSE2_1, TX_16X16, aom_dc_predictor_16x16_sse2,
                 aom_dc_left_predictor_16x16_sse2,
                 aom_dc_top_predictor_16x16_sse2,
@@ -624,18 +625,20 @@ INTRA_PRED_TEST(SSE2_3, TX_16X32, aom_dc_predictor_16x32_sse2,
                 aom_dc_top_predictor_16x32_sse2,
                 aom_dc_128_predictor_16x32_sse2, aom_v_predictor_16x32_sse2,
                 aom_h_predictor_16x32_sse2, NULL, NULL, NULL, NULL)
+INTRA_PRED_TEST(SSE2_5, TX_16X4, aom_dc_predictor_16x4_sse2,
+                aom_dc_left_predictor_16x4_sse2, aom_dc_top_predictor_16x4_sse2,
+                aom_dc_128_predictor_16x4_sse2, aom_v_predictor_16x4_sse2,
+                aom_h_predictor_16x4_sse2, NULL, NULL, NULL, NULL)
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS
 INTRA_PRED_TEST(SSE2_4, TX_16X64, aom_dc_predictor_16x64_sse2,
                 aom_dc_left_predictor_16x64_sse2,
                 aom_dc_top_predictor_16x64_sse2,
                 aom_dc_128_predictor_16x64_sse2, aom_v_predictor_16x64_sse2,
                 aom_h_predictor_16x64_sse2, NULL, NULL, NULL, NULL)
-INTRA_PRED_TEST(SSE2_5, TX_16X4, aom_dc_predictor_16x4_sse2,
-                aom_dc_left_predictor_16x4_sse2, aom_dc_top_predictor_16x4_sse2,
-                aom_dc_128_predictor_16x4_sse2, aom_v_predictor_16x4_sse2,
-                aom_h_predictor_16x4_sse2, NULL, NULL, NULL, NULL)
 #endif  // HAVE_SSE2
 
 #if HAVE_SSSE3
+#if !CONFIG_EXT_RECUR_PARTITIONS
 INTRA_PRED_TEST(SSSE3_1, TX_16X16, NULL, NULL, NULL, NULL, NULL, NULL,
                 aom_paeth_predictor_16x16_ssse3,
                 aom_smooth_predictor_16x16_ssse3,
@@ -650,24 +653,29 @@ INTRA_PRED_TEST(SSSE3_3, TX_16X32, NULL, NULL, NULL, NULL, NULL, NULL,
                 aom_smooth_predictor_16x32_ssse3,
                 aom_smooth_v_predictor_16x32_ssse3,
                 aom_smooth_h_predictor_16x32_ssse3)
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS
 INTRA_PRED_TEST(SSSE3_4, TX_16X64, NULL, NULL, NULL, NULL, NULL, NULL,
                 aom_paeth_predictor_16x64_ssse3,
                 aom_smooth_predictor_16x64_ssse3,
                 aom_smooth_v_predictor_16x64_ssse3,
                 aom_smooth_h_predictor_16x64_ssse3)
+#if !CONFIG_EXT_RECUR_PARTITIONS
 INTRA_PRED_TEST(SSSE3_5, TX_16X4, NULL, NULL, NULL, NULL, NULL, NULL,
                 aom_paeth_predictor_16x4_ssse3, aom_smooth_predictor_16x4_ssse3,
                 aom_smooth_v_predictor_16x4_ssse3,
                 aom_smooth_h_predictor_16x4_ssse3)
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS
 #endif  // HAVE_SSSE3
 
 #if HAVE_AVX2
+#if !CONFIG_EXT_RECUR_PARTITIONS
 INTRA_PRED_TEST(AVX2_1, TX_16X16, NULL, NULL, NULL, NULL, NULL, NULL,
                 aom_paeth_predictor_16x16_avx2, NULL, NULL, NULL)
 INTRA_PRED_TEST(AVX2_2, TX_16X8, NULL, NULL, NULL, NULL, NULL, NULL,
                 aom_paeth_predictor_16x8_avx2, NULL, NULL, NULL)
 INTRA_PRED_TEST(AVX2_3, TX_16X32, NULL, NULL, NULL, NULL, NULL, NULL,
                 aom_paeth_predictor_16x32_avx2, NULL, NULL, NULL)
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS
 INTRA_PRED_TEST(AVX2_4, TX_16X64, NULL, NULL, NULL, NULL, NULL, NULL,
                 aom_paeth_predictor_16x64_avx2, NULL, NULL, NULL)
 #endif  // HAVE_AVX2
@@ -678,11 +686,17 @@ INTRA_PRED_TEST(DSPR2, TX_16X16, aom_dc_predictor_16x16_dspr2, NULL, NULL, NULL,
 #endif  // HAVE_DSPR2
 
 #if HAVE_NEON
+#if CONFIG_EXT_RECUR_PARTITIONS
+INTRA_PRED_TEST(NEON, TX_16X16, NULL, NULL, aom_dc_top_predictor_16x16_neon,
+                aom_dc_128_predictor_16x16_neon, NULL, NULL, NULL, NULL, NULL,
+                NULL)
+#else   // CONFIG_EXT_RECUR_PARTITIONS
 INTRA_PRED_TEST(NEON, TX_16X16, aom_dc_predictor_16x16_neon,
                 aom_dc_left_predictor_16x16_neon,
                 aom_dc_top_predictor_16x16_neon,
                 aom_dc_128_predictor_16x16_neon, aom_v_predictor_16x16_neon,
                 aom_h_predictor_16x16_neon, NULL, NULL, NULL, NULL)
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 #endif  // HAVE_NEON
 
 #if HAVE_MSA
@@ -1261,12 +1275,14 @@ HIGHBD_INTRA_PRED_TEST(
     aom_highbd_smooth_h_predictor_8x32_c)
 
 #if HAVE_SSE2
+#if !CONFIG_EXT_RECUR_PARTITIONS
 HIGHBD_INTRA_PRED_TEST(SSE2_1, TX_8X8, aom_highbd_dc_predictor_8x8_sse2,
                        aom_highbd_dc_left_predictor_8x8_sse2,
                        aom_highbd_dc_top_predictor_8x8_sse2,
                        aom_highbd_dc_128_predictor_8x8_sse2,
                        aom_highbd_v_predictor_8x8_sse2,
                        aom_highbd_h_predictor_8x8_sse2, NULL, NULL, NULL, NULL)
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS
 HIGHBD_INTRA_PRED_TEST(SSE2_2, TX_8X4, aom_highbd_dc_predictor_8x4_sse2,
                        aom_highbd_dc_left_predictor_8x4_sse2,
                        aom_highbd_dc_top_predictor_8x4_sse2,
@@ -1330,6 +1346,7 @@ HIGHBD_INTRA_PRED_TEST(
     aom_highbd_smooth_h_predictor_16x64_c)
 
 #if HAVE_SSE2
+#if !CONFIG_EXT_RECUR_PARTITIONS
 HIGHBD_INTRA_PRED_TEST(SSE2_1, TX_16X16, aom_highbd_dc_predictor_16x16_sse2,
                        aom_highbd_dc_left_predictor_16x16_sse2,
                        aom_highbd_dc_top_predictor_16x16_sse2,
@@ -1350,6 +1367,7 @@ HIGHBD_INTRA_PRED_TEST(SSE2_3, TX_16X32, aom_highbd_dc_predictor_16x32_sse2,
                        aom_highbd_v_predictor_16x32_sse2,
                        aom_highbd_h_predictor_16x32_sse2, NULL, NULL, NULL,
                        NULL)
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS
 #endif
 
 #if HAVE_SSSE3

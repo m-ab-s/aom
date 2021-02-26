@@ -832,9 +832,11 @@ static AOM_INLINE void get_min_bsize(const SIMPLE_MOTION_DATA_TREE *sms_tree,
       get_min_bsize(sms_tree->split[i], min_bw, min_bh);
     }
   } else {
+#if !CONFIG_EXT_RECUR_PARTITIONS
     if (part_type == PARTITION_HORZ_A || part_type == PARTITION_HORZ_B ||
         part_type == PARTITION_VERT_A || part_type == PARTITION_VERT_B)
       part_type = PARTITION_SPLIT;
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS
     const BLOCK_SIZE subsize = get_partition_subsize(bsize, part_type);
     if (subsize != BLOCK_INVALID) {
       *min_bw = AOMMIN(*min_bw, mi_size_wide_log2[subsize]);
@@ -1190,8 +1192,13 @@ void av1_ml_prune_4_partition(
   unsigned int horz_4_source_var[SUB_PARTITIONS_PART4] = { 0 };
   unsigned int vert_4_source_var[SUB_PARTITIONS_PART4] = { 0 };
   {
+#if CONFIG_EXT_RECUR_PARTITIONS
+    BLOCK_SIZE horz_4_bs = get_partition_subsize(bsize, PARTITION_HORZ_3);
+    BLOCK_SIZE vert_4_bs = get_partition_subsize(bsize, PARTITION_VERT_3);
+#else   // CONFIG_EXT_RECUR_PARTITIONS
     BLOCK_SIZE horz_4_bs = get_partition_subsize(bsize, PARTITION_HORZ_4);
     BLOCK_SIZE vert_4_bs = get_partition_subsize(bsize, PARTITION_VERT_4);
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
     av1_setup_src_planes(x, cpi->source, mi_row, mi_col,
                          av1_num_planes(&cpi->common), NULL);
     const int src_stride = x->plane[0].src.stride;
@@ -1414,19 +1421,31 @@ void av1_prune_partitions_by_max_min_bsize(
   assert(is_bsize_square(sb_enc->max_partition_size));
   assert(is_bsize_square(sb_enc->min_partition_size));
   assert(sb_enc->min_partition_size <= sb_enc->max_partition_size);
+#if !CONFIG_EXT_RECUR_PARTITIONS
   assert(is_bsize_square(bsize));
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS
   const int max_partition_size_1d = block_size_wide[sb_enc->max_partition_size];
   const int min_partition_size_1d = block_size_wide[sb_enc->min_partition_size];
   const int bsize_1d = block_size_wide[bsize];
   assert(min_partition_size_1d <= max_partition_size_1d);
   const int is_le_min_sq_part = bsize_1d <= min_partition_size_1d;
   const int is_gt_max_sq_part = bsize_1d > max_partition_size_1d;
+
+#if CONFIG_EXT_RECUR_PARTITIONS
+  (void)do_square_split;
+  (void)is_not_edge_block;
+#endif
   if (is_gt_max_sq_part) {
     // If current block size is larger than max, only allow split.
     *partition_none_allowed = 0;
+#if CONFIG_EXT_RECUR_PARTITIONS
+    *partition_horz_allowed = 1;
+    *partition_vert_allowed = 1;
+#else   // CONFIG_EXT_RECUR_PARTITIONS
     *partition_horz_allowed = 0;
     *partition_vert_allowed = 0;
     *do_square_split = 1;
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   } else if (is_le_min_sq_part) {
     // If current block size is less or equal to min, only allow none if valid
     // block large enough; only allow split otherwise.
@@ -1434,8 +1453,12 @@ void av1_prune_partitions_by_max_min_bsize(
     *partition_vert_allowed = 0;
     // only disable square split when current block is not at the picture
     // boundary. otherwise, inherit the square split flag from previous logic
+#if CONFIG_EXT_RECUR_PARTITIONS
+    *partition_none_allowed = 1;
+#else   // CONFIG_EXT_RECUR_PARTITIONS
     if (is_not_edge_block) *do_square_split = 0;
     *partition_none_allowed = !(*do_square_split);
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   }
 }
 

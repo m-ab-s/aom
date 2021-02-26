@@ -389,6 +389,28 @@ static INLINE int is_inter_block(const MB_MODE_INFO *mbmi) {
   return is_intrabc_block(mbmi) || mbmi->ref_frame[0] > INTRA_FRAME;
 }
 
+#if CONFIG_EXT_RECUR_PARTITIONS
+static INLINE PARTITION_TYPE get_partition_from_symbol_rec_block(
+    BLOCK_SIZE bsize, PARTITION_TYPE_REC partition_rec) {
+  if (block_size_wide[bsize] > block_size_high[bsize])
+    return partition_map_from_symbol_block_wgth[partition_rec];
+  else if (block_size_high[bsize] > block_size_wide[bsize])
+    return partition_map_from_symbol_block_hgtw[partition_rec];
+  else
+    return PARTITION_INVALID;
+}
+
+static INLINE PARTITION_TYPE_REC get_symbol_from_partition_rec_block(
+    BLOCK_SIZE bsize, PARTITION_TYPE partition) {
+  if (block_size_wide[bsize] > block_size_high[bsize])
+    return symbol_map_from_partition_block_wgth[partition];
+  else if (block_size_high[bsize] > block_size_wide[bsize])
+    return symbol_map_from_partition_block_hgtw[partition];
+  else
+    return PARTITION_INVALID_REC;
+}
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+
 static INLINE int has_second_ref(const MB_MODE_INFO *mbmi) {
   return mbmi->ref_frame[1] > INTRA_FRAME;
 }
@@ -444,6 +466,18 @@ static INLINE int is_global_mv_block(const MB_MODE_INFO *const mbmi,
          block_size_allowed;
 }
 
+static INLINE int is_square_block(BLOCK_SIZE bsize) {
+  return block_size_high[bsize] == block_size_wide[bsize];
+}
+
+static INLINE int is_partition_point(BLOCK_SIZE bsize) {
+#if CONFIG_EXT_RECUR_PARTITIONS
+  return bsize != BLOCK_4X4 && bsize < BLOCK_SIZES;
+#else
+  return is_square_block(bsize) && bsize >= BLOCK_8X8 && bsize < BLOCK_SIZES;
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+}
+
 static INLINE int get_sqr_bsize_idx(BLOCK_SIZE bsize) {
   switch (bsize) {
     case BLOCK_4X4: return 0;
@@ -468,11 +502,28 @@ static INLINE BLOCK_SIZE get_partition_subsize(BLOCK_SIZE bsize,
   if (partition == PARTITION_INVALID) {
     return BLOCK_INVALID;
   } else {
+#if CONFIG_EXT_RECUR_PARTITIONS
+    if (is_partition_point(bsize))
+      return subsize_lookup[partition][bsize];
+    else
+      return partition == PARTITION_NONE ? bsize : BLOCK_INVALID;
+#else   // CONFIG_EXT_RECUR_PARTITIONS
     const int sqr_bsize_idx = get_sqr_bsize_idx(bsize);
     return sqr_bsize_idx >= SQR_BLOCK_SIZES
                ? BLOCK_INVALID
                : subsize_lookup[partition][sqr_bsize_idx];
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   }
+}
+
+static INLINE int is_partition_valid(BLOCK_SIZE bsize, PARTITION_TYPE p) {
+#if CONFIG_EXT_RECUR_PARTITIONS
+  if (p == PARTITION_SPLIT) return 0;
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+  if (is_partition_point(bsize))
+    return get_partition_subsize(bsize, p) < BLOCK_SIZES_ALL;
+  else
+    return p == PARTITION_NONE;
 }
 
 static INLINE void initialize_chr_ref_info(int mi_row, int mi_col,
@@ -505,12 +556,17 @@ static INLINE int have_nz_chroma_ref_offset(BLOCK_SIZE bsize,
     case PARTITION_HORZ: return bw_less_than_4 || hbh_less_than_4;
     case PARTITION_VERT: return hbw_less_than_4 || bh_less_than_4;
     case PARTITION_SPLIT: return hbw_less_than_4 || hbh_less_than_4;
+#if CONFIG_EXT_RECUR_PARTITIONS
+    case PARTITION_HORZ_3: return bw_less_than_4 || qbh_less_than_4;
+    case PARTITION_VERT_3: return qbw_less_than_4 || bh_less_than_4;
+#else   // CONFIG_EXT_RECUR_PARTITIONS
     case PARTITION_HORZ_A:
     case PARTITION_HORZ_B:
     case PARTITION_VERT_A:
     case PARTITION_VERT_B: return hbw_less_than_4 || hbh_less_than_4;
     case PARTITION_HORZ_4: return bw_less_than_4 || qbh_less_than_4;
     case PARTITION_VERT_4: return qbw_less_than_4 || bh_less_than_4;
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
     default:
       assert(0 && "Invalid partition type!");
       return 0;
@@ -551,6 +607,10 @@ static INLINE int is_sub_partition_chroma_ref(PARTITION_TYPE partition,
         else
           return 1;
       }
+#if CONFIG_EXT_RECUR_PARTITIONS
+    case PARTITION_VERT_3:
+    case PARTITION_HORZ_3: return index == 2;
+#else   // CONFIG_EXT_RECUR_PARTITIONS
     case PARTITION_HORZ_A:
     case PARTITION_HORZ_B:
     case PARTITION_VERT_A:
@@ -596,6 +656,7 @@ static INLINE int is_sub_partition_chroma_ref(PARTITION_TYPE partition,
           return 1;
         }
       }
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
     default:
       assert(0 && "Invalid partition type!");
       return 0;
@@ -611,6 +672,7 @@ static INLINE void set_chroma_ref_offset_size(
   const int ph = block_size_high[bsize] >> ss_y;
   const int pw_less_than_4 = pw < 4;
   const int ph_less_than_4 = ph < 4;
+#if !CONFIG_EXT_RECUR_PARTITIONS
   const int hppw = block_size_wide[parent_bsize] >> (ss_x + 1);
   const int hpph = block_size_high[parent_bsize] >> (ss_y + 1);
   const int hppw_less_than_4 = hppw < 4;
@@ -619,11 +681,16 @@ static INLINE void set_chroma_ref_offset_size(
       parent_info->mi_row_chroma_base + (mi_size_high[parent_bsize] >> 1);
   const int mi_col_mid_point =
       parent_info->mi_col_chroma_base + (mi_size_wide[parent_bsize] >> 1);
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS
   assert(parent_info->offset_started == 0);
   switch (partition) {
     case PARTITION_NONE:
     case PARTITION_HORZ:
     case PARTITION_VERT:
+#if CONFIG_EXT_RECUR_PARTITIONS
+    case PARTITION_VERT_3:
+    case PARTITION_HORZ_3:
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
       info->mi_row_chroma_base = parent_info->mi_row_chroma_base;
       info->mi_col_chroma_base = parent_info->mi_col_chroma_base;
       info->bsize_base = parent_bsize;
@@ -654,6 +721,7 @@ static INLINE void set_chroma_ref_offset_size(
         }
       }
       break;
+#if !CONFIG_EXT_RECUR_PARTITIONS
     case PARTITION_HORZ_A:
     case PARTITION_HORZ_B:
     case PARTITION_VERT_A:
@@ -705,6 +773,7 @@ static INLINE void set_chroma_ref_offset_size(
         info->mi_col_chroma_base = mi_col_mid_point;
       }
       break;
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS
     default: assert(0 && "Invalid partition type!"); break;
   }
 }
@@ -1735,9 +1804,27 @@ static INLINE int get_vartx_max_txsize(const MACROBLOCKD *xd, BLOCK_SIZE bsize,
   return av1_get_adjusted_tx_size(max_txsize);  // chroma
 }
 
-static INLINE int is_motion_variation_allowed_bsize(BLOCK_SIZE bsize) {
+static INLINE int is_motion_variation_allowed_bsize(BLOCK_SIZE bsize,
+                                                    int mi_row, int mi_col) {
   assert(bsize < BLOCK_SIZES_ALL);
-  return AOMMIN(block_size_wide[bsize], block_size_high[bsize]) >= 8;
+
+  if (AOMMIN(block_size_wide[bsize], block_size_high[bsize]) < 8) {
+    return 0;
+  }
+#if CONFIG_EXT_RECUR_PARTITIONS
+  // TODO(urvang): Enable this special case, if we make OBMC work.
+  // TODO(yuec): Enable this case when the alignment issue is fixed. There
+  // will be memory leak in global above_pred_buff and left_pred_buff if
+  // the restriction on mi_row and mi_col is removed.
+  if ((mi_row & 0x01) || (mi_col & 0x01)) {
+    return 0;
+  }
+#else
+  assert(!(mi_row & 0x01) && !(mi_col & 0x01));
+  (void)mi_row;
+  (void)mi_col;
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+  return 1;
 }
 
 static INLINE int is_motion_variation_allowed_compound(
@@ -1760,7 +1847,8 @@ motion_mode_allowed(const WarpedMotionParams *gm_params, const MACROBLOCKD *xd,
     const TransformationType gm_type = gm_params[mbmi->ref_frame[0]].wmtype;
     if (is_global_mv_block(mbmi, gm_type)) return SIMPLE_TRANSLATION;
   }
-  if (is_motion_variation_allowed_bsize(mbmi->sb_type) &&
+  if (is_motion_variation_allowed_bsize(mbmi->sb_type, xd->mi_row,
+                                        xd->mi_col) &&
       is_inter_mode(mbmi->mode) && mbmi->ref_frame[1] != INTRA_FRAME &&
       is_motion_variation_allowed_compound(mbmi)) {
     if (!check_num_overlappable_neighbors(mbmi)) return SIMPLE_TRANSLATION;
