@@ -1403,8 +1403,18 @@ void av1_set_speed_features_qindex_dependent(AV1_COMP *cpi, int speed) {
   const int boosted = frame_is_boosted(cpi);
   const int is_720p_or_larger = AOMMIN(cm->width, cm->height) >= 720;
   const int is_1080p_or_larger = AOMMIN(cm->width, cm->height) >= 1080;
+#if CONFIG_EXTQUANT
+  const int qindex_offset = MAXQ_OFFSET * (cm->seq_params.bit_depth - 8);
+#endif  // CONFIG_EXTQUANT
   if (is_720p_or_larger && cpi->oxcf.mode == GOOD && speed == 0) {
-    if (cm->quant_params.base_qindex <= 128) {
+#if CONFIG_EXTQUANT
+    const int qindex_thresh = 124 + qindex_offset;
+    const int qindex_thresh2 = 113 + qindex_offset;
+#else
+    const int qindex_thresh = 128;
+    const int qindex_thresh2 = 108;
+#endif  // CONFIG_EXTQUANT
+    if (cm->quant_params.base_qindex <= qindex_thresh) {
       sf->rd_sf.perform_coeff_opt = 2 + is_1080p_or_larger;
       memcpy(winner_mode_params->coeff_opt_dist_threshold,
              coeff_opt_dist_thresholds[sf->rd_sf.perform_coeff_opt],
@@ -1417,7 +1427,8 @@ void av1_set_speed_features_qindex_dependent(AV1_COMP *cpi, int speed) {
       sf->inter_sf.skip_repeated_newmv = 1;
       sf->tx_sf.model_based_prune_tx_search_level = 0;
 
-      if (is_1080p_or_larger && cm->quant_params.base_qindex <= 108) {
+      if (is_1080p_or_larger &&
+          cm->quant_params.base_qindex <= qindex_thresh2) {
         sf->inter_sf.selective_ref_frame = 2;
         sf->rd_sf.tx_domain_dist_level = boosted ? 1 : 2;
         sf->rd_sf.tx_domain_dist_thres_level = 1;
@@ -1435,8 +1446,13 @@ void av1_set_speed_features_qindex_dependent(AV1_COMP *cpi, int speed) {
 
   if (cpi->oxcf.mode == GOOD && speed >= 3) {
     // Disable extended partitions for lower quantizers
+#if CONFIG_EXTQUANT
+    const int qindex_thresh =
+        (cm->features.allow_screen_content_tools ? 85 : 108) + qindex_offset;
+#else
     const int qindex_thresh =
         cm->features.allow_screen_content_tools ? 50 : 100;
+#endif  // CONFIG_EXTQUANT
     if (cm->quant_params.base_qindex <= qindex_thresh && !boosted) {
       sf->part_sf.ext_partition_eval_thresh = BLOCK_128X128;
     }
@@ -1444,7 +1460,11 @@ void av1_set_speed_features_qindex_dependent(AV1_COMP *cpi, int speed) {
 
   if (cpi->oxcf.mode == GOOD && speed >= 4) {
     // Disable extended partitions for lower quantizers
+#if CONFIG_EXTQUANT
+    const int qindex_thresh = (boosted ? 100 : 119) + qindex_offset;
+#else
     const int qindex_thresh = boosted ? 80 : 120;
+#endif  // CONFIG_EXTQUANT
     if (cm->quant_params.base_qindex <= qindex_thresh &&
         !frame_is_intra_only(&cpi->common)) {
       sf->part_sf.ext_partition_eval_thresh = BLOCK_128X128;
@@ -1452,7 +1472,11 @@ void av1_set_speed_features_qindex_dependent(AV1_COMP *cpi, int speed) {
   }
 
   if (cpi->oxcf.mode == GOOD && speed >= 5) {
+#if CONFIG_EXTQUANT
+    const int qindex_thresh = (boosted ? 108 : 143) + qindex_offset;
+#else
     const int qindex_thresh = boosted ? 100 : 160;
+#endif  // CONFIG_EXTQUANT
     if (cm->quant_params.base_qindex <= qindex_thresh &&
         !frame_is_intra_only(&cpi->common)) {
       sf->part_sf.ext_partition_eval_thresh = BLOCK_128X128;
