@@ -278,9 +278,13 @@ static MOTION_MODE read_motion_mode(AV1_COMMON *cm, MACROBLOCKD *xd,
                         MOTION_MODES, ACCT_STR);
 #if CONFIG_EXT_ROTATION
     if (last_motion_mode_allowed == WARPED_CAUSAL) {
-      mbmi->rotation =
-          aom_read_literal(r, ROTATION_BITS, ACCT_STR) * ROTATION_STEP -
-          ROTATION_RANGE;
+      mbmi->rot_flag =
+          aom_read_symbol(r, xd->tile_ctx->warp_rotation_cdf, 2, ACCT_STR);
+      if (mbmi->rot_flag) {
+        mbmi->rotation =
+            aom_read_literal(r, ROTATION_BITS, ACCT_STR) * ROTATION_STEP -
+            ROTATION_RANGE;
+      }
     }
 #endif  // CONFIG_EXT_ROTATION
     return (MOTION_MODE)(SIMPLE_TRANSLATION + motion_mode);

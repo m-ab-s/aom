@@ -1147,6 +1147,9 @@ typedef struct FRAME_COUNTS {
   unsigned int wedge_interintra[BLOCK_SIZES_ALL][2];
   unsigned int compound_type[BLOCK_SIZES_ALL][MASKED_COMPOUND_TYPES];
   unsigned int motion_mode[BLOCK_SIZES_ALL][MOTION_MODES];
+#if CONFIG_EXT_ROTATION
+  unsigned int warp_rotation[2];
+#endif  // CONFIG_EXT_ROTATION
   unsigned int obmc[BLOCK_SIZES_ALL][2];
   unsigned int intra_inter[INTRA_INTER_CONTEXTS][2];
   unsigned int comp_inter[COMP_INTER_CONTEXTS][2];

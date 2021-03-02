@@ -1225,6 +1225,12 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
 #endif
           update_cdf(fc->motion_mode_cdf[bsize], mbmi->motion_mode,
                      MOTION_MODES);
+#if CONFIG_EXT_ROTATION
+#if CONFIG_ENTROPY_STATS
+          ++counts->warp_rotation_cdf[mbmi->rot_flag];
+#endif
+          update_cdf(fc->warp_rotation_cdf, mbmi->rot_flag, 2);
+#endif  // CONFIG_EXT_ROTATION
         } else if (motion_allowed == OBMC_CAUSAL) {
 #if CONFIG_ENTROPY_STATS
           counts->obmc[bsize][mbmi->motion_mode == OBMC_CAUSAL]++;

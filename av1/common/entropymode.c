@@ -656,6 +656,11 @@ static const aom_cdf_prob default_motion_mode_cdf[BLOCK_SIZES_ALL][CDF_SIZE(
                        { AOM_CDF3(28799, 31390) }, { AOM_CDF3(26431, 30774) },
                        { AOM_CDF3(28973, 31594) }, { AOM_CDF3(29742, 31203) } };
 
+#if CONFIG_EXT_ROTATION
+static const aom_cdf_prob default_warp_rotation_cdf[CDF_SIZE(2)] = { AOM_CDF2(
+    31500) };
+#endif  // CONFIG_EXT_ROTATION
+
 static const aom_cdf_prob default_obmc_cdf[BLOCK_SIZES_ALL][CDF_SIZE(2)] = {
   { AOM_CDF2(16384) }, { AOM_CDF2(16384) }, { AOM_CDF2(16384) },
   { AOM_CDF2(10437) }, { AOM_CDF2(9371) },  { AOM_CDF2(9301) },
@@ -1296,6 +1301,9 @@ static void init_mode_probs(FRAME_CONTEXT *fc) {
   av1_copy(fc->drl_cdf, default_drl_cdf);
 #endif  // CONFIG_NEW_INTER_MODES
   av1_copy(fc->motion_mode_cdf, default_motion_mode_cdf);
+#if CONFIG_EXT_ROTATION
+  av1_copy(fc->warp_rotation_cdf, default_warp_rotation_cdf);
+#endif  // CONFIG_EXT_ROTATION
   av1_copy(fc->obmc_cdf, default_obmc_cdf);
   av1_copy(fc->inter_compound_mode_cdf, default_inter_compound_mode_cdf);
   av1_copy(fc->compound_type_cdf, default_compound_type_cdf);
