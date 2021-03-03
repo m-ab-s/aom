@@ -34,8 +34,6 @@ static AOM_INLINE void av1_set_high_precision_mv(AV1_COMP *cpi,
                                                  MvSubpelPrecision precision) {
   FeatureFlags *features = &cpi->common.features;
   features->fr_mv_precision = precision;
-  assert(IMPLIES(features->cur_frame_force_integer_mv,
-                 precision == MV_SUBPEL_NONE));
 }
 
 void av1_pick_and_set_high_precision_mv(AV1_COMP *cpi, int qindex);
