@@ -127,13 +127,12 @@ static void vfilter8(const int16_t *src, int src_stride, uint8_t *dst,
       _mm_set1_epi32(((1 << conv_params->round_1) >> 1));
   const __m128i res_add_const = _mm_set1_epi32(1 << offset_bits);
 
-#if !CONFIG_REMOVE_DIST_WTD_COMP
+  const int use_wtd_comp_avg = is_uneven_wtd_comp_avg(conv_params);
   const int w0 = conv_params->fwd_offset;
   const int w1 = conv_params->bck_offset;
   const __m128i wt0 = _mm_set1_epi16((short)w0);
   const __m128i wt1 = _mm_set1_epi16((short)w1);
   const __m128i wt = _mm_unpacklo_epi16(wt0, wt1);
-#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
 
   int y_qn = subpel_y_qn;
   for (int y = 0; y < h; ++y, y_qn += y_step_qn) {
@@ -177,19 +176,15 @@ static void vfilter8(const int16_t *src, int src_stride, uint8_t *dst,
       if (conv_params->is_compound) {
         if (conv_params->do_average) {
           const __m128i p_16 = _mm_loadl_epi64((__m128i *)dst_16_x);
-#if !CONFIG_REMOVE_DIST_WTD_COMP
-          if (conv_params->use_dist_wtd_comp_avg) {
+          if (use_wtd_comp_avg) {
             const __m128i p_16_lo = _mm_unpacklo_epi16(p_16, shifted_16);
             const __m128i wt_res_lo = _mm_madd_epi16(p_16_lo, wt);
             const __m128i shifted_32 =
                 _mm_srai_epi32(wt_res_lo, DIST_PRECISION_BITS);
             shifted_16 = _mm_packus_epi32(shifted_32, shifted_32);
           } else {
-#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
             shifted_16 = _mm_srai_epi16(_mm_add_epi16(p_16, shifted_16), 1);
-#if !CONFIG_REMOVE_DIST_WTD_COMP
           }
-#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
           const __m128i subbed = _mm_sub_epi16(shifted_16, sub);
           result = _mm_sra_epi16(_mm_add_epi16(subbed, bits_const), bits_shift);
           const __m128i result_8 = _mm_packus_epi16(result, result);
@@ -213,17 +208,13 @@ static void vfilter8(const int16_t *src, int src_stride, uint8_t *dst,
       if (conv_params->is_compound) {
         if (conv_params->do_average) {
           int32_t tmp = dst16[y * dst16_stride + x];
-#if !CONFIG_REMOVE_DIST_WTD_COMP
-          if (conv_params->use_dist_wtd_comp_avg) {
+          if (use_wtd_comp_avg) {
             tmp = tmp * conv_params->fwd_offset + res * conv_params->bck_offset;
             tmp = tmp >> DIST_PRECISION_BITS;
           } else {
-#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
             tmp += res;
             tmp = tmp >> 1;
-#if !CONFIG_REMOVE_DIST_WTD_COMP
           }
-#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
           /* Subtract round offset and convolve round */
           tmp = tmp - sub32;
           dst[y * dst_stride + x] = clip_pixel(ROUND_POWER_OF_TWO(tmp, bits));
@@ -369,12 +360,11 @@ static void highbd_vfilter8(const int16_t *src, int src_stride, uint16_t *dst,
   __m128i round_bits_shift = _mm_cvtsi32_si128(round_bits);
   __m128i round_bits_const = _mm_set1_epi32(((1 << round_bits) >> 1));
 
-#if !CONFIG_REMOVE_DIST_WTD_COMP
+  const int use_wtd_comp_avg = is_uneven_wtd_comp_avg(conv_params);
   const int w0 = conv_params->fwd_offset;
   const int w1 = conv_params->bck_offset;
   const __m128i wt0 = _mm_set1_epi32(w0);
   const __m128i wt1 = _mm_set1_epi32(w1);
-#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
 
   int y_qn = subpel_y_qn;
   for (int y = 0; y < h; ++y, y_qn += y_step_qn) {
@@ -419,17 +409,13 @@ static void highbd_vfilter8(const int16_t *src, int src_stride, uint16_t *dst,
           __m128i p_32 =
               _mm_cvtepu16_epi32(_mm_loadl_epi64((__m128i *)dst_16_x));
 
-#if !CONFIG_REMOVE_DIST_WTD_COMP
-          if (conv_params->use_dist_wtd_comp_avg) {
+          if (use_wtd_comp_avg) {
             shifted = _mm_add_epi32(_mm_mullo_epi32(p_32, wt0),
                                     _mm_mullo_epi32(shifted, wt1));
             shifted = _mm_srai_epi32(shifted, DIST_PRECISION_BITS);
           } else {
-#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
             shifted = _mm_srai_epi32(_mm_add_epi32(p_32, shifted), 1);
-#if !CONFIG_REMOVE_DIST_WTD_COMP
           }
-#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
           __m128i res32 = _mm_sub_epi32(shifted, sub);
           res32 = _mm_sra_epi32(_mm_add_epi32(res32, round_bits_const),
                                 round_bits_shift);
@@ -458,17 +444,13 @@ static void highbd_vfilter8(const int16_t *src, int src_stride, uint16_t *dst,
       if (conv_params->is_compound) {
         if (conv_params->do_average) {
           int32_t tmp = dst16[y * dst16_stride + x];
-#if !CONFIG_REMOVE_DIST_WTD_COMP
-          if (conv_params->use_dist_wtd_comp_avg) {
+          if (use_wtd_comp_avg) {
             tmp = tmp * conv_params->fwd_offset + res * conv_params->bck_offset;
             tmp = tmp >> DIST_PRECISION_BITS;
           } else {
-#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
             tmp += res;
             tmp = tmp >> 1;
-#if !CONFIG_REMOVE_DIST_WTD_COMP
           }
-#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
           /* Subtract round offset and convolve round */
           tmp = tmp - ((1 << (offset_bits - conv_params->round_1)) +
                        (1 << (offset_bits - conv_params->round_1 - 1)));

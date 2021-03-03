@@ -15,12 +15,12 @@ import platform
 import AV2CTCVideo
 
 #TEST_CONFIGURATIONS = ["RA","LD", "AS"]
-TEST_CONFIGURATIONS = ["LD", "RA", "AI"]
+TEST_CONFIGURATIONS = ["LD", "RA", "AI", "STILL"]
 
 ######################################
 # configuration settings
 ######################################
-RootPath = "..\\"
+RootPath = "..//"
 BinPath = os.path.join(RootPath, 'bin')
 WorkPath = os.path.join(RootPath, 'test')
 SMOKE_TEST = False  # override some parameters to do a quick smoke test
@@ -29,15 +29,16 @@ FrameNum = {
     "RA" : 130,
     "AI" : 30,
     "AS" : 130,
+    "STILL" : 1,
 }
 EnableTimingInfo = True
 Platform = platform.system()
 
 ############ test contents #######################################
-ContentPath = "D:\\YUVs\\AV2-CTC"
+ContentPath = "D://YUVs//AV2-CTC"
 ############## Scaling settings ############################################
 # down scaling ratio
-DnScaleRatio = [1.0, 1.5, 2.0, 3.0, 4.0, 6.0]  # downscale ratio
+DnScaleRatio = [1.0, 1.5, 2.0, 3.0, 4.0, 6.0]   # downscale ratio
 #down and up scaling algorithm, the 2 lists should be of same size
 DnScalingAlgos = ['lanczos'] #['bicubic', 'bilinear', 'gauss', 'lanczos', 'sinc']
 UpScalingAlgos = ['lanczos'] #['bicubic', 'bilinear', 'gauss', 'lanczos', 'sinc']
@@ -51,7 +52,7 @@ HDRConvert = os.path.join(BinPath, 'HDRConvert.exe')
 ##################### Encode Config ########################################
 EncodeMethods = ["aom", "svt"]
 CodecNames = ["av1"]
-SUFFIX = {"av1": ".ivf"}
+SUFFIX = {"av1": ".obu"}
 FFMPEG = os.path.join(BinPath, 'ffmpeg.exe')
 AOMENC = os.path.join(BinPath, 'aomenc.exe')
 SVTAV1 = os.path.join(BinPath, 'SvtAv1EncApp.exe')
@@ -61,7 +62,10 @@ QPs = {
     "RA" : [23, 31, 39, 47, 55, 63],
     "AI" : [15, 23, 31, 39, 47, 55],
     "AS" : [23, 31, 39, 47, 55, 63],
+    "STILL" : [15, 23, 31, 39, 47, 55],
 }
+MIN_GOP_LENGTH = 16
+AS_DOWNSCALE_ON_THE_FLY = False
 
 ######################## quality evalution config #############################
 QualityList = ['PSNR_Y','PSNR_U','PSNR_V','SSIM_Y(dB)','MS-SSIM_Y(dB)','VMAF_Y',

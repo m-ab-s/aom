@@ -477,7 +477,14 @@ static AOM_INLINE void inter_modes_info_push(InterModesInfo *inter_modes_info,
 
 static int compare_rd_idx_pair(const void *a, const void *b) {
   if (((RdIdxPair *)a)->rd == ((RdIdxPair *)b)->rd) {
-    return 0;
+    // To avoid inconsistency in qsort() ordering when two elements are equal,
+    // using idx as tie breaker. Refer aomedia:2928
+    if (((RdIdxPair *)a)->idx == ((RdIdxPair *)b)->idx)
+      return 0;
+    else if (((RdIdxPair *)a)->idx > ((RdIdxPair *)b)->idx)
+      return 1;
+    else
+      return -1;
   } else if (((const RdIdxPair *)a)->rd > ((const RdIdxPair *)b)->rd) {
     return 1;
   } else {
@@ -1092,8 +1099,7 @@ static int64_t handle_newmv(const AV1_COMP *const cpi, MACROBLOCK *const x,
         InterPredParams inter_pred_params;
         av1_dist_wtd_comp_weight_assign(
             &cpi->common, mbmi, 0, &inter_pred_params.conv_params.fwd_offset,
-            &inter_pred_params.conv_params.bck_offset,
-            &inter_pred_params.conv_params.use_dist_wtd_comp_avg, 1);
+            &inter_pred_params.conv_params.bck_offset, 1);
         uint8_t mask_value = inter_pred_params.conv_params.fwd_offset * 4;
         memset(xd->seg_mask, mask_value, sizeof(xd->seg_mask));
         av1_joint_motion_search(cpi, x, bsize, cur_mv, xd->seg_mask,

@@ -1187,6 +1187,12 @@ void av1_tpl_setup_stats(AV1_COMP *cpi, int gop_eval,
   tpl_row_mt->sync_read_ptr = av1_tpl_row_mt_sync_read_dummy;
   tpl_row_mt->sync_write_ptr = av1_tpl_row_mt_sync_write_dummy;
 
+  if (frame_params->frame_type == KEY_FRAME) {
+    av1_init_mv_probs(cm);
+  }
+  av1_fill_mv_costs(cm->fc, cm->features.cur_frame_force_integer_mv,
+                    cm->features.allow_high_precision_mv, &cpi->td.mb.mv_costs);
+
   // Backward propagation from tpl_group_frames to 1.
   for (int frame_idx = gf_group->index; frame_idx < tpl_gf_group_frames;
        ++frame_idx) {

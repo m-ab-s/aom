@@ -477,15 +477,9 @@ void av1_warp_affine_neon(const int32_t *mat, const uint8_t *ref, int width,
                           int16_t beta, int16_t gamma, int16_t delta) {
   int16x8_t tmp[15];
   const int bd = 8;
-#if !CONFIG_REMOVE_DIST_WTD_COMP
   const int w0 = conv_params->fwd_offset;
   const int w1 = conv_params->bck_offset;
-  const int use_dist_wtd_comp_avg = conv_params->use_dist_wtd_comp_avg;
-#else
-  const int w0 = (1 << (DIST_PRECISION_BITS - 1));
-  const int w1 = (1 << (DIST_PRECISION_BITS - 1));
-  const int use_dist_wtd_comp_avg = 0;
-#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
+  const int use_wtd_comp_avg = is_uneven_wtd_comp_avg(conv_params);
   const int32x4_t fwd = vdupq_n_s32((int32_t)w0);
   const int32x4_t bwd = vdupq_n_s32((int32_t)w1);
   const int16x8_t sub_constant = vdupq_n_s16((1 << (bd - 1)) + (1 << bd));
@@ -647,7 +641,7 @@ void av1_warp_affine_neon(const int32_t *mat, const uint8_t *ref, int width,
             uint16x4_t tmp16_lo = vld1_u16(p);
             int32x4_t tmp32_lo = vreinterpretq_s32_u32(vmovl_u16(tmp16_lo));
             int16x4_t tmp16_low;
-            if (use_dist_wtd_comp_avg) {
+            if (use_wtd_comp_avg) {
               res_lo = vmulq_s32(res_lo, bwd);
               tmp32_lo = vmulq_s32(tmp32_lo, fwd);
               tmp32_lo = vaddq_s32(tmp32_lo, res_lo);
@@ -678,7 +672,7 @@ void av1_warp_affine_neon(const int32_t *mat, const uint8_t *ref, int width,
               uint16x4_t tmp16_hi = vld1_u16(p4);
               int32x4_t tmp32_hi = vreinterpretq_s32_u32(vmovl_u16(tmp16_hi));
               int16x4_t tmp16_high;
-              if (use_dist_wtd_comp_avg) {
+              if (use_wtd_comp_avg) {
                 res_hi = vmulq_s32(res_hi, bwd);
                 tmp32_hi = vmulq_s32(tmp32_hi, fwd);
                 tmp32_hi = vaddq_s32(tmp32_hi, res_hi);

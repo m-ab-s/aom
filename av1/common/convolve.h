@@ -26,11 +26,8 @@ typedef struct ConvolveParams {
   int round_1;
   int plane;
   int is_compound;
-#if !CONFIG_REMOVE_DIST_WTD_COMP
-  int use_dist_wtd_comp_avg;
   int fwd_offset;
   int bck_offset;
-#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
 } ConvolveParams;
 
 #define ROUND0_BITS 3
@@ -62,6 +59,18 @@ void av1_convolve_2d_facade(const uint8_t *src, int src_stride, uint8_t *dst,
                             const int subpel_y_qn, int y_step_q4, int scaled,
                             ConvolveParams *conv_params);
 
+static INLINE int is_uneven_wtd_comp_avg(const ConvolveParams *params) {
+  return params->do_average &&
+         (params->fwd_offset != (1 << (DIST_PRECISION_BITS - 1)) ||
+          params->bck_offset != (1 << (DIST_PRECISION_BITS - 1)));
+}
+
+static INLINE void init_conv_params(ConvolveParams *params) {
+  memset(params, 0, sizeof(*params));
+  params->fwd_offset = 1 << (DIST_PRECISION_BITS - 1);
+  params->bck_offset = 1 << (DIST_PRECISION_BITS - 1);
+}
+
 static INLINE ConvolveParams get_conv_params_no_round(int cmp_index, int plane,
                                                       CONV_BUF_TYPE *dst,
                                                       int dst_stride,
@@ -69,6 +78,7 @@ static INLINE ConvolveParams get_conv_params_no_round(int cmp_index, int plane,
   ConvolveParams conv_params;
   assert(IMPLIES(cmp_index, is_compound));
 
+  init_conv_params(&conv_params);
   conv_params.is_compound = is_compound;
   conv_params.round_0 = ROUND0_BITS;
   conv_params.round_1 = is_compound ? COMPOUND_ROUND1_BITS
@@ -99,6 +109,8 @@ static INLINE ConvolveParams get_conv_params(int do_average, int plane,
 static INLINE ConvolveParams get_conv_params_wiener(int bd) {
   ConvolveParams conv_params;
   (void)bd;
+
+  init_conv_params(&conv_params);
   conv_params.do_average = 0;
   conv_params.is_compound = 0;
   conv_params.round_0 = WIENER_ROUND0_BITS;

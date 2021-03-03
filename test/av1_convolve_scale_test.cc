@@ -285,24 +285,13 @@ class ConvolveScaleTestBase : public ::testing::Test {
     image_ = new TestImage<SrcPixel>(width_, height_, bd_);
   }
 
-#if !CONFIG_REMOVE_DIST_WTD_COMP
-  void SetConvParamOffset(int i, int j, int is_compound, int do_average,
-                          int use_dist_wtd_comp_avg) {
-#else
   void SetConvParamOffset(int i, int j, int is_compound, int do_average) {
-#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
     if (i == -1 && j == -1) {
-#if !CONFIG_REMOVE_DIST_WTD_COMP
-      convolve_params_.use_dist_wtd_comp_avg = use_dist_wtd_comp_avg;
-#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
       convolve_params_.is_compound = is_compound;
       convolve_params_.do_average = do_average;
     } else {
-#if !CONFIG_REMOVE_DIST_WTD_COMP
-      convolve_params_.use_dist_wtd_comp_avg = use_dist_wtd_comp_avg;
       convolve_params_.fwd_offset = quant_dist_lookup_table[i][j][0];
       convolve_params_.bck_offset = quant_dist_lookup_table[i][j][1];
-#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
       convolve_params_.is_compound = is_compound;
       convolve_params_.do_average = do_average;
     }
@@ -312,11 +301,7 @@ class ConvolveScaleTestBase : public ::testing::Test {
     ACMRandom rnd(ACMRandom::DeterministicSeed());
     for (int i = 0; i < kTestIters; ++i) {
       int is_compound = 0;
-#if !CONFIG_REMOVE_DIST_WTD_COMP
-      SetConvParamOffset(-1, -1, is_compound, 0, 0);
-#else
       SetConvParamOffset(-1, -1, is_compound, 0);
-#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
       Prep(&rnd);
       RunOne(true);
       RunOne(false);
@@ -324,21 +309,6 @@ class ConvolveScaleTestBase : public ::testing::Test {
 
       is_compound = 1;
       for (int do_average = 0; do_average < 2; do_average++) {
-#if !CONFIG_REMOVE_DIST_WTD_COMP
-        for (int use_dist_wtd_comp_avg = 0; use_dist_wtd_comp_avg < 2;
-             use_dist_wtd_comp_avg++) {
-          for (int j = 0; j < 2; ++j) {
-            for (int k = 0; k < 4; ++k) {
-              SetConvParamOffset(j, k, is_compound, do_average,
-                                 use_dist_wtd_comp_avg);
-              Prep(&rnd);
-              RunOne(true);
-              RunOne(false);
-              image_->Check();
-            }
-          }
-        }
-#else
         for (int j = 0; j < 2; ++j) {
           for (int k = 0; k < 4; ++k) {
             SetConvParamOffset(j, k, is_compound, do_average);
@@ -348,7 +318,6 @@ class ConvolveScaleTestBase : public ::testing::Test {
             image_->Check();
           }
         }
-#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
       }
     }
   }

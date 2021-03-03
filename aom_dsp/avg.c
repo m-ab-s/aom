@@ -440,6 +440,7 @@ int aom_satd_lp_c(const int16_t *coeff, int length) {
 // height: value range {16, 32, 64, 128}.
 void aom_int_pro_row_c(int16_t hbuf[16], const uint8_t *ref,
                        const int ref_stride, const int height) {
+  assert(height == 16 || height == 32 || height == 64 || height == 128);
   int idx;
   const int norm_factor = height >> 1;
   for (idx = 0; idx < 16; ++idx) {

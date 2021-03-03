@@ -27,10 +27,10 @@ def get_qindex_from_QP(QP):
     return quantizer_to_qindex[QP]
 
 def EncodeWithAOM_AV1(clip, test_cfg, QP, framenum, outfile, preset, enc_perf,
-                      LogCmdOnly=False):
+                      enc_log, LogCmdOnly=False):
     args = " --verbose --codec=av1 -v --psnr --obu --frame-parallel=0" \
            " --cpu-used=%s --limit=%d --passes=1 --end-usage=q --i%s " \
-           " --end-usage=q --use-fixed-qp-offsets=1 --deltaq-mode=0 " \
+           " --use-fixed-qp-offsets=1 --deltaq-mode=0 " \
            " --enable-tpl-model=0 --enable-keyframe-filtering=0 --fps=%d/%d " \
            " --input-bit-depth=%d --bit-depth=%d --cq-level=%d -w %d -h %d" \
            % (preset, framenum, clip.fmt, clip.fps_num, clip.fps_denom,
@@ -43,7 +43,7 @@ def EncodeWithAOM_AV1(clip, test_cfg, QP, framenum, outfile, preset, enc_perf,
     else:
         args += " --tile-columns=0 --threads=1 "
 
-    if test_cfg == "AI":
+    if test_cfg == "AI" or test_cfg == "STILL":
         args += " --kf-min-dist=0 --kf-max-dist=0 "
     elif test_cfg == "RA" or test_cfg == "AS":
         args += " --min-gf-interval=16 --max-gf-interval=16 --gf-min-pyr-height=4" \
@@ -56,39 +56,43 @@ def EncodeWithAOM_AV1(clip, test_cfg, QP, framenum, outfile, preset, enc_perf,
     else:
         print("Unsupported Test Configuration %s" % test_cfg)
     args += " -o %s %s" % (outfile, clip.file_path)
-    cmd = AOMENC + args
+    cmd = AOMENC + args + "> %s 2>&1"%enc_log
     if (EnableTimingInfo):
         if Platform == "Windows":
             cmd = "ptime " + cmd + " >%s"%enc_perf
+        elif Platform == "Darwin":
+            cmd = "gtime --verbose --output=%s "%enc_perf + cmd
         else:
             cmd = "/usr/bin/time --verbose --output=%s "%enc_perf + cmd
     ExecuteCmd(cmd, LogCmdOnly)
 
 def EncodeWithSVT_AV1(clip, test_cfg, QP, framenum, outfile, preset, enc_perf,
-                      LogCmdOnly=False):
+                      enc_log, LogCmdOnly=False):
     #TODO: update svt parameters
     args = " --preset %s --scm 2 --lookahead 0 --hierarchical-levels 3 -n %d" \
            " --keyint 255 -rc 0 -q %d -w %d -h %d -b %s -i %s"\
            % (str(preset), framenum, QP, clip.width, clip.height, outfile,
               clip.file_path)
-    cmd = SVTAV1 + args
+    cmd = SVTAV1 + args + "> %s 2>&1"%enc_log
     if EnableTimingInfo:
         if Platform == "Windows":
             cmd = "ptime " + cmd + " >%s"%enc_perf
+        elif Platform == "Darwin":
+            cmd = "gtime --verbose --output=%s "%enc_perf + cmd
         else:
-            cmd = "/usr/bin/time --verbose --output=%s"%enc_perf + cmd
+            cmd = "/usr/bin/time --verbose --output=%s "%enc_perf + cmd
     ExecuteCmd(cmd, LogCmdOnly)
 
 def VideoEncode(EncodeMethod, CodecName, clip, test_cfg, QP, framenum, outfile,
-                preset, enc_perf, LogCmdOnly=False):
+                preset, enc_perf, enc_log, LogCmdOnly=False):
     Utils.CmdLogger.write("::Encode\n")
     if CodecName == 'av1':
         if EncodeMethod == "aom":
             EncodeWithAOM_AV1(clip, test_cfg, QP, framenum, outfile, preset,
-                              enc_perf, LogCmdOnly)
+                              enc_perf, enc_log, LogCmdOnly)
         elif EncodeMethod == "svt":
             EncodeWithSVT_AV1(clip, test_cfg, QP, framenum, outfile, preset,
-                              enc_perf, LogCmdOnly)
+                              enc_perf, enc_log, LogCmdOnly)
         else:
             raise ValueError("invalid parameter for encode.")
     else:

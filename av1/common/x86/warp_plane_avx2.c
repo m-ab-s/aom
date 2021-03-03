@@ -437,17 +437,10 @@ static INLINE void unpack_weights_and_set_round_const_avx2(
                         (1 << (offset_bits - conv_params->round_1 - 1)));
   *round_bits_const = _mm256_set1_epi16(((1 << round_bits) >> 1));
 
-#if !CONFIG_REMOVE_DIST_WTD_COMP
   const int w0 = conv_params->fwd_offset;
   const int w1 = conv_params->bck_offset;
   const __m256i wt0 = _mm256_set1_epi16((short)w0);
   const __m256i wt1 = _mm256_set1_epi16((short)w1);
-#else
-  const __m256i wt0 =
-      _mm256_set1_epi16((int16_t)(1 << (DIST_PRECISION_BITS - 1)));
-  const __m256i wt1 =
-      _mm256_set1_epi16((int16_t)(1 << (DIST_PRECISION_BITS - 1)));
-#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
   *wt = _mm256_unpacklo_epi16(wt0, wt1);
 }
 
@@ -669,6 +662,7 @@ static INLINE void store_vertical_filter_output_avx2(
     const __m256i *round_bits_const, uint8_t *pred, ConvolveParams *conv_params,
     int i, int j, int k, const int reduce_bits_vert, int p_stride, int p_width,
     const int round_bits) {
+  const int use_wtd_comp_avg = is_uneven_wtd_comp_avg(conv_params);
   (void)wt;
   __m256i res_lo_1 = *res_lo;
   __m256i res_hi_1 = *res_hi;
@@ -693,19 +687,15 @@ static INLINE void store_vertical_filter_output_avx2(
       const __m128i p_16_1 = _mm_loadl_epi64(p_1);
       const __m256i p_16 =
           _mm256_inserti128_si256(_mm256_castsi128_si256(p_16_0), p_16_1, 1);
-#if !CONFIG_REMOVE_DIST_WTD_COMP
-      if (conv_params->use_dist_wtd_comp_avg) {
+      if (use_wtd_comp_avg) {
         const __m256i p_16_lo = _mm256_unpacklo_epi16(p_16, temp_lo_16);
         const __m256i wt_res_lo = _mm256_madd_epi16(p_16_lo, *wt);
         const __m256i shifted_32 =
             _mm256_srai_epi32(wt_res_lo, DIST_PRECISION_BITS);
         res_lo_16 = _mm256_packus_epi32(shifted_32, shifted_32);
       } else {
-#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
         res_lo_16 = _mm256_srai_epi16(_mm256_add_epi16(p_16, temp_lo_16), 1);
-#if !CONFIG_REMOVE_DIST_WTD_COMP
       }
-#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
       res_lo_16 = _mm256_add_epi16(res_lo_16, *res_sub_const);
       res_lo_16 = _mm256_srai_epi16(
           _mm256_add_epi16(res_lo_16, *round_bits_const), round_bits);
@@ -740,19 +730,15 @@ static INLINE void store_vertical_filter_output_avx2(
         const __m128i p4_16_1 = _mm_loadl_epi64(p4_1);
         const __m256i p4_16 = _mm256_inserti128_si256(
             _mm256_castsi128_si256(p4_16_0), p4_16_1, 1);
-#if !CONFIG_REMOVE_DIST_WTD_COMP
-        if (conv_params->use_dist_wtd_comp_avg) {
+        if (use_wtd_comp_avg) {
           const __m256i p_16_hi = _mm256_unpacklo_epi16(p4_16, temp_hi_16);
           const __m256i wt_res_hi = _mm256_madd_epi16(p_16_hi, *wt);
           const __m256i shifted_32 =
               _mm256_srai_epi32(wt_res_hi, DIST_PRECISION_BITS);
           res_hi_16 = _mm256_packus_epi32(shifted_32, shifted_32);
         } else {
-#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
           res_hi_16 = _mm256_srai_epi16(_mm256_add_epi16(p4_16, temp_hi_16), 1);
-#if !CONFIG_REMOVE_DIST_WTD_COMP
         }
-#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
         res_hi_16 = _mm256_add_epi16(res_hi_16, *res_sub_const);
         res_hi_16 = _mm256_srai_epi16(
             _mm256_add_epi16(res_hi_16, *round_bits_const), round_bits);

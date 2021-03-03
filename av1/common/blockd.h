@@ -516,7 +516,6 @@ typedef struct cfl_ctx {
 } CFL_CTX;
 
 typedef struct dist_wtd_comp_params {
-  int use_dist_wtd_comp_avg;
   int fwd_offset;
   int bck_offset;
 } DIST_WTD_COMP_PARAMS;
