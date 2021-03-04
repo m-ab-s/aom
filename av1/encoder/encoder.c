@@ -4960,7 +4960,9 @@ static void loopfilter_frame(AV1_COMP *cpi, AV1_COMMON *cm) {
 #if CONFIG_CNN_RESTORATION
   cm->use_cnn_y = 0;
   cm->use_cnn_uv = 0;
+#if CONFIG_CNN_CRLC_GUIDED
   cm->use_full_crlc = 0;
+#endif  // CONFIG_CNN_CRLC_GUIDED
   if (av1_use_cnn_encode(cm, cpi->gf_group.update_type[cpi->gf_group.index])) {
     // Save unfiltered frame.
     yv12_copy_all_planes(&cm->cur_frame->buf, &cpi->last_frame_uf, num_planes);
