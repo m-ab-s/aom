@@ -225,7 +225,7 @@ typedef struct SMSPartitionStats {
   int part_rate;
 } SMSPartitionStats;
 
-static INLINE void init_sms_partition_stats(SMSPartitionStats *stats) {
+static INLINE void av1_init_sms_partition_stats(SMSPartitionStats *stats) {
   memset(stats->sms_data, 0, sizeof(stats->sms_data));
   stats->num_sub_parts = 0;
   stats->part_rate = INT_MAX;
@@ -310,7 +310,7 @@ PARTITION_TYPE av1_get_prev_partition(AV1_COMP *const cpi, MACROBLOCK *x,
                                       int mi_row, int mi_col, BLOCK_SIZE bsize);
 
 #if CONFIG_EXT_RECUR_PARTITIONS
-static INLINE void init_sms_data_bufs(SimpleMotionDataBufs *data_bufs) {
+static INLINE void av1_init_sms_data_bufs(SimpleMotionDataBufs *data_bufs) {
   memset(data_bufs, 0, sizeof(*data_bufs));
 }
 #endif  // CONFIG_EXT_RECUR_PARTITIONS

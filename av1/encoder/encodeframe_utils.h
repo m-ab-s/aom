@@ -138,6 +138,10 @@ typedef struct {
   // rect_part_rd[1][i] is the RD cost of ith partition index of PARTITION_VERT.
   int64_t rect_part_rd[NUM_RECT_PARTS][SUB_PARTITIONS_RECT];
 
+#if CONFIG_EXT_RECUR_PARTITIONS
+  // New Simple Motion Result for PARTITION_NONE
+  SMSPartitionStats none_data;
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   // Flags indicating if the corresponding partition was winner or not.
   // Used to bypass similar blocks during AB partition evaluation.
   int is_split_ctx_is_ready[2];
