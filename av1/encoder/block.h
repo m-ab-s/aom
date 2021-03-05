@@ -408,6 +408,18 @@ typedef struct {
   uint8_t *tmp_best_mask_buf;
 } CompoundTypeRdBuffers;
 
+/*!\cond */
+/*! \brief MV cost types
+ */
+enum {
+  MV_COST_ENTROPY,    // Use the entropy rate of the mv as the cost
+  MV_COST_L1_LOWRES,  // Use the l1 norm of the mv as the cost (<480p)
+  MV_COST_L1_MIDRES,  // Use the l1 norm of the mv as the cost (>=480p)
+  MV_COST_L1_HDRES,   // Use the l1 norm of the mv as the cost (>=720p)
+  MV_COST_NONE        // Use 0 as as cost irrespective of the current mv
+} UENUM1BYTE(MV_COST_TYPE);
+/*!\endcond */
+
 #if CONFIG_EXT_RECUR_PARTITIONS
 /*! \brief max length of start Mv list
  */
@@ -427,6 +439,7 @@ typedef struct SimpleMotionData {
   BLOCK_SIZE bsize;                        /*!< blocksize */
   int mi_row;                              /*!< row position in mi units */
   int mi_col;                              /*!< col position in mi units */
+  MV_COST_TYPE mv_cost_type;               /*!< mv cost type */
   MvSubpelPrecision mv_precision;          /*!< MV precision */
   int sadpb;                               /*!< sad per bit */
   int errorperbit;                         /*!< error per bit */
@@ -1290,6 +1303,10 @@ typedef struct macroblock {
 #if CONFIG_EXT_RECUR_PARTITIONS
   //! Simple motion search buffers.
   SimpleMotionDataBufs *sms_bufs;
+  /*! \brief Determines what encoding decision should be reused. */
+  int reuse_inter_mode_cache_type;
+  /*! \brief The mode to reuse during \ref av1_rd_pick_inter_mode_sb. */
+  MB_MODE_INFO *inter_mode_cache;
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
   /**@}*/
 } MACROBLOCK;

@@ -42,5 +42,8 @@ bool av1_rd_pick_partition(AV1_COMP *const cpi, ThreadData *td,
                            SIMPLE_MOTION_DATA_TREE *sms_tree, int64_t *none_rd,
                            SB_MULTI_PASS_MODE multi_pass_mode,
                            RD_RECT_PART_WIN_INFO *rect_part_win_info);
+void setup_block_rdmult(const AV1_COMP *const cpi, MACROBLOCK *const x,
+                        int mi_row, int mi_col, BLOCK_SIZE bsize,
+                        AQ_MODE aq_mode, MB_MODE_INFO *mbmi);
 
 #endif  // AOM_AV1_ENCODER_PARTITION_SEARCH_H_

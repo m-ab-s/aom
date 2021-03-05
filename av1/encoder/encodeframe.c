@@ -599,6 +599,9 @@ static AOM_INLINE void encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
   SIMPLE_MOTION_DATA_TREE *const sms_root = td->sms_root;
   const int ss_x = cm->seq_params.subsampling_x;
   const int ss_y = cm->seq_params.subsampling_y;
+  (void)tile_info;
+  (void)num_planes;
+  (void)mi;
 
 #if CONFIG_REALTIME_ONLY || CONFIG_EXT_RECUR_PARTITIONS
   (void)seg_skip;

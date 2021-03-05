@@ -402,6 +402,8 @@ static INLINE PARTITION_TYPE get_partition_from_symbol_rec_block(
 
 static INLINE PARTITION_TYPE_REC get_symbol_from_partition_rec_block(
     BLOCK_SIZE bsize, PARTITION_TYPE partition) {
+  assert(bsize < BLOCK_SIZES_ALL);
+  assert(partition < EXT_PARTITION_TYPES);
   if (block_size_wide[bsize] > block_size_high[bsize])
     return symbol_map_from_partition_block_wgth[partition];
   else if (block_size_high[bsize] > block_size_wide[bsize])
