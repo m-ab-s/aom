@@ -17,7 +17,7 @@ import subprocess
 import time
 import logging
 import hashlib
-from Config import LogLevels, ContentPath
+from Config import LogLevels, ContentPath, Platform, Path_RDResults
 from AV2CTCVideo import Y4M_CLIPs, CTC_TEST_SET
 
 class Clip:
@@ -41,7 +41,10 @@ class Clip:
         self.fmt = Fmt
         self.fps_num = FPS_num
         self.fps_denom = FPS_denom
-        self.fps = round(self.fps_num / self.fps_denom)
+        if (self.fps_num == 0):
+            self.fps = 0
+        else:
+            self.fps = round(self.fps_num / self.fps_denom)
         self.bit_depth = Bit_depth
 
 def Cleanfolder(folder):
@@ -70,6 +73,10 @@ def GetShortContentName(content, isshort=True):
     else:
         name = basename
     return name
+
+def GetEncLogFile(bsfile, logpath):
+    filename = GetShortContentName(bsfile, False) + '_EncLog.txt'
+    return os.path.join(logpath, filename)
 
 def parseY4MHeader(y4m):
     """
@@ -267,3 +274,69 @@ def md5(fname):
         for chunk in iter(lambda: f.read(4096), b""):
             hash_md5.update(chunk)
     return hash_md5.hexdigest()
+
+def GatherPerfInfo(bsfile, Path_TimingLog):
+    enc_perf = GetEncPerfFile(bsfile, Path_TimingLog)
+    dec_perf = GetDecPerfFile(bsfile, Path_TimingLog)
+    enc_time = 0.0; dec_time = 0.0
+    flog = open(enc_perf, 'r')
+    for line in flog:
+        if Platform == "Windows":
+            m = re.search(r"Execution time:\s+(\d+\.?\d*)", line)
+        else:
+            m = re.search(r"User time \(seconds\):\s+(\d+\.?\d*)", line)
+        if m:
+            enc_time = float(m.group(1))
+    flog.close()
+
+    flog = open(dec_perf, 'r')
+    for line in flog:
+        if Platform == "Windows":
+            m = re.search(r"Execution time:\s+(\d+\.?\d*)", line)
+        else:
+            m = re.search(r"User time \(seconds\):\s+(\d+\.?\d*)", line)
+        if m:
+            dec_time = float(m.group(1))
+    flog.close()
+    return enc_time, dec_time
+
+def GetEncPerfFile(bsfile, perfpath):
+    filename = GetShortContentName(bsfile, False) + '_EncTime.txt'
+    return os.path.join(perfpath, filename)
+
+def GetDecPerfFile(bsfile, perfpath):
+    filename = GetShortContentName(bsfile, False) + '_DecTime.txt'
+    return os.path.join(perfpath, filename)
+
+def GetRDResultCsvFile(EncodeMethod, CodecName, EncodePreset, test_cfg):
+    filename = "RDResults_%s_%s_%s_Preset_%s.csv" % \
+               (EncodeMethod, CodecName, test_cfg, EncodePreset)
+    avg_file = os.path.join(Path_RDResults, filename)
+    filename = "Perframe_RDResults_%s_%s_%s_Preset_%s.csv" % \
+               (EncodeMethod, CodecName, test_cfg, EncodePreset)
+    perframe_data = os.path.join(Path_RDResults, filename)
+    return avg_file, perframe_data
+
+
+def GatherPerframeStat(test_cfg,EncodeMethod,CodecName,EncodePreset,clip, name, width, height,
+                       qp,enc_log,perframe_csv,perframe_vmaf_log):
+    enc_list = [''] * len(perframe_vmaf_log)
+    flog = open(enc_log, 'r')
+
+    for line in flog:
+        if line.startswith("POC"):
+            #POC:     0 [ KEY ][Q:143]:      40272 Bytes, 1282.9ms, 36.5632 dB(Y), 45.1323 dB(U), 46.6284 dB(V), 38.0736 dB(Avg)    [  0,  0,  0,  0,  0,  0,  0,]
+            m = re.search(r"POC:\s+(\d+)\s+\[( KEY |INTER)\]\[Q:\s*(\d+)\]:\s+(\d+)\s+Bytes,",line)
+            if m:
+                POC = m.group(1)
+                frame_type = m.group(2)
+                qindex = m.group(3)
+                frame_size = m.group(4)
+                if enc_list[int(POC)] == '':
+                    enc_list[int(POC)] = "%s,%s,%s,%s"%(POC,frame_type,qindex,frame_size)
+
+    for i in range(len(enc_list)):
+        #"TestCfg,EncodeMethod,CodecName,EncodePreset,Class,Res,Name,FPS,BitDepth,QP,POC,TempLayerId,FrameType,qindex,FrameSize")
+        perframe_csv.write("%s,%s,%s,%s,%s,%s,%s,%s,%d,%s,%d,%s,%s\n"
+                           %(test_cfg,EncodeMethod,CodecName,EncodePreset,clip.file_class,str(clip.width)+"x"+str(clip.height),
+                             name,clip.fps,clip.bit_depth,str(width)+"x"+str(height),qp,enc_list[i],perframe_vmaf_log[i]))

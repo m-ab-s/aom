@@ -27,7 +27,7 @@ def CalculateQualityMetric(src_file, framenum, reconYUV, fmt, width, height,
                            bit_depth, logfilePath, LogCmdOnly)
 
 def GatherQualityMetrics(reconYUV, logfilePath):
-    qresult = VMAF_GatherQualityMetrics(reconYUV, logfilePath)
+    qresult, per_frame_log = VMAF_GatherQualityMetrics(reconYUV, logfilePath)
     results = []
     for metric in QualityList:
         if metric in VMAFMetricsFullList:
@@ -37,4 +37,4 @@ def GatherQualityMetrics(reconYUV, logfilePath):
             logger.error("invalid quality metrics in QualityList")
             results.append(0.0)
 
-    return results
+    return results, per_frame_log

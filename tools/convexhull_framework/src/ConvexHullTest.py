@@ -23,7 +23,8 @@ from CalculateQualityMetrics import CalculateQualityMetric, GatherQualityMetrics
 from Utils import GetShortContentName, CreateChart_Scatter,\
      AddSeriesToChart_Scatter, InsertChartsToSheet, CreateNewSubfolder,\
      SetupLogging, UpdateChart, AddSeriesToChart_Scatter_Rows,\
-     Cleanfolder, CreateClipList, Clip
+     Cleanfolder, CreateClipList, Clip, GatherPerfInfo, GetEncLogFile, \
+     GetRDResultCsvFile, GatherPerframeStat
 from PostAnalysis_Summary import GenerateSumRDExcelFile,\
      GenerateSumCvxHullExcelFile
 from ScalingTest import Run_Scaling_Test, SaveScalingResultsToExcel
@@ -34,7 +35,7 @@ from Config import LogLevels, FrameNum, QPs, CvxH_WtCols,\
      Path_RDResults, DnScalingAlgos, UpScalingAlgos, ConvexHullColor, \
      EncodeMethods, CodecNames, LoggerName, DnScaleRatio, TargetQtyMetrics, \
      CvxHDataRows, CvxHDataStartRow, CvxHDataStartCol, CvxHDataNum, \
-     Int_ConvexHullColor, EnablePreInterpolation
+     Int_ConvexHullColor, EnablePreInterpolation, AS_DOWNSCALE_ON_THE_FLY
 
 ###############################################################################
 ##### Helper Functions ########################################################
@@ -55,7 +56,8 @@ def GetRDResultExcelFile(clip):
 
 def setupWorkFolderStructure():
     global Path_Bitstreams, Path_DecodedYuv, Path_UpScaleYuv, Path_DnScaleYuv, \
-    Path_QualityLog, Path_TestLog, Path_CfgFiles, Path_DecUpScaleYuv, Path_PerfLog
+    Path_QualityLog, Path_TestLog, Path_CfgFiles, Path_DecUpScaleYuv, Path_PerfLog, \
+    Path_EncLog
     Path_Bitstreams = CreateNewSubfolder(WorkPath, "bistreams")
     Path_DecodedYuv = CreateNewSubfolder(WorkPath, "decodedYUVs")
     Path_UpScaleYuv = CreateNewSubfolder(WorkPath, "upscaledYUVs")
@@ -65,6 +67,7 @@ def setupWorkFolderStructure():
     Path_TestLog = CreateNewSubfolder(WorkPath, "testLogs")
     Path_CfgFiles = CreateNewSubfolder(WorkPath, "configFiles")
     Path_PerfLog = CreateNewSubfolder(WorkPath, "perfLogs")
+    Path_EncLog = CreateNewSubfolder(WorkPath, "encLogs")
 
 '''
 The convex_hull function is adapted based on the original python implementation
@@ -215,7 +218,7 @@ def AddConvexHullCurveToCharts(sht, charts, rdPoints, dnScaledRes, tgtqmetrics,
 ######### Major Functions #####################################################
 def CleanUp_workfolders():
     folders = [Path_DnScaleYuv, Path_Bitstreams, Path_DecodedYuv, Path_QualityLog,
-               Path_TestLog, Path_CfgFiles, Path_PerfLog]
+               Path_TestLog, Path_CfgFiles, Path_PerfLog, Path_EncLog]
     if not KeepUpscaledOutput:
         folders += [Path_UpScaleYuv, Path_DecUpScaleYuv]
 
@@ -229,16 +232,17 @@ def Run_ConvexHull_Test(clip, dnScalAlgo, upScalAlgo, LogCmdOnly = False):
     for i in range(len(DnScaledRes)):
         if SaveMemory:
             CleanIntermediateFiles()
+
         DnScaledW = DnScaledRes[i][0]
         DnScaledH = DnScaledRes[i][1]
         # downscaling if the downscaled file does not exist
-        dnscalyuv = GetDownScaledOutFile(clip, DnScaledW, DnScaledH,
-                                         Path_DnScaleYuv, dnScalAlgo)
+        dnscalyuv = GetDownScaledOutFile(clip, DnScaledW, DnScaledH, Path_DnScaleYuv,
+                                         dnScalAlgo, AS_DOWNSCALE_ON_THE_FLY, i)
         if not os.path.isfile(dnscalyuv):
             dnscalyuv = DownScaling(clip, FrameNum['AS'], DnScaledW, DnScaledH,
                                     Path_DnScaleYuv, Path_CfgFiles, dnScalAlgo, LogCmdOnly)
         ds_clip = Clip(GetShortContentName(dnscalyuv, False)+'.y4m', dnscalyuv,
-                       "", DnScaledW, DnScaledH, clip.fmt, clip.fps_num,
+                       clip.file_class, DnScaledW, DnScaledH, clip.fmt, clip.fps_num,
                        clip.fps_denom, clip.bit_depth)
         for QP in QPs['AS']:
             Utils.Logger.info("start encode and upscale for QP %d" % QP)
@@ -247,7 +251,7 @@ def Run_ConvexHull_Test(clip, dnScalAlgo, upScalAlgo, LogCmdOnly = False):
                                           ds_clip, 'AS', QP, FrameNum['AS'],
                                           clip.width, clip.height, Path_Bitstreams,
                                           Path_DecodedYuv, Path_DecUpScaleYuv,
-                                          Path_CfgFiles, Path_PerfLog, upScalAlgo, LogCmdOnly)
+                                          Path_CfgFiles, Path_PerfLog, Path_EncLog, upScalAlgo, LogCmdOnly)
             #calcualte quality distortion
             Utils.Logger.info("start quality metric calculation")
             CalculateQualityMetric(clip.file_path, FrameNum['AS'], reconyuv,
@@ -290,7 +294,7 @@ def Interpolate(RDPoints):
     int_points = [(int_br[i], int_qty[i]) for i in range(len(int_br))]
     return int_points
 
-def SaveConvexHullResultsToExcel(content, dnScAlgos, upScAlgos,
+def SaveConvexHullResultsToExcel(content, dnScAlgos, upScAlgos, csv, perframe_csv,
                                  EnablePreInterpolation=False):
     Utils.Logger.info("start saving RD results to excel file.......")
     if not os.path.exists(Path_RDResults):
@@ -333,13 +337,26 @@ def SaveConvexHullResultsToExcel(content, dnScAlgos, upScAlgos,
                                                   EncodePreset, clip, DnScaledW,
                                                   DnScaledH, dnScAlgos[indx],
                                                   upScAlgos[indx], qp,
-                                                  Path_Bitstreams)
+                                                  Path_Bitstreams, False, i)
                 bitrate = (os.path.getsize(bs) * 8 * (clip.fps_num / clip.fps_denom)
                            / FrameNum['AS']) / 1000.0
                 bitratesKbps.append(bitrate)
-                quality = GatherQualityMetrics(reconyuv, Path_QualityLog)
+                quality, perframe_vmaf_log = GatherQualityMetrics(reconyuv, Path_QualityLog)
                 qualities.append(quality)
 
+                #"TestCfg,EncodeMethod,CodecName,EncodePreset,Class,OrigRes,Name,FPS,Bit Depth,CodedRes,QP,Bitrate(kbps)")
+                csv.write("%s,%s,%s,%s,%s,%s,%s,%.4f,%d,%s,%d,%.4f"%
+                          ("AS", EncodeMethod, CodecName, EncodePreset, clip.file_class,str(clip.width)+"x"+str(clip.height),
+                           contentname, clip.fps,clip.bit_depth,str(DnScaledW)+"x"+str(DnScaledH),qp,bitrate))
+                for qty in quality:
+                    csv.write(",%.4f"%qty)
+                enc_time, dec_time = GatherPerfInfo(bs, Path_PerfLog)
+                csv.write(",%.2f,%.2f,\n" % (enc_time, dec_time))
+                if (EncodeMethod == 'aom'):
+                    enc_log = GetEncLogFile(bs, Path_EncLog)
+                    GatherPerframeStat("AS", EncodeMethod, CodecName, EncodePreset, clip, GetShortContentName(bs),
+                                       DnScaledW, DnScaledH, qp, enc_log, perframe_csv,
+                                       perframe_vmaf_log)
             sht.write_column(CvxH_WtRows[0], col, bitratesKbps)
             for qs, row in zip(qualities, CvxH_WtRows):
                 sht.write_row(row, col + 1, qs)
@@ -468,9 +485,27 @@ if __name__ == "__main__":
             for dnScalAlgo, upScalAlgo in zip(DnScalingAlgos, UpScalingAlgos):
                 Run_ConvexHull_Test(clip, dnScalAlgo, upScalAlgo, LogCmdOnly)
     elif Function == 'convexhull':
+        csv_file, perframe_csvfile = GetRDResultCsvFile(EncodeMethod, CodecName, EncodePreset, "AS")
+        csv = open(csv_file, "wt")
+        csv.write("TestCfg,EncodeMethod,CodecName,EncodePreset,Class,OrigRes,Name,FPS," \
+                  "Bit Depth,CodedRes,QP,Bitrate(kbps)")
+        for qty in QualityList:
+            csv.write(',' + qty)
+        csv.write(",EncT[s],DecT[s]\n")
+
+        perframe_csv = open(perframe_csvfile, 'wt')
+        perframe_csv.write("TestCfg,EncodeMethod,CodecName,EncodePreset,Class,OrigRes,Name,FPS," \
+                           "Bit Depth,CodedRes,QP,POC,FrameType,qindex,FrameSize")
+        for qty in QualityList:
+            if not qty.startswith("APSNR"):
+                perframe_csv.write(',' + qty)
+        perframe_csv.write('\n')
+
         for clip in clip_list:
-            SaveConvexHullResultsToExcel(clip, DnScalingAlgos, UpScalingAlgos,
+            SaveConvexHullResultsToExcel(clip, DnScalingAlgos, UpScalingAlgos, csv, perframe_csv,
                                          EnablePreInterpolation)
+        csv.close()
+        perframe_csv.close()
     elif Function == 'summary':
         RDResultFilesGenerated = []
         for clip in clip_list:
@@ -485,6 +520,6 @@ if __name__ == "__main__":
                                                  EncodePreset, SummaryOutPath,
                                                  RDResultFilesGenerated,
                                                  EnablePreInterpolation)
-        Utils.Logger.info("Convel hull summary file generated: %s" % CvxHsmfile)
+        Utils.Logger.info("Convex hull summary file generated: %s" % CvxHsmfile)
     else:
         Utils.Logger.error("invalid parameter value of Function")
