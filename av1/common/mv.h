@@ -314,7 +314,7 @@ static INLINE int_mv gm_get_motion_vector(const WarpedMotionParams *gm,
     res.as_mv.row = gm->wmmat[0] >> GM_TRANS_ONLY_PREC_DIFF;
     res.as_mv.col = gm->wmmat[1] >> GM_TRANS_ONLY_PREC_DIFF;
     assert(IMPLIES(1 & (res.as_mv.row | res.as_mv.col),
-                   precision > MV_SUBPEL_EIGHTH_PRECISION));
+                   precision == MV_SUBPEL_EIGHTH_PRECISION));
     lower_mv_precision(&res.as_mv, precision);
     return res;
   }
