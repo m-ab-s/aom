@@ -988,7 +988,7 @@ extern "C" int av1_restore_cnn_guided_img_tflite_highbd(
         for (int j = start_row; j < end_row; j++) {
           repic[i][j] = int(round(sub_dgr[i][j] + A0 * r0[i][j] / scale +
                                   A1 * r1[i][j] / scale));
-          repic[i][j] = clip_pixel(repic[i][j]);
+          repic[i][j] = clip_pixel_highbd(repic[i][j], bit_depth);
         }
       }
     }
@@ -1304,14 +1304,14 @@ extern "C" int av1_restore_cnn_guided_decode_img_tflite_highbd(
         for (int j = start_row; j < end_row; j++) {
           repic[i][j] = int(round(sub_dgr[i][j] + A0 * r0[i][j] / scale +
                                   A1 * r1[i][j] / scale));
-          repic[i][j] = clip_pixel(repic[i][j]);
+          repic[i][j] = clip_pixel_highbd(repic[i][j], bit_depth);
         }
       }
     }
   }
   for (int r = 0; r < height; ++r) {
     for (int c = 0; c < width; ++c) {
-      rst[r * rst_stride + c] = clip_pixel(repic[r][c]);
+      rst[r * rst_stride + c] = clip_pixel_highbd(repic[r][c], bit_depth);
     }
   }
   return 1;
