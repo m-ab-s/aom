@@ -128,7 +128,7 @@ def GeneratePerClipExcelFile(dnScalAlgos, upScalAlgos, clip, path_log):
                  clip.bit_depth)
             upScalOut = GetUpScaledOutFile(ds_clip, clip.width, clip.height,
                                            up_algo, path_log)
-            qtys = GatherQualityMetrics(upScalOut, path_log)
+            qtys, perframe_vmaf_log = GatherQualityMetrics(upScalOut, path_log)
             sht.write_row(row, col, qtys)
             qualities.append(qtys)
         for x in range(len(QualityList)):
@@ -211,7 +211,7 @@ def GenerateSummarySheet(wb, dnScalAlgos, upScalAlgos, ratio, path_log):
                                dnScalOut, clss, dw, dh, clip.fmt, clip.fps_num,
                                clip.fps_denom, clip.bit_depth)
                 upScalOut = GetUpScaledOutFile(ds_clip, w, h, up_algo, path_log)
-                qtys = GatherQualityMetrics(upScalOut, path_log)
+                qtys, perframe_vmaf_log = GatherQualityMetrics(upScalOut, path_log)
                 sht.write_row(row_clss + row_cont, col, qtys)
                 qualities.append(qtys)
 

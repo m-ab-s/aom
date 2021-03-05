@@ -195,6 +195,13 @@ void RegisterSpecificOps(tflite::MutableOpResolver *resolver) {
                        tflite::ops::builtin::Register_SOFTMAX());
 }
 
+TfLiteDelegate *GetTfliteXnnpackDelegate(int num_threads) {
+  TfLiteXNNPackDelegateOptions xnnpack_options =
+      TfLiteXNNPackDelegateOptionsDefault();
+  xnnpack_options.num_threads = num_threads;
+  return TfLiteXNNPackDelegateCreate(&xnnpack_options);
+}
+
 }  // namespace
 
 int main() {
@@ -212,7 +219,14 @@ int main() {
       tflite::DefaultErrorReporter());
 
   if (interpreter->AllocateTensors() != kTfLiteOk) {
-    reporter->Report("Failed");
+    reporter->Report("Failed at allocating tensors");
+    return EXIT_FAILURE;
+  }
+
+  // Using single-thread as an example. Can be changed as required.
+  TfLiteDelegate *xnnpack_delegate = GetTfliteXnnpackDelegate(1);
+  if (interpreter->ModifyGraphWithDelegate(xnnpack_delegate) != kTfLiteOk) {
+    reporter->Report("Failed at modifying graph with XNNPack delegate");
     return EXIT_FAILURE;
   }
 
@@ -223,7 +237,7 @@ int main() {
   }
   auto status = interpreter->Invoke();
   if (status != kTfLiteOk) {
-    reporter->Report("Failed");
+    reporter->Report("Failed at invoke");
     return EXIT_FAILURE;
   }
   float y0 = interpreter->typed_output_tensor<float>(0)[0];

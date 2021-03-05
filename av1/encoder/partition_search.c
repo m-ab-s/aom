@@ -2801,6 +2801,7 @@ static bool rd_test_partition3(AV1_COMP *const cpi, ThreadData *td,
   sum_rdc.rdcost = RDCOST(x->rdmult, sum_rdc.rate, 0);
   // Loop over sub-partitions in AB partition type.
   for (int i = 0; i < SUB_PARTITIONS_AB; i++) {
+    assert(ab_subsize[i] != BLOCK_INVALID);
     if (!rd_try_subblock(cpi, td, tile_data, tp, i == SUB_PARTITIONS_AB - 1,
                          ab_mi_pos[i][0], ab_mi_pos[i][1], ab_subsize[i],
                          *best_rdc, &sum_rdc, partition, ctxs[i]))
