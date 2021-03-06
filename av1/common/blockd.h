@@ -181,6 +181,9 @@ static INLINE int have_newmv_in_inter_mode(PREDICTION_MODE mode) {
   return (mode == NEWMV || mode == NEW_NEWMV || mode == NEAREST_NEWMV ||
           mode == NEW_NEARESTMV || mode == NEAR_NEWMV || mode == NEW_NEARMV);
 }
+static INLINE int have_drl_index(PREDICTION_MODE mode) {
+  return have_nearmv_in_inter_mode(mode) || mode == NEWMV || mode == NEW_NEWMV;
+}
 #endif  // CONFIG_NEW_INTER_MODES
 
 static INLINE int is_masked_compound_type(COMPOUND_TYPE type) {

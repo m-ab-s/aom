@@ -1303,7 +1303,7 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
       else if (is_inter_singleref_mode(mode))
         write_inter_mode(w, mode, ec_ctx, mode_ctx);
 
-      if (mode == NEWMV || mode == NEW_NEWMV || have_nearmv_in_inter_mode(mode))
+      if (have_drl_index(mode))
         write_drl_idx(ec_ctx, mbmi, mbmi_ext_frame, w);
       else
         assert(mbmi->ref_mv_idx == 0);
