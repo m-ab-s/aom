@@ -1414,6 +1414,11 @@ static INLINE int is_blk_skip(uint8_t *txb_skip, int plane, int blk_idx) {
   return (txb_skip[blk_idx] >> plane) & 1;
 }
 
+#if CONFIG_EXT_RECUR_PARTITIONS
+static INLINE int should_reuse_mode(const MACROBLOCK *x, int mode_flag) {
+  return x->reuse_inter_mode_cache_type & mode_flag;
+}
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 /*!\endcond */
 
 #ifdef __cplusplus

@@ -955,6 +955,17 @@ int64_t av1_handle_intra_mode(IntraModeSearchState *intra_search_state,
       best_rd_so_far = RDCOST(x->rdmult, tmp_rate, rd_stats_y->dist);
       try_filter_intra = (best_rd_so_far / 2) <= best_rd;
     }
+#if CONFIG_EXT_RECUR_PARTITIONS
+    const MB_MODE_INFO *cached_mode = x->inter_mode_cache;
+    const FILTER_INTRA_MODE_INFO *cached_fi_mode =
+        cached_mode ? &cached_mode->filter_intra_mode_info : NULL;
+    if (should_reuse_mode(x, REUSE_INTRA_MODE_IN_INTERFRAME_FLAG) &&
+        !frame_is_intra_only(cm) && cached_fi_mode &&
+        !cached_fi_mode->use_filter_intra) {
+      assert(cached_mode->mode == DC_PRED);
+      try_filter_intra = 0;
+    }
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
     if (try_filter_intra) {
       handle_filter_intra_mode(cpi, x, bsize, ctx, rd_stats_y, mode_cost,
