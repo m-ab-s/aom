@@ -25,6 +25,9 @@ static INLINE void quantize_coeff_phase1(__m128i *coeff, const __m128i *param,
                                          __m128i *sign) {
   const __m128i zero = _mm_setzero_si128();
   const __m128i one = _mm_set1_epi32(1);
+#if CONFIG_EXTQUANT
+  const __m128i round = _mm_set1_epi64x((1 << QUANT_TABLE_BITS) >> 1);
+#endif
 
   *sign = _mm_cmplt_epi32(*coeff, zero);
   *sign = _mm_or_si128(*sign, one);
@@ -37,6 +40,9 @@ static INLINE void quantize_coeff_phase1(__m128i *coeff, const __m128i *param,
   qcoeff[0] = _mm_mul_epi32(qcoeff[0], param[1]);
   qcoeff[0] = _mm_srli_epi64(qcoeff[0], shift);
   dquan[0] = _mm_mul_epi32(qcoeff[0], param[2]);
+#if CONFIG_EXTQUANT
+  dquan[0] = _mm_add_epi64(dquan[0], round);
+#endif
   dquan[0] = _mm_srli_epi64(dquan[0], scale);
   const __m128i abs_s = _mm_slli_epi32(*coeff, 1 + scale);
   qcoeff[2] = _mm_cmplt_epi32(abs_s, param[3]);
@@ -50,10 +56,16 @@ static INLINE void quantize_coeff_phase2(__m128i *qcoeff, __m128i *dquan,
                                          tran_low_t *dqAddr) {
   __m128i mask0L = _mm_set_epi32(-1, -1, 0, 0);
   __m128i mask0H = _mm_set_epi32(0, 0, -1, -1);
+#if CONFIG_EXTQUANT
+  const __m128i round = _mm_set1_epi64x((1 << QUANT_TABLE_BITS) >> 1);
+#endif
 
   qcoeff[1] = _mm_mul_epi32(qcoeff[1], param[1]);
   qcoeff[1] = _mm_srli_epi64(qcoeff[1], shift);
   dquan[1] = _mm_mul_epi32(qcoeff[1], param[2]);
+#if CONFIG_EXTQUANT
+  dquan[1] = _mm_add_epi64(dquan[1], round);
+#endif
   dquan[1] = _mm_srli_epi64(dquan[1], scale);
 
   // combine L&H
@@ -132,7 +144,11 @@ void av1_highbd_quantize_fp_sse4_1(
   const tran_low_t *src = coeff_ptr;
   tran_low_t *quanAddr = qcoeff_ptr;
   tran_low_t *dquanAddr = dqcoeff_ptr;
+#if CONFIG_EXTQUANT
+  const int shift = 16 - log_scale + QUANT_FP_BITS;
+#else
   const int shift = 16 - log_scale;
+#endif
   const int coeff_stride = 4;
   const int quan_stride = coeff_stride;
   (void)zbin_ptr;
@@ -151,6 +167,9 @@ void av1_highbd_quantize_fp_sse4_1(
   qparam[2] = xx_set_64_from_32i(dequant_ptr[1], dequant_ptr[0]);
   qparam[3] = _mm_set_epi32(dequant_ptr[1], dequant_ptr[1], dequant_ptr[1],
                             dequant_ptr[0]);
+#if CONFIG_EXTQUANT
+  log_scale += QUANT_TABLE_BITS;
+#endif
 
   // DC and first 3 AC
   quantize_coeff_phase1(&coeff[0], qparam, shift, log_scale, qcoeff, dequant,

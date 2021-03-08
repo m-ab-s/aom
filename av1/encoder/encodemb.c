@@ -297,8 +297,13 @@ void av1_quant(MACROBLOCK *x, int plane, int block, TxfmParam *txfm_param,
   if (qparam->xform_quant_idx != AV1_XFORM_QUANT_SKIP_QUANT) {
     const int n_coeffs = av1_get_max_eob(txfm_param->tx_size);
     if (LIKELY(!x->seg_skip_block)) {
+#if CONFIG_EXTQUANT
+      quant_func_list[qparam->xform_quant_idx][1](
+          coeff, n_coeffs, p, qcoeff, dqcoeff, eob, scan_order, qparam);
+#else
       quant_func_list[qparam->xform_quant_idx][txfm_param->is_hbd](
           coeff, n_coeffs, p, qcoeff, dqcoeff, eob, scan_order, qparam);
+#endif
     } else {
       av1_quantize_skip(n_coeffs, qcoeff, dqcoeff, eob);
     }

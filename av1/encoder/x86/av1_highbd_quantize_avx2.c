@@ -38,6 +38,22 @@ static INLINE void init_qp(const int16_t *round_ptr, const int16_t *quant_ptr,
                            const int16_t *dequant_ptr, int log_scale,
                            __m256i *qp) {
 #endif
+#if CONFIG_EXTQUANT
+  const int round1 = ROUND_POWER_OF_TWO(round_ptr[1], log_scale);
+  const int round0 = ROUND_POWER_OF_TWO(round_ptr[0], log_scale);
+  qp[0] = _mm256_set_epi32(round1, round1, round1, round1, round1, round1,
+                           round1, round0);
+
+  const int quant1 = quant_ptr[1];
+  const int quant0 = quant_ptr[0];
+  qp[1] = _mm256_set_epi32(quant1, quant1, quant1, quant1, quant1, quant1,
+                           quant1, quant0);
+
+  const int dequant1 = dequant_ptr[1];
+  const int dequant0 = dequant_ptr[0];
+  qp[2] = _mm256_set_epi32(dequant1, dequant1, dequant1, dequant1, dequant1,
+                           dequant1, dequant1, dequant0);
+#else
   __m128i round = _mm_loadu_si128((const __m128i *)round_ptr);
   if (log_scale) {
     const __m128i round_scale = _mm_set1_epi16(1 << (15 - log_scale));
@@ -49,6 +65,7 @@ static INLINE void init_qp(const int16_t *round_ptr, const int16_t *quant_ptr,
   init_one_qp(&round, &qp[0]);
   init_one_qp(&quant, &qp[1]);
   init_one_qp(&dequant, &qp[2]);
+#endif
 }
 
 static INLINE void quantize(const __m256i *qp, __m256i *c,
@@ -56,14 +73,27 @@ static INLINE void quantize(const __m256i *qp, __m256i *c,
                             tran_low_t *qcoeff, tran_low_t *dqcoeff,
                             __m256i *eob) {
   const __m256i abs_coeff = _mm256_abs_epi32(*c);
+#if CONFIG_EXTQUANT
+  const __m256i round = _mm256_set1_epi64x((1 << QUANT_TABLE_BITS) >> 1);
+#endif
   __m256i q = _mm256_add_epi32(abs_coeff, qp[0]);
 
   __m256i q_lo = _mm256_mul_epi32(q, qp[1]);
   __m256i q_hi = _mm256_srli_epi64(q, 32);
   const __m256i qp_hi = _mm256_srli_epi64(qp[1], 32);
   q_hi = _mm256_mul_epi32(q_hi, qp_hi);
+#if CONFIG_EXTQUANT
+  q_lo = _mm256_srli_epi64(q_lo, 16 - log_scale + QUANT_FP_BITS);
+  q_hi = _mm256_srli_epi64(q_hi, 16 - log_scale + QUANT_FP_BITS);
+#else
   q_lo = _mm256_srli_epi64(q_lo, 16 - log_scale);
   q_hi = _mm256_srli_epi64(q_hi, 16 - log_scale);
+#endif
+
+#if CONFIG_EXTQUANT
+  log_scale += QUANT_TABLE_BITS;
+#endif
+
   q_hi = _mm256_slli_epi64(q_hi, 32);
   q = _mm256_or_si256(q_lo, q_hi);
   const __m256i abs_s = _mm256_slli_epi32(abs_coeff, 1 + log_scale);
@@ -71,6 +101,9 @@ static INLINE void quantize(const __m256i *qp, __m256i *c,
   q = _mm256_andnot_si256(mask, q);
 
   __m256i dq = _mm256_mullo_epi32(q, qp[2]);
+#if CONFIG_EXTQUANT
+  dq = _mm256_add_epi64(dq, round);
+#endif
   dq = _mm256_srai_epi32(dq, log_scale);
   q = _mm256_sign_epi32(q, *c);
   dq = _mm256_sign_epi32(dq, *c);
