@@ -287,7 +287,7 @@ void av1_intrabc_mirror135_sb(uint16_t *DstBlock, uint16_t *SrcBlock,
 // positive values indicate gradient returned at higher precision.
 int av1_compute_subpel_gradients_highbd(
     const AV1_COMMON *cm, MACROBLOCKD *xd, int plane, const MB_MODE_INFO *mi,
-    int build_for_obmc, int bw, int bh, int mi_x, int mi_y,
+    int bw, int bh, int mi_x, int mi_y,
     CalcSubpelParamsFunc calc_subpel_params_func,
     const void *const calc_subpel_params_func_args, int ref,
     uint16_t *pred_dst16, int *grad_prec_bits, int16_t *x_grad,
@@ -333,25 +333,16 @@ int av1_compute_subpel_gradients_highbd(
   const int do_warp =
       (bw >= 8 && bh >= 8 &&
        av1_allow_warp(mi, &warp_types, &xd->global_motion[mi->ref_frame[ref]],
-                      build_for_obmc, sf, &final_warp_params));
+                      0, sf, &final_warp_params));
   // TODO(sarahparker) make compatible with warped modes
   if (do_warp || !r_dist) return 0;
 
   const int ss_x = pd->subsampling_x;
   const int ss_y = pd->subsampling_y;
-  int row_start = 0;
-  int col_start = 0;
-  if (!build_for_obmc) {
-    const int mi_row = -xd->mb_to_top_edge >> (3 + MI_SIZE_LOG2);
-    const int mi_col = -xd->mb_to_left_edge >> (3 + MI_SIZE_LOG2);
-    int mi_row_offset, mi_col_offset;
-    mi_row_offset =
-        plane ? (mi_row - mi->chroma_ref_info.mi_row_chroma_base) : 0;
-    mi_col_offset =
-        plane ? (mi_col - mi->chroma_ref_info.mi_col_chroma_base) : 0;
-    row_start = -mi_row_offset;
-    col_start = -mi_col_offset;
-  }
+  const int mi_row = -xd->mb_to_top_edge >> (3 + MI_SIZE_LOG2);
+  const int mi_col = -xd->mb_to_left_edge >> (3 + MI_SIZE_LOG2);
+  int row_start = plane ? (mi->chroma_ref_info.mi_row_chroma_base - mi_row) : 0;
+  int col_start = plane ? (mi->chroma_ref_info.mi_col_chroma_base - mi_col) : 0;
   const int pre_x = (mi_x + MI_SIZE * col_start) >> ss_x;
   const int pre_y = (mi_y + MI_SIZE * row_start) >> ss_y;
 
@@ -369,11 +360,11 @@ int av1_compute_subpel_gradients_highbd(
   // Original predictor
   assert(mi->interinter_comp.type == COMPOUND_AVERAGE);
   conv_params.do_average = 0;
-  av1_make_inter_predictor(
-      pre, src_stride, pred_dst, bw, &subpel_params, sf, bw, bh, &conv_params,
-      mi->interp_filters, &warp_types, mi_x >> pd->subsampling_x,
-      mi_y >> pd->subsampling_y, plane, ref, mi, build_for_obmc, xd,
-      cm->allow_warped_motion, 0 /* border */);
+  av1_make_inter_predictor(pre, src_stride, pred_dst, bw, &subpel_params, sf,
+                           bw, bh, &conv_params, mi->interp_filters,
+                           &warp_types, mi_x >> pd->subsampling_x,
+                           mi_y >> pd->subsampling_y, plane, ref, mi, 0, xd,
+                           cm->allow_warped_motion, 0 /* border */);
 
   // X gradient
   // Get predictor to the left
@@ -383,11 +374,11 @@ int av1_compute_subpel_gradients_highbd(
                           pre_buf, bw, bh, &warp_types, ref, 0,
                           calc_subpel_params_func_args, &pre, &subpel_params,
                           &src_stride);
-  av1_make_inter_predictor(
-      pre, src_stride, tmp_buf1_8, bw, &subpel_params, sf, bw, bh, &conv_params,
-      mi->interp_filters, &warp_types, mi_x >> pd->subsampling_x,
-      mi_y >> pd->subsampling_y, plane, ref, mi, build_for_obmc, xd,
-      cm->allow_warped_motion, 0 /* border */);
+  av1_make_inter_predictor(pre, src_stride, tmp_buf1_8, bw, &subpel_params, sf,
+                           bw, bh, &conv_params, mi->interp_filters,
+                           &warp_types, mi_x >> pd->subsampling_x,
+                           mi_y >> pd->subsampling_y, plane, ref, mi, 0, xd,
+                           cm->allow_warped_motion, 0 /* border */);
   // Get predictor to the right
   mv_modified.col = mv_orig.col + (1 << (3 - SUBPEL_GRAD_DELTA_BITS));
   mv_modified.row = mv_orig.row;
@@ -395,11 +386,11 @@ int av1_compute_subpel_gradients_highbd(
                           pre_buf, bw, bh, &warp_types, ref, 0,
                           calc_subpel_params_func_args, &pre, &subpel_params,
                           &src_stride);
-  av1_make_inter_predictor(
-      pre, src_stride, tmp_buf2_8, bw, &subpel_params, sf, bw, bh, &conv_params,
-      mi->interp_filters, &warp_types, mi_x >> pd->subsampling_x,
-      mi_y >> pd->subsampling_y, plane, ref, mi, build_for_obmc, xd,
-      cm->allow_warped_motion, 0 /* border */);
+  av1_make_inter_predictor(pre, src_stride, tmp_buf2_8, bw, &subpel_params, sf,
+                           bw, bh, &conv_params, mi->interp_filters,
+                           &warp_types, mi_x >> pd->subsampling_x,
+                           mi_y >> pd->subsampling_y, plane, ref, mi, 0, xd,
+                           cm->allow_warped_motion, 0 /* border */);
   // Compute difference.
   // Note since the deltas are at +2^g/8 and -2^g/8 subpel locations
   // (g = 3 - SUBPEL_GRAD_DELTA_BITS), the actual unit pel gradient is
@@ -420,11 +411,11 @@ int av1_compute_subpel_gradients_highbd(
                           pre_buf, bw, bh, &warp_types, ref, 0,
                           calc_subpel_params_func_args, &pre, &subpel_params,
                           &src_stride);
-  av1_make_inter_predictor(
-      pre, src_stride, tmp_buf1_8, bw, &subpel_params, sf, bw, bh, &conv_params,
-      mi->interp_filters, &warp_types, mi_x >> pd->subsampling_x,
-      mi_y >> pd->subsampling_y, plane, ref, mi, build_for_obmc, xd,
-      cm->allow_warped_motion, 0 /* border */);
+  av1_make_inter_predictor(pre, src_stride, tmp_buf1_8, bw, &subpel_params, sf,
+                           bw, bh, &conv_params, mi->interp_filters,
+                           &warp_types, mi_x >> pd->subsampling_x,
+                           mi_y >> pd->subsampling_y, plane, ref, mi, 0, xd,
+                           cm->allow_warped_motion, 0 /* border */);
   // Get predictor above
   mv_modified.col = mv_orig.col;
   mv_modified.row = mv_orig.row + (1 << (3 - SUBPEL_GRAD_DELTA_BITS));
@@ -432,11 +423,11 @@ int av1_compute_subpel_gradients_highbd(
                           pre_buf, bw, bh, &warp_types, ref, 0,
                           calc_subpel_params_func_args, &pre, &subpel_params,
                           &src_stride);
-  av1_make_inter_predictor(
-      pre, src_stride, tmp_buf2_8, bw, &subpel_params, sf, bw, bh, &conv_params,
-      mi->interp_filters, &warp_types, mi_x >> pd->subsampling_x,
-      mi_y >> pd->subsampling_y, plane, ref, mi, build_for_obmc, xd,
-      cm->allow_warped_motion, 0 /* border */);
+  av1_make_inter_predictor(pre, src_stride, tmp_buf2_8, bw, &subpel_params, sf,
+                           bw, bh, &conv_params, mi->interp_filters,
+                           &warp_types, mi_x >> pd->subsampling_x,
+                           mi_y >> pd->subsampling_y, plane, ref, mi, 0, xd,
+                           cm->allow_warped_motion, 0 /* border */);
   // Compute difference.
   // Note since the deltas are at +2^g/8 and -2^g/8 subpel locations
   // (g = 3 - SUBPEL_GRAD_DELTA_BITS), the actual unit pel gradient is
@@ -459,7 +450,7 @@ int av1_compute_subpel_gradients_highbd(
 // positive values indicate gradient returned at higher precision.
 int av1_compute_subpel_gradients_lowbd(
     const AV1_COMMON *cm, MACROBLOCKD *xd, int plane, const MB_MODE_INFO *mi,
-    int build_for_obmc, int bw, int bh, int mi_x, int mi_y,
+    int bw, int bh, int mi_x, int mi_y,
     CalcSubpelParamsFunc calc_subpel_params_func,
     const void *const calc_subpel_params_func_args, int ref, uint8_t *pred_dst,
     int *grad_prec_bits, int16_t *x_grad, int16_t *y_grad) {
@@ -501,25 +492,16 @@ int av1_compute_subpel_gradients_lowbd(
   const int do_warp =
       (bw >= 8 && bh >= 8 &&
        av1_allow_warp(mi, &warp_types, &xd->global_motion[mi->ref_frame[ref]],
-                      build_for_obmc, sf, &final_warp_params));
+                      0, sf, &final_warp_params));
   // TODO(sarahparker) make compatible with warped modes
   if (do_warp || !r_dist) return 0;
 
   const int ss_x = pd->subsampling_x;
   const int ss_y = pd->subsampling_y;
-  int row_start = 0;
-  int col_start = 0;
-  if (!build_for_obmc) {
-    const int mi_row = -xd->mb_to_top_edge >> (3 + MI_SIZE_LOG2);
-    const int mi_col = -xd->mb_to_left_edge >> (3 + MI_SIZE_LOG2);
-    int mi_row_offset, mi_col_offset;
-    mi_row_offset =
-        plane ? (mi_row - mi->chroma_ref_info.mi_row_chroma_base) : 0;
-    mi_col_offset =
-        plane ? (mi_col - mi->chroma_ref_info.mi_col_chroma_base) : 0;
-    row_start = -mi_row_offset;
-    col_start = -mi_col_offset;
-  }
+  const int mi_row = -xd->mb_to_top_edge >> (3 + MI_SIZE_LOG2);
+  const int mi_col = -xd->mb_to_left_edge >> (3 + MI_SIZE_LOG2);
+  int row_start = plane ? (mi->chroma_ref_info.mi_row_chroma_base - mi_row) : 0;
+  int col_start = plane ? (mi->chroma_ref_info.mi_col_chroma_base - mi_col) : 0;
   const int pre_x = (mi_x + MI_SIZE * col_start) >> ss_x;
   const int pre_y = (mi_y + MI_SIZE * row_start) >> ss_y;
 
@@ -537,11 +519,11 @@ int av1_compute_subpel_gradients_lowbd(
   // Original predictor
   assert(mi->interinter_comp.type == COMPOUND_AVERAGE);
   conv_params.do_average = 0;
-  av1_make_inter_predictor(
-      pre, src_stride, pred_dst, bw, &subpel_params, sf, bw, bh, &conv_params,
-      mi->interp_filters, &warp_types, mi_x >> pd->subsampling_x,
-      mi_y >> pd->subsampling_y, plane, ref, mi, build_for_obmc, xd,
-      cm->allow_warped_motion, 0 /* border */);
+  av1_make_inter_predictor(pre, src_stride, pred_dst, bw, &subpel_params, sf,
+                           bw, bh, &conv_params, mi->interp_filters,
+                           &warp_types, mi_x >> pd->subsampling_x,
+                           mi_y >> pd->subsampling_y, plane, ref, mi, 0, xd,
+                           cm->allow_warped_motion, 0 /* border */);
 
   // X gradient
   // Get predictor to the left
@@ -551,11 +533,11 @@ int av1_compute_subpel_gradients_lowbd(
                           pre_buf, bw, bh, &warp_types, ref, 0,
                           calc_subpel_params_func_args, &pre, &subpel_params,
                           &src_stride);
-  av1_make_inter_predictor(
-      pre, src_stride, tmp_buf1, bw, &subpel_params, sf, bw, bh, &conv_params,
-      mi->interp_filters, &warp_types, mi_x >> pd->subsampling_x,
-      mi_y >> pd->subsampling_y, plane, ref, mi, build_for_obmc, xd,
-      cm->allow_warped_motion, 0 /* border */);
+  av1_make_inter_predictor(pre, src_stride, tmp_buf1, bw, &subpel_params, sf,
+                           bw, bh, &conv_params, mi->interp_filters,
+                           &warp_types, mi_x >> pd->subsampling_x,
+                           mi_y >> pd->subsampling_y, plane, ref, mi, 0, xd,
+                           cm->allow_warped_motion, 0 /* border */);
   // Get predictor to the right
   mv_modified.col = mv_orig.col + (1 << (3 - SUBPEL_GRAD_DELTA_BITS));
   mv_modified.row = mv_orig.row;
@@ -563,11 +545,11 @@ int av1_compute_subpel_gradients_lowbd(
                           pre_buf, bw, bh, &warp_types, ref, 0,
                           calc_subpel_params_func_args, &pre, &subpel_params,
                           &src_stride);
-  av1_make_inter_predictor(
-      pre, src_stride, tmp_buf2, bw, &subpel_params, sf, bw, bh, &conv_params,
-      mi->interp_filters, &warp_types, mi_x >> pd->subsampling_x,
-      mi_y >> pd->subsampling_y, plane, ref, mi, build_for_obmc, xd,
-      cm->allow_warped_motion, 0 /* border */);
+  av1_make_inter_predictor(pre, src_stride, tmp_buf2, bw, &subpel_params, sf,
+                           bw, bh, &conv_params, mi->interp_filters,
+                           &warp_types, mi_x >> pd->subsampling_x,
+                           mi_y >> pd->subsampling_y, plane, ref, mi, 0, xd,
+                           cm->allow_warped_motion, 0 /* border */);
   // Compute difference.
   // Note since the deltas are at +2^g/8 and -2^g/8 subpel locations
   // (g = 3 - SUBPEL_GRAD_DELTA_BITS), the actual unit pel gradient is
@@ -589,11 +571,11 @@ int av1_compute_subpel_gradients_lowbd(
                           pre_buf, bw, bh, &warp_types, ref, 0,
                           calc_subpel_params_func_args, &pre, &subpel_params,
                           &src_stride);
-  av1_make_inter_predictor(
-      pre, src_stride, tmp_buf1, bw, &subpel_params, sf, bw, bh, &conv_params,
-      mi->interp_filters, &warp_types, mi_x >> pd->subsampling_x,
-      mi_y >> pd->subsampling_y, plane, ref, mi, build_for_obmc, xd,
-      cm->allow_warped_motion, 0 /* border */);
+  av1_make_inter_predictor(pre, src_stride, tmp_buf1, bw, &subpel_params, sf,
+                           bw, bh, &conv_params, mi->interp_filters,
+                           &warp_types, mi_x >> pd->subsampling_x,
+                           mi_y >> pd->subsampling_y, plane, ref, mi, 0, xd,
+                           cm->allow_warped_motion, 0 /* border */);
   // Get predictor above
   mv_modified.col = mv_orig.col;
   mv_modified.row = mv_orig.row + (1 << (3 - SUBPEL_GRAD_DELTA_BITS));
@@ -601,11 +583,11 @@ int av1_compute_subpel_gradients_lowbd(
                           pre_buf, bw, bh, &warp_types, ref, 0,
                           calc_subpel_params_func_args, &pre, &subpel_params,
                           &src_stride);
-  av1_make_inter_predictor(
-      pre, src_stride, tmp_buf2, bw, &subpel_params, sf, bw, bh, &conv_params,
-      mi->interp_filters, &warp_types, mi_x >> pd->subsampling_x,
-      mi_y >> pd->subsampling_y, plane, ref, mi, build_for_obmc, xd,
-      cm->allow_warped_motion, 0 /* border */);
+  av1_make_inter_predictor(pre, src_stride, tmp_buf2, bw, &subpel_params, sf,
+                           bw, bh, &conv_params, mi->interp_filters,
+                           &warp_types, mi_x >> pd->subsampling_x,
+                           mi_y >> pd->subsampling_y, plane, ref, mi, 0, xd,
+                           cm->allow_warped_motion, 0 /* border */);
   // Compute difference.
   // Note since the deltas are at +2^g/8 and -2^g/8 subpel locations
   // (g = 3 - SUBPEL_GRAD_DELTA_BITS), the actual unit pel gradient is
@@ -898,7 +880,7 @@ int opfl_mv_refinement_nxn_lowbd(const uint8_t *p0, int pstride0,
 
 static int get_optflow_based_mv_highbd(
     const AV1_COMMON *cm, MACROBLOCKD *xd, int plane, const MB_MODE_INFO *mbmi,
-    int_mv *mv_refined, int bw, int bh, int mi_x, int mi_y, int build_for_obmc,
+    int_mv *mv_refined, int bw, int bh, int mi_x, int mi_y,
     CalcSubpelParamsFunc calc_subpel_params_func,
     const void *const calc_subpel_params_func_args) {
   // Arrays to hold optical flow offsets. If the experiment USE_OF_NXN is
@@ -935,16 +917,14 @@ static int get_optflow_based_mv_highbd(
 
   // Compute gradients and predictor for P0
   int d0 = av1_compute_subpel_gradients_highbd(
-      cm, xd, plane, mbmi, build_for_obmc, bw, bh, mi_x, mi_y,
-      calc_subpel_params_func, calc_subpel_params_func_args, 0, dst0,
-      &grad_prec_bits, gx0, gy0);
+      cm, xd, plane, mbmi, bw, bh, mi_x, mi_y, calc_subpel_params_func,
+      calc_subpel_params_func_args, 0, dst0, &grad_prec_bits, gx0, gy0);
   if (d0 == 0) goto exit_refinement;
 
   // Compute gradients and predictor for P1
   int d1 = av1_compute_subpel_gradients_highbd(
-      cm, xd, plane, mbmi, build_for_obmc, bw, bh, mi_x, mi_y,
-      calc_subpel_params_func, calc_subpel_params_func_args, 1, dst1,
-      &grad_prec_bits, gx1, gy1);
+      cm, xd, plane, mbmi, bw, bh, mi_x, mi_y, calc_subpel_params_func,
+      calc_subpel_params_func_args, 1, dst1, &grad_prec_bits, gx1, gy1);
   if (d1 == 0) goto exit_refinement;
 
 #if USE_OF_NXN
@@ -975,7 +955,7 @@ exit_refinement:
 
 static int get_optflow_based_mv_lowbd(
     const AV1_COMMON *cm, MACROBLOCKD *xd, int plane, const MB_MODE_INFO *mbmi,
-    int_mv *mv_refined, int bw, int bh, int mi_x, int mi_y, int build_for_obmc,
+    int_mv *mv_refined, int bw, int bh, int mi_x, int mi_y,
     CalcSubpelParamsFunc calc_subpel_params_func,
     const void *const calc_subpel_params_func_args) {
   // Arrays to hold optical flow offsets. If the experiment USE_OF_NXN is
@@ -1012,16 +992,14 @@ static int get_optflow_based_mv_lowbd(
 
   // Compute gradients and predictor for P0
   int d0 = av1_compute_subpel_gradients_lowbd(
-      cm, xd, plane, mbmi, build_for_obmc, bw, bh, mi_x, mi_y,
-      calc_subpel_params_func, calc_subpel_params_func_args, 0, dst0,
-      &grad_prec_bits, gx0, gy0);
+      cm, xd, plane, mbmi, bw, bh, mi_x, mi_y, calc_subpel_params_func,
+      calc_subpel_params_func_args, 0, dst0, &grad_prec_bits, gx0, gy0);
   if (d0 == 0) goto exit_refinement;
 
   // Compute gradients and predictor for P1
   int d1 = av1_compute_subpel_gradients_lowbd(
-      cm, xd, plane, mbmi, build_for_obmc, bw, bh, mi_x, mi_y,
-      calc_subpel_params_func, calc_subpel_params_func_args, 1, dst1,
-      &grad_prec_bits, gx1, gy1);
+      cm, xd, plane, mbmi, bw, bh, mi_x, mi_y, calc_subpel_params_func,
+      calc_subpel_params_func_args, 1, dst1, &grad_prec_bits, gx1, gy1);
   if (d1 == 0) goto exit_refinement;
 
 #if USE_OF_NXN
@@ -1055,16 +1033,15 @@ exit_refinement:
 int av1_get_optflow_based_mv(const AV1_COMMON *cm, MACROBLOCKD *xd, int plane,
                              const MB_MODE_INFO *mbmi, int_mv *mv_refined,
                              int bw, int bh, int mi_x, int mi_y,
-                             int build_for_obmc,
                              CalcSubpelParamsFunc calc_subpel_params_func,
                              const void *const calc_subpel_params_func_args) {
   if (is_cur_buf_hbd(xd))
-    return get_optflow_based_mv_highbd(
-        cm, xd, plane, mbmi, mv_refined, bw, bh, mi_x, mi_y, build_for_obmc,
-        calc_subpel_params_func, calc_subpel_params_func_args);
-  return get_optflow_based_mv_lowbd(
-      cm, xd, plane, mbmi, mv_refined, bw, bh, mi_x, mi_y, build_for_obmc,
-      calc_subpel_params_func, calc_subpel_params_func_args);
+    return get_optflow_based_mv_highbd(cm, xd, plane, mbmi, mv_refined, bw, bh,
+                                       mi_x, mi_y, calc_subpel_params_func,
+                                       calc_subpel_params_func_args);
+  return get_optflow_based_mv_lowbd(cm, xd, plane, mbmi, mv_refined, bw, bh,
+                                    mi_x, mi_y, calc_subpel_params_func,
+                                    calc_subpel_params_func_args);
 }
 #endif  // CONFIG_OPTFLOW_REFINEMENT
 
@@ -1084,8 +1061,8 @@ void make_inter_pred_of_nxn(
     const struct scale_factors *sf, int w, int h, ConvolveParams *conv_params,
     int_interpfilters interp_filters, const WarpTypesAllowed *warp_types,
     int p_col, int p_row, int plane, int ref, const MB_MODE_INFO *mi,
-    int build_for_obmc, MACROBLOCKD *xd, int can_use_previous, int n,
-    int_mv *mv_refined, int pre_x, int pre_y, struct buf_2d *const pre_buf,
+    MACROBLOCKD *xd, int can_use_previous, int n, int_mv *mv_refined, int pre_x,
+    int pre_y, struct buf_2d *const pre_buf,
     CalcSubpelParamsFunc calc_subpel_params_func,
     const void *const calc_subpel_params_func_args) {
   int n_blocks = 0;
@@ -1102,10 +1079,10 @@ void make_inter_pred_of_nxn(
                               plane, pre_x, pre_y, i, j, pre_buf, n, n,
                               warp_types, ref, 1, calc_subpel_params_func_args,
                               &pre, subpel_params, &src_stride);
-      av1_make_inter_predictor_aux(
-          pre, src_stride, dst, dst_stride, subpel_params, sf, n, n, w, h,
-          conv_params, interp_filters, warp_types, p_col, p_row, plane, ref, mi,
-          build_for_obmc, xd, can_use_previous);
+      av1_make_inter_predictor_aux(pre, src_stride, dst, dst_stride,
+                                   subpel_params, sf, n, n, w, h, conv_params,
+                                   interp_filters, warp_types, p_col, p_row,
+                                   plane, ref, mi, 0, xd, can_use_previous);
       n_blocks++;
       dst += n;
       conv_params->dst += n;
@@ -1536,6 +1513,7 @@ static void build_inter_predictors(
   const int use_optflow_prec =
       (mi->mode > NEW_NEWMV) && is_compound && plane == 0;
 #endif
+  assert(IMPLIES(use_optflow_prec, !build_for_obmc));
 
   if (use_optflow_prec) {
     // Initialize refined mv
@@ -1551,7 +1529,7 @@ static void build_inter_predictors(
       mv_refined[mvi * 2 + 1].as_mv = mv1;
     }
     av1_get_optflow_based_mv(cm, xd, plane, mi, mv_refined, bw, bh, mi_x, mi_y,
-                             build_for_obmc, calc_subpel_params_func,
+                             calc_subpel_params_func,
                              calc_subpel_params_func_args);
   }
 
@@ -1579,7 +1557,7 @@ static void build_inter_predictors(
       make_inter_pred_of_nxn(
           dst, dst_buf->stride, &subpel_params, sf, bw, bh, &conv_params,
           mi->interp_filters, &warp_types, mi_x >> pd->subsampling_x,
-          mi_y >> pd->subsampling_y, plane, ref, mi, build_for_obmc, xd,
+          mi_y >> pd->subsampling_y, plane, ref, mi, xd,
           cm->allow_warped_motion, n, mv_refined, pre_x, pre_y, pre_buf,
           calc_subpel_params_func, calc_subpel_params_func_args);
 #else
@@ -1592,7 +1570,7 @@ static void build_inter_predictors(
           pre, src_stride, dst, dst_buf->stride, &subpel_params, sf, bw, bh,
           &conv_params, mi->interp_filters, &warp_types,
           mi_x >> pd->subsampling_x, mi_y >> pd->subsampling_y, plane, ref, mi,
-          build_for_obmc, xd, cm->allow_warped_motion, 0 /* border */);
+          0, xd, cm->allow_warped_motion, 0 /* border */);
 #endif  // USE_OF_NXN
         // Predictor already built
       continue;
