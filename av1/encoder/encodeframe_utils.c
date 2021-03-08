@@ -1077,8 +1077,15 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
   AVERAGE_CDF(ctx_left->filter_intra_cdfs, ctx_tr->filter_intra_cdfs, 2);
   AVERAGE_CDF(ctx_left->filter_intra_mode_cdf, ctx_tr->filter_intra_mode_cdf,
               FILTER_INTRA_MODES);
+#if CONFIG_LOOP_RESTORE_CNN
+  AVERAGE_CDF(ctx_left->switchable_restore_cdf[0],
+              ctx_tr->switchable_restore_cdf[0], RESTORE_SWITCHABLE_TYPES - 1);
+  AVERAGE_CDF(ctx_left->switchable_restore_cdf[1],
+              ctx_tr->switchable_restore_cdf[1], RESTORE_SWITCHABLE_TYPES);
+#else
   AVERAGE_CDF(ctx_left->switchable_restore_cdf, ctx_tr->switchable_restore_cdf,
               RESTORE_SWITCHABLE_TYPES);
+#endif  // CONFIG_LOOP_RESTORE_CNN
   AVERAGE_CDF(ctx_left->wiener_restore_cdf, ctx_tr->wiener_restore_cdf, 2);
   AVERAGE_CDF(ctx_left->sgrproj_restore_cdf, ctx_tr->sgrproj_restore_cdf, 2);
   AVERAGE_CDF(ctx_left->y_mode_cdf, ctx_tr->y_mode_cdf, INTRA_MODES);

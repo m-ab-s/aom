@@ -36,6 +36,9 @@
 #endif  // CONFIG_BITSTREAM_DEBUG
 
 #include "av1/common/alloccommon.h"
+#if CONFIG_CNN_RESTORATION || CONFIG_LOOP_RESTORE_CNN
+#include "av1/common/cnn_tflite.h"
+#endif  // CONFIG_CNN_RESTORATION || CONFIG_LOOP_RESTORE_CNN
 #include "av1/common/filter.h"
 #include "av1/common/idct.h"
 #include "av1/common/reconinter.h"
@@ -1975,25 +1978,47 @@ void av1_set_frame_size(AV1_COMP *cpi, int width, int height) {
   set_ref_ptrs(cm, xd, LAST_FRAME, LAST_FRAME);
 }
 
-/*!\brief Select and apply cdef filters and switchable restoration filters
- *
- * \ingroup high_level_algo
+/*!\brief Select and apply cdef and restoration filters for specified planes.
  */
-static void cdef_restoration_frame(AV1_COMP *cpi, AV1_COMMON *cm,
-                                   MACROBLOCKD *xd, int use_restoration,
-                                   int use_cdef) {
+static void cdef_restoration_frame_planes(
+    AV1_COMP *cpi, AV1_COMMON *cm, MACROBLOCKD *xd,
+#if CONFIG_LOOP_RESTORE_CNN
+    bool allow_restore_cnn_y, bool allow_restore_cnn_uv,
+#endif  // CONFIG_LOOP_RESTORE_CNN
+    bool filter_y_plane_restoration, bool filter_y_plane_cdef,
+    bool filter_uv_planes_restoration, bool filter_uv_planes_cdef) {
+#if CONFIG_LOOP_RESTORE_CNN
+  assert(IMPLIES(filter_y_plane_cdef, !allow_restore_cnn_y));
+  assert(IMPLIES(filter_uv_planes_cdef, !allow_restore_cnn_uv));
+  assert(IMPLIES(allow_restore_cnn_y, filter_y_plane_restoration));
+  assert(IMPLIES(allow_restore_cnn_uv, filter_uv_planes_restoration));
+#endif  // CONFIG_LOOP_RESTORE_CNN
+  const bool use_restoration =
+      filter_y_plane_restoration || filter_uv_planes_restoration;
+  const bool use_cdef = filter_y_plane_cdef || filter_uv_planes_cdef;
   MultiThreadInfo *const mt_info = &cpi->mt_info;
   const int num_workers = mt_info->num_workers;
-  if (use_restoration)
+  if (use_restoration) {
     av1_loop_restoration_save_boundary_lines(&cm->cur_frame->buf, cm, 0);
+  }
 
   if (use_cdef) {
 #if CONFIG_COLLECT_COMPONENT_TIMING
     start_timing(cpi, cdef_time);
 #endif
     // Find CDEF parameters
+    // TODO(any): The search itself should ideally consider
+    // 'filter_y_plane_cdef' and 'filter_uv_planes' values.
     av1_cdef_search(&cm->cur_frame->buf, cpi->source, cm, xd,
                     cpi->sf.lpf_sf.cdef_pick_method, cpi->td.mb.rdmult);
+    if (!filter_y_plane_cdef) {
+      memset(cm->cdef_info.cdef_strengths, 0,
+             sizeof(cm->cdef_info.cdef_strengths));
+    }
+    if (!filter_uv_planes_cdef) {
+      memset(cm->cdef_info.cdef_uv_strengths, 0,
+             sizeof(cm->cdef_info.cdef_uv_strengths));
+    }
 
     // Apply the filter
     av1_cdef_frame(&cm->cur_frame->buf, cm, xd);
@@ -2014,7 +2039,20 @@ static void cdef_restoration_frame(AV1_COMP *cpi, AV1_COMMON *cm,
 #endif
   if (use_restoration) {
     av1_loop_restoration_save_boundary_lines(&cm->cur_frame->buf, cm, 1);
-    av1_pick_filter_restoration(cpi->source, cpi);
+    av1_pick_filter_restoration(cpi->source,
+#if CONFIG_LOOP_RESTORE_CNN
+                                allow_restore_cnn_y, allow_restore_cnn_uv,
+#endif  // CONFIG_LOOP_RESTORE_CNN
+                                cpi);
+    // TODO(any): The search itself should ideally consider
+    // 'filter_y_plane_restoration' and 'filter_uv_planes' values.
+    if (!filter_y_plane_restoration) {
+      cm->rst_info[0].frame_restoration_type = RESTORE_NONE;
+    }
+    if (!filter_uv_planes_restoration) {
+      cm->rst_info[1].frame_restoration_type = RESTORE_NONE;
+      cm->rst_info[2].frame_restoration_type = RESTORE_NONE;
+    }
     if (cm->rst_info[0].frame_restoration_type != RESTORE_NONE ||
         cm->rst_info[1].frame_restoration_type != RESTORE_NONE ||
         cm->rst_info[2].frame_restoration_type != RESTORE_NONE) {
@@ -2035,6 +2073,57 @@ static void cdef_restoration_frame(AV1_COMP *cpi, AV1_COMMON *cm,
   end_timing(cpi, loop_restoration_time);
 #endif
 }
+
+/*!\brief Select and apply cdef filters and switchable restoration filters
+ *
+ * \ingroup high_level_algo
+ */
+static void cdef_restoration_frame(AV1_COMP *cpi, AV1_COMMON *cm,
+                                   MACROBLOCKD *xd, bool use_restoration,
+                                   bool use_cdef) {
+  return cdef_restoration_frame_planes(
+      cpi, cm, xd,
+#if CONFIG_LOOP_RESTORE_CNN
+      false /*allow_restore_cnn_y*/, false /*allow_restore_cnn_y*/,
+#endif  // CONFIG_LOOP_RESTORE_CNN
+      use_restoration, use_cdef, use_restoration, use_cdef);
+}
+
+#if CONFIG_CNN_RESTORATION || CONFIG_LOOP_RESTORE_CNN
+/*!\brief Copy chroma planes from 'src' to 'dst', respecting 'num_planes'.
+ */
+static void yv12_copy_chroma_planes(const YV12_BUFFER_CONFIG *src,
+                                    YV12_BUFFER_CONFIG *dst, int num_planes) {
+  if (num_planes > 1) aom_yv12_copy_u(src, dst);
+  if (num_planes > 2) aom_yv12_copy_v(src, dst);
+}
+
+/*!\brief Copy all planes from 'src' to 'dst', respecting 'num_planes'
+ * Note: aom_yv12_copy_frame() does not have the same behavior as
+ * aom_yv12_copy_y, aom_yv12_copy_u and aom_yv12_copy_v. So,
+ * aom_yv12_copy_frame() cannot be used here.
+ */
+static void yv12_copy_all_planes(const YV12_BUFFER_CONFIG *src,
+                                 YV12_BUFFER_CONFIG *dst, int num_planes) {
+  // Note: aom_yv12_copy_frame does not have the same behavior as
+  // aom_yv12_copy_y, aom_yv12_copy_u and aom_yv12_copy_v.
+  aom_yv12_copy_y(src, dst);
+  yv12_copy_chroma_planes(src, dst, num_planes);
+}
+
+/*!\brief Returns SSE between 'a' and 'b' in luma chanel (Y plane) and chroma
+ * channels (total for U and V planes).
+ */
+static void get_sse_luma_chroma(const YV12_BUFFER_CONFIG *a,
+                                const YV12_BUFFER_CONFIG *b, int highbd,
+                                int64_t *sse_y, int64_t *sse_uv,
+                                int num_planes) {
+  *sse_y = aom_get_sse_plane(a, b, AOM_PLANE_Y, highbd);
+  *sse_uv = (num_planes == 3) ? aom_get_sse_plane(a, b, AOM_PLANE_U, highbd) +
+                                    aom_get_sse_plane(a, b, AOM_PLANE_V, highbd)
+                              : INT64_MAX;
+}
+#endif  // CONFIG_CNN_RESTORATION || CONFIG_LOOP_RESTORE_CNN
 
 /*!\brief Select and apply in-loop deblocking filters, cdef filters, and
  * restoration filters
@@ -2091,7 +2180,171 @@ static void loopfilter_frame(AV1_COMP *cpi, AV1_COMMON *cm) {
   end_timing(cpi, loop_filter_time);
 #endif
 
+#if CONFIG_CNN_RESTORATION
+  cm->use_cnn_y = 0;
+  cm->use_cnn_uv = 0;
+  if (av1_use_cnn_encode(cm, cpi->gf_group.update_type[cpi->gf_group.index])) {
+    // Save unfiltered frame.
+    yv12_copy_all_planes(&cm->cur_frame->buf, &cpi->last_frame_uf, num_planes);
+
+    // Calculate errors for unfiltered planes from source.
+    int64_t dgd_error_y, dgd_error_uv;
+    get_sse_luma_chroma(cpi->source, &cm->cur_frame->buf,
+                        cm->seq_params.use_highbitdepth, &dgd_error_y,
+                        &dgd_error_uv, num_planes);
+
+    // Try CNN restoration on all planes.
+    av1_restore_cnn_tflite(cm, cpi->mt_info.num_workers, AOM_PLANE_Y,
+                           num_planes - 1);
+
+    // Calculate errors after applying cnn from source.
+    int64_t cnn_error_y, cnn_error_uv;
+    get_sse_luma_chroma(cpi->source, &cm->cur_frame->buf,
+                        cm->seq_params.use_highbitdepth, &cnn_error_y,
+                        &cnn_error_uv, num_planes);
+
+    // Save CNN restored frame.
+    if (cnn_error_y <= dgd_error_y) {
+      aom_yv12_copy_y(&cm->cur_frame->buf, &cpi->cnn_buffer);
+    }
+    if (cnn_error_uv <= dgd_error_uv) {
+      yv12_copy_chroma_planes(&cm->cur_frame->buf, &cpi->cnn_buffer,
+                              num_planes);
+    }
+
+    // Restore unfiltered frame.
+    yv12_copy_all_planes(&cpi->last_frame_uf, &cm->cur_frame->buf, num_planes);
+
+    // Try CDEF + LR on all planes.
+    cdef_restoration_frame(cpi, cm, xd, use_restoration, use_cdef);
+
+    // Calculate errors after CDEF + LR from source.
+    int64_t res_error_y, res_error_uv;
+    get_sse_luma_chroma(cpi->source, &cm->cur_frame->buf,
+                        cm->seq_params.use_highbitdepth, &res_error_y,
+                        &res_error_uv, num_planes);
+
+    // For each of luma and chroma, choose either CNN or CDEF + LR (mutually
+    // exclusive).
+    if (cnn_error_y <= res_error_y && cnn_error_y <= dgd_error_y) {
+      // Enable CNN for luma and copy CNN restored luma plane.
+      cm->use_cnn_y = 1;
+      aom_yv12_copy_y(&cpi->cnn_buffer, &cm->cur_frame->buf);
+    } else {
+      aom_yv12_copy_y(&cpi->last_frame_uf, &cm->cur_frame->buf);
+    }
+    if (cnn_error_uv <= res_error_uv && cnn_error_uv <= dgd_error_uv) {
+      // Enable CNN for chroma and copy CNN restored chroma planes.
+      cm->use_cnn_uv = 1;
+      yv12_copy_chroma_planes(&cpi->cnn_buffer, &cm->cur_frame->buf,
+                              num_planes);
+    } else {
+      yv12_copy_chroma_planes(&cpi->last_frame_uf, &cm->cur_frame->buf,
+                              num_planes);
+    }
+    // Disable CDEF + LR for planes where CNN is used.
+    // TODO(urvang): Make this part faster by simply disabling CDEF+LR for
+    // necessary planes, without redoing the search.
+    const bool use_cdef_lr_y = !cm->use_cnn_y;
+    const bool use_cdef_lr_uv = !cm->use_cnn_uv;
+    cdef_restoration_frame_planes(cpi, cm, xd, use_cdef_lr_y, use_cdef_lr_y,
+                                  use_cdef_lr_uv, use_cdef_lr_uv);
+  } else {
+    cdef_restoration_frame(cpi, cm, xd, use_restoration, use_cdef);
+  }
+  /*
+  fprintf(
+      stderr,
+      "\n gf_index = %d, disp_index = %d, use_cnn_y = %d, use_cnn_uv = %d\n",
+      cpi->gf_group.index, cpi->gf_group.frame_disp_idx[cpi->gf_group.index],
+      cm->use_cnn_y, cm->use_cnn_uv);
+  */
+#elif CONFIG_LOOP_RESTORE_CNN
+  cm->use_cnn_y = 0;
+  cm->use_cnn_uv = 0;
+  if (av1_use_cnn_encode(cm, cpi->gf_group.update_type[cpi->gf_group.index])) {
+    if (use_restoration && use_cdef) {
+      // Save unfiltered frame.
+      yv12_copy_all_planes(&cm->cur_frame->buf, &cpi->last_frame_uf,
+                           num_planes);
+
+      // Option 1: for all planes, disable CDEF and try LR with 4 options
+      // *including* RESTORE_CNN.
+      cm->use_cnn_y = 1;
+      cm->use_cnn_uv = 1;
+      cdef_restoration_frame_planes(
+          cpi, cm, xd, true /*allow_restore_cnn_y*/,
+          true /*allow_restore_cnn_uv*/, true /*filter_y_plane_restoration*/,
+          false /*filter_y_plane_cdef*/, true /*filter_uv_planes_restoration*/,
+          false /*filter_uv_planes_cdef*/);
+
+      // Did any restoration units actually use CNN?
+      const bool cnn_y_used = cm->use_cnn_y;
+      const bool cnn_uv_used = cm->use_cnn_uv;
+
+      // Calculate errors for option 1 from source.
+      int64_t option1_err_y, option1_err_uv;
+      get_sse_luma_chroma(cpi->source, &cm->cur_frame->buf,
+                          cm->seq_params.use_highbitdepth, &option1_err_y,
+                          &option1_err_uv, num_planes);
+
+      // Restore unfiltered frame.
+      yv12_copy_all_planes(&cpi->last_frame_uf, &cm->cur_frame->buf,
+                           num_planes);
+
+      // Option 2: for all planes, enable CDEF and try LR with 3 options
+      // *excluding* RESTORE_CNN.
+      cm->use_cnn_y = 0;
+      cm->use_cnn_uv = 0;
+      cdef_restoration_frame_planes(
+          cpi, cm, xd, false /*allow_restore_cnn_y*/,
+          false /*allow_restore_cnn_uv*/, true /*filter_y_plane_restoration*/,
+          true /*filter_y_plane_cdef*/, true /*filter_uv_planes_restoration*/,
+          true /*filter_uv_planes_cdef*/);
+
+      // Calculate errors for option 2 from source.
+      int64_t option2_err_y, option2_err_uv;
+      get_sse_luma_chroma(cpi->source, &cm->cur_frame->buf,
+                          cm->seq_params.use_highbitdepth, &option2_err_y,
+                          &option2_err_uv, num_planes);
+
+      // Restore unfiltered frame.
+      yv12_copy_all_planes(&cpi->last_frame_uf, &cm->cur_frame->buf,
+                           num_planes);
+
+      // Pick best option for each of luma and chroma.
+      // TODO(urvang): Maybe better to use RDCOST here.
+      cm->use_cnn_y = cnn_y_used && (option1_err_y <= option2_err_y);
+      cm->use_cnn_uv = cnn_uv_used && (option1_err_uv <= option2_err_uv);
+    } else if (!use_restoration) {
+      cm->use_cnn_y = 0;
+      cm->use_cnn_uv = 0;
+    } else {
+      assert(!use_cdef);
+      cm->use_cnn_y = 1;
+      cm->use_cnn_uv = 1;
+    }
+
+    // Filter all planes as per best option for luma and chroma selected above.
+    cdef_restoration_frame_planes(
+        cpi, cm, xd, cm->use_cnn_y, cm->use_cnn_uv,
+        use_restoration /*filter_y_plane_restoration*/,
+        use_cdef && !cm->use_cnn_y /*filter_y_plane_cdef*/,
+        use_restoration /*filter_uv_planes_restoration*/,
+        use_cdef && !cm->use_cnn_uv /*filter_uv_planes_cdef*/);
+  } else {
+    cdef_restoration_frame(cpi, cm, xd, use_restoration, use_cdef);
+  }
+  /*
+  fprintf(
+      stderr,
+      "\n gf_index = %d, disp_index = %d, use_cnn_y = %d, use_cnn_uv = %d\n",
+      cpi->gf_group.index, cpi->gf_group.frame_disp_idx[cpi->gf_group.index],
+      cm->use_cnn_y, cm->use_cnn_uv);
+  */
+#else
   cdef_restoration_frame(cpi, cm, xd, use_restoration, use_cdef);
+#endif  // CONFIG_CNN_RESTORATION
 }
 
 /*!\brief Encode a frame without the recode loop, usually used in one-pass
@@ -2612,6 +2865,10 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
     cm->rst_info[0].frame_restoration_type = RESTORE_NONE;
     cm->rst_info[1].frame_restoration_type = RESTORE_NONE;
     cm->rst_info[2].frame_restoration_type = RESTORE_NONE;
+#if CONFIG_CNN_RESTORATION && !CONFIG_LOOP_RESTORE_CNN
+    cm->use_cnn_y = 0;
+    cm->use_cnn_uv = 0;
+#endif  // CONFIG_CNN_RESTORATION && !CONFIG_LOOP_RESTORE_CNN
   }
 
   // TODO(debargha): Fix mv search range on encoder side

@@ -25,4 +25,19 @@ macro(fix_experiment_configs)
     change_config_and_warn(CONFIG_DIST_8X8 0 CONFIG_MULTITHREAD)
   endif()
 
+  if(CONFIG_CNN_RESTORATION_SMALL_MODELS)
+    if(NOT (CONFIG_CNN_RESTORATION OR CONFIG_LOOP_RESTORE_CNN))
+      change_config_and_warn(CONFIG_CNN_RESTORATION 1
+                             CONFIG_CNN_RESTORATION_SMALL_MODELS)
+    endif()
+  endif()
+
+  if(CONFIG_CNN_RESTORATION)
+    change_config_and_warn(CONFIG_TENSORFLOW_LITE 1 CONFIG_CNN_RESTORATION)
+  endif()
+
+  if(CONFIG_LOOP_RESTORE_CNN)
+    change_config_and_warn(CONFIG_TENSORFLOW_LITE 1 CONFIG_LOOP_RESTORE_CNN)
+  endif()
+
 endmacro()

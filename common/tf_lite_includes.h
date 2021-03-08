@@ -23,6 +23,7 @@
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-parameter"
 
+#include "tensorflow/lite/delegates/xnnpack/xnnpack_delegate.h"
 #include "tensorflow/lite/kernels/builtin_op_kernels.h"
 #include "tensorflow/lite/interpreter.h"
 #include "tensorflow/lite/model.h"

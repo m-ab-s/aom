@@ -137,6 +137,12 @@ set_aom_config_var(CONFIG_REMOVE_DIST_WTD_COMP 1
                    "AV2 experiment flag to remove dist_wtd_comp tool.")
 set_aom_config_var(CONFIG_REMOVE_DUAL_FILTER 1
                    "AV2 experiment flag to remove dual filter.")
+set_aom_config_var(CONFIG_CNN_RESTORATION 0 NUMBER
+                   "AV2 CNN Restoration experiment flag")
+set_aom_config_var(CONFIG_LOOP_RESTORE_CNN 0 NUMBER
+                   "AV2 CNN in Loop Restoration experiment flag")
+set_aom_config_var(CONFIG_CNN_RESTORATION_SMALL_MODELS 0 NUMBER
+                   "AV2 CNN restoration with smaller models experiment flag")
 
 #
 # Variables in this section control optional features of the build system.

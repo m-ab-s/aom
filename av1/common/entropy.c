@@ -142,9 +142,18 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
   RESET_CDF_COUNTER(fc->seg.spatial_pred_seg_cdf, MAX_SEGMENTS);
   RESET_CDF_COUNTER(fc->filter_intra_cdfs, 2);
   RESET_CDF_COUNTER(fc->filter_intra_mode_cdf, FILTER_INTRA_MODES);
+#if CONFIG_LOOP_RESTORE_CNN
+  RESET_CDF_COUNTER(fc->switchable_restore_cdf[0],
+                    RESTORE_SWITCHABLE_TYPES - 1);
+  RESET_CDF_COUNTER(fc->switchable_restore_cdf[1], RESTORE_SWITCHABLE_TYPES);
+#else
   RESET_CDF_COUNTER(fc->switchable_restore_cdf, RESTORE_SWITCHABLE_TYPES);
+#endif  // CONFIG_LOOP_RESTORE_CNN
   RESET_CDF_COUNTER(fc->wiener_restore_cdf, 2);
   RESET_CDF_COUNTER(fc->sgrproj_restore_cdf, 2);
+#if CONFIG_LOOP_RESTORE_CNN
+  RESET_CDF_COUNTER(fc->cnn_restore_cdf, 2);
+#endif  // CONFIG_LOOP_RESTORE_CNN
   RESET_CDF_COUNTER(fc->y_mode_cdf, INTRA_MODES);
   RESET_CDF_COUNTER_STRIDE(fc->uv_mode_cdf[0], UV_INTRA_MODES - 1,
                            CDF_SIZE(UV_INTRA_MODES));

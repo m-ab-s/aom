@@ -318,12 +318,23 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, ModeCosts *mode_costs,
 }
 
 void av1_fill_lr_rates(ModeCosts *mode_costs, FRAME_CONTEXT *fc) {
+#if CONFIG_LOOP_RESTORE_CNN
+  for (int i = 0; i < 2; ++i) {
+    av1_cost_tokens_from_cdf(mode_costs->switchable_restore_cost[i],
+                             fc->switchable_restore_cdf[i], NULL);
+  }
+#else
   av1_cost_tokens_from_cdf(mode_costs->switchable_restore_cost,
                            fc->switchable_restore_cdf, NULL);
+#endif  // CONFIG_LOOP_RESTORE_CNN
   av1_cost_tokens_from_cdf(mode_costs->wiener_restore_cost,
                            fc->wiener_restore_cdf, NULL);
   av1_cost_tokens_from_cdf(mode_costs->sgrproj_restore_cost,
                            fc->sgrproj_restore_cdf, NULL);
+#if CONFIG_LOOP_RESTORE_CNN
+  av1_cost_tokens_from_cdf(mode_costs->cnn_restore_cost, fc->cnn_restore_cdf,
+                           NULL);
+#endif  // CONFIG_LOOP_RESTORE_CNN
 }
 
 // Values are now correlated to quantizer.

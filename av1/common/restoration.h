@@ -205,6 +205,13 @@ typedef struct {
    * Sgrproj filter parameters if restoration_type indicates Sgrproj
    */
   SgrprojInfo sgrproj_info;
+
+#if CONFIG_LOOP_RESTORE_CNN
+  /*!
+   * CNN filter parameters if restoration_type indicates CNN
+   */
+  CNNInfo cnn_info;
+#endif  // CONFIG_LOOP_RESTORE_CNN
 } RestorationUnitInfo;
 
 /*!\cond */
@@ -344,6 +351,11 @@ typedef struct FilterFrameCtxt {
   uint8_t *data8, *dst8;
   int data_stride, dst_stride;
   AV1PixelRect tile_rect;
+#if CONFIG_LOOP_RESTORE_CNN
+  int base_qindex;
+  FRAME_TYPE frame_type;
+  bool is_luma;
+#endif  // CONFIG_LOOP_RESTORE_CNN
 } FilterFrameCtxt;
 
 typedef struct AV1LrStruct {
@@ -399,12 +411,18 @@ void av1_decode_xq(const int *xqd, int *xq, const sgr_params_type *params);
  * \return Nothing is returned. Instead, the filtered unit is output in
  * \c dst8 at the proper restoration unit offset.
  */
-void av1_loop_restoration_filter_unit(
-    const RestorationTileLimits *limits, const RestorationUnitInfo *rui,
-    const RestorationStripeBoundaries *rsb, RestorationLineBuffers *rlbs,
-    const AV1PixelRect *tile_rect, int tile_stripe0, int ss_x, int ss_y,
-    int highbd, int bit_depth, uint8_t *data8, int stride, uint8_t *dst8,
-    int dst_stride, int32_t *tmpbuf, int optimized_lr);
+void av1_loop_restoration_filter_unit(const RestorationTileLimits *limits,
+                                      const RestorationUnitInfo *rui,
+                                      const RestorationStripeBoundaries *rsb,
+#if CONFIG_LOOP_RESTORE_CNN
+                                      int restoration_unit_size,
+#endif  // CONFIG_LOOP_RESTORE_CNN
+                                      RestorationLineBuffers *rlbs,
+                                      const AV1PixelRect *tile_rect,
+                                      int tile_stripe0, int ss_x, int ss_y,
+                                      int highbd, int bit_depth, uint8_t *data8,
+                                      int stride, uint8_t *dst8, int dst_stride,
+                                      int32_t *tmpbuf, int optimized_lr);
 
 /*!\brief Function for applying loop restoration filter to a frame
  *
