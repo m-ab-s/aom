@@ -272,7 +272,6 @@ TEST_P(AV1QuantizeTest, EobVerify) { RunEobTest(); }
 
 #if HAVE_SSE4_1
 const QuantizeFuncParams qfps[4] = {
-#if !CONFIG_EXTQUANT
   QuantizeFuncParams(&av1_highbd_quantize_fp_sse4_1, &av1_highbd_quantize_fp_c,
                      16),
   QuantizeFuncParams(&av1_highbd_quantize_fp_sse4_1, &av1_highbd_quantize_fp_c,
@@ -281,9 +280,6 @@ const QuantizeFuncParams qfps[4] = {
                      256),
   QuantizeFuncParams(&av1_highbd_quantize_fp_sse4_1, &av1_highbd_quantize_fp_c,
                      1024),
-#else
-  QuantizeFuncParams(&av1_highbd_quantize_fp_c, &av1_highbd_quantize_fp_c, 16)
-#endif  // !CONFIG_EXTQUANT
 };
 
 INSTANTIATE_TEST_SUITE_P(SSE4_1, AV1QuantizeTest, ::testing::ValuesIn(qfps));
@@ -291,7 +287,6 @@ INSTANTIATE_TEST_SUITE_P(SSE4_1, AV1QuantizeTest, ::testing::ValuesIn(qfps));
 
 #if HAVE_AVX2
 const QuantizeFuncParams qfps_avx2[4] = {
-#if !CONFIG_EXTQUANT
   QuantizeFuncParams(&av1_highbd_quantize_fp_avx2, &av1_highbd_quantize_fp_c,
                      16),
   QuantizeFuncParams(&av1_highbd_quantize_fp_avx2, &av1_highbd_quantize_fp_c,
@@ -300,9 +295,6 @@ const QuantizeFuncParams qfps_avx2[4] = {
                      256),
   QuantizeFuncParams(&av1_highbd_quantize_fp_avx2, &av1_highbd_quantize_fp_c,
                      1024),
-#else
-  QuantizeFuncParams(&av1_highbd_quantize_fp_c, &av1_highbd_quantize_fp_c, 16)
-#endif  // !CONFIG_EXTQUANT
 };
 
 INSTANTIATE_TEST_SUITE_P(AVX2, AV1QuantizeTest, ::testing::ValuesIn(qfps_avx2));

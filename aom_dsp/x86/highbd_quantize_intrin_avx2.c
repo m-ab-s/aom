@@ -15,11 +15,21 @@
 
 #include "aom/aom_integer.h"
 
+#if CONFIG_EXTQUANT
+static INLINE void init_one_qp(const int32_t *p, __m256i *qp) {
+#else
 static INLINE void init_one_qp(const __m128i *p, __m256i *qp) {
+#endif
+#if CONFIG_EXTQUANT
+  const int p1 = p[1];
+  const int p0 = p[0];
+  *qp = _mm256_set_epi32(p1, p1, p1, p1, p1, p1, p1, p0);
+#else
   const __m128i sign = _mm_srai_epi16(*p, 15);
   const __m128i dc = _mm_unpacklo_epi16(*p, sign);
   const __m128i ac = _mm_unpackhi_epi16(*p, sign);
   *qp = _mm256_insertf128_si256(_mm256_castsi128_si256(dc), ac, 1);
+#endif
 }
 
 static INLINE void update_qp(__m256i *qp) {
@@ -38,6 +48,13 @@ static INLINE void init_qp(const int16_t *zbin_ptr, const int16_t *round_ptr,
                            const int16_t *quant_ptr, const int16_t *dequant_ptr,
                            const int16_t *quant_shift_ptr, __m256i *qp) {
 #endif
+#if CONFIG_EXTQUANT
+  init_one_qp(zbin_ptr, &qp[0]);
+  init_one_qp(round_ptr, &qp[1]);
+  init_one_qp(quant_ptr, &qp[2]);
+  init_one_qp(dequant_ptr, &qp[3]);
+  init_one_qp(quant_shift_ptr, &qp[4]);
+#else
   const __m128i zbin = _mm_loadu_si128((const __m128i *)zbin_ptr);
   const __m128i round = _mm_loadu_si128((const __m128i *)round_ptr);
   const __m128i quant = _mm_loadu_si128((const __m128i *)quant_ptr);
@@ -48,6 +65,7 @@ static INLINE void init_qp(const int16_t *zbin_ptr, const int16_t *round_ptr,
   init_one_qp(&quant, &qp[2]);
   init_one_qp(&dequant, &qp[3]);
   init_one_qp(&quant_shift, &qp[4]);
+#endif
 }
 
 // Note:
@@ -77,7 +95,9 @@ static INLINE void quantize(const __m256i *qp, __m256i *c,
   __m256i flag2 = _mm256_cmpeq_epi32(abs, qp[0]);
   flag2 = _mm256_or_si256(flag1, flag2);
   const int32_t nzflag = _mm256_movemask_epi8(flag2);
-
+#if CONFIG_EXTQUANT
+  const __m256i offset = _mm256_set1_epi32((1 << QUANT_TABLE_BITS) >> 1);
+#endif
   if (LIKELY(nzflag)) {
     __m256i q = _mm256_add_epi32(abs, qp[1]);
     __m256i tmp;
@@ -86,6 +106,10 @@ static INLINE void quantize(const __m256i *qp, __m256i *c,
 
     mm256_mul_shift_epi32(&q, &qp[4], &q);
     __m256i dq = _mm256_mullo_epi32(q, qp[3]);
+#if CONFIG_EXTQUANT
+    dq = _mm256_add_epi32(dq, offset);
+    dq = _mm256_srli_epi32(dq, QUANT_TABLE_BITS);
+#endif
 
     q = _mm256_sign_epi32(q, *c);
     dq = _mm256_sign_epi32(dq, *c);

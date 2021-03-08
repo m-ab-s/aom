@@ -57,6 +57,7 @@ typedef uint8_t qm_val_t;
 
 #if CONFIG_EXTQUANT
 #define QUANT_TABLE_BITS 3
+#define QUANT_FP_BITS 4
 #else
 #define QUANT_TABLE_BITS 0
 #endif  // CONFIG_EXTQUANT
