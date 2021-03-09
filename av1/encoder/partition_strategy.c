@@ -1932,11 +1932,11 @@ static INLINE int is_avg_dim_greater_than(BLOCK_SIZE bsize, int dim) {
 
 int av1_prune_new_part(const SMSPartitionStats *old_part,
                        const SMSPartitionStats *new_part, int rdmult,
-                       BLOCK_SIZE bsize) {
+                       BLOCK_SIZE bsize, const SPEED_FEATURES *sf) {
   RD_STATS old_rd_stat, new_rd_stat;
   gather_part_rd_stats(&old_rd_stat, old_part, rdmult);
   gather_part_rd_stats(&new_rd_stat, new_part, rdmult);
-  if (ENABLE_FAST_RECUR_PARTITION < 2 && is_avg_dim_greater_than(bsize, 32)) {
+  if (sf->part_sf.enable_fast_erp < 2 && is_avg_dim_greater_than(bsize, 32)) {
     return old_rd_stat.rdcost < new_rd_stat.rdcost;
   }
   return old_rd_stat.rdcost < (int)(1.001 * new_rd_stat.rdcost);

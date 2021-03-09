@@ -3281,7 +3281,7 @@ static void rectangular_partition_search(
           blk_params.mi_row + blk_params.mi_step_h, blk_params.mi_col,
           blk_params.subsize, pc_tree, PARTITION_HORZ, 1, 1, ss_x, ss_y);
 
-      if (ENABLE_FAST_RECUR_PARTITION && !frame_is_intra_only(cm) &&
+      if (cpi->sf.part_sf.enable_fast_erp && !frame_is_intra_only(cm) &&
           !x->must_find_valid_partition &&
           is_bsize_pruning_cand(blk_params.bsize)) {
         SMSPartitionStats part_data;
@@ -3303,7 +3303,7 @@ static void rectangular_partition_search(
             (blk_params.mi_col + 2 * blk_params.mi_step_w <=
              cm->mi_params.mi_cols) &&
             av1_prune_new_part(&part_search_state->none_data, &part_data,
-                               x->rdmult, blk_params.bsize)) {
+                               x->rdmult, blk_params.bsize, &cpi->sf)) {
           const BLOCK_SIZE subsubsize =
               get_partition_subsize(blk_params.subsize, PARTITION_VERT);
           if (subsubsize == BLOCK_INVALID) {
@@ -3333,7 +3333,7 @@ static void rectangular_partition_search(
           subpart_data.num_sub_parts = 4;
           subpart_data.part_rate = 0;
           if (av1_prune_new_part(&part_search_state->none_data, &subpart_data,
-                                 x->rdmult, blk_params.bsize)) {
+                                 x->rdmult, blk_params.bsize, &cpi->sf)) {
             return;
           }
         }
@@ -3387,7 +3387,7 @@ static void rectangular_partition_search(
           blk_params.mi_row, blk_params.mi_col + blk_params.mi_step_w,
           blk_params.subsize, pc_tree, PARTITION_VERT, 1, 1, ss_x, ss_y);
 
-      if (ENABLE_FAST_RECUR_PARTITION && !frame_is_intra_only(cm) &&
+      if (cpi->sf.part_sf.enable_fast_erp && !frame_is_intra_only(cm) &&
           !x->must_find_valid_partition &&
           is_bsize_pruning_cand(blk_params.bsize)) {
         const SimpleMotionData *left =
@@ -3409,7 +3409,7 @@ static void rectangular_partition_search(
             (blk_params.mi_col + 2 * blk_params.mi_step_w <=
              cm->mi_params.mi_cols) &&
             av1_prune_new_part(&part_search_state->none_data, &part_data,
-                               x->rdmult, blk_params.bsize)) {
+                               x->rdmult, blk_params.bsize, &cpi->sf)) {
           const BLOCK_SIZE subsubsize =
               get_partition_subsize(blk_params.subsize, PARTITION_HORZ);
           if (subsubsize == BLOCK_INVALID) {
@@ -3440,7 +3440,7 @@ static void rectangular_partition_search(
           subpart_data.num_sub_parts = 4;
           subpart_data.part_rate = 0;
           if (av1_prune_new_part(&part_search_state->none_data, &subpart_data,
-                                 x->rdmult, blk_params.bsize)) {
+                                 x->rdmult, blk_params.bsize, &cpi->sf)) {
             return;
           }
         }
@@ -4491,7 +4491,7 @@ static INLINE void search_partition_horz_3(PartitionSearchState *search_state,
       mi_row + quarter_step * 3, mi_col, subblock_sizes[2], pc_tree,
       PARTITION_HORZ_3, 2, 1, ss_x, ss_y);
 
-  if (ENABLE_FAST_RECUR_PARTITION && !frame_is_intra_only(cm) &&
+  if (cpi->sf.part_sf.enable_fast_erp && !frame_is_intra_only(cm) &&
       !x->must_find_valid_partition && is_bsize_pruning_cand(bsize)) {
     const SimpleMotionData *up = av1_get_sms_data(
         cpi, &tile_data->tile_info, x, mi_row, mi_col, subblock_sizes[0]);
@@ -4515,7 +4515,7 @@ static INLINE void search_partition_horz_3(PartitionSearchState *search_state,
         (blk_params->mi_col + 2 * (blk_params->mi_step_w) <=
          cm->mi_params.mi_cols) &&
         av1_prune_new_part(&search_state->none_data, &part_data, x->rdmult,
-                           blk_params->bsize)) {
+                           blk_params->bsize, &cpi->sf)) {
       const BLOCK_SIZE midsize = subblock_sizes[1];
       const BLOCK_SIZE subsubsize =
           get_partition_subsize(midsize, PARTITION_VERT);
@@ -4538,7 +4538,7 @@ static INLINE void search_partition_horz_3(PartitionSearchState *search_state,
       subpart_data.num_sub_parts = 4;
       subpart_data.part_rate = 0;
       if (av1_prune_new_part(&search_state->none_data, &subpart_data, x->rdmult,
-                             bsize)) {
+                             bsize, &cpi->sf)) {
         return;
       }
     }
@@ -4634,7 +4634,7 @@ static INLINE void search_partition_vert_3(PartitionSearchState *search_state,
       mi_row, mi_col + quarter_step * 3, subblock_sizes[2], pc_tree,
       PARTITION_VERT_3, 2, 1, ss_x, ss_y);
 
-  if (ENABLE_FAST_RECUR_PARTITION && !frame_is_intra_only(cm) &&
+  if (cpi->sf.part_sf.enable_fast_erp && !frame_is_intra_only(cm) &&
       !x->must_find_valid_partition && is_bsize_pruning_cand(bsize)) {
     const SimpleMotionData *left = av1_get_sms_data(
         cpi, &tile_data->tile_info, x, mi_row, mi_col, subblock_sizes[0]);
@@ -4658,7 +4658,7 @@ static INLINE void search_partition_vert_3(PartitionSearchState *search_state,
         (blk_params->mi_col + 2 * blk_params->mi_step_w <=
          cm->mi_params.mi_cols) &&
         av1_prune_new_part(&search_state->none_data, &part_data, x->rdmult,
-                           blk_params->bsize)) {
+                           blk_params->bsize, &cpi->sf)) {
       const BLOCK_SIZE midsize = subblock_sizes[1];
       const BLOCK_SIZE subsubsize =
           get_partition_subsize(midsize, PARTITION_HORZ);
@@ -4681,7 +4681,7 @@ static INLINE void search_partition_vert_3(PartitionSearchState *search_state,
       subpart_data.num_sub_parts = 4;
       subpart_data.part_rate = 0;
       if (av1_prune_new_part(&search_state->none_data, &subpart_data, x->rdmult,
-                             bsize)) {
+                             bsize, &cpi->sf)) {
         return;
       }
     }
@@ -4924,7 +4924,7 @@ BEGIN_PARTITION_SEARCH:
 
   // PARTITION_NONE search stage.
 #if CONFIG_EXT_RECUR_PARTITIONS
-  if (ENABLE_FAST_RECUR_PARTITION && !frame_is_intra_only(cm)) {
+  if (cpi->sf.part_sf.enable_fast_erp && !frame_is_intra_only(cm)) {
     const SimpleMotionData *whole =
         av1_get_sms_data(cpi, tile_info, x, mi_row, mi_col, bsize);
     part_search_state.none_data.sms_data[0] = whole;

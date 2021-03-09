@@ -299,6 +299,25 @@ enum {
 } UENUM1BYTE(SUPERRES_AUTO_SEARCH_TYPE);
 
 /*!\endcond */
+#if CONFIG_EXT_RECUR_PARTITIONS
+/*! \brief Used with \ref MACROBLOCK::reuse_inter_mode_cache_type to determine
+ * whether partition mode is reused. */
+#define REUSE_PARTITION_MODE_FLAG (1 << 0)
+
+/*! \brief Used with \ref MACROBLOCK::reuse_inter_mode_cache_type to determine
+ * whether the intra prediction_mode is reused. */
+#define REUSE_INTRA_MODE_IN_INTERFRAME_FLAG (1 << 1)
+
+/*! \brief Used with \ref MACROBLOCK::reuse_inter_mode_cache_type to determine
+ * whether the inter prediction_mode and ref frame are reused. */
+#define REUSE_INTER_MODE_IN_INTERFRAME_FLAG (1 << 2)
+
+/*! \brief Used with \ref MACROBLOCK::reuse_inter_mode_cache_type to signal
+ * reuse of inter and intra prediction_modes, as well as ref frame. */
+#define REUSE_INTERFRAME_FLAG \
+  (REUSE_INTRA_MODE_IN_INTERFRAME_FLAG | REUSE_INTER_MODE_IN_INTERFRAME_FLAG)
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+
 /*!
  * \brief Sequence/frame level speed vs quality features
  */
@@ -497,6 +516,10 @@ typedef struct PARTITION_SPEED_FEATURES {
   // Terminate partition search for child partition,
   // when NONE and SPLIT partition rd_costs are INT64_MAX.
   int early_term_after_none_split;
+
+#if CONFIG_EXT_RECUR_PARTITIONS
+  int enable_fast_erp;
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 } PARTITION_SPEED_FEATURES;
 
 typedef struct MV_SPEED_FEATURES {
@@ -746,6 +769,10 @@ typedef struct INTER_MODE_SPEED_FEATURES {
 
   // Enable/disable masked compound.
   int disable_masked_comp;
+
+#if CONFIG_EXT_RECUR_PARTITIONS
+  int reuse_erp_mode_flag;
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 } INTER_MODE_SPEED_FEATURES;
 
 typedef struct INTERP_FILTER_SPEED_FEATURES {

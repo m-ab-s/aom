@@ -235,7 +235,7 @@ static INLINE void av1_init_sms_partition_stats(SMSPartitionStats *stats) {
 // partition, 0 otherwise.
 int av1_prune_new_part(const SMSPartitionStats *old_part,
                        const SMSPartitionStats *new_part, int rdmult,
-                       BLOCK_SIZE bsize);
+                       BLOCK_SIZE bsize, const SPEED_FEATURES *sf);
 
 void av1_cache_best_partition(SimpleMotionDataBufs *sms_bufs, int mi_row,
                               int mi_col, BLOCK_SIZE bsize, BLOCK_SIZE sb_size,
