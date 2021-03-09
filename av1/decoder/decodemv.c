@@ -1417,9 +1417,7 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
         mbmi->mode = read_inter_mode(ec_ctx, r, mode_ctx);
       // TODO(chiyotsai@google.com): Remove the following line
       av1_set_default_mbmi_mv_precision(mbmi, sbi);
-      if (mbmi->mode == NEWMV || mbmi->mode == NEW_NEWMV ||
-          have_nearmv_in_inter_mode(mbmi->mode))
-        read_drl_idx(ec_ctx, dcb, mbmi, r);
+      if (have_drl_index(mbmi->mode)) read_drl_idx(ec_ctx, dcb, mbmi, r);
     }
   }
   av1_set_default_mbmi_mv_precision(mbmi, sbi);
