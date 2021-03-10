@@ -70,6 +70,10 @@ void av1_init_inter_params(InterPredParams *inter_pred_params, int block_width,
 ) {
   inter_pred_params->block_width = block_width;
   inter_pred_params->block_height = block_height;
+#if CONFIG_OPTFLOW_REFINEMENT
+  inter_pred_params->orig_width = block_width;
+  inter_pred_params->orig_height = block_height;
+#endif  // CONFIG_OPTFLOW_REFINEMENT
   inter_pred_params->pix_row = pix_row;
   inter_pred_params->pix_col = pix_col;
   inter_pred_params->subsampling_x = subsampling_x;
@@ -990,12 +994,78 @@ void av1_opfl_mv_refinement_highbd(const uint16_t *p0, int pstride0,
   *vy1 = (int)DIVIDE_AND_ROUND_SIGNED(ty1, d0);
 }
 
+// Macros for optical flow experiment where offsets are added in nXn blocks
+// rather than adding a single offset to the entire prediction unit.
+#define USE_OF_NXN 1
+#if USE_OF_NXN
+#define OF_MIN_BSIZE_LOG2 2
+#define OF_BSIZE_LOG2 3
+// Block size to use to divide up the prediction unit
+#define OF_MIN_BSIZE (1 << OF_MIN_BSIZE_LOG2)
+#define OF_BSIZE (1 << OF_BSIZE_LOG2)
+#define N_OF_OFFSETS_1D (1 << (MAX_SB_SIZE_LOG2 - OF_BSIZE_LOG2))
+// Maximum number of offsets to be computed
+#define N_OF_OFFSETS (N_OF_OFFSETS_1D * N_OF_OFFSETS_1D)
+#else
 #define N_OF_OFFSETS 1
+#endif  // USE_OF_NXN
+
+#if USE_OF_NXN
+// Function to compute optical flow offsets in nxn blocks
+int opfl_mv_refinement_nxn_highbd(const uint16_t *p0, int pstride0,
+                                  const uint16_t *p1, int pstride1,
+                                  const int16_t *gx0, const int16_t *gy0,
+                                  const int16_t *gx1, const int16_t *gy1,
+                                  int gstride, int bw, int bh, int n, int d0,
+                                  int d1, int grad_prec_bits, int mv_prec_bits,
+                                  int *vx0, int *vy0, int *vx1, int *vy1) {
+  assert(bw % n == 0 && bh % n == 0);
+  int n_blocks = 0;
+  for (int i = 0; i < bh; i += n) {
+    for (int j = 0; j < bw; j += n) {
+      av1_opfl_mv_refinement_highbd(
+          p0 + (i * pstride0 + j), pstride0, p1 + (i * pstride1 + j), pstride1,
+          gx0 + (i * gstride + j), gy0 + (i * gstride + j),
+          gx1 + (i * gstride + j), gy1 + (i * gstride + j), gstride, n, n, d0,
+          d1, grad_prec_bits, mv_prec_bits, vx0 + n_blocks, vy0 + n_blocks,
+          vx1 + n_blocks, vy1 + n_blocks);
+      n_blocks++;
+    }
+  }
+  return n_blocks;
+}
+
+// Function to compute optical flow offsets in nxn blocks
+int opfl_mv_refinement_nxn_lowbd(const uint8_t *p0, int pstride0,
+                                 const uint8_t *p1, int pstride1,
+                                 const int16_t *gx0, const int16_t *gy0,
+                                 const int16_t *gx1, const int16_t *gy1,
+                                 int gstride, int bw, int bh, int n, int d0,
+                                 int d1, int grad_prec_bits, int mv_prec_bits,
+                                 int *vx0, int *vy0, int *vx1, int *vy1) {
+  assert(bw % n == 0 && bh % n == 0);
+  int n_blocks = 0;
+  for (int i = 0; i < bh; i += n) {
+    for (int j = 0; j < bw; j += n) {
+      av1_opfl_mv_refinement_lowbd(
+          p0 + (i * pstride0 + j), pstride0, p1 + (i * pstride1 + j), pstride1,
+          gx0 + (i * gstride + j), gy0 + (i * gstride + j),
+          gx1 + (i * gstride + j), gy1 + (i * gstride + j), gstride, n, n, d0,
+          d1, grad_prec_bits, mv_prec_bits, vx0 + n_blocks, vy0 + n_blocks,
+          vx1 + n_blocks, vy1 + n_blocks);
+      n_blocks++;
+    }
+  }
+  return n_blocks;
+}
+#endif  // USE_OF_NXN
 
 static int get_optflow_based_mv_highbd(
     const AV1_COMMON *cm, MACROBLOCKD *xd, int plane, const MB_MODE_INFO *mbmi,
     int_mv *mv_refined, int bw, int bh, int mi_x, int mi_y, uint8_t **mc_buf,
     CalcSubpelParamsFunc calc_subpel_params_func) {
+  // Arrays to hold optical flow offsets. If the experiment USE_OF_NXN is off,
+  // these will only be length 1
   int vx0[N_OF_OFFSETS] = { 0 };
   int vx1[N_OF_OFFSETS] = { 0 };
   int vy0[N_OF_OFFSETS] = { 0 };
@@ -1039,9 +1109,16 @@ static int get_optflow_based_mv_highbd(
       1, dst1, &grad_prec_bits, gx1, gy1);
   if (d1 == 0) goto exit_refinement;
 
+#if USE_OF_NXN
+  int n = (bh <= 16 && bw <= 16) ? OF_MIN_BSIZE : OF_BSIZE;
+  n_blocks = opfl_mv_refinement_nxn_highbd(
+      dst0, bw, dst1, bw, gx0, gy0, gx1, gy1, bw, bw, bh, n, d0, d1,
+      grad_prec_bits, target_prec, vx0, vy0, vx1, vy1);
+#else
   av1_opfl_mv_refinement_highbd(dst0, bw, dst1, bw, gx0, gy0, gx1, gy1, bw, bw,
                                 bh, d0, d1, grad_prec_bits, target_prec, vx0,
                                 vy0, vx1, vy1);
+#endif  // USE_OF_NXN
 
   for (int i = 0; i < n_blocks; i++) {
     mv_refined[i * 2].as_mv.row += vy0[i];
@@ -1062,6 +1139,8 @@ static int get_optflow_based_mv_lowbd(
     const AV1_COMMON *cm, MACROBLOCKD *xd, int plane, const MB_MODE_INFO *mbmi,
     int_mv *mv_refined, int bw, int bh, int mi_x, int mi_y, uint8_t **mc_buf,
     CalcSubpelParamsFunc calc_subpel_params_func) {
+  // Arrays to hold optical flow offsets. If the experiment USE_OF_NXN is off,
+  // these will only be lenght 1
   int vx0[N_OF_OFFSETS] = { 0 };
   int vx1[N_OF_OFFSETS] = { 0 };
   int vy0[N_OF_OFFSETS] = { 0 };
@@ -1105,9 +1184,16 @@ static int get_optflow_based_mv_lowbd(
       1, dst1, &grad_prec_bits, gx1, gy1);
   if (d1 == 0) goto exit_refinement;
 
+#if USE_OF_NXN
+  int n = (bh <= 16 && bw <= 16) ? OF_MIN_BSIZE : OF_BSIZE;
+  n_blocks = opfl_mv_refinement_nxn_lowbd(
+      dst0, bw, dst1, bw, gx0, gy0, gx1, gy1, bw, bw, bh, n, d0, d1,
+      grad_prec_bits, target_prec, vx0, vy0, vx1, vy1);
+#else
   av1_opfl_mv_refinement_lowbd(dst0, bw, dst1, bw, gx0, gy0, gx1, gy1, bw, bw,
                                bh, d0, d1, grad_prec_bits, target_prec, vx0,
                                vy0, vx1, vy1);
+#endif  // USE_OF_NXN
 
   for (int i = 0; i < n_blocks; i++) {
     mv_refined[i * 2].as_mv.row += vy0[i];
@@ -1140,11 +1226,68 @@ int av1_get_optflow_based_mv(const AV1_COMMON *cm, MACROBLOCKD *xd, int plane,
                                     calc_subpel_params_func);
 }
 
+#if USE_OF_NXN
+// Makes the interpredictor for the region by dividing it up into nxn blocks
+// and running the interpredictor code on each one.
+void make_inter_pred_of_nxn(uint8_t *dst, int dst_stride,
+                            int_mv *const mv_refined,
+                            InterPredParams *inter_pred_params, MACROBLOCKD *xd,
+                            int mi_x, int mi_y, int ref, uint8_t **mc_buf,
+                            CalcSubpelParamsFunc calc_subpel_params_func, int n,
+                            SubpelParams *subpel_params) {
+  int n_blocks = 0;
+  int w = inter_pred_params->orig_width;
+  int h = inter_pred_params->orig_height;
+  assert(w % n == 0);
+  assert(h % n == 0);
+  CONV_BUF_TYPE *orig_conv_dst = inter_pred_params->conv_params.dst;
+  inter_pred_params->block_width = n;
+  inter_pred_params->block_height = n;
+
+  uint8_t *pre;
+  int src_stride = 0;
+
+  // Process whole nxn blocks.
+  for (int j = 0; j <= h - n; j += n) {
+    for (int i = 0; i <= w - n; i += n) {
+      calc_subpel_params_func(&(mv_refined[n_blocks * 2 + ref].as_mv),
+                              inter_pred_params, xd, mi_x + i, mi_y + j, ref, 1,
+                              mc_buf, &pre, subpel_params, &src_stride);
+      av1_make_inter_predictor(pre, src_stride, dst, dst_stride,
+                               inter_pred_params, subpel_params);
+      n_blocks++;
+      dst += n;
+      inter_pred_params->conv_params.dst += n;
+      inter_pred_params->pix_col += n;
+    }
+    dst -= w;
+    inter_pred_params->conv_params.dst -= w;
+    inter_pred_params->pix_col -= w;
+
+    dst += n * dst_stride;
+    inter_pred_params->conv_params.dst +=
+        n * inter_pred_params->conv_params.dst_stride;
+    inter_pred_params->pix_row += n;
+  }
+
+  inter_pred_params->conv_params.dst = orig_conv_dst;
+}
+#endif  // USE_OF_NXN
+
 void av1_build_optflow_inter_predictor(
     uint8_t *dst, int dst_stride, int_mv *const mv_refined,
     InterPredParams *inter_pred_params, MACROBLOCKD *xd, int mi_x, int mi_y,
     int ref, uint8_t **mc_buf, CalcSubpelParamsFunc calc_subpel_params_func) {
   SubpelParams subpel_params;
+#if USE_OF_NXN
+  int n = (inter_pred_params->block_height <= 16 &&
+           inter_pred_params->block_width <= 16)
+              ? OF_MIN_BSIZE
+              : OF_BSIZE;
+  make_inter_pred_of_nxn(dst, dst_stride, mv_refined, inter_pred_params, xd,
+                         mi_x, mi_y, ref, mc_buf, calc_subpel_params_func, n,
+                         &subpel_params);
+#else
   uint8_t *src;
   int src_stride;
   calc_subpel_params_func(&(mv_refined[ref].as_mv), inter_pred_params, xd, mi_x,
@@ -1152,6 +1295,7 @@ void av1_build_optflow_inter_predictor(
                           &src_stride);
   av1_make_inter_predictor(src, src_stride, dst, dst_stride, inter_pred_params,
                            &subpel_params);
+#endif  // USE_OF_NXN
 }
 #endif  // CONFIG_OPTFLOW_REFINEMENT
 

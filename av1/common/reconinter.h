@@ -110,6 +110,13 @@ typedef struct InterPredParams {
   const InterpFilterParams *interp_filter_params[2];
   int block_width;
   int block_height;
+#if CONFIG_OPTFLOW_REFINEMENT
+  // In optical flow refinement, block_width and block_height will pass the
+  // subblock size into av1_make_inter_predictor, while orig_w and orig_h
+  // keep the original block size that is needed by calc_subpel_params_func
+  int orig_width;
+  int orig_height;
+#endif  // CONFIG_OPTFLOW_REFINEMENT
   int pix_row;
   int pix_col;
   struct buf_2d ref_frame_buf;

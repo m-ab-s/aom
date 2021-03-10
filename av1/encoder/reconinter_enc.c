@@ -92,8 +92,15 @@ static void enc_calc_subpel_params(const MV *const src_mv,
   } else {
     int pos_x = inter_pred_params->pix_col << SUBPEL_BITS;
     int pos_y = inter_pred_params->pix_row << SUBPEL_BITS;
+#if CONFIG_OPTFLOW_REFINEMENT
+    const int bw = use_optflow_refinement ? inter_pred_params->orig_width
+                                          : inter_pred_params->block_width;
+    const int bh = use_optflow_refinement ? inter_pred_params->orig_height
+                                          : inter_pred_params->block_height;
+#else
     const int bw = inter_pred_params->block_width;
     const int bh = inter_pred_params->block_height;
+#endif  // CONFIG_OPTFLOW_REFINEMENT
     const MV mv_q4 = clamp_mv_to_umv_border_sb(
         xd, src_mv, bw, bh,
 #if CONFIG_OPTFLOW_REFINEMENT

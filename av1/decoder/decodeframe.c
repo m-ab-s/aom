@@ -593,8 +593,16 @@ static void dec_calc_subpel_params(
     MV32 *scaled_mv, int *subpel_x_mv, int *subpel_y_mv) {
   const struct scale_factors *sf = inter_pred_params->scale_factors;
   struct buf_2d *pre_buf = &inter_pred_params->ref_frame_buf;
+#if CONFIG_OPTFLOW_REFINEMENT
+  // Use original block size to clamp MV and to extend block boundary
+  const int bw = use_optflow_refinement ? inter_pred_params->orig_width
+                                        : inter_pred_params->block_width;
+  const int bh = use_optflow_refinement ? inter_pred_params->orig_height
+                                        : inter_pred_params->block_height;
+#else
   const int bw = inter_pred_params->block_width;
   const int bh = inter_pred_params->block_height;
+#endif  // CONFIG_OPTFLOW_REFINEMENT
   const int is_scaled = av1_is_scaled(sf);
   if (is_scaled) {
     int ssx = inter_pred_params->subsampling_x;
