@@ -3272,8 +3272,11 @@ static void rectangular_partition_search(
     av1_init_rd_stats(sum_rdc);
 #if CONFIG_EXT_RECUR_PARTITIONS
     RD_STATS this_rdc;
-    if (i == HORZ && IMPLIES(should_reuse_mode(x, REUSE_PARTITION_MODE_FLAG),
-                             !PRUNE_WITH_PREV_PARTITION(PARTITION_HORZ))) {
+    if (i == HORZ) {
+      if (!IMPLIES(should_reuse_mode(x, REUSE_PARTITION_MODE_FLAG),
+                   !PRUNE_WITH_PREV_PARTITION(PARTITION_HORZ))) {
+        return;
+      }
       pc_tree->horizontal[0] = av1_alloc_pc_tree_node(
           blk_params.mi_row, blk_params.mi_col, blk_params.subsize, pc_tree,
           PARTITION_HORZ, 0, 0, ss_x, ss_y);
@@ -3377,9 +3380,11 @@ static void rectangular_partition_search(
         sum_rdc->dist += this_rdc.dist;
         av1_rd_cost_update(x->rdmult, sum_rdc);
       }
-    } else if (i == VERT &&
-               IMPLIES(should_reuse_mode(x, REUSE_PARTITION_MODE_FLAG),
-                       !PRUNE_WITH_PREV_PARTITION(PARTITION_VERT))) {
+    } else if (i == VERT) {
+      if (!IMPLIES(should_reuse_mode(x, REUSE_PARTITION_MODE_FLAG),
+                   !PRUNE_WITH_PREV_PARTITION(PARTITION_VERT))) {
+        return;
+      }
       pc_tree->vertical[0] = av1_alloc_pc_tree_node(
           blk_params.mi_row, blk_params.mi_col, blk_params.subsize, pc_tree,
           PARTITION_VERT, 0, 0, ss_x, ss_y);
@@ -4177,7 +4182,9 @@ static void none_partition_search(
                 bsize, pc_tree->none, best_remain_rdcost, PICK_MODE_RD);
 #if CONFIG_EXT_RECUR_PARTITIONS
   x->inter_mode_cache = NULL;
-  if (this_rdc->rate != INT_MAX) {
+  if (this_rdc->rate != INT_MAX &&
+      should_reuse_mode(x, REUSE_INTER_MODE_IN_INTERFRAME_FLAG |
+                               REUSE_INTRA_MODE_IN_INTERFRAME_FLAG)) {
     av1_add_mode_search_context_to_cache(sms_data, pc_tree->none);
   }
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
@@ -4408,7 +4415,9 @@ static int rd_try_subblock_new(AV1_COMP *const cpi, ThreadData *td,
                   PICK_MODE_RD);
 
     x->inter_mode_cache = NULL;
-    if (this_rdc.rate != INT_MAX) {
+    if (this_rdc.rate != INT_MAX &&
+        should_reuse_mode(x, REUSE_INTER_MODE_IN_INTERFRAME_FLAG |
+                                 REUSE_INTRA_MODE_IN_INTERFRAME_FLAG)) {
       av1_add_mode_search_context_to_cache(sms_data, rdo_data->ctx);
     }
   }

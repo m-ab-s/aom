@@ -212,7 +212,9 @@ static AOM_INLINE void av1_add_mode_search_context_to_cache(
 
 static INLINE void av1_set_best_mode_cache(MACROBLOCK *x,
                                            PICK_MODE_CONTEXT *mode_cache[1]) {
-  if (mode_cache[0] && mode_cache[0]->rd_stats.rate != INT_MAX) {
+  if (should_reuse_mode(x, REUSE_INTER_MODE_IN_INTERFRAME_FLAG |
+                               REUSE_INTRA_MODE_IN_INTERFRAME_FLAG) &&
+      mode_cache[0] && mode_cache[0]->rd_stats.rate != INT_MAX) {
     x->inter_mode_cache = &mode_cache[0]->mic;
   } else {
     x->inter_mode_cache = NULL;
