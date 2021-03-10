@@ -156,6 +156,7 @@ typedef struct {
   int do_square_split;
 #endif  // !CONFIG_EXT_RECUR_PARTITIONS
   int prune_rect_part[NUM_RECT_PARTS];
+  int is_block_splittable;
 
   // Chroma subsampling in x and y directions.
   int ss_x;

@@ -400,7 +400,6 @@ static AOM_INLINE void decode_mbmi_block(AV1Decoder *const pbi,
                                          BLOCK_SIZE bsize,
                                          PARTITION_TREE *parent, int index) {
   AV1_COMMON *const cm = &pbi->common;
-  const SequenceHeader *const seq_params = &cm->seq_params;
   const int bw = mi_size_wide[bsize];
   const int bh = mi_size_high[bsize];
   const int x_mis = AOMMIN(bw, cm->mi_params.mi_cols - mi_col);
@@ -414,14 +413,16 @@ static AOM_INLINE void decode_mbmi_block(AV1Decoder *const pbi,
               index);
   xd->mi[0]->partition = partition;
   av1_read_mode_info(pbi, dcb, r, x_mis, y_mis);
-  if (bsize >= BLOCK_8X8 &&
-      (seq_params->subsampling_x || seq_params->subsampling_y)) {
-    const BLOCK_SIZE uv_subsize =
-        ss_size_lookup[bsize][seq_params->subsampling_x]
-                      [seq_params->subsampling_y];
-    if (uv_subsize == BLOCK_INVALID)
-      aom_internal_error(xd->error_info, AOM_CODEC_CORRUPT_FRAME,
-                         "Invalid block size.");
+
+  const struct macroblockd_plane *const pd_u = &xd->plane[1];
+  const BLOCK_SIZE chroma_bsize_base = xd->mi[0]->chroma_ref_info.bsize_base;
+  assert(chroma_bsize_base < BLOCK_SIZES_ALL);
+  if (get_plane_block_size(chroma_bsize_base, pd_u->subsampling_x,
+                           pd_u->subsampling_y) == BLOCK_INVALID) {
+    aom_internal_error(xd->error_info, AOM_CODEC_CORRUPT_FRAME,
+                       "Block size %dx%d invalid with this subsampling mode",
+                       block_size_wide[chroma_bsize_base],
+                       block_size_high[chroma_bsize_base]);
   }
 }
 
@@ -1632,9 +1633,10 @@ static AOM_INLINE void decode_partition(AV1Decoder *const pbi,
       }
     }
 
-    partition = (bsize < BLOCK_8X8) ? PARTITION_NONE
-                                    : read_partition(xd, mi_row, mi_col, reader,
-                                                     has_rows, has_cols, bsize);
+    partition = !is_partition_point(bsize)
+                    ? PARTITION_NONE
+                    : read_partition(xd, mi_row, mi_col, reader, has_rows,
+                                     has_cols, bsize);
     ptree->partition = partition;
     ptree->bsize = bsize;
     ptree->mi_row = mi_row;

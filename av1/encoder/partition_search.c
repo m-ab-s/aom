@@ -2970,6 +2970,7 @@ static void init_partition_search_state_params(
       part_search_state->ss_y, pc_tree);
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 
+  part_search_state->is_block_splittable = is_partition_point(bsize);
   part_search_state->partition_none_allowed =
       blk_params->has_rows && blk_params->has_cols;
   part_search_state->partition_rect_allowed[HORZ] =
@@ -3978,7 +3979,7 @@ static void set_none_partition_params(const AV1_COMMON *const cm,
 
   // Set PARTITION_NONE type cost.
   if (part_search_state->partition_none_allowed) {
-    if (blk_params.bsize_at_least_8x8) {
+    if (part_search_state->is_block_splittable) {
       *pt_cost = part_search_state->partition_cost[PARTITION_NONE] < INT_MAX
                      ? part_search_state->partition_cost[PARTITION_NONE]
                      : 0;
@@ -4211,7 +4212,7 @@ static void none_partition_search(
     }
 
     // Calculate the total cost and update the best partition.
-    if (blk_params.bsize_at_least_8x8) {
+    if (part_search_state->is_block_splittable) {
       this_rdc->rate += pt_cost;
       this_rdc->rdcost = RDCOST(x->rdmult, this_rdc->rate, this_rdc->dist);
     }
@@ -4568,7 +4569,6 @@ static INLINE void search_partition_horz_3(PartitionSearchState *search_state,
                                    PARTITION_HORZ_3,
                                    i == 2,
                                    1 };
-
     if (!rd_try_subblock_new(cpi, td, tile_data, tp, &rdo_data, *best_rdc,
                              &sum_rdc, multi_pass_mode)) {
       av1_invalid_rd_stats(&sum_rdc);
@@ -4711,7 +4711,6 @@ static INLINE void search_partition_vert_3(PartitionSearchState *search_state,
                                    PARTITION_VERT_3,
                                    i == 2,
                                    1 };
-
     if (!rd_try_subblock_new(cpi, td, tile_data, tp, &rdo_data, *best_rdc,
                              &sum_rdc, multi_pass_mode)) {
       av1_invalid_rd_stats(&sum_rdc);

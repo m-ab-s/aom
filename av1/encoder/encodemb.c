@@ -852,7 +852,9 @@ void av1_encode_intra_block_plane(const struct AV1_COMP *cpi, MACROBLOCK *x,
   ENTROPY_CONTEXT tl[MAX_MIB_SIZE] = { 0 };
   struct encode_b_args arg = { cpi, x,  NULL,    &(xd->mi[0]->skip_txfm),
                                ta,  tl, dry_run, enable_optimize_b };
-  const BLOCK_SIZE plane_bsize = get_plane_block_size(bsize, ss_x, ss_y);
+  const BLOCK_SIZE bsize_base =
+      plane ? xd->mi[0]->chroma_ref_info.bsize_base : bsize;
+  const BLOCK_SIZE plane_bsize = get_plane_block_size(bsize_base, ss_x, ss_y);
   if (enable_optimize_b) {
     av1_get_entropy_contexts(plane_bsize, pd, ta, tl);
   }

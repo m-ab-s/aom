@@ -161,7 +161,6 @@ PC_TREE *av1_alloc_pc_tree_node(int mi_row, int mi_col, BLOCK_SIZE bsize,
   pc_tree->index = index;
   pc_tree->partitioning = PARTITION_NONE;
   pc_tree->block_size = bsize;
-  pc_tree->index = 0;
   pc_tree->is_last_subblock = is_last;
   av1_invalid_rd_stats(&pc_tree->rd_cost);
   set_chroma_ref_info(mi_row, mi_col, index, bsize, &pc_tree->chroma_ref_info,
