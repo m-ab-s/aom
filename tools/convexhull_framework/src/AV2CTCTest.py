@@ -20,7 +20,8 @@ from Utils import GetShortContentName, CreateNewSubfolder, SetupLogging, \
      GetRDResultCsvFile, GatherPerframeStat, GatherInstrCycleInfo
 import Utils
 from Config import LogLevels, FrameNum, TEST_CONFIGURATIONS, QPs, WorkPath, \
-     Path_RDResults, LoggerName, QualityList, MIN_GOP_LENGTH, UsePerfUtil
+     Path_RDResults, LoggerName, QualityList, MIN_GOP_LENGTH, UsePerfUtil, \
+     EnableTimingInfo
 from EncDecUpscale import Encode, Decode
 
 ###############################################################################
@@ -59,7 +60,7 @@ def CleanUp_workfolders():
     for folder in folders:
         Cleanfolder(folder)
 
-def Run_Encode_Test(test_cfg, clip, preset, LogCmdOnly = False):
+def Run_Encode_Test(test_cfg, clip, method, preset, LogCmdOnly = False):
     Utils.Logger.info("start running %s encode tests with %s"
                       % (test_cfg, clip.file_name))
     for QP in QPs[test_cfg]:
@@ -67,12 +68,12 @@ def Run_Encode_Test(test_cfg, clip, preset, LogCmdOnly = False):
         #encode
         if LogCmdOnly:
             Utils.CmdLogger.write("============== Job Start =================\n")
-        bsFile = Encode('aom', 'av1', preset, clip, test_cfg, QP,
+        bsFile = Encode(method, 'av1', preset, clip, test_cfg, QP,
                         FrameNum[test_cfg], Path_Bitstreams, Path_TimingLog,
                         Path_EncLog, LogCmdOnly)
         Utils.Logger.info("start decode file %s" % os.path.basename(bsFile))
         #decode
-        decodedYUV = Decode(test_cfg, 'av1', bsFile, Path_DecodedYuv, Path_TimingLog,
+        decodedYUV = Decode(method, test_cfg, 'av1', bsFile, Path_DecodedYuv, Path_TimingLog,
                             False, LogCmdOnly)
         #calcualte quality distortion
         Utils.Logger.info("start quality metric calculation")
@@ -155,9 +156,11 @@ def GenerateSummaryRDDataFile(EncodeMethod, CodecName, EncodePreset,
             if UsePerfUtil:
                 enc_instr, enc_cycles, dec_instr, dec_cycles = GatherInstrCycleInfo(bs, Path_TimingLog)
                 csv.write(",%s,%s,%s,%s,\n" % (enc_instr, enc_cycles, dec_instr, dec_cycles))
-            else:
+            elif EnableTimingInfo:
                 enc_time, dec_time = GatherPerfInfo(bs, Path_TimingLog)
                 csv.write(",%.2f,%.2f,\n"%(enc_time,dec_time))
+            else:
+                csv.write(",,,\n")
 
             if (EncodeMethod == 'aom'):
                 enc_log = GetEncLogFile(bs, log_path)
@@ -191,24 +194,27 @@ def ParseArguments(raw_args):
                              " 3: Warning, 4: Info, 5: Debug")
     parser.add_argument('-p', "--EncodePreset", dest='EncodePreset', type=str,
                         metavar='', help="EncodePreset: 0,1,2... for aom")
+    parser.add_argument('-m', "--EncodeMethod", dest='EncodeMethod', type=str,
+                        metavar='', help="EncodeMethod: aom, svt for av1")
     if len(raw_args) == 1:
         parser.print_help()
         sys.exit(1)
     args = parser.parse_args(raw_args[1:])
 
-    global Function, SaveMemory, LogLevel, EncodePreset, LogCmdOnly
+    global Function, SaveMemory, LogLevel, EncodePreset, EncodeMethod, LogCmdOnly
     Function = args.Function
     SaveMemory = args.SaveMemory
     LogLevel = args.LogLevel
     EncodePreset = args.EncodePreset
+    EncodeMethod = args.EncodeMethod
     LogCmdOnly = args.LogCmdOnly
 
 ######################################
 # main
 ######################################
 if __name__ == "__main__":
-    #sys.argv = ["", "-f", "encode", "-p","1"]
-    #sys.argv = ["", "-f", "summary", "-p","1"]
+    #sys.argv = ["", "-f", "encode", "-m", "aom", "-p", "6"]
+    #sys.argv = ["", "-f", "summary", "-m", "aom", "-p", "6"]
     ParseArguments(sys.argv)
 
     # preparation for executing functions
@@ -223,11 +229,11 @@ if __name__ == "__main__":
         for test_cfg in TEST_CONFIGURATIONS:
             clip_list = CreateClipList(test_cfg)
             for clip in clip_list:
-                Run_Encode_Test(test_cfg, clip, EncodePreset, LogCmdOnly)
+                Run_Encode_Test(test_cfg, clip, EncodeMethod, EncodePreset, LogCmdOnly)
     elif Function == 'summary':
         for test_cfg in TEST_CONFIGURATIONS:
             clip_list = CreateClipList(test_cfg)
-            GenerateSummaryRDDataFile('aom', 'av1', EncodePreset,
+            GenerateSummaryRDDataFile(EncodeMethod, 'av1', EncodePreset,
                                       test_cfg, clip_list, Path_EncLog)
         Utils.Logger.info("RD data summary file generated")
     else:

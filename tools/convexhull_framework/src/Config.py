@@ -57,6 +57,7 @@ SUFFIX = {"av1": ".obu"}
 FFMPEG = os.path.join(BinPath, 'ffmpeg.exe')
 AOMENC = os.path.join(BinPath, 'aomenc.exe')
 SVTAV1 = os.path.join(BinPath, 'SvtAv1EncApp.exe')
+AV1DEC = os.path.join(BinPath, 'av1dec.exe')
 AOMDEC = os.path.join(BinPath, 'aomdec.exe')
 QPs = {
     "LD" : [23, 31, 39, 47, 55, 63],
