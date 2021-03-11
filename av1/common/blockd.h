@@ -39,15 +39,6 @@ extern "C" {
 
 #define INTERINTRA_WEDGE_SIGN 0
 
-#if CONFIG_EXT_ROTATION
-// actual range is from [-ROTATION_RANGE, ROTATION_RANGE]
-// this is also used as the offset to keep rotation value unsigned
-#define ROTATION_RANGE 10
-
-#define ROTATION_STEP 2
-#define ROTATION_BITS 4
-#endif  // CONFIG_EXT_ROTATION
-
 /*!\cond */
 
 // DIFFWTD_MASK_TYPES should not surpass 1 << MAX_DIFFWTD_MASK_BITS
@@ -297,11 +288,9 @@ typedef struct MB_MODE_INFO {
 #endif  // CONFIG_NEW_TX_PARTITION
   MOTION_MODE motion_mode;
 #if CONFIG_EXT_ROTATION
-  // the degree of rotation is within range +/- 12.6 degree
-  // with an interval of 0.2 degree
-  int8_t rotation;
-  // flag to indicate whether rotation is used
+  // whether rotation is used
   int8_t rot_flag;
+  int8_t rotation;
 #endif  // CONFIG_EXT_ROTATION
   PARTITION_TYPE partition;
   MV_REFERENCE_FRAME ref_frame[2];

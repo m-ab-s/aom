@@ -122,6 +122,7 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
   RESET_CDF_COUNTER(fc->motion_mode_cdf, MOTION_MODES);
 #if CONFIG_EXT_ROTATION
   RESET_CDF_COUNTER(fc->warp_rotation_cdf, 2);
+  RESET_CDF_COUNTER(fc->rotation_degree_cdf, ROTATION_COUNT);
 #endif  // CONFIG_EXT_ROTATION
   RESET_CDF_COUNTER(fc->obmc_cdf, 2);
   RESET_CDF_COUNTER(fc->palette_y_size_cdf, PALETTE_SIZES);

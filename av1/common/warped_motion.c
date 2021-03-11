@@ -1096,7 +1096,7 @@ int av1_find_projection(int np, const int *pts1, const int *pts2,
 void av1_warp_rotation(MB_MODE_INFO *mi, int8_t rotation, int center_x,
                        int center_y) {
   const int sine_index =
-      (rotation < 0) ? (int)(-rotation / 0.2) : (int)(rotation / 0.2);
+      (rotation < 0) ? (int)(-rotation / 2) : (int)(rotation / 2);
   const int sine_val =
       (rotation < 0) ? -sine_values[sine_index] : sine_values[sine_index];
   const int cosine_val = cosine_values[sine_index];
@@ -1135,7 +1135,7 @@ void av1_warp_rotation(MB_MODE_INFO *mi, int8_t rotation, int center_x,
                  ((1 << SINE_PRECISION_BITS) - cosine_val)),
             SINE_PRECISION_BITS) +
         matrix[1];
-    mi->wm_params.wmmat[2] = ROUND_POWER_OF_TWO(
+    mi->wm_params.wmmat[2] = ROUND_POWER_OF_TWO_SIGNED(
         (matrix[2] * cosine_val) + (matrix[3] * sine_val), SINE_PRECISION_BITS);
     mi->wm_params.wmmat[3] = ROUND_POWER_OF_TWO_SIGNED(
         (-matrix[2] * sine_val) + (matrix[3] * cosine_val),

@@ -1076,6 +1076,8 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
   AVERAGE_CDF(ctx_left->motion_mode_cdf, ctx_tr->motion_mode_cdf, MOTION_MODES);
 #if CONFIG_EXT_ROTATION
   AVERAGE_CDF(ctx_left->warp_rotation_cdf, ctx_tr->warp_rotation_cdf, 2);
+  AVERAGE_CDF(ctx_left->rotation_degree_cdf, ctx_tr->rotation_degree_cdf,
+              ROTATION_COUNT);
 #endif  // CONFIG_EXT_ROTATION
   AVERAGE_CDF(ctx_left->obmc_cdf, ctx_tr->obmc_cdf, 2);
   AVERAGE_CDF(ctx_left->palette_y_size_cdf, ctx_tr->palette_y_size_cdf,

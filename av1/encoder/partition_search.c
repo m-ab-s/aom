@@ -1231,10 +1231,17 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
           update_cdf(fc->motion_mode_cdf[bsize], mbmi->motion_mode,
                      MOTION_MODES);
 #if CONFIG_EXT_ROTATION
+          if (mbmi->motion_mode == WARPED_CAUSAL) {
+            const int rot_ind =
+                (mbmi->rotation + ROTATION_RANGE) / ROTATION_STEP;
 #if CONFIG_ENTROPY_STATS
-          ++counts->warp_rotation_cdf[mbmi->rot_flag];
+            ++counts->warp_rotation[mbmi->rot_flag];
+            if (mbmi->rot_flag) ++counts->rotation_degree[rot_ind];
 #endif
-          update_cdf(fc->warp_rotation_cdf, mbmi->rot_flag, 2);
+            update_cdf(fc->warp_rotation_cdf, mbmi->rot_flag, 2);
+            if (mbmi->rot_flag)
+              update_cdf(fc->rotation_degree_cdf, rot_ind, ROTATION_COUNT);
+          }
 #endif  // CONFIG_EXT_ROTATION
         } else if (motion_allowed == OBMC_CAUSAL) {
 #if CONFIG_ENTROPY_STATS

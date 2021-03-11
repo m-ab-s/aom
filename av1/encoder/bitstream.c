@@ -410,12 +410,11 @@ static AOM_INLINE void write_motion_mode(const AV1_COMMON *cm, MACROBLOCKD *xd,
                        xd->tile_ctx->motion_mode_cdf[mbmi->sb_type],
                        MOTION_MODES);
 #if CONFIG_EXT_ROTATION
-      if (last_motion_mode_allowed == WARPED_CAUSAL) {
+      if (mbmi->motion_mode == WARPED_CAUSAL) {
         aom_write_symbol(w, mbmi->rot_flag, xd->tile_ctx->warp_rotation_cdf, 2);
         if (mbmi->rot_flag) {
-          aom_write_literal(w,
-                            (mbmi->rotation + ROTATION_RANGE) / ROTATION_STEP,
-                            ROTATION_BITS);
+          aom_write_symbol(w, (mbmi->rotation + ROTATION_RANGE) / ROTATION_STEP,
+                           xd->tile_ctx->rotation_degree_cdf, ROTATION_COUNT);
         }
       }
 #endif  // CONFIG_EXT_ROTATION
