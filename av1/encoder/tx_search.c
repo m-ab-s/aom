@@ -1873,7 +1873,6 @@ static int predict_skip_txfm(const AV1_COMMON *cm, MACROBLOCK *x,
   return 1;
 }
 
-#if !CONFIG_NEW_TX_PARTITION
 static float get_dev(float mean, double x2_sum, int num) {
   const float e_x2 = (float)(x2_sum / num);
   const float diff = e_x2 - mean * mean;
@@ -1952,7 +1951,6 @@ static int ml_predict_tx_split(MACROBLOCK *x, BLOCK_SIZE bsize, int blk_row,
   int int_score = (int)(score * 10000);
   return clamp(int_score, -80000, 80000);
 }
-#endif  // !CONFIG_NEW_TX_PARTITION
 
 static INLINE uint16_t
 get_tx_mask(const AV1_COMP *cpi, MACROBLOCK *x, int plane, int block,
@@ -2802,6 +2800,10 @@ static void select_tx_partition_type(
   const TX_SIZE max_tx_size = max_txsize_rect_lookup[plane_bsize];
   const int mi_width = mi_size_wide[plane_bsize];
   const int mi_height = mi_size_high[plane_bsize];
+  const int is_rect = is_rect_tx(max_tx_size);
+  const int txw = tx_size_wide[max_tx_size];
+  const int txh = tx_size_high[max_tx_size];
+  const int is_vert_rect = (txh > txw);
   assert(max_tx_size < TX_SIZES_ALL);
   TX_SIZE sub_txs[MAX_TX_PARTITIONS] = { 0 };
 
@@ -2815,6 +2817,20 @@ static void select_tx_partition_type(
   for (TX_PARTITION_TYPE type = 0; type < TX_PARTITION_TYPES; ++type) {
     // Skip any illegal partitions for this block size
     if (!use_tx_partition(type, max_tx_size)) continue;
+
+    // ML based speed feature to skip searching for split transform blocks.
+    if (x->e_mbd.bd == 8 &&
+        ((!is_rect && type == TX_PARTITION_SPLIT) ||
+         (is_rect && is_vert_rect && type == TX_PARTITION_HORZ) ||
+         (is_rect && !is_vert_rect && type == TX_PARTITION_VERT))) {
+      const int threshold = cpi->sf.tx_sf.tx_type_search.ml_tx_split_thresh;
+      if (threshold >= 0) {
+        const int split_score =
+            ml_predict_tx_split(x, plane_bsize, blk_row, blk_col, max_tx_size);
+        if (split_score < -threshold) continue;
+      }
+    }
+
     RD_STATS partition_rd_stats;
     av1_init_rd_stats(&partition_rd_stats);
     int64_t tmp_rd = 0;
@@ -2830,7 +2846,6 @@ static void select_tx_partition_type(
 
     // Add rate cost of signalling this partition type
     if (max_tx_size > TX_4X4) {
-      const int is_rect = is_rect_tx(max_tx_size);
       partition_rd_stats.rate += inter_tx_partition_cost(
           x, is_rect, type, tx_above + blk_col, tx_left + blk_row,
           mbmi->sb_type, max_tx_size);
