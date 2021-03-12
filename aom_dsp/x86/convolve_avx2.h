@@ -381,11 +381,11 @@ DECLARE_ALIGNED(32, static const uint8_t, filt4_global_avx2[32]) = {
             (__m128i *)((&dst0[i * dst_stride0 + j + dst_stride0])), res_1);   \
       } else {                                                                 \
         const __m128i res_0 = _mm256_castsi256_si128(res_unsigned);            \
-        _mm_store_si128((__m128i *)(&dst[i * dst_stride + j]), res_0);         \
+        _mm_storeu_si128((__m128i *)(&dst[i * dst_stride + j]), res_0);        \
                                                                                \
         const __m128i res_1 = _mm256_extracti128_si256(res_unsigned, 1);       \
-        _mm_store_si128((__m128i *)(&dst[i * dst_stride + j + dst_stride]),    \
-                        res_1);                                                \
+        _mm_storeu_si128((__m128i *)(&dst[i * dst_stride + j + dst_stride]),   \
+                         res_1);                                               \
       }                                                                        \
     } else {                                                                   \
       const __m256i res_16b = _mm256_packs_epi32(res_a_round, res_a_round);    \
@@ -411,11 +411,11 @@ DECLARE_ALIGNED(32, static const uint8_t, filt4_global_avx2[32]) = {
                                                                                \
       } else {                                                                 \
         const __m128i res_0 = _mm256_castsi256_si128(res_unsigned);            \
-        _mm_store_si128((__m128i *)(&dst[i * dst_stride + j]), res_0);         \
+        _mm_storeu_si128((__m128i *)(&dst[i * dst_stride + j]), res_0);        \
                                                                                \
         const __m128i res_1 = _mm256_extracti128_si256(res_unsigned, 1);       \
-        _mm_store_si128((__m128i *)(&dst[i * dst_stride + j + dst_stride]),    \
-                        res_1);                                                \
+        _mm_storeu_si128((__m128i *)(&dst[i * dst_stride + j + dst_stride]),   \
+                         res_1);                                               \
       }                                                                        \
     }                                                                          \
                                                                                \
