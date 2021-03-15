@@ -487,8 +487,7 @@ int64_t av1_rd_pick_intra_sbuv_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
     // this function everytime we search through uv modes. There is some
     // potential speed up here if we cache the result to avoid redundant
     // computation.
-    av1_encode_intra_block_plane(cpi, x, mbmi->sb_type, AOM_PLANE_Y,
-                                 DRY_RUN_NORMAL,
+    av1_encode_intra_block_plane(cpi, x, AOM_PLANE_Y, DRY_RUN_NORMAL,
                                  cpi->optimize_seg_arr[mbmi->segment_id]);
     xd->cfl.store_y = 0;
   }

@@ -244,7 +244,7 @@ typedef struct {
   //! \copydoc MB_MODE_INFO_EXT::mode_context
   int16_t mode_context;
   //! Offset of current coding block's coeff buffer relative to the sb.
-  int cb_offset;
+  uint16_t cb_offset[MAX_MB_PLANE];
 } MB_MODE_INFO_EXT_FRAME;
 
 /*! \brief Txfm search results for a partition
@@ -1013,7 +1013,7 @@ typedef struct macroblock {
    */
   CB_COEFF_BUFFER *cb_coef_buff;
   //! Offset of current coding block's coeff buffer relative to the sb.
-  uint16_t cb_offset;
+  uint16_t cb_offset[MAX_MB_PLANE];
 
   //! Modified source and masks used for fast OBMC search.
   OBMCBuffer obmc_buffer;

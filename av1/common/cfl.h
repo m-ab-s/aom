@@ -25,7 +25,8 @@ static INLINE CFL_ALLOWED_TYPE is_cfl_allowed(const MACROBLOCKD *xd) {
     // transform size.
     const int ssx = xd->plane[AOM_PLANE_U].subsampling_x;
     const int ssy = xd->plane[AOM_PLANE_U].subsampling_y;
-    const int plane_bsize = get_plane_block_size(bsize, ssx, ssy);
+    const int plane_bsize =
+        get_plane_block_size(mbmi->chroma_ref_info.bsize_base, ssx, ssy);
     return (CFL_ALLOWED_TYPE)(plane_bsize == BLOCK_4X4);
   }
   // Spec: CfL is available to luma partitions lesser than or equal to 32x32

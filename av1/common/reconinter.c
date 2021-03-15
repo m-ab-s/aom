@@ -1353,14 +1353,13 @@ static AOM_INLINE void combine_interintra_highbd(
 }
 
 void av1_build_intra_predictors_for_interintra(const AV1_COMMON *cm,
-                                               MACROBLOCKD *xd,
-                                               BLOCK_SIZE bsize, int plane,
+                                               MACROBLOCKD *xd, int plane,
                                                const BUFFER_SET *ctx,
                                                uint8_t *dst, int dst_stride) {
   struct macroblockd_plane *const pd = &xd->plane[plane];
   const int ssx = xd->plane[plane].subsampling_x;
   const int ssy = xd->plane[plane].subsampling_y;
-  BLOCK_SIZE plane_bsize = get_plane_block_size(bsize, ssx, ssy);
+  BLOCK_SIZE plane_bsize = get_mb_plane_block_size(xd->mi[0], plane, ssx, ssy);
   PREDICTION_MODE mode = interintra_to_intra_mode[xd->mi[0]->interintra_mode];
   assert(xd->mi[0]->angle_delta[PLANE_TYPE_Y] == 0);
   assert(xd->mi[0]->angle_delta[PLANE_TYPE_UV] == 0);
@@ -1378,7 +1377,8 @@ void av1_combine_interintra(MACROBLOCKD *xd, BLOCK_SIZE bsize, int plane,
                             const uint8_t *intra_pred, int intra_stride) {
   const int ssx = xd->plane[plane].subsampling_x;
   const int ssy = xd->plane[plane].subsampling_y;
-  const BLOCK_SIZE plane_bsize = get_plane_block_size(bsize, ssx, ssy);
+  const BLOCK_SIZE plane_bsize =
+      get_mb_plane_block_size(xd->mi[0], plane, ssx, ssy);
 
   if (is_cur_buf_hbd(xd)) {
     combine_interintra_highbd(
@@ -1405,13 +1405,12 @@ void av1_build_interintra_predictor(const AV1_COMMON *cm, MACROBLOCKD *xd,
   if (is_cur_buf_hbd(xd)) {
     DECLARE_ALIGNED(16, uint16_t, intrapredictor[MAX_SB_SQUARE]);
     av1_build_intra_predictors_for_interintra(
-        cm, xd, bsize, plane, ctx, CONVERT_TO_BYTEPTR(intrapredictor),
-        MAX_SB_SIZE);
+        cm, xd, plane, ctx, CONVERT_TO_BYTEPTR(intrapredictor), MAX_SB_SIZE);
     av1_combine_interintra(xd, bsize, plane, pred, stride,
                            CONVERT_TO_BYTEPTR(intrapredictor), MAX_SB_SIZE);
   } else {
     DECLARE_ALIGNED(16, uint8_t, intrapredictor[MAX_SB_SQUARE]);
-    av1_build_intra_predictors_for_interintra(cm, xd, bsize, plane, ctx,
+    av1_build_intra_predictors_for_interintra(cm, xd, plane, ctx,
                                               intrapredictor, MAX_SB_SIZE);
     av1_combine_interintra(xd, bsize, plane, pred, stride, intrapredictor,
                            MAX_SB_SIZE);

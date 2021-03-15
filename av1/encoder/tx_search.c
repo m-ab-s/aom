@@ -792,8 +792,8 @@ static int64_t get_sse(const AV1_COMP *cpi, const MACROBLOCK *x) {
   for (int plane = 0; plane < num_planes; ++plane) {
     const struct macroblock_plane *const p = &x->plane[plane];
     const struct macroblockd_plane *const pd = &xd->plane[plane];
-    const BLOCK_SIZE bs = get_plane_block_size(mbmi->sb_type, pd->subsampling_x,
-                                               pd->subsampling_y);
+    const BLOCK_SIZE bs = get_mb_plane_block_size(
+        mbmi, plane, pd->subsampling_x, pd->subsampling_y);
     unsigned int sse;
 
     if (x->skip_chroma_rd && plane) continue;

@@ -279,8 +279,8 @@ static AOM_INLINE void decode_reconstruct_tx(
   MACROBLOCKD *const xd = &dcb->xd;
   const struct macroblockd_plane *const pd = &xd->plane[plane];
   const TX_SIZE plane_tx_size =
-      plane ? av1_get_max_uv_txsize(mbmi->sb_type, pd->subsampling_x,
-                                    pd->subsampling_y)
+      plane ? av1_get_max_uv_txsize(mbmi->chroma_ref_info.bsize_base,
+                                    pd->subsampling_x, pd->subsampling_y)
             : mbmi->inter_tx_size[av1_get_txb_size_index(plane_bsize, blk_row,
                                                          blk_col)];
   // Scale to match transform block unit.
@@ -996,7 +996,7 @@ static AOM_INLINE void decode_token_recon_block(AV1Decoder *const pbi,
             const int ss_x = pd->subsampling_x;
             const int ss_y = pd->subsampling_y;
             const BLOCK_SIZE plane_bsize =
-                get_plane_block_size(bsize, ss_x, ss_y);
+                get_mb_plane_block_size(mbmi, plane, ss_x, ss_y);
             const TX_SIZE max_tx_size =
                 get_vartx_max_txsize(xd, plane_bsize, plane);
             const int bh_var_tx = tx_size_high_unit[max_tx_size];
@@ -1439,7 +1439,7 @@ static AOM_INLINE void parse_decode_block(AV1Decoder *const pbi,
       }
     }
   }
-  if (mbmi->skip_txfm) av1_reset_entropy_context(xd, bsize, num_planes);
+  if (mbmi->skip_txfm) av1_reset_entropy_context(xd, num_planes);
 
   decode_token_recon_block(pbi, td, r, bsize);
   av1_mark_block_as_coded(xd, bsize, cm->seq_params.sb_size);

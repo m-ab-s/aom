@@ -280,10 +280,11 @@ void av1_build_obmc_inter_predictors_sb(const AV1_COMMON *cm, MACROBLOCKD *xd) {
                                   dst_stride2);
 }
 
-void av1_build_inter_predictors_for_planes_single_buf(
-    MACROBLOCKD *xd, BLOCK_SIZE bsize, int plane_from, int plane_to, int ref,
-    uint8_t *ext_dst[3], int ext_dst_stride[3]) {
-  assert(bsize < BLOCK_SIZES_ALL);
+void av1_build_inter_predictors_for_planes_single_buf(MACROBLOCKD *xd,
+                                                      int plane_from,
+                                                      int plane_to, int ref,
+                                                      uint8_t *ext_dst[3],
+                                                      int ext_dst_stride[3]) {
   const MB_MODE_INFO *mi = xd->mi[0];
   const int mi_row = xd->mi_row;
   const int mi_col = xd->mi_col;
@@ -293,11 +294,12 @@ void av1_build_inter_predictors_for_planes_single_buf(
   const WarpedMotionParams *const wm = &xd->global_motion[mi->ref_frame[ref]];
   warp_types.global_warp_allowed = is_global_mv_block(mi, wm->wmtype);
   warp_types.local_warp_allowed = mi->motion_mode == WARPED_CAUSAL;
+  assert(mi->sb_type < BLOCK_SIZES_ALL);
 
   for (int plane = plane_from; plane <= plane_to; ++plane) {
     const struct macroblockd_plane *pd = &xd->plane[plane];
-    const BLOCK_SIZE plane_bsize =
-        get_plane_block_size(bsize, pd->subsampling_x, pd->subsampling_y);
+    const BLOCK_SIZE plane_bsize = get_mb_plane_block_size(
+        mi, plane, pd->subsampling_x, pd->subsampling_y);
     const int bw = block_size_wide[plane_bsize];
     const int bh = block_size_high[plane_bsize];
 
@@ -401,17 +403,14 @@ static void build_wedge_inter_predictor_from_buf(
   }
 }
 
-void av1_build_wedge_inter_predictor_from_buf(MACROBLOCKD *xd, BLOCK_SIZE bsize,
-                                              int plane_from, int plane_to,
-                                              uint8_t *ext_dst0[3],
-                                              int ext_dst_stride0[3],
-                                              uint8_t *ext_dst1[3],
-                                              int ext_dst_stride1[3]) {
+void av1_build_wedge_inter_predictor_from_buf(
+    MACROBLOCKD *xd, int plane_from, int plane_to, uint8_t *ext_dst0[3],
+    int ext_dst_stride0[3], uint8_t *ext_dst1[3], int ext_dst_stride1[3]) {
   int plane;
-  assert(bsize < BLOCK_SIZES_ALL);
   for (plane = plane_from; plane <= plane_to; ++plane) {
-    const BLOCK_SIZE plane_bsize = get_plane_block_size(
-        bsize, xd->plane[plane].subsampling_x, xd->plane[plane].subsampling_y);
+    const BLOCK_SIZE plane_bsize = get_mb_plane_block_size(
+        xd->mi[0], plane, xd->plane[plane].subsampling_x,
+        xd->plane[plane].subsampling_y);
     const int bw = block_size_wide[plane_bsize];
     const int bh = block_size_high[plane_bsize];
     build_wedge_inter_predictor_from_buf(

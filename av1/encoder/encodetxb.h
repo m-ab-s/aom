@@ -260,12 +260,11 @@ uint8_t av1_get_txb_entropy_context(const tran_low_t *qcoeff,
  * \param[in]    cpi               Top-level encoder structure
  * \param[in]    td                Top-level multithreading structure
  * \param[in]    dry_run           Whether this is a dry run.
- * \param[in]    bsize             Block size of the current macroblock
  * \param[in]    allow_update_cdf  Allowed to update probability model (cdf) or
  * not.
  */
 void av1_update_intra_mb_txb_context(const AV1_COMP *cpi, ThreadData *td,
-                                     RUN_TYPE dry_run, BLOCK_SIZE bsize,
+                                     RUN_TYPE dry_run,
                                      uint8_t allow_update_cdf);
 
 /*!\brief Update the probability model (cdf) and the entropy context related to

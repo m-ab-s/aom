@@ -415,7 +415,7 @@ static void encode_superblock(const AV1_COMP *const cpi, TileDataEnc *tile_data,
     xd->cfl.store_y = store_cfl_required(cm, xd);
     mbmi->skip_txfm = 1;
     for (int plane = 0; plane < num_planes; ++plane) {
-      av1_encode_intra_block_plane(cpi, x, bsize, plane, dry_run,
+      av1_encode_intra_block_plane(cpi, x, plane, dry_run,
                                    cpi->optimize_seg_arr[mbmi->segment_id]);
     }
 
@@ -442,7 +442,7 @@ static void encode_superblock(const AV1_COMP *const cpi, TileDataEnc *tile_data,
       }
     }
 
-    av1_update_intra_mb_txb_context(cpi, td, dry_run, bsize,
+    av1_update_intra_mb_txb_context(cpi, td, dry_run,
                                     tile_data->allow_update_cdf);
   } else {
     int ref;
@@ -484,7 +484,7 @@ static void encode_superblock(const AV1_COMP *const cpi, TileDataEnc *tile_data,
 #endif
 
     av1_encode_sb(cpi, x, dry_run);
-    av1_tokenize_sb_tx_size(cpi, td, dry_run, bsize, rate,
+    av1_tokenize_sb_tx_size(cpi, td, dry_run, rate,
                             tile_data->allow_update_cdf);
   }
 
@@ -1431,8 +1431,8 @@ static void encode_b(const AV1_COMP *const cpi, TileDataEnc *tile_data,
   av1_update_state(cpi, td, ctx, mi_row, mi_col, bsize, dry_run);
 
   if (!dry_run) {
-    x->mbmi_ext_frame->cb_offset = x->cb_offset;
-    assert(x->cb_offset <
+    memcpy(x->mbmi_ext_frame->cb_offset, x->cb_offset, sizeof(x->cb_offset));
+    assert(x->cb_offset[0] <
            (1 << num_pels_log2_lookup[cpi->common.seq_params.sb_size]));
   }
 
@@ -1440,7 +1440,15 @@ static void encode_b(const AV1_COMP *const cpi, TileDataEnc *tile_data,
 
   if (!dry_run) {
     const AV1_COMMON *const cm = &cpi->common;
-    x->cb_offset += block_size_wide[bsize] * block_size_high[bsize];
+    for (int plane = 0; plane < MAX_MB_PLANE; ++plane) {
+      if (plane == 0) {
+        x->cb_offset[plane] += block_size_wide[bsize] * block_size_high[bsize];
+      } else if (xd->is_chroma_ref) {
+        const BLOCK_SIZE bsize_base = mbmi->chroma_ref_info.bsize_base;
+        x->cb_offset[plane] +=
+            block_size_wide[bsize_base] * block_size_high[bsize_base];
+      }
+    }
     if (bsize == cpi->common.seq_params.sb_size && mbmi->skip_txfm == 1 &&
         cm->delta_q_info.delta_lf_present_flag) {
       const int frame_lf_count =
@@ -2196,7 +2204,7 @@ void av1_rd_use_partition(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
       // int rate_coeffs = 0;
       // encode_sb(cpi, td, tile_data, tp, mi_row, mi_col, DRY_RUN_COSTCOEFFS,
       //           bsize, pc_tree, &rate_coeffs);
-      x->cb_offset = 0;
+      memset(x->cb_offset, 0, sizeof(x->cb_offset));
       av1_reset_ptree_in_sbi(xd->sbi);
       encode_sb(cpi, td, tile_data, tp, mi_row, mi_col, OUTPUT_ENABLED, bsize,
                 pc_tree, xd->sbi->ptree_root, NULL);
@@ -2229,13 +2237,21 @@ static void encode_b_nonrd(const AV1_COMP *const cpi, TileDataEnc *tile_data,
   assert(!has_second_ref(mbmi));
   av1_update_state(cpi, td, ctx, mi_row, mi_col, bsize, dry_run);
   if (!dry_run) {
-    x->mbmi_ext_frame->cb_offset = x->cb_offset;
-    assert(x->cb_offset <
+    memcpy(x->mbmi_ext_frame->cb_offset, x->cb_offset, sizeof(x->cb_offset));
+    assert(x->cb_offset[0] <
            (1 << num_pels_log2_lookup[cpi->common.seq_params.sb_size]));
   }
   encode_superblock(cpi, tile_data, td, tp, dry_run, bsize, rate);
   if (!dry_run) {
-    x->cb_offset += block_size_wide[bsize] * block_size_high[bsize];
+    for (int p = 0; p < MAX_MB_PLANE; ++p) {
+      if (p == 0) {
+        x->cb_offset[p] += block_size_wide[bsize] * block_size_high[bsize];
+      } else if (xd->is_chroma_ref) {
+        const BLOCK_SIZE bsize_base = mbmi->chroma_ref_info.bsize_base;
+        x->cb_offset[p] +=
+            block_size_wide[bsize_base] * block_size_high[bsize_base];
+      }
+    }
     if (tile_data->allow_update_cdf) update_stats(&cpi->common, td);
   }
   // TODO(Ravi/Remya): Move this copy function to a better logical place
@@ -5157,7 +5173,7 @@ BEGIN_PARTITION_SEARCH:
       const int emit_output = multi_pass_mode != SB_DRY_PASS;
       const RUN_TYPE run_type = emit_output ? OUTPUT_ENABLED : DRY_RUN_NORMAL;
 
-      x->cb_offset = 0;
+      memset(x->cb_offset, 0, sizeof(x->cb_offset));
       av1_reset_ptree_in_sbi(xd->sbi);
       encode_sb(cpi, td, tile_data, tp, mi_row, mi_col, run_type, bsize,
                 pc_tree, xd->sbi->ptree_root, NULL);

@@ -1564,6 +1564,17 @@ static INLINE BLOCK_SIZE get_plane_block_size(BLOCK_SIZE bsize,
   return ss_size_lookup[bsize][subsampling_x][subsampling_y];
 }
 
+static INLINE BLOCK_SIZE get_mb_plane_block_size(const MB_MODE_INFO *mbmi,
+                                                 int plane, int subsampling_x,
+                                                 int subsampling_y) {
+  assert(subsampling_x >= 0 && subsampling_x < 2);
+  assert(subsampling_y >= 0 && subsampling_y < 2);
+
+  const BLOCK_SIZE bsize_base =
+      plane ? mbmi->chroma_ref_info.bsize_base : mbmi->sb_type;
+  return get_plane_block_size(bsize_base, subsampling_x, subsampling_y);
+}
+
 /*
  * Logic to generate the lookup tables:
  *
@@ -1774,8 +1785,7 @@ static INLINE TX_SIZE av1_get_tx_size(int plane, const MACROBLOCKD *xd) {
                                pd->subsampling_x, pd->subsampling_y);
 }
 
-void av1_reset_entropy_context(MACROBLOCKD *xd, BLOCK_SIZE bsize,
-                               const int num_planes);
+void av1_reset_entropy_context(MACROBLOCKD *xd, const int num_planes);
 
 void av1_reset_loop_filter_delta(MACROBLOCKD *xd, int num_planes);
 

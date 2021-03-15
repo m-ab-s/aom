@@ -493,8 +493,8 @@ static AOM_INLINE void pack_txb_tokens(
 
   const struct macroblockd_plane *const pd = &xd->plane[plane];
   const TX_SIZE plane_tx_size =
-      plane ? av1_get_max_uv_txsize(mbmi->sb_type, pd->subsampling_x,
-                                    pd->subsampling_y)
+      plane ? av1_get_max_uv_txsize(mbmi->chroma_ref_info.bsize_base,
+                                    pd->subsampling_x, pd->subsampling_y)
             : mbmi->inter_tx_size[av1_get_txb_size_index(plane_bsize, blk_row,
                                                          blk_col)];
 
@@ -1595,11 +1595,11 @@ static AOM_INLINE void write_inter_txb_coeff(
     const int plane) {
   MACROBLOCKD *const xd = &x->e_mbd;
   const struct macroblockd_plane *const pd = &xd->plane[plane];
-  const BLOCK_SIZE bsize = mbmi->sb_type;
-  assert(bsize < BLOCK_SIZES_ALL);
+  assert(mbmi->sb_type < BLOCK_SIZES_ALL);
   const int ss_x = pd->subsampling_x;
   const int ss_y = pd->subsampling_y;
-  const BLOCK_SIZE plane_bsize = get_plane_block_size(bsize, ss_x, ss_y);
+  const BLOCK_SIZE plane_bsize =
+      get_mb_plane_block_size(mbmi, plane, ss_x, ss_y);
   assert(plane_bsize < BLOCK_SIZES_ALL);
   const TX_SIZE max_tx_size = get_vartx_max_txsize(xd, plane_bsize, plane);
   const int step =
