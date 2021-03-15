@@ -89,7 +89,11 @@ void aom_highbd_quantize_b_sse2(const tran_low_t *coeff_ptr, intptr_t count,
         int k = 4 * i + j;
         const int64_t tmp3 = abs_coeff[j] + round_ptr[k != 0];
         const int64_t tmp4 = ((tmp3 * quant_ptr[k != 0]) >> 16) + tmp3;
+#if CONFIG_EXTQUANT
+        const int32_t abs_qcoeff =
+#else
         const uint32_t abs_qcoeff =
+#endif
             (uint32_t)((tmp4 * quant_shift_ptr[k != 0]) >> 16);
         qcoeff_ptr[k] = (int)(abs_qcoeff ^ coeff_sign[j]) - coeff_sign[j];
 #if CONFIG_EXTQUANT

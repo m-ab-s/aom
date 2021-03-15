@@ -439,6 +439,38 @@ const QuantizeParam kQParamArrayAvx2[] = {
 
 INSTANTIATE_TEST_SUITE_P(AVX2, QuantizeTest,
                          ::testing::ValuesIn(kQParamArrayAvx2));
+#elif HAVE_AVX2 && CONFIG_EXTQUANT
+const QuantizeParam kQParamArrayAvx2[] = {
+  make_tuple(&highbd_quan16x16_wrapper<av1_highbd_quantize_fp_c>,
+             &highbd_quan16x16_wrapper<av1_highbd_quantize_fp_avx2>,
+             static_cast<TX_SIZE>(TX_16X16), TYPE_FP, AOM_BITS_8),
+  make_tuple(&highbd_quan16x16_wrapper<av1_highbd_quantize_fp_c>,
+             &highbd_quan16x16_wrapper<av1_highbd_quantize_fp_avx2>,
+             static_cast<TX_SIZE>(TX_16X16), TYPE_FP, AOM_BITS_10),
+  make_tuple(&highbd_quan16x16_wrapper<av1_highbd_quantize_fp_c>,
+             &highbd_quan16x16_wrapper<av1_highbd_quantize_fp_avx2>,
+             static_cast<TX_SIZE>(TX_16X16), TYPE_FP, AOM_BITS_12),
+  make_tuple(&highbd_quan32x32_wrapper<av1_highbd_quantize_fp_c>,
+             &highbd_quan32x32_wrapper<av1_highbd_quantize_fp_avx2>,
+             static_cast<TX_SIZE>(TX_32X32), TYPE_FP, AOM_BITS_8),
+  make_tuple(&highbd_quan32x32_wrapper<av1_highbd_quantize_fp_c>,
+             &highbd_quan32x32_wrapper<av1_highbd_quantize_fp_avx2>,
+             static_cast<TX_SIZE>(TX_32X32), TYPE_FP, AOM_BITS_10),
+  make_tuple(&highbd_quan32x32_wrapper<av1_highbd_quantize_fp_c>,
+             &highbd_quan32x32_wrapper<av1_highbd_quantize_fp_avx2>,
+             static_cast<TX_SIZE>(TX_32X32), TYPE_FP, AOM_BITS_12),
+  make_tuple(&highbd_quan64x64_wrapper<av1_highbd_quantize_fp_c>,
+             &highbd_quan64x64_wrapper<av1_highbd_quantize_fp_avx2>,
+             static_cast<TX_SIZE>(TX_64X64), TYPE_FP, AOM_BITS_8),
+  make_tuple(&highbd_quan64x64_wrapper<av1_highbd_quantize_fp_c>,
+             &highbd_quan64x64_wrapper<av1_highbd_quantize_fp_avx2>,
+             static_cast<TX_SIZE>(TX_64X64), TYPE_FP, AOM_BITS_10),
+  make_tuple(&highbd_quan64x64_wrapper<av1_highbd_quantize_fp_c>,
+             &highbd_quan64x64_wrapper<av1_highbd_quantize_fp_avx2>,
+             static_cast<TX_SIZE>(TX_64X64), TYPE_FP, AOM_BITS_12),
+};
+INSTANTIATE_TEST_SUITE_P(AVX2, QuantizeTest,
+                         ::testing::ValuesIn(kQParamArrayAvx2));
 #endif  // HAVE_AVX2
 
 #if HAVE_SSE2 && !CONFIG_EXTQUANT
@@ -528,9 +560,33 @@ const QuantizeParam kQParamArraySSE2[] = {
 
 INSTANTIATE_TEST_SUITE_P(SSE2, QuantizeTest,
                          ::testing::ValuesIn(kQParamArraySSE2));
+#elif HAVE_SSE2 && CONFIG_EXTQUANT
+const QuantizeParam kQParamArraySSE2[] = {
+  make_tuple(&aom_highbd_quantize_b_c, &aom_highbd_quantize_b_sse2,
+             static_cast<TX_SIZE>(TX_16X16), TYPE_B, AOM_BITS_8),
+  make_tuple(&aom_highbd_quantize_b_c, &aom_highbd_quantize_b_sse2,
+             static_cast<TX_SIZE>(TX_16X16), TYPE_B, AOM_BITS_10),
+  make_tuple(&aom_highbd_quantize_b_c, &aom_highbd_quantize_b_sse2,
+             static_cast<TX_SIZE>(TX_16X16), TYPE_B, AOM_BITS_12),
+  make_tuple(&aom_highbd_quantize_b_32x32_c, &aom_highbd_quantize_b_32x32_sse2,
+             static_cast<TX_SIZE>(TX_32X32), TYPE_B, AOM_BITS_8),
+  make_tuple(&aom_highbd_quantize_b_32x32_c, &aom_highbd_quantize_b_32x32_sse2,
+             static_cast<TX_SIZE>(TX_32X32), TYPE_B, AOM_BITS_10),
+  make_tuple(&aom_highbd_quantize_b_32x32_c, &aom_highbd_quantize_b_32x32_sse2,
+             static_cast<TX_SIZE>(TX_32X32), TYPE_B, AOM_BITS_12),
+  make_tuple(&aom_highbd_quantize_b_64x64_c, &aom_highbd_quantize_b_64x64_sse2,
+             static_cast<TX_SIZE>(TX_64X64), TYPE_B, AOM_BITS_8),
+  make_tuple(&aom_highbd_quantize_b_64x64_c, &aom_highbd_quantize_b_64x64_sse2,
+             static_cast<TX_SIZE>(TX_64X64), TYPE_B, AOM_BITS_10),
+  make_tuple(&aom_highbd_quantize_b_64x64_c, &aom_highbd_quantize_b_64x64_sse2,
+             static_cast<TX_SIZE>(TX_64X64), TYPE_B, AOM_BITS_12)
+};
+
+INSTANTIATE_TEST_SUITE_P(SSE2, QuantizeTest,
+                         ::testing::ValuesIn(kQParamArraySSE2));
 #endif
 
-#if HAVE_NEON
+#if HAVE_NEON && !CONFIG_EXTQUANT
 const QuantizeParam kQParamArrayNEON[] = {
   make_tuple(&av1_quantize_fp_c, &av1_quantize_fp_neon,
              static_cast<TX_SIZE>(TX_16X16), TYPE_FP, AOM_BITS_8),

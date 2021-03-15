@@ -21,13 +21,21 @@
 #include "av1/common/scan.h"
 
 namespace {
-
+#if CONFIG_EXTQUANT
+typedef void (*QuantizeFpFunc)(
+    const tran_low_t *coeff_ptr, intptr_t count, const int32_t *zbin_ptr,
+    const int32_t *round_ptr, const int32_t *quant_ptr,
+    const int32_t *quant_shift_ptr, tran_low_t *qcoeff_ptr,
+    tran_low_t *dqcoeff_ptr, const int32_t *dequant_ptr, uint16_t *eob_ptr,
+    const int16_t *scan, const int16_t *iscan, int log_scale);
+#else
 typedef void (*QuantizeFpFunc)(
     const tran_low_t *coeff_ptr, intptr_t count, const int16_t *zbin_ptr,
     const int16_t *round_ptr, const int16_t *quant_ptr,
     const int16_t *quant_shift_ptr, tran_low_t *qcoeff_ptr,
     tran_low_t *dqcoeff_ptr, const int16_t *dequant_ptr, uint16_t *eob_ptr,
     const int16_t *scan, const int16_t *iscan, int log_scale);
+#endif
 
 struct QuantizeFuncParams {
   QuantizeFuncParams(QuantizeFpFunc qF = NULL, QuantizeFpFunc qRefF = NULL,
@@ -42,14 +50,31 @@ using libaom_test::ACMRandom;
 
 const int numTests = 1000;
 const int maxSize = 1024;
+#if CONFIG_EXTQUANT
+const int roundFactorRange = 64;
+const int dequantRange = 1048576;
+#else
 const int roundFactorRange = 127;
 const int dequantRange = 32768;
+#endif
 const int coeffRange = (1 << 20) - 1;
 
 class AV1QuantizeTest : public ::testing::TestWithParam<QuantizeFuncParams> {
  public:
   void RunQuantizeTest() {
     ACMRandom rnd(ACMRandom::DeterministicSeed());
+#if CONFIG_EXTQUANT
+    DECLARE_ALIGNED(16, tran_low_t, coeff_ptr[maxSize]);
+    DECLARE_ALIGNED(16, int32_t, zbin_ptr[8]);
+    DECLARE_ALIGNED(16, int32_t, round_ptr[8]);
+    DECLARE_ALIGNED(16, int32_t, quant_ptr[8]);
+    DECLARE_ALIGNED(16, int32_t, quant_shift_ptr[8]);
+    DECLARE_ALIGNED(16, tran_low_t, qcoeff_ptr[maxSize]);
+    DECLARE_ALIGNED(16, tran_low_t, dqcoeff_ptr[maxSize]);
+    DECLARE_ALIGNED(16, tran_low_t, ref_qcoeff_ptr[maxSize]);
+    DECLARE_ALIGNED(16, tran_low_t, ref_dqcoeff_ptr[maxSize]);
+    DECLARE_ALIGNED(16, int32_t, dequant_ptr[8]);
+#else
     DECLARE_ALIGNED(16, tran_low_t, coeff_ptr[maxSize]);
     DECLARE_ALIGNED(16, int16_t, zbin_ptr[8]);
     DECLARE_ALIGNED(16, int16_t, round_ptr[8]);
@@ -60,6 +85,7 @@ class AV1QuantizeTest : public ::testing::TestWithParam<QuantizeFuncParams> {
     DECLARE_ALIGNED(16, tran_low_t, ref_qcoeff_ptr[maxSize]);
     DECLARE_ALIGNED(16, tran_low_t, ref_dqcoeff_ptr[maxSize]);
     DECLARE_ALIGNED(16, int16_t, dequant_ptr[8]);
+#endif
     uint16_t eob;
     uint16_t ref_eob;
     int err_count_total = 0;
@@ -79,12 +105,23 @@ class AV1QuantizeTest : public ::testing::TestWithParam<QuantizeFuncParams> {
       }
 
       for (int j = 0; j < 2; j++) {
+#if CONFIG_EXTQUANT
+        zbin_ptr[j] = rnd.Rand31();
+        quant_shift_ptr[j] = rnd.Rand31();
+        // int32_t positive
+        dequant_ptr[j] = abs(rnd(dequantRange));
+        quant_ptr[j] = static_cast<int32_t>(
+            (1 << (16 + QUANT_FP_BITS + QUANT_TABLE_BITS)) / dequant_ptr[j]);
+        round_ptr[j] = (abs(rnd(roundFactorRange)) * dequant_ptr[j]) >>
+                       (7 + QUANT_TABLE_BITS);
+#else
         zbin_ptr[j] = rnd.Rand16();
         quant_shift_ptr[j] = rnd.Rand16();
         // int16_t positive
         dequant_ptr[j] = abs(rnd(dequantRange));
         quant_ptr[j] = static_cast<int16_t>((1 << 16) / dequant_ptr[j]);
         round_ptr[j] = (abs(rnd(roundFactorRange)) * dequant_ptr[j]) >> 7;
+#endif
       }
       for (int j = 2; j < 8; ++j) {
         zbin_ptr[j] = zbin_ptr[1];
@@ -125,6 +162,18 @@ class AV1QuantizeTest : public ::testing::TestWithParam<QuantizeFuncParams> {
 
   void RunEobTest() {
     ACMRandom rnd(ACMRandom::DeterministicSeed());
+#if CONFIG_EXTQUANT
+    DECLARE_ALIGNED(16, tran_low_t, coeff_ptr[maxSize]);
+    DECLARE_ALIGNED(16, int32_t, zbin_ptr[8]);
+    DECLARE_ALIGNED(16, int32_t, round_ptr[8]);
+    DECLARE_ALIGNED(16, int32_t, quant_ptr[8]);
+    DECLARE_ALIGNED(16, int32_t, quant_shift_ptr[8]);
+    DECLARE_ALIGNED(16, tran_low_t, qcoeff_ptr[maxSize]);
+    DECLARE_ALIGNED(16, tran_low_t, dqcoeff_ptr[maxSize]);
+    DECLARE_ALIGNED(16, tran_low_t, ref_qcoeff_ptr[maxSize]);
+    DECLARE_ALIGNED(16, tran_low_t, ref_dqcoeff_ptr[maxSize]);
+    DECLARE_ALIGNED(16, int32_t, dequant_ptr[8]);
+#else
     DECLARE_ALIGNED(16, tran_low_t, coeff_ptr[maxSize]);
     DECLARE_ALIGNED(16, int16_t, zbin_ptr[8]);
     DECLARE_ALIGNED(16, int16_t, round_ptr[8]);
@@ -135,6 +184,7 @@ class AV1QuantizeTest : public ::testing::TestWithParam<QuantizeFuncParams> {
     DECLARE_ALIGNED(16, tran_low_t, ref_qcoeff_ptr[maxSize]);
     DECLARE_ALIGNED(16, tran_low_t, ref_dqcoeff_ptr[maxSize]);
     DECLARE_ALIGNED(16, int16_t, dequant_ptr[8]);
+#endif
     uint16_t eob;
     uint16_t ref_eob;
     int count = params_.coeffCount;
@@ -155,12 +205,23 @@ class AV1QuantizeTest : public ::testing::TestWithParam<QuantizeFuncParams> {
       coeff_ptr[rnd(count)] = rnd(coeffRange);
 
       for (int j = 0; j < 2; j++) {
+#if CONFIG_EXTQUANT
+        zbin_ptr[j] = rnd.Rand31();
+        quant_shift_ptr[j] = rnd.Rand31();
+        // int32_t positive
+        dequant_ptr[j] = abs(rnd(dequantRange));
+        quant_ptr[j] =
+            ((1 << (16 + QUANT_FP_BITS + QUANT_TABLE_BITS)) / dequant_ptr[j]);
+        round_ptr[j] = (abs(rnd(roundFactorRange)) * dequant_ptr[j]) >>
+                       (7 + QUANT_TABLE_BITS);
+#else
         zbin_ptr[j] = rnd.Rand16();
         quant_shift_ptr[j] = rnd.Rand16();
         // int16_t positive
         dequant_ptr[j] = abs(rnd(dequantRange));
         quant_ptr[j] = (1 << 16) / dequant_ptr[j];
         round_ptr[j] = (abs(rnd(roundFactorRange)) * dequant_ptr[j]) >> 7;
+#endif
       }
       for (int j = 2; j < 8; ++j) {
         zbin_ptr[j] = zbin_ptr[1];
@@ -207,7 +268,7 @@ GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(AV1QuantizeTest);
 TEST_P(AV1QuantizeTest, BitExactCheck) { RunQuantizeTest(); }
 TEST_P(AV1QuantizeTest, EobVerify) { RunEobTest(); }
 
-#if HAVE_SSE4_1 && !CONFIG_EXTQUANT
+#if HAVE_SSE4_1 && CONFIG_EXTQUANT
 const QuantizeFuncParams qfps[4] = {
   QuantizeFuncParams(&av1_highbd_quantize_fp_sse4_1, &av1_highbd_quantize_fp_c,
                      16),
@@ -222,7 +283,7 @@ const QuantizeFuncParams qfps[4] = {
 INSTANTIATE_TEST_SUITE_P(SSE4_1, AV1QuantizeTest, ::testing::ValuesIn(qfps));
 #endif  // HAVE_SSE4_1
 
-#if HAVE_AVX2 && !CONFIG_EXTQUANT
+#if HAVE_AVX2 && CONFIG_EXTQUANT
 const QuantizeFuncParams qfps_avx2[4] = {
   QuantizeFuncParams(&av1_highbd_quantize_fp_avx2, &av1_highbd_quantize_fp_c,
                      16),

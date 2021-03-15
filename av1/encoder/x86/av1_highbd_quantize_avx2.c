@@ -74,7 +74,7 @@ static INLINE void quantize(const __m256i *qp, __m256i *c,
                             __m256i *eob) {
   const __m256i abs_coeff = _mm256_abs_epi32(*c);
 #if CONFIG_EXTQUANT
-  const __m256i round = _mm256_set1_epi64x((1 << QUANT_TABLE_BITS) >> 1);
+  const __m256i round = _mm256_set1_epi32((1 << QUANT_TABLE_BITS) >> 1);
 #endif
   __m256i q = _mm256_add_epi32(abs_coeff, qp[0]);
 
