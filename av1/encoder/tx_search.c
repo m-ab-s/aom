@@ -2831,6 +2831,13 @@ static void select_tx_partition_type(
       }
     }
 
+    if (cpi->sf.tx_sf.tx_type_search.prune_inter_4way_split) {
+      if (type == TX_PARTITION_VERT4 && best_partition != TX_PARTITION_VERT)
+        continue;
+      if (type == TX_PARTITION_HORZ4 && best_partition != TX_PARTITION_HORZ)
+        continue;
+    }
+
     RD_STATS partition_rd_stats;
     av1_init_rd_stats(&partition_rd_stats);
     int64_t tmp_rd = 0;
@@ -3154,6 +3161,14 @@ static void choose_tx_size_type_from_rd(const AV1_COMP *const cpi,
   for (TX_PARTITION_TYPE type = 0; type < TX_PARTITION_TYPES_INTRA; ++type) {
     // Skip any illegal partitions for this block size
     if (!use_tx_partition(type, max_tx_size)) continue;
+    if (cpi->sf.tx_sf.tx_type_search.prune_intra_4way_split) {
+      if (type == TX_PARTITION_VERT4 &&
+          best_partition_type != TX_PARTITION_VERT)
+        continue;
+      if (type == TX_PARTITION_HORZ4 &&
+          best_partition_type != TX_PARTITION_HORZ)
+        continue;
+    }
     mbmi->partition_type[0] = type;
     TX_SIZE sub_txs[MAX_TX_PARTITIONS] = { 0 };
     get_tx_partition_sizes(type, max_tx_size, sub_txs);
