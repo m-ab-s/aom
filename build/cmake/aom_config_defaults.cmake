@@ -197,6 +197,10 @@ set_aom_config_var(CONFIG_SUPERRES_TX64 0 NUMBER
                    "AV2 64-length superres tx experiment flag")
 set_aom_config_var(CONFIG_SUPERRES_TX64_DIRFILTER 0 NUMBER
                    "AV2 64-length superres tx w/ dir filter experiment flag")
+set_aom_config_var(CONFIG_SUPERRES_TX64_TRAINING_DATA 0 NUMBER
+                   "AV2 64-length superres tx training data generation")
+set_aom_config_var(CONFIG_SUPERRES_TX64 0 NUMBER
+                   "AV2 64-length superres tx experiment flag")
 set_aom_config_var(CONFIG_SUPERRES_EXT 0 NUMBER
                    "AV2 superres mode extensions experiment flag")
 set_aom_config_var(CONFIG_DIFFWTD_42 0 NUMBER

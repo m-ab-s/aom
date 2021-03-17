@@ -315,10 +315,6 @@ static void encode_block(int plane, int block, int blk_row, int blk_col,
 
   av1_set_txb_context(x, plane, block, tx_size, a, l);
 
-#if CONFIG_SUPERRES_TX64
-#define GET_SUPERRES_TX64_TRAINING_DATA 0
-#endif  // CONFIG_SUPERRES_TX64
-
 #if CONFIG_INTERINTRA_ML_DATA_COLLECT
   if (p->eobs[block] == 0 && dry_run == OUTPUT_ENABLED) {
     // This turned out to be a skip block. Ignore it.
@@ -331,7 +327,7 @@ static void encode_block(int plane, int block, int blk_row, int blk_col,
 
     TX_TYPE tx_type = av1_get_tx_type(pd->plane_type, xd, blk_row, blk_col,
                                       tx_size, cm->reduced_tx_set_used);
-#if CONFIG_SUPERRES_TX64 && GET_SUPERRES_TX64_TRAINING_DATA
+#if CONFIG_SUPERRES_TX64 && CONFIG_SUPERRES_TX64_TRAINING_DATA
     uint8_t prd[64 * 64];
     if (dry_run == OUTPUT_ENABLED && txsize_sqr_up_map[tx_size] == TX_64X64) {
       const int dst_stride = pd->dst.stride;
@@ -343,7 +339,7 @@ static void encode_block(int plane, int block, int blk_row, int blk_col,
         }
       }
     }
-#endif  // CONFIG_SUPERRES_TX64 && GET_SUPERRES_TX64_TRAINING_DATA
+#endif  // CONFIG_SUPERRES_TX64 && CONFIG_SUPERRES_TX64_TRAINING_DATA
     av1_inverse_transform_block(xd, dqcoeff, plane, tx_type, tx_size, dst,
                                 pd->dst.stride, p->eobs[block],
                                 cm->reduced_tx_set_used);
@@ -355,10 +351,9 @@ static void encode_block(int plane, int block, int blk_row, int blk_col,
     }
 #endif
 
-#if CONFIG_SUPERRES_TX64 && GET_SUPERRES_TX64_TRAINING_DATA
+#if CONFIG_SUPERRES_TX64 && CONFIG_SUPERRES_TX64_TRAINING_DATA
     if (dry_run == OUTPUT_ENABLED && txsize_sqr_up_map[tx_size] == TX_64X64 &&
         p->eobs[block] > 1) {
-      printf("Gotcha %d [%d]\n", xd->current_qindex, cm->base_qindex);
       char fname[256];
       sprintf(fname, "stx_%dx%d.dat", tx_size_wide[tx_size],
               tx_size_high[tx_size]);
@@ -390,7 +385,7 @@ static void encode_block(int plane, int block, int blk_row, int blk_col,
       }
       fclose(fp);
     }
-#endif  // CONFIG_SUPERRES_TX64 && GET_SUPERRES_TX64_TRAINING_DATA
+#endif  // CONFIG_SUPERRES_TX64 && CONFIG_SUPERRES_TX64_TRAINING_DATA
   }
 
   // TODO(debargha, jingning): Temporarily disable txk_type check for eob=0
