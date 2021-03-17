@@ -1992,10 +1992,10 @@ static INLINE int build_cur_mv(int_mv *cur_mv, PREDICTION_MODE this_mode,
 // 3-value index that was used for NEARMV before.  This will
 // also guarantee a DRL cost of zero if the mode does not need
 // a DRL index.
-static INLINE int get_drl_cost(const MB_MODE_INFO *mbmi,
+static INLINE int get_drl_cost(int max_drl_bits, const MB_MODE_INFO *mbmi,
                                const MB_MODE_INFO_EXT *mbmi_ext,
                                const MACROBLOCK *x, int8_t ref_frame_type) {
-  assert(mbmi->ref_mv_idx < MAX_DRL_BITS + 1);
+  assert(mbmi->ref_mv_idx < max_drl_bits + 1);
   if (!have_drl_index(mbmi->mode)) {
     return 0;
   }
@@ -2004,7 +2004,7 @@ static INLINE int get_drl_cost(const MB_MODE_INFO *mbmi,
   (void)mode_ctx;  // This is here for future experiments
   int cost = 0;
   const int range =
-      AOMMIN(mbmi_ext->ref_mv_count[ref_frame_type] - 1, MAX_DRL_BITS);
+      AOMMIN(mbmi_ext->ref_mv_count[ref_frame_type] - 1, max_drl_bits);
   for (int idx = 0; idx < range; ++idx) {
     uint8_t drl_ctx = av1_drl_ctx(mbmi_ext->weight[ref_frame_type], idx);
     switch (idx) {
@@ -2070,15 +2070,15 @@ static INLINE int is_single_newmv_valid(const HandleInterModeArgs *const args,
   return 1;
 }
 
+#if CONFIG_NEW_INTER_MODES
+static int get_drl_refmv_count(int max_drl_bits, const MACROBLOCK *const x,
+#else
 static int get_drl_refmv_count(const MACROBLOCK *const x,
+#endif  // CONFIG_NEW_INTER_MODES
                                const MV_REFERENCE_FRAME *ref_frame,
                                PREDICTION_MODE mode) {
   MB_MODE_INFO_EXT *const mbmi_ext = x->mbmi_ext;
 #if CONFIG_NEW_INTER_MODES
-  // Get the count of reference vectors availiable to this mode.
-  // For NEAR and NEW, this is the min of the number of MVs available
-  // in the frame and MAX_REF_MV_SEARCH.
-  // For GLOBALMV, this is 1: the frame global motion vector always exists.
   int has_drl = have_drl_index(mode);
   if (!has_drl) {
     assert(mode == GLOBALMV || mode == GLOBAL_GLOBALMV);
@@ -2086,7 +2086,7 @@ static int get_drl_refmv_count(const MACROBLOCK *const x,
   }
   const int8_t ref_frame_type = av1_ref_frame_type(ref_frame);
   int ref_mv_count = mbmi_ext->ref_mv_count[ref_frame_type];
-  return AOMMIN(MAX_REF_MV_SEARCH, ref_mv_count);
+  return AOMMIN(max_drl_bits + 1, ref_mv_count);
 #else
   const int8_t ref_frame_type = av1_ref_frame_type(ref_frame);
   const int has_nearmv = have_nearmv_in_inter_mode(mode) ? 1 : 0;
@@ -2104,10 +2104,11 @@ static int get_drl_refmv_count(const MACROBLOCK *const x,
 // Whether this reference motion vector can be skipped, based on initial
 // heuristics.
 static bool ref_mv_idx_early_breakout(
-    const SPEED_FEATURES *const sf,
+    const AV1_COMP *const cpi,
     const RefFrameDistanceInfo *const ref_frame_dist_info, MACROBLOCK *x,
     const HandleInterModeArgs *const args, int64_t ref_best_rd,
     int ref_mv_idx) {
+  const SPEED_FEATURES *const sf = &cpi->sf;
   MACROBLOCKD *xd = &x->e_mbd;
   MB_MODE_INFO *mbmi = xd->mi[0];
   const MB_MODE_INFO_EXT *const mbmi_ext = x->mbmi_ext;
@@ -2152,7 +2153,8 @@ static bool ref_mv_idx_early_breakout(
   }
   size_t est_rd_rate = args->ref_frame_cost + args->single_comp_cost;
 #if CONFIG_NEW_INTER_MODES
-  const int drl_cost = get_drl_cost(mbmi, mbmi_ext, x, ref_frame_type);
+  const int drl_cost = get_drl_cost(cpi->common.features.max_drl_bits, mbmi,
+                                    mbmi_ext, x, ref_frame_type);
 #else
   const int drl_cost = get_drl_cost(
       mbmi, mbmi_ext, x->mode_costs.drl_mode_cost0, ref_frame_type);
@@ -2206,7 +2208,8 @@ static int64_t simple_translation_pred_rd(
 
   rd_stats->rate += args->ref_frame_cost + args->single_comp_cost;
 #if CONFIG_NEW_INTER_MODES
-  const int drl_cost = get_drl_cost(mbmi, mbmi_ext, x, ref_frame_type);
+  const int drl_cost = get_drl_cost(cpi->common.features.max_drl_bits, mbmi,
+                                    mbmi_ext, x, ref_frame_type);
 #else
   const int drl_cost =
       get_drl_cost(mbmi, mbmi_ext, mode_costs->drl_mode_cost0, ref_frame_type);
@@ -2284,7 +2287,7 @@ static int ref_mv_idx_to_search(AV1_COMP *const cpi, MACROBLOCK *x,
 #endif  // CONFIG_NEW_INTER_MODES
 
   for (int i = start_mv_idx; i < ref_set; ++i) {
-    if (ref_mv_idx_early_breakout(&cpi->sf, &cpi->ref_frame_dist_info, x, args,
+    if (ref_mv_idx_early_breakout(cpi, &cpi->ref_frame_dist_info, x, args,
                                   ref_best_rd, i)) {
       continue;
     }
@@ -2323,11 +2326,19 @@ static int ref_mv_idx_to_search(AV1_COMP *const cpi, MACROBLOCK *x,
   }
   // Find the index with the best RD cost.
   int best_idx = start_mv_idx;
+#if CONFIG_NEW_INTER_MODES
+  for (int i = start_mv_idx + 1; i < cm->features.max_drl_bits + 1; ++i) {
+    if (idx_rdcost[i] < idx_rdcost[best_idx]) {
+      best_idx = i;
+    }
+  }
+#else
   for (int i = start_mv_idx + 1; i < MAX_REF_MV_SEARCH; ++i) {
     if (idx_rdcost[i] < idx_rdcost[best_idx]) {
       best_idx = i;
     }
   }
+#endif  // CONFIG_NEW_INTER_MODES
   // Only include indices that are good and within a % of the best.
   const double dth = has_second_ref(mbmi) ? 1.05 : 1.001;
   // If the simple translation cost is not within this multiple of the
@@ -2539,8 +2550,10 @@ static AOM_INLINE void get_block_level_tpl_stats(
 #endif
 
 static AOM_INLINE int prune_modes_based_on_tpl_stats(
+    const FeatureFlags *const features,
     PruneInfoFromTpl *inter_cost_info_from_tpl, const int *refs, int ref_mv_idx,
     const PREDICTION_MODE this_mode, int prune_mode_level) {
+  (void)features;
   const int have_newmv = have_newmv_in_inter_mode(this_mode);
   if ((prune_mode_level < 3) && have_newmv) return 0;
 
@@ -2550,7 +2563,11 @@ static AOM_INLINE int prune_modes_based_on_tpl_stats(
 
   const int is_globalmv =
       (this_mode == GLOBALMV) || (this_mode == GLOBAL_GLOBALMV);
+#if CONFIG_NEW_INTER_MODES
+  const int prune_index = is_globalmv ? features->max_drl_bits + 1 : ref_mv_idx;
+#else
   const int prune_index = is_globalmv ? MAX_REF_MV_SEARCH : ref_mv_idx;
+#endif  // CONFIG_NEW_INTER_MODES
 
   // Thresholds used for pruning:
   // Lower value indicates aggressive pruning and higher value indicates
@@ -2558,7 +2575,13 @@ static AOM_INLINE int prune_modes_based_on_tpl_stats(
   // 'prune_index' 0, 1, 2 corresponds to ref_mv indices 0, 1 and 2. prune_index
   // 3 corresponds to GLOBALMV/GLOBAL_GLOBALMV
   static const int tpl_inter_mode_prune_mul_factor[2][MAX_REF_MV_SEARCH + 1] = {
-    { 3, 3, 3, 2 }, { 3, 2, 2, 2 }
+#if CONFIG_NEW_INTER_MODES
+    { 3, 3, 3, 2, 2, 2, 2, 2 },
+    { 3, 2, 2, 2, 2, 2, 2, 2 }
+#else
+    { 3, 3, 3, 2 },
+    { 3, 2, 2, 2 }
+#endif  // CONFIG_NEW_INTER_MODES
   };
 
   const int is_comp_pred = (refs[1] > INTRA_FRAME);
@@ -2793,9 +2816,11 @@ static int process_compound_inter_mode(
 
 // Speed feature to prune out MVs that are similar to previous MVs if they
 // don't achieve the best RD advantage.
-static int prune_ref_mv_idx_search(int ref_mv_idx, int best_ref_mv_idx,
+static int prune_ref_mv_idx_search(const FeatureFlags *const features,
+                                   int ref_mv_idx, int best_ref_mv_idx,
                                    int_mv save_mv[MAX_REF_MV_SEARCH - 1][2],
                                    MB_MODE_INFO *mbmi, int pruning_factor) {
+  (void)features;
   int i;
   const int is_comp_pred = has_second_ref(mbmi);
   const int thr = (1 + is_comp_pred) << (pruning_factor + 1);
@@ -2817,7 +2842,11 @@ static int prune_ref_mv_idx_search(int ref_mv_idx, int best_ref_mv_idx,
     }
   }
 
+#if CONFIG_NEW_INTER_MODES
+  if (ref_mv_idx < features->max_drl_bits) {
+#else
   if (ref_mv_idx < MAX_REF_MV_SEARCH - 1) {
+#endif  // CONFIG_NEW_INTER_MODES
     for (i = 0; i < is_comp_pred + 1; ++i)
       save_mv[ref_mv_idx][i].as_int = mbmi->mv[i].as_int;
   }
@@ -2956,7 +2985,11 @@ static int64_t handle_inter_mode(
   // First, perform a simple translation search for each of the indices. If
   // an index performs well, it will be fully searched in the main loop
   // of this function.
-  const int ref_set = get_drl_refmv_count(x, mbmi->ref_frame, this_mode);
+  const int ref_set = get_drl_refmv_count(
+#if CONFIG_NEW_INTER_MODES
+      cm->features.max_drl_bits,
+#endif  // CONFIG_NEW_INTER_MODES
+      x, mbmi->ref_frame, this_mode);
   // Save MV results from first 2 ref_mv_idx.
   int_mv save_mv[MAX_REF_MV_SEARCH - 1][2];
   int best_ref_mv_idx = -1;
@@ -2996,8 +3029,8 @@ static int64_t handle_inter_mode(
         !ref_match_found_in_left_nb && (ref_best_rd != INT64_MAX)) {
       // Skip mode if TPL model indicates it will not be beneficial.
       if (prune_modes_based_on_tpl_stats(
-              inter_cost_info_from_tpl, refs, ref_mv_idx, this_mode,
-              cpi->sf.inter_sf.prune_inter_modes_based_on_tpl))
+              &cm->features, inter_cost_info_from_tpl, refs, ref_mv_idx,
+              this_mode, cpi->sf.inter_sf.prune_inter_modes_based_on_tpl))
         continue;
     }
     av1_init_rd_stats(rd_stats);
@@ -3015,7 +3048,8 @@ static int64_t handle_inter_mode(
     // Compute cost for signalling this DRL index
     rd_stats->rate = base_rate;
 #if CONFIG_NEW_INTER_MODES
-    const int drl_cost = get_drl_cost(mbmi, mbmi_ext, x, ref_frame_type);
+    const int drl_cost = get_drl_cost(cm->features.max_drl_bits, mbmi, mbmi_ext,
+                                      x, ref_frame_type);
 #else
     const int drl_cost = get_drl_cost(
         mbmi, mbmi_ext, mode_costs->drl_mode_cost0, ref_frame_type);
@@ -3084,7 +3118,8 @@ static int64_t handle_inter_mode(
     // Skip the rest of the search if prune_ref_mv_idx_search speed feature
     // is enabled, and the current MV is similar to a previous one.
     if (cpi->sf.inter_sf.prune_ref_mv_idx_search && is_comp_pred &&
-        prune_ref_mv_idx_search(ref_mv_idx, best_ref_mv_idx, save_mv, mbmi,
+        prune_ref_mv_idx_search(&cm->features, ref_mv_idx, best_ref_mv_idx,
+                                save_mv, mbmi,
                                 cpi->sf.inter_sf.prune_ref_mv_idx_search))
       continue;
 
@@ -4536,15 +4571,21 @@ static INLINE void init_mbmi(MB_MODE_INFO *mbmi, PREDICTION_MODE curr_mode,
   set_default_interp_filters(mbmi, cm->features.interp_filter);
 }
 
-static AOM_INLINE void collect_single_states(MACROBLOCK *x,
+static AOM_INLINE void collect_single_states(const FeatureFlags *const features,
+                                             MACROBLOCK *x,
                                              InterModeSearchState *search_state,
                                              const MB_MODE_INFO *const mbmi) {
+  (void)features;
   int i, j;
   const MV_REFERENCE_FRAME ref_frame = mbmi->ref_frame[0];
   const PREDICTION_MODE this_mode = mbmi->mode;
   const int dir = ref_frame <= GOLDEN_FRAME ? 0 : 1;
   const int mode_offset = INTER_OFFSET(this_mode);
-  const int ref_set = get_drl_refmv_count(x, mbmi->ref_frame, this_mode);
+  const int ref_set = get_drl_refmv_count(
+#if CONFIG_NEW_INTER_MODES
+      features->max_drl_bits,
+#endif  // CONFIG_NEW_INTER_MODES
+      x, mbmi->ref_frame, this_mode);
 
   // Simple rd
   int64_t simple_rd = search_state->simple_rd[this_mode][0][ref_frame];
@@ -4732,7 +4773,11 @@ static int compound_skip_by_single_states(
     }
   }
 
-  const int ref_set = get_drl_refmv_count(x, refs, this_mode);
+  const int ref_set = get_drl_refmv_count(
+#if CONFIG_NEW_INTER_MODES
+      cpi->common.features.max_drl_bits,
+#endif  // CONFIG_NEW_INTER_MODES
+      x, refs, this_mode);
   for (i = 0; i < 2; ++i) {
 #if CONFIG_NEW_INTER_MODES
     if (!ref_searched[i] || (mode[i] != NEARMV)) {
@@ -5609,7 +5654,7 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
 
     if (sf->inter_sf.prune_comp_search_by_single_result > 0 &&
         is_inter_singleref_mode(this_mode)) {
-      collect_single_states(x, &search_state, mbmi);
+      collect_single_states(&cm->features, x, &search_state, mbmi);
     }
 
     if (sf->inter_sf.prune_comp_using_best_single_mode_ref > 0 &&

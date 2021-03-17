@@ -68,8 +68,8 @@ uint32_t aom_rb_read_uvlc(struct aom_read_bit_buffer *rb) {
   return base + value;
 }
 
-static uint16_t aom_rb_read_primitive_quniform(struct aom_read_bit_buffer *rb,
-                                               uint16_t n) {
+uint16_t aom_rb_read_primitive_quniform(struct aom_read_bit_buffer *rb,
+                                        uint16_t n) {
   if (n <= 1) return 0;
   const int l = get_msb(n) + 1;
   const int m = (1 << l) - n;

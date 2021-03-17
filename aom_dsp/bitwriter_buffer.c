@@ -88,8 +88,8 @@ void aom_wb_write_uvlc(struct aom_write_bit_buffer *wb, uint32_t v) {
   aom_wb_write_unsigned_literal(wb, v, (leading_zeroes + 1) >> 1);
 }
 
-static void wb_write_primitive_quniform(struct aom_write_bit_buffer *wb,
-                                        uint16_t n, uint16_t v) {
+void aom_wb_write_primitive_quniform(struct aom_write_bit_buffer *wb,
+                                     uint16_t n, uint16_t v) {
   if (n <= 1) return;
   const int l = get_msb(n) + 1;
   const int m = (1 << l) - n;
@@ -109,7 +109,7 @@ static void wb_write_primitive_subexpfin(struct aom_write_bit_buffer *wb,
     int b = (i ? k + i - 1 : k);
     int a = (1 << b);
     if (n <= mk + 3 * a) {
-      wb_write_primitive_quniform(wb, n - mk, v - mk);
+      aom_wb_write_primitive_quniform(wb, n - mk, v - mk);
       break;
     } else {
       int t = (v >= mk + a);

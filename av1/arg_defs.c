@@ -651,6 +651,14 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
       "Set specified SubGOP configurations in config file path provided "
       "for various SubGOP lengths. "
       "If this option is not specified (default), the configurations "
-      "are chosen by the encoder using a default algorithm.")
+      "are chosen by the encoder using a default algorithm."),
+
+#if CONFIG_NEW_INTER_MODES
+  .max_drl_refmvs =
+      ARG_DEF(NULL, "max-drl-refmvs", 1,
+              "maximum number of drl reference MVs per reference. "
+              "(0 (auto), 2-8 (fixed)) default is 0 (auto)."),
+#endif  // CONFIG_NEW_INTER_MODES
+
 #endif  // CONFIG_AV1_ENCODER
 };

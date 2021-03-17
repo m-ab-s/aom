@@ -183,10 +183,6 @@ static INLINE int16_t av1_mode_context_analyzer(
 }
 
 static INLINE uint8_t av1_drl_ctx(const uint16_t *ref_mv_weight, int ref_idx) {
-#if CONFIG_NEW_INTER_MODES
-  assert(ref_idx >= 0 && ref_idx < MAX_DRL_BITS + 1);
-#endif  // CONFIG_NEW_INTER_MODES
-
   if (ref_mv_weight[ref_idx] >= REF_CAT_LEVEL &&
       ref_mv_weight[ref_idx + 1] >= REF_CAT_LEVEL)
     return 0;

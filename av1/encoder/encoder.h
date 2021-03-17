@@ -808,6 +808,9 @@ typedef struct {
   bool enable_global_motion;
   // Indicates if palette should be enabled.
   bool enable_palette;
+#if CONFIG_NEW_INTER_MODES
+  unsigned int max_drl_refmvs;
+#endif  // CONFIG_NEW_INTER_MODES
 } ToolCfg;
 
 #define MAX_SUBGOP_CONFIGS 64

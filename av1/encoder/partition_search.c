@@ -874,7 +874,8 @@ static void pick_sb_modes(AV1_COMP *const cpi, TileDataEnc *tile_data,
 }
 
 #if CONFIG_NEW_INTER_MODES
-static void update_drl_index_stats(FRAME_CONTEXT *fc, FRAME_COUNTS *counts,
+static void update_drl_index_stats(int max_drl_bits, FRAME_CONTEXT *fc,
+                                   FRAME_COUNTS *counts,
                                    const MB_MODE_INFO *mbmi,
                                    const MB_MODE_INFO_EXT *mbmi_ext) {
 #if !CONFIG_ENTROPY_STATS
@@ -882,9 +883,9 @@ static void update_drl_index_stats(FRAME_CONTEXT *fc, FRAME_COUNTS *counts,
 #endif  // !CONFIG_ENTROPY_STATS
   assert(have_drl_index(mbmi->mode));
   uint8_t ref_frame_type = av1_ref_frame_type(mbmi->ref_frame);
-  assert(mbmi->ref_mv_idx < MAX_DRL_BITS + 1);
+  assert(mbmi->ref_mv_idx < max_drl_bits + 1);
   const int range =
-      AOMMIN(mbmi_ext->ref_mv_count[ref_frame_type] - 1, MAX_DRL_BITS);
+      AOMMIN(mbmi_ext->ref_mv_count[ref_frame_type] - 1, max_drl_bits);
   for (int idx = 0; idx < range; ++idx) {
     aom_cdf_prob *drl_cdf =
         av1_get_drl_cdf(fc, mbmi_ext->weight[ref_frame_type], idx);
@@ -1293,7 +1294,8 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
     const int new_mv = mbmi->mode == NEWMV || mbmi->mode == NEW_NEWMV;
 #if CONFIG_NEW_INTER_MODES
     if (have_drl_index(mbmi->mode)) {
-      update_drl_index_stats(fc, counts, mbmi, mbmi_ext);
+      update_drl_index_stats(cm->features.max_drl_bits, fc, counts, mbmi,
+                             mbmi_ext);
     }
 #else
     if (new_mv) {

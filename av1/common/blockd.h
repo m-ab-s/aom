@@ -172,6 +172,9 @@ static INLINE int have_newmv_in_inter_mode(PREDICTION_MODE mode) {
   return (mode == NEWMV || mode == NEW_NEWMV || mode == NEAREST_NEWMV ||
           mode == NEW_NEARESTMV || mode == NEAR_NEWMV || mode == NEW_NEARMV);
 }
+static INLINE int have_drl_index(PREDICTION_MODE mode) {
+  return have_nearmv_in_inter_mode(mode) || mode == NEWMV || mode == NEW_NEWMV;
+}
 #endif  // CONFIG_NEW_INTER_MODES
 
 static INLINE int is_masked_compound_type(COMPOUND_TYPE type) {
@@ -309,11 +312,11 @@ typedef struct MB_MODE_INFO {
 #else
   uint8_t use_intrabc : 1;
 #endif
-#if CONFIG_NEW_INTER_MODES && MAX_DRL_BITS > 3
+#if CONFIG_NEW_INTER_MODES
   uint8_t ref_mv_idx : 3;
 #else
   uint8_t ref_mv_idx : 2;
-#endif  // CONFIG_NEW_INTER_MODES && MAX_DRL_BITS > 3
+#endif  // CONFIG_NEW_INTER_MODES
   // Indicate if masked compound is used(1) or not(0).
   uint8_t comp_group_idx : 1;
   int8_t cdef_strength : 4;

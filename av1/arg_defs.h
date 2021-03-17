@@ -233,6 +233,9 @@ typedef struct av1_codec_arg_definitions {
   arg_def_t vbr_corpus_complexity_lap;
   arg_def_t subgop_config_str;
   arg_def_t subgop_config_path;
+#if CONFIG_NEW_INTER_MODES
+  arg_def_t max_drl_refmvs;
+#endif  // CONFIG_NEW_INTER_MODES
 #endif  // CONFIG_AV1_ENCODER
 } av1_codec_arg_definitions_t;
 

@@ -5200,6 +5200,12 @@ static int read_uncompressed_header(AV1Decoder *pbi,
         setup_frame_size(cm, frame_size_override_flag, rb);
       }
 
+#if CONFIG_NEW_INTER_MODES
+      features->max_drl_bits =
+          aom_rb_read_primitive_quniform(
+              rb, MAX_MAX_DRL_BITS - MIN_MAX_DRL_BITS + 1) +
+          MIN_MAX_DRL_BITS;
+#endif  // CONFIG_NEW_INTER_MODES
       if (features->cur_frame_force_integer_mv) {
         features->allow_high_precision_mv = 0;
       } else {

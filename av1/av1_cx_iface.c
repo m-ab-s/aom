@@ -178,6 +178,9 @@ struct av1_extracfg {
   unsigned int ext_tile_debug;
   unsigned int sb_multipass_unit_test;
   unsigned int enable_subgop_stats;
+#if CONFIG_NEW_INTER_MODES
+  unsigned int max_drl_refmvs;
+#endif  // CONFIG_NEW_INTER_MODES
 };
 
 // Example subgop configs. Currently not used by default.
@@ -436,6 +439,9 @@ static struct av1_extracfg default_extra_cfg = {
   0,            // ext_tile_debug
   0,            // sb_multipass_unit_test
   0,            // enable_subgop_stats
+#if CONFIG_NEW_INTER_MODES
+  0,    // max_drl_refmvs
+#endif  // CONFIG_NEW_INTER_MODES
 };
 
 struct aom_codec_alg_priv {
@@ -832,6 +838,9 @@ static void update_encoder_config(cfg_options_t *cfg,
   cfg->enable_onesided_comp = extra_cfg->enable_onesided_comp;
   cfg->enable_reduced_reference_set = extra_cfg->enable_reduced_reference_set;
   cfg->reduced_tx_type_set = extra_cfg->reduced_tx_type_set;
+#if CONFIG_NEW_INTER_MODES
+  cfg->max_drl_refmvs = extra_cfg->max_drl_refmvs;
+#endif  // CONFIG_NEW_INTER_MODES
 }
 
 static void update_default_encoder_config(const cfg_options_t *cfg,
@@ -891,6 +900,9 @@ static void update_default_encoder_config(const cfg_options_t *cfg,
   extra_cfg->enable_onesided_comp = cfg->enable_onesided_comp;
   extra_cfg->enable_reduced_reference_set = cfg->enable_reduced_reference_set;
   extra_cfg->reduced_tx_type_set = cfg->reduced_tx_type_set;
+#if CONFIG_NEW_INTER_MODES
+  extra_cfg->max_drl_refmvs = cfg->max_drl_refmvs;
+#endif  // CONFIG_NEW_INTER_MODES
 }
 
 static double convert_qp_offset(int qp, int qp_offset, int bit_depth) {
@@ -1079,6 +1091,9 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
       cfg->g_error_resilient | extra_cfg->error_resilient_mode;
   tool_cfg->frame_parallel_decoding_mode =
       extra_cfg->frame_parallel_decoding_mode;
+#if CONFIG_NEW_INTER_MODES
+  tool_cfg->max_drl_refmvs = extra_cfg->max_drl_refmvs;
+#endif  // CONFIG_NEW_INTER_MODES
 
   // Set Quantization related configuration.
   q_cfg->using_qm = extra_cfg->enable_qm;
@@ -3599,6 +3614,13 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
                               &g_av1_codec_arg_defs.input_chroma_subsampling_y,
                               argv, err_string)) {
     extra_cfg.chroma_subsampling_y = arg_parse_uint_helper(&arg, err_string);
+#if CONFIG_NEW_INTER_MODES
+  } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.max_drl_refmvs, argv,
+                              err_string)) {
+    printf("haha\n");
+    extra_cfg.max_drl_refmvs = arg_parse_uint_helper(&arg, err_string);
+    printf("gaga %d\n", extra_cfg.max_drl_refmvs);
+#endif  // CONFIG_NEW_INTER_MODES
   } else {
     match = 0;
     snprintf(err_string, ARG_ERR_MSG_MAX_LEN, "Cannot find aom option %s",
@@ -3842,28 +3864,33 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = {
       { 0 },                       // tile_heights
       0,                           // use_fixed_qp_offsets
       { -1, -1, -1, -1, -1, -1 },  // fixed_qp_offsets
-      { 0, 128, 128, 4, 1, 1, 1,
+      {
+          0, 128, 128, 4, 1, 1, 1,
 #if CONFIG_SDP
-        1,
+          1,
 #endif  // CONFIG_SDP
 #if CONFIG_MRLS
-        1,
+          1,
 #endif
 #if CONFIG_ORIP
-        1,
+          1,
 #endif
 #if CONFIG_IST
-        1,
+          1,
 #endif  // CONFIG_IST
-        1, 1,   1,   1, 1, 1, 1,
+          1, 1,   1,   1, 1, 1, 1,
 #if !CONFIG_REMOVE_DIST_WTD_COMP
-        1,
+          1,
 #endif  // !CONFIG_REMOVE_DIST_WTD_COMP
-        1, 1,   1,   0, 0, 1, 1, 1, 1,
+          1, 1,   1,   0, 0, 1, 1, 1, 1,
 #if !CONFIG_REMOVE_DUAL_FILTER
-        1,
-#endif                                          // !CONFIG_REMOVE_DUAL_FILTER
-        1, 1,   1,   1, 1, 1, 1, 3, 1, 1, 0 },  // cfg
+          1,
+#endif  // !CONFIG_REMOVE_DUAL_FILTER
+          1, 1,   1,   1, 1, 1, 1, 3, 1, 1, 0,
+#if CONFIG_NEW_INTER_MODES
+          0,
+#endif    // CONFIG_NEW_INTER_MODES
+      },  // cfg
   },
   {
       // NOLINT
@@ -3930,28 +3957,33 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = {
       { 0 },                       // tile_heights
       0,                           // use_fixed_qp_offsets
       { -1, -1, -1, -1, -1, -1 },  // fixed_qp_offsets
-      { 0, 128, 128, 4, 1, 1, 1,
+      {
+          0, 128, 128, 4, 1, 1, 1,
 #if CONFIG_SDP
-        1,
+          1,
 #endif
 #if CONFIG_MRLS
-        1,
+          1,
 #endif
 #if CONFIG_ORIP
-        1,
+          1,
 #endif
 #if CONFIG_IST
-        1,
+          1,
 #endif
-        1, 1,   1,   1, 1, 1, 1,
+          1, 1,   1,   1, 1, 1, 1,
 #if !CONFIG_REMOVE_DIST_WTD_COMP
-        1,
+          1,
 #endif  // !CONFIG_REMOVE_DIST_WTD_COMP
-        1, 1,   1,   0, 0, 1, 1, 1, 1,
+          1, 1,   1,   0, 0, 1, 1, 1, 1,
 #if !CONFIG_REMOVE_DUAL_FILTER
-        1,
-#endif                                          // !CONFIG_REMOVE_DUAL_FILTER
-        1, 1,   1,   1, 1, 1, 1, 3, 1, 1, 0 },  // cfg
+          1,
+#endif  // !CONFIG_REMOVE_DUAL_FILTER
+          1, 1,   1,   1, 1, 1, 1, 3, 1, 1, 0,
+#if CONFIG_NEW_INTER_MODES
+          0,
+#endif    // CONFIG_NEW_INTER_MODES
+      },  // cfg
   },
 };
 

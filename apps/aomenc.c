@@ -443,6 +443,9 @@ const arg_def_t *av1_key_val_args[] = {
 #if CONFIG_IST
   &g_av1_codec_arg_defs.enable_ist,
 #endif
+#if CONFIG_NEW_INTER_MODES
+  &g_av1_codec_arg_defs.max_drl_refmvs,
+#endif  // CONFIG_NEW_INTER_MODES
   NULL,
 };
 
@@ -1375,6 +1378,10 @@ static void show_stream_config(struct stream_state *stream,
           encoder_cfg->enable_reduced_reference_set);
   fprintf(stdout, "Reduced transform set          : %d\n",
           encoder_cfg->reduced_tx_type_set);
+#if CONFIG_NEW_INTER_MODES
+  fprintf(stdout, "Tool setting (Ref MVs)         : max-drl-refmvs (%d)\n",
+          encoder_cfg->max_drl_refmvs);
+#endif  // CONFIG_NEW_INTER_MODES
 
   fprintf(
       stdout, "Tool setting (Partition)       : T-Type (%d), 4:1/1:4 (%d)\n",
