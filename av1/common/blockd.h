@@ -328,11 +328,11 @@ typedef struct MB_MODE_INFO {
   uint8_t seg_id_predicted : 1;  // valid only when temporal_update is enabled
   uint8_t skip_mode : 1;
   uint8_t use_intrabc : 1;
-#if CONFIG_NEW_INTER_MODES && MAX_DRL_BITS > 3
+#if CONFIG_NEW_INTER_MODES
   uint8_t ref_mv_idx : 3;
 #else
   uint8_t ref_mv_idx : 2;
-#endif  // CONFIG_NEW_INTER_MODES && MAX_DRL_BITS > 3
+#endif  // CONFIG_NEW_INTER_MODES
   // Indicate if masked compound is used(1) or not(0).
   uint8_t comp_group_idx : 1;
   int8_t cdef_strength : 4;

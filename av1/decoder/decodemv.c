@@ -209,13 +209,14 @@ static PREDICTION_MODE read_inter_mode(FRAME_CONTEXT *ec_ctx, aom_reader *r,
 }
 
 #if CONFIG_NEW_INTER_MODES
-static void read_drl_idx(FRAME_CONTEXT *ec_ctx, DecoderCodingBlock *dcb,
-                         MB_MODE_INFO *mbmi, aom_reader *r) {
+static void read_drl_idx(int max_drl_bits, FRAME_CONTEXT *ec_ctx,
+                         DecoderCodingBlock *dcb, MB_MODE_INFO *mbmi,
+                         aom_reader *r) {
   MACROBLOCKD *const xd = &dcb->xd;
   uint8_t ref_frame_type = av1_ref_frame_type(mbmi->ref_frame);
   mbmi->ref_mv_idx = 0;
   assert(!mbmi->skip_mode);
-  const int range = AOMMIN(dcb->ref_mv_count[ref_frame_type] - 1, MAX_DRL_BITS);
+  const int range = AOMMIN(dcb->ref_mv_count[ref_frame_type] - 1, max_drl_bits);
   for (int idx = 0; idx < range; ++idx) {
     aom_cdf_prob *drl_cdf =
         av1_get_drl_cdf(ec_ctx, xd->weight[ref_frame_type], idx);
@@ -223,7 +224,7 @@ static void read_drl_idx(FRAME_CONTEXT *ec_ctx, DecoderCodingBlock *dcb,
     mbmi->ref_mv_idx = idx + drl_idx;
     if (!drl_idx) break;
   }
-  assert(mbmi->ref_mv_idx < MAX_DRL_BITS + 1);
+  assert(mbmi->ref_mv_idx < max_drl_bits + 1);
 }
 #else
 static void read_drl_idx(FRAME_CONTEXT *ec_ctx, DecoderCodingBlock *dcb,
@@ -1417,7 +1418,12 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
         mbmi->mode = read_inter_mode(ec_ctx, r, mode_ctx);
       // TODO(chiyotsai@google.com): Remove the following line
       av1_set_default_mbmi_mv_precision(mbmi, sbi);
-      if (have_drl_index(mbmi->mode)) read_drl_idx(ec_ctx, dcb, mbmi, r);
+      if (have_drl_index(mbmi->mode))
+        read_drl_idx(
+#if CONFIG_NEW_INTER_MODES
+            cm->features.max_drl_bits,
+#endif  // CONFIG_NEW_INTER_MODES
+            ec_ctx, dcb, mbmi, r);
     }
   }
   av1_set_default_mbmi_mv_precision(mbmi, sbi);

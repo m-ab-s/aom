@@ -98,7 +98,8 @@ static AOM_INLINE void write_inter_mode(aom_writer *w, PREDICTION_MODE mode,
 }
 
 #if CONFIG_NEW_INTER_MODES
-static void write_drl_idx(FRAME_CONTEXT *ec_ctx, const MB_MODE_INFO *mbmi,
+static void write_drl_idx(int max_drl_bits, FRAME_CONTEXT *ec_ctx,
+                          const MB_MODE_INFO *mbmi,
                           const MB_MODE_INFO_EXT_FRAME *mbmi_ext_frame,
                           aom_writer *w) {
   assert(!mbmi->skip_mode);
@@ -107,8 +108,8 @@ static void write_drl_idx(FRAME_CONTEXT *ec_ctx, const MB_MODE_INFO *mbmi,
   // Also use the number of reference MVs for a frame type to reduce the
   // number of bits written if there are less than 4 valid DRL indices.
   assert(mbmi->ref_mv_idx < mbmi_ext_frame->ref_mv_count);
-  assert(mbmi->ref_mv_idx < MAX_DRL_BITS + 1);
-  int range = AOMMIN(mbmi_ext_frame->ref_mv_count - 1, MAX_DRL_BITS);
+  assert(mbmi->ref_mv_idx < max_drl_bits + 1);
+  int range = AOMMIN(mbmi_ext_frame->ref_mv_count - 1, max_drl_bits);
   for (int idx = 0; idx < range; ++idx) {
     aom_cdf_prob *drl_cdf =
         av1_get_drl_cdf(ec_ctx, mbmi_ext_frame->weight, idx);
@@ -1308,7 +1309,11 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
         write_inter_mode(w, mode, ec_ctx, mode_ctx);
 
       if (have_drl_index(mode))
-        write_drl_idx(ec_ctx, mbmi, mbmi_ext_frame, w);
+        write_drl_idx(
+#if CONFIG_NEW_INTER_MODES
+            cm->features.max_drl_bits,
+#endif  // CONFIG_NEW_INTER_MODES
+            ec_ctx, mbmi, mbmi_ext_frame, w);
       else
         assert(mbmi->ref_mv_idx == 0);
     }
@@ -3431,6 +3436,11 @@ static AOM_INLINE void write_uncompressed_header_obu(
         write_frame_size(cm, frame_size_override_flag, wb);
       }
 
+#if CONFIG_NEW_INTER_MODES
+      aom_wb_write_primitive_quniform(
+          wb, MAX_MAX_DRL_BITS - MIN_MAX_DRL_BITS + 1,
+          features->max_drl_bits - MIN_MAX_DRL_BITS);
+#endif  // CONFIG_NEW_INTER_MODES
       if (!features->cur_frame_force_integer_mv) {
         aom_wb_write_bit(wb,
                          features->fr_mv_precision > MV_SUBPEL_QTR_PRECISION);
