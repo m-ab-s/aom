@@ -800,7 +800,8 @@ typedef struct {
   //! intra_inter_cost
   int intra_inter_cost[INTRA_INTER_CONTEXTS][2];
   //! inter_compound_mode_cost
-  int inter_compound_mode_cost[INTER_MODE_CONTEXTS][INTER_COMPOUND_MODES];
+  int inter_compound_mode_cost[INTER_COMPOUND_MODE_CONTEXTS]
+                              [INTER_COMPOUND_MODES];
   //! compound_type_cost
   int compound_type_cost[BLOCK_SIZES_ALL][MASKED_COMPOUND_TYPES];
   //! wedge_idx_cost

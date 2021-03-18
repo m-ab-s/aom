@@ -332,7 +332,7 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, ModeCosts *mode_costs,
     }
 #endif  // CONFIG_NEW_INTER_MODES
 
-    for (i = 0; i < INTER_MODE_CONTEXTS; ++i)
+    for (i = 0; i < INTER_COMPOUND_MODE_CONTEXTS; ++i)
       av1_cost_tokens_from_cdf(mode_costs->inter_compound_mode_cost[i],
                                fc->inter_compound_mode_cdf[i], NULL);
     for (i = 0; i < BLOCK_SIZES_ALL; ++i)
