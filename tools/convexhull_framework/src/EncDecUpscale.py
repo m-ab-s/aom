@@ -61,7 +61,7 @@ def Decode(method, test_cfg, codec, bsfile, path, perf_path, decode_to_yuv, LogC
 
 def Run_EncDec_Upscale(method, codec, preset, clip, test_cfg, QP, num, outw,
                        outh, path_bs, path_decoded, path_upscaled, path_cfg,
-                       path_perf, path_enc_log, upscale_algo, LogCmdOnly = False):
+                       path_perf, path_enc_log, upscale_algo, scale_method, LogCmdOnly = False):
     logger.info("%s %s start encode file %s with QP = %d" %
                 (method, codec, clip.file_name, QP))
     bsFile = Encode(method, codec, preset, clip, test_cfg, QP, num, path_bs,
@@ -75,15 +75,15 @@ def Run_EncDec_Upscale(method, codec, preset, clip, test_cfg, QP, num, outw,
     dec_clip = Clip(GetShortContentName(decodedYUV, False) + ".y4m",
                     decodedYUV, clip.file_class, clip.width, clip.height,
                     clip.fmt, 0, 0, clip.bit_depth)
-    upscaledYUV = UpScaling(dec_clip, num, outw, outh, path_upscaled, path_cfg,
+    upscaledYUV = UpScaling(scale_method, dec_clip, num, outw, outh, path_upscaled, path_cfg,
                             upscale_algo, LogCmdOnly)
     logger.info("finish Run Encode, Decode and Upscale")
     return upscaledYUV
 
 
 def GetBsReconFileName(encmethod, codecname, test_cfg, preset, clip, dw, dh,
-                       dnScAlgo, upScAlgo, qp, path_bs, ds_on_the_fly=True, ratio_idx=0):
-    dsyuv_name = GetDownScaledOutFile(clip, dw, dh, path_bs, dnScAlgo, ds_on_the_fly, ratio_idx)
+                       scale_method, dnScAlgo, upScAlgo, qp, path_bs, ds_on_the_fly=True, ratio_idx=0):
+    dsyuv_name = GetDownScaledOutFile(clip, dw, dh, path_bs, scale_method, dnScAlgo, ds_on_the_fly, ratio_idx)
     # return bitstream file with absolute path
     bs = GetBitstreamFile(encmethod, codecname, test_cfg, preset, dsyuv_name,
                           qp, path_bs)

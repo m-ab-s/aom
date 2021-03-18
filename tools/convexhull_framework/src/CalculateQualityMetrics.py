@@ -23,8 +23,7 @@ logger = logging.getLogger(loggername)
 def CalculateQualityMetric(src_file, framenum, reconYUV, fmt, width, height,
                            bit_depth, logfilePath, LogCmdOnly=False):
     Utils.CmdLogger.write("::Quality Metrics\n")
-    VMAF_CalQualityMetrics(src_file, reconYUV, fmt, framenum, width, height,
-                           bit_depth, logfilePath, LogCmdOnly)
+    VMAF_CalQualityMetrics(src_file, reconYUV, logfilePath, LogCmdOnly)
 
 def GatherQualityMetrics(reconYUV, logfilePath):
     qresult, per_frame_log = VMAF_GatherQualityMetrics(reconYUV, logfilePath)

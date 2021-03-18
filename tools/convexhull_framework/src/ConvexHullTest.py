@@ -34,7 +34,7 @@ from Config import LogLevels, FrameNum, QPs, CvxH_WtCols,\
      EncodeMethods, CodecNames, LoggerName, DnScaleRatio, TargetQtyMetrics, \
      CvxHDataRows, CvxHDataStartRow, CvxHDataStartCol, CvxHDataNum, \
      Int_ConvexHullColor, EnablePreInterpolation, AS_DOWNSCALE_ON_THE_FLY,\
-     UsePerfUtil
+     UsePerfUtil, ScaleMethods
 
 ###############################################################################
 ##### Helper Functions ########################################################
@@ -177,7 +177,7 @@ def CleanUp_workfolders():
     for folder in folders:
         Cleanfolder(folder)
 
-def Run_ConvexHull_Test(clip, dnScalAlgo, upScalAlgo, LogCmdOnly = False):
+def Run_ConvexHull_Test(clip, dnScalAlgo, upScalAlgo, ScaleMethod, LogCmdOnly = False):
     Utils.Logger.info("start encode %s" % clip.file_name)
     DnScaledRes = [(int(clip.width / ratio), int(clip.height / ratio)) for ratio in
                    DnScaleRatio]
@@ -189,9 +189,9 @@ def Run_ConvexHull_Test(clip, dnScalAlgo, upScalAlgo, LogCmdOnly = False):
         DnScaledH = DnScaledRes[i][1]
         # downscaling if the downscaled file does not exist
         dnscalyuv = GetDownScaledOutFile(clip, DnScaledW, DnScaledH, Path_DnScaleYuv,
-                                         dnScalAlgo, AS_DOWNSCALE_ON_THE_FLY, i)
+                                         ScaleMethod, dnScalAlgo, AS_DOWNSCALE_ON_THE_FLY, i)
         if not os.path.isfile(dnscalyuv):
-            dnscalyuv = DownScaling(clip, FrameNum['AS'], DnScaledW, DnScaledH,
+            dnscalyuv = DownScaling(ScaleMethod, clip, FrameNum['AS'], DnScaledW, DnScaledH,
                                     Path_DnScaleYuv, Path_CfgFiles, dnScalAlgo, LogCmdOnly)
         ds_clip = Clip(GetShortContentName(dnscalyuv, False)+'.y4m', dnscalyuv,
                        clip.file_class, DnScaledW, DnScaledH, clip.fmt, clip.fps_num,
@@ -357,19 +357,24 @@ def ParseArguments(raw_args):
                         help="EncodeMethod: aom, svt")
     parser.add_argument('-p', "--EncodePreset", dest='EncodePreset', type=str,
                         metavar='', help="EncodePreset: 0,1,2... for aom and svt")
+    parser.add_argument('-t', '--ScaleMethod', dest='ScaleMethod', type=str,
+                        choices=ScaleMethods, metavar='',
+                        help="ScaleMethod: ffmpeg, hdrtool, aom")
+
     if len(raw_args) == 1:
         parser.print_help()
         sys.exit(1)
     args = parser.parse_args(raw_args[1:])
 
     global Function, KeepUpscaledOutput, SaveMemory, LogLevel, CodecName,\
-        EncodeMethod, EncodePreset, LogCmdOnly
+        EncodeMethod, ScaleMethod, EncodePreset, LogCmdOnly
     Function = args.Function
     KeepUpscaledOutput = args.KeepUpscaledOutput
     SaveMemory = args.SaveMemory
     LogLevel = args.LogLevel
     CodecName = args.CodecName
     EncodeMethod = args.EncodeMethod
+    ScaleMethod = args.ScaleMethod
     EncodePreset = args.EncodePreset
     LogCmdOnly = args.LogCmdOnly
 
@@ -379,11 +384,11 @@ def ParseArguments(raw_args):
 ######################################
 if __name__ == "__main__":
     #sys.argv = ["","-f","clean"]
-    #sys.argv = ["","-f","scaling"]
-    #sys.argv = ["", "-f", "sumscaling"]
-    #sys.argv = ["", "-f", "encode","-c","av1","-m","aom","-p","6"]
-    #sys.argv = ["", "-f", "convexhull","-c","av1","-m","aom","-p","6"]
-    #sys.argv = ["", "-f", "summary", "-c", "av1", "-m", "aom", "-p", "6"]
+    #sys.argv = ["","-f","scaling", "-t", "hdrtool"]
+    #sys.argv = ["", "-f", "sumscaling", "-t", "hdrtool"]
+    #sys.argv = ["", "-f", "encode","-c","av1","-m","aom","-p","6", "-t", "hdrtool"]
+    #sys.argv = ["", "-f", "convexhull","-c","av1","-m","aom","-p","6", "-t", "hdrtool"]
+    #sys.argv = ["", "-f", "summary", "-c", "av1", "-m", "aom", "-p", "6", "-t", "hdrtool"]
     ParseArguments(sys.argv)
 
     # preparation for executing functions
@@ -400,15 +405,15 @@ if __name__ == "__main__":
             for dnScaleAlgo, upScaleAlgo in zip(DnScalingAlgos, UpScalingAlgos):
                 Run_Scaling_Test(clip, dnScaleAlgo, upScaleAlgo,
                                  Path_DnScaleYuv, Path_UpScaleYuv, Path_QualityLog,
-                                 Path_CfgFiles, SaveMemory, KeepUpscaledOutput,
+                                 Path_CfgFiles, SaveMemory, KeepUpscaledOutput, ScaleMethod,
                                  LogCmdOnly)
     elif Function == 'sumscaling':
-        SaveScalingResultsToExcel(DnScalingAlgos, UpScalingAlgos, clip_list,
+        SaveScalingResultsToExcel(ScaleMethod, DnScalingAlgos, UpScalingAlgos, clip_list,
                                   Path_QualityLog)
     elif Function == 'encode':
         for clip in clip_list:
             for dnScalAlgo, upScalAlgo in zip(DnScalingAlgos, UpScalingAlgos):
-                Run_ConvexHull_Test(clip, dnScalAlgo, upScalAlgo, LogCmdOnly)
+                Run_ConvexHull_Test(clip, dnScalAlgo, upScalAlgo, ScaleMethod, LogCmdOnly)
     elif Function == 'convexhull':
         csv_file, perframe_csvfile = GetRDResultCsvFile(EncodeMethod, CodecName, EncodePreset, "AS")
         csv = open(csv_file, "wt")

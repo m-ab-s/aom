@@ -29,6 +29,8 @@ def ParseVMAFLogFile(vmaf_log):
     floats = len(VMAFMetricsFullList) * [0.0]
     per_frame_log = []
     flog = open(vmaf_log, 'r')
+    psnr_y='0'; psnr_cb='0'; psnr_cr='0'; ssim='0'; psnr_hvs='0'; ms_ssim='0';ciede2000='0'
+    frameNum='0'; vmaf='0'; vmaf_neg='0'
     for line in flog:
         m = re.search(r"<frame\s+frameNum=\"(\d+)\"",line)
         if m:
@@ -113,8 +115,7 @@ def GetVMAFLogFile(recfile, path):
 
 ################################################################################
 ##################### Exposed Functions ########################################
-def VMAF_CalQualityMetrics(origfile, recfile, fmt, num, w, h, bit_depth,
-                           logfilePath, LogCmdOnly=False):
+def VMAF_CalQualityMetrics(origfile, recfile, logfilePath, LogCmdOnly=False):
     vmaf_log = GetVMAFLogFile(recfile, logfilePath)
     args = " -r %s -d %s --aom_ctc v1.0 -q --threads 4 -o %s" \
            % (origfile, recfile, vmaf_log)

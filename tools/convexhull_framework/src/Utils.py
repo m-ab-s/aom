@@ -144,6 +144,35 @@ def CalcRowsClassAndContentDict(rowstart, clip_list, times=1):
     return contentsdict, rows_class
 
 
+def CreateChart_Bar(wb, title, xaxis_name, yaxis_name):
+    chart = wb.add_chart({'type': 'column'})
+    chart.set_title({'name': title, 'name_font': {'color': 'white'}})
+    chart.set_x_axis({'name': xaxis_name,
+                      'major_gridlines': {'visible': True, 'line': {'width': 0.25}},
+                      'name_font': {'color': 'white'},
+                      'num_font': {'color': 'white', 'transparency': 80},
+                      'label_position' : 'low'
+                      })
+    chart.set_y_axis({'name': yaxis_name, 'name_font': {'color': 'white'},
+                      'num_font': {'color': 'white'}})
+    chart.set_style(11)
+    chart.set_size({'x_scale': 1.5, 'y_scale': 2.0})
+    chart.set_chartarea({"fill": {'color': '#505050'}})
+    chart.set_plotarea({"fill": {'color': '#505050'}})
+    chart.set_legend({'position': 'bottom', 'font': {'color': 'white'}})
+    return chart
+
+def AddSeriesToChart_Bar(shtname, rows, coly, colx, chart, seriname):
+    yvalues = [shtname, rows[0], coly, rows[-1], coly]
+    xvalues = [shtname, rows[0], colx, rows[-1], colx]
+
+    chart.add_series({
+        'name': seriname,
+        'categories': xvalues,
+        'values': yvalues
+    })
+
+
 def CreateChart_Scatter(wb, title, xaxis_name, yaxis_name):
     chart = wb.add_chart({'type': 'scatter', 'subtype': 'straight_with_markers'})
     chart.set_title({'name': title, 'name_font': {'color': 'white'}})

@@ -44,11 +44,14 @@ DnScaleRatio = [1.0, 1.5, 2.0, 3.0, 4.0, 6.0]   # downscale ratio
 DnScalingAlgos = ['lanczos'] #['bicubic', 'bilinear', 'gauss', 'lanczos', 'sinc']
 UpScalingAlgos = ['lanczos'] #['bicubic', 'bilinear', 'gauss', 'lanczos', 'sinc']
 
+ScaleMethods = ['hdrtool', 'ffmpeg', 'aom']
+
 if SMOKE_TEST:
     DnScalingAlgos = ['bicubic', 'lanczos', 'sinc']
     UpScalingAlgos = ['bicubic', 'lanczos', 'sinc']
 HDRToolsConfigFileTemplate = os.path.join(BinPath, 'HDRConvScalerY4MFile.cfg')
 HDRConvert = os.path.join(BinPath, 'HDRConvert.exe')
+AOMScaler = os.path.join(BinPath, 'lanczos_resample_y4m.exe')
 
 ##################### Encode Config ########################################
 EncodeMethods = ["aom", "svt"]
