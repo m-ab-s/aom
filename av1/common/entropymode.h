@@ -88,11 +88,13 @@ typedef struct frame_contexts {
   aom_cdf_prob coeff_br_cdf[TX_SIZES][PLANE_TYPES][LEVEL_CONTEXTS]
                            [CDF_SIZE(BR_CDF_SIZE)];
 
-  aom_cdf_prob newmv_cdf[NEWMV_MODE_CONTEXTS][CDF_SIZE(2)];
-  aom_cdf_prob zeromv_cdf[GLOBALMV_MODE_CONTEXTS][CDF_SIZE(2)];
 #if CONFIG_NEW_INTER_MODES
+  aom_cdf_prob inter_single_mode_cdf[INTER_SINGLE_MODE_CONTEXTS]
+                                    [CDF_SIZE(INTER_SINGLE_MODES)];
   aom_cdf_prob drl_cdf[3][DRL_MODE_CONTEXTS][CDF_SIZE(2)];
 #else
+  aom_cdf_prob newmv_cdf[NEWMV_MODE_CONTEXTS][CDF_SIZE(2)];
+  aom_cdf_prob zeromv_cdf[GLOBALMV_MODE_CONTEXTS][CDF_SIZE(2)];
   aom_cdf_prob drl_cdf[DRL_MODE_CONTEXTS][CDF_SIZE(2)];
   aom_cdf_prob refmv_cdf[REFMV_MODE_CONTEXTS][CDF_SIZE(2)];
 #endif  // CONFIG_NEW_INTER_MODES
@@ -231,6 +233,28 @@ static INLINE int av1_ceil_log2(int n) {
   }
   return i;
 }
+
+#if CONFIG_NEW_INTER_MODES
+static INLINE int16_t inter_single_mode_ctx(int16_t mode_ctx) {
+  // refmv_ctx values 2 and 4 are mapped to binary 1 while the rest map to 0.
+  // This is intended to capture the case of ref_match_count >= 2 in
+  // setup_ref_mv_list() function in mvref_common.c as a limited binary
+  // context in addition to newmv_ctx and zeromv_ctx.
+  // TODO(debargha, elliottk): Measure how much the limited refmv_ctx
+  // actually helps
+  static const int refmv_ctx_to_isrefmv_ctx[REFMV_MODE_CONTEXTS] = { 0, 0, 1,
+                                                                     0, 1, 0 };
+  const int16_t newmv_ctx = mode_ctx & NEWMV_CTX_MASK;
+  const int16_t zeromv_ctx = (mode_ctx >> GLOBALMV_OFFSET) & GLOBALMV_CTX_MASK;
+  const int16_t refmv_ctx = (mode_ctx >> REFMV_OFFSET) & REFMV_CTX_MASK;
+  const int16_t isrefmv_ctx = refmv_ctx_to_isrefmv_ctx[refmv_ctx];
+  const int16_t ctx =
+      GLOBALMV_MODE_CONTEXTS * ISREFMV_MODE_CONTEXTS * newmv_ctx +
+      ISREFMV_MODE_CONTEXTS * zeromv_ctx + isrefmv_ctx;
+  assert(ctx < INTER_SINGLE_MODE_CONTEXTS);
+  return ctx;
+}
+#endif  // CONFIG_NEW_INTER_MODES
 
 // Returns the context for palette color index at row 'r' and column 'c',
 // along with the 'color_order' of neighbors and the 'color_idx'.

@@ -84,6 +84,12 @@ static AOM_INLINE void write_intra_y_mode_kf(FRAME_CONTEXT *frame_ctx,
 static AOM_INLINE void write_inter_mode(aom_writer *w, PREDICTION_MODE mode,
                                         FRAME_CONTEXT *ec_ctx,
                                         const int16_t mode_ctx) {
+#if CONFIG_NEW_INTER_MODES
+  const int16_t ismode_ctx = inter_single_mode_ctx(mode_ctx);
+  aom_write_symbol(w, mode - SINGLE_INTER_MODE_START,
+                   ec_ctx->inter_single_mode_cdf[ismode_ctx],
+                   INTER_SINGLE_MODES);
+#else
   const int16_t newmv_ctx = mode_ctx & NEWMV_CTX_MASK;
 
   aom_write_symbol(w, mode != NEWMV, ec_ctx->newmv_cdf[newmv_ctx], 2);
@@ -93,13 +99,12 @@ static AOM_INLINE void write_inter_mode(aom_writer *w, PREDICTION_MODE mode,
         (mode_ctx >> GLOBALMV_OFFSET) & GLOBALMV_CTX_MASK;
     aom_write_symbol(w, mode != GLOBALMV, ec_ctx->zeromv_cdf[zeromv_ctx], 2);
 
-#if !CONFIG_NEW_INTER_MODES
     if (mode != GLOBALMV) {
       int16_t refmv_ctx = (mode_ctx >> REFMV_OFFSET) & REFMV_CTX_MASK;
       aom_write_symbol(w, mode != NEARESTMV, ec_ctx->refmv_cdf[refmv_ctx], 2);
     }
-#endif  // !CONFIG_NEW_INTER_MODES
   }
+#endif  // !CONFIG_NEW_INTER_MODES
 }
 
 #if CONFIG_NEW_INTER_MODES

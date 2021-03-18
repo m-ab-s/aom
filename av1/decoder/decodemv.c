@@ -207,19 +207,14 @@ static INTERINTRA_MODE read_interintra_mode(MACROBLOCKD *xd, aom_reader *r,
 
 static PREDICTION_MODE read_inter_mode(FRAME_CONTEXT *ec_ctx, aom_reader *r,
                                        int16_t ctx) {
-  int16_t mode_ctx = ctx & NEWMV_CTX_MASK;
 #if CONFIG_NEW_INTER_MODES
-  // TODO(siroh): For some frames, the DRL will be "empty."
-  // Under NEW_INTER_MODES, the frame GMV will be inserted to fix this.
-  // Under the old process, get_this_mv inserts the frame GMV on-the-fly.
-  // When this situation happens there's no actual need to signal the next
-  // bit, because it's either NEARMV 0 referencing the GMV or GLOBAL referencing
-  // the GMV.
-  // Implement this for NEW_INTER_MODES, possibly using a new context.
-  int is_newmv, is_zeromv;
+  const int16_t ismode_ctx = inter_single_mode_ctx(ctx);
+  return SINGLE_INTER_MODE_START +
+         aom_read_symbol(r, ec_ctx->inter_single_mode_cdf[ismode_ctx],
+                         INTER_SINGLE_MODES, ACCT_STR);
 #else
+  int16_t mode_ctx = ctx & NEWMV_CTX_MASK;
   int is_newmv, is_zeromv, is_refmv;
-#endif  // CONFIG_NEW_INTER_MODES
   is_newmv = aom_read_symbol(r, ec_ctx->newmv_cdf[mode_ctx], 2, ACCT_STR) == 0;
   if (is_newmv) return NEWMV;
 
@@ -228,9 +223,6 @@ static PREDICTION_MODE read_inter_mode(FRAME_CONTEXT *ec_ctx, aom_reader *r,
       aom_read_symbol(r, ec_ctx->zeromv_cdf[mode_ctx], 2, ACCT_STR) == 0;
   if (is_zeromv) return GLOBALMV;
 
-#if CONFIG_NEW_INTER_MODES
-  return NEARMV;
-#else
   mode_ctx = (ctx >> REFMV_OFFSET) & REFMV_CTX_MASK;
   is_refmv = aom_read_symbol(r, ec_ctx->refmv_cdf[mode_ctx], 2, ACCT_STR) == 0;
   if (is_refmv)

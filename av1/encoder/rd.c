@@ -314,6 +314,21 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, ModeCosts *mode_costs,
                                fc->intra_inter_cdf[i], NULL);
     }
 
+#if CONFIG_NEW_INTER_MODES
+    for (i = 0; i < INTER_SINGLE_MODE_CONTEXTS; ++i) {
+      av1_cost_tokens_from_cdf(mode_costs->inter_single_mode_cost[i],
+                               fc->inter_single_mode_cdf[i], NULL);
+    }
+
+    for (i = 0; i < DRL_MODE_CONTEXTS; ++i) {
+      av1_cost_tokens_from_cdf(mode_costs->drl_mode_cost[0][i],
+                               fc->drl_cdf[0][i], NULL);
+      av1_cost_tokens_from_cdf(mode_costs->drl_mode_cost[1][i],
+                               fc->drl_cdf[1][i], NULL);
+      av1_cost_tokens_from_cdf(mode_costs->drl_mode_cost[2][i],
+                               fc->drl_cdf[2][i], NULL);
+    }
+#else
     for (i = 0; i < NEWMV_MODE_CONTEXTS; ++i) {
       av1_cost_tokens_from_cdf(mode_costs->newmv_mode_cost[i], fc->newmv_cdf[i],
                                NULL);
@@ -324,16 +339,6 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, ModeCosts *mode_costs,
                                fc->zeromv_cdf[i], NULL);
     }
 
-#if CONFIG_NEW_INTER_MODES
-    for (i = 0; i < DRL_MODE_CONTEXTS; ++i) {
-      av1_cost_tokens_from_cdf(mode_costs->drl_mode_cost[0][i],
-                               fc->drl_cdf[0][i], NULL);
-      av1_cost_tokens_from_cdf(mode_costs->drl_mode_cost[1][i],
-                               fc->drl_cdf[1][i], NULL);
-      av1_cost_tokens_from_cdf(mode_costs->drl_mode_cost[2][i],
-                               fc->drl_cdf[2][i], NULL);
-    }
-#else
     for (i = 0; i < REFMV_MODE_CONTEXTS; ++i) {
       av1_cost_tokens_from_cdf(mode_costs->refmv_mode_cost[i], fc->refmv_cdf[i],
                                NULL);

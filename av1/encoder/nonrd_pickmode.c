@@ -1093,10 +1093,15 @@ static int cost_mv_ref(const ModeCosts *const mode_costs, PREDICTION_MODE mode,
         ->inter_compound_mode_cost[mode_context][INTER_COMPOUND_OFFSET(mode)];
   }
 
+  assert(is_inter_mode(mode));
+
+#if CONFIG_NEW_INTER_MODES
+  const int16_t ismode_ctx = inter_single_mode_ctx(mode_context);
+  return mode_costs
+      ->inter_single_mode_cost[ismode_ctx][mode - SINGLE_INTER_MODE_START];
+#else
   int mode_cost = 0;
   int16_t mode_ctx = mode_context & NEWMV_CTX_MASK;
-
-  assert(is_inter_mode(mode));
 
   if (mode == NEWMV) {
     mode_cost = mode_costs->newmv_mode_cost[mode_ctx][0];
@@ -1111,12 +1116,11 @@ static int cost_mv_ref(const ModeCosts *const mode_costs, PREDICTION_MODE mode,
     } else {
       mode_cost += mode_costs->zeromv_mode_cost[mode_ctx][1];
       mode_ctx = (mode_context >> REFMV_OFFSET) & REFMV_CTX_MASK;
-#if !CONFIG_NEW_INTER_MODES
       mode_cost += mode_costs->refmv_mode_cost[mode_ctx][mode != NEARESTMV];
-#endif  // !CONFIG_NEW_INTER_MODES
       return mode_cost;
     }
   }
+#endif  // CONFIG_NEW_INTER_MODES
 }
 
 static void newmv_diff_bias(MACROBLOCKD *xd, PREDICTION_MODE this_mode,
