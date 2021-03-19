@@ -550,10 +550,49 @@ static void validate_positive_rational(const char *msg,
 
 static void init_config(cfg_options_t *config) {
   memset(config, 0, sizeof(cfg_options_t));
-  config->superblock_size = 0;  // Dynamic
+
+  /* These parameters are set in the function parseCfg.
+     In absence of these parameters in the config file,
+     the default values should match  */
+  config->superblock_size = 128;
   config->max_partition_size = 128;
   config->min_partition_size = 4;
+  config->enable_ab_partitions = 1;
+  config->enable_rect_partitions = 1;
+  config->enable_1to4_partitions = 1;
+  config->enable_flip_idtx = 1;
+  config->enable_deblocking = 1;
+  config->enable_cdef = 1;
+  config->enable_restoration = 1;
+  config->enable_obmc = 1;
+  config->enable_warped_motion = 1;
+  config->enable_global_motion = 1;
+#if !CONFIG_REMOVE_DIST_WTD_COMP
+  config->enable_dist_wtd_comp = 1;
+#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
+  config->enable_diff_wtd_comp = 1;
+  config->enable_interintra_comp = 1;
+  config->enable_masked_comp = 1;
+  config->enable_onesided_comp = 1;
+  config->enable_palette = 1;
+  config->enable_intrabc = 1;
+  config->enable_cfl_intra = 1;
+  config->enable_smooth_intra = 1;
+  config->enable_filter_intra = 1;
+#if !CONFIG_REMOVE_DUAL_FILTER
+  config->enable_dual_filter = 1;
+#endif  // !CONFIG_REMOVE_DUAL_FILTER
+  config->enable_angle_delta = 1;
+  config->enable_intra_edge_filter = 1;
+  config->enable_tx64 = 1;
+  config->enable_smooth_interintra = 1;
+  config->enable_interinter_wedge = 1;
+  config->enable_interintra_wedge = 1;
+  config->enable_paeth_intra = 1;
   config->enable_trellis_quant = 3;
+  config->enable_ref_frame_mvs = 1;
+  config->enable_reduced_reference_set = 0;
+  config->reduced_tx_type_set = 0;
 }
 
 /* Parses global config arguments into the AvxEncoderConfig. Note that
