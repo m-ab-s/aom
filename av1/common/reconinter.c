@@ -805,7 +805,8 @@ static void build_inter_predictors_sub8x8(
   const bool ss_y = pd->subsampling_y;
   const int b4_w = block_size_wide[bsize] >> ss_x;
   const int b4_h = block_size_high[bsize] >> ss_y;
-  const BLOCK_SIZE plane_bsize = plane ? mi->chroma_ref_info.bsize_base : bsize;
+  const BLOCK_SIZE plane_bsize =
+      plane ? mi->chroma_ref_info.bsize_base : mi->sb_type;
   const int b8_w = block_size_wide[plane_bsize] >> ss_x;
   const int b8_h = block_size_high[plane_bsize] >> ss_y;
   assert(!is_intrabc_block(mi));
@@ -814,12 +815,10 @@ static void build_inter_predictors_sub8x8(
   // worth of pixels. Thus (mi_x, mi_y) may not be the correct coordinates for
   // the top-left corner of the prediction source - the correct top-left corner
   // is at (pre_x, pre_y).
-  const int mi_row = -xd->mb_to_top_edge >> (3 + MI_SIZE_LOG2);
-  const int mi_col = -xd->mb_to_left_edge >> (3 + MI_SIZE_LOG2);
   const int row_start =
-      plane ? (mi->chroma_ref_info.mi_row_chroma_base - mi_row) : 0;
+      plane ? (mi->chroma_ref_info.mi_row_chroma_base - xd->mi_row) : 0;
   const int col_start =
-      plane ? (mi->chroma_ref_info.mi_col_chroma_base - mi_col) : 0;
+      plane ? (mi->chroma_ref_info.mi_col_chroma_base - xd->mi_col) : 0;
   const int pre_x = (mi_x + MI_SIZE * col_start) >> ss_x;
   const int pre_y = (mi_y + MI_SIZE * row_start) >> ss_y;
 
@@ -852,7 +851,6 @@ static void build_inter_predictors_sub8x8(
       };
 
       const MV mv = this_mbmi->mv[ref].as_mv;
-
       InterPredParams inter_pred_params;
       av1_init_inter_params(&inter_pred_params, b4_w, b4_h, pre_y + y,
                             pre_x + x, pd->subsampling_x, pd->subsampling_y,
@@ -871,9 +869,9 @@ static void build_inter_predictors_sub8x8(
                                     &inter_pred_params, xd, mi_x + x, mi_y + y,
                                     ref, mc_buf, calc_subpel_params_func);
 
-      ++col;
+      col += mi_size_wide[bsize];
     }
-    ++row;
+    row += mi_size_high[bsize];
   }
 }
 
