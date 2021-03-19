@@ -83,6 +83,7 @@ typedef struct {
   int8_t children[4];
 } RD_RECORD_IDX_NODE;
 
+#if !CONFIG_NEW_TX_PARTITION
 static const RD_RECORD_IDX_NODE rd_record_tree_8x8[] = {
   { 1, { 0 } },
 };
@@ -227,7 +228,6 @@ static INLINE void init_rd_record_tree(TXB_RD_INFO_NODE *tree,
   }
 }
 
-#if !CONFIG_NEW_TX_PARTITION
 // Go through all TX blocks that could be used in TX size search, compute
 // residual hash values for them and find matching RD info that stores previous
 // RD search results for these TX blocks. The idea is to prevent repeated
