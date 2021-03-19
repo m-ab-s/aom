@@ -85,7 +85,7 @@ static INLINE void enc_calc_subpel_params(
 }
 
 static void enc_build_inter_predictors(const AV1_COMMON *cm, MACROBLOCKD *xd,
-                                       int plane, const MB_MODE_INFO *mi,
+                                       int plane, MB_MODE_INFO *mi,
                                        int build_for_obmc, int bw, int bh,
                                        int mi_x, int mi_y, bool store_border) {
   const int border =

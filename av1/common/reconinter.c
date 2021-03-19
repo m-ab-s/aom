@@ -812,23 +812,6 @@ void av1_opfl_mv_refinement4_highbd(const uint16_t *p0, int pstride0,
   *vy1 = d1 * (int)X[3];
 }
 
-// Macros for optical flow experiment where offsets are added in nXn blocks
-// rather than adding a single offset to the entire prediction unit.
-#define USE_OF_NXN 1
-#define USE_OF_CHROMA 1
-#if USE_OF_NXN
-#define OF_MIN_BSIZE_LOG2 2
-#define OF_BSIZE_LOG2 3
-// Block size to use to divide up the prediction unit
-#define OF_MIN_BSIZE (1 << OF_MIN_BSIZE_LOG2)
-#define OF_BSIZE (1 << OF_BSIZE_LOG2)
-#define N_OF_OFFSETS_1D (1 << (MAX_SB_SIZE_LOG2 - OF_BSIZE_LOG2))
-// Maximum number of offsets to be computed
-#define N_OF_OFFSETS (N_OF_OFFSETS_1D * N_OF_OFFSETS_1D)
-#else
-#define N_OF_OFFSETS 1
-#endif  // USE_OF_NXN
-
 #if USE_OF_NXN
 // Function to compute optical flow offsets in nxn blocks
 int opfl_mv_refinement_nxn_highbd(const uint16_t *p0, int pstride0,
@@ -1060,10 +1043,9 @@ void make_inter_pred_of_nxn(
     uint8_t *dst, int dst_stride, SubpelParams *subpel_params,
     const struct scale_factors *sf, int w, int h, ConvolveParams *conv_params,
     int_interpfilters interp_filters, const WarpTypesAllowed *warp_types,
-    int p_col, int p_row, int plane, int ref, const MB_MODE_INFO *mi,
-    MACROBLOCKD *xd, int can_use_previous, int n, int_mv *mv_refined, int pre_x,
-    int pre_y, struct buf_2d *const pre_buf,
-    CalcSubpelParamsFunc calc_subpel_params_func,
+    int p_col, int p_row, int plane, int ref, MB_MODE_INFO *mi, MACROBLOCKD *xd,
+    int can_use_previous, int n, int_mv *mv_refined, int pre_x, int pre_y,
+    struct buf_2d *const pre_buf, CalcSubpelParamsFunc calc_subpel_params_func,
     const void *const calc_subpel_params_func_args) {
   int n_blocks = 0;
   CONV_BUF_TYPE *orig_conv_dst = conv_params->dst;
@@ -1462,7 +1444,7 @@ static void av1_make_masked_inter_predictor(
 }
 
 static void build_inter_predictors(
-    const AV1_COMMON *cm, MACROBLOCKD *xd, int plane, const MB_MODE_INFO *mi,
+    const AV1_COMMON *cm, MACROBLOCKD *xd, int plane, MB_MODE_INFO *mi,
     int build_for_obmc, int bw, int bh, int mi_x, int mi_y,
     CalcSubpelParamsFunc calc_subpel_params_func,
     const void *const calc_subpel_params_func_args, uint8_t *dst,
@@ -1506,16 +1488,11 @@ static void build_inter_predictors(
   const int use_derived_mv = mi->derived_mv_allowed && mi->use_derived_mv;
 #endif  // CONFIG_DERIVED_MV
 #if CONFIG_OPTFLOW_REFINEMENT
-  int_mv mv_refined[2 * N_OF_OFFSETS];
-#if USE_OF_CHROMA
   const int use_optflow_prec = (mi->mode > NEW_NEWMV) && is_compound;
-#else
-  const int use_optflow_prec =
-      (mi->mode > NEW_NEWMV) && is_compound && plane == 0;
-#endif
   assert(IMPLIES(use_optflow_prec, !build_for_obmc));
 
-  if (use_optflow_prec) {
+  // Obtain offset MVs in Y plane
+  if (use_optflow_prec && plane == 0) {
     // Initialize refined mv
 #if CONFIG_DERIVED_MV
     const MV mv0 = use_derived_mv ? mi->derived_mv[0] : mi->mv[0].as_mv;
@@ -1525,11 +1502,11 @@ static void build_inter_predictors(
     const MV mv1 = mi->mv[1].as_mv;
 #endif  // CONFIG_DERIVED_MV
     for (int mvi = 0; mvi < N_OF_OFFSETS; mvi++) {
-      mv_refined[mvi * 2].as_mv = mv0;
-      mv_refined[mvi * 2 + 1].as_mv = mv1;
+      mi->mv_refined[mvi * 2].as_mv = mv0;
+      mi->mv_refined[mvi * 2 + 1].as_mv = mv1;
     }
-    av1_get_optflow_based_mv(cm, xd, plane, mi, mv_refined, bw, bh, mi_x, mi_y,
-                             calc_subpel_params_func,
+    av1_get_optflow_based_mv(cm, xd, plane, mi, mi->mv_refined, bw, bh, mi_x,
+                             mi_y, calc_subpel_params_func,
                              calc_subpel_params_func_args);
   }
 
@@ -1550,21 +1527,25 @@ static void build_inter_predictors(
     SubpelParams subpel_params;
     int src_stride;
 #if CONFIG_OPTFLOW_REFINEMENT
-    if (use_optflow_prec) {
+    // For luma, always apply offset MVs. For chroma, use the MVs derived for
+    // luma if luma subblock size is 8x8 (i.e., chroma block size > 8x8),
+    // and otherwise apply normal compound average.
+    if (use_optflow_prec && (plane == 0 || bh > 8 || bw > 8)) {
       conv_params.do_average = ref;
 #if USE_OF_NXN
-      int n = (bh <= 16 && bw <= 16) ? OF_MIN_BSIZE : OF_BSIZE;
+      int n = plane ? OF_BSIZE / 2
+                    : ((bh <= 16 && bw <= 16) ? OF_MIN_BSIZE : OF_BSIZE);
       make_inter_pred_of_nxn(
           dst, dst_buf->stride, &subpel_params, sf, bw, bh, &conv_params,
           mi->interp_filters, &warp_types, mi_x >> pd->subsampling_x,
           mi_y >> pd->subsampling_y, plane, ref, mi, xd,
-          cm->allow_warped_motion, n, mv_refined, pre_x, pre_y, pre_buf,
+          cm->allow_warped_motion, n, mi->mv_refined, pre_x, pre_y, pre_buf,
           calc_subpel_params_func, calc_subpel_params_func_args);
 #else
       // Compute subpel params with refined mv
-      calc_subpel_params_func(xd, sf, &(mv_refined[ref].as_mv), plane, pre_x,
-                              pre_y, 0, 0, pre_buf, bw, bh, &warp_types, ref, 1,
-                              calc_subpel_params_func_args, &pre,
+      calc_subpel_params_func(xd, sf, &(mi->mv_refined[ref].as_mv), plane,
+                              pre_x, pre_y, 0, 0, pre_buf, bw, bh, &warp_types,
+                              ref, 1, calc_subpel_params_func_args, &pre,
                               &subpel_params, &src_stride);
       av1_make_inter_predictor(
           pre, src_stride, dst, dst_buf->stride, &subpel_params, sf, bw, bh,
@@ -1941,9 +1922,8 @@ int av1_calc_border(const MACROBLOCKD *xd, int plane, int build_for_obmc) {
 }
 
 void av1_build_inter_predictors(const AV1_COMMON *cm, MACROBLOCKD *xd,
-                                int plane, const MB_MODE_INFO *mi,
-                                int build_for_obmc, int bw, int bh, int mi_x,
-                                int mi_y,
+                                int plane, MB_MODE_INFO *mi, int build_for_obmc,
+                                int bw, int bh, int mi_x, int mi_y,
                                 CalcSubpelParamsFunc calc_subpel_params_func,
                                 const void *const calc_subpel_params_func_args,
                                 uint8_t *dst, int dst_stride, int border) {

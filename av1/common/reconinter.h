@@ -238,9 +238,8 @@ int av1_calc_border(const MACROBLOCKD *xd, int plane, int build_for_obmc);
 // Note that in the case of a border, dst should already be offset, to allow
 // negative offsetting.
 void av1_build_inter_predictors(const AV1_COMMON *cm, MACROBLOCKD *xd,
-                                int plane, const MB_MODE_INFO *mi,
-                                int build_for_obmc, int bw, int bh, int mi_x,
-                                int mi_y,
+                                int plane, MB_MODE_INFO *mi, int build_for_obmc,
+                                int bw, int bh, int mi_x, int mi_y,
                                 CalcSubpelParamsFunc calc_subpel_params_func,
                                 const void *const calc_subpel_params_func_args,
                                 uint8_t *dst, int dst_stride, int border);

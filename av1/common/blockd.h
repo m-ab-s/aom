@@ -667,6 +667,24 @@ static INLINE void set_chroma_ref_info(int mi_row, int mi_col, int index,
 #endif  // FUSION_MODE
 #endif  // CONFIG_DERIVED_INTRA_MODE
 
+// Macros for optical flow experiment where offsets are added in nXn blocks
+// rather than adding a single offset to the entire prediction unit.
+#if CONFIG_OPTFLOW_REFINEMENT
+#define USE_OF_NXN 1
+#if USE_OF_NXN
+#define OF_MIN_BSIZE_LOG2 2
+#define OF_BSIZE_LOG2 3
+// Block size to use to divide up the prediction unit
+#define OF_MIN_BSIZE (1 << OF_MIN_BSIZE_LOG2)
+#define OF_BSIZE (1 << OF_BSIZE_LOG2)
+#define N_OF_OFFSETS_1D (1 << (MAX_SB_SIZE_LOG2 - OF_MIN_BSIZE_LOG2))
+// Maximum number of offsets to be computed
+#define N_OF_OFFSETS (N_OF_OFFSETS_1D * N_OF_OFFSETS_1D)
+#else
+#define N_OF_OFFSETS 1
+#endif  // USE_OF_NXN
+#endif  // CONFIG_OPTFLOW_REFINEMENT
+
 // This structure now relates to 4x4 block regions.
 typedef struct MB_MODE_INFO {
   // interinter members
@@ -764,6 +782,9 @@ typedef struct MB_MODE_INFO {
   int use_derived_mv;
   MV derived_mv[2];
 #endif  // CONFIG_DERIVED_MV
+#if CONFIG_OPTFLOW_REFINEMENT
+  int_mv mv_refined[2 * N_OF_OFFSETS];
+#endif  // CONFIG_OPTFLOW_REFINEMENT
 #if CONFIG_DSPL_RESIDUAL
   // dspl_type stores the partition level downsampling decision for the
   // CONFIG_DSPL_RESIDUAL experiment

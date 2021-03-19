@@ -748,7 +748,7 @@ static void dec_calc_subpel_params_and_extend(
 }
 
 static void dec_build_inter_predictors(const AV1_COMMON *cm, MACROBLOCKD *xd,
-                                       int plane, const MB_MODE_INFO *mi,
+                                       int plane, MB_MODE_INFO *mi,
                                        int build_for_obmc, int bw, int bh,
                                        int mi_x, int mi_y) {
   const DecCalcSubpelFuncArgs args = { mi, mi_x, mi_y, build_for_obmc };
@@ -763,7 +763,7 @@ static void build_inter_predictors_for_plane(const AV1_COMMON *cm,
                                              MACROBLOCKD *xd, int mi_row,
                                              int mi_col, const BUFFER_SET *ctx,
                                              BLOCK_SIZE bsize, int plane) {
-  const MB_MODE_INFO *mi = xd->mi[0];
+  MB_MODE_INFO *mi = xd->mi[0];
   if (plane != AOM_PLANE_Y && !mi->chroma_ref_info.is_chroma_ref) {
     return;
   }
