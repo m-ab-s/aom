@@ -1873,8 +1873,9 @@ static float get_dev(float mean, double x2_sum, int num) {
 
 // Feature used by the model to predict tx split: the mean and standard
 // deviation values of the block and sub-blocks.
-static AOM_INLINE void get_mean_dev_features(const int16_t *data, int stride,
-                                             int bw, int bh, float *feature) {
+static AOM_INLINE void get_mean_dev_features(int bd, const int16_t *data,
+                                             int stride, int bw, int bh,
+                                             float *feature) {
   const int16_t *const data_ptr = &data[0];
   const int subh = (bh >= bw) ? (bh >> 1) : bh;
   const int subw = (bw >= bh) ? (bw >> 1) : bw;
@@ -1894,6 +1895,8 @@ static AOM_INLINE void get_mean_dev_features(const int16_t *data, int stride,
       // TODO(any): Write a SIMD version. Clear registers.
       aom_get_blk_sse_sum(data_ptr + row * stride + col, stride, subw, subh,
                           &x_sum, &x2_sum);
+      x_sum >>= (bd - 8);
+      x2_sum >>= (bd - 8) * 2;
       total_x_sum += x_sum;
       total_x2_sum += x2_sum;
 
@@ -1933,7 +1936,7 @@ static int ml_predict_tx_split(MACROBLOCK *x, BLOCK_SIZE bsize, int blk_row,
   aom_clear_system_state();
 
   float features[64] = { 0.0f };
-  get_mean_dev_features(diff, diff_stride, bw, bh, features);
+  get_mean_dev_features(x->e_mbd.bd, diff, diff_stride, bw, bh, features);
 
   float score = 0.0f;
   av1_nn_predict(features, nn_config, 1, &score);
@@ -2785,8 +2788,7 @@ static AOM_INLINE void select_tx_block(
   }
 
   // ML based speed feature to skip searching for split transform blocks.
-  if (x->e_mbd.bd == 8 && try_split &&
-      !(ref_best_rd == INT64_MAX && no_split.rd == INT64_MAX)) {
+  if (try_split && !(ref_best_rd == INT64_MAX && no_split.rd == INT64_MAX)) {
     const int threshold = cpi->sf.tx_sf.tx_type_search.ml_tx_split_thresh;
     if (threshold >= 0) {
       const int split_score =
