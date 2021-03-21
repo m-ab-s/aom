@@ -355,7 +355,7 @@ static struct av1_extracfg default_extra_cfg = {
   1,                            // enable ab shape partitions
   1,                            // enable 1:4 and 4:1 partitions
 #if CONFIG_SDP
-  0,    // enable semi-decoupled partitioning
+  1,    // enable semi-decoupled partitioning
 #endif  // CONFIG_SDP
   4,    // min_partition_size
   128,  // max_partition_size
@@ -3738,7 +3738,7 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = {
       { -1, -1, -1, -1, -1 },  // fixed_qp_offsets
       { 0, 128, 128, 4, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
 #if CONFIG_SDP
-        0,
+        1,
 #endif  // CONFIG_SDP
 #if !CONFIG_REMOVE_DIST_WTD_COMP
         1,
@@ -3816,7 +3816,7 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = {
       { -1, -1, -1, -1, -1 },  // fixed_qp_offsets
       { 0, 128, 128, 4, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
 #if CONFIG_SDP
-        0,
+        1,
 #endif
 #if !CONFIG_REMOVE_DIST_WTD_COMP
         1,

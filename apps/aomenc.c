@@ -563,6 +563,9 @@ static void init_config(cfg_options_t *config) {
   config->enable_ab_partitions = 1;
   config->enable_rect_partitions = 1;
   config->enable_1to4_partitions = 1;
+#if CONFIG_SDP
+  config->enable_sdp = 1;
+#endif
   config->enable_flip_idtx = 1;
   config->enable_deblocking = 1;
   config->enable_cdef = 1;
