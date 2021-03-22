@@ -1662,9 +1662,12 @@ static int64_t motion_mode_rd(
                                   : ((ROTATION_BITS << AV1_PROB_COST_SHIFT) +
                                      x->mode_costs.warp_rotation_cost[1]);
           if (av1_txfm_search(cpi, x, bsize, rd_stats, rd_stats_y, rd_stats_uv,
-                              tmp_rate2, ref_best_rd)) {
-            if (rd_stats->rdcost < rdcost) {
-              rdcost = rd_stats->rdcost;
+                              tmp_rate2, ref_best_rd) &&
+              rd_stats_y->rate != INT_MAX) {
+            const int64_t this_rd =
+                RDCOST(x->rdmult, rd_stats->rate, rd_stats->dist);
+            if (this_rd < rdcost) {
+              rdcost = this_rd;
               best_rot = rot;
             }
           }
