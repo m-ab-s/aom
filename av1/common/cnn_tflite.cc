@@ -14,11 +14,13 @@
 #include "av1/common/av1_common_int.h"
 #include "av1/common/cnn_tflite.h"
 #include "av1/tflite_models/op_registrations.h"
+#include "av1/tflite_models/intra_frame_model/uv_qp12.h"
 #include "av1/tflite_models/intra_frame_model/uv_qp22.h"
 #include "av1/tflite_models/intra_frame_model/uv_qp32.h"
 #include "av1/tflite_models/intra_frame_model/uv_qp43.h"
 #include "av1/tflite_models/intra_frame_model/uv_qp53.h"
 #include "av1/tflite_models/intra_frame_model/uv_qp63.h"
+#include "av1/tflite_models/intra_frame_model/qp12.h"
 #include "av1/tflite_models/intra_frame_model/qp22.h"
 #include "av1/tflite_models/intra_frame_model/qp32.h"
 #include "av1/tflite_models/intra_frame_model/qp43.h"
@@ -46,7 +48,9 @@ static const unsigned char *get_intra_model_from_qindex(int qindex,
   }
 
   if (is_luma) {
-    if (qindex < 108) {
+    if (qindex < 68) {
+      return qp12_model_tflite_data;
+    } else if (qindex < 108) {
       return qp22_model_tflite_data;
     } else if (qindex < 148) {
       return qp32_model_tflite_data;
@@ -58,7 +62,9 @@ static const unsigned char *get_intra_model_from_qindex(int qindex,
       return qp63_model_tflite_data;
     }
   } else {
-    if (qindex < 108) {
+    if (qindex < 68) {
+      return uv_qp12_model_tflite_data;
+    } else if (qindex < 108) {
       return uv_qp22_model_tflite_data;
     } else if (qindex < 148) {
       return uv_qp32_model_tflite_data;
@@ -81,7 +87,9 @@ static const unsigned char *get_inter_model_from_qindex(int qindex,
   }
 
   if (is_luma) {
-    if (qindex < 108) {
+    if (qindex < 68) {
+      return qp12_model_tflite_data;  // reuse intra model
+    } else if (qindex < 108) {
       return qp68_107_inter_model_tflite_data;
     } else if (qindex < 148) {
       return qp108_147_inter_model_tflite_data;
@@ -93,7 +101,9 @@ static const unsigned char *get_inter_model_from_qindex(int qindex,
       return qp232_255_inter_model_tflite_data;
     }
   } else {
-    if (qindex < 108) {
+    if (qindex < 68) {
+      return uv_qp12_model_tflite_data;  // reuse intra model
+    } else if (qindex < 108) {
       return uv_qp68_107_inter_model_tflite_data;
     } else if (qindex < 148) {
       return uv_qp108_147_inter_model_tflite_data;

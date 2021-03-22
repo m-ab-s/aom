@@ -21,7 +21,7 @@ extern "C" {
 #include "av1/encoder/ratectrl.h"
 
 // Minimum base_qindex needed to run cnn.
-#define MIN_CNN_Q_INDEX 67
+#define MIN_CNN_Q_INDEX 0
 
 // Returns true if we are allowed to use CNN for restoration.
 static INLINE int av1_use_cnn(const AV1_COMMON *cm) {
