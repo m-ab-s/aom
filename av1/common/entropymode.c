@@ -498,22 +498,21 @@ static const aom_cdf_prob
       { AOM_CDF3(601, 943) },     { AOM_CDF3(14969, 21398) }
     };
 #if CONFIG_NEW_INTER_MODES
-// TODO(debargha, elliottk): Optimize the tables
 static const aom_cdf_prob
     default_inter_single_mode_cdf[INTER_SINGLE_MODE_CONTEXTS][CDF_SIZE(
         INTER_SINGLE_MODES)] = {
-      { AOM_CDF3(19000, 23000) }, { AOM_CDF3(19000, 23000) },
-      { AOM_CDF3(19000, 23000) }, { AOM_CDF3(19000, 23000) },
-      { AOM_CDF3(19000, 23000) }, { AOM_CDF3(19000, 23000) },
-      { AOM_CDF3(19000, 23000) }, { AOM_CDF3(19000, 23000) },
-      { AOM_CDF3(19000, 23000) }, { AOM_CDF3(19000, 23000) },
-      { AOM_CDF3(19000, 23000) }, { AOM_CDF3(19000, 23000) },
-      { AOM_CDF3(19000, 23000) }, { AOM_CDF3(19000, 23000) },
-      { AOM_CDF3(19000, 23000) }, { AOM_CDF3(19000, 23000) },
-      { AOM_CDF3(19000, 23000) }, { AOM_CDF3(19000, 23000) },
-      { AOM_CDF3(19000, 23000) }, { AOM_CDF3(19000, 23000) },
-      { AOM_CDF3(19000, 23000) }, { AOM_CDF3(19000, 23000) },
-      { AOM_CDF3(19000, 23000) }, { AOM_CDF3(19000, 23000) }
+      { AOM_CDF3(17346, 18771) }, { AOM_CDF3(10923, 21845) },
+      { AOM_CDF3(8838, 9132) },   { AOM_CDF3(10923, 21845) },
+      { AOM_CDF3(17910, 18959) }, { AOM_CDF3(16927, 17852) },
+      { AOM_CDF3(11632, 11810) }, { AOM_CDF3(12506, 12827) },
+      { AOM_CDF3(15831, 17676) }, { AOM_CDF3(15236, 17070) },
+      { AOM_CDF3(13715, 13809) }, { AOM_CDF3(13869, 14031) },
+      { AOM_CDF3(25678, 26470) }, { AOM_CDF3(23151, 23634) },
+      { AOM_CDF3(21431, 21612) }, { AOM_CDF3(19838, 20021) },
+      { AOM_CDF3(19562, 20206) }, { AOM_CDF3(10923, 21845) },
+      { AOM_CDF3(14966, 15103) }, { AOM_CDF3(10923, 21845) },
+      { AOM_CDF3(27072, 28206) }, { AOM_CDF3(10923, 21845) },
+      { AOM_CDF3(24626, 24936) }, { AOM_CDF3(10923, 21845) }
     };
 
 static const aom_cdf_prob default_drl0_cdf[DRL_MODE_CONTEXTS][CDF_SIZE(2)] = {
@@ -536,14 +535,14 @@ static const aom_cdf_prob default_drl2_cdf[DRL_MODE_CONTEXTS][CDF_SIZE(2)] = {
 
 static const aom_cdf_prob
     default_inter_compound_mode_cdf[INTER_COMPOUND_MODE_CONTEXTS][CDF_SIZE(
-        INTER_COMPOUND_MODES)] = { { AOM_CDF5(13823, 17323, 20666, 26891) },
-                                   { AOM_CDF5(19452, 22435, 25131, 28724) },
-                                   { AOM_CDF5(20221, 22977, 25387, 28436) },
-                                   { AOM_CDF5(16984, 21356, 25736, 26422) },
-                                   { AOM_CDF5(23325, 25708, 28258, 30758) },
-                                   { AOM_CDF5(17454, 21499, 25168, 26046) },
-                                   { AOM_CDF5(24273, 26536, 28704, 30592) },
-                                   { AOM_CDF5(23214, 25998, 28442, 29330) } };
+        INTER_COMPOUND_MODES)] = { { AOM_CDF5(10510, 17103, 22330, 24536) },
+                                   { AOM_CDF5(14805, 20117, 24655, 25891) },
+                                   { AOM_CDF5(15700, 20333, 24425, 25305) },
+                                   { AOM_CDF5(15047, 20124, 24840, 25223) },
+                                   { AOM_CDF5(22632, 25637, 28394, 29608) },
+                                   { AOM_CDF5(15703, 20315, 24653, 25122) },
+                                   { AOM_CDF5(22458, 25512, 28304, 29008) },
+                                   { AOM_CDF5(21368, 24274, 26890, 27364) } };
 #else
 static const aom_cdf_prob default_newmv_cdf[NEWMV_MODE_CONTEXTS][CDF_SIZE(
     2)] = { { AOM_CDF2(24035) }, { AOM_CDF2(16630) }, { AOM_CDF2(15339) },
