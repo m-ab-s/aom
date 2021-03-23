@@ -1169,7 +1169,7 @@ void av1_get_ref_frames(AV1_COMP *const cpi, int cur_frame_disp,
 
   // Do not map GOLDEN and ALTREF based on their pyramid level if all reference
   // frames have the same level
-  if (n_min_level_refs < n_bufs) {
+  if (n_min_level_refs <= n_bufs) {
     // Map the GOLDEN_FRAME
     if (golden_idx > -1)
       add_ref_to_slot(&buffer_map[golden_idx], remapped_ref_idx, GOLDEN_FRAME);
@@ -1194,6 +1194,50 @@ void av1_get_ref_frames(AV1_COMP *const cpi, int cur_frame_disp,
         break;
       }
     }
+  }
+
+  // Place past frames in LAST_FRAME, LAST2_FRAME, and LAST3_FRAME
+  for (int frame = LAST_FRAME; frame < GOLDEN_FRAME; frame++) {
+    // Continue if the current ref slot is already full
+    if (remapped_ref_idx[frame - LAST_FRAME] != INVALID_IDX) continue;
+    // Find the next unmapped reference buffer
+    // in decreasing ouptut oreder relative to current picture
+    int next_buf_max = 0;
+    int next_disp_order = INT_MIN;
+    for (buf_map_idx = n_bufs - 1; buf_map_idx >= 0; buf_map_idx--) {
+      if (!buffer_map[buf_map_idx].used &&
+          buffer_map[buf_map_idx].disp_order < cur_frame_disp &&
+          buffer_map[buf_map_idx].disp_order > next_disp_order) {
+        next_disp_order = buffer_map[buf_map_idx].disp_order;
+        next_buf_max = buf_map_idx;
+      }
+    }
+    buf_map_idx = next_buf_max;
+    if (buf_map_idx < 0) break;
+    if (buffer_map[buf_map_idx].used) break;
+    add_ref_to_slot(&buffer_map[buf_map_idx], remapped_ref_idx, frame);
+  }
+
+  // Place future frames (if there are any) in BWDREF_FRAME and ALTREF2_FRAME
+  for (int frame = BWDREF_FRAME; frame < REF_FRAMES; frame++) {
+    // Continue if the current ref slot is already full
+    if (remapped_ref_idx[frame - LAST_FRAME] != INVALID_IDX) continue;
+    // Find the next unmapped reference buffer
+    // in increasing ouptut oreder relative to current picture
+    int next_buf_max = 0;
+    int next_disp_order = INT_MAX;
+    for (buf_map_idx = n_bufs - 1; buf_map_idx >= 0; buf_map_idx--) {
+      if (!buffer_map[buf_map_idx].used &&
+          buffer_map[buf_map_idx].disp_order > cur_frame_disp &&
+          buffer_map[buf_map_idx].disp_order < next_disp_order) {
+        next_disp_order = buffer_map[buf_map_idx].disp_order;
+        next_buf_max = buf_map_idx;
+      }
+    }
+    buf_map_idx = next_buf_max;
+    if (buf_map_idx < 0) break;
+    if (buffer_map[buf_map_idx].used) break;
+    add_ref_to_slot(&buffer_map[buf_map_idx], remapped_ref_idx, frame);
   }
 
   // Place remaining past frames

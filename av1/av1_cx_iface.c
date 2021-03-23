@@ -2392,6 +2392,9 @@ static void report_stats(AV1_COMP *cpi, size_t frame_size, uint64_t cx_time) {
       const int ref_idx = ref_frame - LAST_FRAME;
       const RefCntBuffer *const buf = get_ref_frame_buf(cm, ref_frame);
       ref_poc[ref_idx] = buf ? (int)buf->absolute_poc : -1;
+      ref_poc[ref_idx] = (ref_poc[ref_idx] == (int)cm->cur_frame->absolute_poc)
+                             ? -1
+                             : ref_poc[ref_idx];
     }
     if (cpi->b_calculate_psnr) {
       fprintf(stdout,
