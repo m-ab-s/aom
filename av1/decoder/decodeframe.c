@@ -724,9 +724,8 @@ static void dec_calc_subpel_params_and_extend(
 
 static void dec_build_inter_predictors(const AV1_COMMON *cm,
                                        DecoderCodingBlock *dcb, int plane,
-                                       const MB_MODE_INFO *mi,
-                                       int build_for_obmc, int bw, int bh,
-                                       int mi_x, int mi_y) {
+                                       MB_MODE_INFO *mi, int build_for_obmc,
+                                       int bw, int bh, int mi_x, int mi_y) {
   av1_build_inter_predictors(cm, &dcb->xd, plane, mi, build_for_obmc, bw, bh,
                              mi_x, mi_y, dcb->mc_buf,
                              dec_calc_subpel_params_and_extend);

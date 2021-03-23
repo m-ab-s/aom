@@ -267,9 +267,9 @@ void av1_build_one_inter_predictor(
     int ref, uint8_t **mc_buf, CalcSubpelParamsFunc calc_subpel_params_func);
 
 void av1_build_inter_predictors(const AV1_COMMON *cm, MACROBLOCKD *xd,
-                                int plane, const MB_MODE_INFO *mi,
-                                int build_for_obmc, int bw, int bh, int mi_x,
-                                int mi_y, uint8_t **mc_buf,
+                                int plane, MB_MODE_INFO *mi, int build_for_obmc,
+                                int bw, int bh, int mi_x, int mi_y,
+                                uint8_t **mc_buf,
                                 CalcSubpelParamsFunc calc_subpel_params_func);
 
 #if CONFIG_OPTFLOW_REFINEMENT

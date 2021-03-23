@@ -128,8 +128,8 @@ void av1_enc_build_one_inter_predictor(uint8_t *dst, int dst_stride,
 }
 
 static void enc_build_inter_predictors(const AV1_COMMON *cm, MACROBLOCKD *xd,
-                                       int plane, const MB_MODE_INFO *mi,
-                                       int bw, int bh, int mi_x, int mi_y) {
+                                       int plane, MB_MODE_INFO *mi, int bw,
+                                       int bh, int mi_x, int mi_y) {
   av1_build_inter_predictors(cm, xd, plane, mi, 0 /* build_for_obmc */, bw, bh,
                              mi_x, mi_y, NULL /* mc_buf */,
                              enc_calc_subpel_params);

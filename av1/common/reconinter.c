@@ -994,22 +994,6 @@ void av1_opfl_mv_refinement_highbd(const uint16_t *p0, int pstride0,
   *vy1 = (int)DIVIDE_AND_ROUND_SIGNED(ty1, d0);
 }
 
-// Macros for optical flow experiment where offsets are added in nXn blocks
-// rather than adding a single offset to the entire prediction unit.
-#define USE_OF_NXN 1
-#if USE_OF_NXN
-#define OF_MIN_BSIZE_LOG2 2
-#define OF_BSIZE_LOG2 3
-// Block size to use to divide up the prediction unit
-#define OF_MIN_BSIZE (1 << OF_MIN_BSIZE_LOG2)
-#define OF_BSIZE (1 << OF_BSIZE_LOG2)
-#define N_OF_OFFSETS_1D (1 << (MAX_SB_SIZE_LOG2 - OF_BSIZE_LOG2))
-// Maximum number of offsets to be computed
-#define N_OF_OFFSETS (N_OF_OFFSETS_1D * N_OF_OFFSETS_1D)
-#else
-#define N_OF_OFFSETS 1
-#endif  // USE_OF_NXN
-
 #if USE_OF_NXN
 // Function to compute optical flow offsets in nxn blocks
 int opfl_mv_refinement_nxn_highbd(const uint16_t *p0, int pstride0,
@@ -1275,15 +1259,16 @@ void make_inter_pred_of_nxn(uint8_t *dst, int dst_stride,
 #endif  // USE_OF_NXN
 
 void av1_build_optflow_inter_predictor(
-    uint8_t *dst, int dst_stride, int_mv *const mv_refined,
+    uint8_t *dst, int dst_stride, int plane, int_mv *const mv_refined,
     InterPredParams *inter_pred_params, MACROBLOCKD *xd, int mi_x, int mi_y,
     int ref, uint8_t **mc_buf, CalcSubpelParamsFunc calc_subpel_params_func) {
   SubpelParams subpel_params;
 #if USE_OF_NXN
-  int n = (inter_pred_params->block_height <= 16 &&
-           inter_pred_params->block_width <= 16)
-              ? OF_MIN_BSIZE
-              : OF_BSIZE;
+  int n = plane ? OF_BSIZE / 2
+                : ((inter_pred_params->block_height <= 16 &&
+                    inter_pred_params->block_width <= 16)
+                       ? OF_MIN_BSIZE
+                       : OF_BSIZE);
   make_inter_pred_of_nxn(dst, dst_stride, mv_refined, inter_pred_params, xd,
                          mi_x, mi_y, ref, mc_buf, calc_subpel_params_func, n,
                          &subpel_params);
@@ -1554,7 +1539,7 @@ static void build_inter_predictors_sub8x8(
 }
 
 static void build_inter_predictors_8x8_and_bigger(
-    const AV1_COMMON *cm, MACROBLOCKD *xd, int plane, const MB_MODE_INFO *mi,
+    const AV1_COMMON *cm, MACROBLOCKD *xd, int plane, MB_MODE_INFO *mi,
     int build_for_obmc, int bw, int bh, int mi_x, int mi_y, uint8_t **mc_buf,
     CalcSubpelParamsFunc calc_subpel_params_func) {
   const int is_compound = has_second_ref(mi);
@@ -1582,20 +1567,20 @@ static void build_inter_predictors_8x8_and_bigger(
   const int pre_y = (mi_y + MI_SIZE * row_start) >> pd->subsampling_y;
 
 #if CONFIG_OPTFLOW_REFINEMENT
-  int_mv mv_refined[2 * N_OF_OFFSETS];
   const int use_optflow_refinement = (mi->mode > NEW_NEWMV) && is_compound;
   assert(IMPLIES(use_optflow_refinement, !build_for_obmc));
 
-  if (use_optflow_refinement) {
+  if (use_optflow_refinement && plane == 0) {
     // Initialize refined mv
     const MV mv0 = mi->mv[0].as_mv;
     const MV mv1 = mi->mv[1].as_mv;
     for (int mvi = 0; mvi < N_OF_OFFSETS; mvi++) {
-      mv_refined[mvi * 2].as_mv = mv0;
-      mv_refined[mvi * 2 + 1].as_mv = mv1;
+      mi->mv_refined[mvi * 2].as_mv = mv0;
+      mi->mv_refined[mvi * 2 + 1].as_mv = mv1;
     }
-    av1_get_optflow_based_mv(cm, xd, plane, mi, mv_refined, bw, bh, mi_x, mi_y,
-                             mc_buf, calc_subpel_params_func);
+    // TODO(kslu): remove mi->mv_refined below
+    av1_get_optflow_based_mv(cm, xd, plane, mi, mi->mv_refined, bw, bh, mi_x,
+                             mi_y, mc_buf, calc_subpel_params_func);
   }
 #endif  // CONFIG_OPTFLOW_REFINEMENT
 
@@ -1642,10 +1627,13 @@ static void build_inter_predictors_8x8_and_bigger(
     }
 
 #if CONFIG_OPTFLOW_REFINEMENT
-    if (use_optflow_refinement) {
-      av1_build_optflow_inter_predictor(dst, dst_buf->stride, mv_refined,
-                                        &inter_pred_params, xd, mi_x, mi_y, ref,
-                                        mc_buf, calc_subpel_params_func);
+    // For luma, always apply offset MVs. For chroma, use the MVs derived for
+    // luma if luma subblock size is 8x8 (i.e., chroma block size > 8x8),
+    // and otherwise apply normal compound average.
+    if (use_optflow_refinement && (plane == 0 || bh > 8 || bw > 8)) {
+      av1_build_optflow_inter_predictor(
+          dst, dst_buf->stride, plane, mi->mv_refined, &inter_pred_params, xd,
+          mi_x, mi_y, ref, mc_buf, calc_subpel_params_func);
       continue;
     }
 #endif  // CONFIG_OPTFLOW_REFINEMENT
@@ -1656,9 +1644,9 @@ static void build_inter_predictors_8x8_and_bigger(
 }
 
 void av1_build_inter_predictors(const AV1_COMMON *cm, MACROBLOCKD *xd,
-                                int plane, const MB_MODE_INFO *mi,
-                                int build_for_obmc, int bw, int bh, int mi_x,
-                                int mi_y, uint8_t **mc_buf,
+                                int plane, MB_MODE_INFO *mi, int build_for_obmc,
+                                int bw, int bh, int mi_x, int mi_y,
+                                uint8_t **mc_buf,
                                 CalcSubpelParamsFunc calc_subpel_params_func) {
   if (is_sub8x8_inter(xd, mi, plane, is_intrabc_block(mi), build_for_obmc)) {
 #if !CONFIG_EXT_RECUR_PARTITIONS
