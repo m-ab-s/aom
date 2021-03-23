@@ -943,7 +943,7 @@ static void update_drl_index_stats(int max_drl_bits, FRAME_CONTEXT *fc,
         av1_get_drl_cdf(fc, mbmi_ext->weight[ref_frame_type], idx);
 #if CONFIG_ENTROPY_STATS
     int drl_ctx = av1_drl_ctx(mbmi_ext->weight[ref_frame_type], idx);
-    switch (mbmi->ref_mv_idx) {
+    switch (idx) {
       case 0: counts->drl0_mode[drl_ctx][mbmi->ref_mv_idx != idx]++; break;
       case 1: counts->drl1_mode[drl_ctx][mbmi->ref_mv_idx != idx]++; break;
       default: counts->drl2_mode[drl_ctx][mbmi->ref_mv_idx != idx]++; break;

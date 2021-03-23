@@ -242,8 +242,7 @@ static INLINE int16_t inter_single_mode_ctx(int16_t mode_ctx) {
   // refmv_ctx values 2 and 4 are mapped to binary 1 while the rest map to 0.
   // This is intended to capture the case of ref_match_count >= 2 in
   // setup_ref_mv_list() function in mvref_common.c as a limited binary
-  // context in addition to newmv_ctx and zeromv_ctx into order to code
-  // inter single ref modes.
+  // context in addition to newmv_ctx and zeromv_ctx.
   // TODO(debargha, elliottk): Measure how much the limited refmv_ctx
   // actually helps
   static const int refmv_ctx_to_isrefmv_ctx[REFMV_MODE_CONTEXTS] = { 0, 0, 1,
