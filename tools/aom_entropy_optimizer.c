@@ -497,10 +497,11 @@ int main(int argc, const char **argv) {
 
 #if CONFIG_EXT_ROTATION
   /* warp rotation flag */
-  cts_each_dim[0] = 2;
-  optimize_cdf_table(
-      &fc.warp_rotation[0], probsfile, 1, cts_each_dim,
-      "static const aom_cdf_prob default_warp_rotation_cdf[CDF_SIZE(2)]");
+  cts_each_dim[0] = BLOCK_SIZES_ALL;
+  cts_each_dim[1] = 2;
+  optimize_cdf_table(&fc.warp_rotation[0][0], probsfile, 2, cts_each_dim,
+                     "static const aom_cdf_prob "
+                     "default_warp_rotation_cdf[BLOCK_SIZES_ALL][CDF_SIZE(2)]");
 
   /* warp rotation degree */
   cts_each_dim[0] = ROTATION_COUNT;

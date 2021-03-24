@@ -112,7 +112,7 @@ typedef struct frame_contexts {
                                   [CDF_SIZE(INTERINTRA_MODES)];
   aom_cdf_prob motion_mode_cdf[BLOCK_SIZES_ALL][CDF_SIZE(MOTION_MODES)];
 #if CONFIG_EXT_ROTATION
-  aom_cdf_prob warp_rotation_cdf[CDF_SIZE(2)];
+  aom_cdf_prob warp_rotation_cdf[BLOCK_SIZES_ALL][CDF_SIZE(2)];
   aom_cdf_prob rotation_degree_cdf[CDF_SIZE(ROTATION_COUNT)];
 #endif  // CONFIG_EXT_ROTATION
   aom_cdf_prob obmc_cdf[BLOCK_SIZES_ALL][CDF_SIZE(2)];

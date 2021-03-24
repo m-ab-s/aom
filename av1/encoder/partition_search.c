@@ -1235,10 +1235,10 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
             const int rot_ind =
                 (mbmi->rotation + ROTATION_RANGE) / ROTATION_STEP;
 #if CONFIG_ENTROPY_STATS
-            ++counts->warp_rotation[mbmi->rot_flag];
+            ++counts->warp_rotation[bsize][mbmi->rot_flag];
             if (mbmi->rot_flag) ++counts->rotation_degree[rot_ind];
 #endif
-            update_cdf(fc->warp_rotation_cdf, mbmi->rot_flag, 2);
+            update_cdf(fc->warp_rotation_cdf[bsize], mbmi->rot_flag, 2);
             if (mbmi->rot_flag)
               update_cdf(fc->rotation_degree_cdf, rot_ind, ROTATION_COUNT);
           }

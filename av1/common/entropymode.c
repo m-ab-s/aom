@@ -663,8 +663,15 @@ static const aom_cdf_prob default_motion_mode_cdf[BLOCK_SIZES_ALL][CDF_SIZE(
                        { AOM_CDF3(28973, 31594) }, { AOM_CDF3(29742, 31203) } };
 
 #if CONFIG_EXT_ROTATION
-static const aom_cdf_prob default_warp_rotation_cdf[CDF_SIZE(2)] = { AOM_CDF2(
-    26636) };
+static const aom_cdf_prob default_warp_rotation_cdf[BLOCK_SIZES_ALL][CDF_SIZE(
+    2)] = { { AOM_CDF2(26636) }, { AOM_CDF2(26636) }, { AOM_CDF2(26636) },
+            { AOM_CDF2(26636) }, { AOM_CDF2(26636) }, { AOM_CDF2(26636) },
+            { AOM_CDF2(26636) }, { AOM_CDF2(26636) }, { AOM_CDF2(26636) },
+            { AOM_CDF2(26636) }, { AOM_CDF2(26636) }, { AOM_CDF2(26636) },
+            { AOM_CDF2(26636) }, { AOM_CDF2(26636) }, { AOM_CDF2(26636) },
+            { AOM_CDF2(26636) }, { AOM_CDF2(26636) }, { AOM_CDF2(26636) },
+            { AOM_CDF2(26636) }, { AOM_CDF2(26636) }, { AOM_CDF2(26636) },
+            { AOM_CDF2(26636) } };
 
 static const aom_cdf_prob
     default_rotation_degree_cdf[CDF_SIZE(ROTATION_COUNT)] = { AOM_CDF15(

@@ -836,7 +836,7 @@ typedef struct {
   int motion_mode_cost[BLOCK_SIZES_ALL][MOTION_MODES];
 #if CONFIG_EXT_ROTATION
   //! warp_rotation_cost
-  int warp_rotation_cost[2];
+  int warp_rotation_cost[BLOCK_SIZES_ALL][2];
   //! rotation_degree_cost
   int rotation_degree_cost[ROTATION_COUNT];
 #endif  // CONFIG_EXT_ROTATION

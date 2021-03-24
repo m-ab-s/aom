@@ -1661,9 +1661,9 @@ static int64_t motion_mode_rd(
           const int rot_index =
               (mbmi->rotation + ROTATION_RANGE) / ROTATION_STEP;
           tmp_rate2 += (rot == 0)
-                           ? x->mode_costs.warp_rotation_cost[0]
+                           ? x->mode_costs.warp_rotation_cost[bsize][0]
                            : (x->mode_costs.rotation_degree_cost[rot_index] +
-                              x->mode_costs.warp_rotation_cost[1]);
+                              x->mode_costs.warp_rotation_cost[bsize][1]);
           if (av1_txfm_search(cpi, x, bsize, rd_stats, rd_stats_y, rd_stats_uv,
                               tmp_rate2, ref_best_rd) &&
               rd_stats_y->rate != INT_MAX) {
@@ -1712,8 +1712,8 @@ static int64_t motion_mode_rd(
         const int rot_index = (mbmi->rotation + ROTATION_RANGE) / ROTATION_STEP;
         tmp_rate2 += mbmi->rot_flag
                          ? (x->mode_costs.rotation_degree_cost[rot_index] +
-                            x->mode_costs.warp_rotation_cost[1])
-                         : x->mode_costs.warp_rotation_cost[0];
+                            x->mode_costs.warp_rotation_cost[bsize][1])
+                         : x->mode_costs.warp_rotation_cost[bsize][0];
 #endif  // CONFIG_EXT_ROTATION
 
         // Build the warped predictor

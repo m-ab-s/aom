@@ -364,8 +364,10 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, ModeCosts *mode_costs,
                                fc->motion_mode_cdf[i], NULL);
     }
 #if CONFIG_EXT_ROTATION
-    av1_cost_tokens_from_cdf(mode_costs->warp_rotation_cost,
-                             fc->warp_rotation_cdf, NULL);
+    for (i = 0; i < BLOCK_SIZES_ALL; i++) {
+      av1_cost_tokens_from_cdf(mode_costs->warp_rotation_cost[i],
+                               fc->warp_rotation_cdf[i], NULL);
+    }
     av1_cost_tokens_from_cdf(mode_costs->rotation_degree_cost,
                              fc->rotation_degree_cdf, NULL);
 #endif  // CONFIG_EXT_ROTATION
