@@ -30,6 +30,9 @@
 // This function will determine whether or not to create a warped
 // prediction.
 int av1_allow_warp(const MB_MODE_INFO *const mbmi,
+#if CONFIG_EXT_ROTATION
+                   const MACROBLOCKD *xd,
+#endif  // CONFIG_EXT_ROTATION
                    const WarpTypesAllowed *const warp_types,
                    const WarpedMotionParams *const gm_params,
                    int build_for_obmc, const struct scale_factors *const sf,
@@ -48,8 +51,15 @@ int av1_allow_warp(const MB_MODE_INFO *const mbmi,
       memcpy(final_warp_params, &mbmi->wm_params, sizeof(*final_warp_params));
     return 1;
   } else if (warp_types->global_warp_allowed && !gm_params->invalid) {
-    if (final_warp_params != NULL)
+    if (final_warp_params != NULL) {
+#if CONFIG_EXT_ROTATION
+      if (globalmv_rotation_allowed(xd) && mbmi->rot_flag) {
+        memcpy(final_warp_params, &mbmi->wm_params, sizeof(*final_warp_params));
+        return 1;
+      }
+#endif  // CONFIG_EXT_ROTATION
       memcpy(final_warp_params, gm_params, sizeof(*final_warp_params));
+    }
     return 1;
   }
 
@@ -115,13 +125,29 @@ void av1_init_comp_mode(InterPredParams *inter_pred_params) {
 
 void av1_init_warp_params(InterPredParams *inter_pred_params,
                           const WarpTypesAllowed *warp_types, int ref,
-                          const MACROBLOCKD *xd, const MB_MODE_INFO *mi) {
+                          const MACROBLOCKD *xd, MB_MODE_INFO *mi) {
   if (inter_pred_params->block_height < 8 || inter_pred_params->block_width < 8)
     return;
 
   if (xd->cur_frame_force_integer_mv) return;
 
-  if (av1_allow_warp(mi, warp_types, &xd->global_motion[mi->ref_frame[ref]], 0,
+#if CONFIG_EXT_ROTATION
+  if (globalmv_rotation_allowed(xd) && mi->rot_flag) {
+    memcpy(&mi->wm_params, &xd->global_motion[mi->ref_frame[0]],
+           sizeof(WarpedMotionParams));
+    const int center_x = (xd->mi_col + (xd->width / 2)) * MI_SIZE;
+    const int center_y = (xd->mi_row + (xd->height / 2)) * MI_SIZE;
+    av1_warp_rotation(mi, mi->rotation, center_x, center_y);
+    if (!av1_get_shear_params(&mi->wm_params)) {
+      mi->rot_flag = 0;
+    }
+  }
+#endif  // CONFIG_EXT_ROTATION
+  if (av1_allow_warp(mi,
+#if CONFIG_EXT_ROTATION
+                     xd,
+#endif  // CONFIG_EXT_ROTATION
+                     warp_types, &xd->global_motion[mi->ref_frame[ref]], 0,
                      inter_pred_params->scale_factors,
                      &inter_pred_params->warp_params))
     inter_pred_params->mode = WARP_PRED;

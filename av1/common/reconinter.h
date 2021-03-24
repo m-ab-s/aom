@@ -147,7 +147,7 @@ void av1_init_comp_mode(InterPredParams *inter_pred_params);
 
 void av1_init_warp_params(InterPredParams *inter_pred_params,
                           const WarpTypesAllowed *warp_types, int ref,
-                          const MACROBLOCKD *xd, const MB_MODE_INFO *mi);
+                          const MACROBLOCKD *xd, MB_MODE_INFO *mi);
 
 static INLINE int has_scale(int xs, int ys) {
   return xs != SCALE_SUBPEL_SHIFTS || ys != SCALE_SUBPEL_SHIFTS;
@@ -474,6 +474,9 @@ void av1_combine_interintra(MACROBLOCKD *xd, BLOCK_SIZE bsize, int plane,
                             const uint8_t *intra_pred, int intra_stride);
 
 int av1_allow_warp(const MB_MODE_INFO *const mbmi,
+#if CONFIG_EXT_ROTATION
+                   const MACROBLOCKD *xd,
+#endif  // CONFIG_EXT_ROTATION
                    const WarpTypesAllowed *const warp_types,
                    const WarpedMotionParams *const gm_params,
                    int build_for_obmc, const struct scale_factors *const sf,

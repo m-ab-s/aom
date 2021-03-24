@@ -1093,6 +1093,19 @@ int av1_find_projection(int np, const int *pts1, const int *pts2,
 }
 
 #if CONFIG_EXT_ROTATION
+int globalmv_rotation_allowed(const MACROBLOCKD *xd) {
+  MB_MODE_INFO *mbmi = xd->mi[0];
+  if (mbmi->motion_mode != SIMPLE_TRANSLATION) return 0;
+  if (mbmi->mode != GLOBALMV) return 0;
+  if (xd->global_motion[mbmi->ref_frame[0]].invalid) return 0;
+  if (xd->global_motion[mbmi->ref_frame[0]].wmtype == IDENTITY) return 0;
+  // smaller blocks don't benefit from EXT_ROTATION
+  if (mbmi->sb_type < BLOCK_8X8 || mbmi->sb_type == BLOCK_4X16 ||
+      mbmi->sb_type == BLOCK_16X4)
+    return 0;
+  return 1;
+}
+
 void av1_warp_rotation(MB_MODE_INFO *mi, int8_t rotation, int center_x,
                        int center_y) {
   const int sine_index =

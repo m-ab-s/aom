@@ -842,10 +842,15 @@ typedef struct {
   //! motion_mode_cost
   int motion_mode_cost[BLOCK_SIZES_ALL][MOTION_MODES];
 #if CONFIG_EXT_ROTATION
-  //! warp_rotation_cost
-  int warp_rotation_cost[BLOCK_SIZES_ALL][2];
-  //! rotation_degree_cost
-  int rotation_degree_cost[ROTATION_COUNT];
+  //! warp_rotation_flag_cost
+  int warp_rotation_flag_cost[BLOCK_SIZES_ALL][2];
+  //! warp_rotation_degree_cost
+  int warp_rotation_degree_cost[ROTATION_COUNT];
+
+  //! globalmv_rotation_flag_cost
+  int globalmv_rotation_flag_cost[BLOCK_SIZES_ALL][2];
+  //! globalmv_rotation_degree_cost
+  int globalmv_rotation_degree_cost[ROTATION_COUNT];
 #endif  // CONFIG_EXT_ROTATION
   //! motion_mode_cost1
   int motion_mode_cost1[BLOCK_SIZES_ALL][2];

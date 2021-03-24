@@ -1151,8 +1151,11 @@ typedef struct FRAME_COUNTS {
   unsigned int compound_type[BLOCK_SIZES_ALL][MASKED_COMPOUND_TYPES];
   unsigned int motion_mode[BLOCK_SIZES_ALL][MOTION_MODES];
 #if CONFIG_EXT_ROTATION
-  unsigned int warp_rotation[BLOCK_SIZES_ALL][2];
-  unsigned int rotation_degree[ROTATION_COUNT];
+  unsigned int warp_rotation_flag[BLOCK_SIZES_ALL][2];
+  unsigned int warp_rotation_degree[ROTATION_COUNT];
+
+  unsigned int globalmv_rotation_flag[BLOCK_SIZES_ALL][2];
+  unsigned int globalmv_rotation_degree[ROTATION_COUNT];
 #endif  // CONFIG_EXT_ROTATION
   unsigned int obmc[BLOCK_SIZES_ALL][2];
   unsigned int intra_inter[INTRA_INTER_CONTEXTS][2];

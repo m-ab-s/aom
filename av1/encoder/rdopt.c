@@ -1716,6 +1716,58 @@ static int64_t motion_mode_rd(
       // SIMPLE_TRANSLATION mode: no need to recalculate.
       // The prediction is calculated before motion_mode_rd() is called in
       // handle_inter_mode()
+#if CONFIG_EXT_ROTATION
+      if (globalmv_rotation_allowed(xd)) {
+        const int tmp_rate2_0 = tmp_rate2;
+
+        // keep track of best rotation degree
+        int64_t rdcost = INT64_MAX;
+        int best_rot = 0;
+
+        // check all rotations
+        for (int rot = -ROTATION_RANGE; rot <= ROTATION_RANGE;
+             rot += ROTATION_STEP) {
+          if (rot != 0) {
+            mbmi->rot_flag = 1;
+            mbmi->rotation = rot;
+            tmp_rate2 +=
+                (x->mode_costs.globalmv_rotation_degree_cost
+                     [(mbmi->rotation + ROTATION_RANGE) / ROTATION_STEP] +
+                 x->mode_costs.globalmv_rotation_flag_cost[bsize][1]);
+          } else {
+            mbmi->rot_flag = 0;
+            tmp_rate2 += x->mode_costs.globalmv_rotation_flag_cost[bsize][0];
+          }
+          av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize, 0,
+                                        av1_num_planes(cm) - 1);
+          if (rot != 0 && !mbmi->rot_flag) continue;
+          if (av1_txfm_search(cpi, x, bsize, rd_stats, rd_stats_y, rd_stats_uv,
+                              tmp_rate2, rdcost) &&
+              rd_stats_y->rate != INT_MAX) {
+            const int64_t this_rd =
+                RDCOST(x->rdmult, rd_stats->rate, rd_stats->dist);
+            if (this_rd < rdcost) {
+              rdcost = this_rd;
+              best_rot = rot;
+            }
+          }
+          tmp_rate2 = tmp_rate2_0;
+        }
+        if (best_rot != 0) {
+          mbmi->rotation = best_rot;
+          mbmi->rot_flag = 1;
+          tmp_rate2 +=
+              (x->mode_costs.globalmv_rotation_degree_cost
+                   [(mbmi->rotation + ROTATION_RANGE) / ROTATION_STEP] +
+               x->mode_costs.globalmv_rotation_flag_cost[bsize][1]);
+        } else {
+          mbmi->rot_flag = 0;
+          tmp_rate2 += x->mode_costs.globalmv_rotation_flag_cost[bsize][0];
+        }
+        av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize, 0,
+                                      av1_num_planes(cm) - 1);
+      }
+#endif  // CONFIG_EXT_ROTATION
     } else if (mbmi->motion_mode == OBMC_CAUSAL) {
       const uint32_t cur_mv = mbmi->mv[0].as_int;
       // OBMC_CAUSAL not allowed for compound prediction
@@ -1786,10 +1838,10 @@ static int64_t motion_mode_rd(
           // calculate cost
           const int rot_index =
               (mbmi->rotation + ROTATION_RANGE) / ROTATION_STEP;
-          tmp_rate2 += (rot == 0)
-                           ? x->mode_costs.warp_rotation_cost[bsize][0]
-                           : (x->mode_costs.rotation_degree_cost[rot_index] +
-                              x->mode_costs.warp_rotation_cost[bsize][1]);
+          tmp_rate2 +=
+              (rot == 0) ? x->mode_costs.warp_rotation_flag_cost[bsize][0]
+                         : (x->mode_costs.warp_rotation_degree_cost[rot_index] +
+                            x->mode_costs.warp_rotation_flag_cost[bsize][1]);
           if (av1_txfm_search(cpi, x, bsize, rd_stats, rd_stats_y, rd_stats_uv,
                               tmp_rate2, rdcost) &&
               rd_stats_y->rate != INT_MAX) {
@@ -1837,9 +1889,9 @@ static int64_t motion_mode_rd(
         // Update cost again based on rot_flag
         const int rot_index = (mbmi->rotation + ROTATION_RANGE) / ROTATION_STEP;
         tmp_rate2 += mbmi->rot_flag
-                         ? (x->mode_costs.rotation_degree_cost[rot_index] +
-                            x->mode_costs.warp_rotation_cost[bsize][1])
-                         : x->mode_costs.warp_rotation_cost[bsize][0];
+                         ? (x->mode_costs.warp_rotation_degree_cost[rot_index] +
+                            x->mode_costs.warp_rotation_flag_cost[bsize][1])
+                         : x->mode_costs.warp_rotation_flag_cost[bsize][0];
 #endif  // CONFIG_EXT_ROTATION
 
         // Build the warped predictor

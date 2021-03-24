@@ -332,7 +332,7 @@ void av1_build_inter_predictors_for_planes_single_buf(MACROBLOCKD *xd,
                                                       int plane_to, int ref,
                                                       uint8_t *ext_dst[3],
                                                       int ext_dst_stride[3]) {
-  const MB_MODE_INFO *mi = xd->mi[0];
+  MB_MODE_INFO *mi = xd->mi[0];
   const int mi_row = xd->mi_row;
   const int mi_col = xd->mi_col;
   const int mi_x = mi_col * MI_SIZE;

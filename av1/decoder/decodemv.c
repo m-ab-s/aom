@@ -293,18 +293,34 @@ static MOTION_MODE read_motion_mode(AV1_COMMON *cm, MACROBLOCKD *xd,
 #if CONFIG_EXT_ROTATION
     if (motion_mode == WARPED_CAUSAL) {
       mbmi->rot_flag = aom_read_symbol(
-          r, xd->tile_ctx->warp_rotation_cdf[mbmi->sb_type], 2, ACCT_STR);
+          r, xd->tile_ctx->warp_rotation_flag_cdf[mbmi->sb_type], 2, ACCT_STR);
       if (mbmi->rot_flag) {
-        mbmi->rotation = aom_read_symbol(r, xd->tile_ctx->rotation_degree_cdf,
-                                         ROTATION_COUNT, ACCT_STR) *
-                             ROTATION_STEP -
-                         ROTATION_RANGE;
+        mbmi->rotation =
+            aom_read_symbol(r, xd->tile_ctx->warp_rotation_degree_cdf,
+                            ROTATION_COUNT, ACCT_STR) *
+                ROTATION_STEP -
+            ROTATION_RANGE;
       }
     }
 #endif  // CONFIG_EXT_ROTATION
     return (MOTION_MODE)(SIMPLE_TRANSLATION + motion_mode);
   }
 }
+
+#if CONFIG_EXT_ROTATION
+static void read_warp_rotation(MACROBLOCKD *xd, MB_MODE_INFO *mbmi,
+                               aom_reader *r) {
+  mbmi->rot_flag = aom_read_symbol(
+      r, xd->tile_ctx->globalmv_rotation_flag_cdf[mbmi->sb_type], 2, ACCT_STR);
+  if (mbmi->rot_flag) {
+    mbmi->rotation =
+        aom_read_symbol(r, xd->tile_ctx->globalmv_rotation_degree_cdf,
+                        ROTATION_COUNT, ACCT_STR) *
+            ROTATION_STEP -
+        ROTATION_RANGE;
+  }
+}
+#endif  // CONFIG_EXT_ROTATION
 
 static PREDICTION_MODE read_inter_compound_mode(MACROBLOCKD *xd, aom_reader *r,
                                                 int16_t ctx) {
@@ -1636,6 +1652,9 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
 
   if (mbmi->ref_frame[1] != INTRA_FRAME)
     mbmi->motion_mode = read_motion_mode(cm, xd, mbmi, r);
+#if CONFIG_EXT_ROTATION
+  if (globalmv_rotation_allowed(xd)) read_warp_rotation(xd, mbmi, r);
+#endif  // CONFIG_EXT_ROTATION
 
   // init
   mbmi->comp_group_idx = 0;

@@ -499,15 +499,32 @@ int main(int argc, const char **argv) {
   /* warp rotation flag */
   cts_each_dim[0] = BLOCK_SIZES_ALL;
   cts_each_dim[1] = 2;
-  optimize_cdf_table(&fc.warp_rotation[0][0], probsfile, 2, cts_each_dim,
-                     "static const aom_cdf_prob "
-                     "default_warp_rotation_cdf[BLOCK_SIZES_ALL][CDF_SIZE(2)]");
+  optimize_cdf_table(
+      &fc.warp_rotation_flag[0][0], probsfile, 2, cts_each_dim,
+      "static const aom_cdf_prob "
+      "default_warp_rotation_flag_cdf[BLOCK_SIZES_ALL][CDF_SIZE(2)]");
 
   /* warp rotation degree */
   cts_each_dim[0] = ROTATION_COUNT;
-  optimize_cdf_table(&fc.rotation_degree[0], probsfile, 1, cts_each_dim,
-                     "static const aom_cdf_prob "
-                     "default_rotation_degree_cdf[CDF_SIZE(ROTATION_COUNT)]");
+  optimize_cdf_table(
+      &fc.warp_rotation_degree[0], probsfile, 1, cts_each_dim,
+      "static const aom_cdf_prob "
+      "default_warp_rotation_degree_cdf[CDF_SIZE(ROTATION_COUNT)]");
+
+  /* globalmv rotation flag */
+  cts_each_dim[0] = BLOCK_SIZES_ALL;
+  cts_each_dim[1] = 2;
+  optimize_cdf_table(
+      &fc.globalmv_rotation_flag[0][0], probsfile, 2, cts_each_dim,
+      "static const aom_cdf_prob "
+      "default_globalmv_rotation_flag_cdf[BLOCK_SIZES_ALL][CDF_SIZE(2)]");
+
+  /* globalmv rotation degree */
+  cts_each_dim[0] = ROTATION_COUNT;
+  optimize_cdf_table(
+      &fc.globalmv_rotation_degree[0], probsfile, 1, cts_each_dim,
+      "static const aom_cdf_prob "
+      "default_globalmv_rotation_degree_cdf[CDF_SIZE(ROTATION_COUNT)]");
 #endif  // CONFIG_EXT_ROTATION
 
   cts_each_dim[0] = BLOCK_SIZES_ALL;
