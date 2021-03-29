@@ -629,11 +629,10 @@ static AOM_INLINE void encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
     PC_TREE *const pc_root = av1_alloc_pc_tree_node(
         mi_row, mi_col, sb_size, NULL, PARTITION_NONE, 0, 1, ss_x, ss_y);
     av1_rd_use_partition(cpi, td, tile_data, mi, tp, mi_row, mi_col, sb_size,
-                         &dummy_rate, &dummy_dist, 1, pc_root);
+                         &dummy_rate, &dummy_dist, 1, NULL, pc_root);
     av1_free_pc_tree_recursive(pc_root, num_planes, 0, 0);
   }
 #if !CONFIG_REALTIME_ONLY || CONFIG_EXT_RECUR_PARTITIONS
-#if !CONFIG_EXT_RECUR_PARTITIONS
   else if (sf->part_sf.partition_search_type == FIXED_PARTITION || seg_skip) {
     // partition search by adjusting a fixed-size partition
     av1_set_offsets(cpi, tile_info, x, mi_row, mi_col, sb_size, NULL);
@@ -642,8 +641,20 @@ static AOM_INLINE void encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
     av1_set_fixed_partitioning(cpi, tile_info, mi, mi_row, mi_col, bsize);
     PC_TREE *const pc_root = av1_alloc_pc_tree_node(
         mi_row, mi_col, sb_size, NULL, PARTITION_NONE, 0, 1, ss_x, ss_y);
+#if CONFIG_EXT_RECUR_PARTITIONS
+    MACROBLOCKD *const xd = &x->e_mbd;
+    av1_reset_ptree_in_sbi(xd->sbi);
+    av1_build_partition_tree_fixed_partitioning(cm, mi_row, mi_col, bsize,
+                                                xd->sbi->ptree_root);
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
     av1_rd_use_partition(cpi, td, tile_data, mi, tp, mi_row, mi_col, sb_size,
-                         &dummy_rate, &dummy_dist, 1, pc_root);
+                         &dummy_rate, &dummy_dist, 1,
+#if CONFIG_EXT_RECUR_PARTITIONS
+                         xd->sbi->ptree_root,
+#else   // CONFIG_EXT_RECUR_PARTITIONS
+                         NULL,
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+                         pc_root);
     av1_free_pc_tree_recursive(pc_root, num_planes, 0, 0);
   } else if (cpi->partition_search_skippable_frame) {
     // partition search by adjusting a fixed-size partition for which the size
@@ -654,12 +665,22 @@ static AOM_INLINE void encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
     av1_set_fixed_partitioning(cpi, tile_info, mi, mi_row, mi_col, bsize);
     PC_TREE *const pc_root = av1_alloc_pc_tree_node(
         mi_row, mi_col, sb_size, NULL, PARTITION_NONE, 0, 1, ss_x, ss_y);
+#if CONFIG_EXT_RECUR_PARTITIONS
+    MACROBLOCKD *const xd = &x->e_mbd;
+    av1_reset_ptree_in_sbi(xd->sbi);
+    av1_build_partition_tree_fixed_partitioning(cm, mi_row, mi_col, bsize,
+                                                xd->sbi->ptree_root);
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
     av1_rd_use_partition(cpi, td, tile_data, mi, tp, mi_row, mi_col, sb_size,
-                         &dummy_rate, &dummy_dist, 1, pc_root);
+                         &dummy_rate, &dummy_dist, 1,
+#if CONFIG_EXT_RECUR_PARTITIONS
+                         xd->sbi->ptree_root,
+#else   // CONFIG_EXT_RECUR_PARTITIONS
+                         NULL,
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+                         pc_root);
     av1_free_pc_tree_recursive(pc_root, num_planes, 0, 0);
-  }
-#endif  // !CONFIG_EXT_RECUR_PARTITIONS
-  else {
+  } else {
     // The most exhaustive recursive partition search
     SuperBlockEnc *sb_enc = &x->sb_enc;
     // No stats for overlay frames. Exclude key frame.
