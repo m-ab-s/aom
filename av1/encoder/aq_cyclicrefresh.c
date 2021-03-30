@@ -79,7 +79,11 @@ CYCLIC_REFRESH *av1_cyclic_refresh_alloc(int mi_rows, int mi_cols
     return NULL;
   }
   last_coded_q_map_size = mi_rows * mi_cols * sizeof(*cr->last_coded_q_map);
-  cr->last_coded_q_map = aom_malloc(last_coded_q_map_size);
+#if CONFIG_EXTQUANT
+  cr->last_coded_q_map = (uint16_t *)aom_malloc(last_coded_q_map_size);
+#else
+  cr->last_coded_q_map = (uint8_t *)aom_malloc(last_coded_q_map_size);
+#endif  // CONFIG_EXTQUANT
   if (cr->last_coded_q_map == NULL) {
     av1_cyclic_refresh_free(cr);
     return NULL;
@@ -90,11 +94,10 @@ CYCLIC_REFRESH *av1_cyclic_refresh_alloc(int mi_rows, int mi_cols
              : bit_depth == AOM_BITS_10
                    ? (MAXQ_10_BITS <= (QINDEX_RANGE_10_BITS - 1))
                    : (MAXQ <= (QINDEX_RANGE - 1)));
-  memset(cr->last_coded_q_map,
-         bit_depth == AOM_BITS_8
-             ? MAXQ_8_BITS
-             : bit_depth == AOM_BITS_10 ? MAXQ_10_BITS : MAXQ,
-         last_coded_q_map_size);
+  const uint16_t qinit = bit_depth == AOM_BITS_8
+                             ? MAXQ_8_BITS
+                             : bit_depth == AOM_BITS_10 ? MAXQ_10_BITS : MAXQ;
+  for (int i = 0; i < mi_rows * mi_cols; ++i) cr->last_coded_q_map[i] = qinit;
 #else
   assert(MAXQ <= 255);
   memset(cr->last_coded_q_map, MAXQ, last_coded_q_map_size);

@@ -358,8 +358,9 @@ TEST_P(QuantizeTest, DISABLED_Speed) {
 
 using std::make_tuple;
 
-#if HAVE_AVX2 && !CONFIG_EXTQUANT
+#if HAVE_AVX2
 const QuantizeParam kQParamArrayAvx2[] = {
+#if !CONFIG_EXTQUANT
   make_tuple(&av1_quantize_fp_c, &av1_quantize_fp_avx2,
              static_cast<TX_SIZE>(TX_16X16), TYPE_FP, AOM_BITS_8),
   make_tuple(&av1_quantize_fp_c, &av1_quantize_fp_avx2,
@@ -435,14 +436,20 @@ const QuantizeParam kQParamArrayAvx2[] = {
   make_tuple(&aom_highbd_quantize_b_32x32_adaptive_c,
              &aom_highbd_quantize_b_32x32_adaptive_avx2,
              static_cast<TX_SIZE>(TX_32X32), TYPE_B, AOM_BITS_12)
+#else
+  // dummy to avoid compiler warning
+  make_tuple(&av1_quantize_fp_c, &av1_quantize_fp_c,
+             static_cast<TX_SIZE>(TX_16X16), TYPE_FP, AOM_BITS_8),
+#endif  // !CONFIG_EXTQUANT
 };
 
 INSTANTIATE_TEST_SUITE_P(AVX2, QuantizeTest,
                          ::testing::ValuesIn(kQParamArrayAvx2));
 #endif  // HAVE_AVX2
 
-#if HAVE_SSE2 && !CONFIG_EXTQUANT
+#if HAVE_SSE2
 const QuantizeParam kQParamArraySSE2[] = {
+#if !CONFIG_EXTQUANT
   make_tuple(&av1_quantize_fp_c, &av1_quantize_fp_sse2,
              static_cast<TX_SIZE>(TX_16X16), TYPE_FP, AOM_BITS_8),
   make_tuple(&av1_quantize_fp_c, &av1_quantize_fp_sse2,
@@ -524,11 +531,15 @@ const QuantizeParam kQParamArraySSE2[] = {
   make_tuple(&aom_quantize_b_64x64_adaptive_c,
              &aom_quantize_b_64x64_adaptive_sse2,
              static_cast<TX_SIZE>(TX_64X64), TYPE_B, AOM_BITS_8)
+#else
+  make_tuple(&av1_quantize_fp_c, &av1_quantize_fp_c,
+             static_cast<TX_SIZE>(TX_16X16), TYPE_FP, AOM_BITS_8),
+#endif
 };
 
 INSTANTIATE_TEST_SUITE_P(SSE2, QuantizeTest,
                          ::testing::ValuesIn(kQParamArraySSE2));
-#endif
+#endif  // HAVE_SSE2
 
 #if HAVE_SSSE3 && ARCH_X86_64 && !CONFIG_EXTQUANT
 INSTANTIATE_TEST_SUITE_P(
