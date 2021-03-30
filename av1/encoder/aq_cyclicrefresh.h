@@ -76,7 +76,11 @@ struct CYCLIC_REFRESH {
   /*!
    * Map of the last q a block was coded at.
    */
+#if CONFIG_EXTQUANT
+  uint16_t *last_coded_q_map;
+#else
   uint8_t *last_coded_q_map;
+#endif  // CONFIG_EXTQUANT
   /*!
    * Threshold applied to the projected rate of the coding block,
    * when deciding whether block should be refreshed.

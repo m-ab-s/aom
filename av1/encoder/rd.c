@@ -449,7 +449,7 @@ int av1_compute_rd_mult_based_on_qindex(const AV1_COMP *cpi, int qindex) {
       assert(0 && "bit_depth should be AOM_BITS_8, AOM_BITS_10 or AOM_BITS_12");
       return -1;
   }
-  return rdmult > 0 ? rdmult : 1;
+  return (int)(rdmult > 0 ? rdmult : 1);
 }
 
 int av1_compute_rd_mult(const AV1_COMP *cpi, int qindex) {
