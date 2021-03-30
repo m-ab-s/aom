@@ -119,6 +119,9 @@ static int rd_pick_filter_intra_sby(const AV1_COMP *const cpi, MACROBLOCK *x,
   mbmi->filter_intra_mode_info.use_filter_intra = 1;
   mbmi->mode = DC_PRED;
   mbmi->palette_mode_info.palette_size[0] = 0;
+#if CONFIG_DERIVED_INTRA_MODE
+  mbmi->use_derived_intra_mode[0] = 0;
+#endif  // CONFIG_DERIVED_INTRA_MODE
 
   for (mode = 0; mode < FILTER_INTRA_MODES; ++mode) {
     int64_t this_rd;
@@ -454,6 +457,41 @@ static int cfl_rd_pick_alpha(MACROBLOCK *const x, const AV1_COMP *const cpi,
   return best_rate_overhead;
 }
 
+#if CONFIG_DERIVED_INTRA_MODE
+// Return 1 if derived intra mode is selected; return 0 otherwise.
+static int rd_pick_derived_intra_mode_sbuv(const AV1_COMP *const cpi,
+                                           MACROBLOCK *x, int *rate,
+                                           int *rate_tokenonly,
+                                           int64_t *distortion, int *skippable,
+                                           BLOCK_SIZE bsize, int mode_cost,
+                                           int64_t *best_rd) {
+  MACROBLOCKD *const xd = &x->e_mbd;
+  MB_MODE_INFO *mbmi = xd->mi[0];
+  mbmi->palette_mode_info.palette_size[1] = 0;
+
+  RD_STATS tokenonly_rd_stats;
+  mbmi->use_derived_intra_mode[1] = 1;
+  mbmi->uv_mode = av1_get_derived_intra_mode(xd, bsize, &mbmi->derived_angle);
+  if (!av1_txfm_uvrd(cpi, x, &tokenonly_rd_stats, *best_rd)) {
+    return 0;
+  }
+  const int this_rate = tokenonly_rd_stats.rate +
+                        intra_mode_info_cost_uv(cpi, x, mbmi, bsize, mode_cost);
+  const int64_t this_rd = RDCOST(x->rdmult, this_rate, tokenonly_rd_stats.dist);
+  // TODO(anyone): tune the parameters for distortion.
+  if (this_rd < *best_rd && tokenonly_rd_stats.dist / 4 * 3 < *distortion) {
+    *best_rd = this_rd;
+    *rate = this_rate;
+    *rate_tokenonly = tokenonly_rd_stats.rate;
+    *distortion = tokenonly_rd_stats.dist;
+    *skippable = tokenonly_rd_stats.skip_txfm;
+    return 1;
+  }
+
+  return 0;
+}
+#endif  // CONFIG_DERIVED_INTRA_MODE
+
 int64_t av1_rd_pick_intra_sbuv_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
                                     int *rate, int *rate_tokenonly,
                                     int64_t *distortion, int *skippable,
@@ -573,6 +611,16 @@ int64_t av1_rd_pick_intra_sbuv_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
         distortion, skippable);
   }
 
+#if CONFIG_DERIVED_INTRA_MODE
+  if (av1_enable_derived_intra_mode(xd, bsize)) {
+    if (rd_pick_derived_intra_mode_sbuv(cpi, x, rate, rate_tokenonly,
+                                        distortion, skippable, bsize, 0,
+                                        &best_rd)) {
+      best_mbmi = *mbmi;
+    }
+  }
+#endif  // CONFIG_DERIVED_INTRA_MODE
+
   *mbmi = best_mbmi;
   // Make sure we actually chose a mode
   assert(best_rd < INT64_MAX);
@@ -610,6 +658,7 @@ int av1_search_palette_mode(IntraModeSearchState *intra_search_state,
   mbmi->uv_mode = UV_DC_PRED;
   mbmi->ref_frame[0] = INTRA_FRAME;
   mbmi->ref_frame[1] = NONE_FRAME;
+
   RD_STATS rd_stats_y;
   av1_invalid_rd_stats(&rd_stats_y);
   av1_rd_pick_palette_intra_sby(
@@ -639,6 +688,13 @@ int av1_search_palette_mode(IntraModeSearchState *intra_search_state,
                                   &intra_search_state->rate_uv_tokenonly,
                                   &intra_search_state->dist_uvs,
                                   &intra_search_state->skip_uvs, bsize, uv_tx);
+#if CONFIG_DERIVED_INTRA_MODE
+      intra_search_state->uv_use_derived_intra_mode =
+          mbmi->use_derived_intra_mode[PLANE_TYPE_UV];
+      if (mbmi->use_derived_intra_mode[PLANE_TYPE_UV]) {
+        intra_search_state->derived_angle = mbmi->derived_angle;
+      }
+#endif  // CONFIG_DERIVED_INTRA_MODE
       intra_search_state->mode_uv = mbmi->uv_mode;
       intra_search_state->pmi_uv = *pmi;
       intra_search_state->uv_angle_delta = mbmi->angle_delta[PLANE_TYPE_UV];
@@ -654,6 +710,13 @@ int av1_search_palette_mode(IntraModeSearchState *intra_search_state,
              2 * PALETTE_MAX_SIZE * sizeof(pmi->palette_colors[0]));
     }
     mbmi->angle_delta[PLANE_TYPE_UV] = intra_search_state->uv_angle_delta;
+#if CONFIG_DERIVED_INTRA_MODE
+    mbmi->use_derived_intra_mode[PLANE_TYPE_UV] =
+        intra_search_state->uv_use_derived_intra_mode;
+    if (mbmi->use_derived_intra_mode[PLANE_TYPE_UV]) {
+      mbmi->derived_angle = intra_search_state->derived_angle;
+    }
+#endif  // CONFIG_DERIVED_INTRA_MODE
     skippable = skippable && intra_search_state->skip_uvs;
     distortion2 += intra_search_state->dist_uvs;
     rate2 += intra_search_state->rate_uv_intra;
@@ -900,8 +963,15 @@ int64_t av1_handle_intra_mode(IntraModeSearchState *intra_search_state,
   assert(mbmi->ref_frame[0] == INTRA_FRAME);
   const PREDICTION_MODE mode = mbmi->mode;
   const ModeCosts *mode_costs = &x->mode_costs;
+#if CONFIG_DERIVED_INTRA_MODE
+  int mode_cost = ref_frame_cost;
+  if (!mbmi->use_derived_intra_mode[0]) {
+    mode_cost += mode_costs->mbmode_cost[size_group_lookup[bsize]][mode];
+  }
+#else
   const int mode_cost =
       mode_costs->mbmode_cost[size_group_lookup[bsize]][mode] + ref_frame_cost;
+#endif  // CONFIG_DERIVED_INTRA_MODE
   const int intra_cost_penalty = av1_get_intra_cost_penalty(
       cm->quant_params.base_qindex, cm->quant_params.y_dc_delta_q,
 #if CONFIG_EXTQUANT
@@ -922,6 +992,9 @@ int64_t av1_handle_intra_mode(IntraModeSearchState *intra_search_state,
 
   const int is_directional_mode = av1_is_directional_mode(mode);
   if (is_directional_mode && av1_use_angle_delta(bsize) &&
+#if CONFIG_DERIVED_INTRA_MODE
+      !mbmi->use_derived_intra_mode[0] &&
+#endif  // CONFIG_DERIVED_INTRA_MODE
       cpi->oxcf.intra_mode_cfg.enable_angle_delta) {
     if (sf->intra_sf.intra_pruning_with_hog &&
         !intra_search_state->dir_mode_skip_mask_ready) {
@@ -1006,6 +1079,13 @@ int64_t av1_handle_intra_mode(IntraModeSearchState *intra_search_state,
       intra_search_state->mode_uv = mbmi->uv_mode;
       if (try_palette) intra_search_state->pmi_uv = *pmi;
       intra_search_state->uv_angle_delta = mbmi->angle_delta[PLANE_TYPE_UV];
+#if CONFIG_DERIVED_INTRA_MODE
+      intra_search_state->uv_use_derived_intra_mode =
+          mbmi->use_derived_intra_mode[PLANE_TYPE_UV];
+      if (mbmi->use_derived_intra_mode[PLANE_TYPE_UV]) {
+        intra_search_state->derived_angle = mbmi->derived_angle;
+      }
+#endif  // CONFIG_DERIVED_INTRA_MODE
 
       const int uv_rate = intra_search_state->rate_uv_tokenonly;
       const int64_t uv_dist = intra_search_state->dist_uvs;
@@ -1034,6 +1114,13 @@ int64_t av1_handle_intra_mode(IntraModeSearchState *intra_search_state,
              2 * PALETTE_MAX_SIZE * sizeof(pmi->palette_colors[0]));
     }
     mbmi->angle_delta[PLANE_TYPE_UV] = intra_search_state->uv_angle_delta;
+#if CONFIG_DERIVED_INTRA_MODE
+    mbmi->use_derived_intra_mode[PLANE_TYPE_UV] =
+        intra_search_state->uv_use_derived_intra_mode;
+    if (mbmi->use_derived_intra_mode[PLANE_TYPE_UV]) {
+      mbmi->derived_angle = intra_search_state->derived_angle;
+    }
+#endif  // CONFIG_DERIVED_INTRA_MODE
   }
 
   rd_stats->rate = rd_stats_y->rate + mode_cost_y;
@@ -1081,6 +1168,44 @@ int64_t av1_handle_intra_mode(IntraModeSearchState *intra_search_state,
   return this_rd;
 }
 
+#if CONFIG_DERIVED_INTRA_MODE
+// Return 1 if derived intra mode is selected; return 0 otherwise.
+static int rd_pick_derived_intra_mode_sby(
+    const AV1_COMP *const cpi, MACROBLOCK *x, int *rate, int *rate_tokenonly,
+    int64_t *distortion, int *skippable, BLOCK_SIZE bsize, int mode_cost,
+    int64_t *best_rd, PICK_MODE_CONTEXT *ctx) {
+  MACROBLOCKD *const xd = &x->e_mbd;
+  assert(av1_enable_derived_intra_mode(xd, bsize));
+  MB_MODE_INFO *mbmi = xd->mi[0];
+  mbmi->filter_intra_mode_info.use_filter_intra = 0;
+  mbmi->palette_mode_info.palette_size[0] = 0;
+  mbmi->use_intrabc = 0;
+
+  RD_STATS tokenonly_rd_stats;
+  mbmi->use_derived_intra_mode[0] = 1;
+  mbmi->mode = av1_get_derived_intra_mode(xd, bsize, &mbmi->derived_angle);
+  av1_pick_uniform_tx_size_type_yrd(cpi, x, &tokenonly_rd_stats, bsize,
+                                    *best_rd);
+  if (tokenonly_rd_stats.rate == INT_MAX) return 0;
+  const int this_rate = tokenonly_rd_stats.rate +
+                        intra_mode_info_cost_y(cpi, x, mbmi, bsize, mode_cost);
+  const int64_t this_rd = RDCOST(x->rdmult, this_rate, tokenonly_rd_stats.dist);
+  if (this_rd < *best_rd) {
+    *best_rd = this_rd;
+    *rate = this_rate;
+    *rate_tokenonly = tokenonly_rd_stats.rate;
+    *distortion = tokenonly_rd_stats.dist;
+    *skippable = tokenonly_rd_stats.skip_txfm;
+    memcpy(ctx->blk_skip, x->txfm_search_info.blk_skip,
+           sizeof(x->txfm_search_info.blk_skip[0]) * ctx->num_4x4_blk);
+    av1_copy_array(ctx->tx_type_map, xd->tx_type_map, ctx->num_4x4_blk);
+    return 1;
+  }
+
+  return 0;
+}
+#endif
+
 // Finds the best non-intrabc mode on an intra frame.
 int64_t av1_rd_pick_intra_sby_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
                                    int *rate, int *rate_tokenonly,
@@ -1120,6 +1245,9 @@ int64_t av1_rd_pick_intra_sby_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
   }
   mbmi->filter_intra_mode_info.use_filter_intra = 0;
   pmi->palette_size[0] = 0;
+#if CONFIG_DERIVED_INTRA_MODE
+  mbmi->use_derived_intra_mode[0] = 0;
+#endif  // CONFIG_DERIVED_INTRA_MODE
 
   // Set params for mode evaluation
   set_mode_eval_params(cpi, x, MODE_EVAL);
@@ -1221,6 +1349,18 @@ int64_t av1_rd_pick_intra_sby_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
       best_mbmi = *mbmi;
     }
   }
+
+#if CONFIG_DERIVED_INTRA_MODE
+  if (av1_enable_derived_intra_mode(xd, bsize)) {
+    const int mode_rate = 0;
+    if (rd_pick_derived_intra_mode_sby(cpi, x, rate, rate_tokenonly, distortion,
+                                       skippable, bsize, mode_rate, &best_rd,
+                                       ctx)) {
+      best_mbmi = *mbmi;
+      beat_best_rd = 1;
+    }
+  }
+#endif  // CONFIG_DERIVED_INTRA_MODE
 
   // No mode is identified with less rd value than best_rd passed to this
   // function. In such cases winner mode processing is not necessary and return

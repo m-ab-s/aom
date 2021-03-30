@@ -3622,6 +3622,10 @@ static int64_t rd_pick_intrabc_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x,
 #else
     mbmi->interp_filters = av1_broadcast_interp_filter(BILINEAR);
 #endif  // CONFIG_REMOVE_DUAL_FILTER
+#if CONFIG_DERIVED_INTRA_MODE
+    mbmi->use_derived_intra_mode[0] = 0;
+    mbmi->use_derived_intra_mode[1] = 0;
+#endif  // CONFIG_DERIVED_INTRA_MODE
     mbmi->skip_txfm = 0;
     av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize, 0,
                                   av1_num_planes(cm) - 1);
@@ -3823,6 +3827,10 @@ static AOM_INLINE void rd_pick_skip_mode(
   mbmi->motion_mode = SIMPLE_TRANSLATION;
   mbmi->ref_mv_idx = 0;
   mbmi->skip_mode = mbmi->skip_txfm = 1;
+#if CONFIG_DERIVED_INTRA_MODE
+  mbmi->use_derived_intra_mode[0] = 0;
+  mbmi->use_derived_intra_mode[1] = 0;
+#endif  // CONFIG_DERIVED_INTRA_MODE
 
   set_default_interp_filters(mbmi, cm->features.interp_filter);
 
@@ -4816,6 +4824,10 @@ static INLINE void init_mbmi(MB_MODE_INFO *mbmi, PREDICTION_MODE curr_mode,
   mbmi->mv[0].as_int = mbmi->mv[1].as_int = 0;
   mbmi->motion_mode = SIMPLE_TRANSLATION;
   mbmi->interintra_mode = (INTERINTRA_MODE)(II_DC_PRED - 1);
+#if CONFIG_DERIVED_INTRA_MODE
+  mbmi->use_derived_intra_mode[0] = 0;
+  mbmi->use_derived_intra_mode[1] = 0;
+#endif  // CONFIG_DERIVED_INTRA_MODE
   set_default_interp_filters(mbmi, cm->features.interp_filter);
   av1_set_default_mbmi_mv_precision(mbmi, sbi);
 }
@@ -6102,6 +6114,35 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
 #if CONFIG_COLLECT_COMPONENT_TIMING
   end_timing(cpi, handle_intra_mode_time);
 #endif
+
+#if CONFIG_DERIVED_INTRA_MODE
+  if (av1_enable_derived_intra_mode(xd, bsize)) {
+    mbmi->ref_frame[0] = INTRA_FRAME;
+    mbmi->ref_frame[1] = NONE_FRAME;
+    mbmi->filter_intra_mode_info.use_filter_intra = 0;
+    mbmi->palette_mode_info.palette_size[0] = 0;
+    mbmi->skip_mode = 0;
+    mbmi->use_derived_intra_mode[0] = 1;
+    mbmi->mode = av1_get_derived_intra_mode(xd, bsize, &mbmi->derived_angle);
+    RD_STATS intra_rd_stats, intra_rd_stats_y, intra_rd_stats_uv;
+    intra_rd_stats.rdcost = av1_handle_intra_mode(
+        &search_state.intra_search_state, cpi, x, bsize, intra_ref_frame_cost,
+        ctx, &intra_rd_stats, &intra_rd_stats_y, &intra_rd_stats_uv,
+        search_state.best_rd, &search_state.best_intra_rd);
+    const int txfm_search_done = 1;
+    const PREDICTION_MODE this_mode = mbmi->mode;
+    MV_REFERENCE_FRAME refs[2] = { INTRA_FRAME, NONE_FRAME };
+    store_winner_mode_stats(
+        &cpi->common, x, mbmi, &intra_rd_stats, &intra_rd_stats_y,
+        &intra_rd_stats_uv, refs, this_mode, NULL, bsize, intra_rd_stats.rdcost,
+        cpi->sf.winner_mode_sf.multi_winner_mode_type, txfm_search_done);
+    if (intra_rd_stats.rdcost < search_state.best_rd) {
+      update_search_state(&search_state, rd_cost, ctx, &intra_rd_stats,
+                          &intra_rd_stats_y, &intra_rd_stats_uv, this_mode, x,
+                          txfm_search_done);
+    }
+  }
+#endif  // CONFIG_DERIVED_INTRA_MODE
 
   int winner_mode_count =
       cpi->sf.winner_mode_sf.multi_winner_mode_type ? x->winner_mode_count : 1;

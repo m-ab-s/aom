@@ -1625,6 +1625,21 @@ static INLINE aom_cdf_prob *get_y_mode_cdf(FRAME_CONTEXT *tile_ctx,
   return tile_ctx->kf_y_cdf[above_ctx][left_ctx];
 }
 
+#if CONFIG_DERIVED_INTRA_MODE
+// No-parsing-dependency required or not.
+#define DERIVED_INTRA_MODE_NOPD 1
+
+static INLINE aom_cdf_prob *get_derived_intra_mode_cdf(
+    FRAME_CONTEXT *tile_ctx, const MB_MODE_INFO *above_mi,
+    const MB_MODE_INFO *left_mi) {
+  const int above = above_mi && !is_inter_block(above_mi) &&
+                    above_mi->use_derived_intra_mode[0];
+  const int left =
+      left_mi && !is_inter_block(left_mi) && left_mi->use_derived_intra_mode[0];
+  return tile_ctx->derived_intra_mode_cdf[above + left];
+}
+#endif  // CONFIG_DERIVED_INTRA_MODE
+
 static INLINE void update_partition_context(MACROBLOCKD *xd, int mi_row,
                                             int mi_col, BLOCK_SIZE subsize,
                                             BLOCK_SIZE bsize) {

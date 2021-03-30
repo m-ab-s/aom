@@ -726,6 +726,13 @@ typedef struct {
   //! intrabc_cost
   int intrabc_cost[2];
 
+#if CONFIG_DERIVED_INTRA_MODE
+  //! luma derived intra mode cost
+  int derived_intra_mode_cost[3][2];
+  //! chroma derived intra mode cost
+  int uv_derived_intra_mode_cost[2][2];
+#endif  // CONFIG_DERIVED_INTRA_MODE
+
   //! palette_y_size_cost
   int palette_y_size_cost[PALATTE_BSIZE_CTXS][PALETTE_SIZES];
   //! palette_uv_size_cost

@@ -193,12 +193,15 @@ typedef struct frame_contexts {
                                [CDF_SIZE(TX_TYPES)];
   aom_cdf_prob cfl_sign_cdf[CDF_SIZE(CFL_JOINT_SIGNS)];
   aom_cdf_prob cfl_alpha_cdf[CFL_ALPHA_CONTEXTS][CDF_SIZE(CFL_ALPHABET_SIZE)];
-
 #if CONFIG_FLEX_MVRES
   aom_cdf_prob
       sb_mv_precision_cdf[MV_SUBPEL_PRECISIONS - MV_SUBPEL_HALF_PRECISION]
                          [CDF_SIZE(MV_SUBPEL_PRECISIONS)];
 #endif  // CONFIG_FLEX_MVRES
+#if CONFIG_DERIVED_INTRA_MODE
+  aom_cdf_prob derived_intra_mode_cdf[3][CDF_SIZE(2)];
+  aom_cdf_prob uv_derived_intra_mode_cdf[2][CDF_SIZE(2)];
+#endif  // CONFIG_DERIVED_INTRA_MODE
 
   int initialized;
 } FRAME_CONTEXT;

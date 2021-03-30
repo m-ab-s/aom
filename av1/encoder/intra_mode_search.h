@@ -65,6 +65,10 @@ typedef struct IntraModeSearchState {
   UV_PREDICTION_MODE mode_uv; /*!< \brief The best uv mode */
   PALETTE_MODE_INFO pmi_uv;   /*!< \brief Color map if mode_uv is palette */
   int8_t uv_angle_delta;      /*!< \brief Angle delta if mode_uv directional */
+#if CONFIG_DERIVED_INTRA_MODE
+  int uv_use_derived_intra_mode;
+  int derived_angle;
+#endif  // CONFIG_DERIVED_INTRA_MODE
   /**@}*/
 
   /*!

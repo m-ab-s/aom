@@ -414,6 +414,16 @@ static void encode_superblock(const AV1_COMP *const cpi, TileDataEnc *tile_data,
   if (!is_inter) {
     xd->cfl.store_y = store_cfl_required(cm, xd);
     mbmi->skip_txfm = 1;
+
+#if CONFIG_DERIVED_INTRA_MODE
+    if (mbmi->use_derived_intra_mode[0] || mbmi->use_derived_intra_mode[1]) {
+      const int derived_mode =
+          av1_get_derived_intra_mode(xd, bsize, &mbmi->derived_angle);
+      if (mbmi->use_derived_intra_mode[0]) mbmi->mode = derived_mode;
+      if (mbmi->use_derived_intra_mode[1]) mbmi->uv_mode = derived_mode;
+    }
+#endif  // CONFIG_DERIVED_INTRA_MODE
+
     for (int plane = 0; plane < num_planes; ++plane) {
       av1_encode_intra_block_plane(cpi, x, plane, dry_run,
                                    cpi->optimize_seg_arr[mbmi->segment_id]);

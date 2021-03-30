@@ -303,10 +303,13 @@ static AOM_INLINE void mode_estimation(AV1_COMP *cpi, MACROBLOCK *x, int mi_row,
       cpi->sf.tpl_sf.prune_intra_modes ? D45_PRED : INTRA_MODE_END;
   for (PREDICTION_MODE mode = INTRA_MODE_START; mode < last_intra_mode;
        ++mode) {
-    av1_predict_intra_block(cm, xd, block_size_wide[bsize],
-                            block_size_high[bsize], tx_size, mode, 0, 0,
-                            FILTER_INTRA_MODES, dst_buffer, dst_buffer_stride,
-                            predictor, bw, 0, 0, 0);
+    av1_predict_intra_block(
+        cm, xd, block_size_wide[bsize], block_size_high[bsize], tx_size, mode,
+        0, 0, FILTER_INTRA_MODES,
+#if CONFIG_DERIVED_INTRA_MODE
+        0,
+#endif  // CONFIG_DERIVED_INTRA_MODE
+        dst_buffer, dst_buffer_stride, predictor, bw, 0, 0, 0);
 
     intra_cost = tpl_get_satd_cost(x, src_diff, bw, src_mb_buffer, src_stride,
                                    predictor, bw, coeff, bw, bh, tx_size);
@@ -484,10 +487,13 @@ static AOM_INLINE void mode_estimation(AV1_COMP *cpi, MACROBLOCK *x, int mi_row,
     av1_enc_build_one_inter_predictor(dst_buffer, dst_buffer_stride,
                                       &best_mv.as_mv, &inter_pred_params);
   } else {
-    av1_predict_intra_block(cm, xd, block_size_wide[bsize],
-                            block_size_high[bsize], tx_size, best_mode, 0, 0,
-                            FILTER_INTRA_MODES, dst_buffer, dst_buffer_stride,
-                            dst_buffer, dst_buffer_stride, 0, 0, 0);
+    av1_predict_intra_block(
+        cm, xd, block_size_wide[bsize], block_size_high[bsize], tx_size,
+        best_mode, 0, 0, FILTER_INTRA_MODES,
+#if CONFIG_DERIVED_INTRA_MODE
+        0,
+#endif  // CONFIG_DERIVED_INTRA_MODE
+        dst_buffer, dst_buffer_stride, dst_buffer, dst_buffer_stride, 0, 0, 0);
   }
 
   int rate_cost;

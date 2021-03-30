@@ -471,6 +471,9 @@ void av1_rd_pick_palette_intra_sby(
 
     mbmi->mode = DC_PRED;
     mbmi->filter_intra_mode_info.use_filter_intra = 0;
+#if CONFIG_DERIVED_INTRA_MODE
+    mbmi->use_derived_intra_mode[0] = 0;
+#endif  // CONFIG_DERIVED_INTRA_MODE
 
     uint16_t color_cache[2 * PALETTE_MAX_SIZE];
     const int n_cache = av1_get_palette_cache(xd, 0, color_cache);

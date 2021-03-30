@@ -454,7 +454,17 @@ void av1_sum_intra_stats(const AV1_COMMON *const cm, FRAME_COUNTS *counts,
     const int left_ctx = intra_mode_context[left];
     ++counts->kf_y_mode[above_ctx][left_ctx][y_mode];
 #endif  // CONFIG_ENTROPY_STATS
+#if CONFIG_DERIVED_INTRA_MODE
+    if (av1_enable_derived_intra_mode(xd, bsize)) {
+      update_cdf(get_derived_intra_mode_cdf(fc, above_mi, left_mi),
+                 mbmi->use_derived_intra_mode[0], 2);
+    }
+    if (!mbmi->use_derived_intra_mode[0]) {
+      update_cdf(get_y_mode_cdf(fc, above_mi, left_mi), y_mode, INTRA_MODES);
+    }
+#else
     update_cdf(get_y_mode_cdf(fc, above_mi, left_mi), y_mode, INTRA_MODES);
+#endif  // CONFIG_DERIVED_INTRA_MODE
   } else {
 #if CONFIG_ENTROPY_STATS
     ++counts->y_mode[size_group_lookup[bsize]][y_mode];
@@ -479,7 +489,11 @@ void av1_sum_intra_stats(const AV1_COMMON *const cm, FRAME_COUNTS *counts,
                  FILTER_INTRA_MODES);
     }
   }
-  if (av1_is_directional_mode(mbmi->mode) && av1_use_angle_delta(bsize)) {
+  if (av1_is_directional_mode(mbmi->mode) &&
+#if CONFIG_DERIVED_INTRA_MODE
+      !mbmi->use_derived_intra_mode[0] &&
+#endif  // CONFIG_DERIVED_INTRA_MODE
+      av1_use_angle_delta(bsize)) {
 #if CONFIG_ENTROPY_STATS
     ++counts->angle_delta[mbmi->mode - V_PRED]
                          [mbmi->angle_delta[PLANE_TYPE_Y] + MAX_ANGLE_DELTA];
@@ -496,8 +510,19 @@ void av1_sum_intra_stats(const AV1_COMMON *const cm, FRAME_COUNTS *counts,
 #if CONFIG_ENTROPY_STATS
   ++counts->uv_mode[cfl_allowed][y_mode][uv_mode];
 #endif  // CONFIG_ENTROPY_STATS
+#if CONFIG_DERIVED_INTRA_MODE
+  if (av1_enable_derived_intra_mode(xd, bsize)) {
+    update_cdf(fc->uv_derived_intra_mode_cdf[mbmi->use_derived_intra_mode[0]],
+               mbmi->use_derived_intra_mode[1], 2);
+  }
+  if (!mbmi->use_derived_intra_mode[1]) {
+    update_cdf(fc->uv_mode_cdf[cfl_allowed][y_mode], uv_mode,
+               UV_INTRA_MODES - !cfl_allowed);
+  }
+#else
   update_cdf(fc->uv_mode_cdf[cfl_allowed][y_mode], uv_mode,
              UV_INTRA_MODES - !cfl_allowed);
+#endif  // CONFIG_DERIVED_INTRA_MODE
   if (uv_mode == UV_CFL_PRED) {
     const int8_t joint_sign = mbmi->cfl_alpha_signs;
     const uint8_t idx = mbmi->cfl_alpha_idx;
@@ -524,6 +549,9 @@ void av1_sum_intra_stats(const AV1_COMMON *const cm, FRAME_COUNTS *counts,
     }
   }
   if (av1_is_directional_mode(get_uv_mode(uv_mode)) &&
+#if CONFIG_DERIVED_INTRA_MODE
+      !mbmi->use_derived_intra_mode[1] &&
+#endif  // CONFIG_DERIVED_INTRA_MODE
       av1_use_angle_delta(bsize)) {
 #if CONFIG_ENTROPY_STATS
     ++counts->angle_delta[uv_mode - UV_V_PRED]
@@ -1202,6 +1230,12 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
   AVERAGE_CDF(ctx_left->cfl_sign_cdf, ctx_tr->cfl_sign_cdf, CFL_JOINT_SIGNS);
   AVERAGE_CDF(ctx_left->cfl_alpha_cdf, ctx_tr->cfl_alpha_cdf,
               CFL_ALPHABET_SIZE);
+#if CONFIG_DERIVED_INTRA_MODE
+  AVERAGE_CDF(ctx_left->derived_intra_mode_cdf, ctx_tr->derived_intra_mode_cdf,
+              2);
+  AVERAGE_CDF(ctx_left->uv_derived_intra_mode_cdf,
+              ctx_tr->uv_derived_intra_mode_cdf, 2);
+#endif  // CONFIG_DERIVED_INTRA_MODE
 }
 
 // Grade the temporal variation of the source by comparing the current sb and

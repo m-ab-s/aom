@@ -257,6 +257,17 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, ModeCosts *mode_costs,
   }
   av1_cost_tokens_from_cdf(mode_costs->intrabc_cost, fc->intrabc_cdf, NULL);
 
+#if CONFIG_DERIVED_INTRA_MODE
+  for (i = 0; i < 3; ++i) {
+    av1_cost_tokens_from_cdf(mode_costs->derived_intra_mode_cost[i],
+                             fc->derived_intra_mode_cdf[i], NULL);
+  }
+  for (i = 0; i < 2; ++i) {
+    av1_cost_tokens_from_cdf(mode_costs->uv_derived_intra_mode_cost[i],
+                             fc->uv_derived_intra_mode_cdf[i], NULL);
+  }
+#endif  // CONFIG_DERIVED_INTRA_MODE
+
   if (!frame_is_intra_only(cm)) {
     for (i = 0; i < COMP_INTER_CONTEXTS; ++i) {
       av1_cost_tokens_from_cdf(mode_costs->comp_inter_cost[i],

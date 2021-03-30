@@ -324,6 +324,10 @@ typedef struct MB_MODE_INFO {
   PREDICTION_MODE mode;
   // Only for INTRA blocks
   UV_PREDICTION_MODE uv_mode;
+#if CONFIG_DERIVED_INTRA_MODE
+  int use_derived_intra_mode[2];
+  int derived_angle;
+#endif  // CONFIG_DERIVED_INTRA_MODE
   // interintra members
   INTERINTRA_MODE interintra_mode;
 #if CONFIG_NEW_TX_PARTITION
@@ -2058,6 +2062,12 @@ static INLINE int av1_get_max_eob(TX_SIZE tx_size) {
   }
   return tx_size_2d[tx_size];
 }
+
+#if CONFIG_DERIVED_INTRA_MODE
+int av1_enable_derived_intra_mode(const MACROBLOCKD *xd, int bsize);
+int av1_get_derived_intra_mode(const MACROBLOCKD *xd, int bsize,
+                               int *derived_angle);
+#endif  // CONFIG_DERIVED_INTRA_MODE
 
 /*!\endcond */
 

@@ -64,15 +64,24 @@ static AOM_INLINE void loop_restoration_write_sb_coeffs(
     const AV1_COMMON *const cm, MACROBLOCKD *xd, const RestorationUnitInfo *rui,
     aom_writer *const w, int plane, FRAME_COUNTS *counts);
 
-static AOM_INLINE void write_intra_y_mode_kf(FRAME_CONTEXT *frame_ctx,
-                                             const MB_MODE_INFO *mi,
-                                             const MB_MODE_INFO *above_mi,
-                                             const MB_MODE_INFO *left_mi,
-                                             PREDICTION_MODE mode,
+static AOM_INLINE void write_intra_y_mode_kf(MACROBLOCKD *const xd,
                                              aom_writer *w) {
-  assert(!is_intrabc_block(mi));
-  (void)mi;
-  aom_write_symbol(w, mode, get_y_mode_cdf(frame_ctx, above_mi, left_mi),
+  const MB_MODE_INFO *above_mi = xd->above_mbmi;
+  const MB_MODE_INFO *left_mi = xd->left_mbmi;
+  const MB_MODE_INFO *mbmi = xd->mi[0];
+  assert(!is_intrabc_block(mbmi));
+  FRAME_CONTEXT *frame_ctx = xd->tile_ctx;
+#if CONFIG_DERIVED_INTRA_MODE
+  if (av1_enable_derived_intra_mode(xd, mbmi->sb_type)) {
+    aom_write_symbol(w, mbmi->use_derived_intra_mode[0],
+                     get_derived_intra_mode_cdf(frame_ctx, above_mi, left_mi),
+                     2);
+  } else {
+    assert(!mbmi->use_derived_intra_mode[0]);
+  }
+  if (mbmi->use_derived_intra_mode[0]) return;
+#endif  // CONFIG_DERIVED_INTRA_MODE
+  aom_write_symbol(w, mbmi->mode, get_y_mode_cdf(frame_ctx, above_mi, left_mi),
                    INTRA_MODES);
 }
 
@@ -1011,19 +1020,46 @@ void av1_write_tx_type(const AV1_COMMON *const cm, const MACROBLOCKD *xd,
   }
 }
 
-static AOM_INLINE void write_intra_y_mode_nonkf(FRAME_CONTEXT *frame_ctx,
-                                                BLOCK_SIZE bsize,
-                                                PREDICTION_MODE mode,
+static AOM_INLINE void write_intra_y_mode_nonkf(const MACROBLOCKD *xd,
                                                 aom_writer *w) {
-  aom_write_symbol(w, mode, frame_ctx->y_mode_cdf[size_group_lookup[bsize]],
+  FRAME_CONTEXT *frame_ctx = xd->tile_ctx;
+  const MB_MODE_INFO *mbmi = xd->mi[0];
+  const BLOCK_SIZE bsize = mbmi->sb_type;
+#if CONFIG_DERIVED_INTRA_MODE
+  if (av1_enable_derived_intra_mode(xd, bsize)) {
+    aom_write_symbol(
+        w, mbmi->use_derived_intra_mode[0],
+        get_derived_intra_mode_cdf(frame_ctx, xd->above_mbmi, xd->left_mbmi),
+        2);
+  } else {
+    assert(!mbmi->use_derived_intra_mode[0]);
+  }
+  if (mbmi->use_derived_intra_mode[0]) return;
+#endif  // CONFIG_DERIVED_INTRA_MODE
+  aom_write_symbol(w, mbmi->mode,
+                   frame_ctx->y_mode_cdf[size_group_lookup[bsize]],
                    INTRA_MODES);
 }
 
 static AOM_INLINE void write_intra_uv_mode(FRAME_CONTEXT *frame_ctx,
-                                           UV_PREDICTION_MODE uv_mode,
-                                           PREDICTION_MODE y_mode,
+                                           const MACROBLOCKD *xd,
                                            CFL_ALLOWED_TYPE cfl_allowed,
                                            aom_writer *w) {
+  const MB_MODE_INFO *mbmi = xd->mi[0];
+#if CONFIG_DERIVED_INTRA_MODE
+  if (av1_enable_derived_intra_mode(xd, mbmi->sb_type)) {
+    aom_write_symbol(
+        w, mbmi->use_derived_intra_mode[1],
+        frame_ctx->uv_derived_intra_mode_cdf[mbmi->use_derived_intra_mode[0]],
+        2);
+  }
+  if (mbmi->use_derived_intra_mode[1]) return;
+#endif  // CONFIG_DERIVED_INTRA_MODE
+  PREDICTION_MODE y_mode = mbmi->mode;
+#if CONFIG_DERIVED_INTRA_MODE && DERIVED_INTRA_MODE_NOPD
+  if (mbmi->use_derived_intra_mode[0]) y_mode = DC_PRED;
+#endif  // CONFIG_DERIVED_INTRA_MODE && DERIVED_INTRA_MODE_NOPD
+  const UV_PREDICTION_MODE uv_mode = mbmi->uv_mode;
   aom_write_symbol(w, uv_mode, frame_ctx->uv_mode_cdf[cfl_allowed][y_mode],
                    UV_INTRA_MODES - !cfl_allowed);
 }
@@ -1180,16 +1216,18 @@ static AOM_INLINE void write_intra_prediction_modes(AV1_COMP *cpi,
 
   // Y mode.
   if (is_keyframe) {
-    const MB_MODE_INFO *const above_mi = xd->above_mbmi;
-    const MB_MODE_INFO *const left_mi = xd->left_mbmi;
-    write_intra_y_mode_kf(ec_ctx, mbmi, above_mi, left_mi, mode, w);
+    write_intra_y_mode_kf(xd, w);
   } else {
-    write_intra_y_mode_nonkf(ec_ctx, bsize, mode, w);
+    write_intra_y_mode_nonkf(xd, w);
   }
 
   // Y angle delta.
   const int use_angle_delta = av1_use_angle_delta(bsize);
-  if (use_angle_delta && av1_is_directional_mode(mode)) {
+  if (use_angle_delta &&
+#if CONFIG_DERIVED_INTRA_MODE
+      !mbmi->use_derived_intra_mode[0] &&
+#endif  // CONFIG_DERIVED_INTRA_MODE
+      av1_is_directional_mode(mode)) {
     write_angle_delta(w, mbmi->angle_delta[PLANE_TYPE_Y],
                       ec_ctx->angle_delta_cdf[mode - V_PRED]);
   }
@@ -1197,10 +1235,14 @@ static AOM_INLINE void write_intra_prediction_modes(AV1_COMP *cpi,
   // UV mode and UV angle delta.
   if (!cm->seq_params.monochrome && xd->is_chroma_ref) {
     const UV_PREDICTION_MODE uv_mode = mbmi->uv_mode;
-    write_intra_uv_mode(ec_ctx, uv_mode, mode, is_cfl_allowed(xd), w);
+    write_intra_uv_mode(ec_ctx, xd, is_cfl_allowed(xd), w);
     if (uv_mode == UV_CFL_PRED)
       write_cfl_alphas(ec_ctx, mbmi->cfl_alpha_idx, mbmi->cfl_alpha_signs, w);
-    if (use_angle_delta && av1_is_directional_mode(get_uv_mode(uv_mode))) {
+    if (use_angle_delta &&
+#if CONFIG_DERIVED_INTRA_MODE
+        !mbmi->use_derived_intra_mode[1] &&
+#endif  // CONFIG_DERIVED_INTRA_MODE
+        av1_is_directional_mode(get_uv_mode(uv_mode))) {
       write_angle_delta(w, mbmi->angle_delta[PLANE_TYPE_UV],
                         ec_ctx->angle_delta_cdf[uv_mode - V_PRED]);
     }

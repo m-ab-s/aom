@@ -365,6 +365,12 @@ void av1_dr_prediction_z2_c(uint8_t *dst, ptrdiff_t stride, int bw, int bh,
         x = c + 1;
         y = (r << 6) - x * dy;
         const int base_y = y >> frac_bits_y;
+#if CONFIG_DERIVED_INTRA_MODE
+        if (base_y < min_base_y) {
+          dst[c] = left[min_base_y];
+          continue;
+        }
+#endif  // CONFIG_DERIVED_INTRA_MODE
         assert(base_y >= min_base_y);
         const int shift = ((y * (1 << upsample_left)) & 0x3F) >> 1;
         val = left[base_y] * (32 - shift) + left[base_y + 1] * shift;
@@ -419,8 +425,13 @@ static void dr_predictor(uint8_t *dst, ptrdiff_t stride, TX_SIZE tx_size,
     av1_dr_prediction_z1(dst, stride, bw, bh, above, left, upsample_above, dx,
                          dy);
   } else if (angle > 90 && angle < 180) {
+#if CONFIG_DERIVED_INTRA_MODE
+    av1_dr_prediction_z2_c(dst, stride, bw, bh, above, left, upsample_above,
+                           upsample_left, dx, dy);
+#else
     av1_dr_prediction_z2(dst, stride, bw, bh, above, left, upsample_above,
                          upsample_left, dx, dy);
+#endif  // CONFIG_DERIVED_INTRA_MODE
   } else if (angle > 180 && angle < 270) {
     av1_dr_prediction_z3(dst, stride, bw, bh, above, left, upsample_left, dx,
                          dy);
@@ -500,6 +511,12 @@ void av1_highbd_dr_prediction_z2_c(uint16_t *dst, ptrdiff_t stride, int bw,
         x = c + 1;
         y = (r << 6) - x * dy;
         const int base_y = y >> frac_bits_y;
+#if CONFIG_DERIVED_INTRA_MODE
+        if (base_y < min_base_y) {
+          dst[c] = left[min_base_y];
+          continue;
+        }
+#endif  // CONFIG_DERIVED_INTRA_MODE
         assert(base_y >= min_base_y);
         const int shift = ((y * (1 << upsample_left)) & 0x3F) >> 1;
         val = left[base_y] * (32 - shift) + left[base_y + 1] * shift;
@@ -558,8 +575,13 @@ static void highbd_dr_predictor(uint16_t *dst, ptrdiff_t stride,
     av1_highbd_dr_prediction_z1(dst, stride, bw, bh, above, left,
                                 upsample_above, dx, dy, bd);
   } else if (angle > 90 && angle < 180) {
+#if CONFIG_DERIVED_INTRA_MODE
+    av1_highbd_dr_prediction_z2_c(dst, stride, bw, bh, above, left,
+                                  upsample_above, upsample_left, dx, dy, bd);
+#else
     av1_highbd_dr_prediction_z2(dst, stride, bw, bh, above, left,
                                 upsample_above, upsample_left, dx, dy, bd);
+#endif
   } else if (angle > 180 && angle < 270) {
     av1_highbd_dr_prediction_z3(dst, stride, bw, bh, above, left, upsample_left,
                                 dx, dy, bd);
@@ -912,9 +934,12 @@ void av1_upsample_intra_edge_high_c(uint16_t *p, int sz, int bd) {
 static void build_intra_predictors_high(
     const MACROBLOCKD *xd, const uint8_t *ref8, int ref_stride, uint8_t *dst8,
     int dst_stride, PREDICTION_MODE mode, int angle_delta,
-    FILTER_INTRA_MODE filter_intra_mode, TX_SIZE tx_size,
-    int disable_edge_filter, int n_top_px, int n_topright_px, int n_left_px,
-    int n_bottomleft_px, int plane) {
+    FILTER_INTRA_MODE filter_intra_mode,
+#if CONFIG_DERIVED_INTRA_MODE
+    int derived_angle,
+#endif  // CONFIG_DERIVED_INTRA_MODE
+    TX_SIZE tx_size, int disable_edge_filter, int n_top_px, int n_topright_px,
+    int n_left_px, int n_bottomleft_px, int plane) {
   int i;
   uint16_t *dst = CONVERT_TO_SHORTPTR(dst8);
   uint16_t *ref = CONVERT_TO_SHORTPTR(ref8);
@@ -949,6 +974,9 @@ static void build_intra_predictors_high(
 
   if (is_dr_mode) {
     p_angle = mode_to_angle_map[mode] + angle_delta;
+#if CONFIG_DERIVED_INTRA_MODE
+    if (derived_angle > 0) p_angle = derived_angle;
+#endif  // CONFIG_DERIVED_INTRA_MODE
     if (p_angle <= 90)
       need_above = 1, need_left = 0, need_above_left = 1;
     else if (p_angle < 180)
@@ -1096,6 +1124,9 @@ static void build_intra_predictors(const MACROBLOCKD *xd, const uint8_t *ref,
                                    int ref_stride, uint8_t *dst, int dst_stride,
                                    PREDICTION_MODE mode, int angle_delta,
                                    FILTER_INTRA_MODE filter_intra_mode,
+#if CONFIG_DERIVED_INTRA_MODE
+                                   int derived_angle,
+#endif  // CONFIG_DERIVED_INTRA_MODE
                                    TX_SIZE tx_size, int disable_edge_filter,
                                    int n_top_px, int n_topright_px,
                                    int n_left_px, int n_bottomleft_px,
@@ -1132,6 +1163,9 @@ static void build_intra_predictors(const MACROBLOCKD *xd, const uint8_t *ref,
 
   if (is_dr_mode) {
     p_angle = mode_to_angle_map[mode] + angle_delta;
+#if CONFIG_DERIVED_INTRA_MODE
+    if (derived_angle > 0) p_angle = derived_angle;
+#endif  // CONFIG_DERIVED_INTRA_MODE
     if (p_angle <= 90)
       need_above = 1, need_left = 0, need_above_left = 1;
     else if (p_angle < 180)
@@ -1273,11 +1307,17 @@ static void build_intra_predictors(const MACROBLOCKD *xd, const uint8_t *ref,
   }
 }
 
-void av1_predict_intra_block(
-    const AV1_COMMON *cm, const MACROBLOCKD *xd, int wpx, int hpx,
-    TX_SIZE tx_size, PREDICTION_MODE mode, int angle_delta, int use_palette,
-    FILTER_INTRA_MODE filter_intra_mode, const uint8_t *ref, int ref_stride,
-    uint8_t *dst, int dst_stride, int col_off, int row_off, int plane) {
+void av1_predict_intra_block(const AV1_COMMON *cm, const MACROBLOCKD *xd,
+                             int wpx, int hpx, TX_SIZE tx_size,
+                             PREDICTION_MODE mode, int angle_delta,
+                             int use_palette,
+                             FILTER_INTRA_MODE filter_intra_mode,
+#if CONFIG_DERIVED_INTRA_MODE
+                             int derived_angle,
+#endif  // CONFIG_DERIVED_INTRA_MODE
+                             const uint8_t *ref, int ref_stride, uint8_t *dst,
+                             int dst_stride, int col_off, int row_off,
+                             int plane) {
   const MB_MODE_INFO *const mbmi = xd->mi[0];
   const int txwpx = tx_size_wide[tx_size];
   const int txhpx = tx_size_high[tx_size];
@@ -1352,8 +1392,11 @@ void av1_predict_intra_block(
 
   if (is_cur_buf_hbd(xd)) {
     build_intra_predictors_high(xd, ref, ref_stride, dst, dst_stride, mode,
-                                angle_delta, filter_intra_mode, tx_size,
-                                disable_edge_filter,
+                                angle_delta, filter_intra_mode,
+#if CONFIG_DERIVED_INTRA_MODE
+                                derived_angle,
+#endif  // CONFIG_DERIVED_INTRA_MODE
+                                tx_size, disable_edge_filter,
                                 have_top ? AOMMIN(txwpx, xr + txwpx) : 0,
                                 have_top_right ? px_top_right : 0,
                                 have_left ? AOMMIN(txhpx, yd + txhpx) : 0,
@@ -1362,8 +1405,11 @@ void av1_predict_intra_block(
   }
 
   build_intra_predictors(xd, ref, ref_stride, dst, dst_stride, mode,
-                         angle_delta, filter_intra_mode, tx_size,
-                         disable_edge_filter,
+                         angle_delta, filter_intra_mode,
+#if CONFIG_DERIVED_INTRA_MODE
+                         derived_angle,
+#endif  // CONFIG_DERIVED_INTRA_MODE
+                         tx_size, disable_edge_filter,
                          have_top ? AOMMIN(txwpx, xr + txwpx) : 0,
                          have_top_right ? px_top_right : 0,
                          have_left ? AOMMIN(txhpx, yd + txhpx) : 0,
@@ -1403,10 +1449,13 @@ void av1_predict_intra_block_facade(const AV1_COMMON *cm, MACROBLOCKD *xd,
     CFL_CTX *const cfl = &xd->cfl;
     CFL_PRED_TYPE pred_plane = get_cfl_pred_type(plane);
     if (cfl->dc_pred_is_cached[pred_plane] == 0) {
-      av1_predict_intra_block(cm, xd, pd->width, pd->height, tx_size, mode,
-                              angle_delta, use_palette, filter_intra_mode, dst,
-                              dst_stride, dst, dst_stride, blk_col, blk_row,
-                              plane);
+      av1_predict_intra_block(
+          cm, xd, pd->width, pd->height, tx_size, mode, angle_delta,
+          use_palette, filter_intra_mode,
+#if CONFIG_DERIVED_INTRA_MODE
+          mbmi->use_derived_intra_mode[plane != 0] ? mbmi->derived_angle : 0,
+#endif  // CONFIG_DERIVED_INTRA_MODE
+          dst, dst_stride, dst, dst_stride, blk_col, blk_row, plane);
       if (cfl->use_dc_pred_cache) {
         cfl_store_dc_pred(xd, dst, pred_plane, tx_size_wide[tx_size]);
         cfl->dc_pred_is_cached[pred_plane] = 1;
@@ -1417,9 +1466,14 @@ void av1_predict_intra_block_facade(const AV1_COMMON *cm, MACROBLOCKD *xd,
     cfl_predict_block(xd, dst, dst_stride, tx_size, plane);
     return;
   }
-  av1_predict_intra_block(cm, xd, pd->width, pd->height, tx_size, mode,
-                          angle_delta, use_palette, filter_intra_mode, dst,
-                          dst_stride, dst, dst_stride, blk_col, blk_row, plane);
+
+  av1_predict_intra_block(
+      cm, xd, pd->width, pd->height, tx_size, mode, angle_delta, use_palette,
+      filter_intra_mode,
+#if CONFIG_DERIVED_INTRA_MODE
+      mbmi->use_derived_intra_mode[plane != 0] ? mbmi->derived_angle : 0,
+#endif  // CONFIG_DERIVED_INTRA_MODE
+      dst, dst_stride, dst, dst_stride, blk_col, blk_row, plane);
 }
 
 void av1_init_intra_predictors(void) {

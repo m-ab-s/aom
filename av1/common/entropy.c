@@ -218,4 +218,8 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
                       p + 1);
   }
 #endif  // CONFIG_FLEX_MVRES
+#if CONFIG_DERIVED_INTRA_MODE
+  RESET_CDF_COUNTER(fc->derived_intra_mode_cdf, 2);
+  RESET_CDF_COUNTER(fc->uv_derived_intra_mode_cdf, 2);
+#endif  // CONFIG_DERIVED_INTRA_MODE
 }

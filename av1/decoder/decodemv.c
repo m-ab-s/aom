@@ -138,8 +138,28 @@ static int read_delta_lflevel(const AV1_COMMON *const cm, aom_reader *r,
 
 static UV_PREDICTION_MODE read_intra_mode_uv(FRAME_CONTEXT *ec_ctx,
                                              aom_reader *r,
+#if CONFIG_DERIVED_INTRA_MODE
+                                             const MACROBLOCKD *const xd,
+#endif  // CONFIG_DERIVED_INTRA_MODE
                                              CFL_ALLOWED_TYPE cfl_allowed,
                                              PREDICTION_MODE y_mode) {
+#if CONFIG_DERIVED_INTRA_MODE
+  MB_MODE_INFO *const mbmi = xd->mi[0];
+  const BLOCK_SIZE bsize = mbmi->sb_type;
+  if (av1_enable_derived_intra_mode(xd, bsize)) {
+    mbmi->use_derived_intra_mode[1] = aom_read_symbol(
+        r, ec_ctx->uv_derived_intra_mode_cdf[mbmi->use_derived_intra_mode[0]],
+        2, ACCT_STR);
+  }
+  if (mbmi->use_derived_intra_mode[1]) {
+    // TODO(anyone): if derived mode has already been calculated for luma, we
+    // do not need to repeat it.
+    return av1_get_derived_intra_mode(xd, bsize, &mbmi->derived_angle);
+  }
+#if DERIVED_INTRA_MODE_NOPD
+  if (mbmi->use_derived_intra_mode[0]) y_mode = DC_PRED;
+#endif  // DERIVED_INTRA_MODE_NOPD
+#endif  // CONFIG_DERIVED_INTRA_MODE
   const UV_PREDICTION_MODE uv_mode =
       aom_read_symbol(r, ec_ctx->uv_mode_cdf[cfl_allowed][y_mode],
                       UV_INTRA_MODES - !cfl_allowed, ACCT_STR);
@@ -857,6 +877,10 @@ static void read_intra_frame_mode_info(AV1_COMMON *const cm,
   mbmi->palette_mode_info.palette_size[0] = 0;
   mbmi->palette_mode_info.palette_size[1] = 0;
   mbmi->filter_intra_mode_info.use_filter_intra = 0;
+#if CONFIG_DERIVED_INTRA_MODE
+  mbmi->use_derived_intra_mode[0] = 0;
+  mbmi->use_derived_intra_mode[1] = 0;
+#endif  // CONFIG_DERIVED_INTRA_MODE
 
   const int mi_row = xd->mi_row;
   const int mi_col = xd->mi_col;
@@ -869,22 +893,46 @@ static void read_intra_frame_mode_info(AV1_COMMON *const cm,
     if (is_intrabc_block(mbmi)) return;
   }
 
+#if CONFIG_DERIVED_INTRA_MODE
+  if (av1_enable_derived_intra_mode(xd, mbmi->sb_type)) {
+    aom_cdf_prob *cdf =
+        get_derived_intra_mode_cdf(ec_ctx, xd->above_mbmi, xd->left_mbmi);
+    mbmi->use_derived_intra_mode[0] = aom_read_symbol(r, cdf, 2, ACCT_STR);
+  }
+  if (mbmi->use_derived_intra_mode[0]) {
+    mbmi->mode = av1_get_derived_intra_mode(xd, bsize, &mbmi->derived_angle);
+  } else {
+    mbmi->mode = read_intra_mode(r, get_y_mode_cdf(ec_ctx, above_mi, left_mi));
+  }
+#else
   mbmi->mode = read_intra_mode(r, get_y_mode_cdf(ec_ctx, above_mi, left_mi));
+#endif  // CONFIG_DERIVED_INTRA_MODE
 
   const int use_angle_delta = av1_use_angle_delta(bsize);
   mbmi->angle_delta[PLANE_TYPE_Y] =
-      (use_angle_delta && av1_is_directional_mode(mbmi->mode))
+      (use_angle_delta &&
+#if CONFIG_DERIVED_INTRA_MODE
+       !mbmi->use_derived_intra_mode[0] &&
+#endif  // CONFIG_DERIVED_INTRA_MODE
+       av1_is_directional_mode(mbmi->mode))
           ? read_angle_delta(r, ec_ctx->angle_delta_cdf[mbmi->mode - V_PRED])
           : 0;
 
   if (!cm->seq_params.monochrome && xd->is_chroma_ref) {
-    mbmi->uv_mode =
-        read_intra_mode_uv(ec_ctx, r, is_cfl_allowed(xd), mbmi->mode);
+    mbmi->uv_mode = read_intra_mode_uv(ec_ctx, r,
+#if CONFIG_DERIVED_INTRA_MODE
+                                       xd,
+#endif  // CONFIG_DERIVED_INTRA_MODE
+                                       is_cfl_allowed(xd), mbmi->mode);
     if (mbmi->uv_mode == UV_CFL_PRED) {
       mbmi->cfl_alpha_idx = read_cfl_alphas(ec_ctx, r, &mbmi->cfl_alpha_signs);
     }
     mbmi->angle_delta[PLANE_TYPE_UV] =
-        (use_angle_delta && av1_is_directional_mode(get_uv_mode(mbmi->uv_mode)))
+        (use_angle_delta &&
+#if CONFIG_DERIVED_INTRA_MODE
+         !mbmi->use_derived_intra_mode[1] &&
+#endif  // CONFIG_DERIVED_INTRA_MODE
+         av1_is_directional_mode(get_uv_mode(mbmi->uv_mode)))
             ? read_angle_delta(r,
                                ec_ctx->angle_delta_cdf[mbmi->uv_mode - V_PRED])
             : 0;
@@ -1156,24 +1204,53 @@ static void read_intra_block_mode_info(AV1_COMMON *const cm,
 
   mbmi->ref_frame[0] = INTRA_FRAME;
   mbmi->ref_frame[1] = NONE_FRAME;
+#if CONFIG_DERIVED_INTRA_MODE
+  mbmi->use_derived_intra_mode[0] = 0;
+  mbmi->use_derived_intra_mode[1] = 0;
+#endif  // CONFIG_DERIVED_INTRA_MODE
 
   FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
 
+#if CONFIG_DERIVED_INTRA_MODE
+  if (av1_enable_derived_intra_mode(xd, mbmi->sb_type)) {
+    aom_cdf_prob *cdf =
+        get_derived_intra_mode_cdf(ec_ctx, xd->above_mbmi, xd->left_mbmi);
+    mbmi->use_derived_intra_mode[0] = aom_read_symbol(r, cdf, 2, ACCT_STR);
+  }
+  if (mbmi->use_derived_intra_mode[0]) {
+    mbmi->mode = av1_get_derived_intra_mode(xd, bsize, &mbmi->derived_angle);
+  } else {
+    mbmi->mode =
+        read_intra_mode(r, ec_ctx->y_mode_cdf[size_group_lookup[bsize]]);
+  }
+#else
   mbmi->mode = read_intra_mode(r, ec_ctx->y_mode_cdf[size_group_lookup[bsize]]);
+#endif  // CONFIG_DERIVED_INTRA_MODE
 
   mbmi->angle_delta[PLANE_TYPE_Y] =
-      use_angle_delta && av1_is_directional_mode(mbmi->mode)
+      use_angle_delta &&
+#if CONFIG_DERIVED_INTRA_MODE
+              !mbmi->use_derived_intra_mode[0] &&
+#endif  // CONFIG_DERIVED_INTRA_MODE
+              av1_is_directional_mode(mbmi->mode)
           ? read_angle_delta(r, ec_ctx->angle_delta_cdf[mbmi->mode - V_PRED])
           : 0;
   if (!cm->seq_params.monochrome && xd->is_chroma_ref) {
-    mbmi->uv_mode =
-        read_intra_mode_uv(ec_ctx, r, is_cfl_allowed(xd), mbmi->mode);
+    mbmi->uv_mode = read_intra_mode_uv(ec_ctx, r,
+#if CONFIG_DERIVED_INTRA_MODE
+                                       xd,
+#endif  // CONFIG_DERIVED_INTRA_MODE
+                                       is_cfl_allowed(xd), mbmi->mode);
     if (mbmi->uv_mode == UV_CFL_PRED) {
       mbmi->cfl_alpha_idx =
           read_cfl_alphas(xd->tile_ctx, r, &mbmi->cfl_alpha_signs);
     }
     mbmi->angle_delta[PLANE_TYPE_UV] =
-        use_angle_delta && av1_is_directional_mode(get_uv_mode(mbmi->uv_mode))
+        use_angle_delta &&
+#if CONFIG_DERIVED_INTRA_MODE
+                !mbmi->use_derived_intra_mode[1] &&
+#endif  // CONFIG_DERIVED_INTRA_MODE
+                av1_is_directional_mode(get_uv_mode(mbmi->uv_mode))
             ? read_angle_delta(r,
                                ec_ctx->angle_delta_cdf[mbmi->uv_mode - V_PRED])
             : 0;

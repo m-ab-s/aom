@@ -26,11 +26,17 @@ void av1_init_intra_predictors(void);
 void av1_predict_intra_block_facade(const AV1_COMMON *cm, MACROBLOCKD *xd,
                                     int plane, int blk_col, int blk_row,
                                     TX_SIZE tx_size);
-void av1_predict_intra_block(
-    const AV1_COMMON *cm, const MACROBLOCKD *xd, int wpx, int hpx,
-    TX_SIZE tx_size, PREDICTION_MODE mode, int angle_delta, int use_palette,
-    FILTER_INTRA_MODE filter_intra_mode, const uint8_t *ref, int ref_stride,
-    uint8_t *dst, int dst_stride, int col_off, int row_off, int plane);
+void av1_predict_intra_block(const AV1_COMMON *cm, const MACROBLOCKD *xd,
+                             int wpx, int hpx, TX_SIZE tx_size,
+                             PREDICTION_MODE mode, int angle_delta,
+                             int use_palette,
+                             FILTER_INTRA_MODE filter_intra_mode,
+#if CONFIG_DERIVED_INTRA_MODE
+                             int derived_angle,
+#endif  // CONFIG_DERIVED_INTRA_MODE
+                             const uint8_t *ref, int ref_stride, uint8_t *dst,
+                             int dst_stride, int col_off, int row_off,
+                             int plane);
 
 // Mapping of interintra to intra mode for use in the intra component
 static const PREDICTION_MODE interintra_to_intra_mode[INTERINTRA_MODES] = {
@@ -113,6 +119,16 @@ static const int16_t dr_intra_derivative[90] = {
 // If angle > 90 && angle < 180, dx = (int)(256 / t);
 // If angle > 180 && angle < 270, dx = 1;
 static INLINE int av1_get_dx(int angle) {
+#if CONFIG_DERIVED_INTRA_MODE
+  if ((angle > 0 && angle < 90) || (angle > 90 && angle < 180)) {
+    if (angle > 90) angle = 180 - angle;
+    int dx = dr_intra_derivative[angle];
+    if (!dx) dx = (int)round(64 / tan(angle * PI / 180));
+    return dx;
+  } else {
+    return 1;
+  }
+#endif  // CONFIG_DERIVED_INTRA_MODE
   if (angle > 0 && angle < 90) {
     return dr_intra_derivative[angle];
   } else if (angle > 90 && angle < 180) {
@@ -128,6 +144,20 @@ static INLINE int av1_get_dx(int angle) {
 // If angle > 90 && angle < 180, dy = (int)(256 * t);
 // If angle > 180 && angle < 270, dy = -((int)(256 * t));
 static INLINE int av1_get_dy(int angle) {
+#if CONFIG_DERIVED_INTRA_MODE
+  if ((angle > 90 && angle < 180) || (angle > 180 && angle < 270)) {
+    if (angle > 90 && angle < 180) {
+      angle = angle - 90;
+    } else {
+      angle = 270 - angle;
+    }
+    int dy = dr_intra_derivative[angle];
+    if (!dy) dy = (int)round(64 / tan(angle * PI / 180));
+    return dy;
+  } else {
+    return 1;
+  }
+#endif  // CONFIG_DERIVED_INTRA_MODE
   if (angle > 90 && angle < 180) {
     return dr_intra_derivative[angle - 90];
   } else if (angle > 180 && angle < 270) {

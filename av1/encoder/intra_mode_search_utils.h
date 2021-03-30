@@ -243,8 +243,20 @@ static AOM_INLINE int intra_mode_info_cost_y(const AV1_COMP *cpi,
                                              const MACROBLOCK *x,
                                              const MB_MODE_INFO *mbmi,
                                              BLOCK_SIZE bsize, int mode_cost) {
-  int total_rate = mode_cost;
   const ModeCosts *mode_costs = &x->mode_costs;
+#if CONFIG_DERIVED_INTRA_MODE
+  if (av1_enable_derived_intra_mode(&x->e_mbd, bsize)) {
+    const MACROBLOCKD *xd = &x->e_mbd;
+    const int above =
+        xd->above_mbmi && xd->above_mbmi->use_derived_intra_mode[0];
+    const int left = xd->left_mbmi && xd->left_mbmi->use_derived_intra_mode[0];
+    const int *derived_intra_mode_cost =
+        mode_costs->derived_intra_mode_cost[above + left];
+    mode_cost += derived_intra_mode_cost[mbmi->use_derived_intra_mode[0]];
+    if (mbmi->use_derived_intra_mode[0]) return mode_cost;
+  }
+#endif  // CONFIG_DERIVED_INTRA_MODE
+  int total_rate = mode_cost;
   const int use_palette = mbmi->palette_mode_info.palette_size[0] > 0;
   const int use_filter_intra = mbmi->filter_intra_mode_info.use_filter_intra;
   const int use_intrabc = mbmi->use_intrabc;
@@ -309,8 +321,18 @@ static AOM_INLINE int intra_mode_info_cost_uv(const AV1_COMP *cpi,
                                               const MACROBLOCK *x,
                                               const MB_MODE_INFO *mbmi,
                                               BLOCK_SIZE bsize, int mode_cost) {
-  int total_rate = mode_cost;
   const ModeCosts *mode_costs = &x->mode_costs;
+  const MACROBLOCKD *xd = &x->e_mbd;
+#if CONFIG_DERIVED_INTRA_MODE
+  if (av1_enable_derived_intra_mode(xd, bsize)) {
+    const int derived_intra_mode_cost =
+        mode_costs->uv_derived_intra_mode_cost[mbmi->use_derived_intra_mode[0]]
+                                              [mbmi->use_derived_intra_mode[1]];
+    if (mbmi->use_derived_intra_mode[1]) return derived_intra_mode_cost;
+    mode_cost += derived_intra_mode_cost;
+  }
+#endif  // CONFIG_DERIVED_INTRA_MODE
+  int total_rate = mode_cost;
   const int use_palette = mbmi->palette_mode_info.palette_size[1] > 0;
   const UV_PREDICTION_MODE mode = mbmi->uv_mode;
   // Can only activate one mode.
@@ -325,7 +347,6 @@ static AOM_INLINE int intra_mode_info_cost_uv(const AV1_COMP *cpi,
     if (use_palette) {
       const int bsize_ctx = av1_get_palette_bsize_ctx(bsize);
       const int plt_size = pmi->palette_size[1];
-      const MACROBLOCKD *xd = &x->e_mbd;
       const uint8_t *const color_map = xd->plane[1].color_index_map;
       int palette_mode_cost =
           mode_costs
