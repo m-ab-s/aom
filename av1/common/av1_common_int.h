@@ -277,6 +277,9 @@ typedef struct SequenceHeader {
 #if CONFIG_SDP
   uint8_t enable_sdp;  // enables/disables semi-decoupled partitioning
 #endif
+#if CONFIG_MRLS
+  uint8_t enable_mrls;  // enables/disables multiple reference line selection
+#endif
   uint8_t enable_filter_intra;         // enables/disables filterintra
   uint8_t enable_intra_edge_filter;    // enables/disables edge upsampling
   uint8_t enable_interintra_compound;  // enables/disables interintra_compound

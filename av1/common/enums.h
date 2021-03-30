@@ -80,6 +80,11 @@ extern "C" {
 #define PARTITION_STRUCTURE_NUM 2
 #endif
 
+// Multiple reference line selection for intra prediction
+#if CONFIG_MRLS
+#define MRL_LINE_NUMBER 4
+#endif
+
 #define DIST_PRECISION_BITS 4
 #define DIST_PRECISION (1 << DIST_PRECISION_BITS)  // 16
 

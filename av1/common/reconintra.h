@@ -69,10 +69,16 @@ static INLINE int av1_filter_intra_allowed(const AV1_COMMON *const cm,
                                            const MB_MODE_INFO *mbmi) {
 #if CONFIG_SDP
   return mbmi->mode == DC_PRED &&
+#if CONFIG_MRLS
+         mbmi->mrl_index == 0 &&
+#endif
          mbmi->palette_mode_info.palette_size[0] == 0 &&
          av1_filter_intra_allowed_bsize(cm, mbmi->sb_type[PLANE_TYPE_Y]);
 #else
   return mbmi->mode == DC_PRED &&
+#if CONFIG_MRLS
+         mbmi->mrl_index == 0 &&
+#endif
          mbmi->palette_mode_info.palette_size[0] == 0 &&
          av1_filter_intra_allowed_bsize(cm, mbmi->sb_type);
 #endif

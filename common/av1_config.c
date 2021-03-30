@@ -337,6 +337,9 @@ static int parse_sequence_header(const uint8_t *const buffer, size_t length,
 #if CONFIG_SDP
   AV1C_READ_BIT_OR_RETURN_ERROR(enable_sdp);
 #endif
+#if CONFIG_MRLS
+  AV1C_READ_BIT_OR_RETURN_ERROR(enable_mrls);
+#endif
   AV1C_READ_BIT_OR_RETURN_ERROR(enable_filter_intra);
   AV1C_READ_BIT_OR_RETURN_ERROR(enable_intra_edge_filter);
 

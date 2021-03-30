@@ -263,6 +263,13 @@ typedef struct {
    * enabled.
    */
   bool enable_angle_delta;
+#if CONFIG_MRLS
+  /*!
+   * Flag to indicate if multiple reference line selection for intra prediction
+   * should be enabled.
+   */
+  bool enable_mrls;
+#endif
 } IntraModeCfg;
 
 /*!

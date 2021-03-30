@@ -136,6 +136,9 @@ typedef struct frame_contexts {
   aom_cdf_prob y_mode_cdf[BLOCK_SIZE_GROUPS][CDF_SIZE(INTRA_MODES)];
   aom_cdf_prob uv_mode_cdf[CFL_ALLOWED_TYPES][INTRA_MODES]
                           [CDF_SIZE(UV_INTRA_MODES)];
+#if CONFIG_MRLS
+  aom_cdf_prob mrl_index_cdf[CDF_SIZE(MRL_LINE_NUMBER)];
+#endif
 #if CONFIG_SDP
   aom_cdf_prob partition_cdf[PARTITION_STRUCTURE_NUM][PARTITION_CONTEXTS]
                             [CDF_SIZE(EXT_PARTITION_TYPES)];

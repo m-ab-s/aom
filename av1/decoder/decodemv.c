@@ -160,6 +160,14 @@ static int read_delta_lflevel(const AV1_COMMON *const cm, aom_reader *r,
   return reduced_delta_lflevel;
 }
 
+#if CONFIG_MRLS
+static uint8_t read_mrl_index(FRAME_CONTEXT *ec_ctx, aom_reader *r) {
+  const uint8_t mrl_index =
+      aom_read_symbol(r, ec_ctx->mrl_index_cdf, MRL_LINE_NUMBER, ACCT_STR);
+  return mrl_index;
+}
+#endif
+
 static UV_PREDICTION_MODE read_intra_mode_uv(FRAME_CONTEXT *ec_ctx,
                                              aom_reader *r,
                                              CFL_ALLOWED_TYPE cfl_allowed,
@@ -968,6 +976,16 @@ static void read_intra_frame_mode_info(AV1_COMMON *const cm,
           ? read_angle_delta(r, ec_ctx->angle_delta_cdf[mbmi->mode - V_PRED])
           : 0;
 #endif
+#if CONFIG_MRLS
+#if CONFIG_SDP
+  if (xd->tree_type != CHROMA_PART)
+#endif
+    // Parsing reference line index
+    mbmi->mrl_index =
+        (cm->seq_params.enable_mrls && av1_is_directional_mode(mbmi->mode))
+            ? read_mrl_index(ec_ctx, r)
+            : 0;
+#endif
 #if CONFIG_SDP
   if (xd->tree_type != LUMA_PART) {
 #endif
@@ -1254,7 +1272,8 @@ static INLINE void read_mb_interp_filter(const MACROBLOCKD *const xd,
         break;
       }
     }
-    // The index system works as: (0, 1) -> (vertical, horizontal) filter types
+    // The index system works as: (0, 1) -> (vertical, horizontal) filter
+    // types
     mbmi->interp_filters.as_filters.x_filter = ref0_filter[1];
     mbmi->interp_filters.as_filters.y_filter = ref0_filter[0];
 #endif  // CONFIG_REMOVE_DUAL_FILTER
@@ -1290,6 +1309,18 @@ static void read_intra_block_mode_info(AV1_COMMON *const cm,
           ? read_angle_delta(r, ec_ctx->angle_delta_cdf[mbmi->mode - V_PRED])
           : 0;
 #endif
+
+#if CONFIG_MRLS
+#if CONFIG_SDP
+  if (xd->tree_type != CHROMA_PART)
+#endif
+    // Parsing reference line index
+    mbmi->mrl_index =
+        (cm->seq_params.enable_mrls && av1_is_directional_mode(mbmi->mode))
+            ? read_mrl_index(ec_ctx, r)
+            : 0;
+#endif
+
   if (!cm->seq_params.monochrome && xd->is_chroma_ref) {
     mbmi->uv_mode =
         read_intra_mode_uv(ec_ctx, r, is_cfl_allowed(xd), mbmi->mode);

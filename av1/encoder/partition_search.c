@@ -394,7 +394,6 @@ static void encode_superblock(const AV1_COMP *const cpi, TileDataEnc *tile_data,
           const int32_t tx_size_cat = bsize_to_tx_size_cat(bsize);
           const int depth = tx_size_to_depth(mbmi->tx_size, bsize);
           const int max_depths = bsize_to_max_depth(bsize);
-
           if (tile_data->allow_update_cdf)
             update_cdf(xd->tile_ctx->tx_size_cdf[tx_size_cat][tx_size_ctx],
                        depth, max_depths + 1);

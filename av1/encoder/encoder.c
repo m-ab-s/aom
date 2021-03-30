@@ -449,6 +449,9 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
 #if CONFIG_SDP
   seq->enable_sdp = oxcf->part_cfg.enable_sdp;
 #endif
+#if CONFIG_MRLS
+  seq->enable_mrls = oxcf->intra_mode_cfg.enable_mrls;
+#endif
 
   set_bitstream_level_tier(seq, cm, frm_dim_cfg->width, frm_dim_cfg->height,
                            oxcf->input_cfg.init_framerate);

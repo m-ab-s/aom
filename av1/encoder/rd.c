@@ -131,6 +131,10 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, ModeCosts *mode_costs,
       av1_cost_tokens_from_cdf(mode_costs->y_mode_costs[i][j],
                                fc->kf_y_cdf[i][j], NULL);
 
+#if CONFIG_MRLS
+  av1_cost_tokens_from_cdf(mode_costs->mrl_index_cost, fc->mrl_index_cdf, NULL);
+#endif
+
   for (i = 0; i < BLOCK_SIZE_GROUPS; ++i)
     av1_cost_tokens_from_cdf(mode_costs->mbmode_cost[i], fc->y_mode_cdf[i],
                              NULL);

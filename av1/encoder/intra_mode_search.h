@@ -49,6 +49,13 @@ typedef struct IntraModeSearchState {
    */
   PREDICTION_MODE best_intra_mode;
 
+#if CONFIG_MRLS
+  /*!
+   * \brief The best mrl index found so far
+   */
+  int best_mrl_index;
+#endif
+
   /** \name Speed feature variables
    * Variables to help with pruning some luma intra-modes during inter frame
    * coding process.

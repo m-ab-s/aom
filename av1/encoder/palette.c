@@ -411,6 +411,11 @@ void av1_rd_pick_palette_intra_sby(
     uint8_t *best_blk_skip, uint8_t *tx_type_map) {
   MACROBLOCKD *const xd = &x->e_mbd;
   MB_MODE_INFO *const mbmi = xd->mi[0];
+
+#if CONFIG_MRLS
+  mbmi->mrl_index = 0;
+#endif
+
 #if CONFIG_SDP
   assert(!is_inter_block(mbmi, xd->tree_type));
 #else

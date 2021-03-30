@@ -138,6 +138,9 @@ typedef struct av1_codec_arg_definitions {
 #if CONFIG_SDP
   arg_def_t enable_sdp;
 #endif
+#if CONFIG_MRLS
+  arg_def_t enable_mrls;
+#endif
   arg_def_t min_partition_size;
   arg_def_t max_partition_size;
 #if !CONFIG_REMOVE_DUAL_FILTER

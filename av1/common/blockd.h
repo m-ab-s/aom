@@ -244,6 +244,10 @@ typedef struct MB_MODE_INFO {
 #else
   BLOCK_SIZE sb_type;
 #endif
+
+#if CONFIG_MRLS
+  uint8_t mrl_index;
+#endif
   PREDICTION_MODE mode;
   // Only for INTRA blocks
   UV_PREDICTION_MODE uv_mode;

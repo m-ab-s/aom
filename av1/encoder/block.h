@@ -622,6 +622,10 @@ typedef struct {
 #else
   int angle_delta_cost[DIRECTIONAL_MODES][2 * MAX_ANGLE_DELTA + 1];
 #endif
+#if CONFIG_MRLS
+  //! mrl_index_cost
+  int mrl_index_cost[MRL_LINE_NUMBER];
+#endif
 
   //! Rate rate associated with each alpha codeword
   int cfl_cost[CFL_JOINT_SIGNS][CFL_PRED_PLANES][CFL_ALPHABET_SIZE];

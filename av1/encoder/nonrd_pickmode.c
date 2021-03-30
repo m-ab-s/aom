@@ -982,6 +982,9 @@ static INLINE void init_mbmi(MB_MODE_INFO *mbmi, PREDICTION_MODE pred_mode,
   mbmi->ref_mv_idx = 0;
   mbmi->mode = pred_mode;
   mbmi->uv_mode = UV_DC_PRED;
+#if CONFIG_MRLS
+  mbmi->mrl_index = 0;
+#endif
   mbmi->ref_frame[0] = ref_frame0;
   mbmi->ref_frame[1] = ref_frame1;
   pmi->palette_size[0] = 0;

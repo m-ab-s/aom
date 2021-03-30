@@ -71,6 +71,13 @@ static const aom_cdf_prob
         { AOM_CDF13(7618, 8288, 9859, 10509, 15386, 18657, 22903, 28776, 29180,
                     31355, 31802, 32593) } }
     };
+
+#if CONFIG_MRLS
+static const aom_cdf_prob default_mrl_index_cdf[CDF_SIZE(MRL_LINE_NUMBER)] = {
+  AOM_CDF4(24756, 29049, 31092)
+};
+#endif
+
 #if CONFIG_SDP
 static const aom_cdf_prob default_angle_delta_cdf
     [PARTITION_STRUCTURE_NUM][DIRECTIONAL_MODES]
@@ -1230,6 +1237,9 @@ static void init_mode_probs(FRAME_CONTEXT *fc) {
   av1_copy(fc->sgrproj_restore_cdf, default_sgrproj_restore_cdf);
   av1_copy(fc->y_mode_cdf, default_if_y_mode_cdf);
   av1_copy(fc->uv_mode_cdf, default_uv_mode_cdf);
+#if CONFIG_MRLS
+  av1_copy(fc->mrl_index_cdf, default_mrl_index_cdf);
+#endif
   av1_copy(fc->switchable_interp_cdf, default_switchable_interp_cdf);
   av1_copy(fc->partition_cdf, default_partition_cdf);
   av1_copy(fc->intra_ext_tx_cdf, default_intra_ext_tx_cdf);

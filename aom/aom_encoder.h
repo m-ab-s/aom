@@ -240,6 +240,12 @@ typedef struct cfg_options {
    */
   unsigned int enable_sdp;
 #endif  // CONFIG_SDP
+#if CONFIG_MRLS
+  /*!\brief enable Multiple reference line selection
+   *
+   */
+  unsigned int enable_mrls;
+#endif  // CONFIG_MRLS
   /*!\brief enable flip and identity transform type
    *
    */

@@ -345,6 +345,12 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
                         "Enable semi decoupled partitioning for key frame"
                         "(0: false, 1: true (default))"),
 #endif
+#if CONFIG_MRLS
+  .enable_mrls =
+      ARG_DEF(NULL, "enable-mrls", 1,
+              "Enable multiple reference line selection for intra prediction"
+              "(0: false, 1: true (default))"),
+#endif
   .min_partition_size =
       ARG_DEF(NULL, "min-partition-size", 1,
               "Set min partition size "
