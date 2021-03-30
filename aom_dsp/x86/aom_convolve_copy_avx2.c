@@ -191,9 +191,9 @@ void aom_highbd_convolve_copy_avx2(const uint16_t *src, ptrdiff_t src_stride,
       src += src_stride;
       s[1] = _mm_loadu_si128((__m128i *)src);
       src += src_stride;
-      _mm_store_si128((__m128i *)dst, s[0]);
+      _mm_storeu_si128((__m128i *)dst, s[0]);
       dst += dst_stride;
-      _mm_store_si128((__m128i *)dst, s[1]);
+      _mm_storeu_si128((__m128i *)dst, s[1]);
       dst += dst_stride;
       h -= 2;
     } while (h);
