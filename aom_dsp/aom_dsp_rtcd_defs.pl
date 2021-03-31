@@ -107,12 +107,11 @@ specialize qw/aom_dc_left_predictor_8x4 sse2/;
 specialize qw/aom_dc_left_predictor_8x8 neon msa sse2/;
 specialize qw/aom_dc_left_predictor_8x16 sse2/;
 specialize qw/aom_dc_left_predictor_8x32 sse2/;
-if (aom_config("CONFIG_EXT_RECUR_PARTITIONS") ne "yes") {
-  specialize qw/aom_dc_left_predictor_16x4 sse2/;
-  specialize qw/aom_dc_left_predictor_16x8 sse2/;
-  specialize qw/aom_dc_left_predictor_16x16 neon msa sse2/;
-  specialize qw/aom_dc_left_predictor_16x32 sse2/;
-} # CONFIG_EXT_RECUR_PARTITIONS
+
+specialize qw/aom_dc_left_predictor_16x4 sse2/;
+specialize qw/aom_dc_left_predictor_16x8 sse2/;
+specialize qw/aom_dc_left_predictor_16x16 neon msa sse2/;
+specialize qw/aom_dc_left_predictor_16x32 sse2/;
 specialize qw/aom_dc_left_predictor_16x64 sse2/;
 specialize qw/aom_dc_left_predictor_32x8 sse2/;
 specialize qw/aom_dc_left_predictor_32x16 sse2 avx2/;
@@ -147,12 +146,10 @@ specialize qw/aom_v_predictor_8x4 sse2/;
 specialize qw/aom_v_predictor_8x8 neon msa sse2/;
 specialize qw/aom_v_predictor_8x16 sse2/;
 specialize qw/aom_v_predictor_8x32 sse2/;
-if (aom_config("CONFIG_EXT_RECUR_PARTITIONS") ne "yes") {
-  specialize qw/aom_v_predictor_16x4 sse2/;
-  specialize qw/aom_v_predictor_16x8 sse2/;
-  specialize qw/aom_v_predictor_16x16 neon msa sse2/;
-  specialize qw/aom_v_predictor_16x32 sse2/;
-} # CONFIG_EXT_RECUR_PARTITIONS
+specialize qw/aom_v_predictor_16x4 sse2/;
+specialize qw/aom_v_predictor_16x8 sse2/;
+specialize qw/aom_v_predictor_16x16 neon msa sse2/;
+specialize qw/aom_v_predictor_16x32 sse2/;
 specialize qw/aom_v_predictor_16x64 sse2/;
 specialize qw/aom_v_predictor_32x8 sse2/;
 specialize qw/aom_v_predictor_32x16 sse2 avx2/;
@@ -168,12 +165,10 @@ specialize qw/aom_h_predictor_8x4 sse2/;
 specialize qw/aom_h_predictor_8x8 neon dspr2 msa sse2/;
 specialize qw/aom_h_predictor_8x16 sse2/;
 specialize qw/aom_h_predictor_8x32 sse2/;
-if (aom_config("CONFIG_EXT_RECUR_PARTITIONS") ne "yes") {
-  specialize qw/aom_h_predictor_16x4 sse2/;
-  specialize qw/aom_h_predictor_16x8 sse2/;
-  specialize qw/aom_h_predictor_16x16 neon dspr2 msa sse2/;
-  specialize qw/aom_h_predictor_16x32 sse2/;
-} # CONFIG_EXT_RECUR_PARTITIONS
+specialize qw/aom_h_predictor_16x4 sse2/;
+specialize qw/aom_h_predictor_16x8 sse2/;
+specialize qw/aom_h_predictor_16x16 neon dspr2 msa sse2/;
+specialize qw/aom_h_predictor_16x32 sse2/;
 specialize qw/aom_h_predictor_16x64 sse2/;
 specialize qw/aom_h_predictor_32x8 sse2/;
 specialize qw/aom_h_predictor_32x16 sse2/;
@@ -189,12 +184,10 @@ specialize qw/aom_paeth_predictor_8x4 ssse3/;
 specialize qw/aom_paeth_predictor_8x8 ssse3/;
 specialize qw/aom_paeth_predictor_8x16 ssse3/;
 specialize qw/aom_paeth_predictor_8x32 ssse3/;
-if (aom_config("CONFIG_EXT_RECUR_PARTITIONS") ne "yes") {
-  specialize qw/aom_paeth_predictor_16x4 ssse3/;
-  specialize qw/aom_paeth_predictor_16x8 ssse3 avx2/;
-  specialize qw/aom_paeth_predictor_16x16 ssse3 avx2/;
-  specialize qw/aom_paeth_predictor_16x32 ssse3 avx2/;
-} # !CONFIG_EXT_RECUR_PARTITIONS
+specialize qw/aom_paeth_predictor_16x4 ssse3/;
+specialize qw/aom_paeth_predictor_16x8 ssse3 avx2/;
+specialize qw/aom_paeth_predictor_16x16 ssse3 avx2/;
+specialize qw/aom_paeth_predictor_16x32 ssse3 avx2/;
 specialize qw/aom_paeth_predictor_16x64 ssse3 avx2/;
 specialize qw/aom_paeth_predictor_32x8 ssse3/;
 specialize qw/aom_paeth_predictor_32x16 ssse3 avx2/;
@@ -274,12 +267,10 @@ specialize qw/aom_dc_predictor_8x4 sse2/;
 specialize qw/aom_dc_predictor_8x8 dspr2 neon msa sse2/;
 specialize qw/aom_dc_predictor_8x16 sse2/;
 specialize qw/aom_dc_predictor_8x32 sse2/;
-if (aom_config("CONFIG_EXT_RECUR_PARTITIONS") ne "yes") {
-  specialize qw/aom_dc_predictor_16x4 sse2/;
-  specialize qw/aom_dc_predictor_16x8 sse2/;
-  specialize qw/aom_dc_predictor_16x16 dspr2 neon msa sse2/;
-  specialize qw/aom_dc_predictor_16x32 sse2/;
-} # CONFIG_EXT_RECUR_PARTITIONS
+specialize qw/aom_dc_predictor_16x4 sse2/;
+specialize qw/aom_dc_predictor_16x8 sse2/;
+specialize qw/aom_dc_predictor_16x16 dspr2 neon msa sse2/;
+specialize qw/aom_dc_predictor_16x32 sse2/;
 specialize qw/aom_dc_predictor_16x64 sse2/;
 specialize qw/aom_dc_predictor_32x8 sse2/;
 specialize qw/aom_dc_predictor_32x16 sse2 avx2/;

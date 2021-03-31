@@ -36,7 +36,7 @@ static INLINE void dc_store_16xh(const __m128i *row, int height, uint8_t *dst,
                                  ptrdiff_t stride) {
   int i;
   for (i = 0; i < height; ++i) {
-    _mm_store_si128((__m128i *)dst, *row);
+    _mm_storeu_si128((__m128i *)dst, *row);
     dst += stride;
   }
 }
@@ -1171,7 +1171,7 @@ static INLINE void h_pred_store_16xh(const __m128i *row, int h, uint8_t *dst,
                                      ptrdiff_t stride) {
   int i;
   for (i = 0; i < h; ++i) {
-    _mm_store_si128((__m128i *)dst, row[i]);
+    _mm_storeu_si128((__m128i *)dst, row[i]);
     dst += stride;
   }
 }
