@@ -1001,6 +1001,14 @@ static int get_optflow_based_mv_highbd(
   int vy0[N_OF_OFFSETS] = { 0 };
   int vy1[N_OF_OFFSETS] = { 0 };
   const int target_prec = MV_REFINE_PREC_BITS;
+  // Convert output MV to 1/16th pel
+  assert(MV_REFINE_PREC_BITS >= 3);
+  for (int mvi = 0; mvi < N_OF_OFFSETS; mvi++) {
+    mv_refined[mvi * 2].as_mv.row *= 1 << (MV_REFINE_PREC_BITS - 3);
+    mv_refined[mvi * 2].as_mv.col *= 1 << (MV_REFINE_PREC_BITS - 3);
+    mv_refined[mvi * 2 + 1].as_mv.row *= 1 << (MV_REFINE_PREC_BITS - 3);
+    mv_refined[mvi * 2 + 1].as_mv.col *= 1 << (MV_REFINE_PREC_BITS - 3);
+  }
 
   // Allocate gradient and prediction buffers
   int16_t *g0 = aom_malloc(2 * MAX_SB_SIZE * MAX_SB_SIZE * sizeof(*g0));
@@ -1059,6 +1067,14 @@ static int get_optflow_based_mv_lowbd(
   int vy0[N_OF_OFFSETS] = { 0 };
   int vy1[N_OF_OFFSETS] = { 0 };
   const int target_prec = MV_REFINE_PREC_BITS;
+  // Convert output MV to 1/16th pel
+  assert(MV_REFINE_PREC_BITS >= 3);
+  for (int mvi = 0; mvi < N_OF_OFFSETS; mvi++) {
+    mv_refined[mvi * 2].as_mv.row *= 1 << (MV_REFINE_PREC_BITS - 3);
+    mv_refined[mvi * 2].as_mv.col *= 1 << (MV_REFINE_PREC_BITS - 3);
+    mv_refined[mvi * 2 + 1].as_mv.row *= 1 << (MV_REFINE_PREC_BITS - 3);
+    mv_refined[mvi * 2 + 1].as_mv.col *= 1 << (MV_REFINE_PREC_BITS - 3);
+  }
 
   // Allocate gradient and prediction buffers
   int16_t *g0 = aom_malloc(2 * MAX_SB_SIZE * MAX_SB_SIZE * sizeof(*g0));
@@ -1132,7 +1148,8 @@ void av1_build_optflow_inter_predictor(
   uint8_t *src;
   int src_stride;
   calc_subpel_params_func(&(mv_refined[ref].as_mv), inter_pred_params, xd, mi_x,
-                          mi_y, ref, mc_buf, &src, &subpel_params, &src_stride);
+                          mi_y, ref, 1, mc_buf, &src, &subpel_params,
+                          &src_stride);
   av1_make_inter_predictor(src, src_stride, dst, dst_stride, inter_pred_params,
                            &subpel_params);
 }
@@ -1214,6 +1231,9 @@ void av1_build_one_inter_predictor(
   uint8_t *src;
   int src_stride;
   calc_subpel_params_func(src_mv, inter_pred_params, xd, mi_x, mi_y, ref,
+#if CONFIG_OPTFLOW_REFINEMENT
+                          0, /* use_optflow_refinement */
+#endif                       // CONFIG_OPTFLOW_REFINEMENT
                           mc_buf, &src, &subpel_params, &src_stride);
 
   if (inter_pred_params->comp_mode == UNIFORM_SINGLE ||

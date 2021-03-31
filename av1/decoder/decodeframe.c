@@ -583,13 +583,14 @@ static INLINE void extend_mc_border(const struct scale_factors *const sf,
   }
 }
 
-static void dec_calc_subpel_params(const MV *const src_mv,
-                                   InterPredParams *const inter_pred_params,
-                                   const MACROBLOCKD *const xd, int mi_x,
-                                   int mi_y, uint8_t **pre,
-                                   SubpelParams *subpel_params, int *src_stride,
-                                   PadBlock *block, MV32 *scaled_mv,
-                                   int *subpel_x_mv, int *subpel_y_mv) {
+static void dec_calc_subpel_params(
+    const MV *const src_mv, InterPredParams *const inter_pred_params,
+    const MACROBLOCKD *const xd, int mi_x, int mi_y, uint8_t **pre,
+    SubpelParams *subpel_params, int *src_stride, PadBlock *block,
+#if CONFIG_OPTFLOW_REFINEMENT
+    int use_optflow_refinement,
+#endif  // CONFIG_OPTFLOW_REFINEMENT
+    MV32 *scaled_mv, int *subpel_x_mv, int *subpel_y_mv) {
   const struct scale_factors *sf = inter_pred_params->scale_factors;
   struct buf_2d *pre_buf = &inter_pred_params->ref_frame_buf;
   const int bw = inter_pred_params->block_width;
@@ -599,9 +600,21 @@ static void dec_calc_subpel_params(const MV *const src_mv,
     int ssx = inter_pred_params->subsampling_x;
     int ssy = inter_pred_params->subsampling_y;
     int orig_pos_y = inter_pred_params->pix_row << SUBPEL_BITS;
-    orig_pos_y += src_mv->row * (1 << (1 - ssy));
     int orig_pos_x = inter_pred_params->pix_col << SUBPEL_BITS;
+#if CONFIG_OPTFLOW_REFINEMENT
+    if (use_optflow_refinement) {
+      orig_pos_y +=
+          src_mv->row * (1 << SUBPEL_BITS) / (1 << (MV_REFINE_PREC_BITS + ssy));
+      orig_pos_x +=
+          src_mv->col * (1 << SUBPEL_BITS) / (1 << (MV_REFINE_PREC_BITS + ssx));
+    } else {
+      orig_pos_y += src_mv->row * (1 << (1 - ssy));
+      orig_pos_x += src_mv->col * (1 << (1 - ssx));
+    }
+#else
+    orig_pos_y += src_mv->row * (1 << (1 - ssy));
     orig_pos_x += src_mv->col * (1 << (1 - ssx));
+#endif  // CONFIG_OPTFLOW_REFINEMENT
     int pos_y = sf->scale_value_y(orig_pos_y, sf);
     int pos_x = sf->scale_value_x(orig_pos_x, sf);
     pos_x += SCALE_EXTRA_OFF;
@@ -632,6 +645,9 @@ static void dec_calc_subpel_params(const MV *const src_mv,
 
     MV temp_mv;
     temp_mv = clamp_mv_to_umv_border_sb(xd, src_mv, bw, bh,
+#if CONFIG_OPTFLOW_REFINEMENT
+                                        use_optflow_refinement,
+#endif  // CONFIG_OPTFLOW_REFINEMENT
                                         inter_pred_params->subsampling_x,
                                         inter_pred_params->subsampling_y);
     *scaled_mv = av1_scale_mv(&temp_mv, mi_x, mi_y, sf);
@@ -646,8 +662,11 @@ static void dec_calc_subpel_params(const MV *const src_mv,
     int pos_y = inter_pred_params->pix_row << SUBPEL_BITS;
 
     const MV mv_q4 = clamp_mv_to_umv_border_sb(
-        xd, src_mv, bw, bh, inter_pred_params->subsampling_x,
-        inter_pred_params->subsampling_y);
+        xd, src_mv, bw, bh,
+#if CONFIG_OPTFLOW_REFINEMENT
+        use_optflow_refinement,
+#endif  // CONFIG_OPTFLOW_REFINEMENT
+        inter_pred_params->subsampling_x, inter_pred_params->subsampling_y);
     subpel_params->xs = subpel_params->ys = SCALE_SUBPEL_SHIFTS;
     subpel_params->subpel_x = (mv_q4.col & SUBPEL_MASK) << SCALE_EXTRA_BITS;
     subpel_params->subpel_y = (mv_q4.row & SUBPEL_MASK) << SCALE_EXTRA_BITS;
@@ -673,14 +692,21 @@ static void dec_calc_subpel_params(const MV *const src_mv,
 
 static void dec_calc_subpel_params_and_extend(
     const MV *const src_mv, InterPredParams *const inter_pred_params,
-    MACROBLOCKD *const xd, int mi_x, int mi_y, int ref, uint8_t **mc_buf,
-    uint8_t **pre, SubpelParams *subpel_params, int *src_stride) {
+    MACROBLOCKD *const xd, int mi_x, int mi_y, int ref,
+#if CONFIG_OPTFLOW_REFINEMENT
+    int use_optflow_refinement,
+#endif  // CONFIG_OPTFLOW_REFINEMENT
+    uint8_t **mc_buf, uint8_t **pre, SubpelParams *subpel_params,
+    int *src_stride) {
   PadBlock block;
   MV32 scaled_mv;
   int subpel_x_mv, subpel_y_mv;
   dec_calc_subpel_params(src_mv, inter_pred_params, xd, mi_x, mi_y, pre,
-                         subpel_params, src_stride, &block, &scaled_mv,
-                         &subpel_x_mv, &subpel_y_mv);
+                         subpel_params, src_stride, &block,
+#if CONFIG_OPTFLOW_REFINEMENT
+                         use_optflow_refinement,
+#endif  // CONFIG_OPTFLOW_REFINEMENT
+                         &scaled_mv, &subpel_x_mv, &subpel_y_mv);
   extend_mc_border(
       inter_pred_params->scale_factors, &inter_pred_params->ref_frame_buf,
       scaled_mv, block, subpel_x_mv, subpel_y_mv,
