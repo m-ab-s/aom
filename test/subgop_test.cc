@@ -743,7 +743,7 @@ class SubGopPSNRCheckTest
 TEST_P(SubGopPSNRCheckTest, SubGopPSNRCheck) {
   std::unique_ptr<libaom_test::VideoSource> video;
   const unsigned int kFrames = 100;
-  const double psnr_diff_thresh = 0.2;
+  const double psnr_diff_thresh = 0.3;
   if (is_extension_y4m(test_params_.input_file)) {
     video.reset(
         new libaom_test::Y4mVideoSource(test_params_.input_file, 0, kFrames));

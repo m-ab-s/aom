@@ -709,7 +709,8 @@ static int get_refresh_idx(int update_arf, int refresh_level,
     if (ref_pair.disp_order == -1) continue;
     const int frame_order = ref_pair.disp_order;
     const int reference_frame_level = ref_pair.pyr_level;
-    if (frame_order > cur_frame_disp) continue;
+    // Keep future frames and three closest previous frames in output order
+    if (frame_order > cur_frame_disp - 3) continue;
 
     // Keep track of the oldest reference frame matching the specified
     // refresh level from the subgop cfg
@@ -1181,20 +1182,6 @@ void av1_get_ref_frames(AV1_COMP *const cpi, int cur_frame_disp,
   // Find the buffer to be excluded from the mapping
   set_unmapped_ref(buffer_map, n_bufs, n_min_level_refs, min_level,
                    cur_frame_disp);
-
-  // Map LAST3_FRAME
-  if (n_bufs >= ALTREF_FRAME) {
-    const int use_low_level_last3 =
-        n_past_high_level < 4 && n_bufs > ALTREF_FRAME;
-    for (int i = 0; i < n_bufs; i++) {
-      if (buffer_map[i].used) continue;
-      if ((buffer_map[i].pyr_level != min_level ||
-           (use_low_level_last3 && buffer_map[i].pyr_level == min_level))) {
-        add_ref_to_slot(&buffer_map[i], remapped_ref_idx, LAST3_FRAME);
-        break;
-      }
-    }
-  }
 
   // Place past frames in LAST_FRAME, LAST2_FRAME, and LAST3_FRAME
   for (int frame = LAST_FRAME; frame < GOLDEN_FRAME; frame++) {
