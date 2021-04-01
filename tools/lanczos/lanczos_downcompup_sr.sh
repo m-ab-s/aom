@@ -1,17 +1,15 @@
 #!/bin/bash
 #
-# Down-up script that uses super-resolution after the
-# upsampling step.
-#
 # Usage:
-#   lanczos_downup.sh [<Options>]
-#                     <input_y4m>
-#                     <num_frames>
-#                     <horz_resampling_config>
-#                     <vert_resampling_config>
-#                     <downup_y4m>
-#                     <downupsr_y4m>
-#                     [<down_y4m>]
+#   lanczos_downcompup_sr.sh [<Options>]
+#                            <input_y4m>
+#                            <num_frames>
+#                            <horz_resampling_config>
+#                            <vert_resampling_config>
+#                            <cq_level>[:<cpu_used>]
+#                            <downcompup_y4m>
+#                            <downcompupsr_y4m>
+#                            [[<down_y4m>]:[<downcomp_bit>]:[<downcomp_y4m]]
 #
 #   Notes:
 #       <Options> are optional switches similar to what is used by
@@ -31,11 +29,20 @@
 #             if down and up operations use different parameters, or
 #               <a_luma_down>,<a_chroma_down>
 #             if down and up operations use the same parameters.
-#       <downup_y4m> is the output y4m video after upscaling.
-#       <downupsr_y4m> is the output y4m video after super-resolution.
-#       <down_y4m> provides the intermediate resampled file as an
-#           optional parameter. If skipped the intermediate resampled
-#           file is deleted.
+#       <cq_level>[:<cpu_used>] provides the cq_level parameter of
+#           compression along with an optional cpu_used parameter.
+#       <downcompup_y4m> is the output y4m video after upscaling.
+#       <downcompupsr_y4m> is the output y4m video after super-resolution.
+#       The last param [[<down_y4m>]:[<downcomp_bit>]:[<downcomp_y4m]]
+#           provides names of intermediate files where:
+#               <down_y4m> is the resampled source
+#               <downcomp_bit> is the compressed resampled bitstream
+#               <downcomp_y4m> is the reconstructed bitstream.
+#           This parameter string is entirely optional.
+#           Besides if provided, each of <down_y4m>, <downcomp_bit> and
+#           <downcomp_y4m> are optional by themselves where each can be
+#           either provided or empty. If empty the corresponding
+#           intermediate file is deleted.
 #
 
 set -e
@@ -52,23 +59,37 @@ cp ./cnn_restore_y4m $SUPERRES
 
 trap 'echo "Exiting..."; rm -f ${AOMENC} ${AOMDEC} ${RESAMPLE} ${SUPERRES}' EXIT
 
+extra=""
+
 opts=0
 options=""
 while [[ "${@:$((opts+1)):1}" == -* ]]; do
   options="$options ${@:$((opts+1)):1}"
   ((opts=opts+1))
 done
-if [[ $# -lt "((opts+6))" ]]; then
+if [[ $# -lt "((opts+7))" ]]; then
   echo "Too few parameters $(($#-opts))"
   exit 1;
 fi
+
 input_y4m=${@:$((opts+1)):1}
 nframes=${@:$((opts+2)):1}
 hdconfig=${@:$((opts+3)):1}
 vdconfig=${@:$((opts+4)):1}
-downup_y4m=${@:$((opts+5)):1}
-downupsr_y4m=${@:$((opts+6)):1}
-down_y4m=${@:$((opts+7)):1}
+codecparams=${@:$((opts+5)):1}
+downcompup_y4m=${@:$((opts+6)):1}
+downcompupsr_y4m=${@:$((opts+7)):1}
+intfiles=${@:$((opts+8)):1}
+
+#Get codec params cq_level and cpu_used
+OIFS="$IFS"; IFS=':' codecparams_arr=($codecparams); IFS="$OIFS"
+cq_level=${codecparams_arr[0]}
+cpu_used=${codecparams_arr[1]}
+if [[ -z ${cpu_used} ]]; then
+  cpu_used="0"
+fi
+echo "cq_level: ${cq_level}"
+echo "cpu_used: ${cpu_used}"
 
 #Get width and height
 hdr=$(head -1 $input_y4m)
@@ -77,9 +98,19 @@ theight=$(awk -F ' ' '{ print $3 }' <<< "${hdr}")
 width=${twidth:1}
 height=${theight:1}
 
-#Get intermediate (down) file
-if [[ -z $down_y4m ]]; then
-  down_y4m=/tmp/down_$$.y4m
+#Parse the intermediate files parameter
+OIFS="$IFS"; IFS=':' intfiles_arr=($intfiles); IFS="$OIFS"
+down_y4m=${intfiles_arr[0]}
+downcomp_bit=${intfiles_arr[1]}
+downcomp_y4m=${intfiles_arr[2]}
+if [[ -z ${down_y4m} ]]; then
+  down_y4m=${tmpdir}/down_$$.y4m
+fi
+if [[ -z ${downcomp_bit} ]]; then
+  downcomp_bit=${tmpdir}/downcomp_$$.bit
+fi
+if [[ -z ${downcomp_y4m} ]]; then
+  downcomp_y4m=${tmpdir}/downcomp_$$.y4m
 fi
 
 #Obtain the horizontal and vertical upsampling configs
@@ -121,13 +152,37 @@ if [[ -n ${vdconfig_arr[4]} ]]; then
   vuconfig="${vuconfig}:${vdconfig_arr[4]}"
 fi
 
-$RESAMPLE $options $input_y4m $nframes $hdconfig $vdconfig $down_y4m &&
-$RESAMPLE $options $down_y4m $nframes $huconfig $vuconfig $downup_y4m ${width}x${height}
-$SUPERRES $downup_y4m $nframes $srhconfig $downupsr_y4m
+#Downsample
+$RESAMPLE $options $input_y4m $nframes $hdconfig $vdconfig $down_y4m
 
-#tiny_ssim_highbd $input_y4m $downup_y4m
-#tiny_ssim_highbd $input_y4m $downupsr_y4m
+#Compress
+$AOMENC -o $downcomp_bit $down_y4m \
+        --codec=av1 --good --threads=0 --passes=1 --lag-in-frames=19 \
+        --kf-max-dist=65 --kf-min-dist=0 --test-decode=warn -v --psnr \
+        --end-usage=q \
+        --cq-level=${cq_level} \
+        --cpu-used=${cpu_used} \
+        --limit=${nframes} \
+        ${extra}
+$AOMDEC --progress -S --codec=av1 -o $downcomp_y4m $downcomp_bit
 
-if [[ -z ${@:$((opts+7)):1} ]]; then
+#Upsample
+$RESAMPLE $options $downcomp_y4m $nframes $huconfig $vuconfig $downcompup_y4m \
+          ${width}x${height}
+
+#Super-resolution
+$SUPERRES $downcompup_y4m $nframes $srhconfig $downcompupsr_y4m
+
+#Compute metrics
+#tiny_ssim_highbd $input_y4m $downcompup_y4m
+#tiny_ssim_highbd $input_y4m $downcompupsr_y4m
+
+if [[ -z ${intfiles_arr[0]} ]]; then
   rm $down_y4m
+fi
+if [[ -z ${intfiles_arr[1]} ]]; then
+  rm $downcomp_bit
+fi
+if [[ -z ${intfiles_arr[2]} ]]; then
+  rm $downcomp_y4m
 fi
