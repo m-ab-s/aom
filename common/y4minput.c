@@ -833,8 +833,9 @@ int y4m_input_open(y4m_input *_y4m, FILE *_fin, char *_skip, int _nskip,
     return -1;
   }
   if (csp == AOM_CSP_COLOCATED) {
-    fprintf(stderr, "Colocated chroma sample position not supported in Y4M\n");
-    return -1;
+    // TODO(any): check the right way to handle this is y4m
+    fprintf(stderr,
+            "Ignoring colocated chroma sample position for reading in Y4M\n");
   }
   _y4m->aom_fmt = AOM_IMG_FMT_I420;
   _y4m->bps = 12;
