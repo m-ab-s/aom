@@ -8,7 +8,7 @@
 ## Media Patent License 1.0 was not distributed with this source code in the
 ## PATENTS file, you can obtain it at www.aomedia.org/license/patent.
 ##
-__author__ = "maggie.sun@intel.com, ryan.lei@intel.com"
+__author__ = "maggie.sun@intel.com, ryanlei@fb.com"
 
 import os
 import re
@@ -66,6 +66,15 @@ def CreateNewSubfolder(parent, name):
     if not os.path.exists(folder):
         os.makedirs(folder)
     return folder
+
+
+def DeleteFile(file, LogCmdOnly):
+    CmdLogger.write("::Delete\n")
+    if Platform == "Windows":
+        cmd = "del " + file
+    else:
+        cmd = "rm " + file
+    ExecuteCmd(cmd, LogCmdOnly)
 
 def GetShortContentName(content, isshort=True):
     basename = os.path.splitext(os.path.basename(content))[0]
@@ -276,19 +285,17 @@ def ExecuteCmd(cmd, LogCmdOnly):
         ret = subprocess.call(cmd, shell=True)
     return ret
 
-def SetupLogging(level, logcmdonly, name, path):
+def SetupLogging(level, logcmdonly, name, cmd_log_path, test_log_path):
     global Logger
     Logger = logging.getLogger(name)
 
     if logcmdonly or level != 0:
         global CmdLogger
-        logfilename = os.path.join(path, '%s_TestCmd_%s.log'
-                                   % (name, time.strftime("%Y%m%d-%H%M%S")))
+        logfilename = os.path.join(cmd_log_path, '%s_TestCmd.log'%(name))
         CmdLogger = open(logfilename, 'w')
 
     if level != 0:
-        logfilename = os.path.join(path, '%s_Test_%s.log'
-                                   % (name, time.strftime("%Y%m%d-%H%M%S")))
+        logfilename = os.path.join(test_log_path, '%s_Test.log' %(name))
         hdlr = logging.FileHandler(logfilename)
         formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
         hdlr.setFormatter(formatter)
@@ -397,7 +404,7 @@ def GatherPerframeStat(test_cfg,EncodeMethod,CodecName,EncodePreset,clip, name, 
                     enc_list[int(POC)] = "%s,%s,%s,%s,%s"%(POC,frame_type,pyd_level,qindex,frame_size)
 
     for i in range(len(enc_list)):
-        #"TestCfg,EncodeMethod,CodecName,EncodePreset,Class,Res,Name,FPS,BitDepth,QP,POC,FrameType,PydLevel,qindex,FrameSize")
+        #"TestCfg,EncodeMethod,CodecName,EncodePreset,Class,Res,Name,FPS,BitDepth,QP,POC,FrameType,Level,qindex,FrameSize")
         perframe_csv.write("%s,%s,%s,%s,%s,%s,%s,%s,%d,%d,%s,%s\n"
                            %(test_cfg,EncodeMethod,CodecName,EncodePreset,clip.file_class,str(clip.width)+"x"+str(clip.height),
                              name,clip.fps,clip.bit_depth,qp,enc_list[i],perframe_vmaf_log[i]))

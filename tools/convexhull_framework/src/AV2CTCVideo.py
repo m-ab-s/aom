@@ -8,15 +8,15 @@
 ## Media Patent License 1.0 was not distributed with this source code in the
 ## PATENTS file, you can obtain it at www.aomedia.org/license/patent.
 ##
-__author__ = "maggie.sun@intel.com, ryan.lei@intel.com"
+__author__ = "maggie.sun@intel.com, ryanlei@fb.com"
 
 """
 Python file for definition of AV2 CTC testing clips/sets
 """
 
 CTC_TEST_SET = {
-    "AI": ["A1", "A2", "A3", "A4", "A5", "B1", "G1", "G2"],
-    "RA": ["A1", "A2", "A3", "A4", "A5", "B1", "G1", "G2"],
+    "AI": ["A1", "A2", "A3", "A4", "A5", "B1", "G1", "G2", "E"],
+    "RA": ["A1", "A2", "A3", "A4", "A5", "B1", "G1", "G2", "E"],
     "LD": ["A2", "A3", "A4", "A5", "B1"],
     "AS": ["A1"],
     "STILL": ["F1", "F2"],
@@ -151,6 +151,18 @@ Y4M_CLIPs = {
                    "SolLevanteDragons_1920x1080p24_hdr10.y4m",
                    "SolLevanteFace_1920x1080p24_hdr10.y4m",
                    "SparksTruck_2048x1080_5994_hdr10.y4m"],
+"E"             : ["Artistic_Concert_1920x1080_25fps.y4m",
+                   "Artistic_Intro_1920x1080_2997fps.y4m",
+                   "MixedCoding_NewsIntroAnchor_1280x720_2997fps.y4m",
+                   "MixedCoding_NewsIntroOnly_1280x720_2997fps.y4m",
+                   "Noise_AnimationCrayon_1920x1080_2398fps.y4m",
+                   "Noise_Animation_1280x720_2398fps.y4m",
+                   "Noise_Ocean_1920x1080_60fps.y4m",
+                   "Noise_Soccer_1920x1080_50fps.y4m",
+                   "Shaky_Baseball_3840x2160_5994fps.y4m",
+                   "Shaky_Fireworks_3840x2160_2997fps.y4m",
+                   "Shaky_Quad_1920x1080_30fps.y4m",
+                   "Shaky_Walk_1920x1080_25fps.y4m"],
 }
 
 AS_Downscaled_Clips = {

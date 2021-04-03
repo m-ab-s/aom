@@ -8,10 +8,10 @@
 ## Media Patent License 1.0 was not distributed with this source code in the
 ## PATENTS file, you can obtain it at www.aomedia.org/license/patent.
 ##
-__author__ = "maggie.sun@intel.com, ryan.lei@intel.com"
+__author__ = "maggie.sun@intel.com, ryanlei@fb.com"
 
 import Utils
-from Config import AOMENC, SVTAV1, EnableTimingInfo, Platform, UsePerfUtil
+from Config import AOMENC, AV1ENC, SVTAV1, EnableTimingInfo, Platform, UsePerfUtil
 from Utils import ExecuteCmd
 
 def get_qindex_from_QP(QP):
@@ -25,6 +25,55 @@ def get_qindex_from_QP(QP):
         print(" QP %d is out of range (0 to 63), clamp to 63", QP)
         return quantizer_to_qindex[63]
     return quantizer_to_qindex[QP]
+
+def EncodeWithAOM_AV2(clip, test_cfg, QP, framenum, outfile, preset, enc_perf,
+                      enc_log, LogCmdOnly=False):
+    args = " --verbose --codec=av1 -v --psnr --obu --frame-parallel=0" \
+           " --cpu-used=%s --limit=%d --passes=1 --end-usage=q --i%s " \
+           " --use-fixed-qp-offsets=1 --deltaq-mode=0 " \
+           " --enable-tpl-model=0 --enable-keyframe-filtering=0 --fps=%d/%d " \
+           " --input-bit-depth=%d --bit-depth=%d --cq-level=%d -w %d -h %d" \
+           % (preset, framenum, clip.fmt, clip.fps_num, clip.fps_denom,
+              clip.bit_depth, clip.bit_depth, QP, clip.width, clip.height)
+
+    # For 4K clip, encode with 2 tile columns using two threads.
+    # --tile-columns value is in log2.
+    if (clip.width >= 3840 and clip.height >= 2160):
+        args += " --tile-columns=1 --threads=2 --row-mt=0 "
+    else:
+        args += " --tile-columns=0 --threads=1 "
+
+    if test_cfg == "AI" or test_cfg == "STILL":
+        args += " --kf-min-dist=0 --kf-max-dist=0 "
+    elif test_cfg == "RA" or test_cfg == "AS":
+        args += " --min-gf-interval=16 --max-gf-interval=16 --gf-min-pyr-height=4" \
+                " --gf-max-pyr-height=4 --kf-min-dist=65 --kf-max-dist=65" \
+                " --lag-in-frames=19 --auto-alt-ref=1 "
+    elif test_cfg == "LD":
+        args += " --kf-min-dist=9999 --kf-max-dist=9999 --lag-in-frames=0" \
+                " --min-gf-interval=16 --max-gf-interval=16 --gf-min-pyr-height=4 " \
+                " --gf-max-pyr-height=4 --subgop-config-str=ld "
+    else:
+        print("Unsupported Test Configuration %s" % test_cfg)
+
+    #TODO: after bug fix in libaom, need to add back the chroma-sample-position parameter
+    if (clip.file_class == 'G1' or clip.file_class == 'G2'):
+        args += "--color-primaries=bt2020 --transfer-characteristics=smpte2084 "\
+                "--matrix-coefficients=bt2020ncl" # --chroma-sample-position=colocated "
+
+    args += " -o %s %s" % (outfile, clip.file_path)
+    cmd = AOMENC + args + "> %s 2>&1"%enc_log
+    if (EnableTimingInfo):
+        if Platform == "Windows":
+            cmd = "ptime " + cmd + " >%s"%enc_perf
+        elif Platform == "Darwin":
+            cmd = "gtime --verbose --output=%s "%enc_perf + cmd
+        else:
+            if UsePerfUtil:
+                cmd = "3>%s perf stat --log-fd 3 " % enc_perf + cmd
+            else:
+                cmd = "/usr/bin/time --verbose --output=%s "%enc_perf + cmd
+    ExecuteCmd(cmd, LogCmdOnly)
 
 def EncodeWithAOM_AV1(clip, test_cfg, QP, framenum, outfile, preset, enc_perf,
                       enc_log, LogCmdOnly=False):
@@ -61,7 +110,7 @@ def EncodeWithAOM_AV1(clip, test_cfg, QP, framenum, outfile, preset, enc_perf,
                 "--matrix-coefficients=bt2020ncl --chroma-sample-position=colocated "
 
     args += " -o %s %s" % (outfile, clip.file_path)
-    cmd = AOMENC + args + "> %s 2>&1"%enc_log
+    cmd = AV1ENC + args + "> %s 2>&1"%enc_log
     if (EnableTimingInfo):
         if Platform == "Windows":
             cmd = "ptime " + cmd + " >%s"%enc_perf
@@ -120,8 +169,12 @@ def EncodeWithSVT_AV1(clip, test_cfg, QP, framenum, outfile, preset, enc_perf,
 def VideoEncode(EncodeMethod, CodecName, clip, test_cfg, QP, framenum, outfile,
                 preset, enc_perf, enc_log, LogCmdOnly=False):
     Utils.CmdLogger.write("::Encode\n")
-    if CodecName == 'av1':
+    if CodecName == 'av2':
         if EncodeMethod == "aom":
+            EncodeWithAOM_AV2(clip, test_cfg, QP, framenum, outfile, preset,
+                              enc_perf, enc_log, LogCmdOnly)
+    elif CodecName == 'av1':
+        if EncodeMethod == 'aom':
             EncodeWithAOM_AV1(clip, test_cfg, QP, framenum, outfile, preset,
                               enc_perf, enc_log, LogCmdOnly)
         elif EncodeMethod == "svt":

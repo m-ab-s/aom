@@ -8,7 +8,7 @@
 ## Media Patent License 1.0 was not distributed with this source code in the
 ## PATENTS file, you can obtain it at www.aomedia.org/license/patent.
 ##
-__author__ = "maggie.sun@intel.com, ryan.lei@intel.com"
+__author__ = "maggie.sun@intel.com, ryanlei@fb.com"
 
 import Utils
 from Config import AOMDEC, AV1DEC, EnableTimingInfo, Platform, UsePerfUtil
@@ -54,9 +54,9 @@ def DecodeWithAV1(test_cfg, infile, outfile, dec_perf, decode_to_yuv, LogCmdOnly
 
 def VideoDecode(method, test_cfg, codec, infile, outfile, dec_perf, decode_to_yuv, LogCmdOnly=False):
     Utils.CmdLogger.write("::Decode\n")
-    if codec == 'av1' and method == 'aom':
+    if codec == 'av2' and method == 'aom':
         DecodeWithAOM(test_cfg, infile, outfile, dec_perf, decode_to_yuv, LogCmdOnly)
-    elif codec == 'av1' and method == 'svt':
+    elif codec == 'av1':
         DecodeWithAV1(test_cfg, infile, outfile, dec_perf, decode_to_yuv, LogCmdOnly)
     else:
         raise ValueError("invalid parameter for decode.")

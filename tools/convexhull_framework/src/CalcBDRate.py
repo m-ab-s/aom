@@ -8,7 +8,7 @@
 ## Media Patent License 1.0 was not distributed with this source code in the
 ## PATENTS file, you can obtain it at www.aomedia.org/license/patent.
 ##
-__author__ = "maggie.sun@intel.com, ryan.lei@intel.com"
+__author__ = "maggie.sun@intel.com, ryanlei@fb.com"
 
 import numpy as np
 import math

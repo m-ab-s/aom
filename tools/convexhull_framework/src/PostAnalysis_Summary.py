@@ -8,11 +8,11 @@
 ## Media Patent License 1.0 was not distributed with this source code in the
 ## PATENTS file, you can obtain it at www.aomedia.org/license/patent.
 ##
-__author__ = "maggie.sun@intel.com, ryan.lei@intel.com"
+__author__ = "maggie.sun@intel.com, ryanlei@fb.com"
 
 import os
 import xlsxwriter
-import xlrd
+import xlrd #requires xlrd 1.2.0
 import re
 from Config import QPs, DnScaleRatio, QualityList, VbaBinFile, CvxH_WtRows,\
     CvxH_WtLastCol, LoggerName, CalcBDRateInExcel, CvxH_WtCols, CvxHDataRows, CvxHDataStartCol

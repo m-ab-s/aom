@@ -8,7 +8,7 @@
 ## Media Patent License 1.0 was not distributed with this source code in the
 ## PATENTS file, you can obtain it at www.aomedia.org/license/patent.
 ##
-__author__ = "maggie.sun@intel.com, ryan.lei@intel.com"
+__author__ = "maggie.sun@intel.com, ryanlei@fb.com"
 
 import os
 import xlsxwriter
@@ -19,10 +19,12 @@ from VideoScaler import GetDownScaledOutFile, DownScaling, UpScaling,\
      GetUpScaledOutFile
 from Config import DnScaleRatio, FrameNum, QualityList, LoggerName,\
      Path_ScalingResults, ScalQty_WtCols, ScalQty_startRow, LineColors, \
-     ScalSumQty_WtCols
+     ScalSumQty_WtCols, AS_DOWNSCALE_ON_THE_FLY
 from Utils import Cleanfolder, GetShortContentName, CreateChart_Scatter, \
      AddSeriesToChart_Scatter, UpdateChart, InsertChartsToSheet, \
-     CalcRowsClassAndContentDict, Clip, CreateChart_Bar, AddSeriesToChart_Bar
+     CalcRowsClassAndContentDict, Clip, CreateChart_Bar, AddSeriesToChart_Bar, \
+     DeleteFile
+import Utils
 
 subloggername = "ScalingTest"
 loggername = LoggerName + '.' + '%s' % subloggername
@@ -50,14 +52,15 @@ def Run_Scaling_Test(clip, dnScalAlgo, upScalAlgo, path_dnscl, path_upscl,
     DnScaledRes = [(int(clip.width / ratio), int(clip.height / ratio))
                    for ratio in DnScaleRatio]
     for i in range(len(DnScaledRes)):
-        if savememory:
-            Cleanfolder(path_cfg)
-            if not keepupscaledyuv:
-                Cleanfolder(path_upscl)
-
         DnScaledW = DnScaledRes[i][0]
         DnScaledH = DnScaledRes[i][1]
+        if (DnScaledW == clip.width and DnScaledH == clip.height):
+            continue
         logger.info("start downscaling content to %dx%d" % (DnScaledW, DnScaledH))
+        JobName = '%s_Downscaling_%dx%d' % \
+                  (GetShortContentName(clip.file_name, False), DnScaledW, DnScaledH)
+        if LogCmdOnly:
+            Utils.CmdLogger.write("============== %s Job Start =================\n"%JobName)
         # downscaling
         dnscalyuv = GetDownScaledOutFile(clip, DnScaledW, DnScaledH,
                                          path_dnscl, ScaleMethod, dnScalAlgo)
@@ -73,9 +76,14 @@ def Run_Scaling_Test(clip, dnScalAlgo, upScalAlgo, path_dnscl, path_upscl,
         CalculateQualityMetric(clip.file_path, FrameNum['AS'], upscaleyuv, clip.fmt,
                                clip.width, clip.height, clip.bit_depth,
                                path_log, LogCmdOnly)
-    if savememory:
-        Cleanfolder(path_dnscl)
+        if savememory:
+            if dnscalyuv != clip.file_path:
+                DeleteFile(dnscalyuv, LogCmdOnly)
+            if not keepupscaledyuv:
+                DeleteFile(upscaleyuv, LogCmdOnly)
 
+        if LogCmdOnly:
+            Utils.CmdLogger.write("============== %s Job End =================\n" % JobName)
     logger.info("finish running scaling test.")
 
 def GeneratePerClipExcelFile(ScaleMethod, dnScalAlgos, upScalAlgos, clip, path_log):
@@ -85,10 +93,14 @@ def GeneratePerClipExcelFile(ScaleMethod, dnScalAlgos, upScalAlgos, clip, path_l
     shtname = GetShortContentName(clip.file_name)
     sht = wb.add_worksheet(shtname)
 
+    scaleRatios = DnScaleRatio
+    if (1.0 in scaleRatios):
+        scaleRatios.remove(1.0)
+
     sht.write(1, 0, 'Content Name')
     sht.write(2, 0, clip.file_name)
     sht.write(1, 1, 'Scaling Ratio')
-    sht.write_column(2, 1, DnScaleRatio)
+    sht.write_column(2, 1, scaleRatios)
     pre_title = ['Width', 'Height', 'DnScaledWidth', 'DnScaledHeight']
     sht.write_row(1, 2, pre_title)
     for dn_algo, up_algo, col in zip(dnScalAlgos, upScalAlgos, ScalQty_WtCols):
@@ -96,9 +108,9 @@ def GeneratePerClipExcelFile(ScaleMethod, dnScalAlgos, upScalAlgos, clip, path_l
         sht.write(0, col, algos)
         sht.write_row(1, col, QualityList)
 
-    rows = [ScalQty_startRow + i for i in range(len(DnScaleRatio))]
+    rows = [ScalQty_startRow + i for i in range(len(scaleRatios))]
     continfos = []
-    for ratio, row in zip(DnScaleRatio, rows):
+    for ratio, row in zip(scaleRatios, rows):
         dw = int(clip.width / ratio)
         dh = int(clip.height / ratio)
         info = [clip.width, clip.height, dw, dh]
@@ -117,7 +129,7 @@ def GeneratePerClipExcelFile(ScaleMethod, dnScalAlgos, upScalAlgos, clip, path_l
                                         range(len(dnScalAlgos))):
         qualities = []
         seriname = dn_algo + '--' + up_algo
-        for ratio, row, idx in zip(DnScaleRatio, rows, range(len(DnScaleRatio))):
+        for ratio, row, idx in zip(scaleRatios, rows, range(len(scaleRatios))):
             w = continfos[idx][0]
             h = continfos[idx][1]
             dw = continfos[idx][2]

@@ -8,7 +8,7 @@
 ## Media Patent License 1.0 was not distributed with this source code in the
 ## PATENTS file, you can obtain it at www.aomedia.org/license/patent.
 ##
-__author__ = "maggie.sun@intel.com, ryan.lei@intel.com"
+__author__ = "maggie.sun@intel.com, ryanlei@fb.com"
 
 import os
 from VideoEncoder import VideoEncode
@@ -16,7 +16,7 @@ from VideoDecoder import VideoDecode
 from VideoScaler import UpScaling, GetDownScaledOutFile, GetUpScaledOutFile
 from Config import SUFFIX, LoggerName
 from Utils import GetShortContentName, Clip, GetEncLogFile, GetDecPerfFile, \
-     GetEncPerfFile
+     GetEncPerfFile, DeleteFile
 import logging
 
 subloggername = "EncDecUpscale"
@@ -61,7 +61,8 @@ def Decode(method, test_cfg, codec, bsfile, path, perf_path, decode_to_yuv, LogC
 
 def Run_EncDec_Upscale(method, codec, preset, clip, test_cfg, QP, num, outw,
                        outh, path_bs, path_decoded, path_upscaled, path_cfg,
-                       path_perf, path_enc_log, upscale_algo, scale_method, LogCmdOnly = False):
+                       path_perf, path_enc_log, upscale_algo, scale_method, save_memory,
+                       LogCmdOnly = False):
     logger.info("%s %s start encode file %s with QP = %d" %
                 (method, codec, clip.file_name, QP))
     bsFile = Encode(method, codec, preset, clip, test_cfg, QP, num, path_bs,
@@ -77,6 +78,8 @@ def Run_EncDec_Upscale(method, codec, preset, clip, test_cfg, QP, num, outw,
                     clip.fmt, 0, 0, clip.bit_depth)
     upscaledYUV = UpScaling(scale_method, dec_clip, num, outw, outh, path_upscaled, path_cfg,
                             upscale_algo, LogCmdOnly)
+    if save_memory and decodedYUV != upscaledYUV:
+        DeleteFile(decodedYUV, LogCmdOnly)
     logger.info("finish Run Encode, Decode and Upscale")
     return upscaledYUV
 
@@ -92,7 +95,7 @@ def GetBsReconFileName(encmethod, codecname, test_cfg, preset, clip, dw, dh,
                    decoded, clip.file_class, dw, dh, clip.fmt, clip.fps_num,
                    clip.fps_denom, clip.bit_depth)
     reconfilename = GetUpScaledOutFile(ds_clip, clip.width, clip.height,
-                                       upScAlgo, path_bs)
+                                       scale_method, upScAlgo, path_bs)
     # return only Recon yuv file name w/o path
     reconfilename = GetShortContentName(reconfilename, False) + ".y4m"
     return bs, reconfilename

@@ -8,7 +8,7 @@
 ## Media Patent License 1.0 was not distributed with this source code in the
 ## PATENTS file, you can obtain it at www.aomedia.org/license/patent.
 ##
-__author__ = "maggie.sun@intel.com, ryan.lei@intel.com"
+__author__ = "maggie.sun@intel.com, ryanlei@fb.com"
 
 import os
 import platform
@@ -55,13 +55,14 @@ AOMScaler = os.path.join(BinPath, 'lanczos_resample_y4m.exe')
 
 ##################### Encode Config ########################################
 EncodeMethods = ["aom", "svt"]
-CodecNames = ["av1"]
-SUFFIX = {"av1": ".obu"}
+CodecNames = ["av1", "av2"]
+SUFFIX = {"av1": ".obu", "av2": ".obu"}
 FFMPEG = os.path.join(BinPath, 'ffmpeg.exe')
 AOMENC = os.path.join(BinPath, 'aomenc.exe')
 SVTAV1 = os.path.join(BinPath, 'SvtAv1EncApp.exe')
-AV1DEC = os.path.join(BinPath, 'av1dec.exe')
 AOMDEC = os.path.join(BinPath, 'aomdec.exe')
+AV1ENC = os.path.join(BinPath, 'av1enc.exe')
+AV1DEC = os.path.join(BinPath, 'av1dec.exe')
 QPs = {
     "LD" : [23, 31, 39, 47, 55, 63],
     "RA" : [23, 31, 39, 47, 55, 63],

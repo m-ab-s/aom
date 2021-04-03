@@ -8,7 +8,7 @@
 ## Media Patent License 1.0 was not distributed with this source code in the
 ## PATENTS file, you can obtain it at www.aomedia.org/license/patent.
 ##
-__author__ = "maggie.sun@intel.com, ryan.lei@intel.com"
+__author__ = "maggie.sun@intel.com, ryanlei@fb.com"
 
 import os
 import re
@@ -17,11 +17,11 @@ import argparse
 from CalculateQualityMetrics import CalculateQualityMetric, GatherQualityMetrics
 from Utils import GetShortContentName, CreateNewSubfolder, SetupLogging, \
      Cleanfolder, CreateClipList, GetEncLogFile, GatherPerfInfo, \
-     GetRDResultCsvFile, GatherPerframeStat, GatherInstrCycleInfo
+     GetRDResultCsvFile, GatherPerframeStat, GatherInstrCycleInfo, DeleteFile
 import Utils
 from Config import LogLevels, FrameNum, TEST_CONFIGURATIONS, QPs, WorkPath, \
      Path_RDResults, LoggerName, QualityList, MIN_GOP_LENGTH, UsePerfUtil, \
-     EnableTimingInfo
+     EnableTimingInfo, CodecNames
 from EncDecUpscale import Encode, Decode
 
 ###############################################################################
@@ -43,14 +43,15 @@ def GetBsReconFileName(EncodeMethod, CodecName, EncodePreset, test_cfg, clip, QP
 
 def setupWorkFolderStructure():
     global Path_Bitstreams, Path_DecodedYuv, Path_QualityLog, Path_TestLog,\
-           Path_CfgFiles, Path_TimingLog, Path_EncLog
-    Path_Bitstreams = CreateNewSubfolder(WorkPath, "bistreams")
+           Path_CfgFiles, Path_TimingLog, Path_EncLog, Path_CmdLog
+    Path_Bitstreams = CreateNewSubfolder(WorkPath, "bitstreams")
     Path_DecodedYuv = CreateNewSubfolder(WorkPath, "decodedYUVs")
     Path_QualityLog = CreateNewSubfolder(WorkPath, "qualityLogs")
     Path_TestLog = CreateNewSubfolder(WorkPath, "testLogs")
     Path_CfgFiles = CreateNewSubfolder(WorkPath, "configFiles")
     Path_TimingLog = CreateNewSubfolder(WorkPath, "perfLogs")
     Path_EncLog = CreateNewSubfolder(WorkPath, "encLogs")
+    Path_CmdLog = CreateNewSubfolder(WorkPath, "cmdLogs")
 
 ###############################################################################
 ######### Major Functions #####################################################
@@ -60,20 +61,23 @@ def CleanUp_workfolders():
     for folder in folders:
         Cleanfolder(folder)
 
-def Run_Encode_Test(test_cfg, clip, method, preset, LogCmdOnly = False):
+def Run_Encode_Test(test_cfg, clip, codec, method, preset, LogCmdOnly = False):
     Utils.Logger.info("start running %s encode tests with %s"
                       % (test_cfg, clip.file_name))
     for QP in QPs[test_cfg]:
         Utils.Logger.info("start encode with QP %d" % (QP))
         #encode
+        JobName = '%s_%s_%s_%s_Preset_%s_QP_%d' % \
+                  (GetShortContentName(clip.file_name, False),
+                   method, codec, test_cfg, preset, QP)
         if LogCmdOnly:
-            Utils.CmdLogger.write("============== Job Start =================\n")
-        bsFile = Encode(method, 'av1', preset, clip, test_cfg, QP,
+            Utils.CmdLogger.write("============== %s Job Start =================\n"%JobName)
+        bsFile = Encode(method, codec, preset, clip, test_cfg, QP,
                         FrameNum[test_cfg], Path_Bitstreams, Path_TimingLog,
                         Path_EncLog, LogCmdOnly)
         Utils.Logger.info("start decode file %s" % os.path.basename(bsFile))
         #decode
-        decodedYUV = Decode(method, test_cfg, 'av1', bsFile, Path_DecodedYuv, Path_TimingLog,
+        decodedYUV = Decode(method, test_cfg, codec, bsFile, Path_DecodedYuv, Path_TimingLog,
                             False, LogCmdOnly)
         #calcualte quality distortion
         Utils.Logger.info("start quality metric calculation")
@@ -81,10 +85,10 @@ def Run_Encode_Test(test_cfg, clip, method, preset, LogCmdOnly = False):
                                clip.fmt, clip.width, clip.height, clip.bit_depth,
                                Path_QualityLog, LogCmdOnly)
         if SaveMemory:
-            Cleanfolder(Path_DecodedYuv)
+            DeleteFile(decodedYUV, LogCmdOnly)
         Utils.Logger.info("finish running encode with QP %d" % (QP))
         if LogCmdOnly:
-            Utils.CmdLogger.write("============== Job End ===================\n\n")
+            Utils.CmdLogger.write("============== %s Job End ===================\n\n"%JobName)
 
 #TODO: This function needs to be revised later
 def GetTempLayerID(poc):
@@ -180,7 +184,7 @@ def ParseArguments(raw_args):
                         choices=["clean", "encode", "summary"],
                         help="function to run: clean, encode, summary")
     parser.add_argument('-s', "--SaveMemory", dest='SaveMemory', type=bool,
-                        default=False, metavar='',
+                        default=True, metavar='',
                         help="save memory mode will delete most files in"
                              " intermediate steps and keeps only necessary "
                              "ones for RD calculation. It is false by default")
@@ -194,6 +198,9 @@ def ParseArguments(raw_args):
                              " 3: Warning, 4: Info, 5: Debug")
     parser.add_argument('-p', "--EncodePreset", dest='EncodePreset', type=str,
                         metavar='', help="EncodePreset: 0,1,2... for aom")
+    parser.add_argument('-c', "--CodecName", dest='CodecName', type=str,
+                        default='av2', choices=CodecNames, metavar='',
+                        help="CodecName: av1, av2")
     parser.add_argument('-m', "--EncodeMethod", dest='EncodeMethod', type=str,
                         metavar='', help="EncodeMethod: aom, svt for av1")
     if len(raw_args) == 1:
@@ -201,11 +208,12 @@ def ParseArguments(raw_args):
         sys.exit(1)
     args = parser.parse_args(raw_args[1:])
 
-    global Function, SaveMemory, LogLevel, EncodePreset, EncodeMethod, LogCmdOnly
+    global Function, SaveMemory, LogLevel, EncodePreset, CodecName, EncodeMethod, LogCmdOnly
     Function = args.Function
     SaveMemory = args.SaveMemory
     LogLevel = args.LogLevel
     EncodePreset = args.EncodePreset
+    CodecName = args.CodecName
     EncodeMethod = args.EncodeMethod
     LogCmdOnly = args.LogCmdOnly
 
@@ -213,14 +221,14 @@ def ParseArguments(raw_args):
 # main
 ######################################
 if __name__ == "__main__":
-    #sys.argv = ["", "-f", "encode", "-m", "aom", "-p", "6"]
-    #sys.argv = ["", "-f", "summary", "-m", "aom", "-p", "6"]
+    #sys.argv = ["", "-f", "encode", "-c", "av2", "-m", "aom", "-p", "6", "--LogCmdOnly", "1"]
+    #sys.argv = ["", "-f", "summary", "-c", "av2", "-m", "aom", "-p", "6"]
     ParseArguments(sys.argv)
 
     # preparation for executing functions
     setupWorkFolderStructure()
     if Function != 'clean':
-        SetupLogging(LogLevel, LogCmdOnly, LoggerName, Path_TestLog)
+        SetupLogging(LogLevel, LogCmdOnly, LoggerName, Path_CmdLog, Path_TestLog)
 
     # execute functions
     if Function == 'clean':
@@ -229,11 +237,13 @@ if __name__ == "__main__":
         for test_cfg in TEST_CONFIGURATIONS:
             clip_list = CreateClipList(test_cfg)
             for clip in clip_list:
-                Run_Encode_Test(test_cfg, clip, EncodeMethod, EncodePreset, LogCmdOnly)
+                Run_Encode_Test(test_cfg, clip, CodecName, EncodeMethod, EncodePreset, LogCmdOnly)
+        if SaveMemory:
+            Cleanfolder(Path_DecodedYuv)
     elif Function == 'summary':
         for test_cfg in TEST_CONFIGURATIONS:
             clip_list = CreateClipList(test_cfg)
-            GenerateSummaryRDDataFile(EncodeMethod, 'av1', EncodePreset,
+            GenerateSummaryRDDataFile(EncodeMethod, CodecName, EncodePreset,
                                       test_cfg, clip_list, Path_EncLog)
         Utils.Logger.info("RD data summary file generated")
     else:
