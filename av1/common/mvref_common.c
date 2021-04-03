@@ -881,13 +881,18 @@ static AOM_INLINE void setup_ref_mv_list(
     const CANDIDATE_MV *queue_left = ref_mv_bank_left->rmb_buffer[ref_frame];
     const int count_left = ref_mv_bank_left->rmb_count[ref_frame];
     const int start_idx_left = ref_mv_bank_left->rmb_start_idx[ref_frame];
-    const int sb_col = xd->mi_col / cm->seq_params.mib_size;
-    const REF_MV_BANK *ref_mv_bank_above = &xd->ref_mv_bank_above_pt[sb_col];
+    int idx_left = 0;
+#if REF_MV_BANK_COLS
+    const int col_bank_idx = av1_get_column_bank_index(cm, xd->mi_col);
+    // const int col_bank_idx = xd->mi_col / cm->seq_params.mib_size;
+    const REF_MV_BANK *ref_mv_bank_above =
+        &xd->ref_mv_bank_above_pt[col_bank_idx];
     const int count_above = ref_mv_bank_above->rmb_count[ref_frame];
     const CANDIDATE_MV *queue_above = ref_mv_bank_above->rmb_buffer[ref_frame];
     const int start_idx_above = ref_mv_bank_above->rmb_start_idx[ref_frame];
+    int idx_above = 0;
+#endif  // REF_MV_BANK_COLS
     const int is_comp = rf[1] > INTRA_FRAME;
-    int idx_left = 0, idx_above = 0;
     const int block_width = xd->width * MI_SIZE;
     const int block_height = xd->height * MI_SIZE;
 
@@ -904,6 +909,7 @@ static AOM_INLINE void setup_ref_mv_list(
         }
       }
 
+#if REF_MV_BANK_COLS
       for (; idx_above < count_above && *refmv_count < ref_mv_limit;
            ++idx_above) {
         const int idx =
@@ -918,6 +924,9 @@ static AOM_INLINE void setup_ref_mv_list(
       }
 
       if (idx_left >= count_left && idx_above >= count_above) break;
+#else
+      if (idx_left >= count_left) break;
+#endif  // REF_MV_BANK_COLS
     } while (*refmv_count < ref_mv_limit);
 
 #if !CONFIG_NEW_INTER_MODES
@@ -1797,10 +1806,14 @@ static INLINE void update_ref_mv_bank(const MB_MODE_INFO *const mbmi,
   }
 }
 
-void av1_update_ref_mv_bank(MACROBLOCKD *const xd,
-                            const MB_MODE_INFO *const mbmi, int mib_size) {
+void av1_update_ref_mv_bank(const AV1_COMMON *const cm, MACROBLOCKD *const xd,
+                            const MB_MODE_INFO *const mbmi) {
   update_ref_mv_bank(mbmi, &xd->ref_mv_bank_left);
-  const int sb_col = (xd->mi_col / mib_size);
-  update_ref_mv_bank(mbmi, &xd->ref_mv_bank_above[sb_col]);
+#if REF_MV_BANK_COLS
+  const int col_bank_idx = av1_get_column_bank_index(cm, xd->mi_col);
+  update_ref_mv_bank(mbmi, &xd->ref_mv_bank_above[col_bank_idx]);
+#else
+  (void)cm;
+#endif  // REF_MV_BANK_COLS
 }
 #endif  // CONFIG_REF_MV_BANK

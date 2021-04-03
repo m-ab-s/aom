@@ -809,12 +809,14 @@ static AOM_INLINE void prepare_enc_workers(AV1_COMP *cpi, AVxWorkerHook hook,
     }
 
 #if CONFIG_REF_MV_BANK
-    av1_zero(thread_data->td->mb.e_mbd.ref_mv_bank_above);
     av1_zero(thread_data->td->mb.e_mbd.ref_mv_bank_left);
-    thread_data->td->mb.e_mbd.ref_mv_bank_above_pt =
-        thread_data->td->mb.e_mbd.ref_mv_bank_above;
     thread_data->td->mb.e_mbd.ref_mv_bank_left_pt =
         &thread_data->td->mb.e_mbd.ref_mv_bank_left;
+#if REF_MV_BANK_COLS
+    av1_zero(thread_data->td->mb.e_mbd.ref_mv_bank_above);
+    thread_data->td->mb.e_mbd.ref_mv_bank_above_pt =
+        thread_data->td->mb.e_mbd.ref_mv_bank_above;
+#endif  // REF_MV_BANK_COLS
 #endif  // CONFIG_REF_MV_BANK
   }
 }

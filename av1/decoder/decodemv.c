@@ -1735,7 +1735,7 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
   xd->cfl.store_y = store_cfl_required(cm, xd);
 
 #if CONFIG_REF_MV_BANK
-  av1_update_ref_mv_bank(xd, mbmi, cm->seq_params.mib_size);
+  av1_update_ref_mv_bank(cm, xd, mbmi);
 #endif  // CONFIG_REF_MV_BANK
 
 #if DEC_MISMATCH_DEBUG

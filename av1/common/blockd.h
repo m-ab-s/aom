@@ -1004,6 +1004,8 @@ struct scale_factors;
 /*!\endcond */
 
 #if CONFIG_REF_MV_BANK
+#define REF_MV_BANK_COLS 2
+
 #define REF_MV_BANK_SIZE 4
 
 /*! \brief Variables related to reference MV bank. */
@@ -1048,12 +1050,14 @@ typedef struct macroblockd {
    * \name Reference MV bank info.
    */
   /**@{*/
-  REF_MV_BANK ref_mv_bank_left; /*!< Left ref mv bank to update */
+  REF_MV_BANK ref_mv_bank_left;     /*!< Left ref mv bank to update */
+  REF_MV_BANK *ref_mv_bank_left_pt; /*!< Pointer to left bank to refer to */
+#if REF_MV_BANK_COLS
   // TODO(anyone): 32 is enough to support frame width up to 32 * 128 = 4096.
   // Ideally this should be allocated dynamically based on frame size.
   REF_MV_BANK ref_mv_bank_above[32]; /*!< Above ref mv bank to update */
-  REF_MV_BANK *ref_mv_bank_left_pt;  /*!< Pointer to left bank to refer to */
   REF_MV_BANK *ref_mv_bank_above_pt; /*!< Pointer to above bank to refer to */
+#endif                               // REF_MV_BANK_COLS
   /**@}*/
 #endif  // CONFIG_REF_MV_BANK
 

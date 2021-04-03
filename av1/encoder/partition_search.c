@@ -555,7 +555,7 @@ static void encode_superblock(const AV1_COMP *const cpi, TileDataEnc *tile_data,
     }
 
 #if CONFIG_REF_MV_BANK
-    if (is_inter) av1_update_ref_mv_bank(xd, mbmi, cm->seq_params.mib_size);
+    if (is_inter) av1_update_ref_mv_bank(cm, xd, mbmi);
 #endif  // CONFIG_REF_MV_BANK
   }
 

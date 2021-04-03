@@ -315,8 +315,18 @@ static INLINE int av1_is_dv_valid(const MV dv, const AV1_COMMON *cm,
 }
 
 #if CONFIG_REF_MV_BANK
-void av1_update_ref_mv_bank(MACROBLOCKD *const xd,
-                            const MB_MODE_INFO *const mbmi, int mib_size);
+static INLINE int av1_get_column_bank_index(const AV1_COMMON *cm, int mi_col) {
+  const int mi_cols = cm->width / MI_SIZE;
+  const int mib_size = cm->seq_params.mib_size;
+  const int sb_cols = (mi_cols + mib_size - 1) / mib_size;
+  // How many SBs a column bank covers.
+  const int bank_width = AOMMAX(1, sb_cols / REF_MV_BANK_COLS);
+  const int sb_col = mi_col / mib_size;
+  return AOMMIN(sb_col / bank_width, REF_MV_BANK_COLS - 1);
+}
+
+void av1_update_ref_mv_bank(const AV1_COMMON *const cm, MACROBLOCKD *const xd,
+                            const MB_MODE_INFO *const mbmi);
 #endif  // CONFIG_REF_MV_BANK
 
 #ifdef __cplusplus

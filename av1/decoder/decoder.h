@@ -130,7 +130,9 @@ typedef struct ThreadData {
 
 #if CONFIG_REF_MV_BANK
   REF_MV_BANK ref_mv_bank_left;
+#if REF_MV_BANK_COLS
   REF_MV_BANK ref_mv_bank_above[32];
+#endif  // REF_MV_BANK_COLS
 #endif  // CONFIG_REF_MV_BANK
 } ThreadData;
 
