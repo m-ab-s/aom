@@ -66,6 +66,11 @@ option(BUILD_SHARED_LIBS "CMake should generate a shared library build." OFF)
 
 project(AOM C CXX)
 
+# GENERATED source property global visibility.
+if(POLICY CMP0118)
+  cmake_policy(SET CMP0118 NEW)
+endif()
+
 set(AOM_ROOT "${CMAKE_CURRENT_SOURCE_DIR}")
 set(AOM_CONFIG_DIR "${CMAKE_CURRENT_BINARY_DIR}")
 set(INCLUDE_INSTALL_DIR
