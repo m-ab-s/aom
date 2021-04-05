@@ -126,6 +126,9 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
 
   RESET_CDF_COUNTER(fc->globalmv_rotation_flag_cdf, 2);
   RESET_CDF_COUNTER(fc->globalmv_rotation_degree_cdf, ROTATION_COUNT);
+
+  RESET_CDF_COUNTER(fc->translation_rotation_flag_cdf, 2);
+  RESET_CDF_COUNTER(fc->translation_rotation_degree_cdf, ROTATION_COUNT);
 #endif  // CONFIG_EXT_ROTATION
   RESET_CDF_COUNTER(fc->obmc_cdf, 2);
   RESET_CDF_COUNTER(fc->palette_y_size_cdf, PALETTE_SIZES);

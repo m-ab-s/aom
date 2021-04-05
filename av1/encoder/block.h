@@ -851,6 +851,11 @@ typedef struct {
   int globalmv_rotation_flag_cost[BLOCK_SIZES_ALL][2];
   //! globalmv_rotation_degree_cost
   int globalmv_rotation_degree_cost[ROTATION_COUNT];
+
+  //! translation_rotation_flag_cost
+  int translation_rotation_flag_cost[BLOCK_SIZES_ALL][2];
+  //! translation_rotation_degree_cost
+  int translation_rotation_degree_cost[ROTATION_COUNT];
 #endif  // CONFIG_EXT_ROTATION
   //! motion_mode_cost1
   int motion_mode_cost1[BLOCK_SIZES_ALL][2];

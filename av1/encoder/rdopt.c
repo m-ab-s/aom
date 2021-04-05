@@ -1717,9 +1717,9 @@ static int64_t motion_mode_rd(
       // The prediction is calculated before motion_mode_rd() is called in
       // handle_inter_mode()
 #if CONFIG_EXT_ROTATION
-      if (globalmv_rotation_allowed(xd)) {
+      if (simple_translation_rotation_allowed(mbmi) ||
+          globalmv_rotation_allowed(xd)) {
         const int tmp_rate2_0 = tmp_rate2;
-
         // keep track of best rotation degree
         int64_t rdcost = INT64_MAX;
         int best_rot = 0;
@@ -1730,13 +1730,24 @@ static int64_t motion_mode_rd(
           if (rot != 0) {
             mbmi->rot_flag = 1;
             mbmi->rotation = rot;
-            tmp_rate2 +=
-                (x->mode_costs.globalmv_rotation_degree_cost
-                     [(mbmi->rotation + ROTATION_RANGE) / ROTATION_STEP] +
-                 x->mode_costs.globalmv_rotation_flag_cost[bsize][1]);
           } else {
             mbmi->rot_flag = 0;
-            tmp_rate2 += x->mode_costs.globalmv_rotation_flag_cost[bsize][0];
+          }
+          const int rot_index =
+              (mbmi->rotation + ROTATION_RANGE) / ROTATION_STEP;
+          if (globalmv_rotation_allowed(xd)) {
+            tmp_rate2 +=
+                (rot == 0)
+                    ? x->mode_costs.globalmv_rotation_flag_cost[bsize][0]
+                    : (x->mode_costs.globalmv_rotation_degree_cost[rot_index] +
+                       x->mode_costs.globalmv_rotation_flag_cost[bsize][1]);
+          } else {
+            tmp_rate2 +=
+                (rot == 0)
+                    ? x->mode_costs.translation_rotation_flag_cost[bsize][0]
+                    : (x->mode_costs
+                           .translation_rotation_degree_cost[rot_index] +
+                       x->mode_costs.translation_rotation_flag_cost[bsize][1]);
           }
           av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize, 0,
                                         av1_num_planes(cm) - 1);
@@ -1756,13 +1767,22 @@ static int64_t motion_mode_rd(
         if (best_rot != 0) {
           mbmi->rotation = best_rot;
           mbmi->rot_flag = 1;
-          tmp_rate2 +=
-              (x->mode_costs.globalmv_rotation_degree_cost
-                   [(mbmi->rotation + ROTATION_RANGE) / ROTATION_STEP] +
-               x->mode_costs.globalmv_rotation_flag_cost[bsize][1]);
         } else {
           mbmi->rot_flag = 0;
-          tmp_rate2 += x->mode_costs.globalmv_rotation_flag_cost[bsize][0];
+        }
+        const int rot_index = (mbmi->rotation + ROTATION_RANGE) / ROTATION_STEP;
+        if (globalmv_rotation_allowed(xd)) {
+          tmp_rate2 +=
+              (mbmi->rot_flag == 0)
+                  ? x->mode_costs.globalmv_rotation_flag_cost[bsize][0]
+                  : (x->mode_costs.globalmv_rotation_degree_cost[rot_index] +
+                     x->mode_costs.globalmv_rotation_flag_cost[bsize][1]);
+        } else {
+          tmp_rate2 +=
+              (mbmi->rot_flag == 0)
+                  ? x->mode_costs.translation_rotation_flag_cost[bsize][0]
+                  : (x->mode_costs.translation_rotation_degree_cost[rot_index] +
+                     x->mode_costs.translation_rotation_flag_cost[bsize][1]);
         }
         av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize, 0,
                                       av1_num_planes(cm) - 1);

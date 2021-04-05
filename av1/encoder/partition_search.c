@@ -30,6 +30,8 @@
 #include "av1/encoder/tokenize.h"
 #include "av1/encoder/var_based_part.h"
 
+#include "aom_util/debug_util.h"
+
 #if CONFIG_TUNE_VMAF
 #include "av1/encoder/tune_vmaf.h"
 #endif
@@ -1261,8 +1263,8 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
         }
       }
 #if CONFIG_EXT_ROTATION
+      const int rot_ind = (mbmi->rotation + ROTATION_RANGE) / ROTATION_STEP;
       if (globalmv_rotation_allowed(xd)) {
-        const int rot_ind = (mbmi->rotation + ROTATION_RANGE) / ROTATION_STEP;
 #if CONFIG_ENTROPY_STATS
         ++counts->globalmv_rotation_flag[bsize][mbmi->rot_flag];
         if (mbmi->rot_flag) ++counts->globalmv_rotation_degree[rot_ind];
@@ -1270,6 +1272,15 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
         update_cdf(fc->globalmv_rotation_flag_cdf[bsize], mbmi->rot_flag, 2);
         if (mbmi->rot_flag)
           update_cdf(fc->globalmv_rotation_degree_cdf, rot_ind, ROTATION_COUNT);
+      } else if (simple_translation_rotation_allowed(mbmi)) {
+#if CONFIG_ENTROPY_STATS
+        ++counts->translation_rotation_flag[bsize][mbmi->rot_flag];
+        if (mbmi->rot_flag) ++counts->translation_rotation_degree[rot_ind];
+#endif
+        update_cdf(fc->translation_rotation_flag_cdf[bsize], mbmi->rot_flag, 2);
+        if (mbmi->rot_flag)
+          update_cdf(fc->translation_rotation_degree_cdf, rot_ind,
+                     ROTATION_COUNT);
       }
 #endif  // CONFIG_EXT_ROTATION
 

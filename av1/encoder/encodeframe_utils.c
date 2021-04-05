@@ -1112,6 +1112,11 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
               ctx_tr->globalmv_rotation_flag_cdf, 2);
   AVERAGE_CDF(ctx_left->globalmv_rotation_degree_cdf,
               ctx_tr->globalmv_rotation_degree_cdf, ROTATION_COUNT);
+
+  AVERAGE_CDF(ctx_left->translation_rotation_flag_cdf,
+              ctx_tr->translation_rotation_flag_cdf, 2);
+  AVERAGE_CDF(ctx_left->translation_rotation_degree_cdf,
+              ctx_tr->translation_rotation_degree_cdf, ROTATION_COUNT);
 #endif  // CONFIG_EXT_ROTATION
   AVERAGE_CDF(ctx_left->obmc_cdf, ctx_tr->obmc_cdf, 2);
   AVERAGE_CDF(ctx_left->palette_y_size_cdf, ctx_tr->palette_y_size_cdf,

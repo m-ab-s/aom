@@ -62,7 +62,14 @@ int av1_allow_warp(const MB_MODE_INFO *const mbmi,
     }
     return 1;
   }
-
+#if CONFIG_EXT_ROTATION
+  else if (simple_translation_rotation_allowed(mbmi) && mbmi->rot_flag) {
+    if (final_warp_params != NULL) {
+      memcpy(final_warp_params, &mbmi->wm_params, sizeof(*final_warp_params));
+      return 1;
+    }
+  }
+#endif  // CONFIG_EXT_ROTATION
   return 0;
 }
 
@@ -132,9 +139,16 @@ void av1_init_warp_params(InterPredParams *inter_pred_params,
   if (xd->cur_frame_force_integer_mv) return;
 
 #if CONFIG_EXT_ROTATION
-  if (globalmv_rotation_allowed(xd) && mi->rot_flag) {
-    memcpy(&mi->wm_params, &xd->global_motion[mi->ref_frame[0]],
-           sizeof(WarpedMotionParams));
+  if (mi->motion_mode == SIMPLE_TRANSLATION && mi->rot_flag) {
+    if (globalmv_rotation_allowed(xd)) {
+      memcpy(&mi->wm_params, &xd->global_motion[mi->ref_frame[0]],
+             sizeof(WarpedMotionParams));
+    } else if (simple_translation_rotation_allowed(mi)) {
+      mi->wm_params.wmtype = IDENTITY;
+    } else {
+      mi->rot_flag = 0;
+      mi->rotation = 0;
+    }
     const int center_x = (xd->mi_col + (xd->width / 2)) * MI_SIZE;
     const int center_y = (xd->mi_row + (xd->height / 2)) * MI_SIZE;
     av1_warp_rotation(mi, mi->rotation, center_x, center_y);

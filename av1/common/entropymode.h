@@ -117,6 +117,9 @@ typedef struct frame_contexts {
 
   aom_cdf_prob globalmv_rotation_flag_cdf[BLOCK_SIZES_ALL][CDF_SIZE(2)];
   aom_cdf_prob globalmv_rotation_degree_cdf[CDF_SIZE(ROTATION_COUNT)];
+
+  aom_cdf_prob translation_rotation_flag_cdf[BLOCK_SIZES_ALL][CDF_SIZE(2)];
+  aom_cdf_prob translation_rotation_degree_cdf[CDF_SIZE(ROTATION_COUNT)];
 #endif  // CONFIG_EXT_ROTATION
   aom_cdf_prob obmc_cdf[BLOCK_SIZES_ALL][CDF_SIZE(2)];
   aom_cdf_prob palette_y_size_cdf[PALATTE_BSIZE_CTXS][CDF_SIZE(PALETTE_SIZES)];
