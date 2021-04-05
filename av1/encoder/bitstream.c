@@ -3069,14 +3069,13 @@ static AOM_INLINE void write_sequence_header(
 static AOM_INLINE void write_global_motion_params(
     const WarpedMotionParams *params, const WarpedMotionParams *ref_params,
 #if CONFIG_GM_MODEL_CODING
-    int frame,
+    int use_gm_k,
 #endif  // CONFIG_GM_MODEL_CODING
     struct aom_write_bit_buffer *wb, MvSubpelPrecision precision) {
   uint16_t k;
 #if CONFIG_GM_MODEL_CODING
-  k = (frame != LAST_FRAME && ref_params->wmtype != IDENTITY)
-          ? GM_DIFF_SUBEXPFIN_K
-          : SUBEXPFIN_K;
+  k = (use_gm_k && ref_params->wmtype != IDENTITY) ? GM_DIFF_SUBEXPFIN_K
+                                                   : SUBEXPFIN_K;
 #else
   k = SUBEXPFIN_K;
 #endif  // CONFIG_GM_MODEL_CODING
@@ -3132,6 +3131,7 @@ static AOM_INLINE void write_global_motion(AV1_COMP *cpi,
   int frame;
 #if CONFIG_GM_MODEL_CODING
   int base_frame = -1;
+  int use_gm_k = 0;
 #endif  // CONFIG_GM_MODEL_CODING
   for (frame = LAST_FRAME; frame <= ALTREF_FRAME; ++frame) {
     const WarpedMotionParams *ref_params;
@@ -3142,9 +3142,11 @@ static AOM_INLINE void write_global_motion(AV1_COMP *cpi,
         find_gm_ref_params(&params, cm, frame, base_frame);
     if (updated_params) {
       ref_params = &params;
+      use_gm_k = 1;
     } else {
       ref_params = cm->prev_frame ? &cm->prev_frame->global_motion[frame]
                                   : &default_warp_params;
+      use_gm_k = 0;
     }
     if (ref_params->wmtype != IDENTITY) base_frame = frame;
 #else
@@ -3153,7 +3155,7 @@ static AOM_INLINE void write_global_motion(AV1_COMP *cpi,
 #endif  // CONFIG_GM_MODEL_CODING
     write_global_motion_params(&cm->global_motion[frame], ref_params,
 #if CONFIG_GM_MODEL_CODING
-                               frame,
+                               use_gm_k,
 #endif  // CONFIG_GM_MODEL_CODING
                                wb, cm->features.fr_mv_precision);
     // TODO(sarahparker, debargha): The logic in the commented out code below

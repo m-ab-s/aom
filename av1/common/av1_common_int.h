@@ -1351,6 +1351,28 @@ static INLINE int get_relative_dist(const OrderHintInfo *oh, int a, int b) {
 }
 
 #if CONFIG_GM_MODEL_CODING
+static INLINE void check_wmmat(WarpedMotionParams *params) {
+  int i;
+  int tmp_val;
+  for (i = 0; i < 2; ++i) {
+    tmp_val = params->wmmat[i] / GM_TRANS_DECODE_FACTOR;
+    params->wmmat[i] = (int32_t)clamp(tmp_val, GM_TRANS_MIN, GM_TRANS_MAX) *
+                       GM_TRANS_DECODE_FACTOR;
+  }
+  for (; i < 6; ++i) {
+    const int diag_value = ((i == 2 || i == 5) ? (1 << GM_ALPHA_PREC_BITS) : 0);
+    tmp_val = params->wmmat[i] / GM_ALPHA_DECODE_FACTOR;
+    tmp_val = (int32_t)clamp(tmp_val - diag_value, GM_ALPHA_MIN, GM_ALPHA_MAX);
+    params->wmmat[i] = (tmp_val + diag_value) * GM_ALPHA_DECODE_FACTOR;
+  }
+  for (; i < 8; ++i) {
+    tmp_val = params->wmmat[i] / GM_ROW3HOMO_DECODE_FACTOR;
+    params->wmmat[i] =
+        (int32_t)clamp(tmp_val, GM_ROW3HOMO_MIN, GM_ROW3HOMO_MAX) *
+        GM_ROW3HOMO_DECODE_FACTOR;
+  }
+}
+
 static INLINE int calculate_gm_ref_params_scaling_distance(
     const AV1_COMMON *const cm, int frame) {
   const RefCntBuffer *const buf = get_ref_frame_buf(cm, frame);
@@ -1374,16 +1396,12 @@ static INLINE bool find_gm_ref_params(WarpedMotionParams *ref_params,
   if (base != 0 && distance != 0)
     scale_factor = (double)distance / base;
   else
-    scale_factor = 1.0;
-  double params[8];
+    return 0;
+
   for (int i = 0; i < 8; ++i) {
-    params[i] = ref_params->wmmat[i] * scale_factor;
+    ref_params->wmmat[i] = (int32_t)(ref_params->wmmat[i] * scale_factor);
   }
-  av1_convert_model_to_params(params, ref_params);
-  ref_params->alpha = (int16_t)(ref_params->alpha * scale_factor);
-  ref_params->beta = (int16_t)(ref_params->beta * scale_factor);
-  ref_params->gamma = (int16_t)(ref_params->gamma * scale_factor);
-  ref_params->delta = (int16_t)(ref_params->delta * scale_factor);
+  check_wmmat(ref_params);
   return true;
 }
 #endif  // CONFIG_GM_MODEL_CODING

@@ -4714,15 +4714,14 @@ void av1_read_sequence_header(AV1_COMMON *cm, struct aom_read_bit_buffer *rb,
 static int read_global_motion_params(WarpedMotionParams *params,
                                      const WarpedMotionParams *ref_params,
 #if CONFIG_GM_MODEL_CODING
-                                     int frame,
+                                     int use_gm_k,
 #endif  // CONFIG_GM_MODEL_CODING
                                      struct aom_read_bit_buffer *rb,
                                      MvSubpelPrecision precision) {
   uint16_t k;
 #if CONFIG_GM_MODEL_CODING
-  k = (frame != LAST_FRAME && ref_params->wmtype != IDENTITY)
-          ? GM_DIFF_SUBEXPFIN_K
-          : SUBEXPFIN_K;
+  k = (use_gm_k && ref_params->wmtype != IDENTITY) ? GM_DIFF_SUBEXPFIN_K
+                                                   : SUBEXPFIN_K;
 #else
   k = SUBEXPFIN_K;
 #endif  // CONFIG_GM_MODEL_CODING
@@ -4801,6 +4800,7 @@ static AOM_INLINE void read_global_motion(AV1_COMMON *cm,
                                           struct aom_read_bit_buffer *rb) {
 #if CONFIG_GM_MODEL_CODING
   int base_frame = -1;
+  int use_gm_k = 0;
 #endif  // CONFIG_GM_MODEL_CODING
   for (int frame = LAST_FRAME; frame <= ALTREF_FRAME; ++frame) {
     const WarpedMotionParams *ref_params;
@@ -4815,6 +4815,7 @@ static AOM_INLINE void read_global_motion(AV1_COMMON *cm,
       ref_params = cm->prev_frame ? &cm->prev_frame->global_motion[frame]
                                   : &default_warp_params;
     }
+    use_gm_k = (base_frame != -1) ? 1 : 0;
     if (ref_params->wmtype != IDENTITY) base_frame = frame;
 #else
     ref_params = cm->prev_frame ? &cm->prev_frame->global_motion[frame]
@@ -4823,7 +4824,7 @@ static AOM_INLINE void read_global_motion(AV1_COMMON *cm,
     int good_params =
         read_global_motion_params(&cm->global_motion[frame], ref_params,
 #if CONFIG_GM_MODEL_CODING
-                                  frame,
+                                  use_gm_k,
 #endif  // CONFIG_GM_MODEL_CODING
                                   rb, cm->features.fr_mv_precision);
     if (!good_params) {

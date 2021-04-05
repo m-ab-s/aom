@@ -25,13 +25,13 @@
 static int gm_get_params_cost(const WarpedMotionParams *gm,
                               const WarpedMotionParams *ref_gm,
 #if CONFIG_GM_MODEL_CODING
-                              int frame,
+                              int use_gm_k,
 #endif  // CONFIG_GM_MODEL_CODING
                               MvSubpelPrecision precision) {
   uint16_t k;
 #if CONFIG_GM_MODEL_CODING
-  k = (frame != LAST_FRAME && ref_gm->wmtype != IDENTITY) ? GM_DIFF_SUBEXPFIN_K
-                                                          : SUBEXPFIN_K;
+  k = (use_gm_k && ref_gm->wmtype != IDENTITY) ? GM_DIFF_SUBEXPFIN_K
+                                               : SUBEXPFIN_K;
 #else
   k = SUBEXPFIN_K;
 #endif  // CONFIG_GM_MODEL_CODING
@@ -88,6 +88,9 @@ static AOM_INLINE int64_t calc_erroradv_threshold(int64_t ref_frame_error) {
 // different motion models and finds the best.
 static AOM_INLINE void compute_global_motion_for_ref_frame(
     AV1_COMP *cpi, YV12_BUFFER_CONFIG *ref_buf[REF_FRAMES], int frame,
+#if CONFIG_GM_MODEL_CODING
+    int use_gm_k,
+#endif  // CONFIG_GM_MODEL_CODING
     int num_src_corners, int *src_corners, unsigned char *src_buffer,
     MotionModel *params_by_motion, uint8_t *segment_map,
     const int segment_map_w, const int segment_map_h,
@@ -201,12 +204,11 @@ static AOM_INLINE void compute_global_motion_for_ref_frame(
             (double)best_warp_error / ref_frame_error,
             gm_get_params_cost(&cm->global_motion[frame], ref_params,
 #if CONFIG_GM_MODEL_CODING
-                               frame,
+                               use_gm_k,
 #endif  // CONFIG_GM_MODEL_CODING
                                cm->features.fr_mv_precision))) {
       cm->global_motion[frame] = default_warp_params;
     }
-
     if (cm->global_motion[frame].wmtype != IDENTITY) break;
   }
 
@@ -226,29 +228,36 @@ void av1_compute_gm_for_valid_ref_frames(
   GlobalMotionInfo *const gm_info = &cpi->gm_info;
   const WarpedMotionParams *ref_params;
 #if CONFIG_GM_MODEL_CODING
+  int use_gm_k = 0;
   WarpedMotionParams params;
   aom_clear_system_state();
   const bool updated_params =
       find_gm_ref_params(&params, cm, frame, *base_frame);
   if (updated_params) {
     ref_params = &params;
+    use_gm_k = 1;
   } else {
     ref_params = cm->prev_frame ? &cm->prev_frame->global_motion[frame]
                                 : &default_warp_params;
+    use_gm_k = 0;
   }
   if (ref_params->wmtype != IDENTITY) *base_frame = frame;
 #else
   ref_params = cm->prev_frame ? &cm->prev_frame->global_motion[frame]
                               : &default_warp_params;
 #endif  // CONFIG_GM_MODEL_CODING
-  compute_global_motion_for_ref_frame(
-      cpi, ref_buf, frame, num_src_corners, src_corners, src_buffer,
-      params_by_motion, segment_map, segment_map_w, segment_map_h, ref_params);
+  compute_global_motion_for_ref_frame(cpi, ref_buf, frame,
+#if CONFIG_GM_MODEL_CODING
+                                      use_gm_k,
+#endif  // CONFIG_GM_MODEL_CODING
+                                      num_src_corners, src_corners, src_buffer,
+                                      params_by_motion, segment_map,
+                                      segment_map_w, segment_map_h, ref_params);
 
   gm_info->params_cost[frame] =
       gm_get_params_cost(&cm->global_motion[frame], ref_params,
 #if CONFIG_GM_MODEL_CODING
-                         frame,
+                         use_gm_k,
 #endif  // CONFIG_GM_MODEL_CODING
                          cm->features.fr_mv_precision) +
       gm_info->type_cost[cm->global_motion[frame].wmtype] -
