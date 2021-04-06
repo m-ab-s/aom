@@ -283,6 +283,7 @@ void av1_copy_pc_tree_recursive(const AV1_COMMON *cm, PC_TREE *dst,
   // Copy the best partition type. For basic information like bsize and index,
   // we assume they have been set properly when initializing the dst PC_TREE
   dst->partitioning = src->partitioning;
+  dst->rd_cost = src->rd_cost;
   const BLOCK_SIZE bsize = dst->block_size;
   const BLOCK_SIZE subsize = get_partition_subsize(bsize, src->partitioning);
   const int mi_row = src->mi_row;
