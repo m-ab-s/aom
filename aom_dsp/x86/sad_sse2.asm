@@ -270,25 +270,33 @@ SAD32XN  8, 2 ; sad_32x8_skip_sse2
   pxor                  m0, m0
 
 .loop:
+; Handle the first two rows
   movu                  m1, [refq]
   movu                  m2, [refq+ref_strideq]
-  movu                  m3, [refq+ref_strideq*2]
-  movu                  m4, [refq+ref_stride3q]
+  movu                  m3, [srcq]
+  movu                  m4, [srcq+src_strideq]
 %if %2 == 1
   pavgb                 m1, [second_predq+mmsize*0]
   pavgb                 m2, [second_predq+mmsize*1]
+%endif
+  psadbw                m1, m3
+  psadbw                m2, m4
+; Then the next two rows
+  movu                  m3, [refq+ref_strideq*2]
+  paddd                 m2, m1
+  movu                  m4, [refq+ref_stride3q]
+  paddd                 m0, m2
+  movu                  m1, [srcq+src_strideq*2]
+  movu                  m2, [srcq+src_stride3q]
+%if %2 == 1
   pavgb                 m3, [second_predq+mmsize*2]
   pavgb                 m4, [second_predq+mmsize*3]
   lea         second_predq, [second_predq+mmsize*4]
 %endif
-  psadbw                m1, [srcq]
-  psadbw                m2, [srcq+src_strideq]
-  psadbw                m3, [srcq+src_strideq*2]
-  psadbw                m4, [srcq+src_stride3q]
-  paddd                 m1, m2
+  psadbw                m3, m1
+  psadbw                m4, m2
   paddd                 m3, m4
   lea                 refq, [refq+ref_strideq*4]
-  paddd                 m0, m1
   lea                 srcq, [srcq+src_strideq*4]
   paddd                 m0, m3
   dec              n_rowsd
