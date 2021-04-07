@@ -352,16 +352,12 @@ add_proto qw/void aom_convolve_copy/,             "const uint8_t *src, ptrdiff_t
 add_proto qw/void aom_convolve8_horiz/,           "const uint8_t *src, ptrdiff_t src_stride, uint8_t *dst, ptrdiff_t dst_stride, const int16_t *filter_x, int x_step_q4, const int16_t *filter_y, int y_step_q4, int w, int h";
 add_proto qw/void aom_convolve8_vert/,            "const uint8_t *src, ptrdiff_t src_stride, uint8_t *dst, ptrdiff_t dst_stride, const int16_t *filter_x, int x_step_q4, const int16_t *filter_y, int y_step_q4, int w, int h";
 
-if (aom_config("CONFIG_EXT_RECUR_PARTITIONS") ne "yes") {
-  specialize qw/aom_convolve_copy       neon dspr2 msa sse2 avx2/;
-} # CONFIG_EXT_RECUR_PARTITIONS
+specialize qw/aom_convolve_copy       neon dspr2 msa sse2 avx2/;
 specialize qw/aom_convolve8_horiz     sse2 ssse3/, "$avx2_ssse3";
 specialize qw/aom_convolve8_vert      sse2 ssse3/, "$avx2_ssse3";
 
 add_proto qw/void aom_highbd_convolve_copy/, "const uint16_t *src, ptrdiff_t src_stride, uint16_t *dst, ptrdiff_t dst_stride, int w, int h";
-if (aom_config("CONFIG_EXT_RECUR_PARTITIONS") ne "yes") {
-  specialize qw/aom_highbd_convolve_copy sse2 avx2/;
-} # CONFIG_EXT_RECUR_PARTITIONS
+specialize qw/aom_highbd_convolve_copy sse2 avx2/;
 
 add_proto qw/void aom_highbd_convolve8_horiz/, "const uint8_t *src, ptrdiff_t src_stride, uint8_t *dst, ptrdiff_t dst_stride, const int16_t *filter_x, int x_step_q4, const int16_t *filter_y, int y_step_q4, int w, int h, int bd";
 specialize qw/aom_highbd_convolve8_horiz sse2 avx2/;
