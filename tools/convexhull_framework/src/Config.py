@@ -20,7 +20,7 @@ TEST_CONFIGURATIONS = ["LD", "RA", "AI", "STILL"]
 ######################################
 # configuration settings
 ######################################
-RootPath = "..//"
+RootPath = ".."
 BinPath = os.path.join(RootPath, 'bin')
 WorkPath = os.path.join(RootPath, 'test')
 SMOKE_TEST = False  # override some parameters to do a quick smoke test
@@ -32,6 +32,7 @@ FrameNum = {
     "STILL" : 1,
 }
 EnableTimingInfo = True
+UsePerfUtil = False
 Platform = platform.system()
 
 ############ test contents #######################################
@@ -43,11 +44,14 @@ DnScaleRatio = [1.0, 1.5, 2.0, 3.0, 4.0, 6.0]   # downscale ratio
 DnScalingAlgos = ['lanczos'] #['bicubic', 'bilinear', 'gauss', 'lanczos', 'sinc']
 UpScalingAlgos = ['lanczos'] #['bicubic', 'bilinear', 'gauss', 'lanczos', 'sinc']
 
+ScaleMethods = ['hdrtool', 'ffmpeg', 'aom']
+
 if SMOKE_TEST:
     DnScalingAlgos = ['bicubic', 'lanczos', 'sinc']
     UpScalingAlgos = ['bicubic', 'lanczos', 'sinc']
 HDRToolsConfigFileTemplate = os.path.join(BinPath, 'HDRConvScalerY4MFile.cfg')
 HDRConvert = os.path.join(BinPath, 'HDRConvert.exe')
+AOMScaler = os.path.join(BinPath, 'lanczos_resample_y4m.exe')
 
 ##################### Encode Config ########################################
 EncodeMethods = ["aom", "svt"]
@@ -56,6 +60,7 @@ SUFFIX = {"av1": ".obu"}
 FFMPEG = os.path.join(BinPath, 'ffmpeg.exe')
 AOMENC = os.path.join(BinPath, 'aomenc.exe')
 SVTAV1 = os.path.join(BinPath, 'SvtAv1EncApp.exe')
+AV1DEC = os.path.join(BinPath, 'av1dec.exe')
 AOMDEC = os.path.join(BinPath, 'aomdec.exe')
 QPs = {
     "LD" : [23, 31, 39, 47, 55, 63],
