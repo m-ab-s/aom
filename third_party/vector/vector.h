@@ -129,10 +129,10 @@ bool aom_iterator_is_after(Iterator *first, Iterator *second);
 
 size_t aom_iterator_index(Vector *vector, Iterator *iterator);
 
-#define VECTOR_FOR_EACH(aom_vector_pointer, iterator_name)               \
-  for (Iterator(iterator_name) = aom_vector_begin((aom_vector_pointer)), \
-      end = aom_vector_end((aom_vector_pointer));                        \
-       !aom_iterator_equals(&(iterator_name), &end);                     \
+#define VECTOR_FOR_EACH(aom_vector_pointer, iterator_name)              \
+  for (Iterator iterator_name = aom_vector_begin((aom_vector_pointer)), \
+                end = aom_vector_end((aom_vector_pointer));             \
+       !aom_iterator_equals(&(iterator_name), &end);                    \
        aom_iterator_increment(&(iterator_name)))
 
 #endif /* VECTOR_H */
