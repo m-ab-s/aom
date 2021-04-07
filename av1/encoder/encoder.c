@@ -748,8 +748,10 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
   av1_reset_segment_features(cm);
 
 #if CONFIG_NEW_INTER_MODES
-  // Add logic to choose this in the range [3, 7]
+  // Add logic to choose this in the range [MIN_MAX_DRL_BITS, MAX_MAX_DRL_BITS]
   cm->features.max_drl_bits = MAX_DRL_BITS;
+  assert(cm->features.max_drl_bits >= MIN_MAX_DRL_BITS &&
+         cm->features.max_drl_bits <= MAX_MAX_DRL_BITS);
 #endif  // CONFIG_NEW_INTER_MODES
 
   av1_set_high_precision_mv(cpi, MV_SUBPEL_EIGHTH_PRECISION);
