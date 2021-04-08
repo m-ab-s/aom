@@ -108,8 +108,8 @@ static AOM_INLINE void write_inter_mode(aom_writer *w, PREDICTION_MODE mode,
 }
 
 #if CONFIG_NEW_INTER_MODES
-static void write_drl_idx(int max_drl_bits, FRAME_CONTEXT *ec_ctx,
-                          const MB_MODE_INFO *mbmi,
+static void write_drl_idx(int max_drl_bits, const int16_t mode_ctx,
+                          FRAME_CONTEXT *ec_ctx, const MB_MODE_INFO *mbmi,
                           const MB_MODE_INFO_EXT_FRAME *mbmi_ext_frame,
                           aom_writer *w) {
   assert(!mbmi->skip_mode);
@@ -119,10 +119,9 @@ static void write_drl_idx(int max_drl_bits, FRAME_CONTEXT *ec_ctx,
   // number of bits written if there are less than 4 valid DRL indices.
   assert(mbmi->ref_mv_idx < mbmi_ext_frame->ref_mv_count);
   assert(mbmi->ref_mv_idx < max_drl_bits + 1);
-  int range = AOMMIN(mbmi_ext_frame->ref_mv_count - 1, max_drl_bits);
-  for (int idx = 0; idx < range; ++idx) {
+  for (int idx = 0; idx < max_drl_bits; ++idx) {
     aom_cdf_prob *drl_cdf =
-        av1_get_drl_cdf(ec_ctx, mbmi_ext_frame->weight, idx);
+        av1_get_drl_cdf(ec_ctx, mbmi_ext_frame->weight, mode_ctx, idx);
     aom_write_symbol(w, mbmi->ref_mv_idx != idx, drl_cdf, 2);
     if (mbmi->ref_mv_idx == idx) break;
   }
@@ -1485,7 +1484,7 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
       if (have_drl_index(mode))
         write_drl_idx(
 #if CONFIG_NEW_INTER_MODES
-            cm->features.max_drl_bits,
+            cm->features.max_drl_bits, mbmi_ext_frame->mode_context,
 #endif  // CONFIG_NEW_INTER_MODES
             ec_ctx, mbmi, mbmi_ext_frame, w);
       else

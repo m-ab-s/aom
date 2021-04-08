@@ -481,6 +481,9 @@ static AOM_INLINE void process_single_ref_mv_candidate(
         // doesn't matter as long as it is properly initialized.
         ref_mv_weight[stack_idx] = 2;
         ++(*refmv_count);
+#if CONFIG_NEW_INTER_MODES
+        if (*refmv_count >= MAX_MV_REF_CANDIDATES) return;
+#endif  // CONFIG_NEW_INTER_MODES
       }
     }
   }
@@ -760,7 +763,7 @@ static AOM_INLINE void setup_ref_mv_list(
       }
     }
 
-    assert(*refmv_count >= 2);
+    assert(*refmv_count >= MAX_MV_REF_CANDIDATES);
 
     for (int idx = 0; idx < *refmv_count; ++idx) {
       clamp_mv_ref(&ref_mv_stack[idx].this_mv.as_mv, xd->width << MI_SIZE_LOG2,
@@ -1495,18 +1498,6 @@ static AOM_INLINE void set_ref_frame_info(int *remapped_ref_idx, int frame_idx,
 
   remapped_ref_idx[frame_idx] = ref_info->map_idx;
 }
-
-#if CONFIG_NEW_INTER_MODES
-aom_cdf_prob *av1_get_drl_cdf(FRAME_CONTEXT *ec_ctx,
-                              const uint16_t *ref_mv_weight, int ref_idx) {
-  const int ctx = av1_drl_ctx(ref_mv_weight, ref_idx);
-  switch (ref_idx) {
-    case 0: return ec_ctx->drl_cdf[0][ctx];
-    case 1: return ec_ctx->drl_cdf[1][ctx];
-    default: return ec_ctx->drl_cdf[2][ctx];
-  }
-}
-#endif  // CONFIG_NEW_INTER_MODES
 
 void av1_set_frame_refs(AV1_COMMON *const cm, int *remapped_ref_idx,
                         int lst_map_idx, int gld_map_idx) {

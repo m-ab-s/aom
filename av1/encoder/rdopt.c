@@ -1997,19 +1997,16 @@ static INLINE int build_cur_mv(int_mv *cur_mv, PREDICTION_MODE this_mode,
 // a DRL index.
 static INLINE int get_drl_cost(int max_drl_bits, const MB_MODE_INFO *mbmi,
                                const MB_MODE_INFO_EXT *mbmi_ext,
-                               const MACROBLOCK *x, int8_t ref_frame_type) {
+                               const MACROBLOCK *x) {
   assert(mbmi->ref_mv_idx < max_drl_bits + 1);
   if (!have_drl_index(mbmi->mode)) {
     return 0;
   }
-  int16_t mode_ctx =
-      av1_mode_context_analyzer(mbmi_ext->mode_context, mbmi->ref_frame);
-  (void)mode_ctx;  // This is here for future experiments
+  int16_t mode_ctx_pristine =
+      av1_mode_context_pristine(mbmi_ext->mode_context, mbmi->ref_frame);
   int cost = 0;
-  const int range =
-      AOMMIN(mbmi_ext->ref_mv_count[ref_frame_type] - 1, max_drl_bits);
-  for (int idx = 0; idx < range; ++idx) {
-    uint8_t drl_ctx = av1_drl_ctx(mbmi_ext->weight[ref_frame_type], idx);
+  for (int idx = 0; idx < max_drl_bits; ++idx) {
+    uint8_t drl_ctx = av1_drl_ctx(mode_ctx_pristine);
     switch (idx) {
       case 0:
         cost +=
@@ -2156,8 +2153,8 @@ static bool ref_mv_idx_early_breakout(
   }
   size_t est_rd_rate = args->ref_frame_cost + args->single_comp_cost;
 #if CONFIG_NEW_INTER_MODES
-  const int drl_cost = get_drl_cost(cpi->common.features.max_drl_bits, mbmi,
-                                    mbmi_ext, x, ref_frame_type);
+  const int drl_cost =
+      get_drl_cost(cpi->common.features.max_drl_bits, mbmi, mbmi_ext, x);
 #else
   const int drl_cost = get_drl_cost(
       mbmi, mbmi_ext, x->mode_costs.drl_mode_cost0, ref_frame_type);
@@ -2184,7 +2181,6 @@ static int64_t simple_translation_pred_rd(
   MACROBLOCKD *xd = &x->e_mbd;
   MB_MODE_INFO *mbmi = xd->mi[0];
   MB_MODE_INFO_EXT *const mbmi_ext = x->mbmi_ext;
-  const int8_t ref_frame_type = av1_ref_frame_type(mbmi->ref_frame);
   const AV1_COMMON *cm = &cpi->common;
   const int is_comp_pred = has_second_ref(mbmi);
   const ModeCosts *mode_costs = &x->mode_costs;
@@ -2211,11 +2207,11 @@ static int64_t simple_translation_pred_rd(
 
   rd_stats->rate += args->ref_frame_cost + args->single_comp_cost;
 #if CONFIG_NEW_INTER_MODES
-  const int drl_cost = get_drl_cost(cpi->common.features.max_drl_bits, mbmi,
-                                    mbmi_ext, x, ref_frame_type);
-#else
   const int drl_cost =
-      get_drl_cost(mbmi, mbmi_ext, mode_costs->drl_mode_cost0, ref_frame_type);
+      get_drl_cost(cpi->common.features.max_drl_bits, mbmi, mbmi_ext, x);
+#else
+  const int drl_cost = get_drl_cost(mbmi, mbmi_ext, mode_costs->drl_mode_cost0,
+                                    av1_ref_frame_type(mbmi->ref_frame));
 #endif  // CONFIG_NEW_INTER_MODES
   rd_stats->rate += drl_cost;
   mode_info[ref_mv_idx].drl_cost = drl_cost;
@@ -2964,7 +2960,6 @@ static int64_t handle_inter_mode(
                                { MAX_SB_SIZE, MAX_SB_SIZE, MAX_SB_SIZE } };
 
   int64_t ret_val = INT64_MAX;
-  const int8_t ref_frame_type = av1_ref_frame_type(mbmi->ref_frame);
   RD_STATS best_rd_stats, best_rd_stats_y, best_rd_stats_uv;
   int64_t best_rd = INT64_MAX;
   uint8_t best_blk_skip[MAX_MIB_SIZE * MAX_MIB_SIZE];
@@ -2996,10 +2991,10 @@ static int64_t handle_inter_mode(
   // Save MV results from first 2 ref_mv_idx.
   int_mv save_mv[MAX_REF_MV_SEARCH - 1][2];
   int best_ref_mv_idx = -1;
-  const int idx_mask = ref_mv_idx_to_search(cpi, x, rd_stats, args, ref_best_rd,
-                                            mode_info, bsize, ref_set);
   const int16_t mode_ctx =
       av1_mode_context_analyzer(mbmi_ext->mode_context, mbmi->ref_frame);
+  const int idx_mask = ref_mv_idx_to_search(cpi, x, rd_stats, args, ref_best_rd,
+                                            mode_info, bsize, ref_set);
   const ModeCosts *mode_costs = &x->mode_costs;
   const int ref_mv_cost = cost_mv_ref(mode_costs, this_mode, mode_ctx);
   const int base_rate =
@@ -3051,11 +3046,12 @@ static int64_t handle_inter_mode(
     // Compute cost for signalling this DRL index
     rd_stats->rate = base_rate;
 #if CONFIG_NEW_INTER_MODES
-    const int drl_cost = get_drl_cost(cm->features.max_drl_bits, mbmi, mbmi_ext,
-                                      x, ref_frame_type);
+    const int drl_cost =
+        get_drl_cost(cm->features.max_drl_bits, mbmi, mbmi_ext, x);
 #else
-    const int drl_cost = get_drl_cost(
-        mbmi, mbmi_ext, mode_costs->drl_mode_cost0, ref_frame_type);
+    const int drl_cost =
+        get_drl_cost(mbmi, mbmi_ext, mode_costs->drl_mode_cost0,
+                     av1_ref_frame_type(mbmi->ref_frame));
 #endif  // CONFIG_NEW_INTER_MODES
     rd_stats->rate += drl_cost;
     mode_info[ref_mv_idx].drl_cost = drl_cost;

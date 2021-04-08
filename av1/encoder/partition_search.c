@@ -874,8 +874,8 @@ static void pick_sb_modes(AV1_COMP *const cpi, TileDataEnc *tile_data,
 }
 
 #if CONFIG_NEW_INTER_MODES
-static void update_drl_index_stats(int max_drl_bits, FRAME_CONTEXT *fc,
-                                   FRAME_COUNTS *counts,
+static void update_drl_index_stats(int max_drl_bits, const int16_t mode_ctx,
+                                   FRAME_CONTEXT *fc, FRAME_COUNTS *counts,
                                    const MB_MODE_INFO *mbmi,
                                    const MB_MODE_INFO_EXT *mbmi_ext) {
 #if !CONFIG_ENTROPY_STATS
@@ -884,13 +884,11 @@ static void update_drl_index_stats(int max_drl_bits, FRAME_CONTEXT *fc,
   assert(have_drl_index(mbmi->mode));
   uint8_t ref_frame_type = av1_ref_frame_type(mbmi->ref_frame);
   assert(mbmi->ref_mv_idx < max_drl_bits + 1);
-  const int range =
-      AOMMIN(mbmi_ext->ref_mv_count[ref_frame_type] - 1, max_drl_bits);
-  for (int idx = 0; idx < range; ++idx) {
+  for (int idx = 0; idx < max_drl_bits; ++idx) {
     aom_cdf_prob *drl_cdf =
-        av1_get_drl_cdf(fc, mbmi_ext->weight[ref_frame_type], idx);
+        av1_get_drl_cdf(fc, mbmi_ext->weight[ref_frame_type], mode_ctx, idx);
 #if CONFIG_ENTROPY_STATS
-    int drl_ctx = av1_drl_ctx(mbmi_ext->weight[ref_frame_type], idx);
+    int drl_ctx = av1_drl_ctx(mode_ctx);
     switch (idx) {
       case 0: counts->drl_mode[0][drl_ctx][mbmi->ref_mv_idx != idx]++; break;
       case 1: counts->drl_mode[1][drl_ctx][mbmi->ref_mv_idx != idx]++; break;
@@ -1294,8 +1292,10 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
     const int new_mv = mbmi->mode == NEWMV || mbmi->mode == NEW_NEWMV;
 #if CONFIG_NEW_INTER_MODES
     if (have_drl_index(mbmi->mode)) {
-      update_drl_index_stats(cm->features.max_drl_bits, fc, counts, mbmi,
-                             mbmi_ext);
+      const int16_t mode_ctx_pristine =
+          av1_mode_context_pristine(mbmi_ext->mode_context, mbmi->ref_frame);
+      update_drl_index_stats(cm->features.max_drl_bits, mode_ctx_pristine, fc,
+                             counts, mbmi, mbmi_ext);
     }
 #else
     if (new_mv) {

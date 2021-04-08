@@ -233,17 +233,16 @@ static PREDICTION_MODE read_inter_mode(FRAME_CONTEXT *ec_ctx, aom_reader *r,
 }
 
 #if CONFIG_NEW_INTER_MODES
-static void read_drl_idx(int max_drl_bits, FRAME_CONTEXT *ec_ctx,
-                         DecoderCodingBlock *dcb, MB_MODE_INFO *mbmi,
-                         aom_reader *r) {
+static void read_drl_idx(int max_drl_bits, const int16_t mode_ctx,
+                         FRAME_CONTEXT *ec_ctx, DecoderCodingBlock *dcb,
+                         MB_MODE_INFO *mbmi, aom_reader *r) {
   MACROBLOCKD *const xd = &dcb->xd;
   uint8_t ref_frame_type = av1_ref_frame_type(mbmi->ref_frame);
   mbmi->ref_mv_idx = 0;
   assert(!mbmi->skip_mode);
-  const int range = AOMMIN(dcb->ref_mv_count[ref_frame_type] - 1, max_drl_bits);
-  for (int idx = 0; idx < range; ++idx) {
+  for (int idx = 0; idx < max_drl_bits; ++idx) {
     aom_cdf_prob *drl_cdf =
-        av1_get_drl_cdf(ec_ctx, xd->weight[ref_frame_type], idx);
+        av1_get_drl_cdf(ec_ctx, xd->weight[ref_frame_type], mode_ctx, idx);
     int drl_idx = aom_read_symbol(r, drl_cdf, 2, ACCT_STR);
     mbmi->ref_mv_idx = idx + drl_idx;
     if (!drl_idx) break;
@@ -1801,7 +1800,7 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
         segfeature_active(&cm->seg, mbmi->segment_id, SEG_LVL_GLOBALMV)) {
       mbmi->mode = GLOBALMV;
     } else {
-      const int mode_ctx =
+      const int16_t mode_ctx =
           av1_mode_context_analyzer(inter_mode_ctx, mbmi->ref_frame);
       if (is_compound)
         mbmi->mode = read_inter_compound_mode(xd, r, mode_ctx);
@@ -1811,6 +1810,7 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
         read_drl_idx(
 #if CONFIG_NEW_INTER_MODES
             cm->features.max_drl_bits,
+            av1_mode_context_pristine(inter_mode_ctx, mbmi->ref_frame),
 #endif  // CONFIG_NEW_INTER_MODES
             ec_ctx, dcb, mbmi, r);
     }

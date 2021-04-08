@@ -245,6 +245,7 @@ static INLINE int16_t inter_single_mode_ctx(int16_t mode_ctx) {
   static const int refmv_ctx_to_isrefmv_ctx[REFMV_MODE_CONTEXTS] = { 0, 0, 1,
                                                                      0, 1, 0 };
   const int16_t newmv_ctx = mode_ctx & NEWMV_CTX_MASK;
+  assert(newmv_ctx < NEWMV_MODE_CONTEXTS);
   const int16_t zeromv_ctx = (mode_ctx >> GLOBALMV_OFFSET) & GLOBALMV_CTX_MASK;
   const int16_t refmv_ctx = (mode_ctx >> REFMV_OFFSET) & REFMV_CTX_MASK;
   const int16_t isrefmv_ctx = refmv_ctx_to_isrefmv_ctx[refmv_ctx];
@@ -252,6 +253,16 @@ static INLINE int16_t inter_single_mode_ctx(int16_t mode_ctx) {
       GLOBALMV_MODE_CONTEXTS * ISREFMV_MODE_CONTEXTS * newmv_ctx +
       ISREFMV_MODE_CONTEXTS * zeromv_ctx + isrefmv_ctx;
   assert(ctx < INTER_SINGLE_MODE_CONTEXTS);
+  return ctx;
+}
+
+// Note mode_ctx is the same context used to decode mode information
+static INLINE int16_t av1_drl_ctx(int16_t mode_ctx) {
+  const int16_t newmv_ctx = mode_ctx & NEWMV_CTX_MASK;
+  assert(newmv_ctx < NEWMV_MODE_CONTEXTS);
+  const int16_t zeromv_ctx = (mode_ctx >> GLOBALMV_OFFSET) & GLOBALMV_CTX_MASK;
+  const int16_t ctx = GLOBALMV_MODE_CONTEXTS * newmv_ctx + zeromv_ctx;
+  assert(ctx < DRL_MODE_CONTEXTS);
   return ctx;
 }
 #endif  // CONFIG_NEW_INTER_MODES
