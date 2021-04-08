@@ -970,7 +970,6 @@ TEST_P(AV1ConvolveXCompoundTest, RunTest) { RunTest(); }
 INSTANTIATE_TEST_SUITE_P(C, AV1ConvolveXCompoundTest,
                          BuildLowbdLumaParams(av1_dist_wtd_convolve_x_c));
 
-#if !CONFIG_EXT_RECUR_PARTITIONS
 #if HAVE_SSE2
 INSTANTIATE_TEST_SUITE_P(SSE2, AV1ConvolveXCompoundTest,
                          BuildLowbdLumaParams(av1_dist_wtd_convolve_x_sse2));
@@ -984,7 +983,6 @@ INSTANTIATE_TEST_SUITE_P(AVX2, AV1ConvolveXCompoundTest,
 #if HAVE_NEON
 INSTANTIATE_TEST_SUITE_P(NEON, AV1ConvolveXCompoundTest,
                          BuildLowbdLumaParams(av1_dist_wtd_convolve_x_neon));
-#endif
 #endif
 
 /////////////////////////////////////////////////
@@ -1097,7 +1095,6 @@ TEST_P(AV1ConvolveYCompoundTest, RunTest) { RunTest(); }
 INSTANTIATE_TEST_SUITE_P(C, AV1ConvolveYCompoundTest,
                          BuildLowbdLumaParams(av1_dist_wtd_convolve_y_c));
 
-#if !CONFIG_EXT_RECUR_PARTITIONS
 #if HAVE_SSE2
 INSTANTIATE_TEST_SUITE_P(SSE2, AV1ConvolveYCompoundTest,
                          BuildLowbdLumaParams(av1_dist_wtd_convolve_y_sse2));
@@ -1112,7 +1109,6 @@ INSTANTIATE_TEST_SUITE_P(AVX2, AV1ConvolveYCompoundTest,
 INSTANTIATE_TEST_SUITE_P(NEON, AV1ConvolveYCompoundTest,
                          BuildLowbdLumaParams(av1_dist_wtd_convolve_y_neon));
 #endif
-#endif  // !CONFIG_EXT_RECUR_PARTITIONS
 
 /////////////////////////////////////////////////
 // Compound convolve-y functions (high bit-depth)
@@ -1207,7 +1203,6 @@ TEST_P(AV1Convolve2DCopyCompoundTest, RunTest) { RunTest(); }
 INSTANTIATE_TEST_SUITE_P(C, AV1Convolve2DCopyCompoundTest,
                          BuildLowbdLumaParams(av1_dist_wtd_convolve_2d_copy_c));
 
-#if !CONFIG_EXT_RECUR_PARTITIONS
 #if HAVE_SSE2
 INSTANTIATE_TEST_SUITE_P(
     SSE2, AV1Convolve2DCopyCompoundTest,
@@ -1225,7 +1220,6 @@ INSTANTIATE_TEST_SUITE_P(
     NEON, AV1Convolve2DCopyCompoundTest,
     BuildLowbdLumaParams(av1_dist_wtd_convolve_2d_copy_neon));
 #endif
-#endif  // !CONFIG_EXT_RECUR_PARTITIONS
 
 ///////////////////////////////////////////////////////
 // Compound convolve-2d-copy functions (high bit-depth)
