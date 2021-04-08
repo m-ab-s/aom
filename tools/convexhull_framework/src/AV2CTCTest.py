@@ -115,7 +115,7 @@ def GenerateSummaryRDDataFile(EncodeMethod, CodecName, EncodePreset,
     csv_file, perframe_csvfile = GetRDResultCsvFile(EncodeMethod, CodecName, EncodePreset, test_cfg)
     csv = open(csv_file, 'wt')
     # "TestCfg,EncodeMethod,CodecName,EncodePreset,Class,OrigRes,Name,FPS,Bit Depth,CodedRes,QP,Bitrate(kbps)")
-    csv.write("TestCfg,EncodeMethod,CodecName,EncodePreset,Class,OrigRes,Name,FPS,"\
+    csv.write("TestCfg,EncodeMethod,CodecName,EncodePreset,Class,Name,OrigRes,FPS,"\
               "Bit Depth,CodecRes,QP,")
     if (test_cfg == "STILL"):
         csv.write("FileSize(bytes)")
@@ -123,15 +123,14 @@ def GenerateSummaryRDDataFile(EncodeMethod, CodecName, EncodePreset,
         csv.write("Bitrate(kbps)")
     for qty in QualityList:
         csv.write(',' + qty)
+    csv.write(",EncT[s],DecT[s]")
     if UsePerfUtil:
-        csv.write(",EncInstr,EncCycles,DecInstr,DecCycles")
-    else:
-        csv.write(",EncT[s],DecT[s]")
+        csv.write(",EncInstr,DecInstr,EncCycles,DecCycles")
     csv.write('\n')
 
     perframe_csv = open(perframe_csvfile, 'wt')
 
-    perframe_csv.write("TestCfg,EncodeMethod,CodecName,EncodePreset,Class,Res,Name,FPS," \
+    perframe_csv.write("TestCfg,EncodeMethod,CodecName,EncodePreset,Class,Name,Res,FPS," \
                        "Bit Depth,QP,POC,FrameType,Level,qindex,FrameSize")
     for qty in QualityList:
         if (qty != "Overall_PSNR" and qty != "Overall_APSNR" and not qty.startswith("APSNR")):
@@ -148,7 +147,7 @@ def GenerateSummaryRDDataFile(EncodeMethod, CodecName, EncodePreset,
             quality, perframe_vmaf_log = GatherQualityMetrics(dec, Path_QualityLog)
             csv.write("%s,%s,%s,%s,%s,%s,%s,%.2f,%d,%s,%d,"
                       %(test_cfg,EncodeMethod,CodecName,EncodePreset,clip.file_class,
-                        str(clip.width)+'x'+str(clip.height), clip.file_name,
+                        clip.file_name, str(clip.width)+'x'+str(clip.height),
                         clip.fps,clip.bit_depth,str(clip.width)+'x'+str(clip.height),qp))
             if (test_cfg == "STILL"):
                 csv.write("%d"%filesize)
@@ -158,8 +157,8 @@ def GenerateSummaryRDDataFile(EncodeMethod, CodecName, EncodePreset,
             for qty in quality:
                 csv.write(",%.4f"%qty)
             if UsePerfUtil:
-                enc_instr, enc_cycles, dec_instr, dec_cycles = GatherInstrCycleInfo(bs, Path_TimingLog)
-                csv.write(",%s,%s,%s,%s,\n" % (enc_instr, enc_cycles, dec_instr, dec_cycles))
+                enc_time, dec_time, enc_instr, dec_instr, enc_cycles, dec_cycles = GatherInstrCycleInfo(bs, Path_TimingLog)
+                csv.write(",%.2f,%.2f,%s,%s,%s,%s,\n" % (enc_time,dec_time,enc_instr,dec_instr,enc_cycles,dec_cycles))
             elif EnableTimingInfo:
                 enc_time, dec_time = GatherPerfInfo(bs, Path_TimingLog)
                 csv.write(",%.2f,%.2f,\n"%(enc_time,dec_time))

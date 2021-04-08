@@ -164,8 +164,8 @@ def CalBDRateWithPython_OneSheet(sht, cols_bdmtrs, resultfiles, cellformat):
                     refqtys = rdsht.col_values(rdcols[0] + 1 + y, rdrows[row_refst], rdrows[row_refst + bdstep] + 1)
                     testbrs = rdsht.col_values(rdcols[residx], rdrows[row_refst], rdrows[row_refst + bdstep] + 1)
                     testqtys = rdsht.col_values(rdcols[residx] + 1 + y, rdrows[row_refst], rdrows[row_refst + bdstep] + 1)
-                    bdrate = BD_RATE(refbrs, refqtys, testbrs, testqtys)
-                    if (bdrate != 'Error'):
+                    (err, bdrate) = BD_RATE(refbrs, refqtys, testbrs, testqtys)
+                    if (err != -1):
                         bdrate /= 100.0
                         sht.write(row_class + row_cont, cols_bd + y, bdrate, cellformat)
                     else:

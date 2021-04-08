@@ -320,7 +320,8 @@ def GatherInstrCycleInfo(bsfile, Path_TimingLog):
     assert(Platform != "Windows" and Platform != "Darwin")
     enc_perf = GetEncPerfFile(bsfile, Path_TimingLog)
     dec_perf = GetDecPerfFile(bsfile, Path_TimingLog)
-    enc_instr = 0; enc_cycles = 0; dec_instr = 0; dec_cycles = 0
+    enc_time = 0; dec_time = 0; enc_instr = 0; enc_cycles = 0
+    dec_instr = 0; dec_cycles = 0
     flog = open(enc_perf, 'r')
     for line in flog:
         m = re.search(r"(\S+)\s+instructions", line)
@@ -329,6 +330,9 @@ def GatherInstrCycleInfo(bsfile, Path_TimingLog):
         m = re.search(r"(\S+)\s+cycles", line)
         if m:
             enc_cycles = int(m.group(1).replace(',', ''))
+        m = re.search(r"(\S+)\s+seconds\s+user", line)
+        if m:
+            enc_time = float(m.group(1))
     flog.close()
 
     flog = open(dec_perf, 'r')
@@ -339,8 +343,11 @@ def GatherInstrCycleInfo(bsfile, Path_TimingLog):
         m = re.search(r"(\S+)\s+cycles", line)
         if m:
             dec_cycles = int(m.group(1).replace(',', ''))
+        m = re.search(r"(\S+)\s+seconds\s+user", line)
+        if m:
+            dec_time = float(m.group(1))
     flog.close()
-    return enc_instr, enc_cycles, dec_instr, dec_cycles
+    return enc_time, dec_time, enc_instr, dec_instr, enc_cycles, dec_cycles
 
 def GatherPerfInfo(bsfile, Path_TimingLog):
     enc_perf = GetEncPerfFile(bsfile, Path_TimingLog)
@@ -404,10 +411,10 @@ def GatherPerframeStat(test_cfg,EncodeMethod,CodecName,EncodePreset,clip, name, 
                     enc_list[int(POC)] = "%s,%s,%s,%s,%s"%(POC,frame_type,pyd_level,qindex,frame_size)
 
     for i in range(len(enc_list)):
-        #"TestCfg,EncodeMethod,CodecName,EncodePreset,Class,Res,Name,FPS,BitDepth,QP,POC,FrameType,Level,qindex,FrameSize")
+        #"TestCfg,EncodeMethod,CodecName,EncodePreset,Class,Name,Res,FPS,BitDepth,QP,POC,FrameType,Level,qindex,FrameSize")
         perframe_csv.write("%s,%s,%s,%s,%s,%s,%s,%s,%d,%d,%s,%s\n"
-                           %(test_cfg,EncodeMethod,CodecName,EncodePreset,clip.file_class,str(clip.width)+"x"+str(clip.height),
-                             name,clip.fps,clip.bit_depth,qp,enc_list[i],perframe_vmaf_log[i]))
+                           %(test_cfg,EncodeMethod,CodecName,EncodePreset,clip.file_class,name,str(clip.width)+"x"+str(clip.height),
+                             clip.fps,clip.bit_depth,qp,enc_list[i],perframe_vmaf_log[i]))
 
 
 def plot_rd_curve(br, qty, qty_str, name, line_color=None, line_style=None, marker_format=None):

@@ -81,16 +81,19 @@ def BD_RATE(qty_type, br1, qtyMtrc1, br2, qtyMtrc2):
     rd1_monotonic = check_monotonicity(brqtypairs1)
     rd2_monotonic = check_monotonicity(brqtypairs2)
     if (rd1_monotonic == False or rd2_monotonic == False):
-        return "Non-monotonic Error"
+        return (-1, "Non-monotonic Error")
 
-    logbr1 = [math.log(x[0]) for x in brqtypairs1]
-    qmetrics1 = [100.0 if x[1] == float('inf') else x[1] for x in brqtypairs1]
-    logbr2 = [math.log(x[0]) for x in brqtypairs2]
-    qmetrics2 = [100.0 if x[1] == float('inf') else x[1] for x in brqtypairs2]
+    try:
+        logbr1 = [math.log(x[0]) for x in brqtypairs1]
+        qmetrics1 = [100.0 if x[1] == float('inf') else x[1] for x in brqtypairs1]
+        logbr2 = [math.log(x[0]) for x in brqtypairs2]
+        qmetrics2 = [100.0 if x[1] == float('inf') else x[1] for x in brqtypairs2]
+    except ValueError:
+        return (-1, "Invalid Input Data")
 
     if not brqtypairs1 or not brqtypairs2:
         logger.info("one of input lists is empty!")
-        return 0.0
+        return (-1, "one of input lists is empty!")
 
     # remove duplicated quality metric value, the RD point with higher bit rate is removed
     dup_idx = [i for i in range(1, len(qmetrics1)) if qmetrics1[i - 1] == qmetrics1[i]]
@@ -107,7 +110,7 @@ def BD_RATE(qty_type, br1, qtyMtrc1, br2, qtyMtrc2):
     max_int = min(max(qmetrics1), max(qmetrics2))
     if min_int >= max_int:
         logger.info("no overlap from input 2 lists of quality metrics!")
-        return 0.0
+        return (-1, "no overlap from input 2 lists of quality metrics!")
 
     # generate samples between max and min of quality metrics
     lin = np.linspace(min_int, max_int, num=100, retstep=True)
@@ -126,7 +129,7 @@ def BD_RATE(qty_type, br1, qtyMtrc1, br2, qtyMtrc2):
     avg_exp_diff = (int2 - int1) / (max_int - min_int)
     avg_diff = (math.exp(avg_exp_diff) - 1) * 100
 
-    return avg_diff
+    return (0, round(avg_diff, 4))
 
 '''
 if __name__ == "__main__":
