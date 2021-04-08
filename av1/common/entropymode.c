@@ -516,15 +516,36 @@ static const aom_cdf_prob
     };
 
 static const aom_cdf_prob default_drl0_cdf[DRL_MODE_CONTEXTS][CDF_SIZE(2)] = {
+#if NO_MV_PARSING_DEP
+  { AOM_CDF2(20267) }, { AOM_CDF2(20267) }, { AOM_CDF2(20267) },
+  { AOM_CDF2(20267) }, { AOM_CDF2(20267) }, { AOM_CDF2(20267) },
+  { AOM_CDF2(20267) }, { AOM_CDF2(20267) }, { AOM_CDF2(20267) },
+  { AOM_CDF2(20267) }, { AOM_CDF2(20267) }, { AOM_CDF2(20267) },
+#else
   { AOM_CDF2(15648) }, { AOM_CDF2(26275) }, { AOM_CDF2(20267) }
+#endif  // NO_MV_PARSING_DEP
 };
 
 static const aom_cdf_prob default_drl1_cdf[DRL_MODE_CONTEXTS][CDF_SIZE(2)] = {
+#if NO_MV_PARSING_DEP
+  { AOM_CDF2(20267) }, { AOM_CDF2(20267) }, { AOM_CDF2(20267) },
+  { AOM_CDF2(20267) }, { AOM_CDF2(20267) }, { AOM_CDF2(20267) },
+  { AOM_CDF2(20267) }, { AOM_CDF2(20267) }, { AOM_CDF2(20267) },
+  { AOM_CDF2(20267) }, { AOM_CDF2(20267) }, { AOM_CDF2(20267) },
+#else
   { AOM_CDF2(16196) }, { AOM_CDF2(22540) }, { AOM_CDF2(12071) }
+#endif
 };
 
 static const aom_cdf_prob default_drl2_cdf[DRL_MODE_CONTEXTS][CDF_SIZE(2)] = {
+#if NO_MV_PARSING_DEP
+  { AOM_CDF2(20267) }, { AOM_CDF2(20267) }, { AOM_CDF2(20267) },
+  { AOM_CDF2(20267) }, { AOM_CDF2(20267) }, { AOM_CDF2(20267) },
+  { AOM_CDF2(20267) }, { AOM_CDF2(20267) }, { AOM_CDF2(20267) },
+  { AOM_CDF2(20267) }, { AOM_CDF2(20267) }, { AOM_CDF2(20267) },
+#else
   { AOM_CDF2(18355) }, { AOM_CDF2(18090) }, { AOM_CDF2(13689) }
+#endif
 };
 #if CONFIG_OPTFLOW_REFINEMENT
 static const aom_cdf_prob

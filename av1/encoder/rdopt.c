@@ -2190,14 +2190,14 @@ static INLINE int get_drl_cost(int max_drl_bits, const MB_MODE_INFO *mbmi,
   if (!have_drl_index(mbmi->mode)) {
     return 0;
   }
-  int16_t mode_ctx =
-      av1_mode_context_analyzer(mbmi_ext->mode_context, mbmi->ref_frame);
-  (void)mode_ctx;  // This is here for future experiments
+  int16_t mode_ctx_pristine =
+      av1_mode_context_pristine(mbmi_ext->mode_context, mbmi->ref_frame);
   int cost = 0;
   const int range =
       AOMMIN(mbmi_ext->ref_mv_count[ref_frame_type] - 1, max_drl_bits);
   for (int idx = 0; idx < range; ++idx) {
-    uint8_t drl_ctx = av1_drl_ctx(mbmi_ext->weight[ref_frame_type], idx);
+    uint8_t drl_ctx =
+        av1_drl_ctx(mbmi_ext->weight[ref_frame_type], mode_ctx_pristine, idx);
     switch (idx) {
       case 0:
         cost += x->mode_costs.drl0_mode_cost[drl_ctx][mbmi->ref_mv_idx != idx];
@@ -3175,10 +3175,10 @@ static int64_t handle_inter_mode(
   // Save MV results from first 2 ref_mv_idx.
   int_mv save_mv[MAX_REF_MV_SEARCH - 1][2];
   int best_ref_mv_idx = -1;
-  const int idx_mask = ref_mv_idx_to_search(cpi, x, rd_stats, args, ref_best_rd,
-                                            mode_info, bsize, ref_set);
   const int16_t mode_ctx =
       av1_mode_context_analyzer(mbmi_ext->mode_context, mbmi->ref_frame);
+  const int idx_mask = ref_mv_idx_to_search(cpi, x, rd_stats, args, ref_best_rd,
+                                            mode_info, bsize, ref_set);
   const ModeCosts *mode_costs = &x->mode_costs;
   const int ref_mv_cost = cost_mv_ref(mode_costs, this_mode, mode_ctx);
   const int base_rate =

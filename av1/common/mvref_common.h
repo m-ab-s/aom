@@ -142,6 +142,12 @@ static uint16_t compound_mode_ctx_map[3][COMP_NEWMV_CTXS] = {
   { 4, 4, 5, 6, 7 },
 };
 
+static INLINE int16_t av1_mode_context_pristine(
+    const int16_t *const mode_context, const MV_REFERENCE_FRAME *const rf) {
+  const int8_t ref_frame = av1_ref_frame_type(rf);
+  return mode_context[ref_frame];
+}
+
 static INLINE int16_t av1_mode_context_analyzer(
     const int16_t *const mode_context, const MV_REFERENCE_FRAME *const rf) {
   const int8_t ref_frame = av1_ref_frame_type(rf);
@@ -156,6 +162,44 @@ static INLINE int16_t av1_mode_context_analyzer(
       newmv_ctx, COMP_NEWMV_CTXS - 1)];
   return comp_ctx;
 }
+
+#if CONFIG_NEW_INTER_MODES
+static INLINE uint8_t av1_drl_ctx(const uint16_t *ref_mv_weight,
+                                  const int16_t mode_ctx, int ref_idx) {
+#if NO_MV_PARSING_DEP
+  (void)ref_mv_weight;
+  (void)ref_idx;
+  return drl_mode_ctx(mode_ctx);
+#else
+  (void)mode_ctx;
+  if (ref_mv_weight[ref_idx] >= REF_CAT_LEVEL &&
+      ref_mv_weight[ref_idx + 1] >= REF_CAT_LEVEL)
+    return 0;
+
+  if (ref_mv_weight[ref_idx] >= REF_CAT_LEVEL &&
+      ref_mv_weight[ref_idx + 1] < REF_CAT_LEVEL)
+    return 1;
+
+  if (ref_mv_weight[ref_idx] < REF_CAT_LEVEL &&
+      ref_mv_weight[ref_idx + 1] < REF_CAT_LEVEL)
+    return 2;
+  return 0;
+#endif  // NO_MV_PARSING_DEP
+}
+
+static INLINE aom_cdf_prob *av1_get_drl_cdf(FRAME_CONTEXT *ec_ctx,
+                                            const uint16_t *ref_mv_weight,
+                                            const int16_t mode_ctx,
+                                            int ref_idx) {
+  const int ctx = av1_drl_ctx(ref_mv_weight, mode_ctx, ref_idx);
+  switch (ref_idx) {
+    case 0: return ec_ctx->drl0_cdf[ctx];
+    case 1: return ec_ctx->drl1_cdf[ctx];
+    default: return ec_ctx->drl2_cdf[ctx];
+  }
+}
+
+#else
 
 static INLINE uint8_t av1_drl_ctx(const uint16_t *ref_mv_weight, int ref_idx) {
   if (ref_mv_weight[ref_idx] >= REF_CAT_LEVEL &&
@@ -172,10 +216,6 @@ static INLINE uint8_t av1_drl_ctx(const uint16_t *ref_mv_weight, int ref_idx) {
 
   return 0;
 }
-
-#if CONFIG_NEW_INTER_MODES
-aom_cdf_prob *av1_get_drl_cdf(FRAME_CONTEXT *ec_ctx,
-                              const uint16_t *ref_mv_weight, int ref_idx);
 #endif  // CONFIG_NEW_INTER_MODES
 
 void av1_setup_frame_buf_refs(AV1_COMMON *cm);
