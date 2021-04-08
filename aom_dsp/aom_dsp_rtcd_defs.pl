@@ -757,10 +757,7 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
     add_proto qw/unsigned int/, "aom_highbd_sad${w}x${h}", "const uint8_t *src_ptr, int src_stride, const uint8_t *ref_ptr, int ref_stride";
     add_proto qw/unsigned int/, "aom_highbd_sad_skip_${w}x${h}", "const uint8_t *src_ptr, int src_stride, const uint8_t *ref_ptr, int ref_stride";
     add_proto qw/unsigned int/, "aom_highbd_sad${w}x${h}_avg", "const uint8_t *src_ptr, int src_stride, const uint8_t *ref_ptr, int ref_stride, const uint8_t *second_pred";
-    if ($w != 128 && $h != 128 && $w != 4 &&
-     ((aom_config("CONFIG_EXT_RECUR_PARTITIONS") ne "yes") ||
-	     (!($w == 16 && $h == 32) && !($w == 8 && ($h == 8 || $h == 4 || $h == 16))))) {
-     # 8x16, 8x8, 8x4 and 16x32 functions have an alignment issue with CONFIG_EXT_RECUR_PARTITIONS experiment. So disabled for now.
+    if ($w != 128 && $h != 128 && $w != 4) {
       specialize "aom_highbd_sad${w}x${h}", qw/sse2/;
       specialize "aom_highbd_sad${w}x${h}_avg", qw/sse2/;
     }
@@ -777,11 +774,9 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
   specialize qw/aom_highbd_sad16x32   avx2 sse2/;
   specialize qw/aom_highbd_sad16x16   avx2 sse2/;
   specialize qw/aom_highbd_sad16x8    avx2 sse2/;
-  if (aom_config("CONFIG_EXT_RECUR_PARTITIONS") ne "yes") {
-    specialize qw/aom_highbd_sad8x16         sse2/;
-    specialize qw/aom_highbd_sad8x8          sse2/;
-    specialize qw/aom_highbd_sad8x4          sse2/;
-  }
+  specialize qw/aom_highbd_sad8x16         sse2/;
+  specialize qw/aom_highbd_sad8x8          sse2/;
+  specialize qw/aom_highbd_sad8x4          sse2/;
   specialize qw/aom_highbd_sad4x8          sse2/;
   specialize qw/aom_highbd_sad4x4          sse2/;
 
@@ -802,10 +797,8 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
   specialize qw/aom_highbd_sad_skip_16x32   avx2 sse2/;
   specialize qw/aom_highbd_sad_skip_16x16   avx2 sse2/;
   specialize qw/aom_highbd_sad_skip_16x8    avx2 sse2/;
-  if (aom_config("CONFIG_EXT_RECUR_PARTITIONS") ne "yes") {
-    specialize qw/aom_highbd_sad_skip_8x16         sse2/;
-    specialize qw/aom_highbd_sad_skip_8x8          sse2/;
-  }
+  specialize qw/aom_highbd_sad_skip_8x16         sse2/;
+  specialize qw/aom_highbd_sad_skip_8x8          sse2/;
   specialize qw/aom_highbd_sad_skip_4x8          sse2/;
 
   specialize qw/aom_highbd_sad_skip_4x16         sse2/;
@@ -825,9 +818,7 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
   specialize qw/aom_highbd_sad16x32_avg   avx2 sse2/;
   specialize qw/aom_highbd_sad16x16_avg   avx2 sse2/;
   specialize qw/aom_highbd_sad16x8_avg    avx2 sse2/;
-  if (aom_config("CONFIG_EXT_RECUR_PARTITIONS") ne "yes") {
-    specialize qw/aom_highbd_sad8x4_avg     sse2/;
-  }
+  specialize qw/aom_highbd_sad8x4_avg     sse2/;
   specialize qw/aom_highbd_sad4x8_avg     sse2/;
   specialize qw/aom_highbd_sad4x4_avg     sse2/;
   specialize qw/aom_highbd_sad4x16_avg    sse2/;
@@ -1000,9 +991,7 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
     ($w, $h) = @$_;
     add_proto qw/void/, "aom_highbd_sad${w}x${h}x4d", "const uint8_t *src_ptr, int src_stride, const uint8_t * const ref_ptr[], int ref_stride, uint32_t *sad_array";
     add_proto qw/void/, "aom_highbd_sad_skip_${w}x${h}x4d", "const uint8_t *src_ptr, int src_stride, const uint8_t * const ref_ptr[], int ref_stride, uint32_t *sad_array";
-    if ($w != 128 && $h != 128 &&
-	    ((aom_config("CONFIG_EXT_RECUR_PARTITIONS") ne "yes") ||
-	     !($w == 8 && ($h == 8 || $h == 4 || $h == 16)))) {
+    if ($w != 128 && $h != 128) {
       specialize "aom_highbd_sad${w}x${h}x4d", qw/sse2/;
     }
   }
@@ -1017,11 +1006,9 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
   specialize qw/aom_highbd_sad16x32x4d   sse2 avx2/;
   specialize qw/aom_highbd_sad16x16x4d   sse2 avx2/;
   specialize qw/aom_highbd_sad16x8x4d    sse2 avx2/;
-  if (aom_config("CONFIG_EXT_RECUR_PARTITIONS") ne "yes") {
-    specialize qw/aom_highbd_sad8x16x4d    sse2/;
-    specialize qw/aom_highbd_sad8x8x4d     sse2/;
-    specialize qw/aom_highbd_sad8x4x4d     sse2/;
-  }
+  specialize qw/aom_highbd_sad8x16x4d    sse2/;
+  specialize qw/aom_highbd_sad8x8x4d     sse2/;
+  specialize qw/aom_highbd_sad8x4x4d     sse2/;
   specialize qw/aom_highbd_sad4x8x4d     sse2/;
   specialize qw/aom_highbd_sad4x4x4d     sse2/;
 
