@@ -302,7 +302,6 @@ TEST_P(LowbdIntraPredTest, DISABLED_Speed) {
       lowbd_entry(type, 16, 16, opt), lowbd_entry(type, 16, 32, opt), \
       lowbd_entry(type, 32, 16, opt), lowbd_entry(type, 32, 32, opt)
 
-#if !CONFIG_EXT_RECUR_PARTITIONS
 #if HAVE_SSE2
 const IntraPredFunc<IntraPred> LowbdIntraPredTestVector[] = {
   lowbd_intrapred(dc, sse2),      lowbd_intrapred(dc_top, sse2),
@@ -371,5 +370,4 @@ INSTANTIATE_TEST_SUITE_P(NEON, HighbdIntraPredTest,
                          ::testing::ValuesIn(HighbdIntraPredTestVectorNeon));
 
 #endif  // HAVE_NEON
-#endif  // !CONFIG_EXT_RECUR_PARTITIONS
 }  // namespace
