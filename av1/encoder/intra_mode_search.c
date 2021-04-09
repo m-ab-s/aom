@@ -1247,7 +1247,28 @@ int64_t av1_rd_pick_intra_sby_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
   const PREDICTION_MODE L = av1_left_block_mode(left_mi);
   const int above_ctx = intra_mode_context[A];
   const int left_ctx = intra_mode_context[L];
+#if CONFIG_DERIVED_INTRA_MODE
+  const int is_dr_cost =
+      x->mode_costs.kf_is_dr_mode_cost[above_ctx][left_ctx][1];
+  const int is_none_dr_cost =
+      x->mode_costs.kf_is_dr_mode_cost[above_ctx][left_ctx][0];
+  int cost[INTRA_MODES];
+  for (int i = 0; i < INTRA_MODES; ++i) {
+    const int is_dr = av1_is_directional_mode(i);
+    if (is_dr) {
+      const int index = dr_mode_to_index[i];
+      cost[i] = is_dr_cost +
+                x->mode_costs.kf_dr_mode_cost[above_ctx][left_ctx][index];
+    } else {
+      const int index = none_dr_mode_to_index[i];
+      cost[i] = is_none_dr_cost +
+                x->mode_costs.kf_none_dr_mode_cost[above_ctx][left_ctx][index];
+    }
+  }
+  bmode_costs = cost;
+#else
   bmode_costs = x->mode_costs.y_mode_costs[above_ctx][left_ctx];
+#endif  // CONFIG_DERIVED_INTRA_MODE
 
   mbmi->angle_delta[PLANE_TYPE_Y] = 0;
   if (cpi->sf.intra_sf.intra_pruning_with_hog) {
@@ -1364,9 +1385,8 @@ int64_t av1_rd_pick_intra_sby_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
 
 #if CONFIG_DERIVED_INTRA_MODE
   if (av1_enable_derived_intra_mode(xd, bsize)) {
-    const int mode_rate = 0;
     if (rd_pick_derived_intra_mode_sby(cpi, x, rate, rate_tokenonly, distortion,
-                                       skippable, bsize, mode_rate, &best_rd,
+                                       skippable, bsize, is_dr_cost, &best_rd,
                                        ctx)) {
       best_mbmi = *mbmi;
       beat_best_rd = 1;

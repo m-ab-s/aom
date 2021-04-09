@@ -72,17 +72,33 @@ static AOM_INLINE void write_intra_y_mode_kf(MACROBLOCKD *const xd,
   assert(!is_intrabc_block(mbmi));
   FRAME_CONTEXT *frame_ctx = xd->tile_ctx;
 #if CONFIG_DERIVED_INTRA_MODE
-  if (av1_enable_derived_intra_mode(xd, mbmi->sb_type)) {
-    aom_write_symbol(w, mbmi->use_derived_intra_mode[0],
-                     get_derived_intra_mode_cdf(frame_ctx, above_mi, left_mi),
-                     2);
+  PREDICTION_MODE mode = mbmi->mode;
+  const int is_dr = av1_is_directional_mode(mode);
+  aom_write_symbol(w, is_dr,
+                   get_kf_is_dr_mode_cdf(frame_ctx, above_mi, left_mi), 2);
+  if (is_dr) {
+    if (av1_enable_derived_intra_mode(xd, mbmi->sb_type)) {
+      aom_write_symbol(w, mbmi->use_derived_intra_mode[0],
+                       get_derived_intra_mode_cdf(frame_ctx, above_mi, left_mi),
+                       2);
+    } else {
+      assert(!mbmi->use_derived_intra_mode);
+    }
+    const int write_intra_mode = !mbmi->use_derived_intra_mode[0];
+    if (write_intra_mode) {
+      aom_write_symbol(w, dr_mode_to_index[mode],
+                       get_kf_dr_mode_cdf(frame_ctx, above_mi, left_mi),
+                       DIRECTIONAL_MODES);
+    }
   } else {
-    assert(!mbmi->use_derived_intra_mode[0]);
+    aom_write_symbol(w, none_dr_mode_to_index[mode],
+                     get_kf_none_dr_mode_cdf(frame_ctx, above_mi, left_mi),
+                     NONE_DIRECTIONAL_MODES);
   }
-  if (mbmi->use_derived_intra_mode[0]) return;
-#endif  // CONFIG_DERIVED_INTRA_MODE
+#else
   aom_write_symbol(w, mbmi->mode, get_y_mode_cdf(frame_ctx, above_mi, left_mi),
                    INTRA_MODES);
+#endif  // CONFIG_DERIVED_INTRA_MODE
 }
 
 static AOM_INLINE void write_inter_mode(aom_writer *w, PREDICTION_MODE mode,

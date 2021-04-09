@@ -958,15 +958,29 @@ static void read_intra_frame_mode_info(AV1_COMMON *const cm,
   }
 
 #if CONFIG_DERIVED_INTRA_MODE
-  if (av1_enable_derived_intra_mode(xd, mbmi->sb_type)) {
-    aom_cdf_prob *cdf =
-        get_derived_intra_mode_cdf(ec_ctx, xd->above_mbmi, xd->left_mbmi);
-    mbmi->use_derived_intra_mode[0] = aom_read_symbol(r, cdf, 2, ACCT_STR);
-  }
-  if (mbmi->use_derived_intra_mode[0]) {
-    mbmi->mode = av1_get_derived_intra_mode(xd, bsize, &mbmi->derived_angle);
+  const int is_dr = aom_read_symbol(
+      r, get_kf_is_dr_mode_cdf(ec_ctx, above_mi, left_mi), 2, ACCT_STR);
+  if (is_dr) {
+    if (av1_enable_derived_intra_mode(xd, bsize)) {
+      mbmi->use_derived_intra_mode[0] = aom_read_symbol(
+          r, get_derived_intra_mode_cdf(ec_ctx, above_mi, left_mi), 2,
+          ACCT_STR);
+    }
+    if (mbmi->use_derived_intra_mode[0]) {
+      mbmi->mode = av1_get_derived_intra_mode(xd, bsize, &mbmi->derived_angle);
+    }
+    const int read_y_mode = !mbmi->use_derived_intra_mode[0];
+    if (read_y_mode) {
+      const int index =
+          aom_read_symbol(r, get_kf_dr_mode_cdf(ec_ctx, above_mi, left_mi),
+                          DIRECTIONAL_MODES, ACCT_STR);
+      mbmi->mode = dr_index_to_mode[index];
+    }
   } else {
-    mbmi->mode = read_intra_mode(r, get_y_mode_cdf(ec_ctx, above_mi, left_mi));
+    const int index =
+        aom_read_symbol(r, get_kf_none_dr_mode_cdf(ec_ctx, above_mi, left_mi),
+                        NONE_DIRECTIONAL_MODES, ACCT_STR);
+    mbmi->mode = none_dr_index_to_mode[index];
   }
 #else
   mbmi->mode = read_intra_mode(r, get_y_mode_cdf(ec_ctx, above_mi, left_mi));

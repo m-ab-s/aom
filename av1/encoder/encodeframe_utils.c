@@ -455,12 +455,24 @@ void av1_sum_intra_stats(const AV1_COMMON *const cm, FRAME_COUNTS *counts,
     ++counts->kf_y_mode[above_ctx][left_ctx][y_mode];
 #endif  // CONFIG_ENTROPY_STATS
 #if CONFIG_DERIVED_INTRA_MODE
-    if (av1_enable_derived_intra_mode(xd, bsize)) {
-      update_cdf(get_derived_intra_mode_cdf(fc, above_mi, left_mi),
-                 mbmi->use_derived_intra_mode[0], 2);
-    }
-    if (!mbmi->use_derived_intra_mode[0]) {
-      update_cdf(get_y_mode_cdf(fc, above_mi, left_mi), y_mode, INTRA_MODES);
+    const int is_dr_mode = av1_is_directional_mode(y_mode);
+    update_cdf(get_kf_is_dr_mode_cdf(fc, above_mi, left_mi), is_dr_mode, 2);
+    if (is_dr_mode) {
+      int update_intra_mode;
+      if (av1_enable_derived_intra_mode(xd, bsize)) {
+        update_intra_mode = !mbmi->use_derived_intra_mode[0];
+        update_cdf(get_derived_intra_mode_cdf(fc, above_mi, left_mi),
+                   mbmi->use_derived_intra_mode[0], 2);
+      } else {
+        update_intra_mode = 1;
+      }
+      if (update_intra_mode) {
+        update_cdf(get_kf_dr_mode_cdf(fc, above_mi, left_mi),
+                   dr_mode_to_index[y_mode], DIRECTIONAL_MODES);
+      }
+    } else {
+      update_cdf(get_kf_none_dr_mode_cdf(fc, above_mi, left_mi),
+                 none_dr_mode_to_index[y_mode], NONE_DIRECTIONAL_MODES);
     }
 #else
     update_cdf(get_y_mode_cdf(fc, above_mi, left_mi), y_mode, INTRA_MODES);
@@ -1203,7 +1215,19 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
   AVERAGE_CDF(ctx_left->switchable_interp_cdf, ctx_tr->switchable_interp_cdf,
               SWITCHABLE_FILTERS);
+#if CONFIG_DERIVED_INTRA_MODE
+  AVERAGE_CDF(ctx_left->derived_intra_mode_cdf, ctx_tr->derived_intra_mode_cdf,
+              2);
+  AVERAGE_CDF(ctx_left->uv_derived_intra_mode_cdf,
+              ctx_tr->uv_derived_intra_mode_cdf, 2);
+  AVERAGE_CDF(ctx_left->kf_is_dr_mode_cdf, ctx_tr->kf_is_dr_mode_cdf, 2);
+  AVERAGE_CDF(ctx_left->kf_dr_mode_cdf, ctx_tr->kf_dr_mode_cdf,
+              DIRECTIONAL_MODES);
+  AVERAGE_CDF(ctx_left->kf_none_dr_mode_cdf, ctx_tr->kf_none_dr_mode_cdf,
+              NONE_DIRECTIONAL_MODES);
+#else
   AVERAGE_CDF(ctx_left->kf_y_cdf, ctx_tr->kf_y_cdf, INTRA_MODES);
+#endif  // CONFIG_DERIVED_INTRA_MODE
   AVERAGE_CDF(ctx_left->angle_delta_cdf, ctx_tr->angle_delta_cdf,
               2 * MAX_ANGLE_DELTA + 1);
 #if CONFIG_NEW_TX_PARTITION
@@ -1246,12 +1270,6 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
   AVERAGE_CDF(ctx_left->cfl_sign_cdf, ctx_tr->cfl_sign_cdf, CFL_JOINT_SIGNS);
   AVERAGE_CDF(ctx_left->cfl_alpha_cdf, ctx_tr->cfl_alpha_cdf,
               CFL_ALPHABET_SIZE);
-#if CONFIG_DERIVED_INTRA_MODE
-  AVERAGE_CDF(ctx_left->derived_intra_mode_cdf, ctx_tr->derived_intra_mode_cdf,
-              2);
-  AVERAGE_CDF(ctx_left->uv_derived_intra_mode_cdf,
-              ctx_tr->uv_derived_intra_mode_cdf, 2);
-#endif  // CONFIG_DERIVED_INTRA_MODE
 }
 
 // Grade the temporal variation of the source by comparing the current sb and

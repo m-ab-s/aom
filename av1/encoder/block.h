@@ -704,8 +704,15 @@ typedef struct {
   /**@{*/
   //! Luma mode cost for inter frame.
   int mbmode_cost[BLOCK_SIZE_GROUPS][INTRA_MODES];
+#if CONFIG_DERIVED_INTRA_MODE
+  int kf_is_dr_mode_cost[KF_MODE_CONTEXTS][KF_MODE_CONTEXTS][2];
+  int kf_dr_mode_cost[KF_MODE_CONTEXTS][KF_MODE_CONTEXTS][DIRECTIONAL_MODES];
+  int kf_none_dr_mode_cost[KF_MODE_CONTEXTS][KF_MODE_CONTEXTS]
+                          [NONE_DIRECTIONAL_MODES];
+#else
   //! Luma mode cost for intra frame.
   int y_mode_costs[INTRA_MODES][INTRA_MODES][INTRA_MODES];
+#endif  // CONFIG_DERIVED_INTRA_MODE
   //! Chroma mode cost
   int intra_uv_mode_cost[CFL_ALLOWED_TYPES][INTRA_MODES][UV_INTRA_MODES];
   //! filter_intra_cost

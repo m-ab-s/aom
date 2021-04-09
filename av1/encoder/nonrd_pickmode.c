@@ -1651,7 +1651,30 @@ void av1_nonrd_pick_intra_mode(AV1_COMP *cpi, MACROBLOCK *x, RD_STATS *rd_cost,
   const MB_MODE_INFO *left_mi = xd->left_mbmi;
   const PREDICTION_MODE A = av1_above_block_mode(above_mi);
   const PREDICTION_MODE L = av1_left_block_mode(left_mi);
-  bmode_costs = x->mode_costs.y_mode_costs[A][L];
+  const int above_ctx = intra_mode_context[A];
+  const int left_ctx = intra_mode_context[L];
+#if CONFIG_DERIVED_INTRA_MODE
+  const int is_dr_cost =
+      x->mode_costs.kf_is_dr_mode_cost[above_ctx][left_ctx][1];
+  const int is_none_dr_cost =
+      x->mode_costs.kf_is_dr_mode_cost[above_ctx][left_ctx][0];
+  int cost[INTRA_MODES];
+  for (int i = 0; i < INTRA_MODES; ++i) {
+    const int is_dr = av1_is_directional_mode(i);
+    if (is_dr) {
+      const int index = dr_mode_to_index[i];
+      cost[i] = is_dr_cost +
+                x->mode_costs.kf_dr_mode_cost[above_ctx][left_ctx][index];
+    } else {
+      const int index = none_dr_mode_to_index[i];
+      cost[i] = is_none_dr_cost +
+                x->mode_costs.kf_none_dr_mode_cost[above_ctx][left_ctx][index];
+    }
+  }
+  bmode_costs = cost;
+#else
+  bmode_costs = x->mode_costs.y_mode_costs[above_ctx][left_ctx];
+#endif  // CONFIG_DERIVED_INTRA_MODE
 
   av1_invalid_rd_stats(&best_rdc);
   av1_invalid_rd_stats(&this_rdc);

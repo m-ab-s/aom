@@ -51,10 +51,6 @@ static const INTERINTRA_MODE intra_to_interintra_mode[INTRA_MODES] = {
 
 #define FILTER_INTRA_SCALE_BITS 4
 
-static INLINE int av1_is_directional_mode(PREDICTION_MODE mode) {
-  return mode >= V_PRED && mode <= D67_PRED;
-}
-
 static INLINE int av1_use_angle_delta(BLOCK_SIZE bsize) {
   return bsize >= BLOCK_8X8;
 }

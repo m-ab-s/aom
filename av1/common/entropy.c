@@ -195,7 +195,15 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
     }
   }
   RESET_CDF_COUNTER(fc->switchable_interp_cdf, SWITCHABLE_FILTERS);
+#if CONFIG_DERIVED_INTRA_MODE
+  RESET_CDF_COUNTER(fc->derived_intra_mode_cdf, 2);
+  RESET_CDF_COUNTER(fc->uv_derived_intra_mode_cdf, 2);
+  RESET_CDF_COUNTER(fc->kf_is_dr_mode_cdf, 2);
+  RESET_CDF_COUNTER(fc->kf_dr_mode_cdf, DIRECTIONAL_MODES);
+  RESET_CDF_COUNTER(fc->kf_none_dr_mode_cdf, INTRA_MODES - DIRECTIONAL_MODES);
+#else
   RESET_CDF_COUNTER(fc->kf_y_cdf, INTRA_MODES);
+#endif  // CONFIG_DERIVED_INTRA_MODE
   RESET_CDF_COUNTER(fc->angle_delta_cdf, 2 * MAX_ANGLE_DELTA + 1);
 #if CONFIG_NEW_TX_PARTITION
   RESET_CDF_COUNTER(fc->intra_4way_txfm_partition_cdf[0], 4);
@@ -229,8 +237,4 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
                       p + 1);
   }
 #endif  // CONFIG_FLEX_MVRES
-#if CONFIG_DERIVED_INTRA_MODE
-  RESET_CDF_COUNTER(fc->derived_intra_mode_cdf, 2);
-  RESET_CDF_COUNTER(fc->uv_derived_intra_mode_cdf, 2);
-#endif  // CONFIG_DERIVED_INTRA_MODE
 }
