@@ -947,7 +947,7 @@ static void update_drl_index_stats(int max_drl_bits, const int16_t mode_ctx,
   uint8_t ref_frame_type = av1_ref_frame_type(mbmi->ref_frame);
   assert(mbmi->ref_mv_idx < max_drl_bits + 1);
   const int range =
-      AOMMIN(mbmi_ext->ref_mv_count[ref_frame_type] - 1, max_drl_bits);
+      av1_drl_range(mbmi_ext->ref_mv_count[ref_frame_type], max_drl_bits);
   for (int idx = 0; idx < range; ++idx) {
     aom_cdf_prob *drl_cdf =
         av1_get_drl_cdf(fc, mbmi_ext->weight[ref_frame_type], mode_ctx, idx);

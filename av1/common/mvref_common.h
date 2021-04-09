@@ -199,6 +199,15 @@ static INLINE aom_cdf_prob *av1_get_drl_cdf(FRAME_CONTEXT *ec_ctx,
   }
 }
 
+static INLINE int av1_drl_range(int num_ref_mvs, int max_drl_bits) {
+#if NO_MV_PARSING_DEP
+  (void)num_ref_mvs;
+  return max_drl_bits;
+#else
+  return AOMMIN(num_ref_mvs - 1, max_drl_bits);
+#endif  // NO_MV_PARSING_DEP
+}
+
 #else
 
 static INLINE uint8_t av1_drl_ctx(const uint16_t *ref_mv_weight, int ref_idx) {

@@ -228,7 +228,8 @@ static void read_drl_idx(int max_drl_bits, const int16_t mode_ctx,
   uint8_t ref_frame_type = av1_ref_frame_type(mbmi->ref_frame);
   mbmi->ref_mv_idx = 0;
   assert(!mbmi->skip_mode);
-  const int range = AOMMIN(dcb->ref_mv_count[ref_frame_type] - 1, max_drl_bits);
+  const int range =
+      av1_drl_range(dcb->ref_mv_count[ref_frame_type], max_drl_bits);
   for (int idx = 0; idx < range; ++idx) {
     aom_cdf_prob *drl_cdf =
         av1_get_drl_cdf(ec_ctx, xd->weight[ref_frame_type], mode_ctx, idx);

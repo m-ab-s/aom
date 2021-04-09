@@ -517,10 +517,10 @@ static const aom_cdf_prob
 
 static const aom_cdf_prob default_drl0_cdf[DRL_MODE_CONTEXTS][CDF_SIZE(2)] = {
 #if NO_MV_PARSING_DEP
-  { AOM_CDF2(20267) }, { AOM_CDF2(20267) }, { AOM_CDF2(20267) },
-  { AOM_CDF2(20267) }, { AOM_CDF2(20267) }, { AOM_CDF2(20267) },
-  { AOM_CDF2(20267) }, { AOM_CDF2(20267) }, { AOM_CDF2(20267) },
-  { AOM_CDF2(20267) }, { AOM_CDF2(20267) }, { AOM_CDF2(20267) },
+  { AOM_CDF2(18267) }, { AOM_CDF2(18267) }, { AOM_CDF2(18267) },
+  { AOM_CDF2(18267) }, { AOM_CDF2(18267) }, { AOM_CDF2(18267) },
+  { AOM_CDF2(18267) }, { AOM_CDF2(18267) }, { AOM_CDF2(18267) },
+  { AOM_CDF2(18267) }, { AOM_CDF2(18267) }, { AOM_CDF2(18267) },
 #else
   { AOM_CDF2(15648) }, { AOM_CDF2(26275) }, { AOM_CDF2(20267) }
 #endif  // NO_MV_PARSING_DEP
@@ -539,10 +539,10 @@ static const aom_cdf_prob default_drl1_cdf[DRL_MODE_CONTEXTS][CDF_SIZE(2)] = {
 
 static const aom_cdf_prob default_drl2_cdf[DRL_MODE_CONTEXTS][CDF_SIZE(2)] = {
 #if NO_MV_PARSING_DEP
-  { AOM_CDF2(20267) }, { AOM_CDF2(20267) }, { AOM_CDF2(20267) },
-  { AOM_CDF2(20267) }, { AOM_CDF2(20267) }, { AOM_CDF2(20267) },
-  { AOM_CDF2(20267) }, { AOM_CDF2(20267) }, { AOM_CDF2(20267) },
-  { AOM_CDF2(20267) }, { AOM_CDF2(20267) }, { AOM_CDF2(20267) },
+  { AOM_CDF2(22267) }, { AOM_CDF2(22267) }, { AOM_CDF2(22267) },
+  { AOM_CDF2(22267) }, { AOM_CDF2(22267) }, { AOM_CDF2(22267) },
+  { AOM_CDF2(22267) }, { AOM_CDF2(22267) }, { AOM_CDF2(22267) },
+  { AOM_CDF2(22267) }, { AOM_CDF2(22267) }, { AOM_CDF2(22267) },
 #else
   { AOM_CDF2(18355) }, { AOM_CDF2(18090) }, { AOM_CDF2(13689) }
 #endif
