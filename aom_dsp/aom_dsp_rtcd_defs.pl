@@ -1255,9 +1255,7 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
   specialize qw/aom_variance32x64     sse2 avx2 neon msa/;
   specialize qw/aom_variance32x32     sse2 avx2 neon msa/;
   specialize qw/aom_variance32x16     sse2 avx2 neon msa/;
-  if (aom_config("CONFIG_EXT_RECUR_PARTITIONS") ne "yes") {
-    specialize qw/aom_variance16x32   sse2 avx2 neon msa/;
-  } # CONFIG_EXT_RECUR_PARTITIONS
+  specialize qw/aom_variance16x32     sse2 avx2 neon msa/;
   specialize qw/aom_variance16x16     sse2 avx2 neon msa/;
   specialize qw/aom_variance16x8      sse2 avx2 neon msa/;
   specialize qw/aom_variance8x16      sse2      neon msa/;
@@ -1269,7 +1267,6 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
   specialize qw/aom_sub_pixel_variance128x128   avx2 neon msa sse2 ssse3/;
   specialize qw/aom_sub_pixel_variance128x64    avx2 neon msa sse2 ssse3/;
   specialize qw/aom_sub_pixel_variance64x128    avx2 neon msa sse2 ssse3/;
-if (aom_config("CONFIG_EXT_RECUR_PARTITIONS") ne "yes") {
   specialize qw/aom_sub_pixel_variance64x64     avx2 neon msa sse2 ssse3/;
   specialize qw/aom_sub_pixel_variance64x32     avx2 neon msa sse2 ssse3/;
   specialize qw/aom_sub_pixel_variance32x64     avx2 neon msa sse2 ssse3/;
@@ -1278,7 +1275,6 @@ if (aom_config("CONFIG_EXT_RECUR_PARTITIONS") ne "yes") {
   specialize qw/aom_sub_pixel_variance16x32     avx2 neon msa sse2 ssse3/;
   specialize qw/aom_sub_pixel_variance16x16     avx2 neon msa sse2 ssse3/;
   specialize qw/aom_sub_pixel_variance16x8      avx2 neon msa sse2 ssse3/;
-} # CONFIG_EXT_RECUR_PARTITIONS
   specialize qw/aom_sub_pixel_variance8x16           neon msa sse2 ssse3/;
   specialize qw/aom_sub_pixel_variance8x8            neon msa sse2 ssse3/;
   specialize qw/aom_sub_pixel_variance8x4            neon msa sse2 ssse3/;
@@ -1288,7 +1284,6 @@ if (aom_config("CONFIG_EXT_RECUR_PARTITIONS") ne "yes") {
   specialize qw/aom_sub_pixel_avg_variance128x128 avx2     sse2 ssse3/;
   specialize qw/aom_sub_pixel_avg_variance128x64  avx2     sse2 ssse3/;
   specialize qw/aom_sub_pixel_avg_variance64x128  avx2     sse2 ssse3/;
-if (aom_config("CONFIG_EXT_RECUR_PARTITIONS") ne "yes") {
   specialize qw/aom_sub_pixel_avg_variance64x64   avx2 msa sse2 ssse3/;
   specialize qw/aom_sub_pixel_avg_variance64x32   avx2 msa sse2 ssse3/;
   specialize qw/aom_sub_pixel_avg_variance32x64   avx2 msa sse2 ssse3/;
@@ -1297,7 +1292,6 @@ if (aom_config("CONFIG_EXT_RECUR_PARTITIONS") ne "yes") {
   specialize qw/aom_sub_pixel_avg_variance16x32        msa sse2 ssse3/;
   specialize qw/aom_sub_pixel_avg_variance16x16        msa sse2 ssse3/;
   specialize qw/aom_sub_pixel_avg_variance16x8         msa sse2 ssse3/;
-} # CONFIG_EXT_RECUR_PARTITIONS
   specialize qw/aom_sub_pixel_avg_variance8x16         msa sse2 ssse3/;
   specialize qw/aom_sub_pixel_avg_variance8x8          msa sse2 ssse3/;
   specialize qw/aom_sub_pixel_avg_variance8x4          msa sse2 ssse3/;
@@ -1369,9 +1363,7 @@ if (aom_config("CONFIG_EXT_RECUR_PARTITIONS") ne "yes") {
       if ($w == 4 && $h == 4) {
           specialize "aom_highbd_${bd}_variance${w}x${h}", "sse4_1";
         }
-      if ($w != 128 && $h != 128 && $w != 4 &&
-          ((aom_config("CONFIG_EXT_RECUR_PARTITIONS") ne "yes") || (!($w == 8 && $h == 16) && !($w == 16 && $h == 32)))) {
-        # 8x16 and 16x32 functions have an alignment issue with CONFIG_EXT_RECUR_PARTITIONS experiment. So disabled for now.
+      if ($w != 128 && $h != 128 && $w != 4) {
         specialize "aom_highbd_${bd}_sub_pixel_variance${w}x${h}", qw/sse2/;
         specialize "aom_highbd_${bd}_sub_pixel_avg_variance${w}x${h}", qw/sse2/;
       }
