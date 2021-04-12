@@ -1061,10 +1061,6 @@ AV1_COMP *av1_create_compressor(AV1EncoderConfig *oxcf, BufferPool *const pool,
   CHECK_MEM_ERROR(cm, cpi->td.mb.mbmi_ext,
                   aom_calloc(sb_mi_size, sizeof(*cpi->td.mb.mbmi_ext)));
 
-#if CONFIG_EXT_RECUR_PARTITIONS
-  cpi->td.mb.reuse_inter_mode_cache_type = cpi->sf.inter_sf.reuse_erp_mode_flag;
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
-
   av1_set_speed_features_framesize_independent(cpi, oxcf->speed);
   av1_set_speed_features_framesize_dependent(cpi, oxcf->speed);
 
