@@ -566,7 +566,6 @@ TEST_P(AV1ConvolveCopyTest, RunTest) { RunTest(); }
 INSTANTIATE_TEST_SUITE_P(C, AV1ConvolveCopyTest,
                          BuildLowbdParams(aom_convolve_copy_c));
 
-#if !CONFIG_EXT_RECUR_PARTITIONS
 #if HAVE_SSE2
 INSTANTIATE_TEST_SUITE_P(SSE2, AV1ConvolveCopyTest,
                          BuildLowbdParams(aom_convolve_copy_sse2));
@@ -591,7 +590,6 @@ INSTANTIATE_TEST_SUITE_P(MSA, AV1ConvolveCopyTest,
 INSTANTIATE_TEST_SUITE_P(DSPR2, AV1ConvolveCopyTest,
                          BuildLowbdParams(aom_convolve_copy_dspr2));
 #endif
-#endif  // !CONFIG_EXT_RECUR_PARTITIONS
 
 ///////////////////////////////////////////////////////////////
 // Single reference convolve-copy functions (high bit-depth)
@@ -622,7 +620,6 @@ TEST_P(AV1ConvolveCopyHighbdTest, RunTest) { RunTest(); }
 INSTANTIATE_TEST_SUITE_P(C, AV1ConvolveCopyHighbdTest,
                          BuildHighbdParams(aom_highbd_convolve_copy_c));
 
-#if !CONFIG_EXT_RECUR_PARTITIONS
 #if HAVE_SSE2
 INSTANTIATE_TEST_SUITE_P(SSE2, AV1ConvolveCopyHighbdTest,
                          BuildHighbdParams(aom_highbd_convolve_copy_sse2));
@@ -632,7 +629,6 @@ INSTANTIATE_TEST_SUITE_P(SSE2, AV1ConvolveCopyHighbdTest,
 INSTANTIATE_TEST_SUITE_P(AVX2, AV1ConvolveCopyHighbdTest,
                          BuildHighbdParams(aom_highbd_convolve_copy_avx2));
 #endif
-#endif  // !CONFIG_EXT_RECUR_PARTITIONS
 
 /////////////////////////////////////////////////////////
 // Single reference convolve-2D functions (low bit-depth)
