@@ -88,10 +88,13 @@ cmake_version() {
 
 # Echoes current git version as reported by running 'git describe', or the
 # version used by the cmake build when git is unavailable.
+# Note: version.cmake strips optional prefix before the version. So,
+# source_version() function needs to do the same, so that the strings can be
+# compared in check_version_strings() later.
 source_version() {
   if git --version > /dev/null 2>&1; then
     (cd "$(dirname "${0}")"
-    git describe)
+    git describe | sed 's/.*-v/v/')
   else
     cmake_version
   fi
