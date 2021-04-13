@@ -1791,7 +1791,7 @@ static int64_t motion_mode_rd(
                            : (x->mode_costs.rotation_degree_cost[rot_index] +
                               x->mode_costs.warp_rotation_cost[bsize][1]);
           if (av1_txfm_search(cpi, x, bsize, rd_stats, rd_stats_y, rd_stats_uv,
-                              tmp_rate2, ref_best_rd) &&
+                              tmp_rate2, rdcost) &&
               rd_stats_y->rate != INT_MAX) {
             const int64_t this_rd =
                 RDCOST(x->rdmult, rd_stats->rate, rd_stats->dist);
