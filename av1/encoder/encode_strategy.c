@@ -1267,7 +1267,7 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
       cpi->common.current_frame.frame_number + order_offset;
   RefFrameMapPair ref_frame_map_pairs[REF_FRAMES];
   init_ref_map_pair(&cpi->common, ref_frame_map_pairs,
-                    gf_group->update_type[gf_group->index] == KEY_FRAME);
+                    frame_params.frame_type == KEY_FRAME);
 
   if (!is_stat_generation_stage(cpi)) {
     const RefCntBuffer *ref_frames[INTER_REFS_PER_FRAME];

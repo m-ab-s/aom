@@ -340,6 +340,9 @@ typedef struct MB_MODE_INFO {
   int8_t rotation;
 #endif  // CONFIG_EXT_ROTATION
   PARTITION_TYPE partition;
+#if CONFIG_NEW_REF_SIGNALING
+  MV_REFERENCE_FRAME_NRS ref_frame_nrs[2];
+#endif  // CONFIG_NEW_REF_SIGNALING
   MV_REFERENCE_FRAME ref_frame[2];
   FILTER_INTRA_MODE_INFO filter_intra_mode_info;
   int8_t skip_txfm;

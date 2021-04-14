@@ -26,6 +26,12 @@ typedef struct {
   int disp_order;
 } RefFrameMapPair;
 
+static const MV_REFERENCE_FRAME
+    ref_frame_priority_order[INTER_REFS_PER_FRAME] = {
+      LAST_FRAME,    ALTREF_FRAME, BWDREF_FRAME, GOLDEN_FRAME,
+      ALTREF2_FRAME, LAST2_FRAME,  LAST3_FRAME,
+    };
+
 static INLINE void init_ref_map_pair(
     AV1_COMMON *cm, RefFrameMapPair ref_frame_map_pairs[REF_FRAMES],
     int is_key) {
@@ -68,6 +74,23 @@ void av1_get_ref_frames(AV1_COMMON *const cm, int cur_frame_disp,
 void av1_init_new_ref_frame_map(AV1_COMMON *const cm,
                                 RefFrameMapPair *ref_frame_map_pairs,
                                 int cur_frame_disp);
+
+static INLINE int convert_named_ref_to_ranked_ref_index(
+    const NewRefFramesData *const ref_frame_data, int named_idx) {
+  // NONE_FRAME and INVALID_IDX are both equal to -1, simplify by using only
+  // INVALID_IDX for this purpose
+  if (named_idx == NONE_FRAME) return INVALID_IDX;
+  if (named_idx == INVALID_IDX) return INVALID_IDX;
+  if (named_idx == INTRA_FRAME) return INTRA_FRAME_NRS;
+  return ref_frame_data->named_to_ranked_refs[named_idx];
+}
+
+static INLINE int convert_ranked_ref_to_named_ref_index(
+    const NewRefFramesData *const ref_frame_data, int ranked_idx) {
+  if (ranked_idx == INVALID_IDX) return INVALID_IDX;
+  if (ranked_idx == INTRA_FRAME_NRS) return INTRA_FRAME;
+  return ref_frame_data->ranked_to_named_refs[ranked_idx];
+}
 #endif  // NEW_REF_SIGNALING
 
 static INLINE int get_segment_id(const CommonModeInfoParams *const mi_params,

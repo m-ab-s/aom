@@ -3141,12 +3141,6 @@ static INLINE int get_max_allowed_ref_frames(
   return AOMMIN(max_allowed_refs_for_given_speed, max_reference_frames);
 }
 
-static const MV_REFERENCE_FRAME
-    ref_frame_priority_order[INTER_REFS_PER_FRAME] = {
-      LAST_FRAME,    ALTREF_FRAME, BWDREF_FRAME, GOLDEN_FRAME,
-      ALTREF2_FRAME, LAST2_FRAME,  LAST3_FRAME,
-    };
-
 static INLINE int get_ref_frame_flags(const SPEED_FEATURES *const sf,
                                       const YV12_BUFFER_CONFIG **ref_frames,
                                       const int ext_ref_frame_flags) {

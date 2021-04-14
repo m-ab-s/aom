@@ -51,7 +51,8 @@ typedef struct {
   int score;
   int index;
   int distance;
-  MV_REFERENCE_FRAME named_ref;
+  MV_REFERENCE_FRAME named_ref[MAX_REF_FRAMES_NRS];
+  int n_named_refs;
 } RefScoreData;
 /*!\endcond */
 
@@ -86,12 +87,14 @@ void av1_init_new_ref_frame_map(AV1_COMMON *cm,
     scores[n_ranked].index = i;
     scores[n_ranked].score = score;
     scores[n_ranked].distance = disp_diff;
-    for (MV_REFERENCE_FRAME named_ref = LAST_FRAME; named_ref <= ALTREF_FRAME;
-         named_ref++) {
+    for (int ref_idx = 0; ref_idx < INTER_REFS_PER_FRAME; ref_idx++) {
+      int named_ref = ref_frame_priority_order[ref_idx];
       const RefCntBuffer *const buf = get_ref_frame_buf(cm, named_ref);
       if (buf == NULL) continue;
-      if ((int)buf->display_order_hint == ref_disp)
-        scores[n_ranked].named_ref = named_ref;
+      if ((int)buf->display_order_hint == ref_disp) {
+        scores[n_ranked].named_ref[scores[n_ranked].n_named_refs] = named_ref;
+        scores[n_ranked].n_named_refs++;
+      }
     }
     n_ranked++;
   }
@@ -105,8 +108,10 @@ void av1_init_new_ref_frame_map(AV1_COMMON *cm,
   int n_past = 0;
   for (int i = 0; i < n_ranked; i++) {
     cm->new_ref_frame_data.ref_frame_score_map[i] = scores[i].index;
-    cm->new_ref_frame_data.named_to_ranked_refs[scores[i].named_ref] = i;
-    cm->new_ref_frame_data.ranked_to_named_refs[i] = scores[i].named_ref;
+    cm->new_ref_frame_data.ranked_to_named_refs[i] = scores[i].named_ref[0];
+    for (int j = 0; j < scores[i].n_named_refs; j++) {
+      cm->new_ref_frame_data.named_to_ranked_refs[scores[i].named_ref[j]] = i;
+    }
     if (scores[i].distance < 0) {
       cm->new_ref_frame_data.future_refs[n_future] = i;
       n_future++;

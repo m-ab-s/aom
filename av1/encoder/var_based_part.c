@@ -740,6 +740,18 @@ static void setup_planes(AV1_COMP *cpi, MACROBLOCK *x, unsigned int *y_sad,
                        get_ref_scale_factors(cm, LAST_FRAME), num_planes, NULL);
   mi->ref_frame[0] = LAST_FRAME;
   mi->ref_frame[1] = NONE_FRAME;
+#if CONFIG_NEW_REF_SIGNALING
+  mi->ref_frame_nrs[0] = convert_named_ref_to_ranked_ref_index(
+      &cm->new_ref_frame_data, mi->ref_frame[0]);
+  mi->ref_frame_nrs[1] = convert_named_ref_to_ranked_ref_index(
+      &cm->new_ref_frame_data, mi->ref_frame[1]);
+  assert(convert_ranked_ref_to_named_ref_index(&cm->new_ref_frame_data,
+                                               mi->ref_frame_nrs[0]) ==
+         mi->ref_frame[0]);
+  assert(convert_ranked_ref_to_named_ref_index(&cm->new_ref_frame_data,
+                                               mi->ref_frame_nrs[1]) ==
+         mi->ref_frame[1]);
+#endif  // CONFIG_NEW_REF_SIGNALING
   mi->sb_type = cm->seq_params.sb_size;
   mi->mv[0].as_int = 0;
 #if CONFIG_REMOVE_DUAL_FILTER
@@ -767,6 +779,13 @@ static void setup_planes(AV1_COMP *cpi, MACROBLOCK *x, unsigned int *y_sad,
                          get_ref_scale_factors(cm, GOLDEN_FRAME), num_planes,
                          NULL);
     mi->ref_frame[0] = GOLDEN_FRAME;
+#if CONFIG_NEW_REF_SIGNALING
+    mi->ref_frame_nrs[0] = convert_named_ref_to_ranked_ref_index(
+        &cm->new_ref_frame_data, mi->ref_frame[0]);
+    assert(convert_ranked_ref_to_named_ref_index(&cm->new_ref_frame_data,
+                                                 mi->ref_frame_nrs[0]) ==
+           mi->ref_frame[0]);
+#endif  // CONFIG_NEW_REF_SIGNALING
     mi->mv[0].as_int = 0;
     *y_sad = *y_sad_g;
     *ref_frame_partition = GOLDEN_FRAME;

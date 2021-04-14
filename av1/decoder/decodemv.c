@@ -905,6 +905,18 @@ static void read_intra_frame_mode_info(AV1_COMMON *const cm,
 
   mbmi->ref_frame[0] = INTRA_FRAME;
   mbmi->ref_frame[1] = NONE_FRAME;
+#if CONFIG_NEW_REF_SIGNALING
+  mbmi->ref_frame_nrs[0] = convert_named_ref_to_ranked_ref_index(
+      &cm->new_ref_frame_data, mbmi->ref_frame[0]);
+  mbmi->ref_frame_nrs[1] = convert_named_ref_to_ranked_ref_index(
+      &cm->new_ref_frame_data, mbmi->ref_frame[1]);
+  assert(convert_ranked_ref_to_named_ref_index(&cm->new_ref_frame_data,
+                                               mbmi->ref_frame_nrs[0]) ==
+         mbmi->ref_frame[0]);
+  assert(convert_ranked_ref_to_named_ref_index(&cm->new_ref_frame_data,
+                                               mbmi->ref_frame_nrs[1]) ==
+         mbmi->ref_frame[1]);
+#endif  // CONFIG_NEW_REF_SIGNALING
   mbmi->palette_mode_info.palette_size[0] = 0;
   mbmi->palette_mode_info.palette_size[1] = 0;
   mbmi->filter_intra_mode_info.use_filter_intra = 0;
@@ -1235,6 +1247,18 @@ static void read_intra_block_mode_info(AV1_COMMON *const cm,
 
   mbmi->ref_frame[0] = INTRA_FRAME;
   mbmi->ref_frame[1] = NONE_FRAME;
+#if CONFIG_NEW_REF_SIGNALING
+  mbmi->ref_frame_nrs[0] = convert_named_ref_to_ranked_ref_index(
+      &cm->new_ref_frame_data, mbmi->ref_frame[0]);
+  mbmi->ref_frame_nrs[1] = convert_named_ref_to_ranked_ref_index(
+      &cm->new_ref_frame_data, mbmi->ref_frame[1]);
+  assert(convert_ranked_ref_to_named_ref_index(&cm->new_ref_frame_data,
+                                               mbmi->ref_frame_nrs[0]) ==
+         mbmi->ref_frame[0]);
+  assert(convert_ranked_ref_to_named_ref_index(&cm->new_ref_frame_data,
+                                               mbmi->ref_frame_nrs[1]) ==
+         mbmi->ref_frame[1]);
+#endif  // CONFIG_NEW_REF_SIGNALING
 #if CONFIG_DERIVED_INTRA_MODE
   mbmi->use_derived_intra_mode[0] = 0;
   mbmi->use_derived_intra_mode[1] = 0;
@@ -1510,6 +1534,18 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
   av1_collect_neighbors_ref_counts(xd);
 
   read_ref_frames(cm, xd, r, mbmi->segment_id, mbmi->ref_frame);
+#if CONFIG_NEW_REF_SIGNALING
+  mbmi->ref_frame_nrs[0] = convert_named_ref_to_ranked_ref_index(
+      &cm->new_ref_frame_data, mbmi->ref_frame[0]);
+  mbmi->ref_frame_nrs[1] = convert_named_ref_to_ranked_ref_index(
+      &cm->new_ref_frame_data, mbmi->ref_frame[1]);
+  assert(convert_ranked_ref_to_named_ref_index(&cm->new_ref_frame_data,
+                                               mbmi->ref_frame_nrs[0]) ==
+         mbmi->ref_frame[0]);
+  assert(convert_ranked_ref_to_named_ref_index(&cm->new_ref_frame_data,
+                                               mbmi->ref_frame_nrs[1]) ==
+         mbmi->ref_frame[1]);
+#endif  // CONFIG_NEW_REF_SIGNALING
   const int is_compound = has_second_ref(mbmi);
 
   const MV_REFERENCE_FRAME ref_frame = av1_ref_frame_type(mbmi->ref_frame);

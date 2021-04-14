@@ -748,6 +748,18 @@ int_mv av1_simple_motion_search(AV1_COMP *const cpi, MACROBLOCK *x, int mi_row,
   mbmi->ref_frame[0] = ref;
   mbmi->ref_frame[1] = NONE_FRAME;
   mbmi->motion_mode = SIMPLE_TRANSLATION;
+#if CONFIG_NEW_REF_SIGNALING
+  mbmi->ref_frame_nrs[0] = convert_named_ref_to_ranked_ref_index(
+      &cm->new_ref_frame_data, mbmi->ref_frame[0]);
+  mbmi->ref_frame_nrs[1] = convert_named_ref_to_ranked_ref_index(
+      &cm->new_ref_frame_data, mbmi->ref_frame[1]);
+  assert(convert_ranked_ref_to_named_ref_index(&cm->new_ref_frame_data,
+                                               mbmi->ref_frame_nrs[0]) ==
+         mbmi->ref_frame[0]);
+  assert(convert_ranked_ref_to_named_ref_index(&cm->new_ref_frame_data,
+                                               mbmi->ref_frame_nrs[1]) ==
+         mbmi->ref_frame[1]);
+#endif  // CONFIG_NEW_REF_SIGNALING
 #if CONFIG_REMOVE_DUAL_FILTER
   mbmi->interp_fltr = EIGHTTAP_REGULAR;
 #else
@@ -880,6 +892,18 @@ int_mv av1_simple_motion_search_ext(AV1_COMP *const cpi,
   mbmi->sb_type = bsize;
   mbmi->ref_frame[0] = ref;
   mbmi->ref_frame[1] = NONE_FRAME;
+#if CONFIG_NEW_REF_SIGNALING
+  mbmi->ref_frame_nrs[0] = convert_named_ref_to_ranked_ref_index(
+      &cm->new_ref_frame_data, mbmi->ref_frame[0]);
+  mbmi->ref_frame_nrs[1] = convert_named_ref_to_ranked_ref_index(
+      &cm->new_ref_frame_data, mbmi->ref_frame[1]);
+  assert(convert_ranked_ref_to_named_ref_index(&cm->new_ref_frame_data,
+                                               mbmi->ref_frame_nrs[0]) ==
+         mbmi->ref_frame[0]);
+  assert(convert_ranked_ref_to_named_ref_index(&cm->new_ref_frame_data,
+                                               mbmi->ref_frame_nrs[1]) ==
+         mbmi->ref_frame[1]);
+#endif  // CONFIG_NEW_REF_SIGNALING
   mbmi->motion_mode = SIMPLE_TRANSLATION;
 #if CONFIG_REMOVE_DUAL_FILTER
   mbmi->interp_fltr = EIGHTTAP_REGULAR;

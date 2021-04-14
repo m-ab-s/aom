@@ -693,11 +693,25 @@ static int handle_wedge_inter_intra_mode(
       // Set ref_frame[1] to NONE_FRAME temporarily so that the intra
       // predictor is not calculated again in av1_enc_build_inter_predictor().
       mbmi->ref_frame[1] = NONE_FRAME;
+#if CONFIG_NEW_REF_SIGNALING
+      mbmi->ref_frame_nrs[1] = convert_named_ref_to_ranked_ref_index(
+          &cm->new_ref_frame_data, mbmi->ref_frame[1]);
+      assert(convert_ranked_ref_to_named_ref_index(&cm->new_ref_frame_data,
+                                                   mbmi->ref_frame_nrs[1]) ==
+             mbmi->ref_frame[1]);
+#endif  // CONFIG_NEW_REF_SIGNALING
       const int mi_row = xd->mi_row;
       const int mi_col = xd->mi_col;
       av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, orig_dst, bsize,
                                     AOM_PLANE_Y, AOM_PLANE_Y);
       mbmi->ref_frame[1] = INTRA_FRAME;
+#if CONFIG_NEW_REF_SIGNALING
+      mbmi->ref_frame_nrs[1] = convert_named_ref_to_ranked_ref_index(
+          &cm->new_ref_frame_data, mbmi->ref_frame[1]);
+      assert(convert_ranked_ref_to_named_ref_index(&cm->new_ref_frame_data,
+                                                   mbmi->ref_frame_nrs[1]) ==
+             mbmi->ref_frame[1]);
+#endif  // CONFIG_NEW_REF_SIGNALING
       av1_combine_interintra(xd, bsize, 0, xd->plane[AOM_PLANE_Y].dst.buf,
                              xd->plane[AOM_PLANE_Y].dst.stride, intrapred, bw);
       model_rd_sb_fn[MODELRD_TYPE_MASKED_COMPOUND](
@@ -752,6 +766,13 @@ int av1_handle_inter_intra_mode(const AV1_COMP *const cpi, MACROBLOCK *const x,
 
   // Single reference inter prediction
   mbmi->ref_frame[1] = NONE_FRAME;
+#if CONFIG_NEW_REF_SIGNALING
+  mbmi->ref_frame_nrs[1] = convert_named_ref_to_ranked_ref_index(
+      &cm->new_ref_frame_data, mbmi->ref_frame[1]);
+  assert(convert_ranked_ref_to_named_ref_index(&cm->new_ref_frame_data,
+                                               mbmi->ref_frame_nrs[1]) ==
+         mbmi->ref_frame[1]);
+#endif  // CONFIG_NEW_REF_SIGNALING
   xd->plane[0].dst.buf = tmp_buf;
   xd->plane[0].dst.stride = bw;
   av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize,
@@ -761,6 +782,13 @@ int av1_handle_inter_intra_mode(const AV1_COMP *const cpi, MACROBLOCK *const x,
   // Restore the buffers for intra prediction
   restore_dst_buf(xd, *orig_dst, num_planes);
   mbmi->ref_frame[1] = INTRA_FRAME;
+#if CONFIG_NEW_REF_SIGNALING
+  mbmi->ref_frame_nrs[1] = convert_named_ref_to_ranked_ref_index(
+      &cm->new_ref_frame_data, mbmi->ref_frame[1]);
+  assert(convert_ranked_ref_to_named_ref_index(&cm->new_ref_frame_data,
+                                               mbmi->ref_frame_nrs[1]) ==
+         mbmi->ref_frame[1]);
+#endif  // CONFIG_NEW_REF_SIGNALING
   INTERINTRA_MODE best_interintra_mode =
       args->inter_intra_mode[mbmi->ref_frame[0]];
 

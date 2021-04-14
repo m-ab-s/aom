@@ -36,6 +36,9 @@ typedef struct insp_mi_data insp_mi_data;
 struct insp_mi_data {
   insp_mv mv[2];
   int16_t ref_frame[2];
+#if CONFIG_NEW_REF_SIGNALING
+  MV_REFERENCE_FRAME_NRS_16 ref_frame_nrs[2];
+#endif  // CONFIG_NEW_REF_SIGNALING
   int16_t mode;
   int16_t uv_mode;
   int16_t sb_type;

@@ -1023,6 +1023,18 @@ static INLINE void init_mbmi(MB_MODE_INFO *mbmi, PREDICTION_MODE pred_mode,
   mbmi->uv_mode = UV_DC_PRED;
   mbmi->ref_frame[0] = ref_frame0;
   mbmi->ref_frame[1] = ref_frame1;
+#if CONFIG_NEW_REF_SIGNALING
+  mbmi->ref_frame_nrs[0] = convert_named_ref_to_ranked_ref_index(
+      &cm->new_ref_frame_data, mbmi->ref_frame[0]);
+  mbmi->ref_frame_nrs[1] = convert_named_ref_to_ranked_ref_index(
+      &cm->new_ref_frame_data, mbmi->ref_frame[1]);
+  assert(convert_ranked_ref_to_named_ref_index(&cm->new_ref_frame_data,
+                                               mbmi->ref_frame_nrs[0]) ==
+         mbmi->ref_frame[0]);
+  assert(convert_ranked_ref_to_named_ref_index(&cm->new_ref_frame_data,
+                                               mbmi->ref_frame_nrs[1]) ==
+         mbmi->ref_frame[1]);
+#endif  // CONFIG_NEW_REF_SIGNALING
   pmi->palette_size[0] = 0;
   pmi->palette_size[1] = 0;
   mbmi->filter_intra_mode_info.use_filter_intra = 0;
@@ -1885,6 +1897,18 @@ static void estimate_intra_mode(
     mi->mode = this_mode;
     mi->ref_frame[0] = INTRA_FRAME;
     mi->ref_frame[1] = NONE_FRAME;
+#if CONFIG_NEW_REF_SIGNALING
+    mi->ref_frame_nrs[0] = convert_named_ref_to_ranked_ref_index(
+        &cm->new_ref_frame_data, mi->ref_frame[0]);
+    mi->ref_frame_nrs[1] = convert_named_ref_to_ranked_ref_index(
+        &cm->new_ref_frame_data, mi->ref_frame[1]);
+    assert(convert_ranked_ref_to_named_ref_index(&cm->new_ref_frame_data,
+                                                 mi->ref_frame_nrs[0]) ==
+           mi->ref_frame[0]);
+    assert(convert_ranked_ref_to_named_ref_index(&cm->new_ref_frame_data,
+                                                 mi->ref_frame_nrs[1]) ==
+           mi->ref_frame[1]);
+#endif  // CONFIG_NEW_REF_SIGNALING
 
     av1_invalid_rd_stats(&this_rdc);
     args.mode = this_mode;
@@ -2108,6 +2132,18 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
   mi->sb_type = bsize;
   mi->ref_frame[0] = NONE_FRAME;
   mi->ref_frame[1] = NONE_FRAME;
+#if CONFIG_NEW_REF_SIGNALING
+  mi->ref_frame_nrs[0] = convert_named_ref_to_ranked_ref_index(
+      &cm->new_ref_frame_data, mi->ref_frame[0]);
+  mi->ref_frame_nrs[1] = convert_named_ref_to_ranked_ref_index(
+      &cm->new_ref_frame_data, mi->ref_frame[1]);
+  assert(convert_ranked_ref_to_named_ref_index(&cm->new_ref_frame_data,
+                                               mi->ref_frame_nrs[0]) ==
+         mi->ref_frame[0]);
+  assert(convert_ranked_ref_to_named_ref_index(&cm->new_ref_frame_data,
+                                               mi->ref_frame_nrs[1]) ==
+         mi->ref_frame[1]);
+#endif  // CONFIG_NEW_REF_SIGNALING
 
   const int gf_temporal_ref = is_same_gf_and_last_scale(cm);
 
@@ -2180,9 +2216,18 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
 #endif
     mi->mode = this_mode;
     mi->ref_frame[0] = ref_frame;
+#if CONFIG_NEW_REF_SIGNALING
+    mi->ref_frame_nrs[0] = convert_named_ref_to_ranked_ref_index(
+        &cm->new_ref_frame_data, mi->ref_frame[0]);
+#endif  // CONFIG_NEW_REF_SIGNALING
 
     if (!use_ref_frame_mask[ref_frame]) continue;
 
+#if CONFIG_NEW_REF_SIGNALING
+    assert(convert_ranked_ref_to_named_ref_index(&cm->new_ref_frame_data,
+                                                 mi->ref_frame_nrs[0]) ==
+           mi->ref_frame[0]);
+#endif  // CONFIG_NEW_REF_SIGNALING
     // Skip non-zero motion for SVC if skip_nonzeromv_ref is set.
     if (cpi->use_svc && frame_mv[this_mode][ref_frame].as_int != 0) {
       if (ref_frame == LAST_FRAME && cpi->svc.skip_nonzeromv_last)
@@ -2231,6 +2276,18 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
 
     mi->ref_frame[0] = ref_frame;
     mi->ref_frame[1] = NONE_FRAME;
+#if CONFIG_NEW_REF_SIGNALING
+    mi->ref_frame_nrs[0] = convert_named_ref_to_ranked_ref_index(
+        &cm->new_ref_frame_data, mi->ref_frame[0]);
+    mi->ref_frame_nrs[1] = convert_named_ref_to_ranked_ref_index(
+        &cm->new_ref_frame_data, mi->ref_frame[1]);
+    assert(convert_ranked_ref_to_named_ref_index(&cm->new_ref_frame_data,
+                                                 mi->ref_frame_nrs[0]) ==
+           mi->ref_frame[0]);
+    assert(convert_ranked_ref_to_named_ref_index(&cm->new_ref_frame_data,
+                                                 mi->ref_frame_nrs[1]) ==
+           mi->ref_frame[1]);
+#endif  // CONFIG_NEW_REF_SIGNALING
     set_ref_ptrs(cm, xd, ref_frame, NONE_FRAME);
 
     if (this_mode == NEWMV) {
@@ -2418,6 +2475,13 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
   mi->tx_size = best_pickmode.best_tx_size;
   memset(mi->inter_tx_size, mi->tx_size, sizeof(mi->inter_tx_size));
   mi->ref_frame[0] = best_pickmode.best_ref_frame;
+#if CONFIG_NEW_REF_SIGNALING
+  mi->ref_frame_nrs[0] = convert_named_ref_to_ranked_ref_index(
+      &cm->new_ref_frame_data, mi->ref_frame[0]);
+  assert(convert_ranked_ref_to_named_ref_index(&cm->new_ref_frame_data,
+                                               mi->ref_frame_nrs[0]) ==
+         mi->ref_frame[0]);
+#endif  // CONFIG_NEW_REF_SIGNALING
   mi->mv[0].as_int =
       frame_mv[best_pickmode.best_mode][best_pickmode.best_ref_frame].as_int;
 
@@ -2435,6 +2499,13 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
   pd->dst = orig_dst;
   mi->mode = best_pickmode.best_mode;
   mi->ref_frame[0] = best_pickmode.best_ref_frame;
+#if CONFIG_NEW_REF_SIGNALING
+  mi->ref_frame_nrs[0] = convert_named_ref_to_ranked_ref_index(
+      &cm->new_ref_frame_data, mi->ref_frame[0]);
+  assert(convert_ranked_ref_to_named_ref_index(&cm->new_ref_frame_data,
+                                               mi->ref_frame_nrs[0]) ==
+         mi->ref_frame[0]);
+#endif  // CONFIG_NEW_REF_SIGNALING
   txfm_info->skip_txfm = best_rdc.skip_txfm;
 
   if (!is_inter_block(mi)) {

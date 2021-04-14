@@ -281,6 +281,13 @@ static AOM_INLINE void mode_estimation(AV1_COMP *cpi, MACROBLOCK *x, int mi_row,
 
   // Intra prediction search
   xd->mi[0]->ref_frame[0] = INTRA_FRAME;
+#if CONFIG_NEW_REF_SIGNALING
+  xd->mi[0]->ref_frame_nrs[0] = convert_named_ref_to_ranked_ref_index(
+      &cm->new_ref_frame_data, xd->mi[0]->ref_frame[0]);
+  assert(convert_ranked_ref_to_named_ref_index(&cm->new_ref_frame_data,
+                                               xd->mi[0]->ref_frame_nrs[0]) ==
+         xd->mi[0]->ref_frame[0]);
+#endif  // CONFIG_NEW_REF_SIGNALING
 
   // Pre-load the bottom left line.
   if (xd->left_available &&
@@ -322,6 +329,13 @@ static AOM_INLINE void mode_estimation(AV1_COMP *cpi, MACROBLOCK *x, int mi_row,
 
   // Motion compensated prediction
   xd->mi[0]->ref_frame[0] = INTRA_FRAME;
+#if CONFIG_NEW_REF_SIGNALING
+  xd->mi[0]->ref_frame_nrs[0] = convert_named_ref_to_ranked_ref_index(
+      &cm->new_ref_frame_data, xd->mi[0]->ref_frame[0]);
+  assert(convert_ranked_ref_to_named_ref_index(&cm->new_ref_frame_data,
+                                               xd->mi[0]->ref_frame_nrs[0]) ==
+         xd->mi[0]->ref_frame[0]);
+#endif  // CONFIG_NEW_REF_SIGNALING
 
   int best_rf_idx = -1;
   int_mv best_mv;
@@ -450,6 +464,7 @@ static AOM_INLINE void mode_estimation(AV1_COMP *cpi, MACROBLOCK *x, int mi_row,
       if (best_inter_cost < best_intra_cost) {
         best_mode = NEWMV;
         xd->mi[0]->ref_frame[0] = best_rf_idx + LAST_FRAME;
+        // TODO(sarahparker) Convert this ref frame index for NEW_REF_SIGNALING
         xd->mi[0]->mv[0].as_int = best_mv.as_int;
       }
     }
