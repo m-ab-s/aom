@@ -199,10 +199,13 @@ static INLINE aom_cdf_prob *av1_get_drl_cdf(FRAME_CONTEXT *ec_ctx,
   }
 }
 
-static INLINE int av1_drl_range(int num_ref_mvs, int max_drl_bits) {
-#if NO_MV_PARSING_DEP
+static INLINE int av1_drl_range(int num_ref_mvs, int max_est_ref_mvs,
+                                int max_drl_bits) {
   (void)num_ref_mvs;
-  return max_drl_bits;
+  (void)max_est_ref_mvs;
+  (void)max_drl_bits;
+#if NO_MV_PARSING_DEP
+  return AOMMIN(max_est_ref_mvs - 1, max_drl_bits);
 #else
   return AOMMIN(num_ref_mvs - 1, max_drl_bits);
 #endif  // NO_MV_PARSING_DEP
