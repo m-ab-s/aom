@@ -69,11 +69,11 @@ static int compare_score_data_asc(const void *a, const void *b) {
 void av1_init_new_ref_frame_map(AV1_COMMON *const cm,
                                 RefFrameMapPair *ref_frame_map_pairs,
                                 int cur_frame_disp) {
-  RefScoreData scores[REF_FRAMES];
-  memset(scores, 0, REF_FRAMES * sizeof(*scores));
+  RefScoreData scores[MAX_REF_FRAMES_NRS];
+  memset(scores, 0, MAX_REF_FRAMES_NRS * sizeof(*scores));
   int n_ranked = 0;
   // Compute a score for each reference buffer
-  for (int i = 0; i < REF_FRAMES; i++) {
+  for (int i = 0; i < MAX_REF_FRAMES_NRS; i++) {
     // Get reference frame buffer
 
     RefFrameMapPair cur_ref = ref_frame_map_pairs[i];

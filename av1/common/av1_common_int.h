@@ -800,7 +800,7 @@ typedef struct {
    * a usefulness score. This map sorts reference frames from most
    * useful to least useful.
    */
-  int ref_frame_score_map[REF_FRAMES];
+  int ref_frame_score_map[MAX_REF_FRAMES_NRS];
   /*!
    * Total number of reference buffers available to the current frame.
    */
@@ -809,7 +809,7 @@ typedef struct {
    * Contains the indices of the frames in ref_frame_map that are future
    * references.
    */
-  int future_refs[REF_FRAMES];
+  int future_refs[MAX_REF_FRAMES_NRS];
   /*!
    * Number of future references.
    */
@@ -818,7 +818,7 @@ typedef struct {
    * Contains the indices of the frames in ref_frame_map that are past
    * references.
    */
-  int past_refs[REF_FRAMES];
+  int past_refs[MAX_REF_FRAMES_NRS];
   /*!
    * Number of past references.
    */
@@ -830,13 +830,13 @@ typedef struct {
    * an easy conversion between the two schemes while the removal of the named
    * reference scheme is in progress. It is temporary and will be removed.
    */
-  int named_to_ranked_refs[REF_FRAMES];
+  int named_to_ranked_refs[MAX_REF_FRAMES_NRS];
   /*!
    * Maps the new reference scheme to the old named reference map. This allows
    *  the easy conversion between the two schemes while the removal of the named
    * reference scheme is in progress. It is temporary and will be removed.
    */
-  int ranked_to_named_refs[REF_FRAMES];
+  int ranked_to_named_refs[MAX_REF_FRAMES_NRS];
 } NewRefFramesData;
 #endif  // CONFIG_NEW_REF_SIGNALING
 

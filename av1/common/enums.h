@@ -753,6 +753,11 @@ enum {
   SINGLE_REFS = FWD_REFS + BWD_REFS,
 };
 
+#if CONFIG_NEW_REF_SIGNALING
+#define MAX_REF_FRAMES_NRS REF_FRAMES
+#define INTRA_FRAME_NRS MAX_REF_FRAMES_NRS
+#endif  // CONFIG_NEW_REF_SIGNALING
+
 #define REF_FRAMES_LOG2 3
 
 // REF_FRAMES for the cm->ref_frame_map array, 1 scratch frame for the new
