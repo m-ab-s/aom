@@ -125,17 +125,17 @@ typedef struct macroblock_plane {
   //! Quantization step size used by AV1_XFORM_QUANT_FP.
 #if CONFIG_EXTQUANT
   const int32_t *quant_fp_QTX;
-  // ! Offset used for rounding in the quantizer process by AV1_XFORM_QUANT_FP.
+  //! Offset used for rounding in the quantizer process by AV1_XFORM_QUANT_FP.
   const int32_t *round_fp_QTX;
-  // ! Quantization step size used by AV1_XFORM_QUANT_B.
+  //! Quantization step size used by AV1_XFORM_QUANT_B.
   const int32_t *quant_QTX;
-  // ! Offset used for rounding in the quantizer process by AV1_XFORM_QUANT_B.
+  //! Offset used for rounding in the quantizer process by AV1_XFORM_QUANT_B.
   const int32_t *round_QTX;
-  // ! Scale factor to shift coefficients toward zero. Only used by QUANT_B.
+  //! Scale factor to shift coefficients toward zero. Only used by QUANT_B.
   const int32_t *quant_shift_QTX;
-  // ! Size of the quantization bin around 0. Only Used by QUANT_B
+  //! Size of the quantization bin around 0. Only Used by QUANT_B
   const int32_t *zbin_QTX;
-  // ! Dequantizer
+  //! Dequantizer
   const int32_t *dequant_QTX;
 #else
   const int16_t *quant_fp_QTX;
