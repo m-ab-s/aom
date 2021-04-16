@@ -708,37 +708,36 @@ static const aom_cdf_prob default_motion_mode_cdf[BLOCK_SIZES_ALL][CDF_SIZE(
 #if CONFIG_EXT_ROTATION
 static const aom_cdf_prob
     default_warp_rotation_flag_cdf[BLOCK_SIZES_ALL][CDF_SIZE(2)] = {
-      { AOM_CDF2(26636) }, { AOM_CDF2(26636) }, { AOM_CDF2(26636) },
-      { AOM_CDF2(26636) }, { AOM_CDF2(26636) }, { AOM_CDF2(26636) },
-      { AOM_CDF2(26636) }, { AOM_CDF2(26636) }, { AOM_CDF2(26636) },
-      { AOM_CDF2(26636) }, { AOM_CDF2(26636) }, { AOM_CDF2(26636) },
-      { AOM_CDF2(26636) }, { AOM_CDF2(26636) }, { AOM_CDF2(26636) },
-      { AOM_CDF2(26636) }, { AOM_CDF2(26636) }, { AOM_CDF2(26636) },
-      { AOM_CDF2(26636) }, { AOM_CDF2(26636) }, { AOM_CDF2(26636) },
-      { AOM_CDF2(26636) }
+      { AOM_CDF2(16384) }, { AOM_CDF2(16384) }, { AOM_CDF2(16384) },
+      { AOM_CDF2(11673) }, { AOM_CDF2(16001) }, { AOM_CDF2(17203) },
+      { AOM_CDF2(23401) }, { AOM_CDF2(28270) }, { AOM_CDF2(29168) },
+      { AOM_CDF2(29778) }, { AOM_CDF2(29202) }, { AOM_CDF2(30104) },
+      { AOM_CDF2(30112) }, { AOM_CDF2(28567) }, { AOM_CDF2(31663) },
+      { AOM_CDF2(31775) }, { AOM_CDF2(16384) }, { AOM_CDF2(16384) },
+      { AOM_CDF2(25051) }, { AOM_CDF2(26231) }, { AOM_CDF2(27989) },
+      { AOM_CDF2(30275) }
     };
 
 static const aom_cdf_prob
     default_warp_rotation_degree_cdf[CDF_SIZE(ROTATION_COUNT)] = { AOM_CDF15(
-        2285, 4570, 6855, 9140, 11425, 13710, 15995, 16000, 18280, 20565, 22850,
-        25135, 27420, 29705) };
+        110, 180, 376, 1053, 3578, 8354, 16255, 16259, 24206, 29117, 31536,
+        32251, 32539, 32640) };
 
 static const aom_cdf_prob
     default_globalmv_rotation_flag_cdf[BLOCK_SIZES_ALL][CDF_SIZE(2)] = {
-      { AOM_CDF2(26636) }, { AOM_CDF2(26636) }, { AOM_CDF2(26636) },
-      { AOM_CDF2(26636) }, { AOM_CDF2(26636) }, { AOM_CDF2(26636) },
-      { AOM_CDF2(26636) }, { AOM_CDF2(26636) }, { AOM_CDF2(26636) },
-      { AOM_CDF2(26636) }, { AOM_CDF2(26636) }, { AOM_CDF2(26636) },
-      { AOM_CDF2(26636) }, { AOM_CDF2(26636) }, { AOM_CDF2(26636) },
-      { AOM_CDF2(26636) }, { AOM_CDF2(26636) }, { AOM_CDF2(26636) },
-      { AOM_CDF2(26636) }, { AOM_CDF2(26636) }, { AOM_CDF2(26636) },
-      { AOM_CDF2(26636) }
+      { AOM_CDF2(16384) }, { AOM_CDF2(16384) }, { AOM_CDF2(16384) },
+      { AOM_CDF2(24406) }, { AOM_CDF2(25668) }, { AOM_CDF2(25175) },
+      { AOM_CDF2(30775) }, { AOM_CDF2(31396) }, { AOM_CDF2(32036) },
+      { AOM_CDF2(32568) }, { AOM_CDF2(32533) }, { AOM_CDF2(32485) },
+      { AOM_CDF2(32596) }, { AOM_CDF2(31440) }, { AOM_CDF2(32023) },
+      { AOM_CDF2(32713) }, { AOM_CDF2(16384) }, { AOM_CDF2(16384) },
+      { AOM_CDF2(30673) }, { AOM_CDF2(31470) }, { AOM_CDF2(32023) },
+      { AOM_CDF2(30161) }
     };
 
 static const aom_cdf_prob default_globalmv_rotation_degree_cdf[CDF_SIZE(
-    ROTATION_COUNT)] = { AOM_CDF15(2285, 4570, 6855, 9140, 11425, 13710, 15995,
-                                   16000, 18280, 20565, 22850, 25135, 27420,
-                                   29705) };
+    ROTATION_COUNT)] = { AOM_CDF15(93, 139, 245, 549, 1660, 5457, 16868, 16872,
+                                   27842, 30948, 32315, 32547, 32646, 32660) };
 
 static const aom_cdf_prob
     default_translation_rotation_flag_cdf[BLOCK_SIZES_ALL][CDF_SIZE(2)] = {
