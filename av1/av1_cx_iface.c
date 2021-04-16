@@ -58,7 +58,7 @@ struct av1_extracfg {
   const char *vmaf_model_path;
   const char *subgop_config_str;
   const char *subgop_config_path;
-  unsigned int qp;  // constant/constrained quality level
+  int qp;  // constant/constrained quality level
   unsigned int rc_max_intra_bitrate_pct;
   unsigned int rc_max_inter_bitrate_pct;
   unsigned int gf_cbr_boost_pct;
@@ -510,7 +510,19 @@ static aom_codec_err_t validate_config(aom_codec_alg_priv_t *ctx,
   RANGE_CHECK(cfg, g_timebase.num, 1, cfg->g_timebase.den);
   RANGE_CHECK_HI(cfg, g_profile, MAX_PROFILES - 1);
 
-  RANGE_CHECK_HI(cfg, rc_max_quantizer, 255);
+  RANGE_CHECK(cfg, g_bit_depth, AOM_BITS_8, AOM_BITS_12);
+  RANGE_CHECK(cfg, g_input_bit_depth, AOM_BITS_8, AOM_BITS_12);
+#if CONFIG_EXTQUANT
+  const int min_quantizer =
+      (int)(-(cfg->g_bit_depth - AOM_BITS_8) * MAXQ_OFFSET);
+  RANGE_CHECK(cfg, rc_max_quantizer, min_quantizer, 255);
+  RANGE_CHECK(cfg, rc_min_quantizer, min_quantizer, 255);
+  RANGE_CHECK(extra_cfg, qp, min_quantizer, 255);
+#else
+  RANGE_CHECK(cfg, rc_max_quantizer, 0, 255);
+  RANGE_CHECK(cfg, rc_min_quantizer, 0, 255);
+  RANGE_CHECK(extra_cfg, qp, 0, 255);
+#endif  // CONFIG_EXTQUANT
   RANGE_CHECK_HI(cfg, rc_min_quantizer, cfg->rc_max_quantizer);
   RANGE_CHECK_BOOL(extra_cfg, lossless);
   RANGE_CHECK_HI(extra_cfg, aq_mode, AQ_MODE_COUNT - 1);
@@ -581,9 +593,6 @@ static aom_codec_err_t validate_config(aom_codec_alg_priv_t *ctx,
   RANGE_CHECK_HI(extra_cfg, sharpness, 7);
   RANGE_CHECK_HI(extra_cfg, arnr_max_frames, 15);
   RANGE_CHECK_HI(extra_cfg, arnr_strength, 6);
-  RANGE_CHECK_HI(extra_cfg, qp, 255);
-  RANGE_CHECK(cfg, g_bit_depth, AOM_BITS_8, AOM_BITS_12);
-  RANGE_CHECK(cfg, g_input_bit_depth, 8, 12);
   RANGE_CHECK(extra_cfg, content, AOM_CONTENT_DEFAULT, AOM_CONTENT_INVALID - 1);
 
   if (cfg->g_profile <= (unsigned int)PROFILE_1 &&
@@ -979,39 +988,18 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   rc_cfg->gf_cbr_boost_pct = extra_cfg->gf_cbr_boost_pct;
   rc_cfg->mode = cfg->rc_end_usage;
   rc_cfg->min_cr = extra_cfg->min_cr;
+
+#if CONFIG_EXTQUANT
+  const int offset_qp = (cfg->g_bit_depth - AOM_BITS_8) * MAXQ_OFFSET;
+  rc_cfg->best_allowed_q =
+      extra_cfg->lossless ? 0 : cfg->rc_min_quantizer + offset_qp;
+  rc_cfg->worst_allowed_q =
+      extra_cfg->lossless ? 0 : cfg->rc_max_quantizer + offset_qp;
+  rc_cfg->qp = extra_cfg->qp + offset_qp;
+#else
   rc_cfg->best_allowed_q = extra_cfg->lossless ? 0 : cfg->rc_min_quantizer;
   rc_cfg->worst_allowed_q = extra_cfg->lossless ? 0 : cfg->rc_max_quantizer;
   rc_cfg->qp = extra_cfg->qp;
-
-#if CONFIG_EXTQUANT
-  int offset_best_allowed_q;
-  int offset_worst_allowed_q;
-  int offset_qp;
-  switch (cfg->g_bit_depth) {
-    case AOM_BITS_8:
-      offset_best_allowed_q = 0;
-      offset_worst_allowed_q = 0;
-      offset_qp = 0;
-      break;
-    case AOM_BITS_10:
-      offset_best_allowed_q = qindex_10b_offset[rc_cfg->best_allowed_q != 0];
-      offset_worst_allowed_q = qindex_10b_offset[rc_cfg->worst_allowed_q != 0];
-      offset_qp = qindex_10b_offset[rc_cfg->qp != 0];
-      break;
-    case AOM_BITS_12:
-      offset_best_allowed_q = qindex_12b_offset[rc_cfg->best_allowed_q != 0];
-      offset_worst_allowed_q = qindex_12b_offset[rc_cfg->worst_allowed_q != 0];
-      offset_qp = qindex_12b_offset[rc_cfg->qp != 0];
-      break;
-    default:
-      offset_best_allowed_q = 0;
-      offset_worst_allowed_q = 0;
-      offset_qp = 0;
-      break;
-  }
-  rc_cfg->best_allowed_q += offset_best_allowed_q;
-  rc_cfg->worst_allowed_q += offset_worst_allowed_q;
-  rc_cfg->qp += offset_qp;
 #endif
 
   rc_cfg->under_shoot_pct = cfg->rc_undershoot_pct;

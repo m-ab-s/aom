@@ -239,12 +239,16 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
   .target_bitrate = ARG_DEF(NULL, "target-bitrate", 1, "Bitrate (kbps)"),
   .min_q_level =
       ARG_DEF(NULL, "min-q", 1,
-              "Minimum (best) quantizer in range 0 to 63 (DEPRECATED)"),
+              "Minimum (best) quantizer in range [0, 63] (DEPRECATED)"),
   .max_q_level =
       ARG_DEF(NULL, "max-q", 1,
-              "Maximum (worst) quantizer in range 0 to 63 (DEPRECATED)"),
-  .min_qp_level = ARG_DEF(NULL, "min-qp", 1, "Minimum (best) quantizer"),
-  .max_qp_level = ARG_DEF(NULL, "max-qp", 1, "Maximum (worst) quantizer"),
+              "Maximum (worst) quantizer in range [0, 63] (DEPRECATED)"),
+  .min_qp_level = ARG_DEF(NULL, "min-qp", 1,
+                          "Minimum (best) quantizer in range [M, 255], "
+                          "where M = 0/-48/-96 for 8/10/12 bit"),
+  .max_qp_level = ARG_DEF(NULL, "max-qp", 1,
+                          "Maximum (worst) quantizer in range [M, 255], "
+                          "where M = 0/-48/-96 for 8/10/12 bit"),
   .undershoot_pct = ARG_DEF(NULL, "undershoot-pct", 1,
                             "Datarate undershoot (min) target (%)"),
   .overshoot_pct =
@@ -284,8 +288,10 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
                               tuning_enum),
   .cq_level = ARG_DEF(
       NULL, "cq-level", 1,
-      "Constant/Constrained Quality level in range 0 to 63 (DEPRECATED)"),
-  .qp_level = ARG_DEF(NULL, "qp", 1, "Constant/Constrained Quality level"),
+      "Constant/Constrained Quality level in range [0, 63] (DEPRECATED)"),
+  .qp_level = ARG_DEF(NULL, "qp", 1,
+                      "Constant/Constrained Quality level "
+                      "in range [M, 255], where M = 0/-48/-96 for 8/10/12 bit"),
   .max_intra_rate_pct =
       ARG_DEF(NULL, "max-intra-rate", 1, "Max I-frame bitrate (pct)"),
 #if CONFIG_AV1_ENCODER

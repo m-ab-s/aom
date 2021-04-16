@@ -1078,17 +1078,17 @@ static int parse_stream_params(struct AvxEncoderConfig *global,
     } else if (arg_match(&arg, &g_av1_codec_arg_defs.target_bitrate, argi)) {
       config->cfg.rc_target_bitrate = arg_parse_uint(&arg);
     } else if (arg_match(&arg, &g_av1_codec_arg_defs.min_qp_level, argi)) {
-      config->cfg.rc_min_quantizer = arg_parse_uint(&arg);
+      config->cfg.rc_min_quantizer = arg_parse_int(&arg);
     } else if (arg_match(&arg, &g_av1_codec_arg_defs.max_qp_level, argi)) {
-      config->cfg.rc_max_quantizer = arg_parse_uint(&arg);
+      config->cfg.rc_max_quantizer = arg_parse_int(&arg);
     } else if (arg_match(&arg, &g_av1_codec_arg_defs.min_q_level, argi)) {
       const unsigned int min_q_val = arg_parse_uint(&arg);
       config->cfg.rc_min_quantizer =
-          get_qindex_from_quantizer_and_warn(min_q_val, "min-q", "min-qp");
+          (int)get_qindex_from_quantizer_and_warn(min_q_val, "min-q", "min-qp");
     } else if (arg_match(&arg, &g_av1_codec_arg_defs.max_q_level, argi)) {
       const unsigned int max_q_val = arg_parse_uint(&arg);
       config->cfg.rc_max_quantizer =
-          get_qindex_from_quantizer_and_warn(max_q_val, "max-q", "max-qp");
+          (int)get_qindex_from_quantizer_and_warn(max_q_val, "max-q", "max-qp");
     } else if (arg_match(&arg, &g_av1_codec_arg_defs.undershoot_pct, argi)) {
       config->cfg.rc_undershoot_pct = arg_parse_uint(&arg);
     } else if (arg_match(&arg, &g_av1_codec_arg_defs.overshoot_pct, argi)) {

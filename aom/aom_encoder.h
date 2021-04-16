@@ -637,7 +637,7 @@ typedef struct aom_codec_enc_cfg {
    * values to use. To determine the range programmatically, call
    * aom_codec_enc_config_default() with a usage value of 0.
    */
-  unsigned int rc_min_quantizer;
+  int rc_min_quantizer;
 
   /*!\brief Maximum (Worst Quality) Quantizer
    *
@@ -647,7 +647,7 @@ typedef struct aom_codec_enc_cfg {
    * values to use. To determine the range programmatically, call
    * aom_codec_enc_config_default() with a usage value of 0.
    */
-  unsigned int rc_max_quantizer;
+  int rc_max_quantizer;
 
   /*
    * bitrate tolerance
