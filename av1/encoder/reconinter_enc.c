@@ -57,10 +57,10 @@ static void enc_calc_subpel_params(const MV *const src_mv,
     int orig_pos_x = inter_pred_params->pix_col << SUBPEL_BITS;
 #if CONFIG_OPTFLOW_REFINEMENT
     if (use_optflow_refinement) {
-      orig_pos_y +=
-          src_mv->row * (1 << SUBPEL_BITS) / (1 << (MV_REFINE_PREC_BITS + ssy));
-      orig_pos_x +=
-          src_mv->col * (1 << SUBPEL_BITS) / (1 << (MV_REFINE_PREC_BITS + ssx));
+      orig_pos_y += ROUND_POWER_OF_TWO_SIGNED(src_mv->row * (1 << SUBPEL_BITS),
+                                              MV_REFINE_PREC_BITS + ssy);
+      orig_pos_x += ROUND_POWER_OF_TWO_SIGNED(src_mv->col * (1 << SUBPEL_BITS),
+                                              MV_REFINE_PREC_BITS + ssx);
     } else {
       orig_pos_y += src_mv->row * (1 << (1 - ssy));
       orig_pos_x += src_mv->col * (1 << (1 - ssx));
