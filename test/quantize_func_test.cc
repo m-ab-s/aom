@@ -581,8 +581,9 @@ INSTANTIATE_TEST_SUITE_P(SSE2, QuantizeTest,
                          ::testing::ValuesIn(kQParamArraySSE2));
 #endif  // HAVE_SSE2
 
-#if HAVE_NEON && !CONFIG_EXTQUANT
+#if HAVE_NEON
 const QuantizeParam kQParamArrayNEON[] = {
+#if !CONFIG_EXTQUANT
   make_tuple(&av1_quantize_fp_c, &av1_quantize_fp_neon,
              static_cast<TX_SIZE>(TX_16X16), TYPE_FP, AOM_BITS_8),
   make_tuple(&av1_quantize_fp_c, &av1_quantize_fp_neon,
@@ -603,11 +604,15 @@ const QuantizeParam kQParamArrayNEON[] = {
              static_cast<TX_SIZE>(TX_32X32), TYPE_B, AOM_BITS_8),
   make_tuple(&aom_quantize_b_64x64_c, &aom_quantize_b_64x64_neon,
              static_cast<TX_SIZE>(TX_64X64), TYPE_B, AOM_BITS_8)
+#else
+  make_tuple(&av1_quantize_fp_c, &av1_quantize_fp_c,
+             static_cast<TX_SIZE>(TX_16X16), TYPE_FP, AOM_BITS_8),
+#endif  // !CONFIG_EXTQUANT
 };
 
 INSTANTIATE_TEST_SUITE_P(NEON, QuantizeTest,
                          ::testing::ValuesIn(kQParamArrayNEON));
-#endif  // HAVE_NEON && !CONFIG_EXTQUANT
+#endif  // HAVE_NEON
 
 #if HAVE_SSSE3 && ARCH_X86_64 && !CONFIG_EXTQUANT
 INSTANTIATE_TEST_SUITE_P(
