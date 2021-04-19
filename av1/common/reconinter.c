@@ -670,6 +670,9 @@ static AOM_INLINE void init_smooth_interintra_masks() {
 
 #if CONFIG_OPTFLOW_REFINEMENT
 
+// Whether to refine chroma MV or not
+#define OPFL_REFINE_CHROMA 0
+
 // Delta to use for computing gradients in bits, with 0 referring to
 // integer-pel. The actual delta value used from the 1/8-pel original MVs
 // is 2^(3 - SUBPEL_GRAD_DELTA_BITS). The max value of this macro is 3.
@@ -1667,10 +1670,14 @@ static void build_inter_predictors_8x8_and_bigger(
     }
 
 #if CONFIG_OPTFLOW_REFINEMENT
+#if OPFL_REFINE_CHROMA
     // For luma, always apply offset MVs. For chroma, use the MVs derived for
     // luma if luma subblock size is 8x8 (i.e., chroma block size > 8x8),
     // and otherwise apply normal compound average.
     if (use_optflow_refinement && (plane == 0 || bh > 8 || bw > 8)) {
+#else
+    if (use_optflow_refinement && plane == 0) {
+#endif
       av1_build_optflow_inter_predictor(
           dst, dst_buf->stride, plane, mi->mv_refined, &inter_pred_params, xd,
           mi_x, mi_y, ref, mc_buf, calc_subpel_params_func);
