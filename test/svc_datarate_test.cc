@@ -930,9 +930,15 @@ TEST_P(DatarateTestSVC, BasicRateTargetingSVC3TL1SL) {
 // Check basic rate targeting for CBR, for 3 temporal layers, 1 spatial,
 // with dynamic resize on. Encode at very low bitrate and check that
 // there is at least one resize (down) event.
+#if CONFIG_EXTQUANT
+TEST_P(DatarateTestSVC, DISABLED_BasicRateTargetingSVC3TL1SLResize) {
+  BasicRateTargetingSVC3TL1SLResizeTest();
+}
+#else
 TEST_P(DatarateTestSVC, BasicRateTargetingSVC3TL1SLResize) {
   BasicRateTargetingSVC3TL1SLResizeTest();
 }
+#endif  // CONFIG_EXTQUANT
 
 // Check basic rate targeting for CBR, for 2 spatial layers, 1 temporal.
 TEST_P(DatarateTestSVC, BasicRateTargetingSVC1TL2SL) {

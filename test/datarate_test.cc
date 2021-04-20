@@ -68,7 +68,11 @@ class DatarateTestLarge
     cfg_.rc_buf_sz = 1000;
     cfg_.rc_dropframe_thresh = 1;
     cfg_.rc_min_quantizer = 0;
+#if CONFIG_EXTQUANT
+    cfg_.rc_max_quantizer = 208;
+#else
     cfg_.rc_max_quantizer = 255;
+#endif  // CONFIG_EXTQUANT
     cfg_.rc_end_usage = AOM_CBR;
     cfg_.g_lag_in_frames = 0;
 
@@ -92,7 +96,11 @@ class DatarateTestLarge
     cfg_.rc_dropframe_thresh = 0;
     cfg_.g_error_resilient = 1;
     cfg_.rc_min_quantizer = 0;
+#if CONFIG_EXTQUANT
+    cfg_.rc_max_quantizer = 208;
+#else
     cfg_.rc_max_quantizer = 255;
+#endif  // CONFIG_EXTQUANT
     cfg_.rc_end_usage = AOM_CBR;
     cfg_.g_lag_in_frames = 0;
 

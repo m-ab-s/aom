@@ -58,6 +58,9 @@ class ForwardKeyTest
     cfg_.fwd_kf_enabled = 1;
     cfg_.kf_max_dist = kf_max_dist_;
     cfg_.g_threads = 0;
+#if CONFIG_EXTQUANT
+    cfg_.rc_max_quantizer = 200;
+#endif  // CONFIG_EXTQUANT
     init_flags_ = AOM_CODEC_USE_PSNR;
   }
 
@@ -149,6 +152,9 @@ class ForwardKeyPresenceTestLarge
     cfg_.kf_max_dist = kf_dist_param_.max_kf_dist;
     cfg_.fwd_kf_enabled = 1;
     cfg_.g_lag_in_frames = 19;
+#if CONFIG_EXTQUANT
+    cfg_.rc_max_quantizer = 200;
+#endif  // CONFIG_EXTQUANT
   }
 
   virtual bool DoDecode() const { return 1; }

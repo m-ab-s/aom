@@ -52,6 +52,16 @@ std::ostream &operator<<(std::ostream &os, const TestVideoParam &test_arg) {
 }
 
 const TestVideoParam kTestVideoVectors[] = {
+#if CONFIG_EXTQUANT
+  { "park_joy_90p_8_420.y4m", AOM_IMG_FMT_I420, AOM_BITS_8, 0, 5, 0, 25.0,
+    45.0 },
+  { "park_joy_90p_10_444.y4m", AOM_IMG_FMT_I44416, AOM_BITS_10, 1, 5, 0, 28.0,
+    48.0 },
+  { "screendata.y4m", AOM_IMG_FMT_I420, AOM_BITS_8, 0, 4, 1, 16.0, 56.0 },
+  // Image coding (single frame).
+  { "niklas_1280_720_30.y4m", AOM_IMG_FMT_I420, AOM_BITS_8, 0, 1, 0, 25.0,
+    49.0 },
+#else
   { "park_joy_90p_8_420.y4m", AOM_IMG_FMT_I420, AOM_BITS_8, 0, 5, 0, 26.0,
     45.0 },
   { "park_joy_90p_10_444.y4m", AOM_IMG_FMT_I44416, AOM_BITS_10, 1, 5, 0, 28.0,
@@ -60,6 +70,7 @@ const TestVideoParam kTestVideoVectors[] = {
   // Image coding (single frame).
   { "niklas_1280_720_30.y4m", AOM_IMG_FMT_I420, AOM_BITS_8, 0, 1, 0, 32.0,
     49.0 },
+#endif  // CONFIG_EXTQUANT
 };
 
 // Modes with extra params have their own tests.

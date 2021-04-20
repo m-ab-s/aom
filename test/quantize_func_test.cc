@@ -284,7 +284,12 @@ TEST_P(QuantizeTest, DcOnlyInput) {
 TEST_P(QuantizeTest, RandomInput) { QuantizeRun(true, 0, kTestNum); }
 
 TEST_P(QuantizeTest, MultipleQ) {
+#if CONFIG_EXTQUANT
+  for (int q = 0; q < (QINDEX_RANGE_8_BITS + (bd_ - AOM_BITS_8) * MAXQ_OFFSET);
+       ++q) {
+#else
   for (int q = 0; q < QINDEX_RANGE; ++q) {
+#endif
     QuantizeRun(true, q, kTestNum);
   }
 }

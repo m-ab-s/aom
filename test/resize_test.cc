@@ -432,7 +432,11 @@ class ResizeRealtimeTest
     cfg_.rc_buf_optimal_sz = 600;
     cfg_.rc_buf_sz = 1000;
     cfg_.rc_min_quantizer = 8;
+#if CONFIG_EXTQUANT
+    cfg_.rc_max_quantizer = 192;
+#else
     cfg_.rc_max_quantizer = 224;
+#endif  // CONFIG_EXTQUANT
     cfg_.rc_undershoot_pct = 50;
     cfg_.rc_overshoot_pct = 50;
     cfg_.rc_end_usage = AOM_CBR;

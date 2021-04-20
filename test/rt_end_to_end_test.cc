@@ -94,6 +94,11 @@ class RTEndToEndTest
     cfg_.rc_buf_sz = 1000;
     cfg_.rc_buf_initial_sz = 500;
     cfg_.rc_buf_optimal_sz = 600;
+#if CONFIG_EXTQUANT
+    // TODO(any): Need to fix rate control for rt cbr mode.
+    // Until then use a lower value of max quantizer.
+    cfg_.rc_max_quantizer = 188;
+#endif  // CONFIG_EXTQUANT
   }
 
   virtual void BeginPassHook(unsigned int) {
