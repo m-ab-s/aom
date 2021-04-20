@@ -3421,9 +3421,9 @@ static void rectangular_partition_search(
 #if CONFIG_EXT_RECUR_PARTITIONS
     RD_STATS this_rdc;
     if (i == HORZ) {
-      if (!IMPLIES(should_reuse_mode(x, REUSE_PARTITION_MODE_FLAG),
-                   !PRUNE_WITH_PREV_PARTITION(PARTITION_HORZ))) {
-        return;
+      if (should_reuse_mode(x, REUSE_PARTITION_MODE_FLAG) &&
+          PRUNE_WITH_PREV_PARTITION(PARTITION_HORZ)) {
+        continue;
       }
       pc_tree->horizontal[0] = av1_alloc_pc_tree_node(
           blk_params.mi_row, blk_params.mi_col, blk_params.subsize, pc_tree,
@@ -3529,9 +3529,9 @@ static void rectangular_partition_search(
         av1_rd_cost_update(x->rdmult, sum_rdc);
       }
     } else if (i == VERT) {
-      if (!IMPLIES(should_reuse_mode(x, REUSE_PARTITION_MODE_FLAG),
-                   !PRUNE_WITH_PREV_PARTITION(PARTITION_VERT))) {
-        return;
+      if (should_reuse_mode(x, REUSE_PARTITION_MODE_FLAG) &&
+          PRUNE_WITH_PREV_PARTITION(PARTITION_VERT)) {
+        continue;
       }
       pc_tree->vertical[0] = av1_alloc_pc_tree_node(
           blk_params.mi_row, blk_params.mi_col, blk_params.subsize, pc_tree,
