@@ -713,7 +713,12 @@ static AOM_INLINE void setup_ref_mv_list(
   int refmv_count_max_ctx =
       AOMMAX(*refmv_count, MAX_MV_REF_CANDIDATES) + (rf[1] == NONE_FRAME);
 #if CONFIG_REF_MV_BANK
-  refmv_count_max_ctx += REF_MV_BANK_SIZE;
+  refmv_count_max_ctx += xd->ref_mv_bank_left_pt->rmb_count[ref_frame];
+#if REF_MV_BANK_COLS
+  refmv_count_max_ctx +=
+      xd->ref_mv_bank_above_pt[av1_get_column_bank_index(cm, xd->mi_col)]
+          .rmb_count[ref_frame];
+#endif  // REF_MV_BANK_COLS
 #endif  // CONFIG_REF_MV_BANK
   refmv_count_max_ctx = AOMMIN(refmv_count_max_ctx, MAX_REF_MV_STACK_SIZE);
   // Add max #ref_mvs expected to second byte of mode_context
