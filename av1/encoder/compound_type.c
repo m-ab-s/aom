@@ -320,33 +320,50 @@ static int64_t pick_arbitrary_wedge(
                        "/tmp/1.source.yuv");
 #endif  // DUMP_SEGMENT_MASKS
 
+  // Create a downscaled src buffer (2X downscaling each direction).
+  DECLARE_ALIGNED(16, uint8_t, downscaled_src_buf[MAX_SB_SQUARE >> 4]);
+  const int downscaled_bh = bh >> 2;
+  const int downscaled_bw = bw >> 2;
+  const int downscaled_N = downscaled_bw * downscaled_bh;
+  av1_resize_plane(x->plane[0].src.buf, bh, bw, x->plane[0].src.stride,
+                   downscaled_src_buf, downscaled_bh, downscaled_bw,
+                   downscaled_bw);
+
+#if DUMP_SEGMENT_MASKS
+  av1_dump_raw_y_plane(downscaled_src_buf, downscaled_bw, downscaled_bh,
+                       downscaled_bw, "/tmp/2.downscaled_source.yuv");
+#endif  // DUMP_SEGMENT_MASKS
+
   // Get segment mask from helper library.
   Av1SegmentParams params;
   av1_get_default_segment_params(&params);
   params.k = 5000;  // TODO(urvang): Temporary hack to get 2 components.
   int num_components = -1;
-  av1_get_segments(x->plane[0].src.buf, bw, bh, x->plane[0].src.stride, &params,
-                   seg_mask_smoothed, &num_components);
+  av1_get_segments(downscaled_src_buf, downscaled_bw, downscaled_bh,
+                   downscaled_bw, &params,
+                   seg_mask, &num_components);
 
   if (num_components >= 2) {
     // TODO(urvang): Convert more than 2 components to 2 components.
     if (num_components == 2) {
-      // Save the raw mask to 'seg_mask', as that is the one to be used for
+      // Keep the raw mask in 'seg_mask', as that is the one to be used for
       // signaling in the bitstream.
-      memcpy(seg_mask, seg_mask_smoothed, N * sizeof(*seg_mask));
+      // Now, upscale the raw mask into 'seg_mask_smoothed'.
+      av1_resize_plane(seg_mask, downscaled_bh, downscaled_bw,
+                   downscaled_bw, seg_mask_smoothed, bh, bw, bw);
 
       // TODO(urvang): Refactor part below.
 
       // Convert binary mask with values {0, 1} to one with values {0, 64}.
       av1_extend_binary_mask_range(seg_mask_smoothed, bw, bh);
 #if DUMP_SEGMENT_MASKS
-      av1_dump_raw_y_plane(seg_mask_smoothed, bw, bh, bw, "/tmp/2.binary_mask.yuv");
+      av1_dump_raw_y_plane(seg_mask_smoothed, bw, bh, bw, "/tmp/3.binary_mask.yuv");
 #endif  // DUMP_SEGMENT_MASKS
 
       // Get a smooth mask from the binary mask.
       av1_apply_box_blur(seg_mask_smoothed, bw, bh);
 #if DUMP_SEGMENT_MASKS
-      av1_dump_raw_y_plane(seg_mask_smoothed, bw, bh, bw, "/tmp/3.smooth_mask.yuv");
+      av1_dump_raw_y_plane(seg_mask_smoothed, bw, bh, bw, "/tmp/4.smooth_mask.yuv");
 #endif  // DUMP_SEGMENT_MASKS
 
       // Get RDCost
@@ -1133,14 +1150,14 @@ static INLINE int get_interinter_compound_mask_rate(
 #if CONFIG_ARBITRARY_WEDGE
     if (av1_wedge_params_lookup[mbmi->sb_type].codebook == NULL) {
       // We are using an arbitrary mask, so need to run RLE to compute rate.
-      const int bw = block_size_wide[mbmi->sb_type];
-      const int bh = block_size_high[mbmi->sb_type];
+      const int downscaled_bw = block_size_wide[mbmi->sb_type] >> 2;
+      const int downscaled_bh = block_size_high[mbmi->sb_type] >> 2;
       // For input of length n, max length of run-length encoded string is
       // 3*n, as storing each length takes 2 bytes.
-      uint8_t rle_buf[3 * MAX_SB_SQUARE];
+      uint8_t rle_buf[3 * (MAX_SB_SQUARE >> 4)];
       int rle_size = 0;
       int rle_rate = INT_MAX;
-      av1_run_length_encode(mbmi->interinter_comp.seg_mask, bw, bh, bw, rle_buf,
+      av1_run_length_encode(mbmi->interinter_comp.seg_mask, downscaled_bw, downscaled_bh, downscaled_bw, rle_buf,
                             &rle_size, &rle_rate);
       return rle_rate;
     }

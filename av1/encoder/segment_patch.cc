@@ -176,9 +176,9 @@ void av1_run_length_encode(const uint8_t *const img, int width, int height,
   int num_bits = 0;
   const int bits_per_symbol = 1;  // Assuming 2 segments exactly.
   // Assuming 64x64 or 128x128 block sizes only.
-  assert((width == 64 && height == 64) || (width == 128 && height == 128));
+  assert((width == 16 && height == 16) || (width == 32 && height == 32));
   const int bits_per_run_len =
-      (width == 128 && height == 128) ? 14 : 12;  // log2(width * height)
+      (width == 32 && height == 32) ? 10 : 8;  // log2(width * height)
 
   for (int r = 0; r < height; ++r) {
     for (int c = (r == 0) ? 1 : 0; c < width; ++c) {
@@ -197,7 +197,9 @@ void av1_run_length_encode(const uint8_t *const img, int width, int height,
     }
   }
   out[out_idx++] = prev_val;
+  num_bits += bits_per_symbol;
   write_run_length(run_len, out, &out_idx);
+  num_bits += bits_per_run_len;
   *out_size = out_idx;
   *out_rate = av1_cost_literal(num_bits);
 }
