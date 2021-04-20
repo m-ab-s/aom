@@ -326,7 +326,7 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
                                 "(default in Realtime mode), "
                                 "1: true (default in Non-realtime mode))"),
   .disable_ml_partition_speed_features =
-      ARG_DEF(NULL, "disable-ml-partition-speed-features", 0,
+      ARG_DEF(NULL, "disable-ml-partition-speed-features", 1,
               "Disable ML based partition search speed "
               "features (0 : off, 1 : on)"),
   .enable_rect_partitions = ARG_DEF(NULL, "enable-rect-partitions", 1,
