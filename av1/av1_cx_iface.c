@@ -514,7 +514,7 @@ static aom_codec_err_t validate_config(aom_codec_alg_priv_t *ctx,
   RANGE_CHECK(cfg, g_input_bit_depth, AOM_BITS_8, AOM_BITS_12);
 #if CONFIG_EXTQUANT
   const int min_quantizer =
-      (int)(-(cfg->g_bit_depth - AOM_BITS_8) * MAXQ_OFFSET);
+      (-(int)(cfg->g_bit_depth - AOM_BITS_8) * MAXQ_OFFSET);
   RANGE_CHECK(cfg, rc_max_quantizer, min_quantizer, 255);
   RANGE_CHECK(cfg, rc_min_quantizer, min_quantizer, 255);
   RANGE_CHECK(extra_cfg, qp, min_quantizer, 255);

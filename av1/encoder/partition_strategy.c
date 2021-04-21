@@ -1329,7 +1329,7 @@ int av1_ml_predict_breakout(const AV1_COMP *const cpi, BLOCK_SIZE bsize,
   const int dc_q = (int)x->plane[0].dequant_QTX[0];
 #if CONFIG_EXTQUANT
   features[feature_index++] =
-      (float)(dc_q * dc_q) / (256 << (2 * QUANT_TABLE_BITS));
+      ((float)dc_q * (float)dc_q) / (256 << (2 * QUANT_TABLE_BITS));
 #else
   features[feature_index++] = (float)(dc_q * dc_q) / 256.0f;
 #endif

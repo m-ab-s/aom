@@ -444,11 +444,12 @@ static int predict_skip_txfm(const AV1_COMMON *cm, MACROBLOCK *x,
   const int bh = block_size_high[bsize];
   const MACROBLOCKD *xd = &x->e_mbd;
   (void)cm;
-  const int16_t dc_q = av1_dc_quant_QTX(x->qindex, 0,
 #if CONFIG_EXTQUANT
-                                        cm->seq_params.base_y_dc_delta_q,
-#endif
-                                        xd->bd);
+  const int32_t dc_q =
+      av1_dc_quant_QTX(x->qindex, 0, cm->seq_params.base_y_dc_delta_q, xd->bd);
+#else
+  const int16_t dc_q = av1_dc_quant_QTX(x->qindex, 0, xd->bd);
+#endif  // CONFIG_EXTQUANT
 
   *dist = pixel_diff_dist(x, 0, 0, 0, bsize, bsize, NULL);
 
@@ -456,11 +457,11 @@ static int predict_skip_txfm(const AV1_COMMON *cm, MACROBLOCK *x,
   // Normalized quantizer takes the transform upscaling factor (8 for tx size
   // smaller than 32) into account.
 #if CONFIG_EXTQUANT
-  const int16_t normalized_dc_q =
+  const int32_t normalized_dc_q =
       ROUND_POWER_OF_TWO(dc_q, (3 + QUANT_TABLE_BITS));
 #else
   const int16_t normalized_dc_q = dc_q >> 3;
-#endif
+#endif  // CONFIG_EXTQUANT
   const int64_t mse_thresh = (int64_t)normalized_dc_q * normalized_dc_q / 8;
   // For faster early skip decision, use dist to compare against threshold so
   // that quality risk is less for the skip=1 decision. Otherwise, use mse
@@ -489,13 +490,14 @@ static int predict_skip_txfm(const AV1_COMMON *cm, MACROBLOCK *x,
   const uint32_t max_qcoef_thresh = skip_pred_threshold[bd_idx][bsize];
   const int16_t *src_diff = x->plane[0].src_diff;
   const int n_coeff = tx_w * tx_h;
-  const int16_t ac_q = av1_ac_quant_QTX(x->qindex, 0, xd->bd);
 #if CONFIG_EXTQUANT
+  const int32_t ac_q = av1_ac_quant_QTX(x->qindex, 0, xd->bd);
   const uint32_t dc_thresh =
-      ROUND_POWER_OF_TWO((max_qcoef_thresh * dc_q), QUANT_TABLE_BITS);
+      (uint32_t)ROUND_POWER_OF_TWO((max_qcoef_thresh * dc_q), QUANT_TABLE_BITS);
   const uint32_t ac_thresh =
-      ROUND_POWER_OF_TWO((max_qcoef_thresh * ac_q), QUANT_TABLE_BITS);
+      (uint32_t)ROUND_POWER_OF_TWO((max_qcoef_thresh * ac_q), QUANT_TABLE_BITS);
 #else
+  const int16_t ac_q = av1_ac_quant_QTX(x->qindex, 0, xd->bd);
   const uint32_t dc_thresh = max_qcoef_thresh * dc_q;
   const uint32_t ac_thresh = max_qcoef_thresh * ac_q;
 #endif
