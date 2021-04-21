@@ -2709,57 +2709,62 @@ static AOM_INLINE void write_color_config(
   if (is_monochrome) {
     // 0: [16, 235] (i.e. xvYCC), 1: [0, 255]
     aom_wb_write_bit(wb, seq_params->color_range);
-    return;
-  }
-  if (seq_params->color_primaries == AOM_CICP_CP_BT_709 &&
-      seq_params->transfer_characteristics == AOM_CICP_TC_SRGB &&
-      seq_params->matrix_coefficients == AOM_CICP_MC_IDENTITY) {
-    assert(seq_params->subsampling_x == 0 && seq_params->subsampling_y == 0);
-    assert(seq_params->profile == PROFILE_1 ||
-           (seq_params->profile == PROFILE_2 &&
-            seq_params->bit_depth == AOM_BITS_12));
   } else {
-    // 0: [16, 235] (i.e. xvYCC), 1: [0, 255]
-    aom_wb_write_bit(wb, seq_params->color_range);
-    if (seq_params->profile == PROFILE_0) {
-      // 420 only
-      assert(seq_params->subsampling_x == 1 && seq_params->subsampling_y == 1);
-    } else if (seq_params->profile == PROFILE_1) {
-      // 444 only
+    if (seq_params->color_primaries == AOM_CICP_CP_BT_709 &&
+        seq_params->transfer_characteristics == AOM_CICP_TC_SRGB &&
+        seq_params->matrix_coefficients == AOM_CICP_MC_IDENTITY) {
       assert(seq_params->subsampling_x == 0 && seq_params->subsampling_y == 0);
-    } else if (seq_params->profile == PROFILE_2) {
-      if (seq_params->bit_depth == AOM_BITS_12) {
-        // 420, 444 or 422
-        aom_wb_write_bit(wb, seq_params->subsampling_x);
-        if (seq_params->subsampling_x == 0) {
-          assert(seq_params->subsampling_y == 0 &&
-                 "4:4:0 subsampling not allowed in AV1");
-        } else {
-          aom_wb_write_bit(wb, seq_params->subsampling_y);
-        }
-      } else {
-        // 422 only
+      assert(seq_params->profile == PROFILE_1 ||
+             (seq_params->profile == PROFILE_2 &&
+              seq_params->bit_depth == AOM_BITS_12));
+    } else {
+      // 0: [16, 235] (i.e. xvYCC), 1: [0, 255]
+      aom_wb_write_bit(wb, seq_params->color_range);
+      if (seq_params->profile == PROFILE_0) {
+        // 420 only
         assert(seq_params->subsampling_x == 1 &&
+               seq_params->subsampling_y == 1);
+      } else if (seq_params->profile == PROFILE_1) {
+        // 444 only
+        assert(seq_params->subsampling_x == 0 &&
+               seq_params->subsampling_y == 0);
+      } else if (seq_params->profile == PROFILE_2) {
+        if (seq_params->bit_depth == AOM_BITS_12) {
+          // 420, 444 or 422
+          aom_wb_write_bit(wb, seq_params->subsampling_x);
+          if (seq_params->subsampling_x == 0) {
+            assert(seq_params->subsampling_y == 0 &&
+                   "4:4:0 subsampling not allowed in AV1");
+          } else {
+            aom_wb_write_bit(wb, seq_params->subsampling_y);
+          }
+        } else {
+          // 422 only
+          assert(seq_params->subsampling_x == 1 &&
+                 seq_params->subsampling_y == 0);
+        }
+      }
+      if (seq_params->matrix_coefficients == AOM_CICP_MC_IDENTITY) {
+        assert(seq_params->subsampling_x == 0 &&
                seq_params->subsampling_y == 0);
       }
+      if (seq_params->subsampling_x == 1 && seq_params->subsampling_y == 1) {
+        aom_wb_write_literal(wb, seq_params->chroma_sample_position, 2);
+      }
     }
-    if (seq_params->matrix_coefficients == AOM_CICP_MC_IDENTITY) {
-      assert(seq_params->subsampling_x == 0 && seq_params->subsampling_y == 0);
-    }
-    if (seq_params->subsampling_x == 1 && seq_params->subsampling_y == 1) {
-      aom_wb_write_literal(wb, seq_params->chroma_sample_position, 2);
-    }
+    aom_wb_write_bit(wb, seq_params->separate_uv_delta_q);
   }
-  aom_wb_write_bit(wb, seq_params->separate_uv_delta_q);
 #if CONFIG_EXTQUANT
   assert(seq_params->base_y_dc_delta_q <= DELTA_DCQUANT_MAX);
-  assert(seq_params->base_uv_dc_delta_q >= DELTA_DCQUANT_MIN);
   aom_wb_write_unsigned_literal(
       wb, seq_params->base_y_dc_delta_q - DELTA_DCQUANT_MIN,
       DELTA_DCQUANT_BITS);
-  aom_wb_write_unsigned_literal(
-      wb, seq_params->base_uv_dc_delta_q - DELTA_DCQUANT_MIN,
-      DELTA_DCQUANT_BITS);
+  if (!is_monochrome) {
+    assert(seq_params->base_uv_dc_delta_q >= DELTA_DCQUANT_MIN);
+    aom_wb_write_unsigned_literal(
+        wb, seq_params->base_uv_dc_delta_q - DELTA_DCQUANT_MIN,
+        DELTA_DCQUANT_BITS);
+  }
 #endif  // CONFIG_EXTQUANT
 }
 

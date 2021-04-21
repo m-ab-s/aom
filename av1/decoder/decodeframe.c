@@ -4335,59 +4335,61 @@ void av1_read_color_config(struct aom_read_bit_buffer *rb,
     seq_params->subsampling_y = seq_params->subsampling_x = 1;
     seq_params->chroma_sample_position = AOM_CSP_UNKNOWN;
     seq_params->separate_uv_delta_q = 0;
-    return;
-  }
-  if (seq_params->color_primaries == AOM_CICP_CP_BT_709 &&
-      seq_params->transfer_characteristics == AOM_CICP_TC_SRGB &&
-      seq_params->matrix_coefficients == AOM_CICP_MC_IDENTITY) {
-    seq_params->subsampling_y = seq_params->subsampling_x = 0;
-    seq_params->color_range = 1;  // assume full color-range
-    if (!(seq_params->profile == PROFILE_1 ||
-          (seq_params->profile == PROFILE_2 &&
-           seq_params->bit_depth == AOM_BITS_12))) {
-      aom_internal_error(
-          error_info, AOM_CODEC_UNSUP_BITSTREAM,
-          "sRGB colorspace not compatible with specified profile");
-    }
   } else {
-    // [16,235] (including xvycc) vs [0,255] range
-    seq_params->color_range = aom_rb_read_bit(rb);
-    if (seq_params->profile == PROFILE_0) {
-      // 420 only
-      seq_params->subsampling_x = seq_params->subsampling_y = 1;
-    } else if (seq_params->profile == PROFILE_1) {
-      // 444 only
-      seq_params->subsampling_x = seq_params->subsampling_y = 0;
+    if (seq_params->color_primaries == AOM_CICP_CP_BT_709 &&
+        seq_params->transfer_characteristics == AOM_CICP_TC_SRGB &&
+        seq_params->matrix_coefficients == AOM_CICP_MC_IDENTITY) {
+      seq_params->subsampling_y = seq_params->subsampling_x = 0;
+      seq_params->color_range = 1;  // assume full color-range
+      if (!(seq_params->profile == PROFILE_1 ||
+            (seq_params->profile == PROFILE_2 &&
+             seq_params->bit_depth == AOM_BITS_12))) {
+        aom_internal_error(
+            error_info, AOM_CODEC_UNSUP_BITSTREAM,
+            "sRGB colorspace not compatible with specified profile");
+      }
     } else {
-      assert(seq_params->profile == PROFILE_2);
-      if (seq_params->bit_depth == AOM_BITS_12) {
-        seq_params->subsampling_x = aom_rb_read_bit(rb);
-        if (seq_params->subsampling_x)
-          seq_params->subsampling_y = aom_rb_read_bit(rb);  // 422 or 420
-        else
-          seq_params->subsampling_y = 0;  // 444
+      // [16,235] (including xvycc) vs [0,255] range
+      seq_params->color_range = aom_rb_read_bit(rb);
+      if (seq_params->profile == PROFILE_0) {
+        // 420 only
+        seq_params->subsampling_x = seq_params->subsampling_y = 1;
+      } else if (seq_params->profile == PROFILE_1) {
+        // 444 only
+        seq_params->subsampling_x = seq_params->subsampling_y = 0;
       } else {
-        // 422
-        seq_params->subsampling_x = 1;
-        seq_params->subsampling_y = 0;
+        assert(seq_params->profile == PROFILE_2);
+        if (seq_params->bit_depth == AOM_BITS_12) {
+          seq_params->subsampling_x = aom_rb_read_bit(rb);
+          if (seq_params->subsampling_x)
+            seq_params->subsampling_y = aom_rb_read_bit(rb);  // 422 or 420
+          else
+            seq_params->subsampling_y = 0;  // 444
+        } else {
+          // 422
+          seq_params->subsampling_x = 1;
+          seq_params->subsampling_y = 0;
+        }
+      }
+      if (seq_params->matrix_coefficients == AOM_CICP_MC_IDENTITY &&
+          (seq_params->subsampling_x || seq_params->subsampling_y)) {
+        aom_internal_error(
+            error_info, AOM_CODEC_UNSUP_BITSTREAM,
+            "Identity CICP Matrix incompatible with non 4:4:4 color sampling");
+      }
+      if (seq_params->subsampling_x && seq_params->subsampling_y) {
+        seq_params->chroma_sample_position = aom_rb_read_literal(rb, 2);
       }
     }
-    if (seq_params->matrix_coefficients == AOM_CICP_MC_IDENTITY &&
-        (seq_params->subsampling_x || seq_params->subsampling_y)) {
-      aom_internal_error(
-          error_info, AOM_CODEC_UNSUP_BITSTREAM,
-          "Identity CICP Matrix incompatible with non 4:4:4 color sampling");
-    }
-    if (seq_params->subsampling_x && seq_params->subsampling_y) {
-      seq_params->chroma_sample_position = aom_rb_read_literal(rb, 2);
-    }
+    seq_params->separate_uv_delta_q = aom_rb_read_bit(rb);
   }
-  seq_params->separate_uv_delta_q = aom_rb_read_bit(rb);
 #if CONFIG_EXTQUANT
   seq_params->base_y_dc_delta_q =
       DELTA_DCQUANT_MIN + aom_rb_read_literal(rb, DELTA_DCQUANT_BITS);
-  seq_params->base_uv_dc_delta_q =
-      DELTA_DCQUANT_MIN + aom_rb_read_literal(rb, DELTA_DCQUANT_BITS);
+  if (!is_monochrome) {
+    seq_params->base_uv_dc_delta_q =
+        DELTA_DCQUANT_MIN + aom_rb_read_literal(rb, DELTA_DCQUANT_BITS);
+  }
 #endif  // CONFIG_EXTQUANT
 }
 
