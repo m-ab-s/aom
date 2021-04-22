@@ -19,7 +19,8 @@
 #include "common/tf_lite_includes.h"
 
 #define CFG_MAX_LEN 256
-#define NUM_MODELS 8
+#define NUM_MODELS 6
+#define NUM_LEVELS 3
 
 #define Y4M_HDR_MAX_LEN 256
 #define Y4M_HDR_MAX_WORDS 16
@@ -38,13 +39,23 @@
 namespace {
 
 #include "examples/cnn_restore/sr2by1_tflite.h"
+#include "examples/cnn_restore/sr2by1_1_tflite.h"
+#include "examples/cnn_restore/sr2by1_2_tflite.h"
 #include "examples/cnn_restore/sr3by2_tflite.h"
+#include "examples/cnn_restore/sr3by2_1_tflite.h"
+#include "examples/cnn_restore/sr3by2_2_tflite.h"
 #include "examples/cnn_restore/sr4by3_tflite.h"
+#include "examples/cnn_restore/sr4by3_1_tflite.h"
+#include "examples/cnn_restore/sr4by3_2_tflite.h"
 #include "examples/cnn_restore/sr5by4_tflite.h"
+#include "examples/cnn_restore/sr5by4_1_tflite.h"
+#include "examples/cnn_restore/sr5by4_2_tflite.h"
 #include "examples/cnn_restore/sr6by5_tflite.h"
+#include "examples/cnn_restore/sr6by5_1_tflite.h"
+#include "examples/cnn_restore/sr6by5_2_tflite.h"
 #include "examples/cnn_restore/sr7by6_tflite.h"
-#include "examples/cnn_restore/sr8by7_tflite.h"
-#include "examples/cnn_restore/sr9by8_tflite.h"
+#include "examples/cnn_restore/sr7by6_1_tflite.h"
+#include "examples/cnn_restore/sr7by6_2_tflite.h"
 
 void RegisterSelectedOps(::tflite::MutableOpResolver *resolver) {
   resolver->AddBuiltin(::tflite::BuiltinOperator_ADD,
@@ -65,8 +76,12 @@ static void usage_and_exit(char *prog) {
   printf("      <y4m_input>\n");
   printf("      <num_frames>\n");
   printf("      <upsampling_ratio>\n");
-  printf("          in form <p>:<q> where <p>/<q> is the upsampling ratio\n");
-  printf("          with <p> greater than <q>.\n");
+  printf("          in form <p>:<q>[:<c>] where <p>/<q> is the upsampling\n");
+  printf("          ratio with <p> greater than <q>.\n");
+  printf("          <c> is optional compression level in [0, 1, 2]\n");
+  printf("              0: no compression (default)\n");
+  printf("              1: light compression\n");
+  printf("              2: heavy compression\n");
   printf("      <y4m_output>\n");
   printf("      \n");
   exit(EXIT_FAILURE);
@@ -87,17 +102,21 @@ static int split_words(char *buf, char delim, int nmax, char **words) {
   return n;
 }
 
-static int parse_rational_config(char *cfg, int *p, int *q) {
+static int parse_rational_config(char *cfg, int *p, int *q, int *c) {
   char cfgbuf[CFG_MAX_LEN];
   strncpy(cfgbuf, cfg, CFG_MAX_LEN - 1);
 
-  char *cfgwords[2];
-  const int ncfgwords = split_words(cfgbuf, ':', 2, cfgwords);
+  char *cfgwords[3];
+  const int ncfgwords = split_words(cfgbuf, ':', 3, cfgwords);
   if (ncfgwords < 2) return 0;
 
   *p = atoi(cfgwords[0]);
   *q = atoi(cfgwords[1]);
   if (*p <= 0 || *q <= 0 || *p < *q) return 0;
+  *c = 0;
+  if (ncfgwords < 3) return 1;
+  *c = atoi(cfgwords[2]);
+  if (*c < 0 || *c >= NUM_LEVELS) return 0;
   return 1;
 }
 
@@ -131,22 +150,21 @@ static int parse_info(char *hdrwords[], int nhdrwords, int *width, int *height,
 
 static const double model_ratios[NUM_MODELS] = { 2.0 / 1.0, 3.0 / 2.0,
                                                  4.0 / 3.0, 5.0 / 4.0,
-                                                 6.0 / 5.0, 7.0 / 6.0,
-                                                 8.0 / 7.0, 9.0 / 8.0 };
+                                                 6.0 / 5.0, 7.0 / 6.0 };
 
-static const unsigned char *get_model(int code) {
-  switch (code) {
-    case -1: return NULL;
-    case 0: return _tmp_sr2by1_tflite;
-    case 1: return _tmp_sr3by2_tflite;
-    case 2: return _tmp_sr4by3_tflite;
-    case 3: return _tmp_sr5by4_tflite;
-    case 4: return _tmp_sr6by5_tflite;
-    case 5: return _tmp_sr7by6_tflite;
-    case 6: return _tmp_sr8by7_tflite;
-    case 7: return _tmp_sr9by8_tflite;
-    default: return NULL;
-  }
+const unsigned char *tflite_data[NUM_MODELS][NUM_LEVELS] = {
+  { _tmp_sr2by1_tflite, _tmp_sr2by1_1_tflite, _tmp_sr2by1_2_tflite },
+  { _tmp_sr3by2_tflite, _tmp_sr3by2_1_tflite, _tmp_sr3by2_2_tflite },
+  { _tmp_sr4by3_tflite, _tmp_sr4by3_1_tflite, _tmp_sr4by3_2_tflite },
+  { _tmp_sr5by4_tflite, _tmp_sr5by4_1_tflite, _tmp_sr5by4_2_tflite },
+  { _tmp_sr6by5_tflite, _tmp_sr6by5_1_tflite, _tmp_sr6by5_2_tflite },
+  { _tmp_sr7by6_tflite, _tmp_sr7by6_1_tflite, _tmp_sr7by6_2_tflite },
+};
+
+static const unsigned char *get_model(int code, int level) {
+  if (code == -1 || code >= NUM_MODELS) return NULL;
+  if (level < 0 || level >= NUM_LEVELS) return NULL;
+  return tflite_data[code][level];
 }
 
 static int search_best_model(int p, int q) {
@@ -174,9 +192,9 @@ static TfLiteDelegate *get_tflite_xnnpack_delegate(int num_threads) {
 
 // Builds and returns the TFlite interpreter.
 static std::unique_ptr<tflite::Interpreter> get_tflite_interpreter(
-    int code, int width, int height, int num_threads,
+    int code, int level, int width, int height, int num_threads,
     TfLiteDelegate *xnnpack_delegate) {
-  const unsigned char *const model_tflite_data = get_model(code);
+  const unsigned char *const model_tflite_data = get_model(code, level);
   if (model_tflite_data == NULL) return nullptr;
 
   auto model = tflite::GetModel(model_tflite_data);
@@ -330,14 +348,14 @@ int main(int argc, char *argv[]) {
   }
   const int bytes_per_pel = (bitdepth + 7) / 8;
   int num_frames = atoi(argv[2]);
-  int p, q;
-  if (!parse_rational_config(argv[3], &p, &q)) {
-    printf("Could not parse upsampling factor from %s\n", argv[3]);
+  int p, q, restore_level;
+  if (!parse_rational_config(argv[3], &p, &q, &restore_level)) {
+    printf("Could not parse upsampling factor/level from %s\n", argv[3]);
     usage_and_exit(argv[0]);
   }
   const int restore_code = search_best_model(p, q);
-  printf("best_model = %d (ratio %f)\n", restore_code,
-         restore_code == -1 ? 1.0 : model_ratios[restore_code]);
+  printf("best_model = %d (ratio %f), level = %d\n", restore_code,
+         restore_code == -1 ? 1.0 : model_ratios[restore_code], restore_level);
 
   const int uvwidth = subx ? (ywidth + 1) >> 1 : ywidth;
   const int uvheight = suby ? (yheight + 1) >> 1 : yheight;
@@ -354,8 +372,9 @@ int main(int argc, char *argv[]) {
 
   TfLiteDelegate *xnnpack_delegate =
       use_xnnpack ? get_tflite_xnnpack_delegate(NUM_THREADS) : nullptr;
-  std::unique_ptr<tflite::Interpreter> interpreter = get_tflite_interpreter(
-      restore_code, ywidth, yheight, NUM_THREADS, xnnpack_delegate);
+  std::unique_ptr<tflite::Interpreter> interpreter =
+      get_tflite_interpreter(restore_code, restore_level, ywidth, yheight,
+                             NUM_THREADS, xnnpack_delegate);
 
   char frametag[] = "FRAME\n";
   for (int n = 0; n < num_frames; ++n) {
