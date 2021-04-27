@@ -34,6 +34,14 @@ FrameNum = {
 EnableTimingInfo = True
 UsePerfUtil = False
 Platform = platform.system()
+PSNR_Y_WEIGHT = 14.0
+PSNR_U_WEIGHT = 1.0
+PSNR_V_WEIGHT = 1.0
+APSNR_Y_WEIGHT = 4.0
+APSNR_U_WEIGHT = 1.0
+APSNR_V_WEIGHT = 1.0
+CTC_RegularXLSTemplate = os.path.join(BinPath, 'AOM_CWG_Regular_CTC_v6.xlsm')
+CTC_ASXLSTemplate = os.path.join(BinPath, 'AOM_CWG_AS_CTC_v8.xlsm')
 
 ############ test contents #######################################
 ContentPath = "D://YUVs//AV2-CTC"

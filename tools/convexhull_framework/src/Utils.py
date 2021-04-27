@@ -22,7 +22,8 @@ import numpy as np
 import scipy.interpolate
 import matplotlib.pyplot as plt
 from operator import itemgetter
-from Config import LogLevels, ContentPath, Platform, Path_RDResults, QPs
+from Config import LogLevels, ContentPath, Platform, Path_RDResults, QPs, PSNR_Y_WEIGHT, PSNR_U_WEIGHT, PSNR_V_WEIGHT, \
+APSNR_Y_WEIGHT, APSNR_U_WEIGHT, APSNR_V_WEIGHT
 from AV2CTCVideo import Y4M_CLIPs, CTC_TEST_SET
 
 class Clip:
@@ -51,6 +52,101 @@ class Clip:
         else:
             self.fps = round(self.fps_num / self.fps_denom)
         self.bit_depth = Bit_depth
+
+class Record:
+    test_cfg = ""
+    encode_mode = ""
+    codec_name = ""
+    encode_preset = ""
+    file_class = ""
+    file_name = ""
+    orig_res = ""
+    fps = ""
+    bit_depth = 0
+    coded_res = ""
+    qp = 0
+    bitrate = 0.0
+    psnr_y = 0.0
+    psnr_u = 0.0
+    psnr_v = 0.0
+    overall_psnr = 0.0
+    ssim_y = 0.0
+    ms_ssim_y = 0.0
+    vmaf_y = 0.0
+    vmaf_y_neg = 0.0
+    psnr_hvs = 0.0
+    ciede2k = 0.0
+    apsnr_y = 0.0
+    apsnr_u = 0.0
+    apsnr_v = 0.0
+    overall_apsnr = 0.0
+    enc_time = 0.0
+    dec_time = 0.0
+    enc_instr = 0.0
+    dec_instr = 0.0
+    enc_cycle = 0.0
+    dec_cycle = 0.0
+
+    def __init__(self, test_cfg, encode_mode , codec_name, encode_preset, file_class, file_name,
+                 orig_res, fps, bit_depth, coded_res, qp, bitrate, psnr_y, psnr_u, psnr_v,
+                 ssim_y, ms_ssim_y, vmaf_y, vmaf_y_neg, psnr_hvs, ciede2k, apsnr_y, apsnr_u,
+                 apsnr_v, enc_time, dec_time, enc_instr, dec_instr, enc_cycle, dec_cycle):
+
+        self.test_cfg = test_cfg
+        self.encode_mode = encode_mode
+        self.codec_name = codec_name
+        self.encode_preset = encode_preset
+        self.file_class = file_class
+        self.file_name = file_name
+        self.orig_res = orig_res
+        self.fps = fps
+        self.bit_depth = bit_depth
+        self.coded_res = coded_res
+        self.qp = qp
+        self.bitrate = float(bitrate)
+        self.psnr_y = float(psnr_y)
+        self.psnr_u = float(psnr_u)
+        self.psnr_v = float(psnr_v)
+        self.overall_psnr = (PSNR_Y_WEIGHT * self.psnr_y +
+                             PSNR_U_WEIGHT * self.psnr_u +
+                             PSNR_V_WEIGHT * self.psnr_v) / (PSNR_Y_WEIGHT + PSNR_U_WEIGHT + PSNR_V_WEIGHT)
+        self.ssim_y = float(ssim_y)
+        self.ms_ssim_y = float(ms_ssim_y)
+        self.vmaf_y = float(vmaf_y)
+        self.vmaf_y_neg = float(vmaf_y_neg)
+        self.psnr_hvs = float(psnr_hvs)
+        self.ciede2k = float(ciede2k)
+        self.apsnr_y = float(apsnr_y)
+        self.apsnr_u = float(apsnr_u)
+        self.apsnr_v = float(apsnr_v)
+        self.overall_apsnr = 10 * math.log10(1 / ((APSNR_Y_WEIGHT/pow(10, (self.apsnr_y / 10)) +
+                                                   APSNR_U_WEIGHT/pow(10, (self.apsnr_u / 10)) +
+                                                   APSNR_V_WEIGHT/pow(10, (self.apsnr_v / 10))) /
+                                              (APSNR_Y_WEIGHT + APSNR_U_WEIGHT + APSNR_V_WEIGHT)))
+        self.enc_time = float(enc_time)
+        self.dec_time = float(dec_time)
+        self.enc_instr = float(enc_instr)
+        self.dec_instr = float(dec_instr)
+        self.enc_cycle = float(enc_cycle)
+        self.dec_cycle = float(dec_cycle)
+
+def ParseCSVFile(csv_file):
+    records = {}
+    csv = open(csv_file, 'rt')
+    for line in csv:
+        if not line.startswith('TestCfg'):
+            words = re.split(',', line.strip())
+            record = Record(words[0], words[1], words[2], words[3], words[4], words[5], words[6], words[7], words[8],
+                            words[9], words[10], words[11], words[12], words[13], words[14], words[15], words[16],
+                            words[17],words[18], words[19], words[20], words[21], words[22], words[23], words[24],
+                            words[25], words[26],words[27], words[28],words[29])
+            key = record.coded_res + "_" + record.qp
+            if record.file_name not in records.keys():
+                records[record.file_name] = {}
+            records[record.file_name][key] = record
+
+    csv.close()
+    return records
 
 def Cleanfolder(folder):
     if os.path.isdir(folder):
@@ -417,15 +513,16 @@ def GatherPerframeStat(test_cfg,EncodeMethod,CodecName,EncodePreset,clip, name, 
                              clip.fps,clip.bit_depth,qp,enc_list[i],perframe_vmaf_log[i]))
 
 
-def plot_rd_curve(br, qty, qty_str, name, line_color=None, line_style=None, marker_format=None):
+def plot_rd_curve(br, qty, qty_str, name, x_label, line_color=None,
+                  line_style=None, marker_format=None):
     # generate samples between max and min of quality metrics
-    '''
     brqtypairs = []
     for i in range(min(len(qty), len(br))):
         brqtypairs.append((br[i], qty[i]))
     brqtypairs.sort(key = itemgetter(0, 1))
     new_br = [brqtypairs[i][0] for i in range(len(brqtypairs))]
     new_qty = [brqtypairs[i][1] for i in range(len(brqtypairs))]
+    '''
     min_br = min(new_br)
     max_br = max(new_br)
     lin = np.linspace(min_br, max_br, num=100, retstep=True)
@@ -434,9 +531,9 @@ def plot_rd_curve(br, qty, qty_str, name, line_color=None, line_style=None, mark
     plt.plot(samples, v, linestyle=line_style, color=line_color)
     plt.scatter(new_br, new_qty, color=line_color, marker=marker_format)
     '''
-    plt.plot(br, qty, linestyle=line_style, color=line_color)
-    plt.scatter(br, qty, color=line_color, marker=marker_format, label=name)
-    plt.xlabel('bdrate(Kbps)')
+    plt.plot(new_br, new_qty, linestyle=line_style, color=line_color)
+    plt.scatter(new_br, new_qty, color=line_color, marker=marker_format, label=name)
+    plt.xlabel(x_label)
     plt.ylabel(qty_str)
 
 def Interpolate_Bilinear(RDPoints, QPs, logBr=True):
