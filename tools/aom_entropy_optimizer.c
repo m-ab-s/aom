@@ -403,12 +403,13 @@ int main(int argc, const char **argv) {
 
   /* ext_inter experiment */
   /* New compound mode */
-  cts_each_dim[0] = INTER_MODE_CONTEXTS;
+  cts_each_dim[0] = INTER_COMPOUND_MODE_CONTEXTS;
   cts_each_dim[1] = INTER_COMPOUND_MODES;
   optimize_cdf_table(&fc.inter_compound_mode[0][0], probsfile, 2, cts_each_dim,
                      "static const aom_cdf_prob\n"
-                     "default_inter_compound_mode_cdf[INTER_MODE_CONTEXTS][CDF_"
-                     "SIZE(INTER_COMPOUND_MODES)]");
+                     "default_inter_compound_mode_cdf"
+                     "[INTER_COMPOUND_MODE_CONTEXTS][CDF_SIZE("
+                     "INTER_COMPOUND_MODES)]");
 
   /* Interintra */
   cts_each_dim[0] = BLOCK_SIZE_GROUPS;

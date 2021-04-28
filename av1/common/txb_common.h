@@ -17,24 +17,12 @@
 extern const int16_t av1_eob_group_start[12];
 extern const int16_t av1_eob_offset_bits[12];
 
-extern const int8_t av1_coeff_band_4x4[16];
-
-extern const int8_t av1_coeff_band_8x8[64];
-
-extern const int8_t av1_coeff_band_16x16[256];
-
-extern const int8_t av1_coeff_band_32x32[1024];
-
 extern const int8_t *av1_nz_map_ctx_offset[TX_SIZES_ALL];
 
 typedef struct txb_ctx {
   int txb_skip_ctx;
   int dc_sign_ctx;
 } TXB_CTX;
-
-static const int base_level_count_to_index[13] = {
-  0, 0, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3,
-};
 
 static const TX_CLASS tx_type_to_class[TX_TYPES] = {
   TX_CLASS_2D,     // DCT_DCT
@@ -76,70 +64,6 @@ static INLINE uint8_t *set_levels(uint8_t *const levels_buf, const int width) {
 
 static INLINE int get_padded_idx(const int idx, const int bwl) {
   return idx + ((idx >> bwl) << TX_PAD_HOR_LOG2);
-}
-
-static INLINE int get_base_ctx_from_count_mag(int row, int col, int count,
-                                              int sig_mag) {
-  const int ctx = base_level_count_to_index[count];
-  int ctx_idx = -1;
-
-  if (row == 0 && col == 0) {
-    if (sig_mag >= 2) return ctx_idx = 0;
-    if (sig_mag == 1) {
-      if (count >= 2)
-        ctx_idx = 1;
-      else
-        ctx_idx = 2;
-
-      return ctx_idx;
-    }
-
-    ctx_idx = 3 + ctx;
-    assert(ctx_idx <= 6);
-    return ctx_idx;
-  } else if (row == 0) {
-    if (sig_mag >= 2) return ctx_idx = 6;
-    if (sig_mag == 1) {
-      if (count >= 2)
-        ctx_idx = 7;
-      else
-        ctx_idx = 8;
-      return ctx_idx;
-    }
-
-    ctx_idx = 9 + ctx;
-    assert(ctx_idx <= 11);
-    return ctx_idx;
-  } else if (col == 0) {
-    if (sig_mag >= 2) return ctx_idx = 12;
-    if (sig_mag == 1) {
-      if (count >= 2)
-        ctx_idx = 13;
-      else
-        ctx_idx = 14;
-
-      return ctx_idx;
-    }
-
-    ctx_idx = 15 + ctx;
-    assert(ctx_idx <= 17);
-    // TODO(angiebird): turn this on once the optimization is finalized
-    // assert(ctx_idx < 28);
-  } else {
-    if (sig_mag >= 2) return ctx_idx = 18;
-    if (sig_mag == 1) {
-      if (count >= 2)
-        ctx_idx = 19;
-      else
-        ctx_idx = 20;
-      return ctx_idx;
-    }
-
-    ctx_idx = 21 + ctx;
-
-    assert(ctx_idx <= 24);
-  }
-  return ctx_idx;
 }
 
 static INLINE int get_br_ctx_2d(const uint8_t *const levels,

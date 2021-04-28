@@ -11,22 +11,52 @@
 __author__ = "maggie.sun@intel.com, ryan.lei@intel.com"
 
 import Utils
-from Config import AOMDEC, EnableTimingInfo, Platform
+from Config import AOMDEC, AV1DEC, EnableTimingInfo, Platform, UsePerfUtil
 from Utils import ExecuteCmd
 
-def DecodeWithAOM(infile, outfile, dec_perf, LogCmdOnly=False):
-    args = " --codec=av1 --summary -o %s %s" % (outfile, infile)
+def DecodeWithAOM(test_cfg, infile, outfile, dec_perf, decode_to_yuv, LogCmdOnly=False):
+    if decode_to_yuv:
+        args = " --codec=av1 --summary --rawvideo -o %s %s" % (outfile, infile)
+    else:
+        args = " --codec=av1 --summary -o %s %s" % (outfile, infile)
     cmd = AOMDEC + args
     if EnableTimingInfo:
         if Platform == "Windows":
             cmd = "ptime " + cmd + " >%s"%dec_perf
+        elif Platform == "Darwin":
+            cmd = "gtime --verbose --output=%s "%dec_perf + cmd
         else:
-            cmd = "/usr/bin/time --verbose --output=%s "%dec_perf + cmd
+            if UsePerfUtil:
+                cmd = "3>%s perf stat --log-fd 3 "%dec_perf +cmd
+            else:
+                cmd = "/usr/bin/time --verbose --output=%s "%dec_perf + cmd
+
     ExecuteCmd(cmd, LogCmdOnly)
 
-def VideoDecode(codec, infile, outfile, dec_perf, LogCmdOnly=False):
+def DecodeWithAV1(test_cfg, infile, outfile, dec_perf, decode_to_yuv, LogCmdOnly=False):
+    if decode_to_yuv:
+        args = " --codec=av1 --summary --rawvideo -o %s %s" % (outfile, infile)
+    else:
+        args = " --codec=av1 --summary -o %s %s" % (outfile, infile)
+    cmd = AV1DEC + args
+    if EnableTimingInfo:
+        if Platform == "Windows":
+            cmd = "ptime " + cmd + " >%s" % dec_perf
+        elif Platform == "Darwin":
+            cmd = "gtime --verbose --output=%s " % dec_perf + cmd
+        else:
+            if UsePerfUtil:
+                cmd = "3>%s perf stat --log-fd 3 " % dec_perf + cmd
+            else:
+                cmd = "/usr/bin/time --verbose --output=%s " % dec_perf + cmd
+
+    ExecuteCmd(cmd, LogCmdOnly)
+
+def VideoDecode(method, test_cfg, codec, infile, outfile, dec_perf, decode_to_yuv, LogCmdOnly=False):
     Utils.CmdLogger.write("::Decode\n")
-    if codec == 'av1':
-        DecodeWithAOM(infile, outfile, dec_perf, LogCmdOnly)
+    if codec == 'av1' and method == 'aom':
+        DecodeWithAOM(test_cfg, infile, outfile, dec_perf, decode_to_yuv, LogCmdOnly)
+    elif codec == 'av1' and method == 'svt':
+        DecodeWithAV1(test_cfg, infile, outfile, dec_perf, decode_to_yuv, LogCmdOnly)
     else:
         raise ValueError("invalid parameter for decode.")

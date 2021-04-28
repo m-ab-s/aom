@@ -22,17 +22,10 @@
 
 static INLINE __m256i unpack_weights_avx2(ConvolveParams *conv_params) {
   (void)conv_params;
-#if !CONFIG_REMOVE_DIST_WTD_COMP
   const int w0 = conv_params->fwd_offset;
   const int w1 = conv_params->bck_offset;
   const __m256i wt0 = _mm256_set1_epi16((int16_t)w0);
   const __m256i wt1 = _mm256_set1_epi16((int16_t)w1);
-#else
-  const __m256i wt0 =
-      _mm256_set1_epi16((int16_t)(1 << (DIST_PRECISION_BITS - 1)));
-  const __m256i wt1 =
-      _mm256_set1_epi16((int16_t)(1 << (DIST_PRECISION_BITS - 1)));
-#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
   const __m256i wt = _mm256_unpacklo_epi16(wt0, wt1);
   return wt;
 }
@@ -55,11 +48,7 @@ void av1_dist_wtd_convolve_x_avx2(const uint8_t *src, int src_stride,
   const int bits = FILTER_BITS - conv_params->round_1;
   const __m256i wt = unpack_weights_avx2(conv_params);
   const int do_average = conv_params->do_average;
-#if !CONFIG_REMOVE_DIST_WTD_COMP
-  const int use_dist_wtd_comp_avg = conv_params->use_dist_wtd_comp_avg;
-#else
-  const int use_dist_wtd_comp_avg = 0;
-#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
+  const int use_wtd_comp_avg = is_uneven_wtd_comp_avg(conv_params);
   const int offset_0 =
       bd + 2 * FILTER_BITS - conv_params->round_0 - conv_params->round_1;
   const int offset = (1 << offset_0) + (1 << (offset_0 - 1));
@@ -108,7 +97,7 @@ void av1_dist_wtd_convolve_x_avx2(const uint8_t *src, int src_stride,
           const __m256i data_ref_0 =
               load_line2_avx2(&dst_data[j], &dst_data[j + dst_stride]);
           const __m256i comp_avg_res =
-              comp_avg(&data_ref_0, &res_unsigned, &wt, use_dist_wtd_comp_avg);
+              comp_avg(&data_ref_0, &res_unsigned, &wt, use_wtd_comp_avg);
 
           const __m256i round_result = convolve_rounding(
               &comp_avg_res, &offset_const, &rounding_const, rounding_shift);
@@ -163,7 +152,7 @@ void av1_dist_wtd_convolve_x_avx2(const uint8_t *src, int src_stride,
           const __m256i data_ref_0 =
               load_line2_avx2(&dst_data[j], &dst_data[j + dst_stride]);
           const __m256i comp_avg_res =
-              comp_avg(&data_ref_0, &res_unsigned, &wt, use_dist_wtd_comp_avg);
+              comp_avg(&data_ref_0, &res_unsigned, &wt, use_wtd_comp_avg);
 
           const __m256i round_result = convolve_rounding(
               &comp_avg_res, &offset_const, &rounding_const, rounding_shift);
@@ -211,11 +200,7 @@ void av1_dist_wtd_convolve_y_avx2(const uint8_t *src, int src_stride,
   const __m128i round_shift = _mm_cvtsi32_si128(conv_params->round_1);
   const __m256i wt = unpack_weights_avx2(conv_params);
   const int do_average = conv_params->do_average;
-#if !CONFIG_REMOVE_DIST_WTD_COMP
-  const int use_dist_wtd_comp_avg = conv_params->use_dist_wtd_comp_avg;
-#else
-  const int use_dist_wtd_comp_avg = 0;
-#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
+  const int use_wtd_comp_avg = is_uneven_wtd_comp_avg(conv_params);
   const int offset_0 =
       bd + 2 * FILTER_BITS - conv_params->round_0 - conv_params->round_1;
   const int offset = (1 << offset_0) + (1 << (offset_0 - 1));
@@ -303,8 +288,8 @@ void av1_dist_wtd_convolve_y_avx2(const uint8_t *src, int src_stride,
             const __m256i data_ref_0 =
                 load_line2_avx2(&dst[i * dst_stride + j],
                                 &dst[i * dst_stride + j + dst_stride]);
-            const __m256i comp_avg_res = comp_avg(&data_ref_0, &res_lo_unsigned,
-                                                  &wt, use_dist_wtd_comp_avg);
+            const __m256i comp_avg_res =
+                comp_avg(&data_ref_0, &res_lo_unsigned, &wt, use_wtd_comp_avg);
 
             const __m256i round_result = convolve_rounding(
                 &comp_avg_res, &offset_const, &rounding_const, rounding_shift);
@@ -366,10 +351,10 @@ void av1_dist_wtd_convolve_y_avx2(const uint8_t *src, int src_stride,
                                 &dst[i * dst_stride + j + 8 + dst_stride]);
 
             const __m256i comp_avg_res_lo = comp_avg(
-                &data_ref_0_lo, &res_lo_unsigned, &wt, use_dist_wtd_comp_avg);
+                &data_ref_0_lo, &res_lo_unsigned, &wt, use_wtd_comp_avg);
 
             const __m256i comp_avg_res_hi = comp_avg(
-                &data_ref_0_hi, &res_hi_unsigned, &wt, use_dist_wtd_comp_avg);
+                &data_ref_0_hi, &res_hi_unsigned, &wt, use_wtd_comp_avg);
 
             const __m256i round_result_lo =
                 convolve_rounding(&comp_avg_res_lo, &offset_const,
@@ -482,8 +467,8 @@ void av1_dist_wtd_convolve_y_avx2(const uint8_t *src, int src_stride,
             const __m256i data_ref_0 =
                 load_line2_avx2(&dst[i * dst_stride + j],
                                 &dst[i * dst_stride + j + dst_stride]);
-            const __m256i comp_avg_res = comp_avg(&data_ref_0, &res_lo_unsigned,
-                                                  &wt, use_dist_wtd_comp_avg);
+            const __m256i comp_avg_res =
+                comp_avg(&data_ref_0, &res_lo_unsigned, &wt, use_wtd_comp_avg);
 
             const __m256i round_result = convolve_rounding(
                 &comp_avg_res, &offset_const, &rounding_const, rounding_shift);
@@ -545,10 +530,10 @@ void av1_dist_wtd_convolve_y_avx2(const uint8_t *src, int src_stride,
                                 &dst[i * dst_stride + j + 8 + dst_stride]);
 
             const __m256i comp_avg_res_lo = comp_avg(
-                &data_ref_0_lo, &res_lo_unsigned, &wt, use_dist_wtd_comp_avg);
+                &data_ref_0_lo, &res_lo_unsigned, &wt, use_wtd_comp_avg);
 
             const __m256i comp_avg_res_hi = comp_avg(
-                &data_ref_0_hi, &res_hi_unsigned, &wt, use_dist_wtd_comp_avg);
+                &data_ref_0_hi, &res_hi_unsigned, &wt, use_wtd_comp_avg);
 
             const __m256i round_result_lo =
                 convolve_rounding(&comp_avg_res_lo, &offset_const,
@@ -615,11 +600,7 @@ void av1_dist_wtd_convolve_2d_avx2(const uint8_t *src, int src_stride,
   int i, is_horiz_4tap = 0, is_vert_4tap = 0;
   const __m256i wt = unpack_weights_avx2(conv_params);
   const int do_average = conv_params->do_average;
-#if !CONFIG_REMOVE_DIST_WTD_COMP
-  const int use_dist_wtd_comp_avg = conv_params->use_dist_wtd_comp_avg;
-#else
-  const int use_dist_wtd_comp_avg = 0;
-#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
+  const int use_wtd_comp_avg = is_uneven_wtd_comp_avg(conv_params);
   const int offset_0 =
       bd + 2 * FILTER_BITS - conv_params->round_0 - conv_params->round_1;
   const int offset = (1 << offset_0) + (1 << (offset_0 - 1));
@@ -732,8 +713,8 @@ void av1_dist_wtd_convolve_2d_avx2(const uint8_t *src, int src_stride,
             const __m256i data_ref_0 =
                 load_line2_avx2(&dst[i * dst_stride + j],
                                 &dst[i * dst_stride + j + dst_stride]);
-            const __m256i comp_avg_res = comp_avg(&data_ref_0, &res_unsigned,
-                                                  &wt, use_dist_wtd_comp_avg);
+            const __m256i comp_avg_res =
+                comp_avg(&data_ref_0, &res_unsigned, &wt, use_wtd_comp_avg);
 
             const __m256i round_result = convolve_rounding(
                 &comp_avg_res, &offset_const, &rounding_const, rounding_shift);
@@ -763,8 +744,8 @@ void av1_dist_wtd_convolve_2d_avx2(const uint8_t *src, int src_stride,
                 load_line2_avx2(&dst[i * dst_stride + j],
                                 &dst[i * dst_stride + j + dst_stride]);
 
-            const __m256i comp_avg_res = comp_avg(&data_ref_0, &res_unsigned,
-                                                  &wt, use_dist_wtd_comp_avg);
+            const __m256i comp_avg_res =
+                comp_avg(&data_ref_0, &res_unsigned, &wt, use_wtd_comp_avg);
 
             const __m256i round_result = convolve_rounding(
                 &comp_avg_res, &offset_const, &rounding_const, rounding_shift);
@@ -824,11 +805,7 @@ void av1_dist_wtd_convolve_2d_copy_avx2(const uint8_t *src, int src_stride,
       FILTER_BITS * 2 - conv_params->round_1 - conv_params->round_0;
   const __m128i left_shift = _mm_cvtsi32_si128(bits);
   const int do_average = conv_params->do_average;
-#if !CONFIG_REMOVE_DIST_WTD_COMP
-  const int use_dist_wtd_comp_avg = conv_params->use_dist_wtd_comp_avg;
-#else
-  const int use_dist_wtd_comp_avg = 0;
-#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
+  const int use_wtd_comp_avg = is_uneven_wtd_comp_avg(conv_params);
   const __m256i wt = unpack_weights_avx2(conv_params);
   const __m256i zero = _mm256_setzero_si256();
 
@@ -855,7 +832,7 @@ void av1_dist_wtd_convolve_2d_copy_avx2(const uint8_t *src, int src_stride,
               _mm256_loadu_si256((__m256i *)(&dst[i * dst_stride + j]));
 
           const __m256i comp_avg_res =
-              comp_avg(&data_ref_0, &res_unsigned, &wt, use_dist_wtd_comp_avg);
+              comp_avg(&data_ref_0, &res_unsigned, &wt, use_wtd_comp_avg);
 
           const __m256i round_result = convolve_rounding(
               &comp_avg_res, &offset_const, &rounding_const, rounding_shift);
@@ -893,7 +870,7 @@ void av1_dist_wtd_convolve_2d_copy_avx2(const uint8_t *src, int src_stride,
           const __m256i data_ref_0 = load_line2_avx2(
               &dst[i * dst_stride + j], &dst[i * dst_stride + j + dst_stride]);
           const __m256i comp_avg_res =
-              comp_avg(&data_ref_0, &res_unsigned, &wt, use_dist_wtd_comp_avg);
+              comp_avg(&data_ref_0, &res_unsigned, &wt, use_wtd_comp_avg);
 
           const __m256i round_result = convolve_rounding(
               &comp_avg_res, &offset_const, &rounding_const, rounding_shift);

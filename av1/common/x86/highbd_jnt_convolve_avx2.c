@@ -34,17 +34,11 @@ void av1_highbd_dist_wtd_convolve_2d_copy_avx2(const uint16_t *src,
       FILTER_BITS * 2 - conv_params->round_1 - conv_params->round_0;
   const __m128i left_shift = _mm_cvtsi32_si128(bits);
   const int do_average = conv_params->do_average;
-#if !CONFIG_REMOVE_DIST_WTD_COMP
-  const int use_dist_wtd_comp_avg = conv_params->use_dist_wtd_comp_avg;
+  const int use_wtd_comp_avg = is_uneven_wtd_comp_avg(conv_params);
   const int w0 = conv_params->fwd_offset;
   const int w1 = conv_params->bck_offset;
   const __m256i wt0 = _mm256_set1_epi32(w0);
   const __m256i wt1 = _mm256_set1_epi32(w1);
-#else
-  const int use_dist_wtd_comp_avg = 0;
-  const __m256i wt0 = _mm256_set1_epi32(1 << (DIST_PRECISION_BITS - 1));
-  const __m256i wt1 = _mm256_set1_epi32(1 << (DIST_PRECISION_BITS - 1));
-#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
   const __m256i zero = _mm256_setzero_si256();
   int i, j;
 
@@ -80,17 +74,15 @@ void av1_highbd_dist_wtd_convolve_2d_copy_avx2(const uint16_t *src,
           const __m256i res_unsigned_lo =
               _mm256_add_epi32(res_32b_lo, offset_const);
 
-          const __m256i comp_avg_res_lo =
-              highbd_comp_avg(&data_ref_0_lo, &res_unsigned_lo, &wt0, &wt1,
-                              use_dist_wtd_comp_avg);
+          const __m256i comp_avg_res_lo = highbd_comp_avg(
+              &data_ref_0_lo, &res_unsigned_lo, &wt0, &wt1, use_wtd_comp_avg);
 
           const __m256i res_32b_hi = _mm256_unpackhi_epi16(res, zero);
           const __m256i res_unsigned_hi =
               _mm256_add_epi32(res_32b_hi, offset_const);
 
-          const __m256i comp_avg_res_hi =
-              highbd_comp_avg(&data_ref_0_hi, &res_unsigned_hi, &wt0, &wt1,
-                              use_dist_wtd_comp_avg);
+          const __m256i comp_avg_res_hi = highbd_comp_avg(
+              &data_ref_0_hi, &res_unsigned_hi, &wt0, &wt1, use_wtd_comp_avg);
 
           const __m256i round_result_lo = highbd_convolve_rounding(
               &comp_avg_res_lo, &offset_const, &rounding_const, rounding_shift);
@@ -139,9 +131,8 @@ void av1_highbd_dist_wtd_convolve_2d_copy_avx2(const uint16_t *src,
             const __m256i res_unsigned_lo =
                 _mm256_add_epi32(res_32b, offset_const);
 
-            const __m256i comp_avg_res =
-                highbd_comp_avg(&data_ref_0, &res_unsigned_lo, &wt0, &wt1,
-                                use_dist_wtd_comp_avg);
+            const __m256i comp_avg_res = highbd_comp_avg(
+                &data_ref_0, &res_unsigned_lo, &wt0, &wt1, use_wtd_comp_avg);
 
             const __m256i round_result = highbd_convolve_rounding(
                 &comp_avg_res, &offset_const, &rounding_const, rounding_shift);
@@ -184,17 +175,15 @@ void av1_highbd_dist_wtd_convolve_2d_copy_avx2(const uint16_t *src,
             const __m256i res_unsigned_lo =
                 _mm256_add_epi32(res_32b_lo, offset_const);
 
-            const __m256i comp_avg_res_lo =
-                highbd_comp_avg(&data_ref_0_lo, &res_unsigned_lo, &wt0, &wt1,
-                                use_dist_wtd_comp_avg);
+            const __m256i comp_avg_res_lo = highbd_comp_avg(
+                &data_ref_0_lo, &res_unsigned_lo, &wt0, &wt1, use_wtd_comp_avg);
 
             const __m256i res_32b_hi = _mm256_unpackhi_epi16(res, zero);
             const __m256i res_unsigned_hi =
                 _mm256_add_epi32(res_32b_hi, offset_const);
 
-            const __m256i comp_avg_res_hi =
-                highbd_comp_avg(&data_ref_0_hi, &res_unsigned_hi, &wt0, &wt1,
-                                use_dist_wtd_comp_avg);
+            const __m256i comp_avg_res_hi = highbd_comp_avg(
+                &data_ref_0_hi, &res_unsigned_hi, &wt0, &wt1, use_wtd_comp_avg);
 
             const __m256i round_result_lo =
                 highbd_convolve_rounding(&comp_avg_res_lo, &offset_const,
@@ -251,17 +240,11 @@ void av1_highbd_dist_wtd_convolve_2d_avx2(
 
   __m256i s[8], coeffs_y[4], coeffs_x[4];
   const int do_average = conv_params->do_average;
-#if !CONFIG_REMOVE_DIST_WTD_COMP
-  const int use_dist_wtd_comp_avg = conv_params->use_dist_wtd_comp_avg;
+  const int use_wtd_comp_avg = is_uneven_wtd_comp_avg(conv_params);
   const int w0 = conv_params->fwd_offset;
   const int w1 = conv_params->bck_offset;
   const __m256i wt0 = _mm256_set1_epi32(w0);
   const __m256i wt1 = _mm256_set1_epi32(w1);
-#else
-  const int use_dist_wtd_comp_avg = 0;
-  const __m256i wt0 = _mm256_set1_epi32(1 << (DIST_PRECISION_BITS - 1));
-  const __m256i wt1 = _mm256_set1_epi32(1 << (DIST_PRECISION_BITS - 1));
-#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
 
   const __m256i zero = _mm256_setzero_si256();
 
@@ -377,9 +360,8 @@ void av1_highbd_dist_wtd_convolve_2d_avx2(
 
             const __m256i data_ref_0 = _mm256_unpacklo_epi16(data_01, zero);
 
-            const __m256i comp_avg_res =
-                highbd_comp_avg(&data_ref_0, &res_unsigned_lo, &wt0, &wt1,
-                                use_dist_wtd_comp_avg);
+            const __m256i comp_avg_res = highbd_comp_avg(
+                &data_ref_0, &res_unsigned_lo, &wt0, &wt1, use_wtd_comp_avg);
 
             const __m256i round_result = highbd_convolve_rounding(
                 &comp_avg_res, &offset_const, &rounding_const, rounding_shift);
@@ -423,12 +405,10 @@ void av1_highbd_dist_wtd_convolve_2d_avx2(
             const __m256i data_ref_0_lo = _mm256_unpacklo_epi16(data_01, zero);
             const __m256i data_ref_0_hi = _mm256_unpackhi_epi16(data_01, zero);
 
-            const __m256i comp_avg_res_lo =
-                highbd_comp_avg(&data_ref_0_lo, &res_unsigned_lo, &wt0, &wt1,
-                                use_dist_wtd_comp_avg);
-            const __m256i comp_avg_res_hi =
-                highbd_comp_avg(&data_ref_0_hi, &res_unsigned_hi, &wt0, &wt1,
-                                use_dist_wtd_comp_avg);
+            const __m256i comp_avg_res_lo = highbd_comp_avg(
+                &data_ref_0_lo, &res_unsigned_lo, &wt0, &wt1, use_wtd_comp_avg);
+            const __m256i comp_avg_res_hi = highbd_comp_avg(
+                &data_ref_0_hi, &res_unsigned_hi, &wt0, &wt1, use_wtd_comp_avg);
 
             const __m256i round_result_lo =
                 highbd_convolve_rounding(&comp_avg_res_lo, &offset_const,
@@ -486,17 +466,11 @@ void av1_highbd_dist_wtd_convolve_x_avx2(
   __m256i s[4], coeffs_x[4];
 
   const int do_average = conv_params->do_average;
-#if !CONFIG_REMOVE_DIST_WTD_COMP
-  const int use_dist_wtd_comp_avg = conv_params->use_dist_wtd_comp_avg;
+  const int use_wtd_comp_avg = is_uneven_wtd_comp_avg(conv_params);
   const int w0 = conv_params->fwd_offset;
   const int w1 = conv_params->bck_offset;
   const __m256i wt0 = _mm256_set1_epi32(w0);
   const __m256i wt1 = _mm256_set1_epi32(w1);
-#else
-  const int use_dist_wtd_comp_avg = 0;
-  const __m256i wt0 = _mm256_set1_epi32(1 << (DIST_PRECISION_BITS - 1));
-  const __m256i wt1 = _mm256_set1_epi32(1 << (DIST_PRECISION_BITS - 1));
-#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
   const __m256i zero = _mm256_setzero_si256();
 
   const __m256i round_const_x =
@@ -567,7 +541,7 @@ void av1_highbd_dist_wtd_convolve_x_avx2(
           const __m256i data_ref_0 = _mm256_unpacklo_epi16(data_01, zero);
 
           const __m256i comp_avg_res = highbd_comp_avg(
-              &data_ref_0, &res_unsigned_lo, &wt0, &wt1, use_dist_wtd_comp_avg);
+              &data_ref_0, &res_unsigned_lo, &wt0, &wt1, use_wtd_comp_avg);
 
           const __m256i round_result = highbd_convolve_rounding(
               &comp_avg_res, &offset_const, &rounding_const, rounding_shift);
@@ -607,12 +581,10 @@ void av1_highbd_dist_wtd_convolve_x_avx2(
           const __m256i data_ref_0_lo = _mm256_unpacklo_epi16(data_01, zero);
           const __m256i data_ref_0_hi = _mm256_unpackhi_epi16(data_01, zero);
 
-          const __m256i comp_avg_res_lo =
-              highbd_comp_avg(&data_ref_0_lo, &res_unsigned_lo, &wt0, &wt1,
-                              use_dist_wtd_comp_avg);
-          const __m256i comp_avg_res_hi =
-              highbd_comp_avg(&data_ref_0_hi, &res_unsigned_hi, &wt0, &wt1,
-                              use_dist_wtd_comp_avg);
+          const __m256i comp_avg_res_lo = highbd_comp_avg(
+              &data_ref_0_lo, &res_unsigned_lo, &wt0, &wt1, use_wtd_comp_avg);
+          const __m256i comp_avg_res_hi = highbd_comp_avg(
+              &data_ref_0_hi, &res_unsigned_hi, &wt0, &wt1, use_wtd_comp_avg);
 
           const __m256i round_result_lo = highbd_convolve_rounding(
               &comp_avg_res_lo, &offset_const, &rounding_const, rounding_shift);
@@ -658,17 +630,11 @@ void av1_highbd_dist_wtd_convolve_y_avx2(
   int i, j;
   __m256i s[8], coeffs_y[4];
   const int do_average = conv_params->do_average;
-#if !CONFIG_REMOVE_DIST_WTD_COMP
-  const int use_dist_wtd_comp_avg = conv_params->use_dist_wtd_comp_avg;
+  const int use_wtd_comp_avg = is_uneven_wtd_comp_avg(conv_params);
   const int w0 = conv_params->fwd_offset;
   const int w1 = conv_params->bck_offset;
   const __m256i wt0 = _mm256_set1_epi32(w0);
   const __m256i wt1 = _mm256_set1_epi32(w1);
-#else
-  const int use_dist_wtd_comp_avg = 0;
-  const __m256i wt0 = _mm256_set1_epi32(1 << (DIST_PRECISION_BITS - 1));
-  const __m256i wt1 = _mm256_set1_epi32(1 << (DIST_PRECISION_BITS - 1));
-#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
 
   const __m256i round_const_y =
       _mm256_set1_epi32(((1 << conv_params->round_1) >> 1));
@@ -777,9 +743,8 @@ void av1_highbd_dist_wtd_convolve_y_avx2(
 
             const __m256i data_ref_0 = _mm256_unpacklo_epi16(data_01, zero);
 
-            const __m256i comp_avg_res =
-                highbd_comp_avg(&data_ref_0, &res_unsigned_lo, &wt0, &wt1,
-                                use_dist_wtd_comp_avg);
+            const __m256i comp_avg_res = highbd_comp_avg(
+                &data_ref_0, &res_unsigned_lo, &wt0, &wt1, use_wtd_comp_avg);
 
             const __m256i round_result = highbd_convolve_rounding(
                 &comp_avg_res, &offset_const, &rounding_const, rounding_shift);
@@ -824,12 +789,10 @@ void av1_highbd_dist_wtd_convolve_y_avx2(
             const __m256i data_ref_0_lo = _mm256_unpacklo_epi16(data_01, zero);
             const __m256i data_ref_0_hi = _mm256_unpackhi_epi16(data_01, zero);
 
-            const __m256i comp_avg_res_lo =
-                highbd_comp_avg(&data_ref_0_lo, &res_unsigned_lo, &wt0, &wt1,
-                                use_dist_wtd_comp_avg);
-            const __m256i comp_avg_res_hi =
-                highbd_comp_avg(&data_ref_0_hi, &res_unsigned_hi, &wt0, &wt1,
-                                use_dist_wtd_comp_avg);
+            const __m256i comp_avg_res_lo = highbd_comp_avg(
+                &data_ref_0_lo, &res_unsigned_lo, &wt0, &wt1, use_wtd_comp_avg);
+            const __m256i comp_avg_res_hi = highbd_comp_avg(
+                &data_ref_0_hi, &res_unsigned_hi, &wt0, &wt1, use_wtd_comp_avg);
 
             const __m256i round_result_lo =
                 highbd_convolve_rounding(&comp_avg_res_lo, &offset_const,

@@ -14,8 +14,6 @@ import os
 import sys
 import xlsxwriter
 import argparse
-import numpy as np
-import scipy.interpolate
 
 from EncDecUpscale import Run_EncDec_Upscale, GetBsReconFileName
 from VideoScaler import GetDownScaledOutFile, DownScaling
@@ -23,18 +21,20 @@ from CalculateQualityMetrics import CalculateQualityMetric, GatherQualityMetrics
 from Utils import GetShortContentName, CreateChart_Scatter,\
      AddSeriesToChart_Scatter, InsertChartsToSheet, CreateNewSubfolder,\
      SetupLogging, UpdateChart, AddSeriesToChart_Scatter_Rows,\
-     Cleanfolder, CreateClipList, Clip
+     Cleanfolder, CreateClipList, Clip, GatherPerfInfo, GetEncLogFile, \
+     GetRDResultCsvFile, GatherPerframeStat, GatherInstrCycleInfo, \
+     Interpolate_Bilinear, convex_hull
 from PostAnalysis_Summary import GenerateSumRDExcelFile,\
      GenerateSumCvxHullExcelFile
 from ScalingTest import Run_Scaling_Test, SaveScalingResultsToExcel
 import Utils
-from operator import itemgetter
 from Config import LogLevels, FrameNum, QPs, CvxH_WtCols,\
      CvxH_WtRows, QualityList, LineColors, SummaryOutPath, WorkPath, \
      Path_RDResults, DnScalingAlgos, UpScalingAlgos, ConvexHullColor, \
      EncodeMethods, CodecNames, LoggerName, DnScaleRatio, TargetQtyMetrics, \
      CvxHDataRows, CvxHDataStartRow, CvxHDataStartCol, CvxHDataNum, \
-     Int_ConvexHullColor, EnablePreInterpolation
+     Int_ConvexHullColor, EnablePreInterpolation, AS_DOWNSCALE_ON_THE_FLY,\
+     UsePerfUtil, ScaleMethods
 
 ###############################################################################
 ##### Helper Functions ########################################################
@@ -55,7 +55,8 @@ def GetRDResultExcelFile(clip):
 
 def setupWorkFolderStructure():
     global Path_Bitstreams, Path_DecodedYuv, Path_UpScaleYuv, Path_DnScaleYuv, \
-    Path_QualityLog, Path_TestLog, Path_CfgFiles, Path_DecUpScaleYuv, Path_PerfLog
+    Path_QualityLog, Path_TestLog, Path_CfgFiles, Path_DecUpScaleYuv, Path_PerfLog, \
+    Path_EncLog
     Path_Bitstreams = CreateNewSubfolder(WorkPath, "bistreams")
     Path_DecodedYuv = CreateNewSubfolder(WorkPath, "decodedYUVs")
     Path_UpScaleYuv = CreateNewSubfolder(WorkPath, "upscaledYUVs")
@@ -65,53 +66,7 @@ def setupWorkFolderStructure():
     Path_TestLog = CreateNewSubfolder(WorkPath, "testLogs")
     Path_CfgFiles = CreateNewSubfolder(WorkPath, "configFiles")
     Path_PerfLog = CreateNewSubfolder(WorkPath, "perfLogs")
-
-'''
-The convex_hull function is adapted based on the original python implementation
-from https://en.wikibooks.org/wiki/Algorithm_Implementation/Geometry/Convex_hull/Monotone_chain
-It is changed to return the lower and upper portions of the convex hull separately
-to get the convex hull based on traditional rd curve, only the upper portion is
-needed.
-'''
-
-def convex_hull(points):
-    """Computes the convex hull of a set of 2D points.
-    Input: an iterable sequence of (x, y) pairs representing the points.
-    Output: a list of vertices of the convex hull in counter-clockwise order,
-      starting from the vertex with the lexicographically smallest coordinates.
-    Implements Andrew's monotone chain algorithm. O(n log n) complexity.
-    """
-
-    # Sort the points lexicographically (tuples are compared lexicographically).
-    # Remove duplicates to detect the case we have just one unique point.
-    points = sorted(set(points))
-
-    # Boring case: no points or a single point, possibly repeated multiple times.
-    if len(points) <= 1:
-        return points
-
-    # 2D cross product of OA and OB vectors, i.e. z-component of their 3D cross
-    # product. Returns a positive value, if OAB makes a counter-clockwise turn,
-    # negative for clockwise turn, and zero if the points are collinear.
-    def cross(o, a, b):
-        return (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0])
-
-    # Build lower hull
-    lower = []
-    for p in points:
-        while len(lower) >= 2 and cross(lower[-2], lower[-1], p) <= 0:
-            lower.pop()
-        lower.append(p)
-
-    # Build upper hull
-    upper = []
-    for p in reversed(points):
-        while len(upper) >= 2 and cross(upper[-2], upper[-1], p) <= 0:
-            upper.pop()
-        upper.append(p)
-
-    return lower, upper
-
+    Path_EncLog = CreateNewSubfolder(WorkPath, "encLogs")
 
 def LookUpQPAndResInCvxHull(qtyvals, qtyhull, qtycvhQPs, qtycvhRes):
     cvhqtys = [h[1] for h in qtyhull]
@@ -215,30 +170,31 @@ def AddConvexHullCurveToCharts(sht, charts, rdPoints, dnScaledRes, tgtqmetrics,
 ######### Major Functions #####################################################
 def CleanUp_workfolders():
     folders = [Path_DnScaleYuv, Path_Bitstreams, Path_DecodedYuv, Path_QualityLog,
-               Path_TestLog, Path_CfgFiles, Path_PerfLog]
+               Path_TestLog, Path_CfgFiles, Path_PerfLog, Path_EncLog]
     if not KeepUpscaledOutput:
         folders += [Path_UpScaleYuv, Path_DecUpScaleYuv]
 
     for folder in folders:
         Cleanfolder(folder)
 
-def Run_ConvexHull_Test(clip, dnScalAlgo, upScalAlgo, LogCmdOnly = False):
+def Run_ConvexHull_Test(clip, dnScalAlgo, upScalAlgo, ScaleMethod, LogCmdOnly = False):
     Utils.Logger.info("start encode %s" % clip.file_name)
     DnScaledRes = [(int(clip.width / ratio), int(clip.height / ratio)) for ratio in
                    DnScaleRatio]
     for i in range(len(DnScaledRes)):
         if SaveMemory:
             CleanIntermediateFiles()
+
         DnScaledW = DnScaledRes[i][0]
         DnScaledH = DnScaledRes[i][1]
         # downscaling if the downscaled file does not exist
-        dnscalyuv = GetDownScaledOutFile(clip, DnScaledW, DnScaledH,
-                                         Path_DnScaleYuv, dnScalAlgo)
+        dnscalyuv = GetDownScaledOutFile(clip, DnScaledW, DnScaledH, Path_DnScaleYuv,
+                                         ScaleMethod, dnScalAlgo, AS_DOWNSCALE_ON_THE_FLY, i)
         if not os.path.isfile(dnscalyuv):
-            dnscalyuv = DownScaling(clip, FrameNum['AS'], DnScaledW, DnScaledH,
+            dnscalyuv = DownScaling(ScaleMethod, clip, FrameNum['AS'], DnScaledW, DnScaledH,
                                     Path_DnScaleYuv, Path_CfgFiles, dnScalAlgo, LogCmdOnly)
         ds_clip = Clip(GetShortContentName(dnscalyuv, False)+'.y4m', dnscalyuv,
-                       "", DnScaledW, DnScaledH, clip.fmt, clip.fps_num,
+                       clip.file_class, DnScaledW, DnScaledH, clip.fmt, clip.fps_num,
                        clip.fps_denom, clip.bit_depth)
         for QP in QPs['AS']:
             Utils.Logger.info("start encode and upscale for QP %d" % QP)
@@ -247,7 +203,7 @@ def Run_ConvexHull_Test(clip, dnScalAlgo, upScalAlgo, LogCmdOnly = False):
                                           ds_clip, 'AS', QP, FrameNum['AS'],
                                           clip.width, clip.height, Path_Bitstreams,
                                           Path_DecodedYuv, Path_DecUpScaleYuv,
-                                          Path_CfgFiles, Path_PerfLog, upScalAlgo, LogCmdOnly)
+                                          Path_CfgFiles, Path_PerfLog, Path_EncLog, upScalAlgo, LogCmdOnly)
             #calcualte quality distortion
             Utils.Logger.info("start quality metric calculation")
             CalculateQualityMetric(clip.file_path, FrameNum['AS'], reconyuv,
@@ -258,39 +214,7 @@ def Run_ConvexHull_Test(clip, dnScalAlgo, upScalAlgo, LogCmdOnly = False):
         Utils.Logger.info("finish running encode test.")
     Utils.Logger.info("finish running encode test.")
 
-def Interpolate(RDPoints):
-    '''
-    generate interpolated points on a RD curve.
-    input is list of existing RD points as (bitrate, quality) tuple
-    total number of interpolated points depends on the min and max QP
-    '''
-    # sort the pair based on bitrate in increasing order
-    # if bitrate is the same, then sort based on quality in increasing order
-    RDPoints.sort(key = itemgetter(0, 1))
-    br = [RDPoints[i][0] for i in range(len(RDPoints))]
-    qty = [RDPoints[i][1] for i in range(len(RDPoints))]
-
-    # generate samples between max and min of quality metrics
-    min_br = min(br); max_br = max(br)
-    min_qp = min(QPs['AS']); max_qp = max(QPs['AS'])
-    lin = np.linspace(min_br, max_br, num = (max_qp - min_qp + 1), retstep = True)
-    int_br = lin[0]
-
-    # interpolation using pchip
-    int_qty = scipy.interpolate.pchip_interpolate(br, qty, int_br)
-
-    '''
-    print("before interpolation:")
-    for i in range(len(br)):
-        print("%f, %f"%(br[i], qty[i]))
-    print("after interpolation:")
-    for i in range(len(int_br)):
-        print("%f, %f"%(int_br[i], int_qty[i]))
-    '''
-    int_points = [(int_br[i], int_qty[i]) for i in range(len(int_br))]
-    return int_points
-
-def SaveConvexHullResultsToExcel(content, dnScAlgos, upScAlgos,
+def SaveConvexHullResultsToExcel(content, dnScAlgos, upScAlgos, csv, perframe_csv,
                                  EnablePreInterpolation=False):
     Utils.Logger.info("start saving RD results to excel file.......")
     if not os.path.exists(Path_RDResults):
@@ -333,13 +257,31 @@ def SaveConvexHullResultsToExcel(content, dnScAlgos, upScAlgos,
                                                   EncodePreset, clip, DnScaledW,
                                                   DnScaledH, dnScAlgos[indx],
                                                   upScAlgos[indx], qp,
-                                                  Path_Bitstreams)
+                                                  Path_Bitstreams, False, i)
                 bitrate = (os.path.getsize(bs) * 8 * (clip.fps_num / clip.fps_denom)
                            / FrameNum['AS']) / 1000.0
                 bitratesKbps.append(bitrate)
-                quality = GatherQualityMetrics(reconyuv, Path_QualityLog)
+                quality, perframe_vmaf_log = GatherQualityMetrics(reconyuv, Path_QualityLog)
                 qualities.append(quality)
 
+                #"TestCfg,EncodeMethod,CodecName,EncodePreset,Class,OrigRes,Name,FPS,Bit Depth,CodedRes,QP,Bitrate(kbps)")
+                csv.write("%s,%s,%s,%s,%s,%s,%s,%.4f,%d,%s,%d,%.4f"%
+                          ("AS", EncodeMethod, CodecName, EncodePreset, clip.file_class,str(clip.width)+"x"+str(clip.height),
+                           contentname, clip.fps,clip.bit_depth,str(DnScaledW)+"x"+str(DnScaledH),qp,bitrate))
+                for qty in quality:
+                    csv.write(",%.4f"%qty)
+
+                if UsePerfUtil:
+                    enc_instr, enc_cycles, dec_instr, dec_cycles = GatherInstrCycleInfo(bs, Path_PerfLog)
+                    csv.write(",%s,%s,%s,%s,\n"%(enc_instr, enc_cycles, dec_instr, dec_cycles))
+                else:
+                    enc_time, dec_time = GatherPerfInfo(bs, Path_PerfLog)
+                    csv.write(",%.2f,%.2f,\n" % (enc_time, dec_time))
+                if (EncodeMethod == 'aom'):
+                    enc_log = GetEncLogFile(bs, Path_EncLog)
+                    GatherPerframeStat("AS", EncodeMethod, CodecName, EncodePreset, clip, GetShortContentName(bs),
+                                       DnScaledW, DnScaledH, qp, enc_log, perframe_csv,
+                                       perframe_vmaf_log)
             sht.write_column(CvxH_WtRows[0], col, bitratesKbps)
             for qs, row in zip(qualities, CvxH_WtRows):
                 sht.write_row(row, col + 1, qs)
@@ -357,7 +299,7 @@ def SaveConvexHullResultsToExcel(content, dnScAlgos, upScAlgos,
                 rdpnts = [(brt, qty) for brt, qty in zip(bitratesKbps, qs)]
                 RDPoints[x] = RDPoints[x] + rdpnts
                 if EnablePreInterpolation:
-                    int_rdpnts = Interpolate(rdpnts)
+                    int_rdpnts = Interpolate_Bilinear(rdpnts, QPs['AS'][:], True)
                     Int_RDPoints[x] = Int_RDPoints[x] + int_rdpnts
 
         # add convexhull curve to charts
@@ -415,19 +357,24 @@ def ParseArguments(raw_args):
                         help="EncodeMethod: aom, svt")
     parser.add_argument('-p', "--EncodePreset", dest='EncodePreset', type=str,
                         metavar='', help="EncodePreset: 0,1,2... for aom and svt")
+    parser.add_argument('-t', '--ScaleMethod', dest='ScaleMethod', type=str,
+                        choices=ScaleMethods, metavar='',
+                        help="ScaleMethod: ffmpeg, hdrtool, aom")
+
     if len(raw_args) == 1:
         parser.print_help()
         sys.exit(1)
     args = parser.parse_args(raw_args[1:])
 
     global Function, KeepUpscaledOutput, SaveMemory, LogLevel, CodecName,\
-        EncodeMethod, EncodePreset, LogCmdOnly
+        EncodeMethod, ScaleMethod, EncodePreset, LogCmdOnly
     Function = args.Function
     KeepUpscaledOutput = args.KeepUpscaledOutput
     SaveMemory = args.SaveMemory
     LogLevel = args.LogLevel
     CodecName = args.CodecName
     EncodeMethod = args.EncodeMethod
+    ScaleMethod = args.ScaleMethod
     EncodePreset = args.EncodePreset
     LogCmdOnly = args.LogCmdOnly
 
@@ -437,11 +384,11 @@ def ParseArguments(raw_args):
 ######################################
 if __name__ == "__main__":
     #sys.argv = ["","-f","clean"]
-    #sys.argv = ["","-f","scaling"]
-    #sys.argv = ["", "-f", "sumscaling"]
-    #sys.argv = ["", "-f", "encode","-c","av1","-m","aom","-p","6"]
-    #sys.argv = ["", "-f", "convexhull","-c","av1","-m","aom","-p","6"]
-    #sys.argv = ["", "-f", "summary", "-c", "av1", "-m", "aom", "-p", "6"]
+    #sys.argv = ["","-f","scaling", "-t", "hdrtool"]
+    #sys.argv = ["", "-f", "sumscaling", "-t", "hdrtool"]
+    #sys.argv = ["", "-f", "encode","-c","av1","-m","aom","-p","6", "-t", "hdrtool"]
+    #sys.argv = ["", "-f", "convexhull","-c","av1","-m","aom","-p","6", "-t", "hdrtool"]
+    #sys.argv = ["", "-f", "summary", "-c", "av1", "-m", "aom", "-p", "6", "-t", "hdrtool"]
     ParseArguments(sys.argv)
 
     # preparation for executing functions
@@ -458,19 +405,40 @@ if __name__ == "__main__":
             for dnScaleAlgo, upScaleAlgo in zip(DnScalingAlgos, UpScalingAlgos):
                 Run_Scaling_Test(clip, dnScaleAlgo, upScaleAlgo,
                                  Path_DnScaleYuv, Path_UpScaleYuv, Path_QualityLog,
-                                 Path_CfgFiles, SaveMemory, KeepUpscaledOutput,
+                                 Path_CfgFiles, SaveMemory, KeepUpscaledOutput, ScaleMethod,
                                  LogCmdOnly)
     elif Function == 'sumscaling':
-        SaveScalingResultsToExcel(DnScalingAlgos, UpScalingAlgos, clip_list,
+        SaveScalingResultsToExcel(ScaleMethod, DnScalingAlgos, UpScalingAlgos, clip_list,
                                   Path_QualityLog)
     elif Function == 'encode':
         for clip in clip_list:
             for dnScalAlgo, upScalAlgo in zip(DnScalingAlgos, UpScalingAlgos):
-                Run_ConvexHull_Test(clip, dnScalAlgo, upScalAlgo, LogCmdOnly)
+                Run_ConvexHull_Test(clip, dnScalAlgo, upScalAlgo, ScaleMethod, LogCmdOnly)
     elif Function == 'convexhull':
+        csv_file, perframe_csvfile = GetRDResultCsvFile(EncodeMethod, CodecName, EncodePreset, "AS")
+        csv = open(csv_file, "wt")
+        csv.write("TestCfg,EncodeMethod,CodecName,EncodePreset,Class,OrigRes,Name,FPS," \
+                  "Bit Depth,CodedRes,QP,Bitrate(kbps)")
+        for qty in QualityList:
+            csv.write(',' + qty)
+        if UsePerfUtil:
+            csv.write(",EncInstr,EncCycles,DecInstr,DecCycles\n")
+        else:
+            csv.write(",EncT[s],DecT[s]\n")
+
+        perframe_csv = open(perframe_csvfile, 'wt')
+        perframe_csv.write("TestCfg,EncodeMethod,CodecName,EncodePreset,Class,Res,Name,FPS," \
+                           "Bit Depth,QP,POC,FrameType,qindex,FrameSize")
+        for qty in QualityList:
+            if not qty.startswith("APSNR"):
+                perframe_csv.write(',' + qty)
+        perframe_csv.write('\n')
+
         for clip in clip_list:
-            SaveConvexHullResultsToExcel(clip, DnScalingAlgos, UpScalingAlgos,
+            SaveConvexHullResultsToExcel(clip, DnScalingAlgos, UpScalingAlgos, csv, perframe_csv,
                                          EnablePreInterpolation)
+        csv.close()
+        perframe_csv.close()
     elif Function == 'summary':
         RDResultFilesGenerated = []
         for clip in clip_list:
@@ -485,6 +453,6 @@ if __name__ == "__main__":
                                                  EncodePreset, SummaryOutPath,
                                                  RDResultFilesGenerated,
                                                  EnablePreInterpolation)
-        Utils.Logger.info("Convel hull summary file generated: %s" % CvxHsmfile)
+        Utils.Logger.info("Convex hull summary file generated: %s" % CvxHsmfile)
     else:
         Utils.Logger.error("invalid parameter value of Function")

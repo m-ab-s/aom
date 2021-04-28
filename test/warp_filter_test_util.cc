@@ -151,9 +151,6 @@ void AV1WarpFilterTest::RunSpeedTest(warp_affine_func test_impl) {
   int do_average = 0;
 
   conv_params = get_conv_params_no_round(do_average, 0, dsta, out_w, 1, bd);
-#if !CONFIG_REMOVE_DIST_WTD_COMP
-  conv_params.use_dist_wtd_comp_avg = 0;
-#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
 
   const int num_loops = 1000000000 / (out_w + out_h);
   aom_usec_timer timer;
@@ -224,15 +221,11 @@ void AV1WarpFilterTest::RunCheckOutput(warp_affine_func test_impl) {
               } else {
                 conv_params = get_conv_params(0, 0, bd);
               }
-#if !CONFIG_REMOVE_DIST_WTD_COMP
               if (jj >= 4) {
-                conv_params.use_dist_wtd_comp_avg = 0;
               } else {
-                conv_params.use_dist_wtd_comp_avg = 1;
                 conv_params.fwd_offset = quant_dist_lookup_table[ii][jj][0];
                 conv_params.bck_offset = quant_dist_lookup_table[ii][jj][1];
               }
-#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
               av1_warp_affine_c(mat, input, w, h, stride, output, 32, 32, out_w,
                                 out_h, out_w, sub_x, sub_y, &conv_params, alpha,
                                 beta, gamma, delta);
@@ -240,15 +233,11 @@ void AV1WarpFilterTest::RunCheckOutput(warp_affine_func test_impl) {
                 conv_params =
                     get_conv_params_no_round(do_average, 0, dstb, out_w, 1, bd);
               }
-#if !CONFIG_REMOVE_DIST_WTD_COMP
               if (jj >= 4) {
-                conv_params.use_dist_wtd_comp_avg = 0;
               } else {
-                conv_params.use_dist_wtd_comp_avg = 1;
                 conv_params.fwd_offset = quant_dist_lookup_table[ii][jj][0];
                 conv_params.bck_offset = quant_dist_lookup_table[ii][jj][1];
               }
-#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
               test_impl(mat, input, w, h, stride, output2, 32, 32, out_w, out_h,
                         out_w, sub_x, sub_y, &conv_params, alpha, beta, gamma,
                         delta);
@@ -349,9 +338,6 @@ void AV1HighbdWarpFilterTest::RunSpeedTest(highbd_warp_affine_func test_impl) {
   sub_x = 0;
   sub_y = 0;
   int do_average = 0;
-#if !CONFIG_REMOVE_DIST_WTD_COMP
-  conv_params.use_dist_wtd_comp_avg = 0;
-#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
   conv_params = get_conv_params_no_round(do_average, 0, dsta, out_w, 1, bd);
 
   const int num_loops = 1000000000 / (out_w + out_h);
@@ -427,15 +413,11 @@ void AV1HighbdWarpFilterTest::RunCheckOutput(
               } else {
                 conv_params = get_conv_params(0, 0, bd);
               }
-#if !CONFIG_REMOVE_DIST_WTD_COMP
               if (jj >= 4) {
-                conv_params.use_dist_wtd_comp_avg = 0;
               } else {
-                conv_params.use_dist_wtd_comp_avg = 1;
                 conv_params.fwd_offset = quant_dist_lookup_table[ii][jj][0];
                 conv_params.bck_offset = quant_dist_lookup_table[ii][jj][1];
               }
-#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
 
               av1_highbd_warp_affine_c(mat, input, w, h, stride, output, 32, 32,
                                        out_w, out_h, out_w, sub_x, sub_y, bd,
@@ -446,15 +428,11 @@ void AV1HighbdWarpFilterTest::RunCheckOutput(
                 conv_params =
                     get_conv_params_no_round(do_average, 0, dstb, out_w, 1, bd);
               }
-#if !CONFIG_REMOVE_DIST_WTD_COMP
               if (jj >= 4) {
-                conv_params.use_dist_wtd_comp_avg = 0;
               } else {
-                conv_params.use_dist_wtd_comp_avg = 1;
                 conv_params.fwd_offset = quant_dist_lookup_table[ii][jj][0];
                 conv_params.bck_offset = quant_dist_lookup_table[ii][jj][1];
               }
-#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
               test_impl(mat, input, w, h, stride, output2, 32, 32, out_w, out_h,
                         out_w, sub_x, sub_y, bd, &conv_params, alpha, beta,
                         gamma, delta);

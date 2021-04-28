@@ -128,6 +128,10 @@ list(APPEND AOM_SOURCES
             "${AOM_ROOT}/aom/src/aom_integer.c")
 
 list(APPEND AOM_COMMON_APP_UTIL_SOURCES
+            "${AOM_ROOT}/av1/arg_defs.h"
+            "${AOM_ROOT}/av1/arg_defs.c"
+            "${AOM_ROOT}/common/args_helper.c"
+            "${AOM_ROOT}/common/args_helper.h"
             "${AOM_ROOT}/common/args.c"
             "${AOM_ROOT}/common/args.h"
             "${AOM_ROOT}/common/av1_config.c"
@@ -657,6 +661,11 @@ if(CONFIG_TENSORFLOW_LITE)
       target_link_tf_lite_libraries(tf_lite_model)
       add_dependencies(tf_lite_model tensorflow_lite fake_dl)
     endif()
+    add_executable(cnn_restore_y4m
+                   "${AOM_ROOT}/examples/cnn_restore/cnn_restore_y4m.cc")
+    list(APPEND AOM_APP_TARGETS cnn_restore_y4m)
+    target_link_tf_lite_libraries(cnn_restore_y4m)
+    add_dependencies(cnn_restore_y4m tensorflow_lite fake_dl)
   endif()
 endif()
 

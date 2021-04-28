@@ -451,7 +451,7 @@ static const aom_cdf_prob default_drl_cdf[DRL_MODE_CONTEXTS][CDF_SIZE(2)] = {
 };
 
 static const aom_cdf_prob
-    default_inter_compound_mode_cdf[INTER_MODE_CONTEXTS][CDF_SIZE(
+    default_inter_compound_mode_cdf[INTER_COMPOUND_MODE_CONTEXTS][CDF_SIZE(
         INTER_COMPOUND_MODES)] = {
       { AOM_CDF8(7760, 13823, 15808, 17641, 19156, 20666, 26891) },
       { AOM_CDF8(10730, 19452, 21145, 22749, 24039, 25131, 28724) },

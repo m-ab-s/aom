@@ -21,19 +21,19 @@ import sys
 import numpy as np
 
 def main():
-    dir = sys.argv[1]
-    sum = []
-    for fn in os.listdir(dir):
-        if sys.argv[2] in fn:
-            stats = np.fromfile(dir + fn, dtype=np.int32)
-            if len(sum) == 0:
-                sum = stats
-            else:
-                sum = np.add(sum, stats)
-    if len(sum) == 0:
-        print("No stats file is found. Double-check directory and keyword?")
-    else:
-        sum.tofile(dir+sys.argv[3])
+  dir = sys.argv[1]
+  sum = []
+  for fn in os.listdir(dir):
+    if sys.argv[2] in fn:
+      stats = np.fromfile(os.path.join(dir, fn), dtype=np.int32)
+      if len(sum) == 0:
+        sum = stats
+      else:
+        sum = np.add(sum, stats)
+  if len(sum) == 0:
+    print("No stats file is found. Double-check directory and keyword?")
+  else:
+    sum.tofile(sys.argv[3])
 
 if __name__ == '__main__':
     main()

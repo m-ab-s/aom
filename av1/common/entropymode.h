@@ -89,7 +89,7 @@ typedef struct frame_contexts {
   aom_cdf_prob refmv_cdf[REFMV_MODE_CONTEXTS][CDF_SIZE(2)];
   aom_cdf_prob drl_cdf[DRL_MODE_CONTEXTS][CDF_SIZE(2)];
 
-  aom_cdf_prob inter_compound_mode_cdf[INTER_MODE_CONTEXTS]
+  aom_cdf_prob inter_compound_mode_cdf[INTER_COMPOUND_MODE_CONTEXTS]
                                       [CDF_SIZE(INTER_COMPOUND_MODES)];
   aom_cdf_prob compound_type_cdf[BLOCK_SIZES_ALL]
                                 [CDF_SIZE(MASKED_COMPOUND_TYPES)];

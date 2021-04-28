@@ -170,9 +170,6 @@ static int64_t highbd_warp_error(
   uint16_t tmp[WARP_ERROR_BLOCK * WARP_ERROR_BLOCK];
 
   ConvolveParams conv_params = get_conv_params(0, 0, bd);
-#if !CONFIG_REMOVE_DIST_WTD_COMP
-  conv_params.use_dist_wtd_comp_avg = 0;
-#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
   for (int i = p_row; i < p_row + p_height; i += WARP_ERROR_BLOCK) {
     for (int j = p_col; j < p_col + p_width; j += WARP_ERROR_BLOCK) {
       int seg_x = j >> WARP_ERROR_BLOCK_LOG;
@@ -209,9 +206,6 @@ static int64_t warp_error(WarpedMotionParams *wm, const uint8_t *const ref,
   const int error_bsize_h = AOMMIN(p_height, WARP_ERROR_BLOCK);
   DECLARE_ALIGNED(16, uint8_t, tmp[WARP_ERROR_BLOCK * WARP_ERROR_BLOCK]);
   ConvolveParams conv_params = get_conv_params(0, 0, 8);
-#if !CONFIG_REMOVE_DIST_WTD_COMP
-  conv_params.use_dist_wtd_comp_avg = 0;
-#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
 
   for (int i = p_row; i < p_row + p_height; i += WARP_ERROR_BLOCK) {
     for (int j = p_col; j < p_col + p_width; j += WARP_ERROR_BLOCK) {

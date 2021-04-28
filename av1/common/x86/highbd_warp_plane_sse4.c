@@ -329,12 +329,11 @@ void av1_highbd_warp_affine_sse4_1(const int32_t *mat, const uint16_t *ref,
   __m128i round_bits_shift = _mm_cvtsi32_si128(round_bits);
   __m128i round_bits_const = _mm_set1_epi32(((1 << round_bits) >> 1));
 
-#if !CONFIG_REMOVE_DIST_WTD_COMP
   const int w0 = conv_params->fwd_offset;
   const int w1 = conv_params->bck_offset;
   const __m128i wt0 = _mm_set1_epi32(w0);
   const __m128i wt1 = _mm_set1_epi32(w1);
-#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
+  const int use_wtd_comp_avg = is_uneven_wtd_comp_avg(conv_params);
 
   /* Note: For this code to work, the left/right frame borders need to be
   extended by at least 13 pixels each. By the time we get here, other
@@ -547,17 +546,13 @@ void av1_highbd_warp_affine_sse4_1(const int32_t *mat, const uint16_t *ref,
             __m128i *const dst16 = (__m128i *)&pred[(i + k + 4) * p_stride + j];
             __m128i p_32 = _mm_cvtepu16_epi32(_mm_loadl_epi64(p));
 
-#if !CONFIG_REMOVE_DIST_WTD_COMP
-            if (conv_params->use_dist_wtd_comp_avg) {
+            if (use_wtd_comp_avg) {
               res_lo = _mm_add_epi32(_mm_mullo_epi32(p_32, wt0),
                                      _mm_mullo_epi32(res_lo, wt1));
               res_lo = _mm_srai_epi32(res_lo, DIST_PRECISION_BITS);
             } else {
-#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
               res_lo = _mm_srai_epi32(_mm_add_epi32(p_32, res_lo), 1);
-#if !CONFIG_REMOVE_DIST_WTD_COMP
             }
-#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
 
             __m128i res32_lo = _mm_add_epi32(res_lo, res_sub_const);
             res32_lo = _mm_sra_epi32(_mm_add_epi32(res32_lo, round_bits_const),
@@ -584,17 +579,13 @@ void av1_highbd_warp_affine_sse4_1(const int32_t *mat, const uint16_t *ref,
                   (__m128i *)&pred[(i + k + 4) * p_stride + j + 4];
               __m128i p4_32 = _mm_cvtepu16_epi32(_mm_loadl_epi64(p4));
 
-#if !CONFIG_REMOVE_DIST_WTD_COMP
-              if (conv_params->use_dist_wtd_comp_avg) {
+              if (use_wtd_comp_avg) {
                 res_hi = _mm_add_epi32(_mm_mullo_epi32(p4_32, wt0),
                                        _mm_mullo_epi32(res_hi, wt1));
                 res_hi = _mm_srai_epi32(res_hi, DIST_PRECISION_BITS);
               } else {
-#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
                 res_hi = _mm_srai_epi32(_mm_add_epi32(p4_32, res_hi), 1);
-#if !CONFIG_REMOVE_DIST_WTD_COMP
               }
-#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
 
               __m128i res32_hi = _mm_add_epi32(res_hi, res_sub_const);
               res32_hi = _mm_sra_epi32(

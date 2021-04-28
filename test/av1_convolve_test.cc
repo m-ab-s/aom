@@ -844,26 +844,28 @@ template <typename T>
 // Compound cases also need to test different frame offsets and weightings.
 class CompoundParam {
  public:
-  CompoundParam(bool use_dist_wtd_comp_avg, int fwd_offset, int bck_offset)
-      : use_dist_wtd_comp_avg_(use_dist_wtd_comp_avg), fwd_offset_(fwd_offset),
-        bck_offset_(bck_offset) {}
+  CompoundParam(int fwd_offset, int bck_offset)
+      : fwd_offset_(fwd_offset), bck_offset_(bck_offset) {}
 
-  bool UseDistWtdCompAvg() const { return use_dist_wtd_comp_avg_; }
+  bool UseWtdCompAvg() const {
+    return bck_offset_ != (1 << (DIST_PRECISION_BITS - 1)) ||
+           fwd_offset_ != (1 << (DIST_PRECISION_BITS - 1));
+  }
   int FwdOffset() const { return fwd_offset_; }
   int BckOffset() const { return bck_offset_; }
 
  private:
-  bool use_dist_wtd_comp_avg_;
   int fwd_offset_;
   int bck_offset_;
 };
 
 std::vector<CompoundParam> GetCompoundParams() {
   std::vector<CompoundParam> result;
-  result.push_back(CompoundParam(false, 0, 0));
+  result.push_back(CompoundParam(1 << (DIST_PRECISION_BITS - 1),
+                                 1 << (DIST_PRECISION_BITS - 1)));
   for (int k = 0; k < 2; ++k) {
     for (int l = 0; l < 4; ++l) {
-      result.push_back(CompoundParam(true, quant_dist_lookup_table[k][l][0],
+      result.push_back(CompoundParam(quant_dist_lookup_table[k][l][0],
                                      quant_dist_lookup_table[k][l][1]));
     }
   }
@@ -873,9 +875,9 @@ std::vector<CompoundParam> GetCompoundParams() {
 TEST_F(AV1ConvolveParametersTest, GetCompoundParams) {
   auto v = GetCompoundParams();
   ASSERT_EQ(9U, v.size());
-  ASSERT_FALSE(v[0].UseDistWtdCompAvg());
+  ASSERT_FALSE(v[0].UseWtdCompAvg());
   for (size_t i = 1; i < v.size(); ++i) {
-    ASSERT_TRUE(v[i].UseDistWtdCompAvg());
+    ASSERT_TRUE(v[i].UseWtdCompAvg());
   }
 }
 
@@ -889,11 +891,8 @@ ConvolveParams GetConvolveParams(int do_average, CONV_BUF_TYPE *conv_buf,
   ConvolveParams conv_params =
       get_conv_params_no_round(do_average, 0, conv_buf, width, 1, bit_depth);
   (void)compound;
-#if !CONFIG_REMOVE_DIST_WTD_COMP
-  conv_params.use_dist_wtd_comp_avg = compound.UseDistWtdCompAvg();
   conv_params.fwd_offset = compound.FwdOffset();
   conv_params.bck_offset = compound.BckOffset();
-#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
   return conv_params;
 }
 
