@@ -18,6 +18,7 @@
 #include "aom_ports/mem.h"
 #include "aom_scale/yv12config.h"
 
+#include "av1/common/alloccommon.h"
 #include "av1/common/common_data.h"
 #include "av1/common/quant_common.h"
 #include "av1/common/entropy.h"
@@ -458,7 +459,16 @@ static INLINE PARTITION_TYPE_REC get_symbol_from_partition_rec_block(
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 
 static INLINE int has_second_ref(const MB_MODE_INFO *mbmi) {
+#if CONFIG_NEW_REF_SIGNALING
+  // TODO(sarahparker) Temporary assert, see aomedia:3060
+  assert((mbmi->ref_frame_nrs[1] != INTRA_FRAME_NRS &&
+          mbmi->ref_frame_nrs[1] != INVALID_IDX) ==
+         (mbmi->ref_frame[1] > INTRA_FRAME));
+  return (mbmi->ref_frame_nrs[1] != INTRA_FRAME_NRS) &&
+         (mbmi->ref_frame_nrs[1] != INVALID_IDX);
+#else
   return mbmi->ref_frame[1] > INTRA_FRAME;
+#endif  // CONFIG_NEW_REF_SIGNALING
 }
 
 static INLINE int has_uni_comp_refs(const MB_MODE_INFO *mbmi) {

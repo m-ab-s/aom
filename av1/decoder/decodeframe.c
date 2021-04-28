@@ -911,6 +911,26 @@ static AOM_INLINE void predict_inter_block(AV1_COMMON *const cm,
   const int mi_row = xd->mi_row;
   const int mi_col = xd->mi_col;
   for (int ref = 0; ref < 1 + has_second_ref(mbmi); ++ref) {
+#if CONFIG_NEW_REF_SIGNALING
+    const MV_REFERENCE_FRAME frame = mbmi->ref_frame_nrs[ref];
+    if (frame == INTRA_FRAME_NRS) {
+      assert(is_intrabc_block(mbmi));
+      assert(ref == 0);
+    } else {
+      const RefCntBuffer *ref_buf = get_ref_frame_buf_nrs(cm, frame);
+      const struct scale_factors *ref_scale_factors =
+          get_ref_scale_factors_const_nrs(cm, frame);
+
+      // TODO(sarahparker) Temporary asserts, see aomedia:3060
+      const RefCntBuffer *ref_buf2 =
+          get_ref_frame_buf(cm, mbmi->ref_frame[ref]);
+      const struct scale_factors *ref_scale_factors2 =
+          get_ref_scale_factors_const(cm, mbmi->ref_frame[ref]);
+      assert(ref_buf == ref_buf2);
+      assert(ref_scale_factors == ref_scale_factors2);
+      (void)ref_buf2;
+      (void)ref_scale_factors2;
+#else
     const MV_REFERENCE_FRAME frame = mbmi->ref_frame[ref];
     if (frame < LAST_FRAME) {
       assert(is_intrabc_block(mbmi));
@@ -920,7 +940,7 @@ static AOM_INLINE void predict_inter_block(AV1_COMMON *const cm,
       const RefCntBuffer *ref_buf = get_ref_frame_buf(cm, frame);
       const struct scale_factors *ref_scale_factors =
           get_ref_scale_factors_const(cm, frame);
-
+#endif  // CONFIG_NEW_REF_SIGNALING
       xd->block_ref_scale_factors[ref] = ref_scale_factors;
       av1_setup_pre_planes(xd, ref, &ref_buf->buf, mi_row, mi_col,
                            ref_scale_factors, num_planes,
@@ -2501,6 +2521,28 @@ static AOM_INLINE void setup_frame_size_with_refs(
     aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
                        "Invalid frame size");
 
+#if CONFIG_NEW_REF_SIGNALING
+  // Check to make sure at least one of frames that this frame references
+  // has valid dimensions.
+  for (int i = 0; i < MAX_REF_FRAMES_NRS; ++i) {
+    const RefCntBuffer *const ref_frame = get_ref_frame_buf_nrs(cm, i);
+    has_valid_ref_frame |=
+        valid_ref_frame_size(ref_frame->buf.y_crop_width,
+                             ref_frame->buf.y_crop_height, width, height);
+  }
+  if (!has_valid_ref_frame)
+    aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
+                       "Referenced frame has invalid size");
+  for (int i = 0; i < MAX_REF_FRAMES_NRS; ++i) {
+    const RefCntBuffer *const ref_frame = get_ref_frame_buf_nrs(cm, i);
+    if (!valid_ref_frame_img_fmt(
+            ref_frame->buf.bit_depth, ref_frame->buf.subsampling_x,
+            ref_frame->buf.subsampling_y, seq_params->bit_depth,
+            seq_params->subsampling_x, seq_params->subsampling_y))
+      aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
+                         "Referenced frame has incompatible color format");
+  }
+#else
   // Check to make sure at least one of frames that this frame references
   // has valid dimensions.
   for (int i = LAST_FRAME; i <= ALTREF_FRAME; ++i) {
@@ -2521,6 +2563,7 @@ static AOM_INLINE void setup_frame_size_with_refs(
       aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
                          "Referenced frame has incompatible color format");
   }
+#endif  // CONFIG_NEW_REF_SIGNALING
   setup_buffer_pool(cm);
 }
 
@@ -5498,6 +5541,19 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       else
         features->allow_ref_frame_mvs = 0;
 
+#if CONFIG_NEW_REF_SIGNALING
+      for (int i = 0; i < MAX_REF_FRAMES_NRS; ++i) {
+        const RefCntBuffer *const ref_buf = get_ref_frame_buf_nrs(cm, i);
+        struct scale_factors *const ref_scale_factors =
+            get_ref_scale_factors_nrs(cm, i);
+        av1_setup_scale_factors_for_frame(
+            ref_scale_factors, ref_buf->buf.y_crop_width,
+            ref_buf->buf.y_crop_height, cm->width, cm->height);
+        if ((!av1_is_valid_scale(ref_scale_factors)))
+          aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
+                             "Reference frame has invalid dimensions");
+      }
+#else
       for (int i = LAST_FRAME; i <= ALTREF_FRAME; ++i) {
         const RefCntBuffer *const ref_buf = get_ref_frame_buf(cm, i);
         struct scale_factors *const ref_scale_factors =
@@ -5509,6 +5565,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
           aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
                              "Reference frame has invalid dimensions");
       }
+#endif  // CONFIG_NEW_REF_SIGNALING
     }
   }
 

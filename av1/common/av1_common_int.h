@@ -1306,10 +1306,37 @@ static INLINE int get_ref_frame_map_idx(const AV1_COMMON *const cm,
                : INVALID_IDX;
   } else {
     NewRefFramesData ref_data = cm->new_ref_frame_data;
-    return (ref_frame >= 0 && ref_frame < ref_data.n_total_refs)
+    return (ref_frame >= 0 && ref_frame < MAX_REF_FRAMES_NRS)
                ? ref_data.ref_frame_score_map[ref_frame]
                : INVALID_IDX;
   }
+}
+static INLINE RefCntBuffer *get_ref_frame_buf_nrs(
+    const AV1_COMMON *const cm, const MV_REFERENCE_FRAME_NRS ref_frame) {
+  const int map_idx = get_ref_frame_map_idx(cm, ref_frame, 0);
+  return (map_idx != INVALID_IDX) ? cm->ref_frame_map[map_idx] : NULL;
+}
+
+// Both const and non-const versions of this function are provided so that it
+// can be used with a const AV1_COMMON if needed.
+static INLINE const struct scale_factors *get_ref_scale_factors_const_nrs(
+    const AV1_COMMON *const cm, const MV_REFERENCE_FRAME_NRS ref_frame) {
+  const int map_idx = get_ref_frame_map_idx(cm, ref_frame, 0);
+  return (map_idx != INVALID_IDX) ? &cm->ref_scale_factors[map_idx] : NULL;
+}
+
+static INLINE struct scale_factors *get_ref_scale_factors_nrs(
+    AV1_COMMON *const cm, const MV_REFERENCE_FRAME_NRS ref_frame) {
+  const int map_idx = get_ref_frame_map_idx(cm, ref_frame, 0);
+  return (map_idx != INVALID_IDX) ? &cm->ref_scale_factors[map_idx] : NULL;
+}
+
+static INLINE RefCntBuffer *get_primary_ref_frame_buf_nrs(
+    const AV1_COMMON *const cm) {
+  const int primary_ref_frame = cm->features.primary_ref_frame;
+  if (primary_ref_frame == PRIMARY_REF_NONE) return NULL;
+  const int map_idx = get_ref_frame_map_idx(cm, primary_ref_frame + 1, 0);
+  return (map_idx != INVALID_IDX) ? cm->ref_frame_map[map_idx] : NULL;
 }
 #else
 // These functions take a reference frame label between LAST_FRAME and
