@@ -259,6 +259,7 @@ static INLINE int prune_ref(const MV_REFERENCE_FRAME *const ref_frame,
   return 0;
 }
 
+// TODO(sarahparker) Implement for new ref signaling
 static INLINE int prune_ref_by_selective_ref_frame(
     const AV1_COMP *const cpi, const MACROBLOCK *const x,
     const MV_REFERENCE_FRAME *const ref_frame,
@@ -299,6 +300,28 @@ static INLINE int prune_ref_by_selective_ref_frame(
 
   return 0;
 }
+
+#if CONFIG_NEW_REF_SIGNALING
+static INLINE int prune_ref_by_selective_ref_frame_nrs(
+    const AV1_COMP *const cpi, const MACROBLOCK *const x,
+    const MV_REFERENCE_FRAME_NRS *const ref_frame,
+    const unsigned int *const ref_display_order_hint) {
+  const AV1_COMMON *const cm = &cpi->common;
+  MV_REFERENCE_FRAME converted_ref_frame[2];
+  converted_ref_frame[0] = convert_ranked_ref_to_named_ref_index(
+      &cm->new_ref_frame_data, ref_frame[0]);
+  converted_ref_frame[1] = convert_ranked_ref_to_named_ref_index(
+      &cm->new_ref_frame_data, ref_frame[1]);
+
+  // TODO(sarahparker) Temporary assert, see aomedia:3060
+  assert(convert_named_ref_to_ranked_ref_index(
+             &cm->new_ref_frame_data, converted_ref_frame[0]) == ref_frame[0]);
+  assert(convert_named_ref_to_ranked_ref_index(
+             &cm->new_ref_frame_data, converted_ref_frame[1]) == ref_frame[1]);
+  return prune_ref_by_selective_ref_frame(cpi, x, converted_ref_frame,
+                                          ref_display_order_hint);
+}
+#endif  // CONFIG_NEW_REF_SIGNALING
 
 // This function will copy the best reference mode information from
 // MB_MODE_INFO_EXT to MB_MODE_INFO_EXT_FRAME.

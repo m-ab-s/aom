@@ -926,6 +926,7 @@ static AOM_INLINE void predict_inter_block(AV1_COMMON *const cm,
           get_ref_frame_buf(cm, mbmi->ref_frame[ref]);
       const struct scale_factors *ref_scale_factors2 =
           get_ref_scale_factors_const(cm, mbmi->ref_frame[ref]);
+      // TODO(sarahparker) Temporary assert, see aomedia:3060
       assert(ref_buf == ref_buf2);
       assert(ref_scale_factors == ref_scale_factors2);
       (void)ref_buf2;
@@ -4835,6 +4836,57 @@ static int read_global_motion_params(WarpedMotionParams *params,
   return 1;
 }
 
+#if CONFIG_NEW_REF_SIGNALING
+static AOM_INLINE void read_global_motion_nrs(AV1_COMMON *cm,
+                                              struct aom_read_bit_buffer *rb) {
+#if CONFIG_GM_MODEL_CODING
+  int base_frame = -1;
+  int use_gm_k = 0;
+#endif  // CONFIG_GM_MODEL_CODING
+  for (int frame = 0; frame < cm->new_ref_frame_data.n_total_refs; ++frame) {
+    const WarpedMotionParams *ref_params;
+#if CONFIG_GM_MODEL_CODING
+    WarpedMotionParams params;
+    aom_clear_system_state();
+    const bool updated_params =
+        find_gm_ref_params_nrs(&params, cm, frame, base_frame);
+    if (updated_params) {
+      ref_params = &params;
+    } else {
+      ref_params = cm->prev_frame ? &cm->prev_frame->global_motion_nrs[frame]
+                                  : &default_warp_params;
+    }
+    use_gm_k = (base_frame != -1) ? 1 : 0;
+    if (ref_params->wmtype != IDENTITY) base_frame = frame;
+#else
+    ref_params = cm->prev_frame ? &cm->prev_frame->global_motion_nrs[frame]
+                                : &default_warp_params;
+#endif  // CONFIG_GM_MODEL_CODING
+    int good_params =
+        read_global_motion_params(&cm->global_motion_nrs[frame], ref_params,
+#if CONFIG_GM_MODEL_CODING
+                                  use_gm_k,
+#endif  // CONFIG_GM_MODEL_CODING
+                                  rb, cm->features.fr_mv_precision);
+    if (!good_params) {
+#if WARPED_MOTION_DEBUG
+      printf("Warning: unexpected global motion shear params from aomenc\n");
+#endif
+      cm->global_motion_nrs[frame].invalid = 1;
+    }
+    // TODO(sarahparker) Temporary assert, see aomedia:3060
+    int named_frame =
+        convert_ranked_ref_to_named_ref_index(&cm->new_ref_frame_data, frame);
+
+    assert(is_same_wm_params(&cm->global_motion_nrs[frame],
+                             &cm->global_motion[named_frame]));
+    (void)named_frame;
+  }
+  memcpy(cm->cur_frame->global_motion_nrs, cm->global_motion_nrs,
+         MAX_REF_FRAMES_NRS * sizeof(WarpedMotionParams));
+}
+#endif  // CONFIG_NEW_REF_SIGNALING
+
 static AOM_INLINE void read_global_motion(AV1_COMMON *cm,
                                           struct aom_read_bit_buffer *rb) {
 #if CONFIG_GM_MODEL_CODING
@@ -5735,6 +5787,9 @@ static int read_uncompressed_header(AV1Decoder *pbi,
   }
 
   if (!frame_is_intra_only(cm)) read_global_motion(cm, rb);
+#if CONFIG_NEW_REF_SIGNALING
+  if (!frame_is_intra_only(cm)) read_global_motion_nrs(cm, rb);
+#endif  // CONFIG_NEW_REF_SIGNALING
 
   cm->cur_frame->film_grain_params_present =
       seq_params->film_grain_params_present;
@@ -5797,6 +5852,15 @@ uint32_t av1_decode_frame_headers_and_setup(AV1Decoder *pbi,
 #if CONFIG_MISMATCH_DEBUG
   mismatch_move_frame_idx_r();
 #endif
+
+#if CONFIG_NEW_REF_SIGNALING
+  for (int i = 0; i < MAX_REF_FRAMES_NRS; ++i) {
+    cm->global_motion_nrs[i] = default_warp_params;
+    cm->cur_frame->global_motion_nrs[i] = default_warp_params;
+  }
+  xd->global_motion_nrs = cm->global_motion_nrs;
+
+#endif  // CONFIG_NEW_REF_SIGNALING
 
   for (int i = LAST_FRAME; i <= ALTREF_FRAME; ++i) {
     cm->global_motion[i] = default_warp_params;

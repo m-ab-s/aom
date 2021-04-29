@@ -338,7 +338,16 @@ void av1_build_inter_predictors_for_planes_single_buf(MACROBLOCKD *xd,
   const int mi_x = mi_col * MI_SIZE;
   const int mi_y = mi_row * MI_SIZE;
   WarpTypesAllowed warp_types;
+#if CONFIG_NEW_REF_SIGNALING
+  const WarpedMotionParams *const wm =
+      &xd->global_motion_nrs[mi->ref_frame_nrs[ref]];
+  const WarpedMotionParams *const wm2 = &xd->global_motion[mi->ref_frame[ref]];
+  // TODO(sarahparker) Temporary assert, see aomedia:3060
+  assert(is_same_wm_params(wm, wm2));
+  (void)wm2;
+#else
   const WarpedMotionParams *const wm = &xd->global_motion[mi->ref_frame[ref]];
+#endif  // CONFIG_NEW_REF_SIGNALING
   warp_types.global_warp_allowed = is_global_mv_block(mi, wm->wmtype);
   warp_types.local_warp_allowed = mi->motion_mode == WARPED_CAUSAL;
   assert(mi->sb_type < BLOCK_SIZES_ALL);

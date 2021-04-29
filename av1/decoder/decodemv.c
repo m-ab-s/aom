@@ -276,8 +276,18 @@ static MOTION_MODE read_motion_mode(AV1_COMMON *cm, MACROBLOCKD *xd,
   if (cm->features.switchable_motion_mode == 0) return SIMPLE_TRANSLATION;
   if (mbmi->skip_mode) return SIMPLE_TRANSLATION;
 
+#if CONFIG_NEW_REF_SIGNALING
+  const MOTION_MODE last_motion_mode_allowed = motion_mode_allowed_nrs(
+      xd->global_motion_nrs, xd, mbmi, cm->features.allow_warped_motion);
+  const MOTION_MODE last_motion_mode_allowed2 = motion_mode_allowed(
+      xd->global_motion, xd, mbmi, cm->features.allow_warped_motion);
+  // TODO(sarahparker) Temporary assert, see aomedia:3060
+  assert(last_motion_mode_allowed == last_motion_mode_allowed2);
+  (void)last_motion_mode_allowed2;
+#else
   const MOTION_MODE last_motion_mode_allowed = motion_mode_allowed(
       xd->global_motion, xd, mbmi, cm->features.allow_warped_motion);
+#endif  // CONFIG_NEW_REF_SIGNALING
   int motion_mode;
 
   if (last_motion_mode_allowed == SIMPLE_TRANSLATION) return SIMPLE_TRANSLATION;
@@ -803,9 +813,16 @@ static void read_intrabc_info(AV1_COMMON *const cm, DecoderCodingBlock *dcb,
     int16_t inter_mode_ctx[MODE_CTX_REF_FRAMES];
     int_mv ref_mvs[INTRA_FRAME + 1][MAX_MV_REF_CANDIDATES];
 
+#if CONFIG_NEW_REF_SIGNALING
+    MV_REFERENCE_FRAME_NRS ref_nrs = INTRA_FRAME_NRS;
+    av1_find_mv_refs(cm, xd, mbmi, INTRA_FRAME, ref_nrs, dcb->ref_mv_count,
+                     xd->ref_mv_stack, xd->weight, ref_mvs, /*global_mvs=*/NULL,
+                     inter_mode_ctx);
+#else
     av1_find_mv_refs(cm, xd, mbmi, INTRA_FRAME, dcb->ref_mv_count,
                      xd->ref_mv_stack, xd->weight, ref_mvs, /*global_mvs=*/NULL,
                      inter_mode_ctx);
+#endif  // CONFIG_NEW_REF_SIGNALING
 
     int_mv nearestmv, nearmv;
 
@@ -1330,10 +1347,14 @@ static INLINE int is_mv_valid(const MV *mv) {
 
 static INLINE int assign_mv(AV1_COMMON *cm, MACROBLOCKD *xd,
                             PREDICTION_MODE mode,
-                            MV_REFERENCE_FRAME ref_frame[2], int_mv mv[2],
-                            int_mv ref_mv[2], int_mv nearest_mv[2],
-                            int_mv near_mv[2], int is_compound,
-                            MvSubpelPrecision precision, aom_reader *r) {
+                            MV_REFERENCE_FRAME ref_frame[2],
+#if CONFIG_NEW_REF_SIGNALING
+                            MV_REFERENCE_FRAME_NRS ref_frame_nrs[2],
+#endif  // CONFIG_NEW_REF_SIGNALING
+                            int_mv mv[2], int_mv ref_mv[2],
+                            int_mv nearest_mv[2], int_mv near_mv[2],
+                            int is_compound, MvSubpelPrecision precision,
+                            aom_reader *r) {
 #if CONFIG_NEW_INTER_MODES
   (void)nearest_mv;
 #endif  // CONFIG_NEW_INTER_MODES
@@ -1361,10 +1382,22 @@ static INLINE int assign_mv(AV1_COMMON *cm, MACROBLOCKD *xd,
       break;
     }
     case GLOBALMV: {
+#if CONFIG_NEW_REF_SIGNALING
+      // TODO(sarahparker) Temporary assert, see aomedia:3060
+      assert(is_same_wm_params(&cm->global_motion_nrs[ref_frame_nrs[0]],
+                               &cm->global_motion[ref_frame[0]]));
+      (void)ref_frame;
+      mv[0].as_int =
+          gm_get_motion_vector(&cm->global_motion_nrs[ref_frame_nrs[0]],
+                               features->fr_mv_precision, bsize, xd->mi_col,
+                               xd->mi_row)
+              .as_int;
+#else
       mv[0].as_int = gm_get_motion_vector(&cm->global_motion[ref_frame[0]],
                                           features->fr_mv_precision, bsize,
                                           xd->mi_col, xd->mi_row)
                          .as_int;
+#endif  // CONFIG_NEW_REF_SIGNALING
       break;
     }
     case NEW_NEWMV:
@@ -1441,6 +1474,23 @@ static INLINE int assign_mv(AV1_COMMON *cm, MACROBLOCKD *xd,
 #endif  // CONFIG_OPTFLOW_REFINEMENT
     {
       assert(is_compound);
+#if CONFIG_NEW_REF_SIGNALING
+      // TODO(sarahparker) Temporary assert, see aomedia:3060
+      assert(is_same_wm_params(&cm->global_motion_nrs[ref_frame_nrs[0]],
+                               &cm->global_motion[ref_frame[0]]));
+      assert(is_same_wm_params(&cm->global_motion_nrs[ref_frame_nrs[1]],
+                               &cm->global_motion[ref_frame[1]]));
+      mv[0].as_int =
+          gm_get_motion_vector(&cm->global_motion_nrs[ref_frame_nrs[0]],
+                               features->fr_mv_precision, bsize, xd->mi_col,
+                               xd->mi_row)
+              .as_int;
+      mv[1].as_int =
+          gm_get_motion_vector(&cm->global_motion_nrs[ref_frame_nrs[1]],
+                               features->fr_mv_precision, bsize, xd->mi_col,
+                               xd->mi_row)
+              .as_int;
+#else
       mv[0].as_int = gm_get_motion_vector(&cm->global_motion[ref_frame[0]],
                                           features->fr_mv_precision, bsize,
                                           xd->mi_col, xd->mi_row)
@@ -1449,6 +1499,7 @@ static INLINE int assign_mv(AV1_COMMON *cm, MACROBLOCKD *xd,
                                           features->fr_mv_precision, bsize,
                                           xd->mi_col, xd->mi_row)
                          .as_int;
+#endif  // CONFIG_NEW_REF_SIGNALING
       break;
     }
     default: { return 0; }
@@ -1549,8 +1600,22 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
   const int is_compound = has_second_ref(mbmi);
 
   const MV_REFERENCE_FRAME ref_frame = av1_ref_frame_type(mbmi->ref_frame);
+#if CONFIG_NEW_REF_SIGNALING
+  MV_REFERENCE_FRAME_NRS ref_frame_nrs = INVALID_IDX;
+  if (ref_frame < REF_FRAMES) {
+    ref_frame_nrs = convert_named_ref_to_ranked_ref_index(
+        &cm->new_ref_frame_data, ref_frame);
+    // TODO(sarahparker) Temporary assert, see aomedia:3060
+    assert(convert_ranked_ref_to_named_ref_index(&cm->new_ref_frame_data,
+                                                 ref_frame_nrs) == ref_frame);
+  }
+  av1_find_mv_refs(cm, xd, mbmi, ref_frame, ref_frame_nrs, dcb->ref_mv_count,
+                   xd->ref_mv_stack, xd->weight, ref_mvs, /*global_mvs=*/NULL,
+                   inter_mode_ctx);
+#else
   av1_find_mv_refs(cm, xd, mbmi, ref_frame, dcb->ref_mv_count, xd->ref_mv_stack,
                    xd->weight, ref_mvs, /*global_mvs=*/NULL, inter_mode_ctx);
+#endif  // CONFIG_NEW_REF_SIGNALING
 
   mbmi->ref_mv_idx = 0;
 
@@ -1657,8 +1722,12 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
 #endif  // CONFIG_NEW_INTER_MODES
 
   const int mv_corrupted_flag =
-      !assign_mv(cm, xd, mbmi->mode, mbmi->ref_frame, mbmi->mv, ref_mv,
-                 nearestmv, nearmv, is_compound, mbmi->pb_mv_precision, r);
+      !assign_mv(cm, xd, mbmi->mode, mbmi->ref_frame,
+#if CONFIG_NEW_REF_SIGNALING
+                 mbmi->ref_frame_nrs,
+#endif  // CONFIG_NEW_REF_SIGNALING
+                 mbmi->mv, ref_mv, nearestmv, nearmv, is_compound,
+                 mbmi->pb_mv_precision, r);
   aom_merge_corrupted_flag(&dcb->corrupted, mv_corrupted_flag);
 
   mbmi->use_wedge_interintra = 0;

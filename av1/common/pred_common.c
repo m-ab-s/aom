@@ -72,6 +72,10 @@ void av1_init_new_ref_frame_map(AV1_COMMON *cm,
                                 int cur_frame_disp) {
   RefScoreData scores[MAX_REF_FRAMES_NRS];
   memset(scores, 0, MAX_REF_FRAMES_NRS * sizeof(*scores));
+  for (int i = 0; i < MAX_REF_FRAMES_NRS; i++) {
+    cm->new_ref_frame_data.ranked_to_named_refs[i] = -1;
+    cm->new_ref_frame_data.named_to_ranked_refs[i] = -1;
+  }
   int n_ranked = 0;
   // Compute a score for each reference buffer
   for (int i = 0; i < MAX_REF_FRAMES_NRS; i++) {
@@ -96,11 +100,17 @@ void av1_init_new_ref_frame_map(AV1_COMMON *cm,
         scores[n_ranked].n_named_refs++;
       }
     }
+    // TODO(sarahparker) Temporarily disable the reference that is unmapped
+    // in the original reference scheme
+    if (scores[n_ranked].n_named_refs == 0) {
+      scores[n_ranked].score = INT_MAX;
+    }
     n_ranked++;
   }
 
   // Sort the references according to their score
   qsort(scores, n_ranked, sizeof(scores[0]), compare_score_data_asc);
+  n_ranked = AOMMIN(n_ranked, MAX_REF_FRAMES_NRS - 1);
 
   // Fill in NewRefFramesData struct according to computed mapping
   cm->new_ref_frame_data.n_total_refs = n_ranked;

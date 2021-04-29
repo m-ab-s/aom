@@ -339,6 +339,35 @@ static int search_new_mv(AV1_COMP *cpi, MACROBLOCK *x,
   return 0;
 }
 
+#if CONFIG_NEW_REF_SIGNALING
+/*!\brief Finds predicted motion vectors for a block.
+ *
+ * \ingroup nonrd_mode_search
+ * \callgraph
+ * \callergraph
+ * Finds predicted motion vectors for a block from a certain reference frame.
+ * First, it fills reference MV stack, then picks the test from the stack and
+ * predicts the final MV for a block for each mode.
+ * \param[in]    cpi                      Top-level encoder structure
+ * \param[in]    x                        Pointer to structure holding all the
+ *                                        data for the current macroblock
+ * \param[in]    ref_frame                Reference freme for which to find
+ *                                        ref MVs
+ * \param[in]    ref_frame_nrs            Reference freme for which to find
+ *                                        ref MVs for NRS framework
+ * \param[in]    frame_mv                 Predicted MVs for a block
+ * \param[in]    tile_data                Pointer to struct holding adaptive
+ *                                        data/contexts/models for the tile
+ *                                        during encoding
+ * \param[in]    yv12_mb                  Buffer to hold predicted block
+ * \param[in]    bsize                    Current block size
+ * \param[in]    force_skip_low_temp_var  Flag indicating possible mode search
+ *                                        prune for low temporal variace  block
+ *
+ * \return Nothing is returned. Instead, predicted MVs are placed into
+ * \c frame_mv array
+ */
+#else
 /*!\brief Finds predicted motion vectors for a block.
  *
  * \ingroup nonrd_mode_search
@@ -364,8 +393,12 @@ static int search_new_mv(AV1_COMP *cpi, MACROBLOCK *x,
  * \return Nothing is returned. Instead, predicted MVs are placed into
  * \c frame_mv array
  */
+#endif  // CONFIG_NEW_REF_SIGNALING
 static INLINE void find_predictors(AV1_COMP *cpi, MACROBLOCK *x,
                                    MV_REFERENCE_FRAME ref_frame,
+#if CONFIG_NEW_REF_SIGNALING
+                                   MV_REFERENCE_FRAME_NRS ref_frame_nrs,
+#endif  // CONFIG_NEW_REF_SIGNALING
                                    int_mv frame_mv[MB_MODE_COUNT][REF_FRAMES],
                                    TileDataEnc *tile_data,
                                    struct buf_2d yv12_mb[8][MAX_MB_PLANE],
@@ -387,9 +420,12 @@ static INLINE void find_predictors(AV1_COMP *cpi, MACROBLOCK *x,
     const struct scale_factors *const sf =
         get_ref_scale_factors_const(cm, ref_frame);
     av1_setup_pred_block(xd, yv12_mb[ref_frame], yv12, sf, sf, num_planes);
-    av1_find_mv_refs(cm, xd, mbmi, ref_frame, mbmi_ext->ref_mv_count,
-                     xd->ref_mv_stack, xd->weight, NULL, mbmi_ext->global_mvs,
-                     mbmi_ext->mode_context);
+    av1_find_mv_refs(cm, xd, mbmi, ref_frame,
+#if CONFIG_NEW_REF_SIGNALING
+                     ref_frame_nrs,
+#endif  // CONFIG_NEW_REF_SIGNALING
+                     mbmi_ext->ref_mv_count, xd->ref_mv_stack, xd->weight, NULL,
+                     mbmi_ext->global_mvs, mbmi_ext->mode_context);
     // TODO(Ravi): Populate mbmi_ext->ref_mv_stack[ref_frame][4] and
     // mbmi_ext->weight[ref_frame][4] inside av1_find_mv_refs.
     av1_copy_usable_ref_mv_stack_and_weight(xd, mbmi_ext, ref_frame);
@@ -2152,9 +2188,21 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
 
   for (MV_REFERENCE_FRAME ref_frame_iter = LAST_FRAME;
        ref_frame_iter <= ALTREF_FRAME; ++ref_frame_iter) {
+#if CONFIG_NEW_REF_SIGNALING
+    MV_REFERENCE_FRAME_NRS ref_frame_nrs =
+        convert_named_ref_to_ranked_ref_index(&cm->new_ref_frame_data,
+                                              ref_frame_iter);
+    // TODO(sarahparker) Temporary assert, see aomedia:3060
+    assert(convert_ranked_ref_to_named_ref_index(
+               &cm->new_ref_frame_data, ref_frame_nrs) == ref_frame_iter);
+#endif  // CONFIG_NEW_REF_SIGNALING
     if (use_ref_frame_mask[ref_frame_iter]) {
-      find_predictors(cpi, x, ref_frame_iter, frame_mv, tile_data, yv12_mb,
-                      bsize, force_skip_low_temp_var);
+      find_predictors(cpi, x, ref_frame_iter,
+#if CONFIG_NEW_REF_SIGNALING
+                      ref_frame_nrs,
+#endif  // CONFIG_NEW_REF_SIGNALING
+                      frame_mv, tile_data, yv12_mb, bsize,
+                      force_skip_low_temp_var);
     }
   }
 

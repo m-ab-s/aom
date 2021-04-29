@@ -190,6 +190,20 @@ typedef struct {
   int8_t invalid;
 } WarpedMotionParams;
 
+static INLINE int is_same_wm_params(const WarpedMotionParams *const p1,
+                                    const WarpedMotionParams *const p2) {
+  if (p1->invalid != p2->invalid) return 0;
+  if (p1->wmtype != p2->wmtype) return 0;
+  if (p1->alpha != p2->alpha) return 0;
+  if (p1->beta != p2->beta) return 0;
+  if (p1->gamma != p2->gamma) return 0;
+  if (p1->delta != p2->delta) return 0;
+  for (int i = 0; i < 8; i++) {
+    if (p1->wmmat[i] != p2->wmmat[i]) return 0;
+  }
+  return 1;
+}
+
 /* clang-format off */
 static const WarpedMotionParams default_warp_params = {
   { 0, 0, (1 << WARPEDMODEL_PREC_BITS), 0, 0, (1 << WARPEDMODEL_PREC_BITS), 0,

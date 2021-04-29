@@ -13,6 +13,7 @@
 
 #include "av1/common/mv.h"
 #include "av1/common/mvref_common.h"
+#include "av1/common/pred_common.h"
 #include "av1/common/warped_motion.h"
 
 // Although we assign 32 bit integers, all the values are strictly under 14
@@ -72,6 +73,76 @@ void av1_copy_frame_mvs(const AV1_COMMON *const cm,
   }
 }
 
+#if CONFIG_NEW_REF_SIGNALING
+static AOM_INLINE void add_ref_mv_candidate(
+    const MB_MODE_INFO *const candidate, const MV_REFERENCE_FRAME_NRS rf[2],
+    uint8_t *refmv_count, uint8_t *ref_match_count, uint8_t *newmv_count,
+    CANDIDATE_MV *ref_mv_stack, uint16_t *ref_mv_weight,
+    int_mv *gm_mv_candidates, const WarpedMotionParams *gm_params,
+    uint16_t weight) {
+  if (!is_inter_block(candidate)) return;
+  assert(weight % 2 == 0);
+  int index, ref;
+
+  if (rf[1] == INVALID_IDX) {
+    // single reference frame
+    for (ref = 0; ref < 2; ++ref) {
+      if (candidate->ref_frame_nrs[ref] == rf[0]) {
+        const int is_gm_block =
+            is_global_mv_block(candidate, gm_params[rf[0]].wmtype);
+        const int_mv this_refmv =
+            is_gm_block ? gm_mv_candidates[0] : get_block_mv(candidate, ref);
+        for (index = 0; index < *refmv_count; ++index) {
+          if (ref_mv_stack[index].this_mv.as_int == this_refmv.as_int) {
+            ref_mv_weight[index] += weight;
+            break;
+          }
+        }
+
+        // Add a new item to the list.
+        if (index == *refmv_count && *refmv_count < MAX_REF_MV_STACK_SIZE) {
+          ref_mv_stack[index].this_mv = this_refmv;
+          ref_mv_weight[index] = weight;
+          ++(*refmv_count);
+        }
+        if (have_newmv_in_inter_mode(candidate->mode)) ++*newmv_count;
+        ++*ref_match_count;
+      }
+    }
+  } else {
+    // compound reference frame
+    if (candidate->ref_frame_nrs[0] == rf[0] &&
+        candidate->ref_frame_nrs[1] == rf[1]) {
+      int_mv this_refmv[2];
+
+      for (ref = 0; ref < 2; ++ref) {
+        if (is_global_mv_block(candidate, gm_params[rf[ref]].wmtype))
+          this_refmv[ref] = gm_mv_candidates[ref];
+        else
+          this_refmv[ref] = get_block_mv(candidate, ref);
+      }
+
+      for (index = 0; index < *refmv_count; ++index) {
+        if ((ref_mv_stack[index].this_mv.as_int == this_refmv[0].as_int) &&
+            (ref_mv_stack[index].comp_mv.as_int == this_refmv[1].as_int)) {
+          ref_mv_weight[index] += weight;
+          break;
+        }
+      }
+
+      // Add a new item to the list.
+      if (index == *refmv_count && *refmv_count < MAX_REF_MV_STACK_SIZE) {
+        ref_mv_stack[index].this_mv = this_refmv[0];
+        ref_mv_stack[index].comp_mv = this_refmv[1];
+        ref_mv_weight[index] = weight;
+        ++(*refmv_count);
+      }
+      if (have_newmv_in_inter_mode(candidate->mode)) ++*newmv_count;
+      ++*ref_match_count;
+    }
+  }
+}
+#else
 static AOM_INLINE void add_ref_mv_candidate(
     const MB_MODE_INFO *const candidate, const MV_REFERENCE_FRAME rf[2],
     uint8_t *refmv_count, uint8_t *ref_match_count, uint8_t *newmv_count,
@@ -139,16 +210,22 @@ static AOM_INLINE void add_ref_mv_candidate(
     }
   }
 }
+#endif  // CONFIG_NEW_REF_SIGNALING
 
 static AOM_INLINE void scan_row_mbmi(
     const AV1_COMMON *cm, const MACROBLOCKD *xd,
 #if CONFIG_EXT_RECUR_PARTITIONS
     int mi_row,
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
-    int mi_col, const MV_REFERENCE_FRAME rf[2], int row_offset,
-    CANDIDATE_MV *ref_mv_stack, uint16_t *ref_mv_weight, uint8_t *refmv_count,
-    uint8_t *ref_match_count, uint8_t *newmv_count, int_mv *gm_mv_candidates,
-    int max_row_offset, int *processed_rows) {
+    int mi_col,
+#if CONFIG_NEW_REF_SIGNALING
+    const MV_REFERENCE_FRAME_NRS rf[2],
+#else
+    const MV_REFERENCE_FRAME rf[2],
+#endif  // CONFIG_NEW_REF_SIGNALING
+    int row_offset, CANDIDATE_MV *ref_mv_stack, uint16_t *ref_mv_weight,
+    uint8_t *refmv_count, uint8_t *ref_match_count, uint8_t *newmv_count,
+    int_mv *gm_mv_candidates, int max_row_offset, int *processed_rows) {
   int end_mi = AOMMIN(xd->width, cm->mi_params.mi_cols - mi_col);
   end_mi = AOMMIN(end_mi, mi_size_wide[BLOCK_64X64]);
   const int width_8x8 = mi_size_wide[BLOCK_8X8];
@@ -196,9 +273,15 @@ static AOM_INLINE void scan_row_mbmi(
       *processed_rows = inc - row_offset - 1;
     }
 
+#if CONFIG_NEW_REF_SIGNALING
+    add_ref_mv_candidate(candidate, rf, refmv_count, ref_match_count,
+                         newmv_count, ref_mv_stack, ref_mv_weight,
+                         gm_mv_candidates, cm->global_motion_nrs, len * weight);
+#else
     add_ref_mv_candidate(candidate, rf, refmv_count, ref_match_count,
                          newmv_count, ref_mv_stack, ref_mv_weight,
                          gm_mv_candidates, cm->global_motion, len * weight);
+#endif  // CONFIG_NEW_REF_SIGNALING
 
     i += len;
   }
@@ -209,10 +292,14 @@ static AOM_INLINE void scan_col_mbmi(
 #if CONFIG_EXT_RECUR_PARTITIONS
     int mi_col,
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
-    const MV_REFERENCE_FRAME rf[2], int col_offset, CANDIDATE_MV *ref_mv_stack,
-    uint16_t *ref_mv_weight, uint8_t *refmv_count, uint8_t *ref_match_count,
-    uint8_t *newmv_count, int_mv *gm_mv_candidates, int max_col_offset,
-    int *processed_cols) {
+#if CONFIG_NEW_REF_SIGNALING
+    const MV_REFERENCE_FRAME_NRS rf[2],
+#else
+    const MV_REFERENCE_FRAME rf[2],
+#endif  // CONFIG_NEW_REF_SIGNALING
+    int col_offset, CANDIDATE_MV *ref_mv_stack, uint16_t *ref_mv_weight,
+    uint8_t *refmv_count, uint8_t *ref_match_count, uint8_t *newmv_count,
+    int_mv *gm_mv_candidates, int max_col_offset, int *processed_cols) {
   int end_mi = AOMMIN(xd->height, cm->mi_params.mi_rows - mi_row);
   end_mi = AOMMIN(end_mi, mi_size_high[BLOCK_64X64]);
   const int n8_h_8 = mi_size_high[BLOCK_8X8];
@@ -259,9 +346,15 @@ static AOM_INLINE void scan_col_mbmi(
       *processed_cols = inc - col_offset - 1;
     }
 
+#if CONFIG_NEW_REF_SIGNALING
+    add_ref_mv_candidate(candidate, rf, refmv_count, ref_match_count,
+                         newmv_count, ref_mv_stack, ref_mv_weight,
+                         gm_mv_candidates, cm->global_motion_nrs, len * weight);
+#else
     add_ref_mv_candidate(candidate, rf, refmv_count, ref_match_count,
                          newmv_count, ref_mv_stack, ref_mv_weight,
                          gm_mv_candidates, cm->global_motion, len * weight);
+#endif  // CONFIG_NEW_REF_SIGNALING
 
     i += len;
   }
@@ -357,6 +450,19 @@ static int add_tpl_ref_mv(const AV1_COMMON *cm, const MACROBLOCKD *xd,
 
   MV_REFERENCE_FRAME rf[2];
   av1_set_ref_frame(rf, ref_frame);
+#if CONFIG_NEW_REF_SIGNALING
+  MV_REFERENCE_FRAME_NRS rf_nrs[2];
+  rf_nrs[0] =
+      convert_named_ref_to_ranked_ref_index(&cm->new_ref_frame_data, rf[0]);
+  rf_nrs[1] =
+      convert_named_ref_to_ranked_ref_index(&cm->new_ref_frame_data, rf[1]);
+  // TODO(sarahparker) Temporary assert, see aomedia:3060
+  assert(convert_ranked_ref_to_named_ref_index(&cm->new_ref_frame_data,
+                                               rf_nrs[0]) == rf[0]);
+  assert(convert_ranked_ref_to_named_ref_index(&cm->new_ref_frame_data,
+                                               rf_nrs[1]) == rf[1]);
+  (void)rf_nrs;
+#endif  // CONFIG_NEW_REF_SIGNALING
 
   const uint16_t weight_unit = 1;  // mi_size_wide[BLOCK_8X8];
   const int cur_frame_index = cm->cur_frame->order_hint;
@@ -547,6 +653,19 @@ static AOM_INLINE void setup_ref_mv_list(
   int processed_cols = 0;
 
   av1_set_ref_frame(rf, ref_frame);
+#if CONFIG_NEW_REF_SIGNALING
+  MV_REFERENCE_FRAME rf_nrs[2];
+  rf_nrs[0] =
+      convert_named_ref_to_ranked_ref_index(&cm->new_ref_frame_data, rf[0]);
+  rf_nrs[1] =
+      convert_named_ref_to_ranked_ref_index(&cm->new_ref_frame_data, rf[1]);
+  // TODO(sarahparker) Temporary assert, see aomedia:3060
+  assert(convert_ranked_ref_to_named_ref_index(&cm->new_ref_frame_data,
+                                               rf_nrs[0]) == rf[0]);
+  assert(convert_ranked_ref_to_named_ref_index(&cm->new_ref_frame_data,
+                                               rf_nrs[1]) == rf[1]);
+  (void)rf_nrs;
+#endif  // CONFIG_NEW_REF_SIGNALING
   mode_context[ref_frame] = 0;
   *refmv_count = 0;
 
@@ -967,11 +1086,17 @@ static AOM_INLINE void setup_ref_mv_list(
 
 void av1_find_mv_refs(const AV1_COMMON *cm, const MACROBLOCKD *xd,
                       MB_MODE_INFO *mi, MV_REFERENCE_FRAME ref_frame,
+#if CONFIG_NEW_REF_SIGNALING
+                      MV_REFERENCE_FRAME_NRS ref_frame_nrs,
+#endif  // CONFIG_NEW_REF_SIGNALING
                       uint8_t ref_mv_count[MODE_CTX_REF_FRAMES],
                       CANDIDATE_MV ref_mv_stack[][MAX_REF_MV_STACK_SIZE],
                       uint16_t ref_mv_weight[][MAX_REF_MV_STACK_SIZE],
                       int_mv mv_ref_list[][MAX_MV_REF_CANDIDATES],
                       int_mv *global_mvs, int16_t *mode_context) {
+#if CONFIG_NEW_REF_SIGNALING
+  (void)ref_frame_nrs;
+#endif  // CONFIG_NEW_REF_SIGNALING
   const int mi_row = xd->mi_row;
   const int mi_col = xd->mi_col;
   int_mv gm_mv[2];
@@ -992,6 +1117,19 @@ void av1_find_mv_refs(const AV1_COMMON *cm, const MACROBLOCKD *xd,
     } else {
       MV_REFERENCE_FRAME rf[2];
       av1_set_ref_frame(rf, ref_frame);
+#if CONFIG_NEW_REF_SIGNALING
+      MV_REFERENCE_FRAME rf_nrs[2];
+      rf_nrs[0] =
+          convert_named_ref_to_ranked_ref_index(&cm->new_ref_frame_data, rf[0]);
+      rf_nrs[1] =
+          convert_named_ref_to_ranked_ref_index(&cm->new_ref_frame_data, rf[1]);
+      // TODO(sarahparker) Temporary assert, see aomedia:3060
+      assert(convert_ranked_ref_to_named_ref_index(&cm->new_ref_frame_data,
+                                                   rf_nrs[0]) == rf[0]);
+      assert(convert_ranked_ref_to_named_ref_index(&cm->new_ref_frame_data,
+                                                   rf_nrs[1]) == rf[1]);
+      (void)rf_nrs;
+#endif  // CONFIG_NEW_REF_SIGNALING
       gm_mv[0] = gm_get_motion_vector(&cm->global_motion[rf[0]],
                                       fr_mv_precision, bsize, mi_col, mi_row);
       gm_mv[1] = gm_get_motion_vector(&cm->global_motion[rf[1]],
@@ -1022,6 +1160,17 @@ void av1_setup_frame_buf_refs(AV1_COMMON *cm) {
   cm->cur_frame->absolute_poc = cm->current_frame.absolute_poc;
   cm->cur_frame->pyramid_level = cm->current_frame.pyramid_level;
 
+#if CONFIG_NEW_REF_SIGNALING
+  MV_REFERENCE_FRAME_NRS ref_frame_nrs;
+  for (ref_frame_nrs = 0; ref_frame_nrs < MAX_REF_FRAMES_NRS; ++ref_frame_nrs) {
+    const RefCntBuffer *const buf = get_ref_frame_buf_nrs(cm, ref_frame_nrs);
+    if (buf != NULL) {
+      cm->cur_frame->ref_order_hints_nrs[ref_frame_nrs] = buf->order_hint;
+      cm->cur_frame->ref_display_order_hint_nrs[ref_frame_nrs] =
+          buf->display_order_hint;
+    }
+  }
+#endif  // CONFIG_NEW_REF_SIGNALING
   MV_REFERENCE_FRAME ref_frame;
   for (ref_frame = LAST_FRAME; ref_frame <= ALTREF_FRAME; ++ref_frame) {
     const RefCntBuffer *const buf = get_ref_frame_buf(cm, ref_frame);

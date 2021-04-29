@@ -1180,6 +1180,9 @@ static AOM_INLINE void store_coding_context(
 
 static AOM_INLINE void setup_buffer_ref_mvs_inter(
     const AV1_COMP *const cpi, MACROBLOCK *x, MV_REFERENCE_FRAME ref_frame,
+#if CONFIG_NEW_REF_SIGNALING
+    MV_REFERENCE_FRAME_NRS ref_frame_nrs,
+#endif  // CONFIG_NEW_REF_SIGNALING
     BLOCK_SIZE block_size, struct buf_2d yv12_mb[REF_FRAMES][MAX_MB_PLANE]) {
   const AV1_COMMON *cm = &cpi->common;
   const int num_planes = av1_num_planes(cm);
@@ -1203,9 +1206,12 @@ static AOM_INLINE void setup_buffer_ref_mvs_inter(
   }
 
   // Gets an initial list of candidate vectors from neighbours and orders them
-  av1_find_mv_refs(cm, xd, mbmi, ref_frame, mbmi_ext->ref_mv_count,
-                   xd->ref_mv_stack, xd->weight, NULL, mbmi_ext->global_mvs,
-                   mbmi_ext->mode_context);
+  av1_find_mv_refs(cm, xd, mbmi, ref_frame,
+#if CONFIG_NEW_REF_SIGNALING
+                   ref_frame_nrs,
+#endif  // CONFIG_NEW_REF_SIGNALING
+                   mbmi_ext->ref_mv_count, xd->ref_mv_stack, xd->weight, NULL,
+                   mbmi_ext->global_mvs, mbmi_ext->mode_context);
   // TODO(Ravi): Populate mbmi_ext->ref_mv_stack[ref_frame][4] and
   // mbmi_ext->weight[ref_frame][4] inside av1_find_mv_refs.
   av1_copy_usable_ref_mv_stack_and_weight(xd, mbmi_ext, ref_frame);
@@ -1246,6 +1252,9 @@ static int skip_repeated_mv(const AV1_COMMON *const cm,
                             const MACROBLOCK *const x,
                             PREDICTION_MODE this_mode,
                             const MV_REFERENCE_FRAME ref_frames[2],
+#if CONFIG_NEW_REF_SIGNALING
+                            const MV_REFERENCE_FRAME_NRS ref_frames_nrs[2],
+#endif  // CONFIG_NEW_REF_SIGNALING
                             InterModeSearchState *search_state) {
   const int is_comp_pred = ref_frames[1] > INTRA_FRAME;
   const uint8_t ref_frame_type = av1_ref_frame_type(ref_frames);
@@ -1258,15 +1267,31 @@ static int skip_repeated_mv(const AV1_COMMON *const cm,
         // NEARMV has the same motion vector as NEARESTMV
         compare_mode = NEARESTMV;
       }
+#if CONFIG_NEW_REF_SIGNALING
+      // TODO(sarahparker) Temporary assert, see aomedia:3060
+      assert(is_same_wm_params(&cm->global_motion_nrs[ref_frames_nrs[0]],
+                               &cm->global_motion[ref_frames[0]]));
+      if (ref_mv_count == 1 &&
+          cm->global_motion_nrs[ref_frames_nrs[0]].wmtype <= TRANSLATION) {
+#else
       if (ref_mv_count == 1 &&
           cm->global_motion[ref_frames[0]].wmtype <= TRANSLATION) {
+#endif  // CONFIG_NEW_REF_SIGNALING
         // NEARMV has the same motion vector as GLOBALMV
         compare_mode = GLOBALMV;
       }
     }
     if (this_mode == GLOBALMV) {
+#if CONFIG_NEW_REF_SIGNALING
+      // TODO(sarahparker) Temporary assert, see aomedia:3060
+      assert(is_same_wm_params(&cm->global_motion_nrs[ref_frames_nrs[0]],
+                               &cm->global_motion[ref_frames[0]]));
+      if (ref_mv_count == 0 &&
+          cm->global_motion_nrs[ref_frames_nrs[0]].wmtype <= TRANSLATION) {
+#else
       if (ref_mv_count == 0 &&
           cm->global_motion[ref_frames[0]].wmtype <= TRANSLATION) {
+#endif  // CONFIG_NEW_REF_SIGNALING
         // GLOBALMV has the same motion vector as NEARESTMV
         compare_mode = NEARESTMV;
       }
@@ -1642,10 +1667,19 @@ static int64_t motion_mode_rd(
   if (features->switchable_motion_mode) {
     // Determine which motion modes to search if more than SIMPLE_TRANSLATION
     // is allowed.
+#if CONFIG_NEW_REF_SIGNALING
+    last_motion_mode_allowed = motion_mode_allowed_nrs(
+        xd->global_motion_nrs, xd, mbmi, features->allow_warped_motion);
+    // TODO(sarahparker) Temporary assert, see aomedia:3060
+    const MOTION_MODE last_motion_mode_allowed2 = motion_mode_allowed(
+        xd->global_motion, xd, mbmi, features->allow_warped_motion);
+    assert(last_motion_mode_allowed == last_motion_mode_allowed2);
+    (void)last_motion_mode_allowed2;
+#else
     last_motion_mode_allowed = motion_mode_allowed(
         xd->global_motion, xd, mbmi, features->allow_warped_motion);
+#endif  // CONFIG_NEW_REF_SIGNALING
   }
-
   if (last_motion_mode_allowed == WARPED_CAUSAL) {
     // Collect projection samples used in least squares approximation of
     // the warped motion parameters if WARPED_CAUSAL is going to be searched.
@@ -1657,7 +1691,6 @@ static int64_t motion_mode_rd(
     // warped parameters.
     last_motion_mode_allowed = OBMC_CAUSAL;
   }
-
   const MB_MODE_INFO base_mbmi = *mbmi;
   MB_MODE_INFO best_mbmi;
   const int interp_filter = features->interp_filter;
@@ -2077,6 +2110,14 @@ static int64_t motion_mode_rd(
   }
   // Update RD and mbmi stats for selected motion mode
   mbmi->ref_frame[1] = ref_frame_1;
+#if CONFIG_NEW_REF_SIGNALING
+  mbmi->ref_frame_nrs[1] = convert_named_ref_to_ranked_ref_index(
+      &cm->new_ref_frame_data, mbmi->ref_frame[1]);
+  // TODO(sarahparker) Temporary assert, see aomedia:3060
+  assert(convert_ranked_ref_to_named_ref_index(&cm->new_ref_frame_data,
+                                               mbmi->ref_frame_nrs[1]) ==
+         mbmi->ref_frame[1]);
+#endif  // CONFIG_NEW_REF_SIGNALING
   *rate_mv = best_rate_mv;
   if (best_rd == INT64_MAX || !av1_check_newmv_joint_nonzero(cm, x)) {
     av1_invalid_rd_stats(rd_stats);
@@ -3571,9 +3612,15 @@ static int64_t rd_pick_intrabc_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x,
 
   MB_MODE_INFO_EXT *const mbmi_ext = x->mbmi_ext;
   MV_REFERENCE_FRAME ref_frame = INTRA_FRAME;
-  av1_find_mv_refs(cm, xd, mbmi, ref_frame, mbmi_ext->ref_mv_count,
-                   xd->ref_mv_stack, xd->weight, NULL, mbmi_ext->global_mvs,
-                   mbmi_ext->mode_context);
+#if CONFIG_NEW_REF_SIGNALING
+  MV_REFERENCE_FRAME_NRS ref_frame_nrs = INTRA_FRAME_NRS;
+#endif  // CONFIG_NEW_REF_SIGNALING
+  av1_find_mv_refs(cm, xd, mbmi, ref_frame,
+#if CONFIG_NEW_REF_SIGNALING
+                   ref_frame_nrs,
+#endif  // CONFIG_NEW_REF_SIGNALING
+                   mbmi_ext->ref_mv_count, xd->ref_mv_stack, xd->weight, NULL,
+                   mbmi_ext->global_mvs, mbmi_ext->mode_context);
   // TODO(Ravi): Populate mbmi_ext->ref_mv_stack[ref_frame][4] and
   // mbmi_ext->weight[ref_frame][4] inside av1_find_mv_refs.
   av1_copy_usable_ref_mv_stack_and_weight(xd, mbmi_ext, ref_frame);
@@ -3914,9 +3961,23 @@ static AOM_INLINE void rd_pick_skip_mode(
       return;
     }
     MB_MODE_INFO_EXT *mbmi_ext = x->mbmi_ext;
+#if CONFIG_NEW_REF_SIGNALING
+    MV_REFERENCE_FRAME_NRS ref_frame_nrs = INVALID_IDX;
+    if (ref_frame_type < REF_FRAMES) {
+      ref_frame_nrs = convert_named_ref_to_ranked_ref_index(
+          &cm->new_ref_frame_data, ref_frame_type);
+      // TODO(sarahparker) Temporary assert, see aomedia:3060
+      assert(convert_ranked_ref_to_named_ref_index(
+                 &cm->new_ref_frame_data, ref_frame_nrs) == ref_frame_type);
+    }
+    av1_find_mv_refs(cm, xd, mbmi, ref_frame_type, ref_frame_nrs,
+                     mbmi_ext->ref_mv_count, xd->ref_mv_stack, xd->weight, NULL,
+                     mbmi_ext->global_mvs, mbmi_ext->mode_context);
+#else
     av1_find_mv_refs(cm, xd, mbmi, ref_frame_type, mbmi_ext->ref_mv_count,
                      xd->ref_mv_stack, xd->weight, NULL, mbmi_ext->global_mvs,
                      mbmi_ext->mode_context);
+#endif  // CONFIG_NEW_REF_SIGNALING
     // TODO(Ravi): Populate mbmi_ext->ref_mv_stack[ref_frame][4] and
     // mbmi_ext->weight[ref_frame][4] inside av1_find_mv_refs.
     av1_copy_usable_ref_mv_stack_and_weight(xd, mbmi_ext, ref_frame_type);
@@ -4527,7 +4588,18 @@ static AOM_INLINE void set_params_rd_pick_inter_mode(
         }
       }
       assert(get_ref_frame_yv12_buf(cm, ref_frame) != NULL);
+#if CONFIG_NEW_REF_SIGNALING
+      MV_REFERENCE_FRAME_NRS ref_frame_nrs =
+          convert_named_ref_to_ranked_ref_index(&cm->new_ref_frame_data,
+                                                ref_frame);
+      // TODO(sarahparker) Temporary assert, see aomedia:3060
+      assert(convert_ranked_ref_to_named_ref_index(&cm->new_ref_frame_data,
+                                                   ref_frame_nrs) == ref_frame);
+      setup_buffer_ref_mvs_inter(cpi, x, ref_frame, ref_frame_nrs, bsize,
+                                 yv12_mb);
+#else
       setup_buffer_ref_mvs_inter(cpi, x, ref_frame, bsize, yv12_mb);
+#endif  // CONFIG_NEW_REF_SIGNALING
     }
     // Store the best pred_mv_sad across all past frames
     if (cpi->sf.inter_sf.alt_ref_search_fp &&
@@ -4562,9 +4634,23 @@ static AOM_INLINE void set_params_rd_pick_inter_mode(
       // pruned.
       if (prune_ref_frame(cpi, x, ref_frame)) continue;
 
+#if CONFIG_NEW_REF_SIGNALING
+      MV_REFERENCE_FRAME_NRS ref_frame_nrs = INVALID_IDX;
+      if (ref_frame < REF_FRAMES) {
+        ref_frame_nrs = convert_named_ref_to_ranked_ref_index(
+            &cm->new_ref_frame_data, ref_frame);
+        // TODO(sarahparker) Temporary assert, see aomedia:3060
+        assert(convert_ranked_ref_to_named_ref_index(
+                   &cm->new_ref_frame_data, ref_frame_nrs) == ref_frame);
+      }
+      av1_find_mv_refs(cm, xd, mbmi, ref_frame, ref_frame_nrs,
+                       mbmi_ext->ref_mv_count, xd->ref_mv_stack, xd->weight,
+                       NULL, mbmi_ext->global_mvs, mbmi_ext->mode_context);
+#else
       av1_find_mv_refs(cm, xd, mbmi, ref_frame, mbmi_ext->ref_mv_count,
                        xd->ref_mv_stack, xd->weight, NULL, mbmi_ext->global_mvs,
                        mbmi_ext->mode_context);
+#endif  // CONFIG_NEW_REF_SIGNALING
       // TODO(Ravi): Populate mbmi_ext->ref_mv_stack[ref_frame][4] and
       // mbmi_ext->weight[ref_frame][4] inside av1_find_mv_refs.
       av1_copy_usable_ref_mv_stack_and_weight(xd, mbmi_ext, ref_frame);
@@ -4852,7 +4938,11 @@ static INLINE int skip_inter_mode_with_cached_mode(
 static int inter_mode_search_order_independent_skip(
     const AV1_COMP *cpi, const MACROBLOCK *x, mode_skip_mask_t *mode_skip_mask,
     InterModeSearchState *search_state, int skip_ref_frame_mask,
-    PREDICTION_MODE mode, const MV_REFERENCE_FRAME *ref_frame) {
+    PREDICTION_MODE mode,
+#if CONFIG_NEW_REF_SIGNALING
+    const MV_REFERENCE_FRAME_NRS *ref_frame_nrs,
+#endif  // CONFIG_NEW_REF_SIGNALING
+    const MV_REFERENCE_FRAME *ref_frame) {
   if (mask_says_skip(mode_skip_mask, ref_frame, mode)) {
     return 1;
   }
@@ -4867,7 +4957,11 @@ static int inter_mode_search_order_independent_skip(
 
 #if !CONFIG_NEW_INTER_MODES
   const AV1_COMMON *const cm = &cpi->common;
-  if (skip_repeated_mv(cm, x, mode, ref_frame, search_state)) {
+  if (skip_repeated_mv(cm, x, mode, ref_frame,
+#if CONFIG_NEW_REF_SIGNALING
+                       ref_frame_nrs,
+#endif  // CONFIG_NEW_REF_SIGNALING
+                       search_state)) {
     return 1;
   }
 #endif  // !CONFIG_NEW_INTER_MODES
@@ -5485,6 +5579,7 @@ static int skip_inter_mode(AV1_COMP *cpi, MACROBLOCK *x, const BLOCK_SIZE bsize,
 #if CONFIG_NEW_REF_SIGNALING
                            PREDICTION_MODE this_mode,
                            const MV_REFERENCE_FRAME *ref_frames,
+                           const MV_REFERENCE_FRAME_NRS *ref_frames_nrs,
 #else
                            THR_MODES midx,
 #endif  // CONFIG_NEW_REF_SIGNALING
@@ -5498,7 +5593,7 @@ static int skip_inter_mode(AV1_COMP *cpi, MACROBLOCK *x, const BLOCK_SIZE bsize,
   const MODE_DEFINITION *mode_def = &av1_mode_defs[mode_enum];
   const PREDICTION_MODE this_mode = mode_def->mode;
   const MV_REFERENCE_FRAME *ref_frames = mode_def->ref_frame;
-#endif  // !CONFIG_NEW_REF_SIGNALING
+#endif  // CONFIG_NEW_REF_SIGNALING
   const MV_REFERENCE_FRAME ref_frame = ref_frames[0];
   const MV_REFERENCE_FRAME second_ref_frame = ref_frames[1];
   const int comp_pred = second_ref_frame > INTRA_FRAME;
@@ -5509,7 +5604,11 @@ static int skip_inter_mode(AV1_COMP *cpi, MACROBLOCK *x, const BLOCK_SIZE bsize,
     return 1;
   const int ret = inter_mode_search_order_independent_skip(
       cpi, x, args->mode_skip_mask, args->search_state,
-      args->skip_ref_frame_mask, this_mode, ref_frames);
+      args->skip_ref_frame_mask, this_mode,
+#if CONFIG_NEW_REF_SIGNALING
+      ref_frames_nrs,
+#endif  // CONFIG_NEW_REF_SIGNALING
+      ref_frames);
   if (ret == 1) return 1;
   *(args->skip_motion_mode) = (ret == 2);
 
@@ -6052,7 +6151,7 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
         // Apply speed features to decide if this inter mode can be skipped
         if (skip_inter_mode(cpi, x, bsize, ref_frame_rd,
 #if CONFIG_NEW_REF_SIGNALING
-                            this_mode, ref_frames,
+                            this_mode, ref_frames, mbmi->ref_frame_nrs,
 #else
                         midx,
 #endif  // CONFIG_NEW_REF_SIGNALING
@@ -6521,21 +6620,32 @@ void av1_rd_pick_inter_mode_sb_seg_skip(const AV1_COMP *cpi,
   else
     mbmi->ref_frame[0] = LAST_FRAME;
   mbmi->ref_frame[1] = NONE_FRAME;
-  mbmi->mv[0].as_int =
-      gm_get_motion_vector(&cm->global_motion[mbmi->ref_frame[0]],
-                           features->fr_mv_precision, bsize, mi_col, mi_row)
-          .as_int;
 #if CONFIG_NEW_REF_SIGNALING
   mbmi->ref_frame_nrs[0] = convert_named_ref_to_ranked_ref_index(
       &cm->new_ref_frame_data, mbmi->ref_frame[0]);
   mbmi->ref_frame_nrs[1] = convert_named_ref_to_ranked_ref_index(
       &cm->new_ref_frame_data, mbmi->ref_frame[1]);
+  // TODO(sarahparker) Temporary assert, see aomedia:3060
   assert(convert_ranked_ref_to_named_ref_index(&cm->new_ref_frame_data,
                                                mbmi->ref_frame_nrs[0]) ==
          mbmi->ref_frame[0]);
   assert(convert_ranked_ref_to_named_ref_index(&cm->new_ref_frame_data,
                                                mbmi->ref_frame_nrs[1]) ==
          mbmi->ref_frame[1]);
+  mbmi->mv[0].as_int =
+      gm_get_motion_vector(&cm->global_motion_nrs[mbmi->ref_frame_nrs[0]],
+                           features->fr_mv_precision, bsize, mi_col, mi_row)
+          .as_int;
+  // TODO(sarahparker) Temporary assert, see aomedia:3060
+  assert(mbmi->mv[0].as_int ==
+         gm_get_motion_vector(&cm->global_motion[mbmi->ref_frame[0]],
+                              features->fr_mv_precision, bsize, mi_col, mi_row)
+             .as_int);
+#else
+  mbmi->mv[0].as_int =
+      gm_get_motion_vector(&cm->global_motion[mbmi->ref_frame[0]],
+                           features->fr_mv_precision, bsize, mi_col, mi_row)
+          .as_int;
 #endif  // CONFIG_NEW_REF_SIGNALING
   mbmi->tx_size = max_txsize_lookup[bsize];
   x->txfm_search_info.skip_txfm = 1;

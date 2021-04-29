@@ -690,6 +690,9 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
                            ? AOM_SUPERRES_NONE
                            : oxcf->superres_cfg.superres_mode;  // default
   x->e_mbd.bd = (int)seq_params->bit_depth;
+#if CONFIG_NEW_REF_SIGNALING
+  x->e_mbd.global_motion_nrs = cm->global_motion_nrs;
+#endif  // CONFIG_NEW_REF_SIGNALING
   x->e_mbd.global_motion = cm->global_motion;
 
   memcpy(level_params->target_seq_level_idx, cpi->oxcf.target_seq_level_idx,
@@ -2564,10 +2567,17 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
       loop = 0;
     }
 
+#if CONFIG_NEW_REF_SIGNALING
+    if (allow_recode && !cpi->sf.gm_sf.gm_disable_recode &&
+        av1_recode_loop_test_global_motion_nrs(
+            cm->global_motion_nrs, cpi->td.rd_counts.global_motion_used,
+            gm_info->params_cost)) {
+#else
     if (allow_recode && !cpi->sf.gm_sf.gm_disable_recode &&
         av1_recode_loop_test_global_motion(cm->global_motion,
                                            cpi->td.rd_counts.global_motion_used,
                                            gm_info->params_cost)) {
+#endif  // CONFIG_NEW_REF_SIGNALING
       loop = 1;
     }
 

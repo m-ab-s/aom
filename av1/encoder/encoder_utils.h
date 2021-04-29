@@ -882,9 +882,15 @@ static AOM_INLINE int combine_prior_with_tpl_boost(double min_factor,
 static AOM_INLINE void set_size_independent_vars(AV1_COMP *cpi) {
   int i;
   AV1_COMMON *const cm = &cpi->common;
+#if CONFIG_NEW_REF_SIGNALING
+  for (i = 0; i < MAX_REF_FRAMES_NRS; ++i) {
+    cm->global_motion[i] = default_warp_params;
+  }
+#else
   for (i = LAST_FRAME; i <= ALTREF_FRAME; ++i) {
     cm->global_motion[i] = default_warp_params;
   }
+#endif  // CONFIG_NEW_REF_SIGNALING
   cpi->gm_info.search_done = 0;
 
   av1_set_speed_features_framesize_independent(cpi, cpi->speed);
@@ -976,6 +982,12 @@ void av1_apply_active_map(AV1_COMP *cpi);
 uint16_t av1_setup_interp_filter_search_mask(AV1_COMP *cpi);
 
 void av1_determine_sc_tools_with_encoding(AV1_COMP *cpi, const int q_orig);
+
+#if CONFIG_NEW_REF_SIGNALING
+int av1_recode_loop_test_global_motion_nrs(
+    WarpedMotionParams *const global_motion,
+    const int *const global_motion_used, int *const gm_params_cost);
+#endif  // CONFIG_NEW_REF_SIGNALING
 
 int av1_recode_loop_test_global_motion(WarpedMotionParams *const global_motion,
                                        const int *const global_motion_used,
