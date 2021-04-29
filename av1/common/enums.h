@@ -465,6 +465,12 @@ enum {
   UV_MODE_INVALID,  // For uv_mode in inter blocks
 } UENUM1BYTE(UV_PREDICTION_MODE);
 
+// Number of top model rd to store for pruning y modes in intra mode decision
+#define TOP_INTRA_MODEL_COUNT 4
+// Total number of luma intra prediction modes (include both directional and
+// non-directional modes)
+#define LUMA_MODE_COUNT 61
+
 enum {
   SIMPLE_TRANSLATION,
   OBMC_CAUSAL,    // 2-sided OBMC

@@ -21,6 +21,21 @@
 extern "C" {
 #endif
 
+/*!\cond */
+static const PREDICTION_MODE intra_rd_search_mode_order[INTRA_MODES] = {
+  DC_PRED,       H_PRED,        V_PRED,    SMOOTH_PRED, PAETH_PRED,
+  SMOOTH_V_PRED, SMOOTH_H_PRED, D135_PRED, D203_PRED,   D157_PRED,
+  D67_PRED,      D113_PRED,     D45_PRED,
+};
+
+static const UV_PREDICTION_MODE uv_rd_search_mode_order[UV_INTRA_MODES] = {
+  UV_DC_PRED,     UV_CFL_PRED,   UV_H_PRED,        UV_V_PRED,
+  UV_SMOOTH_PRED, UV_PAETH_PRED, UV_SMOOTH_V_PRED, UV_SMOOTH_H_PRED,
+  UV_D135_PRED,   UV_D203_PRED,  UV_D157_PRED,     UV_D67_PRED,
+  UV_D113_PRED,   UV_D45_PRED,
+};
+/*!\endcond */
+
 /*! \brief Variables related to intra-mode search during inter frame coding.
  *
  * \ingroup intra_mode_search
@@ -108,6 +123,10 @@ typedef struct IntraModeSearchState {
  * \param[in]    best_rd            Best RD seen for this block so far.
  * \param[in]    best_intra_rd      Best intra RD seen for this block so far.
  *
+ * \param[in]    best_model_rd      Best model RD seen for this block so far.
+ * \param[in]    top_intra_model_rd Top intra model RD seen for this block so
+ * far.
+ *
  * \return Returns the rdcost of the current intra-mode if it's available,
  * otherwise returns INT64_MAX. The corresponding values in x->e_mbd.mi[0],
  * rd_stats, rd_stats_y/uv, and best_intra_rd are also updated. Moreover, in the
@@ -121,7 +140,9 @@ int64_t av1_handle_intra_mode(IntraModeSearchState *intra_search_state,
                               BLOCK_SIZE bsize, unsigned int ref_frame_cost,
                               const PICK_MODE_CONTEXT *ctx, RD_STATS *rd_stats,
                               RD_STATS *rd_stats_y, RD_STATS *rd_stats_uv,
-                              int64_t best_rd, int64_t *best_intra_rd);
+                              int64_t best_rd, int64_t *best_intra_rd,
+                              int64_t *best_model_rd,
+                              int64_t top_intra_model_rd[]);
 
 /*!\brief Evaluate luma palette mode for inter frames.
  *
@@ -238,6 +259,24 @@ void av1_count_colors_highbd(const uint8_t *src8, int stride, int rows,
                              int cols, int bit_depth, int *val_count,
                              int *val_count_8bit, int *num_color_bins,
                              int *num_colors);
+
+/*! \brief set the luma intra mode and delta angles for a given mode index.
+ * \param[in]    mode_idx           mode index in intra mode decision
+ *                                  process.
+ * \param[in]    mbmi               Pointer to structure holding
+ *                                  the mode info for the current macroblock.
+ */
+void set_y_mode_and_delta_angle(const int mode_idx, MB_MODE_INFO *const mbmi);
+
+/*! \brief prune luma intra mode    based on the model rd.
+ * \param[in]    this_model_rd      model rd for current mode.
+ * \param[in]    best_model_rd      Best model RD seen for this block so
+ *                                  far.
+ * \param[in]    top_intra_model_rd Top intra model RD seen for this
+ *                                  block so far.
+ */
+int prune_intra_y_mode(int64_t this_model_rd, int64_t *best_model_rd,
+                       int64_t top_intra_model_rd[]);
 
 #ifdef __cplusplus
 }  // extern "C"
