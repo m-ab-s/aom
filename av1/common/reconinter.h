@@ -398,12 +398,26 @@ void av1_setup_pre_planes(MACROBLOCKD *xd, int idx,
 
 static INLINE void set_default_interp_filters(
     MB_MODE_INFO *const mbmi, InterpFilter frame_interp_filter) {
+#if CONFIG_OPTFLOW_REFINEMENT
+#if CONFIG_REMOVE_DUAL_FILTER
+  mbmi->interp_fltr = mbmi->mode > NEW_NEWMV
+                          ? MULTITAP_SHARP
+                          : av1_unswitchable_filter(frame_interp_filter);
+#else
+  mbmi->interp_filters =
+      mbmi->mode > NEW_NEWMV
+          ? av1_broadcast_interp_filter(av1_unswitchable_filter(MULTITAP_SHARP))
+          : av1_broadcast_interp_filter(
+                av1_unswitchable_filter(frame_interp_filter));
+#endif  // CONFIG_REMOVE_DUAL_FILTER
+#else
 #if CONFIG_REMOVE_DUAL_FILTER
   mbmi->interp_fltr = av1_unswitchable_filter(frame_interp_filter);
 #else
   mbmi->interp_filters =
       av1_broadcast_interp_filter(av1_unswitchable_filter(frame_interp_filter));
 #endif  // CONFIG_REMOVE_DUAL_FILTER
+#endif  // CONFIG_OPTFLOW_REFINEMENT
 }
 
 static INLINE int av1_is_interp_needed(const MACROBLOCKD *const xd) {

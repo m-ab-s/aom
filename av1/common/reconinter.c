@@ -1770,6 +1770,13 @@ static void build_inter_predictors_8x8_and_bigger(
 #if CONFIG_OPTFLOW_REFINEMENT
   const int use_optflow_refinement = (mi->mode > NEW_NEWMV) && is_compound;
   assert(IMPLIES(use_optflow_refinement, !build_for_obmc));
+#if CONFIG_REMOVE_DUAL_FILTER
+  assert(IMPLIES(use_optflow_refinement, mi->interp_fltr == MULTITAP_SHARP));
+#else
+  assert(IMPLIES(use_optflow_refinement,
+                 mi->interp_filters.as_filters.x_filter == MULTITAP_SHARP &&
+                     mi->interp_filters.as_filters.y_filter == MULTITAP_SHARP));
+#endif
 
   if (use_optflow_refinement && plane == 0) {
     // Initialize refined mv

@@ -831,6 +831,9 @@ static AOM_INLINE void write_mb_interp_filter(AV1_COMMON *const cm,
     return;
   }
   if (cm->features.interp_filter == SWITCHABLE) {
+#if CONFIG_OPTFLOW_REFINEMENT
+    if (mbmi->mode > NEW_NEWMV) return;
+#endif
 #if CONFIG_REMOVE_DUAL_FILTER
     const int ctx = av1_get_pred_context_switchable_interp(xd, 0);
     const InterpFilter filter = mbmi->interp_fltr;
