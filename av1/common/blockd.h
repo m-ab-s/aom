@@ -2044,7 +2044,12 @@ static INLINE int is_nontrans_global_motion(const MACROBLOCKD *xd,
   int ref;
 
   // First check if all modes are GLOBALMV
-  if (mbmi->mode != GLOBALMV && mbmi->mode != GLOBAL_GLOBALMV) return 0;
+  if (mbmi->mode != GLOBALMV &&
+#if CONFIG_OPTFLOW_REFINEMENT
+      mbmi->mode != GLOBAL_GLOBALMV_OPTFLOW &&
+#endif  // CONFIG_OPTFLOW_REFINEMENT
+      mbmi->mode != GLOBAL_GLOBALMV)
+    return 0;
 
   if (AOMMIN(mi_size_wide[mbmi->sb_type], mi_size_high[mbmi->sb_type]) < 2)
     return 0;
