@@ -5200,19 +5200,35 @@ BEGIN_PARTITION_SEARCH:
 #endif  // !CONFIG_EXT_RECUR_PARTITIONS
 
 #if CONFIG_EXT_RECUR_PARTITIONS
-  /*  prune_partition_3(cpi, pc_tree, &part_search_state, x, &best_rdc,
-                      pb_source_variance, ext_partition_allowed);*/
+  const int ext_partition_allowed =
+      (blk_params.has_rows && blk_params.has_cols) || !is_square_block(bsize);
+  const int partition_3_allowed =
+      ext_partition_allowed && bsize != BLOCK_128X128;
+  const int is_wide_block = block_size_wide[bsize] > block_size_high[bsize];
+  const int is_tall_block = block_size_wide[bsize] < block_size_high[bsize];
+  const int horz_3_allowed =
+      partition_3_allowed && (is_square_block(bsize) || is_tall_block) &&
+      check_is_chroma_size_valid(PARTITION_HORZ_3, bsize, mi_row, mi_col,
+                                 part_search_state.ss_x, part_search_state.ss_y,
+                                 pc_tree);
+  const int vert_3_allowed =
+      partition_3_allowed && (is_square_block(bsize) || is_wide_block) &&
+      check_is_chroma_size_valid(PARTITION_VERT_3, bsize, mi_row, mi_col,
+                                 part_search_state.ss_x, part_search_state.ss_y,
+                                 pc_tree);
 
   // PARTITION_HORZ_3
   if (IMPLIES(should_reuse_mode(x, REUSE_PARTITION_MODE_FLAG),
-              !PRUNE_WITH_PREV_PARTITION(PARTITION_HORZ_3))) {
+              !PRUNE_WITH_PREV_PARTITION(PARTITION_HORZ_3)) &&
+      horz_3_allowed) {
     search_partition_horz_3(&part_search_state, cpi, td, tile_data, tp,
                             &best_rdc, pc_tree, &x_ctx, multi_pass_mode);
   }
 
   // PARTITION_VERT_3
   if (IMPLIES(should_reuse_mode(x, REUSE_PARTITION_MODE_FLAG),
-              !PRUNE_WITH_PREV_PARTITION(PARTITION_VERT_3))) {
+              !PRUNE_WITH_PREV_PARTITION(PARTITION_VERT_3)) &&
+      vert_3_allowed) {
     search_partition_vert_3(&part_search_state, cpi, td, tile_data, tp,
                             &best_rdc, pc_tree, &x_ctx, multi_pass_mode);
   }
