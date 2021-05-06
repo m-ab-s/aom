@@ -171,11 +171,18 @@ static AOM_INLINE void write_drl_idx(
 
 static AOM_INLINE void write_inter_compound_mode(MACROBLOCKD *xd, aom_writer *w,
                                                  PREDICTION_MODE mode,
+#if CONFIG_OPTFLOW_REFINEMENT
+                                                 const AV1_COMMON *cm,
+                                                 const MB_MODE_INFO *const mbmi,
+#endif  // CONFIG_OPTFLOW_REFINEMENT
                                                  const int16_t mode_ctx) {
   assert(is_inter_compound_mode(mode));
 #if CONFIG_OPTFLOW_REFINEMENT
-  int use_of = mode > NEW_NEWMV;
-  aom_write_symbol(w, use_of, xd->tile_ctx->use_optflow_cdf[mode_ctx], 2);
+  int use_of = 0;
+  if (!has_one_sided_refs(cm, mbmi)) {
+    use_of = mode > NEW_NEWMV;
+    aom_write_symbol(w, use_of, xd->tile_ctx->use_optflow_cdf[mode_ctx], 2);
+  }
   int comp_mode_idx =
       use_of ? INTER_OPFL_OFFSET(mode) : INTER_COMPOUND_OFFSET(mode);
   aom_write_symbol(w, comp_mode_idx,
@@ -1404,7 +1411,11 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
     // If segment skip is not enabled code the mode.
     if (!segfeature_active(seg, segment_id, SEG_LVL_SKIP)) {
       if (is_inter_compound_mode(mode))
+#if CONFIG_OPTFLOW_REFINEMENT
+        write_inter_compound_mode(xd, w, mode, cm, mbmi, mode_ctx);
+#else
         write_inter_compound_mode(xd, w, mode, mode_ctx);
+#endif  // CONFIG_OPTFLOW_REFINEMENT
       else if (is_inter_singleref_mode(mode))
         write_inter_mode(w, mode, ec_ctx, mode_ctx);
 

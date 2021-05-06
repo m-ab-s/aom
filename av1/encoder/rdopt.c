@@ -6114,12 +6114,6 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
     const THR_MODES mode_enum = av1_default_mode_order[midx];
     const MODE_DEFINITION *mode_def = &av1_mode_defs[mode_enum];
     const PREDICTION_MODE this_mode = mode_def->mode;
-#if CONFIG_OPTFLOW_REFINEMENT
-    // Optical flow compound modes only enabled with enable_order_hint
-    if (this_mode > NEW_NEWMV &&
-        !cm->seq_params.order_hint_info.enable_order_hint)
-      continue;
-#endif  // CONFIG_OPTFLOW_REFINEMENT
     const MV_REFERENCE_FRAME *ref_frames = mode_def->ref_frame;
     const MV_REFERENCE_FRAME ref_frame = ref_frames[0];
     const MV_REFERENCE_FRAME second_ref_frame = ref_frames[1];
@@ -6130,6 +6124,15 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
         const int comp_pred = second_ref_frame > INTRA_FRAME;
 
         init_mbmi(mbmi, this_mode, ref_frames, cm, xd->sbi);
+
+#if CONFIG_OPTFLOW_REFINEMENT
+        // Optical flow compound modes are only enabled with enable_order_hint
+        // and when prediction is bi-directional
+        if (this_mode > NEW_NEWMV &&
+            (!cm->seq_params.order_hint_info.enable_order_hint ||
+             !has_second_ref(mbmi) || has_one_sided_refs(cm, mbmi)))
+          continue;
+#endif  // CONFIG_OPTFLOW_REFINEMENT
 
         txfm_info->skip_txfm = 0;
         num_single_modes_processed += is_single_pred;

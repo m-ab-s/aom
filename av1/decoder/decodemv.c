@@ -337,10 +337,16 @@ static void read_warp_rotation(MACROBLOCKD *xd, MB_MODE_INFO *mbmi,
 #endif  // CONFIG_EXT_ROTATION
 
 static PREDICTION_MODE read_inter_compound_mode(MACROBLOCKD *xd, aom_reader *r,
+#if CONFIG_OPTFLOW_REFINEMENT
+                                                const AV1_COMMON *cm,
+                                                MB_MODE_INFO *const mbmi,
+#endif  // CONFIG_OPTFLOW_REFINEMNET
                                                 int16_t ctx) {
 #if CONFIG_OPTFLOW_REFINEMENT
   const int use_of =
-      aom_read_symbol(r, xd->tile_ctx->use_optflow_cdf[ctx], 2, ACCT_STR);
+      has_one_sided_refs(cm, mbmi)
+          ? 0
+          : aom_read_symbol(r, xd->tile_ctx->use_optflow_cdf[ctx], 2, ACCT_STR);
 #endif  // CONFIG_OPTFLOW_REFINEMENT
   const int mode =
       aom_read_symbol(r, xd->tile_ctx->inter_compound_mode_cdf[ctx],
@@ -1589,7 +1595,11 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
       const int16_t mode_ctx =
           av1_mode_context_analyzer(inter_mode_ctx, mbmi->ref_frame);
       if (is_compound)
+#if CONFIG_OPTFLOW_REFINEMENT
+        mbmi->mode = read_inter_compound_mode(xd, r, cm, mbmi, mode_ctx);
+#else
         mbmi->mode = read_inter_compound_mode(xd, r, mode_ctx);
+#endif  // CONFIG_OPTFLOW_REFINEMENT
       else
         mbmi->mode = read_inter_mode(ec_ctx, r, mode_ctx);
       // TODO(chiyotsai@google.com): Remove the following line
