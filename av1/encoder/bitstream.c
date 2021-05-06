@@ -173,9 +173,19 @@ static AOM_INLINE void write_inter_compound_mode(MACROBLOCKD *xd, aom_writer *w,
                                                  PREDICTION_MODE mode,
                                                  const int16_t mode_ctx) {
   assert(is_inter_compound_mode(mode));
+#if CONFIG_OPTFLOW_REFINEMENT
+  int use_of = mode > NEW_NEWMV;
+  aom_write_symbol(w, use_of, xd->tile_ctx->use_optflow_cdf[mode_ctx], 2);
+  int comp_mode_idx =
+      use_of ? INTER_OPFL_OFFSET(mode) : INTER_COMPOUND_OFFSET(mode);
+  aom_write_symbol(w, comp_mode_idx,
+                   xd->tile_ctx->inter_compound_mode_cdf[mode_ctx],
+                   INTER_COMPOUND_REF_TYPES);
+#else
   aom_write_symbol(w, INTER_COMPOUND_OFFSET(mode),
                    xd->tile_ctx->inter_compound_mode_cdf[mode_ctx],
                    INTER_COMPOUND_MODES);
+#endif  // CONFIG_OPTFLOW_REFINEMENT
 }
 
 #if CONFIG_NEW_TX_PARTITION

@@ -953,8 +953,16 @@ static int conditional_skipintra(PREDICTION_MODE mode,
 static int cost_mv_ref(const ModeCosts *const mode_costs, PREDICTION_MODE mode,
                        int16_t mode_context) {
   if (is_inter_compound_mode(mode)) {
+#if CONFIG_OPTFLOW_REFINEMENT
+    int use_of = mode > NEW_NEWMV;
+    int comp_mode_idx =
+        use_of ? INTER_OPFL_OFFSET(mode) : INTER_COMPOUND_OFFSET(mode);
+    return mode_costs->use_optflow_cost[mode_context][use_of] +
+           mode_costs->inter_compound_mode_cost[mode_context][comp_mode_idx];
+#else
     return mode_costs
         ->inter_compound_mode_cost[mode_context][INTER_COMPOUND_OFFSET(mode)];
+#endif  // CONFIG_OPTFLOW_REFINEMENT
   }
 
   assert(is_inter_mode(mode));

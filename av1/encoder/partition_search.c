@@ -1355,11 +1355,24 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
     const int16_t mode_ctx =
         av1_mode_context_analyzer(mbmi_ext->mode_context, mbmi->ref_frame);
     if (has_second_ref(mbmi)) {
+#if CONFIG_OPTFLOW_REFINEMENT
+      int use_of = mode > NEW_NEWMV;
+      int comp_mode_idx =
+          use_of ? INTER_OPFL_OFFSET(mode) : INTER_COMPOUND_OFFSET(mode);
+#if CONFIG_ENTROPY_STATS
+      ++counts->use_optflow[mode_ctx][use_of];
+      ++counts->inter_compound_mode[mode_ctx][comp_mode_idx];
+#endif
+      update_cdf(fc->use_optflow_cdf[mode_ctx], use_of, 2);
+      update_cdf(fc->inter_compound_mode_cdf[mode_ctx], comp_mode_idx,
+                 INTER_COMPOUND_REF_TYPES);
+#else
 #if CONFIG_ENTROPY_STATS
       ++counts->inter_compound_mode[mode_ctx][INTER_COMPOUND_OFFSET(mode)];
 #endif
       update_cdf(fc->inter_compound_mode_cdf[mode_ctx],
                  INTER_COMPOUND_OFFSET(mode), INTER_COMPOUND_MODES);
+#endif
     } else {
       av1_update_inter_mode_stats(fc, counts, mode, mode_ctx);
     }

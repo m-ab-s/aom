@@ -808,9 +808,17 @@ typedef struct {
   /**@{*/
   //! intra_inter_cost
   int intra_inter_cost[INTRA_INTER_CONTEXTS][2];
-  //! inter_compound_mode_cost
+#if CONFIG_OPTFLOW_REFINEMENT
+  /*! use_optflow_cost */
+  int use_optflow_cost[INTER_COMPOUND_MODE_CONTEXTS][2];
+  /*! inter_compound_mode_cost */
+  int inter_compound_mode_cost[INTER_COMPOUND_MODE_CONTEXTS]
+                              [INTER_COMPOUND_REF_TYPES];
+#else
+  /*! inter_compound_mode_cost */
   int inter_compound_mode_cost[INTER_COMPOUND_MODE_CONTEXTS]
                               [INTER_COMPOUND_MODES];
+#endif  // CONFIG_OPTFLOW_REFINEMENT
   //! compound_type_cost
   int compound_type_cost[BLOCK_SIZES_ALL][MASKED_COMPOUND_TYPES];
   //! wedge_idx_cost

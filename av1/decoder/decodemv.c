@@ -338,10 +338,25 @@ static void read_warp_rotation(MACROBLOCKD *xd, MB_MODE_INFO *mbmi,
 
 static PREDICTION_MODE read_inter_compound_mode(MACROBLOCKD *xd, aom_reader *r,
                                                 int16_t ctx) {
+#if CONFIG_OPTFLOW_REFINEMENT
+  const int use_of =
+      aom_read_symbol(r, xd->tile_ctx->use_optflow_cdf[ctx], 2, ACCT_STR);
+#endif  // CONFIG_OPTFLOW_REFINEMENT
   const int mode =
       aom_read_symbol(r, xd->tile_ctx->inter_compound_mode_cdf[ctx],
-                      INTER_COMPOUND_MODES, ACCT_STR);
+#if CONFIG_OPTFLOW_REFINEMENT
+                      INTER_COMPOUND_REF_TYPES,
+#else
+                      INTER_COMPOUND_MODES,
+#endif  // CONFIG_OPTFLOW_REFINEMENT
+                      ACCT_STR);
 #if CONFIG_NEW_INTER_MODES
+#if CONFIG_OPTFLOW_REFINEMENT
+  if (use_of) {
+    assert(is_inter_compound_mode(NEAR_NEARMV_OPTFLOW + mode));
+    return NEAR_NEARMV_OPTFLOW + mode;
+  }
+#endif
   assert(is_inter_compound_mode(NEAR_NEARMV + mode));
   return NEAR_NEARMV + mode;
 #else

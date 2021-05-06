@@ -29,6 +29,9 @@ extern "C" {
 #if CONFIG_NEW_INTER_MODES
 #define INTER_OFFSET(mode) ((mode)-NEARMV)
 #define INTER_COMPOUND_OFFSET(mode) (uint8_t)((mode)-NEAR_NEARMV)
+#if CONFIG_OPTFLOW_REFINEMENT
+#define INTER_OPFL_OFFSET(mode) (uint8_t)((mode)-NEAR_NEARMV_OPTFLOW)
+#endif  // CONFIG_OPTFLOW_REFINEMENT
 #else
 #define INTER_OFFSET(mode) ((mode)-NEARESTMV)
 #define INTER_COMPOUND_OFFSET(mode) (uint8_t)((mode)-NEAREST_NEARESTMV)
@@ -101,8 +104,14 @@ typedef struct frame_contexts {
   aom_cdf_prob refmv_cdf[REFMV_MODE_CONTEXTS][CDF_SIZE(2)];
 #endif  // CONFIG_NEW_INTER_MODES
 
+#if CONFIG_OPTFLOW_REFINEMENT
+  aom_cdf_prob use_optflow_cdf[INTER_COMPOUND_MODE_CONTEXTS][CDF_SIZE(2)];
+  aom_cdf_prob inter_compound_mode_cdf[INTER_COMPOUND_MODE_CONTEXTS]
+                                      [CDF_SIZE(INTER_COMPOUND_REF_TYPES)];
+#else
   aom_cdf_prob inter_compound_mode_cdf[INTER_COMPOUND_MODE_CONTEXTS]
                                       [CDF_SIZE(INTER_COMPOUND_MODES)];
+#endif  // CONFIG_OPTFLOW_REFINEMENT
   aom_cdf_prob compound_type_cdf[BLOCK_SIZES_ALL]
                                 [CDF_SIZE(MASKED_COMPOUND_TYPES)];
   aom_cdf_prob wedge_idx_cdf[BLOCK_SIZES_ALL][CDF_SIZE(16)];

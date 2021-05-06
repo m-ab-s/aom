@@ -348,6 +348,11 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, ModeCosts *mode_costs,
     }
 #endif  // CONFIG_NEW_INTER_MODES
 
+#if CONFIG_OPTFLOW_REFINEMENT
+    for (i = 0; i < INTER_COMPOUND_MODE_CONTEXTS; ++i)
+      av1_cost_tokens_from_cdf(mode_costs->use_optflow_cost[i],
+                               fc->use_optflow_cdf[i], NULL);
+#endif  // CONFIG_OPTFLOW_REFINEMENT
     for (i = 0; i < INTER_COMPOUND_MODE_CONTEXTS; ++i)
       av1_cost_tokens_from_cdf(mode_costs->inter_compound_mode_cost[i],
                                fc->inter_compound_mode_cdf[i], NULL);
