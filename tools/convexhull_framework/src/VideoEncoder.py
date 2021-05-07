@@ -11,7 +11,7 @@
 __author__ = "maggie.sun@intel.com, ryanlei@fb.com"
 
 import Utils
-from Config import AOMENC, AV1ENC, SVTAV1, EnableTimingInfo, Platform, UsePerfUtil
+from Config import AOMENC, AV1ENC, SVTAV1, EnableTimingInfo, Platform, UsePerfUtil, CTC_VERSION
 from Utils import ExecuteCmd
 
 def get_qindex_from_QP(QP):
@@ -32,9 +32,14 @@ def EncodeWithAOM_AV2(clip, test_cfg, QP, framenum, outfile, preset, enc_perf,
            " --cpu-used=%s --limit=%d --passes=1 --end-usage=q --i%s " \
            " --use-fixed-qp-offsets=1 --deltaq-mode=0 " \
            " --enable-tpl-model=0 --enable-keyframe-filtering=0 --fps=%d/%d " \
-           " --input-bit-depth=%d --bit-depth=%d --cq-level=%d -w %d -h %d" \
+           " --input-bit-depth=%d --bit-depth=%d -w %d -h %d" \
            % (preset, framenum, clip.fmt, clip.fps_num, clip.fps_denom,
-              clip.bit_depth, clip.bit_depth, QP, clip.width, clip.height)
+              clip.bit_depth, clip.bit_depth, clip.width, clip.height)
+
+    if CTC_VERSION == '2.0':
+        args += " --qp=%d" % QP
+    else:
+        args += " --cq-level=%d" % QP
 
     # For 4K clip, encode with 2 tile columns using two threads.
     # --tile-columns value is in log2.
@@ -56,10 +61,9 @@ def EncodeWithAOM_AV2(clip, test_cfg, QP, framenum, outfile, preset, enc_perf,
     else:
         print("Unsupported Test Configuration %s" % test_cfg)
 
-    #TODO: after bug fix in libaom, need to add back the chroma-sample-position parameter
     if (clip.file_class == 'G1' or clip.file_class == 'G2'):
         args += "--color-primaries=bt2020 --transfer-characteristics=smpte2084 "\
-                "--matrix-coefficients=bt2020ncl" # --chroma-sample-position=colocated "
+                "--matrix-coefficients=bt2020ncl --chroma-sample-position=colocated "
 
     args += " -o %s %s" % (outfile, clip.file_path)
     cmd = AOMENC + args + "> %s 2>&1"%enc_log

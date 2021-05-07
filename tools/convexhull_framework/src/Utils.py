@@ -23,7 +23,7 @@ import scipy.interpolate
 import matplotlib.pyplot as plt
 from operator import itemgetter
 from Config import LogLevels, ContentPath, Platform, Path_RDResults, QPs, PSNR_Y_WEIGHT, PSNR_U_WEIGHT, PSNR_V_WEIGHT, \
-APSNR_Y_WEIGHT, APSNR_U_WEIGHT, APSNR_V_WEIGHT
+APSNR_Y_WEIGHT, APSNR_U_WEIGHT, APSNR_V_WEIGHT, CTC_VERSION
 from AV2CTCVideo import Y4M_CLIPs, CTC_TEST_SET
 
 class Clip:
@@ -536,7 +536,7 @@ def plot_rd_curve(br, qty, qty_str, name, x_label, line_color=None,
     plt.xlabel(x_label)
     plt.ylabel(qty_str)
 
-def Interpolate_Bilinear(RDPoints, QPs, logBr=True):
+def Interpolate_Bilinear(RDPoints, QPs, InterpolatePieces, logBr=True):
     '''
     generate interpolated points on a RD curve.
     input is list of existing RD points as (bitrate, quality) tuple
@@ -556,11 +556,10 @@ def Interpolate_Bilinear(RDPoints, QPs, logBr=True):
         if logBr:
             br = [math.log10(br[i]) for i in range(len(br))]
 
-        addPoints = (QPs[i] - QPs[i-1])
         # slope is negative
-        qty_slope = (qty[1] - qty[0]) / addPoints
-        br_slope = (br[1] - br[0]) / addPoints
-        for j in range(0, addPoints):
+        qty_slope = (qty[1] - qty[0]) / InterpolatePieces
+        br_slope = (br[1] - br[0]) / InterpolatePieces
+        for j in range(0, InterpolatePieces):
             int_br = br[0] + j * br_slope
             int_br = pow(10, int_br)
             int_qty = qty[0] + j * qty_slope
@@ -670,7 +669,6 @@ def convex_hull(points):
         upper.append(p)
 
     return lower, upper
-
 '''
 ######################################
 # main
@@ -701,13 +699,13 @@ if __name__ == "__main__":
         "540p" : ['r', '-', '^'],
         "360p" : ['b', '-', '<'],
     }
-    #plt.figure(figsize=(15, 10))
+    plt.figure(figsize=(15, 10))
 
     print("Before Interpolation:")
     for res in reslutions:
         br   = [rdpoints[res][i][0] for i in range(len(rdpoints[res]))]
         psnr = [rdpoints[res][i][1] for i in range(len(rdpoints[res]))]
-        plot_rd_curve(br, psnr, "psnr_y", res, formats[res][0],formats[res][1],formats[res][2])
+        plot_rd_curve(br, psnr, "psnr_y", res, "bitrate(Kbps)", formats[res][0],formats[res][1],formats[res][2])
 
     plt.legend()
     plt.grid(True)
@@ -734,7 +732,7 @@ if __name__ == "__main__":
         Int_RDPoints += int_rdpnts
         br = [int_rdpoints[res][i][0] for i in range(len(int_rdpoints[res]))]
         psnr = [int_rdpoints[res][i][1] for i in range(len(int_rdpoints[res]))]
-        plot_rd_curve(br, psnr, "psnr_y", res, formats[res][0], formats[res][1], formats[res][2])
+        plot_rd_curve(br, psnr, "psnr_y", res, "bitrate(Kbps)", formats[res][0], formats[res][1], formats[res][2])
 
     print("Number of Interpolated points = %d" % NumPoints)
 
@@ -750,7 +748,7 @@ if __name__ == "__main__":
     print(upper)
 
     plt.figure(figsize=(15, 10))
-    plot_rd_curve(br, psnr, "psnr_y", 'convex-hull', 'b', '-', '*')
+    plot_rd_curve(br, psnr, "psnr_y", 'convex-hull', "bitrate(Kbps)", 'b', '-', '*')
     plt.legend()
     plt.grid(True)
     plt.show()

@@ -14,7 +14,7 @@ import re
 import openpyxl
 import shutil
 import Config
-from Config import QPs, DnScaleRatio, CTC_ASXLSTemplate, CTC_RegularXLSTemplate
+from Config import QPs, DnScaleRatio, CTC_ASXLSTemplate, CTC_RegularXLSTemplate, InterpolatePieces
 import Utils
 from Utils import ParseCSVFile, plot_rd_curve, Interpolate_Bilinear, convex_hull
 import matplotlib.pyplot as plt
@@ -31,11 +31,19 @@ csv_files = {
     },
     "v1.0.1":
     {
-        "AI":  "D:\\AV2-CTC-v1.0.1\\analysis\\rdresult\\RDResults_aom_av2_AI_Preset_0.csv",
-        "LD":  "D:\\AV2-CTC-v1.0.1\\analysis\\rdresult\\RDResults_aom_av2_LD_Preset_0.csv",
-        "RA":  "D:\\AV2-CTC-v1.0.1\\analysis\\rdresult\\RDResults_aom_av2_RA_Preset_0.csv",
-        "Still":  "D:\\AV2-CTC-v1.0.1\\analysis\\rdresult\\RDResults_aom_av2_STILL_Preset_0.csv",
-        "AS":  "D:\\AV2-CTC-v1.0.1\\analysis\\rdresult\\RDResults_aom_av2_AS_Preset_0.csv",
+        "AI":  "D:\\AV2-CTC-v1.0.1\\analysis\\rdresult-new\\RDResults_aom_av2_AI_Preset_0.csv",
+        "LD":  "D:\\AV2-CTC-v1.0.1\\analysis\\rdresult-new\\RDResults_aom_av2_LD_Preset_0.csv",
+        "RA":  "D:\\AV2-CTC-v1.0.1\\analysis\\rdresult-new\\RDResults_aom_av2_RA_Preset_0.csv",
+        "Still":  "D:\\AV2-CTC-v1.0.1\\analysis\\rdresult-new\\RDResults_aom_av2_STILL_Preset_0.csv",
+        "AS":  "D:\\AV2-CTC-v1.0.1\\analysis\\rdresult-new\\RDResults_aom_av2_AS_Preset_0.csv",
+    },
+    "sdp-off":
+    {
+        "AI":  "D:\\AV2-CTC-SDP-OFF\\analysis\\rdresult\\RDResults_aom_av2_AI_Preset_0.csv",
+        "LD":  "D:\\AV2-CTC-SDP-OFF\\analysis\\rdresult\\RDResults_aom_av2_LD_Preset_0.csv",
+        "RA":  "D:\\AV2-CTC-SDP-OFF\\analysis\\rdresult\\RDResults_aom_av2_RA_Preset_0.csv",
+        "Still":  "D:\\AV2-CTC-SDP-OFF\\analysis\\rdresult\\RDResults_aom_av2_STILL_Preset_0.csv",
+        "AS":  "D:\\AV2-CTC-SDP-OFF\\analysis\\rdresult\\RDResults_aom_av2_AS_Preset_0.csv",
     },
 }
 
@@ -48,8 +56,9 @@ start_row = {
 }
 
 formats = {
-    "v1.0.0": ['r', '-', 'o'],
-    "v1.0.1": ['g', '-', '*'],
+    "v1.0.0":  ['r', '-', 'o'],
+    "v1.0.1":  ['g', '-', '*'],
+    "sdp-off": ['b', '-', '+'],
 }
 
 AS_formats = {
@@ -134,7 +143,7 @@ def DrawRDCurve(records, anchor, pdf):
                                 br.append(record[key].bitrate)
                                 apsnr.append(record[key].overall_apsnr)
                             rdpnts = [(brt, qty) for brt, qty in zip(br, apsnr)]
-                            int_rdpnts = Interpolate_Bilinear(rdpnts, QPs['AS'][:], True)
+                            int_rdpnts = Interpolate_Bilinear(rdpnts, QPs['AS'][:], InterpolatePieces, True)
                             Int_RDPoints[tag] += int_rdpnts
                             plot_rd_curve(br, apsnr, "overall_apsnr", res, "bitrate(Kbps)",
                                           AS_formats[res][0], AS_formats[res][1], AS_formats[res][2])

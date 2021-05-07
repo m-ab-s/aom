@@ -142,8 +142,8 @@ def GenerateSummaryRDDataFile(EncodeMethod, CodecName, EncodePreset,
             bs, dec = GetBsReconFileName(EncodeMethod, CodecName, EncodePreset,
                                          test_cfg, clip, qp)
             filesize = os.path.getsize(bs)
-            bitrate = (filesize * 8 * (clip.fps_num / clip.fps_denom)
-                       / FrameNum[test_cfg]) / 1000.0
+            bitrate = round((filesize * 8 * (clip.fps_num / clip.fps_denom)
+                       / FrameNum[test_cfg]) / 1000.0, 6)
             quality, perframe_vmaf_log = GatherQualityMetrics(dec, Path_QualityLog)
             csv.write("%s,%s,%s,%s,%s,%s,%s,%.2f,%d,%s,%d,"
                       %(test_cfg,EncodeMethod,CodecName,EncodePreset,clip.file_class,
@@ -152,10 +152,10 @@ def GenerateSummaryRDDataFile(EncodeMethod, CodecName, EncodePreset,
             if (test_cfg == "STILL"):
                 csv.write("%d"%filesize)
             else:
-                csv.write("%.4f"%bitrate)
+                csv.write("%f"%bitrate)
 
             for qty in quality:
-                csv.write(",%.4f"%qty)
+                csv.write(",%f"%qty)
             if UsePerfUtil:
                 enc_time, dec_time, enc_instr, dec_instr, enc_cycles, dec_cycles = GatherInstrCycleInfo(bs, Path_TimingLog)
                 csv.write(",%.2f,%.2f,%s,%s,%s,%s,\n" % (enc_time,dec_time,enc_instr,dec_instr,enc_cycles,dec_cycles))

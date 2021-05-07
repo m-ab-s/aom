@@ -34,7 +34,7 @@ from Config import LogLevels, FrameNum, QPs, CvxH_WtCols,\
      EncodeMethods, CodecNames, LoggerName, DnScaleRatio, TargetQtyMetrics, \
      CvxHDataRows, CvxHDataStartRow, CvxHDataStartCol, CvxHDataNum, \
      Int_ConvexHullColor, EnablePreInterpolation, AS_DOWNSCALE_ON_THE_FLY,\
-     UsePerfUtil, ScaleMethods, EnableTimingInfo
+     UsePerfUtil, ScaleMethods, EnableTimingInfo, InterpolatePieces
 
 ###############################################################################
 ##### Helper Functions ########################################################
@@ -269,8 +269,8 @@ def SaveConvexHullResultsToExcel(content, ScaleMethod, dnScAlgos, upScAlgos, csv
                                                   upScAlgos[indx], qp,
                                                   Path_Bitstreams, False, i)
 
-                bitrate = (os.path.getsize(bs) * 8 * (clip.fps_num / clip.fps_denom)
-                           / FrameNum['AS']) / 1000.0
+                bitrate = round((os.path.getsize(bs) * 8 * (clip.fps_num / clip.fps_denom)
+                           / FrameNum['AS']) / 1000.0, 6)
                 bitratesKbps.append(bitrate)
                 quality, perframe_vmaf_log = GatherQualityMetrics(reconyuv, Path_QualityLog)
                 qualities.append(quality)
@@ -281,7 +281,7 @@ def SaveConvexHullResultsToExcel(content, ScaleMethod, dnScAlgos, upScAlgos, csv
                            str(clip.width)+"x"+str(clip.height), clip.fps,clip.bit_depth,
                            str(DnScaledW)+"x"+str(DnScaledH),qp,bitrate))
                 for qty in quality:
-                    csv.write(",%.4f"%qty)
+                    csv.write(",%f"%qty)
 
                 if EnableTimingInfo:
                     if UsePerfUtil:
@@ -315,7 +315,7 @@ def SaveConvexHullResultsToExcel(content, ScaleMethod, dnScAlgos, upScAlgos, csv
                 rdpnts = [(brt, qty) for brt, qty in zip(bitratesKbps, qs)]
                 RDPoints[x] = RDPoints[x] + rdpnts
                 if EnablePreInterpolation:
-                    int_rdpnts = Interpolate_Bilinear(rdpnts, QPs['AS'][:], True)
+                    int_rdpnts = Interpolate_Bilinear(rdpnts, QPs['AS'][:], InterpolatePieces, True)
                     Int_RDPoints[x] = Int_RDPoints[x] + int_rdpnts
 
         # add convexhull curve to charts
