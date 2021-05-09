@@ -151,6 +151,9 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
 #endif  // CONFIG_LOOP_RESTORE_CNN
   RESET_CDF_COUNTER(fc->wiener_restore_cdf, 2);
   RESET_CDF_COUNTER(fc->sgrproj_restore_cdf, 2);
+#if CONFIG_WIENER_NONSEP
+  RESET_CDF_COUNTER(fc->wiener_nonsep_restore_cdf, 2);
+#endif  // CONFIG_WIENER_NONSEP
 #if CONFIG_LOOP_RESTORE_CNN
   RESET_CDF_COUNTER(fc->cnn_restore_cdf, 2);
 #endif  // CONFIG_LOOP_RESTORE_CNN

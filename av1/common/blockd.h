@@ -469,6 +469,19 @@ typedef struct {
 } CNNInfo;
 #endif  // CONFIG_LOOP_RESTORE_CNN
 
+#if CONFIG_WIENER_NONSEP
+#define WIENERNS_YUV_MAX 24
+/*!
+ * Nonseparable Wiener filter parameters.
+ */
+typedef struct {
+  /*!
+   * Filter data.
+   */
+  DECLARE_ALIGNED(16, int16_t, nsfilter[WIENERNS_YUV_MAX]);
+} WienerNonsepInfo;
+#endif  // CONFIG_WIENER_NONSEP
+
 /*!\cond */
 
 #if CONFIG_DEBUG
@@ -717,6 +730,13 @@ typedef struct macroblockd {
   WienerInfo wiener_info[MAX_MB_PLANE];   /*!< Defaults for Wiener filter*/
   SgrprojInfo sgrproj_info[MAX_MB_PLANE]; /*!< Defaults for SGR filter */
   /**@}*/
+
+#if CONFIG_WIENER_NONSEP
+  /*!
+   * Nonseparable Wiener filter information for all planes.
+   */
+  WienerNonsepInfo wiener_nonsep_info[MAX_MB_PLANE];
+#endif  // CONFIG_WIENER_NONSEP
 
   /**
    * \name Block dimensions in MB_MODE_INFO units.

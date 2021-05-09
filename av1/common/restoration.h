@@ -165,6 +165,52 @@ extern "C" {
 #define WIENER_FILT_TAP1_SUBEXP_K 2
 #define WIENER_FILT_TAP2_SUBEXP_K 3
 
+#if CONFIG_WIENER_NONSEP
+#define WIENERNS_PREC_BITS_Y 8
+#define WIENERNS_PREC_BITS_UV 7
+
+#if CONFIG_WIENER_NONSEP_CROSS_FILT
+#define WIENERNS_UV_BRD 2  // Max offset for luma used for chorma
+#else
+#define WIENERNS_UV_BRD 0  // Max offset for luma used for chorma
+#endif                     // CONFIG_WIENER_NONSEP_CROSS_FILT
+
+// Apply masking for nonseparable Wiener restoration
+#define WIENER_NONSEP_MASK 0
+#if WIENER_NONSEP_MASK
+// Skip a pixel if all pixels in an NxN window around it have zero transform
+// coefficients
+#define LOOKAROUND_WIN 1
+#endif  // WIENER_NONSEP_MASK
+
+#define WIENERNS_MAX 20
+
+#define WIENERNS_ROW_ID 0
+#define WIENERNS_COL_ID 1
+#define WIENERNS_BUF_POS 2
+
+#define WIENERNS_BIT_ID 0
+#define WIENERNS_MIN_ID 1
+#define WIENERNS_SUBEXP_K_ID 2
+#define WIENERNS_STEP_ID 3
+extern const int wienerns_prec_bits_y;
+extern const int wienerns_prec_bits_uv;
+extern const int wienerns_y_pixel;  // Number of pixels used for filtering luma
+extern const int wienerns_uv_from_uv_pixel;  // Number of pixels used for
+                                             // filtering uv from uv only
+extern const int wienerns_y;   // Number of luma coefficients in all
+extern const int wienerns_uv;  // Number of chroma coefficients in all
+extern const int wienerns_config_y[][3];
+extern const int wienerns_config_uv_from_uv[][3];
+#if CONFIG_WIENER_NONSEP_CROSS_FILT
+extern const int wienerns_uv_from_y_pixel;  // Number of pixels used for
+                                            // filtering uv from y
+extern const int wienerns_config_uv_from_y[][3];
+#endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
+extern const int wienerns_coeff_y[][3];
+extern const int wienerns_coeff_uv[][3];
+#endif  // CONFIG_WIENER_NONSEP
+
 // Max of SGRPROJ_TMPBUF_SIZE, DOMAINTXFMRF_TMPBUF_SIZE, WIENER_TMPBUF_SIZE
 #define RESTORATION_TMPBUF_SIZE (SGRPROJ_TMPBUF_SIZE)
 
@@ -212,6 +258,34 @@ typedef struct {
    */
   CNNInfo cnn_info;
 #endif  // CONFIG_LOOP_RESTORE_CNN
+#if CONFIG_WIENER_NONSEP
+  /*!
+   * Nonseparable Wiener filter information.
+   */
+  WienerNonsepInfo wiener_nonsep_info;
+#if WIENER_NONSEP_MASK
+  // pointer to tx_skip array at the first pixel of the current RU
+  const uint8_t *txskip_mask;
+  int mask_stride;
+  int mask_height;
+  int v_start;
+  int h_start;
+#endif  // WIENER_NONSEP_MASK
+#if CONFIG_WIENER_NONSEP_CROSS_FILT
+  /*!
+   * Pointer to luma frame.
+   */
+  const uint8_t *luma;
+  /*!
+   * Stride for luma frame.
+   */
+  int luma_stride;
+#endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
+  /*!
+   * Plane for filtering.
+   */
+  int plane;
+#endif  // CONFIG_WIENER_NONSEP
 } RestorationUnitInfo;
 
 /*!\cond */
@@ -333,6 +407,25 @@ static INLINE void set_default_wiener(WienerInfo *wiener_info) {
   wiener_info->vfilter[6] = wiener_info->hfilter[6] = WIENER_FILT_TAP0_MIDV;
 }
 
+#if CONFIG_WIENER_NONSEP
+static INLINE void set_default_wiener_nonsep(WienerNonsepInfo *wienerns_info) {
+  for (int i = 0; i < wienerns_y; ++i) {
+    wienerns_info->nsfilter[i] = wienerns_coeff_y[i][WIENERNS_MIN_ID];
+  }
+  for (int i = wienerns_y; i < wienerns_y + wienerns_uv; ++i) {
+    wienerns_info->nsfilter[i] =
+        wienerns_coeff_uv[i - wienerns_y][WIENERNS_MIN_ID];
+  }
+}
+
+#if CONFIG_WIENER_NONSEP_CROSS_FILT
+uint8_t *wienerns_copy_luma(const uint8_t *dgd, int height_y, int width_y,
+                            int in_stride, uint8_t **luma, int height_uv,
+                            int width_uv, int border, int out_stride);
+#endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
+
+#endif  // CONFIG_WIENER_NONSEP
+
 typedef struct {
   int h_start, h_end, v_start, v_end;
 } RestorationTileLimits;
@@ -356,6 +449,19 @@ typedef struct FilterFrameCtxt {
   FRAME_TYPE frame_type;
   bool is_luma;
 #endif  // CONFIG_LOOP_RESTORE_CNN
+#if CONFIG_WIENER_NONSEP
+  int plane;
+#if WIENER_NONSEP_MASK
+  // pointer to tx_skip array at the first pixel of the plane
+  const uint8_t *txskip_mask;
+  int mask_stride;
+  int mask_height;
+#endif  // WIENER_NONSEP_MASK
+#if CONFIG_WIENER_NONSEP_CROSS_FILT
+  const uint8_t *luma;
+  int luma_stride;
+#endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
+#endif  // CONFIG_WIENER_NONSEP
 } FilterFrameCtxt;
 
 typedef struct AV1LrStruct {
