@@ -114,8 +114,8 @@ class AV1DISTWTDCOMPAVGTest
 
     for (int ii = 0; ii < 2; ii++) {
       for (int jj = 0; jj < 4; jj++) {
-        dist_wtd_comp_params.fwd_offset = quant_dist_lookup_table[ii][jj][0];
-        dist_wtd_comp_params.bck_offset = quant_dist_lookup_table[ii][jj][1];
+        dist_wtd_comp_params.fwd_offset = quant_dist_lookup_table[jj][ii];
+        dist_wtd_comp_params.bck_offset = quant_dist_lookup_table[jj][1 - ii];
 
         const int offset_r = 3 + rnd_.PseudoUniform(h - in_h - 7);
         const int offset_c = 3 + rnd_.PseudoUniform(w - in_w - 7);
@@ -156,8 +156,8 @@ class AV1DISTWTDCOMPAVGTest
 
     DIST_WTD_COMP_PARAMS dist_wtd_comp_params;
 
-    dist_wtd_comp_params.fwd_offset = quant_dist_lookup_table[0][0][0];
-    dist_wtd_comp_params.bck_offset = quant_dist_lookup_table[0][0][1];
+    dist_wtd_comp_params.fwd_offset = quant_dist_lookup_table[0][0];
+    dist_wtd_comp_params.bck_offset = quant_dist_lookup_table[0][1];
 
     const int num_loops = 1000000000 / (in_w + in_h);
     aom_usec_timer timer;
@@ -221,10 +221,9 @@ class AV1DISTWTDCOMPAVGUPSAMPLEDTest
         for (sub_y_q3 = 0; sub_y_q3 < 8; ++sub_y_q3) {
           for (int ii = 0; ii < 2; ii++) {
             for (int jj = 0; jj < 4; jj++) {
-              dist_wtd_comp_params.fwd_offset =
-                  quant_dist_lookup_table[ii][jj][0];
+              dist_wtd_comp_params.fwd_offset = quant_dist_lookup_table[jj][ii];
               dist_wtd_comp_params.bck_offset =
-                  quant_dist_lookup_table[ii][jj][1];
+                  quant_dist_lookup_table[jj][1 - ii];
 
               const int offset_r = 3 + rnd_.PseudoUniform(h - in_h - 7);
               const int offset_c = 3 + rnd_.PseudoUniform(w - in_w - 7);
@@ -276,8 +275,8 @@ class AV1DISTWTDCOMPAVGUPSAMPLEDTest
 
     DIST_WTD_COMP_PARAMS dist_wtd_comp_params;
 
-    dist_wtd_comp_params.fwd_offset = quant_dist_lookup_table[0][0][0];
-    dist_wtd_comp_params.bck_offset = quant_dist_lookup_table[0][0][1];
+    dist_wtd_comp_params.fwd_offset = quant_dist_lookup_table[0][0];
+    dist_wtd_comp_params.bck_offset = quant_dist_lookup_table[0][1];
 
     int sub_x_q3 = 0;
     int sub_y_q3 = 0;
@@ -343,8 +342,8 @@ class AV1HighBDDISTWTDCOMPAVGTest
 
     for (int ii = 0; ii < 2; ii++) {
       for (int jj = 0; jj < 4; jj++) {
-        dist_wtd_comp_params.fwd_offset = quant_dist_lookup_table[ii][jj][0];
-        dist_wtd_comp_params.bck_offset = quant_dist_lookup_table[ii][jj][1];
+        dist_wtd_comp_params.fwd_offset = quant_dist_lookup_table[jj][ii];
+        dist_wtd_comp_params.bck_offset = quant_dist_lookup_table[jj][1 - ii];
 
         const int offset_r = 3 + rnd_.PseudoUniform(h - in_h - 7);
         const int offset_c = 3 + rnd_.PseudoUniform(w - in_w - 7);
@@ -389,8 +388,8 @@ class AV1HighBDDISTWTDCOMPAVGTest
 
     DIST_WTD_COMP_PARAMS dist_wtd_comp_params;
 
-    dist_wtd_comp_params.fwd_offset = quant_dist_lookup_table[0][0][0];
-    dist_wtd_comp_params.bck_offset = quant_dist_lookup_table[0][0][1];
+    dist_wtd_comp_params.fwd_offset = quant_dist_lookup_table[0][0];
+    dist_wtd_comp_params.bck_offset = quant_dist_lookup_table[0][1];
 
     const int num_loops = 1000000000 / (in_w + in_h);
     aom_usec_timer timer;
@@ -456,10 +455,9 @@ class AV1HighBDDISTWTDCOMPAVGUPSAMPLEDTest
         for (sub_y_q3 = 0; sub_y_q3 < 8; ++sub_y_q3) {
           for (int ii = 0; ii < 2; ii++) {
             for (int jj = 0; jj < 4; jj++) {
-              dist_wtd_comp_params.fwd_offset =
-                  quant_dist_lookup_table[ii][jj][0];
+              dist_wtd_comp_params.fwd_offset = quant_dist_lookup_table[jj][ii];
               dist_wtd_comp_params.bck_offset =
-                  quant_dist_lookup_table[ii][jj][1];
+                  quant_dist_lookup_table[jj][1 - ii];
 
               const int offset_r = 3 + rnd_.PseudoUniform(h - in_h - 7);
               const int offset_c = 3 + rnd_.PseudoUniform(w - in_w - 7);
@@ -513,8 +511,8 @@ class AV1HighBDDISTWTDCOMPAVGUPSAMPLEDTest
 
     DIST_WTD_COMP_PARAMS dist_wtd_comp_params;
 
-    dist_wtd_comp_params.fwd_offset = quant_dist_lookup_table[0][0][0];
-    dist_wtd_comp_params.bck_offset = quant_dist_lookup_table[0][0][1];
+    dist_wtd_comp_params.fwd_offset = quant_dist_lookup_table[0][0];
+    dist_wtd_comp_params.bck_offset = quant_dist_lookup_table[0][1];
     int sub_x_q3 = 0;
     int sub_y_q3 = 0;
     const int num_loops = 1000000000 / (in_w + in_h);

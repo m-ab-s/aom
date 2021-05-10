@@ -290,8 +290,8 @@ class ConvolveScaleTestBase : public ::testing::Test {
       convolve_params_.is_compound = is_compound;
       convolve_params_.do_average = do_average;
     } else {
-      convolve_params_.fwd_offset = quant_dist_lookup_table[i][j][0];
-      convolve_params_.bck_offset = quant_dist_lookup_table[i][j][1];
+      convolve_params_.fwd_offset = quant_dist_lookup_table[j][i];
+      convolve_params_.bck_offset = quant_dist_lookup_table[j][1 - i];
       convolve_params_.is_compound = is_compound;
       convolve_params_.do_average = do_average;
     }

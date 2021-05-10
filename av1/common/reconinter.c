@@ -714,9 +714,8 @@ void av1_build_one_inter_predictor(
 
 #if !CONFIG_REMOVE_DIST_WTD_COMP
 void av1_dist_wtd_comp_weight_assign(const AV1_COMMON *cm,
-                                     const MB_MODE_INFO *mbmi, int order_idx,
-                                     int *fwd_offset, int *bck_offset,
-                                     int is_compound) {
+                                     const MB_MODE_INFO *mbmi, int *fwd_offset,
+                                     int *bck_offset, int is_compound) {
   assert(fwd_offset != NULL && bck_offset != NULL);
   if (!is_compound || mbmi->compound_idx) {
     *fwd_offset = 1 << (DIST_PRECISION_BITS - 1);
@@ -742,8 +741,8 @@ void av1_dist_wtd_comp_weight_assign(const AV1_COMMON *cm,
   const int order = d0 <= d1;
 
   if (d0 == 0 || d1 == 0) {
-    *fwd_offset = quant_dist_lookup_table[order_idx][3][order];
-    *bck_offset = quant_dist_lookup_table[order_idx][3][1 - order];
+    *fwd_offset = quant_dist_lookup_table[3][order];
+    *bck_offset = quant_dist_lookup_table[3][1 - order];
     return;
   }
 
@@ -756,8 +755,8 @@ void av1_dist_wtd_comp_weight_assign(const AV1_COMMON *cm,
     if ((d0 > d1 && d0_c0 < d1_c1) || (d0 <= d1 && d0_c0 > d1_c1)) break;
   }
 
-  *fwd_offset = quant_dist_lookup_table[order_idx][i][order];
-  *bck_offset = quant_dist_lookup_table[order_idx][i][1 - order];
+  *fwd_offset = quant_dist_lookup_table[i][order];
+  *bck_offset = quant_dist_lookup_table[i][1 - order];
 }
 #endif  // !CONFIG_REMOVE_DIST_WTD_COMP
 
@@ -937,7 +936,7 @@ static void build_inter_predictors_8x8_and_bigger(
 
 #if !CONFIG_REMOVE_DIST_WTD_COMP
     av1_dist_wtd_comp_weight_assign(
-        cm, mi, 0, &inter_pred_params.conv_params.fwd_offset,
+        cm, mi, &inter_pred_params.conv_params.fwd_offset,
         &inter_pred_params.conv_params.bck_offset, is_compound);
 #endif  // !CONFIG_REMOVE_DIST_WTD_COMP
 

@@ -1098,7 +1098,7 @@ static int64_t handle_newmv(const AV1_COMP *const cpi, MACROBLOCK *const x,
 #if !CONFIG_REMOVE_DIST_WTD_COMP
         InterPredParams inter_pred_params;
         av1_dist_wtd_comp_weight_assign(
-            &cpi->common, mbmi, 0, &inter_pred_params.conv_params.fwd_offset,
+            &cpi->common, mbmi, &inter_pred_params.conv_params.fwd_offset,
             &inter_pred_params.conv_params.bck_offset, 1);
         uint8_t mask_value = inter_pred_params.conv_params.fwd_offset * 4;
         memset(xd->seg_mask, mask_value, sizeof(xd->seg_mask));

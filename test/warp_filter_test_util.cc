@@ -223,8 +223,8 @@ void AV1WarpFilterTest::RunCheckOutput(warp_affine_func test_impl) {
               }
               if (jj >= 4) {
               } else {
-                conv_params.fwd_offset = quant_dist_lookup_table[ii][jj][0];
-                conv_params.bck_offset = quant_dist_lookup_table[ii][jj][1];
+                conv_params.fwd_offset = quant_dist_lookup_table[jj][ii];
+                conv_params.bck_offset = quant_dist_lookup_table[jj][1 - ii];
               }
               av1_warp_affine_c(mat, input, w, h, stride, output, 32, 32, out_w,
                                 out_h, out_w, sub_x, sub_y, &conv_params, alpha,
@@ -235,8 +235,8 @@ void AV1WarpFilterTest::RunCheckOutput(warp_affine_func test_impl) {
               }
               if (jj >= 4) {
               } else {
-                conv_params.fwd_offset = quant_dist_lookup_table[ii][jj][0];
-                conv_params.bck_offset = quant_dist_lookup_table[ii][jj][1];
+                conv_params.fwd_offset = quant_dist_lookup_table[jj][ii];
+                conv_params.bck_offset = quant_dist_lookup_table[jj][1 - ii];
               }
               test_impl(mat, input, w, h, stride, output2, 32, 32, out_w, out_h,
                         out_w, sub_x, sub_y, &conv_params, alpha, beta, gamma,
@@ -415,8 +415,8 @@ void AV1HighbdWarpFilterTest::RunCheckOutput(
               }
               if (jj >= 4) {
               } else {
-                conv_params.fwd_offset = quant_dist_lookup_table[ii][jj][0];
-                conv_params.bck_offset = quant_dist_lookup_table[ii][jj][1];
+                conv_params.fwd_offset = quant_dist_lookup_table[jj][ii];
+                conv_params.bck_offset = quant_dist_lookup_table[jj][1 - ii];
               }
 
               av1_highbd_warp_affine_c(mat, input, w, h, stride, output, 32, 32,
@@ -430,8 +430,8 @@ void AV1HighbdWarpFilterTest::RunCheckOutput(
               }
               if (jj >= 4) {
               } else {
-                conv_params.fwd_offset = quant_dist_lookup_table[ii][jj][0];
-                conv_params.bck_offset = quant_dist_lookup_table[ii][jj][1];
+                conv_params.fwd_offset = quant_dist_lookup_table[jj][ii];
+                conv_params.bck_offset = quant_dist_lookup_table[jj][1 - ii];
               }
               test_impl(mat, input, w, h, stride, output2, 32, 32, out_w, out_h,
                         out_w, sub_x, sub_y, bd, &conv_params, alpha, beta,
