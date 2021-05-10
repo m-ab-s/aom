@@ -115,6 +115,9 @@ class EndToEndTest
       cfg_.rc_buf_initial_sz = 500;
       cfg_.rc_buf_optimal_sz = 600;
     }
+#if CONFIG_EXTQUANT
+    cfg_.rc_max_quantizer = 224;
+#endif  // CONFIG_EXTQUANT
   }
 
   virtual void BeginPassHook(unsigned int) {
