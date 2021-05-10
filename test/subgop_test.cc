@@ -427,11 +427,12 @@ class SubGopTestLarge
 
   // Validates Pyramid level along with qindex assignment
   void ValidatePyramidLevelQIndex() {
-    int level_qindex[REF_FRAMES] = { 0 };
+    int level_qindex[REF_FRAMES];
+    for (int i = 0; i < REF_FRAMES; i++) level_qindex[i] = -1;
     int8_t pyramid_level;
     for (int idx = 0; idx < subgop_cfg_ref_->num_steps; idx++) {
       pyramid_level = subgop_cfg_test_.step[idx].pyr_level;
-      if (!level_qindex[pyramid_level]) {
+      if (level_qindex[pyramid_level] < 0) {
         level_qindex[pyramid_level] = subgop_data_.step[idx].qindex;
       } else if (!subgop_data_.step[idx].show_existing_frame &&
                  !subgop_data_.step[idx].is_filtered) {
@@ -441,7 +442,7 @@ class SubGopTestLarge
     }
     pyramid_level = 1;
     for (int idx = 1; idx < REF_FRAMES; idx++) {
-      if (level_qindex[pyramid_level]) {
+      if (level_qindex[pyramid_level] >= 0) {
         EXPECT_LT(level_qindex[pyramid_level - 1], level_qindex[pyramid_level])
             << "Error:qindex should be higher in hierarchical pyramid level";
         pyramid_level++;
