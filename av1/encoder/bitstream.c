@@ -819,15 +819,22 @@ static AOM_INLINE void write_mb_interp_filter(AV1_COMMON *const cm,
   FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
 
   if (!av1_is_interp_needed(xd)) {
-#if CONFIG_REMOVE_DUAL_FILTER
-    assert(mbmi->interp_fltr ==
-           av1_unswitchable_filter(cm->features.interp_filter));
+#if CONFIG_OPTFLOW_REFINEMENT
+    // In optical flow refinement, use the sharp filter instead
+    int mb_interp_filter =
+        mbmi->mode > NEW_NEWMV ? MULTITAP_SHARP : cm->features.interp_filter;
 #else
-    int_interpfilters filters = av1_broadcast_interp_filter(
-        av1_unswitchable_filter(cm->features.interp_filter));
+    int mb_interp_filter = cm->features.interp_filter;
+#endif  // CONFIG_OPTFLOW_REFINEMENT
+#if CONFIG_REMOVE_DUAL_FILTER
+    assert(mbmi->interp_fltr == av1_unswitchable_filter(mb_interp_filter));
+#else
+    int_interpfilters filters =
+        av1_broadcast_interp_filter(av1_unswitchable_filter(mb_interp_filter));
     assert(mbmi->interp_filters.as_int == filters.as_int);
     (void)filters;
 #endif  // CONFIG_REMOVE_DUAL_FILTER
+    (void)mb_interp_filter;
     return;
   }
   if (cm->features.interp_filter == SWITCHABLE) {
