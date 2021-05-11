@@ -1791,6 +1791,8 @@ static AOM_INLINE void encode_restoration_mode(
       case RESTORE_NONE: aom_wb_write_bit(wb, 0); aom_wb_write_bit(wb, 0);
 #if CONFIG_LOOP_RESTORE_CNN
         if (use_cnn_plane) aom_wb_write_bit(wb, 0);
+#elif CONFIG_WIENER_NONSEP
+        aom_wb_write_bit(wb, 0);
 #endif  // CONFIG_LOOP_RESTORE_CNN
         break;
       case RESTORE_WIENER:
@@ -1819,6 +1821,13 @@ static AOM_INLINE void encode_restoration_mode(
         aom_wb_write_bit(wb, 1);
         break;
 #endif  // CONFIG_LOOP_RESTORE_CNN
+#if CONFIG_WIENER_NONSEP
+      case RESTORE_WIENER_NONSEP:
+        aom_wb_write_bit(wb, 0);
+        aom_wb_write_bit(wb, 0);
+        aom_wb_write_bit(wb, 1);
+        break;
+#endif  // CONFIG_WIENER_NONSEP
       case RESTORE_SWITCHABLE:
         aom_wb_write_bit(wb, 0);
         aom_wb_write_bit(wb, 1);
@@ -1940,6 +1949,29 @@ static AOM_INLINE void write_sgrproj_filter(const SgrprojInfo *sgrproj_info,
   memcpy(ref_sgrproj_info, sgrproj_info, sizeof(*sgrproj_info));
 }
 
+#if CONFIG_WIENER_NONSEP
+static void write_wiener_nsfilter(MACROBLOCKD *xd, int is_uv,
+                                  const WienerNonsepInfo *wienerns_info,
+                                  WienerNonsepInfo *ref_wienerns_info,
+                                  aom_writer *wb) {
+  (void)xd;
+  int beg_feat = is_uv ? wienerns_y : 0;
+  int end_feat = is_uv ? wienerns_y + wienerns_uv : wienerns_y;
+  const int(*wienerns_coeffs)[3] = is_uv ? wienerns_coeff_uv : wienerns_coeff_y;
+
+  for (int i = beg_feat; i < end_feat; ++i) {
+    aom_write_primitive_refsubexpfin(
+        wb, (1 << wienerns_coeffs[i - beg_feat][WIENERNS_BIT_ID]),
+        wienerns_coeffs[i - beg_feat][WIENERNS_SUBEXP_K_ID],
+        ref_wienerns_info->nsfilter[i] -
+            wienerns_coeffs[i - beg_feat][WIENERNS_MIN_ID],
+        wienerns_info->nsfilter[i] -
+            wienerns_coeffs[i - beg_feat][WIENERNS_MIN_ID]);
+  }
+  memcpy(ref_wienerns_info, wienerns_info, sizeof(*wienerns_info));
+}
+#endif  // CONFIG_WIENER_NONSEP
+
 static AOM_INLINE void loop_restoration_write_sb_coeffs(
     const AV1_COMMON *const cm, MACROBLOCKD *xd, const RestorationUnitInfo *rui,
     aom_writer *const w, int plane, FRAME_COUNTS *counts) {
@@ -1951,8 +1983,15 @@ static AOM_INLINE void loop_restoration_write_sb_coeffs(
   assert(!cm->features.all_lossless);
 
   const int wiener_win = (plane > 0) ? WIENER_WIN_CHROMA : WIENER_WIN;
+#if CONFIG_WIENER_NONSEP
+  const int is_uv = (plane > 0);
+#endif  // CONFIG_WIENER_NONSEP
   WienerInfo *ref_wiener_info = &xd->wiener_info[plane];
   SgrprojInfo *ref_sgrproj_info = &xd->sgrproj_info[plane];
+#if CONFIG_WIENER_NONSEP
+  WienerNonsepInfo *ref_wiener_nonsep_info = &xd->wiener_nonsep_info[plane];
+#endif  // CONFIG_WIENER_NONSEP
+
   RestorationType unit_rtype = rui->restoration_type;
 
   if (frame_rtype == RESTORE_SWITCHABLE) {
@@ -1985,6 +2024,12 @@ static AOM_INLINE void loop_restoration_write_sb_coeffs(
 #if CONFIG_LOOP_RESTORE_CNN
       case RESTORE_CNN: break;
 #endif  // CONFIG_LOOP_RESTORE_CNN
+#if CONFIG_WIENER_NONSEP
+      case RESTORE_WIENER_NONSEP:
+        write_wiener_nsfilter(xd, is_uv, &rui->wiener_nonsep_info,
+                              ref_wiener_nonsep_info, w);
+        break;
+#endif  // CONFIG_WIENER_NONSEP
       default: assert(unit_rtype == RESTORE_NONE); break;
     }
   } else if (frame_rtype == RESTORE_WIENER) {
@@ -2013,6 +2058,18 @@ static AOM_INLINE void loop_restoration_write_sb_coeffs(
     ++counts->cnn_restore[unit_rtype != RESTORE_NONE];
 #endif  // CONFIG_ENTROPY_STATS
 #endif  // CONFIG_LOOP_RESTORE_CNN
+#if CONFIG_WIENER_NONSEP
+  } else if (frame_rtype == RESTORE_WIENER_NONSEP) {
+    aom_write_symbol(w, unit_rtype != RESTORE_NONE,
+                     xd->tile_ctx->wiener_nonsep_restore_cdf, 2);
+#if CONFIG_ENTROPY_STATS
+    ++counts->wiener_nonsep_restore[unit_rtype != RESTORE_NONE];
+#endif  // CONFIG_ENTROPY_STATS
+    if (unit_rtype != RESTORE_NONE) {
+      write_wiener_nsfilter(xd, is_uv, &rui->wiener_nonsep_info,
+                            ref_wiener_nonsep_info, w);
+    }
+#endif  // CONFIG_WIENER_NONSEP
   }
 }
 

@@ -103,6 +103,9 @@ typedef struct {
   // The best coefficients for Wiener or Sgrproj restoration
   WienerInfo wiener;
   SgrprojInfo sgrproj;
+#if CONFIG_WIENER_NONSEP
+  WienerNonsepInfo wiener_nonsep;
+#endif  // CONFIG_WIENER_NONSEP
 
   // The sum of squared errors for this rtype.
   int64_t sse[RESTORE_SWITCHABLE_TYPES];
@@ -144,6 +147,13 @@ typedef struct {
   // tile in the frame.
   SgrprojInfo sgrproj;
   WienerInfo wiener;
+#if CONFIG_WIENER_NONSEP
+  WienerNonsepInfo wiener_nonsep;
+#if CONFIG_WIENER_NONSEP_CROSS_FILT
+  const uint8_t *luma;
+  int luma_stride;
+#endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
+#endif  // CONFIG_WIENER_NONSEP
 
 #if CONFIG_LOOP_RESTORE_CNN
   bool allow_restore_cnn;
@@ -156,6 +166,9 @@ static AOM_INLINE void rsc_on_tile(void *priv) {
   RestSearchCtxt *rsc = (RestSearchCtxt *)priv;
   set_default_sgrproj(&rsc->sgrproj);
   set_default_wiener(&rsc->wiener);
+#if CONFIG_WIENER_NONSEP
+  set_default_wiener_nonsep(&rsc->wiener_nonsep);
+#endif  // CONFIG_WIENER_NONSEP
   rsc->tile_stripe0 = 0;
 }
 
@@ -1648,6 +1661,294 @@ static void search_cnn(const RestorationTileLimits *limits,
 }
 #endif  // CONFIG_LOOP_RESTORE_CNN
 
+#if CONFIG_WIENER_NONSEP
+
+// If limits != NULL, calculates error for current restoration unit.
+// Otherwise, calculates error for all units in the stack using stored limits.
+static int64_t calc_finer_tile_search_error(const RestSearchCtxt *rsc,
+                                            const RestorationTileLimits *limits,
+                                            const AV1PixelRect *tile,
+                                            RestorationUnitInfo *rui) {
+  int64_t err = 0;
+  err = try_restoration_unit(rsc, limits, tile, rui);
+  return err;
+}
+
+static int count_wienerns_bits(int plane, WienerNonsepInfo *wienerns_info,
+                               WienerNonsepInfo *ref_wienerns_info) {
+  int is_uv = (plane != AOM_PLANE_Y);
+
+  int bits = 0;
+  if (is_uv) {
+    for (int i = 0; i < wienerns_uv; ++i) {
+      bits += aom_count_primitive_refsubexpfin(
+          (1 << wienerns_coeff_uv[i][WIENERNS_BIT_ID]),
+          wienerns_coeff_uv[i][WIENERNS_SUBEXP_K_ID],
+          ref_wienerns_info->nsfilter[i + wienerns_y] -
+              wienerns_coeff_uv[i][WIENERNS_MIN_ID],
+          wienerns_info->nsfilter[i + wienerns_y] -
+              wienerns_coeff_uv[i][WIENERNS_MIN_ID]);
+    }
+  } else {
+    for (int i = 0; i < wienerns_y; ++i) {
+      bits += aom_count_primitive_refsubexpfin(
+          (1 << wienerns_coeff_y[i][WIENERNS_BIT_ID]),
+          wienerns_coeff_y[i][WIENERNS_SUBEXP_K_ID],
+          ref_wienerns_info->nsfilter[i] - wienerns_coeff_y[i][WIENERNS_MIN_ID],
+          wienerns_info->nsfilter[i] - wienerns_coeff_y[i][WIENERNS_MIN_ID]);
+    }
+  }
+  return bits;
+}
+
+static int16_t quantize(double x, int16_t minv, int16_t n, int prec_bits) {
+  int scale_x = (int)round(x * (1 << prec_bits));
+  scale_x = AOMMAX(scale_x, minv);
+  scale_x = AOMMIN(scale_x, minv + n - 1);
+  return (int16_t)scale_x;
+}
+
+static int compute_quantized_wienerns_filter(
+    const uint8_t *dgd, const uint8_t *src, int h_beg, int h_end, int v_beg,
+    int v_end, int dgd_stride, int src_stride, RestorationUnitInfo *rui,
+    int use_hbd, int bit_depth, double *A, double *b) {
+  const uint16_t *src_hbd = CONVERT_TO_SHORTPTR(src);
+  const uint16_t *dgd_hbd = CONVERT_TO_SHORTPTR(dgd);
+#if CONFIG_WIENER_NONSEP_CROSS_FILT
+  const uint16_t *luma_hbd = CONVERT_TO_SHORTPTR(rui->luma);
+#endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
+  double x[WIENERNS_MAX];
+  double buf[WIENERNS_MAX];
+  memset(A, 0, sizeof(*A) * WIENERNS_MAX * WIENERNS_MAX);
+  memset(b, 0, sizeof(*b) * WIENERNS_MAX);
+
+  int is_uv = (rui->plane != AOM_PLANE_Y);
+  const int(*wienerns_config)[3] =
+      is_uv ? wienerns_config_uv_from_uv : wienerns_config_y;
+#if CONFIG_WIENER_NONSEP_CROSS_FILT
+  const int(*wienerns_config2)[3] = is_uv ? wienerns_config_uv_from_y : NULL;
+  int end_pixel = is_uv ? wienerns_uv_from_uv_pixel + wienerns_uv_from_y_pixel
+                        : wienerns_y_pixel;
+#else
+  int end_pixel = is_uv ? wienerns_uv_from_uv_pixel : wienerns_y_pixel;
+#endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
+  const int(*wienerns_coeffs)[3] = is_uv ? wienerns_coeff_uv : wienerns_coeff_y;
+  int num_feat = is_uv ? wienerns_uv : wienerns_y;
+
+  for (int i = v_beg; i < v_end; ++i) {
+    for (int j = h_beg; j < h_end; ++j) {
+#if WIENER_NONSEP_MASK
+      int skip = 1;
+      int dd = (LOOKAROUND_WIN - 1) / 2;
+      for (int yy = i - dd; yy <= i + dd; ++yy) {
+        for (int xx = j - dd; xx <= j + dd; ++xx) {
+          int my = yy >> MIN_TX_SIZE_LOG2, mx = xx >> MIN_TX_SIZE_LOG2;
+          if (my >= 0 && my < rui->mask_height && mx >= 0 &&
+              mx < rui->mask_stride)
+            skip &= rui->txskip_mask[my * rui->mask_stride + mx];
+        }
+      }
+      if (skip) continue;
+#endif  // WIENER_NONSEP_MASK
+      int dgd_id = i * dgd_stride + j;
+      int src_id = i * src_stride + j;
+#if CONFIG_WIENER_NONSEP_CROSS_FILT
+      int luma_id = i * rui->luma_stride + j;
+#endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
+      memset(buf, 0, sizeof(buf));
+      for (int k = 0; k < end_pixel; ++k) {
+#if CONFIG_WIENER_NONSEP_CROSS_FILT
+        const int cross = (is_uv && k >= wienerns_uv_from_uv_pixel);
+#else
+        const int cross = 0;
+#endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
+        if (!cross) {
+          const int pos = wienerns_config[k][WIENERNS_BUF_POS];
+          const int r = wienerns_config[k][WIENERNS_ROW_ID];
+          const int c = wienerns_config[k][WIENERNS_COL_ID];
+          buf[pos] +=
+              use_hbd
+                  ? clip_base((int16_t)dgd_hbd[(i + r) * dgd_stride + (j + c)] -
+                                  (int16_t)dgd_hbd[dgd_id],
+                              bit_depth)
+                  : clip_base((int16_t)dgd[(i + r) * dgd_stride + (j + c)] -
+                                  (int16_t)dgd[dgd_id],
+                              bit_depth);
+        } else {
+#if CONFIG_WIENER_NONSEP_CROSS_FILT
+          const int k2 = k - wienerns_uv_from_uv_pixel;
+          const int pos = wienerns_config2[k2][WIENERNS_BUF_POS];
+          const int r = wienerns_config2[k2][WIENERNS_ROW_ID];
+          const int c = wienerns_config2[k2][WIENERNS_COL_ID];
+          buf[pos] +=
+              use_hbd
+                  ? clip_base(
+                        (int16_t)
+                                luma_hbd[(i + r) * rui->luma_stride + (j + c)] -
+                            (int16_t)luma_hbd[luma_id],
+                        bit_depth)
+                  : clip_base(
+                        (int16_t)rui
+                                ->luma[(i + r) * rui->luma_stride + (j + c)] -
+                            (int16_t)rui->luma[luma_id],
+                        bit_depth);
+#else
+          assert(0 && "Incorrect CONFIG_WIENER_NONSEP configuration");
+#endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
+        }
+      }
+      for (int k = 0; k < num_feat; ++k) {
+        for (int l = 0; l <= k; ++l) {
+          A[k * num_feat + l] += buf[k] * buf[l];
+        }
+        b[k] += buf[k] * (use_hbd ? ((double)src_hbd[src_id] - dgd_hbd[dgd_id])
+                                  : ((double)src[src_id] - dgd[dgd_id]));
+      }
+    }
+  }
+
+  for (int k = 0; k < num_feat; ++k) {
+    for (int l = k + 1; l < num_feat; ++l) {
+      A[k * num_feat + l] = A[l * num_feat + k];
+    }
+  }
+  if (linsolve(num_feat, A, num_feat, b, x)) {
+    int beg_feat = is_uv ? wienerns_y : 0;
+    int end_feat = is_uv ? wienerns_y + wienerns_uv : wienerns_y;
+    for (int k = beg_feat; k < end_feat; ++k) {
+      rui->wiener_nonsep_info.nsfilter[k] = quantize(
+          x[k - beg_feat], wienerns_coeffs[k - beg_feat][WIENERNS_MIN_ID],
+          (1 << wienerns_coeffs[k - beg_feat][WIENERNS_BIT_ID]),
+          (is_uv ? wienerns_prec_bits_uv : wienerns_prec_bits_y));
+    }
+    return 1;
+  } else {
+    return 0;
+  }
+}
+
+#define MAX(a, b) ((a) > (b) ? (a) : (b))
+#define MIN(a, b) ((a) > (b) ? (b) : (a))
+
+static int64_t finer_tile_search_wienerns(const RestSearchCtxt *rsc,
+                                          const RestorationTileLimits *limits,
+                                          const AV1PixelRect *tile_rect,
+                                          RestorationUnitInfo *rui) {
+  assert(rsc->plane == rui->plane);
+  int64_t best_err = calc_finer_tile_search_error(rsc, limits, tile_rect, rui);
+
+  int is_uv = (rui->plane != AOM_PLANE_Y);
+  int beg_feat = is_uv ? wienerns_y : 0;
+  int end_feat = is_uv ? wienerns_y + wienerns_uv : wienerns_y;
+  const int(*wienerns_coeffs)[3] = is_uv ? wienerns_coeff_uv : wienerns_coeff_y;
+
+  int iter_step = 10;
+  int src_range = 3;
+  WienerNonsepInfo curr = rui->wiener_nonsep_info;
+  WienerNonsepInfo best = curr;
+  for (int s = 0; s < iter_step; ++s) {
+    int no_improv = 1;
+    for (int i = beg_feat; i < end_feat; ++i) {
+      int cmin = MAX(curr.nsfilter[i] - src_range,
+                     wienerns_coeffs[i - beg_feat][WIENERNS_MIN_ID]);
+      int cmax = MIN(curr.nsfilter[i] + src_range,
+                     wienerns_coeffs[i - beg_feat][WIENERNS_MIN_ID] +
+                         (1 << wienerns_coeffs[i - beg_feat][WIENERNS_BIT_ID]));
+
+      for (int ci = cmin; ci < cmax; ++ci) {
+        if (ci == curr.nsfilter[i]) {
+          continue;
+        }
+        rui->wiener_nonsep_info.nsfilter[i] = ci;
+        int64_t err = calc_finer_tile_search_error(rsc, limits, tile_rect, rui);
+        if (err < best_err) {
+          no_improv = 0;
+          best_err = err;
+          best = rui->wiener_nonsep_info;
+        }
+      }
+
+      rui->wiener_nonsep_info.nsfilter[i] = curr.nsfilter[i];
+    }
+    if (no_improv) {
+      break;
+    }
+    rui->wiener_nonsep_info = best;
+    curr = rui->wiener_nonsep_info;
+  }
+  rui->wiener_nonsep_info = best;
+  return best_err;
+}
+
+static void search_wiener_nonsep(const RestorationTileLimits *limits,
+                                 const AV1PixelRect *tile_rect,
+                                 int rest_unit_idx, void *priv, int32_t *tmpbuf,
+                                 RestorationLineBuffers *rlbs) {
+  (void)tmpbuf;
+  (void)rlbs;
+  RestSearchCtxt *rsc = (RestSearchCtxt *)priv;
+  RestUnitSearchInfo *rusi = &rsc->rusi[rest_unit_idx];
+
+  const MACROBLOCK *const x = rsc->x;
+  const int64_t bits_none = x->mode_costs.wiener_nonsep_restore_cost[0];
+  double cost_none =
+      RDCOST_DBL(x->rdmult, bits_none >> 4, rusi->sse[RESTORE_NONE]);
+  RestorationUnitInfo rui;
+  memset(&rui, 0, sizeof(rui));
+  rui.restoration_type = RESTORE_WIENER_NONSEP;
+#if CONFIG_WIENER_NONSEP_CROSS_FILT
+  rui.luma = rsc->luma;
+  rui.luma_stride = rsc->luma_stride;
+#endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
+  rui.plane = rsc->plane;
+#if WIENER_NONSEP_MASK
+  int w = ((rsc->cm->width + MAX_SB_SIZE - 1) >> MAX_SB_SIZE_LOG2)
+          << MAX_SB_SIZE_LOG2;
+  int h = ((rsc->cm->height + MAX_SB_SIZE - 1) >> MAX_SB_SIZE_LOG2)
+          << MAX_SB_SIZE_LOG2;
+  w >>= ((rui.plane == 0) ? 0 : rsc->cm->seq_params.subsampling_x);
+  h >>= ((rui.plane == 0) ? 0 : rsc->cm->seq_params.subsampling_y);
+  rui.mask_stride = (w + MIN_TX_SIZE - 1) >> MIN_TX_SIZE_LOG2;
+  rui.mask_height = (h + MIN_TX_SIZE - 1) >> MIN_TX_SIZE_LOG2;
+  rui.txskip_mask = rsc->cm->tx_skip[rui.plane];
+#endif  // WIENER_NONSEP_MASK
+
+  double A[WIENERNS_MAX * WIENERNS_MAX];
+  double b[WIENERNS_MAX];
+  if (compute_quantized_wienerns_filter(
+          rsc->dgd_buffer, rsc->src_buffer, limits->h_start, limits->h_end,
+          limits->v_start, limits->v_end, rsc->dgd_stride, rsc->src_stride,
+          &rui, rsc->cm->seq_params.use_highbitdepth,
+          rsc->cm->seq_params.bit_depth, A, b)) {
+    aom_clear_system_state();
+
+    rusi->sse[RESTORE_WIENER_NONSEP] =
+        finer_tile_search_wienerns(rsc, limits, tile_rect, &rui);
+    rusi->wiener_nonsep = rui.wiener_nonsep_info;
+    assert(rusi->sse[RESTORE_WIENER_NONSEP] != INT64_MAX);
+
+    const int64_t bits_wienerns =
+        x->mode_costs.wiener_nonsep_restore_cost[1] +
+        (count_wienerns_bits(rui.plane, &rusi->wiener_nonsep,
+                             &rsc->wiener_nonsep)
+         << AV1_PROB_COST_SHIFT);
+    double cost_wienerns = RDCOST_DBL(x->rdmult, bits_wienerns >> 4,
+                                      rusi->sse[RESTORE_WIENER_NONSEP]);
+    RestorationType rtype =
+        (cost_wienerns < cost_none) ? RESTORE_WIENER_NONSEP : RESTORE_NONE;
+    rusi->best_rtype[RESTORE_WIENER_NONSEP - 1] = rtype;
+    rsc->sse += rusi->sse[rtype];
+    rsc->bits += (cost_wienerns < cost_none) ? bits_wienerns : bits_none;
+    if (cost_wienerns < cost_none) rsc->wiener_nonsep = rusi->wiener_nonsep;
+  } else {
+    rsc->bits += bits_none;
+    rsc->sse += rusi->sse[RESTORE_NONE];
+    rusi->best_rtype[RESTORE_WIENER_NONSEP - 1] = RESTORE_NONE;
+    rusi->sse[RESTORE_WIENER_NONSEP] = INT64_MAX;
+  }
+}
+#endif  // CONFIG_WIENER_NONSEP
+
 static AOM_INLINE void search_switchable(const RestorationTileLimits *limits,
                                          const AV1PixelRect *tile_rect,
                                          int rest_unit_idx, void *priv,
@@ -1695,6 +1996,12 @@ static AOM_INLINE void search_switchable(const RestorationTileLimits *limits,
       case RESTORE_SGRPROJ:
         coeff_pcost = count_sgrproj_bits(&rusi->sgrproj, &rsc->sgrproj);
         break;
+#if CONFIG_WIENER_NONSEP
+      case RESTORE_WIENER_NONSEP:
+        coeff_pcost = count_wienerns_bits(rsc->plane, &rusi->wiener_nonsep,
+                                          &rsc->wiener_nonsep);
+        break;
+#endif  // CONFIG_WIENER_NONSEP
       default: assert(0); break;
     }
     const int64_t coeff_bits = coeff_pcost << AV1_PROB_COST_SHIFT;
@@ -1723,6 +2030,10 @@ static AOM_INLINE void search_switchable(const RestorationTileLimits *limits,
   rsc->bits += best_bits;
   if (best_rtype == RESTORE_WIENER) rsc->wiener = rusi->wiener;
   if (best_rtype == RESTORE_SGRPROJ) rsc->sgrproj = rusi->sgrproj;
+#if CONFIG_WIENER_NONSEP
+  if (best_rtype == RESTORE_WIENER_NONSEP)
+    rsc->wiener_nonsep = rusi->wiener_nonsep;
+#endif  // CONFIG_WIENER_NONSEP
 }
 
 static AOM_INLINE void copy_unit_info(RestorationType frame_rtype,
@@ -1730,8 +2041,11 @@ static AOM_INLINE void copy_unit_info(RestorationType frame_rtype,
                                       RestorationUnitInfo *rui) {
   assert(frame_rtype > 0);
   rui->restoration_type = rusi->best_rtype[frame_rtype - 1];
-  if (rui->restoration_type == RESTORE_WIENER)
-    rui->wiener_info = rusi->wiener;
+  if (rui->restoration_type == RESTORE_WIENER) rui->wiener_info = rusi->wiener;
+#if CONFIG_WIENER_NONSEP
+  else if (rui->restoration_type == RESTORE_WIENER_NONSEP)
+    rui->wiener_nonsep_info = rusi->wiener_nonsep;
+#endif  // CONFIG_WIENER_NONSEP
   else
     rui->sgrproj_info = rusi->sgrproj;
 }
@@ -1744,6 +2058,9 @@ static double search_rest_type(RestSearchCtxt *rsc, RestorationType rtype) {
 #if CONFIG_LOOP_RESTORE_CNN
     search_cnn,
 #endif  // CONFIG_LOOP_RESTORE_CNN
+#if CONFIG_WIENER_NONSEP
+    search_wiener_nonsep,
+#endif  // CONFIG_WIENER_NONSEP
     search_switchable
   };
 
@@ -1793,6 +2110,21 @@ void av1_pick_filter_restoration(const YV12_BUFFER_CONFIG *src,
   RestSearchCtxt rsc;
   const int plane_start = AOM_PLANE_Y;
   const int plane_end = num_planes > 1 ? AOM_PLANE_V : AOM_PLANE_Y;
+
+#if CONFIG_WIENER_NONSEP
+#if CONFIG_WIENER_NONSEP_CROSS_FILT
+  uint8_t *luma = NULL;
+  const YV12_BUFFER_CONFIG *dgd = &cpi->common.cur_frame->buf;
+  rsc.luma_stride = dgd->crop_widths[1] + 2 * WIENERNS_UV_BRD;
+  uint8_t *luma_buf = wienerns_copy_luma(
+      dgd->buffers[AOM_PLANE_Y], dgd->crop_heights[AOM_PLANE_Y],
+      dgd->crop_widths[AOM_PLANE_Y], dgd->strides[AOM_PLANE_Y], &luma,
+      dgd->crop_heights[1], dgd->crop_widths[1], WIENERNS_UV_BRD,
+      rsc.luma_stride);
+  assert(luma_buf != NULL);
+  rsc.luma = luma;
+#endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
+#endif  // CONFIG_WIENER_NONSEP
 #if CONFIG_LOOP_RESTORE_CNN
   bool restore_cnn_used = false;
 #endif  // CONFIG_LOOP_RESTORE_CNN
@@ -1874,6 +2206,10 @@ void av1_pick_filter_restoration(const YV12_BUFFER_CONFIG *src,
     }
 #endif  // CONFIG_LOOP_RESTORE_CNN
   }
+
+#if CONFIG_WIENER_NONSEP && CONFIG_WIENER_NONSEP_CROSS_FILT
+  free(luma_buf);
+#endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
 
   aom_free(rusi);
 }

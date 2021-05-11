@@ -35,6 +35,10 @@ extern "C" {
   (((D) * (1 << RDDIV_BITS)) - \
    ROUND_POWER_OF_TWO(((int64_t)(R)) * (RM), AV1_PROB_COST_SHIFT))
 
+#define RDCOST_DBL(RM, R, D)                                       \
+  (((((double)(R)) * (RM)) / (double)(1 << AV1_PROB_COST_SHIFT)) + \
+   ((double)(D) * (1 << RDDIV_BITS)))
+
 #define RDCOST_DBL_WITH_NATIVE_BD_DIST(RM, R, D, BD)               \
   (((((double)(R)) * (RM)) / (double)(1 << AV1_PROB_COST_SHIFT)) + \
    ((double)((D) >> (2 * (BD - 8))) * (1 << RDDIV_BITS)))

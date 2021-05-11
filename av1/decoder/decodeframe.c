@@ -1579,6 +1579,9 @@ static AOM_INLINE void decode_restoration_mode(AV1_COMMON *cm,
         rsi->frame_restoration_type = use_cnn_plane && aom_rb_read_bit(rb)
                                           ? RESTORE_SGRPROJ
                                           : RESTORE_NONE;
+#elif CONFIG_WIENER_NONSEP
+        rsi->frame_restoration_type =
+            aom_rb_read_bit(rb) ? RESTORE_WIENER_NONSEP : RESTORE_NONE;
 #else
         rsi->frame_restoration_type = RESTORE_NONE;
 #endif  // CONFIG_LOOP_RESTORE_CNN
@@ -1724,6 +1727,29 @@ static AOM_INLINE void read_sgrproj_filter(SgrprojInfo *sgrproj_info,
   memcpy(ref_sgrproj_info, sgrproj_info, sizeof(*sgrproj_info));
 }
 
+#if CONFIG_WIENER_NONSEP
+static void read_wiener_nsfilter(MACROBLOCKD *xd, int is_uv,
+                                 WienerNonsepInfo *wienerns_info,
+                                 WienerNonsepInfo *ref_wienerns_info,
+                                 aom_reader *rb) {
+  (void)xd;
+  int beg_feat = is_uv ? wienerns_y : 0;
+  int end_feat = is_uv ? wienerns_y + wienerns_uv : wienerns_y;
+  const int(*wienerns_coeffs)[3] = is_uv ? wienerns_coeff_uv : wienerns_coeff_y;
+
+  set_default_wiener_nonsep(wienerns_info);
+  for (int i = beg_feat; i < end_feat; ++i) {
+    wienerns_info->nsfilter[i] += aom_read_primitive_refsubexpfin(
+        rb, (1 << wienerns_coeffs[i - beg_feat][WIENERNS_BIT_ID]),
+        wienerns_coeffs[i - beg_feat][WIENERNS_SUBEXP_K_ID],
+        ref_wienerns_info->nsfilter[i] -
+            wienerns_coeffs[i - beg_feat][WIENERNS_MIN_ID],
+        ACCT_STR);
+  }
+  memcpy(ref_wienerns_info, wienerns_info, sizeof(*wienerns_info));
+}
+#endif  // CONFIG_WIENER_NONSEP
+
 static AOM_INLINE void loop_restoration_read_sb_coeffs(
     const AV1_COMMON *const cm, MACROBLOCKD *xd, aom_reader *const r, int plane,
     int runit_idx) {
@@ -1734,8 +1760,14 @@ static AOM_INLINE void loop_restoration_read_sb_coeffs(
   assert(!cm->features.all_lossless);
 
   const int wiener_win = (plane > 0) ? WIENER_WIN_CHROMA : WIENER_WIN;
+#if CONFIG_WIENER_NONSEP
+  const int is_uv = (plane > 0);
+#endif  // CONFIG_WIENER_NONSEP
   WienerInfo *wiener_info = xd->wiener_info + plane;
   SgrprojInfo *sgrproj_info = xd->sgrproj_info + plane;
+#if CONFIG_WIENER_NONSEP
+  WienerNonsepInfo *wiener_nonsep_info = xd->wiener_nonsep_info + plane;
+#endif  // CONFIG_WIENER_NONSEP
 
   if (rsi->frame_restoration_type == RESTORE_SWITCHABLE) {
 #if CONFIG_LOOP_RESTORE_CNN
@@ -1761,6 +1793,12 @@ static AOM_INLINE void loop_restoration_read_sb_coeffs(
 #if CONFIG_LOOP_RESTORE_CNN
       case RESTORE_CNN: break;
 #endif  // CONFIG_LOOP_RESTORE_CNN
+#if CONFIG_WIENER_NONSEP
+      case RESTORE_WIENER_NONSEP:
+        read_wiener_nsfilter(xd, is_uv, &rui->wiener_nonsep_info,
+                             wiener_nonsep_info, r);
+        break;
+#endif  // CONFIG_WIENER_NONSEP
       default: assert(rui->restoration_type == RESTORE_NONE); break;
     }
   } else if (rsi->frame_restoration_type == RESTORE_WIENER) {
@@ -1785,6 +1823,17 @@ static AOM_INLINE void loop_restoration_read_sb_coeffs(
       rui->restoration_type = RESTORE_NONE;
     }
 #endif  // CONFIG_LOOP_RESTORE_CNN
+#if CONFIG_WIENER_NONSEP
+  } else if (rsi->frame_restoration_type == RESTORE_WIENER_NONSEP) {
+    if (aom_read_symbol(r, xd->tile_ctx->wiener_nonsep_restore_cdf, 2,
+                        ACCT_STR)) {
+      rui->restoration_type = RESTORE_WIENER_NONSEP;
+      read_wiener_nsfilter(xd, is_uv, &rui->wiener_nonsep_info,
+                           wiener_nonsep_info, r);
+    } else {
+      rui->restoration_type = RESTORE_NONE;
+    }
+#endif  // CONFIG_WIENER_NONSEP
   }
 }
 

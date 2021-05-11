@@ -651,9 +651,12 @@ typedef enum {
   RESTORE_WIENER,  /**< Separable Wiener restoration */
   RESTORE_SGRPROJ, /**< Selfguided restoration */
 #if CONFIG_LOOP_RESTORE_CNN
-  RESTORE_CNN,                                   /**< CNN restoration */
-#endif                                           // CONFIG_LOOP_RESTORE_CNN
-  RESTORE_SWITCHABLE,                            /**< Switchable restoration */
+  RESTORE_CNN, /**< CNN restoration */
+#endif         // CONFIG_LOOP_RESTORE_CNN
+#if CONFIG_WIENER_NONSEP
+  RESTORE_WIENER_NONSEP, /**< Nonseparable Wiener restoration */
+#endif                   // CONFIG_WIENER_NONSEP
+  RESTORE_SWITCHABLE,    /**< Switchable restoration */
   RESTORE_SWITCHABLE_TYPES = RESTORE_SWITCHABLE, /**< Num Switchable types */
   RESTORE_TYPES = RESTORE_SWITCHABLE + 1,        /**< Num Restore types */
 } RestorationType;

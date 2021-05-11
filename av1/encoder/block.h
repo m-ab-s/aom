@@ -742,6 +742,12 @@ typedef struct {
   //! cnn_restore_cost
   int cnn_restore_cost[2];
 #endif  // CONFIG_LOOP_RESTORE_CNN
+#if CONFIG_WIENER_NONSEP
+  /*!
+   * wiener_nonsep_restore_cost
+   */
+  int wiener_nonsep_restore_cost[2];
+#endif  // CONFIG_WIENER_NONSEP
   /**@}*/
 } ModeCosts;
 

@@ -83,6 +83,9 @@ void av1_reset_loop_restoration(MACROBLOCKD *xd, const int num_planes) {
   for (int p = 0; p < num_planes; ++p) {
     set_default_wiener(xd->wiener_info + p);
     set_default_sgrproj(xd->sgrproj_info + p);
+#if CONFIG_WIENER_NONSEP
+    set_default_wiener_nonsep(xd->wiener_nonsep_info + p);
+#endif  // CONFIG_WIENER_NONSEP
   }
 }
 
