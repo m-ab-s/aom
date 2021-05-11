@@ -87,10 +87,18 @@ static int candidate_refresh_aq(const CYCLIC_REFRESH *cr,
   if (dist > cr->thresh_dist_sb &&
       (mv.row > cr->motion_thresh || mv.row < -cr->motion_thresh ||
        mv.col > cr->motion_thresh || mv.col < -cr->motion_thresh ||
+#if CONFIG_SDP
+       !is_inter_block(mbmi, SHARED_PART)))
+#else
        !is_inter_block(mbmi)))
+#endif
     return CR_SEGMENT_ID_BASE;
   else if (bsize >= BLOCK_16X16 && rate < cr->thresh_rate_sb &&
+#if CONFIG_SDP
+           is_inter_block(mbmi, SHARED_PART) && mbmi->mv[0].as_int == 0 &&
+#else
            is_inter_block(mbmi) && mbmi->mv[0].as_int == 0 &&
+#endif
            cr->rate_boost_fac > 10)
     // More aggressive delta-q for bigger blocks with zero motion.
     return CR_SEGMENT_ID_BOOST2;
@@ -242,7 +250,12 @@ void av1_cyclic_refresh_postencode(AV1_COMP *const cpi) {
           cr->actual_num_seg2_blocks++;
       }
       // Accumulate low_content_frame.
+#if CONFIG_SDP
+      if (is_inter_block(mi[0], SHARED_PART) && abs(mv.row) < 16 &&
+          abs(mv.col) < 16)
+#else
       if (is_inter_block(mi[0]) && abs(mv.row) < 16 && abs(mv.col) < 16)
+#endif
         cr->cnt_zeromv++;
     }
   }

@@ -411,7 +411,11 @@ void av1_rd_pick_palette_intra_sby(
     uint8_t *best_blk_skip, uint8_t *tx_type_map) {
   MACROBLOCKD *const xd = &x->e_mbd;
   MB_MODE_INFO *const mbmi = xd->mi[0];
+#if CONFIG_SDP
+  assert(!is_inter_block(mbmi, xd->tree_type));
+#else
   assert(!is_inter_block(mbmi));
+#endif
   assert(av1_allow_palette(cpi->common.features.allow_screen_content_tools,
                            bsize));
   assert(PALETTE_MAX_SIZE == 8);
@@ -638,12 +642,13 @@ void av1_rd_pick_palette_intra_sbuv(const AV1_COMP *cpi, MACROBLOCK *x,
                                     int *skippable) {
   MACROBLOCKD *const xd = &x->e_mbd;
   MB_MODE_INFO *const mbmi = xd->mi[0];
-  assert(!is_inter_block(mbmi));
 #if CONFIG_SDP
+  assert(!is_inter_block(mbmi, xd->tree_type));
   assert(xd->tree_type != LUMA_PART);
   assert(av1_allow_palette(cpi->common.features.allow_screen_content_tools,
                            mbmi->sb_type[PLANE_TYPE_UV]));
 #else
+  assert(!is_inter_block(mbmi));
   assert(av1_allow_palette(cpi->common.features.allow_screen_content_tools,
                            mbmi->sb_type));
 #endif

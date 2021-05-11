@@ -126,10 +126,14 @@ static int read_delta_qindex(AV1_COMMON *cm, const MACROBLOCKD *xd,
 static int read_delta_lflevel(const AV1_COMMON *const cm, aom_reader *r,
                               aom_cdf_prob *const cdf,
                               const MB_MODE_INFO *const mbmi, int mi_col,
+#if CONFIG_SDP
+                              int mi_row, int tree_type) {
+#else
                               int mi_row) {
+#endif
   int reduced_delta_lflevel = 0;
 #if CONFIG_SDP
-  const int plane_type = (mbmi->tree_type == CHROMA_PART);
+  const int plane_type = (tree_type == CHROMA_PART);
   const BLOCK_SIZE bsize = mbmi->sb_type[plane_type];
 #else
   const BLOCK_SIZE bsize = mbmi->sb_type;
@@ -704,8 +708,11 @@ void av1_read_tx_type(const AV1_COMMON *const cm, MACROBLOCKD *xd, int blk_row,
   // No need to read transform type for lossless mode(qindex==0).
   const int qindex = xd->qindex[mbmi->segment_id];
   if (qindex == 0) return;
-
+#if CONFIG_SDP
+  const int inter_block = is_inter_block(mbmi, xd->tree_type);
+#else
   const int inter_block = is_inter_block(mbmi);
+#endif
   if (get_ext_tx_types(tx_size, inter_block, cm->features.reduced_tx_set_used) >
       1) {
     const TxSetType tx_set_type = av1_get_ext_tx_set_type(
@@ -843,17 +850,28 @@ static void read_delta_q_params(AV1_COMMON *const cm, MACROBLOCKD *const xd,
         for (int lf_id = 0; lf_id < frame_lf_count; ++lf_id) {
           const int tmp_lvl =
               xd->delta_lf[lf_id] +
+#if CONFIG_SDP
+              read_delta_lflevel(cm, r, ec_ctx->delta_lf_multi_cdf[lf_id], mbmi,
+                                 mi_col, mi_row, xd->tree_type) *
+#else
               read_delta_lflevel(cm, r, ec_ctx->delta_lf_multi_cdf[lf_id], mbmi,
                                  mi_col, mi_row) *
+#endif
                   delta_q_info->delta_lf_res;
           mbmi->delta_lf[lf_id] = xd->delta_lf[lf_id] =
               clamp(tmp_lvl, -MAX_LOOP_FILTER, MAX_LOOP_FILTER);
         }
       } else {
-        const int tmp_lvl = xd->delta_lf_from_base +
-                            read_delta_lflevel(cm, r, ec_ctx->delta_lf_cdf,
-                                               mbmi, mi_col, mi_row) *
-                                delta_q_info->delta_lf_res;
+        const int tmp_lvl =
+            xd->delta_lf_from_base +
+#if CONFIG_SDP
+            read_delta_lflevel(cm, r, ec_ctx->delta_lf_cdf, mbmi, mi_col,
+                               mi_row, xd->tree_type) *
+#else
+            read_delta_lflevel(cm, r, ec_ctx->delta_lf_cdf, mbmi, mi_col,
+                               mi_row) *
+#endif
+                delta_q_info->delta_lf_res;
         mbmi->delta_lf_from_base = xd->delta_lf_from_base =
             clamp(tmp_lvl, -MAX_LOOP_FILTER, MAX_LOOP_FILTER);
       }
@@ -926,7 +944,11 @@ static void read_intra_frame_mode_info(AV1_COMMON *const cm,
   if (av1_allow_intrabc(cm)) {
 #endif
     read_intrabc_info(cm, dcb, r);
+#if CONFIG_SDP
+    if (is_intrabc_block(mbmi, xd->tree_type)) return;
+#else
     if (is_intrabc_block(mbmi)) return;
+#endif
   }
 
   const int use_angle_delta = av1_use_angle_delta(bsize);
@@ -1817,7 +1839,6 @@ void av1_read_mode_info(AV1Decoder *const pbi, DecoderCodingBlock *dcb,
   MACROBLOCKD *const xd = &dcb->xd;
   MB_MODE_INFO *const mi = xd->mi[0];
 #if CONFIG_SDP
-  mi->tree_type = xd->tree_type;
   mi->use_intrabc[xd->tree_type == CHROMA_PART] = 0;
 #else
   mi->use_intrabc = 0;

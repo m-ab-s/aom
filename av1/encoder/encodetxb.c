@@ -557,7 +557,11 @@ static int get_tx_type_cost(const MACROBLOCK *x, const MACROBLOCKD *xd,
   const TX_SIZE square_tx_size = txsize_sqr_map[tx_size];
 
   const MB_MODE_INFO *mbmi = xd->mi[0];
+#if CONFIG_SDP
+  const int is_inter = is_inter_block(mbmi, xd->tree_type);
+#else
   const int is_inter = is_inter_block(mbmi);
+#endif
   if (get_ext_tx_types(tx_size, is_inter, reduced_tx_set_used) > 1 &&
       !xd->lossless[xd->mi[0]->segment_id]) {
     const int ext_tx_set =
@@ -1228,7 +1232,11 @@ int av1_optimize_txb_new(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
   const int width = get_txb_wide(tx_size);
   const int height = get_txb_high(tx_size);
   assert(width == (1 << bwl));
+#if CONFIG_SDP
+  const int is_inter = is_inter_block(mbmi, xd->tree_type);
+#else
   const int is_inter = is_inter_block(mbmi);
+#endif
   const LV_MAP_COEFF_COST *txb_costs =
       &coeff_costs->coeff_costs[txs_ctx][plane_type];
   const int eob_multi_size = txsize_log2_minus4[tx_size];
@@ -1379,7 +1387,11 @@ static void update_tx_type_count(const AV1_COMP *cpi, const AV1_COMMON *cm,
                                  FRAME_COUNTS *counts,
                                  uint8_t allow_update_cdf) {
   MB_MODE_INFO *mbmi = xd->mi[0];
+#if CONFIG_SDP
+  int is_inter = is_inter_block(mbmi, xd->tree_type);
+#else
   int is_inter = is_inter_block(mbmi);
+#endif
   const int reduced_tx_set_used = cm->features.reduced_tx_set_used;
   FRAME_CONTEXT *fc = xd->tile_ctx;
 #if !CONFIG_ENTROPY_STATS

@@ -180,7 +180,11 @@ static void reset_tx_size(MACROBLOCK *x, MB_MODE_INFO *mbmi,
     TX_SIZE min_tx_size = depth_to_tx_size(MAX_TX_DEPTH, bsize);
     mbmi->tx_size = (TX_SIZE)TXSIZEMAX(mbmi->tx_size, min_tx_size);
   }
+#if CONFIG_SDP
+  if (is_inter_block(mbmi, xd->tree_type)) {
+#else
   if (is_inter_block(mbmi)) {
+#endif
     memset(mbmi->inter_tx_size, mbmi->tx_size, sizeof(mbmi->inter_tx_size));
   }
   const int stride = xd->tx_type_map_stride;
@@ -386,7 +390,11 @@ void av1_update_state(const AV1_COMP *const cpi, ThreadData *td,
   }
 #endif
   if (!frame_is_intra_only(cm)) {
+#if CONFIG_SDP
+    if (is_inter_block(mi_addr, xd->tree_type)) {
+#else
     if (is_inter_block(mi_addr)) {
+#endif
       // TODO(sarahparker): global motion stats need to be handled per-tile
       // to be compatible with tile-based threading.
       update_global_motion_used(mi_addr->mode, bsize, mi_addr, rdc);

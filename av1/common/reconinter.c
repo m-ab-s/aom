@@ -790,8 +790,13 @@ static bool is_sub8x8_inter(const MACROBLOCKD *xd, int plane, BLOCK_SIZE bsize,
   for (int row = row_start; row <= 0; ++row) {
     for (int col = col_start; col <= 0; ++col) {
       const MB_MODE_INFO *this_mbmi = xd->mi[row * xd->mi_stride + col];
+#if CONFIG_SDP
+      if (!is_inter_block(this_mbmi, xd->tree_type)) return false;
+      if (is_intrabc_block(this_mbmi, xd->tree_type)) return false;
+#else
       if (!is_inter_block(this_mbmi)) return false;
       if (is_intrabc_block(this_mbmi)) return false;
+#endif
     }
   }
   return true;
@@ -816,7 +821,11 @@ static void build_inter_predictors_sub8x8(
   const int b8_h = block_size_high[plane_bsize];
   const int is_compound = has_second_ref(mi);
   assert(!is_compound);
+#if CONFIG_SDP
+  assert(!is_intrabc_block(mi, xd->tree_type));
+#else
   assert(!is_intrabc_block(mi));
+#endif
 
   // For sub8x8 chroma blocks, we may be covering more than one luma block's
   // worth of pixels. Thus (mi_x, mi_y) may not be the correct coordinates for
@@ -883,7 +892,11 @@ static void build_inter_predictors_8x8_and_bigger(
     int build_for_obmc, int bw, int bh, int mi_x, int mi_y, uint8_t **mc_buf,
     CalcSubpelParamsFunc calc_subpel_params_func) {
   const int is_compound = has_second_ref(mi);
+#if CONFIG_SDP
+  const int is_intrabc = is_intrabc_block(mi, xd->tree_type);
+#else
   const int is_intrabc = is_intrabc_block(mi);
+#endif
   assert(IMPLIES(is_intrabc, !is_compound));
   struct macroblockd_plane *const pd = &xd->plane[plane];
   struct buf_2d *const dst_buf = &pd->dst;
@@ -971,7 +984,7 @@ void av1_build_inter_predictors(const AV1_COMMON *cm, MACROBLOCKD *xd,
                                 CalcSubpelParamsFunc calc_subpel_params_func) {
 #if CONFIG_SDP
   if (is_sub8x8_inter(xd, plane, mi->sb_type[PLANE_TYPE_Y],
-                      is_intrabc_block(mi), build_for_obmc)) {
+                      is_intrabc_block(mi, xd->tree_type), build_for_obmc)) {
 #else
   if (is_sub8x8_inter(xd, plane, mi->sb_type, is_intrabc_block(mi),
                       build_for_obmc)) {

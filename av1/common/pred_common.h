@@ -405,18 +405,20 @@ static INLINE int get_tx_size_context(const MACROBLOCKD *xd) {
   int left = xd->left_txfm_context[0] >= max_tx_high;
 
   if (has_above)
-    if (is_inter_block(above_mbmi))
 #if CONFIG_SDP
+    if (is_inter_block(above_mbmi, xd->tree_type))
       above = block_size_wide[above_mbmi->sb_type[PLANE_TYPE_Y]] >= max_tx_wide;
 #else
+    if (is_inter_block(above_mbmi))
       above = block_size_wide[above_mbmi->sb_type] >= max_tx_wide;
 #endif
 
   if (has_left)
-    if (is_inter_block(left_mbmi))
 #if CONFIG_SDP
+    if (is_inter_block(left_mbmi, xd->tree_type))
       left = block_size_high[left_mbmi->sb_type[PLANE_TYPE_Y]] >= max_tx_high;
 #else
+    if (is_inter_block(left_mbmi))
       left = block_size_high[left_mbmi->sb_type] >= max_tx_high;
 #endif
 

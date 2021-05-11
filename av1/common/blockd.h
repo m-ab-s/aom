@@ -241,7 +241,6 @@ typedef struct MB_MODE_INFO {
   // Common for both INTER and INTRA blocks
 #if CONFIG_SDP
   BLOCK_SIZE sb_type[2];
-  TREE_TYPE tree_type;
 #else
   BLOCK_SIZE sb_type;
 #endif
@@ -290,14 +289,15 @@ typedef struct MB_MODE_INFO {
   int8_t cdef_strength : 4;
 } MB_MODE_INFO;
 
-static INLINE int is_intrabc_block(const MB_MODE_INFO *mbmi) {
 #if CONFIG_SDP
-  const int plane_type = (mbmi->tree_type == CHROMA_PART);
-  return mbmi->use_intrabc[plane_type];
-#else
-  return mbmi->use_intrabc;
-#endif
+static INLINE int is_intrabc_block(const MB_MODE_INFO *mbmi, int tree_type) {
+  return mbmi->use_intrabc[tree_type == CHROMA_PART];
 }
+#else
+static INLINE int is_intrabc_block(const MB_MODE_INFO *mbmi) {
+  return mbmi->use_intrabc;
+}
+#endif
 
 static INLINE PREDICTION_MODE get_uv_mode(UV_PREDICTION_MODE mode) {
   assert(mode < UV_INTRA_MODES);
@@ -322,9 +322,15 @@ static INLINE PREDICTION_MODE get_uv_mode(UV_PREDICTION_MODE mode) {
   return uv2y[mode];
 }
 
+#if CONFIG_SDP
+static INLINE int is_inter_block(const MB_MODE_INFO *mbmi, int tree_type) {
+  return is_intrabc_block(mbmi, tree_type) || mbmi->ref_frame[0] > INTRA_FRAME;
+}
+#else
 static INLINE int is_inter_block(const MB_MODE_INFO *mbmi) {
   return is_intrabc_block(mbmi) || mbmi->ref_frame[0] > INTRA_FRAME;
 }
+#endif
 
 static INLINE int has_second_ref(const MB_MODE_INFO *mbmi) {
   return mbmi->ref_frame[1] > INTRA_FRAME;
@@ -1113,10 +1119,13 @@ static INLINE TX_TYPE get_default_tx_type(PLANE_TYPE plane_type,
                                           TX_SIZE tx_size,
                                           int is_screen_content_type) {
   const MB_MODE_INFO *const mbmi = xd->mi[0];
-
-  if (is_inter_block(mbmi) || plane_type != PLANE_TYPE_Y ||
-      xd->lossless[mbmi->segment_id] || tx_size >= TX_32X32 ||
-      is_screen_content_type)
+#if CONFIG_SDP
+  if (is_inter_block(mbmi, xd->tree_type) ||
+#else
+  if (is_inter_block(mbmi) ||
+#endif
+      plane_type != PLANE_TYPE_Y || xd->lossless[mbmi->segment_id] ||
+      tx_size >= TX_32X32 || is_screen_content_type)
     return DCT_DCT;
 
   return intra_mode_to_tx_type(mbmi, plane_type);
@@ -1229,7 +1238,11 @@ static INLINE TX_TYPE av1_get_tx_type(const MACROBLOCKD *xd,
   if (plane_type == PLANE_TYPE_Y) {
     tx_type = xd->tx_type_map[blk_row * xd->tx_type_map_stride + blk_col];
   } else {
+#if CONFIG_SDP
+    if (is_inter_block(mbmi, xd->tree_type)) {
+#else
     if (is_inter_block(mbmi)) {
+#endif
       // scale back to y plane's coordinate
       const struct macroblockd_plane *const pd = &xd->plane[plane_type];
       blk_row <<= pd->subsampling_y;
@@ -1241,12 +1254,22 @@ static INLINE TX_TYPE av1_get_tx_type(const MACROBLOCKD *xd,
       tx_type = intra_mode_to_tx_type(mbmi, PLANE_TYPE_UV);
     }
     const TxSetType tx_set_type =
+#if CONFIG_SDP
+        av1_get_ext_tx_set_type(tx_size, is_inter_block(mbmi, xd->tree_type),
+                                reduced_tx_set);
+#else
         av1_get_ext_tx_set_type(tx_size, is_inter_block(mbmi), reduced_tx_set);
+#endif
     if (!av1_ext_tx_used[tx_set_type][tx_type]) tx_type = DCT_DCT;
   }
   assert(tx_type < TX_TYPES);
+#if CONFIG_SDP
+  assert(av1_ext_tx_used[av1_get_ext_tx_set_type(
+      tx_size, is_inter_block(mbmi, xd->tree_type), reduced_tx_set)][tx_type]);
+#else
   assert(av1_ext_tx_used[av1_get_ext_tx_set_type(tx_size, is_inter_block(mbmi),
                                                  reduced_tx_set)][tx_type]);
+#endif
   return tx_type;
 }
 
@@ -1451,10 +1474,16 @@ motion_mode_allowed(const WarpedMotionParams *gm_params, const MACROBLOCKD *xd,
     return SIMPLE_TRANSLATION;
   }
 }
-
+#if CONFIG_SDP
+static INLINE int is_neighbor_overlappable(const MB_MODE_INFO *mbmi,
+                                           int tree_type) {
+  return (is_inter_block(mbmi, tree_type));
+}
+#else
 static INLINE int is_neighbor_overlappable(const MB_MODE_INFO *mbmi) {
   return (is_inter_block(mbmi));
 }
+#endif
 
 static INLINE int av1_allow_palette(int allow_screen_content_tools,
                                     BLOCK_SIZE sb_type) {

@@ -485,7 +485,11 @@ static int predict_skip_txfm(const AV1_COMMON *cm, MACROBLOCK *x,
   param.is_hbd = is_cur_buf_hbd(xd);
   param.lossless = 0;
   param.tx_set_type = av1_get_ext_tx_set_type(
+#if CONFIG_SDP
+      param.tx_size, is_inter_block(xd->mi[0], xd->tree_type), reduced_tx_set);
+#else
       param.tx_size, is_inter_block(xd->mi[0]), reduced_tx_set);
+#endif
   const int bd_idx = (xd->bd == 8) ? 0 : ((xd->bd == 10) ? 1 : 2);
   const uint32_t max_qcoef_thresh = skip_pred_threshold[bd_idx][bsize];
   const int16_t *src_diff = x->plane[0].src_diff;
@@ -1163,7 +1167,11 @@ static INLINE void recon_intra(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
   const AV1_COMMON *cm = &cpi->common;
   MACROBLOCKD *xd = &x->e_mbd;
   MB_MODE_INFO *mbmi = xd->mi[0];
+#if CONFIG_SDP
+  const int is_inter = is_inter_block(mbmi, xd->tree_type);
+#else
   const int is_inter = is_inter_block(mbmi);
+#endif
   if (!is_inter && best_eob &&
       (blk_row + tx_size_high_unit[tx_size] < mi_size_high[plane_bsize] ||
        blk_col + tx_size_wide_unit[tx_size] < mi_size_wide[plane_bsize])) {
@@ -1334,7 +1342,12 @@ static INLINE int is_intra_hash_match(const AV1_COMP *cpi, MACROBLOCK *x,
   MACROBLOCKD *xd = &x->e_mbd;
   TxfmSearchInfo *txfm_info = &x->txfm_search_info;
   assert(cpi->sf.tx_sf.use_intra_txb_hash &&
+#if CONFIG_SDP
+         frame_is_intra_only(&cpi->common) &&
+         !is_inter_block(xd->mi[0], xd->tree_type) &&
+#else
          frame_is_intra_only(&cpi->common) && !is_inter_block(xd->mi[0]) &&
+#endif
          plane == 0 && tx_size_wide[tx_size] == tx_size_high[tx_size]);
   const uint32_t intra_hash =
       get_intra_txb_hash(x, plane, blk_row, blk_col, plane_bsize, tx_size);
@@ -1985,7 +1998,11 @@ get_tx_mask(const AV1_COMP *cpi, MACROBLOCK *x, int plane, int block,
   MACROBLOCKD *xd = &x->e_mbd;
   MB_MODE_INFO *mbmi = xd->mi[0];
   const TxfmSearchParams *txfm_params = &x->txfm_search_params;
+#if CONFIG_SDP
+  const int is_inter = is_inter_block(mbmi, xd->tree_type);
+#else
   const int is_inter = is_inter_block(mbmi);
+#endif
   const int fast_tx_search = ftxs_mode & FTXS_DCT_AND_1D_DCT_ONLY;
   // if txk_allowed = TX_TYPES, >1 tx types are allowed, else, if txk_allowed <
   // TX_TYPES, only that specific tx type is allowed.
@@ -2252,7 +2269,12 @@ static INLINE void predict_dc_only_block(
   } else if (block_var < var_threshold) {
     // Predict DC only blocks based on residual variance.
     // For chroma plane, this early prediction is disabled for intra blocks.
+#if CONFIG_SDP
+    if ((plane == 0) || (plane > 0 && is_inter_block(mbmi, xd->tree_type)))
+      *dc_only_blk = 1;
+#else
     if ((plane == 0) || (plane > 0 && is_inter_block(mbmi))) *dc_only_blk = 1;
+#endif
   }
 }
 
@@ -2290,7 +2312,11 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
   // the table and terminate early.
   TXB_RD_INFO *intra_txb_rd_info = NULL;
   uint16_t cur_joint_ctx = 0;
+#if CONFIG_SDP
+  const int is_inter = is_inter_block(mbmi, xd->tree_type);
+#else
   const int is_inter = is_inter_block(mbmi);
+#endif
   const int use_intra_txb_hash =
       cpi->sf.tx_sf.use_intra_txb_hash && frame_is_intra_only(cm) &&
       !is_inter && plane == 0 && tx_size_wide[tx_size] == tx_size_high[tx_size];
@@ -2630,7 +2656,11 @@ static AOM_INLINE void tx_type_rd(const AV1_COMP *cpi, MACROBLOCK *x,
   const uint16_t cur_joint_ctx =
       (txb_ctx->dc_sign_ctx << 8) + txb_ctx->txb_skip_ctx;
   MACROBLOCKD *xd = &x->e_mbd;
+#if CONFIG_SDP
+  assert(is_inter_block(xd->mi[0], xd->tree_type));
+#else
   assert(is_inter_block(xd->mi[0]));
+#endif
   const int tx_type_map_idx = blk_row * xd->tx_type_map_stride + blk_col;
   // Look up RD and terminate early in case when we've already processed exactly
   // the same residue with exactly the same entropy context.
@@ -2923,7 +2953,12 @@ static AOM_INLINE void choose_largest_tx_size(const AV1_COMP *const cpi,
   const int skip_txfm_rate = x->mode_costs.skip_txfm_cost[skip_ctx][1];
   // Skip RDcost is used only for Inter blocks
   const int64_t skip_txfm_rd =
+#if CONFIG_SDP
+      is_inter_block(mbmi, xd->tree_type) ? RDCOST(x->rdmult, skip_txfm_rate, 0)
+                                          : INT64_MAX;
+#else
       is_inter_block(mbmi) ? RDCOST(x->rdmult, skip_txfm_rate, 0) : INT64_MAX;
+#endif
   const int64_t no_skip_txfm_rd = RDCOST(x->rdmult, no_skip_txfm_rate, 0);
   const int skip_trellis = 0;
   av1_txfm_rd_in_plane(x, cpi, rd_stats, ref_best_rd,
@@ -2966,9 +3001,14 @@ static AOM_INLINE void choose_tx_size_type_from_rd(const AV1_COMP *const cpi,
 
   if (tx_select) {
     start_tx = max_rect_tx_size;
-    init_depth = get_search_init_depth(mi_size_wide[bs], mi_size_high[bs],
-                                       is_inter_block(mbmi), &cpi->sf,
-                                       txfm_params->tx_size_search_method);
+    init_depth =
+        get_search_init_depth(mi_size_wide[bs], mi_size_high[bs],
+#if CONFIG_SDP
+                              is_inter_block(mbmi, xd->tree_type), &cpi->sf,
+#else
+                              is_inter_block(mbmi), &cpi->sf,
+#endif
+                              txfm_params->tx_size_search_method);
   } else {
     const TX_SIZE chosen_tx_size =
         tx_size_from_tx_mode(bs, txfm_params->tx_mode_search_type);
@@ -3031,7 +3071,11 @@ static AOM_INLINE void block_rd_txfm(int plane, int block, int blk_row,
 
   MACROBLOCK *const x = args->x;
   MACROBLOCKD *const xd = &x->e_mbd;
+#if CONFIG_SDP
+  const int is_inter = is_inter_block(xd->mi[0], xd->tree_type);
+#else
   const int is_inter = is_inter_block(xd->mi[0]);
+#endif
   const AV1_COMP *cpi = args->cpi;
   ENTROPY_CONTEXT *a = args->t_above + blk_col;
   ENTROPY_CONTEXT *l = args->t_left + blk_row;
@@ -3102,11 +3146,12 @@ int64_t av1_uniform_txfm_yrd(const AV1_COMP *const cpi, MACROBLOCK *x,
   MB_MODE_INFO *const mbmi = xd->mi[0];
   const TxfmSearchParams *txfm_params = &x->txfm_search_params;
   const ModeCosts *mode_costs = &x->mode_costs;
-  const int is_inter = is_inter_block(mbmi);
 #if CONFIG_SDP
+  const int is_inter = is_inter_block(mbmi, xd->tree_type);
   const int tx_select = txfm_params->tx_mode_search_type == TX_MODE_SELECT &&
                         block_signals_txsize(mbmi->sb_type[PLANE_TYPE_Y]);
 #else
+  const int is_inter = is_inter_block(mbmi);
   const int tx_select = txfm_params->tx_mode_search_type == TX_MODE_SELECT &&
                         block_signals_txsize(mbmi->sb_type);
 #endif
@@ -3177,7 +3222,11 @@ static AOM_INLINE void tx_block_yrd(
   assert(tx_size < TX_SIZES_ALL);
   MACROBLOCKD *const xd = &x->e_mbd;
   MB_MODE_INFO *const mbmi = xd->mi[0];
+#if CONFIG_SDP
+  assert(is_inter_block(mbmi, xd->tree_type));
+#else
   assert(is_inter_block(mbmi));
+#endif
   const int max_blocks_high = max_block_high(xd, plane_bsize, 0);
   const int max_blocks_wide = max_block_wide(xd, plane_bsize, 0);
 
@@ -3346,7 +3395,11 @@ static int64_t select_tx_size_and_type(const AV1_COMP *cpi, MACROBLOCK *x,
                                        TXB_RD_INFO_NODE *rd_info_tree) {
   MACROBLOCKD *const xd = &x->e_mbd;
   const TxfmSearchParams *txfm_params = &x->txfm_search_params;
+#if CONFIG_SDP
+  assert(is_inter_block(xd->mi[0], xd->tree_type));
+#else
   assert(is_inter_block(xd->mi[0]));
+#endif
   assert(bsize < BLOCK_SIZES_ALL);
   const int fast_tx_search = txfm_params->tx_size_search_method > USE_FULL_RD;
   int64_t rd_thresh = ref_best_rd;
@@ -3462,7 +3515,11 @@ void av1_pick_recursive_tx_size_type_yrd(const AV1_COMP *cpi, MACROBLOCK *x,
                                          int64_t ref_best_rd) {
   MACROBLOCKD *const xd = &x->e_mbd;
   const TxfmSearchParams *txfm_params = &x->txfm_search_params;
+#if CONFIG_SDP
+  assert(is_inter_block(xd->mi[0], xd->tree_type));
+#else
   assert(is_inter_block(xd->mi[0]));
+#endif
 
   av1_invalid_rd_stats(rd_stats);
 
@@ -3551,10 +3608,11 @@ void av1_pick_uniform_tx_size_type_yrd(const AV1_COMP *const cpi, MACROBLOCK *x,
   const TxfmSearchParams *tx_params = &x->txfm_search_params;
 #if CONFIG_SDP
   assert(bs == mbmi->sb_type[PLANE_TYPE_Y]);
+  const int is_inter = is_inter_block(mbmi, xd->tree_type);
 #else
   assert(bs == mbmi->sb_type);
-#endif
   const int is_inter = is_inter_block(mbmi);
+#endif
   const int mi_row = xd->mi_row;
   const int mi_col = xd->mi_col;
 
@@ -3624,7 +3682,11 @@ int av1_txfm_uvrd(const AV1_COMP *const cpi, MACROBLOCK *x, RD_STATS *rd_stats,
   MACROBLOCKD *const xd = &x->e_mbd;
   MB_MODE_INFO *const mbmi = xd->mi[0];
   struct macroblockd_plane *const pd = &xd->plane[AOM_PLANE_U];
+#if CONFIG_SDP
+  const int is_inter = is_inter_block(mbmi, xd->tree_type);
+#else
   const int is_inter = is_inter_block(mbmi);
+#endif
   int64_t this_rd = 0, skip_txfm_rd = 0;
   const BLOCK_SIZE plane_bsize =
       get_plane_block_size(bsize, pd->subsampling_x, pd->subsampling_y);
@@ -3706,7 +3768,11 @@ void av1_txfm_rd_in_plane(MACROBLOCK *x, const AV1_COMP *cpi,
                                          &args);
 
   MB_MODE_INFO *const mbmi = xd->mi[0];
+#if CONFIG_SDP
+  const int is_inter = is_inter_block(mbmi, xd->tree_type);
+#else
   const int is_inter = is_inter_block(mbmi);
+#endif
   const int invalid_rd = is_inter ? args.incomplete_exit : args.exit_early;
 
   if (invalid_rd) {

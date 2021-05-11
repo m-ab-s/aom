@@ -213,8 +213,8 @@ static TX_SIZE get_transform_size(const MACROBLOCKD *const xd,
 #endif
   assert(tx_size < TX_SIZES_ALL);
 #if CONFIG_SDP
-  if ((plane == AOM_PLANE_Y) && is_inter_block(mbmi) &&
-      !mbmi->skip_txfm[mbmi->tree_type == CHROMA_PART]) {
+  if ((plane == AOM_PLANE_Y) && is_inter_block(mbmi, SHARED_PART) &&
+      !mbmi->skip_txfm[SHARED_PART]) {
     const BLOCK_SIZE sb_type = mbmi->sb_type[plane_type];
 #else
   if ((plane == AOM_PLANE_Y) && is_inter_block(mbmi) && !mbmi->skip_txfm) {
@@ -306,7 +306,7 @@ static TX_SIZE set_lpf_parameters(
           av1_get_filter_level(cm, &cm->lf_info, edge_dir, plane, mbmi);
 #if CONFIG_SDP
       const int curr_skipped =
-          mbmi->skip_txfm[plane_type] && is_inter_block(mbmi);
+          mbmi->skip_txfm[plane_type] && is_inter_block(mbmi, xd->tree_type);
 #else
       const int curr_skipped = mbmi->skip_txfm && is_inter_block(mbmi);
 #endif
@@ -331,7 +331,8 @@ static TX_SIZE set_lpf_parameters(
 
           const int pv_skip_txfm =
 #if CONFIG_SDP
-              mi_prev->skip_txfm[plane_type] && is_inter_block(mi_prev);
+              mi_prev->skip_txfm[plane_type] &&
+              is_inter_block(mi_prev, xd->tree_type);
 #else
               mi_prev->skip_txfm && is_inter_block(mi_prev);
 #endif

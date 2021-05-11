@@ -980,10 +980,7 @@ static INLINE void init_mbmi(MB_MODE_INFO *mbmi, PREDICTION_MODE pred_mode,
                              const AV1_COMMON *cm) {
   PALETTE_MODE_INFO *const pmi = &mbmi->palette_mode_info;
   mbmi->ref_mv_idx = 0;
-#if CONFIG_SDP
-  if (mbmi->tree_type != CHROMA_PART)
-#endif
-    mbmi->mode = pred_mode;
+  mbmi->mode = pred_mode;
   mbmi->uv_mode = UV_DC_PRED;
   mbmi->ref_frame[0] = ref_frame0;
   mbmi->ref_frame[1] = ref_frame1;
@@ -1602,9 +1599,9 @@ void av1_nonrd_pick_intra_mode(AV1_COMP *cpi, MACROBLOCK *x, RD_STATS *rd_cost,
     args.skippable = 1;
     args.rdc = &this_rdc;
 #if CONFIG_SDP
-    if (mi->tree_type != CHROMA_PART) mi->tx_size = intra_tx_size;
+    if (xd->tree_type != CHROMA_PART) mi->tx_size = intra_tx_size;
     av1_foreach_transformed_block_in_plane(
-        xd, bsize, mi->tree_type == CHROMA_PART, estimate_block_intra, &args);
+        xd, bsize, xd->tree_type == CHROMA_PART, estimate_block_intra, &args);
 #else
     mi->tx_size = intra_tx_size;
     av1_foreach_transformed_block_in_plane(xd, bsize, 0, estimate_block_intra,
@@ -2388,8 +2385,11 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
   mi->mode = best_pickmode.best_mode;
   mi->ref_frame[0] = best_pickmode.best_ref_frame;
   txfm_info->skip_txfm = best_rdc.skip_txfm;
-
+#if CONFIG_SDP
+  if (!is_inter_block(mi, xd->tree_type)) {
+#else
   if (!is_inter_block(mi)) {
+#endif
 #if CONFIG_REMOVE_DUAL_FILTER
     mi->interp_fltr = SWITCHABLE_FILTERS;
 #else

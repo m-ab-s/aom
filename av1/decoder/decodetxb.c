@@ -384,8 +384,11 @@ void av1_read_coeffs_txb_facade(const AV1_COMMON *const cm,
       av1_read_coeffs_txb(cm, dcb, r, row, col, plane, &txb_ctx, tx_size);
   av1_set_entropy_contexts(xd, pd, plane, plane_bsize, tx_size, cul_level, col,
                            row);
-
+#if CONFIG_SDP
+  if (is_inter_block(mbmi, xd->tree_type)) {
+#else
   if (is_inter_block(mbmi)) {
+#endif
     const PLANE_TYPE plane_type = get_plane_type(plane);
     // tx_type will be read out in av1_read_coeffs_txb_facade
     const TX_TYPE tx_type = av1_get_tx_type(xd, plane_type, row, col, tx_size,

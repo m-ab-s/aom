@@ -896,7 +896,11 @@ static AOM_INLINE void predict_inter_block(AV1_COMMON *const cm,
   for (int ref = 0; ref < 1 + has_second_ref(mbmi); ++ref) {
     const MV_REFERENCE_FRAME frame = mbmi->ref_frame[ref];
     if (frame < LAST_FRAME) {
+#if CONFIG_SDP
+      assert(is_intrabc_block(mbmi, xd->tree_type));
+#else
       assert(is_intrabc_block(mbmi));
+#endif
       assert(frame == INTRA_FRAME);
       assert(ref == 0);
     } else {
@@ -963,9 +967,10 @@ static AOM_INLINE void decode_token_recon_block(AV1Decoder *const pbi,
   xd->mi[0]->partition = partition;
   const int plane_start = (xd->tree_type == CHROMA_PART);
   const int plane_end = (xd->tree_type == LUMA_PART) ? 1 : num_planes;
-#endif
-
+  if (!is_inter_block(mbmi, xd->tree_type)) {
+#else
   if (!is_inter_block(mbmi)) {
+#endif
     int row, col;
     assert(bsize == get_plane_block_size(bsize, xd->plane[0].subsampling_x,
                                          xd->plane[0].subsampling_y));
@@ -1252,9 +1257,12 @@ static AOM_INLINE void parse_decode_block(AV1Decoder *const pbi,
   AV1_COMMON *cm = &pbi->common;
   const int num_planes = av1_num_planes(cm);
   MB_MODE_INFO *mbmi = xd->mi[0];
-  int inter_block_tx = is_inter_block(mbmi) || is_intrabc_block(mbmi);
 #if CONFIG_SDP
+  int inter_block_tx = is_inter_block(mbmi, xd->tree_type) ||
+                       is_intrabc_block(mbmi, xd->tree_type);
   if (xd->tree_type != CHROMA_PART) {
+#else
+  int inter_block_tx = is_inter_block(mbmi) || is_intrabc_block(mbmi);
 #endif
     if (cm->features.tx_mode == TX_MODE_SELECT && block_signals_txsize(bsize) &&
 #if CONFIG_SDP
@@ -1286,13 +1294,13 @@ static AOM_INLINE void parse_decode_block(AV1Decoder *const pbi,
 #endif
       if (inter_block_tx)
         memset(mbmi->inter_tx_size, mbmi->tx_size, sizeof(mbmi->inter_tx_size));
-      set_txfm_ctxs(
-          mbmi->tx_size, xd->width, xd->height,
+      set_txfm_ctxs(mbmi->tx_size, xd->width, xd->height,
 #if CONFIG_SDP
-          mbmi->skip_txfm[xd->tree_type == CHROMA_PART] && is_inter_block(mbmi),
-          xd);
+                    mbmi->skip_txfm[xd->tree_type == CHROMA_PART] &&
+                        is_inter_block(mbmi, xd->tree_type),
+                    xd);
 #else
-        mbmi->skip_txfm && is_inter_block(mbmi), xd);
+                  mbmi->skip_txfm && is_inter_block(mbmi), xd);
 #endif
 #if CONFIG_LPF_MASK
       const int w = mi_size_wide[bsize];

@@ -18,13 +18,23 @@
 
 PREDICTION_MODE av1_left_block_mode(const MB_MODE_INFO *left_mi) {
   if (!left_mi) return DC_PRED;
+#if CONFIG_SDP
+  assert(!is_inter_block(left_mi, SHARED_PART) ||
+         is_intrabc_block(left_mi, SHARED_PART));
+#else
   assert(!is_inter_block(left_mi) || is_intrabc_block(left_mi));
+#endif
   return left_mi->mode;
 }
 
 PREDICTION_MODE av1_above_block_mode(const MB_MODE_INFO *above_mi) {
   if (!above_mi) return DC_PRED;
+#if CONFIG_SDP
+  assert(!is_inter_block(above_mi, SHARED_PART) ||
+         is_intrabc_block(above_mi, SHARED_PART));
+#else
   assert(!is_inter_block(above_mi) || is_intrabc_block(above_mi));
+#endif
   return above_mi->mode;
 }
 

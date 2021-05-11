@@ -209,7 +209,11 @@ static void update_zeromv_cnt(const AV1_COMP *const cpi,
     for (int x = 0; x < xmis; x++) {
       // consec_zero_mv is in the scale of 8x8 blocks
       const int map_offset = block_index + y * (cm->mi_params.mi_cols >> 1) + x;
+#if CONFIG_SDP
+      if (mi->ref_frame[0] == LAST_FRAME && is_inter_block(mi, SHARED_PART) &&
+#else
       if (mi->ref_frame[0] == LAST_FRAME && is_inter_block(mi) &&
+#endif
           mi->segment_id <= CR_SEGMENT_ID_BOOST2) {
         if (abs(mv.row) < 10 && abs(mv.col) < 10) {
           if (cpi->consec_zero_mv[map_offset] < 255)
@@ -235,7 +239,11 @@ static void encode_superblock(const AV1_COMP *const cpi, TileDataEnc *tile_data,
   const int mis = cm->mi_params.mi_stride;
   const int mi_width = mi_size_wide[bsize];
   const int mi_height = mi_size_high[bsize];
+#if CONFIG_SDP
+  const int is_inter = is_inter_block(mbmi, xd->tree_type);
+#else
   const int is_inter = is_inter_block(mbmi);
+#endif
 
   // Initialize tx_mode and tx_size_search_method
   TxfmSearchParams *txfm_params = &x->txfm_search_params;
@@ -310,7 +318,11 @@ static void encode_superblock(const AV1_COMP *const cpi, TileDataEnc *tile_data,
     for (ref = 0; ref < 1 + is_compound; ++ref) {
       const YV12_BUFFER_CONFIG *cfg =
           get_ref_frame_yv12_buf(cm, mbmi->ref_frame[ref]);
+#if CONFIG_SDP
+      assert(IMPLIES(!is_intrabc_block(mbmi, xd->tree_type), cfg));
+#else
       assert(IMPLIES(!is_intrabc_block(mbmi), cfg));
+#endif
       av1_setup_pre_planes(xd, ref, cfg, mi_row, mi_col,
                            xd->block_ref_scale_factors[ref], num_planes);
     }
@@ -348,18 +360,16 @@ static void encode_superblock(const AV1_COMP *const cpi, TileDataEnc *tile_data,
   }
 
   if (!dry_run) {
-    if (av1_allow_intrabc(cm) && is_intrabc_block(mbmi)) td->intrabc_used = 1;
 #if CONFIG_SDP
+    if (av1_allow_intrabc(cm) && is_intrabc_block(mbmi, xd->tree_type))
+      td->intrabc_used = 1;
     if (txfm_params->tx_mode_search_type == TX_MODE_SELECT &&
         !xd->lossless[mbmi->segment_id] &&
         mbmi->sb_type[xd->tree_type == CHROMA_PART] > BLOCK_4X4 &&
-#if CONFIG_SDP
         !(is_inter &&
           (mbmi->skip_txfm[xd->tree_type == CHROMA_PART] || seg_skip))) {
 #else
-        !(is_inter && (mbmi->skip_txfm || seg_skip))) {
-#endif
-#else
+    if (av1_allow_intrabc(cm) && is_intrabc_block(mbmi)) td->intrabc_used = 1;
     if (txfm_params->tx_mode_search_type == TX_MODE_SELECT &&
         !xd->lossless[mbmi->segment_id] && mbmi->sb_type > BLOCK_4X4 &&
         !(is_inter && (mbmi->skip_txfm || seg_skip))) {
@@ -455,18 +465,20 @@ static void encode_superblock(const AV1_COMP *const cpi, TileDataEnc *tile_data,
     set_txfm_ctxs(tx_size, xd->width, xd->height,
 #if CONFIG_SDP
                   (mbmi->skip_txfm[xd->tree_type == CHROMA_PART] || seg_skip) &&
-                      is_inter_block(mbmi),
+                      is_inter_block(mbmi, xd->tree_type),
                   xd);
 #else
                   (mbmi->skip_txfm || seg_skip) && is_inter_block(mbmi), xd);
 #endif
   }
 
-  if (is_inter_block(mbmi) && !xd->is_chroma_ref && is_cfl_allowed(xd)) {
 #if CONFIG_SDP
+  if (is_inter_block(mbmi, xd->tree_type) && !xd->is_chroma_ref &&
+      is_cfl_allowed(xd)) {
     cfl_store_block(xd, mbmi->sb_type[xd->tree_type == CHROMA_PART],
                     mbmi->tx_size);
 #else
+  if (is_inter_block(mbmi) && !xd->is_chroma_ref && is_cfl_allowed(xd)) {
     cfl_store_block(xd, mbmi->sb_type, mbmi->tx_size);
 #endif
   }
@@ -744,9 +756,6 @@ static void pick_sb_modes(AV1_COMP *const cpi, TileDataEnc *tile_data,
 
   mbmi = xd->mi[0];
 #if CONFIG_SDP
-  mbmi->tree_type = xd->tree_type;
-#endif
-#if CONFIG_SDP
   mbmi->sb_type[plane_type] = bsize;
   if (xd->tree_type == SHARED_PART) mbmi->sb_type[PLANE_TYPE_UV] = bsize;
 #else
@@ -951,26 +960,38 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
     }
   }
 #endif
-
+#if CONFIG_SDP
+  if (!is_inter_block(mbmi, xd->tree_type)) {
+#else
   if (!is_inter_block(mbmi)) {
+#endif
     av1_sum_intra_stats(cm, td->counts, xd, mbmi, xd->above_mbmi, xd->left_mbmi,
                         frame_is_intra_only(cm));
   }
 #if CONFIG_SDP
-  if (av1_allow_intrabc(cm) && mbmi->tree_type != CHROMA_PART) {
+  if (av1_allow_intrabc(cm) && xd->tree_type != CHROMA_PART) {
+    update_cdf(fc->intrabc_cdf, is_intrabc_block(mbmi, xd->tree_type), 2);
 #else
   if (av1_allow_intrabc(cm)) {
-#endif
     update_cdf(fc->intrabc_cdf, is_intrabc_block(mbmi), 2);
+#endif
 #if CONFIG_ENTROPY_STATS
+#if CONFIG_SDP
+    ++td->counts->intrabc[is_intrabc_block(mbmi, xd->tree_type)];
+#else
     ++td->counts->intrabc[is_intrabc_block(mbmi)];
+#endif
 #endif  // CONFIG_ENTROPY_STATS
   }
 
   if (frame_is_intra_only(cm) || mbmi->skip_mode) return;
 
   FRAME_COUNTS *const counts = td->counts;
+#if CONFIG_SDP
+  const int inter_block = is_inter_block(mbmi, xd->tree_type);
+#else
   const int inter_block = is_inter_block(mbmi);
+#endif
 
   if (!seg_ref_active) {
 #if CONFIG_ENTROPY_STATS
@@ -1431,7 +1452,11 @@ static void encode_b(const AV1_COMP *const cpi, TileDataEnc *tile_data,
         // If the segment reference feature is enabled we have only a single
         // reference frame allowed for the segment so exclude it from
         // the reference frame counts used to work out probabilities.
+#if CONFIG_SDP
+        if (is_inter_block(mbmi, xd->tree_type)) {
+#else
         if (is_inter_block(mbmi)) {
+#endif
           av1_collect_neighbors_ref_counts(xd);
           if (cm->current_frame.reference_mode == REFERENCE_MODE_SELECT) {
             if (has_second_ref(mbmi)) {
@@ -1451,7 +1476,11 @@ static void encode_b(const AV1_COMP *const cpi, TileDataEnc *tile_data,
          cpi->sf.inter_sf.prune_obmc_prob_thresh > 0) ||
         (cm->features.allow_warped_motion &&
          cpi->sf.inter_sf.prune_warped_prob_thresh > 0)) {
+#if CONFIG_SDP
+      const int inter_block = is_inter_block(mbmi, xd->tree_type);
+#else
       const int inter_block = is_inter_block(mbmi);
+#endif
       const int seg_ref_active =
           segfeature_active(&cm->seg, mbmi->segment_id, SEG_LVL_REF_FRAME);
       if (!seg_ref_active && inter_block) {
@@ -2150,7 +2179,6 @@ static void pick_sb_modes_nonrd(AV1_COMP *const cpi, TileDataEnc *tile_data,
   xd->tx_type_map = txfm_info->tx_type_map_;
   xd->tx_type_map_stride = mi_size_wide[bsize];
 #if CONFIG_SDP
-  mbmi->tree_type = xd->tree_type;
   if (xd->tree_type == SHARED_PART) mbmi->sb_type[PLANE_TYPE_UV] = bsize;
 #endif
 #if CONFIG_SDP

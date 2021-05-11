@@ -324,11 +324,18 @@ static INLINE INTERP_PRED_TYPE is_pred_filter_search_allowed(
   const MB_MODE_INFO *const left_mbmi = xd->left_mbmi;
   const int bsl = mi_size_wide_log2[bsize];
   int is_horiz_eq = 0, is_vert_eq = 0;
-
+#if CONFIG_SDP
+  if (above_mbmi && is_inter_block(above_mbmi, xd->tree_type))
+#else
   if (above_mbmi && is_inter_block(above_mbmi))
+#endif
     *af = above_mbmi->interp_filters;
-
+#if CONFIG_SDP
+  if (left_mbmi && is_inter_block(left_mbmi, xd->tree_type))
+    *lf = left_mbmi->interp_filters;
+#else
   if (left_mbmi && is_inter_block(left_mbmi)) *lf = left_mbmi->interp_filters;
+#endif
 
   if (af->as_filters.x_filter != INTERP_INVALID)
     is_horiz_eq = af->as_filters.x_filter == lf->as_filters.x_filter;
@@ -616,7 +623,11 @@ static INLINE void calc_interp_skip_pred_flag(MACROBLOCK *const x,
   MB_MODE_INFO *const mbmi = xd->mi[0];
   const int num_planes = av1_num_planes(cm);
   const int is_compound = has_second_ref(mbmi);
+#if CONFIG_SDP
+  assert(is_intrabc_block(mbmi, xd->tree_type) == 0);
+#else
   assert(is_intrabc_block(mbmi) == 0);
+#endif
   for (int ref = 0; ref < 1 + is_compound; ++ref) {
     const struct scale_factors *const sf =
         get_ref_scale_factors_const(cm, mbmi->ref_frame[ref]);

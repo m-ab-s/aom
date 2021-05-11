@@ -134,11 +134,21 @@ int av1_get_intra_inter_context(const MACROBLOCKD *xd) {
   const int has_left = xd->left_available;
 
   if (has_above && has_left) {  // both edges available
+#if CONFIG_SDP
+    const int above_intra = !is_inter_block(above_mbmi, xd->tree_type);
+    const int left_intra = !is_inter_block(left_mbmi, xd->tree_type);
+#else
     const int above_intra = !is_inter_block(above_mbmi);
     const int left_intra = !is_inter_block(left_mbmi);
+#endif
     return left_intra && above_intra ? 3 : left_intra || above_intra;
   } else if (has_above || has_left) {  // one edge available
+#if CONFIG_SDP
+    return 2 *
+           !is_inter_block(has_above ? above_mbmi : left_mbmi, xd->tree_type);
+#else
     return 2 * !is_inter_block(has_above ? above_mbmi : left_mbmi);
+#endif
   } else {
     return 0;
   }
@@ -167,11 +177,19 @@ int av1_get_reference_mode_context(const MACROBLOCKD *xd) {
     else if (!has_second_ref(above_mbmi))
       // one of two edges uses comp pred (2/3)
       ctx = 2 + (IS_BACKWARD_REF_FRAME(above_mbmi->ref_frame[0]) ||
+#if CONFIG_SDP
+                 !is_inter_block(above_mbmi, xd->tree_type));
+#else
                  !is_inter_block(above_mbmi));
+#endif
     else if (!has_second_ref(left_mbmi))
       // one of two edges uses comp pred (2/3)
       ctx = 2 + (IS_BACKWARD_REF_FRAME(left_mbmi->ref_frame[0]) ||
+#if CONFIG_SDP
+                 !is_inter_block(left_mbmi, xd->tree_type));
+#else
                  !is_inter_block(left_mbmi));
+#endif
     else  // both edges use comp pred (4)
       ctx = 4;
   } else if (has_above || has_left) {  // one edge available
@@ -198,8 +216,13 @@ int av1_get_comp_reference_type_context(const MACROBLOCKD *xd) {
   const int left_in_image = xd->left_available;
 
   if (above_in_image && left_in_image) {  // both edges available
+#if CONFIG_SDP
+    const int above_intra = !is_inter_block(above_mbmi, xd->tree_type);
+    const int left_intra = !is_inter_block(left_mbmi, xd->tree_type);
+#else
     const int above_intra = !is_inter_block(above_mbmi);
     const int left_intra = !is_inter_block(left_mbmi);
+#endif
 
     if (above_intra && left_intra) {  // intra/intra
       pred_context = 2;
@@ -243,8 +266,11 @@ int av1_get_comp_reference_type_context(const MACROBLOCKD *xd) {
     }
   } else if (above_in_image || left_in_image) {  // one edge available
     const MB_MODE_INFO *edge_mbmi = above_in_image ? above_mbmi : left_mbmi;
-
+#if CONFIG_SDP
+    if (!is_inter_block(edge_mbmi, xd->tree_type)) {  // intra
+#else
     if (!is_inter_block(edge_mbmi)) {  // intra
+#endif
       pred_context = 2;
     } else {                           // inter
       if (!has_second_ref(edge_mbmi))  // single pred

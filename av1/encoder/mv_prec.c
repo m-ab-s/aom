@@ -189,8 +189,11 @@ static AOM_INLINE void collect_mv_stats_b(MV_STATS *mv_stats,
       cpi->mbmi_ext_info.frame_base +
       get_mi_ext_idx(mi_row, mi_col, cm->mi_params.mi_alloc_bsize,
                      cpi->mbmi_ext_info.stride);
-
+#if CONFIG_SDP
+  if (!is_inter_block(mbmi, SHARED_PART)) {
+#else
   if (!is_inter_block(mbmi)) {
+#endif
     mv_stats->intra_count++;
     return;
   }

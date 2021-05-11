@@ -247,6 +247,7 @@ static AOM_INLINE int intra_mode_info_cost_y(const AV1_COMP *cpi,
   const ModeCosts *mode_costs = &x->mode_costs;
   const int use_palette = mbmi->palette_mode_info.palette_size[0] > 0;
   const int use_filter_intra = mbmi->filter_intra_mode_info.use_filter_intra;
+  const MACROBLOCKD *xd = &x->e_mbd;
 #if CONFIG_SDP
   const int use_intrabc = mbmi->use_intrabc[PLANE_TYPE_Y];
 #else
@@ -264,7 +265,6 @@ static AOM_INLINE int intra_mode_info_cost_y(const AV1_COMP *cpi,
       cpi->common.features.allow_screen_content_tools, mbmi->sb_type);
 #endif
   if (try_palette && mbmi->mode == DC_PRED) {
-    const MACROBLOCKD *xd = &x->e_mbd;
     const int bsize_ctx = av1_get_palette_bsize_ctx(bsize);
     const int mode_ctx = av1_get_palette_mode_ctx(xd);
     total_rate +=
@@ -320,7 +320,7 @@ static AOM_INLINE int intra_mode_info_cost_y(const AV1_COMP *cpi,
     }
   }
 #if CONFIG_SDP
-  if (av1_allow_intrabc(&cpi->common) && mbmi->tree_type != CHROMA_PART)
+  if (av1_allow_intrabc(&cpi->common) && xd->tree_type != CHROMA_PART)
 #else
   if (av1_allow_intrabc(&cpi->common))
 #endif
@@ -411,7 +411,11 @@ static int64_t intra_model_yrd(const AV1_COMP *const cpi, MACROBLOCK *const x,
   const AV1_COMMON *cm = &cpi->common;
   MACROBLOCKD *const xd = &x->e_mbd;
   MB_MODE_INFO *const mbmi = xd->mi[0];
+#if CONFIG_SDP
+  assert(!is_inter_block(mbmi, xd->tree_type));
+#else
   assert(!is_inter_block(mbmi));
+#endif
   RD_STATS this_rd_stats;
   int row, col;
   int64_t temp_sse, this_rd;

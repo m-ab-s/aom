@@ -70,7 +70,11 @@ static AOM_INLINE void write_intra_y_mode_kf(FRAME_CONTEXT *frame_ctx,
                                              const MB_MODE_INFO *left_mi,
                                              PREDICTION_MODE mode,
                                              aom_writer *w) {
+#if CONFIG_SDP
+  assert(!is_intrabc_block(mi, SHARED_PART));
+#else
   assert(!is_intrabc_block(mi));
+#endif
   (void)mi;
   aom_write_symbol(w, mode, get_y_mode_cdf(frame_ctx, above_mi, left_mi),
                    INTRA_MODES);
@@ -222,7 +226,11 @@ static AOM_INLINE void write_selected_tx_size(const MACROBLOCKD *xd,
     const int32_t tx_size_cat = bsize_to_tx_size_cat(bsize);
 
     assert(depth >= 0 && depth <= max_depths);
+#if CONFIG_SDP
+    assert(!is_inter_block(mbmi, xd->tree_type));
+#else
     assert(!is_inter_block(mbmi));
+#endif
     assert(IMPLIES(is_rect_tx(tx_size), is_rect_tx_allowed(xd, mbmi)));
 
     aom_write_symbol(w, depth, ec_ctx->tx_size_cdf[tx_size_cat][tx_size_ctx],
@@ -503,8 +511,9 @@ static AOM_INLINE void write_segment_id(AV1_COMP *cpi,
     // Still need to transmit tx size for intra blocks even if skip_txfm is
     // true. Changing segment_id may make the tx size become invalid, e.g
     // changing from lossless to lossy.
-    assert(is_inter_block(mbmi) || !cpi->enc_seg.has_lossless_segment);
 #if CONFIG_SDP
+    assert(is_inter_block(mbmi, xd->tree_type) ||
+           !cpi->enc_seg.has_lossless_segment);
     set_spatial_segment_id(&cm->mi_params, cm->cur_frame->seg_map,
                            mbmi->sb_type[xd->tree_type == CHROMA_PART], mi_row,
                            mi_col, pred);
@@ -512,6 +521,7 @@ static AOM_INLINE void write_segment_id(AV1_COMP *cpi,
                            mbmi->sb_type[xd->tree_type == CHROMA_PART], mi_row,
                            mi_col, pred);
 #else
+    assert(is_inter_block(mbmi) || !cpi->enc_seg.has_lossless_segment);
     set_spatial_segment_id(&cm->mi_params, cm->cur_frame->seg_map,
                            mbmi->sb_type, mi_row, mi_col, pred);
     set_spatial_segment_id(&cm->mi_params, cpi->enc_seg.map, mbmi->sb_type,
@@ -893,7 +903,11 @@ void av1_write_tx_type(const AV1_COMMON *const cm, const MACROBLOCKD *xd,
                        TX_TYPE tx_type, TX_SIZE tx_size, aom_writer *w) {
   MB_MODE_INFO *mbmi = xd->mi[0];
   const FeatureFlags *const features = &cm->features;
+#if CONFIG_SDP
+  const int is_inter = is_inter_block(mbmi, xd->tree_type);
+#else
   const int is_inter = is_inter_block(mbmi);
+#endif
   if (get_ext_tx_types(tx_size, is_inter, features->reduced_tx_set_used) > 1 &&
       ((!cm->seg.enabled && cm->quant_params.base_qindex > 0) ||
        (cm->seg.enabled && xd->qindex[mbmi->segment_id] > 0)) &&
@@ -1240,7 +1254,11 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
   const BLOCK_SIZE bsize = mbmi->sb_type;
 #endif
   const int allow_hp = cm->features.allow_high_precision_mv;
+#if CONFIG_SDP
+  const int is_inter = is_inter_block(mbmi, xd->tree_type);
+#else
   const int is_inter = is_inter_block(mbmi);
+#endif
   const int is_compound = has_second_ref(mbmi);
   int ref;
 
@@ -1395,9 +1413,11 @@ static AOM_INLINE void write_intrabc_info(
     MACROBLOCKD *xd, const MB_MODE_INFO_EXT_FRAME *mbmi_ext_frame,
     aom_writer *w) {
   const MB_MODE_INFO *const mbmi = xd->mi[0];
-  int use_intrabc = is_intrabc_block(mbmi);
 #if CONFIG_SDP
+  int use_intrabc = is_intrabc_block(mbmi, xd->tree_type);
   if (xd->tree_type == CHROMA_PART) assert(use_intrabc == 0);
+#else
+  int use_intrabc = is_intrabc_block(mbmi);
 #endif
   FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
   aom_write_symbol(w, use_intrabc, ec_ctx->intrabc_cdf, 2);
@@ -1442,7 +1462,11 @@ static AOM_INLINE void write_mb_modes_kf(
   if (av1_allow_intrabc(cm)) {
 #endif
     write_intrabc_info(xd, mbmi_ext_frame, w);
+#if CONFIG_SDP
+    if (is_intrabc_block(mbmi, xd->tree_type)) return;
+#else
     if (is_intrabc_block(mbmi)) return;
+#endif
   }
 
   write_intra_prediction_modes(cpi, 1, w);
@@ -1499,7 +1523,11 @@ static AOM_INLINE void enc_dump_logs(
       mbmi_ext_info->frame_base + get_mi_ext_idx(mi_row, mi_col,
                                                  cm->mi_params.mi_alloc_bsize,
                                                  mbmi_ext_info->stride);
+#if CONFIG_SDP
+  if (is_inter_block(mbmi, SHARED_PART)) {
+#else
   if (is_inter_block(mbmi)) {
+#endif
 #define FRAME_TO_CHECK 11
     if (cm->current_frame.frame_number == FRAME_TO_CHECK &&
         cm->show_frame == 1) {
@@ -1621,11 +1649,12 @@ static AOM_INLINE void write_tokens_b(AV1_COMP *cpi, aom_writer *w,
 #endif
 #if CONFIG_SDP
   assert(!mbmi->skip_txfm[xd->tree_type == CHROMA_PART]);
+  const int is_inter = is_inter_block(mbmi, xd->tree_type);
 #else
   assert(!mbmi->skip_txfm);
+  const int is_inter = is_inter_block(mbmi);
 #endif
 
-  const int is_inter = is_inter_block(mbmi);
   if (!is_inter) {
     av1_write_intra_coeffs_mb(cm, x, w, bsize);
   } else {
@@ -1696,7 +1725,6 @@ static AOM_INLINE void write_modes_b(AV1_COMP *cpi, const TileInfo *const tile,
 
 #if CONFIG_SDP
   MB_MODE_INFO *mbmi = xd->mi[0];
-  mbmi->tree_type = xd->tree_type;
 #else
   const MB_MODE_INFO *mbmi = xd->mi[0];
 #endif
@@ -1758,10 +1786,11 @@ static AOM_INLINE void write_modes_b(AV1_COMP *cpi, const TileInfo *const tile,
     }
   }
 
-  const int is_inter_tx = is_inter_block(mbmi);
 #if CONFIG_SDP
+  const int is_inter_tx = is_inter_block(mbmi, xd->tree_type);
   const int skip_txfm = mbmi->skip_txfm[xd->tree_type == CHROMA_PART];
 #else
+  const int is_inter_tx = is_inter_block(mbmi);
   const int skip_txfm = mbmi->skip_txfm;
 #endif
   const int segment_id = mbmi->segment_id;

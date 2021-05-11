@@ -216,7 +216,11 @@ static INLINE void av1_collect_neighbors_ref_counts(MACROBLOCKD *const xd) {
   const int left_in_image = xd->left_available;
 
   // Above neighbor
+#if CONFIG_SDP
+  if (above_in_image && is_inter_block(above_mbmi, xd->tree_type)) {
+#else
   if (above_in_image && is_inter_block(above_mbmi)) {
+#endif
     ref_counts[above_mbmi->ref_frame[0]]++;
     if (has_second_ref(above_mbmi)) {
       ref_counts[above_mbmi->ref_frame[1]]++;
@@ -224,7 +228,11 @@ static INLINE void av1_collect_neighbors_ref_counts(MACROBLOCKD *const xd) {
   }
 
   // Left neighbor
+#if CONFIG_SDP
+  if (left_in_image && is_inter_block(left_mbmi, xd->tree_type)) {
+#else
   if (left_in_image && is_inter_block(left_mbmi)) {
+#endif
     ref_counts[left_mbmi->ref_frame[0]]++;
     if (has_second_ref(left_mbmi)) {
       ref_counts[left_mbmi->ref_frame[1]]++;

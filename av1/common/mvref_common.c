@@ -77,7 +77,11 @@ static AOM_INLINE void add_ref_mv_candidate(
     CANDIDATE_MV *ref_mv_stack, uint16_t *ref_mv_weight,
     int_mv *gm_mv_candidates, const WarpedMotionParams *gm_params,
     uint16_t weight) {
+#if CONFIG_SDP
+  if (!is_inter_block(candidate, SHARED_PART)) return;
+#else
   if (!is_inter_block(candidate)) return;
+#endif
   assert(weight % 2 == 0);
   int index, ref;
 

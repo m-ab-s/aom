@@ -290,7 +290,11 @@ void aom_upsampled_pred_c(MACROBLOCKD *xd, const AV1_COMMON *const cm,
   if (xd != NULL) {
     const MB_MODE_INFO *mi = xd->mi[0];
     const int ref_num = 0;
+#if CONFIG_SDP
+    const int is_intrabc = is_intrabc_block(mi, xd->tree_type);
+#else
     const int is_intrabc = is_intrabc_block(mi);
+#endif
     const struct scale_factors *const sf =
         is_intrabc ? &cm->sf_identity : xd->block_ref_scale_factors[ref_num];
     const int is_scaled = av1_is_scaled(sf);
@@ -837,7 +841,11 @@ void aom_highbd_upsampled_pred_c(MACROBLOCKD *xd,
   if (xd != NULL) {
     const MB_MODE_INFO *mi = xd->mi[0];
     const int ref_num = 0;
+#if CONFIG_SDP
+    const int is_intrabc = is_intrabc_block(mi, xd->tree_type);
+#else
     const int is_intrabc = is_intrabc_block(mi);
+#endif
     const struct scale_factors *const sf =
         is_intrabc ? &cm->sf_identity : xd->block_ref_scale_factors[ref_num];
     const int is_scaled = av1_is_scaled(sf);

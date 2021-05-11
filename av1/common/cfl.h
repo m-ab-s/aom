@@ -59,7 +59,11 @@ static INLINE CFL_ALLOWED_TYPE store_cfl_required(const AV1_COMMON *cm,
 
   // If this block has chroma information, we know whether we're
   // actually going to perform a CfL prediction
+#if CONFIG_SDP
+  return (CFL_ALLOWED_TYPE)(!is_inter_block(mbmi, xd->tree_type) &&
+#else
   return (CFL_ALLOWED_TYPE)(!is_inter_block(mbmi) &&
+#endif
                             mbmi->uv_mode == UV_CFL_PRED);
 }
 

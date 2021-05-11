@@ -206,7 +206,12 @@ static void init_txfm_param(const MACROBLOCKD *xd, int plane, TX_SIZE tx_size,
   txfm_param->bd = xd->bd;
   txfm_param->is_hbd = is_cur_buf_hbd(xd);
   txfm_param->tx_set_type = av1_get_ext_tx_set_type(
+#if CONFIG_SDP
+      txfm_param->tx_size, is_inter_block(xd->mi[0], xd->tree_type),
+      reduced_tx_set);
+#else
       txfm_param->tx_size, is_inter_block(xd->mi[0]), reduced_tx_set);
+#endif
 }
 
 void av1_highbd_inv_txfm_add_c(const tran_low_t *input, uint8_t *dest,

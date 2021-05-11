@@ -944,7 +944,11 @@ static int is_smooth(const MB_MODE_INFO *mbmi, int plane) {
   } else {
     // uv_mode is not set for inter blocks, so need to explicitly
     // detect that case.
+#if CONFIG_SDP
+    if (is_inter_block(mbmi, SHARED_PART)) return 0;
+#else
     if (is_inter_block(mbmi)) return 0;
+#endif
 
     const UV_PREDICTION_MODE uv_mode = mbmi->uv_mode;
     return (uv_mode == UV_SMOOTH_PRED || uv_mode == UV_SMOOTH_V_PRED ||

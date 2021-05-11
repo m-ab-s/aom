@@ -333,7 +333,12 @@ void av1_setup_xform(const AV1_COMMON *cm, MACROBLOCK *x, TX_SIZE tx_size,
   txfm_param->tx_size = tx_size;
   txfm_param->lossless = xd->lossless[mbmi->segment_id];
   txfm_param->tx_set_type = av1_get_ext_tx_set_type(
+#if CONFIG_SDP
+      tx_size, is_inter_block(mbmi, xd->tree_type),
+      cm->features.reduced_tx_set_used);
+#else
       tx_size, is_inter_block(mbmi), cm->features.reduced_tx_set_used);
+#endif
 
   txfm_param->bd = xd->bd;
   txfm_param->is_hbd = is_cur_buf_hbd(xd);
