@@ -467,7 +467,8 @@ int16_t aom_int_pro_col_c(const uint8_t *ref, const int width) {
 int aom_vector_var_c(const int16_t *ref, const int16_t *src, const int bwl) {
   int i;
   int width = 4 << bwl;
-  int sse = 0, mean = 0, var;
+  int mean = 0, var;
+  uint32_t sse = 0;
 
   for (i = 0; i < width; ++i) {
     int diff = ref[i] - src[i];
@@ -475,7 +476,8 @@ int aom_vector_var_c(const int16_t *ref, const int16_t *src, const int bwl) {
     sse += diff * diff;
   }
 
-  // TODO(any): check (mean * mean) dynamic range in bits.
-  var = sse - (int)(((int64_t)mean * (int64_t)mean) >> (bwl + 2));
+  // (mean * mean): dynamic range 32 bits - can be stored in uint32_t
+  const uint32_t meansq = (uint32_t)abs(mean) * (uint32_t)abs(mean);
+  var = sse - (int)(meansq >> (bwl + 2));
   return var;
 }
