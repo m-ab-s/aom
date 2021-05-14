@@ -727,10 +727,13 @@ static void invert_quant(int32_t *quant, int32_t *shift, int d) {
 static void invert_quant(int16_t *quant, int16_t *shift, int d) {
 #endif
   uint32_t t;
-  int l, m;
+  int l;
   t = d;
   for (l = 0; t > 1; l++) t >>= 1;
-  m = (int)(1 + (1UL << (16 + l)) / d);
+  // Alternative with uint64_t:
+  // const int m2 = (int)(1 + ((uint64_t)1 << (16 + l)) / d);
+  const int lcap = AOMMIN(l, 15);
+  const int m = (int)(1 + (1U << (16 + lcap)) / (d >> (l - lcap)));
 #if CONFIG_EXTQUANT
   *quant = (int32_t)(m - (1 << 16));
   *shift = 1 << (16 - l + QUANT_TABLE_BITS);
