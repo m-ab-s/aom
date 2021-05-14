@@ -17,11 +17,11 @@ import argparse
 from CalculateQualityMetrics import CalculateQualityMetric, GatherQualityMetrics
 from Utils import GetShortContentName, CreateNewSubfolder, SetupLogging, \
      Cleanfolder, CreateClipList, GetEncLogFile, GatherPerfInfo, \
-     GetRDResultCsvFile, GatherPerframeStat, GatherInstrCycleInfo, DeleteFile
+     GetRDResultCsvFile, GatherPerframeStat, GatherInstrCycleInfo, DeleteFile, md5
 import Utils
 from Config import LogLevels, FrameNum, TEST_CONFIGURATIONS, QPs, WorkPath, \
      Path_RDResults, LoggerName, QualityList, MIN_GOP_LENGTH, UsePerfUtil, \
-     EnableTimingInfo, CodecNames
+     EnableTimingInfo, CodecNames, EnableMD5
 from EncDecUpscale import Encode, Decode
 
 ###############################################################################
@@ -126,6 +126,8 @@ def GenerateSummaryRDDataFile(EncodeMethod, CodecName, EncodePreset,
     csv.write(",EncT[s],DecT[s]")
     if UsePerfUtil:
         csv.write(",EncInstr,DecInstr,EncCycles,DecCycles")
+    if EnableMD5:
+        csv.write(",EncMD5,DecMD5")
     csv.write('\n')
 
     perframe_csv = open(perframe_csvfile, 'wt')
@@ -158,12 +160,18 @@ def GenerateSummaryRDDataFile(EncodeMethod, CodecName, EncodePreset,
                 csv.write(",%f"%qty)
             if UsePerfUtil:
                 enc_time, dec_time, enc_instr, dec_instr, enc_cycles, dec_cycles = GatherInstrCycleInfo(bs, Path_TimingLog)
-                csv.write(",%.2f,%.2f,%s,%s,%s,%s,\n" % (enc_time,dec_time,enc_instr,dec_instr,enc_cycles,dec_cycles))
+                csv.write(",%.2f,%.2f,%s,%s,%s,%s," % (enc_time,dec_time,enc_instr,dec_instr,enc_cycles,dec_cycles))
             elif EnableTimingInfo:
                 enc_time, dec_time = GatherPerfInfo(bs, Path_TimingLog)
-                csv.write(",%.2f,%.2f,\n"%(enc_time,dec_time))
+                csv.write(",%.2f,%.2f,"%(enc_time,dec_time))
             else:
-                csv.write(",,,\n")
+                csv.write(",,,")
+            if EnableMD5:
+                enc_md5 = md5(bs)
+                dec_md5 = md5(dec)
+                csv.write("%s,%s"%(enc_md5, dec_md5))
+
+            csv.write("\n")
 
             if (EncodeMethod == 'aom'):
                 enc_log = GetEncLogFile(bs, log_path)

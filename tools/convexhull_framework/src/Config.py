@@ -35,6 +35,7 @@ FrameNum = {
 }
 EnableTimingInfo = True
 UsePerfUtil = False
+EnableMD5 = True
 Platform = platform.system()
 PSNR_Y_WEIGHT = 14.0
 PSNR_U_WEIGHT = 1.0
@@ -43,7 +44,7 @@ APSNR_Y_WEIGHT = 4.0
 APSNR_U_WEIGHT = 1.0
 APSNR_V_WEIGHT = 1.0
 CTC_RegularXLSTemplate = os.path.join(BinPath, 'AOM_CWG_Regular_CTC_v6.xlsm')
-CTC_ASXLSTemplate = os.path.join(BinPath, 'AOM_CWG_AS_CTC_v9.4.xlsm')
+CTC_ASXLSTemplate = os.path.join(BinPath, 'AOM_CWG_AS_CTC_v9.6.xlsm')
 
 ############ test contents #######################################
 ContentPath = "D://YUVs//AV2-CTC"
@@ -100,6 +101,7 @@ QualityList = ['PSNR_Y','PSNR_U','PSNR_V','SSIM_Y(dB)','MS-SSIM_Y(dB)','VMAF_Y',
 VMAF = os.path.join(BinPath, 'vmaf.exe')
 CalcBDRateInExcel = True
 EnablePreInterpolation = True
+UsePCHIPInterpolation = True
 #InterpolatePieces - 1 is the number of interpolated points generated between two qp points.
 InterpolatePieces = 8
 

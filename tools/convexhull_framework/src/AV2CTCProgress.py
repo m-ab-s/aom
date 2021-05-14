@@ -14,36 +14,61 @@ import re
 import openpyxl
 import shutil
 import Config
-from Config import QPs, DnScaleRatio, CTC_ASXLSTemplate, CTC_RegularXLSTemplate, InterpolatePieces
+from Config import QPs, DnScaleRatio, CTC_ASXLSTemplate, CTC_RegularXLSTemplate, InterpolatePieces, \
+    UsePCHIPInterpolation
 import Utils
-from Utils import ParseCSVFile, plot_rd_curve, Interpolate_Bilinear, convex_hull
+from Utils import ParseCSVFile, plot_rd_curve, Interpolate_Bilinear, Interpolate_PCHIP, convex_hull
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 
 csv_files = {
     "v1.0.0":
     {
-        "AI":  "D:\\AV2-CTC-v1.0.0-Final\\analysis\\rdresult\\RDResults_aom_av2_AI_Preset_0.csv",
-        "LD":  "D:\\AV2-CTC-v1.0.0-Final\\analysis\\rdresult\\RDResults_aom_av2_LD_Preset_0.csv",
-        "RA":  "D:\\AV2-CTC-v1.0.0-Final\\analysis\\rdresult\\RDResults_aom_av2_RA_Preset_0.csv",
-        "Still":  "D:\\AV2-CTC-v1.0.0-Final\\analysis\\rdresult\\RDResults_aom_av2_STILL_Preset_0.csv",
-        "AS":  "D:\\AV2-CTC-v1.0.0-Final\\analysis\\rdresult\\RDResults_aom_av2_AS_Preset_0.csv",
+        "AI":     "D:\\AV2-CTC\\AV2-CTC-v1.0.0-Final\\analysis\\rdresult\\RDResults_aom_av2_AI_Preset_0.csv",
+        "LD":     "D:\\AV2-CTC\\AV2-CTC-v1.0.0-Final\\analysis\\rdresult\\RDResults_aom_av2_LD_Preset_0.csv",
+        "RA":     "D:\\AV2-CTC\\AV2-CTC-v1.0.0-Final\\analysis\\rdresult\\RDResults_aom_av2_RA_Preset_0.csv",
+        "Still":  "D:\\AV2-CTC\\AV2-CTC-v1.0.0-Final\\analysis\\rdresult\\RDResults_aom_av2_STILL_Preset_0.csv",
+        "AS":     "D:\\AV2-CTC\\AV2-CTC-v1.0.0-Final\\analysis\\rdresult\\RDResults_aom_av2_AS_Preset_0.csv",
     },
     "v1.0.1":
     {
-        "AI":  "D:\\AV2-CTC-v1.0.1\\analysis\\rdresult-new\\RDResults_aom_av2_AI_Preset_0.csv",
-        "LD":  "D:\\AV2-CTC-v1.0.1\\analysis\\rdresult-new\\RDResults_aom_av2_LD_Preset_0.csv",
-        "RA":  "D:\\AV2-CTC-v1.0.1\\analysis\\rdresult-new\\RDResults_aom_av2_RA_Preset_0.csv",
-        "Still":  "D:\\AV2-CTC-v1.0.1\\analysis\\rdresult-new\\RDResults_aom_av2_STILL_Preset_0.csv",
-        "AS":  "D:\\AV2-CTC-v1.0.1\\analysis\\rdresult-new\\RDResults_aom_av2_AS_Preset_0.csv",
+        "AI":     "D:\\AV2-CTC\\AV2-CTC-v1.0.1\\analysis\\rdresult\\RDResults_aom_av2_AI_Preset_0.csv",
+        "LD":     "D:\\AV2-CTC\\AV2-CTC-v1.0.1\\analysis\\rdresult\\RDResults_aom_av2_LD_Preset_0.csv",
+        "RA":     "D:\\AV2-CTC\\AV2-CTC-v1.0.1\\analysis\\rdresult\\RDResults_aom_av2_RA_Preset_0.csv",
+        "Still":  "D:\\AV2-CTC\\AV2-CTC-v1.0.1\\analysis\\rdresult\\RDResults_aom_av2_STILL_Preset_0.csv",
+        "AS":     "D:\\AV2-CTC\\AV2-CTC-v1.0.1\\analysis\\rdresult\\RDResults_aom_av2_AS_Preset_0.csv",
+    },
+    "B034":
+    {
+        "AI":     "D:\\AV2-CTC\\AV2-CTC-B034\\analysis\\rdresult\\RDResults_aom_av2_AI_Preset_0.csv",
+        "LD":     "D:\\AV2-CTC\\AV2-CTC-B034\\analysis\\rdresult\\RDResults_aom_av2_LD_Preset_0.csv",
+        "RA":     "D:\\AV2-CTC\\AV2-CTC-B034\\analysis\\rdresult\\RDResults_aom_av2_RA_Preset_0.csv",
+        "Still":  "D:\\AV2-CTC\\AV2-CTC-B034\\analysis\\rdresult\\RDResults_aom_av2_STILL_Preset_0.csv",
+        "AS":     "D:\\AV2-CTC\\AV2-CTC-B034\\analysis\\rdresult\\RDResults_aom_av2_AS_Preset_0.csv",
+    },
+    "ext-quant":
+    {
+        "AI":     "D:\\AV2-CTC\\AV2-CTC-ExtQuant\\analysis\\rdresult\\RDResults_aom_av2_AI_Preset_0.csv",
+        "LD":     "D:\\AV2-CTC\\AV2-CTC-ExtQuant\\analysis\\rdresult\\RDResults_aom_av2_LD_Preset_0.csv",
+        "RA":     "D:\\AV2-CTC\\AV2-CTC-ExtQuant\\analysis\\rdresult\\RDResults_aom_av2_RA_Preset_0.csv",
+        "Still":  "D:\\AV2-CTC\\AV2-CTC-ExtQuant\\analysis\\rdresult\\RDResults_aom_av2_STILL_Preset_0.csv",
+        "AS":     "D:\\AV2-CTC\\AV2-CTC-ExtQuant\\analysis\\rdresult\\RDResults_aom_av2_AS_Preset_0.csv",
     },
     "sdp-off":
     {
-        "AI":  "D:\\AV2-CTC-SDP-OFF\\analysis\\rdresult\\RDResults_aom_av2_AI_Preset_0.csv",
-        "LD":  "D:\\AV2-CTC-SDP-OFF\\analysis\\rdresult\\RDResults_aom_av2_LD_Preset_0.csv",
-        "RA":  "D:\\AV2-CTC-SDP-OFF\\analysis\\rdresult\\RDResults_aom_av2_RA_Preset_0.csv",
-        "Still":  "D:\\AV2-CTC-SDP-OFF\\analysis\\rdresult\\RDResults_aom_av2_STILL_Preset_0.csv",
-        "AS":  "D:\\AV2-CTC-SDP-OFF\\analysis\\rdresult\\RDResults_aom_av2_AS_Preset_0.csv",
+        "AI":     "D:\\AV2-CTC\\AV2-CTC-SDP-OFF\\analysis\\rdresult\\RDResults_aom_av2_AI_Preset_0.csv",
+        "LD":     "D:\\AV2-CTC\\AV2-CTC-SDP-OFF\\analysis\\rdresult\\RDResults_aom_av2_LD_Preset_0.csv",
+        "RA":     "D:\\AV2-CTC\\AV2-CTC-SDP-OFF\\analysis\\rdresult\\RDResults_aom_av2_RA_Preset_0.csv",
+        "Still":  "D:\\AV2-CTC\\AV2-CTC-SDP-OFF\\analysis\\rdresult\\RDResults_aom_av2_STILL_Preset_0.csv",
+        "AS":     "D:\\AV2-CTC\\AV2-CTC-SDP-OFF\\analysis\\rdresult\\RDResults_aom_av2_AS_Preset_0.csv",
+    },
+    "sdp-on":
+    {
+        "AI":     "D:\\AV2-CTC\\AV2-CTC-SDP-ON\\analysis\\rdresult\\RDResults_aom_av2_AI_Preset_0.csv",
+        "LD":     "D:\\AV2-CTC\\AV2-CTC-SDP-ON\\analysis\\rdresult\\RDResults_aom_av2_LD_Preset_0.csv",
+        "RA":     "D:\\AV2-CTC\\AV2-CTC-SDP-ON\\analysis\\rdresult\\RDResults_aom_av2_RA_Preset_0.csv",
+        "Still":  "D:\\AV2-CTC\\AV2-CTC-SDP-ON\\analysis\\rdresult\\RDResults_aom_av2_STILL_Preset_0.csv",
+        "AS":     "D:\\AV2-CTC\\AV2-CTC-SDP-ON\\analysis\\rdresult\\RDResults_aom_av2_AS_Preset_0.csv",
     },
 }
 
@@ -56,9 +81,12 @@ start_row = {
 }
 
 formats = {
-    "v1.0.0":  ['r', '-', 'o'],
-    "v1.0.1":  ['g', '-', '*'],
-    "sdp-off": ['b', '-', '+'],
+    "v1.0.0":       ['r', '-', 'o'],
+    "v1.0.1":       ['g', '-', '*'],
+    "B034":         ['k', '-', '^'],
+    "ext-quant":    ['r', '-', '*'],
+    "sdp-off":      ['b', '-', '+'],
+    "sdp-on":       ['r', '-', '<'],
 }
 
 AS_formats = {
@@ -82,7 +110,7 @@ def WriteSheet(csv_file, sht, start_row):
             col = 1
             for word in words:
                 mycell = sht.cell(row=row, column=col)
-                if col >= 12 and word != "":
+                if col >= 12 and col <= 30 and word != "":
                     mycell.value = float(word)
                 else:
                     mycell.value = word
@@ -136,16 +164,23 @@ def DrawRDCurve(records, anchor, pdf):
                         plt.figure(figsize=(15, 10))
                         plt.suptitle("%s : %s: %s" % (cfg, video, tag))
 
-                        for (w, h) in DnScaledRes:
-                            br = []; apsnr = []; rdpnts = []; res = "%dx%d"%(w,h)
-                            for qp in QPs["AS"]:
-                                key = "%dx%d_%s"%(w, h, qp)
-                                br.append(record[key].bitrate)
-                                apsnr.append(record[key].overall_apsnr)
-                            rdpnts = [(brt, qty) for brt, qty in zip(br, apsnr)]
-                            int_rdpnts = Interpolate_Bilinear(rdpnts, QPs['AS'][:], InterpolatePieces, True)
+                        br = {}; apsnr = {}
+                        for key in record.keys():
+                            res = re.split('_', key)[0]
+                            if res not in br.keys():
+                                br[res] = []
+                                apsnr[res] = []
+                            br[res].append(record[key].bitrate)
+                            apsnr[res].append(record[key].overall_apsnr)
+
+                        for res in br.keys():
+                            rdpnts = [(brt, qty) for brt, qty in zip(br[res], apsnr[res])]
+                            if UsePCHIPInterpolation:
+                                int_rdpnts = Interpolate_PCHIP(rdpnts, QPs['AS'][:], InterpolatePieces, True)
+                            else:
+                                int_rdpnts = Interpolate_Bilinear(rdpnts, QPs['AS'][:], InterpolatePieces, True)
                             Int_RDPoints[tag] += int_rdpnts
-                            plot_rd_curve(br, apsnr, "overall_apsnr", res, "bitrate(Kbps)",
+                            plot_rd_curve(br[res], apsnr[res], "overall_apsnr", res, "bitrate(Kbps)",
                                           AS_formats[res][0], AS_formats[res][1], AS_formats[res][2])
                         plt.legend()
                         plt.grid(True)

@@ -18,6 +18,8 @@ from Config import VbaBinFile, QualityList, CalcBDRateInExcel, \
      EnablePreInterpolation
 from CalcBDRate import BD_RATE
 
+xlrd.xlsx.ensure_elementtree_imported(False, None)
+xlrd.xlsx.Element_has_iter = True
 
 class ConvexHullData:
     ContentName = ""
@@ -299,9 +301,13 @@ def FindContent(name, rd_data):
 # main
 ######################################
 if __name__ == "__main__":
-    #sys.argv = ["","-i1","ConvexHullData_ScaleAlgosNum_6_aom_av1_1.xlsx",
-    #"-i2","ConvexHullData_ScaleAlgosNum_6_aom_av1_6.xlsx",
-    #"-o","ConvexHullBDRate.xlsm"]
+    #sys.argv = ["",
+    #            "-i1",
+    #            "D:\\AOM\\AOM-Research-Latest\\aom\\tools\\convexhull_framework\\analysis-v1.0.0\\summary\\ConvexHullData_ScaleAlgosNum_6_aom_av2_0.xlsx",
+    #            "-i2",
+    #            "D:\\AOM\\AOM-Research-Latest\\aom\\tools\\convexhull_framework\\analysis-ext-quant\\summary\\ConvexHullData_ScaleAlgosNum_6_aom_av2_0.xlsx",
+    #            "-o",
+    #            "ConvexHullBDRate.xlsm"]
     ParseArguments(sys.argv)
 
     base_shts, base_rd_data = ParseConvexHullRD(InputBase, EnablePreInterpolation)
@@ -318,7 +324,7 @@ if __name__ == "__main__":
     for sht_name in base_shts:
         if sht_name in target_shts:
             sht = output_wb.add_worksheet(sht_name)
-            WriteOutputHeaderRow(sht, False)
+            WriteOutputHeaderRow(sht, EnablePreInterpolation)
             start_row = 1
             for base_data in base_rd_data[sht_name]:
                 ContentName = base_data.ContentName

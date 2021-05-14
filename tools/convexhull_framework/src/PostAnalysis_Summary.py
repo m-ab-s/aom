@@ -20,6 +20,9 @@ from Utils import GetShortContentName, CalcRowsClassAndContentDict
 from CalcBDRate import BD_RATE
 import logging
 
+xlrd.xlsx.ensure_elementtree_imported(False, None)
+xlrd.xlsx.Element_has_iter = True
+
 subloggername = "PostAnalysisSummary"
 loggername = LoggerName + '.' + '%s' % subloggername
 logger = logging.getLogger(loggername)
@@ -84,6 +87,7 @@ def CopyResultDataToSummaryFile_Onesheet(sht, wt_cols, resultfiles):
         rows_content = [i * len(QPs['AS']) for i in range(len(clip_list))]
         for clip, row_cont in zip(clip_list, rows_content):
             key = GetShortContentName(clip.file_name)
+            sht.write(row_class + row_cont, 0, cls)
             sht.write(row_class + row_cont, 1, key)
             rdwb = None
             for resfile in resultfiles:
@@ -455,6 +459,7 @@ def GenerateSumCvxHullExcelFile(encMethod, codecName, preset, summary_outpath,
             sht.write(row, 0, cls)
             for clip in clip_list:
                 key = GetShortContentName(clip.file_name)
+                sht.write(row, 0, cls)
                 sht.write(row, 1, key)
                 for resfile in resultfiles:
                     if key in resfile:

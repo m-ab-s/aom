@@ -406,11 +406,14 @@ def SetupLogging(level, logcmdonly, name, cmd_log_path, test_log_path):
         Logger.setLevel(levelname)
 
 def md5(fname):
-    hash_md5 = hashlib.md5()
-    with open(fname, "rb") as f:
-        for chunk in iter(lambda: f.read(4096), b""):
-            hash_md5.update(chunk)
-    return hash_md5.hexdigest()
+    if os.path.exists(fname):
+        hash_md5 = hashlib.md5()
+        with open(fname, "rb") as f:
+            for chunk in iter(lambda: f.read(4096), b""):
+                hash_md5.update(chunk)
+        return hash_md5.hexdigest()
+    else:
+        return ""
 
 def GatherInstrCycleInfo(bsfile, Path_TimingLog):
     assert(Platform != "Windows" and Platform != "Darwin")
@@ -578,7 +581,7 @@ def Interpolate_Bilinear(RDPoints, QPs, InterpolatePieces, logBr=True):
     '''
     return int_points
 
-def Interpolate_PCHIP(RDPoints, QPs):
+def Interpolate_PCHIP(RDPoints, QPs, InterpolatePieces, logBr=True):
     '''
     generate interpolated points on a RD curve.
     input is list of existing RD points as (bitrate, quality) tuple
@@ -590,6 +593,8 @@ def Interpolate_PCHIP(RDPoints, QPs):
     # if bitrate is the same, then sort based on quality in increasing order
     RDPoints.sort(key = itemgetter(0, 1))
     br = [RDPoints[i][0] for i in range(len(RDPoints))]
+    if logBr:
+        br = [math.log10(br[i]) for i in range(len(br))]
     qty = [RDPoints[i][1] for i in range(len(RDPoints))]
     # sort QPs in decreasing order
     QPs.sort(reverse=True)
@@ -597,8 +602,8 @@ def Interpolate_PCHIP(RDPoints, QPs):
 
     for i in range(1, len(QPs)):
         # generate samples between max and min of quality metrics
-        max_qp = QPs[i - 1]; min_qp = QPs[i]
-        lin = np.linspace(br[i-1], br[i], num = (max_qp - min_qp + 1), retstep = True)
+        #max_qp = QPs[i - 1]; min_qp = QPs[i]
+        lin = np.linspace(br[i-1], br[i], num = InterpolatePieces, retstep = True)
         int_br = lin[0]
 
         # interpolation using pchip

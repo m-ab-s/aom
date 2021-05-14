@@ -2268,8 +2268,8 @@ int main(int argc, const char **argv_) {
                   "----------------------------\n");
 
           fprintf(stdout,
-                  "Summary:    %10.4f  |  %2.4f  |  %2.4f  |  %2.4f"
-                  "  |  %2.4f    |  %2.4f        |  %6.1fs (%3.1f fps)\n",
+                  "Summary:    %10.6f  |  %2.6f  |  %2.6f  |  %2.6f"
+                  "  |  %2.6f    |  %2.6f        |  %6.1fs (%3.1f fps)\n",
                   kbps, psnr[1], psnr[2], psnr[3], psnr[0], ovpsnr,
                   stream->cx_time / 1000000.0,
                   usec_to_fps(stream->cx_time, seen_frames));
@@ -2279,7 +2279,7 @@ int main(int argc, const char **argv_) {
                   "-----------------------------------------"
                   "---------------------------------------"
                   "----------------------------\n");
-          fprintf(stdout, "Summary:    %10.4f  |  %6.1fs (%3.1f fps)\n", kbps,
+          fprintf(stdout, "Summary:    %10.6f  |  %6.1fs (%3.1f fps)\n", kbps,
                   stream->cx_time / 1000000.0,
                   usec_to_fps(stream->cx_time, seen_frames));
         }
