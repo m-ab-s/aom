@@ -1041,7 +1041,12 @@ static int linsolve_wiener(int n, int64_t *A, int stride, int64_t *b,
       for (int j = 0; j < n; j++) {
         A[(i + 1) * stride + j] -= c / 256 * A[k * stride + j] / cd * 256;
       }
-      b[i + 1] -= c * b[k] / cd;
+      if (llabs(c) > INT_MAX || llabs(b[k]) > INT_MAX) {
+        // Reduce the probability of overflow by computing at lower precision
+        b[i + 1] -= AOMMAX(c, b[k]) / 256 * AOMMIN(c, b[k]) / cd * 256;
+      } else {
+        b[i + 1] -= c * b[k] / cd;
+      }
     }
   }
   // Back-substitution
