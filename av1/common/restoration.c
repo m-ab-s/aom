@@ -1243,6 +1243,40 @@ static void wiener_nsfilter_stripe_highbd(const RestorationUnitInfo *rui,
 }
 
 #if CONFIG_WIENER_NONSEP_CROSS_FILT
+uint8_t *wienerns_copy_luma_highbd(const uint8_t *dgd, int height_y,
+                                   int width_y, int in_stride, uint8_t **luma8,
+                                   int height_uv, int width_uv, int border,
+                                   int out_stride, int bd) {
+  uint16_t *aug_luma = (uint16_t *)malloc(
+      sizeof(uint16_t) * (width_uv + 2 * border) * (height_uv + 2 * border));
+  memset(
+      aug_luma, 0,
+      sizeof(*aug_luma) * (width_uv + 2 * border) * (height_uv + 2 * border));
+  uint16_t *luma[1];
+  *luma = aug_luma + border * out_stride + border;
+  *luma8 = CONVERT_TO_BYTEPTR(*luma);
+  av1_highbd_resize_plane(dgd, height_y, width_y, in_stride,
+                          CONVERT_TO_BYTEPTR(*luma), height_uv, width_uv,
+                          out_stride, bd);
+  // extend border by replication
+  for (int r = 0; r < height_uv; ++r) {
+    for (int c = -border; c < 0; ++c)
+      (*luma)[r * out_stride + c] = (*luma)[r * out_stride];
+    for (int c = 0; c < border; ++c)
+      (*luma)[r * out_stride + width_uv + c] =
+          (*luma)[r * out_stride + width_uv - 1];
+  }
+  for (int r = -border; r < 0; ++r) {
+    memcpy(&(*luma)[r * out_stride - border], &(*luma)[-border],
+           width_uv + 2 * border * sizeof((*luma)[0]));
+  }
+  for (int r = 0; r < border; ++r)
+    memcpy(&(*luma)[(height_uv + r) * out_stride - border],
+           &(*luma)[(height_uv - 1) * out_stride - border],
+           width_uv + 2 * border * sizeof((*luma)[0]));
+  return (uint8_t *)aug_luma;
+}
+
 uint8_t *wienerns_copy_luma(const uint8_t *dgd, int height_y, int width_y,
                             int in_stride, uint8_t **luma, int height_uv,
                             int width_uv, int border, int out_stride) {
@@ -1620,16 +1654,26 @@ static void foreach_rest_unit_in_planes(AV1LrStruct *lr_ctxt, AV1_COMMON *cm,
                                         int num_planes) {
   FilterFrameCtxt *ctxt = lr_ctxt->ctxt;
 
-#if CONFIG_WIENER_NONSEP_CROSS_FILT
+#if CONFIG_WIENER_NONSEP && CONFIG_WIENER_NONSEP_CROSS_FILT
   uint8_t *luma = NULL;
+  uint8_t *luma_buf;
   const YV12_BUFFER_CONFIG *dgd = &cm->cur_frame->buf;
   int luma_stride = dgd->crop_widths[1] + 2 * WIENERNS_UV_BRD;
-  uint8_t *luma_buf = wienerns_copy_luma(
-      dgd->buffers[AOM_PLANE_Y], dgd->crop_heights[AOM_PLANE_Y],
-      dgd->crop_widths[AOM_PLANE_Y], dgd->strides[AOM_PLANE_Y], &luma,
-      dgd->crop_heights[1], dgd->crop_widths[1], WIENERNS_UV_BRD, luma_stride);
+  if (cm->seq_params.use_highbitdepth) {
+    luma_buf = wienerns_copy_luma_highbd(
+        dgd->buffers[AOM_PLANE_Y], dgd->crop_heights[AOM_PLANE_Y],
+        dgd->crop_widths[AOM_PLANE_Y], dgd->strides[AOM_PLANE_Y], &luma,
+        dgd->crop_heights[1], dgd->crop_widths[1], WIENERNS_UV_BRD, luma_stride,
+        cm->seq_params.bit_depth);
+  } else {
+    luma_buf = wienerns_copy_luma(
+        dgd->buffers[AOM_PLANE_Y], dgd->crop_heights[AOM_PLANE_Y],
+        dgd->crop_widths[AOM_PLANE_Y], dgd->strides[AOM_PLANE_Y], &luma,
+        dgd->crop_heights[1], dgd->crop_widths[1], WIENERNS_UV_BRD,
+        luma_stride);
+  }
   assert(luma_buf != NULL);
-#endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
+#endif  // CONFIG_WIENER_NONSEP && CONFIG_WIENER_NONSEP_CROSS_FILT
 
   for (int plane = 0; plane < num_planes; ++plane) {
     if (cm->rst_info[plane].frame_restoration_type == RESTORE_NONE) {
@@ -1663,7 +1707,7 @@ static void foreach_rest_unit_in_planes(AV1LrStruct *lr_ctxt, AV1_COMMON *cm,
 
 #if CONFIG_WIENER_NONSEP && CONFIG_WIENER_NONSEP_CROSS_FILT
   free(luma_buf);
-#endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
+#endif  // CONFIG_WIENER_NONSEP && CONFIG_WIENER_NONSEP_CROSS_FILT
 }
 
 void av1_loop_restoration_filter_frame(YV12_BUFFER_CONFIG *frame,
