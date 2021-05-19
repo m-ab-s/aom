@@ -1341,14 +1341,16 @@ static INLINE int is_intra_hash_match(const AV1_COMP *cpi, MACROBLOCK *x,
                                       uint16_t *cur_joint_ctx) {
   MACROBLOCKD *xd = &x->e_mbd;
   TxfmSearchInfo *txfm_info = &x->txfm_search_info;
-  assert(cpi->sf.tx_sf.use_intra_txb_hash &&
 #if CONFIG_SDP
+  assert(cpi->sf.tx_sf.use_intra_txb_hash &&
          frame_is_intra_only(&cpi->common) &&
-         !is_inter_block(xd->mi[0], xd->tree_type) &&
+         !is_inter_block(xd->mi[0], xd->tree_type) && plane == 0 &&
+         tx_size_wide[tx_size] == tx_size_high[tx_size]);
 #else
+  assert(cpi->sf.tx_sf.use_intra_txb_hash &&
          frame_is_intra_only(&cpi->common) && !is_inter_block(xd->mi[0]) &&
-#endif
          plane == 0 && tx_size_wide[tx_size] == tx_size_high[tx_size]);
+#endif
   const uint32_t intra_hash =
       get_intra_txb_hash(x, plane, blk_row, blk_col, plane_bsize, tx_size);
   const int intra_hash_idx =

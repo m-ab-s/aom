@@ -209,7 +209,7 @@ static int64_t pick_intra_angle_routine_sbuv(
     int *best_angle_delta, int64_t *best_rd) {
   MB_MODE_INFO *mbmi = x->e_mbd.mi[0];
 #if CONFIG_SDP
-  assert(!is_inter_block(mbmi, cpi->td.mb.e_mbd.tree_type));
+  assert(!is_inter_block(mbmi, x->e_mbd.tree_type));
 #else
   assert(!is_inter_block(mbmi));
 #endif
