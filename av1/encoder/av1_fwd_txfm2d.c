@@ -30,6 +30,9 @@ static INLINE TxfmFunc fwd_txfm_type_to_func(TXFM_TYPE txfm_type) {
     case TXFM_TYPE_ADST4: return av1_fadst4;
     case TXFM_TYPE_ADST8: return av1_fadst8;
     case TXFM_TYPE_ADST16: return av1_fadst16;
+#if CONFIG_DST_32X32
+    case TXFM_TYPE_ADST32: return av1_fadst32;
+#endif  // CONFIG_DST_32X32
     case TXFM_TYPE_IDENTITY4: return av1_fidentity4_c;
     case TXFM_TYPE_IDENTITY8: return av1_fidentity8_c;
     case TXFM_TYPE_IDENTITY16: return av1_fidentity16_c;
@@ -364,6 +367,10 @@ static const int8_t fadst4_range_mult2[7] = { 0, 2, 4, 3, 3, 3, 3 };
 static const int8_t fadst8_range_mult2[8] = { 0, 0, 1, 3, 3, 5, 5, 5 };
 static const int8_t fadst16_range_mult2[10] = { 0, 0, 1, 3, 3, 5, 5, 7, 7, 7 };
 
+#if CONFIG_DST_32X32
+static const int8_t fadst32_range_mult2[1] = { 9 };
+#endif
+
 static const int8_t fidtx4_range_mult2[1] = { 1 };
 static const int8_t fidtx8_range_mult2[1] = { 2 };
 static const int8_t fidtx16_range_mult2[1] = { 3 };
@@ -380,10 +387,22 @@ const int8_t fwd_idtx_range_row[MAX_TXWH_IDX /*txw_idx*/]
 #endif
 
 static const int8_t *fwd_txfm_range_mult2_list[TXFM_TYPES] = {
-  fdct4_range_mult2,  fdct8_range_mult2,   fdct16_range_mult2,
-  fdct32_range_mult2, fdct64_range_mult2,  fadst4_range_mult2,
-  fadst8_range_mult2, fadst16_range_mult2, fidtx4_range_mult2,
-  fidtx8_range_mult2, fidtx16_range_mult2, fidtx32_range_mult2
+  fdct4_range_mult2,
+  fdct8_range_mult2,
+  fdct16_range_mult2,
+  fdct32_range_mult2,
+  fdct64_range_mult2,
+  fadst4_range_mult2,
+  fadst8_range_mult2,
+  fadst16_range_mult2,
+  fidtx4_range_mult2,
+  fidtx8_range_mult2,
+  fidtx16_range_mult2,
+  fidtx32_range_mult2
+#if CONFIG_DST_32X32
+  ,
+  fadst32_range_mult2,
+#endif
 };
 
 static INLINE void set_fwd_txfm_non_scale_range(TXFM_2D_FLIP_CFG *cfg) {

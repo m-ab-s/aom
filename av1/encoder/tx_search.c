@@ -1995,6 +1995,11 @@ get_tx_mask(const AV1_COMP *cpi, MACROBLOCK *x, int plane, int block,
   if (cpi->oxcf.txfm_cfg.enable_flip_idtx == 0)
     ext_tx_used_flag &= DCT_ADST_TX_MASK;
 
+#if CONFIG_DST_32X32
+  if (!is_inter && (txsize_sqr_up_map[tx_size] == TX_32X32))
+    ext_tx_used_flag &= DCT_ADST_TX_MASK;
+#endif
+
   uint16_t allowed_tx_mask = 0;  // 1: allow; 0: skip.
   if (txk_allowed < TX_TYPES) {
     allowed_tx_mask = 1 << txk_allowed;

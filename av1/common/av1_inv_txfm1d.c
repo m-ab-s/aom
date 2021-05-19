@@ -818,6 +818,21 @@ void av1_iadst8(const int32_t *input, int32_t *output, int8_t cos_bit,
   bf1[7] = -bf0[1];
 }
 
+#if CONFIG_DST7_16X16
+void av1_iadst16(const int32_t *input, int32_t *output, int8_t cos_bit,
+                 const int8_t *stage_range) {
+  assert(output != input);
+  (void)cos_bit;
+  (void)stage_range;
+  for (int32_t i = 0; i < 16; i++) {
+    int32_t sum = 0;
+    for (int32_t j = 0; j < 16; j++) {
+      sum += input[j] * dst7_16x16[j][i];
+    }
+    output[i] = ROUND_POWER_OF_TWO_SIGNED(sum, DST_16X16_PREC_BITS);
+  }
+}
+#else
 void av1_iadst16(const int32_t *input, int32_t *output, int8_t cos_bit,
                  const int8_t *stage_range) {
   assert(output != input);
@@ -1025,6 +1040,22 @@ void av1_iadst16(const int32_t *input, int32_t *output, int8_t cos_bit,
   bf1[14] = bf0[9];
   bf1[15] = -bf0[1];
 }
+#endif  // CONFIG_DST7_16X16
+
+#if CONFIG_DST_32X32
+void av1_iadst32(const int32_t *input, int32_t *output, int8_t cos_bit,
+                 const int8_t *stage_range) {
+  (void)cos_bit;
+  (void)stage_range;
+  for (int32_t i = 0; i < 32; i++) {
+    int32_t sum = 0;
+    for (int32_t j = 0; j < 32; j++) {
+      sum += input[j] * dst7_32x32[j][i];
+    }
+    output[i] = ROUND_POWER_OF_TWO_SIGNED(sum, DST_32X32_PREC_BITS);
+  }
+}
+#endif
 
 void av1_iidentity4_c(const int32_t *input, int32_t *output, int8_t cos_bit,
                       const int8_t *stage_range) {
