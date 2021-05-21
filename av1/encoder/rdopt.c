@@ -951,13 +951,20 @@ static int conditional_skipintra(PREDICTION_MODE mode,
 }
 
 static int cost_mv_ref(const ModeCosts *const mode_costs, PREDICTION_MODE mode,
+#if CONFIG_OPTFLOW_REFINEMENT
+                       const AV1_COMMON *cm, const MB_MODE_INFO *const mbmi,
+#endif  // CONFIG_OPTFLOW_REFINEMENT
                        int16_t mode_context) {
   if (is_inter_compound_mode(mode)) {
 #if CONFIG_OPTFLOW_REFINEMENT
-    int use_of = mode > NEW_NEWMV;
+    int use_of = 0, use_of_cost = 0;
+    if (!has_one_sided_refs(cm, mbmi)) {
+      use_of = mode > NEW_NEWMV;
+      use_of_cost = mode_costs->use_optflow_cost[mode_context][use_of];
+    }
     int comp_mode_idx =
         use_of ? INTER_OPFL_OFFSET(mode) : INTER_COMPOUND_OFFSET(mode);
-    return mode_costs->use_optflow_cost[mode_context][use_of] +
+    return use_of_cost +
            mode_costs->inter_compound_mode_cost[mode_context][comp_mode_idx];
 #else
     return mode_costs
@@ -1286,8 +1293,16 @@ static int skip_repeated_mv(const AV1_COMMON *const cm,
   }
   const int16_t mode_ctx =
       av1_mode_context_analyzer(mbmi_ext->mode_context, ref_frames);
+#if CONFIG_OPTFLOW_REFINEMENT
+  MB_MODE_INFO *mbmi = x->e_mbd.mi[0];
+  const int compare_cost =
+      cost_mv_ref(&x->mode_costs, compare_mode, cm, mbmi, mode_ctx);
+  const int this_cost =
+      cost_mv_ref(&x->mode_costs, this_mode, cm, mbmi, mode_ctx);
+#else
   const int compare_cost = cost_mv_ref(&x->mode_costs, compare_mode, mode_ctx);
   const int this_cost = cost_mv_ref(&x->mode_costs, this_mode, mode_ctx);
+#endif  // CONFIG_OPTFLOW_REFINEMENT
 
   // Only skip if the mode cost is larger than compare mode cost
   if (this_cost > compare_cost) {
@@ -2591,7 +2606,11 @@ static int64_t simple_translation_pred_rd(
   for (int i = 0; i < is_comp_pred + 1; ++i) {
     mbmi->mv[i].as_int = cur_mv[i].as_int;
   }
-  const int ref_mv_cost = cost_mv_ref(mode_costs, mbmi->mode, mode_ctx);
+  const int ref_mv_cost = cost_mv_ref(mode_costs, mbmi->mode,
+#if CONFIG_OPTFLOW_REFINEMENT
+                                      cm, mbmi,
+#endif  // CONFIG_OPTFLOW_REFINEMENT
+                                      mode_ctx);
   rd_stats->rate += ref_mv_cost;
 
   if (RDCOST(x->rdmult, rd_stats->rate, 0) > ref_best_rd) {
@@ -3362,7 +3381,11 @@ static int64_t handle_inter_mode(
   const int idx_mask = ref_mv_idx_to_search(cpi, x, rd_stats, args, ref_best_rd,
                                             mode_info, bsize, ref_set);
   const ModeCosts *mode_costs = &x->mode_costs;
-  const int ref_mv_cost = cost_mv_ref(mode_costs, this_mode, mode_ctx);
+  const int ref_mv_cost = cost_mv_ref(mode_costs, this_mode,
+#if CONFIG_OPTFLOW_REFINEMENT
+                                      cm, mbmi,
+#endif  // CONFIG_OPTFLOW_REFINEMENT
+                                      mode_ctx);
   const int base_rate =
       args->ref_frame_cost + args->single_comp_cost + ref_mv_cost;
 
