@@ -285,8 +285,12 @@ double sse_to_psnr(double samples, double peak, double sse) {
 // TODO(debargha): Consolidate the functions below into a separate file.
 static void highbd_img_upshift(aom_image_t *dst, const aom_image_t *src,
                                int input_shift) {
+#if CONFIG_ZERO_OFFSET_BITUPSHIFT
+  const int offset = 0;
+#else
   // Note the offset is 1 less than half.
   const int offset = input_shift > 0 ? (1 << (input_shift - 1)) - 1 : 0;
+#endif  // CONFIG_ZERO_OFFSET_BITUPSHIFT
   int plane;
   if (dst->d_w != src->d_w || dst->d_h != src->d_h ||
       dst->x_chroma_shift != src->x_chroma_shift ||
@@ -320,8 +324,12 @@ static void highbd_img_upshift(aom_image_t *dst, const aom_image_t *src,
 
 static void lowbd_img_upshift(aom_image_t *dst, const aom_image_t *src,
                               int input_shift) {
+#if CONFIG_ZERO_OFFSET_BITUPSHIFT
+  const int offset = 0;
+#else
   // Note the offset is 1 less than half.
   const int offset = input_shift > 0 ? (1 << (input_shift - 1)) - 1 : 0;
+#endif  // CONFIG_ZERO_OFFSET_BITUPSHIFT
   int plane;
   if (dst->d_w != src->d_w || dst->d_h != src->d_h ||
       dst->x_chroma_shift != src->x_chroma_shift ||
