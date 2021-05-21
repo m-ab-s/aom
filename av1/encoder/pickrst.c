@@ -2114,13 +2114,22 @@ void av1_pick_filter_restoration(const YV12_BUFFER_CONFIG *src,
 #if CONFIG_WIENER_NONSEP
 #if CONFIG_WIENER_NONSEP_CROSS_FILT
   uint8_t *luma = NULL;
+  uint8_t *luma_buf;
   const YV12_BUFFER_CONFIG *dgd = &cpi->common.cur_frame->buf;
   rsc.luma_stride = dgd->crop_widths[1] + 2 * WIENERNS_UV_BRD;
-  uint8_t *luma_buf = wienerns_copy_luma(
-      dgd->buffers[AOM_PLANE_Y], dgd->crop_heights[AOM_PLANE_Y],
-      dgd->crop_widths[AOM_PLANE_Y], dgd->strides[AOM_PLANE_Y], &luma,
-      dgd->crop_heights[1], dgd->crop_widths[1], WIENERNS_UV_BRD,
-      rsc.luma_stride);
+  if (cm->seq_params.use_highbitdepth) {
+    luma_buf = wienerns_copy_luma_highbd(
+        dgd->buffers[AOM_PLANE_Y], dgd->crop_heights[AOM_PLANE_Y],
+        dgd->crop_widths[AOM_PLANE_Y], dgd->strides[AOM_PLANE_Y], &luma,
+        dgd->crop_heights[1], dgd->crop_widths[1], WIENERNS_UV_BRD,
+        rsc.luma_stride, cm->seq_params.bit_depth);
+  } else {
+    luma_buf = wienerns_copy_luma(
+        dgd->buffers[AOM_PLANE_Y], dgd->crop_heights[AOM_PLANE_Y],
+        dgd->crop_widths[AOM_PLANE_Y], dgd->strides[AOM_PLANE_Y], &luma,
+        dgd->crop_heights[1], dgd->crop_widths[1], WIENERNS_UV_BRD,
+        rsc.luma_stride);
+  }
   assert(luma_buf != NULL);
   rsc.luma = luma;
 #endif  // CONFIG_WIENER_NONSEP_CROSS_FILT

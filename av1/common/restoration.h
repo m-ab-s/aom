@@ -422,6 +422,10 @@ static INLINE void set_default_wiener_nonsep(WienerNonsepInfo *wienerns_info) {
 uint8_t *wienerns_copy_luma(const uint8_t *dgd, int height_y, int width_y,
                             int in_stride, uint8_t **luma, int height_uv,
                             int width_uv, int border, int out_stride);
+uint8_t *wienerns_copy_luma_highbd(const uint8_t *dgd, int height_y,
+                                   int width_y, int in_stride, uint8_t **luma8,
+                                   int height_uv, int width_uv, int border,
+                                   int out_stride, int bd);
 #endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
 
 #endif  // CONFIG_WIENER_NONSEP
