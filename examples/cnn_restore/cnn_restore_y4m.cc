@@ -20,7 +20,7 @@
 
 #define CFG_MAX_LEN 256
 #define NUM_MODELS 5
-#define NUM_LEVELS 3
+#define NUM_LEVELS 4
 
 #define Y4M_HDR_MAX_LEN 256
 #define Y4M_HDR_MAX_WORDS 16
@@ -41,18 +41,23 @@ namespace {
 #include "examples/cnn_restore/sr2by1_0_tflite.h"
 #include "examples/cnn_restore/sr2by1_1_tflite.h"
 #include "examples/cnn_restore/sr2by1_2_tflite.h"
+#include "examples/cnn_restore/sr2by1_3_tflite.h"
 #include "examples/cnn_restore/sr3by2_0_tflite.h"
 #include "examples/cnn_restore/sr3by2_1_tflite.h"
 #include "examples/cnn_restore/sr3by2_2_tflite.h"
+#include "examples/cnn_restore/sr3by2_3_tflite.h"
 #include "examples/cnn_restore/sr4by3_0_tflite.h"
 #include "examples/cnn_restore/sr4by3_1_tflite.h"
 #include "examples/cnn_restore/sr4by3_2_tflite.h"
+#include "examples/cnn_restore/sr4by3_3_tflite.h"
 #include "examples/cnn_restore/sr5by4_0_tflite.h"
 #include "examples/cnn_restore/sr5by4_1_tflite.h"
 #include "examples/cnn_restore/sr5by4_2_tflite.h"
+#include "examples/cnn_restore/sr5by4_3_tflite.h"
 #include "examples/cnn_restore/sr6by5_0_tflite.h"
 #include "examples/cnn_restore/sr6by5_1_tflite.h"
 #include "examples/cnn_restore/sr6by5_2_tflite.h"
+#include "examples/cnn_restore/sr6by5_3_tflite.h"
 
 void RegisterSelectedOps(::tflite::MutableOpResolver *resolver) {
   resolver->AddBuiltin(::tflite::BuiltinOperator_ADD,
@@ -150,11 +155,11 @@ static const double model_ratios[NUM_MODELS] = { 2.0 / 1.0, 3.0 / 2.0,
                                                  6.0 / 5.0 };
 
 const unsigned char *tflite_data[NUM_MODELS][NUM_LEVELS] = {
-  { sr2by1_0_tflite, sr2by1_1_tflite, sr2by1_2_tflite },
-  { sr3by2_0_tflite, sr3by2_1_tflite, sr3by2_2_tflite },
-  { sr4by3_0_tflite, sr4by3_1_tflite, sr4by3_2_tflite },
-  { sr5by4_0_tflite, sr5by4_1_tflite, sr5by4_2_tflite },
-  { sr6by5_0_tflite, sr6by5_1_tflite, sr6by5_2_tflite },
+  { sr2by1_0_tflite, sr2by1_1_tflite, sr2by1_2_tflite, sr2by1_3_tflite },
+  { sr3by2_0_tflite, sr3by2_1_tflite, sr3by2_2_tflite, sr3by2_3_tflite },
+  { sr4by3_0_tflite, sr4by3_1_tflite, sr4by3_2_tflite, sr4by3_3_tflite },
+  { sr5by4_0_tflite, sr5by4_1_tflite, sr5by4_2_tflite, sr5by4_3_tflite },
+  { sr6by5_0_tflite, sr6by5_1_tflite, sr6by5_2_tflite, sr6by5_3_tflite },
 };
 
 static const unsigned char *get_model(int code, int level) {
