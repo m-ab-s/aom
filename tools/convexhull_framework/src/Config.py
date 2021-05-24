@@ -36,6 +36,7 @@ FrameNum = {
 EnableTimingInfo = True
 UsePerfUtil = False
 EnableMD5 = True
+EnableOpenGOP = False
 Platform = platform.system()
 PSNR_Y_WEIGHT = 14.0
 PSNR_U_WEIGHT = 1.0
@@ -65,15 +66,17 @@ HDRConvert = os.path.join(BinPath, 'HDRConvert.exe')
 AOMScaler = os.path.join(BinPath, 'lanczos_resample_y4m.exe')
 
 ##################### Encode Config ########################################
-EncodeMethods = ["aom", "svt"]
-CodecNames = ["av1", "av2"]
-SUFFIX = {"av1": ".obu", "av2": ".obu"}
+EncodeMethods = ["aom", "svt", "hm"]
+CodecNames = ["av1", "av2", "hevc"]
+SUFFIX = {"av1": ".obu", "av2": ".obu", "hevc":".265"}
 FFMPEG = os.path.join(BinPath, 'ffmpeg.exe')
 AOMENC = os.path.join(BinPath, 'aomenc.exe')
 SVTAV1 = os.path.join(BinPath, 'SvtAv1EncApp.exe')
 AOMDEC = os.path.join(BinPath, 'aomdec.exe')
 AV1ENC = os.path.join(BinPath, 'av1enc.exe')
 AV1DEC = os.path.join(BinPath, 'av1dec.exe')
+HMENC = os.path.join(BinPath, "TAppEncoderStatic.exe")
+HEVCCfgFile = os.path.join(BinPath, "s2-hm-01.cfg")
 
 if CTC_VERSION == '2.0':
     QPs = {
@@ -92,7 +95,16 @@ else:
         "STILL": [15, 23, 31, 39, 47, 55],
     }
 
+HEVC_QPs = {
+    "LD": [22, 27, 32, 37, 42, 47],
+    "RA": [22, 27, 32, 37, 42, 47],
+    "AI": [22, 27, 32, 37, 42, 47],
+    "AS": [22, 27, 32, 37, 42, 47],
+    "STILL": [22, 27, 32, 37, 42, 47],
+}
 MIN_GOP_LENGTH = 16
+SUB_GOP_SIZE = 16
+GOP_SIZE = 65
 AS_DOWNSCALE_ON_THE_FLY = False
 
 ######################## quality evalution config #############################
@@ -101,7 +113,7 @@ QualityList = ['PSNR_Y','PSNR_U','PSNR_V','SSIM_Y(dB)','MS-SSIM_Y(dB)','VMAF_Y',
 VMAF = os.path.join(BinPath, 'vmaf.exe')
 CalcBDRateInExcel = True
 EnablePreInterpolation = True
-UsePCHIPInterpolation = True
+UsePCHIPInterpolation = False
 #InterpolatePieces - 1 is the number of interpolated points generated between two qp points.
 InterpolatePieces = 8
 

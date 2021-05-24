@@ -21,7 +21,7 @@ from Utils import GetShortContentName, CreateNewSubfolder, SetupLogging, \
 import Utils
 from Config import LogLevels, FrameNum, TEST_CONFIGURATIONS, QPs, WorkPath, \
      Path_RDResults, LoggerName, QualityList, MIN_GOP_LENGTH, UsePerfUtil, \
-     EnableTimingInfo, CodecNames, EnableMD5
+     EnableTimingInfo, CodecNames, EnableMD5, HEVC_QPs, SUFFIX
 from EncDecUpscale import Encode, Decode
 
 ###############################################################################
@@ -33,8 +33,9 @@ def CleanIntermediateFiles():
 
 def GetBsReconFileName(EncodeMethod, CodecName, EncodePreset, test_cfg, clip, QP):
     basename = GetShortContentName(clip.file_name, False)
-    filename = "%s_%s_%s_%s_Preset_%s_QP_%d.obu" % \
-               (basename, EncodeMethod, CodecName, test_cfg, EncodePreset, QP)
+    suffix = SUFFIX[CodecName]
+    filename = "%s_%s_%s_%s_Preset_%s_QP_%d%s" % \
+               (basename, EncodeMethod, CodecName, test_cfg, EncodePreset, QP, suffix)
     bs = os.path.join(Path_Bitstreams, filename)
     filename = "%s_%s_%s_%s_Preset_%s_QP_%d_Decoded.y4m" % \
                (basename, EncodeMethod, CodecName, test_cfg, EncodePreset, QP)
@@ -64,7 +65,11 @@ def CleanUp_workfolders():
 def Run_Encode_Test(test_cfg, clip, codec, method, preset, LogCmdOnly = False):
     Utils.Logger.info("start running %s encode tests with %s"
                       % (test_cfg, clip.file_name))
-    for QP in QPs[test_cfg]:
+    QPSet = QPs[test_cfg]
+    if codec == "hevc":
+        QPSet = HEVC_QPs[test_cfg]
+
+    for QP in QPSet:
         Utils.Logger.info("start encode with QP %d" % (QP))
         #encode
         JobName = '%s_%s_%s_%s_Preset_%s_QP_%d' % \
@@ -77,7 +82,7 @@ def Run_Encode_Test(test_cfg, clip, codec, method, preset, LogCmdOnly = False):
                         Path_EncLog, LogCmdOnly)
         Utils.Logger.info("start decode file %s" % os.path.basename(bsFile))
         #decode
-        decodedYUV = Decode(method, test_cfg, codec, bsFile, Path_DecodedYuv, Path_TimingLog,
+        decodedYUV = Decode(clip, method, test_cfg, codec, bsFile, Path_DecodedYuv, Path_TimingLog,
                             False, LogCmdOnly)
         #calcualte quality distortion
         Utils.Logger.info("start quality metric calculation")
@@ -139,8 +144,12 @@ def GenerateSummaryRDDataFile(EncodeMethod, CodecName, EncodePreset,
             perframe_csv.write(',' + qty)
     perframe_csv.write('\n')
 
+    QPSet = QPs[test_cfg]
+    if CodecName == "hevc":
+        QPSet = HEVC_QPs[test_cfg]
+
     for clip in clip_list:
-        for qp in QPs[test_cfg]:
+        for qp in QPSet:
             bs, dec = GetBsReconFileName(EncodeMethod, CodecName, EncodePreset,
                                          test_cfg, clip, qp)
             filesize = os.path.getsize(bs)
@@ -207,9 +216,9 @@ def ParseArguments(raw_args):
                         metavar='', help="EncodePreset: 0,1,2... for aom")
     parser.add_argument('-c', "--CodecName", dest='CodecName', type=str,
                         default='av2', choices=CodecNames, metavar='',
-                        help="CodecName: av1, av2")
+                        help="CodecName: av1, av2, hevc")
     parser.add_argument('-m', "--EncodeMethod", dest='EncodeMethod', type=str,
-                        metavar='', help="EncodeMethod: aom, svt for av1")
+                        metavar='', help="EncodeMethod: aom, svt for av1, hm for hevc")
     if len(raw_args) == 1:
         parser.print_help()
         sys.exit(1)
@@ -230,6 +239,8 @@ def ParseArguments(raw_args):
 if __name__ == "__main__":
     #sys.argv = ["", "-f", "encode", "-c", "av2", "-m", "aom", "-p", "6", "--LogCmdOnly", "1"]
     #sys.argv = ["", "-f", "summary", "-c", "av2", "-m", "aom", "-p", "6"]
+    #sys.argv = ["", "-f", "encode", "-c", "hevc", "-m", "hm", "-p", "0"] #, "--LogCmdOnly", "1"]
+    #sys.argv = ["", "-f", "encode", "-c", "av1", "-m", "aom", "-p", "0"]  # , "--LogCmdOnly", "1"]
     ParseArguments(sys.argv)
 
     # preparation for executing functions

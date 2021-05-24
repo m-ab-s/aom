@@ -16,7 +16,6 @@ import scipy.interpolate
 import logging
 from Config import LoggerName
 from operator import itemgetter
-from Utils import plot_rd_curve
 
 subloggername = "CalcBDRate"
 loggername = LoggerName + '.' + '%s' % subloggername
@@ -81,7 +80,7 @@ def BD_RATE(qty_type, br1, qtyMtrc1, br2, qtyMtrc2):
     rd1_monotonic = check_monotonicity(brqtypairs1)
     rd2_monotonic = check_monotonicity(brqtypairs2)
     if (rd1_monotonic == False or rd2_monotonic == False):
-        return (-1, "Non-monotonic Error")
+        return (-1, "Error: Non-monotonic")
 
     try:
         logbr1 = [math.log(x[0]) for x in brqtypairs1]
@@ -89,11 +88,11 @@ def BD_RATE(qty_type, br1, qtyMtrc1, br2, qtyMtrc2):
         logbr2 = [math.log(x[0]) for x in brqtypairs2]
         qmetrics2 = [100.0 if x[1] == float('inf') else x[1] for x in brqtypairs2]
     except ValueError:
-        return (-1, "Invalid Input Data")
+        return (-1, "Error: Invalid Input Data")
 
     if not brqtypairs1 or not brqtypairs2:
-        logger.info("one of input lists is empty!")
-        return (-1, "one of input lists is empty!")
+        logger.info("Error: one of input lists is empty!")
+        return (-1, "Error: one of input lists is empty!")
 
     # remove duplicated quality metric value, the RD point with higher bit rate is removed
     dup_idx = [i for i in range(1, len(qmetrics1)) if qmetrics1[i - 1] == qmetrics1[i]]
@@ -109,8 +108,8 @@ def BD_RATE(qty_type, br1, qtyMtrc1, br2, qtyMtrc2):
     min_int = max(min(qmetrics1), min(qmetrics2))
     max_int = min(max(qmetrics1), max(qmetrics2))
     if min_int >= max_int:
-        logger.info("no overlap from input 2 lists of quality metrics!")
-        return (-1, "no overlap from input 2 lists of quality metrics!")
+        logger.info("Error: no overlap from input 2 lists of quality metrics!")
+        return (-1, "Error: no overlap from input 2 lists of quality metrics!")
 
     # generate samples between max and min of quality metrics
     lin = np.linspace(min_int, max_int, num=100, retstep=True)

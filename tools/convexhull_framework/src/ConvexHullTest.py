@@ -35,7 +35,7 @@ from Config import LogLevels, FrameNum, QPs, CvxH_WtCols,\
      CvxHDataRows, CvxHDataStartRow, CvxHDataStartCol, CvxHDataNum, \
      Int_ConvexHullColor, EnablePreInterpolation, AS_DOWNSCALE_ON_THE_FLY,\
      UsePerfUtil, ScaleMethods, EnableTimingInfo, InterpolatePieces, EnableMD5, \
-     UsePCHIPInterpolation
+     UsePCHIPInterpolation, HEVC_QPs
 
 ###############################################################################
 ##### Helper Functions ########################################################
@@ -195,7 +195,10 @@ def Run_ConvexHull_Test(clip, dnScalAlgo, upScalAlgo, ScaleMethod, LogCmdOnly = 
         ds_clip = Clip(GetShortContentName(dnscalyuv, False)+'.y4m', dnscalyuv,
                        clip.file_class, DnScaledW, DnScaledH, clip.fmt, clip.fps_num,
                        clip.fps_denom, clip.bit_depth)
-        for QP in QPs['AS']:
+        QPSet = QPs['AS']
+        if CodecName == "hevc":
+            QPSet = HEVC_QPs['AS']
+        for QP in QPSet:
             Utils.Logger.info("start encode and upscale for QP %d" % QP)
             JobName = '%s_%s_%s_%s_%dx%d_Preset_%s_QP_%d' % \
                       (GetShortContentName(clip.file_name, False),
@@ -237,13 +240,17 @@ def SaveConvexHullResultsToExcel(content, ScaleMethod, dnScAlgos, upScAlgos, csv
         shtname = dnScAlgos[i] + '--' + upScAlgos[i]
         shts.append(wb.add_worksheet(shtname))
 
+    QPSet = QPs['AS']
+    if CodecName == "hevc":
+        QPSet = HEVC_QPs['AS']
+
     DnScaledRes = [(int(clip.width / ratio), int(clip.height / ratio))
                    for ratio in DnScaleRatio]
     contentname = GetShortContentName(clip.file_name)
     for sht, indx in zip(shts, list(range(len(dnScAlgos)))):
         # write QP
         sht.write(1, 0, "QP")
-        sht.write_column(CvxH_WtRows[0], 0, QPs['AS'])
+        sht.write_column(CvxH_WtRows[0], 0, QPSet)
         shtname = sht.get_name()
 
         charts = [];  y_mins = {}; y_maxs = {}; RDPoints = {}; Int_RDPoints = {}
@@ -263,7 +270,8 @@ def SaveConvexHullResultsToExcel(content, ScaleMethod, dnScAlgos, upScAlgos, csv
             sht.write_row(1, col + 1, QualityList)
 
             bitratesKbps = []; qualities = []
-            for qp in QPs['AS']:
+
+            for qp in QPSet:
                 bs, reconyuv = GetBsReconFileName(EncodeMethod, CodecName, 'AS',
                                                   EncodePreset, clip, DnScaledW,
                                                   DnScaledH, ScaleMethod, dnScAlgos[indx],
@@ -277,7 +285,7 @@ def SaveConvexHullResultsToExcel(content, ScaleMethod, dnScAlgos, upScAlgos, csv
                 qualities.append(quality)
 
                 #"TestCfg,EncodeMethod,CodecName,EncodePreset,Class,OrigRes,Name,FPS,Bit Depth,CodedRes,QP,Bitrate(kbps)")
-                csv.write("%s,%s,%s,%s,%s,%s,%s,%.4f,%d,%s,%d,%.4f"%
+                csv.write("%s,%s,%s,%s,%s,%s,%s,%.4f,%d,%s,%d,%f"%
                           ("AS", EncodeMethod, CodecName, EncodePreset, clip.file_class,contentname,
                            str(clip.width)+"x"+str(clip.height), clip.fps,clip.bit_depth,
                            str(DnScaledW)+"x"+str(DnScaledH),qp,bitrate))
@@ -323,9 +331,9 @@ def SaveConvexHullResultsToExcel(content, ScaleMethod, dnScAlgos, upScAlgos, csv
                 RDPoints[x] = RDPoints[x] + rdpnts
                 if EnablePreInterpolation:
                     if UsePCHIPInterpolation:
-                        int_rdpnts = Interpolate_PCHIP(rdpnts, QPs['AS'][:], InterpolatePieces, True)
+                        int_rdpnts = Interpolate_PCHIP(rdpnts, QPSet[:], InterpolatePieces, True)
                     else:
-                        int_rdpnts = Interpolate_Bilinear(rdpnts, QPs['AS'][:], InterpolatePieces, True)
+                        int_rdpnts = Interpolate_Bilinear(rdpnts, QPSet[:], InterpolatePieces, True)
                     Int_RDPoints[x] = Int_RDPoints[x] + int_rdpnts
 
         # add convexhull curve to charts

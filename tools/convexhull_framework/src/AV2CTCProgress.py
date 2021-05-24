@@ -12,6 +12,7 @@ __author__ = "maggie.sun@intel.com, ryanlei@fb.com"
 
 import re
 import openpyxl
+import xlsxwriter
 import shutil
 import Config
 from Config import QPs, DnScaleRatio, CTC_ASXLSTemplate, CTC_RegularXLSTemplate, InterpolatePieces, \
@@ -20,7 +21,32 @@ import Utils
 from Utils import ParseCSVFile, plot_rd_curve, Interpolate_Bilinear, Interpolate_PCHIP, convex_hull
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
+from CalcBDRate import BD_RATE
 
+qtys = ["psnr_y", "psnr_u", "psnr_v", "overall_psnr", "ssim_y", "ms_ssim_y",
+        "vmaf", "vmaf_neg", "psnr_hvs","ciede2k", "apsnr_y", "apsnr_u",
+        "apsnr_v", "overall_apsnr"]
+
+'''
+csv_files = {
+    "HM_CloseGOP":
+    {
+        "LD":     "D:\\HEVC-AV1-Study\\HEVC-RA-CloseGop\\analysis\\rdresult\\RDResults_hm_hevc_RA_Preset_0.csv",
+    },
+    "HM_OpenGOP":
+    {
+        "LD":     "D:\\HEVC-AV1-Study\\HEVC-RA-OpenGop\\analysis\\rdresult\\RDResults_hm_hevc_RA_Preset_0.csv",
+    },
+    "AV1_CloseGOP":
+    {
+        "LD":     "D:\\HEVC-AV1-Study\\AV1-RA-CloseGop\\analysis\\rdresult\\RDResults_aom_av1_RA_Preset_0.csv",
+    },
+    "AV1_OpenGOP":
+    {
+        "LD":     "D:\\HEVC-AV1-Study\\AV1-RA-OpenGop\\analysis\\rdresult\\RDResults_aom_av1_RA_Preset_0.csv",
+    },
+}
+'''
 csv_files = {
     "v1.0.0":
     {
@@ -87,6 +113,10 @@ formats = {
     "ext-quant":    ['r', '-', '*'],
     "sdp-off":      ['b', '-', '+'],
     "sdp-on":       ['r', '-', '<'],
+    "HM_CloseGOP":     ['r', '-', 'o'],
+    "HM_OpenGOP":      ['b', '-', '+'],
+    "AV1_CloseGOP":     ['g', '-', '>'],
+    "AV1_OpenGOP":      ['k', '-', '*'],
 }
 
 AS_formats = {
@@ -215,6 +245,148 @@ def DrawRDCurve(records, anchor, pdf):
                     export_pdf.savefig()
                     plt.close()
 
+def GetQty(record, qty):
+    qtys = []
+    for key in record.keys():
+        if qty == 'psnr_y':
+            qtys.append(record[key].psnr_y)
+        elif qty == 'psnr_u':
+            qtys.append(record[key].psnr_u)
+        elif qty == 'psnr_v':
+            qtys.append(record[key].psnr_v)
+        elif qty == 'overall_psnr':
+            qtys.append(record[key].overall_psnr)
+        elif qty == 'ssim_y':
+            qtys.append(record[key].ssim_y)
+        elif qty == 'ms_ssim_y':
+            qtys.append(record[key].ms_ssim_y)
+        elif qty == 'vmaf':
+            qtys.append(record[key].vmaf_y)
+        elif qty == 'vmaf_neg':
+            qtys.append(record[key].vmaf_y_neg)
+        elif qty == 'psnr_hvs':
+            qtys.append(record[key].psnr_hvs)
+        elif qty == 'ciede2k':
+            qtys.append(record[key].ciede2k)
+        elif qty == 'apsnr_y':
+            qtys.append(record[key].apsnr_y)
+        elif qty == 'apsnr_u':
+            qtys.append(record[key].apsnr_u)
+        elif qty == 'apsnr_v':
+            qtys.append(record[key].apsnr_v)
+        elif qty == 'overall_apsnr':
+            qtys.append(record[key].overall_apsnr)
+        else:
+            assert(0)
+    return qtys
+
+def CalcBDRate(anchor, test):
+    anchor_qty = {}; test_qty = {}
+    br_anchor = []; br_test = []
+    for key in anchor.keys():
+        br_anchor.append(anchor[key].bitrate)
+    for key in test.keys():
+        br_test.append(test[key].bitrate)
+
+    for qty in qtys:
+        anchor_qty[qty]   = GetQty(anchor, qty)
+        test_qty[qty] = GetQty(test, qty)
+
+    bdrate = {}; err = 0
+    for qty in qtys:
+        (err, bdrate[qty]) = BD_RATE(qty, br_anchor, anchor_qty[qty],
+                                     br_test, test_qty[qty])
+    return bdrate
+
+def CalcFullBDRate(cfg):
+    bdrate = {}; seq_time = {}; seq_instr = {}
+    for video in records[anchor][cfg].keys():
+        bdrate[video] = {}; seq_time[video] = {}
+        seq_instr[video] = {}
+        for mode in records.keys():
+            record = records[mode][cfg][video]
+            if mode not in seq_time[video].keys():
+                seq_time[video][mode] = 0
+
+            if mode not in seq_instr[video].keys():
+                seq_instr[video][mode] = 0
+
+            for key in record.keys():
+                seq_time[video][mode] += record[key].enc_time
+                seq_instr[video][mode] += record[key].enc_instr
+            if mode == anchor:
+                continue
+            bdrate[video][mode] = CalcBDRate(records[anchor][cfg][video], records[mode][cfg][video])
+    return (bdrate, seq_time, seq_instr)
+
+
+def WriteSummaryXlsFile(bdrate, seq_time, seq_instr, summary):
+    csv = open(summary+".csv", "wt")
+    csv.write('Video,mode')
+    for qty in qtys:
+        csv.write(',%s'%qty)
+    csv.write(",EncTime(s),EncInstr\n")
+
+    wb = xlsxwriter.Workbook(summary + ".xls")
+    shts = []
+
+    for mode in csv_files.keys():
+        total = {}; avg_bdrate = {}
+        sht = wb.add_worksheet(mode)
+        shts.append(sht)
+        row = 0; col = 0
+        sht.write(row, 0, 'Video')
+        for qty in qtys:
+            col = qtys.index(qty) + 1
+            sht.write(row, col, qty)
+        sht.write(row, col + 1, "EncTime(s)")
+        sht.write(row, col + 2, "EncInstr")
+        row = 1
+        for video in bdrate.keys():
+            csv.write("%s,%s"%(video, mode))
+            for qty in qtys:
+                if mode == anchor:
+                    csv.write(',0.0')
+                elif not str(bdrate[video][mode][qty]).startswith('Error'):
+                    csv.write(',%f' % bdrate[video][mode][qty])
+                else:
+                    csv.write(',%s' % bdrate[video][mode][qty])
+
+            csv.write(",%f,%f\n" % (seq_time[video][mode], seq_instr[video][mode]))
+
+            sht.write(row, 0, video)
+            for qty in qtys:
+                if not qty in total.keys():
+                    total[qty] = 0
+                    avg_bdrate[qty] = 0
+
+                if mode != anchor and not str(bdrate[video][mode][qty]).startswith('Error'):
+                    total[qty] += 1
+                    avg_bdrate[qty] += bdrate[video][mode][qty]
+
+                col = qtys.index(qty) + 1
+                if mode == anchor:
+                    sht.write(row, col, 0.00)
+                elif (mode in bdrate[video].keys()):
+                    sht.write(row, col, bdrate[video][mode][qty])
+            sht.write(row, col + 1, seq_time[video][mode])
+            sht.write(row, col + 2, seq_instr[video][mode])
+            row += 1
+        row += 1
+        for qty in qtys:
+            if total[qty] != 0:
+                avg_bdrate[qty] /= total[qty]
+            else:
+                avg_bdrate[qty] = 0.0
+
+        sht.write(row, 0, "Average")
+        for qty in qtys:
+            col = qtys.index(qty) + 1
+            sht.write(row, col, avg_bdrate[qty])
+        row += 1
+
+    wb.close()
+    csv.close()
 
 ######################################
 # main
@@ -227,5 +399,11 @@ if __name__ == "__main__":
             records[tag][test_cfg] = ParseCSVFile(csv_files[tag][test_cfg])
 
     FillXlsFile()
-
     DrawRDCurve(records, anchor, rd_curve_pdf)
+
+    #Calculate BDRate and collect total time
+    for test_cfg in csv_files[anchor].keys():
+        (bdrate, seq_time, seq_instr) = CalcFullBDRate(test_cfg)
+        #Write output summary xls file
+        filename = "Summary-HEVC-AV1-%s"%test_cfg
+        WriteSummaryXlsFile(bdrate, seq_time, seq_instr, filename)
