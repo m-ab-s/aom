@@ -147,7 +147,7 @@ set_aom_config_var(CONFIG_EXTQUANT 1
 set_aom_config_var(CONFIG_COMPOUND_WARP_SAMPLES 1 NUMBER
                    "AV2 compound warped motion samples experiment flag")
 set_aom_config_var(
-  CONFIG_MRLS 0 "AV2 experiment flag to enable multiple line intra prediction.")
+  CONFIG_MRLS 1 "AV2 experiment flag to enable multiple line intra prediction.")
 
 #
 # Variables in this section control optional features of the build system.
