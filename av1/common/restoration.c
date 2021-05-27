@@ -1268,12 +1268,12 @@ uint8_t *wienerns_copy_luma_highbd(const uint8_t *dgd, int height_y,
   }
   for (int r = -border; r < 0; ++r) {
     memcpy(&(*luma)[r * out_stride - border], &(*luma)[-border],
-           width_uv + 2 * border * sizeof((*luma)[0]));
+           (width_uv + 2 * border) * sizeof((*luma)[0]));
   }
   for (int r = 0; r < border; ++r)
     memcpy(&(*luma)[(height_uv + r) * out_stride - border],
            &(*luma)[(height_uv - 1) * out_stride - border],
-           width_uv + 2 * border * sizeof((*luma)[0]));
+           (width_uv + 2 * border) * sizeof((*luma)[0]));
   return (uint8_t *)aug_luma;
 }
 
@@ -1298,12 +1298,12 @@ uint8_t *wienerns_copy_luma(const uint8_t *dgd, int height_y, int width_y,
   }
   for (int r = -border; r < 0; ++r) {
     memcpy(&(*luma)[r * out_stride - border], &(*luma)[-border],
-           width_uv + 2 * border * sizeof((*luma)[0]));
+           (width_uv + 2 * border) * sizeof((*luma)[0]));
   }
   for (int r = 0; r < border; ++r)
     memcpy(&(*luma)[(height_uv + r) * out_stride - border],
            &(*luma)[(height_uv - 1) * out_stride - border],
-           width_uv + 2 * border * sizeof((*luma)[0]));
+           (width_uv + 2 * border) * sizeof((*luma)[0]));
   return aug_luma;
 }
 #endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
