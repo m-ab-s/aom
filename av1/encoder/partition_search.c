@@ -3430,7 +3430,7 @@ static void rectangular_partition_search(
     const int part_hv_rate = part_search_state->partition_cost[partition_type];
     if (part_hv_rate == INT_MAX ||
         RDCOST(x->rdmult, part_hv_rate, 0) >= best_rdc->rdcost) {
-      return;
+      continue;
     }
 #if !CONFIG_EXT_RECUR_PARTITIONS
     assert(blk_params.subsize <= BLOCK_LARGEST);
@@ -3476,7 +3476,7 @@ static void rectangular_partition_search(
           const BLOCK_SIZE subsubsize =
               get_partition_subsize(blk_params.subsize, PARTITION_VERT);
           if (subsubsize == BLOCK_INVALID) {
-            return;
+            continue;
           }
 
           // Do one more check to deal with recursion
@@ -3503,7 +3503,7 @@ static void rectangular_partition_search(
           subpart_data.part_rate = 0;
           if (av1_prune_new_part(&part_search_state->none_data, &subpart_data,
                                  x->rdmult, blk_params.bsize, &cpi->sf)) {
-            return;
+            continue;
           }
         }
       }
@@ -3584,7 +3584,7 @@ static void rectangular_partition_search(
           const BLOCK_SIZE subsubsize =
               get_partition_subsize(blk_params.subsize, PARTITION_HORZ);
           if (subsubsize == BLOCK_INVALID) {
-            return;
+            continue;
           }
 
           // Do one more check to deal with recursion
@@ -3612,7 +3612,7 @@ static void rectangular_partition_search(
           subpart_data.part_rate = 0;
           if (av1_prune_new_part(&part_search_state->none_data, &subpart_data,
                                  x->rdmult, blk_params.bsize, &cpi->sf)) {
-            return;
+            continue;
           }
         }
       }
