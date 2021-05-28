@@ -12,6 +12,8 @@
 #ifndef AOM_AV1_COMMON_AV1_COMMON_INT_H_
 #define AOM_AV1_COMMON_AV1_COMMON_INT_H_
 
+#include <stdbool.h>
+
 #include "config/aom_config.h"
 #include "config/av1_rtcd.h"
 
@@ -317,6 +319,9 @@ typedef struct SequenceHeader {
   // Operating point info.
   int operating_points_cnt_minus_1;
   int operating_point_idc[MAX_NUM_OPERATING_POINTS];
+  // True if operating_point_idc[op] is not equal to 0 for any value of op from
+  // 0 to operating_points_cnt_minus_1.
+  bool has_nonzero_operating_point_idc;
   int timing_info_present;
   aom_timing_info_t timing_info;
   uint8_t decoder_model_info_present_flag;

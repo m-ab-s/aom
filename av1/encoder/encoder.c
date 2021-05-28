@@ -9,12 +9,14 @@
  * PATENTS file, you can obtain it at www.aomedia.org/license/patent.
  */
 
-#include <limits.h>
+#include <assert.h>
 #include <float.h>
+#include <limits.h>
 #include <math.h>
+#include <stdbool.h>
 #include <stdio.h>
-#include <time.h>
 #include <stdlib.h>
+#include <time.h>
 
 #include "av1/common/scale.h"
 #include "config/aom_config.h"
@@ -547,6 +549,7 @@ void av1_init_seq_coding_tools(AV1_PRIMARY *const ppi,
 
   if (seq->operating_points_cnt_minus_1 == 0) {
     seq->operating_point_idc[0] = 0;
+    seq->has_nonzero_operating_point_idc = false;
   } else {
     // Set operating_point_idc[] such that the i=0 point corresponds to the
     // highest quality operating point (all layers), and subsequent
@@ -555,11 +558,13 @@ void av1_init_seq_coding_tools(AV1_PRIMARY *const ppi,
     int i = 0;
     assert(seq->operating_points_cnt_minus_1 ==
            (int)(ppi->number_spatial_layers * ppi->number_temporal_layers - 1));
+    seq->has_nonzero_operating_point_idc = true;
     for (unsigned int sl = 0; sl < ppi->number_spatial_layers; sl++) {
       for (unsigned int tl = 0; tl < ppi->number_temporal_layers; tl++) {
         seq->operating_point_idc[i] =
             (~(~0u << (ppi->number_spatial_layers - sl)) << 8) |
             ~(~0u << (ppi->number_temporal_layers - tl));
+        assert(seq->operating_point_idc[i] != 0);
         i++;
       }
     }
@@ -5387,7 +5392,9 @@ aom_fixed_buf_t *av1_get_global_headers(AV1_PRIMARY *ppi) {
   memmove(&header_buf[payload_offset], &header_buf[0], sequence_header_size);
 
   if (av1_write_obu_header(&ppi->level_params, &ppi->cpi->frame_header_count,
-                           OBU_SEQUENCE_HEADER, 0,
+                           OBU_SEQUENCE_HEADER,
+                           /*is_layer_specific_obu=*/false,
+                           ppi->seq_params.has_nonzero_operating_point_idc, 0,
                            &header_buf[0]) != obu_header_size) {
     return NULL;
   }

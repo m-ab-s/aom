@@ -9,6 +9,7 @@
  * PATENTS file, you can obtain it at www.aomedia.org/license/patent.
  */
 #include <limits.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
@@ -3352,9 +3353,11 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
 
         const size_t move_offset = obu_header_size + length_field_size;
         memmove(ctx->cx_data + move_offset, ctx->cx_data, cpi_data.frame_size);
-        obu_header_size =
-            av1_write_obu_header(&ppi->level_params, &cpi->frame_header_count,
-                                 OBU_TEMPORAL_DELIMITER, 0, ctx->cx_data);
+        obu_header_size = av1_write_obu_header(
+            &ppi->level_params, &cpi->frame_header_count,
+            OBU_TEMPORAL_DELIMITER,
+            /*is_layer_specific_obu=*/false,
+            ppi->seq_params.has_nonzero_operating_point_idc, 0, ctx->cx_data);
 
         // OBUs are preceded/succeeded by an unsigned leb128 coded integer.
         if (av1_write_uleb_obu_size(obu_header_size, obu_payload_size,
