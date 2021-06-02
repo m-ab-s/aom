@@ -67,6 +67,8 @@ static int compare_score_data_asc(const void *a, const void *b) {
     return -1;
   }
 }
+
+#define JOINT_DIST_QINDEX_ORDERING 1
 void av1_init_new_ref_frame_map(AV1_COMMON *cm,
                                 RefFrameMapPair *ref_frame_map_pairs,
                                 int cur_frame_disp) {
@@ -80,14 +82,21 @@ void av1_init_new_ref_frame_map(AV1_COMMON *cm,
   // Compute a score for each reference buffer
   for (int i = 0; i < MAX_REF_FRAMES_NRS; i++) {
     // Get reference frame buffer
-
     RefFrameMapPair cur_ref = ref_frame_map_pairs[i];
     if (cur_ref.disp_order == -1) continue;
     const int ref_disp = cur_ref.disp_order;
+    const int ref_base_qindex = cur_ref.base_qindex;
 
-    // Sort frames based on distance from current frame
+    // Sort frames based on distance from current frame and
+    // qindex difference from current frame
     const int disp_diff = cur_frame_disp - ref_disp;
-    const int score = abs(disp_diff);
+#if JOINT_DIST_QINDEX_ORDERING
+    const int base_qindex_diff = cm->cur_frame->base_qindex - ref_base_qindex;
+    // TODO(debargha, sarahparker): Refine the scoring function below.
+    const int score = 4 * abs(disp_diff) - base_qindex_diff;
+#else
+    const int score = 4 * abs(disp_diff);
+#endif  // JOINT_DIST_QINDEX_ORDERING
     scores[n_ranked].index = i;
     scores[n_ranked].score = score;
     scores[n_ranked].distance = disp_diff;

@@ -24,6 +24,7 @@ extern "C" {
 typedef struct {
   int pyr_level;
   int disp_order;
+  int base_qindex;
 } RefFrameMapPair;
 
 static const MV_REFERENCE_FRAME
@@ -47,6 +48,7 @@ static INLINE void init_ref_map_pair(
     if (buf == NULL) {
       ref_frame_map_pairs[map_idx].disp_order = -1;
       ref_frame_map_pairs[map_idx].pyr_level = -1;
+      ref_frame_map_pairs[map_idx].base_qindex = -1;
       continue;
     } else if (buf->ref_count > 1) {
       // Once the keyframe is coded, the slots in ref_frame_map will all
@@ -59,11 +61,13 @@ static INLINE void init_ref_map_pair(
         if (buf2 == buf) {
           ref_frame_map_pairs[idx2].disp_order = -1;
           ref_frame_map_pairs[idx2].pyr_level = -1;
+          ref_frame_map_pairs[idx2].base_qindex = -1;
         }
       }
     }
     ref_frame_map_pairs[map_idx].disp_order = (int)buf->display_order_hint;
     ref_frame_map_pairs[map_idx].pyr_level = buf->pyramid_level;
+    ref_frame_map_pairs[map_idx].base_qindex = buf->base_qindex;
   }
 }
 
