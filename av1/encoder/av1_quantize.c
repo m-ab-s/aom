@@ -1071,6 +1071,7 @@ void av1_set_quantizer(AV1_COMMON *const cm, int min_qmlevel, int max_qmlevel,
   // delta_q changes.
   CommonQuantParams *quant_params = &cm->quant_params;
   quant_params->base_qindex = AOMMAX(cm->delta_q_info.delta_q_present_flag, q);
+  cm->cur_frame->base_qindex = quant_params->base_qindex;
 #if CONFIG_EXTQUANT
   (void)enable_chroma_deltaq;
   if (deltaq_mode != NO_DELTA_Q)

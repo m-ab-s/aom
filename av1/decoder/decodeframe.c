@@ -5680,6 +5680,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
   CommonQuantParams *const quant_params = &cm->quant_params;
   setup_quantization(quant_params, av1_num_planes(cm), cm->seq_params.bit_depth,
                      cm->seq_params.separate_uv_delta_q, rb);
+  cm->cur_frame->base_qindex = quant_params->base_qindex;
   xd->bd = (int)seq_params->bit_depth;
 
   CommonContexts *const above_contexts = &cm->above_contexts;
