@@ -10941,7 +10941,8 @@ static int handle_inter_intra_mode(const AV1_COMP *const cpi,
   const int_mv mv0 = mbmi->mv[0];
 #if CONFIG_INTERINTRA_ML
   const int is_wedge_used =
-      is_interintra_ml_supported(&x->e_mbd, /*wedge=*/false);
+      !is_interintra_ml_supported(&x->e_mbd, /*wedge=*/false) &&
+      is_interintra_wedge_used(bsize);
 #else
   const int is_wedge_used = is_interintra_wedge_used(bsize);
 #endif  // CONFIG_INTERINTRA_ML
