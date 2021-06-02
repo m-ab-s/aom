@@ -103,7 +103,7 @@ static const THR_MODES mode_idx[REF_FRAMES][4] = {
 
 static const PREDICTION_MODE intra_mode_list[] = { DC_PRED, V_PRED, H_PRED,
                                                    SMOOTH_PRED };
-
+#if !CONFIG_NEW_REF_SIGNALING
 static INLINE int mode_offset(const PREDICTION_MODE mode) {
 #if CONFIG_NEW_INTER_MODES
   if (mode >= NEARMV) {
@@ -121,6 +121,7 @@ static INLINE int mode_offset(const PREDICTION_MODE mode) {
     }
   }
 }
+#endif  // !CONFIG_NEW_REF_SIGNALING
 
 #if CONFIG_NEW_INTER_MODES
 enum {
