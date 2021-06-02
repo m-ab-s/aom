@@ -198,7 +198,8 @@ static TX_SIZE get_transform_size(const MACROBLOCKD *const xd,
   assert(mbmi != NULL);
   if (xd && xd->lossless[mbmi->segment_id]) return TX_4X4;
 #if CONFIG_SDP
-  const int plane_type = (plane > 0 && cm->seq_params.enable_sdp);
+  const int plane_type =
+      (frame_is_intra_only(cm) && plane > 0 && cm->seq_params.enable_sdp);
 #endif
   TX_SIZE tx_size = (plane == AOM_PLANE_Y)
                         ? mbmi->tx_size
@@ -257,7 +258,8 @@ static TX_SIZE set_lpf_parameters(
   params->filter_length = 0;
 
 #if CONFIG_SDP
-  const int plane_type = (plane > 0 && cm->seq_params.enable_sdp);
+  const int plane_type =
+      (frame_is_intra_only(cm) && plane > 0 && cm->seq_params.enable_sdp);
 #endif
 
   // no deblocking is required
