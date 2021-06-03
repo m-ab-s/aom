@@ -389,7 +389,8 @@ function(setup_aom_test_targets)
   list(APPEND AOM_APP_TARGETS test_libaom)
 
   if(CONFIG_AV1_DECODER)
-    target_sources(test_libaom PRIVATE $<TARGET_OBJECTS:aom_decoder_app_util>
+    target_sources(test_libaom PRIVATE
+      # $<TARGET_OBJECTS:aom_decoder_app_util>
                    $<TARGET_OBJECTS:test_aom_decoder>)
 
     if(ENABLE_DECODE_PERF_TESTS AND CONFIG_WEBM_IO)
@@ -408,7 +409,12 @@ function(setup_aom_test_targets)
     if(NOT BUILD_SHARED_LIBS)
       add_executable(test_intra_pred_speed
                      ${AOM_TEST_INTRA_PRED_SPEED_SOURCES}
-                     $<TARGET_OBJECTS:aom_common_app_util>)
+                     $<TARGET_OBJECTS:aom_common_app_util>
+                     # $<TARGET_OBJECTS:aom_decoder_app_util>
+                     )
+      if(CONFIG_WEBM_IO)
+        target_sources(test_intra_pred_speed PRIVATE $<TARGET_OBJECTS:webm>)
+      endif()
       target_link_libraries(test_intra_pred_speed ${AOM_LIB_LINK_TYPE} aom
                             aom_gtest)
       list(APPEND AOM_APP_TARGETS test_intra_pred_speed)

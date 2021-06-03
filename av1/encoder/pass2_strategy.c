@@ -3802,7 +3802,8 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
       cpi->ppi->gf_state.arf_gf_boost_lst = 0;
     }
 
-    // TODO(jingning): Resoleve the redundant calls here.
+    av1_set_gop_third_pass(cpi->third_pass_ctx, NULL);
+    // TODO(jingning): Resolve the redundant calls here.
     if (rc->intervals_till_gf_calculate_due == 0 || 1) {
       calculate_gf_length(cpi, max_gop_length, MAX_NUM_GF_INTERVALS);
     }

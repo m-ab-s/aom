@@ -13,13 +13,27 @@
 #define AOM_COMMON_VIDEO_READER_H_
 
 #include "common/video_common.h"
+#include "aom_ports/mem_ops.h"
+#include "common/ivfdec.h"
+#include "common/obudec.h"
+#include "common/tools_common.h"
+#include "common/webmdec.h"
 
 // The following code is work in progress. It is going to  support transparent
 // reading of input files. Right now only IVF format is supported for
 // simplicity. The main goal the API is to be simple and easy to use in example
 // code and in aomenc/aomdec later. All low-level details like memory
 // buffer management are hidden from API users.
-struct AvxVideoReaderStruct;
+struct AvxVideoReaderStruct {
+  AvxVideoInfo info;
+  struct AvxInputContext input_ctx;
+  struct ObuDecInputContext obu_ctx;
+  struct WebmInputContext webm_ctx;
+  uint8_t *buffer;
+  size_t buffer_size;
+  size_t frame_size;
+  aom_codec_pts_t pts;
+};
 typedef struct AvxVideoReaderStruct AvxVideoReader;
 
 #ifdef __cplusplus

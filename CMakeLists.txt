@@ -165,12 +165,16 @@ list(APPEND AOM_COMMON_APP_UTIL_SOURCES
             "${AOM_ROOT}/common/rawenc.c"
             "${AOM_ROOT}/common/rawenc.h"
             "${AOM_ROOT}/common/y4menc.c"
-            "${AOM_ROOT}/common/y4menc.h")
-
-list(APPEND AOM_DECODER_APP_UTIL_SOURCES "${AOM_ROOT}/common/ivfdec.c"
+            "${AOM_ROOT}/common/y4menc.h"
+            "${AOM_ROOT}/common/ivfdec.c"
             "${AOM_ROOT}/common/ivfdec.h" "${AOM_ROOT}/common/obudec.c"
             "${AOM_ROOT}/common/obudec.h" "${AOM_ROOT}/common/video_reader.c"
             "${AOM_ROOT}/common/video_reader.h")
+
+# list(APPEND AOM_DECODER_APP_UTIL_SOURCES "${AOM_ROOT}/common/ivfdec.c"
+#             "${AOM_ROOT}/common/ivfdec.h" "${AOM_ROOT}/common/obudec.c"
+#             "${AOM_ROOT}/common/obudec.h" "${AOM_ROOT}/common/video_reader.c"
+#             "${AOM_ROOT}/common/video_reader.h")
 
 list(APPEND AOM_ENCODER_APP_UTIL_SOURCES
             "${AOM_ROOT}/common/ivfenc.c"
@@ -323,11 +327,11 @@ file(WRITE "${AOM_GEN_SRC_DIR}/usage_exit.cc"
 #
 if(ENABLE_EXAMPLES OR ENABLE_TESTS OR ENABLE_TOOLS)
   add_library(aom_common_app_util OBJECT ${AOM_COMMON_APP_UTIL_SOURCES})
-  if(CONFIG_AV1_DECODER)
-    add_library(aom_decoder_app_util OBJECT ${AOM_DECODER_APP_UTIL_SOURCES})
-    # obudec depends on internal headers that require *rtcd.h
-    add_dependencies(aom_decoder_app_util aom_rtcd)
-  endif()
+  # if(CONFIG_AV1_DECODER)
+  #   add_library(aom_decoder_app_util OBJECT ${AOM_DECODER_APP_UTIL_SOURCES})
+  #   # obudec depends on internal headers that require *rtcd.h
+  #   add_dependencies(aom_decoder_app_util aom_rtcd)
+  # endif()
   if(CONFIG_AV1_ENCODER)
     add_library(aom_encoder_app_util OBJECT ${AOM_ENCODER_APP_UTIL_SOURCES})
   endif()
@@ -335,31 +339,38 @@ endif()
 
 if((CONFIG_AV1_DECODER OR CONFIG_AV1_ENCODER) AND ENABLE_EXAMPLES)
   add_executable(resize_util "${AOM_ROOT}/examples/resize_util.c"
-                             $<TARGET_OBJECTS:aom_common_app_util>)
+    $<TARGET_OBJECTS:aom_common_app_util>
+    $<TARGET_OBJECTS:aom_encoder_app_util>)
   list(APPEND AOM_APP_TARGETS resize_util)
 endif()
 
 if(CONFIG_AV1_DECODER AND ENABLE_EXAMPLES)
   add_executable(aomdec "${AOM_ROOT}/apps/aomdec.c"
                         $<TARGET_OBJECTS:aom_common_app_util>
-                        $<TARGET_OBJECTS:aom_decoder_app_util>)
+                        # $<TARGET_OBJECTS:aom_decoder_app_util>
+                        )
   add_executable(decode_to_md5 "${AOM_ROOT}/examples/decode_to_md5.c"
                                $<TARGET_OBJECTS:aom_common_app_util>
-                               $<TARGET_OBJECTS:aom_decoder_app_util>)
+                               # $<TARGET_OBJECTS:aom_decoder_app_util>
+                               )
   add_executable(decode_with_drops "${AOM_ROOT}/examples/decode_with_drops.c"
                                    $<TARGET_OBJECTS:aom_common_app_util>
-                                   $<TARGET_OBJECTS:aom_decoder_app_util>)
+                                   # $<TARGET_OBJECTS:aom_decoder_app_util>
+                                   )
   add_executable(simple_decoder "${AOM_ROOT}/examples/simple_decoder.c"
                                 $<TARGET_OBJECTS:aom_common_app_util>
-                                $<TARGET_OBJECTS:aom_decoder_app_util>)
+                                # $<TARGET_OBJECTS:aom_decoder_app_util>
+                                )
   add_executable(scalable_decoder "${AOM_ROOT}/examples/scalable_decoder.c"
                                   $<TARGET_OBJECTS:aom_common_app_util>
-                                  $<TARGET_OBJECTS:aom_decoder_app_util>)
+                                  # $<TARGET_OBJECTS:aom_decoder_app_util>
+                                  )
 
   if(CONFIG_ANALYZER)
     add_executable(analyzer "${AOM_ROOT}/examples/analyzer.cc"
                             $<TARGET_OBJECTS:aom_common_app_util>
-                            $<TARGET_OBJECTS:aom_decoder_app_util>)
+                            # $<TARGET_OBJECTS:aom_decoder_app_util>
+                            )
     target_link_libraries(analyzer ${AOM_LIB_LINK_TYPE} ${wxWidgets_LIBRARIES})
     list(APPEND AOM_APP_TARGETS analyzer)
     list(APPEND AOM_DECODER_EXAMPLE_TARGETS analyzer)
@@ -368,7 +379,8 @@ if(CONFIG_AV1_DECODER AND ENABLE_EXAMPLES)
   if(CONFIG_INSPECTION)
     add_executable(inspect "${AOM_ROOT}/examples/inspect.c"
                            $<TARGET_OBJECTS:aom_common_app_util>
-                           $<TARGET_OBJECTS:aom_decoder_app_util>)
+                           # $<TARGET_OBJECTS:aom_decoder_app_util>
+                           )
     list(APPEND AOM_DECODER_EXAMPLE_TARGETS inspect)
 
     if(EMSCRIPTEN)
@@ -567,7 +579,8 @@ if(ENABLE_TOOLS)
                             "${AOM_ROOT}/tools/obu_parser.cc"
                             "${AOM_ROOT}/tools/obu_parser.h"
                             $<TARGET_OBJECTS:aom_common_app_util>
-                            $<TARGET_OBJECTS:aom_decoder_app_util>)
+                            # $<TARGET_OBJECTS:aom_decoder_app_util>
+                            )
 
     list(APPEND AOM_TOOL_TARGETS dump_obu)
     list(APPEND AOM_APP_TARGETS dump_obu)
@@ -600,7 +613,8 @@ if(ENABLE_EXAMPLES AND CONFIG_AV1_DECODER)
   add_executable(lightfield_tile_list_decoder
                  "${AOM_ROOT}/examples/lightfield_tile_list_decoder.c"
                  $<TARGET_OBJECTS:aom_common_app_util>
-                 $<TARGET_OBJECTS:aom_decoder_app_util>)
+                 # $<TARGET_OBJECTS:aom_decoder_app_util>
+                 )
   list(APPEND AOM_EXAMPLE_TARGETS lightfield_tile_list_decoder)
   list(APPEND AOM_APP_TARGETS lightfield_tile_list_decoder)
 endif()
@@ -608,7 +622,8 @@ endif()
 if(ENABLE_EXAMPLES AND CONFIG_AV1_DECODER)
   add_executable(lightfield_decoder "${AOM_ROOT}/examples/lightfield_decoder.c"
                                     $<TARGET_OBJECTS:aom_common_app_util>
-                                    $<TARGET_OBJECTS:aom_decoder_app_util>)
+                                    # $<TARGET_OBJECTS:aom_decoder_app_util>
+                                    )
   list(APPEND AOM_EXAMPLE_TARGETS lightfield_decoder)
   list(APPEND AOM_APP_TARGETS lightfield_decoder)
 endif()
@@ -618,7 +633,8 @@ if(ENABLE_EXAMPLES AND CONFIG_AV1_ENCODER AND CONFIG_AV1_DECODER)
                  "${AOM_ROOT}/examples/lightfield_bitstream_parsing.c"
                  $<TARGET_OBJECTS:aom_common_app_util>
                  $<TARGET_OBJECTS:aom_encoder_app_util>
-                 $<TARGET_OBJECTS:aom_decoder_app_util>)
+                 # $<TARGET_OBJECTS:aom_decoder_app_util>
+                 )
   list(APPEND AOM_EXAMPLE_TARGETS lightfield_bitstream_parsing)
   list(APPEND AOM_APP_TARGETS lightfield_bitstream_parsing)
 endif()
@@ -647,10 +663,11 @@ if(ENABLE_EXAMPLES OR ENABLE_TESTS OR ENABLE_TOOLS)
     endif()
 
     # Add to existing targets.
-    if(CONFIG_AV1_DECODER)
-      target_sources(aom_decoder_app_util PRIVATE ${AOM_WEBM_DECODER_SOURCES})
-    endif()
+    # if(CONFIG_AV1_DECODER)
+    #   target_sources(aom_decoder_app_util PRIVATE ${AOM_WEBM_DECODER_SOURCES})
+    # endif()
 
+    target_sources(aom_common_app_util PRIVATE ${AOM_WEBM_DECODER_SOURCES})
     if(CONFIG_AV1_ENCODER)
       target_sources(aom_encoder_app_util PRIVATE ${AOM_WEBM_ENCODER_SOURCES})
     endif()

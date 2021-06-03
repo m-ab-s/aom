@@ -4547,6 +4547,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       // assign_frame_buffer_p()!
       assert(!cm->cur_frame->raw_frame_buffer.data);
       assign_frame_buffer_p(&cm->cur_frame, frame_to_show);
+      cm->current_frame.order_hint = cm->cur_frame->order_hint;
       pbi->reset_decoder_state = frame_to_show->frame_type == KEY_FRAME;
       unlock_buffer_pool(pool);
 

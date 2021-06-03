@@ -47,6 +47,7 @@
 #include "av1/encoder/speed_features.h"
 #include "av1/encoder/svc_layercontext.h"
 #include "av1/encoder/temporal_filter.h"
+#include "av1/encoder/thirdpass.h"
 #include "av1/encoder/tokenize.h"
 #include "av1/encoder/tpl_model.h"
 #include "av1/encoder/av1_noise_estimate.h"
@@ -2920,6 +2921,8 @@ typedef struct AV1_COMP {
    */
   bool do_frame_data_update;
 #endif
+
+  THIRD_PASS_DEC_CTX *third_pass_ctx;
 } AV1_COMP;
 
 /*!
