@@ -1417,7 +1417,11 @@ int av1_compound_type_rd(const AV1_COMP *const cpi, MACROBLOCK *x,
 
   // If the match is found, calculate the rd cost using the
   // stored stats and update the mbmi appropriately.
-  if (match_found && cpi->sf.inter_sf.reuse_compound_type_decision) {
+  if (match_found &&
+#if CONFIG_OPTFLOW_REFINEMENT
+      this_mode <= NEW_NEWMV &&
+#endif
+      cpi->sf.inter_sf.reuse_compound_type_decision) {
     return populate_reuse_comp_type_data(x, mbmi, &best_type_stats, cur_mv,
                                          comp_rate, comp_dist, comp_rs2,
                                          rate_mv, rd, match_index);

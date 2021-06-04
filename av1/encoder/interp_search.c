@@ -104,6 +104,9 @@ int av1_find_interp_filter_match(
     const InterpFilter assign_filter, const int need_search,
     INTERPOLATION_FILTER_STATS *interp_filter_stats,
     int interp_filter_stats_idx) {
+#if CONFIG_OPTFLOW_REFINEMENT
+  if (mbmi->mode > NEW_NEWMV) return -1;
+#endif
   int match_found_idx = -1;
   if (cpi->sf.interp_sf.use_interp_filter && need_search)
     match_found_idx = find_interp_filter_in_stats(
