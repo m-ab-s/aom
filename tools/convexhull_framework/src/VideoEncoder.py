@@ -149,12 +149,20 @@ def EncodeWithAOM_AV1(clip, test_cfg, QP, framenum, outfile, preset, enc_perf,
 def EncodeWithSVT_AV1(clip, test_cfg, QP, framenum, outfile, preset, enc_perf,
                       enc_log, LogCmdOnly=False):
     #TODO: update svt parameters
+    # -enable-tpl-la 0 to disable the content based per layer QP adjustment(i.e.use
+    # fixed offsets @ QP scaling ), and the content based per block QP adjustment(i.e.TPL
+    # OFF).
     args = " --preset %s --scm 2 --lookahead 0 -n %d " \
-           " --rc 0 -q %d -w %d -h %d --irefresh-type 2 "\
-           " --fps-num %d --fps-denom %d --input-depth %d " \
-           " --aq-mode 0 " \
+           " --rc 0 -q %d -w %d -h %d  --fps-num %d " \
+           " --fps-denom %d --input-depth %d " \
+           " --adaptive-quantization 0 --enable-tpl-la 0" \
            % (str(preset), framenum, QP, clip.width, clip.height,
               clip.fps_num, clip.fps_denom, clip.bit_depth)
+
+    if EnableOpenGOP:
+        args += " --irefresh-type 1"
+    else:
+        args += " --irefresh-type 2"
 
     # For 4K clip, encode with 2 tile columns using two threads.
     # --tile-columns value is in log2.
@@ -167,7 +175,7 @@ def EncodeWithSVT_AV1(clip, test_cfg, QP, framenum, outfile, preset, enc_perf,
         args += " --keyint 255 "
     elif test_cfg == "RA" or test_cfg == "AS":
         args += " --keyint %d --hierarchical-levels %d --pred-struct 2 " \
-                % (GOP_SIZE, math.log2(SUB_GOP_SIZE))
+                % (GOP_SIZE-1, math.log2(SUB_GOP_SIZE))
     elif test_cfg == "LD":
         args += " --keyint 9999 --hierarchical-levels %d --pred-struct 1 " \
                 % math.log2(SUB_GOP_SIZE)
