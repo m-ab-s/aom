@@ -35,6 +35,9 @@
 
 #include "av1/common/alloccommon.h"
 #include "av1/common/cdef.h"
+#if CONFIG_CCSO
+#include "av1/common/ccso.h"
+#endif
 #include "av1/common/cfl.h"
 #if CONFIG_INSPECTION
 #include "av1/decoder/inspection.h"
@@ -2069,6 +2072,29 @@ static AOM_INLINE void setup_cdef(AV1_COMMON *cm,
         num_planes > 1 ? aom_rb_read_literal(rb, CDEF_STRENGTH_BITS) : 0;
   }
 }
+
+#if CONFIG_CCSO
+static AOM_INLINE void setup_ccso(AV1_COMMON *cm,
+                                  struct aom_read_bit_buffer *rb) {
+  if (cm->features.allow_intrabc) return;
+  const int ccso_offset[8] = { 0, 1, -1, 3, -3, 5, -5, -7 };
+  for (int plane = 1; plane < 3; plane++) {
+    cm->ccso_info.ccso_enable[plane - 1] = aom_rb_read_literal(rb, 1);
+    if (cm->ccso_info.ccso_enable[plane - 1]) {
+      cm->ccso_info.quant_idx[plane - 1] = aom_rb_read_literal(rb, 2);
+      cm->ccso_info.ext_filter_support[plane - 1] = aom_rb_read_literal(rb, 3);
+      for (int d0 = 0; d0 < CCSO_INPUT_INTERVAL; d0++) {
+        for (int d1 = 0; d1 < CCSO_INPUT_INTERVAL; d1++) {
+          const int lut_idx_ext = (d0 << 2) + d1;
+          const int offset_idx = aom_rb_read_literal(rb, 3);
+          cm->ccso_info.filter_offset[plane - 1][lut_idx_ext] =
+              ccso_offset[offset_idx];
+        }
+      }
+    }
+  }
+}
+#endif
 
 static INLINE int read_delta_q(struct aom_read_bit_buffer *rb) {
   return aom_rb_read_bit(rb) ? aom_rb_read_inv_signed_literal(rb, 6) : 0;
@@ -4570,6 +4596,9 @@ void av1_read_sequence_header(AV1_COMMON *cm, struct aom_read_bit_buffer *rb,
   seq_params->enable_superres = aom_rb_read_bit(rb);
   seq_params->enable_cdef = aom_rb_read_bit(rb);
   seq_params->enable_restoration = aom_rb_read_bit(rb);
+#if CONFIG_CCSO
+  seq_params->enable_ccso = aom_rb_read_bit(rb);
+#endif
 }
 
 static int read_global_motion_params(WarpedMotionParams *params,
@@ -5389,6 +5418,11 @@ static int read_uncompressed_header(AV1Decoder *pbi,
   if (!features->all_lossless && seq_params->enable_restoration) {
     decode_restoration_mode(cm, rb);
   }
+#if CONFIG_CCSO
+  if (!features->coded_lossless && seq_params->enable_ccso) {
+    setup_ccso(cm, rb);
+  }
+#endif
 
   features->tx_mode = read_tx_mode(rb, features->coded_lossless);
   current_frame->reference_mode = read_frame_reference_mode(cm, rb);
@@ -5605,6 +5639,43 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
       }
     }
 
+#if CONFIG_CCSO
+    const int use_ccso =
+        !pbi->skip_loop_filter && !cm->features.coded_lossless &&
+        (cm->ccso_info.ccso_enable[0] || cm->ccso_info.ccso_enable[1]);
+    uint16_t *ext_rec_y;
+    if (use_ccso) {
+      av1_setup_dst_planes(xd->plane, cm->seq_params.sb_size,
+                           &cm->cur_frame->buf, 0, 0, 0, num_planes);
+      const int ccso_stride_ext =
+          xd->plane[0].dst.width + (CCSO_PADDING_SIZE << 1);
+      ext_rec_y =
+          aom_malloc(sizeof(*ext_rec_y) *
+                     (xd->plane[0].dst.height + (CCSO_PADDING_SIZE << 1)) *
+                     (xd->plane[0].dst.width + (CCSO_PADDING_SIZE << 1)));
+      for (int pli = 0; pli < 1; pli++) {
+        int pic_height = xd->plane[pli].dst.height;
+        int pic_width = xd->plane[pli].dst.width;
+        const int dst_stride = xd->plane[pli].dst.stride;
+        for (int r = 0; r < pic_height; ++r) {
+          for (int c = 0; c < pic_width; ++c) {
+            if (cm->seq_params.use_highbitdepth) {
+              ext_rec_y[(r + CCSO_PADDING_SIZE) * ccso_stride_ext + c +
+                        CCSO_PADDING_SIZE] =
+                  CONVERT_TO_SHORTPTR(
+                      xd->plane[pli].dst.buf)[r * dst_stride + c];
+            } else {
+              ext_rec_y[(r + CCSO_PADDING_SIZE) * ccso_stride_ext + c +
+                        CCSO_PADDING_SIZE] =
+                  xd->plane[pli].dst.buf[r * dst_stride + c];
+            }
+          }
+        }
+      }
+      extend_ccso_border(ext_rec_y, CCSO_PADDING_SIZE, xd);
+    }
+#endif
+
     const int do_loop_restoration =
         cm->rst_info[0].frame_restoration_type != RESTORE_NONE ||
         cm->rst_info[1].frame_restoration_type != RESTORE_NONE ||
@@ -5614,7 +5685,12 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
         (cm->cdef_info.cdef_bits || cm->cdef_info.cdef_strengths[0] ||
          cm->cdef_info.cdef_uv_strengths[0]);
     const int do_superres = av1_superres_scaled(cm);
-    const int optimized_loop_restoration = !do_cdef && !do_superres;
+
+    const int optimized_loop_restoration =
+#if CONFIG_CCSO
+        !use_ccso &&
+#endif
+        !do_cdef && !do_superres;
 
     if (!optimized_loop_restoration) {
       if (do_loop_restoration)
@@ -5624,6 +5700,13 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
       if (do_cdef) {
         av1_cdef_frame(&pbi->common.cur_frame->buf, cm, &pbi->dcb.xd);
       }
+
+#if CONFIG_CCSO
+      if (use_ccso) {
+        ccso_frame(&cm->cur_frame->buf, cm, xd, ext_rec_y);
+        aom_free(ext_rec_y);
+      }
+#endif
 
       superres_post_decode(pbi);
 
@@ -5642,6 +5725,12 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
         }
       }
     } else {
+#if CONFIG_CCSO
+      if (use_ccso) {
+        ccso_frame(&cm->cur_frame->buf, cm, xd, ext_rec_y);
+        aom_free(ext_rec_y);
+      }
+#endif
       // In no cdef and no superres case. Provide an optimized version of
       // loop_restoration_filter.
       if (do_loop_restoration) {

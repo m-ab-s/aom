@@ -781,6 +781,10 @@ typedef struct {
   bool enable_cdef;
   // Indicates if loop restoration filter should be enabled.
   bool enable_restoration;
+#if CONFIG_CCSO
+  // Indicates if ccso should be enabled.
+  bool enable_ccso;
+#endif
   // When enabled, video mode should be used even for single frame input.
   bool force_video_mode;
   // Indicates if the error resiliency features should be enabled.

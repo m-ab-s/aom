@@ -66,6 +66,9 @@ struct av1_extracfg {
   unsigned int enable_deblocking;
   unsigned int enable_cdef;
   unsigned int enable_restoration;
+#if CONFIG_CCSO
+  unsigned int enable_ccso;
+#endif
   unsigned int force_video_mode;
   unsigned int enable_obmc;
   unsigned int enable_trellis_quant;
@@ -340,17 +343,20 @@ static struct av1_extracfg default_extra_cfg = {
   1,                                         // enable_deblocking
   1,                                         // enable_cdef
   1,                                         // enable_restoration
-  0,                                         // force_video_mode
-  1,                                         // enable_obmc
-  3,                                         // enable_trellis_quant
-  0,                                         // enable_qm
-  DEFAULT_QM_Y,                              // qm_y
-  DEFAULT_QM_U,                              // qm_u
-  DEFAULT_QM_V,                              // qm_v
-  DEFAULT_QM_FIRST,                          // qm_min
-  DEFAULT_QM_LAST,                           // qm_max
-  1,                                         // max number of tile groups
-  0,                                         // mtu_size
+#if CONFIG_CCSO
+  0,  // enable_ccso
+#endif
+  0,                       // force_video_mode
+  1,                       // enable_obmc
+  3,                       // enable_trellis_quant
+  0,                       // enable_qm
+  DEFAULT_QM_Y,            // qm_y
+  DEFAULT_QM_U,            // qm_u
+  DEFAULT_QM_V,            // qm_v
+  DEFAULT_QM_FIRST,        // qm_min
+  DEFAULT_QM_LAST,         // qm_max
+  1,                       // max number of tile groups
+  0,                       // mtu_size
   AOM_TIMING_UNSPECIFIED,  // No picture timing signaling in bitstream
   0,                       // frame_parallel_decoding_mode
 #if !CONFIG_REMOVE_DUAL_FILTER
@@ -800,6 +806,9 @@ static void update_encoder_config(cfg_options_t *cfg,
   cfg->enable_deblocking = extra_cfg->enable_deblocking;
   cfg->enable_cdef = extra_cfg->enable_cdef;
   cfg->enable_restoration = extra_cfg->enable_restoration;
+#if CONFIG_CCSO
+  cfg->enable_ccso = extra_cfg->enable_ccso;
+#endif
   cfg->superblock_size =
       (extra_cfg->superblock_size == AOM_SUPERBLOCK_SIZE_64X64)
           ? 64
@@ -863,6 +872,9 @@ static void update_default_encoder_config(const cfg_options_t *cfg,
   extra_cfg->enable_deblocking = cfg->enable_deblocking;
   extra_cfg->enable_cdef = cfg->enable_cdef;
   extra_cfg->enable_restoration = cfg->enable_restoration;
+#if CONFIG_CCSO
+  extra_cfg->enable_ccso = cfg->enable_ccso;
+#endif
   extra_cfg->superblock_size = (cfg->superblock_size == 64)
                                    ? AOM_SUPERBLOCK_SIZE_64X64
                                    : (cfg->superblock_size == 128)
@@ -1083,6 +1095,9 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   tool_cfg->enable_cdef = extra_cfg->enable_cdef;
   tool_cfg->enable_restoration =
       (cfg->g_usage == AOM_USAGE_REALTIME) ? 0 : extra_cfg->enable_restoration;
+#if CONFIG_CCSO
+  tool_cfg->enable_ccso = extra_cfg->enable_ccso;
+#endif
   tool_cfg->force_video_mode = extra_cfg->force_video_mode;
   tool_cfg->enable_palette = extra_cfg->enable_palette;
   // FIXME(debargha): Should this be:
@@ -3354,6 +3369,11 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_restoration,
                               argv, err_string)) {
     extra_cfg.enable_restoration = arg_parse_uint_helper(&arg, err_string);
+#if CONFIG_CCSO
+  } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_ccso, argv,
+                              err_string)) {
+    extra_cfg.enable_ccso = arg_parse_int_helper(&arg, err_string);
+#endif
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.force_video_mode,
                               argv, err_string)) {
     extra_cfg.force_video_mode = arg_parse_uint_helper(&arg, err_string);
@@ -3893,7 +3913,11 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = {
 #if CONFIG_IST
           1,
 #endif  // CONFIG_IST
-          1, 1,   1,   1, 1, 1, 1,
+          1, 1,   1,   1,
+#if CONFIG_CCSO
+          0,
+#endif
+          1, 1,   1,
 #if !CONFIG_REMOVE_DIST_WTD_COMP
           1,
 #endif  // !CONFIG_REMOVE_DIST_WTD_COMP
@@ -3986,7 +4010,11 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = {
 #if CONFIG_IST
           1,
 #endif
-          1, 1,   1,   1, 1, 1, 1,
+          1, 1,   1,   1,
+#if CONFIG_CCSO
+          0,
+#endif
+          1, 1,   1,
 #if !CONFIG_REMOVE_DIST_WTD_COMP
           1,
 #endif  // !CONFIG_REMOVE_DIST_WTD_COMP

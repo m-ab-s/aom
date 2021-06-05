@@ -331,6 +331,11 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
                                 "Enable the loop restoration filter (0: false "
                                 "(default in Realtime mode), "
                                 "1: true (default in Non-realtime mode))"),
+#if CONFIG_CCSO
+  .enable_ccso = ARG_DEF(NULL, "enable-ccso", 1,
+                         "Enable cross component sample offset (0: false "
+                         "1: true)"),
+#endif
   .enable_rect_partitions = ARG_DEF(NULL, "enable-rect-partitions", 1,
                                     "Enable rectangular partitions "
                                     "(0: false, 1: true (default))"),

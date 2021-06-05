@@ -132,6 +132,9 @@ typedef struct av1_codec_arg_definitions {
   arg_def_t enable_deblocking;
   arg_def_t enable_cdef;
   arg_def_t enable_restoration;
+#if CONFIG_CCSO
+  arg_def_t enable_ccso;
+#endif
   arg_def_t enable_rect_partitions;
   arg_def_t enable_ab_partitions;
   arg_def_t enable_1to4_partitions;

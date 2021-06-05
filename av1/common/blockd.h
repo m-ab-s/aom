@@ -320,6 +320,12 @@ typedef struct MB_MODE_INFO {
   // Indicate if masked compound is used(1) or not(0).
   uint8_t comp_group_idx : 1;
   int8_t cdef_strength : 4;
+#if CONFIG_CCSO
+  /** ccso blk u */
+  uint8_t ccso_blk_u : 2;
+  /** ccso blk v */
+  uint8_t ccso_blk_v : 2;
+#endif
 } MB_MODE_INFO;
 
 #if CONFIG_SDP
@@ -961,6 +967,12 @@ typedef struct macroblockd {
    * Enable IST for current coding block.
    */
   uint8_t enable_ist;
+#endif
+#if CONFIG_CCSO
+  /** ccso blk u */
+  uint8_t ccso_blk_u;
+  /** ccso blk v */
+  uint8_t ccso_blk_v;
 #endif
 } MACROBLOCKD;
 

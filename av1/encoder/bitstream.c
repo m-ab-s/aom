@@ -27,6 +27,9 @@
 
 #include "av1/common/blockd.h"
 #include "av1/common/cdef.h"
+#if CONFIG_CCSO
+#include "av1/common/ccso.h"
+#endif
 #include "av1/common/cfl.h"
 #include "av1/common/entropy.h"
 #include "av1/common/entropymode.h"
@@ -1162,6 +1165,36 @@ static AOM_INLINE void write_cdef(AV1_COMMON *cm, MACROBLOCKD *const xd,
   }
 }
 
+#if CONFIG_CCSO
+static AOM_INLINE void write_ccso(AV1_COMMON *cm, MACROBLOCKD *const xd,
+                                  aom_writer *w) {
+  if (cm->features.coded_lossless) return;
+  if (cm->features.allow_intrabc) return;
+  const CommonModeInfoParams *const mi_params = &cm->mi_params;
+  const int mi_row = xd->mi_row;
+  const int mi_col = xd->mi_col;
+  const int blk_size_y =
+      (1 << (CCSO_BLK_SIZE + xd->plane[1].subsampling_y - MI_SIZE_LOG2)) - 1;
+  const int blk_size_x =
+      (1 << (CCSO_BLK_SIZE + xd->plane[1].subsampling_x - MI_SIZE_LOG2)) - 1;
+  const MB_MODE_INFO *mbmi =
+      mi_params->mi_grid_base[(mi_row & ~blk_size_y) * mi_params->mi_stride +
+                              (mi_col & ~blk_size_x)];
+
+  if (!(mi_row & blk_size_y) && !(mi_col & blk_size_x) &&
+      cm->ccso_info.ccso_enable[0]) {
+    aom_write_bit(w, mbmi->ccso_blk_u == 0 ? 0 : 1);
+    xd->ccso_blk_u = mbmi->ccso_blk_u;
+  }
+
+  if (!(mi_row & blk_size_y) && !(mi_col & blk_size_x) &&
+      cm->ccso_info.ccso_enable[1]) {
+    aom_write_bit(w, mbmi->ccso_blk_v == 0 ? 0 : 1);
+    xd->ccso_blk_v = mbmi->ccso_blk_v;
+  }
+}
+#endif
+
 static AOM_INLINE void write_inter_segment_id(
     AV1_COMP *cpi, aom_writer *w, const struct segmentation *const seg,
     struct segmentation_probs *const segp, int skip, int preskip) {
@@ -1456,6 +1489,10 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
 
   write_cdef(cm, xd, w, skip);
 
+#if CONFIG_CCSO
+  if (cm->seq_params.enable_ccso) write_ccso(cm, xd, w);
+#endif
+
   write_delta_q_params(cpi, skip, w);
 
   if (!mbmi->skip_mode) write_is_inter(cm, xd, mbmi->segment_id, w, is_inter);
@@ -1647,6 +1684,10 @@ static AOM_INLINE void write_mb_modes_kf(
   if (xd->tree_type != CHROMA_PART)
 #endif
     write_cdef(cm, xd, w, skip);
+
+#if CONFIG_CCSO
+  if (cm->seq_params.enable_ccso) write_ccso(cm, xd, w);
+#endif
 
   write_delta_q_params(cpi, skip, w);
 
@@ -2562,6 +2603,33 @@ static AOM_INLINE void encode_cdef(const AV1_COMMON *cm,
   }
 }
 
+#if CONFIG_CCSO
+static AOM_INLINE void encode_ccso(const AV1_COMMON *cm,
+                                   struct aom_write_bit_buffer *wb) {
+  if (cm->features.allow_intrabc) return;
+  const int ccso_offset[8] = { 0, 1, -1, 3, -3, 5, -5, -7 };
+  for (int plane = 0; plane < 2; plane++) {
+    aom_wb_write_literal(wb, cm->ccso_info.ccso_enable[plane], 1);
+    if (cm->ccso_info.ccso_enable[plane]) {
+      aom_wb_write_literal(wb, cm->ccso_info.quant_idx[plane], 2);
+      aom_wb_write_literal(wb, cm->ccso_info.ext_filter_support[plane], 3);
+      for (int d0 = 0; d0 < CCSO_INPUT_INTERVAL; d0++) {
+        for (int d1 = 0; d1 < CCSO_INPUT_INTERVAL; d1++) {
+          const int lut_idx_ext = (d0 << 2) + d1;
+          for (int offset_idx = 0; offset_idx < 8; offset_idx++) {
+            if (cm->ccso_info.filter_offset[plane][lut_idx_ext] ==
+                ccso_offset[offset_idx]) {
+              aom_wb_write_literal(wb, offset_idx, 3);
+              break;
+            }
+          }
+        }
+      }
+    }
+  }
+}
+#endif
+
 static AOM_INLINE void write_delta_q(struct aom_write_bit_buffer *wb,
                                      int delta_q) {
   if (delta_q != 0) {
@@ -3226,6 +3294,9 @@ static AOM_INLINE void write_sequence_header(
   aom_wb_write_bit(wb, seq_params->enable_superres);
   aom_wb_write_bit(wb, seq_params->enable_cdef);
   aom_wb_write_bit(wb, seq_params->enable_restoration);
+#if CONFIG_CCSO
+  aom_wb_write_bit(wb, seq_params->enable_ccso);
+#endif
 }
 
 static AOM_INLINE void write_global_motion_params(
@@ -3670,6 +3741,11 @@ static AOM_INLINE void write_uncompressed_header_obu(
       encode_cdef(cm, wb);
     }
     encode_restoration_mode(cm, wb);
+#if CONFIG_CCSO
+    if (!features->coded_lossless && cm->seq_params.enable_ccso) {
+      encode_ccso(cm, wb);
+    }
+#endif
   }
 
   // Write TX mode

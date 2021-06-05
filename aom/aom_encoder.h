@@ -274,6 +274,12 @@ typedef struct cfg_options {
    *
    */
   unsigned int enable_restoration;
+#if CONFIG_CCSO
+  /*!\brief enable cross-component sample offset
+   *
+   */
+  unsigned int enable_ccso;
+#endif
   /*!\brief enable OBMC
    *
    */
