@@ -1629,10 +1629,20 @@ static AOM_INLINE void decode_restoration_mode(AV1_COMMON *cm,
   }
 }
 
-static AOM_INLINE void read_wiener_filter(int wiener_win,
+static AOM_INLINE void read_wiener_filter(MACROBLOCKD *xd, int wiener_win,
                                           WienerInfo *wiener_info,
                                           WienerInfo *ref_wiener_info,
                                           aom_reader *rb) {
+#if CONFIG_RST_MERGECOEFFS
+  const int equal =
+      aom_read_symbol(rb, xd->tile_ctx->merged_param_cdf, 2, ACCT_STR);
+  if (equal) {
+    memcpy(wiener_info, ref_wiener_info, sizeof(*wiener_info));
+    return;
+  }
+#else
+  (void)xd;
+#endif  // CONFIG_RST_MERGECOEFFS
   memset(wiener_info->vfilter, 0, sizeof(wiener_info->vfilter));
   memset(wiener_info->hfilter, 0, sizeof(wiener_info->hfilter));
 
@@ -1690,9 +1700,20 @@ static AOM_INLINE void read_wiener_filter(int wiener_win,
   memcpy(ref_wiener_info, wiener_info, sizeof(*wiener_info));
 }
 
-static AOM_INLINE void read_sgrproj_filter(SgrprojInfo *sgrproj_info,
+static AOM_INLINE void read_sgrproj_filter(MACROBLOCKD *xd,
+                                           SgrprojInfo *sgrproj_info,
                                            SgrprojInfo *ref_sgrproj_info,
                                            aom_reader *rb) {
+#if CONFIG_RST_MERGECOEFFS
+  const int equal =
+      aom_read_symbol(rb, xd->tile_ctx->merged_param_cdf, 2, ACCT_STR);
+  if (equal) {
+    memcpy(sgrproj_info, ref_sgrproj_info, sizeof(*sgrproj_info));
+    return;
+  }
+#else
+  (void)xd;
+#endif  // CONFIG_RST_MERGECOEFFS
   sgrproj_info->ep = aom_read_literal(rb, SGRPROJ_PARAMS_BITS, ACCT_STR);
   const sgr_params_type *params = &av1_sgr_params[sgrproj_info->ep];
 
@@ -1732,7 +1753,16 @@ static void read_wiener_nsfilter(MACROBLOCKD *xd, int is_uv,
                                  WienerNonsepInfo *wienerns_info,
                                  WienerNonsepInfo *ref_wienerns_info,
                                  aom_reader *rb) {
+#if CONFIG_RST_MERGECOEFFS
+  const int equal =
+      aom_read_symbol(rb, xd->tile_ctx->merged_param_cdf, 2, ACCT_STR);
+  if (equal) {
+    memcpy(wienerns_info, ref_wienerns_info, sizeof(*wienerns_info));
+    return;
+  }
+#else
   (void)xd;
+#endif  // CONFIG_RST_MERGECOEFFS
   int beg_feat = is_uv ? wienerns_y : 0;
   int end_feat = is_uv ? wienerns_y + wienerns_uv : wienerns_y;
   const int(*wienerns_coeffs)[3] = is_uv ? wienerns_coeff_uv : wienerns_coeff_y;
@@ -1785,10 +1815,10 @@ static AOM_INLINE void loop_restoration_read_sb_coeffs(
 #endif  // CONFIG_LOOP_RESTORE_CNN
     switch (rui->restoration_type) {
       case RESTORE_WIENER:
-        read_wiener_filter(wiener_win, &rui->wiener_info, wiener_info, r);
+        read_wiener_filter(xd, wiener_win, &rui->wiener_info, wiener_info, r);
         break;
       case RESTORE_SGRPROJ:
-        read_sgrproj_filter(&rui->sgrproj_info, sgrproj_info, r);
+        read_sgrproj_filter(xd, &rui->sgrproj_info, sgrproj_info, r);
         break;
 #if CONFIG_LOOP_RESTORE_CNN
       case RESTORE_CNN: break;
@@ -1804,14 +1834,14 @@ static AOM_INLINE void loop_restoration_read_sb_coeffs(
   } else if (rsi->frame_restoration_type == RESTORE_WIENER) {
     if (aom_read_symbol(r, xd->tile_ctx->wiener_restore_cdf, 2, ACCT_STR)) {
       rui->restoration_type = RESTORE_WIENER;
-      read_wiener_filter(wiener_win, &rui->wiener_info, wiener_info, r);
+      read_wiener_filter(xd, wiener_win, &rui->wiener_info, wiener_info, r);
     } else {
       rui->restoration_type = RESTORE_NONE;
     }
   } else if (rsi->frame_restoration_type == RESTORE_SGRPROJ) {
     if (aom_read_symbol(r, xd->tile_ctx->sgrproj_restore_cdf, 2, ACCT_STR)) {
       rui->restoration_type = RESTORE_SGRPROJ;
-      read_sgrproj_filter(&rui->sgrproj_info, sgrproj_info, r);
+      read_sgrproj_filter(xd, &rui->sgrproj_info, sgrproj_info, r);
     } else {
       rui->restoration_type = RESTORE_NONE;
     }
@@ -5439,10 +5469,14 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
         av1_loop_restoration_save_boundary_lines(&pbi->common.cur_frame->buf,
                                                  cm, 1);
         if (pbi->num_workers > 1) {
+#if CONFIG_RST_MERGECOEFFS
+          assert(false);  // MT loop restoration is not supported here!
+#else
           av1_loop_restoration_filter_frame_mt(
               (YV12_BUFFER_CONFIG *)xd->cur_buf, cm, optimized_loop_restoration,
               pbi->tile_workers, pbi->num_workers, &pbi->lr_row_sync,
               &pbi->lr_ctxt);
+#endif  // CONFIG_RST_MERGECOEFFS
         } else {
           av1_loop_restoration_filter_frame((YV12_BUFFER_CONFIG *)xd->cur_buf,
                                             cm, optimized_loop_restoration,
@@ -5454,10 +5488,14 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
       // loop_restoration_filter.
       if (do_loop_restoration) {
         if (pbi->num_workers > 1) {
+#if CONFIG_RST_MERGECOEFFS
+          assert(false);  // MT loop restoration is not supported here!
+#else
           av1_loop_restoration_filter_frame_mt(
               (YV12_BUFFER_CONFIG *)xd->cur_buf, cm, optimized_loop_restoration,
               pbi->tile_workers, pbi->num_workers, &pbi->lr_row_sync,
               &pbi->lr_ctxt);
+#endif  // CONFIG_RST_MERGECOEFFS
         } else {
           av1_loop_restoration_filter_frame((YV12_BUFFER_CONFIG *)xd->cur_buf,
                                             cm, optimized_loop_restoration,

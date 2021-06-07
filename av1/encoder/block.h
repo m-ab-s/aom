@@ -736,6 +736,12 @@ typedef struct {
 #endif  // CONFIG_LOOP_RESTORE_CNN
   //! wiener_restore_cost
   int wiener_restore_cost[2];
+#if CONFIG_RST_MERGECOEFFS
+  /*!
+   * merged_param_cost
+   */
+  int merged_param_cost[2];
+#endif  // CONFIG_RST_MERGECOEFFS
   //! sgrproj_restore_cost
   int sgrproj_restore_cost[2];
 #if CONFIG_LOOP_RESTORE_CNN

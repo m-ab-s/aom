@@ -873,6 +873,10 @@ static const aom_cdf_prob default_wiener_nonsep_restore_cdf[CDF_SIZE(2)] = {
   AOM_CDF2(11570)
 };
 #endif  // CONFIG_WIENER_NONSEP
+#if CONFIG_RST_MERGECOEFFS
+static const aom_cdf_prob default_merged_param_cdf[CDF_SIZE(2)] = { AOM_CDF2(
+    16855) };
+#endif  // CONFIG_RST_MERGECOEFFS
 
 static const aom_cdf_prob default_delta_q_cdf[CDF_SIZE(DELTA_Q_PROBS + 1)] = {
   AOM_CDF4(28160, 32120, 32677)
@@ -1165,6 +1169,9 @@ static void init_mode_probs(FRAME_CONTEXT *fc) {
 #if CONFIG_WIENER_NONSEP
   av1_copy(fc->wiener_nonsep_restore_cdf, default_wiener_nonsep_restore_cdf);
 #endif  // CONFIG_WIENER_NONSEP
+#if CONFIG_RST_MERGECOEFFS
+  av1_copy(fc->merged_param_cdf, default_merged_param_cdf);
+#endif
   av1_copy(fc->y_mode_cdf, default_if_y_mode_cdf);
   av1_copy(fc->uv_mode_cdf, default_uv_mode_cdf);
   av1_copy(fc->switchable_interp_cdf, default_switchable_interp_cdf);

@@ -33,6 +33,7 @@ static INLINE int get_sync_range(int width) {
     return 8;
 }
 
+#if !CONFIG_RST_MERGECOEFFS
 static INLINE int get_lr_sync_range(int width) {
 #if 0
   // nsync numbers are picked by testing. For example, for 4k
@@ -50,6 +51,7 @@ static INLINE int get_lr_sync_range(int width) {
   return 1;
 #endif
 }
+#endif  // !CONFIG_RST_MERGECOEFFS
 
 // Allocate memory for lf row synchronization
 static void loop_filter_alloc(AV1LfSync *lf_sync, AV1_COMMON *cm, int rows,
@@ -528,6 +530,7 @@ void av1_loop_filter_frame_mt(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm,
 #endif
 }
 
+#if !CONFIG_RST_MERGECOEFFS
 static INLINE void lr_sync_read(void *const lr_sync, int r, int c, int plane) {
 #if CONFIG_MULTITHREAD
   AV1LrSync *const loop_res_sync = (AV1LrSync *)lr_sync;
@@ -647,6 +650,7 @@ static void loop_restoration_alloc(AV1LrSync *lr_sync, AV1_COMMON *cm,
   // Set up nsync.
   lr_sync->sync_range = get_lr_sync_range(width);
 }
+#endif  // !CONFIG_RST_MERGECOEFFS
 
 // Deallocate loop restoration synchronization related mutex and data
 void av1_loop_restoration_dealloc(AV1LrSync *lr_sync, int num_workers) {
@@ -696,6 +700,7 @@ void av1_loop_restoration_dealloc(AV1LrSync *lr_sync, int num_workers) {
   }
 }
 
+#if !CONFIG_RST_MERGECOEFFS
 static void enqueue_lr_jobs(AV1LrSync *lr_sync, AV1LrStruct *lr_ctxt,
                             AV1_COMMON *cm) {
   FilterFrameCtxt *ctxt = lr_ctxt->ctxt;
@@ -792,7 +797,9 @@ static AV1LrMTInfo *get_lr_job_info(AV1LrSync *lr_sync) {
 
   return cur_job_info;
 }
+#endif  // !CONFIG_RST_MERGECOEFFS
 
+#if !CONFIG_RST_MERGECOEFFS
 // Implement row loop restoration for each thread.
 static int loop_restoration_row_worker(void *arg1, void *arg2) {
   AV1LrSync *const lr_sync = (AV1LrSync *)arg1;
@@ -928,3 +935,4 @@ void av1_loop_restoration_filter_frame_mt(YV12_BUFFER_CONFIG *frame,
   foreach_rest_unit_in_planes_mt(loop_rest_ctxt, workers, num_workers, lr_sync,
                                  cm);
 }
+#endif  // !CONFIG_RST_MERGECOEFFS
