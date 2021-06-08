@@ -3719,10 +3719,10 @@ static AOM_INLINE void write_uncompressed_header_obu(
 
   aom_wb_write_bit(wb, features->reduced_tx_set_used);
 
-  if (!frame_is_intra_only(cm)) write_global_motion(cpi, wb);
-
 #if CONFIG_NEW_REF_SIGNALING
   if (!frame_is_intra_only(cm)) write_global_motion_nrs(cpi, wb);
+#else
+  if (!frame_is_intra_only(cm)) write_global_motion(cpi, wb);
 #endif  // CONFIG_NEW_REF_SIGNALING
 
   if (seq_params->film_grain_params_present &&

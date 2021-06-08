@@ -4878,12 +4878,13 @@ static AOM_INLINE void read_global_motion_nrs(AV1_COMMON *cm,
     int named_frame =
         convert_ranked_ref_to_named_ref_index(&cm->new_ref_frame_data, frame);
 
-    assert(is_same_wm_params(&cm->global_motion_nrs[frame],
-                             &cm->global_motion[named_frame]));
-    (void)named_frame;
+    memcpy(&cm->global_motion[named_frame], &cm->global_motion_nrs[frame],
+           sizeof(WarpedMotionParams));
   }
   memcpy(cm->cur_frame->global_motion_nrs, cm->global_motion_nrs,
          MAX_REF_FRAMES_NRS * sizeof(WarpedMotionParams));
+  memcpy(cm->cur_frame->global_motion, cm->global_motion,
+         REF_FRAMES * sizeof(WarpedMotionParams));
 }
 #endif  // CONFIG_NEW_REF_SIGNALING
 
@@ -5787,9 +5788,10 @@ static int read_uncompressed_header(AV1Decoder *pbi,
                        "Frame wrongly requests reference frame MVs");
   }
 
-  if (!frame_is_intra_only(cm)) read_global_motion(cm, rb);
 #if CONFIG_NEW_REF_SIGNALING
   if (!frame_is_intra_only(cm)) read_global_motion_nrs(cm, rb);
+#else
+  if (!frame_is_intra_only(cm)) read_global_motion(cm, rb);
 #endif  // CONFIG_NEW_REF_SIGNALING
 
   cm->cur_frame->film_grain_params_present =
