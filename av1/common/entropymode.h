@@ -157,9 +157,19 @@ typedef struct frame_contexts {
 #if CONFIG_SDP
   aom_cdf_prob angle_delta_cdf[PARTITION_STRUCTURE_NUM][DIRECTIONAL_MODES]
                               [CDF_SIZE(2 * MAX_ANGLE_DELTA + 1)];
+#if CONFIG_ORIP
+  aom_cdf_prob angle_delta_cdf_hv[PARTITION_STRUCTURE_NUM]
+                                 [TOTAL_NUM_ORIP_ANGLE_DELTA]
+                                 [CDF_SIZE(2 * MAX_ANGLE_DELTA + 1 +
+                                           ADDITIONAL_ANGLE_DELTA)];
+#endif
 #else
   aom_cdf_prob angle_delta_cdf[DIRECTIONAL_MODES]
                               [CDF_SIZE(2 * MAX_ANGLE_DELTA + 1)];
+#if CONFIG_ORIP
+  aom_cdf_prob angle_delta_cdf_hv[TOTAL_NUM_ORIP_ANGLE_DELTA][CDF_SIZE(
+      2 * MAX_ANGLE_DELTA + 1 + ADDITIONAL_ANGLE_DELTA)];
+#endif
 #endif
 
   aom_cdf_prob tx_size_cdf[MAX_TX_CATS][TX_SIZE_CONTEXTS]

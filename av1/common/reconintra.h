@@ -26,11 +26,30 @@ void av1_init_intra_predictors(void);
 void av1_predict_intra_block_facade(const AV1_COMMON *cm, MACROBLOCKD *xd,
                                     int plane, int blk_col, int blk_row,
                                     TX_SIZE tx_size);
+#if CONFIG_ORIP
+void av1_predict_intra_block(
+    const AV1_COMMON *cm, const MACROBLOCKD *xd, int wpx, int hpx,
+    TX_SIZE tx_size, PREDICTION_MODE mode, int angle_delta, int use_palette,
+    FILTER_INTRA_MODE filter_intra_mode, const uint8_t *ref, int ref_stride,
+    uint8_t *dst, int dst_stride, int col_off, int row_off, int plane,
+    const int disable_intra_pred_filter_for_hor_ver_mode);
+#else
 void av1_predict_intra_block(
     const AV1_COMMON *cm, const MACROBLOCKD *xd, int wpx, int hpx,
     TX_SIZE tx_size, PREDICTION_MODE mode, int angle_delta, int use_palette,
     FILTER_INTRA_MODE filter_intra_mode, const uint8_t *ref, int ref_stride,
     uint8_t *dst, int dst_stride, int col_off, int row_off, int plane);
+#endif
+
+#if CONFIG_ORIP
+void av1_apply_orip_4x4subblock_hbd(uint16_t *dst, ptrdiff_t stride,
+                                    TX_SIZE tx_size, const uint16_t *above,
+                                    const uint16_t *left, PREDICTION_MODE mode,
+                                    int bd);
+void av1_apply_orip_4x4subblock(uint8_t *dst, ptrdiff_t stride, TX_SIZE tx_size,
+                                const uint8_t *above, const uint8_t *left,
+                                PREDICTION_MODE mode);
+#endif
 
 // Mapping of interintra to intra mode for use in the intra component
 static const PREDICTION_MODE interintra_to_intra_mode[INTERINTRA_MODES] = {
@@ -83,6 +102,16 @@ static INLINE int av1_filter_intra_allowed(const AV1_COMMON *const cm,
          av1_filter_intra_allowed_bsize(cm, mbmi->sb_type);
 #endif
 }
+
+#if CONFIG_ORIP
+static INLINE int av1_allow_orip_smooth_dc(PREDICTION_MODE mode, int plane) {
+  if (plane == AOM_PLANE_Y) return (mode == SMOOTH_PRED || mode == DC_PRED);
+  return (mode == UV_SMOOTH_PRED);
+}
+static INLINE int av1_allow_orip_dir(int p_angle, int disable_filter) {
+  return (!disable_filter && (p_angle == 90 || p_angle == 180));
+}
+#endif
 
 extern const int8_t av1_filter_intra_taps[FILTER_INTRA_MODES][8][8];
 
@@ -157,6 +186,50 @@ static INLINE int av1_use_intra_edge_upsample(int bs0, int bs1, int delta,
   if (d == 0 || d >= 40) return 0;
   return type ? (blk_wh <= 8) : (blk_wh <= 16);
 }
+
+#if CONFIG_ORIP
+// This function returns if enable/disable ORIP is signalled in the bitstream
+// 1 means signal; 0 means does not signal
+static INLINE int av1_signal_orip_for_horver_modes(const AV1_COMMON *cm,
+                                                   const MB_MODE_INFO *mbmi,
+                                                   PLANE_TYPE plane,
+                                                   BLOCK_SIZE bsize
+#if CONFIG_SDP
+                                                   ,
+                                                   int tree_type
+#endif
+) {
+  if (!cm->seq_params.enable_orip) return 0;
+
+#if CONFIG_SDP
+  const int use_intrabc = mbmi->use_intrabc[PLANE_TYPE_Y];
+  const int is_inter = is_inter_block(mbmi, tree_type);
+#else
+  const int use_intrabc = mbmi->use_intrabc;
+  const int is_inter = is_inter_block(mbmi);
+#endif
+
+  if (plane != PLANE_TYPE_Y || is_inter || use_intrabc) return 0;
+  if (!av1_use_angle_delta(bsize)) return 0;
+
+#if CONFIG_MRLS
+  if (mbmi->mrl_index) return 0;
+#endif
+
+  if (mbmi->mode == V_PRED || mbmi->mode == H_PRED) return 1;
+  return 0;
+}
+
+static INLINE int get_angle_delta_to_idx(int angle_delta) {
+  return (MAX_ANGLE_DELTA + angle_delta);
+}
+
+static INLINE int get_idx_to_angle_delta(int index) {
+  return (index - MAX_ANGLE_DELTA);
+}
+
+#endif
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif

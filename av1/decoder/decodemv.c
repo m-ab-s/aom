@@ -665,6 +665,14 @@ static void read_palette_mode_info(AV1_COMMON *const cm, MACROBLOCKD *const xd,
   }
 }
 
+#if CONFIG_ORIP
+static int read_angle_delta_hv(aom_reader *r, aom_cdf_prob *cdf) {
+  const int sym = aom_read_symbol(
+      r, cdf, 2 * MAX_ANGLE_DELTA + 1 + ADDITIONAL_ANGLE_DELTA, ACCT_STR);
+  return get_idx_to_angle_delta(sym);
+}
+#endif
+
 static int read_angle_delta(aom_reader *r, aom_cdf_prob *cdf) {
   const int sym = aom_read_symbol(r, cdf, 2 * MAX_ANGLE_DELTA + 1, ACCT_STR);
   return sym - MAX_ANGLE_DELTA;
@@ -963,20 +971,73 @@ static void read_intra_frame_mode_info(AV1_COMMON *const cm,
 #if CONFIG_SDP
   if (xd->tree_type != CHROMA_PART) {
     mbmi->mode = read_intra_mode(r, get_y_mode_cdf(ec_ctx, above_mi, left_mi));
+#if CONFIG_ORIP
+#if CONFIG_MRLS
+    // when both ORIP and MRLS are enabled, mrl index are signalled right after
+    // intra mode and before angle delta
+    // Parsing reference line index
+    mbmi->mrl_index =
+        (cm->seq_params.enable_mrls && av1_is_directional_mode(mbmi->mode))
+            ? read_mrl_index(ec_ctx, r)
+            : 0;
+#endif
+
+    if (use_angle_delta && av1_is_directional_mode(mbmi->mode)) {
+      int signal_intra_filter = av1_signal_orip_for_horver_modes(
+          cm, mbmi, PLANE_TYPE_Y, bsize, xd->tree_type);
+      aom_cdf_prob *anglecdf =
+          signal_intra_filter
+              ? ec_ctx->angle_delta_cdf_hv[PLANE_TYPE_Y][mbmi->mode - V_PRED]
+              : ec_ctx->angle_delta_cdf[PLANE_TYPE_Y][mbmi->mode - V_PRED];
+      mbmi->angle_delta[PLANE_TYPE_Y] = signal_intra_filter
+                                            ? read_angle_delta_hv(r, anglecdf)
+                                            : read_angle_delta(r, anglecdf);
+    } else {
+      mbmi->angle_delta[PLANE_TYPE_Y] = 0;
+    }
+#else
     mbmi->angle_delta[PLANE_TYPE_Y] =
         (use_angle_delta && av1_is_directional_mode(mbmi->mode))
             ? read_angle_delta(
                   r, ec_ctx->angle_delta_cdf[PLANE_TYPE_Y][mbmi->mode - V_PRED])
             : 0;
+#endif
   }
 #else
   mbmi->mode = read_intra_mode(r, get_y_mode_cdf(ec_ctx, above_mi, left_mi));
+#if CONFIG_ORIP
+#if CONFIG_MRLS
+  // Parsing reference line index
+  mbmi->mrl_index =
+      (cm->seq_params.enable_mrls && av1_is_directional_mode(mbmi->mode))
+          ? read_mrl_index(ec_ctx, r)
+          : 0;
+#endif
+  if (use_angle_delta && av1_is_directional_mode(mbmi->mode)) {
+    int signal_intra_filter =
+        av1_signal_orip_for_horver_modes(cm, mbmi, PLANE_TYPE_Y, bsize);
+    aom_cdf_prob *anglecdf =
+        signal_intra_filter ? ec_ctx->angle_delta_cdf_hv[mbmi->mode - V_PRED]
+                            : ec_ctx->angle_delta_cdf[mbmi->mode - V_PRED];
+    mbmi->angle_delta[PLANE_TYPE_Y] = signal_intra_filter
+                                          ? read_angle_delta_hv(r, anglecdf)
+                                          : read_angle_delta(r, anglecdf);
+  } else {
+    mbmi->angle_delta[PLANE_TYPE_Y] = 0;
+  }
+#else
   mbmi->angle_delta[PLANE_TYPE_Y] =
       (use_angle_delta && av1_is_directional_mode(mbmi->mode))
           ? read_angle_delta(r, ec_ctx->angle_delta_cdf[mbmi->mode - V_PRED])
           : 0;
 #endif
-#if CONFIG_MRLS
+#endif
+
+#if CONFIG_MRLS && !CONFIG_ORIP
+  // When both ORIP and MRLS are enabled, mrl index are signalled right after
+  // intra mode and before angle delta
+  // However when MRLS is enabled but ORIP is disabled, mrl_index is signalled
+  // here ( after angle delta)
 #if CONFIG_SDP
   if (xd->tree_type != CHROMA_PART)
 #endif
@@ -1297,20 +1358,63 @@ static void read_intra_block_mode_info(AV1_COMMON *const cm,
   FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
 
   mbmi->mode = read_intra_mode(r, ec_ctx->y_mode_cdf[size_group_lookup[bsize]]);
+
+#if CONFIG_MRLS && CONFIG_ORIP
 #if CONFIG_SDP
+  if (xd->tree_type != CHROMA_PART)
+#endif
+    // Parsing reference line index
+    mbmi->mrl_index =
+        (cm->seq_params.enable_mrls && av1_is_directional_mode(mbmi->mode))
+            ? read_mrl_index(ec_ctx, r)
+            : 0;
+#endif
+
+#if CONFIG_SDP
+#if CONFIG_ORIP
+  if (use_angle_delta && av1_is_directional_mode(mbmi->mode)) {
+    int signal_intra_filter = av1_signal_orip_for_horver_modes(
+        cm, mbmi, PLANE_TYPE_Y, bsize, xd->tree_type);
+    aom_cdf_prob *anglecdf =
+        signal_intra_filter
+            ? ec_ctx->angle_delta_cdf_hv[PLANE_TYPE_Y][mbmi->mode - V_PRED]
+            : ec_ctx->angle_delta_cdf[PLANE_TYPE_Y][mbmi->mode - V_PRED];
+    mbmi->angle_delta[PLANE_TYPE_Y] = signal_intra_filter
+                                          ? read_angle_delta_hv(r, anglecdf)
+                                          : read_angle_delta(r, anglecdf);
+  } else {
+    mbmi->angle_delta[PLANE_TYPE_Y] = 0;
+  }
+#else
   mbmi->angle_delta[PLANE_TYPE_Y] =
       use_angle_delta && av1_is_directional_mode(mbmi->mode)
           ? read_angle_delta(
                 r, ec_ctx->angle_delta_cdf[PLANE_TYPE_Y][mbmi->mode - V_PRED])
           : 0;
+#endif
+#else
+#if CONFIG_ORIP
+  if (use_angle_delta && av1_is_directional_mode(mbmi->mode)) {
+    int signal_intra_filter =
+        av1_signal_orip_for_horver_modes(cm, mbmi, PLANE_TYPE_Y, bsize);
+    aom_cdf_prob *anglecdf =
+        signal_intra_filter ? ec_ctx->angle_delta_cdf_hv[mbmi->mode - V_PRED]
+                            : ec_ctx->angle_delta_cdf[mbmi->mode - V_PRED];
+    mbmi->angle_delta[PLANE_TYPE_Y] = signal_intra_filter
+                                          ? read_angle_delta_hv(r, anglecdf)
+                                          : read_angle_delta(r, anglecdf);
+  } else {
+    mbmi->angle_delta[PLANE_TYPE_Y] = 0;
+  }
 #else
   mbmi->angle_delta[PLANE_TYPE_Y] =
       use_angle_delta && av1_is_directional_mode(mbmi->mode)
           ? read_angle_delta(r, ec_ctx->angle_delta_cdf[mbmi->mode - V_PRED])
           : 0;
 #endif
+#endif
 
-#if CONFIG_MRLS
+#if CONFIG_MRLS && !CONFIG_ORIP
 #if CONFIG_SDP
   if (xd->tree_type != CHROMA_PART)
 #endif

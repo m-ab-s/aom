@@ -246,6 +246,12 @@ typedef struct cfg_options {
    */
   unsigned int enable_mrls;
 #endif  // CONFIG_MRLS
+#if CONFIG_ORIP
+  /*!\brief enable Offset based refinement of Intra prediction
+   *
+   */
+  unsigned int enable_orip;
+#endif  // CONFIG_ORIP
   /*!\brief enable flip and identity transform type
    *
    */

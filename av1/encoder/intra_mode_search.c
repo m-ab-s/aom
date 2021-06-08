@@ -46,6 +46,11 @@ static int rd_pick_filter_intra_sby(const AV1_COMP *const cpi, MACROBLOCK *x,
   mbmi->mrl_index = 0;
 #endif
 
+#if CONFIG_ORIP
+  mbmi->angle_delta[PLANE_TYPE_Y] = 0;
+  mbmi->angle_delta[PLANE_TYPE_UV] = 0;
+#endif
+
   for (mode = 0; mode < FILTER_INTRA_MODES; ++mode) {
     int64_t this_rd;
     RD_STATS tokenonly_rd_stats;
@@ -87,6 +92,10 @@ static int rd_pick_filter_intra_sby(const AV1_COMP *const cpi, MACROBLOCK *x,
     mbmi->tx_size = best_tx_size;
     mbmi->filter_intra_mode_info = filter_intra_mode_info;
     av1_copy_array(ctx->tx_type_map, best_tx_type_map, ctx->num_4x4_blk);
+#if CONFIG_ORIP
+    mbmi->angle_delta[PLANE_TYPE_Y] = 0;
+    mbmi->angle_delta[PLANE_TYPE_UV] = 0;
+#endif
     return 1;
   } else {
     return 0;
@@ -161,6 +170,14 @@ void av1_count_colors_highbd(const uint8_t *src8, int stride, int rows,
  *                                  the mode info for the current macroblock.
  */
 void set_y_mode_and_delta_angle(const int mode_idx, MB_MODE_INFO *const mbmi) {
+#if CONFIG_ORIP
+  if (mode_idx >= LUMA_MODE_COUNT) {
+    mbmi->mode = (mode_idx == LUMA_MODE_COUNT) ? H_PRED : V_PRED;
+    mbmi->angle_delta[PLANE_TYPE_Y] = ANGLE_DELTA_VALUE_ORIP;
+    return;
+  }
+#endif
+
   if (mode_idx < INTRA_MODE_END) {
     mbmi->mode = intra_rd_search_mode_order[mode_idx];
     mbmi->angle_delta[PLANE_TYPE_Y] = 0;
@@ -803,6 +820,10 @@ static INLINE void handle_filter_intra_mode(const AV1_COMP *cpi, MACROBLOCK *x,
   if (filter_intra_selected_flag) {
     mbmi->filter_intra_mode_info.use_filter_intra = 1;
     mbmi->filter_intra_mode_info.filter_intra_mode = best_fi_mode;
+#if CONFIG_ORIP
+    mbmi->angle_delta[PLANE_TYPE_Y] = 0;
+    mbmi->angle_delta[PLANE_TYPE_UV] = 0;
+#endif
   } else {
     mbmi->filter_intra_mode_info.use_filter_intra = 0;
   }
@@ -1071,8 +1092,17 @@ int64_t av1_rd_pick_intra_sby_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
        ++mrl_idx) {
     mbmi->mrl_index = mrl_idx;
 #endif
-    for (int mode_idx = INTRA_MODE_START; mode_idx < LUMA_MODE_COUNT;
+
+#if CONFIG_ORIP
+    int total_num_mode = cpi->common.seq_params.enable_orip
+                             ? (LUMA_MODE_COUNT + TOTAL_NUM_ORIP_ANGLE_DELTA)
+                             : LUMA_MODE_COUNT;
+    for (int mode_idx = INTRA_MODE_START; mode_idx < total_num_mode;
          ++mode_idx) {
+#else
+  for (int mode_idx = INTRA_MODE_START; mode_idx < LUMA_MODE_COUNT;
+       ++mode_idx) {
+#endif
       set_y_mode_and_delta_angle(mode_idx, mbmi);
       RD_STATS this_rd_stats;
       int this_rate, this_rate_tokenonly, s;
@@ -1091,6 +1121,29 @@ int64_t av1_rd_pick_intra_sby_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
         continue;
       if (is_directional_mode && directional_mode_skip_mask[mbmi->mode])
         continue;
+
+#if CONFIG_ORIP
+#if CONFIG_SDP
+      int signal_intra_filter = av1_signal_orip_for_horver_modes(
+          &cpi->common, mbmi, PLANE_TYPE_Y, bsize, xd->tree_type);
+#else
+      int signal_intra_filter = av1_signal_orip_for_horver_modes(
+          &cpi->common, mbmi, PLANE_TYPE_Y, bsize);
+#endif
+      if (!signal_intra_filter &&
+          mbmi->angle_delta[PLANE_TYPE_Y] == ANGLE_DELTA_VALUE_ORIP)
+        continue;
+      if (mbmi->angle_delta[PLANE_TYPE_Y] == ANGLE_DELTA_VALUE_ORIP) {
+        if (mbmi->mode == H_PRED && best_mbmi.mode != H_PRED) {
+          continue;
+        } else if (mbmi->mode == V_PRED && best_mbmi.mode != V_PRED) {
+          continue;
+        } else if (best_mbmi.angle_delta[PLANE_TYPE_Y]) {
+          continue;
+        }
+      }
+#endif
+
 #if CONFIG_MRLS
       if (!is_directional_mode && mrl_idx) continue;
       if (best_mbmi.mrl_index == 0 && mbmi->mrl_index > 1 &&

@@ -270,6 +270,12 @@ typedef struct {
    */
   bool enable_mrls;
 #endif
+#if CONFIG_ORIP
+  /*!
+   * Flag to indicate if ORIP should be enabled
+   */
+  bool enable_orip;
+#endif
 } IntraModeCfg;
 
 /*!

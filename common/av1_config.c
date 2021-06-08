@@ -343,6 +343,10 @@ static int parse_sequence_header(const uint8_t *const buffer, size_t length,
   AV1C_READ_BIT_OR_RETURN_ERROR(enable_filter_intra);
   AV1C_READ_BIT_OR_RETURN_ERROR(enable_intra_edge_filter);
 
+#if CONFIG_ORIP
+  AV1C_READ_BIT_OR_RETURN_ERROR(enable_orip);
+#endif
+
   if (!reduced_still_picture_header) {
     AV1C_READ_BIT_OR_RETURN_ERROR(enable_interintra_compound);
     AV1C_READ_BIT_OR_RETURN_ERROR(enable_masked_compound);

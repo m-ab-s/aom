@@ -86,6 +86,9 @@ int parse_cfg(const char *file, cfg_options_t *config) {
 #if CONFIG_MRLS
     GET_PARAMS(enable_mrls);
 #endif
+#if CONFIG_ORIP
+    GET_PARAMS(enable_orip);
+#endif
     GET_PARAMS(enable_flip_idtx);
     GET_PARAMS(enable_deblocking);
     GET_PARAMS(enable_cdef);

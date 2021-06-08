@@ -238,12 +238,29 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, ModeCosts *mode_costs,
                                fc->angle_delta_cdf[i][j], NULL);
     }
   }
+
+#if CONFIG_ORIP
+  for (i = 0; i < PARTITION_STRUCTURE_NUM; ++i) {
+    for (j = 0; j < TOTAL_NUM_ORIP_ANGLE_DELTA; ++j) {
+      av1_cost_tokens_from_cdf(mode_costs->angle_delta_cost_hv[i][j],
+                               fc->angle_delta_cdf_hv[i][j], NULL);
+    }
+  }
+#endif
+
 #else
   for (i = 0; i < DIRECTIONAL_MODES; ++i) {
     av1_cost_tokens_from_cdf(mode_costs->angle_delta_cost[i],
                              fc->angle_delta_cdf[i], NULL);
   }
+#if CONFIG_ORIP
+  for (i = 0; i < TOTAL_NUM_ORIP_ANGLE_DELTA; ++i) {
+    av1_cost_tokens_from_cdf(mode_costs->angle_delta_cost_hv[i],
+                             fc->angle_delta_cdf_hv[i], NULL);
+  }
+#endif
 #endif  // CONFIG_SDP
+
   av1_cost_tokens_from_cdf(mode_costs->intrabc_cost, fc->intrabc_cdf, NULL);
 
   if (!frame_is_intra_only(cm)) {

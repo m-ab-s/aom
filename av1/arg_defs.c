@@ -351,6 +351,11 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
               "Enable multiple reference line selection for intra prediction"
               "(0: false, 1: true (default))"),
 #endif
+#if CONFIG_ORIP
+  .enable_orip = ARG_DEF(NULL, "enable-orip", 1,
+                         "Enable Offset Based refinement of intra prediction"
+                         "(0: false ( default), 1: true)"),
+#endif
   .min_partition_size =
       ARG_DEF(NULL, "min-partition-size", 1,
               "Set min partition size "

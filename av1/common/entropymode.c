@@ -99,6 +99,22 @@ static const aom_cdf_prob default_angle_delta_cdf
         { AOM_CDF7(2240, 11096, 15453, 20341, 22561, 28917) },
         { AOM_CDF7(3605, 10428, 12459, 17676, 21244, 30655) } }
     };
+
+#if CONFIG_ORIP
+static const aom_cdf_prob default_angle_delta_cdf_hv
+    [PARTITION_STRUCTURE_NUM][TOTAL_NUM_ORIP_ANGLE_DELTA]
+    [CDF_SIZE(2 * MAX_ANGLE_DELTA + 1 + ADDITIONAL_ANGLE_DELTA)] = {
+      {
+          { AOM_CDF8(1180, 3032, 4567, 19776, 22989, 25217, 26639) },
+          { AOM_CDF8(1301, 3608, 5801, 20487, 22974, 25330, 26371) },
+      },
+      {
+          { AOM_CDF8(1180, 3032, 4567, 19776, 22989, 25217, 26639) },
+          { AOM_CDF8(1301, 3608, 5801, 20487, 22974, 25330, 26371) },
+      }
+    };
+
+#endif
 #else
 static const aom_cdf_prob default_angle_delta_cdf[DIRECTIONAL_MODES][CDF_SIZE(
     2 * MAX_ANGLE_DELTA + 1)] = {
@@ -111,6 +127,15 @@ static const aom_cdf_prob default_angle_delta_cdf[DIRECTIONAL_MODES][CDF_SIZE(
   { AOM_CDF7(2240, 11096, 15453, 20341, 22561, 28917) },
   { AOM_CDF7(3605, 10428, 12459, 17676, 21244, 30655) }
 };
+#if CONFIG_ORIP
+static const aom_cdf_prob
+    default_angle_delta_cdf_hv[TOTAL_NUM_ORIP_ANGLE_DELTA][CDF_SIZE(
+        2 * MAX_ANGLE_DELTA + 1 + ADDITIONAL_ANGLE_DELTA)] = {
+      { AOM_CDF8(1180, 3032, 4567, 19776, 22989, 25217, 26639) },
+      { AOM_CDF8(1301, 3608, 5801, 20487, 22974, 25330, 26371) },
+    };
+
+#endif
 #endif
 
 static const aom_cdf_prob default_if_y_mode_cdf[BLOCK_SIZE_GROUPS][CDF_SIZE(
@@ -1202,6 +1227,9 @@ static void init_mode_probs(FRAME_CONTEXT *fc) {
   av1_copy(fc->palette_y_color_index_cdf, default_palette_y_color_index_cdf);
   av1_copy(fc->palette_uv_color_index_cdf, default_palette_uv_color_index_cdf);
   av1_copy(fc->kf_y_cdf, default_kf_y_mode_cdf);
+#if CONFIG_ORIP
+  av1_copy(fc->angle_delta_cdf_hv, default_angle_delta_cdf_hv);
+#endif
   av1_copy(fc->angle_delta_cdf, default_angle_delta_cdf);
   av1_copy(fc->comp_inter_cdf, default_comp_inter_cdf);
   av1_copy(fc->comp_ref_type_cdf, default_comp_ref_type_cdf);

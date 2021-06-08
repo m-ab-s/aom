@@ -3114,6 +3114,12 @@ static int64_t rd_pick_intrabc_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x,
 #else
     mbmi->use_intrabc = 1;
 #endif
+
+#if CONFIG_ORIP
+    mbmi->angle_delta[PLANE_TYPE_Y] = 0;
+    mbmi->angle_delta[PLANE_TYPE_UV] = 0;
+#endif
+
     mbmi->mode = DC_PRED;
     mbmi->uv_mode = UV_DC_PRED;
     mbmi->motion_mode = SIMPLE_TRANSLATION;
@@ -5406,8 +5412,18 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
        mrl_index++) {
     mbmi->mrl_index = mrl_index;
 #endif
-    for (int mode_idx = INTRA_MODE_START; mode_idx < LUMA_MODE_COUNT;
+
+#if CONFIG_ORIP
+    int total_num_mode = cpi->common.seq_params.enable_orip
+                             ? (LUMA_MODE_COUNT + TOTAL_NUM_ORIP_ANGLE_DELTA)
+                             : LUMA_MODE_COUNT;
+    for (int mode_idx = INTRA_MODE_START; mode_idx < total_num_mode;
          ++mode_idx) {
+#else
+
+  for (int mode_idx = INTRA_MODE_START; mode_idx < LUMA_MODE_COUNT;
+       ++mode_idx) {
+#endif
       if (sf->intra_sf.skip_intra_in_interframe &&
           search_state.intra_search_state.skip_intra_modes)
         break;
@@ -5435,6 +5451,19 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
       if (mbmi->mrl_index > 0 && av1_is_directional_mode(mbmi->mode) == 0) {
         continue;
       }
+#endif
+
+#if CONFIG_ORIP
+      int signal_intra_filter =
+          av1_signal_orip_for_horver_modes(&cpi->common, mbmi, PLANE_TYPE_Y,
+#if CONFIG_SDP
+                                           bsize, xd->tree_type);
+#else
+                                           bsize);
+#endif
+      if (!signal_intra_filter &&
+          mbmi->angle_delta[PLANE_TYPE_Y] == ANGLE_DELTA_VALUE_ORIP)
+        continue;
 #endif
       const PREDICTION_MODE this_mode = mbmi->mode;
 

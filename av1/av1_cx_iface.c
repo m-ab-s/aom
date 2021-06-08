@@ -113,8 +113,11 @@ struct av1_extracfg {
   int enable_sdp;  // enable semi-decoupled partitioning
 #endif             // CONFIG_SDP
 #if CONFIG_MRLS
-  int enable_mrls;               // enable multiple reference line selection
-#endif                           // CONFIG_MRLS
+  int enable_mrls;  // enable multiple reference line selection
+#endif              // CONFIG_MRLS
+#if CONFIG_ORIP
+  int enable_orip;               // enable ORIP
+#endif                           // CONFIG_ORIP
   int min_partition_size;        // min partition size [4,8,16,32,64,128]
   int max_partition_size;        // max partition size [4,8,16,32,64,128]
   int enable_intra_edge_filter;  // enable intra-edge filter for sequence
@@ -363,6 +366,9 @@ static struct av1_extracfg default_extra_cfg = {
 #if CONFIG_MRLS
   1,    // enable multiple reference line selection
 #endif  // CONFIG_MRLS
+#if CONFIG_ORIP
+  0,    // enable ORIP
+#endif  // CONFIG_ORIP
   4,    // min_partition_size
   128,  // max_partition_size
   1,    // enable intra edge filter
@@ -790,6 +796,9 @@ static void update_encoder_config(cfg_options_t *cfg,
 #if CONFIG_MRLS
   cfg->enable_mrls = extra_cfg->enable_mrls;
 #endif
+#if CONFIG_ORIP
+  cfg->enable_orip = extra_cfg->enable_orip;
+#endif
   cfg->max_partition_size = extra_cfg->max_partition_size;
   cfg->min_partition_size = extra_cfg->min_partition_size;
   cfg->enable_intra_edge_filter = extra_cfg->enable_intra_edge_filter;
@@ -843,6 +852,9 @@ static void update_default_encoder_config(const cfg_options_t *cfg,
 #endif
 #if CONFIG_MRLS
   extra_cfg->enable_mrls = cfg->enable_mrls;
+#endif
+#if CONFIG_ORIP
+  extra_cfg->enable_orip = cfg->enable_orip;
 #endif
   extra_cfg->max_partition_size = cfg->max_partition_size;
   extra_cfg->min_partition_size = cfg->min_partition_size;
@@ -1241,6 +1253,9 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   intra_mode_cfg->enable_cfl_intra = extra_cfg->enable_cfl_intra;
 #if CONFIG_MRLS
   intra_mode_cfg->enable_mrls = extra_cfg->enable_mrls;
+#endif
+#if CONFIG_ORIP
+  intra_mode_cfg->enable_orip = extra_cfg->enable_orip;
 #endif
 
   // Set transform size/type configuration.
@@ -3404,6 +3419,11 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
                               err_string)) {
     extra_cfg.enable_mrls = arg_parse_int_helper(&arg, err_string);
 #endif
+#if CONFIG_ORIP
+  } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_orip, argv,
+                              err_string)) {
+    extra_cfg.enable_orip = arg_parse_int_helper(&arg, err_string);
+#endif
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.min_partition_size,
                               argv, err_string)) {
     extra_cfg.min_partition_size = arg_parse_int_helper(&arg, err_string);
@@ -3733,7 +3753,6 @@ static aom_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {
   { AV1E_GET_SUB_GOP_CONFIG, ctrl_get_enc_sub_gop_config },
   { AV1E_GET_FRAME_TYPE, ctrl_get_frame_type },
   { AV1E_GET_FRAME_INFO, ctrl_get_enc_frame_info },
-
   CTRL_MAP_END,
 };
 
@@ -3809,6 +3828,9 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = {
 #endif  // CONFIG_SDP
 #if CONFIG_MRLS
         1,
+#endif
+#if CONFIG_ORIP
+        0,
 #endif
         1, 1,   1,   1, 1, 1, 1,
 #if !CONFIG_REMOVE_DIST_WTD_COMP
@@ -3891,6 +3913,9 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = {
 #endif
 #if CONFIG_MRLS
         1,
+#endif
+#if CONFIG_ORIP
+        0,
 #endif
         1, 1,   1,   1, 1, 1, 1,
 #if !CONFIG_REMOVE_DIST_WTD_COMP
