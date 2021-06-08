@@ -149,7 +149,7 @@ set_aom_config_var(CONFIG_COMPOUND_WARP_SAMPLES 1 NUMBER
 set_aom_config_var(
   CONFIG_MRLS 1 "AV2 experiment flag to enable multiple line intra prediction.")
 set_aom_config_var(
-  CONFIG_ORIP 0
+  CONFIG_ORIP 1
   "AV2 experiment flag to enable offset based refinement of intra prediction.")
 
 #
