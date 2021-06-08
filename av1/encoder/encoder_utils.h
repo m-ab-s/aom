@@ -884,6 +884,9 @@ static AOM_INLINE void set_size_independent_vars(AV1_COMP *cpi) {
   AV1_COMMON *const cm = &cpi->common;
 #if CONFIG_NEW_REF_SIGNALING
   for (i = 0; i < MAX_REF_FRAMES_NRS; ++i) {
+    cm->global_motion_nrs[i] = default_warp_params;
+  }
+  for (i = LAST_FRAME; i <= ALTREF_FRAME; ++i) {
     cm->global_motion[i] = default_warp_params;
   }
 #else
