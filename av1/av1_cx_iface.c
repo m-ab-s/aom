@@ -367,7 +367,7 @@ static struct av1_extracfg default_extra_cfg = {
   1,    // enable multiple reference line selection
 #endif  // CONFIG_MRLS
 #if CONFIG_ORIP
-  0,    // enable ORIP
+  1,    // enable ORIP
 #endif  // CONFIG_ORIP
   4,    // min_partition_size
   128,  // max_partition_size
@@ -3830,7 +3830,7 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = {
         1,
 #endif
 #if CONFIG_ORIP
-        0,
+        1,
 #endif
         1, 1,   1,   1, 1, 1, 1,
 #if !CONFIG_REMOVE_DIST_WTD_COMP
@@ -3915,7 +3915,7 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = {
         1,
 #endif
 #if CONFIG_ORIP
-        0,
+        1,
 #endif
         1, 1,   1,   1, 1, 1, 1,
 #if !CONFIG_REMOVE_DIST_WTD_COMP

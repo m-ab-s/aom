@@ -577,7 +577,7 @@ static void init_config(cfg_options_t *config) {
   config->enable_mrls = 1;
 #endif
 #if CONFIG_ORIP
-  config->enable_orip = 0;  // 1;
+  config->enable_orip = 1;
 #endif
   config->enable_flip_idtx = 1;
   config->enable_deblocking = 1;
