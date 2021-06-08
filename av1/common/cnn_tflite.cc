@@ -38,7 +38,7 @@
 #include "av1/tflite_models/inter_frame_model/qp232_255.h"
 #include "common/tf_lite_includes.h"
 
-#if CONFIG_CNN_RESTORATION || CONFIG_LOOP_RESTORE_CNN
+#if CONFIG_CNN_RESTORATION
 // Returns the TF-lite model based on the qindex.
 static const unsigned char *get_intra_model_from_qindex(int qindex,
                                                         int is_luma) {
@@ -322,4 +322,4 @@ extern "C" void av1_restore_cnn_tflite(const AV1_COMMON *cm, int num_threads,
     }
   }
 }
-#endif  // CONFIG_CNN_RESTORATION || CONFIG_LOOP_RESTORE_CNN
+#endif  // CONFIG_CNN_RESTORATION

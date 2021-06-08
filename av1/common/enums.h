@@ -650,9 +650,6 @@ typedef enum {
   RESTORE_NONE,    /**< No restoration */
   RESTORE_WIENER,  /**< Separable Wiener restoration */
   RESTORE_SGRPROJ, /**< Selfguided restoration */
-#if CONFIG_LOOP_RESTORE_CNN
-  RESTORE_CNN, /**< CNN restoration */
-#endif         // CONFIG_LOOP_RESTORE_CNN
 #if CONFIG_WIENER_NONSEP
   RESTORE_WIENER_NONSEP, /**< Nonseparable Wiener restoration */
 #endif                   // CONFIG_WIENER_NONSEP

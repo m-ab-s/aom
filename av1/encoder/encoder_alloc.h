@@ -278,9 +278,9 @@ static AOM_INLINE void dealloc_compressor_data(AV1_COMP *cpi) {
 
   aom_free_frame_buffer(&cpi->last_frame_uf);
 
-#if CONFIG_CNN_RESTORATION && !CONFIG_LOOP_RESTORE_CNN
+#if CONFIG_CNN_RESTORATION
   aom_free_frame_buffer(&cpi->cnn_buffer);
-#endif  // CONFIG_CNN_RESTORATION && !CONFIG_LOOP_RESTORE_CNN
+#endif  // CONFIG_CNN_RESTORATION
 
   av1_free_restoration_buffers(cm);
   aom_free_frame_buffer(&cpi->trial_frame_rst);
@@ -367,14 +367,14 @@ static AOM_INLINE void alloc_util_frame_buffers(AV1_COMP *cpi) {
     aom_internal_error(&cm->error, AOM_CODEC_MEM_ERROR,
                        "Failed to allocate last frame buffer");
 
-#if CONFIG_CNN_RESTORATION && !CONFIG_LOOP_RESTORE_CNN
+#if CONFIG_CNN_RESTORATION
   if (aom_realloc_frame_buffer(
           &cpi->cnn_buffer, cm->width, cm->height, seq_params->subsampling_x,
           seq_params->subsampling_y, seq_params->use_highbitdepth,
           cpi->oxcf.border_in_pixels, byte_alignment, NULL, NULL, NULL))
     aom_internal_error(&cm->error, AOM_CODEC_MEM_ERROR,
                        "Failed to allocate CNN frame buffer");
-#endif  // CONFIG_CNN_RESTORATION && !CONFIG_LOOP_RESTORE_CNN
+#endif  // CONFIG_CNN_RESTORATION
 
   if (aom_realloc_frame_buffer(
           &cpi->trial_frame_rst, cm->superres_upscaled_width,

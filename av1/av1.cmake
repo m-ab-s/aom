@@ -420,7 +420,7 @@ if(CONFIG_INTERNAL_STATS)
   list(APPEND AOM_AV1_ENCODER_SOURCES "${AOM_ROOT}/av1/encoder/blockiness.c")
 endif()
 
-if(CONFIG_CNN_RESTORATION OR CONFIG_LOOP_RESTORE_CNN)
+if(CONFIG_CNN_RESTORATION)
   list(APPEND AOM_AV1_COMMON_SOURCES
               "${AOM_ROOT}/av1/common/cnn_tflite.cc"
               "${AOM_ROOT}/av1/common/cnn_tflite.h"

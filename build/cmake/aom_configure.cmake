@@ -30,7 +30,6 @@ if(DEFINED CONFIG_LOWBITDEPTH)
 endif()
 
 experiment_requires_tf_lite(CONFIG_CNN_RESTORATION)
-experiment_requires_tf_lite(CONFIG_LOOP_RESTORE_CNN)
 experiment_requires_tf_lite(CONFIG_CNN_RESTORATION_SMALL_MODELS)
 
 # Generate the user config settings.

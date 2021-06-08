@@ -838,35 +838,19 @@ static const aom_cdf_prob default_filter_intra_cdfs[BLOCK_SIZES_ALL][CDF_SIZE(
             { AOM_CDF2(20229) }, { AOM_CDF2(18101) }, { AOM_CDF2(16384) },
             { AOM_CDF2(16384) } };
 
-#if CONFIG_LOOP_RESTORE_CNN && CONFIG_WIENER_NONSEP
-static const aom_cdf_prob default_switchable_restore_cdf[CDF_SIZE(
-    RESTORE_SWITCHABLE_TYPES)] = { AOM_CDF5(4000, 10000, 16000, 22500) };
-#elif CONFIG_WIENER_NONSEP
+#if CONFIG_WIENER_NONSEP
 static const aom_cdf_prob default_switchable_restore_cdf[CDF_SIZE(
     RESTORE_SWITCHABLE_TYPES)] = { AOM_CDF4(6000, 14000, 22500) };
-#elif CONFIG_LOOP_RESTORE_CNN
-// Index 0: when use_cnn_y/uv == 0, 3 options are allowed excluding RESTORE_CNN;
-// and CDEF is allowed.
-// Index 1: when use_cnn_y/uv == 1, all 4 options are allowed including
-// RESTORE_CNN; and CDEF is off.
-static const aom_cdf_prob default_switchable_restore_cdf[2][CDF_SIZE(
-    RESTORE_SWITCHABLE_TYPES)] = { { AOM_CDF4(9413, 22581, CDF_PROB_TOP) },
-                                   { AOM_CDF4(6000, 14000, 22500) } };
 #else
 static const aom_cdf_prob default_switchable_restore_cdf[CDF_SIZE(
     RESTORE_SWITCHABLE_TYPES)] = { AOM_CDF3(9413, 22581) };
-#endif  // CONFIG_LOOP_RESTORE_CNN || CONFIG_WIENER_NONSEP
+#endif  // CONFIG_WIENER_NONSEP
 
 static const aom_cdf_prob default_wiener_restore_cdf[CDF_SIZE(2)] = { AOM_CDF2(
     11570) };
 
 static const aom_cdf_prob default_sgrproj_restore_cdf[CDF_SIZE(2)] = { AOM_CDF2(
     16855) };
-
-#if CONFIG_LOOP_RESTORE_CNN
-static const aom_cdf_prob default_cnn_restore_cdf[CDF_SIZE(2)] = { AOM_CDF2(
-    10000) };
-#endif  // CONFIG_LOOP_RESTORE_CNN
 
 #if CONFIG_WIENER_NONSEP
 static const aom_cdf_prob default_wiener_nonsep_restore_cdf[CDF_SIZE(2)] = {
@@ -1163,9 +1147,6 @@ static void init_mode_probs(FRAME_CONTEXT *fc) {
   av1_copy(fc->switchable_restore_cdf, default_switchable_restore_cdf);
   av1_copy(fc->wiener_restore_cdf, default_wiener_restore_cdf);
   av1_copy(fc->sgrproj_restore_cdf, default_sgrproj_restore_cdf);
-#if CONFIG_LOOP_RESTORE_CNN
-  av1_copy(fc->cnn_restore_cdf, default_cnn_restore_cdf);
-#endif  // CONFIG_LOOP_RESTORE_CNN
 #if CONFIG_WIENER_NONSEP
   av1_copy(fc->wiener_nonsep_restore_cdf, default_wiener_nonsep_restore_cdf);
 #endif  // CONFIG_WIENER_NONSEP

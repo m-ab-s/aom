@@ -451,24 +451,6 @@ typedef struct {
   int xqd[2];
 } SgrprojInfo;
 
-#if CONFIG_LOOP_RESTORE_CNN
-/*!\brief Parameters related to CNN Filter */
-typedef struct {
-  /*!
-   * Frame type.
-   */
-  FRAME_TYPE frame_type;
-  /*!
-   * Base qindex of the frame.
-   */
-  int base_qindex;
-  /*!
-   * True if current plane is luma (Y channel).
-   */
-  bool is_luma;
-} CNNInfo;
-#endif  // CONFIG_LOOP_RESTORE_CNN
-
 #if CONFIG_WIENER_NONSEP
 #define WIENERNS_YUV_MAX 24
 /*!
