@@ -33,7 +33,6 @@ static INLINE int get_sync_range(int width) {
     return 8;
 }
 
-#if !CONFIG_RST_MERGECOEFFS
 static INLINE int get_lr_sync_range(int width) {
 #if 0
   // nsync numbers are picked by testing. For example, for 4k
@@ -51,7 +50,6 @@ static INLINE int get_lr_sync_range(int width) {
   return 1;
 #endif
 }
-#endif  // !CONFIG_RST_MERGECOEFFS
 
 // Allocate memory for lf row synchronization
 static void loop_filter_alloc(AV1LfSync *lf_sync, AV1_COMMON *cm, int rows,
@@ -530,7 +528,6 @@ void av1_loop_filter_frame_mt(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm,
 #endif
 }
 
-#if !CONFIG_RST_MERGECOEFFS
 static INLINE void lr_sync_read(void *const lr_sync, int r, int c, int plane) {
 #if CONFIG_MULTITHREAD
   AV1LrSync *const loop_res_sync = (AV1LrSync *)lr_sync;
@@ -650,7 +647,6 @@ static void loop_restoration_alloc(AV1LrSync *lr_sync, AV1_COMMON *cm,
   // Set up nsync.
   lr_sync->sync_range = get_lr_sync_range(width);
 }
-#endif  // !CONFIG_RST_MERGECOEFFS
 
 // Deallocate loop restoration synchronization related mutex and data
 void av1_loop_restoration_dealloc(AV1LrSync *lr_sync, int num_workers) {
@@ -700,7 +696,6 @@ void av1_loop_restoration_dealloc(AV1LrSync *lr_sync, int num_workers) {
   }
 }
 
-#if !CONFIG_RST_MERGECOEFFS
 static void enqueue_lr_jobs(AV1LrSync *lr_sync, AV1LrStruct *lr_ctxt,
                             AV1_COMMON *cm) {
   FilterFrameCtxt *ctxt = lr_ctxt->ctxt;
@@ -797,9 +792,7 @@ static AV1LrMTInfo *get_lr_job_info(AV1LrSync *lr_sync) {
 
   return cur_job_info;
 }
-#endif  // !CONFIG_RST_MERGECOEFFS
 
-#if !CONFIG_RST_MERGECOEFFS
 // Implement row loop restoration for each thread.
 static int loop_restoration_row_worker(void *arg1, void *arg2) {
   AV1LrSync *const lr_sync = (AV1LrSync *)arg1;
@@ -861,6 +854,27 @@ static void foreach_rest_unit_in_planes_mt(AV1LrStruct *lr_ctxt,
                                            AV1LrSync *lr_sync, AV1_COMMON *cm) {
   FilterFrameCtxt *ctxt = lr_ctxt->ctxt;
 
+#if CONFIG_WIENER_NONSEP && CONFIG_WIENER_NONSEP_CROSS_FILT
+  uint8_t *luma = NULL;
+  uint8_t *luma_buf;
+  const YV12_BUFFER_CONFIG *dgd = &cm->cur_frame->buf;
+  int luma_stride = dgd->crop_widths[1] + 2 * WIENERNS_UV_BRD;
+  if (cm->seq_params.use_highbitdepth) {
+    luma_buf = wienerns_copy_luma_highbd(
+        dgd->buffers[AOM_PLANE_Y], dgd->crop_heights[AOM_PLANE_Y],
+        dgd->crop_widths[AOM_PLANE_Y], dgd->strides[AOM_PLANE_Y], &luma,
+        dgd->crop_heights[1], dgd->crop_widths[1], WIENERNS_UV_BRD, luma_stride,
+        cm->seq_params.bit_depth);
+  } else {
+    luma_buf = wienerns_copy_luma(
+        dgd->buffers[AOM_PLANE_Y], dgd->crop_heights[AOM_PLANE_Y],
+        dgd->crop_widths[AOM_PLANE_Y], dgd->strides[AOM_PLANE_Y], &luma,
+        dgd->crop_heights[1], dgd->crop_widths[1], WIENERNS_UV_BRD,
+        luma_stride);
+  }
+  assert(luma_buf != NULL);
+#endif  // CONFIG_WIENER_NONSEP && CONFIG_WIENER_NONSEP_CROSS_FILT
+
   const int num_planes = av1_num_planes(cm);
 
   const AVxWorkerInterface *const winterface = aom_get_worker_interface();
@@ -868,6 +882,26 @@ static void foreach_rest_unit_in_planes_mt(AV1LrStruct *lr_ctxt,
 
   for (int plane = 0; plane < num_planes; plane++) {
     if (cm->rst_info[plane].frame_restoration_type == RESTORE_NONE) continue;
+
+#if CONFIG_WIENER_NONSEP
+    ctxt[plane].plane = plane;
+#if CONFIG_WIENER_NONSEP_CROSS_FILT
+    const int is_uv = (plane != AOM_PLANE_Y);
+    ctxt[plane].luma = is_uv ? luma : NULL;
+    ctxt[plane].luma_stride = is_uv ? luma_stride : -1;
+#endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
+#if WIENER_NONSEP_MASK
+    int w = ((cm->width + MAX_SB_SIZE - 1) >> MAX_SB_SIZE_LOG2)
+            << MAX_SB_SIZE_LOG2;
+    int h = ((cm->height + MAX_SB_SIZE - 1) >> MAX_SB_SIZE_LOG2)
+            << MAX_SB_SIZE_LOG2;
+    w >>= ((plane == 0) ? 0 : cm->seq_params.subsampling_x);
+    h >>= ((plane == 0) ? 0 : cm->seq_params.subsampling_y);
+    ctxt[plane].mask_stride = (w + MIN_TX_SIZE - 1) >> MIN_TX_SIZE_LOG2;
+    ctxt[plane].mask_height = (h + MIN_TX_SIZE - 1) >> MIN_TX_SIZE_LOG2;
+    ctxt[plane].txskip_mask = cm->tx_skip[plane];
+#endif  // WIENER_NONSEP_MASK
+#endif  // CONFIG_WIENER_NONSEP
 
     const AV1PixelRect tile_rect = ctxt[plane].tile_rect;
     const int max_tile_h = tile_rect.bottom - tile_rect.top;
@@ -917,6 +951,10 @@ static void foreach_rest_unit_in_planes_mt(AV1LrStruct *lr_ctxt,
   for (i = 0; i < num_workers; ++i) {
     winterface->sync(&workers[i]);
   }
+
+#if CONFIG_WIENER_NONSEP && CONFIG_WIENER_NONSEP_CROSS_FILT
+  free(luma_buf);
+#endif  // CONFIG_WIENER_NONSEP && CONFIG_WIENER_NONSEP_CROSS_FILT
 }
 
 void av1_loop_restoration_filter_frame_mt(YV12_BUFFER_CONFIG *frame,
@@ -935,4 +973,3 @@ void av1_loop_restoration_filter_frame_mt(YV12_BUFFER_CONFIG *frame,
   foreach_rest_unit_in_planes_mt(loop_rest_ctxt, workers, num_workers, lr_sync,
                                  cm);
 }
-#endif  // !CONFIG_RST_MERGECOEFFS
