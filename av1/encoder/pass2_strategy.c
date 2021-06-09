@@ -1280,9 +1280,12 @@ static void calculate_gf_length(AV1_COMP *cpi, int max_gop_length,
       break;
     }
 
-    // reached maximum len, but nothing special yet (almost static)
-    // let's look at the next interval
-    if (i - cur_start >= rc->static_scene_max_gf_interval) {
+    if (i == (cpi->oxcf.gf_cfg.lag_in_frames - 1)) {
+      // Enforce lag in frames
+      cut_here = 1;
+    } else if (i - cur_start >= rc->static_scene_max_gf_interval) {
+      // reached maximum len, but nothing special yet (almost static)
+      // let's look at the next interval
       cut_here = 1;
     } else {
       // reaches last frame, break
@@ -1722,7 +1725,7 @@ static void define_gf_group(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
     use_alt_ref =
         !is_almost_static(gf_stats.zero_motion_accumulator,
                           twopass->kf_zeromotion_pct, cpi->lap_enabled) &&
-        rc->use_arf_in_this_kf_group && (i < gf_cfg->lag_in_frames) &&
+        rc->use_arf_in_this_kf_group && (i <= gf_cfg->lag_in_frames) &&
         (i >= MIN_GF_INTERVAL);
 
     // TODO(urvang): Improve and use model for VBR, CQ etc as well.
@@ -1739,7 +1742,7 @@ static void define_gf_group(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
     }
   } else {
     use_alt_ref =
-        rc->use_arf_in_this_kf_group && (i < gf_cfg->lag_in_frames) && (i > 2);
+        rc->use_arf_in_this_kf_group && (i <= gf_cfg->lag_in_frames) && (i > 2);
   }
 
 #define REDUCE_GF_LENGTH_THRESH 4
