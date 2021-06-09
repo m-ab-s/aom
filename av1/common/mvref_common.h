@@ -18,7 +18,12 @@
 extern "C" {
 #endif
 
+#if CONFIG_SMVP_IMPROVEMENT
+#define MVREF_ROWS 1
+#define MVREF_COLS 3
+#else
 #define MVREF_ROW_COLS 3
+#endif  // CONFIG_SMVP_IMPROVEMENT
 
 // Set the upper limit of the motion vector component magnitude.
 // This would make a motion vector fit in 26 bits. Plus 3 bits for the
