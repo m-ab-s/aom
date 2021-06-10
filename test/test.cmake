@@ -227,6 +227,11 @@ if(NOT BUILD_SHARED_LIBS)
                 "${AOM_ROOT}/test/filterintra_test.cc")
   endif()
 
+  if(CONFIG_SPHERICAL_PRED)
+    list(APPEND AOM_UNIT_TEST_COMMON_SOURCES
+                "${AOM_ROOT}/test/spherical_pred_test.cc")
+  endif()
+
   list(APPEND AOM_UNIT_TEST_COMMON_INTRIN_AVX2
               "${AOM_ROOT}/test/simd_cmp_avx2.cc")
   if(HAVE_AVX2)
