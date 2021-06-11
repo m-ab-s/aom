@@ -1281,8 +1281,13 @@ static void build_intra_predictors_high(
   int need_above = extend_modes[mode] & NEED_ABOVE;
   int need_above_left = extend_modes[mode] & NEED_ABOVELEFT;
 #if CONFIG_MRLS
-  int mrl_index =
-      (plane == PLANE_TYPE_Y && is_inter_block(xd->mi[0], xd->tree_type) == 0)
+  const uint8_t mrl_index =
+      (plane == PLANE_TYPE_Y && is_inter_block(xd->mi[0]
+#if CONFIG_SDP
+                                               ,
+                                               xd->tree_type
+#endif
+                                               ) == 0)
           ? xd->mi[0]->mrl_index
           : 0;
   const int above_mrl_idx = is_sb_boundary ? 0 : mrl_index;
@@ -1507,8 +1512,13 @@ static void build_intra_predictors(const MACROBLOCKD *xd, const uint8_t *ref,
 ) {
   int i;
 #if CONFIG_MRLS
-  uint8_t mrl_index =
-      (plane == PLANE_TYPE_Y && is_inter_block(xd->mi[0], xd->tree_type) == 0)
+  const uint8_t mrl_index =
+      (plane == PLANE_TYPE_Y && is_inter_block(xd->mi[0]
+#if CONFIG_SDP
+                                               ,
+                                               xd->tree_type
+#endif
+                                               ) == 0)
           ? xd->mi[0]->mrl_index
           : 0;
   const int above_mrl_idx = is_sb_boundary ? 0 : mrl_index;
