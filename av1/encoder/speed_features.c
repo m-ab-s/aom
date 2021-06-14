@@ -379,7 +379,9 @@ static void set_good_speed_features_framesize_independent(
   sf->tx_sf.intra_tx_size_search_init_depth_sqr = 1;
   sf->tx_sf.model_based_prune_tx_search_level = 1;
   sf->tx_sf.tx_type_search.use_reduced_intra_txset = 1;
-
+#if CONFIG_IST
+  sf->tx_sf.tx_type_search.skip_stx_search = 0;
+#endif
   sf->rt_sf.use_nonrd_pick_mode = 0;
   sf->rt_sf.use_real_time_ref_set = 0;
 
@@ -474,7 +476,9 @@ static void set_good_speed_features_framesize_independent(
     sf->interp_sf.adaptive_interp_filter_search = 1;
     sf->interp_sf.disable_dual_filter = 1;
 #endif  // !CONFIG_REMOVE_DUAL_FILTER
-
+#if CONFIG_IST
+    sf->tx_sf.tx_type_search.skip_stx_search = 1;
+#endif
     sf->intra_sf.disable_smooth_intra =
         !frame_is_intra_only(&cpi->common) || (cpi->rc.frames_to_key != 1);
 
@@ -729,6 +733,9 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
   sf->tx_sf.intra_tx_size_search_init_depth_sqr = 1;
   sf->tx_sf.model_based_prune_tx_search_level = 1;
   sf->tx_sf.tx_type_search.use_reduced_intra_txset = 1;
+#if CONFIG_IST
+  sf->tx_sf.tx_type_search.skip_stx_search = 0;
+#endif
   sf->rt_sf.fullpel_search_step_param = 0;
 
   sf->hl_sf.superres_auto_search_type = SUPERRES_AUTO_SOLO;
@@ -792,6 +799,9 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
     sf->tx_sf.inter_tx_size_search_init_depth_rect = 1;
     sf->tx_sf.inter_tx_size_search_init_depth_sqr = 1;
     sf->tx_sf.model_based_prune_tx_search_level = 0;
+#if CONFIG_IST
+    sf->tx_sf.tx_type_search.skip_stx_search = 1;
+#endif
 
     sf->lpf_sf.cdef_pick_method = CDEF_FAST_SEARCH_LVL1;
   }

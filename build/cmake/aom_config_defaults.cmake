@@ -141,6 +141,7 @@ set_aom_config_var(CONFIG_REMOVE_DIST_WTD_COMP 1
                    "AV2 experiment flag to remove dist_wtd_comp tool.")
 set_aom_config_var(CONFIG_REMOVE_DUAL_FILTER 1
                    "AV2 experiment flag to remove dual filter.")
+
 set_aom_config_var(CONFIG_SDP 1 NUMBER "AV2 Semi-Decoupled Partitioning.")
 set_aom_config_var(CONFIG_EXTQUANT 1
                    "AV2 extended quantization experiment flag")
@@ -151,6 +152,8 @@ set_aom_config_var(
 set_aom_config_var(
   CONFIG_ORIP 1
   "AV2 experiment flag to enable offset based refinement of intra prediction.")
+set_aom_config_var(CONFIG_IST 0 NUMBER
+                   "AV2 experiment flag to enable intra secondary transform.")
 
 #
 # Variables in this section control optional features of the build system.

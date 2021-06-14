@@ -427,3 +427,35 @@ void av1_get_fwd_txfm_cfg(TX_TYPE tx_type, TX_SIZE tx_size,
   cfg->stage_num_row = av1_txfm_stage_num_list[cfg->txfm_type_row];
   set_fwd_txfm_non_scale_range(cfg);
 }
+
+#if CONFIG_IST
+void fwd_stxfm_c(tran_low_t *src, tran_low_t *dst, const PREDICTION_MODE mode,
+                 const uint8_t stx_idx, const int size) {
+  const int16_t *kernel = (size == 4) ? ist_4x4_kernel[mode][stx_idx][0]
+                                      : ist_8x8_kernel[mode][stx_idx][0];
+  int coef;
+  int *out = dst;
+  assert(stx_idx < 4);
+  int shift = 7;
+  int offset = 1 << (shift - 1);
+
+  int reduced_width, reduced_height;
+  if (size == 4) {
+    reduced_height = IST_4x4_HEIGHT;
+    reduced_width = IST_4x4_WIDTH;
+  } else {
+    reduced_height = IST_8x8_HEIGHT;
+    reduced_width = IST_8x8_WIDTH;
+  }
+  for (int j = 0; j < reduced_height; j++) {
+    int *srcPtr = src;
+    const int16_t *kernel_tmp = kernel;
+    coef = 0;
+    for (int i = 0; i < reduced_width; i++) {
+      coef += *srcPtr++ * *kernel_tmp++;
+    }
+    *out++ = (coef + offset) >> shift;
+    kernel += (size * size);
+  }
+}
+#endif

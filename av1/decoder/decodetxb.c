@@ -180,7 +180,11 @@ uint8_t av1_read_coeffs_txb(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
   const TX_TYPE tx_type =
       av1_get_tx_type(xd, plane_type, blk_row, blk_col, tx_size,
                       cm->features.reduced_tx_set_used);
+#if CONFIG_IST
+  const TX_CLASS tx_class = tx_type_to_class[get_primary_tx_type(tx_type)];
+#else
   const TX_CLASS tx_class = tx_type_to_class[tx_type];
+#endif
   const qm_val_t *iqmatrix =
       av1_get_iqmatrix(&cm->quant_params, xd, plane, tx_size, tx_type);
   const SCAN_ORDER *const scan_order = get_scan(tx_size, tx_type);
@@ -254,6 +258,15 @@ uint8_t av1_read_coeffs_txb(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
   }
   *eob = rec_eob_pos(eob_pt, eob_extra);
 
+#if CONFIG_IST
+  // read  sec_tx_type here
+  xd->enable_ist = cm->seq_params.enable_ist;
+  // Only y plane's sec_tx_type is transmitted
+  if ((plane == AOM_PLANE_Y) && (cm->seq_params.enable_ist)) {
+    av1_read_sec_tx_type(cm, xd, blk_row, blk_col, tx_size, eob, r);
+  }
+#endif
+  //
   if (*eob > 1) {
     memset(levels_buf, 0,
            sizeof(*levels_buf) *

@@ -933,7 +933,11 @@ void av1_write_tx_type(const AV1_COMMON *const cm, const MACROBLOCKD *xd,
     // eset == 0 should correspond to a set with only DCT_DCT and there
     // is no need to send the tx_type
     assert(eset > 0);
+#if CONFIG_IST
+    assert(av1_ext_tx_used[tx_set_type][get_primary_tx_type(tx_type)]);
+#else
     assert(av1_ext_tx_used[tx_set_type][tx_type]);
+#endif
     if (is_inter) {
       aom_write_symbol(w, av1_ext_tx_ind[tx_set_type][tx_type],
                        ec_ctx->inter_ext_tx_cdf[eset][square_tx_size],
@@ -945,13 +949,110 @@ void av1_write_tx_type(const AV1_COMMON *const cm, const MACROBLOCKD *xd,
             fimode_to_intradir[mbmi->filter_intra_mode_info.filter_intra_mode];
       else
         intra_dir = mbmi->mode;
+#if CONFIG_IST
+      aom_write_symbol(
+          w, av1_ext_tx_ind[tx_set_type][get_primary_tx_type(tx_type)],
+          ec_ctx->intra_ext_tx_cdf[eset][square_tx_size][intra_dir],
+          av1_num_ext_tx_set[tx_set_type]);
+#else
       aom_write_symbol(
           w, av1_ext_tx_ind[tx_set_type][tx_type],
           ec_ctx->intra_ext_tx_cdf[eset][square_tx_size][intra_dir],
           av1_num_ext_tx_set[tx_set_type]);
+#endif
     }
   }
 }
+
+#if CONFIG_IST
+void av1_write_sec_tx_type(const AV1_COMMON *const cm, const MACROBLOCKD *xd,
+                           TX_TYPE tx_type, TX_SIZE tx_size, uint16_t eob,
+                           aom_writer *w) {
+  MB_MODE_INFO *mbmi = xd->mi[0];
+  const FeatureFlags *const features = &cm->features;
+#if CONFIG_SDP
+  const int is_inter = is_inter_block(mbmi, xd->tree_type);
+#else
+  const int is_inter = is_inter_block(mbmi);
+#endif
+  if (get_ext_tx_types(tx_size, is_inter, features->reduced_tx_set_used) > 1 &&
+      ((!cm->seg.enabled && cm->quant_params.base_qindex > 0) ||
+       (cm->seg.enabled && xd->qindex[mbmi->segment_id] > 0)) &&
+#if CONFIG_SDP
+      !mbmi->skip_txfm[xd->tree_type == CHROMA_PART] &&
+#else
+      !mbmi->skip_txfm &&
+#endif
+      !segfeature_active(&cm->seg, mbmi->segment_id, SEG_LVL_SKIP)) {
+    FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
+    const TX_SIZE square_tx_size = txsize_sqr_map[tx_size];
+    if (!is_inter) {
+      PREDICTION_MODE intra_dir;
+      if (mbmi->filter_intra_mode_info.use_filter_intra)
+        intra_dir =
+            fimode_to_intradir[mbmi->filter_intra_mode_info.filter_intra_mode];
+      else
+        intra_dir = mbmi->mode;
+      uint8_t stx_flag = get_secondary_tx_type(tx_type);
+      assert(stx_flag <= 3);
+#if CONFIG_SDP
+      const BLOCK_SIZE bs = mbmi->sb_type[PLANE_TYPE_Y];
+#else
+      const BLOCK_SIZE bs = mbmi->sb_type;
+#endif
+      const int width = tx_size_wide[tx_size];
+      const int height = tx_size_high[tx_size];
+      int sbSize = (width >= 8 && height >= 8) ? 8 : 4;
+      bool ist_eob = 1;
+      if ((sbSize == 4) && (eob > (IST_4x4_HEIGHT - 1)))
+        ist_eob = 0;
+      else if ((sbSize == 8) && (eob > (IST_8x8_HEIGHT - 1)))
+        ist_eob = 0;
+      int depth = tx_size_to_depth(tx_size, bs);
+      TX_TYPE primary_tx_type = get_primary_tx_type(tx_type);
+      bool code_stx =
+          ((primary_tx_type == DCT_DCT) || (primary_tx_type == ADST_ADST)) &&
+          (intra_dir < PAETH_PRED) &&
+          !(mbmi->filter_intra_mode_info.use_filter_intra) && !(depth);
+      if (code_stx && ist_eob) {
+        aom_write_symbol(w, stx_flag, ec_ctx->stx_cdf[square_tx_size],
+                         STX_TYPES);
+      }
+    }
+  } else if (!is_inter && !xd->lossless[mbmi->segment_id]) {
+    uint8_t stx_flag = get_secondary_tx_type(tx_type);
+    FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
+    const TX_SIZE square_tx_size = txsize_sqr_map[tx_size];
+    PREDICTION_MODE intra_dir;
+    if (mbmi->filter_intra_mode_info.use_filter_intra)
+      intra_dir =
+          fimode_to_intradir[mbmi->filter_intra_mode_info.filter_intra_mode];
+    else
+      intra_dir = mbmi->mode;
+    assert(stx_flag <= 3);
+#if CONFIG_SDP
+    const BLOCK_SIZE bs = mbmi->sb_type[PLANE_TYPE_Y];
+#else
+    const BLOCK_SIZE bs = mbmi->sb_type;
+#endif
+    const int width = tx_size_wide[tx_size];
+    const int height = tx_size_high[tx_size];
+    int sbSize = (width >= 8 && height >= 8) ? 8 : 4;
+    bool ist_eob = 1;
+    if ((sbSize == 4) && (eob > (IST_4x4_HEIGHT - 1)))
+      ist_eob = 0;
+    else if ((sbSize == 8) && (eob > (IST_8x8_HEIGHT - 1)))
+      ist_eob = 0;
+    int depth = tx_size_to_depth(tx_size, bs);
+    bool code_stx = (intra_dir < PAETH_PRED) &&
+                    !(mbmi->filter_intra_mode_info.use_filter_intra) &&
+                    !(depth);
+    if (code_stx && ist_eob) {
+      aom_write_symbol(w, stx_flag, ec_ctx->stx_cdf[square_tx_size], STX_TYPES);
+    }
+  }
+}
+#endif
 
 static AOM_INLINE void write_intra_y_mode_nonkf(FRAME_CONTEXT *frame_ctx,
                                                 BLOCK_SIZE bsize,
@@ -3032,11 +3133,12 @@ static AOM_INLINE void write_sequence_header(
 #endif
   aom_wb_write_bit(wb, seq_params->enable_filter_intra);
   aom_wb_write_bit(wb, seq_params->enable_intra_edge_filter);
-
 #if CONFIG_ORIP
   aom_wb_write_bit(wb, seq_params->enable_orip);
 #endif
-
+#if CONFIG_IST
+  aom_wb_write_bit(wb, seq_params->enable_ist);
+#endif
   if (!seq_params->reduced_still_picture_hdr) {
     aom_wb_write_bit(wb, seq_params->enable_interintra_compound);
     aom_wb_write_bit(wb, seq_params->enable_masked_compound);

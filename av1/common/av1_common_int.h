@@ -286,7 +286,9 @@ typedef struct SequenceHeader {
 #if CONFIG_ORIP
   uint8_t enable_orip;  // To turn on/off sub-block based ORIP
 #endif
-
+#if CONFIG_IST
+  uint8_t enable_ist;  // enables/disables intra secondary transform
+#endif
   uint8_t enable_interintra_compound;  // enables/disables interintra_compound
   uint8_t enable_masked_compound;      // enables/disables masked compound
 #if !CONFIG_REMOVE_DUAL_FILTER
@@ -584,6 +586,10 @@ struct CommonModeInfoParams {
    * Number of allocated elements is same as 'mi_grid_size', and stride is
    * same as 'mi_grid_size'. So, indexing into 'tx_type_map' is same as that of
    * 'mi_grid_base'.
+   * If secondary transform in enabled (CONFIG_IST) each element of the array
+   * stores both primary and secondary transform types as shown below: Bits 4~5
+   * of each element stores secondary tx_type Bits 0~3 of each element stores
+   * primary tx_type
    */
   TX_TYPE *tx_type_map;
 

@@ -310,6 +310,12 @@ typedef struct {
    * (mode-dependent) only.
    */
   bool use_intra_default_tx_only;
+#if CONFIG_IST
+  /*!
+   * Flag to indicate if intra secondary transform should be enabled.
+   */
+  bool enable_ist;
+#endif
 } TxfmSizeTypeCfg;
 
 /*!

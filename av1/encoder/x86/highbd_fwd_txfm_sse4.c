@@ -2602,3 +2602,45 @@ void av1_fwd_txfm2d_64x16_sse4_1(const int16_t *input, int32_t *coeff,
   transpose_8nx8n(in, outcoeff128, txfm_size_row, 32);
   (void)bd;
 }
+
+// Forward secondary transform
+#if CONFIG_IST
+void fwd_stxfm_sse4_1(tran_low_t *src, tran_low_t *dst,
+                      const PREDICTION_MODE mode, const uint8_t stx_idx,
+                      const int size) {
+  const int16_t *kernel = (size == 4) ? ist_4x4_kernel[mode][stx_idx][0]
+                                      : ist_8x8_kernel[mode][stx_idx][0];
+  int coef;
+  int *out = dst;
+  assert(stx_idx < 4);
+  int shift = 7;
+  int offset = 1 << (shift - 1);
+
+  int reduced_width, reduced_height;
+  if (size == 4) {
+    reduced_height = IST_4x4_HEIGHT;
+    reduced_width = IST_4x4_WIDTH;
+  } else {
+    reduced_height = IST_8x8_HEIGHT;
+    reduced_width = IST_8x8_WIDTH;
+  }
+  for (int j = 0; j < reduced_height; j++) {
+    int *srcPtr = src;
+    const int16_t *kernel_tmp = kernel;
+    __m128i tmpSum = _mm_setzero_si128();
+    for (int i = 0; i < reduced_width; i += 4) {
+      __m128i tmpBlk = _mm_loadu_si128((__m128i *)(srcPtr + i));
+      __m128i tmpT =
+          _mm_cvtepi16_epi32(_mm_loadl_epi64((__m128i *)(kernel_tmp + i)));
+      tmpSum = _mm_add_epi32(tmpSum, _mm_mullo_epi32(tmpBlk, tmpT));
+    }
+    tmpSum = _mm_add_epi32(tmpSum,
+                           _mm_shuffle_epi32(tmpSum, _MM_SHUFFLE(2, 3, 0, 1)));
+    tmpSum = _mm_add_epi32(tmpSum,
+                           _mm_shuffle_epi32(tmpSum, _MM_SHUFFLE(1, 0, 3, 2)));
+    coef = _mm_cvtsi128_si32(tmpSum);
+    *out++ = (coef + offset) >> shift;
+    kernel += (size * size);
+  }
+}
+#endif

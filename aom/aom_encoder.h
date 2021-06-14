@@ -252,6 +252,12 @@ typedef struct cfg_options {
    */
   unsigned int enable_orip;
 #endif  // CONFIG_ORIP
+#if CONFIG_IST
+  /*!\brief enable Intra secondary transform
+   *
+   */
+  unsigned int enable_ist;
+#endif  // CONFIG_IST
   /*!\brief enable flip and identity transform type
    *
    */

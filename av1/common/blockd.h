@@ -927,6 +927,12 @@ typedef struct macroblockd {
    * 'cpi->tile_thr_data[t].td->mb.tmp_pred_bufs'.
    */
   uint8_t *tmp_obmc_bufs[2];
+#if CONFIG_IST
+  /*!
+   * Enable IST for current coding block.
+   */
+  uint8_t enable_ist;
+#endif
 } MACROBLOCKD;
 
 /*!\cond */
@@ -1229,15 +1235,57 @@ static INLINE void update_txk_array(MACROBLOCKD *const xd, int blk_row,
   }
 }
 
+#if CONFIG_IST
+/*
+ * If secondary transform is enabled (CONFIG_IST) :
+ * Bits 4~5 of tx_type stores secondary tx_type
+ * Bits 0~3 of tx_type stores primary tx_type
+ *
+ * This function masks secondary transform type used by the transform block
+ *
+ */
+static INLINE void disable_secondary_tx_type(TX_TYPE *tx_type) {
+  *tx_type &= 0x0f;
+}
+/*
+ * This function masks primary transform type used by the transform block
+ */
+static INLINE void disable_primary_tx_type(TX_TYPE *tx_type) {
+  *tx_type &= 0xf0;
+}
+/*
+ * This function returns primary transform type used by the transform block
+ */
+static INLINE TX_TYPE get_primary_tx_type(TX_TYPE tx_type) {
+  return tx_type & 0x0f;
+}
+/*
+ * This function returns secondary transform type used by the transform block
+ */
+static INLINE TX_TYPE get_secondary_tx_type(TX_TYPE tx_type) {
+  return (tx_type >> 4);
+}
+#endif
+
+/*
+ * This function returns the tx_type used by the transform block
+ *
+ * If secondary transform is enabled (CONFIG_IST) :
+ * Bits 4~5 of tx_type stores secondary tx_type
+ * Bits 0~3 of tx_type stores primary tx_type
+ */
 static INLINE TX_TYPE av1_get_tx_type(const MACROBLOCKD *xd,
                                       PLANE_TYPE plane_type, int blk_row,
                                       int blk_col, TX_SIZE tx_size,
                                       int reduced_tx_set) {
   const MB_MODE_INFO *const mbmi = xd->mi[0];
+#if CONFIG_IST
+  if (xd->lossless[mbmi->segment_id]) {
+#else
   if (xd->lossless[mbmi->segment_id] || txsize_sqr_up_map[tx_size] > TX_32X32) {
+#endif  // CONFIG_IST
     return DCT_DCT;
   }
-
   TX_TYPE tx_type;
   if (plane_type == PLANE_TYPE_Y) {
     tx_type = xd->tx_type_map[blk_row * xd->tx_type_map_stride + blk_col];
@@ -1246,12 +1294,16 @@ static INLINE TX_TYPE av1_get_tx_type(const MACROBLOCKD *xd,
     if (is_inter_block(mbmi, xd->tree_type)) {
 #else
     if (is_inter_block(mbmi)) {
-#endif
+#endif  // CONFIG_SDP
       // scale back to y plane's coordinate
       const struct macroblockd_plane *const pd = &xd->plane[plane_type];
       blk_row <<= pd->subsampling_y;
       blk_col <<= pd->subsampling_x;
       tx_type = xd->tx_type_map[blk_row * xd->tx_type_map_stride + blk_col];
+#if CONFIG_IST
+      // Secondary transforms are disabled for chroma
+      disable_secondary_tx_type(&tx_type);
+#endif  // CONFIG_IST
     } else {
       // In intra mode, uv planes don't share the same prediction mode as y
       // plane, so the tx_type should not be shared
@@ -1263,9 +1315,25 @@ static INLINE TX_TYPE av1_get_tx_type(const MACROBLOCKD *xd,
                                 reduced_tx_set);
 #else
         av1_get_ext_tx_set_type(tx_size, is_inter_block(mbmi), reduced_tx_set);
-#endif
+#endif  // CONFIG_SDP
     if (!av1_ext_tx_used[tx_set_type][tx_type]) tx_type = DCT_DCT;
   }
+#if CONFIG_IST
+#if CONFIG_SDP
+  assert(av1_ext_tx_used[av1_get_ext_tx_set_type(
+      tx_size, is_inter_block(mbmi, xd->tree_type), reduced_tx_set)]
+                        [get_primary_tx_type(tx_type)]);
+#else
+  assert(av1_ext_tx_used[av1_get_ext_tx_set_type(tx_size, is_inter_block(mbmi),
+                                                 reduced_tx_set)]
+                        [get_primary_tx_type(tx_type)]);
+#endif  // CONFIG_SDP
+  if (txsize_sqr_up_map[tx_size] > TX_32X32) {
+    // secondary transforms are enabled for txsize_sqr_up_map[tx_size] >
+    // TX_32X32 while tx_type is by default DCT_DCT.
+    disable_primary_tx_type(&tx_type);
+  }
+#else
   assert(tx_type < TX_TYPES);
 #if CONFIG_SDP
   assert(av1_ext_tx_used[av1_get_ext_tx_set_type(
@@ -1273,7 +1341,8 @@ static INLINE TX_TYPE av1_get_tx_type(const MACROBLOCKD *xd,
 #else
   assert(av1_ext_tx_used[av1_get_ext_tx_set_type(tx_size, is_inter_block(mbmi),
                                                  reduced_tx_set)][tx_type]);
-#endif
+#endif  // CONFIG_SDP
+#endif  // CONFIG_IST
   return tx_type;
 }
 
@@ -1596,6 +1665,18 @@ static INLINE int av1_get_max_eob(TX_SIZE tx_size) {
   }
   return tx_size_2d[tx_size];
 }
+
+#if CONFIG_IST
+static INLINE int tx_size_to_depth(TX_SIZE tx_size, BLOCK_SIZE bsize) {
+  TX_SIZE ctx_size = max_txsize_rect_lookup[bsize];
+  int depth = 0;
+  while (tx_size != ctx_size) {
+    depth++;
+    ctx_size = sub_tx_size_map[ctx_size];
+  }
+  return depth;
+}
+#endif
 
 /*!\endcond */
 

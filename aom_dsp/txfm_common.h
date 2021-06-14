@@ -25,6 +25,13 @@
 typedef struct txfm_param {
   // for both forward and inverse transforms
   TX_TYPE tx_type;
+  // for both forward and inverse secondary transforms
+#if CONFIG_IST
+  // Secondary transform type used for the current tx block.
+  uint8_t sec_tx_type;
+  // intra prediction mode used for the current tx block
+  PREDICTION_MODE intra_mode;
+#endif
   TX_SIZE tx_size;
   int lossless;
   int bd;

@@ -5819,3 +5819,48 @@ void av1_highbd_inv_txfm_add_sse4_1(const tran_low_t *input, uint8_t *dest,
       break;
   }
 }
+
+// Inverse secondary transform
+#if CONFIG_IST
+void inv_stxfm_sse4_1(tran_low_t *src, tran_low_t *dst,
+                      const PREDICTION_MODE mode, const uint8_t stx_idx,
+                      const int size) {
+  const int16_t *kernel = (size == 4) ? ist_4x4_kernel[mode][stx_idx][0]
+                                      : ist_8x8_kernel[mode][stx_idx][0];
+  assert(stx_idx < 4);
+  const int rnd_factor = 1 << (7 - 1);
+  const __m128i round = _mm_set1_epi32(rnd_factor);
+
+  int reduced_width, reduced_height;
+  if (size == 4) {
+    reduced_height = IST_4x4_HEIGHT;
+    reduced_width = IST_4x4_WIDTH;
+  } else {
+    reduced_height = IST_8x8_HEIGHT;
+    reduced_width = IST_8x8_WIDTH;
+  }
+  for (int j = 0; j < reduced_height; j++) {
+    const int16_t *kernel_tmp = kernel;
+    int *srcPtr = src;
+    int *out = dst;
+    __m128i tmpCoeff = _mm_set1_epi32(srcPtr[j]);
+    __m128i *tmpBlock = (__m128i *)out;
+    for (int i = 0; i < reduced_width; i += 4, tmpBlock++) {
+      __m128i tmp =
+          _mm_cvtepi16_epi32(_mm_loadl_epi64((__m128i *)(kernel_tmp + i)));
+      __m128i sum = _mm_loadu_si128(tmpBlock);
+      tmp = _mm_mullo_epi32(tmpCoeff, tmp);
+      tmp = _mm_add_epi32(tmp, sum);
+      _mm_storeu_si128(tmpBlock, tmp);
+    }
+    kernel += (size * size);
+  }
+  int *out = dst;
+  __m128i *tmpBlock = (__m128i *)out;
+  for (int j = 0; j < reduced_width; j += 4, tmpBlock++) {
+    __m128i tmp = _mm_loadu_si128(tmpBlock);
+    tmp = _mm_srai_epi32(_mm_add_epi32(tmp, round), 7);
+    _mm_storeu_si128(tmpBlock, tmp);
+  }
+}
+#endif

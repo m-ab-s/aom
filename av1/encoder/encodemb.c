@@ -272,13 +272,26 @@ void av1_xform_dc_only(MACROBLOCK *x, int plane, int block,
 void av1_xform_quant(MACROBLOCK *x, int plane, int block, int blk_row,
                      int blk_col, BLOCK_SIZE plane_bsize, TxfmParam *txfm_param,
                      QUANT_PARAM *qparam) {
+#if CONFIG_IST
+  av1_xform(x, plane, block, blk_row, blk_col, plane_bsize, txfm_param, 0);
+#else
   av1_xform(x, plane, block, blk_row, blk_col, plane_bsize, txfm_param);
+#endif
   av1_quant(x, plane, block, txfm_param, qparam);
 }
 
 void av1_xform(MACROBLOCK *x, int plane, int block, int blk_row, int blk_col,
-               BLOCK_SIZE plane_bsize, TxfmParam *txfm_param) {
+               BLOCK_SIZE plane_bsize, TxfmParam *txfm_param
+#if CONFIG_IST
+               ,
+               const int reuse
+#endif
+) {
+#if CONFIG_IST
+  struct macroblock_plane *const p = &x->plane[plane];
+#else
   const struct macroblock_plane *const p = &x->plane[plane];
+#endif
   const int block_offset = BLOCK_OFFSET(block);
   tran_low_t *const coeff = p->coeff + block_offset;
   const int diff_stride = block_size_wide[plane_bsize];
@@ -286,7 +299,41 @@ void av1_xform(MACROBLOCK *x, int plane, int block, int blk_row, int blk_col,
   const int src_offset = (blk_row * diff_stride + blk_col);
   const int16_t *src_diff = &p->src_diff[src_offset << MI_SIZE_LOG2];
 
+#if CONFIG_IST
+  if (reuse == 0) {
+    av1_fwd_txfm(src_diff, coeff, diff_stride, txfm_param);
+  } else {
+    const int tr_width = tx_size_wide[txfm_param->tx_size] <= 32
+                             ? tx_size_wide[txfm_param->tx_size]
+                             : 32;
+    const int tr_height = tx_size_high[txfm_param->tx_size] <= 32
+                              ? tx_size_high[txfm_param->tx_size]
+                              : 32;
+    if (txfm_param->sec_tx_type == 0) {
+      av1_fwd_txfm(src_diff, coeff, diff_stride, txfm_param);
+      if (plane == 0) {
+        memcpy(p->temp_coeff, coeff, tr_width * tr_height * sizeof(tran_low_t));
+      }
+    } else {
+      if (plane == 0)
+        memcpy(coeff, p->temp_coeff, tr_width * tr_height * sizeof(tran_low_t));
+    }
+  }
+  MACROBLOCKD *const xd = &x->e_mbd;
+  MB_MODE_INFO *const mbmi = xd->mi[0];
+  const PREDICTION_MODE intra_mode =
+      (plane == AOM_PLANE_Y) ? mbmi->mode : get_uv_mode(mbmi->uv_mode);
+  const int filter = mbmi->filter_intra_mode_info.use_filter_intra;
+  const int depth = tx_size_to_depth(txfm_param->tx_size, plane_bsize);
+  assert(((intra_mode >= PAETH_PRED || filter || depth) &&
+          txfm_param->sec_tx_type) == 0);
+  (void)intra_mode;
+  (void)filter;
+  (void)depth;
+  av1_fwd_stxfm(coeff, txfm_param);
+#else
   av1_fwd_txfm(src_diff, coeff, diff_stride, txfm_param);
+#endif
 }
 
 void av1_quant(MACROBLOCK *x, int plane, int block, TxfmParam *txfm_param,
@@ -324,12 +371,28 @@ void av1_quant(MACROBLOCK *x, int plane, int block, TxfmParam *txfm_param,
   }
 }
 
-void av1_setup_xform(const AV1_COMMON *cm, MACROBLOCK *x, TX_SIZE tx_size,
-                     TX_TYPE tx_type, TxfmParam *txfm_param) {
+void av1_setup_xform(const AV1_COMMON *cm, MACROBLOCK *x,
+#if CONFIG_IST
+                     int plane,
+#endif
+                     TX_SIZE tx_size, TX_TYPE tx_type, TxfmParam *txfm_param) {
   MACROBLOCKD *const xd = &x->e_mbd;
   MB_MODE_INFO *const mbmi = xd->mi[0];
 
+#if CONFIG_IST
+  txfm_param->tx_type = get_primary_tx_type(tx_type);
+  txfm_param->sec_tx_type = 0;
+  txfm_param->intra_mode =
+      (plane == AOM_PLANE_Y) ? mbmi->mode : get_uv_mode(mbmi->uv_mode);
+  if ((txfm_param->intra_mode < PAETH_PRED) &&
+      !xd->lossless[mbmi->segment_id] &&
+      !(mbmi->filter_intra_mode_info.use_filter_intra) &&
+      cm->seq_params.enable_ist) {
+    txfm_param->sec_tx_type = get_secondary_tx_type(tx_type);
+  }
+#else
   txfm_param->tx_type = tx_type;
+#endif
   txfm_param->tx_size = tx_size;
   txfm_param->lossless = xd->lossless[mbmi->segment_id];
   txfm_param->tx_set_type = av1_get_ext_tx_set_type(
@@ -380,7 +443,11 @@ static void encode_block(int plane, int block, int blk_row, int blk_col,
   MB_MODE_INFO *mbmi = xd->mi[0];
   struct macroblock_plane *const p = &x->plane[plane];
   struct macroblockd_plane *const pd = &xd->plane[plane];
+#if CONFIG_IST
+  tran_low_t *dqcoeff = p->dqcoeff + BLOCK_OFFSET(block);
+#else
   tran_low_t *const dqcoeff = p->dqcoeff + BLOCK_OFFSET(block);
+#endif
   uint8_t *dst;
   ENTROPY_CONTEXT *a, *l;
   int dummy_rate_cost = 0;
@@ -406,7 +473,11 @@ static void encode_block(int plane, int block, int blk_row, int blk_col,
     else
       quant_idx =
           USE_B_QUANT_NO_TRELLIS ? AV1_XFORM_QUANT_B : AV1_XFORM_QUANT_FP;
-    av1_setup_xform(cm, x, tx_size, tx_type, &txfm_param);
+    av1_setup_xform(cm, x,
+#if CONFIG_IST
+                    plane,
+#endif
+                    tx_size, tx_type, &txfm_param);
     av1_setup_quant(tx_size, use_trellis, quant_idx,
                     cpi->oxcf.q_cfg.quant_b_adapt, &quant_param);
     av1_setup_qmatrix(&cm->quant_params, xd, plane, tx_size, tx_type,
@@ -604,7 +675,11 @@ static void encode_block_pass1(int plane, int block, int blk_row, int blk_col,
   TxfmParam txfm_param;
   QUANT_PARAM quant_param;
 
-  av1_setup_xform(cm, x, tx_size, DCT_DCT, &txfm_param);
+  av1_setup_xform(cm, x,
+#if CONFIG_IST
+                  plane,
+#endif
+                  tx_size, DCT_DCT, &txfm_param);
   av1_setup_quant(tx_size, 0, AV1_XFORM_QUANT_B, cpi->oxcf.q_cfg.quant_b_adapt,
                   &quant_param);
   av1_setup_qmatrix(&cm->quant_params, xd, plane, tx_size, DCT_DCT,
@@ -778,7 +853,11 @@ void av1_encode_block_intra(int plane, int block, int blk_row, int blk_col,
       quant_idx =
           USE_B_QUANT_NO_TRELLIS ? AV1_XFORM_QUANT_B : AV1_XFORM_QUANT_FP;
 
-    av1_setup_xform(cm, x, tx_size, tx_type, &txfm_param);
+    av1_setup_xform(cm, x,
+#if CONFIG_IST
+                    plane,
+#endif
+                    tx_size, tx_type, &txfm_param);
     av1_setup_quant(tx_size, use_trellis, quant_idx,
                     cpi->oxcf.q_cfg.quant_b_adapt, &quant_param);
     av1_setup_qmatrix(&cm->quant_params, xd, plane, tx_size, tx_type,

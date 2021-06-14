@@ -24,6 +24,10 @@ void av1_fwd_txfm(const int16_t *src_diff, tran_low_t *coeff, int diff_stride,
 void av1_highbd_fwd_txfm(const int16_t *src_diff, tran_low_t *coeff,
                          int diff_stride, TxfmParam *txfm_param);
 
+#if CONFIG_IST
+void av1_fwd_stxfm(tran_low_t *coeff, TxfmParam *txfm_param);
+#endif
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif

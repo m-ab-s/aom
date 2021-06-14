@@ -73,8 +73,11 @@ void av1_foreach_transformed_block_in_plane(
 void av1_encode_sby_pass1(struct AV1_COMP *cpi, MACROBLOCK *x,
                           BLOCK_SIZE bsize);
 
-void av1_setup_xform(const AV1_COMMON *cm, MACROBLOCK *x, TX_SIZE tx_size,
-                     TX_TYPE tx_type, TxfmParam *txfm_param);
+void av1_setup_xform(const AV1_COMMON *cm, MACROBLOCK *x,
+#if CONFIG_IST
+                     int plane,
+#endif
+                     TX_SIZE tx_size, TX_TYPE tx_type, TxfmParam *txfm_param);
 void av1_setup_quant(TX_SIZE tx_size, int use_optimize_b, int xform_quant_idx,
                      int use_quant_b_adapt, QUANT_PARAM *qparam);
 void av1_setup_qmatrix(const CommonQuantParams *quant_params,
@@ -89,7 +92,12 @@ void av1_xform_quant(MACROBLOCK *x, int plane, int block, int blk_row,
                      QUANT_PARAM *qparam);
 
 void av1_xform(MACROBLOCK *x, int plane, int block, int blk_row, int blk_col,
-               BLOCK_SIZE plane_bsize, TxfmParam *txfm_param);
+               BLOCK_SIZE plane_bsize, TxfmParam *txfm_param
+#if CONFIG_IST
+               ,
+               const int reuse
+#endif
+);
 
 void av1_quant(MACROBLOCK *x, int plane, int block, TxfmParam *txfm_param,
                QUANT_PARAM *qparam);

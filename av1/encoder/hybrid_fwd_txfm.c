@@ -15,6 +15,9 @@
 
 #include "av1/common/idct.h"
 #include "av1/encoder/hybrid_fwd_txfm.h"
+#if CONFIG_IST
+#include "av1/common/scan.h"
+#endif
 
 /* 4-point reversible, orthonormal Walsh-Hadamard in 3.5 adds, 0.5 shifts per
    pixel. */
@@ -306,3 +309,56 @@ void av1_highbd_fwd_txfm(const int16_t *src_diff, tran_low_t *coeff,
     default: assert(0); break;
   }
 }
+
+#if CONFIG_IST
+void av1_fwd_stxfm(tran_low_t *coeff, TxfmParam *txfm_param) {
+  const uint8_t stx_type = txfm_param->sec_tx_type;
+
+  const int width = tx_size_wide[txfm_param->tx_size] <= 32
+                        ? tx_size_wide[txfm_param->tx_size]
+                        : 32;
+  const int height = tx_size_high[txfm_param->tx_size] <= 32
+                         ? tx_size_high[txfm_param->tx_size]
+                         : 32;
+
+  if ((width >= 4 && height >= 4) && stx_type) {
+    const PREDICTION_MODE intra_mode = txfm_param->intra_mode;
+    PREDICTION_MODE mode = 0, mode_t = 0;
+    const int log2width = tx_size_wide_log2[txfm_param->tx_size];
+    const int sb_size = (width >= 8 && height >= 8) ? 8 : 4;
+    const int16_t *scan_order_in;
+    const int16_t *scan_order_out = (sb_size == 4)
+                                        ? stx_scan_orders_4x4[log2width - 2]
+                                        : stx_scan_orders_8x8[log2width - 2];
+    tran_low_t buf0[64] = { 0 }, buf1[64] = { 0 };
+    tran_low_t *tmp = buf0;
+    tran_low_t *src = coeff;
+    int8_t transpose = 0;
+    mode = AOMMIN(intra_mode, SMOOTH_H_PRED);
+    if ((mode == H_PRED) || (mode == D157_PRED) || (mode == D67_PRED) ||
+        (mode == SMOOTH_H_PRED))
+      transpose = 1;
+    mode_t = (txfm_param->tx_type == ADST_ADST)
+                 ? stx_transpose_mapping[mode] + 7
+                 : stx_transpose_mapping[mode];
+    if (transpose) {
+      scan_order_in = (sb_size == 4)
+                          ? stx_scan_orders_transpose_4x4[log2width - 2]
+                          : stx_scan_orders_transpose_8x8[log2width - 2];
+    } else {
+      scan_order_in = (sb_size == 4) ? stx_scan_orders_4x4[log2width - 2]
+                                     : stx_scan_orders_8x8[log2width - 2];
+    }
+    for (int r = 0; r < sb_size * sb_size; r++) {
+      *tmp = src[scan_order_in[r]];
+      tmp++;
+    }
+    fwd_stxfm(buf0, buf1, mode_t, stx_type - 1, sb_size);
+    memset(coeff, 0, width * height * sizeof(tran_low_t));
+    tmp = buf1;
+    for (int i = 0; i < sb_size * sb_size; i++) {
+      coeff[scan_order_out[i]] = *tmp++;
+    }
+  }
+}
+#endif

@@ -138,6 +138,10 @@ add_proto qw/void av1_highbd_convolve8_vert/, "const uint8_t *src, ptrdiff_t src
 specialize qw/av1_highbd_convolve8_vert/, "$sse2_x86_64";
 
 #inv txfm
+if (aom_config("CONFIG_IST") eq "yes") {
+  add_proto qw/void inv_stxfm/ , "tran_low_t *src, tran_low_t *dst, const PREDICTION_MODE mode, const uint8_t stx_idx, const int size";
+  specialize qw/inv_stxfm sse4_1/;
+}
 add_proto qw/void av1_inv_txfm_add/, "const tran_low_t *dqcoeff, uint8_t *dst, int stride, const TxfmParam *txfm_param";
 specialize qw/av1_inv_txfm_add ssse3 avx2 neon/;
 
@@ -326,6 +330,10 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
   specialize qw/av1_fwht4x4 neon/;
 
   #fwd txfm
+  if (aom_config("CONFIG_IST") eq "yes") {
+    add_proto qw/void fwd_stxfm/ , "tran_low_t *src, tran_low_t *dst, const PREDICTION_MODE mode, const uint8_t stx_idx, const int size";
+    specialize qw/fwd_stxfm sse4_1/;
+  }
   add_proto qw/void av1_lowbd_fwd_txfm/, "const int16_t *src_diff, tran_low_t *coeff, int diff_stride, TxfmParam *txfm_param";
   specialize qw/av1_lowbd_fwd_txfm sse2 sse4_1 avx2 neon/;
 

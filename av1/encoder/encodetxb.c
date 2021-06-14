@@ -363,7 +363,11 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
   int eob_extra;
   const int eob_pt = get_eob_pos_token(eob, &eob_extra);
   const int eob_multi_size = txsize_log2_minus4[tx_size];
+#if CONFIG_IST
+  const TX_CLASS tx_class = tx_type_to_class[get_primary_tx_type(tx_type)];
+#else
   const TX_CLASS tx_class = tx_type_to_class[tx_type];
+#endif
   const int eob_multi_ctx = (tx_class == TX_CLASS_2D) ? 0 : 1;
   switch (eob_multi_size) {
     case 0:
@@ -410,6 +414,14 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
     }
   }
 
+#if CONFIG_IST
+  // write sec_tx_type here
+  // Only y plane's sec_tx_type is transmitted
+  if ((plane == AOM_PLANE_Y) && (cm->seq_params.enable_ist)) {
+    av1_write_sec_tx_type(cm, xd, tx_type, tx_size, eob, w);
+  }
+#endif
+//
 #if DEBUG_EXTQUANT
   fprintf(cm->fEncCoeffLog, "tx_type=%d, eob=%d\n", tx_type, eob);
 #endif
@@ -578,9 +590,28 @@ static int get_tx_type_cost(const MACROBLOCK *x, const MACROBLOCKD *xd,
                                              .filter_intra_mode];
         else
           intra_dir = mbmi->mode;
+#if CONFIG_IST
+        TX_TYPE primary_tx_type = get_primary_tx_type(tx_type);
+        int tx_type_cost =
+            x->mode_costs.intra_tx_type_costs[ext_tx_set][square_tx_size]
+                                             [intra_dir][primary_tx_type];
+        if ((primary_tx_type == DCT_DCT || primary_tx_type == ADST_ADST) &&
+            xd->enable_ist) {
+          tx_type_cost +=
+              x->mode_costs.stx_flag_cost[square_tx_size]
+                                         [get_secondary_tx_type(tx_type)];
+        }
+        return tx_type_cost;
+#else
         return x->mode_costs.intra_tx_type_costs[ext_tx_set][square_tx_size]
                                                 [intra_dir][tx_type];
+#endif
       }
+#if CONFIG_IST
+      else if (xd->enable_ist)
+        return x->mode_costs
+            .stx_flag_cost[square_tx_size][get_secondary_tx_type(tx_type)];
+#endif
     }
   }
   return 0;
@@ -801,7 +832,11 @@ int av1_cost_coeffs_txb(const MACROBLOCK *x, const int plane, const int block,
   }
 
   const MACROBLOCKD *const xd = &x->e_mbd;
+#if CONFIG_IST
+  const TX_CLASS tx_class = tx_type_to_class[get_primary_tx_type(tx_type)];
+#else
   const TX_CLASS tx_class = tx_type_to_class[tx_type];
+#endif
 
   return warehouse_efficients_txb(x, plane, block, tx_size, txb_ctx, p, eob,
                                   plane_type, coeff_costs, xd, tx_type,
@@ -837,7 +872,11 @@ int av1_cost_coeffs_txb_laplacian(const MACROBLOCK *x, const int plane,
   }
 
   const MACROBLOCKD *const xd = &x->e_mbd;
+#if CONFIG_IST
+  const TX_CLASS tx_class = tx_type_to_class[get_primary_tx_type(tx_type)];
+#else
   const TX_CLASS tx_class = tx_type_to_class[tx_type];
+#endif
 
   return warehouse_efficients_txb_laplacian(
       x, plane, block, tx_size, txb_ctx, eob, plane_type, coeff_costs, xd,
@@ -1203,7 +1242,12 @@ int av1_optimize_txb_new(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
                          int sharpness) {
   MACROBLOCKD *xd = &x->e_mbd;
   const struct macroblock_plane *p = &x->plane[plane];
+#if CONFIG_IST
+  const SCAN_ORDER *scan_order =
+      get_scan(tx_size, get_primary_tx_type(tx_type));
+#else
   const SCAN_ORDER *scan_order = get_scan(tx_size, tx_type);
+#endif
   const int16_t *scan = scan_order->scan;
   const int shift = av1_get_tx_scale(tx_size);
   int eob = p->eobs[block];
@@ -1226,7 +1270,11 @@ int av1_optimize_txb_new(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
   const AV1_COMMON *cm = &cpi->common;
   const PLANE_TYPE plane_type = get_plane_type(plane);
   const TX_SIZE txs_ctx = get_txsize_entropy_ctx(tx_size);
+#if CONFIG_IST
+  const TX_CLASS tx_class = tx_type_to_class[get_primary_tx_type(tx_type)];
+#else
   const TX_CLASS tx_class = tx_type_to_class[tx_type];
+#endif
   const MB_MODE_INFO *mbmi = xd->mi[0];
   const int bwl = get_txb_bwl(tx_size);
   const int width = get_txb_wide(tx_size);
@@ -1408,12 +1456,20 @@ static void update_tx_type_count(const AV1_COMP *cpi, const AV1_COMMON *cm,
     }
   } else {
     if (cpi->oxcf.txfm_cfg.use_intra_dct_only) {
+#if CONFIG_IST
+      assert(get_primary_tx_type(tx_type) == DCT_DCT);
+#else
       assert(tx_type == DCT_DCT);
+#endif
     } else if (cpi->oxcf.txfm_cfg.use_intra_default_tx_only) {
       const TX_TYPE default_type = get_default_tx_type(
           PLANE_TYPE_Y, xd, tx_size, cpi->is_screen_content_type);
       (void)default_type;
+#if CONFIG_IST
+      assert(get_primary_tx_type(tx_type) == default_type);
+#else
       assert(tx_type == default_type);
+#endif
     }
   }
 
@@ -1453,8 +1509,17 @@ static void update_tx_type_count(const AV1_COMP *cpi, const AV1_COMMON *cm,
         if (allow_update_cdf) {
           update_cdf(
               fc->intra_ext_tx_cdf[eset][txsize_sqr_map[tx_size]][intra_dir],
+#if CONFIG_IST
+              av1_ext_tx_ind[tx_set_type][get_primary_tx_type(tx_type)],
+#else
               av1_ext_tx_ind[tx_set_type][tx_type],
+#endif
               av1_num_ext_tx_set[tx_set_type]);
+#if CONFIG_IST
+          if (cm->seq_params.enable_ist)
+            update_cdf(fc->stx_cdf[txsize_sqr_map[tx_size]],
+                       get_secondary_tx_type(tx_type), STX_TYPES);
+#endif
         }
       }
     }
@@ -1542,11 +1607,19 @@ void av1_update_and_record_txb_context(int plane, int block, int blk_row,
     update_tx_type_count(cpi, cm, xd, blk_row, blk_col, plane, tx_size,
                          td->counts, allow_update_cdf);
 
+#if CONFIG_IST
+    const TX_CLASS tx_class = tx_type_to_class[get_primary_tx_type(tx_type)];
+#else
     const TX_CLASS tx_class = tx_type_to_class[tx_type];
+#endif
     const int16_t *const scan = scan_order->scan;
 
     // record tx type usage
+#if CONFIG_IST
+    td->rd_counts.tx_type_used[tx_size][get_primary_tx_type(tx_type)]++;
+#else
     td->rd_counts.tx_type_used[tx_size][tx_type]++;
+#endif
 
 #if CONFIG_ENTROPY_STATS
     av1_update_eob_context(cdf_idx, eob, tx_size, tx_class, plane_type, ec_ctx,

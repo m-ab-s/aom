@@ -758,6 +758,104 @@ void av1_read_tx_type(const AV1_COMMON *const cm, MACROBLOCKD *xd, int blk_row,
   }
 }
 
+#if CONFIG_IST
+void av1_read_sec_tx_type(const AV1_COMMON *const cm, MACROBLOCKD *xd,
+                          int blk_row, int blk_col, TX_SIZE tx_size,
+                          uint16_t *eob, aom_reader *r) {
+  MB_MODE_INFO *mbmi = xd->mi[0];
+  uint8_t *tx_type =
+      &xd->tx_type_map[blk_row * xd->tx_type_map_stride + blk_col];
+
+  // No need to read transform type if block is skipped.
+#if CONFIG_SDP
+  if (mbmi->skip_txfm[xd->tree_type == CHROMA_PART] ||
+#else
+  if (mbmi->skip_txfm ||
+#endif
+      segfeature_active(&cm->seg, mbmi->segment_id, SEG_LVL_SKIP))
+    return;
+
+  // No need to read transform type for lossless mode(qindex==0).
+  const int qindex = xd->qindex[mbmi->segment_id];
+  if (qindex == 0) return;
+#if CONFIG_SDP
+  const int inter_block = is_inter_block(mbmi, xd->tree_type);
+#else
+  const int inter_block = is_inter_block(mbmi);
+#endif
+  if (get_ext_tx_types(tx_size, inter_block, cm->features.reduced_tx_set_used) >
+      1) {
+    const TX_SIZE square_tx_size = txsize_sqr_map[tx_size];
+    FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
+    if (!inter_block) {
+      const PREDICTION_MODE intra_mode =
+          mbmi->filter_intra_mode_info.use_filter_intra
+              ? fimode_to_intradir[mbmi->filter_intra_mode_info
+                                       .filter_intra_mode]
+              : mbmi->mode;
+#if CONFIG_SDP
+      const BLOCK_SIZE bs = mbmi->sb_type[PLANE_TYPE_Y];
+#else
+      const BLOCK_SIZE bs = mbmi->sb_type;
+#endif
+      const int width = tx_size_wide[tx_size];
+      const int height = tx_size_high[tx_size];
+      int sbSize = (width >= 8 && height >= 8) ? 8 : 4;
+      bool ist_eob = 1;
+      if ((sbSize == 4) && (*eob > (IST_4x4_HEIGHT - 1)))
+        ist_eob = 0;
+      else if ((sbSize == 8) && (*eob > (IST_8x8_HEIGHT - 1)))
+        ist_eob = 0;
+      int depth = tx_size_to_depth(tx_size, bs);
+      bool code_stx = (*tx_type == DCT_DCT || *tx_type == ADST_ADST) &&
+                      (intra_mode < PAETH_PRED) &&
+                      !(mbmi->filter_intra_mode_info.use_filter_intra) &&
+                      !(depth);
+      if (code_stx) {
+        uint8_t stx_flag = 0;
+        if (ist_eob) {
+          stx_flag = aom_read_symbol(r, ec_ctx->stx_cdf[square_tx_size],
+                                     STX_TYPES, ACCT_STR);
+        }
+        *tx_type |= (stx_flag << 4);
+      }
+    }
+  } else if (!inter_block) {
+    FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
+    const TX_SIZE square_tx_size = txsize_sqr_map[tx_size];
+    const PREDICTION_MODE intra_mode =
+        mbmi->filter_intra_mode_info.use_filter_intra
+            ? fimode_to_intradir[mbmi->filter_intra_mode_info.filter_intra_mode]
+            : mbmi->mode;
+#if CONFIG_SDP
+    const BLOCK_SIZE bs = mbmi->sb_type[PLANE_TYPE_Y];
+#else
+    const BLOCK_SIZE bs = mbmi->sb_type;
+#endif
+    const int width = tx_size_wide[tx_size];
+    const int height = tx_size_high[tx_size];
+    int sbSize = (width >= 8 && height >= 8) ? 8 : 4;
+    bool ist_eob = 1;
+    if ((sbSize == 4) && (*eob > (IST_4x4_HEIGHT - 1)))
+      ist_eob = 0;
+    else if ((sbSize == 8) && (*eob > (IST_8x8_HEIGHT - 1)))
+      ist_eob = 0;
+    int depth = tx_size_to_depth(tx_size, bs);
+    bool code_stx = (intra_mode < PAETH_PRED) &&
+                    !(mbmi->filter_intra_mode_info.use_filter_intra) &&
+                    !(depth);
+    if (code_stx) {
+      uint8_t stx_flag = 0;
+      if (ist_eob) {
+        stx_flag = aom_read_symbol(r, ec_ctx->stx_cdf[square_tx_size],
+                                   STX_TYPES, ACCT_STR);
+      }
+      *tx_type |= (stx_flag << 4);
+    }
+  }
+}
+#endif
+
 static INLINE void read_mv(aom_reader *r, MV *mv, const MV *ref,
                            nmv_context *ctx, MvSubpelPrecision precision);
 

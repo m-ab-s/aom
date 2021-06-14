@@ -102,6 +102,10 @@ typedef struct {
 typedef struct macroblock_plane {
   //! Stores source - pred so the txfm can be computed later
   DECLARE_ALIGNED(32, int16_t, src_diff[MAX_SB_SQUARE]);
+  //! Temporary buffer for primary transform coeffs
+#if CONFIG_IST
+  DECLARE_ALIGNED(32, int32_t, temp_coeff[4096]);
+#endif
   //! Dequantized coefficients
   tran_low_t *dqcoeff;
   //! Quantized coefficients
@@ -532,6 +536,10 @@ typedef struct {
    * allocates the memory for MACROBLOCKD::tx_type_map during rdopt on the
    * partition block. So if we need to save memory, we could move the allocation
    * to pick_sb_mode instead.
+   * If secondary transform in enabled (CONFIG_IST) each element of the array
+   * stores both primary and secondary transform types as shown below: Bits 4~5
+   * of each element stores secondary tx_type Bits 0~3 of each element stores
+   * primary tx_type
    */
   uint8_t tx_type_map_[MAX_MIB_SIZE * MAX_MIB_SIZE];
 
@@ -646,6 +654,10 @@ typedef struct {
   /**@{*/
   //! intrabc_cost
   int intrabc_cost[2];
+
+#if CONFIG_IST
+  int stx_flag_cost[TX_SIZES][STX_TYPES];
+#endif
 
   //! palette_y_size_cost
   int palette_y_size_cost[PALATTE_BSIZE_CTXS][PALETTE_SIZES];
@@ -1236,6 +1248,7 @@ static INLINE int is_rect_tx_allowed(const MACROBLOCKD *xd,
 #endif
 }
 
+#if !CONFIG_IST
 static INLINE int tx_size_to_depth(TX_SIZE tx_size, BLOCK_SIZE bsize) {
   TX_SIZE ctx_size = max_txsize_rect_lookup[bsize];
   int depth = 0;
@@ -1246,6 +1259,7 @@ static INLINE int tx_size_to_depth(TX_SIZE tx_size, BLOCK_SIZE bsize) {
   }
   return depth;
 }
+#endif
 
 static INLINE void set_blk_skip(uint8_t txb_skip[], int plane, int blk_idx,
                                 int skip) {
