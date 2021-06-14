@@ -152,7 +152,7 @@ set_aom_config_var(
 set_aom_config_var(
   CONFIG_ORIP 1
   "AV2 experiment flag to enable offset based refinement of intra prediction.")
-set_aom_config_var(CONFIG_IST 0 NUMBER
+set_aom_config_var(CONFIG_IST 1 NUMBER
                    "AV2 experiment flag to enable intra secondary transform.")
 
 #
