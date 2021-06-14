@@ -357,9 +357,9 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
                          "(0: false, 1: true (default))"),
 #endif
 #if CONFIG_IST
-  .enable_ist = ARG_DEF(NULL, "enable-ist", 0,
+  .enable_ist = ARG_DEF(NULL, "enable-ist", 1,
                         "Enable intra secondary transform"
-                        "(0: false (default), 1: true)"),
+                        "(0: false, 1: true (default))"),
 #endif
   .min_partition_size =
       ARG_DEF(NULL, "min-partition-size", 1,
