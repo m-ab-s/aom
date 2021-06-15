@@ -271,8 +271,6 @@ typedef struct CHROMA_REF_INFO {
 #if CONFIG_OPTFLOW_REFINEMENT
 // Macros for optical flow experiment where offsets are added in nXn blocks
 // rather than adding a single offset to the entire prediction unit.
-#define USE_OF_NXN 1
-#if USE_OF_NXN
 #define OF_MIN_BSIZE_LOG2 2
 #define OF_BSIZE_LOG2 3
 // Block size to use to divide up the prediction unit
@@ -283,7 +281,6 @@ typedef struct CHROMA_REF_INFO {
 #define N_OF_OFFSETS (N_OF_OFFSETS_1D * N_OF_OFFSETS_1D)
 #else
 #define N_OF_OFFSETS 1
-#endif  // USE_OF_NXN
 #endif  // CONFIG_OPTFLOW_REFINEMENT
 
 #define INTER_TX_SIZE_BUF_LEN 16

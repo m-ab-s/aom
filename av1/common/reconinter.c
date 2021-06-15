@@ -1201,7 +1201,6 @@ void av1_opfl_mv_refinement_highbd(const uint16_t *p0, int pstride0,
   *vy1 = (int)DIVIDE_AND_ROUND_SIGNED(ty1, d0);
 }
 
-#if USE_OF_NXN
 // Function to compute optical flow offsets in nxn blocks
 int opfl_mv_refinement_nxn_highbd(const uint16_t *p0, int pstride0,
                                   const uint16_t *p1, int pstride1,
@@ -1249,7 +1248,6 @@ int opfl_mv_refinement_nxn_lowbd(const uint8_t *p0, int pstride0,
   }
   return n_blocks;
 }
-#endif  // USE_OF_NXN
 
 static int get_optflow_based_mv_highbd(
     const AV1_COMMON *cm, MACROBLOCKD *xd, int plane, MB_MODE_INFO *mbmi,
@@ -1283,16 +1281,10 @@ static int get_optflow_based_mv_highbd(
       1, dst1, &grad_prec_bits, gx1, gy1);
   if (*d1 == 0) return target_prec;
 
-#if USE_OF_NXN
   int n = (bh <= 16 && bw <= 16) ? OF_MIN_BSIZE : OF_BSIZE;
   n_blocks = opfl_mv_refinement_nxn_highbd(
       dst0, bw, dst1, bw, gx0, gy0, gx1, gy1, bw, bw, bh, n, *d0, *d1,
       grad_prec_bits, target_prec, vx0, vy0, vx1, vy1);
-#else
-  av1_opfl_mv_refinement_highbd(dst0, bw, dst1, bw, gx0, gy0, gx1, gy1, bw, bw,
-                                bh, *d0, *d1, grad_prec_bits, target_prec, vx0,
-                                vy0, vx1, vy1);
-#endif  // USE_OF_NXN
 
   for (int i = 0; i < n_blocks; i++) {
     mbmi->mv_refined[i * 2].as_mv.row += vy0[i];
@@ -1336,16 +1328,10 @@ static int get_optflow_based_mv_lowbd(
       1, dst1, &grad_prec_bits, gx1, gy1);
   if (*d1 == 0) return target_prec;
 
-#if USE_OF_NXN
   int n = (bh <= 16 && bw <= 16) ? OF_MIN_BSIZE : OF_BSIZE;
   n_blocks = opfl_mv_refinement_nxn_lowbd(
       dst0, bw, dst1, bw, gx0, gy0, gx1, gy1, bw, bw, bh, n, *d0, *d1,
       grad_prec_bits, target_prec, vx0, vy0, vx1, vy1);
-#else
-  av1_opfl_mv_refinement_lowbd(dst0, bw, dst1, bw, gx0, gy0, gx1, gy1, bw, bw,
-                               bh, *d0, *d1, grad_prec_bits, target_prec, vx0,
-                               vy0, vx1, vy1);
-#endif  // USE_OF_NXN
 
   for (int i = 0; i < n_blocks; i++) {
     mbmi->mv_refined[i * 2].as_mv.row += vy0[i];
@@ -1358,7 +1344,6 @@ static int get_optflow_based_mv_lowbd(
 }
 
 #if OPFL_SECOND_PASS_MC
-#if USE_OF_NXN
 // Makes the interpredictor for the region by dividing it up into nxn blocks
 // and running the interpredictor code on each one.
 void make_inter_pred_of_nxn(uint8_t *dst, int dst_stride,
@@ -1404,7 +1389,6 @@ void make_inter_pred_of_nxn(uint8_t *dst, int dst_stride,
 
   inter_pred_params->conv_params.dst = orig_conv_dst;
 }
-#endif  // USE_OF_NXN
 
 // Use a second pass of motion compensation to rebuild inter predictor
 void av1_opfl_rebuild_inter_predictor_highbd(
@@ -1412,22 +1396,12 @@ void av1_opfl_rebuild_inter_predictor_highbd(
     InterPredParams *inter_pred_params, MACROBLOCKD *xd, int mi_x, int mi_y,
     int ref, uint8_t **mc_buf, CalcSubpelParamsFunc calc_subpel_params_func) {
   SubpelParams subpel_params;
-#if USE_OF_NXN
   int w = inter_pred_params->block_width;
   int h = inter_pred_params->block_height;
   int n = (plane || (h <= 16 && w <= 16)) ? OF_MIN_BSIZE : OF_BSIZE;
   make_inter_pred_of_nxn(dst8, dst_stride, mv_refined, inter_pred_params, xd,
                          mi_x, mi_y, ref, mc_buf, calc_subpel_params_func, n,
                          &subpel_params);
-#else
-  uint8_t *src;
-  int src_stride;
-  calc_subpel_params_func(&(mv_refined[ref].as_mv), inter_pred_params, xd, mi_x,
-                          mi_y, ref, 1, mc_buf, &src, &subpel_params,
-                          &src_stride);
-  av1_make_inter_predictor(src, src_stride, dst8, dst_stride, inter_pred_params,
-                           &subpel_params);
-#endif  // USE_OF_NXN
 }
 
 void av1_opfl_rebuild_inter_predictor_lowbd(
@@ -1435,22 +1409,12 @@ void av1_opfl_rebuild_inter_predictor_lowbd(
     InterPredParams *inter_pred_params, MACROBLOCKD *xd, int mi_x, int mi_y,
     int ref, uint8_t **mc_buf, CalcSubpelParamsFunc calc_subpel_params_func) {
   SubpelParams subpel_params;
-#if USE_OF_NXN
   int w = inter_pred_params->block_width;
   int h = inter_pred_params->block_height;
   int n = (plane || (h <= 16 && w <= 16)) ? OF_MIN_BSIZE : OF_BSIZE;
   make_inter_pred_of_nxn(dst, dst_stride, mv_refined, inter_pred_params, xd,
                          mi_x, mi_y, ref, mc_buf, calc_subpel_params_func, n,
                          &subpel_params);
-#else
-  uint8_t *src;
-  int src_stride;
-  calc_subpel_params_func(&(mv_refined[ref].as_mv), inter_pred_params, xd, mi_x,
-                          mi_y, ref, 1, mc_buf, &src, &subpel_params,
-                          &src_stride);
-  av1_make_inter_predictor(src, src_stride, dst, dst_stride, inter_pred_params,
-                           &subpel_params);
-#endif  // USE_OF_NXN
 }
 #else   // OPFL_SECOND_PASS_MC
 // Refined the compound average based on MV offsets and gradients without
@@ -1818,8 +1782,7 @@ static void build_inter_predictors_8x8_and_bigger(
                      mi->interp_filters.as_filters.y_filter == MULTITAP_SHARP));
 #endif
 
-  // Arrays to hold optical flow offsets. If the experiment USE_OF_NXN is off,
-  // these will only be length 1
+  // Arrays to hold optical flow offsets.
   int vx0[N_OF_OFFSETS] = { 0 };
   int vx1[N_OF_OFFSETS] = { 0 };
   int vy0[N_OF_OFFSETS] = { 0 };
