@@ -1272,7 +1272,20 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
   AVERAGE_CDF(ctx_left->uni_comp_ref_cdf, ctx_tr->uni_comp_ref_cdf, 2);
   AVERAGE_CDF(ctx_left->comp_ref_cdf, ctx_tr->comp_ref_cdf, 2);
   AVERAGE_CDF(ctx_left->comp_bwdref_cdf, ctx_tr->comp_bwdref_cdf, 2);
+#if CONFIG_NEW_TX_PARTITION
+  // Square blocks
+  AVERAGE_CDF(ctx_left->inter_4way_txfm_partition_cdf[0],
+              ctx_tr->inter_4way_txfm_partition_cdf[0], 4);
+  // Rectangular blocks
+  AVERAGE_CDF(ctx_left->inter_4way_txfm_partition_cdf[1],
+              ctx_tr->inter_4way_txfm_partition_cdf[1], 4);
+  AVERAGE_CDF(ctx_left->inter_2way_txfm_partition_cdf,
+              ctx_tr->inter_2way_txfm_partition_cdf, 2);
+  AVERAGE_CDF(ctx_left->inter_2way_rect_txfm_partition_cdf,
+              ctx_tr->inter_2way_rect_txfm_partition_cdf, 2);
+#else   // CONFIG_NEW_TX_PARTITION
   AVERAGE_CDF(ctx_left->txfm_partition_cdf, ctx_tr->txfm_partition_cdf, 2);
+#endif  // CONFIG_NEW_TX_PARTITION
 #if !CONFIG_REMOVE_DIST_WTD_COMP
   AVERAGE_CDF(ctx_left->compound_index_cdf, ctx_tr->compound_index_cdf, 2);
 #endif  // !CONFIG_REMOVE_DIST_WTD_COMP
@@ -1339,6 +1352,18 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
   AVERAGE_CDF(ctx_left->angle_delta_cdf_hv, ctx_tr->angle_delta_cdf_hv,
               2 * MAX_ANGLE_DELTA + 1 + ADDITIONAL_ANGLE_DELTA);
 #endif
+#if CONFIG_NEW_TX_PARTITION
+  // Square blocks
+  AVERAGE_CDF(ctx_left->intra_4way_txfm_partition_cdf[0],
+              ctx_tr->intra_4way_txfm_partition_cdf[0], 4);
+  // Rectangular blocks
+  AVERAGE_CDF(ctx_left->intra_4way_txfm_partition_cdf[1],
+              ctx_tr->intra_4way_txfm_partition_cdf[1], 4);
+  AVERAGE_CDF(ctx_left->intra_2way_txfm_partition_cdf,
+              ctx_tr->intra_2way_txfm_partition_cdf, 2);
+  AVERAGE_CDF(ctx_left->intra_2way_rect_txfm_partition_cdf,
+              ctx_tr->intra_2way_rect_txfm_partition_cdf, 2);
+#else
   AVG_CDF_STRIDE(ctx_left->tx_size_cdf[0], ctx_tr->tx_size_cdf[0], MAX_TX_DEPTH,
                  CDF_SIZE(MAX_TX_DEPTH + 1));
   AVERAGE_CDF(ctx_left->tx_size_cdf[1], ctx_tr->tx_size_cdf[1],
@@ -1347,6 +1372,7 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
               MAX_TX_DEPTH + 1);
   AVERAGE_CDF(ctx_left->tx_size_cdf[3], ctx_tr->tx_size_cdf[3],
               MAX_TX_DEPTH + 1);
+#endif  // CONFIG_NEW_TX_PARTITION
   AVERAGE_CDF(ctx_left->delta_q_cdf, ctx_tr->delta_q_cdf, DELTA_Q_PROBS + 1);
   AVERAGE_CDF(ctx_left->delta_lf_cdf, ctx_tr->delta_lf_cdf, DELTA_LF_PROBS + 1);
   for (int i = 0; i < FRAME_LF_COUNT; i++) {

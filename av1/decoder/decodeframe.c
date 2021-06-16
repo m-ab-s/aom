@@ -338,6 +338,34 @@ static AOM_INLINE void decode_reconstruct_tx(
     *eob_total += eob_data->eob;
     set_cb_buffer_offsets(dcb, tx_size, plane);
   } else {
+#if CONFIG_NEW_TX_PARTITION
+    TX_SIZE sub_txs[MAX_TX_PARTITIONS] = { 0 };
+    const int index = av1_get_txb_size_index(plane_bsize, blk_row, blk_col);
+    get_tx_partition_sizes(mbmi->partition_type[index], tx_size, sub_txs);
+    int cur_partition = 0;
+    int bsw = 0, bsh = 0;
+    for (int row = 0; row < tx_size_high_unit[tx_size]; row += bsh) {
+      for (int col = 0; col < tx_size_wide_unit[tx_size]; col += bsw) {
+        const TX_SIZE sub_tx = sub_txs[cur_partition];
+        bsw = tx_size_wide_unit[sub_tx];
+        bsh = tx_size_high_unit[sub_tx];
+        const int sub_step = bsw * bsh;
+        const int offsetr = blk_row + row;
+        const int offsetc = blk_col + col;
+        if (offsetr >= max_blocks_high || offsetc >= max_blocks_wide) continue;
+
+        td->read_coeffs_tx_inter_block_visit(cm, dcb, r, plane, offsetr,
+                                             offsetc, sub_tx);
+        td->inverse_tx_inter_block_visit(cm, dcb, r, plane, offsetr, offsetc,
+                                         sub_tx);
+        eob_info *eob_data = dcb->eob_data[plane] + dcb->txb_offset[plane];
+        *eob_total += eob_data->eob;
+        set_cb_buffer_offsets(dcb, sub_tx, plane);
+        block += sub_step;
+        cur_partition++;
+      }
+    }
+#else
     const TX_SIZE sub_txs = sub_tx_size_map[tx_size];
     assert(IMPLIES(tx_size <= TX_4X4, sub_txs == tx_size));
     assert(IMPLIES(tx_size > TX_4X4, sub_txs < tx_size));
@@ -359,6 +387,7 @@ static AOM_INLINE void decode_reconstruct_tx(
         block += sub_step;
       }
     }
+#endif  // CONFIG_NEW_TX_PARTITION
   }
 }
 
@@ -1115,6 +1144,119 @@ static AOM_INLINE void set_inter_tx_size(MB_MODE_INFO *mbmi, int stride_log2,
   }
 }
 
+#if CONFIG_NEW_TX_PARTITION
+static TX_SIZE read_tx_partition(MACROBLOCKD *xd, MB_MODE_INFO *mbmi,
+                                 TX_SIZE max_tx_size, int blk_row, int blk_col,
+                                 aom_reader *r) {
+#if CONFIG_SDP
+  int plane_type = (xd->tree_type == CHROMA_PART);
+  const BLOCK_SIZE bsize = mbmi->sb_type[plane_type];
+  const int is_inter = is_inter_block(mbmi, xd->tree_type);
+#else
+  const BLOCK_SIZE bsize = mbmi->sb_type;
+  const int is_inter = is_inter_block(mbmi);
+#endif
+  const int max_blocks_high = max_block_high(xd, bsize, 0);
+  const int max_blocks_wide = max_block_wide(xd, bsize, 0);
+  if (is_inter && (blk_row >= max_blocks_high || blk_col >= max_blocks_wide))
+    return TX_INVALID;
+  FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
+  const int is_rect = is_rect_tx(max_tx_size);
+  const int allow_horz = allow_tx_horz_split(max_tx_size);
+  const int allow_vert = allow_tx_vert_split(max_tx_size);
+  const int allow_horz4 = allow_tx_horz4_split(max_tx_size);
+  const int allow_vert4 = allow_tx_vert4_split(max_tx_size);
+  TX_PARTITION_TYPE partition = 0;
+  /*
+  If both horizontal and vertical splits are allowed for this block,
+  first signal using a 4 way tree to indicate TX_PARTITION_NONE,
+  TX_PARTITION_SPLIT, TX_PARTITION_HORZ or TX_PARTITION_VERT. If the
+  actual tx partition type is HORZ4 or VERT4, we read an additional
+  bit to indicate to split further.
+  */
+  if (allow_horz && allow_vert) {
+    // Read 4way tree type
+    const int split4_ctx =
+        is_inter ? txfm_partition_split4_inter_context(
+                       xd->above_txfm_context + blk_col,
+                       xd->left_txfm_context + blk_row, bsize, max_tx_size)
+                 : get_tx_size_context(xd);
+    aom_cdf_prob *split4_cdf =
+        is_inter ? ec_ctx->inter_4way_txfm_partition_cdf[is_rect][split4_ctx]
+                 : ec_ctx->intra_4way_txfm_partition_cdf[is_rect][split4_ctx];
+    const TX_PARTITION_TYPE split4_partition =
+        aom_read_symbol(r, split4_cdf, 4, ACCT_STR);
+    partition = split4_partition;
+    // If further split is allowed, read an additional bit to determine
+    // the final partition type
+    if (((split4_partition == TX_PARTITION_VERT) && allow_vert4) ||
+        ((split4_partition == TX_PARTITION_HORZ) && allow_horz4)) {
+      aom_cdf_prob *split2_rect_cdf =
+          is_inter ? ec_ctx->inter_2way_rect_txfm_partition_cdf
+                   : ec_ctx->intra_2way_rect_txfm_partition_cdf;
+      const int further_split =
+          aom_read_symbol(r, split2_rect_cdf, 2, ACCT_STR);
+      if (further_split)
+        partition = (split4_partition == TX_PARTITION_VERT)
+                        ? TX_PARTITION_VERT4
+                        : TX_PARTITION_HORZ4;
+    }
+    /*
+    If only one split type (horizontal or vertical) is allowed for this block,
+    first signal a bit indicating whether there is any split at all. If
+    the partition has a split, and this block is able to be split further,
+    we send a second bit to indicate if the type should be HORZ4 or VERT4.
+    */
+  } else if (allow_horz || allow_vert) {
+    // Read bit to indicate if there is any split at all
+    aom_cdf_prob *split2_cdf = is_inter ? ec_ctx->inter_2way_txfm_partition_cdf
+                                        : ec_ctx->intra_2way_txfm_partition_cdf;
+    const int has_first_split = aom_read_symbol(r, split2_cdf, 2, ACCT_STR);
+    if (has_first_split) {
+      // If further splitting is allowed, read a bit determine the fineal
+      // partition type
+      aom_cdf_prob *split2_rect_cdf =
+          is_inter ? ec_ctx->inter_2way_rect_txfm_partition_cdf
+                   : ec_ctx->intra_2way_rect_txfm_partition_cdf;
+      const int has_second_split =
+          (allow_horz4 || allow_vert4)
+              ? aom_read_symbol(r, split2_rect_cdf, 2, ACCT_STR)
+              : 0;
+      if (has_second_split)
+        partition = allow_horz ? TX_PARTITION_HORZ4 : TX_PARTITION_VERT4;
+      else
+        partition = allow_horz ? TX_PARTITION_HORZ : TX_PARTITION_VERT;
+    } else {
+      partition = TX_PARTITION_NONE;
+    }
+  } else {
+    assert(!allow_horz && !allow_vert);
+    partition = TX_PARTITION_NONE;
+  }
+  TX_SIZE sub_txs[MAX_TX_PARTITIONS] = { 0 };
+  get_tx_partition_sizes(partition, max_tx_size, sub_txs);
+  // TODO(sarahparker) This assumes all of the tx sizes in the partition scheme
+  // are the same size. This will need to be adjusted to deal with the case
+  // where they can be different.
+  mbmi->tx_size = sub_txs[0];
+  const int index =
+      is_inter ? av1_get_txb_size_index(bsize, blk_row, blk_col) : 0;
+  mbmi->partition_type[index] = partition;
+  if (is_inter) {
+    const TX_SIZE txs = sub_tx_size_map[max_txsize_rect_lookup[bsize]];
+    const int tx_w_log2 = tx_size_wide_log2[txs] - MI_SIZE_LOG2;
+    const int tx_h_log2 = tx_size_high_log2[txs] - MI_SIZE_LOG2;
+    const int bw_log2 = mi_size_wide_log2[bsize];
+    const int stride_log2 = bw_log2 - tx_w_log2;
+    set_inter_tx_size(mbmi, stride_log2, tx_w_log2, tx_h_log2, txs, max_tx_size,
+                      mbmi->tx_size, blk_row, blk_col);
+    txfm_partition_update(xd->above_txfm_context + blk_col,
+                          xd->left_txfm_context + blk_row, mbmi->tx_size,
+                          max_tx_size);
+  }
+  return sub_txs[0];
+}
+#else
 static AOM_INLINE void read_tx_size_vartx(MACROBLOCKD *xd, MB_MODE_INFO *mbmi,
                                           TX_SIZE tx_size, int depth,
 #if CONFIG_LPF_MASK
@@ -1235,10 +1377,10 @@ static TX_SIZE read_selected_tx_size(const MACROBLOCKD *const xd,
   const TX_SIZE tx_size = depth_to_tx_size(depth, bsize);
   return tx_size;
 }
+#endif  // CONFIG_NEW_TX_PARTITION
 
-static TX_SIZE read_tx_size(const MACROBLOCKD *const xd, TX_MODE tx_mode,
-                            int is_inter, int allow_select_inter,
-                            aom_reader *r) {
+static TX_SIZE read_tx_size(MACROBLOCKD *xd, TX_MODE tx_mode, int is_inter,
+                            int allow_select_inter, aom_reader *r) {
 #if CONFIG_SDP
   const BLOCK_SIZE bsize = xd->mi[0]->sb_type[xd->tree_type == CHROMA_PART];
 #else
@@ -1248,8 +1390,14 @@ static TX_SIZE read_tx_size(const MACROBLOCKD *const xd, TX_MODE tx_mode,
 
   if (block_signals_txsize(bsize)) {
     if ((!is_inter || allow_select_inter) && tx_mode == TX_MODE_SELECT) {
+#if CONFIG_NEW_TX_PARTITION
+      MB_MODE_INFO *mbmi = xd->mi[0];
+      const TX_SIZE max_tx_size = max_txsize_rect_lookup[bsize];
+      return read_tx_partition(xd, mbmi, max_tx_size, 0, 0, r);
+#else
       const TX_SIZE coded_tx_size = read_selected_tx_size(xd, r);
       return coded_tx_size;
+#endif  // CONFIG_NEW_TX_PARTITION
     } else {
       return tx_size_from_tx_mode(bsize, tx_mode);
     }
@@ -1295,11 +1443,15 @@ static AOM_INLINE void parse_decode_block(AV1Decoder *const pbi,
 
       for (int idy = 0; idy < height; idy += bh)
         for (int idx = 0; idx < width; idx += bw)
-          read_tx_size_vartx(xd, mbmi, max_tx_size, 0,
+#if CONFIG_NEW_TX_PARTITION
+          read_tx_partition(xd, mbmi, max_tx_size, idy, idx, r);
+#else
+        read_tx_size_vartx(xd, mbmi, max_tx_size, 0,
 #if CONFIG_LPF_MASK
-                             cm, mi_row, mi_col, 1,
+                           cm, mi_row, mi_col, 1,
 #endif
-                             idy, idx, r);
+                           idy, idx, r);
+#endif  // CONFIG_NEW_TX_PARTITION
     } else {
       mbmi->tx_size =
           read_tx_size(xd, cm->features.tx_mode, inter_block_tx,

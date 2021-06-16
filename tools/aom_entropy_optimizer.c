@@ -585,12 +585,14 @@ int main(int argc, const char **argv) {
       "[PALETTE_COLOR_INDEX_CONTEXTS][CDF_SIZE(PALETTE_COLORS)]");
 
   /* Transform size */
+#if !CONFIG_NEW_TX_PARTITION
   cts_each_dim[0] = TXFM_PARTITION_CONTEXTS;
   cts_each_dim[1] = 2;
   optimize_cdf_table(
       &fc.txfm_partition[0][0], probsfile, 2, cts_each_dim,
       "static const aom_cdf_prob\n"
       "default_txfm_partition_cdf[TXFM_PARTITION_CONTEXTS][CDF_SIZE(2)]");
+#endif  // !CONFIG_NEW_TX_PARTITION
 
   /* Skip flag */
   cts_each_dim[0] = SKIP_CONTEXTS;
@@ -655,6 +657,7 @@ int main(int argc, const char **argv) {
                      "[CDF_SIZE(2)]");
 
   /* intra tx size */
+#if !CONFIG_NEW_TX_PARTITION
   cts_each_dim[0] = MAX_TX_CATS;
   cts_each_dim[1] = TX_SIZE_CONTEXTS;
   cts_each_dim[2] = MAX_TX_DEPTH + 1;
@@ -664,6 +667,7 @@ int main(int argc, const char **argv) {
       intra_tx_sizes_each_ctx,
       "static const aom_cdf_prob default_tx_size_cdf"
       "[MAX_TX_CATS][TX_SIZE_CONTEXTS][CDF_SIZE(MAX_TX_DEPTH + 1)]");
+#endif  // !CONFIG_NEW_TX_PARTITION
 
   /* transform coding */
   cts_each_dim[0] = TOKEN_CDF_Q_CTXS;

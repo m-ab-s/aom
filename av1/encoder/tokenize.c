@@ -168,6 +168,36 @@ static void tokenize_vartx(ThreadData *td, TX_SIZE tx_size,
                                       plane_bsize, tx_size, arg);
 
   } else {
+#if CONFIG_NEW_TX_PARTITION
+    TX_SIZE sub_txs[MAX_TX_PARTITIONS] = { 0 };
+    const int index = av1_get_txb_size_index(plane_bsize, blk_row, blk_col);
+    get_tx_partition_sizes(mbmi->partition_type[index], tx_size, sub_txs);
+    int cur_partition = 0;
+    int bsw = 0, bsh = 0;
+#if CONFIG_SDP
+    plane_bsize =
+        get_plane_block_size(mbmi->sb_type[xd->tree_type == CHROMA_PART],
+                             pd->subsampling_x, pd->subsampling_y);
+#else
+    plane_bsize = get_plane_block_size(mbmi->sb_type, pd->subsampling_x,
+                                       pd->subsampling_y);
+#endif
+    for (int r = 0; r < tx_size_high_unit[tx_size]; r += bsh) {
+      for (int c = 0; c < tx_size_wide_unit[tx_size]; c += bsw) {
+        const TX_SIZE sub_tx = sub_txs[cur_partition];
+        bsw = tx_size_wide_unit[sub_tx];
+        bsh = tx_size_high_unit[sub_tx];
+        const int sub_step = bsw * bsh;
+        const int offsetr = blk_row + r;
+        const int offsetc = blk_col + c;
+        if (offsetr >= max_blocks_high || offsetc >= max_blocks_wide) continue;
+        av1_update_and_record_txb_context(plane, block, offsetr, offsetc,
+                                          plane_bsize, sub_tx, arg);
+        block += sub_step;
+        cur_partition++;
+      }
+    }
+#else
     // Half the block size in transform block unit.
     const TX_SIZE sub_txs = sub_tx_size_map[tx_size];
     const int bsw = tx_size_wide_unit[sub_txs];
@@ -188,6 +218,7 @@ static void tokenize_vartx(ThreadData *td, TX_SIZE tx_size,
         block += step;
       }
     }
+#endif  // CONFIG_NEW_TX_PARTITION
   }
 }
 

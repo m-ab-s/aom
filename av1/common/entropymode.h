@@ -128,7 +128,14 @@ typedef struct frame_contexts {
                                [CDF_SIZE(2)];
   aom_cdf_prob comp_ref_cdf[REF_CONTEXTS][FWD_REFS - 1][CDF_SIZE(2)];
   aom_cdf_prob comp_bwdref_cdf[REF_CONTEXTS][BWD_REFS - 1][CDF_SIZE(2)];
+#if CONFIG_NEW_TX_PARTITION
+  aom_cdf_prob inter_4way_txfm_partition_cdf[2][TXFM_PARTITION_INTER_CONTEXTS]
+                                            [CDF_SIZE(4)];
+  aom_cdf_prob inter_2way_txfm_partition_cdf[CDF_SIZE(2)];
+  aom_cdf_prob inter_2way_rect_txfm_partition_cdf[CDF_SIZE(2)];
+#else   // CONFIG_NEW_TX_PARTITION
   aom_cdf_prob txfm_partition_cdf[TXFM_PARTITION_CONTEXTS][CDF_SIZE(2)];
+#endif  // CONFIG_NEW_TX_PARTITION
   aom_cdf_prob compound_index_cdf[COMP_INDEX_CONTEXTS][CDF_SIZE(2)];
   aom_cdf_prob comp_group_idx_cdf[COMP_GROUP_IDX_CONTEXTS][CDF_SIZE(2)];
   aom_cdf_prob skip_mode_cdfs[SKIP_MODE_CONTEXTS][CDF_SIZE(2)];
@@ -182,8 +189,14 @@ typedef struct frame_contexts {
 #endif
 #endif
 
+#if CONFIG_NEW_TX_PARTITION
+  aom_cdf_prob intra_4way_txfm_partition_cdf[2][TX_SIZE_CONTEXTS][CDF_SIZE(4)];
+  aom_cdf_prob intra_2way_txfm_partition_cdf[CDF_SIZE(2)];
+  aom_cdf_prob intra_2way_rect_txfm_partition_cdf[CDF_SIZE(2)];
+#else
   aom_cdf_prob tx_size_cdf[MAX_TX_CATS][TX_SIZE_CONTEXTS]
                           [CDF_SIZE(MAX_TX_DEPTH + 1)];
+#endif  // CONFIG_NEW_TX_PARTITION
   aom_cdf_prob delta_q_cdf[CDF_SIZE(DELTA_Q_PROBS + 1)];
   aom_cdf_prob delta_lf_multi_cdf[FRAME_LF_COUNT][CDF_SIZE(DELTA_LF_PROBS + 1)];
   aom_cdf_prob delta_lf_cdf[CDF_SIZE(DELTA_LF_PROBS + 1)];

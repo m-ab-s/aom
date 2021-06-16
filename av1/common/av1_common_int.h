@@ -1892,38 +1892,179 @@ static INLINE TX_SIZE get_tx_size(int width, int height) {
   if (width < height) {
     if (width + width == height) {
       switch (width) {
-        case 4: return TX_4X8; break;
-        case 8: return TX_8X16; break;
-        case 16: return TX_16X32; break;
-        case 32: return TX_32X64; break;
+        case 4: return (height == 8) ? TX_4X8 : TX_INVALID;
+        case 8: return (height == 16) ? TX_8X16 : TX_INVALID;
+        case 16: return (height == 32) ? TX_16X32 : TX_INVALID;
+        case 32: return (height == 64) ? TX_32X64 : TX_INVALID;
       }
     } else {
       switch (width) {
-        case 4: return TX_4X16; break;
-        case 8: return TX_8X32; break;
-        case 16: return TX_16X64; break;
+        case 4: return (height == 16) ? TX_4X16 : TX_INVALID;
+        case 8: return (height == 32) ? TX_8X32 : TX_INVALID;
+        case 16: return (height == 64) ? TX_16X64 : TX_INVALID;
       }
     }
   } else {
     if (height + height == width) {
       switch (height) {
-        case 4: return TX_8X4; break;
-        case 8: return TX_16X8; break;
-        case 16: return TX_32X16; break;
-        case 32: return TX_64X32; break;
+        case 4: return (width == 8) ? TX_8X4 : TX_INVALID;
+        case 8: return (width == 16) ? TX_16X8 : TX_INVALID;
+        case 16: return (width == 32) ? TX_32X16 : TX_INVALID;
+        case 32: return (width == 64) ? TX_64X32 : TX_INVALID;
       }
     } else {
       switch (height) {
-        case 4: return TX_16X4; break;
-        case 8: return TX_32X8; break;
-        case 16: return TX_64X16; break;
+        case 4: return (width == 16) ? TX_16X4 : TX_INVALID;
+        case 8: return (width == 32) ? TX_32X8 : TX_INVALID;
+        case 16: return (width == 64) ? TX_64X16 : TX_INVALID;
       }
     }
   }
-  assert(0);
-  return TX_4X4;
+  return TX_INVALID;
 }
 
+#if CONFIG_NEW_TX_PARTITION
+#define MAX_TX_PARTITIONS 4
+typedef struct {
+  int rows[MAX_TX_PARTITIONS];
+  int cols[MAX_TX_PARTITIONS];
+  int n_partitions;
+} TX_PARTITION_BIT_SHIFT;
+
+// Defines the number of bits to use to divide a block's dimensions
+// to create the tx sizes in each partition.
+// Keep square and rectangular separate for now, but we can potentially
+// merge them in the future.
+static const TX_PARTITION_BIT_SHIFT
+    partition_shift_bits[2][TX_PARTITION_TYPES] = {
+      // Square
+      {
+          { { 0 }, { 0 }, 1 },                    // TX_PARTITION_NONE
+          { { 1, 1, 1, 1 }, { 1, 1, 1, 1 }, 4 },  // TX_PARTITION_SPLIT
+          { { 1, 1 }, { 0, 0 }, 2 },              // TX_PARTITION_HORZ
+          { { 0, 0 }, { 1, 1 }, 2 },              // TX_PARTITION_VERT
+          { { 2, 2, 2, 2 }, { 0, 0, 0, 0 }, 4 },  // TX_PARTITION_HORZ4
+          { { 0, 0, 0, 0 }, { 2, 2, 2, 2 }, 4 },  // TX_PARTITION_VERT4
+      },
+      // Rectangular
+      {
+          { { 0 }, { 0 }, 1 },                    // TX_PARTITION_NONE
+          { { 1, 1, 1, 1 }, { 1, 1, 1, 1 }, 4 },  // TX_PARTITION_SPLIT
+          { { 1, 1 }, { 0, 0 }, 2 },              // TX_PARTITION_HORZ
+          { { 0, 0 }, { 1, 1 }, 2 },              // TX_PARTITION_VERT
+          { { 2, 2, 2, 2 }, { 0, 0, 0, 0 }, 4 },  // TX_PARTITION_HORZ4
+          { { 0, 0, 0, 0 }, { 2, 2, 2, 2 }, 4 },  // TX_PARTITION_VERT4
+      },
+    };
+
+static INLINE int get_tx_partition_sizes(TX_PARTITION_TYPE partition,
+                                         TX_SIZE max_tx_size,
+                                         TX_SIZE sub_txs[MAX_TX_PARTITIONS]) {
+  const int txw = tx_size_wide[max_tx_size];
+  const int txh = tx_size_high[max_tx_size];
+  int sub_txw = 0, sub_txh = 0;
+  const TX_PARTITION_BIT_SHIFT subtx_shift =
+      partition_shift_bits[is_rect_tx(max_tx_size)][partition];
+  const int n_partitions = subtx_shift.n_partitions;
+  for (int i = 0; i < n_partitions; i++) {
+    sub_txw = txw >> subtx_shift.cols[i];
+    sub_txh = txh >> subtx_shift.rows[i];
+    sub_txs[i] = get_tx_size(sub_txw, sub_txh);
+    assert(sub_txs[i] != TX_INVALID);
+  }
+  return n_partitions;
+}
+
+/*
+Gets the type to signal for the 4 way split tree in the tx partition
+type signaling.
+*/
+static INLINE int get_split4_partition(TX_PARTITION_TYPE partition) {
+  switch (partition) {
+    case TX_PARTITION_NONE:
+    case TX_PARTITION_SPLIT:
+    case TX_PARTITION_VERT:
+    case TX_PARTITION_HORZ: return partition;
+    case TX_PARTITION_VERT4: return TX_PARTITION_VERT;
+    case TX_PARTITION_HORZ4: return TX_PARTITION_HORZ;
+    default: assert(0);
+  }
+  assert(0);
+  return 0;
+}
+
+static INLINE int allow_tx_horz_split(TX_SIZE max_tx_size) {
+  const int sub_txw = tx_size_wide[max_tx_size];
+  const int sub_txh = tx_size_high[max_tx_size] >> 1;
+  const TX_SIZE sub_tx_size = get_tx_size(sub_txw, sub_txh);
+  return sub_tx_size != TX_INVALID;
+}
+
+static INLINE int allow_tx_vert_split(TX_SIZE max_tx_size) {
+  const int sub_txw = tx_size_wide[max_tx_size] >> 1;
+  const int sub_txh = tx_size_high[max_tx_size];
+  const TX_SIZE sub_tx_size = get_tx_size(sub_txw, sub_txh);
+  return sub_tx_size != TX_INVALID;
+}
+
+static INLINE int allow_tx_horz4_split(TX_SIZE max_tx_size) {
+  const int sub_txw = tx_size_wide[max_tx_size];
+  const int sub_txh = tx_size_high[max_tx_size] >> 2;
+  const TX_SIZE sub_tx_size = get_tx_size(sub_txw, sub_txh);
+  return sub_tx_size != TX_INVALID;
+}
+
+static INLINE int allow_tx_vert4_split(TX_SIZE max_tx_size) {
+  const int sub_txw = tx_size_wide[max_tx_size] >> 2;
+  const int sub_txh = tx_size_high[max_tx_size];
+  const TX_SIZE sub_tx_size = get_tx_size(sub_txw, sub_txh);
+  return sub_tx_size != TX_INVALID;
+}
+
+static INLINE int use_tx_partition(TX_PARTITION_TYPE partition,
+                                   TX_SIZE max_tx_size) {
+  const int allow_horz = allow_tx_horz_split(max_tx_size);
+  const int allow_vert = allow_tx_vert_split(max_tx_size);
+  const int allow_horz4 = allow_tx_horz4_split(max_tx_size);
+  const int allow_vert4 = allow_tx_vert4_split(max_tx_size);
+  switch (partition) {
+    case TX_PARTITION_NONE: return 1;
+    case TX_PARTITION_SPLIT: return (allow_horz && allow_vert);
+    case TX_PARTITION_HORZ: return allow_horz;
+    case TX_PARTITION_VERT: return allow_vert;
+    case TX_PARTITION_HORZ4: return allow_horz4;
+    case TX_PARTITION_VERT4: return allow_vert4;
+    default: assert(0);
+  }
+  assert(0);
+  return 0;
+}
+
+static INLINE int txfm_partition_split4_inter_context(
+    const TXFM_CONTEXT *const above_ctx, const TXFM_CONTEXT *const left_ctx,
+    BLOCK_SIZE bsize, TX_SIZE tx_size) {
+  const uint8_t txw = tx_size_wide[tx_size];
+  const uint8_t txh = tx_size_high[tx_size];
+  const int above = *above_ctx < txw;
+  const int left = *left_ctx < txh;
+  int category = TXFM_PARTITION_INTER_CONTEXTS;
+
+  // dummy return, not used by others.
+  if (tx_size <= TX_4X4) return 0;
+
+  TX_SIZE max_tx_size =
+      get_sqr_tx_size(AOMMAX(block_size_wide[bsize], block_size_high[bsize]));
+
+  if (max_tx_size >= TX_8X8) {
+    category =
+        (txsize_sqr_up_map[tx_size] != max_tx_size && max_tx_size > TX_8X8) +
+        (TX_SIZES - 1 - max_tx_size) * 2;
+  }
+  assert(category != TXFM_PARTITION_INTER_CONTEXTS);
+  return category * 3 + above + left;
+}
+
+#else
 static INLINE int txfm_partition_context(const TXFM_CONTEXT *const above_ctx,
                                          const TXFM_CONTEXT *const left_ctx,
                                          BLOCK_SIZE bsize, TX_SIZE tx_size) {
@@ -1947,6 +2088,7 @@ static INLINE int txfm_partition_context(const TXFM_CONTEXT *const above_ctx,
   assert(category != TXFM_PARTITION_CONTEXTS);
   return category * 3 + above + left;
 }
+#endif  // CONFIG_NEW_TX_PARTITION
 
 // Compute the next partition in the direction of the sb_type stored in the mi
 // array, starting with bsize.

@@ -324,12 +324,12 @@ void av1_xform(MACROBLOCK *x, int plane, int block, int blk_row, int blk_col,
   const PREDICTION_MODE intra_mode =
       (plane == AOM_PLANE_Y) ? mbmi->mode : get_uv_mode(mbmi->uv_mode);
   const int filter = mbmi->filter_intra_mode_info.use_filter_intra;
-  const int depth = tx_size_to_depth(txfm_param->tx_size, plane_bsize);
-  assert(((intra_mode >= PAETH_PRED || filter || depth) &&
+  const int is_depth0 = tx_size_is_depth0(txfm_param->tx_size, plane_bsize);
+  assert(((intra_mode >= PAETH_PRED || filter || !is_depth0) &&
           txfm_param->sec_tx_type) == 0);
   (void)intra_mode;
   (void)filter;
-  (void)depth;
+  (void)is_depth0;
   av1_fwd_stxfm(coeff, txfm_param);
 #else
   av1_fwd_txfm(src_diff, coeff, diff_stride, txfm_param);
@@ -585,6 +585,28 @@ static void encode_block_inter(int plane, int block, int blk_row, int blk_col,
     encode_block(plane, block, blk_row, blk_col, plane_bsize, tx_size, arg,
                  dry_run);
   } else {
+#if CONFIG_NEW_TX_PARTITION
+    TX_SIZE sub_txs[MAX_TX_PARTITIONS] = { 0 };
+    const int index = av1_get_txb_size_index(plane_bsize, blk_row, blk_col);
+    get_tx_partition_sizes(mbmi->partition_type[index], tx_size, sub_txs);
+    int cur_partition = 0;
+    int bsw = 0, bsh = 0;
+    for (int r = 0; r < tx_size_high_unit[tx_size]; r += bsh) {
+      for (int c = 0; c < tx_size_wide_unit[tx_size]; c += bsw) {
+        const TX_SIZE sub_tx = sub_txs[cur_partition];
+        bsw = tx_size_wide_unit[sub_tx];
+        bsh = tx_size_high_unit[sub_tx];
+        const int sub_step = bsw * bsh;
+        const int offsetr = blk_row + r;
+        const int offsetc = blk_col + c;
+        if (offsetr >= max_blocks_high || offsetc >= max_blocks_wide) continue;
+        encode_block(plane, block, offsetr, offsetc, plane_bsize, sub_tx, arg,
+                     dry_run);
+        block += sub_step;
+        cur_partition++;
+      }
+    }
+#else
     assert(tx_size < TX_SIZES_ALL);
     const TX_SIZE sub_txs = sub_tx_size_map[tx_size];
     assert(IMPLIES(tx_size <= TX_4X4, sub_txs == tx_size));
@@ -607,6 +629,7 @@ static void encode_block_inter(int plane, int block, int blk_row, int blk_col,
         block += step;
       }
     }
+#endif  // CONFIG_NEW_TX_PARTITION
   }
 }
 

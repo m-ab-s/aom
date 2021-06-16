@@ -438,6 +438,7 @@ void cfl_store_block(MACROBLOCKD *const xd, BLOCK_SIZE bsize, TX_SIZE tx_size) {
   const int width = max_intra_block_width(xd, bsize, AOM_PLANE_Y, tx_size);
   const int height = max_intra_block_height(xd, bsize, AOM_PLANE_Y, tx_size);
   tx_size = get_tx_size(width, height);
+  assert(tx_size != TX_INVALID);
 #if CONFIG_SDP
   cfl_store(xd, cfl, pd->dst.buf, pd->dst.stride, row, col, tx_size,
             is_cur_buf_hbd(xd));

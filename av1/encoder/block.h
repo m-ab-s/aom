@@ -258,6 +258,10 @@ typedef struct {
   TX_SIZE tx_size;
   //! Txfm sizes used if the current mode is inter mode.
   TX_SIZE inter_tx_size[INTER_TX_SIZE_BUF_LEN];
+#if CONFIG_NEW_TX_PARTITION
+  //! Txfm partitions used if the current mode is inter mode.
+  TX_PARTITION_TYPE partition_type[INTER_TX_SIZE_BUF_LEN];
+#endif  // CONFIG_NEW_TX_PARTITION
   //! Map showing which txfm block skips the txfm process.
   uint8_t blk_skip[MAX_MIB_SIZE * MAX_MIB_SIZE];
   //! Map showing the txfm types for each blcok.
@@ -775,10 +779,25 @@ typedef struct {
   /**@{*/
   //! skip_txfm_cost
   int skip_txfm_cost[SKIP_CONTEXTS][2];
+#if CONFIG_NEW_TX_PARTITION
+  //! intra_4way_txfm_partition_cost
+  int intra_4way_txfm_partition_cost[2][TX_SIZE_CONTEXTS][4];
+  //! intra_2way_txfm_partition_cost
+  int intra_2way_txfm_partition_cost[2];
+  //! intra_2way_rect_txfm_partition_cost
+  int intra_2way_rect_txfm_partition_cost[2];
+  //! inter_4way_txfm_partition_cost
+  int inter_4way_txfm_partition_cost[2][TXFM_PARTITION_INTER_CONTEXTS][4];
+  //! inter_2way_txfm_partition_cost
+  int inter_2way_txfm_partition_cost[2];
+  //! inter_2way_rect_txfm_partition_cost
+  int inter_2way_rect_txfm_partition_cost[2];
+#else   // CONFIG_NEW_TX_PARTITION
   //! tx_size_cost
   int tx_size_cost[TX_SIZES - 1][TX_SIZE_CONTEXTS][TX_SIZES];
   //! txfm_partition_cost
   int txfm_partition_cost[TXFM_PARTITION_CONTEXTS][2];
+#endif  // CONFIG_NEW_TX_PARTITION
   //! inter_tx_type_costs
   int inter_tx_type_costs[EXT_TX_SETS_INTER][EXT_TX_SIZES][TX_TYPES];
   //! intra_tx_type_costs
@@ -1194,6 +1213,30 @@ typedef struct macroblock {
 /*!\cond */
 static INLINE int is_rect_tx_allowed_bsize(BLOCK_SIZE bsize) {
   static const char LUT[BLOCK_SIZES_ALL] = {
+#if CONFIG_NEW_TX_PARTITION
+    0,  // BLOCK_4X4
+    1,  // BLOCK_4X8
+    1,  // BLOCK_8X4
+    1,  // BLOCK_8X8
+    1,  // BLOCK_8X16
+    1,  // BLOCK_16X8
+    1,  // BLOCK_16X16
+    1,  // BLOCK_16X32
+    1,  // BLOCK_32X16
+    1,  // BLOCK_32X32
+    1,  // BLOCK_32X64
+    1,  // BLOCK_64X32
+    1,  // BLOCK_64X64
+    1,  // BLOCK_64X128
+    1,  // BLOCK_128X64
+    1,  // BLOCK_128X128
+    1,  // BLOCK_4X16
+    1,  // BLOCK_16X4
+    1,  // BLOCK_8X32
+    1,  // BLOCK_32X8
+    1,  // BLOCK_16X64
+    1,  // BLOCK_64X16
+#else
     0,  // BLOCK_4X4
     1,  // BLOCK_4X8
     1,  // BLOCK_8X4
@@ -1216,6 +1259,7 @@ static INLINE int is_rect_tx_allowed_bsize(BLOCK_SIZE bsize) {
     1,  // BLOCK_32X8
     1,  // BLOCK_16X64
     1,  // BLOCK_64X16
+#endif  // CONFIG_NEW_TX_PARTITION
   };
 
   return LUT[bsize];
@@ -1233,7 +1277,7 @@ static INLINE int is_rect_tx_allowed(const MACROBLOCKD *xd,
 #endif
 }
 
-#if !CONFIG_IST
+#if !CONFIG_IST && !CONFIG_NEW_TX_PARTITION
 static INLINE int tx_size_to_depth(TX_SIZE tx_size, BLOCK_SIZE bsize) {
   TX_SIZE ctx_size = max_txsize_rect_lookup[bsize];
   int depth = 0;

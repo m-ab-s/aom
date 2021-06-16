@@ -33,6 +33,82 @@ enum {
   FTXS_USE_TRANSFORM_DOMAIN = 1 << 2
 } UENUM1BYTE(FAST_TX_SEARCH_MODE);
 
+#if CONFIG_NEW_TX_PARTITION
+static AOM_INLINE int inter_tx_partition_cost(
+    const MACROBLOCK *const x, int is_rect, TX_PARTITION_TYPE partition,
+    const TXFM_CONTEXT *const above_ctx, const TXFM_CONTEXT *const left_ctx,
+    BLOCK_SIZE bsize, TX_SIZE max_tx_size) {
+  int cost = 0;
+  const int allow_horz = allow_tx_horz_split(max_tx_size);
+  const int allow_vert = allow_tx_vert_split(max_tx_size);
+  const int allow_horz4 = allow_tx_horz4_split(max_tx_size);
+  const int allow_vert4 = allow_tx_vert4_split(max_tx_size);
+  if (allow_horz && allow_vert) {
+    const int split4_ctx_0 = txfm_partition_split4_inter_context(
+        above_ctx, left_ctx, bsize, max_tx_size);
+    const TX_PARTITION_TYPE split4_partition = get_split4_partition(partition);
+    cost += x->mode_costs.inter_4way_txfm_partition_cost[is_rect][split4_ctx_0]
+                                                        [split4_partition];
+    if (((split4_partition == TX_PARTITION_VERT) && allow_vert4) ||
+        ((split4_partition == TX_PARTITION_HORZ) && allow_horz4)) {
+      const int has_split = (partition == TX_PARTITION_HORZ4) ||
+                            (partition == TX_PARTITION_VERT4);
+      cost += x->mode_costs.inter_2way_rect_txfm_partition_cost[has_split];
+    }
+  } else if (allow_horz || allow_vert) {
+    const int has_first_split = partition != TX_PARTITION_NONE;
+    cost += x->mode_costs.inter_2way_txfm_partition_cost[has_first_split];
+    if (has_first_split && (allow_horz4 || allow_vert4)) {
+      const int has_second_split = (partition == TX_PARTITION_VERT4) ||
+                                   (partition == TX_PARTITION_HORZ4);
+      cost +=
+          x->mode_costs.inter_2way_rect_txfm_partition_cost[has_second_split];
+    }
+  } else {
+    assert(!allow_horz && !allow_vert);
+    assert(partition == PARTITION_NONE);
+  }
+  return cost;
+}
+
+static AOM_INLINE int intra_tx_partition_cost(const MACROBLOCK *const x,
+                                              int is_rect,
+                                              TX_PARTITION_TYPE partition,
+                                              TX_SIZE max_tx_size) {
+  int cost = 0;
+  const MACROBLOCKD *const xd = &x->e_mbd;
+  const int allow_horz = allow_tx_horz_split(max_tx_size);
+  const int allow_vert = allow_tx_vert_split(max_tx_size);
+  const int allow_horz4 = allow_tx_horz4_split(max_tx_size);
+  const int allow_vert4 = allow_tx_vert4_split(max_tx_size);
+  if (allow_horz && allow_vert) {
+    const int split4_ctx_0 = get_tx_size_context(xd);
+    const TX_PARTITION_TYPE split4_partition = get_split4_partition(partition);
+    cost += x->mode_costs.intra_4way_txfm_partition_cost[is_rect][split4_ctx_0]
+                                                        [split4_partition];
+    if (((split4_partition == TX_PARTITION_VERT) && allow_vert4) ||
+        ((split4_partition == TX_PARTITION_HORZ) && allow_horz4)) {
+      const int has_split = (partition == TX_PARTITION_HORZ4) ||
+                            (partition == TX_PARTITION_VERT4);
+      cost += x->mode_costs.intra_2way_rect_txfm_partition_cost[has_split];
+    }
+  } else if (allow_horz || allow_vert) {
+    const int has_first_split = partition != TX_PARTITION_NONE;
+    cost += x->mode_costs.intra_2way_txfm_partition_cost[has_first_split];
+    if (has_first_split && (allow_horz4 || allow_vert4)) {
+      const int has_second_split = (partition == TX_PARTITION_VERT4) ||
+                                   (partition == TX_PARTITION_HORZ4);
+      cost +=
+          x->mode_costs.intra_2way_rect_txfm_partition_cost[has_second_split];
+    }
+  } else {
+    assert(!allow_horz && !allow_vert);
+    assert(partition == PARTITION_NONE);
+  }
+  return cost;
+}
+#endif  // CONFIG_NEW_TX_PARTITION
+
 static AOM_INLINE int tx_size_cost(const MACROBLOCK *const x, BLOCK_SIZE bsize,
                                    TX_SIZE tx_size) {
 #if CONFIG_SDP
@@ -44,11 +120,20 @@ static AOM_INLINE int tx_size_cost(const MACROBLOCK *const x, BLOCK_SIZE bsize,
       !block_signals_txsize(bsize))
     return 0;
 
+  const MACROBLOCKD *const xd = &x->e_mbd;
+#if CONFIG_NEW_TX_PARTITION
+  (void)tx_size;
+  MB_MODE_INFO *const mbmi = xd->mi[0];
+  const TX_SIZE max_tx_size = max_txsize_rect_lookup[bsize];
+  const int is_rect = is_rect_tx(max_tx_size);
+  return intra_tx_partition_cost(x, is_rect, mbmi->partition_type[0],
+                                 max_tx_size);
+#else
   const int32_t tx_size_cat = bsize_to_tx_size_cat(bsize);
   const int depth = tx_size_to_depth(tx_size, bsize);
-  const MACROBLOCKD *const xd = &x->e_mbd;
   const int tx_size_ctx = get_tx_size_context(xd);
   return x->mode_costs.tx_size_cost[tx_size_cat][tx_size_ctx][depth];
+#endif  // CONFIG_NEW_TX_PARTITION
 }
 
 /*!\brief Transform type search for luma macroblock with fixed transform size.

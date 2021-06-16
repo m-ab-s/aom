@@ -273,6 +273,10 @@ typedef struct MB_MODE_INFO {
   int_mv mv[2];
   /*! \brief The reference frames for the MV */
   MV_REFERENCE_FRAME ref_frame[2];
+#if CONFIG_NEW_TX_PARTITION
+  /*! \brief Transform partition type. */
+  TX_PARTITION_TYPE partition_type[INTER_TX_SIZE_BUF_LEN];
+#endif  // CONFIG_NEW_TX_PARTITION
   /*! \brief Filter used in subpel interpolation. */
 #if CONFIG_REMOVE_DUAL_FILTER
   int interp_fltr;
@@ -1305,6 +1309,20 @@ static INLINE int av1_get_txb_size_index(BLOCK_SIZE bsize, int blk_row,
  */
 static INLINE int av1_get_txk_type_index(BLOCK_SIZE bsize, int blk_row,
                                          int blk_col) {
+  int index = 0;
+#if CONFIG_NEW_TX_PARTITION
+  assert(bsize < BLOCK_SIZES_ALL);
+  TX_SIZE txs = max_txsize_rect_lookup[bsize];
+  // Get smallest possible sub_tx size
+  txs = smallest_sub_tx_size_map[txs];
+  const int tx_w_log2 = tx_size_wide_log2[txs] - MI_SIZE_LOG2;
+  const int tx_h_log2 = tx_size_high_log2[txs] - MI_SIZE_LOG2;
+  const int bw_uint_log2 = mi_size_wide_log2[bsize];
+  const int stride_log2 = bw_uint_log2 - tx_w_log2;
+  index = ((blk_row >> tx_h_log2) << stride_log2) + (blk_col >> tx_w_log2);
+  assert(index < TXK_TYPE_BUF_LEN);
+  return index;
+#endif  // CONFIG_NEW_TX_PARTITION
   static const uint8_t tw_w_log2_table[BLOCK_SIZES_ALL] = {
     0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 2, 2, 2, 2, 2, 2, 0, 0, 1, 1, 2, 2,
   };
@@ -1314,9 +1332,8 @@ static INLINE int av1_get_txk_type_index(BLOCK_SIZE bsize, int blk_row,
   static const uint8_t stride_log2_table[BLOCK_SIZES_ALL] = {
     0, 0, 1, 1, 1, 2, 2, 1, 2, 2, 1, 2, 2, 2, 3, 3, 0, 2, 0, 2, 0, 2,
   };
-  const int index =
-      ((blk_row >> tw_h_log2_table[bsize]) << stride_log2_table[bsize]) +
-      (blk_col >> tw_w_log2_table[bsize]);
+  index = ((blk_row >> tw_h_log2_table[bsize]) << stride_log2_table[bsize]) +
+          (blk_col >> tw_w_log2_table[bsize]);
   assert(index < TXK_TYPE_BUF_LEN);
   return index;
 }
@@ -1346,6 +1363,11 @@ static INLINE void update_txk_array(MACROBLOCKD *const xd, int blk_row,
 }
 
 #if CONFIG_IST
+static INLINE int tx_size_is_depth0(TX_SIZE tx_size, BLOCK_SIZE bsize) {
+  TX_SIZE ctx_size = max_txsize_rect_lookup[bsize];
+  return ctx_size == tx_size;
+}
+
 static INLINE int tx_size_to_depth(TX_SIZE tx_size, BLOCK_SIZE bsize) {
   TX_SIZE ctx_size = max_txsize_rect_lookup[bsize];
   int depth = 0;
@@ -1820,7 +1842,6 @@ static INLINE int av1_get_max_eob(TX_SIZE tx_size) {
   }
   return tx_size_2d[tx_size];
 }
-
 /*!\endcond */
 
 #ifdef __cplusplus

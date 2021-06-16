@@ -270,6 +270,16 @@ typedef struct {
   // Speed feature to disable intra secondary transform
   int skip_stx_search;
 #endif
+#if CONFIG_NEW_TX_PARTITION
+  // Prunes 4way horz/vert split for intra blocks based on the
+  // result from horz and vert split.
+  int prune_intra_4way_split;
+  // Prunes 4way horz/vert split for inter blocks based on the
+  // result from horz and vert split.
+  int prune_inter_4way_split;
+  // Skip horz/vert partition based on 4way split ml model
+  int ml_tx_split_horzvert_thresh;
+#endif  // CONFIG_NEW_TX_PARTITION
 } TX_TYPE_SEARCH;
 
 enum {
