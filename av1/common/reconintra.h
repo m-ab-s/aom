@@ -193,17 +193,12 @@ static INLINE int av1_use_intra_edge_upsample(int bs0, int bs1, int delta,
 static INLINE int av1_signal_orip_for_horver_modes(const AV1_COMMON *cm,
                                                    const MB_MODE_INFO *mbmi,
                                                    PLANE_TYPE plane,
-                                                   BLOCK_SIZE bsize
-#if CONFIG_SDP
-                                                   ,
-                                                   int tree_type
-#endif
-) {
+                                                   BLOCK_SIZE bsize) {
   if (!cm->seq_params.enable_orip) return 0;
 
 #if CONFIG_SDP
   const int use_intrabc = mbmi->use_intrabc[PLANE_TYPE_Y];
-  const int is_inter = is_inter_block(mbmi, tree_type);
+  const int is_inter = is_inter_block(mbmi, SHARED_PART);
 #else
   const int use_intrabc = mbmi->use_intrabc;
   const int is_inter = is_inter_block(mbmi);

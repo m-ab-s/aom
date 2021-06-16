@@ -1123,13 +1123,8 @@ int64_t av1_rd_pick_intra_sby_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
         continue;
 
 #if CONFIG_ORIP
-#if CONFIG_SDP
-      int signal_intra_filter = av1_signal_orip_for_horver_modes(
-          &cpi->common, mbmi, PLANE_TYPE_Y, bsize, xd->tree_type);
-#else
       int signal_intra_filter = av1_signal_orip_for_horver_modes(
           &cpi->common, mbmi, PLANE_TYPE_Y, bsize);
-#endif
       if (!signal_intra_filter &&
           mbmi->angle_delta[PLANE_TYPE_Y] == ANGLE_DELTA_VALUE_ORIP)
         continue;

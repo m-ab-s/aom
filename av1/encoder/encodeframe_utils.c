@@ -583,14 +583,7 @@ void av1_sum_intra_stats(const AV1_COMMON *const cm, FRAME_COUNTS *counts,
 
 #if CONFIG_ORIP
       int signal_intra_filter =
-          av1_signal_orip_for_horver_modes(cm, mbmi, PLANE_TYPE_Y
-#if CONFIG_SDP
-                                           ,
-                                           bsize, xd->tree_type);
-#else
-                                           ,
-                                           bsize);
-#endif
+          av1_signal_orip_for_horver_modes(cm, mbmi, PLANE_TYPE_Y, bsize);
       if (signal_intra_filter) {
 #if CONFIG_SDP
         update_cdf(fc->angle_delta_cdf_hv[PLANE_TYPE_Y][mbmi->mode - V_PRED],

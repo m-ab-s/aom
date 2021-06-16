@@ -5454,13 +5454,8 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
 #endif
 
 #if CONFIG_ORIP
-      int signal_intra_filter =
-          av1_signal_orip_for_horver_modes(&cpi->common, mbmi, PLANE_TYPE_Y,
-#if CONFIG_SDP
-                                           bsize, xd->tree_type);
-#else
-                                           bsize);
-#endif
+      int signal_intra_filter = av1_signal_orip_for_horver_modes(
+          &cpi->common, mbmi, PLANE_TYPE_Y, bsize);
       if (!signal_intra_filter &&
           mbmi->angle_delta[PLANE_TYPE_Y] == ANGLE_DELTA_VALUE_ORIP)
         continue;

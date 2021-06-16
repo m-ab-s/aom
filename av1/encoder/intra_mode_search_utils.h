@@ -306,10 +306,12 @@ static AOM_INLINE int intra_mode_info_cost_y(const AV1_COMP *cpi,
   }
   if (av1_is_directional_mode(mbmi->mode)) {
     if (av1_use_angle_delta(bsize)) {
-#if CONFIG_SDP
 #if CONFIG_ORIP
       int signal_intra_filter = av1_signal_orip_for_horver_modes(
-          &cpi->common, mbmi, PLANE_TYPE_Y, bsize, xd->tree_type);
+          &cpi->common, mbmi, PLANE_TYPE_Y, bsize);
+#endif  // CONFIG_ORIP
+#if CONFIG_SDP
+#if CONFIG_ORIP
       if (signal_intra_filter)
         total_rate +=
             mode_costs
@@ -324,8 +326,6 @@ static AOM_INLINE int intra_mode_info_cost_y(const AV1_COMP *cpi,
                                          mbmi->angle_delta[PLANE_TYPE_Y]];
 #else
 #if CONFIG_ORIP
-      int signal_intra_filter = av1_signal_orip_for_horver_modes(
-          &cpi->common, mbmi, PLANE_TYPE_Y, bsize);
       if (signal_intra_filter)
         total_rate +=
             mode_costs->angle_delta_cost_hv[mbmi->mode -
@@ -461,37 +461,37 @@ static int64_t intra_model_yrd(const AV1_COMP *const cpi, MACROBLOCK *const x,
       cpi, bsize, x, xd, 0, 0, &this_rd_stats.rate, &this_rd_stats.dist,
       &this_rd_stats.skip_txfm, &temp_sse, NULL, NULL, NULL);
   if (av1_is_directional_mode(mbmi->mode) && av1_use_angle_delta(bsize)) {
+#if CONFIG_ORIP
+    int signal_intra_filter =
+        av1_signal_orip_for_horver_modes(cm, mbmi, PLANE_TYPE_Y, bsize);
+#endif  // CONFIG_ORIP
 #if CONFIG_SDP
 #if CONFIG_ORIP
-    int signal_intra_filter = av1_signal_orip_for_horver_modes(
-        cm, mbmi, PLANE_TYPE_Y, bsize, xd->tree_type);
     if (signal_intra_filter)
       mode_cost +=
           mode_costs->angle_delta_cost_hv[PLANE_TYPE_Y][mbmi->mode - V_PRED]
                                          [get_angle_delta_to_idx(
                                              mbmi->angle_delta[PLANE_TYPE_Y])];
     else
-#endif
+#endif  // CONFIG_ORIP
       mode_cost +=
           mode_costs->angle_delta_cost[PLANE_TYPE_Y][mbmi->mode - V_PRED]
                                       [MAX_ANGLE_DELTA +
                                        mbmi->angle_delta[PLANE_TYPE_Y]];
 #else
 #if CONFIG_ORIP
-    int signal_intra_filter =
-        av1_signal_orip_for_horver_modes(cm, mbmi, PLANE_TYPE_Y, bsize);
     if (signal_intra_filter)
       mode_cost +=
           mode_costs
               ->angle_delta_cost_hv[mbmi->mode - V_PRED][get_angle_delta_to_idx(
                   mbmi->angle_delta[PLANE_TYPE_Y])];
     else
-#endif
+#endif  // CONFIG_ORIP
       mode_cost +=
           mode_costs->angle_delta_cost[mbmi->mode - V_PRED]
                                       [MAX_ANGLE_DELTA +
                                        mbmi->angle_delta[PLANE_TYPE_Y]];
-#endif
+#endif  // CONFIG_SDP
   }
 
 #if CONFIG_SDP

@@ -2021,6 +2021,11 @@ void av1_predict_intra_block_facade(const AV1_COMMON *cm, MACROBLOCKD *xd,
           : FILTER_INTRA_MODES;
 
 #if CONFIG_ORIP
+#if CONFIG_SDP
+  const BLOCK_SIZE bsize = mbmi->sb_type[AOM_PLANE_Y];
+#else
+  const BLOCK_SIZE bsize = mbmi->sb_type;
+#endif
   const int angle_delta =
       cm->seq_params.enable_orip
           ? ((mbmi->angle_delta[plane != AOM_PLANE_Y] == ANGLE_DELTA_VALUE_ORIP)
@@ -2035,14 +2040,8 @@ void av1_predict_intra_block_facade(const AV1_COMMON *cm, MACROBLOCKD *xd,
           : 1;
   if (cm->seq_params.enable_orip) {
     int violate_orip = disable_intra_pred_filter_for_hor_ver_mode;
-#if CONFIG_SDP
     violate_orip &= !av1_signal_orip_for_horver_modes(
-        cm, mbmi, plane != AOM_PLANE_Y, mbmi->sb_type[PLANE_TYPE_Y],
-        xd->tree_type);
-#else
-    violate_orip &= !av1_signal_orip_for_horver_modes(
-        cm, mbmi, plane != AOM_PLANE_Y, mbmi->sb_type);
-#endif
+        cm, mbmi, plane != AOM_PLANE_Y, bsize);
     assert(violate_orip == 0);
   }
 

@@ -1877,14 +1877,7 @@ static void estimate_intra_mode(
     if (av1_is_directional_mode(this_mode) && av1_use_angle_delta(bsize)) {
 #if CONFIG_ORIP
       int signal_intra_filter =
-          av1_signal_orip_for_horver_modes(cm, mi, PLANE_TYPE_Y
-#if CONFIG_SDP
-                                           ,
-                                           bsize, xd->tree_type);
-#else
-                                           ,
-                                           bsize);
-#endif
+          av1_signal_orip_for_horver_modes(cm, mi, PLANE_TYPE_Y, bsize);
       if (signal_intra_filter) {
         mode_cost +=
 #if CONFIG_SDP
@@ -1899,7 +1892,7 @@ static void estimate_intra_mode(
 #endif
 
       } else {
-#endif
+#endif  // CONFIG_ORIP
         mode_cost +=
 #if CONFIG_SDP
             x->mode_costs.angle_delta_cost[PLANE_TYPE_Y][this_mode - V_PRED]
@@ -1910,7 +1903,7 @@ static void estimate_intra_mode(
                                            mi->angle_delta[PLANE_TYPE_Y]];
 #if CONFIG_ORIP
       }
-#endif
+#endif  // CONFIG_ORIP
     }
     if (this_mode == DC_PRED && av1_filter_intra_allowed_bsize(cm, bsize)) {
       mode_cost += x->mode_costs.filter_intra_cost[bsize][0];

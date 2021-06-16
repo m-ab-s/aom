@@ -1168,43 +1168,30 @@ static AOM_INLINE void write_intra_prediction_modes(AV1_COMP *cpi,
     if (use_angle_delta && av1_is_directional_mode(mode)) {
 #if CONFIG_ORIP
       int signal_intra_filter =
-          av1_signal_orip_for_horver_modes(cm, mbmi, PLANE_TYPE_Y
-#if CONFIG_SDP
-                                           ,
-                                           bsize, xd->tree_type);
-#else
-                                           ,
-                                           bsize);
-#endif
-#endif
-#if CONFIG_SDP
-#if CONFIG_ORIP
+          av1_signal_orip_for_horver_modes(cm, mbmi, PLANE_TYPE_Y, bsize);
       aom_cdf_prob *cdf_angle =
           signal_intra_filter
+#if CONFIG_SDP
               ? ec_ctx->angle_delta_cdf_hv[PLANE_TYPE_Y][mode - V_PRED]
               : ec_ctx->angle_delta_cdf[PLANE_TYPE_Y][mode - V_PRED];
 #else
-      write_angle_delta(w, mbmi->angle_delta[PLANE_TYPE_Y],
-                        ec_ctx->angle_delta_cdf[PLANE_TYPE_Y][mode - V_PRED]);
-#endif
-#else
-#if CONFIG_ORIP
-    aom_cdf_prob *cdf_angle = signal_intra_filter
-                                  ? ec_ctx->angle_delta_cdf_hv[mode - V_PRED]
-                                  : ec_ctx->angle_delta_cdf[mode - V_PRED];
-#else
-    write_angle_delta(w, mbmi->angle_delta[PLANE_TYPE_Y],
-                      ec_ctx->angle_delta_cdf[mode - V_PRED]);
-#endif
-#endif
-#if CONFIG_ORIP
+              ? ec_ctx->angle_delta_cdf_hv[mode - V_PRED]
+              : ec_ctx->angle_delta_cdf[mode - V_PRED];
+
+#endif  // CONFIG_SDP
       assert(mbmi->angle_delta[PLANE_TYPE_Y] >= -3 &&
              mbmi->angle_delta[PLANE_TYPE_Y] <= ANGLE_DELTA_VALUE_ORIP);
       if (signal_intra_filter)
         write_angle_delta_hv(w, mbmi->angle_delta[PLANE_TYPE_Y], cdf_angle);
       else
         write_angle_delta(w, mbmi->angle_delta[PLANE_TYPE_Y], cdf_angle);
-#endif
+#elif CONFIG_SDP
+    write_angle_delta(w, mbmi->angle_delta[PLANE_TYPE_Y],
+                      ec_ctx->angle_delta_cdf[PLANE_TYPE_Y][mode - V_PRED]);
+#else
+    write_angle_delta(w, mbmi->angle_delta[PLANE_TYPE_Y],
+                      ec_ctx->angle_delta_cdf[mode - V_PRED]);
+#endif  // CONFIG_ORIP
     }
 #if CONFIG_MRLS && !CONFIG_ORIP
     // Encoding reference line index
