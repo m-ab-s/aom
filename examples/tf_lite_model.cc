@@ -150,8 +150,14 @@ const unsigned char tf_lite_model_data[] = {
  * 1.) Check out a clean copy of tensorflow/ in a different directory. Pin to
  *     commit 18445b0e39b677a21c86b4cf3d2bcb823f27e3e2. Make sure you are
  *     in the root of the tensorflow/ directory.
- * 2.) Apply the following diff to
- *     tensorflow/lite/tools/gen_op_registration_main.cc:
+ * 2.) Save the diff (between the <pre>...</pre> tags below) into diff.txt.
+ *     This diff fixes an issue with the current binary's flag parsing,
+ *     which fails silently.
+ * 3.) Run:  patch tensorflow/lite/tools/gen_op_registration_main.cc diff.txt
+ * 4.) Run:  bazel build tensorflow/lite/tools/generate_op_registrations
+ * 5.) Run:  ./bazel-bin/tensorflow/lite/tools/generate_op_registrations \
+                 /path/to/model.tflite /path/to/output.cc
+ *     for appropriate paths to the input and output files.
    <pre>
 153,155c153,155
 <   std::string input_models;
@@ -177,16 +183,6 @@ const unsigned char tf_lite_model_data[] = {
 ---
 >   AddOpsFromModel(input_model, &builtin_ops, &custom_ops);
    </pre>
- * This diff fixes an issue with the current binary's flag parsing
- * library, which is failing silently.
- *
- * 3. Run "bazel build tensorflow/lite/tools/generate_op_registrations"
- * and then run:
-   <pre>
- ./bazel-bin/tensorflow/lite/tools/generate_op_registrations \
-    /path/to/model.tflite /path/to/output.cc
-   </pre>
- * For appropriate paths to the input and output files.
  */
 void RegisterSpecificOps(tflite::MutableOpResolver *resolver) {
   resolver->AddBuiltin(tflite::BuiltinOperator_FULLY_CONNECTED,
