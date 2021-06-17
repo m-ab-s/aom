@@ -273,6 +273,15 @@ void av1_build_inter_predictors(const AV1_COMMON *cm, MACROBLOCKD *xd,
                                 CalcSubpelParamsFunc calc_subpel_params_func);
 
 #if CONFIG_OPTFLOW_REFINEMENT
+// This parameter k=OPFL_DIST_RATIO_THR is used to prune MV refinement for the
+// case where d0 and d1 are very different. Assuming a = max(|d0|, |d1|) and
+// b = min(|d0|, |d1|), MV refinement will only be allowed only if a/b <= k.
+// If k is set to 0, refinement will always be enabled.
+// If k is set to 1, refinement will only be enabled when |d0|=|d1|.
+#define OPFL_DIST_RATIO_THR 0
+// Always assume d0 = d1 in optical flow refinement.
+#define OPFL_EQUAL_DIST_ASSUMED 0
+
 // Precision of refined MV returned, 0 being integer pel. For now, only 1/8 or
 // 1/16-pel can be used.
 #define MV_REFINE_PREC_BITS 4  // (1/16-pel)
@@ -310,7 +319,13 @@ static INLINE int is_opfl_refine_allowed(const AV1_COMMON *cm,
   const unsigned int cur_index = cm->cur_frame->order_hint;
   const RefCntBuffer *const ref0 = get_ref_frame_buf(cm, mbmi->ref_frame[0]);
   const RefCntBuffer *const ref1 = get_ref_frame_buf(cm, mbmi->ref_frame[1]);
-  return (ref0->order_hint >= cur_index) ^ (ref1->order_hint >= cur_index);
+  const int d0 = cur_index - ref0->order_hint;
+  const int d1 = cur_index - ref1->order_hint;
+  if (!((d0 <= 0) ^ (d1 <= 0))) return 0;
+
+  return OPFL_DIST_RATIO_THR == 0 ||
+         (AOMMAX(abs(d0), abs(d1)) <=
+          OPFL_DIST_RATIO_THR * AOMMIN(abs(d0), abs(d1)));
 }
 #endif  // CONFIG_OPTFLOW_REFINEMENT
 
