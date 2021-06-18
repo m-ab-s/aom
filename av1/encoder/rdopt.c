@@ -1368,17 +1368,18 @@ static int64_t handle_newmv(const AV1_COMP *const cpi, MACROBLOCK *const x,
       const MV ref_mv = av1_get_ref_mv(x, ref_idx).as_mv;
       int min_mv_diff = INT_MAX;
       int best_match = -1;
-      MV prev_ref_mv[2] = { { 0 } };
+      MV best_mv = { 0 };
       for (int idx = 0; idx < mbmi->ref_mv_idx; ++idx) {
-        prev_ref_mv[idx] = av1_get_ref_mv_from_stack(ref_idx, mbmi->ref_frame,
-                                                     idx, x->mbmi_ext)
-                               .as_mv;
-        const int ref_mv_diff = AOMMAX(abs(ref_mv.row - prev_ref_mv[idx].row),
-                                       abs(ref_mv.col - prev_ref_mv[idx].col));
+        MV prev_ref_mv = av1_get_ref_mv_from_stack(ref_idx, mbmi->ref_frame,
+                                                   idx, x->mbmi_ext)
+                             .as_mv;
+        const int ref_mv_diff = AOMMAX(abs(ref_mv.row - prev_ref_mv.row),
+                                       abs(ref_mv.col - prev_ref_mv.col));
 
         if (min_mv_diff > ref_mv_diff) {
           min_mv_diff = ref_mv_diff;
           best_match = idx;
+          best_mv = prev_ref_mv;
         }
       }
 
@@ -1387,9 +1388,9 @@ static int64_t handle_newmv(const AV1_COMP *const cpi, MACROBLOCK *const x,
           search_range = min_mv_diff;
           search_range +=
               AOMMAX(abs(args->single_newmv[best_match][refs[0]].as_mv.row -
-                         prev_ref_mv[best_match].row),
+                         best_mv.row),
                      abs(args->single_newmv[best_match][refs[0]].as_mv.col -
-                         prev_ref_mv[best_match].col));
+                         best_mv.col));
           // Get full pixel search range.
           search_range = (search_range + 4) >> 3;
         }
@@ -2443,8 +2444,8 @@ static int ref_mv_idx_to_search(AV1_COMP *const cpi, MACROBLOCK *x,
   int result = 0;
   for (int i = 0; i < ref_set; ++i) {
     if (mask_check_bit(good_indices, i) &&
-        (1.0 * idx_rdcost[i]) / idx_rdcost[best_idx] < dth &&
-        (1.0 * idx_rdcost[i]) / ref_best_rd < ref_dth) {
+        (1.0 * idx_rdcost[i]) < idx_rdcost[best_idx] * dth &&
+        (1.0 * idx_rdcost[i]) < ref_best_rd * ref_dth) {
       mask_set_bit(&result, i);
     }
   }
