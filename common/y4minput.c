@@ -221,26 +221,6 @@ static void y4m_42xmpeg2_42xjpeg_helper(unsigned char *_dst,
   }
 }
 
-/*Handles both 422 and 420mpeg2 to 422jpeg and 420jpeg, respectively.*/
-static void y4m_convert_42xmpeg2_42xjpeg(y4m_input *_y4m, unsigned char *_dst,
-                                         unsigned char *_aux) {
-  int c_w;
-  int c_h;
-  int c_sz;
-  int pli;
-  /*Skip past the luma data.*/
-  _dst += _y4m->pic_w * _y4m->pic_h;
-  /*Compute the size of each chroma plane.*/
-  c_w = (_y4m->pic_w + _y4m->dst_c_dec_h - 1) / _y4m->dst_c_dec_h;
-  c_h = (_y4m->pic_h + _y4m->dst_c_dec_v - 1) / _y4m->dst_c_dec_v;
-  c_sz = c_w * c_h;
-  for (pli = 1; pli < 3; pli++) {
-    y4m_42xmpeg2_42xjpeg_helper(_dst, _aux, c_w, c_h);
-    _dst += c_sz;
-    _aux += c_sz;
-  }
-}
-
 /*This format is only used for interlaced content, but is included for
    completeness.
 
@@ -841,7 +821,8 @@ int y4m_input_open(y4m_input *_y4m, FILE *_fin, char *_skip, int _nskip,
   _y4m->bps = 12;
   _y4m->bit_depth = 8;
   if (strcmp(_y4m->chroma_type, "420") == 0 ||
-      strcmp(_y4m->chroma_type, "420jpeg") == 0) {
+      strcmp(_y4m->chroma_type, "420jpeg") == 0 ||
+      strcmp(_y4m->chroma_type, "420mpeg2") == 0) {
     _y4m->src_c_dec_h = _y4m->dst_c_dec_h = _y4m->src_c_dec_v =
         _y4m->dst_c_dec_v = 2;
     _y4m->dst_buf_read_sz =
@@ -885,18 +866,6 @@ int y4m_input_open(y4m_input *_y4m, FILE *_fin, char *_skip, int _nskip,
     if (only_420) {
       fprintf(stderr, "Unsupported conversion from 420p12 to 420jpeg\n");
       return -1;
-    }
-  } else if (strcmp(_y4m->chroma_type, "420mpeg2") == 0) {
-    _y4m->src_c_dec_h = _y4m->dst_c_dec_h = _y4m->src_c_dec_v =
-        _y4m->dst_c_dec_v = 2;
-    _y4m->dst_buf_read_sz = _y4m->pic_w * _y4m->pic_h;
-    /*Chroma filter required: read into the aux buf first.*/
-    _y4m->aux_buf_sz = _y4m->aux_buf_read_sz =
-        2 * ((_y4m->pic_w + 1) / 2) * ((_y4m->pic_h + 1) / 2);
-    _y4m->convert = y4m_convert_null;
-    if (csp != AOM_CSP_VERTICAL) {
-      _y4m->convert = y4m_convert_42xmpeg2_42xjpeg;
-      snprintf(_y4m->chroma_type, sizeof(_y4m->chroma_type), "420");
     }
   } else if (strcmp(_y4m->chroma_type, "420paldv") == 0) {
     _y4m->src_c_dec_h = _y4m->dst_c_dec_h = _y4m->src_c_dec_v =
