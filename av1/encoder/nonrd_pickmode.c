@@ -2284,6 +2284,7 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
     }
 
     if (skip_this_mv) continue;
+    if (frame_mv[this_mode][ref_frame].as_int == INVALID_MV) continue;
 
     mi->mode = this_mode;
     mi->mv[0].as_int = frame_mv[this_mode][ref_frame].as_int;
