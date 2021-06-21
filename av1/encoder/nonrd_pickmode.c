@@ -271,7 +271,7 @@ static int combined_motion_search(AV1_COMP *cpi, MACROBLOCK *x,
  *                                        data for the current macroblock
  * \param[in]    frame_mv                 Array that holds MVs for all modes
  *                                        and ref frames
- * \param[in]    ref_frame                Reference freme for which to find
+ * \param[in]    ref_frame                Reference frame for which to find
  *                                        the best New MVs
  * \param[in]    gf_temporal_ref          Flag, indicating temporal reference
  *                                        for GOLDEN frame
@@ -331,6 +331,10 @@ static int search_new_mv(AV1_COMP *cpi, MACROBLOCK *x,
   } else if (!combined_motion_search(cpi, x, bsize, mi_row, mi_col,
                                      &frame_mv[NEWMV][ref_frame], rate_mv,
                                      best_rdc->rdcost, 0)) {
+    return -1;
+  }
+  if (av1_get_ref_mv(x, mi->ref_mv_idx).as_int ==
+      frame_mv[NEWMV][ref_frame].as_int) {
     return -1;
   }
 
@@ -2502,6 +2506,7 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
       }
     }
   }
+  assert(av1_check_newmv_joint_nonzero(cm, x));
 
 #if CONFIG_INTERNAL_STATS
   store_coding_context(x, ctx, mi->mode);
