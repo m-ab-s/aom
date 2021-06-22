@@ -18,6 +18,11 @@ extern "C" {
 
 #include <stdint.h>
 
+typedef struct {
+  double phi;
+  double theta;
+} SphereMV;
+
 /*!\brief Convert equirectangular coordinate to plane
  * \param[in]   phi     The latitude in radian. When phi passes polars,
  *                      theta will go to the other hemisphere (+ pi).
@@ -64,9 +69,28 @@ void av1_plane_to_sphere_erp(double x, double y, int width, int height,
  */
 void av1_get_pred_erp(int block_x, int block_y, int block_width,
                       int block_height, double delta_phi, double delta_theta,
-                      uint8_t *ref_frame, int ref_frame_stride, int frame_width,
-                      int frame_height, int pred_block_stride,
+                      const uint8_t *ref_frame, int ref_frame_stride,
+                      int frame_width, int frame_height, int pred_block_stride,
                       uint8_t *pred_block);
+
+/*!\brief Spherical motion search for one block in brute force mode
+ * \param[in]       block_x             Block's upper left corner X on the plane
+ * \param[in]       block_y             Block's upper left corner Y on the plane
+ * \param[in]       block_width         Width of the block
+ * \param[in]       block_height        Height of the block
+ * \param[in]       cur_frame           Current frame data
+ * \param[in]       ref_frame           Reference frame data
+ * \param[in]       frame_stride        Stride of frame data
+ * \param[in]       frame_width         Width of frame
+ * \param[in]       frame_height        Height of frame
+ * \param[in]       search_range        Range of search
+ * \param[out]      best_mv             Best spherical motion vector
+ * \return                              Best SAD
+ */
+int av1_motion_search_brute_force_erp(
+    int block_x, int block_y, int block_width, int block_height,
+    const uint8_t *cur_frame, const uint8_t *ref_frame, int frame_stride,
+    int frame_width, int frame_height, int search_range, SphereMV *best_mv);
 
 #ifdef __cplusplus
 }  // extern "C"

@@ -9,6 +9,7 @@
  * PATENTS file, you can obtain it at www.aomedia.org/license/patent.
  */
 
+#include <stdlib.h>
 #include <math.h>
 
 #include "av1/common/common.h"
@@ -61,8 +62,8 @@ void av1_plane_to_sphere_erp(double x, double y, int width, int height,
 
 void av1_get_pred_erp(int block_x, int block_y, int block_width,
                       int block_height, double delta_phi, double delta_theta,
-                      uint8_t *ref_frame, int ref_frame_stride, int frame_width,
-                      int frame_height, int pred_block_stride,
+                      const uint8_t *ref_frame, int ref_frame_stride,
+                      int frame_width, int frame_height, int pred_block_stride,
                       uint8_t *pred_block) {
   assert(ref_frame != NULL && frame_width > 0 && frame_height > 0 &&
          ref_frame_stride >= frame_width);
@@ -97,4 +98,81 @@ void av1_get_pred_erp(int block_x, int block_y, int block_width,
       pred_block[pos_pred] = ref_frame[pos_ref];
     }
   }
+}
+
+static int get_sad_of_blocks(const uint8_t *cur_block,
+                             const uint8_t *pred_block, int block_width,
+                             int block_height, int cur_block_stride,
+                             int pred_block_stride) {
+  assert(block_width > 0 && block_height > 0 && cur_block_stride >= 0 &&
+         pred_block_stride >= 0);
+  int pos_curr;
+  int pos_pred;
+  int ret_sad = 0;
+
+  for (int idx_y = 0; idx_y < block_height; idx_y++) {
+    for (int idx_x = 0; idx_x < block_width; idx_x++) {
+      pos_curr = idx_x + idx_y * cur_block_stride;
+      pos_pred = idx_x + idx_y * pred_block_stride;
+
+      ret_sad += abs((int)cur_block[pos_curr] - (int)pred_block[pos_pred]);
+    }
+  }
+
+  return ret_sad;
+}
+
+int av1_motion_search_brute_force_erp(
+    int block_x, int block_y, int block_width, int block_height,
+    const uint8_t *cur_frame, const uint8_t *ref_frame, int frame_stride,
+    int frame_width, int frame_height, int search_range, SphereMV *best_mv) {
+  assert(cur_frame != NULL && ref_frame != NULL && best_mv != NULL);
+  assert(block_width > 0 && block_height > 0 && block_width <= 128 &&
+         block_height <= 128 && block_x >= 0 && block_y >= 0 &&
+         frame_width > 0 && frame_height > 0);
+  assert(search_range > 0);
+
+  const double search_step_phi = PI / frame_height;
+  const double search_step_theta = 2 * PI / frame_width;
+
+  double delta_phi;
+  double delta_theta;
+  int temp_sad;
+  int best_sad;
+
+  const uint8_t *cur_block = &cur_frame[block_x + block_y * frame_stride];
+  uint8_t pred_block[128 * 128];
+  const int pred_block_stride = 128;
+
+  av1_get_pred_erp(block_x, block_y, block_width, block_height, 0, 0, ref_frame,
+                   frame_stride, frame_width, frame_height, pred_block_stride,
+                   pred_block);
+  best_sad = get_sad_of_blocks(cur_block, pred_block, block_width, block_height,
+                               frame_stride, pred_block_stride);
+  best_mv->phi = 0;
+  best_mv->theta = 0;
+
+  for (int i = -search_range; i <= search_range; i++) {
+    delta_phi = i * search_step_phi;
+
+    for (int j = -search_range; j <= search_range; j++) {
+      delta_theta = j * search_step_theta;
+
+      av1_get_pred_erp(block_x, block_y, block_width, block_height, delta_phi,
+                       delta_theta, ref_frame, frame_stride, frame_width,
+                       frame_height, pred_block_stride, pred_block);
+
+      temp_sad =
+          get_sad_of_blocks(cur_block, pred_block, block_width, block_height,
+                            frame_stride, pred_block_stride);
+
+      if (temp_sad < best_sad) {
+        best_sad = temp_sad;
+        best_mv->phi = delta_phi;
+        best_mv->theta = delta_theta;
+      }
+    }  // for j
+  }    // for i
+
+  return best_sad;
 }
