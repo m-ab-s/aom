@@ -49,10 +49,14 @@ Usage:
       <upsampling_ratio>
           in form <p>:<q>[:<c>] where <p>/<q> is the upsampling
           ratio with <p> greater than <q>.
-          <c> is optional compression level in [0, 1, 2]
+          <c> is optional compression level in [0 - 6]
               0: no compression (default)
-              1: light compression
-              2: heavy compression
+              1: light inter compression
+              2: medium inter compression
+              3: heavy inter compression
+              4: light intra compression
+              5: medium intra compression
+              6: heavy intra compression
       <y4m_output>
 
 Examples:
@@ -65,14 +69,14 @@ Examples:
   ./cnn_restore_y4m /tmp/my_downup.y4m 128 3:2:1 /tmp/my_downup_sr.y4m
 
     Restore 128 frames of /tmp/my_downup.y4m into /tmp/my_downup_sr.y4m assuming
-    the source was downsampled by 3:2, compressed lightly, upsampled by 3:2 to
-    get back to the original resolution.]
+    the source was downsampled by 3:2, compressed lightlyi in inter mode,
+    upsampled by 3:2 to get back to the original resolution.]
 
-  ./cnn_restore_y4m /tmp/my_downup.y4m 128 5:4:2 /tmp/my_downup_sr.y4m
+  ./cnn_restore_y4m /tmp/my_downup.y4m 128 5:4:6 /tmp/my_downup_sr.y4m
 
     Restore 128 frames of /tmp/my_downup.y4m into /tmp/my_downup_sr.y4m assuming
-    the source was downsampled by 5:4, compressed heavily, upsampled by 5:4 to
-    get back to the original resolution.]
+    the source was downsampled by 5:4, compressed heavily in intra mode,
+    upsampled by 5:4 to get back to the original resolution.]
 
 
 Note, the utility lanczos_resample_y4m built from source in tools/lanczos
