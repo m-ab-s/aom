@@ -3873,7 +3873,7 @@ int av1_txfm_search(const AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
   // Account for minimum skip and non_skip rd.
   // Eventually either one of them will be added to mode_rate
   const int64_t min_header_rd_possible = RDCOST(x->rdmult, min_header_rate, 0);
-  if (min_header_rd_possible > ref_best_rd) {
+  if (min_header_rd_possible >= ref_best_rd) {
     av1_invalid_rd_stats(rd_stats_y);
     return 0;
   }
