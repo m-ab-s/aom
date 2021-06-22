@@ -397,8 +397,8 @@ static INLINE void find_predictors(AV1_COMP *cpi, MACROBLOCK *x,
     av1_copy_usable_ref_mv_stack_and_weight(xd, mbmi_ext, ref_frame);
 #if CONFIG_NEW_INTER_MODES
     frame_mv[NEARMV][ref_frame] =
-        av1_find_best_ref_mv_from_stack(cm->features.allow_high_precision_mv,
-                                        mbmi_ext, ref_frame, /*is_integer=*/0);
+        av1_find_first_ref_mv_from_stack(cm->features.allow_high_precision_mv,
+                                         mbmi_ext, ref_frame, /*is_integer=*/0);
 #else
     av1_find_best_ref_mvs_from_stack(
         cm->features.allow_high_precision_mv, mbmi_ext, ref_frame,

@@ -289,6 +289,18 @@ int_mv av1_find_best_ref_mv_from_stack(int allow_hp,
   if (!found_ref_mv) mv.as_int = INVALID_MV;
   return mv;
 }
+
+int_mv av1_find_first_ref_mv_from_stack(int allow_hp,
+                                        const MB_MODE_INFO_EXT *mbmi_ext,
+                                        MV_REFERENCE_FRAME ref_frame,
+                                        int is_integer) {
+  int_mv mv;
+  const int ref_idx = 0;
+  MV_REFERENCE_FRAME ref_frames[2] = { ref_frame, NONE_FRAME };
+  mv = av1_get_ref_mv_from_stack(ref_idx, ref_frames, 0, mbmi_ext);
+  lower_mv_precision(&mv.as_mv, allow_hp, is_integer);
+  return mv;
+}
 #else
 void av1_find_best_ref_mvs_from_stack(int allow_hp,
                                       const MB_MODE_INFO_EXT *mbmi_ext,
