@@ -1233,6 +1233,9 @@ static void calculate_gf_length(AV1_COMP *cpi, int max_gop_length,
   if (has_no_stats_stage(cpi)) {
     for (i = 0; i < MAX_NUM_GF_INTERVALS; i++) {
       rc->gf_intervals[i] = AOMMIN(rc->max_gf_interval, max_gop_length);
+      if (cpi->oxcf.gf_cfg.lag_in_frames >= MIN_GF_INTERVAL)
+        rc->gf_intervals[i] =
+            AOMMIN(rc->gf_intervals[i], cpi->oxcf.gf_cfg.lag_in_frames);
       // When there exists a single subgop in a kf-interval, correct the
       // gf_interval appropriately.
       if (rc->gf_intervals[i] >= rc->frames_to_key && is_keyframe_subgop)
@@ -1280,7 +1283,8 @@ static void calculate_gf_length(AV1_COMP *cpi, int max_gop_length,
       break;
     }
 
-    if (i == (cpi->oxcf.gf_cfg.lag_in_frames - 1)) {
+    if (i == (cpi->oxcf.gf_cfg.lag_in_frames - 1) &&
+        (cpi->oxcf.gf_cfg.lag_in_frames >= MIN_GF_INTERVAL)) {
       // Enforce lag in frames
       cut_here = 1;
     } else if (i - cur_start >= rc->static_scene_max_gf_interval) {
