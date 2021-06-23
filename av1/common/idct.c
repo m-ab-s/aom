@@ -210,7 +210,7 @@ static void init_txfm_param(const MACROBLOCKD *xd, int plane, TX_SIZE tx_size,
       (plane == AOM_PLANE_Y) ? mbmi->mode : get_uv_mode(mbmi->uv_mode);
   if ((txfm_param->intra_mode < PAETH_PRED) &&
       !xd->lossless[mbmi->segment_id] &&
-      !(mbmi->filter_intra_mode_info.use_filter_intra) && xd->enable_ist) {
+      !(mbmi->filter_intra_mode_info.use_filter_intra)) {
     const int width = tx_size_wide[tx_size];
     const int height = tx_size_high[tx_size];
     const int sb_size = (width >= 8 && height >= 8) ? 8 : 4;

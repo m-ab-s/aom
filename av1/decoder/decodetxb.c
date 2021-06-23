@@ -260,7 +260,6 @@ uint8_t av1_read_coeffs_txb(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
 
 #if CONFIG_IST
   // read  sec_tx_type here
-  xd->enable_ist = cm->seq_params.enable_ist;
   // Only y plane's sec_tx_type is transmitted
   if ((plane == AOM_PLANE_Y) && (cm->seq_params.enable_ist)) {
     av1_read_sec_tx_type(cm, xd, blk_row, blk_col, tx_size, eob, r);
