@@ -13,11 +13,10 @@ __author__ = "maggie.sun@intel.com, ryanlei@fb.com"
 import os
 import platform
 import AV2CTCVideo
+from AV2CTCVideo import CTC_VERSION
 
 #TEST_CONFIGURATIONS = ["RA","LD", "AS"]
 TEST_CONFIGURATIONS = ["LD", "RA", "AI", "STILL"]
-
-CTC_VERSION = '1.0'
 
 ######################################
 # configuration settings
