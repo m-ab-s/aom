@@ -720,6 +720,11 @@ static AOM_INLINE void init_smooth_interintra_masks() {
 #define OPFL_BILINEAR_GRAD 0
 #define OPFL_BICUBIC_GRAD 0
 
+// Apply regularized least squares (RLS). The RLS parameter is bw * bh * 2^(b-4)
+// where b = OPFL_RLS_PARAM_BITS.
+#define OPFL_REGULARIZED_LS 0
+#define OPFL_RLS_PARAM_BITS 4
+
 // Combine computations of interpolated gradients and the least squares
 // solver. The basic idea is that, typically we would compute the following:
 // 1. d0, d1, P0 and P1
@@ -1121,6 +1126,11 @@ void av1_opfl_mv_refinement_lowbd(const uint8_t *p0, int pstride0,
     }
   }
   int bits = mv_prec_bits + grad_prec_bits;
+#if OPFL_REGULARIZED_LS
+  int rls_alpha = (bw * bh >> 4) << OPFL_RLS_PARAM_BITS;
+  su2 += rls_alpha;
+  sv2 += rls_alpha;
+#endif
   const int64_t D = su2 * sv2 - suv * suv;
   const int64_t Px = (suv * svw - sv2 * suw) * (1 << bits);
   const int64_t Py = (suv * suw - su2 * svw) * (1 << bits);
@@ -1162,6 +1172,11 @@ void av1_opfl_mv_refinement_highbd(const uint16_t *p0, int pstride0,
     }
   }
   int bits = mv_prec_bits + grad_prec_bits;
+#if OPFL_REGULARIZED_LS
+  int rls_alpha = (bw * bh >> 4) << OPFL_RLS_PARAM_BITS;
+  su2 += rls_alpha;
+  sv2 += rls_alpha;
+#endif
   const int64_t D = su2 * sv2 - suv * suv;
   const int64_t Px = (suv * svw - sv2 * suw) * (1 << bits);
   const int64_t Py = (suv * suw - su2 * svw) * (1 << bits);
@@ -1205,6 +1220,11 @@ void av1_opfl_mv_refinement_interp_grad(const int16_t *pdiff, int pstride0,
     }
   }
   int bits = mv_prec_bits + grad_prec_bits;
+#if OPFL_REGULARIZED_LS
+  int rls_alpha = (bw * bh >> 4) << OPFL_RLS_PARAM_BITS;
+  su2 += rls_alpha;
+  sv2 += rls_alpha;
+#endif
   const int64_t D = su2 * sv2 - suv * suv;
   const int64_t Px = (suv * svw - sv2 * suw) * (1 << bits);
   const int64_t Py = (suv * suw - su2 * svw) * (1 << bits);
