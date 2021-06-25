@@ -1269,7 +1269,6 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
   AV1_COMMON *const cm = &cpi->common;
   GF_GROUP *gf_group = &cpi->gf_group;
   ExternalFlags *const ext_flags = &cpi->ext_flags;
-  GFConfig *const gf_cfg = &oxcf->gf_cfg;
 
   EncodeFrameInput frame_input;
   EncodeFrameParams frame_params;
@@ -1296,14 +1295,6 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
     }
 #endif
     return -1;
-  }
-
-  // TODO(sarahparker) finish bit allocation for one pass pyramid
-  if (has_no_stats_stage(cpi)) {
-    gf_cfg->gf_max_pyr_height =
-        AOMMIN(gf_cfg->gf_max_pyr_height, USE_ALTREF_FOR_ONE_PASS);
-    gf_cfg->gf_min_pyr_height =
-        AOMMIN(gf_cfg->gf_min_pyr_height, gf_cfg->gf_max_pyr_height);
   }
 
   if (!is_stat_generation_stage(cpi)) {
@@ -1334,6 +1325,7 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
   }
 
 #if !CONFIG_REALTIME_ONLY
+  const GFConfig *const gf_cfg = &oxcf->gf_cfg;
   const int use_one_pass_rt_params = has_no_stats_stage(cpi) &&
                                      oxcf->mode == REALTIME &&
                                      gf_cfg->lag_in_frames == 0;

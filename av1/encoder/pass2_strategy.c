@@ -1483,7 +1483,9 @@ static void define_gf_group_pass0(AV1_COMP *cpi, FRAME_TYPE curr_frame_type) {
   rc->constrained_gf_group =
       (rc->baseline_gf_interval >= rc->frames_to_key) ? 1 : 0;
 
-  gf_group->max_layer_depth_allowed = oxcf->gf_cfg.gf_max_pyr_height;
+  // TODO(sarahparker): finish bit allocation for one pass pyramid.
+  gf_group->max_layer_depth_allowed =
+      AOMMIN(gf_cfg->gf_max_pyr_height, USE_ALTREF_FOR_ONE_PASS);
 
   // Rare case when the look-ahead is less than the target GOP length, can't
   // generate ARF frame.

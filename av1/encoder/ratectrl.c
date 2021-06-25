@@ -1084,11 +1084,11 @@ static int get_q_using_fixed_offsets(const AV1EncoderConfig *const oxcf,
              update_type == INTNL_ARF_UPDATE || update_type == LF_UPDATE ||
              update_type == KFFLT_UPDATE) {
     if (gf_group->layer_depth[gf_index] >=
-        gf_group->max_layer_depth_allowed + 1) {  // Leaf.
+        oxcf->gf_cfg.gf_max_pyr_height + 1) {  // Leaf.
       return qp;  // Directly Return worst quality allowed.
     }
-    offset_idx = AOMMIN(gf_group->layer_depth[gf_index],
-                        gf_group->max_layer_depth_allowed);
+    offset_idx =
+        AOMMIN(gf_group->layer_depth[gf_index], oxcf->gf_cfg.gf_max_pyr_height);
   } else {  // Overlay frame.
     assert(update_type == OVERLAY_UPDATE ||
            update_type == KFFLT_OVERLAY_UPDATE ||
