@@ -92,6 +92,26 @@ int av1_motion_search_brute_force_erp(
     const uint8_t *cur_frame, const uint8_t *ref_frame, int frame_stride,
     int frame_width, int frame_height, int search_range, SphereMV *best_mv);
 
+/*!\brief Spherical motion search for one block in diamond mode
+ * \param[in]       block_x             Block's upper left corner X on the plane
+ * \param[in]       block_y             Block's upper left corner Y on the plane
+ * \param[in]       block_width         Width of the block
+ * \param[in]       block_height        Height of the block
+ * \param[in]       cur_frame           Current frame data
+ * \param[in]       ref_frame           Reference frame data
+ * \param[in]       frame_stride        Stride of frame data
+ * \param[in]       frame_width         Width of frame
+ * \param[in]       frame_height        Height of frame
+ * \param[in]       search_range        Range of search in pixel
+ * \param[out]      best_mv             Best spherical motion vector
+ * \return                              Best SAD
+ */
+int av1_motion_search_diamond_erp(int block_x, int block_y, int block_width,
+                                  int block_height, const uint8_t *cur_frame,
+                                  const uint8_t *ref_frame, int frame_stride,
+                                  int frame_width, int frame_height,
+                                  int search_range, SphereMV *best_mv);
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif
