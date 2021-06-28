@@ -888,12 +888,9 @@ void av1_compute_subpel_gradients_mc_highbd(
   // 4/2^g = 2^(2-g) times the difference. Therefore the gradient returned
   // is at reduced precision by 2-g bits. That explains the grad_prec_bits
   // return value of g-2 at the end of this function.
-  for (int i = 0; i < bh; i++) {
-    for (int j = 0; j < bw; j++) {
-      x_grad[i * bw + j] =
-          (int16_t)tmp_buf2[i * bw + j] - (int16_t)tmp_buf1[i * bw + j];
-    }
-  }
+
+  aom_highbd_subtract_block(bh, bw, x_grad, bw, CONVERT_TO_BYTEPTR(tmp_buf2),
+                            bw, CONVERT_TO_BYTEPTR(tmp_buf1), bw, xd->bd);
 
   // Y gradient
   // Get predictor below
@@ -914,12 +911,9 @@ void av1_compute_subpel_gradients_mc_highbd(
   // 4/2^g = 2^(2-g) times the difference. Therefore the gradient returned
   // is at reduced precision by 2-g bits. That explains the grad_prec_bits
   // return value of g-2 at the end of this function.
-  for (int i = 0; i < bh; i++) {
-    for (int j = 0; j < bw; j++) {
-      y_grad[i * bw + j] =
-          (int16_t)tmp_buf2[i * bw + j] - (int16_t)tmp_buf1[i * bw + j];
-    }
-  }
+
+  aom_highbd_subtract_block(bh, bw, y_grad, bw, CONVERT_TO_BYTEPTR(tmp_buf2),
+                            bw, CONVERT_TO_BYTEPTR(tmp_buf1), bw, xd->bd);
 }
 
 // Note: grad_prec_bits param returned correspond to the precision
@@ -958,12 +952,8 @@ void av1_compute_subpel_gradients_mc_lowbd(
   // 4/2^g = 2^(2-g) times the difference. Therefore the gradient returned
   // is at reduced precision by 2-g bits. That explains the grad_prec_bits
   // return value of g-2 at the end of this function.
-  for (int i = 0; i < bh; i++) {
-    for (int j = 0; j < bw; j++) {
-      x_grad[i * bw + j] =
-          (int16_t)tmp_buf2[i * bw + j] - (int16_t)tmp_buf1[i * bw + j];
-    }
-  }
+
+  aom_subtract_block(bh, bw, x_grad, bw, tmp_buf2, bw, tmp_buf1, bw);
 
   // Y gradient
   // Get predictor below
@@ -984,12 +974,8 @@ void av1_compute_subpel_gradients_mc_lowbd(
   // 4/2^g = 2^(2-g) times the difference. Therefore the gradient returned
   // is at reduced precision by 2-g bits. That explains the grad_prec_bits
   // return value of g-2 at the end of this function.
-  for (int i = 0; i < bh; i++) {
-    for (int j = 0; j < bw; j++) {
-      y_grad[i * bw + j] =
-          (int16_t)tmp_buf2[i * bw + j] - (int16_t)tmp_buf1[i * bw + j];
-    }
-  }
+
+  aom_subtract_block(bh, bw, y_grad, bw, tmp_buf2, bw, tmp_buf1, bw);
 }
 
 #if OPFL_BILINEAR_GRAD || OPFL_BICUBIC_GRAD
@@ -1913,8 +1899,8 @@ static void build_inter_predictors_8x8_and_bigger(
 
   if (use_optflow_refinement && plane == 0) {
     // Allocate gradient and dst buffers
-    gx0 = aom_calloc(1, 2 * MAX_SB_SIZE * MAX_SB_SIZE * sizeof(*gx0));
-    gx1 = aom_calloc(1, 2 * MAX_SB_SIZE * MAX_SB_SIZE * sizeof(*gx1));
+    gx0 = aom_memalign(32, 2 * MAX_SB_SIZE * MAX_SB_SIZE * sizeof(*gx0));
+    gx1 = aom_memalign(32, 2 * MAX_SB_SIZE * MAX_SB_SIZE * sizeof(*gx1));
     gy0 = gx0 + (MAX_SB_SIZE * MAX_SB_SIZE);
     gy1 = gx1 + (MAX_SB_SIZE * MAX_SB_SIZE);
 

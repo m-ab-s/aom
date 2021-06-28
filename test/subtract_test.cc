@@ -47,7 +47,7 @@ TEST_P(AV1SubtractBlockTest, SimpleSubtract) {
     const int block_width = block_size_wide[bsize];
     const int block_height = block_size_high[bsize];
     int16_t *diff = reinterpret_cast<int16_t *>(
-        aom_memalign(16, sizeof(*diff) * block_width * block_height * 2));
+        aom_memalign(32, sizeof(*diff) * block_width * block_height * 2));
     uint8_t *pred = reinterpret_cast<uint8_t *>(
         aom_memalign(16, block_width * block_height * 2));
     uint8_t *src = reinterpret_cast<uint8_t *>(
@@ -97,6 +97,12 @@ INSTANTIATE_TEST_SUITE_P(C, AV1SubtractBlockTest,
 INSTANTIATE_TEST_SUITE_P(SSE2, AV1SubtractBlockTest,
                          ::testing::Values(aom_subtract_block_sse2));
 #endif
+
+#if HAVE_AVX2
+INSTANTIATE_TEST_SUITE_P(AVX2, AV1SubtractBlockTest,
+                         ::testing::Values(aom_subtract_block_avx2));
+#endif
+
 #if HAVE_NEON
 INSTANTIATE_TEST_SUITE_P(NEON, AV1SubtractBlockTest,
                          ::testing::Values(aom_subtract_block_neon));
