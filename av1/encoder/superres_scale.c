@@ -77,6 +77,7 @@ static uint8_t calculate_next_resize_scale(const AV1_COMP *cpi) {
   // Choose an arbitrary random number
   static unsigned int seed = 56789;
   const ResizeCfg *resize_cfg = &cpi->oxcf.resize_cfg;
+
   if (is_stat_generation_stage(cpi)) return SCALE_NUMERATOR;
   uint8_t new_denom = SCALE_NUMERATOR;
 
@@ -184,15 +185,29 @@ static uint8_t get_superres_denom_for_qindex(const AV1_COMP *cpi, int qindex,
   return denom;
 }
 
+#if CONFIG_EXT_SUPERRES
+// TODO(yuec): redesign the algorithm to return a valid option that is in the
+// new lookup table.
+static ScaleFactor calculate_next_superres_scale(AV1_COMP *cpi) {
+#else   // CONFIG_EXT_SUPERRES
 static uint8_t calculate_next_superres_scale(AV1_COMP *cpi) {
+#endif  // CONFIG_EXT_SUPERRES
   // Choose an arbitrary random number
   static unsigned int seed = 34567;
   const AV1EncoderConfig *oxcf = &cpi->oxcf;
   const SuperResCfg *const superres_cfg = &oxcf->superres_cfg;
   const FrameDimensionCfg *const frm_dim_cfg = &oxcf->frm_dim_cfg;
   const RateControlCfg *const rc_cfg = &oxcf->rc_cfg;
+#if CONFIG_EXT_SUPERRES
+  ScaleFactor factor = { SCALE_NUMERATOR, SCALE_NUMERATOR };
+#endif  // CONFIG_EXT_SUPERRES
 
-  if (is_stat_generation_stage(cpi)) return SCALE_NUMERATOR;
+  if (is_stat_generation_stage(cpi))
+#if CONFIG_EXT_SUPERRES
+    return factor;
+#else   // CONFIG_EXT_SUPERRES
+    return SCALE_NUMERATOR;
+#endif  // CONFIG_EXT_SUPERRES
   uint8_t new_denom = SCALE_NUMERATOR;
 
   // Make sure that superres mode of the frame is consistent with the
@@ -269,9 +284,27 @@ static uint8_t calculate_next_superres_scale(AV1_COMP *cpi) {
     }
     default: assert(0);
   }
+#if CONFIG_EXT_SUPERRES
+  factor.scale_denom = new_denom;
+  return factor;
+#else   // CONFIG_EXT_SUPERRES
   return new_denom;
+#endif  // CONFIG_EXT_SUPERRES
 }
 
+#if CONFIG_EXT_SUPERRES
+static int dimension_is_ok(int orig_dim, int resized_dim, int denom, int nom) {
+  return (resized_dim * nom >= orig_dim * denom / 2);
+}
+
+static int dimensions_are_ok(int owidth, int oheight, size_params_type *rsz) {
+  const uint8_t denom = rsz->superres_denom;
+  const uint8_t nom = rsz->superres_num;
+
+  return dimension_is_ok(owidth, rsz->resize_width, denom, nom) &&
+         dimension_is_ok(oheight, rsz->resize_height, denom, nom);
+}
+#else   // CONFIG_EXT_SUPERRES
 static int dimension_is_ok(int orig_dim, int resized_dim, int denom) {
   return (resized_dim * SCALE_NUMERATOR >= orig_dim * denom / 2);
 }
@@ -281,6 +314,7 @@ static int dimensions_are_ok(int owidth, int oheight, size_params_type *rsz) {
   (void)oheight;
   return dimension_is_ok(owidth, rsz->resize_width, rsz->superres_denom);
 }
+#endif  // CONFIG_EXT_SUPERRES
 
 static int validate_size_scales(RESIZE_MODE resize_mode,
                                 aom_superres_mode superres_mode, int owidth,
@@ -323,7 +357,12 @@ static int validate_size_scales(RESIZE_MODE resize_mode,
              superres_mode == AOM_SUPERRES_RANDOM) {
     // Alter both resize and superres scales as needed to enforce conformity.
     do {
+#if CONFIG_EXT_SUPERRES
+      if (resize_denom * rsz->superres_num >
+          rsz->superres_denom * SCALE_NUMERATOR)
+#else   // CONFIG_EXT_SUPERRES
       if (resize_denom > rsz->superres_denom)
+#endif  // CONFIG_EXT_SUPERRES
         --resize_denom;
       else
         --rsz->superres_denom;
@@ -333,7 +372,11 @@ static int validate_size_scales(RESIZE_MODE resize_mode,
                                 resize_denom);
     } while (!dimensions_are_ok(owidth, oheight, rsz) &&
              (resize_denom > SCALE_NUMERATOR ||
+#if CONFIG_EXT_SUPERRES
+              rsz->superres_denom > rsz->superres_num));
+#else       // CONFIG_EXT_SUPERRES
               rsz->superres_denom > SCALE_NUMERATOR));
+#endif      // CONFIG_EXT_SUPERRES
   } else {  // We are allowed to alter neither resize scale nor superres
             // scale.
     return 0;
@@ -346,8 +389,14 @@ static size_params_type calculate_next_size_params(AV1_COMP *cpi) {
   const AV1EncoderConfig *oxcf = &cpi->oxcf;
   ResizePendingParams *resize_pending_params = &cpi->resize_pending_params;
   const FrameDimensionCfg *const frm_dim_cfg = &oxcf->frm_dim_cfg;
+#if CONFIG_EXT_SUPERRES
+  size_params_type rsz = { frm_dim_cfg->width, frm_dim_cfg->height,
+                           SCALE_NUMERATOR, SCALE_NUMERATOR };
+  ScaleFactor factor;
+#else   // CONFIG_EXT_SUPERRES
   size_params_type rsz = { frm_dim_cfg->width, frm_dim_cfg->height,
                            SCALE_NUMERATOR };
+#endif  // CONFIG_EXT_SUPERRES
   int resize_denom = SCALE_NUMERATOR;
   if (has_no_stats_stage(cpi) && cpi->use_svc &&
       cpi->svc.spatial_layer_id < cpi->svc.number_spatial_layers - 1) {
@@ -368,7 +417,13 @@ static size_params_type calculate_next_size_params(AV1_COMP *cpi) {
     av1_calculate_scaled_size(&rsz.resize_width, &rsz.resize_height,
                               resize_denom);
   }
+#if CONFIG_EXT_SUPERRES
+  factor = calculate_next_superres_scale(cpi);
+  rsz.superres_denom = factor.scale_denom;
+  rsz.superres_num = factor.scale_num;
+#else   // CONFIG_EXT_SUPERRES
   rsz.superres_denom = calculate_next_superres_scale(cpi);
+#endif  // CONFIG_EXT_SUPERRES
   if (!validate_size_scales(oxcf->resize_cfg.resize_mode, cpi->superres_mode,
                             frm_dim_cfg->width, frm_dim_cfg->height, &rsz))
     assert(0 && "Invalid scale parameters");
@@ -384,8 +439,14 @@ static void setup_frame_size_from_params(AV1_COMP *cpi,
   cm->superres_upscaled_width = encode_width;
   cm->superres_upscaled_height = encode_height;
   cm->superres_scale_denominator = rsz->superres_denom;
+#if CONFIG_EXT_SUPERRES
+  cm->superres_scale_numerator = rsz->superres_num;
+  av1_calculate_scaled_superres_size(&encode_width, &encode_height,
+                                     rsz->superres_denom, rsz->superres_num);
+#else
   av1_calculate_scaled_superres_size(&encode_width, &encode_height,
                                      rsz->superres_denom);
+#endif
   av1_set_frame_size(cpi, encode_width, encode_height);
 }
 
@@ -393,7 +454,19 @@ void av1_setup_frame_size(AV1_COMP *cpi) {
   AV1_COMMON *cm = &cpi->common;
   // Reset superres params from previous frame.
   cm->superres_scale_denominator = SCALE_NUMERATOR;
+#if CONFIG_EXT_SUPERRES
+  cm->superres_scale_numerator = SCALE_NUMERATOR;
+#endif  // CONFIG_EXT_SUPERRES
   const size_params_type rsz = calculate_next_size_params(cpi);
+#if CONFIG_EXT_SUPERRES
+  // TODO(yuec): get the index from the decision made above once the new
+  // algorithm for selecting the scaling factor is completed.
+  cm->superres_scale_index = 0;
+  cm->superres_scale_denominator =
+      superres_scales[cm->superres_scale_index].scale_denom;
+  cm->superres_scale_numerator =
+      superres_scales[cm->superres_scale_index].scale_num;
+#endif  // CONFIG_EXT_SUPERRES
   setup_frame_size_from_params(cpi, &rsz);
 
   assert(av1_is_min_tile_width_satisfied(cm));

@@ -59,6 +59,9 @@
 #include "av1/common/tile_common.h"
 #include "av1/common/warped_motion.h"
 #include "av1/common/obmc.h"
+#if CONFIG_EXT_SUPERRES
+#include "av1/common/resize.h"
+#endif  // CONFIG_EXT_SUPERRES
 #include "av1/decoder/decodeframe.h"
 #include "av1/decoder/decodemv.h"
 #include "av1/decoder/decoder.h"
@@ -2013,6 +2016,17 @@ static AOM_INLINE void setup_superres(AV1_COMMON *const cm,
   if (!seq_params->enable_superres) return;
 
   if (aom_rb_read_bit(rb)) {
+#if CONFIG_EXT_SUPERRES
+    cm->superres_scale_index =
+        (uint8_t)aom_rb_read_literal(rb, SUPERRES_SCALE_BITS);
+    cm->superres_scale_denominator =
+        superres_scales[cm->superres_scale_index].scale_denom;
+    cm->superres_scale_numerator =
+        superres_scales[cm->superres_scale_index].scale_num;
+    av1_calculate_scaled_superres_size(width, height,
+                                       cm->superres_scale_denominator,
+                                       cm->superres_scale_numerator);
+#else   // CONFIG_EXT_SUPERRES
     cm->superres_scale_denominator =
         (uint8_t)aom_rb_read_literal(rb, SUPERRES_SCALE_BITS);
     cm->superres_scale_denominator += SUPERRES_SCALE_DENOMINATOR_MIN;
@@ -2020,9 +2034,13 @@ static AOM_INLINE void setup_superres(AV1_COMMON *const cm,
     // resized correctly
     av1_calculate_scaled_superres_size(width, height,
                                        cm->superres_scale_denominator);
+#endif  // CONFIG_EXT_SUPERRES
   } else {
     // 1:1 scaling - ie. no scaling, scale not provided
     cm->superres_scale_denominator = SCALE_NUMERATOR;
+#if CONFIG_EXT_SUPERRES
+    cm->superres_scale_numerator = SCALE_NUMERATOR;
+#endif  // CONFIG_EXT_SUPERRES
   }
 }
 

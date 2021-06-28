@@ -1348,6 +1348,38 @@ YV12_BUFFER_CONFIG *av1_scale_if_required(
   }
 }
 
+#if CONFIG_EXT_SUPERRES
+// Calculates the scaled dimension given the original dimension and the scale
+// denominator.
+static void calculate_scaled_size_helper(int *dim, int denom, int num) {
+  if (denom != num) {
+    // We need to ensure the constraint in "Appendix A" of the spec:
+    // * FrameWidth is greater than or equal to 16
+    // * FrameHeight is greater than or equal to 16
+    // For this, we clamp the downscaled dimension to at least 16. One
+    // exception: if original dimension itself was < 16, then we keep the
+    // downscaled dimension to be same as the original, to ensure that resizing
+    // is valid.
+    const int min_dim = AOMMIN(16, *dim);
+    // Use this version if we need *dim to be even
+    // *width = (*width * SCALE_NUMERATOR + denom) / (2 * denom);
+    // *width <<= 1;
+    *dim = (*dim * num + denom / 2) / (denom);
+    *dim = AOMMAX(*dim, min_dim);
+  }
+}
+
+void av1_calculate_scaled_size(int *width, int *height, int resize_denom) {
+  calculate_scaled_size_helper(width, resize_denom, SCALE_NUMERATOR);
+  calculate_scaled_size_helper(height, resize_denom, SCALE_NUMERATOR);
+}
+
+void av1_calculate_scaled_superres_size(int *width, int *height,
+                                        int superres_denom, int superres_num) {
+  calculate_scaled_size_helper(width, superres_denom, superres_num);
+  calculate_scaled_size_helper(height, superres_denom, superres_num);
+}
+#else   // CONFIG_EXT_SUPERRES
 // Calculates the scaled dimension given the original dimension and the scale
 // denominator.
 static void calculate_scaled_size_helper(int *dim, int denom) {
@@ -1378,6 +1410,7 @@ void av1_calculate_scaled_superres_size(int *width, int *height,
   (void)height;
   calculate_scaled_size_helper(width, superres_denom);
 }
+#endif  // CONFIG_EXT_SUPERRES
 
 void av1_calculate_unscaled_superres_size(int *width, int *height, int denom) {
   if (denom != SCALE_NUMERATOR) {

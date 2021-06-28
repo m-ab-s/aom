@@ -13,6 +13,7 @@
 #define AOM_AV1_ENCODER_SUPERRES_SCALE_H_
 
 #include "av1/encoder/encoder.h"
+#include "av1/common/resize.h"
 
 #ifdef __cplusplus
 extern "C" {
