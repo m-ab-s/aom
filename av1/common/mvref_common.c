@@ -73,7 +73,7 @@ void av1_copy_frame_mvs(const AV1_COMMON *const cm,
   }
 }
 
-#if CONFIG_NEW_REF_SIGNALING
+#if 0 && CONFIG_NEW_REF_SIGNALING
 static AOM_INLINE void add_ref_mv_candidate(
     const MB_MODE_INFO *const candidate, const MV_REFERENCE_FRAME_NRS rf[2],
     uint8_t *refmv_count, uint8_t *ref_match_count, uint8_t *newmv_count,
@@ -273,7 +273,7 @@ static AOM_INLINE void scan_row_mbmi(
       *processed_rows = inc - row_offset - 1;
     }
 
-#if CONFIG_NEW_REF_SIGNALING
+#if 0 && CONFIG_NEW_REF_SIGNALING
     add_ref_mv_candidate(candidate, rf, refmv_count, ref_match_count,
                          newmv_count, ref_mv_stack, ref_mv_weight,
                          gm_mv_candidates, cm->global_motion_nrs, len * weight);
@@ -346,7 +346,7 @@ static AOM_INLINE void scan_col_mbmi(
       *processed_cols = inc - col_offset - 1;
     }
 
-#if CONFIG_NEW_REF_SIGNALING
+#if 0 && CONFIG_NEW_REF_SIGNALING
     add_ref_mv_candidate(candidate, rf, refmv_count, ref_match_count,
                          newmv_count, ref_mv_stack, ref_mv_weight,
                          gm_mv_candidates, cm->global_motion_nrs, len * weight);
