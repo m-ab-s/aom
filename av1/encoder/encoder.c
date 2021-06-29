@@ -595,6 +595,9 @@ static void init_config(struct AV1_COMP *cpi, AV1EncoderConfig *oxcf) {
   av1_change_config(cpi, oxcf);
 
   cpi->common.ref_frame_flags = 0;
+#if CONFIG_NEW_REF_SIGNALING
+  cpi->common.ref_frame_flags_nrs = 0;
+#endif  // CONFIG_NEW_REF_SIGNALING
 
   // Reset resize pending flags
   resize_pending_params->width = 0;
@@ -3242,6 +3245,9 @@ int av1_encode(AV1_COMP *const cpi, uint8_t *const dest,
   cm->current_frame.frame_type = frame_params->frame_type;
   cm->show_frame = frame_params->show_frame;
   cpi->common.ref_frame_flags = frame_params->ref_frame_flags;
+#if CONFIG_NEW_REF_SIGNALING
+  cpi->common.ref_frame_flags_nrs = frame_params->ref_frame_flags_nrs;
+#endif  // CONFIG_NEW_REF_SIGNALING
   cpi->speed = frame_params->speed;
   cm->show_existing_frame = frame_params->show_existing_frame;
   cpi->existing_fb_idx_to_show = frame_params->existing_fb_idx_to_show;
