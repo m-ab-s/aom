@@ -889,11 +889,13 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
     // or append to it.
     av1_process_subgop_config_set(cpi->subgop_config_str,
                                   &cpi->subgop_config_set);
-    printf("Successfully processed %d subgop configs.\n",
-           cpi->subgop_config_set.num_configs);
-    // Print out the configuration. Note the printed configuration
-    // is in fact in the config file format that can be parsed back.
-    av1_print_subgop_config_set(&cpi->subgop_config_set);
+    if (cpi->print_per_frame_stats) {
+      printf("Successfully processed %d subgop configs.\n",
+             cpi->subgop_config_set.num_configs);
+      // Print out the configuration. Note the printed configuration
+      // is in fact in the config file format that can be parsed back.
+      av1_print_subgop_config_set(&cpi->subgop_config_set);
+    }
   }
 }
 
