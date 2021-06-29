@@ -104,7 +104,11 @@ static const SubgopTestParams SubGopTestVectors[] = {
   { subgop_config_str_preset_map[DEFAULT].preset_tag, "desktop1.320_180.yuv", 0,
     16, 320, 180, 5, 35, 0 },
   { subgop_config_str_preset_map[DEFAULT].preset_tag,
-    "pixel_capture_w320h240.yuv", 0, 16, 320, 240, 3, 35, 0 },
+    "pixel_capture_w320h240.yuv", 16, 16, 320, 240, 3, 35, 1 },
+  { subgop_config_str_preset_map[DEFAULT].preset_tag,
+    "hantro_collage_w352h288.yuv", 0, 32, 352, 288, 3, 35, 0 },
+  { subgop_config_str_preset_map[DEFAULT].preset_tag,
+    "pixel_capture_w320h240.yuv", 32, 32, 320, 240, 3, 35, 1 },
 
   // Enhanced subgop config
   { subgop_config_str_preset_map[ENHANCE].preset_tag, "niklas_640_480_30.yuv",
@@ -145,6 +149,10 @@ static const SubgopTestParams SubGopTestVectors[] = {
     0, 16, 352, 288, 5, 0, 0 },
   { subgop_config_str_preset_map[LOW_DELAY].preset_tag, "desktop1.320_180.yuv",
     16, 16, 320, 180, 3, 0, 1 },
+  { subgop_config_str_preset_map[LOW_DELAY].preset_tag, "paris_352_288_30.y4m",
+    0, 32, 352, 288, 5, 0, 0 },
+  { subgop_config_str_preset_map[LOW_DELAY].preset_tag, "desktop1.320_180.yuv",
+    32, 32, 320, 180, 3, 0, 1 },
 
   // Non-default subgop config
   { subgop_config_str_nondef[0], "pixel_capture_w320h240.yuv", 0, 4, 320, 240,
@@ -791,21 +799,38 @@ typedef struct {
   int frame_h;
   int cpu_used;
   int lag_in_frames;
+  int max_gf_interval;
 } SubGopSwitchTestParams;
+
+std::ostream &operator<<(std::ostream &os,
+                         const SubGopSwitchTestParams &test_arg) {
+  return os << "SubGopSwitchTestParams { sub_gop_config:" << test_arg.subgop_str
+            << " source_file:" << test_arg.input_file
+            << " frame_width:" << test_arg.frame_w
+            << " frame_height:" << test_arg.frame_h
+            << " cpu_used:" << test_arg.cpu_used
+            << " lag_in_frames:" << test_arg.lag_in_frames
+            << " max_gf_interval:" << test_arg.max_gf_interval << " }";
+}
 
 static const SubGopSwitchTestParams SubgopSwitchTestVectors[] = {
   { subgop_config_str_preset_map[DEFAULT].preset_tag, "niklas_640_480_30.yuv",
-    640, 480, 5, 35 },
+    640, 480, 5, 35, 16 },
+  /* TODO(sarahparker/debargha): Enable after adding default 32 subgop config.
+   { subgop_config_str_preset_map[DEFAULT].preset_tag, "niklas_640_480_30.yuv",
+    640, 480, 5, 35, 32 },*/
   { subgop_config_str_preset_map[ENHANCE].preset_tag, "desktop1.320_180.yuv",
-    320, 180, 3, 35 },
+    320, 180, 3, 35, 16 },
   { subgop_config_str_preset_map[ENHANCE].preset_tag,
-    "hantro_collage_w352h288.yuv", 352, 288, 5, 35 },
+    "hantro_collage_w352h288.yuv", 352, 288, 5, 35, 16 },
   { subgop_config_str_preset_map[ASYMMETRIC].preset_tag,
-    "pixel_capture_w320h240.yuv", 320, 240, 3, 35 },
+    "pixel_capture_w320h240.yuv", 320, 240, 3, 35, 16 },
   { subgop_config_str_preset_map[TEMPORAL_SCALABLE].preset_tag,
-    "paris_352_288_30.y4m", 352, 288, 3, 35 },
+    "paris_352_288_30.y4m", 352, 288, 3, 35, 16 },
   { subgop_config_str_preset_map[LOW_DELAY].preset_tag, "screendata.y4m", 640,
-    480, 5, 0 },
+    480, 5, 0, 16 },
+  { subgop_config_str_preset_map[LOW_DELAY].preset_tag, "screendata.y4m", 640,
+    480, 5, 0, 32 },
 };
 
 using libaom_test::ACMRandom;
@@ -855,7 +880,7 @@ class SubGopSwitchingTest
     // Switch between input sub-gop and no sub-gop config and configure the
     // encoder
     const char *subgop_str = last_subgop_str_ ? NULL : test_params_.subgop_str;
-    int max_gf_interval = 16;
+    int max_gf_interval = test_params_.max_gf_interval;
     // Get max gf interval for enh config
     if (subgop_str && !strcmp(subgop_str, "enh"))
       max_gf_interval = GetRandGFIntervalEnh();
