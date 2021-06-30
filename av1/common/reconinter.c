@@ -27,6 +27,39 @@
 #include "av1/common/reconinter.h"
 #include "av1/common/reconintra.h"
 
+#if CONFIG_OPTFLOW_REFINEMENT
+
+#define OPTFLOW_INTEGER_MULT_DIVIDE 1
+
+static INLINE int32_t divide_and_round_signed(int64_t P, int64_t D) {
+#if OPTFLOW_INTEGER_MULT_DIVIDE
+  if (llabs(D) == 1) return (int32_t)(D < 0 ? -P : P);
+  static const int optflow_prec_bits = 16;
+  int16_t shift;
+  const int signD = (D < 0 ? -1 : 1);
+  uint16_t iD = resolve_divisor_64(llabs(D), &shift);
+  shift -= optflow_prec_bits;
+  if (shift < 0) {
+    iD <<= (-shift);
+    shift = 0;
+  }
+  const int32_t v = (int32_t)ROUND_POWER_OF_TWO_SIGNED_64(
+      P * (int64_t)iD * signD, optflow_prec_bits + shift);
+#ifndef NDEBUG
+  int32_t v0 = (int32_t)DIVIDE_AND_ROUND_SIGNED(P, D);
+  if (abs(v0 - v) > 1 &&
+      abs(v0) <= 64) {  // check if error is at most 1 at usable values of v0
+    printf("Warning: D = %" PRId64 ", iD = %d, shift = %d, v0 = %d, v = %d\n",
+           D, iD, shift, v0, v);
+  }
+#endif  // NDEBUG
+#else
+  const int32_t v = (int32_t)DIVIDE_AND_ROUND_SIGNED(P, D);
+#endif  // OPTFLOW_INTEGER_MULT_DIVIDE
+  return v;
+}
+#endif  // CONFIG_OPTFLOW_REFINEMENT
+
 // This function will determine whether or not to create a warped
 // prediction.
 int av1_allow_warp(const MB_MODE_INFO *const mbmi,
@@ -1093,12 +1126,12 @@ void av1_opfl_mv_refinement_lowbd(const uint8_t *p0, int pstride0,
   const int64_t Py = (suv * suw - su2 * svw) * (1 << bits);
 
   if (D == 0) return;
-  *vx0 = (int)DIVIDE_AND_ROUND_SIGNED(Px, D);
-  *vy0 = (int)DIVIDE_AND_ROUND_SIGNED(Py, D);
+  *vx0 = (int)divide_and_round_signed(Px, D);
+  *vy0 = (int)divide_and_round_signed(Py, D);
   const int tx1 = (*vx0) * d1;
   const int ty1 = (*vy0) * d1;
-  *vx1 = (int)DIVIDE_AND_ROUND_SIGNED(tx1, d0);
-  *vy1 = (int)DIVIDE_AND_ROUND_SIGNED(ty1, d0);
+  *vx1 = (int)divide_and_round_signed(tx1, d0);
+  *vy1 = (int)divide_and_round_signed(ty1, d0);
 }
 
 void av1_opfl_mv_refinement_highbd(const uint16_t *p0, int pstride0,
@@ -1134,12 +1167,12 @@ void av1_opfl_mv_refinement_highbd(const uint16_t *p0, int pstride0,
   const int64_t Py = (suv * suw - su2 * svw) * (1 << bits);
 
   if (D == 0) return;
-  *vx0 = (int)DIVIDE_AND_ROUND_SIGNED(Px, D);
-  *vy0 = (int)DIVIDE_AND_ROUND_SIGNED(Py, D);
+  *vx0 = (int)divide_and_round_signed(Px, D);
+  *vy0 = (int)divide_and_round_signed(Py, D);
   const int tx1 = (*vx0) * d1;
   const int ty1 = (*vy0) * d1;
-  *vx1 = (int)DIVIDE_AND_ROUND_SIGNED(tx1, d0);
-  *vy1 = (int)DIVIDE_AND_ROUND_SIGNED(ty1, d0);
+  *vx1 = (int)divide_and_round_signed(tx1, d0);
+  *vy1 = (int)divide_and_round_signed(ty1, d0);
 }
 
 #if OPFL_COMBINE_INTERP_GRAD_LS
@@ -1177,12 +1210,12 @@ void av1_opfl_mv_refinement_interp_grad(const int16_t *pdiff, int pstride0,
   const int64_t Py = (suv * suw - su2 * svw) * (1 << bits);
 
   if (D == 0) return;
-  *vx0 = (int)DIVIDE_AND_ROUND_SIGNED(Px, D);
-  *vy0 = (int)DIVIDE_AND_ROUND_SIGNED(Py, D);
+  *vx0 = (int)divide_and_round_signed(Px, D);
+  *vy0 = (int)divide_and_round_signed(Py, D);
   const int tx1 = (*vx0) * d1;
   const int ty1 = (*vy0) * d1;
-  *vx1 = (int)DIVIDE_AND_ROUND_SIGNED(tx1, d0);
-  *vy1 = (int)DIVIDE_AND_ROUND_SIGNED(ty1, d0);
+  *vx1 = (int)divide_and_round_signed(tx1, d0);
+  *vy1 = (int)divide_and_round_signed(ty1, d0);
 }
 
 int opfl_mv_refinement_nxn_interp_grad(const int16_t *pdiff, int pstride,

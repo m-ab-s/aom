@@ -192,11 +192,7 @@ const int16_t av1_warped_filter[WARPEDPIXEL_PREC_SHIFTS * 3 + 1][8] = {
 
 /* clang-format on */
 
-#define DIV_LUT_PREC_BITS 14
-#define DIV_LUT_BITS 8
-#define DIV_LUT_NUM (1 << DIV_LUT_BITS)
-
-static const uint16_t div_lut[DIV_LUT_NUM + 1] = {
+const uint16_t div_lut[DIV_LUT_NUM + 1] = {
   16384, 16320, 16257, 16194, 16132, 16070, 16009, 15948, 15888, 15828, 15768,
   15709, 15650, 15592, 15534, 15477, 15420, 15364, 15308, 15252, 15197, 15142,
   15087, 15033, 14980, 14926, 14873, 14821, 14769, 14717, 14665, 14614, 14564,
@@ -242,41 +238,6 @@ static const int cosine_values[64] = {
   4029, 4026, 4023, 4020, 4018, 4015, 4012, 4009, 4006, 4003, 4000, 3997
 };
 #endif  // CONFIG_EXT_ROTATION
-
-// Decomposes a divisor D such that 1/D = y/2^shift, where y is returned
-// at precision of DIV_LUT_PREC_BITS along with the shift.
-static int16_t resolve_divisor_64(uint64_t D, int16_t *shift) {
-  int64_t f;
-  *shift = (int16_t)((D >> 32) ? get_msb((unsigned int)(D >> 32)) + 32
-                               : get_msb((unsigned int)D));
-  // e is obtained from D after resetting the most significant 1 bit.
-  const int64_t e = D - ((uint64_t)1 << *shift);
-  // Get the most significant DIV_LUT_BITS (8) bits of e into f
-  if (*shift > DIV_LUT_BITS)
-    f = ROUND_POWER_OF_TWO_64(e, *shift - DIV_LUT_BITS);
-  else
-    f = e << (DIV_LUT_BITS - *shift);
-  assert(f <= DIV_LUT_NUM);
-  *shift += DIV_LUT_PREC_BITS;
-  // Use f as lookup into the precomputed table of multipliers
-  return div_lut[f];
-}
-
-static int16_t resolve_divisor_32(uint32_t D, int16_t *shift) {
-  int32_t f;
-  *shift = get_msb(D);
-  // e is obtained from D after resetting the most significant 1 bit.
-  const int32_t e = D - ((uint32_t)1 << *shift);
-  // Get the most significant DIV_LUT_BITS (8) bits of e into f
-  if (*shift > DIV_LUT_BITS)
-    f = ROUND_POWER_OF_TWO(e, *shift - DIV_LUT_BITS);
-  else
-    f = e << (DIV_LUT_BITS - *shift);
-  assert(f <= DIV_LUT_NUM);
-  *shift += DIV_LUT_PREC_BITS;
-  // Use f as lookup into the precomputed table of multipliers
-  return div_lut[f];
-}
 
 static int is_affine_valid(const WarpedMotionParams *const wm) {
   const int32_t *mat = wm->wmmat;

@@ -37,6 +37,47 @@
 #define WARP_ERROR_BLOCK_LOG 5
 #define WARP_ERROR_BLOCK (1 << WARP_ERROR_BLOCK_LOG)
 
+#define DIV_LUT_PREC_BITS 14
+#define DIV_LUT_BITS 8
+#define DIV_LUT_NUM (1 << DIV_LUT_BITS)
+
+extern const uint16_t div_lut[DIV_LUT_NUM + 1];
+
+// Decomposes a divisor D such that 1/D = y/2^shift, where y is returned
+// at precision of DIV_LUT_PREC_BITS along with the shift.
+static INLINE int16_t resolve_divisor_64(uint64_t D, int16_t *shift) {
+  int64_t f;
+  *shift = (int16_t)((D >> 32) ? get_msb((unsigned int)(D >> 32)) + 32
+                               : get_msb((unsigned int)D));
+  // e is obtained from D after resetting the most significant 1 bit.
+  const int64_t e = D - ((uint64_t)1 << *shift);
+  // Get the most significant DIV_LUT_BITS (8) bits of e into f
+  if (*shift > DIV_LUT_BITS)
+    f = ROUND_POWER_OF_TWO_64(e, *shift - DIV_LUT_BITS);
+  else
+    f = e << (DIV_LUT_BITS - *shift);
+  assert(f <= DIV_LUT_NUM);
+  *shift += DIV_LUT_PREC_BITS;
+  // Use f as lookup into the precomputed table of multipliers
+  return div_lut[f];
+}
+
+static INLINE int16_t resolve_divisor_32(uint32_t D, int16_t *shift) {
+  int32_t f;
+  *shift = get_msb(D);
+  // e is obtained from D after resetting the most significant 1 bit.
+  const int32_t e = D - ((uint32_t)1 << *shift);
+  // Get the most significant DIV_LUT_BITS (8) bits of e into f
+  if (*shift > DIV_LUT_BITS)
+    f = ROUND_POWER_OF_TWO(e, *shift - DIV_LUT_BITS);
+  else
+    f = e << (DIV_LUT_BITS - *shift);
+  assert(f <= DIV_LUT_NUM);
+  *shift += DIV_LUT_PREC_BITS;
+  // Use f as lookup into the precomputed table of multipliers
+  return div_lut[f];
+}
+
 extern const int16_t av1_warped_filter[WARPEDPIXEL_PREC_SHIFTS * 3 + 1][8];
 
 DECLARE_ALIGNED(8, extern const int8_t,
