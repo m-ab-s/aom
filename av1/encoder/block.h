@@ -644,6 +644,11 @@ typedef struct {
   int mrl_index_cost[MRL_LINE_NUMBER];
 #endif
 
+#if CONFIG_IST
+  //! Cost of signaling secondary transform index
+  int stx_flag_cost[TX_SIZES][STX_TYPES];
+#endif
+
   //! Rate rate associated with each alpha codeword
   int cfl_cost[CFL_JOINT_SIGNS][CFL_PRED_PLANES][CFL_ALPHABET_SIZE];
   /**@}*/
@@ -654,10 +659,6 @@ typedef struct {
   /**@{*/
   //! intrabc_cost
   int intrabc_cost[2];
-
-#if CONFIG_IST
-  int stx_flag_cost[TX_SIZES][STX_TYPES];
-#endif
 
   //! palette_y_size_cost
   int palette_y_size_cost[PALATTE_BSIZE_CTXS][PALETTE_SIZES];
