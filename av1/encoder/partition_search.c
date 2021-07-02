@@ -1357,7 +1357,7 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
     if (has_second_ref(mbmi)) {
 #if CONFIG_OPTFLOW_REFINEMENT
       int use_of = 0;
-      if (!has_one_sided_refs(cm, mbmi)) {
+      if (is_opfl_refine_allowed(cm, mbmi)) {
         use_of = mode > NEW_NEWMV;
 #if CONFIG_ENTROPY_STATS
         ++counts->use_optflow[mode_ctx][use_of];

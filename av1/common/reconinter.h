@@ -304,13 +304,13 @@ void av1_opfl_mv_refinement4_highbd(const uint16_t *p0, int pstride0,
                                     int gstride, int bw, int bh, int d0, int d1,
                                     int grad_prec_bits, int mv_prec_bits,
                                     int *vx0, int *vy0, int *vx1, int *vy1);
-static INLINE int has_one_sided_refs(const AV1_COMMON *cm,
-                                     const MB_MODE_INFO *mbmi) {
+static INLINE int is_opfl_refine_allowed(const AV1_COMMON *cm,
+                                         const MB_MODE_INFO *mbmi) {
   if (!mbmi->ref_frame[1]) return 0;
   const unsigned int cur_index = cm->cur_frame->order_hint;
   const RefCntBuffer *const ref0 = get_ref_frame_buf(cm, mbmi->ref_frame[0]);
   const RefCntBuffer *const ref1 = get_ref_frame_buf(cm, mbmi->ref_frame[1]);
-  return !((ref0->order_hint >= cur_index) ^ (ref1->order_hint >= cur_index));
+  return (ref0->order_hint >= cur_index) ^ (ref1->order_hint >= cur_index);
 }
 #endif  // CONFIG_OPTFLOW_REFINEMENT
 

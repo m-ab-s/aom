@@ -1970,7 +1970,7 @@ static void build_inter_predictors_8x8_and_bigger(
 
 #if CONFIG_OPTFLOW_REFINEMENT
   const int use_optflow_refinement =
-      (mi->mode > NEW_NEWMV) && is_compound && !has_one_sided_refs(cm, mi);
+      (mi->mode > NEW_NEWMV) && is_compound && is_opfl_refine_allowed(cm, mi);
   assert(IMPLIES(use_optflow_refinement, !build_for_obmc));
 #if CONFIG_REMOVE_DUAL_FILTER
   assert(IMPLIES(use_optflow_refinement, mi->interp_fltr == MULTITAP_SHARP));

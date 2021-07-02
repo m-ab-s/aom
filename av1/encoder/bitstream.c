@@ -195,7 +195,7 @@ static AOM_INLINE void write_inter_compound_mode(MACROBLOCKD *xd, aom_writer *w,
   assert(is_inter_compound_mode(mode));
 #if CONFIG_OPTFLOW_REFINEMENT
   int use_of = 0;
-  if (!has_one_sided_refs(cm, mbmi)) {
+  if (is_opfl_refine_allowed(cm, mbmi)) {
     use_of = mode > NEW_NEWMV;
     aom_write_symbol(w, use_of, xd->tile_ctx->use_optflow_cdf[mode_ctx], 2);
   }
