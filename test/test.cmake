@@ -100,6 +100,7 @@ if(NOT BUILD_SHARED_LIBS)
               "${AOM_ROOT}/test/intrabc_test.cc"
               "${AOM_ROOT}/test/intrapred_test.cc"
               "${AOM_ROOT}/test/lpf_test.cc"
+              "${AOM_ROOT}/test/opt_flow_test.cc"
               "${AOM_ROOT}/test/scan_test.cc"
               "${AOM_ROOT}/test/selfguided_filter_test.cc"
               "${AOM_ROOT}/test/simd_cmp_impl.h"

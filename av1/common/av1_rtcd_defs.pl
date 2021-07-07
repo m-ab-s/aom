@@ -109,6 +109,12 @@ specialize qw/av1_dr_prediction_z3 avx2 neon/;
 add_proto qw/void av1_filter_intra_predictor/, "uint8_t *dst, ptrdiff_t stride, TX_SIZE tx_size, const uint8_t *above, const uint8_t *left, int mode";
 specialize qw/av1_filter_intra_predictor sse4_1 neon/;
 
+# optical flow interpolation function
+if (aom_config("CONFIG_OPTFLOW_REFINEMENT") eq "yes") {
+  add_proto qw/void av1_bicubic_grad_interpolation/, "const int16_t *pred_src,int16_t *x_grad,int16_t *y_grad,const int blk_width,const int blk_height";
+  specialize qw/av1_bicubic_grad_interpolation sse4_1/;
+}
+
 # High bitdepth functions
 
 #

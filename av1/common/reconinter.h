@@ -130,6 +130,52 @@ typedef struct InterPredParams {
   int is_intrabc;
 } InterPredParams;
 
+#if CONFIG_OPTFLOW_REFINEMENT
+
+// Apply bilinear and bicubic interpolation for subpel gradient to avoid
+// calls of build_one_inter_predictor function. Bicubic interpolation
+// brings better quality but the speed results are neutral. As such, bilinear
+// interpolation is used by default for a better trade-off between quality
+// and complexity.
+#define OPFL_BILINEAR_GRAD 0
+#define OPFL_BICUBIC_GRAD 0
+
+// Use downsampled gradient arrays to compute MV offsets
+#define OPFL_DOWNSAMP_QUINCUNX 0
+
+// Delta to use for computing gradients in bits, with 0 referring to
+// integer-pel. The actual delta value used from the 1/8-pel original MVs
+// is 2^(3 - SUBPEL_GRAD_DELTA_BITS). The max value of this macro is 3.
+#define SUBPEL_GRAD_DELTA_BITS 3
+
+// Bilinear and bicubic coefficients. Note that, at boundary, we apply
+// coefficients that are doubled because spatial distance between the two
+// interpolated pixels is halved. In other words, instead of computing
+//   coeff * (v[delta] - v[-delta]) / (2 * delta),
+// we are practically computing
+//   coeff * (v[delta] - v[0]) / (2 * delta).
+// Thus, coeff is doubled to get a better gradient quality.
+#if OPFL_BILINEAR_GRAD
+static const int bilinear_bits = 3;
+static const int32_t coeffs_bilinear[4][2] = {
+  { 8, 16 },  // delta = 1 (SUBPEL_GRAD_DELTA_BITS = 0)
+  { 4, 8 },   // delta = 0.5 (SUBPEL_GRAD_DELTA_BITS = 1)
+  { 2, 4 },   // delta = 0.25 (SUBPEL_GRAD_DELTA_BITS = 2)
+  { 1, 2 },   // delta = 0.125 (SUBPEL_GRAD_DELTA_BITS = 3)
+};
+#endif
+
+#if OPFL_BICUBIC_GRAD
+static const int bicubic_bits = 7;
+static const int32_t coeffs_bicubic[4][2][2] = {
+  { { 128, 256 }, { 0, 0 } },    // delta = 1 (SUBPEL_GRAD_DELTA_BITS = 0)
+  { { 80, 160 }, { -8, -16 } },  // delta = 0.5 (SUBPEL_GRAD_DELTA_BITS = 1)
+  { { 42, 84 }, { -5, -10 } },   // delta = 0.25 (SUBPEL_GRAD_DELTA_BITS = 2)
+  { { 21, 42 }, { -3, -6 } },    // delta = 0.125 (SUBPEL_GRAD_DELTA_BITS = 3)
+};
+#endif
+#endif  // CONFIG_OPTFLOW_REFINEMENT
+
 void av1_init_inter_params(InterPredParams *inter_pred_params, int block_width,
                            int block_height, int pix_row, int pix_col,
                            int subsampling_x, int subsampling_y, int bit_depth,

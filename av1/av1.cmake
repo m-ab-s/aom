@@ -299,6 +299,7 @@ list(APPEND AOM_AV1_COMMON_INTRIN_SSE4_1
             "${AOM_ROOT}/av1/common/x86/highbd_jnt_convolve_sse4.c"
             "${AOM_ROOT}/av1/common/x86/highbd_warp_plane_sse4.c"
             "${AOM_ROOT}/av1/common/x86/intra_edge_sse4.c"
+            "${AOM_ROOT}/av1/common/x86/optflow_refine_sse4.c"
             "${AOM_ROOT}/av1/common/x86/reconinter_sse4.c"
             "${AOM_ROOT}/av1/common/x86/selfguided_sse4.c"
             "${AOM_ROOT}/av1/common/x86/warp_plane_sse4.c")
