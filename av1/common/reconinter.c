@@ -27,39 +27,6 @@
 #include "av1/common/reconinter.h"
 #include "av1/common/reconintra.h"
 
-#if CONFIG_OPTFLOW_REFINEMENT
-
-#define OPTFLOW_INTEGER_MULT_DIVIDE 1
-
-static INLINE int32_t divide_and_round_signed(int64_t P, int64_t D) {
-#if OPTFLOW_INTEGER_MULT_DIVIDE
-  if (llabs(D) == 1) return (int32_t)(D < 0 ? -P : P);
-  static const int optflow_prec_bits = 16;
-  int16_t shift;
-  const int signD = (D < 0 ? -1 : 1);
-  uint16_t iD = resolve_divisor_64(llabs(D), &shift);
-  shift -= optflow_prec_bits;
-  if (shift < 0) {
-    iD <<= (-shift);
-    shift = 0;
-  }
-  const int32_t v = (int32_t)ROUND_POWER_OF_TWO_SIGNED_64(
-      P * (int64_t)iD * signD, optflow_prec_bits + shift);
-#ifndef NDEBUG
-  int32_t v0 = (int32_t)DIVIDE_AND_ROUND_SIGNED(P, D);
-  if (abs(v0 - v) > 1 &&
-      abs(v0) <= 64) {  // check if error is at most 1 at usable values of v0
-    printf("Warning: D = %" PRId64 ", iD = %d, shift = %d, v0 = %d, v = %d\n",
-           D, iD, shift, v0, v);
-  }
-#endif  // NDEBUG
-#else
-  const int32_t v = (int32_t)DIVIDE_AND_ROUND_SIGNED(P, D);
-#endif  // OPTFLOW_INTEGER_MULT_DIVIDE
-  return v;
-}
-#endif  // CONFIG_OPTFLOW_REFINEMENT
-
 // This function will determine whether or not to create a warped
 // prediction.
 int av1_allow_warp(const MB_MODE_INFO *const mbmi,
@@ -714,11 +681,6 @@ static AOM_INLINE void init_smooth_interintra_masks() {
 #define OPFL_CLAMP_MV_DELTA 1
 #define OPFL_MV_DELTA_LIMIT (1 << MV_REFINE_PREC_BITS)
 
-// Apply regularized least squares (RLS). The RLS parameter is bw * bh * 2^(b-4)
-// where b = OPFL_RLS_PARAM_BITS.
-#define OPFL_REGULARIZED_LS 0
-#define OPFL_RLS_PARAM_BITS 4
-
 // Combine computations of interpolated gradients and the least squares
 // solver. The basic idea is that, typically we would compute the following:
 // 1. d0, d1, P0 and P1
@@ -1101,13 +1063,6 @@ void av1_compute_subpel_gradients_interp(int16_t *pred_dst, int bw, int bh,
 // max_prec_bits: maximum offset in bits
 // vx0, vy0: output high resolution mv offset for p0
 // vx1, vy1: output high resolution mv offset for p1
-
-// Number of bits allowed for covariance matrix elements (su2, sv2, suv, suw
-// and svw) so that D, Px, and Py does not cause overflow issue in int64_t.
-// Its value must be <= (64 - mv_prec_bits - grad_prec_bits) / 2.
-#define OPFL_COV_CLAMP_BITS 30
-#define OPFL_COV_CLAMP_VAL (1 << OPFL_COV_CLAMP_BITS)
-
 void av1_opfl_mv_refinement_lowbd(const uint8_t *p0, int pstride0,
                                   const uint8_t *p1, int pstride1,
                                   const int16_t *gx0, const int16_t *gy0,
@@ -1331,13 +1286,14 @@ int opfl_mv_refinement_nxn_interp_grad(const int16_t *pdiff, int pstride,
 #endif  // OPFL_COMBINE_INTERP_GRAD_LS
 
 // Function to compute optical flow offsets in nxn blocks
-int opfl_mv_refinement_nxn_highbd(const uint16_t *p0, int pstride0,
-                                  const uint16_t *p1, int pstride1,
-                                  const int16_t *gx0, const int16_t *gy0,
-                                  const int16_t *gx1, const int16_t *gy1,
-                                  int gstride, int bw, int bh, int n, int d0,
-                                  int d1, int grad_prec_bits, int mv_prec_bits,
-                                  int *vx0, int *vy0, int *vx1, int *vy1) {
+int opfl_mv_refinement_nxn_highbd_c(const uint16_t *p0, int pstride0,
+                                    const uint16_t *p1, int pstride1,
+                                    const int16_t *gx0, const int16_t *gy0,
+                                    const int16_t *gx1, const int16_t *gy1,
+                                    int gstride, int bw, int bh, int n, int d0,
+                                    int d1, int grad_prec_bits,
+                                    int mv_prec_bits, int *vx0, int *vy0,
+                                    int *vx1, int *vy1) {
   assert(bw % n == 0 && bh % n == 0);
   int n_blocks = 0;
   for (int i = 0; i < bh; i += n) {
@@ -1355,13 +1311,13 @@ int opfl_mv_refinement_nxn_highbd(const uint16_t *p0, int pstride0,
 }
 
 // Function to compute optical flow offsets in nxn blocks
-int opfl_mv_refinement_nxn_lowbd(const uint8_t *p0, int pstride0,
-                                 const uint8_t *p1, int pstride1,
-                                 const int16_t *gx0, const int16_t *gy0,
-                                 const int16_t *gx1, const int16_t *gy1,
-                                 int gstride, int bw, int bh, int n, int d0,
-                                 int d1, int grad_prec_bits, int mv_prec_bits,
-                                 int *vx0, int *vy0, int *vx1, int *vy1) {
+int opfl_mv_refinement_nxn_lowbd_c(const uint8_t *p0, int pstride0,
+                                   const uint8_t *p1, int pstride1,
+                                   const int16_t *gx0, const int16_t *gy0,
+                                   const int16_t *gx1, const int16_t *gy1,
+                                   int gstride, int bw, int bh, int n, int d0,
+                                   int d1, int grad_prec_bits, int mv_prec_bits,
+                                   int *vx0, int *vy0, int *vx1, int *vy1) {
   assert(bw % n == 0 && bh % n == 0);
   int n_blocks = 0;
   for (int i = 0; i < bh; i += n) {
@@ -1466,10 +1422,15 @@ static int get_optflow_based_mv_highbd(
   av1_compute_subpel_gradients_interp(tmp, bw, bh, &grad_prec_bits, gx1, gy1,
                                       is_cur_buf_hbd(xd));
 
+#if OPFL_DOWNSAMP_QUINCUNX
+  n_blocks = opfl_mv_refinement_nxn_highbd_c(
+      dst0, bw, dst1, bw, gx0, gy0, gx1, gy1, bw, bw, bh, n, d0, d1,
+      grad_prec_bits, target_prec, vx0, vy0, vx1, vy1);
+#else
   n_blocks = opfl_mv_refinement_nxn_highbd(
       dst0, bw, dst1, bw, gx0, gy0, gx1, gy1, bw, bw, bh, n, d0, d1,
       grad_prec_bits, target_prec, vx0, vy0, vx1, vy1);
-
+#endif
   aom_free(tmp);
 #endif  // OPFL_COMBINE_INTERP_GRAD_LS
 #else
@@ -1480,10 +1441,15 @@ static int get_optflow_based_mv_highbd(
   av1_compute_subpel_gradients_mc_highbd(xd, mbmi, bw, bh, mi_x, mi_y, mc_buf,
                                          &params1, calc_subpel_params_func, 1,
                                          &grad_prec_bits, gx1, gy1);
-
+#if OPFL_DOWNSAMP_QUINCUNX
+  n_blocks = opfl_mv_refinement_nxn_highbd_c(
+      dst0, bw, dst1, bw, gx0, gy0, gx1, gy1, bw, bw, bh, n, d0, d1,
+      grad_prec_bits, target_prec, vx0, vy0, vx1, vy1);
+#else
   n_blocks = opfl_mv_refinement_nxn_highbd(
       dst0, bw, dst1, bw, gx0, gy0, gx1, gy1, bw, bw, bh, n, d0, d1,
       grad_prec_bits, target_prec, vx0, vy0, vx1, vy1);
+#endif
 #endif  // OPFL_BILINEAR_GRAD || OPFL_BICUBIC_GRAD
 
   for (int i = 0; i < n_blocks; i++) {
@@ -1592,10 +1558,15 @@ static int get_optflow_based_mv_lowbd(
   av1_compute_subpel_gradients_interp(tmp, bw, bh, &grad_prec_bits, gx1, gy1,
                                       is_cur_buf_hbd(xd));
 
+#if (OPFL_DOWNSAMP_QUINCUNX || OPFL_EQUAL_DIST_ASSUMED)
+  n_blocks = opfl_mv_refinement_nxn_lowbd_c(
+      dst0, bw, dst1, bw, gx0, gy0, gx1, gy1, bw, bw, bh, n, d0, d1,
+      grad_prec_bits, target_prec, vx0, vy0, vx1, vy1);
+#else
   n_blocks = opfl_mv_refinement_nxn_lowbd(
       dst0, bw, dst1, bw, gx0, gy0, gx1, gy1, bw, bw, bh, n, d0, d1,
       grad_prec_bits, target_prec, vx0, vy0, vx1, vy1);
-
+#endif
   aom_free(tmp);
 #endif  // OPFL_COMBINE_INTERP_GRAD_LS
 #else
@@ -1606,10 +1577,15 @@ static int get_optflow_based_mv_lowbd(
   av1_compute_subpel_gradients_mc_lowbd(xd, mbmi, bw, bh, mi_x, mi_y, mc_buf,
                                         &params1, calc_subpel_params_func, 1,
                                         &grad_prec_bits, gx1, gy1);
-
+#if (OPFL_DOWNSAMP_QUINCUNX || OPFL_EQUAL_DIST_ASSUMED)
+  n_blocks = opfl_mv_refinement_nxn_lowbd_c(
+      dst0, bw, dst1, bw, gx0, gy0, gx1, gy1, bw, bw, bh, n, d0, d1,
+      grad_prec_bits, target_prec, vx0, vy0, vx1, vy1);
+#else
   n_blocks = opfl_mv_refinement_nxn_lowbd(
       dst0, bw, dst1, bw, gx0, gy0, gx1, gy1, bw, bw, bh, n, d0, d1,
       grad_prec_bits, target_prec, vx0, vy0, vx1, vy1);
+#endif
 #endif  // OPFL_BILINEAR_GRAD || OPFL_BICUBIC_GRAD
 
   for (int i = 0; i < n_blocks; i++) {
