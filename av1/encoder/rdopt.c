@@ -2087,7 +2087,7 @@ static INLINE int get_drl_cost(int max_drl_bits, const MB_MODE_INFO *mbmi,
       av1_mode_context_pristine(mbmi_ext->mode_context, mbmi->ref_frame);
   int cost = 0;
   for (int idx = 0; idx < max_drl_bits; ++idx) {
-    uint8_t drl_ctx = av1_drl_ctx(mode_ctx_pristine);
+    int drl_ctx = av1_drl_ctx(mode_ctx_pristine);
     switch (idx) {
       case 0:
         cost +=
