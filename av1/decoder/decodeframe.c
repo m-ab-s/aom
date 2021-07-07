@@ -1893,36 +1893,13 @@ static AOM_INLINE void setup_cdef(AV1_COMMON *cm,
 
   if (cm->features.allow_intrabc) return;
 
-#if CONFIG_CNN_RESTORATION
-  if (cm->use_cnn_y) {
-    memset(cm->cdef_info.cdef_strengths, 0,
-           sizeof(cm->cdef_info.cdef_strengths));
-  }
-  if (cm->use_cnn_uv) {
-    memset(cm->cdef_info.cdef_uv_strengths, 0,
-           sizeof(cm->cdef_info.cdef_uv_strengths));
-  }
-  if (cm->use_cnn_y && cm->use_cnn_uv) {
-    cm->cdef_info.cdef_bits = 0;
-    cm->cdef_info.nb_cdef_strengths = 1;
-    return;
-  }
-#endif  // CONFIG_CNN_RESTORATION
-
   cdef_info->cdef_damping = aom_rb_read_literal(rb, 2) + 3;
   cdef_info->cdef_bits = aom_rb_read_literal(rb, 2);
   cdef_info->nb_cdef_strengths = 1 << cdef_info->cdef_bits;
   for (int i = 0; i < cdef_info->nb_cdef_strengths; i++) {
-#if CONFIG_CNN_RESTORATION
-    if (!cm->use_cnn_y)
-#endif  // CONFIG_CNN_RESTORATION
-      cdef_info->cdef_strengths[i] =
-          aom_rb_read_literal(rb, CDEF_STRENGTH_BITS);
-#if CONFIG_CNN_RESTORATION
-    if (!cm->use_cnn_uv)
-#endif  // CONFIG_CNN_RESTORATION
-      cdef_info->cdef_uv_strengths[i] =
-          num_planes > 1 ? aom_rb_read_literal(rb, CDEF_STRENGTH_BITS) : 0;
+    cdef_info->cdef_strengths[i] = aom_rb_read_literal(rb, CDEF_STRENGTH_BITS);
+    cdef_info->cdef_uv_strengths[i] =
+        num_planes > 1 ? aom_rb_read_literal(rb, CDEF_STRENGTH_BITS) : 0;
   }
 }
 
@@ -5393,20 +5370,11 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
     }
 
 #if CONFIG_CNN_RESTORATION
-    if (cm->use_cnn_y || cm->use_cnn_uv) {
-      assert(IMPLIES(cm->use_cnn_y,
-                     cm->rst_info[0].frame_restoration_type == RESTORE_NONE &&
-                         cm->cdef_info.cdef_strengths[0] == 0));
-      assert(
-          IMPLIES(cm->use_cnn_uv,
-                  cm->rst_info[1].frame_restoration_type == RESTORE_NONE &&
-                      cm->rst_info[2].frame_restoration_type == RESTORE_NONE &&
-                      cm->cdef_info.cdef_uv_strengths[0] == 0));
-      const int plane_from = cm->use_cnn_y ? AOM_PLANE_Y : AOM_PLANE_U;
-      const int plane_to =
-          cm->use_cnn_uv ? av1_num_planes(cm) - 1 : AOM_PLANE_Y;
-      av1_restore_cnn_tflite(cm, pbi->num_workers, plane_from, plane_to);
-    }
+    assert(IMPLIES(cm->use_cnn_y,
+                   cm->rst_info[0].frame_restoration_type == RESTORE_NONE));
+    assert(IMPLIES(cm->use_cnn_uv,
+                   cm->rst_info[1].frame_restoration_type == RESTORE_NONE &&
+                       cm->rst_info[2].frame_restoration_type == RESTORE_NONE));
 #endif  // CONFIG_CNN_RESTORATION
 
     const int do_loop_restoration =
@@ -5431,6 +5399,16 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
 
       superres_post_decode(pbi);
 
+      // TODO(urvang): Refactor.
+#if CONFIG_CNN_RESTORATION
+      if (cm->use_cnn_y || cm->use_cnn_uv) {
+        const int plane_from = cm->use_cnn_y ? AOM_PLANE_Y : AOM_PLANE_U;
+        const int plane_to =
+            cm->use_cnn_uv ? av1_num_planes(cm) - 1 : AOM_PLANE_Y;
+        av1_restore_cnn_tflite(cm, pbi->num_workers, plane_from, plane_to);
+      }
+#endif  // CONFIG_CNN_RESTORATION
+
       if (do_loop_restoration) {
         av1_loop_restoration_save_boundary_lines(&pbi->common.cur_frame->buf,
                                                  cm, 1);
@@ -5448,6 +5426,15 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
     } else {
       // In no cdef and no superres case. Provide an optimized version of
       // loop_restoration_filter.
+#if CONFIG_CNN_RESTORATION
+      if (cm->use_cnn_y || cm->use_cnn_uv) {
+        const int plane_from = cm->use_cnn_y ? AOM_PLANE_Y : AOM_PLANE_U;
+        const int plane_to =
+            cm->use_cnn_uv ? av1_num_planes(cm) - 1 : AOM_PLANE_Y;
+        av1_restore_cnn_tflite(cm, pbi->num_workers, plane_from, plane_to);
+      }
+#endif  // CONFIG_CNN_RESTORATION
+
       if (do_loop_restoration) {
         if (pbi->num_workers > 1) {
           av1_loop_restoration_filter_frame_mt(

@@ -26,11 +26,13 @@
 #include "av1/tflite_models/intra_frame_model/qp43.h"
 #include "av1/tflite_models/intra_frame_model/qp53.h"
 #include "av1/tflite_models/intra_frame_model/qp63.h"
+#include "av1/tflite_models/inter_frame_model/uv_qp0_67.h"
 #include "av1/tflite_models/inter_frame_model/uv_qp68_107.h"
 #include "av1/tflite_models/inter_frame_model/uv_qp108_147.h"
 #include "av1/tflite_models/inter_frame_model/uv_qp148_191.h"
 #include "av1/tflite_models/inter_frame_model/uv_qp192_231.h"
 #include "av1/tflite_models/inter_frame_model/uv_qp232_255.h"
+#include "av1/tflite_models/inter_frame_model/qp0_67.h"
 #include "av1/tflite_models/inter_frame_model/qp68_107.h"
 #include "av1/tflite_models/inter_frame_model/qp108_147.h"
 #include "av1/tflite_models/inter_frame_model/qp148_191.h"
@@ -88,7 +90,7 @@ static const unsigned char *get_inter_model_from_qindex(int qindex,
 
   if (is_luma) {
     if (qindex < 68) {
-      return qp12_model_tflite_data;  // reuse intra model
+      return qp0_67_inter_model_tflite_data;
     } else if (qindex < 108) {
       return qp68_107_inter_model_tflite_data;
     } else if (qindex < 148) {
@@ -102,7 +104,7 @@ static const unsigned char *get_inter_model_from_qindex(int qindex,
     }
   } else {
     if (qindex < 68) {
-      return uv_qp12_model_tflite_data;  // reuse intra model
+      return uv_qp0_67_inter_model_tflite_data;
     } else if (qindex < 108) {
       return uv_qp68_107_inter_model_tflite_data;
     } else if (qindex < 148) {

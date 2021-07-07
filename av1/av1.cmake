@@ -424,6 +424,8 @@ if(CONFIG_CNN_RESTORATION)
   list(APPEND AOM_AV1_COMMON_SOURCES
               "${AOM_ROOT}/av1/common/cnn_tflite.cc"
               "${AOM_ROOT}/av1/common/cnn_tflite.h"
+              "${AOM_ROOT}/av1/tflite_models/inter_frame_model/uv_qp0_67.cc"
+              "${AOM_ROOT}/av1/tflite_models/inter_frame_model/uv_qp0_67.h"
               "${AOM_ROOT}/av1/tflite_models/inter_frame_model/uv_qp68_107.cc"
               "${AOM_ROOT}/av1/tflite_models/inter_frame_model/uv_qp68_107.h"
               "${AOM_ROOT}/av1/tflite_models/inter_frame_model/uv_qp108_147.cc"
@@ -434,6 +436,8 @@ if(CONFIG_CNN_RESTORATION)
               "${AOM_ROOT}/av1/tflite_models/inter_frame_model/uv_qp192_231.h"
               "${AOM_ROOT}/av1/tflite_models/inter_frame_model/uv_qp232_255.cc"
               "${AOM_ROOT}/av1/tflite_models/inter_frame_model/uv_qp232_255.h"
+              "${AOM_ROOT}/av1/tflite_models/inter_frame_model/qp0_67.cc"
+              "${AOM_ROOT}/av1/tflite_models/inter_frame_model/qp0_67.h"
               "${AOM_ROOT}/av1/tflite_models/inter_frame_model/qp68_107.cc"
               "${AOM_ROOT}/av1/tflite_models/inter_frame_model/qp68_107.h"
               "${AOM_ROOT}/av1/tflite_models/inter_frame_model/qp108_147.cc"

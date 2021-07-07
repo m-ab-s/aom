@@ -2156,34 +2156,15 @@ static AOM_INLINE void encode_cdef(const AV1_COMMON *cm,
   if (!cm->seq_params.enable_cdef) return;
   if (cm->features.allow_intrabc) return;
 
-#if CONFIG_CNN_RESTORATION
-  if (cm->use_cnn_y && cm->use_cnn_uv) {
-    assert(cm->cdef_info.cdef_bits == 0);
-    assert(cm->cdef_info.nb_cdef_strengths == 1);
-    assert(cm->cdef_info.cdef_strengths[0] == 0);
-    assert(cm->cdef_info.cdef_uv_strengths[0] == 0);
-    return;
-  }
-#endif  // CONFIG_CNN_RESTORATION
-
   const int num_planes = av1_num_planes(cm);
-  int i;
   aom_wb_write_literal(wb, cm->cdef_info.cdef_damping - 3, 2);
   aom_wb_write_literal(wb, cm->cdef_info.cdef_bits, 2);
-  for (i = 0; i < cm->cdef_info.nb_cdef_strengths; i++) {
-#if CONFIG_CNN_RESTORATION
-    assert(IMPLIES(cm->use_cnn_y, cm->cdef_info.cdef_strengths[i] == 0));
-    if (!cm->use_cnn_y)
-#endif  // CONFIG_CNN_RESTORATION
-      aom_wb_write_literal(wb, cm->cdef_info.cdef_strengths[i],
-                           CDEF_STRENGTH_BITS);
+  for (int i = 0; i < cm->cdef_info.nb_cdef_strengths; i++) {
+    aom_wb_write_literal(wb, cm->cdef_info.cdef_strengths[i],
+                         CDEF_STRENGTH_BITS);
     if (num_planes > 1) {
-#if CONFIG_CNN_RESTORATION
-      assert(IMPLIES(cm->use_cnn_uv, cm->cdef_info.cdef_uv_strengths[i] == 0));
-      if (!cm->use_cnn_uv)
-#endif  // CONFIG_CNN_RESTORATION
-        aom_wb_write_literal(wb, cm->cdef_info.cdef_uv_strengths[i],
-                             CDEF_STRENGTH_BITS);
+      aom_wb_write_literal(wb, cm->cdef_info.cdef_uv_strengths[i],
+                           CDEF_STRENGTH_BITS);
     }
   }
 }
