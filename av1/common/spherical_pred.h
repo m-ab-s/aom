@@ -23,6 +23,23 @@ typedef struct {
   double theta;
 } SphereMV;
 
+typedef struct {
+  double delta_x;
+  double delta_y;
+} PlaneMV;
+
+typedef struct {
+  double r;
+  double phi;
+  double theta;
+} PolarVector;
+
+typedef struct {
+  double x;
+  double y;
+  double z;
+} CartesianVector;
+
 /*!\brief Convert equirectangular coordinate to plane
  * \param[in]   phi     The latitude in radian. When phi passes polars,
  *                      theta will go to the other hemisphere (+ pi).

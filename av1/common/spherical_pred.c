@@ -24,7 +24,7 @@ void av1_sphere_to_plane_erp(double phi, double theta, int width, int height,
 
   // Flip phi to the destination quadrant
   phi_mod = is_on_other_hemisphere ? PI - phi_mod : phi_mod;
-  // Regualte phi back to [-pi/2, pi/2)
+  // Regulate phi back to [-pi/2, pi/2)
   if (phi_mod > 1.5 * PI) {
     phi_mod = phi_mod - 2 * PI;
   } else if (phi_mod < -1.5 * PI) {
@@ -37,9 +37,7 @@ void av1_sphere_to_plane_erp(double phi, double theta, int width, int height,
   } else if (theta_mod >= PI) {
     theta_mod = theta_mod - 2 * PI;
   }
-  // This should actually be a range related to 1/cos(phi) since x is distorted
-  // TODO(yaoyaogoogle): Adjust the width of x according to the interpolation
-  // mode
+
   *x = theta_mod / PI * width * 0.5 + width * 0.5;
 
   // No minus sign for y since we only use an imaginary upside-down globe
@@ -60,6 +58,69 @@ void av1_plane_to_sphere_erp(double x, double y, int width, int height,
   *phi = (y - height * 0.5) / height * PI;
 }
 
+static void normalize_carte_vector(CartesianVector *carte) {
+  double temp =
+      sqrt(carte->x * carte->x + carte->y * carte->y + carte->z * carte->z);
+
+  // k would be (0, 0, 0) if v and v_prime are the same
+  if (temp > 0.0001) {
+    carte->x = carte->x / temp;
+    carte->y = carte->y / temp;
+    carte->z = carte->z / temp;
+  }
+}
+
+static void sphere_polar_to_carte(const PolarVector *polar,
+                                  CartesianVector *carte) {
+  assert(polar != NULL && carte != NULL);
+
+  carte->x = polar->r * cos(polar->theta) * sin(polar->phi);
+  carte->y = polar->r * sin(polar->theta) * sin(polar->phi);
+  carte->z = polar->r * cos(polar->phi);
+}
+
+static void sphere_carte_to_polar(const CartesianVector *carte,
+                                  PolarVector *polar) {
+  assert(polar != NULL && carte != NULL);
+
+  polar->r =
+      sqrt(carte->x * carte->x + carte->y * carte->y + carte->z * carte->z);
+  polar->phi = acos(carte->z / polar->r);
+
+  if (carte->x == 0) {
+    if (carte->y > 0) {
+      polar->theta = 0.5 * PI;
+    } else if (carte->y < 0) {
+      polar->theta = 1.5 * PI;
+    } else {
+      polar->theta = 0;
+    }
+  } else {
+    polar->theta = atan(carte->y / carte->x);
+    // arctan only gives (-PI/2, PI/2), so we need to adjust the result
+    if (carte->x < 0) {
+      polar->theta += PI;
+    }
+  }
+}
+
+static double carte_vectors_dot_product(const CartesianVector *left,
+                                        const CartesianVector *right) {
+  assert(left != NULL && right != NULL);
+
+  return left->x * right->x + left->y * right->y + left->z * right->z;
+}
+
+static void carte_vectors_cross_product(const CartesianVector *left,
+                                        const CartesianVector *right,
+                                        CartesianVector *result) {
+  assert(left != NULL && right != NULL && result != NULL);
+
+  result->x = left->y * right->z - left->z * right->y;
+  result->y = left->z * right->x - left->x * right->z;
+  result->z = left->x * right->y - left->y * right->x;
+}
+
 void av1_get_pred_erp(int block_x, int block_y, int block_width,
                       int block_height, double delta_phi, double delta_theta,
                       const uint8_t *ref_frame, int ref_frame_stride,
@@ -72,12 +133,41 @@ void av1_get_pred_erp(int block_x, int block_y, int block_width,
 
   int pos_pred;      // Offset in pred_block buffer
   int pos_ref;       // Offset in ref_frame buffer
-  double phi;        // Latitude on the globe
-  double theta;      // Longitude on the globe
   double x_current;  // X coordiante in current frame
   double y_current;  // Y coordiante in currrent frame
   double x_ref;      // X coordinate in reference frame
   double y_ref;      // Y coordiante in reference frame
+
+  PolarVector block_polar;
+  CartesianVector block_v;
+  CartesianVector block_v_prime;
+  CartesianVector k;  // The axis that the block will rotate along
+  block_polar.r = 1.0;
+  av1_plane_to_sphere_erp(block_x, block_y, frame_width, frame_height,
+                          &block_polar.phi, &block_polar.theta);
+  block_polar.phi += 0.5 * PI;
+  sphere_polar_to_carte(&block_polar, &block_v);
+
+  block_polar.phi += delta_phi;
+  block_polar.theta += delta_theta;
+  sphere_polar_to_carte(&block_polar, &block_v_prime);
+
+  carte_vectors_cross_product(&block_v, &block_v_prime, &k);
+  normalize_carte_vector(&k);
+
+  double product = carte_vectors_dot_product(&block_v, &block_v_prime);
+  // Avoid floating point precision issues
+  product = AOMMAX(product, -1.0);
+  product = AOMMIN(product, 1.0);
+  double alpha = acos(product);
+
+  CartesianVector v;
+  CartesianVector v_prime;
+  PolarVector v_polar;
+  PolarVector v_prime_polar;
+  v_polar.r = 1.0;
+  v_prime_polar.r = 1.0;
+  double k_dot_v;
 
   for (int idx_y = 0; idx_y < block_height; idx_y++) {
     for (int idx_x = 0; idx_x < block_width; idx_x++) {
@@ -85,15 +175,29 @@ void av1_get_pred_erp(int block_x, int block_y, int block_width,
       y_current = idx_y + block_y;
 
       av1_plane_to_sphere_erp(x_current, y_current, frame_width, frame_height,
-                              &phi, &theta);
-      av1_sphere_to_plane_erp(phi + delta_phi, theta + delta_theta, frame_width,
-                              frame_height, &x_ref, &y_ref);
+                              &v_polar.phi, &v_polar.theta);
+      v_polar.phi += 0.5 * PI;
+      sphere_polar_to_carte(&v_polar, &v);
+      k_dot_v = carte_vectors_dot_product(&k, &v);
 
-      pos_pred = idx_x + idx_y * pred_block_stride;
+      v_prime.x = k.x * k_dot_v * (1 - cos(alpha)) + v.x * cos(alpha) +
+                  (k.y * v.z - k.z * v.y) * sin(alpha);
+      v_prime.y = k.y * k_dot_v * (1 - cos(alpha)) + v.y * cos(alpha) +
+                  (k.z * v.x - k.x * v.z) * sin(alpha);
+      v_prime.z = k.z * k_dot_v * (1 - cos(alpha)) + v.z * cos(alpha) +
+                  (k.x * v.y - k.y * v.x) * sin(alpha);
+
+      sphere_carte_to_polar(&v_prime, &v_prime_polar);
+      v_prime_polar.phi -= 0.5 * PI;
+      av1_sphere_to_plane_erp(v_prime_polar.phi, v_prime_polar.theta,
+                              frame_width, frame_height, &x_ref, &y_ref);
+
       x_ref = round(x_ref);
       x_ref = x_ref == frame_width ? 0 : x_ref;
       y_ref = round(y_ref);
       y_ref = y_ref == frame_height ? frame_height - 1 : y_ref;
+
+      pos_pred = idx_x + idx_y * pred_block_stride;
       pos_ref = (int)x_ref + (int)y_ref * ref_frame_stride;
       pred_block[pos_pred] = ref_frame[pos_ref];
     }
