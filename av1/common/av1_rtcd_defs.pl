@@ -113,6 +113,9 @@ specialize qw/av1_filter_intra_predictor sse4_1 neon/;
 if (aom_config("CONFIG_OPTFLOW_REFINEMENT") eq "yes") {
   add_proto qw/void av1_bicubic_grad_interpolation/, "const int16_t *pred_src,int16_t *x_grad,int16_t *y_grad,const int blk_width,const int blk_height";
   specialize qw/av1_bicubic_grad_interpolation sse4_1/;
+
+  add_proto qw/void av1_bicubic_grad_interpolation_highbd/, "const int16_t *pred_src,int16_t *x_grad,int16_t *y_grad,const int blk_width,const int blk_height";
+  specialize qw/av1_bicubic_grad_interpolation_highbd sse4_1/;
 }
 
 # High bitdepth functions

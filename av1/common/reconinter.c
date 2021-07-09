@@ -1030,6 +1030,12 @@ void av1_bicubic_grad_interpolation_c(const int16_t *pred_src, int16_t *x_grad,
 #endif  // OPFL_BICUBIC_GRAD
 }
 
+void av1_bicubic_grad_interpolation_highbd_c(const int16_t *pred_src,
+                                             int16_t *x_grad, int16_t *y_grad,
+                                             const int bw, const int bh) {
+  av1_bicubic_grad_interpolation_c(pred_src, x_grad, y_grad, bw, bh);
+}
+
 #if OPFL_BILINEAR_GRAD
 void av1_bilinear_grad_interpolation_c(const int16_t *pred_src, int16_t *x_grad,
                                        int16_t *y_grad, const int bw,
@@ -1072,7 +1078,7 @@ void av1_compute_subpel_gradients_interp(int16_t *pred_dst, int bw, int bh,
   av1_bilinear_grad_interpolation_c(pred_dst, x_grad, y_grad, bw, bh);
 #else
   if (is_hbd)
-    av1_bicubic_grad_interpolation_c(pred_dst, x_grad, y_grad, bw, bh);
+    av1_bicubic_grad_interpolation_highbd(pred_dst, x_grad, y_grad, bw, bh);
   else
     av1_bicubic_grad_interpolation(pred_dst, x_grad, y_grad, bw, bh);
 #endif  // OPFL_BILINEAR_GRAD
@@ -1419,8 +1425,10 @@ static int get_optflow_based_mv_highbd(
 
   // Compute tmp1 = P0 - P1 and gradients of tmp0 = d0 * P0 - d1 * P1
   int32_t tmp_dst = 0;
-  int16_t *tmp0 = aom_calloc(1, MAX_SB_SIZE * MAX_SB_SIZE * sizeof(int16_t));
-  int16_t *tmp1 = aom_calloc(1, MAX_SB_SIZE * MAX_SB_SIZE * sizeof(int16_t));
+  int16_t *tmp0 =
+      (int16_t *)aom_memalign(16, MAX_SB_SIZE * MAX_SB_SIZE * sizeof(int16_t));
+  int16_t *tmp1 =
+      (int16_t *)aom_memalign(16, MAX_SB_SIZE * MAX_SB_SIZE * sizeof(int16_t));
   for (int i = 0; i < bh; ++i) {
     for (int j = 0; j < bw; ++j) {
 #if OPFL_EQUAL_DIST_ASSUMED
@@ -1447,7 +1455,8 @@ static int get_optflow_based_mv_highbd(
   aom_free(tmp0);
   aom_free(tmp1);
 #else
-  int16_t *tmp = aom_calloc(1, MAX_SB_SIZE * MAX_SB_SIZE * sizeof(int16_t));
+  int16_t *tmp =
+      (int16_t *)aom_memalign(16, MAX_SB_SIZE * MAX_SB_SIZE * sizeof(int16_t));
   for (int i = 0; i < bh; ++i)
     for (int j = 0; j < bw; ++j) tmp[i * bw + j] = (int16_t)dst0[i * bw + j];
   av1_compute_subpel_gradients_interp(tmp, bw, bh, &grad_prec_bits, gx0, gy0,

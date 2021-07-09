@@ -412,6 +412,143 @@ INSTANTIATE_TEST_SUITE_P(
     SSE4_1, AV1OptFlowBiCubicGradLowbdTest,
     BuildOptFlowParams(av1_bicubic_grad_interpolation_sse4_1));
 #endif
+
+typedef void (*bicubic_grad_interp_highbd)(const int16_t *pred_src,
+                                           int16_t *x_grad, int16_t *y_grad,
+                                           const int blk_width,
+                                           const int blk_height);
+
+class AV1OptFlowBiCubicGradHighbdTest
+    : public AV1OptFlowTest<bicubic_grad_interp_highbd> {
+ public:
+  AV1OptFlowBiCubicGradHighbdTest() {
+    const BlockSize &block = GetParam().Block();
+    const int bw = block.Width();
+    const int bh = block.Height();
+
+    pred_src_ = (int16_t *)aom_memalign(16, bw * bh * sizeof(int16_t));
+    x_grad_ref_ = (int16_t *)aom_memalign(16, bw * bh * sizeof(int16_t));
+    y_grad_ref_ = (int16_t *)aom_memalign(16, bw * bh * sizeof(int16_t));
+    x_grad_test_ = (int16_t *)aom_memalign(16, bw * bh * sizeof(int16_t));
+    y_grad_test_ = (int16_t *)aom_memalign(16, bw * bh * sizeof(int16_t));
+
+    memset(x_grad_ref_, 0, bw * bh * sizeof(int16_t));
+    memset(y_grad_ref_, 0, bw * bh * sizeof(int16_t));
+    memset(x_grad_test_, 0, bw * bh * sizeof(int16_t));
+    memset(y_grad_test_, 0, bw * bh * sizeof(int16_t));
+  }
+
+  ~AV1OptFlowBiCubicGradHighbdTest() {
+    aom_free(pred_src_);
+    aom_free(x_grad_ref_);
+    aom_free(y_grad_ref_);
+    aom_free(x_grad_test_);
+    aom_free(y_grad_test_);
+  }
+
+  void Run(const int is_speed) {
+    const BlockSize &block = GetParam().Block();
+    const int bw_log2 = block.Width() >> MI_SIZE_LOG2;
+    const int bh_log2 = block.Height() >> MI_SIZE_LOG2;
+    const int numIter = is_speed ? 1 : 16384 / (bw_log2 * bh_log2);
+
+    for (int count = 0; count < numIter; count++) {
+      RandomInput16(pred_src_, GetParam(), 12);
+      TestBicubicGradHighbd(pred_src_, x_grad_ref_, y_grad_ref_, x_grad_test_,
+                            y_grad_test_, is_speed);
+    }
+    if (is_speed) return;
+
+    for (int count = 0; count < numIter; count++) {
+      RandomInput16Extreme((uint16_t *)pred_src_, GetParam(), 12);
+      TestBicubicGradHighbd(pred_src_, x_grad_ref_, y_grad_ref_, x_grad_test_,
+                            y_grad_test_, 0);
+    }
+  }
+
+ private:
+  void TestBicubicGradHighbd(int16_t *pred_src, int16_t *x_grad_ref,
+                             int16_t *y_grad_ref, int16_t *x_grad_test,
+                             int16_t *y_grad_test, int is_speed) {
+    const BlockSize &block = GetParam().Block();
+    const int bw = block.Width();
+    const int bh = block.Height();
+
+    bicubic_grad_interp_highbd ref_func =
+        av1_bicubic_grad_interpolation_highbd_c;
+    bicubic_grad_interp_highbd test_func = GetParam().TestFunction();
+    if (is_speed)
+      BicubicGradHighbdSpeed(ref_func, test_func, pred_src, x_grad_ref,
+                             y_grad_ref, x_grad_test, y_grad_test, bw, bh);
+    else
+      BicubicGradHighbd(ref_func, test_func, pred_src, x_grad_ref, y_grad_ref,
+                        x_grad_test, y_grad_test, bw, bh);
+  }
+
+  void BicubicGradHighbd(bicubic_grad_interp_highbd ref_func,
+                         bicubic_grad_interp_highbd test_func,
+                         const int16_t *pred_src, int16_t *x_grad_ref,
+                         int16_t *y_grad_ref, int16_t *x_grad_test,
+                         int16_t *y_grad_test, const int bw, const int bh) {
+    ref_func(pred_src, x_grad_ref, y_grad_ref, bw, bh);
+    test_func(pred_src, x_grad_test, y_grad_test, bw, bh);
+
+    AssertOutputBufferEq(x_grad_ref, x_grad_test, bw, bh);
+    AssertOutputBufferEq(y_grad_ref, y_grad_test, bw, bh);
+  }
+
+  void BicubicGradHighbdSpeed(bicubic_grad_interp_highbd ref_func,
+                              bicubic_grad_interp_highbd test_func,
+                              int16_t *pred_src, int16_t *x_grad_ref,
+                              int16_t *y_grad_ref, int16_t *x_grad_test,
+                              int16_t *y_grad_test, const int bw,
+                              const int bh) {
+    const int bw_log2 = bw >> MI_SIZE_LOG2;
+    const int bh_log2 = bh >> MI_SIZE_LOG2;
+
+    const int numIter = 2097152 / (bw_log2 * bh_log2);
+    aom_usec_timer timer_ref;
+    aom_usec_timer timer_test;
+
+    aom_usec_timer_start(&timer_ref);
+    for (int count = 0; count < numIter; count++)
+      ref_func(pred_src, x_grad_ref, y_grad_ref, bw, bh);
+    aom_usec_timer_mark(&timer_ref);
+
+    aom_usec_timer_start(&timer_test);
+    for (int count = 0; count < numIter; count++)
+      test_func(pred_src, x_grad_test, y_grad_test, bw, bh);
+    aom_usec_timer_mark(&timer_test);
+
+    const int total_time_ref =
+        static_cast<int>(aom_usec_timer_elapsed(&timer_ref));
+    const int total_time_test =
+        static_cast<int>(aom_usec_timer_elapsed(&timer_test));
+
+    printf("ref_time = %d \t simd_time = %d \t Gain = %4.2f \n", total_time_ref,
+           total_time_test,
+           (static_cast<float>(total_time_ref) /
+            static_cast<float>(total_time_test)));
+  }
+
+  int16_t *pred_src_;
+  int16_t *x_grad_ref_;
+  int16_t *y_grad_ref_;
+  int16_t *x_grad_test_;
+  int16_t *y_grad_test_;
+};
+TEST_P(AV1OptFlowBiCubicGradHighbdTest, CheckOutput) { Run(0); }
+TEST_P(AV1OptFlowBiCubicGradHighbdTest, DISABLED_Speed) { Run(1); }
+
+INSTANTIATE_TEST_SUITE_P(
+    C, AV1OptFlowBiCubicGradHighbdTest,
+    BuildOptFlowParams(av1_bicubic_grad_interpolation_highbd_c));
+
+#if HAVE_SSE4_1
+INSTANTIATE_TEST_SUITE_P(
+    SSE4_1, AV1OptFlowBiCubicGradHighbdTest,
+    BuildOptFlowParams(av1_bicubic_grad_interpolation_highbd_sse4_1));
+#endif
 #endif  // OPFL_BICUBIC_GRAD
 
 }  // namespace
