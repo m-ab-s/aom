@@ -1104,6 +1104,12 @@ void av1_compute_subpel_gradients_interp(int16_t *pred_dst, int bw, int bh,
 // vx0, vy0: output high resolution mv offset for p0
 // vx1, vy1: output high resolution mv offset for p1
 
+// Number of bits allowed for covariance matrix elements (su2, sv2, suv, suw
+// and svw) so that D, Px, and Py does not cause overflow issue in int64_t.
+// Its value must be <= (64 - mv_prec_bits - grad_prec_bits) / 2.
+#define OPFL_COV_CLAMP_BITS 30
+#define OPFL_COV_CLAMP_VAL (1 << OPFL_COV_CLAMP_BITS)
+
 void av1_opfl_mv_refinement_lowbd(const uint8_t *p0, int pstride0,
                                   const uint8_t *p1, int pstride1,
                                   const int16_t *gx0, const int16_t *gy0,
@@ -1121,9 +1127,9 @@ void av1_opfl_mv_refinement_lowbd(const uint8_t *p0, int pstride0,
 #if OPFL_DOWNSAMP_QUINCUNX
       if ((i + j) % 2 == 1) continue;
 #endif
-      const int u = d0 * gx0[i * gstride + j] - d1 * gx1[i * gstride + j];
-      const int v = d0 * gy0[i * gstride + j] - d1 * gy1[i * gstride + j];
-      const int w = d0 * (p0[i * pstride0 + j] - p1[i * pstride1 + j]);
+      const int64_t u = d0 * gx0[i * gstride + j] - d1 * gx1[i * gstride + j];
+      const int64_t v = d0 * gy0[i * gstride + j] - d1 * gy1[i * gstride + j];
+      const int64_t w = d0 * (p0[i * pstride0 + j] - p1[i * pstride1 + j]);
       su2 += (u * u);
       suv += (u * v);
       sv2 += (v * v);
@@ -1137,6 +1143,14 @@ void av1_opfl_mv_refinement_lowbd(const uint8_t *p0, int pstride0,
   su2 += rls_alpha;
   sv2 += rls_alpha;
 #endif
+
+  // Clamp su2, sv2, suv, suw, and svw to avoid overflow in D, Px, and Py
+  su2 = clamp(su2, -OPFL_COV_CLAMP_VAL, OPFL_COV_CLAMP_VAL);
+  sv2 = clamp(sv2, -OPFL_COV_CLAMP_VAL, OPFL_COV_CLAMP_VAL);
+  suv = clamp(suv, -OPFL_COV_CLAMP_VAL, OPFL_COV_CLAMP_VAL);
+  suw = clamp(suw, -OPFL_COV_CLAMP_VAL, OPFL_COV_CLAMP_VAL);
+  svw = clamp(svw, -OPFL_COV_CLAMP_VAL, OPFL_COV_CLAMP_VAL);
+
   const int64_t D = su2 * sv2 - suv * suv;
   const int64_t Px = (suv * svw - sv2 * suw) * (1 << bits);
   const int64_t Py = (suv * suw - su2 * svw) * (1 << bits);
@@ -1167,9 +1181,9 @@ void av1_opfl_mv_refinement_highbd(const uint16_t *p0, int pstride0,
 #if OPFL_DOWNSAMP_QUINCUNX
       if ((i + j) % 2 == 1) continue;
 #endif
-      const int u = d0 * gx0[i * gstride + j] - d1 * gx1[i * gstride + j];
-      const int v = d0 * gy0[i * gstride + j] - d1 * gy1[i * gstride + j];
-      const int w = d0 * (p0[i * pstride0 + j] - p1[i * pstride1 + j]);
+      const int64_t u = d0 * gx0[i * gstride + j] - d1 * gx1[i * gstride + j];
+      const int64_t v = d0 * gy0[i * gstride + j] - d1 * gy1[i * gstride + j];
+      const int64_t w = d0 * (p0[i * pstride0 + j] - p1[i * pstride1 + j]);
       su2 += (u * u);
       suv += (u * v);
       sv2 += (v * v);
@@ -1183,6 +1197,14 @@ void av1_opfl_mv_refinement_highbd(const uint16_t *p0, int pstride0,
   su2 += rls_alpha;
   sv2 += rls_alpha;
 #endif
+
+  // Clamp su2, sv2, suv, suw, and svw to avoid overflow in D, Px, and Py
+  su2 = clamp(su2, -OPFL_COV_CLAMP_VAL, OPFL_COV_CLAMP_VAL);
+  sv2 = clamp(sv2, -OPFL_COV_CLAMP_VAL, OPFL_COV_CLAMP_VAL);
+  suv = clamp(suv, -OPFL_COV_CLAMP_VAL, OPFL_COV_CLAMP_VAL);
+  suw = clamp(suw, -OPFL_COV_CLAMP_VAL, OPFL_COV_CLAMP_VAL);
+  svw = clamp(svw, -OPFL_COV_CLAMP_VAL, OPFL_COV_CLAMP_VAL);
+
   const int64_t D = su2 * sv2 - suv * suv;
   const int64_t Px = (suv * svw - sv2 * suw) * (1 << bits);
   const int64_t Py = (suv * suw - su2 * svw) * (1 << bits);
@@ -1231,6 +1253,14 @@ void av1_opfl_mv_refinement_interp_grad(const int16_t *pdiff, int pstride0,
   su2 += rls_alpha;
   sv2 += rls_alpha;
 #endif
+
+  // Clamp su2, sv2, suv, suw, and svw to avoid overflow in D, Px, and Py
+  su2 = clamp(su2, -OPFL_COV_CLAMP_VAL, OPFL_COV_CLAMP_VAL);
+  sv2 = clamp(sv2, -OPFL_COV_CLAMP_VAL, OPFL_COV_CLAMP_VAL);
+  suv = clamp(suv, -OPFL_COV_CLAMP_VAL, OPFL_COV_CLAMP_VAL);
+  suw = clamp(suw, -OPFL_COV_CLAMP_VAL, OPFL_COV_CLAMP_VAL);
+  svw = clamp(svw, -OPFL_COV_CLAMP_VAL, OPFL_COV_CLAMP_VAL);
+
   const int64_t D = su2 * sv2 - suv * suv;
   const int64_t Px = (suv * svw - sv2 * suw) * (1 << bits);
   const int64_t Py = (suv * suw - su2 * svw) * (1 << bits);
