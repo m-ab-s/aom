@@ -11,10 +11,15 @@
 
 #include <math.h>
 
+#if CONFIG_SPHERICAL_PRED
 #include "av1/common/spherical_pred.h"
+#endif
+
 #include "third_party/googletest/src/googletest/include/gtest/gtest.h"
 
 namespace {
+
+#if CONFIG_SPHERICAL_PRED
 
 #define DIFF_THRESHOLD 0.00001
 constexpr double pi = 3.141592653589793238462643383279502884;
@@ -230,5 +235,7 @@ TEST(SphericalMappingTest, EquiGlobeToPlaneAnchorTest) {
     EXPECT_NEAR(y, expect_y[i], DIFF_THRESHOLD);
   }
 }
+
+#endif
 
 }  // namespace

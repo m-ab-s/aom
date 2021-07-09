@@ -17,6 +17,10 @@
 #include "config/aom_dsp_rtcd.h"
 #include "config/aom_scale_rtcd.h"
 
+#if CONFIG_SPHERICAL_PRED
+#include "av1/common/spherical_pred.h"
+#endif
+
 #include "aom/aom_integer.h"
 #include "aom_dsp/blend.h"
 
@@ -112,6 +116,63 @@ void av1_enc_build_inter_predictor_y(MACROBLOCKD *xd, int mi_row, int mi_col) {
   av1_enc_build_one_inter_predictor(dst, dst_buf->stride, &mv,
                                     &inter_pred_params);
 }
+
+#if CONFIG_SPHERICAL_PRED
+
+void av1_enc_build_erp_predictor(const AV1_COMP *const cpi, MACROBLOCK *x,
+                                 BLOCK_SIZE bsize, int ref_idx, int plane_from,
+                                 int plane_to, int_mv *mv) {
+  const AV1_COMMON *cm = &cpi->common;
+  MACROBLOCKD *xd = &x->e_mbd;
+  MB_MODE_INFO *mbmi = xd->mi[0];
+  const int ref = mbmi->ref_frame[ref_idx];
+  const int mi_row = xd->mi_row;
+  const int mi_col = xd->mi_col;
+
+  const YV12_BUFFER_CONFIG *ref_buf = &get_ref_frame_buf(cm, ref)->buf;
+  int block_x = mi_col * MI_SIZE;
+  int block_y = mi_row * MI_SIZE;
+  int block_width = block_size_wide[bsize];
+  int block_height = block_size_high[bsize];
+  int frame_width = ref_buf->y_crop_width;
+  int frame_height = ref_buf->y_crop_height;
+
+  SphereMV sp_mv;
+  // assume ref_mv is converted from sphere MV for the top left pixel of the
+  // block
+  double blk_phi, blk_theta, this_phi, this_theta;
+  av1_plane_to_sphere_erp(block_x, block_y, frame_width, frame_height, &blk_phi,
+                          &blk_theta);
+  av1_plane_to_sphere_erp(block_x + (double)mv->as_mv.col / 8.0,
+                          block_y + (double)mv->as_mv.row / 8.0, frame_width,
+                          frame_height, &this_phi, &this_theta);
+  sp_mv.phi = this_phi - blk_phi;
+  sp_mv.theta = this_theta - blk_theta;
+
+  for (int plane = plane_from; plane <= plane_to; ++plane) {
+    if (plane && !xd->is_chroma_ref) break;
+    if (plane == 0) {
+      av1_get_pred_erp(block_x, block_y, block_width, block_height, sp_mv.phi,
+                       sp_mv.theta, ref_buf->y_buffer, ref_buf->y_stride,
+                       frame_width, frame_height, xd->plane[plane].dst.stride,
+                       xd->plane[plane].dst.buf);
+    } else {
+      const bool ss_x = xd->plane[plane].subsampling_x;
+      const bool ss_y = xd->plane[plane].subsampling_y;
+      const int row_start = (block_size_high[bsize] == 4) && ss_y ? -1 : 0;
+      const int col_start = (block_size_wide[bsize] == 4) && ss_x ? -1 : 0;
+      const int pre_x = (block_x + MI_SIZE * col_start) >> ss_x;
+      const int pre_y = (block_y + MI_SIZE * row_start) >> ss_y;
+      av1_get_pred_erp(pre_x, pre_y, block_width >> ss_x, block_height >> ss_y,
+                       sp_mv.phi, sp_mv.theta, ref_buf->buffers[plane],
+                       ref_buf->uv_stride, frame_width >> ss_x,
+                       frame_height >> ss_y, xd->plane[plane].dst.stride,
+                       xd->plane[plane].dst.buf);
+    }
+  }
+}
+
+#endif
 
 void av1_enc_build_inter_predictor(const AV1_COMMON *cm, MACROBLOCKD *xd,
                                    int mi_row, int mi_col,

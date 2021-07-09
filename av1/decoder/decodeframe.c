@@ -17,6 +17,10 @@
 #include "config/aom_scale_rtcd.h"
 #include "config/av1_rtcd.h"
 
+#if CONFIG_SPHERICAL_PRED
+#include "av1/common/spherical_pred.h"
+#endif
+
 #include "aom/aom_codec.h"
 #include "aom_dsp/aom_dsp_common.h"
 #include "aom_dsp/binary_codes_reader.h"
@@ -685,6 +689,60 @@ static AOM_INLINE void dec_build_inter_predictor(const AV1_COMMON *cm,
   }
 }
 
+#if CONFIG_SPHERICAL_PRED
+static void dec_build_erp_predictor(const AV1_COMMON *cm,
+                                    DecoderCodingBlock *dcb, int mi_row,
+                                    int mi_col, BLOCK_SIZE bsize, int ref_idx) {
+  MACROBLOCKD *const xd = &dcb->xd;
+  const int num_planes = av1_num_planes(cm);
+  MB_MODE_INFO *mbmi = xd->mi[0];
+  const int ref = mbmi->ref_frame[ref_idx];
+  int_mv *mv = &mbmi->mv[0];
+
+  const YV12_BUFFER_CONFIG *ref_buf = &get_ref_frame_buf(cm, ref)->buf;
+  int block_x = mi_col * MI_SIZE;
+  int block_y = mi_row * MI_SIZE;
+  int block_width = block_size_wide[bsize];
+  int block_height = block_size_high[bsize];
+  int frame_width = ref_buf->y_crop_width;
+  int frame_height = ref_buf->y_crop_height;
+
+  SphereMV sp_mv;
+  // assume ref_mv is converted from sphere MV for the top left pixel of the
+  // block
+  double blk_phi, blk_theta, this_phi, this_theta;
+  av1_plane_to_sphere_erp(block_x, block_y, frame_width, frame_height, &blk_phi,
+                          &blk_theta);
+  av1_plane_to_sphere_erp(block_x + (double)mv->as_mv.col / 8.0,
+                          block_y + (double)mv->as_mv.row / 8.0, frame_width,
+                          frame_height, &this_phi, &this_theta);
+  sp_mv.phi = this_phi - blk_phi;
+  sp_mv.theta = this_theta - blk_theta;
+
+  for (int plane = 0; plane < num_planes; ++plane) {
+    if (plane && !xd->is_chroma_ref) break;
+    if (plane == 0) {
+      av1_get_pred_erp(block_x, block_y, block_width, block_height, sp_mv.phi,
+                       sp_mv.theta, ref_buf->y_buffer, ref_buf->y_stride,
+                       frame_width, frame_height, xd->plane[plane].dst.stride,
+                       xd->plane[plane].dst.buf);
+    } else {
+      const bool ss_x = xd->plane[plane].subsampling_x;
+      const bool ss_y = xd->plane[plane].subsampling_y;
+      const int row_start = (block_size_high[bsize] == 4) && ss_y ? -1 : 0;
+      const int col_start = (block_size_wide[bsize] == 4) && ss_x ? -1 : 0;
+      const int pre_x = (block_x + MI_SIZE * col_start) >> ss_x;
+      const int pre_y = (block_y + MI_SIZE * row_start) >> ss_y;
+      av1_get_pred_erp(pre_x, pre_y, block_width >> ss_x, block_height >> ss_y,
+                       sp_mv.phi, sp_mv.theta, ref_buf->buffers[plane],
+                       ref_buf->uv_stride, frame_width >> ss_x,
+                       frame_height >> ss_y, xd->plane[plane].dst.stride,
+                       xd->plane[plane].dst.buf);
+    }
+  }
+}
+#endif
+
 static INLINE void dec_build_prediction_by_above_pred(
     MACROBLOCKD *const xd, int rel_mi_row, int rel_mi_col, uint8_t op_mi_size,
     int dir, MB_MODE_INFO *above_mbmi, void *fun_ctxt, const int num_planes) {
@@ -856,10 +914,18 @@ static AOM_INLINE void predict_inter_block(AV1_COMMON *const cm,
     }
   }
 
+#if CONFIG_SPHERICAL_PRED
+  if (mbmi->motion_mode == OBMC_CAUSAL) {
+    dec_build_erp_predictor(cm, dcb, mi_row, mi_col, bsize, 0);
+  } else {
+    dec_build_inter_predictor(cm, dcb, mi_row, mi_col, bsize);
+  }
+#else
   dec_build_inter_predictor(cm, dcb, mi_row, mi_col, bsize);
   if (mbmi->motion_mode == OBMC_CAUSAL) {
     dec_build_obmc_inter_predictors_sb(cm, dcb);
   }
+#endif
 #if CONFIG_MISMATCH_DEBUG
   for (int plane = 0; plane < num_planes; ++plane) {
     const struct macroblockd_plane *pd = &xd->plane[plane];

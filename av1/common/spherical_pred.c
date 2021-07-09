@@ -16,6 +16,8 @@
 #include "av1/common/spherical_pred.h"
 #include "aom_dsp/aom_dsp_common.h"
 
+#if CONFIG_SPHERICAL_PRED
+
 void av1_sphere_to_plane_erp(double phi, double theta, int width, int height,
                              double *x, double *y) {
   double phi_mod = fmod(phi, 2 * PI);
@@ -346,7 +348,8 @@ int av1_motion_search_diamond_erp(int block_x, int block_y, int block_width,
                                   int block_height, const uint8_t *cur_frame,
                                   const uint8_t *ref_frame, int frame_stride,
                                   int frame_width, int frame_height,
-                                  int search_range, SphereMV *best_mv) {
+                                  int search_range, const SphereMV *start_mv,
+                                  SphereMV *best_mv) {
   assert(cur_frame != NULL && ref_frame != NULL && best_mv != NULL);
   assert(block_width > 0 && block_height > 0 && block_width <= 128 &&
          block_height <= 128 && block_x >= 0 && block_y >= 0 &&
@@ -375,17 +378,17 @@ int av1_motion_search_diamond_erp(int block_x, int block_y, int block_width,
   double max_range_theta = start_theta + search_range * 2 * PI / frame_height;
   double min_range_theta = start_theta - search_range * 2 * PI / frame_height;
 
+  int best_mv_idx = 0;
+  ldsp_mv[0].phi = start_mv->phi;
+  ldsp_mv[0].theta = start_mv->theta;
+
   int temp_sad;
   int best_sad;
-  av1_get_pred_erp(block_x, block_y, block_width, block_height, 0, 0, ref_frame,
-                   frame_stride, frame_width, frame_height, pred_block_stride,
-                   pred_block);
+  av1_get_pred_erp(block_x, block_y, block_width, block_height, ldsp_mv[0].phi,
+                   ldsp_mv[0].theta, ref_frame, frame_stride, frame_width,
+                   frame_height, pred_block_stride, pred_block);
   best_sad = get_sad_of_blocks(cur_block, pred_block, block_width, block_height,
                                frame_stride, pred_block_stride);
-
-  int best_mv_idx = 0;
-  ldsp_mv[0].phi = 0;
-  ldsp_mv[0].theta = 0;
 
   do {
     update_sphere_mv_ldsp(ldsp_mv, search_step_phi, search_step_theta);
@@ -451,3 +454,5 @@ int av1_motion_search_diamond_erp(int block_x, int block_y, int block_width,
 
   return best_sad;
 }
+
+#endif

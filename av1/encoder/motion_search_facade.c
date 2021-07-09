@@ -13,6 +13,10 @@
 
 #include "av1/common/reconinter.h"
 
+#if CONFIG_SPHERICAL_PRED
+#include "av1/common/spherical_pred.h"
+#endif
+
 #include "av1/encoder/encodemv.h"
 #include "av1/encoder/encoder.h"
 #include "av1/encoder/interp_search.h"
@@ -116,6 +120,74 @@ static INLINE void get_mv_candidate_from_tpl(const AV1_COMP *const cpi,
     }
   }
 }
+
+#if CONFIG_SPHERICAL_PRED
+void av1_erp_motion_search(const AV1_COMP *const cpi, MACROBLOCK *x,
+                           BLOCK_SIZE bsize, int ref_idx, int *rate_mv,
+                           int search_range, int_mv *best_mv) {
+  MACROBLOCKD *xd = &x->e_mbd;
+  MB_MODE_INFO *mbmi = xd->mi[0];
+  const int ref = mbmi->ref_frame[ref_idx];
+  const int mi_row = xd->mi_row;
+  const int mi_col = xd->mi_col;
+  const MvCosts *mv_costs = x->mv_costs;
+
+  const YV12_BUFFER_CONFIG *ref_buf =
+      &get_ref_frame_buf(&cpi->common, ref)->buf;
+  const YV12_BUFFER_CONFIG *src_buf = cpi->source;
+
+  int block_x = mi_col * MI_SIZE;
+  int block_y = mi_row * MI_SIZE;
+  int block_width = block_size_wide[bsize];
+  int block_height = block_size_high[bsize];
+  int frame_width = src_buf->y_crop_width;
+  int frame_height = src_buf->y_crop_height;
+  int frame_stride = src_buf->y_stride;
+
+  SphereMV best_sp_mv, start_sp_mv;
+  // TODO(bohanli,yaoyaogoogle): start with mbmi->mv[0] may also make sense?
+  const MV ref_mv = av1_get_ref_mv(x, ref_idx).as_mv;
+  // assume ref_mv is converted from sphere MV for the top left pixel of the
+  // block
+  double blk_phi, blk_theta, this_phi, this_theta;
+  double this_x, this_y;
+  av1_plane_to_sphere_erp(block_x, block_y, frame_width, frame_height, &blk_phi,
+                          &blk_theta);
+  av1_plane_to_sphere_erp(block_x + (double)ref_mv.col / 8.0,
+                          block_y + (double)ref_mv.row / 8.0, frame_width,
+                          frame_height, &this_phi, &this_theta);
+  start_sp_mv.phi = this_phi - blk_phi;
+  start_sp_mv.theta = this_theta - blk_theta;
+
+  av1_motion_search_diamond_erp(block_x, block_y, block_width, block_height,
+                                src_buf->y_buffer, ref_buf->y_buffer,
+                                frame_stride, frame_width, frame_height,
+                                search_range, &start_sp_mv, &best_sp_mv);
+
+  this_phi = blk_phi + best_sp_mv.phi;
+  this_theta = blk_theta + best_sp_mv.theta;
+  av1_sphere_to_plane_erp(this_phi, this_theta, frame_width, frame_height,
+                          &this_x, &this_y);
+
+  double mv_x = this_x - block_x;
+  double mv_y = this_y - block_y;
+  // round mv_x back if it is a shorter MV
+  if (mv_x > 0 && mv_x > (double)frame_width - mv_x) {
+    mv_x = mv_x - (double)frame_width;
+  } else if (mv_x < 0 && fabs(mv_x) > (double)frame_width + mv_x) {
+    mv_x = (double)frame_width + mv_x;
+  }
+  mv_x = fclamp(mv_x - (double)ref_mv.col / 8.0, -search_range, search_range) +
+         (double)ref_mv.col / 8.0;
+  mv_y = fclamp(mv_y - (double)ref_mv.row / 8.0, -search_range, search_range) +
+         (double)ref_mv.row / 8.0;
+  best_mv->as_mv.col = (int16_t)round((mv_x)*8.0);
+  best_mv->as_mv.row = (int16_t)round((mv_y)*8.0);
+
+  *rate_mv = av1_mv_bit_cost(&best_mv->as_mv, &ref_mv, mv_costs->nmv_joint_cost,
+                             mv_costs->mv_cost_stack, MV_COST_WEIGHT);
+}
+#endif
 
 void av1_single_motion_search(const AV1_COMP *const cpi, MACROBLOCK *x,
                               BLOCK_SIZE bsize, int ref_idx, int *rate_mv,

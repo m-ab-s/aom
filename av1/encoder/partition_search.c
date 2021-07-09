@@ -326,12 +326,23 @@ static void encode_superblock(const AV1_COMP *const cpi, TileDataEnc *tile_data,
                              cm->seq_params->bit_depth == AOM_BITS_8)
                                 ? 1
                                 : 0;
+
+#if CONFIG_SPHERICAL_PRED
+    if (mbmi->motion_mode == OBMC_CAUSAL) {
+      av1_enc_build_erp_predictor(cpi, x, bsize, 0, 0, av1_num_planes(cm) - 1,
+                                  &mbmi->mv[0]);
+    } else {
+      av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize,
+                                    start_plane, av1_num_planes(cm) - 1);
+    }
+#else
     av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize,
                                   start_plane, av1_num_planes(cm) - 1);
     if (mbmi->motion_mode == OBMC_CAUSAL) {
       assert(cpi->oxcf.motion_mode_cfg.enable_obmc);
       av1_build_obmc_inter_predictors_sb(cm, xd);
     }
+#endif
 
 #if CONFIG_MISMATCH_DEBUG
     if (dry_run == OUTPUT_ENABLED) {

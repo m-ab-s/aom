@@ -1372,9 +1372,17 @@ static int64_t motion_mode_rd(
       // The prediction is calculated before motion_mode_rd() is called in
       // handle_inter_mode()
     } else if (mbmi->motion_mode == OBMC_CAUSAL) {
-      const uint32_t cur_mv = mbmi->mv[0].as_int;
       // OBMC_CAUSAL not allowed for compound prediction
       assert(!is_comp_pred);
+#if CONFIG_SPHERICAL_PRED
+      if (have_newmv_in_inter_mode(this_mode)) {
+        av1_erp_motion_search(cpi, x, bsize, 0, &tmp_rate_mv, 30, &mbmi->mv[0]);
+        tmp_rate2 = rate2_nocoeff - rate_mv0 + tmp_rate_mv;
+      }
+      av1_enc_build_erp_predictor(cpi, x, bsize, 0, 0, av1_num_planes(cm) - 1,
+                                  &mbmi->mv[0]);
+#else
+      const uint32_t cur_mv = mbmi->mv[0].as_int;
       if (have_newmv_in_inter_mode(this_mode)) {
         av1_single_motion_search(cpi, x, bsize, 0, &tmp_rate_mv, INT_MAX, NULL,
                                  &mbmi->mv[0], NULL);
@@ -1391,6 +1399,7 @@ static int64_t motion_mode_rd(
       av1_build_obmc_inter_prediction(
           cm, xd, args->above_pred_buf, args->above_pred_stride,
           args->left_pred_buf, args->left_pred_stride);
+#endif
 #if !CONFIG_REALTIME_ONLY
     } else if (mbmi->motion_mode == WARPED_CAUSAL) {
       int pts[SAMPLES_ARRAY_SIZE], pts_inref[SAMPLES_ARRAY_SIZE];
@@ -3376,10 +3385,20 @@ static AOM_INLINE void refine_winner_mode_tx(
       if (is_inter_mode(mbmi->mode)) {
         const int mi_row = xd->mi_row;
         const int mi_col = xd->mi_col;
+#if CONFIG_SPHERICAL_PRED
+        if (mbmi->motion_mode == OBMC_CAUSAL) {
+          av1_enc_build_erp_predictor(cpi, x, bsize, 0, 0,
+                                      av1_num_planes(cm) - 1, &mbmi->mv[0]);
+        } else {
+          av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize, 0,
+                                        av1_num_planes(cm) - 1);
+        }
+#else
         av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize, 0,
                                       av1_num_planes(cm) - 1);
         if (mbmi->motion_mode == OBMC_CAUSAL)
           av1_build_obmc_inter_predictors_sb(cm, xd);
+#endif
 
         av1_subtract_plane(x, bsize, 0);
         if (txfm_params->tx_mode_search_type == TX_MODE_SELECT &&
@@ -4809,11 +4828,21 @@ static void tx_search_best_inter_candidates(
     }
 
     // Build the prediction for this mode
+#if CONFIG_SPHERICAL_PRED
+    if (mbmi->motion_mode == OBMC_CAUSAL) {
+      av1_enc_build_erp_predictor(cpi, x, bsize, 0, 0, av1_num_planes(cm) - 1,
+                                  &mbmi->mv[0]);
+    } else {
+      av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize, 0,
+                                    av1_num_planes(cm) - 1);
+    }
+#else
     av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize, 0,
                                   av1_num_planes(cm) - 1);
     if (mbmi->motion_mode == OBMC_CAUSAL) {
       av1_build_obmc_inter_predictors_sb(cm, xd);
     }
+#endif
 
     // Initialize RD stats
     RD_STATS rd_stats;

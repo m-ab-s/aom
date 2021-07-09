@@ -120,6 +120,7 @@ int av1_motion_search_brute_force_erp(
  * \param[in]       frame_width         Width of frame
  * \param[in]       frame_height        Height of frame
  * \param[in]       search_range        Range of search in pixel
+ * \param[in]       start_mv            Initial motion vector
  * \param[out]      best_mv             Best spherical motion vector
  * \return                              Best SAD
  */
@@ -127,7 +128,8 @@ int av1_motion_search_diamond_erp(int block_x, int block_y, int block_width,
                                   int block_height, const uint8_t *cur_frame,
                                   const uint8_t *ref_frame, int frame_stride,
                                   int frame_width, int frame_height,
-                                  int search_range, SphereMV *best_mv);
+                                  int search_range, const SphereMV *start_mv,
+                                  SphereMV *best_mv);
 
 #ifdef __cplusplus
 }  // extern "C"
