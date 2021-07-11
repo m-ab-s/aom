@@ -185,7 +185,8 @@ static AOM_INLINE void add_ref_mv_candidate(
         ++*ref_match_count;
       }
 #if CONFIG_SMVP_IMPROVEMENT
-      else if (add_more_mvs && candidate->ref_frame[ref] > INTRA_FRAME) {
+      else if (add_more_mvs && candidate->ref_frame[ref] > INTRA_FRAME &&
+               cm->seq_params.order_hint_info.enable_order_hint) {
         const int cur_blk_ref_side = cm->ref_frame_side[rf[0]];
         const int cand_blk_ref_side =
             cm->ref_frame_side[candidate->ref_frame[ref]];
@@ -194,19 +195,9 @@ static AOM_INLINE void add_ref_mv_candidate(
                               (cur_blk_ref_side == 0 && cand_blk_ref_side == 0);
 
         if (same_side) {
-          const int cur_frame_index = cm->cur_frame->order_hint;
-          const RefCntBuffer *const ref_buf = get_ref_frame_buf(cm, rf[0]);
-          const int ref_buf_frame_index = ref_buf->order_hint;
-          const int cur_offset_ref_buf =
-              abs(get_relative_dist(&cm->seq_params.order_hint_info,
-                                    cur_frame_index, ref_buf_frame_index));
-
-          const RefCntBuffer *const cand_ref_buf =
-              get_ref_frame_buf(cm, candidate->ref_frame[ref]);
-          const int cand_ref_frame_index = cand_ref_buf->order_hint;
-          const int cur_offset_cand_ref =
-              abs(get_relative_dist(&cm->seq_params.order_hint_info,
-                                    cur_frame_index, cand_ref_frame_index));
+          const int cur_to_ref_dist = cm->ref_frame_relative_dist[rf[0]];
+          const int cand_to_ref_dist =
+              cm->ref_frame_relative_dist[candidate->ref_frame[ref]];
 
           const int is_gm_block = is_global_mv_block(
               candidate, gm_params[candidate->ref_frame[ref]].wmtype);
@@ -218,7 +209,7 @@ static AOM_INLINE void add_ref_mv_candidate(
 
           int_mv this_refmv;
           get_mv_projection(&this_refmv.as_mv, cand_refmv.as_mv,
-                            cur_offset_ref_buf, cur_offset_cand_ref);
+                            cur_to_ref_dist, cand_to_ref_dist);
           lower_mv_precision(&this_refmv.as_mv, allow_hp_mv, force_integer_mv);
 
           for (index = 0; index < *derived_mv_count; ++index) {
@@ -1452,8 +1443,13 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
 
     ref_buf[ref_idx] = buf;
     ref_order_hint[ref_idx] = order_hint;
-
+#if CONFIG_SMVP_IMPROVEMENT
+    const int relative_dist =
+        get_relative_dist(order_hint_info, order_hint, cur_order_hint);
+    if (relative_dist > 0) {
+#else
     if (get_relative_dist(order_hint_info, order_hint, cur_order_hint) > 0) {
+#endif  // CONFIG_SMVP_IMPROVEMENT
       cm->ref_frame_side[ref_frame] = 1;
 #if CONFIG_TMVP_IMPROVEMENT
       has_bwd_ref = 1;
@@ -1461,6 +1457,10 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
     } else if (order_hint == cur_order_hint) {
       cm->ref_frame_side[ref_frame] = -1;
     }
+
+#if CONFIG_SMVP_IMPROVEMENT
+    cm->ref_frame_relative_dist[ref_frame] = abs(relative_dist);
+#endif  // CONFIG_SMVP_IMPROVEMENT
   }
 
   int ref_stamp = MFMV_STACK_SIZE - 1;
@@ -1528,6 +1528,32 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
 #endif  // CONFIG_TMVP_IMPROVEMENT
   if (ref_stamp >= 0) motion_field_projection(cm, LAST2_FRAME, 2);
 }
+
+#if CONFIG_SMVP_IMPROVEMENT
+void av1_setup_ref_frame_sides(AV1_COMMON *cm) {
+  const OrderHintInfo *const order_hint_info = &cm->seq_params.order_hint_info;
+
+  memset(cm->ref_frame_side, 0, sizeof(cm->ref_frame_side));
+  if (!order_hint_info->enable_order_hint) return;
+
+  const int cur_order_hint = cm->cur_frame->order_hint;
+
+  for (int ref_frame = LAST_FRAME; ref_frame <= ALTREF_FRAME; ref_frame++) {
+    const RefCntBuffer *const buf = get_ref_frame_buf(cm, ref_frame);
+    int order_hint = 0;
+
+    if (buf != NULL) order_hint = buf->order_hint;
+    const int relative_dist =
+        get_relative_dist(order_hint_info, order_hint, cur_order_hint);
+    if (relative_dist > 0) {
+      cm->ref_frame_side[ref_frame] = 1;
+    } else if (order_hint == cur_order_hint) {
+      cm->ref_frame_side[ref_frame] = -1;
+    }
+    cm->ref_frame_relative_dist[ref_frame] = abs(relative_dist);
+  }
+}
+#endif  // CONFIG_SMVP_IMPROVEMENT
 
 static INLINE void record_samples(const MB_MODE_INFO *mbmi,
 #if CONFIG_COMPOUND_WARP_SAMPLES
