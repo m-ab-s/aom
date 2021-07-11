@@ -2614,7 +2614,6 @@ void av1_nonrd_use_partition(AV1_COMP *cpi, ThreadData *td,
   }
 }
 
-#if !CONFIG_REALTIME_ONLY
 // Try searching for an encoding for the given subblock. Returns zero if the
 // rdcost is already too high (to tell the caller not to bother searching for
 // encodings of further subblocks).
@@ -4215,4 +4214,3 @@ BEGIN_PARTITION_SEARCH:
   x->rdmult = orig_rdmult;
   return part_search_state.found_best_partition;
 }
-#endif  // !CONFIG_REALTIME_ONLY

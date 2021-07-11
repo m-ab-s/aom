@@ -58,7 +58,6 @@ const TestVideoParam kTestVectors[] = {
 const TestEncodeParam kEncodeVectors[] = {
   { ::libaom_test::kOnePassGood, 2 },
   { ::libaom_test::kOnePassGood, 5 },
-  { ::libaom_test::kRealTime, 5 },
 };
 
 const int kMinArfVectors[] = {
@@ -89,16 +88,8 @@ class ArfFreqTestLarge
   virtual void SetUp() {
     InitializeConfig();
     SetMode(test_encode_param_.mode);
-    if (test_encode_param_.mode != ::libaom_test::kRealTime) {
-      cfg_.g_lag_in_frames = 25;
-      cfg_.rc_end_usage = AOM_VBR;
-    } else {
-      cfg_.g_lag_in_frames = 0;
-      cfg_.rc_end_usage = AOM_CBR;
-      cfg_.rc_buf_sz = 1000;
-      cfg_.rc_buf_initial_sz = 500;
-      cfg_.rc_buf_optimal_sz = 600;
-    }
+    cfg_.g_lag_in_frames = 25;
+    cfg_.rc_end_usage = AOM_VBR;
   }
 
   virtual void BeginPassHook(unsigned int) {
@@ -149,11 +140,9 @@ class ArfFreqTestLarge
       encoder->Control(AV1E_SET_TILE_COLUMNS, 4);
       encoder->Control(AOME_SET_CPUUSED, test_encode_param_.cpu_used);
       encoder->Control(AV1E_SET_MIN_GF_INTERVAL, min_arf_requested_);
-      if (test_encode_param_.mode != ::libaom_test::kRealTime) {
-        encoder->Control(AOME_SET_ENABLEAUTOALTREF, 1);
-        encoder->Control(AOME_SET_ARNR_MAXFRAMES, 7);
-        encoder->Control(AOME_SET_ARNR_STRENGTH, 5);
-      }
+      encoder->Control(AOME_SET_ENABLEAUTOALTREF, 1);
+      encoder->Control(AOME_SET_ARNR_MAXFRAMES, 7);
+      encoder->Control(AOME_SET_ARNR_STRENGTH, 5);
     }
   }
 

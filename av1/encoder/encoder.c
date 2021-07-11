@@ -400,7 +400,7 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
       (tool_cfg->force_video_mode == 0) && (oxcf->input_cfg.limit == 1);
   seq->reduced_still_picture_hdr = seq->still_picture;
   seq->reduced_still_picture_hdr &= !tool_cfg->full_still_picture_hdr;
-  seq->force_screen_content_tools = (oxcf->mode == REALTIME) ? 0 : 2;
+  seq->force_screen_content_tools = 2;
   seq->force_integer_mv = 2;
   seq->order_hint_info.enable_order_hint = tool_cfg->enable_order_hint;
   seq->frame_id_numbers_present_flag =
@@ -1063,11 +1063,9 @@ AV1_COMP *av1_create_compressor(AV1EncoderConfig *oxcf, BufferPool *const pool,
   cpi->twopass.stats_buf_ctx = stats_buf_context;
   cpi->twopass.stats_in = cpi->twopass.stats_buf_ctx->stats_in_start;
 
-#if !CONFIG_REALTIME_ONLY
   if (is_stat_consumption_stage(cpi)) {
     av1_init_single_pass_lap(cpi);
   }
-#endif  // !CONFIG_REALTIME_ONLY
 
   int sb_mi_size = av1_get_sb_mi_size(cm);
 
@@ -1585,9 +1583,7 @@ void av1_remove_compressor(AV1_COMP *cpi) {
     aom_free(mt_info->workers);
   }
 
-#if !CONFIG_REALTIME_ONLY
   av1_tpl_dealloc(&tpl_data->tpl_mt_sync);
-#endif
   if (mt_info->num_workers > 1) {
     av1_loop_filter_dealloc(&mt_info->lf_row_sync);
     av1_loop_restoration_dealloc(&mt_info->lr_row_sync, mt_info->num_workers);
@@ -2449,8 +2445,6 @@ static int encode_without_recode(AV1_COMP *cpi) {
   return AOM_CODEC_OK;
 }
 
-#if !CONFIG_REALTIME_ONLY
-
 /*!\brief Recode loop for encoding one frame. the purpose of encoding one frame
  * for multiple times can be approaching a target bitrate or adjusting the usage
  * of global motions.
@@ -2696,7 +2690,6 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
 
   return AOM_CODEC_OK;
 }
-#endif  // !CONFIG_REALTIME_ONLY
 
 /*!\brief Recode loop or a single loop for encoding one frame, followed by
  * in-loop deblocking filters, CDEF filters, and restoration filters.
@@ -2724,14 +2717,10 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
   start_timing(cpi, encode_with_recode_loop_time);
 #endif
   int err;
-#if CONFIG_REALTIME_ONLY
-  err = encode_without_recode(cpi);
-#else
   if (cpi->sf.hl_sf.recode_loop == DISALLOW_RECODE)
     err = encode_without_recode(cpi);
   else
     err = encode_with_recode_loop(cpi, size, dest);
-#endif
 #if CONFIG_COLLECT_COMPONENT_TIMING
   end_timing(cpi, encode_with_recode_loop_time);
 #endif
@@ -3375,9 +3364,7 @@ int av1_encode(AV1_COMP *const cpi, uint8_t *const dest,
       (1 << (cm->seq_params.order_hint_info.order_hint_bits_minus_1 + 1));
 
   if (is_stat_generation_stage(cpi)) {
-#if !CONFIG_REALTIME_ONLY
     av1_first_pass(cpi, frame_input->ts_duration);
-#endif
   } else {
     if (encode_frame_to_data_rate(cpi, &frame_results->size, dest) !=
         AOM_CODEC_OK) {

@@ -259,7 +259,6 @@ class SubGopTestLarge
     is_first_frame_in_subgop_key_ = 0;
     frames_from_key_ = 0;
     frame_num_ = 0;
-    // TODO(any): Extend this unit test for 'CONFIG_REALTIME_ONLY'
     enable_subgop_stats_ = 1;
     memset(&subgop_last_step_, 0, sizeof(subgop_last_step_));
   }

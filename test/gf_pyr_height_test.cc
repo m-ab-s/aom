@@ -113,11 +113,9 @@ class GFPyrHeightTest
       if (rc_mode_ == AOM_Q) {
         encoder->Control(AOME_SET_QP, 32);
       }
-      if (encoding_mode_ != ::libaom_test::kRealTime) {
-        encoder->Control(AOME_SET_ENABLEAUTOALTREF, 1);
-        encoder->Control(AOME_SET_ARNR_MAXFRAMES, 7);
-        encoder->Control(AOME_SET_ARNR_STRENGTH, 5);
-      }
+      encoder->Control(AOME_SET_ENABLEAUTOALTREF, 1);
+      encoder->Control(AOME_SET_ARNR_MAXFRAMES, 7);
+      encoder->Control(AOME_SET_ARNR_STRENGTH, 5);
       encoder->Control(AV1E_SET_GF_MIN_PYRAMID_HEIGHT, gf_min_pyr_height_);
       encoder->Control(AV1E_SET_GF_MAX_PYRAMID_HEIGHT, gf_max_pyr_height_);
     }

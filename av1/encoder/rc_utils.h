@@ -81,8 +81,6 @@ static AOM_INLINE void config_target_level(AV1_COMP *const cpi,
   rc_cfg->min_cr = AOMMAX(rc_cfg->min_cr, (unsigned int)(min_cr * 100));
 }
 
-#if !CONFIG_REALTIME_ONLY
-
 /*!\brief Function to test for conditions that indicate we should loop
  * back and recode a frame.
  *
@@ -388,7 +386,6 @@ static AOM_INLINE void recode_loop_update_q(
 
   *loop = (*q != last_q);
 }
-#endif
 
 #ifdef __cplusplus
 }  // extern "C"

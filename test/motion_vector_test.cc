@@ -47,16 +47,8 @@ class MotionVectorTestLarge
   virtual void SetUp() {
     InitializeConfig();
     SetMode(encoding_mode_);
-    if (encoding_mode_ != ::libaom_test::kRealTime) {
-      cfg_.g_lag_in_frames = 3;
-      cfg_.rc_end_usage = AOM_VBR;
-    } else {
-      cfg_.g_lag_in_frames = 0;
-      cfg_.rc_end_usage = AOM_CBR;
-      cfg_.rc_buf_sz = 1000;
-      cfg_.rc_buf_initial_sz = 500;
-      cfg_.rc_buf_optimal_sz = 600;
-    }
+    cfg_.g_lag_in_frames = 3;
+    cfg_.rc_end_usage = AOM_VBR;
   }
 
   virtual void PreEncodeFrameHook(::libaom_test::VideoSource *video,
@@ -64,11 +56,9 @@ class MotionVectorTestLarge
     if (video->frame() == 0) {
       encoder->Control(AOME_SET_CPUUSED, cpu_used_);
       encoder->Control(AV1E_ENABLE_MOTION_VECTOR_UNIT_TEST, mv_test_mode_);
-      if (encoding_mode_ != ::libaom_test::kRealTime) {
-        encoder->Control(AOME_SET_ENABLEAUTOALTREF, 1);
-        encoder->Control(AOME_SET_ARNR_MAXFRAMES, 7);
-        encoder->Control(AOME_SET_ARNR_STRENGTH, 5);
-      }
+      encoder->Control(AOME_SET_ENABLEAUTOALTREF, 1);
+      encoder->Control(AOME_SET_ARNR_MAXFRAMES, 7);
+      encoder->Control(AOME_SET_ARNR_STRENGTH, 5);
     }
   }
 

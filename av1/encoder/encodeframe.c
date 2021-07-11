@@ -58,9 +58,7 @@
 #include "av1/encoder/ml.h"
 #include "av1/encoder/motion_search_facade.h"
 #include "av1/encoder/partition_strategy.h"
-#if !CONFIG_REALTIME_ONLY
 #include "av1/encoder/partition_model_weights.h"
-#endif
 #include "av1/encoder/partition_search.h"
 #include "av1/encoder/rd.h"
 #include "av1/encoder/rdopt.h"
@@ -216,7 +214,6 @@ void av1_setup_src_planes(MACROBLOCK *x, const YV12_BUFFER_CONFIG *src,
   }
 }
 
-#if !CONFIG_REALTIME_ONLY
 /*!\brief Assigns different quantization parameters to each super
  * block based on its TPL weight.
  *
@@ -443,7 +440,6 @@ static AOM_INLINE void adjust_rdmult_tpl_model(AV1_COMP *cpi, MACROBLOCK *x,
     x->rdmult = dr;
   }
 }
-#endif  // !CONFIG_REALTIME_ONLY
 
 #define AVG_CDF_WEIGHT_LEFT 3
 #define AVG_CDF_WEIGHT_TOP_RIGHT 1
@@ -551,35 +547,20 @@ static INLINE void init_encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
     init_simple_motion_search_mvs(sms_root);
   }
 
-#if !CONFIG_REALTIME_ONLY
-  if (has_no_stats_stage(cpi) && cpi->oxcf.mode == REALTIME &&
-      cpi->oxcf.gf_cfg.lag_in_frames == 0) {
-    (void)tile_info;
-    (void)mi_row;
-    (void)mi_col;
-    (void)gather_tpl_data;
-  } else {
-    init_ref_frame_space(cpi, td, mi_row, mi_col);
-    x->sb_energy_level = 0;
-    x->part_search_info.cnn_output_valid = 0;
-    if (gather_tpl_data) {
-      if (cm->delta_q_info.delta_q_present_flag) {
-        const int num_planes = av1_num_planes(cm);
-        const BLOCK_SIZE sb_size = cm->seq_params.sb_size;
-        setup_delta_q(cpi, td, x, tile_info, mi_row, mi_col, num_planes);
-        av1_tpl_rdmult_setup_sb(cpi, x, sb_size, mi_row, mi_col);
-      }
-      if (cpi->oxcf.algo_cfg.enable_tpl_model) {
-        adjust_rdmult_tpl_model(cpi, x, mi_row, mi_col);
-      }
+  init_ref_frame_space(cpi, td, mi_row, mi_col);
+  x->sb_energy_level = 0;
+  x->part_search_info.cnn_output_valid = 0;
+  if (gather_tpl_data) {
+    if (cm->delta_q_info.delta_q_present_flag) {
+      const int num_planes = av1_num_planes(cm);
+      const BLOCK_SIZE sb_size = cm->seq_params.sb_size;
+      setup_delta_q(cpi, td, x, tile_info, mi_row, mi_col, num_planes);
+      av1_tpl_rdmult_setup_sb(cpi, x, sb_size, mi_row, mi_col);
+    }
+    if (cpi->oxcf.algo_cfg.enable_tpl_model) {
+      adjust_rdmult_tpl_model(cpi, x, mi_row, mi_col);
     }
   }
-#else
-  (void)tile_info;
-  (void)mi_row;
-  (void)mi_col;
-  (void)gather_tpl_data;
-#endif
 
   // Reset hash state for transform/mode rd hash information
   reset_hash_records(&x->txfm_search_info, cpi->sf.tx_sf.use_inter_txb_hash);
@@ -609,10 +590,6 @@ static AOM_INLINE void encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
   int64_t dummy_dist;
   RD_STATS dummy_rdc;
   SIMPLE_MOTION_DATA_TREE *const sms_root = td->sms_root;
-
-#if CONFIG_REALTIME_ONLY
-  (void)seg_skip;
-#endif  // CONFIG_REALTIME_ONLY
 
 #if CONFIG_SDP
   const int total_loop_num =
@@ -648,9 +625,7 @@ static AOM_INLINE void encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
     }
     xd->tree_type = SHARED_PART;
 #endif
-  }
-#if !CONFIG_REALTIME_ONLY
-  else if (sf->part_sf.partition_search_type == FIXED_PARTITION || seg_skip) {
+  } else if (sf->part_sf.partition_search_type == FIXED_PARTITION || seg_skip) {
     // partition search by adjusting a fixed-size partition
     av1_set_offsets(cpi, tile_info, x, mi_row, mi_col, sb_size);
     const BLOCK_SIZE bsize =
@@ -786,7 +761,6 @@ static AOM_INLINE void encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
     end_timing(cpi, rd_pick_partition_time);
 #endif
   }
-#endif  // !CONFIG_REALTIME_ONLY
 
   // Update the inter rd model
   // TODO(angiebird): Let inter_mode_rd_model_estimation support multi-tile.

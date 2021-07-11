@@ -241,7 +241,6 @@ const arg_def_t *main_args[] = { &g_av1_codec_arg_defs.help,
                                  &g_av1_codec_arg_defs.skip,
                                  &g_av1_codec_arg_defs.step,
                                  &g_av1_codec_arg_defs.good_dl,
-                                 &g_av1_codec_arg_defs.rt_dl,
                                  &g_av1_codec_arg_defs.quietarg,
                                  &g_av1_codec_arg_defs.verbosearg,
                                  &g_av1_codec_arg_defs.psnrarg,
@@ -683,8 +682,6 @@ static void parse_global_config(struct AvxEncoderConfig *global, char ***argv) {
       global->usage = arg_parse_uint(&arg);
     } else if (arg_match(&arg, &g_av1_codec_arg_defs.good_dl, argi)) {
       global->usage = AOM_USAGE_GOOD_QUALITY;  // Good quality usage
-    } else if (arg_match(&arg, &g_av1_codec_arg_defs.rt_dl, argi)) {
-      global->usage = AOM_USAGE_REALTIME;  // Real-time usage
     } else if (arg_match(&arg, &g_av1_codec_arg_defs.use_yv12, argi)) {
       global->color_type = YV12;
     } else if (arg_match(&arg, &g_av1_codec_arg_defs.use_i420, argi)) {
@@ -1177,12 +1174,6 @@ static int parse_stream_params(struct AvxEncoderConfig *global,
               (config->cfg.fixed_qp_offsets[k - 1] + 1) / 2;
       }
       config->cfg.use_fixed_qp_offsets = 1;
-    } else if (global->usage == AOM_USAGE_REALTIME &&
-               arg_match(&arg, &g_av1_codec_arg_defs.enable_restoration,
-                         argi)) {
-      if (arg_parse_uint(&arg) == 1) {
-        warn("non-zero %s option ignored in realtime mode.\n", arg.name);
-      }
     } else if (arg_match(&arg, &g_av1_codec_arg_defs.cq_level, argi)) {
       const unsigned int cq_level_val = arg_parse_uint(&arg);
       const int qp_val =
@@ -1219,10 +1210,6 @@ static int parse_stream_params(struct AvxEncoderConfig *global,
   }
   config->use_16bit_internal |= config->cfg.g_bit_depth > AOM_BITS_8;
 
-  if (global->usage == AOM_USAGE_REALTIME && config->cfg.g_lag_in_frames != 0) {
-    warn("non-zero lag-in-frames option ignored in realtime mode.\n");
-    config->cfg.g_lag_in_frames = 0;
-  }
   return eos_mark_found;
 }
 

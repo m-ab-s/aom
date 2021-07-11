@@ -875,7 +875,6 @@ int av1_is_leaf_split_partition(AV1_COMMON *cm, int mi_row, int mi_col,
   return 1;
 }
 
-#if !CONFIG_REALTIME_ONLY
 int av1_get_rdmult_delta(AV1_COMP *cpi, BLOCK_SIZE bsize, int mi_row,
                          int mi_col, int orig_rdmult) {
   AV1_COMMON *const cm = &cpi->common;
@@ -1133,7 +1132,6 @@ int av1_get_q_for_deltaq_objective(AV1_COMP *const cpi, BLOCK_SIZE bsize,
 
   return qindex;
 }
-#endif  // !CONFIG_REALTIME_ONLY
 
 void av1_reset_simple_motion_tree_partition(SIMPLE_MOTION_DATA_TREE *sms_tree,
                                             BLOCK_SIZE bsize) {

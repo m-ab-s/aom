@@ -17,7 +17,6 @@
 
 // Q threshold for high precision mv.
 #define HIGH_PRECISION_MV_QTHRESH 128
-#if !CONFIG_REALTIME_ONLY
 void av1_collect_mv_stats(AV1_COMP *cpi, int current_q);
 
 static AOM_INLINE int av1_frame_allows_smart_mv(const AV1_COMP *cpi) {
@@ -28,7 +27,6 @@ static AOM_INLINE int av1_frame_allows_smart_mv(const AV1_COMP *cpi) {
            gf_update_type == KFFLT_OVERLAY_UPDATE ||
            gf_update_type == OVERLAY_UPDATE);
 }
-#endif  // !CONFIG_REALTIME_ONLY
 
 static AOM_INLINE void av1_set_high_precision_mv(
     AV1_COMP *cpi, int allow_high_precision_mv,

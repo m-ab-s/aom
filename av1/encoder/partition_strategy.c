@@ -18,23 +18,19 @@
 #include "av1/common/enums.h"
 #include "av1/common/reconinter.h"
 
-#if !CONFIG_REALTIME_ONLY
 #include "av1/encoder/cnn.h"
 #include "av1/encoder/partition_model_weights.h"
 #include "av1/encoder/partition_cnn_weights.h"
-#endif
 #include "av1/encoder/encoder.h"
 
 #include "av1/encoder/motion_search_facade.h"
 #include "av1/encoder/partition_strategy.h"
 #include "av1/encoder/rdopt.h"
 
-#if !CONFIG_REALTIME_ONLY
 static AOM_INLINE void simple_motion_search_prune_part_features(
     AV1_COMP *const cpi, MACROBLOCK *x, SIMPLE_MOTION_DATA_TREE *sms_tree,
     int mi_row, int mi_col, BLOCK_SIZE bsize, float *features,
     int features_to_get);
-#endif
 
 static INLINE int convert_bsize_to_idx(BLOCK_SIZE bsize) {
   switch (bsize) {
@@ -47,7 +43,6 @@ static INLINE int convert_bsize_to_idx(BLOCK_SIZE bsize) {
   }
 }
 
-#if !CONFIG_REALTIME_ONLY
 // TODO(chiyotsai@google.com): This is very much a work in progress. We still
 // need to the following:
 //   -- add support for hdres
@@ -1631,5 +1626,3 @@ void av1_prune_ab_partitions(
         pc_tree, PARTITION_VERT, rect_part_win_info, x->qindex, 1, 3);
   }
 }
-
-#endif  // !CONFIG_REALTIME_ONLY

@@ -14,12 +14,9 @@
 #include "aom_ports/system_state.h"
 
 #include "av1/encoder/encodemv.h"
-#if !CONFIG_REALTIME_ONLY
 #include "av1/encoder/misc_model_weights.h"
-#endif  // !CONFIG_REALTIME_ONLY
 #include "av1/encoder/mv_prec.h"
 
-#if !CONFIG_REALTIME_ONLY
 static AOM_INLINE int_mv get_ref_mv_for_mv_stats(
     const MB_MODE_INFO *mbmi, const MB_MODE_INFO_EXT_FRAME *mbmi_ext_frame,
     int ref_idx) {
@@ -430,20 +427,16 @@ static AOM_INLINE int get_smart_mv_prec(AV1_COMP *cpi, const MV_STATS *mv_stats,
   const int use_high_hp = score >= 0.0f;
   return use_high_hp;
 }
-#endif  // !CONFIG_REALTIME_ONLY
 
 void av1_pick_and_set_high_precision_mv(AV1_COMP *cpi, int qindex) {
   int use_hp = qindex < HIGH_PRECISION_MV_QTHRESH;
 
   if (cpi->sf.hl_sf.high_precision_mv_usage == QTR_ONLY) {
     use_hp = 0;
-  }
-#if !CONFIG_REALTIME_ONLY
-  else if (cpi->sf.hl_sf.high_precision_mv_usage == LAST_MV_DATA &&
-           av1_frame_allows_smart_mv(cpi) && cpi->mv_stats.valid) {
+  } else if (cpi->sf.hl_sf.high_precision_mv_usage == LAST_MV_DATA &&
+             av1_frame_allows_smart_mv(cpi) && cpi->mv_stats.valid) {
     use_hp = get_smart_mv_prec(cpi, &cpi->mv_stats, qindex);
   }
-#endif  // !CONFIG_REALTIME_ONLY
 
   av1_set_high_precision_mv(cpi, use_hp,
                             cpi->common.features.cur_frame_force_integer_mv);

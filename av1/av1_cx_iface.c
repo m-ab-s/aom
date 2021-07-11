@@ -1006,7 +1006,7 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   const int is_vbr = cfg->rc_end_usage == AOM_VBR;
   oxcf->profile = cfg->g_profile;
   oxcf->max_threads = (int)cfg->g_threads;
-  oxcf->mode = (cfg->g_usage == AOM_USAGE_REALTIME) ? REALTIME : GOOD;
+  oxcf->mode = GOOD;
 
   // Set frame-dimension related configuration.
   frm_dim_cfg->width = cfg->g_w;
@@ -1100,8 +1100,7 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   tool_cfg->bit_depth = cfg->g_bit_depth;
   tool_cfg->enable_deblocking = extra_cfg->enable_deblocking;
   tool_cfg->enable_cdef = extra_cfg->enable_cdef;
-  tool_cfg->enable_restoration =
-      (cfg->g_usage == AOM_USAGE_REALTIME) ? 0 : extra_cfg->enable_restoration;
+  tool_cfg->enable_restoration = extra_cfg->enable_restoration;
 #if CONFIG_CCSO
   tool_cfg->enable_ccso = extra_cfg->enable_ccso;
 #endif
@@ -1293,9 +1292,7 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   oxcf->motion_mode_cfg.enable_obmc = extra_cfg->enable_obmc;
   oxcf->motion_mode_cfg.enable_warped_motion = extra_cfg->enable_warped_motion;
   oxcf->motion_mode_cfg.allow_warped_motion =
-      (cfg->g_usage == AOM_USAGE_REALTIME)
-          ? false
-          : (extra_cfg->allow_warped_motion & extra_cfg->enable_warped_motion);
+      (extra_cfg->allow_warped_motion & extra_cfg->enable_warped_motion);
 
   // Set partition related configuration.
   part_cfg->enable_rect_partitions = extra_cfg->enable_rect_partitions;
@@ -2340,7 +2337,6 @@ static aom_codec_err_t ctrl_enable_subgop_stats(aom_codec_alg_priv_t *ctx,
   return AOM_CODEC_OK;
 }
 
-#if !CONFIG_REALTIME_ONLY
 static aom_codec_err_t create_stats_buffer(FIRSTPASS_STATS **frame_stats_buffer,
                                            STATS_BUFFER_CTX *stats_buf_context,
                                            int num_lap_buffers) {
@@ -2364,7 +2360,6 @@ static aom_codec_err_t create_stats_buffer(FIRSTPASS_STATS **frame_stats_buffer,
   av1_twopass_zero_stats(stats_buf_context->total_stats);
   return res;
 }
-#endif
 
 static aom_codec_err_t create_context_and_bufferpool(
     AV1_COMP **p_cpi, BufferPool **p_buffer_pool, AV1EncoderConfig *oxcf,
@@ -2437,11 +2432,9 @@ static aom_codec_err_t encoder_init(aom_codec_ctx_t *ctx) {
       priv->oxcf.use_highbitdepth =
           (ctx->init_flags & AOM_CODEC_USE_HIGHBITDEPTH) ? 1 : 0;
 
-#if !CONFIG_REALTIME_ONLY
       res = create_stats_buffer(&priv->frame_stats_buffer,
                                 &priv->stats_buf_context, *num_lap_buffers);
       if (res != AOM_CODEC_OK) return AOM_CODEC_MEM_ERROR;
-#endif
 
       res = create_context_and_bufferpool(
           &priv->cpi, &priv->buffer_pool, &priv->oxcf, &priv->pkt_list.head,
@@ -2623,7 +2616,7 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
       }
     }
   }
-  if (ctx->oxcf.mode != GOOD && ctx->oxcf.mode != REALTIME) {
+  if (ctx->oxcf.mode != GOOD) {
     ctx->oxcf.mode = GOOD;
     av1_change_config(ctx->cpi, &ctx->oxcf);
   }
@@ -3840,202 +3833,103 @@ static aom_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {
   CTRL_MAP_END,
 };
 
-static const aom_codec_enc_cfg_t encoder_usage_cfg[] = {
-  {
-      // NOLINT
-      AOM_USAGE_GOOD_QUALITY,  // g_usage - non-realtime usage
-      0,                       // g_threads
-      0,                       // g_profile
+static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
+    // NOLINT
+    AOM_USAGE_GOOD_QUALITY,  // g_usage - non-realtime usage
+    0,                       // g_threads
+    0,                       // g_profile
 
-      320,         // g_w
-      240,         // g_h
-      0,           // g_limit
-      0,           // g_forced_max_frame_width
-      0,           // g_forced_max_frame_height
-      AOM_BITS_8,  // g_bit_depth
-      8,           // g_input_bit_depth
+    320,         // g_w
+    240,         // g_h
+    0,           // g_limit
+    0,           // g_forced_max_frame_width
+    0,           // g_forced_max_frame_height
+    AOM_BITS_8,  // g_bit_depth
+    8,           // g_input_bit_depth
 
-      { 1, 30 },  // g_timebase
+    { 1, 30 },  // g_timebase
 
-      0,  // g_error_resilient
+    0,  // g_error_resilient
 
-      AOM_RC_ONE_PASS,  // g_pass
+    AOM_RC_ONE_PASS,  // g_pass
 
-      19,  // g_lag_in_frames
+    19,  // g_lag_in_frames
 
-      0,                // rc_dropframe_thresh
-      RESIZE_NONE,      // rc_resize_mode
-      SCALE_NUMERATOR,  // rc_resize_denominator
-      SCALE_NUMERATOR,  // rc_resize_kf_denominator
+    0,                // rc_dropframe_thresh
+    RESIZE_NONE,      // rc_resize_mode
+    SCALE_NUMERATOR,  // rc_resize_denominator
+    SCALE_NUMERATOR,  // rc_resize_kf_denominator
 
-      AOM_SUPERRES_NONE,  // rc_superres_mode
-      SCALE_NUMERATOR,    // rc_superres_denominator
-      SCALE_NUMERATOR,    // rc_superres_kf_denominator
-      255,                // rc_superres_qthresh
-      128,                // rc_superres_kf_qthresh
+    AOM_SUPERRES_NONE,  // rc_superres_mode
+    SCALE_NUMERATOR,    // rc_superres_denominator
+    SCALE_NUMERATOR,    // rc_superres_kf_denominator
+    255,                // rc_superres_qthresh
+    128,                // rc_superres_kf_qthresh
 
-      AOM_VBR,      // rc_end_usage
-      { NULL, 0 },  // rc_firstpass_mb_stats_in
-      256,          // rc_target_bandwidth
-      0,            // rc_min_quantizer
-      255,          // rc_max_quantizer
-      25,           // rc_undershoot_pct
-      25,           // rc_overshoot_pct
+    AOM_VBR,      // rc_end_usage
+    { NULL, 0 },  // rc_firstpass_mb_stats_in
+    256,          // rc_target_bandwidth
+    0,            // rc_min_quantizer
+    255,          // rc_max_quantizer
+    25,           // rc_undershoot_pct
+    25,           // rc_overshoot_pct
 
-      6000,  // rc_max_buffer_size
-      4000,  // rc_buffer_initial_size
-      5000,  // rc_buffer_optimal_size
+    6000,  // rc_max_buffer_size
+    4000,  // rc_buffer_initial_size
+    5000,  // rc_buffer_optimal_size
 
-      0,     // rc_two_pass_vbrmin_section
-      2000,  // rc_two_pass_vbrmax_section
+    0,     // rc_two_pass_vbrmin_section
+    2000,  // rc_two_pass_vbrmax_section
 
-      // keyframing settings (kf)
-      0,                           // fwd_kf_enabled
-      AOM_KF_AUTO,                 // kf_mode
-      0,                           // kf_min_dist
-      9999,                        // kf_max_dist
-      0,                           // sframe_dist
-      1,                           // sframe_mode
-      0,                           // large_scale_tile
-      0,                           // monochrome
-      0,                           // full_still_picture_hdr
-      0,                           // save_as_annexb
-      0,                           // tile_width_count
-      0,                           // tile_height_count
-      { 0 },                       // tile_widths
-      { 0 },                       // tile_heights
-      0,                           // use_fixed_qp_offsets
-      { -1, -1, -1, -1, -1, -1 },  // fixed_qp_offsets
-      {
-          0, 128, 128, 4, 1, 1, 1,
+    // keyframing settings (kf)
+    0,                           // fwd_kf_enabled
+    AOM_KF_AUTO,                 // kf_mode
+    0,                           // kf_min_dist
+    9999,                        // kf_max_dist
+    0,                           // sframe_dist
+    1,                           // sframe_mode
+    0,                           // large_scale_tile
+    0,                           // monochrome
+    0,                           // full_still_picture_hdr
+    0,                           // save_as_annexb
+    0,                           // tile_width_count
+    0,                           // tile_height_count
+    { 0 },                       // tile_widths
+    { 0 },                       // tile_heights
+    0,                           // use_fixed_qp_offsets
+    { -1, -1, -1, -1, -1, -1 },  // fixed_qp_offsets
+    {
+        0, 128, 128, 4, 1, 1, 1,
 #if CONFIG_SDP
-          1,
+        1,
 #endif  // CONFIG_SDP
 #if CONFIG_MRLS
-          1,
+        1,
 #endif
 #if CONFIG_ORIP
-          1,
+        1,
 #endif
 #if CONFIG_IST
-          1,
+        1,
 #endif  // CONFIG_IST
-          1, 1,   1,   1,
+        1, 1,   1,   1,
 #if CONFIG_CCSO
-          1,
+        1,
 #endif
-          1, 1,   1,
+        1, 1,   1,
 #if !CONFIG_REMOVE_DIST_WTD_COMP
-          1,
+        1,
 #endif  // !CONFIG_REMOVE_DIST_WTD_COMP
-          1, 1,   1,   0, 0, 1, 1, 1, 1,
+        1, 1,   1,   0, 0, 1, 1, 1, 1,
 #if !CONFIG_REMOVE_DUAL_FILTER
-          1,
+        1,
 #endif  // !CONFIG_REMOVE_DUAL_FILTER
-          1, 1,   1,   1, 1, 1, 1, 3, 1, 1, 0,
+        1, 1,   1,   1, 1, 1, 1, 3, 1, 1, 0,
 #if CONFIG_NEW_INTER_MODES
-          0,
-#endif    // CONFIG_NEW_INTER_MODES
-      },  // cfg
-  },
-  {
-      // NOLINT
-      AOM_USAGE_REALTIME,  // g_usage - real-time usage
-      0,                   // g_threads
-      0,                   // g_profile
-
-      320,         // g_w
-      240,         // g_h
-      0,           // g_limit
-      0,           // g_forced_max_frame_width
-      0,           // g_forced_max_frame_height
-      AOM_BITS_8,  // g_bit_depth
-      8,           // g_input_bit_depth
-
-      { 1, 30 },  // g_timebase
-
-      0,  // g_error_resilient
-
-      AOM_RC_ONE_PASS,  // g_pass
-
-      1,  // g_lag_in_frames
-
-      0,                // rc_dropframe_thresh
-      RESIZE_NONE,      // rc_resize_mode
-      SCALE_NUMERATOR,  // rc_resize_denominator
-      SCALE_NUMERATOR,  // rc_resize_kf_denominator
-
-      AOM_SUPERRES_NONE,  // rc_superres_mode
-      SCALE_NUMERATOR,    // rc_superres_denominator
-      SCALE_NUMERATOR,    // rc_superres_kf_denominator
-      255,                // rc_superres_qthresh
-      128,                // rc_superres_kf_qthresh
-
-      AOM_CBR,      // rc_end_usage
-      { NULL, 0 },  // rc_firstpass_mb_stats_in
-      256,          // rc_target_bandwidth
-      0,            // rc_min_quantizer
-      255,          // rc_max_quantizer
-      25,           // rc_undershoot_pct
-      25,           // rc_overshoot_pct
-
-      6000,  // rc_max_buffer_size
-      4000,  // rc_buffer_initial_size
-      5000,  // rc_buffer_optimal_size
-
-      0,     // rc_two_pass_vbrmin_section
-      2000,  // rc_two_pass_vbrmax_section
-
-      // keyframing settings (kf)
-      0,                           // fwd_kf_enabled
-      AOM_KF_AUTO,                 // kf_mode
-      0,                           // kf_min_dist
-      9999,                        // kf_max_dist
-      0,                           // sframe_dist
-      1,                           // sframe_mode
-      0,                           // large_scale_tile
-      0,                           // monochrome
-      0,                           // full_still_picture_hdr
-      0,                           // save_as_annexb
-      0,                           // tile_width_count
-      0,                           // tile_height_count
-      { 0 },                       // tile_widths
-      { 0 },                       // tile_heights
-      0,                           // use_fixed_qp_offsets
-      { -1, -1, -1, -1, -1, -1 },  // fixed_qp_offsets
-      {
-          0, 128, 128, 4, 1, 1, 1,
-#if CONFIG_SDP
-          1,
-#endif
-#if CONFIG_MRLS
-          1,
-#endif
-#if CONFIG_ORIP
-          1,
-#endif
-#if CONFIG_IST
-          1,
-#endif
-          1, 1,   1,   1,
-#if CONFIG_CCSO
-          1,
-#endif
-          1, 1,   1,
-#if !CONFIG_REMOVE_DIST_WTD_COMP
-          1,
-#endif  // !CONFIG_REMOVE_DIST_WTD_COMP
-          1, 1,   1,   0, 0, 1, 1, 1, 1,
-#if !CONFIG_REMOVE_DUAL_FILTER
-          1,
-#endif  // !CONFIG_REMOVE_DUAL_FILTER
-          1, 1,   1,   1, 1, 1, 1, 3, 1, 1, 0,
-#if CONFIG_NEW_INTER_MODES
-          0,
-#endif    // CONFIG_NEW_INTER_MODES
-      },  // cfg
-  },
-};
+        0,
+#endif  // CONFIG_NEW_INTER_MODES
+    },  // cfg
+} };
 
 // This data structure and function are exported in aom/aomcx.h
 #ifndef VERSION_STRING
@@ -4059,7 +3953,7 @@ aom_codec_iface_t aom_codec_av1_cx_algo = {
   },
   {
       // NOLINT
-      2,                           // 2 cfg
+      1,                           // 1 cfg
       encoder_usage_cfg,           // aom_codec_enc_cfg_t
       encoder_encode,              // aom_codec_encode_fn_t
       encoder_get_cxdata,          // aom_codec_get_cx_data_fn_t

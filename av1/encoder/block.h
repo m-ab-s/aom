@@ -21,9 +21,7 @@
 #include "av1/common/mvref_common.h"
 
 #include "av1/encoder/enc_enums.h"
-#if !CONFIG_REALTIME_ONLY
 #include "av1/encoder/partition_cnn_weights.h"
-#endif
 
 #include "av1/encoder/hash.h"
 
@@ -414,7 +412,6 @@ typedef struct {
  */
 // TODO(chiyotsai@google.com): Consolidate this with SIMPLE_MOTION_DATA_TREE
 typedef struct {
-#if !CONFIG_REALTIME_ONLY
   // The following 4 parameters are used for cnn-based partitioning on intra
   // frame.
   /*! \brief Current index on the partition block quad tree.
@@ -428,7 +425,6 @@ typedef struct {
   float cnn_buffer[CNN_OUT_BUF_SIZE];
   //! log of the quantization parameter of the ancestor BLOCK_64X64.
   float log_q;
-#endif
 
   /*! \brief Variance of the subblocks in the superblock.
    *

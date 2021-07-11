@@ -850,7 +850,6 @@ static AOM_INLINE int update_entropy(bool *ext_refresh_frame_context,
   return 0;
 }
 
-#if !CONFIG_REALTIME_ONLY
 static AOM_INLINE int combine_prior_with_tpl_boost(double min_factor,
                                                    double max_factor,
                                                    int prior_boost,
@@ -865,7 +864,6 @@ static AOM_INLINE int combine_prior_with_tpl_boost(double min_factor,
       (int)((factor * prior_boost + (range - factor) * tpl_boost) / range);
   return boost;
 }
-#endif
 
 static AOM_INLINE void set_size_independent_vars(AV1_COMP *cpi) {
   int i;
@@ -960,7 +958,6 @@ BLOCK_SIZE av1_select_sb_size(const AV1_COMP *const cpi);
 
 void av1_apply_active_map(AV1_COMP *cpi);
 
-#if !CONFIG_REALTIME_ONLY
 uint16_t av1_setup_interp_filter_search_mask(AV1_COMP *cpi);
 
 void av1_determine_sc_tools_with_encoding(AV1_COMP *cpi, const int q_orig);
@@ -968,7 +965,6 @@ void av1_determine_sc_tools_with_encoding(AV1_COMP *cpi, const int q_orig);
 int av1_recode_loop_test_global_motion(WarpedMotionParams *const global_motion,
                                        const int *const global_motion_used,
                                        int *const gm_params_cost);
-#endif
 
 void av1_set_size_dependent_vars(AV1_COMP *cpi, int *q, int *bottom_index,
                                  int *top_index);

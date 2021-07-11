@@ -227,14 +227,8 @@ class AVxEncoderThreadTest
     InitializeConfig();
     SetMode(encoding_mode_);
 
-    if (encoding_mode_ != ::libaom_test::kRealTime) {
-      cfg_.g_lag_in_frames = 5;
-      cfg_.rc_end_usage = AOM_VBR;
-    } else {
-      cfg_.g_lag_in_frames = 0;
-      cfg_.rc_end_usage = AOM_CBR;
-      cfg_.g_error_resilient = 1;
-    }
+    cfg_.g_lag_in_frames = 5;
+    cfg_.rc_end_usage = AOM_VBR;
     cfg_.rc_max_quantizer = 224;
     cfg_.rc_min_quantizer = 0;
   }
@@ -249,15 +243,10 @@ class AVxEncoderThreadTest
       SetTileSize(encoder);
       encoder->Control(AOME_SET_CPUUSED, set_cpu_used_);
       encoder->Control(AV1E_SET_ROW_MT, row_mt_);
-      if (encoding_mode_ != ::libaom_test::kRealTime) {
-        encoder->Control(AOME_SET_ENABLEAUTOALTREF, 1);
-        encoder->Control(AOME_SET_ARNR_MAXFRAMES, 7);
-        encoder->Control(AOME_SET_ARNR_STRENGTH, 5);
-        encoder->Control(AV1E_SET_FRAME_PARALLEL_DECODING, 0);
-      } else {
-        encoder->Control(AOME_SET_ENABLEAUTOALTREF, 0);
-        encoder->Control(AV1E_SET_AQ_MODE, 3);
-      }
+      encoder->Control(AOME_SET_ENABLEAUTOALTREF, 1);
+      encoder->Control(AOME_SET_ARNR_MAXFRAMES, 7);
+      encoder->Control(AOME_SET_ARNR_STRENGTH, 5);
+      encoder->Control(AV1E_SET_FRAME_PARALLEL_DECODING, 0);
       encoder_initialized_ = true;
     }
   }

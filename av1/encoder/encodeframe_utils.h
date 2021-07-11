@@ -211,7 +211,6 @@ static AOM_INLINE int do_slipt_check(BLOCK_SIZE bsize) {
   return (bsize == BLOCK_16X16 || bsize == BLOCK_32X32);
 }
 
-#if !CONFIG_REALTIME_ONLY
 static AOM_INLINE const FIRSTPASS_STATS *read_one_frame_stats(const TWO_PASS *p,
                                                               int frm) {
   assert(frm >= 0);
@@ -276,7 +275,6 @@ void av1_get_tpl_stats_sb(AV1_COMP *cpi, BLOCK_SIZE bsize, int mi_row,
 
 int av1_get_q_for_deltaq_objective(AV1_COMP *const cpi, BLOCK_SIZE bsize,
                                    int mi_row, int mi_col);
-#endif  // !CONFIG_REALTIME_ONLY
 
 void av1_set_ssim_rdmult(const AV1_COMP *const cpi, MvCosts *const mv_costs,
                          const BLOCK_SIZE bsize, const int mi_row,

@@ -34,7 +34,6 @@ using ::testing::Range;
 using ::testing::Values;
 using ::testing::ValuesIn;
 
-#if !CONFIG_REALTIME_ONLY
 namespace {
 
 typedef void (*TemporalFilterFunc)(
@@ -450,4 +449,3 @@ INSTANTIATE_TEST_SUITE_P(SSE2, HBDTemporalFilterTest,
                                  Range(64, 65, 4)));
 #endif  // HAVE_SSE2
 }  // namespace
-#endif

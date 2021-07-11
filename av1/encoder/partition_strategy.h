@@ -90,7 +90,6 @@ void av1_simple_motion_search_prune_rect(
     int mi_row, int mi_col, BLOCK_SIZE bsize, int partition_horz_allowed,
     int partition_vert_allowed, int *prune_horz, int *prune_vert);
 
-#if !CONFIG_REALTIME_ONLY
 // Early terminates PARTITION_NONE using simple_motion_search features and the
 // rate, distortion, and rdcost of PARTITION_NONE. This is only called when:
 //  - The frame is a show frame
@@ -191,7 +190,6 @@ void av1_prune_ab_partitions(
     int partition_horz_allowed, int partition_vert_allowed,
     int *horza_partition_allowed, int *horzb_partition_allowed,
     int *verta_partition_allowed, int *vertb_partition_allowed);
-#endif  // !CONFIG_REALTIME_ONLY
 
 // A simplified version of set_offsets meant to be used for
 // simple_motion_search.

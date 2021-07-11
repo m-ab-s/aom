@@ -87,11 +87,9 @@ TEST_P(AqSegmentTest, TestNoMisMatchExtDeltaQ) {
 }
 
 AV1_INSTANTIATE_TEST_SUITE(AqSegmentTest,
-                           ::testing::Values(::libaom_test::kRealTime,
-                                             ::libaom_test::kOnePassGood),
+                           ::testing::Values(::libaom_test::kOnePassGood),
                            ::testing::Range(5, 9), ::testing::Range(0, 4));
 AV1_INSTANTIATE_TEST_SUITE(AqSegmentTestLarge,
-                           ::testing::Values(::libaom_test::kRealTime,
-                                             ::libaom_test::kOnePassGood),
+                           ::testing::Values(::libaom_test::kOnePassGood),
                            ::testing::Range(3, 5), ::testing::Range(0, 4));
 }  // namespace

@@ -81,11 +81,6 @@ void EncoderTest::InitializeConfig() {
 void EncoderTest::SetMode(TestMode mode) {
   switch (mode) {
     case kOnePassGood: break;
-    case kRealTime: {
-      cfg_.g_lag_in_frames = 0;
-      cfg_.g_usage = AOM_USAGE_REALTIME;
-      break;
-    }
     default: ASSERT_TRUE(false) << "Unexpected mode " << mode;
   }
   mode_ = mode;
@@ -186,10 +181,6 @@ void EncoderTest::RunLoop(VideoSource *video) {
 
     ASSERT_NO_FATAL_FAILURE(video->Begin());
     encoder->InitEncoder(video);
-
-    if (mode_ == kRealTime) {
-      encoder->Control(AOME_SET_ENABLEAUTOALTREF, 0);
-    }
 
     ASSERT_FALSE(::testing::Test::HasFatalFailure());
 

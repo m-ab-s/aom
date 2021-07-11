@@ -2582,7 +2582,6 @@ typedef struct {
   int64_t ref_inter_cost[INTER_REFS_PER_FRAME];
 } PruneInfoFromTpl;
 
-#if !CONFIG_REALTIME_ONLY
 // TODO(Remya): Check if get_tpl_stats_b() can be reused
 static AOM_INLINE void get_block_level_tpl_stats(
     AV1_COMP *cpi, BLOCK_SIZE bsize, int mi_row, int mi_col, int *valid_refs,
@@ -2640,7 +2639,6 @@ static AOM_INLINE void get_block_level_tpl_stats(
   }
   inter_cost_info_from_tpl->best_inter_cost = best_inter_cost;
 }
-#endif
 
 static AOM_INLINE int prune_modes_based_on_tpl_stats(
     const FeatureFlags *const features,
@@ -4088,14 +4086,7 @@ static const MV_REFERENCE_FRAME reduced_ref_combos[][2] = {
   { ALTREF_FRAME, INTRA_FRAME },  { BWDREF_FRAME, INTRA_FRAME },
 };
 
-static const MV_REFERENCE_FRAME real_time_ref_combos[][2] = {
-  { LAST_FRAME, NONE_FRAME },
-  { ALTREF_FRAME, NONE_FRAME },
-  { GOLDEN_FRAME, NONE_FRAME },
-  { INTRA_FRAME, NONE_FRAME }
-};
-
-typedef enum { REF_SET_FULL, REF_SET_REDUCED, REF_SET_REALTIME } REF_SET;
+typedef enum { REF_SET_FULL, REF_SET_REDUCED } REF_SET;
 
 static AOM_INLINE void default_skip_mask(mode_skip_mask_t *mask,
                                          REF_SET ref_set) {
@@ -4121,11 +4112,6 @@ static AOM_INLINE void default_skip_mask(mode_skip_mask_t *mask,
         num_ref_combos =
             (int)sizeof(reduced_ref_combos) / sizeof(reduced_ref_combos[0]);
         break;
-      case REF_SET_REALTIME:
-        ref_set_combos = real_time_ref_combos;
-        num_ref_combos =
-            (int)sizeof(real_time_ref_combos) / sizeof(real_time_ref_combos[0]);
-        break;
       default: assert(0); num_ref_combos = 0;
     }
 
@@ -4147,30 +4133,15 @@ static AOM_INLINE void init_mode_skip_mask(mode_skip_mask_t *mask,
   const SPEED_FEATURES *const sf = &cpi->sf;
   REF_SET ref_set = REF_SET_FULL;
 
-  if (sf->rt_sf.use_real_time_ref_set)
-    ref_set = REF_SET_REALTIME;
-  else if (cpi->oxcf.ref_frm_cfg.enable_reduced_reference_set)
+  if (cpi->oxcf.ref_frm_cfg.enable_reduced_reference_set)
     ref_set = REF_SET_REDUCED;
 
   default_skip_mask(mask, ref_set);
 
   int min_pred_mv_sad = INT_MAX;
   MV_REFERENCE_FRAME ref_frame;
-  if (ref_set == REF_SET_REALTIME) {
-    // For real-time encoding, we only look at a subset of ref frames. So the
-    // threshold for pruning should be computed from this subset as well.
-    const int num_rt_refs =
-        sizeof(real_time_ref_combos) / sizeof(*real_time_ref_combos);
-    for (int r_idx = 0; r_idx < num_rt_refs; r_idx++) {
-      const MV_REFERENCE_FRAME ref = real_time_ref_combos[r_idx][0];
-      if (ref != INTRA_FRAME) {
-        min_pred_mv_sad = AOMMIN(min_pred_mv_sad, x->pred_mv_sad[ref]);
-      }
-    }
-  } else {
-    for (ref_frame = LAST_FRAME; ref_frame <= ALTREF_FRAME; ++ref_frame)
-      min_pred_mv_sad = AOMMIN(min_pred_mv_sad, x->pred_mv_sad[ref_frame]);
-  }
+  for (ref_frame = LAST_FRAME; ref_frame <= ALTREF_FRAME; ++ref_frame)
+    min_pred_mv_sad = AOMMIN(min_pred_mv_sad, x->pred_mv_sad[ref_frame]);
 
   for (ref_frame = LAST_FRAME; ref_frame <= ALTREF_FRAME; ++ref_frame) {
     if (!(cpi->ref_frame_flags & av1_ref_frame_flag_list[ref_frame])) {
@@ -5589,7 +5560,6 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
 
   // Obtain the relevant tpl stats for pruning inter modes
   PruneInfoFromTpl inter_cost_info_from_tpl;
-#if !CONFIG_REALTIME_ONLY
   if (cpi->sf.inter_sf.prune_inter_modes_based_on_tpl) {
     // x->tpl_keep_ref_frame[id] = 1 => no pruning in
     // prune_ref_by_selective_ref_frame()
@@ -5610,7 +5580,6 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
     get_block_level_tpl_stats(cpi, bsize, mi_row, mi_col, valid_refs,
                               &inter_cost_info_from_tpl);
   }
-#endif
   const int do_pruning =
       (AOMMIN(cm->width, cm->height) > 480 && cpi->speed <= 1) ? 0 : 1;
   if (do_pruning && sf->intra_sf.skip_intra_in_interframe) {

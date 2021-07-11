@@ -154,7 +154,6 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
   .step = ARG_DEF(NULL, "step", 1,
                   "Encode every n-th frame (after the --skip frames)"),
   .good_dl = ARG_DEF(NULL, "good", 0, "Use Good Quality Deadline"),
-  .rt_dl = ARG_DEF(NULL, "rt", 0, "Use Realtime Quality Deadline"),
   .quietarg = ARG_DEF("q", "quiet", 0, "Do not print encode progress"),
   .verbosearg = ARG_DEF("v", "verbose", 0, "Show encoder parameters"),
   .psnrarg = ARG_DEF(NULL, "psnr", 0, "Show PSNR in status line"),
@@ -296,8 +295,7 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
       ARG_DEF(NULL, "max-intra-rate", 1, "Max I-frame bitrate (pct)"),
 #if CONFIG_AV1_ENCODER
   .cpu_used_av1 =
-      ARG_DEF(NULL, "cpu-used", 1,
-              "Speed setting (0..6 in good mode, 6..9 in realtime mode)"),
+      ARG_DEF(NULL, "cpu-used", 1, "Speed setting (0..6 in good mode"),
   .rowmtarg =
       ARG_DEF(NULL, "row-mt", 1,
               "Enable row based multi-threading (0: off, 1: on (default))"),
@@ -328,9 +326,8 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
       "Enable the constrained directional enhancement filter (0: false, "
       "1: true (default))"),
   .enable_restoration = ARG_DEF(NULL, "enable-restoration", 1,
-                                "Enable the loop restoration filter (0: false "
-                                "(default in Realtime mode), "
-                                "1: true (default in Non-realtime mode))"),
+                                "Enable the loop restoration filter (0: false, "
+                                "1: true (default))"),
 #if CONFIG_CCSO
   .enable_ccso = ARG_DEF(NULL, "enable-ccso", 1,
                          "Enable cross component sample offset (0: false "

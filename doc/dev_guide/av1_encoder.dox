@@ -1411,9 +1411,8 @@ void second_pass(char *stats, size_t stats_len) {
  the g_lag_in_frames parameter set in the
  \ref aom_codec_enc_cfg_t::g_lag_in_frames struct.
  This can be modified manually but should only be set once. On the command
- line, the flag "--lag-in-frames" controls it. The default size is 19 for
- non-realtime usage and 1 for realtime. Note that a maximum value of 35 is
- enforced.
+ line, the flag "--lag-in-frames" controls it. The default size is 19.
+ Note that a maximum value of 35 is enforced.
 
  A frame will stay in the buffer as long as possible. As mentioned above,
  the \ref av1_lookahead_pop() only removes a frame when either flush is set,

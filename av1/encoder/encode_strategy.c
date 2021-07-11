@@ -39,7 +39,7 @@
 #include "av1/encoder/tune_vmaf.h"
 #endif
 
-#define TEMPORAL_FILTER_KEY_FRAME (CONFIG_REALTIME_ONLY ? 0 : 1)
+#define TEMPORAL_FILTER_KEY_FRAME 1
 
 static INLINE void set_refresh_frame_flags(
     RefreshFrameFlagsInfo *const refresh_frame_flags, bool refresh_gf,
@@ -875,7 +875,6 @@ int av1_get_refresh_frame_flags(
   return 1 << refresh_idx;
 }
 
-#if !CONFIG_REALTIME_ONLY
 void setup_mi(AV1_COMP *const cpi, YV12_BUFFER_CONFIG *src) {
   AV1_COMMON *const cm = &cpi->common;
   const int num_planes = av1_num_planes(cm);
@@ -1023,7 +1022,6 @@ static int denoise_and_encode(AV1_COMP *const cpi, uint8_t *const dest,
 
   return AOM_CODEC_OK;
 }
-#endif  // !CONFIG_REALTIME_ONLY
 
 /*!\cond */
 // Struct to keep track of relevant reference frame data
@@ -1290,12 +1288,10 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
   }
 
   if (!av1_lookahead_peek(cpi->lookahead, 0, cpi->compressor_stage)) {
-#if !CONFIG_REALTIME_ONLY
     if (flush && oxcf->pass == 1 && !cpi->twopass.first_pass_done) {
       av1_end_first_pass(cpi); /* get last stats packet */
       cpi->twopass.first_pass_done = 1;
     }
-#endif
     return -1;
   }
 
@@ -1326,15 +1322,9 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
     frame_params.show_existing_frame = 0;
   }
 
-#if !CONFIG_REALTIME_ONLY
-  const GFConfig *const gf_cfg = &oxcf->gf_cfg;
-  const int use_one_pass_rt_params = has_no_stats_stage(cpi) &&
-                                     oxcf->mode == REALTIME &&
-                                     gf_cfg->lag_in_frames == 0;
-  if (!use_one_pass_rt_params && !is_stat_generation_stage(cpi)) {
+  if (!is_stat_generation_stage(cpi)) {
     av1_get_second_pass_params(cpi, &frame_params);
   }
-#endif
 
   struct lookahead_entry *source = NULL;
   struct lookahead_entry *last_source = NULL;
@@ -1346,12 +1336,10 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
   }
 
   if (source == NULL) {  // If no source was found, we can't encode a frame.
-#if !CONFIG_REALTIME_ONLY
     if (flush && oxcf->pass == 1 && !cpi->twopass.first_pass_done) {
       av1_end_first_pass(cpi); /* get last stats packet */
       cpi->twopass.first_pass_done = 1;
     }
-#endif
     return -1;
   }
   // Source may be changed if temporal filtered later.
@@ -1391,13 +1379,6 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
     cm->frame_presentation_time = (uint32_t)pts64;
   }
 
-#if CONFIG_REALTIME_ONLY
-  av1_get_one_pass_rt_params(cpi, &frame_params, *frame_flags);
-#else
-  if (use_one_pass_rt_params) {
-    av1_get_one_pass_rt_params(cpi, &frame_params, *frame_flags);
-  }
-#endif
   FRAME_UPDATE_TYPE frame_update_type = get_frame_update_type(gf_group);
 
   if (frame_params.show_existing_frame &&
@@ -1536,23 +1517,10 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
   if (!frame_params.show_existing_frame) {
     cm->quant_params.using_qmatrix = oxcf->q_cfg.using_qm;
   }
-#if CONFIG_REALTIME_ONLY
-  if (av1_encode(cpi, dest, &frame_input, &frame_params, &frame_results) !=
-      AOM_CODEC_OK) {
+  if (denoise_and_encode(cpi, dest, &frame_input, &frame_params,
+                         &frame_results) != AOM_CODEC_OK) {
     return AOM_CODEC_ERROR;
   }
-#else
-  if (has_no_stats_stage(cpi) && oxcf->mode == REALTIME &&
-      gf_cfg->lag_in_frames == 0) {
-    if (av1_encode(cpi, dest, &frame_input, &frame_params, &frame_results) !=
-        AOM_CODEC_OK) {
-      return AOM_CODEC_ERROR;
-    }
-  } else if (denoise_and_encode(cpi, dest, &frame_input, &frame_params,
-                                &frame_results) != AOM_CODEC_OK) {
-    return AOM_CODEC_ERROR;
-  }
-#endif  // CONFIG_REALTIME_ONLY
 
   if (!is_stat_generation_stage(cpi)) {
     // First pass doesn't modify reference buffer assignment or produce frame
@@ -1560,7 +1528,6 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
     update_frame_flags(&cpi->common, &cpi->refresh_frame, frame_flags);
   }
 
-#if !CONFIG_REALTIME_ONLY
   if (!is_stat_generation_stage(cpi)) {
 #if TXCOEFF_COST_TIMER
     cm->cum_txcoeff_cost_timer += cm->txcoeff_cost_timer;
@@ -1572,7 +1539,6 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
 #endif
     if (!has_no_stats_stage(cpi)) av1_twopass_postencode_update(cpi);
   }
-#endif  // !CONFIG_REALTIME_ONLY
 
 #if CONFIG_TUNE_VMAF
   if (!is_stat_generation_stage(cpi) &&

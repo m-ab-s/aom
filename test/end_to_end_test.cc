@@ -76,7 +76,6 @@ const TestVideoParam kTestVectors[] = {
 // Encoding modes tested
 const libaom_test::TestMode kEncodingModeVectors[] = {
   ::libaom_test::kOnePassGood,
-  ::libaom_test::kRealTime,
 };
 
 // Speed settings tested
@@ -105,16 +104,8 @@ class EndToEndTest
   virtual void SetUp() {
     InitializeConfig();
     SetMode(encoding_mode_);
-    if (encoding_mode_ != ::libaom_test::kRealTime) {
-      cfg_.g_lag_in_frames = 5;
-      cfg_.rc_end_usage = AOM_VBR;
-    } else {
-      cfg_.g_lag_in_frames = 0;
-      cfg_.rc_end_usage = AOM_CBR;
-      cfg_.rc_buf_sz = 1000;
-      cfg_.rc_buf_initial_sz = 500;
-      cfg_.rc_buf_optimal_sz = 600;
-    }
+    cfg_.g_lag_in_frames = 5;
+    cfg_.rc_end_usage = AOM_VBR;
 #if CONFIG_EXTQUANT
     cfg_.rc_max_quantizer = 224;
 #endif  // CONFIG_EXTQUANT
@@ -137,11 +128,9 @@ class EndToEndTest
       encoder->Control(AV1E_SET_TILE_COLUMNS, 4);
       encoder->Control(AOME_SET_CPUUSED, cpu_used_);
       encoder->Control(AV1E_SET_TUNE_CONTENT, AOM_CONTENT_DEFAULT);
-      if (encoding_mode_ != ::libaom_test::kRealTime) {
-        encoder->Control(AOME_SET_ENABLEAUTOALTREF, 1);
-        encoder->Control(AOME_SET_ARNR_MAXFRAMES, 7);
-        encoder->Control(AOME_SET_ARNR_STRENGTH, 5);
-      }
+      encoder->Control(AOME_SET_ENABLEAUTOALTREF, 1);
+      encoder->Control(AOME_SET_ARNR_MAXFRAMES, 7);
+      encoder->Control(AOME_SET_ARNR_STRENGTH, 5);
     }
   }
 
