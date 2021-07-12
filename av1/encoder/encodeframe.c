@@ -66,7 +66,6 @@
 #include "av1/encoder/segmentation.h"
 #include "av1/encoder/tokenize.h"
 #include "av1/encoder/tpl_model.h"
-#include "av1/encoder/var_based_part.h"
 
 #if CONFIG_TUNE_VMAF
 #include "av1/encoder/tune_vmaf.h"
@@ -444,88 +443,6 @@ static AOM_INLINE void adjust_rdmult_tpl_model(AV1_COMP *cpi, MACROBLOCK *x,
 #define AVG_CDF_WEIGHT_LEFT 3
 #define AVG_CDF_WEIGHT_TOP_RIGHT 1
 
-/*!\brief Encode a superblock (minimal RD search involved)
- *
- * \ingroup partition_search
- * Encodes the superblock by a pre-determined partition pattern, only minor
- * rd-based searches are allowed to adjust the initial pattern. It is only used
- * by realtime encoding.
- */
-static AOM_INLINE void encode_nonrd_sb(AV1_COMP *cpi, ThreadData *td,
-                                       TileDataEnc *tile_data, TokenExtra **tp,
-                                       const int mi_row, const int mi_col,
-                                       const int seg_skip) {
-  AV1_COMMON *const cm = &cpi->common;
-  MACROBLOCK *const x = &td->mb;
-  const SPEED_FEATURES *const sf = &cpi->sf;
-  const TileInfo *const tile_info = &tile_data->tile_info;
-  MB_MODE_INFO **mi = cm->mi_params.mi_grid_base +
-                      get_mi_grid_idx(&cm->mi_params, mi_row, mi_col);
-  const BLOCK_SIZE sb_size = cm->seq_params.sb_size;
-
-  // Grade the temporal variation of the sb, the grade will be used to decide
-  // fast mode search strategy for coding blocks
-  if (sf->rt_sf.source_metrics_sb_nonrd &&
-      cpi->svc.number_spatial_layers <= 1 &&
-      cm->current_frame.frame_type != KEY_FRAME) {
-    int offset = cpi->source->y_stride * (mi_row << 2) + (mi_col << 2);
-    av1_source_content_sb(cpi, x, offset);
-  }
-
-  // Set the partition
-  if (sf->part_sf.partition_search_type == FIXED_PARTITION || seg_skip) {
-    // set a fixed-size partition
-    av1_set_offsets(cpi, tile_info, x, mi_row, mi_col, sb_size);
-    const BLOCK_SIZE bsize =
-        seg_skip ? sb_size : sf->part_sf.fixed_partition_size;
-    av1_set_fixed_partitioning(cpi, tile_info, mi, mi_row, mi_col, bsize);
-  } else if (cpi->partition_search_skippable_frame) {
-    // set a fixed-size partition for which the size is determined by the source
-    // variance
-    av1_set_offsets(cpi, tile_info, x, mi_row, mi_col, sb_size);
-    const BLOCK_SIZE bsize =
-        get_rd_var_based_fixed_partition(cpi, x, mi_row, mi_col);
-    av1_set_fixed_partitioning(cpi, tile_info, mi, mi_row, mi_col, bsize);
-  } else if (sf->part_sf.partition_search_type == VAR_BASED_PARTITION) {
-    // set a variance-based partition
-    av1_set_offsets_without_segment_id(cpi, tile_info, x, mi_row, mi_col,
-                                       sb_size);
-    av1_choose_var_based_partitioning(cpi, tile_info, td, x, mi_row, mi_col);
-  }
-  assert(sf->part_sf.partition_search_type == FIXED_PARTITION || seg_skip ||
-         cpi->partition_search_skippable_frame ||
-         sf->part_sf.partition_search_type == VAR_BASED_PARTITION);
-#if !CONFIG_SDP
-  td->mb.cb_offset = 0;
-#endif
-
-  // Adjust and encode the superblock
-#if CONFIG_SDP
-  const int total_loop_num =
-      (frame_is_intra_only(cm) && !cm->seq_params.monochrome &&
-       cm->seq_params.enable_sdp)
-          ? 2
-          : 1;
-  MACROBLOCKD *const xd = &x->e_mbd;
-  for (int loop_idx = 0; loop_idx < total_loop_num; loop_idx++) {
-    xd->tree_type =
-        (total_loop_num == 1 ? SHARED_PART
-                             : (loop_idx == 0 ? LUMA_PART : CHROMA_PART));
-    td->mb.cb_offset[xd->tree_type == CHROMA_PART] = 0;
-    PC_TREE *const pc_root = av1_alloc_pc_tree_node(sb_size);
-    av1_nonrd_use_partition(cpi, td, tile_data, mi, tp, mi_row, mi_col, sb_size,
-                            pc_root);
-    av1_free_pc_tree_recursive(pc_root, av1_num_planes(cm), 0, 0);
-  }
-  xd->tree_type = SHARED_PART;
-#else
-  PC_TREE *const pc_root = av1_alloc_pc_tree_node(sb_size);
-  av1_nonrd_use_partition(cpi, td, tile_data, mi, tp, mi_row, mi_col, sb_size,
-                          pc_root);
-  av1_free_pc_tree_recursive(pc_root, av1_num_planes(cm), 0, 0);
-#endif
-}
-
 // This function initializes the stats for encode_rd_sb.
 static INLINE void init_encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
                                      const TileDataEnc *tile_data,
@@ -604,28 +521,7 @@ static AOM_INLINE void encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
                     1);
 
   // Encode the superblock
-  if (sf->part_sf.partition_search_type == VAR_BASED_PARTITION) {
-    // partition search starting from a variance-based partition
-    av1_set_offsets_without_segment_id(cpi, tile_info, x, mi_row, mi_col,
-                                       sb_size);
-    av1_choose_var_based_partitioning(cpi, tile_info, td, x, mi_row, mi_col);
-#if CONFIG_SDP
-    for (int loop_idx = 0; loop_idx < total_loop_num; loop_idx++) {
-      xd->tree_type =
-          (total_loop_num == 1 ? SHARED_PART
-                               : (loop_idx == 0 ? LUMA_PART : CHROMA_PART));
-      init_encode_rd_sb(cpi, td, tile_data, sms_root, &dummy_rdc, mi_row,
-                        mi_col, 1);
-#endif
-      PC_TREE *const pc_root = av1_alloc_pc_tree_node(sb_size);
-      av1_rd_use_partition(cpi, td, tile_data, mi, tp, mi_row, mi_col, sb_size,
-                           &dummy_rate, &dummy_dist, 1, pc_root);
-      av1_free_pc_tree_recursive(pc_root, num_planes, 0, 0);
-#if CONFIG_SDP
-    }
-    xd->tree_type = SHARED_PART;
-#endif
-  } else if (sf->part_sf.partition_search_type == FIXED_PARTITION || seg_skip) {
+  if (sf->part_sf.partition_search_type == FIXED_PARTITION || seg_skip) {
     // partition search by adjusting a fixed-size partition
     av1_set_offsets(cpi, tile_info, x, mi_row, mi_col, sb_size);
     const BLOCK_SIZE bsize =
@@ -795,8 +691,6 @@ static AOM_INLINE void encode_sb_row(AV1_COMP *cpi, ThreadData *td,
   const int mib_size_log2 = cm->seq_params.mib_size_log2;
   const int sb_row = (mi_row - tile_info->mi_row_start) >> mib_size_log2;
 
-  const int use_nonrd_mode = cpi->sf.rt_sf.use_nonrd_pick_mode;
-
 #if CONFIG_COLLECT_COMPONENT_TIMING
   start_timing(cpi, encode_sb_time);
 #endif
@@ -841,11 +735,6 @@ static AOM_INLINE void encode_sb_row(AV1_COMP *cpi, ThreadData *td,
     // Update the rate cost tables for some symbols
     av1_set_cost_upd_freq(cpi, td, tile_info, mi_row, mi_col);
 
-    // Reset color coding related parameters
-    x->color_sensitivity[0] = 0;
-    x->color_sensitivity[1] = 0;
-    x->content_state_sb = 0;
-
     xd->cur_frame_force_integer_mv = cm->features.cur_frame_force_integer_mv;
     x->source_variance = UINT_MAX;
     td->mb.cb_coef_buff = av1_get_cb_coeff_buffer(cpi, mi_row, mi_col);
@@ -863,11 +752,7 @@ static AOM_INLINE void encode_sb_row(AV1_COMP *cpi, ThreadData *td,
     }
 
     // encode the superblock
-    if (use_nonrd_mode) {
-      encode_nonrd_sb(cpi, td, tile_data, tp, mi_row, mi_col, seg_skip);
-    } else {
-      encode_rd_sb(cpi, td, tile_data, tp, mi_row, mi_col, seg_skip);
-    }
+    encode_rd_sb(cpi, td, tile_data, tp, mi_row, mi_col, seg_skip);
 
     // Update the top-right context in row_mt coding
     if (tile_data->allow_update_cdf && row_mt_enabled &&
@@ -1000,7 +885,7 @@ void av1_encode_tile(AV1_COMP *cpi, ThreadData *td, int tile_row,
       &cpi->tile_data[tile_row * cm->tiles.cols + tile_col];
   const TileInfo *const tile_info = &this_tile->tile_info;
 
-  if (!cpi->sf.rt_sf.use_nonrd_pick_mode) av1_inter_mode_data_init(this_tile);
+  av1_inter_mode_data_init(this_tile);
 
   av1_zero_above_context(cm, &td->mb.e_mbd, tile_info->mi_col_start,
                          tile_info->mi_col_end, tile_row);
@@ -1167,8 +1052,7 @@ static AOM_INLINE void setup_prune_ref_frame_mask(AV1_COMP *cpi) {
       cpi->all_one_sided_refs) {
     // Disable all compound references
     cpi->prune_ref_frame_mask = (1 << MODE_CTX_REF_FRAMES) - (1 << REF_FRAMES);
-  } else if (!cpi->sf.rt_sf.use_nonrd_pick_mode &&
-             cpi->sf.inter_sf.selective_ref_frame >= 2) {
+  } else if (cpi->sf.inter_sf.selective_ref_frame >= 2) {
     AV1_COMMON *const cm = &cpi->common;
     const int cur_frame_display_order_hint =
         cm->current_frame.display_order_hint;
@@ -1239,9 +1123,7 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
   const DELTAQ_MODE deltaq_mode = oxcf->q_cfg.deltaq_mode;
   int i;
 
-  if (!cpi->sf.rt_sf.use_nonrd_pick_mode) {
-    mi_params->setup_mi(mi_params);
-  }
+  mi_params->setup_mi(mi_params);
 
   set_mi_offsets(mi_params, xd, 0, 0);
 
@@ -1269,8 +1151,7 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
   }
 
   int hash_table_created = 0;
-  if (!is_stat_generation_stage(cpi) && av1_use_hash_me(cpi) &&
-      !cpi->sf.rt_sf.use_nonrd_pick_mode) {
+  if (!is_stat_generation_stage(cpi) && av1_use_hash_me(cpi)) {
     // TODO(any): move this outside of the recoding loop to avoid recalculating
     // the hash table.
     // add to hash table
@@ -1571,8 +1452,7 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
   }
 #endif  // !CONFIG_REMOVE_DUAL_FILTER
 
-  if ((!is_stat_generation_stage(cpi) && av1_use_hash_me(cpi) &&
-       !cpi->sf.rt_sf.use_nonrd_pick_mode) ||
+  if ((!is_stat_generation_stage(cpi) && av1_use_hash_me(cpi)) ||
       hash_table_created) {
     av1_hash_table_destroy(&intrabc_hash_info->intrabc_hash_table);
   }

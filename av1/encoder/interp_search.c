@@ -165,9 +165,7 @@ static INLINE void interp_model_rd_eval(
                                   plane_from, plane_to);
   }
 
-  model_rd_sb_fn[cpi->sf.rt_sf.use_simple_rd_model
-                     ? MODELRD_LEGACY
-                     : MODELRD_TYPE_INTERP_FILTER](
+  model_rd_sb_fn[MODELRD_TYPE_INTERP_FILTER](
       cpi, bsize, x, xd, plane_from, plane_to, &tmp_rd_stats.rate,
       &tmp_rd_stats.dist, &tmp_rd_stats.skip_txfm, &tmp_rd_stats.sse, NULL,
       NULL, NULL);
@@ -719,8 +717,7 @@ int64_t av1_interpolation_filter_search(
   const int num_planes = av1_num_planes(cm);
   MACROBLOCKD *const xd = &x->e_mbd;
   MB_MODE_INFO *const mbmi = xd->mi[0];
-  const int need_search =
-      av1_is_interp_needed(xd) && !cpi->sf.rt_sf.skip_interp_filter_search;
+  const int need_search = av1_is_interp_needed(xd);
   const int ref_frame = xd->mi[0]->ref_frame[0];
   RD_STATS rd_stats_luma, rd_stats;
 

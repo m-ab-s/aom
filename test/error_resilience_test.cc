@@ -460,7 +460,7 @@ TEST_P(ErrorResilienceTestLarge, SFrameTest) {
   EXPECT_LE(GetMismatchFrames(), GetEncodedFrames() - s_frame_list[0]);
 }
 
-AV1_INSTANTIATE_TEST_SUITE(ErrorResilienceTestLarge, NONREALTIME_TEST_MODES,
+AV1_INSTANTIATE_TEST_SUITE(ErrorResilienceTestLarge, GOODQUALITY_TEST_MODES,
                            ::testing::Values(0, 1));
 
 // This class is used to check the presence of SFrame.
@@ -541,7 +541,7 @@ TEST_P(SFramePresenceTestLarge, SFramePresenceTest) {
  * Hence this configuration is not added. Add this configuration after the
  * bug is fixed.
  */
-AV1_INSTANTIATE_TEST_SUITE(SFramePresenceTestLarge, NONREALTIME_TEST_MODES,
+AV1_INSTANTIATE_TEST_SUITE(SFramePresenceTestLarge, GOODQUALITY_TEST_MODES,
                            ::testing::Values(AOM_Q, AOM_VBR, AOM_CBR, AOM_CQ),
                            ::testing::Values(0));
 }  // namespace

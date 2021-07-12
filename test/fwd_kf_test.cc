@@ -111,7 +111,7 @@ TEST_P(ForwardKeyTest, ForwardKeyEncodeTest) {
       << "kf max dist = " << kf_max_dist_;
 }
 
-AV1_INSTANTIATE_TEST_SUITE(ForwardKeyTest, NONREALTIME_TEST_MODES,
+AV1_INSTANTIATE_TEST_SUITE(ForwardKeyTest, GOODQUALITY_TEST_MODES,
                            ::testing::ValuesIn(kTestParams));
 
 typedef struct {
@@ -191,7 +191,7 @@ TEST_P(ForwardKeyPresenceTestLarge, ForwardKeyEncodePresenceTest) {
   ASSERT_EQ(is_fwd_kf_present_, 1);
 }
 
-AV1_INSTANTIATE_TEST_SUITE(ForwardKeyPresenceTestLarge, NONREALTIME_TEST_MODES,
+AV1_INSTANTIATE_TEST_SUITE(ForwardKeyPresenceTestLarge, GOODQUALITY_TEST_MODES,
                            ::testing::ValuesIn(kfTestParams),
                            ::testing::Values(AOM_Q, AOM_VBR, AOM_CBR, AOM_CQ));
 }  // namespace

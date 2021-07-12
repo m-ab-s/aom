@@ -152,8 +152,8 @@ TEST_P(CpuSpeedTestLarge, TestTuneScreen) { TestTuneScreen(); }
 TEST_P(CpuSpeedTestLarge, TestEncodeHighBitrate) { TestEncodeHighBitrate(); }
 TEST_P(CpuSpeedTestLarge, TestLowBitrate) { TestLowBitrate(); }
 
-AV1_INSTANTIATE_TEST_SUITE(CpuSpeedTest, NONREALTIME_TEST_MODES,
+AV1_INSTANTIATE_TEST_SUITE(CpuSpeedTest, GOODQUALITY_TEST_MODES,
                            ::testing::Range(1, 3));
-AV1_INSTANTIATE_TEST_SUITE(CpuSpeedTestLarge, NONREALTIME_TEST_MODES,
+AV1_INSTANTIATE_TEST_SUITE(CpuSpeedTestLarge, GOODQUALITY_TEST_MODES,
                            ::testing::Range(0, 1));
 }  // namespace

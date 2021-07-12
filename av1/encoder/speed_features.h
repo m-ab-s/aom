@@ -277,10 +277,7 @@ enum {
   SEARCH_PARTITION,
 
   // Always use a fixed size partition
-  FIXED_PARTITION,
-
-  // Partition using source variance
-  VAR_BASED_PARTITION
+  FIXED_PARTITION
 } UENUM1BYTE(PARTITION_SEARCH_TYPE);
 
 enum {
@@ -957,103 +954,6 @@ typedef struct LOOP_FILTER_SPEED_FEATURES {
   int disable_lr_filter;
 } LOOP_FILTER_SPEED_FEATURES;
 
-typedef struct REAL_TIME_SPEED_FEATURES {
-  // check intra prediction for non-RD mode.
-  int check_intra_pred_nonrd;
-
-  // skip checking intra prediction if TX is skipped
-  int skip_intra_pred_if_tx_skip;
-
-  // Perform coarse ME before calculating variance in variance-based partition
-  int estimate_motion_for_var_based_partition;
-
-  // For nonrd_use_partition: mode of extra check of leaf partition
-  // 0 - don't check merge
-  // 1 - always check merge
-  // 2 - check merge and prune checking final split
-  int nonrd_check_partition_merge_mode;
-
-  // For nonrd_use_partition: check of leaf partition extra split
-  int nonrd_check_partition_split;
-
-  // Implements various heuristics to skip searching modes
-  // The heuristics selected are based on  flags
-  // defined in the MODE_SEARCH_SKIP_HEURISTICS enum
-  unsigned int mode_search_skip_flags;
-
-  // For nonrd: Reduces ref frame search.
-  // 0 - low level of search prune in non last frames
-  // 1 - pruned search in non last frames
-  // 2 - more pruned search in non last frames
-  int nonrd_prune_ref_frame_search;
-
-  // This flag controls the use of non-RD mode decision.
-  int use_nonrd_pick_mode;
-
-  // Use ALTREF frame in non-RD mode decision.
-  int use_nonrd_altref_frame;
-
-  // Use compound reference for non-RD mode.
-  int use_comp_ref_nonrd;
-
-  // use reduced ref set for real-time mode
-  int use_real_time_ref_set;
-
-  // Skip a number of expensive mode evaluations for blocks with very low
-  // temporal variance.
-  int short_circuit_low_temp_var;
-
-  // Use modeled (currently CurvFit model) RDCost for fast non-RD mode
-  int use_modeled_non_rd_cost;
-
-  // Reuse inter prediction in fast non-rd mode.
-  int reuse_inter_pred_nonrd;
-
-  // Number of best inter modes to search transform. INT_MAX - search all.
-  int num_inter_modes_for_tx_search;
-
-  // Forces TX search off for RDCost calulation.
-  int force_tx_search_off;
-
-  // Use interpolation filter search in non-RD mode decision.
-  int use_nonrd_filter_search;
-
-  // Use simplified RD model for interpolation search and Intra
-  int use_simple_rd_model;
-
-  // If set forces interpolation filter to EIGHTTAP_REGULAR
-  int skip_interp_filter_search;
-
-  // Use hybrid (rd for bsize < 16x16, otherwise nonrd) intra search for intra
-  // only frames.
-  int hybrid_intra_pickmode;
-
-  // Compute variance/sse on source difference, prior to encoding superblock.
-  int source_metrics_sb_nonrd;
-
-  // Flag to indicate process for handling overshoot on slide/scene change,
-  // for real-time CBR mode.
-  OVERSHOOT_DETECTION_CBR overshoot_detection_cbr;
-
-  // Check for scene/content change detection on every frame before encoding.
-  int check_scene_detection;
-
-  // Forces larger partition blocks in variance based partitioning
-  int force_large_partition_blocks;
-
-  // Only checks intra DCPRED mode in nonrd_pick_inter_mode
-  int nonrd_intra_dc_only;
-
-  // uses results of temporal noise estimate
-  int use_temporal_noise_estimate;
-
-  // Parameter indicating initial search window to be used in full-pixel search
-  // for nonrd_pickmode. Range [0, MAX_MVSEARCH_STEPS - 1]. Lower value
-  // indicates larger window. If set to 0, step_param is set based on internal
-  // logic in set_mv_search_params().
-  int fullpel_search_step_param;
-} REAL_TIME_SPEED_FEATURES;
-
 /*!\endcond */
 
 /*!
@@ -1119,11 +1019,6 @@ typedef struct SPEED_FEATURES {
    * In-loop filter speed features:
    */
   LOOP_FILTER_SPEED_FEATURES lpf_sf;
-
-  /*!
-   * Real-time mode speed features:
-   */
-  REAL_TIME_SPEED_FEATURES rt_sf;
 } SPEED_FEATURES;
 /*!\cond */
 

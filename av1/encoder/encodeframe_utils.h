@@ -22,8 +22,6 @@
 extern "C" {
 #endif
 
-enum { PICK_MODE_RD = 0, PICK_MODE_NONRD };
-
 enum {
   SB_SINGLE_PASS,  // Single pass encoding: all ctxs get updated normally
   SB_DRY_PASS,     // First pass of multi-pass: does not update the ctxs
@@ -324,8 +322,6 @@ void av1_update_picked_ref_frames_mask(MACROBLOCK *const x, int ref_type,
 
 void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
                          int wt_left, int wt_tr);
-
-void av1_source_content_sb(AV1_COMP *cpi, MACROBLOCK *x, int offset);
 
 void av1_reset_mbmi(CommonModeInfoParams *const mi_params, BLOCK_SIZE sb_size,
                     int mi_row, int mi_col);

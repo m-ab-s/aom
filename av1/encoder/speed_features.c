@@ -347,8 +347,6 @@ static void set_good_speed_features_framesize_independent(
 #if CONFIG_IST
   sf->tx_sf.tx_type_search.skip_stx_search = 0;
 #endif
-  sf->rt_sf.use_nonrd_pick_mode = 0;
-  sf->rt_sf.use_real_time_ref_set = 0;
 
   if (cpi->twopass.fr_content_type == FC_GRAPHICS_ANIMATION ||
       cpi->is_screen_content_type) {
@@ -874,17 +872,6 @@ static AOM_INLINE void init_lpf_sf(LOOP_FILTER_SPEED_FEATURES *lpf_sf) {
   lpf_sf->disable_lr_filter = 0;
 }
 
-static AOM_INLINE void init_rt_sf(REAL_TIME_SPEED_FEATURES *rt_sf) {
-  rt_sf->mode_search_skip_flags = 0;
-  rt_sf->skip_interp_filter_search = 0;
-  rt_sf->force_tx_search_off = 0;
-  rt_sf->num_inter_modes_for_tx_search = INT_MAX;
-  rt_sf->use_simple_rd_model = 0;
-  rt_sf->nonrd_check_partition_merge_mode = 0;
-  rt_sf->nonrd_check_partition_split = 0;
-  rt_sf->skip_intra_pred_if_tx_skip = 0;
-}
-
 void av1_set_speed_features_framesize_dependent(AV1_COMP *cpi, int speed) {
   SPEED_FEATURES *const sf = &cpi->sf;
   const AV1EncoderConfig *const oxcf = &cpi->oxcf;
@@ -918,7 +905,6 @@ void av1_set_speed_features_framesize_independent(AV1_COMP *cpi, int speed) {
   init_rd_sf(&sf->rd_sf, oxcf);
   init_winner_mode_sf(&sf->winner_mode_sf);
   init_lpf_sf(&sf->lpf_sf);
-  init_rt_sf(&sf->rt_sf);
 
   if (oxcf->mode == GOOD)
     set_good_speed_features_framesize_independent(cpi, sf, speed);

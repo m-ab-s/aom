@@ -90,5 +90,5 @@ TEST_P(StillPicturePresenceTestLarge, StillPictureEncodePresenceTest) {
 }
 
 AV1_INSTANTIATE_TEST_SUITE(StillPicturePresenceTestLarge,
-                           NONREALTIME_TEST_MODES, ::testing::Values(1, 0));
+                           GOODQUALITY_TEST_MODES, ::testing::Values(1, 0));
 }  // namespace

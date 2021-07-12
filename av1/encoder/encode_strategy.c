@@ -1466,8 +1466,8 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
       // in function get_ref_frame_flags. Therefore setting it manually.
       frame_params.ref_frame_flags = av1_ref_frame_flag_list[ALTREF_FRAME];
     } else {
-      frame_params.ref_frame_flags = get_ref_frame_flags(
-          &cpi->sf, ref_frame_buf, ext_flags->ref_frame_flags);
+      frame_params.ref_frame_flags =
+          get_ref_frame_flags(ref_frame_buf, ext_flags->ref_frame_flags);
     }
 
     frame_params.primary_ref_frame =

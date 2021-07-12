@@ -255,12 +255,12 @@ TEST_P(NonUniformTileConfigTestLarge, NonUniformTileConfigTest) {
   ASSERT_EQ(tile_config_violated_, false);
 }
 
-AV1_INSTANTIATE_TEST_SUITE(UniformTileConfigTestLarge, NONREALTIME_TEST_MODES,
+AV1_INSTANTIATE_TEST_SUITE(UniformTileConfigTestLarge, GOODQUALITY_TEST_MODES,
                            ::testing::ValuesIn(uniformTileConfigParams),
                            ::testing::Values(AOM_Q, AOM_VBR, AOM_CBR, AOM_CQ));
 
 AV1_INSTANTIATE_TEST_SUITE(NonUniformTileConfigTestLarge,
-                           NONREALTIME_TEST_MODES,
+                           GOODQUALITY_TEST_MODES,
                            ::testing::ValuesIn(nonUniformTileConfigParams),
                            ::testing::Values(AOM_Q, AOM_VBR, AOM_CBR, AOM_CQ));
 
@@ -351,6 +351,6 @@ TEST_P(TileGroupTestLarge, TileGroupCountTest) {
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
 }
 
-AV1_INSTANTIATE_TEST_SUITE(TileGroupTestLarge, NONREALTIME_TEST_MODES,
+AV1_INSTANTIATE_TEST_SUITE(TileGroupTestLarge, GOODQUALITY_TEST_MODES,
                            ::testing::ValuesIn(tileGroupTestParams));
 }  // namespace

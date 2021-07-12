@@ -821,23 +821,6 @@ int64_t av1_highbd_block_error_c(const tran_low_t *coeff,
   return error;
 }
 
-static int conditional_skipintra(PREDICTION_MODE mode,
-                                 PREDICTION_MODE best_intra_mode) {
-  if (mode == D113_PRED && best_intra_mode != V_PRED &&
-      best_intra_mode != D135_PRED)
-    return 1;
-  if (mode == D67_PRED && best_intra_mode != V_PRED &&
-      best_intra_mode != D45_PRED)
-    return 1;
-  if (mode == D203_PRED && best_intra_mode != H_PRED &&
-      best_intra_mode != D45_PRED)
-    return 1;
-  if (mode == D157_PRED && best_intra_mode != H_PRED &&
-      best_intra_mode != D135_PRED)
-    return 1;
-  return 0;
-}
-
 static int cost_mv_ref(const ModeCosts *const mode_costs, PREDICTION_MODE mode,
                        int16_t mode_context) {
   if (is_inter_compound_mode(mode)) {
@@ -1597,8 +1580,7 @@ static int64_t motion_mode_rd(
     const int prune_obmc = cpi->frame_probs.obmc_probs[update_type][bsize] <
                            cpi->sf.inter_sf.prune_obmc_prob_thresh;
     if ((!cpi->oxcf.motion_mode_cfg.enable_obmc ||
-         cpi->sf.inter_sf.disable_obmc || cpi->sf.rt_sf.use_nonrd_pick_mode ||
-         prune_obmc) &&
+         cpi->sf.inter_sf.disable_obmc || prune_obmc) &&
         mbmi->motion_mode == OBMC_CAUSAL)
       continue;
 
@@ -1736,8 +1718,7 @@ static int64_t motion_mode_rd(
                                                  &est_residue_cost, &est_dist);
         (void)has_est_rd;
         assert(has_est_rd);
-      } else if (cpi->sf.inter_sf.inter_mode_rd_model_estimation == 2 ||
-                 cpi->sf.rt_sf.use_nonrd_pick_mode) {
+      } else if (cpi->sf.inter_sf.inter_mode_rd_model_estimation == 2) {
         model_rd_sb_fn[MODELRD_TYPE_MOTION_MODE_RD](
             cpi, bsize, x, xd, 0, num_planes - 1, &est_residue_cost, &est_dist,
             NULL, &curr_sse, NULL, NULL, NULL);
@@ -4313,7 +4294,7 @@ static AOM_INLINE void set_params_rd_pick_inter_mode(
           AOMMIN(x->best_pred_mv_sad, x->pred_mv_sad[ref_frame]);
   }
   // ref_frame = ALTREF_FRAME
-  if (!cpi->sf.rt_sf.use_real_time_ref_set && is_comp_ref_allowed(bsize)) {
+  if (is_comp_ref_allowed(bsize)) {
     // No second reference on RT ref set, so no need to initialize
     for (; ref_frame < MODE_CTX_REF_FRAMES; ++ref_frame) {
       x->mbmi_ext->mode_context[ref_frame] = 0;
@@ -4595,19 +4576,6 @@ static int inter_mode_search_order_independent_skip(
       }
     }
     if (skip_ref) return 1;
-  }
-
-  const SPEED_FEATURES *const sf = &cpi->sf;
-  if (ref_frame[0] == INTRA_FRAME) {
-    if (mode != DC_PRED) {
-      // Disable intra modes other than DC_PRED for blocks with low variance
-      // Threshold for intra skipping based on source variance
-      // TODO(debargha): Specialize the threshold for super block sizes
-      const unsigned int skip_intra_var_thresh = 64;
-      if ((sf->rt_sf.mode_search_skip_flags & FLAG_SKIP_INTRA_LOWVAR) &&
-          x->source_variance < skip_intra_var_thresh)
-        return 1;
-    }
   }
 
   if (skip_motion_mode) return 2;
@@ -5295,10 +5263,6 @@ static void tx_search_best_inter_candidates(
   store_winner_mode_stats(&cpi->common, x, mbmi, NULL, NULL, NULL, THR_INVALID,
                           NULL, bsize, best_rd_so_far,
                           cpi->sf.winner_mode_sf.multi_winner_mode_type, 0);
-  inter_modes_info->num =
-      inter_modes_info->num < cpi->sf.rt_sf.num_inter_modes_for_tx_search
-          ? inter_modes_info->num
-          : cpi->sf.rt_sf.num_inter_modes_for_tx_search;
   const int64_t top_est_rd =
       inter_modes_info->num > 0
           ? inter_modes_info
@@ -5528,8 +5492,7 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
   const int do_tx_search =
       !((cpi->sf.inter_sf.inter_mode_rd_model_estimation == 1 && md->ready) ||
         (cpi->sf.inter_sf.inter_mode_rd_model_estimation == 2 &&
-         num_pels_log2_lookup[bsize] > 8) ||
-        cpi->sf.rt_sf.force_tx_search_off);
+         num_pels_log2_lookup[bsize] > 8));
   InterModesInfo *inter_modes_info = x->inter_modes_info;
   inter_modes_info->num = 0;
 
@@ -5895,22 +5858,6 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
       assert(av1_mode_defs[mode_enum].ref_frame[1] == NONE_FRAME);
       init_mbmi(mbmi, this_mode, av1_mode_defs[mode_enum].ref_frame, cm);
       txfm_info->skip_txfm = 0;
-
-      if (this_mode != DC_PRED) {
-        // Only search the oblique modes if the best so far is
-        // one of the neighboring directional modes
-        if ((sf->rt_sf.mode_search_skip_flags & FLAG_SKIP_INTRA_BESTINTER) &&
-            (this_mode >= D45_PRED && this_mode <= PAETH_PRED)) {
-          if (search_state.best_mode_index != THR_INVALID &&
-              search_state.best_mbmode.ref_frame[0] > INTRA_FRAME)
-            continue;
-        }
-        if (sf->rt_sf.mode_search_skip_flags & FLAG_SKIP_INTRA_DIRMISMATCH) {
-          if (conditional_skipintra(
-                  this_mode, search_state.intra_search_state.best_intra_mode))
-            continue;
-        }
-      }
 
       RD_STATS intra_rd_stats, intra_rd_stats_y, intra_rd_stats_uv;
       intra_rd_stats.rdcost = av1_handle_intra_mode(

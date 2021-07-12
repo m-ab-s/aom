@@ -1051,7 +1051,7 @@ typedef struct AV1EncoderConfig {
   enum aom_enc_pass pass;
   /*!\cond */
 
-  // Indicates if the encoding is GOOD or REALTIME.
+  // Indicates encoding mode. Currently, only GOOD mode is supported.
   MODE mode;
 
   // Indicates if row-based multi-threading should be enabled or not.
@@ -3189,8 +3189,7 @@ static const MV_REFERENCE_FRAME
       ALTREF2_FRAME, LAST2_FRAME,  LAST3_FRAME,
     };
 
-static INLINE int get_ref_frame_flags(const SPEED_FEATURES *const sf,
-                                      const YV12_BUFFER_CONFIG **ref_frames,
+static INLINE int get_ref_frame_flags(const YV12_BUFFER_CONFIG **ref_frames,
                                       const int ext_ref_frame_flags) {
   // cpi->ext_flags.ref_frame_flags allows certain reference types to be
   // disabled by the external interface.  These are set by
@@ -3201,13 +3200,8 @@ static INLINE int get_ref_frame_flags(const SPEED_FEATURES *const sf,
   for (int i = 1; i < INTER_REFS_PER_FRAME; ++i) {
     const YV12_BUFFER_CONFIG *const this_ref = ref_frames[i];
     // If this_ref has appeared before, mark the corresponding ref frame as
-    // invalid. For nonrd mode, only disable GOLDEN_FRAME if it's the same
-    // as LAST_FRAME or ALTREF_FRAME (if ALTREF is being used in nonrd).
-    int index = (sf->rt_sf.use_nonrd_pick_mode &&
-                 ref_frame_priority_order[i] == GOLDEN_FRAME)
-                    ? (1 + sf->rt_sf.use_nonrd_altref_frame)
-                    : i;
-    for (int j = 0; j < index; ++j) {
+    // invalid.
+    for (int j = 0; j < i; ++j) {
       if (this_ref == ref_frames[j]) {
         flags &= ~(1 << (ref_frame_priority_order[i] - 1));
         break;

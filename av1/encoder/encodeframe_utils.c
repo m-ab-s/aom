@@ -1372,35 +1372,6 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
 #endif
 }
 
-// Grade the temporal variation of the source by comparing the current sb and
-// its collocated block in the last frame.
-void av1_source_content_sb(AV1_COMP *cpi, MACROBLOCK *x, int offset) {
-  unsigned int tmp_sse;
-  unsigned int tmp_variance;
-  const BLOCK_SIZE bsize = cpi->common.seq_params.sb_size;
-  uint8_t *src_y = cpi->source->y_buffer;
-  int src_ystride = cpi->source->y_stride;
-  uint8_t *last_src_y = cpi->last_source->y_buffer;
-  int last_src_ystride = cpi->last_source->y_stride;
-  uint64_t avg_source_sse_threshold = 100000;        // ~5*5*(64*64)
-  uint64_t avg_source_sse_threshold_high = 1000000;  // ~15*15*(64*64)
-  uint64_t sum_sq_thresh = 10000;  // sum = sqrt(thresh / 64*64)) ~1.5
-  MACROBLOCKD *xd = &x->e_mbd;
-  if (xd->cur_buf->flags & YV12_FLAG_HIGHBITDEPTH) return;
-  src_y += offset;
-  last_src_y += offset;
-  tmp_variance = cpi->fn_ptr[bsize].vf(src_y, src_ystride, last_src_y,
-                                       last_src_ystride, &tmp_sse);
-  // Note: tmp_sse - tmp_variance = ((sum * sum) >> 12)
-  // Detect large lighting change.
-  if (tmp_variance < (tmp_sse >> 1) && (tmp_sse - tmp_variance) > sum_sq_thresh)
-    x->content_state_sb = kLowVarHighSumdiff;
-  else if (tmp_sse < avg_source_sse_threshold)
-    x->content_state_sb = kLowSad;
-  else if (tmp_sse > avg_source_sse_threshold_high)
-    x->content_state_sb = kHighSad;
-}
-
 // Memset the mbmis at the current superblock to 0
 void av1_reset_mbmi(CommonModeInfoParams *const mi_params, BLOCK_SIZE sb_size,
                     int mi_row, int mi_col) {

@@ -1008,13 +1008,6 @@ typedef struct macroblock {
   //! Information on a whole superblock level.
   // TODO(chiyotsai@google.com): Refactor this out of macroblock
   SuperBlockEnc sb_enc;
-
-  /*! \brief Characteristics of the current superblock.
-   *
-   *  Characteristics like whether the block has high sad, low sad, etc. This is
-   *  only used by av1 realtime mode.
-   */
-  uint8_t content_state_sb;
   /**@}*/
 
   /*****************************************************************************
@@ -1045,14 +1038,6 @@ typedef struct macroblock {
    */
   int picked_ref_frames_mask[MAX_MIB_SIZE * MAX_MIB_SIZE];
 
-  /*! \brief Prune ref frames in real-time mode.
-   *
-   * Determines whether to prune reference frames in real-time mode. For the
-   * most part, this is the same as nonrd_prune_ref_frame_search in
-   * cpi->sf.rt_sf.nonrd_prune_ref_frame_search, but this can be selectively
-   * turned off if the only frame available is GOLDEN_FRAME.
-   */
-  int nonrd_prune_ref_frame_search;
   /**@}*/
 
   /*****************************************************************************
@@ -1192,13 +1177,6 @@ typedef struct macroblock {
    * facilitate rdopt.
    */
   TxfmSearchInfo txfm_search_info;
-
-  /*! \brief Whether there is a strong color activity.
-   *
-   * Used in REALTIME coding mode to enhance the visual quality at the boundary
-   * of moving color objects.
-   */
-  uint8_t color_sensitivity[2];
   /**@}*/
 
   /*****************************************************************************

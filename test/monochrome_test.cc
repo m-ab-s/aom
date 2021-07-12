@@ -129,6 +129,6 @@ TEST_P(MonochromeTest, TestMonochromeEncoding) {
   }
 }
 
-AV1_INSTANTIATE_TEST_SUITE(MonochromeTest, NONREALTIME_TEST_MODES);
+AV1_INSTANTIATE_TEST_SUITE(MonochromeTest, GOODQUALITY_TEST_MODES);
 
 }  // namespace

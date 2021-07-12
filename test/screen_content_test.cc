@@ -107,6 +107,6 @@ TEST_P(ScreenContentToolsTestLarge, ScreenContentToolsTest) {
   //      << "Failed detection of screen content(lowres)";
 }
 
-AV1_INSTANTIATE_TEST_SUITE(ScreenContentToolsTestLarge, NONREALTIME_TEST_MODES,
+AV1_INSTANTIATE_TEST_SUITE(ScreenContentToolsTestLarge, GOODQUALITY_TEST_MODES,
                            ::testing::Values(AOM_Q));
 }  // namespace

@@ -23,7 +23,6 @@
 #include "av1/encoder/rdopt.h"
 #include "av1/encoder/segmentation.h"
 #include "av1/encoder/superres_scale.h"
-#include "av1/encoder/var_based_part.h"
 
 #if CONFIG_TUNE_VMAF
 #include "av1/encoder/tune_vmaf.h"
@@ -768,8 +767,7 @@ void av1_determine_sc_tools_with_encoding(AV1_COMP *cpi, const int q_orig) {
   const int allow_intrabc_orig_decision = cm->features.allow_intrabc;
   const int is_screen_content_type_orig_decision = cpi->is_screen_content_type;
   // Turn off the encoding trial for forward key frame and superres.
-  if (cpi->sf.rt_sf.use_nonrd_pick_mode || oxcf->kf_cfg.fwd_kf_enabled ||
-      cpi->superres_mode != AOM_SUPERRES_NONE ||
+  if (oxcf->kf_cfg.fwd_kf_enabled || cpi->superres_mode != AOM_SUPERRES_NONE ||
       is_screen_content_type_orig_decision || !is_key_frame) {
     return;
   }
@@ -825,8 +823,6 @@ void av1_determine_sc_tools_with_encoding(AV1_COMP *cpi, const int q_orig) {
       av1_init_quantizer(&cm->seq_params, &cpi->enc_quant_dequant_params,
                          &cm->quant_params);
 
-    av1_set_variance_partition_thresholds(cpi, q_for_screen_content_quick_run,
-                                          0);
     // transform / motion compensation build reconstruction frame
     av1_encode_frame(cpi);
     // Screen content decision

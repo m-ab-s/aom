@@ -792,14 +792,12 @@ void av1_initialize_rd_consts(AV1_COMP *cpi) {
 
   set_block_thresholds(cm, rd);
 
-  if ((!cpi->sf.rt_sf.use_nonrd_pick_mode &&
-       cpi->oxcf.cost_upd_freq.mv != COST_UPD_OFF) ||
-      frame_is_intra_only(cm) || (cm->current_frame.frame_number & 0x07) == 1)
+  if ((cpi->oxcf.cost_upd_freq.mv != COST_UPD_OFF) || frame_is_intra_only(cm) ||
+      (cm->current_frame.frame_number & 0x07) == 1)
     av1_fill_mv_costs(cm->fc, cm->features.cur_frame_force_integer_mv,
                       cm->features.allow_high_precision_mv, mv_costs);
 
-  if (!cpi->sf.rt_sf.use_nonrd_pick_mode && frame_is_intra_only(cm) &&
-      cm->features.allow_screen_content_tools &&
+  if (frame_is_intra_only(cm) && cm->features.allow_screen_content_tools &&
       !is_stat_generation_stage(cpi)) {
     IntraBCMVCosts *const dv_costs = &cpi->dv_costs;
     int *dvcost[2] = { &dv_costs->mv_component[0][MV_MAX],

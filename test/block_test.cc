@@ -192,7 +192,7 @@ TEST_P(SuperBlockSizeTestLarge, SuperBlockSizeTest) {
       << "Failed for SB size " << superblock_size_;
 }
 
-AV1_INSTANTIATE_TEST_SUITE(SuperBlockSizeTestLarge, NONREALTIME_TEST_MODES,
+AV1_INSTANTIATE_TEST_SUITE(SuperBlockSizeTestLarge, GOODQUALITY_TEST_MODES,
                            ::testing::Values(AOM_SUPERBLOCK_SIZE_64X64,
                                              AOM_SUPERBLOCK_SIZE_128X128),
                            ::testing::Values(AOM_Q, AOM_VBR, AOM_CBR, AOM_CQ));

@@ -148,7 +148,7 @@ TEST_P(GFPyrHeightTest, EncodeAndVerifyPSNR) {
       << "GF Max Pyramid Height = " << gf_max_pyr_height_;
 }
 
-AV1_INSTANTIATE_TEST_SUITE(GFPyrHeightTest, NONREALTIME_TEST_MODES,
+AV1_INSTANTIATE_TEST_SUITE(GFPyrHeightTest, GOODQUALITY_TEST_MODES,
                            ::testing::Values(AOM_Q, AOM_VBR),
                            ::testing::ValuesIn(kTestParams));
 }  // namespace

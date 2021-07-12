@@ -468,7 +468,7 @@ TEST_P(AVxEncoderThreadLSTestLarge, EncoderResultTest) {
   DoTest();
 }
 
-AV1_INSTANTIATE_TEST_SUITE(AVxEncoderThreadLSTestLarge, NONREALTIME_TEST_MODES,
+AV1_INSTANTIATE_TEST_SUITE(AVxEncoderThreadLSTestLarge, GOODQUALITY_TEST_MODES,
                            ::testing::Range(0, 4), ::testing::Values(0, 6),
                            ::testing::Values(0, 6), ::testing::Values(0, 1));
 }  // namespace

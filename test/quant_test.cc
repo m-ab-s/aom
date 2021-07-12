@@ -170,7 +170,7 @@ TEST_P(QuantizerBoundsCheckTestLarge, QuantizerBoundsCheckEncodeTest) {
 }
 
 AV1_INSTANTIATE_TEST_SUITE(QuantizerBoundsCheckTestLarge,
-                           NONREALTIME_TEST_MODES,
+                           GOODQUALITY_TEST_MODES,
                            ::testing::ValuesIn(QuantTestParams),
                            ::testing::Values(AOM_Q, AOM_VBR, AOM_CBR, AOM_CQ));
 }  // namespace

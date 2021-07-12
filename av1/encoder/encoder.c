@@ -78,7 +78,6 @@
 #include "av1/encoder/subgop.h"
 #include "av1/encoder/superres_scale.h"
 #include "av1/encoder/tpl_model.h"
-#include "av1/encoder/var_based_part.h"
 
 #define DEFAULT_EXPLICIT_ORDER_HINT_BITS 7
 
@@ -2258,7 +2257,7 @@ static void loopfilter_frame(AV1_COMP *cpi, AV1_COMMON *cm) {
 }
 
 /*!\brief Encode a frame without the recode loop, usually used in one-pass
- * encoding and realtime coding.
+ * encoding.
  *
  * \ingroup high_level_algo
  *
@@ -2312,9 +2311,6 @@ static int encode_without_recode(AV1_COMP *cpi) {
     }
   }
 
-  if (cpi->sf.part_sf.partition_search_type == VAR_BASED_PARTITION)
-    variance_partition_alloc(cpi);
-
   if (cm->current_frame.frame_type == KEY_FRAME) copy_frame_prob_info(cpi);
 
 #if CONFIG_COLLECT_COMPONENT_TIMING
@@ -2335,10 +2331,6 @@ static int encode_without_recode(AV1_COMP *cpi) {
     cpi->last_source = av1_scale_if_required(
         cm, cpi->unscaled_last_source, &cpi->scaled_last_source, filter_scaler,
         phase_scaler, true, false);
-  }
-
-  if (cpi->sf.rt_sf.use_temporal_noise_estimate) {
-    av1_update_noise_estimate(cpi);
   }
 
   // For 1 spatial layer encoding: if the (non-LAST) reference has different
@@ -2377,28 +2369,7 @@ static int encode_without_recode(AV1_COMP *cpi) {
 #endif
     av1_init_quantizer(&cm->seq_params, &cpi->enc_quant_dequant_params,
                        &cm->quant_params);
-  av1_set_variance_partition_thresholds(cpi, q, 0);
   av1_setup_frame(cpi);
-
-  // Check if this high_source_sad (scene/slide change) frame should be
-  // encoded at high/max QP, and if so, set the q and adjust some rate
-  // control parameters.
-  if (cpi->sf.rt_sf.overshoot_detection_cbr == FAST_DETECTION_MAXQ &&
-      cpi->rc.high_source_sad) {
-    if (av1_encodedframe_overshoot_cbr(cpi, &q)) {
-      av1_set_quantizer(cm, q_cfg->qm_minlevel, q_cfg->qm_maxlevel, q,
-                        q_cfg->enable_chroma_deltaq);
-      av1_set_speed_features_qindex_dependent(cpi, cpi->oxcf.speed);
-#if !CONFIG_EXTQUANT
-      if (q_cfg->deltaq_mode != NO_DELTA_Q || q_cfg->enable_chroma_deltaq)
-#endif
-        av1_init_quantizer(&cm->seq_params, &cpi->enc_quant_dequant_params,
-                           &cm->quant_params);
-      av1_set_variance_partition_thresholds(cpi, q, 0);
-      if (frame_is_intra_only(cm) || cm->features.error_resilient_mode)
-        av1_setup_frame(cpi);
-    }
-  }
 
   if (q_cfg->aq_mode == CYCLIC_REFRESH_AQ) {
     suppress_active_map(cpi);
@@ -2490,9 +2461,6 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
   q_low = bottom_index;
   q_high = top_index;
 
-  if (cpi->sf.part_sf.partition_search_type == VAR_BASED_PARTITION)
-    variance_partition_alloc(cpi);
-
   if (cm->current_frame.frame_type == KEY_FRAME) copy_frame_prob_info(cpi);
 
 #if CONFIG_COLLECT_COMPONENT_TIMING
@@ -2560,8 +2528,6 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
 #endif
       av1_init_quantizer(&cm->seq_params, &cpi->enc_quant_dequant_params,
                          &cm->quant_params);
-
-    av1_set_variance_partition_thresholds(cpi, q, 0);
 
     // printf("Frame %d/%d: q = %d, frame_type = %d superres_denom = %d\n",
     //        cm->current_frame.frame_number, cm->show_frame, q,
@@ -3285,15 +3251,6 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
   cpi->last_frame_type = current_frame->frame_type;
 
   av1_rc_postencode_update(cpi, *size);
-
-  if (oxcf->pass == 0 && !frame_is_intra_only(cm) &&
-      cpi->sf.rt_sf.use_temporal_noise_estimate &&
-      (!cpi->use_svc ||
-       (cpi->use_svc &&
-        !cpi->svc.layer_context[cpi->svc.temporal_layer_id].is_key_frame &&
-        cpi->svc.spatial_layer_id == cpi->svc.number_spatial_layers - 1))) {
-    av1_compute_frame_low_motion(cpi);
-  }
 
   // Clear the one shot update flags for segmentation map and mode/ref loop
   // filter deltas.
