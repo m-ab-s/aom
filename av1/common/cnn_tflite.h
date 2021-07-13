@@ -55,8 +55,9 @@ int av1_restore_cnn_img_tflite_highbd(int qindex, const uint16_t *dgd,
 struct AV1Common;
 
 // Restore current frame buffer in 'cm' in-place with a CNN model using TFlite.
+// Apply CNN to plane 'p' if and only if apply_cnn[p] is true.
 void av1_restore_cnn_tflite(const struct AV1Common *cm, int num_threads,
-                            int plane_from, int plane_to);
+                            const int apply_cnn[MAX_MB_PLANE]);
 
 #ifdef __cplusplus
 }

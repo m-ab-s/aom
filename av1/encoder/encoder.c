@@ -2000,17 +2000,16 @@ static void yv12_copy_all_planes(const YV12_BUFFER_CONFIG *src,
   yv12_copy_chroma_planes(src, dst, num_planes);
 }
 
-/*!\brief Returns SSE between 'a' and 'b' in luma chanel (Y plane) and chroma
- * channels (total for U and V planes).
+/*!\brief Returns SSE between 'a' and 'b' for each plane.
  */
-static void get_sse_luma_chroma(const YV12_BUFFER_CONFIG *a,
-                                const YV12_BUFFER_CONFIG *b, int highbd,
-                                int64_t *sse_y, int64_t *sse_uv,
-                                int num_planes) {
-  *sse_y = aom_get_sse_plane(a, b, AOM_PLANE_Y, highbd);
-  *sse_uv = (num_planes == 3) ? aom_get_sse_plane(a, b, AOM_PLANE_U, highbd) +
-                                    aom_get_sse_plane(a, b, AOM_PLANE_V, highbd)
-                              : INT64_MAX;
+static void get_sse_planes(const YV12_BUFFER_CONFIG *a,
+                           const YV12_BUFFER_CONFIG *b, int highbd,
+                           int64_t *sse, int num_planes) {
+  sse[0] = aom_get_sse_plane(a, b, AOM_PLANE_Y, highbd);
+  sse[1] = (num_planes > 1) ? aom_get_sse_plane(a, b, AOM_PLANE_U, highbd)
+                            : INT64_MAX;
+  sse[2] = (num_planes > 2) ? aom_get_sse_plane(a, b, AOM_PLANE_V, highbd)
+                            : INT64_MAX;
 }
 #endif  // CONFIG_CNN_RESTORATION
 
@@ -2051,12 +2050,15 @@ static void cdef_restoration_frame(AV1_COMP *cpi, AV1_COMMON *cm,
 #if CONFIG_COLLECT_COMPONENT_TIMING
   start_timing(cpi, loop_restoration_time);
 #endif
+
+#if CONFIG_CNN_RESTORATION
+  memset(cm->use_cnn, 0, sizeof(cm->use_cnn));
+#endif  // CONFIG_CNN_RESTORATION
+
   if (use_restoration) {
     av1_loop_restoration_save_boundary_lines(&cm->cur_frame->buf, cm, 1);
 
 #if CONFIG_CNN_RESTORATION
-    cm->use_cnn_y = 0;
-    cm->use_cnn_uv = 0;
     if (av1_use_cnn_encode(cm,
                            cpi->gf_group.update_type[cpi->gf_group.index])) {
       const int num_planes = av1_num_planes(cm);
@@ -2065,28 +2067,28 @@ static void cdef_restoration_frame(AV1_COMP *cpi, AV1_COMMON *cm,
                            num_planes);
 
       // Calculate errors for unfiltered planes from source.
-      int64_t dgd_error_y, dgd_error_uv;
-      get_sse_luma_chroma(cpi->source, &cm->cur_frame->buf,
-                          cm->seq_params.use_highbitdepth, &dgd_error_y,
-                          &dgd_error_uv, num_planes);
+      int64_t dgd_errors[MAX_MB_PLANE];
+      get_sse_planes(cpi->source, &cm->cur_frame->buf,
+                     cm->seq_params.use_highbitdepth, dgd_errors, num_planes);
 
       // Try CNN restoration on all planes.
-      av1_restore_cnn_tflite(cm, cpi->mt_info.num_workers, AOM_PLANE_Y,
-                             num_planes - 1);
+      const int apply_cnn[MAX_MB_PLANE] = { 1, 1, 1 };
+      av1_restore_cnn_tflite(cm, cpi->mt_info.num_workers, apply_cnn);
 
       // Calculate errors after applying cnn from source.
-      int64_t cnn_error_y, cnn_error_uv;
-      get_sse_luma_chroma(cpi->source, &cm->cur_frame->buf,
-                          cm->seq_params.use_highbitdepth, &cnn_error_y,
-                          &cnn_error_uv, num_planes);
+      int64_t cnn_errors[MAX_MB_PLANE];
+      get_sse_planes(cpi->source, &cm->cur_frame->buf,
+                     cm->seq_params.use_highbitdepth, cnn_errors, num_planes);
 
       // Save CNN restored frame.
-      if (cnn_error_y <= dgd_error_y) {
+      if (cnn_errors[0] <= dgd_errors[0]) {
         aom_yv12_copy_y(&cm->cur_frame->buf, &cpi->cnn_buffer);
       }
-      if (cnn_error_uv <= dgd_error_uv) {
-        yv12_copy_chroma_planes(&cm->cur_frame->buf, &cpi->cnn_buffer,
-                                num_planes);
+      if (cnn_errors[1] <= dgd_errors[1] && num_planes > 1) {
+        aom_yv12_copy_u(&cm->cur_frame->buf, &cpi->cnn_buffer);
+      }
+      if (cnn_errors[2] <= dgd_errors[2] && num_planes > 2) {
+        aom_yv12_copy_v(&cm->cur_frame->buf, &cpi->cnn_buffer);
       }
 
       // Restore unfiltered frame.
@@ -2109,38 +2111,41 @@ static void cdef_restoration_frame(AV1_COMP *cpi, AV1_COMMON *cm,
       }
 
       // Calculate errors after LR from source.
-      int64_t res_error_y, res_error_uv;
-      get_sse_luma_chroma(cpi->source, &cm->cur_frame->buf,
-                          cm->seq_params.use_highbitdepth, &res_error_y,
-                          &res_error_uv, num_planes);
+      int64_t res_errors[MAX_MB_PLANE];
+      get_sse_planes(cpi->source, &cm->cur_frame->buf,
+                     cm->seq_params.use_highbitdepth, res_errors, num_planes);
 
-      // For each of luma and chroma, pick either CNN or LR (mutually
-      // exclusive).
-      if (cnn_error_y <= res_error_y && cnn_error_y <= dgd_error_y) {
-        // Enable CNN for luma and copy CNN restored luma plane.
-        cm->use_cnn_y = 1;
+      // For each plane, pick either CNN or LR (mutually exclusive).
+      if (cnn_errors[0] <= res_errors[0] && cnn_errors[0] <= dgd_errors[0]) {
+        // Enable CNN for Y and copy CNN restored Y plane.
+        cm->use_cnn[0] = 1;
         aom_yv12_copy_y(&cpi->cnn_buffer, &cm->cur_frame->buf);
       } else {
         aom_yv12_copy_y(&cpi->last_frame_uf, &cm->cur_frame->buf);
       }
-      if (cnn_error_uv <= res_error_uv && cnn_error_uv <= dgd_error_uv) {
-        // Enable CNN for chroma and copy CNN restored chroma planes.
-        cm->use_cnn_uv = 1;
-        yv12_copy_chroma_planes(&cpi->cnn_buffer, &cm->cur_frame->buf,
-                                num_planes);
+      if (cnn_errors[1] <= res_errors[1] && cnn_errors[1] <= dgd_errors[1] &&
+          num_planes > 1) {
+        // Enable CNN for U and copy CNN restored U plane.
+        cm->use_cnn[1] = 1;
+        aom_yv12_copy_u(&cpi->cnn_buffer, &cm->cur_frame->buf);
       } else {
-        yv12_copy_chroma_planes(&cpi->last_frame_uf, &cm->cur_frame->buf,
-                                num_planes);
+        aom_yv12_copy_u(&cpi->last_frame_uf, &cm->cur_frame->buf);
+      }
+      if (cnn_errors[2] <= res_errors[2] && cnn_errors[2] <= dgd_errors[2] &&
+          num_planes > 2) {
+        // Enable CNN for V and copy CNN restored V plane.
+        cm->use_cnn[2] = 1;
+        aom_yv12_copy_v(&cpi->cnn_buffer, &cm->cur_frame->buf);
+      } else {
+        aom_yv12_copy_v(&cpi->last_frame_uf, &cm->cur_frame->buf);
       }
 
       // Disable LR for planes where CNN is used, and reapply LR for other
       // planes.
-      if (cm->use_cnn_y) {
-        cm->rst_info[0].frame_restoration_type = RESTORE_NONE;
-      }
-      if (cm->use_cnn_uv) {
-        cm->rst_info[1].frame_restoration_type = RESTORE_NONE;
-        cm->rst_info[2].frame_restoration_type = RESTORE_NONE;
+      for (int plane = 0; plane < av1_num_planes(cm); ++plane) {
+        if (cm->use_cnn[plane]) {
+          cm->rst_info[plane].frame_restoration_type = RESTORE_NONE;
+        }
       }
       if (cm->rst_info[0].frame_restoration_type != RESTORE_NONE ||
           cm->rst_info[1].frame_restoration_type != RESTORE_NONE ||
@@ -2154,8 +2159,11 @@ static void cdef_restoration_frame(AV1_COMP *cpi, AV1_COMMON *cm,
                                             &cpi->lr_ctxt);
       }
       /*
-      fprintf(stderr, "\ngf_index = %d, use_cnn_y = %d, use_cnn_uv = %d\n",
-              cpi->gf_group.index, cm->use_cnn_y, cm->use_cnn_uv);
+      fprintf(stderr,
+              "\ngf_index = %d, use_cnn[0] = %d, use_cnn[1] = %d, "
+              "use_cnn[2] = %d\n",
+              cpi->gf_group.index, cm->use_cnn[0], cm->use_cnn[1],
+              cm->use_cnn[2]);
       */
     } else {
 #endif  // CONFIG_CNN_RESTORATION
@@ -2760,8 +2768,7 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
     cm->rst_info[1].frame_restoration_type = RESTORE_NONE;
     cm->rst_info[2].frame_restoration_type = RESTORE_NONE;
 #if CONFIG_CNN_RESTORATION
-    cm->use_cnn_y = 0;
-    cm->use_cnn_uv = 0;
+    memset(cm->use_cnn, 0, sizeof(cm->use_cnn));
 #endif  // CONFIG_CNN_RESTORATION
   }
 

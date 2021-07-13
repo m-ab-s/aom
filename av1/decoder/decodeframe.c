@@ -1327,9 +1327,7 @@ static AOM_INLINE void decode_partition(AV1Decoder *const pbi,
     const int num_planes = av1_num_planes(cm);
     for (int plane = 0; plane < num_planes; ++plane) {
 #if CONFIG_CNN_RESTORATION
-      if ((plane == 0 && cm->use_cnn_y) || (plane > 0 && cm->use_cnn_uv)) {
-        continue;
-      }
+      if (cm->use_cnn[plane]) continue;
 #endif  // CONFIG_CNN_RESTORATION
       int rcol0, rcol1, rrow0, rrow1;
       if (av1_loop_restoration_corners_in_sb(cm, plane, mi_row, mi_col, bsize,
@@ -1533,11 +1531,11 @@ static AOM_INLINE void setup_segmentation(AV1_COMMON *const cm,
 #if CONFIG_CNN_RESTORATION
 static void decode_cnn(AV1_COMMON *cm, struct aom_read_bit_buffer *rb) {
   if (av1_use_cnn(cm)) {
-    cm->use_cnn_y = aom_rb_read_bit(rb);
-    cm->use_cnn_uv = aom_rb_read_bit(rb);
+    for (int plane = 0; plane < av1_num_planes(cm); ++plane) {
+      cm->use_cnn[plane] = aom_rb_read_bit(rb);
+    }
   } else {
-    cm->use_cnn_y = 0;
-    cm->use_cnn_uv = 0;
+    memset(cm->use_cnn, 0, sizeof(cm->use_cnn));
   }
 }
 #endif  // CONFIG_CNN_RESTORATION
@@ -1551,7 +1549,7 @@ static AOM_INLINE void decode_restoration_mode(AV1_COMMON *cm,
   for (int p = 0; p < num_planes; ++p) {
     RestorationInfo *rsi = &cm->rst_info[p];
 #if CONFIG_CNN_RESTORATION
-    if ((p == 0 && cm->use_cnn_y) || (p > 0 && cm->use_cnn_uv)) {
+    if (cm->use_cnn[p]) {
       rsi->frame_restoration_type = RESTORE_NONE;
       continue;
     }
@@ -5147,8 +5145,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
   }
   setup_loopfilter(cm, rb);
 #if CONFIG_CNN_RESTORATION
-  cm->use_cnn_y = 0;
-  cm->use_cnn_uv = 0;
+  memset(cm->use_cnn, 0, sizeof(cm->use_cnn));
   if (!features->coded_lossless) decode_cnn(cm, rb);
 #endif  // CONFIG_CNN_RESTORATION
   if (!features->coded_lossless && seq_params->enable_cdef) {
@@ -5370,11 +5367,12 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
     }
 
 #if CONFIG_CNN_RESTORATION
-    assert(IMPLIES(cm->use_cnn_y,
+    assert(IMPLIES(cm->use_cnn[0],
                    cm->rst_info[0].frame_restoration_type == RESTORE_NONE));
-    assert(IMPLIES(cm->use_cnn_uv,
-                   cm->rst_info[1].frame_restoration_type == RESTORE_NONE &&
-                       cm->rst_info[2].frame_restoration_type == RESTORE_NONE));
+    assert(IMPLIES(cm->use_cnn[1],
+                   cm->rst_info[1].frame_restoration_type == RESTORE_NONE));
+    assert(IMPLIES(cm->use_cnn[2],
+                   cm->rst_info[2].frame_restoration_type == RESTORE_NONE));
 #endif  // CONFIG_CNN_RESTORATION
 
     const int do_loop_restoration =
@@ -5399,14 +5397,8 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
 
       superres_post_decode(pbi);
 
-      // TODO(urvang): Refactor.
 #if CONFIG_CNN_RESTORATION
-      if (cm->use_cnn_y || cm->use_cnn_uv) {
-        const int plane_from = cm->use_cnn_y ? AOM_PLANE_Y : AOM_PLANE_U;
-        const int plane_to =
-            cm->use_cnn_uv ? av1_num_planes(cm) - 1 : AOM_PLANE_Y;
-        av1_restore_cnn_tflite(cm, pbi->num_workers, plane_from, plane_to);
-      }
+      av1_restore_cnn_tflite(cm, pbi->num_workers, cm->use_cnn);
 #endif  // CONFIG_CNN_RESTORATION
 
       if (do_loop_restoration) {
@@ -5427,12 +5419,7 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
       // In no cdef and no superres case. Provide an optimized version of
       // loop_restoration_filter.
 #if CONFIG_CNN_RESTORATION
-      if (cm->use_cnn_y || cm->use_cnn_uv) {
-        const int plane_from = cm->use_cnn_y ? AOM_PLANE_Y : AOM_PLANE_U;
-        const int plane_to =
-            cm->use_cnn_uv ? av1_num_planes(cm) - 1 : AOM_PLANE_Y;
-        av1_restore_cnn_tflite(cm, pbi->num_workers, plane_from, plane_to);
-      }
+      av1_restore_cnn_tflite(cm, pbi->num_workers, cm->use_cnn);
 #endif  // CONFIG_CNN_RESTORATION
 
       if (do_loop_restoration) {

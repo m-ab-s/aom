@@ -1064,14 +1064,9 @@ typedef struct AV1Common {
 
 #if CONFIG_CNN_RESTORATION
   /*!
-   * True if luma channel is using CNN restoration.
+   * `use_cnn[p]` is true if plane `p` is using CNN restoration.
    */
-  int use_cnn_y;
-  /*!
-   * True if chroma channels are using CNN restoration.
-   */
-  // TODO(urvang): Separate out U and V?
-  int use_cnn_uv;
+  int use_cnn[MAX_MB_PLANE];
 #endif  // CONFIG_CNN_RESTORATION
 } AV1_COMMON;
 

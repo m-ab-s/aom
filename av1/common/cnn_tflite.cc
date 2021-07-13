@@ -268,10 +268,11 @@ extern "C" int av1_restore_cnn_img_tflite_highbd(
 }
 
 extern "C" void av1_restore_cnn_tflite(const AV1_COMMON *cm, int num_threads,
-                                       int plane_from, int plane_to) {
+                                       const int apply_cnn[MAX_MB_PLANE]) {
   YV12_BUFFER_CONFIG *buf = &cm->cur_frame->buf;
   const int is_intra_only = frame_is_intra_only(cm);
-  for (int plane = plane_from; plane <= plane_to; ++plane) {
+  for (int plane = 0; plane < av1_num_planes(cm); ++plane) {
+    if (!apply_cnn[plane]) continue;
     const int is_luma = (plane == AOM_PLANE_Y);
     if (cm->seq_params.use_highbitdepth) {
       switch (plane) {

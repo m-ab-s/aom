@@ -1636,9 +1636,7 @@ static AOM_INLINE void write_modes_sb(
   const int num_planes = av1_num_planes(cm);
   for (int plane = 0; plane < num_planes; ++plane) {
 #if CONFIG_CNN_RESTORATION
-    if ((plane == 0 && cm->use_cnn_y) || (plane > 0 && cm->use_cnn_uv)) {
-      continue;
-    }
+    if (cm->use_cnn[plane]) continue;
 #endif  // CONFIG_CNN_RESTORATION
     int rcol0, rcol1, rrow0, rrow1;
     if (av1_loop_restoration_corners_in_sb(cm, plane, mi_row, mi_col, bsize,
@@ -1774,7 +1772,7 @@ static AOM_INLINE void encode_restoration_mode(
   for (int p = 0; p < num_planes; ++p) {
     RestorationInfo *rsi = &cm->rst_info[p];
 #if CONFIG_CNN_RESTORATION
-    if ((p == 0 && cm->use_cnn_y) || (p > 0 && cm->use_cnn_uv)) {
+    if (cm->use_cnn[p]) {
       assert(rsi->frame_restoration_type == RESTORE_NONE);
       continue;
     }
@@ -2089,11 +2087,13 @@ static bool is_mode_ref_delta_meaningful(AV1_COMMON *cm) {
 #if CONFIG_CNN_RESTORATION
 static void encode_cnn(AV1_COMMON *cm, struct aom_write_bit_buffer *wb) {
   if (av1_use_cnn(cm)) {
-    aom_wb_write_bit(wb, cm->use_cnn_y);
-    aom_wb_write_bit(wb, cm->use_cnn_uv);
+    for (int plane = 0; plane < av1_num_planes(cm); ++plane) {
+      aom_wb_write_bit(wb, cm->use_cnn[plane]);
+    }
   } else {
-    assert(!cm->use_cnn_y);
-    assert(!cm->use_cnn_uv);
+    for (int plane = 0; plane < av1_num_planes(cm); ++plane) {
+      assert(!cm->use_cnn[plane]);
+    }
   }
 }
 #endif  // CONFIG_CNN_RESTORATION
