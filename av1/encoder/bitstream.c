@@ -2076,8 +2076,6 @@ static AOM_INLINE void write_partition(const AV1_COMMON *const cm,
 
 #if CONFIG_SDP
   const int plane = xd->tree_type == CHROMA_PART;
-#endif
-#if CONFIG_SDP
   if (bsize == BLOCK_8X8 && plane > 0) return;
 #endif
 
