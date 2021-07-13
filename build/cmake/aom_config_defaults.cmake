@@ -145,7 +145,7 @@ set_aom_config_var(CONFIG_EXTQUANT 1
                    "AV2 extended quantization experiment flag")
 set_aom_config_var(CONFIG_COMPOUND_WARP_SAMPLES 1 NUMBER
                    "AV2 compound warped motion samples experiment flag")
-set_aom_config_var(CONFIG_NEW_TX_PARTITION 0
+set_aom_config_var(CONFIG_NEW_TX_PARTITION 1
                    "AV2 new transform partitions experiment flag.")
 set_aom_config_var(
   CONFIG_MRLS 1 "AV2 experiment flag to enable multiple line intra prediction.")
