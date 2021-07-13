@@ -1807,13 +1807,24 @@ void av1_set_screen_content_options(const AV1_COMP *cpi,
     }
   }
 
+  const int col_factor = 11;
+  const int var_factor = 12;
+
   // The threshold values are selected experimentally.
   features->allow_screen_content_tools =
-      counts_1 * blk_h * blk_w * 10 > width * height;
+      counts_1 * blk_h * blk_w * col_factor > width * height;
   // IntraBC would force loop filters off, so we use more strict rules that also
   // requires that the block has high variance.
-  features->allow_intrabc = features->allow_screen_content_tools &&
-                            counts_2 * blk_h * blk_w * 12 > width * height;
+  features->allow_intrabc =
+      features->allow_screen_content_tools &&
+      counts_2 * blk_h * blk_w * var_factor > width * height;
+  /*
+  printf("allow_screen_content_tools = %d, allow_intrabc = %d\n",
+         features->allow_screen_content_tools, features->allow_intrabc);
+  printf("c1 %d > %f; c1 %d > %f\n", counts_1,
+         width * height / ((float)(blk_h * blk_w * col_factor)), counts_2,
+         width * height / ((float)(blk_h * blk_w * var_factor)));
+         */
 }
 
 // Function pointer to search site config initialization
