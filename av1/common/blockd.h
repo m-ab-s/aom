@@ -1346,6 +1346,15 @@ static INLINE void update_txk_array(MACROBLOCKD *const xd, int blk_row,
 }
 
 #if CONFIG_IST
+static INLINE int tx_size_to_depth(TX_SIZE tx_size, BLOCK_SIZE bsize) {
+  TX_SIZE ctx_size = max_txsize_rect_lookup[bsize];
+  int depth = 0;
+  while (tx_size != ctx_size) {
+    depth++;
+    ctx_size = sub_tx_size_map[ctx_size];
+  }
+  return depth;
+}
 /*
  * If secondary transform is enabled (CONFIG_IST) :
  * Bits 4~5 of tx_type stores secondary tx_type
@@ -1374,6 +1383,42 @@ static INLINE TX_TYPE get_primary_tx_type(TX_TYPE tx_type) {
  */
 static INLINE TX_TYPE get_secondary_tx_type(TX_TYPE tx_type) {
   return (tx_type >> 4);
+}
+/*
+ * This function checks and returns 1 if secondary transform type needs to be
+ * signaled for the transform block
+ */
+static INLINE int block_signals_sec_tx_type(const MACROBLOCKD *xd,
+                                            TX_SIZE tx_size, TX_TYPE tx_type,
+                                            int eob) {
+  const MB_MODE_INFO *mbmi = xd->mi[0];
+  PREDICTION_MODE intra_dir;
+  if (mbmi->filter_intra_mode_info.use_filter_intra) {
+    intra_dir =
+        fimode_to_intradir[mbmi->filter_intra_mode_info.filter_intra_mode];
+  } else {
+    intra_dir = mbmi->mode;
+  }
+#if CONFIG_SDP
+  const BLOCK_SIZE bs = mbmi->sb_type[PLANE_TYPE_Y];
+#else
+  const BLOCK_SIZE bs = mbmi->sb_type;
+#endif
+  const TX_TYPE primary_tx_type = get_primary_tx_type(tx_type);
+  const int width = tx_size_wide[tx_size];
+  const int height = tx_size_high[tx_size];
+  const int sb_size = (width >= 8 && height >= 8) ? 8 : 4;
+  bool ist_eob = 1;
+  if (((sb_size == 4) && (eob > IST_4x4_HEIGHT - 1)) ||
+      ((sb_size == 8) && (eob > IST_8x8_HEIGHT - 1))) {
+    ist_eob = 0;
+  }
+  const int depth = tx_size_to_depth(tx_size, bs);
+  const int code_stx =
+      (primary_tx_type == DCT_DCT || primary_tx_type == ADST_ADST) &&
+      (intra_dir < PAETH_PRED) &&
+      !(mbmi->filter_intra_mode_info.use_filter_intra) && !(depth) && ist_eob;
+  return code_stx;
 }
 #endif
 
@@ -1775,18 +1820,6 @@ static INLINE int av1_get_max_eob(TX_SIZE tx_size) {
   }
   return tx_size_2d[tx_size];
 }
-
-#if CONFIG_IST
-static INLINE int tx_size_to_depth(TX_SIZE tx_size, BLOCK_SIZE bsize) {
-  TX_SIZE ctx_size = max_txsize_rect_lookup[bsize];
-  int depth = 0;
-  while (tx_size != ctx_size) {
-    depth++;
-    ctx_size = sub_tx_size_map[ctx_size];
-  }
-  return depth;
-}
-#endif
 
 /*!\endcond */
 

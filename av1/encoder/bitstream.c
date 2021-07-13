@@ -1019,67 +1019,19 @@ void av1_write_sec_tx_type(const AV1_COMMON *const cm, const MACROBLOCKD *xd,
     FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
     const TX_SIZE square_tx_size = txsize_sqr_map[tx_size];
     if (!is_inter) {
-      PREDICTION_MODE intra_dir;
-      if (mbmi->filter_intra_mode_info.use_filter_intra)
-        intra_dir =
-            fimode_to_intradir[mbmi->filter_intra_mode_info.filter_intra_mode];
-      else
-        intra_dir = mbmi->mode;
       uint8_t stx_flag = get_secondary_tx_type(tx_type);
-      assert(stx_flag <= 3);
-#if CONFIG_SDP
-      const BLOCK_SIZE bs = mbmi->sb_type[PLANE_TYPE_Y];
-#else
-      const BLOCK_SIZE bs = mbmi->sb_type;
-#endif
-      const int width = tx_size_wide[tx_size];
-      const int height = tx_size_high[tx_size];
-      int sbSize = (width >= 8 && height >= 8) ? 8 : 4;
-      bool ist_eob = 1;
-      if ((sbSize == 4) && (eob > (IST_4x4_HEIGHT - 1)))
-        ist_eob = 0;
-      else if ((sbSize == 8) && (eob > (IST_8x8_HEIGHT - 1)))
-        ist_eob = 0;
-      int depth = tx_size_to_depth(tx_size, bs);
-      TX_TYPE primary_tx_type = get_primary_tx_type(tx_type);
-      bool code_stx =
-          ((primary_tx_type == DCT_DCT) || (primary_tx_type == ADST_ADST)) &&
-          (intra_dir < PAETH_PRED) &&
-          !(mbmi->filter_intra_mode_info.use_filter_intra) && !(depth);
-      if (code_stx && ist_eob) {
+      assert(stx_flag <= STX_TYPES - 1);
+      if (block_signals_sec_tx_type(xd, tx_size, tx_type, eob)) {
         aom_write_symbol(w, stx_flag, ec_ctx->stx_cdf[square_tx_size],
                          STX_TYPES);
       }
     }
   } else if (!is_inter && !xd->lossless[mbmi->segment_id]) {
     uint8_t stx_flag = get_secondary_tx_type(tx_type);
+    assert(stx_flag <= STX_TYPES - 1);
     FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
     const TX_SIZE square_tx_size = txsize_sqr_map[tx_size];
-    PREDICTION_MODE intra_dir;
-    if (mbmi->filter_intra_mode_info.use_filter_intra)
-      intra_dir =
-          fimode_to_intradir[mbmi->filter_intra_mode_info.filter_intra_mode];
-    else
-      intra_dir = mbmi->mode;
-    assert(stx_flag <= 3);
-#if CONFIG_SDP
-    const BLOCK_SIZE bs = mbmi->sb_type[PLANE_TYPE_Y];
-#else
-    const BLOCK_SIZE bs = mbmi->sb_type;
-#endif
-    const int width = tx_size_wide[tx_size];
-    const int height = tx_size_high[tx_size];
-    int sbSize = (width >= 8 && height >= 8) ? 8 : 4;
-    bool ist_eob = 1;
-    if ((sbSize == 4) && (eob > (IST_4x4_HEIGHT - 1)))
-      ist_eob = 0;
-    else if ((sbSize == 8) && (eob > (IST_8x8_HEIGHT - 1)))
-      ist_eob = 0;
-    int depth = tx_size_to_depth(tx_size, bs);
-    bool code_stx = (intra_dir < PAETH_PRED) &&
-                    !(mbmi->filter_intra_mode_info.use_filter_intra) &&
-                    !(depth);
-    if (code_stx && ist_eob) {
+    if (block_signals_sec_tx_type(xd, tx_size, tx_type, eob)) {
       aom_write_symbol(w, stx_flag, ec_ctx->stx_cdf[square_tx_size], STX_TYPES);
     }
   }

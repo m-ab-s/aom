@@ -563,7 +563,12 @@ void av1_write_intra_coeffs_mb(const AV1_COMMON *const cm, MACROBLOCK *x,
 // TODO(angiebird): use this function whenever it's possible
 static int get_tx_type_cost(const MACROBLOCK *x, const MACROBLOCKD *xd,
                             int plane, TX_SIZE tx_size, TX_TYPE tx_type,
-                            int reduced_tx_set_used) {
+                            int reduced_tx_set_used
+#if CONFIG_IST
+                            ,
+                            int eob
+#endif
+) {
   if (plane > 0) return 0;
 
   const TX_SIZE square_tx_size = txsize_sqr_map[tx_size];
@@ -595,7 +600,7 @@ static int get_tx_type_cost(const MACROBLOCK *x, const MACROBLOCKD *xd,
         int tx_type_cost =
             x->mode_costs.intra_tx_type_costs[ext_tx_set][square_tx_size]
                                              [intra_dir][primary_tx_type];
-        if ((primary_tx_type == DCT_DCT || primary_tx_type == ADST_ADST) &&
+        if (block_signals_sec_tx_type(xd, tx_size, tx_type, eob) &&
             xd->enable_ist) {
           tx_type_cost +=
               x->mode_costs.stx_flag_cost[square_tx_size]
@@ -607,13 +612,17 @@ static int get_tx_type_cost(const MACROBLOCK *x, const MACROBLOCKD *xd,
                                                 [intra_dir][tx_type];
 #endif
       }
-#if CONFIG_IST
-      else if (xd->enable_ist)
-        return x->mode_costs
-            .stx_flag_cost[square_tx_size][get_secondary_tx_type(tx_type)];
-#endif
     }
   }
+#if CONFIG_IST
+  else if (!is_inter && !xd->lossless[xd->mi[0]->segment_id]) {
+    if (block_signals_sec_tx_type(xd, tx_size, tx_type, eob) &&
+        xd->enable_ist) {
+      return x->mode_costs
+          .stx_flag_cost[square_tx_size][get_secondary_tx_type(tx_type)];
+    }
+  }
+#endif
   return 0;
 }
 
@@ -681,7 +690,12 @@ static AOM_FORCE_INLINE int warehouse_efficients_txb(
 
   av1_txb_init_levels(qcoeff, width, height, levels);
 
-  cost += get_tx_type_cost(x, xd, plane, tx_size, tx_type, reduced_tx_set_used);
+  cost += get_tx_type_cost(x, xd, plane, tx_size, tx_type, reduced_tx_set_used
+#if CONFIG_IST
+                           ,
+                           eob
+#endif
+  );
 
   cost += get_eob_cost(eob, eob_costs, coeff_costs, tx_class);
 
@@ -766,7 +780,12 @@ static AOM_FORCE_INLINE int warehouse_efficients_txb_laplacian(
       &x->coeff_costs.eob_costs[eob_multi_size][plane_type];
   int cost = coeff_costs->txb_skip_cost[txb_skip_ctx][0];
 
-  cost += get_tx_type_cost(x, xd, plane, tx_size, tx_type, reduced_tx_set_used);
+  cost += get_tx_type_cost(x, xd, plane, tx_size, tx_type, reduced_tx_set_used
+#if CONFIG_IST
+                           ,
+                           eob
+#endif
+  );
 
   cost += get_eob_cost(eob, eob_costs, coeff_costs, tx_class);
 
@@ -1397,7 +1416,13 @@ int av1_optimize_txb_new(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
   }
 
   const int tx_type_cost = get_tx_type_cost(x, xd, plane, tx_size, tx_type,
-                                            cm->features.reduced_tx_set_used);
+                                            cm->features.reduced_tx_set_used
+#if CONFIG_IST
+                                            ,
+                                            eob
+#endif
+  );
+
   if (eob == 0)
     accu_rate += skip_cost;
   else
