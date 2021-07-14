@@ -324,6 +324,8 @@ class ErrorResilienceTestLarge
   unsigned int s_frames_[kMaxSFrames];
   libaom_test::TestMode encoding_mode_;
   int allow_mismatch_;
+
+ public:
   int enable_altref_;
 };
 
@@ -361,6 +363,12 @@ TEST_P(ErrorResilienceTestLarge, OnVersusOff) {
 // if we lose (i.e., drop before decoding) a set of droppable
 // frames (i.e., frames that don't update any reference buffers).
 TEST_P(ErrorResilienceTestLarge, DropFramesWithoutRecovery) {
+  /* TODO(anyone): Currently DropFramesWithoutRecovery is not intended to work
+   * with enable_altref_ == 1, because altref frames are not droppable.
+   * Consider expanding this test to check that the droppable frame does not
+   * fall on an invisible frame.
+   */
+  if (enable_altref_) return;
   SetupEncoder(500, 10);
   libaom_test::I420VideoSource video("hantro_collage_w352h288.yuv", 352, 288,
                                      cfg_.g_timebase.den, cfg_.g_timebase.num,
