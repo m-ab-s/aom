@@ -682,10 +682,10 @@ static AOM_INLINE void init_smooth_interintra_masks() {
 #define OPFL_MV_DELTA_LIMIT (1 << MV_REFINE_PREC_BITS)
 
 static INLINE int opfl_get_subblock_size_log2(int bw, int bh, int plane) {
-  return (plane || (bh <= 16 && bw <= 16)) ? OF_MIN_BSIZE_LOG2 : OF_BSIZE_LOG2;
+  return (plane || (bh <= 8 && bw <= 8)) ? OF_MIN_BSIZE_LOG2 : OF_BSIZE_LOG2;
 }
 static INLINE int opfl_get_subblock_size(int bw, int bh, int plane) {
-  return (plane || (bh <= 16 && bw <= 16)) ? OF_MIN_BSIZE : OF_BSIZE;
+  return (plane || (bh <= 8 && bw <= 8)) ? OF_MIN_BSIZE : OF_BSIZE;
 }
 
 void av1_opfl_build_inter_predictor_highbd(
@@ -2221,6 +2221,23 @@ static void build_inter_predictors_8x8_and_bigger(
     if (use_optflow_refinement && plane == 0) {
 #endif
 #if OPFL_SECOND_PASS_MC
+      int n = opfl_get_subblock_size(bw, bh, plane);
+      inter_pred_params.interp_filter_params[0] =
+          av1_get_interp_filter_params_with_block_size(
+#if CONFIG_REMOVE_DUAL_FILTER
+              mi->interp_fltr,
+#else
+              mi->interp_filters.as_filters.x_filter,
+#endif  // CONFIG_REMOVE_DUAL_FILTER
+              n);
+      inter_pred_params.interp_filter_params[1] =
+          av1_get_interp_filter_params_with_block_size(
+#if CONFIG_REMOVE_DUAL_FILTER
+              mi->interp_fltr,
+#else
+              mi->interp_filters.as_filters.y_filter,
+#endif  // CONFIG_REMOVE_DUAL_FILTER
+              n);
       av1_opfl_rebuild_inter_predictor(
           dst, dst_buf->stride, plane, mi->mv_refined, &inter_pred_params, xd,
           mi_x, mi_y, ref, mc_buf, calc_subpel_params_func);
