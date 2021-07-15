@@ -701,6 +701,13 @@ static AOM_INLINE void init_smooth_interintra_masks() {
 // and OPFL_BICUBIC_GRAD is on.
 #define OPFL_COMBINE_INTERP_GRAD_LS 0
 
+static INLINE int opfl_get_subblock_size_log2(int bw, int bh, int plane) {
+  return (plane || (bh <= 16 && bw <= 16)) ? OF_MIN_BSIZE_LOG2 : OF_BSIZE_LOG2;
+}
+static INLINE int opfl_get_subblock_size(int bw, int bh, int plane) {
+  return (plane || (bh <= 16 && bw <= 16)) ? OF_MIN_BSIZE : OF_BSIZE;
+}
+
 void av1_opfl_build_inter_predictor_highbd(
     const AV1_COMMON *cm, MACROBLOCKD *xd, int plane, MB_MODE_INFO *mi, int bw,
     int bh, int mi_x, int mi_y, uint8_t **mc_buf,
@@ -1370,7 +1377,7 @@ static int get_optflow_based_mv_highbd(
 
   int n_blocks = 1;
   int grad_prec_bits;
-  int n = (bh <= 16 && bw <= 16) ? OF_MIN_BSIZE : OF_BSIZE;
+  int n = opfl_get_subblock_size(bw, bh, plane);
 
 #if OPFL_BILINEAR_GRAD || OPFL_BICUBIC_GRAD
   // Compute gradients of P0 and P1 with interpolation
@@ -1509,7 +1516,7 @@ static int get_optflow_based_mv_lowbd(
 
   int n_blocks = 1;
   int grad_prec_bits;
-  int n = (bh <= 16 && bw <= 16) ? OF_MIN_BSIZE : OF_BSIZE;
+  int n = opfl_get_subblock_size(bw, bh, plane);
 
 #if OPFL_BILINEAR_GRAD || OPFL_BICUBIC_GRAD
   // Compute gradients of P0 and P1 with interpolation
@@ -1664,7 +1671,7 @@ void av1_opfl_rebuild_inter_predictor(
   SubpelParams subpel_params;
   int w = inter_pred_params->block_width;
   int h = inter_pred_params->block_height;
-  int n = (plane || (h <= 16 && w <= 16)) ? OF_MIN_BSIZE : OF_BSIZE;
+  int n = opfl_get_subblock_size(w, h, plane);
   make_inter_pred_of_nxn(dst, dst_stride, mv_refined, inter_pred_params, xd,
                          mi_x, mi_y, ref, mc_buf, calc_subpel_params_func, n,
                          &subpel_params);
@@ -1685,8 +1692,7 @@ void av1_opfl_refine_inter_predictor_highbd(uint8_t *dst8, int dst_stride,
   // The total bit shifts needed for vx/vy (MV_REFINE_PREC_BITS), gx/gy
   // (3 - SUBPEL_GRAD_DELTA_BITS - 2), and the averaging (1)
   int bits = MV_REFINE_PREC_BITS - SUBPEL_GRAD_DELTA_BITS + 2;
-  int n_bits =
-      (plane || (h <= 16 && w <= 16)) ? OF_MIN_BSIZE_LOG2 : OF_BSIZE_LOG2;
+  int n_bits = opfl_get_subblock_size_log2(w, h, plane);
   for (int i = 0; i < h; i++) {
     for (int j = 0; j < w; j++) {
       int bidx = i * w + j;
@@ -1718,8 +1724,7 @@ void av1_opfl_refine_inter_predictor_lowbd(uint8_t *dst, int dst_stride,
   // The total bit shifts needed for vx/vy (MV_REFINE_PREC_BITS), gx/gy
   // (3 - SUBPEL_GRAD_DELTA_BITS - 2), and the averaging (1)
   int bits = MV_REFINE_PREC_BITS - SUBPEL_GRAD_DELTA_BITS + 2;
-  int n_bits =
-      (plane || (h <= 16 && w <= 16)) ? OF_MIN_BSIZE_LOG2 : OF_BSIZE_LOG2;
+  int n_bits = opfl_get_subblock_size_log2(w, h, plane);
   for (int i = 0; i < h; i++) {
     for (int j = 0; j < w; j++) {
       int bidx = i * w + j;
