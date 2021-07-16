@@ -13,6 +13,7 @@
 #include <math.h>
 
 #include "av1/common/common.h"
+#include "av1/common/filter.h"
 #include "av1/common/spherical_pred.h"
 #include "aom_dsp/aom_dsp_common.h"
 
@@ -123,6 +124,96 @@ static void carte_vectors_cross_product(const CartesianVector *left,
   result->z = left->x * right->y - left->y * right->x;
 }
 
+/*!\brief Calculate the filter kernel index based on the subpixel coordination
+ * \param[in]   subpel_pos  The subpixel coordination
+ * \param[out]  pos_ref     The integer coordination to which the filter kernel
+ *                          center should align to. If the subpixel coordination
+ *                          is with in the range of (0, -0.0625) to the pixel on
+ *                          its right, we choose that pixel. Otherwise, we
+ *                          choose the pixel on the left of the subpixel.
+ * \return                  The kernel index. It is doubled since we only use
+ *                          #(0, 2, 4, ... 14) kernels
+ */
+static int cal_kernel_idx(double subpel_pos, int *pos_ref) {
+  double diff = subpel_pos - floor(subpel_pos);
+  int idx = round(diff / 0.125);
+
+  if (idx >= SUBPEL_SHIFTS / 2) {
+    idx = idx % (SUBPEL_SHIFTS / 2);
+    *pos_ref = (int)ceil(subpel_pos);
+  } else {
+    *pos_ref = (int)floor(subpel_pos);
+  }
+
+  return idx * 2;
+}
+
+// Get the filtered sums of the rows int the 8x8 block centered at the
+// input location
+static void get_interp_x_arr(int x, int y, const uint8_t *ref_frame,
+                             int ref_frame_stride, int frame_width,
+                             int frame_height, const InterpKernel *kernel,
+                             int filter_tap, int x_kernel_idx,
+                             double *x_sum_arr) {
+  int fo = filter_tap / 2 - 1;
+  int cur_x;
+  int cur_y;
+  double coeff = 0;
+  double sum = 0;
+
+  for (int i = 0; i < 8; i++) {
+    cur_y = y - fo + i;
+    cur_y = AOMMAX(cur_y, 0);
+    cur_y = AOMMIN(cur_y, frame_height - 1);
+
+    sum = 0;
+
+    for (int k = 0; k < filter_tap; k++) {
+      coeff = kernel[x_kernel_idx][k] / 128.0;
+
+      cur_x = x - fo + k;
+      cur_x = cur_x % frame_width;
+      cur_x = cur_x > 0 ? cur_x : frame_width + cur_x;
+
+      sum += ref_frame[cur_x + cur_y * ref_frame_stride] * coeff;
+    }
+
+    x_sum_arr[i] = sum;
+  }  // for i
+}
+
+static uint8_t interp_pixel_erp(const uint8_t *ref_frame, int ref_frame_stride,
+                                int frame_width, int frame_height,
+                                double subpel_x, double subpel_y,
+                                const InterpKernel *kernel, int filter_tap) {
+  double x_sum_arr[8];
+  double sum = 0;
+  double coeff = 0;
+  int x_kernel_idx;
+  int y_kernel_idx;
+  int x_ref;
+  int y_ref;
+  int pixel;
+
+  x_kernel_idx = cal_kernel_idx(subpel_x, &x_ref);
+  y_kernel_idx = cal_kernel_idx(subpel_y, &y_ref);
+
+  get_interp_x_arr(x_ref, y_ref, ref_frame, ref_frame_stride, frame_width,
+                   frame_height, kernel, filter_tap, x_kernel_idx * 2,
+                   x_sum_arr);
+
+  // Perform filtering on the column
+  sum = 0;
+  for (int k = 0; k < filter_tap; k++) {
+    coeff = kernel[y_kernel_idx * 2][k] / 128.0;
+    sum += x_sum_arr[k] * coeff;
+  }
+
+  pixel = (int)round(sum);
+  pixel = clamp(pixel, 0, 255);
+  return (uint8_t)pixel;
+}
+
 void av1_get_pred_erp(int block_x, int block_y, int block_width,
                       int block_height, double delta_phi, double delta_theta,
                       const uint8_t *ref_frame, int ref_frame_stride,
@@ -133,12 +224,11 @@ void av1_get_pred_erp(int block_x, int block_y, int block_width,
   assert(pred_block != NULL && block_width > 0 && block_height > 0 &&
          pred_block_stride >= block_width);
 
-  int pos_pred;      // Offset in pred_block buffer
-  int pos_ref;       // Offset in ref_frame buffer
-  double x_current;  // X coordiante in current frame
-  double y_current;  // Y coordiante in currrent frame
-  double x_ref;      // X coordinate in reference frame
-  double y_ref;      // Y coordiante in reference frame
+  int pos_pred;         // Offset in pred_block buffer
+  double x_current;     // X coordiante in current frame
+  double y_current;     // Y coordiante in currrent frame
+  double subpel_x_ref;  // X coordinate in reference frame
+  double subpel_y_ref;  // Y coordiante in reference frame
 
   PolarVector block_polar;
   CartesianVector block_v;
@@ -171,6 +261,8 @@ void av1_get_pred_erp(int block_x, int block_y, int block_width,
   v_prime_polar.r = 1.0;
   double k_dot_v;
 
+  const int filter_tap = 8;
+
   for (int idx_y = 0; idx_y < block_height; idx_y++) {
     for (int idx_x = 0; idx_x < block_width; idx_x++) {
       x_current = idx_x + block_x;
@@ -192,18 +284,15 @@ void av1_get_pred_erp(int block_x, int block_y, int block_width,
       sphere_carte_to_polar(&v_prime, &v_prime_polar);
       v_prime_polar.phi -= 0.5 * PI;
       av1_sphere_to_plane_erp(v_prime_polar.phi, v_prime_polar.theta,
-                              frame_width, frame_height, &x_ref, &y_ref);
-
-      x_ref = round(x_ref);
-      x_ref = x_ref == frame_width ? 0 : x_ref;
-      y_ref = round(y_ref);
-      y_ref = y_ref == frame_height ? frame_height - 1 : y_ref;
+                              frame_width, frame_height, &subpel_x_ref,
+                              &subpel_y_ref);
 
       pos_pred = idx_x + idx_y * pred_block_stride;
-      pos_ref = (int)x_ref + (int)y_ref * ref_frame_stride;
-      pred_block[pos_pred] = ref_frame[pos_ref];
+      pred_block[pos_pred] = interp_pixel_erp(
+          ref_frame, ref_frame_stride, frame_width, frame_height, subpel_x_ref,
+          subpel_y_ref, av1_sub_pel_filters_8, filter_tap);
     }
-  }
+  }  // for idx_y
 }
 
 static int get_sad_of_blocks(const uint8_t *cur_block,
