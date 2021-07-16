@@ -890,17 +890,6 @@ static void foreach_rest_unit_in_planes_mt(AV1LrStruct *lr_ctxt,
     ctxt[plane].luma = is_uv ? luma : NULL;
     ctxt[plane].luma_stride = is_uv ? luma_stride : -1;
 #endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
-#if WIENER_NONSEP_MASK
-    int w = ((cm->width + MAX_SB_SIZE - 1) >> MAX_SB_SIZE_LOG2)
-            << MAX_SB_SIZE_LOG2;
-    int h = ((cm->height + MAX_SB_SIZE - 1) >> MAX_SB_SIZE_LOG2)
-            << MAX_SB_SIZE_LOG2;
-    w >>= ((plane == 0) ? 0 : cm->seq_params.subsampling_x);
-    h >>= ((plane == 0) ? 0 : cm->seq_params.subsampling_y);
-    ctxt[plane].mask_stride = (w + MIN_TX_SIZE - 1) >> MIN_TX_SIZE_LOG2;
-    ctxt[plane].mask_height = (h + MIN_TX_SIZE - 1) >> MIN_TX_SIZE_LOG2;
-    ctxt[plane].txskip_mask = cm->tx_skip[plane];
-#endif  // WIENER_NONSEP_MASK
 #endif  // CONFIG_WIENER_NONSEP
 
     const AV1PixelRect tile_rect = ctxt[plane].tile_rect;

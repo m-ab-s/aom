@@ -2066,19 +2066,6 @@ static int compute_quantized_wienerns_filter(
 
   for (int i = v_beg; i < v_end; ++i) {
     for (int j = h_beg; j < h_end; ++j) {
-#if WIENER_NONSEP_MASK
-      int skip = 1;
-      int dd = (LOOKAROUND_WIN - 1) / 2;
-      for (int yy = i - dd; yy <= i + dd; ++yy) {
-        for (int xx = j - dd; xx <= j + dd; ++xx) {
-          int my = yy >> MIN_TX_SIZE_LOG2, mx = xx >> MIN_TX_SIZE_LOG2;
-          if (my >= 0 && my < rui->mask_height && mx >= 0 &&
-              mx < rui->mask_stride)
-            skip &= rui->txskip_mask[my * rui->mask_stride + mx];
-        }
-      }
-      if (skip) continue;
-#endif  // WIENER_NONSEP_MASK
       int dgd_id = i * dgd_stride + j;
       int src_id = i * src_stride + j;
 #if CONFIG_WIENER_NONSEP_CROSS_FILT
@@ -2230,17 +2217,6 @@ static void search_wiener_nonsep(const RestorationTileLimits *limits,
   rui.luma_stride = rsc->luma_stride;
 #endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
   rui.plane = rsc->plane;
-#if WIENER_NONSEP_MASK
-  int w = ((rsc->cm->width + MAX_SB_SIZE - 1) >> MAX_SB_SIZE_LOG2)
-          << MAX_SB_SIZE_LOG2;
-  int h = ((rsc->cm->height + MAX_SB_SIZE - 1) >> MAX_SB_SIZE_LOG2)
-          << MAX_SB_SIZE_LOG2;
-  w >>= ((rui.plane == 0) ? 0 : rsc->cm->seq_params.subsampling_x);
-  h >>= ((rui.plane == 0) ? 0 : rsc->cm->seq_params.subsampling_y);
-  rui.mask_stride = (w + MIN_TX_SIZE - 1) >> MIN_TX_SIZE_LOG2;
-  rui.mask_height = (h + MIN_TX_SIZE - 1) >> MIN_TX_SIZE_LOG2;
-  rui.txskip_mask = rsc->cm->tx_skip[rui.plane];
-#endif  // WIENER_NONSEP_MASK
 
   double A[WIENERNS_MAX * WIENERNS_MAX];
   double b[WIENERNS_MAX];
