@@ -330,7 +330,7 @@ void av1_build_inter_predictors(const AV1_COMMON *cm, MACROBLOCKD *xd,
 
 // Apply regularized least squares (RLS). The RLS parameter is bw * bh * 2^(b-4)
 // where b = OPFL_RLS_PARAM_BITS.
-#define OPFL_REGULARIZED_LS 0
+#define OPFL_REGULARIZED_LS 1
 #define OPFL_RLS_PARAM_BITS 4
 
 // Number of bits allowed for covariance matrix elements (su2, sv2, suv, suw
