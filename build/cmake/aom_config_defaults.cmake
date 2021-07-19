@@ -146,6 +146,8 @@ set_aom_config_var(CONFIG_WIENER_NONSEP_CROSS_FILT 0 NUMBER
 set_aom_config_var(
   CONFIG_RST_MERGECOEFFS 0 NUMBER
   "AV2 in-loop restoration merging coefficients experiment flag")
+set_aom_config_var(CONFIG_SAVE_IN_LOOP_DATA 0 NUMBER
+                   "AV2 in-loop data save experiment flag")
 set_aom_config_var(CONFIG_EXT_SUPERRES 0 NUMBER
                    "AV2 super resolution experiment flag")
 

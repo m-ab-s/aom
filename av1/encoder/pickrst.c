@@ -197,6 +197,141 @@ static AOM_INLINE void rsc_on_tile(void *priv) {
   rsc->tile_stripe0 = 0;
 }
 
+#if CONFIG_SAVE_IN_LOOP_DATA
+
+// Basic data structure to maintain the in-loop data export. Manipulate using
+// below-defined methods.
+#define LEN_FILENAME 32
+#define POC_REGISTER_SIZE 1024
+typedef struct {
+  const int len_filename;
+
+  // File name to save the data under.
+  char filename[LEN_FILENAME];
+
+  // Rudimentary data structure to prevent double saving of frames that are
+  // visited twice.
+  const int poc_register_size;
+  int poc_register[POC_REGISTER_SIZE];
+
+  // All frames within the export are assumed to have this size. For now only
+  // luma-related exports are supported.
+  int num_rows_luma;
+  int num_cols_luma;
+
+  // Only frames satisfying (frame_number % skip_frame == 0) are exported.
+  const int skip_frame;
+
+  bool initialized;
+} ExportContext;
+
+// Struct instance for the in-loop data export.
+static ExportContext export_context = {
+  .len_filename = LEN_FILENAME,
+  .filename = "test_set.dat",
+  .poc_register_size = POC_REGISTER_SIZE,
+  .poc_register = { -1 },  // This should be sufficient if poc always starts at
+                           // 0.
+  .num_rows_luma = 0,
+  .num_cols_luma = 0,
+  .initialized = false,
+  .skip_frame = 1
+};
+
+// Basic methods to maintain the in-loop data export.
+
+// Changes export filename from the default.
+static void export_context_set_filename(const char *filename) {
+  // Add a null path so that we can use this function once and avoid
+  // -Wunused-function.
+  if (filename == NULL) return;
+  snprintf(export_context.filename, export_context.len_filename, "%s",
+           filename);
+}
+
+// Returns true if the frame corresponding to this frame_number has been
+// exported before. Useful in handling frames visited twice.
+static bool export_context_is_exported(int frame_number) {
+  const int register_slot = frame_number % export_context.poc_register_size;
+  const int prev_saved_frame_no = export_context.poc_register[register_slot];
+  return frame_number == prev_saved_frame_no;
+}
+
+// Updates the register with the saved frame.
+static void export_context_register_as_exported(int frame_number) {
+  const int register_slot = frame_number % export_context.poc_register_size;
+  export_context.poc_register[register_slot] = frame_number;
+}
+
+static bool export_context_is_skipped(int frame_number) {
+  return frame_number % export_context.skip_frame != 0;
+}
+
+static bool export_context_is_initialized() {
+  return export_context.initialized;
+}
+
+static bool export_context_initialize(int num_rows_luma, int num_cols_luma) {
+  assert(export_context.initialized == false);
+
+  FILE *export_file = fopen(export_context.filename, "wb");
+  if (export_file == NULL) return false;
+  fwrite(&num_rows_luma, sizeof(num_rows_luma), 1, export_file);
+  fwrite(&num_cols_luma, sizeof(num_cols_luma), 1, export_file);
+  fclose(export_file);
+
+  // Just in case.
+  for (int slot = 0; slot < export_context.poc_register_size; ++slot)
+    export_context.poc_register[slot] = -1;
+
+  export_context.num_rows_luma = num_rows_luma;
+  export_context.num_cols_luma = num_cols_luma;
+  export_context.initialized = true;
+  return true;
+}
+
+// Saves the frame data as floating point values. frame should have
+// export_context.num_rows_luma and export_context.num_cols_luma dimensions.
+static bool export_context_export_frame(const uint8_t *frame, int stride) {
+  assert(export_context.initialized == true);
+
+  // Append to export.
+  FILE *export_file = fopen(export_context.filename, "ab");
+  if (export_file == NULL) return false;
+  for (int r = 0; r < export_context.num_rows_luma; ++r) {
+    for (int c = 0; c < export_context.num_cols_luma; ++c) {
+      const float pixel_value = (float)frame[r * stride + c];
+      fwrite(&pixel_value, sizeof(pixel_value), 1, export_file);
+    }
+  }
+  fclose(export_file);
+  return true;
+}
+
+// Exports qstep.
+static bool export_context_export_qstep(AV1_COMP *cpi) {
+  assert(export_context.initialized == true);
+
+  AV1_COMMON *const cm = &cpi->common;
+  const float qstep =
+      (float)av1_convert_qindex_to_q(cm->quant_params.base_qindex, AOM_BITS_8);
+
+  // Append a constant qstep value to export. This should be replaced with
+  // frame varying qstep if cases outside of AOM CC need to be considered.
+  FILE *export_file = fopen(export_context.filename, "ab");
+  if (export_file == NULL) return false;
+  for (int r = 0; r < export_context.num_rows_luma; ++r) {
+    for (int c = 0; c < export_context.num_cols_luma; ++c) {
+      const float pixel_value = qstep;
+      fwrite(&pixel_value, sizeof(pixel_value), 1, export_file);
+    }
+  }
+  fclose(export_file);
+  return true;
+}
+
+#endif  // CONFIG_SAVE_IN_LOOP_DATA
+
 static AOM_INLINE void reset_rsc(RestSearchCtxt *rsc) {
   rsc->sse = 0;
   rsc->bits = 0;
@@ -2893,6 +3028,67 @@ void av1_pick_filter_restoration(const YV12_BUFFER_CONFIG *src, AV1_COMP *cpi) {
       }
     }
   }
+
+#if CONFIG_SAVE_IN_LOOP_DATA
+  // TODO(oguleryuz): Add the high-bit-depth path and save normalized output.
+  assert(!cm->seq_params.use_highbitdepth);
+
+  // File format for the exported data:
+  // Two integers: num_rows_luma, num_cols_luma
+  // In float: original_frame0, pre_lr_frame0, qstep_frame0, post_lr_frame0,
+  // ...
+  const int absolute_poc = cm->cur_frame->absolute_poc;
+  const bool exporting_this_frame = !(export_context_is_skipped(absolute_poc) ||
+                                      export_context_is_exported(absolute_poc));
+  if (exporting_this_frame) {
+    const YV12_BUFFER_CONFIG *pre_lr_decoded = &cpi->common.cur_frame->buf;
+    bool success = true;
+    if (!export_context_is_initialized()) {
+      const int num_rows_luma = pre_lr_decoded->crop_heights[0];
+      const int num_cols_luma = pre_lr_decoded->crop_widths[0];
+
+      // Keep default filename.
+      export_context_set_filename(NULL);
+      success = export_context_initialize(num_rows_luma, num_cols_luma);
+      assert(success);
+    }
+    export_context_register_as_exported(absolute_poc);
+
+    // Export original.
+    success =
+        export_context_export_frame(src->buffers[AOM_PLANE_Y], src->strides[0]);
+
+    // Export decoded frame before loop reconstruction.
+    success = success &&
+              export_context_export_frame(pre_lr_decoded->buffers[AOM_PLANE_Y],
+                                          pre_lr_decoded->strides[0]);
+    success = success && export_context_export_qstep(cpi);
+    assert(success);
+
+    // Construct and save the output of loop restoration after lr optimization
+    // carried out above.
+    // (i) Fill tmp_buffer with pre-lr decoded frame.
+    YV12_BUFFER_CONFIG *tmp_buffer = &cpi->trial_frame_rst;
+    assert(tmp_buffer->crop_heights[0] >= export_context.num_rows_luma &&
+           tmp_buffer->crop_widths[0] >= export_context.num_cols_luma);
+    const int tmp_buffer_stride = tmp_buffer->strides[0];
+    const int pre_lr_stride = pre_lr_decoded->strides[0];
+    for (int r = 0; r < export_context.num_rows_luma; ++r) {
+      for (int c = 0; c < export_context.num_cols_luma; ++c) {
+        tmp_buffer->buffers[AOM_PLANE_Y][r * tmp_buffer_stride + c] =
+            pre_lr_decoded->buffers[AOM_PLANE_Y][r * pre_lr_stride + c];
+      }
+    }
+
+    // (ii) Apply lr.
+    av1_loop_restoration_filter_frame(tmp_buffer, cm, 0, &cpi->lr_ctxt);
+
+    // (iii) Export.
+    success = export_context_export_frame(tmp_buffer->buffers[AOM_PLANE_Y],
+                                          tmp_buffer_stride);
+    assert(success);
+  }
+#endif  // CONFIG_SAVE_IN_LOOP_DATA
 
 #if CONFIG_WIENER_NONSEP && CONFIG_WIENER_NONSEP_CROSS_FILT
   free(luma_buf);
