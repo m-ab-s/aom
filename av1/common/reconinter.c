@@ -1886,6 +1886,7 @@ void av1_dist_wtd_comp_weight_assign(const AV1_COMMON *cm,
 }
 #endif  // !CONFIG_REMOVE_DIST_WTD_COMP
 
+#if !CONFIG_REMOVE_2X2INTER
 // True if the following hold:
 //  1. Not intrabc and not build_for_obmc
 //  2. At least one dimension is size 4 with subsampling
@@ -1999,8 +2000,13 @@ static void build_inter_predictors_sub8x8(
     row += mi_size_high[bsize];
   }
 }
+#endif  // !CONFIG_REMOVE_2X2INTER
 
+#if CONFIG_REMOVE_2X2INTER
+void av1_build_inter_predictors(
+#else   // CONFIG_REMOVE_2X2INTER
 static void build_inter_predictors_8x8_and_bigger(
+#endif  // CONFIG_REMOVE_2X2INTER
     const AV1_COMMON *cm, MACROBLOCKD *xd, int plane, MB_MODE_INFO *mi,
     int build_for_obmc, int bw, int bh, int mi_x, int mi_y, uint8_t **mc_buf,
     CalcSubpelParamsFunc calc_subpel_params_func) {
@@ -2185,6 +2191,7 @@ static void build_inter_predictors_8x8_and_bigger(
 #endif  // CONFIG_OPTFLOW_REFINEMENT
 }
 
+#if !CONFIG_REMOVE_2X2INTER
 void av1_build_inter_predictors(const AV1_COMMON *cm, MACROBLOCKD *xd,
                                 int plane, MB_MODE_INFO *mi, int build_for_obmc,
                                 int bw, int bh, int mi_x, int mi_y,
@@ -2202,6 +2209,7 @@ void av1_build_inter_predictors(const AV1_COMMON *cm, MACROBLOCKD *xd,
                                           calc_subpel_params_func);
   }
 }
+#endif  // !CONFIG_REMOVE_2X2INTER
 
 void av1_setup_dst_planes(struct macroblockd_plane *planes,
                           const YV12_BUFFER_CONFIG *src, int mi_row, int mi_col,
