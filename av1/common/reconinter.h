@@ -148,6 +148,26 @@ typedef struct InterPredParams {
 // is 2^(3 - SUBPEL_GRAD_DELTA_BITS). The max value of this macro is 3.
 #define SUBPEL_GRAD_DELTA_BITS 3
 
+// Combine computations of interpolated gradients and the least squares
+// solver. The basic idea is that, typically we would compute the following:
+// 1. d0, d1, P0 and P1
+// 2. Gradients of P0 and P1: gx0, gx1, gy0, and gy1
+// 3. Solving least squares for vx and vy, which requires d0*gx0-d1*gx1,
+//    d0*gy0-d1*gy1, and P0-P1.
+// When this flag is turned on, we compute the following
+// 1. d0, d1, P0 and P1
+// 2. tmp0 = d0*P0-d1*P1 and tmp1 = P0-P1
+// 3. Gradients of tmp0: gx and gy
+// 4. Solving least squares for vx and vy using gx, gy and tmp1
+// Note that this only requires 2 gradient operators instead of 4 and thus
+// reduces the complexity. However, it is only feasible when gradients are
+// obtained using bilinear or bicubic interpolation. Also, it only work with
+// the 2 motion compensation framework (in the 1 MC framework, gx0, gx1, gy0,
+// gy1 are all required to refine the predicted block). Thus, this flag should
+// only be on when OPFL_SECOND_PASS_MC is on and either of OPFL_BILINEAR_GRAD
+// and OPFL_BICUBIC_GRAD is on.
+#define OPFL_COMBINE_INTERP_GRAD_LS 0
+
 // Bilinear and bicubic coefficients. Note that, at boundary, we apply
 // coefficients that are doubled because spatial distance between the two
 // interpolated pixels is halved. In other words, instead of computing

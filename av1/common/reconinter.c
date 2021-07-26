@@ -681,26 +681,6 @@ static AOM_INLINE void init_smooth_interintra_masks() {
 #define OPFL_CLAMP_MV_DELTA 1
 #define OPFL_MV_DELTA_LIMIT (1 << MV_REFINE_PREC_BITS)
 
-// Combine computations of interpolated gradients and the least squares
-// solver. The basic idea is that, typically we would compute the following:
-// 1. d0, d1, P0 and P1
-// 2. Gradients of P0 and P1: gx0, gx1, gy0, and gy1
-// 3. Solving least squares for vx and vy, which requires d0*gx0-d1*gx1,
-//    d0*gy0-d1*gy1, and P0-P1.
-// When this flag is turned on, we compute the following
-// 1. d0, d1, P0 and P1
-// 2. tmp0 = d0*P0-d1*P1 and tmp1 = P0-P1
-// 3. Gradients of tmp0: gx and gy
-// 4. Solving least squares for vx and vy using gx, gy and tmp1
-// Note that this only requires 2 gradient operators instead of 4 and thus
-// reduces the complexity. However, it is only feasible when gradients are
-// obtained using bilinear or bicubic interpolation. Also, it only work with
-// the 2 motion compensation framework (in the 1 MC framework, gx0, gx1, gy0,
-// gy1 are all required to refine the predicted block). Thus, this flag should
-// only be on when OPFL_SECOND_PASS_MC is on and either of OPFL_BILINEAR_GRAD
-// and OPFL_BICUBIC_GRAD is on.
-#define OPFL_COMBINE_INTERP_GRAD_LS 0
-
 static INLINE int opfl_get_subblock_size_log2(int bw, int bh, int plane) {
   return (plane || (bh <= 16 && bw <= 16)) ? OF_MIN_BSIZE_LOG2 : OF_BSIZE_LOG2;
 }
@@ -1269,15 +1249,15 @@ void av1_opfl_mv_refinement_interp_grad(const int16_t *pdiff, int pstride0,
   *vy1 = (int)divide_and_round_signed(ty1, d0);
 #endif
 }
+#endif  // OPFL_COMBINE_INTERP_GRAD_LS
 
-int opfl_mv_refinement_nxn_interp_grad(const int16_t *pdiff, int pstride,
-                                       const int16_t *gx, const int16_t *gy,
-                                       int gstride, int bw, int bh, int n,
-                                       int d0, int d1, int grad_prec_bits,
-                                       int mv_prec_bits, int *vx0, int *vy0,
-                                       int *vx1, int *vy1) {
+int av1_opfl_mv_refinement_nxn_interp_grad_c(
+    const int16_t *pdiff, int pstride, const int16_t *gx, const int16_t *gy,
+    int gstride, int bw, int bh, int n, int d0, int d1, int grad_prec_bits,
+    int mv_prec_bits, int *vx0, int *vy0, int *vx1, int *vy1) {
   assert(bw % n == 0 && bh % n == 0);
   int n_blocks = 0;
+#if OPFL_COMBINE_INTERP_GRAD_LS
   for (int i = 0; i < bh; i += n) {
     for (int j = 0; j < bw; j += n) {
       av1_opfl_mv_refinement_interp_grad(
@@ -1288,9 +1268,26 @@ int opfl_mv_refinement_nxn_interp_grad(const int16_t *pdiff, int pstride,
       n_blocks++;
     }
   }
+#else
+  (void)pdiff;
+  (void)pstride;
+  (void)gx;
+  (void)gy;
+  (void)gstride;
+  (void)bw;
+  (void)bh;
+  (void)n;
+  (void)d0;
+  (void)d1;
+  (void)grad_prec_bits;
+  (void)mv_prec_bits;
+  (void)vx0;
+  (void)vy0;
+  (void)vx1;
+  (void)vy1;
+#endif  // OPFL_COMBINE_INTERP_GRAD_LS
   return n_blocks;
 }
-#endif  // OPFL_COMBINE_INTERP_GRAD_LS
 
 // Function to compute optical flow offsets in nxn blocks
 int av1_opfl_mv_refinement_nxn_highbd_c(const uint16_t *p0, int pstride0,
@@ -1412,7 +1409,7 @@ static int get_optflow_based_mv_highbd(
   av1_compute_subpel_gradients_interp(tmp0, bw, bh, &grad_prec_bits, gx0, gy0,
                                       is_cur_buf_hbd(xd));
 
-  n_blocks = opfl_mv_refinement_nxn_interp_grad(
+  n_blocks = av1_opfl_mv_refinement_nxn_interp_grad(
       tmp1, bw, gx0, gy0, bw, bw, bh, n, d0, d1, grad_prec_bits, target_prec,
       vx0, vy0, vx1, vy1);
 
@@ -1548,7 +1545,7 @@ static int get_optflow_based_mv_lowbd(
   av1_compute_subpel_gradients_interp(tmp0, bw, bh, &grad_prec_bits, gx0, gy0,
                                       is_cur_buf_hbd(xd));
 
-  n_blocks = opfl_mv_refinement_nxn_interp_grad(
+  n_blocks = av1_opfl_mv_refinement_nxn_interp_grad(
       tmp1, bw, gx0, gy0, bw, bw, bh, n, d0, d1, grad_prec_bits, target_prec,
       vx0, vy0, vx1, vy1);
 
