@@ -66,6 +66,42 @@ void av1_sphere_to_plane_erp(double phi, double theta, int width, int height,
 void av1_plane_to_sphere_erp(double x, double y, int width, int height,
                              double *phi, double *theta);
 
+/*!\brief Normalize Cartesian vector.
+ * \param[in/out]  carte  The vector to normalize
+ */
+void av1_normalize_carte_vector(CartesianVector *carte);
+
+/*!\brief Convert polar vector into Cartesian vector.
+ * \param[in]   polar  The polar vector
+ * \param[out]  carte  The result Cartesian vector
+ */
+void av1_sphere_polar_to_carte(const PolarVector *polar,
+                               CartesianVector *carte);
+
+/*!\brief Convert Cartesian vector into polar vector.
+ * \param[in]   carte  The Cartesian vector
+ * \param[out]  polar  The result polar vector
+ */
+void av1_sphere_carte_to_polar(const CartesianVector *carte,
+                               PolarVector *polar);
+
+/*!\brief Dot product of two Cartesian vectors.
+ * \param[in]  left   The left Cartesian vector
+ * \param[in]  right  The right Cartesian vector
+ * \return            The product
+ */
+double av1_carte_vectors_dot_product(const CartesianVector *left,
+                                     const CartesianVector *right);
+
+/*!\brief Dot product of two Cartesian vectors.
+ * \param[in]   left    The left Cartesian vector
+ * \param[in]   right   The right Cartesian vector
+ * \param[out]  result  The result Cartesian vector
+ */
+void av1_carte_vectors_cross_product(const CartesianVector *left,
+                                     const CartesianVector *right,
+                                     CartesianVector *result);
+
 /*!\brief Given a spherical motion vector (delat_phi, delta_theta) and a
  * block on the current frame, find the corresponding pixels in the
  * reference frame for each pixel in the given block.
