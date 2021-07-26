@@ -10,6 +10,7 @@
  */
 
 #include <math.h>
+#include "av1/common/common.h"
 
 #if CONFIG_SPHERICAL_PRED
 #include "av1/common/spherical_pred.h"
@@ -234,6 +235,62 @@ TEST(SphericalMappingTest, EquiGlobeToPlaneAnchorTest) {
     EXPECT_NEAR(x, expect_x[i], DIFF_THRESHOLD);
     EXPECT_NEAR(y, expect_y[i], DIFF_THRESHOLD);
   }
+}
+
+TEST(SphericalMappingTest, EquiRodriguesReverseTest) {
+  // Check if the mapping from plane to globe is reverseable through Rodrigues
+  // rotation
+  int frame_width = 400;
+  int frame_height = 300;
+
+  double x;
+  double y;
+  double x_from_globe;
+  double y_from_globe;
+
+  PolarVector polar;
+  PolarVector polar_prime;
+  CartesianVector k;
+  CartesianVector v;
+  CartesianVector v_prime;
+  double k_dot_v;
+  polar.r = 1.0;
+  double product;
+  double alpha;
+
+  for (x = 0; x < frame_width; x += 10) {
+    for (y = 0; y < frame_height; y += 10) {
+      av1_plane_to_sphere_erp(x, y, frame_width, frame_height, &polar.phi,
+                              &polar.theta);
+      polar.phi += 0.5 * pi;
+      av1_sphere_polar_to_carte(&polar, &v);
+      av1_sphere_polar_to_carte(&polar, &v_prime);
+      av1_carte_vectors_cross_product(&v, &v_prime, &k);
+      av1_normalize_carte_vector(&k);
+
+      product = av1_carte_vectors_dot_product(&v, &v_prime);
+      // Avoid floating point precision issues
+      product = AOMMAX(product, -1.0);
+      product = AOMMIN(product, 1.0);
+      alpha = acos(product);
+      k_dot_v = av1_carte_vectors_dot_product(&k, &v);
+
+      v_prime.x = k.x * k_dot_v * (1 - cos(alpha)) + v.x * cos(alpha) +
+                  (k.y * v.z - k.z * v.y) * sin(alpha);
+      v_prime.y = k.y * k_dot_v * (1 - cos(alpha)) + v.y * cos(alpha) +
+                  (k.z * v.x - k.x * v.z) * sin(alpha);
+      v_prime.z = k.z * k_dot_v * (1 - cos(alpha)) + v.z * cos(alpha) +
+                  (k.x * v.y - k.y * v.x) * sin(alpha);
+
+      av1_sphere_carte_to_polar(&v_prime, &polar_prime);
+      polar_prime.phi -= 0.5 * pi;
+      av1_sphere_to_plane_erp(polar_prime.phi, polar_prime.theta, frame_width,
+                              frame_height, &x_from_globe, &y_from_globe);
+
+      EXPECT_NEAR(x, x_from_globe, DIFF_THRESHOLD);
+      EXPECT_NEAR(y, y_from_globe, DIFF_THRESHOLD);
+    }
+  }  // for x
 }
 
 #endif
