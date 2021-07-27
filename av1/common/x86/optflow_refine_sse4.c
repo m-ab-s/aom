@@ -540,8 +540,65 @@ inline __m128i LoadLo8(const void *a) {
   return _mm_loadl_epi64((const __m128i *)a);
 }
 
+inline __m128i LoadAligned16(const void *a) {
+  return _mm_load_si128((const __m128i *)a);
+}
+
 inline __m128i LoadUnaligned16(const void *a) {
   return _mm_loadu_si128((const __m128i *)a);
+}
+
+static AOM_FORCE_INLINE void down_sample(
+    __m128i *gradX0, __m128i *gradX1, __m128i *gradY0, __m128i *gradY1,
+    __m128i *pred0, __m128i *pred1, const __m128i *pred0_odd,
+    const __m128i *pred1_odd, const int16_t *gx0, const int16_t *gx1,
+    const int16_t *gy0, const int16_t *gy1, int gstride) {
+  const __m128i odd = _mm_set_epi16(0xFFFF, 0, 0xFFFF, 0, 0xFFFF, 0, 0xFFFF, 0);
+  const __m128i even =
+      _mm_set_epi16(0, 0xFFFF, 0, 0xFFFF, 0, 0xFFFF, 0, 0xFFFF);
+
+  const __m128i gradX01 = LoadAligned16(gx0 + gstride);
+  const __m128i gradX11 = LoadAligned16(gx1 + gstride);
+  const __m128i gradY01 = LoadAligned16(gy0 + gstride);
+  const __m128i gradY11 = LoadAligned16(gy1 + gstride);
+
+  gradX0[0] =
+      _mm_or_si128(_mm_and_si128(gradX0[0], even), _mm_and_si128(gradX01, odd));
+  gradX1[0] =
+      _mm_or_si128(_mm_and_si128(gradX1[0], even), _mm_and_si128(gradX11, odd));
+  gradY0[0] =
+      _mm_or_si128(_mm_and_si128(gradY0[0], even), _mm_and_si128(gradY01, odd));
+  gradY1[0] =
+      _mm_or_si128(_mm_and_si128(gradY1[0], even), _mm_and_si128(gradY11, odd));
+
+  pred0[0] = _mm_or_si128(_mm_and_si128(pred0[0], even),
+                          _mm_and_si128(pred0_odd[0], odd));
+  pred1[0] = _mm_or_si128(_mm_and_si128(pred1[0], even),
+                          _mm_and_si128(pred1_odd[0], odd));
+}
+
+static AOM_FORCE_INLINE void compute_correlation_factor(
+    __m128i gradX0, __m128i gradX1, __m128i gradY0, __m128i gradY1,
+    __m128i pred0, __m128i pred1, __m128i *u2_0, __m128i *v2_0, __m128i *uv_0,
+    __m128i *uw_0, __m128i *vw_0) {
+  __m128i reg;
+  gradX0 = _mm_add_epi16(gradX0, gradX1);
+  reg = _mm_madd_epi16(gradX0, gradX0);
+  u2_0[0] = _mm_add_epi32(u2_0[0], reg);
+
+  gradY0 = _mm_add_epi16(gradY0, gradY1);
+  reg = _mm_madd_epi16(gradY0, gradY0);
+  v2_0[0] = _mm_add_epi32(v2_0[0], reg);
+
+  reg = _mm_madd_epi16(gradX0, gradY0);
+  uv_0[0] = _mm_add_epi32(uv_0[0], reg);
+
+  pred0 = _mm_sub_epi16(pred0, pred1);
+  reg = _mm_madd_epi16(gradX0, pred0);
+  uw_0[0] = _mm_add_epi32(uw_0[0], reg);
+
+  reg = _mm_madd_epi16(gradY0, pred0);
+  vw_0[0] = _mm_add_epi32(vw_0[0], reg);
 }
 
 static AOM_FORCE_INLINE void set_distance(__m128i *dist_d0, __m128i *dist_d0d1,
@@ -559,38 +616,36 @@ static AOM_FORCE_INLINE void leastsquare_8x8(__m128i *grad0, __m128i *grad1,
                                              __m128i *grad0_13,
                                              __m128i *grad1_13, __m128i *g2,
                                              const __m128i dist_d0d1) {
-  __m128i samplesL, samplesH;
+  __m128i samplesL, samplesH, temp;
 
   samplesL = _mm_unpacklo_epi16(grad0[0], grad1[0]);
   samplesH = _mm_unpackhi_epi16(grad0[0], grad1[0]);
   grad0[0] = _mm_madd_epi16(samplesL, dist_d0d1);
   grad1[0] = _mm_madd_epi16(samplesH, dist_d0d1);
-  g2[0] = _mm_add_epi64(g2[0], _mm_mul_epi32(grad0[0], grad0[0]));
-  g2[0] = _mm_add_epi64(g2[0], _mm_mul_epi32(grad1[0], grad1[0]));
+  temp = _mm_add_epi64(g2[0], _mm_mul_epi32(grad0[0], grad0[0]));
+  g2[0] = _mm_add_epi64(temp, _mm_mul_epi32(grad1[0], grad1[0]));
   grad0_13[0] = _mm_srli_si128(grad0[0], 4);
-  g2[0] = _mm_add_epi64(g2[0], _mm_mul_epi32(grad0_13[0], grad0_13[0]));
+  temp = _mm_add_epi64(g2[0], _mm_mul_epi32(grad0_13[0], grad0_13[0]));
   grad1_13[0] = _mm_srli_si128(grad1[0], 4);
-  g2[0] = _mm_add_epi64(g2[0], _mm_mul_epi32(grad1_13[0], grad1_13[0]));
+  g2[0] = _mm_add_epi64(temp, _mm_mul_epi32(grad1_13[0], grad1_13[0]));
 }
 
-static AOM_FORCE_INLINE void leastsquare_8x4(__m128i *grad0, __m128i *grad1,
-                                             __m128i *grad0_13,
-                                             __m128i *grad1_13, __m128i *g2_0,
-                                             __m128i *g2_1,
-                                             const __m128i dist_d0d1) {
-  __m128i samplesL, samplesH;
+static AOM_FORCE_INLINE void leastsquare_8x4(
+    __m128i *grad0_02, __m128i *grad1_02, __m128i *grad0_13, __m128i *grad1_13,
+    __m128i *g2_0, __m128i *g2_1, const __m128i dist_d0d1) {
+  __m128i samplesL, samplesH, temp;
 
-  samplesL = _mm_unpacklo_epi16(grad0[0], grad1[0]);
-  samplesH = _mm_unpackhi_epi16(grad0[0], grad1[0]);
-  grad0[0] = _mm_madd_epi16(samplesL, dist_d0d1);
-  g2_0[0] = _mm_add_epi64(g2_0[0], _mm_mul_epi32(grad0[0], grad0[0]));
-  grad0_13[0] = _mm_srli_si128(grad0[0], 4);
-  g2_0[0] = _mm_add_epi64(g2_0[0], _mm_mul_epi32(grad0_13[0], grad0_13[0]));
+  samplesL = _mm_unpacklo_epi16(grad0_02[0], grad1_02[0]);
+  samplesH = _mm_unpackhi_epi16(grad0_02[0], grad1_02[0]);
+  grad0_02[0] = _mm_madd_epi16(samplesL, dist_d0d1);
+  temp = _mm_add_epi64(g2_0[0], _mm_mul_epi32(grad0_02[0], grad0_02[0]));
+  grad0_13[0] = _mm_srli_si128(grad0_02[0], 4);
+  g2_0[0] = _mm_add_epi64(temp, _mm_mul_epi32(grad0_13[0], grad0_13[0]));
 
-  grad1[0] = _mm_madd_epi16(samplesH, dist_d0d1);
-  g2_1[0] = _mm_add_epi64(g2_1[0], _mm_mul_epi32(grad1[0], grad1[0]));
-  grad1_13[0] = _mm_srli_si128(grad1[0], 4);
-  g2_1[0] = _mm_add_epi64(g2_1[0], _mm_mul_epi32(grad1_13[0], grad1_13[0]));
+  grad1_02[0] = _mm_madd_epi16(samplesH, dist_d0d1);
+  temp = _mm_add_epi64(g2_1[0], _mm_mul_epi32(grad1_02[0], grad1_02[0]));
+  grad1_13[0] = _mm_srli_si128(grad1_02[0], 4);
+  g2_1[0] = _mm_add_epi64(temp, _mm_mul_epi32(grad1_13[0], grad1_13[0]));
 }
 
 static AOM_FORCE_INLINE void accumulate_8x4(
@@ -615,94 +670,92 @@ static AOM_FORCE_INLINE void accumulate_8x8(
   gg[0] = _mm_add_epi64(gg[0], _mm_mul_epi32(gradX1_13, gradY1_13));
 }
 
-static void opfl_mv_refinement_lowbd_8x4_sse4_1(
-    const __m128i dist_d0, const __m128i dist_d0d1, const uint8_t *p0,
-    int pstride0, const uint8_t *p1, int pstride1, const int16_t *gx0,
-    const int16_t *gy0, const int16_t *gx1, const int16_t *gy1, int gstride,
-    int d0, int d1, int grad_prec_bits, int mv_prec_bits, int *vx0, int *vy0,
-    int *vx1, int *vy1) {
-  int bHeight = 4;
+static AOM_FORCE_INLINE void square_accumulate_8x4(
+    __m128i gradX0, __m128i gradX1, __m128i gradY0, __m128i gradY1,
+    __m128i *u2_0, __m128i *v2_0, __m128i *uv_0, __m128i *uw_0, __m128i *vw_0,
+    __m128i *u2_1, __m128i *v2_1, __m128i *uv_1, __m128i *uw_1, __m128i *vw_1,
+    __m128i *pred0, __m128i *pred1, const __m128i dist_d0,
+    const __m128i dist_d0d1) {
+#if OPFL_EQUAL_DIST_ASSUMED
+  (void)dist_d0d1;
+  (void)dist_d0;
+  (void)u2_1;
+  (void)v2_1;
+  (void)uv_1;
+  (void)uw_1;
+  (void)vw_1;
+  compute_correlation_factor(gradX0, gradX1, gradY0, gradY1, pred0[0], pred1[0],
+                             u2_0, v2_0, uv_0, uw_0, vw_0);
+#else
+  __m128i gradX0_13, gradX1_13, gradY0_13, gradY1_13;
+  __m128i samplesL, samplesH;
 
-  __m128i u2_0 = _mm_setzero_si128();
-  __m128i u2_1 = _mm_setzero_si128();
-  __m128i v2_0 = _mm_setzero_si128();
-  __m128i v2_1 = _mm_setzero_si128();
-  __m128i uv_0 = _mm_setzero_si128();
-  __m128i uv_1 = _mm_setzero_si128();
-  __m128i uw_0 = _mm_setzero_si128();
-  __m128i uw_1 = _mm_setzero_si128();
-  __m128i vw_0 = _mm_setzero_si128();
-  __m128i vw_1 = _mm_setzero_si128();
+  leastsquare_8x4(&gradX0, &gradX1, &gradX0_13, &gradX1_13, u2_0, u2_1,
+                  dist_d0d1);
+  leastsquare_8x4(&gradY0, &gradY1, &gradY0_13, &gradY1_13, v2_0, v2_1,
+                  dist_d0d1);
 
-  do {
-    __m128i gradX0, gradX1, gradY0, gradY1, pred0, pred1;
-    __m128i gradX0_13, gradX1_13, gradY0_13, gradY1_13;
-    __m128i samplesL, samplesH;
+  accumulate_8x4(gradX0, gradY0, gradX1, gradY1, gradX0_13, gradY0_13,
+                 gradX1_13, gradY1_13, uv_0, uv_1);
 
-    gradX0 = LoadUnaligned16(gx0);
-    gradX1 = LoadUnaligned16(gx1);
-    leastsquare_8x4(&gradX0, &gradX1, &gradX0_13, &gradX1_13, &u2_0, &u2_1,
-                    dist_d0d1);
+  samplesL = _mm_unpacklo_epi16(pred0[0], pred1[0]);
+  samplesL = _mm_madd_epi16(samplesL, dist_d0);
 
-    gradY0 = LoadUnaligned16(gy0);
-    gradY1 = LoadUnaligned16(gy1);
-    leastsquare_8x4(&gradY0, &gradY1, &gradY0_13, &gradY1_13, &v2_0, &v2_1,
-                    dist_d0d1);
+  samplesH = _mm_unpackhi_epi16(pred0[0], pred1[0]);
+  samplesH = _mm_madd_epi16(samplesH, dist_d0);
 
-    accumulate_8x4(gradX0, gradY0, gradX1, gradY1, gradX0_13, gradY0_13,
-                   gradX1_13, gradY1_13, &uv_0, &uv_1);
+  pred0[0] = _mm_srli_si128(samplesL, 4);
+  pred1[0] = _mm_srli_si128(samplesH, 4);
+  accumulate_8x4(gradX0, samplesL, gradX1, samplesH, gradX0_13, pred0[0],
+                 gradX1_13, pred1[0], uw_0, uw_1);
+  accumulate_8x4(gradY0, samplesL, gradY1, samplesH, gradY0_13, pred0[0],
+                 gradY1_13, pred1[0], vw_0, vw_1);
+#endif  // OPFL_EQUAL_DIST_ASSUMED
+}
 
-    pred0 = _mm_cvtepu8_epi16(LoadLo8(p0));
-    pred1 = _mm_cvtepu8_epi16(LoadLo8(p1));
-    samplesL = _mm_unpacklo_epi16(pred0, pred1);
-    samplesL = _mm_madd_epi16(samplesL, dist_d0);
+static AOM_FORCE_INLINE void square_accumulate_8x8(
+    __m128i gradX0, __m128i gradX1, __m128i gradY0, __m128i gradY1, __m128i *u2,
+    __m128i *v2, __m128i *uv, __m128i *uw, __m128i *vw, __m128i *pred0,
+    __m128i *pred1, const __m128i dist_d0, const __m128i dist_d0d1) {
+#if OPFL_EQUAL_DIST_ASSUMED
+  (void)dist_d0d1;
+  (void)dist_d0;
+  compute_correlation_factor(gradX0, gradX1, gradY0, gradY1, pred0[0], pred1[0],
+                             u2, v2, uv, uw, vw);
+#else
+  __m128i gradX0_13, gradX1_13, gradY0_13, gradY1_13;
+  __m128i samplesL, samplesH;
+  leastsquare_8x8(&gradX0, &gradX1, &gradX0_13, &gradX1_13, u2, dist_d0d1);
+  leastsquare_8x8(&gradY0, &gradY1, &gradY0_13, &gradY1_13, v2, dist_d0d1);
 
-    samplesH = _mm_unpackhi_epi16(pred0, pred1);
-    samplesH = _mm_madd_epi16(samplesH, dist_d0);
+  accumulate_8x8(gradX0, gradY0, gradX1, gradY1, gradX0_13, gradY0_13,
+                 gradX1_13, gradY1_13, uv);
 
-    pred0 = _mm_srli_si128(samplesL, 4);
-    pred1 = _mm_srli_si128(samplesH, 4);
-    accumulate_8x4(gradX0, samplesL, gradX1, samplesH, gradX0_13, pred0,
-                   gradX1_13, pred1, &uw_0, &uw_1);
-    accumulate_8x4(gradY0, samplesL, gradY1, samplesH, gradY0_13, pred0,
-                   gradY1_13, pred1, &vw_0, &vw_1);
+  samplesL = _mm_unpacklo_epi16(pred0[0], pred1[0]);
+  samplesH = _mm_unpackhi_epi16(pred0[0], pred1[0]);
+  samplesL = _mm_madd_epi16(samplesL, dist_d0);
+  samplesH = _mm_madd_epi16(samplesH, dist_d0);
 
-    gx0 += gstride;
-    gx1 += gstride;
-    gy0 += gstride;
-    gy1 += gstride;
-    p0 += pstride0;
-    p1 += pstride1;
-    bHeight -= 1;
-  } while (bHeight != 0);
+  pred0[0] = _mm_srli_si128(samplesL, 4);
+  pred1[0] = _mm_srli_si128(samplesH, 4);
+  accumulate_8x8(gradX0, samplesL, gradX1, samplesH, gradX0_13, pred0[0],
+                 gradX1_13, pred1[0], uw);
+  accumulate_8x8(gradY0, samplesL, gradY1, samplesH, gradY0_13, pred0[0],
+                 gradY1_13, pred1[0], vw);
+#endif  // OPFL_EQUAL_DIST_ASSUMED
+}
 
-  u2_0 = _mm_add_epi64(u2_0, _mm_srli_si128(u2_0, 8));
-  u2_1 = _mm_add_epi64(u2_1, _mm_srli_si128(u2_1, 8));
-
-  v2_0 = _mm_add_epi64(v2_0, _mm_srli_si128(v2_0, 8));
-  v2_1 = _mm_add_epi64(v2_1, _mm_srli_si128(v2_1, 8));
-
-  uv_0 = _mm_add_epi64(uv_0, _mm_srli_si128(uv_0, 8));
-  uv_1 = _mm_add_epi64(uv_1, _mm_srli_si128(uv_1, 8));
-
-  uw_0 = _mm_add_epi64(uw_0, _mm_srli_si128(uw_0, 8));
-  uw_1 = _mm_add_epi64(uw_1, _mm_srli_si128(uw_1, 8));
-
-  vw_0 = _mm_add_epi64(vw_0, _mm_srli_si128(vw_0, 8));
-  vw_1 = _mm_add_epi64(vw_1, _mm_srli_si128(vw_1, 8));
-
-  int64_t su2, suv, sv2, suw, svw;
-  _mm_storel_epi64((__m128i *)&su2, u2_0);
-  _mm_storel_epi64((__m128i *)&suv, uv_0);
-  _mm_storel_epi64((__m128i *)&sv2, v2_0);
-  _mm_storel_epi64((__m128i *)&suw, uw_0);
-  _mm_storel_epi64((__m128i *)&svw, vw_0);
+static AOM_FORCE_INLINE void calc_mv_process(int64_t su2, int64_t sv2,
+                                             int64_t suv, int64_t suw,
+                                             int64_t svw, const int d0,
+                                             const int d1, const int bits,
+                                             const int rls_alpha, int *vx0,
+                                             int *vy0, int *vx1, int *vy1) {
 #if OPFL_REGULARIZED_LS
-  // As processing block size is 4x4, here '(bw * bh >> 4)' can be replaced
-  // by 1.
-  int rls_alpha = 1 << OPFL_RLS_PARAM_BITS;
   su2 += rls_alpha;
   sv2 += rls_alpha;
+#else
+  (void)rls_alpha;
 #endif
   // Clamp su2, sv2, suv, suw, and svw to avoid overflow in D, Px, and Py
   su2 = clamp(su2, -OPFL_COV_CLAMP_VAL, OPFL_COV_CLAMP_VAL);
@@ -711,50 +764,184 @@ static void opfl_mv_refinement_lowbd_8x4_sse4_1(
   suw = clamp(suw, -OPFL_COV_CLAMP_VAL, OPFL_COV_CLAMP_VAL);
   svw = clamp(svw, -OPFL_COV_CLAMP_VAL, OPFL_COV_CLAMP_VAL);
 
+  const int64_t D = su2 * sv2 - suv * suv;
+  if (D == 0) return;
+  const int64_t Px = (suv * svw - sv2 * suw) * (1 << bits);
+  const int64_t Py = (suv * suw - su2 * svw) * (1 << bits);
+  *vx0 = (int)divide_and_round_signed(Px, D);
+  *vy0 = (int)divide_and_round_signed(Py, D);
+#if OPFL_EQUAL_DIST_ASSUMED
+  (void)d0;
+  (void)d1;
+  *vx1 = -(*vx0);
+  *vy1 = -(*vy0);
+#else
+  const int tx1 = (*vx0) * d1;
+  const int ty1 = (*vy0) * d1;
+  *vx1 = (int)divide_and_round_signed(tx1, d0);
+  *vy1 = (int)divide_and_round_signed(ty1, d0);
+#endif
+}
+
+static AOM_FORCE_INLINE void calculate_mv_8x4(
+    __m128i u2_0, __m128i v2_0, __m128i uv_0, __m128i uw_0, __m128i vw_0,
+    __m128i u2_1, __m128i v2_1, __m128i uv_1, __m128i uw_1, __m128i vw_1,
+    int d0, int d1, int mv_prec_bits, int grad_prec_bits, int *vx0, int *vy0,
+    int *vx1, int *vy1) {
+  const int bits = mv_prec_bits + grad_prec_bits;
+  int64_t su2, suv, sv2, suw, svw;
+  // As processing block size is 4x4, here '(bw * bh >> 4)' can be replaced
+  // by 1.
+  const int rls_alpha = 1 << OPFL_RLS_PARAM_BITS;
+#if OPFL_EQUAL_DIST_ASSUMED
+  (void)u2_1;
+  (void)v2_1;
+  (void)uv_1;
+  (void)uw_1;
+  (void)vw_1;
+  su2 = _mm_extract_epi32(u2_0, 0) + _mm_extract_epi32(u2_0, 1);
+  sv2 = _mm_extract_epi32(v2_0, 0) + _mm_extract_epi32(v2_0, 1);
+  suv = _mm_extract_epi32(uv_0, 0) + _mm_extract_epi32(uv_0, 1);
+  suw = _mm_extract_epi32(uw_0, 0) + _mm_extract_epi32(uw_0, 1);
+  svw = _mm_extract_epi32(vw_0, 0) + _mm_extract_epi32(vw_0, 1);
+  calc_mv_process(su2, sv2, suv, suw, svw, d0, d1, bits, rls_alpha, vx0, vy0,
+                  vx1, vy1);
+  su2 = _mm_extract_epi32(u2_0, 2) + _mm_extract_epi32(u2_0, 3);
+  sv2 = _mm_extract_epi32(v2_0, 2) + _mm_extract_epi32(v2_0, 3);
+  suv = _mm_extract_epi32(uv_0, 2) + _mm_extract_epi32(uv_0, 3);
+  suw = _mm_extract_epi32(uw_0, 2) + _mm_extract_epi32(uw_0, 3);
+  svw = _mm_extract_epi32(vw_0, 2) + _mm_extract_epi32(vw_0, 3);
+  calc_mv_process(su2, sv2, suv, suw, svw, d0, d1, bits, rls_alpha, vx0 + 1,
+                  vy0 + 1, vx1 + 1, vy1 + 1);
+#else
   int64_t su2_1, suv_1, sv2_1, suw_1, svw_1;
+  u2_0 = _mm_add_epi32(u2_0, _mm_srli_si128(u2_0, 8));
+  u2_1 = _mm_add_epi32(u2_1, _mm_srli_si128(u2_1, 8));
+
+  v2_0 = _mm_add_epi32(v2_0, _mm_srli_si128(v2_0, 8));
+  v2_1 = _mm_add_epi32(v2_1, _mm_srli_si128(v2_1, 8));
+
+  uv_0 = _mm_add_epi32(uv_0, _mm_srli_si128(uv_0, 8));
+  uv_1 = _mm_add_epi32(uv_1, _mm_srli_si128(uv_1, 8));
+
+  uw_0 = _mm_add_epi32(uw_0, _mm_srli_si128(uw_0, 8));
+  uw_1 = _mm_add_epi32(uw_1, _mm_srli_si128(uw_1, 8));
+
+  vw_0 = _mm_add_epi32(vw_0, _mm_srli_si128(vw_0, 8));
+  vw_1 = _mm_add_epi32(vw_1, _mm_srli_si128(vw_1, 8));
+
+  _mm_storel_epi64((__m128i *)&su2, u2_0);
+  _mm_storel_epi64((__m128i *)&suv, uv_0);
+  _mm_storel_epi64((__m128i *)&sv2, v2_0);
+  _mm_storel_epi64((__m128i *)&suw, uw_0);
+  _mm_storel_epi64((__m128i *)&svw, vw_0);
+
   _mm_storel_epi64((__m128i *)&su2_1, u2_1);
   _mm_storel_epi64((__m128i *)&suv_1, uv_1);
   _mm_storel_epi64((__m128i *)&sv2_1, v2_1);
   _mm_storel_epi64((__m128i *)&suw_1, uw_1);
   _mm_storel_epi64((__m128i *)&svw_1, vw_1);
-#if OPFL_REGULARIZED_LS
-  su2 += rls_alpha;
-  sv2 += rls_alpha;
-#endif
-  // Clamp su2, sv2, suv, suw, and svw to avoid overflow in D, Px, and Py
-  su2_1 = clamp(su2_1, -OPFL_COV_CLAMP_VAL, OPFL_COV_CLAMP_VAL);
-  sv2_1 = clamp(sv2_1, -OPFL_COV_CLAMP_VAL, OPFL_COV_CLAMP_VAL);
-  suv_1 = clamp(suv_1, -OPFL_COV_CLAMP_VAL, OPFL_COV_CLAMP_VAL);
-  suw_1 = clamp(suw_1, -OPFL_COV_CLAMP_VAL, OPFL_COV_CLAMP_VAL);
-  svw_1 = clamp(svw_1, -OPFL_COV_CLAMP_VAL, OPFL_COV_CLAMP_VAL);
 
-  int bits = mv_prec_bits + grad_prec_bits;
-  int64_t D = su2 * sv2 - suv * suv;
-  int64_t Px, Py;
+  calc_mv_process(su2, sv2, suv, suw, svw, d0, d1, bits, rls_alpha, vx0, vy0,
+                  vx1, vy1);
+  calc_mv_process(su2_1, sv2_1, suv_1, suw_1, svw_1, d0, d1, bits, rls_alpha,
+                  vx0 + 1, vy0 + 1, vx1 + 1, vy1 + 1);
+#endif  // OPFL_DOWNSAMP_QUINCUNX
+}
 
-  if (D != 0) {
-    Px = (suv * svw - sv2 * suw) * (1 << bits);
-    Py = (suv * suw - su2 * svw) * (1 << bits);
-    *vx0 = (int)divide_and_round_signed(Px, D);
-    *vy0 = (int)divide_and_round_signed(Py, D);
-    int tx1 = (*vx0) * d1;
-    int ty1 = (*vy0) * d1;
-    *vx1 = (int)divide_and_round_signed(tx1, d0);
-    *vy1 = (int)divide_and_round_signed(ty1, d0);
-  }
+static AOM_FORCE_INLINE void calculate_mv_8x8(__m128i u2, __m128i v2,
+                                              __m128i uv, __m128i uw,
+                                              __m128i vw, int d0, int d1,
+                                              int mv_prec_bits,
+                                              int grad_prec_bits, int *vx0,
+                                              int *vy0, int *vx1, int *vy1) {
+  u2 = _mm_add_epi32(u2, _mm_srli_si128(u2, 8));
+  v2 = _mm_add_epi32(v2, _mm_srli_si128(v2, 8));
+  uv = _mm_add_epi32(uv, _mm_srli_si128(uv, 8));
+  uw = _mm_add_epi32(uw, _mm_srli_si128(uw, 8));
+  vw = _mm_add_epi32(vw, _mm_srli_si128(vw, 8));
 
-  D = su2_1 * sv2_1 - suv_1 * suv_1;
+  int64_t su2, suv, sv2, suw, svw;
+  const int bits = mv_prec_bits + grad_prec_bits;
+  // As processing block size is 8x8, here '(bw * bh >> 4)' can be replaced
+  // by 4.
+  const int rls_alpha = 4 << OPFL_RLS_PARAM_BITS;
+#if OPFL_EQUAL_DIST_ASSUMED
+  su2 = _mm_extract_epi32(u2, 0) + _mm_extract_epi32(u2, 1);
+  sv2 = _mm_extract_epi32(v2, 0) + _mm_extract_epi32(v2, 1);
+  suv = _mm_extract_epi32(uv, 0) + _mm_extract_epi32(uv, 1);
+  suw = _mm_extract_epi32(uw, 0) + _mm_extract_epi32(uw, 1);
+  svw = _mm_extract_epi32(vw, 0) + _mm_extract_epi32(vw, 1);
+#else
+  _mm_storel_epi64((__m128i *)&su2, u2);
+  _mm_storel_epi64((__m128i *)&suv, uv);
+  _mm_storel_epi64((__m128i *)&sv2, v2);
+  _mm_storel_epi64((__m128i *)&suw, uw);
+  _mm_storel_epi64((__m128i *)&svw, vw);
+#endif  // OPFL_EQUAL_DIST_ASSUMED
+  calc_mv_process(su2, sv2, suv, suw, svw, d0, d1, bits, rls_alpha, vx0, vy0,
+                  vx1, vy1);
+}
 
-  if (D != 0) {
-    Px = (suv_1 * svw_1 - sv2_1 * suw_1) * (1 << bits);
-    Py = (suv_1 * suw_1 - su2_1 * svw_1) * (1 << bits);
-    *(vx0 + 1) = (int)divide_and_round_signed(Px, D);
-    *(vy0 + 1) = (int)divide_and_round_signed(Py, D);
-    int tx1 = (*(vx0 + 1)) * d1;
-    int ty1 = (*(vy0 + 1)) * d1;
-    *(vx1 + 1) = (int)divide_and_round_signed(tx1, d0);
-    *(vy1 + 1) = (int)divide_and_round_signed(ty1, d0);
-  }
+static void opfl_mv_refinement_lowbd_8x4_sse4_1(
+    const __m128i dist_d0, const __m128i dist_d0d1, const uint8_t *p0,
+    int pstride0, const uint8_t *p1, int pstride1, const int16_t *gx0,
+    const int16_t *gy0, const int16_t *gx1, const int16_t *gy1, int gstride,
+    int d0, int d1, int grad_prec_bits, int mv_prec_bits, int *vx0, int *vy0,
+    int *vx1, int *vy1) {
+  int bHeight = 4;
+  __m128i u2_0 = _mm_setzero_si128();
+  __m128i v2_0 = _mm_setzero_si128();
+  __m128i uv_0 = _mm_setzero_si128();
+  __m128i uw_0 = _mm_setzero_si128();
+  __m128i vw_0 = _mm_setzero_si128();
+  __m128i u2_1 = _mm_setzero_si128();
+  __m128i v2_1 = _mm_setzero_si128();
+  __m128i uv_1 = _mm_setzero_si128();
+  __m128i uw_1 = _mm_setzero_si128();
+  __m128i vw_1 = _mm_setzero_si128();
+
+  do {
+    __m128i gradX0 = LoadAligned16(gx0);
+    __m128i gradX1 = LoadAligned16(gx1);
+    __m128i gradY0 = LoadAligned16(gy0);
+    __m128i gradY1 = LoadAligned16(gy1);
+    __m128i pred0 = _mm_cvtepu8_epi16(LoadLo8(p0));
+    __m128i pred1 = _mm_cvtepu8_epi16(LoadLo8(p1));
+
+#if OPFL_DOWNSAMP_QUINCUNX
+    const __m128i pred0_odd = _mm_cvtepu8_epi16(LoadLo8(p0 + pstride0));
+    const __m128i pred1_odd = _mm_cvtepu8_epi16(LoadLo8(p1 + pstride1));
+
+    down_sample(&gradX0, &gradX1, &gradY0, &gradY1, &pred0, &pred1, &pred0_odd,
+                &pred1_odd, gx0, gx1, gy0, gy1, gstride);
+#endif  // OPFL_DOWNSAMP_QUINCUNX
+
+    square_accumulate_8x4(gradX0, gradX1, gradY0, gradY1, &u2_0, &v2_0, &uv_0,
+                          &uw_0, &vw_0, &u2_1, &v2_1, &uv_1, &uw_1, &vw_1,
+                          &pred0, &pred1, dist_d0, dist_d0d1);
+
+#if OPFL_DOWNSAMP_QUINCUNX
+    gx0 += gstride << 1;
+    gx1 += gstride << 1;
+    gy0 += gstride << 1;
+    gy1 += gstride << 1;
+    p0 += pstride0 << 1;
+    p1 += pstride1 << 1;
+    bHeight -= 2;
+#else
+    gx0 += gstride;
+    gx1 += gstride;
+    gy0 += gstride;
+    gy1 += gstride;
+    p0 += pstride0;
+    p1 += pstride1;
+    bHeight -= 1;
+#endif  // OPFL_DOWNSAMP_QUINCUNX
+  } while (bHeight != 0);
+
+  calculate_mv_8x4(u2_0, v2_0, uv_0, uw_0, vw_0, u2_1, v2_1, uv_1, uw_1, vw_1,
+                   d0, d1, mv_prec_bits, grad_prec_bits, vx0, vy0, vx1, vy1);
 }
 
 static void opfl_mv_refinement_lowbd_8x8_sse4_1(
@@ -764,7 +951,6 @@ static void opfl_mv_refinement_lowbd_8x8_sse4_1(
     int d0, int d1, int grad_prec_bits, int mv_prec_bits, int *vx0, int *vy0,
     int *vx1, int *vy1) {
   int bHeight = 8;
-
   __m128i u2 = _mm_setzero_si128();
   __m128i uv = _mm_setzero_si128();
   __m128i v2 = _mm_setzero_si128();
@@ -772,35 +958,33 @@ static void opfl_mv_refinement_lowbd_8x8_sse4_1(
   __m128i vw = _mm_setzero_si128();
 
   do {
-    __m128i gradX0, gradX1, gradY0, gradY1, pred0, pred1;
-    __m128i gradX0_13, gradX1_13, gradY0_13, gradY1_13;
-    __m128i samplesL, samplesH;
+    __m128i gradX0 = LoadAligned16(gx0);
+    __m128i gradX1 = LoadAligned16(gx1);
+    __m128i gradY0 = LoadAligned16(gy0);
+    __m128i gradY1 = LoadAligned16(gy1);
+    __m128i pred0 = _mm_cvtepu8_epi16(LoadLo8(p0));
+    __m128i pred1 = _mm_cvtepu8_epi16(LoadLo8(p1));
 
-    gradX0 = LoadUnaligned16(gx0);
-    gradX1 = LoadUnaligned16(gx1);
-    leastsquare_8x8(&gradX0, &gradX1, &gradX0_13, &gradX1_13, &u2, dist_d0d1);
+#if OPFL_DOWNSAMP_QUINCUNX
+    const __m128i pred0_odd = _mm_cvtepu8_epi16(LoadLo8(p0 + pstride0));
+    const __m128i pred1_odd = _mm_cvtepu8_epi16(LoadLo8(p1 + pstride1));
 
-    gradY0 = LoadUnaligned16(gy0);
-    gradY1 = LoadUnaligned16(gy1);
-    leastsquare_8x8(&gradY0, &gradY1, &gradY0_13, &gradY1_13, &v2, dist_d0d1);
+    down_sample(&gradX0, &gradX1, &gradY0, &gradY1, &pred0, &pred1, &pred0_odd,
+                &pred1_odd, gx0, gx1, gy0, gy1, gstride);
+#endif  // OPFL_DOWNSAMP_QUINCUNX
 
-    accumulate_8x8(gradX0, gradY0, gradX1, gradY1, gradX0_13, gradY0_13,
-                   gradX1_13, gradY1_13, &uv);
+    square_accumulate_8x8(gradX0, gradX1, gradY0, gradY1, &u2, &v2, &uv, &uw,
+                          &vw, &pred0, &pred1, dist_d0, dist_d0d1);
 
-    pred0 = _mm_cvtepu8_epi16(LoadLo8(p0));
-    pred1 = _mm_cvtepu8_epi16(LoadLo8(p1));
-    samplesL = _mm_unpacklo_epi16(pred0, pred1);
-    samplesH = _mm_unpackhi_epi16(pred0, pred1);
-    samplesL = _mm_madd_epi16(samplesL, dist_d0);
-    samplesH = _mm_madd_epi16(samplesH, dist_d0);
-
-    pred0 = _mm_srli_si128(samplesL, 4);
-    pred1 = _mm_srli_si128(samplesH, 4);
-    accumulate_8x8(gradX0, samplesL, gradX1, samplesH, gradX0_13, pred0,
-                   gradX1_13, pred1, &uw);
-    accumulate_8x8(gradY0, samplesL, gradY1, samplesH, gradY0_13, pred0,
-                   gradY1_13, pred1, &vw);
-
+#if OPFL_DOWNSAMP_QUINCUNX
+    gx0 += gstride << 1;
+    gx1 += gstride << 1;
+    gy0 += gstride << 1;
+    gy1 += gstride << 1;
+    p0 += pstride0 << 1;
+    p1 += pstride1 << 1;
+    bHeight -= 2;
+#else
     gx0 += gstride;
     gx1 += gstride;
     gy0 += gstride;
@@ -808,45 +992,11 @@ static void opfl_mv_refinement_lowbd_8x8_sse4_1(
     p0 += pstride0;
     p1 += pstride1;
     bHeight -= 1;
+#endif  // OPFL_DOWNSAMP_QUINCUNX
   } while (bHeight != 0);
 
-  u2 = _mm_add_epi64(u2, _mm_srli_si128(u2, 8));
-  v2 = _mm_add_epi64(v2, _mm_srli_si128(v2, 8));
-  uv = _mm_add_epi64(uv, _mm_srli_si128(uv, 8));
-  uw = _mm_add_epi64(uw, _mm_srli_si128(uw, 8));
-  vw = _mm_add_epi64(vw, _mm_srli_si128(vw, 8));
-
-  int64_t su2, suv, sv2, suw, svw;
-  _mm_storel_epi64((__m128i *)&su2, u2);
-  _mm_storel_epi64((__m128i *)&suv, uv);
-  _mm_storel_epi64((__m128i *)&sv2, v2);
-  _mm_storel_epi64((__m128i *)&suw, uw);
-  _mm_storel_epi64((__m128i *)&svw, vw);
-#if OPFL_REGULARIZED_LS
-  // As processing block size is 8x8, here '(bw * bh >> 4)' can be replaced
-  // by 4.
-  int rls_alpha = 4 << OPFL_RLS_PARAM_BITS;
-  su2 += rls_alpha;
-  sv2 += rls_alpha;
-#endif
-  // Clamp su2, sv2, suv, suw, and svw to avoid overflow in D, Px, and Py
-  su2 = clamp(su2, -OPFL_COV_CLAMP_VAL, OPFL_COV_CLAMP_VAL);
-  sv2 = clamp(sv2, -OPFL_COV_CLAMP_VAL, OPFL_COV_CLAMP_VAL);
-  suv = clamp(suv, -OPFL_COV_CLAMP_VAL, OPFL_COV_CLAMP_VAL);
-  suw = clamp(suw, -OPFL_COV_CLAMP_VAL, OPFL_COV_CLAMP_VAL);
-  svw = clamp(svw, -OPFL_COV_CLAMP_VAL, OPFL_COV_CLAMP_VAL);
-
-  int bits = mv_prec_bits + grad_prec_bits;
-  const int64_t D = su2 * sv2 - suv * suv;
-  if (D == 0) return;
-  const int64_t Px = (suv * svw - sv2 * suw) * (1 << bits);
-  const int64_t Py = (suv * suw - su2 * svw) * (1 << bits);
-  *vx0 = (int)divide_and_round_signed(Px, D);
-  *vy0 = (int)divide_and_round_signed(Py, D);
-  const int tx1 = (*vx0) * d1;
-  const int ty1 = (*vy0) * d1;
-  *vx1 = (int)divide_and_round_signed(tx1, d0);
-  *vy1 = (int)divide_and_round_signed(ty1, d0);
+  calculate_mv_8x8(u2, v2, uv, uw, vw, d0, d1, mv_prec_bits, grad_prec_bits,
+                   vx0, vy0, vx1, vy1);
 }
 
 static void opfl_mv_refinement_lowbd_sse4_1(
@@ -901,51 +1051,46 @@ static void opfl_mv_refinement_highbd_8x4_sse4_1(
     int d0, int d1, int grad_prec_bits, int mv_prec_bits, int *vx0, int *vy0,
     int *vx1, int *vy1) {
   int bHeight = 4;
-
   __m128i u2_0 = _mm_setzero_si128();
-  __m128i u2_1 = _mm_setzero_si128();
   __m128i v2_0 = _mm_setzero_si128();
-  __m128i v2_1 = _mm_setzero_si128();
   __m128i uv_0 = _mm_setzero_si128();
-  __m128i uv_1 = _mm_setzero_si128();
   __m128i uw_0 = _mm_setzero_si128();
-  __m128i uw_1 = _mm_setzero_si128();
   __m128i vw_0 = _mm_setzero_si128();
+  __m128i u2_1 = _mm_setzero_si128();
+  __m128i v2_1 = _mm_setzero_si128();
+  __m128i uv_1 = _mm_setzero_si128();
+  __m128i uw_1 = _mm_setzero_si128();
   __m128i vw_1 = _mm_setzero_si128();
 
   do {
-    __m128i gradX0, gradX1, gradY0, gradY1, pred0, pred1;
-    __m128i gradX0_13, gradX1_13, gradY0_13, gradY1_13;
-    __m128i samplesL, samplesH;
+    __m128i gradX0 = LoadAligned16(gx0);
+    __m128i gradX1 = LoadAligned16(gx1);
+    __m128i gradY0 = LoadAligned16(gy0);
+    __m128i gradY1 = LoadAligned16(gy1);
+    __m128i pred0 = LoadAligned16(p0);
+    __m128i pred1 = LoadAligned16(p1);
 
-    gradX0 = LoadUnaligned16(gx0);
-    gradX1 = LoadUnaligned16(gx1);
-    leastsquare_8x4(&gradX0, &gradX1, &gradX0_13, &gradX1_13, &u2_0, &u2_1,
-                    dist_d0d1);
+#if OPFL_DOWNSAMP_QUINCUNX
+    const __m128i pred0_odd = LoadAligned16(p0 + pstride0);
+    const __m128i pred1_odd = LoadAligned16(p1 + pstride1);
 
-    gradY0 = LoadUnaligned16(gy0);
-    gradY1 = LoadUnaligned16(gy1);
-    leastsquare_8x4(&gradY0, &gradY1, &gradY0_13, &gradY1_13, &v2_0, &v2_1,
-                    dist_d0d1);
+    down_sample(&gradX0, &gradX1, &gradY0, &gradY1, &pred0, &pred1, &pred0_odd,
+                &pred1_odd, gx0, gx1, gy0, gy1, gstride);
+#endif  // OPFL_DOWNSAMP_QUINCUNX
 
-    accumulate_8x4(gradX0, gradY0, gradX1, gradY1, gradX0_13, gradY0_13,
-                   gradX1_13, gradY1_13, &uv_0, &uv_1);
+    square_accumulate_8x4(gradX0, gradX1, gradY0, gradY1, &u2_0, &v2_0, &uv_0,
+                          &uw_0, &vw_0, &u2_1, &v2_1, &uv_1, &uw_1, &vw_1,
+                          &pred0, &pred1, dist_d0, dist_d0d1);
 
-    pred0 = LoadUnaligned16(p0);
-    pred1 = LoadUnaligned16(p1);
-    samplesL = _mm_unpacklo_epi16(pred0, pred1);
-    samplesL = _mm_madd_epi16(samplesL, dist_d0);
-
-    samplesH = _mm_unpackhi_epi16(pred0, pred1);
-    samplesH = _mm_madd_epi16(samplesH, dist_d0);
-
-    pred0 = _mm_srli_si128(samplesL, 4);
-    pred1 = _mm_srli_si128(samplesH, 4);
-    accumulate_8x4(gradX0, samplesL, gradX1, samplesH, gradX0_13, pred0,
-                   gradX1_13, pred1, &uw_0, &uw_1);
-    accumulate_8x4(gradY0, samplesL, gradY1, samplesH, gradY0_13, pred0,
-                   gradY1_13, pred1, &vw_0, &vw_1);
-
+#if OPFL_DOWNSAMP_QUINCUNX
+    gx0 += gstride << 1;
+    gx1 += gstride << 1;
+    gy0 += gstride << 1;
+    gy1 += gstride << 1;
+    p0 += pstride0 << 1;
+    p1 += pstride1 << 1;
+    bHeight -= 2;
+#else
     gx0 += gstride;
     gx1 += gstride;
     gy0 += gstride;
@@ -953,87 +1098,11 @@ static void opfl_mv_refinement_highbd_8x4_sse4_1(
     p0 += pstride0;
     p1 += pstride1;
     bHeight -= 1;
+#endif  // OPFL_DOWNSAMP_QUINCUNX
   } while (bHeight != 0);
 
-  u2_0 = _mm_add_epi64(u2_0, _mm_srli_si128(u2_0, 8));
-  u2_1 = _mm_add_epi64(u2_1, _mm_srli_si128(u2_1, 8));
-
-  v2_0 = _mm_add_epi64(v2_0, _mm_srli_si128(v2_0, 8));
-  v2_1 = _mm_add_epi64(v2_1, _mm_srli_si128(v2_1, 8));
-
-  uv_0 = _mm_add_epi64(uv_0, _mm_srli_si128(uv_0, 8));
-  uv_1 = _mm_add_epi64(uv_1, _mm_srli_si128(uv_1, 8));
-
-  uw_0 = _mm_add_epi64(uw_0, _mm_srli_si128(uw_0, 8));
-  uw_1 = _mm_add_epi64(uw_1, _mm_srli_si128(uw_1, 8));
-
-  vw_0 = _mm_add_epi64(vw_0, _mm_srli_si128(vw_0, 8));
-  vw_1 = _mm_add_epi64(vw_1, _mm_srli_si128(vw_1, 8));
-
-  int64_t su2, suv, sv2, suw, svw;
-  _mm_storel_epi64((__m128i *)&su2, u2_0);
-  _mm_storel_epi64((__m128i *)&suv, uv_0);
-  _mm_storel_epi64((__m128i *)&sv2, v2_0);
-  _mm_storel_epi64((__m128i *)&suw, uw_0);
-  _mm_storel_epi64((__m128i *)&svw, vw_0);
-#if OPFL_REGULARIZED_LS
-  // As processing block size is 4x4, here '(bw * bh >> 4)' can be replaced
-  // by 1.
-  int rls_alpha = 1 << OPFL_RLS_PARAM_BITS;
-  su2 += rls_alpha;
-  sv2 += rls_alpha;
-#endif
-  // Clamp su2, sv2, suv, suw, and svw to avoid overflow in D, Px, and Py
-  su2 = clamp(su2, -OPFL_COV_CLAMP_VAL, OPFL_COV_CLAMP_VAL);
-  sv2 = clamp(sv2, -OPFL_COV_CLAMP_VAL, OPFL_COV_CLAMP_VAL);
-  suv = clamp(suv, -OPFL_COV_CLAMP_VAL, OPFL_COV_CLAMP_VAL);
-  suw = clamp(suw, -OPFL_COV_CLAMP_VAL, OPFL_COV_CLAMP_VAL);
-  svw = clamp(svw, -OPFL_COV_CLAMP_VAL, OPFL_COV_CLAMP_VAL);
-
-  int64_t su2_1, suv_1, sv2_1, suw_1, svw_1;
-  _mm_storel_epi64((__m128i *)&su2_1, u2_1);
-  _mm_storel_epi64((__m128i *)&suv_1, uv_1);
-  _mm_storel_epi64((__m128i *)&sv2_1, v2_1);
-  _mm_storel_epi64((__m128i *)&suw_1, uw_1);
-  _mm_storel_epi64((__m128i *)&svw_1, vw_1);
-#if OPFL_REGULARIZED_LS
-  su2 += rls_alpha;
-  sv2 += rls_alpha;
-#endif
-  // Clamp su2, sv2, suv, suw, and svw to avoid overflow in D, Px, and Py
-  su2_1 = clamp(su2_1, -OPFL_COV_CLAMP_VAL, OPFL_COV_CLAMP_VAL);
-  sv2_1 = clamp(sv2_1, -OPFL_COV_CLAMP_VAL, OPFL_COV_CLAMP_VAL);
-  suv_1 = clamp(suv_1, -OPFL_COV_CLAMP_VAL, OPFL_COV_CLAMP_VAL);
-  suw_1 = clamp(suw_1, -OPFL_COV_CLAMP_VAL, OPFL_COV_CLAMP_VAL);
-  svw_1 = clamp(svw_1, -OPFL_COV_CLAMP_VAL, OPFL_COV_CLAMP_VAL);
-
-  int bits = mv_prec_bits + grad_prec_bits;
-  int64_t D = su2 * sv2 - suv * suv;
-  int64_t Px, Py;
-
-  if (D != 0) {
-    Px = (suv * svw - sv2 * suw) * (1 << bits);
-    Py = (suv * suw - su2 * svw) * (1 << bits);
-    *vx0 = (int)divide_and_round_signed(Px, D);
-    *vy0 = (int)divide_and_round_signed(Py, D);
-    int tx1 = (*vx0) * d1;
-    int ty1 = (*vy0) * d1;
-    *vx1 = (int)divide_and_round_signed(tx1, d0);
-    *vy1 = (int)divide_and_round_signed(ty1, d0);
-  }
-
-  D = su2_1 * sv2_1 - suv_1 * suv_1;
-
-  if (D != 0) {
-    Px = (suv_1 * svw_1 - sv2_1 * suw_1) * (1 << bits);
-    Py = (suv_1 * suw_1 - su2_1 * svw_1) * (1 << bits);
-    *(vx0 + 1) = (int)divide_and_round_signed(Px, D);
-    *(vy0 + 1) = (int)divide_and_round_signed(Py, D);
-    int tx1 = (*(vx0 + 1)) * d1;
-    int ty1 = (*(vy0 + 1)) * d1;
-    *(vx1 + 1) = (int)divide_and_round_signed(tx1, d0);
-    *(vy1 + 1) = (int)divide_and_round_signed(ty1, d0);
-  }
+  calculate_mv_8x4(u2_0, v2_0, uv_0, uw_0, vw_0, u2_1, v2_1, uv_1, uw_1, vw_1,
+                   d0, d1, mv_prec_bits, grad_prec_bits, vx0, vy0, vx1, vy1);
 }
 
 static void opfl_mv_refinement_highbd_8x8_sse4_1(
@@ -1043,7 +1112,6 @@ static void opfl_mv_refinement_highbd_8x8_sse4_1(
     int d0, int d1, int grad_prec_bits, int mv_prec_bits, int *vx0, int *vy0,
     int *vx1, int *vy1) {
   int bHeight = 8;
-
   __m128i u2 = _mm_setzero_si128();
   __m128i uv = _mm_setzero_si128();
   __m128i v2 = _mm_setzero_si128();
@@ -1051,35 +1119,31 @@ static void opfl_mv_refinement_highbd_8x8_sse4_1(
   __m128i vw = _mm_setzero_si128();
 
   do {
-    __m128i gradX0, gradX1, gradY0, gradY1, pred0, pred1;
-    __m128i gradX0_13, gradX1_13, gradY0_13, gradY1_13;
-    __m128i samplesL, samplesH;
+    __m128i gradX0 = LoadAligned16(gx0);
+    __m128i gradX1 = LoadAligned16(gx1);
+    __m128i gradY0 = LoadAligned16(gy0);
+    __m128i gradY1 = LoadAligned16(gy1);
+    __m128i pred0 = LoadAligned16(p0);
+    __m128i pred1 = LoadAligned16(p1);
 
-    gradX0 = LoadUnaligned16(gx0);
-    gradX1 = LoadUnaligned16(gx1);
-    leastsquare_8x8(&gradX0, &gradX1, &gradX0_13, &gradX1_13, &u2, dist_d0d1);
+#if OPFL_DOWNSAMP_QUINCUNX
+    const __m128i pred0_odd = LoadAligned16(p0 + pstride0);
+    const __m128i pred1_odd = LoadAligned16(p1 + pstride1);
 
-    gradY0 = LoadUnaligned16(gy0);
-    gradY1 = LoadUnaligned16(gy1);
-    leastsquare_8x8(&gradY0, &gradY1, &gradY0_13, &gradY1_13, &v2, dist_d0d1);
-
-    accumulate_8x8(gradX0, gradY0, gradX1, gradY1, gradX0_13, gradY0_13,
-                   gradX1_13, gradY1_13, &uv);
-
-    pred0 = LoadUnaligned16(p0);
-    pred1 = LoadUnaligned16(p1);
-    samplesL = _mm_unpacklo_epi16(pred0, pred1);
-    samplesH = _mm_unpackhi_epi16(pred0, pred1);
-    samplesL = _mm_madd_epi16(samplesL, dist_d0);
-    samplesH = _mm_madd_epi16(samplesH, dist_d0);
-
-    pred0 = _mm_srli_si128(samplesL, 4);
-    pred1 = _mm_srli_si128(samplesH, 4);
-    accumulate_8x8(gradX0, samplesL, gradX1, samplesH, gradX0_13, pred0,
-                   gradX1_13, pred1, &uw);
-    accumulate_8x8(gradY0, samplesL, gradY1, samplesH, gradY0_13, pred0,
-                   gradY1_13, pred1, &vw);
-
+    down_sample(&gradX0, &gradX1, &gradY0, &gradY1, &pred0, &pred1, &pred0_odd,
+                &pred1_odd, gx0, gx1, gy0, gy1, gstride);
+#endif  // OPFL_DOWNSAMP_QUINCUNX
+    square_accumulate_8x8(gradX0, gradX1, gradY0, gradY1, &u2, &v2, &uv, &uw,
+                          &vw, &pred0, &pred1, dist_d0, dist_d0d1);
+#if OPFL_DOWNSAMP_QUINCUNX
+    gx0 += gstride << 1;
+    gx1 += gstride << 1;
+    gy0 += gstride << 1;
+    gy1 += gstride << 1;
+    p0 += pstride0 << 1;
+    p1 += pstride1 << 1;
+    bHeight -= 2;
+#else
     gx0 += gstride;
     gx1 += gstride;
     gy0 += gstride;
@@ -1087,46 +1151,11 @@ static void opfl_mv_refinement_highbd_8x8_sse4_1(
     p0 += pstride0;
     p1 += pstride1;
     bHeight -= 1;
+#endif  // OPFL_DOWNSAMP_QUINCUNX
   } while (bHeight != 0);
 
-  u2 = _mm_add_epi64(u2, _mm_srli_si128(u2, 8));
-  v2 = _mm_add_epi64(v2, _mm_srli_si128(v2, 8));
-  uv = _mm_add_epi64(uv, _mm_srli_si128(uv, 8));
-  uw = _mm_add_epi64(uw, _mm_srli_si128(uw, 8));
-  vw = _mm_add_epi64(vw, _mm_srli_si128(vw, 8));
-
-  int64_t su2, suv, sv2, suw, svw;
-  _mm_storel_epi64((__m128i *)&su2, u2);
-  _mm_storel_epi64((__m128i *)&suv, uv);
-  _mm_storel_epi64((__m128i *)&sv2, v2);
-  _mm_storel_epi64((__m128i *)&suw, uw);
-  _mm_storel_epi64((__m128i *)&svw, vw);
-#if OPFL_REGULARIZED_LS
-  // As processing block size is 8x8, here '(bw * bh >> 4)' can be replaced
-  // by 4.
-  int rls_alpha = 4 << OPFL_RLS_PARAM_BITS;
-  su2 += rls_alpha;
-  sv2 += rls_alpha;
-#endif
-  // Clamp su2, sv2, suv, suw, and svw to avoid overflow in D, Px, and Py
-  su2 = clamp(su2, -OPFL_COV_CLAMP_VAL, OPFL_COV_CLAMP_VAL);
-  sv2 = clamp(sv2, -OPFL_COV_CLAMP_VAL, OPFL_COV_CLAMP_VAL);
-  suv = clamp(suv, -OPFL_COV_CLAMP_VAL, OPFL_COV_CLAMP_VAL);
-  suw = clamp(suw, -OPFL_COV_CLAMP_VAL, OPFL_COV_CLAMP_VAL);
-  svw = clamp(svw, -OPFL_COV_CLAMP_VAL, OPFL_COV_CLAMP_VAL);
-
-  int bits = mv_prec_bits + grad_prec_bits;
-  const int64_t D = su2 * sv2 - suv * suv;
-  if (D == 0) return;
-
-  const int64_t Px = (suv * svw - sv2 * suw) * (1 << bits);
-  const int64_t Py = (suv * suw - su2 * svw) * (1 << bits);
-  *vx0 = (int)divide_and_round_signed(Px, D);
-  *vy0 = (int)divide_and_round_signed(Py, D);
-  const int tx1 = (*vx0) * d1;
-  const int ty1 = (*vy0) * d1;
-  *vx1 = (int)divide_and_round_signed(tx1, d0);
-  *vy1 = (int)divide_and_round_signed(ty1, d0);
+  calculate_mv_8x8(u2, v2, uv, uw, vw, d0, d1, mv_prec_bits, grad_prec_bits,
+                   vx0, vy0, vx1, vy1);
 }
 
 static void opfl_mv_refinement_highbd_sse4_1(
@@ -1196,37 +1225,9 @@ static AOM_FORCE_INLINE void calc_mv(const __m128i u2, const __m128i v2,
     suw = _mm_extract_epi32(uw, 2) + _mm_extract_epi32(uw, 3);
     svw = _mm_extract_epi32(vw, 2) + _mm_extract_epi32(vw, 3);
   }
-#if OPFL_REGULARIZED_LS
-  su2 += rls_alpha;
-  sv2 += rls_alpha;
-#else
-  (void)rls_alpha;
-#endif
-  // Clamp su2, sv2, suv, suw, and svw to avoid overflow in D, Px, and Py
-  su2 = clamp(su2, -OPFL_COV_CLAMP_VAL, OPFL_COV_CLAMP_VAL);
-  sv2 = clamp(sv2, -OPFL_COV_CLAMP_VAL, OPFL_COV_CLAMP_VAL);
-  suv = clamp(suv, -OPFL_COV_CLAMP_VAL, OPFL_COV_CLAMP_VAL);
-  suw = clamp(suw, -OPFL_COV_CLAMP_VAL, OPFL_COV_CLAMP_VAL);
-  svw = clamp(svw, -OPFL_COV_CLAMP_VAL, OPFL_COV_CLAMP_VAL);
 
-  const int64_t D = su2 * sv2 - suv * suv;
-  if (D == 0) return;
-
-  const int64_t Px = (suv * svw - sv2 * suw) * (1 << bits);
-  const int64_t Py = (suv * suw - su2 * svw) * (1 << bits);
-  *vx0 = (int)divide_and_round_signed(Px, D);
-  *vy0 = (int)divide_and_round_signed(Py, D);
-#if OPFL_EQUAL_DIST_ASSUMED
-  (void)d0;
-  (void)d1;
-  *vx1 = -(*vx0);
-  *vy1 = -(*vy0);
-#else
-  const int tx1 = (*vx0) * d1;
-  const int ty1 = (*vy0) * d1;
-  *vx1 = (int)divide_and_round_signed(tx1, d0);
-  *vy1 = (int)divide_and_round_signed(ty1, d0);
-#endif
+  calc_mv_process(su2, sv2, suv, suw, svw, d0, d1, bits, rls_alpha, vx0, vy0,
+                  vx1, vy1);
 }
 
 static void opfl_mv_refinement_interp_grad_8x4_sse4_1(

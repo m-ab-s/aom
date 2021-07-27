@@ -1519,15 +1519,10 @@ static int get_optflow_based_mv_highbd(
   av1_compute_subpel_gradients_interp(tmp, bw, bh, &grad_prec_bits, gx1, gy1,
                                       is_cur_buf_hbd(xd));
 
-#if (OPFL_DOWNSAMP_QUINCUNX || OPFL_EQUAL_DIST_ASSUMED)
-  n_blocks = av1_opfl_mv_refinement_nxn_highbd_c(
-      dst0, bw, dst1, bw, gx0, gy0, gx1, gy1, bw, bw, bh, n, d0, d1,
-      grad_prec_bits, target_prec, vx0, vy0, vx1, vy1);
-#else
   n_blocks = av1_opfl_mv_refinement_nxn_highbd(
       dst0, bw, dst1, bw, gx0, gy0, gx1, gy1, bw, bw, bh, n, d0, d1,
       grad_prec_bits, target_prec, vx0, vy0, vx1, vy1);
-#endif
+
   aom_free(tmp);
 #endif  // OPFL_COMBINE_INTERP_GRAD_LS
 #else
@@ -1538,15 +1533,11 @@ static int get_optflow_based_mv_highbd(
   av1_compute_subpel_gradients_mc_highbd(xd, mbmi, bw, bh, mi_x, mi_y, mc_buf,
                                          &params1, calc_subpel_params_func, 1,
                                          &grad_prec_bits, gx1, gy1);
-#if (OPFL_DOWNSAMP_QUINCUNX || OPFL_EQUAL_DIST_ASSUMED)
-  n_blocks = av1_opfl_mv_refinement_nxn_highbd_c(
-      dst0, bw, dst1, bw, gx0, gy0, gx1, gy1, bw, bw, bh, n, d0, d1,
-      grad_prec_bits, target_prec, vx0, vy0, vx1, vy1);
-#else
+
   n_blocks = av1_opfl_mv_refinement_nxn_highbd(
       dst0, bw, dst1, bw, gx0, gy0, gx1, gy1, bw, bw, bh, n, d0, d1,
       grad_prec_bits, target_prec, vx0, vy0, vx1, vy1);
-#endif
+
 #endif  // OPFL_BILINEAR_GRAD || OPFL_BICUBIC_GRAD
 
   for (int i = 0; i < n_blocks; i++) {
@@ -1641,15 +1632,10 @@ static int get_optflow_based_mv_lowbd(
   av1_compute_subpel_gradients_interp(tmp, bw, bh, &grad_prec_bits, gx1, gy1,
                                       is_cur_buf_hbd(xd));
 
-#if (OPFL_DOWNSAMP_QUINCUNX || OPFL_EQUAL_DIST_ASSUMED)
-  n_blocks = av1_opfl_mv_refinement_nxn_lowbd_c(
-      dst0, bw, dst1, bw, gx0, gy0, gx1, gy1, bw, bw, bh, n, d0, d1,
-      grad_prec_bits, target_prec, vx0, vy0, vx1, vy1);
-#else
   n_blocks = av1_opfl_mv_refinement_nxn_lowbd(
       dst0, bw, dst1, bw, gx0, gy0, gx1, gy1, bw, bw, bh, n, d0, d1,
       grad_prec_bits, target_prec, vx0, vy0, vx1, vy1);
-#endif
+
   aom_free(tmp);
 #endif  // OPFL_COMBINE_INTERP_GRAD_LS
 #else
@@ -1660,15 +1646,11 @@ static int get_optflow_based_mv_lowbd(
   av1_compute_subpel_gradients_mc_lowbd(xd, mbmi, bw, bh, mi_x, mi_y, mc_buf,
                                         &params1, calc_subpel_params_func, 1,
                                         &grad_prec_bits, gx1, gy1);
-#if (OPFL_DOWNSAMP_QUINCUNX || OPFL_EQUAL_DIST_ASSUMED)
-  n_blocks = av1_opfl_mv_refinement_nxn_lowbd_c(
-      dst0, bw, dst1, bw, gx0, gy0, gx1, gy1, bw, bw, bh, n, d0, d1,
-      grad_prec_bits, target_prec, vx0, vy0, vx1, vy1);
-#else
+
   n_blocks = av1_opfl_mv_refinement_nxn_lowbd(
       dst0, bw, dst1, bw, gx0, gy0, gx1, gy1, bw, bw, bh, n, d0, d1,
       grad_prec_bits, target_prec, vx0, vy0, vx1, vy1);
-#endif
+
 #endif  // OPFL_BILINEAR_GRAD || OPFL_BICUBIC_GRAD
 
   for (int i = 0; i < n_blocks; i++) {
