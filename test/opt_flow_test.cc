@@ -411,7 +411,7 @@ class AV1OptFlowRefineTest : public AV1OptFlowTest<opfl_mv_refinement> {
     const int bh = block.Height();
     const int n = block.OptFlowBlkSize();
 
-    opfl_mv_refinement ref_func = opfl_mv_refinement_nxn_lowbd_c;
+    opfl_mv_refinement ref_func = av1_opfl_mv_refinement_nxn_lowbd_c;
     opfl_mv_refinement test_func = GetParam().TestFunction();
 
     if (is_speed)
@@ -521,12 +521,13 @@ class AV1OptFlowRefineTest : public AV1OptFlowTest<opfl_mv_refinement> {
 TEST_P(AV1OptFlowRefineTest, CheckOutput) { RunTest(0); }
 TEST_P(AV1OptFlowRefineTest, DISABLED_Speed) { RunTest(1); }
 
-INSTANTIATE_TEST_SUITE_P(C, AV1OptFlowRefineTest,
-                         BuildOptFlowParams(opfl_mv_refinement_nxn_lowbd_c));
+INSTANTIATE_TEST_SUITE_P(
+    C, AV1OptFlowRefineTest,
+    BuildOptFlowParams(av1_opfl_mv_refinement_nxn_lowbd_c));
 #if HAVE_SSE4_1
 INSTANTIATE_TEST_SUITE_P(
     SSE4_1, AV1OptFlowRefineTest,
-    BuildOptFlowParams(opfl_mv_refinement_nxn_lowbd_sse4_1));
+    BuildOptFlowParams(av1_opfl_mv_refinement_nxn_lowbd_sse4_1));
 #endif
 
 template <typename T>
@@ -639,7 +640,7 @@ class AV1OptFlowRefineHighbdTest
     const int bh = block.Height();
     const int n = block.OptFlowBlkSize();
 
-    opfl_mv_refinement_highbd ref_func = opfl_mv_refinement_nxn_highbd_c;
+    opfl_mv_refinement_highbd ref_func = av1_opfl_mv_refinement_nxn_highbd_c;
     opfl_mv_refinement_highbd test_func = GetParam().TestFunction();
 
     if (is_speed)
@@ -753,12 +754,12 @@ TEST_P(AV1OptFlowRefineHighbdTest, DISABLED_Speed) { RunTest(1); }
 
 INSTANTIATE_TEST_SUITE_P(
     C, AV1OptFlowRefineHighbdTest,
-    BuildOptFlowHighbdParams(opfl_mv_refinement_nxn_highbd_c));
+    BuildOptFlowHighbdParams(av1_opfl_mv_refinement_nxn_highbd_c));
 
 #if HAVE_SSE4_1
 INSTANTIATE_TEST_SUITE_P(
     SSE4_1, AV1OptFlowRefineHighbdTest,
-    BuildOptFlowHighbdParams(opfl_mv_refinement_nxn_highbd_sse4_1));
+    BuildOptFlowHighbdParams(av1_opfl_mv_refinement_nxn_highbd_sse4_1));
 #endif
 
 #if OPFL_BICUBIC_GRAD

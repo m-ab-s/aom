@@ -116,6 +116,12 @@ if (aom_config("CONFIG_OPTFLOW_REFINEMENT") eq "yes") {
 
   add_proto qw/void av1_bicubic_grad_interpolation_highbd/, "const int16_t *pred_src,int16_t *x_grad,int16_t *y_grad,const int blk_width,const int blk_height";
   specialize qw/av1_bicubic_grad_interpolation_highbd sse4_1/;
+
+  add_proto qw/int av1_opfl_mv_refinement_nxn_lowbd/, " const uint8_t *p0, int pstride0, const uint8_t *p1, int pstride1, const int16_t *gx0, const int16_t *gy0, const int16_t *gx1, const int16_t *gy1, int gstride, int bw, int bh, int n, int d0, int d1, int grad_prec_bits, int mv_prec_bits, int *vx0, int *vy0, int *vx1, int *vy1";
+  specialize qw/av1_opfl_mv_refinement_nxn_lowbd sse4_1/;
+
+  add_proto qw/int av1_opfl_mv_refinement_nxn_highbd/, " const uint16_t *p0, int pstride0, const uint16_t *p1, int pstride1, const int16_t *gx0, const int16_t *gy0, const int16_t *gx1, const int16_t *gy1, int gstride, int bw, int bh, int n, int d0, int d1, int grad_prec_bits, int mv_prec_bits, int *vx0, int *vy0, int *vx1, int *vy1";
+  specialize qw/av1_opfl_mv_refinement_nxn_highbd sse4_1/;
 }
 
 # High bitdepth functions
@@ -426,13 +432,6 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
 
   add_proto qw/void av1_nn_predict/, " const float *input_nodes, const NN_CONFIG *const nn_config, int reduce_prec, float *const output";
   specialize qw/av1_nn_predict sse3 neon/;
-
-if (aom_config("CONFIG_OPTFLOW_REFINEMENT") eq "yes") {
-  add_proto qw/int opfl_mv_refinement_nxn_lowbd/, " const uint8_t *p0, int pstride0, const uint8_t *p1, int pstride1, const int16_t *gx0, const int16_t *gy0, const int16_t *gx1, const int16_t *gy1, int gstride, int bw, int bh, int n, int d0, int d1, int grad_prec_bits, int mv_prec_bits, int *vx0, int *vy0, int *vx1, int *vy1";
-  specialize qw/opfl_mv_refinement_nxn_lowbd sse4_1/;
-  add_proto qw/int opfl_mv_refinement_nxn_highbd/, " const uint16_t *p0, int pstride0, const uint16_t *p1, int pstride1, const int16_t *gx0, const int16_t *gy0, const int16_t *gx1, const int16_t *gy1, int gstride, int bw, int bh, int n, int d0, int d1, int grad_prec_bits, int mv_prec_bits, int *vx0, int *vy0, int *vx1, int *vy1";
-  specialize qw/opfl_mv_refinement_nxn_highbd sse4_1/;
-  }
 }
 # end encoder functions
 
