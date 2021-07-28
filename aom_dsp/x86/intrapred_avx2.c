@@ -2287,7 +2287,7 @@ static void highbd_dr_prediction_32bit_z2_Nx4_avx2(
       c1234 = _mm_setr_epi32(1, 2, 3, 4);
 #if CONFIG_MRLS
       __m128i c1234_ = _mm_add_epi32(c1234, cmrlIdx);
-      y_c128 = _mm_sub_epi32(r6, _mm_mullo_epi16(c1234_, dy128));
+      y_c128 = _mm_sub_epi32(r6, _mm_mullo_epi32(c1234_, dy128));
 #else
       y_c128 = _mm_sub_epi32(r6, _mm_mullo_epi32(c1234, dy128));
 #endif
@@ -2911,13 +2911,13 @@ static void highbd_dr_prediction_32bit_z2_HxW_avx2(
   a16 = _mm256_set1_epi32(16);
   c1 = _mm256_srli_epi32(a16, 4);
   c8 = _mm256_srli_epi32(a16, 1);
-  min_base_y256 = _mm256_set1_epi16(min_base_y);
+  min_base_y256 = _mm256_set1_epi32(min_base_y);
   c3f = _mm256_set1_epi32(0x3f);
   dy256 = _mm256_set1_epi32(dy);
   c0123 = _mm256_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7);
   c1234 = _mm256_add_epi32(c0123, c1);
 #if CONFIG_MRLS
-  __m256i cmrlIdx = _mm256_set1_epi16(mrl_index);
+  __m256i cmrlIdx = _mm256_set1_epi32(mrl_index);
 #endif
   for (int r = 0; r < H; r++) {
     __m256i b, res, shift, ydx;
@@ -3020,7 +3020,7 @@ static void highbd_dr_prediction_32bit_z2_HxW_avx2(
         r6 = _mm256_set1_epi32(r << 6);
         c256 = _mm256_add_epi32(j256, c1234);
 #if CONFIG_MRLS
-        __m256i c256_ = _mm256_add_epi16(c256, cmrlIdx);
+        __m256i c256_ = _mm256_add_epi32(c256, cmrlIdx);
         y_c256 = _mm256_sub_epi32(r6, _mm256_mullo_epi32(c256_, dy256));
 #else
         y_c256 = _mm256_sub_epi32(r6, _mm256_mullo_epi32(c256, dy256));

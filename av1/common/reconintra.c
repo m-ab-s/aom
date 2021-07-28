@@ -36,7 +36,7 @@ enum {
 #define INTRA_EDGE_TAPS 5
 #define MAX_UPSAMPLE_SZ 16
 #if CONFIG_MRLS
-#define NUM_INTRA_NEIGHBOUR_PIXELS (MAX_TX_SIZE * 2 + 32 + 2 * MRL_LINE_NUMBER)
+#define NUM_INTRA_NEIGHBOUR_PIXELS (MAX_TX_SIZE * 2 + 64)
 #else
 #define NUM_INTRA_NEIGHBOUR_PIXELS (MAX_TX_SIZE * 2 + 32)
 #endif
@@ -1286,8 +1286,13 @@ static void build_intra_predictors_high(
   uint16_t *ref = CONVERT_TO_SHORTPTR(ref8);
   DECLARE_ALIGNED(16, uint16_t, left_data[NUM_INTRA_NEIGHBOUR_PIXELS]);
   DECLARE_ALIGNED(16, uint16_t, above_data[NUM_INTRA_NEIGHBOUR_PIXELS]);
+#if CONFIG_MRLS
+  uint16_t *const above_row = above_data + 32;
+  uint16_t *const left_col = left_data + 32;
+#else
   uint16_t *const above_row = above_data + 16;
   uint16_t *const left_col = left_data + 16;
+#endif
   const int txwpx = tx_size_wide[tx_size];
   const int txhpx = tx_size_high[tx_size];
   int need_left = extend_modes[mode] & NEED_LEFT;
@@ -1585,8 +1590,13 @@ static void build_intra_predictors(
 #endif
   DECLARE_ALIGNED(16, uint8_t, left_data[NUM_INTRA_NEIGHBOUR_PIXELS]);
   DECLARE_ALIGNED(16, uint8_t, above_data[NUM_INTRA_NEIGHBOUR_PIXELS]);
+#if CONFIG_MRLS
+  uint8_t *const above_row = above_data + 32;
+  uint8_t *const left_col = left_data + 32;
+#else
   uint8_t *const above_row = above_data + 16;
   uint8_t *const left_col = left_data + 16;
+#endif
   const int txwpx = tx_size_wide[tx_size];
   const int txhpx = tx_size_high[tx_size];
   int need_left = extend_modes[mode] & NEED_LEFT;
