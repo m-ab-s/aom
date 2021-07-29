@@ -1424,4 +1424,205 @@ int av1_opfl_mv_refinement_nxn_interp_grad_sse4_1(
   return n_blocks;
 }
 
+#if OPFL_COMBINE_INTERP_GRAD_LS
+static AOM_FORCE_INLINE void compute_pred_using_interp_grad_sse4_1(
+    const uint8_t *src1, const uint8_t *src2, int16_t *dst1, int16_t *dst2,
+    int bw, int bh, int d0, int d1) {
+#if OPFL_EQUAL_DIST_ASSUMED
+  (void)d0;
+  (void)d1;
+#else
+  const __m128i mul1 = _mm_set1_epi16(d0);
+  const __m128i mul2 = _mm_set1_epi16(d1);
+#endif  // OPFL_EQUAL_DIST_ASSUMED
+
+  if (bw < 16) {
+    for (int i = 0; i < bh; i++) {
+      const uint8_t *inp1 = src1 + i * bw;
+      const uint8_t *inp2 = src2 + i * bw;
+      int16_t *out1 = dst1 + i * bw;
+      int16_t *out2 = dst2 + i * bw;
+      for (int j = 0; j < bw; j = j + 8) {
+        const __m128i src_buf1 = _mm_cvtepu8_epi16(xx_loadl_64(inp1 + j));
+        const __m128i src_buf2 = _mm_cvtepu8_epi16(xx_loadl_64(inp2 + j));
+
+        __m128i temp1, temp2;
+#if OPFL_EQUAL_DIST_ASSUMED
+        temp1 = _mm_add_epi16(src_buf1, src_buf2);
+        temp2 = _mm_sub_epi16(src_buf1, src_buf2);
+#else
+        temp1 = _mm_sub_epi16(_mm_mullo_epi16(src_buf1, mul1),
+                              _mm_mullo_epi16(src_buf2, mul2));
+        temp2 = _mm_mullo_epi16(_mm_sub_epi16(src_buf1, src_buf2), mul1);
+
+#endif  // OPFL_EQUAL_DIST_ASSUMED
+        xx_store_128(out1 + j, temp1);
+        xx_store_128(out2 + j, temp2);
+      }
+    }
+  } else {
+    const __m128i zero = _mm_setzero_si128();
+    for (int i = 0; i < bh; i++) {
+      const uint8_t *inp1 = src1 + i * bw;
+      const uint8_t *inp2 = src2 + i * bw;
+      int16_t *out1 = dst1 + i * bw;
+      int16_t *out2 = dst2 + i * bw;
+      for (int j = 0; j < bw; j = j + 16) {
+        const __m128i src_buf1 = xx_load_128(inp1 + j);
+        const __m128i src_buf2 = xx_load_128(inp2 + j);
+
+        const __m128i temp1 = _mm_unpacklo_epi8(src_buf1, zero);
+        const __m128i temp2 = _mm_unpackhi_epi8(src_buf1, zero);
+        const __m128i temp3 = _mm_unpacklo_epi8(src_buf2, zero);
+        const __m128i temp4 = _mm_unpackhi_epi8(src_buf2, zero);
+
+        __m128i res1, res2, res3, res4;
+#if OPFL_EQUAL_DIST_ASSUMED
+        res1 = _mm_add_epi16(temp1, temp3);
+        res2 = _mm_add_epi16(temp2, temp4);
+        res3 = _mm_sub_epi16(temp1, temp3);
+        res4 = _mm_sub_epi16(temp2, temp4);
+#else
+        res1 = _mm_sub_epi16(_mm_mullo_epi16(temp1, mul1),
+                             _mm_mullo_epi16(temp3, mul2));
+        res2 = _mm_sub_epi16(_mm_mullo_epi16(temp2, mul1),
+                             _mm_mullo_epi16(temp4, mul2));
+
+        res3 = _mm_mullo_epi16(_mm_sub_epi16(temp1, temp3), mul1);
+        res4 = _mm_mullo_epi16(_mm_sub_epi16(temp2, temp4), mul1);
+
+#endif  // OPFL_EQUAL_DIST_ASSUMED
+        xx_store_128(out1 + j, res1);
+        xx_store_128(out1 + j + 8, res2);
+        xx_store_128(out2 + j, res3);
+        xx_store_128(out2 + j + 8, res4);
+      }
+    }
+  }
+}
+#endif  // OPFL_COMBINE_INTERP_GRAD_LS
+
+void av1_copy_pred_array_sse4_1(const uint8_t *src1, const uint8_t *src2,
+                                int16_t *dst1, int16_t *dst2, int bw, int bh,
+                                int d0, int d1) {
+#if OPFL_BILINEAR_GRAD || OPFL_BICUBIC_GRAD
+#if OPFL_COMBINE_INTERP_GRAD_LS
+  compute_pred_using_interp_grad_sse4_1(src1, src2, dst1, dst2, bw, bh, d0, d1);
+#else
+  (void)src2;
+  (void)dst2;
+  (void)d0;
+  (void)d1;
+  if (bw < 16) {
+    for (int i = 0; i < bh; i++) {
+      const uint8_t *inp1 = src1 + i * bw;
+      int16_t *out1 = dst1 + i * bw;
+      for (int j = 0; j < bw; j = j + 8) {
+        const __m128i src_buf = xx_loadl_64(inp1 + j);
+        xx_store_128(out1 + j, _mm_cvtepu8_epi16(src_buf));
+      }
+    }
+  } else {
+    const __m128i zero = _mm_setzero_si128();
+    for (int i = 0; i < bh; i++) {
+      const uint8_t *inp1 = src1 + i * bw;
+      int16_t *out1 = dst1 + i * bw;
+      for (int j = 0; j < bw; j = j + 16) {
+        const __m128i src_buf = xx_load_128(inp1 + j);
+        xx_store_128(out1 + j, _mm_unpacklo_epi8(src_buf, zero));
+        xx_store_128(out1 + j + 8, _mm_unpackhi_epi8(src_buf, zero));
+      }
+    }
+  }
+#endif  // OPFL_COMBINE_INTERP_GRAD_LS
+#else
+  (void)src1;
+  (void)dst1;
+  (void)src2;
+  (void)dst2;
+  (void)d0;
+  (void)d1;
+  (void)bw;
+  (void)bh;
+#endif  // OPFL_BILINEAR_GRAD || OPFL_BICUBIC_GRAD
+}
+
+#if OPFL_COMBINE_INTERP_GRAD_LS
+static AOM_FORCE_INLINE void compute_pred_using_interp_grad_highbd_sse4_1(
+    const uint16_t *src1, const uint16_t *src2, int16_t *dst1, int16_t *dst2,
+    int bw, int bh, int d0, int d1) {
+#if OPFL_EQUAL_DIST_ASSUMED
+  (void)d0;
+  (void)d1;
+#else
+  const __m128i zero = _mm_setzero_si128();
+  const __m128i mul1 = _mm_set1_epi16(d0);
+  const __m128i mul2 = _mm_sub_epi16(zero, _mm_set1_epi16(d1));
+  const __m128i mul_val = _mm_unpacklo_epi16(mul1, mul2);
+#endif  // OPFL_EQUAL_DIST_ASSUMED
+
+  for (int i = 0; i < bh; i++) {
+    const uint16_t *inp1 = src1 + i * bw;
+    const uint16_t *inp2 = src2 + i * bw;
+    int16_t *out1 = dst1 + i * bw;
+    int16_t *out2 = dst2 + i * bw;
+    for (int j = 0; j < bw; j = j + 8) {
+      const __m128i src_buf1 = xx_load_128(inp1 + j);
+      const __m128i src_buf2 = xx_load_128(inp2 + j);
+
+      __m128i temp1, temp2;
+#if OPFL_EQUAL_DIST_ASSUMED
+      temp1 = _mm_add_epi16(src_buf1, src_buf2);
+      temp2 = _mm_sub_epi16(src_buf1, src_buf2);
+#else
+      __m128i reg1 = _mm_unpacklo_epi16(src_buf1, src_buf2);
+      __m128i reg2 = _mm_unpackhi_epi16(src_buf1, src_buf2);
+
+      reg1 = _mm_madd_epi16(reg1, mul_val);
+      reg2 = _mm_madd_epi16(reg2, mul_val);
+
+      temp1 = _mm_packs_epi32(reg1, reg2);
+      temp2 = _mm_subs_epi16(src_buf1, src_buf2);
+#endif  // OPFL_EQUAL_DIST_ASSUMED
+      xx_store_128(out1 + j, temp1);
+      xx_store_128(out2 + j, temp2);
+    }
+  }
+}
+#endif  // OPFL_COMBINE_INTERP_GRAD_LS
+
+void av1_copy_pred_array_highbd_sse4_1(const uint16_t *src1,
+                                       const uint16_t *src2, int16_t *dst1,
+                                       int16_t *dst2, int bw, int bh, int d0,
+                                       int d1) {
+#if OPFL_BILINEAR_GRAD || OPFL_BICUBIC_GRAD
+#if OPFL_COMBINE_INTERP_GRAD_LS
+  compute_pred_using_interp_grad_highbd_sse4_1(src1, src2, dst1, dst2, bw, bh,
+                                               d0, d1);
+#else
+  (void)src2;
+  (void)dst2;
+  (void)d0;
+  (void)d1;
+  for (int i = 0; i < bh; i++) {
+    const uint16_t *inp1 = src1 + i * bw;
+    int16_t *out1 = dst1 + i * bw;
+    for (int j = 0; j < bw; j = j + 8) {
+      const __m128i src_buf = xx_load_128(inp1 + j);
+      xx_store_128(out1 + j, src_buf);
+    }
+  }
+#endif  // OPFL_COMBINE_INTERP_GRAD_LS
+#else
+  (void)src1;
+  (void)dst1;
+  (void)src2;
+  (void)dst2;
+  (void)d0;
+  (void)d1;
+  (void)bw;
+  (void)bh;
+#endif  // OPFL_BILINEAR_GRAD || OPFL_BICUBIC_GRAD
+}
+
 #endif  // CONFIG_OPTFLOW_REFINEMENT

@@ -1339,6 +1339,111 @@ int av1_opfl_mv_refinement_nxn_lowbd_c(const uint8_t *p0, int pstride0,
   return n_blocks;
 }
 
+#if OPFL_COMBINE_INTERP_GRAD_LS
+static AOM_FORCE_INLINE void compute_pred_using_interp_grad(
+    const uint8_t *src1, const uint8_t *src2, int16_t *dst1, int16_t *dst2,
+    int bw, int bh, int d0, int d1) {
+#if OPFL_EQUAL_DIST_ASSUMED
+  (void)d0;
+  (void)d1;
+#endif  // OPFL_EQUAL_DIST_ASSUMED
+
+  for (int i = 0; i < bh; ++i) {
+    for (int j = 0; j < bw; ++j) {
+#if OPFL_EQUAL_DIST_ASSUMED
+      dst1[i * bw + j] = (int16_t)src1[i * bw + j] + (int16_t)src2[i * bw + j];
+      dst2[i * bw + j] = (int16_t)src1[i * bw + j] - (int16_t)src2[i * bw + j];
+#else
+      dst1[i * bw + j] =
+          d0 * (int16_t)src1[i * bw + j] - d1 * (int16_t)src2[i * bw + j];
+      dst2[i * bw + j] =
+          d0 * ((int16_t)src1[i * bw + j] - (int16_t)src2[i * bw + j]);
+#endif  // OPFL_EQUAL_DIST_ASSUMED
+    }
+  }
+}
+#endif  // OPFL_COMBINE_INTERP_GRAD_LS
+
+void av1_copy_pred_array_c(const uint8_t *src1, const uint8_t *src2,
+                           int16_t *dst1, int16_t *dst2, int bw, int bh, int d0,
+                           int d1) {
+#if OPFL_BILINEAR_GRAD || OPFL_BICUBIC_GRAD
+#if OPFL_COMBINE_INTERP_GRAD_LS
+  compute_pred_using_interp_grad(src1, src2, dst1, dst2, bw, bh, d0, d1);
+#else
+  (void)src2;
+  (void)dst2;
+  (void)d0;
+  (void)d1;
+  for (int i = 0; i < bh; ++i)
+    for (int j = 0; j < bw; ++j) dst1[i * bw + j] = (int16_t)src1[i * bw + j];
+#endif  // OPFL_COMBINE_INTERP_GRAD_LS
+#else
+  (void)src1;
+  (void)dst1;
+  (void)src2;
+  (void)dst2;
+  (void)d0;
+  (void)d1;
+  (void)bw;
+  (void)bh;
+#endif  // OPFL_BILINEAR_GRAD || OPFL_BICUBIC_GRAD
+}
+
+#if OPFL_COMBINE_INTERP_GRAD_LS
+static AOM_FORCE_INLINE void compute_pred_using_interp_grad_highbd(
+    const uint16_t *src1, const uint16_t *src2, int16_t *dst1, int16_t *dst2,
+    int bw, int bh, int d0, int d1) {
+#if OPFL_EQUAL_DIST_ASSUMED
+  (void)d0;
+  (void)d1;
+#endif  // OPFL_EQUAL_DIST_ASSUMED
+
+  for (int i = 0; i < bh; ++i) {
+    for (int j = 0; j < bw; ++j) {
+#if OPFL_EQUAL_DIST_ASSUMED
+      dst1[i * bw + j] = (int16_t)src1[i * bw + j] + (int16_t)src2[i * bw + j];
+      dst2[i * bw + j] = (int16_t)src1[i * bw + j] - (int16_t)src2[i * bw + j];
+#else
+      // To avoid overflow, we clamp d0*P0-d1*P1 and P0-P1. Since d0 and d1 are
+      // at most 5 bits, this clamping is only required in highbd.
+      int32_t tmp_dst =
+          d0 * (int32_t)src1[i * bw + j] - d1 * (int32_t)src2[i * bw + j];
+      dst1[i * bw + j] = clamp(tmp_dst, INT16_MIN, INT16_MAX);
+      tmp_dst = (int32_t)src1[i * bw + j] - (int32_t)src2[i * bw + j];
+      dst2[i * bw + j] = clamp(tmp_dst, INT16_MIN, INT16_MAX);
+#endif  // OPFL_EQUAL_DIST_ASSUMED
+    }
+  }
+}
+#endif  // OPFL_COMBINE_INTERP_GRAD_LS
+
+void av1_copy_pred_array_highbd_c(const uint16_t *src1, const uint16_t *src2,
+                                  int16_t *dst1, int16_t *dst2, int bw, int bh,
+                                  int d0, int d1) {
+#if OPFL_BILINEAR_GRAD || OPFL_BICUBIC_GRAD
+#if OPFL_COMBINE_INTERP_GRAD_LS
+  compute_pred_using_interp_grad_highbd(src1, src2, dst1, dst2, bw, bh, d0, d1);
+#else
+  (void)src2;
+  (void)dst2;
+  (void)d0;
+  (void)d1;
+  for (int i = 0; i < bh; ++i)
+    for (int j = 0; j < bw; ++j) dst1[i * bw + j] = (int16_t)src1[i * bw + j];
+#endif  // OPFL_COMBINE_INTERP_GRAD_LS
+#else
+  (void)src1;
+  (void)dst1;
+  (void)src2;
+  (void)dst2;
+  (void)d0;
+  (void)d1;
+  (void)bw;
+  (void)bh;
+#endif  // OPFL_BILINEAR_GRAD || OPFL_BICUBIC_GRAD
+}
+
 static int get_optflow_based_mv_highbd(
     const AV1_COMMON *cm, MACROBLOCKD *xd, int plane, MB_MODE_INFO *mbmi,
     int bw, int bh, int mi_x, int mi_y, uint8_t **mc_buf,
@@ -1385,26 +1490,11 @@ static int get_optflow_based_mv_highbd(
   (void)gy1;
 
   // Compute tmp1 = P0 - P1 and gradients of tmp0 = d0 * P0 - d1 * P1
-  int32_t tmp_dst = 0;
   int16_t *tmp0 =
       (int16_t *)aom_memalign(16, MAX_SB_SIZE * MAX_SB_SIZE * sizeof(int16_t));
   int16_t *tmp1 =
       (int16_t *)aom_memalign(16, MAX_SB_SIZE * MAX_SB_SIZE * sizeof(int16_t));
-  for (int i = 0; i < bh; ++i) {
-    for (int j = 0; j < bw; ++j) {
-#if OPFL_EQUAL_DIST_ASSUMED
-      tmp0[i * bw + j] = (int16_t)dst0[i * bw + j] + (int16_t)dst1[i * bw + j];
-      tmp1[i * bw + j] = (int16_t)dst0[i * bw + j] - (int16_t)dst1[i * bw + j];
-#else
-      // To avoid overflow, we clamp d0*P0-d1*P1 and P0-P1. Since d0 and d1 are
-      // at most 5 bits, this clamping is only required in highbd.
-      tmp_dst = d0 * (int32_t)dst0[i * bw + j] - d1 * (int32_t)dst1[i * bw + j];
-      tmp0[i * bw + j] = clamp(tmp_dst, INT16_MIN, INT16_MAX);
-      tmp_dst = (int32_t)dst0[i * bw + j] - (int32_t)dst1[i * bw + j];
-      tmp1[i * bw + j] = clamp(tmp_dst, INT16_MIN, INT16_MAX);
-#endif
-    }
-  }
+  av1_copy_pred_array_highbd(dst0, dst1, tmp0, tmp1, bw, bh, d0, d1);
   // Buffers gx0 and gy0 are used to store the gradients of tmp0
   av1_compute_subpel_gradients_interp(tmp0, bw, bh, &grad_prec_bits, gx0, gy0,
                                       is_cur_buf_hbd(xd));
@@ -1418,12 +1508,11 @@ static int get_optflow_based_mv_highbd(
 #else
   int16_t *tmp =
       (int16_t *)aom_memalign(16, MAX_SB_SIZE * MAX_SB_SIZE * sizeof(int16_t));
-  for (int i = 0; i < bh; ++i)
-    for (int j = 0; j < bw; ++j) tmp[i * bw + j] = (int16_t)dst0[i * bw + j];
+  av1_copy_pred_array_highbd(dst0, NULL, tmp, NULL, bw, bh, d0, d1);
   av1_compute_subpel_gradients_interp(tmp, bw, bh, &grad_prec_bits, gx0, gy0,
                                       is_cur_buf_hbd(xd));
-  for (int i = 0; i < bh; ++i)
-    for (int j = 0; j < bw; ++j) tmp[i * bw + j] = (int16_t)dst1[i * bw + j];
+
+  av1_copy_pred_array_highbd(dst1, NULL, tmp, NULL, bw, bh, d0, d1);
   av1_compute_subpel_gradients_interp(tmp, bw, bh, &grad_prec_bits, gx1, gy1,
                                       is_cur_buf_hbd(xd));
 
@@ -1528,19 +1617,7 @@ static int get_optflow_based_mv_lowbd(
       (int16_t *)aom_memalign(16, MAX_SB_SIZE * MAX_SB_SIZE * sizeof(int16_t));
   int16_t *tmp1 =
       (int16_t *)aom_memalign(16, MAX_SB_SIZE * MAX_SB_SIZE * sizeof(int16_t));
-  for (int i = 0; i < bh; ++i) {
-    for (int j = 0; j < bw; ++j) {
-#if OPFL_EQUAL_DIST_ASSUMED
-      tmp0[i * bw + j] = (int16_t)dst0[i * bw + j] + (int16_t)dst1[i * bw + j];
-      tmp1[i * bw + j] = (int16_t)dst0[i * bw + j] - (int16_t)dst1[i * bw + j];
-#else
-      tmp0[i * bw + j] =
-          d0 * (int16_t)dst0[i * bw + j] - d1 * (int16_t)dst1[i * bw + j];
-      tmp1[i * bw + j] =
-          d0 * ((int16_t)dst0[i * bw + j] - (int16_t)dst1[i * bw + j]);
-#endif
-    }
-  }
+  av1_copy_pred_array(dst0, dst1, tmp0, tmp1, bw, bh, d0, d1);
   // Buffers gx0 and gy0 are used to store the gradients of tmp0
   av1_compute_subpel_gradients_interp(tmp0, bw, bh, &grad_prec_bits, gx0, gy0,
                                       is_cur_buf_hbd(xd));
@@ -1554,12 +1631,10 @@ static int get_optflow_based_mv_lowbd(
 #else
   int16_t *tmp =
       (int16_t *)aom_memalign(16, MAX_SB_SIZE * MAX_SB_SIZE * sizeof(int16_t));
-  for (int i = 0; i < bh; ++i)
-    for (int j = 0; j < bw; ++j) tmp[i * bw + j] = (int16_t)dst0[i * bw + j];
+  av1_copy_pred_array(dst0, NULL, tmp, NULL, bw, bh, d0, d1);
   av1_compute_subpel_gradients_interp(tmp, bw, bh, &grad_prec_bits, gx0, gy0,
                                       is_cur_buf_hbd(xd));
-  for (int i = 0; i < bh; ++i)
-    for (int j = 0; j < bw; ++j) tmp[i * bw + j] = (int16_t)dst1[i * bw + j];
+  av1_copy_pred_array(dst1, NULL, tmp, NULL, bw, bh, d0, d1);
   av1_compute_subpel_gradients_interp(tmp, bw, bh, &grad_prec_bits, gx1, gy1,
                                       is_cur_buf_hbd(xd));
 

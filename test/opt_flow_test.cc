@@ -1231,6 +1231,353 @@ INSTANTIATE_TEST_SUITE_P(
     BuildOptFlowParams(av1_opfl_mv_refinement_nxn_interp_grad_sse4_1));
 #endif
 #endif  // OPFL_COMBINE_INTERP_GRAD_LS
+
+#if OPFL_BILINEAR_GRAD || OPFL_BICUBIC_GRAD
+typedef void (*pred_buffer_copy)(const uint8_t *src1, const uint8_t *src2,
+                                 int16_t *dst1, int16_t *dst2, int bw, int bh,
+                                 int d0, int d1);
+
+class AV1OptFlowCopyPredTest : public AV1OptFlowTest<pred_buffer_copy> {
+ public:
+  AV1OptFlowCopyPredTest() {
+    const BlockSize &block = GetParam().Block();
+    const int bw = block.Width();
+    const int bh = block.Height();
+
+    src_buf1_ = (uint8_t *)aom_memalign(16, bw * bh * sizeof(*src_buf1_));
+    src_buf2_ = (uint8_t *)aom_memalign(16, bw * bh * sizeof(*src_buf2_));
+    dst_buf1_ref_ =
+        (int16_t *)aom_memalign(16, bw * bh * sizeof(*dst_buf1_ref_));
+    dst_buf2_ref_ =
+        (int16_t *)aom_memalign(16, bw * bh * sizeof(*dst_buf2_ref_));
+    dst_buf1_test_ =
+        (int16_t *)aom_memalign(16, bw * bh * sizeof(*dst_buf1_test_));
+    dst_buf2_test_ =
+        (int16_t *)aom_memalign(16, bw * bh * sizeof(*dst_buf2_test_));
+
+    memset(dst_buf2_ref_, 0, bw * bh * sizeof(*dst_buf2_ref_));
+    memset(dst_buf2_test_, 0, bw * bh * sizeof(*dst_buf2_test_));
+  }
+
+  ~AV1OptFlowCopyPredTest() {
+    aom_free(src_buf1_);
+    aom_free(src_buf2_);
+    aom_free(dst_buf1_ref_);
+    aom_free(dst_buf2_ref_);
+    aom_free(dst_buf1_test_);
+    aom_free(dst_buf2_test_);
+  }
+
+  void Run(const int is_speed) {
+    OrderHintInfo oh_info;
+    const BlockSize &block = GetParam().Block();
+    const int bw_log2 = block.Width() >> MI_SIZE_LOG2;
+    const int bh_log2 = block.Height() >> MI_SIZE_LOG2;
+    const int numIter = is_speed ? 1 : 16384 / (bw_log2 * bh_log2);
+    const int oh_start_bits = is_speed ? kMaxOrderHintBits : 1;
+
+    oh_info.enable_order_hint = 1;
+    for (int oh_bits = oh_start_bits; oh_bits <= kMaxOrderHintBits; oh_bits++) {
+      for (int count = 0; count < numIter; count++) {
+        const int cur_frm_idx = RandomFrameIdx(oh_bits);
+        const int ref0_frm_idx = RandomFrameIdx(oh_bits);
+        const int ref1_frm_idx = RandomFrameIdx(oh_bits);
+
+        oh_info.order_hint_bits_minus_1 = oh_bits - 1;
+        const int d0 = get_relative_dist(&oh_info, cur_frm_idx, ref0_frm_idx);
+        const int d1 = get_relative_dist(&oh_info, cur_frm_idx, ref1_frm_idx);
+        if (!d0 || !d1) continue;
+
+        RandomInput8(src_buf1_, GetParam());
+        RandomInput8(src_buf2_, GetParam());
+        TestCopyPredArray(src_buf1_, src_buf2_, dst_buf1_ref_, dst_buf2_ref_,
+                          dst_buf1_test_, dst_buf2_test_, d0, d1, is_speed);
+      }
+    }
+    if (is_speed) return;
+    for (int oh_bits = oh_start_bits; oh_bits <= kMaxOrderHintBits; oh_bits++) {
+      for (int count = 0; count < numIter; count++) {
+        const int cur_frm_idx = RandomFrameIdx(oh_bits);
+        const int ref0_frm_idx = RandomFrameIdx(oh_bits);
+        const int ref1_frm_idx = RandomFrameIdx(oh_bits);
+
+        oh_info.order_hint_bits_minus_1 = oh_bits - 1;
+        const int d0 = get_relative_dist(&oh_info, cur_frm_idx, ref0_frm_idx);
+        const int d1 = get_relative_dist(&oh_info, cur_frm_idx, ref1_frm_idx);
+        if (!d0 || !d1) continue;
+
+        RandomInput8Extreme(src_buf1_, GetParam());
+        RandomInput8Extreme(src_buf2_, GetParam());
+        TestCopyPredArray(src_buf1_, src_buf2_, dst_buf1_ref_, dst_buf2_ref_,
+                          dst_buf1_test_, dst_buf2_test_, d0, d1, 0);
+      }
+    }
+  }
+
+ private:
+  void TestCopyPredArray(uint8_t *src_buf1, uint8_t *src_buf2,
+                         int16_t *dst_buf1_ref, int16_t *dst_buf2_ref,
+                         int16_t *dst_buf1_test, int16_t *dst_buf2_test, int d0,
+                         int d1, int is_speed) {
+    const BlockSize &block = GetParam().Block();
+    const int bw = block.Width();
+    const int bh = block.Height();
+
+    pred_buffer_copy ref_func = av1_copy_pred_array_c;
+    pred_buffer_copy test_func = GetParam().TestFunction();
+    if (is_speed)
+      CopyPredArraySpeed(ref_func, test_func, src_buf1, src_buf2, dst_buf1_ref,
+                         dst_buf2_ref, dst_buf1_test, dst_buf2_test, d0, d1, bw,
+                         bh);
+    else
+      CopyPredArray(ref_func, test_func, src_buf1, src_buf2, dst_buf1_ref,
+                    dst_buf2_ref, dst_buf1_test, dst_buf2_test, d0, d1, bw, bh);
+  }
+
+  void CopyPredArray(pred_buffer_copy ref_func, pred_buffer_copy test_func,
+                     const uint8_t *src_buf1, uint8_t *src_buf2,
+                     int16_t *dst_buf1_ref, int16_t *dst_buf2_ref,
+                     int16_t *dst_buf1_test, int16_t *dst_buf2_test,
+                     const int d0, const int d1, const int bw, const int bh) {
+    ref_func(src_buf1, src_buf2, dst_buf1_ref, dst_buf2_ref, bw, bh, d0, d1);
+    test_func(src_buf1, src_buf2, dst_buf1_test, dst_buf2_test, bw, bh, d0, d1);
+
+    AssertOutputBufferEq(dst_buf1_ref, dst_buf1_test, bw, bh);
+    AssertOutputBufferEq(dst_buf2_ref, dst_buf2_test, bw, bh);
+  }
+
+  void CopyPredArraySpeed(pred_buffer_copy ref_func, pred_buffer_copy test_func,
+                          const uint8_t *src_buf1, uint8_t *src_buf2,
+                          int16_t *dst_buf1_ref, int16_t *dst_buf2_ref,
+                          int16_t *dst_buf1_test, int16_t *dst_buf2_test,
+                          const int d0, const int d1, const int bw,
+                          const int bh) {
+    const int bw_log2 = bw >> MI_SIZE_LOG2;
+    const int bh_log2 = bh >> MI_SIZE_LOG2;
+    printf("bw=%d, bh=%d\n", bw, bh);
+    const int numIter = 2097152 / (bw_log2 * bh_log2);
+    aom_usec_timer timer_ref;
+    aom_usec_timer timer_test;
+
+    aom_usec_timer_start(&timer_ref);
+    for (int count = 0; count < numIter; count++)
+      ref_func(src_buf1, src_buf2, dst_buf1_ref, dst_buf2_ref, bw, bh, d0, d1);
+    aom_usec_timer_mark(&timer_ref);
+
+    aom_usec_timer_start(&timer_test);
+    for (int count = 0; count < numIter; count++)
+      test_func(src_buf1, src_buf2, dst_buf1_test, dst_buf2_test, bw, bh, d0,
+                d1);
+    aom_usec_timer_mark(&timer_test);
+
+    const int total_time_ref =
+        static_cast<int>(aom_usec_timer_elapsed(&timer_ref));
+    const int total_time_test =
+        static_cast<int>(aom_usec_timer_elapsed(&timer_test));
+
+    printf("ref_time = %d \t simd_time = %d \t Gain = %4.2f \n", total_time_ref,
+           total_time_test,
+           (static_cast<float>(total_time_ref) /
+            static_cast<float>(total_time_test)));
+  }
+
+  uint8_t *src_buf1_;
+  uint8_t *src_buf2_;
+  int16_t *dst_buf1_ref_;
+  int16_t *dst_buf2_ref_;
+  int16_t *dst_buf1_test_;
+  int16_t *dst_buf2_test_;
+  int d0_;
+  int d1_;
+  static constexpr int kMaxOrderHintBits = 8;
+};
+
+TEST_P(AV1OptFlowCopyPredTest, CheckOutput) { Run(0); }
+TEST_P(AV1OptFlowCopyPredTest, DISABLED_Speed) { Run(1); }
+
+INSTANTIATE_TEST_SUITE_P(C, AV1OptFlowCopyPredTest,
+                         BuildOptFlowParams(av1_copy_pred_array_c));
+
+#if HAVE_SSE4_1
+INSTANTIATE_TEST_SUITE_P(SSE4_1, AV1OptFlowCopyPredTest,
+                         BuildOptFlowParams(av1_copy_pred_array_sse4_1));
+#endif
+
+typedef void (*pred_buffer_copy_highbd)(const uint16_t *src1,
+                                        const uint16_t *src2, int16_t *dst1,
+                                        int16_t *dst2, int bw, int bh, int d0,
+                                        int d1);
+
+class AV1OptFlowCopyPredHighbdTest
+    : public AV1OptFlowTest<pred_buffer_copy_highbd> {
+ public:
+  AV1OptFlowCopyPredHighbdTest() {
+    const BlockSize &block = GetParam().Block();
+    const int bw = block.Width();
+    const int bh = block.Height();
+
+    src_buf1_ = (uint16_t *)aom_memalign(16, bw * bh * sizeof(*src_buf1_));
+    src_buf2_ = (uint16_t *)aom_memalign(16, bw * bh * sizeof(*src_buf2_));
+    dst_buf1_ref_ =
+        (int16_t *)aom_memalign(16, bw * bh * sizeof(*dst_buf1_ref_));
+    dst_buf2_ref_ =
+        (int16_t *)aom_memalign(16, bw * bh * sizeof(*dst_buf2_ref_));
+    dst_buf1_test_ =
+        (int16_t *)aom_memalign(16, bw * bh * sizeof(*dst_buf1_test_));
+    dst_buf2_test_ =
+        (int16_t *)aom_memalign(16, bw * bh * sizeof(*dst_buf2_test_));
+
+    memset(dst_buf2_ref_, 0, bw * bh * sizeof(*dst_buf2_ref_));
+    memset(dst_buf2_test_, 0, bw * bh * sizeof(*dst_buf2_test_));
+  }
+
+  ~AV1OptFlowCopyPredHighbdTest() {
+    aom_free(src_buf1_);
+    aom_free(src_buf2_);
+    aom_free(dst_buf1_ref_);
+    aom_free(dst_buf2_ref_);
+    aom_free(dst_buf1_test_);
+    aom_free(dst_buf2_test_);
+  }
+
+  void Run(const int is_speed) {
+    OrderHintInfo oh_info;
+    const BlockSize &block = GetParam().Block();
+    const int bw_log2 = block.Width() >> MI_SIZE_LOG2;
+    const int bh_log2 = block.Height() >> MI_SIZE_LOG2;
+    const int bd = GetParam().BitDepth();
+    const int numIter = is_speed ? 1 : 16384 / (bw_log2 * bh_log2);
+    const int oh_start_bits = is_speed ? kMaxOrderHintBits : 1;
+
+    oh_info.enable_order_hint = 1;
+    for (int oh_bits = oh_start_bits; oh_bits <= kMaxOrderHintBits; oh_bits++) {
+      for (int count = 0; count < numIter; count++) {
+        const int cur_frm_idx = RandomFrameIdx(oh_bits);
+        const int ref0_frm_idx = RandomFrameIdx(oh_bits);
+        const int ref1_frm_idx = RandomFrameIdx(oh_bits);
+
+        oh_info.order_hint_bits_minus_1 = oh_bits - 1;
+        const int d0 = get_relative_dist(&oh_info, cur_frm_idx, ref0_frm_idx);
+        const int d1 = get_relative_dist(&oh_info, cur_frm_idx, ref1_frm_idx);
+        if (!d0 || !d1) continue;
+
+        RandomInput16(src_buf1_, GetParam(), bd);
+        RandomInput16(src_buf2_, GetParam(), bd);
+        TestCopyPredArray(src_buf1_, src_buf2_, dst_buf1_ref_, dst_buf2_ref_,
+                          dst_buf1_test_, dst_buf2_test_, d0, d1, is_speed);
+      }
+    }
+    if (is_speed) return;
+    for (int oh_bits = oh_start_bits; oh_bits <= kMaxOrderHintBits; oh_bits++) {
+      for (int count = 0; count < numIter; count++) {
+        const int cur_frm_idx = RandomFrameIdx(oh_bits);
+        const int ref0_frm_idx = RandomFrameIdx(oh_bits);
+        const int ref1_frm_idx = RandomFrameIdx(oh_bits);
+
+        oh_info.order_hint_bits_minus_1 = oh_bits - 1;
+        const int d0 = get_relative_dist(&oh_info, cur_frm_idx, ref0_frm_idx);
+        const int d1 = get_relative_dist(&oh_info, cur_frm_idx, ref1_frm_idx);
+        if (!d0 || !d1) continue;
+
+        RandomInput16Extreme(src_buf1_, GetParam(), bd);
+        RandomInput16Extreme(src_buf2_, GetParam(), bd);
+        TestCopyPredArray(src_buf1_, src_buf2_, dst_buf1_ref_, dst_buf2_ref_,
+                          dst_buf1_test_, dst_buf2_test_, d0, d1, 0);
+      }
+    }
+  }
+
+ private:
+  void TestCopyPredArray(uint16_t *src_buf1, uint16_t *src_buf2,
+                         int16_t *dst_buf1_ref, int16_t *dst_buf2_ref,
+                         int16_t *dst_buf1_test, int16_t *dst_buf2_test, int d0,
+                         int d1, int is_speed) {
+    const BlockSize &block = GetParam().Block();
+    const int bw = block.Width();
+    const int bh = block.Height();
+
+    pred_buffer_copy_highbd ref_func = av1_copy_pred_array_highbd_c;
+    pred_buffer_copy_highbd test_func = GetParam().TestFunction();
+    if (is_speed)
+      CopyPredArraySpeed(ref_func, test_func, src_buf1, src_buf2, dst_buf1_ref,
+                         dst_buf2_ref, dst_buf1_test, dst_buf2_test, d0, d1, bw,
+                         bh);
+    else
+      CopyPredArray(ref_func, test_func, src_buf1, src_buf2, dst_buf1_ref,
+                    dst_buf2_ref, dst_buf1_test, dst_buf2_test, d0, d1, bw, bh);
+  }
+
+  void CopyPredArray(pred_buffer_copy_highbd ref_func,
+                     pred_buffer_copy_highbd test_func,
+                     const uint16_t *src_buf1, uint16_t *src_buf2,
+                     int16_t *dst_buf1_ref, int16_t *dst_buf2_ref,
+                     int16_t *dst_buf1_test, int16_t *dst_buf2_test,
+                     const int d0, const int d1, const int bw, const int bh) {
+    ref_func(src_buf1, src_buf2, dst_buf1_ref, dst_buf2_ref, bw, bh, d0, d1);
+    test_func(src_buf1, src_buf2, dst_buf1_test, dst_buf2_test, bw, bh, d0, d1);
+
+    AssertOutputBufferEq(dst_buf1_ref, dst_buf1_test, bw, bh);
+    AssertOutputBufferEq(dst_buf2_ref, dst_buf2_test, bw, bh);
+  }
+
+  void CopyPredArraySpeed(pred_buffer_copy_highbd ref_func,
+                          pred_buffer_copy_highbd test_func,
+                          const uint16_t *src_buf1, uint16_t *src_buf2,
+                          int16_t *dst_buf1_ref, int16_t *dst_buf2_ref,
+                          int16_t *dst_buf1_test, int16_t *dst_buf2_test,
+                          const int d0, const int d1, const int bw,
+                          const int bh) {
+    const int bw_log2 = bw >> MI_SIZE_LOG2;
+    const int bh_log2 = bh >> MI_SIZE_LOG2;
+    printf("bw=%d, bh=%d\n", bw, bh);
+    const int numIter = 2097152 / (bw_log2 * bh_log2);
+    aom_usec_timer timer_ref;
+    aom_usec_timer timer_test;
+
+    aom_usec_timer_start(&timer_ref);
+    for (int count = 0; count < numIter; count++)
+      ref_func(src_buf1, src_buf2, dst_buf1_ref, dst_buf2_ref, bw, bh, d0, d1);
+    aom_usec_timer_mark(&timer_ref);
+
+    aom_usec_timer_start(&timer_test);
+    for (int count = 0; count < numIter; count++)
+      test_func(src_buf1, src_buf2, dst_buf1_test, dst_buf2_test, bw, bh, d0,
+                d1);
+    aom_usec_timer_mark(&timer_test);
+
+    const int total_time_ref =
+        static_cast<int>(aom_usec_timer_elapsed(&timer_ref));
+    const int total_time_test =
+        static_cast<int>(aom_usec_timer_elapsed(&timer_test));
+
+    printf("ref_time = %d \t simd_time = %d \t Gain = %4.2f \n", total_time_ref,
+           total_time_test,
+           (static_cast<float>(total_time_ref) /
+            static_cast<float>(total_time_test)));
+  }
+
+  uint16_t *src_buf1_;
+  uint16_t *src_buf2_;
+  int16_t *dst_buf1_ref_;
+  int16_t *dst_buf2_ref_;
+  int16_t *dst_buf1_test_;
+  int16_t *dst_buf2_test_;
+  int d0_;
+  int d1_;
+  static constexpr int kMaxOrderHintBits = 8;
+};
+
+TEST_P(AV1OptFlowCopyPredHighbdTest, CheckOutput) { Run(0); }
+TEST_P(AV1OptFlowCopyPredHighbdTest, DISABLED_Speed) { Run(1); }
+
+INSTANTIATE_TEST_SUITE_P(C, AV1OptFlowCopyPredHighbdTest,
+                         BuildOptFlowParams(av1_copy_pred_array_highbd_c));
+
+#if HAVE_SSE4_1
+INSTANTIATE_TEST_SUITE_P(SSE4_1, AV1OptFlowCopyPredHighbdTest,
+                         BuildOptFlowParams(av1_copy_pred_array_highbd_sse4_1));
+#endif
+#endif  // OPFL_BILINEAR_GRAD || OPFL_BICUBIC_GRAD
 }  // namespace
 
 #endif  // CONFIG_OPTFLOW_REFINEMENT
