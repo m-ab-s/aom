@@ -202,13 +202,12 @@ static uint8_t interp_pixel_erp(const uint8_t *ref_frame, int ref_frame_stride,
   y_kernel_idx = cal_kernel_idx(subpel_y, &y_ref);
 
   get_interp_x_arr(x_ref, y_ref, ref_frame, ref_frame_stride, frame_width,
-                   frame_height, kernel, filter_tap, x_kernel_idx * 2,
-                   x_sum_arr);
+                   frame_height, kernel, filter_tap, x_kernel_idx, x_sum_arr);
 
   // Perform filtering on the column
   sum = 0;
   for (int k = 0; k < filter_tap; k++) {
-    coeff = kernel[y_kernel_idx * 2][k] / 128.0;
+    coeff = kernel[y_kernel_idx][k] / 128.0;
     sum += x_sum_arr[k] * coeff;
   }
 
