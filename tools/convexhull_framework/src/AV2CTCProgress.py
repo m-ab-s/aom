@@ -327,7 +327,7 @@ def WriteSummaryXlsFile(bdrate, seq_time, seq_instr, summary):
         csv.write(',%s'%qty)
     csv.write(",EncTime(s),EncInstr\n")
 
-    wb = xlsxwriter.Workbook(summary + ".xls")
+    wb = xlsxwriter.Workbook(summary + ".xlsx")
     shts = []
 
     for mode in csv_files.keys():

@@ -14,7 +14,7 @@ import os
 import math
 import Utils
 from Config import AOMENC, AV1ENC, SVTAV1, EnableTimingInfo, Platform, UsePerfUtil, CTC_VERSION, HEVCCfgFile, \
-     HMENC, EnableOpenGOP, GOP_SIZE, SUB_GOP_SIZE
+     HMENC, EnableOpenGOP, GOP_SIZE, SUB_GOP_SIZE, EnableTemporalFilter
 from Utils import ExecuteCmd, ConvertY4MToYUV, DeleteFile, GetShortContentName
 
 def get_qindex_from_QP(QP):
@@ -34,7 +34,7 @@ def EncodeWithAOM_AV2(clip, test_cfg, QP, framenum, outfile, preset, enc_perf,
     args = " --verbose --codec=av1 -v --psnr --obu --frame-parallel=0" \
            " --cpu-used=%s --limit=%d --passes=1 --end-usage=q --i%s " \
            " --use-fixed-qp-offsets=1 --deltaq-mode=0 " \
-           " --enable-tpl-model=0 --enable-keyframe-filtering=0 --fps=%d/%d " \
+           " --enable-tpl-model=0 --fps=%d/%d " \
            " --input-bit-depth=%d --bit-depth=%d -w %d -h %d" \
            % (preset, framenum, clip.fmt, clip.fps_num, clip.fps_denom,
               clip.bit_depth, clip.bit_depth, clip.width, clip.height)
@@ -55,6 +55,11 @@ def EncodeWithAOM_AV2(clip, test_cfg, QP, framenum, outfile, preset, enc_perf,
         args += " --enable-fwd-kf=1 "
     else:
         args += " --enable-fwd-kf=0 "
+
+    if EnableTemporalFilter:
+        args += " --enable-keyframe-filtering=1 "
+    else:
+        args += " --enable-keyframe-filtering=0 "
 
     if test_cfg == "AI" or test_cfg == "STILL":
         args += " --kf-min-dist=0 --kf-max-dist=0 "
@@ -95,7 +100,7 @@ def EncodeWithAOM_AV1(clip, test_cfg, QP, framenum, outfile, preset, enc_perf,
     args = " --verbose --codec=av1 -v --psnr --obu --frame-parallel=0" \
            " --cpu-used=%s --limit=%d --passes=1 --end-usage=q --i%s " \
            " --use-fixed-qp-offsets=1 --deltaq-mode=0 " \
-           " --enable-tpl-model=0 --enable-keyframe-filtering=0 --fps=%d/%d " \
+           " --enable-tpl-model=0 --fps=%d/%d " \
            " --input-bit-depth=%d --bit-depth=%d --cq-level=%d -w %d -h %d" \
            % (preset, framenum, clip.fmt, clip.fps_num, clip.fps_denom,
               clip.bit_depth, clip.bit_depth, QP, clip.width, clip.height)
@@ -111,6 +116,11 @@ def EncodeWithAOM_AV1(clip, test_cfg, QP, framenum, outfile, preset, enc_perf,
         args += " --enable-fwd-kf=1 "
     else:
         args += " --enable-fwd-kf=0 "
+
+    if EnableTemporalFilter:
+        args += " --enable-keyframe-filtering=1 "
+    else:
+        args += " --enable-keyframe-filtering=0 "
 
     if test_cfg == "AI" or test_cfg == "STILL":
         args += " --kf-min-dist=0 --kf-max-dist=0 "
@@ -219,6 +229,11 @@ def EncodeWithHM_HEVC(clip, test_cfg, QP, framenum, outfile, preset, enc_perf,
         args += " --DecodingRefreshType=1 "
     else:
         args += " --DecodingRefreshType=2 "
+
+    if EnableTemporalFilter:
+        args += " --TemporalFilter=1 "
+    else:
+        args += " --TemporalFilter=0 "
 
     if test_cfg == "AI" or test_cfg == "STILL":
         args += " --IntraPeriod=1 "

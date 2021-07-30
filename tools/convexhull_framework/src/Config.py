@@ -36,6 +36,7 @@ EnableTimingInfo = True
 UsePerfUtil = False
 EnableMD5 = True
 EnableOpenGOP = False
+EnableTemporalFilter = False
 Platform = platform.system()
 PSNR_Y_WEIGHT = 14.0
 PSNR_U_WEIGHT = 1.0
@@ -43,8 +44,12 @@ PSNR_V_WEIGHT = 1.0
 APSNR_Y_WEIGHT = 4.0
 APSNR_U_WEIGHT = 1.0
 APSNR_V_WEIGHT = 1.0
-CTC_RegularXLSTemplate = os.path.join(BinPath, 'AOM_CWG_Regular_CTC_v6.xlsm')
-CTC_ASXLSTemplate = os.path.join(BinPath, 'AOM_CWG_AS_CTC_v9.6.xlsm')
+if CTC_VERSION == '2.0':
+    CTC_RegularXLSTemplate = os.path.join(BinPath, 'AOM_CWG_Regular_CTC_v7.1.xlsm')
+    CTC_ASXLSTemplate = os.path.join(BinPath, 'AOM_CWG_AS_CTC_v9.7.xlsm')
+else:
+    CTC_RegularXLSTemplate = os.path.join(BinPath, 'AOM_CWG_Regular_CTC_v6.1.xlsm')
+    CTC_ASXLSTemplate = os.path.join(BinPath, 'AOM_CWG_AS_CTC_v9.6.xlsm')
 
 ############ test contents #######################################
 ContentPath = "D://YUVs//AV2-CTC"
@@ -83,7 +88,7 @@ if CTC_VERSION == '2.0':
         "RA": [110, 135, 160, 185, 210, 235],
         "AI": [85, 110, 135, 160, 185, 210],
         "AS": [110, 135, 160, 185, 210, 235],
-        "STILL": [85, 110, 135, 160, 185, 210],
+        "STILL": [60, 85, 110, 135, 160, 185],
     }
 else:
     QPs = {
