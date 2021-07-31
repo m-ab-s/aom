@@ -1582,7 +1582,7 @@ static AOM_FORCE_INLINE void compute_pred_using_interp_grad_highbd_sse4_1(
       reg2 = _mm_madd_epi16(reg2, mul_val);
 
       temp1 = _mm_packs_epi32(reg1, reg2);
-      temp2 = _mm_subs_epi16(src_buf1, src_buf2);
+      temp2 = _mm_mullo_epi16(_mm_subs_epi16(src_buf1, src_buf2), mul1);
 #endif  // OPFL_EQUAL_DIST_ASSUMED
       xx_store_128(out1 + j, temp1);
       xx_store_128(out2 + j, temp2);
