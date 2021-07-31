@@ -3312,20 +3312,8 @@ static AOM_INLINE void write_sequence_header(
   }
 
   write_sb_size(seq_params, wb);
-#if CONFIG_SDP
-  aom_wb_write_bit(wb, seq_params->enable_sdp);
-#endif
-#if CONFIG_MRLS
-  aom_wb_write_bit(wb, seq_params->enable_mrls);
-#endif
   aom_wb_write_bit(wb, seq_params->enable_filter_intra);
   aom_wb_write_bit(wb, seq_params->enable_intra_edge_filter);
-#if CONFIG_ORIP
-  aom_wb_write_bit(wb, seq_params->enable_orip);
-#endif
-#if CONFIG_IST
-  aom_wb_write_bit(wb, seq_params->enable_ist);
-#endif
   if (!seq_params->reduced_still_picture_hdr) {
     aom_wb_write_bit(wb, seq_params->enable_interintra_compound);
     aom_wb_write_bit(wb, seq_params->enable_masked_compound);
@@ -3366,8 +3354,24 @@ static AOM_INLINE void write_sequence_header(
   aom_wb_write_bit(wb, seq_params->enable_superres);
   aom_wb_write_bit(wb, seq_params->enable_cdef);
   aom_wb_write_bit(wb, seq_params->enable_restoration);
+}
+
+static AOM_INLINE void write_sequence_header_beyond_av1(
+    const SequenceHeader *const seq_params, struct aom_write_bit_buffer *wb) {
+#if CONFIG_SDP
+  aom_wb_write_bit(wb, seq_params->enable_sdp);
+#endif
+#if CONFIG_IST
+  aom_wb_write_bit(wb, seq_params->enable_ist);
+#endif
+#if CONFIG_MRLS
+  aom_wb_write_bit(wb, seq_params->enable_mrls);
+#endif
 #if CONFIG_CCSO
   aom_wb_write_bit(wb, seq_params->enable_ccso);
+#endif
+#if CONFIG_ORIP
+  aom_wb_write_bit(wb, seq_params->enable_orip);
 #endif
 }
 
@@ -4119,6 +4123,9 @@ uint32_t av1_write_sequence_header_obu(const SequenceHeader *seq_params,
   write_color_config(seq_params, &wb);
 
   aom_wb_write_bit(&wb, seq_params->film_grain_params_present);
+
+  // Sequence header for coding tools beyond AV1
+  write_sequence_header_beyond_av1(seq_params, &wb);
 
   add_trailing_bits(&wb);
 
