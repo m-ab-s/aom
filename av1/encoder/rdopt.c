@@ -2672,6 +2672,7 @@ static AOM_INLINE int prune_modes_based_on_tpl_stats(
   // Prune the mode if cur_inter_cost is greater than threshold times
   // best_inter_cost
   const int64_t best_inter_cost = inter_cost_info_from_tpl->best_inter_cost;
+  if (best_inter_cost == INT64_MAX) return 0;
   if (cur_inter_cost >
       ((tpl_inter_mode_prune_mul_factor[prune_level][prune_index] *
         best_inter_cost) >>
