@@ -695,10 +695,22 @@ typedef struct {
   // List of QP offsets for: keyframe, ALTREF, and 3 levels of internal ARFs.
   // If any of these values are negative, fixed offsets are disabled.
   double fixed_qp_offsets[FIXED_QP_OFFSET_COUNT];
-  // If true, encoder will use fixed QP offsets, that are either:
+  // If the value is 0 (default), encoder may not use fixed QP offsets.
+  // If the value is 1, encoder will use fixed QP offsets, that are
+  // either:
   // - Given by the user, and stored in 'fixed_qp_offsets' array, OR
-  // - Picked automatically from qp.
+  // - Picked automatically from qp using a fixed factor.
+  // If the value is 2, encoder will use fixed QP offsets that are :
+  // - Derived from qp and has variable factors across Temporal levels as a fn.
+  // of q-step.
+  // TODO(krapaka): extend the derivation of factors also based on operating
+  // configuration such as random access and low-delay.
   int use_fixed_qp_offsets;
+#if CONFIG_QBASED_QP_OFFSET
+  // It true, the offset factor depends on the QP value
+  // else fixed value is used.
+  int q_based_qp_offsets;
+#endif  // CONFIG_QBASED_QP_OFFSET
   // Indicates the minimum flatness of the quantization matrix.
   int qm_minlevel;
   // Indicates the maximum flatness of the quantization matrix.

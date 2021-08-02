@@ -1069,7 +1069,12 @@ static int get_q_using_fixed_offsets(const AV1EncoderConfig *const oxcf,
                                      const RATE_CONTROL *const rc,
                                      const GF_GROUP *const gf_group,
                                      int gf_index, int qp, int bit_depth) {
+#if CONFIG_QBASED_QP_OFFSET
+  assert(oxcf->q_cfg.use_fixed_qp_offsets == 1 ||
+         oxcf->q_cfg.use_fixed_qp_offsets == 2);
+#else
   assert(oxcf->q_cfg.use_fixed_qp_offsets);
+#endif  // CONFIG_QBASED_QP_OFFSET
   assert(oxcf->rc_cfg.mode == AOM_Q);
   const FRAME_UPDATE_TYPE update_type = gf_group->update_type[gf_index];
 
