@@ -1376,6 +1376,8 @@ static int64_t motion_mode_rd(
       assert(!is_comp_pred);
 #if CONFIG_SPHERICAL_PRED
       if (have_newmv_in_inter_mode(this_mode)) {
+        av1_single_motion_search(cpi, x, bsize, 0, &tmp_rate_mv, INT_MAX, NULL,
+                                 &mbmi->mv[0], NULL);
         av1_erp_motion_search(cpi, x, bsize, 0, &tmp_rate_mv, 30, &mbmi->mv[0]);
         tmp_rate2 = rate2_nocoeff - rate_mv0 + tmp_rate_mv;
       }

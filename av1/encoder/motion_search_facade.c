@@ -147,14 +147,15 @@ void av1_erp_motion_search(const AV1_COMP *const cpi, MACROBLOCK *x,
   SphereMV best_sp_mv, start_sp_mv;
   // TODO(bohanli,yaoyaogoogle): start with mbmi->mv[0] may also make sense?
   const MV ref_mv = av1_get_ref_mv(x, ref_idx).as_mv;
+  const MV start_mv = mbmi->mv[0].as_mv;
   // assume ref_mv is converted from sphere MV for the top left pixel of the
   // block
   double blk_phi, blk_theta, this_phi, this_theta;
   double this_x, this_y;
   av1_plane_to_sphere_erp(block_x, block_y, frame_width, frame_height, &blk_phi,
                           &blk_theta);
-  av1_plane_to_sphere_erp(block_x + (double)ref_mv.col / 8.0,
-                          block_y + (double)ref_mv.row / 8.0, frame_width,
+  av1_plane_to_sphere_erp(block_x + (double)start_mv.col / 8.0,
+                          block_y + (double)start_mv.row / 8.0, frame_width,
                           frame_height, &this_phi, &this_theta);
   start_sp_mv.phi = this_phi - blk_phi;
   start_sp_mv.theta = this_theta - blk_theta;
@@ -183,6 +184,20 @@ void av1_erp_motion_search(const AV1_COMP *const cpi, MACROBLOCK *x,
          (double)ref_mv.row / 8.0;
   best_mv->as_mv.col = (int16_t)round((mv_x)*8.0);
   best_mv->as_mv.row = (int16_t)round((mv_y)*8.0);
+
+  SubpelMvLimits mv_limits;
+  av1_set_subpel_mv_search_range(&mv_limits, &x->mv_limits, &ref_mv);
+  clamp_mv(&best_mv->as_mv, &mv_limits);
+
+  if (cpi->common.features.allow_high_precision_mv == 0) {
+    best_mv->as_mv.col = 2 * ((best_mv->as_mv.col + 1) / 2);
+    best_mv->as_mv.row = 2 * ((best_mv->as_mv.row + 1) / 2);
+  }
+
+  if (cpi->common.features.cur_frame_force_integer_mv) {
+    best_mv->as_mv.col = 8 * ((best_mv->as_mv.col + 4) / 8);
+    best_mv->as_mv.row = 8 * ((best_mv->as_mv.row + 4) / 8);
+  }
 
   *rate_mv = av1_mv_bit_cost(&best_mv->as_mv, &ref_mv, mv_costs->nmv_joint_cost,
                              mv_costs->mv_cost_stack, MV_COST_WEIGHT);
