@@ -996,8 +996,13 @@ static AOM_INLINE void estimate_ref_frame_costs(
     const AV1_COMMON *cm, const MACROBLOCKD *xd, const ModeCosts *mode_costs,
     int segment_id, unsigned int *ref_costs_single,
     unsigned int (*ref_costs_comp)[REF_FRAMES]) {
+#if CONFIG_NEW_REF_SIGNALING
+  (void)segment_id;
+  int seg_ref_active = 0;
+#else
   int seg_ref_active =
       segfeature_active(&cm->seg, segment_id, SEG_LVL_REF_FRAME);
+#endif  // CONFIG_NEW_REF_SIGNALING
   if (seg_ref_active) {
     memset(ref_costs_single, 0, REF_FRAMES * sizeof(*ref_costs_single));
     int ref_frame;
@@ -4367,10 +4372,12 @@ static AOM_INLINE void init_mode_skip_mask(mode_skip_mask_t *mask,
                                            const AV1_COMP *cpi, MACROBLOCK *x,
                                            BLOCK_SIZE bsize) {
   const AV1_COMMON *const cm = &cpi->common;
-  const struct segmentation *const seg = &cm->seg;
+#if !CONFIG_NEW_REF_SIGNALING
   MACROBLOCKD *const xd = &x->e_mbd;
   MB_MODE_INFO *const mbmi = xd->mi[0];
+  const struct segmentation *const seg = &cm->seg;
   unsigned char segment_id = mbmi->segment_id;
+#endif  // !CONFIG_NEW_REF_SIGNALING
   const SPEED_FEATURES *const sf = &cpi->sf;
   REF_SET ref_set = REF_SET_FULL;
 
@@ -4410,16 +4417,24 @@ static AOM_INLINE void init_mode_skip_mask(mode_skip_mask_t *mask,
         mask->pred_modes[ref_frame] |= INTER_NEAREST_NEAR_ZERO;
       }
     }
+#if !CONFIG_NEW_REF_SIGNALING
     if (segfeature_active(seg, segment_id, SEG_LVL_REF_FRAME) &&
         get_segdata(seg, segment_id, SEG_LVL_REF_FRAME) != (int)ref_frame) {
       // Reference not used for the segment.
       disable_reference(ref_frame, mask->ref_combo);
     }
+#endif  // !CONFIG_NEW_REF_SIGNALING
   }
   // Note: We use the following drop-out only if the SEG_LVL_REF_FRAME feature
   // is disabled for this segment. This is to prevent the possibility that we
   // end up unable to pick any mode.
-  if (!segfeature_active(seg, segment_id, SEG_LVL_REF_FRAME)) {
+#if CONFIG_NEW_REF_SIGNALING
+  const int seg_ref_active = 0;
+#else
+  const int seg_ref_active =
+      segfeature_active(&cm->seg, segment_id, SEG_LVL_REF_FRAME);
+#endif  // CONFIG_NEW_REF_SIGNALING
+  if (!seg_ref_active) {
     // Only consider GLOBALMV/ALTREF_FRAME for alt ref frame,
     // unless ARNR filtering is enabled in which case we want
     // an unfiltered alternative. We allow near/nearest as well
@@ -4827,11 +4842,15 @@ static int inter_mode_compatible_skip(const AV1_COMP *cpi, const MACROBLOCK *x,
     const CurrentFrame *const current_frame = &cm->current_frame;
     if (current_frame->reference_mode == SINGLE_REFERENCE) return 1;
 
+#if CONFIG_NEW_REF_SIGNALING
+    (void)x;
+#else
     const struct segmentation *const seg = &cm->seg;
     const unsigned char segment_id = x->e_mbd.mi[0]->segment_id;
     // Do not allow compound prediction if the segment level reference frame
     // feature is in use as in this case there can only be one reference.
     if (segfeature_active(seg, segment_id, SEG_LVL_REF_FRAME)) return 1;
+#endif  // !CONFIG_NEW_REF_SIGNALING
   }
 
   if (ref_frames[0] > INTRA_FRAME && ref_frames[1] == INTRA_FRAME) {
@@ -6469,11 +6488,15 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
   search_state.best_mbmode.skip_mode = 0;
   if (cm->current_frame.skip_mode_info.skip_mode_flag &&
       is_comp_ref_allowed(bsize)) {
+#if CONFIG_NEW_REF_SIGNALING
+    rd_pick_skip_mode(rd_cost, &search_state, cpi, x, bsize, yv12_mb);
+#else
     const struct segmentation *const seg = &cm->seg;
     unsigned char segment_id = mbmi->segment_id;
     if (!segfeature_active(seg, segment_id, SEG_LVL_REF_FRAME)) {
       rd_pick_skip_mode(rd_cost, &search_state, cpi, x, bsize, yv12_mb);
     }
+#endif  // CONFIG_NEW_REF_SIGNALING
   }
 
   // Make sure that the ref_mv_idx is only nonzero when we're
@@ -6615,12 +6638,15 @@ void av1_rd_pick_inter_mode_sb_seg_skip(const AV1_COMP *cpi,
   mbmi->mode = GLOBALMV;
   mbmi->motion_mode = SIMPLE_TRANSLATION;
   mbmi->uv_mode = UV_DC_PRED;
+#if !CONFIG_NEW_REF_SIGNALING
   if (segfeature_active(&cm->seg, segment_id, SEG_LVL_REF_FRAME))
     mbmi->ref_frame[0] = get_segdata(&cm->seg, segment_id, SEG_LVL_REF_FRAME);
   else
     mbmi->ref_frame[0] = LAST_FRAME;
+#endif  // !CONFIG_NEW_REF_SIGNALING
   mbmi->ref_frame[1] = NONE_FRAME;
 #if CONFIG_NEW_REF_SIGNALING
+  mbmi->ref_frame[0] = LAST_FRAME;
   mbmi->ref_frame_nrs[0] = convert_named_ref_to_ranked_ref_index(
       &cm->new_ref_frame_data, mbmi->ref_frame[0]);
   mbmi->ref_frame_nrs[1] = convert_named_ref_to_ranked_ref_index(

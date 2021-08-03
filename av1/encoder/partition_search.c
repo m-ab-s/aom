@@ -975,8 +975,12 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
   const CurrentFrame *const current_frame = &cm->current_frame;
   const BLOCK_SIZE bsize = mbmi->sb_type;
   FRAME_CONTEXT *fc = xd->tile_ctx;
+#if CONFIG_NEW_REF_SIGNALING
+  const int seg_ref_active = 0;
+#else
   const int seg_ref_active =
       segfeature_active(&cm->seg, mbmi->segment_id, SEG_LVL_REF_FRAME);
+#endif  // CONFIG_NEW_REF_SIGNALING
 
   if (current_frame->skip_mode_info.skip_mode_flag && !seg_ref_active &&
       is_comp_ref_allowed(bsize)) {
@@ -1574,8 +1578,12 @@ static void encode_b(const AV1_COMP *const cpi, TileDataEnc *tile_data,
       }
       set_ref_ptrs(cm, xd, mbmi->ref_frame[0], mbmi->ref_frame[1]);
     } else {
+#if CONFIG_NEW_REF_SIGNALING
+      const int seg_ref_active = 0;
+#else
       const int seg_ref_active =
           segfeature_active(&cm->seg, mbmi->segment_id, SEG_LVL_REF_FRAME);
+#endif  // CONFIG_NEW_REF_SIGNALING
       if (!seg_ref_active) {
         // If the segment reference feature is enabled we have only a single
         // reference frame allowed for the segment so exclude it from
@@ -1601,8 +1609,12 @@ static void encode_b(const AV1_COMP *const cpi, TileDataEnc *tile_data,
         (cm->features.allow_warped_motion &&
          cpi->sf.inter_sf.prune_warped_prob_thresh > 0)) {
       const int inter_block = is_inter_block(mbmi);
+#if CONFIG_NEW_REF_SIGNALING
+      const int seg_ref_active = 0;
+#else
       const int seg_ref_active =
           segfeature_active(&cm->seg, mbmi->segment_id, SEG_LVL_REF_FRAME);
+#endif  // CONFIG_NEW_REF_SIGNALING
       if (!seg_ref_active && inter_block) {
 #if CONFIG_NEW_REF_SIGNALING
         const MOTION_MODE motion_allowed =

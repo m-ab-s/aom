@@ -373,8 +373,12 @@ static int write_skip_mode(const AV1_COMMON *cm, const MACROBLOCKD *xd,
     assert(!skip_mode);
     return 0;
   }
+#if CONFIG_NEW_REF_SIGNALING
+  if (segfeature_active(&cm->seg, segment_id, SEG_LVL_GLOBALMV)) {
+#else
   if (segfeature_active(&cm->seg, segment_id, SEG_LVL_REF_FRAME) ||
       segfeature_active(&cm->seg, segment_id, SEG_LVL_GLOBALMV)) {
+#endif  // CONFIG_NEW_REF_SIGNALING
     // These features imply single-reference mode, while skip mode implies
     // compound reference. Hence, the two are mutually exclusive.
     // In other words, skip_mode is implicitly 0 here.
@@ -389,7 +393,9 @@ static int write_skip_mode(const AV1_COMMON *cm, const MACROBLOCKD *xd,
 static AOM_INLINE void write_is_inter(const AV1_COMMON *cm,
                                       const MACROBLOCKD *xd, int segment_id,
                                       aom_writer *w, const int is_inter) {
+#if !CONFIG_NEW_REF_SIGNALING
   if (!segfeature_active(&cm->seg, segment_id, SEG_LVL_REF_FRAME)) {
+#endif  // !CONFIG_NEW_REF_SIGNALING
     if (segfeature_active(&cm->seg, segment_id, SEG_LVL_GLOBALMV)) {
       assert(is_inter);
       return;
@@ -397,7 +403,9 @@ static AOM_INLINE void write_is_inter(const AV1_COMMON *cm,
     const int ctx = av1_get_intra_inter_context(xd);
     FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
     aom_write_symbol(w, is_inter, ec_ctx->intra_inter_cdf[ctx], 2);
+#if !CONFIG_NEW_REF_SIGNALING
   }
+#endif  // !CONFIG_NEW_REF_SIGNALING
 }
 
 static AOM_INLINE void write_motion_mode(const AV1_COMMON *cm, MACROBLOCKD *xd,
@@ -711,10 +719,15 @@ static AOM_INLINE void write_ref_frames(const AV1_COMMON *cm,
 
   // If segment level coding of this signal is disabled...
   // or the segment allows multiple reference frame options
+#if CONFIG_NEW_REF_SIGNALING
+  if (segfeature_active(&cm->seg, segment_id, SEG_LVL_SKIP) ||
+      segfeature_active(&cm->seg, segment_id, SEG_LVL_GLOBALMV)) {
+#else
   if (segfeature_active(&cm->seg, segment_id, SEG_LVL_REF_FRAME)) {
     assert(!is_compound);
     assert(mbmi->ref_frame[0] ==
            get_segdata(&cm->seg, segment_id, SEG_LVL_REF_FRAME));
+#endif  // CONFIG_NEW_REF_SIGNALING
   } else if (segfeature_active(&cm->seg, segment_id, SEG_LVL_SKIP) ||
              segfeature_active(&cm->seg, segment_id, SEG_LVL_GLOBALMV)) {
     assert(!is_compound);

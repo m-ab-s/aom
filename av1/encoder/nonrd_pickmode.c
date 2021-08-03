@@ -455,8 +455,14 @@ static void estimate_single_ref_frame_costs(const AV1_COMMON *cm,
                                             const ModeCosts *mode_costs,
                                             int segment_id,
                                             unsigned int *ref_costs_single) {
+#if CONFIG_NEW_REF_SIGNALING
+  (void)cm;
+  (void)segment_id;
+  int seg_ref_active = 0;
+#else
   int seg_ref_active =
       segfeature_active(&cm->seg, segment_id, SEG_LVL_REF_FRAME);
+#endif  // CONFIG_NEW_REF_SIGNALING
   if (seg_ref_active) {
     memset(ref_costs_single, 0, REF_FRAMES * sizeof(*ref_costs_single));
   } else {
@@ -519,7 +525,14 @@ static void estimate_single_ref_frame_costs(const AV1_COMMON *cm,
 static void estimate_comp_ref_frame_costs(
     const AV1_COMMON *cm, const MACROBLOCKD *xd, const ModeCosts *mode_costs,
     int segment_id, unsigned int (*ref_costs_comp)[REF_FRAMES]) {
-  if (segfeature_active(&cm->seg, segment_id, SEG_LVL_REF_FRAME)) {
+#if CONFIG_NEW_REF_SIGNALING
+  (void)segment_id;
+  const int seg_ref_active = 0;
+#else
+  const int seg_ref_active =
+      segfeature_active(&cm->seg, segment_id, SEG_LVL_REF_FRAME);
+#endif  // CONFIG_NEW_REF_SIGNALING
+  if (seg_ref_active) {
     for (int ref_frame = 0; ref_frame < REF_FRAMES; ++ref_frame)
       memset(ref_costs_comp[ref_frame], 0,
              REF_FRAMES * sizeof((*ref_costs_comp)[0]));
@@ -1737,7 +1750,6 @@ static AOM_INLINE void get_ref_frame_use_mask(AV1_COMP *cpi, MACROBLOCK *x,
                                               int use_ref_frame[],
                                               int *force_skip_low_temp_var) {
   AV1_COMMON *const cm = &cpi->common;
-  const struct segmentation *const seg = &cm->seg;
   const int is_small_sb = (cm->seq_params.sb_size == BLOCK_64X64);
 
   int use_alt_ref_frame = cpi->sf.rt_sf.use_nonrd_altref_frame;
@@ -1764,11 +1776,16 @@ static AOM_INLINE void get_ref_frame_use_mask(AV1_COMP *cpi, MACROBLOCK *x,
     }
   }
 
+#if CONFIG_NEW_REF_SIGNALING
+  (void)mi;
+#else
+  const struct segmentation *const seg = &cm->seg;
   if (segfeature_active(seg, mi->segment_id, SEG_LVL_REF_FRAME) &&
       get_segdata(seg, mi->segment_id, SEG_LVL_REF_FRAME) == GOLDEN_FRAME) {
     use_golden_ref_frame = 1;
     use_alt_ref_frame = 0;
   }
+#endif  // CONFIG_NEW_REF_SIGNALING
 
   use_alt_ref_frame =
       cpi->common.ref_frame_flags & AOM_ALT_FLAG ? use_alt_ref_frame : 0;
@@ -2239,7 +2256,9 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
       TX_16X16);
 
   for (int idx = 0; idx < num_inter_modes; ++idx) {
+#if !CONFIG_NEW_REF_SIGNALING
     const struct segmentation *const seg = &cm->seg;
+#endif  // !CONFIG_NEW_REF_SIGNALING
 
     int rate_mv = 0;
     int is_skippable;
@@ -2285,11 +2304,13 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
         continue;
     }
 
+#if !CONFIG_NEW_REF_SIGNALING
     // If the segment reference frame feature is enabled then do nothing if the
     // current ref frame is not allowed.
     if (segfeature_active(seg, segment_id, SEG_LVL_REF_FRAME) &&
         get_segdata(seg, segment_id, SEG_LVL_REF_FRAME) != (int)ref_frame)
       continue;
+#endif  // !CONFIG_NEW_REF_SIGNALING
 
     if (skip_mode_by_bsize_and_ref_frame(this_mode, ref_frame, bsize,
                                          x->nonrd_prune_ref_frame_search,
@@ -2301,9 +2322,16 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
                               force_skip_low_temp_var))
       continue;
 
-    // Disable this drop out case if the ref frame segment level feature is
-    // enabled for this segment. This is to prevent the possibility that we
-    // end up unable to pick any mode.
+      // Disable this drop out case if the ref frame segment level feature is
+      // enabled for this segment. This is to prevent the possibility that we
+      // end up unable to pick any mode.
+#if CONFIG_NEW_REF_SIGNALING
+    // Check for skipping GOLDEN and ALTREF based pred_mv_sad.
+    if (cpi->sf.rt_sf.nonrd_prune_ref_frame_search > 0 &&
+        x->pred_mv_sad[ref_frame] != INT_MAX && ref_frame != LAST_FRAME) {
+      if ((int64_t)(x->pred_mv_sad[ref_frame]) > thresh_sad_pred) continue;
+    }
+#else
     if (!segfeature_active(seg, segment_id, SEG_LVL_REF_FRAME)) {
       // Check for skipping GOLDEN and ALTREF based pred_mv_sad.
       if (cpi->sf.rt_sf.nonrd_prune_ref_frame_search > 0 &&
@@ -2311,6 +2339,7 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
         if ((int64_t)(x->pred_mv_sad[ref_frame]) > thresh_sad_pred) continue;
       }
     }
+#endif  // CONFIG_NEW_REF_SIGNALING
 
     if (skip_mode_by_threshold(
             this_mode, ref_frame, frame_mv[this_mode][ref_frame],

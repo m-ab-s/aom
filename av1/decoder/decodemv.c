@@ -530,8 +530,12 @@ static int read_skip_mode(AV1_COMMON *cm, const MACROBLOCKD *xd, int segment_id,
 
   if (!is_comp_ref_allowed(xd->mi[0]->sb_type)) return 0;
 
+#if CONFIG_NEW_REF_SIGNALING
+  if (segfeature_active(&cm->seg, segment_id, SEG_LVL_GLOBALMV)) {
+#else
   if (segfeature_active(&cm->seg, segment_id, SEG_LVL_REF_FRAME) ||
       segfeature_active(&cm->seg, segment_id, SEG_LVL_GLOBALMV)) {
+#endif  // CONFIG_NEW_REF_SIGNALING
     // These features imply single-reference mode, while skip mode implies
     // compound reference. Hence, the two are mutually exclusive.
     // In other words, skip_mode is implicitly 0 here.
@@ -1123,12 +1127,17 @@ static void read_ref_frames(AV1_COMMON *const cm, MACROBLOCKD *const xd,
     return;
   }
 
+#if CONFIG_NEW_REF_SIGNALING
+  if (segfeature_active(&cm->seg, segment_id, SEG_LVL_SKIP) ||
+      segfeature_active(&cm->seg, segment_id, SEG_LVL_GLOBALMV)) {
+#else
   if (segfeature_active(&cm->seg, segment_id, SEG_LVL_REF_FRAME)) {
     ref_frame[0] = (MV_REFERENCE_FRAME)get_segdata(&cm->seg, segment_id,
                                                    SEG_LVL_REF_FRAME);
     ref_frame[1] = NONE_FRAME;
   } else if (segfeature_active(&cm->seg, segment_id, SEG_LVL_SKIP) ||
              segfeature_active(&cm->seg, segment_id, SEG_LVL_GLOBALMV)) {
+#endif  // CONFIG_NEW_REF_SIGNALING
     ref_frame[0] = LAST_FRAME;
     ref_frame[1] = NONE_FRAME;
   } else {
@@ -1514,11 +1523,13 @@ static INLINE int assign_mv(AV1_COMMON *cm, MACROBLOCKD *xd,
 
 static int read_is_inter_block(AV1_COMMON *const cm, MACROBLOCKD *const xd,
                                int segment_id, aom_reader *r) {
+#if !CONFIG_NEW_REF_SIGNALING
   if (segfeature_active(&cm->seg, segment_id, SEG_LVL_REF_FRAME)) {
     const int frame = get_segdata(&cm->seg, segment_id, SEG_LVL_REF_FRAME);
     if (frame < LAST_FRAME) return 0;
     return frame != INTRA_FRAME;
   }
+#endif  // !CONFIG_NEW_REF_SIGNALING
   if (segfeature_active(&cm->seg, segment_id, SEG_LVL_GLOBALMV)) {
     return 1;
   }
