@@ -1428,12 +1428,15 @@ int av1_opfl_mv_refinement_nxn_interp_grad_sse4_1(
 static AOM_FORCE_INLINE void compute_pred_using_interp_grad_sse4_1(
     const uint8_t *src1, const uint8_t *src2, int16_t *dst1, int16_t *dst2,
     int bw, int bh, int d0, int d1) {
+  const __m128i zero = _mm_setzero_si128();
 #if OPFL_EQUAL_DIST_ASSUMED
   (void)d0;
   (void)d1;
 #else
   const __m128i mul1 = _mm_set1_epi16(d0);
-  const __m128i mul2 = _mm_set1_epi16(d1);
+  const __m128i mul2 = _mm_sub_epi16(zero, _mm_set1_epi16(d1));
+  const __m128i mul_val1 = _mm_unpacklo_epi16(mul1, mul2);
+  const __m128i mul_val2 = _mm_unpacklo_epi16(mul1, _mm_sub_epi16(zero, mul1));
 #endif  // OPFL_EQUAL_DIST_ASSUMED
 
   if (bw < 16) {
@@ -1451,9 +1454,16 @@ static AOM_FORCE_INLINE void compute_pred_using_interp_grad_sse4_1(
         temp1 = _mm_add_epi16(src_buf1, src_buf2);
         temp2 = _mm_sub_epi16(src_buf1, src_buf2);
 #else
-        temp1 = _mm_sub_epi16(_mm_mullo_epi16(src_buf1, mul1),
-                              _mm_mullo_epi16(src_buf2, mul2));
-        temp2 = _mm_mullo_epi16(_mm_sub_epi16(src_buf1, src_buf2), mul1);
+        __m128i reg1 = _mm_unpacklo_epi16(src_buf1, src_buf2);
+        __m128i reg2 = _mm_unpackhi_epi16(src_buf1, src_buf2);
+
+        temp1 = _mm_madd_epi16(reg1, mul_val1);
+        temp2 = _mm_madd_epi16(reg2, mul_val1);
+        temp1 = _mm_packs_epi32(temp1, temp2);
+
+        reg1 = _mm_madd_epi16(reg1, mul_val2);
+        reg2 = _mm_madd_epi16(reg2, mul_val2);
+        temp2 = _mm_packs_epi32(reg1, reg2);
 
 #endif  // OPFL_EQUAL_DIST_ASSUMED
         xx_store_128(out1 + j, temp1);
@@ -1461,7 +1471,6 @@ static AOM_FORCE_INLINE void compute_pred_using_interp_grad_sse4_1(
       }
     }
   } else {
-    const __m128i zero = _mm_setzero_si128();
     for (int i = 0; i < bh; i++) {
       const uint8_t *inp1 = src1 + i * bw;
       const uint8_t *inp2 = src2 + i * bw;
@@ -1471,10 +1480,10 @@ static AOM_FORCE_INLINE void compute_pred_using_interp_grad_sse4_1(
         const __m128i src_buf1 = xx_load_128(inp1 + j);
         const __m128i src_buf2 = xx_load_128(inp2 + j);
 
-        const __m128i temp1 = _mm_unpacklo_epi8(src_buf1, zero);
-        const __m128i temp2 = _mm_unpackhi_epi8(src_buf1, zero);
-        const __m128i temp3 = _mm_unpacklo_epi8(src_buf2, zero);
-        const __m128i temp4 = _mm_unpackhi_epi8(src_buf2, zero);
+        __m128i temp1 = _mm_unpacklo_epi8(src_buf1, zero);
+        __m128i temp2 = _mm_unpackhi_epi8(src_buf1, zero);
+        __m128i temp3 = _mm_unpacklo_epi8(src_buf2, zero);
+        __m128i temp4 = _mm_unpackhi_epi8(src_buf2, zero);
 
         __m128i res1, res2, res3, res4;
 #if OPFL_EQUAL_DIST_ASSUMED
@@ -1483,13 +1492,27 @@ static AOM_FORCE_INLINE void compute_pred_using_interp_grad_sse4_1(
         res3 = _mm_sub_epi16(temp1, temp3);
         res4 = _mm_sub_epi16(temp2, temp4);
 #else
-        res1 = _mm_sub_epi16(_mm_mullo_epi16(temp1, mul1),
-                             _mm_mullo_epi16(temp3, mul2));
-        res2 = _mm_sub_epi16(_mm_mullo_epi16(temp2, mul1),
-                             _mm_mullo_epi16(temp4, mul2));
+        __m128i reg1, reg2, reg3, reg4;
+        reg1 = _mm_unpacklo_epi16(temp1, temp3);
+        reg2 = _mm_unpackhi_epi16(temp1, temp3);
+        reg3 = _mm_unpacklo_epi16(temp2, temp4);
+        reg4 = _mm_unpackhi_epi16(temp2, temp4);
 
-        res3 = _mm_mullo_epi16(_mm_sub_epi16(temp1, temp3), mul1);
-        res4 = _mm_mullo_epi16(_mm_sub_epi16(temp2, temp4), mul1);
+        temp1 = _mm_madd_epi16(reg1, mul_val1);
+        temp2 = _mm_madd_epi16(reg2, mul_val1);
+        res1 = _mm_packs_epi32(temp1, temp2);
+
+        temp2 = _mm_madd_epi16(reg3, mul_val1);
+        temp3 = _mm_madd_epi16(reg4, mul_val1);
+        res2 = _mm_packs_epi32(temp2, temp3);
+
+        temp3 = _mm_madd_epi16(reg1, mul_val2);
+        temp4 = _mm_madd_epi16(reg2, mul_val2);
+        res3 = _mm_packs_epi32(temp3, temp4);
+
+        temp3 = _mm_madd_epi16(reg3, mul_val2);
+        temp4 = _mm_madd_epi16(reg4, mul_val2);
+        res4 = _mm_packs_epi32(temp3, temp4);
 
 #endif  // OPFL_EQUAL_DIST_ASSUMED
         xx_store_128(out1 + j, res1);
@@ -1558,7 +1581,8 @@ static AOM_FORCE_INLINE void compute_pred_using_interp_grad_highbd_sse4_1(
   const __m128i zero = _mm_setzero_si128();
   const __m128i mul1 = _mm_set1_epi16(d0);
   const __m128i mul2 = _mm_sub_epi16(zero, _mm_set1_epi16(d1));
-  const __m128i mul_val = _mm_unpacklo_epi16(mul1, mul2);
+  const __m128i mul_val1 = _mm_unpacklo_epi16(mul1, mul2);
+  const __m128i mul_val2 = _mm_unpacklo_epi16(mul1, _mm_sub_epi16(zero, mul1));
 #endif  // OPFL_EQUAL_DIST_ASSUMED
 
   for (int i = 0; i < bh; i++) {
@@ -1578,11 +1602,14 @@ static AOM_FORCE_INLINE void compute_pred_using_interp_grad_highbd_sse4_1(
       __m128i reg1 = _mm_unpacklo_epi16(src_buf1, src_buf2);
       __m128i reg2 = _mm_unpackhi_epi16(src_buf1, src_buf2);
 
-      reg1 = _mm_madd_epi16(reg1, mul_val);
-      reg2 = _mm_madd_epi16(reg2, mul_val);
+      temp1 = _mm_madd_epi16(reg1, mul_val1);
+      temp2 = _mm_madd_epi16(reg2, mul_val1);
+      temp1 = _mm_packs_epi32(temp1, temp2);
 
-      temp1 = _mm_packs_epi32(reg1, reg2);
-      temp2 = _mm_mullo_epi16(_mm_subs_epi16(src_buf1, src_buf2), mul1);
+      reg1 = _mm_madd_epi16(reg1, mul_val2);
+      reg2 = _mm_madd_epi16(reg2, mul_val2);
+      temp2 = _mm_packs_epi32(reg1, reg2);
+
 #endif  // OPFL_EQUAL_DIST_ASSUMED
       xx_store_128(out1 + j, temp1);
       xx_store_128(out2 + j, temp2);
