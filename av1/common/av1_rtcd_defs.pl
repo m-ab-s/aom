@@ -143,7 +143,13 @@ if (aom_config("CONFIG_IST") eq "yes") {
   specialize qw/inv_stxfm sse4_1/;
 }
 add_proto qw/void av1_inv_txfm_add/, "const tran_low_t *dqcoeff, uint8_t *dst, int stride, const TxfmParam *txfm_param";
-specialize qw/av1_inv_txfm_add ssse3 avx2 neon/;
+if (aom_config("CONFIG_IST") eq "yes") {
+  # Disable neon version due to: https://crbug.com/aomedia/3090#c10
+  specialize qw/av1_inv_txfm_add ssse3 avx2/;
+} else {
+  specialize qw/av1_inv_txfm_add ssse3 avx2 neon/;
+}
+
 
 add_proto qw/void av1_highbd_inv_txfm_add/, "const tran_low_t *input, uint8_t *dest, int stride, const TxfmParam *txfm_param";
 specialize qw/av1_highbd_inv_txfm_add sse4_1 avx2 neon/;
