@@ -448,14 +448,14 @@ TEST_P(ErrorResilienceTestLarge, SFrameTest) {
   // show_existing_frame. This issue still needs to be addressed.
   // Set an arbitrary S-frame
   unsigned int num_s_frames = 1;
-  unsigned int s_frame_list[] = { 6 };
+  unsigned int s_frame_list[] = { 8 };
   SetSFrames(num_s_frames, s_frame_list);
   // Ensure that any invisible frames before the S frame are dropped
   SetInvisibleErrorFrames(num_s_frames, s_frame_list);
 
   // Set a few frames before the S frame that are lost (not decoded)
-  unsigned int num_error_frames = 4;
-  unsigned int error_frame_list[] = { 2, 3, 4, 5 };
+  unsigned int num_error_frames = 6;
+  unsigned int error_frame_list[] = { 2, 3, 4, 5, 6, 7 };
   SetErrorFrames(num_error_frames, error_frame_list);
 
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
