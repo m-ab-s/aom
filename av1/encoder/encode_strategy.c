@@ -1424,14 +1424,14 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
       ref_frame_buf[i] = ref_frames[i] != NULL ? &ref_frames[i]->buf : NULL;
     }
 
-    frame_params.primary_ref_frame =
-        choose_primary_ref_frame(cpi, &frame_params);
-    frame_params.order_offset = gf_group->arf_src_offset[gf_group->index];
-
 #if CONFIG_NEW_REF_SIGNALING
     av1_init_new_ref_frame_map(&cpi->common, ref_frame_map_pairs,
                                cur_frame_disp);
 #endif  // CONFIG_NEW_REF_SIGNALING
+
+    frame_params.primary_ref_frame =
+        choose_primary_ref_frame(cpi, &frame_params);
+    frame_params.order_offset = gf_group->arf_src_offset[gf_group->index];
 
     // Work out which reference frame slots may be used.
     if (av1_check_keyframe_overlay(gf_group->index, gf_group,
