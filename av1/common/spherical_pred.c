@@ -319,6 +319,25 @@ static int get_sad_of_blocks(const uint8_t *cur_block,
   return ret_sad;
 }
 
+/* Calculate the scale of theta based on the current phi.
+ * Makes the search/filter pattern on the latitude sparse as the position moves
+ * toward polars. Will be used for adjusting searching step, searching range,
+ * and filtering.
+ */
+static double cal_theta_scale(double phi) {
+  const double max_scale = 10.0;
+
+  if (fabs(cos(phi)) > 0.00001) {
+    return AOMMIN(max_scale, 1 / fabs(cos(phi)));
+  } else {
+    return max_scale;
+  }
+}
+
+static double cal_range_theta(int search_range, int frame_width, double phi) {
+  return search_range * cal_theta_scale(phi) * 2 * PI / frame_width;
+}
+
 int av1_motion_search_brute_force_erp(
     int block_x, int block_y, int block_width, int block_height,
     const uint8_t *cur_frame, const uint8_t *ref_frame, int frame_stride,
@@ -387,30 +406,44 @@ int av1_motion_search_brute_force_erp(
  *                    ldsp_mv[5]
  */
 static void update_sphere_mv_ldsp(SphereMV ldsp_mv[9], double search_step_phi,
-                                  double search_step_theta) {
+                                  double search_step_theta, double block_phi) {
+  double magnified_step_theta;
+
   ldsp_mv[1].phi = ldsp_mv[0].phi - 2 * search_step_phi;
   ldsp_mv[1].theta = ldsp_mv[0].theta;
 
   ldsp_mv[2].phi = ldsp_mv[0].phi - search_step_phi;
-  ldsp_mv[2].theta = ldsp_mv[0].theta + search_step_theta;
+  magnified_step_theta =
+      search_step_theta * cal_theta_scale(block_phi + ldsp_mv[2].phi);
+  ldsp_mv[2].theta = ldsp_mv[0].theta + magnified_step_theta;
 
   ldsp_mv[3].phi = ldsp_mv[0].phi;
-  ldsp_mv[3].theta = ldsp_mv[0].theta + 2 * search_step_theta;
+  magnified_step_theta =
+      search_step_theta * cal_theta_scale(block_phi + ldsp_mv[3].phi);
+  ldsp_mv[3].theta = ldsp_mv[0].theta + 2 * magnified_step_theta;
 
   ldsp_mv[4].phi = ldsp_mv[0].phi + search_step_phi;
-  ldsp_mv[4].theta = ldsp_mv[0].theta + search_step_theta;
+  magnified_step_theta =
+      search_step_theta * cal_theta_scale(block_phi + ldsp_mv[4].phi);
+  ldsp_mv[4].theta = ldsp_mv[0].theta + magnified_step_theta;
 
   ldsp_mv[5].phi = ldsp_mv[0].phi + 2 * search_step_phi;
   ldsp_mv[5].theta = ldsp_mv[0].theta;
 
   ldsp_mv[6].phi = ldsp_mv[0].phi + search_step_phi;
-  ldsp_mv[6].theta = ldsp_mv[0].theta - search_step_theta;
+  magnified_step_theta =
+      search_step_theta * cal_theta_scale(block_phi + ldsp_mv[6].phi);
+  ldsp_mv[6].theta = ldsp_mv[0].theta - magnified_step_theta;
 
   ldsp_mv[7].phi = ldsp_mv[0].phi;
-  ldsp_mv[7].theta = ldsp_mv[0].theta - 2 * search_step_theta;
+  magnified_step_theta =
+      search_step_theta * cal_theta_scale(block_phi + ldsp_mv[7].phi);
+  ldsp_mv[7].theta = ldsp_mv[0].theta - 2 * magnified_step_theta;
 
   ldsp_mv[8].phi = ldsp_mv[0].phi - search_step_phi;
-  ldsp_mv[8].theta = ldsp_mv[0].theta - search_step_theta;
+  magnified_step_theta =
+      search_step_theta * cal_theta_scale(block_phi + ldsp_mv[8].phi);
+  ldsp_mv[8].theta = ldsp_mv[0].theta - magnified_step_theta;
 }
 
 /* Small Diamond Search Pattern on shpere
@@ -421,18 +454,24 @@ static void update_sphere_mv_ldsp(SphereMV ldsp_mv[9], double search_step_phi,
  *                     sdsp_mv[3]
  */
 static void update_sphere_mv_sdsp(SphereMV sdsp_mv[5], double search_step_phi,
-                                  double search_step_theta) {
+                                  double search_step_theta, double block_phi) {
+  double magnified_step_theta;
+
   sdsp_mv[1].phi = sdsp_mv[0].phi - search_step_phi;
   sdsp_mv[1].theta = sdsp_mv[0].theta;
 
   sdsp_mv[2].phi = sdsp_mv[0].phi;
-  sdsp_mv[2].theta = sdsp_mv[0].theta + search_step_theta;
+  magnified_step_theta =
+      search_step_theta * cal_theta_scale(block_phi + sdsp_mv[2].phi);
+  sdsp_mv[2].theta = sdsp_mv[0].theta + magnified_step_theta;
 
   sdsp_mv[3].phi = sdsp_mv[0].phi + search_step_phi;
   sdsp_mv[3].theta = sdsp_mv[0].theta;
 
   sdsp_mv[4].phi = sdsp_mv[0].phi;
-  sdsp_mv[4].theta = sdsp_mv[0].theta - search_step_theta;
+  magnified_step_theta =
+      search_step_theta * cal_theta_scale(block_phi + sdsp_mv[4].phi);
+  sdsp_mv[4].theta = sdsp_mv[0].theta - magnified_step_theta;
 }
 
 int av1_motion_search_diamond_erp(int block_x, int block_y, int block_width,
@@ -453,9 +492,9 @@ int av1_motion_search_diamond_erp(int block_x, int block_y, int block_width,
   SphereMV sdsp_mv[5];
 
   double search_step_phi =
-      AOMMIN(0.2 * block_height, 0.5 * search_range) * PI / frame_height;
+      AOMMIN(0.25 * block_height, 0.25 * search_range) * PI / frame_height;
   double search_step_theta =
-      AOMMIN(0.2 * block_width, 0.5 * search_range) * 2 * PI / frame_width;
+      AOMMIN(0.25 * block_width, 0.25 * search_range) * 2 * PI / frame_width;
 
   const uint8_t *cur_block = &cur_frame[block_x + block_y * frame_stride];
   uint8_t pred_block[128 * 128];
@@ -469,9 +508,7 @@ int av1_motion_search_diamond_erp(int block_x, int block_y, int block_width,
   double max_range_phi =
       start_phi + start_mv->phi + search_range * PI / frame_height;
   double min_range_phi =
-      start_phi + start_mv->theta - search_range * PI / frame_height;
-  double max_range_theta = start_theta + search_range * 2 * PI / frame_height;
-  double min_range_theta = start_theta - search_range * 2 * PI / frame_height;
+      start_phi + start_mv->phi - search_range * PI / frame_height;
 
   int best_mv_idx = 0;
   ldsp_mv[0].phi = start_mv->phi;
@@ -484,14 +521,20 @@ int av1_motion_search_diamond_erp(int block_x, int block_y, int block_width,
                    frame_height, pred_block_stride, pred_block);
   best_sad = get_sad_of_blocks(cur_block, pred_block, block_width, block_height,
                                frame_stride, pred_block_stride);
-  update_sphere_mv_ldsp(ldsp_mv, search_step_phi, search_step_theta);
+  update_sphere_mv_ldsp(ldsp_mv, search_step_phi, search_step_theta, start_phi);
 
   const double min_scale = 0.125;
 
   while (start_phi + ldsp_mv[5].phi <= max_range_phi &&
          start_phi + ldsp_mv[1].phi >= min_range_phi &&
-         start_theta + ldsp_mv[3].theta <= max_range_theta &&
-         start_theta + ldsp_mv[7].theta >= min_range_theta) {
+         start_theta + ldsp_mv[3].theta <=
+             start_theta + start_mv->theta +
+                 cal_range_theta(search_range, frame_width,
+                                 start_phi + ldsp_mv[3].phi) &&
+         start_theta + ldsp_mv[7].theta >=
+             start_theta + start_mv->theta -
+                 cal_range_theta(search_range, frame_width,
+                                 start_phi + ldsp_mv[7].phi)) {
     for (int i = 0; i < 9; i++) {
       av1_get_pred_erp(block_x, block_y, block_width, block_height,
                        ldsp_mv[i].phi, ldsp_mv[i].theta, ref_frame,
@@ -521,7 +564,8 @@ int av1_motion_search_diamond_erp(int block_x, int block_y, int block_width,
       ldsp_mv[0].theta = ldsp_mv[best_mv_idx].theta;
       best_mv_idx = 0;
     }
-    update_sphere_mv_ldsp(ldsp_mv, search_step_phi, search_step_theta);
+    update_sphere_mv_ldsp(ldsp_mv, search_step_phi, search_step_theta,
+                          start_phi);
   }
 
   sdsp_mv[0].phi = ldsp_mv[0].phi;
@@ -529,11 +573,17 @@ int av1_motion_search_diamond_erp(int block_x, int block_y, int block_width,
   best_mv_idx = 0;
   search_step_phi = min_scale * PI / frame_height;
   search_step_theta = min_scale * 2 * PI / frame_width;
-  update_sphere_mv_sdsp(sdsp_mv, search_step_phi, search_step_theta);
+  update_sphere_mv_sdsp(sdsp_mv, search_step_phi, search_step_theta, start_phi);
   if (start_phi + sdsp_mv[3].phi <= max_range_phi &&
       start_phi + sdsp_mv[1].phi >= min_range_phi &&
-      start_theta + sdsp_mv[2].theta <= max_range_theta &&
-      start_theta + sdsp_mv[4].theta >= min_range_theta) {
+      start_theta + sdsp_mv[2].theta <=
+          start_theta + start_mv->theta +
+              cal_range_theta(search_range, frame_width,
+                              start_phi + sdsp_mv[2].phi) &&
+      start_theta + sdsp_mv[4].theta >=
+          start_theta + start_mv->theta +
+              cal_range_theta(search_range, frame_width,
+                              start_phi + sdsp_mv[4].phi)) {
     for (int i = 0; i < 5; i++) {
       av1_get_pred_erp(block_x, block_y, block_width, block_height,
                        sdsp_mv[i].phi, sdsp_mv[i].theta, ref_frame,
