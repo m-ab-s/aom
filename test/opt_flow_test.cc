@@ -532,7 +532,7 @@ INSTANTIATE_TEST_SUITE_P(
 
 template <typename T>
 std::vector<TestParam<T>> GetOptFlowHighbdTestParams(T test_func) {
-  return GetOptFlowTestParams({ 10 }, test_func);
+  return GetOptFlowTestParams({ 8, 10, 12 }, test_func);
 }
 
 template <typename T>
@@ -1026,12 +1026,12 @@ TEST_P(AV1OptFlowBiCubicGradHighbdTest, DISABLED_Speed) { Run(1); }
 
 INSTANTIATE_TEST_SUITE_P(
     C, AV1OptFlowBiCubicGradHighbdTest,
-    BuildOptFlowParams(av1_bicubic_grad_interpolation_highbd_c));
+    BuildOptFlowHighbdParams(av1_bicubic_grad_interpolation_highbd_c));
 
 #if HAVE_SSE4_1
 INSTANTIATE_TEST_SUITE_P(
     SSE4_1, AV1OptFlowBiCubicGradHighbdTest,
-    BuildOptFlowParams(av1_bicubic_grad_interpolation_highbd_sse4_1));
+    BuildOptFlowHighbdParams(av1_bicubic_grad_interpolation_highbd_sse4_1));
 #endif
 #endif  // OPFL_BICUBIC_GRAD
 
@@ -1223,12 +1223,12 @@ TEST_P(AV1OptFlowRefineInterpGradTest, DISABLED_Speed) { RunTest(1); }
 
 INSTANTIATE_TEST_SUITE_P(
     C, AV1OptFlowRefineInterpGradTest,
-    BuildOptFlowParams(av1_opfl_mv_refinement_nxn_interp_grad_c));
+    BuildOptFlowHighbdParams(av1_opfl_mv_refinement_nxn_interp_grad_c));
 
 #if HAVE_SSE4_1
 INSTANTIATE_TEST_SUITE_P(
     SSE4_1, AV1OptFlowRefineInterpGradTest,
-    BuildOptFlowParams(av1_opfl_mv_refinement_nxn_interp_grad_sse4_1));
+    BuildOptFlowHighbdParams(av1_opfl_mv_refinement_nxn_interp_grad_sse4_1));
 #endif
 #endif  // OPFL_COMBINE_INTERP_GRAD_LS
 
@@ -1568,12 +1568,14 @@ class AV1OptFlowCopyPredHighbdTest
 TEST_P(AV1OptFlowCopyPredHighbdTest, CheckOutput) { Run(0); }
 TEST_P(AV1OptFlowCopyPredHighbdTest, DISABLED_Speed) { Run(1); }
 
-INSTANTIATE_TEST_SUITE_P(C, AV1OptFlowCopyPredHighbdTest,
-                         BuildOptFlowParams(av1_copy_pred_array_highbd_c));
+INSTANTIATE_TEST_SUITE_P(
+    C, AV1OptFlowCopyPredHighbdTest,
+    BuildOptFlowHighbdParams(av1_copy_pred_array_highbd_c));
 
 #if HAVE_SSE4_1
-INSTANTIATE_TEST_SUITE_P(SSE4_1, AV1OptFlowCopyPredHighbdTest,
-                         BuildOptFlowParams(av1_copy_pred_array_highbd_sse4_1));
+INSTANTIATE_TEST_SUITE_P(
+    SSE4_1, AV1OptFlowCopyPredHighbdTest,
+    BuildOptFlowHighbdParams(av1_copy_pred_array_highbd_sse4_1));
 #endif
 #endif  // OPFL_BILINEAR_GRAD || OPFL_BICUBIC_GRAD
 }  // namespace
