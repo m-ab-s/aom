@@ -1207,6 +1207,13 @@ enum aome_enc_control_id {
    * 0 : off, 1 : on
    */
   AV1E_SET_DISABLE_ML_PARTITION_SPEED_FEATURES = 157,
+
+  /*!\brief Codec control function to disable ML based transform search speed
+   * features.
+   *
+   * 0 : off, 1 : on
+   */
+  AV1E_SET_DISABLE_ML_TX_SPEED_FEATURES = 158,
 };
 
 /*!\brief aom 1-D scaling mode
@@ -1414,6 +1421,9 @@ AOM_CTRL_USE_TYPE(AV1E_SET_TIMING_INFO_TYPE, int) /* aom_timing_info_type_t */
 
 AOM_CTRL_USE_TYPE(AV1E_SET_DISABLE_ML_PARTITION_SPEED_FEATURES, int)
 #define AOM_CTRL_AV1E_SET_DISABLE_ML_PARTITION_SPEED_FEATURES
+
+AOM_CTRL_USE_TYPE(AV1E_SET_DISABLE_ML_TX_SPEED_FEATURES, int)
+#define AOM_CTRL_AV1E_SET_DISABLE_ML_TX_SPEED_FEATURES
 
 AOM_CTRL_USE_TYPE(AV1E_SET_ENABLE_RECT_PARTITIONS, int)
 #define AOM_CTRL_AV1E_SET_ENABLE_RECT_PARTITIONS

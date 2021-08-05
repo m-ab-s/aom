@@ -447,6 +447,10 @@ static const arg_def_t disable_ml_partition_speed_features =
     ARG_DEF(NULL, "disable-ml-partition-speed-features", 1,
             "Disable ML partition speed features "
             "(0: false (default), 1: true)");
+static const arg_def_t disable_ml_tx_speed_features =
+    ARG_DEF(NULL, "disable-ml-tx-speed-features", 1,
+            "Disable ML transform speed features "
+            "(0: false (default), 1: true)");
 static const arg_def_t enable_rect_partitions =
     ARG_DEF(NULL, "enable-rect-partitions", 1,
             "Enable rectangular partitions "
@@ -850,6 +854,7 @@ static const arg_def_t *av1_args[] = { &cpu_used_av1,
                                        &lossless,
                                        &enable_cdef,
                                        &enable_restoration,
+                                       &disable_ml_tx_speed_features,
                                        &disable_ml_partition_speed_features,
                                        &enable_rect_partitions,
                                        &enable_ab_partitions,
@@ -962,6 +967,7 @@ static const int av1_arg_ctrl_map[] = {
   AV1E_SET_LOSSLESS,
   AV1E_SET_ENABLE_CDEF,
   AV1E_SET_ENABLE_RESTORATION,
+  AV1E_SET_DISABLE_ML_TX_SPEED_FEATURES,
   AV1E_SET_DISABLE_ML_PARTITION_SPEED_FEATURES,
   AV1E_SET_ENABLE_RECT_PARTITIONS,
   AV1E_SET_ENABLE_AB_PARTITIONS,

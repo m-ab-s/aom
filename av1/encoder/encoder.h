@@ -368,6 +368,7 @@ typedef struct AV1EncoderConfig {
   int enable_dual_filter;
   unsigned int motion_vector_unit_test;
   unsigned int sb_multipass_unit_test;
+  int disable_ml_tx_speed_features;
   int disable_ml_partition_speed_features;
   int enable_rect_partitions;
   int enable_ab_partitions;
