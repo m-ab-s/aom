@@ -798,19 +798,20 @@ class AV1OptFlowBiCubicGradLowbdTest
 
   void RunTest(const int is_speed) {
     const BlockSize &block = GetParam().Block();
+    const int bd = GetParam().BitDepth();
     const int bw_log2 = block.Width() >> MI_SIZE_LOG2;
     const int bh_log2 = block.Height() >> MI_SIZE_LOG2;
     const int numIter = is_speed ? 1 : 16384 / (bw_log2 * bh_log2);
 
     for (int count = 0; count < numIter; count++) {
-      RandomInput16(pred_src_, GetParam(), 8);
+      RandomInput16(pred_src_, GetParam(), bd);
       TestBicubicGrad(pred_src_, x_grad_ref_, y_grad_ref_, x_grad_test_,
                       y_grad_test_, is_speed);
     }
     if (is_speed) return;
 
     for (int count = 0; count < numIter; count++) {
-      RandomInput16Extreme(pred_src_, GetParam(), 8);
+      RandomInput16Extreme(pred_src_, GetParam(), bd);
       TestBicubicGrad(pred_src_, x_grad_ref_, y_grad_ref_, x_grad_test_,
                       y_grad_test_, 0);
     }
@@ -932,19 +933,20 @@ class AV1OptFlowBiCubicGradHighbdTest
 
   void Run(const int is_speed) {
     const BlockSize &block = GetParam().Block();
+    const int bd = GetParam().BitDepth();
     const int bw_log2 = block.Width() >> MI_SIZE_LOG2;
     const int bh_log2 = block.Height() >> MI_SIZE_LOG2;
     const int numIter = is_speed ? 1 : 16384 / (bw_log2 * bh_log2);
 
     for (int count = 0; count < numIter; count++) {
-      RandomInput16(pred_src_, GetParam(), 12);
+      RandomInput16(pred_src_, GetParam(), bd);
       TestBicubicGradHighbd(pred_src_, x_grad_ref_, y_grad_ref_, x_grad_test_,
                             y_grad_test_, is_speed);
     }
     if (is_speed) return;
 
     for (int count = 0; count < numIter; count++) {
-      RandomInput16Extreme((uint16_t *)pred_src_, GetParam(), 12);
+      RandomInput16Extreme((uint16_t *)pred_src_, GetParam(), bd);
       TestBicubicGradHighbd(pred_src_, x_grad_ref_, y_grad_ref_, x_grad_test_,
                             y_grad_test_, 0);
     }
@@ -1278,7 +1280,7 @@ class AV1OptFlowCopyPredTest : public AV1OptFlowTest<pred_buffer_copy> {
 
     oh_info.enable_order_hint = 1;
     for (int oh_bits = oh_start_bits; oh_bits <= kMaxOrderHintBits; oh_bits++) {
-      for (int count = 0; count < numIter; count++) {
+      for (int count = 0; count < numIter;) {
         const int cur_frm_idx = RandomFrameIdx(oh_bits);
         const int ref0_frm_idx = RandomFrameIdx(oh_bits);
         const int ref1_frm_idx = RandomFrameIdx(oh_bits);
@@ -1292,6 +1294,7 @@ class AV1OptFlowCopyPredTest : public AV1OptFlowTest<pred_buffer_copy> {
         RandomInput8(src_buf2_, GetParam());
         TestCopyPredArray(src_buf1_, src_buf2_, dst_buf1_ref_, dst_buf2_ref_,
                           dst_buf1_test_, dst_buf2_test_, d0, d1, is_speed);
+        count++;
       }
     }
     if (is_speed) return;
@@ -1450,7 +1453,7 @@ class AV1OptFlowCopyPredHighbdTest
 
     oh_info.enable_order_hint = 1;
     for (int oh_bits = oh_start_bits; oh_bits <= kMaxOrderHintBits; oh_bits++) {
-      for (int count = 0; count < numIter; count++) {
+      for (int count = 0; count < numIter;) {
         const int cur_frm_idx = RandomFrameIdx(oh_bits);
         const int ref0_frm_idx = RandomFrameIdx(oh_bits);
         const int ref1_frm_idx = RandomFrameIdx(oh_bits);
@@ -1464,6 +1467,7 @@ class AV1OptFlowCopyPredHighbdTest
         RandomInput16(src_buf2_, GetParam(), bd);
         TestCopyPredArray(src_buf1_, src_buf2_, dst_buf1_ref_, dst_buf2_ref_,
                           dst_buf1_test_, dst_buf2_test_, d0, d1, is_speed);
+        count++;
       }
     }
     if (is_speed) return;
