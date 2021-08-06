@@ -134,6 +134,7 @@ typedef struct av1_codec_arg_definitions {
 #if CONFIG_CCSO
   arg_def_t enable_ccso;
 #endif
+  arg_def_t disable_ml_partition_speed_features;
   arg_def_t enable_rect_partitions;
   arg_def_t enable_ab_partitions;
   arg_def_t enable_1to4_partitions;

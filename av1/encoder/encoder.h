@@ -201,6 +201,11 @@ typedef struct {
  */
 typedef struct {
   /*!
+   * Flag to indicate if ml-based speed-up for partition search should be
+   * disabled.
+   */
+  bool disable_ml_partition_speed_features;
+  /*!
    * Flag to indicate if rectanguar partitions should be enabled.
    */
   bool enable_rect_partitions;

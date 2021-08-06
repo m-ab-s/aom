@@ -883,6 +883,23 @@ static AOM_INLINE void init_lpf_sf(LOOP_FILTER_SPEED_FEATURES *lpf_sf) {
   lpf_sf->disable_lr_filter = 0;
 }
 
+static void av1_disable_ml_based_partition_sf(
+    PARTITION_SPEED_FEATURES *const part_sf) {
+  part_sf->ml_prune_4_partition = 0;
+  part_sf->ml_prune_ab_partition = 0;
+  part_sf->ml_prune_rect_partition = 0;
+  part_sf->ml_early_term_after_part_split_level = 0;
+  part_sf->auto_max_partition_based_on_simple_motion = NOT_IN_USE;
+  part_sf->intra_cnn_split = 0;
+  part_sf->simple_motion_search_split = 0;
+  part_sf->simple_motion_search_prune_rect = 0;
+  part_sf->simple_motion_search_early_term_none = 0;
+
+  for (int i = 0; i < PARTITION_BLOCK_SIZES; ++i) {
+    part_sf->ml_partition_search_breakout_thresh[i] = -1;
+  }
+}
+
 void av1_set_speed_features_framesize_dependent(AV1_COMP *cpi, int speed) {
   SPEED_FEATURES *const sf = &cpi->sf;
   const AV1EncoderConfig *const oxcf = &cpi->oxcf;
@@ -896,6 +913,9 @@ void av1_set_speed_features_framesize_dependent(AV1_COMP *cpi, int speed) {
     cpi->mv_search_params.find_fractional_mv_step = av1_return_max_sub_pixel_mv;
   else if (cpi->oxcf.unit_test_cfg.motion_vector_unit_test == 2)
     cpi->mv_search_params.find_fractional_mv_step = av1_return_min_sub_pixel_mv;
+
+  if (oxcf->part_cfg.disable_ml_partition_speed_features)
+    av1_disable_ml_based_partition_sf(&sf->part_sf);
 }
 
 void av1_set_speed_features_framesize_independent(AV1_COMP *cpi, int speed) {
