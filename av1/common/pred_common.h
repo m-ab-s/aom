@@ -91,6 +91,22 @@ static INLINE int convert_ranked_ref_to_named_ref_index(
   if (ranked_idx == INTRA_FRAME_NRS) return INTRA_FRAME;
   return ref_frame_data->ranked_to_named_refs[ranked_idx];
 }
+
+// Find the reference that is furthest in the future
+static INLINE int get_furthest_future_ref_index(const AV1_COMMON *const cm) {
+  int index = INVALID_IDX;
+  int ref_disp_order = -1;
+  for (int i = 0; i < cm->new_ref_frame_data.n_future_refs; i++) {
+    const int ref = cm->new_ref_frame_data.future_refs[i];
+    const RefCntBuffer *const buf = get_ref_frame_buf_nrs(cm, ref);
+    if (buf == NULL) continue;
+    if ((int)buf->display_order_hint > ref_disp_order) {
+      index = ref;
+      ref_disp_order = (int)buf->display_order_hint;
+    }
+  }
+  return index;
+}
 #endif  // NEW_REF_SIGNALING
 
 static INLINE int get_segment_id(const CommonModeInfoParams *const mi_params,
