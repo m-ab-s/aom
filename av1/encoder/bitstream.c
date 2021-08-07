@@ -1403,6 +1403,9 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
   } else {
     int16_t mode_ctx;
 
+#if CONFIG_NEW_REF_SIGNALING
+    av1_collect_neighbors_ref_counts_nrs(cm, xd);
+#endif  // CONFIG_NEW_REF_SIGNALING
     av1_collect_neighbors_ref_counts(xd);
 
     write_ref_frames(cm, xd, w);

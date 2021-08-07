@@ -1589,6 +1589,9 @@ static void encode_b(const AV1_COMP *const cpi, TileDataEnc *tile_data,
         // reference frame allowed for the segment so exclude it from
         // the reference frame counts used to work out probabilities.
         if (is_inter_block(mbmi)) {
+#if CONFIG_NEW_REF_SIGNALING
+          av1_collect_neighbors_ref_counts_nrs(cm, xd);
+#endif  // CONFIG_NEW_REF_SIGNALING
           av1_collect_neighbors_ref_counts(xd);
           if (cm->current_frame.reference_mode == REFERENCE_MODE_SELECT) {
             if (has_second_ref(mbmi)) {

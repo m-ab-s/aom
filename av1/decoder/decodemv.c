@@ -1593,6 +1593,9 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
   mbmi->palette_mode_info.palette_size[0] = 0;
   mbmi->palette_mode_info.palette_size[1] = 0;
 
+#if CONFIG_NEW_REF_SIGNALING
+  av1_collect_neighbors_ref_counts_nrs(cm, xd);
+#endif  // CONFIG_NEW_REF_SIGNALING
   av1_collect_neighbors_ref_counts(xd);
 
   read_ref_frames(cm, xd, r, mbmi->segment_id, mbmi->ref_frame);

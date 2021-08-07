@@ -2155,6 +2155,9 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
 
   init_best_pickmode(&best_pickmode);
 
+#if CONFIG_NEW_REF_SIGNALING
+  av1_collect_neighbors_ref_counts_nrs(cm, xd);
+#endif  // CONFIG_NEW_REF_SIGNALING
   av1_collect_neighbors_ref_counts(xd);
 
   const ModeCosts *mode_costs = &x->mode_costs;

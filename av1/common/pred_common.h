@@ -14,7 +14,6 @@
 
 #include "av1/common/av1_common_int.h"
 #include "av1/common/blockd.h"
-#include "av1/common/mvref_common.h"
 #include "aom_dsp/aom_dsp_common.h"
 
 #ifdef __cplusplus

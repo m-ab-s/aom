@@ -1302,6 +1302,14 @@ typedef struct macroblockd {
    */
   bool is_first_horizontal_rect;
 
+#if CONFIG_NEW_REF_SIGNALING
+  /*!
+   * Counts of each nrs ref frame in the above and left neighboring blocks.
+   * NOTE: Take into account both single and comp references.
+   */
+  uint8_t neighbors_ref_counts_nrs[MAX_REF_FRAMES_NRS];
+#endif  // CONFIG_NEW_REF_SIGNALING
+
   /*!
    * Counts of each reference frame in the above and left neighboring blocks.
    * NOTE: Take into account both single and comp references.

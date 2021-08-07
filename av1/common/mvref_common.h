@@ -8,12 +8,14 @@
  * Media Patent License 1.0 was not distributed with this source code in the
  * PATENTS file, you can obtain it at www.aomedia.org/license/patent.
  */
+
 #ifndef AOM_AV1_COMMON_MVREF_COMMON_H_
 #define AOM_AV1_COMMON_MVREF_COMMON_H_
 
 #include "av1/common/av1_common_int.h"
 #include "av1/common/blockd.h"
 #include "av1/common/mv.h"
+#include "av1/common/pred_common.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -236,6 +238,53 @@ void av1_setup_skip_mode_allowed(AV1_COMMON *cm);
 void av1_setup_motion_field(AV1_COMMON *cm);
 void av1_set_frame_refs(AV1_COMMON *const cm, int *remapped_ref_idx,
                         int lst_map_idx, int gld_map_idx);
+
+#if CONFIG_NEW_REF_SIGNALING
+static INLINE void av1_collect_neighbors_ref_counts_nrs(
+    const AV1_COMMON *const cm, MACROBLOCKD *const xd) {
+  (void)cm;
+  av1_zero(xd->neighbors_ref_counts_nrs);
+
+  uint8_t *const ref_counts = xd->neighbors_ref_counts_nrs;
+
+  const MB_MODE_INFO *const above_mbmi = xd->above_mbmi;
+  const MB_MODE_INFO *const left_mbmi = xd->left_mbmi;
+  const int above_in_image = xd->up_available;
+  const int left_in_image = xd->left_available;
+
+  // Above neighbor
+  if (above_in_image && is_inter_block(above_mbmi)) {
+    // TODO(sarahparker) Temporary assert, see aomedia:3060
+    assert(convert_named_ref_to_ranked_ref_index(&cm->new_ref_frame_data,
+                                                 above_mbmi->ref_frame[0]) ==
+           above_mbmi->ref_frame_nrs[0]);
+    ref_counts[above_mbmi->ref_frame_nrs[0]]++;
+    if (has_second_ref(above_mbmi)) {
+      // TODO(sarahparker) Temporary assert, see aomedia:3060
+      assert(convert_named_ref_to_ranked_ref_index(&cm->new_ref_frame_data,
+                                                   above_mbmi->ref_frame[1]) ==
+             above_mbmi->ref_frame_nrs[1]);
+      ref_counts[above_mbmi->ref_frame_nrs[1]]++;
+    }
+  }
+
+  // Left neighbor
+  if (left_in_image && is_inter_block(left_mbmi)) {
+    // TODO(sarahparker) Temporary assert, see aomedia:3060
+    assert(convert_named_ref_to_ranked_ref_index(&cm->new_ref_frame_data,
+                                                 left_mbmi->ref_frame[0]) ==
+           left_mbmi->ref_frame_nrs[0]);
+    ref_counts[left_mbmi->ref_frame_nrs[0]]++;
+    if (has_second_ref(left_mbmi)) {
+      // TODO(sarahparker) Temporary assert, see aomedia:3060
+      assert(convert_named_ref_to_ranked_ref_index(&cm->new_ref_frame_data,
+                                                   left_mbmi->ref_frame[1]) ==
+             left_mbmi->ref_frame_nrs[1]);
+      ref_counts[left_mbmi->ref_frame_nrs[1]]++;
+    }
+  }
+}
+#endif  // CONFIG_NEW_REF_SIGNALING
 
 static INLINE void av1_collect_neighbors_ref_counts(MACROBLOCKD *const xd) {
   av1_zero(xd->neighbors_ref_counts);
