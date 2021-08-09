@@ -727,9 +727,9 @@ static AOM_INLINE void write_ref_frames(const AV1_COMMON *cm,
     assert(!is_compound);
     assert(mbmi->ref_frame[0] ==
            get_segdata(&cm->seg, segment_id, SEG_LVL_REF_FRAME));
-#endif  // CONFIG_NEW_REF_SIGNALING
   } else if (segfeature_active(&cm->seg, segment_id, SEG_LVL_SKIP) ||
              segfeature_active(&cm->seg, segment_id, SEG_LVL_GLOBALMV)) {
+#endif  // CONFIG_NEW_REF_SIGNALING
     assert(!is_compound);
     assert(mbmi->ref_frame[0] == LAST_FRAME);
   } else {
