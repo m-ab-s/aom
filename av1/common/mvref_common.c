@@ -1184,6 +1184,15 @@ void av1_setup_frame_buf_refs(AV1_COMMON *cm) {
 }
 
 void av1_setup_frame_sign_bias(AV1_COMMON *cm) {
+#if CONFIG_NEW_REF_SIGNALING
+  memset(&cm->ref_frame_sign_bias_nrs, 0, sizeof(cm->ref_frame_sign_bias_nrs));
+  for (int ref_frame = 0; ref_frame < cm->new_ref_frame_data.n_future_refs;
+       ++ref_frame) {
+    const int index = cm->new_ref_frame_data.future_refs[ref_frame];
+    cm->ref_frame_sign_bias_nrs[index] = 1;
+  }
+#endif  // CONFIG_NEW_REF_SIGNALING
+
   MV_REFERENCE_FRAME ref_frame;
   for (ref_frame = LAST_FRAME; ref_frame <= ALTREF_FRAME; ++ref_frame) {
     const RefCntBuffer *const buf = get_ref_frame_buf(cm, ref_frame);
@@ -1197,6 +1206,15 @@ void av1_setup_frame_sign_bias(AV1_COMMON *cm) {
     } else {
       cm->ref_frame_sign_bias[ref_frame] = 0;
     }
+#if CONFIG_NEW_REF_SIGNALING
+    if (cm->new_ref_frame_data.n_total_refs > 0) {
+      int ranked_ref = convert_named_ref_to_ranked_ref_index(
+          &cm->new_ref_frame_data, ref_frame);
+      (void)ranked_ref;
+      assert(cm->ref_frame_sign_bias_nrs[ranked_ref] ==
+             cm->ref_frame_sign_bias[ref_frame]);
+    }
+#endif  // CONFIG_NEW_REF_SIGNALING
   }
 }
 
@@ -1317,6 +1335,9 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
   const OrderHintInfo *const order_hint_info = &cm->seq_params.order_hint_info;
 
   memset(cm->ref_frame_side, 0, sizeof(cm->ref_frame_side));
+#if CONFIG_NEW_REF_SIGNALING
+  memset(cm->ref_frame_side_nrs, 0, sizeof(cm->ref_frame_side_nrs));
+#endif  // CONFIG_NEW_REF_SIGNALING
   if (!order_hint_info->enable_order_hint) return;
 
   TPL_MV_REF *tpl_mvs_base = cm->tpl_mvs;
@@ -1332,6 +1353,21 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
   const RefCntBuffer *ref_buf[INTER_REFS_PER_FRAME];
   int ref_order_hint[INTER_REFS_PER_FRAME];
 
+#if CONFIG_NEW_REF_SIGNALING
+  for (int ref_frame = 0; ref_frame < cm->new_ref_frame_data.n_past_refs;
+       ref_frame++) {
+    const int index = cm->new_ref_frame_data.past_refs[ref_frame];
+    cm->ref_frame_side_nrs[index] = 0;
+  }
+  for (int ref_frame = 0; ref_frame < cm->new_ref_frame_data.n_future_refs;
+       ref_frame++) {
+    const int index = cm->new_ref_frame_data.future_refs[ref_frame];
+    cm->ref_frame_side_nrs[index] = 1;
+  }
+  if (cm->new_ref_frame_data.cur_ref >= 0)
+    cm->ref_frame_side_nrs[cm->new_ref_frame_data.cur_ref] = -1;
+#endif  // CONFIG_NEW_REF_SIGNALING
+
   for (int ref_frame = LAST_FRAME; ref_frame <= ALTREF_FRAME; ref_frame++) {
     const int ref_idx = ref_frame - LAST_FRAME;
     const RefCntBuffer *const buf = get_ref_frame_buf(cm, ref_frame);
@@ -1346,6 +1382,12 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
       cm->ref_frame_side[ref_frame] = 1;
     else if (order_hint == cur_order_hint)
       cm->ref_frame_side[ref_frame] = -1;
+#if CONFIG_NEW_REF_SIGNALING
+    int ranked_ref = convert_named_ref_to_ranked_ref_index(
+        &cm->new_ref_frame_data, ref_frame);
+    (void)ranked_ref;
+    assert(cm->ref_frame_side_nrs[ranked_ref] == cm->ref_frame_side[ref_frame]);
+#endif  // CONFIG_NEW_REF_SIGNALING
   }
 
   int ref_stamp = MFMV_STACK_SIZE - 1;

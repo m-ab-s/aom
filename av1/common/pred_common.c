@@ -78,6 +78,7 @@ void av1_init_new_ref_frame_map(AV1_COMMON *cm,
     cm->new_ref_frame_data.ranked_to_named_refs[i] = -1;
     cm->new_ref_frame_data.named_to_ranked_refs[i] = -1;
   }
+  cm->new_ref_frame_data.cur_ref = -1;
   int n_ranked = 0;
   // Compute a score for each reference buffer
   for (int i = 0; i < MAX_REF_FRAMES_NRS; i++) {
@@ -134,9 +135,11 @@ void av1_init_new_ref_frame_map(AV1_COMMON *cm,
     if (scores[i].distance < 0) {
       cm->new_ref_frame_data.future_refs[n_future] = i;
       n_future++;
-    } else {
+    } else if (scores[i].distance > 0) {
       cm->new_ref_frame_data.past_refs[n_past] = i;
       n_past++;
+    } else {
+      cm->new_ref_frame_data.cur_ref = i;
     }
   }
   cm->new_ref_frame_data.n_past_refs = n_past;

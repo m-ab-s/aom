@@ -831,6 +831,10 @@ typedef struct {
    * Number of past references.
    */
   int n_past_refs;
+  /*!
+   * Index of reference with same order hint as current frame. -1 if unset.
+   */
+  int cur_ref;
 
   // TODO(sarahparker) Remove these members once named references are removed.
   /*!
@@ -1165,6 +1169,19 @@ typedef struct AV1Common {
    * Allocated size of 'tpl_mvs' array. Refer to 'ensure_mv_buffer()' function.
    */
   int tpl_mvs_mem_size;
+#if CONFIG_NEW_REF_SIGNALING
+  /*!
+   * ref_frame_sign_bias[k] is 1 if relative distance between reference 'k' and
+   * current frame is positive; and 0 otherwise.
+   */
+  int ref_frame_sign_bias_nrs[MAX_REF_FRAMES_NRS];
+  /*!
+   * ref_frame_side[k] is 1 if relative distance between reference 'k' and
+   * current frame is positive, -1 if relative distance is 0; and 0 otherwise.
+   * TODO(jingning): This can be combined with sign_bias later.
+   */
+  int8_t ref_frame_side_nrs[MAX_REF_FRAMES_NRS];
+#endif  // CONFIG_NEW_REF_SIGNALING
   /*!
    * ref_frame_sign_bias[k] is 1 if relative distance between reference 'k' and
    * current frame is positive; and 0 otherwise.

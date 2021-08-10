@@ -110,6 +110,32 @@ static INLINE int get_furthest_future_ref_index(const AV1_COMMON *const cm) {
   }
   return index;
 }
+
+static INLINE int get_n_bidir_compound_modes_nrs(NewRefFramesData *ref_data) {
+  return ref_data->n_past_refs * ref_data->n_future_refs;
+}
+
+static INLINE int get_n_past_unidir_compound_modes_nrs(
+    NewRefFramesData *ref_data) {
+  return ref_data->n_past_refs * (ref_data->n_past_refs - 1);
+}
+
+static INLINE int get_n_future_unidir_compound_modes_nrs(
+    NewRefFramesData *ref_data) {
+  return ref_data->n_future_refs * (ref_data->n_future_refs - 1);
+}
+
+static INLINE int get_n_unidir_compound_modes_nrs(NewRefFramesData *ref_data) {
+  const int past_unidir = get_n_past_unidir_compound_modes_nrs(ref_data);
+  const int future_unidir = get_n_future_unidir_compound_modes_nrs(ref_data);
+  return past_unidir + future_unidir;
+}
+
+static INLINE int get_total_compound_modes_nrs(NewRefFramesData *ref_data) {
+  const int unidir = get_n_unidir_compound_modes_nrs(ref_data);
+  const int bidir = get_n_bidir_compound_modes_nrs(ref_data);
+  return unidir + bidir;
+}
 #endif  // NEW_REF_SIGNALING
 
 static INLINE int get_segment_id(const CommonModeInfoParams *const mi_params,
