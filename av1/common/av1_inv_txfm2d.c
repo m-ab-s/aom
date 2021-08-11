@@ -238,6 +238,8 @@ void av1_get_inv_txfm_cfg(TX_TYPE tx_type, TX_SIZE tx_size,
   if (cfg->txfm_type_row == TXFM_TYPE_ADST4) {
     memcpy(cfg->stage_range_row, iadst4_range, sizeof(iadst4_range));
   }
+  assert(cfg->txfm_type_col < TXFM_TYPE_INVALID);
+  assert(cfg->txfm_type_row < TXFM_TYPE_INVALID);
   cfg->mode = mode;
 #if CONFIG_MODE_DEP_INTRA_TX && CONFIG_MODE_DEP_NONSEP_INTRA_TX
   if (use_nstx(tx_type, tx_size, mode)) {
