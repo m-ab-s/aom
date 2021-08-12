@@ -3523,6 +3523,11 @@ static AOM_INLINE void write_uncompressed_header_obu(
     }
   }
 
+#if CONFIG_NEW_REF_SIGNALING
+  encode_quantization(quant_params, av1_num_planes(cm),
+                      cm->seq_params.bit_depth,
+                      cm->seq_params.separate_uv_delta_q, wb);
+#endif  // CONFIG_NEW_REF_SIGNALING
   if (current_frame->frame_type == KEY_FRAME) {
     write_frame_size(cm, frame_size_override_flag, wb);
     assert(!av1_superres_scaled(cm) || !features->allow_intrabc);
@@ -3675,9 +3680,11 @@ static AOM_INLINE void write_uncompressed_header_obu(
   }
 
   write_tile_info(cm, saved_wb, wb);
+#if !CONFIG_NEW_REF_SIGNALING
   encode_quantization(quant_params, av1_num_planes(cm),
                       cm->seq_params.bit_depth,
                       cm->seq_params.separate_uv_delta_q, wb);
+#endif  // !CONFIG_NEW_REF_SIGNALING
   encode_segmentation(cm, xd, wb);
 
   const DeltaQInfo *const delta_q_info = &cm->delta_q_info;
