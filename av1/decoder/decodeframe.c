@@ -4886,7 +4886,8 @@ static AOM_INLINE void read_global_motion_nrs(AV1_COMMON *cm,
   memcpy(cm->cur_frame->global_motion, cm->global_motion,
          REF_FRAMES * sizeof(WarpedMotionParams));
 }
-#endif  // CONFIG_NEW_REF_SIGNALING
+
+#else
 
 static AOM_INLINE void read_global_motion(AV1_COMMON *cm,
                                           struct aom_read_bit_buffer *rb) {
@@ -4952,6 +4953,7 @@ static AOM_INLINE void read_global_motion(AV1_COMMON *cm,
   memcpy(cm->cur_frame->global_motion, cm->global_motion,
          REF_FRAMES * sizeof(WarpedMotionParams));
 }
+#endif  // CONFIG_NEW_REF_SIGNALING
 
 // Release the references to the frame buffers in cm->ref_frame_map and reset
 // all elements of cm->ref_frame_map to NULL.

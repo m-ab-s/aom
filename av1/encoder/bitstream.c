@@ -3237,7 +3237,8 @@ static AOM_INLINE void write_global_motion_nrs(
     (void)named_frame;
   }
 }
-#endif  // CONFIG_NEW_REF_SIGNALING
+
+#else
 
 static AOM_INLINE void write_global_motion(AV1_COMP *cpi,
                                            struct aom_write_bit_buffer *wb) {
@@ -3296,6 +3297,7 @@ static AOM_INLINE void write_global_motion(AV1_COMP *cpi,
            */
   }
 }
+#endif  // CONFIG_NEW_REF_SIGNALING
 
 static int check_frame_refs_short_signaling(AV1_COMMON *const cm) {
   // Check whether all references are distinct frames.
