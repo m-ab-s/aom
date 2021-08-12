@@ -703,17 +703,17 @@ std::ostream &operator<<(std::ostream &os,
             << " lag_in_frames:" << test_arg.lag_in_frames << " }";
 }
 
-class SubGopPSNRCheckTest
+class SubGopPSNRCheckTestLarge
     : public ::libaom_test::CodecTestWith2Params<SubgopPsnrTestParams,
                                                  aom_rc_mode>,
       public ::libaom_test::EncoderTest {
  protected:
-  SubGopPSNRCheckTest()
+  SubGopPSNRCheckTestLarge()
       : EncoderTest(GET_PARAM(0)), test_params_(GET_PARAM(1)),
         rc_end_usage_(GET_PARAM(2)) {
     Reset();
   }
-  virtual ~SubGopPSNRCheckTest() {}
+  virtual ~SubGopPSNRCheckTestLarge() {}
 
   void Reset() {
     frame_num_ = 0;
@@ -758,7 +758,7 @@ class SubGopPSNRCheckTest
   unsigned int frame_num_;
 };
 
-TEST_P(SubGopPSNRCheckTest, SubGopPSNRCheck) {
+TEST_P(SubGopPSNRCheckTestLarge, SubGopPSNRCheck) {
   std::unique_ptr<libaom_test::VideoSource> video;
   const unsigned int kFrames = 100;
   const double psnr_diff_thresh = 0.3;
@@ -786,7 +786,7 @@ TEST_P(SubGopPSNRCheckTest, SubGopPSNRCheck) {
 }
 
 // TODO(any) : Enable AOM_CBR after fix
-AV1_INSTANTIATE_TEST_SUITE(SubGopPSNRCheckTest,
+AV1_INSTANTIATE_TEST_SUITE(SubGopPSNRCheckTestLarge,
                            ::testing::ValuesIn(SubGopPsnrTestVectors),
                            ::testing::Values(AOM_Q, AOM_VBR,
                                              AOM_CQ /*, AOM_CBR*/));
@@ -833,12 +833,12 @@ static const SubGopSwitchTestParams SubgopSwitchTestVectors[] = {
 };
 
 using libaom_test::ACMRandom;
-class SubGopSwitchingTest
+class SubGopSwitchingTestLarge
     : public ::libaom_test::CodecTestWith2Params<SubGopSwitchTestParams,
                                                  aom_rc_mode>,
       public ::libaom_test::EncoderTest {
  protected:
-  SubGopSwitchingTest()
+  SubGopSwitchingTestLarge()
       : EncoderTest(GET_PARAM(0)), test_params_(GET_PARAM(1)),
         rc_end_usage_(GET_PARAM(2)) {
     last_subgop_str_ = NULL;
@@ -846,7 +846,7 @@ class SubGopSwitchingTest
     rnd_.Reset(ACMRandom::DeterministicSeed());
     ResetSubgop();
   }
-  virtual ~SubGopSwitchingTest() {}
+  virtual ~SubGopSwitchingTestLarge() {}
 
   virtual void SetUp() {
     InitializeConfig();
@@ -954,9 +954,9 @@ class SubGopSwitchingTest
   const char *last_subgop_str_;
 };
 
-TEST_P(SubGopSwitchingTest, SubGopSwitching) {
+TEST_P(SubGopSwitchingTestLarge, SubGopSwitching) {
   std::unique_ptr<libaom_test::VideoSource> video;
-  const unsigned int kFrames = 200;
+  const unsigned int kFrames = 100;
 
   if (is_extension_y4m(test_params_.input_file)) {
     video.reset(
@@ -973,7 +973,7 @@ TEST_P(SubGopSwitchingTest, SubGopSwitching) {
   EXPECT_TRUE(num_subgop_cfg_used_);
 }
 
-AV1_INSTANTIATE_TEST_SUITE(SubGopSwitchingTest,
+AV1_INSTANTIATE_TEST_SUITE(SubGopSwitchingTestLarge,
                            ::testing::ValuesIn(SubgopSwitchTestVectors),
                            ::testing::Values(AOM_Q, AOM_VBR, AOM_CQ, AOM_CBR));
 }  // namespace
