@@ -1165,7 +1165,11 @@ typedef struct FRAME_COUNTS {
   unsigned int comp_inter[COMP_INTER_CONTEXTS][2];
   unsigned int comp_ref_type[COMP_REF_TYPE_CONTEXTS][2];
   unsigned int uni_comp_ref[UNI_COMP_REF_CONTEXTS][UNIDIR_COMP_REFS - 1][2];
+#if CONFIG_NEW_REF_SIGNALING
+  unsigned int single_ref[REF_CONTEXTS][INTER_REFS_PER_FRAME_NRS - 1][2];
+#else
   unsigned int single_ref[REF_CONTEXTS][SINGLE_REFS - 1][2];
+#endif  // CONFIG_NEW_REF_SIGNALING
   unsigned int comp_ref[REF_CONTEXTS][FWD_REFS - 1][2];
   unsigned int comp_bwdref[REF_CONTEXTS][BWD_REFS - 1][2];
   unsigned int intrabc[2];

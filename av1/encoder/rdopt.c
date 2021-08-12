@@ -1010,6 +1010,25 @@ static AOM_INLINE void estimate_ref_frame_costs(
       memset(ref_costs_comp[ref_frame], 0,
              REF_FRAMES * sizeof((*ref_costs_comp)[0]));
   } else {
+#if CONFIG_NEW_REF_SIGNALING
+    int intra_inter_ctx = av1_get_intra_inter_context(xd);
+    ref_costs_single[INTRA_FRAME_INDEX_NRS] =
+        mode_costs->intra_inter_cost[intra_inter_ctx][0];
+    unsigned int base_cost = mode_costs->intra_inter_cost[intra_inter_ctx][1];
+    for (int i = 0; i < INTER_REFS_PER_FRAME_NRS; ++i)
+      ref_costs_single[i] = base_cost;
+
+    const int n_refs = cm->new_ref_frame_data.n_total_refs;
+    for (int i = 0; i < n_refs; i++) {
+      for (int j = 0; j <= AOMMIN(i, n_refs - 2); j++) {
+        aom_cdf_prob ctx = av1_get_single_ref_pred_context_nrs(xd, j, n_refs);
+        const int bit = i == j;
+        ref_costs_single[i] += mode_costs->single_ref_cost[ctx][j][bit];
+      }
+    }
+    for (int i = n_refs; i < INTER_REFS_PER_FRAME_NRS; i++)
+      ref_costs_single[i] = INT_MAX;
+#else
     int intra_inter_ctx = av1_get_intra_inter_context(xd);
     ref_costs_single[INTRA_FRAME] =
         mode_costs->intra_inter_cost[intra_inter_ctx][0];
@@ -1063,6 +1082,7 @@ static AOM_INLINE void estimate_ref_frame_costs(
     ref_costs_single[BWDREF_FRAME] += mode_costs->single_ref_cost[ctx_p6][5][0];
     ref_costs_single[ALTREF2_FRAME] +=
         mode_costs->single_ref_cost[ctx_p6][5][1];
+#endif  // CONFIG_NEW_REF_SIGNALING
 
     if (cm->current_frame.reference_mode != SINGLE_REFERENCE) {
       // Similar to single ref, determine cost of compound ref frames.
@@ -6091,7 +6111,11 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
   const int skip_ref_frame_mask =
       picked_ref_frames_mask ? ~picked_ref_frames_mask : 0;
   mode_skip_mask_t mode_skip_mask;
+#if CONFIG_NEW_REF_SIGNALING
+  unsigned int ref_costs_single[REF_FRAMES_NRS];
+#else
   unsigned int ref_costs_single[REF_FRAMES];
+#endif  // CONFIG_NEW_REF_SIGNALING
   unsigned int ref_costs_comp[REF_FRAMES][REF_FRAMES];
   struct buf_2d yv12_mb[REF_FRAMES][MAX_MB_PLANE];
   // init params, set frame modes, speed features
@@ -6311,6 +6335,7 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
                             &sf_args))
           continue;
 #if CONFIG_NEW_REF_SIGNALING
+        // TODO(sarahparker) Temporary assert, see aomedia:3060
         assert(convert_ranked_ref_to_named_ref_index(&cm->new_ref_frame_data,
                                                      mbmi->ref_frame_nrs[0]) ==
                mbmi->ref_frame[0]);
@@ -6334,9 +6359,19 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
         RD_STATS rd_stats, rd_stats_y, rd_stats_uv;
         av1_init_rd_stats(&rd_stats);
 
+#if CONFIG_NEW_REF_SIGNALING
+        // TODO(sarahparker) Temporary assert, see aomedia:3060
+        assert(convert_named_ref_to_ranked_ref_index(&cm->new_ref_frame_data,
+                                                     ref_frame) ==
+               mbmi->ref_frame_nrs[0]);
         const int ref_frame_cost =
             comp_pred ? ref_costs_comp[ref_frame][second_ref_frame]
-                      : ref_costs_single[ref_frame];
+                      : ref_costs_single[mbmi->ref_frame_nrs[0]];
+#else
+    const int ref_frame_cost = comp_pred
+                                   ? ref_costs_comp[ref_frame][second_ref_frame]
+                                   : ref_costs_single[ref_frame];
+#endif  // CONFIG_NEW_REF_SIGNALING
         const int compmode_cost =
             is_comp_ref_allowed(mbmi->sb_type) ? comp_inter_cost[comp_pred] : 0;
         const int real_compmode_cost =
@@ -6468,7 +6503,12 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
     }
   }
 
+#if CONFIG_NEW_REF_SIGNALING
+  const unsigned int intra_ref_frame_cost =
+      ref_costs_single[INTRA_FRAME_INDEX_NRS];
+#else
   const unsigned int intra_ref_frame_cost = ref_costs_single[INTRA_FRAME];
+#endif  // CONFIG_NEW_REF_SIGNALING
   for (int j = 0; j < intra_mode_num; ++j) {
     if (sf->intra_sf.skip_intra_in_interframe &&
         search_state.intra_search_state.skip_intra_modes)
@@ -6739,7 +6779,11 @@ void av1_rd_pick_inter_mode_sb_seg_skip(const AV1_COMP *cpi,
   const int comp_pred = 0;
   int i;
   int64_t best_pred_diff[REFERENCE_MODES];
+#if CONFIG_NEW_REF_SIGNALING
+  unsigned int ref_costs_single[REF_FRAMES_NRS];
+#else
   unsigned int ref_costs_single[REF_FRAMES];
+#endif  // CONFIG_NEW_REF_SIGNALING
   unsigned int ref_costs_comp[REF_FRAMES][REF_FRAMES];
   const ModeCosts *mode_costs = &x->mode_costs;
   const int *comp_inter_cost =
@@ -6867,9 +6911,15 @@ void av1_rd_pick_inter_mode_sb_seg_skip(const AV1_COMP *cpi,
   if (cm->current_frame.reference_mode == REFERENCE_MODE_SELECT)
     rate2 += comp_inter_cost[comp_pred];
 
-  // Estimate the reference frame signaling cost and add it
-  // to the rolling cost variable.
+    // Estimate the reference frame signaling cost and add it
+    // to the rolling cost variable.
+#if CONFIG_NEW_REF_SIGNALING
+  int last_index = convert_named_ref_to_ranked_ref_index(
+      &cm->new_ref_frame_data, LAST_FRAME);
+  rate2 += ref_costs_single[last_index];
+#else
   rate2 += ref_costs_single[LAST_FRAME];
+#endif  // CONFIG_NEW_REF_SIGNALING
   this_rd = RDCOST(x->rdmult, rate2, distortion2);
 
   rd_cost->rate = rate2;

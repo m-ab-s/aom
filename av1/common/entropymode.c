@@ -822,6 +822,28 @@ static const aom_cdf_prob
       { { AOM_CDF2(31774) }, { AOM_CDF2(25120) }, { AOM_CDF2(26710) } }
     };
 
+#if CONFIG_NEW_REF_SIGNALING
+static const aom_cdf_prob
+    default_single_ref_cdf[REF_CONTEXTS][INTER_REFS_PER_FRAME_NRS - 1]
+                          [CDF_SIZE(2)] = { { { AOM_CDF2(4897) },
+                                              { AOM_CDF2(1555) },
+                                              { AOM_CDF2(4236) },
+                                              { AOM_CDF2(8650) },
+                                              { AOM_CDF2(904) },
+                                              { AOM_CDF2(1444) } },
+                                            { { AOM_CDF2(16973) },
+                                              { AOM_CDF2(16751) },
+                                              { AOM_CDF2(19647) },
+                                              { AOM_CDF2(24773) },
+                                              { AOM_CDF2(11014) },
+                                              { AOM_CDF2(15087) } },
+                                            { { AOM_CDF2(29744) },
+                                              { AOM_CDF2(30279) },
+                                              { AOM_CDF2(31194) },
+                                              { AOM_CDF2(31895) },
+                                              { AOM_CDF2(26875) },
+                                              { AOM_CDF2(30304) } } };
+#else
 static const aom_cdf_prob default_single_ref_cdf[REF_CONTEXTS][SINGLE_REFS - 1]
                                                 [CDF_SIZE(2)] = {
                                                   { { AOM_CDF2(4897) },
@@ -843,6 +865,7 @@ static const aom_cdf_prob default_single_ref_cdf[REF_CONTEXTS][SINGLE_REFS - 1]
                                                     { AOM_CDF2(26875) },
                                                     { AOM_CDF2(30304) } }
                                                 };
+#endif  // CONFIG_NEW_REF_SIGNALING
 
 static const aom_cdf_prob
     default_comp_ref_cdf[REF_CONTEXTS][FWD_REFS - 1][CDF_SIZE(2)] = {

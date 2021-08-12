@@ -710,6 +710,22 @@ static AOM_INLINE void write_segment_id(AV1_COMP *cpi,
 #define WRITE_REF_BIT(bname, pname) \
   aom_write_symbol(w, bname, av1_get_pred_cdf_##pname(xd), 2)
 
+#if CONFIG_NEW_REF_SIGNALING
+static AOM_INLINE void write_single_ref_nrs(
+    const MACROBLOCKD *xd, const NewRefFramesData *const new_ref_frame_data,
+    aom_writer *w) {
+  const MB_MODE_INFO *const mbmi = xd->mi[0];
+  MV_REFERENCE_FRAME_NRS ref = mbmi->ref_frame_nrs[0];
+  const int n_refs = new_ref_frame_data->n_total_refs;
+  for (int i = 0; i < n_refs - 1; i++) {
+    const int bit = ref == i;
+    aom_write_symbol(w, bit, av1_get_pred_cdf_single_ref_nrs(xd, i, n_refs), 2);
+    if (bit) return;
+  }
+  assert(ref == (n_refs - 1));
+}
+#endif  // CONFIG_NEW_REF_SIGNALING
+
 // This function encodes the reference frame
 static AOM_INLINE void write_ref_frames(const AV1_COMMON *cm,
                                         const MACROBLOCKD *xd, aom_writer *w) {
@@ -792,6 +808,9 @@ static AOM_INLINE void write_ref_frames(const AV1_COMMON *cm,
       }
 
     } else {
+#if CONFIG_NEW_REF_SIGNALING
+      write_single_ref_nrs(xd, &cm->new_ref_frame_data, w);
+#else
       const int bit0 = (mbmi->ref_frame[0] <= ALTREF_FRAME &&
                         mbmi->ref_frame[0] >= BWDREF_FRAME);
       WRITE_REF_BIT(bit0, single_ref_p1);
@@ -816,6 +835,7 @@ static AOM_INLINE void write_ref_frames(const AV1_COMMON *cm,
           WRITE_REF_BIT(bit4, single_ref_p5);
         }
       }
+#endif  // CONFIG_NEW_REF_SIGNALING
     }
   }
 }

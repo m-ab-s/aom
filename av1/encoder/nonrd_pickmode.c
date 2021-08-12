@@ -475,6 +475,25 @@ static void estimate_single_ref_frame_costs(const AV1_COMMON *cm,
   if (seg_ref_active) {
     memset(ref_costs_single, 0, REF_FRAMES * sizeof(*ref_costs_single));
   } else {
+#if CONFIG_NEW_REF_SIGNALING
+    int intra_inter_ctx = av1_get_intra_inter_context(xd);
+    ref_costs_single[INTRA_FRAME_INDEX_NRS] =
+        mode_costs->intra_inter_cost[intra_inter_ctx][0];
+    unsigned int base_cost = mode_costs->intra_inter_cost[intra_inter_ctx][1];
+    for (int i = 0; i < INTER_REFS_PER_FRAME_NRS; ++i)
+      ref_costs_single[i] = base_cost;
+
+    const int n_refs = cm->new_ref_frame_data.n_total_refs;
+    for (int i = 0; i < n_refs; i++) {
+      for (int j = 0; j <= AOMMIN(i, n_refs - 2); j++) {
+        aom_cdf_prob ctx = av1_get_single_ref_pred_context_nrs(xd, j, n_refs);
+        const int bit = i == j;
+        ref_costs_single[i] += mode_costs->single_ref_cost[ctx][j][bit];
+      }
+    }
+    for (int i = n_refs; i < INTER_REFS_PER_FRAME_NRS; i++)
+      ref_costs_single[i] = INT_MAX;
+#else
     int intra_inter_ctx = av1_get_intra_inter_context(xd);
     ref_costs_single[INTRA_FRAME] =
         mode_costs->intra_inter_cost[intra_inter_ctx][0];
@@ -528,6 +547,7 @@ static void estimate_single_ref_frame_costs(const AV1_COMMON *cm,
     ref_costs_single[BWDREF_FRAME] += mode_costs->single_ref_cost[ctx_p6][5][0];
     ref_costs_single[ALTREF2_FRAME] +=
         mode_costs->single_ref_cost[ctx_p6][5][1];
+#endif  // CONFIG_NEW_REF_SIGNALING
   }
 }
 
@@ -2136,8 +2156,14 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
   const int *const rd_thresh_freq_fact = x->thresh_freq_fact[bsize];
   const InterpFilter filter_ref = cm->features.interp_filter;
   int best_early_term = 0;
+#if CONFIG_NEW_REF_SIGNALING
+  MV_REFERENCE_FRAME_NRS ref_frame_nrs;
+  unsigned int ref_costs_single[REF_FRAMES_NRS];
+  unsigned int ref_costs_comp[REF_FRAMES][REF_FRAMES];
+#else
   unsigned int ref_costs_single[REF_FRAMES],
       ref_costs_comp[REF_FRAMES][REF_FRAMES];
+#endif  // CONFIG_NEW_REF_SIGNALING
   int force_skip_low_temp_var = 0;
   int use_ref_frame_mask[REF_FRAMES] = { 0 };
   unsigned int sse_zeromv_norm = UINT_MAX;
@@ -2219,9 +2245,8 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
   for (MV_REFERENCE_FRAME ref_frame_iter = LAST_FRAME;
        ref_frame_iter <= ALTREF_FRAME; ++ref_frame_iter) {
 #if CONFIG_NEW_REF_SIGNALING
-    MV_REFERENCE_FRAME_NRS ref_frame_nrs =
-        convert_named_ref_to_ranked_ref_index(&cm->new_ref_frame_data,
-                                              ref_frame_iter);
+    ref_frame_nrs = convert_named_ref_to_ranked_ref_index(
+        &cm->new_ref_frame_data, ref_frame_iter);
     // TODO(sarahparker) Temporary assert, see aomedia:3060
     assert(convert_ranked_ref_to_named_ref_index(
                &cm->new_ref_frame_data, ref_frame_nrs) == ref_frame_iter);
@@ -2377,6 +2402,7 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
     assert(convert_ranked_ref_to_named_ref_index(&cm->new_ref_frame_data,
                                                  mi->ref_frame_nrs[1]) ==
            mi->ref_frame[1]);
+    ref_frame_nrs = mi->ref_frame_nrs[0];
 #endif  // CONFIG_NEW_REF_SIGNALING
 #if CONFIG_NEW_REF_SIGNALING
     set_ref_ptrs_nrs(cm, xd, mi->ref_frame_nrs[0], INVALID_IDX);
@@ -2516,7 +2542,11 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
         av1_mode_context_analyzer(mbmi_ext->mode_context, mi->ref_frame);
     this_rdc.rate += cost_mv_ref(mode_costs, this_mode, mode_ctx);
 
+#if CONFIG_NEW_REF_SIGNALING
+    this_rdc.rate += ref_costs_single[ref_frame_nrs];
+#else
     this_rdc.rate += ref_costs_single[ref_frame];
+#endif  // CONFIG_NEW_REF_SIGNALING
 
     this_rdc.rdcost = RDCOST(x->rdmult, this_rdc.rate, this_rdc.dist);
     if (cpi->oxcf.rc_cfg.mode == AOM_CBR) {
@@ -2585,10 +2615,17 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
   mi->angle_delta[PLANE_TYPE_UV] = 0;
   mi->filter_intra_mode_info.use_filter_intra = 0;
 
+#if CONFIG_NEW_REF_SIGNALING
+  estimate_intra_mode(cpi, x, bsize, use_modeled_non_rd_cost, best_early_term,
+                      ref_costs_single[INTRA_FRAME_INDEX_NRS], reuse_inter_pred,
+                      &orig_dst, tmp, &this_mode_pred, &best_rdc,
+                      &best_pickmode);
+#else
   estimate_intra_mode(cpi, x, bsize, use_modeled_non_rd_cost, best_early_term,
                       ref_costs_single[INTRA_FRAME], reuse_inter_pred,
                       &orig_dst, tmp, &this_mode_pred, &best_rdc,
                       &best_pickmode);
+#endif  // CONFIG_NEW_REF_SIGNALING
 
   pd->dst = orig_dst;
   mi->mode = best_pickmode.best_mode;

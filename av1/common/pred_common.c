@@ -766,6 +766,27 @@ int av1_get_pred_context_comp_bwdref_p1(const MACROBLOCKD *xd) {
 
 // == Context functions for single ref ==
 //
+#if CONFIG_NEW_REF_SIGNALING
+int av1_get_single_ref_pred_context_nrs(const MACROBLOCKD *xd,
+                                        MV_REFERENCE_FRAME_NRS ref,
+                                        int n_total_refs) {
+  assert((ref + 1) < n_total_refs);
+  const uint8_t *const ref_counts = &xd->neighbors_ref_counts_nrs[0];
+  const int this_ref_count = ref_counts[ref];
+  int next_refs_count = 0;
+
+  for (int i = ref + 1; i < n_total_refs; i++) {
+    next_refs_count += ref_counts[i];
+  }
+
+  const int pred_context = (this_ref_count == next_refs_count)
+                               ? 1
+                               : ((this_ref_count < next_refs_count) ? 0 : 2);
+
+  assert(pred_context >= 0 && pred_context < REF_CONTEXTS);
+  return pred_context;
+}
+#else
 // For the bit to signal whether the single reference is a forward reference
 // frame or a backward reference frame.
 int av1_get_pred_context_single_ref_p1(const MACROBLOCKD *xd) {
@@ -815,3 +836,4 @@ int av1_get_pred_context_single_ref_p5(const MACROBLOCKD *xd) {
 int av1_get_pred_context_single_ref_p6(const MACROBLOCKD *xd) {
   return get_pred_context_brf_or_arf2(xd);
 }
+#endif  // CONFIG_NEW_REF_SIGNALING

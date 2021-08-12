@@ -274,12 +274,21 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, ModeCosts *mode_costs,
                                fc->comp_inter_cdf[i], NULL);
     }
 
+#if CONFIG_NEW_REF_SIGNALING
+    for (i = 0; i < REF_CONTEXTS; ++i) {
+      for (j = 0; j < INTER_REFS_PER_FRAME_NRS - 1; ++j) {
+        av1_cost_tokens_from_cdf(mode_costs->single_ref_cost[i][j],
+                                 fc->single_ref_cdf[i][j], NULL);
+      }
+    }
+#else
     for (i = 0; i < REF_CONTEXTS; ++i) {
       for (j = 0; j < SINGLE_REFS - 1; ++j) {
         av1_cost_tokens_from_cdf(mode_costs->single_ref_cost[i][j],
                                  fc->single_ref_cdf[i][j], NULL);
       }
     }
+#endif  // CONFIG_NEW_REF_SIGNALING
 
     for (i = 0; i < COMP_REF_TYPE_CONTEXTS; ++i) {
       av1_cost_tokens_from_cdf(mode_costs->comp_ref_type_cost[i],

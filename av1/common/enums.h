@@ -758,6 +758,9 @@ enum {
 #define INTER_REFS_PER_FRAME_NRS (REF_FRAMES_NRS - 1)
 #define INTRA_FRAME_NRS \
   (INTER_REFS_PER_FRAME_NRS * (INTER_REFS_PER_FRAME_NRS + 1) / 2)
+// Used for indexing into arrays that contain reference data for
+// inter and intra.
+#define INTRA_FRAME_INDEX_NRS INTER_REFS_PER_FRAME_NRS
 #endif  // CONFIG_NEW_REF_SIGNALING
 
 #define REF_FRAMES_LOG2 3

@@ -1158,6 +1158,19 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
           }
         }
       } else {
+#if CONFIG_NEW_REF_SIGNALING
+        const int n_refs = cm->new_ref_frame_data.n_total_refs;
+        const MV_REFERENCE_FRAME_NRS ref0_nrs = mbmi->ref_frame_nrs[0];
+        for (int i = 0; i < n_refs - 1; i++) {
+          const int bit = ref0_nrs == i;
+          update_cdf(av1_get_pred_cdf_single_ref_nrs(xd, i, n_refs), bit, 2);
+#if CONFIG_ENTROPY_STATS
+          counts->single_ref[av1_get_pred_context_single_ref_nrs(xd, i, n_refs)]
+                            [i][bit]++;
+#endif  // CONFIG_ENTROPY_STATS
+          if (bit) break;
+        }
+#else
         const int bit = (ref0 >= BWDREF_FRAME);
         update_cdf(av1_get_pred_cdf_single_ref_p1(xd), bit, 2);
 #if CONFIG_ENTROPY_STATS
@@ -1201,6 +1214,7 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
 #endif  // CONFIG_ENTROPY_STATS
           }
         }
+#endif  // CONFIG_NEW_REF_SIGNALING
       }
 
       if (cm->seq_params.enable_interintra_compound &&

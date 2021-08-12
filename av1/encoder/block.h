@@ -784,8 +784,13 @@ typedef struct {
    * \name Inter Costs: Ref Frame Types
    ****************************************************************************/
   /**@{*/
+#if CONFIG_NEW_REF_SIGNALING
+  //! single_ref_cost
+  int single_ref_cost[REF_CONTEXTS][INTER_REFS_PER_FRAME_NRS - 1][2];
+#else
   //! single_ref_cost
   int single_ref_cost[REF_CONTEXTS][SINGLE_REFS - 1][2];
+#endif  // CONFIG_NEW_REF_SIGNALING
   //! comp_inter_cost
   int comp_inter_cost[COMP_INTER_CONTEXTS][2];
   //! comp_ref_type_cost

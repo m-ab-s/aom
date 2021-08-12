@@ -1126,13 +1126,32 @@ static void set_ref_frames_for_skip_mode(AV1_COMMON *const cm,
 }
 #endif  // CONFIG_NEW_REF_SIGNALING
 
+#if CONFIG_NEW_REF_SIGNALING
+static AOM_INLINE void read_single_ref_nrs(
+    MACROBLOCKD *const xd, MV_REFERENCE_FRAME_NRS ref_frame_nrs[2],
+    const NewRefFramesData *const new_ref_frame_data, aom_reader *r) {
+  const int n_refs = new_ref_frame_data->n_total_refs;
+  for (int i = 0; i < n_refs - 1; i++) {
+    const int bit = aom_read_symbol(
+        r, av1_get_pred_cdf_single_ref_nrs(xd, i, n_refs), 2, ACCT_STR);
+    if (bit) {
+      ref_frame_nrs[0] = i;
+      return;
+    }
+  }
+  ref_frame_nrs[0] = n_refs - 1;
+}
+#endif  // CONFIG_NEW_REF_SIGNALING
+
 // Read the referncence frame
 static void read_ref_frames(AV1_COMMON *const cm, MACROBLOCKD *const xd,
                             aom_reader *r, int segment_id,
+#if CONFIG_NEW_REF_SIGNALING
+                            MV_REFERENCE_FRAME_NRS ref_frame_nrs[2],
+#endif  // CONFIG_NEW_REF_SIGNALING
                             MV_REFERENCE_FRAME ref_frame[2]) {
   if (xd->mi[0]->skip_mode) {
 #if CONFIG_NEW_REF_SIGNALING
-    MV_REFERENCE_FRAME_NRS ref_frame_nrs[2];
     set_ref_frames_for_skip_mode_nrs(cm, ref_frame_nrs);
     // TODO(sarahparker, debargha): When the entire function converts
     // to the new framework, remove the conversion to named refs below.
@@ -1212,6 +1231,15 @@ static void read_ref_frames(AV1_COMMON *const cm, MACROBLOCKD *const xd,
         ref_frame[idx] = ALTREF_FRAME;
       }
     } else if (mode == SINGLE_REFERENCE) {
+#if CONFIG_NEW_REF_SIGNALING
+      read_single_ref_nrs(xd, ref_frame_nrs, &cm->new_ref_frame_data, r);
+      ref_frame_nrs[1] = INVALID_IDX;
+      ref_frame[0] = convert_ranked_ref_to_named_ref_index(
+          &cm->new_ref_frame_data, ref_frame_nrs[0]);
+      assert(convert_named_ref_to_ranked_ref_index(
+                 &cm->new_ref_frame_data, ref_frame[0]) == ref_frame_nrs[0]);
+      ref_frame[1] = NONE_FRAME;
+#else
       const int bit0 = READ_REF_BIT(single_ref_p1);
       if (bit0) {
         const int bit1 = READ_REF_BIT(single_ref_p2);
@@ -1233,6 +1261,7 @@ static void read_ref_frames(AV1_COMMON *const cm, MACROBLOCKD *const xd,
       }
 
       ref_frame[1] = NONE_FRAME;
+#endif  // CONFIG_NEW_REF_SIGNALING
     } else {
       assert(0 && "Invalid prediction mode.");
     }
@@ -1617,7 +1646,11 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
 #endif  // CONFIG_NEW_REF_SIGNALING
   av1_collect_neighbors_ref_counts(xd);
 
-  read_ref_frames(cm, xd, r, mbmi->segment_id, mbmi->ref_frame);
+  read_ref_frames(cm, xd, r, mbmi->segment_id,
+#if CONFIG_NEW_REF_SIGNALING
+                  mbmi->ref_frame_nrs,
+#endif  // CONFIG_NEW_REF_SIGNALING
+                  mbmi->ref_frame);
 #if CONFIG_NEW_REF_SIGNALING
   convert_named_ref_to_ranked_ref_pair(&cm->new_ref_frame_data, mbmi->ref_frame,
                                        0, mbmi->ref_frame_nrs);
