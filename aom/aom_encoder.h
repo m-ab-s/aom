@@ -238,6 +238,10 @@ typedef struct cfg_options {
    *
    */
   unsigned int disable_ml_partition_speed_features;
+  /*!\brief disable ml-based speed-up for transform search
+   *
+   */
+  unsigned int disable_ml_transform_speed_features;
 #if CONFIG_SDP
   /*!\brief enable Semi-decoupled partitioning
    *

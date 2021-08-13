@@ -113,6 +113,7 @@ struct av1_extracfg {
   int enable_rect_partitions;  // enable rectangular partitions for sequence
   int enable_ab_partitions;    // enable AB partitions for sequence
   int enable_1to4_partitions;  // enable 1:4 and 4:1 partitions for sequence
+  int disable_ml_transform_speed_features;  // disable all ml transform speedups
 #if CONFIG_SDP
   int enable_sdp;  // enable semi-decoupled partitioning
 #endif             // CONFIG_SDP
@@ -389,6 +390,7 @@ static struct av1_extracfg default_extra_cfg = {
   1,                            // enable rectangular partitions
   1,                            // enable ab shape partitions
   1,                            // enable 1:4 and 4:1 partitions
+  0,                            // disable ml based transform speed features
 #if CONFIG_SDP
   1,    // enable semi-decoupled partitioning
 #endif  // CONFIG_SDP
@@ -841,6 +843,8 @@ static void update_encoder_config(cfg_options_t *cfg,
   cfg->enable_rect_partitions = extra_cfg->enable_rect_partitions;
   cfg->enable_ab_partitions = extra_cfg->enable_ab_partitions;
   cfg->enable_1to4_partitions = extra_cfg->enable_1to4_partitions;
+  cfg->disable_ml_transform_speed_features =
+      extra_cfg->disable_ml_transform_speed_features;
 #if CONFIG_SDP
   cfg->enable_sdp = extra_cfg->enable_sdp;
 #endif
@@ -907,6 +911,8 @@ static void update_default_encoder_config(const cfg_options_t *cfg,
   extra_cfg->enable_rect_partitions = cfg->enable_rect_partitions;
   extra_cfg->enable_ab_partitions = cfg->enable_ab_partitions;
   extra_cfg->enable_1to4_partitions = cfg->enable_1to4_partitions;
+  extra_cfg->disable_ml_transform_speed_features =
+      cfg->disable_ml_transform_speed_features;
 #if CONFIG_SDP
   extra_cfg->enable_sdp = cfg->enable_sdp;
 #endif
@@ -1381,6 +1387,8 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   txfm_cfg->use_intra_dct_only = extra_cfg->use_intra_dct_only;
   txfm_cfg->use_inter_dct_only = extra_cfg->use_inter_dct_only;
   txfm_cfg->use_intra_default_tx_only = extra_cfg->use_intra_default_tx_only;
+  txfm_cfg->disable_ml_transform_speed_features =
+      extra_cfg->disable_ml_transform_speed_features;
 #if CONFIG_IST
   txfm_cfg->enable_ist = extra_cfg->enable_ist;
 #endif
@@ -3543,6 +3551,12 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
                  argv, err_string)) {
     extra_cfg.disable_ml_partition_speed_features =
         arg_parse_int_helper(&arg, err_string);
+  } else if (arg_match_helper(
+                 &arg,
+                 &g_av1_codec_arg_defs.disable_ml_transform_speed_features,
+                 argv, err_string)) {
+    extra_cfg.disable_ml_transform_speed_features =
+        arg_parse_int_helper(&arg, err_string);
 #if CONFIG_SDP
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_sdp, argv,
                               err_string)) {
@@ -3970,7 +3984,7 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
     0,                           // use_fixed_qp_offsets
     { -1, -1, -1, -1, -1, -1 },  // fixed_qp_offsets
     {
-        0, 128, 128, 4, 1, 1, 1, 0,
+        0, 128, 128, 4, 1, 1, 1, 0, 0,
 #if CONFIG_SDP
         1,
 #endif  // CONFIG_SDP

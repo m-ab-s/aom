@@ -81,6 +81,7 @@ int parse_cfg(const char *file, cfg_options_t *config) {
     GET_PARAMS(enable_rect_partitions);
     GET_PARAMS(enable_1to4_partitions);
     GET_PARAMS(disable_ml_partition_speed_features);
+    GET_PARAMS(disable_ml_transform_speed_features);
 #if CONFIG_SDP
     GET_PARAMS(enable_sdp);
 #endif

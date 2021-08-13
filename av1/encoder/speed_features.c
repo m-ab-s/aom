@@ -883,6 +883,14 @@ static AOM_INLINE void init_lpf_sf(LOOP_FILTER_SPEED_FEATURES *lpf_sf) {
   lpf_sf->disable_lr_filter = 0;
 }
 
+static void av1_disable_ml_based_transform_sf(TX_SPEED_FEATURES *const tx_sf) {
+  tx_sf->tx_type_search.prune_2d_txfm_mode = TX_TYPE_PRUNE_0;
+  tx_sf->tx_type_search.ml_tx_split_thresh = -1;
+#if CONFIG_NEW_TX_PARTITION
+  tx_sf->tx_type_search.ml_tx_split_horzvert_thresh = -1;
+#endif  // CONFIG_NEW_TX_PARTITION
+}
+
 static void av1_disable_ml_based_partition_sf(
     PARTITION_SPEED_FEATURES *const part_sf) {
   part_sf->ml_prune_4_partition = 0;
@@ -916,6 +924,9 @@ void av1_set_speed_features_framesize_dependent(AV1_COMP *cpi, int speed) {
 
   if (oxcf->part_cfg.disable_ml_partition_speed_features)
     av1_disable_ml_based_partition_sf(&sf->part_sf);
+
+  if (oxcf->txfm_cfg.disable_ml_transform_speed_features)
+    av1_disable_ml_based_transform_sf(&sf->tx_sf);
 }
 
 void av1_set_speed_features_framesize_independent(AV1_COMP *cpi, int speed) {

@@ -434,6 +434,7 @@ const arg_def_t *av1_ctrl_args[] = {
 };
 
 const arg_def_t *av1_key_val_args[] = {
+  &g_av1_codec_arg_defs.disable_ml_transform_speed_features,
 #if CONFIG_SDP
   &g_av1_codec_arg_defs.enable_sdp,
 #endif
@@ -582,6 +583,7 @@ static void init_config(cfg_options_t *config) {
   config->enable_ab_partitions = 1;
   config->enable_rect_partitions = 1;
   config->enable_1to4_partitions = 1;
+  config->disable_ml_transform_speed_features = 0;
 #if CONFIG_SDP
   config->enable_sdp = 1;
 #endif
@@ -1383,6 +1385,8 @@ static void show_stream_config(struct stream_state *stream,
   fprintf(
       stdout, "Tool setting (Partition)       : T-Type (%d), 4:1/1:4 (%d)\n",
       encoder_cfg->enable_ab_partitions, encoder_cfg->enable_1to4_partitions);
+  fprintf(stdout, "Disable ml transform speed features          : %d\n",
+          encoder_cfg->disable_ml_transform_speed_features);
 #if CONFIG_SDP
   fprintf(stdout, "                               : SDP (%d)\n",
           encoder_cfg->enable_sdp);

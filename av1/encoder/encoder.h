@@ -285,6 +285,10 @@ typedef struct {
  */
 typedef struct {
   /*!
+   * Flag to disable ml based transform speed features.
+   */
+  bool disable_ml_transform_speed_features;
+  /*!
    * Flag to indicate if 64-pt transform should be enabled.
    */
   bool enable_tx64;

@@ -138,6 +138,7 @@ typedef struct av1_codec_arg_definitions {
   arg_def_t enable_rect_partitions;
   arg_def_t enable_ab_partitions;
   arg_def_t enable_1to4_partitions;
+  arg_def_t disable_ml_transform_speed_features;
 #if CONFIG_SDP
   arg_def_t enable_sdp;
 #endif
