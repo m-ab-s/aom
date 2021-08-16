@@ -647,9 +647,13 @@ static void dec_calc_subpel_params(
 
     // Get reference block bottom right coordinate.
     block->x1 =
-        ((pos_x + (bw - 1) * subpel_params->xs) >> SCALE_SUBPEL_BITS) + 1;
+        ((pos_x + (inter_pred_params->block_width - 1) * subpel_params->xs) >>
+         SCALE_SUBPEL_BITS) +
+        1;
     block->y1 =
-        ((pos_y + (bh - 1) * subpel_params->ys) >> SCALE_SUBPEL_BITS) + 1;
+        ((pos_y + (inter_pred_params->block_height - 1) * subpel_params->ys) >>
+         SCALE_SUBPEL_BITS) +
+        1;
 
     MV temp_mv;
     temp_mv = clamp_mv_to_umv_border_sb(xd, src_mv, bw, bh,
@@ -686,8 +690,10 @@ static void dec_calc_subpel_params(
     block->y0 = pos_y >> SUBPEL_BITS;
 
     // Get reference block bottom right coordinate.
-    block->x1 = (pos_x >> SUBPEL_BITS) + (bw - 1) + 1;
-    block->y1 = (pos_y >> SUBPEL_BITS) + (bh - 1) + 1;
+    block->x1 =
+        (pos_x >> SUBPEL_BITS) + (inter_pred_params->block_width - 1) + 1;
+    block->y1 =
+        (pos_y >> SUBPEL_BITS) + (inter_pred_params->block_height - 1) + 1;
 
     scaled_mv->row = mv_q4.row;
     scaled_mv->col = mv_q4.col;
