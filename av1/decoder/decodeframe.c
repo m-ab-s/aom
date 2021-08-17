@@ -2525,7 +2525,7 @@ static AOM_INLINE void setup_frame_size_with_refs(
 #if CONFIG_NEW_REF_SIGNALING
   // Check to make sure at least one of frames that this frame references
   // has valid dimensions.
-  for (int i = 0; i < MAX_REF_FRAMES_NRS; ++i) {
+  for (int i = 0; i < MAX_REF_FRAMES_NRS - 1; ++i) {
     const RefCntBuffer *const ref_frame = get_ref_frame_buf_nrs(cm, i);
     has_valid_ref_frame |=
         valid_ref_frame_size(ref_frame->buf.y_crop_width,
@@ -2534,7 +2534,7 @@ static AOM_INLINE void setup_frame_size_with_refs(
   if (!has_valid_ref_frame)
     aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
                        "Referenced frame has invalid size");
-  for (int i = 0; i < MAX_REF_FRAMES_NRS; ++i) {
+  for (int i = 0; i < MAX_REF_FRAMES_NRS - 1; ++i) {
     const RefCntBuffer *const ref_frame = get_ref_frame_buf_nrs(cm, i);
     if (!valid_ref_frame_img_fmt(
             ref_frame->buf.bit_depth, ref_frame->buf.subsampling_x,
@@ -5604,7 +5604,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
         features->allow_ref_frame_mvs = 0;
 
 #if CONFIG_NEW_REF_SIGNALING
-      for (int i = 0; i < MAX_REF_FRAMES_NRS; ++i) {
+      for (int i = 0; i < MAX_REF_FRAMES_NRS - 1; ++i) {
         const RefCntBuffer *const ref_buf = get_ref_frame_buf_nrs(cm, i);
         struct scale_factors *const ref_scale_factors =
             get_ref_scale_factors_nrs(cm, i);
@@ -5868,7 +5868,7 @@ uint32_t av1_decode_frame_headers_and_setup(AV1Decoder *pbi,
 #endif
 
 #if CONFIG_NEW_REF_SIGNALING
-  for (int i = 0; i < MAX_REF_FRAMES_NRS; ++i) {
+  for (int i = 0; i < MAX_REF_FRAMES_NRS - 1; ++i) {
     cm->global_motion_nrs[i] = default_warp_params;
     cm->cur_frame->global_motion_nrs[i] = default_warp_params;
   }

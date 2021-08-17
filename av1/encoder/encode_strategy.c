@@ -330,7 +330,7 @@ static void get_gop_cfg_enabled_refs_nrs(AV1_COMP *const cpi,
 
   int frame_level = -1;
   // Loop over each reference frame and hash it based on its pyramid level
-  for (int frame = 0; frame < MAX_REF_FRAMES_NRS; frame++) {
+  for (int frame = 0; frame < INTER_REFS_PER_FRAME_NRS; frame++) {
     // Get reference frame buffer
     const RefCntBuffer *const buf = get_ref_frame_buf_nrs(&cpi->common, frame);
     if (buf == NULL) continue;
@@ -393,7 +393,7 @@ static void get_gop_cfg_enabled_refs_nrs(AV1_COMP *const cpi,
   }
 
   // Avoid using references that were not specified by the cfg
-  for (int frame = 0; frame < MAX_REF_FRAMES_NRS; frame++) {
+  for (int frame = 0; frame < MAX_REF_FRAMES_NRS - 1; frame++) {
     if (!ref_frame_used[frame]) {
       *ref_frame_flags &= ~(1 << (frame));
     }
@@ -1193,7 +1193,7 @@ static void verify_ref_frame_flags_nrs(const AV1_COMMON *const cm,
     }
   }
   int n_enabled_nrs = 0;
-  for (int frame = 0; frame < MAX_REF_FRAMES_NRS; frame++) {
+  for (int frame = 0; frame < MAX_REF_FRAMES_NRS - 1; frame++) {
     if ((ref_frame_flags_nrs & (1 << frame))) n_enabled_nrs++;
   }
   assert(n_enabled == n_enabled_nrs);

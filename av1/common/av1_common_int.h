@@ -140,8 +140,8 @@ typedef struct RefCntBuffer {
   int ref_count;
 
 #if CONFIG_NEW_REF_SIGNALING
-  unsigned int ref_order_hints_nrs[MAX_REF_FRAMES_NRS];
-  unsigned int ref_display_order_hint_nrs[MAX_REF_FRAMES_NRS];
+  unsigned int ref_order_hints_nrs[INTER_REFS_PER_FRAME_NRS];
+  unsigned int ref_display_order_hint_nrs[INTER_REFS_PER_FRAME_NRS];
 #endif  // CONFIG_NEW_REF_SIGNALING
   unsigned int order_hint;
   unsigned int ref_order_hints[INTER_REFS_PER_FRAME];
@@ -1329,7 +1329,7 @@ static INLINE int get_ref_frame_map_idx(const AV1_COMMON *const cm,
                : INVALID_IDX;
   } else {
     NewRefFramesData ref_data = cm->new_ref_frame_data;
-    return (ref_frame >= 0 && ref_frame < MAX_REF_FRAMES_NRS)
+    return (ref_frame >= 0 && ref_frame < INTRA_FRAME_NRS)
                ? ref_data.ref_frame_score_map[ref_frame]
                : INVALID_IDX;
   }
