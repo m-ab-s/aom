@@ -956,7 +956,7 @@ class SubGopSwitchingTestLarge
 
 TEST_P(SubGopSwitchingTestLarge, SubGopSwitching) {
   std::unique_ptr<libaom_test::VideoSource> video;
-  const unsigned int kFrames = 100;
+  const unsigned int kFrames = 175;
 
   if (is_extension_y4m(test_params_.input_file)) {
     video.reset(
