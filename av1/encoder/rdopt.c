@@ -4516,6 +4516,35 @@ static AOM_INLINE void init_neighbor_pred_buf(
   }
 }
 
+#if CONFIG_NEW_REF_SIGNALING
+static AOM_INLINE int prune_ref_frame_nrs(const AV1_COMP *cpi,
+                                          const MACROBLOCK *x,
+                                          const MV_REFERENCE_FRAME_NRS *rf) {
+  const AV1_COMMON *const cm = &cpi->common;
+  const int comp_pred = (rf[1] != INVALID_IDX && rf[1] != INTRA_FRAME_NRS);
+  if (comp_pred) {
+    if (!cpi->oxcf.ref_frm_cfg.enable_onesided_comp ||
+        cpi->sf.inter_sf.disable_onesided_comp) {
+      // Disable all compound references
+      if (cpi->all_one_sided_refs) return 1;
+      // If both references are on the same side prune
+      if (get_dir_rank(cm, rf[0], NULL) == get_dir_rank(cm, rf[1], NULL))
+        return 1;
+    } else if (!cpi->sf.rt_sf.use_nonrd_pick_mode &&
+               cpi->sf.inter_sf.selective_ref_frame >= 2) {
+      // If both references are on the same side prune
+      if (get_dir_rank(cm, rf[0], NULL) == get_dir_rank(cm, rf[1], NULL))
+        return 1;
+    }
+  }
+
+  if (prune_ref_by_selective_ref_frame_nrs(cpi, x, rf)) {
+    return 1;
+  }
+
+  return 0;
+}
+#else
 static AOM_INLINE int prune_ref_frame(const AV1_COMP *cpi, const MACROBLOCK *x,
                                       MV_REFERENCE_FRAME ref_frame) {
   const AV1_COMMON *const cm = &cpi->common;
@@ -4531,6 +4560,8 @@ static AOM_INLINE int prune_ref_frame(const AV1_COMP *cpi, const MACROBLOCK *x,
 
   return 0;
 }
+
+#endif  // CONFIG_NEW_REF_SIGNALING
 
 static AOM_INLINE int is_ref_frame_used_by_compound_ref(
     int ref_frame, int skip_ref_frame_mask) {
@@ -4648,23 +4679,30 @@ static AOM_INLINE void set_params_rd_pick_inter_mode(
           continue;
         }
       }
-      // Ref mv list population is not required, when compound references are
-      // pruned.
-      if (prune_ref_frame(cpi, x, ref_frame)) continue;
 
 #if CONFIG_NEW_REF_SIGNALING
-      MV_REFERENCE_FRAME_NRS ref_frame_nrs = INVALID_IDX;
-      if (ref_frame < REF_FRAMES) {
-        ref_frame_nrs = convert_named_ref_to_ranked_ref_index(
-            &cm->new_ref_frame_data, ref_frame);
-        // TODO(sarahparker) Temporary assert, see aomedia:3060
+      MV_REFERENCE_FRAME_NRS ref_frame_nrs[2] = { INVALID_IDX, INVALID_IDX };
+      MV_REFERENCE_FRAME rfo[2];
+      av1_set_ref_frame(rfo, ref_frame);
+      ref_frame_nrs[0] = convert_named_ref_to_ranked_ref_index(
+          &cm->new_ref_frame_data, rfo[0]);
+      // TODO(sarahparker) Temporary assert, see aomedia:3060
+      assert(convert_ranked_ref_to_named_ref_index(&cm->new_ref_frame_data,
+                                                   ref_frame_nrs[0]) == rfo[0]);
+      if (ref_frame >= REF_FRAMES) {
+        ref_frame_nrs[1] = convert_named_ref_to_ranked_ref_index(
+            &cm->new_ref_frame_data, rfo[1]);
         assert(convert_ranked_ref_to_named_ref_index(
-                   &cm->new_ref_frame_data, ref_frame_nrs) == ref_frame);
+                   &cm->new_ref_frame_data, ref_frame_nrs[1]) == rfo[1]);
       }
-      av1_find_mv_refs(cm, xd, mbmi, ref_frame, ref_frame_nrs,
+      if (prune_ref_frame_nrs(cpi, x, ref_frame_nrs)) continue;
+      av1_find_mv_refs(cm, xd, mbmi, ref_frame, ref_frame_nrs[0],
                        mbmi_ext->ref_mv_count, xd->ref_mv_stack, xd->weight,
                        NULL, mbmi_ext->global_mvs, mbmi_ext->mode_context);
 #else
+      // Ref mv list population is not required, when compound references are
+      // pruned.
+      if (prune_ref_frame(cpi, x, ref_frame)) continue;
       av1_find_mv_refs(cm, xd, mbmi, ref_frame, mbmi_ext->ref_mv_count,
                        xd->ref_mv_stack, xd->weight, NULL, mbmi_ext->global_mvs,
                        mbmi_ext->mode_context);
@@ -4970,7 +5008,11 @@ static int inter_mode_search_order_independent_skip(
   }
 
   const int ref_type = av1_ref_frame_type(ref_frame);
+#if CONFIG_NEW_REF_SIGNALING
+  if (prune_ref_frame_nrs(cpi, x, ref_frame_nrs)) return 1;
+#else
   if (prune_ref_frame(cpi, x, ref_type)) return 1;
+#endif  // CONFIG_NEW_REF_SIGNALING
 
   // This is only used in motion vector unit test.
   if (cpi->oxcf.unit_test_cfg.motion_vector_unit_test &&

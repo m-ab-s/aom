@@ -136,7 +136,35 @@ static INLINE int get_total_compound_modes_nrs(NewRefFramesData *ref_data) {
   const int bidir = get_n_bidir_compound_modes_nrs(ref_data);
   return unidir + bidir;
 }
-#endif  // NEW_REF_SIGNALING
+
+// Gets directional i.e. past/future ref rank from overall rank
+// in dir_refrank[0]/[1] respectively. Returns 0 if found in past
+// list, 1 if found in future list, -1 if not found in either (error).
+// Note dir_refrank can be NULL, in which case only the direction
+// is returned, the ranks are not output.
+static INLINE int get_dir_rank(const AV1_COMMON *const cm, int refrank,
+                               int *dir_refrank) {
+  assert(refrank != INTRA_FRAME_NRS && refrank != INVALID_IDX);
+  assert(refrank < cm->new_ref_frame_data.n_total_refs);
+  if (dir_refrank) {
+    dir_refrank[0] = -1;
+    dir_refrank[1] = -1;
+  }
+  for (int i = 0; i < cm->new_ref_frame_data.n_past_refs; ++i) {
+    if (cm->new_ref_frame_data.past_refs[i] == refrank) {
+      if (dir_refrank) dir_refrank[0] = i;
+      return 0;
+    }
+  }
+  for (int i = 0; i < cm->new_ref_frame_data.n_future_refs; ++i) {
+    if (cm->new_ref_frame_data.future_refs[i] == refrank) {
+      if (dir_refrank) dir_refrank[1] = i;
+      return 1;
+    }
+  }
+  return -1;
+}
+#endif  // CONFIG_NEW_REF_SIGNALING
 
 static INLINE int get_segment_id(const CommonModeInfoParams *const mi_params,
                                  const uint8_t *segment_ids, BLOCK_SIZE bsize,

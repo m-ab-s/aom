@@ -259,7 +259,6 @@ static INLINE int prune_ref(const MV_REFERENCE_FRAME *const ref_frame,
   return 0;
 }
 
-// TODO(sarahparker) Implement for new ref signaling
 static INLINE int prune_ref_by_selective_ref_frame(
     const AV1_COMP *const cpi, const MACROBLOCK *const x,
     const MV_REFERENCE_FRAME *const ref_frame,
@@ -280,8 +279,9 @@ static INLINE int prune_ref_by_selective_ref_frame(
 
     if (prune_ref(ref_frame, ref_display_order_hint,
                   ref_display_order_hint[GOLDEN_FRAME - LAST_FRAME],
-                  ref_frame_list))
+                  ref_frame_list)) {
       return 1;
+    }
   }
 
   if (sf->inter_sf.selective_ref_frame >= 3) {
@@ -294,8 +294,9 @@ static INLINE int prune_ref_by_selective_ref_frame(
 
     if (prune_ref(ref_frame, ref_display_order_hint,
                   ref_display_order_hint[LAST_FRAME - LAST_FRAME],
-                  ref_frame_list))
+                  ref_frame_list)) {
       return 1;
+    }
   }
 
   return 0;
@@ -303,6 +304,103 @@ static INLINE int prune_ref_by_selective_ref_frame(
 
 #if CONFIG_NEW_REF_SIGNALING
 static INLINE int prune_ref_by_selective_ref_frame_nrs(
+    const AV1_COMP *const cpi, const MACROBLOCK *const x,
+    const MV_REFERENCE_FRAME_NRS *const ref_frame) {
+  (void)x;
+  const AV1_COMMON *const cm = &cpi->common;
+  const SPEED_FEATURES *const sf = &cpi->sf;
+
+  if (!sf->inter_sf.selective_ref_frame) return 0;
+  assert(ref_frame[0] != INVALID_IDX);
+  if (ref_frame[0] == INTRA_FRAME_NRS) return 0;
+
+  const int comp_pred =
+      (ref_frame[1] != INVALID_IDX && ref_frame[1] != INTRA_FRAME_NRS);
+
+  if (x != NULL) {
+    // TODO(debargha, sarahparker): Change the code below to
+    // use x->tpl_keep_ref_frame_nrs[ranked_ref] when tpl_keep_ref_frame_nrs
+    // is ready.
+    MV_REFERENCE_FRAME converted_ref_frame[2];
+    converted_ref_frame[0] = convert_ranked_ref_to_named_ref_index(
+        &cm->new_ref_frame_data, ref_frame[0]);
+    converted_ref_frame[1] = convert_ranked_ref_to_named_ref_index(
+        &cm->new_ref_frame_data, ref_frame[1]);
+    if (sf->inter_sf.selective_ref_frame >= 2 ||
+        (sf->inter_sf.selective_ref_frame == 1 && comp_pred)) {
+      if (x->tpl_keep_ref_frame[LAST3_FRAME] &&
+          (converted_ref_frame[0] == LAST3_FRAME ||
+           converted_ref_frame[1] == LAST3_FRAME))
+        return 0;
+      if (x->tpl_keep_ref_frame[LAST2_FRAME] &&
+          (converted_ref_frame[0] == LAST2_FRAME ||
+           converted_ref_frame[1] == LAST2_FRAME))
+        return 0;
+    }
+    if (sf->inter_sf.selective_ref_frame >= 3) {
+      if (x->tpl_keep_ref_frame[ALTREF2_FRAME] &&
+          (converted_ref_frame[0] == ALTREF2_FRAME ||
+           converted_ref_frame[1] == ALTREF2_FRAME))
+        return 0;
+      if (x->tpl_keep_ref_frame[BWDREF_FRAME] &&
+          (converted_ref_frame[0] == BWDREF_FRAME ||
+           converted_ref_frame[1] == BWDREF_FRAME))
+        return 0;
+    }
+  }
+
+  int dir_refrank[2][2] = { { -1, -1 }, { -1, -1 } };
+  int d0 = get_dir_rank(cm, ref_frame[0], dir_refrank[0]);
+  assert(d0 != -1);
+  int d1 = -1;
+  if (comp_pred) {
+    d1 = get_dir_rank(cm, ref_frame[1], dir_refrank[1]);
+    assert(d1 != -1);
+  }
+  const int one_sided_comp = (d0 == d1);
+
+  switch (sf->inter_sf.selective_ref_frame) {
+    case 0: return 0;
+    case 1:
+      if (comp_pred) {
+        if (one_sided_comp) {
+          if (AOMMIN(dir_refrank[0][d0], dir_refrank[1][d1]) > 1) return 1;
+        } else {
+          if (AOMMIN(dir_refrank[0][d0], dir_refrank[1][d1]) > 2) return 1;
+        }
+      } else {
+        if (dir_refrank[0][d0] > MAX_REF_FRAMES_NRS / 2) return 1;
+      }
+      break;
+    case 2:
+      if (comp_pred) {
+        if (one_sided_comp) {
+          if (AOMMIN(dir_refrank[0][d0], dir_refrank[1][d1]) > 0) return 1;
+        } else {
+          if (AOMMIN(dir_refrank[0][d0], dir_refrank[1][d1]) > 1) return 1;
+        }
+      } else {
+        if (dir_refrank[0][d0] > MAX_REF_FRAMES_NRS / 2 - 1) return 1;
+      }
+      break;
+    case 3:
+    default:
+      if (comp_pred) {
+        if (one_sided_comp) {
+          if (AOMMIN(dir_refrank[0][d0], dir_refrank[1][d1]) > 0) return 1;
+        } else {
+          if (AOMMIN(dir_refrank[0][d0], dir_refrank[1][d1]) > 0) return 1;
+        }
+      } else {
+        if (dir_refrank[0][d0] > MAX_REF_FRAMES_NRS / 2 - 2) return 1;
+      }
+      break;
+  }
+  return 0;
+}
+
+#if 0
+static INLINE int prune_ref_by_selective_ref_frame_nrs_tmp(
     const AV1_COMP *const cpi, const MACROBLOCK *const x,
     const MV_REFERENCE_FRAME_NRS *const ref_frame,
     const unsigned int *const ref_display_order_hint) {
@@ -321,6 +419,7 @@ static INLINE int prune_ref_by_selective_ref_frame_nrs(
   return prune_ref_by_selective_ref_frame(cpi, x, converted_ref_frame,
                                           ref_display_order_hint);
 }
+#endif
 #endif  // CONFIG_NEW_REF_SIGNALING
 
 // This function will copy the best reference mode information from
