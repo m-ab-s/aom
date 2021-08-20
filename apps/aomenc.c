@@ -1076,7 +1076,6 @@ static int parse_stream_params(struct AvxEncoderConfig *global,
       config->cfg.full_still_picture_hdr = 1;
     } else if (arg_match(&arg, &g_av1_codec_arg_defs.use_16bit_internal,
                          argi)) {
-      config->use_16bit_internal = 1;
       warn("%s option deprecated. default to 1 always.\n", arg.name);
     } else if (arg_match(&arg, &g_av1_codec_arg_defs.dropframe_thresh, argi)) {
       config->cfg.rc_dropframe_thresh = arg_parse_uint(&arg);
@@ -1212,7 +1211,7 @@ static int parse_stream_params(struct AvxEncoderConfig *global,
       if (!match) argj++;
     }
   }
-  config->use_16bit_internal |= config->cfg.g_bit_depth > AOM_BITS_8;
+  config->use_16bit_internal = 1;
 
   return eos_mark_found;
 }
@@ -2113,9 +2112,8 @@ int main(int argc, const char **argv_) {
           default: break;
         }
       }
-      if (stream->config.cfg.g_bit_depth > 8) {
-        stream->config.use_16bit_internal = 1;
-      }
+      // Force encoder to use 16-bit pipeline for 8-bit video/image
+      stream->config.use_16bit_internal = 1;
       if (profile_updated && !global.quiet) {
         fprintf(stderr,
                 "Warning: automatically updating to profile %d to "
