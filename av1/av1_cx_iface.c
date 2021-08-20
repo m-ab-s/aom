@@ -913,6 +913,8 @@ static void update_default_encoder_config(const cfg_options_t *cfg,
   extra_cfg->enable_1to4_partitions = cfg->enable_1to4_partitions;
   extra_cfg->disable_ml_transform_speed_features =
       cfg->disable_ml_transform_speed_features;
+  extra_cfg->disable_ml_partition_speed_features =
+      cfg->disable_ml_partition_speed_features;
 #if CONFIG_SDP
   extra_cfg->enable_sdp = cfg->enable_sdp;
 #endif
@@ -1886,14 +1888,6 @@ static aom_codec_err_t ctrl_set_enable_chroma_deltaq(aom_codec_alg_priv_t *ctx,
                                                      va_list args) {
   struct av1_extracfg extra_cfg = ctx->extra_cfg;
   extra_cfg.enable_chroma_deltaq = CAST(AV1E_SET_ENABLE_CHROMA_DELTAQ, args);
-  return update_extra_cfg(ctx, &extra_cfg);
-}
-
-static aom_codec_err_t ctrl_set_disable_ml_partition_speed_features(
-    aom_codec_alg_priv_t *ctx, va_list args) {
-  struct av1_extracfg extra_cfg = ctx->extra_cfg;
-  extra_cfg.disable_ml_partition_speed_features =
-      CAST(AV1E_SET_DISABLE_ML_PARTITION_SPEED_FEATURES, args);
   return update_extra_cfg(ctx, &extra_cfg);
 }
 
@@ -3815,8 +3809,6 @@ static aom_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {
   { AV1E_SET_FRAME_PARALLEL_DECODING, ctrl_set_frame_parallel_decoding_mode },
   { AV1E_SET_ERROR_RESILIENT_MODE, ctrl_set_error_resilient_mode },
   { AV1E_SET_S_FRAME_MODE, ctrl_set_s_frame_mode },
-  { AV1E_SET_DISABLE_ML_PARTITION_SPEED_FEATURES,
-    ctrl_set_disable_ml_partition_speed_features },
   { AV1E_SET_ENABLE_RECT_PARTITIONS, ctrl_set_enable_rect_partitions },
   { AV1E_SET_ENABLE_AB_PARTITIONS, ctrl_set_enable_ab_partitions },
   { AV1E_SET_ENABLE_1TO4_PARTITIONS, ctrl_set_enable_1to4_partitions },
