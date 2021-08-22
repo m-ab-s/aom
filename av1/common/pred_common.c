@@ -128,6 +128,7 @@ void av1_init_new_ref_frame_map(AV1_COMMON *cm,
   int n_past = 0;
   for (int i = 0; i < n_ranked; i++) {
     cm->new_ref_frame_data.ref_frame_score_map[i] = scores[i].index;
+    cm->new_ref_frame_data.ref_frame_distance[i] = scores[i].distance;
     cm->new_ref_frame_data.ranked_to_named_refs[i] = scores[i].named_ref[0];
     for (int j = 0; j < scores[i].n_named_refs; j++) {
       cm->new_ref_frame_data.named_to_ranked_refs[scores[i].named_ref[j]] = i;

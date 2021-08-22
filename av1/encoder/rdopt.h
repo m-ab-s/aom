@@ -319,7 +319,7 @@ static INLINE int prune_ref_by_selective_ref_frame_nrs(
 
   if (x != NULL) {
     // TODO(debargha, sarahparker): Change the code below to
-    // use x->tpl_keep_ref_frame_nrs[ranked_ref] when tpl_keep_ref_frame_nrs
+    // use x->tpl_keep_ref_frame_nrs[ranked_ref] when tpl_keep_ref_frame_nrs[]
     // is ready.
     MV_REFERENCE_FRAME converted_ref_frame[2];
     converted_ref_frame[0] = convert_ranked_ref_to_named_ref_index(

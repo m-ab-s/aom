@@ -810,6 +810,12 @@ typedef struct {
    */
   int ref_frame_score_map[MAX_REF_FRAMES_NRS];
   /*!
+   * Distance of ref frame from current frame. Negative value indicates
+   * reference in the future, and positive value indicates reference in
+   * the past from the current frame
+   */
+  int ref_frame_distance[MAX_REF_FRAMES_NRS];
+  /*!
    * Total number of reference buffers available to the current frame.
    */
   int n_total_refs;
