@@ -42,7 +42,7 @@ def EncodeWithAOM_AV2(clip, test_cfg, QP, framenum, outfile, preset, enc_perf,
     if CTC_VERSION == '2.0':
         args += " --qp=%d" % QP
     else:
-        args += " --cq-level=%d" % QP
+        args += " --use-16bit-internal --cq-level=%d" % QP
 
     # For 4K clip, encode with 2 tile columns using two threads.
     # --tile-columns value is in log2.
@@ -112,11 +112,6 @@ def EncodeWithAOM_AV1(clip, test_cfg, QP, framenum, outfile, preset, enc_perf,
     else:
         args += " --tile-columns=0 --threads=1 "
 
-    if EnableOpenGOP:
-        args += " --enable-fwd-kf=1 "
-    else:
-        args += " --enable-fwd-kf=0 "
-
     if EnableTemporalFilter:
         args += " --enable-keyframe-filtering=1 "
     else:
@@ -125,11 +120,15 @@ def EncodeWithAOM_AV1(clip, test_cfg, QP, framenum, outfile, preset, enc_perf,
     if test_cfg == "AI" or test_cfg == "STILL":
         args += " --kf-min-dist=0 --kf-max-dist=0 "
     elif test_cfg == "RA" or test_cfg == "AS":
+        if EnableOpenGOP:
+            args += " --fwd-kf-dist=%d " % (GOP_SIZE)
+        else:
+            args += " --kf-min-dist=%d --kf-max-dist=%d" % (GOP_SIZE, GOP_SIZE)
+
         args += " --min-gf-interval=%d --max-gf-interval=%d --gf-min-pyr-height=%d" \
-                " --gf-max-pyr-height=%d --kf-min-dist=%d --kf-max-dist=%d" \
-                " --lag-in-frames=%d --auto-alt-ref=1 " % \
+                " --gf-max-pyr-height=%d --lag-in-frames=%d --auto-alt-ref=1 " % \
                 (SUB_GOP_SIZE, SUB_GOP_SIZE, math.log2(SUB_GOP_SIZE), math.log2(SUB_GOP_SIZE),
-                 GOP_SIZE, GOP_SIZE, SUB_GOP_SIZE + 3)
+                 SUB_GOP_SIZE + 3)
     elif test_cfg == "LD":
         args += " --kf-min-dist=9999 --kf-max-dist=9999 --lag-in-frames=0" \
                 " --min-gf-interval=%d --max-gf-interval=%d --gf-min-pyr-height=%d " \
