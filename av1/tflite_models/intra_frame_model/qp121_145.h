@@ -9,9 +9,9 @@
  * PATENTS file, you can obtain it at www.aomedia.org/license/patent.
  */
 
-#ifndef AOM_AV1_TFLITE_MODELS_INTRA_FRAME_MODEL_QP32_H_
-#define AOM_AV1_TFLITE_MODELS_INTRA_FRAME_MODEL_QP32_H_
+#ifndef AOM_AV1_TFLITE_MODELS_INTRA_FRAME_MODEL_QP121_145_H_
+#define AOM_AV1_TFLITE_MODELS_INTRA_FRAME_MODEL_QP121_145_H_
 
-extern const unsigned char qp32_model_tflite_data[];
+extern const unsigned char qp121_145_model_tflite_data[];
 
-#endif  // AOM_AV1_TFLITE_MODELS_INTRA_FRAME_MODEL_QP32_H_
+#endif  // AOM_AV1_TFLITE_MODELS_INTRA_FRAME_MODEL_QP121_145_H_

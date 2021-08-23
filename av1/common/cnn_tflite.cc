@@ -20,24 +20,24 @@
 #include "av1/tflite_models/intra_frame_model/uv_qp43.h"
 #include "av1/tflite_models/intra_frame_model/uv_qp53.h"
 #include "av1/tflite_models/intra_frame_model/uv_qp63.h"
-#include "av1/tflite_models/intra_frame_model/qp12.h"
-#include "av1/tflite_models/intra_frame_model/qp22.h"
-#include "av1/tflite_models/intra_frame_model/qp32.h"
-#include "av1/tflite_models/intra_frame_model/qp43.h"
-#include "av1/tflite_models/intra_frame_model/qp53.h"
-#include "av1/tflite_models/intra_frame_model/qp63.h"
+#include "av1/tflite_models/intra_frame_model/qp0_90.h"
+#include "av1/tflite_models/intra_frame_model/qp91_120.h"
+#include "av1/tflite_models/intra_frame_model/qp121_145.h"
+#include "av1/tflite_models/intra_frame_model/qp146_175.h"
+#include "av1/tflite_models/intra_frame_model/qp176_205.h"
+#include "av1/tflite_models/intra_frame_model/qp206_255.h"
 #include "av1/tflite_models/inter_frame_model/uv_qp0_67.h"
 #include "av1/tflite_models/inter_frame_model/uv_qp68_107.h"
 #include "av1/tflite_models/inter_frame_model/uv_qp108_147.h"
 #include "av1/tflite_models/inter_frame_model/uv_qp148_191.h"
 #include "av1/tflite_models/inter_frame_model/uv_qp192_231.h"
 #include "av1/tflite_models/inter_frame_model/uv_qp232_255.h"
-#include "av1/tflite_models/inter_frame_model/qp0_67.h"
-#include "av1/tflite_models/inter_frame_model/qp68_107.h"
-#include "av1/tflite_models/inter_frame_model/qp108_147.h"
-#include "av1/tflite_models/inter_frame_model/qp148_191.h"
-#include "av1/tflite_models/inter_frame_model/qp192_231.h"
-#include "av1/tflite_models/inter_frame_model/qp232_255.h"
+#include "av1/tflite_models/inter_frame_model/qp0_90.h"
+#include "av1/tflite_models/inter_frame_model/qp91_120.h"
+#include "av1/tflite_models/inter_frame_model/qp121_145.h"
+#include "av1/tflite_models/inter_frame_model/qp146_175.h"
+#include "av1/tflite_models/inter_frame_model/qp176_205.h"
+#include "av1/tflite_models/inter_frame_model/qp206_255.h"
 #include "common/tf_lite_includes.h"
 
 #if CONFIG_CNN_RESTORATION
@@ -50,18 +50,18 @@ static const unsigned char *get_intra_model_from_qindex(int qindex,
   }
 
   if (is_luma) {
-    if (qindex < 68) {
-      return qp12_model_tflite_data;
-    } else if (qindex < 108) {
-      return qp22_model_tflite_data;
-    } else if (qindex < 148) {
-      return qp32_model_tflite_data;
-    } else if (qindex < 192) {
-      return qp43_model_tflite_data;
-    } else if (qindex < 232) {
-      return qp53_model_tflite_data;
+    if (qindex < 91) {
+      return qp0_90_model_tflite_data;
+    } else if (qindex < 121) {
+      return qp91_120_model_tflite_data;
+    } else if (qindex < 146) {
+      return qp121_145_model_tflite_data;
+    } else if (qindex < 176) {
+      return qp146_175_model_tflite_data;
+    } else if (qindex < 206) {
+      return qp176_205_model_tflite_data;
     } else {
-      return qp63_model_tflite_data;
+      return qp206_255_model_tflite_data;
     }
   } else {
     if (qindex < 68) {
@@ -89,18 +89,18 @@ static const unsigned char *get_inter_model_from_qindex(int qindex,
   }
 
   if (is_luma) {
-    if (qindex < 68) {
-      return qp0_67_inter_model_tflite_data;
-    } else if (qindex < 108) {
-      return qp68_107_inter_model_tflite_data;
-    } else if (qindex < 148) {
-      return qp108_147_inter_model_tflite_data;
-    } else if (qindex < 192) {
-      return qp148_191_inter_model_tflite_data;
-    } else if (qindex < 232) {
-      return qp192_231_inter_model_tflite_data;
+    if (qindex < 91) {
+      return qp0_90_inter_model_tflite_data;
+    } else if (qindex < 121) {
+      return qp91_120_inter_model_tflite_data;
+    } else if (qindex < 146) {
+      return qp121_145_inter_model_tflite_data;
+    } else if (qindex < 176) {
+      return qp146_175_inter_model_tflite_data;
+    } else if (qindex < 206) {
+      return qp176_205_inter_model_tflite_data;
     } else {
-      return qp232_255_inter_model_tflite_data;
+      return qp206_255_inter_model_tflite_data;
     }
   } else {
     if (qindex < 68) {
