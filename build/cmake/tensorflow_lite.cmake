@@ -78,8 +78,6 @@ function(target_link_tf_lite_libraries named_target)
   target_link_tf_lite_dep_(${named_target} _deps/abseil-cpp-build/absl/flags/
                            absl_flags_internal)
   target_link_tf_lite_dep_(${named_target} _deps/abseil-cpp-build/absl/flags/
-                           absl_flags_registry)
-  target_link_tf_lite_dep_(${named_target} _deps/abseil-cpp-build/absl/flags/
                            absl_flags_config)
   target_link_tf_lite_dep_(${named_target} _deps/abseil-cpp-build/absl/flags/
                            absl_flags_program_name)
@@ -127,8 +125,6 @@ function(target_link_tf_lite_libraries named_target)
                            absl_throw_delegate)
   target_link_tf_lite_dep_(${named_target} _deps/abseil-cpp-build/absl/base/
                            absl_base)
-  target_link_tf_lite_dep_(${named_target} _deps/abseil-cpp-build/absl/base/
-                           absl_dynamic_annotations)
   target_link_tf_lite_dep_(${named_target} _deps/abseil-cpp-build/absl/base/
                            absl_spinlock_wait)
   target_link_tf_lite_dep_(${named_target} _deps/abseil-cpp-build/absl/numeric/
