@@ -669,10 +669,6 @@ static AOM_INLINE void init_smooth_interintra_masks() {
 }
 
 #if CONFIG_OPTFLOW_REFINEMENT
-
-// Whether to refine chroma MV or not
-#define OPFL_REFINE_CHROMA 0
-
 // Use second-pass motion compensation or not
 #define OPFL_SECOND_PASS_MC 1
 
@@ -806,7 +802,7 @@ void av1_opfl_build_inter_predictor_lowbd(
 // Negative values indicate gradient returned at reduced precision, and
 // positive values indicate gradient returned at higher precision.
 void av1_compute_subpel_gradients_mc_highbd(
-    MACROBLOCKD *xd, MB_MODE_INFO *mi, int bw, int bh, int mi_x, int mi_y,
+    MACROBLOCKD *xd, const MB_MODE_INFO *mi, int bw, int bh, int mi_x, int mi_y,
     uint8_t **mc_buf, InterPredParams *inter_pred_params,
     CalcSubpelParamsFunc calc_subpel_params_func, int ref, int *grad_prec_bits,
     int16_t *x_grad, int16_t *y_grad) {
@@ -872,7 +868,7 @@ void av1_compute_subpel_gradients_mc_highbd(
 // Negative values indicate gradient returned at reduced precision, and
 // positive values indicate gradient returned at higher precision.
 void av1_compute_subpel_gradients_mc_lowbd(
-    MACROBLOCKD *xd, MB_MODE_INFO *mi, int bw, int bh, int mi_x, int mi_y,
+    MACROBLOCKD *xd, const MB_MODE_INFO *mi, int bw, int bh, int mi_x, int mi_y,
     uint8_t **mc_buf, InterPredParams *inter_pred_params,
     CalcSubpelParamsFunc calc_subpel_params_func, int ref, int *grad_prec_bits,
     int16_t *x_grad, int16_t *y_grad) {
@@ -1449,7 +1445,7 @@ void av1_copy_pred_array_highbd_c(const uint16_t *src1, const uint16_t *src2,
 
 static int get_optflow_based_mv_highbd(
     const AV1_COMMON *cm, MACROBLOCKD *xd, int plane, MB_MODE_INFO *mbmi,
-    int bw, int bh, int mi_x, int mi_y, uint8_t **mc_buf,
+    int_mv *mv_refined, int bw, int bh, int mi_x, int mi_y, uint8_t **mc_buf,
     CalcSubpelParamsFunc calc_subpel_params_func, int16_t *gx0, int16_t *gy0,
     int16_t *gx1, int16_t *gy1, int *vx0, int *vy0, int *vx1, int *vy1,
     uint16_t *dst0, uint16_t *dst1) {
@@ -1457,10 +1453,10 @@ static int get_optflow_based_mv_highbd(
   // Convert output MV to 1/16th pel
   assert(MV_REFINE_PREC_BITS >= 3);
   for (int mvi = 0; mvi < N_OF_OFFSETS; mvi++) {
-    mbmi->mv_refined[mvi * 2].as_mv.row *= 1 << (MV_REFINE_PREC_BITS - 3);
-    mbmi->mv_refined[mvi * 2].as_mv.col *= 1 << (MV_REFINE_PREC_BITS - 3);
-    mbmi->mv_refined[mvi * 2 + 1].as_mv.row *= 1 << (MV_REFINE_PREC_BITS - 3);
-    mbmi->mv_refined[mvi * 2 + 1].as_mv.col *= 1 << (MV_REFINE_PREC_BITS - 3);
+    mv_refined[mvi * 2].as_mv.row *= 1 << (MV_REFINE_PREC_BITS - 3);
+    mv_refined[mvi * 2].as_mv.col *= 1 << (MV_REFINE_PREC_BITS - 3);
+    mv_refined[mvi * 2 + 1].as_mv.row *= 1 << (MV_REFINE_PREC_BITS - 3);
+    mv_refined[mvi * 2 + 1].as_mv.col *= 1 << (MV_REFINE_PREC_BITS - 3);
   }
 
   // Obtain d0 and d1
@@ -1542,19 +1538,19 @@ static int get_optflow_based_mv_highbd(
 
   for (int i = 0; i < n_blocks; i++) {
 #if OPFL_CLAMP_MV_DELTA
-    mbmi->mv_refined[i * 2].as_mv.row +=
+    mv_refined[i * 2].as_mv.row +=
         clamp(vy0[i], -OPFL_MV_DELTA_LIMIT, OPFL_MV_DELTA_LIMIT);
-    mbmi->mv_refined[i * 2].as_mv.col +=
+    mv_refined[i * 2].as_mv.col +=
         clamp(vx0[i], -OPFL_MV_DELTA_LIMIT, OPFL_MV_DELTA_LIMIT);
-    mbmi->mv_refined[i * 2 + 1].as_mv.row +=
+    mv_refined[i * 2 + 1].as_mv.row +=
         clamp(vy1[i], -OPFL_MV_DELTA_LIMIT, OPFL_MV_DELTA_LIMIT);
-    mbmi->mv_refined[i * 2 + 1].as_mv.col +=
+    mv_refined[i * 2 + 1].as_mv.col +=
         clamp(vx1[i], -OPFL_MV_DELTA_LIMIT, OPFL_MV_DELTA_LIMIT);
 #else
-    mbmi->mv_refined[i * 2].as_mv.row += vy0[i];
-    mbmi->mv_refined[i * 2].as_mv.col += vx0[i];
-    mbmi->mv_refined[i * 2 + 1].as_mv.row += vy1[i];
-    mbmi->mv_refined[i * 2 + 1].as_mv.col += vx1[i];
+    mv_refined[i * 2].as_mv.row += vy0[i];
+    mv_refined[i * 2].as_mv.col += vx0[i];
+    mv_refined[i * 2 + 1].as_mv.row += vy1[i];
+    mv_refined[i * 2 + 1].as_mv.col += vx1[i];
 #endif
   }
 
@@ -1563,7 +1559,7 @@ static int get_optflow_based_mv_highbd(
 
 static int get_optflow_based_mv_lowbd(
     const AV1_COMMON *cm, MACROBLOCKD *xd, int plane, MB_MODE_INFO *mbmi,
-    int bw, int bh, int mi_x, int mi_y, uint8_t **mc_buf,
+    int_mv *mv_refined, int bw, int bh, int mi_x, int mi_y, uint8_t **mc_buf,
     CalcSubpelParamsFunc calc_subpel_params_func, int16_t *gx0, int16_t *gy0,
     int16_t *gx1, int16_t *gy1, int *vx0, int *vy0, int *vx1, int *vy1,
     uint8_t *dst0, uint8_t *dst1) {
@@ -1571,10 +1567,10 @@ static int get_optflow_based_mv_lowbd(
   // Convert output MV to 1/16th pel
   assert(MV_REFINE_PREC_BITS >= 3);
   for (int mvi = 0; mvi < N_OF_OFFSETS; mvi++) {
-    mbmi->mv_refined[mvi * 2].as_mv.row *= 1 << (MV_REFINE_PREC_BITS - 3);
-    mbmi->mv_refined[mvi * 2].as_mv.col *= 1 << (MV_REFINE_PREC_BITS - 3);
-    mbmi->mv_refined[mvi * 2 + 1].as_mv.row *= 1 << (MV_REFINE_PREC_BITS - 3);
-    mbmi->mv_refined[mvi * 2 + 1].as_mv.col *= 1 << (MV_REFINE_PREC_BITS - 3);
+    mv_refined[mvi * 2].as_mv.row *= 1 << (MV_REFINE_PREC_BITS - 3);
+    mv_refined[mvi * 2].as_mv.col *= 1 << (MV_REFINE_PREC_BITS - 3);
+    mv_refined[mvi * 2 + 1].as_mv.row *= 1 << (MV_REFINE_PREC_BITS - 3);
+    mv_refined[mvi * 2 + 1].as_mv.col *= 1 << (MV_REFINE_PREC_BITS - 3);
   }
 
   // Obtain d0 and d1
@@ -1655,19 +1651,19 @@ static int get_optflow_based_mv_lowbd(
 
   for (int i = 0; i < n_blocks; i++) {
 #if OPFL_CLAMP_MV_DELTA
-    mbmi->mv_refined[i * 2].as_mv.row +=
+    mv_refined[i * 2].as_mv.row +=
         clamp(vy0[i], -OPFL_MV_DELTA_LIMIT, OPFL_MV_DELTA_LIMIT);
-    mbmi->mv_refined[i * 2].as_mv.col +=
+    mv_refined[i * 2].as_mv.col +=
         clamp(vx0[i], -OPFL_MV_DELTA_LIMIT, OPFL_MV_DELTA_LIMIT);
-    mbmi->mv_refined[i * 2 + 1].as_mv.row +=
+    mv_refined[i * 2 + 1].as_mv.row +=
         clamp(vy1[i], -OPFL_MV_DELTA_LIMIT, OPFL_MV_DELTA_LIMIT);
-    mbmi->mv_refined[i * 2 + 1].as_mv.col +=
+    mv_refined[i * 2 + 1].as_mv.col +=
         clamp(vx1[i], -OPFL_MV_DELTA_LIMIT, OPFL_MV_DELTA_LIMIT);
 #else
-    mbmi->mv_refined[i * 2].as_mv.row += vy0[i];
-    mbmi->mv_refined[i * 2].as_mv.col += vx0[i];
-    mbmi->mv_refined[i * 2 + 1].as_mv.row += vy1[i];
-    mbmi->mv_refined[i * 2 + 1].as_mv.col += vx1[i];
+    mv_refined[i * 2].as_mv.row += vy0[i];
+    mv_refined[i * 2].as_mv.col += vx0[i];
+    mv_refined[i * 2 + 1].as_mv.row += vy1[i];
+    mv_refined[i * 2 + 1].as_mv.col += vx1[i];
 #endif
   }
 
@@ -2093,6 +2089,7 @@ static void build_inter_predictors_8x8_and_bigger(
   const int pre_y = (mi_y + MI_SIZE * row_start) >> pd->subsampling_y;
 
 #if CONFIG_OPTFLOW_REFINEMENT
+  int_mv mv_refined[2 * N_OF_OFFSETS];
   const int use_optflow_refinement =
       (mi->mode > NEW_NEWMV) && is_compound && is_opfl_refine_allowed(cm, mi);
   assert(IMPLIES(use_optflow_refinement, !build_for_obmc));
@@ -2125,8 +2122,8 @@ static void build_inter_predictors_8x8_and_bigger(
     const MV mv0 = mi->mv[0].as_mv;
     const MV mv1 = mi->mv[1].as_mv;
     for (int mvi = 0; mvi < N_OF_OFFSETS; mvi++) {
-      mi->mv_refined[mvi * 2].as_mv = mv0;
-      mi->mv_refined[mvi * 2 + 1].as_mv = mv1;
+      mv_refined[mvi * 2].as_mv = mv0;
+      mv_refined[mvi * 2 + 1].as_mv = mv1;
     }
     // Refine MV using optical flow. The final output MV will be in 1/16
     // precision.
@@ -2135,18 +2132,18 @@ static void build_inter_predictors_8x8_and_bigger(
           aom_calloc(1, MAX_SB_SIZE * MAX_SB_SIZE * sizeof(uint16_t)));
       dst1 = CONVERT_TO_BYTEPTR(
           aom_calloc(1, MAX_SB_SIZE * MAX_SB_SIZE * sizeof(uint16_t)));
-      get_optflow_based_mv_highbd(cm, xd, plane, mi, bw, bh, mi_x, mi_y, mc_buf,
-                                  calc_subpel_params_func, gx0, gy0, gx1, gy1,
-                                  vx0, vy0, vx1, vy1, CONVERT_TO_SHORTPTR(dst0),
-                                  CONVERT_TO_SHORTPTR(dst1));
+      get_optflow_based_mv_highbd(
+          cm, xd, plane, mi, mv_refined, bw, bh, mi_x, mi_y, mc_buf,
+          calc_subpel_params_func, gx0, gy0, gx1, gy1, vx0, vy0, vx1, vy1,
+          CONVERT_TO_SHORTPTR(dst0), CONVERT_TO_SHORTPTR(dst1));
     } else {
       dst0 =
           (uint8_t *)aom_calloc(1, MAX_SB_SIZE * MAX_SB_SIZE * sizeof(uint8_t));
       dst1 =
           (uint8_t *)aom_calloc(1, MAX_SB_SIZE * MAX_SB_SIZE * sizeof(uint8_t));
-      get_optflow_based_mv_lowbd(cm, xd, plane, mi, bw, bh, mi_x, mi_y, mc_buf,
-                                 calc_subpel_params_func, gx0, gy0, gx1, gy1,
-                                 vx0, vy0, vx1, vy1, dst0, dst1);
+      get_optflow_based_mv_lowbd(cm, xd, plane, mi, mv_refined, bw, bh, mi_x,
+                                 mi_y, mc_buf, calc_subpel_params_func, gx0,
+                                 gy0, gx1, gy1, vx0, vy0, vx1, vy1, dst0, dst1);
     }
   }
 #endif  // CONFIG_OPTFLOW_REFINEMENT
@@ -2194,14 +2191,7 @@ static void build_inter_predictors_8x8_and_bigger(
     }
 
 #if CONFIG_OPTFLOW_REFINEMENT
-#if OPFL_REFINE_CHROMA
-    // For luma, always apply offset MVs. For chroma, use the MVs derived for
-    // luma if luma subblock size is 8x8 (i.e., chroma block size > 8x8),
-    // and otherwise apply normal compound average.
-    if (use_optflow_refinement && (plane == 0 || bh > 8 || bw > 8)) {
-#else
     if (use_optflow_refinement && plane == 0) {
-#endif
 #if OPFL_SECOND_PASS_MC
       int n = opfl_get_subblock_size(bw, bh, plane);
       inter_pred_params.interp_filter_params[0] =
@@ -2220,9 +2210,9 @@ static void build_inter_predictors_8x8_and_bigger(
               mi->interp_filters.as_filters.y_filter,
 #endif  // CONFIG_REMOVE_DUAL_FILTER
               n);
-      av1_opfl_rebuild_inter_predictor(
-          dst, dst_buf->stride, plane, mi->mv_refined, &inter_pred_params, xd,
-          mi_x, mi_y, ref, mc_buf, calc_subpel_params_func);
+      av1_opfl_rebuild_inter_predictor(dst, dst_buf->stride, plane, mv_refined,
+                                       &inter_pred_params, xd, mi_x, mi_y, ref,
+                                       mc_buf, calc_subpel_params_func);
 #else
       if (is_cur_buf_hbd(xd)) {
         if (ref)

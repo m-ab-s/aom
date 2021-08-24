@@ -291,9 +291,6 @@ typedef struct MB_MODE_INFO {
   INTERINTER_COMPOUND_DATA interinter_comp;
   WarpedMotionParams wm_params;
   int_mv mv[2];
-#if CONFIG_OPTFLOW_REFINEMENT
-  int_mv mv_refined[2 * N_OF_OFFSETS];
-#endif  // CONFIG_OPTFLOW_REFINEMENT
   // q index for the current coding block.
   int current_qindex;
   // Only for INTER blocks
