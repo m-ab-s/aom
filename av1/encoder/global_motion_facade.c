@@ -92,9 +92,9 @@ static AOM_INLINE void compute_global_motion_for_ref_frame_nrs(
 #if CONFIG_GM_MODEL_CODING
     int use_gm_k,
 #endif  // CONFIG_GM_MODEL_CODING
-    WarpedMotionParams *original_global_motion, int num_src_corners,
-    int *src_corners, unsigned char *src_buffer, MotionModel *params_by_motion,
-    uint8_t *segment_map, const int segment_map_w, const int segment_map_h,
+    int num_src_corners, int *src_corners, unsigned char *src_buffer,
+    MotionModel *params_by_motion, uint8_t *segment_map,
+    const int segment_map_w, const int segment_map_h,
     const WarpedMotionParams *ref_params) {
   ThreadData *const td = &cpi->td;
   MACROBLOCK *const x = &td->mb;
@@ -199,15 +199,6 @@ static AOM_INLINE void compute_global_motion_for_ref_frame_nrs(
 
     if (ref_frame_error == 0) continue;
 
-    // Ensure the global motion parameters were computed the same way
-    // for the new and old reference model before setting to default
-    // based on cost.
-    // Comment out if speed features are inconsistent between
-    // original and new versions.
-    // assert(is_same_wm_params(original_global_motion,
-    //                          &cm->global_motion_nrs[frame]));
-    //
-    (void)original_global_motion;
     // If the best error advantage found doesn't meet the threshold for
     // this motion type, revert to IDENTITY.
     if (!av1_is_enough_erroradvantage(
@@ -233,9 +224,6 @@ static AOM_INLINE void compute_global_motion_for_ref_frame(
 #if CONFIG_GM_MODEL_CODING
     int use_gm_k,
 #endif  // CONFIG_GM_MODEL_CODING
-#if CONFIG_NEW_REF_SIGNALING
-    WarpedMotionParams *original_global_motion,
-#endif  // CONFIG_NEW_REF_SIGNALING
     int num_src_corners, int *src_corners, unsigned char *src_buffer,
     MotionModel *params_by_motion, uint8_t *segment_map,
     const int segment_map_w, const int segment_map_h,
@@ -343,10 +331,6 @@ static AOM_INLINE void compute_global_motion_for_ref_frame(
 
     if (ref_frame_error == 0) continue;
 
-#if CONFIG_NEW_REF_SIGNALING
-    memcpy(original_global_motion, &cm->global_motion[frame],
-           sizeof(*original_global_motion));
-#endif  // CONFIG_NEW_REF_SIGNALING
     // If the best error advantage found doesn't meet the threshold for
     // this motion type, revert to IDENTITY.
     if (!av1_is_enough_erroradvantage(
@@ -371,9 +355,9 @@ void av1_compute_gm_for_valid_ref_frames_nrs(
 #if CONFIG_GM_MODEL_CODING
     int *base_frame,
 #endif  // CONFIG_GM_MODEL_CODING
-    WarpedMotionParams *original_global_motion, int num_src_corners,
-    int *src_corners, unsigned char *src_buffer, MotionModel *params_by_motion,
-    uint8_t *segment_map, int segment_map_w, int segment_map_h) {
+    int num_src_corners, int *src_corners, unsigned char *src_buffer,
+    MotionModel *params_by_motion, uint8_t *segment_map, int segment_map_w,
+    int segment_map_h) {
   AV1_COMMON *const cm = &cpi->common;
   GlobalMotionInfo *const gm_info = &cpi->gm_info;
   const WarpedMotionParams *ref_params;
@@ -401,8 +385,8 @@ void av1_compute_gm_for_valid_ref_frames_nrs(
 #if CONFIG_GM_MODEL_CODING
       use_gm_k,
 #endif  // CONFIG_GM_MODEL_CODING
-      original_global_motion, num_src_corners, src_corners, src_buffer,
-      params_by_motion, segment_map, segment_map_w, segment_map_h, ref_params);
+      num_src_corners, src_corners, src_buffer, params_by_motion, segment_map,
+      segment_map_w, segment_map_h, ref_params);
 
   gm_info->params_cost_nrs[frame] =
       gm_get_params_cost(&cm->global_motion_nrs[frame], ref_params,
@@ -421,9 +405,6 @@ void av1_compute_gm_for_valid_ref_frames(
 #if CONFIG_GM_MODEL_CODING
     int *base_frame,
 #endif  // CONFIG_GM_MODEL_CODING
-#if CONFIG_NEW_REF_SIGNALING
-    WarpedMotionParams *original_global_motion,
-#endif  // CONFIG_NEW_REF_SIGNALING
     int num_src_corners, int *src_corners, unsigned char *src_buffer,
     MotionModel *params_by_motion, uint8_t *segment_map, int segment_map_w,
     int segment_map_h) {
@@ -453,9 +434,6 @@ void av1_compute_gm_for_valid_ref_frames(
 #if CONFIG_GM_MODEL_CODING
                                       use_gm_k,
 #endif  // CONFIG_GM_MODEL_CODING
-#if CONFIG_NEW_REF_SIGNALING
-                                      original_global_motion,
-#endif  // CONFIG_NEW_REF_SIGNALING
                                       num_src_corners, src_corners, src_buffer,
                                       params_by_motion, segment_map,
                                       segment_map_w, segment_map_h, ref_params);
@@ -474,7 +452,6 @@ void av1_compute_gm_for_valid_ref_frames(
 // Loops over valid reference frames and computes global motion estimation.
 static AOM_INLINE void compute_global_motion_for_references_nrs(
     AV1_COMP *cpi, YV12_BUFFER_CONFIG *ref_buf[MAX_REF_FRAMES_NRS],
-    WarpedMotionParams original_global_motion[REF_FRAMES],
     FrameDistPair reference_frame[MAX_REF_FRAMES_NRS], int num_ref_frames,
     int num_src_corners, int *src_corners, unsigned char *src_buffer,
     MotionModel *params_by_motion, uint8_t *segment_map,
@@ -494,9 +471,8 @@ static AOM_INLINE void compute_global_motion_for_references_nrs(
 #if CONFIG_GM_MODEL_CODING
         &base_frame,
 #endif  // CONFIG_GM_MODEL_CODING
-        &(original_global_motion[ref_frame]), num_src_corners, src_corners,
-        src_buffer, params_by_motion, segment_map, segment_map_w,
-        segment_map_h);
+        num_src_corners, src_corners, src_buffer, params_by_motion, segment_map,
+        segment_map_w, segment_map_h);
     // If global motion w.r.t. current ref frame is
     // INVALID/TRANSLATION/IDENTITY, skip the evaluation of global motion w.r.t
     // the remaining ref frames in that direction. The below exit is disabled
@@ -521,14 +497,10 @@ static AOM_INLINE void compute_global_motion_for_references_nrs(
     }
   }
 }
-#endif  // CONFIG_NEW_REF_SIGNALING
-
+#else
 // Loops over valid reference frames and computes global motion estimation.
 static AOM_INLINE void compute_global_motion_for_references(
     AV1_COMP *cpi, YV12_BUFFER_CONFIG *ref_buf[REF_FRAMES],
-#if CONFIG_NEW_REF_SIGNALING
-    WarpedMotionParams original_global_motion[REF_FRAMES],
-#endif  // CONFIG_NEW_REF_SIGNALING
     FrameDistPair reference_frame[REF_FRAMES - 1], int num_ref_frames,
     int num_src_corners, int *src_corners, unsigned char *src_buffer,
     MotionModel *params_by_motion, uint8_t *segment_map,
@@ -543,18 +515,11 @@ static AOM_INLINE void compute_global_motion_for_references(
   // frame in a given direction.
   for (int frame = 0; frame < num_ref_frames; frame++) {
     int ref_frame = reference_frame[frame].frame;
-#if CONFIG_NEW_REF_SIGNALING
-    const int ranked_frame = convert_named_ref_to_ranked_ref_index(
-        &cm->new_ref_frame_data, ref_frame);
-#endif  // CONFIG_NEW_REF_SIGNALING
     av1_compute_gm_for_valid_ref_frames(
         cpi, ref_buf, ref_frame,
 #if CONFIG_GM_MODEL_CODING
         &base_frame,
 #endif  // CONFIG_GM_MODEL_CODING
-#if CONFIG_NEW_REF_SIGNALING
-        &(original_global_motion[ranked_frame]),
-#endif  // CONFIG_NEW_REF_SIGNALING
         num_src_corners, src_corners, src_buffer, params_by_motion, segment_map,
         segment_map_w, segment_map_h);
     // If global motion w.r.t. current ref frame is
@@ -568,6 +533,7 @@ static AOM_INLINE void compute_global_motion_for_references(
       break;
   }
 }
+#endif  // CONFIG_NEW_REF_SIGNALING
 
 // Compares the distance in 'a' and 'b'. Returns 1 if the frame corresponding to
 // 'a' is farther, -1 if the frame corresponding to 'b' is farther, 0 otherwise.
@@ -579,36 +545,6 @@ static int compare_distance(const void *a, const void *b) {
   else if (diff < 0)
     return -1;
   return 0;
-}
-
-// Function to decide if we can skip the global motion parameter computation
-// for a particular ref frame.
-static AOM_INLINE int skip_gm_frame(AV1_COMMON *const cm, int ref_frame) {
-  if ((ref_frame == LAST3_FRAME || ref_frame == LAST2_FRAME) &&
-      cm->global_motion[GOLDEN_FRAME].wmtype != IDENTITY) {
-    return get_relative_dist(
-               &cm->seq_params.order_hint_info,
-               cm->cur_frame->ref_order_hints[ref_frame - LAST_FRAME],
-               cm->cur_frame->ref_order_hints[GOLDEN_FRAME - LAST_FRAME]) <= 0;
-  }
-  return 0;
-}
-
-// Prunes reference frames for global motion estimation based on the speed
-// feature 'gm_search_type'.
-static int do_gm_search_logic(SPEED_FEATURES *const sf, int frame) {
-  (void)frame;
-  switch (sf->gm_sf.gm_search_type) {
-    case GM_FULL_SEARCH: return 1;
-    case GM_REDUCED_REF_SEARCH_SKIP_L2_L3:
-      return !(frame == LAST2_FRAME || frame == LAST3_FRAME);
-    case GM_REDUCED_REF_SEARCH_SKIP_L2_L3_ARF2:
-      return !(frame == LAST2_FRAME || frame == LAST3_FRAME ||
-               (frame == ALTREF2_FRAME));
-    case GM_DISABLE_SEARCH: return 0;
-    default: assert(0);
-  }
-  return 1;
 }
 
 #if CONFIG_NEW_REF_SIGNALING
@@ -785,7 +721,36 @@ static AOM_INLINE void update_valid_ref_frames_for_gm_nrs_tmp(
   }
 }
 #endif
-#endif  // CONFIG_NEW_REF_SIGNALING
+#else
+// Function to decide if we can skip the global motion parameter computation
+// for a particular ref frame.
+static AOM_INLINE int skip_gm_frame(AV1_COMMON *const cm, int ref_frame) {
+  if ((ref_frame == LAST3_FRAME || ref_frame == LAST2_FRAME) &&
+      cm->global_motion[GOLDEN_FRAME].wmtype != IDENTITY) {
+    return get_relative_dist(
+               &cm->seq_params.order_hint_info,
+               cm->cur_frame->ref_order_hints[ref_frame - LAST_FRAME],
+               cm->cur_frame->ref_order_hints[GOLDEN_FRAME - LAST_FRAME]) <= 0;
+  }
+  return 0;
+}
+
+// Prunes reference frames for global motion estimation based on the speed
+// feature 'gm_search_type'.
+static int do_gm_search_logic(SPEED_FEATURES *const sf, int frame) {
+  (void)frame;
+  switch (sf->gm_sf.gm_search_type) {
+    case GM_FULL_SEARCH: return 1;
+    case GM_REDUCED_REF_SEARCH_SKIP_L2_L3:
+      return !(frame == LAST2_FRAME || frame == LAST3_FRAME);
+    case GM_REDUCED_REF_SEARCH_SKIP_L2_L3_ARF2:
+      return !(frame == LAST2_FRAME || frame == LAST3_FRAME ||
+               (frame == ALTREF2_FRAME));
+    case GM_DISABLE_SEARCH: return 0;
+    default: assert(0);
+  }
+  return 1;
+}
 
 // Populates valid reference frames in past/future directions in
 // 'reference_frames' and their count in 'num_ref_frames'.
@@ -845,6 +810,7 @@ static AOM_INLINE void update_valid_ref_frames_for_gm(
     }
   }
 }
+#endif  // CONFIG_NEW_REF_SIGNALING
 
 // Allocates and initializes memory for segment_map and MotionModel.
 static AOM_INLINE void alloc_global_motion_data(MotionModel *params_by_motion,
@@ -890,24 +856,6 @@ static AOM_INLINE void setup_global_motion_info_params(AV1_COMP *cpi) {
   gm_info->segment_map_h =
       (source->y_height + WARP_ERROR_BLOCK) >> WARP_ERROR_BLOCK_LOG;
 
-  memset(gm_info->reference_frames, -1,
-         sizeof(gm_info->reference_frames[0][0]) * MAX_DIRECTIONS *
-             (REF_FRAMES - 1));
-  av1_zero(gm_info->num_ref_frames);
-
-  // Populate ref_buf for valid ref frames in global motion
-  update_valid_ref_frames_for_gm(cpi, gm_info->ref_buf,
-                                 gm_info->reference_frames,
-                                 gm_info->num_ref_frames);
-
-  // Sort the past and future ref frames in the ascending order of their
-  // distance from the current frame. reference_frames[0] => past direction
-  // and reference_frames[1] => future direction.
-  qsort(gm_info->reference_frames[0], gm_info->num_ref_frames[0],
-        sizeof(gm_info->reference_frames[0][0]), compare_distance);
-  qsort(gm_info->reference_frames[1], gm_info->num_ref_frames[1],
-        sizeof(gm_info->reference_frames[1][0]), compare_distance);
-
 #if CONFIG_NEW_REF_SIGNALING
   memset(gm_info->reference_frames_nrs, -1,
          sizeof(gm_info->reference_frames_nrs[0][0]) * MAX_DIRECTIONS *
@@ -926,7 +874,34 @@ static AOM_INLINE void setup_global_motion_info_params(AV1_COMP *cpi) {
         sizeof(gm_info->reference_frames_nrs[0][0]), compare_distance);
   qsort(gm_info->reference_frames_nrs[1], gm_info->num_ref_frames_nrs[1],
         sizeof(gm_info->reference_frames_nrs[1][0]), compare_distance);
-#endif  // CONFIG_NEW_REF_SIGNALING
+
+  gm_info->num_src_corners = -1;
+  // If atleast one valid reference frame exists in past/future directions,
+  // compute interest points of source frame using FAST features.
+  if (gm_info->num_ref_frames_nrs[0] > 0 ||
+      gm_info->num_ref_frames_nrs[1] > 0) {
+    gm_info->num_src_corners = av1_fast_corner_detect(
+        gm_info->src_buffer, source->y_width, source->y_height,
+        source->y_stride, gm_info->src_corners, MAX_CORNERS);
+  }
+#else
+  memset(gm_info->reference_frames, -1,
+         sizeof(gm_info->reference_frames[0][0]) * MAX_DIRECTIONS *
+             (REF_FRAMES - 1));
+  av1_zero(gm_info->num_ref_frames);
+
+  // Populate ref_buf for valid ref frames in global motion
+  update_valid_ref_frames_for_gm(cpi, gm_info->ref_buf,
+                                 gm_info->reference_frames,
+                                 gm_info->num_ref_frames);
+
+  // Sort the past and future ref frames in the ascending order of their
+  // distance from the current frame. reference_frames[0] => past direction
+  // and reference_frames[1] => future direction.
+  qsort(gm_info->reference_frames[0], gm_info->num_ref_frames[0],
+        sizeof(gm_info->reference_frames[0][0]), compare_distance);
+  qsort(gm_info->reference_frames[1], gm_info->num_ref_frames[1],
+        sizeof(gm_info->reference_frames[1][0]), compare_distance);
 
   gm_info->num_src_corners = -1;
   // If atleast one valid reference frame exists in past/future directions,
@@ -936,54 +911,48 @@ static AOM_INLINE void setup_global_motion_info_params(AV1_COMP *cpi) {
         gm_info->src_buffer, source->y_width, source->y_height,
         source->y_stride, gm_info->src_corners, MAX_CORNERS);
   }
+#endif  // CONFIG_NEW_REF_SIGNALING
 }
 
 // Computes global motion w.r.t. valid reference frames.
 static AOM_INLINE void global_motion_estimation(AV1_COMP *cpi) {
   GlobalMotionInfo *const gm_info = &cpi->gm_info;
-  MotionModel params_by_motion[RANSAC_NUM_MOTIONS];
-  uint8_t *segment_map = NULL;
 
-  alloc_global_motion_data(params_by_motion, &segment_map,
-                           gm_info->segment_map_w, gm_info->segment_map_h);
 #if CONFIG_NEW_REF_SIGNALING
   MotionModel params_by_motion_nrs[RANSAC_NUM_MOTIONS];
   uint8_t *segment_map_nrs = NULL;
   alloc_global_motion_data(params_by_motion_nrs, &segment_map_nrs,
                            gm_info->segment_map_w, gm_info->segment_map_h);
-  // TODO(sarahparker) This is for verification that the NRS model is
-  // consistent with the original. It will be deleted, see aomedia:3060.
-  WarpedMotionParams original_global_motion[REF_FRAMES];
-  for (int i = 0; i < REF_FRAMES; i++)
-    original_global_motion[i] = default_warp_params;
+#else
+  MotionModel params_by_motion[RANSAC_NUM_MOTIONS];
+  uint8_t *segment_map = NULL;
+  alloc_global_motion_data(params_by_motion, &segment_map,
+                           gm_info->segment_map_w, gm_info->segment_map_h);
 #endif  // CONFIG_NEW_REF_SIGNALING
   // Compute global motion w.r.t. past reference frames and future reference
   // frames
+#if CONFIG_NEW_REF_SIGNALING
+  for (int dir = 0; dir < MAX_DIRECTIONS; dir++) {
+    if (gm_info->num_ref_frames_nrs[dir] > 0) {
+      compute_global_motion_for_references_nrs(
+          cpi, gm_info->ref_buf_nrs, gm_info->reference_frames_nrs[dir],
+          gm_info->num_ref_frames_nrs[dir], gm_info->num_src_corners,
+          gm_info->src_corners, gm_info->src_buffer, params_by_motion_nrs,
+          segment_map_nrs, gm_info->segment_map_w, gm_info->segment_map_h);
+    }
+  }
+  dealloc_global_motion_data(params_by_motion_nrs, segment_map_nrs);
+#else
   for (int dir = 0; dir < MAX_DIRECTIONS; dir++) {
     if (gm_info->num_ref_frames[dir] > 0) {
       compute_global_motion_for_references(
-          cpi, gm_info->ref_buf,
-#if CONFIG_NEW_REF_SIGNALING
-          original_global_motion,
-#endif  // CONFIG_NEW_REF_SIGNALING
-          gm_info->reference_frames[dir], gm_info->num_ref_frames[dir],
-          gm_info->num_src_corners, gm_info->src_corners, gm_info->src_buffer,
-          params_by_motion, segment_map, gm_info->segment_map_w,
-          gm_info->segment_map_h);
-#if CONFIG_NEW_REF_SIGNALING
-      compute_global_motion_for_references_nrs(
-          cpi, gm_info->ref_buf_nrs, original_global_motion,
-          gm_info->reference_frames_nrs[dir], gm_info->num_ref_frames_nrs[dir],
-          gm_info->num_src_corners, gm_info->src_corners, gm_info->src_buffer,
-          params_by_motion_nrs, segment_map_nrs, gm_info->segment_map_w,
-          gm_info->segment_map_h);
-#endif  // CONFIG_NEW_REF_SIGNALING
+          cpi, gm_info->ref_buf, gm_info->reference_frames[dir],
+          gm_info->num_ref_frames[dir], gm_info->num_src_corners,
+          gm_info->src_corners, gm_info->src_buffer, params_by_motion,
+          segment_map, gm_info->segment_map_w, gm_info->segment_map_h);
     }
   }
-
   dealloc_global_motion_data(params_by_motion, segment_map);
-#if CONFIG_NEW_REF_SIGNALING
-  dealloc_global_motion_data(params_by_motion_nrs, segment_map_nrs);
 #endif  // CONFIG_NEW_REF_SIGNALING
 }
 
