@@ -88,7 +88,8 @@ static AOM_INLINE int64_t calc_erroradv_threshold(int64_t ref_frame_error) {
 // For the given reference frame, computes the global motion parameters for
 // different motion models and finds the best.
 static AOM_INLINE void compute_global_motion_for_ref_frame_nrs(
-    AV1_COMP *cpi, YV12_BUFFER_CONFIG *ref_buf[MAX_REF_FRAMES_NRS], int frame,
+    AV1_COMP *cpi, YV12_BUFFER_CONFIG *ref_buf[INTER_REFS_PER_FRAME_NRS],
+    int frame,
 #if CONFIG_GM_MODEL_CODING
     int use_gm_k,
 #endif  // CONFIG_GM_MODEL_CODING
@@ -351,7 +352,8 @@ static AOM_INLINE void compute_global_motion_for_ref_frame(
 #if CONFIG_NEW_REF_SIGNALING
 // Computes global motion for the given reference frame.
 void av1_compute_gm_for_valid_ref_frames_nrs(
-    AV1_COMP *cpi, YV12_BUFFER_CONFIG *ref_buf[MAX_REF_FRAMES_NRS], int frame,
+    AV1_COMP *cpi, YV12_BUFFER_CONFIG *ref_buf[INTER_REFS_PER_FRAME_NRS],
+    int frame,
 #if CONFIG_GM_MODEL_CODING
     int *base_frame,
 #endif  // CONFIG_GM_MODEL_CODING
@@ -451,8 +453,8 @@ void av1_compute_gm_for_valid_ref_frames(
 #if CONFIG_NEW_REF_SIGNALING
 // Loops over valid reference frames and computes global motion estimation.
 static AOM_INLINE void compute_global_motion_for_references_nrs(
-    AV1_COMP *cpi, YV12_BUFFER_CONFIG *ref_buf[MAX_REF_FRAMES_NRS],
-    FrameDistPair reference_frame[MAX_REF_FRAMES_NRS], int num_ref_frames,
+    AV1_COMP *cpi, YV12_BUFFER_CONFIG *ref_buf[INTER_REFS_PER_FRAME_NRS],
+    FrameDistPair reference_frame[INTER_REFS_PER_FRAME_NRS], int num_ref_frames,
     int num_src_corners, int *src_corners, unsigned char *src_buffer,
     MotionModel *params_by_motion, uint8_t *segment_map,
     const int segment_map_w, const int segment_map_h) {
@@ -483,7 +485,7 @@ static AOM_INLINE void compute_global_motion_for_references_nrs(
         cm->global_motion_nrs[ref_frame].wmtype != ROTZOOM)
       break;
   }
-  for (int frame = 0; frame < REF_FRAMES; frame++) {
+  for (int frame = LAST_FRAME; frame < REF_FRAMES; frame++) {
     const int ranked_frame =
         convert_named_ref_to_ranked_ref_index(&cm->new_ref_frame_data, frame);
     if (!is_same_wm_params(&cm->global_motion_nrs[ranked_frame],
@@ -582,8 +584,8 @@ static int do_gm_search_logic_nrs(SPEED_FEATURES *const sf, int refrank) {
 // Populates valid reference frames in past/future directions in
 // 'reference_frames' and their count in 'num_ref_frames'.
 static AOM_INLINE void update_valid_ref_frames_for_gm_nrs(
-    AV1_COMP *cpi, YV12_BUFFER_CONFIG *ref_buf[MAX_REF_FRAMES_NRS],
-    FrameDistPair reference_frames[MAX_DIRECTIONS][MAX_REF_FRAMES_NRS],
+    AV1_COMP *cpi, YV12_BUFFER_CONFIG *ref_buf[INTER_REFS_PER_FRAME_NRS],
+    FrameDistPair reference_frames[MAX_DIRECTIONS][INTER_REFS_PER_FRAME_NRS],
     int *num_ref_frames) {
   AV1_COMMON *const cm = &cpi->common;
   int *num_past_ref_frames = &num_ref_frames[0];
@@ -647,8 +649,8 @@ static AOM_INLINE void update_valid_ref_frames_for_gm_nrs(
 
 #if 0
 static AOM_INLINE void update_valid_ref_frames_for_gm_nrs_tmp(
-    AV1_COMP *cpi, YV12_BUFFER_CONFIG *ref_buf[MAX_REF_FRAMES_NRS],
-    FrameDistPair reference_frames[MAX_DIRECTIONS][MAX_REF_FRAMES_NRS],
+    AV1_COMP *cpi, YV12_BUFFER_CONFIG *ref_buf[INTER_REFS_PER_FRAME_NRS],
+    FrameDistPair reference_frames[MAX_DIRECTIONS][INTER_REFS_PER_FRAME_NRS],
     int *num_ref_frames) {
   AV1_COMMON *const cm = &cpi->common;
   int *num_past_ref_frames = &num_ref_frames[0];
@@ -859,7 +861,7 @@ static AOM_INLINE void setup_global_motion_info_params(AV1_COMP *cpi) {
 #if CONFIG_NEW_REF_SIGNALING
   memset(gm_info->reference_frames_nrs, -1,
          sizeof(gm_info->reference_frames_nrs[0][0]) * MAX_DIRECTIONS *
-             (MAX_REF_FRAMES_NRS));
+             (INTER_REFS_PER_FRAME_NRS));
   av1_zero(gm_info->num_ref_frames_nrs);
 
   // Populate ref_buf for valid ref frames in global motion

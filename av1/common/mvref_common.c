@@ -1162,7 +1162,7 @@ void av1_setup_frame_buf_refs(AV1_COMMON *cm) {
 
 #if CONFIG_NEW_REF_SIGNALING
   MV_REFERENCE_FRAME_NRS ref_frame_nrs;
-  for (ref_frame_nrs = 0; ref_frame_nrs < MAX_REF_FRAMES_NRS - 1;
+  for (ref_frame_nrs = 0; ref_frame_nrs < INTER_REFS_PER_FRAME_NRS;
        ++ref_frame_nrs) {
     const RefCntBuffer *const buf = get_ref_frame_buf_nrs(cm, ref_frame_nrs);
     if (buf != NULL) {

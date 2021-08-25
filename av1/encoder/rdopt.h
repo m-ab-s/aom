@@ -369,7 +369,7 @@ static INLINE int prune_ref_by_selective_ref_frame_nrs(
           if (AOMMIN(dir_refrank[0][d0], dir_refrank[1][d1]) > 2) return 1;
         }
       } else {
-        if (dir_refrank[0][d0] > MAX_REF_FRAMES_NRS / 2) return 1;
+        if (dir_refrank[0][d0] > (INTER_REFS_PER_FRAME_NRS + 1) / 2) return 1;
       }
       break;
     case 2:
@@ -380,7 +380,7 @@ static INLINE int prune_ref_by_selective_ref_frame_nrs(
           if (AOMMIN(dir_refrank[0][d0], dir_refrank[1][d1]) > 1) return 1;
         }
       } else {
-        if (dir_refrank[0][d0] > MAX_REF_FRAMES_NRS / 2 - 1) return 1;
+        if (dir_refrank[0][d0] > (INTER_REFS_PER_FRAME_NRS - 1) / 2) return 1;
       }
       break;
     case 3:
@@ -392,7 +392,7 @@ static INLINE int prune_ref_by_selective_ref_frame_nrs(
           if (AOMMIN(dir_refrank[0][d0], dir_refrank[1][d1]) > 0) return 1;
         }
       } else {
-        if (dir_refrank[0][d0] > MAX_REF_FRAMES_NRS / 2 - 2) return 1;
+        if (dir_refrank[0][d0] > (INTER_REFS_PER_FRAME_NRS - 3) / 2) return 1;
       }
       break;
   }

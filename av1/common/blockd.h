@@ -1307,7 +1307,7 @@ typedef struct macroblockd {
    * Counts of each nrs ref frame in the above and left neighboring blocks.
    * NOTE: Take into account both single and comp references.
    */
-  uint8_t neighbors_ref_counts_nrs[MAX_REF_FRAMES_NRS];
+  uint8_t neighbors_ref_counts_nrs[INTER_REFS_PER_FRAME_NRS];
 #endif  // CONFIG_NEW_REF_SIGNALING
 
   /*!

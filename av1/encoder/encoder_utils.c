@@ -851,7 +851,7 @@ int av1_recode_loop_test_global_motion_nrs(
     const int *const global_motion_used, int *const gm_params_cost) {
   int i;
   int recode = 0;
-  for (i = 0; i < MAX_REF_FRAMES_NRS; ++i) {
+  for (i = 0; i < INTER_REFS_PER_FRAME_NRS; ++i) {
     if (global_motion[i].wmtype != IDENTITY &&
         global_motion_used[i] * GM_RECODE_LOOP_NUM4X4_FACTOR <
             gm_params_cost[i]) {

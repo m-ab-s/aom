@@ -20,7 +20,8 @@ struct AV1_COMP;
 
 #if CONFIG_NEW_REF_SIGNALING
 void av1_compute_gm_for_valid_ref_frames_nrs(
-    AV1_COMP *cpi, YV12_BUFFER_CONFIG *ref_buf[MAX_REF_FRAMES_NRS], int frame,
+    AV1_COMP *cpi, YV12_BUFFER_CONFIG *ref_buf[INTER_REFS_PER_FRAME_NRS],
+    int frame,
 #if CONFIG_GM_MODEL_CODING
     int *base_frame,
 #endif  // CONFIG_GM_MODEL_CODING

@@ -51,12 +51,12 @@ typedef struct {
   int score;
   int index;
   int distance;
-  MV_REFERENCE_FRAME named_ref[MAX_REF_FRAMES_NRS];
+  MV_REFERENCE_FRAME named_ref[REF_FRAMES];
   int n_named_refs;
 } RefScoreData;
 /*!\endcond */
 
-// Comparison function to sort reference frames in ascending display order
+// Comparison function to sort reference frames in ascending score order
 static int compare_score_data_asc(const void *a, const void *b) {
   if (((RefScoreData *)a)->score == ((RefScoreData *)b)->score) {
     return 0;
@@ -72,16 +72,18 @@ static int compare_score_data_asc(const void *a, const void *b) {
 void av1_init_new_ref_frame_map(AV1_COMMON *cm,
                                 RefFrameMapPair *ref_frame_map_pairs,
                                 int cur_frame_disp) {
-  RefScoreData scores[MAX_REF_FRAMES_NRS];
-  memset(scores, 0, MAX_REF_FRAMES_NRS * sizeof(*scores));
-  for (int i = 0; i < MAX_REF_FRAMES_NRS; i++) {
+  RefScoreData scores[REF_FRAMES];
+  memset(scores, 0, REF_FRAMES * sizeof(*scores));
+  for (int i = 0; i < INTER_REFS_PER_FRAME_NRS; i++) {
     cm->new_ref_frame_data.ranked_to_named_refs[i] = -1;
+  }
+  for (int i = 0; i < REF_FRAMES; i++) {
     cm->new_ref_frame_data.named_to_ranked_refs[i] = -1;
   }
   cm->new_ref_frame_data.cur_ref = -1;
   int n_ranked = 0;
   // Compute a score for each reference buffer
-  for (int i = 0; i < MAX_REF_FRAMES_NRS; i++) {
+  for (int i = 0; i < REF_FRAMES; i++) {
     // Get reference frame buffer
     RefFrameMapPair cur_ref = ref_frame_map_pairs[i];
     if (cur_ref.disp_order == -1) continue;
@@ -120,7 +122,7 @@ void av1_init_new_ref_frame_map(AV1_COMMON *cm,
 
   // Sort the references according to their score
   qsort(scores, n_ranked, sizeof(scores[0]), compare_score_data_asc);
-  n_ranked = AOMMIN(n_ranked, MAX_REF_FRAMES_NRS - 1);
+  n_ranked = AOMMIN(n_ranked, INTER_REFS_PER_FRAME_NRS);
 
   // Fill in NewRefFramesData struct according to computed mapping
   cm->new_ref_frame_data.n_total_refs = n_ranked;

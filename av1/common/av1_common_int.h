@@ -166,7 +166,7 @@ typedef struct RefCntBuffer {
   int width;
   int height;
 #if CONFIG_NEW_REF_SIGNALING
-  WarpedMotionParams global_motion_nrs[MAX_REF_FRAMES_NRS];
+  WarpedMotionParams global_motion_nrs[INTER_REFS_PER_FRAME_NRS];
 #endif  // CONFIG_NEW_REF_SIGNALING
   WarpedMotionParams global_motion[REF_FRAMES];
   int showable_frame;  // frame can be used as show existing frame in future
@@ -808,13 +808,13 @@ typedef struct {
    * a usefulness score. This map sorts reference frames from most
    * useful to least useful.
    */
-  int ref_frame_score_map[MAX_REF_FRAMES_NRS];
+  int ref_frame_score_map[INTER_REFS_PER_FRAME_NRS];
   /*!
    * Distance of ref frame from current frame. Negative value indicates
    * reference in the future, and positive value indicates reference in
    * the past from the current frame
    */
-  int ref_frame_distance[MAX_REF_FRAMES_NRS];
+  int ref_frame_distance[INTER_REFS_PER_FRAME_NRS];
   /*!
    * Total number of reference buffers available to the current frame.
    */
@@ -823,7 +823,7 @@ typedef struct {
    * Contains the indices of the frames in ref_frame_map that are future
    * references.
    */
-  int future_refs[MAX_REF_FRAMES_NRS];
+  int future_refs[INTER_REFS_PER_FRAME_NRS];
   /*!
    * Number of future references.
    */
@@ -832,7 +832,7 @@ typedef struct {
    * Contains the indices of the frames in ref_frame_map that are past
    * references.
    */
-  int past_refs[MAX_REF_FRAMES_NRS];
+  int past_refs[INTER_REFS_PER_FRAME_NRS];
   /*!
    * Number of past references.
    */
@@ -848,13 +848,13 @@ typedef struct {
    * an easy conversion between the two schemes while the removal of the named
    * reference scheme is in progress. It is temporary and will be removed.
    */
-  int named_to_ranked_refs[MAX_REF_FRAMES_NRS];
+  int named_to_ranked_refs[REF_FRAMES];
   /*!
    * Maps the new reference scheme to the old named reference map. This allows
    *  the easy conversion between the two schemes while the removal of the named
    * reference scheme is in progress. It is temporary and will be removed.
    */
-  int ranked_to_named_refs[MAX_REF_FRAMES_NRS];
+  int ranked_to_named_refs[INTER_REFS_PER_FRAME_NRS];
 } NewRefFramesData;
 #endif  // CONFIG_NEW_REF_SIGNALING
 
@@ -1112,7 +1112,7 @@ typedef struct AV1Common {
    * Global motion parameters for each reference frame in new ref signaling
    * experiment.
    */
-  WarpedMotionParams global_motion_nrs[REF_FRAMES];
+  WarpedMotionParams global_motion_nrs[INTER_REFS_PER_FRAME_NRS];
 #endif  // CONFIG_NEW_REF_SIGNALING
 
   /*!
@@ -1180,13 +1180,13 @@ typedef struct AV1Common {
    * ref_frame_sign_bias[k] is 1 if relative distance between reference 'k' and
    * current frame is positive; and 0 otherwise.
    */
-  int ref_frame_sign_bias_nrs[MAX_REF_FRAMES_NRS];
+  int ref_frame_sign_bias_nrs[INTER_REFS_PER_FRAME_NRS];
   /*!
    * ref_frame_side[k] is 1 if relative distance between reference 'k' and
    * current frame is positive, -1 if relative distance is 0; and 0 otherwise.
    * TODO(jingning): This can be combined with sign_bias later.
    */
-  int8_t ref_frame_side_nrs[MAX_REF_FRAMES_NRS];
+  int8_t ref_frame_side_nrs[INTER_REFS_PER_FRAME_NRS];
 #endif  // CONFIG_NEW_REF_SIGNALING
   /*!
    * ref_frame_sign_bias[k] is 1 if relative distance between reference 'k' and

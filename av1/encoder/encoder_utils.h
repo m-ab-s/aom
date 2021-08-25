@@ -117,11 +117,13 @@ static AOM_INLINE void enc_setup_mi(CommonModeInfoParams *mi_params) {
 #if CONFIG_NEW_REF_SIGNALING
 static AOM_INLINE void init_ranked_buffer_indices(
     NewRefFramesData *frame_data) {
-  frame_data->n_total_refs = REF_FRAMES - 1;
-  for (int i = 0; i < REF_FRAMES; i++) {
+  frame_data->n_total_refs = REF_FRAMES_NRS - 1;
+  for (int i = 0; i < INTER_REFS_PER_FRAME_NRS; i++) {
     frame_data->ref_frame_score_map[i] = i;
-    frame_data->named_to_ranked_refs[i] = i - 1;
     frame_data->ranked_to_named_refs[i] = i - 1;
+  }
+  for (int i = 0; i < REF_FRAMES; i++) {
+    frame_data->named_to_ranked_refs[i] = i - 1;
   }
 }
 #endif  // CONFIG_NEW_REF_SIGNALING
@@ -883,7 +885,7 @@ static AOM_INLINE void set_size_independent_vars(AV1_COMP *cpi) {
   int i;
   AV1_COMMON *const cm = &cpi->common;
 #if CONFIG_NEW_REF_SIGNALING
-  for (i = 0; i < MAX_REF_FRAMES_NRS; ++i) {
+  for (i = 0; i < INTER_REFS_PER_FRAME_NRS; ++i) {
     cm->global_motion_nrs[i] = default_warp_params;
   }
   for (i = LAST_FRAME; i <= ALTREF_FRAME; ++i) {

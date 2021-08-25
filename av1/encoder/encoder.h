@@ -1411,7 +1411,7 @@ typedef struct RD_COUNTS {
   int64_t comp_pred_diff[REFERENCE_MODES];
   // Stores number of 4x4 blocks using global motion per reference frame.
 #if CONFIG_NEW_REF_SIGNALING
-  int global_motion_used_nrs[MAX_REF_FRAMES_NRS];
+  int global_motion_used_nrs[INTER_REFS_PER_FRAME_NRS];
 #endif  // CONFIG_NEW_REF_SIGNALING
   int global_motion_used[REF_FRAMES];
   int compound_ref_used_flag;
@@ -1735,7 +1735,7 @@ typedef struct {
    * each reference frame. gmparams_cost[i] stores the cost of signalling global
    * motion for the ith reference frame.
    */
-  int params_cost_nrs[MAX_REF_FRAMES_NRS];
+  int params_cost_nrs[INTER_REFS_PER_FRAME_NRS];
 #endif  // CONFIG_NEW_REF_SIGNALING
 
   /*!
@@ -1756,7 +1756,7 @@ typedef struct {
    * ref_buf[i] stores the pointer to the reference frame of the ith
    * reference frame type.
    */
-  YV12_BUFFER_CONFIG *ref_buf_nrs[MAX_REF_FRAMES_NRS];
+  YV12_BUFFER_CONFIG *ref_buf_nrs[INTER_REFS_PER_FRAME_NRS];
 #endif  // CONFIG_NEW_REF_SIGNALING
 
   /*!
@@ -1779,7 +1779,7 @@ typedef struct {
    * reference_frames[i][j] holds the jth valid reference frame type in the
    * direction 'i' and its temporal distance from the source frame .
    */
-  FrameDistPair reference_frames_nrs[MAX_DIRECTIONS][MAX_REF_FRAMES_NRS];
+  FrameDistPair reference_frames_nrs[MAX_DIRECTIONS][INTER_REFS_PER_FRAME_NRS];
 
   /*!
    * Holds the number of valid reference frames for new ref signaling expt
