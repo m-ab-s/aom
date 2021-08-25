@@ -138,6 +138,70 @@ static INLINE void av1_set_ref_frame(MV_REFERENCE_FRAME *rf,
   }
 }
 
+#if CONFIG_NEW_REF_SIGNALING
+// Converts a pair of distinct indices (rf) each in [0, n-1], with
+// rf[0] < rf[1], to an combined index in [0, n*(n-1)/2]
+// The order of the combined index is as follows:
+// (0, 1), (0, 2), (0, 3), ..., (0, n-1),
+//         (1, 2), (1, 3), ..., (1, n-1),
+//                 (2, 3), ..., (2, n-1),
+//                         ...
+//                              (n-2, n-1)
+static INLINE int8_t single2comb(int n, const int8_t *const rf) {
+  assert(rf[0] < n && rf[1] < n && rf[1] > rf[0]);
+  int off = n * rf[0] - rf[0] * (rf[0] + 1) / 2;
+  int combindex = off + rf[1] - rf[0] - 1;
+  return combindex;
+}
+
+// Converts a combined index in [0, n*(n-1)/2] to a pair of single
+// ref indices (rf) each in [0, n-1]. See comment above for order
+// of the combined indexing.
+static INLINE void comb2single(int n, int8_t combindex, int8_t *rf) {
+  assert(combindex < n * (n - 1) / 2);
+  int i = n - 1, j = n - 1;
+  rf[0] = 0;
+  // Starting form n-1, keep reducing the row length by 1 until
+  // combindex < i
+  while (i <= combindex) {
+    rf[0]++;
+    j--;
+    i += j;
+  }
+  rf[1] = combindex - i + j + rf[0] + 1;
+  assert(rf[1] > rf[0]);
+}
+
+static INLINE int8_t
+av1_ref_frame_type_nrs(const MV_REFERENCE_FRAME_NRS *const rf) {
+  if (rf[0] == INTRA_FRAME_NRS || rf[0] == INVALID_IDX) {
+    // Intra or invalid
+    return rf[0];
+  } else if (rf[1] == INTRA_FRAME_NRS || rf[1] == INVALID_IDX) {
+    // single ref
+    return rf[0];
+  } else {
+    // compound ref
+    assert(rf[0] < INTER_REFS_PER_FRAME_NRS);
+    assert(rf[1] < INTER_REFS_PER_FRAME_NRS);
+    assert(rf[1] > rf[0]);
+    return single2comb(INTER_REFS_PER_FRAME_NRS, rf) + INTER_REFS_PER_FRAME_NRS;
+  }
+}
+
+static INLINE void av1_set_ref_frame_nrs(
+    MV_REFERENCE_FRAME_NRS *rf, MV_REFERENCE_FRAME_NRS ref_frame_type) {
+  if (ref_frame_type == INTRA_FRAME_NRS ||
+      ref_frame_type < INTER_REFS_PER_FRAME_NRS) {
+    rf[0] = ref_frame_type;
+    rf[1] = INVALID_IDX;
+  } else {
+    comb2single(INTER_REFS_PER_FRAME_NRS, ref_frame_type, rf);
+  }
+  return;
+}
+#endif  // CONFIG_NEW_REF_SIGNALING
+
 static uint16_t compound_mode_ctx_map[3][COMP_NEWMV_CTXS] = {
   { 0, 1, 1, 1, 1 },
   { 1, 2, 3, 4, 4 },
