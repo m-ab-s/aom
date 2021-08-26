@@ -426,7 +426,11 @@ static INLINE void find_predictors(AV1_COMP *cpi, MACROBLOCK *x,
                      ref_frame_nrs,
 #endif  // CONFIG_NEW_REF_SIGNALING
                      mbmi_ext->ref_mv_count, xd->ref_mv_stack, xd->weight, NULL,
-                     mbmi_ext->global_mvs, mbmi_ext->mode_context);
+                     mbmi_ext->global_mvs,
+#if CONFIG_NEW_REF_SIGNALING
+                     mbmi_ext->global_mvs_nrs,
+#endif  // CONFIG_NEW_REF_SIGNALING
+                     mbmi_ext->mode_context);
     // TODO(Ravi): Populate mbmi_ext->ref_mv_stack[ref_frame][4] and
     // mbmi_ext->weight[ref_frame][4] inside av1_find_mv_refs.
     av1_copy_usable_ref_mv_stack_and_weight(xd, mbmi_ext, ref_frame);

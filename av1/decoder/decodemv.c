@@ -821,7 +821,7 @@ static void read_intrabc_info(AV1_COMMON *const cm, DecoderCodingBlock *dcb,
     MV_REFERENCE_FRAME_NRS ref_nrs = INTRA_FRAME_NRS;
     av1_find_mv_refs(cm, xd, mbmi, INTRA_FRAME, ref_nrs, dcb->ref_mv_count,
                      xd->ref_mv_stack, xd->weight, ref_mvs, /*global_mvs=*/NULL,
-                     inter_mode_ctx);
+                     /*global_mvs_nrs=*/NULL, inter_mode_ctx);
 #else
     av1_find_mv_refs(cm, xd, mbmi, INTRA_FRAME, dcb->ref_mv_count,
                      xd->ref_mv_stack, xd->weight, ref_mvs, /*global_mvs=*/NULL,
@@ -1622,10 +1622,12 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
     // TODO(sarahparker) Temporary assert, see aomedia:3060
     assert(convert_ranked_ref_to_named_ref_index(&cm->new_ref_frame_data,
                                                  ref_frame_nrs) == ref_frame);
+  } else {
+    ref_frame_nrs = av1_ref_frame_type_nrs(mbmi->ref_frame_nrs);
   }
   av1_find_mv_refs(cm, xd, mbmi, ref_frame, ref_frame_nrs, dcb->ref_mv_count,
                    xd->ref_mv_stack, xd->weight, ref_mvs, /*global_mvs=*/NULL,
-                   inter_mode_ctx);
+                   /*global_mvs_nrs=*/NULL, inter_mode_ctx);
 #else
   av1_find_mv_refs(cm, xd, mbmi, ref_frame, dcb->ref_mv_count, xd->ref_mv_stack,
                    xd->weight, ref_mvs, /*global_mvs=*/NULL, inter_mode_ctx);

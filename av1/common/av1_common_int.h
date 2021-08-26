@@ -121,7 +121,11 @@ typedef struct {
 
 typedef struct {
   int_mv mv;
+#if CONFIG_NEW_REF_SIGNALING
+  MV_REFERENCE_FRAME_NRS ref_frame;
+#else
   MV_REFERENCE_FRAME ref_frame;
+#endif  // CONFIG_NEW_REF_SIGNALING
 } MV_REF;
 
 typedef struct RefCntBuffer {
@@ -140,8 +144,8 @@ typedef struct RefCntBuffer {
   int ref_count;
 
 #if CONFIG_NEW_REF_SIGNALING
-  unsigned int ref_order_hints_nrs[INTER_REFS_PER_FRAME_NRS];
-  unsigned int ref_display_order_hint_nrs[INTER_REFS_PER_FRAME_NRS];
+  int ref_order_hints_nrs[INTER_REFS_PER_FRAME_NRS];
+  int ref_display_order_hint_nrs[INTER_REFS_PER_FRAME_NRS];
 #endif  // CONFIG_NEW_REF_SIGNALING
   unsigned int order_hint;
   unsigned int ref_order_hints[INTER_REFS_PER_FRAME];

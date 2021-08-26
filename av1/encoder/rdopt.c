@@ -1216,7 +1216,11 @@ static AOM_INLINE void setup_buffer_ref_mvs_inter(
                    ref_frame_nrs,
 #endif  // CONFIG_NEW_REF_SIGNALING
                    mbmi_ext->ref_mv_count, xd->ref_mv_stack, xd->weight, NULL,
-                   mbmi_ext->global_mvs, mbmi_ext->mode_context);
+                   mbmi_ext->global_mvs,
+#if CONFIG_NEW_REF_SIGNALING
+                   mbmi_ext->global_mvs_nrs,
+#endif  // CONFIG_NEW_REF_SIGNALING
+                   mbmi_ext->mode_context);
   // TODO(Ravi): Populate mbmi_ext->ref_mv_stack[ref_frame][4] and
   // mbmi_ext->weight[ref_frame][4] inside av1_find_mv_refs.
   av1_copy_usable_ref_mv_stack_and_weight(xd, mbmi_ext, ref_frame);
@@ -3625,7 +3629,11 @@ static int64_t rd_pick_intrabc_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x,
                    ref_frame_nrs,
 #endif  // CONFIG_NEW_REF_SIGNALING
                    mbmi_ext->ref_mv_count, xd->ref_mv_stack, xd->weight, NULL,
-                   mbmi_ext->global_mvs, mbmi_ext->mode_context);
+                   mbmi_ext->global_mvs,
+#if CONFIG_NEW_REF_SIGNALING
+                   mbmi_ext->global_mvs_nrs,
+#endif  // CONFIG_NEW_REF_SIGNALING
+                   mbmi_ext->mode_context);
   // TODO(Ravi): Populate mbmi_ext->ref_mv_stack[ref_frame][4] and
   // mbmi_ext->weight[ref_frame][4] inside av1_find_mv_refs.
   av1_copy_usable_ref_mv_stack_and_weight(xd, mbmi_ext, ref_frame);
@@ -3826,10 +3834,8 @@ void av1_rd_pick_intra_mode_sb(const struct AV1_COMP *cpi, struct macroblock *x,
   mbmi->ref_frame[0] = INTRA_FRAME;
   mbmi->ref_frame[1] = NONE_FRAME;
 #if CONFIG_NEW_REF_SIGNALING
-  mbmi->ref_frame_nrs[0] = convert_named_ref_to_ranked_ref_index(
-      &cm->new_ref_frame_data, mbmi->ref_frame[0]);
-  mbmi->ref_frame_nrs[1] = convert_named_ref_to_ranked_ref_index(
-      &cm->new_ref_frame_data, mbmi->ref_frame[1]);
+  convert_named_ref_to_ranked_ref_pair(&cm->new_ref_frame_data, mbmi->ref_frame,
+                                       0, mbmi->ref_frame_nrs);
   assert(convert_ranked_ref_to_named_ref_index(&cm->new_ref_frame_data,
                                                mbmi->ref_frame_nrs[0]) ==
          mbmi->ref_frame[0]);
@@ -3947,10 +3953,8 @@ static AOM_INLINE void rd_pick_skip_mode(
   mbmi->ref_frame[0] = ref_frame;
   mbmi->ref_frame[1] = second_ref_frame;
 #if CONFIG_NEW_REF_SIGNALING
-  mbmi->ref_frame_nrs[0] = convert_named_ref_to_ranked_ref_index(
-      &cm->new_ref_frame_data, mbmi->ref_frame[0]);
-  mbmi->ref_frame_nrs[1] = convert_named_ref_to_ranked_ref_index(
-      &cm->new_ref_frame_data, mbmi->ref_frame[1]);
+  convert_named_ref_to_ranked_ref_pair(&cm->new_ref_frame_data, mbmi->ref_frame,
+                                       0, mbmi->ref_frame_nrs);
   assert(convert_ranked_ref_to_named_ref_index(&cm->new_ref_frame_data,
                                                mbmi->ref_frame_nrs[0]) ==
          mbmi->ref_frame[0]);
@@ -3960,6 +3964,10 @@ static AOM_INLINE void rd_pick_skip_mode(
 #endif  // CONFIG_NEW_REF_SIGNALING
 
   const uint8_t ref_frame_type = av1_ref_frame_type(mbmi->ref_frame);
+#if CONFIG_NEW_REF_SIGNALING
+  const uint8_t ref_frame_type_nrs =
+      av1_ref_frame_type_nrs(mbmi->ref_frame_nrs);
+#endif  // CONFIG_NEW_REF_SIGNALING
   if (x->mbmi_ext->ref_mv_count[ref_frame_type] == UINT8_MAX) {
     if (x->mbmi_ext->ref_mv_count[ref_frame] == UINT8_MAX ||
         x->mbmi_ext->ref_mv_count[second_ref_frame] == UINT8_MAX) {
@@ -3967,17 +3975,10 @@ static AOM_INLINE void rd_pick_skip_mode(
     }
     MB_MODE_INFO_EXT *mbmi_ext = x->mbmi_ext;
 #if CONFIG_NEW_REF_SIGNALING
-    MV_REFERENCE_FRAME_NRS ref_frame_nrs = INVALID_IDX;
-    if (ref_frame_type < REF_FRAMES) {
-      ref_frame_nrs = convert_named_ref_to_ranked_ref_index(
-          &cm->new_ref_frame_data, ref_frame_type);
-      // TODO(sarahparker) Temporary assert, see aomedia:3060
-      assert(convert_ranked_ref_to_named_ref_index(
-                 &cm->new_ref_frame_data, ref_frame_nrs) == ref_frame_type);
-    }
-    av1_find_mv_refs(cm, xd, mbmi, ref_frame_type, ref_frame_nrs,
+    av1_find_mv_refs(cm, xd, mbmi, ref_frame_type, ref_frame_type_nrs,
                      mbmi_ext->ref_mv_count, xd->ref_mv_stack, xd->weight, NULL,
-                     mbmi_ext->global_mvs, mbmi_ext->mode_context);
+                     mbmi_ext->global_mvs, mbmi_ext->global_mvs_nrs,
+                     mbmi_ext->mode_context);
 #else
     av1_find_mv_refs(cm, xd, mbmi, ref_frame_type, mbmi_ext->ref_mv_count,
                      xd->ref_mv_stack, xd->weight, NULL, mbmi_ext->global_mvs,
@@ -4059,12 +4060,9 @@ static AOM_INLINE void rd_pick_skip_mode(
     search_state->best_mbmode.ref_frame[0] = mbmi->ref_frame[0];
     search_state->best_mbmode.ref_frame[1] = mbmi->ref_frame[1];
 #if CONFIG_NEW_REF_SIGNALING
-    search_state->best_mbmode.ref_frame_nrs[0] =
-        convert_named_ref_to_ranked_ref_index(
-            &cm->new_ref_frame_data, search_state->best_mbmode.ref_frame[0]);
-    search_state->best_mbmode.ref_frame_nrs[1] =
-        convert_named_ref_to_ranked_ref_index(
-            &cm->new_ref_frame_data, search_state->best_mbmode.ref_frame[1]);
+    convert_named_ref_to_ranked_ref_pair(
+        &cm->new_ref_frame_data, search_state->best_mbmode.ref_frame, 0,
+        search_state->best_mbmode.ref_frame_nrs);
     assert(convert_ranked_ref_to_named_ref_index(
                &cm->new_ref_frame_data,
                search_state->best_mbmode.ref_frame_nrs[0]) ==
@@ -4517,9 +4515,11 @@ static AOM_INLINE void init_neighbor_pred_buf(
 }
 
 #if CONFIG_NEW_REF_SIGNALING
-static AOM_INLINE int prune_ref_frame_nrs(const AV1_COMP *cpi,
-                                          const MACROBLOCK *x,
-                                          const MV_REFERENCE_FRAME_NRS *rf) {
+static AOM_INLINE int prune_ref_frame_nrs(
+    const AV1_COMP *cpi, const MACROBLOCK *x,
+    const MV_REFERENCE_FRAME_NRS ref_frame_type_nrs) {
+  MV_REFERENCE_FRAME_NRS rf[2];
+  av1_set_ref_frame_nrs(rf, ref_frame_type_nrs);
   const AV1_COMMON *const cm = &cpi->common;
   const int comp_pred = (rf[1] != INVALID_IDX && rf[1] != INTRA_FRAME_NRS);
   if (comp_pred) {
@@ -4593,6 +4593,17 @@ static AOM_INLINE int is_ref_frame_used_in_cache(MV_REFERENCE_FRAME ref_frame,
   return ref_frame == cached_ref_type;
 }
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
+
+#if CONFIG_NEW_REF_SIGNALING
+static INLINE MV_REFERENCE_FRAME_NRS convert_named_ref_to_ranked_ref_type(
+    const NewRefFramesData *const ref_frame_data, MV_REFERENCE_FRAME ref_type) {
+  MV_REFERENCE_FRAME rf[2];
+  av1_set_ref_frame(rf, ref_type);
+  MV_REFERENCE_FRAME_NRS rf_nrs[2];
+  convert_named_ref_to_ranked_ref_pair(ref_frame_data, rf, 0, rf_nrs);
+  return av1_ref_frame_type_nrs(rf_nrs);
+}
+#endif  // CONFIG_NEW_REF_SIGNALING
 
 // Please add/modify parameter setting in this function, making it consistent
 // and easy to read and maintain.
@@ -4681,24 +4692,27 @@ static AOM_INLINE void set_params_rd_pick_inter_mode(
       }
 
 #if CONFIG_NEW_REF_SIGNALING
-      MV_REFERENCE_FRAME_NRS ref_frame_nrs[2] = { INVALID_IDX, INVALID_IDX };
+      MV_REFERENCE_FRAME_NRS rf_nrs[2] = { INVALID_IDX, INVALID_IDX };
       MV_REFERENCE_FRAME rfo[2];
       av1_set_ref_frame(rfo, ref_frame);
-      ref_frame_nrs[0] = convert_named_ref_to_ranked_ref_index(
-          &cm->new_ref_frame_data, rfo[0]);
+      rf_nrs[0] = convert_named_ref_to_ranked_ref_index(&cm->new_ref_frame_data,
+                                                        rfo[0]);
       // TODO(sarahparker) Temporary assert, see aomedia:3060
       assert(convert_ranked_ref_to_named_ref_index(&cm->new_ref_frame_data,
-                                                   ref_frame_nrs[0]) == rfo[0]);
+                                                   rf_nrs[0]) == rfo[0]);
       if (ref_frame >= REF_FRAMES) {
-        ref_frame_nrs[1] = convert_named_ref_to_ranked_ref_index(
+        rf_nrs[1] = convert_named_ref_to_ranked_ref_index(
             &cm->new_ref_frame_data, rfo[1]);
-        assert(convert_ranked_ref_to_named_ref_index(
-                   &cm->new_ref_frame_data, ref_frame_nrs[1]) == rfo[1]);
+        assert(convert_ranked_ref_to_named_ref_index(&cm->new_ref_frame_data,
+                                                     rf_nrs[1]) == rfo[1]);
       }
-      if (prune_ref_frame_nrs(cpi, x, ref_frame_nrs)) continue;
-      av1_find_mv_refs(cm, xd, mbmi, ref_frame, ref_frame_nrs[0],
+      MV_REFERENCE_FRAME_NRS ref_frame_type_nrs =
+          av1_ref_frame_type_nrs(rf_nrs);
+      if (prune_ref_frame_nrs(cpi, x, ref_frame_type_nrs)) continue;
+      av1_find_mv_refs(cm, xd, mbmi, ref_frame, ref_frame_type_nrs,
                        mbmi_ext->ref_mv_count, xd->ref_mv_stack, xd->weight,
-                       NULL, mbmi_ext->global_mvs, mbmi_ext->mode_context);
+                       NULL, mbmi_ext->global_mvs, mbmi_ext->global_mvs_nrs,
+                       mbmi_ext->mode_context);
 #else
       // Ref mv list population is not required, when compound references are
       // pruned.
@@ -5010,7 +5024,8 @@ static int inter_mode_search_order_independent_skip(
 
   const int ref_type = av1_ref_frame_type(ref_frame);
 #if CONFIG_NEW_REF_SIGNALING
-  if (prune_ref_frame_nrs(cpi, x, ref_frame_nrs)) return 1;
+  const int ref_type_nrs = av1_ref_frame_type_nrs(ref_frame_nrs);
+  if (prune_ref_frame_nrs(cpi, x, ref_type_nrs)) return 1;
 #else
   if (prune_ref_frame(cpi, x, ref_type)) return 1;
 #endif  // CONFIG_NEW_REF_SIGNALING
@@ -5110,10 +5125,8 @@ static INLINE void init_mbmi(MB_MODE_INFO *mbmi, PREDICTION_MODE curr_mode,
   mbmi->ref_frame[0] = ref_frames[0];
   mbmi->ref_frame[1] = ref_frames[1];
 #if CONFIG_NEW_REF_SIGNALING
-  mbmi->ref_frame_nrs[0] = convert_named_ref_to_ranked_ref_index(
-      &cm->new_ref_frame_data, mbmi->ref_frame[0]);
-  mbmi->ref_frame_nrs[1] = convert_named_ref_to_ranked_ref_index(
-      &cm->new_ref_frame_data, mbmi->ref_frame[1]);
+  convert_named_ref_to_ranked_ref_pair(&cm->new_ref_frame_data, mbmi->ref_frame,
+                                       0, mbmi->ref_frame_nrs);
 #endif  // CONFIG_NEW_REF_SIGNALING
   pmi->palette_size[0] = 0;
   pmi->palette_size[1] = 0;
@@ -6449,10 +6462,8 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
     mbmi->ref_frame[0] = INTRA_FRAME;
     mbmi->ref_frame[1] = NONE_FRAME;
 #if CONFIG_NEW_REF_SIGNALING
-    mbmi->ref_frame_nrs[0] = convert_named_ref_to_ranked_ref_index(
-        &cm->new_ref_frame_data, mbmi->ref_frame[0]);
-    mbmi->ref_frame_nrs[1] = convert_named_ref_to_ranked_ref_index(
-        &cm->new_ref_frame_data, mbmi->ref_frame[1]);
+    convert_named_ref_to_ranked_ref_pair(
+        &cm->new_ref_frame_data, mbmi->ref_frame, 0, mbmi->ref_frame_nrs);
     assert(convert_ranked_ref_to_named_ref_index(&cm->new_ref_frame_data,
                                                  mbmi->ref_frame_nrs[0]) ==
            mbmi->ref_frame[0]);
@@ -6696,10 +6707,8 @@ void av1_rd_pick_inter_mode_sb_seg_skip(const AV1_COMP *cpi,
   mbmi->ref_frame[1] = NONE_FRAME;
 #if CONFIG_NEW_REF_SIGNALING
   mbmi->ref_frame[0] = LAST_FRAME;
-  mbmi->ref_frame_nrs[0] = convert_named_ref_to_ranked_ref_index(
-      &cm->new_ref_frame_data, mbmi->ref_frame[0]);
-  mbmi->ref_frame_nrs[1] = convert_named_ref_to_ranked_ref_index(
-      &cm->new_ref_frame_data, mbmi->ref_frame[1]);
+  convert_named_ref_to_ranked_ref_pair(&cm->new_ref_frame_data, mbmi->ref_frame,
+                                       0, mbmi->ref_frame_nrs);
   // TODO(sarahparker) Temporary assert, see aomedia:3060
   assert(convert_ranked_ref_to_named_ref_index(&cm->new_ref_frame_data,
                                                mbmi->ref_frame_nrs[0]) ==

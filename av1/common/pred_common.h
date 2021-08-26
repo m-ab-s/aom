@@ -88,6 +88,20 @@ static INLINE int convert_named_ref_to_ranked_ref_index(
   return ref_frame_data->named_to_ranked_refs[named_idx];
 }
 
+static INLINE void convert_named_ref_to_ranked_ref_pair(
+    const NewRefFramesData *const ref_frame_data, MV_REFERENCE_FRAME *rf,
+    int ordered, MV_REFERENCE_FRAME_NRS *rf_nrs) {
+  rf_nrs[0] = convert_named_ref_to_ranked_ref_index(ref_frame_data, rf[0]);
+  rf_nrs[1] = convert_named_ref_to_ranked_ref_index(ref_frame_data, rf[1]);
+  if (ordered) {
+    if (rf_nrs[1] != INVALID_IDX && rf_nrs[1] < rf_nrs[0]) {
+      MV_REFERENCE_FRAME_NRS tmp = rf_nrs[1];
+      rf_nrs[1] = rf_nrs[0];
+      rf_nrs[0] = tmp;
+    }
+  }
+}
+
 static INLINE int convert_ranked_ref_to_named_ref_index(
     const NewRefFramesData *const ref_frame_data, int ranked_idx) {
   if (ranked_idx == INVALID_IDX) return INVALID_IDX;

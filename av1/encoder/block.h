@@ -221,6 +221,10 @@ typedef struct {
   uint8_t ref_mv_count[MODE_CTX_REF_FRAMES];
   //! Global mvs
   int_mv global_mvs[REF_FRAMES];
+#if CONFIG_NEW_REF_SIGNALING
+  //! Global mvs in new ref framework
+  int_mv global_mvs_nrs[INTER_REFS_PER_FRAME_NRS];
+#endif  // CONFIG_NEW_REF_SIGNALING
   //! Context used to encode the current mode.
   int16_t mode_context[MODE_CTX_REF_FRAMES];
 } MB_MODE_INFO_EXT;
