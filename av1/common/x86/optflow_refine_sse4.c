@@ -536,15 +536,15 @@ void av1_bicubic_grad_interpolation_highbd_sse4_1(const int16_t *pred_src,
 #endif  // OPFL_BICUBIC_GRAD
 }
 
-inline __m128i LoadLo8(const void *a) {
+static INLINE __m128i LoadLo8(const void *a) {
   return _mm_loadl_epi64((const __m128i *)a);
 }
 
-inline __m128i LoadAligned16(const void *a) {
+static INLINE __m128i LoadAligned16(const void *a) {
   return _mm_load_si128((const __m128i *)a);
 }
 
-inline __m128i LoadUnaligned16(const void *a) {
+static INLINE __m128i LoadUnaligned16(const void *a) {
   return _mm_loadu_si128((const __m128i *)a);
 }
 
