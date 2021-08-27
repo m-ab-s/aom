@@ -1,5 +1,4 @@
 #include "av1/tflite_models/op_registrations.h"
-#include "config/aom_config.h"
 #include "tensorflow/lite/kernels/builtin_op_kernels.h"
 
 void RegisterSelectedOpsAllQps(::tflite::MutableOpResolver *resolver) {

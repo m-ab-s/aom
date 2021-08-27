@@ -10,7 +10,6 @@
  */
 
 #include "av1/tflite_models/inter_frame_model/qp121_145.h"
-#include "config/aom_config.h"
 
 const unsigned char qp121_145_inter_model_tflite_data[] = {
   0x20, 0x00, 0x00, 0x00, 0x54, 0x46, 0x4c, 0x33, 0x00, 0x00, 0x00, 0x00, 0x00,
