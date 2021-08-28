@@ -365,6 +365,17 @@ unsigned char *av1_downconvert_frame(YV12_BUFFER_CONFIG *frm, int bit_depth) {
     }
     frm->buf_8bit_valid = 1;
   }
+#if CONFIG_DEBUG
+  else {
+    // frm->buf_8bit_valid == 1. So, double check that 'buf_8bit' is correct.
+    for (i = 0; i < frm->y_height; ++i) {
+      for (j = 0; j < frm->y_width; ++j) {
+        assert(buf_8bit[i * frm->y_stride + j] ==
+               (orig_buf[i * frm->y_stride + j] >> (bit_depth - 8)));
+      }
+    }
+  }
+#endif  // CONFIG_DEBUG
   return buf_8bit;
 }
 

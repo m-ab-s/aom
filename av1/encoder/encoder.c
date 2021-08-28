@@ -2298,6 +2298,7 @@ static int encode_without_recode(AV1_COMP *cpi) {
       cpi->use_svc ? svc->downsample_filter_phase[svc->spatial_layer_id] : 0;
 
   set_size_independent_vars(cpi);
+  cpi->source->buf_8bit_valid = 0;
   av1_setup_frame_size(cpi);
   av1_set_size_dependent_vars(cpi, &q, &bottom_index, &top_index);
 

@@ -161,10 +161,11 @@ static int realloc_frame_buffer_aligned(
       if (ybf->y_buffer_8bit) {
         aom_free(ybf->y_buffer_8bit);
         ybf->y_buffer_8bit = NULL;
-        ybf->buf_8bit_valid = 0;
       }
     }
-
+    // y_buffer_8bit may have been allocated above, but it has not been filled
+    // in yet. So, mark it as invalid.
+    ybf->buf_8bit_valid = 0;
     ybf->corrupted = 0; /* assume not corrupted by errors */
     return 0;
   }
