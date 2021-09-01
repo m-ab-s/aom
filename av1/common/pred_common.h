@@ -176,6 +176,9 @@ static INLINE int get_dir_rank(const AV1_COMMON *const cm, int refrank,
       return 1;
     }
   }
+  // If refrank has the same distance as a reference return 0 (past)
+  // but the dir_refrank[0] is -1
+  if (cm->new_ref_frame_data.cur_ref == refrank) return 0;
   return -1;
 }
 #endif  // CONFIG_NEW_REF_SIGNALING
