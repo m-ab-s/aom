@@ -4594,17 +4594,6 @@ static AOM_INLINE int is_ref_frame_used_in_cache(MV_REFERENCE_FRAME ref_frame,
 }
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 
-#if CONFIG_NEW_REF_SIGNALING
-static INLINE MV_REFERENCE_FRAME_NRS convert_named_ref_to_ranked_ref_type(
-    const NewRefFramesData *const ref_frame_data, MV_REFERENCE_FRAME ref_type) {
-  MV_REFERENCE_FRAME rf[2];
-  av1_set_ref_frame(rf, ref_type);
-  MV_REFERENCE_FRAME_NRS rf_nrs[2];
-  convert_named_ref_to_ranked_ref_pair(ref_frame_data, rf, 0, rf_nrs);
-  return av1_ref_frame_type_nrs(rf_nrs);
-}
-#endif  // CONFIG_NEW_REF_SIGNALING
-
 // Please add/modify parameter setting in this function, making it consistent
 // and easy to read and maintain.
 static AOM_INLINE void set_params_rd_pick_inter_mode(

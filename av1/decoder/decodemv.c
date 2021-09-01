@@ -1600,10 +1600,8 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
 
   read_ref_frames(cm, xd, r, mbmi->segment_id, mbmi->ref_frame);
 #if CONFIG_NEW_REF_SIGNALING
-  mbmi->ref_frame_nrs[0] = convert_named_ref_to_ranked_ref_index(
-      &cm->new_ref_frame_data, mbmi->ref_frame[0]);
-  mbmi->ref_frame_nrs[1] = convert_named_ref_to_ranked_ref_index(
-      &cm->new_ref_frame_data, mbmi->ref_frame[1]);
+  convert_named_ref_to_ranked_ref_pair(&cm->new_ref_frame_data, mbmi->ref_frame,
+                                       0, mbmi->ref_frame_nrs);
   assert(convert_ranked_ref_to_named_ref_index(&cm->new_ref_frame_data,
                                                mbmi->ref_frame_nrs[0]) ==
          mbmi->ref_frame[0]);
@@ -1615,16 +1613,8 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
 
   const MV_REFERENCE_FRAME ref_frame = av1_ref_frame_type(mbmi->ref_frame);
 #if CONFIG_NEW_REF_SIGNALING
-  MV_REFERENCE_FRAME_NRS ref_frame_nrs = INVALID_IDX;
-  if (ref_frame < REF_FRAMES) {
-    ref_frame_nrs = convert_named_ref_to_ranked_ref_index(
-        &cm->new_ref_frame_data, ref_frame);
-    // TODO(sarahparker) Temporary assert, see aomedia:3060
-    assert(convert_ranked_ref_to_named_ref_index(&cm->new_ref_frame_data,
-                                                 ref_frame_nrs) == ref_frame);
-  } else {
-    ref_frame_nrs = av1_ref_frame_type_nrs(mbmi->ref_frame_nrs);
-  }
+  MV_REFERENCE_FRAME_NRS ref_frame_nrs =
+      av1_ref_frame_type_nrs(mbmi->ref_frame_nrs);
   av1_find_mv_refs(cm, xd, mbmi, ref_frame, ref_frame_nrs, dcb->ref_mv_count,
                    xd->ref_mv_stack, xd->weight, ref_mvs, /*global_mvs=*/NULL,
                    /*global_mvs_nrs=*/NULL, inter_mode_ctx);

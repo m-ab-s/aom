@@ -205,6 +205,15 @@ static INLINE void av1_set_ref_frame_nrs(
   }
   return;
 }
+
+static INLINE MV_REFERENCE_FRAME_NRS convert_named_ref_to_ranked_ref_type(
+    const NewRefFramesData *const ref_frame_data, MV_REFERENCE_FRAME ref_type) {
+  MV_REFERENCE_FRAME rf[2];
+  av1_set_ref_frame(rf, ref_type);
+  MV_REFERENCE_FRAME_NRS rf_nrs[2];
+  convert_named_ref_to_ranked_ref_pair(ref_frame_data, rf, 0, rf_nrs);
+  return av1_ref_frame_type_nrs(rf_nrs);
+}
 #endif  // CONFIG_NEW_REF_SIGNALING
 
 static uint16_t compound_mode_ctx_map[3][COMP_NEWMV_CTXS] = {
