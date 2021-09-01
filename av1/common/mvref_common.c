@@ -1744,6 +1744,16 @@ uint8_t av1_findSamples(const AV1_COMMON *cm, MACROBLOCKD *xd, int *pts,
                         int *pts_inref) {
   const MB_MODE_INFO *const mbmi0 = xd->mi[0];
   const int ref_frame = mbmi0->ref_frame[0];
+#if CONFIG_NEW_REF_SIGNALING
+  const int ref_frame_nrs = mbmi0->ref_frame_nrs[0];
+  assert(convert_ranked_ref_to_named_ref_index(&cm->new_ref_frame_data,
+                                               ref_frame_nrs) == ref_frame);
+  assert(convert_ranked_ref_to_named_ref_index(&cm->new_ref_frame_data,
+                                               mbmi0->ref_frame_nrs[1]) ==
+         mbmi0->ref_frame[1]);
+  (void)ref_frame;
+  (void)ref_frame_nrs;
+#endif  // CONFIG_NEW_REF_SIGNALING
   const int up_available = xd->up_available;
   const int left_available = xd->left_available;
   int i, mi_step;
@@ -1769,7 +1779,12 @@ uint8_t av1_findSamples(const AV1_COMMON *cm, MACROBLOCKD *xd, int *pts,
 
 #if CONFIG_COMPOUND_WARP_SAMPLES
       for (int ref = 0; ref < 1 + has_second_ref(mbmi); ++ref) {
-        if (mbmi->ref_frame[ref] == ref_frame) {
+#if CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+        if (mbmi->ref_frame_nrs[ref] == ref_frame_nrs)
+#else
+        if (mbmi->ref_frame[ref] == ref_frame)
+#endif  // CONFIG_NEW_REF_SIGNALING
+        {
           record_samples(mbmi, ref, pts, pts_inref, 0, -1, col_offset, 1);
           pts += 2;
           pts_inref += 2;
@@ -1779,7 +1794,13 @@ uint8_t av1_findSamples(const AV1_COMMON *cm, MACROBLOCKD *xd, int *pts,
         }
       }
 #else
-      if (mbmi->ref_frame[0] == ref_frame && mbmi->ref_frame[1] == NONE_FRAME) {
+#if CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+      if (mbmi->ref_frame_nrs[0] == ref_frame_nrs &&
+          mbmi->ref_frame_nrs[1] == INVALID_IDX)
+#else
+      if (mbmi->ref_frame[0] == ref_frame && mbmi->ref_frame[1] == NONE_FRAME)
+#endif  // CONFIG_NEW_REF_SIGNALING
+      {
         record_samples(mbmi, pts, pts_inref, 0, -1, col_offset, 1);
         pts += 2;
         pts_inref += 2;
@@ -1795,7 +1816,12 @@ uint8_t av1_findSamples(const AV1_COMMON *cm, MACROBLOCKD *xd, int *pts,
         mi_step = AOMMIN(xd->width, superblock_width);
 #if CONFIG_COMPOUND_WARP_SAMPLES
         for (int ref = 0; ref < 1 + has_second_ref(mbmi); ++ref) {
-          if (mbmi->ref_frame[ref] == ref_frame) {
+#if CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+          if (mbmi->ref_frame_nrs[ref] == ref_frame_nrs)
+#else
+          if (mbmi->ref_frame[ref] == ref_frame)
+#endif  // CONFIG_NEW_REF_SIGNALING
+          {
             record_samples(mbmi, ref, pts, pts_inref, 0, -1, i, 1);
             pts += 2;
             pts_inref += 2;
@@ -1804,8 +1830,13 @@ uint8_t av1_findSamples(const AV1_COMMON *cm, MACROBLOCKD *xd, int *pts,
           }
         }
 #else
-        if (mbmi->ref_frame[0] == ref_frame &&
-            mbmi->ref_frame[1] == NONE_FRAME) {
+#if CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+        if (mbmi->ref_frame_nrs[0] == ref_frame_nrs &&
+            mbmi->ref_frame_nrs[1] == INVALID_IDX)
+#else
+        if (mbmi->ref_frame[0] == ref_frame && mbmi->ref_frame[1] == NONE_FRAME)
+#endif  // CONFIG_NEW_REF_SIGNALING
+        {
           record_samples(mbmi, pts, pts_inref, 0, -1, i, 1);
           pts += 2;
           pts_inref += 2;
@@ -1833,7 +1864,12 @@ uint8_t av1_findSamples(const AV1_COMMON *cm, MACROBLOCKD *xd, int *pts,
 
 #if CONFIG_COMPOUND_WARP_SAMPLES
       for (int ref = 0; ref < 1 + has_second_ref(mbmi); ++ref) {
-        if (mbmi->ref_frame[ref] == ref_frame) {
+#if CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+        if (mbmi->ref_frame_nrs[ref] == ref_frame_nrs)
+#else
+        if (mbmi->ref_frame[ref] == ref_frame)
+#endif  // CONFIG_NEW_REF_SIGNALING
+        {
           record_samples(mbmi, ref, pts, pts_inref, row_offset, 1, 0, -1);
           pts += 2;
           pts_inref += 2;
@@ -1843,7 +1879,13 @@ uint8_t av1_findSamples(const AV1_COMMON *cm, MACROBLOCKD *xd, int *pts,
         }
       }
 #else
-      if (mbmi->ref_frame[0] == ref_frame && mbmi->ref_frame[1] == NONE_FRAME) {
+#if CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+      if (mbmi->ref_frame_nrs[0] == ref_frame_nrs &&
+          mbmi->ref_frame_nrs[1] == INVALID_IDX)
+#else
+      if (mbmi->ref_frame[0] == ref_frame && mbmi->ref_frame[1] == NONE_FRAME)
+#endif  // CONFIG_NEW_REF_SIGNALING
+      {
         record_samples(mbmi, pts, pts_inref, row_offset, 1, 0, -1);
         pts += 2;
         pts_inref += 2;
@@ -1859,7 +1901,12 @@ uint8_t av1_findSamples(const AV1_COMMON *cm, MACROBLOCKD *xd, int *pts,
         mi_step = AOMMIN(xd->height, superblock_height);
 #if CONFIG_COMPOUND_WARP_SAMPLES
         for (int ref = 0; ref < 1 + has_second_ref(mbmi); ++ref) {
-          if (mbmi->ref_frame[ref] == ref_frame) {
+#if CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+          if (mbmi->ref_frame_nrs[ref] == ref_frame_nrs)
+#else
+          if (mbmi->ref_frame[ref] == ref_frame)
+#endif  // CONFIG_NEW_REF_SIGNALING
+          {
             record_samples(mbmi, ref, pts, pts_inref, i, 1, 0, -1);
             pts += 2;
             pts_inref += 2;
@@ -1869,8 +1916,13 @@ uint8_t av1_findSamples(const AV1_COMMON *cm, MACROBLOCKD *xd, int *pts,
           }
         }
 #else
-        if (mbmi->ref_frame[0] == ref_frame &&
-            mbmi->ref_frame[1] == NONE_FRAME) {
+#if CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+        if (mbmi->ref_frame_nrs[0] == ref_frame_nrs &&
+            mbmi->ref_frame_nrs[1] == INVALID_IDX)
+#else
+        if (mbmi->ref_frame[0] == ref_frame && mbmi->ref_frame[1] == NONE_FRAME)
+#endif  // CONFIG_NEW_REF_SIGNALING
+        {
           record_samples(mbmi, pts, pts_inref, i, 1, 0, -1);
           pts += 2;
           pts_inref += 2;
@@ -1891,7 +1943,12 @@ uint8_t av1_findSamples(const AV1_COMMON *cm, MACROBLOCKD *xd, int *pts,
     MB_MODE_INFO *mbmi = xd->mi[mi_col_offset + mi_row_offset * mi_stride];
 #if CONFIG_COMPOUND_WARP_SAMPLES
     for (int ref = 0; ref < 1 + has_second_ref(mbmi); ++ref) {
-      if (mbmi->ref_frame[ref] == ref_frame) {
+#if CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+      if (mbmi->ref_frame_nrs[ref] == ref_frame_nrs)
+#else
+      if (mbmi->ref_frame[ref] == ref_frame)
+#endif  // CONFIG_NEW_REF_SIGNALING
+      {
         record_samples(mbmi, ref, pts, pts_inref, 0, -1, 0, -1);
         pts += 2;
         pts_inref += 2;
@@ -1899,7 +1956,13 @@ uint8_t av1_findSamples(const AV1_COMMON *cm, MACROBLOCKD *xd, int *pts,
       }
     }
 #else
-    if (mbmi->ref_frame[0] == ref_frame && mbmi->ref_frame[1] == NONE_FRAME) {
+#if CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+    if (mbmi->ref_frame_nrs[0] == ref_frame_nrs &&
+        mbmi->ref_frame_nrs[1] == INVALID_IDX)
+#else
+    if (mbmi->ref_frame[0] == ref_frame && mbmi->ref_frame[1] == NONE_FRAME)
+#endif  // CONFIG_NEW_REF_SIGNALING
+    {
       record_samples(mbmi, pts, pts_inref, 0, -1, 0, -1);
       pts += 2;
       pts_inref += 2;
@@ -1920,7 +1983,12 @@ uint8_t av1_findSamples(const AV1_COMMON *cm, MACROBLOCKD *xd, int *pts,
           xd->mi[mi_col_offset + mi_row_offset * mi_stride];
 #if CONFIG_COMPOUND_WARP_SAMPLES
       for (int ref = 0; ref < 1 + has_second_ref(mbmi); ++ref) {
-        if (mbmi->ref_frame[ref] == ref_frame) {
+#if CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+        if (mbmi->ref_frame_nrs[ref] == ref_frame_nrs)
+#else
+        if (mbmi->ref_frame[ref] == ref_frame)
+#endif  // CONFIG_NEW_REF_SIGNALING
+        {
           record_samples(mbmi, ref, pts, pts_inref, 0, -1, xd->width, 1);
           pts += 2;
           pts_inref += 2;
@@ -1930,7 +1998,13 @@ uint8_t av1_findSamples(const AV1_COMMON *cm, MACROBLOCKD *xd, int *pts,
         }
       }
 #else
-      if (mbmi->ref_frame[0] == ref_frame && mbmi->ref_frame[1] == NONE_FRAME) {
+#if CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+      if (mbmi->ref_frame_nrs[0] == ref_frame_nrs &&
+          mbmi->ref_frame_nrs[1] == INVALID_IDX)
+#else
+      if (mbmi->ref_frame[0] == ref_frame && mbmi->ref_frame[1] == NONE_FRAME)
+#endif  // CONFIG_NEW_REF_SIGNALING
+      {
         record_samples(mbmi, pts, pts_inref, 0, -1, xd->width, 1);
         if (++np >= LEAST_SQUARES_SAMPLES_MAX) return LEAST_SQUARES_SAMPLES_MAX;
       }

@@ -1747,6 +1747,9 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
       const INTERINTRA_MODE interintra_mode =
           read_interintra_mode(xd, r, bsize_group);
       mbmi->ref_frame[1] = INTRA_FRAME;
+#if CONFIG_NEW_REF_SIGNALING
+      mbmi->ref_frame_nrs[1] = INTRA_FRAME_NRS;
+#endif  // CONFIG_NEW_REF_SIGNALING
       mbmi->interintra_mode = interintra_mode;
       mbmi->angle_delta[PLANE_TYPE_Y] = 0;
       mbmi->angle_delta[PLANE_TYPE_UV] = 0;
