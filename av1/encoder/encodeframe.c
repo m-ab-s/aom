@@ -1103,10 +1103,17 @@ static INLINE void get_skip_mode_ref_offsets(const AV1_COMMON *cm,
   ref_order_hint[0] = ref_order_hint[1] = 0;
   if (!skip_mode_info->skip_mode_allowed) return;
 
+#if CONFIG_NEW_REF_SIGNALING
+  const RefCntBuffer *const buf_0 =
+      get_ref_frame_buf_nrs(cm, skip_mode_info->ref_frame_idx_0);
+  const RefCntBuffer *const buf_1 =
+      get_ref_frame_buf_nrs(cm, skip_mode_info->ref_frame_idx_1);
+#else
   const RefCntBuffer *const buf_0 =
       get_ref_frame_buf(cm, LAST_FRAME + skip_mode_info->ref_frame_idx_0);
   const RefCntBuffer *const buf_1 =
       get_ref_frame_buf(cm, LAST_FRAME + skip_mode_info->ref_frame_idx_1);
+#endif  // CONFIG_NEW_REF_SIGNALING
   assert(buf_0 != NULL && buf_1 != NULL);
 
   ref_order_hint[0] = buf_0->order_hint;
@@ -1133,6 +1140,15 @@ static int check_skip_mode_enabled(AV1_COMP *const cpi) {
   // High Latency: Turn off skip mode if all refs are fwd.
   if (cpi->all_one_sided_refs && cpi->oxcf.gf_cfg.lag_in_frames > 0) return 0;
 
+#if CONFIG_NEW_REF_SIGNALING
+  const int ref_frame_nrs[2] = {
+    cm->current_frame.skip_mode_info.ref_frame_idx_0,
+    cm->current_frame.skip_mode_info.ref_frame_idx_1
+  };
+  if (!(cpi->common.ref_frame_flags_nrs & (1 << ref_frame_nrs[0])) ||
+      !(cpi->common.ref_frame_flags_nrs & (1 << ref_frame_nrs[1])))
+    return 0;
+#else
   static const int flag_list[REF_FRAMES] = { 0,
                                              AOM_LAST_FLAG,
                                              AOM_LAST2_FLAG,
@@ -1148,6 +1164,7 @@ static int check_skip_mode_enabled(AV1_COMP *const cpi) {
   if (!(cpi->common.ref_frame_flags & flag_list[ref_frame[0]]) ||
       !(cpi->common.ref_frame_flags & flag_list[ref_frame[1]]))
     return 0;
+#endif  // CONFIG_NEW_REF_SIGNALING
 
   return 1;
 }

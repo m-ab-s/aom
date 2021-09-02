@@ -1112,18 +1112,37 @@ static COMP_REFERENCE_TYPE read_comp_reference_type(const MACROBLOCKD *xd,
   return comp_ref_type;  // UNIDIR_COMP_REFERENCE or BIDIR_COMP_REFERENCE
 }
 
+#if CONFIG_NEW_REF_SIGNALING
+static void set_ref_frames_for_skip_mode_nrs(
+    AV1_COMMON *const cm, MV_REFERENCE_FRAME_NRS ref_frame_nrs[2]) {
+  ref_frame_nrs[0] = cm->current_frame.skip_mode_info.ref_frame_idx_0;
+  ref_frame_nrs[1] = cm->current_frame.skip_mode_info.ref_frame_idx_1;
+}
+#else
 static void set_ref_frames_for_skip_mode(AV1_COMMON *const cm,
                                          MV_REFERENCE_FRAME ref_frame[2]) {
   ref_frame[0] = LAST_FRAME + cm->current_frame.skip_mode_info.ref_frame_idx_0;
   ref_frame[1] = LAST_FRAME + cm->current_frame.skip_mode_info.ref_frame_idx_1;
 }
+#endif  // CONFIG_NEW_REF_SIGNALING
 
 // Read the referncence frame
 static void read_ref_frames(AV1_COMMON *const cm, MACROBLOCKD *const xd,
                             aom_reader *r, int segment_id,
                             MV_REFERENCE_FRAME ref_frame[2]) {
   if (xd->mi[0]->skip_mode) {
+#if CONFIG_NEW_REF_SIGNALING
+    MV_REFERENCE_FRAME_NRS ref_frame_nrs[2];
+    set_ref_frames_for_skip_mode_nrs(cm, ref_frame_nrs);
+    // TODO(sarahparker, debargha): When the entire function converts
+    // to the new framework, remove the conversion to named refs below.
+    ref_frame[0] = convert_ranked_ref_to_named_ref_index(
+        &cm->new_ref_frame_data, ref_frame_nrs[0]);
+    ref_frame[1] = convert_ranked_ref_to_named_ref_index(
+        &cm->new_ref_frame_data, ref_frame_nrs[1]);
+#else
     set_ref_frames_for_skip_mode(cm, ref_frame);
+#endif  // CONFIG_NEW_REF_SIGNALING
     return;
   }
 

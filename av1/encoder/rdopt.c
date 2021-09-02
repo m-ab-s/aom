@@ -3922,10 +3922,21 @@ static AOM_INLINE void rd_pick_skip_mode(
     return;
   }
 
+#if CONFIG_NEW_REF_SIGNALING
+  const MV_REFERENCE_FRAME_NRS ref_frame_nrs = skip_mode_info->ref_frame_idx_0;
+  const MV_REFERENCE_FRAME_NRS second_ref_frame_nrs =
+      skip_mode_info->ref_frame_idx_1;
+  const MV_REFERENCE_FRAME ref_frame = convert_ranked_ref_to_named_ref_index(
+      &cm->new_ref_frame_data, ref_frame_nrs);
+  const MV_REFERENCE_FRAME second_ref_frame =
+      convert_ranked_ref_to_named_ref_index(&cm->new_ref_frame_data,
+                                            second_ref_frame_nrs);
+#else
   const MV_REFERENCE_FRAME ref_frame =
       LAST_FRAME + skip_mode_info->ref_frame_idx_0;
   const MV_REFERENCE_FRAME second_ref_frame =
       LAST_FRAME + skip_mode_info->ref_frame_idx_1;
+#endif  // CONFIG_NEW_REF_SIGNALING
 
 #if CONFIG_NEW_INTER_MODES
   const PREDICTION_MODE this_mode = NEAR_NEARMV;
@@ -3953,14 +3964,8 @@ static AOM_INLINE void rd_pick_skip_mode(
   mbmi->ref_frame[0] = ref_frame;
   mbmi->ref_frame[1] = second_ref_frame;
 #if CONFIG_NEW_REF_SIGNALING
-  convert_named_ref_to_ranked_ref_pair(&cm->new_ref_frame_data, mbmi->ref_frame,
-                                       0, mbmi->ref_frame_nrs);
-  assert(convert_ranked_ref_to_named_ref_index(&cm->new_ref_frame_data,
-                                               mbmi->ref_frame_nrs[0]) ==
-         mbmi->ref_frame[0]);
-  assert(convert_ranked_ref_to_named_ref_index(&cm->new_ref_frame_data,
-                                               mbmi->ref_frame_nrs[1]) ==
-         mbmi->ref_frame[1]);
+  mbmi->ref_frame_nrs[0] = ref_frame_nrs;
+  mbmi->ref_frame_nrs[1] = second_ref_frame_nrs;
 #endif  // CONFIG_NEW_REF_SIGNALING
 
   const uint8_t ref_frame_type = av1_ref_frame_type(mbmi->ref_frame);

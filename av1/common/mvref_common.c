@@ -2033,10 +2033,17 @@ void av1_setup_skip_mode_allowed(AV1_COMMON *cm) {
   int ref_idx[2] = { INVALID_IDX, INVALID_IDX };
 
   // Identify the nearest forward and backward references.
+#if CONFIG_NEW_REF_SIGNALING
+  for (int i = 0; i < cm->new_ref_frame_data.n_total_refs; ++i) {
+    const RefCntBuffer *const buf = get_ref_frame_buf_nrs(cm, i);
+#else
   for (int i = 0; i < INTER_REFS_PER_FRAME; ++i) {
     const RefCntBuffer *const buf = get_ref_frame_buf(cm, LAST_FRAME + i);
+#endif  // CONFIG_NEW_REF_SIGNALING
     if (buf == NULL) continue;
 
+    // TODO(debargha, sarahparker): This could be implemented better based
+    // on past and future lists, but this also works.
     const int ref_order_hint = buf->order_hint;
     if (get_relative_dist(order_hint_info, ref_order_hint, cur_order_hint) <
         0) {
@@ -2062,14 +2069,24 @@ void av1_setup_skip_mode_allowed(AV1_COMMON *cm) {
   if (ref_idx[0] != INVALID_IDX && ref_idx[1] != INVALID_IDX) {
     // == Bi-directional prediction ==
     skip_mode_info->skip_mode_allowed = 1;
+#if CONFIG_NEW_REF_SIGNALING
+    skip_mode_info->ref_frame_idx_0 = ref_idx[0];
+    skip_mode_info->ref_frame_idx_1 = ref_idx[1];
+#else
     skip_mode_info->ref_frame_idx_0 = AOMMIN(ref_idx[0], ref_idx[1]);
     skip_mode_info->ref_frame_idx_1 = AOMMAX(ref_idx[0], ref_idx[1]);
+#endif  // CONFIG_NEW_REF_SIGNALING
   } else if (ref_idx[0] != INVALID_IDX && ref_idx[1] == INVALID_IDX) {
     // == Forward prediction only ==
     // Identify the second nearest forward reference.
     ref_order_hints[1] = -1;
+#if CONFIG_NEW_REF_SIGNALING
+    for (int i = 0; i < cm->new_ref_frame_data.n_total_refs; ++i) {
+      const RefCntBuffer *const buf = get_ref_frame_buf_nrs(cm, i);
+#else
     for (int i = 0; i < INTER_REFS_PER_FRAME; ++i) {
       const RefCntBuffer *const buf = get_ref_frame_buf(cm, LAST_FRAME + i);
+#endif  // CONFIG_NEW_REF_SIGNALING
       if (buf == NULL) continue;
 
       const int ref_order_hint = buf->order_hint;
@@ -2086,8 +2103,13 @@ void av1_setup_skip_mode_allowed(AV1_COMMON *cm) {
     }
     if (ref_order_hints[1] != -1) {
       skip_mode_info->skip_mode_allowed = 1;
+#if CONFIG_NEW_REF_SIGNALING
+      skip_mode_info->ref_frame_idx_0 = ref_idx[0];
+      skip_mode_info->ref_frame_idx_1 = ref_idx[1];
+#else
       skip_mode_info->ref_frame_idx_0 = AOMMIN(ref_idx[0], ref_idx[1]);
       skip_mode_info->ref_frame_idx_1 = AOMMAX(ref_idx[0], ref_idx[1]);
+#endif  // CONFIG_NEW_REF_SIGNALING
     }
   }
 }
