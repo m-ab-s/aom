@@ -1717,7 +1717,11 @@ static AOM_INLINE void write_mbmi_b(AV1_COMP *cpi, aom_writer *w) {
     // has_subpel_mv_component needs the ref frame buffers set up to look
     // up if they are scaled. has_subpel_mv_component is in turn needed by
     // write_switchable_interp_filter, which is called by pack_inter_mode_mvs.
+#if CONFIG_NEW_REF_SIGNALING
+    set_ref_ptrs_nrs(cm, xd, m->ref_frame_nrs[0], m->ref_frame_nrs[1]);
+#else
     set_ref_ptrs(cm, xd, m->ref_frame[0], m->ref_frame[1]);
+#endif  // CONFIG_NEW_REF_SIGNALING
 
 #if ENC_MISMATCH_DEBUG
     enc_dump_logs(cm, &cpi->mbmi_ext_info, xd->mi_row, xd->mi_col);

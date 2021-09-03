@@ -21,6 +21,8 @@
 extern "C" {
 #endif
 
+#define USE_NEW_REF_SIGNALING 0
+
 #define MVREF_ROW_COLS 3
 
 // Set the upper limit of the motion vector component magnitude.

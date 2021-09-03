@@ -618,8 +618,13 @@ static INLINE void calc_interp_skip_pred_flag(MACROBLOCK *const x,
   const int is_compound = has_second_ref(mbmi);
   assert(is_intrabc_block(mbmi) == 0);
   for (int ref = 0; ref < 1 + is_compound; ++ref) {
+#if CONFIG_NEW_REF_SIGNALING
+    const struct scale_factors *const sf =
+        get_ref_scale_factors_const_nrs(cm, mbmi->ref_frame_nrs[ref]);
+#else
     const struct scale_factors *const sf =
         get_ref_scale_factors_const(cm, mbmi->ref_frame[ref]);
+#endif  // CONFIG_NEW_REF_SIGNALING
     // TODO(any): Refine skip flag calculation considering scaling
     if (av1_is_scaled(sf)) {
       *skip_hor = 0;

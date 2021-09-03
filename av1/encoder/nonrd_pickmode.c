@@ -418,8 +418,13 @@ static INLINE void find_predictors(AV1_COMP *cpi, MACROBLOCK *x,
   // TODO(kyslov) this needs various further optimizations. to be continued..
   assert(yv12 != NULL);
   if (yv12 != NULL) {
+#if CONFIG_NEW_REF_SIGNALING
+    const struct scale_factors *const sf =
+        get_ref_scale_factors_const_nrs(cm, ref_frame_nrs);
+#else
     const struct scale_factors *const sf =
         get_ref_scale_factors_const(cm, ref_frame);
+#endif  // CONFIG_NEW_REF_SIGNALING
     av1_setup_pred_block(xd, yv12_mb[ref_frame], yv12, sf, sf, num_planes);
     av1_find_mv_refs(cm, xd, mbmi, ref_frame,
 #if CONFIG_NEW_REF_SIGNALING
@@ -2373,7 +2378,11 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
                                                  mi->ref_frame_nrs[1]) ==
            mi->ref_frame[1]);
 #endif  // CONFIG_NEW_REF_SIGNALING
-    set_ref_ptrs(cm, xd, ref_frame, NONE_FRAME);
+#if CONFIG_NEW_REF_SIGNALING
+    set_ref_ptrs_nrs(cm, xd, mi->ref_frame_nrs[0], INVALID_IDX);
+#else
+    set_ref_ptrs(cm, xd, mi->ref_frame[0], NONE_FRAME);
+#endif  // CONFIG_NEW_REF_SIGNALING
 
     if (this_mode == NEWMV) {
       if (search_new_mv(cpi, x, frame_mv, ref_frame, gf_temporal_ref, bsize,

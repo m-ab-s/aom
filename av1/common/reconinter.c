@@ -696,8 +696,8 @@ static AOM_INLINE void init_smooth_interintra_masks() {
 // Negative values indicate gradient returned at reduced precision, and
 // positive values indicate gradient returned at higher precision.
 int av1_compute_subpel_gradients_highbd(
-    const AV1_COMMON *cm, MACROBLOCKD *xd, int plane, const MB_MODE_INFO *mi,
-    int bw, int bh, int mi_x, int mi_y, uint8_t **mc_buf,
+    const AV1_COMMON *cm, MACROBLOCKD *xd, int plane, MB_MODE_INFO *mi, int bw,
+    int bh, int mi_x, int mi_y, uint8_t **mc_buf,
     CalcSubpelParamsFunc calc_subpel_params_func, int ref, uint16_t *pred_dst16,
     int *grad_prec_bits, int16_t *x_grad, int16_t *y_grad) {
   assert(cm->seq_params.order_hint_info.enable_order_hint);
@@ -706,7 +706,12 @@ int av1_compute_subpel_gradients_highbd(
   uint8_t *pred_dst = CONVERT_TO_BYTEPTR(pred_dst16);
   // Compute distance between the current frame and reference
   const int cur_frame_index = cm->cur_frame->order_hint;
+#if CONFIG_NEW_REF_SIGNALING
+  const RefCntBuffer *const ref_buf =
+      get_ref_frame_buf_nrs(cm, mi->ref_frame_nrs[ref]);
+#else
   const RefCntBuffer *const ref_buf = get_ref_frame_buf(cm, mi->ref_frame[ref]);
+#endif  // CONFIG_NEW_REF_SIGNALING
   assert(ref_buf != NULL);
   const int ref_index = ref_buf->order_hint;
   // Find the distance in display order between the current frame and each
@@ -839,8 +844,8 @@ int av1_compute_subpel_gradients_highbd(
 // Negative values indicate gradient returned at reduced precision, and
 // positive values indicate gradient returned at higher precision.
 int av1_compute_subpel_gradients_lowbd(
-    const AV1_COMMON *cm, MACROBLOCKD *xd, int plane, const MB_MODE_INFO *mi,
-    int bw, int bh, int mi_x, int mi_y, uint8_t **mc_buf,
+    const AV1_COMMON *cm, MACROBLOCKD *xd, int plane, MB_MODE_INFO *mi, int bw,
+    int bh, int mi_x, int mi_y, uint8_t **mc_buf,
     CalcSubpelParamsFunc calc_subpel_params_func, int ref, uint8_t *pred_dst,
     int *grad_prec_bits, int16_t *x_grad, int16_t *y_grad) {
   assert(cm->seq_params.order_hint_info.enable_order_hint);
@@ -848,7 +853,12 @@ int av1_compute_subpel_gradients_lowbd(
 
   // Compute distance between the current frame and reference
   const int cur_frame_index = cm->cur_frame->order_hint;
+#if CONFIG_NEW_REF_SIGNALING
+  const RefCntBuffer *const ref_buf =
+      get_ref_frame_buf_nrs(cm, mi->ref_frame_nrs[ref]);
+#else
   const RefCntBuffer *const ref_buf = get_ref_frame_buf(cm, mi->ref_frame[ref]);
+#endif  // CONFIG_NEW_REF_SIGNALING
   assert(ref_buf != NULL);
   const int ref_index = ref_buf->order_hint;
   // Find the distance in display order between the current frame and each
@@ -1116,7 +1126,7 @@ int opfl_mv_refinement_nxn_lowbd(const uint8_t *p0, int pstride0,
 #endif  // USE_OF_NXN
 
 static int get_optflow_based_mv_highbd(
-    const AV1_COMMON *cm, MACROBLOCKD *xd, int plane, const MB_MODE_INFO *mbmi,
+    const AV1_COMMON *cm, MACROBLOCKD *xd, int plane, MB_MODE_INFO *mbmi,
     int_mv *mv_refined, int bw, int bh, int mi_x, int mi_y, uint8_t **mc_buf,
     CalcSubpelParamsFunc calc_subpel_params_func) {
   // Arrays to hold optical flow offsets. If the experiment USE_OF_NXN is off,
@@ -1191,7 +1201,7 @@ exit_refinement:
 }
 
 static int get_optflow_based_mv_lowbd(
-    const AV1_COMMON *cm, MACROBLOCKD *xd, int plane, const MB_MODE_INFO *mbmi,
+    const AV1_COMMON *cm, MACROBLOCKD *xd, int plane, MB_MODE_INFO *mbmi,
     int_mv *mv_refined, int bw, int bh, int mi_x, int mi_y, uint8_t **mc_buf,
     CalcSubpelParamsFunc calc_subpel_params_func) {
   // Arrays to hold optical flow offsets. If the experiment USE_OF_NXN is off,
@@ -1268,9 +1278,8 @@ exit_refinement:
 // Refine MV using optical flow. The final output MV will be in 1/16
 // precision.
 int av1_get_optflow_based_mv(const AV1_COMMON *cm, MACROBLOCKD *xd, int plane,
-                             const MB_MODE_INFO *mbmi, int_mv *mv_refined,
-                             int bw, int bh, int mi_x, int mi_y,
-                             uint8_t **mc_buf,
+                             MB_MODE_INFO *mbmi, int_mv *mv_refined, int bw,
+                             int bh, int mi_x, int mi_y, uint8_t **mc_buf,
                              CalcSubpelParamsFunc calc_subpel_params_func) {
   if (is_cur_buf_hbd(xd))
     return get_optflow_based_mv_highbd(cm, xd, plane, mbmi, mv_refined, bw, bh,
@@ -1458,8 +1467,15 @@ void av1_dist_wtd_comp_weight_assign(const AV1_COMMON *cm,
     return;
   }
 
+#if CONFIG_NEW_REF_SIGNALING
+  const RefCntBuffer *const bck_buf =
+      get_ref_frame_buf_nrs(cm, mbmi->ref_frame_nrs[0]);
+  const RefCntBuffer *const fwd_buf =
+      get_ref_frame_buf_nrs(cm, mbmi->ref_frame_nrs[1]);
+#else
   const RefCntBuffer *const bck_buf = get_ref_frame_buf(cm, mbmi->ref_frame[0]);
   const RefCntBuffer *const fwd_buf = get_ref_frame_buf(cm, mbmi->ref_frame[1]);
+#endif  // CONFIG_NEW_REF_SIGNALING
   const int cur_frame_index = cm->cur_frame->order_hint;
   int bck_frame_index = 0, fwd_frame_index = 0;
 
@@ -1571,10 +1587,17 @@ static void build_inter_predictors_sub8x8(
       struct buf_2d *const dst_buf = &pd->dst;
       uint8_t *dst = dst_buf->buf + dst_buf->stride * y + x;
       int ref = 0;
+#if CONFIG_NEW_REF_SIGNALING
+      const RefCntBuffer *ref_buf =
+          get_ref_frame_buf_nrs(cm, this_mbmi->ref_frame_nrs[ref]);
+      const struct scale_factors *ref_scale_factors =
+          get_ref_scale_factors_const_nrs(cm, this_mbmi->ref_frame_nrs[ref]);
+#else
       const RefCntBuffer *ref_buf =
           get_ref_frame_buf(cm, this_mbmi->ref_frame[ref]);
       const struct scale_factors *ref_scale_factors =
           get_ref_scale_factors_const(cm, this_mbmi->ref_frame[ref]);
+#endif  // CONFIG_NEW_REF_SIGNALING
       const struct scale_factors *const sf = ref_scale_factors;
       const struct buf_2d pre_buf = {
         NULL,
@@ -1869,7 +1892,7 @@ int av1_skip_u4x4_pred_in_obmc(BLOCK_SIZE bsize,
 void av1_modify_neighbor_predictor_for_obmc(MB_MODE_INFO *mbmi) {
   mbmi->ref_frame[1] = NONE_FRAME;
 #if CONFIG_NEW_REF_SIGNALING
-  mbmi->ref_frame_nrs[1] = -1;
+  mbmi->ref_frame_nrs[1] = INVALID_IDX;
 #endif  // CONFIG_NEW_REF_SIGNALING
   mbmi->interinter_comp.type = COMPOUND_AVERAGE;
 
@@ -2016,11 +2039,17 @@ void av1_setup_build_prediction_by_above_pred(
   const int num_refs = 1 + has_second_ref(above_mbmi);
 
   for (int ref = 0; ref < num_refs; ++ref) {
+#if CONFIG_NEW_REF_SIGNALING
+    const MV_REFERENCE_FRAME_NRS frame = above_mbmi->ref_frame_nrs[ref];
+    const RefCntBuffer *const ref_buf = get_ref_frame_buf_nrs(ctxt->cm, frame);
+    const struct scale_factors *const sf =
+        get_ref_scale_factors_const_nrs(ctxt->cm, frame);
+#else
     const MV_REFERENCE_FRAME frame = above_mbmi->ref_frame[ref];
-
     const RefCntBuffer *const ref_buf = get_ref_frame_buf(ctxt->cm, frame);
     const struct scale_factors *const sf =
         get_ref_scale_factors_const(ctxt->cm, frame);
+#endif  // CONFIG_NEW_REF_SIGNALING
     xd->block_ref_scale_factors[ref] = sf;
     if ((!av1_is_valid_scale(sf)))
       aom_internal_error(xd->error_info, AOM_CODEC_UNSUP_BITSTREAM,
@@ -2054,11 +2083,17 @@ void av1_setup_build_prediction_by_left_pred(MACROBLOCKD *xd, int rel_mi_row,
   const int num_refs = 1 + has_second_ref(left_mbmi);
 
   for (int ref = 0; ref < num_refs; ++ref) {
+#if CONFIG_NEW_REF_SIGNALING
+    const MV_REFERENCE_FRAME_NRS frame = left_mbmi->ref_frame_nrs[ref];
+    const RefCntBuffer *const ref_buf = get_ref_frame_buf_nrs(ctxt->cm, frame);
+    const struct scale_factors *const ref_scale_factors =
+        get_ref_scale_factors_const_nrs(ctxt->cm, frame);
+#else
     const MV_REFERENCE_FRAME frame = left_mbmi->ref_frame[ref];
-
     const RefCntBuffer *const ref_buf = get_ref_frame_buf(ctxt->cm, frame);
     const struct scale_factors *const ref_scale_factors =
         get_ref_scale_factors_const(ctxt->cm, frame);
+#endif  // CONFIG_NEW_REF_SIGNALING
 
     xd->block_ref_scale_factors[ref] = ref_scale_factors;
     if ((!av1_is_valid_scale(ref_scale_factors)))

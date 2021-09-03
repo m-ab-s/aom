@@ -16,8 +16,6 @@
 #include "av1/common/pred_common.h"
 #include "av1/common/warped_motion.h"
 
-#define USE_NEW_REF_SIGNALING 0
-
 // Although we assign 32 bit integers, all the values are strictly under 14
 // bits.
 static int div_mult[32] = { 0,    16384, 8192, 5461, 4096, 3276, 2730, 2340,

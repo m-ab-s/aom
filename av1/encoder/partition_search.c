@@ -460,7 +460,11 @@ static void encode_superblock(const AV1_COMP *const cpi, TileDataEnc *tile_data,
     int ref;
     const int is_compound = has_second_ref(mbmi);
 
+#if CONFIG_NEW_REF_SIGNALING
+    set_ref_ptrs_nrs(cm, xd, mbmi->ref_frame_nrs[0], mbmi->ref_frame_nrs[1]);
+#else
     set_ref_ptrs(cm, xd, mbmi->ref_frame[0], mbmi->ref_frame[1]);
+#endif  // CONFIG_NEW_REF_SIGNALING
     for (ref = 0; ref < 1 + is_compound; ++ref) {
       const YV12_BUFFER_CONFIG *cfg =
           get_ref_frame_yv12_buf(cm, mbmi->ref_frame[ref]);
@@ -1576,7 +1580,11 @@ static void encode_b(const AV1_COMP *const cpi, TileDataEnc *tile_data,
         assert(has_second_ref(mbmi));
         rdc->compound_ref_used_flag = 1;
       }
+#if CONFIG_NEW_REF_SIGNALING
+      set_ref_ptrs_nrs(cm, xd, mbmi->ref_frame_nrs[0], mbmi->ref_frame_nrs[1]);
+#else
       set_ref_ptrs(cm, xd, mbmi->ref_frame[0], mbmi->ref_frame[1]);
+#endif  // CONFIG_NEW_REF_SIGNALING
     } else {
 #if CONFIG_NEW_REF_SIGNALING
       const int seg_ref_active = 0;
@@ -1599,7 +1607,12 @@ static void encode_b(const AV1_COMP *const cpi, TileDataEnc *tile_data,
               rdc->compound_ref_used_flag = 1;
             }
           }
+#if CONFIG_NEW_REF_SIGNALING
+          set_ref_ptrs_nrs(cm, xd, mbmi->ref_frame_nrs[0],
+                           mbmi->ref_frame_nrs[1]);
+#else
           set_ref_ptrs(cm, xd, mbmi->ref_frame[0], mbmi->ref_frame[1]);
+#endif  // CONFIG_NEW_REF_SIGNALING
         }
       }
     }

@@ -1196,8 +1196,13 @@ static AOM_INLINE void setup_buffer_ref_mvs_inter(
   MACROBLOCKD *const xd = &x->e_mbd;
   MB_MODE_INFO *const mbmi = xd->mi[0];
   MB_MODE_INFO_EXT *const mbmi_ext = x->mbmi_ext;
+#if CONFIG_NEW_REF_SIGNALING
+  const struct scale_factors *const sf =
+      get_ref_scale_factors_const_nrs(cm, ref_frame_nrs);
+#else
   const struct scale_factors *const sf =
       get_ref_scale_factors_const(cm, ref_frame);
+#endif  // CONFIG_NEW_REF_SIGNALING
   const YV12_BUFFER_CONFIG *yv12 = get_ref_frame_yv12_buf(cm, ref_frame);
   assert(yv12 != NULL);
 
@@ -4021,7 +4026,11 @@ static AOM_INLINE void rd_pick_skip_mode(
 
   set_default_interp_filters(mbmi, cm->features.interp_filter);
 
+#if CONFIG_NEW_REF_SIGNALING
+  set_ref_ptrs_nrs(cm, xd, mbmi->ref_frame_nrs[0], mbmi->ref_frame_nrs[1]);
+#else
   set_ref_ptrs(cm, xd, mbmi->ref_frame[0], mbmi->ref_frame[1]);
+#endif  // CONFIG_NEW_RREF_SIGNALING
   for (int i = 0; i < num_planes; i++) {
     xd->plane[i].pre[0] = yv12_mb[mbmi->ref_frame[0]][i];
     xd->plane[i].pre[1] = yv12_mb[mbmi->ref_frame[1]][i];
@@ -4202,7 +4211,11 @@ static AOM_INLINE void refine_winner_mode_tx(
 
       *mbmi = *winner_mbmi;
 
+#if CONFIG_NEW_REF_SIGNALING
+      set_ref_ptrs_nrs(cm, xd, mbmi->ref_frame_nrs[0], mbmi->ref_frame_nrs[1]);
+#else
       set_ref_ptrs(cm, xd, mbmi->ref_frame[0], mbmi->ref_frame[1]);
+#endif  // CONFIG_NEW_REF_SIGNALING
 
       // Select prediction reference frames.
       for (int i = 0; i < num_planes; i++) {
@@ -5590,7 +5603,11 @@ static AOM_INLINE void evaluate_motion_mode_for_winner_candidates(
       { p[0].dst.stride, p[1].dst.stride, p[2].dst.stride },
     };
 
+#if CONFIG_NEW_REF_SIGNALING
+    set_ref_ptrs_nrs(cm, xd, mbmi->ref_frame_nrs[0], mbmi->ref_frame_nrs[1]);
+#else
     set_ref_ptrs(cm, xd, mbmi->ref_frame[0], mbmi->ref_frame[1]);
+#endif  // CONFIG_NEW_REF_SIGNALING
     // Initialize motion mode to simple translation
     // Calculation of switchable rate depends on it.
     mbmi->motion_mode = 0;
@@ -5852,7 +5869,11 @@ static void tx_search_best_inter_candidates(
     if (curr_est_rd * 0.80 > top_est_rd) break;
 
     txfm_info->skip_txfm = 0;
+#if CONFIG_NEW_REF_SIGNALING
+    set_ref_ptrs_nrs(cm, xd, mbmi->ref_frame_nrs[0], mbmi->ref_frame_nrs[1]);
+#else
     set_ref_ptrs(cm, xd, mbmi->ref_frame[0], mbmi->ref_frame[1]);
+#endif  // CONFIG_NEW_REF_SIGNALING
 
     // Select prediction reference frames.
     const int is_comp_pred = mbmi->ref_frame[1] > INTRA_FRAME;
@@ -6193,6 +6214,12 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
         if (skip_compound_search(ref_frame, second_ref_frame)) continue;
         const MV_REFERENCE_FRAME ref_frames[2] = { ref_frame,
                                                    second_ref_frame };
+        const MV_REFERENCE_FRAME_NRS ref_frame_nrs =
+            convert_named_ref_to_ranked_ref_index(&cm->new_ref_frame_data,
+                                                  ref_frame);
+        const MV_REFERENCE_FRAME_NRS second_ref_frame_nrs =
+            convert_named_ref_to_ranked_ref_index(&cm->new_ref_frame_data,
+                                                  second_ref_frame);
 #else
   for (THR_MODES midx = THR_MODE_START; midx < THR_MODE_END; ++midx) {
     // Get the actual prediction mode we are trying in this iteration
@@ -6218,7 +6245,11 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
 
         txfm_info->skip_txfm = 0;
         num_single_modes_processed += is_single_pred;
-        set_ref_ptrs(cm, xd, ref_frame, second_ref_frame);
+#if CONFIG_NEW_REF_SIGNALING
+        set_ref_ptrs_nrs(cm, xd, ref_frame_nrs, second_ref_frame_nrs);
+#else
+    set_ref_ptrs(cm, xd, ref_frame, second_ref_frame);
+#endif  // CONFIG_NEW_REF_SIGNALING
 
         // Apply speed features to decide if this inter mode can be skipped
         if (skip_inter_mode(cpi, x, bsize, ref_frame_rd,
