@@ -363,7 +363,9 @@ typedef struct {
   unsigned int frame_number;
   SkipModeInfo skip_mode_info;
   int refresh_frame_flags;  // Which ref frames are overwritten by this frame
+#if !CONFIG_NEW_REF_SIGNALING
   int frame_refs_short_signaling;
+#endif  // !CONFIG_NEW_REF_SIGNALING
 } CurrentFrame;
 
 /*!\endcond */
@@ -1356,7 +1358,7 @@ static INLINE int get_ref_frame_map_idx(const AV1_COMMON *const cm,
                : INVALID_IDX;
   } else {
     NewRefFramesData ref_data = cm->new_ref_frame_data;
-    return (ref_frame >= 0 && ref_frame < INTRA_FRAME_NRS)
+    return (ref_frame >= 0 && ref_frame < INTER_REFS_PER_FRAME_NRS)
                ? ref_data.ref_frame_score_map[ref_frame]
                : INVALID_IDX;
   }

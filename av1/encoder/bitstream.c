@@ -3302,6 +3302,7 @@ static AOM_INLINE void write_global_motion(AV1_COMP *cpi,
 }
 #endif  // CONFIG_NEW_REF_SIGNALING
 
+#if !CONFIG_NEW_REF_SIGNALING
 static int check_frame_refs_short_signaling(AV1_COMMON *const cm) {
   // Check whether all references are distinct frames.
   const RefCntBuffer *seen_bufs[FRAME_BUFFERS] = { NULL };
@@ -3374,6 +3375,7 @@ static int check_frame_refs_short_signaling(AV1_COMMON *const cm) {
 
   return frame_refs_short_signaling;
 }
+#endif  // !CONFIG_NEW_REF_SIGNALING
 
 // New function based on HLS R18
 static AOM_INLINE void write_uncompressed_header_obu(
@@ -3386,7 +3388,9 @@ static AOM_INLINE void write_uncompressed_header_obu(
   CurrentFrame *const current_frame = &cm->current_frame;
   FeatureFlags *const features = &cm->features;
 
+#if !CONFIG_NEW_REF_SIGNALING
   current_frame->frame_refs_short_signaling = 0;
+#endif  // !CONFIG_NEW_REF_SIGNALING
 
   if (seq_params->still_picture) {
     assert(cm->show_existing_frame == 0);
@@ -3550,12 +3554,7 @@ static AOM_INLINE void write_uncompressed_header_obu(
 
       // NOTE: Error resilient mode turns off frame_refs_short_signaling
       //       automatically.
-#define FRAME_REFS_SHORT_SIGNALING 0
-#if FRAME_REFS_SHORT_SIGNALING
-      current_frame->frame_refs_short_signaling =
-          seq_params->order_hint_info.enable_order_hint;
-#endif  // FRAME_REFS_SHORT_SIGNALING
-
+#if !CONFIG_NEW_REF_SIGNALING
       if (current_frame->frame_refs_short_signaling) {
         // NOTE(zoeliu@google.com):
         //   An example solution for encoder-side implementation on frame refs
@@ -3569,20 +3568,15 @@ static AOM_INLINE void write_uncompressed_header_obu(
         aom_wb_write_bit(wb, current_frame->frame_refs_short_signaling);
 
       if (current_frame->frame_refs_short_signaling) {
-#if CONFIG_NEW_REF_SIGNALING
-        const int lst_ref = get_ref_frame_map_idx(cm, LAST_FRAME, 1);
-        const int gld_ref = get_ref_frame_map_idx(cm, GOLDEN_FRAME, 1);
-#else
         const int lst_ref = get_ref_frame_map_idx(cm, LAST_FRAME);
         const int gld_ref = get_ref_frame_map_idx(cm, GOLDEN_FRAME);
-#endif  // CONFIG_NEW_REF_SIGNALING
         aom_wb_write_literal(wb, lst_ref, REF_FRAMES_LOG2);
         aom_wb_write_literal(wb, gld_ref, REF_FRAMES_LOG2);
       }
+#endif  // !CONFIG_NEW_REF_SIGNALING
 
 #if CONFIG_NEW_REF_SIGNALING
-      if (!current_frame->frame_refs_short_signaling &&
-          seq_params->order_hint_info.enable_order_hint) {
+      if (seq_params->order_hint_info.enable_order_hint) {
         aom_wb_write_bit(wb, cpi->oxcf.mode == REALTIME);
         if (cpi->oxcf.mode != REALTIME) {
           // Find the lowest level of all of the references
@@ -3606,8 +3600,7 @@ static AOM_INLINE void write_uncompressed_header_obu(
       for (ref_frame = LAST_FRAME; ref_frame <= ALTREF_FRAME; ++ref_frame) {
 #if CONFIG_NEW_REF_SIGNALING
         assert(get_ref_frame_map_idx(cm, ref_frame, 1) != INVALID_IDX);
-        if (!current_frame->frame_refs_short_signaling &&
-            (!seq_params->order_hint_info.enable_order_hint ||
+        if ((!seq_params->order_hint_info.enable_order_hint ||
              cpi->oxcf.mode == REALTIME))
           aom_wb_write_literal(wb, get_ref_frame_map_idx(cm, ref_frame, 1),
                                REF_FRAMES_LOG2);

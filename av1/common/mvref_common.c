@@ -2114,6 +2114,7 @@ void av1_setup_skip_mode_allowed(AV1_COMMON *cm) {
   }
 }
 
+#if !CONFIG_NEW_REF_SIGNALING
 typedef struct {
   int map_idx;        // frame map index
   RefCntBuffer *buf;  // frame buffer
@@ -2303,6 +2304,7 @@ void av1_set_frame_refs(AV1_COMMON *const cm, int *remapped_ref_idx,
     assert(ref_flag_list[i] == 1);
   }
 }
+#endif  // !CONFIG_NEW_REF_SIGNALING
 
 #if CONFIG_REF_MV_BANK
 static INLINE void update_ref_mv_bank(const MB_MODE_INFO *const mbmi,
