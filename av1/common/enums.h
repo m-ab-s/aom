@@ -754,8 +754,8 @@ enum {
 };
 
 #if CONFIG_NEW_REF_SIGNALING
-#define REF_FRAMES_NRS REF_FRAMES
-#define INTER_REFS_PER_FRAME_NRS (REF_FRAMES_NRS - 1)
+#define INTER_REFS_PER_FRAME_NRS 7
+#define REF_FRAMES_NRS (INTER_REFS_PER_FRAME_NRS + 1)
 #define INTRA_FRAME_NRS \
   (INTER_REFS_PER_FRAME_NRS * (INTER_REFS_PER_FRAME_NRS + 1) / 2)
 // Used for indexing into arrays that contain reference data for
