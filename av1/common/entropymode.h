@@ -137,14 +137,16 @@ typedef struct frame_contexts {
 #if CONFIG_NEW_REF_SIGNALING
   aom_cdf_prob single_ref_cdf[REF_CONTEXTS][INTER_REFS_PER_FRAME_NRS - 1]
                              [CDF_SIZE(2)];
+  aom_cdf_prob compound_ref_cdf[REF_CONTEXTS][INTER_REFS_PER_FRAME_NRS - 1]
+                               [CDF_SIZE(2)];
 #else
   aom_cdf_prob single_ref_cdf[REF_CONTEXTS][SINGLE_REFS - 1][CDF_SIZE(2)];
-#endif  // CONFIIG_NEW_REF_SIGNALING
   aom_cdf_prob comp_ref_type_cdf[COMP_REF_TYPE_CONTEXTS][CDF_SIZE(2)];
   aom_cdf_prob uni_comp_ref_cdf[UNI_COMP_REF_CONTEXTS][UNIDIR_COMP_REFS - 1]
                                [CDF_SIZE(2)];
   aom_cdf_prob comp_ref_cdf[REF_CONTEXTS][FWD_REFS - 1][CDF_SIZE(2)];
   aom_cdf_prob comp_bwdref_cdf[REF_CONTEXTS][BWD_REFS - 1][CDF_SIZE(2)];
+#endif  // CONFIIG_NEW_REF_SIGNALING
 #if CONFIG_NEW_TX_PARTITION
   aom_cdf_prob inter_4way_txfm_partition_cdf[2][TXFM_PARTITION_INTER_CONTEXTS]
                                             [CDF_SIZE(4)];

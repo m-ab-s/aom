@@ -614,7 +614,12 @@ static void estimate_single_ref_frame_costs(const AV1_COMMON *cm,
 
 static void estimate_comp_ref_frame_costs(
     const AV1_COMMON *cm, const MACROBLOCKD *xd, const ModeCosts *mode_costs,
-    int segment_id, unsigned int (*ref_costs_comp)[REF_FRAMES]) {
+    int segment_id,
+#if CONFIG_NEW_REF_SIGNALING
+    unsigned int (*ref_costs_comp)[REF_FRAMES_NRS]) {
+#else
+    unsigned int (*ref_costs_comp)[REF_FRAMES]) {
+#endif  // CONFIG_NEW_REF_SIGNALING
 #if CONFIG_NEW_REF_SIGNALING
   (void)segment_id;
   const int seg_ref_active = 0;
@@ -627,6 +632,44 @@ static void estimate_comp_ref_frame_costs(
       memset(ref_costs_comp[ref_frame], 0,
              REF_FRAMES * sizeof((*ref_costs_comp)[0]));
   } else {
+#if CONFIG_NEW_REF_SIGNALING
+    int intra_inter_ctx = av1_get_intra_inter_context(xd);
+    unsigned int base_cost = mode_costs->intra_inter_cost[intra_inter_ctx][1];
+    if (cm->current_frame.reference_mode != SINGLE_REFERENCE) {
+      for (int i = 0; i < REF_FRAMES_NRS; i++)
+        for (int j = 0; j < REF_FRAMES_NRS; j++) ref_costs_comp[i][j] = INT_MAX;
+
+      const int n_refs = cm->new_ref_frame_data.n_total_refs;
+      for (int i = 0; i < n_refs - 1; i++) {
+        int prev_cost = base_cost;
+        for (int j = 0; j < n_refs; j++) {
+          if (j <= i) {
+            // Keep track of the cost to encode the first reference
+            aom_cdf_prob ctx =
+                av1_get_single_ref_pred_context_nrs(xd, j, n_refs);
+            const int bit = i == j;
+            prev_cost += mode_costs->compound_ref_cost[ctx][j][bit];
+          } else {
+            // Assign the cost of signaling both references
+            ref_costs_comp[i][j] = prev_cost;
+            if (j < n_refs - 1) {
+              aom_cdf_prob ctx =
+                  av1_get_single_ref_pred_context_nrs(xd, j, n_refs);
+              ref_costs_comp[i][j] += mode_costs->compound_ref_cost[ctx][j][1];
+              // Maintain the cost of sending a 0 bit for the 2nd reference to
+              // be used in the next iteration.
+              prev_cost += mode_costs->compound_ref_cost[ctx][j][0];
+            }
+          }
+        }
+      }
+    } else {
+      for (int ref0 = 0; ref0 < REF_FRAMES_NRS; ++ref0) {
+        for (int ref1 = ref0 + 1; ref1 < REF_FRAMES_NRS; ++ref1)
+          ref_costs_comp[ref0][ref1] = 512;
+      }
+    }
+#else
     int intra_inter_ctx = av1_get_intra_inter_context(xd);
     unsigned int base_cost = mode_costs->intra_inter_cost[intra_inter_ctx][1];
 
@@ -720,6 +763,7 @@ static void estimate_comp_ref_frame_costs(
       ref_costs_comp[LAST_FRAME][GOLDEN_FRAME] = 512;
       ref_costs_comp[BWDREF_FRAME][ALTREF_FRAME] = 512;
     }
+#endif  // CONFIG_NEW_REF_SIGNALING
   }
 }
 
@@ -2233,7 +2277,7 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
   int best_early_term = 0;
 #if CONFIG_NEW_REF_SIGNALING
   unsigned int ref_costs_single[REF_FRAMES_NRS];
-  unsigned int ref_costs_comp[REF_FRAMES][REF_FRAMES];
+  unsigned int ref_costs_comp[REF_FRAMES_NRS][REF_FRAMES_NRS];
 #else
   unsigned int ref_costs_single[REF_FRAMES],
       ref_costs_comp[REF_FRAMES][REF_FRAMES];

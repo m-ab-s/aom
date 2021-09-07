@@ -724,6 +724,24 @@ static AOM_INLINE void write_single_ref_nrs(
   }
   assert(ref == (n_refs - 1));
 }
+
+static AOM_INLINE void write_compound_ref_nrs(
+    const MACROBLOCKD *xd, const NewRefFramesData *const new_ref_frame_data,
+    aom_writer *w) {
+  const MB_MODE_INFO *const mbmi = xd->mi[0];
+  MV_REFERENCE_FRAME_NRS ref0 = mbmi->ref_frame_nrs[0];
+  MV_REFERENCE_FRAME_NRS ref1 = mbmi->ref_frame_nrs[1];
+  const int n_refs = new_ref_frame_data->n_total_refs;
+  int n_bits = 0;
+  for (int i = 0; i < n_refs - 1; i++) {
+    const int bit = ref0 == i || ref1 == i;
+    aom_write_symbol(w, bit, av1_get_pred_cdf_compound_ref_nrs(xd, i, n_refs),
+                     2);
+    n_bits += bit;
+    if (n_bits == 2) return;
+  }
+}
+
 #endif  // CONFIG_NEW_REF_SIGNALING
 
 // This function encodes the reference frame
@@ -760,6 +778,9 @@ static AOM_INLINE void write_ref_frames(const AV1_COMMON *cm,
     }
 
     if (is_compound) {
+#if CONFIG_NEW_REF_SIGNALING
+      write_compound_ref_nrs(xd, &cm->new_ref_frame_data, w);
+#else
       const COMP_REFERENCE_TYPE comp_ref_type = has_uni_comp_refs(mbmi)
                                                     ? UNIDIR_COMP_REFERENCE
                                                     : BIDIR_COMP_REFERENCE;
@@ -807,6 +828,7 @@ static AOM_INLINE void write_ref_frames(const AV1_COMMON *cm,
         WRITE_REF_BIT(mbmi->ref_frame[1] == ALTREF2_FRAME, comp_bwdref_p1);
       }
 
+#endif  // CONFIG_NEW_REF_SIGNALING
     } else {
 #if CONFIG_NEW_REF_SIGNALING
       write_single_ref_nrs(xd, &cm->new_ref_frame_data, w);
