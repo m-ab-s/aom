@@ -1164,6 +1164,15 @@ typedef struct macroblock {
   //! The minimum of \ref pred_mv_sad.
   int best_pred_mv_sad;
 
+#if CONFIG_NEW_REF_SIGNALING
+  /*! \brief Disables certain ref frame pruning based on tpl.
+   *
+   * Determines whether a given ref frame is "good" based on data from the TPL
+   * model. If so, this stops selective_ref frame from pruning the given ref
+   * frame at block level.
+   */
+  uint8_t tpl_keep_ref_frame[REF_FRAMES_NRS];
+#else
   /*! \brief Disables certain ref frame pruning based on tpl.
    *
    * Determines whether a given ref frame is "good" based on data from the TPL
@@ -1171,6 +1180,7 @@ typedef struct macroblock {
    * frame at block level.
    */
   uint8_t tpl_keep_ref_frame[REF_FRAMES];
+#endif  // CONFIG_NEW_REF_SIGNALING
 
   /*! \brief Reference frames picked by the square subblocks in a superblock.
    *

@@ -323,9 +323,26 @@ static INLINE int prune_ref_by_selective_ref_frame_nrs(
       (ref_frame[1] != INVALID_IDX && ref_frame[1] != INTRA_FRAME_NRS);
 
   if (x != NULL) {
-    // TODO(debargha, sarahparker): Change the code below to
-    // use x->tpl_keep_ref_frame_nrs[ranked_ref] when tpl_keep_ref_frame_nrs[]
-    // is ready.
+#if TPL_NEW_REF_SIGNALING
+    const int n_refs = cm->new_ref_frame_data.n_total_refs;
+    if (sf->inter_sf.selective_ref_frame >= 2 ||
+        (sf->inter_sf.selective_ref_frame == 1 && comp_pred)) {
+      if ((n_refs - 1) >= 0 && x->tpl_keep_ref_frame[n_refs - 1] &&
+          (ref_frame[0] == (n_refs - 1) || ref_frame[1] == (n_refs - 1)))
+        return 0;
+      if ((n_refs - 2) >= 0 && x->tpl_keep_ref_frame[n_refs - 2] &&
+          (ref_frame[0] == (n_refs - 2) || ref_frame[1] == (n_refs - 2)))
+        return 0;
+    }
+    if (sf->inter_sf.selective_ref_frame >= 3) {
+      if ((n_refs - 3) >= 0 && x->tpl_keep_ref_frame[n_refs - 3] &&
+          (ref_frame[0] == (n_refs - 3) || ref_frame[1] == (n_refs - 3)))
+        return 0;
+      if ((n_refs - 4) >= 0 && x->tpl_keep_ref_frame[n_refs - 4] &&
+          (ref_frame[0] == (n_refs - 4) || ref_frame[1] == (n_refs - 4)))
+        return 0;
+    }
+#else
     MV_REFERENCE_FRAME converted_ref_frame[2];
     converted_ref_frame[0] = convert_ranked_ref_to_named_ref_index(
         &cm->new_ref_frame_data, ref_frame[0]);
@@ -352,6 +369,7 @@ static INLINE int prune_ref_by_selective_ref_frame_nrs(
            converted_ref_frame[1] == BWDREF_FRAME))
         return 0;
     }
+#endif  // TPL_NEW_REF_SIGNALING
   }
 
   int dir_refrank[2][2] = { { -1, -1 }, { -1, -1 } };

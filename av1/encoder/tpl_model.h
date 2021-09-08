@@ -16,6 +16,7 @@
 extern "C" {
 #endif
 
+#define TPL_NEW_REF_SIGNALING 1
 /*!\cond */
 
 struct AV1_COMP;
@@ -78,7 +79,11 @@ typedef struct AV1TplRowMultiThreadInfo {
 #define MAX_TPL_FRAME_IDX (2 * MAX_LAG_BUFFERS)
 // The first REF_FRAMES + 1 buffers are reserved.
 // tpl_data->tpl_frame starts after REF_FRAMES + 1
+#if CONFIG_NEW_REF_SIGNALING
+#define MAX_LENGTH_TPL_FRAME_STATS (MAX_TPL_FRAME_IDX + REF_FRAMES_NRS + 1)
+#else
 #define MAX_LENGTH_TPL_FRAME_STATS (MAX_TPL_FRAME_IDX + REF_FRAMES + 1)
+#endif  // CONFIG_NEW_REF_SIGNALING
 #define MAX_TPL_EXTEND (MAX_LAG_BUFFERS - MAX_GF_INTERVAL)
 #define TPL_DEP_COST_SCALE_LOG2 4
 
@@ -91,7 +96,11 @@ typedef struct TplDepStats {
   int64_t recrf_rate;
   int64_t mc_dep_rate;
   int64_t mc_dep_dist;
+#if CONFIG_NEW_REF_SIGNALING
+  int_mv mv[INTER_REFS_PER_FRAME_NRS];
+#else
   int_mv mv[INTER_REFS_PER_FRAME];
+#endif  // CONFIG_NEW_REF_SIGNALING
   int ref_frame_index;
   int64_t pred_error[INTER_REFS_PER_FRAME];
 } TplDepStats;
@@ -102,9 +111,10 @@ typedef struct TplDepFrame {
   const YV12_BUFFER_CONFIG *gf_picture;
   YV12_BUFFER_CONFIG *rec_picture;
 #if CONFIG_NEW_REF_SIGNALING
-  int ref_map_index_nrs[REF_FRAMES_NRS];
-#endif  // CONFIG_NEW_REF_SIGNALING
+  int ref_map_index[REF_FRAMES_NRS];
+#else
   int ref_map_index[REF_FRAMES];
+#endif  // CONFIG_NEW_REF_SIGNALING
   int stride;
   int width;
   int height;
@@ -164,6 +174,21 @@ typedef struct TplParams {
    */
   int frame_idx;
 
+#if CONFIG_NEW_REF_SIGNALING
+  /*!
+   * Array of pointers to the frame buffers holding the source frame.
+   * src_ref_frame[i] stores the pointer to the source frame of the ith
+   * reference frame type.
+   */
+  const YV12_BUFFER_CONFIG *src_ref_frame[INTER_REFS_PER_FRAME_NRS];
+
+  /*!
+   * Array of pointers to the frame buffers holding the tpl reconstructed frame.
+   * ref_frame[i] stores the pointer to the tpl reconstructed frame of the ith
+   * reference frame type.
+   */
+  const YV12_BUFFER_CONFIG *ref_frame[INTER_REFS_PER_FRAME_NRS];
+#else
   /*!
    * Array of pointers to the frame buffers holding the source frame.
    * src_ref_frame[i] stores the pointer to the source frame of the ith
@@ -177,6 +202,7 @@ typedef struct TplParams {
    * reference frame type.
    */
   const YV12_BUFFER_CONFIG *ref_frame[INTER_REFS_PER_FRAME];
+#endif  // CONFIG_NEW_REF_SIGNALING
 
   /*!
    * Parameters related to synchronization for top-right dependency in row based

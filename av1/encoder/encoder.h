@@ -2260,17 +2260,17 @@ typedef struct AV1_COMP {
    */
   YV12_BUFFER_CONFIG *unfiltered_source;
 
-  /*!
-   * Parameters related to tpl.
-   */
-  TplParams tpl_data;
-
 #if CONFIG_NEW_REF_SIGNALING
   /*!
    * Parameters related to tpl.
    */
   TplParams tpl_data_nrs;
 #endif  // CONFIG_NEW_REF_SIGNALING
+
+  /*!
+   * Parameters related to tpl.
+   */
+  TplParams tpl_data;
 
   /*!
    * For a still frame, this flag is set to 1 to skip partition search.
@@ -3225,6 +3225,7 @@ static const MV_REFERENCE_FRAME disable_order[] = {
 #if CONFIG_NEW_REF_SIGNALING
 static INLINE int get_max_allowed_ref_frames_nrs(
     int selective_ref_frame, unsigned int max_reference_frames) {
+  return INTER_REFS_PER_FRAME_NRS;
   const unsigned int max_allowed_refs_for_given_speed =
       (selective_ref_frame >= 3) ? INTER_REFS_PER_FRAME_NRS - 1
                                  : INTER_REFS_PER_FRAME_NRS;

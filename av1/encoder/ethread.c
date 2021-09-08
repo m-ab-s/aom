@@ -1192,10 +1192,20 @@ static int tpl_worker_hook(void *arg1, void *unused) {
   MACROBLOCK *x = &thread_data->td->mb;
   MACROBLOCKD *xd = &x->e_mbd;
   CommonModeInfoParams *mi_params = &cm->mi_params;
+#if CONFIG_NEW_REF_SIGNALING && TPL_NEW_REF_SIGNALING
+  BLOCK_SIZE bsize = convert_length_to_bsize(cpi->tpl_data_nrs.tpl_bsize_1d);
+  assert(bsize == convert_length_to_bsize(cpi->tpl_data.tpl_bsize_1d));
+#else
   BLOCK_SIZE bsize = convert_length_to_bsize(cpi->tpl_data.tpl_bsize_1d);
+#endif  // CONFIG_NEW_REF_SIGNALING && TPL_NEW_REF_SIGNALING
   TX_SIZE tx_size = max_txsize_lookup[bsize];
   int mi_height = mi_size_high[bsize];
+#if CONFIG_NEW_REF_SIGNALING && TPL_NEW_REF_SIGNALING
+  int num_active_workers = cpi->tpl_data_nrs.tpl_mt_sync.num_threads_working;
+  assert(num_active_workers == cpi->tpl_data.tpl_mt_sync.num_threads_working);
+#else
   int num_active_workers = cpi->tpl_data.tpl_mt_sync.num_threads_working;
+#endif  // CONFIG_NEW_REF_SIGNALING && TPL_NEW_REF_SIGNALING
   for (int mi_row = thread_data->start * mi_height; mi_row < mi_params->mi_rows;
        mi_row += num_active_workers * mi_height) {
     // Motion estimation row boundary

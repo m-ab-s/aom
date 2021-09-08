@@ -1225,6 +1225,9 @@ static int denoise_and_encode(AV1_COMP *const cpi, uint8_t *const dest,
   }
 
   if (gf_group->index == 0) av1_init_tpl_stats(&cpi->tpl_data);
+#if CONFIG_NEW_REF_SIGNALING
+  if (gf_group->index == 0) av1_init_tpl_stats(&cpi->tpl_data_nrs);
+#endif  // CONFIG_NEW_REF_SIGNALING
   if (allow_tpl) av1_tpl_setup_stats(cpi, 0, frame_params, frame_input);
 
   if (av1_encode(cpi, dest, frame_input, frame_params, frame_results) !=
@@ -1523,6 +1526,10 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
     // ext_flags->ref_frame_flags. See aomedia:3110.
     frame_params.ref_frame_flags_nrs =
         get_ref_frame_flags_nrs(&cpi->common, frame_params.ref_frame_flags);
+    const int ref_frame_flags_nrs =
+        (1 << cpi->common.new_ref_frame_data.n_total_refs) - 1;
+    assert(frame_params.ref_frame_flags_nrs == ref_frame_flags_nrs);
+    (void)ref_frame_flags_nrs;
 #endif  // CONFIG_NEW_REF_SIGNALING
 
     if (!is_stat_generation_stage(cpi) &&

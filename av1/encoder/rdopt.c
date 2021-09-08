@@ -3048,10 +3048,13 @@ static AOM_INLINE void get_block_level_tpl_stats(
     PruneInfoFromTpl *inter_cost_info_from_tpl) {
   const GF_GROUP *const gf_group = &cpi->gf_group;
   AV1_COMMON *const cm = &cpi->common;
-
   assert(IMPLIES(gf_group->size > 0, gf_group->index < gf_group->size));
   const int tpl_idx = gf_group->index;
+#if CONFIG_NEW_REF_SIGNALING && TPL_NEW_REF_SIGNALING
+  TplParams *const tpl_data = &cpi->tpl_data_nrs;
+#else
   TplParams *const tpl_data = &cpi->tpl_data;
+#endif  // CONFIG_NEW_REF_SIGNALING && TPL_NEW_REF_SIGNALING
   const TplDepFrame *tpl_frame = &tpl_data->tpl_frame[tpl_idx];
   if (tpl_idx >= MAX_TPL_FRAME_IDX || !tpl_frame->is_valid) {
     return;
@@ -3079,7 +3082,11 @@ static AOM_INLINE void get_block_level_tpl_stats(
           row, col, tpl_stride, tpl_data->tpl_stats_block_mis_log2)];
 
       // Sums up the inter cost of corresponding ref frames
+#if CONFIG_NEW_REF_SIGNALING && TPL_NEW_REF_SIGNALING
+      for (int ref_idx = 0; ref_idx < INTER_REFS_PER_FRAME_NRS; ref_idx++) {
+#else
       for (int ref_idx = 0; ref_idx < INTER_REFS_PER_FRAME; ref_idx++) {
+#endif  // CONFIG_NEW_REF_SIGNALING && TPL_NEW_REF_SIGNALING
         inter_cost_info_from_tpl->ref_inter_cost[ref_idx] +=
             this_stats->pred_error[ref_idx];
       }
@@ -3088,7 +3095,11 @@ static AOM_INLINE void get_block_level_tpl_stats(
 
   // Computes the best inter cost (minimum inter_cost)
   int64_t best_inter_cost = INT64_MAX;
+#if CONFIG_NEW_REF_SIGNALING && TPL_NEW_REF_SIGNALING
+  for (int ref_idx = 0; ref_idx < INTER_REFS_PER_FRAME_NRS; ref_idx++) {
+#else
   for (int ref_idx = 0; ref_idx < INTER_REFS_PER_FRAME; ref_idx++) {
+#endif  // CONFIG_NEW_REF_SIGNALING && TPL_NEW_REF_SIGNALING
     const int64_t cur_inter_cost =
         inter_cost_info_from_tpl->ref_inter_cost[ref_idx];
     // For invalid ref frames, cur_inter_cost = 0 and has to be handled while
@@ -3493,7 +3504,11 @@ static int64_t handle_inter_mode(
 
   const GF_GROUP *const gf_group = &cpi->gf_group;
   const int tpl_idx = gf_group->index;
+#if CONFIG_NEW_REF_SIGNALING
+  TplDepFrame *tpl_frame = &cpi->tpl_data_nrs.tpl_frame[tpl_idx];
+#else
   TplDepFrame *tpl_frame = &cpi->tpl_data.tpl_frame[tpl_idx];
+#endif  // CONFIG_NEW_REF_SIGNALING
   const int prune_modes_based_on_tpl =
       cpi->sf.inter_sf.prune_inter_modes_based_on_tpl &&
       tpl_idx < MAX_TPL_FRAME_IDX && tpl_frame->is_valid;
@@ -7126,6 +7141,18 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
     // Populating valid_refs[idx] = 1 ensures that
     // 'inter_cost_info_from_tpl.best_inter_cost' does not correspond to a
     // pruned ref frame.
+#if CONFIG_NEW_REF_SIGNALING && TPL_NEW_REF_SIGNALING
+    int valid_refs[INTER_REFS_PER_FRAME_NRS];
+    for (MV_REFERENCE_FRAME_NRS frame = 0; frame < INTER_REFS_PER_FRAME_NRS;
+         frame++) {
+      const MV_REFERENCE_FRAME_NRS refs[2] = { frame, INVALID_IDX };
+      valid_refs[frame] = x->tpl_keep_ref_frame[frame] ||
+                          !prune_ref_by_selective_ref_frame_nrs(cpi, x, refs);
+    }
+    av1_zero(inter_cost_info_from_tpl);
+    get_block_level_tpl_stats(cpi, bsize, mi_row, mi_col, valid_refs,
+                              &inter_cost_info_from_tpl);
+#else
     int valid_refs[INTER_REFS_PER_FRAME];
     for (MV_REFERENCE_FRAME frame = LAST_FRAME; frame < REF_FRAMES; frame++) {
       const MV_REFERENCE_FRAME refs[2] = { frame, NONE_FRAME };
@@ -7137,6 +7164,7 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
     av1_zero(inter_cost_info_from_tpl);
     get_block_level_tpl_stats(cpi, bsize, mi_row, mi_col, valid_refs,
                               &inter_cost_info_from_tpl);
+#endif  // CONFIG_NEW_REF_SIGNALING && TPL_NEW_REF_SIGNALING
   }
 #endif
   const int do_pruning =
@@ -7144,7 +7172,11 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
   if (do_pruning && sf->intra_sf.skip_intra_in_interframe) {
     // Only consider full SB.
     const BLOCK_SIZE sb_size = cm->seq_params.sb_size;
+#if CONFIG_NEW_REF_SIGNALING && TPL_NEW_REF_SIGNALING
+    const int tpl_bsize_1d = cpi->tpl_data_nrs.tpl_bsize_1d;
+#else
     const int tpl_bsize_1d = cpi->tpl_data.tpl_bsize_1d;
+#endif  // CONFIG_NEW_REF_SIGNALING && TPL_NEW_REF_SIGNALING
     const int len = (block_size_wide[sb_size] / tpl_bsize_1d) *
                     (block_size_high[sb_size] / tpl_bsize_1d);
     SuperBlockEnc *sb_enc = &x->sb_enc;

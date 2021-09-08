@@ -323,6 +323,111 @@ static AOM_INLINE void setup_delta_q(AV1_COMP *const cpi, ThreadData *td,
   }
 }
 
+#if CONFIG_NEW_REF_SIGNALING && TPL_NEW_REF_SIGNALING
+static void init_ref_frame_space(AV1_COMP *cpi, ThreadData *td, int mi_row,
+                                 int mi_col) {
+  const AV1_COMMON *cm = &cpi->common;
+  const GF_GROUP *const gf_group = &cpi->gf_group;
+  const CommonModeInfoParams *const mi_params = &cm->mi_params;
+  MACROBLOCK *x = &td->mb;
+  const int frame_idx = cpi->gf_group.index;
+  TplParams *const tpl_data = &cpi->tpl_data_nrs;
+  TplDepFrame *tpl_frame = &tpl_data->tpl_frame[frame_idx];
+  const uint8_t block_mis_log2 = tpl_data->tpl_stats_block_mis_log2;
+  assert(block_mis_log2 == cpi->tpl_data.tpl_stats_block_mis_log2);
+
+  av1_zero(x->tpl_keep_ref_frame);
+
+  if (tpl_frame->is_valid == 0) return;
+  if (!is_frame_tpl_eligible(gf_group, gf_group->index)) return;
+  if (frame_idx >= MAX_TPL_FRAME_IDX) return;
+  if (cpi->oxcf.q_cfg.aq_mode != NO_AQ) return;
+
+  const int is_overlay =
+      cpi->gf_group.update_type[frame_idx] == OVERLAY_UPDATE ||
+      cpi->gf_group.update_type[frame_idx] == KFFLT_OVERLAY_UPDATE;
+  if (is_overlay) {
+    memset(x->tpl_keep_ref_frame, 1, sizeof(x->tpl_keep_ref_frame));
+    return;
+  }
+
+  TplDepStats *tpl_stats = tpl_frame->tpl_stats_ptr;
+  const int tpl_stride = tpl_frame->stride;
+  int64_t inter_cost[INTER_REFS_PER_FRAME_NRS] = { 0 };
+  const int step = 1 << block_mis_log2;
+  const BLOCK_SIZE sb_size = cm->seq_params.sb_size;
+
+  const int mi_row_end =
+      AOMMIN(mi_size_high[sb_size] + mi_row, mi_params->mi_rows);
+  const int mi_cols_sr = av1_pixels_to_mi(cm->superres_upscaled_width);
+  const int mi_col_sr =
+      coded_to_superres_mi(mi_col, cm->superres_scale_denominator);
+  const int mi_col_end_sr =
+      AOMMIN(coded_to_superres_mi(mi_col + mi_size_wide[sb_size],
+                                  cm->superres_scale_denominator),
+             mi_cols_sr);
+  const int row_step = step;
+  const int col_step_sr =
+      coded_to_superres_mi(step, cm->superres_scale_denominator);
+  for (int row = mi_row; row < mi_row_end; row += row_step) {
+    for (int col = mi_col_sr; col < mi_col_end_sr; col += col_step_sr) {
+      const TplDepStats *this_stats =
+          &tpl_stats[av1_tpl_ptr_pos(row, col, tpl_stride, block_mis_log2)];
+      int64_t tpl_pred_error[INTER_REFS_PER_FRAME_NRS] = { 0 };
+      // Find the winner ref frame idx for the current block
+      int64_t best_inter_cost = this_stats->pred_error[0];
+      int best_rf_idx = 0;
+      for (int idx = 1; idx < INTER_REFS_PER_FRAME_NRS; ++idx) {
+        if ((this_stats->pred_error[idx] < best_inter_cost) &&
+            (this_stats->pred_error[idx] != 0)) {
+          best_inter_cost = this_stats->pred_error[idx];
+          best_rf_idx = idx;
+        }
+      }
+      // tpl_pred_error is the pred_error reduction of best_ref w.r.t.
+      // rank 0 frame.
+      tpl_pred_error[best_rf_idx] =
+          this_stats->pred_error[best_rf_idx] - this_stats->pred_error[0];
+
+      for (int rf_idx = 1; rf_idx < INTER_REFS_PER_FRAME_NRS; ++rf_idx)
+        inter_cost[rf_idx] += tpl_pred_error[rf_idx];
+    }
+  }
+
+  int rank_index[INTER_REFS_PER_FRAME_NRS - 1];
+  for (int idx = 0; idx < INTER_REFS_PER_FRAME_NRS - 1; ++idx) {
+    rank_index[idx] = idx + 1;
+    for (int i = idx; i > 0; --i) {
+      if (inter_cost[rank_index[i - 1]] > inter_cost[rank_index[i]]) {
+        const int tmp = rank_index[i - 1];
+        rank_index[i - 1] = rank_index[i];
+        rank_index[i] = tmp;
+      }
+    }
+  }
+
+  x->tpl_keep_ref_frame[INTRA_FRAME_INDEX_NRS] = 1;
+  x->tpl_keep_ref_frame[0] = 1;
+
+  int cutoff_ref = 0;
+  for (int idx = 0; idx < INTER_REFS_PER_FRAME_NRS - 1; ++idx) {
+    x->tpl_keep_ref_frame[rank_index[idx]] = 1;
+    if (idx > 2) {
+      if (!cutoff_ref) {
+        // If the predictive coding gains are smaller than the previous more
+        // relevant frame over certain amount, discard this frame and all the
+        // frames afterwards.
+        if (llabs(inter_cost[rank_index[idx]]) <
+                llabs(inter_cost[rank_index[idx - 1]]) / 8 ||
+            inter_cost[rank_index[idx]] == 0)
+          cutoff_ref = 1;
+      }
+
+      if (cutoff_ref) x->tpl_keep_ref_frame[rank_index[idx]] = 0;
+    }
+  }
+}
+#else
 static void init_ref_frame_space(AV1_COMP *cpi, ThreadData *td, int mi_row,
                                  int mi_col) {
   const AV1_COMMON *cm = &cpi->common;
@@ -425,6 +530,7 @@ static void init_ref_frame_space(AV1_COMP *cpi, ThreadData *td, int mi_row,
     }
   }
 }
+#endif  // CONFIG_NEW_REF_SIGNALING
 
 static AOM_INLINE void adjust_rdmult_tpl_model(AV1_COMP *cpi, MACROBLOCK *x,
                                                int mi_row, int mi_col) {
@@ -1628,7 +1734,11 @@ void av1_encode_frame(AV1_COMP *cpi) {
   }
 
   av1_setup_frame_buf_refs(cm);
+#if CONFIG_NEW_REF_SIGNALING
+  enforce_max_ref_frames_nrs(cpi, &cpi->common.ref_frame_flags_nrs);
+#else
   enforce_max_ref_frames(cpi, &cpi->common.ref_frame_flags);
+#endif  // CONFIG_NEW_REF_SIGNALING
   set_rel_frame_dist(&cpi->common, &cpi->ref_frame_dist_info,
                      cpi->common.ref_frame_flags);
   av1_setup_frame_sign_bias(cm);

@@ -95,9 +95,8 @@ void av1_init_new_ref_frame_map(AV1_COMMON *cm,
     // qindex difference from current frame
     const int disp_diff = cur_frame_disp - ref_disp;
 #if JOINT_DIST_QINDEX_ORDERING
-    const int base_qindex_diff = cm->cur_frame->base_qindex - ref_base_qindex;
     // TODO(debargha, sarahparker): Refine the scoring function below.
-    const int score = 2 * abs(disp_diff) - base_qindex_diff;
+    const int score = 2 * abs(disp_diff) + ref_base_qindex;
 #else
     const int score = 2 * abs(disp_diff);
 #endif  // JOINT_DIST_QINDEX_ORDERING
