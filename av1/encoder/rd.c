@@ -1222,7 +1222,14 @@ void av1_get_entropy_contexts(BLOCK_SIZE plane_bsize,
 }
 
 void av1_mv_pred(const AV1_COMP *cpi, MACROBLOCK *x, uint8_t *ref_y_buffer,
-                 int ref_y_stride, int ref_frame, BLOCK_SIZE block_size) {
+                 int ref_y_stride, int ref, BLOCK_SIZE block_size) {
+#if CONFIG_NEW_REF_SIGNALING
+  const MV_REFERENCE_FRAME_NRS ref_frame_nrs = ref;
+  const MV_REFERENCE_FRAME ref_frame = convert_ranked_ref_to_named_ref_index(
+      &cpi->common.new_ref_frame_data, ref);
+#else
+  const MV_REFERENCE_FRAME ref_frame = ref;
+#endif  // CONFIG_NEW_REF_SIGNALING
   const MV_REFERENCE_FRAME ref_frames[2] = { ref_frame, NONE_FRAME };
   const int_mv ref_mv =
       av1_get_ref_mv_from_stack(0, ref_frames, 0, x->mbmi_ext);
@@ -1261,10 +1268,17 @@ void av1_mv_pred(const AV1_COMP *cpi, MACROBLOCK *x, uint8_t *ref_y_buffer,
       best_sad = this_sad;
     }
   }
-
   // Note the index of the mv that worked best in the reference list.
+#if CONFIG_NEW_REF_SIGNALING
+  const MV_REFERENCE_FRAME_NRS rfn =
+      (ref_frame_nrs == INTRA_FRAME_NRS ? INTER_REFS_PER_FRAME_NRS
+                                        : ref_frame_nrs);
+  x->max_mv_context[rfn] = max_mv;
+  x->pred_mv_sad[rfn] = best_sad;
+#else
   x->max_mv_context[ref_frame] = max_mv;
   x->pred_mv_sad[ref_frame] = best_sad;
+#endif  // CONFIG_NEW_REF_SIGNALING
 }
 
 void av1_setup_pred_block(const MACROBLOCKD *xd,

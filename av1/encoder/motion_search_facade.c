@@ -57,6 +57,10 @@ void av1_single_motion_search(const AV1_COMP *const cpi, MACROBLOCK *x,
   struct buf_2d backup_yv12[MAX_MB_PLANE] = { { 0, 0, 0, 0, 0 } };
   int bestsme = INT_MAX;
   const int ref = mbmi->ref_frame[ref_idx];
+#if CONFIG_NEW_REF_SIGNALING
+  const MV_REFERENCE_FRAME_NRS ref_nrs =
+      convert_named_ref_to_ranked_ref_index(&cm->new_ref_frame_data, ref);
+#endif  // CONFIG_NEW_REF_SIGNALING
   const YV12_BUFFER_CONFIG *scaled_ref_frame =
       av1_get_scaled_ref_frame(cpi, ref);
   const int mi_row = xd->mi_row;
@@ -82,9 +86,17 @@ void av1_single_motion_search(const AV1_COMP *const cpi, MACROBLOCK *x,
     // Take the weighted average of the step_params based on the last frame's
     // max mv magnitude and that based on the best ref mvs of the current
     // block for the given reference.
+#if CONFIG_NEW_REF_SIGNALING
+    const MV_REFERENCE_FRAME_NRS rfn =
+        (ref_nrs == INTRA_FRAME_NRS ? INTER_REFS_PER_FRAME_NRS : ref_nrs);
+    step_param = (av1_init_search_range(x->max_mv_context[rfn]) +
+                  mv_search_params->mv_step_param) /
+                 2;
+#else
     step_param = (av1_init_search_range(x->max_mv_context[ref]) +
                   mv_search_params->mv_step_param) /
                  2;
+#endif  // CONFIG_NEW_REF_SIGNALING
   } else {
     step_param = mv_search_params->mv_step_param;
   }

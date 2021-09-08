@@ -282,7 +282,7 @@ static INLINE int rd_less_than_thresh(int64_t best_rd, int thresh,
 }
 
 void av1_mv_pred(const struct AV1_COMP *cpi, MACROBLOCK *x,
-                 uint8_t *ref_y_buffer, int ref_y_stride, int ref_frame,
+                 uint8_t *ref_y_buffer, int ref_y_stride, int ref,
                  BLOCK_SIZE block_size);
 
 // Sets the multiplier to convert mv cost to l2 error during motion search.

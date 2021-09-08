@@ -1147,7 +1147,12 @@ typedef struct macroblock {
    *
    * This is used to measure how viable a reference frame is.
    */
+#if CONFIG_NEW_REF_SIGNALING
+  int pred_mv_sad[REF_FRAMES_NRS];
+#else
   int pred_mv_sad[REF_FRAMES];
+#endif  // CONFIG_NEW_REF_SIGNALING
+
   //! The minimum of \ref pred_mv_sad.
   int best_pred_mv_sad;
 
@@ -1291,7 +1296,11 @@ typedef struct macroblock {
    * This context is defined as the \f$l_\inf\f$ norm of the best ref_mvs for
    * each frame.
    */
+#if CONFIG_NEW_REF_SIGNALING
+  unsigned int max_mv_context[REF_FRAMES_NRS];
+#else
   unsigned int max_mv_context[REF_FRAMES];
+#endif  // CONFIG_NEW_REF_SIGNALING
 
   /*! \brief Limit for the range of motion vectors.
    *
