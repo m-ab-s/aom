@@ -1012,6 +1012,16 @@ typedef struct AV1Common {
    */
   struct scale_factors ref_scale_factors[REF_FRAMES];
 
+#if CONFIG_NEW_REF_SIGNALING
+  /*!
+   * For decoder, ref_frame_map[i] maps reference type 'i' to a pointer to
+   * the buffer in the buffer pool 'cm->buffer_pool.frame_bufs'.
+   * For encoder, ref_frame_map[j] (where j = remapped_ref_idx[i]) maps
+   * remapped reference index 'j' (that is, original reference type 'i') to
+   * a pointer to the buffer in the buffer pool 'cm->buffer_pool.frame_bufs'.
+   */
+  RefCntBuffer *ref_frame_map_nrs[REF_FRAMES_NRS];
+#endif  // CONFIG_NEW_REF_SIGNALING
   /*!
    * For decoder, ref_frame_map[i] maps reference type 'i' to a pointer to
    * the buffer in the buffer pool 'cm->buffer_pool.frame_bufs'.

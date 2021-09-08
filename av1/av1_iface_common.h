@@ -28,6 +28,12 @@ typedef struct {
   int qindex;
   int refresh_frame_flags;
   int num_references;
+#if CONFIG_NEW_REF_SIGNALING
+  int ref_frame_pyr_level_nrs[INTER_REFS_PER_FRAME_NRS];
+  int ref_frame_disp_order_nrs[INTER_REFS_PER_FRAME_NRS];
+  int is_valid_ref_frame_nrs[INTER_REFS_PER_FRAME_NRS];
+  unsigned int ref_frame_map_nrs[REF_FRAMES_NRS];
+#endif  // CONFIG_NEW_REF_SIGNALING
   int ref_frame_pyr_level[INTER_REFS_PER_FRAME];
   int ref_frame_disp_order[INTER_REFS_PER_FRAME];
   int is_valid_ref_frame[INTER_REFS_PER_FRAME];

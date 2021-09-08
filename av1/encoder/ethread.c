@@ -1299,6 +1299,11 @@ void av1_mc_flow_dispenser_mt(AV1_COMP *cpi) {
   MultiThreadInfo *mt_info = &cpi->mt_info;
   TplParams *tpl_data = &cpi->tpl_data;
   AV1TplRowMultiThreadSync *tpl_sync = &tpl_data->tpl_mt_sync;
+#if CONFIG_NEW_REF_SIGNALING
+  TplParams *tpl_data_nrs = &cpi->tpl_data_nrs;
+  AV1TplRowMultiThreadSync *tpl_sync_nrs = &tpl_data_nrs->tpl_mt_sync;
+#endif  // CONFIG_NEW_REF_SIGNALING
+
   int mb_rows = mi_params->mb_rows;
   int num_workers = compute_num_tpl_workers(cpi);
 
@@ -1316,6 +1321,17 @@ void av1_mc_flow_dispenser_mt(AV1_COMP *cpi) {
   // Initialize cur_mb_col to -1 for all MB rows.
   memset(tpl_sync->num_finished_cols, -1,
          sizeof(*tpl_sync->num_finished_cols) * mb_rows);
+#if CONFIG_NEW_REF_SIGNALING
+  if (mb_rows != tpl_sync_nrs->rows) {
+    av1_tpl_dealloc(tpl_sync_nrs);
+    av1_tpl_alloc(tpl_sync_nrs, cm, mb_rows);
+  }
+  tpl_sync_nrs->num_threads_working = num_workers;
+
+  // Initialize cur_mb_col to -1 for all MB rows.
+  memset(tpl_sync_nrs->num_finished_cols, -1,
+         sizeof(*tpl_sync_nrs->num_finished_cols) * mb_rows);
+#endif  // CONFIG_NEW_REF_SIGNALING
 
   prepare_tpl_workers(cpi, tpl_worker_hook, num_workers);
   launch_enc_workers(&cpi->mt_info, num_workers);

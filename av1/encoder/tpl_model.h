@@ -101,6 +101,9 @@ typedef struct TplDepFrame {
   TplDepStats *tpl_stats_ptr;
   const YV12_BUFFER_CONFIG *gf_picture;
   YV12_BUFFER_CONFIG *rec_picture;
+#if CONFIG_NEW_REF_SIGNALING
+  int ref_map_index_nrs[REF_FRAMES_NRS];
+#endif  // CONFIG_NEW_REF_SIGNALING
   int ref_map_index[REF_FRAMES];
   int stride;
   int width;

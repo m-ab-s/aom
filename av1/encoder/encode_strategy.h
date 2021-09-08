@@ -76,6 +76,10 @@ int av1_get_refresh_frame_flags(
     FRAME_UPDATE_TYPE frame_update_type, int gf_index, int cur_frame_disp,
     RefFrameMapPair ref_frame_map_pairs[REF_FRAMES]);
 
+#if CONFIG_NEW_REF_SIGNALING
+int av1_get_refresh_ref_frame_map_nrs(int refresh_frame_flags);
+#endif  // CONFIG_NEW_REF_SIGNALING
+
 int av1_get_refresh_ref_frame_map(int refresh_frame_flags);
 
 int get_forced_keyframe_position(struct lookahead_ctx *lookahead,

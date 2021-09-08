@@ -829,6 +829,17 @@ static void dump_ref_frame_images(AV1_COMP *cpi) {
 }
 #endif  // DUMP_REF_FRAME_IMAGES == 1
 
+#if CONFIG_NEW_REF_SIGNALING
+int av1_get_refresh_ref_frame_map_nrs(int refresh_frame_flags) {
+  int ref_map_index = INVALID_IDX;
+
+  for (ref_map_index = 0; ref_map_index < REF_FRAMES_NRS; ++ref_map_index)
+    if ((refresh_frame_flags >> ref_map_index) & 1) break;
+
+  return ref_map_index;
+}
+#endif  // CONFIG_NEW_REF_SIGNALING
+
 int av1_get_refresh_ref_frame_map(int refresh_frame_flags) {
   int ref_map_index = INVALID_IDX;
 
@@ -1234,20 +1245,6 @@ static int denoise_and_encode(AV1_COMP *const cpi, uint8_t *const dest,
 #endif  // !CONFIG_REALTIME_ONLY
 
 #if CONFIG_NEW_REF_SIGNALING
-static int get_ref_frame_flags_nrs(const AV1_COMMON *const cm,
-                                   int ref_frame_flags) {
-  // TODO(sarahparker) initialize this mask without ref_frame_flags
-  int ref_frame_flags_nrs = 0;
-  for (int frame = LAST_FRAME; frame <= ALTREF_FRAME; frame++) {
-    if ((ref_frame_flags & (1 << (frame - 1)))) {
-      int ranked_ref_index =
-          convert_named_ref_to_ranked_ref_index(&cm->new_ref_frame_data, frame);
-      if (ranked_ref_index >= 0) ref_frame_flags_nrs |= (1 << ranked_ref_index);
-    }
-  }
-  return ref_frame_flags_nrs;
-}
-
 static void verify_ref_frame_flags_nrs(const AV1_COMMON *const cm,
                                        int ref_frame_flags,
                                        int ref_frame_flags_nrs) {

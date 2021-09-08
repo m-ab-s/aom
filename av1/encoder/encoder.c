@@ -1134,6 +1134,9 @@ AV1_COMP *av1_create_compressor(AV1EncoderConfig *oxcf, BufferPool *const pool,
 #endif
 
   if (!is_stat_generation_stage(cpi)) {
+#if CONFIG_NEW_REF_SIGNALING
+    setup_tpl_buffers(cm, &cpi->tpl_data_nrs);
+#endif  // CONFIG_NEW_REF_SIGNALING
     setup_tpl_buffers(cm, &cpi->tpl_data);
   }
 
@@ -1545,6 +1548,14 @@ void av1_remove_compressor(AV1_COMP *cpi) {
 #endif
   }
 
+#if CONFIG_NEW_REF_SIGNALING
+  TplParams *const tpl_data_nrs = &cpi->tpl_data_nrs;
+  for (int frame = 0; frame < MAX_LAG_BUFFERS; ++frame) {
+    aom_free(tpl_data_nrs->tpl_stats_pool[frame]);
+    aom_free_frame_buffer(&tpl_data_nrs->tpl_rec_pool[frame]);
+  }
+#endif  // CONFIG_NEW_REF_SIGNALING
+
   TplParams *const tpl_data = &cpi->tpl_data;
   for (int frame = 0; frame < MAX_LAG_BUFFERS; ++frame) {
     aom_free(tpl_data->tpl_stats_pool[frame]);
@@ -1576,6 +1587,9 @@ void av1_remove_compressor(AV1_COMP *cpi) {
   }
 
 #if !CONFIG_REALTIME_ONLY
+#if CONFIG_NEW_REF_SIGNALING
+  av1_tpl_dealloc(&tpl_data_nrs->tpl_mt_sync);
+#endif  // CONFIG_NEW_REF_SIGNALING
   av1_tpl_dealloc(&tpl_data->tpl_mt_sync);
 #endif
   if (mt_info->num_workers > 1) {
@@ -1891,6 +1905,13 @@ static void init_ref_frame_bufs(AV1_COMP *cpi) {
   int i;
   BufferPool *const pool = cm->buffer_pool;
   cm->cur_frame = NULL;
+
+#if CONFIG_NEW_REF_SIGNALING
+  for (i = 0; i < REF_FRAMES_NRS; ++i) {
+    cm->ref_frame_map_nrs[i] = NULL;
+  }
+#endif  // CONFIG_NEW_REF_SIGNALING
+
   for (i = 0; i < REF_FRAMES; ++i) {
     cm->ref_frame_map[i] = NULL;
   }

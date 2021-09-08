@@ -2265,6 +2265,13 @@ typedef struct AV1_COMP {
    */
   TplParams tpl_data;
 
+#if CONFIG_NEW_REF_SIGNALING
+  /*!
+   * Parameters related to tpl.
+   */
+  TplParams tpl_data_nrs;
+#endif  // CONFIG_NEW_REF_SIGNALING
+
   /*!
    * For a still frame, this flag is set to 1 to skip partition search.
    */
@@ -3215,6 +3222,30 @@ static const MV_REFERENCE_FRAME disable_order[] = {
   GOLDEN_FRAME,
 };
 
+#if CONFIG_NEW_REF_SIGNALING
+static INLINE int get_max_allowed_ref_frames_nrs(
+    int selective_ref_frame, unsigned int max_reference_frames) {
+  const unsigned int max_allowed_refs_for_given_speed =
+      (selective_ref_frame >= 3) ? INTER_REFS_PER_FRAME_NRS - 1
+                                 : INTER_REFS_PER_FRAME_NRS;
+  return AOMMIN(max_allowed_refs_for_given_speed, max_reference_frames);
+}
+
+static INLINE int get_ref_frame_flags_nrs(const AV1_COMMON *const cm,
+                                          int ref_frame_flags) {
+  // TODO(sarahparker) initialize this mask without ref_frame_flags
+  int ref_frame_flags_nrs = 0;
+  for (int frame = LAST_FRAME; frame <= ALTREF_FRAME; frame++) {
+    if ((ref_frame_flags & (1 << (frame - 1)))) {
+      int ranked_ref_index =
+          convert_named_ref_to_ranked_ref_index(&cm->new_ref_frame_data, frame);
+      if (ranked_ref_index >= 0) ref_frame_flags_nrs |= (1 << ranked_ref_index);
+    }
+  }
+  return ref_frame_flags_nrs;
+}
+#endif  // CONFIG_NEW_REF_SIGNALING
+
 static INLINE int get_max_allowed_ref_frames(
     int selective_ref_frame, unsigned int max_reference_frames) {
   const unsigned int max_allowed_refs_for_given_speed =
@@ -3250,6 +3281,37 @@ static INLINE int get_ref_frame_flags(const SPEED_FEATURES *const sf,
   }
   return flags;
 }
+#if CONFIG_NEW_REF_SIGNALING
+// Enforce the number of references for each arbitrary frame based on user
+// options and speed.
+static AOM_INLINE void enforce_max_ref_frames_nrs(AV1_COMP *cpi,
+                                                  int *ref_frame_flags) {
+  MV_REFERENCE_FRAME ref_frame;
+  int total_valid_refs = 0;
+
+  for (ref_frame = 0; ref_frame < INTER_REFS_PER_FRAME_NRS; ++ref_frame) {
+    if (*ref_frame_flags & (1 << ref_frame)) {
+      total_valid_refs++;
+    }
+  }
+
+  const int max_allowed_refs = get_max_allowed_ref_frames_nrs(
+      cpi->sf.inter_sf.selective_ref_frame,
+      cpi->oxcf.ref_frm_cfg.max_reference_frames);
+
+  for (int i = 0; i < 4 && total_valid_refs > max_allowed_refs; ++i) {
+    const MV_REFERENCE_FRAME_NRS ref_frame_to_disable =
+        INTER_REFS_PER_FRAME - i - 1;
+
+    if (!(*ref_frame_flags & (1 << ref_frame_to_disable))) {
+      continue;
+    }
+    *ref_frame_flags &= ~(1 << ref_frame_to_disable);
+    --total_valid_refs;
+  }
+  assert(total_valid_refs <= max_allowed_refs);
+}
+#endif  // CONFIG_NEW_REF_SIGNALING
 
 // Enforce the number of references for each arbitrary frame based on user
 // options and speed.
