@@ -195,6 +195,9 @@ static int combined_motion_search(AV1_COMP *cpi, MACROBLOCK *x,
                        : cpi->mv_search_params.mv_step_param;
   FULLPEL_MV start_mv;
   const int ref = mi->ref_frame[0];
+#if CONFIG_NEW_REF_SIGNALING
+  const int ref_nrs = mi->ref_frame_nrs[0];
+#endif  // CONFIG_NEW_REF_SIGNALING
   const MV ref_mv = av1_get_ref_mv(x, mi->ref_mv_idx).as_mv;
   MV center_mv;
   int dis;
@@ -248,7 +251,12 @@ static int combined_motion_search(AV1_COMP *cpi, MACROBLOCK *x,
     MV subpel_start_mv = get_mv_from_fullmv(&tmp_mv->as_fullmv);
     cpi->mv_search_params.find_fractional_mv_step(
         xd, cm, &ms_params, subpel_start_mv, &tmp_mv->as_mv, &dis,
-        &x->pred_sse[ref], NULL);
+#if CONFIG_NEW_REF_SIGNALING
+        &x->pred_sse[ref_nrs],
+#else
+        &x->pred_sse[ref],
+#endif  // CONFIG_NEW_REF_SIGNALING
+        NULL);
 
     *rate_mv = av1_mv_bit_cost(&tmp_mv->as_mv, &ref_mv, max_mv_precision,
                                &x->mv_costs, MV_COST_WEIGHT);
@@ -298,6 +306,10 @@ static int search_new_mv(AV1_COMP *cpi, MACROBLOCK *x,
   MB_MODE_INFO *const mi = xd->mi[0];
   AV1_COMMON *cm = &cpi->common;
   MvSubpelPrecision max_mv_precision = mi->max_mv_precision;
+#if CONFIG_NEW_REF_SIGNALING
+  const MV_REFERENCE_FRAME_NRS ref_frame_nrs =
+      convert_named_ref_to_ranked_ref_index(&cm->new_ref_frame_data, ref_frame);
+#endif  // CONFIG_NEW_REF_SIGNALING
   if (ref_frame > LAST_FRAME && cpi->oxcf.rc_cfg.mode == AOM_CBR &&
       gf_temporal_ref) {
     int tmp_sad;
@@ -334,9 +346,14 @@ static int search_new_mv(AV1_COMP *cpi, MACROBLOCK *x,
     av1_make_default_subpel_ms_params(&ms_params, cpi, x, bsize, &ref_mv,
                                       max_mv_precision, cost_list);
     MV start_mv = get_mv_from_fullmv(&best_mv.as_fullmv);
-    cpi->mv_search_params.find_fractional_mv_step(
-        xd, cm, &ms_params, start_mv, &best_mv.as_mv, &dis,
-        &x->pred_sse[ref_frame], NULL);
+    cpi->mv_search_params.find_fractional_mv_step(xd, cm, &ms_params, start_mv,
+                                                  &best_mv.as_mv, &dis,
+#if CONFIG_NEW_REF_SIGNALING
+                                                  &x->pred_sse[ref_frame_nrs],
+#else
+                                                  &x->pred_sse[ref_frame],
+#endif  // CONFIG_NEW_REF_SIGNALING
+                                                  NULL);
     frame_mv[NEWMV][ref_frame].as_int = best_mv.as_int;
   } else if (!combined_motion_search(cpi, x, bsize, mi_row, mi_col,
                                      &frame_mv[NEWMV][ref_frame], rate_mv,
@@ -929,7 +946,11 @@ static void model_rd_for_sb_y(const AV1_COMP *const cpi, BLOCK_SIZE bsize,
   // Note our transform coeffs are 8 times an orthogonal transform.
   // Hence quantizer step is also 8 times. To get effective quantizer
   // we need to divide by 8 before sending to modeling function.
+#if CONFIG_NEW_REF_SIGNALING
+  const int ref = xd->mi[0]->ref_frame_nrs[0];
+#else
   const int ref = xd->mi[0]->ref_frame[0];
+#endif  // CONFIG_NEW_REF_SIGNALING
 
   assert(bsize < BLOCK_SIZES_ALL);
 

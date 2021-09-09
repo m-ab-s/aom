@@ -2047,7 +2047,11 @@ static int64_t motion_mode_rd(
         model_rd_sb_fn[MODELRD_TYPE_MOTION_MODE_RD](
             cpi, bsize, x, xd, 0, num_planes - 1, &est_residue_cost, &est_dist,
             NULL, &curr_sse, NULL, NULL, NULL);
+#if CONFIG_NEW_REF_SIGNALING
+        sse_y = x->pred_sse[xd->mi[0]->ref_frame_nrs[0]];
+#else
         sse_y = x->pred_sse[xd->mi[0]->ref_frame[0]];
+#endif  // CONFIG_NEW_REF_SIGNALING
       }
       est_rd = RDCOST(x->rdmult, rd_stats->rate + est_residue_cost, est_dist);
       if (est_rd * 0.80 > *best_est_rd) {
@@ -4842,6 +4846,7 @@ static AOM_INLINE void set_params_rd_pick_inter_mode(
     mbmi_ext->ref_mv_count[ref_frame] = UINT8_MAX;
     if (cpi->common.ref_frame_flags & av1_ref_frame_flag_list[ref_frame]) {
 #if CONFIG_NEW_REF_SIGNALING
+      assert(cpi->common.ref_frame_flags_nrs & (1 << ref_frame_nrs));
       x->pred_mv_sad[ref_frame_nrs] = INT_MAX;
 #endif  // CONFIG_NEW_REF_SIGNALING
       if (mbmi->partition != PARTITION_NONE &&
@@ -6337,7 +6342,11 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
   for (i = 0; i < MAX_WINNER_MOTION_MODES; ++i)
     best_motion_mode_cands.motion_mode_cand[i].rd_cost = INT64_MAX;
 
+#if CONFIG_NEW_REF_SIGNALING
+  for (i = 0; i < REF_FRAMES_NRS; ++i) x->pred_sse[i] = INT_MAX;
+#else
   for (i = 0; i < REF_FRAMES; ++i) x->pred_sse[i] = INT_MAX;
+#endif  // CONFIG_NEW_REF_SIGNALING
 
   av1_invalid_rd_stats(rd_cost);
 
@@ -6667,7 +6676,11 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
         if (this_rd < search_state.best_rd) {
           assert(IMPLIES(comp_pred,
                          cm->current_frame.reference_mode != SINGLE_REFERENCE));
-          search_state.best_pred_sse = x->pred_sse[ref_frame];
+#if CONFIG_NEW_REF_SIGNALING
+          search_state.best_pred_sse = x->pred_sse[ref_frame_nrs];
+#else
+      search_state.best_pred_sse = x->pred_sse[ref_frame];
+#endif  // CONFIG_NEW_REF_SIGNALING
           update_search_state(&search_state, rd_cost, ctx, &rd_stats,
                               &rd_stats_y, &rd_stats_uv, this_mode, x,
                               do_tx_search);
@@ -7053,10 +7066,11 @@ void av1_rd_pick_inter_mode_sb_seg_skip(const AV1_COMP *cpi,
   estimate_ref_frame_costs(cm, xd, mode_costs, segment_id, ref_costs_single,
                            ref_costs_comp);
 
-  for (i = 0; i < REF_FRAMES; ++i) x->pred_sse[i] = INT_MAX;
 #if CONFIG_NEW_REF_SIGNALING
+  for (i = 0; i < REF_FRAMES_NRS; ++i) x->pred_sse[i] = INT_MAX;
   for (i = 0; i < REF_FRAMES_NRS; ++i) x->pred_mv_sad[i] = INT_MAX;
 #else
+  for (i = 0; i < REF_FRAMES; ++i) x->pred_sse[i] = INT_MAX;
   for (i = LAST_FRAME; i < REF_FRAMES; ++i) x->pred_mv_sad[i] = INT_MAX;
 #endif  // CONFIG_NEW_REF_SIGNALING
 

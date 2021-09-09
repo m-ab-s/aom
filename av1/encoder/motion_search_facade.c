@@ -288,6 +288,11 @@ void av1_single_motion_search(const AV1_COMP *const cpi, MACROBLOCK *x,
     int_mv fractional_ms_list[3];
     av1_set_fractional_mv(fractional_ms_list);
     int dis; /* TODO: use dis in distortion calculation later. */
+#if CONFIG_NEW_REF_SIGNALING
+    const int ref_pred = ref_nrs;
+#else
+    const int ref_pred = ref;
+#endif  // CONFIG_NEW_REF_SIGNALING
 
     SUBPEL_MOTION_SEARCH_PARAMS ms_params;
     av1_make_default_subpel_ms_params(&ms_params, cpi, x, bsize, &ref_mv,
@@ -301,7 +306,7 @@ void av1_single_motion_search(const AV1_COMP *const cpi, MACROBLOCK *x,
                                  second_best_mv.as_int != best_mv->as_int;
           const int best_mv_var = mv_search_params->find_fractional_mv_step(
               xd, cm, &ms_params, subpel_start_mv, &best_mv->as_mv, &dis,
-              &x->pred_sse[ref], fractional_ms_list);
+              &x->pred_sse[ref_pred], fractional_ms_list);
 
           if (try_second) {
             MV this_best_mv;
@@ -310,20 +315,20 @@ void av1_single_motion_search(const AV1_COMP *const cpi, MACROBLOCK *x,
                                          subpel_start_mv)) {
               const int this_var = mv_search_params->find_fractional_mv_step(
                   xd, cm, &ms_params, subpel_start_mv, &this_best_mv, &dis,
-                  &x->pred_sse[ref], fractional_ms_list);
+                  &x->pred_sse[ref_pred], fractional_ms_list);
               if (this_var < best_mv_var) best_mv->as_mv = this_best_mv;
             }
           }
         } else {
           mv_search_params->find_fractional_mv_step(
               xd, cm, &ms_params, subpel_start_mv, &best_mv->as_mv, &dis,
-              &x->pred_sse[ref], NULL);
+              &x->pred_sse[ref_pred], NULL);
         }
         break;
       case OBMC_CAUSAL:
-        av1_find_best_obmc_sub_pixel_tree_up(xd, cm, &ms_params,
-                                             subpel_start_mv, &best_mv->as_mv,
-                                             &dis, &x->pred_sse[ref], NULL);
+        av1_find_best_obmc_sub_pixel_tree_up(
+            xd, cm, &ms_params, subpel_start_mv, &best_mv->as_mv, &dis,
+            &x->pred_sse[ref_pred], NULL);
         break;
       default: assert(0 && "Invalid motion mode!\n");
     }
@@ -763,6 +768,7 @@ int_mv av1_simple_motion_search(AV1_COMP *const cpi, MACROBLOCK *x, int mi_row,
 #if CONFIG_NEW_REF_SIGNALING
   mbmi->ref_frame_nrs[0] = convert_named_ref_to_ranked_ref_index(
       &cm->new_ref_frame_data, mbmi->ref_frame[0]);
+  const MV_REFERENCE_FRAME_NRS ref_nrs = mbmi->ref_frame_nrs[0];
   mbmi->ref_frame_nrs[1] = convert_named_ref_to_ranked_ref_index(
       &cm->new_ref_frame_data, mbmi->ref_frame[1]);
   assert(convert_ranked_ref_to_named_ref_index(&cm->new_ref_frame_data,
@@ -840,7 +846,12 @@ int_mv av1_simple_motion_search(AV1_COMP *const cpi, MACROBLOCK *x, int mi_row,
 
     cpi->mv_search_params.find_fractional_mv_step(
         xd, cm, &ms_params, subpel_start_mv, &best_mv.as_mv, &not_used,
-        &x->pred_sse[ref], NULL);
+#if CONFIG_NEW_REF_SIGNALING
+        &x->pred_sse[ref_nrs],
+#else
+        &x->pred_sse[ref],
+#endif  // CONFIG_NEW_REF_SIGNALING
+        NULL);
   } else {
     // Manually convert from units of pixel to 1/8-pixels if we are not doing
     // subpel search
@@ -911,6 +922,7 @@ int_mv av1_simple_motion_search_ext(AV1_COMP *const cpi,
 #if CONFIG_NEW_REF_SIGNALING
   mbmi->ref_frame_nrs[0] = convert_named_ref_to_ranked_ref_index(
       &cm->new_ref_frame_data, mbmi->ref_frame[0]);
+  const MV_REFERENCE_FRAME_NRS ref_nrs = mbmi->ref_frame_nrs[0];
   mbmi->ref_frame_nrs[1] = convert_named_ref_to_ranked_ref_index(
       &cm->new_ref_frame_data, mbmi->ref_frame[1]);
   assert(convert_ranked_ref_to_named_ref_index(&cm->new_ref_frame_data,
@@ -993,7 +1005,12 @@ int_mv av1_simple_motion_search_ext(AV1_COMP *const cpi,
 
     cpi->mv_search_params.find_fractional_mv_step(
         xd, cm, &ms_params, subpel_start_mv, &best_mv.as_mv, &not_used,
-        &x->pred_sse[ref], NULL);
+#if CONFIG_NEW_REF_SIGNALING
+        &x->pred_sse[ref_nrs],
+#else
+        &x->pred_sse[ref],
+#endif  // CONFIG_NEW_REF_SIGNALING
+        NULL);
   } else {
     // Manually convert from units of pixel to 1/8-pixels if we are not doing
     // subpel search

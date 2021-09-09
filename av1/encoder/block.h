@@ -1343,7 +1343,11 @@ typedef struct macroblock {
   //! Variance of the source frame.
   unsigned int source_variance;
   //! SSE of the current predictor.
+#if CONFIG_NEW_REF_SIGNALING
+  unsigned int pred_sse[REF_FRAMES_NRS];
+#else
   unsigned int pred_sse[REF_FRAMES];
+#endif  // CONFIG_NEW_REF_SIGNALING
 #if CONFIG_EXT_RECUR_PARTITIONS
   //! Simple motion search buffers.
   SimpleMotionDataBufs *sms_bufs;

@@ -1477,7 +1477,11 @@ int av1_compound_type_rd(const AV1_COMP *const cpi, MACROBLOCK *x,
         est_rate[comp_type] += masked_type_cost[comp_type];
         comp_model_rate[comp_type] = est_rate[comp_type];
         comp_model_dist[comp_type] = est_dist[comp_type];
+#if CONFIG_NEW_REF_SIGNALING
+        sse_y[comp_type] = x->pred_sse[xd->mi[0]->ref_frame_nrs[0]];
+#else
         sse_y[comp_type] = x->pred_sse[xd->mi[0]->ref_frame[0]];
+#endif  // CONFIG_NEW_REF_SIGNALING
         if (comp_type == COMPOUND_AVERAGE) {
           *is_luma_interp_done = 1;
           restore_dst_buf(xd, *tmp_dst, 1);

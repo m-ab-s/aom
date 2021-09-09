@@ -719,7 +719,11 @@ int64_t av1_interpolation_filter_search(
   MB_MODE_INFO *const mbmi = xd->mi[0];
   const int need_search =
       av1_is_interp_needed(xd) && !cpi->sf.rt_sf.skip_interp_filter_search;
+#if CONFIG_NEW_REF_SIGNALING
+  const int ref_frame = xd->mi[0]->ref_frame_nrs[0];
+#else
   const int ref_frame = xd->mi[0]->ref_frame[0];
+#endif  // CONFIG_NEW_REF_SIGNALING
   RD_STATS rd_stats_luma, rd_stats;
 
   // Initialization of rd_stats structures with default values
