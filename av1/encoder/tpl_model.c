@@ -1182,12 +1182,17 @@ void av1_tpl_setup_stats(AV1_COMP *cpi, int gop_eval,
   cm->current_frame.frame_type = frame_params->frame_type;
   for (int gf_index = gf_group->index; gf_index < (gf_group->size - 1);
        ++gf_index) {
+#if CONFIG_NEW_REF_SIGNALING
+    (void)this_frame_params;
+    av1_configure_buffer_updates(cpi, gf_group->update_type[gf_index]);
+#else
     av1_configure_buffer_updates(cpi, &this_frame_params.refresh_frame,
                                  gf_group->update_type[gf_index],
                                  cm->current_frame.frame_type, 0);
 
     memcpy(&cpi->refresh_frame, &this_frame_params.refresh_frame,
            sizeof(cpi->refresh_frame));
+#endif  // CONFIG_NEW_REF_SIGNALING
 
     cm->show_frame = gf_group->update_type[gf_index] != ARF_UPDATE &&
                      gf_group->update_type[gf_index] != KFFLT_UPDATE &&
@@ -1249,9 +1254,13 @@ void av1_tpl_setup_stats(AV1_COMP *cpi, int gop_eval,
     mc_flow_synthesizer(cpi, frame_idx);
   }
 
+#if CONFIG_NEW_REF_SIGNALING
+  av1_configure_buffer_updates(cpi, gf_group->update_type[gf_group->index]);
+#else
   av1_configure_buffer_updates(cpi, &this_frame_params.refresh_frame,
                                gf_group->update_type[gf_group->index],
                                frame_params->frame_type, 0);
+#endif  // CONFIG_NEW_REF_SIGNALING
   cm->current_frame.frame_type = frame_params->frame_type;
   cm->show_frame = frame_params->show_frame;
 }

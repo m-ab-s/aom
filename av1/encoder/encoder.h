@@ -1893,6 +1893,7 @@ typedef struct {
   search_site_config search_site_cfg[SS_CFG_TOTAL][NUM_DISTINCT_SEARCH_METHODS];
 } MotionVectorSearchParams;
 
+#if !CONFIG_NEW_REF_SIGNALING
 /*!
  * \brief Refresh frame flags for different type of frames.
  *
@@ -1906,6 +1907,7 @@ typedef struct {
   bool bwd_ref_frame; /*!< Refresh flag for bwd-ref frame */
   bool alt_ref_frame; /*!< Refresh flag for alt-ref frame */
 } RefreshFrameFlagsInfo;
+#endif  // !CONFIG_NEW_REF_SIGNALING
 
 /*!
  * \brief Desired dimensions for an externally triggered resize.
@@ -2011,11 +2013,13 @@ typedef struct {
  * reference frame buffer with the contents of the current frame.
  */
 typedef struct {
+#if !CONFIG_NEW_REF_SIGNALING
   bool last_frame;     /*!< Refresh flag for last frame */
   bool golden_frame;   /*!< Refresh flag for golden frame */
   bool bwd_ref_frame;  /*!< Refresh flag for bwd-ref frame */
   bool alt2_ref_frame; /*!< Refresh flag for alt2-ref frame */
   bool alt_ref_frame;  /*!< Refresh flag for alt-ref frame */
+#endif                 // !CONFIG_NEW_REF_SIGNALING
   /*!
    * Flag indicating if the update of refresh frame flags is pending.
    */
@@ -2286,10 +2290,12 @@ typedef struct AV1_COMP {
    */
   RefCntBuffer *last_show_frame_buf;
 
+#if !CONFIG_NEW_REF_SIGNALING
   /*!
    * Refresh frame flags for golden, bwd-ref and alt-ref frames.
    */
   RefreshFrameFlagsInfo refresh_frame;
+#endif  // !CONFIG_NEW_REF_SIGNALING
 
   /*!
    * For each type of reference frame, this contains the index of a reference
@@ -2806,11 +2812,13 @@ typedef struct EncodeFrameParams {
    */
   int remapped_ref_idx[REF_FRAMES];
 
+#if !CONFIG_NEW_REF_SIGNALING
   /*!
    *  Flags which determine which reference buffers are refreshed by this
    *  frame.
    */
   RefreshFrameFlagsInfo refresh_frame;
+#endif  // !CONFIG_NEW_REF_SIGNALING
 
   /*!
    *  Speed level to use for this frame: Bigger number means faster.
