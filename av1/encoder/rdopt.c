@@ -4778,6 +4778,17 @@ static AOM_INLINE int prune_ref_frame(const AV1_COMP *cpi, const MACROBLOCK *x,
 
 static AOM_INLINE int is_ref_frame_used_by_compound_ref(
     int ref_frame, int skip_ref_frame_mask) {
+#if CONFIG_NEW_REF_SIGNALING
+  for (int r = INTER_REFS_PER_FRAME_NRS; r < INTRA_FRAME_NRS; ++r) {
+    if (!(skip_ref_frame_mask & (1 << r))) {
+      MV_REFERENCE_FRAME_NRS rf[2];
+      av1_set_ref_frame_nrs(rf, r);
+      if (rf[0] == ref_frame || rf[1] == ref_frame) {
+        return 1;
+      }
+    }
+  }
+#else
   for (int r = ALTREF_FRAME + 1; r < MODE_CTX_REF_FRAMES; ++r) {
     if (!(skip_ref_frame_mask & (1 << r))) {
       const MV_REFERENCE_FRAME *rf = ref_frame_map[r - REF_FRAMES];
@@ -4786,10 +4797,29 @@ static AOM_INLINE int is_ref_frame_used_by_compound_ref(
       }
     }
   }
+#endif  // CONFIG_NEW_REF_SIGNALING
   return 0;
 }
 
 #if CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_NEW_REF_SIGNALING
+static AOM_INLINE int is_ref_frame_used_in_cache_nrs(
+    MV_REFERENCE_FRAME_NRS ref_frame_nrs, const MB_MODE_INFO *mi_cache) {
+  if (!mi_cache) {
+    return 0;
+  }
+
+  if (ref_frame_nrs < INTER_REFS_PER_FRAME_NRS) {
+    return (ref_frame_nrs == mi_cache->ref_frame_nrs[0] ||
+            ref_frame_nrs == mi_cache->ref_frame_nrs[1]);
+  }
+
+  // if we are here, then the current mode is compound.
+  MV_REFERENCE_FRAME_NRS cached_ref_type =
+      av1_ref_frame_type_nrs(mi_cache->ref_frame_nrs);
+  return ref_frame_nrs == cached_ref_type;
+}
+#else
 static AOM_INLINE int is_ref_frame_used_in_cache(MV_REFERENCE_FRAME ref_frame,
                                                  const MB_MODE_INFO *mi_cache) {
   if (!mi_cache) {
@@ -4805,6 +4835,7 @@ static AOM_INLINE int is_ref_frame_used_in_cache(MV_REFERENCE_FRAME ref_frame,
   MV_REFERENCE_FRAME cached_ref_type = av1_ref_frame_type(mi_cache->ref_frame);
   return ref_frame == cached_ref_type;
 }
+#endif  // CONFIG_NEW_REF_SIGNALING
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 
 // Please add/modify parameter setting in this function, making it consistent
@@ -4830,25 +4861,50 @@ static AOM_INLINE void set_params_rd_pick_inter_mode(
 
   const int mi_row = xd->mi_row;
   const int mi_col = xd->mi_col;
-  MV_REFERENCE_FRAME ref_frame;
   x->best_pred_mv_sad = INT_MAX;
-  for (ref_frame = LAST_FRAME; ref_frame <= ALTREF_FRAME; ++ref_frame) {
 #if CONFIG_NEW_REF_SIGNALING
-    MV_REFERENCE_FRAME_NRS ref_frame_nrs =
-        convert_named_ref_to_ranked_ref_index(&cm->new_ref_frame_data,
-                                              ref_frame);
-    assert(ref_frame_nrs != INTRA_FRAME_NRS);
-    assert(ref_frame_nrs < cm->new_ref_frame_data.n_total_refs);
+  // TODO(debargha, sarahparker): This section can be removed when
+  // mbmi_ext->mode_context and mbmi_ext->ref_mv_count has been ported
+  // over to use the new signaling framework.
+  for (MV_REFERENCE_FRAME ref_frame = LAST_FRAME; ref_frame <= ALTREF_FRAME;
+       ++ref_frame) {
+    x->mbmi_ext->mode_context[ref_frame] = 0;
+    mbmi_ext->ref_mv_count[ref_frame] = UINT8_MAX;
+  }
+  for (MV_REFERENCE_FRAME_NRS ref_frame_nrs = 0;
+       ref_frame_nrs < cm->new_ref_frame_data.n_total_refs; ++ref_frame_nrs) {
+    MV_REFERENCE_FRAME ref_frame = convert_ranked_ref_to_named_ref_index(
+        &cm->new_ref_frame_data, ref_frame_nrs);
+    if ((cpi->common.ref_frame_flags_nrs & (1 << ref_frame_nrs))) {
+      x->pred_mv_sad[ref_frame_nrs] = INT_MAX;
+      if (mbmi->partition != PARTITION_NONE &&
+          mbmi->partition != PARTITION_SPLIT) {
+        if (skip_ref_frame_mask & (1 << ref_frame_nrs) &&
+            !is_ref_frame_used_by_compound_ref(ref_frame_nrs,
+                                               skip_ref_frame_mask)
+#if CONFIG_EXT_RECUR_PARTITIONS
+            && !(should_reuse_mode(x, REUSE_INTER_MODE_IN_INTERFRAME_FLAG) &&
+                 is_ref_frame_used_in_cache_nrs(ref_frame_nrs,
+                                                x->inter_mode_cache))
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+        ) {
+          continue;
+        }
+      }
+      assert(get_ref_frame_yv12_buf(cm, ref_frame) != NULL);
+      assert(convert_ranked_ref_to_named_ref_index(&cm->new_ref_frame_data,
+                                                   ref_frame_nrs) == ref_frame);
+      setup_buffer_ref_mvs_inter(cpi, x, ref_frame, ref_frame_nrs, bsize,
+                                 yv12_mb);
+    }
+  }
 #else
+  for (MV_REFERENCE_FRAME ref_frame = LAST_FRAME; ref_frame <= ALTREF_FRAME;
+       ++ref_frame) {
     x->pred_mv_sad[ref_frame] = INT_MAX;
-#endif  // CONFIG_NEW_REF_SIGNALING
     x->mbmi_ext->mode_context[ref_frame] = 0;
     mbmi_ext->ref_mv_count[ref_frame] = UINT8_MAX;
     if (cpi->common.ref_frame_flags & av1_ref_frame_flag_list[ref_frame]) {
-#if CONFIG_NEW_REF_SIGNALING
-      assert(cpi->common.ref_frame_flags_nrs & (1 << ref_frame_nrs));
-      x->pred_mv_sad[ref_frame_nrs] = INT_MAX;
-#endif  // CONFIG_NEW_REF_SIGNALING
       if (mbmi->partition != PARTITION_NONE &&
           mbmi->partition != PARTITION_SPLIT) {
         if (skip_ref_frame_mask & (1 << ref_frame) &&
@@ -4862,28 +4918,77 @@ static AOM_INLINE void set_params_rd_pick_inter_mode(
         }
       }
       assert(get_ref_frame_yv12_buf(cm, ref_frame) != NULL);
-#if CONFIG_NEW_REF_SIGNALING
-      // TODO(sarahparker) Temporary assert, see aomedia:3060
-      assert(convert_ranked_ref_to_named_ref_index(&cm->new_ref_frame_data,
-                                                   ref_frame_nrs) == ref_frame);
-      setup_buffer_ref_mvs_inter(cpi, x, ref_frame, ref_frame_nrs, bsize,
-                                 yv12_mb);
-#else
       setup_buffer_ref_mvs_inter(cpi, x, ref_frame, bsize, yv12_mb);
-#endif  // CONFIG_NEW_REF_SIGNALING
     }
     // Store the best pred_mv_sad across all past frames
-#if !CONFIG_NEW_REF_SIGNALING
     if (cpi->sf.inter_sf.alt_ref_search_fp &&
         cpi->ref_frame_dist_info.ref_relative_dist[ref_frame - LAST_FRAME] < 0)
       x->best_pred_mv_sad =
           AOMMIN(x->best_pred_mv_sad, x->pred_mv_sad[ref_frame]);
-#endif  // !CONFIG_NEW_REF_SIGNALING
   }
-  // ref_frame = ALTREF_FRAME
+#endif  // CONFIG_NEW_REF_SIGNALING
   if (!cpi->sf.rt_sf.use_real_time_ref_set && is_comp_ref_allowed(bsize)) {
     // No second reference on RT ref set, so no need to initialize
-    for (; ref_frame < MODE_CTX_REF_FRAMES; ++ref_frame) {
+#if CONFIG_NEW_REF_SIGNALING
+    for (MV_REFERENCE_FRAME ref_frame = ALTREF_FRAME + 1;
+         ref_frame < MODE_CTX_REF_FRAMES; ++ref_frame) {
+      x->mbmi_ext->mode_context[ref_frame] = 0;
+      mbmi_ext->ref_mv_count[ref_frame] = UINT8_MAX;
+    }
+    for (MV_REFERENCE_FRAME_NRS ref_frame_nrs = INTER_REFS_PER_FRAME_NRS;
+         ref_frame_nrs < INTRA_FRAME_NRS; ++ref_frame_nrs) {
+      MV_REFERENCE_FRAME_NRS rf_nrs[2];
+      av1_set_ref_frame_nrs(rf_nrs, ref_frame_nrs);
+      if (rf_nrs[0] >= cm->new_ref_frame_data.n_total_refs ||
+          rf_nrs[1] >= cm->new_ref_frame_data.n_total_refs)
+        continue;
+      if (!((cpi->common.ref_frame_flags_nrs & (1 << rf_nrs[0])) &&
+            (cpi->common.ref_frame_flags_nrs & (1 << rf_nrs[1])))) {
+        continue;
+      }
+
+      // TODO(debargha, sarahparker): This is a hack currently to get the
+      // correct ref_frame by trying both unflipped and flipped versions of
+      // the references to see which one is allowed. This should become
+      // unnecessary when the compound modes have switched over completely
+      // to the new framework.
+      MV_REFERENCE_FRAME rf[2];
+      convert_ranked_ref_to_named_ref_pair(&cm->new_ref_frame_data, rf_nrs, 0,
+                                           rf);
+      if (skip_compound_search(rf[0], rf[1])) {
+        if (skip_compound_search(rf[1], rf[0])) continue;
+        MV_REFERENCE_FRAME tmp = rf[0];
+        // Flip and recompute ref_frame type
+        rf[0] = rf[1];
+        rf[1] = tmp;
+      }
+      MV_REFERENCE_FRAME ref_frame = av1_ref_frame_type(rf);
+
+      if (mbmi->partition != PARTITION_NONE &&
+          mbmi->partition != PARTITION_SPLIT) {
+        if (skip_ref_frame_mask & (1 << ref_frame_nrs)
+#if CONFIG_EXT_RECUR_PARTITIONS
+            && !(should_reuse_mode(x, REUSE_INTER_MODE_IN_INTERFRAME_FLAG) &&
+                 is_ref_frame_used_in_cache_nrs(ref_frame_nrs,
+                                                x->inter_mode_cache))
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+        ) {
+          continue;
+        }
+      }
+
+      if (prune_ref_frame_nrs(cpi, x, ref_frame_nrs)) continue;
+      av1_find_mv_refs(cm, xd, mbmi, ref_frame, ref_frame_nrs,
+                       mbmi_ext->ref_mv_count, xd->ref_mv_stack, xd->weight,
+                       NULL, mbmi_ext->global_mvs, mbmi_ext->global_mvs_nrs,
+                       mbmi_ext->mode_context);
+      // TODO(Ravi): Populate mbmi_ext->ref_mv_stack[ref_frame][4] and
+      // mbmi_ext->weight[ref_frame][4] inside av1_find_mv_refs.
+      av1_copy_usable_ref_mv_stack_and_weight(xd, mbmi_ext, ref_frame);
+    }
+#else
+    for (MV_REFERENCE_FRAME ref_frame = ALTREF_FRAME + 1;
+         ref_frame < MODE_CTX_REF_FRAMES; ++ref_frame) {
       x->mbmi_ext->mode_context[ref_frame] = 0;
       mbmi_ext->ref_mv_count[ref_frame] = UINT8_MAX;
       const MV_REFERENCE_FRAME *rf = ref_frame_map[ref_frame - REF_FRAMES];
@@ -4904,40 +5009,17 @@ static AOM_INLINE void set_params_rd_pick_inter_mode(
         }
       }
 
-#if CONFIG_NEW_REF_SIGNALING
-      MV_REFERENCE_FRAME_NRS rf_nrs[2] = { INVALID_IDX, INVALID_IDX };
-      MV_REFERENCE_FRAME rfo[2];
-      av1_set_ref_frame(rfo, ref_frame);
-      rf_nrs[0] = convert_named_ref_to_ranked_ref_index(&cm->new_ref_frame_data,
-                                                        rfo[0]);
-      // TODO(sarahparker) Temporary assert, see aomedia:3060
-      assert(convert_ranked_ref_to_named_ref_index(&cm->new_ref_frame_data,
-                                                   rf_nrs[0]) == rfo[0]);
-      if (ref_frame >= REF_FRAMES) {
-        rf_nrs[1] = convert_named_ref_to_ranked_ref_index(
-            &cm->new_ref_frame_data, rfo[1]);
-        assert(convert_ranked_ref_to_named_ref_index(&cm->new_ref_frame_data,
-                                                     rf_nrs[1]) == rfo[1]);
-      }
-      MV_REFERENCE_FRAME_NRS ref_frame_type_nrs =
-          av1_ref_frame_type_nrs(rf_nrs);
-      if (prune_ref_frame_nrs(cpi, x, ref_frame_type_nrs)) continue;
-      av1_find_mv_refs(cm, xd, mbmi, ref_frame, ref_frame_type_nrs,
-                       mbmi_ext->ref_mv_count, xd->ref_mv_stack, xd->weight,
-                       NULL, mbmi_ext->global_mvs, mbmi_ext->global_mvs_nrs,
-                       mbmi_ext->mode_context);
-#else
       // Ref mv list population is not required, when compound references are
       // pruned.
       if (prune_ref_frame(cpi, x, ref_frame)) continue;
       av1_find_mv_refs(cm, xd, mbmi, ref_frame, mbmi_ext->ref_mv_count,
                        xd->ref_mv_stack, xd->weight, NULL, mbmi_ext->global_mvs,
                        mbmi_ext->mode_context);
-#endif  // CONFIG_NEW_REF_SIGNALING
       // TODO(Ravi): Populate mbmi_ext->ref_mv_stack[ref_frame][4] and
       // mbmi_ext->weight[ref_frame][4] inside av1_find_mv_refs.
       av1_copy_usable_ref_mv_stack_and_weight(xd, mbmi_ext, ref_frame);
     }
+#endif  // CONFIG_NEW_REF_SIGNALING
   }
 
   av1_count_overlappable_neighbors(cm, xd);
@@ -5290,11 +5372,11 @@ static int inter_mode_search_order_independent_skip(
   }
 #endif  // CONFIG_NEW_REF_SIGNALING
 
-  const int ref_type = av1_ref_frame_type(ref_frame);
 #if CONFIG_NEW_REF_SIGNALING
   const int ref_type_nrs = av1_ref_frame_type_nrs(ref_frame_nrs);
   if (prune_ref_frame_nrs(cpi, x, ref_type_nrs)) return 1;
 #else
+  const int ref_type = av1_ref_frame_type(ref_frame);
   if (prune_ref_frame(cpi, x, ref_type)) return 1;
 #endif  // CONFIG_NEW_REF_SIGNALING
 
@@ -5330,6 +5412,29 @@ static int inter_mode_search_order_independent_skip(
 
   int skip_motion_mode = 0;
   if (mbmi->partition != PARTITION_NONE && mbmi->partition != PARTITION_SPLIT) {
+#if CONFIG_NEW_REF_SIGNALING
+    int skip_ref = skip_ref_frame_mask & (1 << ref_type_nrs);
+    if (ref_type_nrs < INTER_REFS_PER_FRAME_NRS && skip_ref) {
+      // Since the compound ref modes depends on the motion estimation result of
+      // two single ref modes( best mv of single ref modes as the start point )
+      // If current single ref mode is marked skip, we need to check if it will
+      // be used in compound ref modes.
+      for (int r = INTER_REFS_PER_FRAME_NRS; r < INTRA_FRAME_NRS; ++r) {
+        if (skip_ref_frame_mask & (1 << r)) continue;
+        MV_REFERENCE_FRAME_NRS rf[2];
+        av1_set_ref_frame_nrs(rf, r);
+        if (rf[0] == ref_type_nrs || rf[1] == ref_type_nrs) {
+          // Found a not skipped compound ref mode which contains current
+          // single ref. So this single ref can't be skipped completly
+          // Just skip it's motion mode search, still try it's simple
+          // transition mode.
+          skip_motion_mode = 1;
+          skip_ref = 0;
+          break;
+        }
+      }
+    }
+#else
     int skip_ref = skip_ref_frame_mask & (1 << ref_type);
     if (ref_type <= ALTREF_FRAME && skip_ref) {
       // Since the compound ref modes depends on the motion estimation result of
@@ -5350,7 +5455,22 @@ static int inter_mode_search_order_independent_skip(
         }
       }
     }
+#endif  // CONFIG_NEW_REF_SIGNALING
 #if CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_NEW_REF_SIGNALING
+    // If we are reusing the prediction from cache, and the current frame is
+    // required by the cache, then we cannot prune it.
+    if (should_reuse_mode(x, REUSE_INTER_MODE_IN_INTERFRAME_FLAG) &&
+        is_ref_frame_used_in_cache_nrs(ref_type_nrs, x->inter_mode_cache)) {
+      skip_ref = 0;
+      // If the cache only needs the current reference type for compound
+      // prediction, then we can skip motion mode search.
+      skip_motion_mode =
+          (ref_type_nrs < INTER_REFS_PER_FRAME_NRS &&
+           x->inter_mode_cache->ref_frame_nrs[1] != INVALID_IDX &&
+           x->inter_mode_cache->ref_frame_nrs[1] != INTRA_FRAME_NRS);
+    }
+#else
     // If we are reusing the prediction from cache, and the current frame is
     // required by the cache, then we cannot prune it.
     if (should_reuse_mode(x, REUSE_INTER_MODE_IN_INTERFRAME_FLAG) &&
@@ -5361,12 +5481,18 @@ static int inter_mode_search_order_independent_skip(
       skip_motion_mode = (ref_type <= ALTREF_FRAME &&
                           x->inter_mode_cache->ref_frame[1] > INTRA_FRAME);
     }
+#endif  // CONFIG_NEW_REF_SIGNALING
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
     if (skip_ref) return 1;
   }
 
   const SPEED_FEATURES *const sf = &cpi->sf;
-  if (ref_frame[0] == INTRA_FRAME) {
+#if CONFIG_NEW_REF_SIGNALING
+  if (ref_frame_nrs[0] == INTRA_FRAME_NRS)
+#else
+  if (ref_frame[0] == INTRA_FRAME)
+#endif  // CONFIG_NEW_REF_SIGNALING
+  {
     if (mode != DC_PRED) {
       // Disable intra modes other than DC_PRED for blocks with low variance
       // Threshold for intra skipping based on source variance

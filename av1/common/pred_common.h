@@ -109,6 +109,20 @@ static INLINE int convert_ranked_ref_to_named_ref_index(
   return ref_frame_data->ranked_to_named_refs[ranked_idx];
 }
 
+static INLINE void convert_ranked_ref_to_named_ref_pair(
+    const NewRefFramesData *const ref_frame_data,
+    MV_REFERENCE_FRAME_NRS *rf_nrs, int ordered, MV_REFERENCE_FRAME_NRS *rf) {
+  rf[0] = convert_ranked_ref_to_named_ref_index(ref_frame_data, rf_nrs[0]);
+  rf[1] = convert_ranked_ref_to_named_ref_index(ref_frame_data, rf_nrs[1]);
+  if (ordered) {
+    if (rf_nrs[1] != INVALID_IDX && rf_nrs[1] < rf_nrs[0]) {
+      MV_REFERENCE_FRAME tmp = rf[1];
+      rf[1] = rf[0];
+      rf[0] = tmp;
+    }
+  }
+}
+
 // Find the reference that is furthest in the future
 static INLINE int get_furthest_future_ref_index(const AV1_COMMON *const cm) {
   int index = INVALID_IDX;

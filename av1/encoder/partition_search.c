@@ -4427,7 +4427,12 @@ static void none_partition_search(
   if (this_rdc->rate != INT_MAX) {
     // Record picked ref frame to prune ref frames for other partition types.
     if (cpi->sf.inter_sf.prune_ref_frame_for_rect_partitions) {
+#if CONFIG_NEW_REF_SIGNALING
+      const int ref_type =
+          av1_ref_frame_type_nrs(pc_tree->none->mic.ref_frame_nrs);
+#else
       const int ref_type = av1_ref_frame_type(pc_tree->none->mic.ref_frame);
+#endif
       av1_update_picked_ref_frames_mask(
           x, ref_type, bsize, cm->seq_params.mib_size, mi_row, mi_col);
     }
