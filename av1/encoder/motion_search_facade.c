@@ -60,9 +60,12 @@ void av1_single_motion_search(const AV1_COMP *const cpi, MACROBLOCK *x,
 #if CONFIG_NEW_REF_SIGNALING
   const MV_REFERENCE_FRAME_NRS ref_nrs =
       convert_named_ref_to_ranked_ref_index(&cm->new_ref_frame_data, ref);
-#endif  // CONFIG_NEW_REF_SIGNALING
+  const YV12_BUFFER_CONFIG *scaled_ref_frame =
+      av1_get_scaled_ref_frame(cpi, ref_nrs);
+#else
   const YV12_BUFFER_CONFIG *scaled_ref_frame =
       av1_get_scaled_ref_frame(cpi, ref);
+#endif  // CONFIG_NEW_REF_SIGNALING
   const int mi_row = xd->mi_row;
   const int mi_col = xd->mi_col;
   const MvCosts *mv_costs = &x->mv_costs;
@@ -356,7 +359,6 @@ void av1_joint_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
   lower_mv_precision(&cur_mv[1].as_mv, max_mv_precision);
 #endif  // CONFIG_FLEX_MVRES
   const int_mv init_mv[2] = { cur_mv[0], cur_mv[1] };
-  const int refs[2] = { mbmi->ref_frame[0], mbmi->ref_frame[1] };
   const MvCosts *mv_costs = &x->mv_costs;
   int_mv ref_mv[2];
   int ite, ref;
@@ -366,10 +368,19 @@ void av1_joint_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
   // Do joint motion search in compound mode to get more accurate mv.
   struct buf_2d backup_yv12[2][MAX_MB_PLANE];
   int last_besterr[2] = { INT_MAX, INT_MAX };
+#if CONFIG_NEW_REF_SIGNALING
+  const int refs_nrs[2] = { mbmi->ref_frame_nrs[0], mbmi->ref_frame_nrs[1] };
+  const YV12_BUFFER_CONFIG *const scaled_ref_frame[2] = {
+    av1_get_scaled_ref_frame(cpi, refs_nrs[0]),
+    av1_get_scaled_ref_frame(cpi, refs_nrs[1])
+  };
+#else
+  const int refs[2] = { mbmi->ref_frame[0], mbmi->ref_frame[1] };
   const YV12_BUFFER_CONFIG *const scaled_ref_frame[2] = {
     av1_get_scaled_ref_frame(cpi, refs[0]),
     av1_get_scaled_ref_frame(cpi, refs[1])
   };
+#endif  // CONFIG_NEW_REF_SIGNALING
 
   // Prediction buffer from second frame.
   DECLARE_ALIGNED(16, uint8_t, second_pred16[MAX_SB_SQUARE * sizeof(uint16_t)]);
@@ -525,7 +536,11 @@ void av1_compound_single_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
   const int num_planes = av1_num_planes(cm);
   MACROBLOCKD *xd = &x->e_mbd;
   MB_MODE_INFO *mbmi = xd->mi[0];
+#if CONFIG_NEW_REF_SIGNALING
+  const int ref = mbmi->ref_frame_nrs[ref_idx];
+#else
   const int ref = mbmi->ref_frame[ref_idx];
+#endif  // CONFIG_NEW_REF_SIGNALING
   const int_mv ref_mv = av1_get_ref_mv(x, ref_idx);
   struct macroblockd_plane *const pd = &xd->plane[0];
   const MvCosts *mv_costs = &x->mv_costs;
@@ -786,8 +801,13 @@ int_mv av1_simple_motion_search(AV1_COMP *const cpi, MACROBLOCK *x, int mi_row,
   av1_set_default_mbmi_mv_precision(mbmi, xd->sbi);
 
   const YV12_BUFFER_CONFIG *yv12 = get_ref_frame_yv12_buf(cm, ref);
+#if CONFIG_NEW_REF_SIGNALING
+  const YV12_BUFFER_CONFIG *scaled_ref_frame =
+      av1_get_scaled_ref_frame(cpi, ref_nrs);
+#else
   const YV12_BUFFER_CONFIG *scaled_ref_frame =
       av1_get_scaled_ref_frame(cpi, ref);
+#endif  // CONFIG_NEW_REF_SIGNALING
   struct buf_2d backup_yv12;
   // ref_mv is used to calculate the cost of the motion vector
   const MV ref_mv = kZeroMv;
@@ -940,9 +960,15 @@ int_mv av1_simple_motion_search_ext(AV1_COMP *const cpi,
 #endif  // CONFIG_REMOVE_DUAL_FILTER
   av1_set_default_mbmi_mv_precision(mbmi, xd->sbi);
 
+#if CONFIG_NEW_REF_SIGNALING
+  const YV12_BUFFER_CONFIG *yv12 = get_ref_frame_yv12_buf_nrs(cm, ref_nrs);
+  const YV12_BUFFER_CONFIG *scaled_ref_frame =
+      av1_get_scaled_ref_frame(cpi, ref_nrs);
+#else
   const YV12_BUFFER_CONFIG *yv12 = get_ref_frame_yv12_buf(cm, ref);
   const YV12_BUFFER_CONFIG *scaled_ref_frame =
       av1_get_scaled_ref_frame(cpi, ref);
+#endif  // CONFIG_NEW_REF_SIGNALING
   struct buf_2d backup_yv12;
   // ref_mv is used to calculate the cost of the motion vector
   const MV ref_mv = kZeroMv;

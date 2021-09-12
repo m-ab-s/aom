@@ -1212,18 +1212,24 @@ static AOM_INLINE void setup_buffer_ref_mvs_inter(
   const AV1_COMMON *cm = &cpi->common;
   const int num_planes = av1_num_planes(cm);
   const YV12_BUFFER_CONFIG *scaled_ref_frame =
+#if CONFIG_NEW_REF_SIGNALING
+      av1_get_scaled_ref_frame(cpi, ref_frame_nrs);
+#else
       av1_get_scaled_ref_frame(cpi, ref_frame);
+#endif  // CONFIG_NEW_REF_SIGNALING
   MACROBLOCKD *const xd = &x->e_mbd;
   MB_MODE_INFO *const mbmi = xd->mi[0];
   MB_MODE_INFO_EXT *const mbmi_ext = x->mbmi_ext;
 #if CONFIG_NEW_REF_SIGNALING
   const struct scale_factors *const sf =
       get_ref_scale_factors_const_nrs(cm, ref_frame_nrs);
+  const YV12_BUFFER_CONFIG *yv12 =
+      get_ref_frame_yv12_buf_nrs(cm, ref_frame_nrs);
 #else
   const struct scale_factors *const sf =
       get_ref_scale_factors_const(cm, ref_frame);
-#endif  // CONFIG_NEW_REF_SIGNALING
   const YV12_BUFFER_CONFIG *yv12 = get_ref_frame_yv12_buf(cm, ref_frame);
+#endif  // CONFIG_NEW_REF_SIGNALING
   assert(yv12 != NULL);
 
   if (scaled_ref_frame) {
@@ -4891,7 +4897,7 @@ static AOM_INLINE void set_params_rd_pick_inter_mode(
           continue;
         }
       }
-      assert(get_ref_frame_yv12_buf(cm, ref_frame) != NULL);
+      assert(get_ref_frame_yv12_buf_nrs(cm, ref_frame_nrs) != NULL);
       assert(convert_ranked_ref_to_named_ref_index(&cm->new_ref_frame_data,
                                                    ref_frame_nrs) == ref_frame);
       setup_buffer_ref_mvs_inter(cpi, x, ref_frame, ref_frame_nrs, bsize,

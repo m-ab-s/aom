@@ -194,9 +194,10 @@ static int combined_motion_search(AV1_COMP *cpi, MACROBLOCK *x,
                        ? cpi->sf.rt_sf.fullpel_search_step_param
                        : cpi->mv_search_params.mv_step_param;
   FULLPEL_MV start_mv;
-  const int ref = mi->ref_frame[0];
 #if CONFIG_NEW_REF_SIGNALING
   const int ref_nrs = mi->ref_frame_nrs[0];
+#else
+  const int ref = mi->ref_frame[0];
 #endif  // CONFIG_NEW_REF_SIGNALING
   const MV ref_mv = av1_get_ref_mv(x, mi->ref_mv_idx).as_mv;
   MV center_mv;
@@ -205,7 +206,11 @@ static int combined_motion_search(AV1_COMP *cpi, MACROBLOCK *x,
   int cost_list[5];
   int search_subpel = 1;
   const YV12_BUFFER_CONFIG *scaled_ref_frame =
+#if CONFIG_NEW_REF_SIGNALING
+      av1_get_scaled_ref_frame(cpi, ref_nrs);
+#else
       av1_get_scaled_ref_frame(cpi, ref);
+#endif  // CONFIG_NEW_REF_SIGNALING
 
   if (scaled_ref_frame) {
     int i;

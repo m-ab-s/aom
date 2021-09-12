@@ -2275,7 +2275,11 @@ typedef struct AV1_COMP {
    * Pointer to the buffer holding the scaled reference frames.
    * scaled_ref_buf[i] holds the scaled reference frame of type i.
    */
+#if CONFIG_NEW_REF_SIGNALING
+  RefCntBuffer *scaled_ref_buf[INTER_REFS_PER_FRAME_NRS];
+#else
   RefCntBuffer *scaled_ref_buf[INTER_REFS_PER_FRAME];
+#endif  // CONFIG_NEW_REF_SIGNALING
 
   /*!
    * Pointer to the buffer holding the last show frame.
@@ -2976,6 +2980,14 @@ static INLINE int av1_use_hash_me(const AV1_COMP *const cpi) {
           cpi->common.features.allow_intrabc &&
           frame_is_intra_only(&cpi->common));
 }
+
+#if CONFIG_NEW_REF_SIGNALING
+static INLINE const YV12_BUFFER_CONFIG *get_ref_frame_yv12_buf_nrs(
+    const AV1_COMMON *const cm, MV_REFERENCE_FRAME_NRS ref_frame) {
+  const RefCntBuffer *const buf = get_ref_frame_buf_nrs(cm, ref_frame);
+  return buf != NULL ? &buf->buf : NULL;
+}
+#endif  // CONFIG_NEW_REF_SIGNALING
 
 static INLINE const YV12_BUFFER_CONFIG *get_ref_frame_yv12_buf(
     const AV1_COMMON *const cm, MV_REFERENCE_FRAME ref_frame) {

@@ -1932,7 +1932,11 @@ unsigned int av1_int_pro_motion_estimation(const AV1_COMP *cpi, MACROBLOCK *x,
   unsigned int best_sad, tmp_sad, this_sad[4];
   const int norm_factor = 3 + (bw >> 5);
   const YV12_BUFFER_CONFIG *scaled_ref_frame =
+#if CONFIG_NEW_REF_SIGNALING
+      av1_get_scaled_ref_frame(cpi, mi->ref_frame_nrs[0]);
+#else
       av1_get_scaled_ref_frame(cpi, mi->ref_frame[0]);
+#endif  // CONFIG_NEW_REF_SIGNALING
   static const MV search_pos[4] = {
     { -1, 0 },
     { 0, -1 },
