@@ -1208,7 +1208,13 @@ static AOM_INLINE void setup_buffer_ref_mvs_inter(
 #if CONFIG_NEW_REF_SIGNALING
     MV_REFERENCE_FRAME_NRS ref_frame_nrs,
 #endif  // CONFIG_NEW_REF_SIGNALING
-    BLOCK_SIZE block_size, struct buf_2d yv12_mb[REF_FRAMES][MAX_MB_PLANE]) {
+    BLOCK_SIZE block_size,
+#if CONFIG_NEW_REF_SIGNALING
+    struct buf_2d yv12_mb[REF_FRAMES_NRS][MAX_MB_PLANE]
+#else
+    struct buf_2d yv12_mb[REF_FRAMES][MAX_MB_PLANE]
+#endif  // CONFIG_NEW_REF_SIGNALING
+) {
   const AV1_COMMON *cm = &cpi->common;
   const int num_planes = av1_num_planes(cm);
   const YV12_BUFFER_CONFIG *scaled_ref_frame =
@@ -1235,10 +1241,19 @@ static AOM_INLINE void setup_buffer_ref_mvs_inter(
   if (scaled_ref_frame) {
     // Setup pred block based on scaled reference, because av1_mv_pred() doesn't
     // support scaling.
+#if CONFIG_NEW_REF_SIGNALING
+    av1_setup_pred_block(xd, yv12_mb[ref_frame_nrs], scaled_ref_frame, NULL,
+                         NULL, num_planes);
+#else
     av1_setup_pred_block(xd, yv12_mb[ref_frame], scaled_ref_frame, NULL, NULL,
                          num_planes);
+#endif  // CONFIG_NEW_REF_SIGNALING
   } else {
+#if CONFIG_NEW_REF_SIGNALING
+    av1_setup_pred_block(xd, yv12_mb[ref_frame_nrs], yv12, sf, sf, num_planes);
+#else
     av1_setup_pred_block(xd, yv12_mb[ref_frame], yv12, sf, sf, num_planes);
+#endif  // CONFIG_NEW_REF_SIGNALING
   }
 
   // Gets an initial list of candidate vectors from neighbours and orders them
@@ -1258,19 +1273,23 @@ static AOM_INLINE void setup_buffer_ref_mvs_inter(
   // Further refinement that is encode side only to test the top few candidates
   // in full and choose the best as the center point for subsequent searches.
   // The current implementation doesn't support scaling.
-  av1_mv_pred(cpi, x, yv12_mb[ref_frame][0].buf, yv12_mb[ref_frame][0].stride,
 #if CONFIG_NEW_REF_SIGNALING
-              ref_frame_nrs,
+  av1_mv_pred(cpi, x, yv12_mb[ref_frame_nrs][0].buf,
+              yv12_mb[ref_frame_nrs][0].stride, ref_frame_nrs, block_size);
 #else
-              ref_frame,
+  av1_mv_pred(cpi, x, yv12_mb[ref_frame][0].buf, yv12_mb[ref_frame][0].stride,
+              ref_frame, block_size);
 #endif  // CONFIG_NEW_REF_SIGNALING
-              block_size);
 
   // Go back to unscaled reference.
   if (scaled_ref_frame) {
     // We had temporarily setup pred block based on scaled reference above. Go
     // back to unscaled reference now, for subsequent use.
+#if CONFIG_NEW_REF_SIGNALING
+    av1_setup_pred_block(xd, yv12_mb[ref_frame_nrs], yv12, sf, sf, num_planes);
+#else
     av1_setup_pred_block(xd, yv12_mb[ref_frame], yv12, sf, sf, num_planes);
+#endif  // CONFIG_NEW_REF_SIGNALING
   }
 }
 
@@ -3945,7 +3964,12 @@ static AOM_INLINE void calc_target_weighted_pred(
 static AOM_INLINE void rd_pick_skip_mode(
     RD_STATS *rd_cost, InterModeSearchState *search_state,
     const AV1_COMP *const cpi, MACROBLOCK *const x, BLOCK_SIZE bsize,
-    struct buf_2d yv12_mb[REF_FRAMES][MAX_MB_PLANE]) {
+#if CONFIG_NEW_REF_SIGNALING
+    struct buf_2d yv12_mb[REF_FRAMES_NRS][MAX_MB_PLANE]
+#else
+    struct buf_2d yv12_mb[REF_FRAMES][MAX_MB_PLANE]
+#endif  // CONFIG_NEW_REF_SIGNALING
+) {
   const AV1_COMMON *const cm = &cpi->common;
   const SkipModeInfo *const skip_mode_info = &cm->current_frame.skip_mode_info;
   const int num_planes = av1_num_planes(cm);
@@ -4063,13 +4087,17 @@ static AOM_INLINE void rd_pick_skip_mode(
 
 #if CONFIG_NEW_REF_SIGNALING
   set_ref_ptrs_nrs(cm, xd, mbmi->ref_frame_nrs[0], mbmi->ref_frame_nrs[1]);
+  for (int i = 0; i < num_planes; i++) {
+    xd->plane[i].pre[0] = yv12_mb[mbmi->ref_frame_nrs[0]][i];
+    xd->plane[i].pre[1] = yv12_mb[mbmi->ref_frame_nrs[1]][i];
+  }
 #else
   set_ref_ptrs(cm, xd, mbmi->ref_frame[0], mbmi->ref_frame[1]);
-#endif  // CONFIG_NEW_RREF_SIGNALING
   for (int i = 0; i < num_planes; i++) {
     xd->plane[i].pre[0] = yv12_mb[mbmi->ref_frame[0]][i];
     xd->plane[i].pre[1] = yv12_mb[mbmi->ref_frame[1]][i];
   }
+#endif  // CONFIG_NEW_RREF_SIGNALING
 
   BUFFER_SET orig_dst;
   for (int i = 0; i < num_planes; i++) {
@@ -4203,8 +4231,12 @@ static AOM_INLINE MB_MODE_INFO *get_winner_mode_stats(
 static AOM_INLINE void refine_winner_mode_tx(
     const AV1_COMP *cpi, MACROBLOCK *x, RD_STATS *rd_cost, BLOCK_SIZE bsize,
     PICK_MODE_CONTEXT *ctx, MB_MODE_INFO *best_mbmode,
-    struct buf_2d yv12_mb[REF_FRAMES][MAX_MB_PLANE], int best_rate_y,
-    int best_rate_uv, int *best_skip2, int winner_mode_count) {
+#if CONFIG_NEW_REF_SIGNALING
+    struct buf_2d yv12_mb[REF_FRAMES_NRS][MAX_MB_PLANE],
+#else
+    struct buf_2d yv12_mb[REF_FRAMES][MAX_MB_PLANE],
+#endif  // CONFIG_NEW_REF_SIGNALING
+    int best_rate_y, int best_rate_uv, int *best_skip2, int winner_mode_count) {
   const AV1_COMMON *const cm = &cpi->common;
   MACROBLOCKD *const xd = &x->e_mbd;
   MB_MODE_INFO *const mbmi = xd->mi[0];
@@ -4248,16 +4280,21 @@ static AOM_INLINE void refine_winner_mode_tx(
 
 #if CONFIG_NEW_REF_SIGNALING
       set_ref_ptrs_nrs(cm, xd, mbmi->ref_frame_nrs[0], mbmi->ref_frame_nrs[1]);
+      // Select prediction reference frames.
+      for (int i = 0; i < num_planes; i++) {
+        xd->plane[i].pre[0] = yv12_mb[mbmi->ref_frame_nrs[0]][i];
+        if (has_second_ref(mbmi))
+          xd->plane[i].pre[1] = yv12_mb[mbmi->ref_frame_nrs[1]][i];
+      }
 #else
       set_ref_ptrs(cm, xd, mbmi->ref_frame[0], mbmi->ref_frame[1]);
-#endif  // CONFIG_NEW_REF_SIGNALING
-
       // Select prediction reference frames.
       for (int i = 0; i < num_planes; i++) {
         xd->plane[i].pre[0] = yv12_mb[mbmi->ref_frame[0]][i];
         if (has_second_ref(mbmi))
           xd->plane[i].pre[1] = yv12_mb[mbmi->ref_frame[1]][i];
       }
+#endif  // CONFIG_NEW_REF_SIGNALING
 
       if (is_inter_mode(mbmi->mode)) {
         const int mi_row = xd->mi_row;
@@ -5988,7 +6025,11 @@ static AOM_INLINE void evaluate_motion_mode_for_winner_candidates(
     const AV1_COMP *const cpi, MACROBLOCK *const x, RD_STATS *const rd_cost,
     HandleInterModeArgs *const args, TileDataEnc *const tile_data,
     PICK_MODE_CONTEXT *const ctx,
+#if CONFIG_NEW_REF_SIGNALING
+    struct buf_2d yv12_mb[REF_FRAMES_NRS][MAX_MB_PLANE],
+#else
     struct buf_2d yv12_mb[REF_FRAMES][MAX_MB_PLANE],
+#endif  // CONFIG_NEW_REF_SIGNALING
     const motion_mode_best_st_candidate *const best_motion_mode_cands,
     int do_tx_search, const BLOCK_SIZE bsize, int64_t *const best_est_rd,
     InterModeSearchState *const search_state) {
@@ -6033,11 +6074,21 @@ static AOM_INLINE void evaluate_motion_mode_for_winner_candidates(
     // Initialize motion mode to simple translation
     // Calculation of switchable rate depends on it.
     mbmi->motion_mode = 0;
+#if CONFIG_NEW_REF_SIGNALING
+    const int is_comp_pred = mbmi->ref_frame_nrs[1] != INVALID_IDX &&
+                             mbmi->ref_frame_nrs[1] != INTRA_FRAME_NRS;
+    for (int i = 0; i < num_planes; i++) {
+      xd->plane[i].pre[0] = yv12_mb[mbmi->ref_frame_nrs[0]][i];
+      if (is_comp_pred)
+        xd->plane[i].pre[1] = yv12_mb[mbmi->ref_frame_nrs[1]][i];
+    }
+#else
     const int is_comp_pred = mbmi->ref_frame[1] > INTRA_FRAME;
     for (int i = 0; i < num_planes; i++) {
       xd->plane[i].pre[0] = yv12_mb[mbmi->ref_frame[0]][i];
       if (is_comp_pred) xd->plane[i].pre[1] = yv12_mb[mbmi->ref_frame[1]][i];
     }
+#endif  // CONFIG_NEW_REF_SIGNALING
 
     int64_t skip_rd[2] = { search_state->best_skip_rd[0],
                            search_state->best_skip_rd[1] };
@@ -6267,9 +6318,13 @@ static void record_best_compound(REFERENCE_MODE reference_mode,
 static void tx_search_best_inter_candidates(
     AV1_COMP *cpi, TileDataEnc *tile_data, MACROBLOCK *x,
     int64_t best_rd_so_far, BLOCK_SIZE bsize,
-    struct buf_2d yv12_mb[REF_FRAMES][MAX_MB_PLANE], int mi_row, int mi_col,
-    InterModeSearchState *search_state, RD_STATS *rd_cost,
-    PICK_MODE_CONTEXT *ctx) {
+#if CONFIG_NEW_REF_SIGNALING
+    struct buf_2d yv12_mb[REF_FRAMES_NRS][MAX_MB_PLANE],
+#else
+    struct buf_2d yv12_mb[REF_FRAMES][MAX_MB_PLANE],
+#endif  // CONFIG_NEW_REF_SIGNALING
+    int mi_row, int mi_col, InterModeSearchState *search_state,
+    RD_STATS *rd_cost, PICK_MODE_CONTEXT *ctx) {
   AV1_COMMON *const cm = &cpi->common;
   MACROBLOCKD *const xd = &x->e_mbd;
   TxfmSearchInfo *txfm_info = &x->txfm_search_info;
@@ -6306,16 +6361,22 @@ static void tx_search_best_inter_candidates(
     txfm_info->skip_txfm = 0;
 #if CONFIG_NEW_REF_SIGNALING
     set_ref_ptrs_nrs(cm, xd, mbmi->ref_frame_nrs[0], mbmi->ref_frame_nrs[1]);
+    const int is_comp_pred = mbmi->ref_frame_nrs[1] != INVALID_IDX &&
+                             mbmi->ref_frame_nrs[1] != INTRA_FRAME_NRS;
+    for (int i = 0; i < num_planes; i++) {
+      xd->plane[i].pre[0] = yv12_mb[mbmi->ref_frame_nrs[0]][i];
+      if (is_comp_pred)
+        xd->plane[i].pre[1] = yv12_mb[mbmi->ref_frame_nrs[1]][i];
+    }
 #else
     set_ref_ptrs(cm, xd, mbmi->ref_frame[0], mbmi->ref_frame[1]);
-#endif  // CONFIG_NEW_REF_SIGNALING
-
     // Select prediction reference frames.
     const int is_comp_pred = mbmi->ref_frame[1] > INTRA_FRAME;
     for (int i = 0; i < num_planes; i++) {
       xd->plane[i].pre[0] = yv12_mb[mbmi->ref_frame[0]][i];
       if (is_comp_pred) xd->plane[i].pre[1] = yv12_mb[mbmi->ref_frame[1]][i];
     }
+#endif  // CONFIG_NEW_REF_SIGNALING
 
     // Build the prediction for this mode
     av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize, 0,
@@ -6502,12 +6563,13 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
       picked_ref_frames_mask ? ~picked_ref_frames_mask : 0;
   mode_skip_mask_t mode_skip_mask;
 #if CONFIG_NEW_REF_SIGNALING
+  struct buf_2d yv12_mb[REF_FRAMES_NRS][MAX_MB_PLANE];
   unsigned int ref_costs_single[REF_FRAMES_NRS];
 #else
+  struct buf_2d yv12_mb[REF_FRAMES][MAX_MB_PLANE];
   unsigned int ref_costs_single[REF_FRAMES];
 #endif  // CONFIG_NEW_REF_SIGNALING
   unsigned int ref_costs_comp[REF_FRAMES][REF_FRAMES];
-  struct buf_2d yv12_mb[REF_FRAMES][MAX_MB_PLANE];
   // init params, set frame modes, speed features
   set_params_rd_pick_inter_mode(cpi, x, &args, bsize, &mode_skip_mask,
                                 skip_ref_frame_mask, ref_costs_single,
@@ -6732,13 +6794,18 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
         assert(convert_ranked_ref_to_named_ref_index(&cm->new_ref_frame_data,
                                                      mbmi->ref_frame_nrs[1]) ==
                mbmi->ref_frame[1]);
-#endif  // CONFIG_NEW_REF_SIGNALING
-
         // Select prediction reference frames.
         for (i = 0; i < num_planes; i++) {
-          xd->plane[i].pre[0] = yv12_mb[ref_frame][i];
-          if (comp_pred) xd->plane[i].pre[1] = yv12_mb[second_ref_frame][i];
+          xd->plane[i].pre[0] = yv12_mb[ref_frame_nrs][i];
+          if (comp_pred) xd->plane[i].pre[1] = yv12_mb[second_ref_frame_nrs][i];
         }
+#else
+    // Select prediction reference frames.
+    for (i = 0; i < num_planes; i++) {
+      xd->plane[i].pre[0] = yv12_mb[ref_frame][i];
+      if (comp_pred) xd->plane[i].pre[1] = yv12_mb[second_ref_frame][i];
+    }
+#endif  // CONFIG_NEW_REF_SIGNALING
 
         mbmi->angle_delta[PLANE_TYPE_Y] = 0;
         mbmi->angle_delta[PLANE_TYPE_UV] = 0;
