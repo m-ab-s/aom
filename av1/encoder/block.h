@@ -245,6 +245,10 @@ typedef struct {
   // TODO(Ravi/Remya): Reduce the buffer size of global_mvs
   //! \copydoc MB_MODE_INFO_EXT::global_mvs
   int_mv global_mvs[REF_FRAMES];
+#if CONFIG_NEW_REF_SIGNALING
+  //! \copydoc MB_MODE_INFO_EXT::global_mvs_nrs
+  int_mv global_mvs_nrs[INTER_REFS_PER_FRAME_NRS];
+#endif  // CONFIG_NEW_REF_SIGNALING
   //! \copydoc MB_MODE_INFO_EXT::mode_context
   int16_t mode_context;
   //! Offset of current coding block's coeff buffer relative to the sb.

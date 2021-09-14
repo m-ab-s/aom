@@ -232,7 +232,12 @@ static INLINE int av1_get_sb_mi_size(const AV1_COMMON *const cm) {
 // weight[ref_frame][8].
 static INLINE void av1_copy_usable_ref_mv_stack_and_weight(
     const MACROBLOCKD *xd, MB_MODE_INFO_EXT *const mbmi_ext,
-    MV_REFERENCE_FRAME ref_frame) {
+#if CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+    MV_REFERENCE_FRAME_NRS ref_frame
+#else
+    MV_REFERENCE_FRAME ref_frame
+#endif  // CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+) {
   memcpy(mbmi_ext->weight[ref_frame], xd->weight[ref_frame],
          USABLE_REF_MV_STACK_SIZE * sizeof(xd->weight[0][0]));
   memcpy(mbmi_ext->ref_mv_stack[ref_frame], xd->ref_mv_stack[ref_frame],
@@ -435,6 +440,10 @@ static INLINE void av1_copy_mbmi_ext_to_mbmi_ext_frame(
   mbmi_ext_best->ref_mv_count = mbmi_ext->ref_mv_count[ref_frame_type];
   memcpy(mbmi_ext_best->global_mvs, mbmi_ext->global_mvs,
          sizeof(mbmi_ext->global_mvs));
+#if CONFIG_NEW_REF_SIGNALING
+  memcpy(mbmi_ext_best->global_mvs_nrs, mbmi_ext->global_mvs_nrs,
+         sizeof(mbmi_ext->global_mvs_nrs));
+#endif  // CONFIG_NEW_REF_SIGNALING
 }
 
 #ifdef __cplusplus

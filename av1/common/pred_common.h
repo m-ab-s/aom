@@ -172,7 +172,7 @@ static INLINE int get_total_compound_modes_nrs(NewRefFramesData *ref_data) {
 // is returned, the ranks are not output.
 static INLINE int get_dir_rank(const AV1_COMMON *const cm, int refrank,
                                int *dir_refrank) {
-  assert(refrank != INTRA_FRAME_NRS && refrank != INVALID_IDX);
+  if (refrank == INTRA_FRAME_NRS || refrank == INVALID_IDX) return -1;
   assert(refrank < cm->new_ref_frame_data.n_total_refs);
   if (dir_refrank) {
     dir_refrank[0] = -1;

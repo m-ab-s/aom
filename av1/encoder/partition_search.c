@@ -950,8 +950,12 @@ static void update_drl_index_stats(int max_drl_bits, const int16_t mode_ctx,
   (void)counts;
 #endif  // !CONFIG_ENTROPY_STATS
   assert(have_drl_index(mbmi->mode));
-  uint8_t ref_frame_type = av1_ref_frame_type(mbmi->ref_frame);
   assert(mbmi->ref_mv_idx < max_drl_bits + 1);
+#if CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+  uint8_t ref_frame_type = av1_ref_frame_type_nrs(mbmi->ref_frame_nrs);
+#else
+  uint8_t ref_frame_type = av1_ref_frame_type(mbmi->ref_frame);
+#endif  // CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
   const int range = av1_drl_range(mbmi_ext->ref_mv_count[ref_frame_type],
                                   (mode_ctx >> 8), max_drl_bits);
   for (int idx = 0; idx < range; ++idx) {
@@ -1390,8 +1394,13 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
   if (inter_block &&
       !segfeature_active(&cm->seg, mbmi->segment_id, SEG_LVL_SKIP)) {
     const PREDICTION_MODE mode = mbmi->mode;
-    const int16_t mode_ctx =
-        av1_mode_context_analyzer(mbmi_ext->mode_context, mbmi->ref_frame);
+    const int16_t mode_ctx = av1_mode_context_analyzer(mbmi_ext->mode_context,
+#if CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+                                                       mbmi->ref_frame_nrs
+#else
+                                                       mbmi->ref_frame
+#endif  // CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+    );
     if (has_second_ref(mbmi)) {
 #if CONFIG_ENTROPY_STATS
       ++counts->inter_compound_mode[mode_ctx][INTER_COMPOUND_OFFSET(mode)];
@@ -1410,13 +1419,24 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
 #if CONFIG_NEW_INTER_MODES
     if (have_drl_index(mbmi->mode)) {
       const int16_t mode_ctx_pristine =
-          av1_mode_context_pristine(mbmi_ext->mode_context, mbmi->ref_frame);
+          av1_mode_context_pristine(mbmi_ext->mode_context,
+#if CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+                                    mbmi->ref_frame_nrs
+#else
+                                    mbmi->ref_frame
+#endif  // CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+          );
       update_drl_index_stats(cm->features.max_drl_bits, mode_ctx_pristine, fc,
                              counts, mbmi, mbmi_ext);
     }
 #else
     if (new_mv) {
+#if CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+      const uint8_t ref_frame_type =
+          av1_ref_frame_type_nrs(mbmi->ref_frame_nrs);
+#else
       const uint8_t ref_frame_type = av1_ref_frame_type(mbmi->ref_frame);
+#endif  // CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
       for (int idx = 0; idx < 2; ++idx) {
         if (mbmi_ext->ref_mv_count[ref_frame_type] > idx + 1) {
           const uint8_t drl_ctx =
@@ -1430,7 +1450,12 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
       }
     }
     if (have_nearmv_in_inter_mode(mbmi->mode)) {
+#if CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+      const uint8_t ref_frame_type =
+          av1_ref_frame_type_nrs(mbmi->ref_frame_nrs);
+#else
       const uint8_t ref_frame_type = av1_ref_frame_type(mbmi->ref_frame);
+#endif  // CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
       for (int idx = 1; idx < 3; ++idx) {
         if (mbmi_ext->ref_mv_count[ref_frame_type] > idx + 1) {
           const uint8_t drl_ctx =
@@ -1684,8 +1709,14 @@ static void encode_b(const AV1_COMP *const cpi, TileDataEnc *tile_data,
   // level (x->mbmi_ext) to frame level (cpi->mbmi_ext_info.frame_base). This
   // frame level buffer (cpi->mbmi_ext_info.frame_base) will be used during
   // bitstream preparation.
-  av1_copy_mbmi_ext_to_mbmi_ext_frame(x->mbmi_ext_frame, x->mbmi_ext,
-                                      av1_ref_frame_type(xd->mi[0]->ref_frame));
+  av1_copy_mbmi_ext_to_mbmi_ext_frame(
+      x->mbmi_ext_frame, x->mbmi_ext,
+#if CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+      av1_ref_frame_type_nrs(xd->mi[0]->ref_frame_nrs)
+#else
+      av1_ref_frame_type(xd->mi[0]->ref_frame)
+#endif  // CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+  );
   x->rdmult = origin_mult;
 }
 
@@ -2460,8 +2491,14 @@ static void encode_b_nonrd(const AV1_COMP *const cpi, TileDataEnc *tile_data,
   // level (x->mbmi_ext) to frame level (cpi->mbmi_ext_info.frame_base). This
   // frame level buffer (cpi->mbmi_ext_info.frame_base) will be used during
   // bitstream preparation.
-  av1_copy_mbmi_ext_to_mbmi_ext_frame(x->mbmi_ext_frame, x->mbmi_ext,
-                                      av1_ref_frame_type(xd->mi[0]->ref_frame));
+  av1_copy_mbmi_ext_to_mbmi_ext_frame(
+      x->mbmi_ext_frame, x->mbmi_ext,
+#if CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+      av1_ref_frame_type_nrs(xd->mi[0]->ref_frame_nrs)
+#else
+      av1_ref_frame_type(xd->mi[0]->ref_frame)
+#endif  // CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+  );
   x->rdmult = origin_mult;
 }
 /*!\brief Top level function to pick block mode for non-RD optimized case

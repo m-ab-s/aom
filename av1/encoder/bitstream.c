@@ -1336,8 +1336,18 @@ static AOM_INLINE void write_intra_prediction_modes(AV1_COMP *cpi,
 }
 
 static INLINE int16_t mode_context_analyzer(
-    const int16_t mode_context, const MV_REFERENCE_FRAME *const rf) {
+    const int16_t mode_context,
+#if CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+    const MV_REFERENCE_FRAME_NRS *const rf
+#else
+    const MV_REFERENCE_FRAME *const rf
+#endif  // CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+) {
+#if CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+  if (rf[1] == INTRA_FRAME_NRS || rf[1] == INVALID_IDX) return mode_context;
+#else
   if (rf[1] <= INTRA_FRAME) return mode_context;
+#endif  // CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
 
   const int16_t newmv_ctx = mode_context & NEWMV_CTX_MASK;
   const int16_t refmv_ctx = (mode_context >> REFMV_OFFSET) & REFMV_CTX_MASK;
@@ -1348,21 +1358,41 @@ static INLINE int16_t mode_context_analyzer(
 }
 
 static INLINE int_mv get_ref_mv_from_stack(
-    int ref_idx, const MV_REFERENCE_FRAME *ref_frame, int ref_mv_idx,
-    const MB_MODE_INFO_EXT_FRAME *mbmi_ext_frame) {
+    int ref_idx,
+#if CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+    const MV_REFERENCE_FRAME_NRS *ref_frame,
+#else
+    const MV_REFERENCE_FRAME *ref_frame,
+#endif  // CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+    int ref_mv_idx, const MB_MODE_INFO_EXT_FRAME *mbmi_ext_frame) {
+#if CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+  const int8_t ref_frame_type = av1_ref_frame_type_nrs(ref_frame);
+#else
   const int8_t ref_frame_type = av1_ref_frame_type(ref_frame);
+#endif  // CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
   const CANDIDATE_MV *curr_ref_mv_stack = mbmi_ext_frame->ref_mv_stack;
 
-  if (ref_frame[1] > INTRA_FRAME) {
+#if CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+  if (ref_frame[1] != INVALID_IDX && ref_frame[1] != INTRA_FRAME_NRS)
+#else
+  if (ref_frame[1] > INTRA_FRAME)
+#endif  // CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+  {
     assert(ref_idx == 0 || ref_idx == 1);
     return ref_idx ? curr_ref_mv_stack[ref_mv_idx].comp_mv
                    : curr_ref_mv_stack[ref_mv_idx].this_mv;
   }
 
   assert(ref_idx == 0);
+#if CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+  return ref_mv_idx < mbmi_ext_frame->ref_mv_count
+             ? curr_ref_mv_stack[ref_mv_idx].this_mv
+             : mbmi_ext_frame->global_mvs_nrs[ref_frame_type];
+#else
   return ref_mv_idx < mbmi_ext_frame->ref_mv_count
              ? curr_ref_mv_stack[ref_mv_idx].this_mv
              : mbmi_ext_frame->global_mvs[ref_frame_type];
+#endif  // CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
 }
 
 static INLINE int_mv get_ref_mv(const MACROBLOCK *x, int ref_idx) {
@@ -1379,8 +1409,13 @@ static INLINE int_mv get_ref_mv(const MACROBLOCK *x, int ref_idx) {
     ref_mv_idx += 1;
 #endif  // !CONFIG_NEW_INTER_MODES
   }
-  return get_ref_mv_from_stack(ref_idx, mbmi->ref_frame, ref_mv_idx,
-                               x->mbmi_ext_frame);
+  return get_ref_mv_from_stack(ref_idx,
+#if CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+                               mbmi->ref_frame_nrs,
+#else
+                               mbmi->ref_frame,
+#endif  // CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+                               ref_mv_idx, x->mbmi_ext_frame);
 }
 
 static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
@@ -1431,7 +1466,12 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
     write_ref_frames(cm, xd, w);
 
     mode_ctx =
+#if CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+        mode_context_analyzer(mbmi_ext_frame->mode_context,
+                              mbmi->ref_frame_nrs);
+#else
         mode_context_analyzer(mbmi_ext_frame->mode_context, mbmi->ref_frame);
+#endif  // CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
 
     // If segment skip is not enabled code the mode.
     if (!segfeature_active(seg, segment_id, SEG_LVL_SKIP)) {
@@ -1698,7 +1738,12 @@ static AOM_INLINE void enc_dump_logs(
       const int16_t mode_ctx =
           is_comp_ref ? 0
                       : mode_context_analyzer(mbmi_ext_frame->mode_context,
-                                              mbmi->ref_frame);
+#if CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+                                              mbmi->ref_frame_nrs
+#else
+                                              mbmi->ref_frame
+#endif  // CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+                        );
 
       const int16_t newmv_ctx = mode_ctx & NEWMV_CTX_MASK;
       int16_t zeromv_ctx = -1;

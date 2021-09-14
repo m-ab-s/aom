@@ -756,6 +756,8 @@ enum {
 #if CONFIG_NEW_REF_SIGNALING
 #define INTER_REFS_PER_FRAME_NRS 7
 #define REF_FRAMES_NRS (INTER_REFS_PER_FRAME_NRS + 1)
+#define MODE_CTX_REF_FRAMES \
+  (INTER_REFS_PER_FRAME_NRS * (INTER_REFS_PER_FRAME_NRS + 1) / 2)
 #define INTRA_FRAME_NRS \
   (INTER_REFS_PER_FRAME_NRS * (INTER_REFS_PER_FRAME_NRS + 1) / 2)
 // Used for indexing into arrays that contain reference data for
@@ -796,7 +798,9 @@ enum {
 // NOTE: A limited number of unidirectional reference pairs can be signalled for
 //       compound prediction. The use of skip mode, on the other hand, makes it
 //       possible to have a reference pair not listed for explicit signaling.
+#if !CONFIG_NEW_REF_SIGNALING
 #define MODE_CTX_REF_FRAMES (REF_FRAMES + TOTAL_COMP_REFS)
+#endif  // !CONFIG_NEW_REF_SIGNALING
 
 // Note: It includes single and compound references. So, it can take values from
 // NONE_FRAME to (MODE_CTX_REF_FRAMES - 1). Hence, it is not defined as an enum.

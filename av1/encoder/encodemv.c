@@ -292,14 +292,27 @@ void av1_build_nmv_cost_table(int *mvjoint, int *mvcost[2],
 }
 
 int_mv av1_get_ref_mv_from_stack(int ref_idx,
+#if CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+                                 const MV_REFERENCE_FRAME_NRS *ref_frame,
+#else
                                  const MV_REFERENCE_FRAME *ref_frame,
+#endif  // CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
                                  int ref_mv_idx,
                                  const MB_MODE_INFO_EXT *mbmi_ext) {
+#if CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+  const int8_t ref_frame_type = av1_ref_frame_type_nrs(ref_frame);
+#else
   const int8_t ref_frame_type = av1_ref_frame_type(ref_frame);
+#endif  // CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
   const CANDIDATE_MV *curr_ref_mv_stack =
       mbmi_ext->ref_mv_stack[ref_frame_type];
 
-  if (ref_frame[1] > INTRA_FRAME) {
+#if CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+  if (ref_frame[1] != INTRA_FRAME_NRS && ref_frame[1] != INVALID_IDX)
+#else
+  if (ref_frame[1] > INTRA_FRAME)
+#endif  // CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+  {
     assert(ref_idx == 0 || ref_idx == 1);
     return ref_idx ? curr_ref_mv_stack[ref_mv_idx].comp_mv
                    : curr_ref_mv_stack[ref_mv_idx].this_mv;
@@ -308,7 +321,11 @@ int_mv av1_get_ref_mv_from_stack(int ref_idx,
   assert(ref_idx == 0);
   return ref_mv_idx < mbmi_ext->ref_mv_count[ref_frame_type]
              ? curr_ref_mv_stack[ref_mv_idx].this_mv
+#if CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+             : mbmi_ext->global_mvs_nrs[ref_frame_type];
+#else
              : mbmi_ext->global_mvs[ref_frame_type];
+#endif  // CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
 }
 
 int_mv av1_get_ref_mv(const MACROBLOCK *x, int ref_idx) {
@@ -325,8 +342,13 @@ int_mv av1_get_ref_mv(const MACROBLOCK *x, int ref_idx) {
     ref_mv_idx += 1;
 #endif  // !CONFIG_NEW_INTER_MODES
   }
-  return av1_get_ref_mv_from_stack(ref_idx, mbmi->ref_frame, ref_mv_idx,
-                                   x->mbmi_ext);
+  return av1_get_ref_mv_from_stack(ref_idx,
+#if CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+                                   mbmi->ref_frame_nrs,
+#else
+                                   mbmi->ref_frame,
+#endif  // CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+                                   ref_mv_idx, x->mbmi_ext);
 }
 
 #if CONFIG_NEW_INTER_MODES
@@ -342,11 +364,19 @@ int_mv av1_get_ref_mv(const MACROBLOCK *x, int ref_idx) {
  * @return The best MV, or INVALID_MV if none exists.
  */
 int_mv av1_find_best_ref_mv_from_stack(const MB_MODE_INFO_EXT *mbmi_ext,
+#if CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+                                       MV_REFERENCE_FRAME_NRS ref_frame,
+#else
                                        MV_REFERENCE_FRAME ref_frame,
+#endif  // CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
                                        MvSubpelPrecision precision) {
   int_mv mv;
   bool found_ref_mv = false;
+#if CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+  MV_REFERENCE_FRAME_NRS ref_frames[2] = { ref_frame, INVALID_IDX };
+#else
   MV_REFERENCE_FRAME ref_frames[2] = { ref_frame, NONE_FRAME };
+#endif  // CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
   int range = AOMMIN(mbmi_ext->ref_mv_count[ref_frame], MAX_REF_MV_STACK_SIZE);
   for (int i = 0; i < range; i++) {
     mv = av1_get_ref_mv_from_stack(0, ref_frames, i, mbmi_ext);
@@ -361,11 +391,19 @@ int_mv av1_find_best_ref_mv_from_stack(const MB_MODE_INFO_EXT *mbmi_ext,
 }
 #else
 void av1_find_best_ref_mvs_from_stack(const MB_MODE_INFO_EXT *mbmi_ext,
+#if CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+                                      MV_REFERENCE_FRAME_NRS ref_frame,
+#else
                                       MV_REFERENCE_FRAME ref_frame,
+#endif  // CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
                                       int_mv *nearest_mv, int_mv *near_mv,
                                       MvSubpelPrecision precision) {
   const int ref_idx = 0;
+#if CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+  MV_REFERENCE_FRAME_NRS ref_frames[2] = { ref_frame, INVALID_IDX };
+#else
   MV_REFERENCE_FRAME ref_frames[2] = { ref_frame, NONE_FRAME };
+#endif  // CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
   *nearest_mv = av1_get_ref_mv_from_stack(ref_idx, ref_frames, 0, mbmi_ext);
   lower_mv_precision(&nearest_mv->as_mv, precision);
   *near_mv = av1_get_ref_mv_from_stack(ref_idx, ref_frames, 1, mbmi_ext);
