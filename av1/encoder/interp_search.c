@@ -801,7 +801,11 @@ int64_t av1_interpolation_filter_search(
     if (has_second_ref(mbmi)) {
 #endif  // CONFIG_OPTFLOW_REFINEMENT
       const int ref_mv_idx = mbmi->ref_mv_idx;
+#if CONFIG_NEW_REF_SIGNALING
+      MV_REFERENCE_FRAME *refs = mbmi->ref_frame_nrs;
+#else
       MV_REFERENCE_FRAME *refs = mbmi->ref_frame;
+#endif  // CONFIG_NEW_REF_SIGNALING
       const int mode0 = compound_ref0_mode(mbmi->mode);
       const int mode1 = compound_ref1_mode(mbmi->mode);
       const int64_t mrd = AOMMIN(args->modelled_rd[mode0][ref_mv_idx][refs[0]],
