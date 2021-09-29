@@ -1407,7 +1407,11 @@ static int skip_repeated_mv(const AV1_COMMON *const cm,
       if (search_state->modelled_rd[compare_mode][0][ref_frame_nrs0] !=
           INT64_MAX) {
         const int16_t mode_ctx =
+#if USE_NEW_REF_SIGNALING
+            av1_mode_context_analyzer(mbmi_ext->mode_context, ref_frames_nrs);
+#else
             av1_mode_context_analyzer(mbmi_ext->mode_context, ref_frames);
+#endif  // USE_NEW_REF_SIGNALING
         const int compare_cost =
             cost_mv_ref(&x->mode_costs, compare_mode, mode_ctx);
         const int this_cost = cost_mv_ref(&x->mode_costs, this_mode, mode_ctx);
@@ -1423,11 +1427,7 @@ static int skip_repeated_mv(const AV1_COMMON *const cm,
       if (search_state->modelled_rd[compare_mode][0][ref_frames[0]] !=
           INT64_MAX) {
         const int16_t mode_ctx =
-#if CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
-            av1_mode_context_analyzer(mbmi_ext->mode_context, ref_frames_nrs);
-#else
             av1_mode_context_analyzer(mbmi_ext->mode_context, ref_frames);
-#endif  // CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
         const int compare_cost =
             cost_mv_ref(&x->mode_costs, compare_mode, mode_ctx);
         const int this_cost = cost_mv_ref(&x->mode_costs, this_mode, mode_ctx);
@@ -7276,7 +7276,7 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
         // Apply speed features to decide if this inter mode can be skipped
         if (skip_inter_mode(cpi, x, bsize, ref_frame_rd,
 #if CONFIG_NEW_REF_SIGNALING
-                            this_mode, ref_frames, mbmi->ref_frame_nrs,
+                            this_mode, ref_frames, ref_frames_nrs,
 #else
                         midx,
 #endif  // CONFIG_NEW_REF_SIGNALING
@@ -7345,8 +7345,9 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
             &args, ref_best_rd, tmp_buf, &x->comp_rd_buffer, &best_est_rd,
             do_tx_search, inter_modes_info, &motion_mode_cand, skip_rd,
             &inter_cost_info_from_tpl);
-        // printf("rd[%d, %d](%d): mode %d, rd %" PRId64 "\n", mi_row, mi_col,
-        //        bsize, this_mode, this_rd);
+        // printf("rd{%d}[%d, %d](%d): mode %d, rd %" PRId64 "\n",
+        //        cm->current_frame.order_hint,
+        //        mi_row, mi_col, bsize, this_mode, this_rd);
 
         if (sf->inter_sf.prune_comp_search_by_single_result > 0 &&
             is_inter_singleref_mode(this_mode)) {
