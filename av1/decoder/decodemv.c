@@ -2086,7 +2086,11 @@ static void intra_copy_frame_mvs(AV1_COMMON *const cm, int mi_row, int mi_col,
   for (int h = 0; h < y_mis; h++) {
     MV_REF *mv = frame_mvs;
     for (int w = 0; w < x_mis; w++) {
+#if CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+      mv->ref_frame = INVALID_IDX;
+#else
       mv->ref_frame = NONE_FRAME;
+#endif  // CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
       mv++;
     }
     frame_mvs += frame_mvs_stride;

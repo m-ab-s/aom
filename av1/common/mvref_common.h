@@ -21,7 +21,7 @@
 extern "C" {
 #endif
 
-#define USE_NEW_REF_SIGNALING 0
+#define USE_NEW_REF_SIGNALING 1
 
 #define MVREF_ROW_COLS 3
 
@@ -562,6 +562,86 @@ static INLINE int av1_get_column_bank_index(const AV1_COMMON *cm, int mi_col) {
 void av1_update_ref_mv_bank(const AV1_COMMON *const cm, MACROBLOCKD *const xd,
                             const MB_MODE_INFO *const mbmi);
 #endif  // CONFIG_REF_MV_BANK
+
+#if CONFIG_NEW_REF_SIGNALING
+// Temporary function to skip compound combinations that aren't
+// represented in av1_mode_defs. This will be needed until the bitstream
+// syntax is changed to support these combinations.
+static AOM_INLINE int skip_compound_search(int ref1, int ref2) {
+  assert(ref1 >= 0);
+  // Single reference case
+  if (ref2 <= INTRA_FRAME) return 0;
+  const int ind1 = ref1 - LAST_FRAME;
+  const int ind2 = ref2 - LAST_FRAME;
+
+  const int skip_comp[REF_FRAMES][REF_FRAMES] = {
+    {
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+    },
+    {
+        1,
+        1,
+        1,
+        1,
+        0,
+        0,
+        0,
+    },
+    {
+        1,
+        1,
+        1,
+        1,
+        0,
+        0,
+        0,
+    },
+    {
+        1,
+        1,
+        1,
+        1,
+        0,
+        0,
+        0,
+    },
+    {
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0,
+    },
+    {
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+    },
+    {
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+    },
+  };
+  return skip_comp[ind1][ind2];
+}
+#endif  // CONFIG_NEW_REF_SIGNALING
 
 #ifdef __cplusplus
 }  // extern "C"

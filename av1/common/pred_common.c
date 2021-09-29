@@ -76,6 +76,7 @@ void av1_init_new_ref_frame_map(AV1_COMMON *cm,
   memset(scores, 0, REF_FRAMES * sizeof(*scores));
   for (int i = 0; i < INTER_REFS_PER_FRAME_NRS; i++) {
     cm->new_ref_frame_data.ranked_to_named_refs[i] = -1;
+    cm->new_ref_frame_data.ref_frame_score_map[i] = -1;
   }
   for (int i = 0; i < REF_FRAMES; i++) {
     cm->new_ref_frame_data.named_to_ranked_refs[i] = -1;

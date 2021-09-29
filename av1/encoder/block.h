@@ -346,6 +346,10 @@ typedef struct {
   int_mv mv[2];
   //! Ref frame for each predictor.
   MV_REFERENCE_FRAME ref_frames[2];
+#if CONFIG_NEW_REF_SIGNALING
+  //! Ref frame nrs for each predictor.
+  MV_REFERENCE_FRAME_NRS ref_frames_nrs[2];
+#endif  // CONFIG_NEW_REF_SIGNALING
   //! Current prediction mode.
   PREDICTION_MODE mode;
   //! Current interpolation filter.

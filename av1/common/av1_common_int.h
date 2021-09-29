@@ -113,7 +113,6 @@ enum {
   REFRESH_FRAME_CONTEXT_BACKWARD,
 } UENUM1BYTE(REFRESH_FRAME_CONTEXT_MODE);
 
-#define MFMV_STACK_SIZE 3
 typedef struct {
   int_mv mfmv0;
   uint8_t ref_frame_offset;

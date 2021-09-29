@@ -1560,9 +1560,14 @@ static AOM_INLINE void init_gop_frames_for_tpl_nrs(
                              cpi->gf_group.max_layer_depth);
     }
 
-    for (int i = 0; i < INTER_REFS_PER_FRAME; ++i)
-      tpl_frame->ref_map_index[i] =
-          ref_picture_map[cm->new_ref_frame_data.ref_frame_score_map[i]];
+    for (int i = 0; i < INTER_REFS_PER_FRAME; ++i) {
+      if (cm->new_ref_frame_data.ref_frame_score_map[i] != -1) {
+        tpl_frame->ref_map_index[i] =
+            ref_picture_map[cm->new_ref_frame_data.ref_frame_score_map[i]];
+      } else {
+        tpl_frame->ref_map_index[i] = 0;
+      }
+    }
 
     if (refresh_mask) ref_picture_map[refresh_frame_map_index] = gf_index;
 
@@ -1641,8 +1646,12 @@ static AOM_INLINE void init_gop_frames_for_tpl_nrs(
     }
 
     for (int i = 0; i < INTER_REFS_PER_FRAME_NRS; ++i)
-      tpl_frame->ref_map_index[i] =
-          ref_picture_map[cm->new_ref_frame_data.ref_frame_score_map[i]];
+      if (cm->new_ref_frame_data.ref_frame_score_map[i] != -1) {
+        tpl_frame->ref_map_index[i] =
+            ref_picture_map[cm->new_ref_frame_data.ref_frame_score_map[i]];
+      } else {
+        tpl_frame->ref_map_index[i] = 0;
+      }
 
     /*
         for (int i = LAST_FRAME; i <= ALTREF_FRAME; ++i)

@@ -1067,6 +1067,10 @@ static INLINE void save_comp_rd_search_stat(
     memcpy(rd_stats->comp_rs2, comp_rs2, sizeof(rd_stats->comp_rs2));
     memcpy(rd_stats->mv, cur_mv, sizeof(rd_stats->mv));
     memcpy(rd_stats->ref_frames, mbmi->ref_frame, sizeof(rd_stats->ref_frames));
+#if CONFIG_NEW_REF_SIGNALING
+    memcpy(rd_stats->ref_frames_nrs, mbmi->ref_frame_nrs,
+           sizeof(rd_stats->ref_frames_nrs));
+#endif  // CONFIG_NEW_REF_SIGNALING
     rd_stats->mode = mbmi->mode;
 #if CONFIG_REMOVE_DUAL_FILTER
     rd_stats->interp_fltr = mbmi->interp_fltr;
@@ -1369,6 +1373,11 @@ int av1_compound_type_rd(const AV1_COMP *const cpi, MACROBLOCK *x,
   int32_t comp_model_rate[COMPOUND_TYPES] = { INT_MAX, INT_MAX, INT_MAX };
   int64_t comp_model_dist[COMPOUND_TYPES] = { INT64_MAX, INT64_MAX, INT64_MAX };
 #endif  // !CONFIG_REMOVE_DIST_WTD_COMP
+  // if (cm->current_frame.order_hint == 2 && xd->mi_row == 0 && xd->mi_col == 0
+  // &&
+  //    bsize == 9 && mbmi->mode == 17)
+  //  printf("Gello\n");
+
   int match_index = 0;
   const int match_found =
       find_comp_rd_in_stats(cpi, x, mbmi, comp_rate, comp_dist, comp_model_rate,

@@ -5604,6 +5604,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 #if CONFIG_NEW_REF_SIGNALING
       for (int i = 0; i < INTER_REFS_PER_FRAME_NRS; ++i) {
         const RefCntBuffer *const ref_buf = get_ref_frame_buf_nrs(cm, i);
+        if (!ref_buf) continue;
         struct scale_factors *const ref_scale_factors =
             get_ref_scale_factors_nrs(cm, i);
         av1_setup_scale_factors_for_frame(
