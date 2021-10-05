@@ -950,7 +950,7 @@ static int get_refresh_frame_flags_subgop_cfg(
 int av1_get_refresh_frame_flags(
     const AV1_COMP *const cpi, const EncodeFrameParams *const frame_params,
     FRAME_UPDATE_TYPE frame_update_type, int gf_index, int cur_disp_order,
-    RefFrameMapPair ref_frame_map_pairs[REF_FRAMES]) {
+    RefFrameMapPair ref_frame_map_pairs[REF_FRAMES_NRS]) {
   const SVC *const svc = &cpi->svc;
   // Switch frames and shown key-frames overwrite all reference slots
   if ((frame_params->frame_type == KEY_FRAME && !cpi->no_show_fwd_kf) ||
