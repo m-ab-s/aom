@@ -23,6 +23,8 @@ extern "C" {
 
 #define USE_NEW_REF_SIGNALING 1
 
+#define PURE_NEW_REF_SIGNALING 1
+
 #define MVREF_ROW_COLS 3
 
 // Set the upper limit of the motion vector component magnitude.
@@ -93,8 +95,10 @@ static INLINE int8_t av1_ref_frame_type(const MV_REFERENCE_FRAME *const rf) {
   if (rf[1] > INTRA_FRAME) {
     const int8_t uni_comp_ref_idx = get_uni_comp_ref_idx(rf);
     if (uni_comp_ref_idx >= 0) {
+#if !PURE_NEW_REF_SIGNALING
       assert((REF_FRAMES + FWD_REFS * BWD_REFS + uni_comp_ref_idx) <
              MODE_CTX_REF_FRAMES);
+#endif  // !CONFIG_NEW_REF_SIGNALING
       return REF_FRAMES + FWD_REFS * BWD_REFS + uni_comp_ref_idx;
     } else {
       return REF_FRAMES + FWD_RF_OFFSET(rf[0]) +

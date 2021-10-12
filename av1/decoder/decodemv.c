@@ -1174,15 +1174,18 @@ static AOM_INLINE void read_compound_ref_nrs(
   }
   if (n_bits < 2) ref_frame_nrs[1] = n_refs - 1;
   if (n_bits < 1) ref_frame_nrs[0] = n_refs - 2;
-  const int swap_refs = convert_ranked_ref_to_named_ref_index(
-                            new_ref_frame_data, ref_frame_nrs[0]) >
-                        convert_ranked_ref_to_named_ref_index(
-                            new_ref_frame_data, ref_frame_nrs[1]);
+#if !PURE_NEW_REF_SIGNALING
+  const int swap_refs =
+      skip_compound_search(convert_ranked_ref_to_named_ref_index(
+                               new_ref_frame_data, ref_frame_nrs[0]),
+                           convert_ranked_ref_to_named_ref_index(
+                               new_ref_frame_data, ref_frame_nrs[1]));
   if (swap_refs) {
     MV_REFERENCE_FRAME_NRS tmp = ref_frame_nrs[0];
     ref_frame_nrs[0] = ref_frame_nrs[1];
     ref_frame_nrs[1] = tmp;
   }
+#endif  // !USE_NEW_REF_SIGNALING
 }
 #endif  // CONFIG_NEW_REF_SIGNALING
 
@@ -1211,6 +1214,11 @@ static void read_ref_frames(AV1_COMMON *const cm, MACROBLOCKD *const xd,
 #if CONFIG_NEW_REF_SIGNALING
   if (segfeature_active(&cm->seg, segment_id, SEG_LVL_SKIP) ||
       segfeature_active(&cm->seg, segment_id, SEG_LVL_GLOBALMV)) {
+    ref_frame_nrs[0] = get_closest_pastcur_ref_index(cm);
+    ref_frame_nrs[1] = INVALID_IDX;
+    ref_frame[0] = convert_ranked_ref_to_named_ref_index(
+        &cm->new_ref_frame_data, ref_frame_nrs[0]);
+    ref_frame[1] = NONE_FRAME;
 #else
   if (segfeature_active(&cm->seg, segment_id, SEG_LVL_REF_FRAME)) {
     ref_frame[0] = (MV_REFERENCE_FRAME)get_segdata(&cm->seg, segment_id,
@@ -1218,9 +1226,9 @@ static void read_ref_frames(AV1_COMMON *const cm, MACROBLOCKD *const xd,
     ref_frame[1] = NONE_FRAME;
   } else if (segfeature_active(&cm->seg, segment_id, SEG_LVL_SKIP) ||
              segfeature_active(&cm->seg, segment_id, SEG_LVL_GLOBALMV)) {
-#endif  // CONFIG_NEW_REF_SIGNALING
     ref_frame[0] = LAST_FRAME;
     ref_frame[1] = NONE_FRAME;
+#endif  // CONFIG_NEW_REF_SIGNALING
   } else {
     const REFERENCE_MODE mode = read_block_reference_mode(cm, xd, r);
     if (mode == COMPOUND_REFERENCE) {

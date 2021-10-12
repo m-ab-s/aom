@@ -717,6 +717,7 @@ static AOM_INLINE void write_single_ref_nrs(
   const MB_MODE_INFO *const mbmi = xd->mi[0];
   MV_REFERENCE_FRAME_NRS ref = mbmi->ref_frame_nrs[0];
   const int n_refs = new_ref_frame_data->n_total_refs;
+  assert(ref < n_refs);
   for (int i = 0; i < n_refs - 1; i++) {
     const int bit = ref == i;
     aom_write_symbol(w, bit, av1_get_pred_cdf_single_ref_nrs(xd, i, n_refs), 2);
@@ -733,6 +734,9 @@ static AOM_INLINE void write_compound_ref_nrs(
   MV_REFERENCE_FRAME_NRS ref1 = mbmi->ref_frame_nrs[1];
   const int n_refs = new_ref_frame_data->n_total_refs;
   assert(n_refs >= 2);
+#if PURE_NEW_REF_SIGNALING
+  assert(ref0 < ref1);
+#endif  // PURE_NEW_REF_SIGNALING
   int n_bits = 0;
   for (int i = 0; i < n_refs + n_bits - 2; i++) {
     const int bit = ref0 == i || ref1 == i;
@@ -759,6 +763,7 @@ static AOM_INLINE void write_ref_frames(const AV1_COMMON *cm,
 #if CONFIG_NEW_REF_SIGNALING
   if (segfeature_active(&cm->seg, segment_id, SEG_LVL_SKIP) ||
       segfeature_active(&cm->seg, segment_id, SEG_LVL_GLOBALMV)) {
+    assert(mbmi->ref_frame_nrs[0] == get_closest_pastcur_ref_index(cm));
 #else
   if (segfeature_active(&cm->seg, segment_id, SEG_LVL_REF_FRAME)) {
     assert(!is_compound);
@@ -766,9 +771,9 @@ static AOM_INLINE void write_ref_frames(const AV1_COMMON *cm,
            get_segdata(&cm->seg, segment_id, SEG_LVL_REF_FRAME));
   } else if (segfeature_active(&cm->seg, segment_id, SEG_LVL_SKIP) ||
              segfeature_active(&cm->seg, segment_id, SEG_LVL_GLOBALMV)) {
+    assert(mbmi->ref_frame[0] == LAST_FRAME);
 #endif  // CONFIG_NEW_REF_SIGNALING
     assert(!is_compound);
-    assert(mbmi->ref_frame[0] == LAST_FRAME);
   } else {
     // does the feature use compound prediction or not
     // (if not specified at the frame/segment level)
