@@ -1111,6 +1111,7 @@ static AOM_INLINE void estimate_ref_frame_costs(
         int prev_cost = base_cost;
         for (int j = 0; j < n_refs; j++) {
           if (j <= i) {
+            if (n_refs == 2) continue;  // No bits need to be sent in this case
             // Keep track of the cost to encode the first reference
             aom_cdf_prob ctx =
                 av1_get_single_ref_pred_context_nrs(xd, j, n_refs);

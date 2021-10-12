@@ -732,14 +732,17 @@ static AOM_INLINE void write_compound_ref_nrs(
   MV_REFERENCE_FRAME_NRS ref0 = mbmi->ref_frame_nrs[0];
   MV_REFERENCE_FRAME_NRS ref1 = mbmi->ref_frame_nrs[1];
   const int n_refs = new_ref_frame_data->n_total_refs;
+  assert(n_refs >= 2);
   int n_bits = 0;
-  for (int i = 0; i < n_refs - 1; i++) {
+  for (int i = 0; i < n_refs + n_bits - 2; i++) {
     const int bit = ref0 == i || ref1 == i;
     aom_write_symbol(w, bit, av1_get_pred_cdf_compound_ref_nrs(xd, i, n_refs),
                      2);
     n_bits += bit;
-    if (n_bits == 2) return;
+    if (n_bits == 2) break;
   }
+  assert(IMPLIES(n_bits < 2, AOMMAX(ref0, ref1) == n_refs - 1));
+  assert(IMPLIES(n_bits < 1, AOMMIN(ref0, ref1) == n_refs - 2));
 }
 
 #endif  // CONFIG_NEW_REF_SIGNALING

@@ -1100,7 +1100,7 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
 #if CONFIG_NEW_REF_SIGNALING
         const int n_refs = cm->new_ref_frame_data.n_total_refs;
         int n_bits = 0;
-        for (int i = 0; i < n_refs - 1; i++) {
+        for (int i = 0; i < n_refs + n_bits - 2; i++) {
           const int bit = ref0 == i || ref1 == i;
           update_cdf(av1_get_pred_cdf_compound_ref_nrs(xd, i, n_refs), bit, 2);
 #if CONFIG_ENTROPY_STATS

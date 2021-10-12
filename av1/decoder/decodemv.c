@@ -1162,17 +1162,18 @@ static AOM_INLINE void read_compound_ref_nrs(
     const MACROBLOCKD *xd, MV_REFERENCE_FRAME_NRS ref_frame_nrs[2],
     const NewRefFramesData *const new_ref_frame_data, aom_reader *r) {
   const int n_refs = new_ref_frame_data->n_total_refs;
+  assert(n_refs >= 2);
   int n_bits = 0;
-  for (int i = 0; i < n_refs - 1; i++) {
+  for (int i = 0; i < n_refs + n_bits - 2; i++) {
     const int bit = aom_read_symbol(
         r, av1_get_pred_cdf_compound_ref_nrs(xd, i, n_refs), 2, ACCT_STR);
     if (bit) {
-      ref_frame_nrs[n_bits] = i;
-      n_bits++;
+      ref_frame_nrs[n_bits++] = i;
       if (n_bits == 2) break;
     }
   }
   if (n_bits < 2) ref_frame_nrs[1] = n_refs - 1;
+  if (n_bits < 1) ref_frame_nrs[0] = n_refs - 2;
   const int swap_refs = convert_ranked_ref_to_named_ref_index(
                             new_ref_frame_data, ref_frame_nrs[0]) >
                         convert_ranked_ref_to_named_ref_index(
@@ -1377,10 +1378,14 @@ static void read_intra_block_mode_info(AV1_COMMON *const cm,
   mbmi->ref_frame[0] = INTRA_FRAME;
   mbmi->ref_frame[1] = NONE_FRAME;
 #if CONFIG_NEW_REF_SIGNALING
+  mbmi->ref_frame_nrs[0] = INTRA_FRAME_NRS;
+  mbmi->ref_frame_nrs[1] = INVALID_IDX;
+  /*
   mbmi->ref_frame_nrs[0] = convert_named_ref_to_ranked_ref_index(
       &cm->new_ref_frame_data, mbmi->ref_frame[0]);
   mbmi->ref_frame_nrs[1] = convert_named_ref_to_ranked_ref_index(
       &cm->new_ref_frame_data, mbmi->ref_frame[1]);
+      */
   assert(convert_ranked_ref_to_named_ref_index(&cm->new_ref_frame_data,
                                                mbmi->ref_frame_nrs[0]) ==
          mbmi->ref_frame[0]);
