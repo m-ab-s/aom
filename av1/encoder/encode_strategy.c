@@ -441,7 +441,7 @@ static void get_gop_cfg_enabled_refs_nrs(AV1_COMP *const cpi,
     }
   }
 }
-#endif  // CONFIG_NEW_REF_SIGNALING
+#else
 // Map the subgop cfg reference list to actual reference buffers. Disable
 // any reference frames that are not listed in the sub gop.
 static void get_gop_cfg_enabled_refs(AV1_COMP *const cpi, int *ref_frame_flags,
@@ -539,6 +539,7 @@ static void get_gop_cfg_enabled_refs(AV1_COMP *const cpi, int *ref_frame_flags,
       *ref_frame_flags &= ~(1 << (frame - LAST_FRAME));
   }
 }
+#endif  // CONFIG_NEW_REF_SIGNALING
 
 static void update_fb_of_context_type(
     const AV1_COMP *const cpi, const EncodeFrameParams *const frame_params,
@@ -1247,7 +1248,7 @@ static int denoise_and_encode(AV1_COMP *const cpi, uint8_t *const dest,
 }
 #endif  // !CONFIG_REALTIME_ONLY
 
-#if CONFIG_NEW_REF_SIGNALING
+#if 0   // CONFIG_NEW_REF_SIGNALING
 static void verify_ref_frame_flags_nrs(const AV1_COMMON *const cm,
                                        int ref_frame_flags,
                                        int ref_frame_flags_nrs) {
@@ -1484,9 +1485,6 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
                     frame_params.frame_type == KEY_FRAME);
 
   if (!is_stat_generation_stage(cpi)) {
-    const RefCntBuffer *ref_frames[INTER_REFS_PER_FRAME];
-    const YV12_BUFFER_CONFIG *ref_frame_buf[INTER_REFS_PER_FRAME];
-
     if (!ext_flags->refresh_frame.update_pending) {
       av1_get_ref_frames(cm, cur_frame_disp, ref_frame_map_pairs);
     } else if (cpi->svc.external_ref_frame_config) {
@@ -1494,21 +1492,29 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
         cm->remapped_ref_idx[i] = cpi->svc.ref_idx[i];
     }
 
+#if CONFIG_NEW_REF_SIGNALING
+    av1_init_new_ref_frame_map(&cpi->common, ref_frame_map_pairs,
+                               cur_frame_disp);
+#else
+    const RefCntBuffer *ref_frames[INTER_REFS_PER_FRAME];
+    const YV12_BUFFER_CONFIG *ref_frame_buf[INTER_REFS_PER_FRAME];
     // Get the reference frames
     for (int i = 0; i < INTER_REFS_PER_FRAME; ++i) {
       ref_frames[i] = get_ref_frame_buf(cm, ref_frame_priority_order[i]);
       ref_frame_buf[i] = ref_frames[i] != NULL ? &ref_frames[i]->buf : NULL;
     }
-
-#if CONFIG_NEW_REF_SIGNALING
-    av1_init_new_ref_frame_map(&cpi->common, ref_frame_map_pairs,
-                               cur_frame_disp);
 #endif  // CONFIG_NEW_REF_SIGNALING
 
     frame_params.primary_ref_frame =
         choose_primary_ref_frame(cpi, &frame_params);
     frame_params.order_offset = gf_group->arf_src_offset[gf_group->index];
 
+#if CONFIG_NEW_REF_SIGNALING
+    // TODO(sarahparker) Initialize this using a nrs version of
+    // ext_flags->ref_frame_flags. See aomedia:3110.
+    frame_params.ref_frame_flags_nrs =
+        (1 << cpi->common.new_ref_frame_data.n_total_refs) - 1;
+#else
     // Work out which reference frame slots may be used.
     if (av1_check_keyframe_overlay(gf_group->index, gf_group,
                                    cpi->rc.frames_since_key)) {
@@ -1520,29 +1526,19 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
       frame_params.ref_frame_flags = get_ref_frame_flags(
           &cpi->sf, ref_frame_buf, ext_flags->ref_frame_flags);
     }
-
-#if CONFIG_NEW_REF_SIGNALING
-    // TODO(sarahparker) Initialize this using a nrs version of
-    // ext_flags->ref_frame_flags. See aomedia:3110.
-    frame_params.ref_frame_flags_nrs =
-        get_ref_frame_flags_nrs(&cpi->common, frame_params.ref_frame_flags);
-    const int ref_frame_flags_nrs =
-        (1 << cpi->common.new_ref_frame_data.n_total_refs) - 1;
-    assert(frame_params.ref_frame_flags_nrs == ref_frame_flags_nrs);
-    (void)ref_frame_flags_nrs;
 #endif  // CONFIG_NEW_REF_SIGNALING
-
     if (!is_stat_generation_stage(cpi) &&
         use_subgop_cfg(&cpi->gf_group, cpi->gf_group.index) &&
         frame_update_type != KF_UPDATE) {
-      get_gop_cfg_enabled_refs(cpi, &frame_params.ref_frame_flags,
-                               frame_params.order_offset);
 #if CONFIG_NEW_REF_SIGNALING
       get_gop_cfg_enabled_refs_nrs(cpi, &frame_params.ref_frame_flags_nrs,
                                    frame_params.order_offset);
+#else
+      get_gop_cfg_enabled_refs(cpi, &frame_params.ref_frame_flags,
+                               frame_params.order_offset);
 #endif  // CONFIG_NEW_REF_SIGNALING
     }
-#if CONFIG_NEW_REF_SIGNALING
+#if 0   // CONFIG_NEW_REF_SIGNALING
     verify_ref_frame_flags_nrs(cm, frame_params.ref_frame_flags,
                                frame_params.ref_frame_flags_nrs);
 #endif  // CONFIG_NEW_REF_SIGNALING
@@ -1554,7 +1550,11 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
     frame_params.existing_fb_idx_to_show = INVALID_IDX;
     // Find the frame buffer to show based on display order
     if (frame_params.show_existing_frame) {
+#if CONFIG_NEW_REF_SIGNALING
+      for (int frame = 0; frame < REF_FRAMES_NRS; frame++) {
+#else
       for (int frame = 0; frame < REF_FRAMES; frame++) {
+#endif  // CONFIG_NEW_REF_SIGNALING
         const RefCntBuffer *const buf = cm->ref_frame_map[frame];
         if (buf == NULL) continue;
         const int frame_order = (int)buf->display_order_hint;

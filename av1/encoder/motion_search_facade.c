@@ -58,8 +58,8 @@ void av1_single_motion_search(const AV1_COMP *const cpi, MACROBLOCK *x,
   int bestsme = INT_MAX;
   const int ref = mbmi->ref_frame[ref_idx];
 #if CONFIG_NEW_REF_SIGNALING
-  const MV_REFERENCE_FRAME_NRS ref_nrs =
-      convert_named_ref_to_ranked_ref_index(&cm->new_ref_frame_data, ref);
+  const MV_REFERENCE_FRAME_NRS ref_nrs = mbmi->ref_frame_nrs[ref_idx];
+  //    convert_named_ref_to_ranked_ref_index(&cm->new_ref_frame_data, ref);
   const YV12_BUFFER_CONFIG *scaled_ref_frame =
       av1_get_scaled_ref_frame(cpi, ref_nrs);
 #else
@@ -146,8 +146,13 @@ void av1_single_motion_search(const AV1_COMP *const cpi, MACROBLOCK *x,
 
         for (int k = 0; k < nh; k++) {
           for (int l = 0; l < nw; l++) {
+#if CONFIG_NEW_REF_SIGNALING && TPL_NEW_REF_SIGNALING
+            const int_mv mv =
+                sb_enc->tpl_mv[start + k * sb_enc->tpl_stride + l][ref];
+#else
             const int_mv mv = sb_enc->tpl_mv[start + k * sb_enc->tpl_stride + l]
                                             [ref - LAST_FRAME];
+#endif  // CONFIG_NEW_REF_SIGNALING && TPL_NEW_REF_SIGNALING
             if (mv.as_int == INVALID_MV) {
               valid = 0;
               break;
@@ -783,21 +788,16 @@ int_mv av1_simple_motion_search(AV1_COMP *const cpi, MACROBLOCK *x, int mi_row,
 
   MB_MODE_INFO *mbmi = xd->mi[0];
   mbmi->sb_type = bsize;
-  mbmi->ref_frame[0] = ref;
-  mbmi->ref_frame[1] = NONE_FRAME;
   mbmi->motion_mode = SIMPLE_TRANSLATION;
 #if CONFIG_NEW_REF_SIGNALING
-  mbmi->ref_frame_nrs[0] = convert_named_ref_to_ranked_ref_index(
-      &cm->new_ref_frame_data, mbmi->ref_frame[0]);
-  const MV_REFERENCE_FRAME_NRS ref_nrs = mbmi->ref_frame_nrs[0];
-  mbmi->ref_frame_nrs[1] = convert_named_ref_to_ranked_ref_index(
-      &cm->new_ref_frame_data, mbmi->ref_frame[1]);
-  assert(convert_ranked_ref_to_named_ref_index(&cm->new_ref_frame_data,
-                                               mbmi->ref_frame_nrs[0]) ==
-         mbmi->ref_frame[0]);
-  assert(convert_ranked_ref_to_named_ref_index(&cm->new_ref_frame_data,
-                                               mbmi->ref_frame_nrs[1]) ==
-         mbmi->ref_frame[1]);
+  mbmi->ref_frame_nrs[0] = ref;
+  mbmi->ref_frame_nrs[1] = INVALID_IDX;
+  mbmi->ref_frame[0] = convert_ranked_ref_to_named_ref_index(
+      &cm->new_ref_frame_data, mbmi->ref_frame_nrs[0]);
+  mbmi->ref_frame[1] = NONE_FRAME;
+#else
+  mbmi->ref_frame[0] = ref;
+  mbmi->ref_frame[1] = NONE_FRAME;
 #endif  // CONFIG_NEW_REF_SIGNALING
 #if CONFIG_REMOVE_DUAL_FILTER
   mbmi->interp_fltr = EIGHTTAP_REGULAR;
@@ -806,11 +806,12 @@ int_mv av1_simple_motion_search(AV1_COMP *const cpi, MACROBLOCK *x, int mi_row,
 #endif  // CONFIG_REMOVE_DUAL_FILTER
   av1_set_default_mbmi_mv_precision(mbmi, xd->sbi);
 
-  const YV12_BUFFER_CONFIG *yv12 = get_ref_frame_yv12_buf(cm, ref);
 #if CONFIG_NEW_REF_SIGNALING
+  const YV12_BUFFER_CONFIG *yv12 = get_ref_frame_yv12_buf_nrs(cm, ref);
   const YV12_BUFFER_CONFIG *scaled_ref_frame =
-      av1_get_scaled_ref_frame(cpi, ref_nrs);
+      av1_get_scaled_ref_frame(cpi, ref);
 #else
+  const YV12_BUFFER_CONFIG *yv12 = get_ref_frame_yv12_buf(cm, ref);
   const YV12_BUFFER_CONFIG *scaled_ref_frame =
       av1_get_scaled_ref_frame(cpi, ref);
 #endif  // CONFIG_NEW_REF_SIGNALING
@@ -828,11 +829,13 @@ int_mv av1_simple_motion_search(AV1_COMP *const cpi, MACROBLOCK *x, int mi_row,
   int var;
   int_mv best_mv;
 
-  av1_setup_pre_planes(xd, ref_idx, yv12, mi_row, mi_col,
-                       get_ref_scale_factors(cm, ref), num_planes, NULL);
 #if CONFIG_NEW_REF_SIGNALING
+  av1_setup_pre_planes(xd, ref_idx, yv12, mi_row, mi_col,
+                       get_ref_scale_factors_nrs(cm, ref), num_planes, NULL);
   set_ref_ptrs_nrs(cm, xd, mbmi->ref_frame_nrs[0], mbmi->ref_frame_nrs[1]);
 #else
+  av1_setup_pre_planes(xd, ref_idx, yv12, mi_row, mi_col,
+                       get_ref_scale_factors(cm, ref), num_planes, NULL);
   set_ref_ptrs(cm, xd, mbmi->ref_frame[0], mbmi->ref_frame[1]);
 #endif  // CONFIG_NEW_REF_SIGNALING
   if (scaled_ref_frame) {
@@ -873,7 +876,7 @@ int_mv av1_simple_motion_search(AV1_COMP *const cpi, MACROBLOCK *x, int mi_row,
     cpi->mv_search_params.find_fractional_mv_step(
         xd, cm, &ms_params, subpel_start_mv, &best_mv.as_mv, &not_used,
 #if CONFIG_NEW_REF_SIGNALING
-        &x->pred_sse[ref_nrs],
+        &x->pred_sse[ref],
 #else
         &x->pred_sse[ref],
 #endif  // CONFIG_NEW_REF_SIGNALING
@@ -904,8 +907,13 @@ int_mv av1_simple_motion_sse_var(AV1_COMP *cpi, MACROBLOCK *x, int mi_row,
                                  const FULLPEL_MV start_mv, int use_subpixel,
                                  unsigned int *sse, unsigned int *var) {
   MACROBLOCKD *xd = &x->e_mbd;
+#if CONFIG_NEW_REF_SIGNALING
+  const MV_REFERENCE_FRAME_NRS ref =
+      get_closest_pastcur_ref_index(&cpi->common);
+#else
   const MV_REFERENCE_FRAME ref =
       cpi->rc.is_src_frame_alt_ref ? ALTREF_FRAME : LAST_FRAME;
+#endif  // CONFIG_NEW_REF_SIGNALING
 
   int_mv best_mv = av1_simple_motion_search(cpi, x, mi_row, mi_col, bsize, ref,
                                             start_mv, 1, use_subpixel);
@@ -943,20 +951,21 @@ int_mv av1_simple_motion_search_ext(AV1_COMP *const cpi,
 
   MB_MODE_INFO *mbmi = xd->mi[0];
   mbmi->sb_type = bsize;
-  mbmi->ref_frame[0] = ref;
-  mbmi->ref_frame[1] = NONE_FRAME;
 #if CONFIG_NEW_REF_SIGNALING
-  mbmi->ref_frame_nrs[0] = convert_named_ref_to_ranked_ref_index(
-      &cm->new_ref_frame_data, mbmi->ref_frame[0]);
-  const MV_REFERENCE_FRAME_NRS ref_nrs = mbmi->ref_frame_nrs[0];
-  mbmi->ref_frame_nrs[1] = convert_named_ref_to_ranked_ref_index(
-      &cm->new_ref_frame_data, mbmi->ref_frame[1]);
+  mbmi->ref_frame_nrs[0] = ref;
+  mbmi->ref_frame_nrs[1] = INVALID_IDX;
+  mbmi->ref_frame[0] = convert_ranked_ref_to_named_ref_index(
+      &cm->new_ref_frame_data, mbmi->ref_frame_nrs[0]);
+  mbmi->ref_frame[1] = NONE_FRAME;
   assert(convert_ranked_ref_to_named_ref_index(&cm->new_ref_frame_data,
                                                mbmi->ref_frame_nrs[0]) ==
          mbmi->ref_frame[0]);
   assert(convert_ranked_ref_to_named_ref_index(&cm->new_ref_frame_data,
                                                mbmi->ref_frame_nrs[1]) ==
          mbmi->ref_frame[1]);
+#else
+  mbmi->ref_frame[0] = ref;
+  mbmi->ref_frame[1] = NONE_FRAME;
 #endif  // CONFIG_NEW_REF_SIGNALING
   mbmi->motion_mode = SIMPLE_TRANSLATION;
 #if CONFIG_REMOVE_DUAL_FILTER
@@ -967,9 +976,9 @@ int_mv av1_simple_motion_search_ext(AV1_COMP *const cpi,
   av1_set_default_mbmi_mv_precision(mbmi, xd->sbi);
 
 #if CONFIG_NEW_REF_SIGNALING
-  const YV12_BUFFER_CONFIG *yv12 = get_ref_frame_yv12_buf_nrs(cm, ref_nrs);
+  const YV12_BUFFER_CONFIG *yv12 = get_ref_frame_yv12_buf_nrs(cm, ref);
   const YV12_BUFFER_CONFIG *scaled_ref_frame =
-      av1_get_scaled_ref_frame(cpi, ref_nrs);
+      av1_get_scaled_ref_frame(cpi, ref);
 #else
   const YV12_BUFFER_CONFIG *yv12 = get_ref_frame_yv12_buf(cm, ref);
   const YV12_BUFFER_CONFIG *scaled_ref_frame =
@@ -989,11 +998,13 @@ int_mv av1_simple_motion_search_ext(AV1_COMP *const cpi,
   int var;
   int_mv best_mv;
 
-  av1_setup_pre_planes(xd, ref_idx, yv12, mi_row, mi_col,
-                       get_ref_scale_factors(cm, ref), num_planes, NULL);
 #if CONFIG_NEW_REF_SIGNALING
+  av1_setup_pre_planes(xd, ref_idx, yv12, mi_row, mi_col,
+                       get_ref_scale_factors_nrs(cm, ref), num_planes, NULL);
   set_ref_ptrs_nrs(cm, xd, mbmi->ref_frame_nrs[0], mbmi->ref_frame_nrs[1]);
 #else
+  av1_setup_pre_planes(xd, ref_idx, yv12, mi_row, mi_col,
+                       get_ref_scale_factors(cm, ref), num_planes, NULL);
   set_ref_ptrs(cm, xd, mbmi->ref_frame[0], mbmi->ref_frame[1]);
 #endif  // CONFIG_NEW_REF_SIGNALING
   if (scaled_ref_frame) {
@@ -1038,7 +1049,7 @@ int_mv av1_simple_motion_search_ext(AV1_COMP *const cpi,
     cpi->mv_search_params.find_fractional_mv_step(
         xd, cm, &ms_params, subpel_start_mv, &best_mv.as_mv, &not_used,
 #if CONFIG_NEW_REF_SIGNALING
-        &x->pred_sse[ref_nrs],
+        &x->pred_sse[ref],
 #else
         &x->pred_sse[ref],
 #endif  // CONFIG_NEW_REF_SIGNALING

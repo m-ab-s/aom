@@ -1148,6 +1148,36 @@ static AOM_INLINE void encode_tiles(AV1_COMP *cpi) {
 }
 
 // Set the relative distance of a reference frame w.r.t. current frame
+#if CONFIG_NEW_REF_SIGNALING
+static AOM_INLINE void set_rel_frame_dist(
+    const AV1_COMMON *const cm, RefFrameDistanceInfo *const ref_frame_dist_info,
+    const int ref_frame_flags) {
+  MV_REFERENCE_FRAME_NRS ref_frame;
+  int min_past_dist = INT32_MAX, min_future_dist = INT32_MAX;
+  ref_frame_dist_info->nearest_past_ref = NONE_FRAME;
+  ref_frame_dist_info->nearest_future_ref = NONE_FRAME;
+  for (ref_frame = 0; ref_frame < cm->new_ref_frame_data.n_total_refs;
+       ++ref_frame) {
+    ref_frame_dist_info->ref_relative_dist[ref_frame] = 0;
+    if (ref_frame_flags & (1 << ref_frame)) {
+      int dist = av1_encoder_get_relative_dist(
+          cm->cur_frame->ref_display_order_hint_nrs[ref_frame],
+          cm->current_frame.display_order_hint);
+      ref_frame_dist_info->ref_relative_dist[ref_frame] = dist;
+      // Get the nearest ref_frame in the past
+      if (abs(dist) < min_past_dist && dist < 0) {
+        ref_frame_dist_info->nearest_past_ref = ref_frame;
+        min_past_dist = abs(dist);
+      }
+      // Get the nearest ref_frame in the future
+      if (dist < min_future_dist && dist > 0) {
+        ref_frame_dist_info->nearest_future_ref = ref_frame;
+        min_future_dist = dist;
+      }
+    }
+  }
+}
+#else
 static AOM_INLINE void set_rel_frame_dist(
     const AV1_COMMON *const cm, RefFrameDistanceInfo *const ref_frame_dist_info,
     const int ref_frame_flags) {
@@ -1175,6 +1205,7 @@ static AOM_INLINE void set_rel_frame_dist(
     }
   }
 }
+#endif  // CONFIG_NEW_REF_SIGNALING
 
 #if CONFIG_NEW_REF_SIGNALING
 static INLINE int refs_are_one_sided_nrs(const AV1_COMMON *cm) {
@@ -1283,6 +1314,7 @@ static AOM_INLINE void set_default_interp_skip_flags(
                         : INTERP_SKIP_LUMA_SKIP_CHROMA;
 }
 
+#if !CONFIG_NEW_REF_SIGNALING
 static AOM_INLINE void setup_prune_ref_frame_mask(AV1_COMP *cpi) {
   if ((!cpi->oxcf.ref_frm_cfg.enable_onesided_comp ||
        cpi->sf.inter_sf.disable_onesided_comp) &&
@@ -1340,6 +1372,7 @@ static AOM_INLINE void setup_prune_ref_frame_mask(AV1_COMP *cpi) {
     }
   }
 }
+#endif  // !CONFIG_NEW_REF_SIGNALING
 
 /*!\brief Encoder setup(only for the current frame), encoding, and recontruction
  * for a single frame
@@ -1552,7 +1585,9 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
 
   cpi->prune_ref_frame_mask = 0;
   // Figure out which ref frames can be skipped at frame level.
+#if !CONFIG_NEW_REF_SIGNALING
   setup_prune_ref_frame_mask(cpi);
+#endif  // !CONFIG_NEW_REF_SIGNALING
 
   x->txfm_search_info.txb_split_count = 0;
 #if CONFIG_SPEED_STATS
@@ -1736,11 +1771,13 @@ void av1_encode_frame(AV1_COMP *cpi) {
   av1_setup_frame_buf_refs(cm);
 #if CONFIG_NEW_REF_SIGNALING
   enforce_max_ref_frames_nrs(cpi, &cpi->common.ref_frame_flags_nrs);
+  set_rel_frame_dist(&cpi->common, &cpi->ref_frame_dist_info,
+                     cpi->common.ref_frame_flags_nrs);
 #else
   enforce_max_ref_frames(cpi, &cpi->common.ref_frame_flags);
-#endif  // CONFIG_NEW_REF_SIGNALING
   set_rel_frame_dist(&cpi->common, &cpi->ref_frame_dist_info,
                      cpi->common.ref_frame_flags);
+#endif  // CONFIG_NEW_REF_SIGNALING
   av1_setup_frame_sign_bias(cm);
 
 #if CONFIG_MISMATCH_DEBUG

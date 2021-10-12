@@ -891,7 +891,11 @@ void av1_get_tpl_stats_sb(AV1_COMP *cpi, BLOCK_SIZE bsize, int mi_row,
       if (row >= cm->mi_params.mi_rows || col >= mi_cols_sr) {
         sb_enc->tpl_inter_cost[count] = INT64_MAX;
         sb_enc->tpl_intra_cost[count] = INT64_MAX;
+#if CONFIG_NEW_REF_SIGNALING
+        for (int i = 0; i < INTER_REFS_PER_FRAME_NRS; ++i) {
+#else
         for (int i = 0; i < INTER_REFS_PER_FRAME; ++i) {
+#endif  // CONFIG_NEW_REF_SIGNALIMG
           sb_enc->tpl_mv[count][i].as_int = INVALID_MV;
         }
         count++;

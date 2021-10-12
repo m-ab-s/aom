@@ -242,8 +242,14 @@ void av1_tpl_rdmult_setup(struct AV1_COMP *cpi);
 void av1_tpl_rdmult_setup_sb(struct AV1_COMP *cpi, MACROBLOCK *const x,
                              BLOCK_SIZE sb_size, int mi_row, int mi_col);
 
+#if CONFIG_NEW_REF_SIGNALING && TPL_NEW_REF_SIGNALING
+void av1_mc_flow_dispenser_row_nrs(struct AV1_COMP *cpi, MACROBLOCK *x,
+                                   int mi_row, BLOCK_SIZE bsize,
+                                   TX_SIZE tx_size);
+#else
 void av1_mc_flow_dispenser_row(struct AV1_COMP *cpi, MACROBLOCK *x, int mi_row,
                                BLOCK_SIZE bsize, TX_SIZE tx_size);
+#endif  // CONFIG_NEW_REF_SIGNALING && TPL_NEW_REF_SIGNALING
 /*!\endcond */
 #ifdef __cplusplus
 }  // extern "C"

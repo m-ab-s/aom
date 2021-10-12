@@ -139,6 +139,39 @@ static INLINE int get_furthest_future_ref_index(const AV1_COMMON *const cm) {
   return index;
 }
 
+static INLINE int get_closest_ref_index(const AV1_COMMON *const cm) {
+  int index = INVALID_IDX;
+  int best_dist = INT_MAX;
+  for (int ref = 0; ref < cm->new_ref_frame_data.n_total_refs; ref++) {
+    const int dist = abs(cm->new_ref_frame_data.ref_frame_distance[ref]);
+    if (dist < best_dist) {
+      index = ref;
+      best_dist = dist;
+    }
+  }
+  return index;
+}
+
+static INLINE int get_closest_past_ref_index(const AV1_COMMON *const cm) {
+  int index = INVALID_IDX;
+  int best_dist = INT_MAX;
+  for (int i = 0; i < cm->new_ref_frame_data.n_past_refs; i++) {
+    const int ref = cm->new_ref_frame_data.past_refs[i];
+    const int dist = cm->new_ref_frame_data.ref_frame_distance[ref];
+    if (dist < best_dist) {
+      index = ref;
+      best_dist = dist;
+    }
+  }
+  return index;
+}
+
+static INLINE int get_closest_pastcur_ref_index(const AV1_COMMON *const cm) {
+  if (cm->new_ref_frame_data.cur_ref != -1)
+    return cm->new_ref_frame_data.cur_ref;
+  return get_closest_past_ref_index(cm);
+}
+
 static INLINE int get_n_bidir_compound_modes_nrs(NewRefFramesData *ref_data) {
   return ref_data->n_past_refs * ref_data->n_future_refs;
 }

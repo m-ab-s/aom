@@ -1214,7 +1214,11 @@ static int tpl_worker_hook(void *arg1, void *unused) {
     xd->mb_to_top_edge = -GET_MV_SUBPEL(mi_row * MI_SIZE);
     xd->mb_to_bottom_edge =
         GET_MV_SUBPEL((mi_params->mi_rows - mi_height - mi_row) * MI_SIZE);
+#if CONFIG_NEW_REF_SIGNALING && TPL_NEW_REF_SIGNALING
+    av1_mc_flow_dispenser_row_nrs(cpi, x, mi_row, bsize, tx_size);
+#else
     av1_mc_flow_dispenser_row(cpi, x, mi_row, bsize, tx_size);
+#endif  // CONFIG_NEW_REF_SIGNALING && TPL_NEW_REF_SIGNALING
   }
   return 1;
 }
