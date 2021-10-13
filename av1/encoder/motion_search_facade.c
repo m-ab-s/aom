@@ -145,13 +145,13 @@ void av1_single_motion_search(const AV1_COMP *const cpi, MACROBLOCK *x,
 
         for (int k = 0; k < nh; k++) {
           for (int l = 0; l < nw; l++) {
-#if CONFIG_NEW_REF_SIGNALING && TPL_NEW_REF_SIGNALING
+#if CONFIG_NEW_REF_SIGNALING
             const int_mv mv =
                 sb_enc->tpl_mv[start + k * sb_enc->tpl_stride + l][ref];
 #else
             const int_mv mv = sb_enc->tpl_mv[start + k * sb_enc->tpl_stride + l]
                                             [ref - LAST_FRAME];
-#endif  // CONFIG_NEW_REF_SIGNALING && TPL_NEW_REF_SIGNALING
+#endif  // CONFIG_NEW_REF_SIGNALING
             if (mv.as_int == INVALID_MV) {
               valid = 0;
               break;

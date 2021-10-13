@@ -90,11 +90,11 @@ int av1_get_hier_tpl_rdmult(const AV1_COMP *const cpi, MACROBLOCK *const x,
   assert(IMPLIES(cpi->gf_group.size > 0,
                  cpi->gf_group.index < cpi->gf_group.size));
   const int tpl_idx = cpi->gf_group.index;
-#if CONFIG_NEW_REF_SIGNALING && TPL_NEW_REF_SIGNALING
+#if CONFIG_NEW_REF_SIGNALING
   const TplDepFrame *tpl_frame = &cpi->tpl_data_nrs.tpl_frame[tpl_idx];
 #else
   const TplDepFrame *tpl_frame = &cpi->tpl_data.tpl_frame[tpl_idx];
-#endif  // CONFIG_NEW_REF_SINGALING && TPL_NEW_REF_SIGNALING
+#endif  // CONFIG_NEW_REF_SINGALING
   const int deltaq_rdmult = set_deltaq_rdmult(cpi, x);
   if (tpl_frame->is_valid == 0) return deltaq_rdmult;
   if (!is_frame_tpl_eligible(gf_group, gf_group->index)) return deltaq_rdmult;
@@ -737,11 +737,11 @@ int av1_get_rdmult_delta(AV1_COMP *cpi, BLOCK_SIZE bsize, int mi_row,
   assert(IMPLIES(cpi->gf_group.size > 0,
                  cpi->gf_group.index < cpi->gf_group.size));
   const int tpl_idx = cpi->gf_group.index;
-#if CONFIG_NEW_REF_SIGNALING && TPL_NEW_REF_SIGNALING
+#if CONFIG_NEW_REF_SIGNALING
   TplParams *const tpl_data = &cpi->tpl_data_nrs;
 #else
   TplParams *const tpl_data = &cpi->tpl_data;
-#endif  // CONFIG_NEW_REF_SIGNALING && TPL_NEW_REF_SIGNALING
+#endif  // CONFIG_NEW_REF_SIGNALING
   TplDepFrame *tpl_frame = &tpl_data->tpl_frame[tpl_idx];
   TplDepStats *tpl_stats = tpl_frame->tpl_stats_ptr;
   const uint8_t block_mis_log2 = tpl_data->tpl_stats_block_mis_log2;
@@ -848,11 +848,11 @@ void av1_get_tpl_stats_sb(AV1_COMP *cpi, BLOCK_SIZE bsize, int mi_row,
 
   AV1_COMMON *const cm = &cpi->common;
   const int gf_group_index = cpi->gf_group.index;
-#if CONFIG_NEW_REF_SIGNALING && TPL_NEW_REF_SIGNALING
+#if CONFIG_NEW_REF_SIGNALING
   TplParams *const tpl_data = &cpi->tpl_data_nrs;
 #else
   TplParams *const tpl_data = &cpi->tpl_data;
-#endif  // CONFIG_NEW_REF_SIGNALING && TPL_NEW_REF_SIGNALING
+#endif  // CONFIG_NEW_REF_SIGNALING
   TplDepFrame *tpl_frame = &tpl_data->tpl_frame[gf_group_index];
   TplDepStats *tpl_stats = tpl_frame->tpl_stats_ptr;
   int tpl_stride = tpl_frame->stride;
@@ -927,11 +927,11 @@ int av1_get_q_for_deltaq_objective(AV1_COMP *const cpi, BLOCK_SIZE bsize,
   assert(IMPLIES(cpi->gf_group.size > 0,
                  cpi->gf_group.index < cpi->gf_group.size));
   const int tpl_idx = cpi->gf_group.index;
-#if CONFIG_NEW_REF_SIGNALING && TPL_NEW_REF_SIGNALING
+#if CONFIG_NEW_REF_SIGNALING
   TplParams *const tpl_data = &cpi->tpl_data_nrs;
 #else
   TplParams *const tpl_data = &cpi->tpl_data;
-#endif  // CONFIG_NEW_REF_SIGNALING && TPL_NEW_REF_SIGNALING
+#endif  // CONFIG_NEW_REF_SIGNALING
   TplDepFrame *tpl_frame = &tpl_data->tpl_frame[tpl_idx];
   TplDepStats *tpl_stats = tpl_frame->tpl_stats_ptr;
   const uint8_t block_mis_log2 = tpl_data->tpl_stats_block_mis_log2;

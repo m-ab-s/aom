@@ -216,7 +216,7 @@ static int is_alike_mv(int_mv candidate_mv, center_mv_t *center_mvs,
   return 0;
 }
 
-#if CONFIG_NEW_REF_SIGNALING && TPL_NEW_REF_SIGNALING
+#if CONFIG_NEW_REF_SIGNALING
 static AOM_INLINE void mode_estimation_nrs(AV1_COMP *cpi, MACROBLOCK *x,
                                            int mi_row, int mi_col,
                                            BLOCK_SIZE bsize, TX_SIZE tx_size,
@@ -1067,7 +1067,7 @@ static AOM_INLINE void tpl_model_store(TplDepStats *tpl_stats_ptr, int mi_row,
   }
 }
 
-#if CONFIG_NEW_REF_SIGNALING && TPL_NEW_REF_SIGNALING
+#if CONFIG_NEW_REF_SIGNALING
 // Reset the ref and source frame pointers of tpl_data.
 static AOM_INLINE void tpl_reset_src_ref_frames_nrs(TplParams *tpl_data) {
   for (int i = 0; i < INTER_REFS_PER_FRAME_NRS; ++i) {
@@ -1083,14 +1083,14 @@ static AOM_INLINE void tpl_reset_src_ref_frames(TplParams *tpl_data) {
     tpl_data->src_ref_frame[i] = NULL;
   }
 }
-#endif  // CONFIG_NEW_REF_SIGNALING && TPL_NEW_REF_SIGNALING
+#endif  // CONFIG_NEW_REF_SIGNALING
 
 static AOM_INLINE int get_gop_length(const GF_GROUP *gf_group) {
   int gop_length = AOMMIN(gf_group->size, MAX_TPL_FRAME_IDX - 1);
   return gop_length;
 }
 
-#if CONFIG_NEW_REF_SIGNALING && TPL_NEW_REF_SIGNALING
+#if CONFIG_NEW_REF_SIGNALING
 // Initialize the mc_flow parameters used in computing tpl data.
 static AOM_INLINE void init_mc_flow_dispenser_nrs(AV1_COMP *cpi, int frame_idx,
                                                   int pframe_qindex) {
@@ -1294,9 +1294,9 @@ static AOM_INLINE void init_mc_flow_dispenser(AV1_COMP *cpi, int frame_idx,
   tpl_frame->base_rdmult =
       av1_compute_rd_mult_based_on_qindex(cpi, pframe_qindex) / 6;
 }
-#endif  // CONFIG_NEW_REF_SIGNALING && TPL_NEW_REF_SIGNALING
+#endif  // CONFIG_NEW_REF_SIGNALING
 
-#if CONFIG_NEW_REF_SIGNALING && TPL_NEW_REF_SIGNALING
+#if CONFIG_NEW_REF_SIGNALING
 // This function stores the motion estimation dependencies of all the blocks in
 // a row
 void av1_mc_flow_dispenser_row_nrs(AV1_COMP *cpi, MACROBLOCK *x, int mi_row,
@@ -1376,7 +1376,7 @@ void av1_mc_flow_dispenser_row(AV1_COMP *cpi, MACROBLOCK *x, int mi_row,
                                   tplb_col_in_tile, tplb_cols_in_tile);
   }
 }
-#endif  // CONFIG_NEW_REF_SIGNALING && TPL_NEW_REF_SIGNALING
+#endif  // CONFIG_NEW_REF_SIGNALING
 
 static AOM_INLINE void mc_flow_dispenser(AV1_COMP *cpi) {
   AV1_COMMON *cm = &cpi->common;
@@ -1397,11 +1397,11 @@ static AOM_INLINE void mc_flow_dispenser(AV1_COMP *cpi) {
     xd->mb_to_top_edge = -GET_MV_SUBPEL(mi_row * MI_SIZE);
     xd->mb_to_bottom_edge =
         GET_MV_SUBPEL((mi_params->mi_rows - mi_height - mi_row) * MI_SIZE);
-#if CONFIG_NEW_REF_SIGNALING && TPL_NEW_REF_SIGNALING
+#if CONFIG_NEW_REF_SIGNALING
     av1_mc_flow_dispenser_row_nrs(cpi, x, mi_row, bsize, tx_size);
 #else
     av1_mc_flow_dispenser_row(cpi, x, mi_row, bsize, tx_size);
-#endif  // CONFIG_NEW_REF_SIGNALING && TPL_NEW_REF_SIGNALING
+#endif  // CONFIG_NEW_REF_SIGNALING
   }
 }
 
@@ -1986,11 +1986,11 @@ void av1_tpl_setup_stats(AV1_COMP *cpi, int gop_eval,
       continue;
 
       // flow dispenser
-#if CONFIG_NEW_REF_SIGNALING && TPL_NEW_REF_SIGNALING
+#if CONFIG_NEW_REF_SIGNALING
     init_mc_flow_dispenser_nrs(cpi, frame_idx, pframe_qindex);
 #else
     init_mc_flow_dispenser(cpi, frame_idx, pframe_qindex);
-#endif  // CONFIG_NEW_REF_SIGNALING && TPL_NEW_REF_SIGNALING
+#endif  // CONFIG_NEW_REF_SIGNALING
     if (mt_info->num_workers > 1) {
       tpl_row_mt->sync_read_ptr = av1_tpl_row_mt_sync_read;
       tpl_row_mt->sync_write_ptr = av1_tpl_row_mt_sync_write;
@@ -2035,11 +2035,11 @@ void av1_tpl_rdmult_setup(AV1_COMP *cpi) {
 
   assert(IMPLIES(gf_group->size > 0, tpl_idx < gf_group->size));
 
-#if CONFIG_NEW_REF_SIGNALING && TPL_NEW_REF_SIGNALING
+#if CONFIG_NEW_REF_SIGNALING
   TplParams *const tpl_data = &cpi->tpl_data_nrs;
 #else
   TplParams *const tpl_data = &cpi->tpl_data;
-#endif  // CONFIG_NEW_REF_SIGNALING && TPL_NEW_REF_SIGNALING
+#endif  // CONFIG_NEW_REF_SIGNALING
   const TplDepFrame *const tpl_frame = &tpl_data->tpl_frame[tpl_idx];
 
   if (!tpl_frame->is_valid) return;
@@ -2093,11 +2093,11 @@ void av1_tpl_rdmult_setup_sb(AV1_COMP *cpi, MACROBLOCK *const x,
   assert(IMPLIES(cpi->gf_group.size > 0,
                  cpi->gf_group.index < cpi->gf_group.size));
   const int tpl_idx = cpi->gf_group.index;
-#if CONFIG_NEW_REF_SIGNALING && TPL_NEW_REF_SIGNALING
+#if CONFIG_NEW_REF_SIGNALING
   TplDepFrame *tpl_frame = &cpi->tpl_data_nrs.tpl_frame[tpl_idx];
 #else
   TplDepFrame *tpl_frame = &cpi->tpl_data.tpl_frame[tpl_idx];
-#endif  // CONFIG_NEW_REF_SIGNALING && TPL_NEW_REF_SIGNALING
+#endif  // CONFIG_NEW_REF_SIGNALING
 
   if (tpl_frame->is_valid == 0) return;
   if (!is_frame_tpl_eligible(gf_group, gf_group->index)) return;

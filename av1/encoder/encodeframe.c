@@ -323,7 +323,7 @@ static AOM_INLINE void setup_delta_q(AV1_COMP *const cpi, ThreadData *td,
   }
 }
 
-#if CONFIG_NEW_REF_SIGNALING && TPL_NEW_REF_SIGNALING
+#if CONFIG_NEW_REF_SIGNALING
 static void init_ref_frame_space(AV1_COMP *cpi, ThreadData *td, int mi_row,
                                  int mi_col) {
   const AV1_COMMON *cm = &cpi->common;
