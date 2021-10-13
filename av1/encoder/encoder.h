@@ -3232,20 +3232,6 @@ static INLINE int get_max_allowed_ref_frames_nrs(
                                  : INTER_REFS_PER_FRAME_NRS;
   return AOMMIN(max_allowed_refs_for_given_speed, max_reference_frames);
 }
-
-static INLINE int get_ref_frame_flags_nrs(const AV1_COMMON *const cm,
-                                          int ref_frame_flags) {
-  // TODO(sarahparker) initialize this mask without ref_frame_flags
-  int ref_frame_flags_nrs = 0;
-  for (int frame = LAST_FRAME; frame <= ALTREF_FRAME; frame++) {
-    if ((ref_frame_flags & (1 << (frame - 1)))) {
-      int ranked_ref_index =
-          convert_named_ref_to_ranked_ref_index(&cm->new_ref_frame_data, frame);
-      if (ranked_ref_index >= 0) ref_frame_flags_nrs |= (1 << ranked_ref_index);
-    }
-  }
-  return ref_frame_flags_nrs;
-}
 #endif  // CONFIG_NEW_REF_SIGNALING
 
 static INLINE int get_max_allowed_ref_frames(

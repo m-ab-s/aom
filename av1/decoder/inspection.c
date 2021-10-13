@@ -84,16 +84,8 @@ int ifd_inspect(insp_frame_data *fd, void *decoder, int skip_not_transform) {
       mi->ref_frame[0] = mbmi->ref_frame[0];
       mi->ref_frame[1] = mbmi->ref_frame[1];
 #if CONFIG_NEW_REF_SIGNALING
-      mbmi->ref_frame_nrs[0] = convert_named_ref_to_ranked_ref_index(
-          &cm->new_ref_frame_data, mi->ref_frame[0]);
-      mbmi->ref_frame_nrs[1] = convert_named_ref_to_ranked_ref_index(
-          &cm->new_ref_frame_data, mi->ref_frame[1]);
-      assert(convert_ranked_ref_to_named_ref_index(&cm->new_ref_frame_data,
-                                                   mi->ref_frame_nrs[0]) ==
-             mi->ref_frame[0]);
-      assert(convert_ranked_ref_to_named_ref_index(&cm->new_ref_frame_data,
-                                                   mi->ref_frame_nrs[1]) ==
-             mi->ref_frame[1]);
+      mi->ref_frame_nrs[0] = mbmi->ref_frame_nrs[0];
+      mi->ref_frame_nrs[1] = mbmi->ref_frame_nrs[1];
 #endif  // CONFIG_NEW_REF_SIGNALING
 
       // Prediction Mode

@@ -221,15 +221,6 @@ static INLINE MV_REFERENCE_FRAME convert_ranked_ref_to_named_ref_type(
   convert_ranked_ref_to_named_ref_pair(ref_frame_data, rf_nrs, 0, rf);
   return av1_ref_frame_type(rf);
 }
-
-static INLINE MV_REFERENCE_FRAME_NRS convert_named_ref_to_ranked_ref_type(
-    const NewRefFramesData *const ref_frame_data, MV_REFERENCE_FRAME ref_type) {
-  MV_REFERENCE_FRAME rf[2];
-  av1_set_ref_frame(rf, ref_type);
-  MV_REFERENCE_FRAME_NRS rf_nrs[2];
-  convert_named_ref_to_ranked_ref_pair(ref_frame_data, rf, 0, rf_nrs);
-  return av1_ref_frame_type_nrs(rf_nrs);
-}
 #endif  // CONFIG_NEW_REF_SIGNALING
 
 static uint16_t compound_mode_ctx_map[3][COMP_NEWMV_CTXS] = {
@@ -373,32 +364,16 @@ static INLINE void av1_collect_neighbors_ref_counts_nrs(
 
   // Above neighbor
   if (above_in_image && is_inter_block(above_mbmi)) {
-    // TODO(sarahparker) Temporary assert, see aomedia:3060
-    assert(convert_named_ref_to_ranked_ref_index(&cm->new_ref_frame_data,
-                                                 above_mbmi->ref_frame[0]) ==
-           above_mbmi->ref_frame_nrs[0]);
     ref_counts[above_mbmi->ref_frame_nrs[0]]++;
     if (has_second_ref(above_mbmi)) {
-      // TODO(sarahparker) Temporary assert, see aomedia:3060
-      assert(convert_named_ref_to_ranked_ref_index(&cm->new_ref_frame_data,
-                                                   above_mbmi->ref_frame[1]) ==
-             above_mbmi->ref_frame_nrs[1]);
       ref_counts[above_mbmi->ref_frame_nrs[1]]++;
     }
   }
 
   // Left neighbor
   if (left_in_image && is_inter_block(left_mbmi)) {
-    // TODO(sarahparker) Temporary assert, see aomedia:3060
-    assert(convert_named_ref_to_ranked_ref_index(&cm->new_ref_frame_data,
-                                                 left_mbmi->ref_frame[0]) ==
-           left_mbmi->ref_frame_nrs[0]);
     ref_counts[left_mbmi->ref_frame_nrs[0]]++;
     if (has_second_ref(left_mbmi)) {
-      // TODO(sarahparker) Temporary assert, see aomedia:3060
-      assert(convert_named_ref_to_ranked_ref_index(&cm->new_ref_frame_data,
-                                                   left_mbmi->ref_frame[1]) ==
-             left_mbmi->ref_frame_nrs[1]);
       ref_counts[left_mbmi->ref_frame_nrs[1]]++;
     }
   }

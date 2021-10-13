@@ -261,7 +261,9 @@ void av1_update_rd_thresh_fact(const AV1_COMMON *const cm,
                                int (*fact)[MAX_MODES],
 #endif  // CONFIG_NEW_REF_SIGNALING
                                int rd_thresh, BLOCK_SIZE bsize,
+#if !CONFIG_NEW_REF_SIGNALING
                                MV_REFERENCE_FRAME *ref_frames,
+#endif  // !CONFIG_NEW_REF_SIGNALING
                                PREDICTION_MODE best_mode);
 
 static INLINE void reset_thresh_freq_fact(MACROBLOCK *const x) {

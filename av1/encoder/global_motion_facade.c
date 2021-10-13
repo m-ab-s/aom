@@ -485,9 +485,10 @@ static AOM_INLINE void compute_global_motion_for_references_nrs(
         cm->global_motion_nrs[ref_frame].wmtype != ROTZOOM)
       break;
   }
-  for (int frame = LAST_FRAME; frame < REF_FRAMES; frame++) {
-    const int ranked_frame =
-        convert_named_ref_to_ranked_ref_index(&cm->new_ref_frame_data, frame);
+  for (int ranked_frame = 0; ranked_frame < cm->new_ref_frame_data.n_total_refs;
+       ranked_frame++) {
+    const int frame = convert_ranked_ref_to_named_ref_index(
+        &cm->new_ref_frame_data, ranked_frame);
     if (!is_same_wm_params(&cm->global_motion_nrs[ranked_frame],
                            &cm->global_motion[frame])) {
       assert(
@@ -647,83 +648,8 @@ static AOM_INLINE void update_valid_ref_frames_for_gm_nrs(
   }
 }
 
-#if 0
-static AOM_INLINE void update_valid_ref_frames_for_gm_nrs_tmp(
-    AV1_COMP *cpi, YV12_BUFFER_CONFIG *ref_buf[INTER_REFS_PER_FRAME_NRS],
-    FrameDistPair reference_frames[MAX_DIRECTIONS][INTER_REFS_PER_FRAME_NRS],
-    int *num_ref_frames) {
-  AV1_COMMON *const cm = &cpi->common;
-  int *num_past_ref_frames = &num_ref_frames[0];
-  int *num_future_ref_frames = &num_ref_frames[1];
-  const GF_GROUP *gf_group = &cpi->gf_group;
-  int ref_pruning_enabled = is_frame_eligible_for_ref_pruning(
-      gf_group, cpi->sf.inter_sf.selective_ref_frame, 1, gf_group->index);
-
-  for (int frame = cm->new_ref_frame_data.n_total_refs - 1; frame >= 0;
-       --frame) {
-    const MV_REFERENCE_FRAME_NRS ref_frame[2] = { frame, INVALID_IDX };
-    // TODO(sarahparker) Get ref indices from old reference system to pass
-    // into functions that have not been converted.
-    // Remove this once supporting functions are converted
-    // to use new indexing.
-    ref_buf[frame] = NULL;
-    cm->global_motion_nrs[frame] = default_warp_params;
-    RefCntBuffer *buf = get_ref_frame_buf_nrs(cm, frame);
-    if (buf == NULL) {
-      cpi->gm_info.params_cost_nrs[frame] = 0;
-      continue;
-    }
-    MV_REFERENCE_FRAME converted_ref_frame[2];
-    converted_ref_frame[0] = convert_ranked_ref_to_named_ref_index(
-        &cm->new_ref_frame_data, ref_frame[0]);
-    converted_ref_frame[1] = INVALID_IDX;
-    // TODO(sarahparker) Temporary assert, see aomedia:3060
-    assert(convert_named_ref_to_ranked_ref_index(&cm->new_ref_frame_data,
-                                                 converted_ref_frame[0]) ==
-           ref_frame[0]);
-    const int ref_disabled = !(cpi->common.ref_frame_flags &
-                               av1_ref_frame_flag_list[converted_ref_frame[0]]);
-
-    // Skip global motion estimation for invalid ref frames
-    if ((ref_disabled && cpi->sf.hl_sf.recode_loop != DISALLOW_RECODE)) {
-      cpi->gm_info.params_cost_nrs[frame] = 0;
-      continue;
-    } else {
-      ref_buf[frame] = &buf->buf;
-    }
-
-    int prune_ref_frames =
-        ref_pruning_enabled &&
-        prune_ref_by_selective_ref_frame_nrs(cpi, NULL, ref_frame);
-
-    if (ref_buf[frame]->y_crop_width == cpi->source->y_crop_width &&
-        ref_buf[frame]->y_crop_height == cpi->source->y_crop_height &&
-        do_gm_search_logic(&cpi->sf, converted_ref_frame[0]) &&
-        !prune_ref_frames &&
-        !(cpi->sf.gm_sf.selective_ref_gm &&
-          skip_gm_frame(cm, converted_ref_frame[0]))) {
-      assert(ref_buf[frame] != NULL);
-      const int relative_frame_dist = av1_encoder_get_relative_dist(
-          buf->display_order_hint, cm->cur_frame->display_order_hint);
-      // Populate past and future ref frames.
-      // reference_frames[0][] indicates past direction and
-      // reference_frames[1][] indicates future direction.
-      if (relative_frame_dist <= 0) {
-        reference_frames[0][*num_past_ref_frames].distance =
-            abs(relative_frame_dist);
-        reference_frames[0][*num_past_ref_frames].frame = frame;
-        (*num_past_ref_frames)++;
-      } else {
-        reference_frames[1][*num_future_ref_frames].distance =
-            abs(relative_frame_dist);
-        reference_frames[1][*num_future_ref_frames].frame = frame;
-        (*num_future_ref_frames)++;
-      }
-    }
-  }
-}
-#endif
 #else
+
 // Function to decide if we can skip the global motion parameter computation
 // for a particular ref frame.
 static AOM_INLINE int skip_gm_frame(AV1_COMMON *const cm, int ref_frame) {

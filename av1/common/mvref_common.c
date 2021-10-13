@@ -1304,8 +1304,6 @@ void av1_find_mv_refs(const AV1_COMMON *cm, const MACROBLOCKD *xd,
       gm_mv[1].as_int = 0;
       if (global_mvs != NULL) global_mvs[ref_frame] = gm_mv[0];
 #if CONFIG_NEW_REF_SIGNALING
-      assert(convert_named_ref_to_ranked_ref_index(&cm->new_ref_frame_data,
-                                                   ref_frame) == ref_frame_nrs);
       gm_mv_nrs[0] =
           gm_get_motion_vector(&cm->global_motion_nrs[ref_frame_nrs],
                                fr_mv_precision, bsize, mi_col, mi_row);
@@ -1321,14 +1319,6 @@ void av1_find_mv_refs(const AV1_COMMON *cm, const MACROBLOCKD *xd,
       gm_mv[1] = gm_get_motion_vector(&cm->global_motion[rf[1]],
                                       fr_mv_precision, bsize, mi_col, mi_row);
 #if CONFIG_NEW_REF_SIGNALING
-      MV_REFERENCE_FRAME_NRS rf_nrs_[2];
-      convert_named_ref_to_ranked_ref_pair(&cm->new_ref_frame_data, rf, 0,
-                                           rf_nrs_);
-      // TODO(sarahparker) Temporary assert, see aomedia:3060
-      assert(convert_ranked_ref_to_named_ref_index(&cm->new_ref_frame_data,
-                                                   rf_nrs_[0]) == rf[0]);
-      assert(convert_ranked_ref_to_named_ref_index(&cm->new_ref_frame_data,
-                                                   rf_nrs_[1]) == rf[1]);
       MV_REFERENCE_FRAME_NRS rf_nrs[2];
       av1_set_ref_frame_nrs(rf_nrs, ref_frame_nrs);
       gm_mv_nrs[0] =
@@ -1337,15 +1327,6 @@ void av1_find_mv_refs(const AV1_COMMON *cm, const MACROBLOCKD *xd,
       gm_mv_nrs[1] =
           gm_get_motion_vector(&cm->global_motion_nrs[rf_nrs[1]],
                                fr_mv_precision, bsize, mi_col, mi_row);
-      /*
-      if (rf_nrs_[0] == rf_nrs[0]) {
-        assert(gm_mv_nrs[0].as_int == gm_mv[0].as_int);
-        assert(gm_mv_nrs[1].as_int == gm_mv[1].as_int);
-      } else {
-        assert(gm_mv_nrs[0].as_int == gm_mv[1].as_int);
-        assert(gm_mv_nrs[1].as_int == gm_mv[0].as_int);
-      }
-      */
 #endif  // CONFIG_NEW_REF_SIGNALING
     }
   }
@@ -1424,13 +1405,16 @@ void av1_setup_frame_buf_refs(AV1_COMMON *cm) {
 void av1_setup_frame_sign_bias(AV1_COMMON *cm) {
 #if CONFIG_NEW_REF_SIGNALING
   memset(&cm->ref_frame_sign_bias_nrs, 0, sizeof(cm->ref_frame_sign_bias_nrs));
+  memset(&cm->ref_frame_sign_bias, 0, sizeof(cm->ref_frame_sign_bias));
   for (int ref_frame = 0; ref_frame < cm->new_ref_frame_data.n_future_refs;
        ++ref_frame) {
     const int index = cm->new_ref_frame_data.future_refs[ref_frame];
     cm->ref_frame_sign_bias_nrs[index] = 1;
+    const int indexo =
+        convert_ranked_ref_to_named_ref_index(&cm->new_ref_frame_data, index);
+    cm->ref_frame_sign_bias[indexo] = 1;
   }
-#endif  // CONFIG_NEW_REF_SIGNALING
-
+#else
   MV_REFERENCE_FRAME ref_frame;
   for (ref_frame = LAST_FRAME; ref_frame <= ALTREF_FRAME; ++ref_frame) {
     const RefCntBuffer *const buf = get_ref_frame_buf(cm, ref_frame);
@@ -1444,16 +1428,8 @@ void av1_setup_frame_sign_bias(AV1_COMMON *cm) {
     } else {
       cm->ref_frame_sign_bias[ref_frame] = 0;
     }
-#if CONFIG_NEW_REF_SIGNALING
-    if (cm->new_ref_frame_data.n_total_refs > 0) {
-      int ranked_ref = convert_named_ref_to_ranked_ref_index(
-          &cm->new_ref_frame_data, ref_frame);
-      (void)ranked_ref;
-      assert(cm->ref_frame_sign_bias_nrs[ranked_ref] ==
-             cm->ref_frame_sign_bias[ref_frame]);
-    }
-#endif  // CONFIG_NEW_REF_SIGNALING
   }
+#endif  // CONFIG_NEW_REF_SIGNALING
 }
 
 #define MAX_OFFSET_WIDTH 64

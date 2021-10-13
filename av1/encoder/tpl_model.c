@@ -605,11 +605,7 @@ static AOM_INLINE void mode_estimation(AV1_COMP *cpi, MACROBLOCK *x, int mi_row,
   // Intra prediction search
   xd->mi[0]->ref_frame[0] = INTRA_FRAME;
 #if CONFIG_NEW_REF_SIGNALING
-  xd->mi[0]->ref_frame_nrs[0] = convert_named_ref_to_ranked_ref_index(
-      &cm->new_ref_frame_data, xd->mi[0]->ref_frame[0]);
-  assert(convert_ranked_ref_to_named_ref_index(&cm->new_ref_frame_data,
-                                               xd->mi[0]->ref_frame_nrs[0]) ==
-         xd->mi[0]->ref_frame[0]);
+  xd->mi[0]->ref_frame_nrs[0] = INTRA_FRME_NRS;
 #endif  // CONFIG_NEW_REF_SIGNALING
 
   // Pre-load the bottom left line.
@@ -653,11 +649,7 @@ static AOM_INLINE void mode_estimation(AV1_COMP *cpi, MACROBLOCK *x, int mi_row,
   // Motion compensated prediction
   xd->mi[0]->ref_frame[0] = INTRA_FRAME;
 #if CONFIG_NEW_REF_SIGNALING
-  xd->mi[0]->ref_frame_nrs[0] = convert_named_ref_to_ranked_ref_index(
-      &cm->new_ref_frame_data, xd->mi[0]->ref_frame[0]);
-  assert(convert_ranked_ref_to_named_ref_index(&cm->new_ref_frame_data,
-                                               xd->mi[0]->ref_frame_nrs[0]) ==
-         xd->mi[0]->ref_frame[0]);
+  xd->mi[0]->ref_frame_nrs[0] = INTRA_FRME_NRS;
 #endif  // CONFIG_NEW_REF_SIGNALING
 
   int best_rf_idx = -1;

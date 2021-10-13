@@ -941,16 +941,8 @@ static void read_intra_frame_mode_info(AV1_COMMON *const cm,
   mbmi->ref_frame[0] = INTRA_FRAME;
   mbmi->ref_frame[1] = NONE_FRAME;
 #if CONFIG_NEW_REF_SIGNALING
-  mbmi->ref_frame_nrs[0] = convert_named_ref_to_ranked_ref_index(
-      &cm->new_ref_frame_data, mbmi->ref_frame[0]);
-  mbmi->ref_frame_nrs[1] = convert_named_ref_to_ranked_ref_index(
-      &cm->new_ref_frame_data, mbmi->ref_frame[1]);
-  assert(convert_ranked_ref_to_named_ref_index(&cm->new_ref_frame_data,
-                                               mbmi->ref_frame_nrs[0]) ==
-         mbmi->ref_frame[0]);
-  assert(convert_ranked_ref_to_named_ref_index(&cm->new_ref_frame_data,
-                                               mbmi->ref_frame_nrs[1]) ==
-         mbmi->ref_frame[1]);
+  mbmi->ref_frame_nrs[0] = INTRA_FRAME_NRS;
+  mbmi->ref_frame_nrs[1] = INVALID_IDX;
 #endif  // CONFIG_NEW_REF_SIGNALING
   mbmi->palette_mode_info.palette_size[0] = 0;
   mbmi->palette_mode_info.palette_size[1] = 0;
@@ -1236,14 +1228,8 @@ static void read_ref_frames(AV1_COMMON *const cm, MACROBLOCKD *const xd,
       read_compound_ref_nrs(xd, ref_frame_nrs, &cm->new_ref_frame_data, r);
       ref_frame[0] = convert_ranked_ref_to_named_ref_index(
           &cm->new_ref_frame_data, ref_frame_nrs[0]);
-      assert(convert_named_ref_to_ranked_ref_index(
-                 &cm->new_ref_frame_data, ref_frame[0]) == ref_frame_nrs[0]);
-
       ref_frame[1] = convert_ranked_ref_to_named_ref_index(
           &cm->new_ref_frame_data, ref_frame_nrs[1]);
-      assert(convert_named_ref_to_ranked_ref_index(
-                 &cm->new_ref_frame_data, ref_frame[1]) == ref_frame_nrs[1]);
-
 #else
       const COMP_REFERENCE_TYPE comp_ref_type = read_comp_reference_type(xd, r);
 
@@ -1300,8 +1286,6 @@ static void read_ref_frames(AV1_COMMON *const cm, MACROBLOCKD *const xd,
       ref_frame_nrs[1] = INVALID_IDX;
       ref_frame[0] = convert_ranked_ref_to_named_ref_index(
           &cm->new_ref_frame_data, ref_frame_nrs[0]);
-      assert(convert_named_ref_to_ranked_ref_index(
-                 &cm->new_ref_frame_data, ref_frame[0]) == ref_frame_nrs[0]);
       ref_frame[1] = NONE_FRAME;
 #else
       const int bit0 = READ_REF_BIT(single_ref_p1);
@@ -1388,12 +1372,6 @@ static void read_intra_block_mode_info(AV1_COMMON *const cm,
 #if CONFIG_NEW_REF_SIGNALING
   mbmi->ref_frame_nrs[0] = INTRA_FRAME_NRS;
   mbmi->ref_frame_nrs[1] = INVALID_IDX;
-  /*
-  mbmi->ref_frame_nrs[0] = convert_named_ref_to_ranked_ref_index(
-      &cm->new_ref_frame_data, mbmi->ref_frame[0]);
-  mbmi->ref_frame_nrs[1] = convert_named_ref_to_ranked_ref_index(
-      &cm->new_ref_frame_data, mbmi->ref_frame[1]);
-      */
   assert(convert_ranked_ref_to_named_ref_index(&cm->new_ref_frame_data,
                                                mbmi->ref_frame_nrs[0]) ==
          mbmi->ref_frame[0]);
@@ -1721,8 +1699,6 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
                   mbmi->ref_frame);
 #if CONFIG_NEW_REF_SIGNALING
   // TODO(sarahparker) aomedia:3060 Delete these asserts
-  convert_named_ref_to_ranked_ref_pair(&cm->new_ref_frame_data, mbmi->ref_frame,
-                                       0, mbmi->ref_frame_nrs);
   assert(convert_ranked_ref_to_named_ref_index(&cm->new_ref_frame_data,
                                                mbmi->ref_frame_nrs[0]) ==
          mbmi->ref_frame[0]);

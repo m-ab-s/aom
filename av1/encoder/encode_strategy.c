@@ -1248,30 +1248,6 @@ static int denoise_and_encode(AV1_COMP *const cpi, uint8_t *const dest,
 }
 #endif  // !CONFIG_REALTIME_ONLY
 
-#if 0   // CONFIG_NEW_REF_SIGNALING
-static void verify_ref_frame_flags_nrs(const AV1_COMMON *const cm,
-                                       int ref_frame_flags,
-                                       int ref_frame_flags_nrs) {
-  // TODO(sarahparker) Delete these asserts, see aomedia:3060.
-  if (cm->new_ref_frame_data.n_total_refs == 0) return;
-  int n_enabled = 0;
-  for (int frame = LAST_FRAME; frame <= ALTREF_FRAME; frame++) {
-    if ((ref_frame_flags & (1 << (frame - 1)))) {
-      n_enabled++;
-      const int ranked_ref_index =
-          convert_named_ref_to_ranked_ref_index(&cm->new_ref_frame_data, frame);
-      (void)ranked_ref_index;
-      assert((ref_frame_flags_nrs & (1 << ranked_ref_index)));
-    }
-  }
-  int n_enabled_nrs = 0;
-  for (int frame = 0; frame < INTER_REFS_PER_FRAME_NRS; frame++) {
-    if ((ref_frame_flags_nrs & (1 << frame))) n_enabled_nrs++;
-  }
-  assert(n_enabled == n_enabled_nrs);
-}
-#endif  // CONFIG_NEW_REF_SIGNALING
-
 int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
                         uint8_t *const dest, unsigned int *frame_flags,
                         int64_t *const time_stamp, int64_t *const time_end,
@@ -1538,10 +1514,6 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
                                frame_params.order_offset);
 #endif  // CONFIG_NEW_REF_SIGNALING
     }
-#if 0   // CONFIG_NEW_REF_SIGNALING
-    verify_ref_frame_flags_nrs(cm, frame_params.ref_frame_flags,
-                               frame_params.ref_frame_flags_nrs);
-#endif  // CONFIG_NEW_REF_SIGNALING
 
     frame_params.refresh_frame_flags = av1_get_refresh_frame_flags(
         cpi, &frame_params, frame_update_type, cpi->gf_group.index,

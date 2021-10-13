@@ -510,6 +510,7 @@ static AOM_INLINE int64_t get_rd_thresh_from_best_rd(int64_t ref_best_rd,
   return rd_thresh;
 }
 
+#if !CONFIG_NEW_REF_SIGNALING
 static AOM_INLINE THR_MODES
 get_prediction_mode_idx(PREDICTION_MODE this_mode, MV_REFERENCE_FRAME ref_frame,
                         MV_REFERENCE_FRAME second_ref_frame) {
@@ -534,6 +535,7 @@ get_prediction_mode_idx(PREDICTION_MODE this_mode, MV_REFERENCE_FRAME ref_frame,
   assert(0);
   return THR_INVALID;
 }
+#endif  // !CONFIG_NEW_REF_SIGNALING
 
 static AOM_INLINE int inter_mode_data_block_idx(BLOCK_SIZE bsize) {
   if (bsize == BLOCK_4X4 || bsize == BLOCK_4X8 || bsize == BLOCK_8X4 ||

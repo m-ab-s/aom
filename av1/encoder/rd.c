@@ -1765,12 +1765,13 @@ void av1_update_rd_thresh_fact(const AV1_COMMON *const cm,
                                int (*factor_buf)[MAX_MODES],
 #endif  // CONFIG_NEW_REF_SIGNALING
                                int use_adaptive_rd_thresh, BLOCK_SIZE bsize,
+#if !CONFIG_NEW_REF_SIGNALING
                                MV_REFERENCE_FRAME *ref_frames,
+#endif  // !CONFIG_NEW_REF_SIGNALING
                                PREDICTION_MODE best_mode) {
   assert(use_adaptive_rd_thresh > 0);
 #if CONFIG_NEW_REF_SIGNALING
   const PREDICTION_MODE top_mode = MB_MODE_COUNT;
-  (void)ref_frames;
 #else
   const THR_MODES top_mode = MAX_MODES;
   const int best_mode_index =

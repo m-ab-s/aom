@@ -539,7 +539,12 @@ static AOM_INLINE void set_low_temp_var_flag_128x128(
 
 static AOM_INLINE void set_low_temp_var_flag(
     AV1_COMP *cpi, PartitionSearchInfo *part_info, MACROBLOCKD *xd,
-    VP128x128 *vt, int64_t thresholds[], MV_REFERENCE_FRAME ref_frame_partition,
+    VP128x128 *vt, int64_t thresholds[],
+#if CONFIG_NEW_REF_SIGNALING
+    MV_REFERENCE_FRAME_NRS ref_frame_partition,
+#else
+    MV_REFERENCE_FRAME ref_frame_partition,
+#endif  // CONFIG_NEW_REF_SIGNALING
     int mi_col, int mi_row) {
   AV1_COMMON *const cm = &cpi->common;
   const int mv_thr = cm->width > 640 ? 8 : 4;
@@ -547,7 +552,12 @@ static AOM_INLINE void set_low_temp_var_flag(
   // int_pro mv is small. If the temporal variance is small set the flag
   // variance_low for the block. The variance threshold can be adjusted, the
   // higher the more aggressive.
+#if CONFIG_NEW_REF_SIGNALING
+  const MV_REFERENCE_FRAME_NRS last_frame = get_closest_pastcur_ref_index(cm);
+  if (ref_frame_partition == last_frame &&
+#else
   if (ref_frame_partition == LAST_FRAME &&
+#endif  // CONFIG_NEW_REF_SIGNALING
       (cpi->sf.rt_sf.short_circuit_low_temp_var == 1 ||
        (cpi->sf.rt_sf.estimate_motion_for_var_based_partition &&
         xd->mi[0]->mv[0].as_mv.col < mv_thr &&
@@ -707,8 +717,12 @@ static void fill_variance_tree_leaves(
 
 static void setup_planes(AV1_COMP *cpi, MACROBLOCK *x, unsigned int *y_sad,
                          unsigned int *y_sad_g,
-                         MV_REFERENCE_FRAME *ref_frame_partition, int mi_row,
-                         int mi_col) {
+#if CONFIG_NEW_REF_SIGNALING
+                         MV_REFERENCE_FRAME_NRS *ref_frame_partition,
+#else
+                         MV_REFERENCE_FRAME *ref_frame_partition,
+#endif  // CONFIG_NEW_REF_SIGNALING
+                         int mi_row, int mi_col) {
   AV1_COMMON *const cm = &cpi->common;
   MACROBLOCKD *xd = &x->e_mbd;
   const int num_planes = av1_num_planes(cm);
@@ -717,12 +731,36 @@ static void setup_planes(AV1_COMP *cpi, MACROBLOCK *x, unsigned int *y_sad,
   // TODO(kyslov): we are assuming that the ref is LAST_FRAME! Check if it
   // is!!
   MB_MODE_INFO *mi = xd->mi[0];
+#if CONFIG_NEW_REF_SIGNALING
+  int last_frame = get_closest_pastcur_ref_index(cm);
+  int golden_frame = cm->new_ref_frame_data.past_refs[0];
+  const YV12_BUFFER_CONFIG *yv12 = get_ref_frame_yv12_buf_nrs(cm, last_frame);
+#else
   const YV12_BUFFER_CONFIG *yv12 = get_ref_frame_yv12_buf(cm, LAST_FRAME);
+#endif
   assert(yv12 != NULL);
   const YV12_BUFFER_CONFIG *yv12_g = NULL;
 
   // For non-SVC GOLDEN is another temporal reference. Check if it should be
   // used as reference for partitioning.
+#if CONFIG_NEW_REF_SIGNALING
+  if (!cpi->use_svc &&
+      (cpi->common.ref_frame_flags_nrs & (1 << golden_frame)) &&
+      cpi->sf.rt_sf.use_nonrd_pick_mode) {
+    yv12_g = get_ref_frame_yv12_buf_nrs(cm, golden_frame);
+    if (yv12_g && yv12_g != yv12) {
+      av1_setup_pre_planes(xd, 0, yv12_g, mi_row, mi_col,
+                           get_ref_scale_factors_nrs(cm, golden_frame),
+                           num_planes, NULL);
+      *y_sad_g = cpi->fn_ptr[bsize].sdf(
+          x->plane[0].src.buf, x->plane[0].src.stride, xd->plane[0].pre[0].buf,
+          xd->plane[0].pre[0].stride);
+    }
+  }
+  av1_setup_pre_planes(xd, 0, yv12, mi_row, mi_col,
+                       get_ref_scale_factors_nrs(cm, last_frame), num_planes,
+                       NULL);
+#else
   if (!cpi->use_svc && (cpi->common.ref_frame_flags & AOM_GOLD_FLAG) &&
       cpi->sf.rt_sf.use_nonrd_pick_mode) {
     yv12_g = get_ref_frame_yv12_buf(cm, GOLDEN_FRAME);
@@ -735,22 +773,19 @@ static void setup_planes(AV1_COMP *cpi, MACROBLOCK *x, unsigned int *y_sad,
           xd->plane[0].pre[0].stride);
     }
   }
-
   av1_setup_pre_planes(xd, 0, yv12, mi_row, mi_col,
                        get_ref_scale_factors(cm, LAST_FRAME), num_planes, NULL);
+#endif  // CONFIG_NEW_REF_SIGNALING
+
+#if CONFIG_NEW_REF_SIGNALING
+  mi->ref_frame_nrs[0] = last_frame;
+  mi->ref_frame_nrs[1] = INVALID_IDX;
+  mi->ref_frame[0] = convert_ranked_ref_to_named_ref_index(
+      &cm->new_ref_frame_data, mi->ref_frame_nrs[0]);
+  mi->ref_frame[1] = NONE_FRAME;
+#else
   mi->ref_frame[0] = LAST_FRAME;
   mi->ref_frame[1] = NONE_FRAME;
-#if CONFIG_NEW_REF_SIGNALING
-  mi->ref_frame_nrs[0] = convert_named_ref_to_ranked_ref_index(
-      &cm->new_ref_frame_data, mi->ref_frame[0]);
-  mi->ref_frame_nrs[1] = convert_named_ref_to_ranked_ref_index(
-      &cm->new_ref_frame_data, mi->ref_frame[1]);
-  assert(convert_ranked_ref_to_named_ref_index(&cm->new_ref_frame_data,
-                                               mi->ref_frame_nrs[0]) ==
-         mi->ref_frame[0]);
-  assert(convert_ranked_ref_to_named_ref_index(&cm->new_ref_frame_data,
-                                               mi->ref_frame_nrs[1]) ==
-         mi->ref_frame[1]);
 #endif  // CONFIG_NEW_REF_SIGNALING
   mi->sb_type = cm->seq_params.sb_size;
   mi->mv[0].as_int = 0;
@@ -772,6 +807,24 @@ static void setup_planes(AV1_COMP *cpi, MACROBLOCK *x, unsigned int *y_sad,
                                     xd->plane[0].pre[0].stride);
   }
 
+#if CONFIG_NEW_REF_SIGNALING
+  if (*y_sad_g < 0.9 * *y_sad) {
+    av1_setup_pre_planes(xd, 0, yv12_g, mi_row, mi_col,
+                         get_ref_scale_factors_nrs(cm, golden_frame),
+                         num_planes, NULL);
+    mi->ref_frame_nrs[0] = golden_frame;
+    mi->ref_frame[0] = convert_ranked_ref_to_named_ref_index(
+        &cm->new_ref_frame_data, mi->ref_frame_nrs[0]);
+    mi->mv[0].as_int = 0;
+    *y_sad = *y_sad_g;
+    *ref_frame_partition = golden_frame;
+    x->nonrd_prune_ref_frame_search = 0;
+  } else {
+    *ref_frame_partition = last_frame;
+    x->nonrd_prune_ref_frame_search =
+        cpi->sf.rt_sf.nonrd_prune_ref_frame_search;
+  }
+#else
   // Pick the ref frame for partitioning, use golden frame only if its
   // lower sad.
   if (*y_sad_g < 0.9 * *y_sad) {
@@ -779,13 +832,6 @@ static void setup_planes(AV1_COMP *cpi, MACROBLOCK *x, unsigned int *y_sad,
                          get_ref_scale_factors(cm, GOLDEN_FRAME), num_planes,
                          NULL);
     mi->ref_frame[0] = GOLDEN_FRAME;
-#if CONFIG_NEW_REF_SIGNALING
-    mi->ref_frame_nrs[0] = convert_named_ref_to_ranked_ref_index(
-        &cm->new_ref_frame_data, mi->ref_frame[0]);
-    assert(convert_ranked_ref_to_named_ref_index(&cm->new_ref_frame_data,
-                                                 mi->ref_frame_nrs[0]) ==
-           mi->ref_frame[0]);
-#endif  // CONFIG_NEW_REF_SIGNALING
     mi->mv[0].as_int = 0;
     *y_sad = *y_sad_g;
     *ref_frame_partition = GOLDEN_FRAME;
@@ -795,6 +841,7 @@ static void setup_planes(AV1_COMP *cpi, MACROBLOCK *x, unsigned int *y_sad,
     x->nonrd_prune_ref_frame_search =
         cpi->sf.rt_sf.nonrd_prune_ref_frame_search;
   }
+#endif  // CONFIG_NEW_REF_SIGNALING
 
 #if CONFIG_NEW_REF_SIGNALING
   set_ref_ptrs_nrs(cm, xd, mi->ref_frame_nrs[0], mi->ref_frame_nrs[1]);
@@ -850,7 +897,12 @@ int av1_choose_var_based_partitioning(AV1_COMP *cpi, const TileInfo *const tile,
   BLOCK_SIZE bsize = is_small_sb ? BLOCK_64X64 : BLOCK_128X128;
 
   // Ref frame used in partitioning.
+#if CONFIG_NEW_REF_SIGNALING
+  MV_REFERENCE_FRAME_NRS last_frame = get_closest_pastcur_ref_index(cm);
+  MV_REFERENCE_FRAME_NRS ref_frame_partition = last_frame;
+#else
   MV_REFERENCE_FRAME ref_frame_partition = LAST_FRAME;
+#endif  // CONFIG_NEW_REF_SIGNALING
   NOISE_LEVEL noise_level = kLow;
 
   CHECK_MEM_ERROR(cm, vt, aom_malloc(sizeof(*vt)));
