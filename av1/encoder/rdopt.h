@@ -232,11 +232,11 @@ static INLINE int av1_get_sb_mi_size(const AV1_COMMON *const cm) {
 // weight[ref_frame][8].
 static INLINE void av1_copy_usable_ref_mv_stack_and_weight(
     const MACROBLOCKD *xd, MB_MODE_INFO_EXT *const mbmi_ext,
-#if CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+#if CONFIG_NEW_REF_SIGNALING
     MV_REFERENCE_FRAME_NRS ref_frame
 #else
     MV_REFERENCE_FRAME ref_frame
-#endif  // CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+#endif  // CONFIG_NEW_REF_SIGNALING
 ) {
   memcpy(mbmi_ext->weight[ref_frame], xd->weight[ref_frame],
          USABLE_REF_MV_STACK_SIZE * sizeof(xd->weight[0][0]));

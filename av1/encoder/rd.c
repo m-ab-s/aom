@@ -1238,7 +1238,7 @@ void av1_mv_pred(const AV1_COMP *cpi, MACROBLOCK *x, uint8_t *ref_y_buffer,
 #else
   const MV_REFERENCE_FRAME ref_frame = ref;
 #endif  // CONFIG_NEW_REF_SIGNALING
-#if CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+#if CONFIG_NEW_REF_SIGNALING
   const MV_REFERENCE_FRAME_NRS ref_frames_nrs[2] = { ref_frame_nrs,
                                                      INVALID_IDX };
   const int_mv ref_mv =
@@ -1251,7 +1251,7 @@ void av1_mv_pred(const AV1_COMP *cpi, MACROBLOCK *x, uint8_t *ref_y_buffer,
       av1_get_ref_mv_from_stack(0, ref_frames, 0, x->mbmi_ext);
   const int_mv ref_mv1 =
       av1_get_ref_mv_from_stack(0, ref_frames, 1, x->mbmi_ext);
-#endif  // CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+#endif  // CONFIG_NEW_REF_SIGNALING
   MV pred_mv[MAX_MV_REF_CANDIDATES + 1];
   int num_mv_refs = 0;
   pred_mv[num_mv_refs++] = ref_mv.as_mv;

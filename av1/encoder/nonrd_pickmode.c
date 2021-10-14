@@ -486,7 +486,7 @@ static INLINE void find_predictors(AV1_COMP *cpi, MACROBLOCK *x,
         get_ref_scale_factors_const(cm, ref_frame);
     av1_setup_pred_block(xd, yv12_mb[ref_frame], yv12, sf, sf, num_planes);
 #endif  // CONFIG_NEW_REF_SIGNALING
-#if CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+#if CONFIG_NEW_REF_SIGNALING
     av1_find_mv_refs_nrs(cm, xd, mbmi, ref_frame_nrs, mbmi_ext->ref_mv_count,
                          xd->ref_mv_stack, xd->weight, NULL,
                          mbmi_ext->global_mvs_nrs, mbmi_ext->mode_context);
@@ -503,25 +503,25 @@ static INLINE void find_predictors(AV1_COMP *cpi, MACROBLOCK *x,
 #endif  // CONFIG_NEW_REF_SIGNALING
                      mbmi_ext->mode_context);
     av1_copy_usable_ref_mv_stack_and_weight(xd, mbmi_ext, ref_frame);
-#endif  // CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+#endif  // CONFIG_NEW_REF_SIGNALING
         // TODO(Ravi): Populate mbmi_ext->ref_mv_stack[ref_frame][4] and
         // mbmi_ext->weight[ref_frame][4] inside av1_find_mv_refs.
 #if CONFIG_NEW_INTER_MODES
     frame_mv[NEARMV][ref_frame] =
         av1_find_best_ref_mv_from_stack(mbmi_ext,
-#if CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+#if CONFIG_NEW_REF_SIGNALING
                                         ref_frame_nrs,
 #else
                                         ref_frame,
-#endif  // CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+#endif  // CONFIG_NEW_REF_SIGNALING
                                         cm->features.fr_mv_precision);
 #else
     av1_find_best_ref_mvs_from_stack(mbmi_ext,
-#if CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+#if CONFIG_NEW_REF_SIGNALING
                                      ref_frame_nrs,
 #else
                                      ref_frame,
-#endif  // CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+#endif  // CONFIG_NEW_REF_SIGNALING
                                      &frame_mv[NEARESTMV][ref_frame],
                                      &frame_mv[NEARMV][ref_frame],
                                      cm->features.fr_mv_precision);
@@ -1288,11 +1288,11 @@ static void store_coding_context(MACROBLOCK *x, PICK_MODE_CONTEXT *ctx) {
   ctx->skippable = txfm_info->skip_txfm;
   av1_copy_mbmi_ext_to_mbmi_ext_frame(
       &ctx->mbmi_ext_best, x->mbmi_ext,
-#if CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+#if CONFIG_NEW_REF_SIGNALING
       av1_ref_frame_type_nrs(xd->mi[0]->ref_frame_nrs)
 #else
       av1_ref_frame_type(xd->mi[0]->ref_frame)
-#endif  // CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+#endif  // CONFIG_NEW_REF_SIGNALING
   );
   ctx->comp_pred_diff = 0;
   ctx->hybrid_pred_diff = 0;
@@ -2762,11 +2762,11 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
     // TODO(kyslov) account for UV prediction cost
     this_rdc.rate += rate_mv;
     const int16_t mode_ctx =
-#if CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+#if CONFIG_NEW_REF_SIGNALING
         av1_mode_context_analyzer(mbmi_ext->mode_context, mi->ref_frame_nrs);
 #else
         av1_mode_context_analyzer(mbmi_ext->mode_context, mi->ref_frame);
-#endif  // CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+#endif  // CONFIG_NEW_REF_SIGNALING
     this_rdc.rate += cost_mv_ref(mode_costs, this_mode, mode_ctx);
 
 #if CONFIG_NEW_REF_SIGNALING

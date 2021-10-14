@@ -54,27 +54,27 @@ void av1_copy_frame_mvs(const AV1_COMMON *const cm,
   for (h = 0; h < y_mis; h++) {
     MV_REF *mv = frame_mvs;
     for (w = 0; w < x_mis; w++) {
-#if CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+#if CONFIG_NEW_REF_SIGNALING
       mv->ref_frame = INVALID_IDX;
 #else
       mv->ref_frame = NONE_FRAME;
-#endif  // CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+#endif  // CONFIG_NEW_REF_SIGNALING
       mv->mv.as_int = 0;
 
       for (int idx = 0; idx < 2; ++idx) {
-#if CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+#if CONFIG_NEW_REF_SIGNALING
         MV_REFERENCE_FRAME_NRS ref_frame = mi->ref_frame_nrs[idx];
         if (ref_frame != INTRA_FRAME_NRS && ref_frame != INVALID_IDX)
 #else
         MV_REFERENCE_FRAME ref_frame = mi->ref_frame[idx];
         if (ref_frame > INTRA_FRAME)
-#endif  // CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+#endif  // CONFIG_NEW_REF_SIGNALING
         {
-#if CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+#if CONFIG_NEW_REF_SIGNALING
           int8_t ref_idx = cm->ref_frame_side_nrs[ref_frame];
 #else
           int8_t ref_idx = cm->ref_frame_side[ref_frame];
-#endif  // CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+#endif  // CONFIG_NEW_REF_SIGNALING
           if (ref_idx) continue;
           if ((abs(mi->mv[idx].as_mv.row) > REFMVS_LIMIT) ||
               (abs(mi->mv[idx].as_mv.col) > REFMVS_LIMIT))
@@ -89,7 +89,7 @@ void av1_copy_frame_mvs(const AV1_COMMON *const cm,
   }
 }
 
-#if CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+#if CONFIG_NEW_REF_SIGNALING
 static AOM_INLINE void add_ref_mv_candidate(
     const MB_MODE_INFO *const candidate, const MV_REFERENCE_FRAME_NRS rf[2],
     uint8_t *refmv_count, uint8_t *ref_match_count, uint8_t *newmv_count,
@@ -226,7 +226,7 @@ static AOM_INLINE void add_ref_mv_candidate(
     }
   }
 }
-#endif  // CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+#endif  // CONFIG_NEW_REF_SIGNALING
 
 static AOM_INLINE void scan_row_mbmi(
     const AV1_COMMON *cm, const MACROBLOCKD *xd,
@@ -234,11 +234,11 @@ static AOM_INLINE void scan_row_mbmi(
     int mi_row,
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
     int mi_col,
-#if CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+#if CONFIG_NEW_REF_SIGNALING
     const MV_REFERENCE_FRAME_NRS rf[2],
 #else
     const MV_REFERENCE_FRAME rf[2],
-#endif  // CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+#endif  // CONFIG_NEW_REF_SIGNALING
     int row_offset, CANDIDATE_MV *ref_mv_stack, uint16_t *ref_mv_weight,
     uint8_t *refmv_count, uint8_t *ref_match_count, uint8_t *newmv_count,
     int_mv *gm_mv_candidates, int max_row_offset, int *processed_rows) {
@@ -289,7 +289,7 @@ static AOM_INLINE void scan_row_mbmi(
       *processed_rows = inc - row_offset - 1;
     }
 
-#if CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+#if CONFIG_NEW_REF_SIGNALING
     add_ref_mv_candidate(candidate, rf, refmv_count, ref_match_count,
                          newmv_count, ref_mv_stack, ref_mv_weight,
                          gm_mv_candidates, cm->global_motion_nrs, len * weight);
@@ -297,7 +297,7 @@ static AOM_INLINE void scan_row_mbmi(
     add_ref_mv_candidate(candidate, rf, refmv_count, ref_match_count,
                          newmv_count, ref_mv_stack, ref_mv_weight,
                          gm_mv_candidates, cm->global_motion, len * weight);
-#endif  // CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+#endif  // CONFIG_NEW_REF_SIGNALING
 
     i += len;
   }
@@ -308,11 +308,11 @@ static AOM_INLINE void scan_col_mbmi(
 #if CONFIG_EXT_RECUR_PARTITIONS
     int mi_col,
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
-#if CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+#if CONFIG_NEW_REF_SIGNALING
     const MV_REFERENCE_FRAME_NRS rf[2],
 #else
     const MV_REFERENCE_FRAME rf[2],
-#endif  // CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+#endif  // CONFIG_NEW_REF_SIGNALING
     int col_offset, CANDIDATE_MV *ref_mv_stack, uint16_t *ref_mv_weight,
     uint8_t *refmv_count, uint8_t *ref_match_count, uint8_t *newmv_count,
     int_mv *gm_mv_candidates, int max_col_offset, int *processed_cols) {
@@ -362,7 +362,7 @@ static AOM_INLINE void scan_col_mbmi(
       *processed_cols = inc - col_offset - 1;
     }
 
-#if CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+#if CONFIG_NEW_REF_SIGNALING
     add_ref_mv_candidate(candidate, rf, refmv_count, ref_match_count,
                          newmv_count, ref_mv_stack, ref_mv_weight,
                          gm_mv_candidates, cm->global_motion_nrs, len * weight);
@@ -370,7 +370,7 @@ static AOM_INLINE void scan_col_mbmi(
     add_ref_mv_candidate(candidate, rf, refmv_count, ref_match_count,
                          newmv_count, ref_mv_stack, ref_mv_weight,
                          gm_mv_candidates, cm->global_motion, len * weight);
-#endif  // CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+#endif  // CONFIG_NEW_REF_SIGNALING
 
     i += len;
   }
@@ -379,11 +379,11 @@ static AOM_INLINE void scan_col_mbmi(
 static AOM_INLINE void scan_blk_mbmi(
     const AV1_COMMON *cm, const MACROBLOCKD *xd, const int mi_row,
     const int mi_col,
-#if CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+#if CONFIG_NEW_REF_SIGNALING
     const MV_REFERENCE_FRAME_NRS rf[2],
 #else
     const MV_REFERENCE_FRAME rf[2],
-#endif  // CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+#endif  // CONFIG_NEW_REF_SIGNALING
     int row_offset, int col_offset, CANDIDATE_MV *ref_mv_stack,
     uint16_t *ref_mv_weight, uint8_t *ref_match_count, uint8_t *newmv_count,
     int_mv *gm_mv_candidates, uint8_t *refmv_count) {
@@ -398,7 +398,7 @@ static AOM_INLINE void scan_blk_mbmi(
         xd->mi[mi_pos.row * xd->mi_stride + mi_pos.col];
     const int len = mi_size_wide[BLOCK_8X8];
 
-#if CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+#if CONFIG_NEW_REF_SIGNALING
     add_ref_mv_candidate(candidate, rf, refmv_count, ref_match_count,
                          newmv_count, ref_mv_stack, ref_mv_weight,
                          gm_mv_candidates, cm->global_motion_nrs, 2 * len);
@@ -406,7 +406,7 @@ static AOM_INLINE void scan_blk_mbmi(
     add_ref_mv_candidate(candidate, rf, refmv_count, ref_match_count,
                          newmv_count, ref_mv_stack, ref_mv_weight,
                          gm_mv_candidates, cm->global_motion, 2 * len);
-#endif  // CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+#endif  // CONFIG_NEW_REF_SIGNALING
   }     // Analyze a single 8x8 block motion information.
 }
 
@@ -458,11 +458,11 @@ static int check_sb_border(const int mi_row, const int mi_col,
 
 static int add_tpl_ref_mv(const AV1_COMMON *cm, const MACROBLOCKD *xd,
                           int mi_row, int mi_col,
-#if CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+#if CONFIG_NEW_REF_SIGNALING
                           MV_REFERENCE_FRAME_NRS ref_frame,
 #else
                           MV_REFERENCE_FRAME ref_frame,
-#endif  // CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+#endif  // CONFIG_NEW_REF_SIGNALING
                           int blk_row, int blk_col, int_mv *gm_mv_candidates,
                           uint8_t *const refmv_count,
                           CANDIDATE_MV ref_mv_stack[MAX_REF_MV_STACK_SIZE],
@@ -480,7 +480,7 @@ static int add_tpl_ref_mv(const AV1_COMMON *cm, const MACROBLOCKD *xd,
       ((mi_col + mi_pos.col) >> 1);
   if (prev_frame_mvs->mfmv0.as_int == INVALID_MV) return 0;
 
-#if CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+#if CONFIG_NEW_REF_SIGNALING
   MV_REFERENCE_FRAME_NRS rf[2];
   av1_set_ref_frame_nrs(rf, ref_frame);
 #if !PURE_NEW_REF_SIGNALING
@@ -499,15 +499,15 @@ static int add_tpl_ref_mv(const AV1_COMMON *cm, const MACROBLOCKD *xd,
 #else
   MV_REFERENCE_FRAME rf[2];
   av1_set_ref_frame(rf, ref_frame);
-#endif  // CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+#endif  // CONFIG_NEW_REF_SIGNALING
 
   const uint16_t weight_unit = 1;  // mi_size_wide[BLOCK_8X8];
   const int cur_frame_index = cm->cur_frame->order_hint;
-#if CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+#if CONFIG_NEW_REF_SIGNALING
   const RefCntBuffer *const buf_0 = get_ref_frame_buf_nrs(cm, rf[0]);
 #else
   const RefCntBuffer *const buf_0 = get_ref_frame_buf(cm, rf[0]);
-#endif  // CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+#endif  // CONFIG_NEW_REF_SIGNALING
   const int frame0_index = buf_0->order_hint;
   const int cur_offset_0 = get_relative_dist(&cm->seq_params.order_hint_info,
                                              cur_frame_index, frame0_index);
@@ -519,11 +519,11 @@ static int add_tpl_ref_mv(const AV1_COMMON *cm, const MACROBLOCKD *xd,
                     cur_offset_0, prev_frame_mvs->ref_frame_offset);
   lower_mv_precision(&this_refmv.as_mv, fr_mv_precision);
 
-#if CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+#if CONFIG_NEW_REF_SIGNALING
   if (rf[1] == INVALID_IDX)
 #else
   if (rf[1] == NONE_FRAME)
-#endif  // CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+#endif  // CONFIG_NEW_REF_SIGNALING
   {
     if (blk_row == 0 && blk_col == 0) {
       if (abs(this_refmv.as_mv.row - gm_mv_candidates[0].as_mv.row) >= 16 ||
@@ -543,11 +543,11 @@ static int add_tpl_ref_mv(const AV1_COMMON *cm, const MACROBLOCKD *xd,
     }
   } else {
     // Process compound inter mode
-#if CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+#if CONFIG_NEW_REF_SIGNALING
     const RefCntBuffer *const buf_1 = get_ref_frame_buf_nrs(cm, rf[1]);
 #else
     const RefCntBuffer *const buf_1 = get_ref_frame_buf(cm, rf[1]);
-#endif  // CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+#endif  // CONFIG_NEW_REF_SIGNALING
     const int frame1_index = buf_1->order_hint;
     const int cur_offset_1 = get_relative_dist(&cm->seq_params.order_hint_info,
                                                cur_frame_index, frame1_index);
@@ -585,38 +585,38 @@ static int add_tpl_ref_mv(const AV1_COMMON *cm, const MACROBLOCKD *xd,
 
 static AOM_INLINE void process_compound_ref_mv_candidate(
     const MB_MODE_INFO *const candidate, const AV1_COMMON *const cm,
-#if CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+#if CONFIG_NEW_REF_SIGNALING
     const MV_REFERENCE_FRAME_NRS *const rf,
 #else
     const MV_REFERENCE_FRAME *const rf,
-#endif  // CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+#endif  // CONFIG_NEW_REF_SIGNALING
     int_mv ref_id[2][2], int ref_id_count[2], int_mv ref_diff[2][2],
     int ref_diff_count[2]) {
   for (int rf_idx = 0; rf_idx < 2; ++rf_idx) {
-#if CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+#if CONFIG_NEW_REF_SIGNALING
     MV_REFERENCE_FRAME_NRS can_rf = candidate->ref_frame_nrs[rf_idx];
 #else
     MV_REFERENCE_FRAME can_rf = candidate->ref_frame[rf_idx];
-#endif  // CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+#endif  // CONFIG_NEW_REF_SIGNALING
 
     for (int cmp_idx = 0; cmp_idx < 2; ++cmp_idx) {
       if (can_rf == rf[cmp_idx] && ref_id_count[cmp_idx] < 2) {
         ref_id[cmp_idx][ref_id_count[cmp_idx]] = candidate->mv[rf_idx];
         ++ref_id_count[cmp_idx];
-#if CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+#if CONFIG_NEW_REF_SIGNALING
       } else if (can_rf != INTRA_FRAME_NRS && can_rf != INVALID_IDX &&
                  ref_diff_count[cmp_idx] < 2) {
 #else
       } else if (can_rf > INTRA_FRAME && ref_diff_count[cmp_idx] < 2) {
-#endif  // CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+#endif  // CONFIG_NEW_REF_SIGNALING
         int_mv this_mv = candidate->mv[rf_idx];
-#if CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+#if CONFIG_NEW_REF_SIGNALING
         if (cm->ref_frame_sign_bias_nrs[can_rf] !=
             cm->ref_frame_sign_bias_nrs[rf[cmp_idx]])
 #else
         if (cm->ref_frame_sign_bias[can_rf] !=
             cm->ref_frame_sign_bias[rf[cmp_idx]])
-#endif  // CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+#endif  // CONFIG_NEW_REF_SIGNALING
         {
           this_mv.as_mv.row = -this_mv.as_mv.row;
           this_mv.as_mv.col = -this_mv.as_mv.col;
@@ -630,24 +630,24 @@ static AOM_INLINE void process_compound_ref_mv_candidate(
 
 static AOM_INLINE void process_single_ref_mv_candidate(
     const MB_MODE_INFO *const candidate, const AV1_COMMON *const cm,
-#if CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+#if CONFIG_NEW_REF_SIGNALING
     MV_REFERENCE_FRAME_NRS ref_frame,
 #else
     MV_REFERENCE_FRAME ref_frame,
-#endif  // CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+#endif  // CONFIG_NEW_REF_SIGNALING
     uint8_t *const refmv_count,
     CANDIDATE_MV ref_mv_stack[MAX_REF_MV_STACK_SIZE],
     uint16_t ref_mv_weight[MAX_REF_MV_STACK_SIZE]) {
   for (int rf_idx = 0; rf_idx < 2; ++rf_idx) {
-#if CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+#if CONFIG_NEW_REF_SIGNALING
     if (candidate->ref_frame_nrs[rf_idx] != INTRA_FRAME_NRS &&
         candidate->ref_frame_nrs[rf_idx] != INVALID_IDX)
 #else
     if (candidate->ref_frame[rf_idx] > INTRA_FRAME)
-#endif  // CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+#endif  // CONFIG_NEW_REF_SIGNALING
     {
       int_mv this_mv = candidate->mv[rf_idx];
-#if CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+#if CONFIG_NEW_REF_SIGNALING
       if (cm->ref_frame_sign_bias_nrs[candidate->ref_frame_nrs[rf_idx]] !=
           cm->ref_frame_sign_bias_nrs[ref_frame]) {
         this_mv.as_mv.row = -this_mv.as_mv.row;
@@ -659,7 +659,7 @@ static AOM_INLINE void process_single_ref_mv_candidate(
         this_mv.as_mv.row = -this_mv.as_mv.row;
         this_mv.as_mv.col = -this_mv.as_mv.col;
       }
-#endif  // CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+#endif  // CONFIG_NEW_REF_SIGNALING
       int stack_idx;
       for (stack_idx = 0; stack_idx < *refmv_count; ++stack_idx) {
         const int_mv stack_mv = ref_mv_stack[stack_idx].this_mv;
@@ -726,11 +726,11 @@ static AOM_INLINE bool check_rmb_cand(CANDIDATE_MV cand_mv,
 
 static AOM_INLINE void setup_ref_mv_list(
     const AV1_COMMON *cm, const MACROBLOCKD *xd,
-#if CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+#if CONFIG_NEW_REF_SIGNALING
     MV_REFERENCE_FRAME_NRS ref_frame,
 #else
     MV_REFERENCE_FRAME ref_frame,
-#endif  // CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+#endif  // CONFIG_NEW_REF_SIGNALING
     uint8_t *const refmv_count,
     CANDIDATE_MV ref_mv_stack[MAX_REF_MV_STACK_SIZE],
     uint16_t ref_mv_weight[MAX_REF_MV_STACK_SIZE],
@@ -745,7 +745,7 @@ static AOM_INLINE void setup_ref_mv_list(
   int processed_rows = 0;
   int processed_cols = 0;
 
-#if CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+#if CONFIG_NEW_REF_SIGNALING
   MV_REFERENCE_FRAME_NRS rf[2];
   av1_set_ref_frame_nrs(rf, ref_frame);
 #if !PURE_NEW_REF_SIGNALING
@@ -764,7 +764,7 @@ static AOM_INLINE void setup_ref_mv_list(
 #else
   MV_REFERENCE_FRAME rf[2];
   av1_set_ref_frame(rf, ref_frame);
-#endif  // CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+#endif  // CONFIG_NEW_REF_SIGNALING
 
   mode_context[ref_frame] = 0;
   *refmv_count = 0;
@@ -929,13 +929,13 @@ static AOM_INLINE void setup_ref_mv_list(
       break;
   }
 #if CONFIG_NEW_INTER_MODES && NO_MV_PARSING_DEP
-#if CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+#if CONFIG_NEW_REF_SIGNALING
   int refmv_count_max_ctx =
       AOMMAX(*refmv_count, MAX_MV_REF_CANDIDATES) + (rf[1] == INVALID_IDX);
 #else
   int refmv_count_max_ctx =
       AOMMAX(*refmv_count, MAX_MV_REF_CANDIDATES) + (rf[1] == NONE_FRAME);
-#endif  // CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+#endif  // CONFIG_NEW_REF_SIGNALING
 #if CONFIG_REF_MV_BANK
   refmv_count_max_ctx += xd->ref_mv_bank_left_pt->rmb_count[ref_frame];
 #if REF_MV_BANK_COLS
@@ -989,11 +989,11 @@ static AOM_INLINE void setup_ref_mv_list(
   int mi_height = AOMMIN(mi_size_high[BLOCK_64X64], xd->height);
   mi_height = AOMMIN(mi_height, cm->mi_params.mi_rows - mi_row);
   const int mi_size = AOMMIN(mi_width, mi_height);
-#if CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+#if CONFIG_NEW_REF_SIGNALING
   if (rf[1] > INVALID_IDX) {
 #else
   if (rf[1] > NONE_FRAME) {
-#endif  // CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+#endif  // CONFIG_NEW_REF_SIGNALING
     // TODO(jingning, yunqing): Refactor and consolidate the compound and
     // single reference frame modes. Reduce unnecessary redundancy.
     if (*refmv_count < MAX_MV_REF_CANDIDATES) {
@@ -1126,11 +1126,11 @@ static AOM_INLINE void setup_ref_mv_list(
 #endif  // CONFIG_NEW_INTER_MODES
   // If open slots are available, fetch reference MVs from the ref mv banks.
   if (*refmv_count < ref_mv_limit &&
-#if CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+#if CONFIG_NEW_REF_SIGNALING
       ref_frame != INTRA_FRAME_NRS
 #else
       ref_frame != INTRA_FRAME
-#endif  // CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+#endif  // CONFIG_NEW_REF_SIGNALING
   ) {
     const REF_MV_BANK *ref_mv_bank_left = xd->ref_mv_bank_left_pt;
     const CANDIDATE_MV *queue_left = ref_mv_bank_left->rmb_buffer[ref_frame];
@@ -1147,11 +1147,11 @@ static AOM_INLINE void setup_ref_mv_list(
     const int start_idx_above = ref_mv_bank_above->rmb_start_idx[ref_frame];
     int idx_above = 0;
 #endif  // REF_MV_BANK_COLS
-#if CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+#if CONFIG_NEW_REF_SIGNALING
     const int is_comp = rf[1] != INTRA_FRAME_NRS && rf[1] != INVALID_IDX;
 #else
     const int is_comp = rf[1] > INTRA_FRAME;
-#endif  // CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+#endif  // CONFIG_NEW_REF_SIGNALING
     const int block_width = xd->width * MI_SIZE;
     const int block_height = xd->height * MI_SIZE;
 
@@ -1203,7 +1203,7 @@ static AOM_INLINE void setup_ref_mv_list(
 #endif  // CONFIG_REF_MV_BANK
 }
 
-#if CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+#if CONFIG_NEW_REF_SIGNALING
 void av1_find_mv_refs_nrs(const AV1_COMMON *cm, const MACROBLOCKD *xd,
                           MB_MODE_INFO *mi,
                           MV_REFERENCE_FRAME_NRS ref_frame_nrs,
@@ -1355,7 +1355,7 @@ void av1_find_mv_refs(const AV1_COMMON *cm, const MACROBLOCKD *xd,
   }
   */
 }
-#endif  // CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+#endif  // CONFIG_NEW_REF_SIGNALING
 
 void av1_find_best_ref_mvs(int_mv *mvlist, int_mv *nearest_mv, int_mv *near_mv,
                            MvSubpelPrecision precision) {
@@ -1488,14 +1488,14 @@ static int is_ref_motion_field_eligible(
 // Call ref_offset as frame distances between start frame and its reference
 // frames.
 static int motion_field_projection(AV1_COMMON *cm,
-#if CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+#if CONFIG_NEW_REF_SIGNALING
                                    MV_REFERENCE_FRAME_NRS start_frame,
 #else
                                    MV_REFERENCE_FRAME start_frame,
-#endif  // CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+#endif  // CONFIG_NEW_REF_SIGNALING
                                    int dir, int overwrite) {
   TPL_MV_REF *tpl_mvs_base = cm->tpl_mvs;
-#if CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+#if CONFIG_NEW_REF_SIGNALING
   int ref_offset[INTER_REFS_PER_FRAME_NRS] = { 0 };
 
   const RefCntBuffer *const start_frame_buf =
@@ -1505,7 +1505,7 @@ static int motion_field_projection(AV1_COMMON *cm,
 
   const RefCntBuffer *const start_frame_buf =
       get_ref_frame_buf(cm, start_frame);
-#endif  // CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+#endif  // CONFIG_NEW_REF_SIGNALING
   if (!is_ref_motion_field_eligible(cm, start_frame_buf)) return 0;
 
   const int start_frame_order_hint = start_frame_buf->order_hint;
@@ -1513,7 +1513,7 @@ static int motion_field_projection(AV1_COMMON *cm,
   int start_to_current_frame_offset = get_relative_dist(
       &cm->seq_params.order_hint_info, start_frame_order_hint, cur_order_hint);
 
-#if CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+#if CONFIG_NEW_REF_SIGNALING
   const int *const ref_order_hints = &start_frame_buf->ref_order_hints_nrs[0];
   int valid_ref = 0;
   for (MV_REFERENCE_FRAME_NRS rf = 0; rf < INTER_REFS_PER_FRAME_NRS; ++rf) {
@@ -1534,7 +1534,7 @@ static int motion_field_projection(AV1_COMMON *cm,
                                        start_frame_order_hint,
                                        ref_order_hints[rf - LAST_FRAME]);
   }
-#endif  // CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+#endif  // CONFIG_NEW_REF_SIGNALING
 
   if (dir == 2) start_to_current_frame_offset = -start_to_current_frame_offset;
 
@@ -1546,12 +1546,12 @@ static int motion_field_projection(AV1_COMMON *cm,
     for (int blk_col = 0; blk_col < mvs_cols; ++blk_col) {
       MV_REF *mv_ref = &mv_ref_base[blk_row * mvs_cols + blk_col];
       MV fwd_mv = mv_ref->mv.as_mv;
-#if CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+#if CONFIG_NEW_REF_SIGNALING
       if (mv_ref->ref_frame != INTRA_FRAME_NRS &&
           mv_ref->ref_frame != INVALID_IDX) {
 #else
       if (mv_ref->ref_frame > INTRA_FRAME) {
-#endif  // CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+#endif  // CONFIG_NEW_REF_SIGNALING
         int_mv this_mv;
         int mi_r, mi_c;
         const int ref_frame_offset = ref_offset[mv_ref->ref_frame];
@@ -1583,7 +1583,7 @@ static int motion_field_projection(AV1_COMMON *cm,
   return 1;
 }
 
-#if CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+#if CONFIG_NEW_REF_SIGNALING
 static INLINE int is_ref_overlay_nrs(const AV1_COMMON *const cm, int ref) {
   const OrderHintInfo *const order_hint_info = &cm->seq_params.order_hint_info;
   if (!order_hint_info->enable_order_hint) return -1;
@@ -1599,30 +1599,7 @@ static INLINE int is_ref_overlay_nrs(const AV1_COMMON *const cm, int ref) {
   }
   return 0;
 }
-
-/*
-static INLINE int is_ref_refs_one_sided(const AV1_COMMON *const cm, int ref) {
-  const OrderHintInfo *const order_hint_info = &cm->seq_params.order_hint_info;
-  if (!order_hint_info->enable_order_hint) return -1;
-  const RefCntBuffer *const buf = get_ref_frame_buf_nrs(cm, ref);
-  if (buf == NULL) return -1;
-  // const int cur_order_hint = cm->cur_frame->order_hint;
-  const int ref_order_hint = buf->order_hint;
-  int dir[2] = { 0 };
-  for (int r = 0; r < INTER_REFS_PER_FRAME_NRS; ++r) {
-    if (buf->ref_order_hints_nrs[r] == -1) continue;
-    const int ref_ref_order_hint = buf->ref_order_hints_nrs[r];
-    if (get_relative_dist(order_hint_info, ref_order_hint,
-                          ref_ref_order_hint) > 0)
-      dir[0] += 1;
-    if (get_relative_dist(order_hint_info, ref_order_hint,
-                          ref_ref_order_hint) < 0)
-      dir[1] += 1;
-  }
-  return (dir[0] == 0 || dir[1] == 0);
-}
-*/
-#endif  // CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+#endif  // CONFIG_NEW_REF_SIGNALING
 
 void av1_setup_motion_field(AV1_COMMON *cm) {
   const OrderHintInfo *const order_hint_info = &cm->seq_params.order_hint_info;
@@ -1648,7 +1625,7 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
 
   // if (cm->current_frame.order_hint == 2)
   //   printf("Debug av1_setup_motion_field\n");
-#if CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+#if CONFIG_NEW_REF_SIGNALING
   for (int index = 0; index < cm->new_ref_frame_data.n_past_refs; index++) {
     const int ref_frame = cm->new_ref_frame_data.past_refs[index];
     cm->ref_frame_side_nrs[ref_frame] = 0;
@@ -1694,9 +1671,9 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
     else if (order_hint == cur_order_hint)
       cm->ref_frame_side[ref_frame] = -1;
   }
-#endif  // CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+#endif  // CONFIG_NEW_REF_SIGNALING
 
-#if CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+#if CONFIG_NEW_REF_SIGNALING
   int n_refs_used = 0;
 
   // Implements a strategy where the closest references in the past
@@ -1776,7 +1753,7 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
     if (motion_field_projection(cm, ALTREF_FRAME, 0, 1)) --ref_stamp;
 
   if (ref_stamp >= 0) motion_field_projection(cm, LAST2_FRAME, 2, 1);
-#endif  // CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+#endif  // CONFIG_NEW_REF_SIGNALING
 }
 
 static INLINE void record_samples(const MB_MODE_INFO *mbmi,
@@ -1887,7 +1864,7 @@ uint8_t av1_findSamples(const AV1_COMMON *cm, MACROBLOCKD *xd, int *pts,
 
 #if CONFIG_COMPOUND_WARP_SAMPLES
       for (int ref = 0; ref < 1 + has_second_ref(mbmi); ++ref) {
-#if CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+#if CONFIG_NEW_REF_SIGNALING
         if (mbmi->ref_frame_nrs[ref] == ref_frame_nrs)
 #else
         if (mbmi->ref_frame[ref] == ref_frame)
@@ -1902,7 +1879,7 @@ uint8_t av1_findSamples(const AV1_COMMON *cm, MACROBLOCKD *xd, int *pts,
         }
       }
 #else
-#if CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+#if CONFIG_NEW_REF_SIGNALING
       if (mbmi->ref_frame_nrs[0] == ref_frame_nrs &&
           mbmi->ref_frame_nrs[1] == INVALID_IDX)
 #else
@@ -1924,7 +1901,7 @@ uint8_t av1_findSamples(const AV1_COMMON *cm, MACROBLOCKD *xd, int *pts,
         mi_step = AOMMIN(xd->width, superblock_width);
 #if CONFIG_COMPOUND_WARP_SAMPLES
         for (int ref = 0; ref < 1 + has_second_ref(mbmi); ++ref) {
-#if CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+#if CONFIG_NEW_REF_SIGNALING
           if (mbmi->ref_frame_nrs[ref] == ref_frame_nrs)
 #else
           if (mbmi->ref_frame[ref] == ref_frame)
@@ -1938,7 +1915,7 @@ uint8_t av1_findSamples(const AV1_COMMON *cm, MACROBLOCKD *xd, int *pts,
           }
         }
 #else
-#if CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+#if CONFIG_NEW_REF_SIGNALING
         if (mbmi->ref_frame_nrs[0] == ref_frame_nrs &&
             mbmi->ref_frame_nrs[1] == INVALID_IDX)
 #else
@@ -1972,7 +1949,7 @@ uint8_t av1_findSamples(const AV1_COMMON *cm, MACROBLOCKD *xd, int *pts,
 
 #if CONFIG_COMPOUND_WARP_SAMPLES
       for (int ref = 0; ref < 1 + has_second_ref(mbmi); ++ref) {
-#if CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+#if CONFIG_NEW_REF_SIGNALING
         if (mbmi->ref_frame_nrs[ref] == ref_frame_nrs)
 #else
         if (mbmi->ref_frame[ref] == ref_frame)
@@ -1987,7 +1964,7 @@ uint8_t av1_findSamples(const AV1_COMMON *cm, MACROBLOCKD *xd, int *pts,
         }
       }
 #else
-#if CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+#if CONFIG_NEW_REF_SIGNALING
       if (mbmi->ref_frame_nrs[0] == ref_frame_nrs &&
           mbmi->ref_frame_nrs[1] == INVALID_IDX)
 #else
@@ -2009,7 +1986,7 @@ uint8_t av1_findSamples(const AV1_COMMON *cm, MACROBLOCKD *xd, int *pts,
         mi_step = AOMMIN(xd->height, superblock_height);
 #if CONFIG_COMPOUND_WARP_SAMPLES
         for (int ref = 0; ref < 1 + has_second_ref(mbmi); ++ref) {
-#if CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+#if CONFIG_NEW_REF_SIGNALING
           if (mbmi->ref_frame_nrs[ref] == ref_frame_nrs)
 #else
           if (mbmi->ref_frame[ref] == ref_frame)
@@ -2024,7 +2001,7 @@ uint8_t av1_findSamples(const AV1_COMMON *cm, MACROBLOCKD *xd, int *pts,
           }
         }
 #else
-#if CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+#if CONFIG_NEW_REF_SIGNALING
         if (mbmi->ref_frame_nrs[0] == ref_frame_nrs &&
             mbmi->ref_frame_nrs[1] == INVALID_IDX)
 #else
@@ -2051,7 +2028,7 @@ uint8_t av1_findSamples(const AV1_COMMON *cm, MACROBLOCKD *xd, int *pts,
     MB_MODE_INFO *mbmi = xd->mi[mi_col_offset + mi_row_offset * mi_stride];
 #if CONFIG_COMPOUND_WARP_SAMPLES
     for (int ref = 0; ref < 1 + has_second_ref(mbmi); ++ref) {
-#if CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+#if CONFIG_NEW_REF_SIGNALING
       if (mbmi->ref_frame_nrs[ref] == ref_frame_nrs)
 #else
       if (mbmi->ref_frame[ref] == ref_frame)
@@ -2064,7 +2041,7 @@ uint8_t av1_findSamples(const AV1_COMMON *cm, MACROBLOCKD *xd, int *pts,
       }
     }
 #else
-#if CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+#if CONFIG_NEW_REF_SIGNALING
     if (mbmi->ref_frame_nrs[0] == ref_frame_nrs &&
         mbmi->ref_frame_nrs[1] == INVALID_IDX)
 #else
@@ -2091,7 +2068,7 @@ uint8_t av1_findSamples(const AV1_COMMON *cm, MACROBLOCKD *xd, int *pts,
           xd->mi[mi_col_offset + mi_row_offset * mi_stride];
 #if CONFIG_COMPOUND_WARP_SAMPLES
       for (int ref = 0; ref < 1 + has_second_ref(mbmi); ++ref) {
-#if CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+#if CONFIG_NEW_REF_SIGNALING
         if (mbmi->ref_frame_nrs[ref] == ref_frame_nrs)
 #else
         if (mbmi->ref_frame[ref] == ref_frame)
@@ -2106,7 +2083,7 @@ uint8_t av1_findSamples(const AV1_COMMON *cm, MACROBLOCKD *xd, int *pts,
         }
       }
 #else
-#if CONFIG_NEW_REF_SIGNALING && USE_NEW_REF_SIGNALING
+#if CONFIG_NEW_REF_SIGNALING
       if (mbmi->ref_frame_nrs[0] == ref_frame_nrs &&
           mbmi->ref_frame_nrs[1] == INVALID_IDX)
 #else
