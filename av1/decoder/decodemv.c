@@ -929,9 +929,10 @@ static void read_intra_frame_mode_info(AV1_COMMON *const cm,
 #if CONFIG_NEW_REF_SIGNALING
   mbmi->ref_frame_nrs[0] = INTRA_FRAME_NRS;
   mbmi->ref_frame_nrs[1] = INVALID_IDX;
-#endif  // CONFIG_NEW_REF_SIGNALING
+#else
   mbmi->ref_frame[0] = INTRA_FRAME;
   mbmi->ref_frame[1] = NONE_FRAME;
+#endif  // CONFIG_NEW_REF_SIGNALING
   mbmi->palette_mode_info.palette_size[0] = 0;
   mbmi->palette_mode_info.palette_size[1] = 0;
   mbmi->filter_intra_mode_info.use_filter_intra = 0;
@@ -1173,18 +1174,14 @@ static AOM_INLINE void read_compound_ref_nrs(
 static void read_ref_frames(AV1_COMMON *const cm, MACROBLOCKD *const xd,
                             aom_reader *r, int segment_id,
 #if CONFIG_NEW_REF_SIGNALING
-                            MV_REFERENCE_FRAME_NRS ref_frame_nrs[2],
+                            MV_REFERENCE_FRAME_NRS ref_frame_nrs[2]
+#else
+                            MV_REFERENCE_FRAME ref_frame[2]
 #endif  // CONFIG_NEW_REF_SIGNALING
-                            MV_REFERENCE_FRAME ref_frame[2]) {
+) {
   if (xd->mi[0]->skip_mode) {
 #if CONFIG_NEW_REF_SIGNALING
     set_ref_frames_for_skip_mode_nrs(cm, ref_frame_nrs);
-    // TODO(sarahparker, debargha): When the entire function converts
-    // to the new framework, remove the conversion to named refs below.
-    ref_frame[0] = convert_ranked_ref_to_named_ref_index(
-        &cm->new_ref_frame_data, ref_frame_nrs[0]);
-    ref_frame[1] = convert_ranked_ref_to_named_ref_index(
-        &cm->new_ref_frame_data, ref_frame_nrs[1]);
 #else
     set_ref_frames_for_skip_mode(cm, ref_frame);
 #endif  // CONFIG_NEW_REF_SIGNALING
@@ -1196,9 +1193,6 @@ static void read_ref_frames(AV1_COMMON *const cm, MACROBLOCKD *const xd,
       segfeature_active(&cm->seg, segment_id, SEG_LVL_GLOBALMV)) {
     ref_frame_nrs[0] = get_closest_pastcur_ref_index(cm);
     ref_frame_nrs[1] = INVALID_IDX;
-    ref_frame[0] = convert_ranked_ref_to_named_ref_index(
-        &cm->new_ref_frame_data, ref_frame_nrs[0]);
-    ref_frame[1] = NONE_FRAME;
 #else
   if (segfeature_active(&cm->seg, segment_id, SEG_LVL_REF_FRAME)) {
     ref_frame[0] = (MV_REFERENCE_FRAME)get_segdata(&cm->seg, segment_id,
@@ -1214,10 +1208,6 @@ static void read_ref_frames(AV1_COMMON *const cm, MACROBLOCKD *const xd,
     if (mode == COMPOUND_REFERENCE) {
 #if CONFIG_NEW_REF_SIGNALING
       read_compound_ref_nrs(xd, ref_frame_nrs, &cm->new_ref_frame_data, r);
-      ref_frame[0] = convert_ranked_ref_to_named_ref_index(
-          &cm->new_ref_frame_data, ref_frame_nrs[0]);
-      ref_frame[1] = convert_ranked_ref_to_named_ref_index(
-          &cm->new_ref_frame_data, ref_frame_nrs[1]);
 #else
       const COMP_REFERENCE_TYPE comp_ref_type = read_comp_reference_type(xd, r);
 
@@ -1272,9 +1262,6 @@ static void read_ref_frames(AV1_COMMON *const cm, MACROBLOCKD *const xd,
 #if CONFIG_NEW_REF_SIGNALING
       read_single_ref_nrs(xd, ref_frame_nrs, &cm->new_ref_frame_data, r);
       ref_frame_nrs[1] = INVALID_IDX;
-      ref_frame[0] = convert_ranked_ref_to_named_ref_index(
-          &cm->new_ref_frame_data, ref_frame_nrs[0]);
-      ref_frame[1] = NONE_FRAME;
 #else
       const int bit0 = READ_REF_BIT(single_ref_p1);
       if (bit0) {
@@ -1355,11 +1342,12 @@ static void read_intra_block_mode_info(AV1_COMMON *const cm,
   const BLOCK_SIZE bsize = mbmi->sb_type;
   const int use_angle_delta = av1_use_angle_delta(bsize);
 
-  mbmi->ref_frame[0] = INTRA_FRAME;
-  mbmi->ref_frame[1] = NONE_FRAME;
 #if CONFIG_NEW_REF_SIGNALING
   mbmi->ref_frame_nrs[0] = INTRA_FRAME_NRS;
   mbmi->ref_frame_nrs[1] = INVALID_IDX;
+#else
+  mbmi->ref_frame[0] = INTRA_FRAME;
+  mbmi->ref_frame[1] = NONE_FRAME;
 #endif  // CONFIG_NEW_REF_SIGNALING
 #if CONFIG_DERIVED_INTRA_MODE
   mbmi->use_derived_intra_mode[0] = 0;
@@ -1676,13 +1664,13 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
 
   read_ref_frames(cm, xd, r, mbmi->segment_id,
 #if CONFIG_NEW_REF_SIGNALING
-                  mbmi->ref_frame_nrs,
+                  mbmi->ref_frame_nrs
+#else
+                  mbmi->ref_frame
 #endif  // CONFIG_NEW_REF_SIGNALING
-                  mbmi->ref_frame);
+  );
   const int is_compound = has_second_ref(mbmi);
 
-  const MV_REFERENCE_FRAME ref_frame = av1_ref_frame_type(mbmi->ref_frame);
-  (void)ref_frame;
 #if CONFIG_NEW_REF_SIGNALING
   MV_REFERENCE_FRAME_NRS ref_frame_nrs =
       av1_ref_frame_type_nrs(mbmi->ref_frame_nrs);
@@ -1690,6 +1678,7 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
                        xd->ref_mv_stack, xd->weight, ref_mvs,
                        /*global_mvs_nrs=*/NULL, inter_mode_ctx);
 #else
+  const MV_REFERENCE_FRAME ref_frame = av1_ref_frame_type(mbmi->ref_frame);
   av1_find_mv_refs(cm, xd, mbmi, ref_frame, dcb->ref_mv_count, xd->ref_mv_stack,
                    xd->weight, ref_mvs, /*global_mvs=*/NULL, inter_mode_ctx);
 #endif  // CONFIG_NEW_REF_SIGNALING
@@ -1875,9 +1864,10 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
     if (interintra) {
       const INTERINTRA_MODE interintra_mode =
           read_interintra_mode(xd, r, bsize_group);
-      mbmi->ref_frame[1] = INTRA_FRAME;
 #if CONFIG_NEW_REF_SIGNALING
       mbmi->ref_frame_nrs[1] = INTRA_FRAME_NRS;
+#else
+      mbmi->ref_frame[1] = INTRA_FRAME;
 #endif  // CONFIG_NEW_REF_SIGNALING
       mbmi->interintra_mode = interintra_mode;
       mbmi->angle_delta[PLANE_TYPE_Y] = 0;
