@@ -1830,8 +1830,8 @@ static int64_t motion_mode_rd(
   const MV_REFERENCE_FRAME_NRS ref_frame_1_nrs = mbmi->ref_frame_nrs[1];
 #else
   assert(mbmi->ref_frame[1] != INTRA_FRAME);
-#endif  // CONFIG_NEW_REF_SIGNALING
   const MV_REFERENCE_FRAME ref_frame_1 = mbmi->ref_frame[1];
+#endif  // CONFIG_NEW_REF_SIGNALING
   (void)tile_data;
   av1_invalid_rd_stats(&best_rd_stats);
   aom_clear_system_state();
@@ -2205,9 +2205,10 @@ static int64_t motion_mode_rd(
       }
       est_rd = RDCOST(x->rdmult, rd_stats->rate + est_residue_cost, est_dist);
       if (est_rd * 0.80 > *best_est_rd) {
-        mbmi->ref_frame[1] = ref_frame_1;
 #if CONFIG_NEW_REF_SIGNALING
         mbmi->ref_frame_nrs[1] = ref_frame_1_nrs;
+#else
+        mbmi->ref_frame[1] = ref_frame_1;
 #endif  // CONFIG_NEW_REF_SIGNALING
         continue;
       }
@@ -2310,9 +2311,10 @@ static int64_t motion_mode_rd(
     }
   }
   // Update RD and mbmi stats for selected motion mode
-  mbmi->ref_frame[1] = ref_frame_1;
 #if CONFIG_NEW_REF_SIGNALING
   mbmi->ref_frame_nrs[1] = ref_frame_1_nrs;
+#else
+  mbmi->ref_frame[1] = ref_frame_1;
 #endif  // CONFIG_NEW_REF_SIGNALING
   *rate_mv = best_rate_mv;
   if (best_rd == INT64_MAX || !av1_check_newmv_joint_nonzero(cm, x)) {
@@ -2799,7 +2801,6 @@ static int64_t simple_translation_pred_rd(
   mbmi->compound_idx = 1;
 #if CONFIG_NEW_REF_SIGNALING
   if (mbmi->ref_frame_nrs[1] == INTRA_FRAME_NRS) {
-    mbmi->ref_frame[1] = NONE_FRAME;
     mbmi->ref_frame_nrs[1] = INVALID_IDX;
   }
 #else
@@ -3174,7 +3175,12 @@ static AOM_INLINE void get_block_level_tpl_stats(
 
 static AOM_INLINE int prune_modes_based_on_tpl_stats(
     const FeatureFlags *const features,
-    PruneInfoFromTpl *inter_cost_info_from_tpl, const MV_REFERENCE_FRAME *refs,
+    PruneInfoFromTpl *inter_cost_info_from_tpl,
+#if CONFIG_NEW_REF_SIGNALING
+    const MV_REFERENCE_FRAME_NRS *refs,
+#else
+    const MV_REFERENCE_FRAME *refs,
+#endif  // CONFIG_NEW_REF_SIGNALING
     int ref_mv_idx, const PREDICTION_MODE this_mode, int prune_mode_level) {
   (void)features;
   const int have_newmv = have_newmv_in_inter_mode(this_mode);
@@ -3207,6 +3213,21 @@ static AOM_INLINE int prune_modes_based_on_tpl_stats(
 #endif  // CONFIG_NEW_INTER_MODES
   };
 
+#if CONFIG_NEW_REF_SIGNALING
+  const int is_comp_pred =
+      (refs[1] != INTRA_FRAME_NRS && refs[1] != INVALID_IDX);
+  if (!is_comp_pred) {
+    cur_inter_cost = inter_cost_info_from_tpl->ref_inter_cost[refs[0]];
+  } else {
+    const int64_t inter_cost_ref0 =
+        inter_cost_info_from_tpl->ref_inter_cost[refs[0]];
+    const int64_t inter_cost_ref1 =
+        inter_cost_info_from_tpl->ref_inter_cost[refs[1]];
+    // Choose maximum inter_cost among inter_cost_ref0 and inter_cost_ref1 for
+    // more aggressive pruning
+    cur_inter_cost = AOMMAX(inter_cost_ref0, inter_cost_ref1);
+  }
+#else
   const int is_comp_pred = (refs[1] > INTRA_FRAME);
   if (!is_comp_pred) {
     cur_inter_cost = inter_cost_info_from_tpl->ref_inter_cost[refs[0] - 1];
@@ -3219,6 +3240,7 @@ static AOM_INLINE int prune_modes_based_on_tpl_stats(
     // more aggressive pruning
     cur_inter_cost = AOMMAX(inter_cost_ref0, inter_cost_ref1);
   }
+#endif  // CONFIG_NEW_REF_SIGNALING
 
   // Prune the mode if cur_inter_cost is greater than threshold times
   // best_inter_cost
@@ -3574,13 +3596,14 @@ static int64_t handle_inter_mode(
       tpl_idx < MAX_TPL_FRAME_IDX && tpl_frame->is_valid;
   int i;
   // Reference frames for this mode
-  const MV_REFERENCE_FRAME refs[2] = {
-    mbmi->ref_frame[0], (mbmi->ref_frame[1] < 0 ? 0 : mbmi->ref_frame[1])
-  };
 #if CONFIG_NEW_REF_SIGNALING
   const MV_REFERENCE_FRAME_NRS refs_nrs[2] = {
     COMPACT_INDEX0_NRS(mbmi->ref_frame_nrs[0]),
     COMPACT_INDEX1_NRS(mbmi->ref_frame_nrs[1])
+  };
+#else
+  const MV_REFERENCE_FRAME refs[2] = {
+    mbmi->ref_frame[0], (mbmi->ref_frame[1] < 0 ? 0 : mbmi->ref_frame[1])
   };
 #endif  // CONFIG_NEW_REF_SIGNALING
   int rate_mv = 0;
@@ -3682,8 +3705,14 @@ static int64_t handle_inter_mode(
         !ref_match_found_in_left_nb && (ref_best_rd != INT64_MAX)) {
       // Skip mode if TPL model indicates it will not be beneficial.
       if (prune_modes_based_on_tpl_stats(
-              &cm->features, inter_cost_info_from_tpl, refs, ref_mv_idx,
-              this_mode, cpi->sf.inter_sf.prune_inter_modes_based_on_tpl))
+              &cm->features, inter_cost_info_from_tpl,
+#if CONFIG_NEW_REF_SIGNALING
+              refs_nrs,
+#else
+              refs,
+#endif  // CONFIG_NEW_REF_SIGNALING
+              ref_mv_idx, this_mode,
+              cpi->sf.inter_sf.prune_inter_modes_based_on_tpl))
         continue;
     }
     av1_init_rd_stats(rd_stats);
@@ -3695,7 +3724,6 @@ static int64_t handle_inter_mode(
 #if CONFIG_NEW_REF_SIGNALING
     if (mbmi->ref_frame_nrs[1] == INTRA_FRAME_NRS) {
       mbmi->ref_frame_nrs[1] = INVALID_IDX;
-      mbmi->ref_frame[1] = NONE_FRAME;
     }
 #else
     if (mbmi->ref_frame[1] == INTRA_FRAME) {
@@ -4211,11 +4239,12 @@ void av1_rd_pick_intra_mode_sb(const struct AV1_COMP *cpi, struct macroblock *x,
   int64_t dist_y = 0, dist_uv = 0;
 
   ctx->rd_stats.skip_txfm = 0;
-  mbmi->ref_frame[0] = INTRA_FRAME;
-  mbmi->ref_frame[1] = NONE_FRAME;
 #if CONFIG_NEW_REF_SIGNALING
   mbmi->ref_frame_nrs[0] = INTRA_FRAME_NRS;
   mbmi->ref_frame_nrs[1] = INVALID_IDX;
+#else
+  mbmi->ref_frame[0] = INTRA_FRAME;
+  mbmi->ref_frame[1] = NONE_FRAME;
 #endif  // CONFIG_NEW_REF_SIGNALING
   mbmi->use_intrabc = 0;
   mbmi->mv[0].as_int = 0;
@@ -6026,7 +6055,13 @@ static AOM_INLINE void collect_single_states(const AV1_COMMON *const cm,
 #if CONFIG_NEW_INTER_MODES
       features->max_drl_bits,
 #endif  // CONFIG_NEW_INTER_MODES
-      x, mbmi->ref_frame, this_mode);
+      x,
+#if CONFIG_NEW_REF_SIGNALING
+      mbmi->ref_frame_nrs,
+#else
+      mbmi->ref_frame,
+#endif  // CONFIG_NEW_REF_SIGNALING
+      this_mode);
 
   // Simple rd
 #if CONFIG_NEW_REF_SIGNALING

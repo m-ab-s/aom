@@ -780,9 +780,6 @@ static void setup_planes(AV1_COMP *cpi, MACROBLOCK *x, unsigned int *y_sad,
 #if CONFIG_NEW_REF_SIGNALING
   mi->ref_frame_nrs[0] = last_frame;
   mi->ref_frame_nrs[1] = INVALID_IDX;
-  mi->ref_frame[0] = convert_ranked_ref_to_named_ref_index(
-      &cm->new_ref_frame_data, mi->ref_frame_nrs[0]);
-  mi->ref_frame[1] = NONE_FRAME;
 #else
   mi->ref_frame[0] = LAST_FRAME;
   mi->ref_frame[1] = NONE_FRAME;
@@ -813,8 +810,6 @@ static void setup_planes(AV1_COMP *cpi, MACROBLOCK *x, unsigned int *y_sad,
                          get_ref_scale_factors_nrs(cm, golden_frame),
                          num_planes, NULL);
     mi->ref_frame_nrs[0] = golden_frame;
-    mi->ref_frame[0] = convert_ranked_ref_to_named_ref_index(
-        &cm->new_ref_frame_data, mi->ref_frame_nrs[0]);
     mi->mv[0].as_int = 0;
     *y_sad = *y_sad_g;
     *ref_frame_partition = golden_frame;

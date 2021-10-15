@@ -347,10 +347,6 @@ void av1_build_inter_predictors_for_planes_single_buf(MACROBLOCKD *xd,
 #if CONFIG_NEW_REF_SIGNALING
   const WarpedMotionParams *const wm =
       &xd->global_motion_nrs[mi->ref_frame_nrs[ref]];
-  const WarpedMotionParams *const wm2 = &xd->global_motion[mi->ref_frame[ref]];
-  // TODO(sarahparker) Temporary assert, see aomedia:3060
-  assert(is_same_wm_params(wm, wm2));
-  (void)wm2;
 #else
   const WarpedMotionParams *const wm = &xd->global_motion[mi->ref_frame[ref]];
 #endif  // CONFIG_NEW_REF_SIGNALING

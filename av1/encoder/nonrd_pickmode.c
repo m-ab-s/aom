@@ -2184,11 +2184,12 @@ static void estimate_intra_mode(
         bsize, xd->plane[1].subsampling_x, xd->plane[1].subsampling_y);
 
     mi->mode = this_mode;
-    mi->ref_frame[0] = INTRA_FRAME;
-    mi->ref_frame[1] = NONE_FRAME;
 #if CONFIG_NEW_REF_SIGNALING
     mi->ref_frame_nrs[0] = INTRA_FRAME_NRS;
     mi->ref_frame_nrs[1] = INVALID_IDX;
+#else
+    mi->ref_frame[0] = INTRA_FRAME;
+    mi->ref_frame[1] = NONE_FRAME;
 #endif  // CONFIG_NEW_REF_SIGNALING
 
     av1_invalid_rd_stats(&this_rdc);
@@ -2430,11 +2431,12 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
   av1_invalid_rd_stats(&this_rdc);
   av1_invalid_rd_stats(rd_cost);
   mi->sb_type = bsize;
-  mi->ref_frame[0] = NONE_FRAME;
-  mi->ref_frame[1] = NONE_FRAME;
 #if CONFIG_NEW_REF_SIGNALING
   mi->ref_frame_nrs[0] = INVALID_IDX;
   mi->ref_frame_nrs[1] = INVALID_IDX;
+#else
+  mi->ref_frame[0] = NONE_FRAME;
+  mi->ref_frame[1] = NONE_FRAME;
 #endif  // CONFIG_NEW_REF_SIGNALING
 
   const int gf_temporal_ref = is_same_gf_and_last_scale(cm);
@@ -2544,18 +2546,15 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
     ms_stat.num_searches[bsize][this_mode]++;
 #endif
     mi->mode = this_mode;
-    mi->ref_frame[0] = ref_frame;
 #if CONFIG_NEW_REF_SIGNALING
     mi->ref_frame_nrs[0] = ref_frame_nrs;
     if (!use_ref_frame_mask[ref_frame_nrs]) continue;
 #else
+    mi->ref_frame[0] = ref_frame;
     if (!use_ref_frame_mask[ref_frame]) continue;
 #endif  // CONFIG_NEW_REF_SIGNALING
 
 #if CONFIG_NEW_REF_SIGNALING
-    assert(convert_ranked_ref_to_named_ref_index(&cm->new_ref_frame_data,
-                                                 mi->ref_frame_nrs[0]) ==
-           mi->ref_frame[0]);
     // Skip non-zero motion for SVC if skip_nonzeromv_ref is set.
     if (cpi->use_svc && frame_mv[this_mode][ref_frame].as_int != 0) {
       if (ref_frame_nrs == last_frame && cpi->svc.skip_nonzeromv_last)
@@ -2622,11 +2621,12 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
       xd->plane[i].pre[0] = yv12_mb[ref_frame][i];
     }
 
-    mi->ref_frame[0] = ref_frame;
-    mi->ref_frame[1] = NONE_FRAME;
 #if CONFIG_NEW_REF_SIGNALING
     mi->ref_frame_nrs[0] = ref_frame_nrs;
     mi->ref_frame_nrs[1] = INVALID_IDX;
+#else
+    mi->ref_frame[0] = ref_frame;
+    mi->ref_frame[1] = NONE_FRAME;
 #endif  // CONFIG_NEW_REF_SIGNALING
 #if CONFIG_NEW_REF_SIGNALING
     set_ref_ptrs_nrs(cm, xd, mi->ref_frame_nrs[0], INVALID_IDX);
@@ -2832,8 +2832,6 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
   memset(mi->inter_tx_size, mi->tx_size, sizeof(mi->inter_tx_size));
 #if CONFIG_NEW_REF_SIGNALING
   mi->ref_frame_nrs[0] = best_pickmode.best_ref_frame;
-  mi->ref_frame[0] = convert_ranked_ref_to_named_ref_index(
-      &cm->new_ref_frame_data, mi->ref_frame_nrs[0]);
 #else
   mi->ref_frame[0] = best_pickmode.best_ref_frame;
 #endif  // CONFIG_NEW_REF_SIGNALING
@@ -2862,8 +2860,6 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
   mi->mode = best_pickmode.best_mode;
 #if CONFIG_NEW_REF_SIGNALING
   mi->ref_frame_nrs[0] = best_pickmode.best_ref_frame;
-  mi->ref_frame[0] = convert_ranked_ref_to_named_ref_index(
-      &cm->new_ref_frame_data, mi->ref_frame_nrs[0]);
 #else
   mi->ref_frame[0] = best_pickmode.best_ref_frame;
 #endif  // CONFIG_NEW_REF_SIGNALING
