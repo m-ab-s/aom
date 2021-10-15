@@ -44,7 +44,11 @@ static INLINE int is_comp_rd_match(const AV1_COMP *const cpi,
   const MACROBLOCKD *const xd = &x->e_mbd;
   // Match MV and reference indices
   for (int i = 0; i < 2; ++i) {
+#if CONFIG_NEW_REF_SIGNALING
+    if ((st->ref_frames_nrs[i] != mi->ref_frame_nrs[i]) ||
+#else
     if ((st->ref_frames[i] != mi->ref_frame[i]) ||
+#endif  // CONFIG_NEW_REF_SIGNALING
         (st->mv[i].as_int != mi->mv[i].as_int)) {
       return 0;
     }
@@ -569,7 +573,11 @@ static int handle_smooth_inter_intra_mode(
           cpi, mbmi, xd, x, interintra_mode_cost, orig_dst, intrapred, tmp_buf,
           best_interintra_mode, &best_interintra_rd, cur_mode, bsize);
     }
+#if CONFIG_NEW_REF_SIGNALING
+    args->inter_intra_mode[mbmi->ref_frame_nrs[0]] = *best_interintra_mode;
+#else
     args->inter_intra_mode[mbmi->ref_frame[0]] = *best_interintra_mode;
+#endif  // CONFIG_NEW_REF_SIGNALING
   }
   assert(IMPLIES(!cpi->oxcf.comp_type_cfg.enable_smooth_interintra ||
                      cpi->sf.inter_sf.disable_smooth_interintra,
@@ -656,7 +664,11 @@ static int handle_wedge_inter_intra_mode(
             cpi, mbmi, xd, x, interintra_mode_cost, orig_dst, intrapred,
             tmp_buf, best_interintra_mode, best_rd, cur_mode, bsize);
       }
+#if CONFIG_NEW_REF_SIGNALING
+      args->inter_intra_mode[mbmi->ref_frame_nrs[0]] = *best_interintra_mode;
+#else
       args->inter_intra_mode[mbmi->ref_frame[0]] = *best_interintra_mode;
+#endif  // CONFIG_NEW_REF_SIGNALING
       mbmi->interintra_mode = *best_interintra_mode;
 
       // Recompute prediction if required
@@ -697,17 +709,19 @@ static int handle_wedge_inter_intra_mode(
       mbmi->mv[0].as_int = tmp_mv->as_int;
       // Set ref_frame[1] to NONE_FRAME temporarily so that the intra
       // predictor is not calculated again in av1_enc_build_inter_predictor().
-      mbmi->ref_frame[1] = NONE_FRAME;
 #if CONFIG_NEW_REF_SIGNALING
       mbmi->ref_frame_nrs[1] = INVALID_IDX;
+#else
+      mbmi->ref_frame[1] = NONE_FRAME;
 #endif  // CONFIG_NEW_REF_SIGNALING
       const int mi_row = xd->mi_row;
       const int mi_col = xd->mi_col;
       av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, orig_dst, bsize,
                                     AOM_PLANE_Y, AOM_PLANE_Y);
-      mbmi->ref_frame[1] = INTRA_FRAME;
 #if CONFIG_NEW_REF_SIGNALING
       mbmi->ref_frame_nrs[1] = INTRA_FRAME_NRS;
+#else
+      mbmi->ref_frame[1] = INTRA_FRAME;
 #endif  // CONFIG_NEW_REF_SIGNALING
       av1_combine_interintra(xd, bsize, 0, xd->plane[AOM_PLANE_Y].dst.buf,
                              xd->plane[AOM_PLANE_Y].dst.stride, intrapred, bw);
@@ -762,9 +776,10 @@ int av1_handle_inter_intra_mode(const AV1_COMP *const cpi, MACROBLOCK *const x,
   const int mi_col = xd->mi_col;
 
   // Single reference inter prediction
-  mbmi->ref_frame[1] = NONE_FRAME;
 #if CONFIG_NEW_REF_SIGNALING
   mbmi->ref_frame_nrs[1] = INVALID_IDX;
+#else
+  mbmi->ref_frame[1] = NONE_FRAME;
 #endif  // CONFIG_NEW_REF_SIGNALING
   xd->plane[0].dst.buf = tmp_buf;
   xd->plane[0].dst.stride = bw;
@@ -774,12 +789,15 @@ int av1_handle_inter_intra_mode(const AV1_COMP *const cpi, MACROBLOCK *const x,
 
   // Restore the buffers for intra prediction
   restore_dst_buf(xd, *orig_dst, num_planes);
-  mbmi->ref_frame[1] = INTRA_FRAME;
 #if CONFIG_NEW_REF_SIGNALING
   mbmi->ref_frame_nrs[1] = INTRA_FRAME_NRS;
-#endif  // CONFIG_NEW_REF_SIGNALING
+  INTERINTRA_MODE best_interintra_mode =
+      args->inter_intra_mode[mbmi->ref_frame_nrs[0]];
+#else
+  mbmi->ref_frame[1] = INTRA_FRAME;
   INTERINTRA_MODE best_interintra_mode =
       args->inter_intra_mode[mbmi->ref_frame[0]];
+#endif  // CONFIG_NEW_REF_SIGNALING
 
   // Compute smooth_interintra
   int64_t best_interintra_rd_nowedge = INT64_MAX;
@@ -1050,10 +1068,11 @@ static INLINE void save_comp_rd_search_stat(
     memcpy(rd_stats->model_dist, comp_model_dist, sizeof(rd_stats->model_dist));
     memcpy(rd_stats->comp_rs2, comp_rs2, sizeof(rd_stats->comp_rs2));
     memcpy(rd_stats->mv, cur_mv, sizeof(rd_stats->mv));
-    memcpy(rd_stats->ref_frames, mbmi->ref_frame, sizeof(rd_stats->ref_frames));
 #if CONFIG_NEW_REF_SIGNALING
     memcpy(rd_stats->ref_frames_nrs, mbmi->ref_frame_nrs,
            sizeof(rd_stats->ref_frames_nrs));
+#else
+    memcpy(rd_stats->ref_frames, mbmi->ref_frame, sizeof(rd_stats->ref_frames));
 #endif  // CONFIG_NEW_REF_SIGNALING
     rd_stats->mode = mbmi->mode;
 #if CONFIG_REMOVE_DUAL_FILTER
