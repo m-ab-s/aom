@@ -726,9 +726,7 @@ static AOM_INLINE void write_compound_ref_nrs(
   MV_REFERENCE_FRAME_NRS ref1 = mbmi->ref_frame_nrs[1];
   const int n_refs = new_ref_frame_data->n_total_refs;
   assert(n_refs >= 2);
-#if PURE_NEW_REF_SIGNALING
   assert(ref0 < ref1);
-#endif  // PURE_NEW_REF_SIGNALING
   int n_bits = 0;
   for (int i = 0; i < n_refs + n_bits - 2; i++) {
     const int bit = ref0 == i || ref1 == i;

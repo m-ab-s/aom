@@ -78,37 +78,6 @@ void av1_init_new_ref_frame_map(AV1_COMMON *const cm,
                                 RefFrameMapPair *ref_frame_map_pairs,
                                 int cur_frame_disp);
 
-static INLINE int convert_named_ref_to_ranked_ref_index(
-    const NewRefFramesData *const ref_frame_data, int named_idx) {
-  // NONE_FRAME and INVALID_IDX are both equal to -1, simplify by using only
-  // INVALID_IDX for this purpose
-  if (named_idx == NONE_FRAME) return INVALID_IDX;
-  if (named_idx == INVALID_IDX) return INVALID_IDX;
-  if (named_idx == INTRA_FRAME) return INTRA_FRAME_NRS;
-  return ref_frame_data->named_to_ranked_refs[named_idx];
-}
-
-static INLINE int convert_ranked_ref_to_named_ref_index(
-    const NewRefFramesData *const ref_frame_data, int ranked_idx) {
-  if (ranked_idx == INVALID_IDX) return INVALID_IDX;
-  if (ranked_idx == INTRA_FRAME_NRS) return INTRA_FRAME;
-  return ref_frame_data->ranked_to_named_refs[ranked_idx];
-}
-
-static INLINE void convert_ranked_ref_to_named_ref_pair(
-    const NewRefFramesData *const ref_frame_data,
-    MV_REFERENCE_FRAME_NRS *rf_nrs, int ordered, MV_REFERENCE_FRAME *rf) {
-  rf[0] = convert_ranked_ref_to_named_ref_index(ref_frame_data, rf_nrs[0]);
-  rf[1] = convert_ranked_ref_to_named_ref_index(ref_frame_data, rf_nrs[1]);
-  if (ordered) {
-    if (rf_nrs[1] != INVALID_IDX && rf_nrs[1] < rf_nrs[0]) {
-      MV_REFERENCE_FRAME tmp = rf[1];
-      rf[1] = rf[0];
-      rf[0] = tmp;
-    }
-  }
-}
-
 // Find the reference that is furthest in the future
 static INLINE int get_furthest_future_ref_index(const AV1_COMMON *const cm) {
   int index = INVALID_IDX;

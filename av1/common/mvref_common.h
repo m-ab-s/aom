@@ -21,8 +21,6 @@
 extern "C" {
 #endif
 
-#define PURE_NEW_REF_SIGNALING 1
-
 #define MVREF_ROW_COLS 3
 
 // Set the upper limit of the motion vector component magnitude.
@@ -89,14 +87,13 @@ static INLINE int8_t get_uni_comp_ref_idx(const MV_REFERENCE_FRAME *const rf) {
   return -1;
 }
 
+#if !CONFIG_NEW_REF_SIGNALING
 static INLINE int8_t av1_ref_frame_type(const MV_REFERENCE_FRAME *const rf) {
   if (rf[1] > INTRA_FRAME) {
     const int8_t uni_comp_ref_idx = get_uni_comp_ref_idx(rf);
     if (uni_comp_ref_idx >= 0) {
-#if !PURE_NEW_REF_SIGNALING
       assert((REF_FRAMES + FWD_REFS * BWD_REFS + uni_comp_ref_idx) <
              MODE_CTX_REF_FRAMES);
-#endif  // !CONFIG_NEW_REF_SIGNALING
       return REF_FRAMES + FWD_REFS * BWD_REFS + uni_comp_ref_idx;
     } else {
       return REF_FRAMES + FWD_RF_OFFSET(rf[0]) +
@@ -106,6 +103,7 @@ static INLINE int8_t av1_ref_frame_type(const MV_REFERENCE_FRAME *const rf) {
 
   return rf[0];
 }
+#endif  // !CONFIG_NEW_REF_SIGNALING
 
 // clang-format off
 static MV_REFERENCE_FRAME ref_frame_map[TOTAL_COMP_REFS][2] = {
@@ -208,16 +206,6 @@ static INLINE void av1_set_ref_frame_nrs(
                 ref_frame_type - INTER_REFS_PER_FRAME_NRS, rf);
   }
   return;
-}
-
-static INLINE MV_REFERENCE_FRAME convert_ranked_ref_to_named_ref_type(
-    const NewRefFramesData *const ref_frame_data,
-    MV_REFERENCE_FRAME_NRS ref_type_nrs) {
-  MV_REFERENCE_FRAME_NRS rf_nrs[2];
-  av1_set_ref_frame_nrs(rf_nrs, ref_type_nrs);
-  MV_REFERENCE_FRAME rf[2];
-  convert_ranked_ref_to_named_ref_pair(ref_frame_data, rf_nrs, 0, rf);
-  return av1_ref_frame_type(rf);
 }
 #endif  // CONFIG_NEW_REF_SIGNALING
 
