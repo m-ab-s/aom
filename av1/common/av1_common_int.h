@@ -184,7 +184,11 @@ typedef struct RefCntBuffer {
   int interp_filter_selected[SWITCHABLE];
 
   // Inter frame reference frame delta for loop filter
+#if CONFIG_NEW_REF_SIGNALING
+  int8_t ref_deltas[REF_FRAMES_NRS];
+#else
   int8_t ref_deltas[REF_FRAMES];
+#endif  // CONFIG_NEW_REF_SIGNALING
 
   // 0 = ZERO_MV, MV
   int8_t mode_deltas[MAX_MODE_LF_DELTAS];

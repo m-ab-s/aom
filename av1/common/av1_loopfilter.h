@@ -90,9 +90,14 @@ struct loopfilter {
   uint8_t mode_ref_delta_enabled;
   uint8_t mode_ref_delta_update;
 
+#if CONFIG_NEW_REF_SIGNALING
+  // In ranked order
+  int8_t ref_deltas[REF_FRAMES_NRS];
+#else
   // 0 = Intra, Last, Last2+Last3,
   // GF, BRF, ARF2, ARF
   int8_t ref_deltas[REF_FRAMES];
+#endif  // CONFIG_NEW_REF_SIGNALING
 
   // 0 = ZERO_MV, MV
   int8_t mode_deltas[MAX_MODE_LF_DELTAS];

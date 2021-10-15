@@ -920,17 +920,6 @@ static AOM_INLINE void predict_inter_block(AV1_COMMON *const cm,
       const RefCntBuffer *ref_buf = get_ref_frame_buf_nrs(cm, frame);
       const struct scale_factors *ref_scale_factors =
           get_ref_scale_factors_const_nrs(cm, frame);
-
-      // TODO(sarahparker) Temporary asserts, see aomedia:3060
-      const RefCntBuffer *ref_buf2 =
-          get_ref_frame_buf(cm, mbmi->ref_frame[ref]);
-      const struct scale_factors *ref_scale_factors2 =
-          get_ref_scale_factors_const(cm, mbmi->ref_frame[ref]);
-      // TODO(sarahparker) Temporary assert, see aomedia:3060
-      assert(ref_buf == ref_buf2);
-      assert(ref_scale_factors == ref_scale_factors2);
-      (void)ref_buf2;
-      (void)ref_scale_factors2;
 #else
     const MV_REFERENCE_FRAME frame = mbmi->ref_frame[ref];
     if (frame < LAST_FRAME) {
@@ -2170,7 +2159,7 @@ static AOM_INLINE void setup_loopfilter(AV1_COMMON *cm,
   assert(!cm->features.coded_lossless);
   if (cm->prev_frame) {
     // write deltas to frame buffer
-    memcpy(lf->ref_deltas, cm->prev_frame->ref_deltas, REF_FRAMES);
+    memcpy(lf->ref_deltas, cm->prev_frame->ref_deltas, sizeof(lf->ref_deltas));
     memcpy(lf->mode_deltas, cm->prev_frame->mode_deltas, MAX_MODE_LF_DELTAS);
   } else {
     av1_set_default_ref_deltas(lf->ref_deltas);
@@ -2194,7 +2183,11 @@ static AOM_INLINE void setup_loopfilter(AV1_COMMON *cm,
   if (lf->mode_ref_delta_enabled) {
     lf->mode_ref_delta_update = aom_rb_read_bit(rb);
     if (lf->mode_ref_delta_update) {
+#if CONFIG_NEW_REF_SIGNALING
+      for (int i = 0; i < REF_FRAMES_NRS; i++)
+#else
       for (int i = 0; i < REF_FRAMES; i++)
+#endif  // CONFIG_NEW_REF_SIGNALING
         if (aom_rb_read_bit(rb))
           lf->ref_deltas[i] = aom_rb_read_inv_signed_literal(rb, 6);
 
@@ -2205,7 +2198,7 @@ static AOM_INLINE void setup_loopfilter(AV1_COMMON *cm,
   }
 
   // write deltas to frame buffer
-  memcpy(cm->cur_frame->ref_deltas, lf->ref_deltas, REF_FRAMES);
+  memcpy(cm->cur_frame->ref_deltas, lf->ref_deltas, sizeof(lf->ref_deltas));
   memcpy(cm->cur_frame->mode_deltas, lf->mode_deltas, MAX_MODE_LF_DELTAS);
 }
 

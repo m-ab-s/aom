@@ -1548,7 +1548,16 @@ static void init_mode_probs(FRAME_CONTEXT *fc) {
 
 void av1_set_default_ref_deltas(int8_t *ref_deltas) {
   assert(ref_deltas != NULL);
-
+#if CONFIG_NEW_REF_SIGNALING
+  ref_deltas[0] = -1;
+  ref_deltas[1] = -1;
+  ref_deltas[2] = -1;
+  ref_deltas[3] = 0;
+  ref_deltas[4] = 0;
+  ref_deltas[5] = 0;
+  ref_deltas[6] = 0;
+  ref_deltas[INTRA_FRAME_INDEX_NRS] = 1;
+#else
   ref_deltas[INTRA_FRAME] = 1;
   ref_deltas[LAST_FRAME] = 0;
   ref_deltas[LAST2_FRAME] = ref_deltas[LAST_FRAME];
@@ -1557,6 +1566,7 @@ void av1_set_default_ref_deltas(int8_t *ref_deltas) {
   ref_deltas[GOLDEN_FRAME] = -1;
   ref_deltas[ALTREF2_FRAME] = -1;
   ref_deltas[ALTREF_FRAME] = -1;
+#endif  // CONFIG_NEW_REF_SIGNALING
 }
 
 void av1_set_default_mode_deltas(int8_t *mode_deltas) {

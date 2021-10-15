@@ -1569,10 +1569,12 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
     av1_set_default_ref_deltas(cm->lf.ref_deltas);
     av1_set_default_mode_deltas(cm->lf.mode_deltas);
   } else if (cm->prev_frame) {
-    memcpy(cm->lf.ref_deltas, cm->prev_frame->ref_deltas, REF_FRAMES);
+    memcpy(cm->lf.ref_deltas, cm->prev_frame->ref_deltas,
+           sizeof(cm->lf.ref_deltas));
     memcpy(cm->lf.mode_deltas, cm->prev_frame->mode_deltas, MAX_MODE_LF_DELTAS);
   }
-  memcpy(cm->cur_frame->ref_deltas, cm->lf.ref_deltas, REF_FRAMES);
+  memcpy(cm->cur_frame->ref_deltas, cm->lf.ref_deltas,
+         sizeof(cm->lf.ref_deltas));
   memcpy(cm->cur_frame->mode_deltas, cm->lf.mode_deltas, MAX_MODE_LF_DELTAS);
 
 #if CONFIG_NEW_REF_SIGNALING

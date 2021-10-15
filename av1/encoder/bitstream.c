@@ -2496,16 +2496,24 @@ static bool is_mode_ref_delta_meaningful(AV1_COMMON *cm) {
     return 0;
   }
   const RefCntBuffer *buf = get_primary_ref_frame_buf(cm);
+#if CONFIG_NEW_REF_SIGNALING
+  int8_t last_ref_deltas[REF_FRAMES_NRS];
+#else
   int8_t last_ref_deltas[REF_FRAMES];
+#endif  // CONFIG_NEW_REF_SIGNALING
   int8_t last_mode_deltas[MAX_MODE_LF_DELTAS];
   if (buf == NULL) {
     av1_set_default_ref_deltas(last_ref_deltas);
     av1_set_default_mode_deltas(last_mode_deltas);
   } else {
-    memcpy(last_ref_deltas, buf->ref_deltas, REF_FRAMES);
+    memcpy(last_ref_deltas, buf->ref_deltas, sizeof(last_ref_deltas));
     memcpy(last_mode_deltas, buf->mode_deltas, MAX_MODE_LF_DELTAS);
   }
+#if CONFIG_NEW_REF_SIGNALING
+  for (int i = 0; i < REF_FRAMES_NRS; i++) {
+#else
   for (int i = 0; i < REF_FRAMES; i++) {
+#endif  // CONFIG_NEW_REF_SIGNALING
     if (lf->ref_deltas[i] != last_ref_deltas[i]) {
       return true;
     }
@@ -2547,16 +2555,24 @@ static AOM_INLINE void encode_loopfilter(AV1_COMMON *cm,
   }
 
   const RefCntBuffer *buf = get_primary_ref_frame_buf(cm);
+#if CONFIG_NEW_REF_SIGNALING
+  int8_t last_ref_deltas[REF_FRAMES_NRS];
+#else
   int8_t last_ref_deltas[REF_FRAMES];
+#endif  // CONFIG_NEW_REF_SIGNALING
   int8_t last_mode_deltas[MAX_MODE_LF_DELTAS];
   if (buf == NULL) {
     av1_set_default_ref_deltas(last_ref_deltas);
     av1_set_default_mode_deltas(last_mode_deltas);
   } else {
-    memcpy(last_ref_deltas, buf->ref_deltas, REF_FRAMES);
+    memcpy(last_ref_deltas, buf->ref_deltas, sizeof(last_ref_deltas));
     memcpy(last_mode_deltas, buf->mode_deltas, MAX_MODE_LF_DELTAS);
   }
+#if CONFIG_NEW_REF_SIGNALING
+  for (int i = 0; i < REF_FRAMES_NRS; i++) {
+#else
   for (int i = 0; i < REF_FRAMES; i++) {
+#endif  // CONFIG_NEW_REF_SIGNALING
     const int delta = lf->ref_deltas[i];
     const int changed = delta != last_ref_deltas[i];
     aom_wb_write_bit(wb, changed);
