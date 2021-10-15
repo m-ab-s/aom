@@ -1893,9 +1893,18 @@ void av1_nonrd_pick_intra_mode(AV1_COMP *cpi, MACROBLOCK *x, RD_STATS *rd_cost,
 }
 
 static AOM_INLINE int is_same_gf_and_last_scale(AV1_COMMON *cm) {
+#if CONFIG_NEW_REF_SIGNALING
+  const MV_REFERENCE_FRAME_NRS last_frame = get_closest_pastcur_ref_index(cm);
+  const MV_REFERENCE_FRAME_NRS golden_frame = get_best_past_ref_index(cm);
+  struct scale_factors *const sf_last =
+      get_ref_scale_factors_nrs(cm, last_frame);
+  struct scale_factors *const sf_golden =
+      get_ref_scale_factors_nrs(cm, golden_frame);
+#else
   struct scale_factors *const sf_last = get_ref_scale_factors(cm, LAST_FRAME);
   struct scale_factors *const sf_golden =
       get_ref_scale_factors(cm, GOLDEN_FRAME);
+#endif  // CONFIG_NEW_REF_SIGNALING
   return ((sf_last->x_scale_fp == sf_golden->x_scale_fp) &&
           (sf_last->y_scale_fp == sf_golden->y_scale_fp));
 }
@@ -1912,8 +1921,8 @@ static AOM_INLINE void get_ref_frame_use_mask(AV1_COMP *cpi, MACROBLOCK *x,
 
   int use_alt_ref_frame = cpi->sf.rt_sf.use_nonrd_altref_frame;
   int use_golden_ref_frame = 1;
-  int golden_frame = cm->new_ref_frame_data.past_refs[0];
-  int altref_frame = cm->new_ref_frame_data.past_refs[0];
+  int golden_frame = get_best_past_ref_index(cm);
+  int altref_frame = get_furthest_future_ref_index(cm);
 
   use_ref_frame[0] = 1;  // we never skip 0
 
@@ -2462,8 +2471,7 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
 
 #if CONFIG_NEW_REF_SIGNALING
   const MV_REFERENCE_FRAME_NRS last_frame = get_closest_pastcur_ref_index(cm);
-  const MV_REFERENCE_FRAME_NRS golden_frame =
-      cm->new_ref_frame_data.past_refs[0];
+  const MV_REFERENCE_FRAME_NRS golden_frame = get_best_past_ref_index(cm);
   thresh_sad_pred = ((int64_t)x->pred_mv_sad[last_frame]) << 1;
 #else
   thresh_sad_pred = ((int64_t)x->pred_mv_sad[LAST_FRAME]) << 1;

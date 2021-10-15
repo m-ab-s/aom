@@ -127,6 +127,10 @@ static INLINE int get_closest_pastcur_ref_index(const AV1_COMMON *const cm) {
   return get_closest_past_ref_index(cm);
 }
 
+static INLINE int get_best_past_ref_index(const AV1_COMMON *const cm) {
+  return cm->new_ref_frame_data.past_refs[0];
+}
+
 static INLINE int get_n_bidir_compound_modes_nrs(NewRefFramesData *ref_data) {
   return ref_data->n_past_refs * ref_data->n_future_refs;
 }

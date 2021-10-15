@@ -1406,16 +1406,12 @@ static AOM_INLINE void mc_flow_dispenser(AV1_COMP *cpi) {
 static void mc_flow_synthesizer(AV1_COMP *cpi, int frame_idx) {
   AV1_COMMON *cm = &cpi->common;
 
-  TplParams *const tpl_data = &cpi->tpl_data;
-
-  const BLOCK_SIZE bsize = convert_length_to_bsize(tpl_data->tpl_bsize_1d);
 #if CONFIG_NEW_REF_SIGNALING
-  TplParams *const tpl_data_nrs = &cpi->tpl_data_nrs;
-
-  const BLOCK_SIZE bsize_nrs = convert_length_to_bsize(tpl_data->tpl_bsize_1d);
-  (void)bsize_nrs;
-  assert(bsize_nrs == bsize);
+  TplParams *const tpl_data = &cpi->tpl_data_nrs;
+#else
+  TplParams *const tpl_data = &cpi->tpl_data;
 #endif  // CONFIG_NEW_REF_SIGNALING
+  const BLOCK_SIZE bsize = convert_length_to_bsize(tpl_data->tpl_bsize_1d);
 
   const int mi_height = mi_size_high[bsize];
   const int mi_width = mi_size_wide[bsize];
@@ -1424,9 +1420,6 @@ static void mc_flow_synthesizer(AV1_COMP *cpi, int frame_idx) {
     for (int mi_col = 0; mi_col < cm->mi_params.mi_cols; mi_col += mi_width) {
       if (frame_idx) {
         tpl_model_update(tpl_data, mi_row, mi_col, bsize, frame_idx);
-#if CONFIG_NEW_REF_SIGNALING
-        tpl_model_update(tpl_data_nrs, mi_row, mi_col, bsize, frame_idx);
-#endif  // CONFIG_NEW_REF_SIGNALING
       }
     }
   }
@@ -1462,12 +1455,12 @@ static AOM_INLINE void init_gop_frames_for_tpl_nrs(
       tpl_data->tpl_frame[-i - 1].rec_picture = &cm->ref_frame_map[i]->buf;
       tpl_data->tpl_frame[-i - 1].frame_display_index =
           cm->ref_frame_map[i]->display_order_hint;
-      assert(cpi->tpl_data.tpl_frame[-i - 1].rec_picture ==
+      assert(cpi->tpl_data_nrs.tpl_frame[-i - 1].rec_picture ==
              tpl_data->tpl_frame[-i - 1].rec_picture);
     }
-    assert(cpi->tpl_data.tpl_frame[-i - 1].gf_picture ==
+    assert(cpi->tpl_data_nrs.tpl_frame[-i - 1].gf_picture ==
            tpl_data->tpl_frame[-i - 1].gf_picture);
-    assert(cpi->tpl_data.tpl_frame[-i - 1].frame_display_index ==
+    assert(cpi->tpl_data_nrs.tpl_frame[-i - 1].frame_display_index ==
            tpl_data->tpl_frame[-i - 1].frame_display_index);
 
     ref_picture_map[i] = -i - 1;
@@ -1525,8 +1518,13 @@ static AOM_INLINE void init_gop_frames_for_tpl_nrs(
     // is the display index of the frame.
     tpl_frame->frame_display_index =
         frame_display_index + cm->current_frame.frame_number - anc_frame_offset;
+#if CONFIG_NEW_REF_SIGNALING
+    assert(tpl_data->tpl_frame[gf_index].frame_display_index ==
+           cpi->tpl_data_nrs.tpl_frame[gf_index].frame_display_index);
+#else
     assert(tpl_data->tpl_frame[gf_index].frame_display_index ==
            cpi->tpl_data.tpl_frame[gf_index].frame_display_index);
+#endif  // CONFIG_NEW_REF_SIGNALING
 
     if (frame_update_type != OVERLAY_UPDATE &&
         frame_update_type != KFFLT_OVERLAY_UPDATE &&
@@ -1612,7 +1610,7 @@ static AOM_INLINE void init_gop_frames_for_tpl_nrs(
     tpl_frame->tpl_stats_ptr = tpl_data->tpl_stats_pool[process_frame_count];
 
     assert(tpl_frame->gf_picture ==
-           cpi->tpl_data.tpl_frame[gf_index].gf_picture);
+           cpi->tpl_data_nrs.tpl_frame[gf_index].gf_picture);
 
     // 'cm->current_frame.frame_number' is the display number
     // of the current frame.
@@ -1625,7 +1623,7 @@ static AOM_INLINE void init_gop_frames_for_tpl_nrs(
     tpl_frame->frame_display_index =
         frame_display_index + cm->current_frame.frame_number - anc_frame_offset;
     assert(tpl_frame->frame_display_index ==
-           cpi->tpl_data.tpl_frame[gf_index].frame_display_index);
+           cpi->tpl_data_nrs.tpl_frame[gf_index].frame_display_index);
 
     ++process_frame_count;
 
@@ -1679,7 +1677,8 @@ static AOM_INLINE void init_gop_frames_for_tpl_nrs(
   av1_get_ref_frames(cm, true_disp, ref_frame_map_pairs);
   av1_init_new_ref_frame_map(cm, ref_frame_map_pairs, true_disp);
 }
-#endif  // CONFIG_NEW_REF_SIGNALING
+
+#else
 
 static AOM_INLINE void init_gop_frames_for_tpl(
     AV1_COMP *cpi, const EncodeFrameParams *const init_frame_params,
@@ -1890,6 +1889,7 @@ static AOM_INLINE void init_gop_frames_for_tpl(
       cpi->gf_group.update_type[cpi->gf_group.index] == KEY_FRAME);
   av1_get_ref_frames(cm, true_disp, ref_frame_map_pairs);
 }
+#endif  // CONFIG_NEW_REF_SIGNALING
 
 void av1_init_tpl_stats(TplParams *const tpl_data) {
   for (int frame_idx = 0; frame_idx < MAX_LAG_BUFFERS; ++frame_idx) {
@@ -1949,14 +1949,14 @@ void av1_tpl_setup_stats(AV1_COMP *cpi, int gop_eval,
 
   int pframe_qindex;
   int tpl_gf_group_frames;
+#if CONFIG_NEW_REF_SIGNALING
+  init_gop_frames_for_tpl_nrs(cpi, frame_params, gf_group, gop_eval,
+                              &tpl_gf_group_frames, frame_input,
+                              &pframe_qindex);
+#else
   init_gop_frames_for_tpl(cpi, frame_params, gf_group, gop_eval,
                           &tpl_gf_group_frames, frame_input, &pframe_qindex);
-#if CONFIG_NEW_REF_SIGNALING
-  int tpl_gf_group_frames_nrs;
-  init_gop_frames_for_tpl_nrs(cpi, frame_params, gf_group, gop_eval,
-                              &tpl_gf_group_frames_nrs, frame_input,
-                              &pframe_qindex);
-  assert(tpl_gf_group_frames_nrs == tpl_gf_group_frames);
+  // assert(tpl_gf_group_frames_nrs == tpl_gf_group_frames);
 #endif  // CONFIG_NEW_REF_SIGNALING
 
   cpi->rc.base_layer_qp = pframe_qindex;
@@ -1997,10 +1997,11 @@ void av1_tpl_setup_stats(AV1_COMP *cpi, int gop_eval,
       mc_flow_dispenser(cpi);
     }
 
-    aom_extend_frame_borders(tpl_data->tpl_frame[frame_idx].rec_picture,
-                             av1_num_planes(cm));
 #if CONFIG_NEW_REF_SIGNALING
     aom_extend_frame_borders(tpl_data_nrs->tpl_frame[frame_idx].rec_picture,
+                             av1_num_planes(cm));
+#else
+    aom_extend_frame_borders(tpl_data->tpl_frame[frame_idx].rec_picture,
                              av1_num_planes(cm));
 #endif  // CONFIG_NEW_REF_SIGNALING
   }

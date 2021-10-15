@@ -2311,7 +2311,13 @@ typedef struct AV1_COMP {
    * choose our primary reference frame (which is the most recent reference
    * frame of the same type as the current frame).
    */
-  int fb_of_context_type[REF_FRAMES];
+  int fb_of_context_type[
+#if CONFIG_NEW_REF_SIGNALING
+      REF_FRAMES_NRS
+#else
+      REF_FRAMES
+#endif  // CONFIG_NEW_REF_SIGNALING
+  ];
 
   /*!
    * Flags signalled by the external interface at frame level.
@@ -2807,13 +2813,13 @@ typedef struct EncodeFrameParams {
    *  NRS bitmask of which reference buffers may be referenced by this frame.
    */
   int ref_frame_flags_nrs;
-#endif  // CONFIG_NEW_REF_SIGNALING
-
-  /*!\endcond */
+#else
   /*!
    *  Bitmask of which reference buffers may be referenced by this frame.
    */
   int ref_frame_flags;
+#endif  // CONFIG_NEW_REF_SIGNALING
+  /*!\endcond */
 
   /*!
    *  Reference buffer assignment for this frame.
@@ -3003,14 +3009,18 @@ static INLINE const YV12_BUFFER_CONFIG *get_ref_frame_yv12_buf_nrs(
   const RefCntBuffer *const buf = get_ref_frame_buf_nrs(cm, ref_frame);
   return buf != NULL ? &buf->buf : NULL;
 }
-#endif  // CONFIG_NEW_REF_SIGNALING
 
-static INLINE const YV12_BUFFER_CONFIG *get_ref_frame_yv12_buf(
-    const AV1_COMMON *const cm, MV_REFERENCE_FRAME ref_frame) {
-  const RefCntBuffer *const buf = get_ref_frame_buf(cm, ref_frame);
-  return buf != NULL ? &buf->buf : NULL;
+static INLINE int enc_is_ref_frame_buf(const AV1_COMMON *const cm,
+                                       const RefCntBuffer *const frame_buf) {
+  MV_REFERENCE_FRAME_NRS ref_frame;
+  for (ref_frame = 0; ref_frame < INTER_REFS_PER_FRAME_NRS; ++ref_frame) {
+    const RefCntBuffer *const buf = get_ref_frame_buf_nrs(cm, ref_frame);
+    if (buf == NULL) continue;
+    if (frame_buf == buf) break;
+  }
+  return (ref_frame < INTER_REFS_PER_FRAME_NRS);
 }
-
+#else
 static INLINE int enc_is_ref_frame_buf(const AV1_COMMON *const cm,
                                        const RefCntBuffer *const frame_buf) {
   MV_REFERENCE_FRAME ref_frame;
@@ -3020,6 +3030,13 @@ static INLINE int enc_is_ref_frame_buf(const AV1_COMMON *const cm,
     if (frame_buf == buf) break;
   }
   return (ref_frame <= ALTREF_FRAME);
+}
+#endif  // CONFIG_NEW_REF_SIGNALING
+
+static INLINE const YV12_BUFFER_CONFIG *get_ref_frame_yv12_buf(
+    const AV1_COMMON *const cm, MV_REFERENCE_FRAME ref_frame) {
+  const RefCntBuffer *const buf = get_ref_frame_buf(cm, ref_frame);
+  return buf != NULL ? &buf->buf : NULL;
 }
 
 static INLINE void alloc_frame_mvs(AV1_COMMON *const cm, RefCntBuffer *buf) {
@@ -3106,8 +3123,7 @@ static INLINE void set_ref_ptrs_nrs(const AV1_COMMON *cm, MACROBLOCKD *xd,
   xd->block_ref_scale_factors[1] = get_ref_scale_factors_const_nrs(
       cm, ref1 < INTER_REFS_PER_FRAME_NRS ? ref1 : 0);
 }
-#endif  // CONFIG_NEW_REF_SIGNALING
-
+#else
 static INLINE void set_ref_ptrs(const AV1_COMMON *cm, MACROBLOCKD *xd,
                                 MV_REFERENCE_FRAME ref0,
                                 MV_REFERENCE_FRAME ref1) {
@@ -3116,6 +3132,7 @@ static INLINE void set_ref_ptrs(const AV1_COMMON *cm, MACROBLOCKD *xd,
   xd->block_ref_scale_factors[1] =
       get_ref_scale_factors_const(cm, ref1 >= LAST_FRAME ? ref1 : 1);
 }
+#endif  // CONFIG_NEW_REF_SIGNALING
 
 static INLINE int get_chessboard_index(int frame_index) {
   return frame_index & 0x1;

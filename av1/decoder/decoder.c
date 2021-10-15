@@ -25,6 +25,7 @@
 #include "aom_scale/aom_scale.h"
 #include "aom_util/aom_thread.h"
 
+#include "av1/common/pred_common.h"
 #include "av1/common/alloccommon.h"
 #include "av1/common/av1_common_int.h"
 #include "av1/common/av1_loopfilter.h"
@@ -455,9 +456,12 @@ static void update_frame_buffers(AV1Decoder *pbi, int frame_decoded) {
 
   if (!pbi->camera_frame_header_ready) {
     // Invalidate these references until the next frame starts.
-    for (ref_index = 0; ref_index < INTER_REFS_PER_FRAME; ref_index++) {
-      cm->remapped_ref_idx[ref_index] = INVALID_IDX;
-    }
+#if CONFIG_NEW_REF_SIGNALING
+    for (ref_index = 0; ref_index < INTER_REFS_PER_FRAME_NRS; ref_index++)
+#else
+    for (ref_index = 0; ref_index < INTER_REFS_PER_FRAME; ref_index++)
+#endif  // CONFIG_NEW_REF_SIGNALING
+      REMAPPED_REF_IDX[ref_index] = INVALID_IDX;
   }
 }
 
@@ -477,7 +481,12 @@ int av1_receive_compressed_data(AV1Decoder *pbi, size_t size,
     // TODO(jkoleszar): Error concealment is undefined and non-normative
     // at this point, but if it becomes so, [0] may not always be the correct
     // thing to do here.
+#if CONFIG_NEW_REF_SIGNALING
+    const int last_frame = get_closest_pastcur_ref_index(cm);
+    RefCntBuffer *ref_buf = get_ref_frame_buf_nrs(cm, last_frame);
+#else
     RefCntBuffer *ref_buf = get_ref_frame_buf(cm, LAST_FRAME);
+#endif  // CONFIG_NEW_REF_SIGNALING
     if (ref_buf != NULL) ref_buf->buf.corrupted = 1;
   }
 

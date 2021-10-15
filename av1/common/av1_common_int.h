@@ -857,20 +857,6 @@ typedef struct {
    * Number of references with the same order hint.
    */
   int n_cur_refs;
-
-  // TODO(sarahparker) Remove these members once named references are removed.
-  /*!
-   * Maps named references to the new reference map ordering. This allows
-   * an easy conversion between the two schemes while the removal of the named
-   * reference scheme is in progress. It is temporary and will be removed.
-   */
-  int named_to_ranked_refs[REF_FRAMES];
-  /*!
-   * Maps the new reference scheme to the old named reference map. This allows
-   *  the easy conversion between the two schemes while the removal of the named
-   * reference scheme is in progress. It is temporary and will be removed.
-   */
-  int ranked_to_named_refs[INTER_REFS_PER_FRAME_NRS];
 } NewRefFramesData;
 #endif  // CONFIG_NEW_REF_SIGNALING
 
@@ -1372,6 +1358,12 @@ static INLINE int frame_is_sframe(const AV1_COMMON *cm) {
 }
 
 #if CONFIG_NEW_REF_SIGNALING
+#define REMAPPED_REF_IDX (cm->new_ref_frame_data.ref_frame_score_map)
+#else
+#define REMAPPED_REF_IDX (cm->remapped_ref_idx)
+#endif  // CONFIG_NEW_REF_SIGNALING
+
+#if CONFIG_NEW_REF_SIGNALING
 static INLINE int get_ref_frame_map_idx(const AV1_COMMON *const cm,
                                         const int ref_frame, int use_old) {
   if (use_old) {
@@ -1403,14 +1395,6 @@ static INLINE struct scale_factors *get_ref_scale_factors_nrs(
     AV1_COMMON *const cm, const MV_REFERENCE_FRAME_NRS ref_frame) {
   const int map_idx = get_ref_frame_map_idx(cm, ref_frame, 0);
   return (map_idx != INVALID_IDX) ? &cm->ref_scale_factors[map_idx] : NULL;
-}
-
-static INLINE RefCntBuffer *get_primary_ref_frame_buf_nrs(
-    const AV1_COMMON *const cm) {
-  const int primary_ref_frame = cm->features.primary_ref_frame;
-  if (primary_ref_frame == PRIMARY_REF_NONE) return NULL;
-  const int map_idx = get_ref_frame_map_idx(cm, primary_ref_frame + 1, 0);
-  return (map_idx != INVALID_IDX) ? cm->ref_frame_map[map_idx] : NULL;
 }
 #else
 // These functions take a reference frame label between LAST_FRAME and
@@ -1461,7 +1445,7 @@ static INLINE RefCntBuffer *get_primary_ref_frame_buf(
   const int primary_ref_frame = cm->features.primary_ref_frame;
   if (primary_ref_frame == PRIMARY_REF_NONE) return NULL;
 #if CONFIG_NEW_REF_SIGNALING
-  const int map_idx = get_ref_frame_map_idx(cm, primary_ref_frame + 1, 1);
+  const int map_idx = get_ref_frame_map_idx(cm, primary_ref_frame, 0);
 #else
   const int map_idx = get_ref_frame_map_idx(cm, primary_ref_frame + 1);
 #endif  // CONFIG_NEW_REF_SIGNALING

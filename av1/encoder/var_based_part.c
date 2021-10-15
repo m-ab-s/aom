@@ -947,7 +947,11 @@ int av1_choose_var_based_partitioning(AV1_COMP *cpi, const TileInfo *const tile,
   // TODO(marpan): Check se of scaled references for the different resoln.
   if (!frame_is_intra_only(cm)) {
     const YV12_BUFFER_CONFIG *const ref =
+#if CONFIG_NEW_REF_SIGNALING
+        get_ref_frame_yv12_buf_nrs(cm, last_frame);
+#else
         get_ref_frame_yv12_buf(cm, LAST_FRAME);
+#endif  // CONFIG_NEW_REF_SIGNALING
     if (ref == NULL || ref->y_crop_height != cm->height ||
         ref->y_crop_width != cm->width) {
       is_key_frame = 1;

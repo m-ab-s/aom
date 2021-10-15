@@ -51,7 +51,6 @@ typedef struct {
   int score;
   int index;
   int distance;
-  MV_REFERENCE_FRAME named_ref[REF_FRAMES];
   int n_named_refs;
 } RefScoreData;
 /*!\endcond */
@@ -72,14 +71,11 @@ static int compare_score_data_asc(const void *a, const void *b) {
 void av1_init_new_ref_frame_map(AV1_COMMON *cm,
                                 RefFrameMapPair *ref_frame_map_pairs,
                                 int cur_frame_disp) {
-  RefScoreData scores[REF_FRAMES];
-  memset(scores, 0, REF_FRAMES * sizeof(*scores));
+  RefScoreData scores[REF_FRAMES_NRS];
+  memset(scores, 0, REF_FRAMES_NRS * sizeof(*scores));
+  for (int i = 0; i < REF_FRAMES_NRS; i++) scores[i].score = INT_MAX;
   for (int i = 0; i < INTER_REFS_PER_FRAME_NRS; i++) {
-    cm->new_ref_frame_data.ranked_to_named_refs[i] = -1;
-    cm->new_ref_frame_data.ref_frame_score_map[i] = -1;
-  }
-  for (int i = 0; i < REF_FRAMES; i++) {
-    cm->new_ref_frame_data.named_to_ranked_refs[i] = -1;
+    cm->new_ref_frame_data.ref_frame_score_map[i] = INVALID_IDX;
   }
   int n_ranked = 0;
   // Compute a score for each reference buffer
@@ -105,9 +101,9 @@ void av1_init_new_ref_frame_map(AV1_COMMON *cm,
     for (int ref_idx = 0; ref_idx < INTER_REFS_PER_FRAME; ref_idx++) {
       int named_ref = ref_frame_priority_order[ref_idx];
       const RefCntBuffer *const buf = get_ref_frame_buf(cm, named_ref);
+      // const RefCntBuffer *const buf = get_ref_frame_buf_nrs(cm, ref_idx);
       if (buf == NULL) continue;
       if ((int)buf->display_order_hint == ref_disp) {
-        scores[n_ranked].named_ref[scores[n_ranked].n_named_refs] = named_ref;
         scores[n_ranked].n_named_refs++;
       }
     }
@@ -131,10 +127,6 @@ void av1_init_new_ref_frame_map(AV1_COMMON *cm,
   for (int i = 0; i < n_ranked; i++) {
     cm->new_ref_frame_data.ref_frame_score_map[i] = scores[i].index;
     cm->new_ref_frame_data.ref_frame_distance[i] = scores[i].distance;
-    cm->new_ref_frame_data.ranked_to_named_refs[i] = scores[i].named_ref[0];
-    for (int j = 0; j < scores[i].n_named_refs; j++) {
-      cm->new_ref_frame_data.named_to_ranked_refs[scores[i].named_ref[j]] = i;
-    }
     if (scores[i].distance < 0) {
       cm->new_ref_frame_data.future_refs[n_future] = i;
       n_future++;
@@ -149,7 +141,14 @@ void av1_init_new_ref_frame_map(AV1_COMMON *cm,
   cm->new_ref_frame_data.n_past_refs = n_past;
   cm->new_ref_frame_data.n_future_refs = n_future;
   cm->new_ref_frame_data.n_cur_refs = n_cur;
+
+  // Fill any slots that are empty (should only happen for the first 7 frames)
+  for (int i = 0; i < INTER_REFS_PER_FRAME_NRS; i++) {
+    if (cm->new_ref_frame_data.ref_frame_score_map[i] == INVALID_IDX)
+      cm->new_ref_frame_data.ref_frame_score_map[i] = 0;
+  }
 }
+
 #endif  // CONFIG_NEW_REF_SIGNALING
 
 // Add a reference buffer index to a named reference slot

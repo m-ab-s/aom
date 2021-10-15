@@ -328,8 +328,7 @@ static int choose_primary_ref_frame(
   const int n_refs = cm->new_ref_frame_data.n_total_refs;
   for (int ref_frame = 0; ref_frame < n_refs; ref_frame++) {
     if (get_ref_frame_map_idx(cm, ref_frame, 0) == wanted_fb) {
-      primary_ref_frame =
-          cm->new_ref_frame_data.ranked_to_named_refs[ref_frame] - LAST_FRAME;
+      primary_ref_frame = ref_frame;
     }
   }
 #else
@@ -548,6 +547,10 @@ static void update_fb_of_context_type(
   const int current_frame_ref_type =
       get_current_frame_ref_type(cpi, frame_params);
 
+#if CONFIG_NEW_REF_SIGNALING
+  const int golden_frame = cm->new_ref_frame_data.past_refs[0];
+  const int altref_frame = get_furthest_future_ref_index(cm);
+#endif  // CONFIG_NEW_REF_SIGNALING
   if (frame_is_intra_only(cm) || cm->features.error_resilient_mode ||
       cpi->ext_flags.use_primary_ref_none) {
     for (int i = 0; i < REF_FRAMES; i++) {
@@ -555,8 +558,8 @@ static void update_fb_of_context_type(
     }
 #if CONFIG_NEW_REF_SIGNALING
     fb_of_context_type[current_frame_ref_type] =
-        cm->show_frame ? get_ref_frame_map_idx(cm, GOLDEN_FRAME, 1)
-                       : get_ref_frame_map_idx(cm, ALTREF_FRAME, 1);
+        cm->show_frame ? get_ref_frame_map_idx(cm, golden_frame, 0)
+                       : get_ref_frame_map_idx(cm, altref_frame, 0);
 #else
     fb_of_context_type[current_frame_ref_type] =
         cm->show_frame ? get_ref_frame_map_idx(cm, GOLDEN_FRAME)
@@ -573,7 +576,11 @@ static void update_fb_of_context_type(
       // If more than one frame is refreshed, it doesn't matter which one we
       // pick so pick the first.  LST sometimes doesn't refresh any: this is ok
 
+#if CONFIG_NEW_REF_SIGNALING
+      for (int i = 0; i < REF_FRAMES_NRS; i++) {
+#else
       for (int i = 0; i < REF_FRAMES; i++) {
+#endif  // CONFIG_NEW_REF_SIGNALING
         if (cm->current_frame.refresh_frame_flags & (1 << i)) {
           fb_of_context_type[current_frame_ref_type] = i;
           break;
@@ -1464,8 +1471,12 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
     if (!ext_flags->refresh_frame.update_pending) {
       av1_get_ref_frames(cm, cur_frame_disp, ref_frame_map_pairs);
     } else if (cpi->svc.external_ref_frame_config) {
+#if CONFIG_NEW_REF_SIGNALING
+      for (unsigned int i = 0; i < INTER_REFS_PER_FRAME_NRS; i++)
+#else
       for (unsigned int i = 0; i < INTER_REFS_PER_FRAME; i++)
-        cm->remapped_ref_idx[i] = cpi->svc.ref_idx[i];
+#endif  // CONFIG_NEW_REF_SIGNALING
+        REMAPPED_REF_IDX[i] = cpi->svc.ref_idx[i];
     }
 
 #if CONFIG_NEW_REF_SIGNALING
@@ -1551,8 +1562,10 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
   // frame_params->remapped_ref_idx here and they will be used when encoding
   // this frame.  If frame_params->remapped_ref_idx is setup independently of
   // cm->remapped_ref_idx then update_ref_frame_map() will have no effect.
+#if !CONFIG_NEW_REF_SIGNALING
   memcpy(frame_params.remapped_ref_idx, cm->remapped_ref_idx,
-         REF_FRAMES * sizeof(*cm->remapped_ref_idx));
+         REF_FRAMES * sizeof(*frame_params.remapped_ref_idx));
+#endif  // !CONFIG_NEW_REF_SIGNALING
 
   cpi->td.mb.delta_qindex = 0;
 

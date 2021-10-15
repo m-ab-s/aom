@@ -603,10 +603,12 @@ static void init_config(struct AV1_COMP *cpi, AV1EncoderConfig *oxcf) {
   resize_pending_params->width = 0;
   resize_pending_params->height = 0;
 
-  init_buffer_indices(&cpi->force_intpel_info, cm->remapped_ref_idx);
-
 #if CONFIG_NEW_REF_SIGNALING
-  init_ranked_buffer_indices(&cm->new_ref_frame_data);
+  init_buffer_indices_nrs(&cpi->force_intpel_info, &cm->new_ref_frame_data);
+  for (int fb_idx = 0; fb_idx < REF_FRAMES; ++fb_idx)
+    cm->remapped_ref_idx[fb_idx] = fb_idx;
+#else
+  init_buffer_indices(&cpi->force_intpel_info, cm->remapped_ref_idx);
 #endif  // CONFIG_NEW_REF_SIGNALING
 
   av1_noise_estimate_init(&cpi->noise_estimate, cm->width, cm->height);
@@ -1908,14 +1910,12 @@ static void init_ref_frame_bufs(AV1_COMP *cpi) {
   cm->cur_frame = NULL;
 
 #if CONFIG_NEW_REF_SIGNALING
-  for (i = 0; i < REF_FRAMES_NRS; ++i) {
-    cm->ref_frame_map_nrs[i] = NULL;
-  }
+  for (i = 0; i < REF_FRAMES_NRS; ++i)
+#else
+  for (i = 0; i < REF_FRAMES; ++i)
 #endif  // CONFIG_NEW_REF_SIGNALING
-
-  for (i = 0; i < REF_FRAMES; ++i) {
     cm->ref_frame_map[i] = NULL;
-  }
+
   for (i = 0; i < FRAME_BUFFERS; ++i) {
     pool->frame_bufs[i].ref_count = 0;
   }
@@ -2288,6 +2288,23 @@ static int encode_without_recode(AV1_COMP *cpi) {
   // resized frame and ALTREF will be refreshed ~4 frames later, so both
   // references become available again after few frames.
   if (svc->number_spatial_layers == 1) {
+#if CONFIG_NEW_REF_SIGNALING
+    const MV_REFERENCE_FRAME_NRS golden_frame = get_best_past_ref_index(cm);
+    const MV_REFERENCE_FRAME_NRS altref_frame =
+        get_furthest_future_ref_index(cm);
+    if (cpi->common.ref_frame_flags_nrs & (1 << golden_frame)) {
+      const YV12_BUFFER_CONFIG *const ref =
+          get_ref_frame_yv12_buf_nrs(cm, golden_frame);
+      if (ref->y_crop_width != cm->width || ref->y_crop_height != cm->height)
+        cpi->common.ref_frame_flags_nrs ^= (1 << golden_frame);
+    }
+    if (cpi->common.ref_frame_flags_nrs & (1 << altref_frame)) {
+      const YV12_BUFFER_CONFIG *const ref =
+          get_ref_frame_yv12_buf_nrs(cm, altref_frame);
+      if (ref->y_crop_width != cm->width || ref->y_crop_height != cm->height)
+        cpi->common.ref_frame_flags_nrs ^= (1 << altref_frame);
+    }
+#else
     if (cpi->common.ref_frame_flags & av1_ref_frame_flag_list[GOLDEN_FRAME]) {
       const YV12_BUFFER_CONFIG *const ref =
           get_ref_frame_yv12_buf(cm, GOLDEN_FRAME);
@@ -2300,6 +2317,7 @@ static int encode_without_recode(AV1_COMP *cpi) {
       if (ref->y_crop_width != cm->width || ref->y_crop_height != cm->height)
         cpi->common.ref_frame_flags ^= AOM_ALT_FLAG;
     }
+#endif  // CONFIG_NEW_REF_SIGNALING
   }
 
   // For SVC the inter-layer/spatial prediction is not done for newmv
@@ -3290,18 +3308,19 @@ int av1_encode(AV1_COMP *const cpi, uint8_t *const dest,
   cm->features.primary_ref_frame = frame_params->primary_ref_frame;
   cm->current_frame.frame_type = frame_params->frame_type;
   cm->show_frame = frame_params->show_frame;
-  cpi->common.ref_frame_flags = frame_params->ref_frame_flags;
 #if CONFIG_NEW_REF_SIGNALING
   cpi->common.ref_frame_flags_nrs = frame_params->ref_frame_flags_nrs;
+#else
+  cpi->common.ref_frame_flags = frame_params->ref_frame_flags;
 #endif  // CONFIG_NEW_REF_SIGNALING
   cpi->speed = frame_params->speed;
   cm->show_existing_frame = frame_params->show_existing_frame;
   cpi->existing_fb_idx_to_show = frame_params->existing_fb_idx_to_show;
 
+#if !CONFIG_NEW_REF_SIGNALING
   memcpy(cm->remapped_ref_idx, frame_params->remapped_ref_idx,
          REF_FRAMES * sizeof(*cm->remapped_ref_idx));
 
-#if !CONFIG_NEW_REF_SIGNALING
   memcpy(&cpi->refresh_frame, &frame_params->refresh_frame,
          sizeof(cpi->refresh_frame));
 #endif  // !CONFIG_NEW_REF_SIGNALING

@@ -2475,9 +2475,17 @@ static AOM_INLINE void setup_frame_size_with_refs(
   int width, height;
   int found = 0;
   int has_valid_ref_frame = 0;
+#if CONFIG_NEW_REF_SIGNALING
+  for (int i = 0; i < INTER_REFS_PER_FRAME_NRS; ++i) {
+#else
   for (int i = LAST_FRAME; i <= ALTREF_FRAME; ++i) {
+#endif  // CONFIG_NEW_REF_SIGNALING
     if (aom_rb_read_bit(rb)) {
+#if CONFIG_NEW_REF_SIGNALING
+      const RefCntBuffer *const ref_buf = get_ref_frame_buf_nrs(cm, i);
+#else
       const RefCntBuffer *const ref_buf = get_ref_frame_buf(cm, i);
+#endif  // CONFIG_NEW_REF_SIGNALING
       // This will never be NULL in a normal stream, as streams are required to
       // have a shown keyframe before any inter frames, which would refresh all
       // the reference buffers. However, it might be null if we're starting in
@@ -4362,20 +4370,24 @@ void av1_read_film_grain_params(AV1_COMMON *cm,
     // film_grain_params_ref_idx is equal to ref_frame_idx[ j ] for some value
     // of j in the range 0 to REFS_PER_FRAME - 1.
     int found = 0;
-    for (int i = 0; i < INTER_REFS_PER_FRAME; ++i) {
-      if (film_grain_params_ref_idx == cm->remapped_ref_idx[i]) {
+#if CONFIG_NEW_REF_SIGNALING
+    for (int i = 0; i < INTER_REFS_PER_FRAME_NRS; ++i)
+#else
+    for (int i = 0; i < INTER_REFS_PER_FRAME; ++i)
+#endif  // CONFIG_NEW_REF_SIGNALING
+      if (film_grain_params_ref_idx == REMAPPED_REF_IDX[i]) {
         found = 1;
         break;
       }
-    }
+
     if (!found) {
       aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
                          "Invalid film grain reference idx %d. ref_frame_idx = "
                          "{%d, %d, %d, %d, %d, %d, %d}",
-                         film_grain_params_ref_idx, cm->remapped_ref_idx[0],
-                         cm->remapped_ref_idx[1], cm->remapped_ref_idx[2],
-                         cm->remapped_ref_idx[3], cm->remapped_ref_idx[4],
-                         cm->remapped_ref_idx[5], cm->remapped_ref_idx[6]);
+                         film_grain_params_ref_idx, REMAPPED_REF_IDX[0],
+                         REMAPPED_REF_IDX[1], REMAPPED_REF_IDX[2],
+                         REMAPPED_REF_IDX[3], REMAPPED_REF_IDX[4],
+                         REMAPPED_REF_IDX[5], REMAPPED_REF_IDX[6]);
     }
     RefCntBuffer *const buf = cm->ref_frame_map[film_grain_params_ref_idx];
     if (buf == NULL) {
@@ -4974,9 +4986,12 @@ static AOM_INLINE void show_existing_frame_reset(AV1Decoder *const pbi,
 
   cm->current_frame.refresh_frame_flags = (1 << REF_FRAMES) - 1;
 
-  for (int i = 0; i < INTER_REFS_PER_FRAME; ++i) {
-    cm->remapped_ref_idx[i] = INVALID_IDX;
-  }
+#if CONFIG_NEW_REF_SIGNALING
+  for (int i = 0; i < INTER_REFS_PER_FRAME_NRS; ++i)
+#else
+  for (int i = 0; i < INTER_REFS_PER_FRAME; ++i)
+#endif  // CONFIG_NEW_REF_SIGNALING
+    REMAPPED_REF_IDX[i] = INVALID_IDX;
 
   if (pbi->need_resync) {
     reset_ref_frame_map(cm);
@@ -5320,9 +5335,13 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       current_frame->refresh_frame_flags = (1 << REF_FRAMES) - 1;
     }
 
-    for (int i = 0; i < INTER_REFS_PER_FRAME; ++i) {
-      cm->remapped_ref_idx[i] = INVALID_IDX;
-    }
+#if CONFIG_NEW_REF_SIGNALING
+    for (int i = 0; i < INTER_REFS_PER_FRAME_NRS; ++i)
+#else
+    for (int i = 0; i < INTER_REFS_PER_FRAME; ++i)
+#endif  // CONFIG_NEW_REF_SIGNALING
+      REMAPPED_REF_IDX[i] = INVALID_IDX;
+
     if (pbi->need_resync) {
       reset_ref_frame_map(cm);
       pbi->need_resync = 0;
@@ -5458,6 +5477,8 @@ static int read_uncompressed_header(AV1Decoder *pbi,
                              ref_frame_map_pairs);
         }
       }
+      av1_init_new_ref_frame_map(cm, ref_frame_map_pairs,
+                                 current_frame->display_order_hint);
 #else
       int frame_refs_short_signaling = 0;
       // Frame refs short signaling is off when error resilient mode is on.
@@ -5491,14 +5512,14 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 #endif  // CONFIG_NEW_REF_SIGNALING
 
 #if CONFIG_NEW_REF_SIGNALING
-      for (int i = 0; i < INTER_REFS_PER_FRAME_NRS; ++i) {
+      for (int i = 0; i < cm->new_ref_frame_data.n_total_refs; ++i) {
 #else
       for (int i = 0; i < INTER_REFS_PER_FRAME; ++i) {
 #endif  // CONFIG_NEW_REF_SIGNALING
         int ref = 0;
 #if CONFIG_NEW_REF_SIGNALING
         if (!is_realtime && seq_params->order_hint_info.enable_order_hint) {
-          ref = cm->remapped_ref_idx[i];
+          ref = REMAPPED_REF_IDX[i];
           if (cm->ref_frame_map[ref] == NULL)
             aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
                                "Inter frame requests nonexistent reference");
@@ -5520,7 +5541,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
           if (cm->ref_frame_map[ref] == NULL)
             aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
                                "Inter frame requests nonexistent reference");
-          cm->remapped_ref_idx[i] = ref;
+          REMAPPED_REF_IDX[i] = ref;
         }
         // Check valid for referencing
         if (pbi->valid_for_referencing[ref] == 0)
@@ -5546,10 +5567,6 @@ static int read_uncompressed_header(AV1Decoder *pbi,
                                "Reference buffer frame ID mismatch");
         }
       }
-#if CONFIG_NEW_REF_SIGNALING
-      av1_init_new_ref_frame_map(cm, ref_frame_map_pairs,
-                                 current_frame->display_order_hint);
-#endif  // CONFIG_NEW_REF_SIGNALING
 
       if (!features->error_resilient_mode && frame_size_override_flag) {
         setup_frame_size_with_refs(cm, rb);

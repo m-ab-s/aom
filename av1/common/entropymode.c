@@ -1606,8 +1606,13 @@ void av1_setup_frame_contexts(AV1_COMMON *cm) {
   // TODO(jack.haughton@argondesign.com): don't think this should be necessary,
   // but could do with fuller testing
   if (cm->tiles.large_scale) {
+#if CONFIG_NEW_REF_SIGNALING
+    for (int i = 0; i < INTER_REFS_PER_FRAME_NRS; ++i) {
+      RefCntBuffer *const buf = get_ref_frame_buf_nrs(cm, i);
+#else
     for (int i = LAST_FRAME; i <= ALTREF_FRAME; ++i) {
       RefCntBuffer *const buf = get_ref_frame_buf(cm, i);
+#endif  // CONFIG_NEW_REF_SIGNALING
       if (buf != NULL) buf->frame_context = *cm->fc;
     }
     for (int i = 0; i < FRAME_BUFFERS; ++i)
