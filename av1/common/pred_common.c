@@ -543,7 +543,26 @@ int av1_get_reference_mode_context(const AV1_COMMON *cm,
   return ctx;
 }
 
-#if !CONFIG_NEW_REF_SIGNALING
+#if CONFIG_NEW_REF_SIGNALING
+int av1_get_ref_pred_context_nrs(const MACROBLOCKD *xd,
+                                 MV_REFERENCE_FRAME_NRS ref, int n_total_refs) {
+  assert((ref + 1) < n_total_refs);
+  const uint8_t *const ref_counts = &xd->neighbors_ref_counts_nrs[0];
+  const int this_ref_count = ref_counts[ref];
+  int next_refs_count = 0;
+
+  for (int i = ref + 1; i < n_total_refs; i++) {
+    next_refs_count += ref_counts[i];
+  }
+
+  const int pred_context = (this_ref_count == next_refs_count)
+                               ? 1
+                               : ((this_ref_count < next_refs_count) ? 0 : 2);
+
+  assert(pred_context >= 0 && pred_context < REF_CONTEXTS);
+  return pred_context;
+}
+#else
 int av1_get_comp_reference_type_context(const MACROBLOCKD *xd) {
   int pred_context;
   const MB_MODE_INFO *const above_mbmi = xd->above_mbmi;
@@ -613,7 +632,6 @@ int av1_get_comp_reference_type_context(const MACROBLOCKD *xd) {
   assert(pred_context >= 0 && pred_context < COMP_REF_TYPE_CONTEXTS);
   return pred_context;
 }
-#endif  // !CONFIG_NEW_REF_SIGNALING
 
 // Returns a context number for the given MB prediction signal
 //
@@ -811,27 +829,6 @@ int av1_get_pred_context_comp_bwdref_p1(const MACROBLOCKD *xd) {
 
 // == Context functions for single ref ==
 //
-#if CONFIG_NEW_REF_SIGNALING
-int av1_get_single_ref_pred_context_nrs(const MACROBLOCKD *xd,
-                                        MV_REFERENCE_FRAME_NRS ref,
-                                        int n_total_refs) {
-  assert((ref + 1) < n_total_refs);
-  const uint8_t *const ref_counts = &xd->neighbors_ref_counts_nrs[0];
-  const int this_ref_count = ref_counts[ref];
-  int next_refs_count = 0;
-
-  for (int i = ref + 1; i < n_total_refs; i++) {
-    next_refs_count += ref_counts[i];
-  }
-
-  const int pred_context = (this_ref_count == next_refs_count)
-                               ? 1
-                               : ((this_ref_count < next_refs_count) ? 0 : 2);
-
-  assert(pred_context >= 0 && pred_context < REF_CONTEXTS);
-  return pred_context;
-}
-#else
 // For the bit to signal whether the single reference is a forward reference
 // frame or a backward reference frame.
 int av1_get_pred_context_single_ref_p1(const MACROBLOCKD *xd) {

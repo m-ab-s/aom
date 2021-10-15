@@ -1039,7 +1039,7 @@ static AOM_INLINE void estimate_ref_frame_costs(
     const int n_refs = cm->new_ref_frame_data.n_total_refs;
     for (int i = 0; i < n_refs; i++) {
       for (int j = 0; j <= AOMMIN(i, n_refs - 2); j++) {
-        aom_cdf_prob ctx = av1_get_single_ref_pred_context_nrs(xd, j, n_refs);
+        aom_cdf_prob ctx = av1_get_ref_pred_context_nrs(xd, j, n_refs);
         const int bit = i == j;
         ref_costs_single[i] += mode_costs->single_ref_cost[ctx][j][bit];
       }
@@ -1113,22 +1113,22 @@ static AOM_INLINE void estimate_ref_frame_costs(
           if (j <= i) {
             if (n_refs == 2) continue;  // No bits need to be sent in this case
             // Keep track of the cost to encode the first reference
-            aom_cdf_prob ctx =
-                av1_get_single_ref_pred_context_nrs(xd, j, n_refs);
+            aom_cdf_prob ctx = av1_get_ref_pred_context_nrs(xd, j, n_refs);
             const int bit = i == j;
-            prev_cost += mode_costs->compound_ref_cost[ctx][j][bit];
+            prev_cost += mode_costs->compound_ref_cost[ctx][0][j][bit];
           } else {
             // Assign the cost of signaling both references
             ref_costs_comp[i][j] = prev_cost;
             ref_costs_comp[j][i] = prev_cost;
             if (j < n_refs - 1) {
-              aom_cdf_prob ctx =
-                  av1_get_single_ref_pred_context_nrs(xd, j, n_refs);
-              ref_costs_comp[i][j] += mode_costs->compound_ref_cost[ctx][j][1];
-              ref_costs_comp[j][i] += mode_costs->compound_ref_cost[ctx][j][1];
+              aom_cdf_prob ctx = av1_get_ref_pred_context_nrs(xd, j, n_refs);
+              ref_costs_comp[i][j] +=
+                  mode_costs->compound_ref_cost[ctx][1][j - 1][1];
+              ref_costs_comp[j][i] +=
+                  mode_costs->compound_ref_cost[ctx][1][j - 1][1];
               // Maintain the cost of sending a 0 bit for the 2nd reference to
               // be used in the next iteration.
-              prev_cost += mode_costs->compound_ref_cost[ctx][j][0];
+              prev_cost += mode_costs->compound_ref_cost[ctx][1][j - 1][0];
             }
           }
         }

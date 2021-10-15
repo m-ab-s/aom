@@ -604,12 +604,13 @@ int main(int argc, const char **argv) {
   /* ext_refs experiment */
 #if CONFIG_NEW_REF_SIGNALING
   cts_each_dim[0] = REF_CONTEXTS;
-  cts_each_dim[1] = INTER_REFS_PER_FRAME_NRS - 1;
-  cts_each_dim[2] = 2;
-  optimize_cdf_table(&fc.comp_ref[0][0][0], probsfile, 3, cts_each_dim,
+  cts_each_dim[1] = 2;
+  cts_each_dim[2] = INTER_REFS_PER_FRAME_NRS - 2;
+  cts_each_dim[3] = 2;
+  optimize_cdf_table(&fc.comp_ref[0][0][0][0], probsfile, 4, cts_each_dim,
                      "static const aom_cdf_prob\n"
-                     "default_compound_ref_cdf[REF_CONTEXTS][INTER_REFS_PER_"
-                     "FRAME_NRS - 1][CDF_SIZE(2)]");
+                     "default_compound_ref_cdf[REF_CONTEXTS][2][INTER_REFS_PER_"
+                     "FRAME_NRS - 2][CDF_SIZE(2)]");
 #else
   cts_each_dim[0] = REF_CONTEXTS;
   cts_each_dim[1] = FWD_REFS - 1;

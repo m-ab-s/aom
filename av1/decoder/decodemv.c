@@ -1095,10 +1095,10 @@ static REFERENCE_MODE read_block_reference_mode(AV1_COMMON *cm,
   }
 }
 
+#if !CONFIG_NEW_REF_SIGNALING
 #define READ_REF_BIT(pname) \
   aom_read_symbol(r, av1_get_pred_cdf_##pname(xd), 2, ACCT_STR)
 
-#if !CONFIG_NEW_REF_SIGNALING
 static COMP_REFERENCE_TYPE read_comp_reference_type(const MACROBLOCKD *xd,
                                                     aom_reader *r) {
   const int ctx = av1_get_comp_reference_type_context(xd);
@@ -1147,7 +1147,8 @@ static AOM_INLINE void read_compound_ref_nrs(
   int n_bits = 0;
   for (int i = 0; i < n_refs + n_bits - 2; i++) {
     const int bit = aom_read_symbol(
-        r, av1_get_pred_cdf_compound_ref_nrs(xd, i, n_refs), 2, ACCT_STR);
+        r, av1_get_pred_cdf_compound_ref_nrs(xd, i, n_bits, n_refs), 2,
+        ACCT_STR);
     if (bit) {
       ref_frame_nrs[n_bits++] = i;
       if (n_bits == 2) break;

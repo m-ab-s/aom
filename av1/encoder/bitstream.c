@@ -699,8 +699,10 @@ static AOM_INLINE void write_segment_id(AV1_COMP *cpi,
                          mi_row, mi_col, mbmi->segment_id);
 }
 
+#if !CONFIG_NEW_REF_SIGNALING
 #define WRITE_REF_BIT(bname, pname) \
   aom_write_symbol(w, bname, av1_get_pred_cdf_##pname(xd), 2)
+#endif  // CONFIG_NEW_REF_SIGNALING
 
 #if CONFIG_NEW_REF_SIGNALING
 static AOM_INLINE void write_single_ref_nrs(
@@ -730,8 +732,8 @@ static AOM_INLINE void write_compound_ref_nrs(
   int n_bits = 0;
   for (int i = 0; i < n_refs + n_bits - 2; i++) {
     const int bit = ref0 == i || ref1 == i;
-    aom_write_symbol(w, bit, av1_get_pred_cdf_compound_ref_nrs(xd, i, n_refs),
-                     2);
+    aom_write_symbol(
+        w, bit, av1_get_pred_cdf_compound_ref_nrs(xd, i, n_bits, n_refs), 2);
     n_bits += bit;
     if (n_bits == 2) break;
   }
