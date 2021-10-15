@@ -1535,8 +1535,8 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
     ref_buf[ref_frame] = buf;
     ref_order_hint[ref_frame] = order_hint;
   }
-  if (cm->new_ref_frame_data.cur_ref >= 0) {
-    const int ref_frame = cm->new_ref_frame_data.cur_ref;
+  for (int index = 0; index < cm->new_ref_frame_data.n_cur_refs; index++) {
+    const int ref_frame = cm->new_ref_frame_data.cur_refs[index];
     cm->ref_frame_side_nrs[ref_frame] = -1;
     const RefCntBuffer *const buf = get_ref_frame_buf_nrs(cm, ref_frame);
     int order_hint = 0;

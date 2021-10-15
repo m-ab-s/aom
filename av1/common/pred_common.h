@@ -122,8 +122,8 @@ static INLINE int get_closest_past_ref_index(const AV1_COMMON *const cm) {
 }
 
 static INLINE int get_closest_pastcur_ref_index(const AV1_COMMON *const cm) {
-  if (cm->new_ref_frame_data.cur_ref != -1)
-    return cm->new_ref_frame_data.cur_ref;
+  if (cm->new_ref_frame_data.n_cur_refs > 0)
+    return cm->new_ref_frame_data.cur_refs[0];
   return get_closest_past_ref_index(cm);
 }
 
@@ -180,7 +180,7 @@ static INLINE int get_dir_rank(const AV1_COMMON *const cm, int refrank,
   }
   // If refrank has the same distance as a reference return 0 (past)
   // but the dir_refrank[0] is -1
-  if (cm->new_ref_frame_data.cur_ref == refrank) return 0;
+  if (cm->new_ref_frame_data.cur_refs[0] == refrank) return 0;
   return -1;
 }
 #endif  // CONFIG_NEW_REF_SIGNALING

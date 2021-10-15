@@ -1212,7 +1212,7 @@ static INLINE int refs_are_one_sided_nrs(const AV1_COMMON *cm) {
   assert(!frame_is_intra_only(cm));
 
   return (cm->new_ref_frame_data.n_past_refs == 0 &&
-          cm->new_ref_frame_data.cur_ref == -1) ||
+          cm->new_ref_frame_data.n_cur_refs == 0) ||
          cm->new_ref_frame_data.n_future_refs == 0;
 }
 #else

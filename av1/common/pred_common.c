@@ -81,7 +81,6 @@ void av1_init_new_ref_frame_map(AV1_COMMON *cm,
   for (int i = 0; i < REF_FRAMES; i++) {
     cm->new_ref_frame_data.named_to_ranked_refs[i] = -1;
   }
-  cm->new_ref_frame_data.cur_ref = -1;
   int n_ranked = 0;
   // Compute a score for each reference buffer
   for (int i = 0; i < REF_FRAMES; i++) {
@@ -128,6 +127,7 @@ void av1_init_new_ref_frame_map(AV1_COMMON *cm,
   cm->new_ref_frame_data.n_total_refs = n_ranked;
   int n_future = 0;
   int n_past = 0;
+  int n_cur = 0;
   for (int i = 0; i < n_ranked; i++) {
     cm->new_ref_frame_data.ref_frame_score_map[i] = scores[i].index;
     cm->new_ref_frame_data.ref_frame_distance[i] = scores[i].distance;
@@ -142,11 +142,13 @@ void av1_init_new_ref_frame_map(AV1_COMMON *cm,
       cm->new_ref_frame_data.past_refs[n_past] = i;
       n_past++;
     } else {
-      cm->new_ref_frame_data.cur_ref = i;
+      cm->new_ref_frame_data.cur_refs[n_cur] = i;
+      n_cur++;
     }
   }
   cm->new_ref_frame_data.n_past_refs = n_past;
   cm->new_ref_frame_data.n_future_refs = n_future;
+  cm->new_ref_frame_data.n_cur_refs = n_cur;
 }
 #endif  // CONFIG_NEW_REF_SIGNALING
 

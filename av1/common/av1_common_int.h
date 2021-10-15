@@ -849,9 +849,14 @@ typedef struct {
    */
   int n_past_refs;
   /*!
-   * Index of reference with same order hint as current frame. -1 if unset.
+   * Contains the indices of the frames in ref_frame_map with same order hint
+   * as current frame. -1 if unset.
    */
-  int cur_ref;
+  int cur_refs[INTER_REFS_PER_FRAME_NRS];
+  /*!
+   * Number of references with the same order hint.
+   */
+  int n_cur_refs;
 
   // TODO(sarahparker) Remove these members once named references are removed.
   /*!
