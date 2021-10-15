@@ -1360,12 +1360,12 @@ typedef struct macroblockd {
    * Same as cm->global_motion_nrs.
    */
   const WarpedMotionParams *global_motion_nrs;
-#endif  // CONFIG_NEW_REF_SIGNALING
-
+#else
   /*!
    * Same as cm->global_motion.
    */
   const WarpedMotionParams *global_motion;
+#endif  // CONFIG_NEW_REF_SIGNALING
 
   /*!
    * Since actual frame level loop filtering level value is not available

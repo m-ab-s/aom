@@ -100,7 +100,6 @@ static INLINE int8_t av1_ref_frame_type(const MV_REFERENCE_FRAME *const rf) {
              BWD_RF_OFFSET(rf[1]) * FWD_REFS;
     }
   }
-
   return rf[0];
 }
 #endif  // !CONFIG_NEW_REF_SIGNALING

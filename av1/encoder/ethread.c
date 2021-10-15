@@ -1441,11 +1441,19 @@ static int gm_mt_worker_hook(void *arg1, void *unused) {
     init_gm_thread_data(gm_info, gm_thread_data);
 
     // Compute global motion for the given ref_buf_idx.
+#if CONFIG_NEW_REF_SIGNALING
+    av1_compute_gm_for_valid_ref_frames_nrs(
+        cpi, gm_info->ref_buf, ref_buf_idx, gm_info->num_src_corners,
+        gm_info->src_corners, gm_info->src_buffer,
+        gm_thread_data->params_by_motion, gm_thread_data->segment_map,
+        gm_info->segment_map_w, gm_info->segment_map_h);
+#else
     av1_compute_gm_for_valid_ref_frames(
         cpi, gm_info->ref_buf, ref_buf_idx, gm_info->num_src_corners,
         gm_info->src_corners, gm_info->src_buffer,
         gm_thread_data->params_by_motion, gm_thread_data->segment_map,
         gm_info->segment_map_w, gm_info->segment_map_h);
+#endif  // CONFIG_NEW_REF_SIGNALING
 
 #if CONFIG_MULTITHREAD
     pthread_mutex_lock(gm_mt_mutex_);

@@ -697,8 +697,9 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
   x->e_mbd.bd = (int)seq_params->bit_depth;
 #if CONFIG_NEW_REF_SIGNALING
   x->e_mbd.global_motion_nrs = cm->global_motion_nrs;
-#endif  // CONFIG_NEW_REF_SIGNALING
+#else
   x->e_mbd.global_motion = cm->global_motion;
+#endif  // CONFIG_NEW_REF_SIGNALING
 
   memcpy(level_params->target_seq_level_idx, cpi->oxcf.target_seq_level_idx,
          sizeof(level_params->target_seq_level_idx));

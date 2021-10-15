@@ -4870,8 +4870,6 @@ static AOM_INLINE void read_global_motion_nrs(AV1_COMMON *cm,
   }
   memcpy(cm->cur_frame->global_motion_nrs, cm->global_motion_nrs,
          INTER_REFS_PER_FRAME_NRS * sizeof(WarpedMotionParams));
-  memcpy(cm->cur_frame->global_motion, cm->global_motion,
-         REF_FRAMES * sizeof(WarpedMotionParams));
 }
 
 #else
@@ -5859,14 +5857,13 @@ uint32_t av1_decode_frame_headers_and_setup(AV1Decoder *pbi,
     cm->cur_frame->global_motion_nrs[i] = default_warp_params;
   }
   xd->global_motion_nrs = cm->global_motion_nrs;
-
-#endif  // CONFIG_NEW_REF_SIGNALING
-
+#else
   for (int i = LAST_FRAME; i <= ALTREF_FRAME; ++i) {
     cm->global_motion[i] = default_warp_params;
     cm->cur_frame->global_motion[i] = default_warp_params;
   }
   xd->global_motion = cm->global_motion;
+#endif  // CONFIG_NEW_REF_SIGNALING
 
   read_uncompressed_header(pbi, rb);
 

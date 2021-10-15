@@ -216,8 +216,7 @@ static AOM_INLINE void compute_global_motion_for_ref_frame_nrs(
 
   aom_clear_system_state();
 }
-#endif  // CONFIG_NEW_REF_SIGNALING
-
+#else
 // For the given reference frame, computes the global motion parameters for
 // different motion models and finds the best.
 static AOM_INLINE void compute_global_motion_for_ref_frame(
@@ -348,6 +347,7 @@ static AOM_INLINE void compute_global_motion_for_ref_frame(
 
   aom_clear_system_state();
 }
+#endif  // CONFIG_NEW_REF_SIGNALING
 
 #if CONFIG_NEW_REF_SIGNALING
 // Computes global motion for the given reference frame.
@@ -399,8 +399,7 @@ void av1_compute_gm_for_valid_ref_frames_nrs(
       gm_info->type_cost[cm->global_motion_nrs[frame].wmtype] -
       gm_info->type_cost[IDENTITY];
 }
-#endif  // CONFIG_NEW_REF_SIGNALING
-
+#else
 // Computes global motion for the given reference frame.
 void av1_compute_gm_for_valid_ref_frames(
     AV1_COMP *cpi, YV12_BUFFER_CONFIG *ref_buf[REF_FRAMES], int frame,
@@ -449,6 +448,7 @@ void av1_compute_gm_for_valid_ref_frames(
       gm_info->type_cost[cm->global_motion[frame].wmtype] -
       gm_info->type_cost[IDENTITY];
 }
+#endif  // CONFIG_NEW_REF_SIGNALING
 
 #if CONFIG_NEW_REF_SIGNALING
 // Loops over valid reference frames and computes global motion estimation.
@@ -892,10 +892,11 @@ void av1_compute_global_motion_facade(AV1_COMP *cpi) {
       global_motion_estimation(cpi);
     gm_info->search_done = 1;
   }
-  memcpy(cm->cur_frame->global_motion, cm->global_motion,
-         sizeof(cm->cur_frame->global_motion));
 #if CONFIG_NEW_REF_SIGNALING
   memcpy(cm->cur_frame->global_motion_nrs, cm->global_motion_nrs,
          sizeof(cm->cur_frame->global_motion_nrs));
+#else
+  memcpy(cm->cur_frame->global_motion, cm->global_motion,
+         sizeof(cm->cur_frame->global_motion));
 #endif  // CONFIG_NEW_REF_SIGNALING
 }

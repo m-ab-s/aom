@@ -170,8 +170,9 @@ typedef struct RefCntBuffer {
   int height;
 #if CONFIG_NEW_REF_SIGNALING
   WarpedMotionParams global_motion_nrs[INTER_REFS_PER_FRAME_NRS];
-#endif  // CONFIG_NEW_REF_SIGNALING
+#else
   WarpedMotionParams global_motion[REF_FRAMES];
+#endif                 // CONFIG_NEW_REF_SIGNALING
   int showable_frame;  // frame can be used as show existing frame in future
   uint8_t film_grain_params_present;
   aom_film_grain_t film_grain_params;
