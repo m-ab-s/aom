@@ -358,8 +358,16 @@ static INLINE int get_comp_group_idx_context(const AV1_COMMON *cm,
                                              const MACROBLOCKD *xd) {
   (void)cm;
   MB_MODE_INFO *mbmi = xd->mi[0];
+#if CONFIG_NEW_REF_SIGNALING
+  const RefCntBuffer *const bck_buf =
+      get_ref_frame_buf_nrs(cm, mbmi->ref_frame_nrs[0]);
+  const RefCntBuffer *const fwd_buf =
+      get_ref_frame_buf_nrs(cm, mbmi->ref_frame_nrs[1]);
+  MV_REFERENCE_FRAME_NRS altref_frame = get_furthest_future_ref_index(cm);
+#else
   const RefCntBuffer *const bck_buf = get_ref_frame_buf(cm, mbmi->ref_frame[0]);
   const RefCntBuffer *const fwd_buf = get_ref_frame_buf(cm, mbmi->ref_frame[1]);
+#endif  // CONFIG_NEW_REF_SIGNALING
   int bck_frame_index = 0, fwd_frame_index = 0;
   int cur_frame_index = cm->cur_frame->order_hint;
 
@@ -377,15 +385,21 @@ static INLINE int get_comp_group_idx_context(const AV1_COMMON *cm,
   int above_ctx = 0, left_ctx = 0;
 
   if (above_mi) {
-    if (has_second_ref(above_mi))
-      above_ctx = above_mi->comp_group_idx;
+    if (has_second_ref(above_mi)) above_ctx = above_mi->comp_group_idx;
+#if CONFIG_NEW_REF_SIGNALING
+    else if (above_mi->ref_frame_nrs[0] == altref_frame)
+#else
     else if (above_mi->ref_frame[0] == ALTREF_FRAME)
+#endif  // CONFIG_NEW_REF_SIGNALING
       above_ctx = 2;
   }
   if (left_mi) {
-    if (has_second_ref(left_mi))
-      left_ctx = left_mi->comp_group_idx;
+    if (has_second_ref(left_mi)) left_ctx = left_mi->comp_group_idx;
+#if CONFIG_NEW_REF_SIGNALING
+    else if (left_mi->ref_frame_nrs[0] == altref_frame)
+#else
     else if (left_mi->ref_frame[0] == ALTREF_FRAME)
+#endif  // CONFIG_NEW_REF_SIGNALING
       left_ctx = 2;
   }
   const int ctxmap[3 * 3] = { 0, 1, 2, 1, 3, 4, 2, 4, 5 };
@@ -450,9 +464,9 @@ static INLINE aom_cdf_prob *av1_get_skip_txfm_cdf(const MACROBLOCKD *xd) {
   return xd->tile_ctx->skip_txfm_cdfs[av1_get_skip_txfm_context(xd)];
 }
 
+#if !CONFIG_NEW_REF_SIGNALING
 int av1_get_comp_reference_type_context(const MACROBLOCKD *xd);
 
-#if !CONFIG_NEW_REF_SIGNALING
 // == Uni-directional contexts ==
 
 int av1_get_pred_context_uni_comp_ref_p(const MACROBLOCKD *xd);

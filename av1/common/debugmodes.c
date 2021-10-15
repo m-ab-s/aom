@@ -54,7 +54,12 @@ void av1_print_modes_and_motion_vectors(AV1_COMMON *cm, const char *file) {
 
   print_mi_data(cm, mvs, "Partitions:", offsetof(MB_MODE_INFO, sb_type));
   print_mi_data(cm, mvs, "Modes:", offsetof(MB_MODE_INFO, mode));
+#if CONFIG_NEW_REF_SIGNALING
+  print_mi_data(cm, mvs,
+                "Ref frame:", offsetof(MB_MODE_INFO, ref_frame_nrs[0]));
+#else
   print_mi_data(cm, mvs, "Ref frame:", offsetof(MB_MODE_INFO, ref_frame[0]));
+#endif  // CONFIG_NEW_REF_SIGNALING
   print_mi_data(cm, mvs, "Transform:", offsetof(MB_MODE_INFO, tx_size));
   print_mi_data(cm, mvs, "UV Modes:", offsetof(MB_MODE_INFO, uv_mode));
 

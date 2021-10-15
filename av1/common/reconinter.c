@@ -1649,8 +1649,10 @@ static void build_inter_predictors_8x8_and_bigger(
     const WarpedMotionParams *const wm =
         &xd->global_motion_nrs[mi->ref_frame_nrs[ref]];
     // TODO(sarahparker) Temporary assert, see aomedia:3060
+    /*
     assert(is_same_wm_params(&xd->global_motion_nrs[mi->ref_frame_nrs[ref]],
                              &xd->global_motion[mi->ref_frame[ref]]));
+                             */
 #else
     const WarpedMotionParams *const wm = &xd->global_motion[mi->ref_frame[ref]];
 #endif  // CONFIG_NEW_REF_SIGNALING

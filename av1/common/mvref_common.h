@@ -376,8 +376,7 @@ static INLINE void av1_collect_neighbors_ref_counts_nrs(
     }
   }
 }
-#endif  // CONFIG_NEW_REF_SIGNALING
-
+#else
 static INLINE void av1_collect_neighbors_ref_counts(MACROBLOCKD *const xd) {
   av1_zero(xd->neighbors_ref_counts);
 
@@ -404,6 +403,7 @@ static INLINE void av1_collect_neighbors_ref_counts(MACROBLOCKD *const xd) {
     }
   }
 }
+#endif  // CONFIG_NEW_REF_SIGNALING
 
 void av1_copy_frame_mvs(const AV1_COMMON *const cm,
                         const MB_MODE_INFO *const mi, int mi_row, int mi_col,

@@ -287,11 +287,6 @@ static MOTION_MODE read_motion_mode(AV1_COMMON *cm, MACROBLOCKD *xd,
 #if CONFIG_NEW_REF_SIGNALING
   const MOTION_MODE last_motion_mode_allowed = motion_mode_allowed_nrs(
       xd->global_motion_nrs, xd, mbmi, cm->features.allow_warped_motion);
-  const MOTION_MODE last_motion_mode_allowed2 = motion_mode_allowed(
-      xd->global_motion, xd, mbmi, cm->features.allow_warped_motion);
-  // TODO(sarahparker) Temporary assert, see aomedia:3060
-  assert(last_motion_mode_allowed == last_motion_mode_allowed2);
-  (void)last_motion_mode_allowed2;
 #else
   const MOTION_MODE last_motion_mode_allowed = motion_mode_allowed(
       xd->global_motion, xd, mbmi, cm->features.allow_warped_motion);
@@ -931,12 +926,12 @@ static void read_intra_frame_mode_info(AV1_COMMON *const cm,
 
   mbmi->current_qindex = xd->current_base_qindex;
 
-  mbmi->ref_frame[0] = INTRA_FRAME;
-  mbmi->ref_frame[1] = NONE_FRAME;
 #if CONFIG_NEW_REF_SIGNALING
   mbmi->ref_frame_nrs[0] = INTRA_FRAME_NRS;
   mbmi->ref_frame_nrs[1] = INVALID_IDX;
 #endif  // CONFIG_NEW_REF_SIGNALING
+  mbmi->ref_frame[0] = INTRA_FRAME;
+  mbmi->ref_frame[1] = NONE_FRAME;
   mbmi->palette_mode_info.palette_size[0] = 0;
   mbmi->palette_mode_info.palette_size[1] = 0;
   mbmi->filter_intra_mode_info.use_filter_intra = 0;
@@ -1365,12 +1360,6 @@ static void read_intra_block_mode_info(AV1_COMMON *const cm,
 #if CONFIG_NEW_REF_SIGNALING
   mbmi->ref_frame_nrs[0] = INTRA_FRAME_NRS;
   mbmi->ref_frame_nrs[1] = INVALID_IDX;
-  assert(convert_ranked_ref_to_named_ref_index(&cm->new_ref_frame_data,
-                                               mbmi->ref_frame_nrs[0]) ==
-         mbmi->ref_frame[0]);
-  assert(convert_ranked_ref_to_named_ref_index(&cm->new_ref_frame_data,
-                                               mbmi->ref_frame_nrs[1]) ==
-         mbmi->ref_frame[1]);
 #endif  // CONFIG_NEW_REF_SIGNALING
 #if CONFIG_DERIVED_INTRA_MODE
   mbmi->use_derived_intra_mode[0] = 0;
@@ -1443,9 +1432,10 @@ static INLINE int is_mv_valid(const MV *mv) {
 
 static INLINE int assign_mv(AV1_COMMON *cm, MACROBLOCKD *xd,
                             PREDICTION_MODE mode,
-                            MV_REFERENCE_FRAME ref_frame[2],
 #if CONFIG_NEW_REF_SIGNALING
                             MV_REFERENCE_FRAME_NRS ref_frame_nrs[2],
+#else
+                            MV_REFERENCE_FRAME ref_frame[2],
 #endif  // CONFIG_NEW_REF_SIGNALING
                             int_mv mv[2], int_mv ref_mv[2],
                             int_mv nearest_mv[2], int_mv near_mv[2],
@@ -1480,9 +1470,6 @@ static INLINE int assign_mv(AV1_COMMON *cm, MACROBLOCKD *xd,
     case GLOBALMV: {
 #if CONFIG_NEW_REF_SIGNALING
       // TODO(sarahparker) Temporary assert, see aomedia:3060
-      assert(is_same_wm_params(&cm->global_motion_nrs[ref_frame_nrs[0]],
-                               &cm->global_motion[ref_frame[0]]));
-      (void)ref_frame;
       mv[0].as_int =
           gm_get_motion_vector(&cm->global_motion_nrs[ref_frame_nrs[0]],
                                features->fr_mv_precision, bsize, xd->mi_col,
@@ -1572,10 +1559,6 @@ static INLINE int assign_mv(AV1_COMMON *cm, MACROBLOCKD *xd,
       assert(is_compound);
 #if CONFIG_NEW_REF_SIGNALING
       // TODO(sarahparker) Temporary assert, see aomedia:3060
-      assert(is_same_wm_params(&cm->global_motion_nrs[ref_frame_nrs[0]],
-                               &cm->global_motion[ref_frame[0]]));
-      assert(is_same_wm_params(&cm->global_motion_nrs[ref_frame_nrs[1]],
-                               &cm->global_motion[ref_frame[1]]));
       mv[0].as_int =
           gm_get_motion_vector(&cm->global_motion_nrs[ref_frame_nrs[0]],
                                features->fr_mv_precision, bsize, xd->mi_col,
@@ -1653,9 +1636,14 @@ static void dec_dump_logs(AV1_COMMON *cm, MB_MODE_INFO *const mbmi, int mi_row,
         "newmv_ctx=%d, zeromv_ctx=%d, refmv_ctx=%d, tx_size=%d\n",
         cm->current_frame.frame_number, mi_row, mi_col, mbmi->skip_mode,
         mbmi->mode, mbmi->sb_type, cm->show_frame, mv[0].as_mv.row,
-        mv[0].as_mv.col, mv[1].as_mv.row, mv[1].as_mv.col, mbmi->ref_frame[0],
-        mbmi->ref_frame[1], mbmi->motion_mode, mode_ctx, newmv_ctx, zeromv_ctx,
-        refmv_ctx, mbmi->tx_size);
+        mv[0].as_mv.col, mv[1].as_mv.row, mv[1].as_mv.col,
+#if CONFIG_NEW_REF_SIGNALING
+        mbmi->ref_frame_nrs[0], mbmi->ref_frame_nrs[1],
+#else
+        mbmi->ref_frame[0], mbmi->ref_frame[1],
+#endif  // CONFIG_NEW_REF_SIGNALING
+        mbmi->motion_mode, mode_ctx, newmv_ctx, zeromv_ctx, refmv_ctx,
+        mbmi->tx_size);
   }
 }
 #endif  // DEC_MISMATCH_DEBUG
@@ -1682,23 +1670,15 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
 
 #if CONFIG_NEW_REF_SIGNALING
   av1_collect_neighbors_ref_counts_nrs(cm, xd);
-#endif  // CONFIG_NEW_REF_SIGNALING
+#else
   av1_collect_neighbors_ref_counts(xd);
+#endif  // CONFIG_NEW_REF_SIGNALING
 
   read_ref_frames(cm, xd, r, mbmi->segment_id,
 #if CONFIG_NEW_REF_SIGNALING
                   mbmi->ref_frame_nrs,
 #endif  // CONFIG_NEW_REF_SIGNALING
                   mbmi->ref_frame);
-#if CONFIG_NEW_REF_SIGNALING
-  // TODO(sarahparker) aomedia:3060 Delete these asserts
-  assert(convert_ranked_ref_to_named_ref_index(&cm->new_ref_frame_data,
-                                               mbmi->ref_frame_nrs[0]) ==
-         mbmi->ref_frame[0]);
-  assert(convert_ranked_ref_to_named_ref_index(&cm->new_ref_frame_data,
-                                               mbmi->ref_frame_nrs[1]) ==
-         mbmi->ref_frame[1]);
-#endif  // CONFIG_NEW_REF_SIGNALING
   const int is_compound = has_second_ref(mbmi);
 
   const MV_REFERENCE_FRAME ref_frame = av1_ref_frame_type(mbmi->ref_frame);
@@ -1871,9 +1851,11 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
 #endif  // CONFIG_NEW_INTER_MODES
 
   const int mv_corrupted_flag =
-      !assign_mv(cm, xd, mbmi->mode, mbmi->ref_frame,
+      !assign_mv(cm, xd, mbmi->mode,
 #if CONFIG_NEW_REF_SIGNALING
                  mbmi->ref_frame_nrs,
+#else
+                 mbmi->ref_frame,
 #endif  // CONFIG_NEW_REF_SIGNALING
                  mbmi->mv, ref_mv, nearestmv, nearmv, is_compound,
                  mbmi->pb_mv_precision, r);

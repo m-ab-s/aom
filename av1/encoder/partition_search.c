@@ -377,7 +377,12 @@ static void update_zeromv_cnt(const AV1_COMP *const cpi,
     for (int x = 0; x < xmis; x++) {
       // consec_zero_mv is in the scale of 8x8 blocks
       const int map_offset = block_index + y * (cm->mi_params.mi_cols >> 1) + x;
-      if (mi->ref_frame[0] == LAST_FRAME && is_inter_block(mi) &&
+      if (is_inter_block(mi) &&
+#if CONFIG_NEW_REF_SIGNALING
+          mi->ref_frame_nrs[0] == get_closest_pastcur_ref_index(cm) &&
+#else
+          mi->ref_frame[0] == LAST_FRAME &&
+#endif  // CONFIG_NEW_REF_SIGNALING
           mi->segment_id <= CR_SEGMENT_ID_BOOST2) {
         if (abs(mv.row) < 10 && abs(mv.col) < 10) {
           if (cpi->consec_zero_mv[map_offset] < 255)
@@ -466,8 +471,13 @@ static void encode_superblock(const AV1_COMP *const cpi, TileDataEnc *tile_data,
     set_ref_ptrs(cm, xd, mbmi->ref_frame[0], mbmi->ref_frame[1]);
 #endif  // CONFIG_NEW_REF_SIGNALING
     for (ref = 0; ref < 1 + is_compound; ++ref) {
+#if CONFIG_NEW_REF_SIGNALING
+      const YV12_BUFFER_CONFIG *cfg =
+          get_ref_frame_yv12_buf_nrs(cm, mbmi->ref_frame_nrs[ref]);
+#else
       const YV12_BUFFER_CONFIG *cfg =
           get_ref_frame_yv12_buf(cm, mbmi->ref_frame[ref]);
+#endif  // CONFIG_NEW_REF_SIGNALING
       assert(IMPLIES(!is_intrabc_block(mbmi), cfg));
       av1_setup_pre_planes(xd, ref, cfg, mi_row, mi_col,
                            xd->block_ref_scale_factors[ref], num_planes,
@@ -1244,7 +1254,12 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
       if (cm->seq_params.enable_interintra_compound &&
           is_interintra_allowed(mbmi)) {
         const int bsize_group = size_group_lookup[bsize];
-        if (mbmi->ref_frame[1] == INTRA_FRAME) {
+#if CONFIG_NEW_REF_SIGNALING
+        if (mbmi->ref_frame_nrs[1] == INTRA_FRAME_NRS)
+#else
+        if (mbmi->ref_frame[1] == INTRA_FRAME)
+#endif  // CONFIG_NEW_REF_SIGNALING
+        {
 #if CONFIG_ENTROPY_STATS
           counts->interintra[bsize_group][1]++;
 #endif
@@ -1282,14 +1297,6 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
               ? motion_mode_allowed_nrs(xd->global_motion_nrs, xd, mbmi,
                                         cm->features.allow_warped_motion)
               : SIMPLE_TRANSLATION;
-      const MOTION_MODE motion_allowed2 =
-          cm->features.switchable_motion_mode
-              ? motion_mode_allowed(xd->global_motion, xd, mbmi,
-                                    cm->features.allow_warped_motion)
-              : SIMPLE_TRANSLATION;
-      // TODO(sarahparker) Temporary assert, see aomedia:3060
-      assert(motion_allowed == motion_allowed2);
-      (void)motion_allowed2;
 #else
       const MOTION_MODE motion_allowed =
           cm->features.switchable_motion_mode
@@ -1297,7 +1304,12 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
                                     cm->features.allow_warped_motion)
               : SIMPLE_TRANSLATION;
 #endif  // CONFIG_NEW_REF_SIGNALING
-      if (mbmi->ref_frame[1] != INTRA_FRAME) {
+#if CONFIG_NEW_REF_SIGNALING
+      if (mbmi->ref_frame_nrs[1] != INTRA_FRAME_NRS)
+#else
+      if (mbmi->ref_frame[1] != INTRA_FRAME)
+#endif  // CONFIG_NEW_REF_SIGNALING
+      {
         if (motion_allowed == WARPED_CAUSAL) {
 #if CONFIG_ENTROPY_STATS
           counts->motion_mode[bsize][mbmi->motion_mode]++;
@@ -1658,8 +1670,9 @@ static void encode_b(const AV1_COMP *const cpi, TileDataEnc *tile_data,
         if (is_inter_block(mbmi)) {
 #if CONFIG_NEW_REF_SIGNALING
           av1_collect_neighbors_ref_counts_nrs(cm, xd);
-#endif  // CONFIG_NEW_REF_SIGNALING
+#else
           av1_collect_neighbors_ref_counts(xd);
+#endif  // CONFIG_NEW_REF_SIGNALING
           if (cm->current_frame.reference_mode == REFERENCE_MODE_SELECT) {
             if (has_second_ref(mbmi)) {
               // This flag is also updated for 4x4 blocks
@@ -1694,17 +1707,9 @@ static void encode_b(const AV1_COMP *const cpi, TileDataEnc *tile_data,
 #if CONFIG_NEW_REF_SIGNALING
         const MOTION_MODE motion_allowed =
             cm->features.switchable_motion_mode
-                ? motion_mode_allowed(xd->global_motion_nrs, xd, mbmi,
-                                      cm->features.allow_warped_motion)
+                ? motion_mode_allowed_nrs(xd->global_motion_nrs, xd, mbmi,
+                                          cm->features.allow_warped_motion)
                 : SIMPLE_TRANSLATION;
-        const MOTION_MODE motion_allowed2 =
-            cm->features.switchable_motion_mode
-                ? motion_mode_allowed(xd->global_motion, xd, mbmi,
-                                      cm->features.allow_warped_motion)
-                : SIMPLE_TRANSLATION;
-        // TODO(sarahparker) Temporary assert, see aomedia:3060
-        assert(motion_allowed == motion_allowed2);
-        (void)motion_allowed2;
 #else
         const MOTION_MODE motion_allowed =
             cm->features.switchable_motion_mode
@@ -1713,7 +1718,12 @@ static void encode_b(const AV1_COMP *const cpi, TileDataEnc *tile_data,
                 : SIMPLE_TRANSLATION;
 #endif  // CONFIG_NEW_REF_SIGNALING
 
-        if (mbmi->ref_frame[1] != INTRA_FRAME) {
+#if CONFIG_NEW_REF_SIGNALING
+        if (mbmi->ref_frame_nrs[1] != INTRA_FRAME_NRS)
+#else
+        if (mbmi->ref_frame[1] != INTRA_FRAME)
+#endif  // CONFIG_NEW_REF_SIGNALING
+        {
           if (motion_allowed >= OBMC_CAUSAL) {
             td->rd_counts.obmc_used[bsize][mbmi->motion_mode == OBMC_CAUSAL]++;
           }

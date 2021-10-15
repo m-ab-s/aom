@@ -417,14 +417,6 @@ static AOM_INLINE void write_motion_mode(const AV1_COMMON *cm, MACROBLOCKD *xd,
           ? motion_mode_allowed_nrs(cm->global_motion_nrs, xd, mbmi,
                                     cm->features.allow_warped_motion)
           : SIMPLE_TRANSLATION;
-  MOTION_MODE last_motion_mode_allowed2 =
-      cm->features.switchable_motion_mode
-          ? motion_mode_allowed(cm->global_motion, xd, mbmi,
-                                cm->features.allow_warped_motion)
-          : SIMPLE_TRANSLATION;
-  // TODO(sarahparker) Temporary assert, see aomedia:3060
-  assert(last_motion_mode_allowed == last_motion_mode_allowed2);
-  (void)last_motion_mode_allowed2;
 #else
   MOTION_MODE last_motion_mode_allowed =
       cm->features.switchable_motion_mode
@@ -1490,8 +1482,9 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
 
 #if CONFIG_NEW_REF_SIGNALING
     av1_collect_neighbors_ref_counts_nrs(cm, xd);
-#endif  // CONFIG_NEW_REF_SIGNALING
+#else
     av1_collect_neighbors_ref_counts(xd);
+#endif  // CONFIG_NEW_REF_SIGNALING
 
     write_ref_frames(cm, xd, w);
 
@@ -1568,7 +1561,11 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
     if (cpi->common.current_frame.reference_mode != COMPOUND_REFERENCE &&
         cpi->common.seq_params.enable_interintra_compound &&
         is_interintra_allowed(mbmi)) {
+#if CONFIG_NEW_REF_SIGNALING
+      const int interintra = mbmi->ref_frame_nrs[1] == INTRA_FRAME_NRS;
+#else
       const int interintra = mbmi->ref_frame[1] == INTRA_FRAME;
+#endif  // CONFIG_NEW_REF_SIGNALING
       const int bsize_group = size_group_lookup[bsize];
       aom_write_symbol(w, interintra, ec_ctx->interintra_cdf[bsize_group], 2);
       if (interintra) {
@@ -1586,7 +1583,12 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
       }
     }
 
+#if CONFIG_NEW_REF_SIGNALING
+    if (mbmi->ref_frame_nrs[1] != INTRA_FRAME_NRS)
+      write_motion_mode(cm, xd, mbmi, w);
+#else
     if (mbmi->ref_frame[1] != INTRA_FRAME) write_motion_mode(cm, xd, mbmi, w);
+#endif  // CONFIG_NEW_REF_SIGNALING
 #if CONFIG_EXT_ROTATION
     if (simple_translation_rotation_allowed(mbmi) ||
         globalmv_rotation_allowed(xd)) {
@@ -1793,9 +1795,14 @@ static AOM_INLINE void enc_dump_logs(
           "newmv_ctx=%d, zeromv_ctx=%d, refmv_ctx=%d, tx_size=%d\n",
           cm->current_frame.frame_number, mi_row, mi_col, mbmi->skip_mode,
           mbmi->mode, bsize, cm->show_frame, mv[0].as_mv.row, mv[0].as_mv.col,
-          mv[1].as_mv.row, mv[1].as_mv.col, mbmi->ref_frame[0],
-          mbmi->ref_frame[1], mbmi->motion_mode, mode_ctx, newmv_ctx,
-          zeromv_ctx, refmv_ctx, mbmi->tx_size);
+          mv[1].as_mv.row, mv[1].as_mv.col,
+#if CONFIG_NEW_REF_SIGNALING
+          mbmi->ref_frame_nrs[0], mbmi->ref_frame_nrs[1],
+#else
+          mbmi->ref_frame[0], mbmi->ref_frame[1],
+#endif  // CONFIG_NEW_REF_SIGNALING
+          mbmi->motion_mode, mode_ctx, newmv_ctx, zeromv_ctx, refmv_ctx,
+          mbmi->tx_size);
     }
   }
 }

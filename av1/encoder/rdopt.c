@@ -1269,9 +1269,11 @@ static AOM_INLINE void store_coding_context(
 }
 
 static AOM_INLINE void setup_buffer_ref_mvs_inter(
-    const AV1_COMP *const cpi, MACROBLOCK *x, MV_REFERENCE_FRAME ref_frame,
+    const AV1_COMP *const cpi, MACROBLOCK *x,
 #if CONFIG_NEW_REF_SIGNALING
     MV_REFERENCE_FRAME_NRS ref_frame_nrs,
+#else
+    MV_REFERENCE_FRAME ref_frame,
 #endif  // CONFIG_NEW_REF_SIGNALING
     BLOCK_SIZE block_size,
 #if CONFIG_NEW_REF_SIGNALING
@@ -1280,7 +1282,6 @@ static AOM_INLINE void setup_buffer_ref_mvs_inter(
     struct buf_2d yv12_mb[REF_FRAMES][MAX_MB_PLANE]
 #endif  // CONFIG_NEW_REF_SIGNALING
 ) {
-  (void)ref_frame;
   const AV1_COMMON *cm = &cpi->common;
   const int num_planes = av1_num_planes(cm);
   const YV12_BUFFER_CONFIG *scaled_ref_frame =
@@ -1328,15 +1329,8 @@ static AOM_INLINE void setup_buffer_ref_mvs_inter(
                        xd->ref_mv_stack, xd->weight, NULL,
                        mbmi_ext->global_mvs_nrs, mbmi_ext->mode_context);
 #else
-  av1_find_mv_refs(cm, xd, mbmi, ref_frame,
-#if CONFIG_NEW_REF_SIGNALING
-                   ref_frame_nrs,
-#endif  // CONFIG_NEW_REF_SIGNALING
-                   mbmi_ext->ref_mv_count, xd->ref_mv_stack, xd->weight, NULL,
-                   mbmi_ext->global_mvs,
-#if CONFIG_NEW_REF_SIGNALING
-                   mbmi_ext->global_mvs_nrs,
-#endif  // CONFIG_NEW_REF_SIGNALING
+  av1_find_mv_refs(cm, xd, mbmi, ref_frame, mbmi_ext->ref_mv_count,
+                   xd->ref_mv_stack, xd->weight, NULL, mbmi_ext->global_mvs,
                    mbmi_ext->mode_context);
 #endif  // CONFIG_NEW_REF_SIGNALING
   // TODO(Ravi): Populate mbmi_ext->ref_mv_stack[ref_frame][4] and
@@ -1391,12 +1385,12 @@ static INLINE void clamp_mv2(MV *mv, const MACROBLOCKD *xd) {
 static int skip_repeated_mv(const AV1_COMMON *const cm,
                             const MACROBLOCK *const x,
                             PREDICTION_MODE this_mode,
-                            const MV_REFERENCE_FRAME ref_frames[2],
 #if CONFIG_NEW_REF_SIGNALING
                             const MV_REFERENCE_FRAME_NRS ref_frames_nrs[2],
+#else
+                            const MV_REFERENCE_FRAME ref_frames[2],
 #endif  // CONFIG_NEW_REF_SIGNALING
                             InterModeSearchState *search_state) {
-  (void)ref_frames;
 #if CONFIG_NEW_REF_SIGNALING
   const int is_comp_pred = (ref_frames_nrs[1] != INTRA_FRAME_NRS &&
                             ref_frames_nrs[1] != INVALID_IDX);
@@ -1831,9 +1825,11 @@ static int64_t motion_mode_rd(
                                  mbmi->compound_idx;
   int pts0[SAMPLES_ARRAY_SIZE], pts_inref0[SAMPLES_ARRAY_SIZE];
 
-  assert(mbmi->ref_frame[1] != INTRA_FRAME);
 #if CONFIG_NEW_REF_SIGNALING
+  assert(mbmi->ref_frame_nrs[1] != INTRA_FRAME_NRS);
   const MV_REFERENCE_FRAME_NRS ref_frame_1_nrs = mbmi->ref_frame_nrs[1];
+#else
+  assert(mbmi->ref_frame[1] != INTRA_FRAME);
 #endif  // CONFIG_NEW_REF_SIGNALING
   const MV_REFERENCE_FRAME ref_frame_1 = mbmi->ref_frame[1];
   (void)tile_data;
@@ -1847,11 +1843,13 @@ static int64_t motion_mode_rd(
 #if CONFIG_NEW_REF_SIGNALING
     last_motion_mode_allowed = motion_mode_allowed_nrs(
         xd->global_motion_nrs, xd, mbmi, features->allow_warped_motion);
+    /*
     // TODO(sarahparker) Temporary assert, see aomedia:3060
     const MOTION_MODE last_motion_mode_allowed2 = motion_mode_allowed(
         xd->global_motion, xd, mbmi, features->allow_warped_motion);
     assert(last_motion_mode_allowed == last_motion_mode_allowed2);
     (void)last_motion_mode_allowed2;
+    */
 #else
     last_motion_mode_allowed = motion_mode_allowed(
         xd->global_motion, xd, mbmi, features->allow_warped_motion);
@@ -4350,18 +4348,19 @@ static AOM_INLINE void rd_pick_skip_mode(
   mbmi->ref_mv_idx = 0;
 #endif  // CONFIG_NEW_INTER_MODES
   mbmi->uv_mode = UV_DC_PRED;
-  mbmi->ref_frame[0] = ref_frame;
-  mbmi->ref_frame[1] = second_ref_frame;
 #if CONFIG_NEW_REF_SIGNALING
   mbmi->ref_frame_nrs[0] = ref_frame_nrs;
   mbmi->ref_frame_nrs[1] = second_ref_frame_nrs;
+  mbmi->ref_frame[0] = ref_frame;
+  mbmi->ref_frame[1] = second_ref_frame;
+#else
+  mbmi->ref_frame[0] = ref_frame;
+  mbmi->ref_frame[1] = second_ref_frame;
 #endif  // CONFIG_NEW_REF_SIGNALING
 
 #if CONFIG_NEW_REF_SIGNALING
   const uint8_t ref_frame_type_nrs =
       av1_ref_frame_type_nrs(mbmi->ref_frame_nrs);
-#endif  // CONFIG_NEW_REF_SIGNALING
-#if CONFIG_NEW_REF_SIGNALING
   if (x->mbmi_ext->ref_mv_count[ref_frame_type_nrs] == UINT8_MAX) {
     if (x->mbmi_ext->ref_mv_count[ref_frame_nrs] == UINT8_MAX ||
         x->mbmi_ext->ref_mv_count[second_ref_frame_nrs] == UINT8_MAX) {
@@ -4470,11 +4469,12 @@ static AOM_INLINE void rd_pick_skip_mode(
 #else
     search_state->best_mbmode.mode = NEAREST_NEARESTMV;
 #endif  // CONFIG_NEW_INTER_MODES
-    search_state->best_mbmode.ref_frame[0] = mbmi->ref_frame[0];
-    search_state->best_mbmode.ref_frame[1] = mbmi->ref_frame[1];
 #if CONFIG_NEW_REF_SIGNALING
     search_state->best_mbmode.ref_frame_nrs[0] = mbmi->ref_frame_nrs[0];
     search_state->best_mbmode.ref_frame_nrs[1] = mbmi->ref_frame_nrs[1];
+#else
+    search_state->best_mbmode.ref_frame[0] = mbmi->ref_frame[0];
+    search_state->best_mbmode.ref_frame[1] = mbmi->ref_frame[1];
 #endif  // CONFIG_NEW_REF_SIGNALING
 
     search_state->best_mbmode.mv[0].as_int = mbmi->mv[0].as_int;
@@ -5242,8 +5242,9 @@ static AOM_INLINE void set_params_rd_pick_inter_mode(
   init_neighbor_pred_buf(&x->obmc_buffer, args, is_cur_buf_hbd(&x->e_mbd));
 #if CONFIG_NEW_REF_SIGNALING
   av1_collect_neighbors_ref_counts_nrs(cm, xd);
-#endif  // CONFIG_NEW_REF_SIGNALING
+#else
   av1_collect_neighbors_ref_counts(xd);
+#endif  // CONFIG_NEW_REF_SIGNALING
   estimate_ref_frame_costs(cm, xd, &x->mode_costs, segment_id, ref_costs_single,
                            ref_costs_comp);
 
@@ -5261,8 +5262,6 @@ static AOM_INLINE void set_params_rd_pick_inter_mode(
   }
   for (MV_REFERENCE_FRAME_NRS ref_frame_nrs = 0;
        ref_frame_nrs < INTER_REFS_PER_FRAME_NRS; ++ref_frame_nrs) {
-    MV_REFERENCE_FRAME ref_frame = convert_ranked_ref_to_named_ref_index(
-        &cm->new_ref_frame_data, ref_frame_nrs);
     if ((cpi->common.ref_frame_flags_nrs & (1 << ref_frame_nrs))) {
       x->pred_mv_sad[ref_frame_nrs] = INT_MAX;
       if (mbmi->partition != PARTITION_NONE &&
@@ -5280,8 +5279,7 @@ static AOM_INLINE void set_params_rd_pick_inter_mode(
         }
       }
       assert(get_ref_frame_yv12_buf_nrs(cm, ref_frame_nrs) != NULL);
-      setup_buffer_ref_mvs_inter(cpi, x, ref_frame, ref_frame_nrs, bsize,
-                                 yv12_mb);
+      setup_buffer_ref_mvs_inter(cpi, x, ref_frame_nrs, bsize, yv12_mb);
     }
   }
 #else
@@ -5584,16 +5582,16 @@ static AOM_INLINE void init_inter_mode_search_state(
 
 #if CONFIG_NEW_REF_SIGNALING
 static bool mask_says_skip_nrs(const mode_skip_mask_t *mode_skip_mask,
-                               const MV_REFERENCE_FRAME_NRS *ref_frame,
+                               const MV_REFERENCE_FRAME_NRS *ref_frame_nrs,
                                const PREDICTION_MODE this_mode) {
   const MV_REFERENCE_FRAME_NRS rfn =
-      (ref_frame[0] == INTRA_FRAME_NRS ? INTER_REFS_PER_FRAME_NRS
-                                       : ref_frame[0]);
+      (ref_frame_nrs[0] == INTRA_FRAME_NRS ? INTRA_FRAME_INDEX_NRS
+                                           : ref_frame_nrs[0]);
   if (mode_skip_mask->pred_modes[rfn] & (1 << this_mode)) {
     return true;
   }
 
-  return get_mask_combo_bit_nrs(mode_skip_mask->ref_combo, ref_frame);
+  return get_mask_combo_bit_nrs(mode_skip_mask->ref_combo, ref_frame_nrs);
 }
 #else
 static bool mask_says_skip(const mode_skip_mask_t *mode_skip_mask,
@@ -5704,7 +5702,12 @@ static INLINE int is_mode_intra(PREDICTION_MODE mode) {
 // completely, 2 if we skip compound only, but still try single motion modes
 static INLINE int skip_inter_mode_with_cached_mode(
     const MACROBLOCK *x, PREDICTION_MODE mode,
-    const MV_REFERENCE_FRAME *ref_frame) {
+#if CONFIG_NEW_REF_SIGNALING
+    const MV_REFERENCE_FRAME_NRS *ref_frame
+#else
+    const MV_REFERENCE_FRAME *ref_frame
+#endif  // CONFIG_NEW_REF_SIGNALING
+) {
   const MB_MODE_INFO *cached_mi = x->inter_mode_cache;
 
   // If there is no cache, then no pruning is possible.
@@ -5713,8 +5716,14 @@ static INLINE int skip_inter_mode_with_cached_mode(
   }
 
   const PREDICTION_MODE cached_mode = cached_mi->mode;
+#if CONFIG_NEW_REF_SIGNALING
+  const MV_REFERENCE_FRAME_NRS *cached_frame = cached_mi->ref_frame_nrs;
+  const int cached_mode_is_single =
+      cached_frame[1] == INTRA_FRAME_NRS || cached_frame[1] == INVALID_IDX;
+#else
   const MV_REFERENCE_FRAME *cached_frame = cached_mi->ref_frame;
   const int cached_mode_is_single = cached_frame[1] <= INTRA_FRAME;
+#endif  // CONFIG_NEW_REF_SIGNALING
 
   // If the cached mode is intra, then we just need to match the mode.
   if (should_reuse_mode(x, REUSE_INTRA_MODE_IN_INTERFRAME_FLAG) &&
@@ -5736,7 +5745,12 @@ static INLINE int skip_inter_mode_with_cached_mode(
     }
   } else {
     // If the cached mode is compound, then we need to consider several cases.
+#if CONFIG_NEW_REF_SIGNALING
+    const int mode_is_single =
+        ref_frame[1] == INTRA_FRAME_NRS || ref_frame[1] == INVALID_IDX;
+#else
     const int mode_is_single = ref_frame[1] <= INTRA_FRAME;
+#endif  // CONFIG_NEW_REF_SIGNALING
     if (mode_is_single) {
       // If the mode is single, we know the modes can't match. But we might
       // still want to search it if compound mode depends on the current mode.
@@ -5772,9 +5786,11 @@ static int inter_mode_search_order_independent_skip(
     InterModeSearchState *search_state, int skip_ref_frame_mask,
     PREDICTION_MODE mode,
 #if CONFIG_NEW_REF_SIGNALING
-    const MV_REFERENCE_FRAME_NRS *ref_frame_nrs,
+    const MV_REFERENCE_FRAME_NRS *ref_frame_nrs
+#else
+    const MV_REFERENCE_FRAME *ref_frame
 #endif  // CONFIG_NEW_REF_SIGNALING
-    const MV_REFERENCE_FRAME *ref_frame) {
+) {
 #if CONFIG_NEW_REF_SIGNALING
   if (mask_says_skip_nrs(mode_skip_mask, ref_frame_nrs, mode)) {
     return 1;
@@ -5795,22 +5811,34 @@ static int inter_mode_search_order_independent_skip(
 
   // This is only used in motion vector unit test.
   if (cpi->oxcf.unit_test_cfg.motion_vector_unit_test &&
-      ref_frame[0] == INTRA_FRAME)
+#if CONFIG_NEW_REF_SIGNALING
+      ref_frame_nrs[0] == INTRA_FRAME_NRS
+#else
+      ref_frame[0] == INTRA_FRAME
+#endif  // CONFIG_NEW_REF_SIGNALING
+  )
     return 1;
 
 #if !CONFIG_NEW_INTER_MODES
   const AV1_COMMON *const cm = &cpi->common;
-  if (skip_repeated_mv(cm, x, mode, ref_frame,
+  if (skip_repeated_mv(cm, x, mode,
 #if CONFIG_NEW_REF_SIGNALING
                        ref_frame_nrs,
+#else
+                       ref_frame,
 #endif  // CONFIG_NEW_REF_SIGNALING
                        search_state)) {
     return 1;
   }
 #endif  // !CONFIG_NEW_INTER_MODES
 #if CONFIG_EXT_RECUR_PARTITIONS
-  const int cached_skip_ret =
-      skip_inter_mode_with_cached_mode(x, mode, ref_frame);
+  const int cached_skip_ret = skip_inter_mode_with_cached_mode(x, mode,
+#if CONFIG_NEW_REF_SIGNALING
+                                                               ref_frame_nrs
+#else
+                                                               ref_frame
+#endif  // CONFIG_NEW_REF_SIGNALING
+  );
   if (cached_skip_ret > 0) {
     return cached_skip_ret;
   }
@@ -6640,7 +6668,6 @@ static int skip_inter_mode(AV1_COMP *cpi, MACROBLOCK *x, const BLOCK_SIZE bsize,
                            int64_t *ref_frame_rd,
 #if CONFIG_NEW_REF_SIGNALING
                            PREDICTION_MODE this_mode,
-                           const MV_REFERENCE_FRAME *ref_frames,
                            const MV_REFERENCE_FRAME_NRS *ref_frames_nrs,
 #else
                            THR_MODES midx,
@@ -6649,13 +6676,6 @@ static int skip_inter_mode(AV1_COMP *cpi, MACROBLOCK *x, const BLOCK_SIZE bsize,
   const SPEED_FEATURES *const sf = &cpi->sf;
   MACROBLOCKD *const xd = &x->e_mbd;
   MB_MODE_INFO *const mbmi = xd->mi[0];
-#if !CONFIG_NEW_REF_SIGNALING
-  // Get the actual prediction mode we are trying in this iteration
-  const THR_MODES mode_enum = av1_default_mode_order[midx];
-  const MODE_DEFINITION *mode_def = &av1_mode_defs[mode_enum];
-  const PREDICTION_MODE this_mode = mode_def->mode;
-  const MV_REFERENCE_FRAME *ref_frames = mode_def->ref_frame;
-#endif  // CONFIG_NEW_REF_SIGNALING
 #if CONFIG_NEW_REF_SIGNALING
   const MV_REFERENCE_FRAME_NRS ref_frame_nrs = ref_frames_nrs[0];
   (void)ref_frame_nrs;
@@ -6663,6 +6683,11 @@ static int skip_inter_mode(AV1_COMP *cpi, MACROBLOCK *x, const BLOCK_SIZE bsize,
   const int comp_pred = second_ref_frame_nrs != INTRA_FRAME_NRS &&
                         second_ref_frame_nrs != INVALID_IDX;
 #else
+  // Get the actual prediction mode we are trying in this iteration
+  const THR_MODES mode_enum = av1_default_mode_order[midx];
+  const MODE_DEFINITION *mode_def = &av1_mode_defs[mode_enum];
+  const PREDICTION_MODE this_mode = mode_def->mode;
+  const MV_REFERENCE_FRAME *ref_frames = mode_def->ref_frame;
   const MV_REFERENCE_FRAME ref_frame = ref_frames[0];
   const MV_REFERENCE_FRAME second_ref_frame = ref_frames[1];
   const int comp_pred = second_ref_frame > INTRA_FRAME;
@@ -6681,9 +6706,11 @@ static int skip_inter_mode(AV1_COMP *cpi, MACROBLOCK *x, const BLOCK_SIZE bsize,
       cpi, x, args->mode_skip_mask, args->search_state,
       args->skip_ref_frame_mask, this_mode,
 #if CONFIG_NEW_REF_SIGNALING
-      ref_frames_nrs,
+      ref_frames_nrs
+#else
+      ref_frames
 #endif  // CONFIG_NEW_REF_SIGNALING
-      ref_frames);
+  );
   if (ret == 1) return 1;
   *(args->skip_motion_mode) = (ret == 2);
 
@@ -7255,8 +7282,6 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
          rf_nrs < cm->new_ref_frame_data.n_total_refs; ++rf_nrs) {
       MV_REFERENCE_FRAME_NRS ref_frame_nrs =
           (rf_nrs == INVALID_IDX) ? INTRA_FRAME_NRS : rf_nrs;
-      MV_REFERENCE_FRAME ref_frame = convert_ranked_ref_to_named_ref_index(
-          &cm->new_ref_frame_data, ref_frame_nrs);
       if (this_mode < INTRA_MODE_END && ref_frame_nrs != INTRA_FRAME_NRS)
         continue;
       if (this_mode >= INTRA_MODE_END && ref_frame_nrs == INTRA_FRAME_NRS)
@@ -7265,9 +7290,6 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
            second_rf_nrs < cm->new_ref_frame_data.n_total_refs;
            ++second_rf_nrs) {
         MV_REFERENCE_FRAME_NRS second_ref_frame_nrs = second_rf_nrs;
-        MV_REFERENCE_FRAME second_ref_frame =
-            convert_ranked_ref_to_named_ref_index(&cm->new_ref_frame_data,
-                                                  second_ref_frame_nrs);
         if (second_ref_frame_nrs != INVALID_IDX &&
             this_mode < COMP_INTER_MODE_START)
           continue;
@@ -7281,6 +7303,11 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
         // n_total_refs choose 2 modes, the skip_compound_search()
         // call can be removed and instead the lines following
         // must be uncommented.
+        MV_REFERENCE_FRAME ref_frame = convert_ranked_ref_to_named_ref_index(
+            &cm->new_ref_frame_data, ref_frame_nrs);
+        MV_REFERENCE_FRAME second_ref_frame =
+            convert_ranked_ref_to_named_ref_index(&cm->new_ref_frame_data,
+                                                  second_ref_frame_nrs);
         if (skip_compound_search(ref_frame, second_ref_frame)) continue;
 #else
         if (second_ref_frame_nrs != INVALID_IDX &&
@@ -7289,8 +7316,6 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
           continue;
 #endif  // !PURE_NEW_REF_SIGNALING
 
-        const MV_REFERENCE_FRAME ref_frames[2] = { ref_frame,
-                                                   second_ref_frame };
         const MV_REFERENCE_FRAME_NRS ref_frames_nrs[2] = {
           ref_frame_nrs, second_ref_frame_nrs
         };
@@ -7332,13 +7357,14 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
         // Apply speed features to decide if this inter mode can be skipped
         if (skip_inter_mode(cpi, x, bsize, ref_frame_rd,
 #if CONFIG_NEW_REF_SIGNALING
-                            this_mode, ref_frames, ref_frames_nrs,
+                            this_mode, ref_frames_nrs,
 #else
                         midx,
 #endif  // CONFIG_NEW_REF_SIGNALING
                             &sf_args))
           continue;
 #if CONFIG_NEW_REF_SIGNALING
+        /*
         // TODO(sarahparker) Temporary assert, see aomedia:3060
         assert(convert_ranked_ref_to_named_ref_index(&cm->new_ref_frame_data,
                                                      mbmi->ref_frame_nrs[0]) ==
@@ -7346,6 +7372,7 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
         assert(convert_ranked_ref_to_named_ref_index(&cm->new_ref_frame_data,
                                                      mbmi->ref_frame_nrs[1]) ==
                mbmi->ref_frame[1]);
+               */
         // Select prediction reference frames.
         for (i = 0; i < num_planes; i++) {
           xd->plane[i].pre[0] = yv12_mb[ref_frame_nrs][i];
@@ -7570,8 +7597,8 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
           (this_mode >= D45_PRED && this_mode <= PAETH_PRED)) {
 #if CONFIG_NEW_REF_SIGNALING
         if (search_state.best_mbmode.mode != MODE_INVALID &&
-            search_state.best_mbmode.ref_frame[0] != INTRA_FRAME_NRS &&
-            search_state.best_mbmode.ref_frame[0] != INVALID_IDX)
+            search_state.best_mbmode.ref_frame_nrs[0] != INTRA_FRAME_NRS &&
+            search_state.best_mbmode.ref_frame_nrs[0] != INVALID_IDX)
           continue;
 #else
         if (search_state.best_mbmode.mode != MODE_INVALID &&
@@ -7832,8 +7859,9 @@ void av1_rd_pick_inter_mode_sb_seg_skip(const AV1_COMP *cpi,
 
 #if CONFIG_NEW_REF_SIGNALING
   av1_collect_neighbors_ref_counts_nrs(cm, xd);
-#endif  // CONFIG_NEW_REF_SIGNALING
+#else
   av1_collect_neighbors_ref_counts(xd);
+#endif  // CONFIG_NEW_REF_SIGNALING
 
   estimate_ref_frame_costs(cm, xd, mode_costs, segment_id, ref_costs_single,
                            ref_costs_comp);
@@ -7860,18 +7888,10 @@ void av1_rd_pick_inter_mode_sb_seg_skip(const AV1_COMP *cpi,
   const MV_REFERENCE_FRAME_NRS last_frame = get_closest_pastcur_ref_index(cm);
   mbmi->ref_frame_nrs[0] = last_frame;
   mbmi->ref_frame_nrs[1] = INVALID_IDX;
-  mbmi->ref_frame[0] = convert_ranked_ref_to_named_ref_index(
-      &cm->new_ref_frame_data, mbmi->ref_frame_nrs[0]);
-  mbmi->ref_frame[1] = NONE_FRAME;
   mbmi->mv[0].as_int =
       gm_get_motion_vector(&cm->global_motion_nrs[mbmi->ref_frame_nrs[0]],
                            features->fr_mv_precision, bsize, mi_col, mi_row)
           .as_int;
-  // TODO(sarahparker) Temporary assert, see aomedia:3060
-  assert(mbmi->mv[0].as_int ==
-         gm_get_motion_vector(&cm->global_motion[mbmi->ref_frame[0]],
-                              features->fr_mv_precision, bsize, mi_col, mi_row)
-             .as_int);
 #else
   mbmi->ref_frame[1] = NONE_FRAME;
   if (segfeature_active(&cm->seg, segment_id, SEG_LVL_REF_FRAME))

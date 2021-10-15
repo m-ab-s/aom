@@ -1828,16 +1828,10 @@ uint8_t av1_selectSamples(MV *mv, int *pts, int *pts_inref, int len,
 uint8_t av1_findSamples(const AV1_COMMON *cm, MACROBLOCKD *xd, int *pts,
                         int *pts_inref) {
   const MB_MODE_INFO *const mbmi0 = xd->mi[0];
-  const int ref_frame = mbmi0->ref_frame[0];
 #if CONFIG_NEW_REF_SIGNALING
   const int ref_frame_nrs = mbmi0->ref_frame_nrs[0];
-  assert(convert_ranked_ref_to_named_ref_index(&cm->new_ref_frame_data,
-                                               ref_frame_nrs) == ref_frame);
-  assert(convert_ranked_ref_to_named_ref_index(&cm->new_ref_frame_data,
-                                               mbmi0->ref_frame_nrs[1]) ==
-         mbmi0->ref_frame[1]);
-  (void)ref_frame;
-  (void)ref_frame_nrs;
+#else
+  const int ref_frame = mbmi0->ref_frame[0];
 #endif  // CONFIG_NEW_REF_SIGNALING
   const int up_available = xd->up_available;
   const int left_available = xd->left_available;

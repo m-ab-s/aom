@@ -656,11 +656,12 @@ int av1_search_palette_mode(IntraModeSearchState *intra_search_state,
 
   mbmi->mode = DC_PRED;
   mbmi->uv_mode = UV_DC_PRED;
-  mbmi->ref_frame[0] = INTRA_FRAME;
-  mbmi->ref_frame[1] = NONE_FRAME;
 #if CONFIG_NEW_REF_SIGNALING
   mbmi->ref_frame_nrs[0] = INTRA_FRAME_NRS;
   mbmi->ref_frame_nrs[1] = INVALID_IDX;
+#else
+  mbmi->ref_frame[0] = INTRA_FRAME;
+  mbmi->ref_frame[1] = NONE_FRAME;
 #endif  // CONFIG_NEW_REF_SIGNALING
 
   RD_STATS rd_stats_y;
@@ -964,7 +965,11 @@ int64_t av1_handle_intra_mode(IntraModeSearchState *intra_search_state,
   const SPEED_FEATURES *const sf = &cpi->sf;
   MACROBLOCKD *const xd = &x->e_mbd;
   MB_MODE_INFO *const mbmi = xd->mi[0];
+#if CONFIG_NEW_REF_SIGNALING
+  assert(mbmi->ref_frame_nrs[0] == INTRA_FRAME_NRS);
+#else
   assert(mbmi->ref_frame[0] == INTRA_FRAME);
+#endif  // CONFIG_NEW_REF_SIGNALING
   const PREDICTION_MODE mode = mbmi->mode;
   const ModeCosts *mode_costs = &x->mode_costs;
 #if CONFIG_DERIVED_INTRA_MODE

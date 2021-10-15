@@ -328,11 +328,21 @@ void av1_get_ref_frames(AV1_COMMON *const cm, int cur_frame_disp,
 // Returns a context number for the given MB prediction signal
 static InterpFilter get_ref_filter_type(const MB_MODE_INFO *ref_mbmi,
                                         const MACROBLOCKD *xd, int dir,
-                                        MV_REFERENCE_FRAME ref_frame) {
+#if CONFIG_NEW_REF_SIGNALING
+                                        MV_REFERENCE_FRAME_NRS ref_frame_nrs
+#else
+                                        MV_REFERENCE_FRAME ref_frame
+#endif  // CONFIG_NEW_REF_SIGNALING
+) {
   (void)xd;
 
+#if CONFIG_NEW_REF_SIGNALING
+  if (ref_mbmi->ref_frame_nrs[0] != ref_frame_nrs &&
+      ref_mbmi->ref_frame_nrs[1] != ref_frame_nrs) {
+#else
   if (ref_mbmi->ref_frame[0] != ref_frame &&
       ref_mbmi->ref_frame[1] != ref_frame) {
+#endif  // CONFIG_NEW_REF_SIGNALING
     return SWITCHABLE_FILTERS;
   }
 #if CONFIG_REMOVE_DUAL_FILTER
@@ -345,10 +355,17 @@ static InterpFilter get_ref_filter_type(const MB_MODE_INFO *ref_mbmi,
 
 int av1_get_pred_context_switchable_interp(const MACROBLOCKD *xd, int dir) {
   const MB_MODE_INFO *const mbmi = xd->mi[0];
+#if CONFIG_NEW_REF_SIGNALING
+  const int ctx_offset = (mbmi->ref_frame_nrs[1] != INTRA_FRAME_NRS &&
+                          mbmi->ref_frame_nrs[1] != INVALID_IDX) *
+                         INTER_FILTER_COMP_OFFSET;
+  const MV_REFERENCE_FRAME_NRS ref_frame = mbmi->ref_frame_nrs[0];
+#else
   const int ctx_offset =
       (mbmi->ref_frame[1] > INTRA_FRAME) * INTER_FILTER_COMP_OFFSET;
-  assert(dir == 0 || dir == 1);
   const MV_REFERENCE_FRAME ref_frame = mbmi->ref_frame[0];
+#endif  // CONFIG_NEW_REF_SIGNALING
+  assert(dir == 0 || dir == 1);
   // Note:
   // The mode info data structure has a one element border above and to the
   // left of the entries corresponding to real macroblocks.
@@ -500,6 +517,7 @@ int av1_get_reference_mode_context(const MACROBLOCKD *xd) {
   return ctx;
 }
 
+#if !CONFIG_NEW_REF_SIGNALING
 int av1_get_comp_reference_type_context(const MACROBLOCKD *xd) {
   int pred_context;
   const MB_MODE_INFO *const above_mbmi = xd->above_mbmi;
@@ -569,6 +587,7 @@ int av1_get_comp_reference_type_context(const MACROBLOCKD *xd) {
   assert(pred_context >= 0 && pred_context < COMP_REF_TYPE_CONTEXTS);
   return pred_context;
 }
+#endif  // !CONFIG_NEW_REF_SIGNALING
 
 // Returns a context number for the given MB prediction signal
 //
