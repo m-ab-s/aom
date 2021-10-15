@@ -145,9 +145,11 @@ typedef struct RefCntBuffer {
 #if CONFIG_NEW_REF_SIGNALING
   int ref_order_hints_nrs[INTER_REFS_PER_FRAME_NRS];
   int ref_display_order_hint_nrs[INTER_REFS_PER_FRAME_NRS];
+#else
+  unsigned int ref_order_hints[INTER_REFS_PER_FRAME];
+  unsigned int ref_display_order_hint[INTER_REFS_PER_FRAME];
 #endif  // CONFIG_NEW_REF_SIGNALING
   unsigned int order_hint;
-  unsigned int ref_order_hints[INTER_REFS_PER_FRAME];
 
   // These variables are used only in encoder and compare the absolute
   // display order hint to compute the relative distance and overcome
@@ -155,7 +157,6 @@ typedef struct RefCntBuffer {
   // distance when a very old frame is used as a reference.
   unsigned int display_order_hint;
   unsigned int absolute_poc;
-  unsigned int ref_display_order_hint[INTER_REFS_PER_FRAME];
   // Frame's level within the hierarchical structure
   unsigned int pyramid_level;
 
@@ -1195,6 +1196,7 @@ typedef struct AV1Common {
    * Allocated size of 'tpl_mvs' array. Refer to 'ensure_mv_buffer()' function.
    */
   int tpl_mvs_mem_size;
+
 #if CONFIG_NEW_REF_SIGNALING
   /*!
    * ref_frame_sign_bias[k] is 1 if relative distance between reference 'k' and
@@ -1207,7 +1209,7 @@ typedef struct AV1Common {
    * TODO(jingning): This can be combined with sign_bias later.
    */
   int8_t ref_frame_side_nrs[INTER_REFS_PER_FRAME_NRS];
-#endif  // CONFIG_NEW_REF_SIGNALING
+#else
   /*!
    * ref_frame_sign_bias[k] is 1 if relative distance between reference 'k' and
    * current frame is positive; and 0 otherwise.
@@ -1219,6 +1221,7 @@ typedef struct AV1Common {
    * TODO(jingning): This can be combined with sign_bias later.
    */
   int8_t ref_frame_side[REF_FRAMES];
+#endif  // CONFIG_NEW_REF_SIGNALING
 
   /*!
    * Number of temporal layers: may be > 1 for SVC (scalable vector coding).

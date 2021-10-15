@@ -1271,8 +1271,6 @@ void av1_setup_frame_buf_refs(AV1_COMMON *cm) {
   cm->cur_frame->pyramid_level = cm->current_frame.pyramid_level;
 
 #if CONFIG_NEW_REF_SIGNALING
-  // if (cm->current_frame.order_hint == 2)
-  //   printf("Hello\n");
   MV_REFERENCE_FRAME_NRS ref_frame_nrs;
   for (ref_frame_nrs = 0; ref_frame_nrs < INTER_REFS_PER_FRAME_NRS;
        ++ref_frame_nrs) {
@@ -1286,7 +1284,7 @@ void av1_setup_frame_buf_refs(AV1_COMMON *cm) {
       cm->cur_frame->ref_display_order_hint_nrs[ref_frame_nrs] = -1;
     }
   }
-#endif  // CONFIG_NEW_REF_SIGNALING
+#else
   MV_REFERENCE_FRAME ref_frame;
   for (ref_frame = LAST_FRAME; ref_frame <= ALTREF_FRAME; ++ref_frame) {
     const RefCntBuffer *const buf = get_ref_frame_buf(cm, ref_frame);
@@ -1296,18 +1294,19 @@ void av1_setup_frame_buf_refs(AV1_COMMON *cm) {
           buf->display_order_hint;
     }
   }
+#endif  // CONFIG_NEW_REF_SIGNALING
 }
 
 void av1_setup_frame_sign_bias(AV1_COMMON *cm) {
 #if CONFIG_NEW_REF_SIGNALING
   memset(&cm->ref_frame_sign_bias_nrs, 0, sizeof(cm->ref_frame_sign_bias_nrs));
-  memset(&cm->ref_frame_sign_bias, 0, sizeof(cm->ref_frame_sign_bias));
   for (int ref_frame = 0; ref_frame < cm->new_ref_frame_data.n_future_refs;
        ++ref_frame) {
     const int index = cm->new_ref_frame_data.future_refs[ref_frame];
     cm->ref_frame_sign_bias_nrs[index] = 1;
   }
 #else
+  memset(&cm->ref_frame_sign_bias, 0, sizeof(cm->ref_frame_sign_bias));
   MV_REFERENCE_FRAME ref_frame;
   for (ref_frame = LAST_FRAME; ref_frame <= ALTREF_FRAME; ++ref_frame) {
     const RefCntBuffer *const buf = get_ref_frame_buf(cm, ref_frame);
@@ -1497,9 +1496,10 @@ static INLINE int is_ref_overlay_nrs(const AV1_COMMON *const cm, int ref) {
 void av1_setup_motion_field(AV1_COMMON *cm) {
   const OrderHintInfo *const order_hint_info = &cm->seq_params.order_hint_info;
 
-  memset(cm->ref_frame_side, 0, sizeof(cm->ref_frame_side));
 #if CONFIG_NEW_REF_SIGNALING
   memset(cm->ref_frame_side_nrs, 0, sizeof(cm->ref_frame_side_nrs));
+#else
+  memset(cm->ref_frame_side, 0, sizeof(cm->ref_frame_side));
 #endif  // CONFIG_NEW_REF_SIGNALING
   if (!order_hint_info->enable_order_hint) return;
 
@@ -1516,8 +1516,6 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
   (void)ref_buf;
   (void)ref_order_hint;
 
-  // if (cm->current_frame.order_hint == 2)
-  //   printf("Debug av1_setup_motion_field\n");
 #if CONFIG_NEW_REF_SIGNALING
   for (int index = 0; index < cm->new_ref_frame_data.n_past_refs; index++) {
     const int ref_frame = cm->new_ref_frame_data.past_refs[index];

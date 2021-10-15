@@ -5005,7 +5005,11 @@ static INLINE void reset_frame_buffers(AV1_COMMON *cm) {
       continue;
     }
     frame_bufs[i].order_hint = 0;
+#if CONFIG_NEW_REF_SIGNALING
+    av1_zero(frame_bufs[i].ref_order_hints_nrs);
+#else
     av1_zero(frame_bufs[i].ref_order_hints);
+#endif  // CONFIG_NEW_REF_SIGNALING
   }
   av1_zero_unused_internal_frame_buffers(&cm->buffer_pool->int_frame_buffers);
   unlock_buffer_pool(cm->buffer_pool);
@@ -5486,7 +5490,11 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       }
 #endif  // CONFIG_NEW_REF_SIGNALING
 
+#if CONFIG_NEW_REF_SIGNALING
+      for (int i = 0; i < INTER_REFS_PER_FRAME_NRS; ++i) {
+#else
       for (int i = 0; i < INTER_REFS_PER_FRAME; ++i) {
+#endif  // CONFIG_NEW_REF_SIGNALING
         int ref = 0;
 #if CONFIG_NEW_REF_SIGNALING
         if (!is_realtime && seq_params->order_hint_info.enable_order_hint) {
@@ -5519,7 +5527,9 @@ static int read_uncompressed_header(AV1Decoder *pbi,
           aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
                              "Reference frame not valid for referencing");
 
+#if !CONFIG_NEW_REF_SIGNALING
         cm->ref_frame_sign_bias[LAST_FRAME + i] = 0;
+#endif  // !CONFIG_NEW_REF_SIGNALING
 
         if (seq_params->frame_id_numbers_present_flag) {
           int frame_id_length = seq_params->frame_id_length;
