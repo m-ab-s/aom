@@ -7048,7 +7048,7 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
   int i;
   const ModeCosts *mode_costs = &x->mode_costs;
   const int *comp_inter_cost =
-      mode_costs->comp_inter_cost[av1_get_reference_mode_context(xd)];
+      mode_costs->comp_inter_cost[av1_get_reference_mode_context(cm, xd)];
 
   InterModeSearchState search_state;
   init_inter_mode_search_state(&search_state, cpi, x, bsize, best_rd_so_far);
@@ -7848,7 +7848,7 @@ void av1_rd_pick_inter_mode_sb_seg_skip(const AV1_COMP *cpi,
 #endif  // CONFIG_NEW_REF_SIGNALING
   const ModeCosts *mode_costs = &x->mode_costs;
   const int *comp_inter_cost =
-      mode_costs->comp_inter_cost[av1_get_reference_mode_context(xd)];
+      mode_costs->comp_inter_cost[av1_get_reference_mode_context(cm, xd)];
   InterpFilter best_filter = SWITCHABLE;
   int64_t this_rd = INT64_MAX;
   int rate2 = 0;

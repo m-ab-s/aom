@@ -23,7 +23,11 @@ static INLINE int is_interp_filter_good_match(
   int i;
 
   for (i = 0; i < 1 + is_comp; ++i) {
+#if CONFIG_NEW_REF_SIGNALING
+    if (st->ref_frames_nrs[i] != mi->ref_frame_nrs[i]) return INT_MAX;
+#else
     if (st->ref_frames[i] != mi->ref_frame[i]) return INT_MAX;
+#endif  // CONFIG_NEW_REF_SIGNALING
   }
 
   if (skip_level == 1 && is_comp) {
@@ -51,7 +55,11 @@ static INLINE int save_interp_filter_search_stat(
       mbmi->interp_filters,
 #endif  // CONFIG_REMOVE_DUAL_FILTER
       { mbmi->mv[0], mbmi->mv[1] },
+#if CONFIG_NEW_REF_SIGNALING
+      { mbmi->ref_frame_nrs[0], mbmi->ref_frame_nrs[1] },
+#else
       { mbmi->ref_frame[0], mbmi->ref_frame[1] },
+#endif  // CONFIG_NEW_REF_SIGNALING
       mbmi->interinter_comp.type,
       mbmi->compound_idx,
       rd,

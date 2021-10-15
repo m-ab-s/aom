@@ -282,7 +282,6 @@ static AOM_INLINE void mode_estimation_nrs(AV1_COMP *cpi, MACROBLOCK *x,
 
   // Intra prediction search
   // TODO(sarahparker) Delete this once the new TPL model is applied
-  xd->mi[0]->ref_frame[0] = INTRA_FRAME;
   xd->mi[0]->ref_frame_nrs[0] = INTRA_FRAME_NRS;
 
   // Pre-load the bottom left line.
@@ -325,7 +324,6 @@ static AOM_INLINE void mode_estimation_nrs(AV1_COMP *cpi, MACROBLOCK *x,
 
   // Motion compensated prediction
   // TODO(sarahparker) Delete this once the new TPL model is applied
-  xd->mi[0]->ref_frame[0] = INTRA_FRAME;
   xd->mi[0]->ref_frame_nrs[0] = INTRA_FRAME_NRS;
 
   int best_rf_idx = -1;

@@ -1099,10 +1099,11 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
       if (current_frame->reference_mode == REFERENCE_MODE_SELECT) {
         if (is_comp_ref_allowed(bsize)) {
 #if CONFIG_ENTROPY_STATS
-          counts->comp_inter[av1_get_reference_mode_context(xd)]
+          counts->comp_inter[av1_get_reference_mode_context(cm, xd)]
                             [has_second_ref(mbmi)]++;
 #endif  // CONFIG_ENTROPY_STATS
-          update_cdf(av1_get_reference_mode_cdf(xd), has_second_ref(mbmi), 2);
+          update_cdf(av1_get_reference_mode_cdf(cm, xd), has_second_ref(mbmi),
+                     2);
         }
       }
 
