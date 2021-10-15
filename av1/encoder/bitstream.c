@@ -3352,14 +3352,6 @@ static AOM_INLINE void write_global_motion_nrs(
                                use_gm_k,
 #endif  // CONFIG_GM_MODEL_CODING
                                wb, cm->features.fr_mv_precision);
-
-    const int named_frame =
-        convert_ranked_ref_to_named_ref_index(&cm->new_ref_frame_data, frame);
-
-    // TODO(sarahparker) Temporary assert, see aomedia:3060
-    assert(is_same_wm_params(&cm->global_motion_nrs[frame],
-                             &cm->global_motion[named_frame]));
-    (void)named_frame;
   }
 }
 

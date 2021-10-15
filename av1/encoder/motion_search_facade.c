@@ -950,9 +950,6 @@ int_mv av1_simple_motion_search_ext(AV1_COMP *const cpi,
 #if CONFIG_NEW_REF_SIGNALING
   mbmi->ref_frame_nrs[0] = ref;
   mbmi->ref_frame_nrs[1] = INVALID_IDX;
-  mbmi->ref_frame[0] = convert_ranked_ref_to_named_ref_index(
-      &cm->new_ref_frame_data, mbmi->ref_frame_nrs[0]);
-  mbmi->ref_frame[1] = NONE_FRAME;
 #else
   mbmi->ref_frame[0] = ref;
   mbmi->ref_frame[1] = NONE_FRAME;

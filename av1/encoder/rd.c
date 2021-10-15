@@ -1232,9 +1232,6 @@ void av1_mv_pred(const AV1_COMP *cpi, MACROBLOCK *x, uint8_t *ref_y_buffer,
                  int ref_y_stride, int ref, BLOCK_SIZE block_size) {
 #if CONFIG_NEW_REF_SIGNALING
   const MV_REFERENCE_FRAME_NRS ref_frame_nrs = ref;
-  const MV_REFERENCE_FRAME ref_frame = convert_ranked_ref_to_named_ref_index(
-      &cpi->common.new_ref_frame_data, ref);
-  (void)ref_frame;
 #else
   const MV_REFERENCE_FRAME ref_frame = ref;
 #endif  // CONFIG_NEW_REF_SIGNALING

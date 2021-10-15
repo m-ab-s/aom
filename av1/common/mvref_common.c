@@ -1247,51 +1247,22 @@ void av1_find_mv_refs_nrs(const AV1_COMMON *cm, const MACROBLOCKD *xd,
 #endif  // !PURE_NEW_REF_SIGNALING
     }
   }
-  // if (cm->current_frame.order_hint == 2 && mi_row == 4 && mi_col == 8 &&
-  //     mi->sb_type == 6 && ref_frame_nrs == 7) {
-  //   printf("Debug \n");
-  // }
   setup_ref_mv_list(cm, xd, ref_frame_nrs, &ref_mv_count[ref_frame_nrs],
                     ref_mv_stack[ref_frame_nrs], ref_mv_weight[ref_frame_nrs],
                     mv_ref_list ? mv_ref_list[ref_frame_nrs] : NULL, gm_mv,
                     mi_row, mi_col, mode_context);
-  /*
-  if (cm->current_frame.order_hint == 2 && mi_row == 4 && mi_col == 8 &&
-      mi->sb_type == 6 && ref_frame_nrs == 7) {
-    printf("{%d}[%d, %d](%d): reftype %d, count %d\n",
-           cm->current_frame.order_hint, mi_row, mi_col, mi->sb_type,
-  ref_frame_nrs, ref_mv_count[ref_frame_nrs]); for (int i = 0; i <
-  ref_mv_count[ref_frame_nrs]; ++i) { printf(" {%d, %d, %d, %d}",
-  ref_mv_stack[ref_frame_nrs][i].this_mv.as_mv.row,
-             ref_mv_stack[ref_frame_nrs][i].this_mv.as_mv.col,
-             ref_mv_stack[ref_frame_nrs][i].comp_mv.as_mv.row,
-             ref_mv_stack[ref_frame_nrs][i].comp_mv.as_mv.col);
-    }
-    printf("\n");
-  }
-  */
 }
 #else
 void av1_find_mv_refs(const AV1_COMMON *cm, const MACROBLOCKD *xd,
                       MB_MODE_INFO *mi, MV_REFERENCE_FRAME ref_frame,
-#if CONFIG_NEW_REF_SIGNALING
-                      MV_REFERENCE_FRAME_NRS ref_frame_nrs,
-#endif  // CONFIG_NEW_REF_SIGNALING
                       uint8_t ref_mv_count[MODE_CTX_REF_FRAMES],
                       CANDIDATE_MV ref_mv_stack[][MAX_REF_MV_STACK_SIZE],
                       uint16_t ref_mv_weight[][MAX_REF_MV_STACK_SIZE],
                       int_mv mv_ref_list[][MAX_MV_REF_CANDIDATES],
-                      int_mv *global_mvs,
-#if CONFIG_NEW_REF_SIGNALING
-                      int_mv *global_mvs_nrs,
-#endif  // CONFIG_NEW_REF_SIGNALING
-                      int16_t *mode_context) {
+                      int_mv *global_mvs, int16_t *mode_context) {
   const int mi_row = xd->mi_row;
   const int mi_col = xd->mi_col;
   int_mv gm_mv[2];
-#if CONFIG_NEW_REF_SIGNALING
-  int_mv gm_mv_nrs[2];
-#endif  // CONFIG_NEW_REF_SIGNALING
 
   if (ref_frame == INTRA_FRAME) {
     gm_mv[0].as_int = gm_mv[1].as_int = 0;
@@ -1303,14 +1274,6 @@ void av1_find_mv_refs(const AV1_COMMON *cm, const MACROBLOCKD *xd,
                                       fr_mv_precision, bsize, mi_col, mi_row);
       gm_mv[1].as_int = 0;
       if (global_mvs != NULL) global_mvs[ref_frame] = gm_mv[0];
-#if CONFIG_NEW_REF_SIGNALING
-      gm_mv_nrs[0] =
-          gm_get_motion_vector(&cm->global_motion_nrs[ref_frame_nrs],
-                               fr_mv_precision, bsize, mi_col, mi_row);
-      gm_mv_nrs[1].as_int = 0;
-      assert(gm_mv_nrs[0].as_int == gm_mv[0].as_int);
-      if (global_mvs_nrs != NULL) global_mvs_nrs[ref_frame_nrs] = gm_mv_nrs[0];
-#endif  // CONFIG_NEW_REF_SIGNALING
     } else {
       MV_REFERENCE_FRAME rf[2];
       av1_set_ref_frame(rf, ref_frame);
@@ -1318,42 +1281,13 @@ void av1_find_mv_refs(const AV1_COMMON *cm, const MACROBLOCKD *xd,
                                       fr_mv_precision, bsize, mi_col, mi_row);
       gm_mv[1] = gm_get_motion_vector(&cm->global_motion[rf[1]],
                                       fr_mv_precision, bsize, mi_col, mi_row);
-#if CONFIG_NEW_REF_SIGNALING
-      MV_REFERENCE_FRAME_NRS rf_nrs[2];
-      av1_set_ref_frame_nrs(rf_nrs, ref_frame_nrs);
-      gm_mv_nrs[0] =
-          gm_get_motion_vector(&cm->global_motion_nrs[rf_nrs[0]],
-                               fr_mv_precision, bsize, mi_col, mi_row);
-      gm_mv_nrs[1] =
-          gm_get_motion_vector(&cm->global_motion_nrs[rf_nrs[1]],
-                               fr_mv_precision, bsize, mi_col, mi_row);
-#endif  // CONFIG_NEW_REF_SIGNALING
     }
   }
 
-  // if (cm->current_frame.order_hint == 2 && mi_row == 4 && mi_col == 8 &&
-  //     mi->sb_type == 6 && ref_frame == 16) {
-  //   printf("Debug \n");
-  // }
   setup_ref_mv_list(cm, xd, ref_frame, &ref_mv_count[ref_frame],
                     ref_mv_stack[ref_frame], ref_mv_weight[ref_frame],
                     mv_ref_list ? mv_ref_list[ref_frame] : NULL, gm_mv, mi_row,
                     mi_col, mode_context);
-  /*
-  if (cm->current_frame.order_hint == 2 && mi_row == 4 && mi_col == 8 &&
-      mi->sb_type == 6 && ref_frame == 16) {
-    printf("{%d}[%d, %d](%d): reftype %d, count %d\n",
-           cm->current_frame.order_hint, mi_row, mi_col, mi->sb_type, ref_frame,
-           ref_mv_count[ref_frame]);
-    for (int i = 0; i < ref_mv_count[ref_frame]; ++i) {
-      printf(" {%d, %d, %d, %d}", ref_mv_stack[ref_frame][i].this_mv.as_mv.row,
-             ref_mv_stack[ref_frame][i].this_mv.as_mv.col,
-             ref_mv_stack[ref_frame][i].comp_mv.as_mv.row,
-             ref_mv_stack[ref_frame][i].comp_mv.as_mv.col);
-    }
-    printf("\n");
-  }
-  */
 }
 #endif  // CONFIG_NEW_REF_SIGNALING
 
@@ -1410,9 +1344,6 @@ void av1_setup_frame_sign_bias(AV1_COMMON *cm) {
        ++ref_frame) {
     const int index = cm->new_ref_frame_data.future_refs[ref_frame];
     cm->ref_frame_sign_bias_nrs[index] = 1;
-    const int indexo =
-        convert_ranked_ref_to_named_ref_index(&cm->new_ref_frame_data, index);
-    cm->ref_frame_sign_bias[indexo] = 1;
   }
 #else
   MV_REFERENCE_FRAME ref_frame;

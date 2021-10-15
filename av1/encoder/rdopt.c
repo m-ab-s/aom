@@ -7388,15 +7388,6 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
                             &sf_args))
           continue;
 #if CONFIG_NEW_REF_SIGNALING
-        /*
-        // TODO(sarahparker) Temporary assert, see aomedia:3060
-        assert(convert_ranked_ref_to_named_ref_index(&cm->new_ref_frame_data,
-                                                     mbmi->ref_frame_nrs[0]) ==
-               mbmi->ref_frame[0]);
-        assert(convert_ranked_ref_to_named_ref_index(&cm->new_ref_frame_data,
-                                                     mbmi->ref_frame_nrs[1]) ==
-               mbmi->ref_frame[1]);
-               */
         // Select prediction reference frames.
         for (i = 0; i < num_planes; i++) {
           xd->plane[i].pre[0] = yv12_mb[ref_frame_nrs][i];

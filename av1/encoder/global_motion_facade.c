@@ -485,20 +485,6 @@ static AOM_INLINE void compute_global_motion_for_references_nrs(
         cm->global_motion_nrs[ref_frame].wmtype != ROTZOOM)
       break;
   }
-  for (int ranked_frame = 0; ranked_frame < cm->new_ref_frame_data.n_total_refs;
-       ranked_frame++) {
-    const int frame = convert_ranked_ref_to_named_ref_index(
-        &cm->new_ref_frame_data, ranked_frame);
-    if (!is_same_wm_params(&cm->global_motion_nrs[ranked_frame],
-                           &cm->global_motion[frame])) {
-      assert(
-          is_same_wm_params(&cm->global_motion_nrs[ranked_frame],
-                            &default_warp_params) ||
-          is_same_wm_params(&cm->global_motion[frame], &default_warp_params));
-      memcpy(&cm->global_motion[frame], &cm->global_motion_nrs[ranked_frame],
-             sizeof(cm->global_motion[0]));
-    }
-  }
 }
 #else
 // Loops over valid reference frames and computes global motion estimation.
