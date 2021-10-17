@@ -933,6 +933,11 @@ static void first_pass_tiles(AV1_COMP *cpi) {
   }
 }
 
+#if CONFIG_NEW_REF_SIGNALING
+#define LAST_FRAME_PROXY 0
+#define GOLDEN_FRAME_PROXY 2  // Any proxy index will do
+#endif                        // CONFIG_NEW_REF_SIGNALING
+
 void av1_first_pass_row(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
                         int mb_row) {
   MACROBLOCK *const x = &td->mb;
@@ -956,10 +961,19 @@ void av1_first_pass_row(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
   AV1EncRowMultiThreadInfo *const enc_row_mt = &mt_info->enc_row_mt;
   AV1EncRowMultiThreadSync *const row_mt_sync = &tile_data->row_mt_sync;
 
+#if CONFIG_NEW_REF_SIGNALING
+  const MV_REFERENCE_FRAME_NRS last_frame_ = LAST_FRAME_PROXY;
+  const MV_REFERENCE_FRAME_NRS golden_frame_ = GOLDEN_FRAME_PROXY;
+  const YV12_BUFFER_CONFIG *const last_frame =
+      get_ref_frame_yv12_buf_nrs(cm, last_frame_);
+  const YV12_BUFFER_CONFIG *golden_frame =
+      get_ref_frame_yv12_buf_nrs(cm, golden_frame_);
+#else
   const YV12_BUFFER_CONFIG *const last_frame =
       get_ref_frame_yv12_buf(cm, LAST_FRAME);
   const YV12_BUFFER_CONFIG *golden_frame =
       get_ref_frame_yv12_buf(cm, GOLDEN_FRAME);
+#endif  // CONFIG_NEW_REF_SIGNALING
   const YV12_BUFFER_CONFIG *alt_ref_frame = NULL;
   const int alt_ref_offset =
       FIRST_PASS_ALT_REF_DISTANCE -
@@ -1107,10 +1121,19 @@ void av1_first_pass(AV1_COMP *cpi, const int64_t ts_duration) {
 
   av1_init_tile_data(cpi);
 
+#if CONFIG_NEW_REF_SIGNALING
+  const MV_REFERENCE_FRAME_NRS last_frame_ = LAST_FRAME_PROXY;
+  const MV_REFERENCE_FRAME_NRS golden_frame_ = GOLDEN_FRAME_PROXY;
+  const YV12_BUFFER_CONFIG *const last_frame =
+      get_ref_frame_yv12_buf_nrs(cm, last_frame_);
+  const YV12_BUFFER_CONFIG *golden_frame =
+      get_ref_frame_yv12_buf_nrs(cm, golden_frame_);
+#else
   const YV12_BUFFER_CONFIG *const last_frame =
       get_ref_frame_yv12_buf(cm, LAST_FRAME);
   const YV12_BUFFER_CONFIG *golden_frame =
       get_ref_frame_yv12_buf(cm, GOLDEN_FRAME);
+#endif  // CONFIG_NEW_REF_SIGNALING
   YV12_BUFFER_CONFIG *const this_frame = &cm->cur_frame->buf;
   // First pass code requires valid last and new frame buffers.
   assert(this_frame != NULL);
@@ -1204,8 +1227,8 @@ void av1_first_pass(AV1_COMP *cpi, const int64_t ts_duration) {
     if (golden_frame != NULL) {
 #if CONFIG_NEW_REF_SIGNALING
       assign_frame_buffer_p(
-          &cm->ref_frame_map[get_ref_frame_map_idx(cm, GOLDEN_FRAME, 1)],
-          cm->ref_frame_map[get_ref_frame_map_idx(cm, LAST_FRAME, 1)]);
+          &cm->ref_frame_map[get_ref_frame_map_idx(cm, golden_frame_, 0)],
+          cm->ref_frame_map[get_ref_frame_map_idx(cm, last_frame_, 0)]);
 #else
       assign_frame_buffer_p(
           &cm->ref_frame_map[get_ref_frame_map_idx(cm, GOLDEN_FRAME)],
@@ -1222,7 +1245,7 @@ void av1_first_pass(AV1_COMP *cpi, const int64_t ts_duration) {
   // The frame we just compressed now becomes the last frame.
 #if CONFIG_NEW_REF_SIGNALING
   assign_frame_buffer_p(
-      &cm->ref_frame_map[get_ref_frame_map_idx(cm, LAST_FRAME, 1)],
+      &cm->ref_frame_map[get_ref_frame_map_idx(cm, last_frame_, 0)],
       cm->cur_frame);
 #else
   assign_frame_buffer_p(
@@ -1232,10 +1255,10 @@ void av1_first_pass(AV1_COMP *cpi, const int64_t ts_duration) {
   // reference.
 #if CONFIG_NEW_REF_SIGNALING
   if (current_frame->frame_number == 0 &&
-      get_ref_frame_map_idx(cm, GOLDEN_FRAME, 1) != INVALID_IDX) {
+      get_ref_frame_map_idx(cm, golden_frame_, 0) != INVALID_IDX) {
     assign_frame_buffer_p(
-        &cm->ref_frame_map[get_ref_frame_map_idx(cm, GOLDEN_FRAME, 1)],
-        cm->ref_frame_map[get_ref_frame_map_idx(cm, LAST_FRAME, 1)]);
+        &cm->ref_frame_map[get_ref_frame_map_idx(cm, golden_frame_, 0)],
+        cm->ref_frame_map[get_ref_frame_map_idx(cm, last_frame_, 0)]);
   }
 #else
   if (current_frame->frame_number == 0 &&

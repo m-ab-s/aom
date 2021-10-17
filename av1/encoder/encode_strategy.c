@@ -1547,14 +1547,7 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
           frame_params.existing_fb_idx_to_show = frame;
       }
     }
-#if CONFIG_NEW_REF_SIGNALING
-  } else {
-    av1_init_new_ref_frame_map(&cpi->common, ref_frame_map_pairs,
-                               cur_frame_disp);
   }
-#else
-  }
-#endif  // CONFIG_NEW_REF_SIGNALING
 
   // The way frame_params->remapped_ref_idx is setup is a placeholder.
   // Currently, reference buffer assignment is done by update_ref_frame_map()

@@ -605,8 +605,6 @@ static void init_config(struct AV1_COMP *cpi, AV1EncoderConfig *oxcf) {
 
 #if CONFIG_NEW_REF_SIGNALING
   init_buffer_indices_nrs(&cpi->force_intpel_info, &cm->new_ref_frame_data);
-  for (int fb_idx = 0; fb_idx < REF_FRAMES; ++fb_idx)
-    cm->remapped_ref_idx[fb_idx] = fb_idx;
 #else
   init_buffer_indices(&cpi->force_intpel_info, cm->remapped_ref_idx);
 #endif  // CONFIG_NEW_REF_SIGNALING
