@@ -885,9 +885,6 @@ static AOM_INLINE void set_size_independent_vars(AV1_COMP *cpi) {
   for (i = 0; i < INTER_REFS_PER_FRAME_NRS; ++i) {
     cm->global_motion_nrs[i] = default_warp_params;
   }
-  for (i = LAST_FRAME; i <= ALTREF_FRAME; ++i) {
-    cm->global_motion[i] = default_warp_params;
-  }
 #else
   for (i = LAST_FRAME; i <= ALTREF_FRAME; ++i) {
     cm->global_motion[i] = default_warp_params;

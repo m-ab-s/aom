@@ -327,7 +327,7 @@ static int choose_primary_ref_frame(
 #if CONFIG_NEW_REF_SIGNALING
   const int n_refs = cm->new_ref_frame_data.n_total_refs;
   for (int ref_frame = 0; ref_frame < n_refs; ref_frame++) {
-    if (get_ref_frame_map_idx(cm, ref_frame, 0) == wanted_fb) {
+    if (get_ref_frame_map_idx(cm, ref_frame) == wanted_fb) {
       primary_ref_frame = ref_frame;
     }
   }
@@ -558,8 +558,8 @@ static void update_fb_of_context_type(
     }
 #if CONFIG_NEW_REF_SIGNALING
     fb_of_context_type[current_frame_ref_type] =
-        cm->show_frame ? get_ref_frame_map_idx(cm, golden_frame, 0)
-                       : get_ref_frame_map_idx(cm, altref_frame, 0);
+        cm->show_frame ? get_ref_frame_map_idx(cm, golden_frame)
+                       : get_ref_frame_map_idx(cm, altref_frame);
 #else
     fb_of_context_type[current_frame_ref_type] =
         cm->show_frame ? get_ref_frame_map_idx(cm, GOLDEN_FRAME)

@@ -1227,8 +1227,8 @@ void av1_first_pass(AV1_COMP *cpi, const int64_t ts_duration) {
     if (golden_frame != NULL) {
 #if CONFIG_NEW_REF_SIGNALING
       assign_frame_buffer_p(
-          &cm->ref_frame_map[get_ref_frame_map_idx(cm, golden_frame_, 0)],
-          cm->ref_frame_map[get_ref_frame_map_idx(cm, last_frame_, 0)]);
+          &cm->ref_frame_map[get_ref_frame_map_idx(cm, golden_frame_)],
+          cm->ref_frame_map[get_ref_frame_map_idx(cm, last_frame_)]);
 #else
       assign_frame_buffer_p(
           &cm->ref_frame_map[get_ref_frame_map_idx(cm, GOLDEN_FRAME)],
@@ -1245,7 +1245,7 @@ void av1_first_pass(AV1_COMP *cpi, const int64_t ts_duration) {
   // The frame we just compressed now becomes the last frame.
 #if CONFIG_NEW_REF_SIGNALING
   assign_frame_buffer_p(
-      &cm->ref_frame_map[get_ref_frame_map_idx(cm, last_frame_, 0)],
+      &cm->ref_frame_map[get_ref_frame_map_idx(cm, last_frame_)],
       cm->cur_frame);
 #else
   assign_frame_buffer_p(
@@ -1255,10 +1255,10 @@ void av1_first_pass(AV1_COMP *cpi, const int64_t ts_duration) {
   // reference.
 #if CONFIG_NEW_REF_SIGNALING
   if (current_frame->frame_number == 0 &&
-      get_ref_frame_map_idx(cm, golden_frame_, 0) != INVALID_IDX) {
+      get_ref_frame_map_idx(cm, golden_frame_) != INVALID_IDX) {
     assign_frame_buffer_p(
-        &cm->ref_frame_map[get_ref_frame_map_idx(cm, golden_frame_, 0)],
-        cm->ref_frame_map[get_ref_frame_map_idx(cm, last_frame_, 0)]);
+        &cm->ref_frame_map[get_ref_frame_map_idx(cm, golden_frame_)],
+        cm->ref_frame_map[get_ref_frame_map_idx(cm, last_frame_)]);
   }
 #else
   if (current_frame->frame_number == 0 &&

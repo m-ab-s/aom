@@ -289,7 +289,7 @@ int av1_svc_primary_ref_frame(const AV1_COMP *const cpi) {
 #if CONFIG_NEW_REF_SIGNALING
     const int n_refs = cm->new_ref_frame_data.n_total_refs;
     for (int ref_frame = 0; ref_frame < n_refs; ref_frame++) {
-      if (get_ref_frame_map_idx(cm, ref_frame, 0) == wanted_fb) {
+      if (get_ref_frame_map_idx(cm, ref_frame) == wanted_fb) {
         primary_ref_frame = ref_frame;
       }
     }

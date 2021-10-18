@@ -201,7 +201,7 @@ void av1_loop_filter_frame_init(AV1_COMMON *cm, int plane_start,
               lvl_seg + lf->ref_deltas[INTRA_FRAME_INDEX_NRS] * scale;
           lfi->lvl[plane][seg_id][dir][INTRA_FRAME_INDEX_NRS][0] =
               clamp(intra_lvl, 0, MAX_LOOP_FILTER);
-          for (ref = 0; ref < cm->new_ref_frame_data.n_total_refs; ++ref) {
+          for (ref = 0; ref < INTER_REFS_PER_FRAME_NRS; ++ref) {
             for (mode = 0; mode < MAX_MODE_LF_DELTAS; ++mode) {
               const int inter_lvl = lvl_seg + lf->ref_deltas[ref] * scale +
                                     lf->mode_deltas[mode] * scale;

@@ -594,9 +594,10 @@ static void init_config(struct AV1_COMP *cpi, AV1EncoderConfig *oxcf) {
   // change includes all joint functionality
   av1_change_config(cpi, oxcf);
 
-  cpi->common.ref_frame_flags = 0;
 #if CONFIG_NEW_REF_SIGNALING
   cpi->common.ref_frame_flags_nrs = 0;
+#else
+  cpi->common.ref_frame_flags = 0;
 #endif  // CONFIG_NEW_REF_SIGNALING
 
   // Reset resize pending flags
@@ -2042,8 +2043,7 @@ void av1_set_frame_size(AV1_COMP *cpi, int width, int height) {
   init_motion_estimation(cpi);
 
 #if CONFIG_NEW_REF_SIGNALING
-  for (ref_frame = 0; ref_frame < cm->new_ref_frame_data.n_total_refs;
-       ++ref_frame) {
+  for (ref_frame = 0; ref_frame < INTER_REFS_PER_FRAME_NRS; ++ref_frame) {
     RefCntBuffer *const buf = get_ref_frame_buf_nrs(cm, ref_frame);
     if (buf != NULL) {
       struct scale_factors *sf = get_ref_scale_factors_nrs(cm, ref_frame);

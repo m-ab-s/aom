@@ -3092,7 +3092,7 @@ static AOM_INLINE void write_film_grain_params(
     int ref_frame, ref_idx;
 #if CONFIG_NEW_REF_SIGNALING
     for (ref_frame = 0; ref_frame < INTER_REFS_PER_FRAME_NRS; ref_frame++) {
-      ref_idx = get_ref_frame_map_idx(cm, ref_frame, 0);
+      ref_idx = get_ref_frame_map_idx(cm, ref_frame);
 #else
     for (ref_frame = LAST_FRAME; ref_frame < REF_FRAMES; ref_frame++) {
       ref_idx = get_ref_frame_map_idx(cm, ref_frame);
@@ -3716,10 +3716,10 @@ static AOM_INLINE void write_uncompressed_header_obu(
 #if CONFIG_NEW_REF_SIGNALING
       for (ref_frame = 0; ref_frame < cm->new_ref_frame_data.n_total_refs;
            ++ref_frame) {
-        assert(get_ref_frame_map_idx(cm, ref_frame, 0) != INVALID_IDX);
+        assert(get_ref_frame_map_idx(cm, ref_frame) != INVALID_IDX);
         if ((!seq_params->order_hint_info.enable_order_hint ||
              cpi->oxcf.mode == REALTIME))
-          aom_wb_write_literal(wb, get_ref_frame_map_idx(cm, ref_frame, 0),
+          aom_wb_write_literal(wb, get_ref_frame_map_idx(cm, ref_frame),
                                REF_FRAMES_LOG2);
 #else
       for (ref_frame = LAST_FRAME; ref_frame <= ALTREF_FRAME; ++ref_frame) {
@@ -3730,7 +3730,7 @@ static AOM_INLINE void write_uncompressed_header_obu(
 #endif  // CONFIG_NEW_REF_SIGNALING
         if (seq_params->frame_id_numbers_present_flag) {
 #if CONFIG_NEW_REF_SIGNALING
-          int i = get_ref_frame_map_idx(cm, ref_frame, 0);
+          int i = get_ref_frame_map_idx(cm, ref_frame);
 #else
           int i = get_ref_frame_map_idx(cm, ref_frame);
 #endif  // CONFIG_NEW_REF_SIGNALING

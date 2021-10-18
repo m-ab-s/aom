@@ -1949,7 +1949,7 @@ static AOM_INLINE void get_ref_frame_use_mask(AV1_COMP *cpi, MACROBLOCK *x,
   use_alt_ref_frame = cpi->common.ref_frame_flags_nrs & (1 << altref_frame)
                           ? use_alt_ref_frame
                           : 0;
-  use_golden_ref_frame = cpi->common.ref_frame_flags & (1 << golden_frame)
+  use_golden_ref_frame = cpi->common.ref_frame_flags_nrs & (1 << golden_frame)
                              ? use_golden_ref_frame
                              : 0;
 

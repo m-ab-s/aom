@@ -5509,7 +5509,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 #endif  // CONFIG_NEW_REF_SIGNALING
 
 #if CONFIG_NEW_REF_SIGNALING
-      for (int i = 0; i < cm->new_ref_frame_data.n_total_refs; ++i) {
+      for (int i = 0; i < INTER_REFS_PER_FRAME_NRS; ++i) {
 #else
       for (int i = 0; i < INTER_REFS_PER_FRAME; ++i) {
 #endif  // CONFIG_NEW_REF_SIGNALING

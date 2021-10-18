@@ -1161,8 +1161,7 @@ static AOM_INLINE void set_rel_frame_dist(
   int min_past_dist = INT32_MAX, min_future_dist = INT32_MAX;
   ref_frame_dist_info->nearest_past_ref = NONE_FRAME;
   ref_frame_dist_info->nearest_future_ref = NONE_FRAME;
-  for (ref_frame = 0; ref_frame < cm->new_ref_frame_data.n_total_refs;
-       ++ref_frame) {
+  for (ref_frame = 0; ref_frame < INTER_REFS_PER_FRAME_NRS; ++ref_frame) {
     ref_frame_dist_info->ref_relative_dist[ref_frame] = 0;
     if (ref_frame_flags & (1 << ref_frame)) {
       int dist = av1_encoder_get_relative_dist(

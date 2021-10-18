@@ -2051,7 +2051,7 @@ void av1_setup_skip_mode_allowed(AV1_COMMON *cm) {
     // Identify the second nearest forward reference.
     ref_order_hints[1] = -1;
 #if CONFIG_NEW_REF_SIGNALING
-    for (int i = 0; i < cm->new_ref_frame_data.n_total_refs; ++i) {
+    for (int i = 0; i < INTER_REFS_PER_FRAME_NRS; ++i) {
       const RefCntBuffer *const buf = get_ref_frame_buf_nrs(cm, i);
 #else
     for (int i = 0; i < INTER_REFS_PER_FRAME; ++i) {
