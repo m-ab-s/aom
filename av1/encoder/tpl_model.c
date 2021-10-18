@@ -1518,13 +1518,8 @@ static AOM_INLINE void init_gop_frames_for_tpl_nrs(
     // is the display index of the frame.
     tpl_frame->frame_display_index =
         frame_display_index + cm->current_frame.frame_number - anc_frame_offset;
-#if CONFIG_NEW_REF_SIGNALING
     assert(tpl_data->tpl_frame[gf_index].frame_display_index ==
            cpi->tpl_data_nrs.tpl_frame[gf_index].frame_display_index);
-#else
-    assert(tpl_data->tpl_frame[gf_index].frame_display_index ==
-           cpi->tpl_data.tpl_frame[gf_index].frame_display_index);
-#endif  // CONFIG_NEW_REF_SIGNALING
 
     if (frame_update_type != OVERLAY_UPDATE &&
         frame_update_type != KFFLT_OVERLAY_UPDATE &&
@@ -1537,7 +1532,6 @@ static AOM_INLINE void init_gop_frames_for_tpl_nrs(
     const int true_disp =
         (int)(tpl_frame->frame_display_index) -
         (gf_group->subgop_cfg != NULL && frame_params.show_frame);
-    av1_get_ref_frames(cm, true_disp, ref_frame_map_pairs);
     av1_init_new_ref_frame_map(cm, ref_frame_map_pairs, true_disp);
     int refresh_mask =
         av1_get_refresh_frame_flags(cpi, &frame_params, frame_update_type,
@@ -1576,7 +1570,6 @@ static AOM_INLINE void init_gop_frames_for_tpl_nrs(
     init_ref_map_pair(
         cm, ref_frame_map_pairs,
         cpi->gf_group.update_type[cpi->gf_group.index] == KEY_FRAME);
-    av1_get_ref_frames(cm, true_disp, ref_frame_map_pairs);
     av1_init_new_ref_frame_map(cm, ref_frame_map_pairs, true_disp);
     return;
   }
@@ -1633,7 +1626,6 @@ static AOM_INLINE void init_gop_frames_for_tpl_nrs(
     const int true_disp =
         (int)(tpl_frame->frame_display_index) -
         (gf_group->subgop_cfg != NULL && frame_params.show_frame);
-    av1_get_ref_frames(cm, true_disp, ref_frame_map_pairs);
     av1_init_new_ref_frame_map(cm, ref_frame_map_pairs, true_disp);
     // TODO(sarahparker) av1_get_refresh_frame_flags()
     // will execute default behavior even when
@@ -1674,7 +1666,6 @@ static AOM_INLINE void init_gop_frames_for_tpl_nrs(
   init_ref_map_pair(
       cm, ref_frame_map_pairs,
       cpi->gf_group.update_type[cpi->gf_group.index] == KEY_FRAME);
-  av1_get_ref_frames(cm, true_disp, ref_frame_map_pairs);
   av1_init_new_ref_frame_map(cm, ref_frame_map_pairs, true_disp);
 }
 

@@ -3317,13 +3317,18 @@ int av1_encode(AV1_COMP *const cpi, uint8_t *const dest,
   cm->show_existing_frame = frame_params->show_existing_frame;
   cpi->existing_fb_idx_to_show = frame_params->existing_fb_idx_to_show;
 
-#if !CONFIG_NEW_REF_SIGNALING
+#if CONFIG_NEW_REF_SIGNALING
+  memcpy(cm->new_ref_frame_data.ref_frame_score_map,
+         frame_params->remapped_ref_idx,
+         INTER_REFS_PER_FRAME_NRS *
+             sizeof(*cm->new_ref_frame_data.ref_frame_score_map));
+#else
   memcpy(cm->remapped_ref_idx, frame_params->remapped_ref_idx,
          REF_FRAMES * sizeof(*cm->remapped_ref_idx));
 
   memcpy(&cpi->refresh_frame, &frame_params->refresh_frame,
          sizeof(cpi->refresh_frame));
-#endif  // !CONFIG_NEW_REF_SIGNALING
+#endif  // CONFIG_NEW_REF_SIGNALING
 
   if (current_frame->frame_type == KEY_FRAME && !cpi->no_show_fwd_kf) {
     current_frame->key_frame_number += current_frame->frame_number;

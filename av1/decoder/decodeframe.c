@@ -5472,9 +5472,6 @@ static int read_uncompressed_header(AV1Decoder *pbi,
               is_lowest_level ? 1 : (aom_rb_read_bit(rb) ? 3 : 2);
           init_ref_map_pair(cm, ref_frame_map_pairs,
                             current_frame->frame_type == KEY_FRAME);
-          // Derive the reference frame mapping
-          av1_get_ref_frames(cm, current_frame->display_order_hint,
-                             ref_frame_map_pairs);
         }
       }
       av1_init_new_ref_frame_map(cm, ref_frame_map_pairs,
