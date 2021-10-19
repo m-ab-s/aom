@@ -124,7 +124,6 @@ void av1_single_motion_search(const AV1_COMP *const cpi, MACROBLOCK *x,
 #if CONFIG_NEW_REF_SIGNALING
       const BLOCK_SIZE tpl_bsize =
           convert_length_to_bsize(cpi->tpl_data_nrs.tpl_bsize_1d);
-      assert(tpl_bsize == convert_length_to_bsize(cpi->tpl_data.tpl_bsize_1d));
 #else
       const BLOCK_SIZE tpl_bsize =
           convert_length_to_bsize(cpi->tpl_data.tpl_bsize_1d);
@@ -827,7 +826,7 @@ int_mv av1_simple_motion_search(AV1_COMP *const cpi, MACROBLOCK *x, int mi_row,
 
 #if CONFIG_NEW_REF_SIGNALING
   av1_setup_pre_planes(xd, ref_idx, yv12, mi_row, mi_col,
-                       get_ref_scale_factors_nrs(cm, ref), num_planes, NULL);
+                       get_ref_scale_factors(cm, ref), num_planes, NULL);
   set_ref_ptrs_nrs(cm, xd, mbmi->ref_frame_nrs[0], mbmi->ref_frame_nrs[1]);
 #else
   av1_setup_pre_planes(xd, ref_idx, yv12, mi_row, mi_col,
@@ -987,7 +986,7 @@ int_mv av1_simple_motion_search_ext(AV1_COMP *const cpi,
 
 #if CONFIG_NEW_REF_SIGNALING
   av1_setup_pre_planes(xd, ref_idx, yv12, mi_row, mi_col,
-                       get_ref_scale_factors_nrs(cm, ref), num_planes, NULL);
+                       get_ref_scale_factors(cm, ref), num_planes, NULL);
   set_ref_ptrs_nrs(cm, xd, mbmi->ref_frame_nrs[0], mbmi->ref_frame_nrs[1]);
 #else
   av1_setup_pre_planes(xd, ref_idx, yv12, mi_row, mi_col,

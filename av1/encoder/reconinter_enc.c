@@ -207,9 +207,9 @@ static void setup_address_for_obmc(MACROBLOCKD *xd, int mi_row_offset,
 
 #if CONFIG_NEW_REF_SIGNALING
   const MV_REFERENCE_FRAME_NRS frame = ref_mbmi->ref_frame_nrs[0];
-  const RefCntBuffer *const ref_buf = get_ref_frame_buf_nrs(ctxt->cm, frame);
+  const RefCntBuffer *const ref_buf = get_ref_frame_buf(ctxt->cm, frame);
   const struct scale_factors *const sf =
-      get_ref_scale_factors_const_nrs(ctxt->cm, frame);
+      get_ref_scale_factors_const(ctxt->cm, frame);
 #else
   const MV_REFERENCE_FRAME frame = ref_mbmi->ref_frame[0];
   const RefCntBuffer *const ref_buf = get_ref_frame_buf(ctxt->cm, frame);

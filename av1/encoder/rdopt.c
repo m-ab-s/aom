@@ -1295,7 +1295,7 @@ static AOM_INLINE void setup_buffer_ref_mvs_inter(
   MB_MODE_INFO_EXT *const mbmi_ext = x->mbmi_ext;
 #if CONFIG_NEW_REF_SIGNALING
   const struct scale_factors *const sf =
-      get_ref_scale_factors_const_nrs(cm, ref_frame_nrs);
+      get_ref_scale_factors_const(cm, ref_frame_nrs);
   const YV12_BUFFER_CONFIG *yv12 =
       get_ref_frame_yv12_buf_nrs(cm, ref_frame_nrs);
 #else
@@ -2917,10 +2917,10 @@ static int ref_mv_idx_to_search(AV1_COMP *const cpi, MACROBLOCK *x,
     // Do not prune when there is internal resizing. TODO(elliottk) fix this
     // so b/2384 can be resolved.
 #if CONFIG_NEW_REF_SIGNALING
-  if (av1_is_scaled(get_ref_scale_factors_nrs(cm, mbmi->ref_frame_nrs[0])) ||
+  if (av1_is_scaled(get_ref_scale_factors(cm, mbmi->ref_frame_nrs[0])) ||
       (mbmi->ref_frame_nrs[1] != INTRA_FRAME_NRS &&
        mbmi->ref_frame_nrs[1] != INVALID_IDX &&
-       av1_is_scaled(get_ref_scale_factors_nrs(cm, mbmi->ref_frame_nrs[1])))) {
+       av1_is_scaled(get_ref_scale_factors(cm, mbmi->ref_frame_nrs[1])))) {
     return good_indices;
   }
 #else

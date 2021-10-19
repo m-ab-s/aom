@@ -543,7 +543,7 @@ void av1_scale_references(AV1_COMP *cpi, const InterpFilter filter,
              ref->y_crop_height > cm->height) &&
             ref->border < AOM_BORDER_IN_PIXELS) {
 #if CONFIG_NEW_REF_SIGNALING
-          RefCntBuffer *ref_fb = get_ref_frame_buf_nrs(cm, ref_frame);
+          RefCntBuffer *ref_fb = get_ref_frame_buf(cm, ref_frame);
 #else
           RefCntBuffer *ref_fb = get_ref_frame_buf(cm, ref_frame);
 #endif  // CONFIG_NEW_REF_SIGNALING
@@ -598,11 +598,7 @@ void av1_scale_references(AV1_COMP *cpi, const InterpFilter filter,
           alloc_frame_mvs(cm, new_fb);
         }
       } else {
-#if CONFIG_NEW_REF_SIGNALING
-        RefCntBuffer *buf = get_ref_frame_buf_nrs(cm, ref_frame);
-#else
         RefCntBuffer *buf = get_ref_frame_buf(cm, ref_frame);
-#endif  // CONFIG_NEW_REF_SIGNALING
         buf->buf.y_crop_width = ref->y_crop_width;
         buf->buf.y_crop_height = ref->y_crop_height;
 #if CONFIG_NEW_REF_SIGNALING

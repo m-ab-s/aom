@@ -2266,12 +2266,12 @@ typedef struct AV1_COMP {
    * Parameters related to tpl.
    */
   TplParams tpl_data_nrs;
-#endif  // CONFIG_NEW_REF_SIGNALING
-
+#else
   /*!
    * Parameters related to tpl.
    */
   TplParams tpl_data;
+#endif  // CONFIG_NEW_REF_SIGNALING
 
   /*!
    * For a still frame, this flag is set to 1 to skip partition search.
@@ -3006,7 +3006,7 @@ static INLINE int av1_use_hash_me(const AV1_COMP *const cpi) {
 #if CONFIG_NEW_REF_SIGNALING
 static INLINE const YV12_BUFFER_CONFIG *get_ref_frame_yv12_buf_nrs(
     const AV1_COMMON *const cm, MV_REFERENCE_FRAME_NRS ref_frame) {
-  const RefCntBuffer *const buf = get_ref_frame_buf_nrs(cm, ref_frame);
+  const RefCntBuffer *const buf = get_ref_frame_buf(cm, ref_frame);
   return buf != NULL ? &buf->buf : NULL;
 }
 
@@ -3014,7 +3014,7 @@ static INLINE int enc_is_ref_frame_buf(const AV1_COMMON *const cm,
                                        const RefCntBuffer *const frame_buf) {
   MV_REFERENCE_FRAME_NRS ref_frame;
   for (ref_frame = 0; ref_frame < INTER_REFS_PER_FRAME_NRS; ++ref_frame) {
-    const RefCntBuffer *const buf = get_ref_frame_buf_nrs(cm, ref_frame);
+    const RefCntBuffer *const buf = get_ref_frame_buf(cm, ref_frame);
     if (buf == NULL) continue;
     if (frame_buf == buf) break;
   }
@@ -3118,9 +3118,9 @@ static INLINE int get_stats_buf_size(int num_lap_buffer, int num_lag_buffer) {
 static INLINE void set_ref_ptrs_nrs(const AV1_COMMON *cm, MACROBLOCKD *xd,
                                     MV_REFERENCE_FRAME ref0,
                                     MV_REFERENCE_FRAME ref1) {
-  xd->block_ref_scale_factors[0] = get_ref_scale_factors_const_nrs(
+  xd->block_ref_scale_factors[0] = get_ref_scale_factors_const(
       cm, ref0 < INTER_REFS_PER_FRAME_NRS ? ref0 : 0);
-  xd->block_ref_scale_factors[1] = get_ref_scale_factors_const_nrs(
+  xd->block_ref_scale_factors[1] = get_ref_scale_factors_const(
       cm, ref1 < INTER_REFS_PER_FRAME_NRS ? ref1 : 0);
 }
 #else

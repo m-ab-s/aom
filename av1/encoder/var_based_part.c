@@ -750,16 +750,15 @@ static void setup_planes(AV1_COMP *cpi, MACROBLOCK *x, unsigned int *y_sad,
     yv12_g = get_ref_frame_yv12_buf_nrs(cm, golden_frame);
     if (yv12_g && yv12_g != yv12) {
       av1_setup_pre_planes(xd, 0, yv12_g, mi_row, mi_col,
-                           get_ref_scale_factors_nrs(cm, golden_frame),
-                           num_planes, NULL);
+                           get_ref_scale_factors(cm, golden_frame), num_planes,
+                           NULL);
       *y_sad_g = cpi->fn_ptr[bsize].sdf(
           x->plane[0].src.buf, x->plane[0].src.stride, xd->plane[0].pre[0].buf,
           xd->plane[0].pre[0].stride);
     }
   }
   av1_setup_pre_planes(xd, 0, yv12, mi_row, mi_col,
-                       get_ref_scale_factors_nrs(cm, last_frame), num_planes,
-                       NULL);
+                       get_ref_scale_factors(cm, last_frame), num_planes, NULL);
 #else
   if (!cpi->use_svc && (cpi->common.ref_frame_flags & AOM_GOLD_FLAG) &&
       cpi->sf.rt_sf.use_nonrd_pick_mode) {
@@ -807,8 +806,8 @@ static void setup_planes(AV1_COMP *cpi, MACROBLOCK *x, unsigned int *y_sad,
 #if CONFIG_NEW_REF_SIGNALING
   if (*y_sad_g < 0.9 * *y_sad) {
     av1_setup_pre_planes(xd, 0, yv12_g, mi_row, mi_col,
-                         get_ref_scale_factors_nrs(cm, golden_frame),
-                         num_planes, NULL);
+                         get_ref_scale_factors(cm, golden_frame), num_planes,
+                         NULL);
     mi->ref_frame_nrs[0] = golden_frame;
     mi->mv[0].as_int = 0;
     *y_sad = *y_sad_g;

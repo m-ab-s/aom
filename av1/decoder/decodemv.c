@@ -1876,8 +1876,7 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
   for (int ref = 0; ref < 1 + has_second_ref(mbmi); ++ref) {
 #if CONFIG_NEW_REF_SIGNALING
     const MV_REFERENCE_FRAME frame = mbmi->ref_frame_nrs[ref];
-    xd->block_ref_scale_factors[ref] =
-        get_ref_scale_factors_const_nrs(cm, frame);
+    xd->block_ref_scale_factors[ref] = get_ref_scale_factors_const(cm, frame);
 #else
     const MV_REFERENCE_FRAME frame = mbmi->ref_frame[ref];
     xd->block_ref_scale_factors[ref] = get_ref_scale_factors_const(cm, frame);

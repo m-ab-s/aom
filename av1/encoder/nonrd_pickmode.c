@@ -476,7 +476,7 @@ static INLINE void find_predictors(
   if (yv12 != NULL) {
 #if CONFIG_NEW_REF_SIGNALING
     const struct scale_factors *const sf =
-        get_ref_scale_factors_const_nrs(cm, ref_frame);
+        get_ref_scale_factors_const(cm, ref_frame);
     av1_setup_pred_block(xd, yv12_mb[ref_frame], yv12, sf, sf, num_planes);
 #else
     const struct scale_factors *const sf =
@@ -1896,10 +1896,9 @@ static AOM_INLINE int is_same_gf_and_last_scale(AV1_COMMON *cm) {
 #if CONFIG_NEW_REF_SIGNALING
   const MV_REFERENCE_FRAME_NRS last_frame = get_closest_pastcur_ref_index(cm);
   const MV_REFERENCE_FRAME_NRS golden_frame = get_best_past_ref_index(cm);
-  struct scale_factors *const sf_last =
-      get_ref_scale_factors_nrs(cm, last_frame);
+  struct scale_factors *const sf_last = get_ref_scale_factors(cm, last_frame);
   struct scale_factors *const sf_golden =
-      get_ref_scale_factors_nrs(cm, golden_frame);
+      get_ref_scale_factors(cm, golden_frame);
 #else
   struct scale_factors *const sf_last = get_ref_scale_factors(cm, LAST_FRAME);
   struct scale_factors *const sf_golden =

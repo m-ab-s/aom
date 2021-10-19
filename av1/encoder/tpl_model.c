@@ -1382,16 +1382,18 @@ static AOM_INLINE void mc_flow_dispenser(AV1_COMP *cpi) {
   ThreadData *td = &cpi->td;
   MACROBLOCK *x = &td->mb;
   MACROBLOCKD *xd = &x->e_mbd;
-  const BLOCK_SIZE bsize = convert_length_to_bsize(cpi->tpl_data.tpl_bsize_1d);
 #if CONFIG_NEW_REF_SIGNALING
-  assert(convert_length_to_bsize(cpi->tpl_data_nrs.tpl_bsize_1d) == bsize);
+  TplParams *const tpl_data = &cpi->tpl_data_nrs;
+#else
+  TplParams *const tpl_data = &cpi->tpl_data;
 #endif  // CONFIG_NEW_REF_SIGNALING
+  const BLOCK_SIZE bsize = convert_length_to_bsize(tpl_data->tpl_bsize_1d);
   const TX_SIZE tx_size = max_txsize_lookup[bsize];
   const int mi_height = mi_size_high[bsize];
   for (int mi_row = 0; mi_row < mi_params->mi_rows; mi_row += mi_height) {
     // Motion estimation row boundary
     av1_set_mv_row_limits(mi_params, &x->mv_limits, mi_row, mi_height,
-                          cpi->tpl_data.border_in_pixels);
+                          tpl_data->border_in_pixels);
     xd->mb_to_top_edge = -GET_MV_SUBPEL(mi_row * MI_SIZE);
     xd->mb_to_bottom_edge =
         GET_MV_SUBPEL((mi_params->mi_rows - mi_height - mi_row) * MI_SIZE);
@@ -1448,7 +1450,7 @@ static AOM_INLINE void init_gop_frames_for_tpl_nrs(
       tpl_data->tpl_frame[-i - 1].gf_picture = NULL;
       tpl_data->tpl_frame[-1 - 1].rec_picture = NULL;
       tpl_data->tpl_frame[-i - 1].frame_display_index = 0;
-      assert(cpi->tpl_data.tpl_frame[-1 - 1].rec_picture ==
+      assert(cpi->tpl_data_nrs.tpl_frame[-1 - 1].rec_picture ==
              tpl_data->tpl_frame[-1 - 1].rec_picture);
     } else {
       tpl_data->tpl_frame[-i - 1].gf_picture = &cm->ref_frame_map[i]->buf;
@@ -1902,9 +1904,10 @@ void av1_tpl_setup_stats(AV1_COMP *cpi, int gop_eval,
   GF_GROUP *gf_group = &cpi->gf_group;
   int bottom_index, top_index;
   EncodeFrameParams this_frame_params = *frame_params;
-  TplParams *const tpl_data = &cpi->tpl_data;
 #if CONFIG_NEW_REF_SIGNALING
   TplParams *const tpl_data_nrs = &cpi->tpl_data_nrs;
+#else
+  TplParams *const tpl_data = &cpi->tpl_data;
 #endif  // CONFIG_NEW_REF_SIGNALING
 
   if (cpi->superres_mode != AOM_SUPERRES_NONE) {
@@ -1952,9 +1955,10 @@ void av1_tpl_setup_stats(AV1_COMP *cpi, int gop_eval,
 
   cpi->rc.base_layer_qp = pframe_qindex;
 
-  av1_init_tpl_stats(tpl_data);
 #if CONFIG_NEW_REF_SIGNALING
   av1_init_tpl_stats(tpl_data_nrs);
+#else
+  av1_init_tpl_stats(tpl_data);
 #endif  // CONFIG_NEW_REF_SIGNALING
 
   tpl_row_mt->sync_read_ptr = av1_tpl_row_mt_sync_read_dummy;

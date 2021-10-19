@@ -1374,49 +1374,43 @@ static INLINE int get_ref_frame_map_idx(const AV1_COMMON *const cm,
 }
 #endif  // CONFIG_NEW_REF_SIGNALING
 
-#if CONFIG_NEW_REF_SIGNALING
-static INLINE RefCntBuffer *get_ref_frame_buf_nrs(
-    const AV1_COMMON *const cm, const MV_REFERENCE_FRAME_NRS ref_frame) {
-  const int map_idx = get_ref_frame_map_idx(cm, ref_frame);
-  return (map_idx != INVALID_IDX) ? cm->ref_frame_map[map_idx] : NULL;
-}
-
-// Both const and non-const versions of this function are provided so that it
-// can be used with a const AV1_COMMON if needed.
-static INLINE const struct scale_factors *get_ref_scale_factors_const_nrs(
-    const AV1_COMMON *const cm, const MV_REFERENCE_FRAME_NRS ref_frame) {
-  const int map_idx = get_ref_frame_map_idx(cm, ref_frame);
-  return (map_idx != INVALID_IDX) ? &cm->ref_scale_factors[map_idx] : NULL;
-}
-
-static INLINE struct scale_factors *get_ref_scale_factors_nrs(
-    AV1_COMMON *const cm, const MV_REFERENCE_FRAME_NRS ref_frame) {
-  const int map_idx = get_ref_frame_map_idx(cm, ref_frame);
-  return (map_idx != INVALID_IDX) ? &cm->ref_scale_factors[map_idx] : NULL;
-}
-
-#else
-
 static INLINE RefCntBuffer *get_ref_frame_buf(
-    const AV1_COMMON *const cm, const MV_REFERENCE_FRAME ref_frame) {
+    const AV1_COMMON *const cm,
+#if CONFIG_NEW_REF_SIGNALING
+    const MV_REFERENCE_FRAME_NRS ref_frame
+#else
+    const MV_REFERENCE_FRAME ref_frame
+#endif  // CONFIG_NEW_REF_SIGNALING
+) {
   const int map_idx = get_ref_frame_map_idx(cm, ref_frame);
   return (map_idx != INVALID_IDX) ? cm->ref_frame_map[map_idx] : NULL;
+}
+
+static INLINE struct scale_factors *get_ref_scale_factors(
+    AV1_COMMON *const cm,
+#if CONFIG_NEW_REF_SIGNALING
+    const MV_REFERENCE_FRAME_NRS ref_frame
+#else
+    const MV_REFERENCE_FRAME ref_frame
+#endif  // CONFIG_NEW_REF_SIGNALING
+) {
+  const int map_idx = get_ref_frame_map_idx(cm, ref_frame);
+  return (map_idx != INVALID_IDX) ? &cm->ref_scale_factors[map_idx] : NULL;
 }
 
 // Both const and non-const versions of this function are provided so that it
 // can be used with a const AV1_COMMON if needed.
 static INLINE const struct scale_factors *get_ref_scale_factors_const(
-    const AV1_COMMON *const cm, const MV_REFERENCE_FRAME ref_frame) {
-  const int map_idx = get_ref_frame_map_idx(cm, ref_frame);
-  return (map_idx != INVALID_IDX) ? &cm->ref_scale_factors[map_idx] : NULL;
-}
-
-static INLINE struct scale_factors *get_ref_scale_factors(
-    AV1_COMMON *const cm, const MV_REFERENCE_FRAME ref_frame) {
-  const int map_idx = get_ref_frame_map_idx(cm, ref_frame);
-  return (map_idx != INVALID_IDX) ? &cm->ref_scale_factors[map_idx] : NULL;
-}
+    const AV1_COMMON *const cm,
+#if CONFIG_NEW_REF_SIGNALING
+    const MV_REFERENCE_FRAME_NRS ref_frame
+#else
+    const MV_REFERENCE_FRAME ref_frame
 #endif  // CONFIG_NEW_REF_SIGNALING
+) {
+  const int map_idx = get_ref_frame_map_idx(cm, ref_frame);
+  return (map_idx != INVALID_IDX) ? &cm->ref_scale_factors[map_idx] : NULL;
+}
 
 static INLINE RefCntBuffer *get_primary_ref_frame_buf(
     const AV1_COMMON *const cm) {
@@ -1471,7 +1465,7 @@ static INLINE void check_wmmat(WarpedMotionParams *params) {
 #if CONFIG_NEW_REF_SIGNALING
 static INLINE int calculate_gm_ref_params_scaling_distance_nrs(
     const AV1_COMMON *const cm, int frame) {
-  const RefCntBuffer *const buf = get_ref_frame_buf_nrs(cm, frame);
+  const RefCntBuffer *const buf = get_ref_frame_buf(cm, frame);
   const int ref_order_hint = buf ? (int)buf->order_hint : -1;
   if (ref_order_hint < 0) return 0;
   return get_relative_dist(&cm->seq_params.order_hint_info, ref_order_hint,
@@ -1501,7 +1495,8 @@ static INLINE bool find_gm_ref_params_nrs(WarpedMotionParams *ref_params,
   check_wmmat(ref_params);
   return true;
 }
-#endif  // CONFIG_NEW_REF_SIGNALING
+
+#else
 
 static INLINE int calculate_gm_ref_params_scaling_distance(
     const AV1_COMMON *const cm, int frame) {
@@ -1534,6 +1529,7 @@ static INLINE bool find_gm_ref_params(WarpedMotionParams *ref_params,
   check_wmmat(ref_params);
   return true;
 }
+#endif  // CONFIG_NEW_REF_SIGNALING
 #endif  // CONFIG_GM_MODEL_CODING
 
 // Returns 1 if this frame might allow mvs from some reference frame.

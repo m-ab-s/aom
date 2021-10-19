@@ -628,7 +628,7 @@ static INLINE void calc_interp_skip_pred_flag(MACROBLOCK *const x,
   for (int ref = 0; ref < 1 + is_compound; ++ref) {
 #if CONFIG_NEW_REF_SIGNALING
     const struct scale_factors *const sf =
-        get_ref_scale_factors_const_nrs(cm, mbmi->ref_frame_nrs[ref]);
+        get_ref_scale_factors_const(cm, mbmi->ref_frame_nrs[ref]);
 #else
     const struct scale_factors *const sf =
         get_ref_scale_factors_const(cm, mbmi->ref_frame[ref]);

@@ -84,7 +84,7 @@ static INLINE int get_furthest_future_ref_index(const AV1_COMMON *const cm) {
   int ref_disp_order = -1;
   for (int i = 0; i < cm->new_ref_frame_data.n_future_refs; i++) {
     const int ref = cm->new_ref_frame_data.future_refs[i];
-    const RefCntBuffer *const buf = get_ref_frame_buf_nrs(cm, ref);
+    const RefCntBuffer *const buf = get_ref_frame_buf(cm, ref);
     if (buf == NULL) continue;
     if ((int)buf->display_order_hint > ref_disp_order) {
       index = ref;
@@ -333,9 +333,9 @@ static INLINE int get_comp_group_idx_context(const AV1_COMMON *cm,
   MB_MODE_INFO *mbmi = xd->mi[0];
 #if CONFIG_NEW_REF_SIGNALING
   const RefCntBuffer *const bck_buf =
-      get_ref_frame_buf_nrs(cm, mbmi->ref_frame_nrs[0]);
+      get_ref_frame_buf(cm, mbmi->ref_frame_nrs[0]);
   const RefCntBuffer *const fwd_buf =
-      get_ref_frame_buf_nrs(cm, mbmi->ref_frame_nrs[1]);
+      get_ref_frame_buf(cm, mbmi->ref_frame_nrs[1]);
   MV_REFERENCE_FRAME_NRS altref_frame = get_furthest_future_ref_index(cm);
 #else
   const RefCntBuffer *const bck_buf = get_ref_frame_buf(cm, mbmi->ref_frame[0]);

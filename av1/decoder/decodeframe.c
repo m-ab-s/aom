@@ -917,9 +917,9 @@ static AOM_INLINE void predict_inter_block(AV1_COMMON *const cm,
       assert(is_intrabc_block(mbmi));
       assert(ref == 0);
     } else {
-      const RefCntBuffer *ref_buf = get_ref_frame_buf_nrs(cm, frame);
+      const RefCntBuffer *ref_buf = get_ref_frame_buf(cm, frame);
       const struct scale_factors *ref_scale_factors =
-          get_ref_scale_factors_const_nrs(cm, frame);
+          get_ref_scale_factors_const(cm, frame);
 #else
     const MV_REFERENCE_FRAME frame = mbmi->ref_frame[ref];
     if (frame < LAST_FRAME) {
@@ -2481,11 +2481,7 @@ static AOM_INLINE void setup_frame_size_with_refs(
   for (int i = LAST_FRAME; i <= ALTREF_FRAME; ++i) {
 #endif  // CONFIG_NEW_REF_SIGNALING
     if (aom_rb_read_bit(rb)) {
-#if CONFIG_NEW_REF_SIGNALING
-      const RefCntBuffer *const ref_buf = get_ref_frame_buf_nrs(cm, i);
-#else
       const RefCntBuffer *const ref_buf = get_ref_frame_buf(cm, i);
-#endif  // CONFIG_NEW_REF_SIGNALING
       // This will never be NULL in a normal stream, as streams are required to
       // have a shown keyframe before any inter frames, which would refresh all
       // the reference buffers. However, it might be null if we're starting in
@@ -2527,7 +2523,7 @@ static AOM_INLINE void setup_frame_size_with_refs(
   // Check to make sure at least one of frames that this frame references
   // has valid dimensions.
   for (int i = 0; i < INTER_REFS_PER_FRAME_NRS; ++i) {
-    const RefCntBuffer *const ref_frame = get_ref_frame_buf_nrs(cm, i);
+    const RefCntBuffer *const ref_frame = get_ref_frame_buf(cm, i);
     has_valid_ref_frame |=
         valid_ref_frame_size(ref_frame->buf.y_crop_width,
                              ref_frame->buf.y_crop_height, width, height);
@@ -2536,7 +2532,7 @@ static AOM_INLINE void setup_frame_size_with_refs(
     aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
                        "Referenced frame has invalid size");
   for (int i = 0; i < INTER_REFS_PER_FRAME_NRS; ++i) {
-    const RefCntBuffer *const ref_frame = get_ref_frame_buf_nrs(cm, i);
+    const RefCntBuffer *const ref_frame = get_ref_frame_buf(cm, i);
     if (!valid_ref_frame_img_fmt(
             ref_frame->buf.bit_depth, ref_frame->buf.subsampling_x,
             ref_frame->buf.subsampling_y, seq_params->bit_depth,
@@ -5612,10 +5608,10 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 
 #if CONFIG_NEW_REF_SIGNALING
       for (int i = 0; i < INTER_REFS_PER_FRAME_NRS; ++i) {
-        const RefCntBuffer *const ref_buf = get_ref_frame_buf_nrs(cm, i);
+        const RefCntBuffer *const ref_buf = get_ref_frame_buf(cm, i);
         if (!ref_buf) continue;
         struct scale_factors *const ref_scale_factors =
-            get_ref_scale_factors_nrs(cm, i);
+            get_ref_scale_factors(cm, i);
         av1_setup_scale_factors_for_frame(
             ref_scale_factors, ref_buf->buf.y_crop_width,
             ref_buf->buf.y_crop_height, cm->width, cm->height);

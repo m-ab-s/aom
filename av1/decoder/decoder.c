@@ -483,7 +483,7 @@ int av1_receive_compressed_data(AV1Decoder *pbi, size_t size,
     // thing to do here.
 #if CONFIG_NEW_REF_SIGNALING
     const int last_frame = get_closest_pastcur_ref_index(cm);
-    RefCntBuffer *ref_buf = get_ref_frame_buf_nrs(cm, last_frame);
+    RefCntBuffer *ref_buf = get_ref_frame_buf(cm, last_frame);
 #else
     RefCntBuffer *ref_buf = get_ref_frame_buf(cm, LAST_FRAME);
 #endif  // CONFIG_NEW_REF_SIGNALING

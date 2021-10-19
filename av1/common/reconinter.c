@@ -708,7 +708,7 @@ int av1_compute_subpel_gradients_highbd(
   const int cur_frame_index = cm->cur_frame->order_hint;
 #if CONFIG_NEW_REF_SIGNALING
   const RefCntBuffer *const ref_buf =
-      get_ref_frame_buf_nrs(cm, mi->ref_frame_nrs[ref]);
+      get_ref_frame_buf(cm, mi->ref_frame_nrs[ref]);
 #else
   const RefCntBuffer *const ref_buf = get_ref_frame_buf(cm, mi->ref_frame[ref]);
 #endif  // CONFIG_NEW_REF_SIGNALING
@@ -855,7 +855,7 @@ int av1_compute_subpel_gradients_lowbd(
   const int cur_frame_index = cm->cur_frame->order_hint;
 #if CONFIG_NEW_REF_SIGNALING
   const RefCntBuffer *const ref_buf =
-      get_ref_frame_buf_nrs(cm, mi->ref_frame_nrs[ref]);
+      get_ref_frame_buf(cm, mi->ref_frame_nrs[ref]);
 #else
   const RefCntBuffer *const ref_buf = get_ref_frame_buf(cm, mi->ref_frame[ref]);
 #endif  // CONFIG_NEW_REF_SIGNALING
@@ -1469,9 +1469,9 @@ void av1_dist_wtd_comp_weight_assign(const AV1_COMMON *cm,
 
 #if CONFIG_NEW_REF_SIGNALING
   const RefCntBuffer *const bck_buf =
-      get_ref_frame_buf_nrs(cm, mbmi->ref_frame_nrs[0]);
+      get_ref_frame_buf(cm, mbmi->ref_frame_nrs[0]);
   const RefCntBuffer *const fwd_buf =
-      get_ref_frame_buf_nrs(cm, mbmi->ref_frame_nrs[1]);
+      get_ref_frame_buf(cm, mbmi->ref_frame_nrs[1]);
 #else
   const RefCntBuffer *const bck_buf = get_ref_frame_buf(cm, mbmi->ref_frame[0]);
   const RefCntBuffer *const fwd_buf = get_ref_frame_buf(cm, mbmi->ref_frame[1]);
@@ -1589,9 +1589,9 @@ static void build_inter_predictors_sub8x8(
       int ref = 0;
 #if CONFIG_NEW_REF_SIGNALING
       const RefCntBuffer *ref_buf =
-          get_ref_frame_buf_nrs(cm, this_mbmi->ref_frame_nrs[ref]);
+          get_ref_frame_buf(cm, this_mbmi->ref_frame_nrs[ref]);
       const struct scale_factors *ref_scale_factors =
-          get_ref_scale_factors_const_nrs(cm, this_mbmi->ref_frame_nrs[ref]);
+          get_ref_scale_factors_const(cm, this_mbmi->ref_frame_nrs[ref]);
 #else
       const RefCntBuffer *ref_buf =
           get_ref_frame_buf(cm, this_mbmi->ref_frame[ref]);
@@ -2044,9 +2044,9 @@ void av1_setup_build_prediction_by_above_pred(
   for (int ref = 0; ref < num_refs; ++ref) {
 #if CONFIG_NEW_REF_SIGNALING
     const MV_REFERENCE_FRAME_NRS frame = above_mbmi->ref_frame_nrs[ref];
-    const RefCntBuffer *const ref_buf = get_ref_frame_buf_nrs(ctxt->cm, frame);
+    const RefCntBuffer *const ref_buf = get_ref_frame_buf(ctxt->cm, frame);
     const struct scale_factors *const sf =
-        get_ref_scale_factors_const_nrs(ctxt->cm, frame);
+        get_ref_scale_factors_const(ctxt->cm, frame);
 #else
     const MV_REFERENCE_FRAME frame = above_mbmi->ref_frame[ref];
     const RefCntBuffer *const ref_buf = get_ref_frame_buf(ctxt->cm, frame);
@@ -2088,9 +2088,9 @@ void av1_setup_build_prediction_by_left_pred(MACROBLOCKD *xd, int rel_mi_row,
   for (int ref = 0; ref < num_refs; ++ref) {
 #if CONFIG_NEW_REF_SIGNALING
     const MV_REFERENCE_FRAME_NRS frame = left_mbmi->ref_frame_nrs[ref];
-    const RefCntBuffer *const ref_buf = get_ref_frame_buf_nrs(ctxt->cm, frame);
+    const RefCntBuffer *const ref_buf = get_ref_frame_buf(ctxt->cm, frame);
     const struct scale_factors *const ref_scale_factors =
-        get_ref_scale_factors_const_nrs(ctxt->cm, frame);
+        get_ref_scale_factors_const(ctxt->cm, frame);
 #else
     const MV_REFERENCE_FRAME frame = left_mbmi->ref_frame[ref];
     const RefCntBuffer *const ref_buf = get_ref_frame_buf(ctxt->cm, frame);

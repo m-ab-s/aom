@@ -538,7 +538,7 @@ static int compare_distance(const void *a, const void *b) {
 
 #if CONFIG_NEW_REF_SIGNALING
 static AOM_INLINE int skip_gm_frame_nrs(AV1_COMMON *const cm, int refrank) {
-  const RefCntBuffer *const refbuf = get_ref_frame_buf_nrs(cm, refrank);
+  const RefCntBuffer *const refbuf = get_ref_frame_buf(cm, refrank);
   if (refbuf == NULL) return 1;
   const int d0 = get_dir_rank(cm, refrank, NULL);
   for (int i = 0; i < refrank; ++i) {
@@ -590,7 +590,7 @@ static AOM_INLINE void update_valid_ref_frames_for_gm_nrs(
     // to use new indexing.
     ref_buf[frame] = NULL;
     cm->global_motion_nrs[frame] = default_warp_params;
-    RefCntBuffer *buf = get_ref_frame_buf_nrs(cm, frame);
+    RefCntBuffer *buf = get_ref_frame_buf(cm, frame);
     if (buf == NULL) {
       cpi->gm_info.params_cost_nrs[frame] = 0;
       continue;

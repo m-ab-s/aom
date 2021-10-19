@@ -339,7 +339,6 @@ static void init_ref_frame_space(AV1_COMP *cpi, ThreadData *td, int mi_row,
   TplParams *const tpl_data = &cpi->tpl_data_nrs;
   TplDepFrame *tpl_frame = &tpl_data->tpl_frame[frame_idx];
   const uint8_t block_mis_log2 = tpl_data->tpl_stats_block_mis_log2;
-  assert(block_mis_log2 == cpi->tpl_data.tpl_stats_block_mis_log2);
 
   av1_zero(x->tpl_keep_ref_frame);
 
@@ -1246,9 +1245,9 @@ static INLINE void get_skip_mode_ref_offsets(const AV1_COMMON *cm,
 
 #if CONFIG_NEW_REF_SIGNALING
   const RefCntBuffer *const buf_0 =
-      get_ref_frame_buf_nrs(cm, skip_mode_info->ref_frame_idx_0);
+      get_ref_frame_buf(cm, skip_mode_info->ref_frame_idx_0);
   const RefCntBuffer *const buf_1 =
-      get_ref_frame_buf_nrs(cm, skip_mode_info->ref_frame_idx_1);
+      get_ref_frame_buf(cm, skip_mode_info->ref_frame_idx_1);
 #else
   const RefCntBuffer *const buf_0 =
       get_ref_frame_buf(cm, LAST_FRAME + skip_mode_info->ref_frame_idx_0);

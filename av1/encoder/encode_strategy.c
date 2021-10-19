@@ -373,7 +373,7 @@ static void get_gop_cfg_enabled_refs_nrs(AV1_COMP *const cpi,
   // Loop over each reference frame and hash it based on its pyramid level
   for (int frame = 0; frame < INTER_REFS_PER_FRAME_NRS; frame++) {
     // Get reference frame buffer
-    const RefCntBuffer *const buf = get_ref_frame_buf_nrs(&cpi->common, frame);
+    const RefCntBuffer *const buf = get_ref_frame_buf(&cpi->common, frame);
     if (buf == NULL) continue;
     const int frame_order = (int)buf->display_order_hint;
     frame_level = buf->pyramid_level;
@@ -1232,9 +1232,10 @@ static int denoise_and_encode(AV1_COMP *const cpi, uint8_t *const dest,
     }
   }
 
-  if (gf_group->index == 0) av1_init_tpl_stats(&cpi->tpl_data);
 #if CONFIG_NEW_REF_SIGNALING
   if (gf_group->index == 0) av1_init_tpl_stats(&cpi->tpl_data_nrs);
+#else
+  if (gf_group->index == 0) av1_init_tpl_stats(&cpi->tpl_data);
 #endif  // CONFIG_NEW_REF_SIGNALING
   if (allow_tpl) av1_tpl_setup_stats(cpi, 0, frame_params, frame_input);
 

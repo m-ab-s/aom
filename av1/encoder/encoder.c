@@ -1138,8 +1138,9 @@ AV1_COMP *av1_create_compressor(AV1EncoderConfig *oxcf, BufferPool *const pool,
   if (!is_stat_generation_stage(cpi)) {
 #if CONFIG_NEW_REF_SIGNALING
     setup_tpl_buffers(cm, &cpi->tpl_data_nrs);
-#endif  // CONFIG_NEW_REF_SIGNALING
+#else
     setup_tpl_buffers(cm, &cpi->tpl_data);
+#endif  // CONFIG_NEW_REF_SIGNALING
   }
 
 #if CONFIG_COLLECT_PARTITION_STATS == 2
@@ -1556,13 +1557,13 @@ void av1_remove_compressor(AV1_COMP *cpi) {
     aom_free(tpl_data_nrs->tpl_stats_pool[frame]);
     aom_free_frame_buffer(&tpl_data_nrs->tpl_rec_pool[frame]);
   }
-#endif  // CONFIG_NEW_REF_SIGNALING
-
+#else
   TplParams *const tpl_data = &cpi->tpl_data;
   for (int frame = 0; frame < MAX_LAG_BUFFERS; ++frame) {
     aom_free(tpl_data->tpl_stats_pool[frame]);
     aom_free_frame_buffer(&tpl_data->tpl_rec_pool[frame]);
   }
+#endif  // CONFIG_NEW_REF_SIGNALING
 
   if (cpi->compressor_stage != LAP_STAGE) {
     terminate_worker_data(cpi);
@@ -1591,8 +1592,9 @@ void av1_remove_compressor(AV1_COMP *cpi) {
 #if !CONFIG_REALTIME_ONLY
 #if CONFIG_NEW_REF_SIGNALING
   av1_tpl_dealloc(&tpl_data_nrs->tpl_mt_sync);
-#endif  // CONFIG_NEW_REF_SIGNALING
+#else
   av1_tpl_dealloc(&tpl_data->tpl_mt_sync);
+#endif  // CONFIG_NEW_REF_SIGNALING
 #endif
   if (mt_info->num_workers > 1) {
     av1_loop_filter_dealloc(&mt_info->lf_row_sync);
@@ -2044,9 +2046,9 @@ void av1_set_frame_size(AV1_COMP *cpi, int width, int height) {
 
 #if CONFIG_NEW_REF_SIGNALING
   for (ref_frame = 0; ref_frame < INTER_REFS_PER_FRAME_NRS; ++ref_frame) {
-    RefCntBuffer *const buf = get_ref_frame_buf_nrs(cm, ref_frame);
+    RefCntBuffer *const buf = get_ref_frame_buf(cm, ref_frame);
     if (buf != NULL) {
-      struct scale_factors *sf = get_ref_scale_factors_nrs(cm, ref_frame);
+      struct scale_factors *sf = get_ref_scale_factors(cm, ref_frame);
       av1_setup_scale_factors_for_frame(sf, buf->buf.y_crop_width,
                                         buf->buf.y_crop_height, cm->width,
                                         cm->height);
