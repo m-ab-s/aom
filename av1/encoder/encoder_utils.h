@@ -114,25 +114,17 @@ static AOM_INLINE void enc_setup_mi(CommonModeInfoParams *mi_params) {
          mi_grid_size * sizeof(*mi_params->tx_type_map));
 }
 
-#if CONFIG_NEW_REF_SIGNALING
-static AOM_INLINE void init_buffer_indices_nrs(
-    ForceIntegerMVInfo *const force_intpel_info, NewRefFramesData *frame_data) {
-  frame_data->n_total_refs = REF_FRAMES_NRS - 1;
-  for (int i = 0; i < INTER_REFS_PER_FRAME_NRS; i++) {
-    frame_data->ref_frame_score_map[i] = i;
-  }
-  force_intpel_info->rate_index = 0;
-  force_intpel_info->rate_size = 0;
-}
-#else
 static AOM_INLINE void init_buffer_indices(
     ForceIntegerMVInfo *const force_intpel_info, int *const remapped_ref_idx) {
+#if CONFIG_NEW_REF_SIGNALING
+  for (int fb_idx = 0; fb_idx < INTER_REFS_PER_FRAME_NRS; ++fb_idx)
+#else
   for (int fb_idx = 0; fb_idx < REF_FRAMES; ++fb_idx)
+#endif  // CONFIG_NEW_REF_SIGNALING
     remapped_ref_idx[fb_idx] = fb_idx;
   force_intpel_info->rate_index = 0;
   force_intpel_info->rate_size = 0;
 }
-#endif  // CONFIG_NEW_REF_SIGNALING
 
 #define HIGHBD_BFP(BT, SDF, SDAF, VF, SVF, SVAF, SDX4DF, JSDAF, JSVAF) \
   cpi->fn_ptr[BT].sdf = SDF;                                           \

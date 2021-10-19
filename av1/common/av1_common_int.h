@@ -811,12 +811,6 @@ struct CommonContexts {
  */
 typedef struct {
   /*!
-   * Maps reference slot to ref_frame_map buffer slot based on
-   * a usefulness score. This map sorts reference frames from most
-   * useful to least useful.
-   */
-  int ref_frame_score_map[INTER_REFS_PER_FRAME_NRS];
-  /*!
    * Distance of ref frame from current frame. Negative value indicates
    * reference in the future, and positive value indicates reference in
    * the past from the current frame
@@ -966,6 +960,27 @@ typedef struct AV1Common {
    * other relevant data to aid the reference mapping and signaling.
    */
   NewRefFramesData new_ref_frame_data;
+  /*!
+   * For encoder, we have a two-level mapping from reference frame type to the
+   * corresponding buffer in the buffer pool:
+   * * 'remapped_ref_idx[i - 1]' maps reference type 'i' (range: 0 ...
+   * INTER_REFS_PER_FRAME_NRS - 1) to a remapped index 'j' in the same range.
+   * * Later, 'cm->ref_frame_map[j]' maps the remapped index 'j' to a pointer to
+   * the reference counted buffer structure RefCntBuffer, taken from the buffer
+   * pool cm->buffer_pool->frame_bufs.
+   *
+   *      0,               ...,      INTER_REFS_PER_FRAME_NRS - 1
+   *      |                                           |
+   *      v                                           v
+   * remapped_ref_idx[0],  ...,  remapped_ref_idx[INTER_REFS_PER_FRAME_NRS - 1]
+   *      |                                           |
+   *      v                                           v
+   * ref_frame_map[],      ...,                ref_frame_map[]
+   *
+   * Note: INTRA_FRAME always refers to the current frame, so there's no need to
+   * have a remapped index for the same.
+   */
+  int remapped_ref_idx[REF_FRAMES_NRS];
 #else
   /*!
    * For encoder, we have a two-level mapping from reference frame type to the
@@ -1345,17 +1360,10 @@ static INLINE int frame_is_sframe(const AV1_COMMON *cm) {
 }
 
 #if CONFIG_NEW_REF_SIGNALING
-#define REMAPPED_REF_IDX (cm->new_ref_frame_data.ref_frame_score_map)
-#else
-#define REMAPPED_REF_IDX (cm->remapped_ref_idx)
-#endif  // CONFIG_NEW_REF_SIGNALING
-
-#if CONFIG_NEW_REF_SIGNALING
 static INLINE int get_ref_frame_map_idx(const AV1_COMMON *const cm,
                                         const int ref_frame) {
-  NewRefFramesData ref_data = cm->new_ref_frame_data;
-  return (ref_frame >= 0 && ref_frame < INTER_REFS_PER_FRAME_NRS)
-             ? ref_data.ref_frame_score_map[ref_frame]
+  return (ref_frame >= 0 && ref_frame < REF_FRAMES_NRS)
+             ? cm->remapped_ref_idx[ref_frame]
              : INVALID_IDX;
 }
 #else

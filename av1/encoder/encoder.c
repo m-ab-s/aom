@@ -604,11 +604,7 @@ static void init_config(struct AV1_COMP *cpi, AV1EncoderConfig *oxcf) {
   resize_pending_params->width = 0;
   resize_pending_params->height = 0;
 
-#if CONFIG_NEW_REF_SIGNALING
-  init_buffer_indices_nrs(&cpi->force_intpel_info, &cm->new_ref_frame_data);
-#else
   init_buffer_indices(&cpi->force_intpel_info, cm->remapped_ref_idx);
-#endif  // CONFIG_NEW_REF_SIGNALING
 
   av1_noise_estimate_init(&cpi->noise_estimate, cm->width, cm->height);
 }
@@ -3317,10 +3313,8 @@ int av1_encode(AV1_COMP *const cpi, uint8_t *const dest,
   cpi->existing_fb_idx_to_show = frame_params->existing_fb_idx_to_show;
 
 #if CONFIG_NEW_REF_SIGNALING
-  memcpy(cm->new_ref_frame_data.ref_frame_score_map,
-         frame_params->remapped_ref_idx,
-         INTER_REFS_PER_FRAME_NRS *
-             sizeof(*cm->new_ref_frame_data.ref_frame_score_map));
+  memcpy(cm->remapped_ref_idx, frame_params->remapped_ref_idx,
+         REF_FRAMES_NRS * sizeof(*cm->remapped_ref_idx));
 #else
   memcpy(cm->remapped_ref_idx, frame_params->remapped_ref_idx,
          REF_FRAMES * sizeof(*cm->remapped_ref_idx));

@@ -71,12 +71,11 @@ static INLINE void init_ref_map_pair(
 }
 
 void av1_get_ref_frames(AV1_COMMON *const cm, int cur_frame_disp,
-                        RefFrameMapPair ref_frame_map_pairs[REF_FRAMES]);
+                        RefFrameMapPair *ref_frame_map_pairs);
 
 #if CONFIG_NEW_REF_SIGNALING
-void av1_init_new_ref_frame_map(AV1_COMMON *const cm,
-                                RefFrameMapPair *ref_frame_map_pairs,
-                                int cur_frame_disp);
+void av1_get_ref_frames_nrs(AV1_COMMON *const cm, int cur_frame_disp,
+                            RefFrameMapPair *ref_frame_map_pairs);
 
 // Find the reference that is furthest in the future
 static INLINE int get_furthest_future_ref_index(const AV1_COMMON *const cm) {

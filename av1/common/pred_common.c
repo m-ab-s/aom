@@ -86,18 +86,17 @@ static int get_unmapped_ref(RefScoreData *scores, int n_bufs,
 }
 
 #define JOINT_DIST_QINDEX_ORDERING 1
-void av1_init_new_ref_frame_map(AV1_COMMON *cm,
-                                RefFrameMapPair *ref_frame_map_pairs,
-                                int cur_frame_disp) {
+void av1_get_ref_frames_nrs(AV1_COMMON *cm, int cur_frame_disp,
+                            RefFrameMapPair *ref_frame_map_pairs) {
   RefScoreData scores[REF_FRAMES_NRS];
   memset(scores, 0, REF_FRAMES_NRS * sizeof(*scores));
   for (int i = 0; i < REF_FRAMES_NRS; i++) scores[i].score = INT_MAX;
-  for (int i = 0; i < INTER_REFS_PER_FRAME_NRS; i++) {
-    cm->new_ref_frame_data.ref_frame_score_map[i] = INVALID_IDX;
+  for (int i = 0; i < REF_FRAMES_NRS; i++) {
+    cm->remapped_ref_idx[i] = INVALID_IDX;
   }
   int n_ranked = 0;
   // Compute a score for each reference buffer
-  for (int i = 0; i < REF_FRAMES; i++) {
+  for (int i = 0; i < REF_FRAMES_NRS; i++) {
     // Get reference frame buffer
     RefFrameMapPair cur_ref = ref_frame_map_pairs[i];
     if (cur_ref.disp_order == -1) continue;
@@ -129,15 +128,15 @@ void av1_init_new_ref_frame_map(AV1_COMMON *cm,
 
   // Sort the references according to their score
   qsort(scores, n_ranked, sizeof(scores[0]), compare_score_data_asc);
-  n_ranked = AOMMIN(n_ranked, INTER_REFS_PER_FRAME_NRS);
 
   // Fill in NewRefFramesData struct according to computed mapping
-  cm->new_ref_frame_data.n_total_refs = n_ranked;
+  cm->new_ref_frame_data.n_total_refs =
+      AOMMIN(n_ranked, INTER_REFS_PER_FRAME_NRS);
   int n_future = 0;
   int n_past = 0;
   int n_cur = 0;
-  for (int i = 0; i < n_ranked; i++) {
-    cm->new_ref_frame_data.ref_frame_score_map[i] = scores[i].index;
+  for (int i = 0; i < cm->new_ref_frame_data.n_total_refs; i++) {
+    cm->remapped_ref_idx[i] = scores[i].index;
     cm->new_ref_frame_data.ref_frame_distance[i] = scores[i].distance;
     if (scores[i].distance < 0) {
       cm->new_ref_frame_data.future_refs[n_future] = i;
@@ -150,14 +149,16 @@ void av1_init_new_ref_frame_map(AV1_COMMON *cm,
       n_cur++;
     }
   }
+  if (n_ranked > INTER_REFS_PER_FRAME_NRS)
+    cm->remapped_ref_idx[n_ranked - 1] = scores[n_ranked - 1].index;
+
   cm->new_ref_frame_data.n_past_refs = n_past;
   cm->new_ref_frame_data.n_future_refs = n_future;
   cm->new_ref_frame_data.n_cur_refs = n_cur;
 
   // Fill any slots that are empty (should only happen for the first 7 frames)
-  for (int i = 0; i < INTER_REFS_PER_FRAME_NRS; i++) {
-    if (cm->new_ref_frame_data.ref_frame_score_map[i] == INVALID_IDX)
-      cm->new_ref_frame_data.ref_frame_score_map[i] = 0;
+  for (int i = 0; i < REF_FRAMES_NRS; i++) {
+    if (cm->remapped_ref_idx[i] == INVALID_IDX) cm->remapped_ref_idx[i] = 0;
   }
 }
 
@@ -219,7 +220,7 @@ static void set_unmapped_ref(RefBufMapData *buffer_map, int n_bufs,
 }
 
 void av1_get_ref_frames(AV1_COMMON *const cm, int cur_frame_disp,
-                        RefFrameMapPair ref_frame_map_pairs[REF_FRAMES]) {
+                        RefFrameMapPair *ref_frame_map_pairs) {
   int *const remapped_ref_idx = cm->remapped_ref_idx;
 
   int buf_map_idx = 0;

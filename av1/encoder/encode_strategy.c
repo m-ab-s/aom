@@ -1479,12 +1479,11 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
 #else
       for (unsigned int i = 0; i < INTER_REFS_PER_FRAME; i++)
 #endif  // CONFIG_NEW_REF_SIGNALING
-        REMAPPED_REF_IDX[i] = cpi->svc.ref_idx[i];
+        cm->remapped_ref_idx[i] = cpi->svc.ref_idx[i];
     }
 
 #if CONFIG_NEW_REF_SIGNALING
-    av1_init_new_ref_frame_map(&cpi->common, ref_frame_map_pairs,
-                               cur_frame_disp);
+    av1_get_ref_frames_nrs(&cpi->common, cur_frame_disp, ref_frame_map_pairs);
 #else
     const RefCntBuffer *ref_frames[INTER_REFS_PER_FRAME];
     const YV12_BUFFER_CONFIG *ref_frame_buf[INTER_REFS_PER_FRAME];
@@ -1559,9 +1558,8 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
   // this frame.  If frame_params->remapped_ref_idx is setup independently of
   // cm->remapped_ref_idx then update_ref_frame_map() will have no effect.
 #if CONFIG_NEW_REF_SIGNALING
-  memcpy(frame_params.remapped_ref_idx,
-         cm->new_ref_frame_data.ref_frame_score_map,
-         INTER_REFS_PER_FRAME_NRS * sizeof(*frame_params.remapped_ref_idx));
+  memcpy(frame_params.remapped_ref_idx, cm->remapped_ref_idx,
+         REF_FRAMES_NRS * sizeof(*frame_params.remapped_ref_idx));
 #else
   memcpy(frame_params.remapped_ref_idx, cm->remapped_ref_idx,
          REF_FRAMES * sizeof(*frame_params.remapped_ref_idx));

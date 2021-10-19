@@ -1534,7 +1534,7 @@ static AOM_INLINE void init_gop_frames_for_tpl_nrs(
     const int true_disp =
         (int)(tpl_frame->frame_display_index) -
         (gf_group->subgop_cfg != NULL && frame_params.show_frame);
-    av1_init_new_ref_frame_map(cm, ref_frame_map_pairs, true_disp);
+    av1_get_ref_frames_nrs(cm, true_disp, ref_frame_map_pairs);
     int refresh_mask =
         av1_get_refresh_frame_flags(cpi, &frame_params, frame_update_type,
                                     gf_index, true_disp, ref_frame_map_pairs);
@@ -1551,9 +1551,8 @@ static AOM_INLINE void init_gop_frames_for_tpl_nrs(
     }
 
     for (int i = 0; i < INTER_REFS_PER_FRAME_NRS; ++i) {
-      if (cm->new_ref_frame_data.ref_frame_score_map[i] != -1) {
-        tpl_frame->ref_map_index[i] =
-            ref_picture_map[cm->new_ref_frame_data.ref_frame_score_map[i]];
+      if (cm->remapped_ref_idx[i] != -1) {
+        tpl_frame->ref_map_index[i] = ref_picture_map[cm->remapped_ref_idx[i]];
       } else {
         tpl_frame->ref_map_index[i] = ref_picture_map[0];
       }
@@ -1572,7 +1571,7 @@ static AOM_INLINE void init_gop_frames_for_tpl_nrs(
     init_ref_map_pair(
         cm, ref_frame_map_pairs,
         cpi->gf_group.update_type[cpi->gf_group.index] == KEY_FRAME);
-    av1_init_new_ref_frame_map(cm, ref_frame_map_pairs, true_disp);
+    av1_get_ref_frames_nrs(cm, true_disp, ref_frame_map_pairs);
     return;
   }
 
@@ -1628,7 +1627,7 @@ static AOM_INLINE void init_gop_frames_for_tpl_nrs(
     const int true_disp =
         (int)(tpl_frame->frame_display_index) -
         (gf_group->subgop_cfg != NULL && frame_params.show_frame);
-    av1_init_new_ref_frame_map(cm, ref_frame_map_pairs, true_disp);
+    av1_get_ref_frames_nrs(cm, true_disp, ref_frame_map_pairs);
     // TODO(sarahparker) av1_get_refresh_frame_flags()
     // will execute default behavior even when
     // subgop cfg is enabled. This should be addressed if we ever remove the
@@ -1646,9 +1645,8 @@ static AOM_INLINE void init_gop_frames_for_tpl_nrs(
     }
 
     for (int i = 0; i < INTER_REFS_PER_FRAME_NRS; ++i) {
-      if (cm->new_ref_frame_data.ref_frame_score_map[i] != -1) {
-        tpl_frame->ref_map_index[i] =
-            ref_picture_map[cm->new_ref_frame_data.ref_frame_score_map[i]];
+      if (cm->remapped_ref_idx[i] != -1) {
+        tpl_frame->ref_map_index[i] = ref_picture_map[cm->remapped_ref_idx[i]];
       } else {
         tpl_frame->ref_map_index[i] = ref_picture_map[0];
       }
@@ -1668,7 +1666,7 @@ static AOM_INLINE void init_gop_frames_for_tpl_nrs(
   init_ref_map_pair(
       cm, ref_frame_map_pairs,
       cpi->gf_group.update_type[cpi->gf_group.index] == KEY_FRAME);
-  av1_init_new_ref_frame_map(cm, ref_frame_map_pairs, true_disp);
+  av1_get_ref_frames_nrs(cm, true_disp, ref_frame_map_pairs);
 }
 
 #else

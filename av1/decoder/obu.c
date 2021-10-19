@@ -521,7 +521,7 @@ static uint32_t read_and_decode_one_tile_list(AV1Decoder *pbi,
       cm->error.error_code = AOM_CODEC_CORRUPT_FRAME;
       return 0;
     }
-    av1_set_reference_dec(cm, REMAPPED_REF_IDX[0], 1,
+    av1_set_reference_dec(cm, cm->remapped_ref_idx[0], 1,
                           &pbi->ext_refs.refs[ref_idx]);
 
     pbi->dec_tile_row = aom_rb_read_literal(rb, 8);
