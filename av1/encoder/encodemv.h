@@ -34,28 +34,16 @@ void av1_encode_dv(aom_writer *w, const MV *mv, const MV *ref,
                    nmv_context *mvctx);
 int_mv av1_get_ref_mv(const MACROBLOCK *x, int ref_idx);
 int_mv av1_get_ref_mv_from_stack(int ref_idx,
-#if CONFIG_NEW_REF_SIGNALING
-                                 const MV_REFERENCE_FRAME_NRS *ref_frame,
-#else
                                  const MV_REFERENCE_FRAME *ref_frame,
-#endif  // CONFIG_NEW_REF_SIGNALING
                                  int ref_mv_idx,
                                  const MB_MODE_INFO_EXT *mbmi_ext);
 #if CONFIG_NEW_INTER_MODES
 int_mv av1_find_best_ref_mv_from_stack(const MB_MODE_INFO_EXT *mbmi_ext,
-#if CONFIG_NEW_REF_SIGNALING
-                                       MV_REFERENCE_FRAME_NRS ref_frame,
-#else
                                        MV_REFERENCE_FRAME ref_frame,
-#endif  // CONFIG_NEW_REF_SIGNALING
                                        MvSubpelPrecision precision);
 #else
 void av1_find_best_ref_mvs_from_stack(const MB_MODE_INFO_EXT *mbmi_ext,
-#if CONFIG_NEW_REF_SIGNALING
-                                      MV_REFERENCE_FRAME_NRS ref_frame,
-#else
                                       MV_REFERENCE_FRAME ref_frame,
-#endif  // CONFIG_NEW_REF_SIGNALING
                                       int_mv *nearest_mv, int_mv *near_mv,
                                       MvSubpelPrecision precision);
 #endif  // CONFIG_NEW_INTER_MODES

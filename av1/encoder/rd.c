@@ -1233,13 +1233,12 @@ void av1_get_entropy_contexts(BLOCK_SIZE plane_bsize,
 void av1_mv_pred(const AV1_COMP *cpi, MACROBLOCK *x, uint8_t *ref_y_buffer,
                  int ref_y_stride, int ref, BLOCK_SIZE block_size) {
 #if CONFIG_NEW_REF_SIGNALING
-  const MV_REFERENCE_FRAME_NRS ref_frame_nrs = ref;
+  const MV_REFERENCE_FRAME ref_frame_nrs = ref;
 #else
   const MV_REFERENCE_FRAME ref_frame = ref;
 #endif  // CONFIG_NEW_REF_SIGNALING
 #if CONFIG_NEW_REF_SIGNALING
-  const MV_REFERENCE_FRAME_NRS ref_frames_nrs[2] = { ref_frame_nrs,
-                                                     INVALID_IDX };
+  const MV_REFERENCE_FRAME ref_frames_nrs[2] = { ref_frame_nrs, INVALID_IDX };
   const int_mv ref_mv =
       av1_get_ref_mv_from_stack(0, ref_frames_nrs, 0, x->mbmi_ext);
   const int_mv ref_mv1 =
@@ -1286,7 +1285,7 @@ void av1_mv_pred(const AV1_COMP *cpi, MACROBLOCK *x, uint8_t *ref_y_buffer,
   }
   // Note the index of the mv that worked best in the reference list.
 #if CONFIG_NEW_REF_SIGNALING
-  const MV_REFERENCE_FRAME_NRS rfn =
+  const MV_REFERENCE_FRAME rfn =
       (ref_frame_nrs == INTRA_FRAME_NRS ? INTER_REFS_PER_FRAME_NRS
                                         : ref_frame_nrs);
   x->max_mv_context[rfn] = max_mv;

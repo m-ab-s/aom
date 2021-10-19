@@ -120,11 +120,7 @@ typedef struct {
 
 typedef struct {
   int_mv mv;
-#if CONFIG_NEW_REF_SIGNALING
-  MV_REFERENCE_FRAME_NRS ref_frame;
-#else
   MV_REFERENCE_FRAME ref_frame;
-#endif  // CONFIG_NEW_REF_SIGNALING
 } MV_REF;
 
 typedef struct RefCntBuffer {
@@ -1375,25 +1371,13 @@ static INLINE int get_ref_frame_map_idx(const AV1_COMMON *const cm,
 #endif  // CONFIG_NEW_REF_SIGNALING
 
 static INLINE RefCntBuffer *get_ref_frame_buf(
-    const AV1_COMMON *const cm,
-#if CONFIG_NEW_REF_SIGNALING
-    const MV_REFERENCE_FRAME_NRS ref_frame
-#else
-    const MV_REFERENCE_FRAME ref_frame
-#endif  // CONFIG_NEW_REF_SIGNALING
-) {
+    const AV1_COMMON *const cm, const MV_REFERENCE_FRAME ref_frame) {
   const int map_idx = get_ref_frame_map_idx(cm, ref_frame);
   return (map_idx != INVALID_IDX) ? cm->ref_frame_map[map_idx] : NULL;
 }
 
 static INLINE struct scale_factors *get_ref_scale_factors(
-    AV1_COMMON *const cm,
-#if CONFIG_NEW_REF_SIGNALING
-    const MV_REFERENCE_FRAME_NRS ref_frame
-#else
-    const MV_REFERENCE_FRAME ref_frame
-#endif  // CONFIG_NEW_REF_SIGNALING
-) {
+    AV1_COMMON *const cm, const MV_REFERENCE_FRAME ref_frame) {
   const int map_idx = get_ref_frame_map_idx(cm, ref_frame);
   return (map_idx != INVALID_IDX) ? &cm->ref_scale_factors[map_idx] : NULL;
 }
@@ -1401,13 +1385,7 @@ static INLINE struct scale_factors *get_ref_scale_factors(
 // Both const and non-const versions of this function are provided so that it
 // can be used with a const AV1_COMMON if needed.
 static INLINE const struct scale_factors *get_ref_scale_factors_const(
-    const AV1_COMMON *const cm,
-#if CONFIG_NEW_REF_SIGNALING
-    const MV_REFERENCE_FRAME_NRS ref_frame
-#else
-    const MV_REFERENCE_FRAME ref_frame
-#endif  // CONFIG_NEW_REF_SIGNALING
-) {
+    const AV1_COMMON *const cm, const MV_REFERENCE_FRAME ref_frame) {
   const int map_idx = get_ref_frame_map_idx(cm, ref_frame);
   return (map_idx != INVALID_IDX) ? &cm->ref_scale_factors[map_idx] : NULL;
 }

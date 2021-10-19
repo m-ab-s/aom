@@ -1196,7 +1196,7 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
       } else {
 #if CONFIG_NEW_REF_SIGNALING
         const int n_refs = cm->new_ref_frame_data.n_total_refs;
-        const MV_REFERENCE_FRAME_NRS ref0_nrs = mbmi->ref_frame_nrs[0];
+        const MV_REFERENCE_FRAME ref0_nrs = mbmi->ref_frame_nrs[0];
         for (int i = 0; i < n_refs - 1; i++) {
           const int bit = ref0_nrs == i;
           update_cdf(av1_get_pred_cdf_single_ref_nrs(xd, i, n_refs), bit, 2);

@@ -48,7 +48,7 @@ typedef struct {
   PREDICTION_MODE best_mode;
   TX_SIZE best_tx_size;
 #if CONFIG_NEW_REF_SIGNALING
-  MV_REFERENCE_FRAME_NRS best_ref_frame;
+  MV_REFERENCE_FRAME best_ref_frame;
 #else
   MV_REFERENCE_FRAME best_ref_frame;
 #endif  // CONFIG_NEW_REF_SIGNALING
@@ -336,7 +336,7 @@ static int search_new_mv(AV1_COMP *cpi, MACROBLOCK *x,
   AV1_COMMON *cm = &cpi->common;
   MvSubpelPrecision max_mv_precision = mi->max_mv_precision;
 #if CONFIG_NEW_REF_SIGNALING
-  const MV_REFERENCE_FRAME_NRS last_frame = get_closest_pastcur_ref_index(cm);
+  const MV_REFERENCE_FRAME last_frame = get_closest_pastcur_ref_index(cm);
   if (ref_frame != last_frame && cpi->oxcf.rc_cfg.mode == AOM_CBR &&
       gf_temporal_ref) {
 #else
@@ -448,7 +448,7 @@ static int search_new_mv(AV1_COMP *cpi, MACROBLOCK *x,
 static INLINE void find_predictors(
     AV1_COMP *cpi, MACROBLOCK *x,
 #if CONFIG_NEW_REF_SIGNALING
-    MV_REFERENCE_FRAME_NRS ref_frame,
+    MV_REFERENCE_FRAME ref_frame,
     int_mv frame_mv[MB_MODE_COUNT][REF_FRAMES_NRS],
 #else
     MV_REFERENCE_FRAME ref_frame, int_mv frame_mv[MB_MODE_COUNT][REF_FRAMES],
@@ -1206,8 +1206,8 @@ static void block_yrd(AV1_COMP *cpi, MACROBLOCK *x, int mi_row, int mi_col,
 
 static INLINE void init_mbmi(MB_MODE_INFO *mbmi, PREDICTION_MODE pred_mode,
 #if CONFIG_NEW_REF_SIGNALING
-                             MV_REFERENCE_FRAME_NRS ref_frame0,
-                             MV_REFERENCE_FRAME_NRS ref_frame1,
+                             MV_REFERENCE_FRAME ref_frame0,
+                             MV_REFERENCE_FRAME ref_frame1,
 #else
                              MV_REFERENCE_FRAME ref_frame0,
                              MV_REFERENCE_FRAME ref_frame1,
@@ -1507,20 +1507,20 @@ static void estimate_block_intra(int plane, int block, int row, int col,
   args->rdc->dist += this_rdc.dist;
 }
 
-static INLINE void update_thresh_freq_fact(
-    AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
+static INLINE void update_thresh_freq_fact(AV1_COMP *cpi, MACROBLOCK *x,
+                                           BLOCK_SIZE bsize,
 #if CONFIG_NEW_REF_SIGNALING
-    MV_REFERENCE_FRAME_NRS ref_frame,
+                                           MV_REFERENCE_FRAME ref_frame,
 #else
-    MV_REFERENCE_FRAME ref_frame,
+                                           MV_REFERENCE_FRAME ref_frame,
 #endif  // CONFIG_NEW_REF_SIGNALING
-    PREDICTION_MODE mode,
+                                           PREDICTION_MODE mode,
 #if CONFIG_NEW_REF_SIGNALING
-    MV_REFERENCE_FRAME_NRS best_ref_frame,
+                                           MV_REFERENCE_FRAME best_ref_frame,
 #else
-    MV_REFERENCE_FRAME best_ref_frame,
+                                           MV_REFERENCE_FRAME best_ref_frame,
 #endif  // CONFIG_NEW_REF_SIGNALING
-    PREDICTION_MODE best_mode) {
+                                           PREDICTION_MODE best_mode) {
 #if CONFIG_NEW_REF_SIGNALING
   int *freq_fact = &x->thresh_freq_fact[bsize][mode];
   if (ref_frame == best_ref_frame && mode == best_mode) {
@@ -1894,8 +1894,8 @@ void av1_nonrd_pick_intra_mode(AV1_COMP *cpi, MACROBLOCK *x, RD_STATS *rd_cost,
 
 static AOM_INLINE int is_same_gf_and_last_scale(AV1_COMMON *cm) {
 #if CONFIG_NEW_REF_SIGNALING
-  const MV_REFERENCE_FRAME_NRS last_frame = get_closest_pastcur_ref_index(cm);
-  const MV_REFERENCE_FRAME_NRS golden_frame = get_best_past_ref_index(cm);
+  const MV_REFERENCE_FRAME last_frame = get_closest_pastcur_ref_index(cm);
+  const MV_REFERENCE_FRAME golden_frame = get_best_past_ref_index(cm);
   struct scale_factors *const sf_last = get_ref_scale_factors(cm, last_frame);
   struct scale_factors *const sf_golden =
       get_ref_scale_factors(cm, golden_frame);
@@ -2297,7 +2297,7 @@ static AOM_INLINE int skip_mode_by_low_temp(PREDICTION_MODE mode,
 static AOM_INLINE int skip_mode_by_bsize_and_ref_frame(
     const AV1_COMMON *const cm, PREDICTION_MODE mode,
 #if CONFIG_NEW_REF_SIGNALING
-    MV_REFERENCE_FRAME_NRS ref_frame,
+    MV_REFERENCE_FRAME ref_frame,
 #else
     MV_REFERENCE_FRAME ref_frame,
 #endif  // CONFIG_NEW_REF_SIGNALING
@@ -2305,7 +2305,7 @@ static AOM_INLINE int skip_mode_by_bsize_and_ref_frame(
   const unsigned int thresh_skip_golden = 500;
 
 #if CONFIG_NEW_REF_SIGNALING
-  const MV_REFERENCE_FRAME_NRS last_frame = get_closest_pastcur_ref_index(cm);
+  const MV_REFERENCE_FRAME last_frame = get_closest_pastcur_ref_index(cm);
   if (ref_frame != last_frame && sse_zeromv_norm < thresh_skip_golden &&
       mode == NEWMV)
     return 1;
@@ -2353,7 +2353,7 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
   static mode_search_stat ms_stat;
 #endif
 #if CONFIG_NEW_REF_SIGNALING
-  MV_REFERENCE_FRAME_NRS ref_frame_nrs;
+  MV_REFERENCE_FRAME ref_frame_nrs;
   int_mv frame_mv[MB_MODE_COUNT][REF_FRAMES_NRS];
   uint8_t mode_checked[MB_MODE_COUNT][REF_FRAMES_NRS];
   struct buf_2d yv12_mb[REF_FRAMES_NRS][MAX_MB_PLANE];
@@ -2450,7 +2450,7 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
                          use_ref_frame_mask, &force_skip_low_temp_var);
 
 #if CONFIG_NEW_REF_SIGNALING
-  for (MV_REFERENCE_FRAME_NRS ref_frame_iter_nrs = 0;
+  for (MV_REFERENCE_FRAME ref_frame_iter_nrs = 0;
        ref_frame_iter_nrs < cm->new_ref_frame_data.n_total_refs;
        ++ref_frame_iter_nrs) {
     if (use_ref_frame_mask[ref_frame_iter_nrs]) {
@@ -2469,8 +2469,8 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
 #endif  // CONFIG_NEW_REF_SIGNALING
 
 #if CONFIG_NEW_REF_SIGNALING
-  const MV_REFERENCE_FRAME_NRS last_frame = get_closest_pastcur_ref_index(cm);
-  const MV_REFERENCE_FRAME_NRS golden_frame = get_best_past_ref_index(cm);
+  const MV_REFERENCE_FRAME last_frame = get_closest_pastcur_ref_index(cm);
+  const MV_REFERENCE_FRAME golden_frame = get_best_past_ref_index(cm);
   thresh_sad_pred = ((int64_t)x->pred_mv_sad[last_frame]) << 1;
 #else
   thresh_sad_pred = ((int64_t)x->pred_mv_sad[LAST_FRAME]) << 1;

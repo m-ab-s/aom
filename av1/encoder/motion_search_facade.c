@@ -57,7 +57,7 @@ void av1_single_motion_search(const AV1_COMP *const cpi, MACROBLOCK *x,
   struct buf_2d backup_yv12[MAX_MB_PLANE] = { { 0, 0, 0, 0, 0 } };
   int bestsme = INT_MAX;
 #if CONFIG_NEW_REF_SIGNALING
-  const MV_REFERENCE_FRAME_NRS ref_nrs = mbmi->ref_frame_nrs[ref_idx];
+  const MV_REFERENCE_FRAME ref_nrs = mbmi->ref_frame_nrs[ref_idx];
   const YV12_BUFFER_CONFIG *scaled_ref_frame =
       av1_get_scaled_ref_frame(cpi, ref_nrs);
 #else
@@ -89,7 +89,7 @@ void av1_single_motion_search(const AV1_COMP *const cpi, MACROBLOCK *x,
     // max mv magnitude and that based on the best ref mvs of the current
     // block for the given reference.
 #if CONFIG_NEW_REF_SIGNALING
-    const MV_REFERENCE_FRAME_NRS rfn =
+    const MV_REFERENCE_FRAME rfn =
         (ref_nrs == INTRA_FRAME_NRS ? INTER_REFS_PER_FRAME_NRS : ref_nrs);
     step_param = (av1_init_search_range(x->max_mv_context[rfn]) +
                   mv_search_params->mv_step_param) /
@@ -903,8 +903,7 @@ int_mv av1_simple_motion_sse_var(AV1_COMP *cpi, MACROBLOCK *x, int mi_row,
                                  unsigned int *sse, unsigned int *var) {
   MACROBLOCKD *xd = &x->e_mbd;
 #if CONFIG_NEW_REF_SIGNALING
-  const MV_REFERENCE_FRAME_NRS ref =
-      get_closest_pastcur_ref_index(&cpi->common);
+  const MV_REFERENCE_FRAME ref = get_closest_pastcur_ref_index(&cpi->common);
 #else
   const MV_REFERENCE_FRAME ref =
       cpi->rc.is_src_frame_alt_ref ? ALTREF_FRAME : LAST_FRAME;

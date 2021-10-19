@@ -292,11 +292,7 @@ void av1_build_nmv_cost_table(int *mvjoint, int *mvcost[2],
 }
 
 int_mv av1_get_ref_mv_from_stack(int ref_idx,
-#if CONFIG_NEW_REF_SIGNALING
-                                 const MV_REFERENCE_FRAME_NRS *ref_frame,
-#else
                                  const MV_REFERENCE_FRAME *ref_frame,
-#endif  // CONFIG_NEW_REF_SIGNALING
                                  int ref_mv_idx,
                                  const MB_MODE_INFO_EXT *mbmi_ext) {
 #if CONFIG_NEW_REF_SIGNALING
@@ -364,16 +360,12 @@ int_mv av1_get_ref_mv(const MACROBLOCK *x, int ref_idx) {
  * @return The best MV, or INVALID_MV if none exists.
  */
 int_mv av1_find_best_ref_mv_from_stack(const MB_MODE_INFO_EXT *mbmi_ext,
-#if CONFIG_NEW_REF_SIGNALING
-                                       MV_REFERENCE_FRAME_NRS ref_frame,
-#else
                                        MV_REFERENCE_FRAME ref_frame,
-#endif  // CONFIG_NEW_REF_SIGNALING
                                        MvSubpelPrecision precision) {
   int_mv mv;
   bool found_ref_mv = false;
 #if CONFIG_NEW_REF_SIGNALING
-  MV_REFERENCE_FRAME_NRS ref_frames[2] = { ref_frame, INVALID_IDX };
+  MV_REFERENCE_FRAME ref_frames[2] = { ref_frame, INVALID_IDX };
 #else
   MV_REFERENCE_FRAME ref_frames[2] = { ref_frame, NONE_FRAME };
 #endif  // CONFIG_NEW_REF_SIGNALING
@@ -391,16 +383,12 @@ int_mv av1_find_best_ref_mv_from_stack(const MB_MODE_INFO_EXT *mbmi_ext,
 }
 #else
 void av1_find_best_ref_mvs_from_stack(const MB_MODE_INFO_EXT *mbmi_ext,
-#if CONFIG_NEW_REF_SIGNALING
-                                      MV_REFERENCE_FRAME_NRS ref_frame,
-#else
                                       MV_REFERENCE_FRAME ref_frame,
-#endif  // CONFIG_NEW_REF_SIGNALING
                                       int_mv *nearest_mv, int_mv *near_mv,
                                       MvSubpelPrecision precision) {
   const int ref_idx = 0;
 #if CONFIG_NEW_REF_SIGNALING
-  MV_REFERENCE_FRAME_NRS ref_frames[2] = { ref_frame, INVALID_IDX };
+  MV_REFERENCE_FRAME ref_frames[2] = { ref_frame, INVALID_IDX };
 #else
   MV_REFERENCE_FRAME ref_frames[2] = { ref_frame, NONE_FRAME };
 #endif  // CONFIG_NEW_REF_SIGNALING

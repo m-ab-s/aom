@@ -1156,7 +1156,7 @@ static AOM_INLINE void encode_tiles(AV1_COMP *cpi) {
 static AOM_INLINE void set_rel_frame_dist(
     const AV1_COMMON *const cm, RefFrameDistanceInfo *const ref_frame_dist_info,
     const int ref_frame_flags) {
-  MV_REFERENCE_FRAME_NRS ref_frame;
+  MV_REFERENCE_FRAME ref_frame;
   int min_past_dist = INT32_MAX, min_future_dist = INT32_MAX;
   ref_frame_dist_info->nearest_past_ref = NONE_FRAME;
   ref_frame_dist_info->nearest_future_ref = NONE_FRAME;

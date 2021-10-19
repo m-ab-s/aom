@@ -233,7 +233,7 @@ static INLINE int av1_get_sb_mi_size(const AV1_COMMON *const cm) {
 static INLINE void av1_copy_usable_ref_mv_stack_and_weight(
     const MACROBLOCKD *xd, MB_MODE_INFO_EXT *const mbmi_ext,
 #if CONFIG_NEW_REF_SIGNALING
-    MV_REFERENCE_FRAME_NRS ref_frame
+    MV_REFERENCE_FRAME ref_frame
 #else
     MV_REFERENCE_FRAME ref_frame
 #endif  // CONFIG_NEW_REF_SIGNALING
@@ -310,7 +310,7 @@ static INLINE int prune_ref_by_selective_ref_frame(
 #if CONFIG_NEW_REF_SIGNALING
 static INLINE int prune_ref_by_selective_ref_frame_nrs(
     const AV1_COMP *const cpi, const MACROBLOCK *const x,
-    const MV_REFERENCE_FRAME_NRS *const ref_frame) {
+    const MV_REFERENCE_FRAME *const ref_frame) {
   (void)x;
   const AV1_COMMON *const cm = &cpi->common;
   const SPEED_FEATURES *const sf = &cpi->sf;

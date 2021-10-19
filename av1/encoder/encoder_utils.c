@@ -507,8 +507,8 @@ void av1_scale_references(AV1_COMP *cpi, const InterpFilter filter,
   const int num_planes = av1_num_planes(cm);
 
 #if CONFIG_NEW_REF_SIGNALING
-  for (MV_REFERENCE_FRAME_NRS ref_frame = 0;
-       ref_frame < INTER_REFS_PER_FRAME_NRS; ++ref_frame)
+  for (MV_REFERENCE_FRAME ref_frame = 0; ref_frame < INTER_REFS_PER_FRAME_NRS;
+       ++ref_frame)
 #else
   for (MV_REFERENCE_FRAME ref_frame = LAST_FRAME; ref_frame <= ALTREF_FRAME;
        ++ref_frame)

@@ -2289,9 +2289,8 @@ static int encode_without_recode(AV1_COMP *cpi) {
   // references become available again after few frames.
   if (svc->number_spatial_layers == 1) {
 #if CONFIG_NEW_REF_SIGNALING
-    const MV_REFERENCE_FRAME_NRS golden_frame = get_best_past_ref_index(cm);
-    const MV_REFERENCE_FRAME_NRS altref_frame =
-        get_furthest_future_ref_index(cm);
+    const MV_REFERENCE_FRAME golden_frame = get_best_past_ref_index(cm);
+    const MV_REFERENCE_FRAME altref_frame = get_furthest_future_ref_index(cm);
     if (cpi->common.ref_frame_flags_nrs & (1 << golden_frame)) {
       const YV12_BUFFER_CONFIG *const ref =
           get_ref_frame_yv12_buf_nrs(cm, golden_frame);

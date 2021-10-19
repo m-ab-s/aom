@@ -583,7 +583,7 @@ static AOM_INLINE void update_valid_ref_frames_for_gm_nrs(
 
   for (int frame = cm->new_ref_frame_data.n_total_refs - 1; frame >= 0;
        --frame) {
-    const MV_REFERENCE_FRAME_NRS ref_frame[2] = { frame, INVALID_IDX };
+    const MV_REFERENCE_FRAME ref_frame[2] = { frame, INVALID_IDX };
     // TODO(sarahparker) Get ref indices from old reference system to pass
     // into functions that have not been converted.
     // Remove this once supporting functions are converted

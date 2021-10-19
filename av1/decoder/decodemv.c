@@ -1111,7 +1111,7 @@ static COMP_REFERENCE_TYPE read_comp_reference_type(const MACROBLOCKD *xd,
 
 #if CONFIG_NEW_REF_SIGNALING
 static void set_ref_frames_for_skip_mode_nrs(
-    AV1_COMMON *const cm, MV_REFERENCE_FRAME_NRS ref_frame_nrs[2]) {
+    AV1_COMMON *const cm, MV_REFERENCE_FRAME ref_frame_nrs[2]) {
   ref_frame_nrs[0] = cm->current_frame.skip_mode_info.ref_frame_idx_0;
   ref_frame_nrs[1] = cm->current_frame.skip_mode_info.ref_frame_idx_1;
 }
@@ -1125,7 +1125,7 @@ static void set_ref_frames_for_skip_mode(AV1_COMMON *const cm,
 
 #if CONFIG_NEW_REF_SIGNALING
 static AOM_INLINE void read_single_ref_nrs(
-    MACROBLOCKD *const xd, MV_REFERENCE_FRAME_NRS ref_frame_nrs[2],
+    MACROBLOCKD *const xd, MV_REFERENCE_FRAME ref_frame_nrs[2],
     const NewRefFramesData *const new_ref_frame_data, aom_reader *r) {
   const int n_refs = new_ref_frame_data->n_total_refs;
   for (int i = 0; i < n_refs - 1; i++) {
@@ -1140,7 +1140,7 @@ static AOM_INLINE void read_single_ref_nrs(
 }
 
 static AOM_INLINE void read_compound_ref_nrs(
-    const MACROBLOCKD *xd, MV_REFERENCE_FRAME_NRS ref_frame_nrs[2],
+    const MACROBLOCKD *xd, MV_REFERENCE_FRAME ref_frame_nrs[2],
     const NewRefFramesData *const new_ref_frame_data, aom_reader *r) {
   const int n_refs = new_ref_frame_data->n_total_refs;
   assert(n_refs >= 2);
@@ -1163,7 +1163,7 @@ static AOM_INLINE void read_compound_ref_nrs(
 static void read_ref_frames(AV1_COMMON *const cm, MACROBLOCKD *const xd,
                             aom_reader *r, int segment_id,
 #if CONFIG_NEW_REF_SIGNALING
-                            MV_REFERENCE_FRAME_NRS ref_frame_nrs[2]
+                            MV_REFERENCE_FRAME ref_frame_nrs[2]
 #else
                             MV_REFERENCE_FRAME ref_frame[2]
 #endif  // CONFIG_NEW_REF_SIGNALING
@@ -1410,7 +1410,7 @@ static INLINE int is_mv_valid(const MV *mv) {
 static INLINE int assign_mv(AV1_COMMON *cm, MACROBLOCKD *xd,
                             PREDICTION_MODE mode,
 #if CONFIG_NEW_REF_SIGNALING
-                            MV_REFERENCE_FRAME_NRS ref_frame_nrs[2],
+                            MV_REFERENCE_FRAME ref_frame_nrs[2],
 #else
                             MV_REFERENCE_FRAME ref_frame[2],
 #endif  // CONFIG_NEW_REF_SIGNALING
@@ -1661,7 +1661,7 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
   const int is_compound = has_second_ref(mbmi);
 
 #if CONFIG_NEW_REF_SIGNALING
-  MV_REFERENCE_FRAME_NRS ref_frame_nrs =
+  MV_REFERENCE_FRAME ref_frame_nrs =
       av1_ref_frame_type_nrs(mbmi->ref_frame_nrs);
   av1_find_mv_refs_nrs(cm, xd, mbmi, ref_frame_nrs, dcb->ref_mv_count,
                        xd->ref_mv_stack, xd->weight, ref_mvs,

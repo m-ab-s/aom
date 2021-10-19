@@ -342,7 +342,7 @@ typedef struct MB_MODE_INFO {
 #endif  // CONFIG_EXT_ROTATION
   PARTITION_TYPE partition;
 #if CONFIG_NEW_REF_SIGNALING
-  MV_REFERENCE_FRAME_NRS ref_frame_nrs[2];
+  MV_REFERENCE_FRAME ref_frame_nrs[2];
 #else
   MV_REFERENCE_FRAME ref_frame[2];
 #endif  // CONFIG_NEW_REF_SIGNALING
@@ -1899,8 +1899,7 @@ static INLINE int is_interintra_allowed_mode(const PREDICTION_MODE mode) {
 }
 
 #if CONFIG_NEW_REF_SIGNALING
-static INLINE int is_interintra_allowed_ref(
-    const MV_REFERENCE_FRAME_NRS rf[2]) {
+static INLINE int is_interintra_allowed_ref(const MV_REFERENCE_FRAME rf[2]) {
   return (rf[0] != INTRA_FRAME_NRS && rf[0] != INVALID_IDX) &&
          (rf[1] == INTRA_FRAME_NRS || rf[1] == INVALID_IDX);
 }

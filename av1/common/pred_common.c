@@ -364,7 +364,7 @@ void av1_get_ref_frames(AV1_COMMON *const cm, int cur_frame_disp,
 static InterpFilter get_ref_filter_type(const MB_MODE_INFO *ref_mbmi,
                                         const MACROBLOCKD *xd, int dir,
 #if CONFIG_NEW_REF_SIGNALING
-                                        MV_REFERENCE_FRAME_NRS ref_frame_nrs
+                                        MV_REFERENCE_FRAME ref_frame_nrs
 #else
                                         MV_REFERENCE_FRAME ref_frame
 #endif  // CONFIG_NEW_REF_SIGNALING
@@ -394,7 +394,7 @@ int av1_get_pred_context_switchable_interp(const MACROBLOCKD *xd, int dir) {
   const int ctx_offset = (mbmi->ref_frame_nrs[1] != INTRA_FRAME_NRS &&
                           mbmi->ref_frame_nrs[1] != INVALID_IDX) *
                          INTER_FILTER_COMP_OFFSET;
-  const MV_REFERENCE_FRAME_NRS ref_frame = mbmi->ref_frame_nrs[0];
+  const MV_REFERENCE_FRAME ref_frame = mbmi->ref_frame_nrs[0];
 #else
   const int ctx_offset =
       (mbmi->ref_frame[1] > INTRA_FRAME) * INTER_FILTER_COMP_OFFSET;
@@ -579,8 +579,8 @@ int av1_get_reference_mode_context(const AV1_COMMON *cm,
 }
 
 #if CONFIG_NEW_REF_SIGNALING
-int av1_get_ref_pred_context_nrs(const MACROBLOCKD *xd,
-                                 MV_REFERENCE_FRAME_NRS ref, int n_total_refs) {
+int av1_get_ref_pred_context_nrs(const MACROBLOCKD *xd, MV_REFERENCE_FRAME ref,
+                                 int n_total_refs) {
   assert((ref + 1) < n_total_refs);
   const uint8_t *const ref_counts = &xd->neighbors_ref_counts_nrs[0];
   const int this_ref_count = ref_counts[ref];

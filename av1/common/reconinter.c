@@ -2043,7 +2043,7 @@ void av1_setup_build_prediction_by_above_pred(
 
   for (int ref = 0; ref < num_refs; ++ref) {
 #if CONFIG_NEW_REF_SIGNALING
-    const MV_REFERENCE_FRAME_NRS frame = above_mbmi->ref_frame_nrs[ref];
+    const MV_REFERENCE_FRAME frame = above_mbmi->ref_frame_nrs[ref];
     const RefCntBuffer *const ref_buf = get_ref_frame_buf(ctxt->cm, frame);
     const struct scale_factors *const sf =
         get_ref_scale_factors_const(ctxt->cm, frame);
@@ -2087,7 +2087,7 @@ void av1_setup_build_prediction_by_left_pred(MACROBLOCKD *xd, int rel_mi_row,
 
   for (int ref = 0; ref < num_refs; ++ref) {
 #if CONFIG_NEW_REF_SIGNALING
-    const MV_REFERENCE_FRAME_NRS frame = left_mbmi->ref_frame_nrs[ref];
+    const MV_REFERENCE_FRAME frame = left_mbmi->ref_frame_nrs[ref];
     const RefCntBuffer *const ref_buf = get_ref_frame_buf(ctxt->cm, frame);
     const struct scale_factors *const ref_scale_factors =
         get_ref_scale_factors_const(ctxt->cm, frame);

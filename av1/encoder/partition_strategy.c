@@ -1749,8 +1749,7 @@ static void compute_sms_data(AV1_COMP *const cpi, const TileInfo *const tile,
                              int mi_row, int mi_col, BLOCK_SIZE bsize) {
   const AV1_COMMON *const cm = &cpi->common;
 #if CONFIG_NEW_REF_SIGNALING
-  const MV_REFERENCE_FRAME_NRS ref =
-      get_closest_pastcur_ref_index(&cpi->common);
+  const MV_REFERENCE_FRAME ref = get_closest_pastcur_ref_index(&cpi->common);
 #else
   const int ref_frame =
       cpi->rc.is_src_frame_alt_ref ? ALTREF_FRAME : LAST_FRAME;

@@ -3005,14 +3005,14 @@ static INLINE int av1_use_hash_me(const AV1_COMP *const cpi) {
 
 #if CONFIG_NEW_REF_SIGNALING
 static INLINE const YV12_BUFFER_CONFIG *get_ref_frame_yv12_buf_nrs(
-    const AV1_COMMON *const cm, MV_REFERENCE_FRAME_NRS ref_frame) {
+    const AV1_COMMON *const cm, MV_REFERENCE_FRAME ref_frame) {
   const RefCntBuffer *const buf = get_ref_frame_buf(cm, ref_frame);
   return buf != NULL ? &buf->buf : NULL;
 }
 
 static INLINE int enc_is_ref_frame_buf(const AV1_COMMON *const cm,
                                        const RefCntBuffer *const frame_buf) {
-  MV_REFERENCE_FRAME_NRS ref_frame;
+  MV_REFERENCE_FRAME ref_frame;
   for (ref_frame = 0; ref_frame < INTER_REFS_PER_FRAME_NRS; ++ref_frame) {
     const RefCntBuffer *const buf = get_ref_frame_buf(cm, ref_frame);
     if (buf == NULL) continue;
@@ -3305,7 +3305,7 @@ static AOM_INLINE void enforce_max_ref_frames_nrs(AV1_COMP *cpi,
       cpi->oxcf.ref_frm_cfg.max_reference_frames);
 
   for (int i = 0; i < 4 && total_valid_refs > max_allowed_refs; ++i) {
-    const MV_REFERENCE_FRAME_NRS ref_frame_to_disable =
+    const MV_REFERENCE_FRAME ref_frame_to_disable =
         INTER_REFS_PER_FRAME - i - 1;
 
     if (!(*ref_frame_flags & (1 << ref_frame_to_disable))) {

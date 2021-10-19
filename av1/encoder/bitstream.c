@@ -709,7 +709,7 @@ static AOM_INLINE void write_single_ref_nrs(
     const MACROBLOCKD *xd, const NewRefFramesData *const new_ref_frame_data,
     aom_writer *w) {
   const MB_MODE_INFO *const mbmi = xd->mi[0];
-  MV_REFERENCE_FRAME_NRS ref = mbmi->ref_frame_nrs[0];
+  MV_REFERENCE_FRAME ref = mbmi->ref_frame_nrs[0];
   const int n_refs = new_ref_frame_data->n_total_refs;
   assert(ref < n_refs);
   for (int i = 0; i < n_refs - 1; i++) {
@@ -724,8 +724,8 @@ static AOM_INLINE void write_compound_ref_nrs(
     const MACROBLOCKD *xd, const NewRefFramesData *const new_ref_frame_data,
     aom_writer *w) {
   const MB_MODE_INFO *const mbmi = xd->mi[0];
-  MV_REFERENCE_FRAME_NRS ref0 = mbmi->ref_frame_nrs[0];
-  MV_REFERENCE_FRAME_NRS ref1 = mbmi->ref_frame_nrs[1];
+  MV_REFERENCE_FRAME ref0 = mbmi->ref_frame_nrs[0];
+  MV_REFERENCE_FRAME ref1 = mbmi->ref_frame_nrs[1];
   const int n_refs = new_ref_frame_data->n_total_refs;
   assert(n_refs >= 2);
   assert(ref0 < ref1);
@@ -1358,13 +1358,7 @@ static AOM_INLINE void write_intra_prediction_modes(AV1_COMP *cpi,
 }
 
 static INLINE int16_t mode_context_analyzer(
-    const int16_t mode_context,
-#if CONFIG_NEW_REF_SIGNALING
-    const MV_REFERENCE_FRAME_NRS *const rf
-#else
-    const MV_REFERENCE_FRAME *const rf
-#endif  // CONFIG_NEW_REF_SIGNALING
-) {
+    const int16_t mode_context, const MV_REFERENCE_FRAME *const rf) {
 #if CONFIG_NEW_REF_SIGNALING
   if (rf[1] == INTRA_FRAME_NRS || rf[1] == INVALID_IDX) return mode_context;
 #else
@@ -1380,13 +1374,8 @@ static INLINE int16_t mode_context_analyzer(
 }
 
 static INLINE int_mv get_ref_mv_from_stack(
-    int ref_idx,
-#if CONFIG_NEW_REF_SIGNALING
-    const MV_REFERENCE_FRAME_NRS *ref_frame,
-#else
-    const MV_REFERENCE_FRAME *ref_frame,
-#endif  // CONFIG_NEW_REF_SIGNALING
-    int ref_mv_idx, const MB_MODE_INFO_EXT_FRAME *mbmi_ext_frame) {
+    int ref_idx, const MV_REFERENCE_FRAME *ref_frame, int ref_mv_idx,
+    const MB_MODE_INFO_EXT_FRAME *mbmi_ext_frame) {
 #if CONFIG_NEW_REF_SIGNALING
   const int8_t ref_frame_type = av1_ref_frame_type_nrs(ref_frame);
 #else
@@ -2913,12 +2902,11 @@ static AOM_INLINE void write_frame_size_with_refs(
     const AV1_COMMON *const cm, struct aom_write_bit_buffer *wb) {
   int found = 0;
 
+  MV_REFERENCE_FRAME ref_frame;
 #if CONFIG_NEW_REF_SIGNALING
-  MV_REFERENCE_FRAME_NRS ref_frame;
   for (ref_frame = 0; ref_frame < INTER_REFS_PER_FRAME_NRS; ++ref_frame) {
     const YV12_BUFFER_CONFIG *cfg = get_ref_frame_yv12_buf_nrs(cm, ref_frame);
 #else
-  MV_REFERENCE_FRAME ref_frame;
   for (ref_frame = LAST_FRAME; ref_frame <= ALTREF_FRAME; ++ref_frame) {
     const YV12_BUFFER_CONFIG *cfg = get_ref_frame_yv12_buf(cm, ref_frame);
 #endif  // CONFIG_NEW_REF_SIGNALING

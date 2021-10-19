@@ -179,7 +179,7 @@ static INLINE void comb2single(int n, int8_t combindex, int8_t *rf) {
 }
 
 static INLINE int8_t
-av1_ref_frame_type_nrs(const MV_REFERENCE_FRAME_NRS *const rf) {
+av1_ref_frame_type_nrs(const MV_REFERENCE_FRAME *const rf) {
   if (rf[0] == INTRA_FRAME_NRS || rf[0] == INVALID_IDX) {
     // Intra or invalid
     return rf[0];
@@ -194,8 +194,8 @@ av1_ref_frame_type_nrs(const MV_REFERENCE_FRAME_NRS *const rf) {
   }
 }
 
-static INLINE void av1_set_ref_frame_nrs(
-    MV_REFERENCE_FRAME_NRS *rf, MV_REFERENCE_FRAME_NRS ref_frame_type) {
+static INLINE void av1_set_ref_frame_nrs(MV_REFERENCE_FRAME *rf,
+                                         MV_REFERENCE_FRAME ref_frame_type) {
   if (ref_frame_type == INTRA_FRAME_NRS ||
       ref_frame_type < INTER_REFS_PER_FRAME_NRS) {
     rf[0] = ref_frame_type;
@@ -216,13 +216,13 @@ static uint16_t compound_mode_ctx_map[3][COMP_NEWMV_CTXS] = {
 
 #if CONFIG_NEW_REF_SIGNALING
 static INLINE int16_t av1_mode_context_pristine(
-    const int16_t *const mode_context, const MV_REFERENCE_FRAME_NRS *const rf) {
+    const int16_t *const mode_context, const MV_REFERENCE_FRAME *const rf) {
   const int8_t ref_frame = av1_ref_frame_type_nrs(rf);
   return mode_context[ref_frame];
 }
 
 static INLINE int16_t av1_mode_context_analyzer(
-    const int16_t *const mode_context, const MV_REFERENCE_FRAME_NRS *const rf) {
+    const int16_t *const mode_context, const MV_REFERENCE_FRAME *const rf) {
   const int8_t ref_frame = av1_ref_frame_type_nrs(rf);
   if (rf[1] == INTRA_FRAME_NRS || rf[1] == INVALID_IDX)
     return mode_context[ref_frame];
@@ -401,8 +401,7 @@ void av1_copy_frame_mvs(const AV1_COMMON *const cm,
 // output.
 #if CONFIG_NEW_REF_SIGNALING
 void av1_find_mv_refs_nrs(const AV1_COMMON *cm, const MACROBLOCKD *xd,
-                          MB_MODE_INFO *mi,
-                          MV_REFERENCE_FRAME_NRS ref_frame_nrs,
+                          MB_MODE_INFO *mi, MV_REFERENCE_FRAME ref_frame_nrs,
                           uint8_t ref_mv_count[MODE_CTX_REF_FRAMES],
                           CANDIDATE_MV ref_mv_stack[][MAX_REF_MV_STACK_SIZE],
                           uint16_t ref_mv_weight[][MAX_REF_MV_STACK_SIZE],
@@ -411,9 +410,6 @@ void av1_find_mv_refs_nrs(const AV1_COMMON *cm, const MACROBLOCKD *xd,
 #else
 void av1_find_mv_refs(const AV1_COMMON *cm, const MACROBLOCKD *xd,
                       MB_MODE_INFO *mi, MV_REFERENCE_FRAME ref_frame,
-#if CONFIG_NEW_REF_SIGNALING
-                      MV_REFERENCE_FRAME_NRS ref_frame_nrs,
-#endif  // CONFIG_NEW_REF_SIGNALING
                       uint8_t ref_mv_count[MODE_CTX_REF_FRAMES],
                       CANDIDATE_MV ref_mv_stack[][MAX_REF_MV_STACK_SIZE],
                       uint16_t ref_mv_weight[][MAX_REF_MV_STACK_SIZE],
