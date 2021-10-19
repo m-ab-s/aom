@@ -5440,10 +5440,11 @@ static AOM_INLINE void init_inter_mode_search_state(
   const int *const rd_threshes = cpi->rd.threshes[segment_id][bsize];
   for (int i = 0; i < MB_MODE_COUNT; ++i)
     search_state->mode_threshold[i] =
-        (i == NEARESTMV)
-            ? 0
-            : ((int64_t)rd_threshes[i] * x->thresh_freq_fact[bsize][i]) >>
-                  RD_THRESH_FAC_FRAC_BITS;
+        ((int64_t)rd_threshes[i] * x->thresh_freq_fact[bsize][i]) >>
+        RD_THRESH_FAC_FRAC_BITS;
+#if !CONFIG_NEW_INTER_MODES
+  search_state->mode_threshold[NEARESTMV] = 0;
+#endif  // !CONFIG_NEW_INTER_MODES
 #else
   for (int i = 0; i <= LAST_NEW_MV_INDEX; ++i)
     search_state->mode_threshold[i] = 0;
