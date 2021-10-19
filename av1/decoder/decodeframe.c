@@ -5452,23 +5452,6 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       // initialize without pyramid levels
       init_ref_map_pair(cm, ref_frame_map_pairs,
                         current_frame->frame_type == KEY_FRAME);
-      int is_realtime = 1;
-      if (seq_params->order_hint_info.enable_order_hint) {
-        // Realtime mode has a different reference mapping scheme
-        is_realtime = aom_rb_read_bit(rb);
-        if (!is_realtime) {
-          // av1_get_ref_frames use the pyramid level to map references, but it
-          // currently only needs to know whether a frame is the lowest level
-          // or not, so we can get away with assigning 1 for lowest, and 2 for
-          // everything else. The exact pyraid level is not necessary.
-          // This can go away if we adjust the implementation of
-          // av1_get_ref_framesi_nrs to use q value rather than pyramid level.
-          int is_lowest_level = aom_rb_read_bit(rb);
-          cm->current_frame.pyramid_level = is_lowest_level ? 1 : 2;
-          init_ref_map_pair(cm, ref_frame_map_pairs,
-                            current_frame->frame_type == KEY_FRAME);
-        }
-      }
       av1_get_ref_frames_nrs(cm, current_frame->display_order_hint,
                              ref_frame_map_pairs);
 #else
@@ -5510,7 +5493,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 #endif  // CONFIG_NEW_REF_SIGNALING
         int ref = 0;
 #if CONFIG_NEW_REF_SIGNALING
-        if (!is_realtime && seq_params->order_hint_info.enable_order_hint) {
+        if (seq_params->order_hint_info.enable_order_hint) {
           ref = cm->remapped_ref_idx[i];
           if (cm->ref_frame_map[ref] == NULL)
             aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,

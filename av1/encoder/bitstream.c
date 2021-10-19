@@ -3680,29 +3680,10 @@ static AOM_INLINE void write_uncompressed_header_obu(
 #endif  // !CONFIG_NEW_REF_SIGNALING
 
 #if CONFIG_NEW_REF_SIGNALING
-      if (seq_params->order_hint_info.enable_order_hint) {
-        aom_wb_write_bit(wb, cpi->oxcf.mode == REALTIME);
-        if (cpi->oxcf.mode != REALTIME) {
-          // Find the lowest level of all of the references
-          unsigned int min_level = INT_MAX;
-          for (int map_idx = 0; map_idx < REF_FRAMES; map_idx++) {
-            // Get reference frame buffer
-            const RefCntBuffer *const buf = cm->ref_frame_map[map_idx];
-            if (buf == NULL) continue;
-            if (buf->pyramid_level < min_level) min_level = buf->pyramid_level;
-          }
-          aom_wb_write_bit(
-              wb, cpi->common.current_frame.pyramid_level == min_level);
-        }
-      }
-#endif  // CONFIG_NEW_REF_SIGNALING
-
-#if CONFIG_NEW_REF_SIGNALING
       for (ref_frame = 0; ref_frame < cm->new_ref_frame_data.n_total_refs;
            ++ref_frame) {
         assert(get_ref_frame_map_idx(cm, ref_frame) != INVALID_IDX);
-        if ((!seq_params->order_hint_info.enable_order_hint ||
-             cpi->oxcf.mode == REALTIME))
+        if (!seq_params->order_hint_info.enable_order_hint)
           aom_wb_write_literal(wb, get_ref_frame_map_idx(cm, ref_frame),
                                REF_FRAMES_LOG2);
 #else
@@ -3713,11 +3694,7 @@ static AOM_INLINE void write_uncompressed_header_obu(
                                REF_FRAMES_LOG2);
 #endif  // CONFIG_NEW_REF_SIGNALING
         if (seq_params->frame_id_numbers_present_flag) {
-#if CONFIG_NEW_REF_SIGNALING
           int i = get_ref_frame_map_idx(cm, ref_frame);
-#else
-          int i = get_ref_frame_map_idx(cm, ref_frame);
-#endif  // CONFIG_NEW_REF_SIGNALING
           int frame_id_len = seq_params->frame_id_length;
           int diff_len = seq_params->delta_frame_id_length;
           int delta_frame_id_minus_1 =
