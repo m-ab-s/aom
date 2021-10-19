@@ -3693,10 +3693,6 @@ static AOM_INLINE void write_uncompressed_header_obu(
           }
           aom_wb_write_bit(
               wb, cpi->common.current_frame.pyramid_level == min_level);
-          if (cpi->common.current_frame.pyramid_level != min_level) {
-            aom_wb_write_bit(wb, (int)cpi->common.current_frame.pyramid_level ==
-                                     cpi->gf_group.max_layer_depth);
-          }
         }
       }
 #endif  // CONFIG_NEW_REF_SIGNALING

@@ -5459,13 +5459,12 @@ static int read_uncompressed_header(AV1Decoder *pbi,
         if (!is_realtime) {
           // av1_get_ref_frames use the pyramid level to map references, but it
           // currently only needs to know whether a frame is the lowest level
-          // or highest level so we can get away with assigning 1 for lowest,
-          // 3 for highest, and 2 for everything else. The exact pyraid level is
-          // not necessary. This can go away if we adjust the implementation of
-          // av1_get_ref_frames to use q value rather than pyramid level.
+          // or not, so we can get away with assigning 1 for lowest, and 2 for
+          // everything else. The exact pyraid level is not necessary.
+          // This can go away if we adjust the implementation of
+          // av1_get_ref_framesi_nrs to use q value rather than pyramid level.
           int is_lowest_level = aom_rb_read_bit(rb);
-          cm->current_frame.pyramid_level =
-              is_lowest_level ? 1 : (aom_rb_read_bit(rb) ? 3 : 2);
+          cm->current_frame.pyramid_level = is_lowest_level ? 1 : 2;
           init_ref_map_pair(cm, ref_frame_map_pairs,
                             current_frame->frame_type == KEY_FRAME);
         }
