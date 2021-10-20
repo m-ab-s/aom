@@ -4854,17 +4854,17 @@ static AOM_INLINE void read_global_motion_nrs(AV1_COMMON *cm,
     if (updated_params) {
       ref_params = &params;
     } else {
-      ref_params = cm->prev_frame ? &cm->prev_frame->global_motion_nrs[frame]
+      ref_params = cm->prev_frame ? &cm->prev_frame->global_motion[frame]
                                   : &default_warp_params;
     }
     use_gm_k = (base_frame != -1) ? 1 : 0;
     if (ref_params->wmtype != IDENTITY) base_frame = frame;
 #else
-    ref_params = cm->prev_frame ? &cm->prev_frame->global_motion_nrs[frame]
+    ref_params = cm->prev_frame ? &cm->prev_frame->global_motion[frame]
                                 : &default_warp_params;
 #endif  // CONFIG_GM_MODEL_CODING
     int good_params =
-        read_global_motion_params(&cm->global_motion_nrs[frame], ref_params,
+        read_global_motion_params(&cm->global_motion[frame], ref_params,
 #if CONFIG_GM_MODEL_CODING
                                   use_gm_k,
 #endif  // CONFIG_GM_MODEL_CODING
@@ -4873,10 +4873,10 @@ static AOM_INLINE void read_global_motion_nrs(AV1_COMMON *cm,
 #if WARPED_MOTION_DEBUG
       printf("Warning: unexpected global motion shear params from aomenc\n");
 #endif
-      cm->global_motion_nrs[frame].invalid = 1;
+      cm->global_motion[frame].invalid = 1;
     }
   }
-  memcpy(cm->cur_frame->global_motion_nrs, cm->global_motion_nrs,
+  memcpy(cm->cur_frame->global_motion, cm->global_motion,
          INTER_REFS_PER_FRAME_NRS * sizeof(WarpedMotionParams));
 }
 
@@ -5855,17 +5855,13 @@ uint32_t av1_decode_frame_headers_and_setup(AV1Decoder *pbi,
 
 #if CONFIG_NEW_REF_SIGNALING
   for (int i = 0; i < INTER_REFS_PER_FRAME_NRS; ++i) {
-    cm->global_motion_nrs[i] = default_warp_params;
-    cm->cur_frame->global_motion_nrs[i] = default_warp_params;
-  }
-  xd->global_motion_nrs = cm->global_motion_nrs;
 #else
   for (int i = LAST_FRAME; i <= ALTREF_FRAME; ++i) {
+#endif  // CONFIG_NEW_REF_SIGNALING
     cm->global_motion[i] = default_warp_params;
     cm->cur_frame->global_motion[i] = default_warp_params;
   }
   xd->global_motion = cm->global_motion;
-#endif  // CONFIG_NEW_REF_SIGNALING
 
   read_uncompressed_header(pbi, rb);
 

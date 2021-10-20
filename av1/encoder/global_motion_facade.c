@@ -176,27 +176,27 @@ static AOM_INLINE void compute_global_motion_for_ref_frame_nrs(
           // Save the wm_params modified by
           // av1_refine_integerized_param() rather than motion index to
           // avoid rerunning refine() below.
-          memcpy(&(cm->global_motion_nrs[frame]), &tmp_wm_params,
+          memcpy(&(cm->global_motion[frame]), &tmp_wm_params,
                  sizeof(WarpedMotionParams));
         }
       }
     }
-    if (cm->global_motion_nrs[frame].wmtype <= AFFINE)
-      if (!av1_get_shear_params(&cm->global_motion_nrs[frame]))
-        cm->global_motion_nrs[frame] = default_warp_params;
+    if (cm->global_motion[frame].wmtype <= AFFINE)
+      if (!av1_get_shear_params(&cm->global_motion[frame]))
+        cm->global_motion[frame] = default_warp_params;
 
-    if (cm->global_motion_nrs[frame].wmtype == TRANSLATION) {
-      cm->global_motion_nrs[frame].wmmat[0] =
+    if (cm->global_motion[frame].wmtype == TRANSLATION) {
+      cm->global_motion[frame].wmmat[0] =
           convert_to_trans_prec(cm->features.fr_mv_precision,
-                                cm->global_motion_nrs[frame].wmmat[0]) *
+                                cm->global_motion[frame].wmmat[0]) *
           GM_TRANS_ONLY_DECODE_FACTOR;
-      cm->global_motion_nrs[frame].wmmat[1] =
+      cm->global_motion[frame].wmmat[1] =
           convert_to_trans_prec(cm->features.fr_mv_precision,
-                                cm->global_motion_nrs[frame].wmmat[1]) *
+                                cm->global_motion[frame].wmmat[1]) *
           GM_TRANS_ONLY_DECODE_FACTOR;
     }
 
-    if (cm->global_motion_nrs[frame].wmtype == IDENTITY) continue;
+    if (cm->global_motion[frame].wmtype == IDENTITY) continue;
 
     if (ref_frame_error == 0) continue;
 
@@ -204,14 +204,14 @@ static AOM_INLINE void compute_global_motion_for_ref_frame_nrs(
     // this motion type, revert to IDENTITY.
     if (!av1_is_enough_erroradvantage(
             (double)best_warp_error / ref_frame_error,
-            gm_get_params_cost(&cm->global_motion_nrs[frame], ref_params,
+            gm_get_params_cost(&cm->global_motion[frame], ref_params,
 #if CONFIG_GM_MODEL_CODING
                                use_gm_k,
 #endif  // CONFIG_GM_MODEL_CODING
                                cm->features.fr_mv_precision))) {
-      cm->global_motion_nrs[frame] = default_warp_params;
+      cm->global_motion[frame] = default_warp_params;
     }
-    if (cm->global_motion_nrs[frame].wmtype != IDENTITY) break;
+    if (cm->global_motion[frame].wmtype != IDENTITY) break;
   }
 
   aom_clear_system_state();
@@ -373,13 +373,13 @@ void av1_compute_gm_for_valid_ref_frames_nrs(
     ref_params = &params;
     use_gm_k = 1;
   } else {
-    ref_params = cm->prev_frame ? &cm->prev_frame->global_motion_nrs[frame]
+    ref_params = cm->prev_frame ? &cm->prev_frame->global_motion[frame]
                                 : &default_warp_params;
     use_gm_k = 0;
   }
   if (ref_params->wmtype != IDENTITY) *base_frame = frame;
 #else
-  ref_params = cm->prev_frame ? &cm->prev_frame->global_motion_nrs[frame]
+  ref_params = cm->prev_frame ? &cm->prev_frame->global_motion[frame]
                               : &default_warp_params;
 #endif  // CONFIG_GM_MODEL_CODING
   compute_global_motion_for_ref_frame_nrs(
@@ -391,12 +391,12 @@ void av1_compute_gm_for_valid_ref_frames_nrs(
       segment_map_w, segment_map_h, ref_params);
 
   gm_info->params_cost_nrs[frame] =
-      gm_get_params_cost(&cm->global_motion_nrs[frame], ref_params,
+      gm_get_params_cost(&cm->global_motion[frame], ref_params,
 #if CONFIG_GM_MODEL_CODING
                          use_gm_k,
 #endif  // CONFIG_GM_MODEL_CODING
                          cm->features.fr_mv_precision) +
-      gm_info->type_cost[cm->global_motion_nrs[frame].wmtype] -
+      gm_info->type_cost[cm->global_motion[frame].wmtype] -
       gm_info->type_cost[IDENTITY];
 }
 #else
@@ -482,7 +482,7 @@ static AOM_INLINE void compute_global_motion_for_references_nrs(
     // source_alt_ref_frame w.r.t. ARF frames.
     if (cpi->sf.gm_sf.prune_ref_frame_for_gm_search &&
         reference_frame[frame].distance != 0 &&
-        cm->global_motion_nrs[ref_frame].wmtype != ROTZOOM)
+        cm->global_motion[ref_frame].wmtype != ROTZOOM)
       break;
   }
 }
@@ -543,7 +543,7 @@ static AOM_INLINE int skip_gm_frame_nrs(AV1_COMMON *const cm, int refrank) {
   const int d0 = get_dir_rank(cm, refrank, NULL);
   for (int i = 0; i < refrank; ++i) {
     const int di = get_dir_rank(cm, i, NULL);
-    if (di == d0 && cm->global_motion_nrs[i].wmtype != IDENTITY) {
+    if (di == d0 && cm->global_motion[i].wmtype != IDENTITY) {
       // Same direction higher ranked ref has a non-identity gm.
       // Allow search if distance is smaller in this case.
       return (abs(cm->new_ref_frame_data.ref_frame_distance[i]) >
@@ -589,7 +589,7 @@ static AOM_INLINE void update_valid_ref_frames_for_gm_nrs(
     // Remove this once supporting functions are converted
     // to use new indexing.
     ref_buf[frame] = NULL;
-    cm->global_motion_nrs[frame] = default_warp_params;
+    cm->global_motion[frame] = default_warp_params;
     RefCntBuffer *buf = get_ref_frame_buf(cm, frame);
     if (buf == NULL) {
       cpi->gm_info.params_cost_nrs[frame] = 0;
@@ -892,11 +892,6 @@ void av1_compute_global_motion_facade(AV1_COMP *cpi) {
       global_motion_estimation(cpi);
     gm_info->search_done = 1;
   }
-#if CONFIG_NEW_REF_SIGNALING
-  memcpy(cm->cur_frame->global_motion_nrs, cm->global_motion_nrs,
-         sizeof(cm->cur_frame->global_motion_nrs));
-#else
   memcpy(cm->cur_frame->global_motion, cm->global_motion,
          sizeof(cm->cur_frame->global_motion));
-#endif  // CONFIG_NEW_REF_SIGNALING
 }

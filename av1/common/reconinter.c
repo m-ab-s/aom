@@ -143,9 +143,9 @@ void av1_init_warp_params(InterPredParams *inter_pred_params,
     if (globalmv_rotation_allowed(xd)) {
 #if CONFIG_NEW_REF_SIGNALING
       // TODO(sarahparker) Temporary assert, see aomedia:3060
-      assert(is_same_wm_params(&xd->global_motion_nrs[mi->ref_frame_nrs[0]],
+      assert(is_same_wm_params(&xd->global_motion[mi->ref_frame_nrs[0]],
                               &xd->global_motion[mi->ref_frame[0]])
-      memcpy(&mi->wm_params, &xd->global_motion_nrs[mi->ref_frame_nrs[0]],
+      memcpy(&mi->wm_params, &xd->global_motion[mi->ref_frame_nrs[0]],
              sizeof(WarpedMotionParams));
 #endif  // CONFIG_NEW_REF_SIGNALING
       memcpy(&mi->wm_params, &xd->global_motion[mi->ref_frame[0]],
@@ -170,7 +170,7 @@ void av1_init_warp_params(InterPredParams *inter_pred_params,
 #endif  // CONFIG_EXT_ROTATION
                      warp_types,
 #if CONFIG_NEW_REF_SIGNALING
-                     &xd->global_motion_nrs[mi->ref_frame_nrs[ref]],
+                     &xd->global_motion[mi->ref_frame_nrs[ref]],
 #else
                      &xd->global_motion[mi->ref_frame[ref]],
 #endif  // CONFIG_NEW_REF_SIGNALING
@@ -731,10 +731,7 @@ int av1_compute_subpel_gradients_highbd(
   int is_global[2] = { 0, 0 };
 #if CONFIG_NEW_REF_SIGNALING
   const WarpedMotionParams *const wm =
-      &xd->global_motion_nrs[mi->ref_frame_nrs[ref]];
-  // TODO(sarahparker) Temporary assert, see aomedia:3060
-  assert(is_same_wm_params(&xd->global_motion_nrs[mi->ref_frame_nrs[ref]],
-                           &xd->global_motion[mi->ref_frame[ref]]));
+      &xd->global_motion[mi->ref_frame_nrs[ref]];
 #else
   const WarpedMotionParams *const wm = &xd->global_motion[mi->ref_frame[ref]];
 #endif  // CONFIG_NEW_REF_SIGNALING
@@ -876,10 +873,7 @@ int av1_compute_subpel_gradients_lowbd(
   int is_global[2] = { 0, 0 };
 #if CONFIG_NEW_REF_SIGNALING
   const WarpedMotionParams *const wm =
-      &xd->global_motion_nrs[mi->ref_frame_nrs[ref]];
-  // TODO(sarahparker) Temporary assert, see aomedia:3060
-  assert(is_same_wm_params(&xd->global_motion_nrs[mi->ref_frame_nrs[ref]],
-                           &xd->global_motion[mi->ref_frame[ref]]));
+      &xd->global_motion[mi->ref_frame_nrs[ref]];
 #else
   const WarpedMotionParams *const wm = &xd->global_motion[mi->ref_frame[ref]];
 #endif  // CONFIG_NEW_REF_SIGNALING
@@ -1647,12 +1641,7 @@ static void build_inter_predictors_8x8_and_bigger(
   for (int ref = 0; ref < 1 + is_compound; ++ref) {
 #if CONFIG_NEW_REF_SIGNALING
     const WarpedMotionParams *const wm =
-        &xd->global_motion_nrs[mi->ref_frame_nrs[ref]];
-    // TODO(sarahparker) Temporary assert, see aomedia:3060
-    /*
-    assert(is_same_wm_params(&xd->global_motion_nrs[mi->ref_frame_nrs[ref]],
-                             &xd->global_motion[mi->ref_frame[ref]]));
-                             */
+        &xd->global_motion[mi->ref_frame_nrs[ref]];
 #else
     const WarpedMotionParams *const wm = &xd->global_motion[mi->ref_frame[ref]];
 #endif  // CONFIG_NEW_REF_SIGNALING

@@ -289,16 +289,9 @@ static AOM_INLINE void scan_row_mbmi(
       *processed_rows = inc - row_offset - 1;
     }
 
-#if CONFIG_NEW_REF_SIGNALING
-    add_ref_mv_candidate(candidate, rf, refmv_count, ref_match_count,
-                         newmv_count, ref_mv_stack, ref_mv_weight,
-                         gm_mv_candidates, cm->global_motion_nrs, len * weight);
-#else
     add_ref_mv_candidate(candidate, rf, refmv_count, ref_match_count,
                          newmv_count, ref_mv_stack, ref_mv_weight,
                          gm_mv_candidates, cm->global_motion, len * weight);
-#endif  // CONFIG_NEW_REF_SIGNALING
-
     i += len;
   }
 }
@@ -362,16 +355,9 @@ static AOM_INLINE void scan_col_mbmi(
       *processed_cols = inc - col_offset - 1;
     }
 
-#if CONFIG_NEW_REF_SIGNALING
-    add_ref_mv_candidate(candidate, rf, refmv_count, ref_match_count,
-                         newmv_count, ref_mv_stack, ref_mv_weight,
-                         gm_mv_candidates, cm->global_motion_nrs, len * weight);
-#else
     add_ref_mv_candidate(candidate, rf, refmv_count, ref_match_count,
                          newmv_count, ref_mv_stack, ref_mv_weight,
                          gm_mv_candidates, cm->global_motion, len * weight);
-#endif  // CONFIG_NEW_REF_SIGNALING
-
     i += len;
   }
 }
@@ -398,16 +384,10 @@ static AOM_INLINE void scan_blk_mbmi(
         xd->mi[mi_pos.row * xd->mi_stride + mi_pos.col];
     const int len = mi_size_wide[BLOCK_8X8];
 
-#if CONFIG_NEW_REF_SIGNALING
-    add_ref_mv_candidate(candidate, rf, refmv_count, ref_match_count,
-                         newmv_count, ref_mv_stack, ref_mv_weight,
-                         gm_mv_candidates, cm->global_motion_nrs, 2 * len);
-#else
     add_ref_mv_candidate(candidate, rf, refmv_count, ref_match_count,
                          newmv_count, ref_mv_stack, ref_mv_weight,
                          gm_mv_candidates, cm->global_motion, 2 * len);
-#endif  // CONFIG_NEW_REF_SIGNALING
-  }     // Analyze a single 8x8 block motion information.
+  }  // Analyze a single 8x8 block motion information.
 }
 
 static int has_top_right(const AV1_COMMON *cm, const MACROBLOCKD *xd,
@@ -1186,16 +1166,16 @@ void av1_find_mv_refs_nrs(const AV1_COMMON *cm, const MACROBLOCKD *xd,
     const BLOCK_SIZE bsize = mi->sb_type;
     const int fr_mv_precision = cm->features.fr_mv_precision;
     if (ref_frame_nrs < INTER_REFS_PER_FRAME_NRS) {
-      gm_mv[0] = gm_get_motion_vector(&cm->global_motion_nrs[ref_frame_nrs],
+      gm_mv[0] = gm_get_motion_vector(&cm->global_motion[ref_frame_nrs],
                                       fr_mv_precision, bsize, mi_col, mi_row);
       gm_mv[1].as_int = 0;
       if (global_mvs != NULL) global_mvs[ref_frame_nrs] = gm_mv[0];
     } else {
       MV_REFERENCE_FRAME rf[2];
       av1_set_ref_frame_nrs(rf, ref_frame_nrs);
-      gm_mv[0] = gm_get_motion_vector(&cm->global_motion_nrs[rf[0]],
+      gm_mv[0] = gm_get_motion_vector(&cm->global_motion[rf[0]],
                                       fr_mv_precision, bsize, mi_col, mi_row);
-      gm_mv[1] = gm_get_motion_vector(&cm->global_motion_nrs[rf[1]],
+      gm_mv[1] = gm_get_motion_vector(&cm->global_motion[rf[1]],
                                       fr_mv_precision, bsize, mi_col, mi_row);
     }
   }

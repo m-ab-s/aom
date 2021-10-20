@@ -54,7 +54,7 @@ static INLINE int is_comp_rd_match(const AV1_COMP *const cpi,
     }
 #if CONFIG_NEW_REF_SIGNALING
     const WarpedMotionParams *const wm =
-        &xd->global_motion_nrs[mi->ref_frame_nrs[i]];
+        &xd->global_motion[mi->ref_frame_nrs[i]];
 #else
     const WarpedMotionParams *const wm = &xd->global_motion[mi->ref_frame[i]];
 #endif  // CONFIG_NEW_REF_SIGNALING
@@ -1085,7 +1085,7 @@ static INLINE void save_comp_rd_search_stat(
     for (int i = 0; i < 2; ++i) {
 #if CONFIG_NEW_REF_SIGNALING
       const WarpedMotionParams *const wm =
-          &xd->global_motion_nrs[mbmi->ref_frame_nrs[i]];
+          &xd->global_motion[mbmi->ref_frame_nrs[i]];
 #else
       const WarpedMotionParams *const wm =
           &xd->global_motion[mbmi->ref_frame[i]];

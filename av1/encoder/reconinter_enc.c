@@ -346,7 +346,7 @@ void av1_build_inter_predictors_for_planes_single_buf(MACROBLOCKD *xd,
   WarpTypesAllowed warp_types;
 #if CONFIG_NEW_REF_SIGNALING
   const WarpedMotionParams *const wm =
-      &xd->global_motion_nrs[mi->ref_frame_nrs[ref]];
+      &xd->global_motion[mi->ref_frame_nrs[ref]];
 #else
   const WarpedMotionParams *const wm = &xd->global_motion[mi->ref_frame[ref]];
 #endif  // CONFIG_NEW_REF_SIGNALING

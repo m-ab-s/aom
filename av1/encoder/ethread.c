@@ -1464,15 +1464,9 @@ static int gm_mt_worker_hook(void *arg1, void *unused) {
     // the remaining ref frames in that direction. The below exit is disabled
     // when ref frame distance w.r.t. current frame is zero. E.g.:
     // source_alt_ref_frame w.r.t. ARF frames.
-#if CONFIG_NEW_REF_SIGNALING
-    if (cpi->sf.gm_sf.prune_ref_frame_for_gm_search &&
-        gm_info->reference_frames[cur_dir][ref_frame_idx].distance != 0 &&
-        cpi->common.global_motion_nrs[ref_buf_idx].wmtype != ROTZOOM)
-#else
     if (cpi->sf.gm_sf.prune_ref_frame_for_gm_search &&
         gm_info->reference_frames[cur_dir][ref_frame_idx].distance != 0 &&
         cpi->common.global_motion[ref_buf_idx].wmtype != ROTZOOM)
-#endif  // CONFIG_NEW_REF_SIGNALING
       job_info->early_exit[cur_dir] = 1;
 
 #if CONFIG_MULTITHREAD

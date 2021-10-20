@@ -1355,17 +1355,10 @@ typedef struct macroblockd {
    */
   struct aom_internal_error_info *error_info;
 
-#if CONFIG_NEW_REF_SIGNALING
-  /*!
-   * Same as cm->global_motion_nrs.
-   */
-  const WarpedMotionParams *global_motion_nrs;
-#else
   /*!
    * Same as cm->global_motion.
    */
   const WarpedMotionParams *global_motion;
-#endif  // CONFIG_NEW_REF_SIGNALING
 
   /*!
    * Since actual frame level loop filtering level value is not available
@@ -2133,7 +2126,7 @@ static INLINE int is_nontrans_global_motion(const MACROBLOCKD *xd,
   // Now check if all global motion is non translational
   for (ref = 0; ref < 1 + has_second_ref(mbmi); ++ref) {
 #if CONFIG_NEW_REF_SIGNALING
-    if (xd->global_motion_nrs[mbmi->ref_frame_nrs[ref]].wmtype == TRANSLATION)
+    if (xd->global_motion[mbmi->ref_frame_nrs[ref]].wmtype == TRANSLATION)
       return 0;
 #else
     if (xd->global_motion[mbmi->ref_frame[ref]].wmtype == TRANSLATION) return 0;

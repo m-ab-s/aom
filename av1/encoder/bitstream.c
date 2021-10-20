@@ -414,7 +414,7 @@ static AOM_INLINE void write_motion_mode(const AV1_COMMON *cm, MACROBLOCKD *xd,
 #if CONFIG_NEW_REF_SIGNALING
   MOTION_MODE last_motion_mode_allowed =
       cm->features.switchable_motion_mode
-          ? motion_mode_allowed_nrs(cm->global_motion_nrs, xd, mbmi,
+          ? motion_mode_allowed_nrs(cm->global_motion, xd, mbmi,
                                     cm->features.allow_warped_motion)
           : SIMPLE_TRANSLATION;
 #else
@@ -3332,16 +3332,16 @@ static AOM_INLINE void write_global_motion_nrs(
       ref_params = &params;
       use_gm_k = 1;
     } else {
-      ref_params = cm->prev_frame ? &cm->prev_frame->global_motion_nrs[frame]
+      ref_params = cm->prev_frame ? &cm->prev_frame->global_motion[frame]
                                   : &default_warp_params;
       use_gm_k = 0;
     }
     if (ref_params->wmtype != IDENTITY) base_frame = frame;
 #else
-    ref_params = cm->prev_frame ? &cm->prev_frame->global_motion_nrs[frame]
+    ref_params = cm->prev_frame ? &cm->prev_frame->global_motion[frame]
                                 : &default_warp_params;
 #endif  // CONFIG_GM_MODEL_CODING
-    write_global_motion_params(&cm->global_motion_nrs[frame], ref_params,
+    write_global_motion_params(&cm->global_motion[frame], ref_params,
 #if CONFIG_GM_MODEL_CODING
                                use_gm_k,
 #endif  // CONFIG_GM_MODEL_CODING

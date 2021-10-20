@@ -1412,7 +1412,7 @@ static int skip_repeated_mv(const AV1_COMMON *const cm,
       }
 #if CONFIG_NEW_REF_SIGNALING
       if (ref_mv_count == 1 &&
-          cm->global_motion_nrs[ref_frames_nrs[0]].wmtype <= TRANSLATION) {
+          cm->global_motion[ref_frames_nrs[0]].wmtype <= TRANSLATION) {
 #else
       if (ref_mv_count == 1 &&
           cm->global_motion[ref_frames[0]].wmtype <= TRANSLATION) {
@@ -1424,7 +1424,7 @@ static int skip_repeated_mv(const AV1_COMMON *const cm,
     if (this_mode == GLOBALMV) {
 #if CONFIG_NEW_REF_SIGNALING
       if (ref_mv_count == 0 &&
-          cm->global_motion_nrs[ref_frames_nrs[0]].wmtype <= TRANSLATION) {
+          cm->global_motion[ref_frames_nrs[0]].wmtype <= TRANSLATION) {
 #else
       if (ref_mv_count == 0 &&
           cm->global_motion[ref_frames[0]].wmtype <= TRANSLATION) {
@@ -1841,14 +1841,7 @@ static int64_t motion_mode_rd(
     // is allowed.
 #if CONFIG_NEW_REF_SIGNALING
     last_motion_mode_allowed = motion_mode_allowed_nrs(
-        xd->global_motion_nrs, xd, mbmi, features->allow_warped_motion);
-    /*
-    // TODO(sarahparker) Temporary assert, see aomedia:3060
-    const MOTION_MODE last_motion_mode_allowed2 = motion_mode_allowed(
         xd->global_motion, xd, mbmi, features->allow_warped_motion);
-    assert(last_motion_mode_allowed == last_motion_mode_allowed2);
-    (void)last_motion_mode_allowed2;
-    */
 #else
     last_motion_mode_allowed = motion_mode_allowed(
         xd->global_motion, xd, mbmi, features->allow_warped_motion);
@@ -7853,7 +7846,7 @@ void av1_rd_pick_inter_mode_sb_seg_skip(const AV1_COMP *cpi,
   mbmi->ref_frame_nrs[0] = last_frame;
   mbmi->ref_frame_nrs[1] = INVALID_IDX;
   mbmi->mv[0].as_int =
-      gm_get_motion_vector(&cm->global_motion_nrs[mbmi->ref_frame_nrs[0]],
+      gm_get_motion_vector(&cm->global_motion[mbmi->ref_frame_nrs[0]],
                            features->fr_mv_precision, bsize, mi_col, mi_row)
           .as_int;
 #else

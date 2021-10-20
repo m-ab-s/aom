@@ -166,7 +166,7 @@ typedef struct RefCntBuffer {
   int width;
   int height;
 #if CONFIG_NEW_REF_SIGNALING
-  WarpedMotionParams global_motion_nrs[INTER_REFS_PER_FRAME_NRS];
+  WarpedMotionParams global_motion[INTER_REFS_PER_FRAME_NRS];
 #else
   WarpedMotionParams global_motion[REF_FRAMES];
 #endif                 // CONFIG_NEW_REF_SIGNALING
@@ -1118,7 +1118,7 @@ typedef struct AV1Common {
    * Global motion parameters for each reference frame in new ref signaling
    * experiment.
    */
-  WarpedMotionParams global_motion_nrs[INTER_REFS_PER_FRAME_NRS];
+  WarpedMotionParams global_motion[INTER_REFS_PER_FRAME_NRS];
 #else
   /*!
    * Global motion parameters for each reference frame.
@@ -1455,7 +1455,7 @@ static INLINE bool find_gm_ref_params_nrs(WarpedMotionParams *ref_params,
                                           int cur_frame, int base_frame) {
   if (base_frame < 0) return false;
 
-  memcpy(ref_params, &cm->global_motion_nrs[base_frame],
+  memcpy(ref_params, &cm->global_motion[base_frame],
          sizeof(WarpedMotionParams));
 
   double scale_factor;
