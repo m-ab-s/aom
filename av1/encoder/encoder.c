@@ -594,11 +594,7 @@ static void init_config(struct AV1_COMP *cpi, AV1EncoderConfig *oxcf) {
   // change includes all joint functionality
   av1_change_config(cpi, oxcf);
 
-#if CONFIG_NEW_REF_SIGNALING
-  cpi->common.ref_frame_flags_nrs = 0;
-#else
   cpi->common.ref_frame_flags = 0;
-#endif  // CONFIG_NEW_REF_SIGNALING
 
   // Reset resize pending flags
   resize_pending_params->width = 0;
@@ -2287,17 +2283,17 @@ static int encode_without_recode(AV1_COMP *cpi) {
 #if CONFIG_NEW_REF_SIGNALING
     const MV_REFERENCE_FRAME golden_frame = get_best_past_ref_index(cm);
     const MV_REFERENCE_FRAME altref_frame = get_furthest_future_ref_index(cm);
-    if (cpi->common.ref_frame_flags_nrs & (1 << golden_frame)) {
+    if (cpi->common.ref_frame_flags & (1 << golden_frame)) {
       const YV12_BUFFER_CONFIG *const ref =
           get_ref_frame_yv12_buf(cm, golden_frame);
       if (ref->y_crop_width != cm->width || ref->y_crop_height != cm->height)
-        cpi->common.ref_frame_flags_nrs ^= (1 << golden_frame);
+        cpi->common.ref_frame_flags ^= (1 << golden_frame);
     }
-    if (cpi->common.ref_frame_flags_nrs & (1 << altref_frame)) {
+    if (cpi->common.ref_frame_flags & (1 << altref_frame)) {
       const YV12_BUFFER_CONFIG *const ref =
           get_ref_frame_yv12_buf(cm, altref_frame);
       if (ref->y_crop_width != cm->width || ref->y_crop_height != cm->height)
-        cpi->common.ref_frame_flags_nrs ^= (1 << altref_frame);
+        cpi->common.ref_frame_flags ^= (1 << altref_frame);
     }
 #else
     if (cpi->common.ref_frame_flags & av1_ref_frame_flag_list[GOLDEN_FRAME]) {
@@ -3303,11 +3299,7 @@ int av1_encode(AV1_COMP *const cpi, uint8_t *const dest,
   cm->features.primary_ref_frame = frame_params->primary_ref_frame;
   cm->current_frame.frame_type = frame_params->frame_type;
   cm->show_frame = frame_params->show_frame;
-#if CONFIG_NEW_REF_SIGNALING
-  cpi->common.ref_frame_flags_nrs = frame_params->ref_frame_flags_nrs;
-#else
   cpi->common.ref_frame_flags = frame_params->ref_frame_flags;
-#endif  // CONFIG_NEW_REF_SIGNALING
   cpi->speed = frame_params->speed;
   cm->show_existing_frame = frame_params->show_existing_frame;
   cpi->existing_fb_idx_to_show = frame_params->existing_fb_idx_to_show;

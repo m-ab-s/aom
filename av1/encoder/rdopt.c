@@ -4952,7 +4952,7 @@ static AOM_INLINE void init_mode_skip_mask_nrs(mode_skip_mask_t *mask,
   }
   for (ref_frame = 0; ref_frame < cm->new_ref_frame_data.n_total_refs;
        ++ref_frame) {
-    if (!(cpi->common.ref_frame_flags_nrs & (1 << ref_frame))) {
+    if (!(cpi->common.ref_frame_flags & (1 << ref_frame))) {
       // Skip checking missing reference in both single and compound reference
       // modes.
       disable_reference_nrs(ref_frame, mask->ref_combo);
@@ -5265,7 +5265,7 @@ static AOM_INLINE void set_params_rd_pick_inter_mode(
   }
   for (MV_REFERENCE_FRAME ref_frame_nrs = 0;
        ref_frame_nrs < INTER_REFS_PER_FRAME_NRS; ++ref_frame_nrs) {
-    if ((cpi->common.ref_frame_flags_nrs & (1 << ref_frame_nrs))) {
+    if ((cpi->common.ref_frame_flags & (1 << ref_frame_nrs))) {
       x->pred_mv_sad[ref_frame_nrs] = INT_MAX;
       if (mbmi->partition != PARTITION_NONE &&
           mbmi->partition != PARTITION_SPLIT) {
@@ -5329,8 +5329,8 @@ static AOM_INLINE void set_params_rd_pick_inter_mode(
       if (rf_nrs[0] >= cm->new_ref_frame_data.n_total_refs ||
           rf_nrs[1] >= cm->new_ref_frame_data.n_total_refs)
         continue;
-      if (!((cpi->common.ref_frame_flags_nrs & (1 << rf_nrs[0])) &&
-            (cpi->common.ref_frame_flags_nrs & (1 << rf_nrs[1])))) {
+      if (!((cpi->common.ref_frame_flags & (1 << rf_nrs[0])) &&
+            (cpi->common.ref_frame_flags & (1 << rf_nrs[1])))) {
         continue;
       }
 
@@ -5599,7 +5599,7 @@ static int inter_mode_compatible_skip_nrs(
       ref_frames[1] != INTRA_FRAME_NRS && ref_frames[1] != INVALID_IDX;
   if (comp_pred) {
     if (!is_comp_ref_allowed(bsize)) return 1;
-    if (!(cpi->common.ref_frame_flags_nrs & (1 << ref_frames[1]))) {
+    if (!(cpi->common.ref_frame_flags & (1 << ref_frames[1]))) {
       return 1;
     }
 

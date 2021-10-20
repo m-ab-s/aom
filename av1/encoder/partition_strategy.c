@@ -353,7 +353,7 @@ static int simple_motion_search_get_best_ref(
     const int ref = refs[ref_idx];
 
 #if CONFIG_NEW_REF_SIGNALING
-    if (cpi->common.ref_frame_flags_nrs & (1 << ref)) {
+    if (cpi->common.ref_frame_flags & (1 << ref)) {
 #else
     if (cpi->common.ref_frame_flags & av1_ref_frame_flag_list[ref]) {
 #endif  // CONFIG_NEW_REF_SIGNALING
@@ -1774,7 +1774,7 @@ static void compute_sms_data(AV1_COMP *const cpi, const TileInfo *const tile,
   // Set error per bit for current rdmult
   av1_set_error_per_bit(&x->mv_costs, x->rdmult);
 #if CONFIG_NEW_REF_SIGNALING
-  if (cm->ref_frame_flags_nrs & (1 << ref_frame)) {
+  if (cm->ref_frame_flags & (1 << ref_frame)) {
 #else
   if (cm->ref_frame_flags & av1_ref_frame_flag_list[ref_frame]) {
 #endif  // CONFIG_NEW_REF_SIGNALING

@@ -516,7 +516,7 @@ void av1_scale_references(AV1_COMP *cpi, const InterpFilter filter,
   {
     // Need to convert from AOM_REFFRAME to index into ref_mask (subtract 1).
 #if CONFIG_NEW_REF_SIGNALING
-    if (cpi->common.ref_frame_flags_nrs & (1 << ref_frame)) {
+    if (cpi->common.ref_frame_flags & (1 << ref_frame)) {
       BufferPool *const pool = cm->buffer_pool;
       const YV12_BUFFER_CONFIG *const ref =
           get_ref_frame_yv12_buf(cm, ref_frame);

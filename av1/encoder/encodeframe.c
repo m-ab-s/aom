@@ -1285,8 +1285,8 @@ static int check_skip_mode_enabled(AV1_COMP *const cpi) {
     cm->current_frame.skip_mode_info.ref_frame_idx_0,
     cm->current_frame.skip_mode_info.ref_frame_idx_1
   };
-  if (!(cpi->common.ref_frame_flags_nrs & (1 << ref_frame_nrs[0])) ||
-      !(cpi->common.ref_frame_flags_nrs & (1 << ref_frame_nrs[1])))
+  if (!(cpi->common.ref_frame_flags & (1 << ref_frame_nrs[0])) ||
+      !(cpi->common.ref_frame_flags & (1 << ref_frame_nrs[1])))
     return 0;
 #else
   static const int flag_list[REF_FRAMES] = { 0,
@@ -1775,9 +1775,9 @@ void av1_encode_frame(AV1_COMP *cpi) {
 
   av1_setup_frame_buf_refs(cm);
 #if CONFIG_NEW_REF_SIGNALING
-  enforce_max_ref_frames_nrs(cpi, &cpi->common.ref_frame_flags_nrs);
+  enforce_max_ref_frames_nrs(cpi, &cpi->common.ref_frame_flags);
   set_rel_frame_dist(&cpi->common, &cpi->ref_frame_dist_info,
-                     cpi->common.ref_frame_flags_nrs);
+                     cpi->common.ref_frame_flags);
 #else
   enforce_max_ref_frames(cpi, &cpi->common.ref_frame_flags);
   set_rel_frame_dist(&cpi->common, &cpi->ref_frame_dist_info,

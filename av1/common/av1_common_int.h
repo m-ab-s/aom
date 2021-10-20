@@ -854,18 +854,10 @@ typedef struct {
  * \brief Top level common structure used by both encoder and decoder.
  */
 typedef struct AV1Common {
-#if CONFIG_NEW_REF_SIGNALING
-  /*!
-   * NRS bitmask indicating which reference buffers may be referenced
-     by this frame.
-   */
-  int ref_frame_flags_nrs;
-#else
   /*!
    * Bitmask indicating which reference buffers may be referenced by this frame.
    */
   int ref_frame_flags;
-#endif  // CONFIG_NEW_REF_SIGNALING
   /*!
    * Information about the current frame that is being coded.
    */

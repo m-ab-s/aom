@@ -595,7 +595,7 @@ static AOM_INLINE void update_valid_ref_frames_for_gm_nrs(
       cpi->gm_info.params_cost_nrs[frame] = 0;
       continue;
     }
-    const int ref_disabled = !(cpi->common.ref_frame_flags_nrs & (1 << frame));
+    const int ref_disabled = !(cpi->common.ref_frame_flags & (1 << frame));
     // Skip global motion estimation for invalid ref frames
     if ((ref_disabled && cpi->sf.hl_sf.recode_loop != DISALLOW_RECODE)) {
       cpi->gm_info.params_cost_nrs[frame] = 0;

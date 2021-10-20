@@ -2808,17 +2808,10 @@ typedef struct EncodeFrameParams {
   int show_existing_frame;
   int existing_fb_idx_to_show;
 
-#if CONFIG_NEW_REF_SIGNALING
-  /*!
-   *  NRS bitmask of which reference buffers may be referenced by this frame.
-   */
-  int ref_frame_flags_nrs;
-#else
   /*!
    *  Bitmask of which reference buffers may be referenced by this frame.
    */
   int ref_frame_flags;
-#endif  // CONFIG_NEW_REF_SIGNALING
   /*!\endcond */
 
   /*!

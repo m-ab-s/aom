@@ -1501,7 +1501,7 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
 #if CONFIG_NEW_REF_SIGNALING
     // TODO(sarahparker) Initialize this using a nrs version of
     // ext_flags->ref_frame_flags. See aomedia:3110.
-    frame_params.ref_frame_flags_nrs =
+    frame_params.ref_frame_flags =
         (1 << cpi->common.new_ref_frame_data.n_total_refs) - 1;
 #else
     // Work out which reference frame slots may be used.
@@ -1520,7 +1520,7 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
         use_subgop_cfg(&cpi->gf_group, cpi->gf_group.index) &&
         frame_update_type != KF_UPDATE) {
 #if CONFIG_NEW_REF_SIGNALING
-      get_gop_cfg_enabled_refs_nrs(cpi, &frame_params.ref_frame_flags_nrs,
+      get_gop_cfg_enabled_refs_nrs(cpi, &frame_params.ref_frame_flags,
                                    frame_params.order_offset);
 #else
       get_gop_cfg_enabled_refs(cpi, &frame_params.ref_frame_flags,
