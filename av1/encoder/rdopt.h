@@ -407,10 +407,6 @@ static INLINE void av1_copy_mbmi_ext_to_mbmi_ext_frame(
   mbmi_ext_best->ref_mv_count = mbmi_ext->ref_mv_count[ref_frame_type];
   memcpy(mbmi_ext_best->global_mvs, mbmi_ext->global_mvs,
          sizeof(mbmi_ext->global_mvs));
-#if CONFIG_NEW_REF_SIGNALING
-  memcpy(mbmi_ext_best->global_mvs_nrs, mbmi_ext->global_mvs_nrs,
-         sizeof(mbmi_ext->global_mvs_nrs));
-#endif  // CONFIG_NEW_REF_SIGNALING
 }
 
 #ifdef __cplusplus

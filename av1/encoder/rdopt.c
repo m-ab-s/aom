@@ -1325,8 +1325,8 @@ static AOM_INLINE void setup_buffer_ref_mvs_inter(
   // Gets an initial list of candidate vectors from neighbours and orders them
 #if CONFIG_NEW_REF_SIGNALING
   av1_find_mv_refs_nrs(cm, xd, mbmi, ref_frame_nrs, mbmi_ext->ref_mv_count,
-                       xd->ref_mv_stack, xd->weight, NULL,
-                       mbmi_ext->global_mvs_nrs, mbmi_ext->mode_context);
+                       xd->ref_mv_stack, xd->weight, NULL, mbmi_ext->global_mvs,
+                       mbmi_ext->mode_context);
 #else
   av1_find_mv_refs(cm, xd, mbmi, ref_frame, mbmi_ext->ref_mv_count,
                    xd->ref_mv_stack, xd->weight, NULL, mbmi_ext->global_mvs,
@@ -2398,13 +2398,8 @@ static INLINE int check_repeat_ref_mv(const MB_MODE_INFO_EXT *mbmi_ext,
       else
         this_mv = mbmi_ext->ref_mv_stack[ref_frame_type][ref_mv_idx].comp_mv;
 
-#if CONFIG_NEW_REF_SIGNALING
-      if (this_mv.as_int == mbmi_ext->global_mvs_nrs[ref_frame[ref_idx]].as_int)
-        return 1;
-#else
       if (this_mv.as_int == mbmi_ext->global_mvs[ref_frame[ref_idx]].as_int)
         return 1;
-#endif  // CONFIG_NEW_REF_SIGNALING
     }
   }
   return 0;
@@ -2431,11 +2426,7 @@ static INLINE int get_this_mv(int_mv *this_mv, PREDICTION_MODE this_mode,
         check_repeat_ref_mv(mbmi_ext, ref_idx, ref_frame, single_mode))
       return 0;
 #endif  // !CONFIG_NEW_INTER_MODES
-#if CONFIG_NEW_REF_SIGNALING
-    *this_mv = mbmi_ext->global_mvs_nrs[ref_frame[ref_idx]];
-#else
     *this_mv = mbmi_ext->global_mvs[ref_frame[ref_idx]];
-#endif  // CONFIG_NEW_REF_SIGNALING
   } else {
 #if CONFIG_NEW_INTER_MODES
     assert(single_mode == NEARMV);
@@ -2464,11 +2455,7 @@ static INLINE int get_this_mv(int_mv *this_mv, PREDICTION_MODE this_mode,
           check_repeat_ref_mv(mbmi_ext, ref_idx, ref_frame, single_mode))
         return 0;
 #endif  // !CONFIG_NEW_INTER_MODES
-#if CONFIG_NEW_REF_SIGNALING
-      *this_mv = mbmi_ext->global_mvs_nrs[ref_frame[ref_idx]];
-#else
       *this_mv = mbmi_ext->global_mvs[ref_frame[ref_idx]];
-#endif  // CONFIG_NEW_REF_SIGNALING
     }
   }
   return 1;
@@ -3999,21 +3986,12 @@ static int64_t rd_pick_intrabc_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x,
   (void)ref_frame;
 #if CONFIG_NEW_REF_SIGNALING
   MV_REFERENCE_FRAME ref_frame_nrs = INTRA_FRAME_NRS;
-#endif  // CONFIG_NEW_REF_SIGNALING
-#if CONFIG_NEW_REF_SIGNALING
   av1_find_mv_refs_nrs(cm, xd, mbmi, ref_frame_nrs, mbmi_ext->ref_mv_count,
-                       xd->ref_mv_stack, xd->weight, NULL,
-                       mbmi_ext->global_mvs_nrs, mbmi_ext->mode_context);
+                       xd->ref_mv_stack, xd->weight, NULL, mbmi_ext->global_mvs,
+                       mbmi_ext->mode_context);
 #else
-  av1_find_mv_refs(cm, xd, mbmi, ref_frame,
-#if CONFIG_NEW_REF_SIGNALING
-                   ref_frame_nrs,
-#endif  // CONFIG_NEW_REF_SIGNALING
-                   mbmi_ext->ref_mv_count, xd->ref_mv_stack, xd->weight, NULL,
-                   mbmi_ext->global_mvs,
-#if CONFIG_NEW_REF_SIGNALING
-                   mbmi_ext->global_mvs_nrs,
-#endif  // CONFIG_NEW_REF_SIGNALING
+  av1_find_mv_refs(cm, xd, mbmi, ref_frame, mbmi_ext->ref_mv_count,
+                   xd->ref_mv_stack, xd->weight, NULL, mbmi_ext->global_mvs,
                    mbmi_ext->mode_context);
 #endif  // CONFIG_NEW_REF_SIGNALING
   // TODO(Ravi): Populate mbmi_ext->ref_mv_stack[ref_frame][4] and
@@ -4388,8 +4366,7 @@ static AOM_INLINE void rd_pick_skip_mode(
 #if CONFIG_NEW_REF_SIGNALING
     av1_find_mv_refs_nrs(cm, xd, mbmi, ref_frame_type_nrs,
                          mbmi_ext->ref_mv_count, xd->ref_mv_stack, xd->weight,
-                         NULL, mbmi_ext->global_mvs_nrs,
-                         mbmi_ext->mode_context);
+                         NULL, mbmi_ext->global_mvs, mbmi_ext->mode_context);
 #else
     av1_find_mv_refs(cm, xd, mbmi, ref_frame_type, mbmi_ext->ref_mv_count,
                      xd->ref_mv_stack, xd->weight, NULL, mbmi_ext->global_mvs,
@@ -5343,7 +5320,7 @@ static AOM_INLINE void set_params_rd_pick_inter_mode(
       if (prune_ref_frame_nrs(cpi, x, ref_frame_nrs)) continue;
       av1_find_mv_refs_nrs(cm, xd, mbmi, ref_frame_nrs, mbmi_ext->ref_mv_count,
                            xd->ref_mv_stack, xd->weight, NULL,
-                           mbmi_ext->global_mvs_nrs, mbmi_ext->mode_context);
+                           mbmi_ext->global_mvs, mbmi_ext->mode_context);
       // TODO(Ravi): Populate mbmi_ext->ref_mv_stack[ref_frame][4] and
       // mbmi_ext->weight[ref_frame][4] inside av1_find_mv_refs.
       av1_copy_usable_ref_mv_stack_and_weight(xd, mbmi_ext, ref_frame_nrs);

@@ -225,11 +225,12 @@ typedef struct {
   uint16_t weight[MODE_CTX_REF_FRAMES][USABLE_REF_MV_STACK_SIZE];
   //! Number of ref mvs in the drl.
   uint8_t ref_mv_count[MODE_CTX_REF_FRAMES];
-  //! Global mvs
-  int_mv global_mvs[REF_FRAMES];
 #if CONFIG_NEW_REF_SIGNALING
   //! Global mvs in new ref framework
-  int_mv global_mvs_nrs[INTER_REFS_PER_FRAME_NRS];
+  int_mv global_mvs[INTER_REFS_PER_FRAME_NRS];
+#else
+  //! Global mvs
+  int_mv global_mvs[REF_FRAMES];
 #endif  // CONFIG_NEW_REF_SIGNALING
   //! Context used to encode the current mode.
   int16_t mode_context[MODE_CTX_REF_FRAMES];
@@ -248,12 +249,13 @@ typedef struct {
   uint16_t weight[USABLE_REF_MV_STACK_SIZE];
   //! \copydoc MB_MODE_INFO_EXT::ref_mv_count
   uint8_t ref_mv_count;
+#if CONFIG_NEW_REF_SIGNALING
+  //! \copydoc MB_MODE_INFO_EXT::global_mvs
+  int_mv global_mvs[INTER_REFS_PER_FRAME_NRS];
+#else
   // TODO(Ravi/Remya): Reduce the buffer size of global_mvs
   //! \copydoc MB_MODE_INFO_EXT::global_mvs
   int_mv global_mvs[REF_FRAMES];
-#if CONFIG_NEW_REF_SIGNALING
-  //! \copydoc MB_MODE_INFO_EXT::global_mvs_nrs
-  int_mv global_mvs_nrs[INTER_REFS_PER_FRAME_NRS];
 #endif  // CONFIG_NEW_REF_SIGNALING
   //! \copydoc MB_MODE_INFO_EXT::mode_context
   int16_t mode_context;

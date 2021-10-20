@@ -480,7 +480,7 @@ static INLINE void find_predictors(
 #if CONFIG_NEW_REF_SIGNALING
     av1_find_mv_refs_nrs(cm, xd, mbmi, ref_frame, mbmi_ext->ref_mv_count,
                          xd->ref_mv_stack, xd->weight, NULL,
-                         mbmi_ext->global_mvs_nrs, mbmi_ext->mode_context);
+                         mbmi_ext->global_mvs, mbmi_ext->mode_context);
     av1_copy_usable_ref_mv_stack_and_weight(xd, mbmi_ext, ref_frame);
 #else
     av1_find_mv_refs(cm, xd, mbmi, ref_frame, mbmi_ext->ref_mv_count,

@@ -60,7 +60,7 @@ static AOM_INLINE int_mv get_ref_mv_for_mv_stats(
   return ref_mv_idx < mbmi_ext_frame->ref_mv_count
              ? curr_ref_mv_stack[ref_mv_idx].this_mv
 #if CONFIG_NEW_REF_SIGNALING
-             : mbmi_ext_frame->global_mvs_nrs[ref_frame_type_nrs];
+             : mbmi_ext_frame->global_mvs[ref_frame_type_nrs];
 #else
              : mbmi_ext_frame->global_mvs[ref_frame_type];
 #endif  // CONFIG_NEW_REF_SIGNALING

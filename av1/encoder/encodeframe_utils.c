@@ -199,10 +199,6 @@ static INLINE void copy_mbmi_ext_frame_to_mbmi_ext(
   mbmi_ext->ref_mv_count[ref_frame_type] = mbmi_ext_best->ref_mv_count;
   memcpy(mbmi_ext->global_mvs, mbmi_ext_best->global_mvs,
          sizeof(mbmi_ext->global_mvs));
-#if CONFIG_NEW_REF_SIGNALING
-  memcpy(mbmi_ext->global_mvs_nrs, mbmi_ext_best->global_mvs_nrs,
-         sizeof(mbmi_ext->global_mvs_nrs));
-#endif  // CONFIG_NEW_REF_SIGNALING
 }
 
 void av1_update_state(const AV1_COMP *const cpi, ThreadData *td,

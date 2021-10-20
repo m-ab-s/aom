@@ -1395,15 +1395,9 @@ static INLINE int_mv get_ref_mv_from_stack(
   }
 
   assert(ref_idx == 0);
-#if CONFIG_NEW_REF_SIGNALING
-  return ref_mv_idx < mbmi_ext_frame->ref_mv_count
-             ? curr_ref_mv_stack[ref_mv_idx].this_mv
-             : mbmi_ext_frame->global_mvs_nrs[ref_frame_type];
-#else
   return ref_mv_idx < mbmi_ext_frame->ref_mv_count
              ? curr_ref_mv_stack[ref_mv_idx].this_mv
              : mbmi_ext_frame->global_mvs[ref_frame_type];
-#endif  // CONFIG_NEW_REF_SIGNALING
 }
 
 static INLINE int_mv get_ref_mv(const MACROBLOCK *x, int ref_idx) {

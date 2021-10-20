@@ -317,11 +317,7 @@ int_mv av1_get_ref_mv_from_stack(int ref_idx,
   assert(ref_idx == 0);
   return ref_mv_idx < mbmi_ext->ref_mv_count[ref_frame_type]
              ? curr_ref_mv_stack[ref_mv_idx].this_mv
-#if CONFIG_NEW_REF_SIGNALING
-             : mbmi_ext->global_mvs_nrs[ref_frame_type];
-#else
              : mbmi_ext->global_mvs[ref_frame_type];
-#endif  // CONFIG_NEW_REF_SIGNALING
 }
 
 int_mv av1_get_ref_mv(const MACROBLOCK *x, int ref_idx) {
