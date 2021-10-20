@@ -3003,13 +3003,13 @@ static INLINE int av1_use_hash_me(const AV1_COMP *const cpi) {
           frame_is_intra_only(&cpi->common));
 }
 
-#if CONFIG_NEW_REF_SIGNALING
-static INLINE const YV12_BUFFER_CONFIG *get_ref_frame_yv12_buf_nrs(
+static INLINE const YV12_BUFFER_CONFIG *get_ref_frame_yv12_buf(
     const AV1_COMMON *const cm, MV_REFERENCE_FRAME ref_frame) {
   const RefCntBuffer *const buf = get_ref_frame_buf(cm, ref_frame);
   return buf != NULL ? &buf->buf : NULL;
 }
 
+#if CONFIG_NEW_REF_SIGNALING
 static INLINE int enc_is_ref_frame_buf(const AV1_COMMON *const cm,
                                        const RefCntBuffer *const frame_buf) {
   MV_REFERENCE_FRAME ref_frame;
@@ -3030,12 +3030,6 @@ static INLINE int enc_is_ref_frame_buf(const AV1_COMMON *const cm,
     if (frame_buf == buf) break;
   }
   return (ref_frame <= ALTREF_FRAME);
-}
-
-static INLINE const YV12_BUFFER_CONFIG *get_ref_frame_yv12_buf(
-    const AV1_COMMON *const cm, MV_REFERENCE_FRAME ref_frame) {
-  const RefCntBuffer *const buf = get_ref_frame_buf(cm, ref_frame);
-  return buf != NULL ? &buf->buf : NULL;
 }
 #endif  // CONFIG_NEW_REF_SIGNALING
 

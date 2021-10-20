@@ -2905,11 +2905,10 @@ static AOM_INLINE void write_frame_size_with_refs(
   MV_REFERENCE_FRAME ref_frame;
 #if CONFIG_NEW_REF_SIGNALING
   for (ref_frame = 0; ref_frame < INTER_REFS_PER_FRAME_NRS; ++ref_frame) {
-    const YV12_BUFFER_CONFIG *cfg = get_ref_frame_yv12_buf_nrs(cm, ref_frame);
 #else
   for (ref_frame = LAST_FRAME; ref_frame <= ALTREF_FRAME; ++ref_frame) {
-    const YV12_BUFFER_CONFIG *cfg = get_ref_frame_yv12_buf(cm, ref_frame);
 #endif  // CONFIG_NEW_REF_SIGNALING
+    const YV12_BUFFER_CONFIG *cfg = get_ref_frame_yv12_buf(cm, ref_frame);
 
     if (cfg != NULL) {
       found = cm->superres_upscaled_width == cfg->y_crop_width &&

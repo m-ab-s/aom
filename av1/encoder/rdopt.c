@@ -1296,8 +1296,7 @@ static AOM_INLINE void setup_buffer_ref_mvs_inter(
 #if CONFIG_NEW_REF_SIGNALING
   const struct scale_factors *const sf =
       get_ref_scale_factors_const(cm, ref_frame_nrs);
-  const YV12_BUFFER_CONFIG *yv12 =
-      get_ref_frame_yv12_buf_nrs(cm, ref_frame_nrs);
+  const YV12_BUFFER_CONFIG *yv12 = get_ref_frame_yv12_buf(cm, ref_frame_nrs);
 #else
   const struct scale_factors *const sf =
       get_ref_scale_factors_const(cm, ref_frame);
@@ -5282,7 +5281,7 @@ static AOM_INLINE void set_params_rd_pick_inter_mode(
           continue;
         }
       }
-      assert(get_ref_frame_yv12_buf_nrs(cm, ref_frame_nrs) != NULL);
+      assert(get_ref_frame_yv12_buf(cm, ref_frame_nrs) != NULL);
       setup_buffer_ref_mvs_inter(cpi, x, ref_frame_nrs, bsize, yv12_mb);
     }
   }

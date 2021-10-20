@@ -519,7 +519,7 @@ void av1_scale_references(AV1_COMP *cpi, const InterpFilter filter,
     if (cpi->common.ref_frame_flags_nrs & (1 << ref_frame)) {
       BufferPool *const pool = cm->buffer_pool;
       const YV12_BUFFER_CONFIG *const ref =
-          get_ref_frame_yv12_buf_nrs(cm, ref_frame);
+          get_ref_frame_yv12_buf(cm, ref_frame);
       if (ref == NULL) {
         cpi->scaled_ref_buf[ref_frame] = NULL;
         continue;

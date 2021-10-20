@@ -801,15 +801,9 @@ int_mv av1_simple_motion_search(AV1_COMP *const cpi, MACROBLOCK *x, int mi_row,
 #endif  // CONFIG_REMOVE_DUAL_FILTER
   av1_set_default_mbmi_mv_precision(mbmi, xd->sbi);
 
-#if CONFIG_NEW_REF_SIGNALING
-  const YV12_BUFFER_CONFIG *yv12 = get_ref_frame_yv12_buf_nrs(cm, ref);
-  const YV12_BUFFER_CONFIG *scaled_ref_frame =
-      av1_get_scaled_ref_frame(cpi, ref);
-#else
   const YV12_BUFFER_CONFIG *yv12 = get_ref_frame_yv12_buf(cm, ref);
   const YV12_BUFFER_CONFIG *scaled_ref_frame =
       av1_get_scaled_ref_frame(cpi, ref);
-#endif  // CONFIG_NEW_REF_SIGNALING
   struct buf_2d backup_yv12;
   // ref_mv is used to calculate the cost of the motion vector
   const MV ref_mv = kZeroMv;
@@ -960,15 +954,9 @@ int_mv av1_simple_motion_search_ext(AV1_COMP *const cpi,
 #endif  // CONFIG_REMOVE_DUAL_FILTER
   av1_set_default_mbmi_mv_precision(mbmi, xd->sbi);
 
-#if CONFIG_NEW_REF_SIGNALING
-  const YV12_BUFFER_CONFIG *yv12 = get_ref_frame_yv12_buf_nrs(cm, ref);
-  const YV12_BUFFER_CONFIG *scaled_ref_frame =
-      av1_get_scaled_ref_frame(cpi, ref);
-#else
   const YV12_BUFFER_CONFIG *yv12 = get_ref_frame_yv12_buf(cm, ref);
   const YV12_BUFFER_CONFIG *scaled_ref_frame =
       av1_get_scaled_ref_frame(cpi, ref);
-#endif  // CONFIG_NEW_REF_SIGNALING
   struct buf_2d backup_yv12;
   // ref_mv is used to calculate the cost of the motion vector
   const MV ref_mv = kZeroMv;

@@ -730,7 +730,7 @@ static void setup_planes(AV1_COMP *cpi, MACROBLOCK *x, unsigned int *y_sad,
 #if CONFIG_NEW_REF_SIGNALING
   int last_frame = get_closest_pastcur_ref_index(cm);
   int golden_frame = cm->new_ref_frame_data.past_refs[0];
-  const YV12_BUFFER_CONFIG *yv12 = get_ref_frame_yv12_buf_nrs(cm, last_frame);
+  const YV12_BUFFER_CONFIG *yv12 = get_ref_frame_yv12_buf(cm, last_frame);
 #else
   const YV12_BUFFER_CONFIG *yv12 = get_ref_frame_yv12_buf(cm, LAST_FRAME);
 #endif
@@ -743,7 +743,7 @@ static void setup_planes(AV1_COMP *cpi, MACROBLOCK *x, unsigned int *y_sad,
   if (!cpi->use_svc &&
       (cpi->common.ref_frame_flags_nrs & (1 << golden_frame)) &&
       cpi->sf.rt_sf.use_nonrd_pick_mode) {
-    yv12_g = get_ref_frame_yv12_buf_nrs(cm, golden_frame);
+    yv12_g = get_ref_frame_yv12_buf(cm, golden_frame);
     if (yv12_g && yv12_g != yv12) {
       av1_setup_pre_planes(xd, 0, yv12_g, mi_row, mi_col,
                            get_ref_scale_factors(cm, golden_frame), num_planes,
@@ -943,7 +943,7 @@ int av1_choose_var_based_partitioning(AV1_COMP *cpi, const TileInfo *const tile,
   if (!frame_is_intra_only(cm)) {
     const YV12_BUFFER_CONFIG *const ref =
 #if CONFIG_NEW_REF_SIGNALING
-        get_ref_frame_yv12_buf_nrs(cm, last_frame);
+        get_ref_frame_yv12_buf(cm, last_frame);
 #else
         get_ref_frame_yv12_buf(cm, LAST_FRAME);
 #endif  // CONFIG_NEW_REF_SIGNALING

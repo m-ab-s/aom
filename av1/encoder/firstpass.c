@@ -965,9 +965,9 @@ void av1_first_pass_row(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
   const MV_REFERENCE_FRAME last_frame_ = LAST_FRAME_PROXY;
   const MV_REFERENCE_FRAME golden_frame_ = GOLDEN_FRAME_PROXY;
   const YV12_BUFFER_CONFIG *const last_frame =
-      get_ref_frame_yv12_buf_nrs(cm, last_frame_);
+      get_ref_frame_yv12_buf(cm, last_frame_);
   const YV12_BUFFER_CONFIG *golden_frame =
-      get_ref_frame_yv12_buf_nrs(cm, golden_frame_);
+      get_ref_frame_yv12_buf(cm, golden_frame_);
 #else
   const YV12_BUFFER_CONFIG *const last_frame =
       get_ref_frame_yv12_buf(cm, LAST_FRAME);
@@ -1125,9 +1125,9 @@ void av1_first_pass(AV1_COMP *cpi, const int64_t ts_duration) {
   const MV_REFERENCE_FRAME last_frame_ = LAST_FRAME_PROXY;
   const MV_REFERENCE_FRAME golden_frame_ = GOLDEN_FRAME_PROXY;
   const YV12_BUFFER_CONFIG *const last_frame =
-      get_ref_frame_yv12_buf_nrs(cm, last_frame_);
+      get_ref_frame_yv12_buf(cm, last_frame_);
   const YV12_BUFFER_CONFIG *golden_frame =
-      get_ref_frame_yv12_buf_nrs(cm, golden_frame_);
+      get_ref_frame_yv12_buf(cm, golden_frame_);
 #else
   const YV12_BUFFER_CONFIG *const last_frame =
       get_ref_frame_yv12_buf(cm, LAST_FRAME);

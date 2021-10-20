@@ -2289,13 +2289,13 @@ static int encode_without_recode(AV1_COMP *cpi) {
     const MV_REFERENCE_FRAME altref_frame = get_furthest_future_ref_index(cm);
     if (cpi->common.ref_frame_flags_nrs & (1 << golden_frame)) {
       const YV12_BUFFER_CONFIG *const ref =
-          get_ref_frame_yv12_buf_nrs(cm, golden_frame);
+          get_ref_frame_yv12_buf(cm, golden_frame);
       if (ref->y_crop_width != cm->width || ref->y_crop_height != cm->height)
         cpi->common.ref_frame_flags_nrs ^= (1 << golden_frame);
     }
     if (cpi->common.ref_frame_flags_nrs & (1 << altref_frame)) {
       const YV12_BUFFER_CONFIG *const ref =
-          get_ref_frame_yv12_buf_nrs(cm, altref_frame);
+          get_ref_frame_yv12_buf(cm, altref_frame);
       if (ref->y_crop_width != cm->width || ref->y_crop_height != cm->height)
         cpi->common.ref_frame_flags_nrs ^= (1 << altref_frame);
     }

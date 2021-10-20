@@ -177,8 +177,8 @@ static unsigned int get_sby_perpixel_diff_variance(const AV1_COMP *const cpi,
   uint8_t *last_y;
   const YV12_BUFFER_CONFIG *last =
 #if CONFIG_NEW_REF_SIGNALING
-      get_ref_frame_yv12_buf_nrs(&cpi->common,
-                                 get_closest_pastcur_ref_index(&cpi->common));
+      get_ref_frame_yv12_buf(&cpi->common,
+                             get_closest_pastcur_ref_index(&cpi->common));
 #else
       get_ref_frame_yv12_buf(&cpi->common, LAST_FRAME);
 #endif  // CONFIG_NEW_REF_SIGNALING

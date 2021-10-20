@@ -473,7 +473,7 @@ static void encode_superblock(const AV1_COMP *const cpi, TileDataEnc *tile_data,
     for (ref = 0; ref < 1 + is_compound; ++ref) {
 #if CONFIG_NEW_REF_SIGNALING
       const YV12_BUFFER_CONFIG *cfg =
-          get_ref_frame_yv12_buf_nrs(cm, mbmi->ref_frame_nrs[ref]);
+          get_ref_frame_yv12_buf(cm, mbmi->ref_frame_nrs[ref]);
 #else
       const YV12_BUFFER_CONFIG *cfg =
           get_ref_frame_yv12_buf(cm, mbmi->ref_frame[ref]);

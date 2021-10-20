@@ -462,15 +462,9 @@ static INLINE void find_predictors(
   const int num_planes = av1_num_planes(cm);
   (void)tile_data;
 
-#if CONFIG_NEW_REF_SIGNALING
-  const YV12_BUFFER_CONFIG *yv12 = get_ref_frame_yv12_buf_nrs(cm, ref_frame);
-  x->pred_mv_sad[ref_frame] = INT_MAX;
-  frame_mv[NEWMV][ref_frame].as_int = INVALID_MV;
-#else
   const YV12_BUFFER_CONFIG *yv12 = get_ref_frame_yv12_buf(cm, ref_frame);
   x->pred_mv_sad[ref_frame] = INT_MAX;
   frame_mv[NEWMV][ref_frame].as_int = INVALID_MV;
-#endif  // CONFIG_NEW_REF_SIGNALING
   // TODO(kyslov) this needs various further optimizations. to be continued..
   assert(yv12 != NULL);
   if (yv12 != NULL) {
