@@ -1774,15 +1774,9 @@ void av1_encode_frame(AV1_COMP *cpi) {
   }
 
   av1_setup_frame_buf_refs(cm);
-#if CONFIG_NEW_REF_SIGNALING
-  enforce_max_ref_frames_nrs(cpi, &cpi->common.ref_frame_flags);
-  set_rel_frame_dist(&cpi->common, &cpi->ref_frame_dist_info,
-                     cpi->common.ref_frame_flags);
-#else
   enforce_max_ref_frames(cpi, &cpi->common.ref_frame_flags);
   set_rel_frame_dist(&cpi->common, &cpi->ref_frame_dist_info,
                      cpi->common.ref_frame_flags);
-#endif  // CONFIG_NEW_REF_SIGNALING
   av1_setup_frame_sign_bias(cm);
 
 #if CONFIG_MISMATCH_DEBUG

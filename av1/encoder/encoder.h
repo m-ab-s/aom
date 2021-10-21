@@ -3221,7 +3221,7 @@ static const MV_REFERENCE_FRAME disable_order[] = {
 };
 
 #if CONFIG_NEW_REF_SIGNALING
-static INLINE int get_max_allowed_ref_frames_nrs(
+static INLINE int get_max_allowed_ref_frames(
     int selective_ref_frame, unsigned int max_reference_frames) {
   return INTER_REFS_PER_FRAME_NRS;
   const unsigned int max_allowed_refs_for_given_speed =
@@ -3229,8 +3229,7 @@ static INLINE int get_max_allowed_ref_frames_nrs(
                                  : INTER_REFS_PER_FRAME_NRS;
   return AOMMIN(max_allowed_refs_for_given_speed, max_reference_frames);
 }
-#endif  // CONFIG_NEW_REF_SIGNALING
-
+#else
 static INLINE int get_max_allowed_ref_frames(
     int selective_ref_frame, unsigned int max_reference_frames) {
   const unsigned int max_allowed_refs_for_given_speed =
@@ -3238,6 +3237,7 @@ static INLINE int get_max_allowed_ref_frames(
                                  : INTER_REFS_PER_FRAME;
   return AOMMIN(max_allowed_refs_for_given_speed, max_reference_frames);
 }
+#endif  // CONFIG_NEW_REF_SIGNALING
 
 static INLINE int get_ref_frame_flags(const SPEED_FEATURES *const sf,
                                       const YV12_BUFFER_CONFIG **ref_frames,
@@ -3269,8 +3269,8 @@ static INLINE int get_ref_frame_flags(const SPEED_FEATURES *const sf,
 #if CONFIG_NEW_REF_SIGNALING
 // Enforce the number of references for each arbitrary frame based on user
 // options and speed.
-static AOM_INLINE void enforce_max_ref_frames_nrs(AV1_COMP *cpi,
-                                                  int *ref_frame_flags) {
+static AOM_INLINE void enforce_max_ref_frames(AV1_COMP *cpi,
+                                              int *ref_frame_flags) {
   MV_REFERENCE_FRAME ref_frame;
   int total_valid_refs = 0;
 
@@ -3280,9 +3280,9 @@ static AOM_INLINE void enforce_max_ref_frames_nrs(AV1_COMP *cpi,
     }
   }
 
-  const int max_allowed_refs = get_max_allowed_ref_frames_nrs(
-      cpi->sf.inter_sf.selective_ref_frame,
-      cpi->oxcf.ref_frm_cfg.max_reference_frames);
+  const int max_allowed_refs =
+      get_max_allowed_ref_frames(cpi->sf.inter_sf.selective_ref_frame,
+                                 cpi->oxcf.ref_frm_cfg.max_reference_frames);
 
   for (int i = 0; i < 4 && total_valid_refs > max_allowed_refs; ++i) {
     const MV_REFERENCE_FRAME ref_frame_to_disable =
@@ -3296,8 +3296,7 @@ static AOM_INLINE void enforce_max_ref_frames_nrs(AV1_COMP *cpi,
   }
   assert(total_valid_refs <= max_allowed_refs);
 }
-#endif  // CONFIG_NEW_REF_SIGNALING
-
+#else
 // Enforce the number of references for each arbitrary frame based on user
 // options and speed.
 static AOM_INLINE void enforce_max_ref_frames(AV1_COMP *cpi,
@@ -3333,6 +3332,7 @@ static AOM_INLINE void enforce_max_ref_frames(AV1_COMP *cpi,
   }
   assert(total_valid_refs <= max_allowed_refs);
 }
+#endif  // CONFIG_NEW_REF_SIGNALING
 
 // Returns a Sequence Header OBU stored in an aom_fixed_buf_t, or NULL upon
 // failure. When a non-NULL aom_fixed_buf_t pointer is returned by this
