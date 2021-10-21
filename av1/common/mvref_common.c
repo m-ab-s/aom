@@ -458,7 +458,7 @@ static int add_tpl_ref_mv(const AV1_COMMON *cm, const MACROBLOCKD *xd,
 
 #if CONFIG_NEW_REF_SIGNALING
   MV_REFERENCE_FRAME rf[2];
-  av1_set_ref_frame_nrs(rf, ref_frame);
+  av1_set_ref_frame(rf, ref_frame);
 #else
   MV_REFERENCE_FRAME rf[2];
   av1_set_ref_frame(rf, ref_frame);
@@ -702,7 +702,7 @@ static AOM_INLINE void setup_ref_mv_list(
 
   MV_REFERENCE_FRAME rf[2];
 #if CONFIG_NEW_REF_SIGNALING
-  av1_set_ref_frame_nrs(rf, ref_frame);
+  av1_set_ref_frame(rf, ref_frame);
 #else
   av1_set_ref_frame(rf, ref_frame);
 #endif  // CONFIG_NEW_REF_SIGNALING
@@ -1168,7 +1168,7 @@ void av1_find_mv_refs_nrs(const AV1_COMMON *cm, const MACROBLOCKD *xd,
       if (global_mvs != NULL) global_mvs[ref_frame_nrs] = gm_mv[0];
     } else {
       MV_REFERENCE_FRAME rf[2];
-      av1_set_ref_frame_nrs(rf, ref_frame_nrs);
+      av1_set_ref_frame(rf, ref_frame_nrs);
       gm_mv[0] = gm_get_motion_vector(&cm->global_motion[rf[0]],
                                       fr_mv_precision, bsize, mi_col, mi_row);
       gm_mv[1] = gm_get_motion_vector(&cm->global_motion[rf[1]],

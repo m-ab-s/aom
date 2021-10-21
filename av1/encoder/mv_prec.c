@@ -37,7 +37,7 @@ static AOM_INLINE int_mv get_ref_mv_for_mv_stats(
 
 #if CONFIG_NEW_REF_SIGNALING
   const MV_REFERENCE_FRAME *ref_frames_nrs = mbmi->ref_frame_nrs;
-  const int8_t ref_frame_type_nrs = av1_ref_frame_type_nrs(ref_frames_nrs);
+  const int8_t ref_frame_type_nrs = av1_ref_frame_type(ref_frames_nrs);
 #else
   const MV_REFERENCE_FRAME *ref_frames = mbmi->ref_frame;
   const int8_t ref_frame_type = av1_ref_frame_type(ref_frames);

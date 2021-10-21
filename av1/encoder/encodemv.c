@@ -295,11 +295,7 @@ int_mv av1_get_ref_mv_from_stack(int ref_idx,
                                  const MV_REFERENCE_FRAME *ref_frame,
                                  int ref_mv_idx,
                                  const MB_MODE_INFO_EXT *mbmi_ext) {
-#if CONFIG_NEW_REF_SIGNALING
-  const int8_t ref_frame_type = av1_ref_frame_type_nrs(ref_frame);
-#else
   const int8_t ref_frame_type = av1_ref_frame_type(ref_frame);
-#endif  // CONFIG_NEW_REF_SIGNALING
   const CANDIDATE_MV *curr_ref_mv_stack =
       mbmi_ext->ref_mv_stack[ref_frame_type];
 

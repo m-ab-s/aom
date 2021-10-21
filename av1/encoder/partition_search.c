@@ -962,7 +962,7 @@ static void update_drl_index_stats(int max_drl_bits, const int16_t mode_ctx,
   assert(have_drl_index(mbmi->mode));
   assert(mbmi->ref_mv_idx < max_drl_bits + 1);
 #if CONFIG_NEW_REF_SIGNALING
-  uint8_t ref_frame_type = av1_ref_frame_type_nrs(mbmi->ref_frame_nrs);
+  uint8_t ref_frame_type = av1_ref_frame_type(mbmi->ref_frame_nrs);
 #else
   uint8_t ref_frame_type = av1_ref_frame_type(mbmi->ref_frame);
 #endif  // CONFIG_NEW_REF_SIGNALING
@@ -1466,8 +1466,7 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
 #else
     if (new_mv) {
 #if CONFIG_NEW_REF_SIGNALING
-      const uint8_t ref_frame_type =
-          av1_ref_frame_type_nrs(mbmi->ref_frame_nrs);
+      const uint8_t ref_frame_type = av1_ref_frame_type(mbmi->ref_frame_nrs);
 #else
       const uint8_t ref_frame_type = av1_ref_frame_type(mbmi->ref_frame);
 #endif  // CONFIG_NEW_REF_SIGNALING
@@ -1485,8 +1484,7 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
     }
     if (have_nearmv_in_inter_mode(mbmi->mode)) {
 #if CONFIG_NEW_REF_SIGNALING
-      const uint8_t ref_frame_type =
-          av1_ref_frame_type_nrs(mbmi->ref_frame_nrs);
+      const uint8_t ref_frame_type = av1_ref_frame_type(mbmi->ref_frame_nrs);
 #else
       const uint8_t ref_frame_type = av1_ref_frame_type(mbmi->ref_frame);
 #endif  // CONFIG_NEW_REF_SIGNALING
@@ -1744,7 +1742,7 @@ static void encode_b(const AV1_COMP *const cpi, TileDataEnc *tile_data,
   av1_copy_mbmi_ext_to_mbmi_ext_frame(
       x->mbmi_ext_frame, x->mbmi_ext,
 #if CONFIG_NEW_REF_SIGNALING
-      av1_ref_frame_type_nrs(xd->mi[0]->ref_frame_nrs)
+      av1_ref_frame_type(xd->mi[0]->ref_frame_nrs)
 #else
       av1_ref_frame_type(xd->mi[0]->ref_frame)
 #endif  // CONFIG_NEW_REF_SIGNALING
@@ -2526,7 +2524,7 @@ static void encode_b_nonrd(const AV1_COMP *const cpi, TileDataEnc *tile_data,
   av1_copy_mbmi_ext_to_mbmi_ext_frame(
       x->mbmi_ext_frame, x->mbmi_ext,
 #if CONFIG_NEW_REF_SIGNALING
-      av1_ref_frame_type_nrs(xd->mi[0]->ref_frame_nrs)
+      av1_ref_frame_type(xd->mi[0]->ref_frame_nrs)
 #else
       av1_ref_frame_type(xd->mi[0]->ref_frame)
 #endif  // CONFIG_NEW_REF_SIGNALING
@@ -4497,8 +4495,7 @@ static void none_partition_search(
     // Record picked ref frame to prune ref frames for other partition types.
     if (cpi->sf.inter_sf.prune_ref_frame_for_rect_partitions) {
 #if CONFIG_NEW_REF_SIGNALING
-      const int ref_type =
-          av1_ref_frame_type_nrs(pc_tree->none->mic.ref_frame_nrs);
+      const int ref_type = av1_ref_frame_type(pc_tree->none->mic.ref_frame_nrs);
 #else
       const int ref_type = av1_ref_frame_type(pc_tree->none->mic.ref_frame);
 #endif

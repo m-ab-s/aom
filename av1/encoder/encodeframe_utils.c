@@ -225,7 +225,7 @@ void av1_update_state(const AV1_COMP *const cpi, ThreadData *td,
   *mi_addr = *mi;
   copy_mbmi_ext_frame_to_mbmi_ext(x->mbmi_ext, &ctx->mbmi_ext_best,
 #if CONFIG_NEW_REF_SIGNALING
-                                  av1_ref_frame_type_nrs(ctx->mic.ref_frame_nrs)
+                                  av1_ref_frame_type(ctx->mic.ref_frame_nrs)
 #else
                                   av1_ref_frame_type(ctx->mic.ref_frame)
 #endif  // CONFIG_NEW_REF_SIGNALING

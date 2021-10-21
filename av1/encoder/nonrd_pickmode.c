@@ -1254,7 +1254,7 @@ static void store_coding_context(MACROBLOCK *x, PICK_MODE_CONTEXT *ctx) {
   av1_copy_mbmi_ext_to_mbmi_ext_frame(
       &ctx->mbmi_ext_best, x->mbmi_ext,
 #if CONFIG_NEW_REF_SIGNALING
-      av1_ref_frame_type_nrs(xd->mi[0]->ref_frame_nrs)
+      av1_ref_frame_type(xd->mi[0]->ref_frame_nrs)
 #else
       av1_ref_frame_type(xd->mi[0]->ref_frame)
 #endif  // CONFIG_NEW_REF_SIGNALING

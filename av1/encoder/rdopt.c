@@ -1258,7 +1258,7 @@ static AOM_INLINE void store_coding_context(
   av1_copy_mbmi_ext_to_mbmi_ext_frame(
       &ctx->mbmi_ext_best, x->mbmi_ext,
 #if CONFIG_NEW_REF_SIGNALING
-      av1_ref_frame_type_nrs(xd->mi[0]->ref_frame_nrs)
+      av1_ref_frame_type(xd->mi[0]->ref_frame_nrs)
 #else
       av1_ref_frame_type(xd->mi[0]->ref_frame)
 #endif  // CONFIG_NEW_REF_SIGNALING
@@ -1397,7 +1397,7 @@ static int skip_repeated_mv(const AV1_COMMON *const cm,
   const int is_comp_pred = ref_frames[1] > INTRA_FRAME;
 #endif  // CONFIG_NEW_REF_SIGNALING
 #if CONFIG_NEW_REF_SIGNALING
-  const uint8_t ref_frame_type = av1_ref_frame_type_nrs(ref_frames_nrs);
+  const uint8_t ref_frame_type = av1_ref_frame_type(ref_frames_nrs);
 #else
   const uint8_t ref_frame_type = av1_ref_frame_type(ref_frames);
 #endif  // CONFIG_NEW_REF_SIGNALING
@@ -2368,11 +2368,7 @@ static INLINE int check_repeat_ref_mv(const MB_MODE_INFO_EXT *mbmi_ext,
                                       int ref_idx,
                                       const MV_REFERENCE_FRAME *ref_frame,
                                       PREDICTION_MODE single_mode) {
-#if CONFIG_NEW_REF_SIGNALING
-  const uint8_t ref_frame_type = av1_ref_frame_type_nrs(ref_frame);
-#else
   const uint8_t ref_frame_type = av1_ref_frame_type(ref_frame);
-#endif  // CONFIG_NEW_REF_SIGNALING
   const int ref_mv_count = mbmi_ext->ref_mv_count[ref_frame_type];
   assert(single_mode != NEWMV);
   if (single_mode == NEARESTMV) {
@@ -2435,11 +2431,7 @@ static INLINE int get_this_mv(int_mv *this_mv, PREDICTION_MODE this_mode,
     assert(single_mode == NEARMV || single_mode == NEARESTMV);
     const int ref_mv_offset = single_mode == NEARESTMV ? 0 : ref_mv_idx + 1;
 #endif  // CONFIG_NEW_INTER_MODES
-#if CONFIG_NEW_REF_SIGNALING
-    const uint8_t ref_frame_type = av1_ref_frame_type_nrs(ref_frame);
-#else
     const uint8_t ref_frame_type = av1_ref_frame_type(ref_frame);
-#endif  // CONFIG_NEW_REF_SIGNALING
     if (ref_mv_offset < mbmi_ext->ref_mv_count[ref_frame_type]) {
       assert(ref_mv_offset >= 0);
       if (ref_idx == 0) {
@@ -2485,8 +2477,7 @@ static INLINE int build_cur_mv(int_mv *cur_mv, PREDICTION_MODE this_mode,
     const PREDICTION_MODE single_mode = get_single_mode(this_mode, i);
     if (single_mode == NEWMV) {
 #if CONFIG_NEW_REF_SIGNALING
-      const uint8_t ref_frame_type =
-          av1_ref_frame_type_nrs(mbmi->ref_frame_nrs);
+      const uint8_t ref_frame_type = av1_ref_frame_type(mbmi->ref_frame_nrs);
 #else
       const uint8_t ref_frame_type = av1_ref_frame_type(mbmi->ref_frame);
 #endif  // CONFIG_NEW_REF_SIGNALING
@@ -2614,11 +2605,7 @@ static int get_drl_refmv_count(int max_drl_bits, const MACROBLOCK *const x,
            mode == GLOBAL_GLOBALMV);
     return 1;
   }
-#if CONFIG_NEW_REF_SIGNALING
-  const int8_t ref_frame_type = av1_ref_frame_type_nrs(ref_frame);
-#else
   const int8_t ref_frame_type = av1_ref_frame_type(ref_frame);
-#endif  // CONFIG_NEW_REF_SIGNALING
   int ref_mv_count = mbmi_ext->ref_mv_count[ref_frame_type];
   return AOMMIN(max_drl_bits + 1, ref_mv_count);
 }
@@ -2631,11 +2618,7 @@ static int get_drl_refmv_count(const MACROBLOCK *const x,
 #endif  // CONFIG_NEW_REF_SIGNALING
                                PREDICTION_MODE mode) {
   MB_MODE_INFO_EXT *const mbmi_ext = x->mbmi_ext;
-#if CONFIG_NEW_REF_SIGNALING
-  const int8_t ref_frame_type = av1_ref_frame_type_nrs(ref_frame);
-#else
   const int8_t ref_frame_type = av1_ref_frame_type(ref_frame);
-#endif  // CONFIG_NEW_REF_SIGNALING
   const int has_nearmv = have_nearmv_in_inter_mode(mode) ? 1 : 0;
   const int ref_mv_count = mbmi_ext->ref_mv_count[ref_frame_type];
   const int only_newmv = (mode == NEWMV || mode == NEW_NEWMV);
@@ -2664,7 +2647,7 @@ static bool ref_mv_idx_early_breakout(
   const MB_MODE_INFO_EXT *const mbmi_ext = x->mbmi_ext;
   (void)ref_frame_dist_info;
 #if CONFIG_NEW_REF_SIGNALING
-  const int8_t ref_frame_type = av1_ref_frame_type_nrs(mbmi->ref_frame_nrs);
+  const int8_t ref_frame_type = av1_ref_frame_type(mbmi->ref_frame_nrs);
 #else
   const int8_t ref_frame_type = av1_ref_frame_type(mbmi->ref_frame);
 #endif  // CONFIG_NEW_REF_SIGNALING
@@ -2756,7 +2739,7 @@ static int64_t simple_translation_pred_rd(
   MB_MODE_INFO *mbmi = xd->mi[0];
   MB_MODE_INFO_EXT *const mbmi_ext = x->mbmi_ext;
 #if CONFIG_NEW_REF_SIGNALING
-  const int8_t ref_frame_type = av1_ref_frame_type_nrs(mbmi->ref_frame_nrs);
+  const int8_t ref_frame_type = av1_ref_frame_type(mbmi->ref_frame_nrs);
 #else
   const int8_t ref_frame_type = av1_ref_frame_type(mbmi->ref_frame);
 #endif  // CONFIG_NEW_REF_SIGNALING
@@ -3591,7 +3574,7 @@ static int64_t handle_inter_mode(
 
   int64_t ret_val = INT64_MAX;
 #if CONFIG_NEW_REF_SIGNALING
-  const int8_t ref_frame_type = av1_ref_frame_type_nrs(mbmi->ref_frame_nrs);
+  const int8_t ref_frame_type = av1_ref_frame_type(mbmi->ref_frame_nrs);
 #else
   const int8_t ref_frame_type = av1_ref_frame_type(mbmi->ref_frame);
 #endif  // CONFIG_NEW_REF_SIGNALING
@@ -4256,7 +4239,7 @@ void av1_rd_pick_intra_mode_sb(const struct AV1_COMP *cpi, struct macroblock *x,
   av1_copy_mbmi_ext_to_mbmi_ext_frame(
       &ctx->mbmi_ext_best, x->mbmi_ext,
 #if CONFIG_NEW_REF_SIGNALING
-      av1_ref_frame_type_nrs(xd->mi[0]->ref_frame_nrs)
+      av1_ref_frame_type(xd->mi[0]->ref_frame_nrs)
 #else
       av1_ref_frame_type(xd->mi[0]->ref_frame)
 #endif  // CONFIG_NEW_REF_SIGNALING
@@ -4339,8 +4322,7 @@ static AOM_INLINE void rd_pick_skip_mode(
 #endif  // CONFIG_NEW_REF_SIGNALING
 
 #if CONFIG_NEW_REF_SIGNALING
-  const uint8_t ref_frame_type_nrs =
-      av1_ref_frame_type_nrs(mbmi->ref_frame_nrs);
+  const uint8_t ref_frame_type_nrs = av1_ref_frame_type(mbmi->ref_frame_nrs);
   if (x->mbmi_ext->ref_mv_count[ref_frame_type_nrs] == UINT8_MAX) {
     if (x->mbmi_ext->ref_mv_count[ref_frame_nrs] == UINT8_MAX ||
         x->mbmi_ext->ref_mv_count[second_ref_frame_nrs] == UINT8_MAX) {
@@ -5081,7 +5063,7 @@ static AOM_INLINE int prune_ref_frame_nrs(
     const MV_REFERENCE_FRAME ref_frame_type_nrs) {
   const AV1_COMMON *const cm = &cpi->common;
   MV_REFERENCE_FRAME rf[2];
-  av1_set_ref_frame_nrs(rf, ref_frame_type_nrs);
+  av1_set_ref_frame(rf, ref_frame_type_nrs);
   const int comp_pred = (rf[1] != INVALID_IDX && rf[1] != INTRA_FRAME_NRS);
   if (comp_pred) {
     if (!cpi->oxcf.ref_frm_cfg.enable_onesided_comp ||
@@ -5130,7 +5112,7 @@ static AOM_INLINE int is_ref_frame_used_by_compound_ref(
   for (int r = INTER_REFS_PER_FRAME_NRS; r < INTRA_FRAME_NRS; ++r) {
     if (!(skip_ref_frame_mask & (1 << r))) {
       MV_REFERENCE_FRAME rf[2];
-      av1_set_ref_frame_nrs(rf, r);
+      av1_set_ref_frame(rf, r);
       if (rf[0] == ref_frame || rf[1] == ref_frame) {
         return 1;
       }
@@ -5164,7 +5146,7 @@ static AOM_INLINE int is_ref_frame_used_in_cache_nrs(
 
   // if we are here, then the current mode is compound.
   MV_REFERENCE_FRAME cached_ref_type =
-      av1_ref_frame_type_nrs(mi_cache->ref_frame_nrs);
+      av1_ref_frame_type(mi_cache->ref_frame_nrs);
   return ref_frame_nrs == cached_ref_type;
 }
 #else
@@ -5287,7 +5269,7 @@ static AOM_INLINE void set_params_rd_pick_inter_mode(
     for (MV_REFERENCE_FRAME ref_frame_nrs = INTER_REFS_PER_FRAME_NRS;
          ref_frame_nrs < INTRA_FRAME_NRS; ++ref_frame_nrs) {
       MV_REFERENCE_FRAME rf_nrs[2];
-      av1_set_ref_frame_nrs(rf_nrs, ref_frame_nrs);
+      av1_set_ref_frame(rf_nrs, ref_frame_nrs);
       if (rf_nrs[0] >= cm->new_ref_frame_data.n_total_refs ||
           rf_nrs[1] >= cm->new_ref_frame_data.n_total_refs)
         continue;
@@ -5751,7 +5733,7 @@ static int inter_mode_search_order_independent_skip(
 #endif  // CONFIG_NEW_REF_SIGNALING
 
 #if CONFIG_NEW_REF_SIGNALING
-  const int ref_type_nrs = av1_ref_frame_type_nrs(ref_frame_nrs);
+  const int ref_type_nrs = av1_ref_frame_type(ref_frame_nrs);
   if (prune_ref_frame_nrs(cpi, x, ref_type_nrs)) return 1;
 #else
   const int ref_type = av1_ref_frame_type(ref_frame);
@@ -5812,7 +5794,7 @@ static int inter_mode_search_order_independent_skip(
       for (int r = INTER_REFS_PER_FRAME_NRS; r < INTRA_FRAME_NRS; ++r) {
         if (skip_ref_frame_mask & (1 << r)) continue;
         MV_REFERENCE_FRAME rf[2];
-        av1_set_ref_frame_nrs(rf, r);
+        av1_set_ref_frame(rf, r);
         if (rf[0] == ref_type_nrs || rf[1] == ref_type_nrs) {
           // Found a not skipped compound ref mode which contains current
           // single ref. So this single ref can't be skipped completly

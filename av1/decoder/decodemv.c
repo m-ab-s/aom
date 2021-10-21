@@ -226,7 +226,7 @@ static void read_drl_idx(int max_drl_bits, const int16_t mode_ctx,
                          MB_MODE_INFO *mbmi, aom_reader *r) {
   MACROBLOCKD *const xd = &dcb->xd;
 #if CONFIG_NEW_REF_SIGNALING
-  uint8_t ref_frame_type = av1_ref_frame_type_nrs(mbmi->ref_frame_nrs);
+  uint8_t ref_frame_type = av1_ref_frame_type(mbmi->ref_frame_nrs);
 #else
   uint8_t ref_frame_type = av1_ref_frame_type(mbmi->ref_frame);
 #endif  // CONFIG_NEW_REF_SIGNALING
@@ -248,7 +248,7 @@ static void read_drl_idx(FRAME_CONTEXT *ec_ctx, DecoderCodingBlock *dcb,
                          MB_MODE_INFO *mbmi, aom_reader *r) {
   MACROBLOCKD *const xd = &dcb->xd;
 #if CONFIG_NEW_REF_SIGNALING
-  uint8_t ref_frame_type = av1_ref_frame_type_nrs(mbmi->ref_frame_nrs);
+  uint8_t ref_frame_type = av1_ref_frame_type(mbmi->ref_frame_nrs);
 #else
   uint8_t ref_frame_type = av1_ref_frame_type(mbmi->ref_frame);
 #endif  // CONFIG_NEW_REF_SIGNALING
@@ -1658,8 +1658,7 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
   const int is_compound = has_second_ref(mbmi);
 
 #if CONFIG_NEW_REF_SIGNALING
-  MV_REFERENCE_FRAME ref_frame_nrs =
-      av1_ref_frame_type_nrs(mbmi->ref_frame_nrs);
+  MV_REFERENCE_FRAME ref_frame_nrs = av1_ref_frame_type(mbmi->ref_frame_nrs);
   av1_find_mv_refs_nrs(cm, xd, mbmi, ref_frame_nrs, dcb->ref_mv_count,
                        xd->ref_mv_stack, xd->weight, ref_mvs,
                        /*global_mvs=*/NULL, inter_mode_ctx);

@@ -1376,11 +1376,7 @@ static INLINE int16_t mode_context_analyzer(
 static INLINE int_mv get_ref_mv_from_stack(
     int ref_idx, const MV_REFERENCE_FRAME *ref_frame, int ref_mv_idx,
     const MB_MODE_INFO_EXT_FRAME *mbmi_ext_frame) {
-#if CONFIG_NEW_REF_SIGNALING
-  const int8_t ref_frame_type = av1_ref_frame_type_nrs(ref_frame);
-#else
   const int8_t ref_frame_type = av1_ref_frame_type(ref_frame);
-#endif  // CONFIG_NEW_REF_SIGNALING
   const CANDIDATE_MV *curr_ref_mv_stack = mbmi_ext_frame->ref_mv_stack;
 
 #if CONFIG_NEW_REF_SIGNALING
