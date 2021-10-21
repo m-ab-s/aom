@@ -841,21 +841,14 @@ static void dump_ref_frame_images(AV1_COMP *cpi) {
 }
 #endif  // DUMP_REF_FRAME_IMAGES == 1
 
-#if CONFIG_NEW_REF_SIGNALING
-int av1_get_refresh_ref_frame_map_nrs(int refresh_frame_flags) {
-  int ref_map_index = INVALID_IDX;
-
-  for (ref_map_index = 0; ref_map_index < REF_FRAMES_NRS; ++ref_map_index)
-    if ((refresh_frame_flags >> ref_map_index) & 1) break;
-
-  return ref_map_index;
-}
-#endif  // CONFIG_NEW_REF_SIGNALING
-
 int av1_get_refresh_ref_frame_map(int refresh_frame_flags) {
   int ref_map_index = INVALID_IDX;
 
+#if CONFIG_NEW_REF_SIGNALING
+  for (ref_map_index = 0; ref_map_index < REF_FRAMES_NRS; ++ref_map_index)
+#else
   for (ref_map_index = 0; ref_map_index < REF_FRAMES; ++ref_map_index)
+#endif  // CONFIG_NEW_REF_SIGNALING
     if ((refresh_frame_flags >> ref_map_index) & 1) break;
 
   return ref_map_index;

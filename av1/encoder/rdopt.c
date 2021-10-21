@@ -1863,13 +1863,8 @@ static int64_t motion_mode_rd(
   if (features->switchable_motion_mode) {
     // Determine which motion modes to search if more than SIMPLE_TRANSLATION
     // is allowed.
-#if CONFIG_NEW_REF_SIGNALING
-    last_motion_mode_allowed = motion_mode_allowed_nrs(
-        xd->global_motion, xd, mbmi, features->allow_warped_motion);
-#else
     last_motion_mode_allowed = motion_mode_allowed(
         xd->global_motion, xd, mbmi, features->allow_warped_motion);
-#endif  // CONFIG_NEW_REF_SIGNALING
   }
   if (last_motion_mode_allowed == WARPED_CAUSAL) {
     // Collect projection samples used in least squares approximation of

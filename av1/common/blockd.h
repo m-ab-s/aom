@@ -1979,44 +1979,24 @@ static INLINE int check_num_overlappable_neighbors(const MB_MODE_INFO *mbmi) {
            mbmi->overlappable_neighbors[1] == 0);
 }
 
-#if CONFIG_NEW_REF_SIGNALING
-static INLINE MOTION_MODE motion_mode_allowed_nrs(
-    const WarpedMotionParams *gm_params, const MACROBLOCKD *xd,
-    const MB_MODE_INFO *mbmi, int allow_warped_motion) {
-  if (xd->cur_frame_force_integer_mv == 0) {
-    const TransformationType gm_type = gm_params[mbmi->ref_frame_nrs[0]].wmtype;
-    if (is_global_mv_block(mbmi, gm_type)) return SIMPLE_TRANSLATION;
-  }
-  if (is_motion_variation_allowed_bsize(mbmi->sb_type, xd->mi_row,
-                                        xd->mi_col) &&
-      is_inter_mode(mbmi->mode) && mbmi->ref_frame_nrs[1] != INTRA_FRAME_NRS &&
-      is_motion_variation_allowed_compound(mbmi)) {
-    if (!check_num_overlappable_neighbors(mbmi)) return SIMPLE_TRANSLATION;
-    assert(!has_second_ref(mbmi));
-    if (mbmi->num_proj_ref >= 1 &&
-        (allow_warped_motion &&
-         !av1_is_scaled(xd->block_ref_scale_factors[0]))) {
-      if (xd->cur_frame_force_integer_mv) {
-        return OBMC_CAUSAL;
-      }
-      return WARPED_CAUSAL;
-    }
-    return OBMC_CAUSAL;
-  } else {
-    return SIMPLE_TRANSLATION;
-  }
-}
-#else
 static INLINE MOTION_MODE
 motion_mode_allowed(const WarpedMotionParams *gm_params, const MACROBLOCKD *xd,
                     const MB_MODE_INFO *mbmi, int allow_warped_motion) {
   if (xd->cur_frame_force_integer_mv == 0) {
+#if CONFIG_NEW_REF_SIGNALING
+    const TransformationType gm_type = gm_params[mbmi->ref_frame_nrs[0]].wmtype;
+#else
     const TransformationType gm_type = gm_params[mbmi->ref_frame[0]].wmtype;
+#endif  // CONFIG_NEW_REF_SIGNALING
     if (is_global_mv_block(mbmi, gm_type)) return SIMPLE_TRANSLATION;
   }
   if (is_motion_variation_allowed_bsize(mbmi->sb_type, xd->mi_row,
                                         xd->mi_col) &&
+#if CONFIG_NEW_REF_SIGNALING
+      is_inter_mode(mbmi->mode) && mbmi->ref_frame_nrs[1] != INTRA_FRAME_NRS &&
+#else
       is_inter_mode(mbmi->mode) && mbmi->ref_frame[1] != INTRA_FRAME &&
+#endif  // CONFIG_NEW_REF_SIGNALING
       is_motion_variation_allowed_compound(mbmi)) {
     if (!check_num_overlappable_neighbors(mbmi)) return SIMPLE_TRANSLATION;
     assert(!has_second_ref(mbmi));
@@ -2033,7 +2013,6 @@ motion_mode_allowed(const WarpedMotionParams *gm_params, const MACROBLOCKD *xd,
     return SIMPLE_TRANSLATION;
   }
 }
-#endif  // !CONFIG_NEW_REF_SIGNALING
 
 static INLINE int is_neighbor_overlappable(const MB_MODE_INFO *mbmi) {
   return (is_inter_block(mbmi));

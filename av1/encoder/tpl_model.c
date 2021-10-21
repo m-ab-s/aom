@@ -1531,9 +1531,7 @@ static AOM_INLINE void init_gop_frames_for_tpl_nrs(
         av1_get_refresh_frame_flags(cpi, &frame_params, frame_update_type,
                                     gf_index, true_disp, ref_frame_map_pairs);
 
-    int refresh_frame_map_index =
-        av1_get_refresh_ref_frame_map_nrs(refresh_mask);
-
+    int refresh_frame_map_index = av1_get_refresh_ref_frame_map(refresh_mask);
     if (refresh_frame_map_index < REF_FRAMES_NRS) {
       ref_frame_map_pairs[refresh_frame_map_index].disp_order =
           AOMMAX(0, true_disp);
@@ -1764,7 +1762,6 @@ static AOM_INLINE void init_gop_frames_for_tpl(
                                     gf_index, true_disp, ref_frame_map_pairs);
 
     int refresh_frame_map_index = av1_get_refresh_ref_frame_map(refresh_mask);
-
     if (refresh_frame_map_index < REF_FRAMES) {
       ref_frame_map_pairs[refresh_frame_map_index].disp_order =
           AOMMAX(0, true_disp);

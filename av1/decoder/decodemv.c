@@ -284,13 +284,8 @@ static MOTION_MODE read_motion_mode(AV1_COMMON *cm, MACROBLOCKD *xd,
   if (cm->features.switchable_motion_mode == 0) return SIMPLE_TRANSLATION;
   if (mbmi->skip_mode) return SIMPLE_TRANSLATION;
 
-#if CONFIG_NEW_REF_SIGNALING
-  const MOTION_MODE last_motion_mode_allowed = motion_mode_allowed_nrs(
-      xd->global_motion, xd, mbmi, cm->features.allow_warped_motion);
-#else
   const MOTION_MODE last_motion_mode_allowed = motion_mode_allowed(
       xd->global_motion, xd, mbmi, cm->features.allow_warped_motion);
-#endif  // CONFIG_NEW_REF_SIGNALING
   int motion_mode;
 
   if (last_motion_mode_allowed == SIMPLE_TRANSLATION) return SIMPLE_TRANSLATION;

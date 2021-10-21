@@ -1210,18 +1210,14 @@ static AOM_INLINE void set_rel_frame_dist(
 }
 #endif  // CONFIG_NEW_REF_SIGNALING
 
-#if CONFIG_NEW_REF_SIGNALING
-static INLINE int refs_are_one_sided_nrs(const AV1_COMMON *cm) {
-  assert(!frame_is_intra_only(cm));
-
-  return (cm->new_ref_frame_data.n_past_refs == 0 &&
-          cm->new_ref_frame_data.n_cur_refs == 0) ||
-         cm->new_ref_frame_data.n_future_refs == 0;
-}
-#else
 static INLINE int refs_are_one_sided(const AV1_COMMON *cm) {
   assert(!frame_is_intra_only(cm));
 
+#if CONFIG_NEW_REF_SIGNALING
+  return (cm->new_ref_frame_data.n_past_refs == 0 &&
+          cm->new_ref_frame_data.n_cur_refs == 0) ||
+         cm->new_ref_frame_data.n_future_refs == 0;
+#else
   int one_sided_refs = 1;
   const int cur_display_order_hint = cm->current_frame.display_order_hint;
   for (int ref = LAST_FRAME; ref <= ALTREF_FRAME; ++ref) {
@@ -1234,8 +1230,8 @@ static INLINE int refs_are_one_sided(const AV1_COMMON *cm) {
     }
   }
   return one_sided_refs;
-}
 #endif  // CONFIG_NEW_REF_SIGNALING
+}
 
 static INLINE void get_skip_mode_ref_offsets(const AV1_COMMON *cm,
                                              int ref_order_hint[2]) {
@@ -1580,13 +1576,8 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
          sizeof(cm->lf.ref_deltas));
   memcpy(cm->cur_frame->mode_deltas, cm->lf.mode_deltas, MAX_MODE_LF_DELTAS);
 
-#if CONFIG_NEW_REF_SIGNALING
-  cpi->all_one_sided_refs =
-      frame_is_intra_only(cm) ? 0 : refs_are_one_sided_nrs(cm);
-#else
   cpi->all_one_sided_refs =
       frame_is_intra_only(cm) ? 0 : refs_are_one_sided(cm);
-#endif  // CONFIG_NEW_REF_SIGNALING
 
   cpi->prune_ref_frame_mask = 0;
   // Figure out which ref frames can be skipped at frame level.

@@ -1296,19 +1296,11 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
         }
       }
 
-#if CONFIG_NEW_REF_SIGNALING
-      const MOTION_MODE motion_allowed =
-          cm->features.switchable_motion_mode
-              ? motion_mode_allowed_nrs(xd->global_motion, xd, mbmi,
-                                        cm->features.allow_warped_motion)
-              : SIMPLE_TRANSLATION;
-#else
       const MOTION_MODE motion_allowed =
           cm->features.switchable_motion_mode
               ? motion_mode_allowed(xd->global_motion, xd, mbmi,
                                     cm->features.allow_warped_motion)
               : SIMPLE_TRANSLATION;
-#endif  // CONFIG_NEW_REF_SIGNALING
 #if CONFIG_NEW_REF_SIGNALING
       if (mbmi->ref_frame_nrs[1] != INTRA_FRAME_NRS)
 #else
@@ -1707,19 +1699,11 @@ static void encode_b(const AV1_COMP *const cpi, TileDataEnc *tile_data,
           segfeature_active(&cm->seg, mbmi->segment_id, SEG_LVL_REF_FRAME);
 #endif  // CONFIG_NEW_REF_SIGNALING
       if (!seg_ref_active && inter_block) {
-#if CONFIG_NEW_REF_SIGNALING
-        const MOTION_MODE motion_allowed =
-            cm->features.switchable_motion_mode
-                ? motion_mode_allowed_nrs(xd->global_motion, xd, mbmi,
-                                          cm->features.allow_warped_motion)
-                : SIMPLE_TRANSLATION;
-#else
         const MOTION_MODE motion_allowed =
             cm->features.switchable_motion_mode
                 ? motion_mode_allowed(xd->global_motion, xd, mbmi,
                                       cm->features.allow_warped_motion)
                 : SIMPLE_TRANSLATION;
-#endif  // CONFIG_NEW_REF_SIGNALING
 
 #if CONFIG_NEW_REF_SIGNALING
         if (mbmi->ref_frame_nrs[1] != INTRA_FRAME_NRS)
