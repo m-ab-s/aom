@@ -4686,7 +4686,7 @@ typedef struct {
 
 #if CONFIG_NEW_REF_SIGNALING
 // Update 'ref_combo' mask to disable given 'ref' in single and compound modes.
-static AOM_INLINE void disable_reference_nrs(
+static AOM_INLINE void disable_reference(
     MV_REFERENCE_FRAME ref,
     bool ref_combo[REF_FRAMES_NRS][REF_FRAMES_NRS + 1]) {
   ref = (ref == INTRA_FRAME_NRS ? INTER_REFS_PER_FRAME_NRS : ref);
@@ -4695,7 +4695,7 @@ static AOM_INLINE void disable_reference_nrs(
   }
 }
 
-static const MV_REFERENCE_FRAME reduced_ref_combos_nrs[][2] = {
+static const MV_REFERENCE_FRAME reduced_ref_combos[][2] = {
   { 0, INVALID_IDX },
   { 1, INVALID_IDX },
   { 2, INVALID_IDX },
@@ -4714,7 +4714,7 @@ static const MV_REFERENCE_FRAME reduced_ref_combos_nrs[][2] = {
   { 2, 3 },
 };
 
-static const MV_REFERENCE_FRAME real_time_ref_combos_nrs[][2] = {
+static const MV_REFERENCE_FRAME real_time_ref_combos[][2] = {
   { 0, INVALID_IDX },
   { 1, INVALID_IDX },
   { 2, INVALID_IDX },
@@ -4781,45 +4781,6 @@ static const MV_REFERENCE_FRAME real_time_ref_combos[][2] = {
 
 typedef enum { REF_SET_FULL, REF_SET_REDUCED, REF_SET_REALTIME } REF_SET;
 
-#if CONFIG_NEW_REF_SIGNALING
-static AOM_INLINE void default_skip_mask_nrs(mode_skip_mask_t *mask,
-                                             REF_SET ref_set) {
-  if (ref_set == REF_SET_FULL) {
-    // Everything available by default.
-    memset(mask, 0, sizeof(*mask));
-  } else {
-    // All modes available by default.
-    memset(mask->pred_modes, 0, sizeof(mask->pred_modes));
-    // All references disabled first.
-    bool *mask_ref_combo = &mask->ref_combo[0][0];
-    for (int k = 0; k < REF_FRAMES_NRS * (REF_FRAMES_NRS + 1); k++)
-      mask_ref_combo[k] = true;
-
-    const MV_REFERENCE_FRAME(*ref_set_combos)[2];
-    int num_ref_combos;
-
-    // Then enable reduced set of references explicitly.
-    switch (ref_set) {
-      case REF_SET_REDUCED:
-        ref_set_combos = reduced_ref_combos_nrs;
-        num_ref_combos = (int)sizeof(reduced_ref_combos_nrs) /
-                         sizeof(reduced_ref_combos_nrs[0]);
-        break;
-      case REF_SET_REALTIME:
-        ref_set_combos = real_time_ref_combos_nrs;
-        num_ref_combos = (int)sizeof(real_time_ref_combos_nrs) /
-                         sizeof(real_time_ref_combos_nrs[0]);
-        break;
-      default: assert(0); num_ref_combos = 0;
-    }
-
-    for (int i = 0; i < num_ref_combos; ++i) {
-      const MV_REFERENCE_FRAME *const this_combo = ref_set_combos[i];
-      set_mask_combo_bit_nrs(mask->ref_combo, this_combo, false);
-    }
-  }
-}
-#else
 static AOM_INLINE void default_skip_mask(mode_skip_mask_t *mask,
                                          REF_SET ref_set) {
   if (ref_set == REF_SET_FULL) {
@@ -4830,7 +4791,11 @@ static AOM_INLINE void default_skip_mask(mode_skip_mask_t *mask,
     memset(mask->pred_modes, 0, sizeof(mask->pred_modes));
     // All references disabled first.
     bool *mask_ref_combo = &mask->ref_combo[0][0];
+#if CONFIG_NEW_REF_SIGNALING
+    for (int k = 0; k < REF_FRAMES_NRS * (REF_FRAMES_NRS + 1); k++)
+#else
     for (int k = 0; k < REF_FRAMES * (REF_FRAMES + 1); k++)
+#endif  // CONFIG_NEW_REF_SIGNALING
       mask_ref_combo[k] = true;
 
     const MV_REFERENCE_FRAME(*ref_set_combos)[2];
@@ -4853,17 +4818,19 @@ static AOM_INLINE void default_skip_mask(mode_skip_mask_t *mask,
 
     for (int i = 0; i < num_ref_combos; ++i) {
       const MV_REFERENCE_FRAME *const this_combo = ref_set_combos[i];
+#if CONFIG_NEW_REF_SIGNALING
+      set_mask_combo_bit_nrs(mask->ref_combo, this_combo, false);
+#else
       mask->ref_combo[this_combo[0]][this_combo[1] + 1] = false;
+#endif  // CONFIG_NEW_REF_SIGNALING
     }
   }
 }
-#endif  // CONFIG_NEW_REF_SIGNALING
 
 #if CONFIG_NEW_REF_SIGNALING
-static AOM_INLINE void init_mode_skip_mask_nrs(mode_skip_mask_t *mask,
-                                               const AV1_COMP *cpi,
-                                               MACROBLOCK *x,
-                                               BLOCK_SIZE bsize) {
+static AOM_INLINE void init_mode_skip_mask(mode_skip_mask_t *mask,
+                                           const AV1_COMP *cpi, MACROBLOCK *x,
+                                           BLOCK_SIZE bsize) {
   const AV1_COMMON *const cm = &cpi->common;
   const SPEED_FEATURES *const sf = &cpi->sf;
   REF_SET ref_set = REF_SET_FULL;
@@ -4873,7 +4840,7 @@ static AOM_INLINE void init_mode_skip_mask_nrs(mode_skip_mask_t *mask,
   else if (cpi->oxcf.ref_frm_cfg.enable_reduced_reference_set)
     ref_set = REF_SET_REDUCED;
 
-  default_skip_mask_nrs(mask, ref_set);
+  default_skip_mask(mask, ref_set);
 
   int min_pred_mv_sad = INT_MAX;
   MV_REFERENCE_FRAME ref_frame;
@@ -4881,9 +4848,9 @@ static AOM_INLINE void init_mode_skip_mask_nrs(mode_skip_mask_t *mask,
     // For real-time encoding, we only look at a subset of ref frames. So the
     // threshold for pruning should be computed from this subset as well.
     const int num_rt_refs =
-        sizeof(real_time_ref_combos_nrs) / sizeof(*real_time_ref_combos_nrs);
+        sizeof(real_time_ref_combos) / sizeof(*real_time_ref_combos);
     for (int r_idx = 0; r_idx < num_rt_refs; r_idx++) {
-      const MV_REFERENCE_FRAME ref = real_time_ref_combos_nrs[r_idx][0];
+      const MV_REFERENCE_FRAME ref = real_time_ref_combos[r_idx][0];
       if (ref != INTRA_FRAME_NRS) {
         min_pred_mv_sad = AOMMIN(min_pred_mv_sad, x->pred_mv_sad[ref]);
       }
@@ -4899,7 +4866,7 @@ static AOM_INLINE void init_mode_skip_mask_nrs(mode_skip_mask_t *mask,
     if (!(cpi->common.ref_frame_flags & (1 << ref_frame))) {
       // Skip checking missing reference in both single and compound reference
       // modes.
-      disable_reference_nrs(ref_frame, mask->ref_combo);
+      disable_reference(ref_frame, mask->ref_combo);
     } else {
       if ((x->pred_mv_sad[ref_frame] >> 2) > min_pred_mv_sad) {
         mask->pred_modes[ref_frame] |= INTER_NEAREST_NEAR_ZERO;
@@ -4908,7 +4875,7 @@ static AOM_INLINE void init_mode_skip_mask_nrs(mode_skip_mask_t *mask,
   }
 
   if (bsize > sf->part_sf.max_intra_bsize) {
-    disable_reference_nrs(INTRA_FRAME_NRS, mask->ref_combo);
+    disable_reference(INTRA_FRAME_NRS, mask->ref_combo);
   }
 
   // Note INTRA_FRAME reference corresponds to INTER_REFS_PER_FRAME_NRS index
@@ -5058,7 +5025,7 @@ static AOM_INLINE void init_neighbor_pred_buf(
 }
 
 #if CONFIG_NEW_REF_SIGNALING
-static AOM_INLINE int prune_ref_frame_nrs(
+static AOM_INLINE int prune_ref_frame(
     const AV1_COMP *cpi, const MACROBLOCK *x,
     const MV_REFERENCE_FRAME ref_frame_type_nrs) {
   const AV1_COMMON *const cm = &cpi->common;
@@ -5291,7 +5258,7 @@ static AOM_INLINE void set_params_rd_pick_inter_mode(
         }
       }
 
-      if (prune_ref_frame_nrs(cpi, x, ref_frame_nrs)) continue;
+      if (prune_ref_frame(cpi, x, ref_frame_nrs)) continue;
       av1_find_mv_refs_nrs(cm, xd, mbmi, ref_frame_nrs, mbmi_ext->ref_mv_count,
                            xd->ref_mv_stack, xd->weight, NULL,
                            mbmi_ext->global_mvs, mbmi_ext->mode_context);
@@ -5364,11 +5331,7 @@ static AOM_INLINE void set_params_rd_pick_inter_mode(
     }
   }
 
-#if CONFIG_NEW_REF_SIGNALING
-  init_mode_skip_mask_nrs(mode_skip_mask, cpi, x, bsize);
-#else
   init_mode_skip_mask(mode_skip_mask, cpi, x, bsize);
-#endif  // CONFIG_NEW_REF_SIGNALING
 
   // Set params for mode evaluation
   set_mode_eval_params(cpi, x, MODE_EVAL);
@@ -5512,9 +5475,9 @@ static AOM_INLINE void init_inter_mode_search_state(
 }
 
 #if CONFIG_NEW_REF_SIGNALING
-static bool mask_says_skip_nrs(const mode_skip_mask_t *mode_skip_mask,
-                               const MV_REFERENCE_FRAME *ref_frame_nrs,
-                               const PREDICTION_MODE this_mode) {
+static bool mask_says_skip(const mode_skip_mask_t *mode_skip_mask,
+                           const MV_REFERENCE_FRAME *ref_frame_nrs,
+                           const PREDICTION_MODE this_mode) {
   const MV_REFERENCE_FRAME rfn =
       (ref_frame_nrs[0] == INTRA_FRAME_NRS ? INTRA_FRAME_INDEX_NRS
                                            : ref_frame_nrs[0]);
@@ -5537,9 +5500,10 @@ static bool mask_says_skip(const mode_skip_mask_t *mode_skip_mask,
 #endif  // CONFIG_NEW_REF_SIGNALING
 
 #if CONFIG_NEW_REF_SIGNALING
-static int inter_mode_compatible_skip_nrs(
-    const AV1_COMP *cpi, const MACROBLOCK *x, BLOCK_SIZE bsize,
-    PREDICTION_MODE curr_mode, const MV_REFERENCE_FRAME *ref_frames) {
+static int inter_mode_compatible_skip(const AV1_COMP *cpi, const MACROBLOCK *x,
+                                      BLOCK_SIZE bsize,
+                                      PREDICTION_MODE curr_mode,
+                                      const MV_REFERENCE_FRAME *ref_frames) {
   const int comp_pred =
       ref_frames[1] != INTRA_FRAME_NRS && ref_frames[1] != INVALID_IDX;
   if (comp_pred) {
@@ -5566,9 +5530,7 @@ static int inter_mode_compatible_skip_nrs(
 
   return 0;
 }
-
 #else
-
 static int inter_mode_compatible_skip(const AV1_COMP *cpi, const MACROBLOCK *x,
                                       BLOCK_SIZE bsize,
                                       PREDICTION_MODE curr_mode,
@@ -5723,7 +5685,7 @@ static int inter_mode_search_order_independent_skip(
 #endif  // CONFIG_NEW_REF_SIGNALING
 ) {
 #if CONFIG_NEW_REF_SIGNALING
-  if (mask_says_skip_nrs(mode_skip_mask, ref_frame_nrs, mode)) {
+  if (mask_says_skip(mode_skip_mask, ref_frame_nrs, mode)) {
     return 1;
   }
 #else
@@ -5734,7 +5696,7 @@ static int inter_mode_search_order_independent_skip(
 
 #if CONFIG_NEW_REF_SIGNALING
   const int ref_type_nrs = av1_ref_frame_type(ref_frame_nrs);
-  if (prune_ref_frame_nrs(cpi, x, ref_type_nrs)) return 1;
+  if (prune_ref_frame(cpi, x, ref_type_nrs)) return 1;
 #else
   const int ref_type = av1_ref_frame_type(ref_frame);
   if (prune_ref_frame(cpi, x, ref_type)) return 1;
@@ -5881,39 +5843,24 @@ static int inter_mode_search_order_independent_skip(
   return 0;
 }
 
-#if CONFIG_NEW_REF_SIGNALING
-static INLINE void init_mbmi_nrs(MB_MODE_INFO *mbmi, PREDICTION_MODE curr_mode,
-                                 const MV_REFERENCE_FRAME *ref_frames_nrs,
-                                 const AV1_COMMON *cm, const SB_INFO *sbi) {
-  PALETTE_MODE_INFO *const pmi = &mbmi->palette_mode_info;
-  mbmi->ref_mv_idx = 0;
-  mbmi->mode = curr_mode;
-  mbmi->uv_mode = UV_DC_PRED;
-  mbmi->ref_frame_nrs[0] = ref_frames_nrs[0];
-  mbmi->ref_frame_nrs[1] = ref_frames_nrs[1];
-  pmi->palette_size[0] = 0;
-  pmi->palette_size[1] = 0;
-  mbmi->filter_intra_mode_info.use_filter_intra = 0;
-  mbmi->mv[0].as_int = mbmi->mv[1].as_int = 0;
-  mbmi->motion_mode = SIMPLE_TRANSLATION;
-  mbmi->interintra_mode = (INTERINTRA_MODE)(II_DC_PRED - 1);
-#if CONFIG_DERIVED_INTRA_MODE
-  mbmi->use_derived_intra_mode[0] = 0;
-  mbmi->use_derived_intra_mode[1] = 0;
-#endif  // CONFIG_DERIVED_INTRA_MODE
-  set_default_interp_filters(mbmi, cm->features.interp_filter);
-  av1_set_default_mbmi_mv_precision(mbmi, sbi);
-}
-#else
 static INLINE void init_mbmi(MB_MODE_INFO *mbmi, PREDICTION_MODE curr_mode,
+#if CONFIG_NEW_REF_SIGNALING
+                             const MV_REFERENCE_FRAME *ref_frames_nrs,
+#else
                              const MV_REFERENCE_FRAME *ref_frames,
+#endif  // CONFIG_NEW_REF_SIGNALING
                              const AV1_COMMON *cm, const SB_INFO *sbi) {
   PALETTE_MODE_INFO *const pmi = &mbmi->palette_mode_info;
   mbmi->ref_mv_idx = 0;
   mbmi->mode = curr_mode;
   mbmi->uv_mode = UV_DC_PRED;
+#if CONFIG_NEW_REF_SIGNALING
+  mbmi->ref_frame_nrs[0] = ref_frames_nrs[0];
+  mbmi->ref_frame_nrs[1] = ref_frames_nrs[1];
+#else
   mbmi->ref_frame[0] = ref_frames[0];
   mbmi->ref_frame[1] = ref_frames[1];
+#endif  // CONFIG_NEW_REF_SIGNALING
   pmi->palette_size[0] = 0;
   pmi->palette_size[1] = 0;
   mbmi->filter_intra_mode_info.use_filter_intra = 0;
@@ -5927,7 +5874,6 @@ static INLINE void init_mbmi(MB_MODE_INFO *mbmi, PREDICTION_MODE curr_mode,
   set_default_interp_filters(mbmi, cm->features.interp_filter);
   av1_set_default_mbmi_mv_precision(mbmi, sbi);
 }
-#endif  // CONFIG_NEW_REF_SIGNALING
 
 static AOM_INLINE void collect_single_states(const AV1_COMMON *const cm,
                                              MACROBLOCK *x,
@@ -6629,12 +6575,11 @@ static int skip_inter_mode(AV1_COMP *cpi, MACROBLOCK *x, const BLOCK_SIZE bsize,
   // Check if this mode should be skipped because it is incompatible with the
   // current frame
 #if CONFIG_NEW_REF_SIGNALING
-  if (inter_mode_compatible_skip_nrs(cpi, x, bsize, this_mode, ref_frames_nrs))
-    return 1;
+  if (inter_mode_compatible_skip(cpi, x, bsize, this_mode, ref_frames_nrs))
 #else
   if (inter_mode_compatible_skip(cpi, x, bsize, this_mode, ref_frames))
-    return 1;
 #endif  // CONFIG_NEW_REF_SIGNALING
+    return 1;
   const int ret = inter_mode_search_order_independent_skip(
       cpi, x, args->mode_skip_mask, args->search_state,
       args->skip_ref_frame_mask, this_mode,
@@ -7239,7 +7184,7 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
         const int comp_pred = second_ref_frame_nrs != INVALID_IDX &&
                               second_ref_frame_nrs != INTRA_FRAME_NRS;
 
-        init_mbmi_nrs(mbmi, this_mode, ref_frames_nrs, cm, xd->sbi);
+        init_mbmi(mbmi, this_mode, ref_frames_nrs, cm, xd->sbi);
         set_ref_ptrs_nrs(cm, xd, ref_frame_nrs, second_ref_frame_nrs);
 #else
   for (THR_MODES midx = THR_MODE_START; midx < THR_MODE_END; ++midx) {
@@ -7481,7 +7426,7 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
 
     assert(refs[0] == INTRA_FRAME_NRS);
     assert(refs[1] == INVALID_IDX);
-    init_mbmi_nrs(mbmi, this_mode, refs, cm, xd->sbi);
+    init_mbmi(mbmi, this_mode, refs, cm, xd->sbi);
 #else
     const THR_MODES mode_enum = intra_mode_idx_ls[j];
     const MODE_DEFINITION *mode_def = &av1_mode_defs[mode_enum];
