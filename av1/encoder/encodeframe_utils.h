@@ -178,7 +178,7 @@ static AOM_INLINE void update_global_motion_used(PREDICTION_MODE mode,
     int ref;
     for (ref = 0; ref < 1 + has_second_ref(mbmi); ++ref) {
 #if CONFIG_NEW_REF_SIGNALING
-      rdc->global_motion_used_nrs[mbmi->ref_frame_nrs[ref]] += num_4x4s;
+      rdc->global_motion_used[mbmi->ref_frame_nrs[ref]] += num_4x4s;
 #else
       rdc->global_motion_used[mbmi->ref_frame[ref]] += num_4x4s;
 #endif  // CONFIG_NEW_REF_SIGNALING

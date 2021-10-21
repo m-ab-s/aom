@@ -4837,58 +4837,17 @@ static int read_global_motion_params(WarpedMotionParams *params,
   return 1;
 }
 
-#if CONFIG_NEW_REF_SIGNALING
-static AOM_INLINE void read_global_motion_nrs(AV1_COMMON *cm,
-                                              struct aom_read_bit_buffer *rb) {
-#if CONFIG_GM_MODEL_CODING
-  int base_frame = -1;
-  int use_gm_k = 0;
-#endif  // CONFIG_GM_MODEL_CODING
-  for (int frame = 0; frame < cm->new_ref_frame_data.n_total_refs; ++frame) {
-    const WarpedMotionParams *ref_params;
-#if CONFIG_GM_MODEL_CODING
-    WarpedMotionParams params;
-    aom_clear_system_state();
-    const bool updated_params =
-        find_gm_ref_params_nrs(&params, cm, frame, base_frame);
-    if (updated_params) {
-      ref_params = &params;
-    } else {
-      ref_params = cm->prev_frame ? &cm->prev_frame->global_motion[frame]
-                                  : &default_warp_params;
-    }
-    use_gm_k = (base_frame != -1) ? 1 : 0;
-    if (ref_params->wmtype != IDENTITY) base_frame = frame;
-#else
-    ref_params = cm->prev_frame ? &cm->prev_frame->global_motion[frame]
-                                : &default_warp_params;
-#endif  // CONFIG_GM_MODEL_CODING
-    int good_params =
-        read_global_motion_params(&cm->global_motion[frame], ref_params,
-#if CONFIG_GM_MODEL_CODING
-                                  use_gm_k,
-#endif  // CONFIG_GM_MODEL_CODING
-                                  rb, cm->features.fr_mv_precision);
-    if (!good_params) {
-#if WARPED_MOTION_DEBUG
-      printf("Warning: unexpected global motion shear params from aomenc\n");
-#endif
-      cm->global_motion[frame].invalid = 1;
-    }
-  }
-  memcpy(cm->cur_frame->global_motion, cm->global_motion,
-         INTER_REFS_PER_FRAME_NRS * sizeof(WarpedMotionParams));
-}
-
-#else
-
 static AOM_INLINE void read_global_motion(AV1_COMMON *cm,
                                           struct aom_read_bit_buffer *rb) {
 #if CONFIG_GM_MODEL_CODING
   int base_frame = -1;
   int use_gm_k = 0;
 #endif  // CONFIG_GM_MODEL_CODING
+#if CONFIG_NEW_REF_SIGNALING
+  for (int frame = 0; frame < cm->new_ref_frame_data.n_total_refs; ++frame) {
+#else
   for (int frame = LAST_FRAME; frame <= ALTREF_FRAME; ++frame) {
+#endif  // CONFIG_NEW_REF_SIGNALING
     const WarpedMotionParams *ref_params;
 #if CONFIG_GM_MODEL_CODING
     WarpedMotionParams params;
@@ -4943,10 +4902,14 @@ static AOM_INLINE void read_global_motion(AV1_COMMON *cm,
            cm->global_motion[frame].wmmat[3]);
            */
   }
+#if CONFIG_NEW_REF_SIGNALING
+  memcpy(cm->cur_frame->global_motion, cm->global_motion,
+         INTER_REFS_PER_FRAME_NRS * sizeof(WarpedMotionParams));
+#else
   memcpy(cm->cur_frame->global_motion, cm->global_motion,
          REF_FRAMES * sizeof(WarpedMotionParams));
-}
 #endif  // CONFIG_NEW_REF_SIGNALING
+}
 
 // Release the references to the frame buffers in cm->ref_frame_map and reset
 // all elements of cm->ref_frame_map to NULL.
@@ -5781,11 +5744,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
                        "Frame wrongly requests reference frame MVs");
   }
 
-#if CONFIG_NEW_REF_SIGNALING
-  if (!frame_is_intra_only(cm)) read_global_motion_nrs(cm, rb);
-#else
   if (!frame_is_intra_only(cm)) read_global_motion(cm, rb);
-#endif  // CONFIG_NEW_REF_SIGNALING
 
   cm->cur_frame->film_grain_params_present =
       seq_params->film_grain_params_present;

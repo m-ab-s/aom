@@ -28,7 +28,11 @@ static AOM_INLINE void accumulate_rd_opt(ThreadData *td, ThreadData *td_t) {
   for (int i = 0; i < REFERENCE_MODES; i++)
     td->rd_counts.comp_pred_diff[i] += td_t->rd_counts.comp_pred_diff[i];
 
+#if CONFIG_NEW_REF_SIGNALING
+  for (int i = 0; i < INTER_REFS_PER_FRAME_NRS; i++)
+#else
   for (int i = 0; i < REF_FRAMES; i++)
+#endif  // CONFIG_NEW_REF_SIGNALING
     td->rd_counts.global_motion_used[i] +=
         td_t->rd_counts.global_motion_used[i];
 
@@ -1411,20 +1415,18 @@ static int gm_mt_worker_hook(void *arg1, void *unused) {
 
     init_gm_thread_data(gm_info, gm_thread_data);
 
+#if CONFIG_GM_MODEL_CODING
+    int base_frame = -1;
+#endif  // CONFIG_GM_MODEL_CODING
     // Compute global motion for the given ref_buf_idx.
-#if CONFIG_NEW_REF_SIGNALING
-    av1_compute_gm_for_valid_ref_frames_nrs(
-        cpi, gm_info->ref_buf, ref_buf_idx, gm_info->num_src_corners,
-        gm_info->src_corners, gm_info->src_buffer,
-        gm_thread_data->params_by_motion, gm_thread_data->segment_map,
-        gm_info->segment_map_w, gm_info->segment_map_h);
-#else
     av1_compute_gm_for_valid_ref_frames(
-        cpi, gm_info->ref_buf, ref_buf_idx, gm_info->num_src_corners,
-        gm_info->src_corners, gm_info->src_buffer,
+        cpi, gm_info->ref_buf, ref_buf_idx,
+#if CONFIG_GM_MODEL_CODING
+        &base_frame,
+#endif  // CONFIG_GM_MODEL_CODING
+        gm_info->num_src_corners, gm_info->src_corners, gm_info->src_buffer,
         gm_thread_data->params_by_motion, gm_thread_data->segment_map,
         gm_info->segment_map_w, gm_info->segment_map_h);
-#endif  // CONFIG_NEW_REF_SIGNALING
 
 #if CONFIG_MULTITHREAD
     pthread_mutex_lock(gm_mt_mutex_);

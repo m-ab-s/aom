@@ -881,35 +881,16 @@ void av1_determine_sc_tools_with_encoding(AV1_COMP *cpi, const int q_orig) {
 }
 
 #define GM_RECODE_LOOP_NUM4X4_FACTOR 192
-#if CONFIG_NEW_REF_SIGNALING
-int av1_recode_loop_test_global_motion_nrs(
-    WarpedMotionParams *const global_motion,
-    const int *const global_motion_used, int *const gm_params_cost) {
-  int i;
-  int recode = 0;
-  for (i = 0; i < INTER_REFS_PER_FRAME_NRS; ++i) {
-    if (global_motion[i].wmtype != IDENTITY &&
-        global_motion_used[i] * GM_RECODE_LOOP_NUM4X4_FACTOR <
-            gm_params_cost[i]) {
-      global_motion[i] = default_warp_params;
-      assert(global_motion[i].wmtype == IDENTITY);
-      gm_params_cost[i] = 0;
-      recode = 1;
-      // TODO(sarahparker): The earlier condition for recoding here was:
-      // "recode |= (rdc->global_motion_used[i] > 0);". Can we bring something
-      // similar to that back to speed up global motion?
-    }
-  }
-  return recode;
-}
-#endif  // CONFIG_NEW_REF_SIGNALING
-
 int av1_recode_loop_test_global_motion(WarpedMotionParams *const global_motion,
                                        const int *const global_motion_used,
                                        int *const gm_params_cost) {
   int i;
   int recode = 0;
+#if CONFIG_NEW_REF_SIGNALING
+  for (i = 0; i < INTER_REFS_PER_FRAME_NRS; ++i) {
+#else
   for (i = LAST_FRAME; i <= ALTREF_FRAME; ++i) {
+#endif  // CONFIG_NEW_REF_SIGNALING
     if (global_motion[i].wmtype != IDENTITY &&
         global_motion_used[i] * GM_RECODE_LOOP_NUM4X4_FACTOR <
             gm_params_cost[i]) {

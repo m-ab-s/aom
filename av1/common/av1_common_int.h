@@ -1448,42 +1448,6 @@ static INLINE void check_wmmat(WarpedMotionParams *params) {
   }
 }
 
-#if CONFIG_NEW_REF_SIGNALING
-static INLINE int calculate_gm_ref_params_scaling_distance_nrs(
-    const AV1_COMMON *const cm, int frame) {
-  const RefCntBuffer *const buf = get_ref_frame_buf(cm, frame);
-  const int ref_order_hint = buf ? (int)buf->order_hint : -1;
-  if (ref_order_hint < 0) return 0;
-  return get_relative_dist(&cm->seq_params.order_hint_info, ref_order_hint,
-                           cm->cur_frame->order_hint);
-}
-
-static INLINE bool find_gm_ref_params_nrs(WarpedMotionParams *ref_params,
-                                          const AV1_COMMON *const cm,
-                                          int cur_frame, int base_frame) {
-  if (base_frame < 0) return false;
-
-  memcpy(ref_params, &cm->global_motion[base_frame],
-         sizeof(WarpedMotionParams));
-
-  double scale_factor;
-  const int distance =
-      calculate_gm_ref_params_scaling_distance_nrs(cm, cur_frame);
-  const int base = calculate_gm_ref_params_scaling_distance_nrs(cm, base_frame);
-  if (base != 0 && distance != 0)
-    scale_factor = (double)distance / base;
-  else
-    return 0;
-
-  for (int i = 0; i < 8; ++i) {
-    ref_params->wmmat[i] = (int32_t)(ref_params->wmmat[i] * scale_factor);
-  }
-  check_wmmat(ref_params);
-  return true;
-}
-
-#else
-
 static INLINE int calculate_gm_ref_params_scaling_distance(
     const AV1_COMMON *const cm, int frame) {
   const RefCntBuffer *const buf = get_ref_frame_buf(cm, frame);
@@ -1515,7 +1479,6 @@ static INLINE bool find_gm_ref_params(WarpedMotionParams *ref_params,
   check_wmmat(ref_params);
   return true;
 }
-#endif  // CONFIG_NEW_REF_SIGNALING
 #endif  // CONFIG_GM_MODEL_CODING
 
 // Returns 1 if this frame might allow mvs from some reference frame.

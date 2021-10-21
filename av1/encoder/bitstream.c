@@ -3304,45 +3304,6 @@ static AOM_INLINE void write_global_motion_params(
   }
 }
 
-#if CONFIG_NEW_REF_SIGNALING
-static AOM_INLINE void write_global_motion_nrs(
-    AV1_COMP *cpi, struct aom_write_bit_buffer *wb) {
-  AV1_COMMON *const cm = &cpi->common;
-  int frame;
-#if CONFIG_GM_MODEL_CODING
-  int base_frame = -1;
-  int use_gm_k = 0;
-#endif  // CONFIG_GM_MODEL_CODING
-  for (frame = 0; frame < cm->new_ref_frame_data.n_total_refs; ++frame) {
-    const WarpedMotionParams *ref_params;
-#if CONFIG_GM_MODEL_CODING
-    WarpedMotionParams params;
-    aom_clear_system_state();
-    const bool updated_params =
-        find_gm_ref_params_nrs(&params, cm, frame, base_frame);
-    if (updated_params) {
-      ref_params = &params;
-      use_gm_k = 1;
-    } else {
-      ref_params = cm->prev_frame ? &cm->prev_frame->global_motion[frame]
-                                  : &default_warp_params;
-      use_gm_k = 0;
-    }
-    if (ref_params->wmtype != IDENTITY) base_frame = frame;
-#else
-    ref_params = cm->prev_frame ? &cm->prev_frame->global_motion[frame]
-                                : &default_warp_params;
-#endif  // CONFIG_GM_MODEL_CODING
-    write_global_motion_params(&cm->global_motion[frame], ref_params,
-#if CONFIG_GM_MODEL_CODING
-                               use_gm_k,
-#endif  // CONFIG_GM_MODEL_CODING
-                               wb, cm->features.fr_mv_precision);
-  }
-}
-
-#else
-
 static AOM_INLINE void write_global_motion(AV1_COMP *cpi,
                                            struct aom_write_bit_buffer *wb) {
   AV1_COMMON *const cm = &cpi->common;
@@ -3351,7 +3312,11 @@ static AOM_INLINE void write_global_motion(AV1_COMP *cpi,
   int base_frame = -1;
   int use_gm_k = 0;
 #endif  // CONFIG_GM_MODEL_CODING
+#if CONFIG_NEW_REF_SIGNALING
+  for (frame = 0; frame < cm->new_ref_frame_data.n_total_refs; ++frame) {
+#else
   for (frame = LAST_FRAME; frame <= ALTREF_FRAME; ++frame) {
+#endif
     const WarpedMotionParams *ref_params;
 #if CONFIG_GM_MODEL_CODING
     WarpedMotionParams params;
@@ -3400,7 +3365,6 @@ static AOM_INLINE void write_global_motion(AV1_COMP *cpi,
            */
   }
 }
-#endif  // CONFIG_NEW_REF_SIGNALING
 
 #if !CONFIG_NEW_REF_SIGNALING
 static int check_frame_refs_short_signaling(AV1_COMMON *const cm) {
@@ -3807,11 +3771,7 @@ static AOM_INLINE void write_uncompressed_header_obu(
 
   aom_wb_write_bit(wb, features->reduced_tx_set_used);
 
-#if CONFIG_NEW_REF_SIGNALING
-  if (!frame_is_intra_only(cm)) write_global_motion_nrs(cpi, wb);
-#else
   if (!frame_is_intra_only(cm)) write_global_motion(cpi, wb);
-#endif  // CONFIG_NEW_REF_SIGNALING
 
   if (seq_params->film_grain_params_present &&
       (cm->show_frame || cm->showable_frame))
