@@ -361,15 +361,9 @@ static void process_tpl_stats_frame(AV1_COMP *cpi) {
   assert(IMPLIES(gf_group->size > 0, gf_group->index < gf_group->size));
 
   const int tpl_idx = gf_group->index;
-#if CONFIG_NEW_REF_SIGNALING
-  TplParams *const tpl_data = &cpi->tpl_data_nrs;
-  TplDepFrame *tpl_frame = &tpl_data->tpl_frame[tpl_idx];
-  TplDepStats *tpl_stats = tpl_frame->tpl_stats_ptr;
-#else
   TplParams *const tpl_data = &cpi->tpl_data;
   TplDepFrame *tpl_frame = &tpl_data->tpl_frame[tpl_idx];
   TplDepStats *tpl_stats = tpl_frame->tpl_stats_ptr;
-#endif  // CONFIG_NEW_REF_SIGNALING
 
   if (tpl_frame->is_valid) {
     int tpl_stride = tpl_frame->stride;

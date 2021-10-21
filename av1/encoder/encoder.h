@@ -2261,17 +2261,10 @@ typedef struct AV1_COMP {
    */
   YV12_BUFFER_CONFIG *unfiltered_source;
 
-#if CONFIG_NEW_REF_SIGNALING
-  /*!
-   * Parameters related to tpl.
-   */
-  TplParams tpl_data_nrs;
-#else
   /*!
    * Parameters related to tpl.
    */
   TplParams tpl_data;
-#endif  // CONFIG_NEW_REF_SIGNALING
 
   /*!
    * For a still frame, this flag is set to 1 to skip partition search.

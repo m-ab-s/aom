@@ -121,13 +121,8 @@ void av1_single_motion_search(const AV1_COMP *const cpi, MACROBLOCK *x,
       mbmi->motion_mode == SIMPLE_TRANSLATION) {
     SuperBlockEnc *sb_enc = &x->sb_enc;
     if (sb_enc->tpl_data_count) {
-#if CONFIG_NEW_REF_SIGNALING
-      const BLOCK_SIZE tpl_bsize =
-          convert_length_to_bsize(cpi->tpl_data_nrs.tpl_bsize_1d);
-#else
       const BLOCK_SIZE tpl_bsize =
           convert_length_to_bsize(cpi->tpl_data.tpl_bsize_1d);
-#endif  // CONFIG_NEW_REF_SIGNALING
       const int tplw = mi_size_wide[tpl_bsize];
       const int tplh = mi_size_high[tpl_bsize];
       const int nw = mi_size_wide[bsize] / tplw;
