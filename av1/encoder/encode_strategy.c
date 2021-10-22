@@ -346,107 +346,8 @@ static int choose_primary_ref_frame(
   return primary_ref_frame;
 }
 
-#if CONFIG_NEW_REF_SIGNALING
 // Map the subgop cfg reference list to actual reference buffers. Disable
 // any reference frames that are not listed in the sub gop for NRS.
-static void get_gop_cfg_enabled_refs_nrs(AV1_COMP *const cpi,
-                                         int *ref_frame_flags,
-                                         int order_offset) {
-  GF_GROUP gf_group = cpi->gf_group;
-  // The current display index stored has not yet been updated. We must add
-  // The order offset to get the correct value here.
-  const int cur_frame_disp =
-      cpi->common.current_frame.frame_number + order_offset;
-
-  const SubGOPStepCfg *step_gop_cfg =
-      get_subgop_step(&gf_group, gf_group.index);
-  assert(step_gop_cfg != NULL);
-  // No references specified
-  if (step_gop_cfg->num_references < 0) return;
-
-  // Mask to indicate whether or not each ref is allowed by the GOP config
-  int ref_frame_used[INTER_REFS_PER_FRAME_NRS] = { 0 };
-  // Structures to hash each reference frame based on its pyramid level. This
-  // will allow us to match the pyramid levels specified in the cfg to the best
-  // reference frame index.
-  int n_references[MAX_ARF_LAYERS + 1] = { 0 };
-  int references[MAX_ARF_LAYERS + 1][INTER_REFS_PER_FRAME_NRS] = { { 0 } };
-  int disp_orders[MAX_ARF_LAYERS + 1][INTER_REFS_PER_FRAME_NRS] = { { 0 } };
-
-  int frame_level = -1;
-  // Loop over each reference frame and hash it based on its pyramid level
-  for (int frame = 0; frame < INTER_REFS_PER_FRAME_NRS; frame++) {
-    // Get reference frame buffer
-    const RefCntBuffer *const buf = get_ref_frame_buf(&cpi->common, frame);
-    if (buf == NULL) continue;
-    const int frame_order = (int)buf->display_order_hint;
-    frame_level = buf->pyramid_level;
-
-    // Sometimes a frame index is in multiple reference buffers.
-    // Do not add a frame to the pyramid list multiple times.
-    int found = 0;
-    for (int r = 0; r < n_references[frame_level]; r++) {
-      if (frame_order == disp_orders[frame_level][r]) {
-        found = 1;
-        break;
-      }
-    }
-    // If this is an unseen frame, map its display order and ref buffer
-    // index to its level in the pyramid
-    if (!found) {
-      int n_refs = n_references[frame_level]++;
-      disp_orders[frame_level][n_refs] = frame_order;
-      references[frame_level][n_refs] = frame;
-    }
-  }
-  // For each reference specified in the step_gop_cfg, map it to a reference
-  // buffer based on pyramid level if possible.
-  for (int i = 0; i < step_gop_cfg->num_references; i++) {
-    const int level = step_gop_cfg->references[i];
-    const int abs_level = abs(level);
-    int best_frame = -1;
-    int best_frame_index = -1;
-    int best_disp_order = INT_MAX;
-    for (int ref = 0; ref < n_references[abs_level]; ref++) {
-      const int disp_order = disp_orders[abs_level][ref];
-      const int cur_order_diff = cur_frame_disp - disp_order;
-      // This frame has already been used
-      if (disp_order < 0) continue;
-      // This frame is in the wrong direction
-      if ((cur_order_diff < 0) != (level < 0)) continue;
-      // Store this frame if it is the closest in display order to the current
-      // frame so far
-      if (abs(cur_order_diff) < abs(best_disp_order - cur_frame_disp)) {
-        best_frame = references[abs_level][ref];
-        best_frame_index = ref;
-        best_disp_order = disp_order;
-      }
-    }
-    update_subgop_ref_stats(&cpi->subgop_stats,
-                            cpi->oxcf.unit_test_cfg.enable_subgop_stats, i,
-                            (best_frame < 0) ? 0 : 1, level, best_disp_order,
-                            (int)step_gop_cfg->num_references);
-    if (best_frame == -1) {
-      fprintf(stderr,
-              "Warning [Subgop cfg]: "
-              "Level %d ref for frame %d not found\n",
-              level, step_gop_cfg->disp_frame_idx);
-    } else {
-      ref_frame_used[best_frame] = 1;
-      disp_orders[abs_level][best_frame_index] = -1;
-    }
-  }
-
-  // Avoid using references that were not specified by the cfg
-  for (int frame = 0; frame < INTER_REFS_PER_FRAME_NRS; frame++) {
-    if (!ref_frame_used[frame]) {
-      *ref_frame_flags &= ~(1 << (frame));
-    }
-  }
-}
-#else
-// Map the subgop cfg reference list to actual reference buffers. Disable
-// any reference frames that are not listed in the sub gop.
 static void get_gop_cfg_enabled_refs(AV1_COMP *const cpi, int *ref_frame_flags,
                                      int order_offset) {
   GF_GROUP gf_group = cpi->gf_group;
@@ -461,6 +362,16 @@ static void get_gop_cfg_enabled_refs(AV1_COMP *const cpi, int *ref_frame_flags,
   // No references specified
   if (step_gop_cfg->num_references < 0) return;
 
+#if CONFIG_NEW_REF_SIGNALING
+  // Mask to indicate whether or not each ref is allowed by the GOP config
+  int ref_frame_used[INTER_REFS_PER_FRAME_NRS] = { 0 };
+  // Structures to hash each reference frame based on its pyramid level. This
+  // will allow us to match the pyramid levels specified in the cfg to the best
+  // reference frame index.
+  int n_references[MAX_ARF_LAYERS + 1] = { 0 };
+  int references[MAX_ARF_LAYERS + 1][INTER_REFS_PER_FRAME_NRS] = { { 0 } };
+  int disp_orders[MAX_ARF_LAYERS + 1][INTER_REFS_PER_FRAME_NRS] = { { 0 } };
+#else
   // Mask to indicate whether or not each ref is allowed by the GOP config
   int ref_frame_used[REF_FRAMES] = { 0 };
   // Structures to hash each reference frame based on its pyramid level. This
@@ -469,11 +380,16 @@ static void get_gop_cfg_enabled_refs(AV1_COMP *const cpi, int *ref_frame_flags,
   int n_references[MAX_ARF_LAYERS + 1] = { 0 };
   int references[MAX_ARF_LAYERS + 1][REF_FRAMES] = { { 0 } };
   int disp_orders[MAX_ARF_LAYERS + 1][REF_FRAMES] = { { 0 } };
+#endif  // CONFIG_NEW_REF_SIGNALING
 
   int frame_level = -1;
   // Loop over each reference frame and hash it based on its pyramid level
+#if CONFIG_NEW_REF_SIGNALING
+  for (int frame = 0; frame < INTER_REFS_PER_FRAME_NRS; frame++) {
+#else
   for (int i = 0; i < INTER_REFS_PER_FRAME; ++i) {
     const int frame = ref_frame_priority_order[i];
+#endif  // CONFIG_NEW_REF_SIGNALING
     // Get reference frame buffer
     const RefCntBuffer *const buf = get_ref_frame_buf(&cpi->common, frame);
     if (buf == NULL) continue;
@@ -497,7 +413,6 @@ static void get_gop_cfg_enabled_refs(AV1_COMP *const cpi, int *ref_frame_flags,
       references[frame_level][n_refs] = frame;
     }
   }
-
   // For each reference specified in the step_gop_cfg, map it to a reference
   // buffer based on pyramid level if possible.
   for (int i = 0; i < step_gop_cfg->num_references; i++) {
@@ -537,12 +452,15 @@ static void get_gop_cfg_enabled_refs(AV1_COMP *const cpi, int *ref_frame_flags,
   }
 
   // Avoid using references that were not specified by the cfg
-  for (int frame = LAST_FRAME; frame <= ALTREF_FRAME; frame++) {
+#if CONFIG_NEW_REF_SIGNALING
+  for (int frame = 0; frame < INTER_REFS_PER_FRAME_NRS; frame++)
+    if (!ref_frame_used[frame]) *ref_frame_flags &= ~(1 << (frame));
+#else
+  for (int frame = LAST_FRAME; frame <= ALTREF_FRAME; frame++)
     if (!ref_frame_used[frame])
       *ref_frame_flags &= ~(1 << (frame - LAST_FRAME));
-  }
-}
 #endif  // CONFIG_NEW_REF_SIGNALING
+}
 
 static void update_fb_of_context_type(
     const AV1_COMP *const cpi, const EncodeFrameParams *const frame_params,
@@ -1512,13 +1430,8 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
     if (!is_stat_generation_stage(cpi) &&
         use_subgop_cfg(&cpi->gf_group, cpi->gf_group.index) &&
         frame_update_type != KF_UPDATE) {
-#if CONFIG_NEW_REF_SIGNALING
-      get_gop_cfg_enabled_refs_nrs(cpi, &frame_params.ref_frame_flags,
-                                   frame_params.order_offset);
-#else
       get_gop_cfg_enabled_refs(cpi, &frame_params.ref_frame_flags,
                                frame_params.order_offset);
-#endif  // CONFIG_NEW_REF_SIGNALING
     }
 
     frame_params.refresh_frame_flags = av1_get_refresh_frame_flags(
