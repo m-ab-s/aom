@@ -1193,7 +1193,7 @@ typedef struct AV1Common {
    * current frame is positive, -1 if relative distance is 0; and 0 otherwise.
    * TODO(jingning): This can be combined with sign_bias later.
    */
-  int8_t ref_frame_side_nrs[INTER_REFS_PER_FRAME_NRS];
+  int8_t ref_frame_side[INTER_REFS_PER_FRAME_NRS];
 #else
   /*!
    * ref_frame_sign_bias[k] is 1 if relative distance between reference 'k' and

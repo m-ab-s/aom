@@ -70,11 +70,7 @@ void av1_copy_frame_mvs(const AV1_COMMON *const cm,
         if (ref_frame > INTRA_FRAME)
 #endif  // CONFIG_NEW_REF_SIGNALING
         {
-#if CONFIG_NEW_REF_SIGNALING
-          int8_t ref_idx = cm->ref_frame_side_nrs[ref_frame];
-#else
           int8_t ref_idx = cm->ref_frame_side[ref_frame];
-#endif  // CONFIG_NEW_REF_SIGNALING
           if (ref_idx) continue;
           if ((abs(mi->mv[idx].as_mv.row) > REFMVS_LIMIT) ||
               (abs(mi->mv[idx].as_mv.col) > REFMVS_LIMIT))
@@ -1461,12 +1457,7 @@ static INLINE int is_ref_overlay_nrs(const AV1_COMMON *const cm, int ref) {
 
 void av1_setup_motion_field(AV1_COMMON *cm) {
   const OrderHintInfo *const order_hint_info = &cm->seq_params.order_hint_info;
-
-#if CONFIG_NEW_REF_SIGNALING
-  memset(cm->ref_frame_side_nrs, 0, sizeof(cm->ref_frame_side_nrs));
-#else
   memset(cm->ref_frame_side, 0, sizeof(cm->ref_frame_side));
-#endif  // CONFIG_NEW_REF_SIGNALING
   if (!order_hint_info->enable_order_hint) return;
 
   TPL_MV_REF *tpl_mvs_base = cm->tpl_mvs;
@@ -1485,7 +1476,7 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
 #if CONFIG_NEW_REF_SIGNALING
   for (int index = 0; index < cm->new_ref_frame_data.n_past_refs; index++) {
     const int ref_frame = cm->new_ref_frame_data.past_refs[index];
-    cm->ref_frame_side_nrs[ref_frame] = 0;
+    cm->ref_frame_side[ref_frame] = 0;
     const RefCntBuffer *const buf = get_ref_frame_buf(cm, ref_frame);
     int order_hint = 0;
     if (buf != NULL) order_hint = buf->order_hint;
@@ -1494,7 +1485,7 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
   }
   for (int index = 0; index < cm->new_ref_frame_data.n_future_refs; index++) {
     const int ref_frame = cm->new_ref_frame_data.future_refs[index];
-    cm->ref_frame_side_nrs[ref_frame] = 1;
+    cm->ref_frame_side[ref_frame] = 1;
     const RefCntBuffer *const buf = get_ref_frame_buf(cm, ref_frame);
     int order_hint = 0;
     if (buf != NULL) order_hint = buf->order_hint;
@@ -1503,7 +1494,7 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
   }
   for (int index = 0; index < cm->new_ref_frame_data.n_cur_refs; index++) {
     const int ref_frame = cm->new_ref_frame_data.cur_refs[index];
-    cm->ref_frame_side_nrs[ref_frame] = -1;
+    cm->ref_frame_side[ref_frame] = -1;
     const RefCntBuffer *const buf = get_ref_frame_buf(cm, ref_frame);
     int order_hint = 0;
     if (buf != NULL) order_hint = buf->order_hint;
@@ -1542,7 +1533,7 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
   int closest_ref[2][2] = { { -1, -1 }, { -1, -1 } };
   for (int ref_frame = 0; ref_frame < cm->new_ref_frame_data.n_total_refs;
        ref_frame++) {
-    const int dir = cm->ref_frame_side_nrs[ref_frame];
+    const int dir = cm->ref_frame_side[ref_frame];
     if (dir == -1 || is_ref_overlay_nrs(cm, ref_frame) ||
         !is_ref_motion_field_eligible(cm, ref_buf[ref_frame]))
       continue;
