@@ -805,7 +805,8 @@ typedef struct {
   //! single_ref_cost
   int single_ref_cost[REF_CONTEXTS][INTER_REFS_PER_FRAME_NRS - 1][2];
   //! compound_ref_cost
-  int compound_ref_cost[REF_CONTEXTS][2][INTER_REFS_PER_FRAME_NRS - 2][2];
+  int compound_ref_cost[REF_CONTEXTS][COMPREF_BIT_TYPES]
+                       [INTER_REFS_PER_FRAME_NRS - 2][2];
 #else
   //! single_ref_cost
   int single_ref_cost[REF_CONTEXTS][SINGLE_REFS - 1][2];

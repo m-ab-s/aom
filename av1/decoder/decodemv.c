@@ -1145,13 +1145,14 @@ static AOM_INLINE void read_compound_ref_nrs(
   const int n_refs = new_ref_frame_data->n_total_refs;
   assert(n_refs >= 2);
   int n_bits = 0;
-  for (int i = 0; i < n_refs + n_bits - 2; i++) {
+  for (int i = 0; i < n_refs + n_bits - 2 && n_bits < 2; i++) {
+    const int bit_type = av1_get_compound_ref_bit_type(
+        n_bits, new_ref_frame_data, ref_frame_nrs[0], i);
     const int bit = aom_read_symbol(
-        r, av1_get_pred_cdf_compound_ref_nrs(xd, i, n_bits, n_refs), 2,
-        ACCT_STR);
+        r, av1_get_pred_cdf_compound_ref_nrs(xd, i, n_bits, bit_type, n_refs),
+        2, ACCT_STR);
     if (bit) {
       ref_frame_nrs[n_bits++] = i;
-      if (n_bits == 2) break;
     }
   }
   if (n_bits < 2) ref_frame_nrs[1] = n_refs - 1;

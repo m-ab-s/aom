@@ -1111,16 +1111,19 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
 #if CONFIG_NEW_REF_SIGNALING
         const int n_refs = cm->new_ref_frame_data.n_total_refs;
         int n_bits = 0;
-        for (int i = 0; i < n_refs + n_bits - 2; i++) {
+        assert(ref0 < ref1);
+        for (int i = 0; i < n_refs + n_bits - 2 && n_bits < 2; i++) {
           const int bit = ref0 == i || ref1 == i;
-          update_cdf(av1_get_pred_cdf_compound_ref_nrs(xd, i, n_bits, n_refs),
+          const int bit_type = av1_get_compound_ref_bit_type(
+              n_bits, &cm->new_ref_frame_data, ref0, i);
+          update_cdf(av1_get_pred_cdf_compound_ref_nrs(xd, i, n_bits, bit_type,
+                                                       n_refs),
                      bit, 2);
 #if CONFIG_ENTROPY_STATS
-          counts->comp_ref[av1_get_ref_pred_context_nrs(xd, i, n_refs)][n_bits]
-                          [i - n_bits][bit]++;
+          counts->comp_ref[av1_get_ref_pred_context_nrs(xd, i, n_refs)]
+                          [bit_type][i - n_bits][bit]++;
 #endif  // CONFIG_ENTROPY_STATS
           n_bits += bit;
-          if (n_bits == 2) break;
         }
 #else
         const COMP_REFERENCE_TYPE comp_ref_type = has_uni_comp_refs(mbmi)

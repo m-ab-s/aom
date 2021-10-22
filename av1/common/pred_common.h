@@ -450,13 +450,29 @@ static INLINE aom_cdf_prob *av1_get_pred_cdf_single_ref_nrs(
 }
 
 // == Compound contexts ==
+static INLINE int av1_get_compound_ref_bit_type(
+    int n_bits, const NewRefFramesData *const new_ref_frame_data, int i,
+    int j) {
+  // (void)new_ref_frame_data;
+  // (void)i;
+  // (void)j;
+  // const int bit_type = n_bits == 0 ? 0 : 2;
+  const int bit_type =
+      (n_bits == 0 ? 0
+                   : 1 + ((new_ref_frame_data->ref_frame_distance[i] >= 0) ^
+                          (new_ref_frame_data->ref_frame_distance[j] >= 0)));
+  return bit_type;
+}
+
 static INLINE aom_cdf_prob *av1_get_pred_cdf_compound_ref_nrs(
-    const MACROBLOCKD *xd, MV_REFERENCE_FRAME ref, int n_bits,
+    const MACROBLOCKD *xd, MV_REFERENCE_FRAME ref, int n_bits, int bit_type,
     int n_total_refs) {
   assert((ref + 1) < n_total_refs);
   assert(n_bits < 2);
+  assert(ref - n_bits < n_total_refs - 2);
+  assert(bit_type < COMPREF_BIT_TYPES);
   return xd->tile_ctx->compound_ref_cdf[av1_get_ref_pred_context_nrs(
-      xd, ref, n_total_refs)][n_bits][ref - n_bits];
+      xd, ref, n_total_refs)][bit_type][ref - n_bits];
 }
 #else
 int av1_get_comp_reference_type_context(const MACROBLOCKD *xd);

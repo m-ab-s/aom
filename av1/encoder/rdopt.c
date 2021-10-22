@@ -1106,31 +1106,54 @@ static AOM_INLINE void estimate_ref_frame_costs(
             if (n_refs == 2) continue;  // No bits need to be sent in this case
             // Keep track of the cost to encode the first reference
             aom_cdf_prob ctx = av1_get_ref_pred_context_nrs(xd, j, n_refs);
+            const int bit_type =
+                av1_get_compound_ref_bit_type(0, &cm->new_ref_frame_data, i, j);
             const int bit = i == j;
-            if (j < n_refs - 2 && i < n_refs - 2)
-              prev_cost += mode_costs->compound_ref_cost[ctx][0][j][bit];
+            if (j < n_refs - 2)
+              prev_cost += mode_costs->compound_ref_cost[ctx][bit_type][j][bit];
           } else {
             // Assign the cost of signaling both references
             ref_costs_comp[i][j] = prev_cost;
             ref_costs_comp[j][i] = prev_cost;
             if (j < n_refs - 1) {
               aom_cdf_prob ctx = av1_get_ref_pred_context_nrs(xd, j, n_refs);
+              const int bit_type = av1_get_compound_ref_bit_type(
+                  1, &cm->new_ref_frame_data, i, j);
               ref_costs_comp[i][j] +=
-                  mode_costs->compound_ref_cost[ctx][1][j - 1][1];
+                  mode_costs->compound_ref_cost[ctx][bit_type][j - 1][1];
               ref_costs_comp[j][i] +=
-                  mode_costs->compound_ref_cost[ctx][1][j - 1][1];
+                  mode_costs->compound_ref_cost[ctx][bit_type][j - 1][1];
               // Maintain the cost of sending a 0 bit for the 2nd reference to
               // be used in the next iteration.
-              prev_cost += mode_costs->compound_ref_cost[ctx][1][j - 1][0];
+              prev_cost +=
+                  mode_costs->compound_ref_cost[ctx][bit_type][j - 1][0];
             }
           }
         }
       }
+      /*
+      for (int ref0 = 0; ref0 < n_refs - 1; ref0++) {
+        for (int ref1 = ref0 + 1; ref1 < n_refs; ref1++) {
+          int n_bits = 0;
+          int cost = base_cost;
+          for (int i = 0; i < n_refs + n_bits - 2; i++) {
+            const int bit = ref0 == i || ref1 == i;
+            const int bit_type =
+                av1_get_compound_ref_bit_type(n_bits, &cm->new_ref_frame_data,
+      ref0, i); assert(i + 1 < n_refs); const int ctx =
+      av1_get_ref_pred_context_nrs(xd, i, n_refs); cost +=
+      mode_costs->compound_ref_cost[ctx][bit_type][i - n_bits][bit]; n_bits +=
+      bit; if (n_bits == 2) break;
+          }
+          ref_costs_comp[ref0][ref1] = cost;
+          ref_costs_comp[ref1][ref0] = cost;
+        }
+      }
+      */
 #ifndef NDEBUG
       for (int i = 0; i < n_refs - 1; i++) {
         for (int j = i + 1; j < n_refs; j++) {
           assert(ref_costs_comp[i][j] != INT_MAX);
-          if (i == n_refs - 2) assert(ref_costs_comp[i][j] == base_cost);
         }
       }
 #endif  // NDEBUG

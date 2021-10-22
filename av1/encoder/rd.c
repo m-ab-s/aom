@@ -283,7 +283,7 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, ModeCosts *mode_costs,
     }
 
     for (i = 0; i < REF_CONTEXTS; ++i) {
-      for (j = 0; j < 2; j++) {
+      for (j = 0; j < COMPREF_BIT_TYPES; j++) {
         for (int k = 0; k < INTER_REFS_PER_FRAME_NRS - 2; ++k) {
           av1_cost_tokens_from_cdf(mode_costs->compound_ref_cost[i][j][k],
                                    fc->compound_ref_cdf[i][j][k], NULL);
